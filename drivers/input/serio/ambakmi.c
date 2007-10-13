@@ -117,15 +117,13 @@ static int amba_kmi_probe(struct amba_device *dev, void *id)
 	if (ret)
 		return ret;
 
-	kmi = kmalloc(sizeof(struct amba_kmi_port), GFP_KERNEL);
-	io = kmalloc(sizeof(struct serio), GFP_KERNEL);
+	kmi = kzalloc(sizeof(struct amba_kmi_port), GFP_KERNEL);
+	io = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!kmi || !io) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memset(kmi, 0, sizeof(struct amba_kmi_port));
-	memset(io, 0, sizeof(struct serio));
 
 	io->id.type	= SERIO_8042;
 	io->write	= amba_kmi_write;

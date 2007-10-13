@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/at91_mci.c - ATMEL AT91 MCI Driver
+ *  linux/drivers/mmc/host/at91_mci.c - ATMEL AT91 MCI Driver
  *
  *  Copyright (C) 2005 Cougar Creek Computing Devices Ltd, All Rights Reserved
  *
@@ -83,7 +83,7 @@
 
 #define AT91_MCI_ERRORS	(AT91_MCI_RINDE | AT91_MCI_RDIRE | AT91_MCI_RCRCE	\
 		| AT91_MCI_RENDE | AT91_MCI_RTOE | AT91_MCI_DCRCE		\
-		| AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)			
+		| AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)
 
 #define at91_mci_read(host, reg)	__raw_readl((host)->baseaddr + (reg))
 #define at91_mci_write(host, reg, val)	__raw_writel((val), (host)->baseaddr + (reg))
@@ -328,7 +328,7 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 	data = cmd->data;
 	if (!data) return;
 
-	if (cmd->data->flags & MMC_DATA_MULTI) {
+	if (cmd->data->blocks > 1) {
 		pr_debug("multiple write : wait for BLKE...\n");
 		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_BLKE);
 	} else
@@ -428,6 +428,14 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 	}
 
 	if (data) {
+
+		if ( data->blksz & 0x3 ) {
+			pr_debug("Unsupported block size\n");
+			cmd->error = -EINVAL;
+			mmc_request_done(host->mmc, host->request);
+			return;
+		}
+
 		block_length = data->blksz;
 		blocks = data->blocks;
 
@@ -439,7 +447,7 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 
 		if (data->flags & MMC_DATA_STREAM)
 			cmdr |= AT91_MCI_TRTYP_STREAM;
-		if (data->flags & MMC_DATA_MULTI)
+		if (data->blocks > 1)
 			cmdr |= AT91_MCI_TRTYP_MULTIPLE;
 	}
 	else {
@@ -577,24 +585,22 @@ static void at91_mci_completed_command(struct at91mci_host *host)
 			AT91_MCI_RENDE | AT91_MCI_RTOE | AT91_MCI_DCRCE |
 			AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)) {
 		if ((status & AT91_MCI_RCRCE) && !(mmc_resp_type(cmd) & MMC_RSP_CRC)) {
-			cmd->error = MMC_ERR_NONE;
+			cmd->error = 0;
 		}
 		else {
 			if (status & (AT91_MCI_RTOE | AT91_MCI_DTOE))
-				cmd->error = MMC_ERR_TIMEOUT;
+				cmd->error = -ETIMEDOUT;
 			else if (status & (AT91_MCI_RCRCE | AT91_MCI_DCRCE))
-				cmd->error = MMC_ERR_BADCRC;
-			else if (status & (AT91_MCI_OVRE | AT91_MCI_UNRE))
-				cmd->error = MMC_ERR_FIFO;
+				cmd->error = -EILSEQ;
 			else
-				cmd->error = MMC_ERR_FAILED;
+				cmd->error = -EIO;
 
 			pr_debug("Error detected and set to %d (cmd = %d, retries = %d)\n",
 				 cmd->error, cmd->opcode, cmd->retries);
 		}
 	}
 	else
-		cmd->error = MMC_ERR_NONE;
+		cmd->error = 0;
 
 	at91_mci_process_next(host);
 }
@@ -676,15 +682,15 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 
 	int_status = at91_mci_read(host, AT91_MCI_SR);
 	int_mask = at91_mci_read(host, AT91_MCI_IMR);
-	
+
 	pr_debug("MCI irq: status = %08X, %08X, %08X\n", int_status, int_mask,
 		int_status & int_mask);
-	
+
 	int_status = int_status & int_mask;
 
 	if (int_status & AT91_MCI_ERRORS) {
 		completed = 1;
-		
+
 		if (int_status & AT91_MCI_UNRE)
 			pr_debug("MMC: Underrun error\n");
 		if (int_status & AT91_MCI_OVRE)
@@ -836,7 +842,6 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	mmc->f_min = 375000;
 	mmc->f_max = 25000000;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps = MMC_CAP_BYTEBLOCK;
 
 	mmc->max_blk_size = 4095;
 	mmc->max_blk_count = mmc->max_req_size;
@@ -903,8 +908,10 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	/*
 	 * Add host to MMC layer
 	 */
-	if (host->board->det_pin)
+	if (host->board->det_pin) {
 		host->present = !at91_get_gpio_value(host->board->det_pin);
+		device_init_wakeup(&pdev->dev, 1);
+	}
 	else
 		host->present = -1;
 
@@ -939,7 +946,8 @@ static int __exit at91_mci_remove(struct platform_device *pdev)
 
 	host = mmc_priv(mmc);
 
-	if (host->present != -1) {
+	if (host->board->det_pin) {
+		device_init_wakeup(&pdev->dev, 0);
 		free_irq(host->board->det_pin, host);
 		cancel_delayed_work(&host->mmc->detect);
 	}
@@ -966,7 +974,11 @@ static int __exit at91_mci_remove(struct platform_device *pdev)
 static int at91_mci_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct at91mci_host *host = mmc_priv(mmc);
 	int ret = 0;
+
+	if (host->board->det_pin && device_may_wakeup(&pdev->dev))
+		enable_irq_wake(host->board->det_pin);
 
 	if (mmc)
 		ret = mmc_suspend_host(mmc, state);
@@ -977,7 +989,11 @@ static int at91_mci_suspend(struct platform_device *pdev, pm_message_t state)
 static int at91_mci_resume(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct at91mci_host *host = mmc_priv(mmc);
 	int ret = 0;
+
+	if (host->board->det_pin && device_may_wakeup(&pdev->dev))
+		disable_irq_wake(host->board->det_pin);
 
 	if (mmc)
 		ret = mmc_resume_host(mmc);

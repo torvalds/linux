@@ -290,6 +290,12 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 		err = mthca_cmd_post_hcr(dev, in_param, out_param, in_modifier,
 					 op_modifier, op, token, event);
 
+	/*
+	 * Make sure that our HCR writes don't get mixed in with
+	 * writes from another CPU starting a FW command.
+	 */
+	mmiowb();
+
 	mutex_unlock(&dev->cmd.hcr_mutex);
 	return err;
 }
@@ -357,8 +363,6 @@ void mthca_cmd_event(struct mthca_dev *dev,
 	context->status    = status;
 	context->out_param = out_param;
 
-	context->token += dev->cmd.token_mask + 1;
-
 	complete(&context->done);
 }
 
@@ -380,6 +384,7 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 	spin_lock(&dev->cmd.context_lock);
 	BUG_ON(dev->cmd.free_head < 0);
 	context = &dev->cmd.context[dev->cmd.free_head];
+	context->token += dev->cmd.token_mask + 1;
 	dev->cmd.free_head = context->next;
 	spin_unlock(&dev->cmd.context_lock);
 

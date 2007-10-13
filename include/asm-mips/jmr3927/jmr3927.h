@@ -13,6 +13,7 @@
 #include <asm/jmr3927/tx3927.h>
 #include <asm/addrspace.h>
 #include <asm/system.h>
+#include <asm/txx9irq.h>
 
 /* CS */
 #define JMR3927_ROMCE0	0x1fc00000	/* 4M */
@@ -115,7 +116,7 @@
 #define JMR3927_NR_IRQ_IRC	16	/* On-Chip IRC */
 #define JMR3927_NR_IRQ_IOC	8	/* PCI/MODEM/INT[6:7] */
 
-#define JMR3927_IRQ_IRC	16
+#define JMR3927_IRQ_IRC	TXX9_IRQ_BASE
 #define JMR3927_IRQ_IOC	(JMR3927_IRQ_IRC + JMR3927_NR_IRQ_IRC)
 #define JMR3927_IRQ_END	(JMR3927_IRQ_IOC + JMR3927_NR_IRQ_IOC)
 

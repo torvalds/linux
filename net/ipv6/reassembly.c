@@ -301,7 +301,7 @@ static void ip6_frag_expire(unsigned long data)
 
 	fq_kill(fq);
 
-	dev = dev_get_by_index(fq->iif);
+	dev = dev_get_by_index(&init_net, fq->iif);
 	if (!dev)
 		goto out;
 

@@ -60,6 +60,7 @@ extern u64 sn_intr_alloc(nasid_t, int,
 			      int, nasid_t, int);
 extern void sn_intr_free(nasid_t, int, struct sn_irq_info *);
 extern struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *, nasid_t, int);
+extern void sn_set_err_irq_affinity(unsigned int);
 extern struct list_head **sn_irq_lh;
 
 #define CPU_VECTOR_TO_IRQ(cpuid,vector) (vector)

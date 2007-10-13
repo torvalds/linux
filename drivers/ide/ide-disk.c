@@ -481,6 +481,16 @@ static inline int idedisk_supports_lba48(const struct hd_driveid *id)
 	       && id->lba_capacity_2;
 }
 
+/*
+ * Some disks report total number of sectors instead of
+ * maximum sector address.  We list them here.
+ */
+static const struct drive_list_entry hpa_list[] = {
+	{ "ST340823A",	NULL },
+	{ "ST320413A",	NULL },
+	{ NULL,		NULL }
+};
+
 static void idedisk_check_hpa(ide_drive_t *drive)
 {
 	unsigned long long capacity, set_max;
@@ -491,6 +501,15 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 		set_max = idedisk_read_native_max_address_ext(drive);
 	else
 		set_max = idedisk_read_native_max_address(drive);
+
+	if (ide_in_drive_list(drive->id, hpa_list)) {
+		/*
+		 * Since we are inclusive wrt to firmware revisions do this
+		 * extra check and apply the workaround only when needed.
+		 */
+		if (set_max == capacity + 1)
+			set_max--;
+	}
 
 	if (set_max <= capacity)
 		return;
@@ -679,7 +698,7 @@ static ide_proc_entry_t idedisk_proc[] = {
 };
 #endif	/* CONFIG_IDE_PROC_FS */
 
-static void idedisk_prepare_flush(request_queue_t *q, struct request *rq)
+static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	ide_drive_t *drive = q->queuedata;
 
@@ -697,7 +716,7 @@ static void idedisk_prepare_flush(request_queue_t *q, struct request *rq)
 	rq->buffer = rq->cmd;
 }
 
-static int idedisk_issue_flush(request_queue_t *q, struct gendisk *disk,
+static int idedisk_issue_flush(struct request_queue *q, struct gendisk *disk,
 			       sector_t *error_sector)
 {
 	ide_drive_t *drive = q->queuedata;

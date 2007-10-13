@@ -15,15 +15,11 @@
  * option) any later version.
  */
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
 #include <linux/bootmem.h>
-
-#include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 
 extern unsigned long bus_clock;
-extern unsigned long cpu_clock;
+extern unsigned long cpu_clock_freq;
 extern unsigned int memsize, highmemsize;
 extern int putDebugChar(unsigned char byte);
 
@@ -61,7 +57,6 @@ void __init prom_init(void)
 	arg = (int *)fw_arg1;
 	env = (int *)fw_arg2;
 
-	mips_machgroup = MACH_GROUP_LEMOTE;
 	mips_machtype = MACH_LEMOTE_FULONG;
 
 	prom_init_cmdline();
@@ -81,7 +76,7 @@ do {									\
 	l = (long)*env;
 	while (l != 0) {
 		parse_even_earlier(bus_clock, "busclock", l);
-		parse_even_earlier(cpu_clock, "cpuclock", l);
+		parse_even_earlier(cpu_clock_freq, "cpuclock", l);
 		parse_even_earlier(memsize, "memsize", l);
 		parse_even_earlier(highmemsize, "highmemsize", l);
 		env++;
@@ -91,7 +86,7 @@ do {									\
 		memsize = 256;
 
 	pr_info("busclock=%ld, cpuclock=%ld,memsize=%d,highmemsize=%d\n",
-	       bus_clock, cpu_clock, memsize, highmemsize);
+	       bus_clock, cpu_clock_freq, memsize, highmemsize);
 }
 
 void __init prom_free_prom_memory(void)

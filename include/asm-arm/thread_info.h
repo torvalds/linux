@@ -24,7 +24,6 @@
 struct task_struct;
 struct exec_domain;
 
-#include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/domain.h>
 
@@ -135,22 +134,19 @@ extern void iwmmxt_task_switch(struct thread_info *);
 /*
  * thread information flags:
  *  TIF_SYSCALL_TRACE	- syscall trace active
- *  TIF_NOTIFY_RESUME	- resumption notification requested
  *  TIF_SIGPENDING	- signal pending
  *  TIF_NEED_RESCHED	- rescheduling necessary
  *  TIF_USEDFPU		- FPU was used by this task this quantum (SMP)
  *  TIF_POLLING_NRFLAG	- true if poll_idle() is polling TIF_NEED_RESCHED
  */
-#define TIF_NOTIFY_RESUME	0
-#define TIF_SIGPENDING		1
-#define TIF_NEED_RESCHED	2
+#define TIF_SIGPENDING		0
+#define TIF_NEED_RESCHED	1
 #define TIF_SYSCALL_TRACE	8
 #define TIF_POLLING_NRFLAG	16
 #define TIF_USING_IWMMXT	17
 #define TIF_MEMDIE		18
 #define TIF_FREEZE		19
 
-#define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)

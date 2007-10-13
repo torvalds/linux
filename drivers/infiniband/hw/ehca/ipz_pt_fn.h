@@ -51,9 +51,25 @@
 #include "ehca_tools.h"
 #include "ehca_qes.h"
 
+struct ehca_pd;
+struct ipz_small_queue_page;
+
+extern struct kmem_cache *small_qp_cache;
+
 /* struct generic ehca page */
 struct ipz_page {
 	u8 entries[EHCA_PAGESIZE];
+};
+
+#define IPZ_SPAGE_PER_KPAGE (PAGE_SIZE / 512)
+
+struct ipz_small_queue_page {
+	unsigned long page;
+	unsigned long bitmap[IPZ_SPAGE_PER_KPAGE / BITS_PER_LONG];
+	int fill;
+	void *mapped_addr;
+	u32 mmap_count;
+	struct list_head list;
 };
 
 /* struct generic queue in linux kernel virtual memory (kv) */
@@ -66,7 +82,8 @@ struct ipz_queue {
 	u32 queue_length;	/* queue length allocated in bytes */
 	u32 pagesize;
 	u32 toggle_state;	/* toggle flag - per page */
-	u32 dummy3;		/* 64 bit alignment */
+	u32 offset; /* save offset within page for small_qp */
+	struct ipz_small_queue_page *small_page;
 };
 
 /*
@@ -188,9 +205,10 @@ struct ipz_qpt {
  * see ipz_qpt_ctor()
  * returns true if ok, false if out of memory
  */
-int ipz_queue_ctor(struct ipz_queue *queue, const u32 nr_of_pages,
-		   const u32 pagesize, const u32 qe_size,
-		   const u32 nr_of_sg);
+int ipz_queue_ctor(struct ehca_pd *pd, struct ipz_queue *queue,
+		   const u32 nr_of_pages, const u32 pagesize,
+		   const u32 qe_size, const u32 nr_of_sg,
+		   int is_small);
 
 /*
  * destructor for a ipz_queue_t
@@ -198,7 +216,7 @@ int ipz_queue_ctor(struct ipz_queue *queue, const u32 nr_of_pages,
  *  see ipz_queue_ctor()
  *  returns true if ok, false if queue was NULL-ptr of free failed
  */
-int ipz_queue_dtor(struct ipz_queue *queue);
+int ipz_queue_dtor(struct ehca_pd *pd, struct ipz_queue *queue);
 
 /*
  * constructor for a ipz_qpt_t,
@@ -240,7 +258,7 @@ void *ipz_qeit_eq_get_inc(struct ipz_queue *queue);
 static inline void *ipz_eqit_eq_get_inc_valid(struct ipz_queue *queue)
 {
 	void *ret = ipz_qeit_get(queue);
-	u32 qe = *(u8 *) ret;
+	u32 qe = *(u8 *)ret;
 	if ((qe >> 7) != (queue->toggle_state & 1))
 		return NULL;
 	ipz_qeit_eq_get_inc(queue); /* this is a good one */
@@ -250,7 +268,7 @@ static inline void *ipz_eqit_eq_get_inc_valid(struct ipz_queue *queue)
 static inline void *ipz_eqit_eq_peek_valid(struct ipz_queue *queue)
 {
 	void *ret = ipz_qeit_get(queue);
-	u32 qe = *(u8 *) ret;
+	u32 qe = *(u8 *)ret;
 	if ((qe >> 7) != (queue->toggle_state & 1))
 		return NULL;
 	return ret;

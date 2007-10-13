@@ -130,175 +130,6 @@ static const struct file_operations atomic_counters_ops = {
 	.read = atomic_counters_read,
 };
 
-static ssize_t atomic_node_info_read(struct file *file, char __user *buf,
-				     size_t count, loff_t *ppos)
-{
-	u32 nodeinfo[10];
-	struct ipath_devdata *dd;
-	u64 guid;
-
-	dd = file->f_path.dentry->d_inode->i_private;
-
-	guid = be64_to_cpu(dd->ipath_guid);
-
-	nodeinfo[0] =			/* BaseVersion is SMA */
-		/* ClassVersion is SMA */
-		(1 << 8)		/* NodeType  */
-		| (1 << 0);		/* NumPorts */
-	nodeinfo[1] = (u32) (guid >> 32);
-	nodeinfo[2] = (u32) (guid & 0xffffffff);
-	/* PortGUID == SystemImageGUID for us */
-	nodeinfo[3] = nodeinfo[1];
-	/* PortGUID == SystemImageGUID for us */
-	nodeinfo[4] = nodeinfo[2];
-	/* PortGUID == NodeGUID for us */
-	nodeinfo[5] = nodeinfo[3];
-	/* PortGUID == NodeGUID for us */
-	nodeinfo[6] = nodeinfo[4];
-	nodeinfo[7] = (4 << 16) /* we support 4 pkeys */
-		| (dd->ipath_deviceid << 0);
-	/* our chip version as 16 bits major, 16 bits minor */
-	nodeinfo[8] = dd->ipath_minrev | (dd->ipath_majrev << 16);
-	nodeinfo[9] = (dd->ipath_unit << 24) | (dd->ipath_vendorid << 0);
-
-	return simple_read_from_buffer(buf, count, ppos, nodeinfo,
-				       sizeof nodeinfo);
-}
-
-static const struct file_operations atomic_node_info_ops = {
-	.read = atomic_node_info_read,
-};
-
-static ssize_t atomic_port_info_read(struct file *file, char __user *buf,
-				     size_t count, loff_t *ppos)
-{
-	u32 portinfo[13];
-	u32 tmp, tmp2;
-	struct ipath_devdata *dd;
-
-	dd = file->f_path.dentry->d_inode->i_private;
-
-	/* so we only initialize non-zero fields. */
-	memset(portinfo, 0, sizeof portinfo);
-
-	/*
-	 * Notimpl yet M_Key (64)
-	 * Notimpl yet GID (64)
-	 */
-
-	portinfo[4] = (dd->ipath_lid << 16);
-
-	/*
-	 * Notimpl yet SMLID.
-	 * CapabilityMask is 0, we don't support any of these
-	 * DiagCode is 0; we don't store any diag info for now Notimpl yet
-	 * M_KeyLeasePeriod (we don't support M_Key)
-	 */
-
-	/* LocalPortNum is whichever port number they ask for */
-	portinfo[7] = (dd->ipath_unit << 24)
-		/* LinkWidthEnabled */
-		| (2 << 16)
-		/* LinkWidthSupported (really 2, but not IB valid) */
-		| (3 << 8)
-		/* LinkWidthActive */
-		| (2 << 0);
-	tmp = dd->ipath_lastibcstat & IPATH_IBSTATE_MASK;
-	tmp2 = 5;
-	if (tmp == IPATH_IBSTATE_INIT)
-		tmp = 2;
-	else if (tmp == IPATH_IBSTATE_ARM)
-		tmp = 3;
-	else if (tmp == IPATH_IBSTATE_ACTIVE)
-		tmp = 4;
-	else {
-		tmp = 0;	/* down */
-		tmp2 = tmp & 0xf;
-	}
-
-	portinfo[8] = (1 << 28)	/* LinkSpeedSupported */
-		| (tmp << 24)	/* PortState */
-		| (tmp2 << 20)	/* PortPhysicalState */
-		| (2 << 16)
-
-		/* LinkDownDefaultState */
-		/* M_KeyProtectBits == 0 */
-		/* NotImpl yet LMC == 0 (we can support all values) */
-		| (1 << 4)	/* LinkSpeedActive */
-		| (1 << 0);	/* LinkSpeedEnabled */
-	switch (dd->ipath_ibmtu) {
-	case 4096:
-		tmp = 5;
-		break;
-	case 2048:
-		tmp = 4;
-		break;
-	case 1024:
-		tmp = 3;
-		break;
-	case 512:
-		tmp = 2;
-		break;
-	case 256:
-		tmp = 1;
-		break;
-	default:		/* oops, something is wrong */
-		ipath_dbg("Problem, ipath_ibmtu 0x%x not a valid IB MTU, "
-			  "treat as 2048\n", dd->ipath_ibmtu);
-		tmp = 4;
-		break;
-	}
-	portinfo[9] = (tmp << 28)
-		/* NeighborMTU */
-		/* Notimpl MasterSMSL */
-		| (1 << 20)
-
-		/* VLCap */
-		/* Notimpl InitType (actually, an SMA decision) */
-		/* VLHighLimit is 0 (only one VL) */
-		; /* VLArbitrationHighCap is 0 (only one VL) */
-	/*
-	 * Note: the chips support a maximum MTU of 4096, but the driver
-	 * hasn't implemented this feature yet, so set the maximum
-	 * to 2048.
-	 */
-	portinfo[10] = 	/* VLArbitrationLowCap is 0 (only one VL) */
-		/* InitTypeReply is SMA decision */
-		(4 << 16)	/* MTUCap 2048 */
-		| (7 << 13)	/* VLStallCount */
-		| (0x1f << 8)	/* HOQLife */
-		| (1 << 4)
-
-		/* OperationalVLs 0 */
-		/* PartitionEnforcementInbound */
-		/* PartitionEnforcementOutbound not enforced */
-		/* FilterRawinbound not enforced */
-		;		/* FilterRawOutbound not enforced */
-	/* M_KeyViolations are not counted by hardware, SMA can count */
-	tmp = ipath_read_creg32(dd, dd->ipath_cregs->cr_errpkey);
-	/* P_KeyViolations are counted by hardware. */
-	portinfo[11] = ((tmp & 0xffff) << 0);
-	portinfo[12] =
-		/* Q_KeyViolations are not counted by hardware */
-		(1 << 8)
-
-		/* GUIDCap */
-		/* SubnetTimeOut handled by SMA */
-		/* RespTimeValue handled by SMA */
-		;
-	/* LocalPhyErrors are programmed to max */
-	portinfo[12] |= (0xf << 20)
-		| (0xf << 16)   /* OverRunErrors are programmed to max */
-		;
-
-	return simple_read_from_buffer(buf, count, ppos, portinfo,
-				       sizeof portinfo);
-}
-
-static const struct file_operations atomic_port_info_ops = {
-	.read = atomic_port_info_read,
-};
-
 static ssize_t flash_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
@@ -427,22 +258,6 @@ static int create_device_files(struct super_block *sb,
 		goto bail;
 	}
 
-	ret = create_file("node_info", S_IFREG|S_IRUGO, dir, &tmp,
-			  &atomic_node_info_ops, dd);
-	if (ret) {
-		printk(KERN_ERR "create_file(%s/node_info) "
-		       "failed: %d\n", unit, ret);
-		goto bail;
-	}
-
-	ret = create_file("port_info", S_IFREG|S_IRUGO, dir, &tmp,
-			  &atomic_port_info_ops, dd);
-	if (ret) {
-		printk(KERN_ERR "create_file(%s/port_info) "
-		       "failed: %d\n", unit, ret);
-		goto bail;
-	}
-
 	ret = create_file("flash", S_IFREG|S_IWUSR|S_IRUGO, dir, &tmp,
 			  &flash_ops, dd);
 	if (ret) {
@@ -508,8 +323,6 @@ static int remove_device_files(struct super_block *sb,
 	}
 
 	remove_file(dir, "flash");
-	remove_file(dir, "port_info");
-	remove_file(dir, "node_info");
 	remove_file(dir, "atomic_counters");
 	d_delete(dir);
 	ret = simple_rmdir(root->d_inode, dir);

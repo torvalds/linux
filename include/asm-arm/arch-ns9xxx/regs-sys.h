@@ -64,7 +64,7 @@
 
 /* Timer x Control register: Timer enable */
 #define SYS_TCx_TEN		__REGBIT(15)
-#define SYS_TCx_TEN_DIS			__REGVAL(SYS_TCx_TEN, 1)
+#define SYS_TCx_TEN_DIS			__REGVAL(SYS_TCx_TEN, 0)
 #define SYS_TCx_TEN_EN			__REGVAL(SYS_TCx_TEN, 1)
 
 /* Timer x Control register: CPU debug mode */

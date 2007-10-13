@@ -12,27 +12,31 @@ config MPC8540_ADS
 config MPC8560_ADS
 	bool "Freescale MPC8560 ADS"
 	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
 	help
 	  This option enables support for the MPC 8560 ADS board
 
 config MPC85xx_CDS
 	bool "Freescale MPC85xx CDS"
 	select DEFAULT_UIMAGE
+	select PPC_I8259
 	help
 	  This option enables support for the MPC85xx CDS board
 
 config MPC85xx_MDS
 	bool "Freescale MPC85xx MDS"
 	select DEFAULT_UIMAGE
-#	select QUICC_ENGINE
+	select QUICC_ENGINE
 	help
 	  This option enables support for the MPC85xx MDS board
 
-config MPC8544_DS
-	bool "Freescale MPC8544 DS"
+config MPC85xx_DS
+	bool "Freescale MPC85xx DS"
+	select PPC_I8259
 	select DEFAULT_UIMAGE
+	select FSL_ULI1575
 	help
-	  This option enables support for the MPC8544 DS board
+	  This option enables support for the MPC85xx DS (MPC8544 DS) board
 
 endchoice
 
@@ -50,9 +54,9 @@ config MPC8560
 config MPC85xx
 	bool
 	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
-	select PPC_INDIRECT_PCI_BE
+	select PPC_INDIRECT_PCI if PCI
 	select MPIC
+	select FSL_PCI if PCI
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
 	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS \
-		|| MPC85xx_MDS || MPC8544_DS
+		|| MPC85xx_MDS || MPC85xx_DS

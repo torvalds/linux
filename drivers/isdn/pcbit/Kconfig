@@ -3,7 +3,7 @@
 #
 config ISDN_DRV_PCBIT
 	tristate "PCBIT-D support"
-	depends on ISDN_I4L && ISA && (BROKEN || X86)
+	depends on ISA && (BROKEN || X86)
 	help
 	  This enables support for the PCBIT ISDN-card.  This card is
 	  manufactured in Portugal by Octal.  For running this card,

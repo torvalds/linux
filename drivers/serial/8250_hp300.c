@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 #include <linux/delay.h>
 #include <linux/dio.h>
 #include <linux/console.h>

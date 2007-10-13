@@ -18,6 +18,9 @@
 #error This file should not be compiled without CONFIG_SYSCTL defined
 #endif
 
+/* rate-limit for syncs in reply to sequence-invalid packets; RFC 4340, 7.5.4 */
+int sysctl_dccp_sync_ratelimit	__read_mostly = HZ / 8;
+
 static struct ctl_table dccp_default_table[] = {
 	{
 		.procname	= "seq_window",
@@ -88,6 +91,13 @@ static struct ctl_table dccp_default_table[] = {
 		.maxlen		= sizeof(sysctl_dccp_tx_qlen),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "sync_ratelimit",
+		.data		= &sysctl_dccp_sync_ratelimit,
+		.maxlen		= sizeof(sysctl_dccp_sync_ratelimit),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_ms_jiffies,
 	},
 
 	{ .ctl_name = 0, }

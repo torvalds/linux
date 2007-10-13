@@ -3,7 +3,6 @@
  *
  * based on isapnp.c resource management (c) Jaroslav Kysela <perex@suse.cz>
  * Copyright 2003 Adam Belay <ambx1@neo.rr.com>
- *
  */
 
 #include <linux/errno.h>
@@ -22,11 +21,9 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 	resource_size_t *start, *end;
 	unsigned long *flags;
 
-	if (!dev || !rule)
-		return -EINVAL;
-
 	if (idx >= PNP_MAX_PORT) {
-		pnp_err("More than 4 ports is incompatible with pnp specifications.");
+		pnp_err
+		    ("More than 4 ports is incompatible with pnp specifications.");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
@@ -41,11 +38,11 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 
 	/* set the initial values */
 	*flags |= rule->flags | IORESOURCE_IO;
-	*flags &=  ~IORESOURCE_UNSET;
+	*flags &= ~IORESOURCE_UNSET;
 
 	if (!rule->size) {
 		*flags |= IORESOURCE_DISABLED;
-		return 1; /* skip disabled resource requests */
+		return 1;	/* skip disabled resource requests */
 	}
 
 	*start = rule->min;
@@ -66,11 +63,9 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 	resource_size_t *start, *end;
 	unsigned long *flags;
 
-	if (!dev || !rule)
-		return -EINVAL;
-
 	if (idx >= PNP_MAX_MEM) {
-		pnp_err("More than 8 mems is incompatible with pnp specifications.");
+		pnp_err
+		    ("More than 8 mems is incompatible with pnp specifications.");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
@@ -85,7 +80,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 
 	/* set the initial values */
 	*flags |= rule->flags | IORESOURCE_MEM;
-	*flags &=  ~IORESOURCE_UNSET;
+	*flags &= ~IORESOURCE_UNSET;
 
 	/* convert pnp flags to standard Linux flags */
 	if (!(rule->flags & IORESOURCE_MEM_WRITEABLE))
@@ -99,11 +94,11 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 
 	if (!rule->size) {
 		*flags |= IORESOURCE_DISABLED;
-		return 1; /* skip disabled resource requests */
+		return 1;	/* skip disabled resource requests */
 	}
 
 	*start = rule->min;
-	*end = *start + rule->size -1;
+	*end = *start + rule->size - 1;
 
 	/* run through until pnp_check_mem is happy */
 	while (!pnp_check_mem(dev, idx)) {
@@ -115,7 +110,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 	return 1;
 }
 
-static int pnp_assign_irq(struct pnp_dev * dev, struct pnp_irq *rule, int idx)
+static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 {
 	resource_size_t *start, *end;
 	unsigned long *flags;
@@ -126,11 +121,9 @@ static int pnp_assign_irq(struct pnp_dev * dev, struct pnp_irq *rule, int idx)
 		5, 10, 11, 12, 9, 14, 15, 7, 3, 4, 13, 0, 1, 6, 8, 2
 	};
 
-	if (!dev || !rule)
-		return -EINVAL;
-
 	if (idx >= PNP_MAX_IRQ) {
-		pnp_err("More than 2 irqs is incompatible with pnp specifications.");
+		pnp_err
+		    ("More than 2 irqs is incompatible with pnp specifications.");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
@@ -145,11 +138,11 @@ static int pnp_assign_irq(struct pnp_dev * dev, struct pnp_irq *rule, int idx)
 
 	/* set the initial values */
 	*flags |= rule->flags | IORESOURCE_IRQ;
-	*flags &=  ~IORESOURCE_UNSET;
+	*flags &= ~IORESOURCE_UNSET;
 
 	if (bitmap_empty(rule->map, PNP_IRQ_NR)) {
 		*flags |= IORESOURCE_DISABLED;
-		return 1; /* skip disabled resource requests */
+		return 1;	/* skip disabled resource requests */
 	}
 
 	/* TBD: need check for >16 IRQ */
@@ -159,9 +152,9 @@ static int pnp_assign_irq(struct pnp_dev * dev, struct pnp_irq *rule, int idx)
 		return 1;
 	}
 	for (i = 0; i < 16; i++) {
-		if(test_bit(xtab[i], rule->map)) {
+		if (test_bit(xtab[i], rule->map)) {
 			*start = *end = xtab[i];
-			if(pnp_check_irq(dev, idx))
+			if (pnp_check_irq(dev, idx))
 				return 1;
 		}
 	}
@@ -179,11 +172,9 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 		1, 3, 5, 6, 7, 0, 2, 4
 	};
 
-	if (!dev || !rule)
-		return -EINVAL;
-
 	if (idx >= PNP_MAX_DMA) {
-		pnp_err("More than 2 dmas is incompatible with pnp specifications.");
+		pnp_err
+		    ("More than 2 dmas is incompatible with pnp specifications.");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
@@ -198,17 +189,17 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 
 	/* set the initial values */
 	*flags |= rule->flags | IORESOURCE_DMA;
-	*flags &=  ~IORESOURCE_UNSET;
+	*flags &= ~IORESOURCE_UNSET;
 
 	if (!rule->map) {
 		*flags |= IORESOURCE_DISABLED;
-		return 1; /* skip disabled resource requests */
+		return 1;	/* skip disabled resource requests */
 	}
 
 	for (i = 0; i < 8; i++) {
-		if(rule->map & (1<<xtab[i])) {
+		if (rule->map & (1 << xtab[i])) {
 			*start = *end = xtab[i];
-			if(pnp_check_dma(dev, idx))
+			if (pnp_check_dma(dev, idx))
 				return 1;
 		}
 	}
@@ -218,72 +209,80 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 /**
  * pnp_init_resources - Resets a resource table to default values.
  * @table: pointer to the desired resource table
- *
  */
 void pnp_init_resource_table(struct pnp_resource_table *table)
 {
 	int idx;
+
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
 		table->irq_resource[idx].name = NULL;
 		table->irq_resource[idx].start = -1;
 		table->irq_resource[idx].end = -1;
-		table->irq_resource[idx].flags = IORESOURCE_IRQ | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		table->irq_resource[idx].flags =
+		    IORESOURCE_IRQ | IORESOURCE_AUTO | IORESOURCE_UNSET;
 	}
 	for (idx = 0; idx < PNP_MAX_DMA; idx++) {
 		table->dma_resource[idx].name = NULL;
 		table->dma_resource[idx].start = -1;
 		table->dma_resource[idx].end = -1;
-		table->dma_resource[idx].flags = IORESOURCE_DMA | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		table->dma_resource[idx].flags =
+		    IORESOURCE_DMA | IORESOURCE_AUTO | IORESOURCE_UNSET;
 	}
 	for (idx = 0; idx < PNP_MAX_PORT; idx++) {
 		table->port_resource[idx].name = NULL;
 		table->port_resource[idx].start = 0;
 		table->port_resource[idx].end = 0;
-		table->port_resource[idx].flags = IORESOURCE_IO | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		table->port_resource[idx].flags =
+		    IORESOURCE_IO | IORESOURCE_AUTO | IORESOURCE_UNSET;
 	}
 	for (idx = 0; idx < PNP_MAX_MEM; idx++) {
 		table->mem_resource[idx].name = NULL;
 		table->mem_resource[idx].start = 0;
 		table->mem_resource[idx].end = 0;
-		table->mem_resource[idx].flags = IORESOURCE_MEM | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		table->mem_resource[idx].flags =
+		    IORESOURCE_MEM | IORESOURCE_AUTO | IORESOURCE_UNSET;
 	}
 }
 
 /**
  * pnp_clean_resources - clears resources that were not manually set
  * @res: the resources to clean
- *
  */
-static void pnp_clean_resource_table(struct pnp_resource_table * res)
+static void pnp_clean_resource_table(struct pnp_resource_table *res)
 {
 	int idx;
+
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
 		if (!(res->irq_resource[idx].flags & IORESOURCE_AUTO))
 			continue;
 		res->irq_resource[idx].start = -1;
 		res->irq_resource[idx].end = -1;
-		res->irq_resource[idx].flags = IORESOURCE_IRQ | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res->irq_resource[idx].flags =
+		    IORESOURCE_IRQ | IORESOURCE_AUTO | IORESOURCE_UNSET;
 	}
 	for (idx = 0; idx < PNP_MAX_DMA; idx++) {
 		if (!(res->dma_resource[idx].flags & IORESOURCE_AUTO))
 			continue;
 		res->dma_resource[idx].start = -1;
 		res->dma_resource[idx].end = -1;
-		res->dma_resource[idx].flags = IORESOURCE_DMA | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res->dma_resource[idx].flags =
+		    IORESOURCE_DMA | IORESOURCE_AUTO | IORESOURCE_UNSET;
 	}
 	for (idx = 0; idx < PNP_MAX_PORT; idx++) {
 		if (!(res->port_resource[idx].flags & IORESOURCE_AUTO))
 			continue;
 		res->port_resource[idx].start = 0;
 		res->port_resource[idx].end = 0;
-		res->port_resource[idx].flags = IORESOURCE_IO | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res->port_resource[idx].flags =
+		    IORESOURCE_IO | IORESOURCE_AUTO | IORESOURCE_UNSET;
 	}
 	for (idx = 0; idx < PNP_MAX_MEM; idx++) {
 		if (!(res->mem_resource[idx].flags & IORESOURCE_AUTO))
 			continue;
 		res->mem_resource[idx].start = 0;
 		res->mem_resource[idx].end = 0;
-		res->mem_resource[idx].flags = IORESOURCE_MEM | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res->mem_resource[idx].flags =
+		    IORESOURCE_MEM | IORESOURCE_AUTO | IORESOURCE_UNSET;
 	}
 }
 
@@ -306,7 +305,7 @@ static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 		return -ENODEV;
 
 	down(&pnp_res_mutex);
-	pnp_clean_resource_table(&dev->res); /* start with a fresh slate */
+	pnp_clean_resource_table(&dev->res);	/* start with a fresh slate */
 	if (dev->independent) {
 		port = dev->independent->port;
 		mem = dev->independent->mem;
@@ -341,10 +340,11 @@ static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 	if (depnum) {
 		struct pnp_option *dep;
 		int i;
-		for (i=1,dep=dev->dependent; i<depnum; i++, dep=dep->next)
-			if(!dep)
+		for (i = 1, dep = dev->dependent; i < depnum;
+		     i++, dep = dep->next)
+			if (!dep)
 				goto fail;
-		port =dep->port;
+		port = dep->port;
 		mem = dep->mem;
 		irq = dep->irq;
 		dma = dep->dma;
@@ -392,12 +392,12 @@ fail:
  *
  * This function can be used by drivers that want to manually set thier resources.
  */
-int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table * res, int mode)
+int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res,
+			  int mode)
 {
 	int i;
-	struct pnp_resource_table * bak;
-	if (!dev || !res)
-		return -EINVAL;
+	struct pnp_resource_table *bak;
+
 	if (!pnp_can_configure(dev))
 		return -ENODEV;
 	bak = pnp_alloc(sizeof(struct pnp_resource_table));
@@ -409,19 +409,19 @@ int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table * res, 
 	dev->res = *res;
 	if (!(mode & PNP_CONFIG_FORCE)) {
 		for (i = 0; i < PNP_MAX_PORT; i++) {
-			if(!pnp_check_port(dev,i))
+			if (!pnp_check_port(dev, i))
 				goto fail;
 		}
 		for (i = 0; i < PNP_MAX_MEM; i++) {
-			if(!pnp_check_mem(dev,i))
+			if (!pnp_check_mem(dev, i))
 				goto fail;
 		}
 		for (i = 0; i < PNP_MAX_IRQ; i++) {
-			if(!pnp_check_irq(dev,i))
+			if (!pnp_check_irq(dev, i))
 				goto fail;
 		}
 		for (i = 0; i < PNP_MAX_DMA; i++) {
-			if(!pnp_check_dma(dev,i))
+			if (!pnp_check_dma(dev, i))
 				goto fail;
 		}
 	}
@@ -440,18 +440,15 @@ fail:
 /**
  * pnp_auto_config_dev - automatically assigns resources to a device
  * @dev: pointer to the desired device
- *
  */
 int pnp_auto_config_dev(struct pnp_dev *dev)
 {
 	struct pnp_option *dep;
 	int i = 1;
 
-	if(!dev)
-		return -EINVAL;
-
-	if(!pnp_can_configure(dev)) {
-		pnp_dbg("Device %s does not support resource configuration.", dev->dev.bus_id);
+	if (!pnp_can_configure(dev)) {
+		pnp_dbg("Device %s does not support resource configuration.",
+			dev->dev.bus_id);
 		return -ENODEV;
 	}
 
@@ -476,23 +473,22 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
  * pnp_start_dev - low-level start of the PnP device
  * @dev: pointer to the desired device
  *
- * assumes that resources have alread been allocated
+ * assumes that resources have already been allocated
  */
-
 int pnp_start_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_write(dev)) {
-		pnp_dbg("Device %s does not support activation.", dev->dev.bus_id);
+		pnp_dbg("Device %s does not support activation.",
+			dev->dev.bus_id);
 		return -EINVAL;
 	}
 
-	if (dev->protocol->set(dev, &dev->res)<0) {
+	if (dev->protocol->set(dev, &dev->res) < 0) {
 		pnp_err("Failed to activate device %s.", dev->dev.bus_id);
 		return -EIO;
 	}
 
 	pnp_info("Device %s activated.", dev->dev.bus_id);
-
 	return 0;
 }
 
@@ -502,20 +498,19 @@ int pnp_start_dev(struct pnp_dev *dev)
  *
  * does not free resources
  */
-
 int pnp_stop_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_disable(dev)) {
-		pnp_dbg("Device %s does not support disabling.", dev->dev.bus_id);
+		pnp_dbg("Device %s does not support disabling.",
+			dev->dev.bus_id);
 		return -EINVAL;
 	}
-	if (dev->protocol->disable(dev)<0) {
+	if (dev->protocol->disable(dev) < 0) {
 		pnp_err("Failed to disable device %s.", dev->dev.bus_id);
 		return -EIO;
 	}
 
 	pnp_info("Device %s disabled.", dev->dev.bus_id);
-
 	return 0;
 }
 
@@ -529,11 +524,8 @@ int pnp_activate_dev(struct pnp_dev *dev)
 {
 	int error;
 
-	if (!dev)
-		return -EINVAL;
-	if (dev->active) {
-		return 0; /* the device is already active */
-	}
+	if (dev->active)
+		return 0;	/* the device is already active */
 
 	/* ensure resources are allocated */
 	if (pnp_auto_config_dev(dev))
@@ -544,7 +536,6 @@ int pnp_activate_dev(struct pnp_dev *dev)
 		return error;
 
 	dev->active = 1;
-
 	return 1;
 }
 
@@ -558,11 +549,8 @@ int pnp_disable_dev(struct pnp_dev *dev)
 {
 	int error;
 
-        if (!dev)
-                return -EINVAL;
-	if (!dev->active) {
-		return 0; /* the device is already disabled */
-	}
+	if (!dev->active)
+		return 0;	/* the device is already disabled */
 
 	error = pnp_stop_dev(dev);
 	if (error)
@@ -583,23 +571,16 @@ int pnp_disable_dev(struct pnp_dev *dev)
  * @resource: pointer to resource to be changed
  * @start: start of region
  * @size: size of region
- *
  */
 void pnp_resource_change(struct resource *resource, resource_size_t start,
-				resource_size_t size)
+			 resource_size_t size)
 {
-	if (resource == NULL)
-		return;
 	resource->flags &= ~(IORESOURCE_AUTO | IORESOURCE_UNSET);
 	resource->start = start;
 	resource->end = start + size - 1;
 }
 
-
 EXPORT_SYMBOL(pnp_manual_config_dev);
-#if 0
-EXPORT_SYMBOL(pnp_auto_config_dev);
-#endif
 EXPORT_SYMBOL(pnp_start_dev);
 EXPORT_SYMBOL(pnp_stop_dev);
 EXPORT_SYMBOL(pnp_activate_dev);

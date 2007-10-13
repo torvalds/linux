@@ -19,6 +19,7 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
@@ -103,7 +104,7 @@ static struct lock_class_key svc_slock_key[2];
 static inline void svc_reclassify_socket(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	BUG_ON(sk->sk_lock.owner != NULL);
+	BUG_ON(sock_owned_by_user(sk));
 	switch (sk->sk_family) {
 	case AF_INET:
 		sock_lock_init_class_and_name(sk, "slock-AF_INET-NFSD",
@@ -131,13 +132,13 @@ static char *__svc_print_addr(struct sockaddr *addr, char *buf, size_t len)
 	case AF_INET:
 		snprintf(buf, len, "%u.%u.%u.%u, port=%u",
 			NIPQUAD(((struct sockaddr_in *) addr)->sin_addr),
-			htons(((struct sockaddr_in *) addr)->sin_port));
+			ntohs(((struct sockaddr_in *) addr)->sin_port));
 		break;
 
 	case AF_INET6:
 		snprintf(buf, len, "%x:%x:%x:%x:%x:%x:%x:%x, port=%u",
 			NIP6(((struct sockaddr_in6 *) addr)->sin6_addr),
-			htons(((struct sockaddr_in6 *) addr)->sin6_port));
+			ntohs(((struct sockaddr_in6 *) addr)->sin6_port));
 		break;
 
 	default:
@@ -877,7 +878,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 	} else {
 		rqstp->rq_arg.page_len = len - rqstp->rq_arg.head[0].iov_len;
 		rqstp->rq_respages = rqstp->rq_pages + 1 +
-			(rqstp->rq_arg.page_len + PAGE_SIZE - 1)/ PAGE_SIZE;
+			DIV_ROUND_UP(rqstp->rq_arg.page_len, PAGE_SIZE);
 	}
 
 	if (serv->sv_stats)
@@ -1110,7 +1111,8 @@ svc_tcp_accept(struct svc_sock *svsk)
 						   serv->sv_name);
 				printk(KERN_NOTICE
 				       "%s: last TCP connect from %s\n",
-				       serv->sv_name, buf);
+				       serv->sv_name, __svc_print_addr(sin,
+							buf, sizeof(buf)));
 			}
 			/*
 			 * Always select the oldest socket. It's not fair,
@@ -1592,7 +1594,7 @@ svc_age_temp_sockets(unsigned long closure)
 
 		if (!test_and_set_bit(SK_OLD, &svsk->sk_flags))
 			continue;
-		if (atomic_read(&svsk->sk_inuse) || test_bit(SK_BUSY, &svsk->sk_flags))
+		if (atomic_read(&svsk->sk_inuse) > 1 || test_bit(SK_BUSY, &svsk->sk_flags))
 			continue;
 		atomic_inc(&svsk->sk_inuse);
 		list_move(le, &to_be_aged);

@@ -7,6 +7,8 @@
  *	Reiner Sailer <sailer@watson.ibm.com>
  *	Kylene Hall <kjhall@us.ibm.com>
  *
+ * Maintained by: <tpmdd-devel@lists.sourceforge.net>
+ *
  * Access to the eventlog extended by the TCG BIOS of PC platform
  *
  * This program is free software; you can redistribute it and/or
@@ -427,7 +429,7 @@ static int tpm_ascii_bios_measurements_open(struct inode *inode,
 		return -ENOMEM;
 
 	if ((err = read_log(log)))
-		return err;
+		goto out_free;
 
 	/* now register seq file */
 	err = seq_open(file, &tpm_ascii_b_measurments_seqops);
@@ -435,10 +437,15 @@ static int tpm_ascii_bios_measurements_open(struct inode *inode,
 		seq = file->private_data;
 		seq->private = log;
 	} else {
-		kfree(log->bios_event_log);
-		kfree(log);
+		goto out_free;
 	}
+
+out:
 	return err;
+out_free:
+	kfree(log->bios_event_log);
+	kfree(log);
+	goto out;
 }
 
 const struct file_operations tpm_ascii_bios_measurements_ops = {
@@ -460,7 +467,7 @@ static int tpm_binary_bios_measurements_open(struct inode *inode,
 		return -ENOMEM;
 
 	if ((err = read_log(log)))
-		return err;
+		goto out_free;
 
 	/* now register seq file */
 	err = seq_open(file, &tpm_binary_b_measurments_seqops);
@@ -468,10 +475,15 @@ static int tpm_binary_bios_measurements_open(struct inode *inode,
 		seq = file->private_data;
 		seq->private = log;
 	} else {
-		kfree(log->bios_event_log);
-		kfree(log);
+		goto out_free;
 	}
+
+out:
 	return err;
+out_free:
+	kfree(log->bios_event_log);
+	kfree(log);
+	goto out;
 }
 
 const struct file_operations tpm_binary_bios_measurements_ops = {

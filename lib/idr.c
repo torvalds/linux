@@ -405,7 +405,7 @@ EXPORT_SYMBOL(idr_remove);
  */
 void idr_remove_all(struct idr *idp)
 {
-	int n, id, max, error = 0;
+	int n, id, max;
 	struct idr_layer *p;
 	struct idr_layer *pa[MAX_LEVEL];
 	struct idr_layer **paa = &pa[0];
@@ -415,7 +415,7 @@ void idr_remove_all(struct idr *idp)
 	max = 1 << n;
 
 	id = 0;
-	while (id < max && !error) {
+	while (id < max) {
 		while (n > IDR_BITS && p) {
 			n -= IDR_BITS;
 			*paa++ = p;
@@ -590,7 +590,7 @@ static  int init_id_cache(void)
 {
 	if (!idr_layer_cache)
 		idr_layer_cache = kmem_cache_create("idr_layer_cache",
-			sizeof(struct idr_layer), 0, 0, idr_cache_ctor, NULL);
+			sizeof(struct idr_layer), 0, 0, idr_cache_ctor);
 	return 0;
 }
 

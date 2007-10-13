@@ -33,6 +33,7 @@ struct sbus_bus *sbus_root;
 
 static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sdev)
 {
+	struct dev_archdata *sd;
 	unsigned long base;
 	const void *pval;
 	int len, err;
@@ -66,6 +67,10 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 	}
 
 	sbus_fill_device_irq(sdev);
+
+	sd = &sdev->ofdev.dev.archdata;
+	sd->prom_node = dp;
+	sd->op = &sdev->ofdev;
 
 	sdev->ofdev.node = dp;
 	if (sdev->parent)
@@ -205,6 +210,10 @@ static void __init walk_children(struct device_node *dp, struct sbus_dev *parent
 
 			sdev->bus = sbus;
 			sdev->parent = parent;
+			sdev->ofdev.dev.archdata.iommu =
+				sbus->ofdev.dev.archdata.iommu;
+			sdev->ofdev.dev.archdata.stc =
+				sbus->ofdev.dev.archdata.stc;
 
 			fill_sbus_device(dp, sdev);
 
@@ -264,6 +273,11 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 
 			sdev->bus = sbus;
 			sdev->parent = NULL;
+			sdev->ofdev.dev.archdata.iommu =
+				sbus->ofdev.dev.archdata.iommu;
+			sdev->ofdev.dev.archdata.stc =
+				sbus->ofdev.dev.archdata.stc;
+
 			fill_sbus_device(dev_dp, sdev);
 
 			walk_children(dev_dp, sdev, sbus);

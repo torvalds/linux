@@ -161,7 +161,7 @@ static int ida_ioctl(struct inode *inode, struct file *filep, unsigned int cmd, 
 static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 static int ida_ctlr_ioctl(ctlr_info_t *h, int dsk, ida_ioctl_t *io);
 
-static void do_ida_request(request_queue_t *q);
+static void do_ida_request(struct request_queue *q);
 static void start_io(ctlr_info_t *h);
 
 static inline void addQ(cmdlist_t **Qptr, cmdlist_t *c);
@@ -391,7 +391,7 @@ static void __devexit cpqarray_remove_one_eisa (int i)
 /* pdev is NULL for eisa */
 static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 {
-	request_queue_t *q;
+	struct request_queue *q;
 	int j;
 
 	/* 
@@ -420,18 +420,17 @@ static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 			goto Enomem2;
 	}
 
-	hba[i]->cmd_pool = (cmdlist_t *)pci_alloc_consistent(
+	hba[i]->cmd_pool = pci_alloc_consistent(
 		hba[i]->pci_dev, NR_CMDS * sizeof(cmdlist_t),
 		&(hba[i]->cmd_pool_dhandle));
-	hba[i]->cmd_pool_bits = kmalloc(
-		((NR_CMDS+BITS_PER_LONG-1)/BITS_PER_LONG)*sizeof(unsigned long),
+	hba[i]->cmd_pool_bits = kcalloc(
+		(NR_CMDS+BITS_PER_LONG-1)/BITS_PER_LONG, sizeof(unsigned long),
 		GFP_KERNEL);
 
 	if (!hba[i]->cmd_pool_bits || !hba[i]->cmd_pool)
 			goto Enomem1;
 
 	memset(hba[i]->cmd_pool, 0, NR_CMDS * sizeof(cmdlist_t));
-	memset(hba[i]->cmd_pool_bits, 0, ((NR_CMDS+BITS_PER_LONG-1)/BITS_PER_LONG)*sizeof(unsigned long));
 	printk(KERN_INFO "cpqarray: Finding drives on %s",
 		hba[i]->devname);
 
@@ -886,7 +885,7 @@ static inline cmdlist_t *removeQ(cmdlist_t **Qptr, cmdlist_t *c)
  * are in here (either via the dummy do_ida_request functions or by being
  * called from the interrupt handler
  */
-static void do_ida_request(request_queue_t *q)
+static void do_ida_request(struct request_queue *q)
 {
 	ctlr_info_t *h = q->queuedata;
 	cmdlist_t *c;
@@ -988,7 +987,7 @@ static inline void complete_buffers(struct bio *bio, int ok)
 		xbh = bio->bi_next;
 		bio->bi_next = NULL;
 		
-		bio_endio(bio, nr_sectors << 9, ok ? 0 : -EIO);
+		bio_endio(bio, ok ? 0 : -EIO);
 
 		bio = xbh;
 	}
@@ -1660,44 +1659,29 @@ static void getgeometry(int ctlr)
 
 	info_p->log_drv_map = 0;	
 	
-	id_ldrive = kmalloc(sizeof(id_log_drv_t), GFP_KERNEL);
-	if(id_ldrive == NULL)
-	{
+	id_ldrive = kzalloc(sizeof(id_log_drv_t), GFP_KERNEL);
+	if (!id_ldrive)	{
 		printk( KERN_ERR "cpqarray:  out of memory.\n");
-		return;
+		goto err_0;
 	}
 
-	id_ctlr_buf = kmalloc(sizeof(id_ctlr_t), GFP_KERNEL);
-	if(id_ctlr_buf == NULL)
-	{
-		kfree(id_ldrive);
+	id_ctlr_buf = kzalloc(sizeof(id_ctlr_t), GFP_KERNEL);
+	if (!id_ctlr_buf) {
 		printk( KERN_ERR "cpqarray:  out of memory.\n");
-		return;
+		goto err_1;
 	}
 
-	id_lstatus_buf = kmalloc(sizeof(sense_log_drv_stat_t), GFP_KERNEL);
-	if(id_lstatus_buf == NULL)
-	{
-		kfree(id_ctlr_buf);
-		kfree(id_ldrive);
+	id_lstatus_buf = kzalloc(sizeof(sense_log_drv_stat_t), GFP_KERNEL);
+	if (!id_lstatus_buf) {
 		printk( KERN_ERR "cpqarray:  out of memory.\n");
-		return;
+		goto err_2;
 	}
 
-	sense_config_buf = kmalloc(sizeof(config_t), GFP_KERNEL);
-	if(sense_config_buf == NULL)
-	{
-		kfree(id_lstatus_buf);
-		kfree(id_ctlr_buf);
-		kfree(id_ldrive);
+	sense_config_buf = kzalloc(sizeof(config_t), GFP_KERNEL);
+	if (!sense_config_buf) {
 		printk( KERN_ERR "cpqarray:  out of memory.\n");
-		return;
+		goto err_3;
 	}
-
-	memset(id_ldrive, 0, sizeof(id_log_drv_t));
-	memset(id_ctlr_buf, 0, sizeof(id_ctlr_t));
-	memset(id_lstatus_buf, 0, sizeof(sense_log_drv_stat_t));
-	memset(sense_config_buf, 0, sizeof(config_t));
 
 	info_p->phys_drives = 0;
 	info_p->log_drv_map = 0;
@@ -1712,13 +1696,8 @@ static void getgeometry(int ctlr)
 		 * so the idastubopen will fail on all logical drives
 		 * on the controller.
 		 */
-		 /* Free all the buffers and return */ 
 		printk(KERN_ERR "cpqarray: error sending ID controller\n");
-		kfree(sense_config_buf);
-                kfree(id_lstatus_buf);
-                kfree(id_ctlr_buf);
-                kfree(id_ldrive);
-                return;
+                goto err_4;
         }
 
 	info_p->log_drives = id_ctlr_buf->nr_drvs;
@@ -1764,12 +1743,7 @@ static void getgeometry(int ctlr)
 				" failed to report status of logical drive %d\n"
 			 "Access to this controller has been disabled\n",
 				ctlr, log_unit);
-			/* Free all the buffers and return */
-                	kfree(sense_config_buf);
-                	kfree(id_lstatus_buf);
-                	kfree(id_ctlr_buf);
-                	kfree(id_ldrive);
-                	return;
+                	goto err_4;
 		}
 		/*
 		   Make sure the logical drive is configured
@@ -1798,14 +1772,8 @@ static void getgeometry(int ctlr)
 				 sizeof(config_t), 0, 0, log_unit);
 				if (ret_code == IO_ERROR) {
 					info_p->log_drv_map = 0;
-					/* Free all the buffers and return */
                 			printk(KERN_ERR "cpqarray: error sending sense config\n");
-                			kfree(sense_config_buf);
-                			kfree(id_lstatus_buf);
-                			kfree(id_ctlr_buf);
-                			kfree(id_ldrive);
-                			return;
-
+                			goto err_4;
 				}
 
 				info_p->phys_drives =
@@ -1820,12 +1788,18 @@ static void getgeometry(int ctlr)
 			log_index = log_index + 1;
 		}		/* end of if logical drive configured */
 	}			/* end of for log_unit */
-	kfree(sense_config_buf);
-  	kfree(id_ldrive);
-  	kfree(id_lstatus_buf);
-	kfree(id_ctlr_buf);
-	return;
 
+	/* Free all the buffers and return */
+err_4:
+	kfree(sense_config_buf);
+err_3:
+  	kfree(id_lstatus_buf);
+err_2:
+	kfree(id_ctlr_buf);
+err_1:
+  	kfree(id_ldrive);
+err_0:
+	return;
 }
 
 static void __exit cpqarray_exit(void)

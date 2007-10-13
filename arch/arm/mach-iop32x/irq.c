@@ -63,7 +63,8 @@ void __init iop32x_init_irq(void)
 	if (machine_is_glantank() ||
 	    machine_is_iq80321() ||
 	    machine_is_iq31244() ||
-	    machine_is_n2100())
+	    machine_is_n2100() ||
+	    machine_is_em7210())
 		*IOP3XX_PCIIRSR = 0x0f;
 
 	for (i = 0; i < NR_IRQS; i++) {

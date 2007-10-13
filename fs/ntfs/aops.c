@@ -2,7 +2,7 @@
  * aops.c - NTFS kernel address space operations and page cache handling.
  *	    Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2006 Anton Altaparmakov
+ * Copyright (c) 2001-2007 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -396,7 +396,7 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	loff_t i_size;
 	struct inode *vi;
 	ntfs_inode *ni, *base_ni;
-	u8 *kaddr;
+	u8 *addr;
 	ntfs_attr_search_ctx *ctx;
 	MFT_RECORD *mrec;
 	unsigned long flags;
@@ -491,15 +491,15 @@ retry_readpage:
 		/* Race with shrinking truncate. */
 		attr_len = i_size;
 	}
-	kaddr = kmap_atomic(page, KM_USER0);
+	addr = kmap_atomic(page, KM_USER0);
 	/* Copy the data to the page. */
-	memcpy(kaddr, (u8*)ctx->attr +
+	memcpy(addr, (u8*)ctx->attr +
 			le16_to_cpu(ctx->attr->data.resident.value_offset),
 			attr_len);
 	/* Zero the remainder of the page. */
-	memset(kaddr + attr_len, 0, PAGE_CACHE_SIZE - attr_len);
+	memset(addr + attr_len, 0, PAGE_CACHE_SIZE - attr_len);
 	flush_dcache_page(page);
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(addr, KM_USER0);
 put_unm_err_out:
 	ntfs_attr_put_search_ctx(ctx);
 unm_err_out:
@@ -1344,7 +1344,7 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 	loff_t i_size;
 	struct inode *vi = page->mapping->host;
 	ntfs_inode *base_ni = NULL, *ni = NTFS_I(vi);
-	char *kaddr;
+	char *addr;
 	ntfs_attr_search_ctx *ctx = NULL;
 	MFT_RECORD *m = NULL;
 	u32 attr_len;
@@ -1484,14 +1484,14 @@ retry_writepage:
 		/* Shrinking cannot fail. */
 		BUG_ON(err);
 	}
-	kaddr = kmap_atomic(page, KM_USER0);
+	addr = kmap_atomic(page, KM_USER0);
 	/* Copy the data from the page to the mft record. */
 	memcpy((u8*)ctx->attr +
 			le16_to_cpu(ctx->attr->data.resident.value_offset),
-			kaddr, attr_len);
+			addr, attr_len);
 	/* Zero out of bounds area in the page cache page. */
-	memset(kaddr + attr_len, 0, PAGE_CACHE_SIZE - attr_len);
-	kunmap_atomic(kaddr, KM_USER0);
+	memset(addr + attr_len, 0, PAGE_CACHE_SIZE - attr_len);
+	kunmap_atomic(addr, KM_USER0);
 	flush_dcache_page(page);
 	flush_dcache_mft_record_page(ctx->ntfs_ino);
 	/* We are done with the page. */

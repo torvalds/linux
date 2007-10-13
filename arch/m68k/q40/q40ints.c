@@ -79,7 +79,7 @@ static struct irq_controller q40_irq_controller = {
 
 static int disabled;
 
-void q40_init_IRQ(void)
+void __init q40_init_IRQ(void)
 {
 	m68k_setup_irq_controller(&q40_irq_controller, 1, Q40_IRQ_MAX);
 

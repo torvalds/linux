@@ -1082,12 +1082,12 @@ static int __init bigmac_ether_init(struct sbus_dev *qec_sdev)
 	struct bigmac *bp;
 	u8 bsizes, bsizes_more;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	/* Get a new device struct for this interface. */
 	dev = alloc_etherdev(sizeof(struct bigmac));
 	if (!dev)
 		return -ENOMEM;
-	SET_MODULE_OWNER(dev);
 
 	if (version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -1227,11 +1227,8 @@ static int __init bigmac_ether_init(struct sbus_dev *qec_sdev)
 
 	dev_set_drvdata(&bp->bigmac_sdev->ofdev.dev, bp);
 
-	printk(KERN_INFO "%s: BigMAC 100baseT Ethernet ", dev->name);
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i],
-		       i == 5 ? ' ' : ':');
-	printk("\n");
+	printk(KERN_INFO "%s: BigMAC 100baseT Ethernet %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	return 0;
 

@@ -126,6 +126,7 @@ const char *acpi_format_exception(acpi_status status)
 			    "Unknown exception code: 0x%8.8X", status));
 
 		exception = "UNKNOWN_STATUS_CODE";
+		dump_stack();
 	}
 
 	return (ACPI_CAST_PTR(const char, exception));

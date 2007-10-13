@@ -46,8 +46,8 @@
  */
 
 #define S_DUART_BITS_PER_CHAR       0
-#define M_DUART_BITS_PER_CHAR       _SB_MAKEMASK(2,S_DUART_BITS_PER_CHAR)
-#define V_DUART_BITS_PER_CHAR(x)    _SB_MAKEVALUE(x,S_DUART_BITS_PER_CHAR)
+#define M_DUART_BITS_PER_CHAR       _SB_MAKEMASK(2, S_DUART_BITS_PER_CHAR)
+#define V_DUART_BITS_PER_CHAR(x)    _SB_MAKEVALUE(x, S_DUART_BITS_PER_CHAR)
 
 #define K_DUART_BITS_PER_CHAR_RSV0  0
 #define K_DUART_BITS_PER_CHAR_RSV1  1
@@ -64,8 +64,8 @@
 #define M_DUART_PARITY_TYPE_ODD     _SB_MAKEMASK1(2)
 
 #define S_DUART_PARITY_MODE          3
-#define M_DUART_PARITY_MODE         _SB_MAKEMASK(2,S_DUART_PARITY_MODE)
-#define V_DUART_PARITY_MODE(x)      _SB_MAKEVALUE(x,S_DUART_PARITY_MODE)
+#define M_DUART_PARITY_MODE         _SB_MAKEMASK(2, S_DUART_PARITY_MODE)
+#define V_DUART_PARITY_MODE(x)      _SB_MAKEVALUE(x, S_DUART_PARITY_MODE)
 
 #define K_DUART_PARITY_MODE_ADD       0
 #define K_DUART_PARITY_MODE_ADD_FIXED 1
@@ -89,7 +89,7 @@
  * Register: DUART_MODE_REG_2_B
  */
 
-#define M_DUART_MODE_RESERVED1      _SB_MAKEMASK(3,0)   /* ignored */
+#define M_DUART_MODE_RESERVED1      _SB_MAKEMASK(3, 0)   /* ignored */
 
 #define M_DUART_STOP_BIT_LEN_2      _SB_MAKEMASK1(3)
 #define M_DUART_STOP_BIT_LEN_1      0
@@ -100,8 +100,8 @@
 #define M_DUART_MODE_RESERVED2      _SB_MAKEMASK1(5)    /* must be zero */
 
 #define S_DUART_CHAN_MODE	    6
-#define M_DUART_CHAN_MODE           _SB_MAKEMASK(2,S_DUART_CHAN_MODE)
-#define V_DUART_CHAN_MODE(x)	    _SB_MAKEVALUE(x,S_DUART_CHAN_MODE)
+#define M_DUART_CHAN_MODE           _SB_MAKEMASK(2, S_DUART_CHAN_MODE)
+#define V_DUART_CHAN_MODE(x)	    _SB_MAKEVALUE(x, S_DUART_CHAN_MODE)
 
 #define K_DUART_CHAN_MODE_NORMAL    0
 #define K_DUART_CHAN_MODE_LCL_LOOP  2
@@ -123,8 +123,8 @@
 #define M_DUART_TX_DIS              _SB_MAKEMASK1(3)
 
 #define S_DUART_MISC_CMD	    4
-#define M_DUART_MISC_CMD            _SB_MAKEMASK(3,S_DUART_MISC_CMD)
-#define V_DUART_MISC_CMD(x)         _SB_MAKEVALUE(x,S_DUART_MISC_CMD)
+#define M_DUART_MISC_CMD            _SB_MAKEMASK(3, S_DUART_MISC_CMD)
+#define V_DUART_MISC_CMD(x)         _SB_MAKEVALUE(x, S_DUART_MISC_CMD)
 
 #define K_DUART_MISC_CMD_NOACTION0       0
 #define K_DUART_MISC_CMD_NOACTION1       1
@@ -168,7 +168,7 @@
  * Register: DUART_CLK_SEL_B
  */
 
-#define M_DUART_CLK_COUNTER         _SB_MAKEMASK(12,0)
+#define M_DUART_CLK_COUNTER         _SB_MAKEMASK(12, 0)
 #define V_DUART_BAUD_RATE(x)        (100000000/((x)*20)-1)
 
 /*
@@ -179,8 +179,8 @@
  * Register: DUART_TX_HOLD_B
  */
 
-#define M_DUART_RX_DATA             _SB_MAKEMASK(8,0)
-#define M_DUART_TX_DATA             _SB_MAKEMASK(8,0)
+#define M_DUART_RX_DATA             _SB_MAKEMASK(8, 0)
+#define M_DUART_TX_DATA             _SB_MAKEMASK(8, 0)
 
 /*
  * DUART Input Port Register (Table 10-10)
@@ -202,10 +202,10 @@
  */
 
 #define S_DUART_IN_PIN_VAL          0
-#define M_DUART_IN_PIN_VAL          _SB_MAKEMASK(4,S_DUART_IN_PIN_VAL)
+#define M_DUART_IN_PIN_VAL          _SB_MAKEMASK(4, S_DUART_IN_PIN_VAL)
 
 #define S_DUART_IN_PIN_CHNG         4
-#define M_DUART_IN_PIN_CHNG         _SB_MAKEMASK(4,S_DUART_IN_PIN_CHNG)
+#define M_DUART_IN_PIN_CHNG         _SB_MAKEMASK(4, S_DUART_IN_PIN_CHNG)
 
 
 /*
@@ -217,7 +217,7 @@
 #define M_DUART_OPC2_SEL            _SB_MAKEMASK1(1)
 #define M_DUART_OPCR_RESERVED1      _SB_MAKEMASK1(2)   /* must be zero */
 #define M_DUART_OPC3_SEL            _SB_MAKEMASK1(3)
-#define M_DUART_OPCR_RESERVED2      _SB_MAKEMASK(4,4)  /* must be zero */
+#define M_DUART_OPCR_RESERVED2      _SB_MAKEMASK(4, 4)  /* must be zero */
 
 /*
  * DUART Aux Control Register (Table 10-15)
@@ -228,7 +228,7 @@
 #define M_DUART_IP1_CHNG_ENA        _SB_MAKEMASK1(1)
 #define M_DUART_IP2_CHNG_ENA        _SB_MAKEMASK1(2)
 #define M_DUART_IP3_CHNG_ENA        _SB_MAKEMASK1(3)
-#define M_DUART_ACR_RESERVED        _SB_MAKEMASK(4,4)
+#define M_DUART_ACR_RESERVED        _SB_MAKEMASK(4, 4)
 
 #define M_DUART_CTS_CHNG_ENA        _SB_MAKEMASK1(0)
 #define M_DUART_CIN_CHNG_ENA        _SB_MAKEMASK1(2)
@@ -242,18 +242,18 @@
 
 #define S_DUART_ISR_RX_A            1
 #define M_DUART_ISR_RX_A            _SB_MAKEMASK1(S_DUART_ISR_RX_A)
-#define V_DUART_ISR_RX_A(x)         _SB_MAKEVALUE(x,S_DUART_ISR_RX_A)
-#define G_DUART_ISR_RX_A(x)         _SB_GETVALUE(x,S_DUART_ISR_RX_A,M_DUART_ISR_RX_A)
+#define V_DUART_ISR_RX_A(x)         _SB_MAKEVALUE(x, S_DUART_ISR_RX_A)
+#define G_DUART_ISR_RX_A(x)         _SB_GETVALUE(x, S_DUART_ISR_RX_A, M_DUART_ISR_RX_A)
 
 #define M_DUART_ISR_BRK_A           _SB_MAKEMASK1(2)
 #define M_DUART_ISR_IN_A            _SB_MAKEMASK1(3)
-#define M_DUART_ISR_ALL_A	    _SB_MAKEMASK(4,0)
+#define M_DUART_ISR_ALL_A	    _SB_MAKEMASK(4, 0)
 
 #define M_DUART_ISR_TX_B            _SB_MAKEMASK1(4)
 #define M_DUART_ISR_RX_B            _SB_MAKEMASK1(5)
 #define M_DUART_ISR_BRK_B           _SB_MAKEMASK1(6)
 #define M_DUART_ISR_IN_B            _SB_MAKEMASK1(7)
-#define M_DUART_ISR_ALL_B	    _SB_MAKEMASK(4,4)
+#define M_DUART_ISR_ALL_B	    _SB_MAKEMASK(4, 4)
 
 /*
  * DUART Channel A Interrupt Status Register (Table 10-17)
@@ -266,8 +266,8 @@
 #define M_DUART_ISR_RX              _SB_MAKEMASK1(1)
 #define M_DUART_ISR_BRK             _SB_MAKEMASK1(2)
 #define M_DUART_ISR_IN              _SB_MAKEMASK1(3)
-#define M_DUART_ISR_ALL		    _SB_MAKEMASK(4,0)
-#define M_DUART_ISR_RESERVED        _SB_MAKEMASK(4,4)
+#define M_DUART_ISR_ALL		    _SB_MAKEMASK(4, 0)
+#define M_DUART_ISR_RESERVED        _SB_MAKEMASK(4, 4)
 
 /*
  * DUART Interrupt Mask Register (Table 10-19)
@@ -278,13 +278,13 @@
 #define M_DUART_IMR_RX_A            _SB_MAKEMASK1(1)
 #define M_DUART_IMR_BRK_A           _SB_MAKEMASK1(2)
 #define M_DUART_IMR_IN_A            _SB_MAKEMASK1(3)
-#define M_DUART_IMR_ALL_A	    _SB_MAKEMASK(4,0)
+#define M_DUART_IMR_ALL_A	    _SB_MAKEMASK(4, 0)
 
 #define M_DUART_IMR_TX_B            _SB_MAKEMASK1(4)
 #define M_DUART_IMR_RX_B            _SB_MAKEMASK1(5)
 #define M_DUART_IMR_BRK_B           _SB_MAKEMASK1(6)
 #define M_DUART_IMR_IN_B            _SB_MAKEMASK1(7)
-#define M_DUART_IMR_ALL_B           _SB_MAKEMASK(4,4)
+#define M_DUART_IMR_ALL_B           _SB_MAKEMASK(4, 4)
 
 /*
  * DUART Channel A Interrupt Mask Register (Table 10-20)
@@ -297,8 +297,8 @@
 #define M_DUART_IMR_RX              _SB_MAKEMASK1(1)
 #define M_DUART_IMR_BRK             _SB_MAKEMASK1(2)
 #define M_DUART_IMR_IN              _SB_MAKEMASK1(3)
-#define M_DUART_IMR_ALL		    _SB_MAKEMASK(4,0)
-#define M_DUART_IMR_RESERVED        _SB_MAKEMASK(4,4)
+#define M_DUART_IMR_ALL		    _SB_MAKEMASK(4, 0)
+#define M_DUART_IMR_RESERVED        _SB_MAKEMASK(4, 4)
 
 
 /*
@@ -310,7 +310,7 @@
 #define M_DUART_SET_OPR1            _SB_MAKEMASK1(1)
 #define M_DUART_SET_OPR2            _SB_MAKEMASK1(2)
 #define M_DUART_SET_OPR3            _SB_MAKEMASK1(3)
-#define M_DUART_OPSR_RESERVED       _SB_MAKEMASK(4,4)
+#define M_DUART_OPSR_RESERVED       _SB_MAKEMASK(4, 4)
 
 /*
  * DUART Output Port Clear Register (Table 10-23)
@@ -321,7 +321,7 @@
 #define M_DUART_CLR_OPR1            _SB_MAKEMASK1(1)
 #define M_DUART_CLR_OPR2            _SB_MAKEMASK1(2)
 #define M_DUART_CLR_OPR3            _SB_MAKEMASK1(3)
-#define M_DUART_OPCR_RESERVED       _SB_MAKEMASK(4,4)
+#define M_DUART_OPCR_RESERVED       _SB_MAKEMASK(4, 4)
 
 /*
  * DUART Output Port RTS Register (Table 10-24)
@@ -332,7 +332,7 @@
 #define M_DUART_OUT_PIN_SET1        _SB_MAKEMASK1(1)
 #define M_DUART_OUT_PIN_CLR0        _SB_MAKEMASK1(2)
 #define M_DUART_OUT_PIN_CLR1        _SB_MAKEMASK1(3)
-#define M_DUART_OPRR_RESERVED       _SB_MAKEMASK(4,4)
+#define M_DUART_OPRR_RESERVED       _SB_MAKEMASK(4, 4)
 
 #define M_DUART_OUT_PIN_SET(chan) \
     (chan == 0 ? M_DUART_OUT_PIN_SET0 : M_DUART_OUT_PIN_SET1)
@@ -345,14 +345,14 @@
  */
 
 #define S_DUART_SIG_FULL           _SB_MAKE64(0)
-#define M_DUART_SIG_FULL           _SB_MAKEMASK(4,S_DUART_SIG_FULL)
-#define V_DUART_SIG_FULL(x)        _SB_MAKEVALUE(x,S_DUART_SIG_FULL)
-#define G_DUART_SIG_FULL(x)        _SB_GETVALUE(x,S_DUART_SIG_FULL,M_DUART_SIG_FULL)
+#define M_DUART_SIG_FULL           _SB_MAKEMASK(4, S_DUART_SIG_FULL)
+#define V_DUART_SIG_FULL(x)        _SB_MAKEVALUE(x, S_DUART_SIG_FULL)
+#define G_DUART_SIG_FULL(x)        _SB_GETVALUE(x, S_DUART_SIG_FULL, M_DUART_SIG_FULL)
 
 #define S_DUART_INT_TIME           _SB_MAKE64(4)
-#define M_DUART_INT_TIME           _SB_MAKEMASK(4,S_DUART_INT_TIME)
-#define V_DUART_INT_TIME(x)        _SB_MAKEVALUE(x,S_DUART_INT_TIME)
-#define G_DUART_INT_TIME(x)        _SB_GETVALUE(x,S_DUART_INT_TIME,M_DUART_INT_TIME)
+#define M_DUART_INT_TIME           _SB_MAKEMASK(4, S_DUART_INT_TIME)
+#define V_DUART_INT_TIME(x)        _SB_MAKEVALUE(x, S_DUART_INT_TIME)
+#define G_DUART_INT_TIME(x)        _SB_GETVALUE(x, S_DUART_INT_TIME, M_DUART_INT_TIME)
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 

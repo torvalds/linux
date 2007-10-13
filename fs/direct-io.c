@@ -264,14 +264,11 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio);
 /*
  * Asynchronous IO callback. 
  */
-static int dio_bio_end_aio(struct bio *bio, unsigned int bytes_done, int error)
+static void dio_bio_end_aio(struct bio *bio, int error)
 {
 	struct dio *dio = bio->bi_private;
 	unsigned long remaining;
 	unsigned long flags;
-
-	if (bio->bi_size)
-		return 1;
 
 	/* cleanup the bio */
 	dio_bio_complete(dio, bio);
@@ -287,8 +284,6 @@ static int dio_bio_end_aio(struct bio *bio, unsigned int bytes_done, int error)
 		aio_complete(dio->iocb, ret, 0);
 		kfree(dio);
 	}
-
-	return 0;
 }
 
 /*
@@ -298,13 +293,10 @@ static int dio_bio_end_aio(struct bio *bio, unsigned int bytes_done, int error)
  * During I/O bi_private points at the dio.  After I/O, bi_private is used to
  * implement a singly-linked list of completed BIOs, at dio->bio_list.
  */
-static int dio_bio_end_io(struct bio *bio, unsigned int bytes_done, int error)
+static void dio_bio_end_io(struct bio *bio, int error)
 {
 	struct dio *dio = bio->bi_private;
 	unsigned long flags;
-
-	if (bio->bi_size)
-		return 1;
 
 	spin_lock_irqsave(&dio->bio_lock, flags);
 	bio->bi_private = dio->bio_list;
@@ -312,7 +304,6 @@ static int dio_bio_end_io(struct bio *bio, unsigned int bytes_done, int error)
 	if (--dio->refcount == 1 && dio->waiter)
 		wake_up_process(dio->waiter);
 	spin_unlock_irqrestore(&dio->bio_lock, flags);
-	return 0;
 }
 
 static int
@@ -958,35 +949,22 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	ssize_t ret2;
 	size_t bytes;
 
-	dio->bio = NULL;
 	dio->inode = inode;
 	dio->rw = rw;
 	dio->blkbits = blkbits;
 	dio->blkfactor = inode->i_blkbits - blkbits;
-	dio->start_zero_done = 0;
-	dio->size = 0;
 	dio->block_in_file = offset >> blkbits;
-	dio->blocks_available = 0;
-	dio->cur_page = NULL;
 
-	dio->boundary = 0;
-	dio->reap_counter = 0;
 	dio->get_block = get_block;
 	dio->end_io = end_io;
-	dio->map_bh.b_private = NULL;
 	dio->final_block_in_bio = -1;
 	dio->next_block_for_io = -1;
 
-	dio->page_errors = 0;
-	dio->io_error = 0;
-	dio->result = 0;
 	dio->iocb = iocb;
 	dio->i_size = i_size_read(inode);
 
 	spin_lock_init(&dio->bio_lock);
 	dio->refcount = 1;
-	dio->bio_list = NULL;
-	dio->waiter = NULL;
 
 	/*
 	 * In case of non-aligned buffers, we may need 2 more
@@ -994,8 +972,6 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	 */
 	if (unlikely(dio->blkfactor))
 		dio->pages_in_io = 2;
-	else
-		dio->pages_in_io = 0;
 
 	for (seg = 0; seg < nr_segs; seg++) {
 		user_addr = (unsigned long)iov[seg].iov_base;
@@ -1183,7 +1159,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 		}
 	}
 
-	dio = kmalloc(sizeof(*dio), GFP_KERNEL);
+	dio = kzalloc(sizeof(*dio), GFP_KERNEL);
 	retval = -ENOMEM;
 	if (!dio)
 		goto out;

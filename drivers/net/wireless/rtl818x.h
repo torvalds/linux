@@ -71,6 +71,7 @@ struct rtl818x_csr {
 #define RTL818X_RX_CONF_NICMAC		(1 <<  1)
 #define RTL818X_RX_CONF_MULTICAST	(1 <<  2)
 #define RTL818X_RX_CONF_BROADCAST	(1 <<  3)
+#define RTL818X_RX_CONF_FCS		(1 <<  5)
 #define RTL818X_RX_CONF_DATA		(1 << 18)
 #define RTL818X_RX_CONF_CTRL		(1 << 19)
 #define RTL818X_RX_CONF_MGMT		(1 << 20)

@@ -468,7 +468,7 @@ static void do_acct_process(struct file *file)
 	}
 #endif
 	do_div(elapsed, AHZ);
-	ac.ac_btime = xtime.tv_sec - elapsed;
+	ac.ac_btime = get_seconds() - elapsed;
 	/* we really need to bite the bullet and change layout */
 	ac.ac_uid = current->uid;
 	ac.ac_gid = current->gid;

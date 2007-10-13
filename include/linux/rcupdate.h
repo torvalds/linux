@@ -281,7 +281,6 @@ extern void FASTCALL(call_rcu(struct rcu_head *head,
 extern void FASTCALL(call_rcu_bh(struct rcu_head *head,
 				void (*func)(struct rcu_head *head)));
 extern void synchronize_rcu(void);
-void synchronize_idle(void);
 extern void rcu_barrier(void);
 
 #endif /* __KERNEL__ */

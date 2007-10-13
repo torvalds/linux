@@ -13,32 +13,23 @@
 */
 
 #include <asm/arch/map.h>
-#include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
+#include <asm/plat-s3c/regs-serial.h>
 
 #define S3C2410_UART1_OFF (0x4000)
 #define SHIFT_2440TXF (14-9)
 
-		.macro addruart, rx
+	.macro addruart, rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1
 		ldreq	\rx, = S3C24XX_PA_UART
 		ldrne	\rx, = S3C24XX_VA_UART
-#if CONFIG_DEBUG_S3C2410_UART != 0
-		add	\rx, \rx, #(S3C2410_UART1_OFF * CONFIG_DEBUG_S3C2410_UART)
+#if CONFIG_DEBUG_S3C_UART != 0
+		add	\rx, \rx, #(S3C2410_UART1_OFF * CONFIG_DEBUG_S3C_UART)
 #endif
-		.endm
+	.endm
 
-		.macro	senduart,rd,rx
-		strb 	\rd, [\rx, # S3C2410_UTXH ]
-		.endm
-
-		.macro	busyuart, rd, rx
-		ldr	\rd, [ \rx, # S3C2410_UFCON ]
-		tst	\rd, #S3C2410_UFCON_FIFOMODE	@ fifo enabled?
-		beq	1001f				@
-		@ FIFO enabled...
-1003:
+	.macro fifo_full_s3c24xx rd, rx
 		@ check for arm920 vs arm926. currently assume all arm926
 		@ devices have an 64 byte FIFO identical to the s3c2440
 		mrc	p15, 0, \rd, c0, c0
@@ -57,25 +48,22 @@
 		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]
 		moveq	\rd, \rd, lsr #SHIFT_2440TXF
 		tst	\rd, #S3C2410_UFSTAT_TXFULL
-		bne	1003b
-		b	1002f
+	.endm
 
-1001:
-		@ busy waiting for non fifo
-		ldr	\rd, [ \rx, # S3C2410_UTRSTAT ]
-		tst	\rd, #S3C2410_UTRSTAT_TXFE
-		beq	1001b
+	.macro  fifo_full_s3c2410 rd, rx
+		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]
+		tst	\rd, #S3C2410_UFSTAT_TXFULL
+	.endm
 
-1002:		@ exit busyuart
-		.endm
+/* fifo level reading */
 
-		.macro	waituart,rd,rx
-
-		ldr	\rd, [ \rx, # S3C2410_UFCON ]
-		tst	\rd, #S3C2410_UFCON_FIFOMODE	@ fifo enabled?
-		beq	1001f				@
-		@ FIFO enabled...
-1003:
+	.macro fifo_level_s3c24xx rd, rx
+		@ check for arm920 vs arm926. currently assume all arm926
+		@ devices have an 64 byte FIFO identical to the s3c2440
+		mrc	p15, 0, \rd, c0, c0
+		and	\rd, \rd, #0xff0
+		teq	\rd, #0x260
+		beq	10000f
 		mrc	p15, 0, \rd, c1, c0
 		tst	\rd, #1
 		addeq	\rd, \rx, #(S3C24XX_PA_GPIO - S3C24XX_PA_UART)
@@ -85,18 +73,32 @@
 		and	\rd, \rd, #0x00ff0000
 		teq	\rd, #0x00440000		@ is it 2440?
 
+10000:
 		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]
 		andne	\rd, \rd, #S3C2410_UFSTAT_TXMASK
 		andeq	\rd, \rd, #S3C2440_UFSTAT_TXMASK
-		teq	\rd, #0
-		bne	1003b
-		b	1002f
+	.endm
 
-1001:
-		@ idle waiting for non fifo
-		ldr	\rd, [ \rx, # S3C2410_UTRSTAT ]
-		tst	\rd, #S3C2410_UTRSTAT_TXFE
-		beq	1001b
+	.macro fifo_level_s3c2410 rd, rx
+		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]
+		and	\rd, \rd, #S3C2410_UFSTAT_TXMASK
+	.endm
 
-1002:		@ exit busyuart
-		.endm
+/* Select the correct implementation depending on the configuration. The
+ * S3C2440 will get selected by default, as these are the most widely
+ * used variants of these
+*/
+
+#if defined(CONFIG_CPU_LLSERIAL_S3C2410_ONLY)
+#define fifo_full  fifo_full_s3c2410
+#define fifo_level fifo_level_s3c2410
+#warning 2410only
+#elif !defined(CONFIG_CPU_LLSERIAL_S3C2440_ONLY)
+#define fifo_full  fifo_full_s3c24xx
+#define fifo_level fifo_level_s3c24xx
+#warning generic
+#endif
+
+/* include the reset of the code which will do the work */
+
+#include <asm/plat-s3c/debug-macro.S>

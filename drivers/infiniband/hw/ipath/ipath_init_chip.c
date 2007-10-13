@@ -782,7 +782,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	 * Follows early_init because some chips have to initialize
 	 * PIO buffers in early_init to avoid false parity errors.
 	 */
-	ipath_cancel_sends(dd);
+	ipath_cancel_sends(dd, 0);
 
 	/* early_init sets rcvhdrentsize and rcvhdrsize, so this must be
 	 * done after early_init */
@@ -851,13 +851,14 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrmask,
 			 dd->ipath_hwerrmask);
 
-	dd->ipath_maskederrs = dd->ipath_ignorederrs;
 	/* clear all */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear, -1LL);
 	/* enable errors that are masked, at least this first time. */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
 			 ~dd->ipath_maskederrs);
-	/* clear any interrups up to this point (ints still not enabled) */
+	dd->ipath_errormask = ipath_read_kreg64(dd,
+		dd->ipath_kregs->kr_errormask);
+	/* clear any interrupts up to this point (ints still not enabled) */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, -1LL);
 
 	/*

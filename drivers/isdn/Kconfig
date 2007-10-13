@@ -21,9 +21,7 @@ menuconfig ISDN
 
 if ISDN
 
-menu "Old ISDN4Linux"
-
-config ISDN_I4L
+menuconfig ISDN_I4L
 	tristate "Old ISDN4Linux (deprecated)"
 	---help---
 	  This driver allows you to use an ISDN adapter for networking
@@ -45,12 +43,8 @@ if ISDN_I4L
 source "drivers/isdn/i4l/Kconfig"
 endif
 
-endmenu
-
-comment "CAPI subsystem"
-
-config ISDN_CAPI
-	tristate "CAPI2.0 support"
+menuconfig ISDN_CAPI
+	tristate "CAPI 2.0 subsystem"
 	help
 	  This provides the CAPI (Common ISDN Application Programming
 	  Interface, a standard making it easy for programs to access ISDN

@@ -443,7 +443,7 @@ static int __init init_hfs_fs(void)
 
 	hfs_inode_cachep = kmem_cache_create("hfs_inode_cache",
 		sizeof(struct hfs_inode_info), 0, SLAB_HWCACHE_ALIGN,
-		hfs_init_once, NULL);
+		hfs_init_once);
 	if (!hfs_inode_cachep)
 		return -ENOMEM;
 	err = register_filesystem(&hfs_fs_type);

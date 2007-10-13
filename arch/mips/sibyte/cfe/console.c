@@ -4,8 +4,8 @@
 
 #include <asm/sibyte/board.h>
 
-#include "cfe_api.h"
-#include "cfe_error.h"
+#include <asm/fw/cfe/cfe_api.h>
+#include <asm/fw/cfe/cfe_error.h>
 
 extern int cfe_cons_handle;
 
@@ -14,7 +14,7 @@ static void cfe_console_write(struct console *cons, const char *str,
 {
 	int i, last, written;
 
-	for (i=0,last=0; i<count; i++) {
+	for (i=0, last=0; i<count; i++) {
 		if (!str[i])
 			/* XXXKW can/should this ever happen? */
 			return;
@@ -46,7 +46,7 @@ static int cfe_console_setup(struct console *cons, char *str)
 	/* XXXKW think about interaction with 'console=' cmdline arg */
 	/* If none of the console options are configured, the build will break. */
 	if (cfe_getenv("BOOT_CONSOLE", consdev, 32) >= 0) {
-#ifdef CONFIG_SIBYTE_SB1250_DUART
+#ifdef CONFIG_SERIAL_SB1250_DUART
 		if (!strcmp(consdev, "uart0")) {
 			setleds("u0cn");
 		} else if (!strcmp(consdev, "uart1")) {

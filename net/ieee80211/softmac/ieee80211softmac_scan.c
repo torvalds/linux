@@ -123,7 +123,7 @@ void ieee80211softmac_scan(struct work_struct *work)
 				spin_unlock_irqrestore(&sm->lock, flags);
 				break;
 			}
-			schedule_delayed_work(&si->softmac_scan, IEEE80211SOFTMAC_PROBE_DELAY);
+			queue_delayed_work(sm->wq, &si->softmac_scan, IEEE80211SOFTMAC_PROBE_DELAY);
 			spin_unlock_irqrestore(&sm->lock, flags);
 			return;
 		} else {
@@ -190,7 +190,7 @@ int ieee80211softmac_start_scan_implementation(struct net_device *dev)
 	sm->scaninfo->started = 1;
 	sm->scaninfo->stop = 0;
 	INIT_COMPLETION(sm->scaninfo->finished);
-	schedule_delayed_work(&sm->scaninfo->softmac_scan, 0);
+	queue_delayed_work(sm->wq, &sm->scaninfo->softmac_scan, 0);
 	spin_unlock_irqrestore(&sm->lock, flags);
 	return 0;
 }

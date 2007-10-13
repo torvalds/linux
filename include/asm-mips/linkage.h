@@ -5,4 +5,6 @@
 #include <asm/asm.h>
 #endif
 
+#define __weak __attribute__((weak))
+
 #endif

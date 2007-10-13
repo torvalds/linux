@@ -341,7 +341,7 @@ struct scsi_host_template {
 	/*
 	 * Name of proc directory
 	 */
-	char *proc_name;
+	const char *proc_name;
 
 	/*
 	 * Used to store the procfs directory if a driver implements the

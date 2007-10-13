@@ -314,4 +314,18 @@ int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
  */
 void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr);
 
+/**
+ * rdma_set_service_type - Set the type of service associated with a
+ *   connection identifier.
+ * @id: Communication identifier to associated with service type.
+ * @tos: Type of service.
+ *
+ * The type of service is interpretted as a differentiated service
+ * field (RFC 2474).  The service type should be specified before
+ * performing route resolution, as existing communication on the
+ * connection identifier may be unaffected.  The type of service
+ * requested may not be supported by the network to all destinations.
+ */
+void rdma_set_service_type(struct rdma_cm_id *id, int tos);
+
 #endif /* RDMA_CM_H */

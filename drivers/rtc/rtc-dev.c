@@ -348,6 +348,8 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 	case RTC_IRQP_SET:
 		if (ops->irq_set_freq)
 			err = rtc_irq_set_freq(rtc, rtc->irq_task, arg);
+		else
+			err = -ENOTTY;
 		break;
 
 #if 0

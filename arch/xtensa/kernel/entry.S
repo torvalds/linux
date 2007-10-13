@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2005 by Tensilica Inc.
+ * Copyright (C) 2004-2007 by Tensilica Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -169,7 +169,7 @@ _user_exception:
 	 * We have to save all registers up to the first '1' from
 	 * the right, except the current frame (bit 0).
 	 * Assume a2 is:  001001000110001
-	 * All regiser frames starting from the top fiel to the marked '1'
+	 * All register frames starting from the top field to the marked '1'
 	 * must be saved.
 	 */
 
@@ -1572,10 +1572,12 @@ ENTRY(fast_second_level_miss)
 	l32i	a0, a1, TASK_MM		# tsk->mm
 	beqz	a0, 9f
 
-8:	rsr	a1, EXCVADDR		# fault address
-	_PGD_OFFSET(a0, a1, a1)
+
+	/* We deliberately destroy a3 that holds the exception table. */
+
+8:	rsr	a3, EXCVADDR		# fault address
+	_PGD_OFFSET(a0, a3, a1)
 	l32i	a0, a0, 0		# read pmdval
-	//beqi	a0, _PAGE_USER, 2f
 	beqz	a0, 2f
 
 	/* Read ptevaddr and convert to top of page-table page.
@@ -1588,7 +1590,7 @@ ENTRY(fast_second_level_miss)
 	 * The messy computation for 'pteval' above really simplifies
 	 * into the following:
 	 *
-	 * pteval = ((pmdval - PAGE_OFFSET) & PAGE_MASK) | PAGE_KERNEL
+	 * pteval = ((pmdval - PAGE_OFFSET) & PAGE_MASK) | PAGE_DIRECTORY
 	 */
 
 	movi	a1, -PAGE_OFFSET
@@ -1596,20 +1598,34 @@ ENTRY(fast_second_level_miss)
 	extui	a1, a0, 0, PAGE_SHIFT	# ... & PAGE_MASK
 	xor	a0, a0, a1
 
-
-	movi	a1, PAGE_DIRECTORY
+	movi	a1, _PAGE_DIRECTORY
 	or	a0, a0, a1		# ... | PAGE_DIRECTORY
 
-	rsr	a1, PTEVADDR
-	srli	a1, a1, PAGE_SHIFT
-	slli	a1, a1, PAGE_SHIFT	# ptevaddr & PAGE_MASK
-	addi	a1, a1, DTLB_WAY_PGD	# ... + way_number
+	/*
+	 * We utilize all three wired-ways (7-9) to hold pmd translations.
+	 * Memory regions are mapped to the DTLBs according to bits 28 and 29.
+	 * This allows to map the three most common regions to three different
+	 * DTLBs:
+	 *  0,1 -> way 7	program (0040.0000) and virtual (c000.0000)
+	 *  2   -> way 8	shared libaries (2000.0000)
+	 *  3   -> way 0	stack (3000.0000)
+	 */
 
-	wdtlb	a0, a1
+	extui	a3, a3, 28, 2		# addr. bit 28 and 29	0,1,2,3
+	rsr	a1, PTEVADDR
+	addx2	a3, a3, a3		# ->			0,3,6,9
+	srli	a1, a1, PAGE_SHIFT
+	extui	a3, a3, 2, 2		# ->			0,0,1,2
+	slli	a1, a1, PAGE_SHIFT	# ptevaddr & PAGE_MASK
+	addi	a3, a3, DTLB_WAY_PGD
+	add	a1, a1, a3		# ... + way_number
+
+3:	wdtlb	a0, a1
 	dsync
 
 	/* Exit critical section. */
 
+4:	movi	a3, exc_table		# restore a3
 	movi	a0, 0
 	s32i	a0, a3, EXC_TABLE_FIXUP
 
@@ -1636,8 +1652,76 @@ ENTRY(fast_second_level_miss)
 9:	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
 	j	8b
 
+#if (DCACHE_WAY_SIZE > PAGE_SIZE)
+
+2:	/* Special case for cache aliasing.
+	 * We (should) only get here if a clear_user_page, copy_user_page
+	 * or the aliased cache flush functions got preemptively interrupted 
+	 * by another task. Re-establish temporary mapping to the 
+	 * TLBTEMP_BASE areas.
+	 */
+
+	/* We shouldn't be in a double exception */
+
+	l32i	a0, a2, PT_DEPC
+	bgeui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, 2f
+
+	/* Make sure the exception originated in the special functions */
+
+	movi	a0, __tlbtemp_mapping_start
+	rsr	a3, EPC_1
+	bltu	a3, a0, 2f
+	movi	a0, __tlbtemp_mapping_end
+	bgeu	a3, a0, 2f
+
+	/* Check if excvaddr was in one of the TLBTEMP_BASE areas. */
+
+	movi	a3, TLBTEMP_BASE_1
+	rsr	a0, EXCVADDR
+	bltu	a0, a3, 2f
+
+	addi	a1, a0, -(2 << (DCACHE_ALIAS_ORDER + PAGE_SHIFT))
+	bgeu	a1, a3, 2f
+
+	/* Check if we have to restore an ITLB mapping. */
+
+	movi	a1, __tlbtemp_mapping_itlb
+	rsr	a3, EPC_1
+	sub	a3, a3, a1
+
+	/* Calculate VPN */
+
+	movi	a1, PAGE_MASK
+	and	a1, a1, a0
+
+	/* Jump for ITLB entry */
+
+	bgez	a3, 1f
+
+	/* We can use up to two TLBTEMP areas, one for src and one for dst. */
+
+	extui	a3, a0, PAGE_SHIFT + DCACHE_ALIAS_ORDER, 1
+	add	a1, a3, a1
+
+	/* PPN is in a6 for the first TLBTEMP area and in a7 for the second. */
+
+	mov	a0, a6
+	movnez	a0, a7, a3
+	j	3b
+
+	/* ITLB entry. We only use dst in a6. */
+
+1:	witlb	a6, a1
+	isync
+	j	4b
+
+
+#endif	// DCACHE_WAY_SIZE > PAGE_SIZE
+
+
 2:	/* Invalid PGD, default exception handling */
 
+	movi	a3, exc_table
 	rsr	a1, DEPC
 	xsr	a3, EXCSAVE_1
 	s32i	a1, a2, PT_AREG2
@@ -1682,15 +1766,15 @@ ENTRY(fast_store_prohibited)
 8:	rsr	a1, EXCVADDR		# fault address
 	_PGD_OFFSET(a0, a1, a4)
 	l32i	a0, a0, 0
-	//beqi	a0, _PAGE_USER, 2f	# FIXME use _PAGE_INVALID
 	beqz	a0, 2f
+
+	/* Note that we assume _PAGE_WRITABLE_BIT is only set if pte is valid.*/
 
 	_PTE_OFFSET(a0, a1, a4)
 	l32i	a4, a0, 0		# read pteval
-	movi	a1, _PAGE_VALID | _PAGE_RW
-	bnall	a4, a1, 2f
+	bbci.l	a4, _PAGE_WRITABLE_BIT, 2f
 
-	movi	a1, _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_WRENABLE
+	movi	a1, _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_HW_WRITE
 	or	a4, a4, a1
 	rsr	a1, EXCVADDR
 	s32i	a4, a0, 0
@@ -1700,10 +1784,7 @@ ENTRY(fast_store_prohibited)
 	dhwb	a0, 0
 #endif
 	pdtlb	a0, a1
-	beqz	a0, 1f
-	idtlb	a0		// FIXME do we need this?
 	wdtlb	a4, a0
-1:
 
 	/* Exit critical section. */
 

@@ -407,8 +407,10 @@ Description
 		u32 length;		// Length of this frame
 		u32 offset_low;		// Offset in the file of the
 		u32 offset_high;	// start of this frame
-		u32 mask1;		// Bits 0-1 are the type mask:
+		u32 mask1;		// Bits 0-2 are the type mask:
 					// 1=I, 2=P, 4=B
+					// 0=End of Program Index, other fields
+					//   are invalid.
 		u32 pts;		// The PTS of the frame
 		u32 mask2;		// Bit 0 is bit 32 of the pts.
 	};

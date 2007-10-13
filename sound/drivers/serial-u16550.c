@@ -998,7 +998,7 @@ static struct platform_driver snd_serial_driver = {
 	},
 };
 
-static void __init_or_module snd_serial_unregister_all(void)
+static void snd_serial_unregister_all(void)
 {
 	int i;
 

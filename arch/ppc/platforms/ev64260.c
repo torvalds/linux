@@ -35,6 +35,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 #else
 #include <linux/mv643xx.h>
 #endif

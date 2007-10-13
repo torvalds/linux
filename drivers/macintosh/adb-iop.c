@@ -19,7 +19,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 
-#include <asm/bootinfo.h> 
 #include <asm/macintosh.h> 
 #include <asm/macints.h> 
 #include <asm/mac_iop.h>

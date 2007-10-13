@@ -133,7 +133,7 @@ static __initdata loff_t this_header, next_header;
 
 static __initdata int dry_run;
 
-static inline void eat(unsigned n)
+static inline void __init eat(unsigned n)
 {
 	victim += n;
 	this_header += n;

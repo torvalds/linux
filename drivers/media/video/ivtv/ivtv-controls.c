@@ -21,7 +21,7 @@
 #include "ivtv-driver.h"
 #include "ivtv-cards.h"
 #include "ivtv-ioctl.h"
-#include "ivtv-audio.h"
+#include "ivtv-routing.h"
 #include "ivtv-i2c.h"
 #include "ivtv-mailbox.h"
 #include "ivtv-controls.h"
@@ -231,8 +231,10 @@ int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg)
 		}
 		IVTV_DEBUG_IOCTL("VIDIOC_S_EXT_CTRLS\n");
 		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
+			static u32 freqs[3] = { 44100, 48000, 32000 };
 			struct cx2341x_mpeg_params p = itv->params;
-			int err = cx2341x_ext_ctrls(&p, arg, cmd);
+			int err = cx2341x_ext_ctrls(&p, atomic_read(&itv->capturing), arg, cmd);
+			unsigned idx;
 
 			if (err)
 				return err;
@@ -254,7 +256,11 @@ int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg)
 			}
 			itv->params = p;
 			itv->dualwatch_stereo_mode = p.audio_properties & 0x0300;
-			ivtv_audio_set_audio_clock_freq(itv, p.audio_properties & 0x03);
+			idx = p.audio_properties & 0x03;
+			/* The audio clock of the digitizer must match the codec sample
+			   rate otherwise you get some very strange effects. */
+			if (idx < sizeof(freqs))
+			    ivtv_call_i2c_clients(itv, VIDIOC_INT_AUDIO_CLOCK_FREQ, &freqs[idx]);
 			return err;
 		}
 		return -EINVAL;
@@ -282,7 +288,7 @@ int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg)
 		}
 		IVTV_DEBUG_IOCTL("VIDIOC_G_EXT_CTRLS\n");
 		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
-			return cx2341x_ext_ctrls(&itv->params, arg, cmd);
+			return cx2341x_ext_ctrls(&itv->params, 0, arg, cmd);
 		return -EINVAL;
 	}
 
@@ -292,7 +298,7 @@ int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg)
 
 		IVTV_DEBUG_IOCTL("VIDIOC_TRY_EXT_CTRLS\n");
 		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
-			return cx2341x_ext_ctrls(&itv->params, arg, cmd);
+			return cx2341x_ext_ctrls(&itv->params, atomic_read(&itv->capturing), arg, cmd);
 		return -EINVAL;
 	}
 

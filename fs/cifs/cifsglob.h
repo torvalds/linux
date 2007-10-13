@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsglob.h
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2006
+ *   Copyright (C) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Jeremy Allison (jra@samba.org)
  *
@@ -14,7 +14,7 @@
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU Lesser General Public License for more details.
- * 
+ *
  */
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -28,7 +28,7 @@
 
 #define MAX_TREE_SIZE 2 + MAX_SERVER_SIZE + 1 + MAX_SHARE_SIZE + 1
 #define MAX_SERVER_SIZE 15
-#define MAX_SHARE_SIZE  64	/* used to be 20 - this should still be enough */
+#define MAX_SHARE_SIZE  64	/* used to be 20, this should still be enough */
 #define MAX_USERNAME_SIZE 32	/* 32 is to allow for 15 char names + null
 				   termination then *2 for unicode versions */
 #define MAX_PASSWORD_SIZE 16
@@ -38,13 +38,13 @@
 /*
  * MAX_REQ is the maximum number of requests that WE will send
  * on one socket concurently. It also matches the most common
- * value of max multiplex returned by servers.  We may 
+ * value of max multiplex returned by servers.  We may
  * eventually want to use the negotiated value (in case
  * future servers can handle more) when we are more confident that
  * we will not have problems oveloading the socket with pending
  * write data.
  */
-#define CIFS_MAX_REQ 50 
+#define CIFS_MAX_REQ 50
 
 #define SERVER_NAME_LENGTH 15
 #define SERVER_NAME_LEN_WITH_NULL     (SERVER_NAME_LENGTH + 1)
@@ -104,6 +104,17 @@ enum protocolEnum {
 	/* Netbios frames protocol not supported at this time */
 };
 
+struct mac_key {
+	unsigned int len;
+	union {
+		char ntlm[CIFS_SESS_KEY_SIZE + 16];
+		struct {
+			char key[16];
+			struct ntlmv2_resp resp;
+		} ntlmv2;
+	} data;
+};
+
 /*
  *****************************************************************
  * Except the CIFS PDUs themselves all the
@@ -120,13 +131,13 @@ struct TCP_Server_Info {
 		struct sockaddr_in sockAddr;
 		struct sockaddr_in6 sockAddr6;
 	} addr;
-	wait_queue_head_t response_q; 
+	wait_queue_head_t response_q;
 	wait_queue_head_t request_q; /* if more than maxmpx to srvr must block*/
 	struct list_head pending_mid_q;
 	void *Server_NlsInfo;	/* BB - placeholder for future NLS info  */
 	unsigned short server_codepage;	/* codepage for the server    */
 	unsigned long ip_address;	/* IP addr for the server if known */
-	enum protocolEnum protocolType;	
+	enum protocolEnum protocolType;
 	char versionMajor;
 	char versionMinor;
 	unsigned svlocal:1;	/* local server or remote */
@@ -159,14 +170,15 @@ struct TCP_Server_Info {
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
-	char mac_signing_key[CIFS_SESS_KEY_SIZE + 16];
+	struct mac_key mac_signing_key;
+	char ntlmv2_hash[16];
 	unsigned long lstrp; /* when we got last response from this server */
 };
 
 /*
  * The following is our shortcut to user information.  We surface the uid,
  * and name. We always get the password on the fly in case it
- * has changed. We also hang a list of sessions owned by this user off here. 
+ * has changed. We also hang a list of sessions owned by this user off here.
  */
 struct cifsUidInfo {
 	struct list_head userList;
@@ -197,11 +209,11 @@ struct cifsSesInfo {
 	int Suid;		/* remote smb uid  */
 	uid_t linux_uid;        /* local Linux uid */
 	int capabilities;
-	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for 
+	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for
 				TCP names - will ipv6 and sctp addresses fit? */
 	char userName[MAX_USERNAME_SIZE + 1];
-	char * domainName;
-	char * password;
+	char *domainName;
+	char *password;
 };
 /* no more than one of the following three session flags may be set */
 #define CIFS_SES_NT4 1
@@ -213,7 +225,7 @@ struct cifsSesInfo {
 #define CIFS_SES_LANMAN 8
 /*
  * there is one of these for each connection to a resource on a particular
- * session 
+ * session
  */
 struct cifsTconInfo {
 	struct list_head cifsConnectionList;
@@ -269,7 +281,9 @@ struct cifsTconInfo {
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
 	unsigned retry:1;
 	unsigned nocase:1;
-	/* BB add field for back pointer to sb struct? */
+	unsigned unix_ext:1; /* if off disable Linux extensions to CIFS protocol
+				for this mount even if server would support */
+	/* BB add field for back pointer to sb struct(s)? */
 };
 
 /*
@@ -291,9 +305,9 @@ struct cifs_search_info {
 	__u16 entries_in_buffer;
 	__u16 info_level;
 	__u32 resume_key;
-	char * ntwrk_buf_start;
-	char * srch_entries_start;
-	char * presume_name;
+	char *ntwrk_buf_start;
+	char *srch_entries_start;
+	char *presume_name;
 	unsigned int resume_name_len;
 	unsigned endOfSearch:1;
 	unsigned emptyDir:1;
@@ -309,15 +323,15 @@ struct cifsFileInfo {
 	__u16 netfid;		/* file id from remote */
 	/* BB add lock scope info here if needed */ ;
 	/* lock scope id (0 if none) */
-	struct file * pfile; /* needed for writepage */
-	struct inode * pInode; /* needed for oplock break */
+	struct file *pfile; /* needed for writepage */
+	struct inode *pInode; /* needed for oplock break */
 	struct mutex lock_mutex;
 	struct list_head llist; /* list of byte range locks we have. */
 	unsigned closePend:1;	/* file is marked to close */
 	unsigned invalidHandle:1;  /* file closed via session abend */
 	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
-	char * search_resume_name; /* BB removeme BB */
+	char *search_resume_name; /* BB removeme BB */
 	struct cifs_search_info srch_inf;
 };
 
@@ -327,7 +341,7 @@ struct cifsFileInfo {
 
 struct cifsInodeInfo {
 	struct list_head lockList;
-	/* BB add in lists for dirty pages - i.e. write caching info for oplock */
+	/* BB add in lists for dirty pages i.e. write caching info for oplock */
 	struct list_head openFileList;
 	int write_behind_rc;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
@@ -381,9 +395,9 @@ static inline void cifs_stats_bytes_read(struct cifsTconInfo *tcon,
 }
 #else
 
-#define  cifs_stats_inc(field) do {} while(0)
-#define  cifs_stats_bytes_written(tcon, bytes) do {} while(0)
-#define  cifs_stats_bytes_read(tcon, bytes) do {} while(0)
+#define  cifs_stats_inc(field) do {} while (0)
+#define  cifs_stats_bytes_written(tcon, bytes) do {} while (0)
+#define  cifs_stats_bytes_read(tcon, bytes) do {} while (0)
 
 #endif
 
@@ -410,8 +424,8 @@ struct mid_q_entry {
 
 struct oplock_q_entry {
 	struct list_head qhead;
-	struct inode * pinode;
-	struct cifsTconInfo * tcon; 
+	struct inode *pinode;
+	struct cifsTconInfo *tcon;
 	__u16 netfid;
 };
 
@@ -426,7 +440,7 @@ struct dir_notify_req {
        __u16 netfid;
        __u32 filter; /* CompletionFilter (for multishot) */
        int multishot;
-       struct file * pfile;
+       struct file *pfile;
 };
 
 #define   MID_FREE 0
@@ -464,7 +478,7 @@ require use of the stronger protocol */
 #define   CIFSSEC_MUST_LANMAN	0x10010
 #define   CIFSSEC_MUST_PLNTXT	0x20020
 #define   CIFSSEC_MASK          0x37037 /* current flags supported if weak */
-#else	  
+#else
 #define	  CIFSSEC_MASK          0x07007 /* flags supported if no weak config */
 #endif /* WEAK_PW_HASH */
 #define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
@@ -502,7 +516,7 @@ require use of the stronger protocol */
  *  ----------
  *  sesSem     operations on smb session
  *  tconSem    operations on tree connection
- *  fh_sem      file handle reconnection operations 
+ *  fh_sem      file handle reconnection operations
  *
  ****************************************************************************/
 
@@ -515,7 +529,7 @@ require use of the stronger protocol */
 /*
  * The list of servers that did not respond with NT LM 0.12.
  * This list helps improve performance and eliminate the messages indicating
- * that we had a communications error talking to the server in this list. 
+ * that we had a communications error talking to the server in this list.
  */
 /* Feature not supported */
 /* GLOBAL_EXTERN struct servers_not_supported *NotSuppList; */
@@ -568,12 +582,12 @@ GLOBAL_EXTERN atomic_t midCount;
 /* Misc globals */
 GLOBAL_EXTERN unsigned int multiuser_mount; /* if enabled allows new sessions
 				to be established on existing mount if we
-				have the uid/password or Kerberos credential 
+				have the uid/password or Kerberos credential
 				or equivalent for current user */
 GLOBAL_EXTERN unsigned int oplockEnabled;
 GLOBAL_EXTERN unsigned int experimEnabled;
 GLOBAL_EXTERN unsigned int lookupCacheEnabled;
-GLOBAL_EXTERN unsigned int extended_security;	/* if on, session setup sent 
+GLOBAL_EXTERN unsigned int extended_security;	/* if on, session setup sent
 				with more secure ntlmssp2 challenge/resp */
 GLOBAL_EXTERN unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
 GLOBAL_EXTERN unsigned int linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/

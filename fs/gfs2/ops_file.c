@@ -177,8 +177,8 @@ static const u32 fsflags_to_gfs2[32] = {
 	[5] = GFS2_DIF_APPENDONLY,
 	[7] = GFS2_DIF_NOATIME,
 	[12] = GFS2_DIF_EXHASH,
-	[14] = GFS2_DIF_JDATA,
-	[20] = GFS2_DIF_DIRECTIO,
+	[14] = GFS2_DIF_INHERIT_JDATA,
+	[20] = GFS2_DIF_INHERIT_DIRECTIO,
 };
 
 static const u32 gfs2_to_fsflags[32] = {
@@ -187,8 +187,6 @@ static const u32 gfs2_to_fsflags[32] = {
 	[gfs2fl_AppendOnly] = FS_APPEND_FL,
 	[gfs2fl_NoAtime] = FS_NOATIME_FL,
 	[gfs2fl_ExHash] = FS_INDEX_FL,
-	[gfs2fl_Jdata] = FS_JOURNAL_DATA_FL,
-	[gfs2fl_Directio] = FS_DIRECTIO_FL,
 	[gfs2fl_InheritDirectio] = FS_DIRECTIO_FL,
 	[gfs2fl_InheritJdata] = FS_JOURNAL_DATA_FL,
 };
@@ -207,6 +205,12 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 		return error;
 
 	fsflags = fsflags_cvt(gfs2_to_fsflags, ip->i_di.di_flags);
+	if (!S_ISDIR(inode->i_mode)) {
+		if (ip->i_di.di_flags & GFS2_DIF_JDATA)
+			fsflags |= FS_JOURNAL_DATA_FL;
+		if (ip->i_di.di_flags & GFS2_DIF_DIRECTIO)
+			fsflags |= FS_DIRECTIO_FL;
+	}
 	if (put_user(fsflags, ptr))
 		error = -EFAULT;
 
@@ -270,13 +274,6 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	if ((new_flags ^ flags) == 0)
 		goto out;
 
-	if (S_ISDIR(inode->i_mode)) {
-		if ((new_flags ^ flags) & GFS2_DIF_JDATA)
-			new_flags ^= (GFS2_DIF_JDATA|GFS2_DIF_INHERIT_JDATA);
-		if ((new_flags ^ flags) & GFS2_DIF_DIRECTIO)
-			new_flags ^= (GFS2_DIF_DIRECTIO|GFS2_DIF_INHERIT_DIRECTIO);
-	}
-
 	error = -EINVAL;
 	if ((new_flags ^ flags) & ~GFS2_FLAGS_USER_SET)
 		goto out;
@@ -315,11 +312,19 @@ out:
 
 static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 {
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	u32 fsflags, gfsflags;
 	if (get_user(fsflags, ptr))
 		return -EFAULT;
 	gfsflags = fsflags_cvt(fsflags_to_gfs2, fsflags);
-	return do_gfs2_set_flags(filp, gfsflags, ~0);
+	if (!S_ISDIR(inode->i_mode)) {
+		if (gfsflags & GFS2_DIF_INHERIT_JDATA)
+			gfsflags ^= (GFS2_DIF_JDATA | GFS2_DIF_INHERIT_JDATA);
+		if (gfsflags & GFS2_DIF_INHERIT_DIRECTIO)
+			gfsflags ^= (GFS2_DIF_DIRECTIO | GFS2_DIF_INHERIT_DIRECTIO);
+		return do_gfs2_set_flags(filp, gfsflags, ~0);
+	}
+	return do_gfs2_set_flags(filp, gfsflags, ~GFS2_DIF_JDATA);
 }
 
 static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -489,6 +494,29 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 }
 
 /**
+ * gfs2_setlease - acquire/release a file lease
+ * @file: the file pointer
+ * @arg: lease type
+ * @fl: file lock
+ *
+ * Returns: errno
+ */
+
+static int gfs2_setlease(struct file *file, long arg, struct file_lock **fl)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(file->f_mapping->host);
+
+	/*
+	 * We don't currently have a way to enforce a lease across the whole
+	 * cluster; until we do, disable leases (by just returning -EINVAL),
+	 * unless the administrator has requested purely local locking.
+	 */
+	if (!sdp->sd_args.ar_localflocks)
+		return -EINVAL;
+	return generic_setlease(file, arg, fl);
+}
+
+/**
  * gfs2_lock - acquire/release a posix lock on a file
  * @file: the file pointer
  * @cmd: either modify or retrieve lock state, possibly wait
@@ -543,7 +571,8 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	int error = 0;
 
 	state = (fl->fl_type == F_WRLCK) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
-	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY) | GL_EXACT | GL_NOCACHE;
+	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY) | GL_EXACT | GL_NOCACHE 
+		| GL_FLOCK;
 
 	mutex_lock(&fp->f_fl_mutex);
 
@@ -551,21 +580,19 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	if (gl) {
 		if (fl_gh->gh_state == state)
 			goto out;
-		gfs2_glock_hold(gl);
 		flock_lock_file_wait(file,
 				     &(struct file_lock){.fl_type = F_UNLCK});
-		gfs2_glock_dq_uninit(fl_gh);
+		gfs2_glock_dq_wait(fl_gh);
+		gfs2_holder_reinit(state, flags, fl_gh);
 	} else {
 		error = gfs2_glock_get(GFS2_SB(&ip->i_inode),
 				      ip->i_no_addr, &gfs2_flock_glops,
 				      CREATE, &gl);
 		if (error)
 			goto out;
+		gfs2_holder_init(gl, state, flags, fl_gh);
+		gfs2_glock_put(gl);
 	}
-
-	gfs2_holder_init(gl, state, flags, fl_gh);
-	gfs2_glock_put(gl);
-
 	error = gfs2_glock_nq(fl_gh);
 	if (error) {
 		gfs2_holder_uninit(fl_gh);
@@ -638,6 +665,7 @@ const struct file_operations gfs2_file_fops = {
 	.flock		= gfs2_flock,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
+	.setlease	= gfs2_setlease,
 };
 
 const struct file_operations gfs2_dir_fops = {

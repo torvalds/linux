@@ -649,9 +649,11 @@ enum {
 #define PCIX_INT_VECTOR		(0x10100)
 #define PCIX_INT_MASK		(0x10104)
 
-#define PCIX_MN_WINDOW		(0x10200)
+#define PCIX_MN_WINDOW_F0	(0x10200)
+#define PCIX_MN_WINDOW(_f)	(PCIX_MN_WINDOW_F0 + (0x20 * (_f)))
 #define PCIX_MS_WINDOW		(0x10204)
-#define PCIX_SN_WINDOW		(0x10208)
+#define PCIX_SN_WINDOW_F0	(0x10208)
+#define PCIX_SN_WINDOW(_f)	(PCIX_SN_WINDOW_F0 + (0x20 * (_f)))
 #define PCIX_CRB_WINDOW		(0x10210)
 #define PCIX_CRB_WINDOW_F0	(0x10210)
 #define PCIX_CRB_WINDOW_F1	(0x10230)

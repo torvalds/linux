@@ -34,6 +34,8 @@ int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
 			  struct inode *inode, unsigned int from,
 			  unsigned int to, int new);
 
+void ocfs2_unlock_and_free_pages(struct page **pages, int num_pages);
+
 int walk_page_buffers(	handle_t *handle,
 			struct buffer_head *head,
 			unsigned from,
@@ -58,6 +60,10 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned flags,
 			     struct page **pagep, void **fsdata,
 			     struct buffer_head *di_bh, struct page *mmap_page);
+
+int ocfs2_read_inline_data(struct inode *inode, struct page *page,
+			   struct buffer_head *di_bh);
+int ocfs2_size_fits_inline_data(struct buffer_head *di_bh, u64 new_size);
 
 /* all ocfs2_dio_end_io()'s fault */
 #define ocfs2_iocb_is_rw_locked(iocb) \

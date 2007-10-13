@@ -142,7 +142,7 @@ CONFIG_BINFMT_MISC=y
 CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="console=ttyMM0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2"
 # CONFIG_PM is not set
-# CONFIG_SOFTWARE_SUSPEND is not set
+# CONFIG_HIBERNATION is not set
 CONFIG_SECCOMP=y
 CONFIG_ISA_DMA_API=y
 

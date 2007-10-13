@@ -60,31 +60,28 @@ static inline int ocfs2_vm_op_unblock_sigs(sigset_t *oldset)
 	return sigprocmask(SIG_SETMASK, oldset, NULL);
 }
 
-static struct page *ocfs2_nopage(struct vm_area_struct * area,
-				 unsigned long address,
-				 int *type)
+static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 {
-	struct page *page = NOPAGE_SIGBUS;
 	sigset_t blocked, oldset;
-	int ret;
+	int error, ret;
 
-	mlog_entry("(area=%p, address=%lu, type=%p)\n", area, address,
-		   type);
+	mlog_entry("(area=%p, page offset=%lu)\n", area, vmf->pgoff);
 
-	ret = ocfs2_vm_op_block_sigs(&blocked, &oldset);
-	if (ret < 0) {
-		mlog_errno(ret);
+	error = ocfs2_vm_op_block_sigs(&blocked, &oldset);
+	if (error < 0) {
+		mlog_errno(error);
+		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
 
-	page = filemap_nopage(area, address, type);
+	ret = filemap_fault(area, vmf);
 
-	ret = ocfs2_vm_op_unblock_sigs(&oldset);
-	if (ret < 0)
-		mlog_errno(ret);
+	error = ocfs2_vm_op_unblock_sigs(&oldset);
+	if (error < 0)
+		mlog_errno(error);
 out:
-	mlog_exit_ptr(page);
-	return page;
+	mlog_exit_ptr(vmf->page);
+	return ret;
 }
 
 static int __ocfs2_page_mkwrite(struct inode *inode, struct buffer_head *di_bh,
@@ -92,7 +89,7 @@ static int __ocfs2_page_mkwrite(struct inode *inode, struct buffer_head *di_bh,
 {
 	int ret;
 	struct address_space *mapping = inode->i_mapping;
-	loff_t pos = page->index << PAGE_CACHE_SHIFT;
+	loff_t pos = page_offset(page);
 	unsigned int len = PAGE_CACHE_SIZE;
 	pgoff_t last_index;
 	struct page *locked_page = NULL;
@@ -209,7 +206,7 @@ out:
 }
 
 static struct vm_operations_struct ocfs2_file_vm_ops = {
-	.nopage		= ocfs2_nopage,
+	.fault		= ocfs2_fault,
 	.page_mkwrite	= ocfs2_page_mkwrite,
 };
 
@@ -226,6 +223,7 @@ int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 	ocfs2_meta_unlock(file->f_dentry->d_inode, lock_level);
 out:
 	vma->vm_ops = &ocfs2_file_vm_ops;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
 	return 0;
 }
 

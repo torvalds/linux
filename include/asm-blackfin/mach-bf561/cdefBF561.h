@@ -31,11 +31,8 @@
 #ifndef _CDEF_BF561_H
 #define _CDEF_BF561_H
 
-/*
-#if !defined(__ADSPBF561__)
-#warning cdefBF561.h should only be included for BF561 chip.
-#endif
-*/
+#include <asm/blackfin.h>
+
 /* include all Core registers and bit definitions */
 #include "defBF561.h"
 
@@ -67,7 +64,7 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 	bfin_write32(SICA_IWR1, 0);
 
 	bfin_write16(VR_CTL, val);
-	__builtin_bfin_ssync();
+	SSYNC();
 
 	local_irq_save(flags);
 	asm("IDLE;");
@@ -80,6 +77,12 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_read_PLL_LOCKCNT()              bfin_read16(PLL_LOCKCNT)
 #define bfin_write_PLL_LOCKCNT(val)          bfin_write16(PLL_LOCKCNT,val)
 #define bfin_read_CHIPID()                   bfin_read32(CHIPID)
+
+/* For MMR's that are reserved on Core B, set up defines to better integrate with other ports */
+#define bfin_read_SWRST()                    bfin_read_SICA_SWRST()
+#define bfin_write_SWRST(val)                bfin_write_SICA_SWRST(val)
+#define bfin_read_SYSCR()                    bfin_read_SICA_SYSCR()
+#define bfin_write_SYSCR(val)                bfin_write_SICA_SYSCR(val)
 
 /* System Reset and Interrupt Controller registers for core A (0xFFC0 0100-0xFFC0 01FF) */
 #define bfin_read_SICA_SWRST()               bfin_read16(SICA_SWRST)

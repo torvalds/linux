@@ -249,7 +249,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			}
 
 			if (ipv6_only_sock(sk) ||
-			    !(ipv6_addr_type(&np->daddr) & IPV6_ADDR_MAPPED)) {
+			    !ipv6_addr_v4mapped(&np->daddr)) {
 				retv = -EADDRNOTAVAIL;
 				break;
 			}
@@ -539,12 +539,15 @@ done:
 	case IPV6_MULTICAST_IF:
 		if (sk->sk_type == SOCK_STREAM)
 			goto e_inval;
-		if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
-			goto e_inval;
 
-		if (__dev_get_by_index(val) == NULL) {
-			retv = -ENODEV;
-			break;
+		if (val) {
+			if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
+				goto e_inval;
+
+			if (__dev_get_by_index(&init_net, val) == NULL) {
+				retv = -ENODEV;
+				break;
+			}
 		}
 		np->mcast_oif = val;
 		retv = 0;
@@ -553,6 +556,10 @@ done:
 	case IPV6_DROP_MEMBERSHIP:
 	{
 		struct ipv6_mreq mreq;
+
+		retv = -EPROTO;
+		if (inet_sk(sk)->is_icsk)
+			break;
 
 		retv = -EFAULT;
 		if (copy_from_user(&mreq, optval, sizeof(struct ipv6_mreq)))
@@ -659,7 +666,7 @@ done:
 			break;
 		}
 		gsf = kmalloc(optlen,GFP_KERNEL);
-		if (gsf == 0) {
+		if (!gsf) {
 			retv = -ENOBUFS;
 			break;
 		}
@@ -820,7 +827,7 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 		return 0;
 
 	len = min_t(unsigned int, len, ipv6_optlen(hdr));
-	if (copy_to_user(optval, hdr, len));
+	if (copy_to_user(optval, hdr, len))
 		return -EFAULT;
 	return ipv6_optlen(hdr);
 }

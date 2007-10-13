@@ -698,7 +698,6 @@ CONFIG_I2C_ALGOBIT=y
 # I2C Hardware Bus support
 #
 # CONFIG_I2C_ELEKTOR is not set
-# CONFIG_I2C_ISA is not set
 # CONFIG_I2C_PARPORT_LIGHT is not set
 # CONFIG_I2C_STUB is not set
 # CONFIG_I2C_PCA_ISA is not set

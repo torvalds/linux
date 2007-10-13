@@ -205,10 +205,20 @@ struct iscsi_queue {
 };
 
 struct iscsi_session {
+	/*
+	 * Syncs up the scsi eh thread with the iscsi eh thread when sending
+	 * task management functions. This must be taken before the session
+	 * and recv lock.
+	 */
+	struct mutex		eh_mutex;
+
 	/* iSCSI session-wide sequencing */
 	uint32_t		cmdsn;
 	uint32_t		exp_cmdsn;
 	uint32_t		max_cmdsn;
+
+	/* This tracks the reqs queued into the initiator */
+	uint32_t		queued_cmdsn;
 
 	/* configuration */
 	int			initial_r2t_en;

@@ -134,8 +134,6 @@ static inline int usb_find_address(struct i2c_adapter *i2c_adap,
 		addr = (msg->addr << 1);
 		if (flags & I2C_M_RD)
 			addr |= 1;
-		if (flags & I2C_M_REV_DIR_ADDR)
-			addr ^= 1;
 
 		add[0] = addr;
 		if (flags & I2C_M_RD)
@@ -192,7 +190,7 @@ static int algo_control(struct i2c_adapter *adapter, unsigned int cmd, unsigned 
 
 static u32 functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR | I2C_FUNC_PROTOCOL_MANGLING;
+	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR;
 }
 
 

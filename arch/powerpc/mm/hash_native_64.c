@@ -38,7 +38,7 @@
 
 static DEFINE_SPINLOCK(native_tlbie_lock);
 
-static inline void __tlbie(unsigned long va, unsigned int psize)
+static inline void __tlbie(unsigned long va, int psize, int ssize)
 {
 	unsigned int penc;
 
@@ -48,18 +48,20 @@ static inline void __tlbie(unsigned long va, unsigned int psize)
 	switch (psize) {
 	case MMU_PAGE_4K:
 		va &= ~0xffful;
+		va |= ssize << 8;
 		asm volatile("tlbie %0,0" : : "r" (va) : "memory");
 		break;
 	default:
 		penc = mmu_psize_defs[psize].penc;
 		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
 		va |= penc << 12;
+		va |= ssize << 8;
 		asm volatile("tlbie %0,1" : : "r" (va) : "memory");
 		break;
 	}
 }
 
-static inline void __tlbiel(unsigned long va, unsigned int psize)
+static inline void __tlbiel(unsigned long va, int psize, int ssize)
 {
 	unsigned int penc;
 
@@ -69,6 +71,7 @@ static inline void __tlbiel(unsigned long va, unsigned int psize)
 	switch (psize) {
 	case MMU_PAGE_4K:
 		va &= ~0xffful;
+		va |= ssize << 8;
 		asm volatile(".long 0x7c000224 | (%0 << 11) | (0 << 21)"
 			     : : "r"(va) : "memory");
 		break;
@@ -76,6 +79,7 @@ static inline void __tlbiel(unsigned long va, unsigned int psize)
 		penc = mmu_psize_defs[psize].penc;
 		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
 		va |= penc << 12;
+		va |= ssize << 8;
 		asm volatile(".long 0x7c000224 | (%0 << 11) | (1 << 21)"
 			     : : "r"(va) : "memory");
 		break;
@@ -83,7 +87,7 @@ static inline void __tlbiel(unsigned long va, unsigned int psize)
 
 }
 
-static inline void tlbie(unsigned long va, int psize, int local)
+static inline void tlbie(unsigned long va, int psize, int ssize, int local)
 {
 	unsigned int use_local = local && cpu_has_feature(CPU_FTR_TLBIEL);
 	int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
@@ -94,10 +98,10 @@ static inline void tlbie(unsigned long va, int psize, int local)
 		spin_lock(&native_tlbie_lock);
 	asm volatile("ptesync": : :"memory");
 	if (use_local) {
-		__tlbiel(va, psize);
+		__tlbiel(va, psize, ssize);
 		asm volatile("ptesync": : :"memory");
 	} else {
-		__tlbie(va, psize);
+		__tlbie(va, psize, ssize);
 		asm volatile("eieio; tlbsync; ptesync": : :"memory");
 	}
 	if (lock_tlbie && !use_local)
@@ -126,7 +130,7 @@ static inline void native_unlock_hpte(struct hash_pte *hptep)
 
 static long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 			unsigned long pa, unsigned long rflags,
-			unsigned long vflags, int psize)
+			unsigned long vflags, int psize, int ssize)
 {
 	struct hash_pte *hptep = htab_address + hpte_group;
 	unsigned long hpte_v, hpte_r;
@@ -153,7 +157,7 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 	if (i == HPTES_PER_GROUP)
 		return -1;
 
-	hpte_v = hpte_encode_v(va, psize) | vflags | HPTE_V_VALID;
+	hpte_v = hpte_encode_v(va, psize, ssize) | vflags | HPTE_V_VALID;
 	hpte_r = hpte_encode_r(pa, psize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED)) {
@@ -215,13 +219,14 @@ static long native_hpte_remove(unsigned long hpte_group)
 }
 
 static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
-				 unsigned long va, int psize, int local)
+				 unsigned long va, int psize, int ssize,
+				 int local)
 {
 	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v, want_v;
 	int ret = 0;
 
-	want_v = hpte_encode_v(va, psize);
+	want_v = hpte_encode_v(va, psize, ssize);
 
 	DBG_LOW("    update(va=%016lx, avpnv=%016lx, hash=%016lx, newpp=%x)",
 		va, want_v & HPTE_V_AVPN, slot, newpp);
@@ -243,39 +248,32 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	native_unlock_hpte(hptep);
 
 	/* Ensure it is out of the tlb too. */
-	tlbie(va, psize, local);
+	tlbie(va, psize, ssize, local);
 
 	return ret;
 }
 
-static long native_hpte_find(unsigned long va, int psize)
+static long native_hpte_find(unsigned long va, int psize, int ssize)
 {
 	struct hash_pte *hptep;
 	unsigned long hash;
-	unsigned long i, j;
+	unsigned long i;
 	long slot;
 	unsigned long want_v, hpte_v;
 
-	hash = hpt_hash(va, mmu_psize_defs[psize].shift);
-	want_v = hpte_encode_v(va, psize);
+	hash = hpt_hash(va, mmu_psize_defs[psize].shift, ssize);
+	want_v = hpte_encode_v(va, psize, ssize);
 
-	for (j = 0; j < 2; j++) {
-		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		for (i = 0; i < HPTES_PER_GROUP; i++) {
-			hptep = htab_address + slot;
-			hpte_v = hptep->v;
+	/* Bolted mappings are only ever in the primary group */
+	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+	for (i = 0; i < HPTES_PER_GROUP; i++) {
+		hptep = htab_address + slot;
+		hpte_v = hptep->v;
 
-			if (HPTE_V_COMPARE(hpte_v, want_v)
-			    && (hpte_v & HPTE_V_VALID)
-			    && ( !!(hpte_v & HPTE_V_SECONDARY) == j)) {
-				/* HPTE matches */
-				if (j)
-					slot = -slot;
-				return slot;
-			}
-			++slot;
-		}
-		hash = ~hash;
+		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
+			/* HPTE matches */
+			return slot;
+		++slot;
 	}
 
 	return -1;
@@ -289,16 +287,16 @@ static long native_hpte_find(unsigned long va, int psize)
  * No need to lock here because we should be the only user.
  */
 static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
-				       int psize)
+				       int psize, int ssize)
 {
 	unsigned long vsid, va;
 	long slot;
 	struct hash_pte *hptep;
 
-	vsid = get_kernel_vsid(ea);
-	va = (vsid << 28) | (ea & 0x0fffffff);
+	vsid = get_kernel_vsid(ea, ssize);
+	va = hpt_va(ea, vsid, ssize);
 
-	slot = native_hpte_find(va, psize);
+	slot = native_hpte_find(va, psize, ssize);
 	if (slot == -1)
 		panic("could not find page to bolt\n");
 	hptep = htab_address + slot;
@@ -308,11 +306,11 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 		(newpp & (HPTE_R_PP | HPTE_R_N));
 
 	/* Ensure it is out of the tlb too. */
-	tlbie(va, psize, 0);
+	tlbie(va, psize, ssize, 0);
 }
 
 static void native_hpte_invalidate(unsigned long slot, unsigned long va,
-				   int psize, int local)
+				   int psize, int ssize, int local)
 {
 	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v;
@@ -323,7 +321,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 
 	DBG_LOW("    invalidate(va=%016lx, hash: %x)\n", va, slot);
 
-	want_v = hpte_encode_v(va, psize);
+	want_v = hpte_encode_v(va, psize, ssize);
 	native_lock_hpte(hptep);
 	hpte_v = hptep->v;
 
@@ -335,7 +333,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 		hptep->v = 0;
 
 	/* Invalidate the TLB */
-	tlbie(va, psize, local);
+	tlbie(va, psize, ssize, local);
 
 	local_irq_restore(flags);
 }
@@ -345,7 +343,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 #define LP_MASK(i)	((0xFF >> (i)) << LP_SHIFT)
 
 static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
-			int *psize, unsigned long *va)
+			int *psize, int *ssize, unsigned long *va)
 {
 	unsigned long hpte_r = hpte->r;
 	unsigned long hpte_v = hpte->v;
@@ -401,6 +399,7 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 
 	*va = avpn;
 	*psize = size;
+	*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
 }
 
 /*
@@ -417,7 +416,7 @@ static void native_hpte_clear(void)
 	struct hash_pte *hptep = htab_address;
 	unsigned long hpte_v, va;
 	unsigned long pteg_count;
-	int psize;
+	int psize, ssize;
 
 	pteg_count = htab_hash_mask + 1;
 
@@ -443,9 +442,9 @@ static void native_hpte_clear(void)
 		 * already hold the native_tlbie_lock.
 		 */
 		if (hpte_v & HPTE_V_VALID) {
-			hpte_decode(hptep, slot, &psize, &va);
+			hpte_decode(hptep, slot, &psize, &ssize, &va);
 			hptep->v = 0;
-			__tlbie(va, psize);
+			__tlbie(va, psize, ssize);
 		}
 	}
 
@@ -468,6 +467,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 	real_pte_t pte;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 	unsigned long psize = batch->psize;
+	int ssize = batch->ssize;
 	int i;
 
 	local_irq_save(flags);
@@ -477,14 +477,14 @@ static void native_flush_hash_range(unsigned long number, int local)
 		pte = batch->pte[i];
 
 		pte_iterate_hashed_subpages(pte, psize, va, index, shift) {
-			hash = hpt_hash(va, shift);
+			hash = hpt_hash(va, shift, ssize);
 			hidx = __rpte_to_hidx(pte, index);
 			if (hidx & _PTEIDX_SECONDARY)
 				hash = ~hash;
 			slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 			slot += hidx & _PTEIDX_GROUP_IX;
 			hptep = htab_address + slot;
-			want_v = hpte_encode_v(va, psize);
+			want_v = hpte_encode_v(va, psize, ssize);
 			native_lock_hpte(hptep);
 			hpte_v = hptep->v;
 			if (!HPTE_V_COMPARE(hpte_v, want_v) ||
@@ -504,7 +504,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 
 			pte_iterate_hashed_subpages(pte, psize, va, index,
 						    shift) {
-				__tlbiel(va, psize);
+				__tlbiel(va, psize, ssize);
 			} pte_iterate_hashed_end();
 		}
 		asm volatile("ptesync":::"memory");
@@ -521,7 +521,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 
 			pte_iterate_hashed_subpages(pte, psize, va, index,
 						    shift) {
-				__tlbie(va, psize);
+				__tlbie(va, psize, ssize);
 			} pte_iterate_hashed_end();
 		}
 		asm volatile("eieio; tlbsync; ptesync":::"memory");

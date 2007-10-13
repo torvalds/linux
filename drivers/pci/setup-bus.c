@@ -472,7 +472,12 @@ void pci_bus_size_bridges(struct pci_bus *bus)
 		break;
 
 	case PCI_CLASS_BRIDGE_PCI:
+		/* don't size subtractive decoding (transparent)
+		 * PCI-to-PCI bridges */
+		if (bus->self->transparent)
+			break;
 		pci_bridge_check_ranges(bus);
+		/* fall through */
 	default:
 		pbus_size_io(bus);
 		/* If the bridge supports prefetchable range, size it

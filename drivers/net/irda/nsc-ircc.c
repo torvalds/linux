@@ -437,7 +437,6 @@ static int __init nsc_ircc_open(chipio_t *info)
 	self->tx_fifo.tail = self->tx_buff.head;
 
 	/* Override the network functions we need to use */
-	SET_MODULE_OWNER(dev);
 	dev->hard_start_xmit = nsc_ircc_hard_xmit_sir;
 	dev->open            = nsc_ircc_net_open;
 	dev->stop            = nsc_ircc_net_close;

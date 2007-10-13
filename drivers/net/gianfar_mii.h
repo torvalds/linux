@@ -42,5 +42,5 @@ struct gfar_mii {
 int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum);
 int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value);
 int __init gfar_mdio_init(void);
-void __exit gfar_mdio_exit(void);
+void gfar_mdio_exit(void);
 #endif /* GIANFAR_PHY_H */

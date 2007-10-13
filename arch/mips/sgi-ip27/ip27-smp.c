@@ -33,7 +33,7 @@ static void alloc_cpupda(cpuid_t cpu, int cpunum)
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(node);
 
 	cputonasid(cpunum) = nasid;
-	cpu_data[cpunum].p_nodeid = node;
+	sn_cpu_info[cpunum].p_nodeid = node;
 	cputoslice(cpunum) = get_cpu_slice(cpu);
 }
 
@@ -171,17 +171,17 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
  * set sp to the kernel stack of the newly created idle process, gp to the proc
  * struct so that current_thread_info() will work.
  */
-void __init prom_boot_secondary(int cpu, struct task_struct *idle)
+void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long gp = (unsigned long)task_thread_info(idle);
 	unsigned long sp = __KSTK_TOS(idle);
 
-	LAUNCH_SLAVE(cputonasid(cpu),cputoslice(cpu),
+	LAUNCH_SLAVE(cputonasid(cpu), cputoslice(cpu),
 		(launch_proc_t)MAPPED_KERN_RW_TO_K0(smp_bootstrap),
 		0, (void *) sp, (void *) gp);
 }
 
-void prom_init_secondary(void)
+void __cpuinit prom_init_secondary(void)
 {
 	per_cpu_init();
 	local_irq_enable();
@@ -191,7 +191,7 @@ void __init prom_cpus_done(void)
 {
 }
 
-void prom_smp_finish(void)
+void __cpuinit prom_smp_finish(void)
 {
 }
 

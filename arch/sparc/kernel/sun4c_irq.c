@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include "irq.h"
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -39,6 +40,20 @@
 static struct resource sun4c_timer_eb = { "sun4c_timer" };
 static struct resource sun4c_intr_eb = { "sun4c_intr" };
 #endif
+
+/*
+ * Bit field defines for the interrupt registers on various
+ * Sparc machines.
+ */
+
+/* The sun4c interrupt register. */
+#define SUN4C_INT_ENABLE  0x01     /* Allow interrupts. */
+#define SUN4C_INT_E14     0x80     /* Enable level 14 IRQ. */
+#define SUN4C_INT_E10     0x20     /* Enable level 10 IRQ. */
+#define SUN4C_INT_E8      0x10     /* Enable level 8 IRQ. */
+#define SUN4C_INT_E6      0x08     /* Enable level 6 IRQ. */
+#define SUN4C_INT_E4      0x04     /* Enable level 4 IRQ. */
+#define SUN4C_INT_E1      0x02     /* Enable level 1 IRQ. */
 
 /* Pointer to the interrupt enable byte
  *

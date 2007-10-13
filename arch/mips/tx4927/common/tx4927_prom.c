@@ -38,7 +38,7 @@
 #include <asm/bootinfo.h>
 #include <asm/tx4927/tx4927.h>
 
-static unsigned int __init tx4927_process_sdccr(u64 * addr)
+static unsigned int __init tx4927_process_sdccr(unsigned long addr)
 {
 	u64 val;
 	unsigned int sdccr_ce;
@@ -52,7 +52,7 @@ static unsigned int __init tx4927_process_sdccr(u64 * addr)
 	unsigned int mw = 0;
 	unsigned int msize = 0;
 
-	val = (*((vu64 *) (addr)));
+	val = __raw_readq((void __iomem *)addr);
 
 	/* MVMCP -- need #defs for these bits masks */
 	sdccr_ce = ((val & (1 << 10)) >> 10);
@@ -136,10 +136,10 @@ unsigned int __init tx4927_get_mem_size(void)
 	unsigned int total;
 
 	/* MVMCP -- need #defs for these registers */
-	c0 = tx4927_process_sdccr((u64 *) 0xff1f8000);
-	c1 = tx4927_process_sdccr((u64 *) 0xff1f8008);
-	c2 = tx4927_process_sdccr((u64 *) 0xff1f8010);
-	c3 = tx4927_process_sdccr((u64 *) 0xff1f8018);
+	c0 = tx4927_process_sdccr(0xff1f8000);
+	c1 = tx4927_process_sdccr(0xff1f8008);
+	c2 = tx4927_process_sdccr(0xff1f8010);
+	c3 = tx4927_process_sdccr(0xff1f8018);
 	total = c0 + c1 + c2 + c3;
 
 	return (total);

@@ -33,7 +33,7 @@ struct bug_entry {
 
 #ifndef HAVE_ARCH_WARN_ON
 #define WARN_ON(condition) ({						\
-	typeof(condition) __ret_warn_on = (condition);			\
+	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on)) {					\
 		printk("WARNING: at %s:%d %s()\n", __FILE__,		\
 			__LINE__, __FUNCTION__);			\
@@ -54,7 +54,7 @@ struct bug_entry {
 
 #ifndef HAVE_ARCH_WARN_ON
 #define WARN_ON(condition) ({						\
-	typeof(condition) __ret_warn_on = (condition);			\
+	int __ret_warn_on = !!(condition);				\
 	unlikely(__ret_warn_on);					\
 })
 #endif
@@ -62,7 +62,7 @@ struct bug_entry {
 
 #define WARN_ON_ONCE(condition)	({				\
 	static int __warned;					\
-	typeof(condition) __ret_warn_once = (condition);	\
+	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once))				\
 		if (WARN_ON(!__warned)) 			\

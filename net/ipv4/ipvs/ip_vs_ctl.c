@@ -29,13 +29,13 @@
 #include <linux/proc_fs.h>
 #include <linux/workqueue.h>
 #include <linux/swap.h>
-#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/mutex.h>
 
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/sock.h>
@@ -909,7 +909,7 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest)
 	write_lock_bh(&__ip_vs_svc_lock);
 
 	/* Wait until all other svc users go away */
-	while (atomic_read(&svc->usecnt) > 1) {};
+	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 1);
 
 	/* call the update_service, because server weight may be changed */
 	svc->scheduler->update_service(svc);
@@ -1792,24 +1792,8 @@ static const struct seq_operations ip_vs_info_seq_ops = {
 
 static int ip_vs_info_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct ip_vs_iter *s = kzalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &ip_vs_info_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &ip_vs_info_seq_ops,
+			sizeof(struct ip_vs_iter));
 }
 
 static const struct file_operations ip_vs_info_fops = {
@@ -2340,6 +2324,7 @@ static struct nf_sockopt_ops ip_vs_sockopts = {
 	.get_optmin	= IP_VS_BASE_CTL,
 	.get_optmax	= IP_VS_SO_GET_MAX+1,
 	.get		= do_ip_vs_get_ctl,
+	.owner		= THIS_MODULE,
 };
 
 
@@ -2356,8 +2341,8 @@ int ip_vs_control_init(void)
 		return ret;
 	}
 
-	proc_net_fops_create("ip_vs", 0, &ip_vs_info_fops);
-	proc_net_fops_create("ip_vs_stats",0, &ip_vs_stats_fops);
+	proc_net_fops_create(&init_net, "ip_vs", 0, &ip_vs_info_fops);
+	proc_net_fops_create(&init_net, "ip_vs_stats",0, &ip_vs_stats_fops);
 
 	sysctl_header = register_sysctl_table(vs_root_table);
 
@@ -2390,8 +2375,8 @@ void ip_vs_control_cleanup(void)
 	cancel_work_sync(&defense_work.work);
 	ip_vs_kill_estimator(&ip_vs_stats);
 	unregister_sysctl_table(sysctl_header);
-	proc_net_remove("ip_vs_stats");
-	proc_net_remove("ip_vs");
+	proc_net_remove(&init_net, "ip_vs_stats");
+	proc_net_remove(&init_net, "ip_vs");
 	nf_unregister_sockopt(&ip_vs_sockopts);
 	LeaveFunction(2);
 }

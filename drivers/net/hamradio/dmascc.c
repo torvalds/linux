@@ -453,8 +453,8 @@ static int __init setup_adapter(int card_base, int type, int n)
 	int scc_base = card_base + hw[type].scc_offset;
 	char *chipnames[] = CHIPNAMES;
 
-	/* Allocate memory */
-	info = kmalloc(sizeof(struct scc_info), GFP_KERNEL | GFP_DMA);
+	/* Initialize what is necessary for write_scc and write_scc_data */
+	info = kzalloc(sizeof(struct scc_info), GFP_KERNEL | GFP_DMA);
 	if (!info) {
 		printk(KERN_ERR "dmascc: "
 		       "could not allocate memory for %s at %#3x\n",
@@ -462,8 +462,6 @@ static int __init setup_adapter(int card_base, int type, int n)
 		goto out;
 	}
 
-	/* Initialize what is necessary for write_scc and write_scc_data */
-	memset(info, 0, sizeof(struct scc_info));
 
 	info->dev[0] = alloc_netdev(0, "", dev_setup);
 	if (!info->dev[0]) {
@@ -583,8 +581,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 		dev->do_ioctl = scc_ioctl;
 		dev->hard_start_xmit = scc_send_packet;
 		dev->get_stats = scc_get_stats;
-		dev->hard_header = ax25_hard_header;
-		dev->rebuild_header = ax25_rebuild_header;
+		dev->header_ops = &ax25_header_ops;
 		dev->set_mac_address = scc_set_mac_address;
 	}
 	if (register_netdev(info->dev[0])) {

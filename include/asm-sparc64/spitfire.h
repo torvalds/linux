@@ -38,6 +38,11 @@
 
 #define L1DCACHE_SIZE		0x4000
 
+#define SUN4V_CHIP_INVALID	0x00
+#define SUN4V_CHIP_NIAGARA1	0x01
+#define SUN4V_CHIP_NIAGARA2	0x02
+#define SUN4V_CHIP_UNKNOWN	0xff
+
 #ifndef __ASSEMBLY__
 
 enum ultra_tlb_layout {
@@ -48,6 +53,8 @@ enum ultra_tlb_layout {
 };
 
 extern enum ultra_tlb_layout tlb_type;
+
+extern int sun4v_chip_type;
 
 extern int cheetah_pcache_forced_on;
 extern void cheetah_enable_pcache(void);

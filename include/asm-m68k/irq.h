@@ -59,9 +59,6 @@
 #define IRQ_USER	8
 
 extern unsigned int irq_canonicalize(unsigned int irq);
-extern void enable_irq(unsigned int);
-extern void disable_irq(unsigned int);
-#define disable_irq_nosync	disable_irq
 
 struct pt_regs;
 

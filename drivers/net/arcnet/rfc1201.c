@@ -34,7 +34,7 @@ MODULE_LICENSE("GPL");
 #define VERSION "arcnet: RFC1201 \"standard\" (`a') encapsulation support loaded.\n"
 
 
-static unsigned short type_trans(struct sk_buff *skb, struct net_device *dev);
+static __be16 type_trans(struct sk_buff *skb, struct net_device *dev);
 static void rx(struct net_device *dev, int bufnum,
 	       struct archdr *pkthdr, int length);
 static int build_header(struct sk_buff *skb, struct net_device *dev,
@@ -88,7 +88,7 @@ module_exit(arcnet_rfc1201_exit);
  * 
  * With ARCnet we have to convert everything to Ethernet-style stuff.
  */
-static unsigned short type_trans(struct sk_buff *skb, struct net_device *dev)
+static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct archdr *pkt = (struct archdr *) skb->data;
 	struct arc_rfc1201 *soft = &pkt->soft.rfc1201;
@@ -456,7 +456,7 @@ static void load_pkt(struct net_device *dev, struct arc_hardware *hard,
 
 		excsoft.proto = soft->proto;
 		excsoft.split_flag = 0xff;
-		excsoft.sequence = 0xffff;
+		excsoft.sequence = htons(0xffff);
 
 		hard->offset[0] = 0;
 		ofs = 512 - softlen;

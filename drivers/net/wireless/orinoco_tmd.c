@@ -134,7 +134,6 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 	priv = netdev_priv(dev);
 	card = priv->card;
 	card->bridge_io = bridge_io;
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	hermes_struct_init(&priv->hw, hermes_io, HERMES_16BIT_REGSPACING);
@@ -190,7 +189,7 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 static void __devexit orinoco_tmd_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct orinoco_private *priv = dev->priv;
+	struct orinoco_private *priv = netdev_priv(dev);
 	struct orinoco_pci_card *card = priv->card;
 
 	unregister_netdev(dev);

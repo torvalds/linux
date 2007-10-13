@@ -19,7 +19,15 @@ static struct proc_dir_entry *root_irq_dir;
 static int irq_affinity_read_proc(char *page, char **start, off_t off,
 				  int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, irq_desc[(long)data].affinity);
+	struct irq_desc *desc = irq_desc + (long)data;
+	cpumask_t *mask = &desc->affinity;
+	int len;
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	if (desc->status & IRQ_MOVE_PENDING)
+		mask = &desc->pending_mask;
+#endif
+	len = cpumask_scnprintf(page, count, *mask);
 
 	if (count - len < 2)
 		return -EINVAL;

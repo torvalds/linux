@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
+#include <linux/scatterlist.h>
 
 #include <linux/mlx4/cmd.h>
 
@@ -50,19 +51,41 @@ enum {
 	MLX4_TABLE_CHUNK_SIZE	= 1 << 18
 };
 
-void mlx4_free_icm(struct mlx4_dev *dev, struct mlx4_icm *icm)
+static void mlx4_free_icm_pages(struct mlx4_dev *dev, struct mlx4_icm_chunk *chunk)
 {
-	struct mlx4_icm_chunk *chunk, *tmp;
 	int i;
 
-	list_for_each_entry_safe(chunk, tmp, &icm->chunk_list, list) {
-		if (chunk->nsg > 0)
-			pci_unmap_sg(dev->pdev, chunk->mem, chunk->npages,
-				     PCI_DMA_BIDIRECTIONAL);
+	if (chunk->nsg > 0)
+		pci_unmap_sg(dev->pdev, chunk->mem, chunk->npages,
+			     PCI_DMA_BIDIRECTIONAL);
 
-		for (i = 0; i < chunk->npages; ++i)
-			__free_pages(chunk->mem[i].page,
-				     get_order(chunk->mem[i].length));
+	for (i = 0; i < chunk->npages; ++i)
+		__free_pages(chunk->mem[i].page,
+			     get_order(chunk->mem[i].length));
+}
+
+static void mlx4_free_icm_coherent(struct mlx4_dev *dev, struct mlx4_icm_chunk *chunk)
+{
+	int i;
+
+	for (i = 0; i < chunk->npages; ++i)
+		dma_free_coherent(&dev->pdev->dev, chunk->mem[i].length,
+				  lowmem_page_address(chunk->mem[i].page),
+				  sg_dma_address(&chunk->mem[i]));
+}
+
+void mlx4_free_icm(struct mlx4_dev *dev, struct mlx4_icm *icm, int coherent)
+{
+	struct mlx4_icm_chunk *chunk, *tmp;
+
+	if (!icm)
+		return;
+
+	list_for_each_entry_safe(chunk, tmp, &icm->chunk_list, list) {
+		if (coherent)
+			mlx4_free_icm_coherent(dev, chunk);
+		else
+			mlx4_free_icm_pages(dev, chunk);
 
 		kfree(chunk);
 	}
@@ -70,16 +93,45 @@ void mlx4_free_icm(struct mlx4_dev *dev, struct mlx4_icm *icm)
 	kfree(icm);
 }
 
+static int mlx4_alloc_icm_pages(struct scatterlist *mem, int order, gfp_t gfp_mask)
+{
+	mem->page = alloc_pages(gfp_mask, order);
+	if (!mem->page)
+		return -ENOMEM;
+
+	mem->length = PAGE_SIZE << order;
+	mem->offset = 0;
+	return 0;
+}
+
+static int mlx4_alloc_icm_coherent(struct device *dev, struct scatterlist *mem,
+				    int order, gfp_t gfp_mask)
+{
+	void *buf = dma_alloc_coherent(dev, PAGE_SIZE << order,
+				       &sg_dma_address(mem), gfp_mask);
+	if (!buf)
+		return -ENOMEM;
+
+	sg_set_buf(mem, buf, PAGE_SIZE << order);
+	BUG_ON(mem->offset);
+	sg_dma_len(mem) = PAGE_SIZE << order;
+	return 0;
+}
+
 struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
-				gfp_t gfp_mask)
+				gfp_t gfp_mask, int coherent)
 {
 	struct mlx4_icm *icm;
 	struct mlx4_icm_chunk *chunk = NULL;
 	int cur_order;
+	int ret;
+
+	/* We use sg_set_buf for coherent allocs, which assumes low memory */
+	BUG_ON(coherent && (gfp_mask & __GFP_HIGHMEM));
 
 	icm = kmalloc(sizeof *icm, gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
 	if (!icm)
-		return icm;
+		return NULL;
 
 	icm->refcount = 0;
 	INIT_LIST_HEAD(&icm->chunk_list);
@@ -101,12 +153,20 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 		while (1 << cur_order > npages)
 			--cur_order;
 
-		chunk->mem[chunk->npages].page = alloc_pages(gfp_mask, cur_order);
-		if (chunk->mem[chunk->npages].page) {
-			chunk->mem[chunk->npages].length = PAGE_SIZE << cur_order;
-			chunk->mem[chunk->npages].offset = 0;
+		if (coherent)
+			ret = mlx4_alloc_icm_coherent(&dev->pdev->dev,
+						      &chunk->mem[chunk->npages],
+						      cur_order, gfp_mask);
+		else
+			ret = mlx4_alloc_icm_pages(&chunk->mem[chunk->npages],
+						   cur_order, gfp_mask);
 
-			if (++chunk->npages == MLX4_ICM_CHUNK_LEN) {
+		if (!ret) {
+			++chunk->npages;
+
+			if (coherent)
+				++chunk->nsg;
+			else if (chunk->npages == MLX4_ICM_CHUNK_LEN) {
 				chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
 							chunk->npages,
 							PCI_DMA_BIDIRECTIONAL);
@@ -125,7 +185,7 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 		}
 	}
 
-	if (chunk) {
+	if (!coherent && chunk) {
 		chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
 					chunk->npages,
 					PCI_DMA_BIDIRECTIONAL);
@@ -137,7 +197,7 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 	return icm;
 
 fail:
-	mlx4_free_icm(dev, icm);
+	mlx4_free_icm(dev, icm, coherent);
 	return NULL;
 }
 
@@ -202,7 +262,7 @@ int mlx4_table_get(struct mlx4_dev *dev, struct mlx4_icm_table *table, int obj)
 
 	table->icm[i] = mlx4_alloc_icm(dev, MLX4_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
 				       (table->lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
-				       __GFP_NOWARN);
+				       __GFP_NOWARN, table->coherent);
 	if (!table->icm[i]) {
 		ret = -ENOMEM;
 		goto out;
@@ -210,7 +270,7 @@ int mlx4_table_get(struct mlx4_dev *dev, struct mlx4_icm_table *table, int obj)
 
 	if (mlx4_MAP_ICM(dev, table->icm[i], table->virt +
 			 (u64) i * MLX4_TABLE_CHUNK_SIZE)) {
-		mlx4_free_icm(dev, table->icm[i]);
+		mlx4_free_icm(dev, table->icm[i], table->coherent);
 		table->icm[i] = NULL;
 		ret = -ENOMEM;
 		goto out;
@@ -234,16 +294,16 @@ void mlx4_table_put(struct mlx4_dev *dev, struct mlx4_icm_table *table, int obj)
 	if (--table->icm[i]->refcount == 0) {
 		mlx4_UNMAP_ICM(dev, table->virt + i * MLX4_TABLE_CHUNK_SIZE,
 			       MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE);
-		mlx4_free_icm(dev, table->icm[i]);
+		mlx4_free_icm(dev, table->icm[i], table->coherent);
 		table->icm[i] = NULL;
 	}
 
 	mutex_unlock(&table->mutex);
 }
 
-void *mlx4_table_find(struct mlx4_icm_table *table, int obj)
+void *mlx4_table_find(struct mlx4_icm_table *table, int obj, dma_addr_t *dma_handle)
 {
-	int idx, offset, i;
+	int idx, offset, dma_offset, i;
 	struct mlx4_icm_chunk *chunk;
 	struct mlx4_icm *icm;
 	struct page *page = NULL;
@@ -253,15 +313,26 @@ void *mlx4_table_find(struct mlx4_icm_table *table, int obj)
 
 	mutex_lock(&table->mutex);
 
-	idx = obj & (table->num_obj - 1);
-	icm = table->icm[idx / (MLX4_TABLE_CHUNK_SIZE / table->obj_size)];
-	offset = idx % (MLX4_TABLE_CHUNK_SIZE / table->obj_size);
+	idx = (obj & (table->num_obj - 1)) * table->obj_size;
+	icm = table->icm[idx / MLX4_TABLE_CHUNK_SIZE];
+	dma_offset = offset = idx % MLX4_TABLE_CHUNK_SIZE;
 
 	if (!icm)
 		goto out;
 
 	list_for_each_entry(chunk, &icm->chunk_list, list) {
 		for (i = 0; i < chunk->npages; ++i) {
+			if (dma_handle && dma_offset >= 0) {
+				if (sg_dma_len(&chunk->mem[i]) > dma_offset)
+					*dma_handle = sg_dma_address(&chunk->mem[i]) +
+						dma_offset;
+				dma_offset -= sg_dma_len(&chunk->mem[i]);
+			}
+			/*
+			 * DMA mapping can merge pages but not split them,
+			 * so if we found the page, dma_handle has already
+			 * been assigned to.
+			 */
 			if (chunk->mem[i].length > offset) {
 				page = chunk->mem[i].page;
 				goto out;
@@ -309,7 +380,7 @@ void mlx4_table_put_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 
 int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 			u64 virt, int obj_size,	int nobj, int reserved,
-			int use_lowmem)
+			int use_lowmem, int use_coherent)
 {
 	int obj_per_chunk;
 	int num_icm;
@@ -327,6 +398,7 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 	table->num_obj  = nobj;
 	table->obj_size = obj_size;
 	table->lowmem   = use_lowmem;
+	table->coherent = use_coherent;
 	mutex_init(&table->mutex);
 
 	for (i = 0; i * MLX4_TABLE_CHUNK_SIZE < reserved * obj_size; ++i) {
@@ -336,11 +408,11 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 
 		table->icm[i] = mlx4_alloc_icm(dev, chunk_size >> PAGE_SHIFT,
 					       (use_lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
-					       __GFP_NOWARN);
+					       __GFP_NOWARN, use_coherent);
 		if (!table->icm[i])
 			goto err;
 		if (mlx4_MAP_ICM(dev, table->icm[i], virt + i * MLX4_TABLE_CHUNK_SIZE)) {
-			mlx4_free_icm(dev, table->icm[i]);
+			mlx4_free_icm(dev, table->icm[i], use_coherent);
 			table->icm[i] = NULL;
 			goto err;
 		}
@@ -359,7 +431,7 @@ err:
 		if (table->icm[i]) {
 			mlx4_UNMAP_ICM(dev, virt + i * MLX4_TABLE_CHUNK_SIZE,
 				       MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE);
-			mlx4_free_icm(dev, table->icm[i]);
+			mlx4_free_icm(dev, table->icm[i], use_coherent);
 		}
 
 	return -ENOMEM;
@@ -373,7 +445,7 @@ void mlx4_cleanup_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table)
 		if (table->icm[i]) {
 			mlx4_UNMAP_ICM(dev, table->virt + i * MLX4_TABLE_CHUNK_SIZE,
 				       MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE);
-			mlx4_free_icm(dev, table->icm[i]);
+			mlx4_free_icm(dev, table->icm[i], table->coherent);
 		}
 
 	kfree(table->icm);

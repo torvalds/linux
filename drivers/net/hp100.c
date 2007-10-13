@@ -404,8 +404,6 @@ struct net_device * __init hp100_probe(int unit)
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	SET_MODULE_OWNER(dev);
-
 #ifdef HP100_DEBUG_B
 	hp100_outw(0x4200, TRACE);
 	printk("hp100: %s: probe\n", dev->name);
@@ -2095,9 +2093,9 @@ static void hp100_set_multicast_list(struct net_device *dev)
 				addrs = dmi->dmi_addr;
 				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG
-					printk("hp100: %s: multicast = %02x:%02x:%02x:%02x:%02x:%02x, ",
-						     dev->name, addrs[0], addrs[1], addrs[2],
-						     addrs[3], addrs[4], addrs[5]);
+					DECLARE_MAC_BUF(mac);
+					printk("hp100: %s: multicast = %s, ",
+						     dev->name, print_mac(mac, addrs));
 #endif
 					for (j = idx = 0; j < 6; j++) {
 						idx ^= *addrs++ & 0x3f;
@@ -2843,7 +2841,6 @@ static int __init hp100_eisa_probe (struct device *gendev)
 	if (!dev)
 		return -ENOMEM;
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &edev->dev);
 
 	err = hp100_probe1(dev, edev->base_addr + 0xC38, HP100_BUS_EISA, NULL);
@@ -2896,7 +2893,6 @@ static int __devinit hp100_pci_probe (struct pci_dev *pdev,
 		goto out0;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
@@ -2993,7 +2989,6 @@ static int __init hp100_isa_init(void)
 
 			return -ENOMEM;
 		}
-		SET_MODULE_OWNER(dev);
 
 		err = hp100_isa_probe(dev, hp100_port[i]);
 		if (!err)

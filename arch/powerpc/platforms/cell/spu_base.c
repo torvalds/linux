@@ -35,18 +35,36 @@
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/xmon.h>
+#include <asm/prom.h>
 
 const struct spu_management_ops *spu_management_ops;
 EXPORT_SYMBOL_GPL(spu_management_ops);
 
 const struct spu_priv1_ops *spu_priv1_ops;
-
-static struct list_head spu_list[MAX_NUMNODES];
-static LIST_HEAD(spu_full_list);
-static DEFINE_MUTEX(spu_mutex);
-static DEFINE_SPINLOCK(spu_list_lock);
-
 EXPORT_SYMBOL_GPL(spu_priv1_ops);
+
+struct cbe_spu_info cbe_spu_info[MAX_NUMNODES];
+EXPORT_SYMBOL_GPL(cbe_spu_info);
+
+/*
+ * Protects cbe_spu_info and spu->number.
+ */
+static DEFINE_SPINLOCK(spu_lock);
+
+/*
+ * List of all spus in the system.
+ *
+ * This list is iterated by callers from irq context and callers that
+ * want to sleep.  Thus modifications need to be done with both
+ * spu_full_list_lock and spu_full_list_mutex held, while iterating
+ * through it requires either of these locks.
+ *
+ * In addition spu_full_list_lock protects all assignmens to
+ * spu->mm.
+ */
+static LIST_HEAD(spu_full_list);
+static DEFINE_SPINLOCK(spu_full_list_lock);
+static DEFINE_MUTEX(spu_full_list_mutex);
 
 void spu_invalidate_slbs(struct spu *spu)
 {
@@ -65,12 +83,12 @@ void spu_flush_all_slbs(struct mm_struct *mm)
 	struct spu *spu;
 	unsigned long flags;
 
-	spin_lock_irqsave(&spu_list_lock, flags);
+	spin_lock_irqsave(&spu_full_list_lock, flags);
 	list_for_each_entry(spu, &spu_full_list, full_list) {
 		if (spu->mm == mm)
 			spu_invalidate_slbs(spu);
 	}
-	spin_unlock_irqrestore(&spu_list_lock, flags);
+	spin_unlock_irqrestore(&spu_full_list_lock, flags);
 }
 
 /* The hack below stinks... try to do something better one of
@@ -88,9 +106,9 @@ void spu_associate_mm(struct spu *spu, struct mm_struct *mm)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&spu_list_lock, flags);
+	spin_lock_irqsave(&spu_full_list_lock, flags);
 	spu->mm = mm;
-	spin_unlock_irqrestore(&spu_list_lock, flags);
+	spin_unlock_irqrestore(&spu_full_list_lock, flags);
 	if (mm)
 		mm_needs_global_tlbie(mm);
 }
@@ -150,7 +168,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 #else
 		psize = mm->context.user_psize;
 #endif
-		vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) |
+		vsid = (get_vsid(mm->context.id, ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
 				SLB_VSID_USER;
 		break;
 	case VMALLOC_REGION_ID:
@@ -158,12 +176,12 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 			psize = mmu_vmalloc_psize;
 		else
 			psize = mmu_io_psize;
-		vsid = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+		vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
 			SLB_VSID_KERNEL;
 		break;
 	case KERNEL_REGION_ID:
 		psize = mmu_linear_psize;
-		vsid = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+		vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
 			SLB_VSID_KERNEL;
 		break;
 	default:
@@ -218,10 +236,21 @@ static irqreturn_t
 spu_irq_class_0(int irq, void *data)
 {
 	struct spu *spu;
+	unsigned long stat, mask;
 
 	spu = data;
-	spu->class_0_pending = 1;
+
+	mask = spu_int_mask_get(spu, 0);
+	stat = spu_int_stat_get(spu, 0);
+	stat &= mask;
+
+	spin_lock(&spu->register_lock);
+	spu->class_0_pending |= stat;
+	spin_unlock(&spu->register_lock);
+
 	spu->stop_callback(spu);
+
+	spu_int_stat_clear(spu, 0, stat);
 
 	return IRQ_HANDLED;
 }
@@ -229,16 +258,12 @@ spu_irq_class_0(int irq, void *data)
 int
 spu_irq_class_0_bottom(struct spu *spu)
 {
-	unsigned long stat, mask;
 	unsigned long flags;
-
-	spu->class_0_pending = 0;
+	unsigned long stat;
 
 	spin_lock_irqsave(&spu->register_lock, flags);
-	mask = spu_int_mask_get(spu, 0);
-	stat = spu_int_stat_get(spu, 0);
-
-	stat &= mask;
+	stat = spu->class_0_pending;
+	spu->class_0_pending = 0;
 
 	if (stat & 1) /* invalid DMA alignment */
 		__spu_trap_dma_align(spu);
@@ -249,7 +274,6 @@ spu_irq_class_0_bottom(struct spu *spu)
 	if (stat & 4) /* error on SPU */
 		__spu_trap_error(spu);
 
-	spu_int_stat_clear(spu, 0, stat);
 	spin_unlock_irqrestore(&spu->register_lock, flags);
 
 	return (stat & 0x7) ? -EIO : 0;
@@ -390,7 +414,7 @@ static void spu_free_irqs(struct spu *spu)
 		free_irq(spu->irqs[2], spu);
 }
 
-static void spu_init_channels(struct spu *spu)
+void spu_init_channels(struct spu *spu)
 {
 	static const struct {
 		 unsigned channel;
@@ -423,46 +447,7 @@ static void spu_init_channels(struct spu *spu)
 		out_be64(&priv2->spu_chnlcnt_RW, count_list[i].count);
 	}
 }
-
-struct spu *spu_alloc_node(int node)
-{
-	struct spu *spu = NULL;
-
-	mutex_lock(&spu_mutex);
-	if (!list_empty(&spu_list[node])) {
-		spu = list_entry(spu_list[node].next, struct spu, list);
-		list_del_init(&spu->list);
-		pr_debug("Got SPU %d %d\n", spu->number, spu->node);
-	}
-	mutex_unlock(&spu_mutex);
-
-	if (spu)
-		spu_init_channels(spu);
-	return spu;
-}
-EXPORT_SYMBOL_GPL(spu_alloc_node);
-
-struct spu *spu_alloc(void)
-{
-	struct spu *spu = NULL;
-	int node;
-
-	for (node = 0; node < MAX_NUMNODES; node++) {
-		spu = spu_alloc_node(node);
-		if (spu)
-			break;
-	}
-
-	return spu;
-}
-
-void spu_free(struct spu *spu)
-{
-	mutex_lock(&spu_mutex);
-	list_add_tail(&spu->list, &spu_list[spu->node]);
-	mutex_unlock(&spu_mutex);
-}
-EXPORT_SYMBOL_GPL(spu_free);
+EXPORT_SYMBOL_GPL(spu_init_channels);
 
 static int spu_shutdown(struct sys_device *sysdev)
 {
@@ -473,7 +458,7 @@ static int spu_shutdown(struct sys_device *sysdev)
 	return 0;
 }
 
-struct sysdev_class spu_sysdev_class = {
+static struct sysdev_class spu_sysdev_class = {
 	set_kset_name("spu"),
 	.shutdown = spu_shutdown,
 };
@@ -481,12 +466,12 @@ struct sysdev_class spu_sysdev_class = {
 int spu_add_sysdev_attr(struct sysdev_attribute *attr)
 {
 	struct spu *spu;
-	mutex_lock(&spu_mutex);
 
+	mutex_lock(&spu_full_list_mutex);
 	list_for_each_entry(spu, &spu_full_list, full_list)
 		sysdev_create_file(&spu->sysdev, attr);
+	mutex_unlock(&spu_full_list_mutex);
 
-	mutex_unlock(&spu_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(spu_add_sysdev_attr);
@@ -494,12 +479,12 @@ EXPORT_SYMBOL_GPL(spu_add_sysdev_attr);
 int spu_add_sysdev_attr_group(struct attribute_group *attrs)
 {
 	struct spu *spu;
-	mutex_lock(&spu_mutex);
 
+	mutex_lock(&spu_full_list_mutex);
 	list_for_each_entry(spu, &spu_full_list, full_list)
 		sysfs_create_group(&spu->sysdev.kobj, attrs);
+	mutex_unlock(&spu_full_list_mutex);
 
-	mutex_unlock(&spu_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(spu_add_sysdev_attr_group);
@@ -508,24 +493,22 @@ EXPORT_SYMBOL_GPL(spu_add_sysdev_attr_group);
 void spu_remove_sysdev_attr(struct sysdev_attribute *attr)
 {
 	struct spu *spu;
-	mutex_lock(&spu_mutex);
 
+	mutex_lock(&spu_full_list_mutex);
 	list_for_each_entry(spu, &spu_full_list, full_list)
 		sysdev_remove_file(&spu->sysdev, attr);
-
-	mutex_unlock(&spu_mutex);
+	mutex_unlock(&spu_full_list_mutex);
 }
 EXPORT_SYMBOL_GPL(spu_remove_sysdev_attr);
 
 void spu_remove_sysdev_attr_group(struct attribute_group *attrs)
 {
 	struct spu *spu;
-	mutex_lock(&spu_mutex);
 
+	mutex_lock(&spu_full_list_mutex);
 	list_for_each_entry(spu, &spu_full_list, full_list)
 		sysfs_remove_group(&spu->sysdev.kobj, attrs);
-
-	mutex_unlock(&spu_mutex);
+	mutex_unlock(&spu_full_list_mutex);
 }
 EXPORT_SYMBOL_GPL(spu_remove_sysdev_attr_group);
 
@@ -553,16 +536,19 @@ static int __init create_spu(void *data)
 	int ret;
 	static int number;
 	unsigned long flags;
+	struct timespec ts;
 
 	ret = -ENOMEM;
 	spu = kzalloc(sizeof (*spu), GFP_KERNEL);
 	if (!spu)
 		goto out;
 
+	spu->alloc_state = SPU_FREE;
+
 	spin_lock_init(&spu->register_lock);
-	mutex_lock(&spu_mutex);
+	spin_lock(&spu_lock);
 	spu->number = number++;
-	mutex_unlock(&spu_mutex);
+	spin_unlock(&spu_lock);
 
 	ret = spu_create_spu(spu, data);
 
@@ -579,15 +565,22 @@ static int __init create_spu(void *data)
 	if (ret)
 		goto out_free_irqs;
 
-	mutex_lock(&spu_mutex);
-	spin_lock_irqsave(&spu_list_lock, flags);
-	list_add(&spu->list, &spu_list[spu->node]);
-	list_add(&spu->full_list, &spu_full_list);
-	spin_unlock_irqrestore(&spu_list_lock, flags);
-	mutex_unlock(&spu_mutex);
+	mutex_lock(&cbe_spu_info[spu->node].list_mutex);
+	list_add(&spu->cbe_list, &cbe_spu_info[spu->node].spus);
+	cbe_spu_info[spu->node].n_spus++;
+	mutex_unlock(&cbe_spu_info[spu->node].list_mutex);
 
-	spu->stats.utilization_state = SPU_UTIL_IDLE;
-	spu->stats.tstamp = jiffies;
+	mutex_lock(&spu_full_list_mutex);
+	spin_lock_irqsave(&spu_full_list_lock, flags);
+	list_add(&spu->full_list, &spu_full_list);
+	spin_unlock_irqrestore(&spu_full_list_lock, flags);
+	mutex_unlock(&spu_full_list_mutex);
+
+	spu->stats.util_state = SPU_UTIL_IDLE_LOADED;
+	ktime_get_ts(&ts);
+	spu->stats.tstamp = timespec_to_ns(&ts);
+
+	INIT_LIST_HEAD(&spu->aff_list);
 
 	goto out;
 
@@ -608,12 +601,20 @@ static const char *spu_state_names[] = {
 static unsigned long long spu_acct_time(struct spu *spu,
 		enum spu_utilization_state state)
 {
+	struct timespec ts;
 	unsigned long long time = spu->stats.times[state];
 
-	if (spu->stats.utilization_state == state)
-		time += jiffies - spu->stats.tstamp;
+	/*
+	 * If the spu is idle or the context is stopped, utilization
+	 * statistics are not updated.  Apply the time delta from the
+	 * last recorded state of the spu.
+	 */
+	if (spu->stats.util_state == state) {
+		ktime_get_ts(&ts);
+		time += timespec_to_ns(&ts) - spu->stats.tstamp;
+	}
 
-	return jiffies_to_msecs(time);
+	return time / NSEC_PER_MSEC;
 }
 
 
@@ -623,11 +624,11 @@ static ssize_t spu_stat_show(struct sys_device *sysdev, char *buf)
 
 	return sprintf(buf, "%s %llu %llu %llu %llu "
 		      "%llu %llu %llu %llu %llu %llu %llu %llu\n",
-		spu_state_names[spu->stats.utilization_state],
+		spu_state_names[spu->stats.util_state],
 		spu_acct_time(spu, SPU_UTIL_USER),
 		spu_acct_time(spu, SPU_UTIL_SYSTEM),
 		spu_acct_time(spu, SPU_UTIL_IOWAIT),
-		spu_acct_time(spu, SPU_UTIL_IDLE),
+		spu_acct_time(spu, SPU_UTIL_IDLE_LOADED),
 		spu->stats.vol_ctx_switch,
 		spu->stats.invol_ctx_switch,
 		spu->stats.slb_flt,
@@ -644,8 +645,10 @@ static int __init init_spu_base(void)
 {
 	int i, ret = 0;
 
-	for (i = 0; i < MAX_NUMNODES; i++)
-		INIT_LIST_HEAD(&spu_list[i]);
+	for (i = 0; i < MAX_NUMNODES; i++) {
+		mutex_init(&cbe_spu_info[i].list_mutex);
+		INIT_LIST_HEAD(&cbe_spu_info[i].spus);
+	}
 
 	if (!spu_management_ops)
 		goto out;
@@ -675,16 +678,19 @@ static int __init init_spu_base(void)
 		fb_append_extra_logo(&logo_spe_clut224, ret);
 	}
 
+	mutex_lock(&spu_full_list_mutex);
 	xmon_register_spus(&spu_full_list);
-
+	crash_register_spus(&spu_full_list);
+	mutex_unlock(&spu_full_list_mutex);
 	spu_add_sysdev_attr(&attr_stat);
+
+	spu_init_affinity();
 
 	return 0;
 
  out_unregister_sysdev_class:
 	sysdev_class_unregister(&spu_sysdev_class);
  out:
-
 	return ret;
 }
 module_init(init_spu_base);

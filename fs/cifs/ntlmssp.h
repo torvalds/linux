@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/ntlmssp.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002,2006
+ *   Copyright (c) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public License
  *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define NTLMSSP_SIGNATURE "NTLMSSP"
@@ -27,18 +27,18 @@
 #define UnknownMessage    cpu_to_le32(8)
 
 /* Negotiate Flags */
-#define NTLMSSP_NEGOTIATE_UNICODE       0x01	// Text strings are in unicode
-#define NTLMSSP_NEGOTIATE_OEM           0x02	// Text strings are in OEM
-#define NTLMSSP_REQUEST_TARGET          0x04	// Server return its auth realm
-#define NTLMSSP_NEGOTIATE_SIGN        0x0010	// Request signature capability
-#define NTLMSSP_NEGOTIATE_SEAL        0x0020	// Request confidentiality
+#define NTLMSSP_NEGOTIATE_UNICODE       0x01 /* Text strings are in unicode */
+#define NTLMSSP_NEGOTIATE_OEM           0x02 /* Text strings are in OEM */
+#define NTLMSSP_REQUEST_TARGET          0x04 /* Server return its auth realm */
+#define NTLMSSP_NEGOTIATE_SIGN        0x0010 /* Request signature capability */
+#define NTLMSSP_NEGOTIATE_SEAL        0x0020 /*  Request confidentiality */
 #define NTLMSSP_NEGOTIATE_DGRAM       0x0040
-#define NTLMSSP_NEGOTIATE_LM_KEY      0x0080 // Use LM session key for sign/seal
-#define NTLMSSP_NEGOTIATE_NTLM        0x0200	// NTLM authentication
+#define NTLMSSP_NEGOTIATE_LM_KEY      0x0080 /* Sign/seal use LM session key */
+#define NTLMSSP_NEGOTIATE_NTLM        0x0200 /* NTLM authentication */
 #define NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED 0x1000
 #define NTLMSSP_NEGOTIATE_WORKSTATION_SUPPLIED 0x2000
-#define NTLMSSP_NEGOTIATE_LOCAL_CALL  0x4000	// client/server on same machine
-#define NTLMSSP_NEGOTIATE_ALWAYS_SIGN 0x8000	// Sign for all security levels
+#define NTLMSSP_NEGOTIATE_LOCAL_CALL  0x4000 /* client/server on same machine */
+#define NTLMSSP_NEGOTIATE_ALWAYS_SIGN 0x8000 /* Sign for all security levels */
 #define NTLMSSP_TARGET_TYPE_DOMAIN   0x10000
 #define NTLMSSP_TARGET_TYPE_SERVER   0x20000
 #define NTLMSSP_TARGET_TYPE_SHARE    0x40000

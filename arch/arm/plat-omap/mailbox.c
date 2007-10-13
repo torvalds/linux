@@ -161,11 +161,11 @@ static void mbox_rx_work(struct work_struct *work)
 /*
  * Mailbox interrupt handler
  */
-static void mbox_txq_fn(request_queue_t * q)
+static void mbox_txq_fn(struct request_queue * q)
 {
 }
 
-static void mbox_rxq_fn(request_queue_t * q)
+static void mbox_rxq_fn(struct request_queue * q)
 {
 }
 
@@ -180,7 +180,7 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 {
 	struct request *rq;
 	mbox_msg_t msg;
-	request_queue_t *q = mbox->rxq->queue;
+	struct request_queue *q = mbox->rxq->queue;
 
 	disable_mbox_irq(mbox, IRQ_RX);
 
@@ -297,7 +297,7 @@ static struct omap_mbox_queue *mbox_queue_alloc(struct omap_mbox *mbox,
 					request_fn_proc * proc,
 					void (*work) (struct work_struct *))
 {
-	request_queue_t *q;
+	struct request_queue *q;
 	struct omap_mbox_queue *mq;
 
 	mq = kzalloc(sizeof(struct omap_mbox_queue), GFP_KERNEL);

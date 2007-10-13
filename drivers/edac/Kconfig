@@ -3,18 +3,18 @@
 #	Copyright (c) 2003 Linux Networx
 #	Licensed and distributed under the GPL
 #
-# $Id: Kconfig,v 1.4.2.7 2005/07/08 22:05:38 dsp_llnl Exp $
-#
 
 menuconfig EDAC
-	tristate "EDAC - error detection and reporting (EXPERIMENTAL)"
+	bool "EDAC - error detection and reporting (EXPERIMENTAL)"
 	depends on HAS_IOMEM
-	depends on X86 && EXPERIMENTAL
+	depends on EXPERIMENTAL
+	depends on X86 || PPC
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
-	  supporting chipset: memory errors, cache errors, PCI errors,
-	  thermal throttling, etc..  If unsure, select 'Y'.
+	  supporting chipset or other subsystems:
+	  memory errors, cache errors, PCI errors, thermal throttling, etc..
+	  If unsure, select 'Y'.
 
 	  If this code is reporting problems on your system, please
 	  see the EDAC project web pages for more information at:
@@ -73,12 +73,34 @@ config EDAC_E752X
 	  Support for error detection and correction on the Intel
 	  E7520, E7525, E7320 server chipsets.
 
+config EDAC_I82443BXGX
+	tristate "Intel 82443BX/GX (440BX/GX)"
+	depends on EDAC_MM_EDAC && PCI && X86_32
+	depends on BROKEN
+	help
+	  Support for error detection and correction on the Intel
+	  82443BX/GX memory controllers (440BX/GX chipsets).
+
 config EDAC_I82875P
 	tristate "Intel 82875p (D82875P, E7210)"
 	depends on EDAC_MM_EDAC && PCI && X86_32
 	help
 	  Support for error detection and correction on the Intel
 	  DP82785P and E7210 server chipsets.
+
+config EDAC_I82975X
+	tristate "Intel 82975x (D82975x)"
+	depends on EDAC_MM_EDAC && PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  DP82975x server chipsets.
+
+config EDAC_I3000
+	tristate "Intel 3000/3010"
+	depends on EDAC_MM_EDAC && PCI && X86_32
+	help
+	  Support for error detection and correction on the Intel
+	  3000 and 3010 server chipsets.
 
 config EDAC_I82860
 	tristate "Intel 82860"
@@ -94,15 +116,20 @@ config EDAC_R82600
 	  Support for error detection and correction on the Radisys
 	  82600 embedded chipset.
 
-choice
-	prompt "Error detecting method"
-	default EDAC_POLL
-
-config EDAC_POLL
-	bool "Poll for errors"
+config EDAC_I5000
+	tristate "Intel Greencreek/Blackford chipset"
+	depends on EDAC_MM_EDAC && X86 && PCI
 	help
-	  Poll the chipset periodically to detect errors.
+	  Support for error detection and correction the Intel
+	  Greekcreek/Blackford chipsets.
 
-endchoice
+config EDAC_PASEMI
+	tristate "PA Semi PWRficient"
+	depends on EDAC_MM_EDAC && PCI
+	depends on PPC_PASEMI
+	help
+	  Support for error detection and correction on PA Semi
+	  PWRficient.
+
 
 endif # EDAC

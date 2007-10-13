@@ -34,7 +34,7 @@ extern void prom_grab_secondary(void);
 struct callvectors *debug_vectors;
 
 extern unsigned long yosemite_base;
-extern unsigned long cpu_clock;
+extern unsigned long cpu_clock_freq;
 
 const char *get_system_type(void)
 {
@@ -119,14 +119,13 @@ void __init prom_init(void)
 					  16);
 
 		if (strncmp("cpuclock", *env, strlen("cpuclock")) == 0)
-			cpu_clock =
+			cpu_clock_freq =
 			    simple_strtol(*env + strlen("cpuclock="), NULL,
 					  10);
 
 		env++;
 	}
 
-	mips_machgroup = MACH_GROUP_TITAN;
 	mips_machtype = MACH_TITAN_YOSEMITE;
 
 	prom_grab_secondary();

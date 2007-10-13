@@ -21,6 +21,10 @@
 #ifndef _ASM_IA64_RWSEM_H
 #define _ASM_IA64_RWSEM_H
 
+#ifndef _LINUX_RWSEM_H
+#error "Please don't include <asm/rwsem.h> directly, use <linux/rwsem.h> instead."
+#endif
+
 #include <linux/list.h>
 #include <linux/spinlock.h>
 

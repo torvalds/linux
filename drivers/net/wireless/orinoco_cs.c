@@ -313,7 +313,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 	/* Ok, we have the configuration, prepare to register the netdev */
 	dev->base_addr = link->io.BasePort1;
 	dev->irq = link->irq.AssignedIRQ;
-	SET_MODULE_OWNER(dev);
 	card->node.major = card->node.minor = 0;
 
 	SET_NETDEV_DEV(dev, &handle_to_dev(link));

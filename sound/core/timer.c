@@ -1549,9 +1549,11 @@ static int snd_timer_user_info(struct file *file,
 	int err = 0;
 
 	tu = file->private_data;
-	snd_assert(tu->timeri != NULL, return -ENXIO);
+	if (!tu->timeri)
+		return -EBADFD;
 	t = tu->timeri->timer;
-	snd_assert(t != NULL, return -ENXIO);
+	if (!t)
+		return -EBADFD;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
@@ -1579,9 +1581,11 @@ static int snd_timer_user_params(struct file *file,
 	int err;
 
 	tu = file->private_data;
-	snd_assert(tu->timeri != NULL, return -ENXIO);
+	if (!tu->timeri)
+		return -EBADFD;
 	t = tu->timeri->timer;
-	snd_assert(t != NULL, return -ENXIO);
+	if (!t)
+		return -EBADFD;
 	if (copy_from_user(&params, _params, sizeof(params)))
 		return -EFAULT;
 	if (!(t->hw.flags & SNDRV_TIMER_HW_SLAVE) && params.ticks < 1) {
@@ -1675,7 +1679,8 @@ static int snd_timer_user_status(struct file *file,
 	struct snd_timer_status status;
 
 	tu = file->private_data;
-	snd_assert(tu->timeri != NULL, return -ENXIO);
+	if (!tu->timeri)
+		return -EBADFD;
 	memset(&status, 0, sizeof(status));
 	status.tstamp = tu->tstamp;
 	status.resolution = snd_timer_resolution(tu->timeri);
@@ -1695,7 +1700,8 @@ static int snd_timer_user_start(struct file *file)
 	struct snd_timer_user *tu;
 
 	tu = file->private_data;
-	snd_assert(tu->timeri != NULL, return -ENXIO);
+	if (!tu->timeri)
+		return -EBADFD;
 	snd_timer_stop(tu->timeri);
 	tu->timeri->lost = 0;
 	tu->last_resolution = 0;
@@ -1708,7 +1714,8 @@ static int snd_timer_user_stop(struct file *file)
 	struct snd_timer_user *tu;
 
 	tu = file->private_data;
-	snd_assert(tu->timeri != NULL, return -ENXIO);
+	if (!tu->timeri)
+		return -EBADFD;
 	return (err = snd_timer_stop(tu->timeri)) < 0 ? err : 0;
 }
 
@@ -1718,7 +1725,8 @@ static int snd_timer_user_continue(struct file *file)
 	struct snd_timer_user *tu;
 
 	tu = file->private_data;
-	snd_assert(tu->timeri != NULL, return -ENXIO);
+	if (!tu->timeri)
+		return -EBADFD;
 	tu->timeri->lost = 0;
 	return (err = snd_timer_continue(tu->timeri)) < 0 ? err : 0;
 }
@@ -1729,7 +1737,8 @@ static int snd_timer_user_pause(struct file *file)
 	struct snd_timer_user *tu;
 
 	tu = file->private_data;
-	snd_assert(tu->timeri != NULL, return -ENXIO);
+	if (!tu->timeri)
+		return -EBADFD;
 	return (err = snd_timer_pause(tu->timeri)) < 0 ? err : 0;
 }
 

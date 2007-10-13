@@ -164,6 +164,8 @@ static struct pnp_card_device_id snd_opl3sa2_pnpids[] = {
 	{ .id = "YMH0801", .devs = { { "YMH0021" } } },
 	/* NeoMagic MagicWave 3DX */
 	{ .id = "NMX2200", .devs = { { "YMH2210" } } },
+	/* NeoMagic MagicWave 3D */
+	{ .id = "NMX2200", .devs = { { "NMX2210" } } },
 	/* --- */
 	{ .id = "" }	/* end */
 };

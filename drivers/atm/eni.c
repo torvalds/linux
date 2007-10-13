@@ -1738,7 +1738,8 @@ static int __devinit eni_do_init(struct atm_dev *dev)
 			printk(KERN_ERR KERN_ERR DEV_LABEL "(itf %d): bad "
 			    "magic - expected 0x%x, got 0x%x\n",dev->number,
 			    ENI155_MAGIC,(unsigned) readl(&eprom->magic));
-			return -EINVAL;
+			error = -EINVAL;
+			goto unmap;
 		}
 	}
 	eni_dev->phy = base+PHY_BASE;
@@ -1765,17 +1766,27 @@ static int __devinit eni_do_init(struct atm_dev *dev)
 		printk(")\n");
 		printk(KERN_ERR DEV_LABEL "(itf %d): ERROR - wrong id 0x%x\n",
 		    dev->number,(unsigned) eni_in(MID_RES_ID_MCON));
-		return -EINVAL;
+		error = -EINVAL;
+		goto unmap;
 	}
 	error = eni_dev->asic ? get_esi_asic(dev) : get_esi_fpga(dev,base);
-	if (error) return error;
+	if (error)
+		goto unmap;
 	for (i = 0; i < ESI_LEN; i++)
 		printk("%s%02X",i ? "-" : "",dev->esi[i]);
 	printk(")\n");
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): %s,%s\n",dev->number,
 	    eni_in(MID_RES_ID_MCON) & 0x200 ? "ASIC" : "FPGA",
 	    media_name[eni_in(MID_RES_ID_MCON) & DAUGTHER_ID]);
-	return suni_init(dev);
+
+	error = suni_init(dev);
+	if (error)
+		goto unmap;
+out:
+	return error;
+unmap:
+	iounmap(base);
+	goto out;
 }
 
 

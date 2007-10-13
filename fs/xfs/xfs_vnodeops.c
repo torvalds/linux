@@ -589,7 +589,30 @@ xfs_setattr(
 			code = xfs_igrow_start(ip, vap->va_size, credp);
 		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		vn_iowait(vp); /* wait for the completion of any pending DIOs */
+
+		/*
+		 * We are going to log the inode size change in this
+		 * transaction so any previous writes that are beyond the on
+		 * disk EOF and the new EOF that have not been written out need
+		 * to be written here. If we do not write the data out, we
+		 * expose ourselves to the null files problem.
+		 *
+		 * Only flush from the on disk size to the smaller of the in
+		 * memory file size or the new size as that's the range we
+		 * really care about here and prevents waiting for other data
+		 * not within the range we care about here.
+		 */
+		if (!code &&
+		    (ip->i_size != ip->i_d.di_size) &&
+		    (vap->va_size > ip->i_d.di_size)) {
+			code = bhv_vop_flush_pages(XFS_ITOV(ip),
+					ip->i_d.di_size, vap->va_size,
+					XFS_B_ASYNC, FI_NONE);
+		}
+
+		/* wait for all I/O to complete */
+		vn_iowait(vp);
+
 		if (!code)
 			code = xfs_itruncate_data(ip, vap->va_size);
 		if (code) {
@@ -1058,6 +1081,9 @@ xfs_fsync(
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return XFS_ERROR(EIO);
+
+	if (flag & FSYNC_DATA)
+		filemap_fdatawait(vn_to_inode(XFS_ITOV(ip))->i_mapping);
 
 	/*
 	 * We always need to make sure that the required inode state
@@ -3746,12 +3772,16 @@ xfs_inode_flush(
 			sync_lsn = log->l_last_sync_lsn;
 			GRANT_UNLOCK(log, s);
 
-			if ((XFS_LSN_CMP(iip->ili_last_lsn, sync_lsn) <= 0))
-				return 0;
+			if ((XFS_LSN_CMP(iip->ili_last_lsn, sync_lsn) > 0)) {
+				if (flags & FLUSH_SYNC)
+					log_flags |= XFS_LOG_SYNC;
+				error = xfs_log_force(mp, iip->ili_last_lsn, log_flags);
+				if (error)
+					return error;
+			}
 
-			if (flags & FLUSH_SYNC)
-				log_flags |= XFS_LOG_SYNC;
-			return xfs_log_force(mp, iip->ili_last_lsn, log_flags);
+			if (ip->i_update_core == 0)
+				return 0;
 		}
 	}
 
@@ -3764,9 +3794,6 @@ xfs_inode_flush(
 	 */
 	if (flags & FLUSH_INODE) {
 		int	flush_flags;
-
-		if (xfs_ipincount(ip))
-			return EAGAIN;
 
 		if (flags & FLUSH_SYNC) {
 			xfs_ilock(ip, XFS_ILOCK_SHARED);
@@ -4434,9 +4461,12 @@ xfs_free_file_space(
 	while (!error && !done) {
 
 		/*
-		 * allocate and setup the transaction
+		 * allocate and setup the transaction. Allow this
+		 * transaction to dip into the reserve blocks to ensure
+		 * the freeing of the space succeeds at ENOSPC.
 		 */
 		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
+		tp->t_flags |= XFS_TRANS_RESERVE;
 		error = xfs_trans_reserve(tp,
 					  resblks,
 					  XFS_WRITE_LOG_RES(mp),

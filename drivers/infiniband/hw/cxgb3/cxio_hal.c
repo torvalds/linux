@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <net/net_namespace.h>
 
 #include "cxio_resource.h"
 #include "cxio_hal.h"
@@ -894,7 +895,7 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 		if (cxio_hal_find_rdev_by_name(rdev_p->dev_name)) {
 			return -EBUSY;
 		}
-		netdev_p = dev_get_by_name(rdev_p->dev_name);
+		netdev_p = dev_get_by_name(&init_net, rdev_p->dev_name);
 		if (!netdev_p) {
 			return -EINVAL;
 		}
@@ -916,7 +917,7 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 	PDBG("%s opening rnic dev %s\n", __FUNCTION__, rdev_p->dev_name);
 	memset(&rdev_p->ctrl_qp, 0, sizeof(rdev_p->ctrl_qp));
 	if (!rdev_p->t3cdev_p)
-		rdev_p->t3cdev_p = T3CDEV(netdev_p);
+		rdev_p->t3cdev_p = dev2t3cdev(netdev_p);
 	rdev_p->t3cdev_p->ulp = (void *) rdev_p;
 	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, RDMA_GET_PARAMS,
 					 &(rdev_p->rnic_info));

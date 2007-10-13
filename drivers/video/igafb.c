@@ -379,10 +379,6 @@ int __init igafb_init(void)
 	if (fb_get_options("igafb", NULL))
 		return -ENODEV;
 
-        /* Do not attach when we have a serial console. */
-        if (!con_is_present())
-                return -ENXIO;
-
         pdev = pci_get_device(PCI_VENDOR_ID_INTERG,
                                PCI_DEVICE_ID_INTERG_1682, 0);
 	if (pdev == NULL) {

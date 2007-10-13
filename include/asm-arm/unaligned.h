@@ -60,24 +60,24 @@ extern int __bug_unaligned_x(const void *ptr);
 		__get_unaligned_4_be((__p+4)))
 
 #define __get_unaligned_le(ptr)						\
-	({								\
+	((__force typeof(*(ptr)))({					\
 		const __u8 *__p = (const __u8 *)(ptr);			\
 		__builtin_choose_expr(sizeof(*(ptr)) == 1, *__p,	\
 		  __builtin_choose_expr(sizeof(*(ptr)) == 2, __get_unaligned_2_le(__p),	\
 		  __builtin_choose_expr(sizeof(*(ptr)) == 4, __get_unaligned_4_le(__p),	\
 		  __builtin_choose_expr(sizeof(*(ptr)) == 8, __get_unaligned_8_le(__p),	\
 		    (void)__bug_unaligned_x(__p)))));			\
-	})
+	}))
 
 #define __get_unaligned_be(ptr)						\
-	({								\
+	((__force typeof(*(ptr)))({					\
 		const __u8 *__p = (const __u8 *)(ptr);			\
 		__builtin_choose_expr(sizeof(*(ptr)) == 1, *__p,	\
 		  __builtin_choose_expr(sizeof(*(ptr)) == 2, __get_unaligned_2_be(__p),	\
 		  __builtin_choose_expr(sizeof(*(ptr)) == 4, __get_unaligned_4_be(__p),	\
 		  __builtin_choose_expr(sizeof(*(ptr)) == 8, __get_unaligned_8_be(__p),	\
 		    (void)__bug_unaligned_x(__p)))));			\
-	})
+	}))
 
 
 static inline void __put_unaligned_2_le(__u32 __v, register __u8 *__p)
@@ -131,15 +131,16 @@ static inline void __put_unaligned_8_be(const unsigned long long __v, register _
  */
 #define __put_unaligned_le(val,ptr)					\
 	({							\
+		(void)sizeof(*(ptr) = (val));			\
 		switch (sizeof(*(ptr))) {			\
 		case 1:						\
 			*(ptr) = (val);				\
 			break;					\
-		case 2: __put_unaligned_2_le((val),(__u8 *)(ptr));	\
+		case 2: __put_unaligned_2_le((__force u16)(val),(__u8 *)(ptr));	\
 			break;					\
-		case 4:	__put_unaligned_4_le((val),(__u8 *)(ptr));	\
+		case 4:	__put_unaligned_4_le((__force u32)(val),(__u8 *)(ptr));	\
 			break;					\
-		case 8:	__put_unaligned_8_le((val),(__u8 *)(ptr)); \
+		case 8:	__put_unaligned_8_le((__force u64)(val),(__u8 *)(ptr)); \
 			break;					\
 		default: __bug_unaligned_x(ptr);		\
 			break;					\
@@ -149,15 +150,16 @@ static inline void __put_unaligned_8_be(const unsigned long long __v, register _
 
 #define __put_unaligned_be(val,ptr)					\
 	({							\
+		(void)sizeof(*(ptr) = (val));			\
 		switch (sizeof(*(ptr))) {			\
 		case 1:						\
 			*(ptr) = (val);				\
 			break;					\
-		case 2: __put_unaligned_2_be((val),(__u8 *)(ptr));	\
+		case 2: __put_unaligned_2_be((__force u16)(val),(__u8 *)(ptr));	\
 			break;					\
-		case 4:	__put_unaligned_4_be((val),(__u8 *)(ptr));	\
+		case 4:	__put_unaligned_4_be((__force u32)(val),(__u8 *)(ptr));	\
 			break;					\
-		case 8:	__put_unaligned_8_be((val),(__u8 *)(ptr)); \
+		case 8:	__put_unaligned_8_be((__force u64)(val),(__u8 *)(ptr)); \
 			break;					\
 		default: __bug_unaligned_x(ptr);		\
 			break;					\

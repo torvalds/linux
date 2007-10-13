@@ -470,47 +470,41 @@ static int macb_rx(struct macb *bp, int budget)
 	return received;
 }
 
-static int macb_poll(struct net_device *dev, int *budget)
+static int macb_poll(struct napi_struct *napi, int budget)
 {
-	struct macb *bp = netdev_priv(dev);
-	int orig_budget, work_done, retval = 0;
+	struct macb *bp = container_of(napi, struct macb, napi);
+	struct net_device *dev = bp->dev;
+	int work_done;
 	u32 status;
 
 	status = macb_readl(bp, RSR);
 	macb_writel(bp, RSR, status);
 
+	work_done = 0;
 	if (!status) {
 		/*
 		 * This may happen if an interrupt was pending before
 		 * this function was called last time, and no packets
 		 * have been received since.
 		 */
-		netif_rx_complete(dev);
+		netif_rx_complete(dev, napi);
 		goto out;
 	}
 
 	dev_dbg(&bp->pdev->dev, "poll: status = %08lx, budget = %d\n",
-		(unsigned long)status, *budget);
+		(unsigned long)status, budget);
 
 	if (!(status & MACB_BIT(REC))) {
 		dev_warn(&bp->pdev->dev,
 			 "No RX buffers complete, status = %02lx\n",
 			 (unsigned long)status);
-		netif_rx_complete(dev);
+		netif_rx_complete(dev, napi);
 		goto out;
 	}
 
-	orig_budget = *budget;
-	if (orig_budget > dev->quota)
-		orig_budget = dev->quota;
-
-	work_done = macb_rx(bp, orig_budget);
-	if (work_done < orig_budget) {
-		netif_rx_complete(dev);
-		retval = 0;
-	} else {
-		retval = 1;
-	}
+	work_done = macb_rx(bp, budget);
+	if (work_done < budget)
+		netif_rx_complete(dev, napi);
 
 	/*
 	 * We've done what we can to clean the buffers. Make sure we
@@ -521,7 +515,7 @@ out:
 
 	/* TODO: Handle errors */
 
-	return retval;
+	return work_done;
 }
 
 static irqreturn_t macb_interrupt(int irq, void *dev_id)
@@ -545,7 +539,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		}
 
 		if (status & MACB_RX_INT_FLAGS) {
-			if (netif_rx_schedule_prep(dev)) {
+			if (netif_rx_schedule_prep(dev, &bp->napi)) {
 				/*
 				 * There's no point taking any more interrupts
 				 * until we have processed the buffers
@@ -553,7 +547,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 				macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
 				dev_dbg(&bp->pdev->dev,
 					"scheduling RX softirq\n");
-				__netif_rx_schedule(dev);
+				__netif_rx_schedule(dev, &bp->napi);
 			}
 		}
 
@@ -937,6 +931,8 @@ static int macb_open(struct net_device *dev)
 		return err;
 	}
 
+	napi_enable(&bp->napi);
+
 	macb_init_rings(bp);
 	macb_init_hw(bp);
 
@@ -954,6 +950,7 @@ static int macb_close(struct net_device *dev)
 	unsigned long flags;
 
 	netif_stop_queue(dev);
+	napi_disable(&bp->napi);
 
 	if (bp->phy_dev)
 		phy_stop(bp->phy_dev);
@@ -1074,6 +1071,7 @@ static int __devinit macb_probe(struct platform_device *pdev)
 	unsigned long pclk_hz;
 	u32 config;
 	int err = -ENXIO;
+	DECLARE_MAC_BUF(mac);
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
@@ -1088,7 +1086,6 @@ static int __devinit macb_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	/* TODO: Actually, we have some interesting features... */
@@ -1146,8 +1143,7 @@ static int __devinit macb_probe(struct platform_device *pdev)
 	dev->get_stats = macb_get_stats;
 	dev->set_multicast_list = macb_set_rx_mode;
 	dev->do_ioctl = macb_ioctl;
-	dev->poll = macb_poll;
-	dev->weight = 64;
+	netif_napi_add(dev, &bp->napi, macb_poll, 64);
 	dev->ethtool_ops = &macb_ethtool_ops;
 
 	dev->base_addr = regs->start;
@@ -1195,10 +1191,9 @@ static int __devinit macb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 
 	printk(KERN_INFO "%s: Atmel MACB at 0x%08lx irq %d "
-	       "(%02x:%02x:%02x:%02x:%02x:%02x)\n",
+	       "(%s)\n",
 	       dev->name, dev->base_addr, dev->irq,
-	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	       print_mac(mac, dev->dev_addr));
 
 	phydev = bp->phy_dev;
 	printk(KERN_INFO "%s: attached PHY driver [%s] "

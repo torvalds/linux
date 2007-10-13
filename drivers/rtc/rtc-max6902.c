@@ -13,7 +13,7 @@
  *
  * 24-May-2006: Raphael Assenat <raph@8d.com>
  *                - Major rework
- *   				Converted to rtc_device and uses the SPI layer.
+ *				Converted to rtc_device and uses the SPI layer.
  *
  * ??-???-2005: Someone at Compulab
  *                - Initial driver creation.
@@ -259,11 +259,11 @@ static int __devexit max6902_remove(struct spi_device *spi)
 
 static struct spi_driver max6902_driver = {
 	.driver = {
-		.name 	= "max6902",
+		.name	= "rtc-max6902",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
-	.probe 	= max6902_probe,
+	.probe	= max6902_probe,
 	.remove = __devexit_p(max6902_remove),
 };
 

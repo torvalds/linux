@@ -26,7 +26,6 @@ struct lpfc_vport;
 typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_LUN,
 	LPFC_CTX_TGT,
-	LPFC_CTX_CTX,
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
@@ -54,9 +53,10 @@ struct lpfc_iocbq {
 	void *context2;		/* caller context information */
 	void *context3;		/* caller context information */
 	union {
-		wait_queue_head_t  *wait_queue;
-		struct lpfc_iocbq  *rsp_iocb;
-		struct lpfcMboxq   *mbox;
+		wait_queue_head_t    *wait_queue;
+		struct lpfc_iocbq    *rsp_iocb;
+		struct lpfcMboxq     *mbox;
+		struct lpfc_nodelist *ndlp;
 	} context_un;
 
 	void (*fabric_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
@@ -143,7 +143,7 @@ struct lpfc_sli_ring {
 	uint16_t numCiocb;	/* number of command iocb's per ring */
 	uint16_t numRiocb;	/* number of rsp iocb's per ring */
 	uint16_t sizeCiocb;	/* Size of command iocb's in this ring */
-	uint16_t sizeRiocb; 	/* Size of response iocb's in this ring */
+	uint16_t sizeRiocb;	/* Size of response iocb's in this ring */
 
 	uint32_t fast_iotag;	/* max fastlookup based iotag           */
 	uint32_t iotag_ctr;	/* keeps track of the next iotag to use */

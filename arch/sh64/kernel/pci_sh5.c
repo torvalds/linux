@@ -48,7 +48,7 @@ static void __init pci_fixup_ide_bases(struct pci_dev *d)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
 
-char * __init pcibios_setup(char *str)
+char * __devinit pcibios_setup(char *str)
 {
 	return str;
 }
@@ -497,7 +497,7 @@ static int __init pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-void __init pcibios_fixup_bus(struct pci_bus *bus)
+void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev = bus->self;
 	int i;

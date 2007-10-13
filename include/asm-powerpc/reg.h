@@ -102,11 +102,7 @@
 #else /* 32-bit */
 /* Default MSR for kernel mode. */
 #ifndef MSR_KERNEL	/* reg_booke.h also defines this */
-#ifdef CONFIG_APUS_FAST_EXCEPT
-#define MSR_KERNEL	(MSR_ME|MSR_IP|MSR_RI|MSR_IR|MSR_DR)
-#else
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR)
-#endif
 #endif
 
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
@@ -518,21 +514,47 @@
 #define   PA6T_MMCR1_ES4	0x0000000000ff0000UL
 #define   PA6T_MMCR1_ES5	0x00000000ff000000UL
 
-#define SPRN_PA6T_SIAR  780
-#define SPRN_PA6T_UPMC0 771
-#define SPRN_PA6T_UPMC1 772
+#define SPRN_PA6T_UPMC0 771	/* User PerfMon Counter 0 */
+#define SPRN_PA6T_UPMC1 772	/* ... */
 #define SPRN_PA6T_UPMC2 773
 #define SPRN_PA6T_UPMC3 774
 #define SPRN_PA6T_UPMC4 775
 #define SPRN_PA6T_UPMC5 776
-#define SPRN_PA6T_UMMCR0 779
-#define SPRN_PA6T_UMMCR1 782
-#define SPRN_PA6T_PMC0  787
-#define SPRN_PA6T_PMC1  788
-#define SPRN_PA6T_PMC2  789
-#define SPRN_PA6T_PMC3  790
-#define SPRN_PA6T_PMC4  791
-#define SPRN_PA6T_PMC5  792
+#define SPRN_PA6T_UMMCR0 779	/* User Monitor Mode Control Register 0 */
+#define SPRN_PA6T_SIAR	780	/* Sampled Instruction Address */
+#define SPRN_PA6T_UMMCR1 782	/* User Monitor Mode Control Register 1 */
+#define SPRN_PA6T_SIER	785	/* Sampled Instruction Event Register */
+#define SPRN_PA6T_PMC0	787
+#define SPRN_PA6T_PMC1	788
+#define SPRN_PA6T_PMC2	789
+#define SPRN_PA6T_PMC3	790
+#define SPRN_PA6T_PMC4	791
+#define SPRN_PA6T_PMC5	792
+#define SPRN_PA6T_TSR0	793	/* Timestamp Register 0 */
+#define SPRN_PA6T_TSR1	794	/* Timestamp Register 1 */
+#define SPRN_PA6T_TSR2	799	/* Timestamp Register 2 */
+#define SPRN_PA6T_TSR3	784	/* Timestamp Register 3 */
+
+#define SPRN_PA6T_IER	981	/* Icache Error Register */
+#define SPRN_PA6T_DER	982	/* Dcache Error Register */
+#define SPRN_PA6T_BER	862	/* BIU Error Address Register */
+#define SPRN_PA6T_MER	849	/* MMU Error Register */
+
+#define SPRN_PA6T_IMA0	880	/* Instruction Match Array 0 */
+#define SPRN_PA6T_IMA1	881	/* ... */
+#define SPRN_PA6T_IMA2	882
+#define SPRN_PA6T_IMA3	883
+#define SPRN_PA6T_IMA4	884
+#define SPRN_PA6T_IMA5	885
+#define SPRN_PA6T_IMA6	886
+#define SPRN_PA6T_IMA7	887
+#define SPRN_PA6T_IMA8	888
+#define SPRN_PA6T_IMA9	889
+#define SPRN_PA6T_BTCR	978	/* Breakpoint and Tagging Control Register */
+#define SPRN_PA6T_IMAAT	979	/* Instruction Match Array Action Table */
+#define SPRN_PA6T_PCCR	1019	/* Power Counter Control Register */
+#define SPRN_PA6T_RPCCR	1021	/* Retire PC Trace Control Register */
+
 
 #else /* 32-bit */
 #define SPRN_MMCR0	952	/* Monitor Mode Control Register 0 */

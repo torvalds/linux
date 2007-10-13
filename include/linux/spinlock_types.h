@@ -9,13 +9,13 @@
  * Released under the General Public License (GPL).
  */
 
-#include <linux/lockdep.h>
-
 #if defined(CONFIG_SMP)
 # include <asm/spinlock_types.h>
 #else
 # include <linux/spinlock_types_up.h>
 #endif
+
+#include <linux/lockdep.h>
 
 typedef struct {
 	raw_spinlock_t raw_lock;

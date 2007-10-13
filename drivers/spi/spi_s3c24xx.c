@@ -28,7 +28,7 @@
 #include <asm/hardware.h>
 
 #include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-spi.h>
+#include <asm/plat-s3c24xx/regs-spi.h>
 #include <asm/arch/spi.h>
 
 struct s3c24xx_spi {
@@ -427,6 +427,7 @@ static int s3c24xx_spi_resume(struct platform_device *pdev)
 #define s3c24xx_spi_resume  NULL
 #endif
 
+MODULE_ALIAS("s3c2410_spi");			/* for platform bus hotplug */
 static struct platform_driver s3c24xx_spidrv = {
 	.probe		= s3c24xx_spi_probe,
 	.remove		= s3c24xx_spi_remove,

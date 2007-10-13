@@ -164,7 +164,7 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
  * @spd:	data to fill
  *
  * Description:
- *    @spd contains a map of pages and len/offset tupples, a long with
+ *    @spd contains a map of pages and len/offset tuples, along with
  *    the struct pipe_buf_operations associated with these pages. This
  *    function will link that data to the pipe.
  *
@@ -265,7 +265,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 			   unsigned int flags)
 {
 	struct address_space *mapping = in->f_mapping;
-	unsigned int loff, nr_pages;
+	unsigned int loff, nr_pages, req_pages;
 	struct page *pages[PIPE_BUFFERS];
 	struct partial_page partial[PIPE_BUFFERS];
 	struct page *page;
@@ -281,28 +281,24 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	loff = *ppos & ~PAGE_CACHE_MASK;
-	nr_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-
-	if (nr_pages > PIPE_BUFFERS)
-		nr_pages = PIPE_BUFFERS;
-
-	/*
-	 * Don't try to 2nd guess the read-ahead logic, call into
-	 * page_cache_readahead() like the page cache reads would do.
-	 */
-	page_cache_readahead(mapping, &in->f_ra, in, index, nr_pages);
+	req_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	nr_pages = min(req_pages, (unsigned)PIPE_BUFFERS);
 
 	/*
 	 * Lookup the (hopefully) full range of pages we need.
 	 */
 	spd.nr_pages = find_get_pages_contig(mapping, index, nr_pages, pages);
+	index += spd.nr_pages;
 
 	/*
 	 * If find_get_pages_contig() returned fewer pages than we needed,
-	 * allocate the rest and fill in the holes.
+	 * readahead/allocate the rest and fill in the holes.
 	 */
+	if (spd.nr_pages < nr_pages)
+		page_cache_sync_readahead(mapping, &in->f_ra, in,
+				index, req_pages - spd.nr_pages);
+
 	error = 0;
-	index += spd.nr_pages;
 	while (spd.nr_pages < nr_pages) {
 		/*
 		 * Page could be there, find_get_pages_contig() breaks on
@@ -310,12 +306,6 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 */
 		page = find_get_page(mapping, index);
 		if (!page) {
-			/*
-			 * Make sure the read-ahead engine is notified
-			 * about this failure.
-			 */
-			handle_ra_miss(mapping, &in->f_ra, index);
-
 			/*
 			 * page didn't exist, allocate one.
 			 */
@@ -360,6 +350,10 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 */
 		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
 		page = pages[page_nr];
+
+		if (PageReadahead(page))
+			page_cache_async_readahead(mapping, &in->f_ra, in,
+					page, index, req_pages - page_nr);
 
 		/*
 		 * If the page isn't uptodate, we may need to start io on it
@@ -453,6 +447,7 @@ fill_it:
 	 */
 	while (page_nr < nr_pages)
 		page_cache_release(pages[page_nr++]);
+	in->f_ra.prev_index = index;
 
 	if (spd.nr_pages)
 		return splice_to_pipe(pipe, &spd);
@@ -599,7 +594,7 @@ find_page:
 		ret = add_to_page_cache_lru(page, mapping, index,
 					    GFP_KERNEL);
 		if (unlikely(ret))
-			goto out;
+			goto out_release;
 	}
 
 	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
@@ -655,8 +650,9 @@ find_page:
 	 */
 	mark_page_accessed(page);
 out:
-	page_cache_release(page);
 	unlock_page(page);
+out_release:
+	page_cache_release(page);
 out_ret:
 	return ret;
 }
@@ -1004,7 +1000,7 @@ static long do_splice_to(struct file *in, loff_t *ppos,
  * Description:
  *    This is a special case helper to splice directly between two
  *    points, without requiring an explicit pipe. Internally an allocated
- *    pipe is cached in the process, and reused during the life time of
+ *    pipe is cached in the process, and reused during the lifetime of
  *    that process.
  *
  */
@@ -1228,6 +1224,33 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 }
 
 /*
+ * Do a copy-from-user while holding the mmap_semaphore for reading, in a
+ * manner safe from deadlocking with simultaneous mmap() (grabbing mmap_sem
+ * for writing) and page faulting on the user memory pointed to by src.
+ * This assumes that we will very rarely hit the partial != 0 path, or this
+ * will not be a win.
+ */
+static int copy_from_user_mmap_sem(void *dst, const void __user *src, size_t n)
+{
+	int partial;
+
+	pagefault_disable();
+	partial = __copy_from_user_inatomic(dst, src, n);
+	pagefault_enable();
+
+	/*
+	 * Didn't copy everything, drop the mmap_sem and do a faulting copy
+	 */
+	if (unlikely(partial)) {
+		up_read(&current->mm->mmap_sem);
+		partial = copy_from_user(dst, src, n);
+		down_read(&current->mm->mmap_sem);
+	}
+
+	return partial;
+}
+
+/*
  * Map an iov into an array of pages and offset/length tupples. With the
  * partial_page structure, we can map several non-contiguous ranges into
  * our ones pages[] map instead of splitting that operation into pieces.
@@ -1240,31 +1263,26 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 {
 	int buffers = 0, error = 0;
 
-	/*
-	 * It's ok to take the mmap_sem for reading, even
-	 * across a "get_user()".
-	 */
 	down_read(&current->mm->mmap_sem);
 
 	while (nr_vecs) {
 		unsigned long off, npages;
+		struct iovec entry;
 		void __user *base;
 		size_t len;
 		int i;
 
-		/*
-		 * Get user address base and length for this iovec.
-		 */
-		error = get_user(base, &iov->iov_base);
-		if (unlikely(error))
+		error = -EFAULT;
+		if (copy_from_user_mmap_sem(&entry, iov, sizeof(entry)))
 			break;
-		error = get_user(len, &iov->iov_len);
-		if (unlikely(error))
-			break;
+
+		base = entry.iov_base;
+		len = entry.iov_len;
 
 		/*
 		 * Sanity check this iovec. 0 read succeeds.
 		 */
+		error = 0;
 		if (unlikely(!len))
 			break;
 		error = -EFAULT;

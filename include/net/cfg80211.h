@@ -3,14 +3,14 @@
 
 #include <linux/netlink.h>
 #include <linux/skbuff.h>
+#include <linux/nl80211.h>
 #include <net/genetlink.h>
 
 /*
  * 802.11 configuration in-kernel interface
  *
- * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006, 2007	Johannes Berg <johannes@sipsolutions.net>
  */
-
 
 /* Radiotap header iteration
  *   implemented in net/wireless/radiotap.c
@@ -68,11 +68,16 @@ struct wiphy;
  * @add_virtual_intf: create a new virtual interface with the given name
  *
  * @del_virtual_intf: remove the virtual interface determined by ifindex.
+ *
+ * @change_virtual_intf: change type of virtual interface
+ *
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
-				    unsigned int type);
+				    enum nl80211_iftype type);
 	int	(*del_virtual_intf)(struct wiphy *wiphy, int ifindex);
+	int	(*change_virtual_intf)(struct wiphy *wiphy, int ifindex,
+				       enum nl80211_iftype type);
 };
 
 #endif /* __NET_CFG80211_H */

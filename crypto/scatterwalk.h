@@ -74,4 +74,7 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 void *scatterwalk_map(struct scatter_walk *walk, int out);
 void scatterwalk_done(struct scatter_walk *walk, int out, int more);
 
+void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
+			      unsigned int start, unsigned int nbytes, int out);
+
 #endif  /* _CRYPTO_SCATTERWALK_H */

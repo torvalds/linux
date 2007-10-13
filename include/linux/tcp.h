@@ -304,7 +304,6 @@ struct tcp_sock {
 	u32	rtt_seq;	/* sequence number to update rttvar	*/
 
 	u32	packets_out;	/* Packets which are "in flight"	*/
-	u32	left_out;	/* Packets which leaved network	*/
 	u32	retrans_out;	/* Retransmitted packets out		*/
 /*
  *      Options received (usually on last packet, some only on SYN packets).
@@ -333,6 +332,9 @@ struct tcp_sock {
 
 	struct tcp_sack_block_wire recv_sack_cache[4];
 
+	u32	highest_sack;	/* Start seq of globally highest revd SACK
+				 * (validity guaranteed only if sacked_out > 0) */
+
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;
 
@@ -341,10 +343,12 @@ struct tcp_sock {
 	struct sk_buff *forward_skb_hint;
 	struct sk_buff *fastpath_skb_hint;
 
-	int     fastpath_cnt_hint;
+	int     fastpath_cnt_hint;	/* Lags behind by current skb's pcount
+					 * compared to respective fackets_out */
 	int     lost_cnt_hint;
 	int     retransmit_cnt_hint;
-	int     forward_cnt_hint;
+
+	u32	lost_retrans_low;	/* Sent seq after any rxmit (lowest) */
 
 	u16	advmss;		/* Advertised MSS			*/
 	u16	prior_ssthresh; /* ssthresh saved at recovery start	*/

@@ -391,7 +391,7 @@ static int get_video_format(struct av7110 *av7110, u8 *buf, int count)
  ****************************************************************************/
 
 static inline long aux_ring_buffer_write(struct dvb_ringbuffer *rbuf,
-					 const char *buf, unsigned long count)
+					 const u8 *buf, unsigned long count)
 {
 	unsigned long todo = count;
 	int free;
@@ -436,7 +436,7 @@ static void play_audio_cb(u8 *buf, int count, void *priv)
 #define FREE_COND (dvb_ringbuffer_free(&av7110->avout) >= 20 * 1024 && \
 		   dvb_ringbuffer_free(&av7110->aout) >= 20 * 1024)
 
-static ssize_t dvb_play(struct av7110 *av7110, const u8 __user *buf,
+static ssize_t dvb_play(struct av7110 *av7110, const char __user *buf,
 			unsigned long count, int nonblock, int type)
 {
 	unsigned long todo = count, n;
@@ -499,7 +499,7 @@ static ssize_t dvb_play_kernel(struct av7110 *av7110, const u8 *buf,
 	return count - todo;
 }
 
-static ssize_t dvb_aplay(struct av7110 *av7110, const u8 __user *buf,
+static ssize_t dvb_aplay(struct av7110 *av7110, const char __user *buf,
 			 unsigned long count, int nonblock, int type)
 {
 	unsigned long todo = count, n;
@@ -959,7 +959,7 @@ static u8 iframe_header[] = { 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x80, 0x00, 0x
 
 #define MIN_IFRAME 400000
 
-static int play_iframe(struct av7110 *av7110, u8 __user *buf, unsigned int len, int nonblock)
+static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len, int nonblock)
 {
 	int i, n;
 
@@ -1082,19 +1082,18 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 	case VIDEO_SET_DISPLAY_FORMAT:
 	{
 		video_displayformat_t format = (video_displayformat_t) arg;
-		u16 val = 0;
 
 		switch (format) {
 		case VIDEO_PAN_SCAN:
-			val = VID_PAN_SCAN_PREF;
+			av7110->display_panscan = VID_PAN_SCAN_PREF;
 			break;
 
 		case VIDEO_LETTER_BOX:
-			val = VID_VC_AND_PS_PREF;
+			av7110->display_panscan = VID_VC_AND_PS_PREF;
 			break;
 
 		case VIDEO_CENTER_CUT_OUT:
-			val = VID_CENTRE_CUT_PREF;
+			av7110->display_panscan = VID_CENTRE_CUT_PREF;
 			break;
 
 		default:
@@ -1104,7 +1103,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 			break;
 		av7110->videostate.display_format = format;
 		ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetPanScanType,
-				    1, (u16) val);
+				    1, av7110->display_panscan);
 		break;
 	}
 
@@ -1466,8 +1465,9 @@ int av7110_av_register(struct av7110 *av7110)
 	av7110->videostate.play_state = VIDEO_STOPPED;
 	av7110->videostate.stream_source = VIDEO_SOURCE_DEMUX;
 	av7110->videostate.video_format = VIDEO_FORMAT_4_3;
-	av7110->videostate.display_format = VIDEO_CENTER_CUT_OUT;
+	av7110->videostate.display_format = VIDEO_LETTER_BOX;
 	av7110->display_ar = VIDEO_FORMAT_4_3;
+	av7110->display_panscan = VID_VC_AND_PS_PREF;
 
 	init_waitqueue_head(&av7110->video_events.wait_queue);
 	spin_lock_init(&av7110->video_events.lock);

@@ -30,7 +30,6 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -155,13 +154,14 @@ MODULE_LICENSE("GPL");
 /* ----------------------------------------------------------------------- */
 /* sysfs                                                                   */
 
-static ssize_t show_card(struct class_device *cd, char *buf)
+static ssize_t show_card(struct device *cd,
+			 struct device_attribute *attr, char *buf)
 {
 	struct video_device *vfd = to_video_device(cd);
 	struct bttv *btv = dev_get_drvdata(vfd->dev);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
-static CLASS_DEVICE_ATTR(card, S_IRUGO, show_card, NULL);
+static DEVICE_ATTR(card, S_IRUGO, show_card, NULL);
 
 /* ----------------------------------------------------------------------- */
 /* dvb auto-load setup                                                     */
@@ -1218,7 +1218,14 @@ audio_mux(struct bttv *btv, int input, int mute)
 			break;
 		case TVAUDIO_INPUT_TUNER:
 		default:
-			route.input = MSP_INPUT_DEFAULT;
+			/* This is the only card that uses TUNER2, and afaik,
+			   is the only difference between the VOODOOTV_FM
+			   and VOODOOTV_200 */
+			if (btv->c.type == BTTV_BOARD_VOODOOTV_200)
+				route.input = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER2, \
+					MSP_DSP_IN_TUNER, MSP_DSP_IN_TUNER);
+			else
+				route.input = MSP_INPUT_DEFAULT;
 			break;
 		}
 		route.output = MSP_OUTPUT_DEFAULT;
@@ -1253,7 +1260,7 @@ i2c_vidiocschan(struct bttv *btv)
 	v4l2_std_id std = bttv_tvnorms[btv->tvnorm].v4l2_id;
 
 	bttv_call_i2c_clients(btv, VIDIOC_S_STD, &std);
-	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM)
+	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM || btv->c.type == BTTV_BOARD_VOODOOTV_200)
 		bttv_tda9880_setnorm(btv,btv->tvnorm);
 }
 
@@ -1323,6 +1330,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 
 	switch (btv->c.type) {
 	case BTTV_BOARD_VOODOOTV_FM:
+	case BTTV_BOARD_VOODOOTV_200:
 		bttv_tda9880_setnorm(btv,norm);
 		break;
 	}
@@ -2251,6 +2259,24 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		printk(KERN_INFO "bttv%d: ==================  END STATUS CARD #%d  ==================\n", btv->c.nr, btv->c.nr);
 		return 0;
 	}
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+			return -EINVAL;
+		/* bt848 has a 12-bit register space */
+		reg->reg &= 0xfff;
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = btread(reg->reg);
+		else
+			btwrite(reg->val, reg->reg);
+		return 0;
+	}
+#endif
 
 	default:
 		return -ENOIOCTLCMD;
@@ -2557,7 +2583,7 @@ static int setup_window(struct bttv_fh *fh, struct bttv *btv,
 	if (check_btres(fh, RESOURCE_OVERLAY)) {
 		struct bttv_buffer *new;
 
-		new = videobuf_alloc(sizeof(*new));
+		new = videobuf_pci_alloc(sizeof(*new));
 		new->crop = btv->crop[!!fh->do_crop].rect;
 		bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 		retval = bttv_switch_overlay(btv,fh,new);
@@ -3023,7 +3049,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		mutex_lock(&fh->cap.lock);
 		if (*on) {
 			fh->ov.tvnorm = btv->tvnorm;
-			new = videobuf_alloc(sizeof(*new));
+			new = videobuf_pci_alloc(sizeof(*new));
 			new->crop = btv->crop[!!fh->do_crop].rect;
 			bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 		} else {
@@ -3046,6 +3072,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 					     V4L2_MEMORY_MMAP);
 		if (retval < 0)
 			goto fh_unlock_and_return;
+
+		gbuffers = retval;
 		memset(mbuf,0,sizeof(*mbuf));
 		mbuf->frames = gbuffers;
 		mbuf->size   = gbuffers * gbufsize;
@@ -3116,9 +3144,12 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			retval = -EIO;
 			/* fall through */
 		case STATE_DONE:
-			videobuf_dma_sync(&fh->cap,&buf->vb.dma);
+		{
+			struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
+			videobuf_dma_sync(&fh->cap,dma);
 			bttv_dma_free(&fh->cap,btv,buf);
 			break;
+		}
 		default:
 			retval = -EINVAL;
 			break;
@@ -3312,7 +3343,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			if (check_btres(fh, RESOURCE_OVERLAY)) {
 				struct bttv_buffer *new;
 
-				new = videobuf_alloc(sizeof(*new));
+				new = videobuf_pci_alloc(sizeof(*new));
 				new->crop = btv->crop[!!fh->do_crop].rect;
 				bttv_overlay_risc(btv,&fh->ov,fh->ovfmt,new);
 				retval = bttv_switch_overlay(btv,fh,new);
@@ -3561,6 +3592,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_FREQUENCY:
 	case VIDIOC_S_FREQUENCY:
 	case VIDIOC_LOG_STATUS:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
@@ -3669,7 +3702,7 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
 			}
-			fh->cap.read_buf = videobuf_alloc(fh->cap.msize);
+			fh->cap.read_buf = videobuf_pci_alloc(fh->cap.msize);
 			if (NULL == fh->cap.read_buf) {
 				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
@@ -3736,13 +3769,13 @@ static int bttv_open(struct inode *inode, struct file *file)
 	fh->ov.setup_ok = 0;
 	v4l2_prio_open(&btv->prio,&fh->prio);
 
-	videobuf_queue_init(&fh->cap, &bttv_video_qops,
+	videobuf_queue_pci_init(&fh->cap, &bttv_video_qops,
 			    btv->c.pci, &btv->s_lock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct bttv_buffer),
 			    fh);
-	videobuf_queue_init(&fh->vbi, &bttv_vbi_qops,
+	videobuf_queue_pci_init(&fh->vbi, &bttv_vbi_qops,
 			    btv->c.pci, &btv->s_lock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
@@ -3943,6 +3976,8 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOCGAUDIO:
 	case VIDIOCSAUDIO:
 	case VIDIOC_LOG_STATUS:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
@@ -4583,9 +4618,9 @@ static int __devinit bttv_register_video(struct bttv *btv)
 		goto err;
 	printk(KERN_INFO "bttv%d: registered device video%d\n",
 	       btv->c.nr,btv->video_dev->minor & 0x1f);
-	if (class_device_create_file(&btv->video_dev->class_dev,
-				     &class_device_attr_card)<0) {
-		printk(KERN_ERR "bttv%d: class_device_create_file 'card' "
+	if (device_create_file(&btv->video_dev->class_dev,
+				     &dev_attr_card)<0) {
+		printk(KERN_ERR "bttv%d: device_create_file 'card' "
 		       "failed\n", btv->c.nr);
 		goto err;
 	}

@@ -93,9 +93,10 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 		map_bh(bh, inode->i_sb, block);
 
 	set_buffer_uptodate(bh);
+	if (!gfs2_is_jdata(ip))
+		mark_buffer_dirty(bh);
 	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
 		gfs2_trans_add_bh(ip->i_gl, bh, 0);
-	mark_buffer_dirty(bh);
 
 	if (release) {
 		unlock_page(page);
@@ -1085,6 +1086,33 @@ static int do_shrink(struct gfs2_inode *ip, u64 size)
 	return error;
 }
 
+static int do_touch(struct gfs2_inode *ip, u64 size)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct buffer_head *dibh;
+	int error;
+
+	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
+	if (error)
+		return error;
+
+	down_write(&ip->i_rw_mutex);
+
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error)
+		goto do_touch_out;
+
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_dinode_out(ip, dibh->b_data);
+	brelse(dibh);
+
+do_touch_out:
+	up_write(&ip->i_rw_mutex);
+	gfs2_trans_end(sdp);
+	return error;
+}
+
 /**
  * gfs2_truncatei - make a file a given size
  * @ip: the inode
@@ -1105,8 +1133,11 @@ int gfs2_truncatei(struct gfs2_inode *ip, u64 size)
 
 	if (size > ip->i_di.di_size)
 		error = do_grow(ip, size);
-	else
+	else if (size < ip->i_di.di_size)
 		error = do_shrink(ip, size);
+	else
+		/* update time stamps */
+		error = do_touch(ip, size);
 
 	return error;
 }

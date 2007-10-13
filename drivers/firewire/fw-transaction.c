@@ -605,8 +605,10 @@ fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 	 * check is sufficient to ensure we don't send response to
 	 * broadcast packets or posted writes.
 	 */
-	if (request->ack != ACK_PENDING)
+	if (request->ack != ACK_PENDING) {
+		kfree(request);
 		return;
+	}
 
 	if (rcode == RCODE_COMPLETE)
 		fw_fill_response(&request->response, request->request_header,
@@ -627,11 +629,6 @@ fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 	unsigned long long offset;
 	unsigned long flags;
 	int tcode, destination, source;
-
-	if (p->payload_length > 2048) {
-		/* FIXME: send error response. */
-		return;
-	}
 
 	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
 		return;
@@ -737,7 +734,7 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 }
 EXPORT_SYMBOL(fw_core_handle_response);
 
-const struct fw_address_region topology_map_region =
+static const struct fw_address_region topology_map_region =
 	{ .start = 0xfffff0001000ull, .end = 0xfffff0001400ull, };
 
 static void
@@ -775,7 +772,7 @@ static struct fw_address_handler topology_map = {
 	.address_callback	= handle_topology_map,
 };
 
-const struct fw_address_region registers_region =
+static const struct fw_address_region registers_region =
 	{ .start = 0xfffff0000000ull, .end = 0xfffff0000400ull, };
 
 static void

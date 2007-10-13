@@ -398,8 +398,6 @@ static int __init com90io_init(void)
 	if (!dev)
 		return -ENOMEM;
 
-	SET_MODULE_OWNER(dev);
-
 	dev->base_addr = io;
 	dev->irq = irq;
 	if (dev->irq == 2)

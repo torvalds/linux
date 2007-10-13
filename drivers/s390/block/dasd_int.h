@@ -53,6 +53,7 @@
 #include <linux/genhd.h>
 #include <linux/hdreg.h>
 #include <linux/interrupt.h>
+#include <linux/log2.h>
 #include <asm/ccwdev.h>
 #include <linux/workqueue.h>
 #include <asm/debug.h>
@@ -293,7 +294,7 @@ struct dasd_uid {
 struct dasd_device {
 	/* Block device stuff. */
 	struct gendisk *gdp;
-	request_queue_t *request_queue;
+	struct request_queue *request_queue;
 	spinlock_t request_queue_lock;
 	struct block_device *bdev;
         unsigned int devindex;
@@ -456,7 +457,7 @@ dasd_free_chunk(struct list_head *chunk_list, void *mem)
 static inline int
 dasd_check_blocksize(int bsize)
 {
-	if (bsize < 512 || bsize > 4096 || (bsize & (bsize - 1)) != 0)
+	if (bsize < 512 || bsize > 4096 || !is_power_of_2(bsize))
 		return -EMEDIUMTYPE;
 	return 0;
 }

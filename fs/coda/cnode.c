@@ -55,11 +55,6 @@ static int coda_set_inode(struct inode *inode, void *data)
 	return 0;
 }
 
-static int coda_fail_inode(struct inode *inode, void *data)
-{
-	return -1;
-}
-
 struct inode * coda_iget(struct super_block * sb, struct CodaFid * fid,
 			 struct coda_vattr * attr)
 {
@@ -141,7 +136,7 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 		return NULL;
 	}
 
-	inode = iget5_locked(sb, hash, coda_test_inode, coda_fail_inode, fid);
+	inode = ilookup5(sb, hash, coda_test_inode, fid);
 	if ( !inode )
 		return NULL;
 

@@ -19,7 +19,6 @@
  *	SH7729R
  *	SH7710
  *	SH7720
- *	SH7300
  *	SH7710
  * ---------------------------------------------------------------------------
  */
@@ -28,7 +27,7 @@
 #define TMU_TOCR	0xfffffe90	/* Byte access */
 #endif
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7710)
+#if defined(CONFIG_CPU_SUBTYPE_SH7710)
 #define TMU_012_TSTR	0xa412fe92	/* Byte access */
 
 #define TMU0_TCOR	0xa412fe94	/* Long access */

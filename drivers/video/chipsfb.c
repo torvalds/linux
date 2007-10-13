@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/fb.h>
+#include <linux/pm.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/console.h>
@@ -458,7 +459,7 @@ static int chipsfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
-	if (state.event != PM_SUSPEND_MEM)
+	if (state.event != PM_EVENT_SUSPEND)
 		goto done;
 
 	acquire_console_sem();

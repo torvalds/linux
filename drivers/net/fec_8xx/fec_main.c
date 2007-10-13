@@ -465,9 +465,9 @@ void fec_stop(struct net_device *dev)
 }
 
 /* common receive function */
-static int fec_enet_rx_common(struct net_device *dev, int *budget)
+static int fec_enet_rx_common(struct fec_enet_private *ep,
+			      struct net_device *dev, int budget)
 {
-	struct fec_enet_private *fep = netdev_priv(dev);
 	fec_t *fecp = fep->fecp;
 	const struct fec_platform_info *fpi = fep->fpi;
 	cbd_t *bdp;
@@ -475,11 +475,8 @@ static int fec_enet_rx_common(struct net_device *dev, int *budget)
 	int received = 0;
 	__u16 pkt_len, sc;
 	int curidx;
-	int rx_work_limit;
 
 	if (fpi->use_napi) {
-		rx_work_limit = min(dev->quota, *budget);
-
 		if (!netif_running(dev))
 			return 0;
 	}
@@ -530,11 +527,6 @@ static int fec_enet_rx_common(struct net_device *dev, int *budget)
 			BUG_ON(skbn == NULL);
 
 		} else {
-
-			/* napi, got packet but no quota */
-			if (fpi->use_napi && --rx_work_limit < 0)
-				break;
-
 			skb = fep->rx_skbuff[curidx];
 			BUG_ON(skb == NULL);
 
@@ -599,25 +591,24 @@ static int fec_enet_rx_common(struct net_device *dev, int *budget)
 		 * able to keep up at the expense of system resources.
 		 */
 		FW(fecp, r_des_active, 0x01000000);
+
+		if (received >= budget)
+			break;
+
 	}
 
 	fep->cur_rx = bdp;
 
 	if (fpi->use_napi) {
-		dev->quota -= received;
-		*budget -= received;
+		if (received < budget) {
+			netif_rx_complete(dev, &fep->napi);
 
-		if (rx_work_limit < 0)
-			return 1;	/* not done */
-
-		/* done */
-		netif_rx_complete(dev);
-
-		/* enable RX interrupt bits */
-		FS(fecp, imask, FEC_ENET_RXF | FEC_ENET_RXB);
+			/* enable RX interrupt bits */
+			FS(fecp, imask, FEC_ENET_RXF | FEC_ENET_RXB);
+		}
 	}
 
-	return 0;
+	return received;
 }
 
 static void fec_enet_tx(struct net_device *dev)
@@ -743,12 +734,12 @@ fec_enet_interrupt(int irq, void *dev_id)
 
 		if ((int_events & FEC_ENET_RXF) != 0) {
 			if (!fpi->use_napi)
-				fec_enet_rx_common(dev, NULL);
+				fec_enet_rx_common(fep, dev, ~0);
 			else {
-				if (netif_rx_schedule_prep(dev)) {
+				if (netif_rx_schedule_prep(dev, &fep->napi)) {
 					/* disable rx interrupts */
 					FC(fecp, imask, FEC_ENET_RXF | FEC_ENET_RXB);
-					__netif_rx_schedule(dev);
+					__netif_rx_schedule(dev, &fep->napi);
 				} else {
 					printk(KERN_ERR DRV_MODULE_NAME
 					       ": %s driver bug! interrupt while in poll!\n",
@@ -893,10 +884,13 @@ static int fec_enet_open(struct net_device *dev)
 	const struct fec_platform_info *fpi = fep->fpi;
 	unsigned long flags;
 
+	napi_enable(&fep->napi);
+
 	/* Install our interrupt handler. */
 	if (request_irq(fpi->fec_irq, fec_enet_interrupt, 0, "fec", dev) != 0) {
 		printk(KERN_ERR DRV_MODULE_NAME
 		       ": %s Could not allocate FEC IRQ!", dev->name);
+		napi_disable(&fep->napi);
 		return -EINVAL;
 	}
 
@@ -907,6 +901,7 @@ static int fec_enet_open(struct net_device *dev)
 		printk(KERN_ERR DRV_MODULE_NAME
 		       ": %s Could not allocate PHY IRQ!", dev->name);
 		free_irq(fpi->fec_irq, dev);
+		napi_disable(&fep->napi);
 		return -EINVAL;
 	}
 
@@ -932,6 +927,7 @@ static int fec_enet_close(struct net_device *dev)
 	unsigned long flags;
 
 	netif_stop_queue(dev);
+	napi_disable(&fep->napi);
 	netif_carrier_off(dev);
 
 	if (fpi->use_mdio)
@@ -955,9 +951,12 @@ static struct net_device_stats *fec_enet_get_stats(struct net_device *dev)
 	return &fep->stats;
 }
 
-static int fec_enet_poll(struct net_device *dev, int *budget)
+static int fec_enet_poll(struct napi_struct *napi, int budget)
 {
-	return fec_enet_rx_common(dev, budget);
+	struct fec_enet_private *fep = container_of(napi, struct fec_enet_private, napi);
+	struct net_device *dev = fep->dev;
+
+	return fec_enet_rx_common(fep, dev, budget);
 }
 
 /*************************************************************************/
@@ -1042,9 +1041,7 @@ static const struct ethtool_ops fec_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 	.get_msglevel	= fec_get_msglevel,
 	.set_msglevel	= fec_set_msglevel,
-	.get_tx_csum	= ethtool_op_get_tx_csum,
 	.set_tx_csum	= ethtool_op_set_tx_csum,	/* local! */
-	.get_sg		= ethtool_op_get_sg,
 	.set_sg		= ethtool_op_set_sg,
 	.get_regs	= fec_get_regs,
 };
@@ -1104,9 +1101,9 @@ int fec_8xx_init_one(const struct fec_platform_info *fpi,
 		err = -ENOMEM;
 		goto err;
 	}
-	SET_MODULE_OWNER(dev);
 
 	fep = netdev_priv(dev);
+	fep->dev = dev;
 
 	/* partial reset of FEC */
 	fec_whack_reset(fecp);
@@ -1172,10 +1169,9 @@ int fec_8xx_init_one(const struct fec_platform_info *fpi,
 	dev->get_stats = fec_enet_get_stats;
 	dev->set_multicast_list = fec_set_multicast_list;
 	dev->set_mac_address = fec_set_mac_address;
-	if (fpi->use_napi) {
-		dev->poll = fec_enet_poll;
-		dev->weight = fpi->napi_weight;
-	}
+	netif_napi_add(dev, &fec->napi,
+		       fec_enet_poll, fpi->napi_weight);
+
 	dev->ethtool_ops = &fec_ethtool_ops;
 	dev->do_ioctl = fec_ioctl;
 

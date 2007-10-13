@@ -284,9 +284,9 @@ static void sni_pcimt_hwint(void)
 	u32 pending = read_c0_cause() & read_c0_status();
 
 	if (pending & C_IRQ5)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 7);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
 	else if (pending & C_IRQ4)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 6);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 6);
 	else if (pending & C_IRQ3)
 		pcimt_hwint3();
 	else if (pending & C_IRQ1)
@@ -313,7 +313,6 @@ void __init sni_pcimt_init(void)
 {
 	sni_pcimt_detect();
 	sni_pcimt_sc_init();
-	board_time_init = sni_cpu_time_init;
 	ioport_resource.end = sni_io_resource.end;
 #ifdef CONFIG_PCI
 	PCIBIOS_MIN_IO = 0x9000;

@@ -37,7 +37,7 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-gpio.h>
 

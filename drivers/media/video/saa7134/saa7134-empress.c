@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -77,17 +76,14 @@ static int ts_init_encoder(struct saa7134_dev* dev)
 static int ts_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
-	struct saa7134_dev *h,*dev = NULL;
-	struct list_head *list;
+	struct saa7134_dev *dev;
 	int err;
 
-	list_for_each(list,&saa7134_devlist) {
-		h = list_entry(list, struct saa7134_dev, devlist);
-		if (h->empress_dev && h->empress_dev->minor == minor)
-			dev = h;
-	}
-	if (NULL == dev)
-		return -ENODEV;
+	list_for_each_entry(dev, &saa7134_devlist, devlist)
+		if (dev->empress_dev && dev->empress_dev->minor == minor)
+			goto found;
+	return -ENODEV;
+ found:
 
 	dprintk("open minor=%d\n",minor);
 	err = -EBUSY;
@@ -95,6 +91,10 @@ static int ts_open(struct inode *inode, struct file *file)
 		goto done;
 	if (dev->empress_users)
 		goto done_up;
+
+	/* Unmute audio */
+	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
+		saa_readb(SAA7134_AUDIO_MUTE_CTRL) & ~(1 << 6));
 
 	dev->empress_users++;
 	file->private_data = dev;
@@ -120,6 +120,10 @@ static int ts_release(struct inode *inode, struct file *file)
 
 	/* stop the encoder */
 	ts_reset_encoder(dev);
+
+	/* Mute audio */
+	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
+		saa_readb(SAA7134_AUDIO_MUTE_CTRL) | (1 << 6));
 
 	mutex_unlock(&dev->empress_tsq.lock);
 	return 0;
@@ -393,7 +397,7 @@ static int empress_init(struct saa7134_dev *dev)
 	printk(KERN_INFO "%s: registered device video%d [mpeg]\n",
 	       dev->name,dev->empress_dev->minor & 0x1f);
 
-	videobuf_queue_init(&dev->empress_tsq, &saa7134_ts_qops,
+	videobuf_queue_pci_init(&dev->empress_tsq, &saa7134_ts_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_ALTERNATE,

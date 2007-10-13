@@ -45,6 +45,7 @@ NGcopy_user_page:	/* %o0=dest, %o1=src, %o2=vaddr */
 	retl
 	 nop
 
+	.globl		NGclear_page, NGclear_user_page
 NGclear_page:		/* %o0=dest */
 NGclear_user_page:	/* %o0=dest, %o1=vaddr */
 	mov		8, %g1

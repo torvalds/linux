@@ -191,8 +191,6 @@ static ssize_t fop_write(struct file * file, const char __user * buf, size_t cou
 
 static int fop_open(struct inode * inode, struct file * file)
 {
-	nonseekable_open(inode, file);
-
 	/* Just in case we're already talking to someone... */
 	if(test_and_set_bit(0, &wdt_is_open))
 		return -EBUSY;
@@ -202,7 +200,7 @@ static int fop_open(struct inode * inode, struct file * file)
 
 	/* Good, fire up the show */
 	wdt_startup();
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int fop_close(struct inode * inode, struct file * file)

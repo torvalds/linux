@@ -441,6 +441,8 @@ static struct fscher_data *fscher_update_device(struct device *dev)
 		data->watchdog[2] = fscher_read_value(client, FSCHER_REG_WDOG_CONTROL);
 
 		data->global_event = fscher_read_value(client, FSCHER_REG_EVENT_STATE);
+		data->global_control = fscher_read_value(client,
+							FSCHER_REG_CONTROL);
 
 		data->last_updated = jiffies;
 		data->valid = 1;                 
@@ -599,7 +601,7 @@ static ssize_t set_control(struct i2c_client *client, struct fscher_data *data,
 	unsigned long v = simple_strtoul(buf, NULL, 10) & 0x01;
 
 	mutex_lock(&data->update_lock);
-	data->global_control &= ~v;
+	data->global_control = v;
 	fscher_write_value(client, reg, v);
 	mutex_unlock(&data->update_lock);
 	return count;

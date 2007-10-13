@@ -194,6 +194,7 @@ struct av7110 {
 
 	int			video_blank;
 	struct video_status	videostate;
+	u16			display_panscan;
 	int			display_ar;
 	int			trickmode;
 #define TRICK_NONE   0

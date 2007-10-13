@@ -623,7 +623,7 @@ static int eth_setup_common(char *str, int index)
 	return found;
 }
 
-static int eth_setup(char *str)
+static int __init eth_setup(char *str)
 {
 	struct eth_init *new;
 	char *error;

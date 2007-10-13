@@ -7068,14 +7068,13 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	subdevice_id = pci_dev->subsystem_device;
 
 	/* found a controller */
-	ha = kmalloc(sizeof (ips_ha_t), GFP_KERNEL);
+	ha = kzalloc(sizeof (ips_ha_t), GFP_KERNEL);
 	if (ha == NULL) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,
 			   "Unable to allocate temporary ha struct\n");
 		return -1;
 	}
 
-	memset(ha, 0, sizeof (ips_ha_t));
 
 	ips_sh[index] = NULL;
 	ips_ha[index] = ha;

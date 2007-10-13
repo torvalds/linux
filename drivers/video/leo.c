@@ -525,130 +525,123 @@ static void leo_fixup_var_rgb(struct fb_var_screeninfo *var)
 	var->transp.length = 0;
 }
 
-struct all_info {
-	struct fb_info info;
-	struct leo_par par;
-};
-
-static void leo_unmap_regs(struct of_device *op, struct all_info *all)
+static void leo_unmap_regs(struct of_device *op, struct fb_info *info,
+			   struct leo_par *par)
 {
-	if (all->par.lc_ss0_usr)
-		of_iounmap(&op->resource[0], all->par.lc_ss0_usr, 0x1000);
-	if (all->par.ld_ss0)
-		of_iounmap(&op->resource[0], all->par.ld_ss0, 0x1000);
-	if (all->par.ld_ss1)
-		of_iounmap(&op->resource[0], all->par.ld_ss1, 0x1000);
-	if (all->par.lx_krn)
-		of_iounmap(&op->resource[0], all->par.lx_krn, 0x1000);
-	if (all->par.cursor)
+	if (par->lc_ss0_usr)
+		of_iounmap(&op->resource[0], par->lc_ss0_usr, 0x1000);
+	if (par->ld_ss0)
+		of_iounmap(&op->resource[0], par->ld_ss0, 0x1000);
+	if (par->ld_ss1)
+		of_iounmap(&op->resource[0], par->ld_ss1, 0x1000);
+	if (par->lx_krn)
+		of_iounmap(&op->resource[0], par->lx_krn, 0x1000);
+	if (par->cursor)
 		of_iounmap(&op->resource[0],
-			   all->par.cursor, sizeof(struct leo_cursor));
-	if (all->info.screen_base)
-		of_iounmap(&op->resource[0], all->info.screen_base, 0x800000);
+			   par->cursor, sizeof(struct leo_cursor));
+	if (info->screen_base)
+		of_iounmap(&op->resource[0], info->screen_base, 0x800000);
 }
 
-static int __devinit leo_init_one(struct of_device *op)
+static int __devinit leo_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
-	struct all_info *all;
+	struct fb_info *info;
+	struct leo_par *par;
 	int linebytes, err;
 
-	all = kzalloc(sizeof(*all), GFP_KERNEL);
-	if (!all)
-		return -ENOMEM;
+	info = framebuffer_alloc(sizeof(struct leo_par), &op->dev);
 
-	spin_lock_init(&all->par.lock);
+	err = -ENOMEM;
+	if (!info)
+		goto out_err;
+	par = info->par;
 
-	all->par.physbase = op->resource[0].start;
-	all->par.which_io = op->resource[0].flags & IORESOURCE_BITS;
+	spin_lock_init(&par->lock);
 
-	sbusfb_fill_var(&all->info.var, dp->node, 32);
-	leo_fixup_var_rgb(&all->info.var);
+	par->physbase = op->resource[0].start;
+	par->which_io = op->resource[0].flags & IORESOURCE_BITS;
+
+	sbusfb_fill_var(&info->var, dp->node, 32);
+	leo_fixup_var_rgb(&info->var);
 
 	linebytes = of_getintprop_default(dp, "linebytes",
-					  all->info.var.xres);
-	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
+					  info->var.xres);
+	par->fbsize = PAGE_ALIGN(linebytes * info->var.yres);
 
-	all->par.lc_ss0_usr =
+	par->lc_ss0_usr =
 		of_ioremap(&op->resource[0], LEO_OFF_LC_SS0_USR,
 			   0x1000, "leolc ss0usr");
-	all->par.ld_ss0 =
+	par->ld_ss0 =
 		of_ioremap(&op->resource[0], LEO_OFF_LD_SS0,
 			   0x1000, "leold ss0");
-	all->par.ld_ss1 =
+	par->ld_ss1 =
 		of_ioremap(&op->resource[0], LEO_OFF_LD_SS1,
 			   0x1000, "leold ss1");
-	all->par.lx_krn =
+	par->lx_krn =
 		of_ioremap(&op->resource[0], LEO_OFF_LX_KRN,
 			   0x1000, "leolx krn");
-	all->par.cursor =
+	par->cursor =
 		of_ioremap(&op->resource[0], LEO_OFF_LX_CURSOR,
 			   sizeof(struct leo_cursor), "leolx cursor");
-	all->info.screen_base = 
+	info->screen_base =
 		of_ioremap(&op->resource[0], LEO_OFF_SS0,
 			   0x800000, "leo ram");
-	if (!all->par.lc_ss0_usr ||
-	    !all->par.ld_ss0 ||
-	    !all->par.ld_ss1 ||
-	    !all->par.lx_krn ||
-	    !all->par.cursor ||
-	    !all->info.screen_base) {
-		leo_unmap_regs(op, all);
-		kfree(all);
-		return -ENOMEM;
-	}
+	if (!par->lc_ss0_usr ||
+	    !par->ld_ss0 ||
+	    !par->ld_ss1 ||
+	    !par->lx_krn ||
+	    !par->cursor ||
+	    !info->screen_base)
+		goto out_unmap_regs;
 
-	all->info.flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
-	all->info.fbops = &leo_ops;
-	all->info.par = &all->par;
+	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->fbops = &leo_ops;
 
-	leo_init_wids(&all->info);
-	leo_init_hw(&all->info);
+	leo_init_wids(info);
+	leo_init_hw(info);
 
-	leo_blank(0, &all->info);
+	leo_blank(0, info);
 
-	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		leo_unmap_regs(op, all);
-		kfree(all);
-		return -ENOMEM;;
-	}
+	if (fb_alloc_cmap(&info->cmap, 256, 0))
+		goto out_unmap_regs;
 
-	leo_init_fix(&all->info, dp);
+	leo_init_fix(info, dp);
 
-	err = register_framebuffer(&all->info);
-	if (err < 0) {
-		fb_dealloc_cmap(&all->info.cmap);
-		leo_unmap_regs(op, all);
-		kfree(all);
-		return err;
-	}
+	err = register_framebuffer(info);
+	if (err < 0)
+		goto out_dealloc_cmap;
 
-	dev_set_drvdata(&op->dev, all);
+	dev_set_drvdata(&op->dev, info);
 
 	printk("%s: leo at %lx:%lx\n",
 	       dp->full_name,
-	       all->par.which_io, all->par.physbase);
+	       par->which_io, par->physbase);
 
 	return 0;
-}
 
-static int __devinit leo_probe(struct of_device *dev, const struct of_device_id *match)
-{
-	struct of_device *op = to_of_device(&dev->dev);
+out_dealloc_cmap:
+	fb_dealloc_cmap(&info->cmap);
 
-	return leo_init_one(op);
+out_unmap_regs:
+	leo_unmap_regs(op, info, par);
+	framebuffer_release(info);
+
+out_err:
+	return err;
 }
 
 static int __devexit leo_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&op->dev);
+	struct fb_info *info = dev_get_drvdata(&op->dev);
+	struct leo_par *par = info->par;
 
-	unregister_framebuffer(&all->info);
-	fb_dealloc_cmap(&all->info.cmap);
+	unregister_framebuffer(info);
+	fb_dealloc_cmap(&info->cmap);
 
-	leo_unmap_regs(op, all);
+	leo_unmap_regs(op, info, par);
 
-	kfree(all);
+	framebuffer_release(info);
 
 	dev_set_drvdata(&op->dev, NULL);
 

@@ -50,14 +50,14 @@
  */
 #define JBD_DEFAULT_MAX_COMMIT_AGE 5
 
-#ifdef CONFIG_JBD_DEBUG
+#ifdef CONFIG_JBD2_DEBUG
 /*
  * Define JBD_EXPENSIVE_CHECKING to enable more expensive internal
  * consistency checks.  By default we don't do this unless
- * CONFIG_JBD_DEBUG is on.
+ * CONFIG_JBD2_DEBUG is on.
  */
 #define JBD_EXPENSIVE_CHECKING
-extern int jbd2_journal_enable_debug;
+extern u8 jbd2_journal_enable_debug;
 
 #define jbd_debug(n, f, a...)						\
 	do {								\

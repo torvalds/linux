@@ -1,11 +1,11 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.14
-                          April 21st, 2007
+                            Version 0.16
+                          August 2nd, 2007
 
                Borislav Deianov <borislav@users.sf.net>
-	     Henrique de Moraes Holschuh <hmh@hmh.eng.br>
-		      http://ibm-acpi.sf.net/
+             Henrique de Moraes Holschuh <hmh@hmh.eng.br>
+                      http://ibm-acpi.sf.net/
 
 
 This is a Linux driver for the IBM and Lenovo ThinkPad laptops. It
@@ -105,10 +105,10 @@ The version of thinkpad-acpi's sysfs interface is exported by the driver
 as a driver attribute (see below).
 
 Sysfs driver attributes are on the driver's sysfs attribute space,
-for 2.6.20 this is /sys/bus/platform/drivers/thinkpad-acpi/.
+for 2.6.20 this is /sys/bus/platform/drivers/thinkpad_acpi/.
 
 Sysfs device attributes are on the driver's sysfs attribute space,
-for 2.6.20 this is /sys/devices/platform/thinkpad-acpi/.
+for 2.6.20 this is /sys/devices/platform/thinkpad_acpi/.
 
 Driver version
 --------------
@@ -134,54 +134,70 @@ end of this document.  Changes to the sysfs interface done by the kernel
 subsystems are not documented here, nor are they tracked by this
 attribute.
 
+Changes to the thinkpad-acpi sysfs interface are only considered
+non-experimental when they are submitted to Linux mainline, at which
+point the changes in this interface are documented and interface_version
+may be updated.  If you are using any thinkpad-acpi features not yet
+sent to mainline for merging, you do so on your own risk: these features
+may disappear, or be implemented in a different and incompatible way by
+the time they are merged in Linux mainline.
+
+Changes that are backwards-compatible by nature (e.g. the addition of
+attributes that do not change the way the other attributes work) do not
+always warrant an update of interface_version.  Therefore, one must
+expect that an attribute might not be there, and deal with it properly
+(an attribute not being there *is* a valid way to make it clear that a
+feature is not available in sysfs).
+
 Hot keys
 --------
 
 procfs: /proc/acpi/ibm/hotkey
 sysfs device attribute: hotkey_*
 
-Without this driver, only the Fn-F4 key (sleep button) generates an
-ACPI event. With the driver loaded, the hotkey feature enabled and the
-mask set (see below), the various hot keys generate ACPI events in the
-following format:
+In a ThinkPad, the ACPI HKEY handler is responsible for comunicating
+some important events and also keyboard hot key presses to the operating
+system.  Enabling the hotkey functionality of thinkpad-acpi signals the
+firmware that such a driver is present, and modifies how the ThinkPad
+firmware will behave in many situations.
+
+The driver enables the hot key feature automatically when loaded.  The
+feature can later be disabled and enabled back at runtime.  The driver
+will also restore the hot key feature to its previous state and mask
+when it is unloaded.
+
+When the hotkey feature is enabled and the hot key mask is set (see
+below), the driver will report HKEY events in the following format:
 
 	ibm/hotkey HKEY 00000080 0000xxxx
 
-The last four digits vary depending on the key combination pressed.
-All labeled Fn-Fx key combinations generate distinct events. In
-addition, the lid microswitch and some docking station buttons may
-also generate such events.
+Some of these events refer to hot key presses, but not all.
 
-The bit mask allows some control over which hot keys generate ACPI
-events. Not all bits in the mask can be modified. Not all bits that
-can be modified do anything. Not all hot keys can be individually
-controlled by the mask. Most recent ThinkPad models honor the
-following bits (assuming the hot keys feature has been enabled):
+The driver will generate events over the input layer for hot keys and
+radio switches, and over the ACPI netlink layer for other events.  The
+input layer support accepts the standard IOCTLs to remap the keycodes
+assigned to each hot key.
 
-	key	bit	behavior when set	behavior when unset
+The hot key bit mask allows some control over which hot keys generate
+events.  If a key is "masked" (bit set to 0 in the mask), the firmware
+will handle it.  If it is "unmasked", it signals the firmware that
+thinkpad-acpi would prefer to handle it, if the firmware would be so
+kind to allow it (and it often doesn't!).
 
-	Fn-F3			always generates ACPI event
-	Fn-F4			always generates ACPI event
-	Fn-F5	0010	generate ACPI event	enable/disable Bluetooth
-	Fn-F7	0040	generate ACPI event	switch LCD and external display
-	Fn-F8	0080	generate ACPI event	expand screen or none
-	Fn-F9	0100	generate ACPI event	none
-	Fn-F12			always generates ACPI event
+Not all bits in the mask can be modified.  Not all bits that can be
+modified do anything.  Not all hot keys can be individually controlled
+by the mask.  Some models do not support the mask at all, and in those
+models, hot keys cannot be controlled individually.  The behaviour of
+the mask is, therefore, higly dependent on the ThinkPad model.
 
-Some models do not support all of the above. For example, the T30 does
-not support Fn-F5 and Fn-F9. Other models do not support the mask at
-all. On those models, hot keys cannot be controlled individually.
+Note that unmasking some keys prevents their default behavior.  For
+example, if Fn+F5 is unmasked, that key will no longer enable/disable
+Bluetooth by itself.
 
-Note that enabling ACPI events for some keys prevents their default
-behavior. For example, if events for Fn-F5 are enabled, that key will
-no longer enable/disable Bluetooth by itself. This can still be done
-from an acpid handler for the ibm/hotkey event.
-
-Note also that not all Fn key combinations are supported through
-ACPI. For example, on the X40, the brightness, volume and "Access IBM"
-buttons do not generate ACPI events even with this driver. They *can*
-be used through the "ThinkPad Buttons" utility, see
-http://www.nongnu.org/tpb/
+Note also that not all Fn key combinations are supported through ACPI.
+For example, on the X40, the brightness, volume and "Access IBM" buttons
+do not generate ACPI events even with this driver.  They *can* be used
+through the "ThinkPad Buttons" utility, see http://www.nongnu.org/tpb/
 
 procfs notes:
 
@@ -189,9 +205,9 @@ The following commands can be written to the /proc/acpi/ibm/hotkey file:
 
 	echo enable > /proc/acpi/ibm/hotkey -- enable the hot keys feature
 	echo disable > /proc/acpi/ibm/hotkey -- disable the hot keys feature
-	echo 0xffff > /proc/acpi/ibm/hotkey -- enable all possible hot keys
-	echo 0x0000 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
-	... any other 4-hex-digit mask ...
+	echo 0xffffffff > /proc/acpi/ibm/hotkey -- enable all hot keys
+	echo 0 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
+	... any other 8-hex-digit mask ...
 	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
 
 sysfs notes:
@@ -202,7 +218,7 @@ sysfs notes:
 		key feature status will be restored to this value.
 
 		0: hot keys were disabled
-		1: hot keys were enabled
+		1: hot keys were enabled (unusual)
 
 	hotkey_bios_mask:
 		Returns the hot keys mask when thinkpad-acpi was loaded.
@@ -217,9 +233,238 @@ sysfs notes:
 		1: enables the hot keys feature / feature enabled
 
 	hotkey_mask:
-		bit mask to enable ACPI event generation for each hot
-		key (see above).  Returns the current status of the hot
-		keys mask, and allows one to modify it.
+		bit mask to enable driver-handling and ACPI event
+		generation for each hot key (see above).  Returns the
+		current status of the hot keys mask, and allows one to
+		modify it.
+
+	hotkey_all_mask:
+		bit mask that should enable event reporting for all
+		supported hot keys, when echoed to hotkey_mask above.
+		Unless you know which events need to be handled
+		passively (because the firmware *will* handle them
+		anyway), do *not* use hotkey_all_mask.  Use
+		hotkey_recommended_mask, instead. You have been warned.
+
+	hotkey_recommended_mask:
+		bit mask that should enable event reporting for all
+		supported hot keys, except those which are always
+		handled by the firmware anyway.  Echo it to
+		hotkey_mask above, to use.
+
+	hotkey_radio_sw:
+		if the ThinkPad has a hardware radio switch, this
+		attribute will read 0 if the switch is in the "radios
+		disabled" postition, and 1 if the switch is in the
+		"radios enabled" position.
+
+	hotkey_report_mode:
+		Returns the state of the procfs ACPI event report mode
+		filter for hot keys.  If it is set to 1 (the default),
+		all hot key presses are reported both through the input
+		layer and also as ACPI events through procfs (but not
+		through netlink).  If it is set to 2, hot key presses
+		are reported only through the input layer.
+
+		This attribute is read-only in kernels 2.6.23 or later,
+		and read-write on earlier kernels.
+
+		May return -EPERM (write access locked out by module
+		parameter) or -EACCES (read-only).
+
+input layer notes:
+
+A Hot key is mapped to a single input layer EV_KEY event, possibly
+followed by an EV_MSC MSC_SCAN event that shall contain that key's scan
+code.  An EV_SYN event will always be generated to mark the end of the
+event block.
+
+Do not use the EV_MSC MSC_SCAN events to process keys.  They are to be
+used as a helper to remap keys, only.  They are particularly useful when
+remapping KEY_UNKNOWN keys.
+
+The events are available in an input device, with the following id:
+
+	Bus:		BUS_HOST
+	vendor:		0x1014 (PCI_VENDOR_ID_IBM)  or
+			0x17aa (PCI_VENDOR_ID_LENOVO)
+	product:	0x5054 ("TP")
+	version:	0x4101
+
+The version will have its LSB incremented if the keymap changes in a
+backwards-compatible way.  The MSB shall always be 0x41 for this input
+device.  If the MSB is not 0x41, do not use the device as described in
+this section, as it is either something else (e.g. another input device
+exported by a thinkpad driver, such as HDAPS) or its functionality has
+been changed in a non-backwards compatible way.
+
+Adding other event types for other functionalities shall be considered a
+backwards-compatible change for this input device.
+
+Thinkpad-acpi Hot Key event map (version 0x4101):
+
+ACPI	Scan
+event	code	Key		Notes
+
+0x1001	0x00	FN+F1		-
+0x1002	0x01	FN+F2		IBM: battery (rare)
+				Lenovo: Screen lock
+
+0x1003	0x02	FN+F3		Many IBM models always report
+				this hot key, even with hot keys
+				disabled or with Fn+F3 masked
+				off
+				IBM: screen lock
+				Lenovo: battery
+
+0x1004	0x03	FN+F4		Sleep button (ACPI sleep button
+				semanthics, i.e. sleep-to-RAM).
+				It is always generate some kind
+				of event, either the hot key
+				event or a ACPI sleep button
+				event. The firmware may
+				refuse to generate further FN+F4
+				key presses until a S3 or S4 ACPI
+				sleep cycle is performed or some
+				time passes.
+
+0x1005	0x04	FN+F5		Radio.  Enables/disables
+				the internal BlueTooth hardware
+				and W-WAN card if left in control
+				of the firmware.  Does not affect
+				the WLAN card.
+				Should be used to turn on/off all
+				radios (bluetooth+W-WAN+WLAN),
+				really.
+
+0x1006	0x05	FN+F6		-
+
+0x1007	0x06	FN+F7		Video output cycle.
+				Do you feel lucky today?
+
+0x1008	0x07	FN+F8		IBM: toggle screen expand
+				Lenovo: configure ultranav
+
+0x1009	0x08	FN+F9		-
+	..	..		..
+0x100B	0x0A	FN+F11		-
+
+0x100C	0x0B	FN+F12		Sleep to disk.  You are always
+				supposed to handle it yourself,
+				either through the ACPI event,
+				or through a hotkey event.
+				The firmware may refuse to
+				generate further FN+F4 key
+				press events until a S3 or S4
+				ACPI sleep cycle is performed,
+				or some time passes.
+
+0x100D	0x0C	FN+BACKSPACE	-
+0x100E	0x0D	FN+INSERT	-
+0x100F	0x0E	FN+DELETE	-
+
+0x1010	0x0F	FN+HOME		Brightness up.  This key is
+				always handled by the firmware
+				in IBM ThinkPads, even when
+				unmasked.  Just leave it alone.
+				For Lenovo ThinkPads with a new
+				BIOS, it has to be handled either
+				by the ACPI OSI, or by userspace.
+0x1011	0x10	FN+END		Brightness down.  See brightness
+				up for details.
+
+0x1012	0x11	FN+PGUP		Thinklight toggle.  This key is
+				always handled by the firmware,
+				even when unmasked.
+
+0x1013	0x12	FN+PGDOWN	-
+
+0x1014	0x13	FN+SPACE	Zoom key
+
+0x1015	0x14	VOLUME UP	Internal mixer volume up. This
+				key is always handled by the
+				firmware, even when unmasked.
+				NOTE: Lenovo seems to be changing
+				this.
+0x1016	0x15	VOLUME DOWN	Internal mixer volume up. This
+				key is always handled by the
+				firmware, even when unmasked.
+				NOTE: Lenovo seems to be changing
+				this.
+0x1017	0x16	MUTE		Mute internal mixer. This
+				key is always handled by the
+				firmware, even when unmasked.
+
+0x1018	0x17	THINKPAD	Thinkpad/Access IBM/Lenovo key
+
+0x1019	0x18	unknown
+..	..	..
+0x1020	0x1F	unknown
+
+The ThinkPad firmware does not allow one to differentiate when most hot
+keys are pressed or released (either that, or we don't know how to, yet).
+For these keys, the driver generates a set of events for a key press and
+immediately issues the same set of events for a key release.  It is
+unknown by the driver if the ThinkPad firmware triggered these events on
+hot key press or release, but the firmware will do it for either one, not
+both.
+
+If a key is mapped to KEY_RESERVED, it generates no input events at all.
+If a key is mapped to KEY_UNKNOWN, it generates an input event that
+includes an scan code.  If a key is mapped to anything else, it will
+generate input device EV_KEY events.
+
+Non hot-key ACPI HKEY event map:
+0x5001		Lid closed
+0x5002		Lid opened
+0x7000		Radio Switch may have changed state
+
+The above events are not propagated by the driver, except for legacy
+compatibility purposes when hotkey_report_mode is set to 1.
+
+Compatibility notes:
+
+ibm-acpi and thinkpad-acpi 0.15 (mainline kernels before 2.6.23) never
+supported the input layer, and sent events over the procfs ACPI event
+interface.
+
+To avoid sending duplicate events over the input layer and the ACPI
+event interface, thinkpad-acpi 0.16 implements a module parameter
+(hotkey_report_mode), and also a sysfs device attribute with the same
+name.
+
+Make no mistake here: userspace is expected to switch to using the input
+layer interface of thinkpad-acpi, together with the ACPI netlink event
+interface in kernels 2.6.23 and later, or with the ACPI procfs event
+interface in kernels 2.6.22 and earlier.
+
+If no hotkey_report_mode module parameter is specified (or it is set to
+zero), the driver defaults to mode 1 (see below), and on kernels 2.6.22
+and earlier, also allows one to change the hotkey_report_mode through
+sysfs.  In kernels 2.6.23 and later, where the netlink ACPI event
+interface is available, hotkey_report_mode cannot be changed through
+sysfs (it is read-only).
+
+If the hotkey_report_mode module parameter is set to 1 or 2, it cannot
+be changed later through sysfs (any writes will return -EPERM to signal
+that hotkey_report_mode was locked.  On 2.6.23 and later, where
+hotkey_report_mode cannot be changed at all, writes will return -EACES).
+
+hotkey_report_mode set to 1 makes the driver export through the procfs
+ACPI event interface all hot key presses (which are *also* sent to the
+input layer).  This is a legacy compatibility behaviour, and it is also
+the default mode of operation for the driver.
+
+hotkey_report_mode set to 2 makes the driver filter out the hot key
+presses from the procfs ACPI event interface, so these events will only
+be sent through the input layer.  Userspace that has been updated to use
+the thinkpad-acpi input layer interface should set hotkey_report_mode to
+2.
+
+Hot key press events are never sent to the ACPI netlink event interface.
+Really up-to-date userspace under kernel 2.6.23 and later is to use the
+netlink interface and the input layer interface, and don't bother at all
+with hotkey_report_mode.
 
 
 Bluetooth
@@ -437,27 +682,34 @@ CMOS control
 procfs: /proc/acpi/ibm/cmos
 sysfs device attribute: cmos_command
 
-This feature is used internally by the ACPI firmware to control the
-ThinkLight on most newer ThinkPad models. It may also control LCD
-brightness, sounds volume and more, but only on some models.
+This feature is mostly used internally by the ACPI firmware to keep the legacy
+CMOS NVRAM bits in sync with the current machine state, and to record this
+state so that the ThinkPad will retain such settings across reboots.
+
+Some of these commands actually perform actions in some ThinkPad models, but
+this is expected to disappear more and more in newer models.  As an example, in
+a T43 and in a X40, commands 12 and 13 still control the ThinkLight state for
+real, but commands 0 to 2 don't control the mixer anymore (they have been
+phased out) and just update the NVRAM.
 
 The range of valid cmos command numbers is 0 to 21, but not all have an
 effect and the behavior varies from model to model.  Here is the behavior
 on the X40 (tpb is the ThinkPad Buttons utility):
 
-	0 - no effect but tpb reports "Volume down"
-	1 - no effect but tpb reports "Volume up"
-	2 - no effect but tpb reports "Mute on"
-	3 - simulate pressing the "Access IBM" button
-	4 - LCD brightness up
-	5 - LCD brightness down
-	11 - toggle screen expansion
-	12 - ThinkLight on
-	13 - ThinkLight off
-	14 - no effect but tpb reports ThinkLight status change
+	0 - Related to "Volume down" key press
+	1 - Related to "Volume up" key press
+	2 - Related to "Mute on" key press
+	3 - Related to "Access IBM" key press
+	4 - Related to "LCD brightness up" key pess
+	5 - Related to "LCD brightness down" key press
+	11 - Related to "toggle screen expansion" key press/function
+	12 - Related to "ThinkLight on"
+	13 - Related to "ThinkLight off"
+	14 - Related to "ThinkLight" key press (toggle thinklight)
 
 The cmos command interface is prone to firmware split-brain problems, as
-in newer ThinkPads it is just a compatibility layer.
+in newer ThinkPads it is just a compatibility layer.  Do not use it, it is
+exported just as a debug tool.
 
 LED control -- /proc/acpi/ibm/led
 ---------------------------------
@@ -516,23 +768,15 @@ Temperature sensors
 procfs: /proc/acpi/ibm/thermal
 sysfs device attributes: (hwmon) temp*_input
 
-Most ThinkPads include six or more separate temperature sensors but
-only expose the CPU temperature through the standard ACPI methods.
-This feature shows readings from up to eight different sensors on older
-ThinkPads, and it has experimental support for up to sixteen different
-sensors on newer ThinkPads.
-
-EXPERIMENTAL: The 16-sensors feature is marked EXPERIMENTAL because the
-implementation directly accesses hardware registers and may not work as
-expected. USE WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.  When EXPERIMENTAL
-mode is enabled, reading the first 8 sensors on newer ThinkPads will
-also use an new experimental thermal sensor access mode.
+Most ThinkPads include six or more separate temperature sensors but only
+expose the CPU temperature through the standard ACPI methods.  This
+feature shows readings from up to eight different sensors on older
+ThinkPads, and up to sixteen different sensors on newer ThinkPads.
 
 For example, on the X40, a typical output may be:
 temperatures:   42 42 45 41 36 -128 33 -128
 
-EXPERIMENTAL: On the T43/p, a typical output may be:
+On the T43/p, a typical output may be:
 temperatures:   48 48 36 52 38 -128 31 -128 48 52 48 -128 -128 -128 -128 -128
 
 The mapping of thermal sensors to physical locations varies depending on
@@ -562,7 +806,8 @@ http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
 2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
 3:  PCMCIA slot
 9:  MCH (northbridge) to DRAM Bus
-10: ICH (southbridge), under Mini-PCI card, under touchpad
+10: Clock-generator, mini-pci card and ICH (southbridge), under Mini-PCI
+    card, under touchpad
 11: Power regulator, underside of system board, below F2 key
 
 The A31 has a very atypical layout for the thermal sensors
@@ -680,6 +925,12 @@ cannot be controlled.
 
 The backlight control has eight levels, ranging from 0 to 7.  Some of the
 levels may not be distinct.
+
+There are two interfaces to the firmware for brightness control, EC and CMOS.
+To select which one should be used, use the brightness_mode module parameter:
+brightness_mode=1 selects EC mode, brightness_mode=2 selects CMOS mode,
+brightness_mode=3 selects both EC and CMOS.  The driver tries to autodetect
+which interface to use.
 
 Procfs notes:
 
@@ -976,3 +1227,9 @@ Sysfs interface changelog:
 
 0x000100:	Initial sysfs support, as a single platform driver and
 		device.
+0x000200:	Hot key support for 32 hot keys, and radio slider switch
+		support.
+0x010000:	Hot keys are now handled by default over the input
+		layer, the radio switch generates input event EV_RADIO,
+		and the driver enables hot key handling by default in
+		the firmware.

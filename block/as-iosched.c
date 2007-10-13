@@ -796,7 +796,7 @@ static void update_write_batch(struct as_data *ad)
  * as_completed_request is to be called when a request has completed and
  * returned something to the requesting process, be it an error or data.
  */
-static void as_completed_request(request_queue_t *q, struct request *rq)
+static void as_completed_request(struct request_queue *q, struct request *rq)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 
@@ -853,7 +853,8 @@ out:
  * reference unless it replaces the request at somepart of the elevator
  * (ie. the dispatch queue)
  */
-static void as_remove_queued_request(request_queue_t *q, struct request *rq)
+static void as_remove_queued_request(struct request_queue *q,
+				     struct request *rq)
 {
 	const int data_dir = rq_is_sync(rq);
 	struct as_data *ad = q->elevator->elevator_data;
@@ -978,7 +979,7 @@ static void as_move_to_dispatch(struct as_data *ad, struct request *rq)
  * read/write expire, batch expire, etc, and moves it to the dispatch
  * queue. Returns 1 if a request was found, 0 otherwise.
  */
-static int as_dispatch_request(request_queue_t *q, int force)
+static int as_dispatch_request(struct request_queue *q, int force)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	const int reads = !list_empty(&ad->fifo_list[REQ_SYNC]);
@@ -1139,7 +1140,7 @@ fifo_expired:
 /*
  * add rq to rbtree and fifo
  */
-static void as_add_request(request_queue_t *q, struct request *rq)
+static void as_add_request(struct request_queue *q, struct request *rq)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	int data_dir;
@@ -1167,7 +1168,7 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 	RQ_SET_STATE(rq, AS_RQ_QUEUED);
 }
 
-static void as_activate_request(request_queue_t *q, struct request *rq)
+static void as_activate_request(struct request_queue *q, struct request *rq)
 {
 	WARN_ON(RQ_STATE(rq) != AS_RQ_DISPATCHED);
 	RQ_SET_STATE(rq, AS_RQ_REMOVED);
@@ -1175,7 +1176,7 @@ static void as_activate_request(request_queue_t *q, struct request *rq)
 		atomic_dec(&RQ_IOC(rq)->aic->nr_dispatched);
 }
 
-static void as_deactivate_request(request_queue_t *q, struct request *rq)
+static void as_deactivate_request(struct request_queue *q, struct request *rq)
 {
 	WARN_ON(RQ_STATE(rq) != AS_RQ_REMOVED);
 	RQ_SET_STATE(rq, AS_RQ_DISPATCHED);
@@ -1189,7 +1190,7 @@ static void as_deactivate_request(request_queue_t *q, struct request *rq)
  * is not empty - it is used in the block layer to check for plugging and
  * merging opportunities
  */
-static int as_queue_empty(request_queue_t *q)
+static int as_queue_empty(struct request_queue *q)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 
@@ -1198,7 +1199,7 @@ static int as_queue_empty(request_queue_t *q)
 }
 
 static int
-as_merge(request_queue_t *q, struct request **req, struct bio *bio)
+as_merge(struct request_queue *q, struct request **req, struct bio *bio)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	sector_t rb_key = bio->bi_sector + bio_sectors(bio);
@@ -1216,7 +1217,8 @@ as_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	return ELEVATOR_NO_MERGE;
 }
 
-static void as_merged_request(request_queue_t *q, struct request *req, int type)
+static void as_merged_request(struct request_queue *q, struct request *req,
+			      int type)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 
@@ -1234,7 +1236,7 @@ static void as_merged_request(request_queue_t *q, struct request *req, int type)
 	}
 }
 
-static void as_merged_requests(request_queue_t *q, struct request *req,
+static void as_merged_requests(struct request_queue *q, struct request *req,
 			 	struct request *next)
 {
 	/*
@@ -1285,7 +1287,7 @@ static void as_work_handler(struct work_struct *work)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
-static int as_may_queue(request_queue_t *q, int rw)
+static int as_may_queue(struct request_queue *q, int rw)
 {
 	int ret = ELV_MQUEUE_MAY;
 	struct as_data *ad = q->elevator->elevator_data;
@@ -1318,7 +1320,7 @@ static void as_exit_queue(elevator_t *e)
 /*
  * initialize elevator private data (as_data).
  */
-static void *as_init_queue(request_queue_t *q)
+static void *as_init_queue(struct request_queue *q)
 {
 	struct as_data *ad;
 

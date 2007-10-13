@@ -15,27 +15,14 @@
 #include <asm/commproc.h>
 
 struct fec_info {
-        fec_t*  fecp;
-	u32     mii_speed;
+	fec_t __iomem *fecp;
+	u32 mii_speed;
 };
 #endif
 
 #ifdef CONFIG_CPM2
 #include <asm/cpm2.h>
 #endif
-
-/* This is used to operate with pins.
-  Note that the actual port size may
-    be different; cpm(s) handle it OK  */
-struct bb_info {
-	u8 mdio_dat_msk;
-	u8 mdio_dir_msk;
-	u8 *mdio_dir;
-	u8 *mdio_dat;
-	u8 mdc_msk;
-	u8 *mdc_dat;
-	int delay;
-};
 
 /* hw driver ops */
 struct fs_ops {
@@ -82,60 +69,26 @@ struct phy_info {
 /* Must be a multiple of 32 (to cover both FEC & FCC) */
 #define PKT_MAXBLR_SIZE		((PKT_MAXBUF_SIZE + 31) & ~31)
 /* This is needed so that invalidate_xxx wont invalidate too much */
-#define ENET_RX_FRSIZE		L1_CACHE_ALIGN(PKT_MAXBUF_SIZE)
-
-struct fs_enet_mii_bus {
-	struct list_head list;
-	spinlock_t mii_lock;
-	const struct fs_mii_bus_info *bus_info;
-	int refs;
-	u32 usage_map;
-
-	int (*mii_read)(struct fs_enet_mii_bus *bus,
-			int phy_id, int location);
-
-	void (*mii_write)(struct fs_enet_mii_bus *bus,
-			int phy_id, int location, int value);
-
-	union {
-		struct {
-			unsigned int mii_speed;
-			void *fecp;
-		} fec;
-
-		struct {
-			/* note that the actual port size may */
-			/* be different; cpm(s) handle it OK  */
-			u8 mdio_msk;
-			u8 *mdio_dir;
-			u8 *mdio_dat;
-			u8 mdc_msk;
-			u8 *mdc_dir;
-			u8 *mdc_dat;
-		} bitbang;
-
-		struct {
-			u16 lpa;
-		} fixed;
-	};
-};
+#define ENET_RX_ALIGN  16
+#define ENET_RX_FRSIZE L1_CACHE_ALIGN(PKT_MAXBUF_SIZE + ENET_RX_ALIGN - 1)
 
 struct fs_enet_private {
+	struct napi_struct napi;
 	struct device *dev;	/* pointer back to the device (must be initialized first) */
 	spinlock_t lock;	/* during all ops except TX pckt processing */
 	spinlock_t tx_lock;	/* during fs_start_xmit and fs_tx         */
-	const struct fs_platform_info *fpi;
+	struct fs_platform_info *fpi;
 	const struct fs_ops *ops;
 	int rx_ring, tx_ring;
 	dma_addr_t ring_mem_addr;
-	void *ring_base;
+	void __iomem *ring_base;
 	struct sk_buff **rx_skbuff;
 	struct sk_buff **tx_skbuff;
-	cbd_t *rx_bd_base;	/* Address of Rx and Tx buffers.    */
-	cbd_t *tx_bd_base;
-	cbd_t *dirty_tx;	/* ring entries to be free()ed.     */
-	cbd_t *cur_rx;
-	cbd_t *cur_tx;
+	cbd_t __iomem *rx_bd_base;	/* Address of Rx and Tx buffers.    */
+	cbd_t __iomem *tx_bd_base;
+	cbd_t __iomem *dirty_tx;	/* ring entries to be free()ed.     */
+	cbd_t __iomem *cur_rx;
+	cbd_t __iomem *cur_tx;
 	int tx_free;
 	struct net_device_stats stats;
 	struct timer_list phy_timer_list;
@@ -143,7 +96,6 @@ struct fs_enet_private {
 	u32 msg_enable;
 	struct mii_if_info mii_if;
 	unsigned int last_mii_status;
-	struct fs_enet_mii_bus *mii_bus;
 	int interrupt;
 
 	struct phy_device *phydev;
@@ -161,23 +113,23 @@ struct fs_enet_private {
 	union {
 		struct {
 			int idx;		/* FEC1 = 0, FEC2 = 1  */
-			void *fecp;		/* hw registers        */
+			void __iomem *fecp;	/* hw registers        */
 			u32 hthi, htlo;		/* state for multicast */
 		} fec;
 
 		struct {
 			int idx;		/* FCC1-3 = 0-2	       */
-			void *fccp;		/* hw registers	       */
-			void *ep;		/* parameter ram       */
-			void *fcccp;		/* hw registers cont.  */
-			void *mem;		/* FCC DPRAM */
+			void __iomem *fccp;	/* hw registers	       */
+			void __iomem *ep;	/* parameter ram       */
+			void __iomem *fcccp;	/* hw registers cont.  */
+			void __iomem *mem;	/* FCC DPRAM */
 			u32 gaddrh, gaddrl;	/* group address       */
 		} fcc;
 
 		struct {
 			int idx;		/* FEC1 = 0, FEC2 = 1  */
-			void *sccp;		/* hw registers        */
-			void *ep;		/* parameter ram       */
+			void __iomem *sccp;	/* hw registers        */
+			void __iomem *ep;	/* parameter ram       */
 			u32 hthi, htlo;		/* state for multicast */
 		} scc;
 
@@ -185,9 +137,10 @@ struct fs_enet_private {
 };
 
 /***************************************************************************/
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 int fs_enet_mdio_bb_init(void);
-int fs_mii_fixed_init(struct fs_enet_mii_bus *bus);
 int fs_enet_mdio_fec_init(void);
+#endif
 
 void fs_init_bds(struct net_device *dev);
 void fs_cleanup_bds(struct net_device *dev);
@@ -247,7 +200,7 @@ extern const struct fs_ops fs_scc_ops;
 /*******************************************************************/
 
 /* handy pointer to the immap */
-extern void *fs_enet_immap;
+extern void __iomem *fs_enet_immap;
 
 /*******************************************************************/
 

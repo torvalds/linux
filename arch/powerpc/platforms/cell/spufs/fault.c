@@ -75,22 +75,20 @@ good_area:
 	}
 	ret = 0;
 	*flt = handle_mm_fault(mm, vma, ea, is_write);
-	switch (*flt) {
-	case VM_FAULT_MINOR:
-		current->min_flt++;
-		break;
-	case VM_FAULT_MAJOR:
-		current->maj_flt++;
-		break;
-	case VM_FAULT_SIGBUS:
-		ret = -EFAULT;
-		goto bad_area;
-	case VM_FAULT_OOM:
-		ret = -ENOMEM;
-		goto bad_area;
-	default:
+	if (unlikely(*flt & VM_FAULT_ERROR)) {
+		if (*flt & VM_FAULT_OOM) {
+			ret = -ENOMEM;
+			goto bad_area;
+		} else if (*flt & VM_FAULT_SIGBUS) {
+			ret = -EFAULT;
+			goto bad_area;
+		}
 		BUG();
 	}
+	if (*flt & VM_FAULT_MAJOR)
+		current->maj_flt++;
+	else
+		current->min_flt++;
 	up_read(&mm->mmap_sem);
 	return ret;
 
@@ -181,16 +179,14 @@ int spufs_handle_class1(struct spu_context *ctx)
 	if (!(dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED)))
 		return 0;
 
-	spuctx_switch_state(ctx, SPUCTX_UTIL_IOWAIT);
+	spuctx_switch_state(ctx, SPU_UTIL_IOWAIT);
 
 	pr_debug("ctx %p: ea %016lx, dsisr %016lx state %d\n", ctx, ea,
 		dsisr, ctx->state);
 
 	ctx->stats.hash_flt++;
-	if (ctx->state == SPU_STATE_RUNNABLE) {
+	if (ctx->state == SPU_STATE_RUNNABLE)
 		ctx->spu->stats.hash_flt++;
-		spu_switch_state(ctx->spu, SPU_UTIL_IOWAIT);
-	}
 
 	/* we must not hold the lock when entering spu_handle_mm_fault */
 	spu_release(ctx);
@@ -212,15 +208,15 @@ int spufs_handle_class1(struct spu_context *ctx)
 	 * In case of unhandled error report the problem to user space.
 	 */
 	if (!ret) {
-		if (flt == VM_FAULT_MINOR)
-			ctx->stats.min_flt++;
-		else
+		if (flt & VM_FAULT_MAJOR)
 			ctx->stats.maj_flt++;
+		else
+			ctx->stats.min_flt++;
 		if (ctx->state == SPU_STATE_RUNNABLE) {
-			if (flt == VM_FAULT_MINOR)
-				ctx->spu->stats.min_flt++;
-			else
+			if (flt & VM_FAULT_MAJOR)
 				ctx->spu->stats.maj_flt++;
+			else
+				ctx->spu->stats.min_flt++;
 		}
 
 		if (ctx->spu)
@@ -228,7 +224,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 	} else
 		spufs_handle_dma_error(ctx, ea, SPE_EVENT_SPE_DATA_STORAGE);
 
-	spuctx_switch_state(ctx, SPUCTX_UTIL_SYSTEM);
+	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spufs_handle_class1);

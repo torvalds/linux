@@ -25,6 +25,7 @@
 #include <linux/random.h>
 #include <linux/percpu.h>
 #include <linux/init.h>
+#include <net/sock.h>
 
 #include <asm/byteorder.h>
 #include <asm/system.h>

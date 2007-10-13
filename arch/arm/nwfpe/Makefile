@@ -9,5 +9,4 @@ nwfpe-y				+= fpa11.o fpa11_cpdo.o fpa11_cpdt.o \
 				   softfloat.o single_cpdo.o double_cpdo.o
 
 nwfpe-$(CONFIG_FPE_NWFPE_XP)	+= extended_cpdo.o
-nwfpe-$(CONFIG_CPU_26)		+= entry26.o
 nwfpe-$(CONFIG_CPU_32)		+= entry.o

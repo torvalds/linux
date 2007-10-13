@@ -345,11 +345,6 @@ void debugfs_remove(struct dentry *dentry)
 			switch (dentry->d_inode->i_mode & S_IFMT) {
 			case S_IFDIR:
 				ret = simple_rmdir(parent->d_inode, dentry);
-				if (ret)
-					printk(KERN_ERR
-						"DebugFS rmdir on %s failed : "
-						"directory not empty.\n",
-						dentry->d_name.name);
 				break;
 			case S_IFLNK:
 				kfree(dentry->d_inode->i_private);

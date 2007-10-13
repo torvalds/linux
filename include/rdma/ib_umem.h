@@ -45,6 +45,7 @@ struct ib_umem {
 	int			offset;
 	int			page_size;
 	int                     writable;
+	int                     hugetlb;
 	struct list_head	chunk_list;
 	struct work_struct	work;
 	struct mm_struct       *mm;

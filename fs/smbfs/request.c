@@ -40,7 +40,7 @@ int smb_init_request_cache(void)
 	req_cachep = kmem_cache_create("smb_request",
 				       sizeof(struct smb_request), 0,
 				       SMB_SLAB_DEBUG | SLAB_HWCACHE_ALIGN,
-				       NULL, NULL);
+				       NULL);
 	if (req_cachep == NULL)
 		return -ENOMEM;
 

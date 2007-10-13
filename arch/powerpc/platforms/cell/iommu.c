@@ -34,8 +34,8 @@
 #include <asm/udbg.h>
 #include <asm/of_platform.h>
 #include <asm/lmb.h>
+#include <asm/cell-regs.h>
 
-#include "cbe_regs.h"
 #include "interrupt.h"
 
 /* Define CELL_IOMMU_REAL_UNMAP to actually unmap non-used pages

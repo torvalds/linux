@@ -8,8 +8,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <asm/m8260_pci.h>
-
 #define SIU_INT_IRQ1   ((uint)0x13 + CPM_IRQ_OFFSET)
 
 #ifndef _IO_BASE

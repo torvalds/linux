@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -27,15 +28,27 @@
 
 #include "atstk1000.h"
 
-#define	SW2_DEFAULT		/* MMCI and UART_A available */
 
 struct eth_addr {
 	u8 addr[6];
 };
 
 static struct eth_addr __initdata hw_addr[2];
-static struct eth_platform_data __initdata eth_data[2];
+static struct eth_platform_data __initdata eth_data[2] = {
+	{
+		/*
+		 * The MDIO pullups on STK1000 are a bit too weak for
+		 * the autodetection to work properly, so we have to
+		 * mask out everything but the correct address.
+		 */
+		.phy_mask	= ~(1U << 16),
+	},
+	{
+		.phy_mask	= ~(1U << 17),
+	},
+};
 
+#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
 static struct spi_board_info spi0_board_info[] __initdata = {
 	{
 		/* QVGA display */
@@ -45,6 +58,13 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 		.mode		= SPI_MODE_3,
 	},
 };
+#endif
+
+#ifdef CONFIG_BOARD_ATSTK1002_SPI1
+static struct spi_board_info spi1_board_info[] __initdata = { {
+	/* patch in custom entries here */
+} };
+#endif
 
 /*
  * The next two functions should go away as the boot loader is
@@ -101,12 +121,71 @@ static void __init set_hw_addr(struct platform_device *pdev)
 	clk_put(pclk);
 }
 
+#ifdef CONFIG_BOARD_ATSTK1002_J2_LED
+
+static struct gpio_led stk_j2_led[] = {
+#ifdef CONFIG_BOARD_ATSTK1002_J2_LED8
+#define LEDSTRING "J2 jumpered to LED8"
+	{ .name = "led0:amber", .gpio = GPIO_PIN_PB( 8), },
+	{ .name = "led1:amber", .gpio = GPIO_PIN_PB( 9), },
+	{ .name = "led2:amber", .gpio = GPIO_PIN_PB(10), },
+	{ .name = "led3:amber", .gpio = GPIO_PIN_PB(13), },
+	{ .name = "led4:amber", .gpio = GPIO_PIN_PB(14), },
+	{ .name = "led5:amber", .gpio = GPIO_PIN_PB(15), },
+	{ .name = "led6:amber", .gpio = GPIO_PIN_PB(16), },
+	{ .name = "led7:amber", .gpio = GPIO_PIN_PB(30),
+			.default_trigger = "heartbeat", },
+#else	/* RGB */
+#define LEDSTRING "J2 jumpered to RGB LEDs"
+	{ .name = "r1:red",     .gpio = GPIO_PIN_PB( 8), },
+	{ .name = "g1:green",   .gpio = GPIO_PIN_PB(10), },
+	{ .name = "b1:blue",    .gpio = GPIO_PIN_PB(14), },
+
+	{ .name = "r2:red",     .gpio = GPIO_PIN_PB( 9),
+			.default_trigger = "heartbeat", },
+	{ .name = "g2:green",   .gpio = GPIO_PIN_PB(13), },
+	{ .name = "b2:blue",    .gpio = GPIO_PIN_PB(15),
+			.default_trigger = "heartbeat", },
+	/* PB16, PB30 unused */
+#endif
+};
+
+static struct gpio_led_platform_data stk_j2_led_data = {
+	.num_leds	= ARRAY_SIZE(stk_j2_led),
+	.leds		= stk_j2_led,
+};
+
+static struct platform_device stk_j2_led_dev = {
+	.name		= "leds-gpio",
+	.id		= 2,	/* gpio block J2 */
+	.dev		= {
+		.platform_data	= &stk_j2_led_data,
+	},
+};
+
+static void setup_j2_leds(void)
+{
+	unsigned	i;
+
+	for (i = 0; i < ARRAY_SIZE(stk_j2_led); i++)
+		at32_select_gpio(stk_j2_led[i].gpio, AT32_GPIOF_OUTPUT);
+
+	printk("STK1002: " LEDSTRING "\n");
+	platform_device_register(&stk_j2_led_dev);
+}
+
+#else
+static void setup_j2_leds(void)
+{
+}
+#endif
+
 void __init setup_board(void)
 {
-#ifdef	SW2_DEFAULT
-	at32_map_usart(1, 0);	/* USART 1/A: /dev/ttyS0, DB9 */
-#else
+#ifdef	CONFIG_BOARD_ATSTK1002_SW2_CUSTOM
 	at32_map_usart(0, 1);	/* USART 0/B: /dev/ttyS1, IRDA */
+#else
+	at32_map_usart(1, 0);	/* USART 1/A: /dev/ttyS0, DB9 */
 #endif
 	/* USART 2/unused: expansion connector */
 	at32_map_usart(3, 2);	/* USART 3/C: /dev/ttyS2, DB9 */
@@ -140,18 +219,34 @@ static int __init atstk1002_init(void)
 
 	at32_add_system_devices();
 
-#ifdef	SW2_DEFAULT
-	at32_add_device_usart(0);
-#else
+#ifdef	CONFIG_BOARD_ATSTK1002_SW2_CUSTOM
 	at32_add_device_usart(1);
+#else
+	at32_add_device_usart(0);
 #endif
 	at32_add_device_usart(2);
 
+#ifndef CONFIG_BOARD_ATSTK1002_SW6_CUSTOM
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
-
+#endif
+#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
 	at32_add_device_spi(0, spi0_board_info, ARRAY_SIZE(spi0_board_info));
+#endif
+#ifdef CONFIG_BOARD_ATSTK1002_SPI1
+	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
+#endif
+#ifdef CONFIG_BOARD_ATSTK1002_SW5_CUSTOM
+	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
+#else
 	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
 			     fbmem_start, fbmem_size);
+#endif
+	at32_add_device_usba(0, NULL);
+#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
+	at32_add_device_ssc(0, ATMEL_SSC_TX);
+#endif
+
+	setup_j2_leds();
 
 	return 0;
 }

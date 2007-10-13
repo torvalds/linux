@@ -847,18 +847,10 @@ static void audit_receive_skb(struct sk_buff *skb)
 }
 
 /* Receive messages from netlink socket. */
-static void audit_receive(struct sock *sk, int length)
+static void audit_receive(struct sk_buff  *skb)
 {
-	struct sk_buff  *skb;
-	unsigned int qlen;
-
 	mutex_lock(&audit_cmd_mutex);
-
-	for (qlen = skb_queue_len(&sk->sk_receive_queue); qlen; qlen--) {
-		skb = skb_dequeue(&sk->sk_receive_queue);
-		audit_receive_skb(skb);
-		kfree_skb(skb);
-	}
+	audit_receive_skb(skb);
 	mutex_unlock(&audit_cmd_mutex);
 }
 
@@ -876,8 +868,8 @@ static int __init audit_init(void)
 
 	printk(KERN_INFO "audit: initializing netlink socket (%s)\n",
 	       audit_default ? "enabled" : "disabled");
-	audit_sock = netlink_kernel_create(NETLINK_AUDIT, 0, audit_receive,
-					   NULL, THIS_MODULE);
+	audit_sock = netlink_kernel_create(&init_net, NETLINK_AUDIT, 0,
+					   audit_receive, NULL, THIS_MODULE);
 	if (!audit_sock)
 		audit_panic("cannot initialize netlink socket");
 	else

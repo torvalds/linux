@@ -324,10 +324,9 @@ static int __devinit parport_serial_pci_probe (struct pci_dev *dev,
 	struct parport_serial_private *priv;
 	int err;
 
-	priv = kmalloc (sizeof *priv, GFP_KERNEL);
+	priv = kzalloc (sizeof *priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	memset(priv, 0, sizeof(struct parport_serial_private));
 	pci_set_drvdata (dev, priv);
 
 	err = pci_enable_device (dev);

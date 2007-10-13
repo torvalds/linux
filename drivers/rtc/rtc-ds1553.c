@@ -61,7 +61,7 @@
 struct rtc_plat_data {
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;
-	unsigned long baseaddr;
+	resource_size_t baseaddr;
 	unsigned long last_jiffies;
 	int irq;
 	unsigned int irqen;
@@ -407,7 +407,7 @@ static __init int ds1553_init(void)
 
 static __exit void ds1553_exit(void)
 {
-	return platform_driver_unregister(&ds1553_rtc_driver);
+	platform_driver_unregister(&ds1553_rtc_driver);
 }
 
 module_init(ds1553_init);

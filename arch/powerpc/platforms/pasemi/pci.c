@@ -51,6 +51,61 @@ static void volatile __iomem *pa_pxp_cfg_addr(struct pci_controller *hose,
 	return hose->cfg_data + PA_PXP_CFA(bus, devfn, offset);
 }
 
+static inline int is_root_port(int busno, int devfn)
+{
+	return ((busno == 0) && (PCI_FUNC(devfn) < 4) &&
+		 ((PCI_SLOT(devfn) == 16) || (PCI_SLOT(devfn) == 17)));
+}
+
+static inline int is_5945_reg(int reg)
+{
+	return (((reg >= 0x18) && (reg < 0x34)) ||
+		((reg >= 0x158) && (reg < 0x178)));
+}
+
+static int workaround_5945(struct pci_bus *bus, unsigned int devfn,
+			   int offset, int len, u32 *val)
+{
+	struct pci_controller *hose;
+	void volatile __iomem *addr, *dummy;
+	int byte;
+	u32 tmp;
+
+	if (!is_root_port(bus->number, devfn) || !is_5945_reg(offset))
+		return 0;
+
+	hose = pci_bus_to_host(bus);
+
+	addr = pa_pxp_cfg_addr(hose, bus->number, devfn, offset & ~0x3);
+	byte = offset & 0x3;
+
+	/* Workaround bug 5945: write 0 to a dummy register before reading,
+	 * and write back what we read. We must read/write the full 32-bit
+	 * contents so we need to shift and mask by hand.
+	 */
+	dummy = pa_pxp_cfg_addr(hose, bus->number, devfn, 0x10);
+	out_le32(dummy, 0);
+	tmp = in_le32(addr);
+	out_le32(addr, tmp);
+
+	switch (len) {
+	case 1:
+		*val = (tmp >> (8*byte)) & 0xff;
+		break;
+	case 2:
+		if (byte == 0)
+			*val = tmp & 0xffff;
+		else
+			*val = (tmp >> 16) & 0xffff;
+		break;
+	default:
+		*val = tmp;
+		break;
+	}
+
+	return 1;
+}
+
 static int pa_pxp_read_config(struct pci_bus *bus, unsigned int devfn,
 			      int offset, int len, u32 *val)
 {
@@ -63,6 +118,9 @@ static int pa_pxp_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	if (!pa_pxp_offset_valid(bus->number, devfn, offset))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
+
+	if (workaround_5945(bus, devfn, offset, len, val))
+		return PCIBIOS_SUCCESSFUL;
 
 	addr = pa_pxp_cfg_addr(hose, bus->number, devfn, offset);
 
@@ -107,23 +165,20 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 	switch (len) {
 	case 1:
 		out_8(addr, val);
-		(void) in_8(addr);
 		break;
 	case 2:
 		out_le16(addr, val);
-		(void) in_le16(addr);
 		break;
 	default:
 		out_le32(addr, val);
-		(void) in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops pa_pxp_ops = {
-	pa_pxp_read_config,
-	pa_pxp_write_config,
+	.read = pa_pxp_read_config,
+	.write = pa_pxp_write_config,
 };
 
 static void __init setup_pa_pxp(struct pci_controller *hose)
@@ -177,4 +232,13 @@ void __init pas_pci_init(void)
 
 	/* Use the common resource allocation mechanism */
 	pci_probe_only = 1;
+}
+
+void __iomem *pasemi_pci_getcfgaddr(struct pci_dev *dev, int offset)
+{
+	struct pci_controller *hose;
+
+	hose = pci_bus_to_host(dev->bus);
+
+	return (void __iomem *)pa_pxp_cfg_addr(hose, dev->bus->number, dev->devfn, offset);
 }

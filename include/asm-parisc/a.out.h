@@ -23,6 +23,7 @@ struct exec
  * prumpf */
 
 #define STACK_TOP	TASK_SIZE
+#define STACK_TOP_MAX	DEFAULT_TASK_SIZE
 
 #endif
 

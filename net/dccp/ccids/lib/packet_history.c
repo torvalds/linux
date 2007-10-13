@@ -59,7 +59,7 @@ struct dccp_tx_hist *dccp_tx_hist_new(const char *name)
 	hist->dccptxh_slab = kmem_cache_create(slab_name,
 					     sizeof(struct dccp_tx_hist_entry),
 					       0, SLAB_HWCACHE_ALIGN,
-					       NULL, NULL);
+					       NULL);
 	if (hist->dccptxh_slab == NULL)
 		goto out_free_slab_name;
 out:
@@ -148,7 +148,7 @@ struct dccp_rx_hist *dccp_rx_hist_new(const char *name)
 	hist->dccprxh_slab = kmem_cache_create(slab_name,
 					     sizeof(struct dccp_rx_hist_entry),
 					       0, SLAB_HWCACHE_ALIGN,
-					       NULL, NULL);
+					       NULL);
 	if (hist->dccprxh_slab == NULL)
 		goto out_free_slab_name;
 out:

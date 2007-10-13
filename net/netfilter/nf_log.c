@@ -9,7 +9,7 @@
 
 #include "nf_internals.h"
 
-/* Internal logging interface, which relies on the real 
+/* Internal logging interface, which relies on the real
    LOG target modules */
 
 #define NF_LOG_PREFIXLEN		128

@@ -35,7 +35,7 @@ union nf_conntrack_address {
 union nf_conntrack_man_proto
 {
 	/* Add other protocols here. */
-	u_int16_t all;
+	__be16 all;
 
 	struct {
 		__be16 port;
@@ -73,7 +73,7 @@ struct nf_conntrack_tuple
 		union nf_conntrack_address u3;
 		union {
 			/* Add other protocols here. */
-			u_int16_t all;
+			__be16 all;
 
 			struct {
 				__be16 port;

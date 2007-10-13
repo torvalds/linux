@@ -35,7 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -1090,14 +1090,11 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
  */
 static int fsl_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 {
-#ifdef CONFIG_USB_OTG
 	struct fsl_udc *udc;
 
 	udc = container_of(gadget, struct fsl_udc, gadget);
-
 	if (udc->transceiver)
 		return otg_set_power(udc->transceiver, mA);
-#endif
 	return -ENOTSUPP;
 }
 
@@ -1120,7 +1117,7 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-/* defined in usb_gadget.h */
+/* defined in gadget.h */
 static struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
 	.wakeup = fsl_wakeup,
@@ -1277,31 +1274,32 @@ static void setup_received_irq(struct fsl_udc *udc,
 
 	udc_reset_ep_queue(udc, 0);
 
+	/* We process some stardard setup requests here */
 	switch (setup->bRequest) {
-		/* Request that need Data+Status phase from udc */
 	case USB_REQ_GET_STATUS:
-		if ((setup->bRequestType & (USB_DIR_IN | USB_TYPE_STANDARD))
+		/* Data+Status phase from udc */
+		if ((setup->bRequestType & (USB_DIR_IN | USB_TYPE_MASK))
 					!= (USB_DIR_IN | USB_TYPE_STANDARD))
 			break;
 		ch9getstatus(udc, setup->bRequestType, wValue, wIndex, wLength);
-		break;
+		return;
 
-		/* Requests that need Status phase from udc */
 	case USB_REQ_SET_ADDRESS:
+		/* Status phase from udc */
 		if (setup->bRequestType != (USB_DIR_OUT | USB_TYPE_STANDARD
 						| USB_RECIP_DEVICE))
 			break;
 		ch9setaddress(udc, wValue, wIndex, wLength);
-		break;
+		return;
 
-		/* Handled by udc, no data, status by udc */
 	case USB_REQ_CLEAR_FEATURE:
 	case USB_REQ_SET_FEATURE:
-	{	/* status transaction */
+		/* Status phase from udc */
+	{
 		int rc = -EOPNOTSUPP;
 
-		if ((setup->bRequestType & USB_RECIP_MASK)
-				== USB_RECIP_ENDPOINT) {
+		if ((setup->bRequestType & (USB_RECIP_MASK | USB_TYPE_MASK))
+				== (USB_RECIP_ENDPOINT | USB_TYPE_STANDARD)) {
 			int pipe = get_pipe_by_windex(wIndex);
 			struct fsl_ep *ep;
 
@@ -1315,11 +1313,12 @@ static void setup_received_irq(struct fsl_udc *udc,
 						? 1 : 0);
 			spin_lock(&udc->lock);
 
-		} else if ((setup->bRequestType & USB_RECIP_MASK)
-				== USB_RECIP_DEVICE) {
+		} else if ((setup->bRequestType & (USB_RECIP_MASK
+				| USB_TYPE_MASK)) == (USB_RECIP_DEVICE
+				| USB_TYPE_STANDARD)) {
 			/* Note: The driver has not include OTG support yet.
 			 * This will be set when OTG support is added */
-			if (!udc->gadget.is_otg)
+			if (!gadget_is_otg(udc->gadget))
 				break;
 			else if (setup->bRequest == USB_DEVICE_B_HNP_ENABLE)
 				udc->gadget.b_hnp_enable = 1;
@@ -1328,39 +1327,44 @@ static void setup_received_irq(struct fsl_udc *udc,
 			else if (setup->bRequest ==
 					USB_DEVICE_A_ALT_HNP_SUPPORT)
 				udc->gadget.a_alt_hnp_support = 1;
+			else
+				break;
 			rc = 0;
-		}
+		} else
+			break;
+
 		if (rc == 0) {
 			if (ep0_prime_status(udc, EP_DIR_IN))
 				ep0stall(udc);
 		}
+		return;
+	}
+
+	default:
 		break;
 	}
-		/* Requests handled by gadget */
-	default:
-		if (wLength) {
-			/* Data phase from gadget, status phase from udc */
-			udc->ep0_dir = (setup->bRequestType & USB_DIR_IN)
-					?  USB_DIR_IN : USB_DIR_OUT;
-			spin_unlock(&udc->lock);
-			if (udc->driver->setup(&udc->gadget,
-					&udc->local_setup_buff) < 0)
-				ep0stall(udc);
-			spin_lock(&udc->lock);
-			udc->ep0_state = (setup->bRequestType & USB_DIR_IN)
-					?  DATA_STATE_XMIT : DATA_STATE_RECV;
 
-		} else {
-			/* No data phase, IN status from gadget */
-			udc->ep0_dir = USB_DIR_IN;
-			spin_unlock(&udc->lock);
-			if (udc->driver->setup(&udc->gadget,
-					&udc->local_setup_buff) < 0)
-				ep0stall(udc);
-			spin_lock(&udc->lock);
-			udc->ep0_state = WAIT_FOR_OUT_STATUS;
-		}
-		break;
+	/* Requests handled by gadget */
+	if (wLength) {
+		/* Data phase from gadget, status phase from udc */
+		udc->ep0_dir = (setup->bRequestType & USB_DIR_IN)
+				?  USB_DIR_IN : USB_DIR_OUT;
+		spin_unlock(&udc->lock);
+		if (udc->driver->setup(&udc->gadget,
+				&udc->local_setup_buff) < 0)
+			ep0stall(udc);
+		spin_lock(&udc->lock);
+		udc->ep0_state = (setup->bRequestType & USB_DIR_IN)
+				?  DATA_STATE_XMIT : DATA_STATE_RECV;
+	} else {
+		/* No data phase, IN status from gadget */
+		udc->ep0_dir = USB_DIR_IN;
+		spin_unlock(&udc->lock);
+		if (udc->driver->setup(&udc->gadget,
+				&udc->local_setup_buff) < 0)
+			ep0stall(udc);
+		spin_lock(&udc->lock);
+		udc->ep0_state = WAIT_FOR_OUT_STATUS;
 	}
 }
 
@@ -1835,10 +1839,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	if (!driver || driver != udc_controller->driver || !driver->unbind)
 		return -EINVAL;
 
-#ifdef CONFIG_USB_OTG
 	if (udc_controller->transceiver)
 		(void)otg_set_peripheral(udc_controller->transceiver, 0);
-#endif
 
 	/* stop DR, disable intr */
 	dr_controller_stop(udc_controller);

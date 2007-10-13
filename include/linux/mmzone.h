@@ -120,7 +120,6 @@ enum zone_type {
 	 * ---------------------------
 	 * parisc, ia64, sparc	<4G
 	 * s390			<2G
-	 * arm26		<48M
 	 * arm			Various
 	 * alpha		Unlimited or 0-16MB.
 	 *
@@ -410,6 +409,24 @@ struct zonelist {
 	struct zonelist_cache zlcache;			     // optional ...
 #endif
 };
+
+#ifdef CONFIG_NUMA
+/*
+ * Only custom zonelists like MPOL_BIND need to be filtered as part of
+ * policies. As described in the comment for struct zonelist_cache, these
+ * zonelists will not have a zlcache so zlcache_ptr will not be set. Use
+ * that to determine if the zonelists needs to be filtered or not.
+ */
+static inline int alloc_should_filter_zonelist(struct zonelist *zonelist)
+{
+	return !zonelist->zlcache_ptr;
+}
+#else
+static inline int alloc_should_filter_zonelist(struct zonelist *zonelist)
+{
+	return 0;
+}
+#endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
 struct node_active_region {

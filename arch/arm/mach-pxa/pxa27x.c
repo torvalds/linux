@@ -126,14 +126,107 @@ EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
 #ifdef CONFIG_PM
 
-void pxa_cpu_pm_enter(suspend_state_t state)
+#define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
+#define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
+
+#define RESTORE_GPLEVEL(n) do { \
+	GPSR##n = sleep_save[SLEEP_SAVE_GPLR##n]; \
+	GPCR##n = ~sleep_save[SLEEP_SAVE_GPLR##n]; \
+} while (0)
+
+/*
+ * List of global PXA peripheral registers to preserve.
+ * More ones like CP and general purpose register values are preserved
+ * with the stack pointer in sleep.S.
+ */
+enum {	SLEEP_SAVE_START = 0,
+
+	SLEEP_SAVE_GPLR0, SLEEP_SAVE_GPLR1, SLEEP_SAVE_GPLR2, SLEEP_SAVE_GPLR3,
+	SLEEP_SAVE_GPDR0, SLEEP_SAVE_GPDR1, SLEEP_SAVE_GPDR2, SLEEP_SAVE_GPDR3,
+	SLEEP_SAVE_GRER0, SLEEP_SAVE_GRER1, SLEEP_SAVE_GRER2, SLEEP_SAVE_GRER3,
+	SLEEP_SAVE_GFER0, SLEEP_SAVE_GFER1, SLEEP_SAVE_GFER2, SLEEP_SAVE_GFER3,
+	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2, SLEEP_SAVE_PGSR3,
+
+	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR0_U,
+	SLEEP_SAVE_GAFR1_L, SLEEP_SAVE_GAFR1_U,
+	SLEEP_SAVE_GAFR2_L, SLEEP_SAVE_GAFR2_U,
+	SLEEP_SAVE_GAFR3_L, SLEEP_SAVE_GAFR3_U,
+
+	SLEEP_SAVE_PSTR,
+
+	SLEEP_SAVE_ICMR,
+	SLEEP_SAVE_CKEN,
+
+	SLEEP_SAVE_MDREFR,
+	SLEEP_SAVE_PWER, SLEEP_SAVE_PCFR, SLEEP_SAVE_PRER,
+	SLEEP_SAVE_PFER, SLEEP_SAVE_PKWR,
+
+	SLEEP_SAVE_SIZE
+};
+
+void pxa27x_cpu_pm_save(unsigned long *sleep_save)
+{
+	SAVE(GPLR0); SAVE(GPLR1); SAVE(GPLR2); SAVE(GPLR3);
+	SAVE(GPDR0); SAVE(GPDR1); SAVE(GPDR2); SAVE(GPDR3);
+	SAVE(GRER0); SAVE(GRER1); SAVE(GRER2); SAVE(GRER3);
+	SAVE(GFER0); SAVE(GFER1); SAVE(GFER2); SAVE(GFER3);
+	SAVE(PGSR0); SAVE(PGSR1); SAVE(PGSR2); SAVE(PGSR3);
+
+	SAVE(GAFR0_L); SAVE(GAFR0_U);
+	SAVE(GAFR1_L); SAVE(GAFR1_U);
+	SAVE(GAFR2_L); SAVE(GAFR2_U);
+	SAVE(GAFR3_L); SAVE(GAFR3_U);
+
+	SAVE(MDREFR);
+	SAVE(PWER); SAVE(PCFR); SAVE(PRER);
+	SAVE(PFER); SAVE(PKWR);
+
+	SAVE(ICMR); ICMR = 0;
+	SAVE(CKEN);
+	SAVE(PSTR);
+
+	/* Clear GPIO transition detect bits */
+	GEDR0 = GEDR0; GEDR1 = GEDR1; GEDR2 = GEDR2; GEDR3 = GEDR3;
+}
+
+void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
+{
+	/* ensure not to come back here if it wasn't intended */
+	PSPR = 0;
+
+	/* restore registers */
+	RESTORE_GPLEVEL(0); RESTORE_GPLEVEL(1);
+	RESTORE_GPLEVEL(2); RESTORE_GPLEVEL(3);
+	RESTORE(GPDR0); RESTORE(GPDR1); RESTORE(GPDR2); RESTORE(GPDR3);
+	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
+	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
+	RESTORE(GAFR2_L); RESTORE(GAFR2_U);
+	RESTORE(GAFR3_L); RESTORE(GAFR3_U);
+	RESTORE(GRER0); RESTORE(GRER1); RESTORE(GRER2); RESTORE(GRER3);
+	RESTORE(GFER0); RESTORE(GFER1); RESTORE(GFER2); RESTORE(GFER3);
+	RESTORE(PGSR0); RESTORE(PGSR1); RESTORE(PGSR2); RESTORE(PGSR3);
+
+	RESTORE(MDREFR);
+	RESTORE(PWER); RESTORE(PCFR); RESTORE(PRER);
+	RESTORE(PFER); RESTORE(PKWR);
+
+	PSSR = PSSR_RDH | PSSR_PH;
+
+	RESTORE(CKEN);
+
+	ICLR = 0;
+	ICCR = 1;
+	RESTORE(ICMR);
+	RESTORE(PSTR);
+}
+
+void pxa27x_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_standby(void);
-	extern void pxa_cpu_suspend(unsigned int);
-	extern void pxa_cpu_resume(void);
 
 	if (state == PM_SUSPEND_STANDBY)
-		CKEN = (1 << CKEN_MEMC) | (1 << CKEN_OSTIMER) | (1 << CKEN_LCD) | (1 << CKEN_PWM0);
+		CKEN = (1 << CKEN_MEMC) | (1 << CKEN_OSTIMER) |
+			(1 << CKEN_LCD) | (1 << CKEN_PWM0);
 	else
 		CKEN = (1 << CKEN_MEMC) | (1 << CKEN_OSTIMER);
 
@@ -150,20 +243,28 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		/* set resume return address */
 		PSPR = virt_to_phys(pxa_cpu_resume);
-		pxa_cpu_suspend(PWRMODE_SLEEP);
+		pxa27x_cpu_suspend(PWRMODE_SLEEP);
 		break;
 	}
 }
 
-static int pxa27x_pm_valid(suspend_state_t state)
+static int pxa27x_cpu_pm_valid(suspend_state_t state)
 {
 	return state == PM_SUSPEND_MEM || state == PM_SUSPEND_STANDBY;
 }
 
-static struct pm_ops pxa27x_pm_ops = {
-	.enter		= pxa_pm_enter,
-	.valid		= pxa27x_pm_valid,
+static struct pxa_cpu_pm_fns pxa27x_cpu_pm_fns = {
+	.save_size	= SLEEP_SAVE_SIZE,
+	.save		= pxa27x_cpu_pm_save,
+	.restore	= pxa27x_cpu_pm_restore,
+	.valid		= pxa27x_cpu_pm_valid,
+	.enter		= pxa27x_cpu_pm_enter,
 };
+
+static void __init pxa27x_init_pm(void)
+{
+	pxa_cpu_pm_fns = &pxa27x_cpu_pm_fns;
+}
 #endif
 
 /*
@@ -185,7 +286,7 @@ static struct resource pxa27x_ohci_resources[] = {
 	},
 };
 
-static struct platform_device pxaohci_device = {
+static struct platform_device pxa27x_device_ohci = {
 	.name		= "pxa27x-ohci",
 	.id		= -1,
 	.dev		= {
@@ -198,7 +299,7 @@ static struct platform_device pxaohci_device = {
 
 void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
 {
-	pxaohci_device.dev.platform_data = info;
+	pxa27x_device_ohci.dev.platform_data = info;
 }
 
 static struct resource i2c_power_resources[] = {
@@ -213,7 +314,7 @@ static struct resource i2c_power_resources[] = {
 	},
 };
 
-static struct platform_device pxai2c_power_device = {
+static struct platform_device pxa27x_device_i2c_power = {
 	.name		= "pxa2xx-i2c",
 	.id		= 1,
 	.resource	= i2c_power_resources,
@@ -221,18 +322,18 @@ static struct platform_device pxai2c_power_device = {
 };
 
 static struct platform_device *devices[] __initdata = {
-	&pxamci_device,
-	&pxaudc_device,
-	&pxafb_device,
-	&ffuart_device,
-	&btuart_device,
-	&stuart_device,
-	&pxai2c_device,
-	&pxai2c_power_device,
-	&pxai2s_device,
-	&pxaficp_device,
-	&pxartc_device,
-	&pxaohci_device,
+	&pxa_device_mci,
+	&pxa_device_udc,
+	&pxa_device_fb,
+	&pxa_device_ffuart,
+	&pxa_device_btuart,
+	&pxa_device_stuart,
+	&pxa_device_i2c,
+	&pxa_device_i2s,
+	&pxa_device_ficp,
+	&pxa_device_rtc,
+	&pxa27x_device_i2c_power,
+	&pxa27x_device_ohci,
 };
 
 void __init pxa27x_init_irq(void)
@@ -249,7 +350,7 @@ static int __init pxa27x_init(void)
 		if ((ret = pxa_init_dma(32)))
 			return ret;
 #ifdef CONFIG_PM
-		pm_set_ops(&pxa27x_pm_ops);
+		pxa27x_init_pm();
 #endif
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}

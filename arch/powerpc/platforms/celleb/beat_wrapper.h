@@ -98,6 +98,37 @@ static inline s64 beat_write_htab_entry(u64 htab_id, u64 slot,
 	return ret;
 }
 
+static inline s64 beat_insert_htab_entry3(u64 htab_id, u64 group,
+	u64 hpte_v, u64 hpte_r, u64 mask_v, u64 value_v, u64 *slot)
+{
+	u64 dummy[1];
+	s64 ret;
+
+	ret = beat_hcall1(HV_insert_htab_entry3, dummy, htab_id, group,
+		hpte_v, hpte_r, mask_v, value_v);
+	*slot = dummy[0];
+	return ret;
+}
+
+static inline s64 beat_invalidate_htab_entry3(u64 htab_id, u64 group,
+	u64 va, u64 pss)
+{
+	return beat_hcall_norets(HV_invalidate_htab_entry3,
+		htab_id, group, va, pss);
+}
+
+static inline s64 beat_update_htab_permission3(u64 htab_id, u64 group,
+	u64 va, u64 pss, u64 ptel_mask, u64 ptel_value)
+{
+	return beat_hcall_norets(HV_update_htab_permission3,
+		htab_id, group, va, pss, ptel_mask, ptel_value);
+}
+
+static inline s64 beat_clear_htab3(u64 htab_id)
+{
+	return beat_hcall_norets(HV_clear_htab3, htab_id);
+}
+
 static inline void beat_shutdown_logical_partition(u64 code)
 {
 	(void)beat_hcall_norets(HV_shutdown_logical_partition, code);
@@ -215,6 +246,43 @@ static inline s64 beat_put_iopte(u64 ioas_id, u64 io_addr, u64 real_addr,
 {
 	return beat_hcall_norets(HV_put_iopte, ioas_id, io_addr, real_addr,
 		ioid, flags);
+}
+
+static inline s64 beat_construct_event_receive_port(u64 *port)
+{
+	u64 dummy[1];
+	s64 ret;
+
+	ret = beat_hcall1(HV_construct_event_receive_port, dummy);
+	*port = dummy[0];
+	return ret;
+}
+
+static inline s64 beat_destruct_event_receive_port(u64 port)
+{
+	s64 ret;
+
+	ret = beat_hcall_norets(HV_destruct_event_receive_port, port);
+	return ret;
+}
+
+static inline s64 beat_create_repository_node(u64 path[4], u64 data[2])
+{
+	s64 ret;
+
+	ret = beat_hcall_norets(HV_create_repository_node2,
+		path[0], path[1], path[2], path[3], data[0], data[1]);
+	return ret;
+}
+
+static inline s64 beat_get_repository_node_value(u64 lpid, u64 path[4],
+	u64 data[2])
+{
+	s64 ret;
+
+	ret = beat_hcall2(HV_get_repository_node_value2, data,
+		lpid, path[0], path[1], path[2], path[3]);
+	return ret;
 }
 
 #endif

@@ -1,0 +1,104 @@
+# arch/arm/plat-s3c/Kconfig
+#
+# Copyright 2007 Simtec Electronics
+#
+# Licensed under GPLv2
+
+config PLAT_S3C
+	bool
+	depends on ARCH_S3C2410
+	default y if ARCH_S3C2410
+	select NO_IOPORT
+	help
+	  Base platform code for any Samsung S3C device
+
+# low-level serial option nodes
+
+config CPU_LLSERIAL_S3C2410_ONLY
+	bool
+	depends on ARCH_S3C2410
+	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
+
+config CPU_LLSERIAL_S3C2440_ONLY
+	bool
+	depends on ARCH_S3C2410
+	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
+
+config CPU_LLSERIAL_S3C2410
+	bool
+	depends on ARCH_S3C2410
+	help
+	  Selected if there is an S3C2410 (or register compatible) serial
+	  low-level implementation needed
+
+config CPU_LLSERIAL_S3C2440
+	bool
+	depends on ARCH_S3C2410
+	help
+	  Selected if there is an S3C2440 (or register compatible) serial
+	  low-level implementation needed
+
+# boot configurations
+
+comment "Boot options"
+
+config S3C_BOOT_WATCHDOG
+	bool "S3C Initialisation watchdog"
+	depends on PLAT_S3C && S3C2410_WATCHDOG
+	help
+	  Say y to enable the watchdog during the kernel decompression
+	  stage. If the kernel fails to uncompress, then the watchdog
+	  will trigger a reset and the system should restart.
+
+config S3C_BOOT_ERROR_RESET
+	bool "S3C Reboot on decompression error"
+	depends on PLAT_S3C
+	help
+	  Say y here to use the watchdog to reset the system if the
+	  kernel decompressor detects an error during decompression.
+
+comment "Power management"
+
+config S3C2410_PM_DEBUG
+	bool "S3C2410 PM Suspend debug"
+	depends on PLAT_S3C && PM
+	help
+	  Say Y here if you want verbose debugging from the PM Suspend and
+	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+	  for more information.
+
+config S3C2410_PM_CHECK
+	bool "S3C2410 PM Suspend Memory CRC"
+	depends on PLAT_S3C && PM && CRC32
+	help
+ 	  Enable the PM code's memory area checksum over sleep. This option
+	  will generate CRCs of all blocks of memory, and store them before
+	  going to sleep. The blocks are then checked on resume for any
+	  errors.
+
+	  Note, this can take several seconds depending on memory size
+	  and CPU speed.
+
+	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+
+config S3C2410_PM_CHECK_CHUNKSIZE
+	int "S3C2410 PM Suspend CRC Chunksize (KiB)"
+	depends on PLAT_S3C && PM && S3C2410_PM_CHECK
+	default 64
+	help
+	  Set the chunksize in Kilobytes of the CRC for checking memory
+	  corruption over suspend and resume. A smaller value will mean that
+	  the CRC data block will take more memory, but wil identify any
+	  faults with better precision.
+
+	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+
+config S3C_LOWLEVEL_UART_PORT
+	int "S3C UART to use for low-level messages"
+	depends on PLAT_S3C
+	default 0
+	help
+	  Choice of which UART port to use for the low-level messages,
+	  such as the `Uncompressing...` at start time. The value of
+	  this configuration should be between zero and two. The port
+	  must have been initialised by the boot-loader before use.

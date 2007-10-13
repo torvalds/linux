@@ -286,10 +286,10 @@ first:
             timeout value
 -EIO:       the common I/O layer terminated the request due to an error state
 
-If the concurrent sense flag in the extended status word in the irb is set, the
-field irb->scsw.count describes the number of device specific sense bytes
-available in the extended control word irb->scsw.ecw[0]. No device sensing by
-the device driver itself is required.
+If the concurrent sense flag in the extended status word (esw) in the irb is
+set, the field erw.scnt in the esw describes the number of device specific
+sense bytes available in the extended control word irb->scsw.ecw[]. No device
+sensing by the device driver itself is required.
 
 The device interrupt handler can use the following definitions to investigate
 the primary unit check source coded in sense byte 0 :

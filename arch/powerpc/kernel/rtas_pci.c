@@ -171,8 +171,8 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 }
 
 struct pci_ops rtas_pci_ops = {
-	rtas_pci_read_config,
-	rtas_pci_write_config
+	.read = rtas_pci_read_config,
+	.write = rtas_pci_write_config,
 };
 
 int is_python(struct device_node *dev)

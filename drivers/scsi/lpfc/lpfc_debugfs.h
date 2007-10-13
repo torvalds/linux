@@ -22,7 +22,7 @@
 #define _H_LPFC_DEBUG_FS
 
 #ifdef CONFIG_LPFC_DEBUG_FS
-struct lpfc_disc_trc {
+struct lpfc_debugfs_trc {
 	char *fmt;
 	uint32_t data1;
 	uint32_t data2;

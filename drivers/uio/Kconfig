@@ -1,0 +1,29 @@
+menu "Userspace I/O"
+	depends on !S390
+
+config UIO
+	tristate "Userspace I/O drivers"
+	default n
+	help
+	  Enable this to allow the userspace driver core code to be
+	  built.  This code allows userspace programs easy access to
+	  kernel interrupts and memory locations, allowing some drivers
+	  to be written in userspace.  Note that a small kernel driver
+	  is also required for interrupt handling to work properly.
+
+	  If you don't know what to do here, say N.
+
+config UIO_CIF
+	tristate "generic Hilscher CIF Card driver"
+	depends on UIO && PCI
+	default n
+	help
+	  Driver for Hilscher CIF DeviceNet and Profibus cards.  This
+	  driver requires a userspace component that handles all of the
+	  heavy lifting and can be found at:
+	  	http://www.osadl.org/projects/downloads/UIO/user/cif-*
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called uio_cif.
+
+endmenu

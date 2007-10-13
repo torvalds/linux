@@ -73,12 +73,10 @@ typedef unsigned int kprobe_opcode_t;
 	}								\
 }
 
-#define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)((func_descr_t *)pentry)
 #define is_trap(instr)	(IS_TW(instr) || IS_TD(instr) || \
 			IS_TWI(instr) || IS_TDI(instr))
 #else
 /* Use stock kprobe_lookup_name since ppc32 doesn't use function descriptors */
-#define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)(pentry)
 #define is_trap(instr)	(IS_TW(instr) || IS_TWI(instr))
 #endif
 

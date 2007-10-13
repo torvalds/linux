@@ -21,6 +21,9 @@
 #
 # $Id: Makefile,v 1.31 2002/03/22 15:56:07 ak Exp $
 
+# Fill in SRCARCH
+SRCARCH	:= x86
+
 LDFLAGS		:= -m elf_x86_64
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux :=
@@ -57,8 +60,8 @@ cflags-y += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 cflags-y += -maccumulate-outgoing-args
 
 # do binutils support CFI?
-cflags-y += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
-AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
+cflags-y += $(call as-instr,.cfi_startproc\n.cfi_rel_offset rsp${comma}0\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
+AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_rel_offset rsp${comma}0\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
 
 # is .cfi_signal_frame supported too?
 cflags-y += $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONFIG_AS_CFI_SIGNAL_FRAME=1,)
@@ -71,17 +74,18 @@ CFLAGS += $(cflags-y)
 CFLAGS_KERNEL += $(cflags-kernel-y)
 AFLAGS += -m64
 
-head-y := arch/x86_64/kernel/head.o arch/x86_64/kernel/head64.o arch/x86_64/kernel/init_task.o
+head-y := arch/x86/kernel/head_64.o arch/x86/kernel/head64.o arch/x86/kernel/init_task_64.o
 
-libs-y 					+= arch/x86_64/lib/
-core-y					+= arch/x86_64/kernel/ \
-					   arch/x86_64/mm/ \
-					   arch/x86_64/crypto/
-core-$(CONFIG_IA32_EMULATION)		+= arch/x86_64/ia32/
-drivers-$(CONFIG_PCI)			+= arch/x86_64/pci/
-drivers-$(CONFIG_OPROFILE)		+= arch/x86_64/oprofile/
+libs-y 					+= arch/x86/lib/
+core-y					+= arch/x86/kernel/ \
+					   arch/x86/mm/ \
+					   arch/x86/crypto/ \
+					   arch/x86/vdso/
+core-$(CONFIG_IA32_EMULATION)		+= arch/x86/ia32/
+drivers-$(CONFIG_PCI)			+= arch/x86/pci/
+drivers-$(CONFIG_OPROFILE)		+= arch/x86/oprofile/
 
-boot := arch/x86_64/boot
+boot := arch/x86/boot
 
 PHONY += bzImage bzlilo install archmrproper \
 	 fdimage fdimage144 fdimage288 isoimage archclean
@@ -89,10 +93,12 @@ PHONY += bzImage bzlilo install archmrproper \
 #Default target when executing "make"
 all: bzImage
 
-BOOTIMAGE                     := arch/x86_64/boot/bzImage
+BOOTIMAGE                     := arch/x86/boot/bzImage
 KBUILD_IMAGE                  := $(BOOTIMAGE)
 
 bzImage: vmlinux
+	$(Q)mkdir -p $(objtree)/arch/x86_64/boot
+	$(Q)ln -fsn $(objtree)/arch/x86/boot/bzImage $(objtree)/arch/x86_64/boot/bzImage
 	$(Q)$(MAKE) $(build)=$(boot) $(BOOTIMAGE)
 
 bzlilo: vmlinux
@@ -108,6 +114,7 @@ install:
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@ 
 
 archclean:
+	$(Q)rm -rf $(objtree)/arch/x86_64/boot
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 define archhelp

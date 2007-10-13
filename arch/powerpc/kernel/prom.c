@@ -52,7 +52,6 @@
 #include <asm/pSeries_reconfig.h>
 #include <asm/pci-bridge.h>
 #include <asm/kexec.h>
-#include <asm/system.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -78,12 +77,9 @@ static struct boot_param_header *initial_boot_params __initdata;
 struct boot_param_header *initial_boot_params;
 #endif
 
-static struct device_node *allnodes = NULL;
+extern struct device_node *allnodes;	/* temporary while merging */
 
-/* use when traversing tree through the allnext, child, sibling,
- * or parent members of struct device_node.
- */
-static DEFINE_RWLOCK(devtree_lock);
+extern rwlock_t devtree_lock;	/* temporary while merging */
 
 /* export that to outside world */
 struct device_node *of_chosen;
@@ -434,9 +430,11 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
-/*
- * The device tree may be allocated below our memory limit, or inside the
- * crash kernel region for kdump. If so, move it out now.
+/**
+ * move_device_tree - move tree to an unused area, if needed.
+ *
+ * The device tree may be allocated beyond our memory limit, or inside the
+ * crash kernel region for kdump. If so, move it out of the way.
  */
 static void move_device_tree(void)
 {
@@ -533,10 +531,7 @@ static struct ibm_pa_feature {
 	{CPU_FTR_CTRL, 0,		0, 3, 0},
 	{CPU_FTR_NOEXECUTE, 0,		0, 6, 0},
 	{CPU_FTR_NODSISRALIGN, 0,	1, 1, 1},
-#if 0
-	/* put this back once we know how to test if firmware does 64k IO */
 	{CPU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
-#endif
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
@@ -783,13 +778,13 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif
 
 #ifdef CONFIG_KEXEC
-       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
-       if (lprop)
-               crashk_res.start = *lprop;
+	lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
+	if (lprop)
+		crashk_res.start = *lprop;
 
-       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
-       if (lprop)
-               crashk_res.end = crashk_res.start + *lprop - 1;
+	lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
+	if (lprop)
+		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
 
 	early_init_dt_check_for_initrd(node);
@@ -1056,60 +1051,6 @@ void __init early_init_devtree(void *params)
 	DBG(" <- early_init_devtree()\n");
 }
 
-int of_n_addr_cells(struct device_node* np)
-{
-	const int *ip;
-	do {
-		if (np->parent)
-			np = np->parent;
-		ip = of_get_property(np, "#address-cells", NULL);
-		if (ip != NULL)
-			return *ip;
-	} while (np->parent);
-	/* No #address-cells property for the root node, default to 1 */
-	return 1;
-}
-EXPORT_SYMBOL(of_n_addr_cells);
-
-int of_n_size_cells(struct device_node* np)
-{
-	const int* ip;
-	do {
-		if (np->parent)
-			np = np->parent;
-		ip = of_get_property(np, "#size-cells", NULL);
-		if (ip != NULL)
-			return *ip;
-	} while (np->parent);
-	/* No #size-cells property for the root node, default to 1 */
-	return 1;
-}
-EXPORT_SYMBOL(of_n_size_cells);
-
-/** Checks if the given "compat" string matches one of the strings in
- * the device's "compatible" property
- */
-int of_device_is_compatible(const struct device_node *device,
-		const char *compat)
-{
-	const char* cp;
-	int cplen, l;
-
-	cp = of_get_property(device, "compatible", &cplen);
-	if (cp == NULL)
-		return 0;
-	while (cplen > 0) {
-		if (strncasecmp(cp, compat, strlen(compat)) == 0)
-			return 1;
-		l = strlen(cp) + 1;
-		cp += l;
-		cplen -= l;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(of_device_is_compatible);
-
 
 /**
  * Indicates whether the root node has a given value in its
@@ -1139,119 +1080,6 @@ EXPORT_SYMBOL(machine_is_compatible);
  * this isn't dealt with yet.
  *
  *******/
-
-/**
- *	of_find_node_by_name - Find a node by its "name" property
- *	@from:	The node to start searching from or NULL, the node
- *		you pass will not be searched, only the next one
- *		will; typically, you pass what the previous call
- *		returned. of_node_put() will be called on it
- *	@name:	The name string to match against
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_find_node_by_name(struct device_node *from,
-	const char *name)
-{
-	struct device_node *np;
-
-	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
-	for (; np != NULL; np = np->allnext)
-		if (np->name != NULL && strcasecmp(np->name, name) == 0
-		    && of_node_get(np))
-			break;
-	of_node_put(from);
-	read_unlock(&devtree_lock);
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_name);
-
-/**
- *	of_find_node_by_type - Find a node by its "device_type" property
- *	@from:	The node to start searching from, or NULL to start searching
- *		the entire device tree. The node you pass will not be
- *		searched, only the next one will; typically, you pass
- *		what the previous call returned. of_node_put() will be
- *		called on from for you.
- *	@type:	The type string to match against
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_find_node_by_type(struct device_node *from,
-	const char *type)
-{
-	struct device_node *np;
-
-	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext)
-		if (np->type != 0 && strcasecmp(np->type, type) == 0
-		    && of_node_get(np))
-			break;
-	of_node_put(from);
-	read_unlock(&devtree_lock);
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_type);
-
-/**
- *	of_find_compatible_node - Find a node based on type and one of the
- *                                tokens in its "compatible" property
- *	@from:		The node to start searching from or NULL, the node
- *			you pass will not be searched, only the next one
- *			will; typically, you pass what the previous call
- *			returned. of_node_put() will be called on it
- *	@type:		The type string to match "device_type" or NULL to ignore
- *	@compatible:	The string to match to one of the tokens in the device
- *			"compatible" list.
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_find_compatible_node(struct device_node *from,
-	const char *type, const char *compatible)
-{
-	struct device_node *np;
-
-	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext) {
-		if (type != NULL
-		    && !(np->type != 0 && strcasecmp(np->type, type) == 0))
-			continue;
-		if (of_device_is_compatible(np, compatible) && of_node_get(np))
-			break;
-	}
-	of_node_put(from);
-	read_unlock(&devtree_lock);
-	return np;
-}
-EXPORT_SYMBOL(of_find_compatible_node);
-
-/**
- *	of_find_node_by_path - Find a node matching a full OF path
- *	@path:	The full path to match
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_find_node_by_path(const char *path)
-{
-	struct device_node *np = allnodes;
-
-	read_lock(&devtree_lock);
-	for (; np != 0; np = np->allnext) {
-		if (np->full_name != 0 && strcasecmp(np->full_name, path) == 0
-		    && of_node_get(np))
-			break;
-	}
-	read_unlock(&devtree_lock);
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_path);
 
 /**
  *	of_find_node_by_phandle - Find a node given a phandle
@@ -1296,51 +1124,6 @@ struct device_node *of_find_all_nodes(struct device_node *prev)
 	return np;
 }
 EXPORT_SYMBOL(of_find_all_nodes);
-
-/**
- *	of_get_parent - Get a node's parent if any
- *	@node:	Node to get parent
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_get_parent(const struct device_node *node)
-{
-	struct device_node *np;
-
-	if (!node)
-		return NULL;
-
-	read_lock(&devtree_lock);
-	np = of_node_get(node->parent);
-	read_unlock(&devtree_lock);
-	return np;
-}
-EXPORT_SYMBOL(of_get_parent);
-
-/**
- *	of_get_next_child - Iterate a node childs
- *	@node:	parent node
- *	@prev:	previous child of the parent node, or NULL to get first
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_get_next_child(const struct device_node *node,
-	struct device_node *prev)
-{
-	struct device_node *next;
-
-	read_lock(&devtree_lock);
-	next = prev ? prev->sibling : node->child;
-	for (; next != 0; next = next->sibling)
-		if (of_node_get(next))
-			break;
-	of_node_put(prev);
-	read_unlock(&devtree_lock);
-	return next;
-}
-EXPORT_SYMBOL(of_get_next_child);
 
 /**
  *	of_node_get - Increment refcount of a node
@@ -1433,7 +1216,7 @@ void of_attach_node(struct device_node *np)
  * a reference to the node.  The memory associated with the node
  * is not freed until its refcount goes to zero.
  */
-void of_detach_node(const struct device_node *np)
+void of_detach_node(struct device_node *np)
 {
 	struct device_node *parent;
 
@@ -1542,37 +1325,6 @@ static int __init prom_reconfig_setup(void)
 }
 __initcall(prom_reconfig_setup);
 #endif
-
-struct property *of_find_property(const struct device_node *np,
-				  const char *name,
-				  int *lenp)
-{
-	struct property *pp;
-
-	read_lock(&devtree_lock);
-	for (pp = np->properties; pp != 0; pp = pp->next)
-		if (strcmp(pp->name, name) == 0) {
-			if (lenp != 0)
-				*lenp = pp->length;
-			break;
-		}
-	read_unlock(&devtree_lock);
-
-	return pp;
-}
-EXPORT_SYMBOL(of_find_property);
-
-/*
- * Find a property with a given name for a given node
- * and return the value.
- */
-const void *of_get_property(const struct device_node *np, const char *name,
-			 int *lenp)
-{
-	struct property *pp = of_find_property(np,name,lenp);
-	return pp ? pp->value : NULL;
-}
-EXPORT_SYMBOL(of_get_property);
 
 /*
  * Add a property to a node

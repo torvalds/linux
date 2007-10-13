@@ -100,7 +100,7 @@ static void qcm_register_input(struct qcm *cam, struct usb_device *dev)
 	input_dev->name = "QCM button";
 	input_dev->phys = cam->input_physname;
 	usb_to_input_id(dev, &input_dev->id);
-	input_dev->cdev.dev = &dev->dev;
+	input_dev->dev.parent = &dev->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY);
 	input_dev->keybit[LONG(BTN_0)] = BIT(BTN_0);
@@ -439,7 +439,7 @@ static int qcm_sensor_init(struct uvd *uvd)
 	int ret;
 	int i;
 
-	for (i=0; i < sizeof(regval_table)/sizeof(regval_table[0]) ; i++) {
+	for (i=0; i < ARRAY_SIZE(regval_table) ; i++) {
 		CHECK_RET(ret, qcm_stv_setb(uvd->dev,
 					regval_table[i].reg,
 					regval_table[i].val));

@@ -6433,6 +6433,11 @@ struct sw_bd {
 #define ST_MICRO_FLASH_PAGE_SIZE		256
 #define ST_MICRO_FLASH_BASE_TOTAL_SIZE		65536
 
+#define BCM5709_FLASH_PAGE_BITS			8
+#define BCM5709_FLASH_PHY_PAGE_SIZE		(1 << BCM5709_FLASH_PAGE_BITS)
+#define BCM5709_FLASH_BYTE_ADDR_MASK		(BCM5709_FLASH_PHY_PAGE_SIZE-1)
+#define BCM5709_FLASH_PAGE_SIZE			256
+
 #define NVRAM_TIMEOUT_COUNT			30000
 
 
@@ -6449,7 +6454,10 @@ struct flash_spec {
 	u32 config2;
 	u32 config3;
 	u32 write1;
-	u32 buffered;
+	u32 flags;
+#define BNX2_NV_BUFFERED	0x00000001
+#define BNX2_NV_TRANSLATE	0x00000002
+#define BNX2_NV_WREN		0x00000004
 	u32 page_bits;
 	u32 page_size;
 	u32 addr_mask;
@@ -6464,6 +6472,8 @@ struct bnx2 {
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
+
+	struct napi_struct	napi;
 
 	atomic_t		intr_sem;
 
@@ -6671,9 +6681,6 @@ struct bnx2 {
 	u32			flash_size;
 
 	int			status_stats_size;
-
-	struct z_stream_s	*strm;
-	void			*gunzip_buf;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);
@@ -6745,13 +6752,11 @@ struct fw_info {
 	const u32 sbss_addr;
 	const u32 sbss_len;
 	const u32 sbss_index;
-	const u32 *sbss;
 
 	/* BSS section. */
 	const u32 bss_addr;
 	const u32 bss_len;
 	const u32 bss_index;
-	const u32 *bss;
 
 	/* Read-only section. */
 	const u32 rodata_addr;
@@ -6903,6 +6908,7 @@ struct fw_info {
 #define BNX2_SHARED_HW_CFG_LED_MODE_MAC		 0
 #define BNX2_SHARED_HW_CFG_LED_MODE_GPHY1	 0x100
 #define BNX2_SHARED_HW_CFG_LED_MODE_GPHY2	 0x200
+#define BNX2_SHARED_HW_CFG_GIG_LINK_ON_VAUX	 0x8000
 
 #define BNX2_SHARED_HW_CFG_CONFIG2		0x00000040
 #define BNX2_SHARED_HW_CFG2_NVM_SIZE_MASK	 0x00fff000

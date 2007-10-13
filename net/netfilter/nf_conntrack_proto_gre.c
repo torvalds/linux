@@ -274,8 +274,9 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 	.destroy	 = gre_destroy,
 	.me 		 = THIS_MODULE,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.tuple_to_nfattr = nf_ct_port_tuple_to_nfattr,
-	.nfattr_to_tuple = nf_ct_port_nfattr_to_tuple,
+	.tuple_to_nlattr = nf_ct_port_tuple_to_nlattr,
+	.nlattr_to_tuple = nf_ct_port_nlattr_to_tuple,
+	.nla_policy	 = nf_ct_port_nla_policy,
 #endif
 };
 

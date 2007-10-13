@@ -72,8 +72,6 @@ static char __initdata device_type_cpu[] = "cpu";
 static char __initdata device_type_memory[] = "memory";
 static char __initdata device_type_serial[] = "serial";
 static char __initdata device_type_network[] = "network";
-static char __initdata device_type_block[] = "block";
-static char __initdata device_type_byte[] = "byte";
 static char __initdata device_type_pci[] = "pci";
 static char __initdata device_type_vdevice[] = "vdevice";
 static char __initdata device_type_vscsi[] = "vscsi";
@@ -375,21 +373,6 @@ static void __init dt_vdevices(struct iseries_flat_dt *dt)
 
 		dt_end_node(dt);
 	}
-	reg += HVMAXARCHITECTEDVIRTUALLANS;
-
-	for (i = 0; i < HVMAXARCHITECTEDVIRTUALDISKS; i++)
-		dt_do_vdevice(dt, "viodasd", reg, i, device_type_block,
-				"IBM,iSeries-viodasd", 1);
-	reg += HVMAXARCHITECTEDVIRTUALDISKS;
-
-	for (i = 0; i < HVMAXARCHITECTEDVIRTUALCDROMS; i++)
-		dt_do_vdevice(dt, "viocd", reg, i, device_type_block,
-				"IBM,iSeries-viocd", 1);
-	reg += HVMAXARCHITECTEDVIRTUALCDROMS;
-
-	for (i = 0; i < HVMAXARCHITECTEDVIRTUALTAPES; i++)
-		dt_do_vdevice(dt, "viotape", reg, i, device_type_byte,
-				"IBM,iSeries-viotape", 1);
 
 	dt_end_node(dt);
 }

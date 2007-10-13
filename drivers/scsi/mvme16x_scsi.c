@@ -89,6 +89,7 @@ mvme16x_probe(struct device *dev)
 		out_be32(0xfff4202c, v);
 	}
 
+	dev_set_drvdata(dev, host);
 	scsi_scan_host(host);
 
 	return 0;
@@ -104,7 +105,7 @@ mvme16x_probe(struct device *dev)
 static __devexit int
 mvme16x_device_remove(struct device *dev)
 {
-	struct Scsi_Host *host = dev_to_shost(dev);
+	struct Scsi_Host *host = dev_get_drvdata(dev);
 	struct NCR_700_Host_Parameters *hostdata = shost_priv(host);
 
 	/* Disable scsi chip ints */

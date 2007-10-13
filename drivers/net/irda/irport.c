@@ -164,20 +164,17 @@ irport_open(int i, unsigned int iobase, unsigned int irq)
 	
 	/* Allocate memory if needed */
 	if (self->tx_buff.truesize > 0) {
-		self->tx_buff.head = kmalloc(self->tx_buff.truesize,
+		self->tx_buff.head = kzalloc(self->tx_buff.truesize,
 						      GFP_KERNEL);
 		if (self->tx_buff.head == NULL) {
 			IRDA_ERROR("%s(), can't allocate memory for "
 				   "transmit buffer!\n", __FUNCTION__);
 			goto err_out4;
 		}
-		memset(self->tx_buff.head, 0, self->tx_buff.truesize);
 	}	
 	self->tx_buff.data = self->tx_buff.head;
 
 	self->netdev = dev;
-	/* Keep track of module usage */
-	SET_MODULE_OWNER(dev);
 
 	/* May be overridden by piggyback drivers */
 	self->interrupt    = irport_interrupt;

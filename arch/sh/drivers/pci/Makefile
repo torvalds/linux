@@ -7,6 +7,7 @@ obj-$(CONFIG_PCI_AUTO)			+= pci-auto.o
 
 obj-$(CONFIG_CPU_SUBTYPE_ST40STB1)	+= pci-st40.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7751)	+= pci-sh7751.o ops-sh4.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7751R)	+= pci-sh7751.o ops-sh4.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7780)	+= pci-sh7780.o ops-sh4.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7785)	+= pci-sh7780.o ops-sh4.o
 

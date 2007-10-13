@@ -295,5 +295,10 @@ unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
  */
 int ramfs_nommu_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	return vma->vm_flags & VM_SHARED ? 0 : -ENOSYS;
+	if (!(vma->vm_flags & VM_SHARED))
+		return -ENOSYS;
+
+	file_accessed(file);
+	vma->vm_ops = &generic_file_vm_ops;
+	return 0;
 }

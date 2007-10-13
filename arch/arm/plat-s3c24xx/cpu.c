@@ -38,7 +38,7 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 
 #include <asm/plat-s3c24xx/cpu.h>
 #include <asm/plat-s3c24xx/devs.h>

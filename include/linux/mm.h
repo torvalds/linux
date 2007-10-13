@@ -10,7 +10,6 @@
 #include <linux/mmzone.h>
 #include <linux/rbtree.h>
 #include <linux/prio_tree.h>
-#include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/debug_locks.h>
 #include <linux/backing-dev.h>
@@ -18,7 +17,9 @@
 
 struct mempolicy;
 struct anon_vma;
+struct file_ra_state;
 struct user_struct;
+struct writeback_control;
 
 #ifndef CONFIG_DISCONTIGMEM          /* Don't use mapnrs, do it properly */
 extern unsigned long max_mapnr;
@@ -168,6 +169,8 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
 #define VM_ALWAYSDUMP	0x04000000	/* Always include in core dumps */
 
+#define VM_CAN_NONLINEAR 0x08000000	/* Has ->fault & does nonlinear pages */
+
 #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
 #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
 #endif
@@ -190,6 +193,30 @@ extern unsigned int kobjsize(const void *objp);
  */
 extern pgprot_t protection_map[16];
 
+#define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+#define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
+
+
+/*
+ * vm_fault is filled by the the pagefault handler and passed to the vma's
+ * ->fault function. The vma's ->fault is responsible for returning a bitmask
+ * of VM_FAULT_xxx flags that give details about how the fault was handled.
+ *
+ * pgoff should be used in favour of virtual_address, if possible. If pgoff
+ * is used, one may set VM_CAN_NONLINEAR in the vma->vm_flags to get nonlinear
+ * mapping support.
+ */
+struct vm_fault {
+	unsigned int flags;		/* FAULT_FLAG_xxx flags */
+	pgoff_t pgoff;			/* Logical page offset based on vma */
+	void __user *virtual_address;	/* Faulting virtual address */
+
+	struct page *page;		/* ->fault handlers should return a
+					 * page here, unless VM_FAULT_NOPAGE
+					 * is set (which is also implied by
+					 * VM_FAULT_ERROR).
+					 */
+};
 
 /*
  * These are the virtual MM functions - opening of an area, closing and
@@ -199,9 +226,11 @@ extern pgprot_t protection_map[16];
 struct vm_operations_struct {
 	void (*open)(struct vm_area_struct * area);
 	void (*close)(struct vm_area_struct * area);
-	struct page * (*nopage)(struct vm_area_struct * area, unsigned long address, int *type);
-	unsigned long (*nopfn)(struct vm_area_struct * area, unsigned long address);
-	int (*populate)(struct vm_area_struct * area, unsigned long address, unsigned long len, pgprot_t prot, unsigned long pgoff, int nonblock);
+	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+	struct page *(*nopage)(struct vm_area_struct *area,
+			unsigned long address, int *type);
+	unsigned long (*nopfn)(struct vm_area_struct *area,
+			unsigned long address);
 
 	/* notification that a previously read-only page is about to become
 	 * writable, if an error is returned it will cause a SIGBUS */
@@ -655,7 +684,6 @@ static inline int page_mapped(struct page *page)
  */
 #define NOPAGE_SIGBUS	(NULL)
 #define NOPAGE_OOM	((struct page *) (-1))
-#define NOPAGE_REFAULT	((struct page *) (-2))	/* Return to userspace, rerun */
 
 /*
  * Error return values for the *_nopfn functions
@@ -669,16 +697,18 @@ static inline int page_mapped(struct page *page)
  * Used to decide whether a process gets delivered SIGBUS or
  * just gets major/minor fault counters bumped up.
  */
-#define VM_FAULT_OOM	0x00
-#define VM_FAULT_SIGBUS	0x01
-#define VM_FAULT_MINOR	0x02
-#define VM_FAULT_MAJOR	0x03
 
-/* 
- * Special case for get_user_pages.
- * Must be in a distinct bit from the above VM_FAULT_ flags.
- */
-#define VM_FAULT_WRITE	0x10
+#define VM_FAULT_MINOR	0 /* For backwards compat. Remove me quickly. */
+
+#define VM_FAULT_OOM	0x0001
+#define VM_FAULT_SIGBUS	0x0002
+#define VM_FAULT_MAJOR	0x0004
+#define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
+
+#define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
+#define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
+
+#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
 
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
@@ -762,20 +792,10 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
 
 extern int vmtruncate(struct inode * inode, loff_t offset);
 extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
-extern int install_page(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, struct page *page, pgprot_t prot);
-extern int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, unsigned long pgoff, pgprot_t prot);
 
 #ifdef CONFIG_MMU
-extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma,
+extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, int write_access);
-
-static inline int handle_mm_fault(struct mm_struct *mm,
-			struct vm_area_struct *vma, unsigned long address,
-			int write_access)
-{
-	return __handle_mm_fault(mm, vma, address, write_access) &
-				(~VM_FAULT_WRITE);
-}
 #else
 static inline int handle_mm_fault(struct mm_struct *mm,
 			struct vm_area_struct *vma, unsigned long address,
@@ -789,7 +809,6 @@ static inline int handle_mm_fault(struct mm_struct *mm,
 
 extern int make_pages_present(unsigned long addr, unsigned long end);
 extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
-void install_arg_page(struct vm_area_struct *, struct page *, unsigned long);
 
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm, unsigned long start,
 		int len, int write, int force, struct page **pages, struct vm_area_struct **vmas);
@@ -806,9 +825,15 @@ int FASTCALL(set_page_dirty(struct page *page));
 int set_page_dirty_lock(struct page *page);
 int clear_page_dirty_for_io(struct page *page);
 
+extern unsigned long move_page_tables(struct vm_area_struct *vma,
+		unsigned long old_addr, struct vm_area_struct *new_vma,
+		unsigned long new_addr, unsigned long len);
 extern unsigned long do_mremap(unsigned long addr,
 			       unsigned long old_len, unsigned long new_len,
 			       unsigned long flags, unsigned long new_addr);
+extern int mprotect_fixup(struct vm_area_struct *vma,
+			  struct vm_area_struct **pprev, unsigned long start,
+			  unsigned long end, unsigned long newflags);
 
 /*
  * A callback you can register to apply pressure to ageable caches.
@@ -837,38 +862,7 @@ struct shrinker {
 extern void register_shrinker(struct shrinker *);
 extern void unregister_shrinker(struct shrinker *);
 
-/*
- * Some shared mappigns will want the pages marked read-only
- * to track write events. If so, we'll downgrade vm_page_prot
- * to the private version (using protection_map[] without the
- * VM_SHARED bit).
- */
-static inline int vma_wants_writenotify(struct vm_area_struct *vma)
-{
-	unsigned int vm_flags = vma->vm_flags;
-
-	/* If it was private or non-writable, the write bit is already clear */
-	if ((vm_flags & (VM_WRITE|VM_SHARED)) != ((VM_WRITE|VM_SHARED)))
-		return 0;
-
-	/* The backer wishes to know when pages are first written to? */
-	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
-		return 1;
-
-	/* The open routine did something to the protections already? */
-	if (pgprot_val(vma->vm_page_prot) !=
-	    pgprot_val(protection_map[vm_flags &
-		    (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]))
-		return 0;
-
-	/* Specialty mapping? */
-	if (vm_flags & (VM_PFNMAP|VM_INSERTPAGE))
-		return 0;
-
-	/* Can the mapping track the dirty pages? */
-	return vma->vm_file && vma->vm_file->f_mapping &&
-		mapping_cap_account_dirty(vma->vm_file->f_mapping);
-}
+int vma_wants_writenotify(struct vm_area_struct *vma);
 
 extern pte_t *FASTCALL(get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl));
 
@@ -1048,7 +1042,7 @@ static inline void vma_nonlinear_insert(struct vm_area_struct *vma,
 }
 
 /* mmap.c */
-extern int __vm_enough_memory(long pages, int cap_sys_admin);
+extern int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin);
 extern void vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert);
 extern struct vm_area_struct *vma_merge(struct mm_struct *,
@@ -1104,9 +1098,7 @@ extern void truncate_inode_pages_range(struct address_space *,
 				       loff_t lstart, loff_t lend);
 
 /* generic vm_area_ops exported for stackable file systems */
-extern struct page *filemap_nopage(struct vm_area_struct *, unsigned long, int *);
-extern int filemap_populate(struct vm_area_struct *, unsigned long,
-		unsigned long, pgprot_t, unsigned long, int);
+extern int filemap_fault(struct vm_area_struct *, struct vm_fault *);
 
 /* mm/page-writeback.c */
 int write_one_page(struct page *page, int wait);
@@ -1121,13 +1113,20 @@ int do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 			pgoff_t offset, unsigned long nr_to_read);
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
 			pgoff_t offset, unsigned long nr_to_read);
-unsigned long page_cache_readahead(struct address_space *mapping,
-			  struct file_ra_state *ra,
-			  struct file *filp,
-			  pgoff_t offset,
-			  unsigned long size);
-void handle_ra_miss(struct address_space *mapping, 
-		    struct file_ra_state *ra, pgoff_t offset);
+
+void page_cache_sync_readahead(struct address_space *mapping,
+			       struct file_ra_state *ra,
+			       struct file *filp,
+			       pgoff_t offset,
+			       unsigned long size);
+
+void page_cache_async_readahead(struct address_space *mapping,
+				struct file_ra_state *ra,
+				struct file *filp,
+				struct page *pg,
+				pgoff_t offset,
+				unsigned long size);
+
 unsigned long max_sane_readahead(unsigned long nr);
 
 /* Do stack extension */
@@ -1135,6 +1134,8 @@ extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
 #ifdef CONFIG_IA64
 extern int expand_upwards(struct vm_area_struct *vma, unsigned long address);
 #endif
+extern int expand_stack_downwards(struct vm_area_struct *vma,
+				  unsigned long address);
 
 /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
 extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr);
@@ -1215,7 +1216,7 @@ void drop_slab(void);
 extern int randomize_va_space;
 #endif
 
-__attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma);
+const char * arch_vma_name(struct vm_area_struct *vma);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

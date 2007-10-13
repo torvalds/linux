@@ -9,7 +9,7 @@ use strict;
 my $P = $0;
 $P =~ s@.*/@@g;
 
-my $V = '0.07';
+my $V = '0.09';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -47,16 +47,14 @@ my $removal = 'Documentation/feature-removal-schedule.txt';
 if ($tree && -f $removal) {
 	open(REMOVE, "<$removal") || die "$P: $removal: open failed - $!\n";
 	while (<REMOVE>) {
-		if (/^Files:\s+(.*\S)/) {
-			for my $file (split(/[, ]+/, $1)) {
-				if ($file =~ m@include/(.*)@) {
+		if (/^Check:\s+(.*\S)/) {
+			for my $entry (split(/[, ]+/, $1)) {
+				if ($entry =~ m@include/(.*)@) {
 					push(@dep_includes, $1);
-				}
-			}
 
-		} elsif (/^Funcs:\s+(.*\S)/) {
-			for my $func (split(/[, ]+/, $1)) {
-				push(@dep_functions, $func);
+				} elsif ($entry !~ m@/@) {
+					push(@dep_functions, $entry);
+				}
 			}
 		}
 	}
@@ -153,7 +151,7 @@ sub sanitise_line {
 }
 
 sub ctx_block_get {
-	my ($linenr, $remain, $outer, $open, $close) = @_;
+	my ($linenr, $remain, $outer, $open, $close, $off) = @_;
 	my $line;
 	my $start = $linenr - 1;
 	my $blk = '';
@@ -161,38 +159,58 @@ sub ctx_block_get {
 	my @c;
 	my @res = ();
 
+	my $level = 0;
 	for ($line = $start; $remain > 0; $line++) {
 		next if ($rawlines[$line] =~ /^-/);
 		$remain--;
 
 		$blk .= $rawlines[$line];
+		foreach my $c (split(//, $rawlines[$line])) {
+			##print "C<$c>L<$level><$open$close>O<$off>\n";
+			if ($off > 0) {
+				$off--;
+				next;
+			}
 
-		@o = ($blk =~ /$open/g);
-		@c = ($blk =~ /$close/g);
+			if ($c eq $close && $level > 0) {
+				$level--;
+				last if ($level == 0);
+			} elsif ($c eq $open) {
+				$level++;
+			}
+		}
 
-		if (!$outer || (scalar(@o) - scalar(@c)) == 1) {
+		if (!$outer || $level <= 1) {
 			push(@res, $rawlines[$line]);
 		}
 
-		last if (scalar(@o) == scalar(@c));
+		last if ($level == 0);
 	}
 
-	return @res;
+	return ($level, @res);
 }
 sub ctx_block_outer {
 	my ($linenr, $remain) = @_;
 
-	return ctx_block_get($linenr, $remain, 1, '\{', '\}');
+	my ($level, @r) = ctx_block_get($linenr, $remain, 1, '{', '}', 0);
+	return @r;
 }
 sub ctx_block {
 	my ($linenr, $remain) = @_;
 
-	return ctx_block_get($linenr, $remain, 0, '\{', '\}');
+	my ($level, @r) = ctx_block_get($linenr, $remain, 0, '{', '}', 0);
+	return @r;
 }
 sub ctx_statement {
+	my ($linenr, $remain, $off) = @_;
+
+	my ($level, @r) = ctx_block_get($linenr, $remain, 0, '(', ')', $off);
+	return @r;
+}
+sub ctx_block_level {
 	my ($linenr, $remain) = @_;
 
-	return ctx_block_get($linenr, $remain, 0, '\(', '\)');
+	return ctx_block_get($linenr, $remain, 0, '{', '}', 0);
 }
 
 sub ctx_locate_comment {
@@ -246,16 +264,23 @@ sub cat_vet {
 	return $vet;
 }
 
+my @report = ();
+sub report {
+	push(@report, $_[0]);
+}
+sub report_dump {
+	@report;
+}
 sub ERROR {
-	print "ERROR: $_[0]\n";
+	report("ERROR: $_[0]\n");
 	our $clean = 0;
 }
 sub WARN {
-	print "WARNING: $_[0]\n";
+	report("WARNING: $_[0]\n");
 	our $clean = 0;
 }
 sub CHK {
-	print "CHECK: $_[0]\n";
+	report("CHECK: $_[0]\n");
 	our $clean = 0;
 }
 
@@ -286,7 +311,7 @@ sub process {
 
 	my $Ident	= qr{[A-Za-z\d_]+};
 	my $Storage	= qr{extern|static};
-	my $Sparse	= qr{__user|__kernel|__force|__iomem};
+	my $Sparse	= qr{__user|__kernel|__force|__iomem|__must_check|__init_refok};
 	my $NonptrType	= qr{
 				\b
 				(?:const\s+)?
@@ -300,6 +325,7 @@ sub process {
 					unsigned|
 					float|
 					double|
+					bool|
 					long\s+int|
 					long\s+long|
 					long\s+long\s+int|
@@ -315,10 +341,14 @@ sub process {
 			  }x;
 	my $Type	= qr{
 				\b$NonptrType\b
-				(?:\s*\*+\s*const|\s*\*+)?
+				(?:\s*\*+\s*const|\s*\*+|(?:\s*\[\s*\])+)?
+				(?:\s+$Sparse)*
 			  }x;
 	my $Declare	= qr{(?:$Storage\s+)?$Type};
-	my $Attribute	= qr{__read_mostly|__init|__initdata};
+	my $Attribute	= qr{const|__read_mostly|__init|__initdata|__meminit};
+
+	my $Member	= qr{->$Ident|\.$Ident|\[[^]]*\]};
+	my $Lval	= qr{$Ident(?:$Member)*};
 
 	# Pre-scan the patch looking for any __setup documentation.
 	my @setup_docs = ();
@@ -466,16 +496,15 @@ sub process {
 			ERROR("use tabs not spaces\n" . $herevet);
 		}
 
-		#
-		# The rest of our checks refer specifically to C style
-		# only apply those _outside_ comments.
-		#
-		next if ($in_comment);
-
 # Remove comments from the line before processing.
-		$line =~ s@/\*.*\*/@@g;
-		$line =~ s@/\*.*@@;
-		$line =~ s@.*\*/@@;
+		my $comment_edge = ($line =~ s@/\*.*\*/@@g) +
+				   ($line =~ s@/\*.*@@) +
+				   ($line =~ s@^(.).*\*/@$1@);
+
+# The rest of our checks refer specifically to C style
+# only apply those _outside_ comments.  Only skip
+# lines in the middle of comments.
+		next if (!$comment_edge && $in_comment);
 
 # Standardise the strings and chars within the input to simplify matching.
 		$line = sanitise_line($line);
@@ -509,7 +538,7 @@ sub process {
 # if/while/etc brace do not go on next line, unless defining a do while loop,
 # or if that brace on the next line is for something else
 		if ($line =~ /\b(?:(if|while|for|switch)\s*\(|do\b|else\b)/ && $line !~ /^.#/) {
-			my @ctx = ctx_statement($linenr, $realcnt);
+			my @ctx = ctx_statement($linenr, $realcnt, 0);
 			my $ctx_ln = $linenr + $#ctx + 1;
 			my $ctx_cnt = $realcnt - $#ctx - 1;
 			my $ctx = join("\n", @ctx);
@@ -521,7 +550,7 @@ sub process {
 			##warn "line<$line>\nctx<$ctx>\nnext<$lines[$ctx_ln - 1]>";
 
 			if ($ctx !~ /{\s*/ && $ctx_cnt > 0 && $lines[$ctx_ln - 1] =~ /^\+\s*{/) {
-				ERROR("That { should be on the previous line\n" .
+				ERROR("That open brace { should be on the previous line\n" .
 					"$here\n$ctx\n$lines[$ctx_ln - 1]");
 			}
 		}
@@ -533,6 +562,12 @@ sub process {
 		if ($tst_type && $line =~ /^.$Declare$/) {
 			ERROR("TEST: is type $Declare\n" . $herecurr);
 			next;
+		}
+
+# check for initialisation to aggregates open brace on the next line
+		if ($prevline =~ /$Declare\s*$Ident\s*=\s*$/ &&
+		    $line =~ /^.\s*{/) {
+			ERROR("That open brace { should be on the previous line\n" . $hereprev);
 		}
 
 #
@@ -565,13 +600,18 @@ sub process {
 			if (($prevline !~ /^}/) &&
 			   ($prevline !~ /^\+}/) &&
 			   ($prevline !~ /^ }/) &&
-			   ($prevline !~ /\s$name(?:\s+$Attribute)?\s*(?:;|=)/)) {
+			   ($prevline !~ /\b\Q$name\E(?:\s+$Attribute)?\s*(?:;|=)/)) {
 				WARN("EXPORT_SYMBOL(foo); should immediately follow its function/variable\n" . $herecurr);
 			}
 		}
 
+# check for external initialisers.
+		if ($line =~ /^.$Type\s*$Ident\s*=\s*(0|NULL);/) {
+			ERROR("do not initialise externals to 0 or NULL\n" .
+				$herecurr);
+		}
 # check for static initialisers.
-		if ($line=~/\s*static\s.*=\s+(0|NULL);/) {
+		if ($line =~ /\s*static\s.*=\s*(0|NULL);/) {
 			ERROR("do not initialise statics to 0 or NULL\n" .
 				$herecurr);
 		}
@@ -593,11 +633,11 @@ sub process {
 			ERROR("\"(foo $1 )\" should be \"(foo $1)\"\n" .
 				$herecurr);
 
-		} elsif ($line =~ m{$NonptrType(\*+)(?:\s+const)?\s+[A-Za-z\d_]+}) {
+		} elsif ($line =~ m{$NonptrType(\*+)(?:\s+$Attribute)?\s+[A-Za-z\d_]+}) {
 			ERROR("\"foo$1 bar\" should be \"foo $1bar\"\n" .
 				$herecurr);
 
-		} elsif ($line =~ m{$NonptrType\s+(\*+)(?!\s+const)\s+[A-Za-z\d_]+}) {
+		} elsif ($line =~ m{$NonptrType\s+(\*+)(?!\s+$Attribute)\s+[A-Za-z\d_]+}) {
 			ERROR("\"foo $1 bar\" should be \"foo $1bar\"\n" .
 				$herecurr);
 		}
@@ -614,7 +654,7 @@ sub process {
 # to try and find and validate the current printk.  In summary the current
 # printk includes all preceeding printk's which have no newline on the end.
 # we assume the first bad printk is the one to report.
-		if ($line =~ /\bprintk\((?!KERN_)/) {
+		if ($line =~ /\bprintk\((?!KERN_)\s*"/) {
 			my $ok = 0;
 			for (my $ln = $linenr - 1; $ln >= $first_line; $ln--) {
 				#print "CHECK<$lines[$ln - 1]\n";
@@ -639,6 +679,12 @@ sub process {
 			ERROR("open brace '{' following function declarations go on the next line\n" . $herecurr);
 		}
 
+# check for spaces between functions and their parentheses.
+		if ($line =~ /($Ident)\s+\(/ &&
+		    $1 !~ /^(?:if|for|while|switch|return|volatile|__volatile__|__attribute__|format|__extension__|Copyright)$/ &&
+		    $line !~ /$Type\s+\(/ && $line !~ /^.\#\s*define\b/) {
+			WARN("no space between function name and open parenthesis '('\n" . $herecurr);
+		}
 # Check operator spacing.
 		# Note we expand the line with the leading + as the real
 		# line will be displayed with the leading + and the tabs
@@ -647,7 +693,7 @@ sub process {
 		$opline = expand_tabs($opline);
 		$opline =~ s/^./ /;
 		if (!($line=~/\#\s*include/)) {
-			my @elements = split(/(<<=|>>=|<=|>=|==|!=|\+=|-=|\*=|\/=|%=|\^=|\|=|&=|->|<<|>>|<|>|=|!|~|&&|\|\||,|\^|\+\+|--|;|&|\||\+|-|\*|\/\/|\/)/, $opline);
+			my @elements = split(/(<<=|>>=|<=|>=|==|!=|\+=|-=|\*=|\/=|%=|\^=|\|=|&=|=>|->|<<|>>|<|>|=|!|~|&&|\|\||,|\^|\+\+|--|;|&|\||\+|-|\*|\/\/|\/)/, $opline);
 			my $off = 0;
 			for (my $n = 0; $n < $#elements; $n += 2) {
 				$off += length($elements[$n]);
@@ -667,6 +713,7 @@ sub process {
 					$c = 'W' if ($elements[$n + 2] =~ /^\s/);
 					$c = 'B' if ($elements[$n + 2] =~ /^(\)|\]|;)/);
 					$c = 'O' if ($elements[$n + 2] eq '');
+					$c = 'E' if ($elements[$n + 2] =~ /\s*\\$/);
 				} else {
 					$c = 'E';
 				}
@@ -767,14 +814,39 @@ sub process {
 
 				# All the others need spaces both sides.
 				} elsif ($ctx !~ /[EW]x[WE]/) {
-					ERROR("need spaces around that '$op' $at\n" . $hereptr);
+					# Ignore email addresses <foo@bar>
+					if (!($op eq '<' && $cb =~ /$;\S+\@\S+>/) &&
+					    !($op eq '>' && $cb =~ /<\S+\@\S+$;/)) {
+						ERROR("need spaces around that '$op' $at\n" . $hereptr);
+					}
 				}
 				$off += length($elements[$n + 1]);
 			}
 		}
 
+# check for multiple assignments
+		if ($line =~ /^.\s*$Lval\s*=\s*$Lval\s*=(?!=)/) {
+			WARN("multiple assignments should be avoided\n" . $herecurr);
+		}
+
+## # check for multiple declarations, allowing for a function declaration
+## # continuation.
+## 		if ($line =~ /^.\s*$Type\s+$Ident(?:\s*=[^,{]*)?\s*,\s*$Ident.*/ &&
+## 		    $line !~ /^.\s*$Type\s+$Ident(?:\s*=[^,{]*)?\s*,\s*$Type\s*$Ident.*/) {
+##
+## 			# Remove any bracketed sections to ensure we do not
+## 			# falsly report the parameters of functions.
+## 			my $ln = $line;
+## 			while ($ln =~ s/\([^\(\)]*\)//g) {
+## 			}
+## 			if ($ln =~ /,/) {
+## 				WARN("declaring multiple variables together should be avoided\n" . $herecurr);
+## 			}
+## 		}
+
 #need space before brace following if, while, etc
-		if ($line =~ /\(.*\){/ || $line =~ /do{/) {
+		if (($line =~ /\(.*\){/ && $line !~ /\($Type\){/) ||
+		    $line =~ /do{/) {
 			ERROR("need a space before the open brace '{'\n" . $herecurr);
 		}
 
@@ -782,6 +854,22 @@ sub process {
 # on the line
 		if ($line =~ /}(?!(?:,|;|\)))\S/) {
 			ERROR("need a space after that close brace '}'\n" . $herecurr);
+		}
+
+# check spacing on square brackets
+		if ($line =~ /\[\s/ && $line !~ /\[\s*$/) {
+			ERROR("no space after that open square bracket '['\n" . $herecurr);
+		}
+		if ($line =~ /\s\]/) {
+			ERROR("no space before that close square bracket ']'\n" . $herecurr);
+		}
+
+# check spacing on paretheses
+		if ($line =~ /\(\s/ && $line !~ /\(\s*$/) {
+			ERROR("no space after that open parenthesis '('\n" . $herecurr);
+		}
+		if ($line =~ /\s\)/) {
+			ERROR("no space before that close parenthesis ')'\n" . $herecurr);
 		}
 
 #goto labels aren't indented, allow a single space however
@@ -847,13 +935,18 @@ sub process {
 			# or the one below.
 			my $ln = $linenr;
 			my $cnt = $realcnt;
+			my $off = 0;
 
-			# If the macro starts on the define line start there.
-			if ($prevline !~ m{^.#\s*define\s*$Ident(?:\([^\)]*\))?\s*\\\s*$}) {
+			# If the macro starts on the define line start
+			# grabbing the statement after the identifier
+			$prevline =~ m{^(.#\s*define\s*$Ident(?:\([^\)]*\))?\s*)(.*)\\\s*$};
+			##print "1<$1> 2<$2>\n";
+			if (defined $2 && $2 ne '') {
+				$off = length($1);
 				$ln--;
 				$cnt++;
 			}
-			my @ctx = ctx_statement($ln, $cnt);
+			my @ctx = ctx_statement($ln, $cnt, $off);
 			my $ctx_ln = $ln + $#ctx + 1;
 			my $ctx = join("\n", @ctx);
 
@@ -869,6 +962,48 @@ sub process {
 					ERROR("Macros with multiple statements should be enclosed in a do - while loop\n" . "$here\n$ctx\n");
 				} else {
 					ERROR("Macros with complex values should be enclosed in parenthesis\n" . "$here\n$ctx\n");
+				}
+			}
+		}
+
+# check for redundant bracing round if etc
+		if ($line =~ /\b(if|while|for|else)\b/) {
+			# Locate the end of the opening statement.
+			my @control = ctx_statement($linenr, $realcnt, 0);
+			my $nr = $linenr + (scalar(@control) - 1);
+			my $cnt = $realcnt - (scalar(@control) - 1);
+
+			my $off = $realcnt - $cnt;
+			#print "$off: line<$line>end<" . $lines[$nr - 1] . ">\n";
+
+			# If this is is a braced statement group check it
+			if ($lines[$nr - 1] =~ /{\s*$/) {
+				my ($lvl, @block) = ctx_block_level($nr, $cnt);
+
+				my $stmt = join(' ', @block);
+				$stmt =~ s/(^[^{]*){//;
+				my $before = $1;
+				$stmt =~ s/}([^}]*$)//;
+				my $after = $1;
+
+				#print "block<" . join(' ', @block) . "><" . scalar(@block) . ">\n";
+				#print "stmt<$stmt>\n\n";
+
+				# Count the ;'s if there is fewer than two
+				# then there can only be one statement,
+				# if there is a brace inside we cannot
+				# trivially detect if its one statement.
+				# Also nested if's often require braces to
+				# disambiguate the else binding so shhh there.
+				my @semi = ($stmt =~ /;/g);
+				push(@semi, "/**/") if ($stmt =~ m@/\*@);
+				##print "semi<" . scalar(@semi) . ">\n";
+				if ($lvl == 0 && scalar(@semi) < 2 &&
+				    $stmt !~ /{/ && $stmt !~ /\bif\b/ &&
+				    $before !~ /}/ && $after !~ /{/) {
+				    	my $herectx = "$here\n" . join("\n", @control, @block[1 .. $#block]) . "\n";
+				    	shift(@block);
+					WARN("braces {} are not necessary for single statement blocks\n" . $herectx);
 				}
 			}
 		}
@@ -898,12 +1033,25 @@ sub process {
 				$herecurr);
 		}
 
+# check for needless kfree() checks
+		if ($prevline =~ /\bif\s*\(([^\)]*)\)/) {
+			my $expr = $1;
+			if ($line =~ /\bkfree\(\Q$expr\E\);/) {
+				WARN("kfree(NULL) is safe this check is probabally not required\n" . $hereprev);
+			}
+		}
+
 # warn about #ifdefs in C files
 #		if ($line =~ /^.#\s*if(|n)def/ && ($realfile =~ /\.c$/)) {
 #			print "#ifdef in C files should be avoided\n";
 #			print "$herecurr";
 #			$clean = 0;
 #		}
+
+# warn about spacing in #ifdefs
+		if ($line =~ /^.#\s*(ifdef|ifndef|elif)\s\s+/) {
+			ERROR("exactly one space required after that #$1\n" . $herecurr);
+		}
 
 # check for spinlock_t definitions without a comment.
 		if ($line =~ /^.\s*(struct\s+mutex|spinlock_t)\s+\S+;/) {
@@ -919,14 +1067,14 @@ sub process {
 			}
 		}
 # check of hardware specific defines
-		if ($line =~ m@^.#\s*if.*\b(__i386__|__powerpc64__|__sun__|__s390x__)\b@) {
+		if ($line =~ m@^.#\s*if.*\b(__i386__|__powerpc64__|__sun__|__s390x__)\b@ && $realfile !~ m@include/asm-@) {
 			CHK("architecture specific defines should be avoided\n" .  $herecurr);
 		}
 
 # check the location of the inline attribute, that it is between
 # storage class and type.
-		if ($line =~ /$Type\s+(?:inline|__always_inline)\b/ ||
-		    $line =~ /\b(?:inline|always_inline)\s+$Storage/) {
+		if ($line =~ /$Type\s+(?:inline|__always_inline|noinline)\b/ ||
+		    $line =~ /\b(?:inline|__always_inline|noinline)\s+$Storage/) {
 			ERROR("inline keyword should sit between storage class and type\n" . $herecurr);
 		}
 
@@ -952,6 +1100,9 @@ sub process {
 		ERROR("Missing Signed-off-by: line(s)\n");
 	}
 
+	if ($clean == 0 && ($chk_patch || $is_patch)) {
+		print report_dump();
+	}
 	if ($clean == 1 && $quiet == 0) {
 		print "Your patch has no obvious style problems and is ready for submission.\n"
 	}

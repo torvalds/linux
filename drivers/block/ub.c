@@ -503,7 +503,7 @@ static void ub_cleanup(struct ub_dev *sc)
 {
 	struct list_head *p;
 	struct ub_lun *lun;
-	request_queue_t *q;
+	struct request_queue *q;
 
 	while (!list_empty(&sc->luns)) {
 		p = sc->luns.next;
@@ -619,7 +619,7 @@ static struct ub_scsi_cmd *ub_cmdq_pop(struct ub_dev *sc)
  * The request function is our main entry point
  */
 
-static void ub_request_fn(request_queue_t *q)
+static void ub_request_fn(struct request_queue *q)
 {
 	struct ub_lun *lun = q->queuedata;
 	struct request *rq;
@@ -2273,7 +2273,7 @@ err_core:
 static int ub_probe_lun(struct ub_dev *sc, int lnum)
 {
 	struct ub_lun *lun;
-	request_queue_t *q;
+	struct request_queue *q;
 	struct gendisk *disk;
 	int rc;
 

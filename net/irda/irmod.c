@@ -128,8 +128,8 @@ static int __init irda_init(void)
  out_err_3:
 #ifdef CONFIG_SYSCTL
 	irda_sysctl_unregister();
-#endif
  out_err_2:
+#endif
 #ifdef CONFIG_PROC_FS
 	irda_proc_unregister();
 #endif

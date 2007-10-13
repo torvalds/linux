@@ -631,56 +631,35 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 {
 	char *n = NULL;
 	u8 boardrev = dd->ipath_boardrev;
-	int ret;
+	int ret = 0;
 
 	switch (boardrev) {
-	case 4:		/* Ponderosa is one of the bringup boards */
-		n = "Ponderosa";
-		break;
 	case 5:
 		/*
 		 * original production board; two production levels, with
 		 * different serial number ranges.   See ipath_ht_early_init() for
 		 * case where we enable IPATH_GPIO_INTR for later serial # range.
+		 * Original 112* serial number is no longer supported.
 		 */
 		n = "InfiniPath_QHT7040";
-		break;
-	case 6:
-		n = "OEM_Board_3";
 		break;
 	case 7:
 		/* small form factor production board */
 		n = "InfiniPath_QHT7140";
-		break;
-	case 8:
-		n = "LS/X-1";
-		break;
-	case 9:		/* Comstock bringup test board */
-		n = "Comstock";
-		break;
-	case 10:
-		n = "OEM_Board_2";
-		break;
-	case 11:
-		n = "InfiniPath_HT-470"; /* obsoleted */
-		break;
-	case 12:
-		n = "OEM_Board_4";
 		break;
 	default:		/* don't know, just print the number */
 		ipath_dev_err(dd, "Don't yet know about board "
 			      "with ID %u\n", boardrev);
 		snprintf(name, namelen, "Unknown_InfiniPath_QHT7xxx_%u",
 			 boardrev);
+		ret = 1;
 		break;
 	}
 	if (n)
 		snprintf(name, namelen, "%s", n);
 
-	if (dd->ipath_boardrev != 6 && dd->ipath_boardrev != 7 &&
-	    dd->ipath_boardrev != 11) {
+	if (ret) {
 		ipath_dev_err(dd, "Unsupported InfiniPath board %s!\n", name);
-		ret = 1;
 		goto bail;
 	}
 	if (dd->ipath_majrev != 3 || (dd->ipath_minrev < 2 ||
@@ -1554,10 +1533,25 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 		 * can use GPIO interrupts.  They have serial #'s starting
 		 * with 128, rather than 112.
 		 */
-		dd->ipath_flags |= IPATH_GPIO_INTR;
-	} else
-		ipath_dev_err(dd, "Unsupported InfiniPath serial "
-			      "number %.16s!\n", dd->ipath_serial);
+		if (dd->ipath_serial[0] == '1' &&
+		    dd->ipath_serial[1] == '2' &&
+		    dd->ipath_serial[2] == '8')
+			dd->ipath_flags |= IPATH_GPIO_INTR;
+		else {
+			ipath_dev_err(dd, "Unsupported InfiniPath board "
+				"(serial number %.16s)!\n",
+				dd->ipath_serial);
+			return 1;
+		}
+	}
+
+	if (dd->ipath_minrev >= 4) {
+		/* Rev4+ reports extra errors via internal GPIO pins */
+		dd->ipath_flags |= IPATH_GPIO_ERRINTRS;
+		dd->ipath_gpio_mask |= IPATH_GPIO_ERRINTR_MASK;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask,
+				 dd->ipath_gpio_mask);
+	}
 
 	return 0;
 }
@@ -1592,7 +1586,10 @@ static int ipath_ht_get_base_info(struct ipath_portdata *pd, void *kbase)
 	struct ipath_base_info *kinfo = kbase;
 
 	kinfo->spi_runtime_flags |= IPATH_RUNTIME_HT |
-		IPATH_RUNTIME_RCVHDR_COPY;
+		IPATH_RUNTIME_PIO_REGSWAPPED;
+
+	if (pd->port_dd->ipath_minrev < 4)
+		kinfo->spi_runtime_flags |= IPATH_RUNTIME_RCVHDR_COPY;
 
 	return 0;
 }

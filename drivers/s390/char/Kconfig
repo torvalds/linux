@@ -44,15 +44,9 @@ config CCW_CONSOLE
 	depends on TN3215_CONSOLE || TN3270_CONSOLE
 	default y
 
-config SCLP
-	bool "Support for SCLP"
-	depends on S390
-	help
-	  Include support for the SCLP interface to the service element.
-
 config SCLP_TTY
 	bool "Support for SCLP line mode terminal"
-	depends on SCLP
+	depends on S390
 	help
 	  Include support for IBM SCLP line-mode terminals.
 
@@ -65,7 +59,7 @@ config SCLP_CONSOLE
 
 config SCLP_VT220_TTY
 	bool "Support for SCLP VT220-compatible terminal"
-	depends on SCLP
+	depends on S390
 	help
 	  Include support for an IBM SCLP VT220-compatible terminal.
 
@@ -78,7 +72,7 @@ config SCLP_VT220_CONSOLE
 
 config SCLP_CPI
 	tristate "Control-Program Identification"
-	depends on SCLP
+	depends on S390
 	help
 	  This option enables the hardware console interface for system
 	  identification. This is commonly used for workload management and

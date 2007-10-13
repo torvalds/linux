@@ -156,10 +156,9 @@ struct bbc_i2c_client *bbc_i2c_attach(struct linux_ebus_child *echild)
 
 	if (!bp)
 		return NULL;
-	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return NULL;
-	memset(client, 0, sizeof(*client));
 	client->bp = bp;
 	client->echild = echild;
 	client->bus = echild->resource[0].start;
@@ -358,13 +357,13 @@ static void __init reset_one_i2c(struct bbc_i2c_bus *bp)
 
 static int __init attach_one_i2c(struct linux_ebus_device *edev, int index)
 {
-	struct bbc_i2c_bus *bp = kmalloc(sizeof(*bp), GFP_KERNEL);
+	struct bbc_i2c_bus *bp;
 	struct linux_ebus_child *echild;
 	int entry;
 
+	bp = kzalloc(sizeof(*bp), GFP_KERNEL);
 	if (!bp)
 		return -ENOMEM;
-	memset(bp, 0, sizeof(*bp));
 
 	bp->i2c_control_regs = ioremap(edev->resource[0].start, 0x2);
 	if (!bp->i2c_control_regs)

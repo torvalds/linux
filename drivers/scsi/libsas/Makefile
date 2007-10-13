@@ -34,3 +34,4 @@ libsas-y +=  sas_init.o     \
 		sas_discover.o \
 		sas_expander.o \
 		sas_scsi_host.o
+libsas-$(CONFIG_SCSI_SAS_ATA) +=	sas_ata.o

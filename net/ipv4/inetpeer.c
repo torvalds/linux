@@ -123,7 +123,7 @@ void __init inet_initpeers(void)
 	peer_cachep = kmem_cache_create("inet_peer_cache",
 			sizeof(struct inet_peer),
 			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-			NULL, NULL);
+			NULL);
 
 	/* All the timers, started at system startup tend
 	   to synchronize. Perturb it a bit.
@@ -158,7 +158,7 @@ static void unlink_from_unused(struct inet_peer *p)
 #define lookup(_daddr,_stack) 					\
 ({								\
 	struct inet_peer *u, **v;				\
-	if (_stack) {						\
+	if (_stack != NULL) {					\
 		stackptr = _stack;				\
 		*stackptr++ = &peer_root;			\
 	}							\
@@ -169,7 +169,7 @@ static void unlink_from_unused(struct inet_peer *p)
 			v = &u->avl_left;			\
 		else						\
 			v = &u->avl_right;			\
-		if (_stack)					\
+		if (_stack != NULL)				\
 			*stackptr++ = v;			\
 		u = *v;						\
 	}							\

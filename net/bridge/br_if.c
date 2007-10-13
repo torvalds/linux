@@ -29,35 +29,24 @@
  * Determine initial path cost based on speed.
  * using recommendations from 802.1d standard
  *
- * Need to simulate user ioctl because not all device's that support
- * ethtool, use ethtool_ops.  Also, since driver might sleep need to
- * not be holding any locks.
+ * Since driver might sleep need to not be holding any locks.
  */
 static int port_cost(struct net_device *dev)
 {
-	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
-	struct ifreq ifr;
-	mm_segment_t old_fs;
-	int err;
+	if (dev->ethtool_ops && dev->ethtool_ops->get_settings) {
+		struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET, };
 
-	strncpy(ifr.ifr_name, dev->name, IFNAMSIZ);
-	ifr.ifr_data = (void __user *) &ecmd;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = dev_ethtool(&ifr);
-	set_fs(old_fs);
-
-	if (!err) {
-		switch(ecmd.speed) {
-		case SPEED_100:
-			return 19;
-		case SPEED_1000:
-			return 4;
-		case SPEED_10000:
-			return 2;
-		case SPEED_10:
-			return 100;
+		if (!dev->ethtool_ops->get_settings(dev, &ecmd)) {
+			switch(ecmd.speed) {
+			case SPEED_10000:
+				return 2;
+			case SPEED_1000:
+				return 4;
+			case SPEED_100:
+				return 19;
+			case SPEED_10:
+				return 100;
+			}
 		}
 	}
 
@@ -314,7 +303,7 @@ int br_del_bridge(const char *name)
 	int ret = 0;
 
 	rtnl_lock();
-	dev = __dev_get_by_name(name);
+	dev = __dev_get_by_name(&init_net, name);
 	if (dev == NULL)
 		ret =  -ENXIO; 	/* Could not find device */
 
@@ -360,43 +349,15 @@ int br_min_mtu(const struct net_bridge *br)
 void br_features_recompute(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
-	unsigned long features, checksum;
+	unsigned long features;
 
-	checksum = br->feature_mask & NETIF_F_ALL_CSUM ? NETIF_F_NO_CSUM : 0;
-	features = br->feature_mask & ~NETIF_F_ALL_CSUM;
+	features = br->feature_mask;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		unsigned long feature = p->dev->features;
-
-		/* if device needs checksumming, downgrade to hw checksumming */
-		if (checksum & NETIF_F_NO_CSUM && !(feature & NETIF_F_NO_CSUM))
-			checksum ^= NETIF_F_NO_CSUM | NETIF_F_HW_CSUM;
-
-		/* if device can't do all checksum, downgrade to ipv4/ipv6 */
-		if (checksum & NETIF_F_HW_CSUM && !(feature & NETIF_F_HW_CSUM))
-			checksum ^= NETIF_F_HW_CSUM
-				| NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-
-		if (checksum & NETIF_F_IPV6_CSUM && !(feature & NETIF_F_IPV6_CSUM))
-			checksum &= ~NETIF_F_IPV6_CSUM;
-
-		if (!(feature & NETIF_F_IP_CSUM))
-			checksum = 0;
-
-		if (feature & NETIF_F_GSO)
-			feature |= NETIF_F_GSO_SOFTWARE;
-		feature |= NETIF_F_GSO;
-
-		features &= feature;
+		features = netdev_compute_features(features, p->dev->features);
 	}
 
-	if (!(checksum & NETIF_F_ALL_CSUM))
-		features &= ~NETIF_F_SG;
-	if (!(features & NETIF_F_SG))
-		features &= ~NETIF_F_GSO_MASK;
-
-	br->dev->features = features | checksum | NETIF_F_LLTX |
-			    NETIF_F_GSO_ROBUST;
+	br->dev->features = features;
 }
 
 /* called with RTNL */
@@ -483,7 +444,7 @@ void __exit br_cleanup_bridges(void)
 	struct net_device *dev, *nxt;
 
 	rtnl_lock();
-	for_each_netdev_safe(dev, nxt)
+	for_each_netdev_safe(&init_net, dev, nxt)
 		if (dev->priv_flags & IFF_EBRIDGE)
 			del_br(dev->priv);
 	rtnl_unlock();

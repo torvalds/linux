@@ -154,6 +154,7 @@ use strict;
 
 my $errors = 0;
 my $warnings = 0;
+my $anon_struct_union = 0;
 
 # match expressions used to find embedded type information
 my $type_constant = '\%([-_\w]+)';
@@ -403,7 +404,11 @@ sub output_highlight {
 	    print $lineprefix, $blankline;
 	} else {
 	    $line =~ s/\\\\\\/\&/g;
-	    print $lineprefix, $line;
+	    if ($output_mode eq "man" && substr($line, 0, 1) eq ".") {
+		print "\\&$line";
+	    } else {
+		print $lineprefix, $line;
+	    }
 	}
 	print "\n";
     }
@@ -718,6 +723,7 @@ sub output_struct_xml(%) {
 	    # pointer-to-function
 	    print "  $1 $parameter) ($2);\n";
 	} elsif ($type =~ m/^(.*?)\s*(:.*)/) {
+	    # bitfield
 	    print "  $1 $parameter$2;\n";
 	} else {
 	    print "  ".$type." ".$parameter.";\n";
@@ -1260,6 +1266,7 @@ sub output_struct_text(%) {
 	    # pointer-to-function
 	    print "\t$1 $parameter) ($2);\n";
 	} elsif ($type =~ m/^(.*?)\s*(:.*)/) {
+	    # bitfield
 	    print "\t$1 $parameter$2;\n";
 	} else {
 	    print "\t".$type." ".$parameter.";\n";
@@ -1510,8 +1517,13 @@ sub push_parameter($$$) {
 	my $param = shift;
 	my $type = shift;
 	my $file = shift;
-	my $anon = 0;
 
+	if (($anon_struct_union == 1) && ($type eq "") &&
+	    ($param eq "}")) {
+		return;		# ignore the ending }; from anon. struct/union
+	}
+
+	$anon_struct_union = 0;
 	my $param_name = $param;
 	$param_name =~ s/\[.*//;
 
@@ -1530,16 +1542,16 @@ sub push_parameter($$$) {
 	# handle unnamed (anonymous) union or struct:
 	{
 		$type = $param;
-		$param = "{unnamed_" . $param. "}";
+		$param = "{unnamed_" . $param . "}";
 		$parameterdescs{$param} = "anonymous\n";
-		$anon = 1;
+		$anon_struct_union = 1;
 	}
 
 	# warn if parameter has no description
 	# (but ignore ones starting with # as these are not parameters
 	# but inline preprocessor statements);
 	# also ignore unnamed structs/unions;
-	if (!$anon) {
+	if (!$anon_struct_union) {
 	if (!defined $parameterdescs{$param_name} && $param_name !~ /^#/) {
 
 	    $parameterdescs{$param_name} = $undescribed;
@@ -1691,6 +1703,8 @@ sub process_state3_function($$) {
     my $x = shift;
     my $file = shift;
 
+    $x =~ s@\/\/.*$@@gos; # strip C99-style comments to end of line
+
     if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#define/)) {
 	# do nothing
     }
@@ -1713,6 +1727,8 @@ sub process_state3_type($$) {
     $x =~ s@[\r\n]+@ @gos; # strip newlines/cr's.
     $x =~ s@^\s+@@gos; # strip leading spaces
     $x =~ s@\s+$@@gos; # strip trailing spaces
+    $x =~ s@\/\/.*$@@gos; # strip C99-style comments to end of line
+
     if ($x =~ /^#/) {
 	# To distinguish preprocessor directive from regular declaration later.
 	$x .= ";";
@@ -1796,7 +1812,7 @@ sub process_file($) {
 
 		$state = 2;
 		if (/-(.*)/) {
-		    # strip leading/trailing/multiple spaces #RDD:T:
+		    # strip leading/trailing/multiple spaces
 		    $descr= $1;
 		    $descr =~ s/^\s*//;
 		    $descr =~ s/\s*$//;

@@ -72,7 +72,7 @@ void prom_cmdline(void)
 
 	local_irq_save(flags);
 
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette(1);
 
 #ifdef CONFIG_SMP
@@ -85,7 +85,7 @@ void prom_cmdline(void)
 	smp_release();
 #endif
 
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette(0);
 
 	local_irq_restore(flags);
@@ -141,22 +141,6 @@ unsigned char prom_get_idprom(char *idbuf, int num_bytes)
 		return idbuf[0];
 
 	return 0xff;
-}
-
-/* Install Linux trap table so PROM uses that instead of its own. */
-void prom_set_trap_table(unsigned long tba)
-{
-	p1275_cmd("SUNW,set-trap-table",
-		  (P1275_ARG(0, P1275_ARG_IN_64B) |
-		   P1275_INOUT(1, 0)), tba);
-}
-
-void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa)
-{
-	p1275_cmd("SUNW,set-trap-table",
-		  (P1275_ARG(0, P1275_ARG_IN_64B) |
-		   P1275_ARG(1, P1275_ARG_IN_64B) |
-		   P1275_INOUT(2, 0)), tba, mmfsa);
 }
 
 int prom_get_mmu_ihandle(void)

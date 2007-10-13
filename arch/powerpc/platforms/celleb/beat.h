@@ -36,5 +36,7 @@ ssize_t beat_nvram_get_size(void);
 ssize_t beat_nvram_read(char *, size_t, loff_t *);
 ssize_t beat_nvram_write(char *, size_t, loff_t *);
 int beat_set_xdabr(unsigned long);
+void beat_power_save(void);
+void beat_kexec_cpu_down(int, int);
 
 #endif /* _CELLEB_BEAT_H */

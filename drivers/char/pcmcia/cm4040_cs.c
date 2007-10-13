@@ -599,7 +599,7 @@ cs_release:
 
 static void reader_release(struct pcmcia_device *link)
 {
-	cm4040_reader_release(link->priv);
+	cm4040_reader_release(link);
 	pcmcia_disable_device(link);
 }
 
@@ -642,8 +642,7 @@ static int reader_probe(struct pcmcia_device *link)
 		return ret;
 	}
 
-	class_device_create(cmx_class, NULL, MKDEV(major, i), NULL,
-			    "cmx%d", i);
+	device_create(cmx_class, NULL, MKDEV(major, i), "cmx%d", i);
 
 	return 0;
 }
@@ -666,7 +665,7 @@ static void reader_detach(struct pcmcia_device *link)
 	dev_table[devno] = NULL;
 	kfree(dev);
 
-	class_device_destroy(cmx_class, MKDEV(major, devno));
+	device_destroy(cmx_class, MKDEV(major, devno));
 
 	return;
 }

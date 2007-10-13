@@ -34,7 +34,6 @@
 #include <linux/uio.h>
 #include <linux/nfs_fs.h>
 #include <linux/quota.h>
-#include <linux/syscalls.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
@@ -253,17 +252,17 @@ mmap_subpage (struct file *file, unsigned long start, unsigned long end, int pro
 	return ret;
 }
 
-/* SLAB cache for partial_page structures */
-struct kmem_cache *partial_page_cachep;
+/* SLAB cache for ia64_partial_page structures */
+struct kmem_cache *ia64_partial_page_cachep;
 
 /*
- * init partial_page_list.
+ * init ia64_partial_page_list.
  * return 0 means kmalloc fail.
  */
-struct partial_page_list*
+struct ia64_partial_page_list*
 ia32_init_pp_list(void)
 {
-	struct partial_page_list *p;
+	struct ia64_partial_page_list *p;
 
 	if ((p = kmalloc(sizeof(*p), GFP_KERNEL)) == NULL)
 		return p;
@@ -280,12 +279,12 @@ ia32_init_pp_list(void)
  * Else, return 0 and provide @pprev, @rb_link, @rb_parent to
  * be used by later __ia32_insert_pp().
  */
-static struct partial_page *
-__ia32_find_pp(struct partial_page_list *ppl, unsigned int start,
-	struct partial_page **pprev, struct rb_node ***rb_link,
+static struct ia64_partial_page *
+__ia32_find_pp(struct ia64_partial_page_list *ppl, unsigned int start,
+	struct ia64_partial_page **pprev, struct rb_node ***rb_link,
 	struct rb_node **rb_parent)
 {
-	struct partial_page *pp;
+	struct ia64_partial_page *pp;
 	struct rb_node **__rb_link, *__rb_parent, *rb_prev;
 
 	pp = ppl->pp_hint;
@@ -297,7 +296,7 @@ __ia32_find_pp(struct partial_page_list *ppl, unsigned int start,
 
 	while (*__rb_link) {
 		__rb_parent = *__rb_link;
-		pp = rb_entry(__rb_parent, struct partial_page, pp_rb);
+		pp = rb_entry(__rb_parent, struct ia64_partial_page, pp_rb);
 
 		if (pp->base == start) {
 			ppl->pp_hint = pp;
@@ -314,7 +313,7 @@ __ia32_find_pp(struct partial_page_list *ppl, unsigned int start,
 	*rb_parent = __rb_parent;
 	*pprev = NULL;
 	if (rb_prev)
-		*pprev = rb_entry(rb_prev, struct partial_page, pp_rb);
+		*pprev = rb_entry(rb_prev, struct ia64_partial_page, pp_rb);
 	return NULL;
 }
 
@@ -322,9 +321,9 @@ __ia32_find_pp(struct partial_page_list *ppl, unsigned int start,
  * insert @pp into @ppl.
  */
 static void
-__ia32_insert_pp(struct partial_page_list *ppl, struct partial_page *pp,
-	 struct partial_page *prev, struct rb_node **rb_link,
-	struct rb_node *rb_parent)
+__ia32_insert_pp(struct ia64_partial_page_list *ppl,
+	struct ia64_partial_page *pp, struct ia64_partial_page *prev,
+	struct rb_node **rb_link, struct rb_node *rb_parent)
 {
 	/* link list */
 	if (prev) {
@@ -334,7 +333,7 @@ __ia32_insert_pp(struct partial_page_list *ppl, struct partial_page *pp,
 		ppl->pp_head = pp;
 		if (rb_parent)
 			pp->next = rb_entry(rb_parent,
-				struct partial_page, pp_rb);
+				struct ia64_partial_page, pp_rb);
 		else
 			pp->next = NULL;
 	}
@@ -350,8 +349,8 @@ __ia32_insert_pp(struct partial_page_list *ppl, struct partial_page *pp,
  * delete @pp from partial page list @ppl.
  */
 static void
-__ia32_delete_pp(struct partial_page_list *ppl, struct partial_page *pp,
-	struct partial_page *prev)
+__ia32_delete_pp(struct ia64_partial_page_list *ppl,
+	struct ia64_partial_page *pp, struct ia64_partial_page *prev)
 {
 	if (prev) {
 		prev->next = pp->next;
@@ -363,15 +362,15 @@ __ia32_delete_pp(struct partial_page_list *ppl, struct partial_page *pp,
 			ppl->pp_hint = pp->next;
 	}
 	rb_erase(&pp->pp_rb, &ppl->ppl_rb);
-	kmem_cache_free(partial_page_cachep, pp);
+	kmem_cache_free(ia64_partial_page_cachep, pp);
 }
 
-static struct partial_page *
-__pp_prev(struct partial_page *pp)
+static struct ia64_partial_page *
+__pp_prev(struct ia64_partial_page *pp)
 {
 	struct rb_node *prev = rb_prev(&pp->pp_rb);
 	if (prev)
-		return rb_entry(prev, struct partial_page, pp_rb);
+		return rb_entry(prev, struct ia64_partial_page, pp_rb);
 	else
 		return NULL;
 }
@@ -383,7 +382,7 @@ __pp_prev(struct partial_page *pp)
 static void
 __ia32_delete_pp_range(unsigned int start, unsigned int end)
 {
-	struct partial_page *pp, *prev;
+	struct ia64_partial_page *pp, *prev;
 	struct rb_node **rb_link, *rb_parent;
 
 	if (start >= end)
@@ -401,7 +400,7 @@ __ia32_delete_pp_range(unsigned int start, unsigned int end)
 	}
 
 	while (pp && pp->base < end) {
-		struct partial_page *tmp = pp->next;
+		struct ia64_partial_page *tmp = pp->next;
 		__ia32_delete_pp(current->thread.ppl, pp, prev);
 		pp = tmp;
 	}
@@ -414,7 +413,7 @@ __ia32_delete_pp_range(unsigned int start, unsigned int end)
 static int
 __ia32_set_pp(unsigned int start, unsigned int end, int flags)
 {
-	struct partial_page *pp, *prev;
+	struct ia64_partial_page *pp, *prev;
 	struct rb_node ** rb_link, *rb_parent;
 	unsigned int pstart, start_bit, end_bit, i;
 
@@ -450,8 +449,8 @@ __ia32_set_pp(unsigned int start, unsigned int end, int flags)
 			return 0;
 	}
 
-	/* new a partial_page */
-	pp = kmem_cache_alloc(partial_page_cachep, GFP_KERNEL);
+	/* new a ia64_partial_page */
+	pp = kmem_cache_alloc(ia64_partial_page_cachep, GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;
 	pp->base = pstart;
@@ -504,7 +503,7 @@ ia32_set_pp(unsigned int start, unsigned int end, int flags)
 static int
 __ia32_unset_pp(unsigned int start, unsigned int end)
 {
-	struct partial_page *pp, *prev;
+	struct ia64_partial_page *pp, *prev;
 	struct rb_node ** rb_link, *rb_parent;
 	unsigned int pstart, start_bit, end_bit, i;
 	struct vm_area_struct *vma;
@@ -532,8 +531,8 @@ __ia32_unset_pp(unsigned int start, unsigned int end)
 		return -ENOMEM;
 	}
 
-	/* new a partial_page */
-	pp = kmem_cache_alloc(partial_page_cachep, GFP_KERNEL);
+	/* new a ia64_partial_page */
+	pp = kmem_cache_alloc(ia64_partial_page_cachep, GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;
 	pp->base = pstart;
@@ -605,7 +604,7 @@ ia32_unset_pp(unsigned int *startp, unsigned int *endp)
 static int
 __ia32_compare_pp(unsigned int start, unsigned int end)
 {
-	struct partial_page *pp, *prev;
+	struct ia64_partial_page *pp, *prev;
 	struct rb_node ** rb_link, *rb_parent;
 	unsigned int pstart, start_bit, end_bit, size;
 	unsigned int first_bit, next_zero_bit;	/* the first range in bitmap */
@@ -682,13 +681,13 @@ ia32_compare_pp(unsigned int *startp, unsigned int *endp)
 }
 
 static void
-__ia32_drop_pp_list(struct partial_page_list *ppl)
+__ia32_drop_pp_list(struct ia64_partial_page_list *ppl)
 {
-	struct partial_page *pp = ppl->pp_head;
+	struct ia64_partial_page *pp = ppl->pp_head;
 
 	while (pp) {
-		struct partial_page *next = pp->next;
-		kmem_cache_free(partial_page_cachep, pp);
+		struct ia64_partial_page *next = pp->next;
+		kmem_cache_free(ia64_partial_page_cachep, pp);
 		pp = next;
 	}
 
@@ -696,9 +695,9 @@ __ia32_drop_pp_list(struct partial_page_list *ppl)
 }
 
 void
-ia32_drop_partial_page_list(struct task_struct *task)
+ia32_drop_ia64_partial_page_list(struct task_struct *task)
 {
-	struct partial_page_list* ppl = task->thread.ppl;
+	struct ia64_partial_page_list* ppl = task->thread.ppl;
 
 	if (ppl && atomic_dec_and_test(&ppl->pp_count))
 		__ia32_drop_pp_list(ppl);
@@ -708,9 +707,9 @@ ia32_drop_partial_page_list(struct task_struct *task)
  * Copy current->thread.ppl to ppl (already initialized).
  */
 static int
-__ia32_copy_pp_list(struct partial_page_list *ppl)
+__ia32_copy_pp_list(struct ia64_partial_page_list *ppl)
 {
-	struct partial_page *pp, *tmp, *prev;
+	struct ia64_partial_page *pp, *tmp, *prev;
 	struct rb_node **rb_link, *rb_parent;
 
 	ppl->pp_head = NULL;
@@ -721,7 +720,7 @@ __ia32_copy_pp_list(struct partial_page_list *ppl)
 	prev = NULL;
 
 	for (pp = current->thread.ppl->pp_head; pp; pp = pp->next) {
-		tmp = kmem_cache_alloc(partial_page_cachep, GFP_KERNEL);
+		tmp = kmem_cache_alloc(ia64_partial_page_cachep, GFP_KERNEL);
 		if (!tmp)
 			return -ENOMEM;
 		*tmp = *pp;
@@ -734,7 +733,8 @@ __ia32_copy_pp_list(struct partial_page_list *ppl)
 }
 
 int
-ia32_copy_partial_page_list(struct task_struct *p, unsigned long clone_flags)
+ia32_copy_ia64_partial_page_list(struct task_struct *p,
+				unsigned long clone_flags)
 {
 	int retval = 0;
 

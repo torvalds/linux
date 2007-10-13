@@ -946,8 +946,7 @@ static inline int i2o_pool_alloc(struct i2o_pool *pool, const char *name,
 	strcpy(pool->name, name);
 
 	pool->slab =
-	    kmem_cache_create(pool->name, size, 0, SLAB_HWCACHE_ALIGN, NULL,
-			      NULL);
+	    kmem_cache_create(pool->name, size, 0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!pool->slab)
 		goto free_name;
 

@@ -21,20 +21,22 @@ typedef unsigned short	apm_eventinfo_t;
 
 #ifdef __KERNEL__
 
+#include <linux/types.h>
+
 #define APM_CS		(GDT_ENTRY_APMBIOS_BASE * 8)
 #define APM_CS_16	(APM_CS + 8)
 #define APM_DS		(APM_CS_16 + 8)
 
 struct apm_bios_info {
-	unsigned short	version;
-	unsigned short	cseg;
-	unsigned long	offset;
-	unsigned short	cseg_16;
-	unsigned short	dseg;
-	unsigned short	flags;
-	unsigned short	cseg_len;
-	unsigned short	cseg_16_len;
-	unsigned short	dseg_len;
+	u16	version;
+	u16	cseg;
+	u32	offset;
+	u16	cseg_16;
+	u16	dseg;
+	u16	flags;
+	u16	cseg_len;
+	u16	cseg_16_len;
+	u16	dseg_len;
 };
 
 /* Results of APM Installation Check */

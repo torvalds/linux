@@ -91,6 +91,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/times.h>
 
+#include <net/net_namespace.h>
 #include <net/arp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -1694,8 +1695,8 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 			(void) ip_mc_del1_src(pmc, sfmode, &psfsrc[i]);
 	} else if (isexclude != (pmc->sfcount[MCAST_EXCLUDE] != 0)) {
 #ifdef CONFIG_IP_MULTICAST
-		struct in_device *in_dev = pmc->interface;
 		struct ip_sf_list *psf;
+		in_dev = pmc->interface;
 #endif
 
 		/* filter mode change */
@@ -1798,7 +1799,7 @@ static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 {
 	int err;
 
-	if (iml->sflist == 0) {
+	if (iml->sflist == NULL) {
 		/* any-source empty exclude case */
 		return ip_mc_del_src(in_dev, &iml->multi.imr_multiaddr.s_addr,
 			iml->sfmode, 0, NULL, 0);
@@ -2166,7 +2167,6 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 		return -EFAULT;
 	}
 	for (i=0; i<copycount; i++) {
-		struct sockaddr_in *psin;
 		struct sockaddr_storage ss;
 
 		psin = (struct sockaddr_in *)&ss;
@@ -2291,7 +2291,7 @@ static inline struct ip_mc_list *igmp_mc_get_first(struct seq_file *seq)
 	struct igmp_mc_iter_state *state = igmp_mc_seq_private(seq);
 
 	state->in_dev = NULL;
-	for_each_netdev(state->dev) {
+	for_each_netdev(&init_net, state->dev) {
 		struct in_device *in_dev;
 		in_dev = in_dev_get(state->dev);
 		if (!in_dev)
@@ -2410,23 +2410,8 @@ static const struct seq_operations igmp_mc_seq_ops = {
 
 static int igmp_mc_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct igmp_mc_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-	rc = seq_open(file, &igmp_mc_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &igmp_mc_seq_ops,
+			sizeof(struct igmp_mc_iter_state));
 }
 
 static const struct file_operations igmp_mc_seq_fops = {
@@ -2453,7 +2438,7 @@ static inline struct ip_sf_list *igmp_mcf_get_first(struct seq_file *seq)
 
 	state->idev = NULL;
 	state->im = NULL;
-	for_each_netdev(state->dev) {
+	for_each_netdev(&init_net, state->dev) {
 		struct in_device *idev;
 		idev = in_dev_get(state->dev);
 		if (unlikely(idev == NULL))
@@ -2584,23 +2569,8 @@ static const struct seq_operations igmp_mcf_seq_ops = {
 
 static int igmp_mcf_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct igmp_mcf_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-	rc = seq_open(file, &igmp_mcf_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &igmp_mcf_seq_ops,
+			sizeof(struct igmp_mcf_iter_state));
 }
 
 static const struct file_operations igmp_mcf_seq_fops = {
@@ -2613,8 +2583,8 @@ static const struct file_operations igmp_mcf_seq_fops = {
 
 int __init igmp_mc_proc_init(void)
 {
-	proc_net_fops_create("igmp", S_IRUGO, &igmp_mc_seq_fops);
-	proc_net_fops_create("mcfilter", S_IRUGO, &igmp_mcf_seq_fops);
+	proc_net_fops_create(&init_net, "igmp", S_IRUGO, &igmp_mc_seq_fops);
+	proc_net_fops_create(&init_net, "mcfilter", S_IRUGO, &igmp_mcf_seq_fops);
 	return 0;
 }
 #endif

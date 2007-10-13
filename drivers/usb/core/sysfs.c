@@ -169,6 +169,16 @@ show_quirks(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(quirks, S_IRUGO, show_quirks, NULL);
 
+static ssize_t
+show_urbnum(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%d\n", atomic_read(&udev->urbnum));
+}
+static DEVICE_ATTR(urbnum, S_IRUGO, show_urbnum, NULL);
+
 
 #if defined(CONFIG_USB_PERSIST) || defined(CONFIG_USB_SUSPEND)
 static const char power_group[] = "power";
@@ -413,6 +423,44 @@ usb_descriptor_attr(bDeviceProtocol, "%02x\n")
 usb_descriptor_attr(bNumConfigurations, "%d\n")
 usb_descriptor_attr(bMaxPacketSize0, "%d\n")
 
+
+
+/* show if the device is authorized (1) or not (0) */
+static ssize_t usb_dev_authorized_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct usb_device *usb_dev = to_usb_device(dev);
+	return snprintf(buf, PAGE_SIZE, "%u\n", usb_dev->authorized);
+}
+
+
+/*
+ * Authorize a device to be used in the system
+ *
+ * Writing a 0 deauthorizes the device, writing a 1 authorizes it.
+ */
+static ssize_t usb_dev_authorized_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t size)
+{
+	ssize_t result;
+	struct usb_device *usb_dev = to_usb_device(dev);
+	unsigned val;
+	result = sscanf(buf, "%u\n", &val);
+	if (result != 1)
+		result = -EINVAL;
+	else if (val == 0)
+		result = usb_deauthorize_device(usb_dev);
+	else
+		result = usb_authorize_device(usb_dev);
+	return result < 0? result : size;
+}
+
+static DEVICE_ATTR(authorized, 0644,
+	    usb_dev_authorized_show, usb_dev_authorized_store);
+
+
 static struct attribute *dev_attrs[] = {
 	/* current configuration's attributes */
 	&dev_attr_configuration.attr,
@@ -420,6 +468,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_bConfigurationValue.attr,
 	&dev_attr_bmAttributes.attr,
 	&dev_attr_bMaxPower.attr,
+	&dev_attr_urbnum.attr,
 	/* device attributes */
 	&dev_attr_idVendor.attr,
 	&dev_attr_idProduct.attr,
@@ -435,10 +484,59 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_version.attr,
 	&dev_attr_maxchild.attr,
 	&dev_attr_quirks.attr,
+	&dev_attr_authorized.attr,
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {
 	.attrs = dev_attrs,
+};
+
+/* Binary descriptors */
+
+static ssize_t
+read_descriptors(struct kobject *kobj, struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
+{
+	struct usb_device *udev = to_usb_device(
+			container_of(kobj, struct device, kobj));
+	size_t nleft = count;
+	size_t srclen, n;
+
+	usb_lock_device(udev);
+
+	/* The binary attribute begins with the device descriptor */
+	srclen = sizeof(struct usb_device_descriptor);
+	if (off < srclen) {
+		n = min_t(size_t, nleft, srclen - off);
+		memcpy(buf, off + (char *) &udev->descriptor, n);
+		nleft -= n;
+		buf += n;
+		off = 0;
+	} else {
+		off -= srclen;
+	}
+
+	/* Then follows the raw descriptor entry for the current
+	 * configuration (config plus subsidiary descriptors).
+	 */
+	if (udev->actconfig) {
+		int cfgno = udev->actconfig - udev->config;
+
+		srclen = __le16_to_cpu(udev->actconfig->desc.wTotalLength);
+		if (off < srclen) {
+			n = min_t(size_t, nleft, srclen - off);
+			memcpy(buf, off + udev->rawdescriptors[cfgno], n);
+			nleft -= n;
+		}
+	}
+	usb_unlock_device(udev);
+	return count - nleft;
+}
+
+static struct bin_attribute dev_bin_attr_descriptors = {
+	.attr = {.name = "descriptors", .mode = 0444},
+	.read = read_descriptors,
+	.size = 18 + 65535,	/* dev descr + max-size raw descriptor */
 };
 
 int usb_create_sysfs_dev_files(struct usb_device *udev)
@@ -449,6 +547,10 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	retval = sysfs_create_group(&dev->kobj, &dev_attr_grp);
 	if (retval)
 		return retval;
+
+	retval = device_create_bin_file(dev, &dev_bin_attr_descriptors);
+	if (retval)
+		goto error;
 
 	retval = add_persist_attributes(dev);
 	if (retval)
@@ -492,6 +594,7 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 	device_remove_file(dev, &dev_attr_serial);
 	remove_power_attributes(dev);
 	remove_persist_attributes(dev);
+	device_remove_bin_file(dev, &dev_bin_attr_descriptors);
 	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
 }
 

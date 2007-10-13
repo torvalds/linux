@@ -104,7 +104,7 @@ static unsigned int ip_nat_sip(struct sk_buff **pskb,
 	dataoff = ip_hdrlen(*pskb) + sizeof(struct udphdr);
 	datalen = (*pskb)->len - dataoff;
 	if (datalen < sizeof("SIP/2.0") - 1)
-		return NF_DROP;
+		return NF_ACCEPT;
 
 	addr_map_init(ct, &map);
 

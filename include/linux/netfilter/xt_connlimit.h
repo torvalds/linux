@@ -5,8 +5,8 @@ struct xt_connlimit_data;
 
 struct xt_connlimit_info {
 	union {
-		u_int32_t v4_mask;
-		u_int32_t v6_mask[4];
+		__be32 v4_mask;
+		__be32 v6_mask[4];
 	};
 	unsigned int limit, inverse;
 

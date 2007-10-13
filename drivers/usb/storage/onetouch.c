@@ -57,9 +57,10 @@ static void usb_onetouch_irq(struct urb *urb)
 	struct usb_onetouch *onetouch = urb->context;
 	signed char *data = onetouch->data;
 	struct input_dev *dev = onetouch->dev;
-	int status;
+	int status = urb->status;
+	int retval;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
@@ -75,11 +76,11 @@ static void usb_onetouch_irq(struct urb *urb)
 	input_sync(dev);
 
 resubmit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
-	if (status)
-		err ("can't resubmit intr, %s-%s/input0, status %d",
+	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	if (retval)
+		err ("can't resubmit intr, %s-%s/input0, retval %d",
 			onetouch->udev->bus->bus_name,
-			onetouch->udev->devpath, status);
+			onetouch->udev->devpath, retval);
 }
 
 static int usb_onetouch_open(struct input_dev *dev)

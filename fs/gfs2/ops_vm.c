@@ -27,13 +27,12 @@
 #include "trans.h"
 #include "util.h"
 
-static struct page *gfs2_private_nopage(struct vm_area_struct *area,
-					unsigned long address, int *type)
+static int gfs2_private_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	struct gfs2_inode *ip = GFS2_I(area->vm_file->f_mapping->host);
+	struct gfs2_inode *ip = GFS2_I(vma->vm_file->f_mapping->host);
 
 	set_bit(GIF_PAGED, &ip->i_flags);
-	return filemap_nopage(area, address, type);
+	return filemap_fault(vma, vmf);
 }
 
 static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
@@ -104,58 +103,67 @@ out:
 	return error;
 }
 
-static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
-					   unsigned long address, int *type)
+static int gfs2_sharewrite_fault(struct vm_area_struct *vma,
+						struct vm_fault *vmf)
 {
-	struct file *file = area->vm_file;
+	struct file *file = vma->vm_file;
 	struct gfs2_file *gf = file->private_data;
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 	struct gfs2_holder i_gh;
-	struct page *result = NULL;
-	unsigned long index = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) +
-			      area->vm_pgoff;
 	int alloc_required;
 	int error;
+	int ret = 0;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
 	if (error)
-		return NULL;
+		goto out;
 
 	set_bit(GIF_PAGED, &ip->i_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
-	error = gfs2_write_alloc_required(ip, (u64)index << PAGE_CACHE_SHIFT,
-					  PAGE_CACHE_SIZE, &alloc_required);
-	if (error)
-		goto out;
-
-	set_bit(GFF_EXLOCK, &gf->f_flags);
-	result = filemap_nopage(area, address, type);
-	clear_bit(GFF_EXLOCK, &gf->f_flags);
-	if (!result || result == NOPAGE_OOM)
-		goto out;
-
-	if (alloc_required) {
-		error = alloc_page_backing(ip, result);
-		if (error) {
-			page_cache_release(result);
-			result = NULL;
-			goto out;
-		}
-		set_page_dirty(result);
+	error = gfs2_write_alloc_required(ip,
+					(u64)vmf->pgoff << PAGE_CACHE_SHIFT,
+					PAGE_CACHE_SIZE, &alloc_required);
+	if (error) {
+		ret = VM_FAULT_OOM; /* XXX: are these right? */
+		goto out_unlock;
 	}
 
-out:
-	gfs2_glock_dq_uninit(&i_gh);
+	set_bit(GFF_EXLOCK, &gf->f_flags);
+	ret = filemap_fault(vma, vmf);
+	clear_bit(GFF_EXLOCK, &gf->f_flags);
+	if (ret & VM_FAULT_ERROR)
+		goto out_unlock;
 
-	return result;
+	if (alloc_required) {
+		/* XXX: do we need to drop page lock around alloc_page_backing?*/
+		error = alloc_page_backing(ip, vmf->page);
+		if (error) {
+			/*
+			 * VM_FAULT_LOCKED should always be the case for
+			 * filemap_fault, but it may not be in a future
+			 * implementation.
+			 */
+			if (ret & VM_FAULT_LOCKED)
+				unlock_page(vmf->page);
+			page_cache_release(vmf->page);
+			ret = VM_FAULT_OOM;
+			goto out_unlock;
+		}
+		set_page_dirty(vmf->page);
+	}
+
+out_unlock:
+	gfs2_glock_dq_uninit(&i_gh);
+out:
+	return ret;
 }
 
 struct vm_operations_struct gfs2_vm_ops_private = {
-	.nopage = gfs2_private_nopage,
+	.fault = gfs2_private_fault,
 };
 
 struct vm_operations_struct gfs2_vm_ops_sharewrite = {
-	.nopage = gfs2_sharewrite_nopage,
+	.fault = gfs2_sharewrite_fault,
 };
 

@@ -67,6 +67,7 @@
 #define MIPS_REVISION_CORID_CORE_FPGAR2    8
 #define MIPS_REVISION_CORID_CORE_FPGA3     9
 #define MIPS_REVISION_CORID_CORE_24K       10
+#define MIPS_REVISION_CORID_CORE_FPGA4     11
 
 /**** Artificial corid defines ****/
 /*

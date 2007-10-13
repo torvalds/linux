@@ -228,7 +228,7 @@ static struct pnp_driver snd_mpu401_pnp_driver = {
 static struct pnp_driver snd_mpu401_pnp_driver;
 #endif
 
-static void __init_or_module snd_mpu401_unregister_all(void)
+static void snd_mpu401_unregister_all(void)
 {
 	int i;
 

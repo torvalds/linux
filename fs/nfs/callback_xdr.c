@@ -179,7 +179,7 @@ static __be32 decode_getattr_args(struct svc_rqst *rqstp, struct xdr_stream *xdr
 	args->addr = svc_addr_in(rqstp);
 	status = decode_bitmap(xdr, args->bitmap);
 out:
-	dprintk("%s: exit with status = %d\n", __FUNCTION__, status);
+	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(status));
 	return status;
 }
 
@@ -200,7 +200,7 @@ static __be32 decode_recall_args(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	args->truncate = ntohl(*p);
 	status = decode_fh(xdr, &args->fh);
 out:
-	dprintk("%s: exit with status = %d\n", __FUNCTION__, status);
+	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(status));
 	return status;
 }
 
@@ -349,7 +349,7 @@ static __be32 encode_getattr_res(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	status = encode_attr_mtime(xdr, res->bitmap, &res->mtime);
 	*savep = htonl((unsigned int)((char *)xdr->p - (char *)(savep+1)));
 out:
-	dprintk("%s: exit with status = %d\n", __FUNCTION__, status);
+	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(status));
 	return status;
 }
 
@@ -392,7 +392,7 @@ static __be32 process_op(struct svc_rqst *rqstp,
 		status = res;
 	if (op->encode_res != NULL && status == 0)
 		status = op->encode_res(rqstp, xdr_out, resp);
-	dprintk("%s: done, status = %d\n", __FUNCTION__, status);
+	dprintk("%s: done, status = %d\n", __FUNCTION__, ntohl(status));
 	return status;
 }
 
@@ -431,7 +431,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	}
 	*hdr_res.status = status;
 	*hdr_res.nops = htonl(nops);
-	dprintk("%s: done, status = %u\n", __FUNCTION__, status);
+	dprintk("%s: done, status = %u\n", __FUNCTION__, ntohl(status));
 	return rpc_success;
 }
 

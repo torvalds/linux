@@ -197,11 +197,13 @@ void pvr2_hdw_subsys_stream_bit_chg(struct pvr2_hdw *hdw,
 unsigned long pvr2_hdw_subsys_stream_get(struct pvr2_hdw *);
 
 
-/* Enable / disable retrieval of CPU firmware.  This must be enabled before
-   pvr2_hdw_cpufw_get() will function.  Note that doing this may prevent
-   the device from running (and leaving this mode may imply a device
-   reset). */
-void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *, int enable_flag);
+/* Enable / disable retrieval of CPU firmware or prom contents.  This must
+   be enabled before pvr2_hdw_cpufw_get() will function.  Note that doing
+   this may prevent the device from running (and leaving this mode may
+   imply a device reset). */
+void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *,
+				int prom_flag,
+				int enable_flag);
 
 /* Return true if we're in a mode for retrieval CPU firmware */
 int pvr2_hdw_cpufw_get_enabled(struct pvr2_hdw *);

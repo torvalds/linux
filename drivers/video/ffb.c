@@ -371,6 +371,8 @@ struct ffb_par {
 	unsigned long		fbsize;
 
 	int			board_type;
+
+	u32			pseudo_palette[16];
 };
 
 static void FFBFifo(struct ffb_par *par, int n)
@@ -900,75 +902,67 @@ ffb_init_fix(struct fb_info *info)
 	info->fix.accel = FB_ACCEL_SUN_CREATOR;
 }
 
-struct all_info {
-	struct fb_info info;
-	struct ffb_par par;
-	u32 pseudo_palette[16];
-};
-
-static int ffb_init_one(struct of_device *op)
+static int __devinit ffb_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
 	struct ffb_fbc __iomem *fbc;
 	struct ffb_dac __iomem *dac;
-	struct all_info *all;
-	int err;
+	struct fb_info *info;
+	struct ffb_par *par;
 	u32 dac_pnum, dac_rev, dac_mrev;
+	int err;
 
-	all = kzalloc(sizeof(*all), GFP_KERNEL);
-	if (!all)
-		return -ENOMEM;
+	info = framebuffer_alloc(sizeof(struct ffb_par), &op->dev);
 
-	spin_lock_init(&all->par.lock);
-	all->par.fbc = of_ioremap(&op->resource[2], 0,
-				  sizeof(struct ffb_fbc), "ffb fbc");
-	if (!all->par.fbc) {
-		kfree(all);
-		return -ENOMEM;
-	}
+	err = -ENOMEM;
+	if (!info)
+		goto out_err;
 
-	all->par.dac = of_ioremap(&op->resource[1], 0,
-				  sizeof(struct ffb_dac), "ffb dac");
-	if (!all->par.dac) {
-		of_iounmap(&op->resource[2],
-			   all->par.fbc, sizeof(struct ffb_fbc));
-		kfree(all);
-		return -ENOMEM;
-	}
+	par = info->par;
 
-	all->par.rop_cache = FFB_ROP_NEW;
-	all->par.physbase = op->resource[0].start;
+	spin_lock_init(&par->lock);
+	par->fbc = of_ioremap(&op->resource[2], 0,
+			      sizeof(struct ffb_fbc), "ffb fbc");
+	if (!par->fbc)
+		goto out_release_fb;
+
+	par->dac = of_ioremap(&op->resource[1], 0,
+			      sizeof(struct ffb_dac), "ffb dac");
+	if (!par->dac)
+		goto out_unmap_fbc;
+
+	par->rop_cache = FFB_ROP_NEW;
+	par->physbase = op->resource[0].start;
 
 	/* Don't mention copyarea, so SCROLL_REDRAW is always
 	 * used.  It is the fastest on this chip.
 	 */
-	all->info.flags = (FBINFO_DEFAULT |
-			   /* FBINFO_HWACCEL_COPYAREA | */
-			   FBINFO_HWACCEL_FILLRECT |
-			   FBINFO_HWACCEL_IMAGEBLIT);
-	all->info.fbops = &ffb_ops;
-	all->info.screen_base = (char *) all->par.physbase + FFB_DFB24_POFF;
-	all->info.par = &all->par;
-	all->info.pseudo_palette = all->pseudo_palette;
+	info->flags = (FBINFO_DEFAULT |
+		       /* FBINFO_HWACCEL_COPYAREA | */
+		       FBINFO_HWACCEL_FILLRECT |
+		       FBINFO_HWACCEL_IMAGEBLIT);
 
-	sbusfb_fill_var(&all->info.var, dp->node, 32);
-	all->par.fbsize = PAGE_ALIGN(all->info.var.xres *
-				     all->info.var.yres *
-				     4);
-	ffb_fixup_var_rgb(&all->info.var);
+	info->fbops = &ffb_ops;
 
-	all->info.var.accel_flags = FB_ACCELF_TEXT;
+	info->screen_base = (char *) par->physbase + FFB_DFB24_POFF;
+	info->pseudo_palette = par->pseudo_palette;
+
+	sbusfb_fill_var(&info->var, dp->node, 32);
+	par->fbsize = PAGE_ALIGN(info->var.xres * info->var.yres * 4);
+	ffb_fixup_var_rgb(&info->var);
+
+	info->var.accel_flags = FB_ACCELF_TEXT;
 
 	if (!strcmp(dp->name, "SUNW,afb"))
-		all->par.flags |= FFB_FLAG_AFB;
+		par->flags |= FFB_FLAG_AFB;
 
-	all->par.board_type = of_getintprop_default(dp, "board_type", 0);
+	par->board_type = of_getintprop_default(dp, "board_type", 0);
 
-	fbc = all->par.fbc;
+	fbc = par->fbc;
 	if ((upa_readl(&fbc->ucsr) & FFB_UCSR_ALL_ERRORS) != 0)
 		upa_writel(FFB_UCSR_ALL_ERRORS, &fbc->ucsr);
 
-	dac = all->par.dac;
+	dac = par->dac;
 	upa_writel(FFB_DAC_DID, &dac->type);
 	dac_pnum = upa_readl(&dac->value);
 	dac_rev = (dac_pnum & FFB_DAC_DID_REV) >> FFB_DAC_DID_REV_SHIFT;
@@ -985,76 +979,70 @@ static int ffb_init_one(struct of_device *op)
 	 * cursor logic.  We identify Pacifica 1 as not Pacifica 2, the
 	 * latter having a part number value of 0x236e.
 	 */
-	if ((all->par.flags & FFB_FLAG_AFB) || dac_pnum == 0x236e) {
-		all->par.flags &= ~FFB_FLAG_INVCURSOR;
+	if ((par->flags & FFB_FLAG_AFB) || dac_pnum == 0x236e) {
+		par->flags &= ~FFB_FLAG_INVCURSOR;
 	} else {
 		if (dac_mrev < 3)
-			all->par.flags |= FFB_FLAG_INVCURSOR;
+			par->flags |= FFB_FLAG_INVCURSOR;
 	}
 
-	ffb_switch_from_graph(&all->par);
+	ffb_switch_from_graph(par);
 
 	/* Unblank it just to be sure.  When there are multiple
 	 * FFB/AFB cards in the system, or it is not the OBP
 	 * chosen console, it will have video outputs off in
 	 * the DAC.
 	 */
-	ffb_blank(0, &all->info);
+	ffb_blank(0, info);
 
-	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		printk(KERN_ERR "ffb: Could not allocate color map.\n");
-		of_iounmap(&op->resource[2],
-			   all->par.fbc, sizeof(struct ffb_fbc));
-		of_iounmap(&op->resource[1],
-			   all->par.dac, sizeof(struct ffb_dac));
-		kfree(all);
-		return -ENOMEM;
-	}
+	if (fb_alloc_cmap(&info->cmap, 256, 0))
+		goto out_unmap_dac;
 
-	ffb_init_fix(&all->info);
+	ffb_init_fix(info);
 
-	err = register_framebuffer(&all->info);
-	if (err < 0) {
-		printk(KERN_ERR "ffb: Could not register framebuffer.\n");
-		fb_dealloc_cmap(&all->info.cmap);
-		of_iounmap(&op->resource[2],
-			   all->par.fbc, sizeof(struct ffb_fbc));
-		of_iounmap(&op->resource[1],
-			   all->par.dac, sizeof(struct ffb_dac));
-		kfree(all);
-		return err;
-	}
+	err = register_framebuffer(info);
+	if (err < 0)
+		goto out_dealloc_cmap;
 
-	dev_set_drvdata(&op->dev, all);
+	dev_set_drvdata(&op->dev, info);
 
 	printk("%s: %s at %016lx, type %d, "
 	       "DAC pnum[%x] rev[%d] manuf_rev[%d]\n",
 	       dp->full_name,
-	       ((all->par.flags & FFB_FLAG_AFB) ? "AFB" : "FFB"),
-	       all->par.physbase, all->par.board_type,
+	       ((par->flags & FFB_FLAG_AFB) ? "AFB" : "FFB"),
+	       par->physbase, par->board_type,
 	       dac_pnum, dac_rev, dac_mrev);
 
 	return 0;
-}
 
-static int __devinit ffb_probe(struct of_device *dev, const struct of_device_id *match)
-{
-	struct of_device *op = to_of_device(&dev->dev);
+out_dealloc_cmap:
+	fb_dealloc_cmap(&info->cmap);
 
-	return ffb_init_one(op);
+out_unmap_dac:
+	of_iounmap(&op->resource[2], par->fbc, sizeof(struct ffb_fbc));
+
+out_unmap_fbc:
+	of_iounmap(&op->resource[2], par->fbc, sizeof(struct ffb_fbc));
+
+out_release_fb:
+	framebuffer_release(info);
+
+out_err:
+	return err;
 }
 
 static int __devexit ffb_remove(struct of_device *op)
 {
-	struct all_info *all = dev_get_drvdata(&op->dev);
+	struct fb_info *info = dev_get_drvdata(&op->dev);
+	struct ffb_par *par = info->par;
 
-	unregister_framebuffer(&all->info);
-	fb_dealloc_cmap(&all->info.cmap);
+	unregister_framebuffer(info);
+	fb_dealloc_cmap(&info->cmap);
 
-	of_iounmap(&op->resource[2], all->par.fbc, sizeof(struct ffb_fbc));
-	of_iounmap(&op->resource[1], all->par.dac, sizeof(struct ffb_dac));
+	of_iounmap(&op->resource[2], par->fbc, sizeof(struct ffb_fbc));
+	of_iounmap(&op->resource[1], par->dac, sizeof(struct ffb_dac));
 
-	kfree(all);
+	framebuffer_release(info);
 
 	dev_set_drvdata(&op->dev, NULL);
 

@@ -106,7 +106,7 @@ deadline_add_request(struct request_queue *q, struct request *rq)
 /*
  * remove rq from rbtree and fifo.
  */
-static void deadline_remove_request(request_queue_t *q, struct request *rq)
+static void deadline_remove_request(struct request_queue *q, struct request *rq)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 
@@ -115,7 +115,7 @@ static void deadline_remove_request(request_queue_t *q, struct request *rq)
 }
 
 static int
-deadline_merge(request_queue_t *q, struct request **req, struct bio *bio)
+deadline_merge(struct request_queue *q, struct request **req, struct bio *bio)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 	struct request *__rq;
@@ -144,8 +144,8 @@ out:
 	return ret;
 }
 
-static void deadline_merged_request(request_queue_t *q, struct request *req,
-				    int type)
+static void deadline_merged_request(struct request_queue *q,
+				    struct request *req, int type)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 
@@ -159,7 +159,7 @@ static void deadline_merged_request(request_queue_t *q, struct request *req,
 }
 
 static void
-deadline_merged_requests(request_queue_t *q, struct request *req,
+deadline_merged_requests(struct request_queue *q, struct request *req,
 			 struct request *next)
 {
 	/*
@@ -185,7 +185,7 @@ deadline_merged_requests(request_queue_t *q, struct request *req,
 static inline void
 deadline_move_to_dispatch(struct deadline_data *dd, struct request *rq)
 {
-	request_queue_t *q = rq->q;
+	struct request_queue *q = rq->q;
 
 	deadline_remove_request(q, rq);
 	elv_dispatch_add_tail(q, rq);
@@ -236,7 +236,7 @@ static inline int deadline_check_fifo(struct deadline_data *dd, int ddir)
  * deadline_dispatch_requests selects the best request according to
  * read/write expire, fifo_batch, etc
  */
-static int deadline_dispatch_requests(request_queue_t *q, int force)
+static int deadline_dispatch_requests(struct request_queue *q, int force)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 	const int reads = !list_empty(&dd->fifo_list[READ]);
@@ -335,7 +335,7 @@ dispatch_request:
 	return 1;
 }
 
-static int deadline_queue_empty(request_queue_t *q)
+static int deadline_queue_empty(struct request_queue *q)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 
@@ -356,7 +356,7 @@ static void deadline_exit_queue(elevator_t *e)
 /*
  * initialize elevator private data (deadline_data).
  */
-static void *deadline_init_queue(request_queue_t *q)
+static void *deadline_init_queue(struct request_queue *q)
 {
 	struct deadline_data *dd;
 

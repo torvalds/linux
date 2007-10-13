@@ -85,10 +85,6 @@ static __inline__ int irq_canonicalize(int irq)
 	return ((irq == 2) ? 9 : irq);
 }
 
-extern void disable_irq(unsigned int);
-extern void disable_irq_nosync(unsigned int);
-extern void enable_irq(unsigned int);
-
 struct pt_regs;
 extern void (*perf_irq)(unsigned long, struct pt_regs *);
 

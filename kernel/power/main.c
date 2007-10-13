@@ -23,10 +23,14 @@
 
 #include "power.h"
 
-/*This is just an arbitrary number */
-#define FREE_PAGE_NUMBER (100)
+BLOCKING_NOTIFIER_HEAD(pm_chain_head);
 
 DEFINE_MUTEX(pm_mutex);
+
+#ifdef CONFIG_SUSPEND
+
+/* This is just an arbitrary number */
+#define FREE_PAGE_NUMBER (100)
 
 struct pm_ops *pm_ops;
 
@@ -63,20 +67,21 @@ static inline void pm_finish(suspend_state_t state)
 
 /**
  *	suspend_prepare - Do prep work before entering low-power state.
- *	@state:		State we're entering.
  *
- *	This is common code that is called for each state that we're 
- *	entering. Allocate a console, stop all processes, then make sure
- *	the platform can enter the requested state.
+ *	This is common code that is called for each state that we're entering.
+ *	Run suspend notifiers, allocate a console and stop all processes.
  */
-
-static int suspend_prepare(suspend_state_t state)
+static int suspend_prepare(void)
 {
 	int error;
 	unsigned int free_pages;
 
 	if (!pm_ops || !pm_ops->enter)
 		return -EPERM;
+
+	error = pm_notifier_call_chain(PM_SUSPEND_PREPARE);
+	if (error)
+		goto Finish;
 
 	pm_prepare_console();
 
@@ -85,46 +90,23 @@ static int suspend_prepare(suspend_state_t state)
 		goto Thaw;
 	}
 
-	if ((free_pages = global_page_state(NR_FREE_PAGES))
-			< FREE_PAGE_NUMBER) {
+	free_pages = global_page_state(NR_FREE_PAGES);
+	if (free_pages < FREE_PAGE_NUMBER) {
 		pr_debug("PM: free some memory\n");
 		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
 		if (nr_free_pages() < FREE_PAGE_NUMBER) {
 			error = -ENOMEM;
 			printk(KERN_ERR "PM: No enough memory\n");
-			goto Thaw;
 		}
 	}
-
-	if (pm_ops->set_target) {
-		error = pm_ops->set_target(state);
-		if (error)
-			goto Thaw;
-	}
-	suspend_console();
-	error = device_suspend(PMSG_SUSPEND);
-	if (error) {
-		printk(KERN_ERR "Some devices failed to suspend\n");
-		goto Resume_console;
-	}
-	if (pm_ops->prepare) {
-		if ((error = pm_ops->prepare(state)))
-			goto Resume_devices;
-	}
-
-	error = disable_nonboot_cpus();
 	if (!error)
 		return 0;
 
-	enable_nonboot_cpus();
-	pm_finish(state);
- Resume_devices:
-	device_resume();
- Resume_console:
-	resume_console();
  Thaw:
 	thaw_processes();
 	pm_restore_console();
+ Finish:
+	pm_notifier_call_chain(PM_POST_SUSPEND);
 	return error;
 }
 
@@ -140,6 +122,12 @@ void __attribute__ ((weak)) arch_suspend_enable_irqs(void)
 	local_irq_enable();
 }
 
+/**
+ *	suspend_enter - enter the desired system sleep state.
+ *	@state:		state to enter
+ *
+ *	This function should be called after devices have been suspended.
+ */
 int suspend_enter(suspend_state_t state)
 {
 	int error = 0;
@@ -159,23 +147,58 @@ int suspend_enter(suspend_state_t state)
 	return error;
 }
 
+/**
+ *	suspend_devices_and_enter - suspend devices and enter the desired system sleep
+ *			  state.
+ *	@state:		  state to enter
+ */
+int suspend_devices_and_enter(suspend_state_t state)
+{
+	int error;
+
+	if (!pm_ops)
+		return -ENOSYS;
+
+	if (pm_ops->set_target) {
+		error = pm_ops->set_target(state);
+		if (error)
+			return error;
+	}
+	suspend_console();
+	error = device_suspend(PMSG_SUSPEND);
+	if (error) {
+		printk(KERN_ERR "Some devices failed to suspend\n");
+		goto Resume_console;
+	}
+	if (pm_ops->prepare) {
+		error = pm_ops->prepare(state);
+		if (error)
+			goto Resume_devices;
+	}
+	error = disable_nonboot_cpus();
+	if (!error)
+		suspend_enter(state);
+
+	enable_nonboot_cpus();
+	pm_finish(state);
+ Resume_devices:
+	device_resume();
+ Resume_console:
+	resume_console();
+	return error;
+}
 
 /**
  *	suspend_finish - Do final work before exiting suspend sequence.
- *	@state:		State we're coming out of.
  *
  *	Call platform code to clean up, restart processes, and free the 
  *	console that we've allocated. This is not called for suspend-to-disk.
  */
-
-static void suspend_finish(suspend_state_t state)
+static void suspend_finish(void)
 {
-	enable_nonboot_cpus();
-	pm_finish(state);
-	device_resume();
-	resume_console();
 	thaw_processes();
 	pm_restore_console();
+	pm_notifier_call_chain(PM_POST_SUSPEND);
 }
 
 
@@ -207,7 +230,6 @@ static inline int valid_state(suspend_state_t state)
  *	Then, do the setup for suspend, enter the state, and cleaup (after
  *	we've woken up).
  */
-
 static int enter_state(suspend_state_t state)
 {
 	int error;
@@ -218,14 +240,14 @@ static int enter_state(suspend_state_t state)
 		return -EBUSY;
 
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
-	if ((error = suspend_prepare(state)))
+	if ((error = suspend_prepare()))
 		goto Unlock;
 
 	pr_debug("PM: Entering %s sleep\n", pm_states[state]);
-	error = suspend_enter(state);
+	error = suspend_devices_and_enter(state);
 
 	pr_debug("PM: Finishing wakeup.\n");
-	suspend_finish(state);
+	suspend_finish();
  Unlock:
 	mutex_unlock(&pm_mutex);
 	return error;
@@ -249,6 +271,8 @@ int pm_suspend(suspend_state_t state)
 
 EXPORT_SYMBOL(pm_suspend);
 
+#endif /* CONFIG_SUSPEND */
+
 decl_subsys(power,NULL,NULL);
 
 
@@ -265,14 +289,16 @@ decl_subsys(power,NULL,NULL);
 
 static ssize_t state_show(struct kset *kset, char *buf)
 {
+	char *s = buf;
+#ifdef CONFIG_SUSPEND
 	int i;
-	char * s = buf;
 
 	for (i = 0; i < PM_SUSPEND_MAX; i++) {
 		if (pm_states[i] && valid_state(i))
 			s += sprintf(s,"%s ", pm_states[i]);
 	}
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#endif
+#ifdef CONFIG_HIBERNATION
 	s += sprintf(s, "%s\n", "disk");
 #else
 	if (s != buf)
@@ -284,11 +310,13 @@ static ssize_t state_show(struct kset *kset, char *buf)
 
 static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 {
+#ifdef CONFIG_SUSPEND
 	suspend_state_t state = PM_SUSPEND_STANDBY;
 	const char * const *s;
+#endif
 	char *p;
-	int error;
 	int len;
+	int error = -EINVAL;
 
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
@@ -296,17 +324,19 @@ static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 	/* First, check if we are requested to hibernate */
 	if (len == 4 && !strncmp(buf, "disk", len)) {
 		error = hibernate();
-		return error ? error : n;
+  goto Exit;
 	}
 
+#ifdef CONFIG_SUSPEND
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
 		if (*s && len == strlen(*s) && !strncmp(buf, *s, len))
 			break;
 	}
 	if (state < PM_SUSPEND_MAX && *s)
 		error = enter_state(state);
-	else
-		error = -EINVAL;
+#endif
+
+ Exit:
 	return error ? error : n;
 }
 

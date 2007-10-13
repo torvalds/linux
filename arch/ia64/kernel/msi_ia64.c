@@ -13,6 +13,7 @@
 
 #define MSI_DATA_VECTOR_SHIFT		0
 #define	    MSI_DATA_VECTOR(v)		(((u8)v) << MSI_DATA_VECTOR_SHIFT)
+#define MSI_DATA_VECTOR_MASK		0xffffff00
 
 #define MSI_DATA_DELIVERY_SHIFT		8
 #define     MSI_DATA_DELIVERY_FIXED	(0 << MSI_DATA_DELIVERY_SHIFT)
@@ -50,17 +51,29 @@ static struct irq_chip	ia64_msi_chip;
 static void ia64_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 {
 	struct msi_msg msg;
-	u32 addr;
+	u32 addr, data;
+	int cpu = first_cpu(cpu_mask);
+
+	if (!cpu_online(cpu))
+		return;
+
+	if (reassign_irq_vector(irq, cpu))
+		return;
 
 	read_msi_msg(irq, &msg);
 
 	addr = msg.address_lo;
 	addr &= MSI_ADDR_DESTID_MASK;
-	addr |= MSI_ADDR_DESTID_CPU(cpu_physical_id(first_cpu(cpu_mask)));
+	addr |= MSI_ADDR_DESTID_CPU(cpu_physical_id(cpu));
 	msg.address_lo = addr;
 
+	data = msg.data;
+	data &= MSI_DATA_VECTOR_MASK;
+	data |= MSI_DATA_VECTOR(irq_to_vector(irq));
+	msg.data = data;
+
 	write_msi_msg(irq, &msg);
-	irq_desc[irq].affinity = cpu_mask;
+	irq_desc[irq].affinity = cpumask_of_cpu(cpu);
 }
 #endif /* CONFIG_SMP */
 
@@ -69,13 +82,15 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	struct msi_msg	msg;
 	unsigned long	dest_phys_id;
 	int	irq, vector;
+	cpumask_t mask;
 
 	irq = create_irq();
 	if (irq < 0)
 		return irq;
 
 	set_irq_msi(irq, desc);
-	dest_phys_id = cpu_physical_id(first_cpu(cpu_online_map));
+	cpus_and(mask, irq_to_domain(irq), cpu_online_map);
+	dest_phys_id = cpu_physical_id(first_cpu(mask));
 	vector = irq_to_vector(irq);
 
 	msg.address_hi = 0;

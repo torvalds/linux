@@ -103,6 +103,7 @@
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/af_unix.h>
@@ -118,13 +119,39 @@
 
 int sysctl_unix_max_dgram_qlen __read_mostly = 10;
 
-struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
-DEFINE_SPINLOCK(unix_table_lock);
+static struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
+static DEFINE_SPINLOCK(unix_table_lock);
 static atomic_t unix_nr_socks = ATOMIC_INIT(0);
 
 #define unix_sockets_unbound	(&unix_socket_table[UNIX_HASH_SIZE])
 
 #define UNIX_ABSTRACT(sk)	(unix_sk(sk)->addr->hash != UNIX_HASH_SIZE)
+
+static struct sock *first_unix_socket(int *i)
+{
+	for (*i = 0; *i <= UNIX_HASH_SIZE; (*i)++) {
+		if (!hlist_empty(&unix_socket_table[*i]))
+			return __sk_head(&unix_socket_table[*i]);
+	}
+	return NULL;
+}
+
+static struct sock *next_unix_socket(int *i, struct sock *s)
+{
+	struct sock *next = sk_next(s);
+	/* More in this chain? */
+	if (next)
+		return next;
+	/* Look for next non-empty chain. */
+	for ((*i)++; *i <= UNIX_HASH_SIZE; (*i)++) {
+		if (!hlist_empty(&unix_socket_table[*i]))
+			return __sk_head(&unix_socket_table[*i]);
+	}
+	return NULL;
+}
+
+#define forall_unix_sockets(i, s) \
+	for (s = first_unix_socket(&(i)); s; s = next_unix_socket(&(i),(s)))
 
 #ifdef CONFIG_SECURITY_NETWORK
 static void unix_get_secdata(struct scm_cookie *scm, struct sk_buff *skb)
@@ -567,7 +594,7 @@ static struct proto unix_proto = {
  */
 static struct lock_class_key af_unix_sk_receive_queue_lock_key;
 
-static struct sock * unix_create1(struct socket *sock)
+static struct sock * unix_create1(struct net *net, struct socket *sock)
 {
 	struct sock *sk = NULL;
 	struct unix_sock *u;
@@ -575,7 +602,7 @@ static struct sock * unix_create1(struct socket *sock)
 	if (atomic_read(&unix_nr_socks) >= 2*get_max_files())
 		goto out;
 
-	sk = sk_alloc(PF_UNIX, GFP_KERNEL, &unix_proto, 1);
+	sk = sk_alloc(net, PF_UNIX, GFP_KERNEL, &unix_proto, 1);
 	if (!sk)
 		goto out;
 
@@ -601,8 +628,11 @@ out:
 	return sk;
 }
 
-static int unix_create(struct socket *sock, int protocol)
+static int unix_create(struct net *net, struct socket *sock, int protocol)
 {
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
+
 	if (protocol && protocol != PF_UNIX)
 		return -EPROTONOSUPPORT;
 
@@ -628,7 +658,7 @@ static int unix_create(struct socket *sock, int protocol)
 		return -ESOCKTNOSUPPORT;
 	}
 
-	return unix_create1(sock) ? 0 : -ENOMEM;
+	return unix_create1(net, sock) ? 0 : -ENOMEM;
 }
 
 static int unix_release(struct socket *sock)
@@ -1012,7 +1042,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	err = -ENOMEM;
 
 	/* create new sock for complete connection */
-	newsk = unix_create1(NULL);
+	newsk = unix_create1(sk->sk_net, NULL);
 	if (newsk == NULL)
 		goto out;
 
@@ -2056,25 +2086,7 @@ static const struct seq_operations unix_seq_ops = {
 
 static int unix_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	int *iter = kmalloc(sizeof(int), GFP_KERNEL);
-
-	if (!iter)
-		goto out;
-
-	rc = seq_open(file, &unix_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = iter;
-	*iter = 0;
-out:
-	return rc;
-out_kfree:
-	kfree(iter);
-	goto out;
+	return seq_open_private(file, &unix_seq_ops, sizeof(int));
 }
 
 static const struct file_operations unix_seq_fops = {
@@ -2109,7 +2121,7 @@ static int __init af_unix_init(void)
 
 	sock_register(&unix_family_ops);
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create("unix", 0, &unix_seq_fops);
+	proc_net_fops_create(&init_net, "unix", 0, &unix_seq_fops);
 #endif
 	unix_sysctl_register();
 out:
@@ -2120,7 +2132,7 @@ static void __exit af_unix_exit(void)
 {
 	sock_unregister(PF_UNIX);
 	unix_sysctl_unregister();
-	proc_net_remove("unix");
+	proc_net_remove(&init_net, "unix");
 	proto_unregister(&unix_proto);
 }
 

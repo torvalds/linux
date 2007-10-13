@@ -347,7 +347,8 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 {
 	struct dvb_net_priv *priv = dev->priv;
 	unsigned long skipped = 0L;
-	u8 *ts, *ts_end, *from_where = NULL, ts_remain = 0, how_much = 0, new_ts = 1;
+	const u8 *ts, *ts_end, *from_where = NULL;
+	u8 ts_remain = 0, how_much = 0, new_ts = 1;
 	struct ethhdr *ethh = NULL;
 
 #ifdef ULE_DEBUG
@@ -356,15 +357,10 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 	static unsigned char *ule_where = ule_hist, ule_dump = 0;
 #endif
 
-	if (dev == NULL) {
-		printk( KERN_ERR "NO netdev struct!\n" );
-		return;
-	}
-
 	/* For all TS cells in current buffer.
 	 * Appearently, we are called for every single TS cell.
 	 */
-	for (ts = (char *)buf, ts_end = (char *)buf + buf_len; ts < ts_end; /* no default incr. */ ) {
+	for (ts = buf, ts_end = buf + buf_len; ts < ts_end; /* no default incr. */ ) {
 
 		if (new_ts) {
 			/* We are about to process a new TS cell. */
@@ -799,7 +795,8 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 }
 
 
-static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
+static void dvb_net_sec(struct net_device *dev,
+			const u8 *pkt, int pkt_len)
 {
 	u8 *eth;
 	struct sk_buff *skb;
@@ -901,7 +898,7 @@ static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
 	 * we rely on the DVB API definition where exactly one complete
 	 * section is delivered in buffer1
 	 */
-	dvb_net_sec (dev, (u8*) buffer1, buffer1_len);
+	dvb_net_sec (dev, buffer1, buffer1_len);
 	return 0;
 }
 
@@ -1223,10 +1220,17 @@ static struct net_device_stats * dvb_net_get_stats(struct net_device *dev)
 	return &((struct dvb_net_priv*) dev->priv)->stats;
 }
 
+static const struct header_ops dvb_header_ops = {
+	.create		= eth_header,
+	.parse		= eth_header_parse,
+	.rebuild	= eth_rebuild_header,
+};
+
 static void dvb_net_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
+	dev->header_ops		= &dvb_header_ops;
 	dev->open		= dvb_net_open;
 	dev->stop		= dvb_net_stop;
 	dev->hard_start_xmit	= dvb_net_tx;
@@ -1235,7 +1239,7 @@ static void dvb_net_setup(struct net_device *dev)
 	dev->set_mac_address    = dvb_net_set_mac;
 	dev->mtu		= 4096;
 	dev->mc_count           = 0;
-	dev->hard_header_cache  = NULL;
+
 	dev->flags |= IFF_NOARP;
 }
 
@@ -1444,18 +1448,9 @@ static int dvb_net_close(struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_net *dvbnet = dvbdev->priv;
 
-	if (!dvbdev)
-		return -ENODEV;
+	dvb_generic_release(inode, file);
 
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
-		dvbdev->readers++;
-	} else {
-		dvbdev->writers++;
-	}
-
-	dvbdev->users++;
-
-	if(dvbdev->users == 1 && dvbnet->exit==1) {
+	if(dvbdev->users == 1 && dvbnet->exit == 1) {
 		fops_put(file->f_op);
 		file->f_op = NULL;
 		wake_up(&dvbdev->wait_queue);

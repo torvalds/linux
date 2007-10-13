@@ -1,3 +1,13 @@
+Version 1.50
+------------
+Fix NTLMv2 signing. NFS server mounted over cifs works (if cifs mount is
+done with "serverino" mount option).  Add support for POSIX Unlink
+(helps with certain sharing violation cases when server such as
+Samba supports newer POSIX CIFS Protocol Extensions). Add "nounix"
+mount option to allow disabling the CIFS Unix Extensions for just
+that mount. Fix hang on spinlock in find_writable_file (race when
+reopening file after session crash).
+
 Version 1.49
 ------------
 IPv6 support.  Enable ipv6 addresses to be passed on mount (put the ipv6
@@ -8,7 +18,11 @@ when Unix Extensions were ignored).  This allows users to override the
 default uid and gid for files when they are certain that the uids or
 gids on the server do not match those of the client.  Make "sec=none"
 mount override username (so that null user connection is attempted)
-to match what documentation said.
+to match what documentation said. Support for very large reads, over 127K,
+available to some newer servers (such as Samba 3.0.26 and later but
+note that it also requires setting CIFSMaxBufSize at module install
+time to a larger value which may hurt performance in some cases).
+Make sign option force signing (or fail if server does not support it).
 
 Version 1.48
 ------------

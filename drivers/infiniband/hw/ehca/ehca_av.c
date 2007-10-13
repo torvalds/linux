@@ -79,7 +79,7 @@ struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 			av->av.ipd = (ah_mult > 0) ?
 				((ehca_mult - 1) / ah_mult) : 0;
 	} else
-	        av->av.ipd = ehca_static_rate;
+		av->av.ipd = ehca_static_rate;
 
 	av->av.lnh = ah_attr->ah_flags;
 	av->av.grh.word_0 = EHCA_BMASK_SET(GRH_IPVERSION_MASK, 6);
@@ -259,7 +259,7 @@ int ehca_init_av_cache(void)
 	av_cache = kmem_cache_create("ehca_cache_av",
 				   sizeof(struct ehca_av), 0,
 				   SLAB_HWCACHE_ALIGN,
-				   NULL, NULL);
+				   NULL);
 	if (!av_cache)
 		return -ENOMEM;
 	return 0;

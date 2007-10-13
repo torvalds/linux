@@ -8,10 +8,6 @@
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without
  * any warranty of any kind, whether express or implied.
- *
- * To build:
- *   dtc -I dts -O asm -o holly.S -b 0 holly.dts
- *   dtc -I dts -O dtb -o holly.dtb -b 0 holly.dts
  */
 
 / {
@@ -35,7 +31,6 @@
 			timebase-frequency = <2faf080>;
 			clock-frequency = <23c34600>;
 			bus-frequency = <bebc200>;
-			32-bit;
 		};
 	};
 

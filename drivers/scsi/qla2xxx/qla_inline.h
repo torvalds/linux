@@ -104,7 +104,7 @@ static __inline__ void qla2x00_poll(scsi_qla_host_t *);
 static inline void
 qla2x00_poll(scsi_qla_host_t *ha)
 {
-	ha->isp_ops.intr_handler(0, ha);
+	ha->isp_ops->intr_handler(0, ha);
 }
 
 static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *);
@@ -163,7 +163,7 @@ static inline int qla2x00_is_reserved_id(scsi_qla_host_t *, uint16_t);
 static inline int
 qla2x00_is_reserved_id(scsi_qla_host_t *ha, uint16_t loop_id)
 {
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+	if (IS_FWI2_CAPABLE(ha))
 		return (loop_id > NPH_LAST_HANDLE);
 
 	return ((loop_id > ha->last_loop_id && loop_id < SNS_FIRST_LOOP_ID) ||

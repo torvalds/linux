@@ -2897,6 +2897,10 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 	}
 #endif
 	
+#ifdef CONFIG_PM
+	kfree(chip->saved_regs);
+#endif
+
 	pci_disable_device(chip->pci);
 	kfree(chip);
 	return 0;
@@ -3140,6 +3144,23 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 /*
  *  start and load DSP 
  */
+
+static void cs46xx_enable_stream_irqs(struct snd_cs46xx *chip)
+{
+	unsigned int tmp;
+
+	snd_cs46xx_pokeBA0(chip, BA0_HICR, HICR_IEV | HICR_CHGM);
+        
+	tmp = snd_cs46xx_peek(chip, BA1_PFIE);
+	tmp &= ~0x0000f03f;
+	snd_cs46xx_poke(chip, BA1_PFIE, tmp);	/* playback interrupt enable */
+
+	tmp = snd_cs46xx_peek(chip, BA1_CIE);
+	tmp &= ~0x0000003f;
+	tmp |=  0x00000001;
+	snd_cs46xx_poke(chip, BA1_CIE, tmp);	/* capture interrupt enable */
+}
+
 int __devinit snd_cs46xx_start_dsp(struct snd_cs46xx *chip)
 {	
 	unsigned int tmp;
@@ -3214,19 +3235,7 @@ int __devinit snd_cs46xx_start_dsp(struct snd_cs46xx *chip)
 
 	snd_cs46xx_proc_start(chip);
 
-	/*
-	 *  Enable interrupts on the part.
-	 */
-	snd_cs46xx_pokeBA0(chip, BA0_HICR, HICR_IEV | HICR_CHGM);
-        
-	tmp = snd_cs46xx_peek(chip, BA1_PFIE);
-	tmp &= ~0x0000f03f;
-	snd_cs46xx_poke(chip, BA1_PFIE, tmp);	/* playback interrupt enable */
-
-	tmp = snd_cs46xx_peek(chip, BA1_CIE);
-	tmp &= ~0x0000003f;
-	tmp |=  0x00000001;
-	snd_cs46xx_poke(chip, BA1_CIE, tmp);	/* capture interrupt enable */
+	cs46xx_enable_stream_irqs(chip);
 	
 #ifndef CONFIG_SND_CS46XX_NEW_DSP
 	/* set the attenuation to 0dB */ 
@@ -3665,11 +3674,19 @@ static struct cs_card_type __devinitdata cards[] = {
  * APM support
  */
 #ifdef CONFIG_PM
+static unsigned int saved_regs[] = {
+	BA0_ACOSV,
+	BA0_ASER_FADDR,
+	BA0_ASER_MASTER,
+	BA1_PVOL,
+	BA1_CVOL,
+};
+
 int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_cs46xx *chip = card->private_data;
-	int amp_saved;
+	int i, amp_saved;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->in_suspend = 1;
@@ -3679,6 +3696,10 @@ int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
 
 	snd_ac97_suspend(chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]);
 	snd_ac97_suspend(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
+
+	/* save some registers */
+	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
+		chip->saved_regs[i] = snd_cs46xx_peekBA0(chip, saved_regs[i]);
 
 	amp_saved = chip->amplifier;
 	/* turn off amp */
@@ -3698,7 +3719,7 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_cs46xx *chip = card->private_data;
-	int amp_saved;
+	int i, amp_saved;
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
@@ -3716,6 +3737,16 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 
 	snd_cs46xx_chip_init(chip);
 
+	snd_cs46xx_reset(chip);
+#ifdef CONFIG_SND_CS46XX_NEW_DSP
+	cs46xx_dsp_resume(chip);
+	/* restore some registers */
+	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
+		snd_cs46xx_pokeBA0(chip, saved_regs[i], chip->saved_regs[i]);
+#else
+	snd_cs46xx_download_image(chip);
+#endif
+
 #if 0
 	snd_cs46xx_codec_write(chip, BA0_AC97_GENERAL_PURPOSE, 
 			       chip->ac97_general_purpose);
@@ -3729,6 +3760,13 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 
 	snd_ac97_resume(chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]);
 	snd_ac97_resume(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
+
+	/* reset playback/capture */
+	snd_cs46xx_set_play_sample_rate(chip, 8000);
+	snd_cs46xx_set_capture_sample_rate(chip, 8000);
+	snd_cs46xx_proc_start(chip);
+
+	cs46xx_enable_stream_irqs(chip);
 
 	if (amp_saved)
 		chip->amplifier_ctrl(chip, 1); /* turn amp on */
@@ -3895,6 +3933,15 @@ int __devinit snd_cs46xx_create(struct snd_card *card,
 	}
 	
 	snd_cs46xx_proc_init(card, chip);
+
+#ifdef CONFIG_PM
+	chip->saved_regs = kmalloc(sizeof(*chip->saved_regs) *
+				   ARRAY_SIZE(saved_regs), GFP_KERNEL);
+	if (!chip->saved_regs) {
+		snd_cs46xx_free(chip);
+		return -ENOMEM;
+	}
+#endif
 
 	chip->active_ctrl(chip, -1); /* disable CLKRUN */
 

@@ -38,7 +38,7 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/leds-gpio.h>
 
-#include <asm/arch/nand.h>
+#include <asm/plat-s3c/nand.h>
 
 #include <asm/plat-s3c24xx/common-smdk.h>
 #include <asm/plat-s3c24xx/devs.h>

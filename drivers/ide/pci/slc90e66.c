@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.14	February 8, 2007
+ *  linux/drivers/ide/pci/slc90e66.c	Version 0.16	Jul 14, 2007
  *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
@@ -29,20 +29,14 @@ static u8 slc90e66_dma_2_pio (u8 xfer_rate) {
 		case XFER_UDMA_1:
 		case XFER_UDMA_0:
 		case XFER_MW_DMA_2:
-		case XFER_PIO_4:
 			return 4;
 		case XFER_MW_DMA_1:
-		case XFER_PIO_3:
 			return 3;
 		case XFER_SW_DMA_2:
-		case XFER_PIO_2:
 			return 2;
 		case XFER_MW_DMA_0:
 		case XFER_SW_DMA_1:
 		case XFER_SW_DMA_0:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-		case XFER_PIO_SLOW:
 		default:
 			return 0;
 	}
@@ -101,19 +95,17 @@ static void slc90e66_tune_pio (ide_drive_t *drive, u8 pio)
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
-static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
+static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
 	slc90e66_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 maslave		= hwif->channel ? 0x42 : 0x40;
-	u8 speed		= ide_rate_filter(drive, xferspeed);
 	int sitre = 0, a_speed	= 7 << (drive->dn * 4);
 	int u_speed = 0, u_flag = 1 << drive->dn;
 	u16			reg4042, reg44, reg48, reg4a;
@@ -133,10 +125,6 @@ static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:	break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_0:        break;
 		default:		return -1;
 	}
 
@@ -157,6 +145,7 @@ static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	}
 
 	slc90e66_tune_pio(drive, slc90e66_dma_2_pio(speed));
+
 	return ide_config_drive_speed(drive, speed);
 }
 
@@ -168,7 +157,7 @@ static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		slc90e66_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -184,7 +173,7 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 		hwif->irq = hwif->channel ? 15 : 14;
 
 	hwif->speedproc = &slc90e66_tune_chipset;
-	hwif->tuneproc	= &slc90e66_tune_drive;
+	hwif->set_pio_mode = &slc90e66_set_pio_mode;
 
 	pci_read_config_byte(hwif->pci_dev, 0x47, &reg47);
 
@@ -214,10 +203,10 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 static ide_pci_device_t slc90e66_chipset __devinitdata = {
 	.name		= "SLC90E66",
 	.init_hwif	= init_hwif_slc90e66,
-	.channels	= 2,
 	.autodma	= AUTODMA,
 	.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}},
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit slc90e66_init_one(struct pci_dev *dev, const struct pci_device_id *id)

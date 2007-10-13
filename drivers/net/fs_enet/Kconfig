@@ -11,6 +11,7 @@ config FS_ENET_HAS_SCC
 config FS_ENET_HAS_FCC
 	bool "Chip has an FCC usable for ethernet"
 	depends on FS_ENET && CPM2
+	select MDIO_BITBANG
 	default y
 
 config FS_ENET_HAS_FEC

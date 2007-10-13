@@ -17,6 +17,7 @@
 
 #include <linux/oom.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/swap.h>
 #include <linux/timex.h>
@@ -156,7 +157,7 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	}
 
 #ifdef DEBUG
-	printk(KERN_DEBUG "OOMkill: task %d (%s) got %d points\n",
+	printk(KERN_DEBUG "OOMkill: task %d (%s) got %lu points\n",
 	p->pid, p->comm, points);
 #endif
 	return points;

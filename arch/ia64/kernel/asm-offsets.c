@@ -7,6 +7,7 @@
 #define ASM_OFFSETS_C 1
 
 #include <linux/sched.h>
+#include <linux/clocksource.h>
 
 #include <asm-ia64/processor.h>
 #include <asm-ia64/ptrace.h>
@@ -15,6 +16,7 @@
 #include <asm-ia64/mca.h>
 
 #include "../kernel/sigframe.h"
+#include "../kernel/fsyscall_gtod_data.h"
 
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -256,17 +258,24 @@ void foo(void)
 	BLANK();
 
 	/* used by fsys_gettimeofday in arch/ia64/kernel/fsys.S */
-	DEFINE(IA64_TIME_INTERPOLATOR_ADDRESS_OFFSET, offsetof (struct time_interpolator, addr));
-	DEFINE(IA64_TIME_INTERPOLATOR_SOURCE_OFFSET, offsetof (struct time_interpolator, source));
-	DEFINE(IA64_TIME_INTERPOLATOR_SHIFT_OFFSET, offsetof (struct time_interpolator, shift));
-	DEFINE(IA64_TIME_INTERPOLATOR_NSEC_OFFSET, offsetof (struct time_interpolator, nsec_per_cyc));
-	DEFINE(IA64_TIME_INTERPOLATOR_OFFSET_OFFSET, offsetof (struct time_interpolator, offset));
-	DEFINE(IA64_TIME_INTERPOLATOR_LAST_CYCLE_OFFSET, offsetof (struct time_interpolator, last_cycle));
-	DEFINE(IA64_TIME_INTERPOLATOR_LAST_COUNTER_OFFSET, offsetof (struct time_interpolator, last_counter));
-	DEFINE(IA64_TIME_INTERPOLATOR_JITTER_OFFSET, offsetof (struct time_interpolator, jitter));
-	DEFINE(IA64_TIME_INTERPOLATOR_MASK_OFFSET, offsetof (struct time_interpolator, mask));
-	DEFINE(IA64_TIME_SOURCE_CPU, TIME_SOURCE_CPU);
-	DEFINE(IA64_TIME_SOURCE_MMIO64, TIME_SOURCE_MMIO64);
-	DEFINE(IA64_TIME_SOURCE_MMIO32, TIME_SOURCE_MMIO32);
-	DEFINE(IA64_TIMESPEC_TV_NSEC_OFFSET, offsetof (struct timespec, tv_nsec));
+	DEFINE(IA64_GTOD_LOCK_OFFSET,
+		offsetof (struct fsyscall_gtod_data_t, lock));
+	DEFINE(IA64_GTOD_WALL_TIME_OFFSET,
+		offsetof (struct fsyscall_gtod_data_t, wall_time));
+	DEFINE(IA64_GTOD_MONO_TIME_OFFSET,
+		offsetof (struct fsyscall_gtod_data_t, monotonic_time));
+	DEFINE(IA64_CLKSRC_MASK_OFFSET,
+		offsetof (struct fsyscall_gtod_data_t, clk_mask));
+	DEFINE(IA64_CLKSRC_MULT_OFFSET,
+		offsetof (struct fsyscall_gtod_data_t, clk_mult));
+	DEFINE(IA64_CLKSRC_SHIFT_OFFSET,
+		offsetof (struct fsyscall_gtod_data_t, clk_shift));
+	DEFINE(IA64_CLKSRC_MMIO_OFFSET,
+		offsetof (struct fsyscall_gtod_data_t, clk_fsys_mmio));
+	DEFINE(IA64_CLKSRC_CYCLE_LAST_OFFSET,
+		offsetof (struct fsyscall_gtod_data_t, clk_cycle_last));
+	DEFINE(IA64_ITC_JITTER_OFFSET,
+		offsetof (struct itc_jitter_data_t, itc_jitter));
+	DEFINE(IA64_ITC_LASTCYCLE_OFFSET,
+		offsetof (struct itc_jitter_data_t, itc_lastcycle));
 }

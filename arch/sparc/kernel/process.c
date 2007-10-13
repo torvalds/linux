@@ -39,6 +39,7 @@
 #include <asm/processor.h>
 #include <asm/psr.h>
 #include <asm/elf.h>
+#include <asm/prom.h>
 #include <asm/unistd.h>
 
 /* 
@@ -150,7 +151,7 @@ void machine_halt(void)
 	local_irq_enable();
 	mdelay(8);
 	local_irq_disable();
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette (1);
 	prom_halt();
 	panic("Halt failed!");
@@ -166,7 +167,7 @@ void machine_restart(char * cmd)
 
 	p = strchr (reboot_command, '\n');
 	if (p) *p = 0;
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette (1);
 	if (cmd)
 		prom_reboot(cmd);
@@ -179,7 +180,8 @@ void machine_restart(char * cmd)
 void machine_power_off(void)
 {
 #ifdef CONFIG_SUN_AUXIO
-	if (auxio_power_register && (!serial_console || scons_pwroff))
+	if (auxio_power_register &&
+	    (strcmp(of_console_device->type, "serial") || scons_pwroff))
 		*auxio_power_register |= AUXIO_POWER_OFF;
 #endif
 	machine_halt();

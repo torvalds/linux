@@ -152,7 +152,6 @@ struct lance_private {
 	struct lance_memory	*mem;
      	int new_rx, new_tx;	/* The next free ring entry */
 	int old_tx, old_rx;     /* ring entry to be processed */
-	struct net_device_stats stats;
 /* These two must be longs for set_bit() */
 	long	    tx_full;
 	long	    lock;
@@ -241,7 +240,6 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev );
 static irqreturn_t lance_interrupt( int irq, void *dev_id);
 static int lance_rx( struct net_device *dev );
 static int lance_close( struct net_device *dev );
-static struct net_device_stats *lance_get_stats( struct net_device *dev );
 static void set_multicast_list( struct net_device *dev );
 
 /************************* End of Prototypes **************************/
@@ -274,7 +272,6 @@ struct net_device * __init sun3lance_probe(int unit)
 		sprintf(dev->name, "eth%d", unit);
 		netdev_boot_setup_check(dev);
 	}
-	SET_MODULE_OWNER(dev);
 
 	if (!lance_probe(dev))
 		goto out;
@@ -303,6 +300,7 @@ static int __init lance_probe( struct net_device *dev)
 	static int 		did_version;
 	volatile unsigned short *ioaddr_probe;
 	unsigned short tmp1, tmp2;
+	DECLARE_MAC_BUF(mac);
 
 #ifdef CONFIG_SUN3
 	ioaddr = (unsigned long)ioremap(LANCE_OBIO, PAGE_SIZE);
@@ -378,8 +376,7 @@ static int __init lance_probe( struct net_device *dev)
 	MEM->init.hwaddr[4] = dev->dev_addr[5];
 	MEM->init.hwaddr[5] = dev->dev_addr[4];
 
-	for( i = 0; i < 6; ++i )
-		printk( "%02x%s", dev->dev_addr[i], (i < 5) ? ":" : "\n" );
+	printk("%s\n", print_mac(mac, dev->dev_addr));
 
 	MEM->init.mode = 0x0000;
 	MEM->init.filter[0] = 0x00000000;
@@ -402,14 +399,11 @@ static int __init lance_probe( struct net_device *dev)
 	dev->open = &lance_open;
 	dev->hard_start_xmit = &lance_start_xmit;
 	dev->stop = &lance_close;
-	dev->get_stats = &lance_get_stats;
 	dev->set_multicast_list = &set_multicast_list;
 	dev->set_mac_address = NULL;
 //	KLUDGE -- REMOVE ME
 	set_bit(__LINK_STATE_PRESENT, &dev->state);
 
-
-	memset( &lp->stats, 0, sizeof(lp->stats) );
 
 	return 1;
 }
@@ -535,7 +529,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 		 * little endian mode.
 		 */
 		REGA(CSR3) = CSR3_BSWP;
-		lp->stats.tx_errors++;
+		dev->stats.tx_errors++;
 
 		if(lance_debug >= 2) {
 			int i;
@@ -596,17 +590,12 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	/* Fill in a Tx ring entry */
 #if 0
 	if (lance_debug >= 2) {
-		u_char *p;
-		int i;
-		printk( "%s: TX pkt %d type 0x%04x from ", dev->name,
-			lp->new_tx, ((u_short *)skb->data)[6]);
-		for( p = &((u_char *)skb->data)[6], i = 0; i < 6; i++ )
-			printk("%02x%s", *p++, i != 5 ? ":" : "" );
-		printk(" to ");
-		for( p = (u_char *)skb->data, i = 0; i < 6; i++ )
-			printk("%02x%s", *p++, i != 5 ? ":" : "" );
-		printk(" data at 0x%08x len %d\n", (int)skb->data,
-		       (int)skb->len );
+		printk( "%s: TX pkt %d type 0x%04x"
+			" from %s to %s"
+			" data at 0x%08x len %d\n",
+			dev->name, lp->new_tx, ((u_short *)skb->data)[6],
+			DEV_ADDR(&skb->data[6]), DEV_ADDR(skb->data),
+			(int)skb->data, (int)skb->len );
 	}
 #endif
 	/* We're not prepared for the int until the last flags are set/reset.
@@ -635,7 +624,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	head->flag = TMD1_OWN_CHIP | TMD1_ENP | TMD1_STP;
 	lp->new_tx = (lp->new_tx + 1) & TX_RING_MOD_MASK;
-	lp->stats.tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb->len;
 
 	/* Trigger an immediate send poll. */
 	REGA(CSR0) = CSR0_INEA | CSR0_TDMD | CSR0_STRT;
@@ -713,12 +702,12 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id)
 
 			if (head->flag & TMD1_ERR) {
 				int status = head->misc;
-				lp->stats.tx_errors++;
-				if (status & TMD3_RTRY) lp->stats.tx_aborted_errors++;
-				if (status & TMD3_LCAR) lp->stats.tx_carrier_errors++;
-				if (status & TMD3_LCOL) lp->stats.tx_window_errors++;
+				dev->stats.tx_errors++;
+				if (status & TMD3_RTRY) dev->stats.tx_aborted_errors++;
+				if (status & TMD3_LCAR) dev->stats.tx_carrier_errors++;
+				if (status & TMD3_LCOL) dev->stats.tx_window_errors++;
 				if (status & (TMD3_UFLO | TMD3_BUFF)) {
-					lp->stats.tx_fifo_errors++;
+					dev->stats.tx_fifo_errors++;
 					printk("%s: Tx FIFO error\n",
 					       dev->name);
 					REGA(CSR0) = CSR0_STOP;
@@ -731,9 +720,9 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id)
 
 				head->flag &= ~(TMD1_ENP | TMD1_STP);
 				if(head->flag & (TMD1_ONE | TMD1_MORE))
-					lp->stats.collisions++;
+					dev->stats.collisions++;
 
-				lp->stats.tx_packets++;
+				dev->stats.tx_packets++;
 				DPRINTK(3, ("cleared tx ring %d\n", old_tx));
 			}
 			old_tx = (old_tx +1) & TX_RING_MOD_MASK;
@@ -753,8 +742,8 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id)
 		lance_rx( dev );
 
 	/* Log misc errors. */
-	if (csr0 & CSR0_BABL) lp->stats.tx_errors++; /* Tx babble. */
-	if (csr0 & CSR0_MISS) lp->stats.rx_errors++; /* Missed a Rx frame. */
+	if (csr0 & CSR0_BABL) dev->stats.tx_errors++; /* Tx babble. */
+	if (csr0 & CSR0_MISS) dev->stats.rx_errors++; /* Missed a Rx frame. */
 	if (csr0 & CSR0_MERR) {
 		DPRINTK( 1, ( "%s: Bus master arbitration failure (?!?), "
 			      "status %04x.\n", dev->name, csr0 ));
@@ -800,11 +789,11 @@ static int lance_rx( struct net_device *dev )
 			   full-sized buffers it's possible for a jabber packet to use two
 			   buffers, with only the last correctly noting the error. */
 			if (status & RMD1_ENP)	/* Only count a general error at the */
-				lp->stats.rx_errors++; /* end of a packet.*/
-			if (status & RMD1_FRAM) lp->stats.rx_frame_errors++;
-			if (status & RMD1_OFLO) lp->stats.rx_over_errors++;
-			if (status & RMD1_CRC) lp->stats.rx_crc_errors++;
-			if (status & RMD1_BUFF) lp->stats.rx_fifo_errors++;
+				dev->stats.rx_errors++; /* end of a packet.*/
+			if (status & RMD1_FRAM) dev->stats.rx_frame_errors++;
+			if (status & RMD1_OFLO) dev->stats.rx_over_errors++;
+			if (status & RMD1_CRC) dev->stats.rx_crc_errors++;
+			if (status & RMD1_BUFF) dev->stats.rx_fifo_errors++;
 			head->flag &= (RMD1_ENP|RMD1_STP);
 		} else {
 			/* Malloc up new buffer, compatible with net-3. */
@@ -814,7 +803,7 @@ static int lance_rx( struct net_device *dev )
 
 			if (pkt_len < 60) {
 				printk( "%s: Runt packet!\n", dev->name );
-				lp->stats.rx_errors++;
+				dev->stats.rx_errors++;
 			}
 			else {
 				skb = dev_alloc_skb( pkt_len+2 );
@@ -822,7 +811,7 @@ static int lance_rx( struct net_device *dev )
 					DPRINTK( 1, ( "%s: Memory squeeze, deferring packet.\n",
 						      dev->name ));
 
-					lp->stats.rx_dropped++;
+					dev->stats.rx_dropped++;
 					head->msg_length = 0;
 					head->flag |= RMD1_OWN_CHIP;
 					lp->new_rx = (lp->new_rx+1) &
@@ -831,13 +820,14 @@ static int lance_rx( struct net_device *dev )
 
 #if 0
 				if (lance_debug >= 3) {
-					u_char *data = PKTBUF_ADDR(head), *p;
-					printk( "%s: RX pkt %d type 0x%04x from ", dev->name, entry, ((u_short *)data)[6]);
-					for( p = &data[6], i = 0; i < 6; i++ )
-						printk("%02x%s", *p++, i != 5 ? ":" : "" );
-					printk(" to ");
-					for( p = data, i = 0; i < 6; i++ )
-						printk("%02x%s", *p++, i != 5 ? ":" : "" );
+					u_char *data = PKTBUF_ADDR(head);
+					DECLARE_MAC_BUF(mac);
+					DECLARE_MAC_BUF(mac2)
+					printk("%s: RX pkt %d type 0x%04x"
+					       " from %s to %s",
+					       dev->name, lp->new_tx, ((u_short *)data)[6],
+					       print_mac(mac, &data[6]), print_mac(mac2, data));
+
 					printk(" data %02x %02x %02x %02x %02x %02x %02x %02x "
 					       "len %d at %08x\n",
 					       data[15], data[16], data[17], data[18],
@@ -860,8 +850,8 @@ static int lance_rx( struct net_device *dev )
 				skb->protocol = eth_type_trans( skb, dev );
 				netif_rx( skb );
 				dev->last_rx = jiffies;
-				lp->stats.rx_packets++;
-				lp->stats.rx_bytes += pkt_len;
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes += pkt_len;
 			}
 		}
 
@@ -895,14 +885,6 @@ static int lance_close( struct net_device *dev )
 	   memory if we don't. */
 	DREG = CSR0_STOP;
 	return 0;
-}
-
-
-static struct net_device_stats *lance_get_stats( struct net_device *dev )
-{
-	struct lance_private *lp = netdev_priv(dev);
-
-	return &lp->stats;
 }
 
 

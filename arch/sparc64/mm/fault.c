@@ -112,15 +112,12 @@ static void __kprobes unhandled_fault(unsigned long address,
 
 static void bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 {
-	unsigned long *ksp;
-
 	printk(KERN_CRIT "OOPS: Bogus kernel PC [%016lx] in fault handler\n",
 	       regs->tpc);
 	printk(KERN_CRIT "OOPS: RPC [%016lx]\n", regs->u_regs[15]);
 	print_symbol("RPC: <%s>\n", regs->u_regs[15]);
 	printk(KERN_CRIT "OOPS: Fault was to vaddr[%lx]\n", vaddr);
-	__asm__("mov %%sp, %0" : "=r" (ksp));
-	show_stack(current, ksp);
+	dump_stack();
 	unhandled_fault(regs->tpc, current, regs);
 }
 
@@ -278,7 +275,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned int insn = 0;
-	int si_code, fault_code;
+	int si_code, fault_code, fault;
 	unsigned long address, mm_rss;
 
 	fault_code = get_thread_fault_code();
@@ -415,20 +412,18 @@ good_area:
 			goto bad_area;
 	}
 
-	switch (handle_mm_fault(mm, vma, address, (fault_code & FAULT_CODE_WRITE))) {
-	case VM_FAULT_MINOR:
-		current->min_flt++;
-		break;
-	case VM_FAULT_MAJOR:
-		current->maj_flt++;
-		break;
-	case VM_FAULT_SIGBUS:
-		goto do_sigbus;
-	case VM_FAULT_OOM:
-		goto out_of_memory;
-	default:
+	fault = handle_mm_fault(mm, vma, address, (fault_code & FAULT_CODE_WRITE));
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		if (fault & VM_FAULT_OOM)
+			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGBUS)
+			goto do_sigbus;
 		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		current->maj_flt++;
+	else
+		current->min_flt++;
 
 	up_read(&mm->mmap_sem);
 

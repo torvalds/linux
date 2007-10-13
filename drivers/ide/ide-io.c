@@ -55,7 +55,7 @@
 #include <asm/bitops.h>
 
 static int __ide_end_request(ide_drive_t *drive, struct request *rq,
-			     int uptodate, int nr_sectors)
+			     int uptodate, unsigned int nr_bytes)
 {
 	int ret = 1;
 
@@ -64,7 +64,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 	 * complete the whole request right now
 	 */
 	if (blk_noretry_request(rq) && end_io_error(uptodate))
-		nr_sectors = rq->hard_nr_sectors;
+		nr_bytes = rq->hard_nr_sectors << 9;
 
 	if (!blk_fs_request(rq) && end_io_error(uptodate) && !rq->errors)
 		rq->errors = -EIO;
@@ -78,7 +78,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 		HWGROUP(drive)->hwif->ide_dma_on(drive);
 	}
 
-	if (!end_that_request_first(rq, uptodate, nr_sectors)) {
+	if (!end_that_request_chunk(rq, uptodate, nr_bytes)) {
 		add_disk_randomness(rq->rq_disk);
 		if (!list_empty(&rq->queuelist))
 			blkdev_dequeue_request(rq);
@@ -103,6 +103,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 
 int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 {
+	unsigned int nr_bytes = nr_sectors << 9;
 	struct request *rq;
 	unsigned long flags;
 	int ret = 1;
@@ -114,10 +115,14 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 	spin_lock_irqsave(&ide_lock, flags);
 	rq = HWGROUP(drive)->rq;
 
-	if (!nr_sectors)
-		nr_sectors = rq->hard_cur_sectors;
+	if (!nr_bytes) {
+		if (blk_pc_request(rq))
+			nr_bytes = rq->data_len;
+		else
+			nr_bytes = rq->hard_cur_sectors << 9;
+	}
 
-	ret = __ide_end_request(drive, rq, uptodate, nr_sectors);
+	ret = __ide_end_request(drive, rq, uptodate, nr_bytes);
 
 	spin_unlock_irqrestore(&ide_lock, flags);
 	return ret;
@@ -196,8 +201,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		return do_rw_taskfile(drive, args);
 
 	case idedisk_pm_restore_pio:	/* Resume step 1 (restore PIO) */
-		if (drive->hwif->tuneproc != NULL)
-			drive->hwif->tuneproc(drive, 255);
+		ide_set_max_pio(drive);
 		/*
 		 * skip idedisk_pm_idle for ATAPI devices
 		 */
@@ -219,11 +223,12 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		 * we could be smarter and check for current xfer_speed
 		 * in struct drive etc...
 		 */
-		if ((drive->id->capability & 1) == 0)
-			break;
 		if (drive->hwif->ide_dma_check == NULL)
 			break;
 		drive->hwif->dma_off_quietly(drive);
+		/*
+		 * TODO: respect ->using_dma setting
+		 */
 		ide_set_dma(drive);
 		break;
 	}
@@ -782,6 +787,30 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 	return ide_started;
 }
 
+/*
+ * handle HDIO_SET_PIO_MODE ioctl abusers here, eventually it will go away
+ */
+static int set_pio_mode_abuse(ide_hwif_t *hwif, u8 req_pio)
+{
+	switch (req_pio) {
+	case 202:
+	case 201:
+	case 200:
+	case 102:
+	case 101:
+	case 100:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_DMA_MODES) ? 1 : 0;
+	case 9:
+	case 8:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_PREFETCH) ? 1 : 0;
+	case 7:
+	case 6:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_FAST_DEVSEL) ? 1 : 0;
+	default:
+		return 0;
+	}
+}
+
 /**
  *	do_special		-	issue some special commands
  *	@drive: drive the command is for
@@ -799,9 +828,17 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 	printk("%s: do_special: 0x%02x\n", drive->name, s->all);
 #endif
 	if (s->b.set_tune) {
+		ide_hwif_t *hwif = drive->hwif;
+		u8 req_pio = drive->tune_req;
+
 		s->b.set_tune = 0;
-		if (HWIF(drive)->tuneproc != NULL)
-			HWIF(drive)->tuneproc(drive, drive->tune_req);
+
+		if (set_pio_mode_abuse(drive->hwif, req_pio)) {
+			if (hwif->set_pio_mode)
+				hwif->set_pio_mode(drive, req_pio);
+		} else
+			ide_set_pio(drive, req_pio);
+
 		return ide_stopped;
 	} else {
 		if (drive->media == ide_disk)
@@ -1321,7 +1358,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 /*
  * Passes the stuff to ide_do_request
  */
-void do_ide_request(request_queue_t *q)
+void do_ide_request(struct request_queue *q)
 {
 	ide_drive_t *drive = q->queuedata;
 

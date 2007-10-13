@@ -564,9 +564,10 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	/* flags */
 	err = get_int(&mesg, &an_int);
-	if (err == -ENOENT)
+	if (err == -ENOENT) {
+		err = 0;
 		set_bit(CACHE_NEGATIVE, &exp.h.flags);
-	else {
+	} else {
 		if (err || an_int < 0) goto out;	
 		exp.ex_flags= an_int;
 	
@@ -1265,7 +1266,7 @@ struct svc_export *
 rqst_exp_get_by_name(struct svc_rqst *rqstp, struct vfsmount *mnt,
 		struct dentry *dentry)
 {
-	struct svc_export *gssexp, *exp = NULL;
+	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
 
 	if (rqstp->rq_client == NULL)
 		goto gss;
@@ -1288,7 +1289,7 @@ gss:
 						&rqstp->rq_chandle);
 	if (PTR_ERR(gssexp) == -ENOENT)
 		return exp;
-	if (exp && !IS_ERR(exp))
+	if (!IS_ERR(exp))
 		exp_put(exp);
 	return gssexp;
 }
@@ -1296,7 +1297,7 @@ gss:
 struct svc_export *
 rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
 {
-	struct svc_export *gssexp, *exp = NULL;
+	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
 
 	if (rqstp->rq_client == NULL)
 		goto gss;
@@ -1318,7 +1319,7 @@ gss:
 						&rqstp->rq_chandle);
 	if (PTR_ERR(gssexp) == -ENOENT)
 		return exp;
-	if (exp && !IS_ERR(exp))
+	if (!IS_ERR(exp))
 		exp_put(exp);
 	return gssexp;
 }
@@ -1503,9 +1504,9 @@ static void exp_flags(struct seq_file *m, int flag, int fsid,
 	if (flag & NFSEXP_FSID)
 		seq_printf(m, ",fsid=%d", fsid);
 	if (anonu != (uid_t)-2 && anonu != (0x10000-2))
-		seq_printf(m, ",sanonuid=%d", anonu);
+		seq_printf(m, ",anonuid=%u", anonu);
 	if (anong != (gid_t)-2 && anong != (0x10000-2))
-		seq_printf(m, ",sanongid=%d", anong);
+		seq_printf(m, ",anongid=%u", anong);
 	if (fsloc && fsloc->locations_count > 0) {
 		char *loctype = (fsloc->migrated) ? "refer" : "replicas";
 		int i;

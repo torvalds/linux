@@ -297,7 +297,6 @@ static struct video_device fmi_radio=
 	.owner		= THIS_MODULE,
 	.name		= "SF16FMx radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= 0,
 	.fops           = &fmi_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,

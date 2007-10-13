@@ -126,7 +126,9 @@ static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain, u32 def)
 
 	if (domain != NULL) {
 		bkt = netlbl_domhsh_hash(domain);
-		list_for_each_entry_rcu(iter, &netlbl_domhsh->tbl[bkt], list)
+		list_for_each_entry_rcu(iter,
+				     &rcu_dereference(netlbl_domhsh)->tbl[bkt],
+				     list)
 			if (iter->valid && strcmp(iter->domain, domain) == 0)
 				return iter;
 	}
@@ -227,7 +229,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 		spin_lock(&netlbl_domhsh_lock);
 		if (netlbl_domhsh_search(entry->domain, 0) == NULL)
 			list_add_tail_rcu(&entry->list,
-					  &netlbl_domhsh->tbl[bkt]);
+				    &rcu_dereference(netlbl_domhsh)->tbl[bkt]);
 		else
 			ret_val = -EEXIST;
 		spin_unlock(&netlbl_domhsh_lock);
@@ -423,8 +425,8 @@ int netlbl_domhsh_walk(u32 *skip_bkt,
 	     iter_bkt < rcu_dereference(netlbl_domhsh)->size;
 	     iter_bkt++, chain_cnt = 0) {
 		list_for_each_entry_rcu(iter_entry,
-					&netlbl_domhsh->tbl[iter_bkt],
-					list)
+				&rcu_dereference(netlbl_domhsh)->tbl[iter_bkt],
+				list)
 			if (iter_entry->valid) {
 				if (chain_cnt++ < *skip_chain)
 					continue;

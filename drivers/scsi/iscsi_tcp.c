@@ -1885,7 +1885,7 @@ static int iscsi_tcp_get_addr(struct iscsi_conn *conn, struct socket *sock,
 	struct sockaddr_in *sin;
 	int rc = 0, len;
 
-	addr = kmalloc(GFP_KERNEL, sizeof(*addr));
+	addr = kmalloc(sizeof(*addr), GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 
@@ -2216,11 +2216,13 @@ static void iscsi_tcp_session_destroy(struct iscsi_cls_session *cls_session)
 
 static int iscsi_tcp_slave_configure(struct scsi_device *sdev)
 {
+	blk_queue_bounce_limit(sdev->request_queue, BLK_BOUNCE_ANY);
 	blk_queue_dma_alignment(sdev->request_queue, 0);
 	return 0;
 }
 
 static struct scsi_host_template iscsi_sht = {
+	.module			= THIS_MODULE,
 	.name			= "iSCSI Initiator over TCP/IP",
 	.queuecommand           = iscsi_queuecommand,
 	.change_queue_depth	= iscsi_change_queue_depth,

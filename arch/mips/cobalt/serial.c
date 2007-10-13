@@ -24,6 +24,7 @@
 #include <linux/serial_8250.h>
 
 #include <cobalt.h>
+#include <irq.h>
 
 static struct resource cobalt_uart_resource[] __initdata = {
 	{
@@ -32,15 +33,15 @@ static struct resource cobalt_uart_resource[] __initdata = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= COBALT_SERIAL_IRQ,
-		.end	= COBALT_SERIAL_IRQ,
+		.start	= SERIAL_IRQ,
+		.end	= SERIAL_IRQ,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
 
 static struct plat_serial8250_port cobalt_serial8250_port[] = {
 	{
-		.irq		= COBALT_SERIAL_IRQ,
+		.irq		= SERIAL_IRQ,
 		.uartclk	= 18432000,
 		.iotype		= UPIO_MEM,
 		.flags		= UPF_IOREMAP | UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
@@ -55,9 +56,9 @@ static __init int cobalt_uart_add(void)
 	int retval;
 
 	/*
-	 * Cobalt Qube1 and RAQ1 have no UART.
+	 * Cobalt Qube1 has no UART.
 	 */
-	if (cobalt_board_id <= COBALT_BRD_ID_RAQ1)
+	if (cobalt_board_id == COBALT_BRD_ID_QUBE1)
 		return 0;
 
 	pdev = platform_device_alloc("serial8250", -1);

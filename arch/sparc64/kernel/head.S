@@ -1,15 +1,15 @@
-/* $Id: head.S,v 1.87 2002/02/09 19:49:31 davem Exp $
- * head.S: Initial boot code for the Sparc64 port of Linux.
+/* head.S: Initial boot code for the Sparc64 port of Linux.
  *
- * Copyright (C) 1996,1997 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 1997, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 David Sitsky (David.Sitsky@anu.edu.au)
- * Copyright (C) 1997,1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
+ * Copyright (C) 1997, 1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997 Miguel de Icaza (miguel@nuclecu.unam.mx)
  */
 
 #include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/threads.h>
+#include <linux/init.h>
 #include <asm/thread_info.h>
 #include <asm/asi.h>
 #include <asm/pstate.h>
@@ -97,7 +97,8 @@ sparc64_boot:
 	.globl	prom_map_name, prom_unmap_name, prom_mmu_ihandle_cache
 	.globl	prom_boot_mapped_pc, prom_boot_mapping_mode
 	.globl	prom_boot_mapping_phys_high, prom_boot_mapping_phys_low
-	.globl	is_sun4v
+	.globl	prom_compatible_name, prom_cpu_path, prom_cpu_compatible
+	.globl	is_sun4v, sun4v_chip_type, prom_set_trap_table_name
 prom_peer_name:
 	.asciz	"peer"
 prom_compatible_name:
@@ -106,6 +107,8 @@ prom_finddev_name:
 	.asciz	"finddevice"
 prom_chosen_path:
 	.asciz	"/chosen"
+prom_cpu_path:
+	.asciz	"/cpu"
 prom_getprop_name:
 	.asciz	"getprop"
 prom_mmu_name:
@@ -118,10 +121,16 @@ prom_map_name:
 	.asciz	"map"
 prom_unmap_name:
 	.asciz	"unmap"
+prom_set_trap_table_name:
+	.asciz	"SUNW,set-trap-table"
 prom_sun4v_name:
 	.asciz	"sun4v"
+prom_niagara_prefix:
+	.asciz	"SUNW,UltraSPARC-T"
 	.align	4
 prom_root_compatible:
+	.skip	64
+prom_cpu_compatible:
 	.skip	64
 prom_root_node:
 	.word	0
@@ -138,6 +147,8 @@ prom_boot_mapping_phys_low:
 	.xword	0
 is_sun4v:
 	.word	0
+sun4v_chip_type:
+	.word	SUN4V_CHIP_INVALID
 1:
 	rd	%pc, %l0
 
@@ -296,13 +307,13 @@ is_sun4v:
 	sethi	%hi(prom_sun4v_name), %g7
 	or	%g7, %lo(prom_sun4v_name), %g7
 	mov	5, %g3
-1:	ldub	[%g7], %g2
+90:	ldub	[%g7], %g2
 	ldub	[%g1], %g4
 	cmp	%g2, %g4
-	bne,pn	%icc, 2f
+	bne,pn	%icc, 80f
 	 add	%g7, 1, %g7
 	subcc	%g3, 1, %g3
-	bne,pt	%xcc, 1b
+	bne,pt	%xcc, 90b
 	 add	%g1, 1, %g1
 
 	sethi	%hi(is_sun4v), %g1
@@ -310,7 +321,80 @@ is_sun4v:
 	mov	1, %g7
 	stw	%g7, [%g1]
 
-2:
+	/* cpu_node = prom_finddevice("/cpu") */
+	mov	(1b - prom_finddev_name), %l1
+	mov	(1b - prom_cpu_path), %l2
+	sub	%l0, %l1, %l1
+	sub	%l0, %l2, %l2
+	sub	%sp, (192 + 128), %sp
+
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "finddevice"
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 1
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	stx	%l2, [%sp + 2047 + 128 + 0x18]	! arg1, "/cpu"
+	stx	%g0, [%sp + 2047 + 128 + 0x20]	! ret1
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
+	ldx	[%sp + 2047 + 128 + 0x20], %l4	! cpu device node
+
+	mov	(1b - prom_getprop_name), %l1
+	mov	(1b - prom_compatible_name), %l2
+	mov	(1b - prom_cpu_compatible), %l5
+	sub	%l0, %l1, %l1
+	sub	%l0, %l2, %l2
+	sub	%l0, %l5, %l5
+
+	/* prom_getproperty(cpu_node, "compatible",
+	 *                  &prom_cpu_compatible, 64)
+	 */
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "getprop"
+	mov	4, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 4
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, cpu_node
+	stx	%l2, [%sp + 2047 + 128 + 0x20]	! arg2, "compatible"
+	stx	%l5, [%sp + 2047 + 128 + 0x28]	! arg3, &prom_cpu_compatible
+	mov	64, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x30]	! arg4, size
+	stx	%g0, [%sp + 2047 + 128 + 0x38]	! ret1
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
+	add	%sp, (192 + 128), %sp
+
+	sethi	%hi(prom_cpu_compatible), %g1
+	or	%g1, %lo(prom_cpu_compatible), %g1
+	sethi	%hi(prom_niagara_prefix), %g7
+	or	%g7, %lo(prom_niagara_prefix), %g7
+	mov	17, %g3
+90:	ldub	[%g7], %g2
+	ldub	[%g1], %g4
+	cmp	%g2, %g4
+	bne,pn	%icc, 4f
+	 add	%g7, 1, %g7
+	subcc	%g3, 1, %g3
+	bne,pt	%xcc, 90b
+	 add	%g1, 1, %g1
+
+	sethi	%hi(prom_cpu_compatible), %g1
+	or	%g1, %lo(prom_cpu_compatible), %g1
+	ldub	[%g1 + 17], %g2
+	cmp	%g2, '1'
+	be,pt	%xcc, 5f
+	 mov	SUN4V_CHIP_NIAGARA1, %g4
+	cmp	%g2, '2'
+	be,pt	%xcc, 5f
+	 mov	SUN4V_CHIP_NIAGARA2, %g4
+4:
+	mov	SUN4V_CHIP_UNKNOWN, %g4
+5:	sethi	%hi(sun4v_chip_type), %g2
+	or	%g2, %lo(sun4v_chip_type), %g2
+	stw	%g4, [%g2]
+
+80:
 	BRANCH_IF_SUN4V(g1, jump_to_sun4u_init)
 	BRANCH_IF_CHEETAH_BASE(g1,g7,cheetah_boot)
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,cheetah_plus_boot)
@@ -374,6 +458,7 @@ jump_to_sun4u_init:
 	jmpl    %g2 + %g0, %g0
 	 nop
 
+	.section	.text.init.refok
 sun4u_init:
 	BRANCH_IF_SUN4V(g1, sun4v_init)
 
@@ -413,6 +498,33 @@ niagara_tlb_fixup:
 	stw	%g2, [%g1 + %lo(tlb_type)]
 
 	/* Patch copy/clear ops.  */
+	sethi	%hi(sun4v_chip_type), %g1
+	lduw	[%g1 + %lo(sun4v_chip_type)], %g1
+	cmp	%g1, SUN4V_CHIP_NIAGARA1
+	be,pt	%xcc, niagara_patch
+	 cmp	%g1, SUN4V_CHIP_NIAGARA2
+	be,pt	%xcc, niagara2_patch
+	 nop
+
+	call	generic_patch_copyops
+	 nop
+	call	generic_patch_bzero
+	 nop
+	call	generic_patch_pageops
+	 nop
+
+	ba,a,pt	%xcc, 80f
+niagara2_patch:
+	call	niagara2_patch_copyops
+	 nop
+	call	niagara_patch_bzero
+	 nop
+	call	niagara2_patch_pageops
+	 nop
+
+	ba,a,pt	%xcc, 80f
+
+niagara_patch:
 	call	niagara_patch_copyops
 	 nop
 	call	niagara_patch_bzero
@@ -420,6 +532,7 @@ niagara_tlb_fixup:
 	call	niagara_patch_pageops
 	 nop
 
+80:
 	/* Patch TLB/cache ops.  */
 	call	hypervisor_patch_cachetlbops
 	 nop
@@ -458,7 +571,6 @@ tlb_fixup_done:
 	or	%g6, %lo(init_thread_union), %g6
 	ldx	[%g6 + TI_TASK], %g4
 	mov	%sp, %l6
-	mov	%o4, %l7
 
 	wr	%g0, ASI_P, %asi
 	mov	1, %g1
@@ -530,6 +642,8 @@ tlb_fixup_done:
 	 nop
 	/* Not reached... */
 
+	.previous
+
 	/* This is meant to allow the sharing of this code between
 	 * boot processor invocation (via setup_tba() below) and
 	 * secondary processor startup (via trampoline.S).  The
@@ -579,15 +693,38 @@ setup_trap_table:
 	sethi	%hi(kern_base), %g3
 	ldx	[%g3 + %lo(kern_base)], %g3
 	add	%g2, %g3, %o1
+	sethi	%hi(sparc64_ttable_tl0), %o0
 
-	call	prom_set_trap_table_sun4v
-	 sethi	%hi(sparc64_ttable_tl0), %o0
+	set	prom_set_trap_table_name, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x00]
+	mov	2, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x08]
+	mov	0, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x10]
+	stx	%o0, [%sp + 2047 + 128 + 0x18]
+	stx	%o1, [%sp + 2047 + 128 + 0x20]
+	sethi	%hi(p1275buf), %g2
+	or	%g2, %lo(p1275buf), %g2
+	ldx	[%g2 + 0x08], %o1
+	call	%o1
+	 add	%sp, (2047 + 128), %o0
 
 	ba,pt	%xcc, 2f
 	 nop
 
-1:	call	prom_set_trap_table
-	 sethi	%hi(sparc64_ttable_tl0), %o0
+1:	sethi	%hi(sparc64_ttable_tl0), %o0
+	set	prom_set_trap_table_name, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x00]
+	mov	1, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x08]
+	mov	0, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x10]
+	stx	%o0, [%sp + 2047 + 128 + 0x18]
+	sethi	%hi(p1275buf), %g2
+	or	%g2, %lo(p1275buf), %g2
+	ldx	[%g2 + 0x08], %o1
+	call	%o1
+	 add	%sp, (2047 + 128), %o0
 
 	/* Start using proper page size encodings in ctx register.  */
 2:	sethi	%hi(sparc64_kern_pri_context), %g3
@@ -603,12 +740,13 @@ setup_trap_table:
 
 	membar	#Sync
 
+	BRANCH_IF_SUN4V(o2, 1f)
+
 	/* Kill PROM timer */
 	sethi	%hi(0x80000000), %o2
 	sllx	%o2, 32, %o2
 	wr	%o2, 0, %tick_cmpr
 
-	BRANCH_IF_SUN4V(o2, 1f)
 	BRANCH_IF_ANY_CHEETAH(o2, o3, 1f)
 
 	ba,pt	%xcc, 2f

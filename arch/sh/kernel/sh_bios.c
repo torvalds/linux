@@ -5,7 +5,7 @@
  *  Copyright (C) 2000 Greg Banks, Mitch Davis
  *
  */
-
+#include <linux/module.h>
 #include <asm/sh_bios.h>
 
 #define BIOS_CALL_CONSOLE_WRITE     	0
@@ -63,6 +63,7 @@ void sh_bios_gdb_detach(void)
 {
     sh_bios_call(BIOS_CALL_GDB_DETACH, 0, 0, 0, 0);
 }
+EXPORT_SYMBOL(sh_bios_gdb_detach);
 
 void sh_bios_get_node_addr (unsigned char *node_addr)
 {

@@ -85,7 +85,7 @@ static struct {
 };
 
 struct ds1wm_data {
-	void		*map;
+	void		__iomem *map;
 	int		bus_shift; /* # of shifts to calc register offsets */
 	struct platform_device *pdev;
 	struct ds1wm_platform_data *pdata;

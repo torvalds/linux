@@ -28,6 +28,7 @@
 #include <linux/smp.h>
 #include <linux/kernel_stat.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
 

@@ -424,6 +424,7 @@ struct matrox_fb_info {
 		      } mmio;
 
 	unsigned int	max_pixel_clock;
+	unsigned int	max_pixel_clock_panellink;
 
 	struct matrox_switch*	hw_switch;
 

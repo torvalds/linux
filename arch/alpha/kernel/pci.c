@@ -195,7 +195,7 @@ pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-char * __init
+char * __devinit
 pcibios_setup(char *str)
 {
 	return str;
@@ -204,7 +204,7 @@ pcibios_setup(char *str)
 #ifdef ALPHA_RESTORE_SRM_SETUP
 static struct pdev_srm_saved_conf *srm_saved_configs;
 
-void __init
+void __devinit
 pdev_save_srm_config(struct pci_dev *dev)
 {
 	struct pdev_srm_saved_conf *tmp;
@@ -247,14 +247,14 @@ pci_restore_srm_config(void)
 }
 #endif
 
-void __init
+void __devinit
 pcibios_fixup_resource(struct resource *res, struct resource *root)
 {
 	res->start += root->start;
 	res->end += root->start;
 }
 
-void __init
+void __devinit
 pcibios_fixup_device_resources(struct pci_dev *dev, struct pci_bus *bus)
 {
 	/* Update device resources.  */
@@ -273,7 +273,7 @@ pcibios_fixup_device_resources(struct pci_dev *dev, struct pci_bus *bus)
 	}
 }
 
-void __init
+void __devinit
 pcibios_fixup_bus(struct pci_bus *bus)
 {
 	/* Propagate hose info into the subordinate devices.  */

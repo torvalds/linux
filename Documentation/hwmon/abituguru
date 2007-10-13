@@ -2,7 +2,7 @@ Kernel driver abituguru
 =======================
 
 Supported chips:
-  * Abit uGuru revision 1-3 (Hardware Monitor part only)
+  * Abit uGuru revision 1 & 2 (Hardware Monitor part only)
     Prefix: 'abituguru'
     Addresses scanned: ISA 0x0E0
     Datasheet: Not available, this driver is based on reverse engineering.
@@ -20,8 +20,8 @@ Supported chips:
 	uGuru 2.1.0.0 ~ 2.1.2.8 (AS8, AV8, AA8, AG8, AA8XE, AX8)
 	uGuru 2.2.0.0 ~ 2.2.0.6 (AA8 Fatal1ty)
 	uGuru 2.3.0.0 ~ 2.3.0.9 (AN8)
-	uGuru 3.0.0.0 ~ 3.0.1.2 (AW8, AL8, NI8)
-	uGuru 4.xxxxx?          (AT8 32X) (2)
+	uGuru 3.0.0.0 ~ 3.0.x.x (AW8, AL8, AT8, NI8 SLI, AT8 32X, AN8 32X,
+				 AW9D-MAX) (2)
 	1) For revisions 2 and 3 uGuru's the driver can autodetect the
 	   sensortype (Volt or Temp) for bank1 sensors, for revision 1 uGuru's
 	   this doesnot always work. For these uGuru's the autodection can
@@ -30,8 +30,9 @@ Supported chips:
 	   bank1_types=1,1,0,0,0,0,0,2,0,0,0,0,2,0,0,1
 	   You may also need to specify the fan_sensors option for these boards
 	   fan_sensors=5
-	2) The current version of the abituguru driver is known to NOT work
-	   on these Motherboards
+	2) There is a seperate abituguru3 driver for these motherboards,
+	   the abituguru (without the 3 !) driver will not work on these
+	   motherboards (and visa versa)!
 
 Authors:
 	Hans de Goede <j.w.r.degoede@hhs.nl>,
@@ -43,8 +44,10 @@ Module Parameters
 -----------------
 
 * force: bool		Force detection. Note this parameter only causes the
-			detection to be skipped, if the uGuru can't be read
-			the module initialization (insmod) will still fail.
+			detection to be skipped, and thus the insmod to
+			succeed. If the uGuru can't be read the actual hwmon
+			driver will not load and thus no hwmon device will get
+			registered.
 * bank1_types: int[]	Bank1 sensortype autodetection override:
 			  -1 autodetect (default)
 			   0 volt sensor
@@ -69,13 +72,15 @@ dmesg | grep abituguru
 Description
 -----------
 
-This driver supports the hardware monitoring features of the Abit uGuru chip
-found on Abit uGuru featuring motherboards (most modern Abit motherboards).
+This driver supports the hardware monitoring features of the first and
+second revision of the Abit uGuru chip found on Abit uGuru featuring
+motherboards (most modern Abit motherboards).
 
-The uGuru chip in reality is a Winbond W83L950D in disguise (despite Abit
-claiming it is "a new microprocessor designed by the ABIT Engineers").
-Unfortunatly this doesn't help since the W83L950D is a generic
-microcontroller with a custom Abit application running on it.
+The first and second revision of the uGuru chip in reality is a Winbond
+W83L950D in disguise (despite Abit claiming it is "a new microprocessor
+designed by the ABIT Engineers"). Unfortunatly this doesn't help since the
+W83L950D is a generic microcontroller with a custom Abit application running
+on it.
 
 Despite Abit not releasing any information regarding the uGuru, Olle
 Sandberg <ollebull@gmail.com> has managed to reverse engineer the sensor part

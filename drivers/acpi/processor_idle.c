@@ -63,6 +63,7 @@
 ACPI_MODULE_NAME("processor_idle");
 #define ACPI_PROCESSOR_FILE_POWER	"power"
 #define US_TO_PM_TIMER_TICKS(t)		((t * (PM_TIMER_FREQUENCY/1000)) / 1000)
+#define PM_TIMER_TICK_NS		(1000000000ULL/PM_TIMER_FREQUENCY)
 #define C2_OVERHEAD			4	/* 1us (3.579 ticks per us) */
 #define C3_OVERHEAD			4	/* 1us (3.579 ticks per us) */
 static void (*pm_idle_save) (void) __read_mostly;
@@ -91,7 +92,7 @@ module_param(bm_history, uint, 0644);
  *
  * To skip this limit, boot/load with a large max_cstate limit.
  */
-static int set_max_cstate(struct dmi_system_id *id)
+static int set_max_cstate(const struct dmi_system_id *id)
 {
 	if (max_cstate > ACPI_PROCESSOR_MAX_POWER)
 		return 0;
@@ -275,21 +276,12 @@ static void acpi_timer_check_state(int state, struct acpi_processor *pr,
 
 static void acpi_propagate_timer_broadcast(struct acpi_processor *pr)
 {
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
 	unsigned long reason;
 
 	reason = pr->power.timer_broadcast_on_state < INT_MAX ?
 		CLOCK_EVT_NOTIFY_BROADCAST_ON : CLOCK_EVT_NOTIFY_BROADCAST_OFF;
 
 	clockevents_notify(reason, &pr->id);
-#else
-	cpumask_t mask = cpumask_of_cpu(pr->id);
-
-	if (pr->power.timer_broadcast_on_state < INT_MAX)
-		on_each_cpu(switch_APIC_timer_to_ipi, &mask, 1, 1);
-	else
-		on_each_cpu(switch_ipi_to_APIC_timer, &mask, 1, 1);
-#endif
 }
 
 /* Power(C) State timer broadcast control */
@@ -297,8 +289,6 @@ static void acpi_state_timer_broadcast(struct acpi_processor *pr,
 				       struct acpi_processor_cx *cx,
 				       int broadcast)
 {
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
-
 	int state = cx - pr->power.states;
 
 	if (state >= pr->power.timer_broadcast_on_state) {
@@ -308,7 +298,6 @@ static void acpi_state_timer_broadcast(struct acpi_processor *pr,
 			CLOCK_EVT_NOTIFY_BROADCAST_EXIT;
 		clockevents_notify(reason, &pr->id);
 	}
-#endif
 }
 
 #else
@@ -323,6 +312,23 @@ static void acpi_state_timer_broadcast(struct acpi_processor *pr,
 }
 
 #endif
+
+/*
+ * Suspend / resume control
+ */
+static int acpi_idle_suspend;
+
+int acpi_processor_suspend(struct acpi_device * device, pm_message_t state)
+{
+	acpi_idle_suspend = 1;
+	return 0;
+}
+
+int acpi_processor_resume(struct acpi_device * device)
+{
+	acpi_idle_suspend = 0;
+	return 0;
+}
 
 static void acpi_processor_idle(void)
 {
@@ -354,7 +360,7 @@ static void acpi_processor_idle(void)
 	}
 
 	cx = pr->power.state;
-	if (!cx) {
+	if (!cx || acpi_idle_suspend) {
 		if (pm_idle_save)
 			pm_idle_save();
 		else
@@ -462,6 +468,9 @@ static void acpi_processor_idle(void)
 		 * TBD: Can't get time duration while in C1, as resumes
 		 *      go to an ISR rather than here.  Need to instrument
 		 *      base interrupt handler.
+		 *
+		 * Note: the TSC better not stop in C1, sched_clock() will
+		 *       skew otherwise.
 		 */
 		sleep_ticks = 0xFFFFFFFF;
 		break;
@@ -469,28 +478,45 @@ static void acpi_processor_idle(void)
 	case ACPI_STATE_C2:
 		/* Get start time (ticks) */
 		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
+		/* Tell the scheduler that we are going deep-idle: */
+		sched_clock_idle_sleep_event();
 		/* Invoke C2 */
 		acpi_state_timer_broadcast(pr, cx, 1);
 		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 
-#ifdef CONFIG_GENERIC_TIME
+#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86_TSC)
 		/* TSC halts in C2, so notify users */
 		mark_tsc_unstable("possible TSC halt in C2");
 #endif
+		/* Compute time (ticks) that we were actually asleep */
+		sleep_ticks = ticks_elapsed(t1, t2);
+
+		/* Tell the scheduler how much we idled: */
+		sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
+
 		/* Re-enable interrupts */
 		local_irq_enable();
+		/* Do not account our idle-switching overhead: */
+		sleep_ticks -= cx->latency_ticks + C2_OVERHEAD;
+
 		current_thread_info()->status |= TS_POLLING;
-		/* Compute time (ticks) that we were actually asleep */
-		sleep_ticks =
-		    ticks_elapsed(t1, t2) - cx->latency_ticks - C2_OVERHEAD;
 		acpi_state_timer_broadcast(pr, cx, 0);
 		break;
 
 	case ACPI_STATE_C3:
-
-		if (pr->flags.bm_check) {
+		/*
+		 * disable bus master
+		 * bm_check implies we need ARB_DIS
+		 * !bm_check implies we need cache flush
+		 * bm_control implies whether we can do ARB_DIS
+		 *
+		 * That leaves a case where bm_check is set and bm_control is
+		 * not set. In that case we cannot do much, we enter C3
+		 * without doing anything.
+		 */
+		if (pr->flags.bm_check && pr->flags.bm_control) {
 			if (atomic_inc_return(&c3_cpu_count) ==
 			    num_online_cpus()) {
 				/*
@@ -499,7 +525,7 @@ static void acpi_processor_idle(void)
 				 */
 				acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1);
 			}
-		} else {
+		} else if (!pr->flags.bm_check) {
 			/* SMP with no shared cache... Invalidate cache  */
 			ACPI_FLUSH_CPU_CACHE();
 		}
@@ -508,25 +534,32 @@ static void acpi_processor_idle(void)
 		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		/* Invoke C3 */
 		acpi_state_timer_broadcast(pr, cx, 1);
+		/* Tell the scheduler that we are going deep-idle: */
+		sched_clock_idle_sleep_event();
 		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
-		if (pr->flags.bm_check) {
+		if (pr->flags.bm_check && pr->flags.bm_control) {
 			/* Enable bus master arbitration */
 			atomic_dec(&c3_cpu_count);
 			acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0);
 		}
 
-#ifdef CONFIG_GENERIC_TIME
+#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86_TSC)
 		/* TSC halts in C3, so notify users */
 		mark_tsc_unstable("TSC halts in C3");
 #endif
+		/* Compute time (ticks) that we were actually asleep */
+		sleep_ticks = ticks_elapsed(t1, t2);
+		/* Tell the scheduler how much we idled: */
+		sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
+
 		/* Re-enable interrupts */
 		local_irq_enable();
+		/* Do not account our idle-switching overhead: */
+		sleep_ticks -= cx->latency_ticks + C3_OVERHEAD;
+
 		current_thread_info()->status |= TS_POLLING;
-		/* Compute time (ticks) that we were actually asleep */
-		sleep_ticks =
-		    ticks_elapsed(t1, t2) - cx->latency_ticks - C3_OVERHEAD;
 		acpi_state_timer_broadcast(pr, cx, 0);
 		break;
 
@@ -959,11 +992,17 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	}
 
 	if (pr->flags.bm_check) {
-		/* bus mastering control is necessary */
 		if (!pr->flags.bm_control) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "C3 support requires bus mastering control\n"));
-			return;
+			if (pr->flags.has_cst != 1) {
+				/* bus mastering control is necessary */
+				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					"C3 support requires BM control\n"));
+				return;
+			} else {
+				/* Here we enter C3 without bus mastering */
+				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					"C3 support without BM control\n"));
+			}
 		}
 	} else {
 		/*

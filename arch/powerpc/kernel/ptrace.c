@@ -331,6 +331,7 @@ static long arch_ptrace_old(struct task_struct *child, long request, long addr,
 		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
 		unsigned long __user *tmp = (unsigned long __user *)addr;
 
+		CHECK_FULL_REGS(child->thread.regs);
 		for (i = 0; i < 32; i++) {
 			ret = put_user(*reg, tmp);
 			if (ret)
@@ -346,6 +347,7 @@ static long arch_ptrace_old(struct task_struct *child, long request, long addr,
 		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
 		unsigned long __user *tmp = (unsigned long __user *)addr;
 
+		CHECK_FULL_REGS(child->thread.regs);
 		for (i = 0; i < 32; i++) {
 			ret = get_user(*reg, tmp);
 			if (ret)
@@ -517,6 +519,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = -EIO;
 			break;
 		}
+		CHECK_FULL_REGS(child->thread.regs);
 		ret = 0;
 		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
 			ret |= __put_user(ptrace_get_reg(child, ui),
@@ -537,6 +540,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = -EIO;
 			break;
 		}
+		CHECK_FULL_REGS(child->thread.regs);
 		ret = 0;
 		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
 			ret = __get_user(tmp, (unsigned long __user *) data);
@@ -576,8 +580,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #ifdef CONFIG_SPE
 	case PTRACE_GETEVRREGS:
 		/* Get the child spe register state. */
-		if (child->thread.regs->msr & MSR_SPE)
-			giveup_spe(child);
+		flush_spe_to_thread(child);
 		ret = get_evrregs((unsigned long __user *)data, child);
 		break;
 
@@ -585,8 +588,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		/* Set the child spe register state. */
 		/* this is to clear the MSR_SPE bit to force a reload
 		 * of register state from memory */
-		if (child->thread.regs->msr & MSR_SPE)
-			giveup_spe(child);
+		flush_spe_to_thread(child);
 		ret = set_evrregs(child, (unsigned long __user *)data);
 		break;
 #endif

@@ -66,8 +66,8 @@ static void dlci_setup(struct net_device *);
  */
 
 static int dlci_header(struct sk_buff *skb, struct net_device *dev, 
-                           unsigned short type, void *daddr, void *saddr, 
-                           unsigned len)
+		       unsigned short type, const void *daddr,
+		       const void *saddr, unsigned len)
 {
 	struct frhdr		hdr;
 	struct dlci_local	*dlp;
@@ -361,7 +361,7 @@ static int dlci_add(struct dlci_add *dlci)
 
 
 	/* validate slave device */
-	slave = dev_get_by_name(dlci->devname);
+	slave = dev_get_by_name(&init_net, dlci->devname);
 	if (!slave)
 		return -ENODEV;
 
@@ -427,7 +427,7 @@ static int dlci_del(struct dlci_add *dlci)
 	int			err;
 
 	/* validate slave device */
-	master = __dev_get_by_name(dlci->devname);
+	master = __dev_get_by_name(&init_net, dlci->devname);
 	if (!master)
 		return(-ENODEV);
 
@@ -485,6 +485,10 @@ static int dlci_ioctl(unsigned int cmd, void __user *arg)
 	return(err);
 }
 
+static const struct header_ops dlci_header_ops = {
+	.create	= dlci_header,
+};
+
 static void dlci_setup(struct net_device *dev)
 {
 	struct dlci_local *dlp = dev->priv;
@@ -494,7 +498,7 @@ static void dlci_setup(struct net_device *dev)
 	dev->stop		= dlci_close;
 	dev->do_ioctl		= dlci_dev_ioctl;
 	dev->hard_start_xmit	= dlci_transmit;
-	dev->hard_header	= dlci_header;
+	dev->header_ops		= &dlci_header_ops;
 	dev->get_stats		= dlci_get_stats;
 	dev->change_mtu		= dlci_change_mtu;
 	dev->destructor		= free_netdev;
@@ -512,6 +516,9 @@ static int dlci_dev_event(struct notifier_block *unused,
 			  unsigned long event, void *ptr)
 {
 	struct net_device *dev = (struct net_device *) ptr;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
 
 	if (event == NETDEV_UNREGISTER) {
 		struct dlci_local *dlp;

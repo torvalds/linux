@@ -49,8 +49,8 @@
  * Macros for calculating offsets into config space given a device
  * structure or dev/fun/reg
  */
-#define CFGOFFSET(bus,devfn,where) (((bus)<<16) + ((devfn)<<8) + (where))
-#define CFGADDR(bus,devfn,where)   CFGOFFSET((bus)->number,(devfn),where)
+#define CFGOFFSET(bus, devfn, where) (((bus)<<16) + ((devfn)<<8) + (where))
+#define CFGADDR(bus, devfn, where)   CFGOFFSET((bus)->number, (devfn), where)
 
 static void *cfg_space;
 

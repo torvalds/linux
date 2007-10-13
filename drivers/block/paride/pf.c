@@ -202,7 +202,7 @@ module_param_array(drive3, int, NULL, 0);
 #define ATAPI_WRITE_10		0x2a
 
 static int pf_open(struct inode *inode, struct file *file);
-static void do_pf_request(request_queue_t * q);
+static void do_pf_request(struct request_queue * q);
 static int pf_ioctl(struct inode *inode, struct file *file,
 		    unsigned int cmd, unsigned long arg);
 static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -760,7 +760,7 @@ static void pf_end_request(int uptodate)
 	}
 }
 
-static void do_pf_request(request_queue_t * q)
+static void do_pf_request(struct request_queue * q)
 {
 	if (pf_busy)
 		return;

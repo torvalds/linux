@@ -266,10 +266,9 @@ static int w1_f23_add_slave(struct w1_slave *sl)
 #ifdef CONFIG_W1_SLAVE_DS2433_CRC
 	struct w1_f23_data *data;
 
-	data = kmalloc(sizeof(struct w1_f23_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct w1_f23_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	memset(data, 0, sizeof(struct w1_f23_data));
 	sl->family_data = data;
 
 #endif	/* CONFIG_W1_SLAVE_DS2433_CRC */

@@ -39,6 +39,6 @@
 
 /* Firmware version */
 #define FW_VERSION_MAJOR 4
-#define FW_VERSION_MINOR 3
+#define FW_VERSION_MINOR 6
 #define FW_VERSION_MICRO 0
 #endif				/* __CHELSIO_VERSION_H */

@@ -86,7 +86,7 @@ int ip_forward(struct sk_buff *skb)
 		goto sr_failed;
 
 	if (unlikely(skb->len > dst_mtu(&rt->u.dst) &&
-	             (ip_hdr(skb)->frag_off & htons(IP_DF))) && !skb->local_df) {
+		     (ip_hdr(skb)->frag_off & htons(IP_DF))) && !skb->local_df) {
 		IP_INC_STATS(IPSTATS_MIB_FRAGFAILS);
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 			  htonl(dst_mtu(&rt->u.dst)));
@@ -105,7 +105,7 @@ int ip_forward(struct sk_buff *skb)
 	 *	We now generate an ICMP HOST REDIRECT giving the route
 	 *	we calculated.
 	 */
-	if (rt->rt_flags&RTCF_DOREDIRECT && !opt->srr)
+	if (rt->rt_flags&RTCF_DOREDIRECT && !opt->srr && !skb->sp)
 		ip_rt_send_redirect(skb);
 
 	skb->priority = rt_tos2priority(iph->tos);

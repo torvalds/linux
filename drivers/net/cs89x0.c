@@ -516,8 +516,8 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	unsigned rev_type = 0;
 	int eeprom_buff[CHKSUM_LEN];
 	int retval;
+	DECLARE_MAC_BUF(mac);
 
-	SET_MODULE_OWNER(dev);
 	/* Initialize the device structure. */
 	if (!modular) {
 		memset(lp, 0, sizeof(*lp));
@@ -806,7 +806,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 		        i = cs8900_irq_map[0];
 #else
 			/* Translate the IRQ using the IRQ mapping table. */
-			if (i >= sizeof(cs8900_irq_map)/sizeof(cs8900_irq_map[0]))
+			if (i >= ARRAY_SIZE(cs8900_irq_map))
 				printk("\ncs89x0: invalid ISA interrupt number %d\n", i);
 			else
 				i = cs8900_irq_map[i];
@@ -841,11 +841,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	}
 
 	/* print the ethernet address. */
-	printk(", MAC");
-	for (i = 0; i < ETH_ALEN; i++)
-	{
-		printk("%c%02x", i ? ':' : ' ', dev->dev_addr[i]);
-	}
+	printk(", MAC %s", print_mac(mac, dev->dev_addr));
 
 	dev->open		= net_open;
 	dev->stop		= net_close;
@@ -1247,11 +1243,11 @@ write_irq(struct net_device *dev, int chip_type, int irq)
 
 	if (chip_type == CS8900) {
 		/* Search the mapping table for the corresponding IRQ pin. */
-		for (i = 0; i != sizeof(cs8900_irq_map)/sizeof(cs8900_irq_map[0]); i++)
+		for (i = 0; i != ARRAY_SIZE(cs8900_irq_map); i++)
 			if (cs8900_irq_map[i] == irq)
 				break;
 		/* Not found */
-		if (i == sizeof(cs8900_irq_map)/sizeof(cs8900_irq_map[0]))
+		if (i == ARRAY_SIZE(cs8900_irq_map))
 			i = 3;
 		writereg(dev, PP_CS8900_ISAINT, i);
 	} else {
@@ -1807,17 +1803,15 @@ static int set_mac_address(struct net_device *dev, void *p)
 	int i;
 	struct sockaddr *addr = p;
 
-
 	if (netif_running(dev))
 		return -EBUSY;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	if (net_debug) {
-		printk("%s: Setting MAC address to ", dev->name);
-		for (i = 0; i < dev->addr_len; i++)
-			printk(" %2.2x", dev->dev_addr[i]);
-		printk(".\n");
+		DECLARE_MAC_BUF(mac);
+		printk("%s: Setting MAC address to %s.\n",
+		       dev->name, print_mac(mac, dev->dev_addr));
 	}
 	/* set the Ethernet address */
 	for (i=0; i < ETH_ALEN/2; i++)

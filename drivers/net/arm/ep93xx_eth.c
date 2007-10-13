@@ -169,6 +169,9 @@ struct ep93xx_priv
 	spinlock_t		tx_pending_lock;
 	unsigned int		tx_pending;
 
+	struct net_device	*dev;
+	struct napi_struct	napi;
+
 	struct net_device_stats	stats;
 
 	struct mii_if_info	mii;
@@ -190,15 +193,11 @@ static struct net_device_stats *ep93xx_get_stats(struct net_device *dev)
 	return &(ep->stats);
 }
 
-static int ep93xx_rx(struct net_device *dev, int *budget)
+static int ep93xx_rx(struct net_device *dev, int processed, int budget)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
-	int rx_done;
-	int processed;
 
-	rx_done = 0;
-	processed = 0;
-	while (*budget > 0) {
+	while (processed < budget) {
 		int entry;
 		struct ep93xx_rstat *rstat;
 		u32 rstat0;
@@ -211,10 +210,8 @@ static int ep93xx_rx(struct net_device *dev, int *budget)
 
 		rstat0 = rstat->rstat0;
 		rstat1 = rstat->rstat1;
-		if (!(rstat0 & RSTAT0_RFP) || !(rstat1 & RSTAT1_RFP)) {
-			rx_done = 1;
+		if (!(rstat0 & RSTAT0_RFP) || !(rstat1 & RSTAT1_RFP))
 			break;
-		}
 
 		rstat->rstat0 = 0;
 		rstat->rstat1 = 0;
@@ -275,8 +272,6 @@ static int ep93xx_rx(struct net_device *dev, int *budget)
 err:
 		ep->rx_pointer = (entry + 1) & (RX_QUEUE_ENTRIES - 1);
 		processed++;
-		dev->quota--;
-		(*budget)--;
 	}
 
 	if (processed) {
@@ -284,7 +279,7 @@ err:
 		wrw(ep, REG_RXSTSENQ, processed);
 	}
 
-	return !rx_done;
+	return processed;
 }
 
 static int ep93xx_have_more_rx(struct ep93xx_priv *ep)
@@ -293,36 +288,32 @@ static int ep93xx_have_more_rx(struct ep93xx_priv *ep)
 	return !!((rstat->rstat0 & RSTAT0_RFP) && (rstat->rstat1 & RSTAT1_RFP));
 }
 
-static int ep93xx_poll(struct net_device *dev, int *budget)
+static int ep93xx_poll(struct napi_struct *napi, int budget)
 {
-	struct ep93xx_priv *ep = netdev_priv(dev);
-
-	/*
-	 * @@@ Have to stop polling if device is downed while we
-	 * are polling.
-	 */
+	struct ep93xx_priv *ep = container_of(napi, struct ep93xx_priv, napi);
+	struct net_device *dev = ep->dev;
+	int rx = 0;
 
 poll_some_more:
-	if (ep93xx_rx(dev, budget))
-		return 1;
+	rx = ep93xx_rx(dev, rx, budget);
+	if (rx < budget) {
+		int more = 0;
 
-	netif_rx_complete(dev);
-
-	spin_lock_irq(&ep->rx_lock);
-	wrl(ep, REG_INTEN, REG_INTEN_TX | REG_INTEN_RX);
-	if (ep93xx_have_more_rx(ep)) {
-		wrl(ep, REG_INTEN, REG_INTEN_TX);
-		wrl(ep, REG_INTSTSP, REG_INTSTS_RX);
+		spin_lock_irq(&ep->rx_lock);
+		__netif_rx_complete(dev, napi);
+		wrl(ep, REG_INTEN, REG_INTEN_TX | REG_INTEN_RX);
+		if (ep93xx_have_more_rx(ep)) {
+			wrl(ep, REG_INTEN, REG_INTEN_TX);
+			wrl(ep, REG_INTSTSP, REG_INTSTS_RX);
+			more = 1;
+		}
 		spin_unlock_irq(&ep->rx_lock);
 
-		if (netif_rx_reschedule(dev, 0))
+		if (more && netif_rx_reschedule(dev, napi))
 			goto poll_some_more;
-
-		return 0;
 	}
-	spin_unlock_irq(&ep->rx_lock);
 
-	return 0;
+	return rx;
 }
 
 static int ep93xx_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -426,9 +417,9 @@ static irqreturn_t ep93xx_irq(int irq, void *dev_id)
 
 	if (status & REG_INTSTS_RX) {
 		spin_lock(&ep->rx_lock);
-		if (likely(__netif_rx_schedule_prep(dev))) {
+		if (likely(__netif_rx_schedule_prep(dev, &ep->napi))) {
 			wrl(ep, REG_INTEN, REG_INTEN_TX);
-			__netif_rx_schedule(dev);
+			__netif_rx_schedule(dev, &ep->napi);
 		}
 		spin_unlock(&ep->rx_lock);
 	}
@@ -648,7 +639,10 @@ static int ep93xx_open(struct net_device *dev)
 			dev->dev_addr[4], dev->dev_addr[5]);
 	}
 
+	napi_enable(&ep->napi);
+
 	if (ep93xx_start_hw(dev)) {
+		napi_disable(&ep->napi);
 		ep93xx_free_buffers(ep);
 		return -EIO;
 	}
@@ -662,6 +656,7 @@ static int ep93xx_open(struct net_device *dev)
 
 	err = request_irq(ep->irq, ep93xx_irq, IRQF_SHARED, dev->name, dev);
 	if (err) {
+		napi_disable(&ep->napi);
 		ep93xx_stop_hw(dev);
 		ep93xx_free_buffers(ep);
 		return err;
@@ -678,6 +673,7 @@ static int ep93xx_close(struct net_device *dev)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
 
+	napi_disable(&ep->napi);
 	netif_stop_queue(dev);
 
 	wrl(ep, REG_GIINTMSK, 0);
@@ -788,14 +784,12 @@ struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 
 	dev->get_stats = ep93xx_get_stats;
 	dev->ethtool_ops = &ep93xx_ethtool_ops;
-	dev->poll = ep93xx_poll;
 	dev->hard_start_xmit = ep93xx_xmit;
 	dev->open = ep93xx_open;
 	dev->stop = ep93xx_close;
 	dev->do_ioctl = ep93xx_ioctl;
 
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
-	dev->weight = 64;
 
 	return dev;
 }
@@ -847,6 +841,8 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 	ep = netdev_priv(dev);
+	ep->dev = dev;
+	netif_napi_add(dev, &ep->napi, ep93xx_poll, 64);
 
 	platform_set_drvdata(pdev, dev);
 

@@ -20,6 +20,7 @@
 #include <linux/percpu.h>
 #include <linux/kernel.h>
 #include <linux/jhash.h>
+#include <net/net_namespace.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -40,7 +41,6 @@ static int nf_ct_expect_hash_rnd_initted __read_mostly;
 static int nf_ct_expect_vmalloc;
 
 static struct kmem_cache *nf_ct_expect_cachep __read_mostly;
-static unsigned int nf_ct_expect_next_id;
 
 /* nf_conntrack_expect helper functions */
 void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
@@ -80,7 +80,7 @@ static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple
 
 	return jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
 		      (((tuple->dst.protonum ^ tuple->src.l3num) << 16) |
-		       tuple->dst.u.all) ^ nf_ct_expect_hash_rnd) %
+		       (__force __u16)tuple->dst.u.all) ^ nf_ct_expect_hash_rnd) %
 	       nf_ct_expect_hsize;
 }
 
@@ -259,8 +259,8 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
 	}
 
 	if (src) {
-		exp->tuple.src.u.all = (__force u16)*src;
-		exp->mask.src.u.all = 0xFFFF;
+		exp->tuple.src.u.all = *src;
+		exp->mask.src.u.all = htons(0xFFFF);
 	} else {
 		exp->tuple.src.u.all = 0;
 		exp->mask.src.u.all = 0;
@@ -272,7 +272,7 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
 		memset((void *)&exp->tuple.dst.u3 + len, 0x00,
 		       sizeof(exp->tuple.dst.u3) - len);
 
-	exp->tuple.dst.u.all = (__force u16)*dst;
+	exp->tuple.dst.u.all = *dst;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_init);
 
@@ -301,7 +301,6 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	exp->timeout.expires = jiffies + master_help->helper->timeout * HZ;
 	add_timer(&exp->timeout);
 
-	exp->id = ++nf_ct_expect_next_id;
 	atomic_inc(&exp->use);
 	NF_CT_STAT_INC(expect_create);
 }
@@ -473,23 +472,8 @@ static const struct seq_operations exp_seq_ops = {
 
 static int exp_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	struct ct_expect_iter_state *st;
-	int ret;
-
-	st = kmalloc(sizeof(struct ct_expect_iter_state), GFP_KERNEL);
-	if (st == NULL)
-		return -ENOMEM;
-	ret = seq_open(file, &exp_seq_ops);
-	if (ret)
-		goto out_free;
-	seq          = file->private_data;
-	seq->private = st;
-	memset(st, 0, sizeof(struct ct_expect_iter_state));
-	return ret;
-out_free:
-	kfree(st);
-	return ret;
+	return seq_open_private(file, &exp_seq_ops,
+			sizeof(struct ct_expect_iter_state));
 }
 
 static const struct file_operations exp_file_ops = {
@@ -506,7 +490,7 @@ static int __init exp_proc_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *proc;
 
-	proc = proc_net_fops_create("nf_conntrack_expect", 0440, &exp_file_ops);
+	proc = proc_net_fops_create(&init_net, "nf_conntrack_expect", 0440, &exp_file_ops);
 	if (!proc)
 		return -ENOMEM;
 #endif /* CONFIG_PROC_FS */
@@ -516,7 +500,7 @@ static int __init exp_proc_init(void)
 static void exp_proc_remove(void)
 {
 #ifdef CONFIG_PROC_FS
-	proc_net_remove("nf_conntrack_expect");
+	proc_net_remove(&init_net, "nf_conntrack_expect");
 #endif /* CONFIG_PROC_FS */
 }
 
@@ -540,7 +524,7 @@ int __init nf_conntrack_expect_init(void)
 
 	nf_ct_expect_cachep = kmem_cache_create("nf_conntrack_expect",
 					sizeof(struct nf_conntrack_expect),
-					0, 0, NULL, NULL);
+					0, 0, NULL);
 	if (!nf_ct_expect_cachep)
 		goto err2;
 

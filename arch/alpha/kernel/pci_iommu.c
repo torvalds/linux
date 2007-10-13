@@ -58,7 +58,7 @@ size_for_memory(unsigned long max)
 	return max;
 }
 
-struct pci_iommu_arena *
+struct pci_iommu_arena * __init
 iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 		     unsigned long window_size, unsigned long align)
 {
@@ -117,7 +117,7 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 	return arena;
 }
 
-struct pci_iommu_arena *
+struct pci_iommu_arena * __init
 iommu_arena_new(struct pci_controller *hose, dma_addr_t base,
 		unsigned long window_size, unsigned long align)
 {

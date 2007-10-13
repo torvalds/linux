@@ -70,7 +70,7 @@ ENTRY(_memmove)
 	R1 = [I0++];
 
 	LSETUP (.Lquad_loops, .Lquad_loope) LC0=P1;
-#ifdef ANOMALY_05000202
+#if ANOMALY_05000202
 .Lquad_loops:
 	[P0++] = R1;
 .Lquad_loope:
@@ -102,7 +102,7 @@ ENTRY(_memmove)
 	R1 = B[P3--] (Z);
 	CC = P2 == 0;
 	IF CC JUMP .Lno_loop;
-#ifdef ANOMALY_05000245
+#if ANOMALY_05000245
 	NOP;
 	NOP;
 #endif

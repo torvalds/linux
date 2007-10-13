@@ -8,6 +8,7 @@
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
  */
+#include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/signal.h>
@@ -26,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/pfn.h>
 
+#include <asm/asm-offsets.h>
 #include <asm/bootinfo.h>
 #include <asm/cachectl.h>
 #include <asm/cpu.h>
@@ -131,6 +133,8 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 	pte_t pte;
 	int tlbidx;
 
+	BUG_ON(Page_dcache_dirty(page));
+
 	inc_preempt_count();
 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
 #ifdef CONFIG_MIPS_MT_SMTC
@@ -207,7 +211,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	void *vfrom, *vto;
 
 	vto = kmap_atomic(to, KM_USER1);
-	if (cpu_has_dc_aliases) {
+	if (cpu_has_dc_aliases && !Page_dcache_dirty(from)) {
 		vfrom = kmap_coherent(from, vaddr);
 		copy_page(vto, vfrom);
 		kunmap_coherent();
@@ -484,7 +488,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-void free_initmem(void)
+void __init_refok free_initmem(void)
 {
 	prom_free_prom_memory();
 	free_init_pages("unused kernel memory",
@@ -498,7 +502,13 @@ unsigned long pgd_current[NR_CPUS];
  * different layout ...
  */
 #define __page_aligned(order) __attribute__((__aligned__(PAGE_SIZE<<order)))
-pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned(PGD_ORDER);
+
+/*
+ * gcc 3.3 and older have trouble determining that PTRS_PER_PGD and PGD_ORDER
+ * are constants.  So we use the variants from asm-offset.h until that gcc
+ * will officially be retired.
+ */
+pgd_t swapper_pg_dir[_PTRS_PER_PGD] __page_aligned(_PGD_ORDER);
 #ifdef CONFIG_64BIT
 #ifdef MODULE_START
 pgd_t module_pg_dir[PTRS_PER_PGD] __page_aligned(PGD_ORDER);

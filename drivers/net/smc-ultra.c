@@ -142,8 +142,6 @@ static int __init do_ultra_probe(struct net_device *dev)
 	int base_addr = dev->base_addr;
 	int irq = dev->irq;
 
-	SET_MODULE_OWNER(dev);
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = &ultra_poll;
 #endif
@@ -200,6 +198,7 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	unsigned char num_pages, irqreg, addr, piomode;
 	unsigned char idreg = inb(ioaddr + 7);
 	unsigned char reg4 = inb(ioaddr + 4) & 0x7f;
+	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, ULTRA_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -226,10 +225,11 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 
 	model_name = (idreg & 0xF0) == 0x20 ? "SMC Ultra" : "SMC EtherEZ";
 
-	printk("%s: %s at %#3x,", dev->name, model_name, ioaddr);
-
 	for (i = 0; i < 6; i++)
-		printk(" %2.2X", dev->dev_addr[i] = inb(ioaddr + 8 + i));
+		dev->dev_addr[i] = inb(ioaddr + 8 + i);
+
+	printk("%s: %s at %#3x, %s", dev->name, model_name,
+	       ioaddr, print_mac(mac, dev->dev_addr));
 
 	/* Switch from the station address to the alternate register set and
 	   read the useful registers there. */

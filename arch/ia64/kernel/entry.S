@@ -1581,7 +1581,7 @@ sys_call_table:
 	data8 sys_sync_file_range		// 1300
 	data8 sys_tee
 	data8 sys_vmsplice
-	data8 sys_ni_syscall			// reserved for move_pages
+	data8 sys_fallocate
 	data8 sys_getcpu
 	data8 sys_epoll_pwait			// 1305
 	data8 sys_utimensat

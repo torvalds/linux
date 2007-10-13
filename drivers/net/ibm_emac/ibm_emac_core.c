@@ -353,10 +353,9 @@ static void emac_hash_mc(struct ocp_enet_private *dev)
 
 	for (dmi = dev->ndev->mc_list; dmi; dmi = dmi->next) {
 		int bit;
-		DBG2("%d: mc %02x:%02x:%02x:%02x:%02x:%02x" NL,
-		     dev->def->index,
-		     dmi->dmi_addr[0], dmi->dmi_addr[1], dmi->dmi_addr[2],
-		     dmi->dmi_addr[3], dmi->dmi_addr[4], dmi->dmi_addr[5]);
+		DECLARE_MAC_BUF(mac);
+		DBG2("%d: mc %s" NL,
+		     dev->def->index, print_mac(mac, dmi->dmi_addr));
 
 		bit = 63 - (ether_crc(ETH_ALEN, dmi->dmi_addr) >> 26);
 		gaht[bit >> 4] |= 0x8000 >> (bit & 0x0f);
@@ -1843,9 +1842,14 @@ static int emac_ethtool_nway_reset(struct net_device *ndev)
 	return res;
 }
 
-static int emac_ethtool_get_stats_count(struct net_device *ndev)
+static int emac_get_sset_count(struct net_device *ndev, int sset)
 {
-	return EMAC_ETHTOOL_STATS_COUNT;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return EMAC_ETHTOOL_STATS_COUNT;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void emac_ethtool_get_strings(struct net_device *ndev, u32 stringset,
@@ -1876,7 +1880,6 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 	strcpy(info->version, DRV_VERSION);
 	info->fw_version[0] = '\0';
 	sprintf(info->bus_info, "PPC 4xx EMAC %d", dev->def->index);
-	info->n_stats = emac_ethtool_get_stats_count(ndev);
 	info->regdump_len = emac_ethtool_get_regs_len(ndev);
 }
 
@@ -1896,12 +1899,10 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_rx_csum = emac_ethtool_get_rx_csum,
 
 	.get_strings = emac_ethtool_get_strings,
-	.get_stats_count = emac_ethtool_get_stats_count,
+	.get_sset_count = emac_get_sset_count,
 	.get_ethtool_stats = emac_ethtool_get_ethtool_stats,
 
 	.get_link = ethtool_op_get_link,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.get_sg = ethtool_op_get_sg,
 };
 
 static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
@@ -1942,6 +1943,7 @@ static int __init emac_probe(struct ocp_device *ocpdev)
 	struct ocp_device *maldev;
 	struct ocp_enet_private *dev;
 	int err, i;
+	DECLARE_MAC_BUF(mac);
 
 	DBG("%d: probe" NL, ocpdev->def->index);
 
@@ -1962,7 +1964,6 @@ static int __init emac_probe(struct ocp_device *ocpdev)
 	dev->ndev = ndev;
 	dev->ldev = &ocpdev->dev;
 	dev->def = ocpdev->def;
-	SET_MODULE_OWNER(ndev);
 
 	/* Find MAL device we are connected to */
 	maldev =
@@ -2191,10 +2192,8 @@ static int __init emac_probe(struct ocp_device *ocpdev)
 
 	ocp_set_drvdata(ocpdev, dev);
 
-	printk("%s: emac%d, MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       ndev->name, dev->def->index,
-	       ndev->dev_addr[0], ndev->dev_addr[1], ndev->dev_addr[2],
-	       ndev->dev_addr[3], ndev->dev_addr[4], ndev->dev_addr[5]);
+	printk("%s: emac%d, MAC %s\n",
+	       ndev->name, dev->def->index, print_mac(mac, ndev->dev_addr));
 
 	if (dev->phy.address >= 0)
 		printk("%s: found %s PHY (0x%02x)\n", ndev->name,

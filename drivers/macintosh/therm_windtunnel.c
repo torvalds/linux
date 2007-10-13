@@ -431,9 +431,8 @@ do_probe( struct i2c_adapter *adapter, int addr, int kind )
 				     | I2C_FUNC_SMBUS_WRITE_BYTE) )
 		return 0;
 
-	if( !(cl=kmalloc(sizeof(*cl), GFP_KERNEL)) )
+	if( !(cl=kzalloc(sizeof(*cl), GFP_KERNEL)) )
 		return -ENOMEM;
-	memset( cl, 0, sizeof(struct i2c_client) );
 
 	cl->addr = addr;
 	cl->adapter = adapter;

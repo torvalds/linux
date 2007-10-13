@@ -20,6 +20,7 @@
 #include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/dcookies.h>
 #include <linux/mutex.h>
@@ -205,7 +206,7 @@ static int dcookie_init(void)
 
 	dcookie_cache = kmem_cache_create("dcookie_cache",
 		sizeof(struct dcookie_struct),
-		0, 0, NULL, NULL);
+		0, 0, NULL);
 
 	if (!dcookie_cache)
 		goto out;

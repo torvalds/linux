@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 22
+SUBLEVEL = 23
 EXTRAVERSION =
-NAME = Holy Dancing Manatees, Batman!
+NAME = Arr Matey! A Hairy Bilge Rat!
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -186,7 +186,8 @@ ARCH		?= $(SUBARCH)
 CROSS_COMPILE	?=
 
 # Architecture as present in compile.h
-UTS_MACHINE := $(ARCH)
+UTS_MACHINE 	:= $(ARCH)
+SRCARCH 	:= $(ARCH)
 
 KCONFIG_CONFIG	?= .config
 
@@ -299,7 +300,7 @@ CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ -Wbitwise $(C
 MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
-LDFLAGS_MODULE  = -r
+LDFLAGS_MODULE  =
 CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
 
@@ -322,7 +323,7 @@ KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
 KERNELVERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
 export VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION
-export ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC
+export ARCH SRCARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC
 export CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE
 export HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
 
@@ -492,7 +493,7 @@ endif
 include $(srctree)/arch/$(ARCH)/Makefile
 
 ifdef CONFIG_FRAME_POINTER
-CFLAGS		+= -fno-omit-frame-pointer $(call cc-option,-fno-optimize-sibling-calls,)
+CFLAGS		+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
 else
 CFLAGS		+= -fomit-frame-pointer
 endif
@@ -513,6 +514,12 @@ CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 
 # disable pointer signed / unsigned warnings in gcc 4.0
 CFLAGS += $(call cc-option,-Wno-pointer-sign,)
+
+# Use --build-id when available.
+LDFLAGS_BUILD_ID = $(patsubst -Wl$(comma)%,%,\
+			      $(call ld-option, -Wl$(comma)--build-id,))
+LDFLAGS_MODULE += $(LDFLAGS_BUILD_ID)
+LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
 
 # Default kernel image to build when no specific target is given.
 # KBUILD_IMAGE may be overruled on the command line or
@@ -603,7 +610,7 @@ libs-y		:= $(libs-y1) $(libs-y2)
 vmlinux-init := $(head-y) $(init-y)
 vmlinux-main := $(core-y) $(libs-y) $(drivers-y) $(net-y)
 vmlinux-all  := $(vmlinux-init) $(vmlinux-main)
-vmlinux-lds  := arch/$(ARCH)/kernel/vmlinux.lds
+vmlinux-lds  := arch/$(SRCARCH)/kernel/vmlinux.lds
 export KBUILD_VMLINUX_OBJS := $(vmlinux-all)
 
 # Rule to link vmlinux - also used during CONFIG_KALLSYMS
@@ -612,7 +619,7 @@ quiet_cmd_vmlinux__ ?= LD      $@
       cmd_vmlinux__ ?= $(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $@ \
       -T $(vmlinux-lds) $(vmlinux-init)                          \
       --start-group $(vmlinux-main) --end-group                  \
-      $(filter-out $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) FORCE ,$^)
+      $(filter-out $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) vmlinux.o FORCE ,$^)
 
 # Generate new vmlinux version
 quiet_cmd_vmlinux_version = GEN     .version
@@ -736,14 +743,30 @@ debug_kallsyms: .tmp_map$(last_kallsyms)
 
 endif # ifdef CONFIG_KALLSYMS
 
+# Do modpost on a prelinked vmlinux. The finally linked vmlinux has
+# relevant sections renamed as per the linker script.
+quiet_cmd_vmlinux-modpost = LD      $@
+      cmd_vmlinux-modpost = $(LD) $(LDFLAGS) -r -o $@                          \
+	 $(vmlinux-init) --start-group $(vmlinux-main) --end-group             \
+	 $(filter-out $(vmlinux-init) $(vmlinux-main) $(vmlinux-lds) FORCE ,$^)
+define rule_vmlinux-modpost
+	:
+	+$(call cmd,vmlinux-modpost)
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost $@
+	$(Q)echo 'cmd_$@ := $(cmd_vmlinux-modpost)' > $(dot-target).cmd
+endef
+
 # vmlinux image - including updated kernel symbols
-vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) FORCE
+vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) vmlinux.o FORCE
 ifdef CONFIG_HEADERS_CHECK
 	$(Q)$(MAKE) -f $(srctree)/Makefile headers_check
 endif
+	$(call vmlinux-modpost)
 	$(call if_changed_rule,vmlinux__)
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost $@
 	$(Q)rm -f .old_version
+
+vmlinux.o: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) FORCE
+	$(call if_changed_rule,vmlinux-modpost)
 
 # The actual objects are generated when descending, 
 # make sure no implicit rule kicks in
@@ -840,7 +863,7 @@ ifneq ($(KBUILD_SRC),)
 		/bin/false; \
 	fi;
 	$(Q)if [ ! -d include2 ]; then mkdir -p include2; fi;
-	$(Q)ln -fsn $(srctree)/include/asm-$(ARCH) include2/asm
+	$(Q)ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm
 endif
 
 # prepare2 creates a makefile if using a separate output directory
@@ -872,9 +895,9 @@ export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 # before switching between archs anyway.
 
 include/asm:
-	@echo '  SYMLINK $@ -> include/asm-$(ARCH)'
+	@echo '  SYMLINK $@ -> include/asm-$(SRCARCH)'
 	$(Q)if [ ! -d include ]; then mkdir -p include; fi;
-	@ln -fsn asm-$(ARCH) $@
+	@ln -fsn asm-$(SRCARCH) $@
 
 # Generate some files
 # ---------------------------------------------------------------------------
@@ -914,7 +937,8 @@ depend dep:
 INSTALL_HDR_PATH=$(objtree)/usr
 export INSTALL_HDR_PATH
 
-HDRARCHES=$(filter-out generic,$(patsubst $(srctree)/include/asm-%/Kbuild,%,$(wildcard $(srctree)/include/asm-*/Kbuild)))
+HDRFILTER=generic i386 x86_64
+HDRARCHES=$(filter-out $(HDRFILTER),$(patsubst $(srctree)/include/asm-%/Kbuild,%,$(wildcard $(srctree)/include/asm-*/Kbuild)))
 
 PHONY += headers_install_all
 headers_install_all: include/linux/version.h scripts_basic FORCE
@@ -925,11 +949,11 @@ headers_install_all: include/linux/version.h scripts_basic FORCE
 
 PHONY += headers_install
 headers_install: include/linux/version.h scripts_basic FORCE
-	@if [ ! -r $(srctree)/include/asm-$(ARCH)/Kbuild ]; then \
-	  echo '*** Error: Headers not exportable for this architecture ($(ARCH))'; \
+	@if [ ! -r $(srctree)/include/asm-$(SRCARCH)/Kbuild ]; then \
+	  echo '*** Error: Headers not exportable for this architecture ($(SRCARCH))'; \
 	  exit 1 ; fi
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst obj=include
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst ARCH=$(SRCARCH) obj=include
 
 PHONY += headers_check_all
 headers_check_all: headers_install_all
@@ -939,7 +963,7 @@ headers_check_all: headers_install_all
 
 PHONY += headers_check
 headers_check: headers_install
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst obj=include HDRCHECK=1
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst ARCH=$(SRCARCH) obj=include HDRCHECK=1
 
 # ---------------------------------------------------------------------------
 # Modules
@@ -1117,7 +1141,7 @@ help:
 	@echo  '  cscope	  - Generate cscope index'
 	@echo  '  kernelrelease	  - Output the release version string'
 	@echo  '  kernelversion	  - Output the version stored in Makefile'
-	@if [ -r $(srctree)/include/asm-$(ARCH)/Kbuild ]; then \
+	@if [ -r $(srctree)/include/asm-$(SRCARCH)/Kbuild ]; then \
 	 echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'; \
 	 echo  '                    (default: $(INSTALL_HDR_PATH))'; \
 	 fi
@@ -1125,7 +1149,7 @@ help:
 	@echo  'Static analysers'
 	@echo  '  checkstack      - Generate a list of stack hogs'
 	@echo  '  namespacecheck  - Name space analysis on compiled kernel'
-	@if [ -r $(srctree)/include/asm-$(ARCH)/Kbuild ]; then \
+	@if [ -r $(srctree)/include/asm-$(SRCARCH)/Kbuild ]; then \
 	 echo  '  headers_check   - Sanity check on exported headers'; \
 	 fi
 	@echo  ''
@@ -1270,18 +1294,23 @@ ifeq ($(ALLSOURCE_ARCHS),)
 ifeq ($(ARCH),um)
 ALLINCLUDE_ARCHS := $(ARCH) $(SUBARCH)
 else
-ALLINCLUDE_ARCHS := $(ARCH)
+ALLINCLUDE_ARCHS := $(SRCARCH)
 endif
 else
 #Allow user to specify only ALLSOURCE_PATHS on the command line, keeping existing behavour.
 ALLINCLUDE_ARCHS := $(ALLSOURCE_ARCHS)
 endif
 
+# Take care of arch/x86
+ifeq ($(ARCH), $(SRCARCH))
 ALLSOURCE_ARCHS := $(ARCH)
+else
+ALLSOURCE_ARCHS := $(ARCH) $(SRCARCH)
+endif
 
 define find-sources
         ( for ARCH in $(ALLSOURCE_ARCHS) ; do \
-	       find $(__srctree)arch/$${ARCH} $(RCS_FIND_IGNORE) \
+	       find $(__srctree)arch/$${SRCARCH} $(RCS_FIND_IGNORE) \
 	            -name $1 -print; \
 	  done ; \
 	  find $(__srctree)security/selinux/include $(RCS_FIND_IGNORE) \
@@ -1290,7 +1319,7 @@ define find-sources
 	       \( -name config -o -name 'asm-*' \) -prune \
 	       -o -name $1 -print; \
 	  for ARCH in $(ALLINCLUDE_ARCHS) ; do \
-	       find $(__srctree)include/asm-$${ARCH} $(RCS_FIND_IGNORE) \
+	       find $(__srctree)include/asm-$${SRCARCH} $(RCS_FIND_IGNORE) \
 	            -name $1 -print; \
 	  done ; \
 	  find $(__srctree)include/asm-generic $(RCS_FIND_IGNORE) \
@@ -1317,7 +1346,7 @@ define xtags
 		-I __initdata,__exitdata,__acquires,__releases \
 		-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL \
 		--extra=+f --c-kinds=+px \
-		--regex-asm='/ENTRY\(([^)]*)\).*/\1/'; \
+		--regex-asm='/^ENTRY\(([^)]*)\).*/\1/'; \
 	    $(all-kconfigs) | xargs $1 -a \
 		--langdef=kconfig \
 		--language-force=kconfig \

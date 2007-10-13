@@ -1,7 +1,7 @@
 /*
  * logfile.c - NTFS kernel journal handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2002-2005 Anton Altaparmakov
+ * Copyright (c) 2002-2007 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -724,24 +724,139 @@ bool ntfs_is_logfile_clean(struct inode *log_vi, const RESTART_PAGE_HEADER *rp)
  */
 bool ntfs_empty_logfile(struct inode *log_vi)
 {
-	ntfs_volume *vol = NTFS_SB(log_vi->i_sb);
+	VCN vcn, end_vcn;
+	ntfs_inode *log_ni = NTFS_I(log_vi);
+	ntfs_volume *vol = log_ni->vol;
+	struct super_block *sb = vol->sb;
+	runlist_element *rl;
+	unsigned long flags;
+	unsigned block_size, block_size_bits;
+	int err;
+	bool should_wait = true;
 
 	ntfs_debug("Entering.");
-	if (!NVolLogFileEmpty(vol)) {
-		int err;
-		
-		err = ntfs_attr_set(NTFS_I(log_vi), 0, i_size_read(log_vi),
-				0xff);
-		if (unlikely(err)) {
-			ntfs_error(vol->sb, "Failed to fill $LogFile with "
-					"0xff bytes (error code %i).", err);
-			return false;
-		}
-		/* Set the flag so we do not have to do it again on remount. */
-		NVolSetLogFileEmpty(vol);
+	if (NVolLogFileEmpty(vol)) {
+		ntfs_debug("Done.");
+		return true;
 	}
+	/*
+	 * We cannot use ntfs_attr_set() because we may be still in the middle
+	 * of a mount operation.  Thus we do the emptying by hand by first
+	 * zapping the page cache pages for the $LogFile/$DATA attribute and
+	 * then emptying each of the buffers in each of the clusters specified
+	 * by the runlist by hand.
+	 */
+	block_size = sb->s_blocksize;
+	block_size_bits = sb->s_blocksize_bits;
+	vcn = 0;
+	read_lock_irqsave(&log_ni->size_lock, flags);
+	end_vcn = (log_ni->initialized_size + vol->cluster_size_mask) >>
+			vol->cluster_size_bits;
+	read_unlock_irqrestore(&log_ni->size_lock, flags);
+	truncate_inode_pages(log_vi->i_mapping, 0);
+	down_write(&log_ni->runlist.lock);
+	rl = log_ni->runlist.rl;
+	if (unlikely(!rl || vcn < rl->vcn || !rl->length)) {
+map_vcn:
+		err = ntfs_map_runlist_nolock(log_ni, vcn, NULL);
+		if (err) {
+			ntfs_error(sb, "Failed to map runlist fragment (error "
+					"%d).", -err);
+			goto err;
+		}
+		rl = log_ni->runlist.rl;
+		BUG_ON(!rl || vcn < rl->vcn || !rl->length);
+	}
+	/* Seek to the runlist element containing @vcn. */
+	while (rl->length && vcn >= rl[1].vcn)
+		rl++;
+	do {
+		LCN lcn;
+		sector_t block, end_block;
+		s64 len;
+
+		/*
+		 * If this run is not mapped map it now and start again as the
+		 * runlist will have been updated.
+		 */
+		lcn = rl->lcn;
+		if (unlikely(lcn == LCN_RL_NOT_MAPPED)) {
+			vcn = rl->vcn;
+			goto map_vcn;
+		}
+		/* If this run is not valid abort with an error. */
+		if (unlikely(!rl->length || lcn < LCN_HOLE))
+			goto rl_err;
+		/* Skip holes. */
+		if (lcn == LCN_HOLE)
+			continue;
+		block = lcn << vol->cluster_size_bits >> block_size_bits;
+		len = rl->length;
+		if (rl[1].vcn > end_vcn)
+			len = end_vcn - rl->vcn;
+		end_block = (lcn + len) << vol->cluster_size_bits >>
+				block_size_bits;
+		/* Iterate over the blocks in the run and empty them. */
+		do {
+			struct buffer_head *bh;
+
+			/* Obtain the buffer, possibly not uptodate. */
+			bh = sb_getblk(sb, block);
+			BUG_ON(!bh);
+			/* Setup buffer i/o submission. */
+			lock_buffer(bh);
+			bh->b_end_io = end_buffer_write_sync;
+			get_bh(bh);
+			/* Set the entire contents of the buffer to 0xff. */
+			memset(bh->b_data, -1, block_size);
+			if (!buffer_uptodate(bh))
+				set_buffer_uptodate(bh);
+			if (buffer_dirty(bh))
+				clear_buffer_dirty(bh);
+			/*
+			 * Submit the buffer and wait for i/o to complete but
+			 * only for the first buffer so we do not miss really
+			 * serious i/o errors.  Once the first buffer has
+			 * completed ignore errors afterwards as we can assume
+			 * that if one buffer worked all of them will work.
+			 */
+			submit_bh(WRITE, bh);
+			if (should_wait) {
+				should_wait = false;
+				wait_on_buffer(bh);
+				if (unlikely(!buffer_uptodate(bh)))
+					goto io_err;
+			}
+			brelse(bh);
+		} while (++block < end_block);
+	} while ((++rl)->vcn < end_vcn);
+	up_write(&log_ni->runlist.lock);
+	/*
+	 * Zap the pages again just in case any got instantiated whilst we were
+	 * emptying the blocks by hand.  FIXME: We may not have completed
+	 * writing to all the buffer heads yet so this may happen too early.
+	 * We really should use a kernel thread to do the emptying
+	 * asynchronously and then we can also set the volume dirty and output
+	 * an error message if emptying should fail.
+	 */
+	truncate_inode_pages(log_vi->i_mapping, 0);
+	/* Set the flag so we do not have to do it again on remount. */
+	NVolSetLogFileEmpty(vol);
 	ntfs_debug("Done.");
 	return true;
+io_err:
+	ntfs_error(sb, "Failed to write buffer.  Unmount and run chkdsk.");
+	goto dirty_err;
+rl_err:
+	ntfs_error(sb, "Runlist is corrupt.  Unmount and run chkdsk.");
+dirty_err:
+	NVolSetErrors(vol);
+	err = -EIO;
+err:
+	up_write(&log_ni->runlist.lock);
+	ntfs_error(sb, "Failed to fill $LogFile with 0xff bytes (error %d).",
+			-err);
+	return false;
 }
 
 #endif /* NTFS_RW */

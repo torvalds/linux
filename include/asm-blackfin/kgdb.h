@@ -179,5 +179,6 @@ enum regnames {
 #define STATDA1		0x80
 
 extern void kgdb_print(const char *fmt, ...);
+extern void init_kgdb_uart(void);
 
 #endif

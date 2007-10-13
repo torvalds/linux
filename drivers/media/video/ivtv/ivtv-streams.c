@@ -35,16 +35,13 @@
 
 #include "ivtv-driver.h"
 #include "ivtv-fileops.h"
-#include "ivtv-i2c.h"
 #include "ivtv-queue.h"
 #include "ivtv-mailbox.h"
-#include "ivtv-audio.h"
-#include "ivtv-video.h"
-#include "ivtv-vbi.h"
 #include "ivtv-ioctl.h"
 #include "ivtv-irq.h"
-#include "ivtv-streams.h"
+#include "ivtv-yuv.h"
 #include "ivtv-cards.h"
+#include "ivtv-streams.h"
 
 static struct file_operations ivtv_v4l2_enc_fops = {
       .owner = THIS_MODULE,
@@ -66,6 +63,13 @@ static struct file_operations ivtv_v4l2_dec_fops = {
       .poll = ivtv_v4l2_dec_poll,
 };
 
+#define IVTV_V4L2_DEC_MPG_OFFSET  16	/* offset from 0 to register decoder mpg v4l2 minors on */
+#define IVTV_V4L2_ENC_PCM_OFFSET  24	/* offset from 0 to register pcm v4l2 minors on */
+#define IVTV_V4L2_ENC_YUV_OFFSET  32	/* offset from 0 to register yuv v4l2 minors on */
+#define IVTV_V4L2_DEC_YUV_OFFSET  48	/* offset from 0 to register decoder yuv v4l2 minors on */
+#define IVTV_V4L2_DEC_VBI_OFFSET   8	/* offset from 0 to register decoder vbi input v4l2 minors on */
+#define IVTV_V4L2_DEC_VOUT_OFFSET 16	/* offset from 0 to register vbi output v4l2 minors on */
+
 static struct {
 	const char *name;
 	int vfl_type;
@@ -75,7 +79,7 @@ static struct {
 	struct file_operations *fops;
 } ivtv_stream_info[] = {
 	{	/* IVTV_ENC_STREAM_TYPE_MPG */
-		"encoder MPEG",
+		"encoder MPG",
 		VFL_TYPE_GRABBER, 0,
 		PCI_DMA_FROMDEVICE, 0, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 		&ivtv_v4l2_enc_fops
@@ -93,7 +97,7 @@ static struct {
 		&ivtv_v4l2_enc_fops
 	},
 	{	/* IVTV_ENC_STREAM_TYPE_PCM */
-		"encoder PCM audio",
+		"encoder PCM",
 		VFL_TYPE_GRABBER, IVTV_V4L2_ENC_PCM_OFFSET,
 		PCI_DMA_FROMDEVICE, 0, V4L2_BUF_TYPE_PRIVATE,
 		&ivtv_v4l2_enc_fops
@@ -105,7 +109,7 @@ static struct {
 		&ivtv_v4l2_enc_fops
 	},
 	{	/* IVTV_DEC_STREAM_TYPE_MPG */
-		"decoder MPEG",
+		"decoder MPG",
 		VFL_TYPE_GRABBER, IVTV_V4L2_DEC_MPG_OFFSET,
 		PCI_DMA_TODEVICE, 0, V4L2_BUF_TYPE_VIDEO_OUTPUT,
 		&ivtv_v4l2_dec_fops
@@ -150,11 +154,11 @@ static void ivtv_stream_init(struct ivtv *itv, int type)
 		s->dma = ivtv_stream_info[type].dma;
 	s->buf_size = itv->stream_buf_size[type];
 	if (s->buf_size)
-		s->buffers = itv->options.megabytes[type] * 1024 * 1024 / s->buf_size;
+		s->buffers = (itv->options.kilobytes[type] * 1024 + s->buf_size - 1) / s->buf_size;
 	spin_lock_init(&s->qlock);
 	init_waitqueue_head(&s->waitq);
 	s->id = -1;
-	s->SG_handle = IVTV_DMA_UNMAPPED;
+	s->sg_handle = IVTV_DMA_UNMAPPED;
 	ivtv_queue_init(&s->q_free);
 	ivtv_queue_init(&s->q_full);
 	ivtv_queue_init(&s->q_dma);
@@ -192,7 +196,7 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 	/* User explicitly selected 0 buffers for these streams, so don't
 	   create them. */
 	if (minor >= 0 && ivtv_stream_info[type].dma != PCI_DMA_NONE &&
-	    itv->options.megabytes[type] == 0) {
+	    itv->options.kilobytes[type] == 0) {
 		IVTV_INFO("Disabled %s device\n", ivtv_stream_info[type].name);
 		return 0;
 	}
@@ -238,18 +242,18 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
-		IVTV_INFO("Registered device video%d for %s (%d MB)\n",
-			s->v4l2dev->minor, s->name, itv->options.megabytes[type]);
+		IVTV_INFO("Registered device video%d for %s (%d kB)\n",
+			s->v4l2dev->minor, s->name, itv->options.kilobytes[type]);
 		break;
 	case VFL_TYPE_RADIO:
 		IVTV_INFO("Registered device radio%d for %s\n",
 			s->v4l2dev->minor - MINOR_VFL_TYPE_RADIO_MIN, s->name);
 		break;
 	case VFL_TYPE_VBI:
-		if (itv->options.megabytes[type])
-			IVTV_INFO("Registered device vbi%d for %s (%d MB)\n",
+		if (itv->options.kilobytes[type])
+			IVTV_INFO("Registered device vbi%d for %s (%d kB)\n",
 				s->v4l2dev->minor - MINOR_VFL_TYPE_VBI_MIN,
-				s->name, itv->options.megabytes[type]);
+				s->name, itv->options.kilobytes[type]);
 		else
 			IVTV_INFO("Registered device vbi%d for %s\n",
 				s->v4l2dev->minor - MINOR_VFL_TYPE_VBI_MIN, s->name);
@@ -314,27 +318,8 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	int lines;
 	int i;
 
-	/* If Embed then streamtype must be Program */
-	/* TODO: should we really do this? */
-	if (0 && !raw && itv->vbi.insert_mpeg) {
-		itv->params.stream_type = 0;
-
-		/* assign stream type */
-		ivtv_vapi(itv, CX2341X_ENC_SET_STREAM_TYPE, 1, itv->params.stream_type);
-	}
-
 	/* Reset VBI */
 	ivtv_vapi(itv, CX2341X_ENC_SET_VBI_LINE, 5, 0xffff , 0, 0, 0, 0);
-
-	if (itv->is_60hz) {
-		itv->vbi.count = 12;
-		itv->vbi.start[0] = 10;
-		itv->vbi.start[1] = 273;
-	} else {        /* PAL/SECAM */
-		itv->vbi.count = 18;
-		itv->vbi.start[0] = 6;
-		itv->vbi.start[1] = 318;
-	}
 
 	/* setup VBI registers */
 	itv->video_dec_func(itv, VIDIOC_S_FMT, &itv->vbi.in);
@@ -409,8 +394,8 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	if (!itv->vbi.fpi)
 		itv->vbi.fpi = 1;
 
-	IVTV_DEBUG_INFO("Setup VBI start 0x%08x frames %d fpi %d lines 0x%08x\n",
-		itv->vbi.enc_start, data[1], itv->vbi.fpi, itv->digitizer);
+	IVTV_DEBUG_INFO("Setup VBI start 0x%08x frames %d fpi %d\n",
+		itv->vbi.enc_start, data[1], itv->vbi.fpi);
 
 	/* select VBI lines.
 	   Note that the sliced argument seems to have no effect. */
@@ -499,6 +484,8 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 
 	if (atomic_read(&itv->capturing) == 0) {
+		int digitizer;
+
 		/* Always use frame based mode. Experiments have demonstrated that byte
 		   stream based mode results in dropped frames and corruption. Not often,
 		   but occasionally. Many thanks go to Leonard Orb who spent a lot of
@@ -524,7 +511,14 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		ivtv_vapi(itv, CX2341X_ENC_SET_PLACEHOLDER, 12,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-		ivtv_vapi(itv, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2, itv->digitizer, itv->digitizer);
+		if (itv->card->hw_all & (IVTV_HW_SAA7115 | IVTV_HW_SAA717X))
+		    digitizer = 0xF1;
+		else if (itv->card->hw_all & IVTV_HW_SAA7114)
+		    digitizer = 0xEF;
+		else /* cx25840 */
+		    digitizer = 0x140;
+
+		ivtv_vapi(itv, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2, digitizer, digitizer);
 
 		/* Setup VBI */
 		if (itv->v4l2_cap & V4L2_CAP_VBI_CAPTURE) {
@@ -559,9 +553,10 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		clear_bit(IVTV_F_I_EOS, &itv->i_flags);
 
 		/* Initialize Digitizer for Capture */
+		itv->video_dec_func(itv, VIDIOC_STREAMOFF, 0);
+		ivtv_msleep_timeout(300, 1);
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
-
-		ivtv_sleep_timeout(HZ / 10, 0);
+		itv->video_dec_func(itv, VIDIOC_STREAMON, 0);
 	}
 
 	/* begin_capture */
@@ -597,10 +592,6 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 
 	IVTV_DEBUG_INFO("Setting some initial decoder settings\n");
 
-	/* disable VBI signals, if the MPEG stream contains VBI data,
-	   then that data will be processed automatically for you. */
-	ivtv_disable_vbi(itv);
-
 	/* set audio mode to left/stereo  for dual/stereo mode. */
 	ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
 
@@ -633,7 +624,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	}
 	if (ivtv_vapi(itv, CX2341X_DEC_SET_DECODER_SOURCE, 4, datatype,
 			itv->params.width, itv->params.height, itv->params.audio_properties)) {
-		IVTV_DEBUG_WARN("COULDN'T INITIALIZE DECODER SOURCE\n");
+		IVTV_DEBUG_WARN("Couldn't initialize decoder source\n");
 	}
 	return 0;
 }
@@ -674,10 +665,10 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 
 	/* Zero out decoder counters */
-	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_FIELD_DISPLAYED].data[0]);
-	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_FIELD_DISPLAYED].data[1]);
-	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_FIELD_DISPLAYED].data[2]);
-	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_FIELD_DISPLAYED].data[3]);
+	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA_END].data[0]);
+	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA_END].data[1]);
+	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA_END].data[2]);
+	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA_END].data[3]);
 	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA].data[0]);
 	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA].data[1]);
 	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA].data[2]);
@@ -718,9 +709,7 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	struct ivtv *itv = s->itv;
 	DECLARE_WAITQUEUE(wait, current);
 	int cap_type;
-	unsigned long then;
 	int stopmode;
-	u32 data[CX2341X_MBOX_MAX_DATA];
 
 	if (s->v4l2dev == NULL)
 		return -EINVAL;
@@ -762,32 +751,20 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	/* when: 0 =  end of GOP  1 = NOW!, type: 0 = mpeg, subtype: 3 = video+audio */
 	ivtv_vapi(itv, CX2341X_ENC_STOP_CAPTURE, 3, stopmode, cap_type, s->subtype);
 
-	/* only run these if we're shutting down the last cap */
-	if (atomic_read(&itv->capturing) - 1 == 0) {
-		/* event notification (off) */
-		if (test_and_clear_bit(IVTV_F_I_DIG_RST, &itv->i_flags)) {
-			/* type: 0 = refresh */
-			/* on/off: 0 = off, intr: 0x10000000, mbox_id: -1: none */
-			ivtv_vapi(itv, CX2341X_ENC_SET_EVENT_NOTIFICATION, 4, 0, 0, IVTV_IRQ_ENC_VIM_RST, -1);
-			ivtv_set_irq_mask(itv, IVTV_IRQ_ENC_VIM_RST);
-		}
-	}
-
-	then = jiffies;
-
 	if (!test_bit(IVTV_F_S_PASSTHROUGH, &s->s_flags)) {
 		if (s->type == IVTV_ENC_STREAM_TYPE_MPG && gop_end) {
 			/* only run these if we're shutting down the last cap */
 			unsigned long duration;
+			unsigned long then = jiffies;
 
-			then = jiffies;
-			add_wait_queue(&itv->cap_w, &wait);
+			add_wait_queue(&itv->eos_waitq, &wait);
 
 			set_current_state(TASK_INTERRUPTIBLE);
 
 			/* wait 2s for EOS interrupt */
-			while (!test_bit(IVTV_F_I_EOS, &itv->i_flags) && jiffies < then + 2 * HZ) {
-				schedule_timeout(HZ / 100);
+			while (!test_bit(IVTV_F_I_EOS, &itv->i_flags) &&
+				jiffies < then + msecs_to_jiffies (2000)) {
+				schedule_timeout(msecs_to_jiffies(10));
 			}
 
 			/* To convert jiffies to ms, we must multiply by 1000
@@ -806,33 +783,12 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 				IVTV_DEBUG_INFO("%s: EOS took %lu ms to occur.\n", s->name, duration);
 			}
 			set_current_state(TASK_RUNNING);
-			remove_wait_queue(&itv->cap_w, &wait);
+			remove_wait_queue(&itv->eos_waitq, &wait);
+			set_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 		}
 
-		then = jiffies;
-		/* Make sure DMA is complete */
-		add_wait_queue(&s->waitq, &wait);
-		set_current_state(TASK_INTERRUPTIBLE);
-		do {
-			/* check if DMA is pending */
-			if ((s->type == IVTV_ENC_STREAM_TYPE_MPG) &&	/* MPG Only */
-			    (read_reg(IVTV_REG_DMASTATUS) & 0x02)) {
-				/* Check for last DMA */
-				ivtv_vapi_result(itv, data, CX2341X_ENC_GET_SEQ_END, 2, 0, 0);
-
-				if (data[0] == 1) {
-					IVTV_DEBUG_DMA("%s: Last DMA of size 0x%08x\n", s->name, data[1]);
-					break;
-				}
-			} else if (read_reg(IVTV_REG_DMASTATUS) & 0x02) {
-				break;
-			}
-
-			ivtv_sleep_timeout(HZ / 100, 1);
-		} while (then + HZ * 2 > jiffies);
-
-		set_current_state(TASK_RUNNING);
-		remove_wait_queue(&s->waitq, &wait);
+		/* Handle any pending interrupts */
+		ivtv_msleep_timeout(100, 1);
 	}
 
 	atomic_dec(&itv->capturing);
@@ -849,6 +805,15 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 
 	/* Set the following Interrupt mask bits for capture */
 	ivtv_set_irq_mask(itv, IVTV_IRQ_MASK_CAPTURE);
+	del_timer(&itv->dma_timer);
+
+	/* event notification (off) */
+	if (test_and_clear_bit(IVTV_F_I_DIG_RST, &itv->i_flags)) {
+		/* type: 0 = refresh */
+		/* on/off: 0 = off, intr: 0x10000000, mbox_id: -1: none */
+		ivtv_vapi(itv, CX2341X_ENC_SET_EVENT_NOTIFICATION, 4, 0, 0, IVTV_IRQ_ENC_VIM_RST, -1);
+		ivtv_set_irq_mask(itv, IVTV_IRQ_ENC_VIM_RST);
+	}
 
 	wake_up(&s->waitq);
 
@@ -887,7 +852,7 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 					break;
 				tmp = data[3];
 			}
-			if (ivtv_sleep_timeout(HZ/10, 1))
+			if (ivtv_msleep_timeout(100, 1))
 				break;
 		}
 	}
@@ -897,15 +862,11 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 	ivtv_vapi(itv, CX2341X_DEC_SET_EVENT_NOTIFICATION, 4, 0, 0, IVTV_IRQ_DEC_AUD_MODE_CHG, -1);
 
 	ivtv_set_irq_mask(itv, IVTV_IRQ_MASK_DECODE);
+	del_timer(&itv->dma_timer);
 
 	clear_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags);
 	clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
 	ivtv_flush_queues(s);
-
-	if (!test_bit(IVTV_F_S_PASSTHROUGH, &s->s_flags)) {
-		/* disable VBI on TV-out */
-		ivtv_disable_vbi(itv);
-	}
 
 	/* decrement decoding */
 	atomic_dec(&itv->decoding);

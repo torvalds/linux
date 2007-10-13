@@ -10,6 +10,10 @@ config PPC_CELL_NATIVE
 	select PPC_INDIRECT_IO
 	select PPC_NATIVE
 	select MPIC
+	select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_RGMII
+	select IBM_NEW_EMAC_ZMII #test only
+	select IBM_NEW_EMAC_TAH  #test only
 	default n
 
 config PPC_IBM_CELL_BLADE
@@ -72,5 +76,15 @@ config CBE_CPUFREQ
 	  This adds the cpufreq driver for Cell BE processors.
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 	  If you don't have such processor, say N
+
+config CBE_CPUFREQ_PMI
+	tristate "CBE frequency scaling using PMI interface"
+	depends on CBE_CPUFREQ && PPC_PMI && EXPERIMENTAL
+	default n
+	help
+	  Select this, if you want to use the PMI interface
+	  to switch frequencies. Using PMI, the
+	  processor will not only be able to run at lower speed,
+	  but also at lower core voltage.
 
 endmenu

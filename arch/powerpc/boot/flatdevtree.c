@@ -134,20 +134,6 @@ static char *ft_next(struct ft_cxt *cxt, char *p, struct ft_atom *ret)
 #define HDR_SIZE	_ALIGN(sizeof(struct boot_param_header), 8)
 #define EXPAND_INCR	1024	/* alloc this much extra when expanding */
 
-/* See if the regions are in the standard order and non-overlapping */
-static int ft_ordered(struct ft_cxt *cxt)
-{
-	char *p = (char *)cxt->bph + HDR_SIZE;
-	enum ft_rgn_id r;
-
-	for (r = FT_RSVMAP; r <= FT_STRINGS; ++r) {
-		if (p > cxt->rgn[r].start)
-			return 0;
-		p = cxt->rgn[r].start + cxt->rgn[r].size;
-	}
-	return p <= (char *)cxt->bph + cxt->max_size;
-}
-
 /* Copy the tree to a newly-allocated region and put things in order */
 static int ft_reorder(struct ft_cxt *cxt, int nextra)
 {
@@ -368,16 +354,21 @@ static void ft_put_bin(struct ft_cxt *cxt, const void *data, unsigned int sz)
 	cxt->p += sza;
 }
 
-int ft_begin_node(struct ft_cxt *cxt, const char *name)
+char *ft_begin_node(struct ft_cxt *cxt, const char *name)
 {
 	unsigned long nlen = strlen(name) + 1;
 	unsigned long len = 8 + _ALIGN(nlen, 4);
+	char *ret;
 
 	if (!ft_make_space(cxt, &cxt->p, FT_STRUCT, len))
-		return -1;
+		return NULL;
+
+	ret = cxt->p;
+
 	ft_put_word(cxt, OF_DT_BEGIN_NODE);
 	ft_put_bin(cxt, name, strlen(name) + 1);
-	return 0;
+
+	return ret;
 }
 
 void ft_end_node(struct ft_cxt *cxt)
@@ -573,10 +564,6 @@ int ft_open(struct ft_cxt *cxt, void *blob, unsigned int max_size,
 	cxt->rgn[FT_STRUCT].size = struct_size(cxt);
 	cxt->rgn[FT_STRINGS].start = blob + be32_to_cpu(bph->off_dt_strings);
 	cxt->rgn[FT_STRINGS].size = be32_to_cpu(bph->dt_strings_size);
-	/* Leave as '0' to force first ft_make_space call to do a ft_reorder
-	 * and move dt to an area allocated by realloc.
-	cxt->isordered = ft_ordered(cxt);
-	*/
 
 	cxt->p = cxt->rgn[FT_STRUCT].start;
 	cxt->str_anchor = cxt->rgn[FT_STRINGS].start;
@@ -643,25 +630,17 @@ void ft_end_tree(struct ft_cxt *cxt)
 	bph->dt_strings_size = cpu_to_be32(ssize);
 }
 
-void *ft_find_device(struct ft_cxt *cxt, const char *srch_path)
+void *ft_find_device(struct ft_cxt *cxt, const void *top, const char *srch_path)
 {
 	char *node;
 
-	/* require absolute path */
-	if (srch_path[0] != '/')
-		return NULL;
-	node = ft_find_descendent(cxt, ft_root_node(cxt), srch_path);
-	return ft_get_phandle(cxt, node);
-}
-
-void *ft_find_device_rel(struct ft_cxt *cxt, const void *top,
-                         const char *srch_path)
-{
-	char *node;
-
-	node = ft_node_ph2node(cxt, top);
-	if (node == NULL)
-		return NULL;
+	if (top) {
+		node = ft_node_ph2node(cxt, top);
+		if (node == NULL)
+			return NULL;
+	} else {
+		node = ft_root_node(cxt);
+	}
 
 	node = ft_find_descendent(cxt, node, srch_path);
 	return ft_get_phandle(cxt, node);
@@ -963,7 +942,7 @@ int ft_del_prop(struct ft_cxt *cxt, const void *phandle, const char *propname)
 void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *name)
 {
 	struct ft_atom atom;
-	char *p, *next;
+	char *p, *next, *ret;
 	int depth = 0;
 
 	if (parent) {
@@ -988,11 +967,70 @@ void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *name)
 				break;
 			/* end of node, insert here */
 			cxt->p = p;
-			ft_begin_node(cxt, name);
+			ret = ft_begin_node(cxt, name);
 			ft_end_node(cxt);
-			return p;
+			return ft_get_phandle(cxt, ret);
 		}
 		p = next;
 	}
 	return NULL;
+}
+
+/* Returns the start of the path within the provided buffer, or NULL on
+ * error.
+ */
+char *ft_get_path(struct ft_cxt *cxt, const void *phandle,
+                  char *buf, int len)
+{
+	const char *path_comp[FT_MAX_DEPTH];
+	struct ft_atom atom;
+	char *p, *next, *pos;
+	int depth = 0, i;
+	void *node;
+
+	node = ft_node_ph2node(cxt, phandle);
+	if (node == NULL)
+		return NULL;
+
+	p = ft_root_node(cxt);
+
+	while ((next = ft_next(cxt, p, &atom)) != NULL) {
+		switch (atom.tag) {
+		case OF_DT_BEGIN_NODE:
+			path_comp[depth++] = atom.name;
+			if (p == node)
+				goto found;
+
+			break;
+
+		case OF_DT_END_NODE:
+			if (--depth == 0)
+				return NULL;
+		}
+
+		p = next;
+	}
+
+found:
+	pos = buf;
+	for (i = 1; i < depth; i++) {
+		int this_len;
+
+		if (len <= 1)
+			return NULL;
+
+		*pos++ = '/';
+		len--;
+
+		strncpy(pos, path_comp[i], len);
+
+		if (pos[len - 1] != 0)
+			return NULL;
+
+		this_len = strlen(pos);
+		len -= this_len;
+		pos += this_len;
+	}
+
+	return buf;
 }

@@ -257,9 +257,10 @@ static void acm_ctrl_irq(struct urb *urb)
 	struct usb_cdc_notification *dr = urb->transfer_buffer;
 	unsigned char *data;
 	int newctrl;
-	int status;
+	int retval;
+	int status = urb->status;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -267,10 +268,10 @@ static void acm_ctrl_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d", __FUNCTION__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
+		dbg("%s - nonzero urb status received: %d", __FUNCTION__, status);
 		goto exit;
 	}
 
@@ -311,10 +312,10 @@ static void acm_ctrl_irq(struct urb *urb)
 			break;
 	}
 exit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
-	if (status)
+	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	if (retval)
 		err ("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, status);
+		     __FUNCTION__, retval);
 }
 
 /* data interface returns incoming bytes, or we got unthrottled */
@@ -324,7 +325,8 @@ static void acm_read_bulk(struct urb *urb)
 	struct acm_ru *rcv = urb->context;
 	struct acm *acm = rcv->instance;
 	int status = urb->status;
-	dbg("Entering acm_read_bulk with status %d", urb->status);
+
+	dbg("Entering acm_read_bulk with status %d", status);
 
 	if (!ACM_READY(acm))
 		return;
@@ -919,6 +921,10 @@ skip_normal_probe:
 			return -EINVAL;
 		}
 	}
+
+	/* Accept probe requests only for the control interface */
+	if (intf != control_interface)
+		return -ENODEV;
 	
 	if (usb_interface_claimed(data_interface)) { /* valid in this context */
 		dev_dbg(&intf->dev,"The data interface isn't available");
@@ -1107,10 +1113,12 @@ static void acm_disconnect(struct usb_interface *intf)
 		return;
 	}
 	if (acm->country_codes){
-		device_remove_file(&intf->dev, &dev_attr_wCountryCodes);
-		device_remove_file(&intf->dev, &dev_attr_iCountryCodeRelDate);
+		device_remove_file(&acm->control->dev,
+				&dev_attr_wCountryCodes);
+		device_remove_file(&acm->control->dev,
+				&dev_attr_iCountryCodeRelDate);
 	}
-	device_remove_file(&intf->dev, &dev_attr_bmCapabilities);
+	device_remove_file(&acm->control->dev, &dev_attr_bmCapabilities);
 	acm->dev = NULL;
 	usb_set_intfdata(acm->control, NULL);
 	usb_set_intfdata(acm->data, NULL);

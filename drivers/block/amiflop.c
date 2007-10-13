@@ -1422,7 +1422,7 @@ static void redo_fd_request(void)
 	goto repeat;
 }
 
-static void do_fd_request(request_queue_t * q)
+static void do_fd_request(struct request_queue * q)
 {
 	redo_fd_request();
 }

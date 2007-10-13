@@ -90,14 +90,11 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	}
 
 	/* Add channel and frequency */
+	/* Note : userspace automatically computes channel using iwrange */
 	iwe.cmd = SIOCGIWFREQ;
-	iwe.u.freq.m = network->channel;
-	iwe.u.freq.e = 0;
-	iwe.u.freq.i = 0;
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_FREQ_LEN);
-
 	iwe.u.freq.m = ieee80211_channel_to_freq(ieee, network->channel);
 	iwe.u.freq.e = 6;
+	iwe.u.freq.i = 0;
 	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_FREQ_LEN);
 
 	/* Add encryption capability */
@@ -260,6 +257,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	char *ev = extra;
 	char *stop = ev + wrqu->data.length;
 	int i = 0;
+	DECLARE_MAC_BUF(mac);
 
 	IEEE80211_DEBUG_WX("Getting scan\n");
 
@@ -277,10 +275,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 			ev = ieee80211_translate_scan(ieee, ev, stop, network);
 		else
 			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
-					     MAC_FMT ")' due to age (%dms).\n",
+					     "%s)' due to age (%dms).\n",
 					     escape_essid(network->ssid,
 							  network->ssid_len),
-					     MAC_ARG(network->bssid),
+					     print_mac(mac, network->bssid),
 					     jiffies_to_msecs(jiffies -
 							      network->
 							      last_scanned));

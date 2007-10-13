@@ -197,7 +197,6 @@ static int tc589_probe(struct pcmcia_device *link)
     link->conf.ConfigIndex = 1;
 
     /* The EL3-specific entries in the device structure. */
-    SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &el3_start_xmit;
     dev->set_config = &el3_config;
     dev->get_stats = &el3_get_stats;
@@ -256,6 +255,7 @@ static int tc589_config(struct pcmcia_device *link)
     int last_fn, last_ret, i, j, multi = 0, fifo;
     kio_addr_t ioaddr;
     char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
+    DECLARE_MAC_BUF(mac);
     
     DEBUG(0, "3c589_config(0x%p)\n", link);
 
@@ -331,11 +331,10 @@ static int tc589_config(struct pcmcia_device *link)
 
     strcpy(lp->node.dev_name, dev->name);
 
-    printk(KERN_INFO "%s: 3Com 3c%s, io %#3lx, irq %d, hw_addr ",
-	   dev->name, (multi ? "562" : "589"), dev->base_addr,
-	   dev->irq);
-    for (i = 0; i < 6; i++)
-	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+    printk(KERN_INFO "%s: 3Com 3c%s, io %#3lx, irq %d, "
+	   "hw_addr %s\n",
+	   dev->name, (multi ? "562" : "589"), dev->base_addr, dev->irq,
+	   print_mac(mac, dev->dev_addr));
     printk(KERN_INFO "  %dK FIFO split %s Rx:Tx, %s xcvr\n",
 	   (fifo & 7) ? 32 : 8, ram_split[(fifo >> 16) & 3],
 	   if_names[dev->if_port]);

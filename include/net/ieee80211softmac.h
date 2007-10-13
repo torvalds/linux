@@ -229,6 +229,8 @@ struct ieee80211softmac_device {
 	/* this lock protects this structure */
 	spinlock_t lock;
 
+	struct workqueue_struct *wq;
+
 	u8 running; /* SoftMAC started? */
 	u8 scanning;
 

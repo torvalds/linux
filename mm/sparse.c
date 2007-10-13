@@ -41,6 +41,15 @@ int page_to_nid(struct page *page)
 	return section_to_node_table[page_to_section(page)];
 }
 EXPORT_SYMBOL(page_to_nid);
+
+static void set_section_nid(unsigned long section_nr, int nid)
+{
+	section_to_node_table[section_nr] = nid;
+}
+#else /* !NODE_NOT_IN_PAGE_FLAGS */
+static inline void set_section_nid(unsigned long section_nr, int nid)
+{
+}
 #endif
 
 #ifdef CONFIG_SPARSEMEM_EXTREME
@@ -67,10 +76,6 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
 	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
 	struct mem_section *section;
 	int ret = 0;
-
-#ifdef NODE_NOT_IN_PAGE_FLAGS
-	section_to_node_table[section_nr] = nid;
-#endif
 
 	if (mem_section[root])
 		return -EEXIST;
@@ -148,6 +153,7 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
 		struct mem_section *ms;
 
 		sparse_index_init(section, nid);
+		set_section_nid(section, nid);
 
 		ms = __nr_to_section(section);
 		if (!ms->section_mem_map)
@@ -209,7 +215,7 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
 	return 1;
 }
 
-__attribute__((weak))
+__attribute__((weak)) __init
 void *alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
 {
 	return NULL;

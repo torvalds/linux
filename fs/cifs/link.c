@@ -50,32 +50,33 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 
 	fromName = build_path_from_dentry(old_file);
 	toName = build_path_from_dentry(direntry);
-	if((fromName == NULL) || (toName == NULL)) {
+	if ((fromName == NULL) || (toName == NULL)) {
 		rc = -ENOMEM;
 		goto cifs_hl_exit;
 	}
 
-	if (cifs_sb_target->tcon->ses->capabilities & CAP_UNIX)
+/*	if (cifs_sb_target->tcon->ses->capabilities & CAP_UNIX)*/
+	if (pTcon->unix_ext)
 		rc = CIFSUnixCreateHardLink(xid, pTcon, fromName, toName,
-					    cifs_sb_target->local_nls, 
+					    cifs_sb_target->local_nls,
 					    cifs_sb_target->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else {
 		rc = CIFSCreateHardLink(xid, pTcon, fromName, toName,
-					cifs_sb_target->local_nls, 
+					cifs_sb_target->local_nls,
 					cifs_sb_target->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if((rc == -EIO) || (rc == -EINVAL))
-			rc = -EOPNOTSUPP;  
+		if ((rc == -EIO) || (rc == -EINVAL))
+			rc = -EOPNOTSUPP;
 	}
 
 	d_drop(direntry);	/* force new lookup from server of target */
 
 	/* if source file is cached (oplocked) revalidate will not go to server
 	   until the file is closed or oplock broken so update nlinks locally */
-	if(old_file->d_inode) {
+	if (old_file->d_inode) {
 		cifsInode = CIFS_I(old_file->d_inode);
-		if(rc == 0) {
+		if (rc == 0) {
 			old_file->d_inode->i_nlink++;
 /* BB should we make this contingent on superblock flag NOATIME? */
 /*			old_file->d_inode->i_ctime = CURRENT_TIME;*/
@@ -84,14 +85,14 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 			to set the parent dir cifs inode time to zero
 			to force revalidate (faster) for it too? */
 		}
-		/* if not oplocked will force revalidate to get info 
+		/* if not oplocked will force revalidate to get info
 		   on source file from srv */
 		cifsInode->time = 0;
 
-                /* Will update parent dir timestamps from srv within a second.
+		/* Will update parent dir timestamps from srv within a second.
 		   Would it really be worth it to set the parent dir (cifs
 		   inode) time field to zero to force revalidate on parent
-		   directory faster ie 
+		   directory faster ie
 			CIFS_I(inode)->time = 0;  */
 	}
 
@@ -109,7 +110,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	int rc = -EACCES;
 	int xid;
 	char *full_path = NULL;
-	char * target_path = ERR_PTR(-ENOMEM);
+	char *target_path = ERR_PTR(-ENOMEM);
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 
@@ -129,13 +130,19 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 		goto out;
 	}
 
-/* BB add read reparse point symlink code and Unix extensions symlink code here BB */
+	/* We could change this to:
+		if (pTcon->unix_ext)
+	   but there does not seem any point in refusing to
+	   get symlink info if we can, even if unix extensions
+	   turned off for this mount */
+
 	if (pTcon->ses->capabilities & CAP_UNIX)
 		rc = CIFSSMBUnixQuerySymLink(xid, pTcon, full_path,
 					     target_path,
 					     PATH_MAX-1,
 					     cifs_sb->local_nls);
 	else {
+		/* BB add read reparse point symlink code here */
 		/* rc = CIFSSMBQueryReparseLinkInfo */
 		/* BB Add code to Query ReparsePoint info */
 		/* BB Add MAC style xsymlink check here if enabled */
@@ -176,7 +183,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 
 	full_path = build_path_from_dentry(direntry);
 
-	if(full_path == NULL) {
+	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
 	}
@@ -185,19 +192,20 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	cFYI(1, ("symname is %s", symname));
 
 	/* BB what if DFS and this volume is on different share? BB */
-	if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
+	if (pTcon->unix_ext)
 		rc = CIFSUnixCreateSymLink(xid, pTcon, full_path, symname,
 					   cifs_sb->local_nls);
 	/* else
-	   rc = CIFSCreateReparseSymLink(xid, pTcon, fromName, toName,cifs_sb_target->local_nls); */
+	   rc = CIFSCreateReparseSymLink(xid, pTcon, fromName, toName,
+					cifs_sb_target->local_nls); */
 
 	if (rc == 0) {
-		if (pTcon->ses->capabilities & CAP_UNIX)
+		if (pTcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
-						      inode->i_sb,xid);
+						      inode->i_sb, xid);
 		else
 			rc = cifs_get_inode_info(&newinode, full_path, NULL,
-						 inode->i_sb,xid);
+						 inode->i_sb, xid);
 
 		if (rc != 0) {
 			cFYI(1, ("Create symlink ok, getinodeinfo fail rc = %d",
@@ -226,9 +234,9 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
-	char *tmp_path =  NULL;
-	char * tmpbuffer;
-	unsigned char * referrals = NULL;
+	char *tmp_path = NULL;
+	char *tmpbuffer;
+	unsigned char *referrals = NULL;
 	int num_referrals = 0;
 	int len;
 	__u16 fid;
@@ -237,13 +245,13 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-/* BB would it be safe against deadlock to grab this sem 
+/* BB would it be safe against deadlock to grab this sem
       even though rename itself grabs the sem and calls lookup? */
 /*       mutex_lock(&inode->i_sb->s_vfs_rename_mutex);*/
 	full_path = build_path_from_dentry(direntry);
 /*       mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);*/
 
-	if(full_path == NULL) {
+	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
 	}
@@ -251,70 +259,80 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	cFYI(1,
 	     ("Full path: %s inode = 0x%p pBuffer = 0x%p buflen = %d",
 	      full_path, inode, pBuffer, buflen));
-	if(buflen > PATH_MAX)
+	if (buflen > PATH_MAX)
 		len = PATH_MAX;
 	else
 		len = buflen;
-	tmpbuffer = kmalloc(len,GFP_KERNEL);   
-	if(tmpbuffer == NULL) {
+	tmpbuffer = kmalloc(len, GFP_KERNEL);
+	if (tmpbuffer == NULL) {
 		kfree(full_path);
 		FreeXid(xid);
 		return -ENOMEM;
 	}
 
-/* BB add read reparse point symlink code and Unix extensions symlink code here BB */
+/* BB add read reparse point symlink code and
+	Unix extensions symlink code here BB */
+/* We could disable this based on pTcon->unix_ext flag instead ... but why? */
 	if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
 		rc = CIFSSMBUnixQuerySymLink(xid, pTcon, full_path,
 				tmpbuffer,
 				len - 1,
 				cifs_sb->local_nls);
 	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
-		cERROR(1,("SFU style symlinks not implemented yet"));
+		cERROR(1, ("SFU style symlinks not implemented yet"));
 		/* add open and read as in fs/cifs/inode.c */
-	
 	} else {
 		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, GENERIC_READ,
-				OPEN_REPARSE_POINT,&fid, &oplock, NULL, 
-				cifs_sb->local_nls, 
-				cifs_sb->mnt_cifs_flags & 
+				OPEN_REPARSE_POINT, &fid, &oplock, NULL,
+				cifs_sb->local_nls,
+				cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if(!rc) {
+		if (!rc) {
 			rc = CIFSSMBQueryReparseLinkInfo(xid, pTcon, full_path,
 				tmpbuffer,
-				len - 1, 
+				len - 1,
 				fid,
 				cifs_sb->local_nls);
-			if(CIFSSMBClose(xid, pTcon, fid)) {
-				cFYI(1,("Error closing junction point (open for ioctl)"));
+			if (CIFSSMBClose(xid, pTcon, fid)) {
+				cFYI(1, ("Error closing junction point "
+					 "(open for ioctl)"));
 			}
-			if(rc == -EIO) {
+			if (rc == -EIO) {
 				/* Query if DFS Junction */
 				tmp_path =
 					kmalloc(MAX_TREE_SIZE + MAX_PATHCONF + 1,
 						GFP_KERNEL);
 				if (tmp_path) {
-					strncpy(tmp_path, pTcon->treeName, MAX_TREE_SIZE);
-					strncat(tmp_path, full_path, MAX_PATHCONF);
-					rc = get_dfs_path(xid, pTcon->ses, tmp_path,
+					strncpy(tmp_path, pTcon->treeName,
+						MAX_TREE_SIZE);
+					strncat(tmp_path, full_path,
+						MAX_PATHCONF);
+					rc = get_dfs_path(xid, pTcon->ses,
+						tmp_path,
 						cifs_sb->local_nls,
 						&num_referrals, &referrals,
 						cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-					cFYI(1,("Get DFS for %s rc = %d ",tmp_path, rc));
-					if((num_referrals == 0) && (rc == 0))
+					cFYI(1, ("Get DFS for %s rc = %d ",
+						tmp_path, rc));
+					if ((num_referrals == 0) && (rc == 0))
 						rc = -EACCES;
 					else {
-						cFYI(1,("num referral: %d",num_referrals));
-						if(referrals) {
-							cFYI(1,("referral string: %s",referrals));
-							strncpy(tmpbuffer, referrals, len-1);                            
+						cFYI(1, ("num referral: %d",
+							num_referrals));
+						if (referrals) {
+							cFYI(1,("referral string: %s", referrals));
+							strncpy(tmpbuffer,
+								referrals,
+								len-1);
 						}
 					}
 					kfree(referrals);
 					kfree(tmp_path);
 }
-				/* BB add code like else decode referrals then memcpy to
-				  tmpbuffer and free referrals string array BB */
+				/* BB add code like else decode referrals
+				then memcpy to tmpbuffer and free referrals
+				string array BB */
 			}
 		}
 	}

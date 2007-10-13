@@ -36,7 +36,8 @@ ENTRY(empty_zero_page)
 1:
 	.skip	PAGE_SIZE - empty_zero_page - 1b
 
-	.text	
+	.section	.text.head, "ax"
+
 /*
  * Condition at the entry of _stext:
  *

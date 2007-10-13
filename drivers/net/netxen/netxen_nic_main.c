@@ -39,14 +39,13 @@
 #include "netxen_nic_phan_reg.h"
 
 #include <linux/dma-mapping.h>
-#include <linux/vmalloc.h>
 #include <net/ip.h>
 
 MODULE_DESCRIPTION("NetXen Multi port (1/10) Gigabit Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(NETXEN_NIC_LINUX_VERSIONID);
 
-char netxen_nic_driver_name[] = "netxen-nic";
+char netxen_nic_driver_name[] = "netxen_nic";
 static char netxen_nic_driver_string[] = "NetXen Network Driver version "
     NETXEN_NIC_LINUX_VERSIONID;
 
@@ -68,7 +67,7 @@ static void netxen_tx_timeout(struct net_device *netdev);
 static void netxen_tx_timeout_task(struct work_struct *work);
 static void netxen_watchdog(unsigned long);
 static int netxen_handle_int(struct netxen_adapter *, struct net_device *);
-static int netxen_nic_poll(struct net_device *dev, int *budget);
+static int netxen_nic_poll(struct napi_struct *napi, int budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev);
 #endif
@@ -286,6 +285,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int valid_mac = 0;
 	u32 val;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
+	DECLARE_MAC_BUF(mac);
 
 	printk(KERN_INFO "%s \n", netxen_nic_driver_string);
 
@@ -326,16 +326,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_res;
 	}
 
-	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	adapter = netdev->priv;
-	memset(adapter, 0 , sizeof(struct netxen_adapter));
 
 	adapter->ahw.pdev = pdev;
 	adapter->ahw.pci_func  = pci_func_id;
 	spin_lock_init(&adapter->tx_lock);
-	spin_lock_init(&adapter->lock);
 
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
@@ -403,12 +400,16 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->netdev  = netdev;
 	adapter->pdev    = pdev;
 
+	netif_napi_add(netdev, &adapter->napi,
+		       netxen_nic_poll, NETXEN_NETDEV_WEIGHT);
+
 	/* this will be read from FW later */
 	adapter->intr_scheme = -1;
 
 	/* This will be reset for mezz cards  */
 	adapter->portnum = pci_func_id;
 	adapter->status   &= ~NETXEN_NETDEV_STATUS;
+	adapter->rx_csum = 1;
 
 	netdev->open		   = netxen_nic_open;
 	netdev->stop		   = netxen_nic_close;
@@ -423,8 +424,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netxen_nic_change_mtu(netdev, netdev->mtu);
 
 	SET_ETHTOOL_OPS(netdev, &netxen_nic_ethtool_ops);
-	netdev->poll = netxen_nic_poll;
-	netdev->weight = NETXEN_NETDEV_WEIGHT;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	netdev->poll_controller = netxen_nic_poll_controller;
 #endif
@@ -576,15 +575,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		memcpy(netdev->perm_addr, netdev->dev_addr,
 			netdev->addr_len);
 		if (!is_valid_ether_addr(netdev->perm_addr)) {
-			printk(KERN_ERR "%s: Bad MAC address "
-				"%02x:%02x:%02x:%02x:%02x:%02x.\n",
-				netxen_nic_driver_name,
-				netdev->dev_addr[0],
-				netdev->dev_addr[1],
-				netdev->dev_addr[2],
-				netdev->dev_addr[3],
-				netdev->dev_addr[4],
-				netdev->dev_addr[5]);
+			printk(KERN_ERR "%s: Bad MAC address %s.\n",
+			       netxen_nic_driver_name,
+			       print_mac(mac, netdev->dev_addr));
 		} else {
 			if (adapter->macaddr_set)
 				adapter->macaddr_set(adapter,
@@ -747,9 +740,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	netxen_nic_disable_int(adapter);
 
-	if (adapter->irq)
-		free_irq(adapter->irq, adapter);
-
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
 		init_firmware_done++;
 		netxen_free_hw_resources(adapter);
@@ -773,28 +763,22 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		}
 	}
 
-	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
-		pci_disable_msi(pdev);
-
 	vfree(adapter->cmd_buf_arr);
-
-	pci_disable_device(pdev);
 
 	if (adapter->portnum == 0) {
 		if (init_firmware_done) {
-			dma_watchdog_shutdown_request(adapter);
-			msleep(100);
 			i = 100;
-			while ((dma_watchdog_shutdown_poll_result(adapter) != 1) && i) {
-				printk(KERN_INFO "dma_watchdog_shutdown_poll still in progress\n");
+			do {
+				if (dma_watchdog_shutdown_request(adapter) == 1)
+					break;
 				msleep(100);
-				i--;
-			}
+				if (dma_watchdog_shutdown_poll_result(adapter) == 1)
+					break;
+			} while (--i);
 
-			if (i == 0) {
-				printk(KERN_ERR "dma_watchdog_shutdown_request failed\n");
-				return;
-			}
+			if (i == 0)
+				printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
+						netdev->name);
 
 			/* clear the register for future unloads/loads */
 			writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
@@ -803,11 +787,9 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 			/* leave the hw in the same state as reboot */
 			writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-			if (netxen_pinit_from_rom(adapter, 0))
-				return;
+			netxen_pinit_from_rom(adapter, 0);
 			msleep(1);
-			if (netxen_load_firmware(adapter))
-				return;
+			netxen_load_firmware(adapter);
 			netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 		}
 
@@ -816,23 +798,28 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		printk(KERN_INFO "State: 0x%0x\n",
 			readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
 
-		dma_watchdog_shutdown_request(adapter);
-		msleep(100);
 		i = 100;
-		while ((dma_watchdog_shutdown_poll_result(adapter) != 1) && i) {
-			printk(KERN_INFO "dma_watchdog_shutdown_poll still in progress\n");
+		do {
+			if (dma_watchdog_shutdown_request(adapter) == 1)
+				break;
 			msleep(100);
-			i--;
-		}
+			if (dma_watchdog_shutdown_poll_result(adapter) == 1)
+				break;
+		} while (--i);
 
 		if (i) {
 			netxen_free_adapter_offload(adapter);
 		} else {
-			printk(KERN_ERR "failed to dma shutdown\n");
-			return;
+			printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
+					netdev->name);
 		}
-
 	}
+
+	if (adapter->irq)
+		free_irq(adapter->irq, adapter);
+
+	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
+		pci_disable_msi(pdev);
 
 	iounmap(adapter->ahw.db_base);
 	iounmap(adapter->ahw.pci_base0);
@@ -840,6 +827,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	iounmap(adapter->ahw.pci_base2);
 
 	pci_release_regions(pdev);
+	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
 	free_netdev(netdev);
@@ -891,19 +879,22 @@ static int netxen_nic_open(struct net_device *netdev)
 	if (!adapter->driver_mismatch)
 		mod_timer(&adapter->watchdog_timer, jiffies);
 
+	napi_enable(&adapter->napi);
+
 	netxen_nic_enable_int(adapter);
 
 	/* Done here again so that even if phantom sw overwrote it,
 	 * we set it */
-	if (adapter->macaddr_set)
-		adapter->macaddr_set(adapter, netdev->dev_addr);
 	if (adapter->init_port
 	    && adapter->init_port(adapter, adapter->portnum) != 0) {
 	    del_timer_sync(&adapter->watchdog_timer);
 		printk(KERN_ERR "%s: Failed to initialize port %d\n",
 				netxen_nic_driver_name, adapter->portnum);
+		napi_disable(&adapter->napi);
 		return -EIO;
 	}
+	if (adapter->macaddr_set)
+		adapter->macaddr_set(adapter, netdev->dev_addr);
 
 	netxen_nic_set_link_parameters(adapter);
 
@@ -929,6 +920,9 @@ static int netxen_nic_close(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
+	napi_disable(&adapter->napi);
+
+	netxen_nic_disable_int(adapter);
 
 	cmd_buff = adapter->cmd_buf_arr;
 	for (i = 0; i < adapter->max_tx_desc_count; i++) {
@@ -1226,15 +1220,12 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 {
 	struct netxen_adapter *adapter = 
 		container_of(work, struct netxen_adapter, tx_timeout_task);
-	unsigned long flags;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, adapter->netdev->name);
 
-	spin_lock_irqsave(&adapter->lock, flags);
 	netxen_nic_close(adapter->netdev);
 	netxen_nic_open(adapter->netdev);
-	spin_unlock_irqrestore(&adapter->lock, flags);
 	adapter->netdev->trans_start = jiffies;
 	netif_wake_queue(adapter->netdev);
 }
@@ -1243,34 +1234,18 @@ static int
 netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	u32 ret = 0;
-	u32 our_int = 0;
 
 	DPRINTK(INFO, "Entered handle ISR\n");
 	adapter->stats.ints++;
 
-	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
-		our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
-		/* not our interrupt */
-		if ((our_int & (0x80 << adapter->portnum)) == 0)
-			return ret;
-	}
-
 	netxen_nic_disable_int(adapter);
 
-	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
-		/* claim interrupt */
-		if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
-			writel(our_int & ~((u32)(0x80 << adapter->portnum)),
-			NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
-		}
-	}
-
 	if (netxen_nic_rx_has_work(adapter) || netxen_nic_tx_has_work(adapter)) {
-		if (netif_rx_schedule_prep(netdev)) {
+		if (netif_rx_schedule_prep(netdev, &adapter->napi)) {
 			/*
 			 * Interrupts are already disabled.
 			 */
-			__netif_rx_schedule(netdev);
+			__netif_rx_schedule(netdev, &adapter->napi);
 		} else {
 			static unsigned int intcount = 0;
 			if ((++intcount & 0xfff) == 0xfff)
@@ -1298,6 +1273,7 @@ irqreturn_t netxen_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter;
 	struct net_device *netdev;
+	u32 our_int = 0;
 
 	if (unlikely(!irq)) {
 		return IRQ_NONE;	/* Not our interrupt */
@@ -1305,21 +1281,35 @@ irqreturn_t netxen_intr(int irq, void *data)
 
 	adapter = (struct netxen_adapter *)data;
 	netdev  = adapter->netdev;
-	/* process our status queue (for all 4 ports) */
+
+	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
+		our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+		/* not our interrupt */
+		if ((our_int & (0x80 << adapter->portnum)) == 0)
+			return IRQ_NONE;
+	}
+
+	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
+		/* claim interrupt */
+		if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
+			writel(our_int & ~((u32)(0x80 << adapter->portnum)),
+			NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+		}
+	}
+
 	if (netif_running(netdev))
 		netxen_handle_int(adapter, netdev);
 
 	return IRQ_HANDLED;
 }
 
-static int netxen_nic_poll(struct net_device *netdev, int *budget)
+static int netxen_nic_poll(struct napi_struct *napi, int budget)
 {
-	struct netxen_adapter *adapter = netdev_priv(netdev);
-	int work_to_do = min(*budget, netdev->quota);
+	struct netxen_adapter *adapter = container_of(napi, struct netxen_adapter, napi);
+	struct net_device *netdev = adapter->netdev;
 	int done = 1;
 	int ctx;
-	int this_work_done;
-	int work_done = 0;
+	int work_done;
 
 	DPRINTK(INFO, "polling for %d descriptors\n", *budget);
 
@@ -1337,16 +1327,11 @@ static int netxen_nic_poll(struct net_device *netdev, int *budget)
 		 * packets are on one context, it gets only half of the quota,
 		 * and ends up not processing it.
 		 */
-		this_work_done = netxen_process_rcv_ring(adapter, ctx,
-							 work_to_do /
-							 MAX_RCV_CTX);
-		work_done += this_work_done;
+		work_done += netxen_process_rcv_ring(adapter, ctx,
+						     budget / MAX_RCV_CTX);
 	}
 
-	netdev->quota -= work_done;
-	*budget -= work_done;
-
-	if (work_done >= work_to_do && netxen_nic_rx_has_work(adapter) != 0)
+	if (work_done >= budget && netxen_nic_rx_has_work(adapter) != 0)
 		done = 0;
 
 	if (netxen_process_cmd_ring((unsigned long)adapter) == 0)
@@ -1355,11 +1340,11 @@ static int netxen_nic_poll(struct net_device *netdev, int *budget)
 	DPRINTK(INFO, "new work_done: %d work_to_do: %d\n",
 		work_done, work_to_do);
 	if (done) {
-		netif_rx_complete(netdev);
+		netif_rx_complete(netdev, napi);
 		netxen_nic_enable_int(adapter);
 	}
 
-	return !done;
+	return work_done;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

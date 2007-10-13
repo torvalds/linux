@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/init_task.h>
 #include <linux/mqueue.h>
+#include <linux/fs.h>
 
 static struct fs_struct init_fs = INIT_FS;
 static struct files_struct init_files = INIT_FILES;

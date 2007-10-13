@@ -64,7 +64,9 @@
 #define ETH_INT_CAUSE_TX_ERROR	(ETH_TX_QUEUES_ENABLED << 8)
 #define ETH_INT_CAUSE_TX	(ETH_INT_CAUSE_TX_DONE | ETH_INT_CAUSE_TX_ERROR)
 #define ETH_INT_CAUSE_PHY	0x00010000
-#define ETH_INT_UNMASK_ALL_EXT	(ETH_INT_CAUSE_TX | ETH_INT_CAUSE_PHY)
+#define ETH_INT_CAUSE_STATE	0x00100000
+#define ETH_INT_UNMASK_ALL_EXT	(ETH_INT_CAUSE_TX | ETH_INT_CAUSE_PHY | \
+					ETH_INT_CAUSE_STATE)
 
 #define ETH_INT_MASK_ALL	0x00000000
 #define ETH_INT_MASK_ALL_EXT	0x00000000
@@ -318,6 +320,8 @@ struct mv643xx_private {
 
 	struct work_struct tx_timeout_task;
 
+	struct net_device *dev;
+	struct napi_struct napi;
 	struct net_device_stats stats;
 	struct mv643xx_mib_counters mib_counters;
 	spinlock_t lock;

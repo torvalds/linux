@@ -267,7 +267,7 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 out:
 	write_unlock_bh(&rfcomm_dev_lock);
 
-	if (err) {
+	if (err < 0) {
 		kfree(dev);
 		return err;
 	}
@@ -275,9 +275,10 @@ out:
 	dev->tty_dev = tty_register_device(rfcomm_tty_driver, dev->id, NULL);
 
 	if (IS_ERR(dev->tty_dev)) {
+		err = PTR_ERR(dev->tty_dev);
 		list_del(&dev->list);
 		kfree(dev);
-		return PTR_ERR(dev->tty_dev);
+		return err;
 	}
 
 	return dev->id;

@@ -1,5 +1,5 @@
 /*
- * bsg.c - block layer implementation of the sg v3 interface
+ * bsg.c - block layer implementation of the sg v4 interface
  *
  * Copyright (C) 2004 Jens Axboe <axboe@suse.de> SUSE Labs
  * Copyright (C) 2004 Peter M. Jones <pjones@redhat.com>
@@ -7,13 +7,6 @@
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License version 2.  See the file "COPYING" in the main directory of this
  *  archive for more details.
- *
- */
-/*
- * TODO
- *	- Should this get merged, block/scsi_ioctl.c will be migrated into
- *	  this file. To keep maintenance down, it's easier to have them
- *	  seperated right now.
  *
  */
 #include <linux/module.h>
@@ -24,6 +17,7 @@
 #include <linux/cdev.h>
 #include <linux/percpu.h>
 #include <linux/uio.h>
+#include <linux/idr.h>
 #include <linux/bsg.h>
 
 #include <scsi/scsi.h>
@@ -37,7 +31,7 @@
 #define BSG_VERSION	"0.4"
 
 struct bsg_device {
-	request_queue_t *queue;
+	struct request_queue *queue;
 	spinlock_t lock;
 	struct list_head busy_list;
 	struct list_head done_list;
@@ -70,13 +64,12 @@ enum {
 #endif
 
 static DEFINE_MUTEX(bsg_mutex);
-static int bsg_device_nr, bsg_minor_idx;
+static DEFINE_IDR(bsg_minor_idr);
 
 #define BSG_LIST_ARRAY_SIZE	8
 static struct hlist_head bsg_device_list[BSG_LIST_ARRAY_SIZE];
 
 static struct class *bsg_class;
-static LIST_HEAD(bsg_class_list);
 static int bsg_major;
 
 static struct kmem_cache *bsg_cmd_cachep;
@@ -92,7 +85,6 @@ struct bsg_command {
 	struct bio *bidi_bio;
 	int err;
 	struct sg_io_v4 hdr;
-	struct sg_io_v4 __user *uhdr;
 	char sense[SCSI_SENSE_BUFFERSIZE];
 };
 
@@ -180,7 +172,7 @@ unlock:
 	return ret;
 }
 
-static int blk_fill_sgv4_hdr_rq(request_queue_t *q, struct request *rq,
+static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 				struct sg_io_v4 *hdr, int has_write_perm)
 {
 	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
@@ -214,7 +206,7 @@ static int blk_fill_sgv4_hdr_rq(request_queue_t *q, struct request *rq,
  * Check if sg_io_v4 from user is allowed and valid
  */
 static int
-bsg_validate_sgv4_hdr(request_queue_t *q, struct sg_io_v4 *hdr, int *rw)
+bsg_validate_sgv4_hdr(struct request_queue *q, struct sg_io_v4 *hdr, int *rw)
 {
 	int ret = 0;
 
@@ -250,7 +242,7 @@ bsg_validate_sgv4_hdr(request_queue_t *q, struct sg_io_v4 *hdr, int *rw)
 static struct request *
 bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 {
-	request_queue_t *q = bd->queue;
+	struct request_queue *q = bd->queue;
 	struct request *rq, *next_rq = NULL;
 	int ret, rw;
 	unsigned int dxfer_len;
@@ -345,7 +337,7 @@ static void bsg_rq_end_io(struct request *rq, int uptodate)
  * do final setup of a 'bc' and submit the matching 'rq' to the block
  * layer for io
  */
-static void bsg_add_command(struct bsg_device *bd, request_queue_t *q,
+static void bsg_add_command(struct bsg_device *bd, struct request_queue *q,
 			    struct bsg_command *bc, struct request *rq)
 {
 	rq->sense = bc->sense;
@@ -429,7 +421,6 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	hdr->info = 0;
 	if (hdr->device_status || hdr->transport_status || hdr->driver_status)
 		hdr->info |= SG_INFO_CHECK;
-	hdr->din_resid = rq->data_len;
 	hdr->response_len = 0;
 
 	if (rq->sense_len && hdr->response) {
@@ -445,9 +436,14 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	}
 
 	if (rq->next_rq) {
+		hdr->dout_resid = rq->data_len;
+		hdr->din_resid = rq->next_rq->data_len;
 		blk_rq_unmap_user(bidi_bio);
 		blk_put_request(rq->next_rq);
-	}
+	} else if (rq_data_dir(rq) == READ)
+		hdr->din_resid = rq->data_len;
+	else
+		hdr->dout_resid = rq->data_len;
 
 	blk_rq_unmap_user(bio);
 	blk_put_request(rq);
@@ -611,7 +607,7 @@ static int __bsg_write(struct bsg_device *bd, const char __user *buf,
 	bc = NULL;
 	ret = 0;
 	while (nr_commands) {
-		request_queue_t *q = bd->queue;
+		struct request_queue *q = bd->queue;
 
 		bc = bsg_alloc_command(bd);
 		if (IS_ERR(bc)) {
@@ -620,7 +616,6 @@ static int __bsg_write(struct bsg_device *bd, const char __user *buf,
 			break;
 		}
 
-		bc->uhdr = (struct sg_io_v4 __user *) buf;
 		if (copy_from_user(&bc->hdr, buf, sizeof(bc->hdr))) {
 			ret = -EFAULT;
 			break;
@@ -781,23 +776,18 @@ static struct bsg_device *__bsg_get_device(int minor)
 
 static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 {
-	struct bsg_device *bd = __bsg_get_device(iminor(inode));
-	struct bsg_class_device *bcd, *__bcd;
+	struct bsg_device *bd;
+	struct bsg_class_device *bcd;
 
+	bd = __bsg_get_device(iminor(inode));
 	if (bd)
 		return bd;
 
 	/*
 	 * find the class device
 	 */
-	bcd = NULL;
 	mutex_lock(&bsg_mutex);
-	list_for_each_entry(__bcd, &bsg_class_list, list) {
-		if (__bcd->minor == iminor(inode)) {
-			bcd = __bcd;
-			break;
-		}
-	}
+	bcd = idr_find(&bsg_minor_idr, iminor(inode));
 	mutex_unlock(&bsg_mutex);
 
 	if (!bcd)
@@ -932,24 +922,33 @@ void bsg_unregister_queue(struct request_queue *q)
 {
 	struct bsg_class_device *bcd = &q->bsg_dev;
 
-	WARN_ON(!bcd->class_dev);
+	if (!bcd->class_dev)
+		return;
 
 	mutex_lock(&bsg_mutex);
+	idr_remove(&bsg_minor_idr, bcd->minor);
 	sysfs_remove_link(&q->kobj, "bsg");
-	class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
+	class_device_unregister(bcd->class_dev);
+	put_device(bcd->dev);
 	bcd->class_dev = NULL;
-	list_del_init(&bcd->list);
-	bsg_device_nr--;
+	bcd->dev = NULL;
 	mutex_unlock(&bsg_mutex);
 }
 EXPORT_SYMBOL_GPL(bsg_unregister_queue);
 
-int bsg_register_queue(struct request_queue *q, const char *name)
+int bsg_register_queue(struct request_queue *q, struct device *gdev,
+		       const char *name)
 {
-	struct bsg_class_device *bcd, *__bcd;
+	struct bsg_class_device *bcd;
 	dev_t dev;
-	int ret = -EMFILE;
+	int ret, minor;
 	struct class_device *class_dev = NULL;
+	const char *devname;
+
+	if (name)
+		devname = name;
+	else
+		devname = gdev->bus_id;
 
 	/*
 	 * we need a proper transport to send commands, not a stacked device
@@ -959,83 +958,59 @@ int bsg_register_queue(struct request_queue *q, const char *name)
 
 	bcd = &q->bsg_dev;
 	memset(bcd, 0, sizeof(*bcd));
-	INIT_LIST_HEAD(&bcd->list);
 
 	mutex_lock(&bsg_mutex);
-	if (bsg_device_nr == BSG_MAX_DEVS) {
+
+	ret = idr_pre_get(&bsg_minor_idr, GFP_KERNEL);
+	if (!ret) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	ret = idr_get_new(&bsg_minor_idr, bcd, &minor);
+	if (ret < 0)
+		goto unlock;
+
+	if (minor >= BSG_MAX_DEVS) {
 		printk(KERN_ERR "bsg: too many bsg devices\n");
-		goto err;
+		ret = -EINVAL;
+		goto remove_idr;
 	}
 
-retry:
-	list_for_each_entry(__bcd, &bsg_class_list, list) {
-		if (__bcd->minor == bsg_minor_idx) {
-			bsg_minor_idx++;
-			if (bsg_minor_idx == BSG_MAX_DEVS)
-				bsg_minor_idx = 0;
-			goto retry;
-		}
-	}
-
-	bcd->minor = bsg_minor_idx++;
-	if (bsg_minor_idx == BSG_MAX_DEVS)
-		bsg_minor_idx = 0;
-
+	bcd->minor = minor;
 	bcd->queue = q;
+	bcd->dev = get_device(gdev);
 	dev = MKDEV(bsg_major, bcd->minor);
-	class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
+	class_dev = class_device_create(bsg_class, NULL, dev, gdev, "%s",
+					devname);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
-		goto err;
+		goto put_dev;
 	}
 	bcd->class_dev = class_dev;
 
 	if (q->kobj.sd) {
 		ret = sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg");
 		if (ret)
-			goto err;
+			goto unregister_class_dev;
 	}
-
-	list_add_tail(&bcd->list, &bsg_class_list);
-	bsg_device_nr++;
 
 	mutex_unlock(&bsg_mutex);
 	return 0;
-err:
-	if (class_dev)
-		class_device_destroy(bsg_class, MKDEV(bsg_major, bcd->minor));
+
+unregister_class_dev:
+	class_device_unregister(class_dev);
+put_dev:
+	put_device(gdev);
+remove_idr:
+	idr_remove(&bsg_minor_idr, minor);
+unlock:
 	mutex_unlock(&bsg_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(bsg_register_queue);
 
-static int bsg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
-{
-	int ret;
-	struct scsi_device *sdp = to_scsi_device(cl_dev->dev);
-	struct request_queue *rq = sdp->request_queue;
-
-	if (rq->kobj.parent)
-		ret = bsg_register_queue(rq, kobject_name(rq->kobj.parent));
-	else
-		ret = bsg_register_queue(rq, kobject_name(&sdp->sdev_gendev.kobj));
-	return ret;
-}
-
-static void bsg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
-{
-	bsg_unregister_queue(to_scsi_device(cl_dev->dev)->request_queue);
-}
-
-static struct class_interface bsg_intf = {
-	.add	= bsg_add,
-	.remove	= bsg_remove,
-};
-
-static struct cdev bsg_cdev = {
-	.kobj   = {.name = "bsg", },
-	.owner  = THIS_MODULE,
-};
+static struct cdev bsg_cdev;
 
 static int __init bsg_init(void)
 {
@@ -1043,7 +1018,7 @@ static int __init bsg_init(void)
 	dev_t devid;
 
 	bsg_cmd_cachep = kmem_cache_create("bsg_cmd",
-				sizeof(struct bsg_command), 0, 0, NULL, NULL);
+				sizeof(struct bsg_command), 0, 0, NULL);
 	if (!bsg_cmd_cachep) {
 		printk(KERN_ERR "bsg: failed creating slab cache\n");
 		return -ENOMEM;
@@ -1069,16 +1044,9 @@ static int __init bsg_init(void)
 	if (ret)
 		goto unregister_chrdev;
 
-	ret = scsi_register_interface(&bsg_intf);
-	if (ret)
-		goto remove_cdev;
-
 	printk(KERN_INFO BSG_DESCRIPTION " version " BSG_VERSION
 	       " loaded (major %d)\n", bsg_major);
 	return 0;
-remove_cdev:
-	printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
-	cdev_del(&bsg_cdev);
 unregister_chrdev:
 	unregister_chrdev_region(MKDEV(bsg_major, 0), BSG_MAX_DEVS);
 destroy_bsg_class:

@@ -748,7 +748,6 @@ CONFIG_I2C=m
 # CONFIG_I2C_ELEKTOR is not set
 # CONFIG_I2C_I801 is not set
 # CONFIG_I2C_I810 is not set
-# CONFIG_I2C_ISA is not set
 # CONFIG_I2C_NFORCE2 is not set
 # CONFIG_I2C_PARPORT is not set
 # CONFIG_I2C_PARPORT_LIGHT is not set

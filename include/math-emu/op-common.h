@@ -145,13 +145,16 @@ do {								\
 	      {							\
 	        X##_e = 1;					\
 	        _FP_FRAC_SET_##wc(X, _FP_ZEROFRAC_##wc);	\
+	        FP_SET_EXCEPTION(FP_EX_INEXACT);		\
 	      }							\
 	    else						\
 	      {							\
 		X##_e = 0;					\
 		_FP_FRAC_SRL_##wc(X, _FP_WORKBITS);		\
-		FP_SET_EXCEPTION(FP_EX_UNDERFLOW);		\
 	      }							\
+	    if ((FP_CUR_EXCEPTIONS & FP_EX_INEXACT) ||		\
+		(FP_TRAPPING_EXCEPTIONS & FP_EX_UNDERFLOW))	\
+		FP_SET_EXCEPTION(FP_EX_UNDERFLOW);		\
 	  }							\
 	else							\
 	  {							\

@@ -76,20 +76,17 @@ static u32 htcp_cwnd_undo(struct sock *sk)
 	return max(tp->snd_cwnd, (tp->snd_ssthresh << 7) / ca->beta);
 }
 
-static inline void measure_rtt(struct sock *sk)
+static inline void measure_rtt(struct sock *sk, u32 srtt)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
-	u32 srtt = tp->srtt >> 3;
 
 	/* keep track of minimum RTT seen so far, minRTT is zero at first */
 	if (ca->minRTT > srtt || !ca->minRTT)
 		ca->minRTT = srtt;
 
 	/* max RTT */
-	if (icsk->icsk_ca_state == TCP_CA_Open
-	    && tp->snd_ssthresh < 0xFFFF && htcp_ccount(ca) > 3) {
+	if (icsk->icsk_ca_state == TCP_CA_Open) {
 		if (ca->maxRTT < ca->minRTT)
 			ca->maxRTT = ca->minRTT;
 		if (ca->maxRTT < srtt
@@ -98,7 +95,7 @@ static inline void measure_rtt(struct sock *sk)
 	}
 }
 
-static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked, ktime_t last)
+static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked, s32 rtt)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
@@ -107,6 +104,9 @@ static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked, ktime_t
 
 	if (icsk->icsk_ca_state == TCP_CA_Open)
 		ca->pkts_acked = pkts_acked;
+
+	if (rtt > 0)
+		measure_rtt(sk, usecs_to_jiffies(rtt));
 
 	if (!use_bandwidth_switch)
 		return;
@@ -225,7 +225,7 @@ static u32 htcp_recalc_ssthresh(struct sock *sk)
 	return max((tp->snd_cwnd * ca->beta) >> 7, 2U);
 }
 
-static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
+static void htcp_cong_avoid(struct sock *sk, u32 ack,
 			    u32 in_flight, int data_acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -237,8 +237,6 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 	if (tp->snd_cwnd <= tp->snd_ssthresh)
 		tcp_slow_start(tp);
 	else {
-		measure_rtt(sk);
-
 		/* In dangerous area, increase slowly.
 		 * In theory this is tp->snd_cwnd += alpha / tp->snd_cwnd
 		 */

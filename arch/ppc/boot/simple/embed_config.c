@@ -752,7 +752,9 @@ embed_config(bd_t ** bdp)
 	static const unsigned long congruence_classes = 256;
 	unsigned long addr;
 	unsigned long dccr;
+	uint8_t* cp;
 	bd_t *bd;
+	int i;
 
 	/*
 	 * Invalidate the data cache if the data cache is turned off.
@@ -778,6 +780,12 @@ embed_config(bd_t ** bdp)
 	bd->bi_intfreq = XPAR_CORE_CLOCK_FREQ_HZ;
 	bd->bi_busfreq = XPAR_PLB_CLOCK_FREQ_HZ;
 	bd->bi_pci_busfreq = XPAR_PCI_0_CLOCK_FREQ_HZ;
+
+	/* Copy the default ethernet address */
+	cp = (u_char *)def_enet_addr;
+	for (i=0; i<6; i++)
+		bd->bi_enetaddr[i] = *cp++;
+
 	timebase_period_ns = 1000000000 / bd->bi_tbfreq;
 	/* see bi_tbfreq definition in arch/ppc/platforms/4xx/xilinx_ml300.h */
 }

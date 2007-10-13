@@ -298,7 +298,7 @@ typedef union {
 enum {
   debug_procinfo  = 0x0001,
   debug_queue     = 0x0002,
-  debug_locks     = 0x0004,
+  debug_locking   = 0x0004,
   debug_intr      = 0x0008,
   debug_selection = 0x0010,
   debug_msgo      = 0x0020,

@@ -83,17 +83,15 @@ static void tcp_illinois_init(struct sock *sk)
 }
 
 /* Measure RTT for each ack. */
-static void tcp_illinois_acked(struct sock *sk, u32 pkts_acked, ktime_t last)
+static void tcp_illinois_acked(struct sock *sk, u32 pkts_acked, s32 rtt)
 {
 	struct illinois *ca = inet_csk_ca(sk);
-	u32 rtt;
 
 	ca->acked = pkts_acked;
 
-	if (ktime_equal(last, net_invalid_timestamp()))
+	/* dup ack, no rtt sample */
+	if (rtt < 0)
 		return;
-
-	rtt = ktime_to_us(net_timedelta(last));
 
 	/* ignore bogus values, this prevents wraparound in alpha math */
 	if (rtt > RTT_MAX)
@@ -258,7 +256,7 @@ static void tcp_illinois_state(struct sock *sk, u8 new_state)
 /*
  * Increase window in response to successful acknowledgment.
  */
-static void tcp_illinois_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
+static void tcp_illinois_cong_avoid(struct sock *sk, u32 ack,
 				    u32 in_flight, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);

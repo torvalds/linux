@@ -112,16 +112,16 @@ EXPORT_SYMBOL_GPL(tcp_vegas_init);
  *   o min-filter RTT samples from a much longer window (forever for now)
  *     to find the propagation delay (baseRTT)
  */
-void tcp_vegas_pkts_acked(struct sock *sk, u32 cnt, ktime_t last)
+void tcp_vegas_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 {
 	struct vegas *vegas = inet_csk_ca(sk);
 	u32 vrtt;
 
-	if (ktime_equal(last, net_invalid_timestamp()))
+	if (rtt_us < 0)
 		return;
 
 	/* Never allow zero rtt or baseRTT */
-	vrtt = ktime_to_us(net_timedelta(last)) + 1;
+	vrtt = rtt_us + 1;
 
 	/* Filter to find propagation delay: */
 	if (vrtt < vegas->baseRTT)
@@ -163,13 +163,13 @@ void tcp_vegas_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 EXPORT_SYMBOL_GPL(tcp_vegas_cwnd_event);
 
 static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
-				 u32 seq_rtt, u32 in_flight, int flag)
+				 u32 in_flight, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct vegas *vegas = inet_csk_ca(sk);
 
 	if (!vegas->doing_vegas_now)
-		return tcp_reno_cong_avoid(sk, ack, seq_rtt, in_flight, flag);
+		return tcp_reno_cong_avoid(sk, ack, in_flight, flag);
 
 	/* The key players are v_beg_snd_una and v_beg_snd_nxt.
 	 *
@@ -228,7 +228,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 			/* We don't have enough RTT samples to do the Vegas
 			 * calculation, so we'll behave like Reno.
 			 */
-			tcp_reno_cong_avoid(sk, ack, seq_rtt, in_flight, flag);
+			tcp_reno_cong_avoid(sk, ack, in_flight, flag);
 		} else {
 			u32 rtt, target_cwnd, diff;
 

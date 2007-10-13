@@ -7,6 +7,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/kmod.h>
+#include <linux/reboot.h>
 #include <asm/oplib.h>
 #include <asm/ebus.h>
 
@@ -170,8 +171,6 @@ static void get_current_temps(struct bbc_cpu_temperature *tp)
 static void do_envctrl_shutdown(struct bbc_cpu_temperature *tp)
 {
 	static int shutting_down = 0;
-	static char *envp[] = { "HOME=/", "TERM=linux", "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL };
-	char *argv[] = { "/sbin/shutdown", "-h", "now", NULL };
 	char *type = "???";
 	s8 val = -1;
 
@@ -195,7 +194,7 @@ static void do_envctrl_shutdown(struct bbc_cpu_temperature *tp)
 	printk(KERN_CRIT "kenvctrld: Shutting down the system now.\n");
 
 	shutting_down = 1;
-	if (call_usermodehelper("/sbin/shutdown", argv, envp, 0) < 0)
+	if (orderly_poweroff(true) < 0)
 		printk(KERN_CRIT "envctrl: shutdown execution failed\n");
 }
 
@@ -480,11 +479,12 @@ static int kenvctrld(void *__unused)
 
 static void attach_one_temp(struct linux_ebus_child *echild, int temp_idx)
 {
-	struct bbc_cpu_temperature *tp = kmalloc(sizeof(*tp), GFP_KERNEL);
+	struct bbc_cpu_temperature *tp;
 
+	tp = kzalloc(sizeof(*tp), GFP_KERNEL);
 	if (!tp)
 		return;
-	memset(tp, 0, sizeof(*tp));
+
 	tp->client = bbc_i2c_attach(echild);
 	if (!tp->client) {
 		kfree(tp);
@@ -526,11 +526,12 @@ static void attach_one_temp(struct linux_ebus_child *echild, int temp_idx)
 
 static void attach_one_fan(struct linux_ebus_child *echild, int fan_idx)
 {
-	struct bbc_fan_control *fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	struct bbc_fan_control *fp;
 
+	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		return;
-	memset(fp, 0, sizeof(*fp));
+
 	fp->client = bbc_i2c_attach(echild);
 	if (!fp->client) {
 		kfree(fp);

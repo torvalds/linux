@@ -151,8 +151,9 @@ static int __init parse_options(struct early_serial8250_device *device, char *op
 #else
 		port->membase = ioremap(port->mapbase, 64);
 		if (!port->membase) {
-			printk(KERN_ERR "%s: Couldn't ioremap 0x%lx\n",
-				__FUNCTION__, port->mapbase);
+			printk(KERN_ERR "%s: Couldn't ioremap 0x%llx\n",
+				__FUNCTION__,
+			       (unsigned long long)port->mapbase);
 			return -ENOMEM;
 		}
 #endif
@@ -175,9 +176,10 @@ static int __init parse_options(struct early_serial8250_device *device, char *op
 			device->baud);
 	}
 
-	printk(KERN_INFO "Early serial console at %s 0x%lx (options '%s')\n",
+	printk(KERN_INFO "Early serial console at %s 0x%llx (options '%s')\n",
 		mmio ? "MMIO" : "I/O port",
-		mmio ? port->mapbase : (unsigned long) port->iobase,
+		mmio ? (unsigned long long) port->mapbase
+	             : (unsigned long long) port->iobase,
 		device->options);
 	return 0;
 }
@@ -225,7 +227,7 @@ int __init setup_early_serial8250_console(char *cmdline)
 	return 0;
 }
 
-int __init serial8250_find_port_for_earlycon(void)
+int serial8250_find_port_for_earlycon(void)
 {
 	struct early_serial8250_device *device = &early_device;
 	struct uart_port *port = &device->port;

@@ -148,8 +148,8 @@ void dn_serial_print (const char *str)
     }
 }
 
-void config_apollo(void) {
-
+void __init config_apollo(void)
+{
 	int i;
 
 	dn_setup_model();

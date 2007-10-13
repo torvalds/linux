@@ -176,16 +176,17 @@ static int lcd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 static void lcd_write_bulk_callback(struct urb *urb)
 {
 	struct usb_lcd *dev;
+	int status = urb->status;
 
 	dev = (struct usb_lcd *)urb->context;
 
 	/* sync/async unlink faults aren't errors */
-	if (urb->status &&
-	    !(urb->status == -ENOENT ||
-	      urb->status == -ECONNRESET ||
-              urb->status == -ESHUTDOWN)) {
+	if (status &&
+	    !(status == -ENOENT ||
+	      status == -ECONNRESET ||
+              status == -ESHUTDOWN)) {
 		dbg("USBLCD: %s - nonzero write bulk status received: %d",
-		    __FUNCTION__, urb->status);
+		    __FUNCTION__, status);
 	}
 
 	/* free up our allocated buffer */

@@ -1,0 +1,79 @@
+# STK1000 customization
+
+if BOARD_ATSTK1002
+
+config BOARD_ATSTK1002_CUSTOM
+	bool "Non-default STK-1002 jumper settings"
+	help
+	  You will normally leave the jumpers on the CPU card at their
+	  default settings.  If you need to use certain peripherals,
+	  you will need to change some of those jumpers.
+
+if BOARD_ATSTK1002_CUSTOM
+
+config BOARD_ATSTK1002_SW1_CUSTOM
+	bool "SW1: use SSC1 (not SPI0)"
+	help
+	  This also prevents using the external DAC as an audio interface,
+	  and means you can't initialize the on-board QVGA display.
+
+config BOARD_ATSTK1002_SW2_CUSTOM
+	bool "SW2: use IRDA or TIMER0 (not UART-A, MMC/SD, and PS2-A)"
+	help
+	  If you change this you'll want an updated boot loader putting
+	  the console on UART-C not UART-A.
+
+config BOARD_ATSTK1002_SW3_CUSTOM
+	bool "SW3: use TIMER1 (not SSC0 and GCLK)"
+	help
+	  This also prevents using the external DAC as an audio interface.
+
+config BOARD_ATSTK1002_SW4_CUSTOM
+	bool "SW4: use ISI/Camera (not GPIOs, SPI1, and PS2-B)"
+	help
+	  To use the camera interface you'll need a custom card (on the
+	  PCI-format connector) connect a video sensor.
+
+config BOARD_ATSTK1002_SW5_CUSTOM
+	bool "SW5: use MACB1 (not LCDC)"
+
+config BOARD_ATSTK1002_SW6_CUSTOM
+	bool "SW6: more GPIOs (not MACB0)"
+
+endif	# custom
+
+config BOARD_ATSTK1002_SPI1
+	bool "Configure SPI1 controller"
+	depends on !BOARD_ATSTK1002_SW4_CUSTOM
+	help
+	  All the signals for the second SPI controller are available on
+	  GPIO lines and accessed through the J1 jumper block.  Say "y"
+	  here to configure that SPI controller.
+
+config BOARD_ATSTK1002_J2_LED
+	bool
+	default BOARD_ATSTK1002_J2_LED8 || BOARD_ATSTK1002_J2_RGB
+
+choice
+	prompt "LEDs connected to J2:"
+	depends on LEDS_GPIO && !BOARD_ATSTK1002_SW4_CUSTOM
+	optional
+	help
+	  Select this if you have jumpered the J2 jumper block to the
+	  LED0..LED7 amber leds, or to the RGB leds, using a ten-pin
+	  IDC cable.  A default "heartbeat" trigger is provided, but
+	  you can of course override this.
+
+config BOARD_ATSTK1002_J2_LED8
+	bool "LED0..LED7"
+	help
+	  Select this if J2 is jumpered to LED0..LED7 amber leds.
+
+config BOARD_ATSTK1002_J2_RGB
+	bool "RGB leds"
+	help
+	  Select this if J2 is jumpered to the RGB leds.
+
+endchoice
+
+endif	# stk 1002

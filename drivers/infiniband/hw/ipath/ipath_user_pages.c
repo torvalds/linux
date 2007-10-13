@@ -171,32 +171,6 @@ int ipath_get_user_pages(unsigned long start_page, size_t num_pages,
 	return ret;
 }
 
-/**
- * ipath_get_user_pages_nocopy - lock a single page for I/O and mark shared
- * @start_page: the page to lock
- * @p: the output page structure
- *
- * This is similar to ipath_get_user_pages, but it's always one page, and we
- * mark the page as locked for I/O, and shared.  This is used for the user
- * process page that contains the destination address for the rcvhdrq tail
- * update, so we need to have the vma. If we don't do this, the page can be
- * taken away from us on fork, even if the child never touches it, and then
- * the user process never sees the tail register updates.
- */
-int ipath_get_user_pages_nocopy(unsigned long page, struct page **p)
-{
-	struct vm_area_struct *vma;
-	int ret;
-
-	down_write(&current->mm->mmap_sem);
-
-	ret = __get_user_pages(page, 1, p, &vma);
-
-	up_write(&current->mm->mmap_sem);
-
-	return ret;
-}
-
 void ipath_release_user_pages(struct page **p, size_t num_pages)
 {
 	down_write(&current->mm->mmap_sem);

@@ -1257,6 +1257,7 @@ static int compat_copy_strings(int argc, compat_uptr_t __user *argv,
 {
 	struct page *kmapped_page = NULL;
 	char *kaddr = NULL;
+	unsigned long kpos = 0;
 	int ret;
 
 	while (argc-- > 0) {
@@ -1265,91 +1266,83 @@ static int compat_copy_strings(int argc, compat_uptr_t __user *argv,
 		unsigned long pos;
 
 		if (get_user(str, argv+argc) ||
-			!(len = strnlen_user(compat_ptr(str), bprm->p))) {
+		    !(len = strnlen_user(compat_ptr(str), MAX_ARG_STRLEN))) {
 			ret = -EFAULT;
 			goto out;
 		}
 
-		if (bprm->p < len)  {
+		if (len > MAX_ARG_STRLEN) {
 			ret = -E2BIG;
 			goto out;
 		}
 
-		bprm->p -= len;
-		/* XXX: add architecture specific overflow check here. */
+		/* We're going to work our way backwords. */
 		pos = bprm->p;
+		str += len;
+		bprm->p -= len;
 
 		while (len > 0) {
-			int i, new, err;
 			int offset, bytes_to_copy;
-			struct page *page;
 
 			offset = pos % PAGE_SIZE;
-			i = pos/PAGE_SIZE;
-			page = bprm->page[i];
-			new = 0;
-			if (!page) {
-				page = alloc_page(GFP_HIGHUSER);
-				bprm->page[i] = page;
-				if (!page) {
-					ret = -ENOMEM;
+			if (offset == 0)
+				offset = PAGE_SIZE;
+
+			bytes_to_copy = offset;
+			if (bytes_to_copy > len)
+				bytes_to_copy = len;
+
+			offset -= bytes_to_copy;
+			pos -= bytes_to_copy;
+			str -= bytes_to_copy;
+			len -= bytes_to_copy;
+
+			if (!kmapped_page || kpos != (pos & PAGE_MASK)) {
+				struct page *page;
+
+#ifdef CONFIG_STACK_GROWSUP
+				ret = expand_stack_downwards(bprm->vma, pos);
+				if (ret < 0) {
+					/* We've exceed the stack rlimit. */
+					ret = -E2BIG;
 					goto out;
 				}
-				new = 1;
-			}
+#endif
+				ret = get_user_pages(current, bprm->mm, pos,
+						     1, 1, 1, &page, NULL);
+				if (ret <= 0) {
+					/* We've exceed the stack rlimit. */
+					ret = -E2BIG;
+					goto out;
+				}
 
-			if (page != kmapped_page) {
-				if (kmapped_page)
+				if (kmapped_page) {
+					flush_kernel_dcache_page(kmapped_page);
 					kunmap(kmapped_page);
+					put_page(kmapped_page);
+				}
 				kmapped_page = page;
 				kaddr = kmap(kmapped_page);
+				kpos = pos & PAGE_MASK;
+				flush_cache_page(bprm->vma, kpos,
+						 page_to_pfn(kmapped_page));
 			}
-			if (new && offset)
-				memset(kaddr, 0, offset);
-			bytes_to_copy = PAGE_SIZE - offset;
-			if (bytes_to_copy > len) {
-				bytes_to_copy = len;
-				if (new)
-					memset(kaddr+offset+len, 0,
-						PAGE_SIZE-offset-len);
-			}
-			err = copy_from_user(kaddr+offset, compat_ptr(str),
-						bytes_to_copy);
-			if (err) {
+			if (copy_from_user(kaddr+offset, compat_ptr(str),
+						bytes_to_copy)) {
 				ret = -EFAULT;
 				goto out;
 			}
-
-			pos += bytes_to_copy;
-			str += bytes_to_copy;
-			len -= bytes_to_copy;
 		}
 	}
 	ret = 0;
 out:
-	if (kmapped_page)
+	if (kmapped_page) {
+		flush_kernel_dcache_page(kmapped_page);
 		kunmap(kmapped_page);
+		put_page(kmapped_page);
+	}
 	return ret;
 }
-
-#ifdef CONFIG_MMU
-
-#define free_arg_pages(bprm) do { } while (0)
-
-#else
-
-static inline void free_arg_pages(struct linux_binprm *bprm)
-{
-	int i;
-
-	for (i = 0; i < MAX_ARG_PAGES; i++) {
-		if (bprm->page[i])
-			__free_page(bprm->page[i]);
-		bprm->page[i] = NULL;
-	}
-}
-
-#endif /* CONFIG_MMU */
 
 /*
  * compat_do_execve() is mostly a copy of do_execve(), with the exception
@@ -1363,7 +1356,6 @@ int compat_do_execve(char * filename,
 	struct linux_binprm *bprm;
 	struct file *file;
 	int retval;
-	int i;
 
 	retval = -ENOMEM;
 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
@@ -1377,24 +1369,19 @@ int compat_do_execve(char * filename,
 
 	sched_exec();
 
-	bprm->p = PAGE_SIZE*MAX_ARG_PAGES-sizeof(void *);
 	bprm->file = file;
 	bprm->filename = filename;
 	bprm->interp = filename;
-	bprm->mm = mm_alloc();
-	retval = -ENOMEM;
-	if (!bprm->mm)
+
+	retval = bprm_mm_init(bprm);
+	if (retval)
 		goto out_file;
 
-	retval = init_new_context(current, bprm->mm);
-	if (retval < 0)
-		goto out_mm;
-
-	bprm->argc = compat_count(argv, bprm->p / sizeof(compat_uptr_t));
+	bprm->argc = compat_count(argv, MAX_ARG_STRINGS);
 	if ((retval = bprm->argc) < 0)
 		goto out_mm;
 
-	bprm->envc = compat_count(envp, bprm->p / sizeof(compat_uptr_t));
+	bprm->envc = compat_count(envp, MAX_ARG_STRINGS);
 	if ((retval = bprm->envc) < 0)
 		goto out_mm;
 
@@ -1421,8 +1408,6 @@ int compat_do_execve(char * filename,
 
 	retval = search_binary_handler(bprm, regs);
 	if (retval >= 0) {
-		free_arg_pages(bprm);
-
 		/* execve success */
 		security_bprm_free(bprm);
 		acct_update_integrals(current);
@@ -1431,19 +1416,12 @@ int compat_do_execve(char * filename,
 	}
 
 out:
-	/* Something went wrong, return the inode and free the argument pages*/
-	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
-		struct page * page = bprm->page[i];
-		if (page)
-			__free_page(page);
-	}
-
 	if (bprm->security)
 		security_bprm_free(bprm);
 
 out_mm:
 	if (bprm->mm)
-		mmdrop(bprm->mm);
+		mmput(bprm->mm);
 
 out_file:
 	if (bprm->file) {

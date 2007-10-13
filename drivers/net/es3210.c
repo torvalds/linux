@@ -130,8 +130,6 @@ static int __init do_es_probe(struct net_device *dev)
 	int irq = dev->irq;
 	int mem_start = dev->mem_start;
 
-	SET_MODULE_OWNER(dev);
-
 	if (ioaddr > 0x1ff)		/* Check a single specified location. */
 		return es_probe1(dev, ioaddr);
 	else if (ioaddr > 0)		/* Don't probe at all. */
@@ -181,6 +179,7 @@ static int __init es_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, retval;
 	unsigned long eisa_id;
+	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr + ES_SA_PROM, ES_IO_EXTENT, "es3210"))
 		return -ENODEV;
@@ -192,7 +191,6 @@ static int __init es_probe1(struct net_device *dev, int ioaddr)
 		inb(ioaddr + ES_CFG4), inb(ioaddr + ES_CFG5), inb(ioaddr + ES_CFG6));
 #endif
 
-
 /*	Check the EISA ID of the card. */
 	eisa_id = inl(ioaddr + ES_ID_PORT);
 	if ((eisa_id != ES_EISA_ID1) && (eisa_id != ES_EISA_ID2)) {
@@ -200,21 +198,21 @@ static int __init es_probe1(struct net_device *dev, int ioaddr)
 		goto out;
 	}
 
+	for (i = 0; i < ETHER_ADDR_LEN ; i++)
+		dev->dev_addr[i] = inb(ioaddr + ES_SA_PROM + i);
+
 /*	Check the Racal vendor ID as well. */
-	if (inb(ioaddr + ES_SA_PROM + 0) != ES_ADDR0
-		|| inb(ioaddr + ES_SA_PROM + 1) != ES_ADDR1
-		|| inb(ioaddr + ES_SA_PROM + 2) != ES_ADDR2 ) {
-		printk("es3210.c: card not found");
-		for(i = 0; i < ETHER_ADDR_LEN; i++)
-			printk(" %02x", inb(ioaddr + ES_SA_PROM + i));
-		printk(" (invalid prefix).\n");
+	if (dev->dev_addr[0] != ES_ADDR0 ||
+	    dev->dev_addr[1] != ES_ADDR1 ||
+	    dev->dev_addr[2] != ES_ADDR2) {
+		printk("es3210.c: card not found %s (invalid_prefix).\n",
+		       print_mac(mac, dev->dev_addr));
 		retval = -ENODEV;
 		goto out;
 	}
 
-	printk("es3210.c: ES3210 rev. %ld at %#x, node", eisa_id>>24, ioaddr);
-	for(i = 0; i < ETHER_ADDR_LEN; i++)
-		printk(" %02x", (dev->dev_addr[i] = inb(ioaddr + ES_SA_PROM + i)));
+	printk("es3210.c: ES3210 rev. %ld at %#x, node %s",
+	       eisa_id>>24, ioaddr, print_mac(mac, dev->dev_addr));
 
 	/* Snarf the interrupt now. */
 	if (dev->irq == 0) {

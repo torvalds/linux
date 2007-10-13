@@ -39,7 +39,6 @@
 #include <asm/tx4938/spi.h>
 #include <asm/gpio.h>
 
-extern void rbtx4938_time_init(void) __init;
 extern char * __init prom_getcmdline(void);
 static inline void tx4938_report_pcic_status1(struct tx4938_pcic_reg *pcicptr);
 
@@ -458,9 +457,9 @@ extern struct pci_controller tx4938_pci_controller[];
 static int __init tx4938_pcibios_init(void)
 {
 	unsigned long mem_base[2];
-	unsigned long mem_size[2] = {TX4938_PCIMEM_SIZE_0,TX4938_PCIMEM_SIZE_1}; /* MAX 128M,64K */
+	unsigned long mem_size[2] = {TX4938_PCIMEM_SIZE_0, TX4938_PCIMEM_SIZE_1}; /* MAX 128M,64K */
 	unsigned long io_base[2];
-	unsigned long io_size[2] = {TX4938_PCIIO_SIZE_0,TX4938_PCIIO_SIZE_1}; /* MAX 16M,64K */
+	unsigned long io_size[2] = {TX4938_PCIIO_SIZE_0, TX4938_PCIIO_SIZE_1}; /* MAX 16M,64K */
 	/* TX4938 PCIC1: 64K MEM/IO is enough for ETH0,ETH1 */
 	int extarb = !(tx4938_ccfgptr->ccfg & TX4938_CCFG_PCIXARB);
 
@@ -657,7 +656,7 @@ void __init tx4938_board_setup(void)
 
 	/* clocks */
 	if (txx9_master_clock) {
-		/* calculate gbus_clock and cpu_clock from master_clock */
+		/* calculate gbus_clock and cpu_clock_freq from master_clock */
 		divmode = (unsigned long)tx4938_ccfgptr->ccfg & TX4938_CCFG_DIVMODE_MASK;
 		switch (divmode) {
 		case TX4938_CCFG_DIVMODE_8:
@@ -691,7 +690,7 @@ void __init tx4938_board_setup(void)
 		if (txx9_cpu_clock == 0) {
 			txx9_cpu_clock = 300000000;	/* 300MHz */
 		}
-		/* calculate gbus_clock and master_clock from cpu_clock */
+		/* calculate gbus_clock and master_clock from cpu_clock_freq */
 		cpuclk = txx9_cpu_clock;
 		divmode = (unsigned long)tx4938_ccfgptr->ccfg & TX4938_CCFG_DIVMODE_MASK;
 		switch (divmode) {
@@ -772,10 +771,6 @@ void __init tx4938_board_setup(void)
 			(tx4938_sramcptr->cr >> (39-11)) & ~(size - 1);
 		 txboard_add_phys_region(base, size);
 	}
-
-	/* IRC */
-	/* disable interrupt control */
-	tx4938_ircptr->cer = 0;
 
 	/* TMR */
 	/* disable all timers */
@@ -860,7 +855,7 @@ void tx4938_report_pcic_status(void)
 /* We use onchip r4k counter or TMR timer as our system wide timer
  * interrupt running at 100HZ. */
 
-void __init rbtx4938_time_init(void)
+void __init plat_time_init(void)
 {
 	mips_hpt_frequency = txx9_cpu_clock / 2;
 }
@@ -875,9 +870,6 @@ void __init toshiba_rbtx4938_setup(void)
 	if (txx9_master_clock == 0)
 		txx9_master_clock = 25000000; /* 25MHz */
 	tx4938_board_setup();
-	/* setup irq stuff */
-	TX4938_WR(TX4938_MKA(TX4938_IRC_IRDM0), 0x00000000);	/* irq trigger */
-	TX4938_WR(TX4938_MKA(TX4938_IRC_IRDM1), 0x00000000);	/* irq trigger */
 	/* setup serial stuff */
 	TX4938_WR(0xff1ff314, 0x00000000);	/* h/w flow control off */
 	TX4938_WR(0xff1ff414, 0x00000000);	/* h/w flow control off */
@@ -897,7 +889,7 @@ void __init toshiba_rbtx4938_setup(void)
 			req.iotype = UPIO_MEM;
 			req.membase = (char *)(0xff1ff300 + i * 0x100);
 			req.mapbase = 0xff1ff300 + i * 0x100;
-			req.irq = 32 + i;
+			req.irq = RBTX4938_IRQ_IRC_SIO(i);
 			req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
 			req.uartclk = 50000000;
 			early_serial_txx9_setup(&req);
@@ -1115,14 +1107,14 @@ static void __init txx9_spi_init(unsigned long base, int irq)
 			.flags	= IORESOURCE_IRQ,
 		},
 	};
-	platform_device_register_simple("txx9spi", 0,
+	platform_device_register_simple("spi_txx9", 0,
 					res, ARRAY_SIZE(res));
 }
 
 static int __init rbtx4938_spi_init(void)
 {
 	struct spi_board_info srtc_info = {
-		.modalias = "rs5c348",
+		.modalias = "rtc-rs5c348",
 		.max_speed_hz = 1000000, /* 1.0Mbps @ Vdd 2.0V */
 		.bus_num = 0,
 		.chip_select = 16 + SRTC_CS,

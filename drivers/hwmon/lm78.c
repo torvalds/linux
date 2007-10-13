@@ -864,7 +864,7 @@ static int __init lm78_isa_found(unsigned short address)
 	/* Determine the chip type */
 	outb_p(LM78_REG_CHIPID, address + LM78_ADDR_REG_OFFSET);
 	val = inb_p(address + LM78_DATA_REG_OFFSET);
-	if (val == 0x00			/* LM78 */
+	if (val == 0x00 || val == 0x20	/* LM78 */
 	 || val == 0x40			/* LM78-J */
 	 || (val & 0xfe) == 0xc0)	/* LM79 */
 		found = 1;
@@ -882,7 +882,7 @@ static int __init lm78_isa_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
-		.end	= address + LM78_EXTENT,
+		.end	= address + LM78_EXTENT - 1,
 		.name	= "lm78",
 		.flags	= IORESOURCE_IO,
 	};

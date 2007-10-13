@@ -25,6 +25,7 @@
 #define SUPPORT_SYSRQ
 #endif
 
+#include <linux/compiler.h>
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -56,6 +57,12 @@
 #define SBD_CHANREGS(line)	A_BCM1480_DUART_CHANREG((line), 0)
 #define SBD_CTRLREGS(line)	A_BCM1480_DUART_CTRLREG((line), 0)
 #define SBD_INT(line)		(K_BCM1480_INT_UART_0 + (line))
+
+#define DUART_CHANREG_SPACING	BCM1480_DUART_CHANREG_SPACING
+
+#define R_DUART_IMRREG(line)	R_BCM1480_DUART_IMRREG(line)
+#define R_DUART_INCHREG(line)	R_BCM1480_DUART_INCHREG(line)
+#define R_DUART_ISRREG(line)	R_BCM1480_DUART_ISRREG(line)
 
 #elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 #include <asm/sibyte/sb1250_regs.h>
@@ -102,8 +109,6 @@ struct sbd_duart {
 #define to_sport(uport) container_of(uport, struct sbd_port, port)
 
 static struct sbd_duart sbd_duarts[DUART_MAX_CHIP];
-
-#define __unused __attribute__((__unused__))
 
 
 /*
@@ -204,12 +209,12 @@ static int sbd_receive_drain(struct sbd_port *sport)
 	return loops;
 }
 
-static int __unused sbd_transmit_ready(struct sbd_port *sport)
+static int __maybe_unused sbd_transmit_ready(struct sbd_port *sport)
 {
 	return read_sbdchn(sport, R_DUART_STATUS) & M_DUART_TX_RDY;
 }
 
-static int __unused sbd_transmit_drain(struct sbd_port *sport)
+static int __maybe_unused sbd_transmit_drain(struct sbd_port *sport)
 {
 	int loops = 10000;
 
@@ -664,7 +669,7 @@ static void sbd_release_port(struct uart_port *uport)
 
 static int sbd_map_port(struct uart_port *uport)
 {
-	static const char *err = KERN_ERR "sbd: Cannot map MMIO\n";
+	const char *err = KERN_ERR "sbd: Cannot map MMIO\n";
 	struct sbd_port *sport = to_sport(uport);
 	struct sbd_duart *duart = sport->duart;
 
@@ -691,8 +696,7 @@ static int sbd_map_port(struct uart_port *uport)
 
 static int sbd_request_port(struct uart_port *uport)
 {
-	static const char *err = KERN_ERR
-				 "sbd: Unable to reserve MMIO resource\n";
+	const char *err = KERN_ERR "sbd: Unable to reserve MMIO resource\n";
 	struct sbd_duart *duart = to_sport(uport)->duart;
 	int map_guard;
 	int ret = 0;
@@ -755,7 +759,7 @@ static int sbd_verify_port(struct uart_port *uport, struct serial_struct *ser)
 }
 
 
-static struct uart_ops sbd_ops = {
+static const struct uart_ops sbd_ops = {
 	.tx_empty	= sbd_tx_empty,
 	.set_mctrl	= sbd_set_mctrl,
 	.get_mctrl	= sbd_get_mctrl,

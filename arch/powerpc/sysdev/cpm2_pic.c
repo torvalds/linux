@@ -48,9 +48,8 @@
 #define CPM2_IRQ_PORTC15	48
 #define CPM2_IRQ_PORTC0		63
 
-static intctl_cpm2_t *cpm2_intctl;
+static intctl_cpm2_t __iomem *cpm2_intctl;
 
-static struct device_node *cpm2_pic_node;
 static struct irq_host *cpm2_pic_host;
 #define NR_MASK_WORDS   ((NR_IRQS + 31) / 32)
 static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
@@ -206,11 +205,6 @@ unsigned int cpm2_get_irq(void)
 	return irq_linear_revmap(cpm2_pic_host, irq);
 }
 
-static int cpm2_pic_host_match(struct irq_host *h, struct device_node *node)
-{
-	return cpm2_pic_node == node;
-}
-
 static int cpm2_pic_host_map(struct irq_host *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
@@ -234,7 +228,6 @@ static int cpm2_pic_host_xlate(struct irq_host *h, struct device_node *ct,
 }
 
 static struct irq_host_ops cpm2_pic_host_ops = {
-	.match = cpm2_pic_host_match,
 	.map = cpm2_pic_host_map,
 	.xlate = cpm2_pic_host_xlate,
 };
@@ -273,8 +266,8 @@ void cpm2_pic_init(struct device_node *node)
 	out_be32(&cpm2_intctl->ic_scprrl, 0x05309770);
 
 	/* create a legacy host */
-	cpm2_pic_node = of_node_get(node);
-	cpm2_pic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, 64, &cpm2_pic_host_ops, 64);
+	cpm2_pic_host = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+				       64, &cpm2_pic_host_ops, 64);
 	if (cpm2_pic_host == NULL) {
 		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");
 		return;

@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/wait.h>
-#include <linux/moduleparam.h>
 #include <linux/module.h>
 #include <sound/driver.h>
 #include <sound/core.h>
@@ -75,7 +74,8 @@ typedef struct snd_card_saa7134 {
 	struct saa7134_dev *dev;
 
 	unsigned long iobase;
-	int irq;
+	s16 irq;
+	u16 mute_was_on;
 
 	spinlock_t lock;
 } snd_card_saa7134_t;
@@ -312,7 +312,7 @@ static int dsp_buffer_free(struct saa7134_dev *dev)
 	dev->dmasound.blksize = 0;
 	dev->dmasound.bufsize = 0;
 
-       return 0;
+	return 0;
 }
 
 
@@ -589,8 +589,10 @@ static int snd_card_saa7134_capture_close(struct snd_pcm_substream * substream)
 	snd_card_saa7134_t *saa7134 = snd_pcm_substream_chip(substream);
 	struct saa7134_dev *dev = saa7134->dev;
 
-	dev->ctl_mute = 1;
-	saa7134_tvaudio_setmute(dev);
+	if (saa7134->mute_was_on) {
+		dev->ctl_mute = 1;
+		saa7134_tvaudio_setmute(dev);
+	}
 	return 0;
 }
 
@@ -637,8 +639,11 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 	runtime->private_free = snd_card_saa7134_runtime_free;
 	runtime->hw = snd_card_saa7134_capture;
 
-	dev->ctl_mute = 0;
-	saa7134_tvaudio_setmute(dev);
+	if (dev->ctl_mute != 0) {
+		saa7134->mute_was_on = 1;
+		dev->ctl_mute = 0;
+		saa7134_tvaudio_setmute(dev);
+	}
 
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
 		return err;

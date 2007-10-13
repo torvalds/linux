@@ -175,6 +175,9 @@ next_component:
 		path++;
 	name.len = path - (const char *) name.name;
 
+	if (name.len > NFS4_MAXNAMLEN)
+		return -ENAMETOOLONG;
+
 eat_dot_dir:
 	while (*path == '/')
 		path++;

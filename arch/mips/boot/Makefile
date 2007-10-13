@@ -42,10 +42,6 @@ vmlinux.srec: $(VMLINUX)
 $(obj)/addinitrd: $(obj)/addinitrd.c
 	$(HOSTCC) -o $@ $^
 
-archhelp:
-	@echo	'* vmlinux.ecoff	- ECOFF boot image'
-	@echo	'* vmlinux.srec		- SREC boot image'
-
 clean-files += addinitrd \
 	       elf2ecoff \
 	       vmlinux.bin \

@@ -817,23 +817,6 @@ static int oti6858_ioctl(struct usb_serial_port *port, struct file *file,
 				__FUNCTION__, port->number, cmd, arg);
 
 	switch (cmd) {
-		case TCGETS:
-			if (copy_to_user(user_arg, port->tty->termios,
-						sizeof(struct ktermios))) {
-				return -EFAULT;
-			}
-			return 0;
-
-		case TCSETS:
-		case TCSETSW:	/* FIXME: this is not the same! */
-		case TCSETSF:	/* FIXME: this is not the same! */
-			if (copy_from_user(port->tty->termios, user_arg,
-						sizeof(struct ktermios))) {
-				return -EFAULT;
-			}
-			oti6858_set_termios(port, NULL);
-			return 0;
-
 		case TCFLSH:
 			/* FIXME */
 			return 0;
@@ -1161,7 +1144,7 @@ static struct pl2303_buf *pl2303_buf_alloc(unsigned int size)
 	if (size == 0)
 		return NULL;
 
-	pb = (struct pl2303_buf *)kmalloc(sizeof(struct pl2303_buf), GFP_KERNEL);
+	pb = kmalloc(sizeof(struct pl2303_buf), GFP_KERNEL);
 	if (pb == NULL)
 		return NULL;
 

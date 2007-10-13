@@ -23,6 +23,7 @@
 #include <linux/module.h>
 
 #include <asm/blackfin.h>
+#include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
 u_long icplb_table[MAX_CPLBS+1];
@@ -56,7 +57,7 @@ struct s_cplb {
 	struct cplb_tab switch_d;
 };
 
-#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
+#if defined(CONFIG_BFIN_DCACHE) || defined(CONFIG_BFIN_ICACHE)
 static struct cplb_desc cplb_data[] = {
 	{
 		.start = 0,
@@ -230,8 +231,8 @@ static void __fill_code_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_en
 				cplb_data[i].psize,
 				cplb_data[i].i_conf);
 	} else {
-#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
-		if (i == SDRAM_KERN) {
+#if defined(CONFIG_BFIN_ICACHE)
+		if (ANOMALY_05000263 && i == SDRAM_KERN) {
 			fill_cplbtab(t,
 					cplb_data[i].start,
 					cplb_data[i].end,

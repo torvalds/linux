@@ -50,7 +50,7 @@ static int nvidia_bl_get_level_brightness(struct nvidia_par *par,
 
 static int nvidia_bl_update_status(struct backlight_device *bd)
 {
-	struct nvidia_par *par = class_get_devdata(&bd->class_dev);
+	struct nvidia_par *par = bl_get_data(bd);
 	u32 tmp_pcrt, tmp_pmc, fpcontrol;
 	int level;
 

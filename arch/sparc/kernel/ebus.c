@@ -148,6 +148,7 @@ void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *d
 {
 	const struct linux_prom_registers *regs;
 	struct linux_ebus_child *child;
+	struct dev_archdata *sd;
 	const int *irqs;
 	int i, n, len;
 	unsigned long baseaddr;
@@ -155,6 +156,8 @@ void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *d
 	dev->prom_node = dp;
 
 	regs = of_get_property(dp, "reg", &len);
+	if (!regs)
+		len = 0;
 	if (len % sizeof(struct linux_prom_registers)) {
 		prom_printf("UGH: proplen for %s was %d, need multiple of %d\n",
 			    dev->prom_node->name, len,
@@ -233,6 +236,11 @@ void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *d
 			}
 		}
 	}
+
+	sd = &dev->ofdev.dev.archdata;
+	sd->prom_node = dp;
+	sd->op = &dev->ofdev;
+	sd->iommu = dev->bus->ofdev.dev.parent->archdata.iommu;
 
 	dev->ofdev.node = dp;
 	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;

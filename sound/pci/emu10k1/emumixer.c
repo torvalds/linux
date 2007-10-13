@@ -77,6 +77,10 @@ static int snd_emu10k1_spdif_get_mask(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+/*
+ * Items labels in enum mixer controls assigning source data to
+ * each destination
+ */
 static char *emu1010_src_texts[] = { 
 	"Silence",
 	"Dock Mic A",
@@ -133,6 +137,9 @@ static char *emu1010_src_texts[] = {
 	"DSP 31",
 };
 
+/*
+ * List of data sources available for each destination
+ */
 static unsigned int emu1010_src_regs[] = {
 	EMU_SRC_SILENCE,/* 0 */
 	EMU_SRC_DOCK_MIC_A1, /* 1 */
@@ -189,6 +196,10 @@ static unsigned int emu1010_src_regs[] = {
 	EMU_SRC_ALICE_EMU32B+0xf, /* 52 */
 };
 
+/*
+ * Data destinations - physical EMU outputs.
+ * Each destination has an enum mixer control to choose a data source
+ */
 static unsigned int emu1010_output_dst[] = {
 	EMU_DST_DOCK_DAC1_LEFT1, /* 0 */
 	EMU_DST_DOCK_DAC1_RIGHT1, /* 1 */
@@ -216,6 +227,11 @@ static unsigned int emu1010_output_dst[] = {
 	EMU_DST_HANA_ADAT+7, /* 23 */
 };
 
+/*
+ * Data destinations - HANA outputs going to Alice2 (audigy) for
+ *   capture (EMU32 + I2S links)
+ * Each destination has an enum mixer control to choose a data source
+ */
 static unsigned int emu1010_input_dst[] = {
 	EMU_DST_ALICE2_EMU32_0,
 	EMU_DST_ALICE2_EMU32_1,

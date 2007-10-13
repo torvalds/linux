@@ -353,13 +353,6 @@ typedef struct isdn_net_local_s {
                                        /* a particular channel (including  */
                                        /* the frame_cnt                    */
 
-  int                    (*org_hhc)(
-				    struct neighbour *neigh,
-				    struct hh_cache *hh);
-                                       /* Ptr to orig. header_cache_update */
-  void                   (*org_hcu)(struct hh_cache *,
-				    struct net_device *,
-                                    unsigned char *);
   int  pppbind;                        /* ippp device for bindings         */
   int					dialtimeout;	/* How long shall we try on dialing? (jiffies) */
   int					dialwait;		/* How long shall we wait after failed attempt? (jiffies) */
@@ -389,7 +382,7 @@ typedef struct isdn_net_dev_s {
 					  online                           */
   spinlock_t queue_lock;               /* lock to protect queue            */
   void *next;                          /* Pointer to next isdn-interface   */
-  struct net_device dev;               /* interface to upper levels        */
+  struct net_device *dev;              /* interface to upper levels        */
 #ifdef CONFIG_ISDN_PPP
   ippp_bundle * pb;		/* pointer to the common bundle structure
    			         * with the per-bundle data */

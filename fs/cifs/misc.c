@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/misc.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2005
+ *   Copyright (C) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public License
  *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/slab.h>
@@ -32,12 +32,12 @@
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
-extern struct task_struct * oplockThread;
+extern struct task_struct *oplockThread;
 
-/* The xid serves as a useful identifier for each incoming vfs request, 
-   in a similar way to the mid which is useful to track each sent smb, 
-   and CurrentXid can also provide a running counter (although it 
-   will eventually wrap past zero) of the total vfs operations handled 
+/* The xid serves as a useful identifier for each incoming vfs request,
+   in a similar way to the mid which is useful to track each sent smb,
+   and CurrentXid can also provide a running counter (although it
+   will eventually wrap past zero) of the total vfs operations handled
    since the cifs fs was mounted */
 
 unsigned int
@@ -47,10 +47,12 @@ _GetXid(void)
 
 	spin_lock(&GlobalMid_Lock);
 	GlobalTotalActiveXid++;
+
+	/* keep high water mark for number of simultaneous ops in filesystem */
 	if (GlobalTotalActiveXid > GlobalMaxActiveXid)
-		GlobalMaxActiveXid = GlobalTotalActiveXid;	/* keep high water mark for number of simultaneous vfs ops in our filesystem */
-	if(GlobalTotalActiveXid > 65000)
-		cFYI(1,("warning: more than 65000 requests active"));
+		GlobalMaxActiveXid = GlobalTotalActiveXid;
+	if (GlobalTotalActiveXid > 65000)
+		cFYI(1, ("warning: more than 65000 requests active"));
 	xid = GlobalCurrentXid++;
 	spin_unlock(&GlobalMid_Lock);
 	return xid;
@@ -60,7 +62,7 @@ void
 _FreeXid(unsigned int xid)
 {
 	spin_lock(&GlobalMid_Lock);
-	/* if(GlobalTotalActiveXid == 0)
+	/* if (GlobalTotalActiveXid == 0)
 		BUG(); */
 	GlobalTotalActiveXid--;
 	spin_unlock(&GlobalMid_Lock);
@@ -144,12 +146,12 @@ cifs_buf_get(void)
 {
 	struct smb_hdr *ret_buf = NULL;
 
-/* We could use negotiated size instead of max_msgsize - 
-   but it may be more efficient to always alloc same size 
-   albeit slightly larger than necessary and maxbuffersize 
+/* We could use negotiated size instead of max_msgsize -
+   but it may be more efficient to always alloc same size
+   albeit slightly larger than necessary and maxbuffersize
    defaults to this and can not be bigger */
-	ret_buf =
-	    (struct smb_hdr *) mempool_alloc(cifs_req_poolp, GFP_KERNEL | GFP_NOFS);
+	ret_buf = (struct smb_hdr *) mempool_alloc(cifs_req_poolp,
+						   GFP_KERNEL | GFP_NOFS);
 
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
@@ -172,7 +174,7 @@ cifs_buf_release(void *buf_to_free)
 		/* cFYI(1, ("Null buffer passed to cifs_buf_release"));*/
 		return;
 	}
-	mempool_free(buf_to_free,cifs_req_poolp);
+	mempool_free(buf_to_free, cifs_req_poolp);
 
 	atomic_dec(&bufAllocCount);
 	return;
@@ -183,12 +185,12 @@ cifs_small_buf_get(void)
 {
 	struct smb_hdr *ret_buf = NULL;
 
-/* We could use negotiated size instead of max_msgsize - 
-   but it may be more efficient to always alloc same size 
-   albeit slightly larger than necessary and maxbuffersize 
+/* We could use negotiated size instead of max_msgsize -
+   but it may be more efficient to always alloc same size
+   albeit slightly larger than necessary and maxbuffersize
    defaults to this and can not be bigger */
-	ret_buf =
-	    (struct smb_hdr *) mempool_alloc(cifs_sm_req_poolp, GFP_KERNEL | GFP_NOFS);
+	ret_buf = (struct smb_hdr *) mempool_alloc(cifs_sm_req_poolp,
+						   GFP_KERNEL | GFP_NOFS);
 	if (ret_buf) {
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
@@ -209,30 +211,30 @@ cifs_small_buf_release(void *buf_to_free)
 		cFYI(1, ("Null buffer passed to cifs_small_buf_release"));
 		return;
 	}
-	mempool_free(buf_to_free,cifs_sm_req_poolp);
+	mempool_free(buf_to_free, cifs_sm_req_poolp);
 
 	atomic_dec(&smBufAllocCount);
 	return;
 }
 
-/* 
+/*
 	Find a free multiplex id (SMB mid). Otherwise there could be
 	mid collisions which might cause problems, demultiplexing the
 	wrong response to this request. Multiplex ids could collide if
 	one of a series requests takes much longer than the others, or
 	if a very large number of long lived requests (byte range
 	locks or FindNotify requests) are pending.  No more than
-	64K-1 requests can be outstanding at one time.  If no 
+	64K-1 requests can be outstanding at one time.  If no
 	mids are available, return zero.  A future optimization
 	could make the combination of mids and uid the key we use
-	to demultiplex on (rather than mid alone).  
+	to demultiplex on (rather than mid alone).
 	In addition to the above check, the cifs demultiplex
 	code already used the command code as a secondary
 	check of the frame and if signing is negotiated the
 	response would be discarded if the mid were the same
 	but the signature was wrong.  Since the mid is not put in the
 	pending queue until later (when it is about to be dispatched)
-	we do have to limit the number of outstanding requests 
+	we do have to limit the number of outstanding requests
 	to somewhat less than 64K-1 although it is hard to imagine
 	so many threads being in the vfs at one time.
 */
@@ -240,27 +242,27 @@ __u16 GetNextMid(struct TCP_Server_Info *server)
 {
 	__u16 mid = 0;
 	__u16 last_mid;
-	int   collision;  
+	int   collision;
 
-	if(server == NULL)
+	if (server == NULL)
 		return mid;
 
 	spin_lock(&GlobalMid_Lock);
 	last_mid = server->CurrentMid; /* we do not want to loop forever */
 	server->CurrentMid++;
 	/* This nested loop looks more expensive than it is.
-	In practice the list of pending requests is short, 
+	In practice the list of pending requests is short,
 	fewer than 50, and the mids are likely to be unique
 	on the first pass through the loop unless some request
 	takes longer than the 64 thousand requests before it
 	(and it would also have to have been a request that
 	 did not time out) */
-	while(server->CurrentMid != last_mid) {
+	while (server->CurrentMid != last_mid) {
 		struct list_head *tmp;
 		struct mid_q_entry *mid_entry;
 
 		collision = 0;
-		if(server->CurrentMid == 0)
+		if (server->CurrentMid == 0)
 			server->CurrentMid++;
 
 		list_for_each(tmp, &server->pending_mid_q) {
@@ -273,7 +275,7 @@ __u16 GetNextMid(struct TCP_Server_Info *server)
 				break;
 			}
 		}
-		if(collision == 0) {
+		if (collision == 0) {
 			mid = server->CurrentMid;
 			break;
 		}
@@ -290,11 +292,11 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		const struct cifsTconInfo *treeCon, int word_count
 		/* length of fixed section (word count) in two byte units  */)
 {
-	struct list_head* temp_item;
-	struct cifsSesInfo * ses;
+	struct list_head *temp_item;
+	struct cifsSesInfo *ses;
 	char *temp = (char *) buffer;
 
-	memset(temp,0,256); /* bigger than MAX_CIFS_HDR_SIZE */
+	memset(temp, 0, 256); /* bigger than MAX_CIFS_HDR_SIZE */
 
 	buffer->smb_buf_length =
 	    (2 * word_count) + sizeof (struct smb_hdr) -
@@ -325,7 +327,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 			/* Uid is not converted */
 			buffer->Uid = treeCon->ses->Suid;
 			buffer->Mid = GetNextMid(treeCon->ses->server);
-			if(multiuser_mount != 0) {
+			if (multiuser_mount != 0) {
 		/* For the multiuser case, there are few obvious technically  */
 		/* possible mechanisms to match the local linux user (uid)    */
 		/* to a valid remote smb user (smb_uid):		      */
@@ -348,21 +350,22 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		/* 	   flag were disabled.  */
 
 		/*  BB Add support for establishing new tCon and SMB Session  */
-		/*      with userid/password pairs found on the smb session   */ 
+		/*      with userid/password pairs found on the smb session   */
 		/*	for other target tcp/ip addresses 		BB    */
-				if(current->fsuid != treeCon->ses->linux_uid) {
-					cFYI(1,("Multiuser mode and UID did not match tcon uid"));
+				if (current->fsuid != treeCon->ses->linux_uid) {
+					cFYI(1, ("Multiuser mode and UID "
+						 "did not match tcon uid"));
 					read_lock(&GlobalSMBSeslock);
 					list_for_each(temp_item, &GlobalSMBSessionList) {
 						ses = list_entry(temp_item, struct cifsSesInfo, cifsSessionList);
-						if(ses->linux_uid == current->fsuid) {
-							if(ses->server == treeCon->ses->server) {
-								cFYI(1,("found matching uid substitute right smb_uid"));  
+						if (ses->linux_uid == current->fsuid) {
+							if (ses->server == treeCon->ses->server) {
+								cFYI(1, ("found matching uid substitute right smb_uid"));
 								buffer->Uid = ses->Suid;
 								break;
 							} else {
-								/* BB eventually call cifs_setup_session here */
-								cFYI(1,("local UID found but smb sess with this server does not exist"));  
+				/* BB eventually call cifs_setup_session here */
+								cFYI(1, ("local UID found but no smb sess with this server exists"));
 							}
 						}
 					}
@@ -374,8 +377,8 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 			buffer->Flags2 |= SMBFLG2_DFS;
 		if (treeCon->nocase)
 			buffer->Flags  |= SMBFLG_CASELESS;
-		if((treeCon->ses) && (treeCon->ses->server))
-			if(treeCon->ses->server->secMode & 
+		if ((treeCon->ses) && (treeCon->ses->server))
+			if (treeCon->ses->server->secMode &
 			  (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 				buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 	}
@@ -388,18 +391,18 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 static int
 checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 {
-	/* Make sure that this really is an SMB, that it is a response, 
+	/* Make sure that this really is an SMB, that it is a response,
 	   and that the message ids match */
-	if ((*(__le32 *) smb->Protocol == cpu_to_le32(0x424d53ff)) && 
-		(mid == smb->Mid)) {    
-		if(smb->Flags & SMBFLG_RESPONSE)
-			return 0;                    
-		else {        
+	if ((*(__le32 *) smb->Protocol == cpu_to_le32(0x424d53ff)) &&
+		(mid == smb->Mid)) {
+		if (smb->Flags & SMBFLG_RESPONSE)
+			return 0;
+		else {
 		/* only one valid case where server sends us request */
-			if(smb->Command == SMB_COM_LOCKING_ANDX)
+			if (smb->Command == SMB_COM_LOCKING_ANDX)
 				return 0;
 			else
-				cERROR(1, ("Rcvd Request not response"));         
+				cERROR(1, ("Received Request not response"));
 		}
 	} else { /* bad signature or mid */
 		if (*(__le32 *) smb->Protocol != cpu_to_le32(0x424d53ff))
@@ -426,9 +429,9 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 			smb->WordCount = 0;
 			/* some error cases do not return wct and bcc */
 			return 0;
-		} else if ((length == sizeof(struct smb_hdr) + 1) && 
+		} else if ((length == sizeof(struct smb_hdr) + 1) &&
 				(smb->WordCount == 0)) {
-			char * tmp = (char *)smb;
+			char *tmp = (char *)smb;
 			/* Need to work around a bug in two servers here */
 			/* First, check if the part of bcc they sent was zero */
 			if (tmp[sizeof(struct smb_hdr)] == 0) {
@@ -442,7 +445,7 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 				tmp[sizeof(struct smb_hdr)+1] = 0;
 				return 0;
 			}
-			cERROR(1,("rcvd invalid byte count (bcc)"));
+			cERROR(1, ("rcvd invalid byte count (bcc)"));
 		} else {
 			cERROR(1, ("Length less than smb header size"));
 		}
@@ -458,32 +461,33 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 		return 1;
 	clc_len = smbCalcSize_LE(smb);
 
-	if(4 + len != length) {
-		cERROR(1, ("Length read does not match RFC1001 length %d",len));
+	if (4 + len != length) {
+		cERROR(1, ("Length read does not match RFC1001 length %d",
+			   len));
 		return 1;
 	}
 
 	if (4 + len != clc_len) {
 		/* check if bcc wrapped around for large read responses */
-		if((len > 64 * 1024) && (len > clc_len)) {
+		if ((len > 64 * 1024) && (len > clc_len)) {
 			/* check if lengths match mod 64K */
-			if(((4 + len) & 0xFFFF) == (clc_len & 0xFFFF))
-				return 0; /* bcc wrapped */			
+			if (((4 + len) & 0xFFFF) == (clc_len & 0xFFFF))
+				return 0; /* bcc wrapped */
 		}
 		cFYI(1, ("Calculated size %d vs length %d mismatch for mid %d",
 				clc_len, 4 + len, smb->Mid));
 		/* Windows XP can return a few bytes too much, presumably
-		an illegal pad, at the end of byte range lock responses 
+		an illegal pad, at the end of byte range lock responses
 		so we allow for that three byte pad, as long as actual
 		received length is as long or longer than calculated length */
-		/* We have now had to extend this more, since there is a 
+		/* We have now had to extend this more, since there is a
 		case in which it needs to be bigger still to handle a
 		malformed response to transact2 findfirst from WinXP when
 		access denied is returned and thus bcc and wct are zero
 		but server says length is 0x21 bytes too long as if the server
 		forget to reset the smb rfc1001 length when it reset the
 		wct and bcc to minimum size and drop the t2 parms and data */
-		if((4+len > clc_len) && (len <= clc_len + 512))
+		if ((4+len > clc_len) && (len <= clc_len + 512))
 			return 0;
 		else {
 			cERROR(1, ("RFC1001 size %d bigger than SMB for Mid=%d",
@@ -495,61 +499,64 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 }
 int
 is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
-{    
-	struct smb_com_lock_req * pSMB = (struct smb_com_lock_req *)buf;
+{
+	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
 	struct list_head *tmp;
 	struct list_head *tmp1;
 	struct cifsTconInfo *tcon;
 	struct cifsFileInfo *netfile;
 
-	cFYI(1,("Checking for oplock break or dnotify response"));
-	if((pSMB->hdr.Command == SMB_COM_NT_TRANSACT) &&
+	cFYI(1, ("Checking for oplock break or dnotify response"));
+	if ((pSMB->hdr.Command == SMB_COM_NT_TRANSACT) &&
 	   (pSMB->hdr.Flags & SMBFLG_RESPONSE)) {
-		struct smb_com_transaction_change_notify_rsp * pSMBr =
+		struct smb_com_transaction_change_notify_rsp *pSMBr =
 			(struct smb_com_transaction_change_notify_rsp *)buf;
-		struct file_notify_information * pnotify;
+		struct file_notify_information *pnotify;
 		__u32 data_offset = 0;
-		if(pSMBr->ByteCount > sizeof(struct file_notify_information)) {
+		if (pSMBr->ByteCount > sizeof(struct file_notify_information)) {
 			data_offset = le32_to_cpu(pSMBr->DataOffset);
 
 			pnotify = (struct file_notify_information *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
-			cFYI(1,("dnotify on %s Action: 0x%x",pnotify->FileName,
+			cFYI(1, ("dnotify on %s Action: 0x%x",
+				 pnotify->FileName,
 				pnotify->Action));  /* BB removeme BB */
-	             /*   cifs_dump_mem("Rcvd notify Data: ",buf,
+			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
 				sizeof(struct smb_hdr)+60); */
 			return TRUE;
 		}
-		if(pSMBr->hdr.Status.CifsError) {
-			cFYI(1,("notify err 0x%d",pSMBr->hdr.Status.CifsError));
+		if (pSMBr->hdr.Status.CifsError) {
+			cFYI(1, ("notify err 0x%d",
+				pSMBr->hdr.Status.CifsError));
 			return TRUE;
 		}
 		return FALSE;
-	}  
-	if(pSMB->hdr.Command != SMB_COM_LOCKING_ANDX)
+	}
+	if (pSMB->hdr.Command != SMB_COM_LOCKING_ANDX)
 		return FALSE;
-	if(pSMB->hdr.Flags & SMBFLG_RESPONSE) {
+	if (pSMB->hdr.Flags & SMBFLG_RESPONSE) {
 		/* no sense logging error on invalid handle on oplock
 		   break - harmless race between close request and oplock
 		   break response is expected from time to time writing out
 		   large dirty files cached on the client */
-		if ((NT_STATUS_INVALID_HANDLE) == 
-		   le32_to_cpu(pSMB->hdr.Status.CifsError)) { 
-			cFYI(1,("invalid handle on oplock break"));
+		if ((NT_STATUS_INVALID_HANDLE) ==
+		   le32_to_cpu(pSMB->hdr.Status.CifsError)) {
+			cFYI(1, ("invalid handle on oplock break"));
 			return TRUE;
-		} else if (ERRbadfid == 
+		} else if (ERRbadfid ==
 		   le16_to_cpu(pSMB->hdr.Status.DosError.Error)) {
-			return TRUE;	  
+			return TRUE;
 		} else {
 			return FALSE; /* on valid oplock brk we get "request" */
 		}
 	}
-	if(pSMB->hdr.WordCount != 8)
+	if (pSMB->hdr.WordCount != 8)
 		return FALSE;
 
-	cFYI(1,(" oplock type 0x%d level 0x%d",pSMB->LockType,pSMB->OplockLevel));
-	if(!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
-		return FALSE;    
+	cFYI(1, ("oplock type 0x%d level 0x%d",
+		 pSMB->LockType, pSMB->OplockLevel));
+	if (!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
+		return FALSE;
 
 	/* look up tcon based on tid & uid */
 	read_lock(&GlobalSMBSeslock);
@@ -557,36 +564,38 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		if ((tcon->tid == buf->Tid) && (srv == tcon->ses->server)) {
 			cifs_stats_inc(&tcon->num_oplock_brks);
-			list_for_each(tmp1,&tcon->openFileList){
-				netfile = list_entry(tmp1,struct cifsFileInfo,
+			list_for_each(tmp1, &tcon->openFileList) {
+				netfile = list_entry(tmp1, struct cifsFileInfo,
 						     tlist);
-				if(pSMB->Fid == netfile->netfid) {
+				if (pSMB->Fid == netfile->netfid) {
 					struct cifsInodeInfo *pCifsInode;
 					read_unlock(&GlobalSMBSeslock);
-					cFYI(1,("file id match, oplock break"));
-					pCifsInode = 
+					cFYI(1,
+					    ("file id match, oplock break"));
+					pCifsInode =
 						CIFS_I(netfile->pInode);
 					pCifsInode->clientCanCacheAll = FALSE;
-					if(pSMB->OplockLevel == 0)
+					if (pSMB->OplockLevel == 0)
 						pCifsInode->clientCanCacheRead
 							= FALSE;
 					pCifsInode->oplockPending = TRUE;
 					AllocOplockQEntry(netfile->pInode,
 							  netfile->netfid,
 							  tcon);
-					cFYI(1,("about to wake up oplock thd"));
-					if(oplockThread)
+					cFYI(1,
+					    ("about to wake up oplock thread"));
+					if (oplockThread)
 					    wake_up_process(oplockThread);
 					return TRUE;
 				}
 			}
 			read_unlock(&GlobalSMBSeslock);
-			cFYI(1,("No matching file for oplock break"));
+			cFYI(1, ("No matching file for oplock break"));
 			return TRUE;
 		}
 	}
 	read_unlock(&GlobalSMBSeslock);
-	cFYI(1,("Can not process oplock break for non-existent connection"));
+	cFYI(1, ("Can not process oplock break for non-existent connection"));
 	return TRUE;
 }
 
@@ -643,13 +652,13 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
    only legal in POSIX-like OS (if they are present in the string). Path
    names are little endian 16 bit Unicode on the wire */
 int
-cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
-		    const struct nls_table * cp)
+cifs_convertUCSpath(char *target, const __le16 *source, int maxlen,
+		    const struct nls_table *cp)
 {
-	int i,j,len;
+	int i, j, len;
 	__u16 src_char;
 
-	for(i = 0, j = 0; i < maxlen; i++) {
+	for (i = 0, j = 0; i < maxlen; i++) {
 		src_char = le16_to_cpu(source[i]);
 		switch (src_char) {
 			case 0:
@@ -678,10 +687,10 @@ cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
 			case UNI_LESSTHAN:
 				target[j] = '<';
 				break;
-			default: 
-				len = cp->uni2char(src_char, &target[j], 
+			default:
+				len = cp->uni2char(src_char, &target[j],
 						NLS_MAX_CHARSET_SIZE);
-				if(len > 0) {
+				if (len > 0) {
 					j += len;
 					continue;
 				} else {
@@ -690,7 +699,7 @@ cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
 		}
 		j++;
 		/* make sure we do not overrun callers allocated temp buffer */
-		if(j >= (2 * NAME_MAX))
+		if (j >= (2 * NAME_MAX))
 			break;
 	}
 cUCS_out:
@@ -703,18 +712,18 @@ cUCS_out:
    only legal in POSIX-like OS (if they are present in the string). Path
    names are little endian 16 bit Unicode on the wire */
 int
-cifsConvertToUCS(__le16 * target, const char *source, int maxlen, 
-		 const struct nls_table * cp, int mapChars)
+cifsConvertToUCS(__le16 *target, const char *source, int maxlen,
+		 const struct nls_table *cp, int mapChars)
 {
-	int i,j,charlen;
+	int i, j, charlen;
 	int len_remaining = maxlen;
 	char src_char;
 	__u16 temp;
 
-	if(!mapChars) 
+	if (!mapChars)
 		return cifs_strtoUCS(target, source, PATH_MAX, cp);
 
-	for(i = 0, j = 0; i < maxlen; j++) {
+	for (i = 0, j = 0; i < maxlen; j++) {
 		src_char = source[i];
 		switch (src_char) {
 			case 0:
@@ -737,7 +746,7 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 				break;
 			case '|':
 				target[j] = cpu_to_le16(UNI_PIPE);
-				break;			
+				break;
 			/* BB We can not handle remapping slash until
 			   all the calls to build_path_from_dentry
 			   are modified, as they use slash as separator BB */
@@ -749,7 +758,7 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 					len_remaining, &temp);
 				/* if no match, use question mark, which
 				at least in some cases servers as wild card */
-				if(charlen < 1) {
+				if (charlen < 1) {
 					target[j] = cpu_to_le16(0x003f);
 					charlen = 1;
 				} else
@@ -758,7 +767,7 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 				/* character may take more than one byte in the
 				   the source string, but will take exactly two
 				   bytes in the target string */
-				i+= charlen;
+				i += charlen;
 				continue;
 		}
 		i++; /* move to next char in source string */

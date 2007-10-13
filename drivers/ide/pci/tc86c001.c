@@ -13,13 +13,11 @@
 #include <linux/pci.h>
 #include <linux/ide.h>
 
-static int tc86c001_tune_chipset(ide_drive_t *drive, u8 speed)
+static int tc86c001_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long scr_port	= hwif->config_data + (drive->dn ? 0x02 : 0x00);
 	u16 mode, scr		= hwif->INW(scr_port);
-
-	speed = ide_rate_filter(drive, speed);
 
 	switch (speed) {
 		case XFER_UDMA_4:	mode = 0x00c0; break;
@@ -45,9 +43,8 @@ static int tc86c001_tune_chipset(ide_drive_t *drive, u8 speed)
 	return ide_config_drive_speed(drive, speed);
 }
 
-static void tc86c001_tune_drive(ide_drive_t *drive, u8 pio)
+static void tc86c001_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio =  ide_get_best_pio_mode(drive, pio, 4, NULL);
 	(void) tc86c001_tune_chipset(drive, XFER_PIO_0 + pio);
 }
 
@@ -173,7 +170,7 @@ static int tc86c001_config_drive_xfer_rate(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		tc86c001_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -195,7 +192,7 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	/* Store the system control register base for convenience... */
 	hwif->config_data = sc_base;
 
-	hwif->tuneproc	= &tc86c001_tune_drive;
+	hwif->set_pio_mode = &tc86c001_set_pio_mode;
 	hwif->speedproc = &tc86c001_tune_chipset;
 	hwif->busproc	= &tc86c001_busproc;
 
@@ -248,9 +245,10 @@ static ide_pci_device_t tc86c001_chipset __devinitdata = {
 	.name		= "TC86C001",
 	.init_chipset	= init_chipset_tc86c001,
 	.init_hwif	= init_hwif_tc86c001,
-	.channels	= 1,
 	.autodma	= AUTODMA,
-	.bootable	= OFF_BOARD
+	.bootable	= OFF_BOARD,
+	.host_flags	= IDE_HFLAG_SINGLE,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit tc86c001_init_one(struct pci_dev *dev,

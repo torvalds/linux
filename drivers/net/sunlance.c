@@ -99,8 +99,7 @@ static char lancestr[] = "LANCE";
 #include <asm/byteorder.h>	/* Used by the checksum routines */
 #include <asm/idprom.h>
 #include <asm/sbus.h>
-#include <asm/openprom.h>
-#include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/auxio.h>		/* For tpe-link-test? setting */
 #include <asm/irq.h>
 
@@ -249,7 +248,6 @@ struct lance_private {
 	int		rx_new, tx_new;
 	int		rx_old, tx_old;
 
-	struct net_device_stats	stats;
 	struct sbus_dma *ledma;	/* If set this points to ledma	*/
 	char		tpe;		/* cable-selection is TPE	*/
 	char		auto_select;	/* cable-selection by carrier	*/
@@ -520,17 +518,17 @@ static void lance_rx_dvma(struct net_device *dev)
 
 		/* We got an incomplete frame? */
 		if ((bits & LE_R1_POK) != LE_R1_POK) {
-			lp->stats.rx_over_errors++;
-			lp->stats.rx_errors++;
+			dev->stats.rx_over_errors++;
+			dev->stats.rx_errors++;
 		} else if (bits & LE_R1_ERR) {
 			/* Count only the end frame as a rx error,
 			 * not the beginning
 			 */
-			if (bits & LE_R1_BUF) lp->stats.rx_fifo_errors++;
-			if (bits & LE_R1_CRC) lp->stats.rx_crc_errors++;
-			if (bits & LE_R1_OFL) lp->stats.rx_over_errors++;
-			if (bits & LE_R1_FRA) lp->stats.rx_frame_errors++;
-			if (bits & LE_R1_EOP) lp->stats.rx_errors++;
+			if (bits & LE_R1_BUF) dev->stats.rx_fifo_errors++;
+			if (bits & LE_R1_CRC) dev->stats.rx_crc_errors++;
+			if (bits & LE_R1_OFL) dev->stats.rx_over_errors++;
+			if (bits & LE_R1_FRA) dev->stats.rx_frame_errors++;
+			if (bits & LE_R1_EOP) dev->stats.rx_errors++;
 		} else {
 			len = (rd->mblength & 0xfff) - 4;
 			skb = dev_alloc_skb(len + 2);
@@ -538,14 +536,14 @@ static void lance_rx_dvma(struct net_device *dev)
 			if (skb == NULL) {
 				printk(KERN_INFO "%s: Memory squeeze, deferring packet.\n",
 				       dev->name);
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				rd->mblength = 0;
 				rd->rmd1_bits = LE_R1_OWN;
 				lp->rx_new = RX_NEXT(entry);
 				return;
 			}
 
-			lp->stats.rx_bytes += len;
+			dev->stats.rx_bytes += len;
 
 			skb_reserve(skb, 2);		/* 16 byte align */
 			skb_put(skb, len);		/* make room */
@@ -555,7 +553,7 @@ static void lance_rx_dvma(struct net_device *dev)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
 			dev->last_rx = jiffies;
-			lp->stats.rx_packets++;
+			dev->stats.rx_packets++;
 		}
 
 		/* Return the packet to the pool */
@@ -587,12 +585,12 @@ static void lance_tx_dvma(struct net_device *dev)
 		if (bits & LE_T1_ERR) {
 			u16 status = td->misc;
 
-			lp->stats.tx_errors++;
-			if (status & LE_T3_RTY)  lp->stats.tx_aborted_errors++;
-			if (status & LE_T3_LCOL) lp->stats.tx_window_errors++;
+			dev->stats.tx_errors++;
+			if (status & LE_T3_RTY)  dev->stats.tx_aborted_errors++;
+			if (status & LE_T3_LCOL) dev->stats.tx_window_errors++;
 
 			if (status & LE_T3_CLOS) {
-				lp->stats.tx_carrier_errors++;
+				dev->stats.tx_carrier_errors++;
 				if (lp->auto_select) {
 					lp->tpe = 1 - lp->tpe;
 					printk(KERN_NOTICE "%s: Carrier Lost, trying %s\n",
@@ -609,7 +607,7 @@ static void lance_tx_dvma(struct net_device *dev)
 			 * transmitter, restart the adapter.
 			 */
 			if (status & (LE_T3_BUF|LE_T3_UFL)) {
-				lp->stats.tx_fifo_errors++;
+				dev->stats.tx_fifo_errors++;
 
 				printk(KERN_ERR "%s: Tx: ERR_BUF|ERR_UFL, restarting\n",
 				       dev->name);
@@ -627,13 +625,13 @@ static void lance_tx_dvma(struct net_device *dev)
 
 			/* One collision before packet was sent. */
 			if (bits & LE_T1_EONE)
-				lp->stats.collisions++;
+				dev->stats.collisions++;
 
 			/* More than one collision, be optimistic. */
 			if (bits & LE_T1_EMORE)
-				lp->stats.collisions += 2;
+				dev->stats.collisions += 2;
 
-			lp->stats.tx_packets++;
+			dev->stats.tx_packets++;
 		}
 
 		j = TX_NEXT(j);
@@ -693,17 +691,17 @@ static void lance_rx_pio(struct net_device *dev)
 
 		/* We got an incomplete frame? */
 		if ((bits & LE_R1_POK) != LE_R1_POK) {
-			lp->stats.rx_over_errors++;
-			lp->stats.rx_errors++;
+			dev->stats.rx_over_errors++;
+			dev->stats.rx_errors++;
 		} else if (bits & LE_R1_ERR) {
 			/* Count only the end frame as a rx error,
 			 * not the beginning
 			 */
-			if (bits & LE_R1_BUF) lp->stats.rx_fifo_errors++;
-			if (bits & LE_R1_CRC) lp->stats.rx_crc_errors++;
-			if (bits & LE_R1_OFL) lp->stats.rx_over_errors++;
-			if (bits & LE_R1_FRA) lp->stats.rx_frame_errors++;
-			if (bits & LE_R1_EOP) lp->stats.rx_errors++;
+			if (bits & LE_R1_BUF) dev->stats.rx_fifo_errors++;
+			if (bits & LE_R1_CRC) dev->stats.rx_crc_errors++;
+			if (bits & LE_R1_OFL) dev->stats.rx_over_errors++;
+			if (bits & LE_R1_FRA) dev->stats.rx_frame_errors++;
+			if (bits & LE_R1_EOP) dev->stats.rx_errors++;
 		} else {
 			len = (sbus_readw(&rd->mblength) & 0xfff) - 4;
 			skb = dev_alloc_skb(len + 2);
@@ -711,14 +709,14 @@ static void lance_rx_pio(struct net_device *dev)
 			if (skb == NULL) {
 				printk(KERN_INFO "%s: Memory squeeze, deferring packet.\n",
 				       dev->name);
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				sbus_writew(0, &rd->mblength);
 				sbus_writeb(LE_R1_OWN, &rd->rmd1_bits);
 				lp->rx_new = RX_NEXT(entry);
 				return;
 			}
 
-			lp->stats.rx_bytes += len;
+			dev->stats.rx_bytes += len;
 
 			skb_reserve (skb, 2);		/* 16 byte align */
 			skb_put(skb, len);		/* make room */
@@ -726,7 +724,7 @@ static void lance_rx_pio(struct net_device *dev)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
 			dev->last_rx = jiffies;
-			lp->stats.rx_packets++;
+			dev->stats.rx_packets++;
 		}
 
 		/* Return the packet to the pool */
@@ -758,12 +756,12 @@ static void lance_tx_pio(struct net_device *dev)
 		if (bits & LE_T1_ERR) {
 			u16 status = sbus_readw(&td->misc);
 
-			lp->stats.tx_errors++;
-			if (status & LE_T3_RTY)  lp->stats.tx_aborted_errors++;
-			if (status & LE_T3_LCOL) lp->stats.tx_window_errors++;
+			dev->stats.tx_errors++;
+			if (status & LE_T3_RTY)  dev->stats.tx_aborted_errors++;
+			if (status & LE_T3_LCOL) dev->stats.tx_window_errors++;
 
 			if (status & LE_T3_CLOS) {
-				lp->stats.tx_carrier_errors++;
+				dev->stats.tx_carrier_errors++;
 				if (lp->auto_select) {
 					lp->tpe = 1 - lp->tpe;
 					printk(KERN_NOTICE "%s: Carrier Lost, trying %s\n",
@@ -780,7 +778,7 @@ static void lance_tx_pio(struct net_device *dev)
 			 * transmitter, restart the adapter.
 			 */
 			if (status & (LE_T3_BUF|LE_T3_UFL)) {
-				lp->stats.tx_fifo_errors++;
+				dev->stats.tx_fifo_errors++;
 
 				printk(KERN_ERR "%s: Tx: ERR_BUF|ERR_UFL, restarting\n",
 				       dev->name);
@@ -798,13 +796,13 @@ static void lance_tx_pio(struct net_device *dev)
 
 			/* One collision before packet was sent. */
 			if (bits & LE_T1_EONE)
-				lp->stats.collisions++;
+				dev->stats.collisions++;
 
 			/* More than one collision, be optimistic. */
 			if (bits & LE_T1_EMORE)
-				lp->stats.collisions += 2;
+				dev->stats.collisions += 2;
 
-			lp->stats.tx_packets++;
+			dev->stats.tx_packets++;
 		}
 
 		j = TX_NEXT(j);
@@ -845,10 +843,10 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 		lp->tx(dev);
 
 	if (csr0 & LE_C0_BABL)
-		lp->stats.tx_errors++;
+		dev->stats.tx_errors++;
 
 	if (csr0 & LE_C0_MISS)
-		lp->stats.rx_errors++;
+		dev->stats.rx_errors++;
 
 	if (csr0 & LE_C0_MERR) {
 		if (lp->dregs) {
@@ -1128,7 +1126,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irq(&lp->lock);
 
-	lp->stats.tx_bytes += len;
+	dev->stats.tx_bytes += len;
 
 	entry = lp->tx_new & TX_RING_MOD_MASK;
 	if (lp->pio_buffer) {
@@ -1169,13 +1167,6 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 
 	return 0;
-}
-
-static struct net_device_stats *lance_get_stats(struct net_device *dev)
-{
-	struct lance_private *lp = netdev_priv(dev);
-
-	return &lp->stats;
 }
 
 /* taken from the depca driver */
@@ -1326,16 +1317,17 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 					   struct sbus_dev *lebuffer)
 {
 	static unsigned version_printed;
+	struct device_node *dp = sdev->ofdev.node;
 	struct net_device *dev;
 	struct lance_private *lp;
 	int    i;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof(struct lance_private) + 8);
 	if (!dev)
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
-	memset(lp, 0, sizeof(*lp));
 
 	if (sparc_lance_debug && version_printed++ == 0)
 		printk (KERN_INFO "%s", version);
@@ -1389,53 +1381,45 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 		lp->rx = lance_rx_dvma;
 		lp->tx = lance_tx_dvma;
 	}
-	lp->busmaster_regval = prom_getintdefault(sdev->prom_node,
-						  "busmaster-regval",
-						  (LE_C3_BSWP | LE_C3_ACON |
-						   LE_C3_BCON));
+	lp->busmaster_regval = of_getintprop_default(dp,  "busmaster-regval",
+						     (LE_C3_BSWP |
+						      LE_C3_ACON |
+						      LE_C3_BCON));
 
 	lp->name = lancestr;
 	lp->ledma = ledma;
 
 	lp->burst_sizes = 0;
 	if (lp->ledma) {
-		char prop[6];
+		struct device_node *ledma_dp = ledma->sdev->ofdev.node;
+		const char *prop;
 		unsigned int sbmask;
 		u32 csr;
 
 		/* Find burst-size property for ledma */
-		lp->burst_sizes = prom_getintdefault(ledma->sdev->prom_node,
-						     "burst-sizes", 0);
+		lp->burst_sizes = of_getintprop_default(ledma_dp,
+							"burst-sizes", 0);
 
 		/* ledma may be capable of fast bursts, but sbus may not. */
-		sbmask = prom_getintdefault(ledma->sdev->bus->prom_node,
-					    "burst-sizes", DMA_BURSTBITS);
+		sbmask = of_getintprop_default(ledma_dp, "burst-sizes",
+					       DMA_BURSTBITS);
 		lp->burst_sizes &= sbmask;
 
 		/* Get the cable-selection property */
-		memset(prop, 0, sizeof(prop));
-		prom_getstring(ledma->sdev->prom_node, "cable-selection",
-			       prop, sizeof(prop));
-		if (prop[0] == 0) {
-			int topnd, nd;
+		prop = of_get_property(ledma_dp, "cable-selection", NULL);
+		if (!prop || prop[0] == '\0') {
+			struct device_node *nd;
 
-			printk(KERN_INFO "SunLance: using auto-carrier-detection.\n");
+			printk(KERN_INFO "SunLance: using "
+			       "auto-carrier-detection.\n");
 
-			/* Is this found at /options .attributes in all
-			 * Prom versions? XXX
-			 */
-			topnd = prom_getchild(prom_root_node);
-
-			nd = prom_searchsiblings(topnd, "options");
+			nd = of_find_node_by_path("/options");
 			if (!nd)
 				goto no_link_test;
 
-			if (!prom_node_has_property(nd, "tpe-link-test?"))
+			prop = of_get_property(nd, "tpe-link-test?", NULL);
+			if (!prop)
 				goto no_link_test;
-
-			memset(prop, 0, sizeof(prop));
-			prom_getstring(nd, "tpe-link-test?", prop,
-				       sizeof(prop));
 
 			if (strcmp(prop, "true")) {
 				printk(KERN_NOTICE "SunLance: warning: overriding option "
@@ -1466,14 +1450,12 @@ no_link_test:
 		lp->dregs = NULL;
 
 	lp->dev = dev;
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &sdev->ofdev.dev);
 	dev->open = &lance_open;
 	dev->stop = &lance_close;
 	dev->hard_start_xmit = &lance_start_xmit;
 	dev->tx_timeout = &lance_tx_timeout;
 	dev->watchdog_timeo = 5*HZ;
-	dev->get_stats = &lance_get_stats;
 	dev->set_multicast_list = &lance_set_multicast;
 	dev->ethtool_ops = &sparc_lance_ethtool_ops;
 
@@ -1497,12 +1479,8 @@ no_link_test:
 
 	dev_set_drvdata(&sdev->ofdev.dev, lp);
 
-	printk(KERN_INFO "%s: LANCE ", dev->name);
-
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i],
-		       i == 5 ? ' ': ':');
-	printk("\n");
+	printk(KERN_INFO "%s: LANCE %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	return 0;
 

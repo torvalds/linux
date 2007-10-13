@@ -19,14 +19,14 @@
 #include <asm/sgidefs.h>
 #include <asm/war.h>
 
-#if (_MIPS_SZLONG == 32)
+#if _MIPS_SZLONG == 32
 #define SZLONG_LOG 5
 #define SZLONG_MASK 31UL
 #define __LL		"ll	"
 #define __SC		"sc	"
 #define __INS		"ins    "
 #define __EXT		"ext    "
-#elif (_MIPS_SZLONG == 64)
+#elif _MIPS_SZLONG == 64
 #define SZLONG_LOG 6
 #define SZLONG_MASK 63UL
 #define __LL		"lld	"
@@ -38,8 +38,8 @@
 /*
  * clear_bit() doesn't provide any barrier for the compiler.
  */
-#define smp_mb__before_clear_bit()	smp_mb()
-#define smp_mb__after_clear_bit()	smp_mb()
+#define smp_mb__before_clear_bit()	smp_llsc_mb()
+#define smp_mb__after_clear_bit()	smp_llsc_mb()
 
 /*
  * set_bit - Atomically set a bit in memory
@@ -289,7 +289,7 @@ static inline int test_and_set_bit(unsigned long nr,
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return res != 0;
 }
@@ -377,7 +377,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return res != 0;
 }
@@ -445,7 +445,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		raw_local_irq_restore(flags);
 	}
 
-	smp_mb();
+	smp_llsc_mb();
 
 	return res != 0;
 }
@@ -461,7 +461,7 @@ static inline int __ilog2(unsigned long x)
 	int lz;
 
 	if (sizeof(x) == 4) {
-		__asm__ (
+		__asm__(
 		"	.set	push					\n"
 		"	.set	mips32					\n"
 		"	clz	%0, %1					\n"
@@ -474,7 +474,7 @@ static inline int __ilog2(unsigned long x)
 
 	BUG_ON(sizeof(x) != 8);
 
-	__asm__ (
+	__asm__(
 	"	.set	push						\n"
 	"	.set	mips64						\n"
 	"	dclz	%0, %1						\n"
@@ -508,7 +508,7 @@ static inline unsigned long __ffs(unsigned long word)
  */
 static inline int fls(int word)
 {
-	__asm__ ("clz %0, %1" : "=r" (word) : "r" (word));
+	__asm__("clz %0, %1" : "=r" (word) : "r" (word));
 
 	return 32 - word;
 }
@@ -516,7 +516,7 @@ static inline int fls(int word)
 #if defined(CONFIG_64BIT) && defined(CONFIG_CPU_MIPS64)
 static inline int fls64(__u64 word)
 {
-	__asm__ ("dclz %0, %1" : "=r" (word) : "r" (word));
+	__asm__("dclz %0, %1" : "=r" (word) : "r" (word));
 
 	return 64 - word;
 }

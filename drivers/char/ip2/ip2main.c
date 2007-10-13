@@ -411,8 +411,8 @@ cleanup_module(void)
 			iiResetDelay( i2BoardPtrTable[i] );
 			/* free io addresses and Tibet */
 			release_region( ip2config.addr[i], 8 );
-			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i));
-			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
+			device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i));
+			device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
 		}
 		/* Disable and remove interrupt handler. */
 		if ( (ip2config.irq[i] > 0) && have_requested_irq(ip2config.irq[i]) ) {	
@@ -425,9 +425,7 @@ cleanup_module(void)
 		printk(KERN_ERR "IP2: failed to unregister tty driver (%d)\n", err);
 	}
 	put_tty_driver(ip2_tty_driver);
-	if ( ( err = unregister_chrdev ( IP2_IPL_MAJOR, pcIpl ) ) ) {
-		printk(KERN_ERR "IP2: failed to unregister IPL driver (%d)\n", err);
-	}
+	unregister_chrdev(IP2_IPL_MAJOR, pcIpl);
 	remove_proc_entry("ip2mem", &proc_root);
 
 	// free memory
@@ -502,7 +500,6 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 {
 	int i, j, box;
 	int err = 0;
-	int status = 0;
 	static int loaded;
 	i2eBordStrPtr pB = NULL;
 	int rc = -1;
@@ -590,6 +587,8 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		case PCI:
 #ifdef CONFIG_PCI
 			{
+				int status;
+
 				pci_dev_i = pci_get_device(PCI_VENDOR_ID_COMPUTONE,
 							  PCI_DEVICE_ID_COMPUTONE_IP2EX, pci_dev_i);
 				if (pci_dev_i != NULL) {
@@ -719,12 +718,12 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 			}
 
 			if ( NULL != ( pB = i2BoardPtrTable[i] ) ) {
-				class_device_create(ip2_class, NULL,
+				device_create(ip2_class, NULL,
 						MKDEV(IP2_IPL_MAJOR, 4 * i),
-						NULL, "ipl%d", i);
-				class_device_create(ip2_class, NULL,
+						"ipl%d", i);
+				device_create(ip2_class, NULL,
 						MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
-						NULL, "stat%d", i);
+						"stat%d", i);
 
 			    for ( box = 0; box < ABS_MAX_BOXES; ++box )
 			    {

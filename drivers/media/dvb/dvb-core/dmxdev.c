@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/poll.h>
 #include <linux/ioctl.h>
 #include <linux/wait.h>
@@ -97,7 +96,7 @@ static ssize_t dvb_dmxdev_buffer_read(struct dvb_ringbuffer *src,
 		if (avail > todo)
 			avail = todo;
 
-		ret = dvb_ringbuffer_read(src, buf, avail, 1);
+		ret = dvb_ringbuffer_read(src, (u8 *)buf, avail, 1);
 		if (ret < 0)
 			break;
 

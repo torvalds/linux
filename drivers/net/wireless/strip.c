@@ -107,6 +107,7 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 #include <linux/serialP.h>
 #include <linux/rcupdate.h>
 #include <net/arp.h>
+#include <net/net_namespace.h>
 
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -1630,8 +1631,8 @@ static void strip_IdleTask(unsigned long parameter)
  */
 
 static int strip_header(struct sk_buff *skb, struct net_device *dev,
-			unsigned short type, void *daddr, void *saddr,
-			unsigned len)
+			unsigned short type, const void *daddr,
+			const void *saddr, unsigned len)
 {
 	struct strip *strip_info = netdev_priv(dev);
 	STRIP_Header *header = (STRIP_Header *) skb_push(skb, sizeof(STRIP_Header));
@@ -1971,7 +1972,7 @@ static struct net_device *get_strip_dev(struct strip *strip_info)
 		      sizeof(zero_address))) {
 		struct net_device *dev;
 		read_lock_bh(&dev_base_lock);
-		for_each_netdev(dev) {
+		for_each_netdev(&init_net, dev) {
 			if (dev->type == strip_info->dev->type &&
 			    !memcmp(dev->dev_addr,
 				    &strip_info->true_dev_addr,
@@ -2496,6 +2497,11 @@ static int strip_close_low(struct net_device *dev)
 	return 0;
 }
 
+static const struct header_ops strip_header_ops = {
+	.create = strip_header,
+	.rebuild = strip_rebuild_header,
+};
+
 /*
  * This routine is called by DDI when the
  * (dynamically assigned) device is registered
@@ -2506,8 +2512,6 @@ static void strip_dev_setup(struct net_device *dev)
 	/*
 	 * Finish setting up the DEVICE info.
 	 */
-
-	SET_MODULE_OWNER(dev);
 
 	dev->trans_start = 0;
 	dev->last_rx = 0;
@@ -2532,8 +2536,8 @@ static void strip_dev_setup(struct net_device *dev)
 	dev->open = strip_open_low;
 	dev->stop = strip_close_low;
 	dev->hard_start_xmit = strip_xmit;
-	dev->hard_header = strip_header;
-	dev->rebuild_header = strip_rebuild_header;
+	dev->header_ops = &strip_header_ops;
+
 	dev->set_mac_address = strip_set_mac_address;
 	dev->get_stats = strip_get_stats;
 	dev->change_mtu = strip_change_mtu;
@@ -2571,7 +2575,7 @@ static struct strip *strip_alloc(void)
 		return NULL;	/* If no more memory, return */
 
 
-	strip_info = dev->priv;
+	strip_info = netdev_priv(dev);
 	strip_info->dev = dev;
 
 	strip_info->magic = STRIP_MAGIC;
@@ -2787,7 +2791,7 @@ static int __init strip_init_driver(void)
 	/*
 	 * Register the status file with /proc
 	 */
-	proc_net_fops_create("strip", S_IFREG | S_IRUGO, &strip_seq_fops);
+	proc_net_fops_create(&init_net, "strip", S_IFREG | S_IRUGO, &strip_seq_fops);
 
 	return status;
 }
@@ -2809,7 +2813,7 @@ static void __exit strip_exit_driver(void)
 	}
 
 	/* Unregister with the /proc/net file here. */
-	proc_net_remove("strip");
+	proc_net_remove(&init_net, "strip");
 
 	if ((i = tty_unregister_ldisc(N_STRIP)))
 		printk(KERN_ERR "STRIP: can't unregister line discipline (err = %d)\n", i);

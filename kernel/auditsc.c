@@ -153,7 +153,7 @@ struct audit_aux_data_execve {
 	struct audit_aux_data	d;
 	int argc;
 	int envc;
-	char mem[0];
+	struct mm_struct *mm;
 };
 
 struct audit_aux_data_socketcall {
@@ -171,12 +171,6 @@ struct audit_aux_data_sockaddr {
 struct audit_aux_data_fd_pair {
 	struct	audit_aux_data d;
 	int	fd[2];
-};
-
-struct audit_aux_data_path {
-	struct audit_aux_data	d;
-	struct dentry		*dentry;
-	struct vfsmount		*mnt;
 };
 
 struct audit_aux_data_pids {
@@ -654,12 +648,6 @@ static inline void audit_free_aux(struct audit_context *context)
 	struct audit_aux_data *aux;
 
 	while ((aux = context->aux)) {
-		if (aux->type == AUDIT_AVC_PATH) {
-			struct audit_aux_data_path *axi = (void *)aux;
-			dput(axi->dentry);
-			mntput(axi->mnt);
-		}
-
 		context->aux = aux->next;
 		kfree(aux);
 	}
@@ -831,6 +819,57 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 	return rc;
 }
 
+static void audit_log_execve_info(struct audit_buffer *ab,
+		struct audit_aux_data_execve *axi)
+{
+	int i;
+	long len, ret;
+	const char __user *p;
+	char *buf;
+
+	if (axi->mm != current->mm)
+		return; /* execve failed, no additional info */
+
+	p = (const char __user *)axi->mm->arg_start;
+
+	for (i = 0; i < axi->argc; i++, p += len) {
+		len = strnlen_user(p, MAX_ARG_STRLEN);
+		/*
+		 * We just created this mm, if we can't find the strings
+		 * we just copied into it something is _very_ wrong. Similar
+		 * for strings that are too long, we should not have created
+		 * any.
+		 */
+		if (!len || len > MAX_ARG_STRLEN) {
+			WARN_ON(1);
+			send_sig(SIGKILL, current, 0);
+		}
+
+		buf = kmalloc(len, GFP_KERNEL);
+		if (!buf) {
+			audit_panic("out of memory for argv string\n");
+			break;
+		}
+
+		ret = copy_from_user(buf, p, len);
+		/*
+		 * There is no reason for this copy to be short. We just
+		 * copied them here, and the mm hasn't been exposed to user-
+		 * space yet.
+		 */
+		if (ret) {
+			WARN_ON(1);
+			send_sig(SIGKILL, current, 0);
+		}
+
+		audit_log_format(ab, "a%d=", i);
+		audit_log_untrustedstring(ab, buf);
+		audit_log_format(ab, "\n");
+
+		kfree(buf);
+	}
+}
+
 static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
 {
 	int i, call_panic = 0;
@@ -946,7 +985,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-				 "ouid=%u ogid=%u mode=%x",
+				 "ouid=%u ogid=%u mode=%#o",
 				 axi->uid, axi->gid, axi->mode);
 			if (axi->osid != 0) {
 				char *ctx = NULL;
@@ -965,19 +1004,13 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC_SET_PERM: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab,
-				"qbytes=%lx ouid=%u ogid=%u mode=%x",
+				"qbytes=%lx ouid=%u ogid=%u mode=%#o",
 				axi->qbytes, axi->uid, axi->gid, axi->mode);
 			break; }
 
 		case AUDIT_EXECVE: {
 			struct audit_aux_data_execve *axi = (void *)aux;
-			int i;
-			const char *p;
-			for (i = 0, p = axi->mem; i < axi->argc; i++) {
-				audit_log_format(ab, "a%d=", i);
-				p = audit_log_untrustedstring(ab, p);
-				audit_log_format(ab, "\n");
-			}
+			audit_log_execve_info(ab, axi);
 			break; }
 
 		case AUDIT_SOCKETCALL: {
@@ -993,11 +1026,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 			audit_log_format(ab, "saddr=");
 			audit_log_hex(ab, axs->a, axs->len);
-			break; }
-
-		case AUDIT_AVC_PATH: {
-			struct audit_aux_data_path *axi = (void *)aux;
-			audit_log_d_path(ab, "path=", axi->dentry, axi->mnt);
 			break; }
 
 		case AUDIT_FD_PAIR: {
@@ -1821,32 +1849,31 @@ int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode
 	return 0;
 }
 
+int audit_argv_kb = 32;
+
 int audit_bprm(struct linux_binprm *bprm)
 {
 	struct audit_aux_data_execve *ax;
 	struct audit_context *context = current->audit_context;
-	unsigned long p, next;
-	void *to;
 
 	if (likely(!audit_enabled || !context || context->dummy))
 		return 0;
 
-	ax = kmalloc(sizeof(*ax) + PAGE_SIZE * MAX_ARG_PAGES - bprm->p,
-				GFP_KERNEL);
+	/*
+	 * Even though the stack code doesn't limit the arg+env size any more,
+	 * the audit code requires that _all_ arguments be logged in a single
+	 * netlink skb. Hence cap it :-(
+	 */
+	if (bprm->argv_len > (audit_argv_kb << 10))
+		return -E2BIG;
+
+	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
 	if (!ax)
 		return -ENOMEM;
 
 	ax->argc = bprm->argc;
 	ax->envc = bprm->envc;
-	for (p = bprm->p, to = ax->mem; p < MAX_ARG_PAGES*PAGE_SIZE; p = next) {
-		struct page *page = bprm->page[p / PAGE_SIZE];
-		void *kaddr = kmap(page);
-		next = (p + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-		memcpy(to, kaddr + (p & (PAGE_SIZE - 1)), next - p);
-		to += next - p;
-		kunmap(page);
-	}
-
+	ax->mm = bprm->mm;
 	ax->d.type = AUDIT_EXECVE;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
@@ -1949,36 +1976,6 @@ void __audit_ptrace(struct task_struct *t)
 }
 
 /**
- * audit_avc_path - record the granting or denial of permissions
- * @dentry: dentry to record
- * @mnt: mnt to record
- *
- * Returns 0 for success or NULL context or < 0 on error.
- *
- * Called from security/selinux/avc.c::avc_audit()
- */
-int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt)
-{
-	struct audit_aux_data_path *ax;
-	struct audit_context *context = current->audit_context;
-
-	if (likely(!context))
-		return 0;
-
-	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
-	if (!ax)
-		return -ENOMEM;
-
-	ax->dentry = dget(dentry);
-	ax->mnt = mntget(mnt);
-
-	ax->d.type = AUDIT_AVC_PATH;
-	ax->d.next = context->aux;
-	context->aux = (void *)ax;
-	return 0;
-}
-
-/**
  * audit_signal_info - record signal info for shutting down audit subsystem
  * @sig: signal value
  * @t: task being signaled
@@ -1995,18 +1992,18 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	extern uid_t audit_sig_uid;
 	extern u32 audit_sig_sid;
 
-	if (audit_pid && t->tgid == audit_pid &&
-	    (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1)) {
-		audit_sig_pid = tsk->pid;
-		if (ctx)
-			audit_sig_uid = ctx->loginuid;
-		else
-			audit_sig_uid = tsk->uid;
-		selinux_get_task_sid(tsk, &audit_sig_sid);
+	if (audit_pid && t->tgid == audit_pid) {
+		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {
+			audit_sig_pid = tsk->pid;
+			if (ctx)
+				audit_sig_uid = ctx->loginuid;
+			else
+				audit_sig_uid = tsk->uid;
+			selinux_get_task_sid(tsk, &audit_sig_sid);
+		}
+		if (!audit_signals || audit_dummy_context())
+			return 0;
 	}
-
-	if (!audit_signals) /* audit_context checked in wrapper */
-		return 0;
 
 	/* optimize the common case by putting first signal recipient directly
 	 * in audit_context */
@@ -2026,7 +2023,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 		axp->d.next = ctx->aux_pids;
 		ctx->aux_pids = (void *)axp;
 	}
-	BUG_ON(axp->pid_count > AUDIT_AUX_PIDS);
+	BUG_ON(axp->pid_count >= AUDIT_AUX_PIDS);
 
 	axp->target_pid[axp->pid_count] = t->tgid;
 	selinux_get_task_sid(t, &axp->target_sid[axp->pid_count]);

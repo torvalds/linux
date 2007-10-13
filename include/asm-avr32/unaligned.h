@@ -7,19 +7,10 @@
  * words, but halfwords must be halfword-aligned, and doublewords must
  * be word-aligned.
  *
- * TODO: Make all this CPU-specific and optimize.
+ * However, swapped word loads must be word-aligned so we can't
+ * optimize word loads in general.
  */
 
-#include <linux/string.h>
-
-/* Use memmove here, so gcc does not insert a __builtin_memcpy. */
-
-#define get_unaligned(ptr) \
-  ({ __typeof__(*(ptr)) __tmp; memmove(&__tmp, (ptr), sizeof(*(ptr))); __tmp; })
-
-#define put_unaligned(val, ptr)				\
-  ({ __typeof__(*(ptr)) __tmp = (val);			\
-     memmove((ptr), &__tmp, sizeof(*(ptr)));		\
-     (void)0; })
+#include <asm-generic/unaligned.h>
 
 #endif /* __ASM_AVR32_UNALIGNED_H */

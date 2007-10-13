@@ -64,6 +64,7 @@ static struct ubi_device *major_to_device(int major)
 		if (ubi_devices[i] && ubi_devices[i]->major == major)
 			return ubi_devices[i];
 	BUG();
+	return NULL;
 }
 
 /**
@@ -153,7 +154,7 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 		ubi_warn("update of volume %d not finished, volume is damaged",
 			 vol->vol_id);
 		vol->updating = 0;
-		kfree(vol->upd_buf);
+		vfree(vol->upd_buf);
 	}
 
 	ubi_close_volume(desc);
@@ -232,7 +233,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 	tbuf_size = vol->usable_leb_size;
 	if (count < tbuf_size)
 		tbuf_size = ALIGN(count, ubi->min_io_size);
-	tbuf = kmalloc(tbuf_size, GFP_KERNEL);
+	tbuf = vmalloc(tbuf_size);
 	if (!tbuf)
 		return -ENOMEM;
 
@@ -271,7 +272,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		len = count > tbuf_size ? tbuf_size : count;
 	} while (count);
 
-	kfree(tbuf);
+	vfree(tbuf);
 	return err ? err : count_save - count;
 }
 
@@ -320,7 +321,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	tbuf_size = vol->usable_leb_size;
 	if (count < tbuf_size)
 		tbuf_size = ALIGN(count, ubi->min_io_size);
-	tbuf = kmalloc(tbuf_size, GFP_KERNEL);
+	tbuf = vmalloc(tbuf_size);
 	if (!tbuf)
 		return -ENOMEM;
 
@@ -355,7 +356,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 		len = count > tbuf_size ? tbuf_size : count;
 	}
 
-	kfree(tbuf);
+	vfree(tbuf);
 	return err ? err : count_save - count;
 }
 
@@ -397,6 +398,7 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 			vol->corrupted = 1;
 		}
 		vol->checked = 1;
+		ubi_gluebi_updated(vol);
 		revoke_exclusive(desc, UBI_READWRITE);
 	}
 
@@ -413,19 +415,7 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 	struct ubi_device *ubi = vol->ubi;
 	void __user *argp = (void __user *)arg;
 
-	if (_IOC_NR(cmd) > VOL_CDEV_IOC_MAX_SEQ ||
-	    _IOC_TYPE(cmd) != UBI_VOL_IOC_MAGIC)
-		return -ENOTTY;
-
-	if (_IOC_DIR(cmd) && _IOC_READ)
-		err = !access_ok(VERIFY_WRITE, argp, _IOC_SIZE(cmd));
-	else if (_IOC_DIR(cmd) && _IOC_WRITE)
-		err = !access_ok(VERIFY_READ, argp, _IOC_SIZE(cmd));
-	if (err)
-		return -EFAULT;
-
 	switch (cmd) {
-
 	/* Volume update command */
 	case UBI_IOCVOLUP:
 	{
@@ -471,7 +461,7 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 	{
 		int32_t lnum;
 
-		err = __get_user(lnum, (__user int32_t *)argp);
+		err = get_user(lnum, (__user int32_t *)argp);
 		if (err) {
 			err = -EFAULT;
 			break;
@@ -587,17 +577,6 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	struct ubi_volume_desc *desc;
 	void __user *argp = (void __user *)arg;
 
-	if (_IOC_NR(cmd) > UBI_CDEV_IOC_MAX_SEQ ||
-	    _IOC_TYPE(cmd) != UBI_IOC_MAGIC)
-		return -ENOTTY;
-
-	if (_IOC_DIR(cmd) && _IOC_READ)
-		err = !access_ok(VERIFY_WRITE, argp, _IOC_SIZE(cmd));
-	else if (_IOC_DIR(cmd) && _IOC_WRITE)
-		err = !access_ok(VERIFY_READ, argp, _IOC_SIZE(cmd));
-	if (err)
-		return -EFAULT;
-
 	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
@@ -612,7 +591,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		struct ubi_mkvol_req req;
 
 		dbg_msg("create volume");
-		err = __copy_from_user(&req, argp,
+		err = copy_from_user(&req, argp,
 				       sizeof(struct ubi_mkvol_req));
 		if (err) {
 			err = -EFAULT;
@@ -629,7 +608,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		if (err)
 			break;
 
-		err = __put_user(req.vol_id, (__user int32_t *)argp);
+		err = put_user(req.vol_id, (__user int32_t *)argp);
 		if (err)
 			err = -EFAULT;
 
@@ -642,7 +621,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		int vol_id;
 
 		dbg_msg("remove volume");
-		err = __get_user(vol_id, (__user int32_t *)argp);
+		err = get_user(vol_id, (__user int32_t *)argp);
 		if (err) {
 			err = -EFAULT;
 			break;
@@ -669,7 +648,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		struct ubi_rsvol_req req;
 
 		dbg_msg("re-size volume");
-		err = __copy_from_user(&req, argp,
+		err = copy_from_user(&req, argp,
 				       sizeof(struct ubi_rsvol_req));
 		if (err) {
 			err = -EFAULT;
@@ -707,7 +686,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 struct file_operations ubi_cdev_operations = {
 	.owner = THIS_MODULE,
 	.ioctl = ubi_cdev_ioctl,
-	.llseek = no_llseek
+	.llseek = no_llseek,
 };
 
 /* UBI volume character device operations */
@@ -718,5 +697,5 @@ struct file_operations ubi_vol_cdev_operations = {
 	.llseek  = vol_cdev_llseek,
 	.read    = vol_cdev_read,
 	.write   = vol_cdev_write,
-	.ioctl   = vol_cdev_ioctl
+	.ioctl   = vol_cdev_ioctl,
 };

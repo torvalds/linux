@@ -37,6 +37,7 @@
 #include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
+#include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/ipc.h>
 #include <linux/unistd.h>

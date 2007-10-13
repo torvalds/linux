@@ -228,7 +228,6 @@ static void preproc_atl_queue(struct isp116x *isp116x)
 				   struct urb, urb_list);
 		ptd = &ep->ptd;
 		len = ep->length;
-		spin_lock(&urb->lock);
 		ep->data = (unsigned char *)urb->transfer_buffer
 		    + urb->actual_length;
 
@@ -264,13 +263,67 @@ static void preproc_atl_queue(struct isp116x *isp116x)
 		    | PTD_EP(ep->epnum);
 		ptd->len = PTD_LEN(len) | PTD_DIR(dir);
 		ptd->faddr = PTD_FA(usb_pipedevice(urb->pipe));
-		spin_unlock(&urb->lock);
 		if (!ep->active) {
 			ptd->mps |= PTD_LAST_MSK;
 			isp116x->atl_last_dir = dir;
 		}
 		isp116x->atl_bufshrt = sizeof(struct ptd) + isp116x->atl_buflen;
 		isp116x->atl_buflen = isp116x->atl_bufshrt + ALIGN(len, 4);
+	}
+}
+
+/*
+  Take done or failed requests out of schedule. Give back
+  processed urbs.
+*/
+static void finish_request(struct isp116x *isp116x, struct isp116x_ep *ep,
+			   struct urb *urb, int status)
+__releases(isp116x->lock) __acquires(isp116x->lock)
+{
+	unsigned i;
+
+	ep->error_count = 0;
+
+	if (usb_pipecontrol(urb->pipe))
+		ep->nextpid = USB_PID_SETUP;
+
+	urb_dbg(urb, "Finish");
+
+	usb_hcd_unlink_urb_from_ep(isp116x_to_hcd(isp116x), urb);
+	spin_unlock(&isp116x->lock);
+	usb_hcd_giveback_urb(isp116x_to_hcd(isp116x), urb, status);
+	spin_lock(&isp116x->lock);
+
+	/* take idle endpoints out of the schedule */
+	if (!list_empty(&ep->hep->urb_list))
+		return;
+
+	/* async deschedule */
+	if (!list_empty(&ep->schedule)) {
+		list_del_init(&ep->schedule);
+		return;
+	}
+
+	/* periodic deschedule */
+	DBG("deschedule qh%d/%p branch %d\n", ep->period, ep, ep->branch);
+	for (i = ep->branch; i < PERIODIC_SIZE; i += ep->period) {
+		struct isp116x_ep *temp;
+		struct isp116x_ep **prev = &isp116x->periodic[i];
+
+		while (*prev && ((temp = *prev) != ep))
+			prev = &temp->next;
+		if (*prev)
+			*prev = ep->next;
+		isp116x->load[i] -= ep->load;
+	}
+	ep->branch = PERIODIC_SIZE;
+	isp116x_to_hcd(isp116x)->self.bandwidth_allocated -=
+	    ep->load / ep->period;
+
+	/* switch irq type? */
+	if (!--isp116x->periodic_count) {
+		isp116x->irqenb &= ~HCuPINT_SOF;
+		isp116x->irqenb |= HCuPINT_ATL;
 	}
 }
 
@@ -284,6 +337,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 	struct usb_device *udev;
 	struct ptd *ptd;
 	int short_not_ok;
+	int status;
 	u8 cc;
 
 	for (ep = isp116x->atl_active; ep; ep = ep->active) {
@@ -294,7 +348,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 		ptd = &ep->ptd;
 		cc = PTD_GET_CC(ptd);
 		short_not_ok = 1;
-		spin_lock(&urb->lock);
+		status = -EINPROGRESS;
 
 		/* Data underrun is special. For allowed underrun
 		   we clear the error and continue as normal. For
@@ -302,47 +356,36 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 		   immediately while for control transfer,
 		   we do a STATUS stage. */
 		if (cc == TD_DATAUNDERRUN) {
-			if (!(urb->transfer_flags & URB_SHORT_NOT_OK)) {
-				DBG("Allowed data underrun\n");
+			if (!(urb->transfer_flags & URB_SHORT_NOT_OK) ||
+					usb_pipecontrol(urb->pipe)) {
+				DBG("Allowed or control data underrun\n");
 				cc = TD_CC_NOERROR;
 				short_not_ok = 0;
 			} else {
 				ep->error_count = 1;
-				if (usb_pipecontrol(urb->pipe))
-					ep->nextpid = USB_PID_ACK;
-				else
-					usb_settoggle(udev, ep->epnum,
-						      ep->nextpid ==
-						      USB_PID_OUT,
-						      PTD_GET_TOGGLE(ptd));
+				usb_settoggle(udev, ep->epnum,
+					      ep->nextpid == USB_PID_OUT,
+					      PTD_GET_TOGGLE(ptd));
 				urb->actual_length += PTD_GET_COUNT(ptd);
-				urb->status = cc_to_error[TD_DATAUNDERRUN];
-				spin_unlock(&urb->lock);
-				continue;
+				status = cc_to_error[TD_DATAUNDERRUN];
+				goto done;
 			}
 		}
-		/* Keep underrun error through the STATUS stage */
-		if (urb->status == cc_to_error[TD_DATAUNDERRUN])
-			cc = TD_DATAUNDERRUN;
 
 		if (cc != TD_CC_NOERROR && cc != TD_NOTACCESSED
 		    && (++ep->error_count >= 3 || cc == TD_CC_STALL
 			|| cc == TD_DATAOVERRUN)) {
-			if (urb->status == -EINPROGRESS)
-				urb->status = cc_to_error[cc];
+			status = cc_to_error[cc];
 			if (ep->nextpid == USB_PID_ACK)
 				ep->nextpid = 0;
-			spin_unlock(&urb->lock);
-			continue;
+			goto done;
 		}
 		/* According to usb spec, zero-length Int transfer signals
 		   finishing of the urb. Hey, does this apply only
 		   for IN endpoints? */
 		if (usb_pipeint(urb->pipe) && !PTD_GET_LEN(ptd)) {
-			if (urb->status == -EINPROGRESS)
-				urb->status = 0;
-			spin_unlock(&urb->lock);
-			continue;
+			status = 0;
+			goto done;
 		}
 
 		/* Relax after previously failed, but later succeeded
@@ -381,8 +424,8 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			/* All data for this URB is transferred, let's finish */
 			if (usb_pipecontrol(urb->pipe))
 				ep->nextpid = USB_PID_ACK;
-			else if (urb->status == -EINPROGRESS)
-				urb->status = 0;
+			else
+				status = 0;
 			break;
 		case USB_PID_SETUP:
 			if (PTD_GET_ACTIVE(ptd)
@@ -402,69 +445,16 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			if (PTD_GET_ACTIVE(ptd)
 			    || (cc != TD_CC_NOERROR && cc < 0x0E))
 				break;
-			if (urb->status == -EINPROGRESS)
-				urb->status = 0;
+			status = 0;
 			ep->nextpid = 0;
 			break;
 		default:
 			BUG();
 		}
-		spin_unlock(&urb->lock);
-	}
-}
 
-/*
-  Take done or failed requests out of schedule. Give back
-  processed urbs.
-*/
-static void finish_request(struct isp116x *isp116x, struct isp116x_ep *ep,
-			   struct urb *urb)
-__releases(isp116x->lock) __acquires(isp116x->lock)
-{
-	unsigned i;
-
-	urb->hcpriv = NULL;
-	ep->error_count = 0;
-
-	if (usb_pipecontrol(urb->pipe))
-		ep->nextpid = USB_PID_SETUP;
-
-	urb_dbg(urb, "Finish");
-
-	spin_unlock(&isp116x->lock);
-	usb_hcd_giveback_urb(isp116x_to_hcd(isp116x), urb);
-	spin_lock(&isp116x->lock);
-
-	/* take idle endpoints out of the schedule */
-	if (!list_empty(&ep->hep->urb_list))
-		return;
-
-	/* async deschedule */
-	if (!list_empty(&ep->schedule)) {
-		list_del_init(&ep->schedule);
-		return;
-	}
-
-	/* periodic deschedule */
-	DBG("deschedule qh%d/%p branch %d\n", ep->period, ep, ep->branch);
-	for (i = ep->branch; i < PERIODIC_SIZE; i += ep->period) {
-		struct isp116x_ep *temp;
-		struct isp116x_ep **prev = &isp116x->periodic[i];
-
-		while (*prev && ((temp = *prev) != ep))
-			prev = &temp->next;
-		if (*prev)
-			*prev = ep->next;
-		isp116x->load[i] -= ep->load;
-	}
-	ep->branch = PERIODIC_SIZE;
-	isp116x_to_hcd(isp116x)->self.bandwidth_allocated -=
-	    ep->load / ep->period;
-
-	/* switch irq type? */
-	if (!--isp116x->periodic_count) {
-		isp116x->irqenb &= ~HCuPINT_SOF;
-		isp116x->irqenb |= HCuPINT_ATL;
+ done:
+		if (status != -EINPROGRESS || urb->unlinked)
+			finish_request(isp116x, ep, urb, status);
 	}
 }
 
@@ -570,9 +560,6 @@ static void start_atl_transfers(struct isp116x *isp116x)
 */
 static void finish_atl_transfers(struct isp116x *isp116x)
 {
-	struct isp116x_ep *ep;
-	struct urb *urb;
-
 	if (!isp116x->atl_active)
 		return;
 	/* Fifo not ready? */
@@ -582,16 +569,6 @@ static void finish_atl_transfers(struct isp116x *isp116x)
 	atomic_inc(&isp116x->atl_finishing);
 	unpack_fifo(isp116x);
 	postproc_atl_queue(isp116x);
-	for (ep = isp116x->atl_active; ep; ep = ep->active) {
-		urb =
-		    container_of(ep->hep->urb_list.next, struct urb, urb_list);
-		/* USB_PID_ACK check here avoids finishing of
-		   control transfers, for which TD_DATAUNDERRUN
-		   occured, while URB_SHORT_NOT_OK was set */
-		if (urb && urb->status != -EINPROGRESS
-		    && ep->nextpid != USB_PID_ACK)
-			finish_request(isp116x, ep, urb);
-	}
 	atomic_dec(&isp116x->atl_finishing);
 }
 
@@ -685,7 +662,7 @@ static int balance(struct isp116x *isp116x, u16 period, u16 load)
 /*-----------------------------------------------------------------*/
 
 static int isp116x_urb_enqueue(struct usb_hcd *hcd,
-			       struct usb_host_endpoint *hep, struct urb *urb,
+			       struct urb *urb,
 			       gfp_t mem_flags)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
@@ -694,6 +671,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 	int is_out = !usb_pipein(pipe);
 	int type = usb_pipetype(pipe);
 	int epnum = usb_pipeendpoint(pipe);
+	struct usb_host_endpoint *hep = urb->ep;
 	struct isp116x_ep *ep = NULL;
 	unsigned long flags;
 	int i;
@@ -717,7 +695,12 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 	if (!HC_IS_RUNNING(hcd->state)) {
 		kfree(ep);
 		ret = -ENODEV;
-		goto fail;
+		goto fail_not_linked;
+	}
+	ret = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (ret) {
+		kfree(ep);
+		goto fail_not_linked;
 	}
 
 	if (hep->hcpriv)
@@ -820,19 +803,13 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 		}
 	}
 
-	/* in case of unlink-during-submit */
-	spin_lock(&urb->lock);
-	if (urb->status != -EINPROGRESS) {
-		spin_unlock(&urb->lock);
-		finish_request(isp116x, ep, urb);
-		ret = 0;
-		goto fail;
-	}
 	urb->hcpriv = hep;
-	spin_unlock(&urb->lock);
 	start_atl_transfers(isp116x);
 
       fail:
+	if (ret)
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+      fail_not_linked:
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return ret;
 }
@@ -840,20 +817,21 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 /*
    Dequeue URBs.
 */
-static int isp116x_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
+static int isp116x_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
+		int status)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	struct usb_host_endpoint *hep;
 	struct isp116x_ep *ep, *ep_act;
 	unsigned long flags;
+	int rc;
 
 	spin_lock_irqsave(&isp116x->lock, flags);
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto done;
+
 	hep = urb->hcpriv;
-	/* URB already unlinked (or never linked)? */
-	if (!hep) {
-		spin_unlock_irqrestore(&isp116x->lock, flags);
-		return 0;
-	}
 	ep = hep->hcpriv;
 	WARN_ON(hep != ep->hep);
 
@@ -870,10 +848,10 @@ static int isp116x_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 			}
 
 	if (urb)
-		finish_request(isp116x, ep, urb);
-
+		finish_request(isp116x, ep, urb, status);
+ done:
 	spin_unlock_irqrestore(&isp116x->lock, flags);
-	return 0;
+	return rc;
 }
 
 static void isp116x_endpoint_disable(struct usb_hcd *hcd,

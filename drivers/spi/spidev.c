@@ -55,9 +55,16 @@
 static unsigned long	minors[N_SPI_MINORS / BITS_PER_LONG];
 
 
-/* Bit masks for spi_device.mode management */
-#define SPI_MODE_MASK			(SPI_CPHA | SPI_CPOL)
-
+/* Bit masks for spi_device.mode management.  Note that incorrect
+ * settings for CS_HIGH and 3WIRE can cause *lots* of trouble for other
+ * devices on a shared bus:  CS_HIGH, because this device will be
+ * active when it shouldn't be;  3WIRE, because when active it won't
+ * behave as it should.
+ *
+ * REVISIT should changing those two modes be privileged?
+ */
+#define SPI_MODE_MASK		(SPI_CPHA | SPI_CPOL | SPI_CS_HIGH \
+				| SPI_LSB_FIRST | SPI_3WIRE | SPI_LOOP)
 
 struct spidev_data {
 	struct device		dev;
@@ -176,7 +183,9 @@ static int spidev_message(struct spidev_data *spidev,
 
 		if (u_tmp->rx_buf) {
 			k_tmp->rx_buf = buf;
-			if (!access_ok(VERIFY_WRITE, u_tmp->rx_buf, u_tmp->len))
+			if (!access_ok(VERIFY_WRITE, (u8 __user *)
+						(ptrdiff_t) u_tmp->rx_buf,
+						u_tmp->len))
 				goto done;
 		}
 		if (u_tmp->tx_buf) {

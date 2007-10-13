@@ -55,11 +55,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 #define PTE_PHYS_MASK		(0x20000000 - PAGE_SIZE)
 
-/*
- * First 1MB map is used by fixed purpose.
- * Currently only 4-entry (16kB) is used (see arch/sh/mm/cache.c)
- */
-#define VMALLOC_START	(P3SEG+0x00100000)
+#define VMALLOC_START	(P3SEG)
 #define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)
 
 /*

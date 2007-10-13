@@ -111,12 +111,13 @@ static void async_complete(struct urb *urb)
 	struct uss720_async_request *rq;
 	struct parport *pp;
 	struct parport_uss720_private *priv;
+	int status = urb->status;
 
 	rq = urb->context;
 	priv = rq->priv;
 	pp = priv->pp;
-	if (urb->status) {
-		err("async_complete: urb error %d", urb->status);
+	if (status) {
+		err("async_complete: urb error %d", status);
 	} else if (rq->dr.bRequest == 3) {
 		memcpy(priv->reg, rq->reg, sizeof(priv->reg));
 #if 0

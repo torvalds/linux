@@ -5,16 +5,23 @@
  * wireless extensions interface to the core code
  */
 
+struct net;
+
 #ifdef CONFIG_WIRELESS_EXT
-extern int wext_proc_init(void);
-extern int wext_handle_ioctl(struct ifreq *ifr, unsigned int cmd,
+extern int wext_proc_init(struct net *net);
+extern void wext_proc_exit(struct net *net);
+extern int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd,
 			     void __user *arg);
 #else
-static inline int wext_proc_init(void)
+static inline int wext_proc_init(struct net *net)
 {
 	return 0;
 }
-static inline int wext_handle_ioctl(struct ifreq *ifr, unsigned int cmd,
+static inline void wext_proc_exit(struct net *net)
+{
+	return;
+}
+static inline int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd,
 				    void __user *arg)
 {
 	return -EINVAL;

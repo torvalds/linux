@@ -260,31 +260,31 @@ static int qe_is_bolixed(struct sunqe *qep, u32 qe_status)
 
 	if (qe_status & CREG_STAT_EDEFER) {
 		printk(KERN_ERR "%s: Excessive transmit defers.\n", dev->name);
-		qep->net_stats.tx_errors++;
+		dev->stats.tx_errors++;
 	}
 
 	if (qe_status & CREG_STAT_CLOSS) {
 		printk(KERN_ERR "%s: Carrier lost, link down?\n", dev->name);
-		qep->net_stats.tx_errors++;
-		qep->net_stats.tx_carrier_errors++;
+		dev->stats.tx_errors++;
+		dev->stats.tx_carrier_errors++;
 	}
 
 	if (qe_status & CREG_STAT_ERETRIES) {
 		printk(KERN_ERR "%s: Excessive transmit retries (more than 16).\n", dev->name);
-		qep->net_stats.tx_errors++;
+		dev->stats.tx_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_LCOLL) {
 		printk(KERN_ERR "%s: Late transmit collision.\n", dev->name);
-		qep->net_stats.tx_errors++;
-		qep->net_stats.collisions++;
+		dev->stats.tx_errors++;
+		dev->stats.collisions++;
 		mace_hwbug_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_FUFLOW) {
 		printk(KERN_ERR "%s: Transmit fifo underflow, driver bug.\n", dev->name);
-		qep->net_stats.tx_errors++;
+		dev->stats.tx_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
@@ -297,104 +297,104 @@ static int qe_is_bolixed(struct sunqe *qep, u32 qe_status)
 	}
 
 	if (qe_status & CREG_STAT_CCOFLOW) {
-		qep->net_stats.tx_errors += 256;
-		qep->net_stats.collisions += 256;
+		dev->stats.tx_errors += 256;
+		dev->stats.collisions += 256;
 	}
 
 	if (qe_status & CREG_STAT_TXDERROR) {
 		printk(KERN_ERR "%s: Transmit descriptor is bogus, driver bug.\n", dev->name);
-		qep->net_stats.tx_errors++;
-		qep->net_stats.tx_aborted_errors++;
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_TXLERR) {
 		printk(KERN_ERR "%s: Transmit late error.\n", dev->name);
-		qep->net_stats.tx_errors++;
+		dev->stats.tx_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_TXPERR) {
 		printk(KERN_ERR "%s: Transmit DMA parity error.\n", dev->name);
-		qep->net_stats.tx_errors++;
-		qep->net_stats.tx_aborted_errors++;
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_TXSERR) {
 		printk(KERN_ERR "%s: Transmit DMA sbus error ack.\n", dev->name);
-		qep->net_stats.tx_errors++;
-		qep->net_stats.tx_aborted_errors++;
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_RCCOFLOW) {
-		qep->net_stats.rx_errors += 256;
-		qep->net_stats.collisions += 256;
+		dev->stats.rx_errors += 256;
+		dev->stats.collisions += 256;
 	}
 
 	if (qe_status & CREG_STAT_RUOFLOW) {
-		qep->net_stats.rx_errors += 256;
-		qep->net_stats.rx_over_errors += 256;
+		dev->stats.rx_errors += 256;
+		dev->stats.rx_over_errors += 256;
 	}
 
 	if (qe_status & CREG_STAT_MCOFLOW) {
-		qep->net_stats.rx_errors += 256;
-		qep->net_stats.rx_missed_errors += 256;
+		dev->stats.rx_errors += 256;
+		dev->stats.rx_missed_errors += 256;
 	}
 
 	if (qe_status & CREG_STAT_RXFOFLOW) {
 		printk(KERN_ERR "%s: Receive fifo overflow.\n", dev->name);
-		qep->net_stats.rx_errors++;
-		qep->net_stats.rx_over_errors++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_over_errors++;
 	}
 
 	if (qe_status & CREG_STAT_RLCOLL) {
 		printk(KERN_ERR "%s: Late receive collision.\n", dev->name);
-		qep->net_stats.rx_errors++;
-		qep->net_stats.collisions++;
+		dev->stats.rx_errors++;
+		dev->stats.collisions++;
 	}
 
 	if (qe_status & CREG_STAT_FCOFLOW) {
-		qep->net_stats.rx_errors += 256;
-		qep->net_stats.rx_frame_errors += 256;
+		dev->stats.rx_errors += 256;
+		dev->stats.rx_frame_errors += 256;
 	}
 
 	if (qe_status & CREG_STAT_CECOFLOW) {
-		qep->net_stats.rx_errors += 256;
-		qep->net_stats.rx_crc_errors += 256;
+		dev->stats.rx_errors += 256;
+		dev->stats.rx_crc_errors += 256;
 	}
 
 	if (qe_status & CREG_STAT_RXDROP) {
 		printk(KERN_ERR "%s: Receive packet dropped.\n", dev->name);
-		qep->net_stats.rx_errors++;
-		qep->net_stats.rx_dropped++;
-		qep->net_stats.rx_missed_errors++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_dropped++;
+		dev->stats.rx_missed_errors++;
 	}
 
 	if (qe_status & CREG_STAT_RXSMALL) {
 		printk(KERN_ERR "%s: Receive buffer too small, driver bug.\n", dev->name);
-		qep->net_stats.rx_errors++;
-		qep->net_stats.rx_length_errors++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_length_errors++;
 	}
 
 	if (qe_status & CREG_STAT_RXLERR) {
 		printk(KERN_ERR "%s: Receive late error.\n", dev->name);
-		qep->net_stats.rx_errors++;
+		dev->stats.rx_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_RXPERR) {
 		printk(KERN_ERR "%s: Receive DMA parity error.\n", dev->name);
-		qep->net_stats.rx_errors++;
-		qep->net_stats.rx_missed_errors++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_missed_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_RXSERR) {
 		printk(KERN_ERR "%s: Receive DMA sbus error ack.\n", dev->name);
-		qep->net_stats.rx_errors++;
-		qep->net_stats.rx_missed_errors++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_missed_errors++;
 		mace_hwbug_workaround = 1;
 	}
 
@@ -409,6 +409,7 @@ static int qe_is_bolixed(struct sunqe *qep, u32 qe_status)
 static void qe_rx(struct sunqe *qep)
 {
 	struct qe_rxd *rxbase = &qep->qe_block->qe_rxd[0];
+	struct net_device *dev = qep->dev;
 	struct qe_rxd *this;
 	struct sunqe_buffers *qbufs = qep->buffers;
 	__u32 qbufs_dvma = qep->buffers_dvma;
@@ -428,14 +429,14 @@ static void qe_rx(struct sunqe *qep)
 
 		/* Check for errors. */
 		if (len < ETH_ZLEN) {
-			qep->net_stats.rx_errors++;
-			qep->net_stats.rx_length_errors++;
-			qep->net_stats.rx_dropped++;
+			dev->stats.rx_errors++;
+			dev->stats.rx_length_errors++;
+			dev->stats.rx_dropped++;
 		} else {
 			skb = dev_alloc_skb(len + 2);
 			if (skb == NULL) {
 				drops++;
-				qep->net_stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 			} else {
 				skb_reserve(skb, 2);
 				skb_put(skb, len);
@@ -444,8 +445,8 @@ static void qe_rx(struct sunqe *qep)
 				skb->protocol = eth_type_trans(skb, qep->dev);
 				netif_rx(skb);
 				qep->dev->last_rx = jiffies;
-				qep->net_stats.rx_packets++;
-				qep->net_stats.rx_bytes += len;
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes += len;
 			}
 		}
 		end_rxd->rx_addr = this_qbuf_dvma;
@@ -603,8 +604,8 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->trans_start = jiffies;
 	sbus_writel(CREG_CTRL_TWAKEUP, qep->qcregs + CREG_CTRL);
 
-	qep->net_stats.tx_packets++;
-	qep->net_stats.tx_bytes += len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += len;
 
 	if (TX_BUFFS_AVAIL(qep) <= 0) {
 		/* Halt the net queue and enable tx interrupts.
@@ -620,13 +621,6 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 
 	return 0;
-}
-
-static struct net_device_stats *qe_get_stats(struct net_device *dev)
-{
-	struct sunqe *qep = (struct sunqe *) dev->priv;
-
-	return &qep->net_stats;
 }
 
 static void qe_set_multicast(struct net_device *dev)
@@ -898,13 +892,11 @@ static int __init qec_ether_init(struct sbus_dev *sdev)
 	/* Stop this QE. */
 	qe_stop(qe);
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &sdev->ofdev.dev);
 
 	dev->open = qe_open;
 	dev->stop = qe_close;
 	dev->hard_start_xmit = qe_start_xmit;
-	dev->get_stats = qe_get_stats;
 	dev->set_multicast_list = qe_set_multicast;
 	dev->tx_timeout = qe_tx_timeout;
 	dev->watchdog_timeo = 5*HZ;

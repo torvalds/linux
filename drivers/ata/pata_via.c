@@ -63,7 +63,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME "pata_via"
-#define DRV_VERSION "0.3.1"
+#define DRV_VERSION "0.3.2"
 
 /*
  *	The following comes directly from Vojtech Pavlik's ide/pci/via82cxxx
@@ -97,6 +97,7 @@ static const struct via_isa_bridge {
 	u8 rev_max;
 	u16 flags;
 } via_isa_bridges[] = {
+	{ "vx800",	PCI_DEVICE_ID_VIA_VX800,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8251",	PCI_DEVICE_ID_VIA_8251,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
@@ -128,7 +129,7 @@ static const struct via_isa_bridge {
  *	Cable special cases
  */
 
-static struct dmi_system_id cable_dmi_table[] = {
+static const struct dmi_system_id cable_dmi_table[] = {
 	{
 		.ident = "Acer Ferrari 3400",
 		.matches = {
@@ -143,6 +144,9 @@ static int via_cable_override(struct pci_dev *pdev)
 {
 	/* Systems by DMI */
 	if (dmi_check_system(cable_dmi_table))
+		return 1;
+	/* Arima W730-K8/Targa Visionary 811/... */
+	if (pdev->subsystem_vendor == 0x161F && pdev->subsystem_device == 0x2032)
 		return 1;
 	return 0;
 }
@@ -180,11 +184,15 @@ static int via_cable_detect(struct ata_port *ap) {
 	   two drives */
 	if (ata66 & (0x10100000 >> (16 * ap->port_no)))
 		return ATA_CBL_PATA80;
+	/* Check with ACPI so we can spot BIOS reported SATA bridges */
+	if (ata_acpi_cbl_80wire(ap))
+		return ATA_CBL_PATA80;
 	return ATA_CBL_PATA40;
 }
 
-static int via_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int via_pre_reset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	const struct via_isa_bridge *config = ap->host->private_data;
 
 	if (!(config->flags & VIA_NO_ENABLES)) {
@@ -197,7 +205,7 @@ static int via_pre_reset(struct ata_port *ap, unsigned long deadline)
 			return -ENOENT;
 	}
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 
@@ -239,7 +247,6 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev, int mo
 	unsigned long UT = T/tdiv;
 	int ut;
 	int offset = 3 - (2*ap->port_no) - adev->devno;
-
 
 	/* Calculate the timing values we require */
 	ata_timing_compute(adev, mode, &t, T, UT);
@@ -287,9 +294,17 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev, int mo
 			ut = t.udma ? (0xe0 | (FIT(t.udma, 2, 9) - 2)) : 0x07;
 			break;
 	}
+
 	/* Set UDMA unless device is not UDMA capable */
-	if (udma_type)
-		pci_write_config_byte(pdev, 0x50 + offset, ut);
+	if (udma_type) {
+		u8 cable80_status;
+
+		/* Get 80-wire cable detection bit */
+		pci_read_config_byte(pdev, 0x50 + offset, &cable80_status);
+		cable80_status &= 0x10;
+
+		pci_write_config_byte(pdev, 0x50 + offset, ut | cable80_status);
+	}
 }
 
 static void via_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -333,7 +348,6 @@ static struct scsi_host_template via_sht = {
 };
 
 static struct ata_port_operations via_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= via_set_piomode,
 	.set_dmamode	= via_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -363,13 +377,11 @@ static struct ata_port_operations via_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static struct ata_port_operations via_port_ops_noirq = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= via_set_piomode,
 	.set_dmamode	= via_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -399,9 +411,8 @@ static struct ata_port_operations via_port_ops_noirq = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /**

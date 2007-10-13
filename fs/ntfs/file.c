@@ -1,7 +1,7 @@
 /*
  * file.c - NTFS kernel file operations.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2006 Anton Altaparmakov
+ * Copyright (c) 2001-2007 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -26,7 +26,6 @@
 #include <linux/swap.h>
 #include <linux/uio.h>
 #include <linux/writeback.h>
-#include <linux/sched.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -362,7 +361,7 @@ static inline void ntfs_fault_in_pages_readable(const char __user *uaddr,
 	volatile char c;
 
 	/* Set @end to the first byte outside the last page we care about. */
-	end = (const char __user*)PAGE_ALIGN((ptrdiff_t __user)uaddr + bytes);
+	end = (const char __user*)PAGE_ALIGN((unsigned long)uaddr + bytes);
 
 	while (!__get_user(c, uaddr) && (uaddr += PAGE_SIZE, uaddr < end))
 		;
@@ -532,7 +531,8 @@ static int ntfs_prepare_pages_for_non_resident_write(struct page **pages,
 	blocksize_bits = vol->sb->s_blocksize_bits;
 	u = 0;
 	do {
-		struct page *page = pages[u];
+		page = pages[u];
+		BUG_ON(!page);
 		/*
 		 * create_empty_buffers() will create uptodate/dirty buffers if
 		 * the page is uptodate/dirty.
@@ -1291,7 +1291,7 @@ static inline size_t ntfs_copy_from_user(struct page **pages,
 		size_t bytes)
 {
 	struct page **last_page = pages + nr_pages;
-	char *kaddr;
+	char *addr;
 	size_t total = 0;
 	unsigned len;
 	int left;
@@ -1300,13 +1300,13 @@ static inline size_t ntfs_copy_from_user(struct page **pages,
 		len = PAGE_CACHE_SIZE - ofs;
 		if (len > bytes)
 			len = bytes;
-		kaddr = kmap_atomic(*pages, KM_USER0);
-		left = __copy_from_user_inatomic(kaddr + ofs, buf, len);
-		kunmap_atomic(kaddr, KM_USER0);
+		addr = kmap_atomic(*pages, KM_USER0);
+		left = __copy_from_user_inatomic(addr + ofs, buf, len);
+		kunmap_atomic(addr, KM_USER0);
 		if (unlikely(left)) {
 			/* Do it the slow way. */
-			kaddr = kmap(*pages);
-			left = __copy_from_user(kaddr + ofs, buf, len);
+			addr = kmap(*pages);
+			left = __copy_from_user(addr + ofs, buf, len);
 			kunmap(*pages);
 			if (unlikely(left))
 				goto err_out;
@@ -1408,26 +1408,26 @@ static inline size_t ntfs_copy_from_user_iovec(struct page **pages,
 		size_t *iov_ofs, size_t bytes)
 {
 	struct page **last_page = pages + nr_pages;
-	char *kaddr;
+	char *addr;
 	size_t copied, len, total = 0;
 
 	do {
 		len = PAGE_CACHE_SIZE - ofs;
 		if (len > bytes)
 			len = bytes;
-		kaddr = kmap_atomic(*pages, KM_USER0);
-		copied = __ntfs_copy_from_user_iovec_inatomic(kaddr + ofs,
+		addr = kmap_atomic(*pages, KM_USER0);
+		copied = __ntfs_copy_from_user_iovec_inatomic(addr + ofs,
 				*iov, *iov_ofs, len);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(addr, KM_USER0);
 		if (unlikely(copied != len)) {
 			/* Do it the slow way. */
-			kaddr = kmap(*pages);
-			copied = __ntfs_copy_from_user_iovec_inatomic(kaddr + ofs,
+			addr = kmap(*pages);
+			copied = __ntfs_copy_from_user_iovec_inatomic(addr + ofs,
 					*iov, *iov_ofs, len);
 			/*
 			 * Zero the rest of the target like __copy_from_user().
 			 */
-			memset(kaddr + ofs + copied, 0, len - copied);
+			memset(addr + ofs + copied, 0, len - copied);
 			kunmap(*pages);
 			if (unlikely(copied != len))
 				goto err_out;
@@ -1735,8 +1735,6 @@ static int ntfs_commit_pages_after_write(struct page **pages,
 	read_unlock_irqrestore(&ni->size_lock, flags);
 	BUG_ON(initialized_size != i_size);
 	if (end > initialized_size) {
-		unsigned long flags;
-
 		write_lock_irqsave(&ni->size_lock, flags);
 		ni->initialized_size = end;
 		i_size_write(vi, end);

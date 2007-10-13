@@ -149,8 +149,7 @@ call_dpf:
 	 lds	r10, pr
 	rts
 	 nop
-0:	sti
-	mov.l	3f, r0
+0:	mov.l	3f, r0
 	mov	r9, r6
 	mov	r8, r5
 	jmp	@r0

@@ -117,7 +117,7 @@ extern void sigio_handler(int sig, union uml_pt_regs *regs);
 
 extern void copy_sc(union uml_pt_regs *regs, void *from);
 
-unsigned long to_irq_stack(int sig, unsigned long *mask_out);
+extern unsigned long to_irq_stack(unsigned long *mask_out);
 unsigned long from_irq_stack(int nested);
 
 #endif

@@ -157,6 +157,7 @@ static struct zc0301_sensor pb0330 = {
 		.height = 480,
 		.pixelformat = V4L2_PIX_FMT_JPEG,
 		.priv = 8,
+		.colorspace = V4L2_COLORSPACE_JPEG,
 	},
 };
 

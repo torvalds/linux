@@ -813,16 +813,19 @@ static void psycho_scan_bus(struct pci_pbm_info *pbm)
 	psycho_register_error_handlers(pbm);
 }
 
-static void psycho_iommu_init(struct pci_pbm_info *pbm)
+static int psycho_iommu_init(struct pci_pbm_info *pbm)
 {
 	struct iommu *iommu = pbm->iommu;
 	unsigned long i;
 	u64 control;
+	int err;
 
 	/* Register addresses. */
 	iommu->iommu_control  = pbm->controller_regs + PSYCHO_IOMMU_CONTROL;
 	iommu->iommu_tsbbase  = pbm->controller_regs + PSYCHO_IOMMU_TSBBASE;
 	iommu->iommu_flush    = pbm->controller_regs + PSYCHO_IOMMU_FLUSH;
+	iommu->iommu_tags     = iommu->iommu_flush + (0xa580UL - 0x0210UL);
+
 	/* PSYCHO's IOMMU lacks ctx flushing. */
 	iommu->iommu_ctxflush = 0;
 
@@ -845,7 +848,9 @@ static void psycho_iommu_init(struct pci_pbm_info *pbm)
 	/* Leave diag mode enabled for full-flushing done
 	 * in pci_iommu.c
 	 */
-	pci_iommu_table_init(iommu, IO_TSB_SIZE, 0xc0000000, 0xffffffff);
+	err = iommu_table_init(iommu, IO_TSB_SIZE, 0xc0000000, 0xffffffff);
+	if (err)
+		return err;
 
 	psycho_write(pbm->controller_regs + PSYCHO_IOMMU_TSBBASE,
 		     __pa(iommu->page_table));
@@ -858,6 +863,8 @@ static void psycho_iommu_init(struct pci_pbm_info *pbm)
 	/* If necessary, hook us up for starfire IRQ translations. */
 	if (this_is_starfire)
 		starfire_hookup(pbm->portid);
+
+	return 0;
 }
 
 #define PSYCHO_IRQ_RETRY	0x1a00UL
@@ -1031,15 +1038,12 @@ void psycho_init(struct device_node *dp, char *model_name)
 	}
 
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p) {
-		prom_printf("PSYCHO: Fatal memory allocation error.\n");
-		prom_halt();
-	}
+	if (!p)
+		goto fatal_memory_error;
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu) {
-		prom_printf("PSYCHO: Fatal memory allocation error.\n");
-		prom_halt();
-	}
+	if (!iommu)
+		goto fatal_memory_error;
+
 	p->pbm_A.iommu = p->pbm_B.iommu = iommu;
 
 	p->pbm_A.portid = upa_portid;
@@ -1062,8 +1066,14 @@ void psycho_init(struct device_node *dp, char *model_name)
 
 	psycho_controller_hwinit(&p->pbm_A);
 
-	psycho_iommu_init(&p->pbm_A);
+	if (psycho_iommu_init(&p->pbm_A))
+		goto fatal_memory_error;
 
 	is_pbm_a = ((pr_regs[0].phys_addr & 0x6000) == 0x2000);
 	psycho_pbm_init(p, dp, is_pbm_a);
+	return;
+
+fatal_memory_error:
+	prom_printf("PSYCHO: Fatal memory allocation error.\n");
+	prom_halt();
 }

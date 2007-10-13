@@ -845,11 +845,6 @@ typedef struct {
 /* PCI resources */
 typedef struct {
     struct pci_dev      *pdev;
-    ushort              vendor_id;              /* vendor (ICP, Intel, ..) */
-    ushort              device_id;              /* device ID (0,..,9) */
-    ushort              subdevice_id;           /* sub device ID */
-    unchar              bus;                    /* PCI bus */
-    unchar              device_fn;              /* PCI device/function no. */
     ulong               dpmem;                  /* DPRAM address */
     ulong               io;                     /* IO address */
     ulong               io_mm;                  /* IO address mem. mapped */
@@ -862,7 +857,6 @@ typedef struct {
     ushort              oem_id;                 /* OEM */
     ushort              type;                   /* controller class */
     ulong32             stype;                  /* subtype (PCI: device ID) */
-    ushort              subdevice_id;           /* sub device ID (PCI) */
     ushort              fw_vers;                /* firmware version */
     ushort              cache_feat;             /* feat. cache serv. (s/g,..)*/
     ushort              raw_feat;               /* feat. raw service (s/g,..)*/

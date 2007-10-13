@@ -57,17 +57,14 @@ EXPORT_SYMBOL(sys_tz);
  */
 asmlinkage long sys_time(time_t __user * tloc)
 {
-	/*
-	 * We read xtime.tv_sec atomically - it's updated
-	 * atomically by update_wall_time(), so no need to
-	 * even read-lock the xtime seqlock:
-	 */
-	time_t i = xtime.tv_sec;
+	time_t i;
+	struct timespec tv;
 
-	smp_rmb(); /* sys_time() results are coherent */
+	getnstimeofday(&tv);
+	i = tv.tv_sec;
 
 	if (tloc) {
-		if (put_user(i, tloc))
+		if (put_user(i,tloc))
 			i = -EFAULT;
 	}
 	return i;
@@ -136,7 +133,6 @@ static inline void warp_clock(void)
 	write_seqlock_irq(&xtime_lock);
 	wall_to_monotonic.tv_sec -= sys_tz.tz_minuteswest * 60;
 	xtime.tv_sec += sys_tz.tz_minuteswest * 60;
-	time_interpolator_reset();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 }
@@ -219,22 +215,6 @@ asmlinkage long sys_adjtimex(struct timex __user *txc_p)
 	return copy_to_user(txc_p, &txc, sizeof(struct timex)) ? -EFAULT : ret;
 }
 
-inline struct timespec current_kernel_time(void)
-{
-        struct timespec now;
-        unsigned long seq;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		
-		now = xtime;
-	} while (read_seqretry(&xtime_lock, seq));
-
-	return now; 
-}
-
-EXPORT_SYMBOL(current_kernel_time);
-
 /**
  * current_fs_time - Return FS time
  * @sb: Superblock.
@@ -309,92 +289,6 @@ struct timespec timespec_trunc(struct timespec t, unsigned gran)
 }
 EXPORT_SYMBOL(timespec_trunc);
 
-#ifdef CONFIG_TIME_INTERPOLATION
-void getnstimeofday (struct timespec *tv)
-{
-	unsigned long seq,sec,nsec;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		sec = xtime.tv_sec;
-		nsec = xtime.tv_nsec+time_interpolator_get_offset();
-	} while (unlikely(read_seqretry(&xtime_lock, seq)));
-
-	while (unlikely(nsec >= NSEC_PER_SEC)) {
-		nsec -= NSEC_PER_SEC;
-		++sec;
-	}
-	tv->tv_sec = sec;
-	tv->tv_nsec = nsec;
-}
-EXPORT_SYMBOL_GPL(getnstimeofday);
-
-int do_settimeofday (struct timespec *tv)
-{
-	time_t wtm_sec, sec = tv->tv_sec;
-	long wtm_nsec, nsec = tv->tv_nsec;
-
-	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	write_seqlock_irq(&xtime_lock);
-	{
-		wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-		wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
-
-		set_normalized_timespec(&xtime, sec, nsec);
-		set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
-
-		time_adjust = 0;		/* stop active adjtime() */
-		time_status |= STA_UNSYNC;
-		time_maxerror = NTP_PHASE_LIMIT;
-		time_esterror = NTP_PHASE_LIMIT;
-		time_interpolator_reset();
-	}
-	write_sequnlock_irq(&xtime_lock);
-	clock_was_set();
-	return 0;
-}
-EXPORT_SYMBOL(do_settimeofday);
-
-void do_gettimeofday (struct timeval *tv)
-{
-	unsigned long seq, nsec, usec, sec, offset;
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		offset = time_interpolator_get_offset();
-		sec = xtime.tv_sec;
-		nsec = xtime.tv_nsec;
-	} while (unlikely(read_seqretry(&xtime_lock, seq)));
-
-	usec = (nsec + offset) / 1000;
-
-	while (unlikely(usec >= USEC_PER_SEC)) {
-		usec -= USEC_PER_SEC;
-		++sec;
-	}
-
-	tv->tv_sec = sec;
-	tv->tv_usec = usec;
-
-	/*
-	 * Make sure xtime.tv_sec [returned by sys_time()] always
-	 * follows the gettimeofday() result precisely. This
-	 * condition is extremely unlikely, it can hit at most
-	 * once per second:
-	 */
-	if (unlikely(xtime.tv_sec != tv->tv_sec)) {
-		unsigned long flags;
-
-		write_seqlock_irqsave(&xtime_lock, flags);
-		update_wall_time();
-		write_sequnlock_irqrestore(&xtime_lock, flags);
-	}
-}
-EXPORT_SYMBOL(do_gettimeofday);
-
-#else	/* CONFIG_TIME_INTERPOLATION */
-
 #ifndef CONFIG_GENERIC_TIME
 /*
  * Simulate gettimeofday using do_gettimeofday which only allows a timeval
@@ -410,7 +304,6 @@ void getnstimeofday(struct timespec *tv)
 }
 EXPORT_SYMBOL_GPL(getnstimeofday);
 #endif
-#endif	/* CONFIG_TIME_INTERPOLATION */
 
 /* Converts Gregorian date to seconds since 1970-01-01 00:00:00.
  * Assumes input in normal date format, i.e. 1980-12-31 23:59:59

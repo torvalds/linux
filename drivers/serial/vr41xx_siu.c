@@ -65,7 +65,9 @@ static struct uart_port siu_uart_ports[SIU_PORTS_MAX] = {
 	},
 };
 
+#ifdef CONFIG_SERIAL_VR41XX_CONSOLE
 static uint8_t lsr_break_flag[SIU_PORTS_MAX];
+#endif
 
 #define siu_read(port, offset)		readb((port)->membase + (offset))
 #define siu_write(port, offset, value)	writeb((value), (port)->membase + (offset))
@@ -782,7 +784,7 @@ static void siu_console_write(struct console *con, const char *s, unsigned count
 	siu_write(port, UART_IER, ier);
 }
 
-static int siu_console_setup(struct console *con, char *options)
+static int __init siu_console_setup(struct console *con, char *options)
 {
 	struct uart_port *port;
 	int baud = 9600;
@@ -800,7 +802,8 @@ static int siu_console_setup(struct console *con, char *options)
 		port->membase = ioremap(port->mapbase, siu_port_size(port));
 	}
 
-	vr41xx_select_siu_interface(SIU_INTERFACE_RS232C);
+	if (port->type == PORT_VR41XX_SIU)
+		vr41xx_select_siu_interface(SIU_INTERFACE_RS232C);
 
 	if (options != NULL)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);

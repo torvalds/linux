@@ -4,6 +4,7 @@ Kernel driver smsc47b397
 Supported chips:
   * SMSC LPC47B397-NC
   * SMSC SCH5307-NS
+  * SMSC SCH5317
     Prefix: 'smsc47b397'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: In this file
@@ -18,8 +19,8 @@ The following specification describes the SMSC LPC47B397-NC[1] sensor chip
 provided by Craig Kelly (In-Store Broadcast Network) and edited/corrected
 by Mark M. Hoffman <mhoffman@lightlink.com>.
 
-[1] And SMSC SCH5307-NS, which has a different device ID but is otherwise
-compatible.
+[1] And SMSC SCH5307-NS and SCH5317, which have different device IDs but are
+otherwise compatible.
 
 * * * * *
 
@@ -131,7 +132,7 @@ OUT	DX,AL
 The registers of interest for identifying the SIO on the dc7100 are Device ID
 (0x20) and Device Rev  (0x21).
 
-The Device ID will read 0x6F (for SCH5307-NS, 0x81)
+The Device ID will read 0x6F (0x81 for SCH5307-NS, and 0x85 for SCH5317)
 The Device Rev currently reads 0x01
 
 Obtaining the HWM Base Address.

@@ -159,7 +159,7 @@ static int vp7045_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		return 0;
 	}
 
-	for (i = 0; i < sizeof(vp7045_rc_keys)/sizeof(struct dvb_usb_rc_key); i++)
+	for (i = 0; i < ARRAY_SIZE(vp7045_rc_keys); i++)
 		if (vp7045_rc_keys[i].data == key) {
 			*state = REMOTE_KEY_PRESSED;
 			*event = vp7045_rc_keys[i].event;

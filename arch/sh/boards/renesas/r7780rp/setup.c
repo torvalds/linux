@@ -21,6 +21,58 @@
 #include <asm/clock.h>
 #include <asm/io.h>
 
+static struct resource r8a66597_usb_host_resources[] = {
+	[0] = {
+		.name	= "r8a66597_hcd",
+		.start	= 0xA4200000,
+		.end	= 0xA42000FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "r8a66597_hcd",
+		.start	= 11,		/* irq number */
+		.end	= 11,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device r8a66597_usb_host_device = {
+	.name		= "r8a66597_hcd",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= NULL,		/* don't use dma */
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(r8a66597_usb_host_resources),
+	.resource	= r8a66597_usb_host_resources,
+};
+
+static struct resource m66592_usb_peripheral_resources[] = {
+	[0] = {
+		.name	= "m66592_udc",
+		.start	= 0xb0000000,
+		.end	= 0xb00000FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "m66592_udc",
+		.start	= 9,		/* irq number */
+		.end	= 9,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device m66592_usb_peripheral_device = {
+	.name		= "m66592_udc",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= NULL,		/* don't use dma */
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(m66592_usb_peripheral_resources),
+	.resource	= m66592_usb_peripheral_resources,
+};
+
 static struct resource cf_ide_resources[] = {
 	[0] = {
 		.start	= PA_AREA5_IO + 0x1000,
@@ -81,6 +133,8 @@ static struct platform_device heartbeat_device = {
 };
 
 static struct platform_device *r7780rp_devices[] __initdata = {
+	&r8a66597_usb_host_device,
+	&m66592_usb_peripheral_device,
 	&cf_ide_device,
 	&heartbeat_device,
 };

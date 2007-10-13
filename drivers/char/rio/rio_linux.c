@@ -803,9 +803,7 @@ static void *ckmalloc(int size)
 {
 	void *p;
 
-	p = kmalloc(size, GFP_KERNEL);
-	if (p)
-		memset(p, 0, size);
+	p = kzalloc(size, GFP_KERNEL);
 	return p;
 }
 

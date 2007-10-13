@@ -56,11 +56,10 @@ int superhyway_add_device(unsigned long base, struct superhyway_device *sdev,
 	struct superhyway_device *dev = sdev;
 
 	if (!dev) {
-		dev = kmalloc(sizeof(struct superhyway_device), GFP_KERNEL);
+		dev = kzalloc(sizeof(struct superhyway_device), GFP_KERNEL);
 		if (!dev)
 			return -ENOMEM;
 
-		memset(dev, 0, sizeof(struct superhyway_device));
 	}
 
 	dev->bus = bus;

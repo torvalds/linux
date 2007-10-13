@@ -10,7 +10,7 @@
 #ifndef _PSERIES_PSERIES_H
 #define _PSERIES_PSERIES_H
 
-extern void __init fw_feature_init(void);
+extern void __init fw_feature_init(const char *hypertas, unsigned long len);
 
 struct pt_regs;
 

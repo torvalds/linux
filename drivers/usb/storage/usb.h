@@ -150,6 +150,7 @@ struct us_data {
 	struct semaphore	sema;		 /* to sleep thread on	    */
 	struct completion	notify;		 /* thread begin/end	    */
 	wait_queue_head_t	delay_wait;	 /* wait during scan, reset */
+	struct completion	scanning_done;	 /* wait for scan thread    */
 
 	/* subdriver information */
 	void			*extra;		 /* Any extra data          */

@@ -164,15 +164,24 @@ static int macvlan_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static int macvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
-			       unsigned short type, void *daddr, void *saddr,
-			       unsigned len)
+			       unsigned short type, const void *daddr,
+			       const void *saddr, unsigned len)
 {
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	return lowerdev->hard_header(skb, lowerdev, type, daddr,
-				     saddr ? : dev->dev_addr, len);
+	return dev_hard_header(skb, lowerdev, type, daddr,
+			       saddr ? : dev->dev_addr, len);
 }
+
+static const struct header_ops macvlan_hard_header_ops = {
+	.create  	= macvlan_hard_header,
+	.rebuild	= eth_rebuild_header,
+	.parse		= eth_header_parse,
+	.rebuild	= eth_rebuild_header,
+	.cache		= eth_header_cache,
+	.cache_update	= eth_header_cache_update,
+};
 
 static int macvlan_open(struct net_device *dev)
 {
@@ -282,10 +291,6 @@ static u32 macvlan_ethtool_get_rx_csum(struct net_device *dev)
 static const struct ethtool_ops macvlan_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_rx_csum		= macvlan_ethtool_get_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.get_tso		= ethtool_op_get_tso,
-	.get_ufo		= ethtool_op_get_ufo,
-	.get_sg			= ethtool_op_get_sg,
 	.get_drvinfo		= macvlan_ethtool_get_drvinfo,
 };
 
@@ -299,9 +304,9 @@ static void macvlan_setup(struct net_device *dev)
 	dev->change_mtu		= macvlan_change_mtu;
 	dev->change_rx_flags	= macvlan_change_rx_flags;
 	dev->set_multicast_list	= macvlan_set_multicast_list;
-	dev->hard_header	= macvlan_hard_header;
 	dev->hard_start_xmit	= macvlan_hard_start_xmit;
 	dev->destructor		= free_netdev;
+	dev->header_ops		= &macvlan_hard_header_ops,
 	dev->ethtool_ops	= &macvlan_ethtool_ops;
 	dev->tx_queue_len	= 0;
 }
@@ -376,7 +381,7 @@ static int macvlan_newlink(struct net_device *dev,
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
 
-	lowerdev = __dev_get_by_index(nla_get_u32(tb[IFLA_LINK]));
+	lowerdev = __dev_get_by_index(dev->nd_net, nla_get_u32(tb[IFLA_LINK]));
 	if (lowerdev == NULL)
 		return -ENODEV;
 

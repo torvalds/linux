@@ -119,11 +119,6 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #endif				/* CONFIG_IEEE80211_DEBUG */
 
-/* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
-
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
-
 /* escape_essid() is intended to be used in debug (and possibly error)
  * messages. It should never be used for passing essid to user space. */
 const char *escape_essid(const char *essid, u8 essid_len);

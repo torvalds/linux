@@ -42,13 +42,13 @@ struct xt_connlimit_data {
 static u_int32_t connlimit_rnd;
 static bool connlimit_rnd_inited;
 
-static inline unsigned int connlimit_iphash(u_int32_t addr)
+static inline unsigned int connlimit_iphash(__be32 addr)
 {
 	if (unlikely(!connlimit_rnd_inited)) {
 		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
 		connlimit_rnd_inited = true;
 	}
-	return jhash_1word(addr, connlimit_rnd) & 0xFF;
+	return jhash_1word((__force __u32)addr, connlimit_rnd) & 0xFF;
 }
 
 static inline unsigned int
@@ -66,7 +66,7 @@ connlimit_iphash6(const union nf_conntrack_address *addr,
 	for (i = 0; i < ARRAY_SIZE(addr->ip6); ++i)
 		res.ip6[i] = addr->ip6[i] & mask->ip6[i];
 
-	return jhash2(res.ip6, ARRAY_SIZE(res.ip6), connlimit_rnd) & 0xFF;
+	return jhash2((u32 *)res.ip6, ARRAY_SIZE(res.ip6), connlimit_rnd) & 0xFF;
 }
 
 static inline bool already_closed(const struct nf_conn *conn)

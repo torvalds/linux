@@ -17,7 +17,7 @@
 #include <asm/arch/idle.h>
 #include <asm/arch/reset.h>
 
-#include <asm/arch/regs-watchdog.h>
+#include <asm/plat-s3c/regs-watchdog.h>
 #include <asm/arch/regs-clock.h>
 
 void (*s3c24xx_idle)(void);

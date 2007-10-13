@@ -181,9 +181,9 @@ void __init early_setup(unsigned long dt_ptr)
  	DBG(" -> early_setup(), dt_ptr: 0x%lx\n", dt_ptr);
 
 	/*
-	 * Do early initializations using the flattened device
-	 * tree, like retreiving the physical memory map or
-	 * calculating/retreiving the hash table size
+	 * Do early initialization using the flattened device
+	 * tree, such as retrieving the physical memory map or
+	 * calculating/retrieving the hash table size.
 	 */
 	early_init_devtree(__va(dt_ptr));
 
@@ -350,11 +350,13 @@ void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
 
-	/* Apply CPUs-specific fixups to kernel text (nop out sections
-	 * not relevant to this CPU)
+	/* Apply the CPUs-specific and firmware specific fixups to kernel
+	 * text (nop out sections not relevant to this CPU or this firmware)
 	 */
 	do_feature_fixups(cur_cpu_spec->cpu_features,
 			  &__start___ftr_fixup, &__stop___ftr_fixup);
+	do_feature_fixups(powerpc_firmware_features,
+			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
@@ -391,12 +393,6 @@ void __init setup_system(void)
 	 */
 	if (ppc_md.init_early)
 		ppc_md.init_early();
-
-	/* Apply firmware specific fixups to kernel text (nop out
-	 * sections not relevant to this firmware)
-	 */
-	do_feature_fixups(powerpc_firmware_features,
-			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 
  	/*
 	 * We can discover serial ports now since the above did setup the
@@ -534,7 +530,8 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 
-	ppc_md.setup_arch();
+	if (ppc_md.setup_arch)
+		ppc_md.setup_arch();
 
 	paging_init();
 	ppc64_boot_msg(0x15, "Setup Done");

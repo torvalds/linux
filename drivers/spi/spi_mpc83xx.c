@@ -39,6 +39,7 @@ struct mpc83xx_spi_reg {
 };
 
 /* SPI Controller mode register definitions */
+#define	SPMODE_LOOP		(1 << 30)
 #define	SPMODE_CI_INACTIVEHIGH	(1 << 29)
 #define	SPMODE_CP_BEGIN_EDGECLK	(1 << 28)
 #define	SPMODE_DIV16		(1 << 27)
@@ -85,7 +86,7 @@ struct mpc83xx_spi {
 
 	unsigned nsecs;		/* (clock cycle time)/2 */
 
-	u32 sysclk;
+	u32 spibrg;		/* SPIBRG input clock */
 	u32 rx_shift;		/* RX data reg shift when in qe mode */
 	u32 tx_shift;		/* TX data reg shift when in qe mode */
 
@@ -147,35 +148,48 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 	if (value == BITBANG_CS_ACTIVE) {
 		u32 regval = mpc83xx_spi_read_reg(&mpc83xx_spi->base->mode);
 		u32 len = spi->bits_per_word;
+		u8 pm;
+
 		if (len == 32)
 			len = 0;
 		else
 			len = len - 1;
 
 		/* mask out bits we are going to set */
-		regval &= ~0x38ff0000;
+		regval &= ~(SPMODE_CP_BEGIN_EDGECLK | SPMODE_CI_INACTIVEHIGH
+				| SPMODE_LEN(0xF) | SPMODE_DIV16
+				| SPMODE_PM(0xF) | SPMODE_REV | SPMODE_LOOP);
 
 		if (spi->mode & SPI_CPHA)
 			regval |= SPMODE_CP_BEGIN_EDGECLK;
 		if (spi->mode & SPI_CPOL)
 			regval |= SPMODE_CI_INACTIVEHIGH;
+		if (!(spi->mode & SPI_LSB_FIRST))
+			regval |= SPMODE_REV;
+		if (spi->mode & SPI_LOOP)
+			regval |= SPMODE_LOOP;
 
 		regval |= SPMODE_LEN(len);
 
-		if ((mpc83xx_spi->sysclk / spi->max_speed_hz) >= 64) {
-			u8 pm = mpc83xx_spi->sysclk / (spi->max_speed_hz * 64);
+		if ((mpc83xx_spi->spibrg / spi->max_speed_hz) >= 64) {
+			pm = mpc83xx_spi->spibrg / (spi->max_speed_hz * 64) - 1;
 			if (pm > 0x0f) {
-				printk(KERN_WARNING "MPC83xx SPI: SPICLK can't be less then a SYSCLK/1024!\n"
-						"Requested SPICLK is %d Hz. Will use %d Hz instead.\n",
-						spi->max_speed_hz, mpc83xx_spi->sysclk / 1024);
+				dev_err(&spi->dev, "Requested speed is too "
+					"low: %d Hz. Will use %d Hz instead.\n",
+					spi->max_speed_hz,
+					mpc83xx_spi->spibrg / 1024);
 				pm = 0x0f;
 			}
 			regval |= SPMODE_PM(pm) | SPMODE_DIV16;
 		} else {
-			u8 pm = mpc83xx_spi->sysclk / (spi->max_speed_hz * 4);
+			pm = mpc83xx_spi->spibrg / (spi->max_speed_hz * 4);
+			if (pm)
+				pm--;
 			regval |= SPMODE_PM(pm);
 		}
 
+		/* Turn off SPI unit prior changing mode */
+		mpc83xx_spi_write_reg(&mpc83xx_spi->base->mode, 0);
 		mpc83xx_spi_write_reg(&mpc83xx_spi->base->mode, regval);
 		if (mpc83xx_spi->activate_cs)
 			mpc83xx_spi->activate_cs(spi->chip_select, pol);
@@ -231,6 +245,14 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	} else
 		return -EINVAL;
 
+	if (mpc83xx_spi->qe_mode && spi->mode & SPI_LSB_FIRST) {
+		mpc83xx_spi->tx_shift = 0;
+		if (bits_per_word <= 8)
+			mpc83xx_spi->rx_shift = 8;
+		else
+			mpc83xx_spi->rx_shift = 0;
+	}
+
 	/* nsecs = (clock period)/2 */
 	if (!hz)
 		hz = spi->max_speed_hz;
@@ -245,17 +267,22 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	regval = mpc83xx_spi_read_reg(&mpc83xx_spi->base->mode);
 
-	/* Mask out bits_per_wordgth */
-	regval &= 0xff0fffff;
+	/* mask out bits we are going to set */
+	regval &= ~(SPMODE_LEN(0xF) | SPMODE_REV);
 	regval |= SPMODE_LEN(bits_per_word);
+	if (!(spi->mode & SPI_LSB_FIRST))
+		regval |= SPMODE_REV;
 
+	/* Turn off SPI unit prior changing mode */
+	mpc83xx_spi_write_reg(&mpc83xx_spi->base->mode, 0);
 	mpc83xx_spi_write_reg(&mpc83xx_spi->base->mode, regval);
 
 	return 0;
 }
 
 /* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
+#define MODEBITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
+			| SPI_LSB_FIRST | SPI_LOOP)
 
 static int mpc83xx_spi_setup(struct spi_device *spi)
 {
@@ -357,11 +384,8 @@ irqreturn_t mpc83xx_spi_irq(s32 irq, void *context_data)
 
 	mpc83xx_spi->count -= 1;
 	if (mpc83xx_spi->count) {
-		if (mpc83xx_spi->tx) {
-			u32 word = mpc83xx_spi->get_tx(mpc83xx_spi);
-			mpc83xx_spi_write_reg(&mpc83xx_spi->base->transmit,
-					      word);
-		}
+		u32 word = mpc83xx_spi->get_tx(mpc83xx_spi);
+		mpc83xx_spi_write_reg(&mpc83xx_spi->base->transmit, word);
 	} else {
 		complete(&mpc83xx_spi->done);
 	}
@@ -407,12 +431,16 @@ static int __init mpc83xx_spi_probe(struct platform_device *dev)
 	mpc83xx_spi->bitbang.chipselect = mpc83xx_spi_chipselect;
 	mpc83xx_spi->bitbang.setup_transfer = mpc83xx_spi_setup_transfer;
 	mpc83xx_spi->bitbang.txrx_bufs = mpc83xx_spi_bufs;
-	mpc83xx_spi->sysclk = pdata->sysclk;
 	mpc83xx_spi->activate_cs = pdata->activate_cs;
 	mpc83xx_spi->deactivate_cs = pdata->deactivate_cs;
 	mpc83xx_spi->qe_mode = pdata->qe_mode;
 	mpc83xx_spi->get_rx = mpc83xx_spi_rx_buf_u8;
 	mpc83xx_spi->get_tx = mpc83xx_spi_tx_buf_u8;
+
+	if (mpc83xx_spi->qe_mode)
+		mpc83xx_spi->spibrg = pdata->sysclk / 2;
+	else
+		mpc83xx_spi->spibrg = pdata->sysclk;
 
 	mpc83xx_spi->rx_shift = 0;
 	mpc83xx_spi->tx_shift = 0;
@@ -499,6 +527,7 @@ static int __devexit mpc83xx_spi_remove(struct platform_device *dev)
 	return 0;
 }
 
+MODULE_ALIAS("mpc83xx_spi");			/* for platform bus hotplug */
 static struct platform_driver mpc83xx_spi_driver = {
 	.probe = mpc83xx_spi_probe,
 	.remove = __devexit_p(mpc83xx_spi_remove),

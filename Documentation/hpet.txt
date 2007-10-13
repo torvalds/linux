@@ -5,7 +5,7 @@ for the 8254 and Real Time Clock (RTC) periodic timer functionality.
 Each HPET can have up to 32 timers.  It is possible to configure the
 first two timers as legacy replacements for 8254 and RTC periodic timers.
 A specification done by Intel and Microsoft can be found at
-<http://www.intel.com/hardwaredesign/hpetspec.htm>.
+<http://www.intel.com/technology/architecture/hpetspec.htm>.
 
 The driver supports detection of HPET driver allocation and initialization
 of the HPET before the driver module_init routine is called.  This enables

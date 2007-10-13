@@ -50,10 +50,16 @@ static int acpi_fan_remove(struct acpi_device *device, int type);
 static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state);
 static int acpi_fan_resume(struct acpi_device *device);
 
+static const struct acpi_device_id fan_device_ids[] = {
+	{"PNP0C0B", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, fan_device_ids);
+
 static struct acpi_driver acpi_fan_driver = {
 	.name = "fan",
 	.class = ACPI_FAN_CLASS,
-	.ids = "PNP0C0B",
+	.ids = fan_device_ids,
 	.ops = {
 		.add = acpi_fan_add,
 		.remove = acpi_fan_remove,

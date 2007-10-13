@@ -31,14 +31,6 @@ config SOUND_HAL2
 	  Say Y or M if you have an SGI Indy or Indigo2 system and want to be able to
 	  use its on-board A2 audio system.
 
-config SOUND_VRC5477
-	tristate "NEC Vrc5477 AC97 sound"
-	depends on SOUND_PRIME && DDB5477
-	help
-	  Say Y here to enable sound support for the NEC Vrc5477 chip, an
-	  integrated, multi-function controller chip for MIPS CPUs.  Works
-	  with the AC97 codec.
-
 config SOUND_AU1550_AC97
 	tristate "Au1550/Au1200 AC97 Sound"
 	select SND_AC97_CODEC

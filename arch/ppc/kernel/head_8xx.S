@@ -495,9 +495,7 @@ LoadLargeDTLB:
 	lwz	r11, 4(r0)
 
 	lwz	r12, 16(r0)
-#ifdef CONFIG_8xx_CPU6
 	lwz	r3, 8(r0)
-#endif
 	rfi
 
 /* This is the data TLB error on the MPC8xx.  This could be due to

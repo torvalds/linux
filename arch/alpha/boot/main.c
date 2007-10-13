@@ -132,7 +132,7 @@ static inline long load(long dev, unsigned long addr, unsigned long count)
 	if (result)
 		srm_printk("Boot file specification (%s) not implemented\n",
 		       bootfile);
-	return callback_read(dev, count, addr, boot_size/512 + 1);
+	return callback_read(dev, count, (void *)addr, boot_size/512 + 1);
 }
 
 /*

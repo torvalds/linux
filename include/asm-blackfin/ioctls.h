@@ -47,8 +47,13 @@
 #define TIOCSBRK	0x5427	/* BSD compatibility */
 #define TIOCCBRK	0x5428	/* BSD compatibility */
 #define TIOCGSID	0x5429	/* Return the session ID of FD */
-#define TIOCGPTN	_IOR('T',0x30, unsigned int)	/* Get Pty Number (of pty-mux device) */
-#define TIOCSPTLCK	_IOW('T',0x31, int)	/* Lock/unlock Pty */
+#define TCGETS2		_IOR('T', 0x2A, struct termios2)
+#define TCSETS2		_IOW('T', 0x2B, struct termios2)
+#define TCSETSW2	_IOW('T', 0x2C, struct termios2)
+#define TCSETSF2	_IOW('T', 0x2D, struct termios2)
+/* Get Pty Number (of pty-mux device) */
+#define TIOCGPTN	_IOR('T', 0x30, unsigned int)
+#define TIOCSPTLCK	_IOW('T', 0x31, int)	/* Lock/unlock Pty */
 
 #define FIONCLEX	0x5450	/* these numbers need to be adjusted. */
 #define FIOCLEX		0x5451

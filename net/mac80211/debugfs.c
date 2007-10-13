@@ -28,8 +28,6 @@ static const char *ieee80211_mode_str(int mode)
 		return "IEEE 802.11b";
 	case MODE_IEEE80211G:
 		return "IEEE 802.11g";
-	case MODE_ATHEROS_TURBO:
-		return "Atheros Turbo (5 GHz)";
 	default:
 		return "UNKNOWN";
 	}
@@ -86,16 +84,12 @@ DEBUGFS_READONLY_FILE(channel, 20, "%d",
 		      local->hw.conf.channel);
 DEBUGFS_READONLY_FILE(frequency, 20, "%d",
 		      local->hw.conf.freq);
-DEBUGFS_READONLY_FILE(radar_detect, 20, "%d",
-		      local->hw.conf.radar_detect);
 DEBUGFS_READONLY_FILE(antenna_sel_tx, 20, "%d",
 		      local->hw.conf.antenna_sel_tx);
 DEBUGFS_READONLY_FILE(antenna_sel_rx, 20, "%d",
 		      local->hw.conf.antenna_sel_rx);
 DEBUGFS_READONLY_FILE(bridge_packets, 20, "%d",
 		      local->bridge_packets);
-DEBUGFS_READONLY_FILE(key_tx_rx_threshold, 20, "%d",
-		      local->key_tx_rx_threshold);
 DEBUGFS_READONLY_FILE(rts_threshold, 20, "%d",
 		      local->rts_threshold);
 DEBUGFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
@@ -110,9 +104,6 @@ DEBUGFS_READONLY_FILE(mode, 20, "%s",
 		      ieee80211_mode_str(local->hw.conf.phymode));
 DEBUGFS_READONLY_FILE(wep_iv, 20, "%#06x",
 		      local->wep_iv & 0xffffff);
-DEBUGFS_READONLY_FILE(tx_power_reduction, 20, "%d.%d dBm",
-		      local->hw.conf.tx_power_reduction / 10,
-		      local->hw.conf.tx_power_reduction % 10);
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, 100, "%s",
 		      local->rate_ctrl ? local->rate_ctrl->ops->name : "<unset>");
 
@@ -305,11 +296,9 @@ void debugfs_hw_add(struct ieee80211_local *local)
 
 	DEBUGFS_ADD(channel);
 	DEBUGFS_ADD(frequency);
-	DEBUGFS_ADD(radar_detect);
 	DEBUGFS_ADD(antenna_sel_tx);
 	DEBUGFS_ADD(antenna_sel_rx);
 	DEBUGFS_ADD(bridge_packets);
-	DEBUGFS_ADD(key_tx_rx_threshold);
 	DEBUGFS_ADD(rts_threshold);
 	DEBUGFS_ADD(fragmentation_threshold);
 	DEBUGFS_ADD(short_retry_limit);
@@ -317,7 +306,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(mode);
 	DEBUGFS_ADD(wep_iv);
-	DEBUGFS_ADD(tx_power_reduction);
 	DEBUGFS_ADD(modes);
 
 	statsd = debugfs_create_dir("statistics", phyd);
@@ -370,11 +358,9 @@ void debugfs_hw_del(struct ieee80211_local *local)
 {
 	DEBUGFS_DEL(channel);
 	DEBUGFS_DEL(frequency);
-	DEBUGFS_DEL(radar_detect);
 	DEBUGFS_DEL(antenna_sel_tx);
 	DEBUGFS_DEL(antenna_sel_rx);
 	DEBUGFS_DEL(bridge_packets);
-	DEBUGFS_DEL(key_tx_rx_threshold);
 	DEBUGFS_DEL(rts_threshold);
 	DEBUGFS_DEL(fragmentation_threshold);
 	DEBUGFS_DEL(short_retry_limit);
@@ -382,7 +368,6 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_DEL(total_ps_buffered);
 	DEBUGFS_DEL(mode);
 	DEBUGFS_DEL(wep_iv);
-	DEBUGFS_DEL(tx_power_reduction);
 	DEBUGFS_DEL(modes);
 
 	DEBUGFS_STATS_DEL(transmitted_fragment_count);

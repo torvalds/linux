@@ -36,8 +36,6 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
-#include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <linux/scatterlist.h>
 
 #include "iscsi_iser.h"
@@ -103,8 +101,8 @@ void iser_reg_single(struct iser_device *device,
 /**
  * iser_start_rdma_unaligned_sg
  */
-int iser_start_rdma_unaligned_sg(struct iscsi_iser_cmd_task  *iser_ctask,
-				 enum iser_data_dir cmd_dir)
+static int iser_start_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
+					enum iser_data_dir cmd_dir)
 {
 	int dma_nents;
 	struct ib_device *dev;

@@ -104,7 +104,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 
 	if (crc != tn->data_crc) {
 		JFFS2_NOTICE("wrong data CRC in data node at 0x%08x: read %#08x, calculated %#08x.\n",
-			ofs, tn->data_crc, crc);
+			     ref_offset(ref), tn->data_crc, crc);
 		return 1;
 	}
 
@@ -613,7 +613,7 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		jeb->unchecked_size -= len;
 		c->used_size += len;
 		c->unchecked_size -= len;
-		ref->flash_offset = ref_offset(ref) | REF_PRISTINE;
+		ref->flash_offset = ref_offset(ref) | dirent_node_state(rd);
 		spin_unlock(&c->erase_completion_lock);
 	}
 

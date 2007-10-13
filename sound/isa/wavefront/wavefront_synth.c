@@ -1780,7 +1780,7 @@ wavefront_should_cause_interrupt (snd_wavefront_t *dev,
 	outb (val,port);
 	spin_unlock_irq(&dev->irq_lock);
 	while (1) {
-		if ((timeout = schedule_timeout_interruptible(timeout)) == 0)
+		if ((timeout = schedule_timeout(timeout)) == 0)
 			return;
 		if (dev->irq_ok)
 			return;

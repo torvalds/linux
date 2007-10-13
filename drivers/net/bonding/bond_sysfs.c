@@ -31,10 +31,10 @@
 #include <linux/inetdevice.h>
 #include <linux/in.h>
 #include <linux/sysfs.h>
-#include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/inet.h>
 #include <linux/rtnetlink.h>
+#include <net/net_namespace.h>
 
 /* #define BONDING_DEBUG 1 */
 #include "bonding.h"
@@ -299,7 +299,7 @@ static ssize_t bonding_store_slaves(struct device *d,
 		read_unlock_bh(&bond->lock);
 		printk(KERN_INFO DRV_NAME ": %s: Adding slave %s.\n",
 		       bond->dev->name, ifname);
-		dev = dev_get_by_name(ifname);
+		dev = dev_get_by_name(&init_net, ifname);
 		if (!dev) {
 			printk(KERN_INFO DRV_NAME
 			       ": %s: Interface %s does not exist!\n",
@@ -682,16 +682,16 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	u32 newtarget;
+	__be32 newtarget;
 	int i = 0, done = 0, ret = count;
 	struct bonding *bond = to_bond(d);
-	u32 *targets;
+	__be32 *targets;
 
 	targets = bond->params.arp_targets;
 	newtarget = in_aton(buf + 1);
 	/* look for adds */
 	if (buf[0] == '+') {
-		if ((newtarget == 0) || (newtarget == INADDR_BROADCAST)) {
+		if ((newtarget == 0) || (newtarget == htonl(INADDR_BROADCAST))) {
 			printk(KERN_ERR DRV_NAME
 			       ": %s: invalid ARP target %u.%u.%u.%u specified for addition\n",
  			       bond->dev->name, NIPQUAD(newtarget));
@@ -727,7 +727,7 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 
 	}
 	else if (buf[0] == '-')	{
-		if ((newtarget == 0) || (newtarget == INADDR_BROADCAST)) {
+		if ((newtarget == 0) || (newtarget == htonl(INADDR_BROADCAST))) {
 			printk(KERN_ERR DRV_NAME
 			       ": %s: invalid ARP target %d.%d.%d.%d specified for removal\n",
 			       bond->dev->name, NIPQUAD(newtarget));
@@ -1361,17 +1361,14 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 {
 	int count = 0;
 	struct bonding *bond = to_bond(d);
+	DECLARE_MAC_BUF(mac);
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 		if (!bond_3ad_get_active_agg_info(bond, &ad_info)) {
-			count = sprintf(buf,"%02x:%02x:%02x:%02x:%02x:%02x\n",
-				       ad_info.partner_system[0],
-				       ad_info.partner_system[1],
-				       ad_info.partner_system[2],
-				       ad_info.partner_system[3],
-				       ad_info.partner_system[4],
-				       ad_info.partner_system[5]) + 1;
+			count = sprintf(buf,"%s\n",
+					print_mac(mac, ad_info.partner_system))
+				+ 1;
 		}
 	}
 	else

@@ -66,6 +66,16 @@ MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Button Driver");
 MODULE_LICENSE("GPL");
 
+static const struct acpi_device_id button_device_ids[] = {
+	{ACPI_BUTTON_HID_LID,    0},
+	{ACPI_BUTTON_HID_SLEEP,  0},
+	{ACPI_BUTTON_HID_SLEEPF, 0},
+	{ACPI_BUTTON_HID_POWER,  0},
+	{ACPI_BUTTON_HID_POWERF, 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, button_device_ids);
+
 static int acpi_button_add(struct acpi_device *device);
 static int acpi_button_remove(struct acpi_device *device, int type);
 static int acpi_button_info_open_fs(struct inode *inode, struct file *file);
@@ -74,7 +84,7 @@ static int acpi_button_state_open_fs(struct inode *inode, struct file *file);
 static struct acpi_driver acpi_button_driver = {
 	.name = "button",
 	.class = ACPI_BUTTON_CLASS,
-	.ids = "button_power,button_sleep,PNP0C0D,PNP0C0C,PNP0C0E",
+	.ids = button_device_ids,
 	.ops = {
 		.add = acpi_button_add,
 		.remove = acpi_button_remove,
@@ -274,7 +284,7 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 		}
 		input_sync(input);
 
-		acpi_bus_generate_event(button->device, event,
+		acpi_bus_generate_proc_event(button->device, event,
 					++button->pushed);
 		break;
 	default:

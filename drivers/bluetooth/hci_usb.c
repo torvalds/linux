@@ -691,15 +691,18 @@ static void hci_usb_rx_complete(struct urb *urb)
 					urb->iso_frame_desc[i].offset,
 					urb->iso_frame_desc[i].actual_length);
 	
-			if (!urb->iso_frame_desc[i].status)
+			if (!urb->iso_frame_desc[i].status) {
+				husb->hdev->stat.byte_rx += urb->iso_frame_desc[i].actual_length;
 				hci_recv_fragment(husb->hdev, _urb->type, 
 					urb->transfer_buffer + urb->iso_frame_desc[i].offset,
 					urb->iso_frame_desc[i].actual_length);
+			}
 		}
 #else
 		;
 #endif
 	} else {
+		husb->hdev->stat.byte_rx += count;
 		err = hci_recv_fragment(husb->hdev, _urb->type, urb->transfer_buffer, count);
 		if (err < 0) { 
 			BT_ERR("%s corrupted packet: type %d count %d",

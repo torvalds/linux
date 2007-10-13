@@ -52,10 +52,18 @@ MODULE_LICENSE("GPL");
 static int acpi_container_add(struct acpi_device *device);
 static int acpi_container_remove(struct acpi_device *device, int type);
 
+static const struct acpi_device_id container_device_ids[] = {
+	{"ACPI0004", 0},
+	{"PNP0A05", 0},
+	{"PNP0A06", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, container_device_ids);
+
 static struct acpi_driver acpi_container_driver = {
 	.name = "container",
 	.class = ACPI_CONTAINER_CLASS,
-	.ids = "ACPI0004,PNP0A05,PNP0A06",
+	.ids = container_device_ids,
 	.ops = {
 		.add = acpi_container_add,
 		.remove = acpi_container_remove,

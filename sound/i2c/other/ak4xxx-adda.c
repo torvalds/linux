@@ -481,8 +481,8 @@ static int ak4xxx_switch_get(struct snd_kcontrol *kcontrol,
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int shift = AK_GET_SHIFT(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
-	unsigned char val = snd_akm4xxx_get(ak, chip, addr);
-
+	/* we observe the (1<<shift) bit only */
+	unsigned char val = snd_akm4xxx_get(ak, chip, addr) & (1<<shift);
 	if (invert)
 		val = ! val;
 	ucontrol->value.integer.value[0] = (val & (1<<shift)) != 0;
@@ -585,6 +585,26 @@ static int build_dac_controls(struct snd_akm4xxx *ak)
 
 	mixer_ch = 0;
 	for (idx = 0; idx < ak->num_dacs; ) {
+		/* mute control for Revolution 7.1 - AK4381 */
+		if (ak->type == SND_AK4381 
+				&&  ak->dac_info[mixer_ch].switch_name) {
+			memset(&knew, 0, sizeof(knew));
+			knew.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+			knew.count = 1;
+			knew.access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
+			knew.name = ak->dac_info[mixer_ch].switch_name;
+			knew.info = ak4xxx_switch_info;
+			knew.get = ak4xxx_switch_get;
+			knew.put = ak4xxx_switch_put;
+			knew.access = 0;
+			/* register 1, bit 0 (SMUTE): 0 = normal operation,
+			   1 = mute */
+			knew.private_value =
+				AK_COMPOSE(idx/2, 1, 0, 0) | AK_INVERT;
+			err = snd_ctl_add(ak->card, snd_ctl_new1(&knew, ak));
+			if (err < 0)
+				return err;
+		}
 		memset(&knew, 0, sizeof(knew));
 		if (! ak->dac_info || ! ak->dac_info[mixer_ch].name) {
 			knew.name = "DAC Volume";

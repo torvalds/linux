@@ -548,7 +548,7 @@ int __init init_ocfs2_uptodate_cache(void)
 {
 	ocfs2_uptodate_cachep = kmem_cache_create("ocfs2_uptodate",
 				  sizeof(struct ocfs2_meta_cache_item),
-				  0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+				  0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!ocfs2_uptodate_cachep)
 		return -ENOMEM;
 

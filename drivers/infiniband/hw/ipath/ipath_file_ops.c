@@ -538,6 +538,9 @@ static int ipath_tid_free(struct ipath_portdata *pd, unsigned subport,
 			continue;
 		cnt++;
 		if (dd->ipath_pageshadow[porttid + tid]) {
+			struct page *p;
+			p = dd->ipath_pageshadow[porttid + tid];
+			dd->ipath_pageshadow[porttid + tid] = NULL;
 			ipath_cdbg(VERBOSE, "PID %u freeing TID %u\n",
 				   pd->port_pid, tid);
 			dd->ipath_f_put_tid(dd, &tidbase[tid],
@@ -546,9 +549,7 @@ static int ipath_tid_free(struct ipath_portdata *pd, unsigned subport,
 			pci_unmap_page(dd->pcidev,
 				dd->ipath_physshadow[porttid + tid],
 				PAGE_SIZE, PCI_DMA_FROMDEVICE);
-			ipath_release_user_pages(
-				&dd->ipath_pageshadow[porttid + tid], 1);
-			dd->ipath_pageshadow[porttid + tid] = NULL;
+			ipath_release_user_pages(&p, 1);
 			ipath_stats.sps_pageunlocks++;
 		} else
 			ipath_dbg("Unused tid %u, ignoring\n", tid);
@@ -1341,6 +1342,19 @@ bail:
 	return ret;
 }
 
+static unsigned ipath_poll_hdrqfull(struct ipath_portdata *pd)
+{
+	unsigned pollflag = 0;
+
+	if ((pd->poll_type & IPATH_POLL_TYPE_OVERFLOW) &&
+	    pd->port_hdrqfull != pd->port_hdrqfull_poll) {
+		pollflag |= POLLIN | POLLRDNORM;
+		pd->port_hdrqfull_poll = pd->port_hdrqfull;
+	}
+
+	return pollflag;
+}
+
 static unsigned int ipath_poll_urgent(struct ipath_portdata *pd,
 				      struct file *fp,
 				      struct poll_table_struct *pt)
@@ -1350,22 +1364,20 @@ static unsigned int ipath_poll_urgent(struct ipath_portdata *pd,
 
 	dd = pd->port_dd;
 
-	if (test_bit(IPATH_PORT_WAITING_OVERFLOW, &pd->int_flag)) {
-		pollflag |= POLLERR;
-		clear_bit(IPATH_PORT_WAITING_OVERFLOW, &pd->int_flag);
-	}
+	/* variable access in ipath_poll_hdrqfull() needs this */
+	rmb();
+	pollflag = ipath_poll_hdrqfull(pd);
 
-	if (test_bit(IPATH_PORT_WAITING_URG, &pd->int_flag)) {
+	if (pd->port_urgent != pd->port_urgent_poll) {
 		pollflag |= POLLIN | POLLRDNORM;
-		clear_bit(IPATH_PORT_WAITING_URG, &pd->int_flag);
+		pd->port_urgent_poll = pd->port_urgent;
 	}
 
 	if (!pollflag) {
+		/* this saves a spin_lock/unlock in interrupt handler... */
 		set_bit(IPATH_PORT_WAITING_URG, &pd->port_flag);
-		if (pd->poll_type & IPATH_POLL_TYPE_OVERFLOW)
-			set_bit(IPATH_PORT_WAITING_OVERFLOW,
-				&pd->port_flag);
-
+		/* flush waiting flag so don't miss an event... */
+		wmb();
 		poll_wait(fp, &pd->port_wait, pt);
 	}
 
@@ -1376,31 +1388,27 @@ static unsigned int ipath_poll_next(struct ipath_portdata *pd,
 				    struct file *fp,
 				    struct poll_table_struct *pt)
 {
-	u32 head, tail;
+	u32 head;
+	u32 tail;
 	unsigned pollflag = 0;
 	struct ipath_devdata *dd;
 
 	dd = pd->port_dd;
 
+	/* variable access in ipath_poll_hdrqfull() needs this */
+	rmb();
+	pollflag = ipath_poll_hdrqfull(pd);
+
 	head = ipath_read_ureg32(dd, ur_rcvhdrhead, pd->port_port);
 	tail = *(volatile u64 *)pd->port_rcvhdrtail_kvaddr;
 
-	if (test_bit(IPATH_PORT_WAITING_OVERFLOW, &pd->int_flag)) {
-		pollflag |= POLLERR;
-		clear_bit(IPATH_PORT_WAITING_OVERFLOW, &pd->int_flag);
-	}
-
-	if (tail != head ||
-	    test_bit(IPATH_PORT_WAITING_RCV, &pd->int_flag)) {
+	if (head != tail)
 		pollflag |= POLLIN | POLLRDNORM;
-		clear_bit(IPATH_PORT_WAITING_RCV, &pd->int_flag);
-	}
-
-	if (!pollflag) {
+	else {
+		/* this saves a spin_lock/unlock in interrupt handler */
 		set_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag);
-		if (pd->poll_type & IPATH_POLL_TYPE_OVERFLOW)
-			set_bit(IPATH_PORT_WAITING_OVERFLOW,
-				&pd->port_flag);
+		/* flush waiting flag so we don't miss an event */
+		wmb();
 
 		set_bit(pd->port_port + INFINIPATH_R_INTRAVAIL_SHIFT,
 			&dd->ipath_rcvctrl);
@@ -1917,6 +1925,12 @@ static int ipath_do_user_init(struct file *fp,
 	ipath_cdbg(VERBOSE, "Wrote port%d egrhead %x from tail regs\n",
 		pd->port_port, head32);
 	pd->port_tidcursor = 0;	/* start at beginning after open */
+
+	/* initialize poll variables... */
+	pd->port_urgent = 0;
+	pd->port_urgent_poll = 0;
+	pd->port_hdrqfull_poll = pd->port_hdrqfull;
+
 	/*
 	 * now enable the port; the tail registers will be written to memory
 	 * by the chip as soon as it sees the write to
@@ -2039,8 +2053,10 @@ static int ipath_close(struct inode *in, struct file *fp)
 
 	if (dd->ipath_kregbase) {
 		int i;
-		/* atomically clear receive enable port. */
+		/* atomically clear receive enable port and intr avail. */
 		clear_bit(INFINIPATH_R_PORTENABLE_SHIFT + port,
+			  &dd->ipath_rcvctrl);
+		clear_bit(pd->port_port + INFINIPATH_R_INTRAVAIL_SHIFT,
 			  &dd->ipath_rcvctrl);
 		ipath_write_kreg( dd, dd->ipath_kregs->kr_rcvctrl,
 			dd->ipath_rcvctrl);

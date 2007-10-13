@@ -47,25 +47,26 @@
 
 /**
  *	triflex_prereset		-	probe begin
- *	@ap: ATA port
+ *	@link: ATA link
  *	@deadline: deadline jiffies for the operation
  *
  *	Set up cable type and use generic probe init
  */
 
-static int triflex_prereset(struct ata_port *ap, unsigned long deadline)
+static int triflex_prereset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits triflex_enable_bits[] = {
 		{ 0x80, 1, 0x01, 0x01 },
 		{ 0x80, 1, 0x02, 0x02 }
 	};
 
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &triflex_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 
@@ -197,7 +198,6 @@ static struct scsi_host_template triflex_sht = {
 };
 
 static struct ata_port_operations triflex_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= triflex_set_piomode,
 	.mode_filter	= ata_pci_default_filter,
 
@@ -226,9 +226,8 @@ static struct ata_port_operations triflex_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static int triflex_init_one(struct pci_dev *dev, const struct pci_device_id *id)

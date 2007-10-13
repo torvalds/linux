@@ -44,7 +44,5 @@ void device_shutdown(void)
 			dev->driver->shutdown(dev);
 		}
 	}
-
-	sysdev_shutdown();
 }
 

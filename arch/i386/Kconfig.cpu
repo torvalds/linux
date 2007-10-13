@@ -297,11 +297,6 @@ config X86_POPAD_OK
 	depends on !M386
 	default y
 
-config X86_CMPXCHG64
-	bool
-	depends on X86_PAE
-	default y
-
 config X86_ALIGNMENT_16
 	bool
 	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1

@@ -188,7 +188,7 @@ extern void rose_kick(struct sock *);
 extern void rose_enquiry_response(struct sock *);
 
 /* rose_route.c */
-extern struct rose_neigh rose_loopback_neigh;
+extern struct rose_neigh *rose_loopback_neigh;
 extern const struct file_operations rose_neigh_fops;
 extern const struct file_operations rose_nodes_fops;
 extern const struct file_operations rose_routes_fops;

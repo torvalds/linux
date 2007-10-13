@@ -417,3 +417,15 @@ struct menu *menu_get_parent_menu(struct menu *menu)
 	return menu;
 }
 
+bool menu_has_help(struct menu *menu)
+{
+	return menu->help != NULL;
+}
+
+const char *menu_get_help(struct menu *menu)
+{
+	if (menu->help)
+		return menu->help;
+	else
+		return "";
+}

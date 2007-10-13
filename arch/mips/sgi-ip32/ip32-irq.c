@@ -117,10 +117,18 @@ static void inline flush_mace_bus(void)
 extern irqreturn_t crime_memerr_intr(int irq, void *dev_id);
 extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
 
-struct irqaction memerr_irq = { crime_memerr_intr, IRQF_DISABLED,
-			CPU_MASK_NONE, "CRIME memory error", NULL, NULL };
-struct irqaction cpuerr_irq = { crime_cpuerr_intr, IRQF_DISABLED,
-			CPU_MASK_NONE, "CRIME CPU error", NULL, NULL };
+struct irqaction memerr_irq = {
+	.handler = crime_memerr_intr,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "CRIME memory error",
+};
+struct irqaction cpuerr_irq = {
+	.handler = crime_cpuerr_intr,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "CRIME CPU error",
+};
 
 /*
  * For interrupts wired from a single device to the CPU.  Only the clock
@@ -140,7 +148,7 @@ static void disable_cpu_irq(unsigned int irq)
 static void end_cpu_irq(unsigned int irq)
 {
 	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		enable_cpu_irq (irq);
+		enable_cpu_irq(irq);
 }
 
 static struct irq_chip ip32_cpu_interrupt = {
@@ -281,11 +289,11 @@ static struct irq_chip ip32_macepci_interrupt = {
 
 static unsigned long maceisa_mask;
 
-static void enable_maceisa_irq (unsigned int irq)
+static void enable_maceisa_irq(unsigned int irq)
 {
 	unsigned int crime_int = 0;
 
-	DBG ("maceisa enable: %u\n", irq);
+	DBG("maceisa enable: %u\n", irq);
 
 	switch (irq) {
 	case MACEISA_AUDIO_SW_IRQ ... MACEISA_AUDIO3_MERR_IRQ:
@@ -298,7 +306,7 @@ static void enable_maceisa_irq (unsigned int irq)
 		crime_int = MACE_SUPERIO_INT;
 		break;
 	}
-	DBG ("crime_int %08x enabled\n", crime_int);
+	DBG("crime_int %08x enabled\n", crime_int);
 	crime_mask |= crime_int;
 	crime->imask = crime_mask;
 	maceisa_mask |= 1 << (irq - 33);
@@ -389,15 +397,15 @@ static struct irq_chip ip32_mace_interrupt = {
 
 static void ip32_unknown_interrupt(void)
 {
-	printk ("Unknown interrupt occurred!\n");
-	printk ("cp0_status: %08x\n", read_c0_status());
-	printk ("cp0_cause: %08x\n", read_c0_cause());
-	printk ("CRIME intr mask: %016lx\n", crime->imask);
-	printk ("CRIME intr status: %016lx\n", crime->istat);
-	printk ("CRIME hardware intr register: %016lx\n", crime->hard_int);
-	printk ("MACE ISA intr mask: %08lx\n", mace->perif.ctrl.imask);
-	printk ("MACE ISA intr status: %08lx\n", mace->perif.ctrl.istat);
-	printk ("MACE PCI control register: %08x\n", mace->pci.control);
+	printk("Unknown interrupt occurred!\n");
+	printk("cp0_status: %08x\n", read_c0_status());
+	printk("cp0_cause: %08x\n", read_c0_cause());
+	printk("CRIME intr mask: %016lx\n", crime->imask);
+	printk("CRIME intr status: %016lx\n", crime->istat);
+	printk("CRIME hardware intr register: %016lx\n", crime->hard_int);
+	printk("MACE ISA intr mask: %08lx\n", mace->perif.ctrl.imask);
+	printk("MACE ISA intr status: %08lx\n", mace->perif.ctrl.istat);
+	printk("MACE PCI control register: %08x\n", mace->pci.control);
 
 	printk("Register dump:\n");
 	show_regs(get_irq_regs());
@@ -449,7 +457,7 @@ static void ip32_irq4(void)
 
 static void ip32_irq5(void)
 {
-	ll_timer_interrupt(IP32_R4K_TIMER_IRQ);
+	do_IRQ(IP32_R4K_TIMER_IRQ);
 }
 
 asmlinkage void plat_irq_dispatch(void)

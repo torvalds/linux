@@ -79,7 +79,7 @@ struct usbvision_device_data_st  usbvision_device_data[] = {
 		.Interface     = -1,
 		.Codec         = CODEC_SAA7113,
 		.VideoChannels = 2,
-		.VideoNorm     = V4L2_STD_PAL,
+		.VideoNorm     = V4L2_STD_NTSC,
 		.AudioChannels = 1,
 		.Radio         = 0,
 		.vbi           = 1,
@@ -311,8 +311,8 @@ struct usbvision_device_data_st  usbvision_device_data[] = {
 		.vbi           = 1,
 		.Tuner         = 1,
 		.TunerType     = TUNER_PHILIPS_SECAM,
-		.X_Offset      = -1,
-		.Y_Offset      = -1,
+		.X_Offset      = 0x80,
+		.Y_Offset      = 0x16,
 		.ModelString   = "Hauppauge WinTV USB (PAL/SECAM L)",
 	},
 	[HPG_WINTV_PAL_D_K] = {
@@ -586,7 +586,7 @@ struct usbvision_device_data_st  usbvision_device_data[] = {
 		.Radio         = 0,
 		.vbi           = 1,
 		.Tuner         = 1,
-		.TunerType     = TUNER_PHILIPS_PAL,
+		.TunerType     = TUNER_LG_PAL_NEW_TAPC,
 		.X_Offset      = 0,
 		.Y_Offset      = 3,
 		.Dvi_yuv_override = 1,
@@ -1081,6 +1081,7 @@ struct usb_device_id usbvision_table [] = {
 	{ USB_DEVICE(0x2304, 0x0301), .driver_info=PINNA_LINX_VD_IN_CAB_PAL },
 	{ USB_DEVICE(0x2304, 0x0419), .driver_info=PINNA_PCTV_BUNGEE_PAL_FM },
 	{ USB_DEVICE(0x2400, 0x4200), .driver_info=HPG_WINTV },
+	{ },    /* terminate list */
 };
 
 MODULE_DEVICE_TABLE (usb, usbvision_table);

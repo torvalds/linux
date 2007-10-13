@@ -97,16 +97,6 @@ static inline void restore_access_regs(unsigned int *acrs)
 	prev = __switch_to(prev,next);					     \
 } while (0)
 
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
-
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void account_vtime(struct task_struct *);
 extern void account_tick_vtime(struct task_struct *);
@@ -140,6 +130,8 @@ extern void pfault_fini(void);
 	__ret;								  \
 })
 
+extern void __xchg_called_with_bad_pointer(void);
+
 static inline unsigned long __xchg(unsigned long x, void * ptr, int size)
 {
 	unsigned long addr, old;
@@ -160,8 +152,7 @@ static inline unsigned long __xchg(unsigned long x, void * ptr, int size)
 			: "=&d" (old), "=m" (*(int *) addr)
 			: "d" (x << shift), "d" (~(255 << shift)), "a" (addr),
 			  "m" (*(int *) addr) : "memory", "cc", "0");
-		x = old >> shift;
-		break;
+		return old >> shift;
 	case 2:
 		addr = (unsigned long) ptr;
 		shift = (2 ^ (addr & 2)) << 3;
@@ -176,8 +167,7 @@ static inline unsigned long __xchg(unsigned long x, void * ptr, int size)
 			: "=&d" (old), "=m" (*(int *) addr)
 			: "d" (x << shift), "d" (~(65535 << shift)), "a" (addr),
 			  "m" (*(int *) addr) : "memory", "cc", "0");
-		x = old >> shift;
-		break;
+		return old >> shift;
 	case 4:
 		asm volatile(
 			"	l	%0,0(%3)\n"
@@ -186,8 +176,7 @@ static inline unsigned long __xchg(unsigned long x, void * ptr, int size)
 			: "=&d" (old), "=m" (*(int *) ptr)
 			: "d" (x), "a" (ptr), "m" (*(int *) ptr)
 			: "memory", "cc");
-		x = old;
-		break;
+		return old;
 #ifdef __s390x__
 	case 8:
 		asm volatile(
@@ -197,11 +186,11 @@ static inline unsigned long __xchg(unsigned long x, void * ptr, int size)
 			: "=&d" (old), "=m" (*(long *) ptr)
 			: "d" (x), "a" (ptr), "m" (*(long *) ptr)
 			: "memory", "cc");
-		x = old;
-		break;
+		return old;
 #endif /* __s390x__ */
-        }
-        return x;
+	}
+	__xchg_called_with_bad_pointer();
+	return x;
 }
 
 /*
@@ -215,6 +204,8 @@ static inline unsigned long __xchg(unsigned long x, void * ptr, int size)
 #define cmpxchg(ptr,o,n)\
 	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
 					(unsigned long)(n),sizeof(*(ptr))))
+
+extern void __cmpxchg_called_with_bad_pointer(void);
 
 static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
@@ -280,7 +271,8 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 		return prev;
 #endif /* __s390x__ */
         }
-        return old;
+	__cmpxchg_called_with_bad_pointer();
+	return old;
 }
 
 /*

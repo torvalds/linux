@@ -46,7 +46,7 @@
 extern int (*board_pci_idsel)(unsigned int devsel, int assert);
 int    mtx1_pci_idsel(unsigned int devsel, int assert);
 
-void board_reset (void)
+void board_reset(void)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
 	au_writel(0x00000000, 0xAE00001C);
@@ -54,11 +54,11 @@ void board_reset (void)
 
 void __init board_setup(void)
 {
-#ifdef CONFIG_USB_OHCI
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	// enable USB power switch
 	au_writel( au_readl(GPIO2_DIR) | 0x10, GPIO2_DIR );
 	au_writel( 0x100000, GPIO2_OUTPUT );
-#endif // defined (CONFIG_USB_OHCI)
+#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 
 #ifdef CONFIG_PCI
 #if defined(__MIPSEB__)

@@ -324,7 +324,7 @@ static inline int fls64(unsigned long x)
 {
 	unsigned long t, a, r;
 
-	t = __kernel_cmpbge (x, 0x0101010101010101);
+	t = __kernel_cmpbge (x, 0x0101010101010101UL);
 	a = __flsm1_tab[t];
 	t = __kernel_extbl (x, a);
 	r = a*8 + __flsm1_tab[t] + (x != 0);

@@ -9,11 +9,12 @@
 #ifndef _S390_PAGE_H
 #define _S390_PAGE_H
 
+#include <linux/const.h>
 #include <asm/types.h>
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT      12
-#define PAGE_SIZE       (1UL << PAGE_SHIFT)
+#define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
 #define PAGE_MASK       (~(PAGE_SIZE-1))
 #define PAGE_DEFAULT_ACC	0
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)

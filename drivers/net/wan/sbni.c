@@ -54,6 +54,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
+#include <net/net_namespace.h>
 #include <net/arp.h>
 
 #include <asm/io.h>
@@ -215,8 +216,6 @@ static void __init sbni_devsetup(struct net_device *dev)
 	dev->get_stats		= &sbni_get_stats;
 	dev->set_multicast_list	= &set_multicast_list;
 	dev->do_ioctl		= &sbni_ioctl;
-
-	SET_MODULE_OWNER( dev );
 }
 
 int __init sbni_probe(int unit)
@@ -1361,7 +1360,7 @@ sbni_ioctl( struct net_device  *dev,  struct ifreq  *ifr,  int  cmd )
 
 		if (copy_from_user( slave_name, ifr->ifr_data, sizeof slave_name ))
 			return -EFAULT;
-		slave_dev = dev_get_by_name( slave_name );
+		slave_dev = dev_get_by_name(&init_net, slave_name );
 		if( !slave_dev  ||  !(slave_dev->flags & IFF_UP) ) {
 			printk( KERN_ERR "%s: trying to enslave non-active "
 				"device %s\n", dev->name, slave_name );

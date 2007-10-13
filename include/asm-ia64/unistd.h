@@ -292,7 +292,7 @@
 #define __NR_sync_file_range		1300
 #define __NR_tee			1301
 #define __NR_vmsplice			1302
-/* 1303 reserved for move_pages */
+#define __NR_fallocate			1303
 #define __NR_getcpu			1304
 #define __NR_epoll_pwait		1305
 #define __NR_utimensat			1306

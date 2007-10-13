@@ -757,7 +757,6 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 		uhci_free_td(uhci, td);
 	}
 
-	urbp->urb->hcpriv = NULL;
 	kmem_cache_free(uhci_up_cachep, urbp);
 }
 
@@ -827,8 +826,10 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 * If direction is "send", change the packet ID from SETUP (0x2D)
 	 * to OUT (0xE1).  Else change it from SETUP to IN (0x69) and
 	 * set Short Packet Detect (SPD) for all data packets.
+	 *
+	 * 0-length transfers always get treated as "send".
 	 */
-	if (usb_pipeout(urb->pipe))
+	if (usb_pipeout(urb->pipe) || len == 0)
 		destination ^= (USB_PID_SETUP ^ USB_PID_OUT);
 	else {
 		destination ^= (USB_PID_SETUP ^ USB_PID_IN);
@@ -839,7 +840,12 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 * Build the DATA TDs
 	 */
 	while (len > 0) {
-		int pktsze = min(len, maxsze);
+		int pktsze = maxsze;
+
+		if (len <= pktsze) {		/* The last data packet */
+			pktsze = len;
+			status &= ~TD_CTRL_SPD;
+		}
 
 		td = uhci_alloc_td(uhci);
 		if (!td)
@@ -866,19 +872,9 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		goto nomem;
 	*plink = LINK_TO_TD(td);
 
-	/*
-	 * It's IN if the pipe is an output pipe or we're not expecting
-	 * data back.
-	 */
-	destination &= ~TD_TOKEN_PID_MASK;
-	if (usb_pipeout(urb->pipe) || !urb->transfer_buffer_length)
-		destination |= USB_PID_IN;
-	else
-		destination |= USB_PID_OUT;
-
+	/* Change direction for the status transaction */
+	destination ^= (USB_PID_IN ^ USB_PID_OUT);
 	destination |= TD_TOKEN_TOGGLE;		/* End in Data1 */
-
-	status &= ~TD_CTRL_SPD;
 
 	uhci_add_td_to_urbp(td, urbp);
 	uhci_fill_td(td, status | TD_CTRL_IOC,
@@ -1185,10 +1181,18 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 				}
 			}
 
+		/* Did we receive a short packet? */
 		} else if (len < uhci_expected_length(td_token(td))) {
 
-			/* We received a short packet */
-			if (urb->transfer_flags & URB_SHORT_NOT_OK)
+			/* For control transfers, go to the status TD if
+			 * this isn't already the last data TD */
+			if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
+				if (td->list.next != urbp->td_list.prev)
+					ret = 1;
+			}
+
+			/* For bulk and interrupt, this may be an error */
+			else if (urb->transfer_flags & URB_SHORT_NOT_OK)
 				ret = -EREMOTEIO;
 
 			/* Fixup needed only if this isn't the URB's last TD */
@@ -1208,10 +1212,6 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 
 err:
 	if (ret < 0) {
-		/* In case a control transfer gets an error
-		 * during the setup stage */
-		urb->actual_length = max(urb->actual_length, 0);
-
 		/* Note that the queue has stopped and save
 		 * the next toggle value */
 		qh->element = UHCI_PTR_TERM;
@@ -1323,7 +1323,6 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	if (list_empty(&qh->queue)) {
 		qh->iso_packet_desc = &urb->iso_frame_desc[0];
 		qh->iso_frame = urb->start_frame;
-		qh->iso_status = 0;
 	}
 
 	qh->skel = SKEL_ISO;
@@ -1360,22 +1359,18 @@ static int uhci_result_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 			qh->iso_packet_desc->actual_length = actlength;
 			qh->iso_packet_desc->status = status;
 		}
-
-		if (status) {
+		if (status)
 			urb->error_count++;
-			qh->iso_status = status;
-		}
 
 		uhci_remove_td_from_urbp(td);
 		uhci_free_td(uhci, td);
 		qh->iso_frame += qh->period;
 		++qh->iso_packet_desc;
 	}
-	return qh->iso_status;
+	return 0;
 }
 
 static int uhci_urb_enqueue(struct usb_hcd *hcd,
-		struct usb_host_endpoint *hep,
 		struct urb *urb, gfp_t mem_flags)
 {
 	int ret;
@@ -1386,19 +1381,19 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 
 	spin_lock_irqsave(&uhci->lock, flags);
 
-	ret = urb->status;
-	if (ret != -EINPROGRESS)		/* URB already unlinked! */
-		goto done;
+	ret = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (ret)
+		goto done_not_linked;
 
 	ret = -ENOMEM;
 	urbp = uhci_alloc_urb_priv(uhci, urb);
 	if (!urbp)
 		goto done;
 
-	if (hep->hcpriv)
-		qh = (struct uhci_qh *) hep->hcpriv;
+	if (urb->ep->hcpriv)
+		qh = urb->ep->hcpriv;
 	else {
-		qh = uhci_alloc_qh(uhci, urb->dev, hep);
+		qh = uhci_alloc_qh(uhci, urb->dev, urb->ep);
 		if (!qh)
 			goto err_no_qh;
 	}
@@ -1439,27 +1434,29 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 err_submit_failed:
 	if (qh->state == QH_STATE_IDLE)
 		uhci_make_qh_idle(uhci, qh);	/* Reclaim unused QH */
-
 err_no_qh:
 	uhci_free_urb_priv(uhci, urbp);
-
 done:
+	if (ret)
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+done_not_linked:
 	spin_unlock_irqrestore(&uhci->lock, flags);
 	return ret;
 }
 
-static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
+static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned long flags;
-	struct urb_priv *urbp;
 	struct uhci_qh *qh;
+	int rc;
 
 	spin_lock_irqsave(&uhci->lock, flags);
-	urbp = urb->hcpriv;
-	if (!urbp)			/* URB was never linked! */
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
 		goto done;
-	qh = urbp->qh;
+
+	qh = ((struct urb_priv *) urb->hcpriv)->qh;
 
 	/* Remove Isochronous TDs from the frame list ASAP */
 	if (qh->type == USB_ENDPOINT_XFER_ISOC) {
@@ -1476,22 +1473,31 @@ static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 
 done:
 	spin_unlock_irqrestore(&uhci->lock, flags);
-	return 0;
+	return rc;
 }
 
 /*
  * Finish unlinking an URB and give it back
  */
 static void uhci_giveback_urb(struct uhci_hcd *uhci, struct uhci_qh *qh,
-		struct urb *urb)
+		struct urb *urb, int status)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
 	struct urb_priv *urbp = (struct urb_priv *) urb->hcpriv;
 
+	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
+
+		/* urb->actual_length < 0 means the setup transaction didn't
+		 * complete successfully.  Either it failed or the URB was
+		 * unlinked first.  Regardless, don't confuse people with a
+		 * negative length. */
+		urb->actual_length = max(urb->actual_length, 0);
+	}
+
 	/* When giving back the first URB in an Isochronous queue,
 	 * reinitialize the QH's iso-related members for the next URB. */
-	if (qh->type == USB_ENDPOINT_XFER_ISOC &&
+	else if (qh->type == USB_ENDPOINT_XFER_ISOC &&
 			urbp->node.prev == &qh->queue &&
 			urbp->node.next != &qh->queue) {
 		struct urb *nurb = list_entry(urbp->node.next,
@@ -1499,7 +1505,6 @@ __acquires(uhci->lock)
 
 		qh->iso_packet_desc = &nurb->iso_frame_desc[0];
 		qh->iso_frame = nurb->start_frame;
-		qh->iso_status = 0;
 	}
 
 	/* Take the URB off the QH's queue.  If the queue is now empty,
@@ -1512,9 +1517,10 @@ __acquires(uhci->lock)
 	}
 
 	uhci_free_urb_priv(uhci, urbp);
+	usb_hcd_unlink_urb_from_ep(uhci_to_hcd(uhci), urb);
 
 	spin_unlock(&uhci->lock);
-	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb);
+	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb, status);
 	spin_lock(&uhci->lock);
 
 	/* If the queue is now empty, we can unlink the QH and give up its
@@ -1550,24 +1556,17 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		if (status == -EINPROGRESS)
 			break;
 
-		spin_lock(&urb->lock);
-		if (urb->status == -EINPROGRESS)	/* Not dequeued */
-			urb->status = status;
-		else
-			status = ECONNRESET;		/* Not -ECONNRESET */
-		spin_unlock(&urb->lock);
-
 		/* Dequeued but completed URBs can't be given back unless
 		 * the QH is stopped or has finished unlinking. */
-		if (status == ECONNRESET) {
+		if (urb->unlinked) {
 			if (QH_FINISHED_UNLINKING(qh))
 				qh->is_stopped = 1;
 			else if (!qh->is_stopped)
 				return;
 		}
 
-		uhci_giveback_urb(uhci, qh, urb);
-		if (status < 0 && qh->type != USB_ENDPOINT_XFER_ISOC)
+		uhci_giveback_urb(uhci, qh, urb, status);
+		if (status < 0)
 			break;
 	}
 
@@ -1582,7 +1581,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 restart:
 	list_for_each_entry(urbp, &qh->queue, node) {
 		urb = urbp->urb;
-		if (urb->status != -EINPROGRESS) {
+		if (urb->unlinked) {
 
 			/* Fix up the TD links and save the toggles for
 			 * non-Isochronous queues.  For Isochronous queues,
@@ -1591,7 +1590,7 @@ restart:
 				qh->is_stopped = 0;
 				return;
 			}
-			uhci_giveback_urb(uhci, qh, urb);
+			uhci_giveback_urb(uhci, qh, urb, 0);
 			goto restart;
 		}
 	}

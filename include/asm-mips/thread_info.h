@@ -46,7 +46,7 @@ struct thread_info {
 {						\
 	.task		= &tsk,			\
 	.exec_domain	= &default_exec_domain,	\
-	.flags		= 0,			\
+	.flags		= _TIF_FIXADE,		\
 	.cpu		= 0,			\
 	.preempt_count	= 1,			\
 	.addr_limit	= KERNEL_DS,		\
@@ -87,9 +87,8 @@ register struct thread_info *__current_thread_info __asm__("$28");
 ({								\
 	struct thread_info *ret;				\
 								\
-	ret = kmalloc(THREAD_SIZE, GFP_KERNEL);			\
-	if (ret)						\
-		memset(ret, 0, THREAD_SIZE);			\
+	ret = kzalloc(THREAD_SIZE, GFP_KERNEL);			\
+								\
 	ret;							\
 })
 #else
@@ -109,20 +108,23 @@ register struct thread_info *__current_thread_info __asm__("$28");
  * - pending work-to-be-done flags are in LSW
  * - other flags in MSW
  */
-#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
-#define TIF_SIGPENDING		2	/* signal pending */
-#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
-#define TIF_SYSCALL_AUDIT	4	/* syscall auditing active */
-#define TIF_SECCOMP		5	/* secure computing */
+#define TIF_SIGPENDING		1	/* signal pending */
+#define TIF_NEED_RESCHED	2	/* rescheduling necessary */
+#define TIF_SYSCALL_AUDIT	3	/* syscall auditing active */
+#define TIF_SECCOMP		4	/* secure computing */
 #define TIF_RESTORE_SIGMASK	9	/* restore signal mask in do_signal() */
 #define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_POLLING_NRFLAG	17	/* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE		18
 #define TIF_FREEZE		19
+#define TIF_FIXADE		20	/* Fix address errors in software */
+#define TIF_LOGADE		21	/* Log address errors to syslog */
+#define TIF_32BIT_REGS		22	/* also implies 16/32 fprs */
+#define TIF_32BIT_ADDR		23	/* 32-bit address space (o32/n32) */
+#define TIF_FPUBOUND		24	/* thread bound to FPU-full CPU set */
 #define TIF_SYSCALL_TRACE	31	/* syscall trace active */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
@@ -131,6 +133,11 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #define _TIF_USEDFPU		(1<<TIF_USEDFPU)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)
+#define _TIF_FIXADE		(1<<TIF_FIXADE)
+#define _TIF_LOGADE		(1<<TIF_LOGADE)
+#define _TIF_32BIT_REGS		(1<<TIF_32BIT_REGS)
+#define _TIF_32BIT_ADDR		(1<<TIF_32BIT_ADDR)
+#define _TIF_FPUBOUND		(1<<TIF_FPUBOUND)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		(0x0000ffef & ~_TIF_SECCOMP)

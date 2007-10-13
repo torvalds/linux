@@ -23,6 +23,7 @@
 #include <asm/todc.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 #include <asm/ocp.h>
 #include <asm/ibm_ocp_pci.h>
 #include <platforms/4xx/ibm405gp.h>

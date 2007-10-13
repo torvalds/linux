@@ -203,4 +203,10 @@ extern struct task_struct *last_task_used_math;
 #define FP_INHIBIT_RESULTS ((last_task_used_math->thread.fsr >> 23) & _fex)
 #endif
 
+#ifdef CONFIG_SMP
+#define FP_TRAPPING_EXCEPTIONS ((current->thread.fsr >> 23) & 0x1f)
+#else
+#define FP_TRAPPING_EXCEPTIONS ((last_task_used_math->thread.fsr >> 23) & 0x1f)
+#endif
+
 #endif

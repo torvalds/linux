@@ -1,7 +1,6 @@
-/* $Id: floppy.h,v 1.32 2001/10/26 17:59:36 davem Exp $
- * asm-sparc64/floppy.h: Sparc specific parts of the Floppy driver.
+/* floppy.h: Sparc specific parts of the Floppy driver.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  *
  * Ultra/PCI support added: Sep 1997  Eddie C. Dost  (ecd@skynet.be)
@@ -11,6 +10,7 @@
 #define __ASM_SPARC64_FLOPPY_H
 
 #include <linux/init.h>
+#include <linux/pci.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>

@@ -8,12 +8,10 @@
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
- * Portions Copyright (C) 2005-2006	MontaVista Software, Inc.
+ * Portions Copyright (C) 2005-2007	MontaVista Software, Inc.
  *
  * TODO
- *	PLL mode
- *	Look into engine reset on timeout errors. Should not be
- *		required.
+ *	Look into engine reset on timeout errors. Should not be	required.
  */
 
 #include <linux/kernel.h>
@@ -26,7 +24,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.6"
+#define DRV_VERSION	"0.6.9"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -306,15 +304,16 @@ static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
 
 /**
  *	hpt37x_pre_reset	-	reset the hpt37x bus
- *	@ap: ATA port to reset
+ *	@link: ATA link to reset
  *	@deadline: deadline jiffies for the operation
  *
  *	Perform the initial reset handling for the 370/372 and 374 func 0
  */
 
-static int hpt37x_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	u8 scr2, ata66;
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	static const struct pci_bits hpt37x_enable_bits[] = {
 		{ 0x50, 1, 0x04, 0x04 },
@@ -339,7 +338,7 @@ static int hpt37x_pre_reset(struct ata_port *ap, unsigned long deadline)
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -354,7 +353,7 @@ static void hpt37x_error_handler(struct ata_port *ap)
 	ata_bmdma_drive_eh(ap, hpt37x_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
 }
 
-static int hpt374_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int hpt374_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits hpt37x_enable_bits[] = {
 		{ 0x50, 1, 0x04, 0x04 },
@@ -362,6 +361,7 @@ static int hpt374_pre_reset(struct ata_port *ap, unsigned long deadline)
 	};
 	u16 mcr3, mcr6;
 	u8 ata66;
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
@@ -389,7 +389,7 @@ static int hpt374_pre_reset(struct ata_port *ap, unsigned long deadline)
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -644,7 +644,6 @@ static struct scsi_host_template hpt37x_sht = {
  */
 
 static struct ata_port_operations hpt370_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt370_set_piomode,
 	.set_dmamode	= hpt370_set_dmamode,
 	.mode_filter	= hpt370_filter,
@@ -673,9 +672,8 @@ static struct ata_port_operations hpt370_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /*
@@ -683,7 +681,6 @@ static struct ata_port_operations hpt370_port_ops = {
  */
 
 static struct ata_port_operations hpt370a_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt370_set_piomode,
 	.set_dmamode	= hpt370_set_dmamode,
 	.mode_filter	= hpt370a_filter,
@@ -712,9 +709,8 @@ static struct ata_port_operations hpt370a_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /*
@@ -723,7 +719,6 @@ static struct ata_port_operations hpt370a_port_ops = {
  */
 
 static struct ata_port_operations hpt372_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt372_set_piomode,
 	.set_dmamode	= hpt372_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -752,9 +747,8 @@ static struct ata_port_operations hpt372_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /*
@@ -763,7 +757,6 @@ static struct ata_port_operations hpt372_port_ops = {
  */
 
 static struct ata_port_operations hpt374_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt372_set_piomode,
 	.set_dmamode	= hpt372_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -792,9 +785,8 @@ static struct ata_port_operations hpt374_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /**
@@ -1092,9 +1084,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		int dpll, adjust;
 
 		/* Compute DPLL */
-		dpll = 2;
-		if (port->udma_mask & 0xE0)
-			dpll = 3;
+		dpll = (port->udma_mask & 0xC0) ? 3 : 2;
 
 		f_low = (MHz[clock_slot] * 48) / MHz[dpll];
 		f_high = f_low + 2;
@@ -1103,20 +1093,20 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 		/* Select the DPLL clock. */
 		pci_write_config_byte(dev, 0x5b, 0x21);
-		pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low);
+		pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low | 0x100);
 
 		for(adjust = 0; adjust < 8; adjust++) {
 			if (hpt37x_calibrate_dpll(dev))
 				break;
 			/* See if it'll settle at a fractionally different clock */
-			if ((adjust & 3) == 3) {
-				f_low --;
-				f_high ++;
-			}
-			pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low);
+			if (adjust & 1)
+				f_low -= adjust >> 1;
+			else
+				f_high += adjust >> 1;
+			pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low | 0x100);
 		}
 		if (adjust == 8) {
-			printk(KERN_WARNING "hpt37x: DPLL did not stabilize.\n");
+			printk(KERN_ERR "pata_hpt37x: DPLL did not stabilize!\n");
 			return -ENODEV;
 		}
 		if (dpll == 3)
@@ -1124,7 +1114,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		else
 			private_data = (void *)hpt37x_timings_50;
 
-		printk(KERN_INFO "hpt37x: Bus clock %dMHz, using DPLL.\n", MHz[dpll]);
+		printk(KERN_INFO "pata_hpt37x: bus clock %dMHz, using %dMHz DPLL.\n",
+		       MHz[clock_slot], MHz[dpll]);
 	} else {
 		private_data = (void *)chip_table->clocks[clock_slot];
 		/*
@@ -1137,7 +1128,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			port = &info_hpt370_33;
 		if (clock_slot < 2 && port == &info_hpt370a)
 			port = &info_hpt370a_33;
-		printk(KERN_INFO "hpt37x: %s: Bus clock %dMHz.\n", chip_table->name, MHz[clock_slot]);
+		printk(KERN_INFO "pata_hpt37x: %s using %dMHz bus clock.\n",
+		       chip_table->name, MHz[clock_slot]);
 	}
 
 	/* Now kick off ATA set up */

@@ -110,11 +110,6 @@ static void mos7720_interrupt_callback(struct urb *urb)
 
 	dbg("%s"," : Entering\n");
 
-	if (!urb) {
-		dbg("%s","Invalid Pointer !!!!:\n");
-		return;
-	}
-
 	switch (status) {
 	case 0:
 		/* success */

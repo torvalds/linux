@@ -50,7 +50,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/usb.h>
 #include <linux/device.h>
@@ -465,7 +464,7 @@ static void mcs_unwrap_fir(struct mcs_cb *mcs, __u8 *buf, int len)
 	}
 
 	fcs = ~(crc32_le(~0, buf, new_len));
-	if(fcs != le32_to_cpu(get_unaligned((u32 *)(buf+new_len)))) {
+	if(fcs != le32_to_cpu(get_unaligned((__le32 *)(buf+new_len)))) {
 		IRDA_ERROR("crc error calc 0x%x len %d\n", fcs, new_len);
 		mcs->stats.rx_errors++;
 		mcs->stats.rx_crc_errors++;
@@ -899,8 +898,6 @@ static int mcs_probe(struct usb_interface *intf,
 
 	IRDA_DEBUG(1, "MCS7780 USB-IrDA bridge found at %d.\n", udev->devnum);
 
-	/* what is it realy for? */
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &intf->dev);
 
 	ret = usb_reset_configuration(udev);

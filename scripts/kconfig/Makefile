@@ -22,24 +22,25 @@ oldconfig: $(obj)/conf
 silentoldconfig: $(obj)/conf
 	$< -s arch/$(ARCH)/Kconfig
 
+# Create new linux.po file
+# Adjust charset to UTF-8 in .po file to accept UTF-8 in Kconfig files
+# The symlink is used to repair a deficiency in arch/um
 update-po-config: $(obj)/kxgettext
-	xgettext --default-domain=linux \
-          --add-comments --keyword=_ --keyword=N_ \
-          --files-from=scripts/kconfig/POTFILES.in \
-          --output scripts/kconfig/config.pot
-	$(Q)ln -fs Kconfig_i386 arch/um/Kconfig_arch
-	$(Q)for i in `ls arch/`; \
-	do \
-	  scripts/kconfig/kxgettext arch/$$i/Kconfig \
-	    | msguniq -o scripts/kconfig/linux_$${i}.pot; \
-	done
-	$(Q)msgcat scripts/kconfig/config.pot \
-	  `find scripts/kconfig/ -type f -name linux_*.pot` \
-	  --output scripts/kconfig/linux_raw.pot
-	$(Q)msguniq --sort-by-file scripts/kconfig/linux_raw.pot \
-	    --output scripts/kconfig/linux.pot
-	$(Q)rm -f arch/um/Kconfig_arch
-	$(Q)rm -f scripts/kconfig/linux_*.pot scripts/kconfig/config.pot
+	xgettext --default-domain=linux                  \
+	    --add-comments --keyword=_ --keyword=N_      \
+	    --from-code=UTF-8                            \
+	    --files-from=scripts/kconfig/POTFILES.in     \
+	    --output $(obj)/config.pot
+	$(Q)sed -i s/CHARSET/UTF-8/ $(obj)/config.pot
+	$(Q)ln -fs Kconfig.i386 arch/um/Kconfig.arch
+	(for i in `ls arch/`;                            \
+	do                                               \
+	    $(obj)/kxgettext arch/$$i/Kconfig;           \
+	done ) >> $(obj)/config.pot
+	msguniq --sort-by-file --to-code=UTF-8 $(obj)/config.pot \
+	    --output $(obj)/linux.pot
+	$(Q)rm -f arch/um/Kconfig.arch
+	$(Q)rm -f $(obj)/config.pot
 
 PHONY += randconfig allyesconfig allnoconfig allmodconfig defconfig
 

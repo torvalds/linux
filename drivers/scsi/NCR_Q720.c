@@ -148,11 +148,10 @@ NCR_Q720_probe(struct device *dev)
 	__u32 base_addr, mem_size;
 	void __iomem *mem_base;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
-	memset(p, 0, sizeof(*p));
 	pos2 = mca_device_read_pos(mca_dev, 2);
 	/* enable device */
 	pos2 |=  NCR_Q720_POS2_BOARD_ENABLE | NCR_Q720_POS2_INTERRUPT_ENABLE;

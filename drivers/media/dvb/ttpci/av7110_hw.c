@@ -158,7 +158,7 @@ static int load_dram(struct av7110 *av7110, u32 *data, int len)
 		}
 		dprintk(4, "writing DRAM block %d\n", i);
 		mwdebi(av7110, DEBISWAB, bootblock,
-		       ((char*)data) + i * AV7110_BOOT_MAX_SIZE, AV7110_BOOT_MAX_SIZE);
+		       ((u8 *)data) + i * AV7110_BOOT_MAX_SIZE, AV7110_BOOT_MAX_SIZE);
 		bootblock ^= 0x1400;
 		iwdebi(av7110, DEBISWAB, AV7110_BOOT_BASE, swab32(base), 4);
 		iwdebi(av7110, DEBINOSWAP, AV7110_BOOT_SIZE, AV7110_BOOT_MAX_SIZE, 2);
@@ -173,10 +173,10 @@ static int load_dram(struct av7110 *av7110, u32 *data, int len)
 		}
 		if (rest > 4)
 			mwdebi(av7110, DEBISWAB, bootblock,
-			       ((char*)data) + i * AV7110_BOOT_MAX_SIZE, rest);
+			       ((u8 *)data) + i * AV7110_BOOT_MAX_SIZE, rest);
 		else
 			mwdebi(av7110, DEBISWAB, bootblock,
-			       ((char*)data) + i * AV7110_BOOT_MAX_SIZE - 4, rest + 4);
+			       ((u8 *)data) + i * AV7110_BOOT_MAX_SIZE - 4, rest + 4);
 
 		iwdebi(av7110, DEBISWAB, AV7110_BOOT_BASE, swab32(base), 4);
 		iwdebi(av7110, DEBINOSWAP, AV7110_BOOT_SIZE, rest, 2);
@@ -751,7 +751,7 @@ static int FlushText(struct av7110 *av7110)
 	return 0;
 }
 
-static int WriteText(struct av7110 *av7110, u8 win, u16 x, u16 y, u8* buf)
+static int WriteText(struct av7110 *av7110, u8 win, u16 x, u16 y, char *buf)
 {
 	int i, ret;
 	unsigned long start;
@@ -978,24 +978,24 @@ static int OSDSetColor(struct av7110 *av7110, u8 color, u8 r, u8 g, u8 b, u8 ble
 
 static int OSDSetPalette(struct av7110 *av7110, u32 __user * colors, u8 first, u8 last)
 {
-       int i;
-       int length = last - first + 1;
+	int i;
+	int length = last - first + 1;
 
-       if (length * 4 > DATA_BUFF3_SIZE)
-	       return -EINVAL;
+	if (length * 4 > DATA_BUFF3_SIZE)
+		return -EINVAL;
 
-       for (i = 0; i < length; i++) {
-	       u32 color, blend, yuv;
+	for (i = 0; i < length; i++) {
+		u32 color, blend, yuv;
 
-	       if (get_user(color, colors + i))
-		       return -EFAULT;
-	       blend = (color & 0xF0000000) >> 4;
-	       yuv = blend ? RGB2YUV(color & 0xFF, (color >> 8) & 0xFF,
+		if (get_user(color, colors + i))
+			return -EFAULT;
+		blend = (color & 0xF0000000) >> 4;
+		yuv = blend ? RGB2YUV(color & 0xFF, (color >> 8) & 0xFF,
 				     (color >> 16) & 0xFF) | blend : 0;
-	       yuv = ((yuv & 0xFFFF0000) >> 16) | ((yuv & 0x0000FFFF) << 16);
-	       wdebi(av7110, DEBINOSWAP, DATA_BUFF3_BASE + i * 4, yuv, 4);
-       }
-       return av7110_fw_cmd(av7110, COMTYPE_OSD, Set_Palette, 4,
+		yuv = ((yuv & 0xFFFF0000) >> 16) | ((yuv & 0x0000FFFF) << 16);
+		wdebi(av7110, DEBINOSWAP, DATA_BUFF3_BASE + i * 4, yuv, 4);
+	}
+	return av7110_fw_cmd(av7110, COMTYPE_OSD, Set_Palette, 4,
 			    av7110->osdwin,
 			    bpp2pal[av7110->osdbpp[av7110->osdwin]],
 			    first, last);

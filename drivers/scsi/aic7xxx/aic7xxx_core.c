@@ -1701,7 +1701,16 @@ ahc_find_syncrate(struct ahc_softc *ahc, u_int *period,
 	if ((*ppr_options & MSG_EXT_PPR_DT_REQ) == 0
 	 && maxsync < AHC_SYNCRATE_ULTRA2)
 		maxsync = AHC_SYNCRATE_ULTRA2;
-	
+
+	/* Now set the maxsync based on the card capabilities
+	 * DT is already done above */
+	if ((ahc->features & (AHC_DT | AHC_ULTRA2)) == 0
+	    && maxsync < AHC_SYNCRATE_ULTRA)
+		maxsync = AHC_SYNCRATE_ULTRA;
+	if ((ahc->features & (AHC_DT | AHC_ULTRA2 | AHC_ULTRA)) == 0
+	    && maxsync < AHC_SYNCRATE_FAST)
+		maxsync = AHC_SYNCRATE_FAST;
+
 	for (syncrate = &ahc_syncrates[maxsync];
 	     syncrate->rate != NULL;
 	     syncrate++) {
@@ -1764,6 +1773,17 @@ ahc_find_period(struct ahc_softc *ahc, u_int scsirate, u_int maxsync)
 		scsirate &= SXFR_ULTRA2;
 	else
 		scsirate &= SXFR;
+
+	/* now set maxsync based on card capabilities */
+	if ((ahc->features & AHC_DT) == 0 && maxsync < AHC_SYNCRATE_ULTRA2)
+		maxsync = AHC_SYNCRATE_ULTRA2;
+	if ((ahc->features & (AHC_DT | AHC_ULTRA2)) == 0
+	    && maxsync < AHC_SYNCRATE_ULTRA)
+		maxsync = AHC_SYNCRATE_ULTRA;
+	if ((ahc->features & (AHC_DT | AHC_ULTRA2 | AHC_ULTRA)) == 0
+	    && maxsync < AHC_SYNCRATE_FAST)
+		maxsync = AHC_SYNCRATE_FAST;
+
 
 	syncrate = &ahc_syncrates[maxsync];
 	while (syncrate->rate != NULL) {

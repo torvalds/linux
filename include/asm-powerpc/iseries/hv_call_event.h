@@ -21,6 +21,9 @@
 #ifndef _ASM_POWERPC_ISERIES_HV_CALL_EVENT_H
 #define _ASM_POWERPC_ISERIES_HV_CALL_EVENT_H
 
+#include <linux/types.h>
+#include <linux/dma-mapping.h>
+
 #include <asm/iseries/hv_call_sc.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/abs_addr.h>
@@ -112,6 +115,13 @@ static inline HvLpEvent_Rc HvCallEvent_signalLpEventFast(HvLpIndex targetLp,
 			correlationToken, eventData1, eventData2,
 			eventData3, eventData4, eventData5);
 }
+
+extern void *iseries_hv_alloc(size_t size, dma_addr_t *dma_handle, gfp_t flag);
+extern void iseries_hv_free(size_t size, void *vaddr, dma_addr_t dma_handle);
+extern dma_addr_t iseries_hv_map(void *vaddr, size_t size,
+			enum dma_data_direction direction);
+extern void iseries_hv_unmap(dma_addr_t dma_handle, size_t size,
+			enum dma_data_direction direction);
 
 static inline HvLpEvent_Rc HvCallEvent_ackLpEvent(struct HvLpEvent *event)
 {

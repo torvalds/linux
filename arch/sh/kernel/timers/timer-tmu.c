@@ -80,6 +80,7 @@ static void tmu_set_mode(enum clock_event_mode mode,
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
+	case CLOCK_EVT_MODE_RESUME:
 		break;
 	}
 }
@@ -172,8 +173,7 @@ static int tmu_timer_init(void)
 
 	tmu_timer_stop();
 
-#if !defined(CONFIG_CPU_SUBTYPE_SH7300) && \
-    !defined(CONFIG_CPU_SUBTYPE_SH7760) && \
+#if !defined(CONFIG_CPU_SUBTYPE_SH7760) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7785) && \
     !defined(CONFIG_CPU_SUBTYPE_SHX3)
 	ctrl_outb(TMU_TOCR_INIT, TMU_TOCR);

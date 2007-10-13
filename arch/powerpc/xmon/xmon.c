@@ -833,7 +833,7 @@ cmds(struct pt_regs *excp)
 			mdelay(2000);
 			return cmd;
 		case '?':
-			printf(help_string);
+			xmon_puts(help_string);
 			break;
 		case 'b':
 			bpt_cmds();

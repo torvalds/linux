@@ -4,6 +4,7 @@
 #include <linux/percpu.h>
 #include <linux/bitops.h>
 #include <asm/atomic.h>
+#include <asm/cmpxchg.h>
 #include <asm/war.h>
 
 typedef struct
@@ -14,10 +15,10 @@ typedef struct
 #define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
 
 #define local_read(l)	atomic_long_read(&(l)->a)
-#define local_set(l,i)	atomic_long_set(&(l)->a, (i))
+#define local_set(l, i)	atomic_long_set(&(l)->a, (i))
 
-#define local_add(i,l)	atomic_long_add((i),(&(l)->a))
-#define local_sub(i,l)	atomic_long_sub((i),(&(l)->a))
+#define local_add(i, l)	atomic_long_add((i), (&(l)->a))
+#define local_sub(i, l)	atomic_long_sub((i), (&(l)->a))
 #define local_inc(l)	atomic_long_inc(&(l)->a)
 #define local_dec(l)	atomic_long_dec(&(l)->a)
 
@@ -114,71 +115,9 @@ static __inline__ long local_sub_return(long i, local_t * l)
 	return result;
 }
 
-/*
- * local_sub_if_positive - conditionally subtract integer from atomic variable
- * @i: integer value to subtract
- * @l: pointer of type local_t
- *
- * Atomically test @l and subtract @i if @l is greater or equal than @i.
- * The function returns the old value of @l minus @i.
- */
-static __inline__ long local_sub_if_positive(long i, local_t * l)
-{
-	unsigned long result;
-
-	if (cpu_has_llsc && R10000_LLSC_WAR) {
-		unsigned long temp;
-
-		__asm__ __volatile__(
-		"	.set	mips3					\n"
-		"1:"	__LL	"%1, %2		# local_sub_if_positive\n"
-		"	dsubu	%0, %1, %3				\n"
-		"	bltz	%0, 1f					\n"
-			__SC	"%0, %2					\n"
-		"	.set	noreorder				\n"
-		"	beqzl	%0, 1b					\n"
-		"	 dsubu	%0, %1, %3				\n"
-		"	.set	reorder					\n"
-		"1:							\n"
-		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (l->a.counter)
-		: "Ir" (i), "m" (l->a.counter)
-		: "memory");
-	} else if (cpu_has_llsc) {
-		unsigned long temp;
-
-		__asm__ __volatile__(
-		"	.set	mips3					\n"
-		"1:"	__LL	"%1, %2		# local_sub_if_positive\n"
-		"	dsubu	%0, %1, %3				\n"
-		"	bltz	%0, 1f					\n"
-			__SC	"%0, %2					\n"
-		"	.set	noreorder				\n"
-		"	beqz	%0, 1b					\n"
-		"	 dsubu	%0, %1, %3				\n"
-		"	.set	reorder					\n"
-		"1:							\n"
-		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (l->a.counter)
-		: "Ir" (i), "m" (l->a.counter)
-		: "memory");
-	} else {
-		unsigned long flags;
-
-		local_irq_save(flags);
-		result = l->a.counter;
-		result -= i;
-		if (result >= 0)
-			l->a.counter = result;
-		local_irq_restore(flags);
-	}
-
-	return result;
-}
-
 #define local_cmpxchg(l, o, n) \
 	((long)cmpxchg_local(&((l)->a.counter), (o), (n)))
-#define local_xchg(l, n) (xchg_local(&((l)->a.counter),(n)))
+#define local_xchg(l, n) (xchg_local(&((l)->a.counter), (n)))
 
 /**
  * local_add_unless - add unless the number is a given value
@@ -199,8 +138,8 @@ static __inline__ long local_sub_if_positive(long i, local_t * l)
 })
 #define local_inc_not_zero(l) local_add_unless((l), 1, 0)
 
-#define local_dec_return(l) local_sub_return(1,(l))
-#define local_inc_return(l) local_add_return(1,(l))
+#define local_dec_return(l) local_sub_return(1, (l))
+#define local_inc_return(l) local_add_return(1, (l))
 
 /*
  * local_sub_and_test - subtract value from variable and test result
@@ -211,7 +150,7 @@ static __inline__ long local_sub_if_positive(long i, local_t * l)
  * true if the result is zero, or false for all
  * other cases.
  */
-#define local_sub_and_test(i,l) (local_sub_return((i), (l)) == 0)
+#define local_sub_and_test(i, l) (local_sub_return((i), (l)) == 0)
 
 /*
  * local_inc_and_test - increment and test
@@ -234,12 +173,6 @@ static __inline__ long local_sub_if_positive(long i, local_t * l)
 #define local_dec_and_test(l) (local_sub_return(1, (l)) == 0)
 
 /*
- * local_dec_if_positive - decrement by 1 if old value positive
- * @l: pointer of type local_t
- */
-#define local_dec_if_positive(l)	local_sub_if_positive(1, l)
-
-/*
  * local_add_negative - add and test if negative
  * @l: pointer of type local_t
  * @i: integer value to add
@@ -248,7 +181,7 @@ static __inline__ long local_sub_if_positive(long i, local_t * l)
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-#define local_add_negative(i,l) (local_add_return(i, (l)) < 0)
+#define local_add_negative(i, l) (local_add_return(i, (l)) < 0)
 
 /* Use these for per-cpu local_t variables: on some archs they are
  * much more efficient than these naive implementations.  Note they take
@@ -257,8 +190,8 @@ static __inline__ long local_sub_if_positive(long i, local_t * l)
 
 #define __local_inc(l)		((l)->a.counter++)
 #define __local_dec(l)		((l)->a.counter++)
-#define __local_add(i,l)	((l)->a.counter+=(i))
-#define __local_sub(i,l)	((l)->a.counter-=(i))
+#define __local_add(i, l)	((l)->a.counter+=(i))
+#define __local_sub(i, l)	((l)->a.counter-=(i))
 
 /* Need to disable preemption for the cpu local counters otherwise we could
    still access a variable of a previous CPU in a non atomic way. */

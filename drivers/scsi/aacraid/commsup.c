@@ -80,7 +80,11 @@ static int fib_map_alloc(struct aac_dev *dev)
 
 void aac_fib_map_free(struct aac_dev *dev)
 {
-	pci_free_consistent(dev->pdev, dev->max_fib_size * (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB), dev->hw_fib_va, dev->hw_fib_pa);
+	pci_free_consistent(dev->pdev,
+	  dev->max_fib_size * (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB),
+	  dev->hw_fib_va, dev->hw_fib_pa);
+	dev->hw_fib_va = NULL;
+	dev->hw_fib_pa = 0;
 }
 
 /**
@@ -1087,8 +1091,6 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	 * case.
 	 */
 	aac_fib_map_free(aac);
-	aac->hw_fib_va = NULL;
-	aac->hw_fib_pa = 0;
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	aac->comm_addr = NULL;
 	aac->comm_phys = 0;
@@ -1098,12 +1100,12 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	kfree(aac->fsa_dev);
 	aac->fsa_dev = NULL;
 	if (aac_get_driver_ident(index)->quirks & AAC_QUIRK_31BIT) {
-		if (((retval = pci_set_dma_mask(aac->pdev, DMA_32BIT_MASK))) ||
-		  ((retval = pci_set_consistent_dma_mask(aac->pdev, DMA_32BIT_MASK))))
+		if (((retval = pci_set_dma_mask(aac->pdev, DMA_31BIT_MASK))) ||
+		  ((retval = pci_set_consistent_dma_mask(aac->pdev, DMA_31BIT_MASK))))
 			goto out;
 	} else {
-		if (((retval = pci_set_dma_mask(aac->pdev, 0x7FFFFFFFULL))) ||
-		  ((retval = pci_set_consistent_dma_mask(aac->pdev, 0x7FFFFFFFULL))))
+		if (((retval = pci_set_dma_mask(aac->pdev, DMA_32BIT_MASK))) ||
+		  ((retval = pci_set_consistent_dma_mask(aac->pdev, DMA_32BIT_MASK))))
 			goto out;
 	}
 	if ((retval = (*(aac_get_driver_ident(index)->init))(aac)))

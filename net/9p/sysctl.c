@@ -28,15 +28,10 @@
 #include <linux/init.h>
 #include <net/9p/9p.h>
 
-enum {
-	P9_SYSCTL_NET = 487,
-	P9_SYSCTL_DEBUG = 1,
-};
-
-static ctl_table p9_table[] = {
+static struct ctl_table p9_table[] = {
 #ifdef CONFIG_NET_9P_DEBUG
 	{
-		.ctl_name       = P9_SYSCTL_DEBUG,
+		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "debug",
 		.data           = &p9_debug_level,
 		.maxlen         = sizeof(int),
@@ -44,21 +39,21 @@ static ctl_table p9_table[] = {
 		.proc_handler   = &proc_dointvec
 	},
 #endif
-	{	.ctl_name	= 0 },
+	{},
 };
 
-static ctl_table p9_net_table[] = {
+static struct ctl_table p9_net_table[] = {
 	{
-		.ctl_name	= P9_SYSCTL_NET,
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "9p",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= p9_table,
 	},
-	{	.ctl_name	= 0 },
+	{},
 };
 
-static ctl_table p9_ctl_table[] = {
+static struct ctl_table p9_ctl_table[] = {
 	{
 		.ctl_name	= CTL_NET,
 		.procname	= "net",
@@ -66,7 +61,7 @@ static ctl_table p9_ctl_table[] = {
 		.mode		= 0555,
 		.child		= p9_net_table,
 	},
-	{	.ctl_name	= 0 },
+	{},
 };
 
 static struct ctl_table_header *p9_table_header;

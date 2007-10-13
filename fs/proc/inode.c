@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <linux/stat.h>
 #include <linux/completion.h>
+#include <linux/poll.h>
 #include <linux/file.h>
 #include <linux/limits.h>
 #include <linux/init.h>
@@ -112,14 +113,14 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 
 	inode_init_once(&ei->vfs_inode);
 }
- 
+
 int __init proc_init_inodecache(void)
 {
 	proc_inode_cachep = kmem_cache_create("proc_inode_cache",
 					     sizeof(struct proc_inode),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
-					     init_once, NULL);
+					     init_once);
 	if (proc_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;
@@ -232,7 +233,7 @@ static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t 
 static unsigned int proc_reg_poll(struct file *file, struct poll_table_struct *pts)
 {
 	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
-	unsigned int rv = 0;
+	unsigned int rv = DEFAULT_POLLMASK;
 	unsigned int (*poll)(struct file *, struct poll_table_struct *);
 
 	spin_lock(&pde->pde_unload_lock);
@@ -386,6 +387,19 @@ static const struct file_operations proc_reg_file_ops = {
 	.release	= proc_reg_release,
 };
 
+#ifdef CONFIG_COMPAT
+static const struct file_operations proc_reg_file_ops_no_compat = {
+	.llseek		= proc_reg_llseek,
+	.read		= proc_reg_read,
+	.write		= proc_reg_write,
+	.poll		= proc_reg_poll,
+	.unlocked_ioctl	= proc_reg_unlocked_ioctl,
+	.mmap		= proc_reg_mmap,
+	.open		= proc_reg_open,
+	.release	= proc_reg_release,
+};
+#endif
+
 struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 				struct proc_dir_entry *de)
 {
@@ -413,8 +427,15 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 		if (de->proc_iops)
 			inode->i_op = de->proc_iops;
 		if (de->proc_fops) {
-			if (S_ISREG(inode->i_mode))
-				inode->i_fop = &proc_reg_file_ops;
+			if (S_ISREG(inode->i_mode)) {
+#ifdef CONFIG_COMPAT
+				if (!de->proc_fops->compat_ioctl)
+					inode->i_fop =
+						&proc_reg_file_ops_no_compat;
+				else
+#endif
+					inode->i_fop = &proc_reg_file_ops;
+			}
 			else
 				inode->i_fop = de->proc_fops;
 		}

@@ -84,7 +84,7 @@
  *   nla_next(nla)-----------------------------'
  *
  * Data Structures:
- *   struct nlattr			netlink attribtue header
+ *   struct nlattr			netlink attribute header
  *
  * Attribute Construction:
  *   nla_reserve(skb, type, len)	reserve room for an attribute
@@ -220,9 +220,9 @@ struct nl_info {
 	u32			pid;
 };
 
-extern void		netlink_run_queue(struct sock *sk, unsigned int *qlen,
-					  int (*cb)(struct sk_buff *,
-						    struct nlmsghdr *));
+extern int		netlink_rcv_skb(struct sk_buff *skb,
+					int (*cb)(struct sk_buff *,
+						  struct nlmsghdr *));
 extern int		nlmsg_notify(struct sock *sk, struct sk_buff *skb,
 				     u32 pid, unsigned int group, int report,
 				     gfp_t flags);
@@ -667,6 +667,15 @@ static inline int nla_padlen(int payload)
 }
 
 /**
+ * nla_type - attribute type
+ * @nla: netlink attribute
+ */
+static inline int nla_type(const struct nlattr *nla)
+{
+	return nla->nla_type & NLA_TYPE_MASK;
+}
+
+/**
  * nla_data - head of payload
  * @nla: netlink attribute
  */
@@ -697,7 +706,7 @@ static inline int nla_ok(const struct nlattr *nla, int remaining)
 }
 
 /**
- * nla_next - next netlink attribte in attribute stream
+ * nla_next - next netlink attribute in attribute stream
  * @nla: netlink attribute
  * @remaining: number of bytes remaining in attribute stream
  *
@@ -773,7 +782,7 @@ static inline int __nla_parse_nested_compat(struct nlattr *tb[], int maxtype,
 ({	data = nla_len(nla) >= len ? nla_data(nla) : NULL; \
 	__nla_parse_nested_compat(tb, maxtype, nla, policy, len); })
 /**
- * nla_put_u8 - Add a u16 netlink attribute to a socket buffer
+ * nla_put_u8 - Add a u8 netlink attribute to a socket buffer
  * @skb: socket buffer to add attribute to
  * @attrtype: attribute type
  * @value: numeric value
@@ -989,7 +998,7 @@ static inline struct nlattr *nla_nest_start(struct sk_buff *skb, int attrtype)
 
 /**
  * nla_nest_end - Finalize nesting of attributes
- * @skb: socket buffer the attribtues are stored in
+ * @skb: socket buffer the attributes are stored in
  * @start: container attribute
  *
  * Corrects the container attribute header to include the all
@@ -1032,7 +1041,7 @@ static inline struct nlattr *nla_nest_compat_start(struct sk_buff *skb,
 
 /**
  * nla_nest_compat_end - Finalize nesting of compat attributes
- * @skb: socket buffer the attribtues are stored in
+ * @skb: socket buffer the attributes are stored in
  * @start: container attribute
  *
  * Corrects the container attribute header to include the all

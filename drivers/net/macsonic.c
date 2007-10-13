@@ -223,6 +223,7 @@ int __init mac_onboard_sonic_ethernet_addr(struct net_device* dev)
 	struct sonic_local *lp = netdev_priv(dev);
 	const int prom_addr = ONBOARD_SONIC_PROM_BASE;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	/* On NuBus boards we can sometimes look in the ROM resources.
 	   No such luck for comm-slot/onboard. */
@@ -266,13 +267,8 @@ int __init mac_onboard_sonic_ethernet_addr(struct net_device* dev)
 		dev->dev_addr[1] = val >> 8;
 		dev->dev_addr[0] = val & 0xff;
 
-		printk(KERN_INFO "HW Address from CAM 15: ");
-		for (i = 0; i < 6; i++) {
-			printk("%2.2x", dev->dev_addr[i]);
-			if (i < 5)
-				printk(":");
-		}
-		printk("\n");
+		printk(KERN_INFO "HW Address from CAM 15: %s\n",
+		       print_mac(mac, dev->dev_addr));
 	} else return 0;
 
 	if (memcmp(dev->dev_addr, "\x08\x00\x07", 3) &&
@@ -567,7 +563,7 @@ static int __init mac_sonic_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct sonic_local *lp;
 	int err;
-	int i;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof(struct sonic_local));
 	if (!dev)
@@ -576,7 +572,6 @@ static int __init mac_sonic_probe(struct platform_device *pdev)
 	lp = netdev_priv(dev);
 	lp->device = &pdev->dev;
 	SET_NETDEV_DEV(dev, &pdev->dev);
- 	SET_MODULE_OWNER(dev);
 
 	/* This will catch fatal stuff like -ENOMEM as well as success */
 	err = mac_onboard_sonic_probe(dev);
@@ -592,13 +587,8 @@ found:
 	if (err)
 		goto out;
 
-	printk("%s: MAC ", dev->name);
-	for (i = 0; i < 6; i++) {
-		printk("%2.2x", dev->dev_addr[i]);
-		if (i < 5)
-			printk(":");
-	}
-	printk(" IRQ %d\n", dev->irq);
+	printk("%s: MAC %s IRQ %d\n",
+	       dev->name, print_mac(mac, dev->dev_addr), dev->irq);
 
 	return 0;
 

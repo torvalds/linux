@@ -33,8 +33,9 @@ extern char resume_file[];
 #define SWSUSP_SIG	"S1SUSPEND"
 
 struct swsusp_header {
-	char reserved[PAGE_SIZE - 20 - sizeof(sector_t)];
+	char reserved[PAGE_SIZE - 20 - sizeof(sector_t) - sizeof(int)];
 	sector_t image;
+	unsigned int flags;	/* Flags to pass to the "boot" kernel */
 	char	orig_sig[10];
 	char	sig[10];
 } __attribute__((packed));
@@ -138,7 +139,7 @@ static int wait_on_bio_chain(struct bio **bio_chain)
  * Saving part
  */
 
-static int mark_swapfiles(sector_t start)
+static int mark_swapfiles(sector_t start, unsigned int flags)
 {
 	int error;
 
@@ -148,6 +149,7 @@ static int mark_swapfiles(sector_t start)
 		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
 		memcpy(swsusp_header->sig,SWSUSP_SIG, 10);
 		swsusp_header->image = start;
+		swsusp_header->flags = flags;
 		error = bio_write_page(swsusp_resume_block,
 					swsusp_header, NULL);
 	} else {
@@ -369,6 +371,7 @@ static int enough_swap(unsigned int nr_pages)
 
 /**
  *	swsusp_write - Write entire image and metadata.
+ *	@flags: flags to pass to the "boot" kernel in the image header
  *
  *	It is important _NOT_ to umount filesystems at this point. We want
  *	them synced (in case something goes wrong) but we DO not want to mark
@@ -376,7 +379,7 @@ static int enough_swap(unsigned int nr_pages)
  *	correctly, we'll mark system clean, anyway.)
  */
 
-int swsusp_write(void)
+int swsusp_write(unsigned int flags)
 {
 	struct swap_map_handle handle;
 	struct snapshot_handle snapshot;
@@ -415,7 +418,7 @@ int swsusp_write(void)
 		if (!error) {
 			flush_swap_writer(&handle);
 			printk("S");
-			error = mark_swapfiles(start);
+			error = mark_swapfiles(start, flags);
 			printk("|\n");
 		}
 	}
@@ -540,13 +543,20 @@ static int load_image(struct swap_map_handle *handle,
 	return error;
 }
 
-int swsusp_read(void)
+/**
+ *	swsusp_read - read the hibernation image.
+ *	@flags_p: flags passed by the "frozen" kernel in the image header should
+ *		  be written into this memeory location
+ */
+
+int swsusp_read(unsigned int *flags_p)
 {
 	int error;
 	struct swap_map_handle handle;
 	struct snapshot_handle snapshot;
 	struct swsusp_info *header;
 
+	*flags_p = swsusp_header->flags;
 	if (IS_ERR(resume_bdev)) {
 		pr_debug("swsusp: block device not initialised\n");
 		return PTR_ERR(resume_bdev);

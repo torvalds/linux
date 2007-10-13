@@ -569,7 +569,7 @@ int netxen_is_flash_supported(struct netxen_adapter *adapter)
 	/* if the flash size less than 4Mb, make huge war cry and die */
 	for (j = 1; j < 4; j++) {
 		addr = j * NETXEN_NIC_WINDOW_MARGIN;
-		for (i = 0; i < (sizeof(locs) / sizeof(locs[0])); i++) {
+		for (i = 0; i < ARRAY_SIZE(locs); i++) {
 			if (netxen_rom_fast_read(adapter, locs[i], &val01) == 0
 			    && netxen_rom_fast_read(adapter, (addr + locs[i]),
 						    &val02) == 0) {
@@ -904,11 +904,11 @@ netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 			ddr_mn_window = window;
 			writel(window, PCI_OFFSET_SECOND_RANGE(adapter,
 							       NETXEN_PCIX_PH_REG
-							       (PCIX_MN_WINDOW)));
+							       (PCIX_MN_WINDOW(adapter->ahw.pci_func))));
 			/* MUST make sure window is set before we forge on... */
 			readl(PCI_OFFSET_SECOND_RANGE(adapter,
 						      NETXEN_PCIX_PH_REG
-						      (PCIX_MN_WINDOW)));
+						      (PCIX_MN_WINDOW(adapter->ahw.pci_func))));
 		}
 		addr -= (window * NETXEN_WINDOW_ONE);
 		addr += NETXEN_PCI_DDR_NET;
@@ -929,11 +929,11 @@ netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 			writel((window << 22),
 			       PCI_OFFSET_SECOND_RANGE(adapter,
 						       NETXEN_PCIX_PH_REG
-						       (PCIX_SN_WINDOW)));
+						       (PCIX_SN_WINDOW(adapter->ahw.pci_func))));
 			/* MUST make sure window is set before we forge on... */
 			readl(PCI_OFFSET_SECOND_RANGE(adapter,
 						      NETXEN_PCIX_PH_REG
-						      (PCIX_SN_WINDOW)));
+						      (PCIX_SN_WINDOW(adapter->ahw.pci_func))));
 		}
 		addr -= (window * 0x400000);
 		addr += NETXEN_PCI_QDR_NET;

@@ -25,6 +25,7 @@
 
 #include <linux/list.h>
 #include <asm/atomic.h>
+#include <asm/errno.h>
 
 /*
  * Power management requests... these are passed to pm_send_all() and friends.
@@ -101,6 +102,7 @@ struct pm_dev
  */
 extern void (*pm_idle)(void);
 extern void (*pm_power_off)(void);
+extern void (*pm_power_off_prepare)(void);
 
 typedef int __bitwise suspend_state_t;
 
@@ -164,6 +166,7 @@ struct pm_ops {
 	int (*finish)(suspend_state_t state);
 };
 
+#ifdef CONFIG_SUSPEND
 extern struct pm_ops *pm_ops;
 
 /**
@@ -192,6 +195,12 @@ extern void arch_suspend_disable_irqs(void);
 extern void arch_suspend_enable_irqs(void);
 
 extern int pm_suspend(suspend_state_t state);
+#else /* !CONFIG_SUSPEND */
+#define suspend_valid_only_mem	NULL
+
+static inline void pm_set_ops(struct pm_ops *pm_ops) {}
+static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
+#endif /* !CONFIG_SUSPEND */
 
 /*
  * Device power management
@@ -265,7 +274,7 @@ typedef struct pm_message {
 struct dev_pm_info {
 	pm_message_t		power_state;
 	unsigned		can_wakeup:1;
-#ifdef	CONFIG_PM
+#ifdef	CONFIG_PM_SLEEP
 	unsigned		should_wakeup:1;
 	struct list_head	entry;
 #endif
@@ -275,7 +284,7 @@ extern int device_power_down(pm_message_t state);
 extern void device_power_up(void);
 extern void device_resume(void);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 extern int device_suspend(pm_message_t state);
 extern int device_prepare_suspend(pm_message_t state);
 
@@ -284,8 +293,6 @@ extern int device_prepare_suspend(pm_message_t state);
 #define device_may_wakeup(dev) \
 	(device_can_wakeup(dev) && (dev)->power.should_wakeup)
 
-extern int dpm_runtime_suspend(struct device *, pm_message_t);
-extern void dpm_runtime_resume(struct device *);
 extern void __suspend_report_result(const char *function, void *fn, int ret);
 
 #define suspend_report_result(fn, ret)					\
@@ -307,7 +314,7 @@ static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
 	return 0;
 }
 
-#else /* !CONFIG_PM */
+#else /* !CONFIG_PM_SLEEP */
 
 static inline int device_suspend(pm_message_t state)
 {
@@ -317,15 +324,6 @@ static inline int device_suspend(pm_message_t state)
 #define device_set_wakeup_enable(dev,val)	do{}while(0)
 #define device_may_wakeup(dev)			(0)
 
-static inline int dpm_runtime_suspend(struct device * dev, pm_message_t state)
-{
-	return 0;
-}
-
-static inline void dpm_runtime_resume(struct device * dev)
-{
-}
-
 #define suspend_report_result(fn, ret) do { } while (0)
 
 static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
@@ -333,7 +331,7 @@ static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
 	return 0;
 }
 
-#endif
+#endif /* !CONFIG_PM_SLEEP */
 
 /* changes to device_may_wakeup take effect on the next pm state change.
  * by default, devices should wakeup if they can.

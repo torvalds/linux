@@ -1,6 +1,5 @@
 
 menu "Passive cards"
-	depends on ISDN_I4L
 
 config ISDN_DRV_HISAX
 	tristate "HiSax SiemensChipSet driver support"

@@ -55,7 +55,7 @@ EXPORT_SYMBOL(dec_kn_slot_size);
 
 int dec_tc_bus;
 
-spinlock_t ioasic_ssr_lock;
+DEFINE_SPINLOCK(ioasic_ssr_lock);
 
 volatile u32 *ioasic_base;
 
@@ -145,13 +145,9 @@ static void __init dec_be_init(void)
 	}
 }
 
-
-extern void dec_time_init(void);
-
 void __init plat_mem_setup(void)
 {
 	board_be_init = dec_be_init;
-	board_time_init = dec_time_init;
 
 	wbflush_setup();
 

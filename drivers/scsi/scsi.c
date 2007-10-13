@@ -288,7 +288,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 	if (!pool->users) {
 		pool->slab = kmem_cache_create(pool->name,
 				sizeof(struct scsi_cmnd), 0,
-				pool->slab_flags, NULL, NULL);
+				pool->slab_flags, NULL);
 		if (!pool->slab)
 			goto fail;
 	}

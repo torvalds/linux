@@ -60,13 +60,10 @@ vmlinux-32		= vmlinux.32
 vmlinux-64		= vmlinux
 
 cflags-y		+= -mabi=64
-ifdef CONFIG_BUILD_ELF64
-cflags-y		+= $(call cc-option,-mno-explicit-relocs)
-else
-cflags-y		+= $(call cc-option,-msym32)
-endif
 endif
 
+all-$(CONFIG_BOOT_ELF32)	:= $(vmlinux-32)
+all-$(CONFIG_BOOT_ELF64)	:= $(vmlinux-64)
 
 #
 # GCC uses -G 0 -mabicalls -fpic as default.  We don't want PIC in the kernel
@@ -151,7 +148,8 @@ endif
 #
 # Firmware support
 #
-libs-$(CONFIG_ARC)		+= arch/mips/arc/
+libs-$(CONFIG_ARC)		+= arch/mips/fw/arc/
+libs-$(CONFIG_CFE)		+= arch/mips/fw/cfe/
 libs-$(CONFIG_SIBYTE_CFE)	+= arch/mips/sibyte/cfe/
 
 #
@@ -309,6 +307,7 @@ core-$(CONFIG_MIPS_ATLAS)	+= arch/mips/mips-boards/atlas/
 cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-atlas
 cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_ATLAS)	+= 0xffffffff80100000
+all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.srec
 
 #
 # MIPS Malta board
@@ -316,6 +315,7 @@ load-$(CONFIG_MIPS_ATLAS)	+= 0xffffffff80100000
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mips-boards/malta/
 cflags-$(CONFIG_MIPS_MALTA)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
+all-$(CONFIG_MIPS_MALTA)	:= vmlinux.srec
 
 #
 # MIPS SEAD board
@@ -323,24 +323,14 @@ load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 core-$(CONFIG_MIPS_SEAD)	+= arch/mips/mips-boards/sead/
 cflags-$(CONFIG_MIPS_SEAD)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_SEAD)	+= 0xffffffff80100000
+all-$(CONFIG_MIPS_SEAD)		:= vmlinux.srec
 
 #
 # MIPS SIM
 #
 core-$(CONFIG_MIPS_SIM)		+= arch/mips/mipssim/
-cflags-$(CONFIG_MIPS_SIM)	+= -Iinclude/asm-mips/mach-sim
+cflags-$(CONFIG_MIPS_SIM)	+= -Iinclude/asm-mips/mach-mipssim
 load-$(CONFIG_MIPS_SIM)		+= 0x80100000
-
-#
-# Momentum Ocelot board
-#
-# The Ocelot setup.o must be linked early - it does the ioremap() for the
-# mips_io_port_base.
-#
-core-$(CONFIG_MOMENCO_OCELOT)	+= arch/mips/gt64120/common/ \
-				   arch/mips/gt64120/momenco_ocelot/
-cflags-$(CONFIG_MOMENCO_OCELOT)	+= -Iinclude/asm-mips/mach-ocelot
-load-$(CONFIG_MOMENCO_OCELOT)	+= 0xffffffff80100000
 
 #
 # PMC-Sierra MSP SOCs
@@ -363,6 +353,7 @@ load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
 core-$(CONFIG_QEMU)		+= arch/mips/qemu/
 cflags-$(CONFIG_QEMU)		+= -Iinclude/asm-mips/mach-qemu
 load-$(CONFIG_QEMU)		+= 0xffffffff80010000
+all-$(CONFIG_QEMU)		:= vmlinux.bin
 
 #
 # Basler eXcite
@@ -372,15 +363,11 @@ cflags-$(CONFIG_BASLER_EXCITE)	+= -Iinclude/asm-mips/mach-excite
 load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
 
 #
-# NEC DDB
+# LASAT platforms
 #
-core-$(CONFIG_DDB5XXX_COMMON)	+= arch/mips/ddb5xxx/common/
-
-#
-# NEC DDB Vrc-5477
-#
-core-$(CONFIG_DDB5477)		+= arch/mips/ddb5xxx/ddb5477/
-load-$(CONFIG_DDB5477)		+= 0xffffffff80100000
+core-$(CONFIG_LASAT)		+= arch/mips/lasat/
+cflags-$(CONFIG_LASAT)		+= -Iinclude/asm-mips/mach-lasat
+load-$(CONFIG_LASAT)		+= 0xffffffff80000000
 
 #
 # Common VR41xx
@@ -549,11 +536,19 @@ libs-$(CONFIG_SIBYTE_BIGSUR)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 
 #
+# Broadcom BCM47XX boards
+#
+core-$(CONFIG_BCM47XX)		+= arch/mips/bcm47xx/
+cflags-$(CONFIG_BCM47XX)	+= -Iinclude/asm-mips/mach-bcm47xx
+load-$(CONFIG_BCM47XX)		:= 0xffffffff80001000
+
+#
 # SNI RM
 #
 core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
 cflags-$(CONFIG_SNI_RM)		+= -Iinclude/asm-mips/mach-rm
 load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
+all-$(CONFIG_SNI_RM)		:= vmlinux.ecoff
 
 #
 # Toshiba JMR-TX3927 board
@@ -593,6 +588,26 @@ else
 JIFFIES			= jiffies_64
 endif
 
+#
+# Automatically detect the build format. By default we choose
+# the elf format according to the load address.
+# We can always force a build with a 64-bits symbol format by
+# passing 'KBUILD_SYM32=no' option to the make's command line.
+#
+ifdef CONFIG_64BIT
+  ifndef KBUILD_SYM32
+    ifeq ($(shell expr $(load-y) \< 0xffffffff80000000), 0)
+      KBUILD_SYM32 = y
+    endif
+  endif
+
+  ifeq ($(KBUILD_SYM32), y)
+    ifeq ($(call cc-option-yn,-msym32), y)
+      cflags-y += -msym32 -DKBUILD_64BIT_SYM32
+    endif
+  endif
+endif
+
 AFLAGS		+= $(cflags-y)
 CFLAGS		+= $(cflags-y) \
 			-D"VMLINUX_LOAD_ADDRESS=$(load-y)"
@@ -630,6 +645,11 @@ core-y			+= arch/mips/kernel/ arch/mips/mm/ arch/mips/math-emu/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
 
+ifdef CONFIG_LASAT
+rom.bin rom.sw: vmlinux
+	$(Q)$(MAKE) $(build)=arch/mips/lasat/image $@
+endif
+
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
 # Other need ECOFF, so we build a 32-bit ELF binary for them which we then
@@ -647,33 +667,7 @@ vmlinux.64: vmlinux
 
 makeboot =$(Q)$(MAKE) $(build)=arch/mips/boot VMLINUX=$(vmlinux-32) $(1)
 
-ifdef CONFIG_BOOT_ELF32
-all:	$(vmlinux-32)
-endif
-
-ifdef CONFIG_BOOT_ELF64
-all:	$(vmlinux-64)
-endif
-
-ifdef CONFIG_MIPS_ATLAS
-all:	vmlinux.srec
-endif
-
-ifdef CONFIG_MIPS_MALTA
-all:	vmlinux.srec
-endif
-
-ifdef CONFIG_MIPS_SEAD
-all:	vmlinux.srec
-endif
-
-ifdef CONFIG_QEMU
-all:	vmlinux.bin
-endif
-
-ifdef CONFIG_SNI_RM
-all:	vmlinux.ecoff
-endif
+all:	$(all-y)
 
 vmlinux.bin: $(vmlinux-32)
 	+@$(call makeboot,$@)
@@ -699,6 +693,15 @@ endif
 
 archclean:
 	@$(MAKE) $(clean)=arch/mips/boot
+	@$(MAKE) $(clean)=arch/mips/lasat
+
+define archhelp
+	echo '  vmlinux.ecoff        - ECOFF boot image'
+	echo '  vmlinux.bin          - Raw binary boot image'
+	echo '  vmlinux.srec         - SREC boot image'
+	echo
+	echo '  These will be default as apropriate for a configured platform.'
+endef
 
 CLEAN_FILES += vmlinux.32 \
 	       vmlinux.64 \

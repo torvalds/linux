@@ -19,11 +19,11 @@
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/errno.h>
 #include <asm/dcr.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 #include <asm/topology.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
@@ -55,94 +55,14 @@ static struct of_device_id of_default_bus_ids[] = {
 
 static atomic_t bus_no_reg_magic;
 
-/*
- *
- * OF platform device type definition & base infrastructure
- *
- */
-
-static int of_platform_bus_match(struct device *dev, struct device_driver *drv)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * of_drv = to_of_platform_driver(drv);
-	const struct of_device_id * matches = of_drv->match_table;
-
-	if (!matches)
-		return 0;
-
-	return of_match_device(matches, of_dev) != NULL;
-}
-
-static int of_platform_device_probe(struct device *dev)
-{
-	int error = -ENODEV;
-	struct of_platform_driver *drv;
-	struct of_device *of_dev;
-	const struct of_device_id *match;
-
-	drv = to_of_platform_driver(dev->driver);
-	of_dev = to_of_device(dev);
-
-	if (!drv->probe)
-		return error;
-
-	of_dev_get(of_dev);
-
-	match = of_match_device(drv->match_table, of_dev);
-	if (match)
-		error = drv->probe(of_dev, match);
-	if (error)
-		of_dev_put(of_dev);
-
-	return error;
-}
-
-static int of_platform_device_remove(struct device *dev)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-
-	if (dev->driver && drv->remove)
-		drv->remove(of_dev);
-	return 0;
-}
-
-static int of_platform_device_suspend(struct device *dev, pm_message_t state)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-	int error = 0;
-
-	if (dev->driver && drv->suspend)
-		error = drv->suspend(of_dev, state);
-	return error;
-}
-
-static int of_platform_device_resume(struct device * dev)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-	int error = 0;
-
-	if (dev->driver && drv->resume)
-		error = drv->resume(of_dev);
-	return error;
-}
-
 struct bus_type of_platform_bus_type = {
-       .name	= "of_platform",
-       .match	= of_platform_bus_match,
        .uevent	= of_device_uevent,
-       .probe	= of_platform_device_probe,
-       .remove	= of_platform_device_remove,
-       .suspend	= of_platform_device_suspend,
-       .resume	= of_platform_device_resume,
 };
 EXPORT_SYMBOL(of_platform_bus_type);
 
 static int __init of_bus_driver_init(void)
 {
-	return bus_register(&of_platform_bus_type);
+	return of_bus_type_init(&of_platform_bus_type, "of_platform");
 }
 
 postcore_initcall(of_bus_driver_init);
@@ -150,7 +70,10 @@ postcore_initcall(of_bus_driver_init);
 int of_register_platform_driver(struct of_platform_driver *drv)
 {
 	/* initialize common driver fields */
-	drv->driver.name = drv->name;
+	if (!drv->driver.name)
+		drv->driver.name = drv->name;
+	if (!drv->driver.owner)
+		drv->driver.owner = drv->owner;
 	drv->driver.bus = &of_platform_bus_type;
 
 	/* register with core */
@@ -222,10 +145,9 @@ struct of_device* of_platform_device_create(struct device_node *np,
 {
 	struct of_device *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
-	memset(dev, 0, sizeof(*dev));
 
 	dev->node = of_node_get(np);
 	dev->dma_mask = 0xffffffffUL;
@@ -466,9 +388,11 @@ static struct of_device_id of_pci_phb_ids[] = {
 };
 
 static struct of_platform_driver of_pci_phb_driver = {
-       .name = "of-pci",
-       .match_table = of_pci_phb_ids,
-       .probe = of_pci_phb_probe,
+	.match_table = of_pci_phb_ids,
+	.probe = of_pci_phb_probe,
+	.driver = {
+		.name = "of-pci",
+	},
 };
 
 static __init int of_pci_phb_init(void)

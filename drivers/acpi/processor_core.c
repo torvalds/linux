@@ -66,6 +66,7 @@
 #define ACPI_PROCESSOR_FILE_LIMIT	"limit"
 #define ACPI_PROCESSOR_NOTIFY_PERFORMANCE 0x80
 #define ACPI_PROCESSOR_NOTIFY_POWER	0x81
+#define ACPI_PROCESSOR_NOTIFY_THROTTLING	0x82
 
 #define ACPI_PROCESSOR_LIMIT_USER	0
 #define ACPI_PROCESSOR_LIMIT_THERMAL	1
@@ -84,15 +85,25 @@ static int acpi_processor_info_open_fs(struct inode *inode, struct file *file);
 static void acpi_processor_notify(acpi_handle handle, u32 event, void *data);
 static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu);
 static int acpi_processor_handle_eject(struct acpi_processor *pr);
+extern int acpi_processor_tstate_has_changed(struct acpi_processor *pr);
+
+
+static const struct acpi_device_id processor_device_ids[] = {
+	{ACPI_PROCESSOR_HID, 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, processor_device_ids);
 
 static struct acpi_driver acpi_processor_driver = {
 	.name = "processor",
 	.class = ACPI_PROCESSOR_CLASS,
-	.ids = ACPI_PROCESSOR_HID,
+	.ids = processor_device_ids,
 	.ops = {
 		.add = acpi_processor_add,
 		.remove = acpi_processor_remove,
 		.start = acpi_processor_start,
+		.suspend = acpi_processor_suspend,
+		.resume = acpi_processor_resume,
 		},
 };
 
@@ -689,13 +700,23 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_PROCESSOR_NOTIFY_PERFORMANCE:
 		acpi_processor_ppc_has_changed(pr);
-		acpi_bus_generate_event(device, event,
+		acpi_bus_generate_proc_event(device, event,
 					pr->performance_platform_limit);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event,
+						  pr->performance_platform_limit);
 		break;
 	case ACPI_PROCESSOR_NOTIFY_POWER:
 		acpi_processor_cst_has_changed(pr);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event, 0);
 		break;
+	case ACPI_PROCESSOR_NOTIFY_THROTTLING:
+		acpi_processor_tstate_has_changed(pr);
+		acpi_bus_generate_proc_event(device, event, 0);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event, 0);
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
@@ -704,6 +725,25 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 
 	return;
 }
+
+static int acpi_cpu_soft_notify(struct notifier_block *nfb,
+		unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+	struct acpi_processor *pr = processors[cpu];
+
+	if (action == CPU_ONLINE && pr) {
+		acpi_processor_ppc_has_changed(pr);
+		acpi_processor_cst_has_changed(pr);
+		acpi_processor_tstate_has_changed(pr);
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block acpi_cpu_notifier =
+{
+	    .notifier_call = acpi_cpu_soft_notify,
+};
 
 static int acpi_processor_add(struct acpi_device *device)
 {
@@ -968,6 +1008,7 @@ void acpi_processor_install_hotplug_notify(void)
 			    ACPI_UINT32_MAX,
 			    processor_walk_namespace_cb, &action, NULL);
 #endif
+	register_hotcpu_notifier(&acpi_cpu_notifier);
 }
 
 static
@@ -980,6 +1021,7 @@ void acpi_processor_uninstall_hotplug_notify(void)
 			    ACPI_UINT32_MAX,
 			    processor_walk_namespace_cb, &action, NULL);
 #endif
+	unregister_hotcpu_notifier(&acpi_cpu_notifier);
 }
 
 /*

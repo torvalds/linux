@@ -123,6 +123,7 @@
  * sctp/protocol.c
  */
 extern struct sock *sctp_get_ctl_sock(void);
+extern void sctp_local_addr_free(struct rcu_head *head);
 extern int sctp_copy_local_addr_list(struct sctp_bind_addr *,
 				     sctp_scope_t, gfp_t gfp,
 				     int flags);
@@ -188,6 +189,16 @@ void sctp_eps_proc_exit(void);
 int sctp_assocs_proc_init(void);
 void sctp_assocs_proc_exit(void);
 
+
+/*
+ * Module global variables
+ */
+
+ /*
+  * sctp/protocol.c
+  */
+extern struct kmem_cache *sctp_chunk_cachep __read_mostly;
+extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
 
 /*
  *  Section:  Macros, externs, and inlines
@@ -330,6 +341,7 @@ extern atomic_t sctp_dbg_objcnt_bind_bucket;
 extern atomic_t sctp_dbg_objcnt_addr;
 extern atomic_t sctp_dbg_objcnt_ssnmap;
 extern atomic_t sctp_dbg_objcnt_datamsg;
+extern atomic_t sctp_dbg_objcnt_keys;
 
 /* Macros to atomically increment/decrement objcnt counters.  */
 #define SCTP_DBG_OBJCNT_INC(name) \
@@ -458,6 +470,11 @@ static inline void sctp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 	skb->sk = sk;
 	skb->destructor = sctp_sock_rfree;
 	atomic_add(event->rmem_len, &sk->sk_rmem_alloc);
+	/*
+	 * This mimics the behavior of
+	 * sk_stream_set_owner_r
+	 */
+	sk->sk_forward_alloc -= event->rmem_len;
 }
 
 /* Tests if the list has one and only one entry. */

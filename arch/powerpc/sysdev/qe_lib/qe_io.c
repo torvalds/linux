@@ -36,6 +36,9 @@ struct port_regs {
 	__be32	cpdir2;		/* Direction register */
 	__be32	cppar1;		/* Pin assignment register */
 	__be32	cppar2;		/* Pin assignment register */
+#ifdef CONFIG_PPC_85xx
+	u8	pad[8];
+#endif
 };
 
 static struct port_regs *par_io = NULL;
@@ -195,29 +198,22 @@ EXPORT_SYMBOL(par_io_of_config);
 #ifdef DEBUG
 static void dump_par_io(void)
 {
-	int i;
+	unsigned int i;
 
-	printk(KERN_INFO "PAR IO registars:\n");
-	printk(KERN_INFO "Base address: 0x%08x\n", (u32) par_io);
+	printk(KERN_INFO "%s: par_io=%p\n", __FUNCTION__, par_io);
 	for (i = 0; i < num_par_io_ports; i++) {
-		printk(KERN_INFO "cpodr[%d] : addr - 0x%08x, val - 0x%08x\n",
-		       i, (u32) & par_io[i].cpodr,
-		       in_be32(&par_io[i].cpodr));
-		printk(KERN_INFO "cpdata[%d]: addr - 0x%08x, val - 0x%08x\n",
-		       i, (u32) & par_io[i].cpdata,
-		       in_be32(&par_io[i].cpdata));
-		printk(KERN_INFO "cpdir1[%d]: addr - 0x%08x, val - 0x%08x\n",
-		       i, (u32) & par_io[i].cpdir1,
-		       in_be32(&par_io[i].cpdir1));
-		printk(KERN_INFO "cpdir2[%d]: addr - 0x%08x, val - 0x%08x\n",
-		       i, (u32) & par_io[i].cpdir2,
-		       in_be32(&par_io[i].cpdir2));
-		printk(KERN_INFO "cppar1[%d]: addr - 0x%08x, val - 0x%08x\n",
-		       i, (u32) & par_io[i].cppar1,
-		       in_be32(&par_io[i].cppar1));
-		printk(KERN_INFO "cppar2[%d]: addr - 0x%08x, val - 0x%08x\n",
-		       i, (u32) & par_io[i].cppar2,
-		       in_be32(&par_io[i].cppar2));
+		printk(KERN_INFO "	cpodr[%u]=%08x\n", i,
+			in_be32(&par_io[i].cpodr));
+		printk(KERN_INFO "	cpdata[%u]=%08x\n", i,
+			in_be32(&par_io[i].cpdata));
+		printk(KERN_INFO "	cpdir1[%u]=%08x\n", i,
+			in_be32(&par_io[i].cpdir1));
+		printk(KERN_INFO "	cpdir2[%u]=%08x\n", i,
+			in_be32(&par_io[i].cpdir2));
+		printk(KERN_INFO "	cppar1[%u]=%08x\n", i,
+			in_be32(&par_io[i].cppar1));
+		printk(KERN_INFO "	cppar2[%u]=%08x\n", i,
+			in_be32(&par_io[i].cppar2));
 	}
 
 }

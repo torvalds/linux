@@ -307,9 +307,9 @@ static void __init parse_drconf_memory(struct device_node *memory)
 	const unsigned int *lm, *dm, *aa;
 	unsigned int ls, ld, la;
 	unsigned int n, aam, aalen;
-	unsigned long lmb_size, size;
+	unsigned long lmb_size, size, start;
 	int nid, default_nid = 0;
-	unsigned int start, ai, flags;
+	unsigned int ai, flags;
 
 	lm = of_get_property(memory, "ibm,lmb-size", &ls);
 	dm = of_get_property(memory, "ibm,dynamic-memory", &ld);

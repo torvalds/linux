@@ -192,7 +192,7 @@ alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum)
 		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
 		   ? ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip
 		   : ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip);
-	u_int16_t all
+	__be16 all
 		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
 		   ? ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u.all
 		   : ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u.all);

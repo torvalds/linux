@@ -31,6 +31,7 @@ extern int sn_prom_feature_available(int id);
 #define PRF_PAL_CACHE_FLUSH_SAFE	0
 #define PRF_DEVICE_FLUSH_LIST		1
 #define PRF_HOTPLUG_SUPPORT		2
+#define PRF_CPU_DISABLE_SUPPORT		3
 
 /* --------------------- OS Features -------------------------------*/
 

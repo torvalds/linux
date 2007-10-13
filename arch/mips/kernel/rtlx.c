@@ -40,11 +40,10 @@
 #include <asm/atomic.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
+#include <asm/mips_mt.h>
 #include <asm/system.h>
 #include <asm/vpe.h>
 #include <asm/rtlx.h>
-
-#define RTLX_TARG_VPE 1
 
 static struct rtlx_info *rtlx;
 static int major;
@@ -57,8 +56,6 @@ static struct chan_waitqueues {
 	struct mutex mutex;
 } channel_wqs[RTLX_CHANNELS];
 
-static struct irqaction irq;
-static int irq_num;
 static struct vpe_notifications notify;
 static int sp_stopping = 0;
 
@@ -85,7 +82,7 @@ static irqreturn_t rtlx_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static __attribute_used__ void dump_rtlx(void)
+static void __used dump_rtlx(void)
 {
 	int i;
 
@@ -112,7 +109,7 @@ static __attribute_used__ void dump_rtlx(void)
 static int rtlx_init(struct rtlx_info *rtlxi)
 {
 	if (rtlxi->id != RTLX_ID) {
-		printk(KERN_ERR "no valid RTLX id at 0x%p 0x%x\n", rtlxi, rtlxi->id);
+		printk(KERN_ERR "no valid RTLX id at 0x%p 0x%lx\n", rtlxi, rtlxi->id);
 		return -ENOEXEC;
 	}
 
@@ -165,10 +162,10 @@ int rtlx_open(int index, int can_sleep)
 	}
 
 	if (rtlx == NULL) {
-		if( (p = vpe_get_shared(RTLX_TARG_VPE)) == NULL) {
+		if( (p = vpe_get_shared(tclimit)) == NULL) {
 			if (can_sleep) {
 				__wait_event_interruptible(channel_wqs[index].lx_queue,
-				                           (p = vpe_get_shared(RTLX_TARG_VPE)),
+				                           (p = vpe_get_shared(tclimit)),
 				                           ret);
 				if (ret)
 					goto out_fail;
@@ -472,10 +469,23 @@ static int rtlx_irq_num = MIPS_CPU_IRQ_BASE + MIPS_CPU_RTLX_IRQ;
 static char register_chrdev_failed[] __initdata =
 	KERN_ERR "rtlx_module_init: unable to register device\n";
 
-static int rtlx_module_init(void)
+static int __init rtlx_module_init(void)
 {
 	struct device *dev;
 	int i, err;
+
+	if (!cpu_has_mipsmt) {
+		printk("VPE loader: not a MIPS MT capable processor\n");
+		return -ENODEV;
+	}
+
+	if (tclimit == 0) {
+		printk(KERN_WARNING "No TCs reserved for AP/SP, not "
+		       "initializing RTLX.\nPass maxtcs=<n> argument as kernel "
+		       "argument\n");
+
+		return -ENODEV;
+	}
 
 	major = register_chrdev(0, module_name, &rtlx_fops);
 	if (major < 0) {
@@ -501,7 +511,7 @@ static int rtlx_module_init(void)
 	/* set up notifiers */
 	notify.start = starting;
 	notify.stop = stopping;
-	vpe_notify(RTLX_TARG_VPE, &notify);
+	vpe_notify(tclimit, &notify);
 
 	if (cpu_has_vint)
 		set_vi_handler(MIPS_CPU_RTLX_IRQ, rtlx_dispatch);

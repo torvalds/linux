@@ -505,10 +505,9 @@ static int irtty_open(struct tty_struct *tty)
 	}
 
 	/* allocate private device info block */
-	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		goto out_put;
-	memset(priv, 0, sizeof(*priv));
 
 	priv->magic = IRTTY_MAGIC;
 	priv->tty = tty;

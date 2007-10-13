@@ -16,10 +16,13 @@
 #include <crypto/algapi.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 
-static int setkey_unaligned(struct crypto_ablkcipher *tfm, const u8 *key, unsigned int keylen)
+static int setkey_unaligned(struct crypto_ablkcipher *tfm, const u8 *key,
+			    unsigned int keylen)
 {
 	struct ablkcipher_alg *cipher = crypto_ablkcipher_alg(tfm);
 	unsigned long alignmask = crypto_ablkcipher_alignmask(tfm);
@@ -35,7 +38,7 @@ static int setkey_unaligned(struct crypto_ablkcipher *tfm, const u8 *key, unsign
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
 	ret = cipher->setkey(tfm, alignbuffer, keylen);
-	memset(alignbuffer, 0, absize);
+	memset(alignbuffer, 0, keylen);
 	kfree(buffer);
 	return ret;
 }
@@ -91,10 +94,6 @@ static void crypto_ablkcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "min keysize  : %u\n", ablkcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", ablkcipher->max_keysize);
 	seq_printf(m, "ivsize       : %u\n", ablkcipher->ivsize);
-	if (ablkcipher->queue) {
-		seq_printf(m, "qlen         : %u\n", ablkcipher->queue->qlen);
-		seq_printf(m, "max qlen     : %u\n", ablkcipher->queue->max_qlen);
-	}
 }
 
 const struct crypto_type crypto_ablkcipher_type = {

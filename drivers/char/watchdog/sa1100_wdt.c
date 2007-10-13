@@ -45,7 +45,6 @@ static int boot_status;
  */
 static int sa1100dog_open(struct inode *inode, struct file *file)
 {
-	nonseekable_open(inode, file);
 	if (test_and_set_bit(1,&sa1100wdt_users))
 		return -EBUSY;
 
@@ -54,7 +53,7 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
 	OSSR = OSSR_M3;
 	OWER = OWER_WME;
 	OIER |= OIER_E3;
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 /*

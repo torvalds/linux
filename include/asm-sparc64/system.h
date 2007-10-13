@@ -115,13 +115,7 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 #ifndef __ASSEMBLY__
 
 extern void sun_do_break(void);
-extern int serial_console;
 extern int stop_a_enabled;
-
-static __inline__ int con_is_present(void)
-{
-	return serial_console ? 0 : 1;
-}
 
 extern void synchronize_user_stack(void);
 
@@ -147,7 +141,6 @@ do {						\
 	 * not preserve it's value.  Hairy, but it lets us remove 2 loads
 	 * and 2 stores in this critical code path.  -DaveM
 	 */
-#define EXTRA_CLOBBER ,"%l1"
 #define switch_to(prev, next, last)					\
 do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 		unsigned long __tmp;					\
@@ -170,49 +163,40 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"stx	%%i6, [%%sp + 2047 + 0x70]\n\t"				\
 	"stx	%%i7, [%%sp + 2047 + 0x78]\n\t"				\
 	"rdpr	%%wstate, %%o5\n\t"					\
-	"stx	%%o6, [%%g6 + %3]\n\t"					\
-	"stb	%%o5, [%%g6 + %2]\n\t"					\
-	"rdpr	%%cwp, %%o5\n\t"					\
+	"stx	%%o6, [%%g6 + %6]\n\t"					\
 	"stb	%%o5, [%%g6 + %5]\n\t"					\
-	"mov	%1, %%g6\n\t"						\
-	"ldub	[%1 + %5], %%g1\n\t"					\
+	"rdpr	%%cwp, %%o5\n\t"					\
+	"stb	%%o5, [%%g6 + %8]\n\t"					\
+	"mov	%4, %%g6\n\t"						\
+	"ldub	[%4 + %8], %%g1\n\t"					\
 	"wrpr	%%g1, %%cwp\n\t"					\
-	"ldx	[%%g6 + %3], %%o6\n\t"					\
-	"ldub	[%%g6 + %2], %%o5\n\t"					\
-	"ldub	[%%g6 + %4], %%o7\n\t"					\
+	"ldx	[%%g6 + %6], %%o6\n\t"					\
+	"ldub	[%%g6 + %5], %%o5\n\t"					\
+	"ldub	[%%g6 + %7], %%o7\n\t"					\
 	"wrpr	%%o5, 0x0, %%wstate\n\t"				\
 	"ldx	[%%sp + 2047 + 0x70], %%i6\n\t"				\
 	"ldx	[%%sp + 2047 + 0x78], %%i7\n\t"				\
-	"ldx	[%%g6 + %6], %%g4\n\t"					\
+	"ldx	[%%g6 + %9], %%g4\n\t"					\
 	"brz,pt %%o7, 1f\n\t"						\
 	" mov	%%g7, %0\n\t"						\
 	"b,a ret_from_syscall\n\t"					\
 	"1:\n\t"							\
-	: "=&r" (last)							\
+	: "=&r" (last), "=r" (current), "=r" (current_thread_info_reg),	\
+	  "=r" (__local_per_cpu_offset)					\
 	: "0" (task_thread_info(next)),					\
 	  "i" (TI_WSTATE), "i" (TI_KSP), "i" (TI_NEW_CHILD),            \
 	  "i" (TI_CWP), "i" (TI_TASK)					\
 	: "cc",								\
 	        "g1", "g2", "g3",                   "g7",		\
-	              "l2", "l3", "l4", "l5", "l6", "l7",		\
+	        "l1", "l2", "l3", "l4", "l5", "l6", "l7",		\
 	  "i0", "i1", "i2", "i3", "i4", "i5",				\
-	  "o0", "o1", "o2", "o3", "o4", "o5",       "o7" EXTRA_CLOBBER);\
+	  "o0", "o1", "o2", "o3", "o4", "o5",       "o7");		\
 	/* If you fuck with this, update ret_from_syscall code too. */	\
 	if (test_thread_flag(TIF_PERFCTR)) {				\
 		write_pcr(current_thread_info()->pcr_reg);		\
 		reset_pic();						\
 	}								\
 } while(0)
-
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
 
 static inline unsigned long xchg32(__volatile__ unsigned int *m, unsigned int val)
 {

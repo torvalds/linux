@@ -622,6 +622,7 @@ static int __devinit speedo_found1(struct pci_dev *pdev,
 	int size;
 	void *tx_ring_space;
 	dma_addr_t tx_ring_dma;
+	DECLARE_MAC_BUF(mac);
 
 	size = TX_RING_SIZE * sizeof(struct TxFD) + sizeof(struct speedo_stats);
 	tx_ring_space = pci_alloc_consistent(pdev, size, &tx_ring_dma);
@@ -635,7 +636,6 @@ static int __devinit speedo_found1(struct pci_dev *pdev,
 		return -1;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (dev->mem_start > 0)
@@ -706,12 +706,8 @@ static int __devinit speedo_found1(struct pci_dev *pdev,
 	else
 		product = pci_name(pdev);
 
-	printk(KERN_INFO "%s: %s, ", dev->name, product);
-
-	for (i = 0; i < 5; i++)
-		printk("%2.2X:", dev->dev_addr[i]);
-	printk("%2.2X, ", dev->dev_addr[i]);
-	printk("IRQ %d.\n", pdev->irq);
+	printk(KERN_INFO "%s: %s, %s, IRQ %d.\n", dev->name, product,
+		   print_mac(mac, dev->dev_addr), pdev->irq);
 
 	sp = netdev_priv(dev);
 

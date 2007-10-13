@@ -182,7 +182,7 @@ u8 * ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key,
 	*pos++ = iv0;
 	*pos++ = iv1;
 	*pos++ = iv2;
-	*pos++ = (key->keyidx << 6) | (1 << 5) /* Ext IV */;
+	*pos++ = (key->conf.keyidx << 6) | (1 << 5) /* Ext IV */;
 	*pos++ = key->u.tkip.iv32 & 0xff;
 	*pos++ = (key->u.tkip.iv32 >> 8) & 0xff;
 	*pos++ = (key->u.tkip.iv32 >> 16) & 0xff;
@@ -194,7 +194,7 @@ u8 * ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key,
 void ieee80211_tkip_gen_phase1key(struct ieee80211_key *key, u8 *ta,
 				  u16 *phase1key)
 {
-	tkip_mixing_phase1(ta, &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+	tkip_mixing_phase1(ta, &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 			   key->u.tkip.iv32, phase1key);
 }
 
@@ -204,12 +204,13 @@ void ieee80211_tkip_gen_rc4key(struct ieee80211_key *key, u8 *ta,
 	/* Calculate per-packet key */
 	if (key->u.tkip.iv16 == 0 || !key->u.tkip.tx_initialized) {
 		/* IV16 wrapped around - perform TKIP phase 1 */
-		tkip_mixing_phase1(ta, &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+		tkip_mixing_phase1(ta, &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 				   key->u.tkip.iv32, key->u.tkip.p1k);
 		key->u.tkip.tx_initialized = 1;
 	}
 
-	tkip_mixing_phase2(key->u.tkip.p1k, &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+	tkip_mixing_phase2(key->u.tkip.p1k,
+			   &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 			   key->u.tkip.iv16, rc4key);
 }
 
@@ -237,7 +238,8 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 				struct ieee80211_key *key,
 				u8 *payload, size_t payload_len, u8 *ta,
-				int only_iv, int queue)
+				int only_iv, int queue,
+				u32 *out_iv32, u16 *out_iv16)
 {
 	u32 iv32;
 	u32 iv16;
@@ -266,7 +268,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	if (!(keyid & (1 << 5)))
 		return TKIP_DECRYPT_NO_EXT_IV;
 
-	if ((keyid >> 6) != key->keyidx)
+	if ((keyid >> 6) != key->conf.keyidx)
 		return TKIP_DECRYPT_INVALID_KEYIDX;
 
 	if (key->u.tkip.rx_initialized[queue] &&
@@ -274,9 +276,10 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	     (iv32 == key->u.tkip.iv32_rx[queue] &&
 	      iv16 <= key->u.tkip.iv16_rx[queue]))) {
 #ifdef CONFIG_TKIP_DEBUG
+		DECLARE_MAC_BUF(mac);
 		printk(KERN_DEBUG "TKIP replay detected for RX frame from "
-		       MAC_FMT " (RX IV (%04x,%02x) <= prev. IV (%04x,%02x)\n",
-		       MAC_ARG(ta),
+		       "%s (RX IV (%04x,%02x) <= prev. IV (%04x,%02x)\n",
+		       print_mac(mac, ta),
 		       iv32, iv16, key->u.tkip.iv32_rx[queue],
 		       key->u.tkip.iv16_rx[queue]);
 #endif /* CONFIG_TKIP_DEBUG */
@@ -293,16 +296,18 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	    key->u.tkip.iv32_rx[queue] != iv32) {
 		key->u.tkip.rx_initialized[queue] = 1;
 		/* IV16 wrapped around - perform TKIP phase 1 */
-		tkip_mixing_phase1(ta, &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+		tkip_mixing_phase1(ta, &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 				   iv32, key->u.tkip.p1k_rx[queue]);
 #ifdef CONFIG_TKIP_DEBUG
 		{
 			int i;
-			printk(KERN_DEBUG "TKIP decrypt: Phase1 TA=" MAC_FMT
-			       " TK=", MAC_ARG(ta));
+			DECLARE_MAC_BUF(mac);
+			printk(KERN_DEBUG "TKIP decrypt: Phase1 TA=%s"
+			       " TK=", print_mac(mac, ta));
 			for (i = 0; i < 16; i++)
 				printk("%02x ",
-				       key->key[ALG_TKIP_TEMP_ENCR_KEY + i]);
+				       key->conf.key[
+						ALG_TKIP_TEMP_ENCR_KEY + i]);
 			printk("\n");
 			printk(KERN_DEBUG "TKIP decrypt: P1K=");
 			for (i = 0; i < 5; i++)
@@ -313,7 +318,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	}
 
 	tkip_mixing_phase2(key->u.tkip.p1k_rx[queue],
-			   &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+			   &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 			   iv16, rc4key);
 #ifdef CONFIG_TKIP_DEBUG
 	{
@@ -328,11 +333,14 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	res = ieee80211_wep_decrypt_data(tfm, rc4key, 16, pos, payload_len - 12);
  done:
 	if (res == TKIP_DECRYPT_OK) {
-		/* FIX: these should be updated only after Michael MIC has been
-		 * verified */
-		/* Record previously received IV */
-		key->u.tkip.iv32_rx[queue] = iv32;
-		key->u.tkip.iv16_rx[queue] = iv16;
+		/*
+		 * Record previously received IV, will be copied into the
+		 * key information after MIC verification. It is possible
+		 * that we don't catch replays of fragments but that's ok
+		 * because the Michael MIC verication will then fail.
+		 */
+		*out_iv32 = iv32;
+		*out_iv16 = iv16;
 	}
 
 	return res;

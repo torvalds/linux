@@ -264,7 +264,7 @@ static inline void set_capacity(struct gendisk *disk, sector_t size)
 
 #ifdef CONFIG_SOLARIS_X86_PARTITION
 
-#define SOLARIS_X86_NUMSLICE	8
+#define SOLARIS_X86_NUMSLICE	16
 #define SOLARIS_X86_VTOC_SANE	(0x600DDEEEUL)
 
 struct solaris_x86_slice {

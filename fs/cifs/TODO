@@ -18,9 +18,9 @@ better)
 
 d) Kerberos/SPNEGO session setup support - (started)
 
-e) More testing of NTLMv2 authentication (mostly implemented - double check
-that NTLMv2 signing works, also need to cleanup now unneeded SessSetup code in
-fs/cifs/connect.c)
+e) Cleanup now unneeded SessSetup code in
+fs/cifs/connect.c and add back in NTLMSSP code if any servers
+need it
 
 f) MD5-HMAC signing SMB PDUs when SPNEGO style SessionSetup 
 used (Kerberos or NTLMSSP). Signing alreadyimplemented for NTLM
@@ -82,8 +82,7 @@ u) DOS attrs - returned as pseudo-xattr in Samba format (check VFAT and NTFS for
 
 v) mount check for unmatched uids
 
-w) Add mount option for Linux extension disable per mount, and partial
-disable per mount (uid off, symlink/fifo/mknod on but what about posix acls?)
+w) Add support for new vfs entry points for setlease and fallocate 
 
 x) Fix Samba 3 server to handle Linux kernel aio so dbench with lots of 
 processes can proceed better in parallel (on the server)
@@ -106,6 +105,12 @@ but recognizes them
 succeed but still return access denied (appears to be Windows 
 server not cifs client problem) and has not been reproduced recently.
 NTFS partitions do not have this problem.
+4) Unix/POSIX capabilities are reset after reconnection, and affect
+a few fields in the tree connection but we do do not know which
+superblocks to apply these changes to.  We should probably walk
+the list of superblocks to set these.  Also need to check the
+flags on the second mount to the same share, and see if we
+can do the same trick that NFS does to remount duplicate shares.
 
 Misc testing to do
 ==================

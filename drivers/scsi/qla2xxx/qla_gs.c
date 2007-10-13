@@ -127,7 +127,7 @@ qla2x00_chk_ms_status(scsi_qla_host_t *ha, ms_iocb_entry_t *ms_pkt,
 		DEBUG2_3(printk("scsi(%ld): %s failed, error status (%x).\n",
 		    ha->host_no, routine, ms_pkt->entry_status));
 	} else {
-		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+		if (IS_FWI2_CAPABLE(ha))
 			comp_status = le16_to_cpu(
 			    ((struct ct_entry_24xx *)ms_pkt)->comp_status);
 		else
@@ -180,7 +180,8 @@ qla2x00_ga_nxt(scsi_qla_host_t *ha, fc_port_t *fcport)
 
 	/* Issue GA_NXT */
 	/* Prepare common MS IOCB */
-	ms_pkt = ha->isp_ops.prep_ms_iocb(ha, GA_NXT_REQ_SIZE, GA_NXT_RSP_SIZE);
+	ms_pkt = ha->isp_ops->prep_ms_iocb(ha, GA_NXT_REQ_SIZE,
+	    GA_NXT_RSP_SIZE);
 
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_req(&ha->ct_sns->p.req, GA_NXT_CMD,
@@ -266,7 +267,8 @@ qla2x00_gid_pt(scsi_qla_host_t *ha, sw_info_t *list)
 
 	/* Issue GID_PT */
 	/* Prepare common MS IOCB */
-	ms_pkt = ha->isp_ops.prep_ms_iocb(ha, GID_PT_REQ_SIZE, GID_PT_RSP_SIZE);
+	ms_pkt = ha->isp_ops->prep_ms_iocb(ha, GID_PT_REQ_SIZE,
+	    GID_PT_RSP_SIZE);
 
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_req(&ha->ct_sns->p.req, GID_PT_CMD,
@@ -293,6 +295,8 @@ qla2x00_gid_pt(scsi_qla_host_t *ha, sw_info_t *list)
 			list[i].d_id.b.domain = gid_data->port_id[0];
 			list[i].d_id.b.area = gid_data->port_id[1];
 			list[i].d_id.b.al_pa = gid_data->port_id[2];
+			memset(list[i].fabric_port_name, 0, WWN_SIZE);
+			list[i].fp_speed = PORT_SPEED_UNKNOWN;
 
 			/* Last one exit. */
 			if (gid_data->control_byte & BIT_7) {
@@ -338,7 +342,7 @@ qla2x00_gpn_id(scsi_qla_host_t *ha, sw_info_t *list)
 	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
 		/* Issue GPN_ID */
 		/* Prepare common MS IOCB */
-		ms_pkt = ha->isp_ops.prep_ms_iocb(ha, GPN_ID_REQ_SIZE,
+		ms_pkt = ha->isp_ops->prep_ms_iocb(ha, GPN_ID_REQ_SIZE,
 		    GPN_ID_RSP_SIZE);
 
 		/* Prepare CT request */
@@ -399,7 +403,7 @@ qla2x00_gnn_id(scsi_qla_host_t *ha, sw_info_t *list)
 	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
 		/* Issue GNN_ID */
 		/* Prepare common MS IOCB */
-		ms_pkt = ha->isp_ops.prep_ms_iocb(ha, GNN_ID_REQ_SIZE,
+		ms_pkt = ha->isp_ops->prep_ms_iocb(ha, GNN_ID_REQ_SIZE,
 		    GNN_ID_RSP_SIZE);
 
 		/* Prepare CT request */
@@ -473,7 +477,8 @@ qla2x00_rft_id(scsi_qla_host_t *ha)
 
 	/* Issue RFT_ID */
 	/* Prepare common MS IOCB */
-	ms_pkt = ha->isp_ops.prep_ms_iocb(ha, RFT_ID_REQ_SIZE, RFT_ID_RSP_SIZE);
+	ms_pkt = ha->isp_ops->prep_ms_iocb(ha, RFT_ID_REQ_SIZE,
+	    RFT_ID_RSP_SIZE);
 
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_req(&ha->ct_sns->p.req, RFT_ID_CMD,
@@ -528,7 +533,8 @@ qla2x00_rff_id(scsi_qla_host_t *ha)
 
 	/* Issue RFF_ID */
 	/* Prepare common MS IOCB */
-	ms_pkt = ha->isp_ops.prep_ms_iocb(ha, RFF_ID_REQ_SIZE, RFF_ID_RSP_SIZE);
+	ms_pkt = ha->isp_ops->prep_ms_iocb(ha, RFF_ID_REQ_SIZE,
+	    RFF_ID_RSP_SIZE);
 
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_req(&ha->ct_sns->p.req, RFF_ID_CMD,
@@ -582,7 +588,8 @@ qla2x00_rnn_id(scsi_qla_host_t *ha)
 
 	/* Issue RNN_ID */
 	/* Prepare common MS IOCB */
-	ms_pkt = ha->isp_ops.prep_ms_iocb(ha, RNN_ID_REQ_SIZE, RNN_ID_RSP_SIZE);
+	ms_pkt = ha->isp_ops->prep_ms_iocb(ha, RNN_ID_REQ_SIZE,
+	    RNN_ID_RSP_SIZE);
 
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_req(&ha->ct_sns->p.req, RNN_ID_CMD,
@@ -645,7 +652,7 @@ qla2x00_rsnn_nn(scsi_qla_host_t *ha)
 	/* Issue RSNN_NN */
 	/* Prepare common MS IOCB */
 	/*   Request size adjusted after CT preparation */
-	ms_pkt = ha->isp_ops.prep_ms_iocb(ha, 0, RSNN_NN_RSP_SIZE);
+	ms_pkt = ha->isp_ops->prep_ms_iocb(ha, 0, RSNN_NN_RSP_SIZE);
 
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_req(&ha->ct_sns->p.req, RSNN_NN_CMD,
@@ -1102,7 +1109,7 @@ qla2x00_mgmt_svr_login(scsi_qla_host_t *ha)
 	if (ha->flags.management_server_logged_in)
 		return ret;
 
-	ha->isp_ops.fabric_login(ha, ha->mgmt_svr_loop_id, 0xff, 0xff, 0xfa,
+	ha->isp_ops->fabric_login(ha, ha->mgmt_svr_loop_id, 0xff, 0xff, 0xfa,
 	    mb, BIT_1);
 	if (mb[0] != MBS_COMMAND_COMPLETE) {
 		DEBUG2_13(printk("%s(%ld): Failed MANAGEMENT_SERVER login: "
@@ -1198,7 +1205,7 @@ qla2x00_update_ms_fdmi_iocb(scsi_qla_host_t *ha, uint32_t req_size)
 	ms_iocb_entry_t *ms_pkt = ha->ms_iocb;
 	struct ct_entry_24xx *ct_pkt = (struct ct_entry_24xx *)ha->ms_iocb;
 
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+	if (IS_FWI2_CAPABLE(ha)) {
 		ct_pkt->cmd_byte_count = cpu_to_le32(req_size);
 		ct_pkt->dseg_0_len = ct_pkt->cmd_byte_count;
 	} else {
@@ -1253,7 +1260,7 @@ qla2x00_fdmi_rhba(scsi_qla_host_t *ha)
 	/* Issue RHBA */
 	/* Prepare common MS IOCB */
 	/*   Request size adjusted after CT preparation */
-	ms_pkt = ha->isp_ops.prep_ms_fdmi_iocb(ha, 0, RHBA_RSP_SIZE);
+	ms_pkt = ha->isp_ops->prep_ms_fdmi_iocb(ha, 0, RHBA_RSP_SIZE);
 
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_fdmi_req(&ha->ct_sns->p.req, RHBA_CMD,
@@ -1373,7 +1380,7 @@ qla2x00_fdmi_rhba(scsi_qla_host_t *ha)
 	/* Firmware version */
 	eiter = (struct ct_fdmi_hba_attr *) (entries + size);
 	eiter->type = __constant_cpu_to_be16(FDMI_HBA_FIRMWARE_VERSION);
-	ha->isp_ops.fw_version_str(ha, eiter->a.fw_version);
+	ha->isp_ops->fw_version_str(ha, eiter->a.fw_version);
 	alen = strlen(eiter->a.fw_version);
 	alen += (alen & 3) ? (4 - (alen & 3)) : 4;
 	eiter->len = cpu_to_be16(4 + alen);
@@ -1439,7 +1446,7 @@ qla2x00_fdmi_dhba(scsi_qla_host_t *ha)
 
 	/* Issue RPA */
 	/* Prepare common MS IOCB */
-	ms_pkt = ha->isp_ops.prep_ms_fdmi_iocb(ha, DHBA_REQ_SIZE,
+	ms_pkt = ha->isp_ops->prep_ms_fdmi_iocb(ha, DHBA_REQ_SIZE,
 	    DHBA_RSP_SIZE);
 
 	/* Prepare CT request */
@@ -1497,7 +1504,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	/* Issue RPA */
 	/* Prepare common MS IOCB */
 	/*   Request size adjusted after CT preparation */
-	ms_pkt = ha->isp_ops.prep_ms_fdmi_iocb(ha, 0, RPA_RSP_SIZE);
+	ms_pkt = ha->isp_ops->prep_ms_fdmi_iocb(ha, 0, RPA_RSP_SIZE);
 
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_fdmi_req(&ha->ct_sns->p.req, RPA_CMD,
@@ -1527,12 +1534,20 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	eiter = (struct ct_fdmi_port_attr *) (entries + size);
 	eiter->type = __constant_cpu_to_be16(FDMI_PORT_SUPPORT_SPEED);
 	eiter->len = __constant_cpu_to_be16(4 + 4);
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
-		eiter->a.sup_speed = __constant_cpu_to_be32(4);
+	if (IS_QLA25XX(ha))
+		eiter->a.sup_speed = __constant_cpu_to_be32(
+		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
+		    FDMI_PORT_SPEED_4GB|FDMI_PORT_SPEED_8GB);
+	else if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+		eiter->a.sup_speed = __constant_cpu_to_be32(
+		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
+		    FDMI_PORT_SPEED_4GB);
 	else if (IS_QLA23XX(ha))
-		eiter->a.sup_speed = __constant_cpu_to_be32(2);
+		eiter->a.sup_speed =__constant_cpu_to_be32(
+		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB);
 	else
-		eiter->a.sup_speed = __constant_cpu_to_be32(1);
+		eiter->a.sup_speed = __constant_cpu_to_be32(
+		    FDMI_PORT_SPEED_1GB);
 	size += 4 + 4;
 
 	DEBUG13(printk("%s(%ld): SUPPORTED_SPEED=%x.\n", __func__, ha->host_no,
@@ -1543,14 +1558,25 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	eiter->type = __constant_cpu_to_be16(FDMI_PORT_CURRENT_SPEED);
 	eiter->len = __constant_cpu_to_be16(4 + 4);
 	switch (ha->link_data_rate) {
-	case 0:
-		eiter->a.cur_speed = __constant_cpu_to_be32(1);
+	case PORT_SPEED_1GB:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_1GB);
 		break;
-	case 1:
-		eiter->a.cur_speed = __constant_cpu_to_be32(2);
+	case PORT_SPEED_2GB:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_2GB);
 		break;
-	case 3:
-		eiter->a.cur_speed = __constant_cpu_to_be32(4);
+	case PORT_SPEED_4GB:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_4GB);
+		break;
+	case PORT_SPEED_8GB:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_8GB);
+		break;
+	default:
+		eiter->a.cur_speed =
+		    __constant_cpu_to_be32(FDMI_PORT_SPEED_UNKNOWN);
 		break;
 	}
 	size += 4 + 4;
@@ -1562,7 +1588,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	eiter = (struct ct_fdmi_port_attr *) (entries + size);
 	eiter->type = __constant_cpu_to_be16(FDMI_PORT_MAX_FRAME_SIZE);
 	eiter->len = __constant_cpu_to_be16(4 + 4);
-	max_frame_size = IS_QLA24XX(ha) || IS_QLA54XX(ha) ?
+	max_frame_size = IS_FWI2_CAPABLE(ha) ?
 		(uint32_t) icb24->frame_payload_size:
 		(uint32_t) ha->init_cb->frame_payload_size;
 	eiter->a.max_frame_size = cpu_to_be32(max_frame_size);
@@ -1678,15 +1704,13 @@ qla2x00_gfpn_id(scsi_qla_host_t *ha, sw_info_t *list)
 	struct ct_sns_req	*ct_req;
 	struct ct_sns_rsp	*ct_rsp;
 
-	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+	if (!IS_IIDMA_CAPABLE(ha))
 		return QLA_FUNCTION_FAILED;
 
 	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
 		/* Issue GFPN_ID */
-		memset(list[i].fabric_port_name, 0, WWN_SIZE);
-
 		/* Prepare common MS IOCB */
-		ms_pkt = ha->isp_ops.prep_ms_iocb(ha, GFPN_ID_REQ_SIZE,
+		ms_pkt = ha->isp_ops->prep_ms_iocb(ha, GFPN_ID_REQ_SIZE,
 		    GFPN_ID_RSP_SIZE);
 
 		/* Prepare CT request */
@@ -1786,7 +1810,7 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 	struct ct_sns_req	*ct_req;
 	struct ct_sns_rsp	*ct_rsp;
 
-	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+	if (!IS_IIDMA_CAPABLE(ha))
 		return QLA_FUNCTION_FAILED;
 	if (!ha->flags.gpsc_supported)
 		return QLA_FUNCTION_FAILED;
@@ -1797,8 +1821,6 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 
 	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
 		/* Issue GFPN_ID */
-		list[i].fp_speeds = list[i].fp_speed = 0;
-
 		/* Prepare common MS IOCB */
 		ms_pkt = qla24xx_prep_ms_fm_iocb(ha, GPSC_REQ_SIZE,
 		    GPSC_RSP_SIZE);
@@ -1834,9 +1856,21 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 			}
 			rval = QLA_FUNCTION_FAILED;
 		} else {
-			/* Save portname */
-			list[i].fp_speeds = ct_rsp->rsp.gpsc.speeds;
-			list[i].fp_speed = ct_rsp->rsp.gpsc.speed;
+			/* Save port-speed */
+			switch (be16_to_cpu(ct_rsp->rsp.gpsc.speed)) {
+			case BIT_15:
+				list[i].fp_speed = PORT_SPEED_1GB;
+				break;
+			case BIT_14:
+				list[i].fp_speed = PORT_SPEED_2GB;
+				break;
+			case BIT_13:
+				list[i].fp_speed = PORT_SPEED_4GB;
+				break;
+			case BIT_11:
+				list[i].fp_speed = PORT_SPEED_8GB;
+				break;
+			}
 
 			DEBUG2_3(printk("scsi(%ld): GPSC ext entry - "
 			    "fpn %02x%02x%02x%02x%02x%02x%02x%02x speeds=%04x "
@@ -1849,8 +1883,8 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 			    list[i].fabric_port_name[5],
 			    list[i].fabric_port_name[6],
 			    list[i].fabric_port_name[7],
-			    be16_to_cpu(list[i].fp_speeds),
-			    be16_to_cpu(list[i].fp_speed)));
+			    be16_to_cpu(ct_rsp->rsp.gpsc.speeds),
+			    be16_to_cpu(ct_rsp->rsp.gpsc.speed)));
 		}
 
 		/* Last device exit. */

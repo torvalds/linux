@@ -362,6 +362,7 @@ static int __init child_regs_nonstandard(struct linux_ebus_device *dev)
 static void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *dev)
 {
 	struct linux_ebus_child *child;
+	struct dev_archdata *sd;
 	struct of_device *op;
 	int i, len;
 
@@ -374,7 +375,10 @@ static void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_de
 		dev->num_addrs = 0;
 		dev->num_irqs = 0;
 	} else {
-		(void) of_get_property(dp, "reg", &len);
+		const int *regs = of_get_property(dp, "reg", &len);
+
+		if (!regs)
+			len = 0;
 		dev->num_addrs = len / sizeof(struct linux_prom_registers);
 
 		for (i = 0; i < dev->num_addrs; i++)
@@ -386,6 +390,12 @@ static void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_de
 		for (i = 0; i < dev->num_irqs; i++)
 			dev->irqs[i] = op->irqs[i];
 	}
+
+	sd = &dev->ofdev.dev.archdata;
+	sd->prom_node = dp;
+	sd->op = &dev->ofdev;
+	sd->iommu = dev->bus->ofdev.dev.parent->archdata.iommu;
+	sd->stc = dev->bus->ofdev.dev.parent->archdata.stc;
 
 	dev->ofdev.node = dp;
 	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;

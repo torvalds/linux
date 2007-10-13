@@ -203,14 +203,14 @@
 #define	DTLN		0x0FFF	/* b11-0: FIFO received data length */
 
 /* Interrupt Enable Register 0 */
-#define	VBSE		0x8000	/* b15: VBUS interrupt */
-#define	RSME		0x4000	/* b14: Resume interrupt */
-#define	SOFE		0x2000	/* b13: Frame update interrupt */
-#define	DVSE		0x1000	/* b12: Device state transition interrupt */
-#define	CTRE		0x0800	/* b11: Control transfer stage transition interrupt */
-#define	BEMPE		0x0400	/* b10: Buffer empty interrupt */
-#define	NRDYE		0x0200	/* b9: Buffer not ready interrupt */
-#define	BRDYE		0x0100	/* b8: Buffer ready interrupt */
+#define	VBSE	0x8000	/* b15: VBUS interrupt */
+#define	RSME	0x4000	/* b14: Resume interrupt */
+#define	SOFE	0x2000	/* b13: Frame update interrupt */
+#define	DVSE	0x1000	/* b12: Device state transition interrupt */
+#define	CTRE	0x0800	/* b11: Control transfer stage transition interrupt */
+#define	BEMPE	0x0400	/* b10: Buffer empty interrupt */
+#define	NRDYE	0x0200	/* b9: Buffer not ready interrupt */
+#define	BRDYE	0x0100	/* b8: Buffer ready interrupt */
 
 /* Interrupt Enable Register 1 */
 #define	OVRCRE		0x8000	/* b15: Over-current interrupt */
@@ -268,16 +268,16 @@
 #define	  SOF_DISABLE	 0x0000	  /* SOF OUT Disable */
 
 /* Interrupt Status Register 0 */
-#define	VBINT		0x8000	/* b15: VBUS interrupt */
-#define	RESM		0x4000	/* b14: Resume interrupt */
-#define	SOFR		0x2000	/* b13: SOF frame update interrupt */
-#define	DVST		0x1000	/* b12: Device state transition interrupt */
-#define	CTRT		0x0800	/* b11: Control transfer stage transition interrupt */
-#define	BEMP		0x0400	/* b10: Buffer empty interrupt */
-#define	NRDY		0x0200	/* b9: Buffer not ready interrupt */
-#define	BRDY		0x0100	/* b8: Buffer ready interrupt */
-#define	VBSTS		0x0080	/* b7: VBUS input port */
-#define	DVSQ		0x0070	/* b6-4: Device state */
+#define	VBINT	0x8000	/* b15: VBUS interrupt */
+#define	RESM	0x4000	/* b14: Resume interrupt */
+#define	SOFR	0x2000	/* b13: SOF frame update interrupt */
+#define	DVST	0x1000	/* b12: Device state transition interrupt */
+#define	CTRT	0x0800	/* b11: Control transfer stage transition interrupt */
+#define	BEMP	0x0400	/* b10: Buffer empty interrupt */
+#define	NRDY	0x0200	/* b9: Buffer not ready interrupt */
+#define	BRDY	0x0100	/* b8: Buffer ready interrupt */
+#define	VBSTS	0x0080	/* b7: VBUS input port */
+#define	DVSQ	0x0070	/* b6-4: Device state */
 #define	  DS_SPD_CNFG	 0x0070	  /* Suspend Configured */
 #define	  DS_SPD_ADDR	 0x0060	  /* Suspend Address */
 #define	  DS_SPD_DFLT	 0x0050	  /* Suspend Default */
@@ -315,13 +315,10 @@
 /* Micro Frame Number Register */
 #define	UFRNM		0x0007	/* b2-0: Micro frame number */
 
-/* USB Address / Low Power Status Recovery Register */
-//#define	USBADDR		0x007F	/* b6-0: USB address */
-
 /* Default Control Pipe Maxpacket Size Register */
 /* Pipe Maxpacket Size Register */
-#define	DEVSEL		0xF000	/* b15-14: Device address select */
-#define	MAXP		0x007F	/* b6-0: Maxpacket size of default control pipe */
+#define	DEVSEL	0xF000	/* b15-14: Device address select */
+#define	MAXP	0x007F	/* b6-0: Maxpacket size of default control pipe */
 
 /* Default Control Pipe Control Register */
 #define	BSTS		0x8000	/* b15: Buffer status */
@@ -366,21 +363,21 @@
 #define	MXPS		0x07FF	/* b10-0: Maxpacket size */
 
 /* Pipe Cycle Configuration Register */
-#define	IFIS		0x1000	/* b12: Isochronous in-buffer flush mode select */
-#define	IITV		0x0007	/* b2-0: Isochronous interval */
+#define	IFIS	0x1000	/* b12: Isochronous in-buffer flush mode select */
+#define	IITV	0x0007	/* b2-0: Isochronous interval */
 
 /* Pipex Control Register */
-#define	BSTS		0x8000	/* b15: Buffer status */
-#define	INBUFM		0x4000	/* b14: IN buffer monitor (Only for PIPE1 to 5) */
-#define	CSCLR		0x2000	/* b13: complete-split status clear */
-#define	CSSTS		0x1000	/* b12: complete-split status */
-#define	ATREPM		0x0400	/* b10: Auto repeat mode */
-#define	ACLRM		0x0200	/* b9: Out buffer auto clear mode */
-#define	SQCLR		0x0100	/* b8: Sequence toggle bit clear */
-#define	SQSET		0x0080	/* b7: Sequence toggle bit set */
-#define	SQMON		0x0040	/* b6: Sequence toggle bit monitor */
-#define	PBUSY		0x0020	/* b5: pipe busy */
-#define	PID		0x0003	/* b1-0: Response PID */
+#define	BSTS	0x8000	/* b15: Buffer status */
+#define	INBUFM	0x4000	/* b14: IN buffer monitor (Only for PIPE1 to 5) */
+#define	CSCLR	0x2000	/* b13: complete-split status clear */
+#define	CSSTS	0x1000	/* b12: complete-split status */
+#define	ATREPM	0x0400	/* b10: Auto repeat mode */
+#define	ACLRM	0x0200	/* b9: Out buffer auto clear mode */
+#define	SQCLR	0x0100	/* b8: Sequence toggle bit clear */
+#define	SQSET	0x0080	/* b7: Sequence toggle bit set */
+#define	SQMON	0x0040	/* b6: Sequence toggle bit monitor */
+#define	PBUSY	0x0020	/* b5: pipe busy */
+#define	PID	0x0003	/* b1-0: Response PID */
 
 /* PIPExTRE */
 #define	TRENB		0x0200	/* b9: Transaction counter enable */
@@ -407,15 +404,15 @@
 #define make_devsel(addr)		(addr << 12)
 
 struct r8a66597_pipe_info {
-        u16 pipenum;
-        u16 address;	/* R8A66597 HCD usb addres */
-        u16 epnum;
-        u16 maxpacket;
-        u16 type;
-        u16 bufnum;
-        u16 buf_bsize;
-        u16 interval;
-        u16 dir_in;
+	u16 pipenum;
+	u16 address;	/* R8A66597 HCD usb addres */
+	u16 epnum;
+	u16 maxpacket;
+	u16 type;
+	u16 bufnum;
+	u16 buf_bsize;
+	u16 interval;
+	u16 dir_in;
 };
 
 struct r8a66597_pipe {

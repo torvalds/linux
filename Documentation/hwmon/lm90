@@ -48,6 +48,18 @@ Supported chips:
     Addresses scanned: I2C 0x4c, 0x4d (unsupported 0x4e)
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+  * Maxim MAX6680
+    Prefix: 'max6680'
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
+                           0x4c, 0x4d and 0x4e
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
+  * Maxim MAX6681
+    Prefix: 'max6680'
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
+                           0x4c, 0x4d and 0x4e
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
 
 
 Author: Jean Delvare <khali@linux-fr.org>
@@ -59,11 +71,15 @@ Description
 The LM90 is a digital temperature sensor. It senses its own temperature as
 well as the temperature of up to one external diode. It is compatible
 with many other devices such as the LM86, the LM89, the LM99, the ADM1032,
-the MAX6657, MAX6658 and the MAX6659 all of which are supported by this driver.
-Note that there is no easy way to differentiate between the last three
-variants. The extra address and features of the MAX6659 are not supported by
-this driver. Additionally, the ADT7461 is supported if found in ADM1032
-compatibility mode.
+the MAX6657, MAX6658, MAX6659, MAX6680 and the MAX6681 all of which are
+supported by this driver.
+
+Note that there is no easy way to differentiate between the MAX6657,
+MAX6658 and MAX6659 variants. The extra address and features of the
+MAX6659 are not supported by this driver. The MAX6680 and MAX6681 only
+differ in their pinout, therefore they obviously can't (and don't need to)
+be distinguished. Additionally, the ADT7461 is supported if found in
+ADM1032 compatibility mode.
 
 The specificity of this family of chipsets over the ADM1021/LM84
 family is that it features critical limits with hysteresis, and an
@@ -93,16 +109,20 @@ ADM1032:
   * ALERT is triggered by open remote sensor.
   * SMBus PEC support for Write Byte and Receive Byte transactions.
 
-ADT7461
+ADT7461:
   * Extended temperature range (breaks compatibility)
   * Lower resolution for remote temperature
 
 MAX6657 and MAX6658:
   * Remote sensor type selection
 
-MAX6659
+MAX6659:
   * Selectable address
   * Second critical temperature limit
+  * Remote sensor type selection
+
+MAX6680 and MAX6681:
+  * Selectable address
   * Remote sensor type selection
 
 All temperature values are given in degrees Celsius. Resolution
@@ -141,7 +161,7 @@ SMBus Read Byte, and PEC will work properly.
 Additionally, the ADM1032 doesn't support SMBus Send Byte with PEC.
 Instead, it will try to write the PEC value to the register (because the
 SMBus Send Byte transaction with PEC is similar to a Write Byte transaction
-without PEC), which is not what we want. Thus, PEC is explicitely disabled
+without PEC), which is not what we want. Thus, PEC is explicitly disabled
 on SMBus Send Byte transactions in the lm90 driver.
 
 PEC on byte data transactions represents a significant increase in bandwidth

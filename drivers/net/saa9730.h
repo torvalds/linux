@@ -378,7 +378,6 @@ struct lan_saa9730_private {
 
 	unsigned char PhysicalAddress[LAN_SAA9730_CAM_ENTRIES][6];
 
-	struct net_device_stats stats;
 	spinlock_t lock;
 };
 

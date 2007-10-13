@@ -372,20 +372,21 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len,
 {
 	struct hd_struct *p;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return;
 	
-	memset(p, 0, sizeof(*p));
 	p->start_sect = start;
 	p->nr_sects = len;
 	p->partno = part;
 	p->policy = disk->policy;
 
-	if (isdigit(disk->kobj.name[strlen(disk->kobj.name)-1]))
-		snprintf(p->kobj.name,KOBJ_NAME_LEN,"%sp%d",disk->kobj.name,part);
+	if (isdigit(disk->kobj.k_name[strlen(disk->kobj.k_name)-1]))
+		kobject_set_name(&p->kobj, "%sp%d",
+				 kobject_name(&disk->kobj), part);
 	else
-		snprintf(p->kobj.name,KOBJ_NAME_LEN,"%s%d",disk->kobj.name,part);
+		kobject_set_name(&p->kobj, "%s%d",
+				 kobject_name(&disk->kobj),part);
 	p->kobj.parent = &disk->kobj;
 	p->kobj.ktype = &ktype_part;
 	kobject_init(&p->kobj);
@@ -478,9 +479,9 @@ void register_disk(struct gendisk *disk)
 	struct hd_struct *p;
 	int err;
 
-	strlcpy(disk->kobj.name,disk->disk_name,KOBJ_NAME_LEN);
+	kobject_set_name(&disk->kobj, "%s", disk->disk_name);
 	/* ewww... some of these buggers have / in name... */
-	s = strchr(disk->kobj.name, '/');
+	s = strchr(disk->kobj.k_name, '/');
 	if (s)
 		*s = '!';
 	if ((err = kobject_add(&disk->kobj)))

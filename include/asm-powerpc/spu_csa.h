@@ -50,6 +50,12 @@
 #define SPU_STOPPED_STATUS_P_I  8
 #define SPU_STOPPED_STATUS_R    9
 
+/*
+ * Definitions for software decrementer status flag.
+ */
+#define SPU_DECR_STATUS_RUNNING 0x1
+#define SPU_DECR_STATUS_WRAPPED 0x2
+
 #ifndef  __ASSEMBLY__
 /**
  * spu_reg128 - generic 128-bit register definition.
@@ -63,7 +69,7 @@ struct spu_reg128 {
  * @gprs: Array of saved registers.
  * @fpcr: Saved floating point status control register.
  * @decr: Saved decrementer value.
- * @decr_status: Indicates decrementer run status.
+ * @decr_status: Indicates software decrementer status flags.
  * @ppu_mb: Saved PPU mailbox data.
  * @ppuint_mb: Saved PPU interrupting mailbox data.
  * @tag_mask: Saved tag group mask.

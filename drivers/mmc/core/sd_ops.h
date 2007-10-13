@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/sd_ops.h
+ *  linux/drivers/mmc/core/sd_ops.h
  *
  *  Copyright 2006-2007 Pierre Ossman
  *
@@ -12,7 +12,6 @@
 #ifndef _MMC_SD_OPS_H
 #define _MMC_SD_OPS_H
 
-int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card);
 int mmc_app_set_bus_width(struct mmc_card *card, int width);
 int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr);
 int mmc_send_if_cond(struct mmc_host *host, u32 ocr);

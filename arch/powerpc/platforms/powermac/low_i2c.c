@@ -40,7 +40,6 @@
 #include <linux/completion.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/completion.h>
 #include <linux/timer.h>
 #include <linux/mutex.h>
 #include <asm/keylargo.h>

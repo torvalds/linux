@@ -366,6 +366,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			metaphysical = 1;
 			hugepage_access = *guest_ent;
 			hugepage_access &= PT_USER_MASK | PT_WRITABLE_MASK;
+			if (*guest_ent & PT64_NX_MASK)
+				hugepage_access |= (1 << 2);
 			hugepage_access >>= PT_WRITABLE_SHIFT;
 			table_gfn = (*guest_ent & PT_BASE_ADDR_MASK)
 				>> PAGE_SHIFT;

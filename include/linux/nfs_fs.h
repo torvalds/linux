@@ -71,7 +71,7 @@ struct nfs_access_entry {
 
 struct nfs4_state;
 struct nfs_open_context {
-	struct kref kref;
+	atomic_t count;
 	struct path path;
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
@@ -407,8 +407,8 @@ extern void nfs_release_automount_timer(void);
 /*
  * linux/fs/nfs/unlink.c
  */
-extern int  nfs_async_unlink(struct dentry *);
-extern void nfs_complete_unlink(struct dentry *);
+extern int  nfs_async_unlink(struct inode *dir, struct dentry *dentry);
+extern void nfs_complete_unlink(struct dentry *dentry, struct inode *);
 
 /*
  * linux/fs/nfs/write.c
@@ -431,6 +431,7 @@ extern int nfs_sync_mapping_range(struct address_space *, loff_t, loff_t, int);
 extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page* page);
 extern int nfs_wb_page_priority(struct inode *inode, struct page* page, int how);
+extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 extern int  nfs_commit_inode(struct inode *, int);
 extern struct nfs_write_data *nfs_commit_alloc(void);

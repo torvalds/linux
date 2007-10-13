@@ -1668,7 +1668,7 @@ static int journal_create_jbd_slab(size_t slab_size)
 	 * boundary.
 	 */
 	jbd_slab[i] = kmem_cache_create(jbd_slab_names[i],
-				slab_size, slab_size, 0, NULL, NULL);
+				slab_size, slab_size, 0, NULL);
 	if (!jbd_slab[i]) {
 		printk(KERN_EMERG "JBD: no memory for jbd_slab cache\n");
 		return -ENOMEM;
@@ -1711,8 +1711,7 @@ static int journal_init_journal_head_cache(void)
 				sizeof(struct journal_head),
 				0,		/* offset */
 				0,		/* flags */
-				NULL,		/* ctor */
-				NULL);		/* dtor */
+				NULL);		/* ctor */
 	retval = 0;
 	if (journal_head_cache == 0) {
 		retval = -ENOMEM;
@@ -2008,8 +2007,7 @@ static int __init journal_init_handle_cache(void)
 				sizeof(handle_t),
 				0,		/* offset */
 				0,		/* flags */
-				NULL,		/* ctor */
-				NULL);		/* dtor */
+				NULL);		/* ctor */
 	if (jbd_handle_cache == NULL) {
 		printk(KERN_EMERG "JBD: failed to create handle cache\n");
 		return -ENOMEM;

@@ -13,6 +13,7 @@
  */
 
 #include <crypto/algapi.h>
+#include <crypto/sha.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -24,12 +25,7 @@
 #include "padlock.h"
 
 #define SHA1_DEFAULT_FALLBACK	"sha1-generic"
-#define SHA1_DIGEST_SIZE        20
-#define SHA1_HMAC_BLOCK_SIZE    64
-
 #define SHA256_DEFAULT_FALLBACK "sha256-generic"
-#define SHA256_DIGEST_SIZE      32
-#define SHA256_HMAC_BLOCK_SIZE  64
 
 struct padlock_sha_ctx {
 	char		*data;
@@ -107,11 +103,11 @@ static void padlock_do_sha1(const char *in, char *out, int count)
 	char buf[128+16];
 	char *result = NEAREST_ALIGNED(buf);
 
-	((uint32_t *)result)[0] = 0x67452301;
-	((uint32_t *)result)[1] = 0xEFCDAB89;
-	((uint32_t *)result)[2] = 0x98BADCFE;
-	((uint32_t *)result)[3] = 0x10325476;
-	((uint32_t *)result)[4] = 0xC3D2E1F0;
+	((uint32_t *)result)[0] = SHA1_H0;
+	((uint32_t *)result)[1] = SHA1_H1;
+	((uint32_t *)result)[2] = SHA1_H2;
+	((uint32_t *)result)[3] = SHA1_H3;
+	((uint32_t *)result)[4] = SHA1_H4;
  
 	asm volatile (".byte 0xf3,0x0f,0xa6,0xc8" /* rep xsha1 */
 		      : "+S"(in), "+D"(result)
@@ -128,14 +124,14 @@ static void padlock_do_sha256(const char *in, char *out, int count)
 	char buf[128+16];
 	char *result = NEAREST_ALIGNED(buf);
 
-	((uint32_t *)result)[0] = 0x6A09E667;
-	((uint32_t *)result)[1] = 0xBB67AE85;
-	((uint32_t *)result)[2] = 0x3C6EF372;
-	((uint32_t *)result)[3] = 0xA54FF53A;
-	((uint32_t *)result)[4] = 0x510E527F;
-	((uint32_t *)result)[5] = 0x9B05688C;
-	((uint32_t *)result)[6] = 0x1F83D9AB;
-	((uint32_t *)result)[7] = 0x5BE0CD19;
+	((uint32_t *)result)[0] = SHA256_H0;
+	((uint32_t *)result)[1] = SHA256_H1;
+	((uint32_t *)result)[2] = SHA256_H2;
+	((uint32_t *)result)[3] = SHA256_H3;
+	((uint32_t *)result)[4] = SHA256_H4;
+	((uint32_t *)result)[5] = SHA256_H5;
+	((uint32_t *)result)[6] = SHA256_H6;
+	((uint32_t *)result)[7] = SHA256_H7;
 
 	asm volatile (".byte 0xf3,0x0f,0xa6,0xd0" /* rep xsha256 */
 		      : "+S"(in), "+D"(result)
@@ -215,7 +211,7 @@ static struct crypto_alg sha1_alg = {
 	.cra_priority		=	PADLOCK_CRA_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_DIGEST |
 					CRYPTO_ALG_NEED_FALLBACK,
-	.cra_blocksize		=	SHA1_HMAC_BLOCK_SIZE,
+	.cra_blocksize		=	SHA1_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct padlock_sha_ctx),
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(sha1_alg.cra_list),
@@ -237,7 +233,7 @@ static struct crypto_alg sha256_alg = {
 	.cra_priority		=	PADLOCK_CRA_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_DIGEST |
 					CRYPTO_ALG_NEED_FALLBACK,
-	.cra_blocksize		=	SHA256_HMAC_BLOCK_SIZE,
+	.cra_blocksize		=	SHA256_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct padlock_sha_ctx),
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(sha256_alg.cra_list),
@@ -253,19 +249,6 @@ static struct crypto_alg sha256_alg = {
 	}
 };
 
-static void __init padlock_sha_check_fallbacks(void)
-{
-	if (!crypto_has_hash("sha1", 0, CRYPTO_ALG_ASYNC |
-					CRYPTO_ALG_NEED_FALLBACK))
-		printk(KERN_WARNING PFX
-		       "Couldn't load fallback module for sha1.\n");
-
-	if (!crypto_has_hash("sha256", 0, CRYPTO_ALG_ASYNC |
-					CRYPTO_ALG_NEED_FALLBACK))
-		printk(KERN_WARNING PFX
-		       "Couldn't load fallback module for sha256.\n");
-}
-
 static int __init padlock_init(void)
 {
 	int rc = -ENODEV;
@@ -279,8 +262,6 @@ static int __init padlock_init(void)
 		printk(KERN_ERR PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
 		return -ENODEV;
 	}
-
-	padlock_sha_check_fallbacks();
 
 	rc = crypto_register_alg(&sha1_alg);
 	if (rc)
@@ -314,5 +295,7 @@ MODULE_DESCRIPTION("VIA PadLock SHA1/SHA256 algorithms support.");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Ludvig");
 
+MODULE_ALIAS("sha1");
+MODULE_ALIAS("sha256");
 MODULE_ALIAS("sha1-padlock");
 MODULE_ALIAS("sha256-padlock");

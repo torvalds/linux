@@ -602,7 +602,7 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 
 #if defined(__i386__)
 #include <linux/dmi.h>
-static struct dmi_system_id toshiba_dmi_table[] = {
+static const struct dmi_system_id toshiba_dmi_table[] = {
 	{
 		.ident = "Toshiba Satellite",
 		.matches = {

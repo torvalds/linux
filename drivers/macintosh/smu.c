@@ -1053,10 +1053,9 @@ static int smu_open(struct inode *inode, struct file *file)
 	struct smu_private *pp;
 	unsigned long flags;
 
-	pp = kmalloc(sizeof(struct smu_private), GFP_KERNEL);
+	pp = kzalloc(sizeof(struct smu_private), GFP_KERNEL);
 	if (pp == 0)
 		return -ENOMEM;
-	memset(pp, 0, sizeof(struct smu_private));
 	spin_lock_init(&pp->lock);
 	pp->mode = smu_file_commands;
 	init_waitqueue_head(&pp->wait);

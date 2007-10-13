@@ -79,6 +79,7 @@ static int __devinit a4000t_probe(struct device *dev)
 		goto out_put_host;
 	}
 
+	dev_set_drvdata(dev, host);
 	scsi_scan_host(host);
 
 	return 0;
@@ -95,7 +96,7 @@ static int __devinit a4000t_probe(struct device *dev)
 
 static __devexit int a4000t_device_remove(struct device *dev)
 {
-	struct Scsi_Host *host = dev_to_shost(dev);
+	struct Scsi_Host *host = dev_get_drvdata(dev);
 	struct NCR_700_Host_Parameters *hostdata = shost_priv(host);
 
 	scsi_remove_host(host);

@@ -30,7 +30,6 @@
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
-			32-bit;
 			interrupts = <f 2>;	// decrementer interrupt
 			interrupt-parent = <&Mpc8xx_pic>;
 		};
@@ -44,7 +43,6 @@
 	soc866@ff000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 ff000000 00100000>;
 		reg = <ff000000 00000200>;
@@ -78,7 +76,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <0 24>;
-			built-in;
 			device_type = "mpc8xx-pic";
 			compatible = "CPM";
 		};
@@ -86,7 +83,6 @@
 		cpm@ff000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			#interrupt-cells = <2>;
 			device_type = "cpm";
 			model = "CPM";
 			ranges = <0 0 4000>;
@@ -103,7 +99,6 @@
 				interrupts = <5 2 0 2>;
 				interrupt-parent = <&Mpc8xx_pic>;
 				reg = <930 20>;
-				built-in;
 				device_type = "cpm-pic";
 				compatible = "CPM";
 			};

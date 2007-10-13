@@ -456,7 +456,6 @@ static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
 				 int* actual_length)
 {
 	struct timer_list timer;
-	int status;
 
 	init_timer(&timer);
 	timer.expires = jiffies + msecs_to_jiffies(CMD_TIMEOUT);
@@ -464,12 +463,11 @@ static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
 	timer.function = cxacru_timeout_kill;
 	add_timer(&timer);
 	wait_for_completion(done);
-	status = urb->status;
 	del_timer_sync(&timer);
 
 	if (actual_length)
 		*actual_length = urb->actual_length;
-	return status;
+	return urb->status; /* must read status after completion */
 }
 
 static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
@@ -484,7 +482,9 @@ static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
 	int rbuflen = ((rsize - 1) / stride + 1) * CMD_PACKET_SIZE;
 
 	if (wbuflen > PAGE_SIZE || rbuflen > PAGE_SIZE) {
-		dbg("too big transfer requested");
+		if (printk_ratelimit())
+			usb_err(instance->usbatm, "requested transfer size too large (%d, %d)\n",
+				wbuflen, rbuflen);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -495,8 +495,9 @@ static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
 	init_completion(&instance->rcv_done);
 	ret = usb_submit_urb(instance->rcv_urb, GFP_KERNEL);
 	if (ret < 0) {
-		dbg("submitting read urb for cm %#x failed", cm);
-		ret = ret;
+		if (printk_ratelimit())
+			usb_err(instance->usbatm, "submit of read urb for cm %#x failed (%d)\n",
+				cm, ret);
 		goto fail;
 	}
 
@@ -512,27 +513,29 @@ static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
 	init_completion(&instance->snd_done);
 	ret = usb_submit_urb(instance->snd_urb, GFP_KERNEL);
 	if (ret < 0) {
-		dbg("submitting write urb for cm %#x failed", cm);
-		ret = ret;
+		if (printk_ratelimit())
+			usb_err(instance->usbatm, "submit of write urb for cm %#x failed (%d)\n",
+				cm, ret);
 		goto fail;
 	}
 
 	ret = cxacru_start_wait_urb(instance->snd_urb, &instance->snd_done, NULL);
 	if (ret < 0) {
-		dbg("sending cm %#x failed", cm);
-		ret = ret;
+		if (printk_ratelimit())
+			usb_err(instance->usbatm, "send of cm %#x failed (%d)\n", cm, ret);
 		goto fail;
 	}
 
 	ret = cxacru_start_wait_urb(instance->rcv_urb, &instance->rcv_done, &actlen);
 	if (ret < 0) {
-		dbg("receiving cm %#x failed", cm);
-		ret = ret;
+		if (printk_ratelimit())
+			usb_err(instance->usbatm, "receive of cm %#x failed (%d)\n", cm, ret);
 		goto fail;
 	}
 	if (actlen % CMD_PACKET_SIZE || !actlen) {
-		dbg("response is not a positive multiple of %d: %#x",
-				CMD_PACKET_SIZE, actlen);
+		if (printk_ratelimit())
+			usb_err(instance->usbatm, "invalid response length to cm %#x: %d\n",
+				cm, actlen);
 		ret = -EIO;
 		goto fail;
 	}
@@ -540,12 +543,16 @@ static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
 	/* check the return status and copy the data to the output buffer, if needed */
 	for (offb = offd = 0; offd < rsize && offb < actlen; offb += CMD_PACKET_SIZE) {
 		if (rbuf[offb] != cm) {
-			dbg("wrong cm %#x in response", rbuf[offb]);
+			if (printk_ratelimit())
+				usb_err(instance->usbatm, "wrong cm %#x in response to cm %#x\n",
+					rbuf[offb], cm);
 			ret = -EIO;
 			goto fail;
 		}
 		if (rbuf[offb + 1] != CM_STATUS_SUCCESS) {
-			dbg("response failed: %#x", rbuf[offb + 1]);
+			if (printk_ratelimit())
+				usb_err(instance->usbatm, "response to cm %#x failed: %#x\n",
+					cm, rbuf[offb + 1]);
 			ret = -EIO;
 			goto fail;
 		}
@@ -584,14 +591,18 @@ static int cxacru_cm_get_array(struct cxacru_data *instance, enum cxacru_cm_requ
 	for (offb = 0; offb < len; ) {
 		int l = le32_to_cpu(buf[offb++]);
 		if (l > stride || l > (len - offb) / 2) {
-			dbg("wrong data length %#x in response", l);
+			if (printk_ratelimit())
+				usb_err(instance->usbatm, "invalid data length from cm %#x: %d\n",
+					cm, l);
 			ret = -EIO;
 			goto cleanup;
 		}
 		while (l--) {
 			offd = le32_to_cpu(buf[offb++]);
 			if (offd >= size) {
-				dbg("wrong index %#x in response", offd);
+				if (printk_ratelimit())
+					usb_err(instance->usbatm, "wrong index #%x in response to cm #%x\n",
+						offd, cm);
 				ret = -EIO;
 				goto cleanup;
 			}

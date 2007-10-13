@@ -63,8 +63,8 @@
 #define AUDIT_ADD_RULE		1011	/* Add syscall filtering rule */
 #define AUDIT_DEL_RULE		1012	/* Delete syscall filtering rule */
 #define AUDIT_LIST_RULES	1013	/* List syscall filtering rules */
-#define AUDIT_TTY_GET		1014	/* Get TTY auditing status */
-#define AUDIT_TTY_SET		1015	/* Set TTY auditing status */
+#define AUDIT_TTY_GET		1016	/* Get TTY auditing status */
+#define AUDIT_TTY_SET		1017	/* Set TTY auditing status */
 
 #define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
 #define AUDIT_USER_AVC		1107	/* We filter this differently */
@@ -108,10 +108,11 @@
 #define AUDIT_MAC_CIPSOV4_DEL	1408	/* NetLabel: del CIPSOv4 DOI entry */
 #define AUDIT_MAC_MAP_ADD	1409	/* NetLabel: add LSM domain mapping */
 #define AUDIT_MAC_MAP_DEL	1410	/* NetLabel: del LSM domain mapping */
-#define AUDIT_MAC_IPSEC_ADDSA	1411	/* Add a XFRM state */
-#define AUDIT_MAC_IPSEC_DELSA	1412	/* Delete a XFRM state */
-#define AUDIT_MAC_IPSEC_ADDSPD	1413	/* Add a XFRM policy */
-#define AUDIT_MAC_IPSEC_DELSPD	1414	/* Delete a XFRM policy */
+#define AUDIT_MAC_IPSEC_ADDSA	1411	/* Not used */
+#define AUDIT_MAC_IPSEC_DELSA	1412	/* Not used  */
+#define AUDIT_MAC_IPSEC_ADDSPD	1413	/* Not used */
+#define AUDIT_MAC_IPSEC_DELSPD	1414	/* Not used */
+#define AUDIT_MAC_IPSEC_EVENT	1415	/* Audit an IPSec event */
 
 #define AUDIT_FIRST_KERN_ANOM_MSG   1700
 #define AUDIT_LAST_KERN_ANOM_MSG    1799
@@ -161,7 +162,7 @@
  * are currently used in an audit field constant understood by the kernel.
  * If you are adding a new #define AUDIT_<whatever>, please ensure that
  * AUDIT_UNUSED_BITS is updated if need be. */
-#define AUDIT_UNUSED_BITS	0x0FFFFC00
+#define AUDIT_UNUSED_BITS	0x07FFFC00
 
 
 /* Rule fields */
@@ -213,25 +214,29 @@
 #define AUDIT_NEGATE			0x80000000
 
 /* These are the supported operators.
- *	4  2  1
- *	=  >  <
- *	-------
- *	0  0  0		0	nonsense
- *	0  0  1		1	<
- *	0  1  0		2	>
- *	0  1  1		3	!=
- *	1  0  0		4	=
- *	1  0  1		5	<=
- *	1  1  0		6	>=
- *	1  1  1		7	all operators
+ *	4  2  1  8
+ *	=  >  <  ?
+ *	----------
+ *	0  0  0	 0	00	nonsense
+ *	0  0  0	 1	08	&  bit mask
+ *	0  0  1	 0	10	<
+ *	0  1  0	 0	20	>
+ *	0  1  1	 0	30	!=
+ *	1  0  0	 0	40	=
+ *	1  0  0	 1	48	&=  bit test
+ *	1  0  1	 0	50	<=
+ *	1  1  0	 0	60	>=
+ *	1  1  1	 1	78	all operators
  */
+#define AUDIT_BIT_MASK			0x08000000
 #define AUDIT_LESS_THAN			0x10000000
 #define AUDIT_GREATER_THAN		0x20000000
 #define AUDIT_NOT_EQUAL			0x30000000
 #define AUDIT_EQUAL			0x40000000
+#define AUDIT_BIT_TEST			(AUDIT_BIT_MASK|AUDIT_EQUAL)
 #define AUDIT_LESS_THAN_OR_EQUAL	(AUDIT_LESS_THAN|AUDIT_EQUAL)
 #define AUDIT_GREATER_THAN_OR_EQUAL	(AUDIT_GREATER_THAN|AUDIT_EQUAL)
-#define AUDIT_OPERATORS			(AUDIT_EQUAL|AUDIT_NOT_EQUAL)
+#define AUDIT_OPERATORS			(AUDIT_EQUAL|AUDIT_NOT_EQUAL|AUDIT_BIT_MASK)
 
 /* Status symbols */
 				/* Mask values */
@@ -407,7 +412,6 @@ extern int audit_bprm(struct linux_binprm *bprm);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int __audit_fd_pair(int fd1, int fd2);
-extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern int audit_set_macxattr(const char *name);
 extern int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr);
 extern int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec __user *u_abs_timeout);
@@ -487,7 +491,6 @@ extern int audit_signals;
 #define audit_socketcall(n,a) ({ 0; })
 #define audit_fd_pair(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
-#define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_set_macxattr(n) do { ; } while (0)
 #define audit_mq_open(o,m,a) ({ 0; })
 #define audit_mq_timedsend(d,l,p,t) ({ 0; })

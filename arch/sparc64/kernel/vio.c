@@ -16,21 +16,6 @@
 #include <asm/mdesc.h>
 #include <asm/vio.h>
 
-static inline int find_in_proplist(const char *list, const char *match,
-				   int len)
-{
-	while (len > 0) {
-		int l;
-
-		if (!strcmp(list, match))
-			return 1;
-		l = strlen(list) + 1;
-		list += l;
-		len -= l;
-	}
-	return 0;
-}
-
 static const struct vio_device_id *vio_match_device(
 	const struct vio_device_id *matches,
 	const struct vio_dev *dev)
@@ -49,7 +34,7 @@ static const struct vio_device_id *vio_match_device(
 
 		if (matches->compat[0]) {
 			match &= len &&
-				find_in_proplist(compat, matches->compat, len);
+				of_find_in_proplist(compat, matches->compat, len);
 		}
 		if (match)
 			return matches;
@@ -103,9 +88,9 @@ static ssize_t devspec_show(struct device *dev,
 	struct vio_dev *vdev = to_vio_dev(dev);
 	const char *str = "none";
 
-	if (!strcmp(vdev->type, "network"))
+	if (!strcmp(vdev->type, "vnet-port"))
 		str = "vnet";
-	else if (!strcmp(vdev->type, "block"))
+	else if (!strcmp(vdev->type, "vdc-port"))
 		str = "vdisk";
 
 	return sprintf(buf, "%s\n", str);
@@ -201,10 +186,12 @@ static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 				      struct device *parent)
 {
-	const char *type, *compat;
+	const char *type, *compat, *bus_id_name;
 	struct device_node *dp;
 	struct vio_dev *vdev;
 	int err, tlen, clen;
+	const u64 *id, *cfg_handle;
+	u64 a;
 
 	type = mdesc_get_property(hp, mp, "device-type", &tlen);
 	if (!type) {
@@ -217,6 +204,29 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	if (tlen > VIO_MAX_TYPE_LEN) {
 		printk(KERN_ERR "VIO: Type string [%s] is too long.\n",
 		       type);
+		return NULL;
+	}
+
+	id = mdesc_get_property(hp, mp, "id", NULL);
+
+	cfg_handle = NULL;
+	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_BACK) {
+		u64 target;
+
+		target = mdesc_arc_target(hp, a);
+		cfg_handle = mdesc_get_property(hp, target,
+						"cfg-handle", NULL);
+		if (cfg_handle)
+			break;
+	}
+
+	bus_id_name = type;
+	if (!strcmp(type, "domain-services-port"))
+		bus_id_name = "ds";
+
+	if (strlen(bus_id_name) >= KOBJ_NAME_LEN - 4) {
+		printk(KERN_ERR "VIO: bus_id_name [%s] is too long.\n",
+		       bus_id_name);
 		return NULL;
 	}
 
@@ -249,7 +259,20 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 
 	vio_fill_channel_info(hp, mp, vdev);
 
-	snprintf(vdev->dev.bus_id, BUS_ID_SIZE, "%lx", mp);
+	if (!id) {
+		snprintf(vdev->dev.bus_id, BUS_ID_SIZE, "%s",
+			 bus_id_name);
+		vdev->dev_no = ~(u64)0;
+	} else if (!cfg_handle) {
+		snprintf(vdev->dev.bus_id, BUS_ID_SIZE, "%s-%lu",
+			 bus_id_name, *id);
+		vdev->dev_no = *id;
+	} else {
+		snprintf(vdev->dev.bus_id, BUS_ID_SIZE, "%s-%lu-%lu",
+			 bus_id_name, *cfg_handle, *id);
+		vdev->dev_no = *cfg_handle;
+	}
+
 	vdev->dev.parent = parent;
 	vdev->dev.bus = &vio_bus_type;
 	vdev->dev.release = vio_dev_release;
@@ -269,6 +292,8 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	}
 	vdev->dp = dp;
 
+	printk(KERN_INFO "VIO: Adding device %s\n", vdev->dev.bus_id);
+
 	err = device_register(&vdev->dev);
 	if (err) {
 		printk(KERN_ERR "VIO: Could not register device %s, err=%d\n",
@@ -283,45 +308,70 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	return vdev;
 }
 
-static void walk_tree(struct mdesc_handle *hp, u64 n, struct vio_dev *parent)
+static void vio_add(struct mdesc_handle *hp, u64 node)
 {
+	(void) vio_create_one(hp, node, &root_vdev->dev);
+}
+
+static int vio_md_node_match(struct device *dev, void *arg)
+{
+	struct vio_dev *vdev = to_vio_dev(dev);
+
+	if (vdev->mp == (u64) arg)
+		return 1;
+
+	return 0;
+}
+
+static void vio_remove(struct mdesc_handle *hp, u64 node)
+{
+	struct device *dev;
+
+	dev = device_find_child(&root_vdev->dev, (void *) node,
+				vio_md_node_match);
+	if (dev) {
+		printk(KERN_INFO "VIO: Removing device %s\n", dev->bus_id);
+
+		device_unregister(dev);
+	}
+}
+
+static struct mdesc_notifier_client vio_device_notifier = {
+	.add		= vio_add,
+	.remove		= vio_remove,
+	.node_name	= "virtual-device-port",
+};
+
+/* We are only interested in domain service ports under the
+ * "domain-services" node.  On control nodes there is another port
+ * under "openboot" that we should not mess with as aparently that is
+ * reserved exclusively for OBP use.
+ */
+static void vio_add_ds(struct mdesc_handle *hp, u64 node)
+{
+	int found;
 	u64 a;
 
-	mdesc_for_each_arc(a, hp, n, MDESC_ARC_TYPE_FWD) {
-		struct vio_dev *vdev;
-		u64 target;
+	found = 0;
+	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+		u64 target = mdesc_arc_target(hp, a);
+		const char *name = mdesc_node_name(hp, target);
 
-		target = mdesc_arc_target(hp, a);
-		vdev = vio_create_one(hp, target, &parent->dev);
-		if (vdev)
-			walk_tree(hp, target, vdev);
+		if (!strcmp(name, "domain-services")) {
+			found = 1;
+			break;
+		}
 	}
+
+	if (found)
+		(void) vio_create_one(hp, node, &root_vdev->dev);
 }
 
-static void create_devices(struct mdesc_handle *hp, u64 root)
-{
-	u64 mp;
-
-	root_vdev = vio_create_one(hp, root, NULL);
-	if (!root_vdev) {
-		printk(KERN_ERR "VIO: Coult not create root device.\n");
-		return;
-	}
-
-	walk_tree(hp, root, root_vdev);
-
-	/* Domain services is odd as it doesn't sit underneath the
-	 * channel-devices node, so we plug it in manually.
-	 */
-	mp = mdesc_node_by_name(hp, MDESC_NODE_NULL, "domain-services");
-	if (mp != MDESC_NODE_NULL) {
-		struct vio_dev *parent = vio_create_one(hp, mp,
-							&root_vdev->dev);
-
-		if (parent)
-			walk_tree(hp, mp, parent);
-	}
-}
+static struct mdesc_notifier_client vio_ds_notifier = {
+	.add		= vio_add_ds,
+	.remove		= vio_remove,
+	.node_name	= "domain-services-port",
+};
 
 const char *channel_devices_node = "channel-devices";
 const char *channel_devices_compat = "SUNW,sun4v-channel-devices";
@@ -366,7 +416,7 @@ static int __init vio_init(void)
 		       "property\n");
 		goto out_release;
 	}
-	if (!find_in_proplist(compat, channel_devices_compat, len)) {
+	if (!of_find_in_proplist(compat, channel_devices_compat, len)) {
 		printk(KERN_ERR "VIO: Channel devices node lacks (%s) "
 		       "compat entry.\n", channel_devices_compat);
 		goto out_release;
@@ -381,11 +431,19 @@ static int __init vio_init(void)
 
 	cdev_cfg_handle = *cfg_handle;
 
-	create_devices(hp, root);
+	root_vdev = vio_create_one(hp, root, NULL);
+	err = -ENODEV;
+	if (!root_vdev) {
+		printk(KERN_ERR "VIO: Coult not create root device.\n");
+		goto out_release;
+	}
+
+	mdesc_register_notifier(&vio_device_notifier);
+	mdesc_register_notifier(&vio_ds_notifier);
 
 	mdesc_release(hp);
 
-	return 0;
+	return err;
 
 out_release:
 	mdesc_release(hp);

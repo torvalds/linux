@@ -658,6 +658,7 @@ static int parse_pins5(WPMINFO const struct matrox_bios* bd) {
 		MINFO->values.reg.mctlwtst_core = (MINFO->values.reg.mctlwtst & ~7) |
 		                                  wtst_xlat[MINFO->values.reg.mctlwtst & 7];
 	}
+	MINFO->max_pixel_clock_panellink = bd->pins[47] * 4000;
 	return 0;
 }
 

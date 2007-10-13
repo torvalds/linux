@@ -79,9 +79,9 @@ and how to prepare flush requests.  Note that the term 'ordered' is
 used to indicate the whole sequence of performing barrier requests
 including draining and flushing.
 
-typedef void (prepare_flush_fn)(request_queue_t *q, struct request *rq);
+typedef void (prepare_flush_fn)(struct request_queue *q, struct request *rq);
 
-int blk_queue_ordered(request_queue_t *q, unsigned ordered,
+int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 		      prepare_flush_fn *prepare_flush_fn);
 
 @q			: the queue in question
@@ -92,7 +92,7 @@ int blk_queue_ordered(request_queue_t *q, unsigned ordered,
 For example, SCSI disk driver's prepare_flush_fn looks like the
 following.
 
-static void sd_prepare_flush(request_queue_t *q, struct request *rq)
+static void sd_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	memset(rq->cmd, 0, sizeof(rq->cmd));
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;

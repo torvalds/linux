@@ -113,27 +113,24 @@ static inline void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
 		       hctx->ccid3hctx_s, (unsigned)(hctx->ccid3hctx_x >> 6));
 
 }
-/*
- * Update X by
- *    If (p > 0)
- *       X_calc = calcX(s, R, p);
- *       X = max(min(X_calc, 2 * X_recv), s / t_mbi);
- *    Else
- *       If (now - tld >= R)
- *          X = max(min(2 * X, 2 * X_recv), s / R);
- *          tld = now;
+
+/**
+ * ccid3_hc_tx_update_x  -  Update allowed sending rate X
+ * @stamp: most recent time if available - can be left NULL.
+ * This function tracks draft rfc3448bis, check there for latest details.
  *
  * Note: X and X_recv are both stored in units of 64 * bytes/second, to support
  *       fine-grained resolution of sending rates. This requires scaling by 2^6
  *       throughout the code. Only X_calc is unscaled (in bytes/second).
  *
  */
-static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
+static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	__u64 min_rate = 2 * hctx->ccid3hctx_x_recv;
 	const  __u64 old_x = hctx->ccid3hctx_x;
+	ktime_t now = stamp? *stamp : ktime_get_real();
 
 	/*
 	 * Handle IDLE periods: do not reduce below RFC3390 initial sending rate
@@ -153,14 +150,14 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
 					(((__u64)hctx->ccid3hctx_s) << 6) /
 								TFRC_T_MBI);
 
-	} else if (timeval_delta(now, &hctx->ccid3hctx_t_ld) -
-			(suseconds_t)hctx->ccid3hctx_rtt >= 0) {
+	} else if (ktime_us_delta(now, hctx->ccid3hctx_t_ld)
+				- (s64)hctx->ccid3hctx_rtt >= 0) {
 
 		hctx->ccid3hctx_x =
 			max(min(2 * hctx->ccid3hctx_x, min_rate),
 			    scaled_div(((__u64)hctx->ccid3hctx_s) << 6,
 				       hctx->ccid3hctx_rtt));
-		hctx->ccid3hctx_t_ld = *now;
+		hctx->ccid3hctx_t_ld = now;
 	}
 
 	if (hctx->ccid3hctx_x != old_x) {
@@ -214,7 +211,6 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	struct timeval now;
 	unsigned long t_nfb = USEC_PER_SEC / 5;
 
 	bh_lock_sock(sk);
@@ -265,15 +261,12 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 				max(hctx->ccid3hctx_x_recv / 2,
 				    (((__u64)hctx->ccid3hctx_s) << 6) /
 							      (2 * TFRC_T_MBI));
-
-			if (hctx->ccid3hctx_p == 0)
-				dccp_timestamp(sk, &now);
 		} else {
 			hctx->ccid3hctx_x_recv = hctx->ccid3hctx_x_calc;
 			hctx->ccid3hctx_x_recv <<= 4;
 		}
 		/* Now recalculate X [RFC 3448, 4.3, step (4)] */
-		ccid3_hc_tx_update_x(sk, &now);
+		ccid3_hc_tx_update_x(sk, NULL);
 		/*
 		 * Schedule no feedback timer to expire in
 		 * max(t_RTO, 2 * s/X)  =  max(t_RTO, 2 * t_ipi)
@@ -309,8 +302,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	ktime_t now = ktime_get_real();
 	s64 delay;
 
-	BUG_ON(hctx == NULL);
-
 	/*
 	 * This function is called only for Data and DataAck packets. Sending
 	 * zero-sized Data(Ack)s is theoretically possible, but for congestion
@@ -341,7 +332,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			ccid3_pr_debug("SYN RTT = %uus\n", dp->dccps_syn_rtt);
 			hctx->ccid3hctx_rtt  = dp->dccps_syn_rtt;
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
-			hctx->ccid3hctx_t_ld = ktime_to_timeval(now);
+			hctx->ccid3hctx_t_ld = now;
 		} else {
 			/* Sender does not have RTT sample: X = MSS/second */
 			hctx->ccid3hctx_x = dp->dccps_mss_cache;
@@ -388,10 +379,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 				    unsigned int len)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	struct timeval now;
 	struct dccp_tx_hist_entry *packet;
-
-	BUG_ON(hctx == NULL);
 
 	ccid3_hc_tx_update_s(hctx, len);
 
@@ -402,8 +390,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 	}
 	dccp_tx_hist_add_entry(&hctx->ccid3hctx_hist, packet);
 
-	dccp_timestamp(sk, &now);
-	packet->dccphtx_tstamp = now;
+	packet->dccphtx_tstamp = ktime_get_real();
 	packet->dccphtx_seqno  = dccp_sk(sk)->dccps_gss;
 	packet->dccphtx_rtt    = hctx->ccid3hctx_rtt;
 	packet->dccphtx_sent   = 1;
@@ -414,11 +401,9 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 	struct dccp_tx_hist_entry *packet;
-	struct timeval now;
+	ktime_t now;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
-
-	BUG_ON(hctx == NULL);
 
 	/* we are only interested in ACKs */
 	if (!(DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK ||
@@ -452,13 +437,12 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		else				       /* can not exceed 100% */
 			hctx->ccid3hctx_p = 1000000 / pinv;
 
-		dccp_timestamp(sk, &now);
-
+		now = ktime_get_real();
 		/*
 		 * Calculate new round trip sample as per [RFC 3448, 4.3] by
 		 *	R_sample  =  (now - t_recvdata) - t_elapsed
 		 */
-		r_sample = dccp_sample_rtt(sk, &now, &packet->dccphtx_tstamp);
+		r_sample = dccp_sample_rtt(sk, ktime_us_delta(now, packet->dccphtx_tstamp));
 
 		/*
 		 * Update RTT estimate by
@@ -561,8 +545,6 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 
-	BUG_ON(hctx == NULL);
-
 	opt_recv = &hctx->ccid3hctx_options_received;
 
 	if (opt_recv->ccid3or_seqno != dp->dccps_gsr) {
@@ -636,8 +618,6 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
-	BUG_ON(hctx == NULL);
-
 	ccid3_hc_tx_set_state(sk, TFRC_SSTATE_TERM);
 	sk_stop_timer(sk, &hctx->ccid3hctx_no_feedback_timer);
 
@@ -647,14 +627,13 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 
 static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	struct ccid3_hc_tx_sock *hctx;
 
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return;
 
-	BUG_ON(hctx == NULL);
-
+	hctx = ccid3_hc_tx_sk(sk);
 	info->tcpi_rto = hctx->ccid3hctx_t_rto;
 	info->tcpi_rtt = hctx->ccid3hctx_rtt;
 }
@@ -662,13 +641,14 @@ static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
 static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	const struct ccid3_hc_tx_sock *hctx;
 	const void *val;
 
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return -EINVAL;
 
+	hctx = ccid3_hc_tx_sk(sk);
 	switch (optname) {
 	case DCCP_SOCKOPT_CCID_TX_INFO:
 		if (len < sizeof(hctx->ccid3hctx_tfrc))
@@ -729,20 +709,20 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_rx_hist_entry *packet;
-	struct timeval now;
+	ktime_t now;
 	suseconds_t delta;
 
 	ccid3_pr_debug("%s(%p) - entry \n", dccp_role(sk), sk);
 
-	dccp_timestamp(sk, &now);
+	now = ktime_get_real();
 
 	switch (hcrx->ccid3hcrx_state) {
 	case TFRC_RSTATE_NO_DATA:
 		hcrx->ccid3hcrx_x_recv = 0;
 		break;
 	case TFRC_RSTATE_DATA:
-		delta = timeval_delta(&now,
-				      &hcrx->ccid3hcrx_tstamp_last_feedback);
+		delta = ktime_us_delta(now,
+				       hcrx->ccid3hcrx_tstamp_last_feedback);
 		DCCP_BUG_ON(delta < 0);
 		hcrx->ccid3hcrx_x_recv =
 			scaled_div32(hcrx->ccid3hcrx_bytes_recv, delta);
@@ -764,7 +744,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	hcrx->ccid3hcrx_bytes_recv	     = 0;
 
 	/* Elapsed time information [RFC 4340, 13.2] in units of 10 * usecs */
-	delta = timeval_delta(&now, &packet->dccphrx_tstamp);
+	delta = ktime_us_delta(now, packet->dccphrx_tstamp);
 	DCCP_BUG_ON(delta < 0);
 	hcrx->ccid3hcrx_elapsed_time = delta / 10;
 
@@ -782,14 +762,13 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 
 static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
-	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
+	const struct ccid3_hc_rx_sock *hcrx;
 	__be32 x_recv, pinv;
-
-	BUG_ON(hcrx == NULL);
 
 	if (!(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
 		return 0;
 
+	hcrx = ccid3_hc_rx_sk(sk);
 	DCCP_SKB_CB(skb)->dccpd_ccval = hcrx->ccid3hcrx_ccval_last_counter;
 
 	if (dccp_packet_without_ack(skb))
@@ -839,7 +818,7 @@ static int ccid3_hc_rx_detect_loss(struct sock *sk,
 		dccp_li_update_li(sk,
 				  &hcrx->ccid3hcrx_li_hist,
 				  &hcrx->ccid3hcrx_hist,
-				  &hcrx->ccid3hcrx_tstamp_last_feedback,
+				  hcrx->ccid3hcrx_tstamp_last_feedback,
 				  hcrx->ccid3hcrx_s,
 				  hcrx->ccid3hcrx_bytes_recv,
 				  hcrx->ccid3hcrx_x_recv,
@@ -876,11 +855,9 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	const struct dccp_options_received *opt_recv;
 	struct dccp_rx_hist_entry *packet;
-	struct timeval now;
 	u32 p_prev, r_sample, rtt_prev;
 	int loss, payload_size;
-
-	BUG_ON(hcrx == NULL);
+	ktime_t now;
 
 	opt_recv = &dccp_sk(sk)->dccps_options_received;
 
@@ -891,9 +868,9 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	case DCCP_PKT_DATAACK:
 		if (opt_recv->dccpor_timestamp_echo == 0)
 			break;
+		r_sample = dccp_timestamp() - opt_recv->dccpor_timestamp_echo;
 		rtt_prev = hcrx->ccid3hcrx_rtt;
-		dccp_timestamp(sk, &now);
-		r_sample = dccp_sample_rtt(sk, &now, NULL);
+		r_sample = dccp_sample_rtt(sk, 10 * r_sample);
 
 		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
 			hcrx->ccid3hcrx_rtt = r_sample;
@@ -912,7 +889,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, sk, opt_recv->dccpor_ndp,
+	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, opt_recv->dccpor_ndp,
 					skb, GFP_ATOMIC);
 	if (unlikely(packet == NULL)) {
 		DCCP_WARN("%s(%p), Not enough mem to add rx packet "
@@ -941,9 +918,9 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (loss)
 			break;
 
-		dccp_timestamp(sk, &now);
-		if ((timeval_delta(&now, &hcrx->ccid3hcrx_tstamp_last_ack) -
-		     (suseconds_t)hcrx->ccid3hcrx_rtt) >= 0) {
+		now = ktime_get_real();
+		if ((ktime_us_delta(now, hcrx->ccid3hcrx_tstamp_last_ack) -
+		     (s64)hcrx->ccid3hcrx_rtt) >= 0) {
 			hcrx->ccid3hcrx_tstamp_last_ack = now;
 			ccid3_hc_rx_send_feedback(sk);
 		}
@@ -984,8 +961,8 @@ static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_hist);
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
-	dccp_timestamp(sk, &hcrx->ccid3hcrx_tstamp_last_ack);
-	hcrx->ccid3hcrx_tstamp_last_feedback = hcrx->ccid3hcrx_tstamp_last_ack;
+	hcrx->ccid3hcrx_tstamp_last_feedback =
+		hcrx->ccid3hcrx_tstamp_last_ack = ktime_get_real();
 	hcrx->ccid3hcrx_s   = 0;
 	hcrx->ccid3hcrx_rtt = 0;
 	return 0;
@@ -994,8 +971,6 @@ static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 static void ccid3_hc_rx_exit(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-
-	BUG_ON(hcrx == NULL);
 
 	ccid3_hc_rx_set_state(sk, TFRC_RSTATE_TERM);
 
@@ -1008,14 +983,13 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
+	const struct ccid3_hc_rx_sock *hcrx;
 
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return;
 
-	BUG_ON(hcrx == NULL);
-
+	hcrx = ccid3_hc_rx_sk(sk);
 	info->tcpi_ca_state = hcrx->ccid3hcrx_state;
 	info->tcpi_options  |= TCPI_OPT_TIMESTAMPS;
 	info->tcpi_rcv_rtt  = hcrx->ccid3hcrx_rtt;
@@ -1024,13 +998,14 @@ static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
-	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
+	const struct ccid3_hc_rx_sock *hcrx;
 	const void *val;
 
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return -EINVAL;
 
+	hcrx = ccid3_hc_rx_sk(sk);
 	switch (optname) {
 	case DCCP_SOCKOPT_CCID_RX_INFO:
 		if (len < sizeof(hcrx->ccid3hcrx_tfrc))
@@ -1071,7 +1046,7 @@ static struct ccid_operations ccid3 = {
 };
 
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
-module_param(ccid3_debug, int, 0444);
+module_param(ccid3_debug, bool, 0444);
 MODULE_PARM_DESC(ccid3_debug, "Enable debug messages");
 #endif
 

@@ -17,6 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/init.h>
+#include <linux/spinlock.h>
 
 #include <asm/cacheflush.h>
 #include <asm/io.h>
@@ -25,14 +26,19 @@
 #define CACHE_LINE_SIZE		32
 
 static void __iomem *l2x0_base;
+static DEFINE_SPINLOCK(l2x0_lock);
 
 static inline void sync_writel(unsigned long val, unsigned long reg,
 			       unsigned long complete_mask)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&l2x0_lock, flags);
 	writel(val, l2x0_base + reg);
 	/* wait for the operation to complete */
 	while (readl(l2x0_base + reg) & complete_mask)
 		;
+	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 static inline void cache_sync(void)
@@ -51,7 +57,17 @@ static void l2x0_inv_range(unsigned long start, unsigned long end)
 {
 	unsigned long addr;
 
-	start &= ~(CACHE_LINE_SIZE - 1);
+	if (start & (CACHE_LINE_SIZE - 1)) {
+		start &= ~(CACHE_LINE_SIZE - 1);
+		sync_writel(start, L2X0_CLEAN_INV_LINE_PA, 1);
+		start += CACHE_LINE_SIZE;
+	}
+
+	if (end & (CACHE_LINE_SIZE - 1)) {
+		end &= ~(CACHE_LINE_SIZE - 1);
+		sync_writel(end, L2X0_CLEAN_INV_LINE_PA, 1);
+	}
+
 	for (addr = start; addr < end; addr += CACHE_LINE_SIZE)
 		sync_writel(addr, L2X0_INV_LINE_PA, 1);
 	cache_sync();

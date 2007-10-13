@@ -36,8 +36,7 @@ extern void machine_halt_smp(void);
 extern void machine_power_off_smp(void);
 
 extern void smp_setup_cpu_possible_map(void);
-extern int smp_call_function_on(void (*func) (void *info), void *info,
-				int nonatomic, int wait, int cpu);
+
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
 /*
@@ -96,14 +95,6 @@ extern int __cpu_up (unsigned int cpu);
 #endif
 
 #ifndef CONFIG_SMP
-static inline int
-smp_call_function_on(void (*func) (void *info), void *info,
-		     int nonatomic, int wait, int cpu)
-{
-	func(info);
-	return 0;
-}
-
 static inline void smp_send_stop(void)
 {
 	/* Disable all interrupts/machine checks */

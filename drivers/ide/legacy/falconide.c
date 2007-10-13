@@ -8,6 +8,7 @@
  *  more details.
  */
 
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -54,6 +55,7 @@ static int falconide_offsets[IDE_NR_PORTS] __initdata = {
      */
 
 int falconide_intr_lock;
+EXPORT_SYMBOL(falconide_intr_lock);
 
 
     /*

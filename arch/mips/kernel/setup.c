@@ -51,10 +51,8 @@ EXPORT_SYMBOL(PCI_DMA_BUS_IS_PHYS);
  * These are initialized so they are in the .data section
  */
 unsigned long mips_machtype __read_mostly = MACH_UNKNOWN;
-unsigned long mips_machgroup __read_mostly = MACH_GROUP_UNKNOWN;
 
 EXPORT_SYMBOL(mips_machtype);
-EXPORT_SYMBOL(mips_machgroup);
 
 struct boot_mem_map boot_mem_map;
 

@@ -1,6 +1,7 @@
 /*
  * Copyright 2001, 2002, 2003 MontaVista Software Inc.
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
+ * Copyright (C) 2007 Ralf Baechle (ralf@linux-mips.org)
  *
  * Common time service routines for MIPS machines. See
  * Documents/MIPS/README.txt.
@@ -46,16 +47,16 @@ static void timer_ack(void)
 }
 
 /*
- * pnx8550_time_init() - it does the following things:
+ * plat_time_init() - it does the following things:
  *
- * 1) board_time_init() -
+ * 1) plat_time_init() -
  * 	a) (optional) set up RTC routines,
  *      b) (optional) calibrate and set the mips_hpt_frequency
  *	    (only needed if you intended to use cpu counter as timer interrupt
  *	     source)
  */
 
-void pnx8550_time_init(void)
+__init void plat_time_init(void)
 {
 	unsigned int             n;
 	unsigned int             m;

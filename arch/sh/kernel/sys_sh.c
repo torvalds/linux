@@ -21,6 +21,7 @@
 #include <linux/file.h>
 #include <linux/utsname.h>
 #include <linux/module.h>
+#include <linux/fs.h>
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 #include <asm/ipc.h>

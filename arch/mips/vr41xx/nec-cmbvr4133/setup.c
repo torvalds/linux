@@ -64,7 +64,6 @@ static void __init nec_cmbvr4133_setup(void)
 #endif
 	set_io_port_base(KSEG1ADDR(0x16000000));
 
-	mips_machgroup = MACH_GROUP_NEC_VR41XX;
 	mips_machtype = MACH_NEC_CMBVR4133;
 
 #ifdef CONFIG_PCI

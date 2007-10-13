@@ -12,9 +12,7 @@ static int pEII_request(struct datalink_proto *dl,
 	struct net_device *dev = skb->dev;
 
 	skb->protocol = htons(ETH_P_IPX);
-	if (dev->hard_header)
-		dev->hard_header(skb, dev, ETH_P_IPX,
-				 dest_node, NULL, skb->len);
+	dev_hard_header(skb, dev, ETH_P_IPX, dest_node, NULL, skb->len);
 	return dev_queue_xmit(skb);
 }
 

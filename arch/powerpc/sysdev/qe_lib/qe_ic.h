@@ -84,9 +84,6 @@ struct qe_ic {
 	/* The "linux" controller struct */
 	struct irq_chip hc_irq;
 
-	/* The device node of the interrupt controller */
-	struct device_node *of_node;
-
 	/* VIRQ numbers of QE high/low irqs */
 	unsigned int virq_high;
 	unsigned int virq_low;

@@ -91,6 +91,13 @@ void __init sh_mv_setup(void)
 				(unsigned long)&__machvec_start);
 
 		/*
+		 * Sanity check for machvec section alignment. Ensure
+		 * __initmv hasn't been misused.
+		 */
+		if (machvec_size % sizeof(struct sh_machine_vector))
+			panic("machvec misaligned, invalid __initmv use?");
+
+		/*
 		 * If the machvec hasn't been preselected, use the first
 		 * vector (usually the only one) from .machvec.init.
 		 */

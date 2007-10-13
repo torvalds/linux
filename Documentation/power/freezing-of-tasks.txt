@@ -155,6 +155,8 @@ Suppose, however, that the firmware file is located on a filesystem accessible
 only through another device that hasn't been resumed yet.  In that case,
 request_firmware() will fail regardless of whether or not the freezing of tasks
 is used.  Consequently, the problem is not really related to the freezing of
-tasks, since it generally exists anyway.  [The solution to this particular
-problem is to keep the firmware in memory after it's loaded for the first time
-and upload if from memory to the device whenever necessary.]
+tasks, since it generally exists anyway.
+
+A driver must have all firmwares it may need in RAM before suspend() is called.
+If keeping them is not practical, for example due to their size, they must be
+requested early enough using the suspend notifier API described in notifiers.txt.

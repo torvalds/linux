@@ -2450,7 +2450,7 @@ nfsd4_encode_rename(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 }
 
 static void
-nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, int nfserr,
+nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 		     struct nfsd4_secinfo *secinfo)
 {
 	int i = 0;

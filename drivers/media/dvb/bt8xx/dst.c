@@ -1652,7 +1652,7 @@ static int dst_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_paramet
 static int dst_tune_frontend(struct dvb_frontend* fe,
 			    struct dvb_frontend_parameters* p,
 			    unsigned int mode_flags,
-			    int *delay,
+			    unsigned int *delay,
 			    fe_status_t *status)
 {
 	struct dst_state *state = fe->demodulator_priv;

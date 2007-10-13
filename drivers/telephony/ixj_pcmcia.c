@@ -45,11 +45,10 @@ static int ixj_probe(struct pcmcia_device *p_dev)
 	p_dev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	p_dev->io.IOAddrLines = 3;
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
-	p_dev->priv = kmalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
+	p_dev->priv = kzalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
 	if (!p_dev->priv) {
 		return -ENOMEM;
 	}
-	memset(p_dev->priv, 0, sizeof(struct ixj_info_t));
 
 	return ixj_config(p_dev);
 }

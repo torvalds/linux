@@ -13,6 +13,7 @@
  */
 
 #include <linux/dccp.h>
+#include <linux/ktime.h>
 #include <net/snmp.h>
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -91,6 +92,7 @@ extern int  sysctl_dccp_feat_ack_ratio;
 extern int  sysctl_dccp_feat_send_ack_vector;
 extern int  sysctl_dccp_feat_send_ndp_count;
 extern int  sysctl_dccp_tx_qlen;
+extern int  sysctl_dccp_sync_ratelimit;
 
 /*
  *	48-bit sequence number arithmetic (signed and unsigned)
@@ -208,7 +210,6 @@ extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
 
 extern void dccp_send_ack(struct sock *sk);
-extern void dccp_send_delayed_ack(struct sock *sk);
 extern void dccp_reqsk_send_ack(struct sk_buff *sk, struct request_sock *rsk);
 
 extern void dccp_send_sync(struct sock *sk, const u64 seq,
@@ -293,11 +294,12 @@ extern unsigned int dccp_poll(struct file *file, struct socket *sock,
 extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 				   int addr_len);
 
+extern struct sk_buff *dccp_ctl_make_reset(struct socket *ctl,
+					   struct sk_buff *skb);
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);
 extern int	   dccp_invalid_packet(struct sk_buff *skb);
-extern u32	   dccp_sample_rtt(struct sock *sk, struct timeval *t_recv,
-						    struct timeval *t_history);
+extern u32	   dccp_sample_rtt(struct sock *sk, long delta);
 
 static inline int dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
@@ -309,10 +311,22 @@ static inline int dccp_bad_service_code(const struct sock *sk,
 	return !dccp_list_has_service(dp->dccps_service_list, service);
 }
 
+/**
+ * dccp_skb_cb  -  DCCP per-packet control information
+ * @dccpd_type: one of %dccp_pkt_type (or unknown)
+ * @dccpd_ccval: CCVal field (5.1), see e.g. RFC 4342, 8.1
+ * @dccpd_reset_code: one of %dccp_reset_codes
+ * @dccpd_reset_data: Data1..3 fields (depend on @dccpd_reset_code)
+ * @dccpd_opt_len: total length of all options (5.8) in the packet
+ * @dccpd_seq: sequence number
+ * @dccpd_ack_seq: acknowledgment number subheader field value
+ * This is used for transmission as well as for reception.
+ */
 struct dccp_skb_cb {
 	__u8  dccpd_type:4;
 	__u8  dccpd_ccval:4;
-	__u8  dccpd_reset_code;
+	__u8  dccpd_reset_code,
+	      dccpd_reset_data[3];
 	__u16 dccpd_opt_len;
 	__u64 dccpd_seq;
 	__u64 dccpd_ack_seq;
@@ -395,52 +409,13 @@ extern int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
 extern int dccp_insert_option_elapsed_time(struct sock *sk,
 					    struct sk_buff *skb,
 					    u32 elapsed_time);
+extern u32 dccp_timestamp(void);
+extern void dccp_timestamping_init(void);
 extern int dccp_insert_option_timestamp(struct sock *sk,
 					 struct sk_buff *skb);
 extern int dccp_insert_option(struct sock *sk, struct sk_buff *skb,
 			       unsigned char option,
 			       const void *value, unsigned char len);
-
-extern void dccp_timestamp(const struct sock *sk, struct timeval *tv);
-
-static inline suseconds_t timeval_usecs(const struct timeval *tv)
-{
-	return tv->tv_sec * USEC_PER_SEC + tv->tv_usec;
-}
-
-static inline suseconds_t timeval_delta(const struct timeval *large,
-					const struct timeval *small)
-{
-	time_t	    secs  = large->tv_sec  - small->tv_sec;
-	suseconds_t usecs = large->tv_usec - small->tv_usec;
-
-	if (usecs < 0) {
-		secs--;
-		usecs += USEC_PER_SEC;
-	}
-	return secs * USEC_PER_SEC + usecs;
-}
-
-static inline void timeval_add_usecs(struct timeval *tv,
-				     const suseconds_t usecs)
-{
-	tv->tv_usec += usecs;
-	while (tv->tv_usec >= USEC_PER_SEC) {
-		tv->tv_sec++;
-		tv->tv_usec -= USEC_PER_SEC;
-	}
-}
-
-static inline void timeval_sub_usecs(struct timeval *tv,
-				     const suseconds_t usecs)
-{
-	tv->tv_usec -= usecs;
-	while (tv->tv_usec < 0) {
-		tv->tv_sec--;
-		tv->tv_usec += USEC_PER_SEC;
-	}
-	DCCP_BUG_ON(tv->tv_sec < 0);
-}
 
 #ifdef CONFIG_SYSCTL
 extern int dccp_sysctl_init(void);

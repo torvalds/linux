@@ -36,7 +36,6 @@
  * @offset: offset in pages to start transaction
  * @len: length in bytes
  * @flags: ASYNC_TX_ASSUME_COHERENT, ASYNC_TX_ACK, ASYNC_TX_DEP_ACK,
- *	ASYNC_TX_KMAP_SRC, ASYNC_TX_KMAP_DST
  * @depend_tx: memcpy depends on the result of this transaction
  * @cb_fn: function to call when the memcpy completes
  * @cb_param: parameter to pass to the callback routine
@@ -88,23 +87,13 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 					__FUNCTION__);
 		}
 
-		if (flags & ASYNC_TX_KMAP_DST)
-			dest_buf = kmap_atomic(dest, KM_USER0) + dest_offset;
-		else
-			dest_buf = page_address(dest) + dest_offset;
-
-		if (flags & ASYNC_TX_KMAP_SRC)
-			src_buf = kmap_atomic(src, KM_USER0) + src_offset;
-		else
-			src_buf = page_address(src) + src_offset;
+		dest_buf = kmap_atomic(dest, KM_USER0) + dest_offset;
+		src_buf = kmap_atomic(src, KM_USER1) + src_offset;
 
 		memcpy(dest_buf, src_buf, len);
 
-		if (flags & ASYNC_TX_KMAP_DST)
-			kunmap_atomic(dest_buf, KM_USER0);
-
-		if (flags & ASYNC_TX_KMAP_SRC)
-			kunmap_atomic(src_buf, KM_USER0);
+		kunmap_atomic(dest_buf, KM_USER0);
+		kunmap_atomic(src_buf, KM_USER1);
 
 		async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);
 	}

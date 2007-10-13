@@ -513,9 +513,9 @@ static int sbp2util_create_command_orb_pool(struct sbp2_lu *lu)
 	return 0;
 }
 
-static void sbp2util_remove_command_orb_pool(struct sbp2_lu *lu)
+static void sbp2util_remove_command_orb_pool(struct sbp2_lu *lu,
+					     struct hpsb_host *host)
 {
-	struct hpsb_host *host = lu->hi->host;
 	struct list_head *lh, *next;
 	struct sbp2_command_info *cmd;
 	unsigned long flags;
@@ -773,11 +773,6 @@ static struct sbp2_lu *sbp2_alloc_device(struct unit_directory *ud)
 			SBP2_ERR("failed to register lower 4GB address range");
 			goto failed_alloc;
 		}
-#else
-		if (dma_set_mask(hi->host->device.parent, DMA_32BIT_MASK)) {
-			SBP2_ERR("failed to set 4GB DMA mask");
-			goto failed_alloc;
-		}
 #endif
 	}
 
@@ -927,15 +922,16 @@ static void sbp2_remove_device(struct sbp2_lu *lu)
 
 	if (!lu)
 		return;
-
 	hi = lu->hi;
+	if (!hi)
+		goto no_hi;
 
 	if (lu->shost) {
 		scsi_remove_host(lu->shost);
 		scsi_host_put(lu->shost);
 	}
 	flush_scheduled_work();
-	sbp2util_remove_command_orb_pool(lu);
+	sbp2util_remove_command_orb_pool(lu, hi->host);
 
 	list_del(&lu->lu_list);
 
@@ -976,9 +972,8 @@ static void sbp2_remove_device(struct sbp2_lu *lu)
 
 	lu->ud->device.driver_data = NULL;
 
-	if (hi)
-		module_put(hi->host->driver->owner);
-
+	module_put(hi->host->driver->owner);
+no_hi:
 	kfree(lu);
 }
 

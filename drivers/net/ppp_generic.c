@@ -899,17 +899,9 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Put the 2-byte PPP protocol number on the front,
 	   making sure there is room for the address and control fields. */
-	if (skb_headroom(skb) < PPP_HDRLEN) {
-		struct sk_buff *ns;
+	if (skb_cow_head(skb, PPP_HDRLEN))
+		goto outf;
 
-		ns = alloc_skb(skb->len + dev->hard_header_len, GFP_ATOMIC);
-		if (ns == 0)
-			goto outf;
-		skb_reserve(ns, dev->hard_header_len);
-		skb_copy_bits(skb, 0, skb_put(ns, skb->len), skb->len);
-		kfree_skb(skb);
-		skb = ns;
-	}
 	pp = skb_push(skb, 2);
 	proto = npindex_to_proto[npi];
 	pp[0] = proto >> 8;
@@ -1533,7 +1525,7 @@ ppp_input_error(struct ppp_channel *chan, int code)
 static void
 ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 {
-	if (skb->len >= 2) {
+	if (pskb_may_pull(skb, 2)) {
 #ifdef CONFIG_PPP_MULTILINK
 		/* XXX do channel-level decompression here */
 		if (PPP_PROTO(skb) == PPP_MP)
@@ -1585,7 +1577,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 		if (ppp->vj == 0 || (ppp->flags & SC_REJ_COMP_TCP))
 			goto err;
 
-		if (skb_tailroom(skb) < 124) {
+		if (skb_tailroom(skb) < 124 || skb_cloned(skb)) {
 			/* copy to a new sk_buff with more tailroom */
 			ns = dev_alloc_skb(skb->len + 128);
 			if (ns == 0) {
@@ -1656,23 +1648,29 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 		/* check if the packet passes the pass and active filters */
 		/* the filter instructions are constructed assuming
 		   a four-byte PPP header on each packet */
-		*skb_push(skb, 2) = 0;
-		if (ppp->pass_filter
-		    && sk_run_filter(skb, ppp->pass_filter,
-				     ppp->pass_len) == 0) {
-			if (ppp->debug & 1)
-				printk(KERN_DEBUG "PPP: inbound frame not passed\n");
-			kfree_skb(skb);
-			return;
-		}
-		if (!(ppp->active_filter
-		      && sk_run_filter(skb, ppp->active_filter,
-				       ppp->active_len) == 0))
-			ppp->last_recv = jiffies;
-		skb_pull(skb, 2);
-#else
-		ppp->last_recv = jiffies;
+		if (ppp->pass_filter || ppp->active_filter) {
+			if (skb_cloned(skb) &&
+			    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+				goto err;
+
+			*skb_push(skb, 2) = 0;
+			if (ppp->pass_filter
+			    && sk_run_filter(skb, ppp->pass_filter,
+					     ppp->pass_len) == 0) {
+				if (ppp->debug & 1)
+					printk(KERN_DEBUG "PPP: inbound frame "
+					       "not passed\n");
+				kfree_skb(skb);
+				return;
+			}
+			if (!(ppp->active_filter
+			      && sk_run_filter(skb, ppp->active_filter,
+					       ppp->active_len) == 0))
+				ppp->last_recv = jiffies;
+			__skb_pull(skb, 2);
+		} else
 #endif /* CONFIG_PPP_FILTER */
+			ppp->last_recv = jiffies;
 
 		if ((ppp->dev->flags & IFF_UP) == 0
 		    || ppp->npmode[npi] != NPMODE_PASS) {
@@ -1726,7 +1724,7 @@ ppp_decompress_frame(struct ppp *ppp, struct sk_buff *skb)
 		}
 		/* the decompressor still expects the A/C bytes in the hdr */
 		len = ppp->rcomp->decompress(ppp->rc_state, skb->data - 2,
-				skb->len + 2, ns->data, ppp->mru + PPP_HDRLEN);
+				skb->len + 2, ns->data, obuff_size);
 		if (len < 0) {
 			/* Pass the compressed frame to pppd as an
 			   error indication. */
@@ -1770,7 +1768,7 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	struct channel *ch;
 	int mphdrlen = (ppp->flags & SC_MP_SHORTSEQ)? MPHDRLEN_SSN: MPHDRLEN;
 
-	if (!pskb_may_pull(skb, mphdrlen) || ppp->mrru == 0)
+	if (!pskb_may_pull(skb, mphdrlen + 1) || ppp->mrru == 0)
 		goto err;		/* no good, throw it away */
 
 	/* Decode sequence number and begin/end bits */
@@ -2684,8 +2682,7 @@ static void __exit ppp_cleanup(void)
 	if (atomic_read(&ppp_unit_count) || atomic_read(&channel_count))
 		printk(KERN_ERR "PPP: removing module but units remain!\n");
 	cardmap_destroy(&all_ppp_units);
-	if (unregister_chrdev(PPP_MAJOR, "ppp") != 0)
-		printk(KERN_ERR "PPP: failed to unregister PPP device\n");
+	unregister_chrdev(PPP_MAJOR, "ppp");
 	device_destroy(ppp_class, MKDEV(PPP_MAJOR, 0));
 	class_destroy(ppp_class);
 }

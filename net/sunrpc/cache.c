@@ -371,8 +371,7 @@ int cache_unregister(struct cache_detail *cd)
 	}
 	if (list_empty(&cache_list)) {
 		/* module must be being unloaded so its safe to kill the worker */
-		cancel_delayed_work(&cache_cleaner);
-		flush_scheduled_work();
+		cancel_delayed_work_sync(&cache_cleaner);
 	}
 	return 0;
 }
@@ -1219,23 +1218,15 @@ static const struct seq_operations cache_content_op = {
 
 static int content_open(struct inode *inode, struct file *file)
 {
-	int res;
 	struct handle *han;
 	struct cache_detail *cd = PDE(inode)->data;
 
-	han = kmalloc(sizeof(*han), GFP_KERNEL);
+	han = __seq_open_private(file, &cache_content_op, sizeof(*han));
 	if (han == NULL)
 		return -ENOMEM;
 
 	han->cd = cd;
-
-	res = seq_open(file, &cache_content_op);
-	if (res)
-		kfree(han);
-	else
-		((struct seq_file *)file->private_data)->private = han;
-
-	return res;
+	return 0;
 }
 
 static const struct file_operations content_file_operations = {

@@ -33,6 +33,7 @@
 #include <linux/moduleparam.h>
 #include <linux/stringify.h>
 #include <linux/stat.h>
+#include <linux/log2.h>
 #include "ubi.h"
 
 /* Maximum length of the 'mtd=' parameter */
@@ -369,7 +370,7 @@ static int attach_by_scanning(struct ubi_device *ubi)
 out_wl:
 	ubi_wl_close(ubi);
 out_vtbl:
-	kfree(ubi->vtbl);
+	vfree(ubi->vtbl);
 out_si:
 	ubi_scan_destroy_si(si);
 	return err;
@@ -422,8 +423,7 @@ static int io_init(struct ubi_device *ubi)
 	ubi->hdrs_min_io_size = ubi->mtd->writesize >> ubi->mtd->subpage_sft;
 
 	/* Make sure minimal I/O unit is power of 2 */
-	if (ubi->min_io_size == 0 ||
-	    (ubi->min_io_size & (ubi->min_io_size - 1))) {
+	if (!is_power_of_2(ubi->min_io_size)) {
 		ubi_err("bad min. I/O unit");
 		return -EINVAL;
 	}
@@ -593,8 +593,6 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 	if (err)
 		goto out_detach;
 
-	ubi_devices_cnt += 1;
-
 	ubi_msg("attached mtd%d to ubi%d", ubi->mtd->index, ubi_devices_cnt);
 	ubi_msg("MTD device name:            \"%s\"", ubi->mtd->name);
 	ubi_msg("MTD device size:            %llu MiB", ubi->flash_size >> 20);
@@ -624,12 +622,13 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 		wake_up_process(ubi->bgt_thread);
 	}
 
+	ubi_devices_cnt += 1;
 	return 0;
 
 out_detach:
 	ubi_eba_close(ubi);
 	ubi_wl_close(ubi);
-	kfree(ubi->vtbl);
+	vfree(ubi->vtbl);
 out_free:
 	kfree(ubi);
 out_mtd:
@@ -650,7 +649,7 @@ static void detach_mtd_dev(struct ubi_device *ubi)
 	uif_close(ubi);
 	ubi_eba_close(ubi);
 	ubi_wl_close(ubi);
-	kfree(ubi->vtbl);
+	vfree(ubi->vtbl);
 	put_mtd_device(ubi->mtd);
 	kfree(ubi_devices[ubi_num]);
 	ubi_devices[ubi_num] = NULL;
@@ -686,13 +685,6 @@ static int __init ubi_init(void)
 		struct mtd_dev_param *p = &mtd_dev_param[i];
 
 		cond_resched();
-
-		if (!p->name) {
-			dbg_err("empty name");
-			err = -EINVAL;
-			goto out_detach;
-		}
-
 		err = attach_mtd_dev(p->name, p->vid_hdr_offs, p->data_offs);
 		if (err)
 			goto out_detach;
@@ -799,7 +791,7 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 
 	/* Get rid of the final newline */
 	if (buf[len - 1] == '\n')
-		buf[len - 1] = 0;
+		buf[len - 1] = '\0';
 
 	for (i = 0; i < 3; i++)
 		tokens[i] = strsep(&pbuf, ",");
@@ -808,9 +800,6 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 		printk("UBI error: too many arguments at \"%s\"\n", val);
 		return -EINVAL;
 	}
-
-	if (tokens[0] == '\0')
-		return -EINVAL;
 
 	p = &mtd_dev_param[mtd_devs];
 	strcpy(&p->name[0], tokens[0]);

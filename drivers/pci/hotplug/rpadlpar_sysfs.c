@@ -129,17 +129,17 @@ struct kobj_type ktype_dlpar_io = {
 };
 
 struct kset dlpar_io_kset = {
-	.kobj = {.name = DLPAR_KOBJ_NAME,
-		 .ktype = &ktype_dlpar_io,
+	.kobj = {.ktype = &ktype_dlpar_io,
 		 .parent = &pci_hotplug_slots_subsys.kobj},
 	.ktype = &ktype_dlpar_io,
 };
 
 int dlpar_sysfs_init(void)
 {
+	kobject_set_name(&dlpar_io_kset.kobj, DLPAR_KOBJ_NAME);
 	if (kset_register(&dlpar_io_kset)) {
 		printk(KERN_ERR "rpadlpar_io: cannot register kset for %s\n",
-				dlpar_io_kset.kobj.name);
+				kobject_name(&dlpar_io_kset.kobj));
 		return -EINVAL;
 	}
 

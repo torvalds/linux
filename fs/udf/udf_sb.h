@@ -24,6 +24,8 @@
 #define UDF_FLAG_UID_IGNORE     12    /* use sb uid instead of on disk uid */
 #define UDF_FLAG_GID_FORGET     13
 #define UDF_FLAG_GID_IGNORE     14
+#define UDF_FLAG_UID_SET	15
+#define UDF_FLAG_GID_SET	16
 
 #define UDF_PART_FLAG_UNALLOC_BITMAP	0x0001
 #define UDF_PART_FLAG_UNALLOC_TABLE	0x0002
@@ -41,8 +43,7 @@ static inline struct udf_sb_info *UDF_SB(struct super_block *sb)
 
 #define UDF_SB_FREE(X)\
 {\
-	if (UDF_SB(X))\
-	{\
+	if (UDF_SB(X)) {\
 		kfree(UDF_SB_PARTMAPS(X));\
 		UDF_SB_PARTMAPS(X) = NULL;\
 	}\
@@ -51,13 +52,10 @@ static inline struct udf_sb_info *UDF_SB(struct super_block *sb)
 #define UDF_SB_ALLOC_PARTMAPS(X,Y)\
 {\
 	UDF_SB_PARTMAPS(X) = kmalloc(sizeof(struct udf_part_map) * Y, GFP_KERNEL);\
-	if (UDF_SB_PARTMAPS(X) != NULL)\
-	{\
+	if (UDF_SB_PARTMAPS(X) != NULL) {\
 		UDF_SB_NUMPARTS(X) = Y;\
 		memset(UDF_SB_PARTMAPS(X), 0x00, sizeof(struct udf_part_map) * Y);\
-	}\
-	else\
-	{\
+	} else {\
 		UDF_SB_NUMPARTS(X) = 0;\
 		udf_error(X, __FUNCTION__, "Unable to allocate space for %d partition maps", Y);\
 	}\
@@ -72,15 +70,12 @@ static inline struct udf_sb_info *UDF_SB(struct super_block *sb)
 		UDF_SB_PARTMAPS(X)[(Y)].Z.s_bitmap = kmalloc(size, GFP_KERNEL);\
 	else\
 		UDF_SB_PARTMAPS(X)[(Y)].Z.s_bitmap = vmalloc(size);\
-	if (UDF_SB_PARTMAPS(X)[(Y)].Z.s_bitmap != NULL)\
-	{\
+	if (UDF_SB_PARTMAPS(X)[(Y)].Z.s_bitmap != NULL) {\
 		memset(UDF_SB_PARTMAPS(X)[(Y)].Z.s_bitmap, 0x00, size);\
 		UDF_SB_PARTMAPS(X)[(Y)].Z.s_bitmap->s_block_bitmap =\
 			(struct buffer_head **)(UDF_SB_PARTMAPS(X)[(Y)].Z.s_bitmap + 1);\
 		UDF_SB_PARTMAPS(X)[(Y)].Z.s_bitmap->s_nr_groups = nr_groups;\
-	}\
-	else\
-	{\
+	} else {\
 		udf_error(X, __FUNCTION__, "Unable to allocate space for bitmap and %d buffer_head pointers", nr_groups);\
 	}\
 }
@@ -90,8 +85,7 @@ static inline struct udf_sb_info *UDF_SB(struct super_block *sb)
 	int i;\
 	int nr_groups = UDF_SB_BITMAP_NR_GROUPS(X,Y,Z);\
 	int size = sizeof(struct udf_bitmap) + (sizeof(struct buffer_head *) * nr_groups);\
-	for (i=0; i<nr_groups; i++)\
-	{\
+	for (i = 0; i < nr_groups; i++) {\
 		if (UDF_SB_BITMAP(X,Y,Z,i))\
 			brelse(UDF_SB_BITMAP(X,Y,Z,i));\
 	}\

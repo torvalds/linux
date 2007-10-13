@@ -58,8 +58,6 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 	if (!retval)
 		ehci_dbg(ehci, "MWI active\n");
 
-	ehci_port_power(ehci, 0);
-
 	return 0;
 }
 
@@ -156,8 +154,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		break;
 	}
 
-	if (ehci_is_TDI(ehci))
-		ehci_reset(ehci);
+	ehci_reset(ehci);
 
 	/* at least the Genesys GL880S needs fixup here */
 	temp = HCS_N_CC(ehci->hcs_params) * HCS_N_PCC(ehci->hcs_params);

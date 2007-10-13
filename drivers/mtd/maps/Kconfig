@@ -103,7 +103,7 @@ config MTD_PMC_MSP_RAMROOT
 
 config MTD_SUN_UFLASH
 	tristate "Sun Microsystems userflash support"
-	depends on SPARC && MTD_CFI
+	depends on SPARC && MTD_CFI && PCI
 	help
 	  This provides a 'mapping' driver which supports the way in
 	  which user-programmable flash chips are connected on various
@@ -362,7 +362,7 @@ config MTD_WALNUT
 
 config MTD_EBONY
 	tristate "Flash devices mapped on IBM 440GP Ebony"
-	depends on MTD_JEDECPROBE && EBONY
+	depends on MTD_JEDECPROBE && EBONY && !PPC_MERGE
 	help
 	  This enables access routines for the flash chips on the IBM 440GP
 	  Ebony board. If you have one of these boards and would like to

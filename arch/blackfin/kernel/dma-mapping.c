@@ -160,7 +160,8 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	BUG_ON(direction == DMA_NONE);
 
 	for (i = 0; i < nents; i++, sg++) {
-		sg->dma_address = page_address(sg->page) + sg->offset;
+		sg->dma_address = (dma_addr_t)(page_address(sg->page) +
+					sg->offset);
 
 		invalidate_dcache_range(sg_dma_address(sg),
 					sg_dma_address(sg) +

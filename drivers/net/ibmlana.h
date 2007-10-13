@@ -26,7 +26,6 @@ typedef enum {
 
 typedef struct {
 	unsigned int slot;		/* MCA-Slot-#                       */
-	struct net_device_stats stat;	/* packet statistics            */
 	int realirq;			/* memorizes actual IRQ, even when
 					   currently not allocated          */
 	ibmlana_medium medium;		/* physical cannector               */

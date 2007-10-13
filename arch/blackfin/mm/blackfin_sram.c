@@ -521,10 +521,9 @@ void *sram_alloc_with_lsl(size_t size, unsigned long flags)
 	struct sram_list_struct *lsl = NULL;
 	struct mm_struct *mm = current->mm;
 
-	lsl = kmalloc(sizeof(struct sram_list_struct), GFP_KERNEL);
+	lsl = kzalloc(sizeof(struct sram_list_struct), GFP_KERNEL);
 	if (!lsl)
 		return NULL;
-	memset(lsl, 0, sizeof(*lsl));
 
 	if (flags & L1_INST_SRAM)
 		addr = l1_inst_sram_alloc(size);

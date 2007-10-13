@@ -5,12 +5,6 @@
  *
  *  Copyright (c) 1995-1998  Mark Lord
  *  May be copied or modified under the terms of the GNU General Public License
- *
- *  Recent Changes
- *	Split the set up function into multiple functions
- *	Use pci_set_master
- *	Fix misreporting of I/O v MMIO problems
- *	Initial fixups for simplex devices
  */
 
 /*
@@ -407,7 +401,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, ide_pci_device_t *d, 
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
 
-	if ((d->flags & IDEPCI_FLAG_ISA_PORTS) == 0) {
+	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
 		/*  Possibly we should fail if these checks report true */
 		ide_pci_check_iomem(dev, d, 2*port);
 		ide_pci_check_iomem(dev, d, 2*port+1);
@@ -571,7 +565,7 @@ out:
  
 void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, ata_index_t *index)
 {
-	int port;
+	int channels = (d->host_flags & IDE_HFLAG_SINGLE) ? 1 : 2, port;
 	int at_least_one_hwif_enabled = 0;
 	ide_hwif_t *hwif, *mate = NULL;
 	u8 tmp;
@@ -582,16 +576,13 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 	 * Set up the IDE ports
 	 */
 	 
-	for (port = 0; port <= 1; ++port) {
+	for (port = 0; port < channels; ++port) {
 		ide_pci_enablebit_t *e = &(d->enablebits[port]);
 	
 		if (e->reg && (pci_read_config_byte(dev, e->reg, &tmp) ||
 		    (tmp & e->mask) != e->val))
 			continue;	/* port not enabled */
 
-		if (d->channels	<= port)
-			break;
-	
 		if ((hwif = ide_hwif_configure(dev, d, mate, port, pciirq)) == NULL)
 			continue;
 
@@ -616,6 +607,9 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		else
 			ide_hwif_setup_dma(dev, d, hwif);
 bypass_legacy_dma:
+		hwif->host_flags = d->host_flags;
+		hwif->pio_mask = d->pio_mask;
+
 		if (d->init_hwif)
 			/* Call chipset-specific routine
 			 * for each enabled hwif
@@ -822,19 +816,15 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
 	struct list_head *l;
 	struct pci_driver *d;
 	
-	list_for_each(l, &ide_pci_drivers)
-	{
+	list_for_each(l, &ide_pci_drivers) {
 		d = list_entry(l, struct pci_driver, node);
-		if(d->id_table)
-		{
-			const struct pci_device_id *id = pci_match_id(d->id_table, dev);
-			if(id != NULL)
-			{
-				if(d->probe(dev, id) >= 0)
-				{
-					dev->driver = d;
-					return 1;
-				}
+		if (d->id_table) {
+			const struct pci_device_id *id = pci_match_id(d->id_table,
+								      dev);
+			if (id != NULL && d->probe(dev, id) >= 0) {
+				dev->driver = d;
+				pci_dev_get(dev);
+				return 1;
 			}
 		}
 	}
@@ -857,15 +847,13 @@ void __init ide_scan_pcibus (int scan_direction)
 	struct list_head *l, *n;
 
 	pre_init = 0;
-	if (!scan_direction) {
-		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	if (!scan_direction)
+		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
 			ide_scan_pcidev(dev);
-		}
-	} else {
-		while ((dev = pci_get_device_reverse(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	else
+		while ((dev = pci_get_device_reverse(PCI_ANY_ID, PCI_ANY_ID, dev))
+		       != NULL)
 			ide_scan_pcidev(dev);
-		}
-	}
 	
 	/*
 	 *	Hand the drivers over to the PCI layer now we
@@ -875,12 +863,9 @@ void __init ide_scan_pcibus (int scan_direction)
 	list_for_each_safe(l, n, &ide_pci_drivers) {
 		list_del(l);
 		d = list_entry(l, struct pci_driver, node);
-		if (__pci_register_driver(d, d->driver.owner,
-					d->driver.mod_name)) {
-			printk(KERN_ERR "%s: failed to register driver "
-					"for %s\n", __FUNCTION__,
-					 d->driver.mod_name);
-		}
+		if (__pci_register_driver(d, d->driver.owner, d->driver.mod_name))
+			printk(KERN_ERR "%s: failed to register driver for %s\n",
+			       __FUNCTION__, d->driver.mod_name);
 	}
 }
 #endif

@@ -76,7 +76,6 @@ struct sb1000_private {
 	unsigned char rx_session_id[NPIDS];
 	unsigned char rx_frame_id[NPIDS];
 	unsigned char rx_pkt_type[NPIDS];
-	struct net_device_stats stats;
 };
 
 /* prototypes for Linux interface */
@@ -85,7 +84,6 @@ static int sb1000_open(struct net_device *dev);
 static int sb1000_dev_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd);
 static int sb1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t sb1000_interrupt(int irq, void *dev_id);
-static struct net_device_stats *sb1000_stats(struct net_device *dev);
 static int sb1000_close(struct net_device *dev);
 
 
@@ -189,7 +187,6 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	 */
 	dev->flags = IFF_POINTOPOINT|IFF_NOARP;
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (sb1000_debug > 0)
@@ -200,7 +197,6 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	dev->do_ioctl		= sb1000_dev_ioctl;
 	dev->hard_start_xmit	= sb1000_start_xmit;
 	dev->stop		= sb1000_close;
-	dev->get_stats		= sb1000_stats;
 
 	/* hardware address is 0:0:serial_number */
 	dev->dev_addr[2]	= serial_number >> 24 & 0xff;
@@ -740,7 +736,7 @@ sb1000_rx(struct net_device *dev)
 	unsigned int skbsize;
 	struct sk_buff *skb;
 	struct sb1000_private *lp = netdev_priv(dev);
-	struct net_device_stats *stats = &lp->stats;
+	struct net_device_stats *stats = &dev->stats;
 
 	/* SB1000 frame constants */
 	const int FrameSize = FRAMESIZE;
@@ -1003,11 +999,11 @@ static int sb1000_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCGCMSTATS:		/* get statistics */
-		stats[0] = lp->stats.rx_bytes;
+		stats[0] = dev->stats.rx_bytes;
 		stats[1] = lp->rx_frames;
-		stats[2] = lp->stats.rx_packets;
-		stats[3] = lp->stats.rx_errors;
-		stats[4] = lp->stats.rx_dropped;
+		stats[2] = dev->stats.rx_packets;
+		stats[3] = dev->stats.rx_errors;
+		stats[4] = dev->stats.rx_dropped;
 		if(copy_to_user(ifr->ifr_data, stats, sizeof(stats)))
 			return -EFAULT;
 		status = 0;
@@ -1131,12 +1127,6 @@ static irqreturn_t sb1000_interrupt(int irq, void *dev_id)
 	}
 
 	return IRQ_HANDLED;
-}
-
-static struct net_device_stats *sb1000_stats(struct net_device *dev)
-{
-	struct sb1000_private *lp = netdev_priv(dev);
-	return &lp->stats;
 }
 
 static int sb1000_close(struct net_device *dev)

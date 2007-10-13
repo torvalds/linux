@@ -56,7 +56,6 @@
 #define ACPI_HOTK_NAME          "Asus Laptop ACPI Extras Driver"
 #define ACPI_HOTK_CLASS         "hotkey"
 #define ACPI_HOTK_DEVICE_NAME   "Hotkey"
-#define ACPI_HOTK_HID           "ATK0100"
 
 /*
  * Some events we use, same for all Asus
@@ -426,14 +425,20 @@ static struct acpi_table_header *asus_info;
 static struct asus_hotk *hotk;
 
 /*
- * The hotkey driver declaration
+ * The hotkey driver and autoloading declaration
  */
 static int asus_hotk_add(struct acpi_device *device);
 static int asus_hotk_remove(struct acpi_device *device, int type);
+static const struct acpi_device_id asus_device_ids[] = {
+	{"ATK0100", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, asus_device_ids);
+
 static struct acpi_driver asus_hotk_driver = {
 	.name = "asus_acpi",
 	.class = ACPI_HOTK_CLASS,
-	.ids = ACPI_HOTK_HID,
+	.ids = asus_device_ids,
 	.ops = {
 		.add = asus_hotk_add,
 		.remove = asus_hotk_remove,
@@ -1064,7 +1069,7 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 		hotk->brightness = (event & ~((u32) BR_DOWN));
 	}
 
-	acpi_bus_generate_event(hotk->device, event,
+	acpi_bus_generate_proc_event(hotk->device, event,
 				hotk->event_count[event % 128]++);
 
 	return;
@@ -1187,6 +1192,7 @@ static int asus_hotk_get_info(void)
 			break;
 		default:
 			kfree(model);
+			model = NULL;
 			break;
 		}
 	}

@@ -88,21 +88,17 @@ config SERIAL_8250_PCI
 	depends on SERIAL_8250 && PCI
 	default SERIAL_8250
 	help
-	  Say Y here if you have PCI serial ports.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_pci.
+	  This builds standard PCI serial support. You may be able to
+	  disable this feature if you only need legacy serial support.
+	  Saves about 9K.
 
 config SERIAL_8250_PNP
 	tristate "8250/16550 PNP device support" if EMBEDDED
 	depends on SERIAL_8250 && PNP
 	default SERIAL_8250
 	help
-	  Say Y here if you have serial ports described by PNPBIOS or ACPI.
-	  These are typically ports built into the system board.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_pnp.
+	  This builds standard PNP serial support. You may be able to
+	  disable this feature if you only need legacy serial support.
 
 config SERIAL_8250_HP300
 	tristate
@@ -486,6 +482,36 @@ config SERIAL_DZ_CONSOLE
 
 	  If unsure, say Y.
 
+config SERIAL_ZS
+	tristate "DECstation Z85C30 serial support"
+	depends on MACH_DECSTATION
+	select SERIAL_CORE
+	default y
+	---help---
+	  Support for the Zilog 85C350 serial communications controller used
+	  for serial ports in newer DECstation systems.  These include the
+	  DECsystem 5900 and all models of the DECstation and DECsystem 5000
+	  systems except from model 200.
+
+	  If unsure, say Y.  To compile this driver as a module, choose M here:
+	  the module will be called zs.
+
+config SERIAL_ZS_CONSOLE
+	bool "Support for console on a DECstation Z85C30 serial port"
+	depends on SERIAL_ZS=y
+	select SERIAL_CORE_CONSOLE
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).
+
+	  Note that the firmware uses ttyS1 as the serial console on the
+	  Maxine and ttyS3 on the others using this driver.
+
+	  If unsure, say Y.
+
 config SERIAL_21285
 	tristate "DC21285 serial port support"
 	depends on ARM && FOOTBRIDGE
@@ -585,7 +611,7 @@ config SERIAL_BFIN
 
 config SERIAL_BFIN_CONSOLE
 	bool "Console on Blackfin serial port"
-	depends on SERIAL_BFIN
+	depends on SERIAL_BFIN=y
 	select SERIAL_CORE_CONSOLE
 
 choice
@@ -806,10 +832,10 @@ config SERIAL_MUX
 	    4. Change the kernel command console parameter to: console=ttyB0
 
 config SERIAL_MUX_CONSOLE
-        bool "Support for console on serial MUX"
-        depends on SERIAL_MUX
+	bool "Support for console on serial MUX"
+	depends on SERIAL_MUX=y
 	select SERIAL_CORE_CONSOLE
-        default y
+	default y
 
 config PDC_CONSOLE
 	bool "PDC software console support"
@@ -959,6 +985,31 @@ config SERIAL_PMACZILOG
 	  This driver supports the Zilog z85C30 serial ports found on
 	  PowerMac machines.
 	  Say Y or M if you want to be able to these serial ports.
+
+config SERIAL_PMACZILOG_TTYS
+	bool "Use ttySn device nodes for Zilog z85c30"
+	depends on SERIAL_PMACZILOG
+	help
+	  The pmac_zilog driver for the z85C30 chip on many powermacs
+	  historically used the device numbers for /dev/ttySn.  The
+	  8250 serial port driver also uses these numbers, which means
+	  the two drivers being unable to coexist; you could not use
+	  both z85C30 and 8250 type ports at the same time.
+
+	  If this option is not selected, the pmac_zilog driver will
+	  use the device numbers allocated for /dev/ttyPZn.  This allows
+	  the pmac_zilog and 8250 drivers to co-exist, but may cause
+	  existing userspace setups to break.  Programs that need to
+	  access the built-in serial ports on powermacs will need to
+	  be reconfigured to use /dev/ttyPZn instead of /dev/ttySn.
+
+	  If you enable this option, any z85c30 ports in the system will
+	  be registered as ttyS0 onwards as in the past, and you will be
+	  unable to use the 8250 module for PCMCIA or other 16C550-style
+	  UARTs.
+
+	  Say N unless you need the z85c30 ports on your powermac
+	  to appear as /dev/ttySn.
 
 config SERIAL_PMACZILOG_CONSOLE
 	bool "Console on PowerMac z85c30 serial port"
@@ -1165,7 +1216,7 @@ config SERIAL_VR41XX
 
 config SERIAL_VR41XX_CONSOLE
 	bool "Enable NEC VR4100 series Serial Interface Unit console"
-	depends on SERIAL_VR41XX
+	depends on SERIAL_VR41XX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have a NEC VR4100 series processor and you want to use

@@ -20,7 +20,6 @@
 
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -191,17 +190,21 @@ static int cx2341x_get_ctrl(struct cx2341x_mpeg_params *params,
 
 /* Map the control ID to the correct field in the cx2341x_mpeg_params
    struct. Return -EINVAL if the ID is unknown, else return 0. */
-static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
+static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 		struct v4l2_ext_control *ctrl)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
+		if (busy)
+			return -EBUSY;
 		params->audio_sampling_freq = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		params->audio_encoding = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
+		if (busy)
+			return -EBUSY;
 		params->audio_l2_bitrate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_MODE:
@@ -246,6 +249,8 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 		params->video_gop_closure = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		if (busy)
+			return -EBUSY;
 		/* MPEG-1 only allows CBR */
 		if (params->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1 &&
 		    ctrl->value != V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
@@ -253,9 +258,13 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 		params->video_bitrate_mode = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		if (busy)
+			return -EBUSY;
 		params->video_bitrate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
+		if (busy)
+			return -EBUSY;
 		params->video_bitrate_peak = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION:
@@ -268,6 +277,8 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 		params->video_mute_yuv = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_STREAM_TYPE:
+		if (busy)
+			return -EBUSY;
 		params->stream_type = ctrl->value;
 		params->video_encoding =
 			(params->stream_type == V4L2_MPEG_STREAM_TYPE_MPEG1_SS ||
@@ -632,7 +643,7 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 		(params->audio_crc << 14);
 }
 
-int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params,
+int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
 		  struct v4l2_ext_controls *ctrls, unsigned int cmd)
 {
 	int err = 0;
@@ -664,7 +675,7 @@ int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params,
 		err = v4l2_ctrl_check(ctrl, &qctrl, menu_items);
 		if (err)
 			break;
-		err = cx2341x_set_ctrl(params, ctrl);
+		err = cx2341x_set_ctrl(params, busy, ctrl);
 		if (err)
 			break;
 	}

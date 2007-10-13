@@ -71,14 +71,12 @@ enum {
 struct symbol {
 	struct symbol *next;
 	char *name;
-	char *help;
 	enum symbol_type type;
 	struct symbol_value curr;
 	struct symbol_value def[4];
 	tristate visible;
 	int flags;
 	struct property *prop;
-	struct expr *dep, *dep2;
 	struct expr_value rev_dep;
 };
 
@@ -139,7 +137,7 @@ struct menu {
 	struct property *prompt;
 	struct expr *dep;
 	unsigned int flags;
-	//char *help;
+	char *help;
 	struct file *file;
 	int lineno;
 	void *data;

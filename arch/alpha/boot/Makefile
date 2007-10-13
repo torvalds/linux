@@ -104,7 +104,7 @@ OBJ_bootlx   := $(obj)/head.o $(obj)/main.o
 OBJ_bootph   := $(obj)/head.o $(obj)/bootp.o
 OBJ_bootpzh  := $(obj)/head.o $(obj)/bootpz.o $(obj)/misc.o
 
-$(obj)/bootloader: $(obj)/bootloader.lds $(OBJ_bootlx) FORCE
+$(obj)/bootloader: $(obj)/bootloader.lds $(OBJ_bootlx) $(LIBS_Y) FORCE
 	$(call if_changed,ld)
 
 $(obj)/bootpheader: $(obj)/bootloader.lds $(OBJ_bootph) $(LIBS_Y) FORCE

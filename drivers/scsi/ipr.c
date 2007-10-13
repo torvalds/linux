@@ -3829,18 +3829,18 @@ static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
 
 /**
  * ipr_sata_reset - Reset the SATA port
- * @ap:		SATA port to reset
+ * @link:	SATA link to reset
  * @classes:	class of the attached device
  *
- * This function issues a SATA phy reset to the affected ATA port.
+ * This function issues a SATA phy reset to the affected ATA link.
  *
  * Return value:
  *	0 on success / non-zero on failure
  **/
-static int ipr_sata_reset(struct ata_port *ap, unsigned int *classes,
+static int ipr_sata_reset(struct ata_link *link, unsigned int *classes,
 				unsigned long deadline)
 {
-	struct ipr_sata_port *sata_port = ap->private_data;
+	struct ipr_sata_port *sata_port = link->ap->private_data;
 	struct ipr_ioa_cfg *ioa_cfg = sata_port->ioa_cfg;
 	struct ipr_resource_entry *res;
 	unsigned long lock_flags = 0;
@@ -4981,22 +4981,22 @@ static void ipr_ata_phy_reset(struct ata_port *ap)
 	rc = ipr_device_reset(ioa_cfg, res);
 
 	if (rc) {
-		ap->ops->port_disable(ap);
+		ata_port_disable(ap);
 		goto out_unlock;
 	}
 
 	switch(res->cfgte.proto) {
 	case IPR_PROTO_SATA:
 	case IPR_PROTO_SAS_STP:
-		ap->device[0].class = ATA_DEV_ATA;
+		ap->link.device[0].class = ATA_DEV_ATA;
 		break;
 	case IPR_PROTO_SATA_ATAPI:
 	case IPR_PROTO_SAS_STP_ATAPI:
-		ap->device[0].class = ATA_DEV_ATAPI;
+		ap->link.device[0].class = ATA_DEV_ATAPI;
 		break;
 	default:
-		ap->device[0].class = ATA_DEV_UNKNOWN;
-		ap->ops->port_disable(ap);
+		ap->link.device[0].class = ATA_DEV_UNKNOWN;
+		ata_port_disable(ap);
 		break;
 	};
 
@@ -5262,7 +5262,6 @@ static u8 ipr_ata_check_altstatus(struct ata_port *ap)
 }
 
 static struct ata_port_operations ipr_sata_ops = {
-	.port_disable = ata_port_disable,
 	.check_status = ipr_ata_check_status,
 	.check_altstatus = ipr_ata_check_altstatus,
 	.dev_select = ata_noop_dev_select,

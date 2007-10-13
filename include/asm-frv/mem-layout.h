@@ -60,6 +60,7 @@
  */
 #define BRK_BASE			__UL(2 * 1024 * 1024 + PAGE_SIZE)
 #define STACK_TOP			__UL(2 * 1024 * 1024)
+#define STACK_TOP_MAX	STACK_TOP
 
 /* userspace process size */
 #ifdef CONFIG_MMU

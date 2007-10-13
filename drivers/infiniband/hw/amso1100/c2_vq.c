@@ -85,7 +85,7 @@ int vq_init(struct c2_dev *c2dev)
 		(char) ('0' + c2dev->devnum));
 	c2dev->host_msg_cache =
 	    kmem_cache_create(c2dev->vq_cache_name, c2dev->rep_vq.msg_size, 0,
-			      SLAB_HWCACHE_ALIGN, NULL, NULL);
+			      SLAB_HWCACHE_ALIGN, NULL);
 	if (c2dev->host_msg_cache == NULL) {
 		return -ENOMEM;
 	}

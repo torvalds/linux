@@ -24,14 +24,15 @@
 
 /**
  *	marvell_pre_reset	-	check for 40/80 pin
- *	@ap: Port
+ *	@link: link
  *	@deadline: deadline jiffies for the operation
  *
  *	Perform the PATA port setup we need.
  */
 
-static int marvell_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int marvell_pre_reset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 devices;
 	void __iomem *barp;
@@ -44,17 +45,17 @@ static int marvell_pre_reset(struct ata_port *ap, unsigned long deadline)
 		return -ENOMEM;
 	printk("BAR5:");
 	for(i = 0; i <= 0x0F; i++)
-		printk("%02X:%02X ", i, readb(barp + i));
+		printk("%02X:%02X ", i, ioread8(barp + i));
 	printk("\n");
 
-	devices = readl(barp + 0x0C);
+	devices = ioread32(barp + 0x0C);
 	pci_iounmap(pdev, barp);
 
 	if ((pdev->device == 0x6145) && (ap->port_no == 0) &&
 	    (!(devices & 0x10)))	/* PATA enable ? */
 		return -ENOENT;
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 static int marvell_cable_detect(struct ata_port *ap)
@@ -110,8 +111,6 @@ static struct scsi_host_template marvell_sht = {
 };
 
 static const struct ata_port_operations marvell_ops = {
-	.port_disable		= ata_port_disable,
-
 	/* Task file is PCI ATA format, use helpers */
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -138,10 +137,9 @@ static const struct ata_port_operations marvell_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	/* Generic PATA PCI ATA helpers */
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 
@@ -192,6 +190,8 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 
 static const struct pci_device_id marvell_pci_tbl[] = {
 	{ PCI_DEVICE(0x11AB, 0x6101), },
+	{ PCI_DEVICE(0x11AB, 0x6121), },
+	{ PCI_DEVICE(0x11AB, 0x6123), },
 	{ PCI_DEVICE(0x11AB, 0x6145), },
 	{ }	/* terminate list */
 };

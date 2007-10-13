@@ -131,14 +131,15 @@ static int cycx_wan_update(struct wan_device *wandev),
 	   cycx_wan_del_if(struct wan_device *wandev, struct net_device *dev);
 
 /* Network device interface */
-static int cycx_netdevice_init(struct net_device *dev),
-	   cycx_netdevice_open(struct net_device *dev),
-	   cycx_netdevice_stop(struct net_device *dev),
-	   cycx_netdevice_hard_header(struct sk_buff *skb,
-				     struct net_device *dev, u16 type,
-				     void *daddr, void *saddr, unsigned len),
-	   cycx_netdevice_rebuild_header(struct sk_buff *skb),
-	   cycx_netdevice_hard_start_xmit(struct sk_buff *skb,
+static int cycx_netdevice_init(struct net_device *dev);
+static int cycx_netdevice_open(struct net_device *dev);
+static int cycx_netdevice_stop(struct net_device *dev);
+static int cycx_netdevice_hard_header(struct sk_buff *skb,
+				      struct net_device *dev, u16 type,
+				      const void *daddr, const void *saddr,
+				      unsigned len);
+static int cycx_netdevice_rebuild_header(struct sk_buff *skb);
+static int cycx_netdevice_hard_start_xmit(struct sk_buff *skb,
 					  struct net_device *dev);
 
 static struct net_device_stats *
@@ -376,11 +377,10 @@ static int cycx_wan_new_if(struct wan_device *wandev, struct net_device *dev,
 	}
 
 	/* allocate and initialize private data */
-	chan = kmalloc(sizeof(struct cycx_x25_channel), GFP_KERNEL);
+	chan = kzalloc(sizeof(struct cycx_x25_channel), GFP_KERNEL);
 	if (!chan)
 		return -ENOMEM;
 
-	memset(chan, 0, sizeof(*chan));
 	strcpy(chan->name, conf->name);
 	chan->card = card;
 	chan->link = conf->port;
@@ -469,7 +469,14 @@ static int cycx_wan_del_if(struct wan_device *wandev, struct net_device *dev)
 	return 0;
 }
 
+
 /* Network Device Interface */
+
+static const struct header_ops cycx_header_ops = {
+	.create = cycx_netdevice_hard_header,
+	.rebuild = cycx_netdevice_rebuild_header,
+};
+
 /* Initialize Linux network interface.
  *
  * This routine is called only once for each interface, during Linux network
@@ -484,8 +491,8 @@ static int cycx_netdevice_init(struct net_device *dev)
 	/* Initialize device driver entry points */
 	dev->open		= cycx_netdevice_open;
 	dev->stop		= cycx_netdevice_stop;
-	dev->hard_header	= cycx_netdevice_hard_header;
-	dev->rebuild_header	= cycx_netdevice_rebuild_header;
+	dev->header_ops		= &cycx_header_ops;
+
 	dev->hard_start_xmit	= cycx_netdevice_hard_start_xmit;
 	dev->get_stats		= cycx_netdevice_get_stats;
 
@@ -509,7 +516,6 @@ static int cycx_netdevice_init(struct net_device *dev)
 
 	/* Set transmit buffer queue length */
 	dev->tx_queue_len	= 10;
-	SET_MODULE_OWNER(dev);
 
 	/* Initialize socket buffers */
 	cycx_x25_set_chan_state(dev, WAN_DISCONNECTED);
@@ -556,7 +562,8 @@ static int cycx_netdevice_stop(struct net_device *dev)
  * Return:	media header length. */
 static int cycx_netdevice_hard_header(struct sk_buff *skb,
 				      struct net_device *dev, u16 type,
-				      void *daddr, void *saddr, unsigned len)
+				      const void *daddr, const void *saddr,
+				      unsigned len)
 {
 	skb->protocol = type;
 

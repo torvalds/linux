@@ -1,7 +1,6 @@
-/* $Id: iommu.h,v 1.10 2001/03/08 09:55:56 davem Exp $
- * iommu.h: Definitions for the sun5 IOMMU.
+/* iommu.h: Definitions for the sun5 IOMMU.
  *
- * Copyright (C) 1996, 1999 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 1999, 2007 David S. Miller (davem@davemloft.net)
  */
 #ifndef _SPARC64_IOMMU_H
 #define _SPARC64_IOMMU_H
@@ -33,6 +32,7 @@ struct iommu {
 	unsigned long		iommu_tsbbase;
 	unsigned long		iommu_flush;
 	unsigned long		iommu_flushinv;
+	unsigned long		iommu_tags;
 	unsigned long		iommu_ctxflush;
 	unsigned long		write_complete_reg;
 	unsigned long		dummy_page;
@@ -54,4 +54,7 @@ struct strbuf {
 	volatile unsigned long	__flushflag_buf[(64+(64-1)) / sizeof(long)];
 };
 
-#endif /* !(_SPARC_IOMMU_H) */
+extern int iommu_table_init(struct iommu *iommu, int tsbsize,
+			    u32 dma_offset, u32 dma_addr_mask);
+
+#endif /* !(_SPARC64_IOMMU_H) */

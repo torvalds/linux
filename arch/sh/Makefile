@@ -34,6 +34,8 @@ isa-y			:= $(isa-y)-nofpu
 endif
 endif
 
+isa-y			:= $(isa-y)-up
+
 cflags-$(CONFIG_CPU_SH2)		:= $(call cc-option,-m2,)
 cflags-$(CONFIG_CPU_SH2A)		+= $(call cc-option,-m2a,) \
 					   $(call cc-option,-m2a-nofpu,)
@@ -46,7 +48,20 @@ cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a,) \
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 
-cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),) -ffreestanding
+#
+# -Wa,-isa= tuning implies -Wa,-dsp for the versions of binutils that
+# support it, while -Wa,-dsp by itself limits the range of usable opcodes
+# on certain CPU subtypes. Try the ISA variant first, and if that fails,
+# fall back on -Wa,-dsp for the old binutils versions. Even without DSP
+# opcodes, we always want the best ISA tuning the version of binutils
+# will provide.
+#
+isaflags-y	:= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
+
+isaflags-$(CONFIG_SH_DSP)		:= \
+	$(call as-option,-Wa$(comma)-isa=$(isa-y),-Wa$(comma)-dsp)
+
+cflags-y	+= $(isaflags-y) -ffreestanding
 
 cflags-$(CONFIG_MORE_COMPILE_OPTIONS)	+= \
 	$(shell echo $(CONFIG_COMPILE_OPTIONS) | sed -e 's/"//g')
@@ -91,9 +106,7 @@ machdir-$(CONFIG_SH_SOLUTION_ENGINE)		+= se/770x
 machdir-$(CONFIG_SH_7722_SOLUTION_ENGINE)	+= se/7722
 machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	+= se/7751
 machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= se/7780
-machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	+= se/7300
 machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	+= se/7343
-machdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	+= se/73180
 machdir-$(CONFIG_SH_HP6XX)			+= hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= dreamcast
 machdir-$(CONFIG_SH_MPC1211)			+= mpc1211
@@ -121,8 +134,7 @@ core-y	+= $(addprefix arch/sh/boards/, \
 endif
 
 # Companion chips
-core-$(CONFIG_HD64461)		+= arch/sh/cchips/hd6446x/hd64461/
-core-$(CONFIG_HD64465)		+= arch/sh/cchips/hd6446x/hd64465/
+core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
 core-$(CONFIG_VOYAGERGX)	+= arch/sh/cchips/voyagergx/
 
 cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2

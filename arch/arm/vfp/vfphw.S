@@ -74,14 +74,14 @@ vfp_support_entry:
 
 	VFPFMRX	r1, FPEXC		@ Is the VFP enabled?
 	DBGSTR1	"fpexc %08x", r1
-	tst	r1, #FPEXC_ENABLE
+	tst	r1, #FPEXC_EN
 	bne	look_for_VFP_exceptions	@ VFP is already enabled
 
 	DBGSTR1 "enable %x", r10
 	ldr	r3, last_VFP_context_address
-	orr	r1, r1, #FPEXC_ENABLE	@ user FPEXC has the enable bit set
+	orr	r1, r1, #FPEXC_EN	@ user FPEXC has the enable bit set
 	ldr	r4, [r3, r11, lsl #2]	@ last_VFP_context pointer
-	bic	r5, r1, #FPEXC_EXCEPTION @ make sure exceptions are disabled
+	bic	r5, r1, #FPEXC_EX	@ make sure exceptions are disabled
 	cmp	r4, r10
 	beq	check_for_exception	@ we are returning to the same
 					@ process, so the registers are
@@ -124,7 +124,7 @@ no_old_VFP_process:
 	VFPFMXR	FPSCR, r5		@ restore status
 
 check_for_exception:
-	tst	r1, #FPEXC_EXCEPTION
+	tst	r1, #FPEXC_EX
 	bne	process_exception	@ might as well handle the pending
 					@ exception before retrying branch
 					@ out before setting an FPEXC that
@@ -136,10 +136,10 @@ check_for_exception:
 
 
 look_for_VFP_exceptions:
-	tst	r1, #FPEXC_EXCEPTION
+	tst	r1, #FPEXC_EX
 	bne	process_exception
 	VFPFMRX	r5, FPSCR
-	tst	r5, #FPSCR_IXE		@ IXE doesn't set FPEXC_EXCEPTION !
+	tst	r5, #FPSCR_IXE		@ IXE doesn't set FPEXC_EX !
 	bne	process_exception
 
 	@ Fall into hand on to next handler - appropriate coproc instr

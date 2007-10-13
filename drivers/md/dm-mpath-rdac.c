@@ -292,7 +292,7 @@ static struct request *get_rdac_req(struct rdac_handler *h,
 	rq->end_io_data = h;
 	rq->timeout = h->timeout;
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->cmd_flags = REQ_FAILFAST | REQ_NOMERGE;
+	rq->cmd_flags |= REQ_FAILFAST | REQ_NOMERGE;
 	return rq;
 }
 

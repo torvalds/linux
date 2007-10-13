@@ -211,7 +211,8 @@ static inline void ClearSlabDebug(struct page *page)
 #define MAX_OBJECTS_PER_SLAB 65535
 
 /* Internal SLUB flags */
-#define __OBJECT_POISON 0x80000000	/* Poison object */
+#define __OBJECT_POISON		0x80000000 /* Poison object */
+#define __SYSFS_ADD_DEFERRED	0x40000000 /* Not yet visible via sysfs */
 
 /* Not all arches define cache_line_size */
 #ifndef cache_line_size
@@ -985,7 +986,9 @@ out:
 
 __setup("slub_debug", setup_slub_debug);
 
-static void kmem_cache_open_debug_check(struct kmem_cache *s)
+static unsigned long kmem_cache_flags(unsigned long objsize,
+	unsigned long flags, const char *name,
+	void (*ctor)(void *, struct kmem_cache *, unsigned long))
 {
 	/*
 	 * The page->offset field is only 16 bit wide. This is an offset
@@ -999,19 +1002,21 @@ static void kmem_cache_open_debug_check(struct kmem_cache *s)
 	 * Debugging or ctor may create a need to move the free
 	 * pointer. Fail if this happens.
 	 */
-	if (s->objsize >= 65535 * sizeof(void *)) {
-		BUG_ON(s->flags & (SLAB_RED_ZONE | SLAB_POISON |
+	if (objsize >= 65535 * sizeof(void *)) {
+		BUG_ON(flags & (SLAB_RED_ZONE | SLAB_POISON |
 				SLAB_STORE_USER | SLAB_DESTROY_BY_RCU));
-		BUG_ON(s->ctor);
-	}
-	else
+		BUG_ON(ctor);
+	} else {
 		/*
 		 * Enable debugging if selected on the kernel commandline.
 		 */
 		if (slub_debug && (!slub_debug_slabs ||
-		    strncmp(slub_debug_slabs, s->name,
+		    strncmp(slub_debug_slabs, name,
 		    	strlen(slub_debug_slabs)) == 0))
-				s->flags |= slub_debug;
+				flags |= slub_debug;
+	}
+
+	return flags;
 }
 #else
 static inline void setup_object_debug(struct kmem_cache *s,
@@ -1028,7 +1033,12 @@ static inline int slab_pad_check(struct kmem_cache *s, struct page *page)
 static inline int check_object(struct kmem_cache *s, struct page *page,
 			void *object, int active) { return 1; }
 static inline void add_full(struct kmem_cache_node *n, struct page *page) {}
-static inline void kmem_cache_open_debug_check(struct kmem_cache *s) {}
+static inline unsigned long kmem_cache_flags(unsigned long objsize,
+	unsigned long flags, const char *name,
+	void (*ctor)(void *, struct kmem_cache *, unsigned long))
+{
+	return flags;
+}
 #define slub_debug 0
 #endif
 /*
@@ -1131,6 +1141,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 		slab_pad_check(s, page);
 		for_each_object(p, s, page_address(page))
 			check_object(s, page, p, 0);
+		ClearSlabDebug(page);
 	}
 
 	mod_zone_page_state(page_zone(page),
@@ -1169,7 +1180,6 @@ static void discard_slab(struct kmem_cache *s, struct page *page)
 
 	atomic_long_dec(&n->nr_slabs);
 	reset_page_mapcount(page);
-	ClearSlabDebug(page);
 	__ClearPageSlab(page);
 	free_slab(s, page);
 }
@@ -1656,6 +1666,7 @@ static void __always_inline slab_free(struct kmem_cache *s,
 	unsigned long flags;
 
 	local_irq_save(flags);
+	debug_check_no_locks_freed(object, s->objsize);
 	if (likely(page == s->cpu_slab[smp_processor_id()] &&
 						!SlabDebug(page))) {
 		object[page->offset] = page->lockless_freelist;
@@ -1875,9 +1886,16 @@ static struct kmem_cache_node * __init early_kmem_cache_node_alloc(gfp_t gfpflag
 
 	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
 
-	page = new_slab(kmalloc_caches, gfpflags | GFP_THISNODE, node);
+	page = new_slab(kmalloc_caches, gfpflags, node);
 
 	BUG_ON(!page);
+	if (page_to_nid(page) != node) {
+		printk(KERN_ERR "SLUB: Unable to allocate memory from "
+				"node %d\n", node);
+		printk(KERN_ERR "SLUB: Allocating a useless per node structure "
+				"in order to be able to continue\n");
+	}
+
 	n = page->freelist;
 	BUG_ON(!n);
 	page->freelist = get_freepointer(kmalloc_caches, n);
@@ -2079,9 +2097,8 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 	s->name = name;
 	s->ctor = ctor;
 	s->objsize = size;
-	s->flags = flags;
 	s->align = align;
-	kmem_cache_open_debug_check(s);
+	s->flags = kmem_cache_flags(size, flags, name, ctor);
 
 	if (!calculate_sizes(s))
 		goto error;
@@ -2276,10 +2293,26 @@ panic:
 }
 
 #ifdef CONFIG_ZONE_DMA
+
+static void sysfs_add_func(struct work_struct *w)
+{
+	struct kmem_cache *s;
+
+	down_write(&slub_lock);
+	list_for_each_entry(s, &slab_caches, list) {
+		if (s->flags & __SYSFS_ADD_DEFERRED) {
+			s->flags &= ~__SYSFS_ADD_DEFERRED;
+			sysfs_slab_add(s);
+		}
+	}
+	up_write(&slub_lock);
+}
+
+static DECLARE_WORK(sysfs_add_work, sysfs_add_func);
+
 static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 {
 	struct kmem_cache *s;
-	struct kmem_cache *x;
 	char *text;
 	size_t realsize;
 
@@ -2288,22 +2321,36 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 		return s;
 
 	/* Dynamically create dma cache */
-	x = kmalloc(kmem_size, flags & ~SLUB_DMA);
-	if (!x)
-		panic("Unable to allocate memory for dma cache\n");
+	if (flags & __GFP_WAIT)
+		down_write(&slub_lock);
+	else {
+		if (!down_write_trylock(&slub_lock))
+			goto out;
+	}
+
+	if (kmalloc_caches_dma[index])
+		goto unlock_out;
 
 	realsize = kmalloc_caches[index].objsize;
-	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
-			(unsigned int)realsize);
-	s = create_kmalloc_cache(x, text, realsize, flags);
-	down_write(&slub_lock);
-	if (!kmalloc_caches_dma[index]) {
-		kmalloc_caches_dma[index] = s;
-		up_write(&slub_lock);
-		return s;
+	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d", (unsigned int)realsize),
+	s = kmalloc(kmem_size, flags & ~SLUB_DMA);
+
+	if (!s || !text || !kmem_cache_open(s, flags, text,
+			realsize, ARCH_KMALLOC_MINALIGN,
+			SLAB_CACHE_DMA|__SYSFS_ADD_DEFERRED, NULL)) {
+		kfree(s);
+		kfree(text);
+		goto unlock_out;
 	}
+
+	list_add(&s->list, &slab_caches);
+	kmalloc_caches_dma[index] = s;
+
+	schedule_work(&sysfs_add_work);
+
+unlock_out:
 	up_write(&slub_lock);
-	kmem_cache_destroy(s);
+out:
 	return kmalloc_caches_dma[index];
 }
 #endif
@@ -2394,7 +2441,7 @@ size_t ksize(const void *object)
 	struct page *page;
 	struct kmem_cache *s;
 
-	if (object == ZERO_SIZE_PTR)
+	if (ZERO_OR_NULL_PTR(object))
 		return 0;
 
 	page = get_object_page(object);
@@ -2499,14 +2546,10 @@ int kmem_cache_shrink(struct kmem_cache *s)
 				slab_unlock(page);
 				discard_slab(s, page);
 			} else {
-				if (n->nr_partial > MAX_PARTIAL)
-					list_move(&page->lru,
-					slabs_by_inuse + page->inuse);
+				list_move(&page->lru,
+				slabs_by_inuse + page->inuse);
 			}
 		}
-
-		if (n->nr_partial <= MAX_PARTIAL)
-			goto out;
 
 		/*
 		 * Rebuild the partial list with the slabs filled up most
@@ -2515,7 +2558,6 @@ int kmem_cache_shrink(struct kmem_cache *s)
 		for (i = s->objects - 1; i >= 0; i--)
 			list_splice(slabs_by_inuse + i, n->partial.prev);
 
-	out:
 		spin_unlock_irqrestore(&n->list_lock, flags);
 	}
 
@@ -2626,7 +2668,7 @@ static int slab_unmergeable(struct kmem_cache *s)
 }
 
 static struct kmem_cache *find_mergeable(size_t size,
-		size_t align, unsigned long flags,
+		size_t align, unsigned long flags, const char *name,
 		void (*ctor)(void *, struct kmem_cache *, unsigned long))
 {
 	struct kmem_cache *s;
@@ -2640,6 +2682,7 @@ static struct kmem_cache *find_mergeable(size_t size,
 	size = ALIGN(size, sizeof(void *));
 	align = calculate_alignment(flags, align, size);
 	size = ALIGN(size, align);
+	flags = kmem_cache_flags(size, flags, name, NULL);
 
 	list_for_each_entry(s, &slab_caches, list) {
 		if (slab_unmergeable(s))
@@ -2648,8 +2691,7 @@ static struct kmem_cache *find_mergeable(size_t size,
 		if (size > s->size)
 			continue;
 
-		if (((flags | slub_debug) & SLUB_MERGE_SAME) !=
-			(s->flags & SLUB_MERGE_SAME))
+		if ((flags & SLUB_MERGE_SAME) != (s->flags & SLUB_MERGE_SAME))
 				continue;
 		/*
 		 * Check if alignment is compatible.
@@ -2668,14 +2710,12 @@ static struct kmem_cache *find_mergeable(size_t size,
 
 struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		size_t align, unsigned long flags,
-		void (*ctor)(void *, struct kmem_cache *, unsigned long),
-		void (*dtor)(void *, struct kmem_cache *, unsigned long))
+		void (*ctor)(void *, struct kmem_cache *, unsigned long))
 {
 	struct kmem_cache *s;
 
-	BUG_ON(dtor);
 	down_write(&slub_lock);
-	s = find_mergeable(size, align, flags, ctor);
+	s = find_mergeable(size, align, flags, name, ctor);
 	if (s) {
 		s->refcount++;
 		/*
@@ -3087,7 +3127,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
 		unsigned long flags;
 		struct page *page;
 
-		if (!atomic_read(&n->nr_slabs))
+		if (!atomic_long_read(&n->nr_slabs))
 			continue;
 
 		spin_lock_irqsave(&n->list_lock, flags);
@@ -3222,7 +3262,7 @@ static unsigned long slab_objects(struct kmem_cache *s,
 		}
 
 		if (flags & SO_FULL) {
-			int full_slabs = atomic_read(&n->nr_slabs)
+			int full_slabs = atomic_long_read(&n->nr_slabs)
 					- per_cpu[node]
 					- n->nr_partial;
 
@@ -3258,7 +3298,7 @@ static int any_slab_objects(struct kmem_cache *s)
 	for_each_node(node) {
 		struct kmem_cache_node *n = get_node(s, node);
 
-		if (n->nr_partial || atomic_read(&n->nr_slabs))
+		if (n->nr_partial || atomic_long_read(&n->nr_slabs))
 			return 1;
 	}
 	return 0;
@@ -3781,7 +3821,9 @@ static int __init slab_sysfs_init(void)
 
 	list_for_each_entry(s, &slab_caches, list) {
 		err = sysfs_slab_add(s);
-		BUG_ON(err);
+		if (err)
+			printk(KERN_ERR "SLUB: Unable to add boot slab %s"
+						" to sysfs\n", s->name);
 	}
 
 	while (alias_list) {
@@ -3789,7 +3831,9 @@ static int __init slab_sysfs_init(void)
 
 		alias_list = alias_list->next;
 		err = sysfs_slab_alias(al->s, al->name);
-		BUG_ON(err);
+		if (err)
+			printk(KERN_ERR "SLUB: Unable to add boot slab alias"
+					" %s to sysfs\n", s->name);
 		kfree(al);
 	}
 

@@ -122,7 +122,7 @@ void bcm43xx_wireless_core_reset(struct bcm43xx_private *bcm, int connect_phy);
 void bcm43xx_mac_suspend(struct bcm43xx_private *bcm);
 void bcm43xx_mac_enable(struct bcm43xx_private *bcm);
 
-void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm);
+void bcm43xx_cancel_work(struct bcm43xx_private *bcm);
 void bcm43xx_periodic_tasks_setup(struct bcm43xx_private *bcm);
 
 void bcm43xx_controller_restart(struct bcm43xx_private *bcm, const char *reason);

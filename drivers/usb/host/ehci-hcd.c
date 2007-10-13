@@ -275,58 +275,6 @@ static void ehci_work(struct ehci_hcd *ehci);
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_CPU_FREQ
-
-#include <linux/cpufreq.h>
-
-static void ehci_cpufreq_pause (struct ehci_hcd *ehci)
-{
-	unsigned long	flags;
-
-	spin_lock_irqsave(&ehci->lock, flags);
-	if (!ehci->cpufreq_changing++)
-		qh_inactivate_split_intr_qhs(ehci);
-	spin_unlock_irqrestore(&ehci->lock, flags);
-}
-
-static void ehci_cpufreq_unpause (struct ehci_hcd *ehci)
-{
-	unsigned long	flags;
-
-	spin_lock_irqsave(&ehci->lock, flags);
-	if (!--ehci->cpufreq_changing)
-		qh_reactivate_split_intr_qhs(ehci);
-	spin_unlock_irqrestore(&ehci->lock, flags);
-}
-
-/*
- * ehci_cpufreq_notifier is needed to avoid MMF errors that occur when
- * EHCI controllers that don't cache many uframes get delayed trying to
- * read main memory during CPU frequency transitions.  This can cause
- * split interrupt transactions to not be completed in the required uframe.
- * This has been observed on the Broadcom/ServerWorks HT1000 controller.
- */
-static int ehci_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
-				 void *data)
-{
-	struct ehci_hcd *ehci = container_of(nb, struct ehci_hcd,
-					     cpufreq_transition);
-
-	switch (val) {
-	case CPUFREQ_PRECHANGE:
-		ehci_cpufreq_pause(ehci);
-		break;
-	case CPUFREQ_POSTCHANGE:
-		ehci_cpufreq_unpause(ehci);
-		break;
-	}
-	return 0;
-}
-
-#endif
-
-/*-------------------------------------------------------------------------*/
-
 static void ehci_watchdog (unsigned long param)
 {
 	struct ehci_hcd		*ehci = (struct ehci_hcd *) param;
@@ -460,10 +408,6 @@ static void ehci_stop (struct usb_hcd *hcd)
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	spin_unlock_irq(&ehci->lock);
 
-#ifdef CONFIG_CPU_FREQ
-	cpufreq_unregister_notifier(&ehci->cpufreq_transition,
-				    CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 	/* let companion controllers work when we aren't */
 	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 
@@ -569,17 +513,6 @@ static int ehci_init(struct usb_hcd *hcd)
 	}
 	ehci->command = temp;
 
-#ifdef CONFIG_CPU_FREQ
-	INIT_LIST_HEAD(&ehci->split_intr_qhs);
-	/*
-	 * If the EHCI controller caches enough uframes, this probably
-	 * isn't needed unless there are so many low/full speed devices
-	 * that the controller's can't cache it all.
-	 */
-	ehci->cpufreq_transition.notifier_call = ehci_cpufreq_notifier;
-	cpufreq_register_notifier(&ehci->cpufreq_transition,
-				  CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 	return 0;
 }
 
@@ -637,10 +570,18 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * are explicitly handed to companion controller(s), so no TT is
 	 * involved with the root hub.  (Except where one is integrated,
 	 * and there's no companion controller unless maybe for USB OTG.)
+	 *
+	 * Turning on the CF flag will transfer ownership of all ports
+	 * from the companions to the EHCI controller.  If any of the
+	 * companions are in the middle of a port reset at the time, it
+	 * could cause trouble.  Write-locking ehci_cf_port_reset_rwsem
+	 * guarantees that no resets are in progress.
 	 */
+	down_write(&ehci_cf_port_reset_rwsem);
 	hcd->state = HC_STATE_RUNNING;
 	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
 	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
+	up_write(&ehci_cf_port_reset_rwsem);
 
 	temp = HC_VERSION(ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci_info (ehci,
@@ -786,7 +727,6 @@ dead:
  */
 static int ehci_urb_enqueue (
 	struct usb_hcd	*hcd,
-	struct usb_host_endpoint *ep,
 	struct urb	*urb,
 	gfp_t		mem_flags
 ) {
@@ -801,12 +741,12 @@ static int ehci_urb_enqueue (
 	default:
 		if (!qh_urb_transaction (ehci, urb, &qtd_list, mem_flags))
 			return -ENOMEM;
-		return submit_async (ehci, ep, urb, &qtd_list, mem_flags);
+		return submit_async(ehci, urb, &qtd_list, mem_flags);
 
 	case PIPE_INTERRUPT:
 		if (!qh_urb_transaction (ehci, urb, &qtd_list, mem_flags))
 			return -ENOMEM;
-		return intr_submit (ehci, ep, urb, &qtd_list, mem_flags);
+		return intr_submit(ehci, urb, &qtd_list, mem_flags);
 
 	case PIPE_ISOCHRONOUS:
 		if (urb->dev->speed == USB_SPEED_HIGH)
@@ -844,13 +784,18 @@ static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
  * completions normally happen asynchronously
  */
 
-static int ehci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
+static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	struct ehci_qh		*qh;
 	unsigned long		flags;
+	int			rc;
 
 	spin_lock_irqsave (&ehci->lock, flags);
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto done;
+
 	switch (usb_pipetype (urb->pipe)) {
 	// case PIPE_CONTROL:
 	// case PIPE_BULK:
@@ -905,7 +850,7 @@ static int ehci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 	}
 done:
 	spin_unlock_irqrestore (&ehci->lock, flags);
-	return 0;
+	return rc;
 }
 
 /*-------------------------------------------------------------------------*/

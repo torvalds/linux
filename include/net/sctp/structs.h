@@ -64,6 +64,7 @@
 #include <linux/skbuff.h>	/* We need sk_buff_head. */
 #include <linux/workqueue.h>	/* We need tq_struct.	 */
 #include <linux/sctp.h>		/* We need sctp* header structs.  */
+#include <net/sctp/auth.h>	/* We need auth specific structs */
 
 /* A convenience structure for handling sockaddr structures.
  * We should wean ourselves off this.
@@ -196,8 +197,6 @@ extern struct sctp_globals {
 
 	/* This is the sctp port control hash.	*/
 	int port_hashsize;
-	int port_rover;
-	spinlock_t port_alloc_lock;  /* Protects port_rover. */
 	struct sctp_bind_hashbucket *port_hashtable;
 
 	/* This is the global local address list.
@@ -207,12 +206,18 @@ extern struct sctp_globals {
 	 * It is a list of sctp_sockaddr_entry.
 	 */
 	struct list_head local_addr_list;
+
+	/* Lock that protects the local_addr_list writers */
+	spinlock_t addr_list_lock;
 	
 	/* Flag to indicate if addip is enabled. */
 	int addip_enable;
 
 	/* Flag to indicate if PR-SCTP is enabled. */
 	int prsctp_enable;
+
+	/* Flag to idicate if SCTP-AUTH is enabled */
+	int auth_enable;
 } sctp_globals;
 
 #define sctp_rto_initial		(sctp_globals.rto_initial)
@@ -242,8 +247,10 @@ extern struct sctp_globals {
 #define sctp_port_alloc_lock		(sctp_globals.port_alloc_lock)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
 #define sctp_local_addr_list		(sctp_globals.local_addr_list)
+#define sctp_local_addr_lock		(sctp_globals.addr_list_lock)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
+#define sctp_auth_enable		(sctp_globals.auth_enable)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {
@@ -393,6 +400,9 @@ struct sctp_cookie {
 
 	__u32 adaptation_ind;
 
+	__u8 auth_random[sizeof(sctp_paramhdr_t) + SCTP_AUTH_RANDOM_LENGTH];
+	__u8 auth_hmacs[SCTP_AUTH_NUM_HMACS + 2];
+	__u8 auth_chunks[sizeof(sctp_paramhdr_t) + SCTP_AUTH_MAX_CHUNKS];
 
 	/* This is a shim for my peer's INIT packet, followed by
 	 * a copy of the raw address list of the association.
@@ -417,6 +427,7 @@ struct sctp_signed_cookie {
  * internally.
  */
 union sctp_addr_param {
+	struct sctp_paramhdr p;
 	struct sctp_ipv4addr_param v4;
 	struct sctp_ipv6addr_param v6;
 };
@@ -435,6 +446,10 @@ union sctp_params {
 	struct sctp_ipv6addr_param *v6;
 	union sctp_addr_param *addr;
 	struct sctp_adaptation_ind_param *aind;
+	struct sctp_supported_ext_param *ext;
+	struct sctp_random_param *random;
+	struct sctp_chunks_param *chunks;
+	struct sctp_hmac_algo_param *hmac_algo;
 };
 
 /* RFC 2960.  Section 3.3.5 Heartbeat.
@@ -673,6 +688,7 @@ struct sctp_chunk {
 		struct sctp_errhdr *err_hdr;
 		struct sctp_addiphdr *addip_hdr;
 		struct sctp_fwdtsn_hdr *fwdtsn_hdr;
+		struct sctp_authhdr *auth_hdr;
 	} subh;
 
 	__u8 *chunk_end;
@@ -706,6 +722,13 @@ struct sctp_chunk {
 	 */
 	struct sctp_transport *transport;
 
+	/* SCTP-AUTH:  For the special case inbound processing of COOKIE-ECHO
+	 * we need save a pointer to the AUTH chunk, since the SCTP-AUTH
+	 * spec violates the principle premis that all chunks are processed
+	 * in order.
+	 */
+	struct sk_buff *auth_chunk;
+
 	__u8 rtt_in_progress;	/* Is this chunk used for RTT calculation? */
 	__u8 resent;		/* Has this chunk ever been retransmitted. */
 	__u8 has_tsn;		/* Does this chunk have a TSN yet? */
@@ -718,6 +741,7 @@ struct sctp_chunk {
 	__s8 fast_retransmit;	 /* Is this chunk fast retransmitted? */
 	__u8 tsn_missing_report; /* Data chunk missing counter. */
 	__u8 data_accepted; 	/* At least 1 chunk in this packet accepted */
+	__u8 auth;		/* IN: was auth'ed | OUT: needs auth */
 };
 
 void sctp_chunk_hold(struct sctp_chunk *);
@@ -736,8 +760,10 @@ const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
 /* This is a structure for holding either an IPv6 or an IPv4 address.  */
 struct sctp_sockaddr_entry {
 	struct list_head list;
+	struct rcu_head	rcu;
 	union sctp_addr a;
 	__u8 use_as_src;
+	__u8 valid;
 };
 
 typedef struct sctp_chunk *(sctp_packet_phandler_t)(struct sctp_association *);
@@ -765,16 +791,25 @@ struct sctp_packet {
 	 */
 	struct sctp_transport *transport;
 
-	/* This packet contains a COOKIE-ECHO chunk. */
-	char has_cookie_echo;
+	/* pointer to the auth chunk for this packet */
+	struct sctp_chunk *auth;
 
-	/* This packet containsa SACK chunk. */
-	char has_sack;
+	/* This packet contains a COOKIE-ECHO chunk. */
+	__u8 has_cookie_echo;
+
+	/* This packet contains a SACK chunk. */
+	__u8 has_sack;
+
+	/* This packet contains an AUTH chunk */
+	__u8 has_auth;
+
+	/* This packet contains at least 1 DATA chunk */
+	__u8 has_data;
 
 	/* SCTP cannot fragment this packet. So let ip fragment it. */
-	char ipfragok;
+	__u8 ipfragok;
 
-	int malloced;
+	__u8 malloced;
 };
 
 struct sctp_packet *sctp_packet_init(struct sctp_packet *,
@@ -1037,6 +1072,7 @@ void sctp_inq_init(struct sctp_inq *);
 void sctp_inq_free(struct sctp_inq *);
 void sctp_inq_push(struct sctp_inq *, struct sctp_chunk *packet);
 struct sctp_chunk *sctp_inq_pop(struct sctp_inq *);
+struct sctp_chunkhdr *sctp_inq_peek(struct sctp_inq *);
 void sctp_inq_set_th_handler(struct sctp_inq *, work_func_t);
 
 /* This is the structure we use to hold outbound chunks.  You push
@@ -1148,7 +1184,9 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 			int flags);
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
 		       __u8 use_as_src, gfp_t gfp);
-int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
+int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
+			void fastcall (*rcu_call)(struct rcu_head *,
+					  void (*func)(struct rcu_head *)));
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
 union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
@@ -1219,9 +1257,6 @@ struct sctp_ep_common {
 	 * bind_addr.address_list is our set of local IP addresses.
 	 */
 	struct sctp_bind_addr bind_addr;
-
-	/* Protection during address list comparisons. */
-	rwlock_t   addr_lock;
 };
 
 
@@ -1284,6 +1319,21 @@ struct sctp_endpoint {
 
 	/* rcvbuf acct. policy.	*/
 	__u32 rcvbuf_policy;
+
+	/* SCTP AUTH: array of the HMACs that will be allocated
+	 * we need this per association so that we don't serialize
+	 */
+	struct crypto_hash **auth_hmacs;
+
+	/* SCTP-AUTH: hmacs for the endpoint encoded into parameter */
+	 struct sctp_hmac_algo_param *auth_hmacs_list;
+
+	/* SCTP-AUTH: chunks to authenticate encoded into parameter */
+	struct sctp_chunks_param *auth_chunk_list;
+
+	/* SCTP-AUTH: endpoint shared keys */
+	struct list_head endpoint_shared_keys;
+	__u16 active_key_id;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1490,6 +1540,8 @@ struct sctp_association {
 		__u8	hostname_address;/* Peer understands DNS addresses? */
 		__u8    asconf_capable;  /* Does peer support ADDIP? */
 		__u8    prsctp_capable;  /* Can peer do PR-SCTP? */
+		__u8	auth_capable;	 /* Is peer doing SCTP-AUTH? */
+		__u8	addip_capable;	 /* Can peer do ADD-IP */
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */
 
@@ -1507,6 +1559,14 @@ struct sctp_association {
 		 * Initial TSN Value minus 1
 		 */
 		__u32 addip_serial;
+
+		/* SCTP-AUTH: We need to know pears random number, hmac list
+		 * and authenticated chunk list.  All that is part of the
+		 * cookie and these are just pointers to those locations
+		 */
+		sctp_random_param_t *peer_random;
+		sctp_chunks_param_t *peer_chunks;
+		sctp_hmac_algo_param_t *peer_hmacs;
 	} peer;
 
 	/* State       : A state variable indicating what state the
@@ -1789,6 +1849,24 @@ struct sctp_association {
 	 * after reaching 4294967295.
 	 */
 	__u32 addip_serial;
+
+	/* SCTP AUTH: list of the endpoint shared keys.  These
+	 * keys are provided out of band by the user applicaton
+	 * and can't change during the lifetime of the association
+	 */
+	struct list_head endpoint_shared_keys;
+
+	/* SCTP AUTH:
+	 * The current generated assocaition shared key (secret)
+	 */
+	struct sctp_auth_bytes *asoc_shared_key;
+
+	/* SCTP AUTH: hmac id of the first peer requested algorithm
+	 * that we support.
+	 */
+	__u16 default_hmac_id;
+
+	__u16 active_key_id;
 
 	/* Need to send an ECNE Chunk? */
 	char need_ecne;

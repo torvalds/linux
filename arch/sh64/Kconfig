@@ -47,6 +47,9 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
 source init/Kconfig
 
 menu "System type"

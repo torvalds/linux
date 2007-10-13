@@ -54,6 +54,7 @@ extern void show_regs(struct pt_regs * regs);
 extern void flush_instruction_cache(void);
 extern void hard_reset_now(void);
 extern void poweroff_now(void);
+extern int set_dabr(unsigned long dabr);
 #ifdef CONFIG_6xx
 extern long _get_L2CR(void);
 extern long _get_L3CR(void);
@@ -128,16 +129,6 @@ extern void note_scsi_host(struct device_node *, void *);
 extern struct task_struct *__switch_to(struct task_struct *,
 	struct task_struct *);
 #define switch_to(prev, next, last)	((last) = __switch_to((prev), (next)))
-
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
 
 struct thread_struct;
 extern struct task_struct *_switch(struct thread_struct *prev,

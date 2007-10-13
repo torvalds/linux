@@ -20,7 +20,7 @@ static void __init mach_cc9p9360js_init_machine(void)
 	board_jscc9p9360_init_machine();
 }
 
-MACHINE_START(CC9P9360DEV, "Digi ConnectCore 9P 9360 on an JSCC9P9360 Devboard")
+MACHINE_START(CC9P9360JS, "Digi ConnectCore 9P 9360 on an JSCC9P9360 Devboard")
 	.map_io = ns9xxx_map_io,
 	.init_irq = ns9xxx_init_irq,
 	.init_machine = mach_cc9p9360js_init_machine,

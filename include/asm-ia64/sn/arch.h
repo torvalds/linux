@@ -81,5 +81,6 @@ extern u8 sn_sharing_domain_size;
 extern u8 sn_region_size;
 
 extern void sn_flush_all_caches(long addr, long bytes);
+extern bool sn_cpu_disable_allowed(int cpu);
 
 #endif /* _ASM_IA64_SN_ARCH_H */

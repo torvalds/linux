@@ -191,13 +191,6 @@ void config_BSP(char *command, int size)
 {
 	printk(KERN_INFO "68VZ328 DragonBallVZ support (c) 2001 Lineo, Inc.\n");
 
-#if defined(CONFIG_BOOTPARAM)
-	strncpy(command, CONFIG_BOOTPARAM_STRING, size);
-	command[size-1] = 0;
-#else
-	memset(command, 0, size);
-#endif
-
 	init_hardware(command, size);
 
 	mach_sched_init = (void *) m68328_timer_init;

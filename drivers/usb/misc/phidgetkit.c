@@ -305,9 +305,10 @@ static void interfacekit_irq(struct urb *urb)
 	struct interfacekit *kit = urb->context;
 	unsigned char *buffer = kit->data;
 	int i, level, sensor;
-	int status;
+	int retval;
+	int status = urb->status;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
@@ -377,11 +378,11 @@ static void interfacekit_irq(struct urb *urb)
 		schedule_delayed_work(&kit->do_notify, 0);
 
 resubmit:
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status)
-		err("can't resubmit intr, %s-%s/interfacekit0, status %d",
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
+		err("can't resubmit intr, %s-%s/interfacekit0, retval %d",
 			kit->udev->bus->bus_name,
-			kit->udev->devpath, status);
+			kit->udev->devpath, retval);
 }
 
 static void do_notify(struct work_struct *work)

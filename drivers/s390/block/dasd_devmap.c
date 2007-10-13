@@ -291,7 +291,7 @@ dasd_parse_keyword( char *parsestring ) {
 		dasd_page_cache =
 			kmem_cache_create("dasd_page_cache", PAGE_SIZE,
 					  PAGE_SIZE, SLAB_CACHE_DMA,
-					  NULL, NULL );
+					  NULL);
 		if (!dasd_page_cache)
 			MESSAGE(KERN_WARNING, "%s", "Failed to create slab, "
 				"fixed buffer mode disabled.");

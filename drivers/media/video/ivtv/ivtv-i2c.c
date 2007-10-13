@@ -109,6 +109,7 @@ static const u8 hw_driverids[] = {
 	I2C_DRIVERID_UPD64083,
 	I2C_DRIVERID_SAA717X,
 	I2C_DRIVERID_WM8739,
+	I2C_DRIVERID_VP27SMPX,
 	0 		/* IVTV_HW_GPIO dummy driver ID */
 };
 
@@ -128,6 +129,7 @@ static const char * const hw_drivernames[] = {
 	"upd64083",
 	"saa717x",
 	"wm8739",
+	"vp27smpx",
 	"gpio",
 };
 
@@ -144,7 +146,7 @@ static int attach_inform(struct i2c_client *client)
 		}
 	}
 	if (i == I2C_CLIENTS_MAX) {
-		IVTV_ERR("insufficient room for new I2C client!\n");
+		IVTV_ERR("Insufficient room for new I2C client\n");
 	}
 	return 0;
 }
@@ -236,7 +238,7 @@ static int ivtv_ack(struct ivtv *itv)
 	int ret = 0;
 
 	if (ivtv_getscl(itv) == 1) {
-		IVTV_DEBUG_I2C("SCL was high starting an ack\n");
+		IVTV_DEBUG_HI_I2C("SCL was high starting an ack\n");
 		ivtv_setscl(itv, 0);
 		if (!ivtv_waitscl(itv, 0)) {
 			IVTV_DEBUG_I2C("Could not set SCL low starting an ack\n");
@@ -263,7 +265,7 @@ static int ivtv_sendbyte(struct ivtv *itv, unsigned char byte)
 {
 	int i, bit;
 
-	IVTV_DEBUG_I2C("write %x\n",byte);
+	IVTV_DEBUG_HI_I2C("write %x\n",byte);
 	for (i = 0; i < 8; ++i, byte<<=1) {
 		ivtv_setscl(itv, 0);
 		if (!ivtv_waitscl(itv, 0)) {
@@ -318,7 +320,7 @@ static int ivtv_readbyte(struct ivtv *itv, unsigned char *byte, int nack)
 	ivtv_scldelay(itv);
 	ivtv_setscl(itv, 0);
 	ivtv_scldelay(itv);
-	IVTV_DEBUG_I2C("read %x\n",*byte);
+	IVTV_DEBUG_HI_I2C("read %x\n",*byte);
 	return 0;
 }
 
@@ -330,7 +332,7 @@ static int ivtv_start(struct ivtv *itv)
 
 	sda = ivtv_getsda(itv);
 	if (sda != 1) {
-		IVTV_DEBUG_I2C("SDA was low at start\n");
+		IVTV_DEBUG_HI_I2C("SDA was low at start\n");
 		ivtv_setsda(itv, 1);
 		if (!ivtv_waitsda(itv, 1)) {
 			IVTV_DEBUG_I2C("SDA stuck low\n");
@@ -355,7 +357,7 @@ static int ivtv_stop(struct ivtv *itv)
 	int i;
 
 	if (ivtv_getscl(itv) != 0) {
-		IVTV_DEBUG_I2C("SCL not low when stopping\n");
+		IVTV_DEBUG_HI_I2C("SCL not low when stopping\n");
 		ivtv_setscl(itv, 0);
 		if (!ivtv_waitscl(itv, 0)) {
 			IVTV_DEBUG_I2C("SCL could not be set low\n");
@@ -534,14 +536,13 @@ static struct i2c_adapter ivtv_i2c_adap_template = {
 #endif
 };
 
-static struct i2c_algo_bit_data ivtv_i2c_algo_template = {
-	NULL,                   /* ?? */
-	ivtv_setsda_old,        /* setsda function */
-	ivtv_setscl_old,        /* " */
-	ivtv_getsda_old,        /* " */
-	ivtv_getscl_old,        /* " */
-	10,                     /* udelay */
-	200                     /* timeout */
+static const struct i2c_algo_bit_data ivtv_i2c_algo_template = {
+	.setsda		= ivtv_setsda_old,
+	.setscl		= ivtv_setscl_old,
+	.getsda		= ivtv_getsda_old,
+	.getscl		= ivtv_getscl_old,
+	.udelay		= 5,
+	.timeout	= 200,
 };
 
 static struct i2c_client ivtv_i2c_client_template = {
@@ -569,7 +570,7 @@ int ivtv_call_i2c_client(struct ivtv *itv, int addr, unsigned int cmd, void *arg
 		}
 	}
 	if (cmd != VIDIOC_G_CHIP_IDENT)
-		IVTV_ERR("i2c addr 0x%02x not found for command 0x%x!\n", addr, cmd);
+		IVTV_ERR("i2c addr 0x%02x not found for command 0x%x\n", addr, cmd);
 	return -ENODEV;
 }
 
@@ -640,7 +641,7 @@ int ivtv_i2c_hw(struct ivtv *itv, u32 hw, unsigned int cmd, void *arg)
 
 	addr = ivtv_i2c_hw_addr(itv, hw);
 	if (addr < 0) {
-		IVTV_ERR("i2c hardware 0x%08x (%s) not found for command 0x%x!\n",
+		IVTV_ERR("i2c hardware 0x%08x (%s) not found for command 0x%x\n",
 			       hw, ivtv_i2c_hw_name(hw), cmd);
 		return addr;
 	}
@@ -655,7 +656,7 @@ int ivtv_i2c_id(struct ivtv *itv, u32 id, unsigned int cmd, void *arg)
 	addr = ivtv_i2c_id_addr(itv, id);
 	if (addr < 0) {
 		if (cmd != VIDIOC_G_CHIP_IDENT)
-			IVTV_ERR("i2c ID 0x%08x (%s) not found for command 0x%x!\n",
+			IVTV_ERR("i2c ID 0x%08x (%s) not found for command 0x%x\n",
 				id, ivtv_i2c_id_name(id), cmd);
 		return addr;
 	}
@@ -696,7 +697,7 @@ int ivtv_upd64083(struct ivtv *itv, unsigned int cmd, void *arg)
 void ivtv_call_i2c_clients(struct ivtv *itv, unsigned int cmd, void *arg)
 {
 	if (itv->i2c_adap.algo == NULL) {
-		IVTV_ERR("adapter is not set");
+		IVTV_ERR("Adapter is not set");
 		return;
 	}
 	i2c_clients_command(&itv->i2c_adap, cmd, arg);

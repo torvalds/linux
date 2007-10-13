@@ -133,7 +133,6 @@ Lreturn:
  */
 inthandler1:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and	#0x3ff, %d0
 
@@ -145,7 +144,6 @@ inthandler1:
 
 inthandler2:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and	#0x3ff, %d0
 
@@ -157,7 +155,6 @@ inthandler2:
 
 inthandler3:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and	#0x3ff, %d0
 
@@ -169,7 +166,6 @@ inthandler3:
 
 inthandler4:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and	#0x3ff, %d0
 
@@ -181,7 +177,6 @@ inthandler4:
 
 inthandler5:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and	#0x3ff, %d0
 
@@ -193,7 +188,6 @@ inthandler5:
 
 inthandler6:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and	#0x3ff, %d0
 
@@ -205,7 +199,6 @@ inthandler6:
 
 inthandler7:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and	#0x3ff, %d0
 
@@ -217,7 +210,6 @@ inthandler7:
 
 inthandler:
 	SAVE_ALL
-	addql	#1,local_irq_count	/*  put exception # in d0*/
 	movew	%sp@(PT_VECTOR), %d0
 	and	#0x3ff, %d0
 
@@ -228,7 +220,6 @@ inthandler:
 	bra	ret_from_interrupt
 
 ret_from_interrupt:
-	subql	#1,local_irq_count
 	jeq	1f
 2:
 	RESTORE_ALL
@@ -238,7 +229,6 @@ ret_from_interrupt:
 	jhi	2b
 
 	/* check if we need to do software interrupts */
-	movel	local_irq_count,%d0
 	jeq	ret_from_exception
 
 	pea	ret_from_exception

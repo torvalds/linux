@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/pagemap.h>
 #include <linux/err.h>
+#include <linux/leds.h>
 #include <asm/scatterlist.h>
 #include <linux/scatterlist.h>
 
@@ -29,14 +30,25 @@
 #include "core.h"
 #include "bus.h"
 #include "host.h"
+#include "sdio_bus.h"
 
 #include "mmc_ops.h"
 #include "sd_ops.h"
+#include "sdio_ops.h"
 
 extern int mmc_attach_mmc(struct mmc_host *host, u32 ocr);
 extern int mmc_attach_sd(struct mmc_host *host, u32 ocr);
+extern int mmc_attach_sdio(struct mmc_host *host, u32 ocr);
 
 static struct workqueue_struct *workqueue;
+
+/*
+ * Enabling software CRCs on the data blocks can be a significant (30%)
+ * performance cost, and for other reasons may not always be desired.
+ * So we allow it it to be disabled.
+ */
+int use_spi_crc = 1;
+module_param(use_spi_crc, bool, 0);
 
 /*
  * Internal function. Schedule delayed work in the MMC work queue.
@@ -68,32 +80,48 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 	struct mmc_command *cmd = mrq->cmd;
 	int err = cmd->error;
 
-	pr_debug("%s: req done (CMD%u): %d/%d/%d: %08x %08x %08x %08x\n",
-		 mmc_hostname(host), cmd->opcode, err,
-		 mrq->data ? mrq->data->error : 0,
-		 mrq->stop ? mrq->stop->error : 0,
-		 cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3]);
+	if (err && cmd->retries && mmc_host_is_spi(host)) {
+		if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
+			cmd->retries = 0;
+	}
 
 	if (err && cmd->retries) {
+		pr_debug("%s: req failed (CMD%u): %d, retrying...\n",
+			mmc_hostname(host), cmd->opcode, err);
+
 		cmd->retries--;
 		cmd->error = 0;
 		host->ops->request(host, mrq);
-	} else if (mrq->done) {
-		mrq->done(mrq);
+	} else {
+		led_trigger_event(host->led, LED_OFF);
+
+		pr_debug("%s: req done (CMD%u): %d: %08x %08x %08x %08x\n",
+			mmc_hostname(host), cmd->opcode, err,
+			cmd->resp[0], cmd->resp[1],
+			cmd->resp[2], cmd->resp[3]);
+
+		if (mrq->data) {
+			pr_debug("%s:     %d bytes transferred: %d\n",
+				mmc_hostname(host),
+				mrq->data->bytes_xfered, mrq->data->error);
+		}
+
+		if (mrq->stop) {
+			pr_debug("%s:     (CMD%u): %d: %08x %08x %08x %08x\n",
+				mmc_hostname(host), mrq->stop->opcode,
+				mrq->stop->error,
+				mrq->stop->resp[0], mrq->stop->resp[1],
+				mrq->stop->resp[2], mrq->stop->resp[3]);
+		}
+
+		if (mrq->done)
+			mrq->done(mrq);
 	}
 }
 
 EXPORT_SYMBOL(mmc_request_done);
 
-/**
- *	mmc_start_request - start a command on a host
- *	@host: MMC host to start command on
- *	@mrq: MMC request to start
- *
- *	Queue a command on the specified host.  We expect the
- *	caller to be holding the host lock with interrupts disabled.
- */
-void
+static void
 mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 {
 #ifdef CONFIG_MMC_DEBUG
@@ -104,7 +132,24 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		 mmc_hostname(host), mrq->cmd->opcode,
 		 mrq->cmd->arg, mrq->cmd->flags);
 
+	if (mrq->data) {
+		pr_debug("%s:     blksz %d blocks %d flags %08x "
+			"tsac %d ms nsac %d\n",
+			mmc_hostname(host), mrq->data->blksz,
+			mrq->data->blocks, mrq->data->flags,
+			mrq->data->timeout_ns / 1000000,
+			mrq->data->timeout_clks);
+	}
+
+	if (mrq->stop) {
+		pr_debug("%s:     CMD%u arg %08x flags %08x\n",
+			 mmc_hostname(host), mrq->stop->opcode,
+			 mrq->stop->arg, mrq->stop->flags);
+	}
+
 	WARN_ON(!host->claimed);
+
+	led_trigger_event(host->led, LED_FULL);
 
 	mrq->cmd->error = 0;
 	mrq->cmd->mrq = mrq;
@@ -133,14 +178,21 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	host->ops->request(host, mrq);
 }
 
-EXPORT_SYMBOL(mmc_start_request);
-
 static void mmc_wait_done(struct mmc_request *mrq)
 {
 	complete(mrq->done_data);
 }
 
-int mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
+/**
+ *	mmc_wait_for_req - start a request and wait for completion
+ *	@host: MMC host to start command
+ *	@mrq: MMC request to start
+ *
+ *	Start a new MMC custom command request for a host, and wait
+ *	for the command to complete. Does not attempt to parse the
+ *	response.
+ */
+void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 	DECLARE_COMPLETION_ONSTACK(complete);
 
@@ -150,8 +202,6 @@ int mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 	mmc_start_request(host, mrq);
 
 	wait_for_completion(&complete);
-
-	return 0;
 }
 
 EXPORT_SYMBOL(mmc_wait_for_req);
@@ -170,7 +220,7 @@ int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd, int retries
 {
 	struct mmc_request mrq;
 
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
 
@@ -191,12 +241,22 @@ EXPORT_SYMBOL(mmc_wait_for_cmd);
  *	mmc_set_data_timeout - set the timeout for a data command
  *	@data: data phase for command
  *	@card: the MMC card associated with the data transfer
- *	@write: flag to differentiate reads from writes
+ *
+ *	Computes the data timeout parameters according to the
+ *	correct algorithm given the card type.
  */
-void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
-			  int write)
+void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 {
 	unsigned int mult;
+
+	/*
+	 * SDIO cards only define an upper 1 s limit on access.
+	 */
+	if (mmc_card_sdio(card)) {
+		data->timeout_ns = 1000000000;
+		data->timeout_clks = 0;
+		return;
+	}
 
 	/*
 	 * SD cards use a 100 multiplier rather than 10
@@ -207,7 +267,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
 	 * Scale up the multiplier (and therefore the timeout) by
 	 * the r2w factor for writes.
 	 */
-	if (write)
+	if (data->flags & MMC_DATA_WRITE)
 		mult <<= card->csd.r2w_factor;
 
 	data->timeout_ns = card->csd.tacc_ns * mult;
@@ -223,7 +283,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card,
 		timeout_us += data->timeout_clks * 1000 /
 			(card->host->ios.clock / 1000);
 
-		if (write)
+		if (data->flags & MMC_DATA_WRITE)
 			limit_us = 250000;
 		else
 			limit_us = 100000;
@@ -242,36 +302,43 @@ EXPORT_SYMBOL(mmc_set_data_timeout);
 /**
  *	__mmc_claim_host - exclusively claim a host
  *	@host: mmc host to claim
- *	@card: mmc card to claim host for
+ *	@abort: whether or not the operation should be aborted
  *
- *	Claim a host for a set of operations.  If a valid card
- *	is passed and this wasn't the last card selected, select
- *	the card before returning.
- *
- *	Note: you should use mmc_card_claim_host or mmc_claim_host.
+ *	Claim a host for a set of operations.  If @abort is non null and
+ *	dereference a non-zero value then this will return prematurely with
+ *	that non-zero value without acquiring the lock.  Returns zero
+ *	with the lock held otherwise.
  */
-void mmc_claim_host(struct mmc_host *host)
+int __mmc_claim_host(struct mmc_host *host, atomic_t *abort)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
+	int stop;
+
+	might_sleep();
 
 	add_wait_queue(&host->wq, &wait);
 	spin_lock_irqsave(&host->lock, flags);
 	while (1) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (!host->claimed)
+		stop = abort ? atomic_read(abort) : 0;
+		if (stop || !host->claimed)
 			break;
 		spin_unlock_irqrestore(&host->lock, flags);
 		schedule();
 		spin_lock_irqsave(&host->lock, flags);
 	}
 	set_current_state(TASK_RUNNING);
-	host->claimed = 1;
+	if (!stop)
+		host->claimed = 1;
+	else
+		wake_up(&host->wq);
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
+	return stop;
 }
 
-EXPORT_SYMBOL(mmc_claim_host);
+EXPORT_SYMBOL(__mmc_claim_host);
 
 /**
  *	mmc_release_host - release a host
@@ -284,7 +351,7 @@ void mmc_release_host(struct mmc_host *host)
 {
 	unsigned long flags;
 
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	spin_lock_irqsave(&host->lock, flags);
 	host->claimed = 0;
@@ -404,19 +471,32 @@ static void mmc_power_up(struct mmc_host *host)
 	int bit = fls(host->ocr_avail) - 1;
 
 	host->ios.vdd = bit;
-	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
-	host->ios.chip_select = MMC_CS_DONTCARE;
+	if (mmc_host_is_spi(host)) {
+		host->ios.chip_select = MMC_CS_HIGH;
+		host->ios.bus_mode = MMC_BUSMODE_PUSHPULL;
+	} else {
+		host->ios.chip_select = MMC_CS_DONTCARE;
+		host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
+	}
 	host->ios.power_mode = MMC_POWER_UP;
 	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ios.timing = MMC_TIMING_LEGACY;
 	mmc_set_ios(host);
 
-	mmc_delay(1);
+	/*
+	 * This delay should be sufficient to allow the power supply
+	 * to reach the minimum voltage.
+	 */
+	mmc_delay(2);
 
 	host->ios.clock = host->f_min;
 	host->ios.power_mode = MMC_POWER_ON;
 	mmc_set_ios(host);
 
+	/*
+	 * This delay must be at least 74 clock sizes, or 1 ms, or the
+	 * time required to reach a stable voltage.
+	 */
 	mmc_delay(2);
 }
 
@@ -424,12 +504,53 @@ static void mmc_power_off(struct mmc_host *host)
 {
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
-	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
-	host->ios.chip_select = MMC_CS_DONTCARE;
+	if (!mmc_host_is_spi(host)) {
+		host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
+		host->ios.chip_select = MMC_CS_DONTCARE;
+	}
 	host->ios.power_mode = MMC_POWER_OFF;
 	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ios.timing = MMC_TIMING_LEGACY;
 	mmc_set_ios(host);
+}
+
+/*
+ * Cleanup when the last reference to the bus operator is dropped.
+ */
+void __mmc_release_bus(struct mmc_host *host)
+{
+	BUG_ON(!host);
+	BUG_ON(host->bus_refs);
+	BUG_ON(!host->bus_dead);
+
+	host->bus_ops = NULL;
+}
+
+/*
+ * Increase reference count of bus operator
+ */
+static inline void mmc_bus_get(struct mmc_host *host)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	host->bus_refs++;
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+/*
+ * Decrease reference count of bus operator and free it if
+ * it is the last reference.
+ */
+static inline void mmc_bus_put(struct mmc_host *host)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	host->bus_refs--;
+	if ((host->bus_refs == 0) && host->bus_ops)
+		__mmc_release_bus(host);
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 /*
@@ -443,7 +564,7 @@ void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops)
 	BUG_ON(!host);
 	BUG_ON(!ops);
 
-	BUG_ON(!host->claimed);
+	WARN_ON(!host->claimed);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -467,8 +588,8 @@ void mmc_detach_bus(struct mmc_host *host)
 
 	BUG_ON(!host);
 
-	BUG_ON(!host->claimed);
-	BUG_ON(!host->bus_ops);
+	WARN_ON(!host->claimed);
+	WARN_ON(!host->bus_ops);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -481,32 +602,22 @@ void mmc_detach_bus(struct mmc_host *host)
 	mmc_bus_put(host);
 }
 
-/*
- * Cleanup when the last reference to the bus operator is dropped.
- */
-void __mmc_release_bus(struct mmc_host *host)
-{
-	BUG_ON(!host);
-	BUG_ON(host->bus_refs);
-	BUG_ON(!host->bus_dead);
-
-	host->bus_ops = NULL;
-}
-
 /**
  *	mmc_detect_change - process change of state on a MMC socket
  *	@host: host which changed state.
  *	@delay: optional delay to wait before detection (jiffies)
  *
- *	All we know is that card(s) have been inserted or removed
- *	from the socket(s).  We don't know which socket or cards.
+ *	MMC drivers should call this when they detect a card has been
+ *	inserted or removed. The MMC layer will confirm that any
+ *	present card is still functional, and initialize any newly
+ *	inserted.
  */
 void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
 #ifdef CONFIG_MMC_DEBUG
 	unsigned long flags;
 	spin_lock_irqsave(&host->lock, flags);
-	BUG_ON(host->removed);
+	WARN_ON(host->removed);
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
@@ -539,24 +650,38 @@ void mmc_rescan(struct work_struct *work)
 
 		mmc_send_if_cond(host, host->ocr_avail);
 
+		/*
+		 * First we search for SDIO...
+		 */
+		err = mmc_send_io_op_cond(host, 0, &ocr);
+		if (!err) {
+			if (mmc_attach_sdio(host, ocr))
+				mmc_power_off(host);
+			return;
+		}
+
+		/*
+		 * ...then normal SD...
+		 */
 		err = mmc_send_app_op_cond(host, 0, &ocr);
-		if (err == MMC_ERR_NONE) {
+		if (!err) {
 			if (mmc_attach_sd(host, ocr))
 				mmc_power_off(host);
-		} else {
-			/*
-			 * If we fail to detect any SD cards then try
-			 * searching for MMC cards.
-			 */
-			err = mmc_send_op_cond(host, 0, &ocr);
-			if (err == MMC_ERR_NONE) {
-				if (mmc_attach_mmc(host, ocr))
-					mmc_power_off(host);
-			} else {
-				mmc_power_off(host);
-				mmc_release_host(host);
-			}
+			return;
 		}
+
+		/*
+		 * ...and finally MMC.
+		 */
+		err = mmc_send_op_cond(host, 0, &ocr);
+		if (!err) {
+			if (mmc_attach_mmc(host, ocr))
+				mmc_power_off(host);
+			return;
+		}
+
+		mmc_release_host(host);
+		mmc_power_off(host);
 	} else {
 		if (host->bus_ops->detect && !host->bus_dead)
 			host->bus_ops->detect(host);
@@ -667,22 +792,38 @@ static int __init mmc_init(void)
 		return -ENOMEM;
 
 	ret = mmc_register_bus();
-	if (ret == 0) {
-		ret = mmc_register_host_class();
-		if (ret)
-			mmc_unregister_bus();
-	}
+	if (ret)
+		goto destroy_workqueue;
+
+	ret = mmc_register_host_class();
+	if (ret)
+		goto unregister_bus;
+
+	ret = sdio_register_bus();
+	if (ret)
+		goto unregister_host_class;
+
+	return 0;
+
+unregister_host_class:
+	mmc_unregister_host_class();
+unregister_bus:
+	mmc_unregister_bus();
+destroy_workqueue:
+	destroy_workqueue(workqueue);
+
 	return ret;
 }
 
 static void __exit mmc_exit(void)
 {
+	sdio_unregister_bus();
 	mmc_unregister_host_class();
 	mmc_unregister_bus();
 	destroy_workqueue(workqueue);
 }
 
-module_init(mmc_init);
+subsys_initcall(mmc_init);
 module_exit(mmc_exit);
 
 MODULE_LICENSE("GPL");

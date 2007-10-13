@@ -125,14 +125,14 @@ static void br_stp_start(struct net_bridge *br)
 	char *argv[] = { BR_STP_PROG, br->dev->name, "start", NULL };
 	char *envp[] = { NULL };
 
-	r = call_usermodehelper(BR_STP_PROG, argv, envp, 1);
+	r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
 	if (r == 0) {
 		br->stp_enabled = BR_USER_STP;
 		printk(KERN_INFO "%s: userspace STP started\n", br->dev->name);
 	} else {
 		br->stp_enabled = BR_KERNEL_STP;
 		printk(KERN_INFO "%s: starting userspace STP failed, "
-				"staring kernel STP\n", br->dev->name);
+				"starting kernel STP\n", br->dev->name);
 
 		/* To start timers on any ports left in blocking */
 		spin_lock_bh(&br->lock);

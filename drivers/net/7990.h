@@ -111,7 +111,6 @@ struct lance_private
         int lance_log_rx_bufs, lance_log_tx_bufs;
         int rx_ring_mod_mask, tx_ring_mod_mask;
 
-        struct net_device_stats stats;
         int tpe;                                  /* TPE is selected */
         int auto_select;                          /* cable-selection is by carrier */
         unsigned short busmaster_regval;
@@ -246,7 +245,6 @@ struct lance_private
 extern int lance_open(struct net_device *dev);
 extern int lance_close (struct net_device *dev);
 extern int lance_start_xmit (struct sk_buff *skb, struct net_device *dev);
-extern struct net_device_stats *lance_get_stats (struct net_device *dev);
 extern void lance_set_multicast (struct net_device *dev);
 extern void lance_tx_timeout(struct net_device *dev);
 #ifdef CONFIG_NET_POLL_CONTROLLER

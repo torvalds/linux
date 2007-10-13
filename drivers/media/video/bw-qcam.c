@@ -104,6 +104,17 @@ static inline void write_lpdata(struct qcam_device *q, int d)
 
 static inline void write_lpcontrol(struct qcam_device *q, int d)
 {
+	if (d & 0x20) {
+		/* Set bidirectional mode to reverse (data in) */
+		parport_data_reverse(q->pport);
+	} else {
+		/* Set bidirectional mode to forward (data out) */
+		parport_data_forward(q->pport);
+	}
+
+	/* Now issue the regular port command, but strip out the
+	 * direction flag */
+	d &= ~0x20;
 	parport_write_control(q->pport, d);
 }
 
@@ -344,10 +355,13 @@ static int qc_detect(struct qcam_device *q)
 	/* Be (even more) liberal in what you accept...  */
 
 /*	if (count > 30 && count < 200) */
-	if (count > 20 && count < 300)
+	if (count > 20 && count < 400) {
 		return 1;	/* found */
-	else
+	} else {
+		printk(KERN_ERR "No Quickcam found on port %s\n",
+			q->pport->name);
 		return 0;	/* not found */
+	}
 }
 
 

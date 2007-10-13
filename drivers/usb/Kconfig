@@ -6,6 +6,9 @@ menuconfig USB_SUPPORT
 	bool "USB support"
 	depends on HAS_IOMEM
 	default y
+	---help---
+	  This option adds core support for Universal Serial Bus (USB).
+	  You will also need drivers from the following menu to make use of it.
 
 if USB_SUPPORT
 
@@ -18,6 +21,7 @@ config USB_ARCH_HAS_HCD
 	default y if USB_ARCH_HAS_EHCI
 	default y if PCMCIA && !M32R			# sl811_cs
 	default y if ARM				# SL-811
+	default y if SUPERH				# r8a66597-hcd
 	default PCI
 
 # many non-PCI SOC chips embed OHCI

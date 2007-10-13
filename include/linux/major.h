@@ -158,6 +158,8 @@
 #define VXSPEC_MAJOR		200	/* VERITAS volume config driver */
 #define VXDMP_MAJOR		201	/* VERITAS volume multipath driver */
 
+#define XENVBD_MAJOR		202	/* Xen virtual block device */
+
 #define MSR_MAJOR		202
 #define CPUID_MAJOR		203
 

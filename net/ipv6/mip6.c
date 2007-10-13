@@ -153,11 +153,11 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	u8 nexthdr;
 	int len;
 
-	iph = (struct ipv6hdr *)skb->data;
-	iph->payload_len = htons(skb->len - sizeof(*iph));
+	skb_push(skb, -skb_network_offset(skb));
+	iph = ipv6_hdr(skb);
 
-	nexthdr = *skb_network_header(skb);
-	*skb_network_header(skb) = IPPROTO_DSTOPTS;
+	nexthdr = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_DSTOPTS;
 
 	dstopt = (struct ipv6_destopt_hdr *)skb_transport_header(skb);
 	dstopt->nexthdr = nexthdr;
@@ -172,7 +172,9 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	len = ((char *)hao - (char *)dstopt) + sizeof(*hao);
 
 	memcpy(&hao->addr, &iph->saddr, sizeof(hao->addr));
+	spin_lock_bh(&x->lock);
 	memcpy(&iph->saddr, x->coaddr, sizeof(iph->saddr));
+	spin_unlock_bh(&x->lock);
 
 	BUG_TRAP(len == x->props.header_len);
 	dstopt->hdrlen = (x->props.header_len >> 3) - 1;
@@ -365,11 +367,11 @@ static int mip6_rthdr_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct rt2_hdr *rt2;
 	u8 nexthdr;
 
-	iph = (struct ipv6hdr *)skb->data;
-	iph->payload_len = htons(skb->len - sizeof(*iph));
+	skb_push(skb, -skb_network_offset(skb));
+	iph = ipv6_hdr(skb);
 
-	nexthdr = *skb_network_header(skb);
-	*skb_network_header(skb) = IPPROTO_ROUTING;
+	nexthdr = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_ROUTING;
 
 	rt2 = (struct rt2_hdr *)skb_transport_header(skb);
 	rt2->rt_hdr.nexthdr = nexthdr;
@@ -381,7 +383,9 @@ static int mip6_rthdr_output(struct xfrm_state *x, struct sk_buff *skb)
 	BUG_TRAP(rt2->rt_hdr.hdrlen == 2);
 
 	memcpy(&rt2->addr, &iph->daddr, sizeof(rt2->addr));
+	spin_lock_bh(&x->lock);
 	memcpy(&iph->daddr, x->coaddr, sizeof(iph->daddr));
+	spin_unlock_bh(&x->lock);
 
 	return 0;
 }

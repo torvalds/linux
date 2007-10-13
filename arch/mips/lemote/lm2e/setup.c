@@ -28,17 +28,7 @@
  */
 #include <linux/bootmem.h>
 #include <linux/init.h>
-#include <linux/io.h>
-#include <linux/ioport.h>
-#include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/kernel.h>
-#include <linux/mc146818rtc.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/tty.h>
-#include <linux/types.h>
 
 #include <asm/bootinfo.h>
 #include <asm/mc146818-time.h>
@@ -58,7 +48,7 @@ extern void mips_reboot_setup(void);
 #define PTR_PAD(p) (p)
 #endif
 
-unsigned long cpu_clock;
+unsigned long cpu_clock_freq;
 unsigned long bus_clock;
 unsigned int memsize;
 unsigned int highmemsize = 0;
@@ -68,13 +58,13 @@ void __init plat_timer_setup(struct irqaction *irq)
 	setup_irq(MIPS_CPU_IRQ_BASE + 7, irq);
 }
 
-static void __init loongson2e_time_init(void)
+void __init plat_time_init(void)
 {
 	/* setup mips r4k timer */
-	mips_hpt_frequency = cpu_clock / 2;
+	mips_hpt_frequency = cpu_clock_freq / 2;
 }
 
-static unsigned long __init mips_rtc_get_time(void)
+unsigned long read_persistent_clock(void)
 {
 	return mc146818_get_cmos_time();
 }
@@ -98,9 +88,6 @@ void __init plat_mem_setup(void)
 	set_io_port_base(PTR_PAD(0xbfd00000));
 
 	mips_reboot_setup();
-
-	board_time_init = loongson2e_time_init;
-	rtc_mips_get_time = mips_rtc_get_time;
 
 	__wbflush = wbflush_loongson2e;
 

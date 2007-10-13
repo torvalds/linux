@@ -88,8 +88,6 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	struct dentry *parent;
 	struct inode *inode;
 	struct inode *dir = child->d_inode;
-	struct buffer_head *dirent_bh = NULL;
-	struct ocfs2_dir_entry *dirent;
 
 	mlog_entry("(0x%p, '%.*s')\n", child,
 		   child->d_name.len, child->d_name.name);
@@ -105,8 +103,7 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 		goto bail;
 	}
 
-	status = ocfs2_find_files_on_disk("..", 2, &blkno, dir, &dirent_bh,
-					  &dirent);
+	status = ocfs2_lookup_ino_from_name(dir, "..", 2, &blkno);
 	if (status < 0) {
 		parent = ERR_PTR(-ENOENT);
 		goto bail_unlock;
@@ -130,9 +127,6 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 
 bail_unlock:
 	ocfs2_meta_unlock(dir, 0);
-
-	if (dirent_bh)
-		brelse(dirent_bh);
 
 bail:
 	mlog_exit_ptr(parent);

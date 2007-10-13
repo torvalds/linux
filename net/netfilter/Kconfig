@@ -436,6 +436,7 @@ config NETFILTER_XT_MATCH_CONNBYTES
 config NETFILTER_XT_MATCH_CONNLIMIT
 	tristate '"connlimit" match support"'
 	depends on NETFILTER_XTABLES
+	depends on NF_CONNTRACK
 	---help---
 	  This match allows you to match against the number of parallel
 	  connections to a server per client IP address (or address block).
@@ -663,6 +664,20 @@ config NETFILTER_XT_MATCH_TCPMSS
 	  for that connection.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_TIME
+	tristate '"time" match support'
+	depends on NETFILTER_XTABLES
+	---help---
+	  This option adds a "time" match, which allows you to match based on
+	  the packet arrival time (at the machine which netfilter is running)
+	  on) or departure time/date (for locally generated packets).
+
+	  If you say Y here, try `iptables -m time --help` for
+	  more information.
+
+	  If you want to compile it as a module, say M here.
+	  If unsure, say N.
 
 config NETFILTER_XT_MATCH_U32
 	tristate '"u32" match support'

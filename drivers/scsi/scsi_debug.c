@@ -2875,7 +2875,7 @@ static int __init scsi_debug_init(void)
 
 	init_all_queued();
 
-	sdebug_driver_template.proc_name = (char *)sdebug_proc_name;
+	sdebug_driver_template.proc_name = sdebug_proc_name;
 
 	host_to_add = scsi_debug_add_host;
         scsi_debug_add_host = 0;

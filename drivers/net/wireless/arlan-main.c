@@ -1469,10 +1469,10 @@ static void arlan_rx_interrupt(struct net_device *dev, u_char rxStatus, u_short 
 					while (dmi)
 					{							if (dmi->dmi_addrlen == 6)
 						{
+							DECLARE_MAC_BUF(mac);
 							if (arlan_debug & ARLAN_DEBUG_HEADER_DUMP)
-								printk(KERN_ERR "%s mcl %2x:%2x:%2x:%2x:%2x:%2x \n", dev->name,
-										 dmi->dmi_addr[0], dmi->dmi_addr[1], dmi->dmi_addr[2],
-										 dmi->dmi_addr[3], dmi->dmi_addr[4], dmi->dmi_addr[5]);
+								printk(KERN_ERR "%s mcl %s\n",
+								       dev->name, print_mac(mac, dmi->dmi_addr));
 							for (i = 0; i < 6; i++)
 								if (dmi->dmi_addr[i] != hw_dst_addr[i])
 									break;
@@ -1512,17 +1512,18 @@ static void arlan_rx_interrupt(struct net_device *dev, u_char rxStatus, u_short 
 			{
 				char immedDestAddress[6];
 				char immedSrcAddress[6];
+				DECLARE_MAC_BUF(mac);
+				DECLARE_MAC_BUF(mac2);
+				DECLARE_MAC_BUF(mac3);
+				DECLARE_MAC_BUF(mac4);
 				memcpy_fromio(immedDestAddress, arlan->immedDestAddress, 6);
 				memcpy_fromio(immedSrcAddress, arlan->immedSrcAddress, 6);
 
-				printk(KERN_WARNING "%s t %2x:%2x:%2x:%2x:%2x:%2x f %2x:%2x:%2x:%2x:%2x:%2x imd %2x:%2x:%2x:%2x:%2x:%2x ims %2x:%2x:%2x:%2x:%2x:%2x\n", dev->name,
-					(unsigned char) skbtmp[0], (unsigned char) skbtmp[1], (unsigned char) skbtmp[2], (unsigned char) skbtmp[3],
-					(unsigned char) skbtmp[4], (unsigned char) skbtmp[5], (unsigned char) skbtmp[6], (unsigned char) skbtmp[7],
-					(unsigned char) skbtmp[8], (unsigned char) skbtmp[9], (unsigned char) skbtmp[10], (unsigned char) skbtmp[11],
-					immedDestAddress[0], immedDestAddress[1], immedDestAddress[2],
-					immedDestAddress[3], immedDestAddress[4], immedDestAddress[5],
-					immedSrcAddress[0], immedSrcAddress[1], immedSrcAddress[2],
-					immedSrcAddress[3], immedSrcAddress[4], immedSrcAddress[5]);
+				printk(KERN_WARNING "%s t %s f %s imd %s ims %s\n",
+				       dev->name, print_mac(mac, skbtmp),
+				       print_mac(mac2, &skbtmp[6]),
+				       print_mac(mac3, immedDestAddress),
+				       print_mac(mac4, immedSrcAddress));
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			IFDEBUG(ARLAN_DEBUG_HEADER_DUMP)
@@ -1791,8 +1792,6 @@ struct net_device * __init arlan_probe(int unit)
 			     + sizeof(struct arlan_shmem));
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-
-	SET_MODULE_OWNER(dev);
 
 	if (unit >= 0) {
 		sprintf(dev->name, "eth%d", unit);

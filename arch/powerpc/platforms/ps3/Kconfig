@@ -1,5 +1,5 @@
 config PPC_PS3
-	bool "Sony PS3 (incomplete)"
+	bool "Sony PS3"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_CELL
 	select USB_ARCH_HAS_OHCI
@@ -10,10 +10,10 @@ config PPC_PS3
 	select MEMORY_HOTPLUG
 	help
 	  This option enables support for the Sony PS3 game console
-	  and other platforms using the PS3 hypervisor.
-	  Support for this platform is not yet complete, so
-	  enabling this will not result in a bootable kernel on a
-	  PS3 system.
+	  and other platforms using the PS3 hypervisor.  Enabling this
+	  option will allow building otheros.bld, a kernel image suitable
+	  for programming into flash memory, and vmlinux, a kernel image
+	  suitable for loading via kexec.
 
 menu "PS3 Platform Options"
 	depends on PPC_PS3
@@ -101,5 +101,41 @@ config PS3_SYS_MANAGER
 config PS3_STORAGE
 	depends on PPC_PS3
 	tristate
+
+config PS3_DISK
+	tristate "PS3 Disk Storage Driver"
+	depends on PPC_PS3 && BLOCK
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 Disk Storage.
+
+	  This support is required to access the PS3 hard disk.
+	  In general, all users will say Y or M.
+
+config PS3_ROM
+	tristate "PS3 BD/DVD/CD-ROM Storage Driver"
+	depends on PPC_PS3 && SCSI
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 ROM Storage.
+
+	  This support is required to access the PS3 BD/DVD/CD-ROM drive.
+	  In general, all users will say Y or M.
+	  Also make sure to say Y or M to "SCSI CDROM support" later.
+
+config PS3_FLASH
+	tristate "PS3 FLASH ROM Storage Driver"
+	depends on PPC_PS3
+	select PS3_STORAGE
+	help
+	  Include support for the PS3 FLASH ROM Storage.
+
+	  This support is required to access the PS3 FLASH ROM, which
+	  contains the boot loader and some boot options.
+	  In general, all users will say Y or M.
+
+	  As this driver needs a fixed buffer of 256 KiB of memory, it can
+	  be disabled on the kernel command line using "ps3flash=off", to
+	  not allocate this fixed buffer.
 
 endmenu

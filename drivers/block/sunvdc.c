@@ -45,8 +45,6 @@ struct vdc_req_entry {
 struct vdc_port {
 	struct vio_driver_state	vio;
 
-	struct vdc		*vp;
-
 	struct gendisk		*disk;
 
 	struct vdc_completion	*cmp;
@@ -66,29 +64,17 @@ struct vdc_port {
 	u64			operations;
 	u32			vdisk_size;
 	u8			vdisk_type;
-	u8			dev_no;
 
 	char			disk_name[32];
 
 	struct vio_disk_geom	geom;
 	struct vio_disk_vtoc	label;
-
-	struct list_head	list;
 };
 
 static inline struct vdc_port *to_vdc_port(struct vio_driver_state *vio)
 {
 	return container_of(vio, struct vdc_port, vio);
 }
-
-struct vdc {
-	/* Protects prot_list.  */
-	spinlock_t		lock;
-
-	struct vio_dev		*dev;
-
-	struct list_head	port_list;
-};
 
 /* Ordered from largest major to lowest */
 static struct vio_version vdc_versions[] = {
@@ -431,7 +417,7 @@ static int __send_request(struct request *req)
 	desc->req_id = port->req_id;
 	desc->operation = op;
 	if (port->vdisk_type == VD_DISK_TYPE_DISK) {
-		desc->slice = 2;
+		desc->slice = 0xff;
 	} else {
 		desc->slice = 0;
 	}
@@ -458,7 +444,7 @@ out:
 	return err;
 }
 
-static void do_vdc_request(request_queue_t *q)
+static void do_vdc_request(struct request_queue *q)
 {
 	while (1) {
 		struct request *req = elv_next_request(q);
@@ -716,7 +702,7 @@ static int probe_disk(struct vdc_port *port)
 	blk_queue_max_phys_segments(q, port->ring_cookies);
 	blk_queue_max_sectors(q, port->max_xfer_size);
 	g->major = vdc_major;
-	g->first_minor = port->dev_no << PARTITION_SHIFT;
+	g->first_minor = port->vio.vdev->dev_no << PARTITION_SHIFT;
 	strcpy(g->disk_name, port->disk_name);
 
 	g->fops = &vdc_fops;
@@ -747,32 +733,29 @@ static struct vio_driver_ops vdc_vio_ops = {
 	.handshake_complete	= vdc_handshake_complete,
 };
 
+static void print_version(void)
+{
+	static int version_printed;
+
+	if (version_printed++ == 0)
+		printk(KERN_INFO "%s", version);
+}
+
 static int __devinit vdc_port_probe(struct vio_dev *vdev,
 				    const struct vio_device_id *id)
 {
 	struct mdesc_handle *hp;
 	struct vdc_port *port;
-	unsigned long flags;
-	struct vdc *vp;
-	const u64 *port_id;
 	int err;
 
-	vp = dev_get_drvdata(vdev->dev.parent);
-	if (!vp) {
-		printk(KERN_ERR PFX "Cannot find port parent vdc.\n");
-		return -ENODEV;
-	}
+	print_version();
 
 	hp = mdesc_grab();
 
-	port_id = mdesc_get_property(hp, vdev->mp, "id", NULL);
 	err = -ENODEV;
-	if (!port_id) {
-		printk(KERN_ERR PFX "Port lacks id property.\n");
-		goto err_out_release_mdesc;
-	}
-	if ((*port_id << PARTITION_SHIFT) & ~(u64)MINORMASK) {
-		printk(KERN_ERR PFX "Port id [%lu] too large.\n", *port_id);
+	if ((vdev->dev_no << PARTITION_SHIFT) & ~(u64)MINORMASK) {
+		printk(KERN_ERR PFX "Port id [%lu] too large.\n",
+		       vdev->dev_no);
 		goto err_out_release_mdesc;
 	}
 
@@ -783,17 +766,14 @@ static int __devinit vdc_port_probe(struct vio_dev *vdev,
 		goto err_out_release_mdesc;
 	}
 
-	port->vp = vp;
-	port->dev_no = *port_id;
-
-	if (port->dev_no >= 26)
+	if (vdev->dev_no >= 26)
 		snprintf(port->disk_name, sizeof(port->disk_name),
 			 VDCBLK_NAME "%c%c",
-			 'a' + (port->dev_no / 26) - 1,
-			 'a' + (port->dev_no % 26));
+			 'a' + ((int)vdev->dev_no / 26) - 1,
+			 'a' + ((int)vdev->dev_no % 26));
 	else
 		snprintf(port->disk_name, sizeof(port->disk_name),
-			 VDCBLK_NAME "%c", 'a' + (port->dev_no % 26));
+			 VDCBLK_NAME "%c", 'a' + ((int)vdev->dev_no % 26));
 
 	err = vio_driver_init(&port->vio, vdev, VDEV_DISK,
 			      vdc_versions, ARRAY_SIZE(vdc_versions),
@@ -817,12 +797,6 @@ static int __devinit vdc_port_probe(struct vio_dev *vdev,
 	err = probe_disk(port);
 	if (err)
 		goto err_out_free_tx_ring;
-
-	INIT_LIST_HEAD(&port->list);
-
-	spin_lock_irqsave(&vp->lock, flags);
-	list_add(&port->list, &vp->port_list);
-	spin_unlock_irqrestore(&vp->lock, flags);
 
 	dev_set_drvdata(&vdev->dev, port);
 
@@ -867,7 +841,7 @@ static struct vio_device_id vdc_port_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(vio, vdc_match);
+MODULE_DEVICE_TABLE(vio, vdc_port_match);
 
 static struct vio_driver vdc_port_driver = {
 	.id_table	= vdc_port_match,
@@ -875,58 +849,6 @@ static struct vio_driver vdc_port_driver = {
 	.remove		= vdc_port_remove,
 	.driver		= {
 		.name	= "vdc_port",
-		.owner	= THIS_MODULE,
-	}
-};
-
-static int __devinit vdc_probe(struct vio_dev *vdev,
-			       const struct vio_device_id *id)
-{
-	static int vdc_version_printed;
-	struct vdc *vp;
-
-	if (vdc_version_printed++ == 0)
-		printk(KERN_INFO "%s", version);
-
-	vp = kzalloc(sizeof(struct vdc), GFP_KERNEL);
-	if (!vp)
-		return -ENOMEM;
-
-	spin_lock_init(&vp->lock);
-	vp->dev = vdev;
-	INIT_LIST_HEAD(&vp->port_list);
-
-	dev_set_drvdata(&vdev->dev, vp);
-
-	return 0;
-}
-
-static int vdc_remove(struct vio_dev *vdev)
-{
-
-	struct vdc *vp = dev_get_drvdata(&vdev->dev);
-
-	if (vp) {
-		kfree(vp);
-		dev_set_drvdata(&vdev->dev, NULL);
-	}
-	return 0;
-}
-
-static struct vio_device_id vdc_match[] = {
-	{
-		.type = "block",
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(vio, vdc_match);
-
-static struct vio_driver vdc_driver = {
-	.id_table	= vdc_match,
-	.probe		= vdc_probe,
-	.remove		= vdc_remove,
-	.driver		= {
-		.name	= "vdc",
 		.owner	= THIS_MODULE,
 	}
 };
@@ -940,18 +862,12 @@ static int __init vdc_init(void)
 		goto out_err;
 
 	vdc_major = err;
-	err = vio_register_driver(&vdc_driver);
-	if (err)
-		goto out_unregister_blkdev;
 
 	err = vio_register_driver(&vdc_port_driver);
 	if (err)
-		goto out_unregister_vdc;
+		goto out_unregister_blkdev;
 
 	return 0;
-
-out_unregister_vdc:
-	vio_unregister_driver(&vdc_driver);
 
 out_unregister_blkdev:
 	unregister_blkdev(vdc_major, VDCBLK_NAME);
@@ -964,7 +880,6 @@ out_err:
 static void __exit vdc_exit(void)
 {
 	vio_unregister_driver(&vdc_port_driver);
-	vio_unregister_driver(&vdc_driver);
 	unregister_blkdev(vdc_major, VDCBLK_NAME);
 }
 

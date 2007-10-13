@@ -29,6 +29,8 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/blkdev.h>
+#include <linux/bsg.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -40,6 +42,7 @@
 struct sas_host_attrs {
 	struct list_head rphy_list;
 	struct mutex lock;
+	struct request_queue *q;
 	u32 next_target_id;
 	u32 next_expander_id;
 	int next_port_id;
@@ -152,6 +155,106 @@ static struct {
 sas_bitfield_name_search(linkspeed, sas_linkspeed_names)
 sas_bitfield_name_set(linkspeed, sas_linkspeed_names)
 
+static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
+			    struct sas_rphy *rphy)
+{
+	struct request *req;
+	int ret;
+	int (*handler)(struct Scsi_Host *, struct sas_rphy *, struct request *);
+
+	while (!blk_queue_plugged(q)) {
+		req = elv_next_request(q);
+		if (!req)
+			break;
+
+		blkdev_dequeue_request(req);
+
+		spin_unlock_irq(q->queue_lock);
+
+		handler = to_sas_internal(shost->transportt)->f->smp_handler;
+		ret = handler(shost, rphy, req);
+
+		spin_lock_irq(q->queue_lock);
+
+		req->end_io(req, ret);
+	}
+}
+
+static void sas_host_smp_request(struct request_queue *q)
+{
+	sas_smp_request(q, (struct Scsi_Host *)q->queuedata, NULL);
+}
+
+static void sas_non_host_smp_request(struct request_queue *q)
+{
+	struct sas_rphy *rphy = q->queuedata;
+	sas_smp_request(q, rphy_to_shost(rphy), rphy);
+}
+
+static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
+{
+	struct request_queue *q;
+	int error;
+	struct device *dev;
+	char namebuf[BUS_ID_SIZE];
+	const char *name;
+
+	if (!to_sas_internal(shost->transportt)->f->smp_handler) {
+		printk("%s can't handle SMP requests\n", shost->hostt->name);
+		return 0;
+	}
+
+	if (rphy) {
+		q = blk_init_queue(sas_non_host_smp_request, NULL);
+		dev = &rphy->dev;
+		name = dev->bus_id;
+	} else {
+		q = blk_init_queue(sas_host_smp_request, NULL);
+		dev = &shost->shost_gendev;
+		snprintf(namebuf, sizeof(namebuf),
+			 "sas_host%d", shost->host_no);
+		name = namebuf;
+	}
+	if (!q)
+		return -ENOMEM;
+
+	error = bsg_register_queue(q, dev, name);
+	if (error) {
+		blk_cleanup_queue(q);
+		return -ENOMEM;
+	}
+
+	if (rphy)
+		rphy->q = q;
+	else
+		to_sas_host_attrs(shost)->q = q;
+
+	if (rphy)
+		q->queuedata = rphy;
+	else
+		q->queuedata = shost;
+
+	set_bit(QUEUE_FLAG_BIDI, &q->queue_flags);
+
+	return 0;
+}
+
+static void sas_bsg_remove(struct Scsi_Host *shost, struct sas_rphy *rphy)
+{
+	struct request_queue *q;
+
+	if (rphy)
+		q = rphy->q;
+	else
+		q = to_sas_host_attrs(shost)->q;
+
+	if (!q)
+		return;
+
+	bsg_unregister_queue(q);
+	blk_cleanup_queue(q);
+}
+
 /*
  * SAS host attributes
  */
@@ -167,11 +270,26 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 	sas_host->next_target_id = 0;
 	sas_host->next_expander_id = 0;
 	sas_host->next_port_id = 0;
+
+	if (sas_bsg_initialize(shost, NULL))
+		dev_printk(KERN_ERR, dev, "fail to a bsg device %d\n",
+			   shost->host_no);
+
+	return 0;
+}
+
+static int sas_host_remove(struct transport_container *tc, struct device *dev,
+			   struct class_device *cdev)
+{
+	struct Scsi_Host *shost = dev_to_shost(dev);
+
+	sas_bsg_remove(shost, NULL);
+
 	return 0;
 }
 
 static DECLARE_TRANSPORT_CLASS(sas_host_class,
-		"sas_host", sas_host_setup, NULL, NULL);
+		"sas_host", sas_host_setup, sas_host_remove, NULL);
 
 static int sas_host_match(struct attribute_container *cont,
 			    struct device *dev)
@@ -1287,6 +1405,9 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		return error;
 	transport_add_device(&rphy->dev);
 	transport_configure_device(&rphy->dev);
+	if (sas_bsg_initialize(shost, rphy))
+		printk("fail to a bsg device %s\n", rphy->dev.bus_id);
+
 
 	mutex_lock(&sas_host->lock);
 	list_add_tail(&rphy->list, &sas_host->rphy_list);
@@ -1328,6 +1449,8 @@ void sas_rphy_free(struct sas_rphy *rphy)
 	mutex_lock(&sas_host->lock);
 	list_del(&rphy->list);
 	mutex_unlock(&sas_host->lock);
+
+	sas_bsg_remove(shost, rphy);
 
 	transport_destroy_device(dev);
 

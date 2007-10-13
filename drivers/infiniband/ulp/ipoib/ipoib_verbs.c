@@ -185,7 +185,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_cq;
 
 	init_attr.send_cq = priv->cq;
-	init_attr.recv_cq = priv->cq,
+	init_attr.recv_cq = priv->cq;
 
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
@@ -211,6 +211,7 @@ out_free_cq:
 
 out_free_mr:
 	ib_dereg_mr(priv->mr);
+	ipoib_cm_dev_cleanup(dev);
 
 out_free_pd:
 	ib_dealloc_pd(priv->pd);

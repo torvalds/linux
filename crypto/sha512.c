@@ -13,19 +13,14 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
+#include <crypto/sha.h>
 
 #include <asm/scatterlist.h>
 #include <asm/byteorder.h>
-
-#define SHA384_DIGEST_SIZE 48
-#define SHA512_DIGEST_SIZE 64
-#define SHA384_HMAC_BLOCK_SIZE 128
-#define SHA512_HMAC_BLOCK_SIZE 128
 
 struct sha512_ctx {
 	u64 state[8];
@@ -83,26 +78,6 @@ static const u64 sha512_K[80] = {
 #define e1(x)       (RORu64(x,14) ^ RORu64(x,18) ^ RORu64(x,41))
 #define s0(x)       (RORu64(x, 1) ^ RORu64(x, 8) ^ (x >> 7))
 #define s1(x)       (RORu64(x,19) ^ RORu64(x,61) ^ (x >> 6))
-
-/* H* initial state for SHA-512 */
-#define H0         0x6a09e667f3bcc908ULL
-#define H1         0xbb67ae8584caa73bULL
-#define H2         0x3c6ef372fe94f82bULL
-#define H3         0xa54ff53a5f1d36f1ULL
-#define H4         0x510e527fade682d1ULL
-#define H5         0x9b05688c2b3e6c1fULL
-#define H6         0x1f83d9abfb41bd6bULL
-#define H7         0x5be0cd19137e2179ULL
-
-/* H'* initial state for SHA-384 */
-#define HP0 0xcbbb9d5dc1059ed8ULL
-#define HP1 0x629a292a367cd507ULL
-#define HP2 0x9159015a3070dd17ULL
-#define HP3 0x152fecd8f70e5939ULL
-#define HP4 0x67332667ffc00b31ULL
-#define HP5 0x8eb44a8768581511ULL
-#define HP6 0xdb0c2e0d64f98fa7ULL
-#define HP7 0x47b5481dbefa4fa4ULL
 
 static inline void LOAD_OP(int I, u64 *W, const u8 *input)
 {
@@ -164,14 +139,14 @@ static void
 sha512_init(struct crypto_tfm *tfm)
 {
 	struct sha512_ctx *sctx = crypto_tfm_ctx(tfm);
-	sctx->state[0] = H0;
-	sctx->state[1] = H1;
-	sctx->state[2] = H2;
-	sctx->state[3] = H3;
-	sctx->state[4] = H4;
-	sctx->state[5] = H5;
-	sctx->state[6] = H6;
-	sctx->state[7] = H7;
+	sctx->state[0] = SHA512_H0;
+	sctx->state[1] = SHA512_H1;
+	sctx->state[2] = SHA512_H2;
+	sctx->state[3] = SHA512_H3;
+	sctx->state[4] = SHA512_H4;
+	sctx->state[5] = SHA512_H5;
+	sctx->state[6] = SHA512_H6;
+	sctx->state[7] = SHA512_H7;
 	sctx->count[0] = sctx->count[1] = sctx->count[2] = sctx->count[3] = 0;
 }
 
@@ -179,14 +154,14 @@ static void
 sha384_init(struct crypto_tfm *tfm)
 {
 	struct sha512_ctx *sctx = crypto_tfm_ctx(tfm);
-        sctx->state[0] = HP0;
-        sctx->state[1] = HP1;
-        sctx->state[2] = HP2;
-        sctx->state[3] = HP3;
-        sctx->state[4] = HP4;
-        sctx->state[5] = HP5;
-        sctx->state[6] = HP6;
-        sctx->state[7] = HP7;
+	sctx->state[0] = SHA384_H0;
+	sctx->state[1] = SHA384_H1;
+	sctx->state[2] = SHA384_H2;
+	sctx->state[3] = SHA384_H3;
+	sctx->state[4] = SHA384_H4;
+	sctx->state[5] = SHA384_H5;
+	sctx->state[6] = SHA384_H6;
+	sctx->state[7] = SHA384_H7;
         sctx->count[0] = sctx->count[1] = sctx->count[2] = sctx->count[3] = 0;
 }
 
@@ -275,7 +250,7 @@ static void sha384_final(struct crypto_tfm *tfm, u8 *hash)
 static struct crypto_alg sha512 = {
         .cra_name       = "sha512",
         .cra_flags      = CRYPTO_ALG_TYPE_DIGEST,
-        .cra_blocksize  = SHA512_HMAC_BLOCK_SIZE,
+	.cra_blocksize  = SHA512_BLOCK_SIZE,
         .cra_ctxsize    = sizeof(struct sha512_ctx),
         .cra_module     = THIS_MODULE,
 	.cra_alignmask	= 3,
@@ -291,7 +266,7 @@ static struct crypto_alg sha512 = {
 static struct crypto_alg sha384 = {
         .cra_name       = "sha384",
         .cra_flags      = CRYPTO_ALG_TYPE_DIGEST,
-        .cra_blocksize  = SHA384_HMAC_BLOCK_SIZE,
+	.cra_blocksize  = SHA384_BLOCK_SIZE,
         .cra_ctxsize    = sizeof(struct sha512_ctx),
 	.cra_alignmask	= 3,
         .cra_module     = THIS_MODULE,

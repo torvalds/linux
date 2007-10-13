@@ -15,9 +15,6 @@
 
 XXXX add flash parts, rtc, ??
 
-build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
-
-
  */
 
 / {
@@ -33,12 +30,10 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 		PowerPC,603e { /* Really 8241 */
 			device_type = "cpu";
 			reg = <0>;
-			clock-frequency = <bebc200>;	/* Fixed by bootwrapper */
-			timebase-frequency = <1743000>; /* Fixed by bootwrapper */
-			bus-frequency = <0>;		/* From bootloader */
+			clock-frequency = <bebc200>;	/* Fixed by bootloader */
+			timebase-frequency = <1743000>; /* Fixed by bootloader */
+			bus-frequency = <0>;		/* Fixed by bootloader */
 			/* Following required by dtc but not used */
-			i-cache-line-size = <0>;
-			d-cache-line-size = <0>;
 			i-cache-size = <4000>;
 			d-cache-size = <4000>;
 		};
@@ -52,7 +47,6 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 	soc10x { /* AFAICT need to make soc for 8245's uarts to be defined */
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		compatible = "mpc10x";
 		store-gathering = <0>; /* 0 == off, !0 == on */
@@ -64,11 +58,19 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 			  fef00000 fef00000 00100000>;	/* pci iack */
 
 		i2c@80003000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <80003000 1000>;
 			interrupts = <5 2>;
 			interrupt-parent = <&mpic>;
+
+			rtc@32 {
+				device_type = "rtc";
+				compatible = "ricoh,rs5c372a";
+				reg = <32>;
+			};
 		};
 
 		serial@80004500 {
@@ -77,7 +79,7 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 			reg = <80004500 8>;
 			clock-frequency = <5d08d88>;
 			current-speed = <2580>;
-			interrupts = <9 2>;
+			interrupts = <9 0>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -91,14 +93,13 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 			interrupt-parent = <&mpic>;
 		};
 
-		mpic: pic@80040000 {
+		mpic: interrupt-controller@80040000 {
 			#interrupt-cells = <2>;
 			#address-cells = <0>;
 			device_type = "open-pic";
 			compatible = "chrp,open-pic";
 			interrupt-controller;
 			reg = <80040000 40000>;
-			built-in;
 		};
 
 		pci@fec00000 {

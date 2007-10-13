@@ -38,10 +38,10 @@ struct nf_nat_protocol
 			    enum nf_nat_manip_type maniptype,
 			    const struct nf_conn *ct);
 
-	int (*range_to_nfattr)(struct sk_buff *skb,
+	int (*range_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_nat_range *range);
 
-	int (*nfattr_to_range)(struct nfattr *tb[],
+	int (*nlattr_to_range)(struct nlattr *tb[],
 			       struct nf_nat_range *range);
 };
 
@@ -62,9 +62,9 @@ extern int init_protocols(void) __init;
 extern void cleanup_protocols(void);
 extern struct nf_nat_protocol *find_nat_proto(u_int16_t protonum);
 
-extern int nf_nat_port_range_to_nfattr(struct sk_buff *skb,
+extern int nf_nat_port_range_to_nlattr(struct sk_buff *skb,
 				       const struct nf_nat_range *range);
-extern int nf_nat_port_nfattr_to_range(struct nfattr *tb[],
+extern int nf_nat_port_nlattr_to_range(struct nlattr *tb[],
 				       struct nf_nat_range *range);
 
 #endif /*_NF_NAT_PROTO_H*/

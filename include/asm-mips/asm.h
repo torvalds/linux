@@ -21,11 +21,11 @@
 
 #ifndef CAT
 #ifdef __STDC__
-#define __CAT(str1,str2) str1##str2
+#define __CAT(str1, str2) str1##str2
 #else
-#define __CAT(str1,str2) str1/**/str2
+#define __CAT(str1, str2) str1/**/str2
 #endif
-#define CAT(str1,str2) __CAT(str1,str2)
+#define CAT(str1, str2) __CAT(str1, str2)
 #endif
 
 /*
@@ -51,9 +51,9 @@
 #define	LEAF(symbol)                                    \
 		.globl	symbol;                         \
 		.align	2;                              \
-		.type	symbol,@function;               \
-		.ent	symbol,0;                       \
-symbol:		.frame	sp,0,ra
+		.type	symbol, @function;              \
+		.ent	symbol, 0;                      \
+symbol:		.frame	sp, 0, ra
 
 /*
  * NESTED - declare nested routine entry point
@@ -61,8 +61,8 @@ symbol:		.frame	sp,0,ra
 #define	NESTED(symbol, framesize, rpc)                  \
 		.globl	symbol;                         \
 		.align	2;                              \
-		.type	symbol,@function;               \
-		.ent	symbol,0;                       \
+		.type	symbol, @function;              \
+		.ent	symbol, 0;                       \
 symbol:		.frame	sp, framesize, rpc
 
 /*
@@ -70,7 +70,7 @@ symbol:		.frame	sp, framesize, rpc
  */
 #define	END(function)                                   \
 		.end	function;		        \
-		.size	function,.-function
+		.size	function, .-function
 
 /*
  * EXPORT - export definition of symbol
@@ -84,7 +84,7 @@ symbol:
  */
 #define FEXPORT(symbol)					\
 		.globl	symbol;				\
-		.type	symbol,@function;		\
+		.type	symbol, @function;		\
 symbol:
 
 /*
@@ -97,7 +97,7 @@ symbol		=	value
 #define	PANIC(msg)                                      \
 		.set	push;				\
 		.set	reorder;                        \
-		PTR_LA	a0,8f;                          \
+		PTR_LA	a0, 8f;                          \
 		jal	panic;                          \
 9:		b	9b;                             \
 		.set	pop;				\
@@ -110,7 +110,7 @@ symbol		=	value
 #define PRINT(string)                                   \
 		.set	push;				\
 		.set	reorder;                        \
-		PTR_LA	a0,8f;                          \
+		PTR_LA	a0, 8f;                          \
 		jal	printk;                         \
 		.set	pop;				\
 		TEXT(string)
@@ -146,19 +146,19 @@ symbol		=	value
 #define PREF(hint,addr)                                 \
 		.set	push;				\
 		.set	mips4;				\
-		pref	hint,addr;			\
+		pref	hint, addr;			\
 		.set	pop
 
 #define PREFX(hint,addr)                                \
 		.set	push;				\
 		.set	mips4;				\
-		prefx	hint,addr;			\
+		prefx	hint, addr;			\
 		.set	pop
 
 #else /* !CONFIG_CPU_HAS_PREFETCH */
 
-#define PREF(hint,addr)
-#define PREFX(hint,addr)
+#define PREF(hint, addr)
+#define PREFX(hint, addr)
 
 #endif /* !CONFIG_CPU_HAS_PREFETCH */
 
@@ -166,43 +166,43 @@ symbol		=	value
  * MIPS ISA IV/V movn/movz instructions and equivalents for older CPUs.
  */
 #if (_MIPS_ISA == _MIPS_ISA_MIPS1)
-#define MOVN(rd,rs,rt)                                  \
+#define MOVN(rd, rs, rt)                                \
 		.set	push;				\
 		.set	reorder;			\
-		beqz	rt,9f;                          \
-		move	rd,rs;                          \
+		beqz	rt, 9f;                         \
+		move	rd, rs;                         \
 		.set	pop;				\
 9:
-#define MOVZ(rd,rs,rt)                                  \
+#define MOVZ(rd, rs, rt)                                \
 		.set	push;				\
 		.set	reorder;			\
-		bnez	rt,9f;                          \
-		move	rd,rs;                          \
+		bnez	rt, 9f;                         \
+		move	rd, rs;                         \
 		.set	pop;				\
 9:
 #endif /* _MIPS_ISA == _MIPS_ISA_MIPS1 */
 #if (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3)
-#define MOVN(rd,rs,rt)                                  \
+#define MOVN(rd, rs, rt)                                \
 		.set	push;				\
 		.set	noreorder;			\
-		bnezl	rt,9f;                          \
-		 move	rd,rs;                          \
+		bnezl	rt, 9f;                         \
+		 move	rd, rs;                         \
 		.set	pop;				\
 9:
-#define MOVZ(rd,rs,rt)                                  \
+#define MOVZ(rd, rs, rt)                                \
 		.set	push;				\
 		.set	noreorder;			\
-		beqzl	rt,9f;                          \
-		 move	rd,rs;                          \
+		beqzl	rt, 9f;                         \
+		 move	rd, rs;                         \
 		.set	pop;				\
 9:
 #endif /* (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3) */
 #if (_MIPS_ISA == _MIPS_ISA_MIPS4 ) || (_MIPS_ISA == _MIPS_ISA_MIPS5) || \
     (_MIPS_ISA == _MIPS_ISA_MIPS32) || (_MIPS_ISA == _MIPS_ISA_MIPS64)
-#define MOVN(rd,rs,rt)                                  \
-		movn	rd,rs,rt
-#define MOVZ(rd,rs,rt)                                  \
-		movz	rd,rs,rt
+#define MOVN(rd, rs, rt)                                \
+		movn	rd, rs, rt
+#define MOVZ(rd, rs, rt)                                \
+		movz	rd, rs, rt
 #endif /* MIPS IV, MIPS V, MIPS32 or MIPS64 */
 
 /*
@@ -396,6 +396,6 @@ symbol		=	value
 #define MTC0		dmtc0
 #endif
 
-#define SSNOP		sll zero,zero,1
+#define SSNOP		sll zero, zero, 1
 
 #endif /* __ASM_ASM_H */

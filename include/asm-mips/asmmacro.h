@@ -56,27 +56,27 @@
  * Temporary until all gas have MT ASE support
  */
 	.macro	DMT	reg=0
-	.word	(0x41600bc1 | (\reg << 16))
+	.word	0x41600bc1 | (\reg << 16)
 	.endm
 
 	.macro	EMT	reg=0
-	.word	(0x41600be1 | (\reg << 16))
+	.word	0x41600be1 | (\reg << 16)
 	.endm
 
 	.macro	DVPE	reg=0
-	.word	(0x41600001 | (\reg << 16))
+	.word	0x41600001 | (\reg << 16)
 	.endm
 
 	.macro	EVPE	reg=0
-	.word	(0x41600021 | (\reg << 16))
+	.word	0x41600021 | (\reg << 16)
 	.endm
 
 	.macro	MFTR	rt=0, rd=0, u=0, sel=0
-	 .word	(0x41000000 | (\rt << 16) | (\rd << 11) | (\u << 5) | (\sel))
+	 .word	0x41000000 | (\rt << 16) | (\rd << 11) | (\u << 5) | (\sel)
 	.endm
 
 	.macro	MTTR	rt=0, rd=0, u=0, sel=0
-	 .word	(0x41800000 | (\rt << 16) | (\rd << 11) | (\u << 5) | (\sel))
+	 .word	0x41800000 | (\rt << 16) | (\rd << 11) | (\u << 5) | (\sel)
 	.endm
 
 #endif /* _ASM_ASMMACRO_H */

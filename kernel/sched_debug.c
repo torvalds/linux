@@ -29,29 +29,34 @@
  } while (0)
 
 static void
-print_task(struct seq_file *m, struct rq *rq, struct task_struct *p, u64 now)
+print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 {
 	if (rq->curr == p)
 		SEQ_printf(m, "R");
 	else
 		SEQ_printf(m, " ");
 
-	SEQ_printf(m, "%15s %5d %15Ld %13Ld %13Ld %9Ld %5d "
-		      "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
+	SEQ_printf(m, "%15s %5d %15Ld %13Ld %13Ld %9Ld %5d ",
 		p->comm, p->pid,
 		(long long)p->se.fair_key,
 		(long long)(p->se.fair_key - rq->cfs.fair_clock),
 		(long long)p->se.wait_runtime,
 		(long long)(p->nvcsw + p->nivcsw),
-		p->prio,
+		p->prio);
+#ifdef CONFIG_SCHEDSTATS
+	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
 		(long long)p->se.sum_exec_runtime,
 		(long long)p->se.sum_wait_runtime,
 		(long long)p->se.sum_sleep_runtime,
 		(long long)p->se.wait_runtime_overruns,
 		(long long)p->se.wait_runtime_underruns);
+#else
+	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
+		0LL, 0LL, 0LL, 0LL, 0LL);
+#endif
 }
 
-static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu, u64 now)
+static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 {
 	struct task_struct *g, *p;
 
@@ -72,7 +77,7 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu, u64 now)
 		if (!p->se.on_rq || task_cpu(p) != rq_cpu)
 			continue;
 
-		print_task(m, rq, p, now);
+		print_task(m, rq, p);
 	} while_each_thread(g, p);
 
 	read_unlock_irq(&tasklist_lock);
@@ -101,9 +106,9 @@ print_cfs_rq_runtime_sum(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 		(long long)wait_runtime_rq_sum);
 }
 
-void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now)
+void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
-	SEQ_printf(m, "\ncfs_rq %p\n", cfs_rq);
+	SEQ_printf(m, "\ncfs_rq\n");
 
 #define P(x) \
 	SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(cfs_rq->x))
@@ -119,7 +124,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq, u64 now)
 	print_cfs_rq_runtime_sum(m, cpu, cfs_rq);
 }
 
-static void print_cpu(struct seq_file *m, int cpu, u64 now)
+static void print_cpu(struct seq_file *m, int cpu)
 {
 	struct rq *rq = &per_cpu(runqueues, cpu);
 
@@ -149,10 +154,11 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 	P(next_balance);
 	P(curr->pid);
 	P(clock);
+	P(idle_clock);
 	P(prev_clock_raw);
 	P(clock_warps);
 	P(clock_overflows);
-	P(clock_unstable_events);
+	P(clock_deep_idle_events);
 	P(clock_max_delta);
 	P(cpu_load[0]);
 	P(cpu_load[1]);
@@ -161,9 +167,9 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 	P(cpu_load[4]);
 #undef P
 
-	print_cfs_stats(m, cpu, now);
+	print_cfs_stats(m, cpu);
 
-	print_rq(m, rq, cpu, now);
+	print_rq(m, rq, cpu);
 }
 
 static int sched_debug_show(struct seq_file *m, void *v)
@@ -171,7 +177,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	u64 now = ktime_to_ns(ktime_get());
 	int cpu;
 
-	SEQ_printf(m, "Sched Debug Version: v0.05, %s %.*s\n",
+	SEQ_printf(m, "Sched Debug Version: v0.05-v20, %s %.*s\n",
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
@@ -179,14 +185,14 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	SEQ_printf(m, "now at %Lu nsecs\n", (unsigned long long)now);
 
 	for_each_online_cpu(cpu)
-		print_cpu(m, cpu, now);
+		print_cpu(m, cpu);
 
 	SEQ_printf(m, "\n");
 
 	return 0;
 }
 
-void sysrq_sched_debug_show(void)
+static void sysrq_sched_debug_show(void)
 {
 	sched_debug_show(NULL, NULL);
 }
@@ -200,7 +206,7 @@ static struct file_operations sched_debug_fops = {
 	.open		= sched_debug_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static int __init init_sched_debug_procfs(void)
@@ -235,21 +241,24 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 #define P(F) \
 	SEQ_printf(m, "%-25s:%20Ld\n", #F, (long long)p->F)
 
-	P(se.wait_start);
+	P(se.wait_runtime);
 	P(se.wait_start_fair);
 	P(se.exec_start);
-	P(se.sleep_start);
 	P(se.sleep_start_fair);
+	P(se.sum_exec_runtime);
+
+#ifdef CONFIG_SCHEDSTATS
+	P(se.wait_start);
+	P(se.sleep_start);
 	P(se.block_start);
 	P(se.sleep_max);
 	P(se.block_max);
 	P(se.exec_max);
 	P(se.wait_max);
-	P(se.wait_runtime);
 	P(se.wait_runtime_overruns);
 	P(se.wait_runtime_underruns);
 	P(se.sum_wait_runtime);
-	P(se.sum_exec_runtime);
+#endif
 	SEQ_printf(m, "%-25s:%20Ld\n",
 		   "nr_switches", (long long)(p->nvcsw + p->nivcsw));
 	P(se.load.weight);
@@ -269,7 +278,10 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 
 void proc_sched_set_task(struct task_struct *p)
 {
+#ifdef CONFIG_SCHEDSTATS
 	p->se.sleep_max = p->se.block_max = p->se.exec_max = p->se.wait_max = 0;
 	p->se.wait_runtime_overruns = p->se.wait_runtime_underruns = 0;
+#endif
 	p->se.sum_exec_runtime = 0;
+	p->se.prev_sum_exec_runtime	= 0;
 }

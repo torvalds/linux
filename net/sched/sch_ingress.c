@@ -158,9 +158,8 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 			break;
 		case TC_ACT_RECLASSIFY:
 		case TC_ACT_OK:
-		case TC_ACT_UNSPEC:
-		default:
 			skb->tc_index = TC_H_MIN(res.classid);
+		default:
 			result = TC_ACT_OK;
 			break;
 	}

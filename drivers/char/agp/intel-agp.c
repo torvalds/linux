@@ -20,7 +20,9 @@
 #define PCI_DEVICE_ID_INTEL_82965G_IG       0x29A2
 #define PCI_DEVICE_ID_INTEL_82965GM_HB      0x2A00
 #define PCI_DEVICE_ID_INTEL_82965GM_IG      0x2A02
+#define PCI_DEVICE_ID_INTEL_82965GME_HB     0x2A10
 #define PCI_DEVICE_ID_INTEL_82965GME_IG     0x2A12
+#define PCI_DEVICE_ID_INTEL_82945GME_HB     0x27AC
 #define PCI_DEVICE_ID_INTEL_82945GME_IG     0x27AE
 #define PCI_DEVICE_ID_INTEL_G33_HB          0x29C0
 #define PCI_DEVICE_ID_INTEL_G33_IG          0x29C2
@@ -33,7 +35,8 @@
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_1_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965Q_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_HB || \
-                 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB)
+                 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB || \
+                 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB)
 
 #define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
@@ -213,7 +216,6 @@ static void *i8xx_alloc_pages(void)
 	}
 	global_flush_tlb();
 	get_page(page);
-	SetPageLocked(page);
 	atomic_inc(&agp_bridge->current_memory_agp);
 	return page_address(page);
 }
@@ -229,7 +231,6 @@ static void i8xx_destroy_pages(void *addr)
 	change_page_attr(page, 4, PAGE_KERNEL);
 	global_flush_tlb();
 	put_page(page);
-	unlock_page(page);
 	__free_pages(page, 2);
 	atomic_dec(&agp_bridge->current_memory_agp);
 }
@@ -505,7 +506,7 @@ static void intel_i830_init_gtt_entries(void)
 			break;
 		}
 	} else {
-		switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
+		switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
 		case I855_GMCH_GMS_STOLEN_1M:
 			gtt_entries = MB(1) - KB(size);
 			break;
@@ -527,6 +528,7 @@ static void intel_i830_init_gtt_entries(void)
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GM_HB ||
+			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GME_HB ||
 			    IS_I965 || IS_G33)
 				gtt_entries = MB(48) - KB(size);
 			else
@@ -538,6 +540,7 @@ static void intel_i830_init_gtt_entries(void)
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GM_HB ||
+			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GME_HB ||
 			    IS_I965 || IS_G33)
 				gtt_entries = MB(64) - KB(size);
 			else
@@ -911,6 +914,7 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	struct aper_size_info_fixed *size;
 	int num_entries;
 	u32 temp, temp2;
+	int gtt_map_size = 256 * 1024;
 
 	size = agp_bridge->current_size;
 	page_order = size->page_order;
@@ -920,15 +924,19 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
 	pci_read_config_dword(intel_private.pcidev, I915_PTEADDR,&temp2);
 
-	intel_private.gtt = ioremap(temp2, 256 * 1024);
+	if (IS_G33)
+	    gtt_map_size = 1024 * 1024; /* 1M on G33 */
+	intel_private.gtt = ioremap(temp2, gtt_map_size);
 	if (!intel_private.gtt)
 		return -ENOMEM;
 
 	temp &= 0xfff80000;
 
 	intel_private.registers = ioremap(temp,128 * 4096);
-	if (!intel_private.registers)
+	if (!intel_private.registers) {
+		iounmap(intel_private.gtt);
 		return -ENOMEM;
+	}
 
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 	global_cache_flush();	/* FIXME: ? */
@@ -982,13 +990,15 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
        temp &= 0xfff00000;
        intel_private.gtt = ioremap((temp + (512 * 1024)) , 512 * 1024);
 
-       if (!intel_private.gtt)
-               return -ENOMEM;
+	if (!intel_private.gtt)
+		return -ENOMEM;
 
 
        intel_private.registers = ioremap(temp,128 * 4096);
-       if (!intel_private.registers)
-               return -ENOMEM;
+       if (!intel_private.registers) {
+		iounmap(intel_private.gtt);
+		return -ENOMEM;
+	}
 
        temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
        global_cache_flush();   /* FIXME: ? */
@@ -1848,9 +1858,9 @@ static const struct intel_driver_description {
 		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82945G_HB, PCI_DEVICE_ID_INTEL_82945G_IG, 0, "945G",
 		NULL, &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82945GM_HB, PCI_DEVICE_ID_INTEL_82945GM_IG, 1, "945GM",
+	{ PCI_DEVICE_ID_INTEL_82945GM_HB, PCI_DEVICE_ID_INTEL_82945GM_IG, 0, "945GM",
 		NULL, &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82945GM_HB, PCI_DEVICE_ID_INTEL_82945GME_IG, 0, "945GME",
+	{ PCI_DEVICE_ID_INTEL_82945GME_HB, PCI_DEVICE_ID_INTEL_82945GME_IG, 0, "945GME",
 		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82946GZ_HB, PCI_DEVICE_ID_INTEL_82946GZ_IG, 0, "946GZ",
 		NULL, &intel_i965_driver },
@@ -1860,9 +1870,9 @@ static const struct intel_driver_description {
 		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_82965G_HB, PCI_DEVICE_ID_INTEL_82965G_IG, 0, "965G",
 		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965GM_HB, PCI_DEVICE_ID_INTEL_82965GM_IG, 1, "965GM",
+	{ PCI_DEVICE_ID_INTEL_82965GM_HB, PCI_DEVICE_ID_INTEL_82965GM_IG, 0, "965GM",
 		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965GM_HB, PCI_DEVICE_ID_INTEL_82965GME_IG, 0, "965GME/GLE",
+	{ PCI_DEVICE_ID_INTEL_82965GME_HB, PCI_DEVICE_ID_INTEL_82965GME_IG, 0, "965GME/GLE",
 		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_7505_0, 0, 0, "E7505", &intel_7505_driver, NULL },
 	{ PCI_DEVICE_ID_INTEL_7205_0, 0, 0, "E7205", &intel_7505_driver, NULL },
@@ -2051,11 +2061,13 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_82915GM_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945G_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945GM_HB),
+	ID(PCI_DEVICE_ID_INTEL_82945GME_HB),
 	ID(PCI_DEVICE_ID_INTEL_82946GZ_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965G_1_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965Q_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965G_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965GM_HB),
+	ID(PCI_DEVICE_ID_INTEL_82965GME_HB),
 	ID(PCI_DEVICE_ID_INTEL_G33_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q35_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q33_HB),

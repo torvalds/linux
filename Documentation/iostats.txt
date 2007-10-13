@@ -79,7 +79,7 @@ Field  8 -- # of milliseconds spent writing
     measured from __make_request() to end_that_request_last()).
 Field  9 -- # of I/Os currently in progress
     The only field that should go to zero. Incremented as requests are
-    given to appropriate request_queue_t and decremented as they finish.
+    given to appropriate struct request_queue and decremented as they finish.
 Field 10 -- # of milliseconds spent doing I/Os
     This field is increases so long as field 9 is nonzero.
 Field 11 -- weighted # of milliseconds spent doing I/Os

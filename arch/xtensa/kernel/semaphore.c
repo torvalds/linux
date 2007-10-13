@@ -100,7 +100,7 @@ static __inline__ int waking_non_zero_trylock(struct semaphore *sem)
 	return ret;
 }
 
-spinlock_t semaphore_wake_lock;
+DEFINE_SPINLOCK(semaphore_wake_lock);
 
 /*
  * Semaphores are implemented using a two-way counter:

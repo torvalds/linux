@@ -2232,6 +2232,7 @@ static int orinoco_init(struct net_device *dev)
 	struct hermes_idstring nickbuf;
 	u16 reclen;
 	int len;
+	DECLARE_MAC_BUF(mac);
 
 	/* No need to lock, the hw_unavailable flag is already set in
 	 * alloc_orinocodev() */
@@ -2274,10 +2275,8 @@ static int orinoco_init(struct net_device *dev)
 		goto out;
 	}
 
-	printk(KERN_DEBUG "%s: MAC address %02X:%02X:%02X:%02X:%02X:%02X\n",
-	       dev->name, dev->dev_addr[0], dev->dev_addr[1],
-	       dev->dev_addr[2], dev->dev_addr[3], dev->dev_addr[4],
-	       dev->dev_addr[5]);
+	printk(KERN_DEBUG "%s: MAC address %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	/* Get the station name */
 	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CNFOWNNAME,

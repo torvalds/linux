@@ -1,7 +1,7 @@
 config DVB_B2C2_FLEXCOP
 	tristate "Technisat/B2C2 FlexCopII(b) and FlexCopIII adapters"
 	depends on DVB_CORE && I2C
-	select DVB_PLL
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_MT312 if !DVB_FE_CUSTOMISE

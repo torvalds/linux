@@ -98,6 +98,18 @@ static struct vdso_patch_def vdso_patches[] = {
 		CPU_FTR_USE_TB, 0,
 		"__kernel_gettimeofday", NULL
 	},
+	{
+		CPU_FTR_USE_TB, 0,
+		"__kernel_clock_gettime", NULL
+	},
+	{
+		CPU_FTR_USE_TB, 0,
+		"__kernel_clock_getres", NULL
+	},
+	{
+		CPU_FTR_USE_TB, 0,
+		"__kernel_get_tbfreq", NULL
+	},
 };
 
 /*
@@ -754,7 +766,9 @@ static int __init vdso_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_PPC_MERGE
 arch_initcall(vdso_init);
+#endif
 
 int in_gate_area_no_task(unsigned long addr)
 {

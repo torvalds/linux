@@ -39,7 +39,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_qstor"
-#define DRV_VERSION	"0.08"
+#define DRV_VERSION	"0.09"
 
 enum {
 	QS_MMIO_BAR		= 4,
@@ -111,8 +111,8 @@ struct qs_port_priv {
 	qs_state_t		state;
 };
 
-static u32 qs_scr_read (struct ata_port *ap, unsigned int sc_reg);
-static void qs_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int qs_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
+static int qs_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int qs_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static int qs_port_start(struct ata_port *ap);
 static void qs_host_stop(struct ata_host *host);
@@ -145,7 +145,6 @@ static struct scsi_host_template qs_ata_sht = {
 };
 
 static const struct ata_port_operations qs_ata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -159,7 +158,6 @@ static const struct ata_port_operations qs_ata_ops = {
 	.eng_timeout		= qs_eng_timeout,
 	.irq_clear		= qs_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 	.scr_read		= qs_scr_read,
 	.scr_write		= qs_scr_write,
 	.port_start		= qs_port_start,
@@ -255,18 +253,20 @@ static void qs_eng_timeout(struct ata_port *ap)
 	ata_eng_timeout(ap);
 }
 
-static u32 qs_scr_read (struct ata_port *ap, unsigned int sc_reg)
+static int qs_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return ~0U;
-	return readl(ap->ioaddr.scr_addr + (sc_reg * 8));
+		return -EINVAL;
+	*val = readl(ap->ioaddr.scr_addr + (sc_reg * 8));
+	return 0;
 }
 
-static void qs_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int qs_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)
-		return;
+		return -EINVAL;
 	writel(val, ap->ioaddr.scr_addr + (sc_reg * 8));
+	return 0;
 }
 
 static unsigned int qs_fill_sg(struct ata_queued_cmd *qc)
@@ -337,7 +337,7 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 	buf[28] = dflags;
 
 	/* frame information structure (FIS) */
-	ata_tf_to_fis(&qc->tf, &buf[32], 0);
+	ata_tf_to_fis(&qc->tf, 0, 1, &buf[32]);
 }
 
 static inline void qs_packet_start(struct ata_queued_cmd *qc)
@@ -402,7 +402,7 @@ static inline unsigned int qs_intr_pkt(struct ata_host *host)
 				struct qs_port_priv *pp = ap->private_data;
 				if (!pp || pp->state != qs_state_pkt)
 					continue;
-				qc = ata_qc_from_tag(ap, ap->active_tag);
+				qc = ata_qc_from_tag(ap, ap->link.active_tag);
 				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 					switch (sHST) {
 					case 0: /* successful CPB */
@@ -435,7 +435,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 			struct qs_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != qs_state_mmio)
 				continue;
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 
 				/* check main status, clearing INTRQ */
@@ -635,9 +635,14 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 		return rc;
 
 	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		void __iomem *chan =
-			host->iomap[QS_MMIO_BAR] + (port_no * 0x4000);
-		qs_ata_setup_port(&host->ports[port_no]->ioaddr, chan);
+		struct ata_port *ap = host->ports[port_no];
+		unsigned int offset = port_no * 0x4000;
+		void __iomem *chan = host->iomap[QS_MMIO_BAR] + offset;
+
+		qs_ata_setup_port(&ap->ioaddr, chan);
+
+		ata_port_pbar_desc(ap, QS_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, QS_MMIO_BAR, offset, "port");
 	}
 
 	/* initialize adapter */

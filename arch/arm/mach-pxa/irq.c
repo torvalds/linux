@@ -365,7 +365,7 @@ void __init pxa_init_irq_gpio(int gpio_nr)
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	for (irq = IRQ_GPIO(2); irq <= IRQ_GPIO(gpio_nr); irq++) {
+	for (irq = IRQ_GPIO(2); irq < IRQ_GPIO(gpio_nr); irq++) {
 		set_irq_chip(irq, &pxa_muxed_gpio_chip);
 		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);

@@ -57,7 +57,7 @@
 
 #define WARN_ON(condition)							\
 	({								\
-		typeof(condition) __ret_warn_on = (condition);		\
+		int __ret_warn_on = !!(condition);			\
 		if (unlikely(__ret_warn_on))				\
 			_BUG_OR_WARN(BUGFLAG_WARNING);			\
 		unlikely(__ret_warn_on);				\

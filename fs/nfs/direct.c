@@ -875,7 +875,7 @@ int __init nfs_init_directcache(void)
 						sizeof(struct nfs_direct_req),
 						0, (SLAB_RECLAIM_ACCOUNT|
 							SLAB_MEM_SPREAD),
-						NULL, NULL);
+						NULL);
 	if (nfs_direct_cachep == NULL)
 		return -ENOMEM;
 

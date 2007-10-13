@@ -319,6 +319,13 @@ static inline int ocfs2_writes_unwritten_extents(struct ocfs2_super *osb)
 	return 0;
 }
 
+static inline int ocfs2_supports_inline_data(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_INLINE_DATA)
+		return 1;
+	return 0;
+}
+
 /* set / clear functions because cluster events can make these happen
  * in parallel so we want the transitions to be atomic. this also
  * means that any future flags osb_flags must be protected by spinlock
@@ -494,16 +501,16 @@ static inline unsigned int ocfs2_page_index_to_clusters(struct super_block *sb,
 /*
  * Find the 1st page index which covers the given clusters.
  */
-static inline unsigned long ocfs2_align_clusters_to_page_index(struct super_block *sb,
+static inline pgoff_t ocfs2_align_clusters_to_page_index(struct super_block *sb,
 							u32 clusters)
 {
 	unsigned int cbits = OCFS2_SB(sb)->s_clustersize_bits;
-	unsigned long index = clusters;
+        pgoff_t index = clusters;
 
 	if (PAGE_CACHE_SHIFT > cbits) {
-		index = clusters >> (PAGE_CACHE_SHIFT - cbits);
+		index = (pgoff_t)clusters >> (PAGE_CACHE_SHIFT - cbits);
 	} else if (PAGE_CACHE_SHIFT < cbits) {
-		index = clusters << (cbits - PAGE_CACHE_SHIFT);
+		index = (pgoff_t)clusters << (cbits - PAGE_CACHE_SHIFT);
 	}
 
 	return index;

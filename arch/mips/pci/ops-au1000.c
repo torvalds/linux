@@ -112,7 +112,7 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 		first_cfg = 0;
 		pci_cfg_vm = get_vm_area(0x2000, VM_IOREMAP);
 		if (!pci_cfg_vm)
-			panic (KERN_ERR "PCI unable to get vm area\n");
+			panic(KERN_ERR "PCI unable to get vm area\n");
 		pci_cfg_wired_entry = read_c0_wired();
 		add_wired_entry(0, 0, (unsigned long)pci_cfg_vm->addr, PM_4K);
 		last_entryLo0  = last_entryLo1 = 0xffffffff;

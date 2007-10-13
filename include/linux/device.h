@@ -64,12 +64,9 @@ struct bus_type {
 	struct bus_attribute	* bus_attrs;
 	struct device_attribute	* dev_attrs;
 	struct driver_attribute	* drv_attrs;
-	struct bus_attribute drivers_autoprobe_attr;
-	struct bus_attribute drivers_probe_attr;
 
 	int		(*match)(struct device * dev, struct device_driver * drv);
-	int		(*uevent)(struct device *dev, char **envp,
-				  int num_envp, char *buffer, int buffer_size);
+	int		(*uevent)(struct device *dev, struct kobj_uevent_env *env);
 	int		(*probe)(struct device * dev);
 	int		(*remove)(struct device * dev);
 	void		(*shutdown)(struct device * dev);
@@ -189,10 +186,8 @@ struct class {
 	struct class_device_attribute	* class_dev_attrs;
 	struct device_attribute		* dev_attrs;
 
-	int	(*uevent)(struct class_device *dev, char **envp,
-			   int num_envp, char *buffer, int buffer_size);
-	int	(*dev_uevent)(struct device *dev, char **envp, int num_envp,
-				char *buffer, int buffer_size);
+	int	(*uevent)(struct class_device *dev, struct kobj_uevent_env *env);
+	int	(*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
 
 	void	(*release)(struct class_device *dev);
 	void	(*class_release)(struct class *class);
@@ -268,8 +263,7 @@ struct class_device {
 	struct attribute_group  ** groups;	/* optional groups */
 
 	void	(*release)(struct class_device *dev);
-	int	(*uevent)(struct class_device *dev, char **envp,
-			   int num_envp, char *buffer, int buffer_size);
+	int	(*uevent)(struct class_device *dev, struct kobj_uevent_env *env);
 	char	class_id[BUS_ID_SIZE];	/* unique to this class */
 };
 
@@ -337,8 +331,7 @@ extern void class_device_destroy(struct class *cls, dev_t devt);
 struct device_type {
 	const char *name;
 	struct attribute_group **groups;
-	int (*uevent)(struct device *dev, char **envp, int num_envp,
-		      char *buffer, int buffer_size);
+	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
 	void (*release)(struct device *dev);
 	int (*suspend)(struct device * dev, pm_message_t state);
 	int (*resume)(struct device * dev);
@@ -551,6 +544,9 @@ extern void put_device(struct device * dev);
 /* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);
 
+/* drivers/base/sys.c */
+extern void sysdev_shutdown(void);
+
 
 /* drivers/base/firmware.c */
 extern int __must_check firmware_register(struct kset *);
@@ -567,6 +563,16 @@ extern const char *dev_driver_string(struct device *dev);
 #else
 static inline int __attribute__ ((format (printf, 2, 3)))
 dev_dbg(struct device * dev, const char * fmt, ...)
+{
+	return 0;
+}
+#endif
+
+#ifdef VERBOSE_DEBUG
+#define dev_vdbg	dev_dbg
+#else
+static inline int __attribute__ ((format (printf, 2, 3)))
+dev_vdbg(struct device * dev, const char * fmt, ...)
 {
 	return 0;
 }

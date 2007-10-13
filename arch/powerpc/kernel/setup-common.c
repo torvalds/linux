@@ -76,6 +76,8 @@ EXPORT_SYMBOL(machine_id);
 
 unsigned long klimit = (unsigned long) _end;
 
+char cmd_line[COMMAND_LINE_SIZE];
+
 /*
  * This still seems to be needed... -- paulus
  */ 
@@ -496,6 +498,10 @@ int check_legacy_ioport(unsigned long base_port)
 			break;
 		}
 		np = of_find_node_by_type(NULL, "8042");
+		/* Pegasos has no device_type on its 8042 node, look for the
+		 * name instead */
+		if (!np)
+			np = of_find_node_by_name(NULL, "8042");
 		break;
 	case FDC_BASE: /* FDC1 */
 		np = of_find_node_by_type(NULL, "fdc");

@@ -346,15 +346,20 @@ static int futex_handle_fault(unsigned long address,
 	vma = find_vma(mm, address);
 	if (vma && address >= vma->vm_start &&
 	    (vma->vm_flags & VM_WRITE)) {
-		switch (handle_mm_fault(mm, vma, address, 1)) {
-		case VM_FAULT_MINOR:
+		int fault;
+		fault = handle_mm_fault(mm, vma, address, 1);
+		if (unlikely((fault & VM_FAULT_ERROR))) {
+#if 0
+			/* XXX: let's do this when we verify it is OK */
+			if (ret & VM_FAULT_OOM)
+				ret = -ENOMEM;
+#endif
+		} else {
 			ret = 0;
-			current->min_flt++;
-			break;
-		case VM_FAULT_MAJOR:
-			ret = 0;
-			current->maj_flt++;
-			break;
+			if (fault & VM_FAULT_MAJOR)
+				current->maj_flt++;
+			else
+				current->min_flt++;
 		}
 	}
 	if (!fshared)
@@ -1665,6 +1670,7 @@ pi_faulted:
 					 attempt);
 		if (ret)
 			goto out;
+		uval = 0;
 		goto retry_unlocked;
 	}
 
@@ -1937,9 +1943,10 @@ static inline int fetch_robust_entry(struct robust_list __user **entry,
 void exit_robust_list(struct task_struct *curr)
 {
 	struct robust_list_head __user *head = curr->robust_list;
-	struct robust_list __user *entry, *pending;
-	unsigned int limit = ROBUST_LIST_LIMIT, pi, pip;
+	struct robust_list __user *entry, *next_entry, *pending;
+	unsigned int limit = ROBUST_LIST_LIMIT, pi, next_pi, pip;
 	unsigned long futex_offset;
+	int rc;
 
 	/*
 	 * Fetch the list head (which was registered earlier, via
@@ -1959,11 +1966,13 @@ void exit_robust_list(struct task_struct *curr)
 	if (fetch_robust_entry(&pending, &head->list_op_pending, &pip))
 		return;
 
-	if (pending)
-		handle_futex_death((void __user *)pending + futex_offset,
-				   curr, pip);
-
+	next_entry = NULL;	/* avoid warning with gcc */
 	while (entry != &head->list) {
+		/*
+		 * Fetch the next entry in the list before calling
+		 * handle_futex_death:
+		 */
+		rc = fetch_robust_entry(&next_entry, &entry->next, &next_pi);
 		/*
 		 * A pending lock might already be on the list, so
 		 * don't process it twice:
@@ -1972,11 +1981,10 @@ void exit_robust_list(struct task_struct *curr)
 			if (handle_futex_death((void __user *)entry + futex_offset,
 						curr, pi))
 				return;
-		/*
-		 * Fetch the next entry in the list:
-		 */
-		if (fetch_robust_entry(&entry, &entry->next, &pi))
+		if (rc)
 			return;
+		entry = next_entry;
+		pi = next_pi;
 		/*
 		 * Avoid excessively long or circular lists:
 		 */
@@ -1985,6 +1993,10 @@ void exit_robust_list(struct task_struct *curr)
 
 		cond_resched();
 	}
+
+	if (pending)
+		handle_futex_death((void __user *)pending + futex_offset,
+				   curr, pip);
 }
 
 long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
@@ -2055,8 +2067,10 @@ asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
 	}
 	/*
 	 * requeue parameter in 'utime' if cmd == FUTEX_REQUEUE.
+	 * number of waiters to wake in 'utime' if cmd == FUTEX_WAKE_OP.
 	 */
-	if (cmd == FUTEX_REQUEUE || cmd == FUTEX_CMP_REQUEUE)
+	if (cmd == FUTEX_REQUEUE || cmd == FUTEX_CMP_REQUEUE ||
+	    cmd == FUTEX_WAKE_OP)
 		val2 = (u32) (unsigned long) utime;
 
 	return do_futex(uaddr, op, val, tp, uaddr2, val2, val3);

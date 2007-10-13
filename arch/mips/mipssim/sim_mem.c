@@ -69,7 +69,7 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 	return &mdesc[0];
 }
 
-static int __init prom_memtype_classify (unsigned int type)
+static int __init prom_memtype_classify(unsigned int type)
 {
 	switch (type) {
 	case simmem_free:
@@ -90,7 +90,7 @@ void __init prom_meminit(void)
 		long type;
 		unsigned long base, size;
 
-		type = prom_memtype_classify (p->type);
+		type = prom_memtype_classify(p->type);
 		base = p->base;
 		size = p->size;
 

@@ -11,13 +11,13 @@ struct noop_data {
 	struct list_head queue;
 };
 
-static void noop_merged_requests(request_queue_t *q, struct request *rq,
+static void noop_merged_requests(struct request_queue *q, struct request *rq,
 				 struct request *next)
 {
 	list_del_init(&next->queuelist);
 }
 
-static int noop_dispatch(request_queue_t *q, int force)
+static int noop_dispatch(struct request_queue *q, int force)
 {
 	struct noop_data *nd = q->elevator->elevator_data;
 
@@ -31,14 +31,14 @@ static int noop_dispatch(request_queue_t *q, int force)
 	return 0;
 }
 
-static void noop_add_request(request_queue_t *q, struct request *rq)
+static void noop_add_request(struct request_queue *q, struct request *rq)
 {
 	struct noop_data *nd = q->elevator->elevator_data;
 
 	list_add_tail(&rq->queuelist, &nd->queue);
 }
 
-static int noop_queue_empty(request_queue_t *q)
+static int noop_queue_empty(struct request_queue *q)
 {
 	struct noop_data *nd = q->elevator->elevator_data;
 
@@ -46,7 +46,7 @@ static int noop_queue_empty(request_queue_t *q)
 }
 
 static struct request *
-noop_former_request(request_queue_t *q, struct request *rq)
+noop_former_request(struct request_queue *q, struct request *rq)
 {
 	struct noop_data *nd = q->elevator->elevator_data;
 
@@ -56,7 +56,7 @@ noop_former_request(request_queue_t *q, struct request *rq)
 }
 
 static struct request *
-noop_latter_request(request_queue_t *q, struct request *rq)
+noop_latter_request(struct request_queue *q, struct request *rq)
 {
 	struct noop_data *nd = q->elevator->elevator_data;
 
@@ -65,7 +65,7 @@ noop_latter_request(request_queue_t *q, struct request *rq)
 	return list_entry(rq->queuelist.next, struct request, queuelist);
 }
 
-static void *noop_init_queue(request_queue_t *q)
+static void *noop_init_queue(struct request_queue *q)
 {
 	struct noop_data *nd;
 

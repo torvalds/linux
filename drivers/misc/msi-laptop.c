@@ -283,7 +283,7 @@ static struct platform_device *msipf_device;
 
 /* Initialization */
 
-static int dmi_check_cb(struct dmi_system_id *id)
+static int dmi_check_cb(const struct dmi_system_id *id)
 {
         printk("msi-laptop: Identified laptop model '%s'.\n", id->ident);
         return 0;
@@ -353,7 +353,7 @@ static int __init msi_init(void)
 	if (IS_ERR(msibl_device))
 		return PTR_ERR(msibl_device);
 
-	msibl_device->props.max_brightness = MSI_LCD_LEVEL_MAX-1,
+	msibl_device->props.max_brightness = MSI_LCD_LEVEL_MAX-1;
 
 	ret = platform_driver_register(&msipf_driver);
 	if (ret)

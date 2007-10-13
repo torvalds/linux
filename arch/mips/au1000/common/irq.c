@@ -65,19 +65,6 @@
 #define EXT_INTC1_REQ1 5 /* IP 5 */
 #define MIPS_TIMER_IP  7 /* IP 7 */
 
-extern void set_debug_traps(void);
-extern irq_cpustat_t irq_stat [NR_CPUS];
-extern void mips_timer_interrupt(void);
-
-static void setup_local_irq(unsigned int irq, int type, int int_req);
-static void end_irq(unsigned int irq_nr);
-static inline void mask_and_ack_level_irq(unsigned int irq_nr);
-static inline void mask_and_ack_rise_edge_irq(unsigned int irq_nr);
-static inline void mask_and_ack_fall_edge_irq(unsigned int irq_nr);
-static inline void mask_and_ack_either_edge_irq(unsigned int irq_nr);
-inline void local_enable_irq(unsigned int irq_nr);
-inline void local_disable_irq(unsigned int irq_nr);
-
 void	(*board_init_irq)(void);
 
 static DEFINE_SPINLOCK(irq_lock);
@@ -646,7 +633,7 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & CAUSEF_IP7)
-		mips_timer_interrupt();
+		do_IRQ(63);
 	else if (pending & CAUSEF_IP2)
 		intc0_req0_irqdispatch();
 	else if (pending & CAUSEF_IP3)

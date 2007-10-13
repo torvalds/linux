@@ -245,10 +245,8 @@ static struct irq_chip qe_ic_irq_chip = {
 
 static int qe_ic_host_match(struct irq_host *h, struct device_node *node)
 {
-	struct qe_ic *qe_ic = h->host_data;
-
 	/* Exact match, unless qe_ic node is NULL */
-	return qe_ic->of_node == NULL || qe_ic->of_node == node;
+	return h->of_node == NULL || h->of_node == node;
 }
 
 static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
@@ -323,25 +321,9 @@ unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 	return irq_linear_revmap(qe_ic->irqhost, irq);
 }
 
-void qe_ic_cascade_low(unsigned int irq, struct irq_desc *desc)
-{
-	struct qe_ic *qe_ic = desc->handler_data;
-	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic);
-
-	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq);
-}
-
-void qe_ic_cascade_high(unsigned int irq, struct irq_desc *desc)
-{
-	struct qe_ic *qe_ic = desc->handler_data;
-	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic);
-
-	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq);
-}
-
-void __init qe_ic_init(struct device_node *node, unsigned int flags)
+void __init qe_ic_init(struct device_node *node, unsigned int flags,
+		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
+		void (*high_handler)(unsigned int irq, struct irq_desc *desc))
 {
 	struct qe_ic *qe_ic;
 	struct resource res;
@@ -352,9 +334,8 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags)
 		return;
 
 	memset(qe_ic, 0, sizeof(struct qe_ic));
-	qe_ic->of_node = of_node_get(node);
 
-	qe_ic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR,
+	qe_ic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
 					NR_QE_IC_INTS, &qe_ic_host_ops, 0);
 	if (qe_ic->irqhost == NULL) {
 		of_node_put(node);
@@ -402,14 +383,13 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags)
 	qe_ic_write(qe_ic->regs, QEIC_CICR, temp);
 
 	set_irq_data(qe_ic->virq_low, qe_ic);
-	set_irq_chained_handler(qe_ic->virq_low, qe_ic_cascade_low);
+	set_irq_chained_handler(qe_ic->virq_low, low_handler);
 
-	if (qe_ic->virq_high != NO_IRQ) {
+	if (qe_ic->virq_high != NO_IRQ &&
+			qe_ic->virq_high != qe_ic->virq_low) {
 		set_irq_data(qe_ic->virq_high, qe_ic);
-		set_irq_chained_handler(qe_ic->virq_high, qe_ic_cascade_high);
+		set_irq_chained_handler(qe_ic->virq_high, high_handler);
 	}
-
-	printk("QEIC (%d IRQ sources) at %p\n", NR_QE_IC_INTS, qe_ic->regs);
 }
 
 void qe_ic_set_highest_priority(unsigned int virq, int high)

@@ -9,10 +9,12 @@
  */
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
+#include <linux/i2c-gpio.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/leds.h>
 #include <linux/spi/spi.h>
 
 #include <asm/io.h>
@@ -21,6 +23,7 @@
 #include <asm/arch/at32ap7000.h>
 #include <asm/arch/board.h>
 #include <asm/arch/init.h>
+#include <asm/arch/portmux.h>
 
 /* Initialized by bootloader-specific startup code. */
 struct tag *bootloader_tags __initdata;
@@ -100,8 +103,47 @@ void __init setup_board(void)
 	at32_setup_serial_console(0);
 }
 
+static const struct gpio_led ngw_leds[] = {
+	{ .name = "sys", .gpio = GPIO_PIN_PA(16), .active_low = 1,
+		.default_trigger = "heartbeat",
+	},
+	{ .name = "a", .gpio = GPIO_PIN_PA(19), .active_low = 1, },
+	{ .name = "b", .gpio = GPIO_PIN_PE(19), .active_low = 1, },
+};
+
+static const struct gpio_led_platform_data ngw_led_data = {
+	.num_leds =	ARRAY_SIZE(ngw_leds),
+	.leds =		(void *) ngw_leds,
+};
+
+static struct platform_device ngw_gpio_leds = {
+	.name =		"leds-gpio",
+	.id =		-1,
+	.dev = {
+		.platform_data = (void *) &ngw_led_data,
+	}
+};
+
+static struct i2c_gpio_platform_data i2c_gpio_data = {
+	.sda_pin		= GPIO_PIN_PA(6),
+	.scl_pin		= GPIO_PIN_PA(7),
+	.sda_is_open_drain	= 1,
+	.scl_is_open_drain	= 1,
+	.udelay			= 2,	/* close to 100 kHz */
+};
+
+static struct platform_device i2c_gpio_device = {
+	.name		= "i2c-gpio",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &i2c_gpio_data,
+	},
+};
+
 static int __init atngw100_init(void)
 {
+	unsigned	i;
+
 	/*
 	 * ATNGW100 uses 16-bit SDRAM interface, so we don't need to
 	 * reserve any pins for it.
@@ -115,6 +157,19 @@ static int __init atngw100_init(void)
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
 
 	at32_add_device_spi(0, spi0_board_info, ARRAY_SIZE(spi0_board_info));
+	at32_add_device_usba(0, NULL);
+
+	for (i = 0; i < ARRAY_SIZE(ngw_leds); i++) {
+		at32_select_gpio(ngw_leds[i].gpio,
+				AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+	}
+	platform_device_register(&ngw_gpio_leds);
+
+	at32_select_gpio(i2c_gpio_data.sda_pin,
+		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+	at32_select_gpio(i2c_gpio_data.scl_pin,
+		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+	platform_device_register(&i2c_gpio_device);
 
 	return 0;
 }

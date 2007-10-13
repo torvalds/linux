@@ -292,7 +292,7 @@ mb_cache_create(const char *name, struct mb_cache_op *cache_op,
 			INIT_LIST_HEAD(&cache->c_indexes_hash[m][n]);
 	}
 	cache->c_entry_cache = kmem_cache_create(name, entry_size, 0,
-		SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL, NULL);
+		SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL);
 	if (!cache->c_entry_cache)
 		goto fail;
 

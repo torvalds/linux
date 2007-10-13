@@ -833,7 +833,7 @@ static struct platform_driver snd_portman_driver = {
 /*********************************************************************
  * module init stuff
  *********************************************************************/
-static void __init_or_module snd_portman_unregister_all(void)
+static void snd_portman_unregister_all(void)
 {
 	int i;
 

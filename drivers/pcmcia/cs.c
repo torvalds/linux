@@ -409,6 +409,9 @@ static void socket_shutdown(struct pcmcia_socket *s)
 #endif
 	s->functions = 0;
 
+	/* give socket some time to power down */
+	msleep(100);
+
 	s->ops->get_status(s, &status);
 	if (status & SS_POWERON) {
 		printk(KERN_ERR "PCMCIA: socket %p: *** DANGER *** unable to remove socket power\n", s);
@@ -904,17 +907,13 @@ int pcmcia_insert_card(struct pcmcia_socket *skt)
 EXPORT_SYMBOL(pcmcia_insert_card);
 
 
-static int pcmcia_socket_uevent(struct device *dev, char **envp,
-			        int num_envp, char *buffer, int buffer_size)
+static int pcmcia_socket_uevent(struct device *dev,
+				struct kobj_uevent_env *env)
 {
 	struct pcmcia_socket *s = container_of(dev, struct pcmcia_socket, dev);
-	int i = 0, length = 0;
 
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
-			   &length, "SOCKET_NO=%u", s->sock))
+	if (add_uevent_var(env, "SOCKET_NO=%u", s->sock))
 		return -ENOMEM;
-
-	envp[i] = NULL;
 
 	return 0;
 }

@@ -477,7 +477,7 @@ void __init at91_add_device_i2c(void) {}
  *  SPI
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_SPI_AT91) || defined(CONFIG_SPI_AT91_MODULE) || defined(CONFIG_AT91_SPI) || defined(CONFIG_AT91_SPI_MODULE)
+#if defined(CONFIG_SPI_ATMEL) || defined(CONFIG_SPI_ATMEL_MODULE)
 static u64 spi_dmamask = 0xffffffffUL;
 
 static struct resource spi_resources[] = {
@@ -494,7 +494,7 @@ static struct resource spi_resources[] = {
 };
 
 static struct platform_device at91rm9200_spi_device = {
-	.name		= "at91_spi",
+	.name		= "atmel_spi",
 	.id		= 0,
 	.dev		= {
 				.dma_mask		= &spi_dmamask,
@@ -522,18 +522,14 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 		else
 			cs_pin = spi_standard_cs[devices[i].chip_select];
 
-#ifdef CONFIG_SPI_AT91_MANUAL_CS
+		/* enable chip-select pin */
 		at91_set_gpio_output(cs_pin, 1);
-#else
-		at91_set_A_periph(cs_pin, 0);
-#endif
 
 		/* pass chip-select pin to driver */
 		devices[i].controller_data = (void *) cs_pin;
 	}
 
 	spi_register_board_info(devices, nr_devices);
-	at91_clock_associate("spi_clk", &at91rm9200_spi_device.dev, "spi");
 	platform_device_register(&at91rm9200_spi_device);
 }
 #else

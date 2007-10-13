@@ -81,6 +81,7 @@ static __u32 volatile spare_indicator;
 static atomic_t spare_indicator_usecount;
 #define QDIO_MEMPOOL_SCSSC_ELEMENTS 2
 static mempool_t *qdio_mempool_scssc;
+static struct kmem_cache *qdio_q_cache;
 
 static debug_info_t *qdio_dbf_setup;
 static debug_info_t *qdio_dbf_sbal;
@@ -194,6 +195,8 @@ qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 again:
 	ccq = do_eqbs(irq->sch_token, state, q_no, start, cnt);
 	rc = qdio_check_ccq(q, ccq);
+	if ((ccq == 96) && (tmp_cnt != *cnt))
+		rc = 0;
 	if (rc == 1) {
 		QDIO_DBF_TEXT5(1,trace,"eqAGAIN");
 		goto again;
@@ -739,7 +742,8 @@ qdio_get_outbound_buffer_frontier(struct qdio_q *q)
 	first_not_to_check=f+qdio_min(atomic_read(&q->number_of_buffers_used),
 				      (QDIO_MAX_BUFFERS_PER_Q-1));
 
-	if ((!q->is_iqdio_q)&&(!q->hydra_gives_outbound_pcis))
+	if (((!q->is_iqdio_q) && (!q->hydra_gives_outbound_pcis)) ||
+		 (q->queue_type == QDIO_IQDIO_QFMT_ASYNCH))
 		SYNC_MEMORY;
 
 check_next:
@@ -1020,9 +1024,9 @@ __qdio_outbound_processing(struct qdio_q *q)
 }
 
 static void
-qdio_outbound_processing(struct qdio_q *q)
+qdio_outbound_processing(unsigned long q)
 {
-	__qdio_outbound_processing(q);
+	__qdio_outbound_processing((struct qdio_q *) q);
 }
 
 /************************* INBOUND ROUTINES *******************************/
@@ -1445,9 +1449,10 @@ out:
 }
 
 static void
-tiqdio_inbound_processing(struct qdio_q *q)
+tiqdio_inbound_processing(unsigned long q)
 {
-	__tiqdio_inbound_processing(q, atomic_read(&spare_indicator_usecount));
+	__tiqdio_inbound_processing((struct qdio_q *) q,
+				    atomic_read(&spare_indicator_usecount));
 }
 
 static void
@@ -1490,9 +1495,9 @@ again:
 }
 
 static void
-qdio_inbound_processing(struct qdio_q *q)
+qdio_inbound_processing(unsigned long q)
 {
-	__qdio_inbound_processing(q);
+	__qdio_inbound_processing((struct qdio_q *) q);
 }
 
 /************************* MAIN ROUTINES *******************************/
@@ -1617,23 +1622,21 @@ static void
 qdio_release_irq_memory(struct qdio_irq *irq_ptr)
 {
 	int i;
+	struct qdio_q *q;
 
-	for (i=0;i<QDIO_MAX_QUEUES_PER_IRQ;i++) {
-		if (!irq_ptr->input_qs[i])
-			goto next;
-
-		kfree(irq_ptr->input_qs[i]->slib);
-		kfree(irq_ptr->input_qs[i]);
-
-next:
-		if (!irq_ptr->output_qs[i])
-			continue;
-
-		kfree(irq_ptr->output_qs[i]->slib);
-		kfree(irq_ptr->output_qs[i]);
-
+	for (i = 0; i < QDIO_MAX_QUEUES_PER_IRQ; i++) {
+		q = irq_ptr->input_qs[i];
+		if (q) {
+			free_page((unsigned long) q->slib);
+			kmem_cache_free(qdio_q_cache, q);
+		}
+		q = irq_ptr->output_qs[i];
+		if (q) {
+			free_page((unsigned long) q->slib);
+			kmem_cache_free(qdio_q_cache, q);
+		}
 	}
-	kfree(irq_ptr->qdr);
+	free_page((unsigned long) irq_ptr->qdr);
 	free_page((unsigned long) irq_ptr);
 }
 
@@ -1680,44 +1683,35 @@ qdio_alloc_qs(struct qdio_irq *irq_ptr,
 {
 	int i;
 	struct qdio_q *q;
-	int result=-ENOMEM;
 
-	for (i=0;i<no_input_qs;i++) {
-		q = kzalloc(sizeof(struct qdio_q), GFP_KERNEL);
+	for (i = 0; i < no_input_qs; i++) {
+		q = kmem_cache_alloc(qdio_q_cache, GFP_KERNEL);
+		if (!q)
+			return -ENOMEM;
+		memset(q, 0, sizeof(*q));
 
-		if (!q) {
-			QDIO_PRINT_ERR("kmalloc of q failed!\n");
-			goto out;
-		}
-
-		q->slib = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		q->slib = (struct slib *) __get_free_page(GFP_KERNEL);
 		if (!q->slib) {
-			QDIO_PRINT_ERR("kmalloc of slib failed!\n");
-			goto out;
+			kmem_cache_free(qdio_q_cache, q);
+			return -ENOMEM;
 		}
-
 		irq_ptr->input_qs[i]=q;
 	}
 
-	for (i=0;i<no_output_qs;i++) {
-		q = kzalloc(sizeof(struct qdio_q), GFP_KERNEL);
+	for (i = 0; i < no_output_qs; i++) {
+		q = kmem_cache_alloc(qdio_q_cache, GFP_KERNEL);
+		if (!q)
+			return -ENOMEM;
+		memset(q, 0, sizeof(*q));
 
-		if (!q) {
-			goto out;
-		}
-
-		q->slib=kmalloc(PAGE_SIZE,GFP_KERNEL);
+		q->slib = (struct slib *) __get_free_page(GFP_KERNEL);
 		if (!q->slib) {
-			QDIO_PRINT_ERR("kmalloc of slib failed!\n");
-			goto out;
+			kmem_cache_free(qdio_q_cache, q);
+			return -ENOMEM;
 		}
-
 		irq_ptr->output_qs[i]=q;
 	}
-
-	result=0;
-out:
-	return result;
+	return 0;
 }
 
 static void
@@ -1767,12 +1761,15 @@ qdio_fill_qs(struct qdio_irq *irq_ptr, struct ccw_device *cdev,
 		q->handler=input_handler;
 		q->dev_st_chg_ind=irq_ptr->dev_st_chg_ind;
 
-		q->tasklet.data=(unsigned long)q;
 		/* q->is_thinint_q isn't valid at this time, but
-		 * irq_ptr->is_thinint_irq is */
-		q->tasklet.func=(void(*)(unsigned long))
-			((irq_ptr->is_thinint_irq)?&tiqdio_inbound_processing:
-			 &qdio_inbound_processing);
+		 * irq_ptr->is_thinint_irq is
+		 */
+		if (irq_ptr->is_thinint_irq)
+			tasklet_init(&q->tasklet, tiqdio_inbound_processing,
+				     (unsigned long) q);
+		else
+			tasklet_init(&q->tasklet, qdio_inbound_processing,
+				     (unsigned long) q);
 
 		/* actually this is not used for inbound queues. yet. */
 		atomic_set(&q->busy_siga_counter,0);
@@ -1843,13 +1840,10 @@ qdio_fill_qs(struct qdio_irq *irq_ptr, struct ccw_device *cdev,
 		q->last_move_ftc=0;
 		q->handler=output_handler;
 
-		q->tasklet.data=(unsigned long)q;
-		q->tasklet.func=(void(*)(unsigned long))
-			&qdio_outbound_processing;
-		q->timer.function=(void(*)(unsigned long))
-			&qdio_outbound_processing;
-		q->timer.data = (long)q;
-		init_timer(&q->timer);
+		tasklet_init(&q->tasklet, qdio_outbound_processing,
+			     (unsigned long) q);
+		setup_timer(&q->timer, qdio_outbound_processing,
+			    (unsigned long) q);
 
 		atomic_set(&q->busy_siga_counter,0);
 		q->timing.busy_start=0;
@@ -2985,17 +2979,17 @@ qdio_allocate(struct qdio_initialize *init_data)
 	QDIO_DBF_HEX0(0,setup,&irq_ptr,sizeof(void*));
 
 	if (!irq_ptr) {
-		QDIO_PRINT_ERR("kmalloc of irq_ptr failed!\n");
+		QDIO_PRINT_ERR("allocation of irq_ptr failed!\n");
 		return -ENOMEM;
 	}
 
 	init_MUTEX(&irq_ptr->setting_up_sema);
 
 	/* QDR must be in DMA area since CCW data address is only 32 bit */
-	irq_ptr->qdr=kmalloc(sizeof(struct qdr), GFP_KERNEL | GFP_DMA);
+	irq_ptr->qdr = (struct qdr *) __get_free_page(GFP_KERNEL | GFP_DMA);
   	if (!(irq_ptr->qdr)) {
    		free_page((unsigned long) irq_ptr);
-    		QDIO_PRINT_ERR("kmalloc of irq_ptr->qdr failed!\n");
+		QDIO_PRINT_ERR("allocation of irq_ptr->qdr failed!\n");
 		return -ENOMEM;
        	}
 	QDIO_DBF_TEXT0(0,setup,"qdr:");
@@ -3004,6 +2998,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	if (qdio_alloc_qs(irq_ptr,
        			  init_data->no_input_qs,
 			  init_data->no_output_qs)) {
+		QDIO_PRINT_ERR("queue allocation failed!\n");
 		qdio_release_irq_memory(irq_ptr);
 		return -ENOMEM;
 	}
@@ -3732,7 +3727,7 @@ qdio_performance_stats_store(struct bus_type *bus, const char *buf, size_t count
 #endif /* CONFIG_64BIT */
 		}
 	} else {
-		QDIO_PRINT_WARN("QDIO performance_stats: write 0 or 1 to this file!\n");
+		QDIO_PRINT_ERR("QDIO performance_stats: write 0 or 1 to this file!\n");
 		return -EINVAL;
 	}
 	return count;
@@ -3895,9 +3890,19 @@ init_QDIO(void)
 	if (res)
 		return res;
 
+	qdio_q_cache = kmem_cache_create("qdio_q", sizeof(struct qdio_q),
+					 256, 0, NULL);
+	if (!qdio_q_cache) {
+		qdio_release_qdio_memory();
+		return -ENOMEM;
+	}
+
 	res = qdio_register_dbf_views();
-	if (res)
+	if (res) {
+		kmem_cache_destroy(qdio_q_cache);
+		qdio_release_qdio_memory();
 		return res;
+	}
 
 	QDIO_DBF_TEXT0(0,setup,"initQDIO");
 	res = bus_create_file(&ccw_bus_type, &bus_attr_qdio_performance_stats);
@@ -3929,6 +3934,7 @@ cleanup_QDIO(void)
 	qdio_release_qdio_memory();
 	qdio_unregister_dbf_views();
 	mempool_destroy(qdio_mempool_scssc);
+	kmem_cache_destroy(qdio_q_cache);
 	bus_remove_file(&ccw_bus_type, &bus_attr_qdio_performance_stats);
   	printk("qdio: %s: module removed\n",version);
 }

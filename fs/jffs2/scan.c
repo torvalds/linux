@@ -1049,7 +1049,8 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 		return -ENOMEM;
 	}
 
-	fd->raw = jffs2_link_node_ref(c, jeb, ofs | REF_PRISTINE, PAD(je32_to_cpu(rd->totlen)), ic);
+	fd->raw = jffs2_link_node_ref(c, jeb, ofs | dirent_node_state(rd),
+				      PAD(je32_to_cpu(rd->totlen)), ic);
 
 	fd->next = NULL;
 	fd->version = je32_to_cpu(rd->version);

@@ -732,7 +732,7 @@ int __init add_preferred_console(char *name, int idx, char *options)
 	return 0;
 }
 
-int __init update_console_cmdline(char *name, int idx, char *name_new, int idx_new, char *options)
+int update_console_cmdline(char *name, int idx, char *name_new, int idx_new, char *options)
 {
 	struct console_cmdline *c;
 	int i;
@@ -1082,6 +1082,19 @@ int unregister_console(struct console *console)
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);
+
+static int __init disable_boot_consoles(void)
+{
+	if (console_drivers != NULL) {
+		if (console_drivers->flags & CON_BOOT) {
+			printk(KERN_INFO "turn off boot console %s%d\n",
+				console_drivers->name, console_drivers->index);
+			return unregister_console(console_drivers);
+		}
+	}
+	return 0;
+}
+late_initcall(disable_boot_consoles);
 
 /**
  * tty_write_message - write a message to a certain tty, not just the console.

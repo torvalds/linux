@@ -121,6 +121,11 @@
 #else
 #define __WEAK_ORDERING_MB	"		\n"
 #endif
+#if defined(CONFIG_WEAK_REORDERING_BEYOND_LLSC) && defined(CONFIG_SMP)
+#define __WEAK_LLSC_MB		"       sync	\n"
+#else
+#define __WEAK_LLSC_MB		"		\n"
+#endif
 
 #define smp_mb()	__asm__ __volatile__(__WEAK_ORDERING_MB : : :"memory")
 #define smp_rmb()	__asm__ __volatile__(__WEAK_ORDERING_MB : : :"memory")
@@ -128,5 +133,9 @@
 
 #define set_mb(var, value) \
 	do { var = value; smp_mb(); } while (0)
+
+#define smp_llsc_mb()	__asm__ __volatile__(__WEAK_LLSC_MB : : :"memory")
+#define smp_llsc_rmb()	__asm__ __volatile__(__WEAK_LLSC_MB : : :"memory")
+#define smp_llsc_wmb()	__asm__ __volatile__(__WEAK_LLSC_MB : : :"memory")
 
 #endif /* __ASM_BARRIER_H */

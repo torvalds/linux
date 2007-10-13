@@ -1,0 +1,131 @@
+config B43
+	tristate "Broadcom 43xx wireless support (mac80211 stack)"
+	depends on SSB_POSSIBLE && MAC80211 && WLAN_80211
+	select SSB
+	select FW_LOADER
+	select HW_RANDOM
+	---help---
+	  b43 is a driver for the Broadcom 43xx series wireless devices.
+
+	  Check "lspci" for something like
+	  "Broadcom Corporation BCM43XX 802.11 Wireless LAN Controller"
+	  to determine whether you own such a device.
+
+	  This driver supports the new BCM43xx IEEE 802.11G devices, but not
+	  the old IEEE 802.11B devices. Old devices are supported by
+	  the b43legacy driver.
+	  Note that this has nothing to do with the standard that your AccessPoint
+	  supports (A, B, G or a combination).
+	  IEEE 802.11G devices can talk to IEEE 802.11B AccessPoints.
+
+	  It is safe to include both b43 and b43legacy as the underlying glue
+	  layer will automatically load the correct version for your device.
+
+	  This driver uses V4 firmware, which must be installed separately using
+	  b43-fwcutter.
+
+	  This driver can be built as a module (recommended) that will be called "b43".
+	  If unsure, say M.
+
+# Auto-select SSB PCI-HOST support, if possible
+config B43_PCI_AUTOSELECT
+	bool
+	depends on B43 && SSB_PCIHOST_POSSIBLE
+	select SSB_PCIHOST
+	default y
+
+# Auto-select SSB PCICORE driver, if possible
+config B43_PCICORE_AUTOSELECT
+	bool
+	depends on B43 && SSB_DRIVER_PCICORE_POSSIBLE
+	select SSB_DRIVER_PCICORE
+	default y
+
+config B43_PCMCIA
+	bool "Broadcom 43xx PCMCIA device support (EXPERIMENTAL)"
+	depends on B43 && SSB_PCMCIAHOST_POSSIBLE && EXPERIMENTAL
+	select SSB_PCMCIAHOST
+	---help---
+	  Broadcom 43xx PCMCIA device support.
+
+	  Support for 16bit PCMCIA devices.
+	  Please note that most PC-CARD devices are _NOT_ 16bit PCMCIA
+	  devices, but 32bit CardBUS devices. CardBUS devices are supported
+	  out of the box by b43.
+
+	  With this config option you can drive b43 cards in
+	  CompactFlash formfactor in a PCMCIA adaptor.
+	  CF b43 cards can sometimes be found in handheld PCs.
+
+	  It's safe to select Y here, even if you don't have a B43 PCMCIA device.
+
+	  If unsure, say N.
+
+# LED support
+config B43_LEDS
+	bool
+	depends on B43 && MAC80211_LEDS
+	default y
+
+# RFKILL support
+config B43_RFKILL
+	bool
+	depends on B43 && RFKILL && RFKILL_INPUT && INPUT_POLLDEV
+	default y
+
+config B43_DEBUG
+	bool "Broadcom 43xx debugging"
+	depends on B43
+	---help---
+	  Broadcom 43xx debugging messages.
+
+	  Say Y, if you want to find out why the driver does not
+	  work for you.
+
+config B43_DMA
+	bool
+	depends on B43
+config B43_PIO
+	bool
+	depends on B43
+
+choice
+	prompt "Broadcom 43xx data transfer mode"
+	depends on B43
+	default B43_DMA_AND_PIO_MODE
+
+config B43_DMA_AND_PIO_MODE
+	bool "DMA + PIO"
+	select B43_DMA
+	select B43_PIO
+	---help---
+	  Include both, Direct Memory Access (DMA) and Programmed I/O (PIO)
+	  data transfer modes.
+	  The actually used mode is selectable through the module
+	  parameter "pio". If the module parameter is pio=0, DMA is used.
+	  Otherwise PIO is used. DMA is default.
+
+	  If unsure, choose this option.
+
+config B43_DMA_MODE
+	bool "DMA (Direct Memory Access) only"
+	select B43_DMA
+	---help---
+	  Only include Direct Memory Access (DMA).
+	  This reduces the size of the driver module, by omitting the PIO code.
+
+config B43_PIO_MODE
+	bool "PIO (Programmed I/O) only"
+	select B43_PIO
+	---help---
+	  Only include Programmed I/O (PIO).
+	  This reduces the size of the driver module, by omitting the DMA code.
+	  Please note that PIO transfers are slow (compared to DMA).
+
+	  Also note that not all devices of the 43xx series support PIO.
+	  The 4306 (Apple Airport Extreme and others) supports PIO, while
+	  the 4318 is known to _not_ support PIO.
+
+	  Only use PIO, if DMA does not work for you.
+
+endchoice

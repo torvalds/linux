@@ -476,9 +476,48 @@ out:
 	return err;
 }
 
+static ssize_t show_hca(struct class_device *cdev, char *buf)
+{
+	struct mlx4_ib_dev *dev = container_of(cdev, struct mlx4_ib_dev, ib_dev.class_dev);
+	return sprintf(buf, "MT%d\n", dev->dev->pdev->device);
+}
+
+static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
+{
+	struct mlx4_ib_dev *dev = container_of(cdev, struct mlx4_ib_dev, ib_dev.class_dev);
+	return sprintf(buf, "%d.%d.%d\n", (int) (dev->dev->caps.fw_ver >> 32),
+		       (int) (dev->dev->caps.fw_ver >> 16) & 0xffff,
+		       (int) dev->dev->caps.fw_ver & 0xffff);
+}
+
+static ssize_t show_rev(struct class_device *cdev, char *buf)
+{
+	struct mlx4_ib_dev *dev = container_of(cdev, struct mlx4_ib_dev, ib_dev.class_dev);
+	return sprintf(buf, "%x\n", dev->dev->rev_id);
+}
+
+static ssize_t show_board(struct class_device *cdev, char *buf)
+{
+	struct mlx4_ib_dev *dev = container_of(cdev, struct mlx4_ib_dev, ib_dev.class_dev);
+	return sprintf(buf, "%.*s\n", MLX4_BOARD_ID_LEN, dev->dev->board_id);
+}
+
+static CLASS_DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
+static CLASS_DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
+static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
+static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
+
+static struct class_device_attribute *mlx4_class_attributes[] = {
+	&class_device_attr_hw_rev,
+	&class_device_attr_fw_ver,
+	&class_device_attr_hca_type,
+	&class_device_attr_board_id
+};
+
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
+	int i;
 
 	ibdev = (struct mlx4_ib_dev *) ib_alloc_device(sizeof *ibdev);
 	if (!ibdev) {
@@ -568,6 +607,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
 
+	ibdev->ib_dev.alloc_fmr		= mlx4_ib_fmr_alloc;
+	ibdev->ib_dev.map_phys_fmr	= mlx4_ib_map_phys_fmr;
+	ibdev->ib_dev.unmap_fmr		= mlx4_ib_unmap_fmr;
+	ibdev->ib_dev.dealloc_fmr	= mlx4_ib_fmr_dealloc;
+
 	if (init_node_data(ibdev))
 		goto err_map;
 
@@ -579,6 +623,12 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
+
+	for (i = 0; i < ARRAY_SIZE(mlx4_class_attributes); ++i) {
+		if (class_device_create_file(&ibdev->ib_dev.class_dev,
+					       mlx4_class_attributes[i]))
+			goto err_reg;
+	}
 
 	return ibdev;
 

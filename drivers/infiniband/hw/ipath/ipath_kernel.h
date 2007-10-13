@@ -42,6 +42,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <asm/io.h>
+#include <rdma/ib_verbs.h>
 
 #include "ipath_common.h"
 #include "ipath_debug.h"
@@ -139,6 +140,12 @@ struct ipath_portdata {
 	u32 port_pionowait;
 	/* total number of rcvhdrqfull errors */
 	u32 port_hdrqfull;
+	/* saved total number of rcvhdrqfull errors for poll edge trigger */
+	u32 port_hdrqfull_poll;
+	/* total number of polled urgent packets */
+	u32 port_urgent;
+	/* saved total number of polled urgent packets for poll edge trigger */
+	u32 port_urgent_poll;
 	/* pid of process using this port */
 	pid_t port_pid;
 	/* same size as task_struct .comm[] */
@@ -261,18 +268,10 @@ struct ipath_devdata {
 	 * limiting of hwerror reporting
 	 */
 	ipath_err_t ipath_lasthwerror;
-	/*
-	 * errors masked because they occur too fast, also includes errors
-	 * that are always ignored (ipath_ignorederrs)
-	 */
+	/* errors masked because they occur too fast */
 	ipath_err_t ipath_maskederrs;
 	/* time in jiffies at which to re-enable maskederrs */
 	unsigned long ipath_unmasktime;
-	/*
-	 * errors always ignored (masked), at least for a given
-	 * chip/device, because they are wrong or not useful
-	 */
-	ipath_err_t ipath_ignorederrs;
 	/* count of egrfull errors, combined for all ports */
 	u64 ipath_last_tidfull;
 	/* for ipath_qcheck() */
@@ -436,6 +435,7 @@ struct ipath_devdata {
 	u64 ipath_lastibcstat;
 	/* hwerrmask shadow */
 	ipath_err_t ipath_hwerrmask;
+	ipath_err_t ipath_errormask; /* errormask shadow */
 	/* interrupt config reg shadow */
 	u64 ipath_intconfig;
 	/* kr_sendpiobufbase value */
@@ -683,7 +683,7 @@ int ipath_unordered_wc(void);
 
 void ipath_disarm_piobufs(struct ipath_devdata *, unsigned first,
 			  unsigned cnt);
-void ipath_cancel_sends(struct ipath_devdata *);
+void ipath_cancel_sends(struct ipath_devdata *, int);
 
 int ipath_create_rcvhdrq(struct ipath_devdata *, struct ipath_portdata *);
 void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
@@ -731,6 +731,8 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_LINKACTIVE    0x200
 		/* link current state is unknown */
 #define IPATH_LINKUNK       0x400
+		/* Write combining flush needed for PIO */
+#define IPATH_PIO_FLUSH_WC  0x1000
 		/* no IB cable, or no device on IB cable */
 #define IPATH_NOCABLE       0x4000
 		/* Supports port zero per packet receive interrupts via
@@ -762,8 +764,6 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_PORT_MASTER_UNINIT 4
 		/* waiting for an urgent packet to arrive */
 #define IPATH_PORT_WAITING_URG 5
-		/* waiting for a header overflow */
-#define IPATH_PORT_WAITING_OVERFLOW 6
 
 /* free up any allocated data at closes */
 void ipath_free_data(struct ipath_portdata *dd);
@@ -776,7 +776,7 @@ void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);
 void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
-void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
+void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev);
 
 /*
  * Set LED override, only the two LSBs have "public" meaning, but
@@ -820,7 +820,6 @@ static inline u64 ipath_mdio_req(int cmd, int dev, int reg, int data)
 #define IPATH_MDIO_CTRL_8355_REG_10 0x1D
 
 int ipath_get_user_pages(unsigned long, size_t, struct page **);
-int ipath_get_user_pages_nocopy(unsigned long, struct page **);
 void ipath_release_user_pages(struct page **, size_t);
 void ipath_release_user_pages_on_close(struct page **, size_t);
 int ipath_eeprom_read(struct ipath_devdata *, u8, void *, int);

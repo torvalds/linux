@@ -1,5 +1,13 @@
 menu "Generic Driver Options"
 
+config UEVENT_HELPER_PATH
+	string "path to uevent helper"
+	depends on HOTPLUG
+	default "/sbin/hotplug"
+	help
+	  Path to uevent helper program forked by the kernel for
+	  every uevent.
+
 config STANDALONE
 	bool "Select only drivers that don't need compile-time external firmware" if EXPERIMENTAL
 	default y

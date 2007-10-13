@@ -88,9 +88,10 @@ static void appledisplay_complete(struct urb *urb)
 {
 	struct appledisplay *pdata = urb->context;
 	unsigned long flags;
+	int status = urb->status;
 	int retval;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -102,12 +103,12 @@ static void appledisplay_complete(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-			__FUNCTION__, urb->status);
+		dbg("%s - urb shuttingdown with status: %d",
+			__FUNCTION__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-			__FUNCTION__, urb->status);
+			__FUNCTION__, status);
 		goto exit;
 	}
 
@@ -137,7 +138,7 @@ exit:
 
 static int appledisplay_bl_update_status(struct backlight_device *bd)
 {
-	struct appledisplay *pdata = class_get_devdata(&bd->class_dev);
+	struct appledisplay *pdata = bl_get_data(bd);
 	int retval;
 
 	pdata->msgdata[0] = 0x10;
@@ -158,7 +159,7 @@ static int appledisplay_bl_update_status(struct backlight_device *bd)
 
 static int appledisplay_bl_get_brightness(struct backlight_device *bd)
 {
-	struct appledisplay *pdata = class_get_devdata(&bd->class_dev);
+	struct appledisplay *pdata = bl_get_data(bd);
 	int retval;
 
 	retval = usb_control_msg(

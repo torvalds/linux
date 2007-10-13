@@ -890,12 +890,11 @@ static int dscc4_found1(struct pci_dev *pdev, void __iomem *ioaddr)
 	struct dscc4_dev_priv *root;
 	int i, ret = -ENOMEM;
 
-	root = kmalloc(dev_per_card*sizeof(*root), GFP_KERNEL);
+	root = kcalloc(dev_per_card, sizeof(*root), GFP_KERNEL);
 	if (!root) {
 		printk(KERN_ERR "%s: can't allocate data\n", DRV_NAME);
 		goto err_out;
 	}
-	memset(root, 0, dev_per_card*sizeof(*root));
 
 	for (i = 0; i < dev_per_card; i++) {
 		root[i].dev = alloc_hdlcdev(root + i);
@@ -903,12 +902,11 @@ static int dscc4_found1(struct pci_dev *pdev, void __iomem *ioaddr)
 			goto err_free_dev;
 	}
 
-	ppriv = kmalloc(sizeof(*ppriv), GFP_KERNEL);
+	ppriv = kzalloc(sizeof(*ppriv), GFP_KERNEL);
 	if (!ppriv) {
 		printk(KERN_ERR "%s: can't allocate private data\n", DRV_NAME);
 		goto err_free_dev;
 	}
-	memset(ppriv, 0, sizeof(struct dscc4_pci_priv));
 
 	ppriv->root = root;
 	spin_lock_init(&ppriv->lock);
@@ -927,7 +925,6 @@ static int dscc4_found1(struct pci_dev *pdev, void __iomem *ioaddr)
 	        d->do_ioctl = dscc4_ioctl;
 		d->tx_timeout = dscc4_tx_timeout;
 		d->watchdog_timeo = TX_TIMEOUT;
-		SET_MODULE_OWNER(d);
 		SET_NETDEV_DEV(d, &pdev->dev);
 
 		dpriv->dev_id = i;

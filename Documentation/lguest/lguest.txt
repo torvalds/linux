@@ -1,0 +1,129 @@
+Rusty's Remarkably Unreliable Guide to Lguest
+	- or, A Young Coder's Illustrated Hypervisor
+http://lguest.ozlabs.org
+
+Lguest is designed to be a minimal hypervisor for the Linux kernel, for
+Linux developers and users to experiment with virtualization with the
+minimum of complexity.  Nonetheless, it should have sufficient
+features to make it useful for specific tasks, and, of course, you are
+encouraged to fork and enhance it.
+
+Features:
+
+- Kernel module which runs in a normal kernel.
+- Simple I/O model for communication.
+- Simple program to create new guests.
+- Logo contains cute puppies: http://lguest.ozlabs.org
+
+Developer features:
+
+- Fun to hack on.
+- No ABI: being tied to a specific kernel anyway, you can change anything.
+- Many opportunities for improvement or feature implementation.
+
+Running Lguest:
+
+- Lguest runs the same kernel as guest and host.  You can configure
+  them differently, but usually it's easiest not to.
+
+  You will need to configure your kernel with the following options:
+
+  CONFIG_HIGHMEM64G=n ("High Memory Support" "64GB")[1]
+  CONFIG_TUN=y/m ("Universal TUN/TAP device driver support")
+  CONFIG_EXPERIMENTAL=y ("Prompt for development and/or incomplete code/drivers")
+  CONFIG_PARAVIRT=y ("Paravirtualization support (EXPERIMENTAL)")
+  CONFIG_LGUEST=y/m ("Linux hypervisor example code")
+
+  and I recommend:
+  CONFIG_HZ=100 ("Timer frequency")[2]
+
+- A tool called "lguest" is available in this directory: type "make"
+  to build it.  If you didn't build your kernel in-tree, use "make
+  O=<builddir>".
+
+- Create or find a root disk image.  There are several useful ones
+  around, such as the xm-test tiny root image at
+	  http://xm-test.xensource.com/ramdisks/initrd-1.1-i386.img
+
+  For more serious work, I usually use a distribution ISO image and
+  install it under qemu, then make multiple copies:
+
+	  dd if=/dev/zero of=rootfile bs=1M count=2048
+	  qemu -cdrom image.iso -hda rootfile -net user -net nic -boot d
+
+- "modprobe lg" if you built it as a module.
+
+- Run an lguest as root:
+
+      Documentation/lguest/lguest 64m vmlinux --tunnet=192.168.19.1 --block=rootfile root=/dev/lgba
+
+   Explanation:
+    64m: the amount of memory to use.
+
+    vmlinux: the kernel image found in the top of your build directory.  You
+       can also use a standard bzImage.
+
+    --tunnet=192.168.19.1: configures a "tap" device for networking with this
+       IP address.
+
+    --block=rootfile: a file or block device which becomes /dev/lgba
+       inside the guest.
+
+    root=/dev/lgba: this (and anything else on the command line) are
+       kernel boot parameters.
+
+- Configuring networking.  I usually have the host masquerade, using
+  "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE" and "echo 1 >
+  /proc/sys/net/ipv4/ip_forward".  In this example, I would configure
+  eth0 inside the guest at 192.168.19.2.
+
+  Another method is to bridge the tap device to an external interface
+  using --tunnet=bridge:<bridgename>, and perhaps run dhcp on the guest
+  to obtain an IP address.  The bridge needs to be configured first:
+  this option simply adds the tap interface to it.
+
+  A simple example on my system:
+
+    ifconfig eth0 0.0.0.0
+    brctl addbr lg0
+    ifconfig lg0 up
+    brctl addif lg0 eth0
+    dhclient lg0
+
+  Then use --tunnet=bridge:lg0 when launching the guest.
+
+  See http://linux-net.osdl.org/index.php/Bridge for general information
+  on how to get bridging working.
+
+- You can also create an inter-guest network using
+  "--sharenet=<filename>": any two guests using the same file are on
+  the same network.  This file is created if it does not exist.
+
+Lguest I/O model:
+
+Lguest uses a simplified DMA model plus shared memory for I/O.  Guests
+can communicate with each other if they share underlying memory
+(usually by the lguest program mmaping the same file), but they can
+use any non-shared memory to communicate with the lguest process.
+
+Guests can register DMA buffers at any key (must be a valid physical
+address) using the LHCALL_BIND_DMA(key, dmabufs, num<<8|irq)
+hypercall.  "dmabufs" is the physical address of an array of "num"
+"struct lguest_dma": each contains a used_len, and an array of
+physical addresses and lengths.  When a transfer occurs, the
+"used_len" field of one of the buffers which has used_len 0 will be
+set to the length transferred and the irq will fire.
+
+Using an irq value of 0 unbinds the dma buffers.
+
+To send DMA, the LHCALL_SEND_DMA(key, dma_physaddr) hypercall is used,
+and the bytes used is written to the used_len field.  This can be 0 if
+noone else has bound a DMA buffer to that key or some other error.
+DMA buffers bound by the same guest are ignored.
+
+Cheers!
+Rusty Russell rusty@rustcorp.com.au.
+
+[1] These are on various places on the TODO list, waiting for you to
+    get annoyed enough at the limitation to fix it.
+[2] Lguest is not yet tickless when idle.  See [1].

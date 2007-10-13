@@ -34,6 +34,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
+#include <scsi/sas_ata.h>
 #include "../scsi_sas_internal.h"
 #include "../scsi_transport_api.h"
 #include "../scsi_priv.h"
@@ -42,11 +43,9 @@
 #include <linux/blkdev.h>
 #include <linux/freezer.h>
 #include <linux/scatterlist.h>
+#include <linux/libata.h>
 
 /* ---------- SCSI Host glue ---------- */
-
-#define TO_SAS_TASK(_scsi_cmd)  ((void *)(_scsi_cmd)->host_scribble)
-#define ASSIGN_SAS_TASK(_sc, _t) do { (_sc)->host_scribble = (void *) _t; } while (0)
 
 static void sas_scsi_task_done(struct sas_task *task)
 {
@@ -172,7 +171,7 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	return task;
 }
 
-static int sas_queue_up(struct sas_task *task)
+int sas_queue_up(struct sas_task *task)
 {
 	struct sas_ha_struct *sas_ha = task->dev->port->ha;
 	struct scsi_core *core = &sas_ha->core;
@@ -212,6 +211,16 @@ int sas_queuecommand(struct scsi_cmnd *cmd,
 	{
 		struct sas_ha_struct *sas_ha = dev->port->ha;
 		struct sas_task *task;
+
+		if (dev_is_sata(dev)) {
+			unsigned long flags;
+
+			spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
+			res = ata_sas_queuecmd(cmd, scsi_done,
+					       dev->sata_dev.ap);
+			spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
+			goto out;
+		}
 
 		res = -ENOMEM;
 		task = sas_create_task(cmd, dev, GFP_ATOMIC);
@@ -684,6 +693,16 @@ enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 	return EH_NOT_HANDLED;
 }
 
+int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+{
+	struct domain_device *dev = sdev_to_domain_dev(sdev);
+
+	if (dev_is_sata(dev))
+		return ata_scsi_ioctl(sdev, cmd, arg);
+
+	return -EINVAL;
+}
+
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 {
 	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
@@ -723,9 +742,16 @@ static inline struct domain_device *sas_find_target(struct scsi_target *starget)
 int sas_target_alloc(struct scsi_target *starget)
 {
 	struct domain_device *found_dev = sas_find_target(starget);
+	int res;
 
 	if (!found_dev)
 		return -ENODEV;
+
+	if (dev_is_sata(found_dev)) {
+		res = sas_ata_init_host_and_port(found_dev, starget);
+		if (res)
+			return res;
+	}
 
 	starget->hostdata = found_dev;
 	return 0;
@@ -740,6 +766,11 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 	struct sas_ha_struct *sas_ha;
 
 	BUG_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
+
+	if (dev_is_sata(dev)) {
+		ata_sas_slave_configure(scsi_dev, dev->sata_dev.ap);
+		return 0;
+	}
 
 	sas_ha = dev->port->ha;
 
@@ -764,6 +795,10 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 
 void sas_slave_destroy(struct scsi_device *scsi_dev)
 {
+	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
+
+	if (dev_is_sata(dev))
+		ata_port_disable(dev->sata_dev.ap);
 }
 
 int sas_change_queue_depth(struct scsi_device *scsi_dev, int new_depth)
@@ -980,8 +1015,36 @@ void sas_task_abort(struct sas_task *task)
 		return;
 	}
 
+	if (dev_is_sata(task->dev)) {
+		sas_ata_task_abort(task);
+		return;
+	}
+
 	scsi_req_abort_cmd(sc);
 	scsi_schedule_eh(sc->device->host);
+}
+
+int sas_slave_alloc(struct scsi_device *scsi_dev)
+{
+	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
+
+	if (dev_is_sata(dev))
+		return ata_sas_port_init(dev->sata_dev.ap);
+
+	return 0;
+}
+
+void sas_target_destroy(struct scsi_target *starget)
+{
+	struct domain_device *found_dev = sas_find_target(starget);
+
+	if (!found_dev)
+		return;
+
+	if (dev_is_sata(found_dev))
+		ata_sas_port_destroy(found_dev->sata_dev.ap);
+
+	return;
 }
 
 EXPORT_SYMBOL_GPL(sas_queuecommand);
@@ -997,3 +1060,6 @@ EXPORT_SYMBOL_GPL(sas_phy_reset);
 EXPORT_SYMBOL_GPL(sas_phy_enable);
 EXPORT_SYMBOL_GPL(sas_eh_device_reset_handler);
 EXPORT_SYMBOL_GPL(sas_eh_bus_reset_handler);
+EXPORT_SYMBOL_GPL(sas_slave_alloc);
+EXPORT_SYMBOL_GPL(sas_target_destroy);
+EXPORT_SYMBOL_GPL(sas_ioctl);

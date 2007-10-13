@@ -136,7 +136,7 @@ void auide_outl(u32 addr, unsigned long port);
 void auide_outsw(unsigned long port, void *addr, u32 count);
 void auide_outsl(unsigned long port, void *addr, u32 count);
 static void auide_tune_drive(ide_drive_t *drive, byte pio);
-static int auide_tune_chipset (ide_drive_t *drive, u8 speed);
+static int auide_tune_chipset(ide_drive_t *drive, u8 speed);
 static int auide_ddma_init( _auide_hwif *auide );
 static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif);
 int __init auide_probe(void);

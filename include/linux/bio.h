@@ -24,6 +24,8 @@
 #include <linux/mempool.h>
 #include <linux/ioprio.h>
 
+#ifdef CONFIG_BLOCK
+
 /* Platforms may set this to teach the BIO layer about IOMMU hardware. */
 #include <asm/io.h>
 
@@ -62,7 +64,7 @@ struct bio_vec {
 
 struct bio_set;
 struct bio;
-typedef int (bio_end_io_t) (struct bio *, unsigned int, int);
+typedef void (bio_end_io_t) (struct bio *, int);
 typedef void (bio_destructor_t) (struct bio *);
 
 /*
@@ -224,7 +226,7 @@ struct bio {
 #define BIO_SEG_BOUNDARY(q, b1, b2) \
 	BIOVEC_SEG_BOUNDARY((q), __BVEC_END((b1)), __BVEC_START((b2)))
 
-#define bio_io_error(bio, bytes) bio_endio((bio), (bytes), -EIO)
+#define bio_io_error(bio) bio_endio((bio), -EIO)
 
 /*
  * drivers should not use the __ version unless they _really_ want to
@@ -284,7 +286,7 @@ extern struct bio *bio_alloc_bioset(gfp_t, int, struct bio_set *);
 extern void bio_put(struct bio *);
 extern void bio_free(struct bio *, struct bio_set *);
 
-extern void bio_endio(struct bio *, unsigned int, int);
+extern void bio_endio(struct bio *, int);
 struct request_queue;
 extern int bio_phys_segments(struct request_queue *, struct bio *);
 extern int bio_hw_segments(struct request_queue *, struct bio *);
@@ -361,4 +363,5 @@ static inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
 	__bio_kmap_irq((bio), (bio)->bi_idx, (flags))
 #define bio_kunmap_irq(buf,flags)	__bio_kunmap_irq(buf, flags)
 
+#endif /* CONFIG_BLOCK */
 #endif /* __LINUX_BIO_H */

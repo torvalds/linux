@@ -1,0 +1,3 @@
+config OF_DEVICE
+	def_bool y
+	depends on OF && (SPARC || PPC_OF)

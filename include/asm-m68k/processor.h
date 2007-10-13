@@ -38,11 +38,7 @@ static inline void wrusp(unsigned long usp)
 #ifndef CONFIG_SUN3
 #define TASK_SIZE	(0xF0000000UL)
 #else
-#ifdef __ASSEMBLY__
-#define TASK_SIZE	(0x0E000000)
-#else
 #define TASK_SIZE	(0x0E000000UL)
-#endif
 #endif
 
 /* This decides where the kernel will search for a free chunk of vm

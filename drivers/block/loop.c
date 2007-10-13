@@ -529,7 +529,7 @@ static struct bio *loop_get_bio(struct loop_device *lo)
 	return bio;
 }
 
-static int loop_make_request(request_queue_t *q, struct bio *old_bio)
+static int loop_make_request(struct request_queue *q, struct bio *old_bio)
 {
 	struct loop_device *lo = q->queuedata;
 	int rw = bio_rw(old_bio);
@@ -551,14 +551,14 @@ static int loop_make_request(request_queue_t *q, struct bio *old_bio)
 
 out:
 	spin_unlock_irq(&lo->lo_lock);
-	bio_io_error(old_bio, old_bio->bi_size);
+	bio_io_error(old_bio);
 	return 0;
 }
 
 /*
  * kick off io on the underlying address space
  */
-static void loop_unplug(request_queue_t *q)
+static void loop_unplug(struct request_queue *q)
 {
 	struct loop_device *lo = q->queuedata;
 
@@ -580,7 +580,7 @@ static inline void loop_handle_bio(struct loop_device *lo, struct bio *bio)
 		bio_put(bio);
 	} else {
 		int ret = do_bio_filebacked(lo, bio);
-		bio_endio(bio, bio->bi_size, ret);
+		bio_endio(bio, ret);
 	}
 }
 

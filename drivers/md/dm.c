@@ -80,7 +80,7 @@ struct mapped_device {
 
 	unsigned long flags;
 
-	request_queue_t *queue;
+	struct request_queue *queue;
 	struct gendisk *disk;
 	char name[16];
 
@@ -484,22 +484,19 @@ static void dec_pending(struct dm_io *io, int error)
 			blk_add_trace_bio(io->md->queue, io->bio,
 					  BLK_TA_COMPLETE);
 
-			bio_endio(io->bio, io->bio->bi_size, io->error);
+			bio_endio(io->bio, io->error);
 		}
 
 		free_io(io->md, io);
 	}
 }
 
-static int clone_endio(struct bio *bio, unsigned int done, int error)
+static void clone_endio(struct bio *bio, int error)
 {
 	int r = 0;
 	struct dm_target_io *tio = bio->bi_private;
 	struct mapped_device *md = tio->io->md;
 	dm_endio_fn endio = tio->ti->type->end_io;
-
-	if (bio->bi_size)
-		return 1;
 
 	if (!bio_flagged(bio, BIO_UPTODATE) && !error)
 		error = -EIO;
@@ -514,7 +511,7 @@ static int clone_endio(struct bio *bio, unsigned int done, int error)
 			error = r;
 		else if (r == DM_ENDIO_INCOMPLETE)
 			/* The target will handle the io */
-			return 1;
+			return;
 		else if (r) {
 			DMWARN("unimplemented target endio return value: %d", r);
 			BUG();
@@ -530,7 +527,6 @@ static int clone_endio(struct bio *bio, unsigned int done, int error)
 
 	bio_put(bio);
 	free_tio(md, tio);
-	return r;
 }
 
 static sector_t max_io_len(struct mapped_device *md,
@@ -580,8 +576,8 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 		/* the bio has been remapped so dispatch it */
 
 		blk_add_trace_remap(bdev_get_queue(clone->bi_bdev), clone,
-				    tio->io->bio->bi_bdev->bd_dev, sector,
-				    clone->bi_sector);
+				    tio->io->bio->bi_bdev->bd_dev,
+				    clone->bi_sector, sector);
 
 		generic_make_request(clone);
 	} else if (r < 0 || r == DM_MAPIO_REQUEUE) {
@@ -761,7 +757,7 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
 
 	ci.map = dm_get_table(md);
 	if (!ci.map) {
-		bio_io_error(bio, bio->bi_size);
+		bio_io_error(bio);
 		return;
 	}
 
@@ -792,7 +788,7 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
  * The request function that just remaps the bio built up by
  * dm_merge_bvec.
  */
-static int dm_request(request_queue_t *q, struct bio *bio)
+static int dm_request(struct request_queue *q, struct bio *bio)
 {
 	int r;
 	int rw = bio_data_dir(bio);
@@ -803,7 +799,7 @@ static int dm_request(request_queue_t *q, struct bio *bio)
 	 * guarantee it is (or can be) handled by the targets correctly.
 	 */
 	if (unlikely(bio_barrier(bio))) {
-		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
 
@@ -820,13 +816,13 @@ static int dm_request(request_queue_t *q, struct bio *bio)
 		up_read(&md->io_lock);
 
 		if (bio_rw(bio) == READA) {
-			bio_io_error(bio, bio->bi_size);
+			bio_io_error(bio);
 			return 0;
 		}
 
 		r = queue_io(md, bio);
 		if (r < 0) {
-			bio_io_error(bio, bio->bi_size);
+			bio_io_error(bio);
 			return 0;
 
 		} else if (r == 0)
@@ -844,7 +840,7 @@ static int dm_request(request_queue_t *q, struct bio *bio)
 	return 0;
 }
 
-static int dm_flush_all(request_queue_t *q, struct gendisk *disk,
+static int dm_flush_all(struct request_queue *q, struct gendisk *disk,
 			sector_t *error_sector)
 {
 	struct mapped_device *md = q->queuedata;
@@ -859,7 +855,7 @@ static int dm_flush_all(request_queue_t *q, struct gendisk *disk,
 	return ret;
 }
 
-static void dm_unplug_all(request_queue_t *q)
+static void dm_unplug_all(struct request_queue *q)
 {
 	struct mapped_device *md = q->queuedata;
 	struct dm_table *map = dm_get_table(md);
@@ -1110,7 +1106,7 @@ static void __set_size(struct mapped_device *md, sector_t size)
 
 static int __bind(struct mapped_device *md, struct dm_table *t)
 {
-	request_queue_t *q = md->queue;
+	struct request_queue *q = md->queue;
 	sector_t size;
 
 	size = dm_table_get_size(t);

@@ -431,7 +431,13 @@ struct iw_public_data {
  * Those may be called only within the kernel.
  */
 
-/* functions that may be called by driver modules */
+/* First : function strictly used inside the kernel */
+
+/* Handle /proc/net/wireless, called in net/code/dev.c */
+extern int dev_get_wireless_info(char * buffer, char **start, off_t offset,
+				 int length);
+
+/* Second : functions that may be called by driver modules */
 
 /* Send a single event to user space */
 extern void wireless_send_event(struct net_device *	dev,

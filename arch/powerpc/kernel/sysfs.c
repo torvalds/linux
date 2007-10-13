@@ -197,6 +197,36 @@ SYSFS_PMCSETUP(pa6t_pmc3, SPRN_PA6T_PMC3);
 SYSFS_PMCSETUP(pa6t_pmc4, SPRN_PA6T_PMC4);
 SYSFS_PMCSETUP(pa6t_pmc5, SPRN_PA6T_PMC5);
 
+#ifdef CONFIG_DEBUG_KERNEL
+SYSFS_PMCSETUP(hid0, SPRN_HID0);
+SYSFS_PMCSETUP(hid1, SPRN_HID1);
+SYSFS_PMCSETUP(hid4, SPRN_HID4);
+SYSFS_PMCSETUP(hid5, SPRN_HID5);
+SYSFS_PMCSETUP(ima0, SPRN_PA6T_IMA0);
+SYSFS_PMCSETUP(ima1, SPRN_PA6T_IMA1);
+SYSFS_PMCSETUP(ima2, SPRN_PA6T_IMA2);
+SYSFS_PMCSETUP(ima3, SPRN_PA6T_IMA3);
+SYSFS_PMCSETUP(ima4, SPRN_PA6T_IMA4);
+SYSFS_PMCSETUP(ima5, SPRN_PA6T_IMA5);
+SYSFS_PMCSETUP(ima6, SPRN_PA6T_IMA6);
+SYSFS_PMCSETUP(ima7, SPRN_PA6T_IMA7);
+SYSFS_PMCSETUP(ima8, SPRN_PA6T_IMA8);
+SYSFS_PMCSETUP(ima9, SPRN_PA6T_IMA9);
+SYSFS_PMCSETUP(imaat, SPRN_PA6T_IMAAT);
+SYSFS_PMCSETUP(btcr, SPRN_PA6T_BTCR);
+SYSFS_PMCSETUP(pccr, SPRN_PA6T_PCCR);
+SYSFS_PMCSETUP(rpccr, SPRN_PA6T_RPCCR);
+SYSFS_PMCSETUP(der, SPRN_PA6T_DER);
+SYSFS_PMCSETUP(mer, SPRN_PA6T_MER);
+SYSFS_PMCSETUP(ber, SPRN_PA6T_BER);
+SYSFS_PMCSETUP(ier, SPRN_PA6T_IER);
+SYSFS_PMCSETUP(sier, SPRN_PA6T_SIER);
+SYSFS_PMCSETUP(siar, SPRN_PA6T_SIAR);
+SYSFS_PMCSETUP(tsr0, SPRN_PA6T_TSR0);
+SYSFS_PMCSETUP(tsr1, SPRN_PA6T_TSR1);
+SYSFS_PMCSETUP(tsr2, SPRN_PA6T_TSR2);
+SYSFS_PMCSETUP(tsr3, SPRN_PA6T_TSR3);
+#endif /* CONFIG_DEBUG_KERNEL */
 
 static SYSDEV_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
 static SYSDEV_ATTR(spurr, 0600, show_spurr, NULL);
@@ -228,6 +258,36 @@ static struct sysdev_attribute pa6t_attrs[] = {
 	_SYSDEV_ATTR(pmc3, 0600, show_pa6t_pmc3, store_pa6t_pmc3),
 	_SYSDEV_ATTR(pmc4, 0600, show_pa6t_pmc4, store_pa6t_pmc4),
 	_SYSDEV_ATTR(pmc5, 0600, show_pa6t_pmc5, store_pa6t_pmc5),
+#ifdef CONFIG_DEBUG_KERNEL
+	_SYSDEV_ATTR(hid0, 0600, show_hid0, store_hid0),
+	_SYSDEV_ATTR(hid1, 0600, show_hid1, store_hid1),
+	_SYSDEV_ATTR(hid4, 0600, show_hid4, store_hid4),
+	_SYSDEV_ATTR(hid5, 0600, show_hid5, store_hid5),
+	_SYSDEV_ATTR(ima0, 0600, show_ima0, store_ima0),
+	_SYSDEV_ATTR(ima1, 0600, show_ima1, store_ima1),
+	_SYSDEV_ATTR(ima2, 0600, show_ima2, store_ima2),
+	_SYSDEV_ATTR(ima3, 0600, show_ima3, store_ima3),
+	_SYSDEV_ATTR(ima4, 0600, show_ima4, store_ima4),
+	_SYSDEV_ATTR(ima5, 0600, show_ima5, store_ima5),
+	_SYSDEV_ATTR(ima6, 0600, show_ima6, store_ima6),
+	_SYSDEV_ATTR(ima7, 0600, show_ima7, store_ima7),
+	_SYSDEV_ATTR(ima8, 0600, show_ima8, store_ima8),
+	_SYSDEV_ATTR(ima9, 0600, show_ima9, store_ima9),
+	_SYSDEV_ATTR(imaat, 0600, show_imaat, store_imaat),
+	_SYSDEV_ATTR(btcr, 0600, show_btcr, store_btcr),
+	_SYSDEV_ATTR(pccr, 0600, show_pccr, store_pccr),
+	_SYSDEV_ATTR(rpccr, 0600, show_rpccr, store_rpccr),
+	_SYSDEV_ATTR(der, 0600, show_der, store_der),
+	_SYSDEV_ATTR(mer, 0600, show_mer, store_mer),
+	_SYSDEV_ATTR(ber, 0600, show_ber, store_ber),
+	_SYSDEV_ATTR(ier, 0600, show_ier, store_ier),
+	_SYSDEV_ATTR(sier, 0600, show_sier, store_sier),
+	_SYSDEV_ATTR(siar, 0600, show_siar, store_siar),
+	_SYSDEV_ATTR(tsr0, 0600, show_tsr0, store_tsr0),
+	_SYSDEV_ATTR(tsr1, 0600, show_tsr1, store_tsr1),
+	_SYSDEV_ATTR(tsr2, 0600, show_tsr2, store_tsr2),
+	_SYSDEV_ATTR(tsr3, 0600, show_tsr3, store_tsr3),
+#endif /* CONFIG_DEBUG_KERNEL */
 };
 
 
@@ -380,12 +440,14 @@ int cpu_add_sysdev_attr_group(struct attribute_group *attrs)
 {
 	int cpu;
 	struct sys_device *sysdev;
+	int ret;
 
 	mutex_lock(&cpu_mutex);
 
 	for_each_possible_cpu(cpu) {
 		sysdev = get_cpu_sysdev(cpu);
-		sysfs_create_group(&sysdev->kobj, attrs);
+		ret = sysfs_create_group(&sysdev->kobj, attrs);
+		WARN_ON(ret != 0);
 	}
 
 	mutex_unlock(&cpu_mutex);

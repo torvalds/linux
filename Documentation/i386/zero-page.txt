@@ -1,3 +1,13 @@
+---------------------------------------------------------------------------
+!!!!!!!!!!!!!!!WARNING!!!!!!!!
+The zero page is a kernel internal data structure, not a stable ABI.  It might change
+without warning and the kernel has no way to detect old version of it.
+If you're writing some external code like a boot loader you should only use
+the stable versioned real mode boot protocol described in boot.txt. Otherwise the kernel
+might break you at any time.
+!!!!!!!!!!!!!WARNING!!!!!!!!!!!
+----------------------------------------------------------------------------
+
 Summary of boot_params layout (kernel point of view)
      ( collected by Hans Lermen and Martin Mares )
  

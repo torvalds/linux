@@ -170,8 +170,8 @@ void menu_build_message_list(struct menu *menu)
 		     menu->file == NULL ? "Root Menu" : menu->file->name,
 		     menu->lineno);
 
-	if (menu->sym != NULL && menu->sym->help != NULL)
-		message__add(menu->sym->help, menu->sym->name,
+	if (menu->sym != NULL && menu_has_help(menu))
+		message__add(menu_get_help(menu), menu->sym->name,
 			     menu->file == NULL ? "Root Menu" : menu->file->name,
 			     menu->lineno);
 
@@ -212,7 +212,9 @@ void menu__xgettext(void)
 	struct message *m = message__list;
 
 	while (m != NULL) {
-		message__print_gettext_msgid_msgstr(m);
+		/* skip empty lines ("") */
+		if (strlen(m->msg) > sizeof("\"\""))
+			message__print_gettext_msgid_msgstr(m);
 		m = m->next;
 	}
 }

@@ -28,6 +28,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/fs.h>
 #include <linux/agpgart.h>
 #include <asm/uaccess.h>
 #include "agp.h"

@@ -297,7 +297,6 @@ static struct video_device rtrack2_radio=
 	.owner		= THIS_MODULE,
 	.name		= "RadioTrack II radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= 0,
 	.fops           = &rtrack2_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,

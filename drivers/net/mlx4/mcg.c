@@ -359,7 +359,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(mlx4_multicast_detach);
 
-int __devinit mlx4_init_mcg_table(struct mlx4_dev *dev)
+int mlx4_init_mcg_table(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;

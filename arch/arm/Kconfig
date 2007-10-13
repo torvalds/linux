@@ -324,6 +324,12 @@ config ARCH_NS9XXX
 
 	  <http://www.digi.com/products/microprocessors/index.jsp>
 
+config ARCH_MXC
+	bool "Freescale MXC/iMX-based"
+	select ARCH_MTD_XIP
+	help
+	  Support for Freescale MXC/iMX-based family of processors
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	help
@@ -335,6 +341,7 @@ config ARCH_PXA
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Intel's PXA2XX processor line.
 
@@ -432,6 +439,7 @@ source "arch/arm/mach-omap1/Kconfig"
 source "arch/arm/mach-omap2/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
+source "arch/arm/plat-s3c/Kconfig"
 
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
@@ -455,6 +463,8 @@ source "arch/arm/mach-aaec2000/Kconfig"
 source "arch/arm/mach-realview/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
+
+source "arch/arm/plat-mxc/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
 
@@ -711,7 +721,8 @@ config LEDS
 
 config LEDS_TIMER
 	bool "Timer LED" if (!ARCH_CDB89712 && !ARCH_OMAP) || \
-			    MACH_OMAP_H2 || MACH_OMAP_PERSEUS2
+			    OMAP_OSK_MISTRAL || MACH_OMAP_H2 \
+			    || MACH_OMAP_PERSEUS2
 	depends on LEDS
 	depends on !GENERIC_CLOCKEVENTS
 	default y if ARCH_EBSA110
@@ -728,7 +739,9 @@ config LEDS_TIMER
 
 config LEDS_CPU
 	bool "CPU usage LED" if (!ARCH_CDB89712 && !ARCH_EBSA110 && \
-			!ARCH_OMAP) || MACH_OMAP_H2 || MACH_OMAP_PERSEUS2
+			!ARCH_OMAP) \
+			|| OMAP_OSK_MISTRAL || MACH_OMAP_H2 \
+			|| MACH_OMAP_PERSEUS2
 	depends on LEDS
 	help
 	  If you say Y here, the red LED will be used to give a good real
@@ -980,8 +993,6 @@ source "drivers/parport/Kconfig"
 source "drivers/pnp/Kconfig"
 
 source "drivers/block/Kconfig"
-
-source "drivers/acorn/block/Kconfig"
 
 if PCMCIA || ARCH_CLPS7500 || ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \

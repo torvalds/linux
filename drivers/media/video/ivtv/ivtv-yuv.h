@@ -18,7 +18,28 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef IVTV_YUV_H
+#define IVTV_YUV_H
+
+/* Buffers on hardware offsets */
+#define IVTV_YUV_BUFFER_OFFSET    0x001a8600	/* First YUV Buffer */
+#define IVTV_YUV_BUFFER_OFFSET_1  0x00240400	/* Second YUV Buffer */
+#define IVTV_YUV_BUFFER_OFFSET_2  0x002d8200	/* Third YUV Buffer */
+#define IVTV_YUV_BUFFER_OFFSET_3  0x00370000	/* Fourth YUV Buffer */
+#define IVTV_YUV_BUFFER_UV_OFFSET 0x65400	/* Offset to UV Buffer */
+
+/* Offset to filter table in firmware */
+#define IVTV_YUV_HORIZONTAL_FILTER_OFFSET 0x025d8
+#define IVTV_YUV_VERTICAL_FILTER_OFFSET 0x03358
+
+#define IVTV_YUV_UPDATE_HORIZONTAL  0x01
+#define IVTV_YUV_UPDATE_VERTICAL    0x02
+
+extern const u32 yuv_offset[4];
+
 int ivtv_yuv_filter_check(struct ivtv *itv);
 int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args);
 void ivtv_yuv_close(struct ivtv *itv);
 void ivtv_yuv_work_handler (struct ivtv *itv);
+
+#endif

@@ -45,7 +45,7 @@ typedef struct xtalk_piomap_s *xtalk_piomap_t;
 #define	XIO_PACKED(x)	(((x)&XIO_PORT_BITS) != 0)
 #define	XIO_ADDR(x)	((x)&XIO_ADDR_BITS)
 #define	XIO_PORT(x)	((xwidgetnum_t)(((x)&XIO_PORT_BITS) >> XIO_PORT_SHIFT))
-#define	XIO_PACK(p,o)	((((uint64_t)(p))<<XIO_PORT_SHIFT) | ((o)&XIO_ADDR_BITS))
+#define	XIO_PACK(p, o)	((((uint64_t)(p))<<XIO_PORT_SHIFT) | ((o)&XIO_ADDR_BITS))
 
 #endif /* !__ASSEMBLY__ */
 

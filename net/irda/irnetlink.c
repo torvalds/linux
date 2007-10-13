@@ -1,7 +1,7 @@
 /*
  * IrDA netlink layer, for stack configuration.
  *
- * Copyright (c) 2007 Samuel Ortiz <samuel@sortiz>
+ * Copyright (c) 2007 Samuel Ortiz <samuel@sortiz.org>
  *
  * Partly based on the 802.11 nelink implementation
  * (see net/wireless/nl80211.c) which is:
@@ -15,6 +15,7 @@
 
 #include <linux/socket.h>
 #include <linux/irda.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/irda/irda.h>
 #include <net/irda/irlap.h>
@@ -30,7 +31,7 @@ static struct genl_family irda_nl_family = {
 	.maxattr = IRDA_NL_CMD_MAX,
 };
 
-static struct net_device * ifname_to_netdev(struct genl_info *info)
+static struct net_device * ifname_to_netdev(struct net *net, struct genl_info *info)
 {
 	char * ifname;
 
@@ -41,7 +42,7 @@ static struct net_device * ifname_to_netdev(struct genl_info *info)
 
 	IRDA_DEBUG(5, "%s(): Looking for %s\n", __FUNCTION__, ifname);
 
-	return dev_get_by_name(ifname);
+	return dev_get_by_name(net, ifname);
 }
 
 static int irda_nl_set_mode(struct sk_buff *skb, struct genl_info *info)
@@ -57,7 +58,7 @@ static int irda_nl_set_mode(struct sk_buff *skb, struct genl_info *info)
 
 	IRDA_DEBUG(5, "%s(): Switching to mode: %d\n", __FUNCTION__, mode);
 
-	dev = ifname_to_netdev(info);
+	dev = ifname_to_netdev(&init_net, info);
 	if (!dev)
 		return -ENODEV;
 
@@ -82,7 +83,7 @@ static int irda_nl_get_mode(struct sk_buff *skb, struct genl_info *info)
 	void *hdr;
 	int ret = -ENOBUFS;
 
-	dev = ifname_to_netdev(info);
+	dev = ifname_to_netdev(&init_net, info);
 	if (!dev)
 		return -ENODEV;
 
@@ -106,7 +107,7 @@ static int irda_nl_get_mode(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if(nla_put_string(msg, IRDA_NL_ATTR_IFNAME,
-			  dev->name));
+			  dev->name))
 		goto err_out;
 
 	if(nla_put_u32(msg, IRDA_NL_ATTR_MODE, irlap->mode))

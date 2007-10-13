@@ -12,7 +12,7 @@ if LOGO
 
 config FB_LOGO_EXTRA
 	bool
-	depends on FB
+	depends on FB=y
 	default y if SPU_BASE
 
 config LOGO_LINUX_MONO

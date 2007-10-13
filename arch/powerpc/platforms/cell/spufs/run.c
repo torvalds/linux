@@ -18,15 +18,17 @@ void spufs_stop_callback(struct spu *spu)
 	wake_up_all(&ctx->stop_wq);
 }
 
-static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
+static inline int spu_stopped(struct spu_context *ctx, u32 *stat)
 {
 	struct spu *spu;
 	u64 pte_fault;
 
 	*stat = ctx->ops->status_read(ctx);
-	if (ctx->state != SPU_STATE_RUNNABLE)
-		return 1;
+
 	spu = ctx->spu;
+	if (ctx->state != SPU_STATE_RUNNABLE ||
+	    test_bit(SPU_SCHED_NOTIFY_ACTIVE, &ctx->sched_flags))
+		return 1;
 	pte_fault = spu->dsisr &
 	    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED);
 	return (!(*stat & SPU_STATUS_RUNNING) || pte_fault || spu->class_0_pending) ?
@@ -124,8 +126,10 @@ out:
 	return ret;
 }
 
-static int spu_run_init(struct spu_context *ctx, u32 * npc)
+static int spu_run_init(struct spu_context *ctx, u32 *npc)
 {
+	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
+
 	if (ctx->flags & SPU_CREATE_ISOLATE) {
 		unsigned long runcntl;
 
@@ -151,16 +155,20 @@ static int spu_run_init(struct spu_context *ctx, u32 * npc)
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 	}
 
+	spuctx_switch_state(ctx, SPU_UTIL_USER);
+
 	return 0;
 }
 
-static int spu_run_fini(struct spu_context *ctx, u32 * npc,
-			       u32 * status)
+static int spu_run_fini(struct spu_context *ctx, u32 *npc,
+			       u32 *status)
 {
 	int ret = 0;
 
 	*status = ctx->ops->status_read(ctx);
 	*npc = ctx->ops->npc_read(ctx);
+
+	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 	spu_release(ctx);
 
 	if (signal_pending(current))
@@ -185,11 +193,7 @@ static int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
 	if (ret)
 		return ret;
 
-	ret = spu_run_init(ctx, npc);
-	if (ret) {
-		spu_release(ctx);
-		return ret;
-	}
+	spuctx_switch_state(ctx, SPU_UTIL_USER);
 	return 0;
 }
 
@@ -201,7 +205,7 @@ static int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
  * This means we can only do a very rough approximation of POSIX
  * signal semantics.
  */
-int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
+static int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
 			  unsigned int *npc)
 {
 	int ret;
@@ -237,7 +241,7 @@ int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
 	return ret;
 }
 
-int spu_process_callback(struct spu_context *ctx)
+static int spu_process_callback(struct spu_context *ctx)
 {
 	struct spu_syscall_block s;
 	u32 ls_pointer, npc;
@@ -289,10 +293,10 @@ static inline int spu_process_events(struct spu_context *ctx)
 	return ret;
 }
 
-long spufs_run_spu(struct file *file, struct spu_context *ctx,
-		   u32 *npc, u32 *event)
+long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 {
 	int ret;
+	struct spu *spu;
 	u32 status;
 
 	if (mutex_lock_interruptible(&ctx->run_mutex))
@@ -304,6 +308,7 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 	spu_acquire(ctx);
 	if (ctx->state == SPU_STATE_SAVED) {
 		__spu_update_sched_info(ctx);
+		spu_set_timeslice(ctx);
 
 		ret = spu_activate(ctx, 0);
 		if (ret) {
@@ -314,6 +319,9 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 		/*
 		 * We have to update the scheduling priority under active_mutex
 		 * to protect against find_victim().
+		 *
+		 * No need to update the timeslice ASAP, it will get updated
+		 * once the current one has expired.
 		 */
 		spu_update_sched_info(ctx);
 	}
@@ -328,6 +336,17 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, &status));
 		if (unlikely(ret))
 			break;
+		spu = ctx->spu;
+		if (unlikely(test_and_clear_bit(SPU_SCHED_NOTIFY_ACTIVE,
+						&ctx->sched_flags))) {
+			if (!(status & SPU_STATUS_STOPPED_BY_STOP)) {
+				spu_switch_notify(spu, ctx);
+				continue;
+			}
+		}
+
+		spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
+
 		if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
 		    (status >> SPU_STOP_STATUS_SHIFT == 0x2104)) {
 			ret = spu_process_callback(ctx);
@@ -355,6 +374,7 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 	    (((status >> SPU_STOP_STATUS_SHIFT) & 0x3f00) == 0x2100) &&
 	    (ctx->state == SPU_STATE_RUNNABLE))
 		ctx->stats.libassist++;
+
 
 	ctx->ops->master_stop(ctx);
 	ret = spu_run_fini(ctx, npc, &status);

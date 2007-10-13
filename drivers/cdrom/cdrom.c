@@ -1032,6 +1032,10 @@ int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip, struct file *fp)
 	check_disk_change(ip->i_bdev);
 	return 0;
 err_release:
+	if (CDROM_CAN(CDC_LOCK) && cdi->options & CDO_LOCK) {
+		cdi->ops->lock_door(cdi, 0);
+		cdinfo(CD_OPEN, "door unlocked.\n");
+	}
 	cdi->ops->release(cdi);
 err:
 	cdi->use_count--;
@@ -2094,7 +2098,7 @@ out:
 static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 			       int lba, int nframes)
 {
-	request_queue_t *q = cdi->disk->queue;
+	struct request_queue *q = cdi->disk->queue;
 	struct request *rq;
 	struct bio *bio;
 	unsigned int len;

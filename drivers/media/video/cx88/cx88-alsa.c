@@ -3,6 +3,7 @@
  *  Support for audio capture
  *  PCI function #1 of the cx2388x.
  *
+ *    (c) 2007 Trent Piepho <xyzzy@speakeasy.org>
  *    (c) 2005,2006 Ricardo Cerqueira <v4l@cerqueira.org>
  *    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
  *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
@@ -27,7 +28,9 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/vmalloc.h>
 #include <linux/dma-mapping.h>
+#include <linux/pci.h>
 
 #include <asm/delay.h>
 #include <sound/driver.h>
@@ -46,13 +49,9 @@
 #define dprintk_core(level,fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG "%s/1: " fmt, chip->core->name , ## arg)
 
-
 /****************************************************************************
 	Data type declarations - Can be moded to a header file later
  ****************************************************************************/
-
-/* These can be replaced after done */
-#define MIXER_ADDR_LAST MAX_CX88_INPUT
 
 struct cx88_audio_dev {
 	struct cx88_core           *core;
@@ -60,7 +59,6 @@ struct cx88_audio_dev {
 
 	/* pci i/o */
 	struct pci_dev             *pci;
-	unsigned char              pci_rev,pci_lat;
 
 	/* audio controls */
 	int                        irq;
@@ -68,24 +66,17 @@ struct cx88_audio_dev {
 	struct snd_card            *card;
 
 	spinlock_t                 reg_lock;
+	atomic_t		   count;
 
 	unsigned int               dma_size;
 	unsigned int               period_size;
 	unsigned int               num_periods;
 
-	struct videobuf_dmabuf dma_risc;
+	struct videobuf_dmabuf     *dma_risc;
 
-	int                        mixer_volume[MIXER_ADDR_LAST+1][2];
-	int                        capture_source[MIXER_ADDR_LAST+1][2];
+	struct cx88_buffer	   *buf;
 
-	long int read_count;
-	long int read_offset;
-
-	struct cx88_buffer   *buf;
-
-	long opened;
-	struct snd_pcm_substream *substream;
-
+	struct snd_pcm_substream   *substream;
 };
 typedef struct cx88_audio_dev snd_cx88_card_t;
 
@@ -98,7 +89,6 @@ typedef struct cx88_audio_dev snd_cx88_card_t;
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
-static struct snd_card *snd_cx88_cards[SNDRV_CARDS];
 
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable cx88x soundcard. default enabled.");
@@ -136,38 +126,39 @@ static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 	struct cx88_core *core=chip->core;
 	struct sram_channel *audio_ch = &cx88_sram_channels[SRAM_CH25];
 
-
-	dprintk(1, "Starting audio DMA for %i bytes/line and %i (%i) lines at address %08x\n",buf->bpl, chip->num_periods, audio_ch->fifo_size / buf->bpl, audio_ch->fifo_start);
+	/* Make sure RISC/FIFO are off before changing FIFO/RISC settings */
+	cx_clear(MO_AUD_DMACNTRL, 0x11);
 
 	/* setup fifo + format - out channel */
-	cx88_sram_channel_setup(chip->core, &cx88_sram_channels[SRAM_CH25],
-				buf->bpl, buf->risc.dma);
+	cx88_sram_channel_setup(chip->core, audio_ch, buf->bpl, buf->risc.dma);
 
 	/* sets bpl size */
 	cx_write(MO_AUDD_LNGTH, buf->bpl);
 
 	/* reset counter */
-	cx_write(MO_AUDD_GPCNTRL,GP_COUNT_CONTROL_RESET);
+	cx_write(MO_AUDD_GPCNTRL, GP_COUNT_CONTROL_RESET);
+	atomic_set(&chip->count, 0);
 
-	dprintk(1,"Enabling IRQ, setting mask from 0x%x to 0x%x\n",chip->core->pci_irqmask,(chip->core->pci_irqmask | 0x02));
-	/* enable irqs */
-	cx_set(MO_PCI_INTMSK, chip->core->pci_irqmask | 0x02);
-
+	dprintk(1, "Start audio DMA, %d B/line, %d lines/FIFO, %d periods, %d "
+		"byte buffer\n", buf->bpl, cx_read(audio_ch->cmds_start + 8)>>1,
+		chip->num_periods, buf->bpl * chip->num_periods);
 
 	/* Enables corresponding bits at AUD_INT_STAT */
-	cx_write(MO_AUD_INTMSK,
-			(1<<16)|
-			(1<<12)|
-			(1<<4)|
-			(1<<0)
-			);
+	cx_write(MO_AUD_INTMSK, AUD_INT_OPC_ERR | AUD_INT_DN_SYNC |
+				AUD_INT_DN_RISCI2 | AUD_INT_DN_RISCI1);
+
+	/* Clean any pending interrupt bits already set */
+	cx_write(MO_AUD_INTSTAT, ~0);
+
+	/* enable audio irqs */
+	cx_set(MO_PCI_INTMSK, chip->core->pci_irqmask | PCI_INT_AUDINT);
 
 	/* start dma */
 	cx_set(MO_DEV_CNTRL2, (1<<5)); /* Enables Risc Processor */
 	cx_set(MO_AUD_DMACNTRL, 0x11); /* audio downstream FIFO and RISC enable */
 
 	if (debug)
-		cx88_sram_channel_dump(chip->core, &cx88_sram_channels[SRAM_CH25]);
+		cx88_sram_channel_dump(chip->core, audio_ch);
 
 	return 0;
 }
@@ -184,13 +175,9 @@ static int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
 	cx_clear(MO_AUD_DMACNTRL, 0x11);
 
 	/* disable irqs */
-	cx_clear(MO_PCI_INTMSK, 0x02);
-	cx_clear(MO_AUD_INTMSK,
-			(1<<16)|
-			(1<<12)|
-			(1<<4)|
-			(1<<0)
-			);
+	cx_clear(MO_PCI_INTMSK, PCI_INT_AUDINT);
+	cx_clear(MO_AUD_INTMSK, AUD_INT_OPC_ERR | AUD_INT_DN_SYNC |
+				AUD_INT_DN_RISCI2 | AUD_INT_DN_RISCI1);
 
 	if (debug)
 		cx88_sram_channel_dump(chip->core, &cx88_sram_channels[SRAM_CH25]);
@@ -198,7 +185,7 @@ static int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
 	return 0;
 }
 
-#define MAX_IRQ_LOOP 10
+#define MAX_IRQ_LOOP 50
 
 /*
  * BOARD Specific: IRQ dma bits
@@ -223,42 +210,32 @@ static void cx8801_aud_irq(snd_cx88_card_t *chip)
 {
 	struct cx88_core *core = chip->core;
 	u32 status, mask;
-	u32 count;
 
 	status = cx_read(MO_AUD_INTSTAT);
 	mask   = cx_read(MO_AUD_INTMSK);
-	if (0 == (status & mask)) {
-		spin_unlock(&chip->reg_lock);
+	if (0 == (status & mask))
 		return;
-	}
 	cx_write(MO_AUD_INTSTAT, status);
 	if (debug > 1  ||  (status & mask & ~0xff))
 		cx88_print_irqbits(core->name, "irq aud",
 				   cx88_aud_irqs, ARRAY_SIZE(cx88_aud_irqs),
 				   status, mask);
 	/* risc op code error */
-	if (status & (1 << 16)) {
-		printk(KERN_WARNING "%s/0: audio risc op code error\n",core->name);
+	if (status & AUD_INT_OPC_ERR) {
+		printk(KERN_WARNING "%s/1: Audio risc op code error\n",core->name);
 		cx_clear(MO_AUD_DMACNTRL, 0x11);
 		cx88_sram_channel_dump(core, &cx88_sram_channels[SRAM_CH25]);
 	}
-
-	/* risc1 downstream */
-	if (status & 0x01) {
-		spin_lock(&chip->reg_lock);
-		count = cx_read(MO_AUDD_GPCNT);
-		spin_unlock(&chip->reg_lock);
-		if (chip->read_count == 0)
-			chip->read_count += chip->dma_size;
+	if (status & AUD_INT_DN_SYNC) {
+		dprintk(1, "Downstream sync error\n");
+		cx_write(MO_AUDD_GPCNTRL, GP_COUNT_CONTROL_RESET);
+		return;
 	}
-
-	if  (chip->read_count >= chip->period_size) {
-		dprintk(2, "Elapsing period\n");
+	/* risc1 downstream */
+	if (status & AUD_INT_DN_RISCI1) {
+		atomic_set(&chip->count, cx_read(MO_AUDD_GPCNT));
 		snd_pcm_period_elapsed(chip->substream);
 	}
-
-	dprintk(3,"Leaving audio IRQ handler...\n");
-
 	/* FIXME: Any other status should deserve a special handling? */
 }
 
@@ -273,27 +250,26 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 	int loop, handled = 0;
 
 	for (loop = 0; loop < MAX_IRQ_LOOP; loop++) {
-		status = cx_read(MO_PCI_INTSTAT) & (core->pci_irqmask | 0x02);
+		status = cx_read(MO_PCI_INTSTAT) &
+			(core->pci_irqmask | PCI_INT_AUDINT);
 		if (0 == status)
 			goto out;
-		dprintk( 3, "cx8801_irq\n" );
-		dprintk( 3, "    loop: %d/%d\n", loop, MAX_IRQ_LOOP );
-		dprintk( 3, "    status: %d\n", status );
+		dprintk(3, "cx8801_irq loop %d/%d, status %x\n",
+			loop, MAX_IRQ_LOOP, status);
 		handled = 1;
 		cx_write(MO_PCI_INTSTAT, status);
 
-		if (status & 0x02)
-		{
-			dprintk( 2, "    ALSA IRQ handling\n" );
+		if (status & core->pci_irqmask)
+			cx88_core_irq(core, status);
+		if (status & PCI_INT_AUDINT)
 			cx8801_aud_irq(chip);
-		}
-	};
+	}
 
 	if (MAX_IRQ_LOOP == loop) {
-		dprintk( 0, "clearing mask\n" );
-		dprintk(1,"%s/0: irq loop -- clearing mask\n",
+		printk(KERN_ERR
+		       "%s/1: IRQ loop detected, disabling interrupts\n",
 		       core->name);
-		cx_clear(MO_PCI_INTMSK,0x02);
+		cx_clear(MO_PCI_INTMSK, PCI_INT_AUDINT);
 	}
 
  out:
@@ -306,14 +282,15 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2,"Freeing buffer\n");
-	videobuf_pci_dma_unmap(chip->pci, &chip->dma_risc);
-	videobuf_dma_free(&chip->dma_risc);
+	videobuf_pci_dma_unmap(chip->pci, chip->dma_risc);
+	videobuf_dma_free(chip->dma_risc);
 	btcx_riscmem_free(chip->pci,&chip->buf->risc);
 	kfree(chip->buf);
 
+	chip->dma_risc = NULL;
 	chip->dma_size = 0;
 
-       return 0;
+	return 0;
 }
 
 /****************************************************************************
@@ -323,6 +300,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 /*
  * Digital hardware definition
  */
+#define DEFAULT_FIFO_SIZE	4096
 static struct snd_pcm_hardware snd_cx88_digital_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
@@ -333,21 +311,17 @@ static struct snd_pcm_hardware snd_cx88_digital_hw = {
 	.rates =		SNDRV_PCM_RATE_48000,
 	.rate_min =		48000,
 	.rate_max =		48000,
-	.channels_min = 1,
+	.channels_min = 2,
 	.channels_max = 2,
-	.buffer_bytes_max = (2*2048),
-	.period_bytes_min = 2048,
-	.period_bytes_max = 2048,
-	.periods_min = 2,
-	.periods_max = 2,
+	/* Analog audio output will be full of clicks and pops if there
+	   are not exactly four lines in the SRAM FIFO buffer.  */
+	.period_bytes_min = DEFAULT_FIFO_SIZE/4,
+	.period_bytes_max = DEFAULT_FIFO_SIZE/4,
+	.periods_min = 1,
+	.periods_max = 1024,
+	.buffer_bytes_max = (1024*1024),
 };
 
-/*
- * audio pcm capture runtime free
- */
-static void snd_card_cx88_runtime_free(struct snd_pcm_runtime *runtime)
-{
-}
 /*
  * audio pcm capture open callback
  */
@@ -357,26 +331,24 @@ static int snd_cx88_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if (test_and_set_bit(0, &chip->opened))
-		return -EBUSY;
-
-	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	err = snd_pcm_hw_constraint_pow2(runtime, 0, SNDRV_PCM_HW_PARAM_PERIODS);
 	if (err < 0)
 		goto _error;
 
 	chip->substream = substream;
 
-	chip->read_count = 0;
-	chip->read_offset = 0;
-
-	runtime->private_free = snd_card_cx88_runtime_free;
 	runtime->hw = snd_cx88_digital_hw;
+
+	if (cx88_sram_channels[SRAM_CH25].fifo_size != DEFAULT_FIFO_SIZE) {
+		unsigned int bpl = cx88_sram_channels[SRAM_CH25].fifo_size / 4;
+		bpl &= ~7; /* must be multiple of 8 */
+		runtime->hw.period_bytes_min = bpl;
+		runtime->hw.period_bytes_max = bpl;
+	}
 
 	return 0;
 _error:
 	dprintk(1,"Error opening PCM!\n");
-	clear_bit(0, &chip->opened);
-	smp_mb__after_clear_bit();
 	return err;
 }
 
@@ -385,11 +357,6 @@ _error:
  */
 static int snd_cx88_close(struct snd_pcm_substream *substream)
 {
-	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
-
-	clear_bit(0, &chip->opened);
-	smp_mb__after_clear_bit();
-
 	return 0;
 }
 
@@ -400,55 +367,67 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 			      struct snd_pcm_hw_params * hw_params)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
+	struct videobuf_dmabuf *dma;
+
 	struct cx88_buffer *buf;
+	int ret;
 
 	if (substream->runtime->dma_area) {
 		dsp_buffer_free(chip);
 		substream->runtime->dma_area = NULL;
 	}
 
-
 	chip->period_size = params_period_bytes(hw_params);
 	chip->num_periods = params_periods(hw_params);
 	chip->dma_size = chip->period_size * params_periods(hw_params);
 
 	BUG_ON(!chip->dma_size);
+	BUG_ON(chip->num_periods & (chip->num_periods-1));
 
-	dprintk(1,"Setting buffer\n");
-
-	buf = kzalloc(sizeof(*buf),GFP_KERNEL);
+	buf = videobuf_pci_alloc(sizeof(*buf));
 	if (NULL == buf)
 		return -ENOMEM;
 
 	buf->vb.memory = V4L2_MEMORY_MMAP;
+	buf->vb.field  = V4L2_FIELD_NONE;
 	buf->vb.width  = chip->period_size;
+	buf->bpl       = chip->period_size;
 	buf->vb.height = chip->num_periods;
 	buf->vb.size   = chip->dma_size;
-	buf->vb.field  = V4L2_FIELD_NONE;
 
-	videobuf_dma_init(&buf->vb.dma);
-	videobuf_dma_init_kernel(&buf->vb.dma,PCI_DMA_FROMDEVICE,
+	dma=videobuf_to_dma(&buf->vb);
+	videobuf_dma_init(dma);
+	ret = videobuf_dma_init_kernel(dma, PCI_DMA_FROMDEVICE,
 			(PAGE_ALIGN(buf->vb.size) >> PAGE_SHIFT));
+	if (ret < 0)
+		goto error;
 
-	videobuf_pci_dma_map(chip->pci,&buf->vb.dma);
+	ret = videobuf_pci_dma_map(chip->pci,dma);
+	if (ret < 0)
+		goto error;
 
+	ret = cx88_risc_databuffer(chip->pci, &buf->risc, dma->sglist,
+				   buf->vb.width, buf->vb.height, 1);
+	if (ret < 0)
+		goto error;
 
-	cx88_risc_databuffer(chip->pci, &buf->risc,
-			buf->vb.dma.sglist,
-			buf->vb.width, buf->vb.height);
-
-	buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
+	/* Loop back to start of program */
+	buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP|RISC_IRQ1|RISC_CNT_INC);
 	buf->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 
 	buf->vb.state = STATE_PREPARED;
 
-	buf->bpl = chip->period_size;
 	chip->buf = buf;
-	chip->dma_risc = buf->vb.dma;
+	chip->dma_risc = dma;
 
-	dprintk(1,"Buffer ready at %u\n",chip->dma_risc.nr_pages);
-	substream->runtime->dma_area = chip->dma_risc.vmalloc;
+	substream->runtime->dma_area = chip->dma_risc->vmalloc;
+	substream->runtime->dma_bytes = chip->dma_size;
+	substream->runtime->dma_addr = 0;
 	return 0;
+
+error:
+	kfree(buf);
+	return ret;
 }
 
 /*
@@ -475,7 +454,6 @@ static int snd_cx88_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-
 /*
  * trigger callback
  */
@@ -484,6 +462,7 @@ static int snd_cx88_card_trigger(struct snd_pcm_substream *substream, int cmd)
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
 	int err;
 
+	/* Local interrupts are already disabled by ALSA */
 	spin_lock(&chip->reg_lock);
 
 	switch (cmd) {
@@ -510,17 +489,24 @@ static snd_pcm_uframes_t snd_cx88_pointer(struct snd_pcm_substream *substream)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	u16 count;
 
-	if (chip->read_count) {
-		chip->read_count -= snd_pcm_lib_period_bytes(substream);
-		chip->read_offset += snd_pcm_lib_period_bytes(substream);
-		if (chip->read_offset == chip->dma_size)
-			chip->read_offset = 0;
-	}
+	count = atomic_read(&chip->count);
 
-	dprintk(2, "Pointer time, will return %li, read %li\n",chip->read_offset,chip->read_count);
-	return bytes_to_frames(runtime, chip->read_offset);
+//	dprintk(2, "%s - count %d (+%u), period %d, frame %lu\n", __FUNCTION__,
+//		count, new, count & (runtime->periods-1),
+//		runtime->period_size * (count & (runtime->periods-1)));
+	return runtime->period_size * (count & (runtime->periods-1));
+}
 
+/*
+ * page callback (needed for mmap)
+ */
+static struct page *snd_cx88_page(struct snd_pcm_substream *substream,
+				unsigned long offset)
+{
+	void *pageptr = substream->runtime->dma_area + offset;
+	return vmalloc_to_page(pageptr);
 }
 
 /*
@@ -535,6 +521,7 @@ static struct snd_pcm_ops snd_cx88_pcm_ops = {
 	.prepare = snd_cx88_prepare,
 	.trigger = snd_cx88_card_trigger,
 	.pointer = snd_cx88_pointer,
+	.page = snd_cx88_page,
 };
 
 /*
@@ -562,7 +549,7 @@ static int snd_cx88_capture_volume_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *info)
 {
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = 1;
+	info->count = 2;
 	info->value.integer.min = 0;
 	info->value.integer.max = 0x3f;
 
@@ -575,8 +562,12 @@ static int snd_cx88_capture_volume_get(struct snd_kcontrol *kcontrol,
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
+	int vol = 0x3f - (cx_read(AUD_VOL_CTL) & 0x3f),
+	    bal = cx_read(AUD_BAL_CTL);
 
-	value->value.integer.value[0] = 0x3f - (cx_read(AUD_VOL_CTL) & 0x3f);
+	value->value.integer.value[(bal & 0x40) ? 0 : 1] = vol;
+	vol -= (bal & 0x3f);
+	value->value.integer.value[(bal & 0x40) ? 1 : 0] = vol < 0 ? 0 : vol;
 
 	return 0;
 }
@@ -587,16 +578,31 @@ static int snd_cx88_capture_volume_put(struct snd_kcontrol *kcontrol,
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
-	int v;
-	u32 old_control;
+	int v, b;
+	int changed = 0;
+	u32 old;
 
+	b = value->value.integer.value[1] - value->value.integer.value[0];
+	if (b < 0) {
+	    v = 0x3f - value->value.integer.value[0];
+	    b = (-b) | 0x40;
+	} else {
+	    v = 0x3f - value->value.integer.value[1];
+	}
+	/* Do we really know this will always be called with IRQs on? */
 	spin_lock_irq(&chip->reg_lock);
-	old_control = 0x3f - (cx_read(AUD_VOL_CTL) & 0x3f);
-	v = 0x3f - (value->value.integer.value[0] & 0x3f);
-	cx_andor(AUD_VOL_CTL, 0x3f, v);
+	old = cx_read(AUD_VOL_CTL);
+	if (v != (old & 0x3f)) {
+	    cx_write(AUD_VOL_CTL, (old & ~0x3f) | v);
+	    changed = 1;
+	}
+	if (cx_read(AUD_BAL_CTL) != b) {
+	    cx_write(AUD_BAL_CTL, b);
+	    changed = 1;
+	}
 	spin_unlock_irq(&chip->reg_lock);
 
-	return v != old_control;
+	return changed;
 }
 
 static struct snd_kcontrol_new snd_cx88_capture_volume = {
@@ -665,6 +671,7 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	snd_cx88_card_t   *chip;
 	struct cx88_core  *core;
 	int               err;
+	unsigned char     pci_lat;
 
 	*rchip = NULL;
 
@@ -709,13 +716,12 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	}
 
 	/* print pci info */
-	pci_read_config_byte(pci, PCI_CLASS_REVISION, &chip->pci_rev);
-	pci_read_config_byte(pci, PCI_LATENCY_TIMER,  &chip->pci_lat);
+	pci_read_config_byte(pci, PCI_LATENCY_TIMER, &pci_lat);
 
 	dprintk(1,"ALSA %s/%i: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%llx\n", core->name, devno,
-	       pci_name(pci), chip->pci_rev, pci->irq,
-	       chip->pci_lat,(unsigned long long)pci_resource_start(pci,0));
+	       pci_name(pci), pci->revision, pci->irq,
+	       pci_lat, (unsigned long long)pci_resource_start(pci,0));
 
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
@@ -753,17 +759,12 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 		return (err);
 
 	err = snd_cx88_pcm(chip, 0, "CX88 Digital");
-
-	if (err < 0) {
-		snd_card_free(card);
-		return (err);
-	}
+	if (err < 0)
+		goto error;
 
 	err = snd_ctl_add(card, snd_ctl_new1(&snd_cx88_capture_volume, chip));
-	if (err < 0) {
-		snd_card_free(card);
-		return (err);
-	}
+	if (err < 0)
+		goto error;
 
 	strcpy (card->driver, "CX88x");
 	sprintf(card->shortname, "Conexant CX%x", pci->device);
@@ -775,16 +776,16 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 	       card->driver,devno);
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
-		return (err);
-	}
-	snd_cx88_cards[devno] = card;
-
+	if (err < 0)
+		goto error;
 	pci_set_drvdata(pci,card);
 
 	devno++;
 	return 0;
+
+error:
+	snd_card_free(card);
+	return err;
 }
 /*
  * ALSA destructor

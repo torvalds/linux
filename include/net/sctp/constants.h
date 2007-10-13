@@ -64,11 +64,17 @@ enum { SCTP_DEFAULT_INSTREAMS = SCTP_MAX_STREAM };
 #define SCTP_CID_MAX			SCTP_CID_ASCONF_ACK
 
 #define SCTP_NUM_BASE_CHUNK_TYPES	(SCTP_CID_BASE_MAX + 1)
-#define SCTP_NUM_CHUNK_TYPES		(SCTP_NUM_BASE_CHUNKTYPES + 2)
 
 #define SCTP_NUM_ADDIP_CHUNK_TYPES	2
 
 #define SCTP_NUM_PRSCTP_CHUNK_TYPES	1
+
+#define SCTP_NUM_AUTH_CHUNK_TYPES	1
+
+#define SCTP_NUM_CHUNK_TYPES		(SCTP_NUM_BASE_CHUNK_TYPES + \
+					 SCTP_NUM_ADDIP_CHUNK_TYPES +\
+					 SCTP_NUM_PRSCTP_CHUNK_TYPES +\
+					 SCTP_NUM_AUTH_CHUNK_TYPES)
 
 /* These are the different flavours of event.  */
 typedef enum {
@@ -177,7 +183,9 @@ typedef enum {
 	SCTP_IERROR_NO_DATA,
 	SCTP_IERROR_BAD_STREAM,
 	SCTP_IERROR_BAD_PORTS,
-
+	SCTP_IERROR_AUTH_BAD_HMAC,
+	SCTP_IERROR_AUTH_BAD_KEYID,
+	SCTP_IERROR_PROTO_VIOLATION,
 } sctp_ierror_t;
 
 
@@ -408,5 +416,46 @@ typedef enum {
 	SCTP_LOWER_CWND_ECNE,
 	SCTP_LOWER_CWND_INACTIVE,
 } sctp_lower_cwnd_t;
+
+
+/* SCTP-AUTH Necessary constants */
+
+/* SCTP-AUTH, Section 3.3
+ *
+ *  The following Table 2 shows the currently defined values for HMAC
+ *  identifiers.
+ *
+ *  +-----------------+--------------------------+
+ *  | HMAC Identifier | Message Digest Algorithm |
+ *  +-----------------+--------------------------+
+ *  | 0               | Reserved                 |
+ *  | 1               | SHA-1 defined in [8]     |
+ *  | 2               | Reserved                 |
+ *  | 3               | SHA-256 defined in [8]   |
+ *  +-----------------+--------------------------+
+ */
+enum {
+	SCTP_AUTH_HMAC_ID_RESERVED_0,
+	SCTP_AUTH_HMAC_ID_SHA1,
+	SCTP_AUTH_HMAC_ID_RESERVED_2,
+	SCTP_AUTH_HMAC_ID_SHA256
+};
+
+#define SCTP_AUTH_HMAC_ID_MAX	SCTP_AUTH_HMAC_ID_SHA256
+#define SCTP_AUTH_NUM_HMACS (SCTP_AUTH_HMAC_ID_SHA256 + 1)
+#define SCTP_SHA1_SIG_SIZE 20
+#define SCTP_SHA256_SIG_SIZE 32
+
+/*  SCTP-AUTH, Section 3.2
+ *     The chunk types for INIT, INIT-ACK, SHUTDOWN-COMPLETE and AUTH chunks
+ *     MUST NOT be listed in the CHUNKS parameter
+ */
+#define SCTP_NUM_NOAUTH_CHUNKS	4
+#define SCTP_AUTH_MAX_CHUNKS	(SCTP_NUM_CHUNK_TYPES - SCTP_NUM_NOAUTH_CHUNKS)
+
+/* SCTP-AUTH Section 6.1
+ * The RANDOM parameter MUST contain a 32 byte random number.
+ */
+#define SCTP_AUTH_RANDOM_LENGTH 32
 
 #endif /* __sctp_constants_h__ */

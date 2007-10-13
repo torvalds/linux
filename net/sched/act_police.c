@@ -16,14 +16,13 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/module.h>
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
 
-#define L2T(p,L)   ((p)->tcfp_R_tab->data[(L)>>(p)->tcfp_R_tab->rate.cell_log])
-#define L2T_P(p,L) ((p)->tcfp_P_tab->data[(L)>>(p)->tcfp_P_tab->rate.cell_log])
+#define L2T(p,L)   qdisc_l2t((p)->tcfp_R_tab, L)
+#define L2T_P(p,L) qdisc_l2t((p)->tcfp_P_tab, L)
 
 #define POL_TAB_MASK     15
 static struct tcf_common *tcf_police_ht[POL_TAB_MASK + 1];
@@ -57,7 +56,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
 	struct rtattr *r;
 
-	read_lock(&police_lock);
+	read_lock_bh(&police_lock);
 
 	s_i = cb->args[0];
 
@@ -86,7 +85,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 		}
 	}
 done:
-	read_unlock(&police_lock);
+	read_unlock_bh(&police_lock);
 	if (n_i)
 		cb->args[0] += n_i;
 	return n_i;

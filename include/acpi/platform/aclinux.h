@@ -91,7 +91,10 @@
 #define ACPI_USE_NATIVE_DIVIDE
 #endif
 
+#ifndef __cdecl
 #define __cdecl
+#endif
+
 #define ACPI_FLUSH_CPU_CACHE()
 #endif				/* __KERNEL__ */
 

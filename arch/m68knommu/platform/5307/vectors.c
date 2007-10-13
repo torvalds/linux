@@ -3,23 +3,17 @@
 /*
  *	linux/arch/m68knommu/platform/5307/vectors.c
  *
- *	Copyright (C) 1999-2003, Greg Ungerer <gerg@snapgear.com>
+ *	Copyright (C) 1999-2007, Greg Ungerer <gerg@snapgear.com>
  */
 
 /***************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/param.h>
 #include <linux/init.h>
-#include <linux/unistd.h>
-#include <linux/delay.h>
-#include <asm/irq.h>
-#include <asm/dma.h>
+#include <linux/irq.h>
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
-#include <asm/mcftimer.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfdma.h>
 #include <asm/mcfwdebug.h>
@@ -56,7 +50,7 @@ asmlinkage void trap(void);
 asmlinkage void system_call(void);
 asmlinkage void inthandler(void);
 
-void __init coldfire_trap_init(void)
+void __init init_vectors(void)
 {
 	int i;
 
@@ -82,6 +76,23 @@ void __init coldfire_trap_init(void)
 #ifdef TRAP_DBG_INTERRUPT
 	_ramvec[12] = dbginterrupt;
 #endif
+}
+
+/***************************************************************************/
+
+void enable_vector(unsigned int irq)
+{
+	/* Currently no action on ColdFire */
+}
+
+void disable_vector(unsigned int irq)
+{
+	/* Currently no action on ColdFire */
+}
+
+void ack_vector(unsigned int irq)
+{
+	/* Currently no action on ColdFire */
 }
 
 /***************************************************************************/

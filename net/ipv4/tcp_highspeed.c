@@ -109,7 +109,7 @@ static void hstcp_init(struct sock *sk)
 	tp->snd_cwnd_clamp = min_t(u32, tp->snd_cwnd_clamp, 0xffffffff/128);
 }
 
-static void hstcp_cong_avoid(struct sock *sk, u32 adk, u32 rtt,
+static void hstcp_cong_avoid(struct sock *sk, u32 adk,
 			     u32 in_flight, int data_acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);

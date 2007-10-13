@@ -160,13 +160,8 @@ static void platform_device_release(struct device *dev)
  *
  *	Create a platform device object which can have other objects attached
  *	to it, and which will have attached objects freed when it is released.
- *
- *	This device will be marked as not supporting hotpluggable drivers; no
- *	device add/remove uevents will be generated.  In the unusual case that
- *	the device isn't being dynamically allocated as a legacy "probe the
- *	hardware" driver, infrastructure code should reverse this marking.
  */
-struct platform_device *platform_device_alloc(const char *name, unsigned int id)
+struct platform_device *platform_device_alloc(const char *name, int id)
 {
 	struct platform_object *pa;
 
@@ -177,12 +172,6 @@ struct platform_device *platform_device_alloc(const char *name, unsigned int id)
 		pa->pdev.id = id;
 		device_initialize(&pa->pdev.dev);
 		pa->pdev.dev.release = platform_device_release;
-
-		/* prevent hotplug "modprobe $(MODALIAS)" from causing trouble in
-		 * legacy probe-the-hardware drivers, which don't properly split
-		 * out device enumeration logic from drivers.
-		 */
-		pa->pdev.dev.uevent_suppress = 1;
 	}
 
 	return pa ? &pa->pdev : NULL;
@@ -256,7 +245,8 @@ int platform_device_add(struct platform_device *pdev)
 	pdev->dev.bus = &platform_bus_type;
 
 	if (pdev->id != -1)
-		snprintf(pdev->dev.bus_id, BUS_ID_SIZE, "%s.%u", pdev->name, pdev->id);
+		snprintf(pdev->dev.bus_id, BUS_ID_SIZE, "%s.%d", pdev->name,
+			 pdev->id);
 	else
 		strlcpy(pdev->dev.bus_id, pdev->name, BUS_ID_SIZE);
 
@@ -370,7 +360,7 @@ EXPORT_SYMBOL_GPL(platform_device_unregister);
  *	the Linux driver model.  In particular, when such drivers are built
  *	as modules, they can't be "hotplugged".
  */
-struct platform_device *platform_device_register_simple(char *name, unsigned int id,
+struct platform_device *platform_device_register_simple(char *name, int id,
 							struct resource *res, unsigned int num)
 {
 	struct platform_device *pdev;
@@ -530,7 +520,7 @@ static ssize_t
 modalias_show(struct device *dev, struct device_attribute *a, char *buf)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
-	int len = snprintf(buf, PAGE_SIZE, "%s\n", pdev->name);
+	int len = snprintf(buf, PAGE_SIZE, "platform:%s\n", pdev->name);
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
@@ -540,13 +530,11 @@ static struct device_attribute platform_dev_attrs[] = {
 	__ATTR_NULL,
 };
 
-static int platform_uevent(struct device *dev, char **envp, int num_envp,
-		char *buffer, int buffer_size)
+static int platform_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
 
-	envp[0] = buffer;
-	snprintf(buffer, buffer_size, "MODALIAS=%s", pdev->name);
+	add_uevent_var(env, "MODALIAS=platform:%s", pdev->name);
 	return 0;
 }
 

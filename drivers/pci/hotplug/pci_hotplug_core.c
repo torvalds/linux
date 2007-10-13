@@ -694,66 +694,6 @@ int __must_check pci_hp_change_slot_info(struct hotplug_slot *slot,
 	if ((slot == NULL) || (info == NULL))
 		return -ENODEV;
 
-	/*
-	* check all fields in the info structure, and update timestamps
-	* for the files referring to the fields that have now changed.
-	*/
-	if ((has_power_file(slot) == 0) &&
-	    (slot->info->power_status != info->power_status)) {
-		retval = sysfs_update_file(&slot->kobj,
-					   &hotplug_slot_attr_power.attr);
-		if (retval)
-			return retval;
-	}
-
-	if ((has_attention_file(slot) == 0) &&
-	    (slot->info->attention_status != info->attention_status)) {
-		retval = sysfs_update_file(&slot->kobj,
-					   &hotplug_slot_attr_attention.attr);
-		if (retval)
-			return retval;
-	}
-
-	if ((has_latch_file(slot) == 0) &&
-	    (slot->info->latch_status != info->latch_status)) {
-		retval = sysfs_update_file(&slot->kobj,
-					   &hotplug_slot_attr_latch.attr);
-		if (retval)
-			return retval;
-	}
-
-	if ((has_adapter_file(slot) == 0) &&
-	    (slot->info->adapter_status != info->adapter_status)) {
-		retval = sysfs_update_file(&slot->kobj,
-					   &hotplug_slot_attr_presence.attr);
-		if (retval)
-			return retval;
-	}
-
-	if ((has_address_file(slot) == 0) &&
-	    (slot->info->address != info->address)) {
-		retval = sysfs_update_file(&slot->kobj,
-					   &hotplug_slot_attr_address.attr);
-		if (retval)
-			return retval;
-	}
-
-	if ((has_max_bus_speed_file(slot) == 0) &&
-	    (slot->info->max_bus_speed != info->max_bus_speed)) {
-		retval = sysfs_update_file(&slot->kobj,
-					   &hotplug_slot_attr_max_bus_speed.attr);
-		if (retval)
-			return retval;
-	}
-
-	if ((has_cur_bus_speed_file(slot) == 0) &&
-	    (slot->info->cur_bus_speed != info->cur_bus_speed)) {
-		retval = sysfs_update_file(&slot->kobj,
-					   &hotplug_slot_attr_cur_bus_speed.attr);
-		if (retval)
-			return retval;
-	}
-
 	memcpy (slot->info, info, sizeof (struct hotplug_slot_info));
 
 	return 0;

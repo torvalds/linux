@@ -65,11 +65,6 @@
 #include <linux/kmod.h>
 #endif
 
-#if defined(CONFIG_UST) || defined(CONFIG_UST_MODULE)
-#include <linux/ust.h>
-#endif
-
-
 #include <linux/videodev.h>
 
 MODULE_AUTHOR("Bill Dirks, Justin Schoeman, Gerd Knorr");
@@ -716,6 +711,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_AUDIO_MUTE:
 	case V4L2_CID_AUDIO_LOUDNESS:
 	case V4L2_CID_MPEG_AUDIO_MUTE:
+	case V4L2_CID_MPEG_VIDEO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
 	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
 		qctrl->type = V4L2_CTRL_TYPE_BOOLEAN;
@@ -939,16 +935,25 @@ int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qc
    When no more controls are available 0 is returned. */
 u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 {
-	u32 ctrl_class;
+	u32 ctrl_class = V4L2_CTRL_ID2CLASS(id);
 	const u32 *pctrl;
 
-	/* if no query is desired, then just return the control ID */
-	if ((id & V4L2_CTRL_FLAG_NEXT_CTRL) == 0)
-		return id;
 	if (ctrl_classes == NULL)
 		return 0;
+
+	/* if no query is desired, then check if the ID is part of ctrl_classes */
+	if ((id & V4L2_CTRL_FLAG_NEXT_CTRL) == 0) {
+		/* find class */
+		while (*ctrl_classes && V4L2_CTRL_ID2CLASS(**ctrl_classes) != ctrl_class)
+			ctrl_classes++;
+		if (*ctrl_classes == NULL)
+			return 0;
+		pctrl = *ctrl_classes;
+		/* find control ID */
+		while (*pctrl && *pctrl != id) pctrl++;
+		return *pctrl ? id : 0;
+	}
 	id &= V4L2_CTRL_ID_MASK;
-	ctrl_class = V4L2_CTRL_ID2CLASS(id);
 	id++;	/* select next control */
 	/* find first class that matches (or is greater than) the class of
 	   the ID */

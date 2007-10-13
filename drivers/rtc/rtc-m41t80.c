@@ -892,7 +892,7 @@ static int m41t80_remove(struct i2c_client *client)
 
 static struct i2c_driver m41t80_driver = {
 	.driver = {
-		.name = "m41t80",
+		.name = "rtc-m41t80",
 	},
 	.probe = m41t80_probe,
 	.remove = m41t80_remove,

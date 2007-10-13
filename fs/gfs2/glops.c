@@ -41,7 +41,6 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	struct list_head *head = &gl->gl_ail_list;
 	struct gfs2_bufdata *bd;
 	struct buffer_head *bh;
-	u64 blkno;
 	int error;
 
 	blocks = atomic_read(&gl->gl_ail_count);
@@ -57,19 +56,12 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 		bd = list_entry(head->next, struct gfs2_bufdata,
 				bd_ail_gl_list);
 		bh = bd->bd_bh;
-		blkno = bh->b_blocknr;
+		gfs2_remove_from_ail(NULL, bd);
+		bd->bd_bh = NULL;
+		bh->b_private = NULL;
+		bd->bd_blkno = bh->b_blocknr;
 		gfs2_assert_withdraw(sdp, !buffer_busy(bh));
-
-		bd->bd_ail = NULL;
-		list_del(&bd->bd_ail_st_list);
-		list_del(&bd->bd_ail_gl_list);
-		atomic_dec(&gl->gl_ail_count);
-		brelse(bh);
-		gfs2_log_unlock(sdp);
-
-		gfs2_trans_add_revoke(sdp, blkno);
-
-		gfs2_log_lock(sdp);
+		gfs2_trans_add_revoke(sdp, bd);
 	}
 	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
 	gfs2_log_unlock(sdp);
@@ -156,9 +148,11 @@ static void inode_go_sync(struct gfs2_glock *gl)
 		ip = NULL;
 
 	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
-		if (ip)
+		if (ip && !gfs2_is_jdata(ip))
 			filemap_fdatawrite(ip->i_inode.i_mapping);
 		gfs2_log_flush(gl->gl_sbd, gl);
+		if (ip && gfs2_is_jdata(ip))
+			filemap_fdatawrite(ip->i_inode.i_mapping);
 		gfs2_meta_sync(gl);
 		if (ip) {
 			struct address_space *mapping = ip->i_inode.i_mapping;
@@ -452,6 +446,7 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_lock = inode_go_lock,
 	.go_unlock = inode_go_unlock,
 	.go_type = LM_TYPE_INODE,
+	.go_min_hold_time = HZ / 10,
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
@@ -462,6 +457,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_lock = rgrp_go_lock,
 	.go_unlock = rgrp_go_unlock,
 	.go_type = LM_TYPE_RGRP,
+	.go_min_hold_time = HZ / 10,
 };
 
 const struct gfs2_glock_operations gfs2_trans_glops = {

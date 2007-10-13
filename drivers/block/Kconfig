@@ -6,6 +6,12 @@ menuconfig BLK_DEV
 	bool "Block devices"
 	depends on BLOCK
 	default y
+	---help---
+	  Say Y here to get to see options for various different block device
+	  drivers. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled;
+	  only do this if you know what you are doing.
 
 if BLK_DEV
 
@@ -62,6 +68,7 @@ config AMIGA_Z2RAM
 config BLK_DEV_XD
 	tristate "XT hard disk support"
 	depends on ISA && ISA_DMA_API
+	select CHECK_SIGNATURE
 	help
 	  Very old 8 bit hard disk controllers used in the IBM XT computer
 	  will be supported if you say Y here.
@@ -354,8 +361,7 @@ config BLK_DEV_RAM_SIZE
 	default "4096"
 	help
 	  The default value is 4096 kilobytes. Only change this if you know
-	  what are you doing. If you are using IBM S/390, then set this to
-	  8192.
+	  what are you doing.
 
 config BLK_DEV_RAM_BLOCKSIZE
 	int "Default RAM disk block size (bytes)"
@@ -426,5 +432,14 @@ config XILINX_SYSACE
 	depends on 4xx
 	help
 	  Include support for the Xilinx SystemACE CompactFlash interface
+
+config XEN_BLKDEV_FRONTEND
+	tristate "Xen virtual block device support"
+	depends on XEN
+	default y
+	help
+	  This driver implements the front-end of the Xen virtual
+	  block device driver.  It communicates with a back-end driver
+	  in another domain which drives the actual block device.
 
 endif # BLK_DEV

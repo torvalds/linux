@@ -380,7 +380,6 @@ static unsigned int eth16i_debug = ETH16I_DEBUG;
 /* Information for each board */
 
 struct eth16i_local {
-	struct net_device_stats stats;
 	unsigned char     tx_started;
 	unsigned char     tx_buf_busy;
 	unsigned short    tx_queue;  /* Number of packets in transmit buffer */
@@ -426,8 +425,6 @@ static int     eth16i_set_irq(struct net_device *dev);
 static ushort  eth16i_parse_mediatype(const char* s);
 #endif
 
-static struct net_device_stats *eth16i_get_stats(struct net_device *dev);
-
 static char cardname[] __initdata = "ICL EtherTeam 16i/32";
 
 static int __init do_eth16i_probe(struct net_device *dev)
@@ -435,8 +432,6 @@ static int __init do_eth16i_probe(struct net_device *dev)
 	int i;
 	int ioaddr;
 	int base_addr = dev->base_addr;
-
-	SET_MODULE_OWNER(dev);
 
 	if(eth16i_debug > 4)
 		printk(KERN_DEBUG "Probing started for %s\n", cardname);
@@ -559,7 +554,6 @@ static int __init eth16i_probe1(struct net_device *dev, int ioaddr)
 	dev->open               = eth16i_open;
 	dev->stop               = eth16i_close;
 	dev->hard_start_xmit    = eth16i_tx;
-	dev->get_stats          = eth16i_get_stats;
 	dev->set_multicast_list = eth16i_multicast;
 	dev->tx_timeout 	= eth16i_timeout;
 	dev->watchdog_timeo	= TX_TIMEOUT;
@@ -1047,7 +1041,7 @@ static void eth16i_timeout(struct net_device *dev)
 		printk(KERN_DEBUG "lp->tx_queue_len = %d\n", lp->tx_queue_len);
 		printk(KERN_DEBUG "lp->tx_started = %d\n", lp->tx_started);
 	}
-	lp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 	eth16i_reset(dev);
 	dev->trans_start = jiffies;
 	outw(ETH16I_INTR_ON, ioaddr + TX_INTR_REG);
@@ -1132,7 +1126,6 @@ static int eth16i_tx(struct sk_buff *skb, struct net_device *dev)
 
 static void eth16i_rx(struct net_device *dev)
 {
-	struct eth16i_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 	int boguscount = MAX_RX_LOOP;
 
@@ -1151,16 +1144,16 @@ static void eth16i_rx(struct net_device *dev)
 			       inb(ioaddr + RECEIVE_MODE_REG), status);
 
 		if( !(status & PKT_GOOD) ) {
-			lp->stats.rx_errors++;
+			dev->stats.rx_errors++;
 
 			if( (pkt_len < ETH_ZLEN) || (pkt_len > ETH_FRAME_LEN) ) {
-				lp->stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 				eth16i_reset(dev);
 				return;
 			}
 			else {
 				eth16i_skip_packet(dev);
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 			}
 		}
 		else {   /* Ok so now we should have a good packet */
@@ -1171,7 +1164,7 @@ static void eth16i_rx(struct net_device *dev)
 				printk(KERN_WARNING "%s: Could'n allocate memory for packet (len %d)\n",
 				       dev->name, pkt_len);
 				eth16i_skip_packet(dev);
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				break;
 			}
 
@@ -1214,8 +1207,8 @@ static void eth16i_rx(struct net_device *dev)
 			}
 			netif_rx(skb);
 			dev->last_rx = jiffies;
-			lp->stats.rx_packets++;
-			lp->stats.rx_bytes += pkt_len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += pkt_len;
 
 		} /* else */
 
@@ -1252,32 +1245,32 @@ static irqreturn_t eth16i_interrupt(int irq, void *dev_id)
 
 	if( status & 0x7f00 ) {
 
-		lp->stats.rx_errors++;
+		dev->stats.rx_errors++;
 
 		if(status & (BUS_RD_ERR << 8) )
 			printk(KERN_WARNING "%s: Bus read error.\n",dev->name);
-		if(status & (SHORT_PKT_ERR << 8) )   lp->stats.rx_length_errors++;
-		if(status & (ALIGN_ERR << 8) )       lp->stats.rx_frame_errors++;
-		if(status & (CRC_ERR << 8) )	    lp->stats.rx_crc_errors++;
-		if(status & (RX_BUF_OVERFLOW << 8) ) lp->stats.rx_over_errors++;
+		if(status & (SHORT_PKT_ERR << 8) )   dev->stats.rx_length_errors++;
+		if(status & (ALIGN_ERR << 8) )       dev->stats.rx_frame_errors++;
+		if(status & (CRC_ERR << 8) )	    dev->stats.rx_crc_errors++;
+		if(status & (RX_BUF_OVERFLOW << 8) ) dev->stats.rx_over_errors++;
 	}
 	if( status & 0x001a) {
 
-		lp->stats.tx_errors++;
+		dev->stats.tx_errors++;
 
-		if(status & CR_LOST) lp->stats.tx_carrier_errors++;
-		if(status & TX_JABBER_ERR) lp->stats.tx_window_errors++;
+		if(status & CR_LOST) dev->stats.tx_carrier_errors++;
+		if(status & TX_JABBER_ERR) dev->stats.tx_window_errors++;
 
 #if 0
 		if(status & COLLISION) {
-			lp->stats.collisions +=
+			dev->stats.collisions +=
 				((inb(ioaddr+TRANSMIT_MODE_REG) & 0xF0) >> 4);
 		}
 #endif
 		if(status & COLLISIONS_16) {
 			if(lp->col_16 < MAX_COL_16) {
 				lp->col_16++;
-				lp->stats.collisions++;
+				dev->stats.collisions++;
 				/* Resume transmitting, skip failed packet */
 				outb(0x02, ioaddr + COL_16_REG);
 			}
@@ -1290,8 +1283,8 @@ static irqreturn_t eth16i_interrupt(int irq, void *dev_id)
 	if( status & 0x00ff ) {          /* Let's check the transmit status reg */
 
 		if(status & TX_DONE) {         /* The transmit has been done */
-			lp->stats.tx_packets = lp->tx_buffered_packets;
-			lp->stats.tx_bytes += lp->tx_buffered_bytes;
+			dev->stats.tx_packets = lp->tx_buffered_packets;
+			dev->stats.tx_bytes += lp->tx_buffered_bytes;
 			lp->col_16 = 0;
 
 			if(lp->tx_queue) {           /* Is there still packets ? */
@@ -1369,12 +1362,6 @@ static void eth16i_multicast(struct net_device *dev)
 	} else {
 		outb(2, ioaddr + RECEIVE_MODE_REG);
 	}
-}
-
-static struct net_device_stats *eth16i_get_stats(struct net_device *dev)
-{
-	struct eth16i_local *lp = netdev_priv(dev);
-	return &lp->stats;
 }
 
 static void eth16i_select_regbank(unsigned char banknbr, int ioaddr)

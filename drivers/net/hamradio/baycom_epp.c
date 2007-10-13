@@ -320,7 +320,7 @@ static int eppconfig(struct baycom_state *bc)
 	sprintf(portarg, "%ld", bc->pdev->port->base);
 	printk(KERN_DEBUG "%s: %s -s -p %s -m %s\n", bc_drvname, eppconfig_path, portarg, modearg);
 
-	return call_usermodehelper(eppconfig_path, argv, envp, 1);
+	return call_usermodehelper(eppconfig_path, argv, envp, UMH_WAIT_PROC);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1159,8 +1159,7 @@ static void baycom_probe(struct net_device *dev)
 	/* Fill in the fields of the device structure */
 	bc->skb = NULL;
 	
-	dev->hard_header = ax25_hard_header;
-	dev->rebuild_header = ax25_rebuild_header;
+	dev->header_ops = &ax25_header_ops;
 	dev->set_mac_address = baycom_set_mac_address;
 	
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */

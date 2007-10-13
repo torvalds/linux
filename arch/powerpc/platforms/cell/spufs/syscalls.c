@@ -47,7 +47,7 @@ static long do_spu_run(struct file *filp,
 		goto out;
 
 	i = SPUFS_I(filp->f_path.dentry->d_inode);
-	ret = spufs_run_spu(filp, i->i_ctx, &npc, &status);
+	ret = spufs_run_spu(i->i_ctx, &npc, &status);
 
 	if (put_user(npc, unpc))
 		ret = -EFAULT;
@@ -58,26 +58,8 @@ out:
 	return ret;
 }
 
-#ifndef MODULE
-asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
-{
-	int fput_needed;
-	struct file *filp;
-	long ret;
-
-	ret = -EBADF;
-	filp = fget_light(fd, &fput_needed);
-	if (filp) {
-		ret = do_spu_run(filp, unpc, ustatus);
-		fput_light(filp, fput_needed);
-	}
-
-	return ret;
-}
-#endif
-
-asmlinkage long sys_spu_create(const char __user *pathname,
-					unsigned int flags, mode_t mode)
+static long do_spu_create(const char __user *pathname, unsigned int flags,
+		mode_t mode, struct file *neighbor)
 {
 	char *tmp;
 	int ret;
@@ -90,7 +72,7 @@ asmlinkage long sys_spu_create(const char __user *pathname,
 		ret = path_lookup(tmp, LOOKUP_PARENT|
 				LOOKUP_OPEN|LOOKUP_CREATE, &nd);
 		if (!ret) {
-			ret = spufs_create(&nd, flags, mode);
+			ret = spufs_create(&nd, flags, mode, neighbor);
 			path_release(&nd);
 		}
 		putname(tmp);
@@ -100,7 +82,9 @@ asmlinkage long sys_spu_create(const char __user *pathname,
 }
 
 struct spufs_calls spufs_calls = {
-	.create_thread = sys_spu_create,
+	.create_thread = do_spu_create,
 	.spu_run = do_spu_run,
+	.coredump_extra_notes_size = spufs_coredump_extra_notes_size,
+	.coredump_extra_notes_write = spufs_coredump_extra_notes_write,
 	.owner = THIS_MODULE,
 };

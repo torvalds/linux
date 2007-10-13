@@ -10,7 +10,9 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/initrd.h>
+#if defined(CONFIG_IDE) || defined(CONFIG_IDE_MODULE)
 #include <linux/ide.h>
+#endif
 #include <linux/tty.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
@@ -18,13 +20,11 @@
 #include <linux/cpu.h>
 #include <linux/console.h>
 
-#include <asm/residual.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
-#include <asm/amigappc.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
 #include <asm/cputable.h>
@@ -51,7 +51,10 @@
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
+#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
 struct ide_machdep_calls ppc_ide_md;
+EXPORT_SYMBOL(ppc_ide_md);
+#endif
 
 int boot_cpuid;
 EXPORT_SYMBOL_GPL(boot_cpuid);
@@ -287,7 +290,8 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 
-	ppc_md.setup_arch();
+	if (ppc_md.setup_arch)
+		ppc_md.setup_arch();
 	if ( ppc_md.progress ) ppc_md.progress("arch: exit", 0x3eab);
 
 	paging_init();

@@ -105,6 +105,7 @@ void __iomem *sun3_ioremap(unsigned long phys, unsigned long size,
 	return (void __iomem *)ret;
 
 }
+EXPORT_SYMBOL(sun3_ioremap);
 
 
 void __iomem *__ioremap(unsigned long phys, unsigned long size, int cache)
@@ -157,3 +158,4 @@ int sun3_map_test(unsigned long addr, char *val)
 
 	return ret;
 }
+EXPORT_SYMBOL(sun3_map_test);

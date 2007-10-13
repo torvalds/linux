@@ -29,8 +29,8 @@ struct memory_segment {
 
 static LIST_HEAD(mem_segs);
 
-void memmap_init(unsigned long size, int nid, unsigned long zone,
-		 unsigned long start_pfn)
+void __meminit memmap_init(unsigned long size, int nid, unsigned long zone,
+			   unsigned long start_pfn)
 {
 	struct page *start, *end;
 	struct page *map_start, *map_end;
@@ -66,7 +66,7 @@ void memmap_init(unsigned long size, int nid, unsigned long zone,
 	}
 }
 
-static inline void *vmem_alloc_pages(unsigned int order)
+static void __init_refok *vmem_alloc_pages(unsigned int order)
 {
 	if (slab_is_available())
 		return (void *)__get_free_pages(GFP_KERNEL, order);

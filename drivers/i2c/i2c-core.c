@@ -67,20 +67,16 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 #ifdef	CONFIG_HOTPLUG
 
 /* uevent helps with hotplug: modprobe -q $(MODALIAS) */
-static int i2c_device_uevent(struct device *dev, char **envp, int num_envp,
-		      char *buffer, int buffer_size)
+static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
-	int			i = 0, length = 0;
 
 	/* by definition, legacy drivers can't hotplug */
 	if (dev->driver || !client->driver_name)
 		return 0;
 
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-			"MODALIAS=%s", client->driver_name))
+	if (add_uevent_var(env, "MODALIAS=%s", client->driver_name))
 		return -ENOMEM;
-	envp[i] = NULL;
 	dev_dbg(dev, "uevent\n");
 	return 0;
 }
@@ -288,7 +284,6 @@ void i2c_adapter_dev_release(struct device *dev)
 	struct i2c_adapter *adap = to_i2c_adapter(dev);
 	complete(&adap->dev_released);
 }
-EXPORT_SYMBOL_GPL(i2c_adapter_dev_release);	/* exported to i2c-isa */
 
 static ssize_t
 show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -307,7 +302,6 @@ struct class i2c_adapter_class = {
 	.name			= "i2c-adapter",
 	.dev_attrs		= i2c_adapter_attrs,
 };
-EXPORT_SYMBOL_GPL(i2c_adapter_class);		/* exported to i2c-isa */
 
 static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 {

@@ -148,21 +148,17 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
 	   the fault.  */
 	fault = handle_mm_fault(mm, vma, address, cause > 0);
 	up_read(&mm->mmap_sem);
-
-	switch (fault) {
-	      case VM_FAULT_MINOR:
-		current->min_flt++;
-		break;
-	      case VM_FAULT_MAJOR:
-		current->maj_flt++;
-		break;
-	      case VM_FAULT_SIGBUS:
-		goto do_sigbus;
-	      case VM_FAULT_OOM:
-		goto out_of_memory;
-	      default:
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		if (fault & VM_FAULT_OOM)
+			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGBUS)
+			goto do_sigbus;
 		BUG();
 	}
+	if (fault & VM_FAULT_MAJOR)
+		current->maj_flt++;
+	else
+		current->min_flt++;
 	return;
 
 	/* Something tried to access memory that isn't in our memory map.

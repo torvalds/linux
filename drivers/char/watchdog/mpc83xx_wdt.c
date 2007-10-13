@@ -119,6 +119,9 @@ static int mpc83xx_wdt_ioctl(struct inode *inode, struct file *file,
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
+	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
+		return put_user(0, p);
 	case WDIOC_KEEPALIVE:
 		mpc83xx_wdt_keepalive();
 		return 0;

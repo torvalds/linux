@@ -161,8 +161,7 @@ static void addr_send_arp(struct sockaddr_in *dst_in)
 	if (ip_route_output_key(&rt, &fl))
 		return;
 
-	arp_send(ARPOP_REQUEST, ETH_P_ARP, rt->rt_gateway, rt->idev->dev,
-		 rt->rt_src, NULL, rt->idev->dev->dev_addr, NULL);
+	neigh_event_send(rt->u.dst.neighbour, NULL);
 	ip_rt_put(rt);
 }
 
@@ -295,10 +294,9 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	struct addr_req *req;
 	int ret = 0;
 
-	req = kmalloc(sizeof *req, GFP_KERNEL);
+	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
-	memset(req, 0, sizeof *req);
 
 	if (src_addr)
 		memcpy(&req->src_addr, src_addr, ip_addr_size(src_addr));

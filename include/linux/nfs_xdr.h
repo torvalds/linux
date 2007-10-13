@@ -278,6 +278,21 @@ struct nfs_writeres {
 };
 
 /*
+ * Common arguments to the unlink call
+ */
+struct nfs_removeargs {
+	const struct nfs_fh	*fh;
+	struct qstr		name;
+	const u32 *		bitmask;
+};
+
+struct nfs_removeres {
+	const struct nfs_server *server;
+	struct nfs4_change_info	cinfo;
+	struct nfs_fattr	dir_attr;
+};
+
+/*
  * Argument struct for decode_entry function
  */
 struct nfs_entry {
@@ -631,18 +646,6 @@ struct nfs4_readlink {
 	struct page **			pages;   /* zero-copy data */
 };
 
-struct nfs4_remove_arg {
-	const struct nfs_fh *		fh;
-	const struct qstr *		name;
-	const u32 *			bitmask;
-};
-
-struct nfs4_remove_res {
-	const struct nfs_server *	server;
-	struct nfs4_change_info		cinfo;
-	struct nfs_fattr *		dir_attr;
-};
-
 struct nfs4_rename_arg {
 	const struct nfs_fh *		old_dir;
 	const struct nfs_fh *		new_dir;
@@ -788,9 +791,8 @@ struct nfs_rpc_ops {
 	int	(*create)  (struct inode *, struct dentry *,
 			    struct iattr *, int, struct nameidata *);
 	int	(*remove)  (struct inode *, struct qstr *);
-	int	(*unlink_setup)  (struct rpc_message *,
-			    struct dentry *, struct qstr *);
-	int	(*unlink_done) (struct dentry *, struct rpc_task *);
+	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
+	int	(*unlink_done) (struct rpc_task *, struct inode *);
 	int	(*rename)  (struct inode *, struct qstr *,
 			    struct inode *, struct qstr *);
 	int	(*link)    (struct inode *, struct inode *, struct qstr *);

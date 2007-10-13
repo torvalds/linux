@@ -139,7 +139,7 @@ STATIC int xfs_inumbers_fmt_compat(
 	long count,
 	long *written)
 {
-	compat_xfs_inogrp_t *p32 = ubuffer;
+	compat_xfs_inogrp_t __user *p32 = ubuffer;
 	long i;
 
 	for (i = 0; i < count; i++) {
@@ -444,7 +444,7 @@ xfs_compat_ioctl(
 	case XFS_IOC_FSINUMBERS_32:
 		cmd = _NATIVE_IOC(cmd, struct xfs_fsop_bulkreq);
 		return xfs_ioc_bulkstat_compat(XFS_BHVTOI(VNHEAD(vp))->i_mount,
-				cmd, (void*)arg);
+				cmd, (void __user*)arg);
 	case XFS_IOC_FD_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_FSHANDLE_32:

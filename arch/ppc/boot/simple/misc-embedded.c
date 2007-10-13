@@ -89,7 +89,9 @@ load_kernel(unsigned long load_addr, int num_words, unsigned long cksum, bd_t *b
 	 * initialize the serial console port.
 	 */
 	embed_config(&bp);
-#if defined(CONFIG_SERIAL_CPM_CONSOLE) || defined(CONFIG_SERIAL_8250_CONSOLE)
+#if defined(CONFIG_SERIAL_CPM_CONSOLE) || \
+    defined(CONFIG_SERIAL_8250_CONSOLE) || \
+    defined(CONFIG_SERIAL_UARTLITE_CONSOLE)
 	com_port = serial_init(0, bp);
 #endif
 

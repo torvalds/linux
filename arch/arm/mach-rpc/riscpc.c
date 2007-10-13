@@ -87,7 +87,7 @@ static void __init rpc_map_io(void)
 	/*
 	 * Turn off floppy.
 	 */
-	outb(0xc, 0x3f2);
+	writeb(0xc, PCIO_BASE + (0x3f2 << 2));
 
 	/*
 	 * RiscPC can't handle half-word loads and stores

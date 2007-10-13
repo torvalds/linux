@@ -40,28 +40,51 @@ struct zd_ctrlset {
 
 #define ZD_CS_RESERVED_SIZE	25
 
-/* zd_crtlset field modulation */
-#define ZD_CS_RATE_MASK		0x0f
-#define ZD_CS_TYPE_MASK		0x10
-#define ZD_CS_RATE(modulation) ((modulation) & ZD_CS_RATE_MASK)
-#define ZD_CS_TYPE(modulation) ((modulation) & ZD_CS_TYPE_MASK)
-
-#define ZD_CS_CCK		0x00
-#define ZD_CS_OFDM		0x10
-
-/* These are referred to as zd_rates */
-#define ZD_CCK_RATE_1M	0x00
-#define ZD_CCK_RATE_2M	0x01
-#define ZD_CCK_RATE_5_5M	0x02
-#define ZD_CCK_RATE_11M	0x03
-/* The rates for OFDM are encoded as in the PLCP header. Use ZD_OFDM_RATE_*.
+/* The field modulation of struct zd_ctrlset controls the bit rate, the use
+ * of short or long preambles in 802.11b (CCK mode) or the use of 802.11a or
+ * 802.11g in OFDM mode.
+ *
+ * The term zd-rate is used for the combination of the modulation type flag
+ * and the "pure" rate value.
  */
+#define ZD_PURE_RATE_MASK       0x0f
+#define ZD_MODULATION_TYPE_MASK 0x10
+#define ZD_RATE_MASK            (ZD_PURE_RATE_MASK|ZD_MODULATION_TYPE_MASK)
+#define ZD_PURE_RATE(modulation) ((modulation) & ZD_PURE_RATE_MASK)
+#define ZD_MODULATION_TYPE(modulation) ((modulation) & ZD_MODULATION_TYPE_MASK)
+#define ZD_RATE(modulation) ((modulation) & ZD_RATE_MASK)
 
-/* bit 5 is preamble (when in CCK mode), or a/g selection (when in OFDM mode) */
-#define ZD_CS_CCK_PREA_LONG	0x00
-#define ZD_CS_CCK_PREA_SHORT	0x20
-#define ZD_CS_OFDM_MODE_11G	0x00
-#define ZD_CS_OFDM_MODE_11A	0x20
+/* The two possible modulation types. Notify that 802.11b doesn't use the CCK
+ * codeing for the 1 and 2 MBit/s rate. We stay with the term here to remain
+ * consistent with uses the term at other places.
+  */
+#define ZD_CCK                  0x00
+#define ZD_OFDM                 0x10
+
+/* The ZD1211 firmware uses proprietary encodings of the 802.11b (CCK) rates.
+ * For OFDM the PLCP rate encodings are used. We combine these "pure" rates
+ * with the modulation type flag and call the resulting values zd-rates.
+ */
+#define ZD_CCK_RATE_1M          (ZD_CCK|0x00)
+#define ZD_CCK_RATE_2M          (ZD_CCK|0x01)
+#define ZD_CCK_RATE_5_5M        (ZD_CCK|0x02)
+#define ZD_CCK_RATE_11M         (ZD_CCK|0x03)
+#define ZD_OFDM_RATE_6M         (ZD_OFDM|ZD_OFDM_PLCP_RATE_6M)
+#define ZD_OFDM_RATE_9M         (ZD_OFDM|ZD_OFDM_PLCP_RATE_9M)
+#define ZD_OFDM_RATE_12M        (ZD_OFDM|ZD_OFDM_PLCP_RATE_12M)
+#define ZD_OFDM_RATE_18M        (ZD_OFDM|ZD_OFDM_PLCP_RATE_18M)
+#define ZD_OFDM_RATE_24M        (ZD_OFDM|ZD_OFDM_PLCP_RATE_24M)
+#define ZD_OFDM_RATE_36M        (ZD_OFDM|ZD_OFDM_PLCP_RATE_36M)
+#define ZD_OFDM_RATE_48M        (ZD_OFDM|ZD_OFDM_PLCP_RATE_48M)
+#define ZD_OFDM_RATE_54M        (ZD_OFDM|ZD_OFDM_PLCP_RATE_54M)
+
+/* The bit 5 of the zd_ctrlset modulation field controls the preamble in CCK
+ * mode or the 802.11a/802.11g selection in OFDM mode.
+ */
+#define ZD_CCK_PREA_LONG        0x00
+#define ZD_CCK_PREA_SHORT       0x20
+#define ZD_OFDM_MODE_11G        0x00
+#define ZD_OFDM_MODE_11A        0x20
 
 /* zd_ctrlset control field */
 #define ZD_CS_NEED_RANDOM_BACKOFF	0x01

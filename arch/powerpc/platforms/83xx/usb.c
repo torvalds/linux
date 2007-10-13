@@ -76,14 +76,14 @@ int mpc834x_usb_cfg(void)
 			if (port0_is_dr)
 				printk(KERN_WARNING
 					"834x USB port0 can't be used by both DR and MPH!\n");
-			sicrl |= MPC834X_SICRL_USB0;
+			sicrl &= ~MPC834X_SICRL_USB0;
 		}
 		prop = of_get_property(np, "port1", NULL);
 		if (prop) {
 			if (port1_is_dr)
 				printk(KERN_WARNING
 					"834x USB port1 can't be used by both DR and MPH!\n");
-			sicrl |= MPC834X_SICRL_USB1;
+			sicrl &= ~MPC834X_SICRL_USB1;
 		}
 		of_node_put(np);
 	}

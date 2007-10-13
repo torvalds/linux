@@ -36,4 +36,7 @@
 #define __reg_MB86943_pci_sl_io_base	*(volatile uint32_t *) (__region_CS1 + 0x70)
 #define __reg_MB86943_pci_sl_mem_base	*(volatile uint32_t *) (__region_CS1 + 0x78)
 
+#define __reg_MB86943_pci_arbiter	*(volatile uint32_t *) (__region_CS2 + 0x01300014)
+#define MB86943_PCIARB_EN		0x00000001
+
 #endif /* _ASM_MB86943A_H */

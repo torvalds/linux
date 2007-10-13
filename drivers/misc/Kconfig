@@ -5,6 +5,11 @@
 menuconfig MISC_DEVICES
 	bool "Misc devices"
 	default y
+	---help---
+	  Say Y here to get to see options for device drivers from various
+	  different categories. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 if MISC_DEVICES
 
@@ -150,6 +155,7 @@ config THINKPAD_ACPI
 	depends on X86 && ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
+	select NVRAM
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -195,5 +201,6 @@ config THINKPAD_ACPI_BAY
 	  notifications when the bay lever is ejected or inserted.
 
 	  If you are not sure, say Y here.
+
 
 endif # MISC_DEVICES

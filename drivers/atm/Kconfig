@@ -6,6 +6,11 @@ menuconfig ATM_DRIVERS
 	bool "ATM drivers"
 	depends on NETDEVICES && ATM
 	default y
+	---help---
+	  Say Y here to get to see options for Asynchronous Transfer Mode
+	  device drivers. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 if ATM_DRIVERS && NETDEVICES && ATM
 
@@ -172,7 +177,7 @@ config ATM_ZATM_DEBUG
 
 config ATM_NICSTAR
 	tristate "IDT 77201 (NICStAR) (ForeRunnerLE)"
-	depends on PCI && !64BIT
+	depends on PCI && !64BIT && VIRT_TO_BUS
 	help
 	  The NICStAR chipset family is used in a large number of ATM NICs for
 	  25 and for 155 Mbps, including IDT cards and the Fore ForeRunnerLE

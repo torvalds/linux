@@ -63,37 +63,37 @@ static char *states[] = {
 };
 
 static int ep_timeout_secs = 10;
-module_param(ep_timeout_secs, int, 0444);
+module_param(ep_timeout_secs, int, 0644);
 MODULE_PARM_DESC(ep_timeout_secs, "CM Endpoint operation timeout "
 				   "in seconds (default=10)");
 
 static int mpa_rev = 1;
-module_param(mpa_rev, int, 0444);
+module_param(mpa_rev, int, 0644);
 MODULE_PARM_DESC(mpa_rev, "MPA Revision, 0 supports amso1100, "
 		 "1 is spec compliant. (default=1)");
 
 static int markers_enabled = 0;
-module_param(markers_enabled, int, 0444);
+module_param(markers_enabled, int, 0644);
 MODULE_PARM_DESC(markers_enabled, "Enable MPA MARKERS (default(0)=disabled)");
 
 static int crc_enabled = 1;
-module_param(crc_enabled, int, 0444);
+module_param(crc_enabled, int, 0644);
 MODULE_PARM_DESC(crc_enabled, "Enable MPA CRC (default(1)=enabled)");
 
 static int rcv_win = 256 * 1024;
-module_param(rcv_win, int, 0444);
+module_param(rcv_win, int, 0644);
 MODULE_PARM_DESC(rcv_win, "TCP receive window in bytes (default=256)");
 
 static int snd_win = 32 * 1024;
-module_param(snd_win, int, 0444);
+module_param(snd_win, int, 0644);
 MODULE_PARM_DESC(snd_win, "TCP send window in bytes (default=32KB)");
 
 static unsigned int nocong = 0;
-module_param(nocong, uint, 0444);
+module_param(nocong, uint, 0644);
 MODULE_PARM_DESC(nocong, "Turn off congestion control (default=0)");
 
 static unsigned int cong_flavor = 1;
-module_param(cong_flavor, uint, 0444);
+module_param(cong_flavor, uint, 0644);
 MODULE_PARM_DESC(cong_flavor, "TCP Congestion control flavor (default=1)");
 
 static void process_work(struct work_struct *work);
@@ -139,7 +139,7 @@ static void release_tid(struct t3cdev *tdev, u32 hwtid, struct sk_buff *skb)
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_TID_RELEASE, hwtid));
 	skb->priority = CPL_PRIORITY_SETUP;
-	tdev->send(tdev, skb);
+	cxgb3_ofld_send(tdev, skb);
 	return;
 }
 
@@ -161,7 +161,7 @@ int iwch_quiesce_tid(struct iwch_ep *ep)
 	req->val = cpu_to_be64(1 << S_TCB_RX_QUIESCE);
 
 	skb->priority = CPL_PRIORITY_DATA;
-	ep->com.tdev->send(ep->com.tdev, skb);
+	cxgb3_ofld_send(ep->com.tdev, skb);
 	return 0;
 }
 
@@ -183,7 +183,7 @@ int iwch_resume_tid(struct iwch_ep *ep)
 	req->val = 0;
 
 	skb->priority = CPL_PRIORITY_DATA;
-	ep->com.tdev->send(ep->com.tdev, skb);
+	cxgb3_ofld_send(ep->com.tdev, skb);
 	return 0;
 }
 
@@ -229,9 +229,8 @@ static void *alloc_ep(int size, gfp_t gfp)
 {
 	struct iwch_ep_common *epc;
 
-	epc = kmalloc(size, gfp);
+	epc = kzalloc(size, gfp);
 	if (epc) {
-		memset(epc, 0, size);
 		kref_init(&epc->kref);
 		spin_lock_init(&epc->lock);
 		init_waitqueue_head(&epc->waitq);
@@ -785,7 +784,7 @@ static int update_rx_credits(struct iwch_ep *ep, u32 credits)
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RX_DATA_ACK, ep->hwtid));
 	req->credit_dack = htonl(V_RX_CREDITS(credits) | V_RX_FORCE_ACK(1));
 	skb->priority = CPL_PRIORITY_ACK;
-	ep->com.tdev->send(ep->com.tdev, skb);
+	cxgb3_ofld_send(ep->com.tdev, skb);
 	return credits;
 }
 
@@ -1153,7 +1152,7 @@ static int listen_start(struct iwch_listen_ep *ep)
 	req->opt1 = htonl(V_CONN_POLICY(CPL_CONN_POLICY_ASK));
 
 	skb->priority = 1;
-	ep->com.tdev->send(ep->com.tdev, skb);
+	cxgb3_ofld_send(ep->com.tdev, skb);
 	return 0;
 }
 
@@ -1187,7 +1186,7 @@ static int listen_stop(struct iwch_listen_ep *ep)
 	req->cpu_idx = 0;
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_LISTSRV_REQ, ep->stid));
 	skb->priority = 1;
-	ep->com.tdev->send(ep->com.tdev, skb);
+	cxgb3_ofld_send(ep->com.tdev, skb);
 	return 0;
 }
 
@@ -1265,7 +1264,7 @@ static void reject_cr(struct t3cdev *tdev, u32 hwtid, __be32 peer_ip,
 		rpl->opt0l_status = htonl(CPL_PASS_OPEN_REJECT);
 		rpl->opt2 = 0;
 		rpl->rsvd = rpl->opt2;
-		tdev->send(tdev, skb);
+		cxgb3_ofld_send(tdev, skb);
 	}
 }
 
@@ -1558,7 +1557,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	rpl->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(rpl) = htonl(MK_OPCODE_TID(CPL_ABORT_RPL, ep->hwtid));
 	rpl->cmd = CPL_ABORT_NO_RST;
-	ep->com.tdev->send(ep->com.tdev, rpl_skb);
+	cxgb3_ofld_send(ep->com.tdev, rpl_skb);
 	if (state != ABORTING) {
 		state_set(&ep->com, DEAD);
 		release_ep_resources(ep);
@@ -1914,6 +1913,7 @@ int iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
 fail3:
 	cxgb3_free_stid(ep->com.tdev, ep->stid);
 fail2:
+	cm_id->rem_ref(cm_id);
 	put_ep(&ep->com);
 fail1:
 out:

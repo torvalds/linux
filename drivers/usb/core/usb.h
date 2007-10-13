@@ -8,17 +8,22 @@ extern int usb_create_ep_files(struct device *parent, struct usb_host_endpoint *
 				struct usb_device *udev);
 extern void usb_remove_ep_files(struct usb_host_endpoint *endpoint);
 
+extern void usb_enable_endpoint(struct usb_device *dev,
+		struct usb_host_endpoint *ep);
 extern void usb_disable_endpoint (struct usb_device *dev, unsigned int epaddr);
 extern void usb_disable_interface (struct usb_device *dev,
 		struct usb_interface *intf);
 extern void usb_release_interface_cache(struct kref *ref);
 extern void usb_disable_device (struct usb_device *dev, int skip_ep0);
+extern int usb_deauthorize_device (struct usb_device *);
+extern int usb_authorize_device (struct usb_device *);
 extern void usb_detect_quirks(struct usb_device *udev);
 
 extern int usb_get_device_descriptor(struct usb_device *dev,
 		unsigned int size);
 extern char *usb_cache_string(struct usb_device *udev, int index);
 extern int usb_set_configuration(struct usb_device *dev, int configuration);
+extern int usb_choose_configuration(struct usb_device *udev);
 
 extern void usb_kick_khubd(struct usb_device *dev);
 extern int usb_match_device(struct usb_device *dev,

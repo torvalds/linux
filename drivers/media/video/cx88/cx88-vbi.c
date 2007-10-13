@@ -2,7 +2,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 
@@ -67,7 +66,7 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 	q->count = 1;
 
 	/* enable irqs */
-	cx_set(MO_PCI_INTMSK, core->pci_irqmask | 0x01);
+	cx_set(MO_PCI_INTMSK, core->pci_irqmask | PCI_INT_VIDINT);
 	cx_set(MO_VID_INTMSK, 0x0f0088);
 
 	/* enable capture */
@@ -91,7 +90,7 @@ int cx8800_stop_vbi_dma(struct cx8800_dev *dev)
 	cx_clear(VID_CAPTURE_CONTROL,0x18);
 
 	/* disable irqs */
-	cx_clear(MO_PCI_INTMSK, 0x000001);
+	cx_clear(MO_PCI_INTMSK, PCI_INT_VIDINT);
 	cx_clear(MO_VID_INTMSK, 0x0f0088);
 	return 0;
 }
@@ -100,7 +99,6 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 			     struct cx88_dmaqueue *q)
 {
 	struct cx88_buffer *buf;
-	struct list_head *item;
 
 	if (list_empty(&q->active))
 		return 0;
@@ -109,10 +107,8 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
 		buf, buf->vb.i);
 	cx8800_start_vbi_dma(dev, q, buf);
-	list_for_each(item,&q->active) {
-		buf = list_entry(item, struct cx88_buffer, vb.queue);
+	list_for_each_entry(buf, &q->active, vb.queue)
 		buf->count = q->count++;
-	}
 	mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 	return 0;
 }
@@ -173,6 +169,7 @@ vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		return -EINVAL;
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
+		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 		buf->vb.width  = VBI_LINE_LENGTH;
 		buf->vb.height = VBI_LINE_COUNT;
 		buf->vb.size   = size;
@@ -181,7 +178,7 @@ vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		if (0 != (rc = videobuf_iolock(q,&buf->vb,NULL)))
 			goto fail;
 		cx88_risc_buffer(dev->pci, &buf->risc,
-				 buf->vb.dma.sglist,
+				 dma->sglist,
 				 0, buf->vb.width * buf->vb.height,
 				 buf->vb.width, 0,
 				 buf->vb.height);

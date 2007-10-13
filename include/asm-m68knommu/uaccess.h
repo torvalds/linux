@@ -15,12 +15,15 @@
 
 #define access_ok(type,addr,size)	_access_ok((unsigned long)(addr),(size))
 
+/*
+ * It is not enough to just have access_ok check for a real RAM address.
+ * This would disallow the case of code/ro-data running XIP in flash/rom.
+ * Ideally we would check the possible flash ranges too, but that is
+ * currently not so easy.
+ */
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
-	extern unsigned long memory_start, memory_end;
-
-	return (((addr >= memory_start) && (addr+size < memory_end)) ||
-		(is_in_rom(addr) && is_in_rom(addr+size)));
+	return 1;
 }
 
 /*

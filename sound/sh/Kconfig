@@ -1,0 +1,14 @@
+# ALSA SH drivers
+
+menu "SUPERH devices"
+	depends on SND!=n && SUPERH
+
+config SND_AICA
+	tristate "Dreamcast Yamaha AICA sound"
+	depends on SH_DREAMCAST && SND
+	select SND_PCM
+	help
+	  ALSA Sound driver for the SEGA Dreamcast console.
+
+endmenu
+

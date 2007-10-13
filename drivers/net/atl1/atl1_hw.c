@@ -603,7 +603,7 @@ static struct atl1_spi_flash_dev flash_table[] = {
 
 static void atl1_init_flash_opcode(struct atl1_hw *hw)
 {
-	if (hw->flash_vendor >= sizeof(flash_table) / sizeof(flash_table[0]))
+	if (hw->flash_vendor >= ARRAY_SIZE(flash_table))
 		hw->flash_vendor = 0;	/* ATMEL */
 
 	/* Init OP table */

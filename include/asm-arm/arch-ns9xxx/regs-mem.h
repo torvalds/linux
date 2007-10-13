@@ -79,9 +79,9 @@
 #define MEM_SMC(x)	__REG2(0xa0700200, (x) << 3)
 
 /* Static Memory Configuration Register x: Write protect */
-#define MEM_SMC_WSMC		__REGBIT(20)
-#define MEM_SMC_WSMC_OFF		__REGVAL(MEM_SMC_WSMC, 0)
-#define MEM_SMC_WSMC_ON			__REGVAL(MEM_SMC_WSMC, 1)
+#define MEM_SMC_PSMC		__REGBIT(20)
+#define MEM_SMC_PSMC_OFF		__REGVAL(MEM_SMC_PSMC, 0)
+#define MEM_SMC_PSMC_ON			__REGVAL(MEM_SMC_PSMC, 1)
 
 /* Static Memory Configuration Register x: Buffer enable */
 #define MEM_SMC_BSMC		__REGBIT(19)

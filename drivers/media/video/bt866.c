@@ -257,7 +257,7 @@ static int bt866_write(struct bt866 *encoder,
 		printk(KERN_WARNING "%s: I/O error #%d "
 		       "(write 0x%02x/0x%02x)\n",
 		       encoder->i2c->name, err, encoder->addr, subaddr);
-		schedule_timeout_interruptible(HZ/10);
+		schedule_timeout_interruptible(msecs_to_jiffies(100));
 	}
 	if (err == 3) {
 		printk(KERN_WARNING "%s: giving up\n",

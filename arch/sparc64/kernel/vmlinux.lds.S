@@ -45,6 +45,8 @@ SECTIONS
   __ex_table : { *(__ex_table) }
   __stop___ex_table = .;
 
+  NOTES
+
   . = ALIGN(PAGE_SIZE);
   __init_begin = .;
   .init.text : { 
@@ -90,10 +92,8 @@ SECTIONS
   __initramfs_end = .;
 #endif
 
-  . = ALIGN(PAGE_SIZE);
-  __per_cpu_start = .;
-  .data.percpu  : { *(.data.percpu) }
-  __per_cpu_end = .;
+  PERCPU(PAGE_SIZE)
+
   . = ALIGN(PAGE_SIZE);
   __init_end = .;
   __bss_start = .;

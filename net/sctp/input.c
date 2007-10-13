@@ -590,7 +590,7 @@ out_unlock:
  * Return 0 - If further processing is needed.
  * Return 1 - If the packet can be discarded right away.
  */
-int sctp_rcv_ootb(struct sk_buff *skb)
+static int sctp_rcv_ootb(struct sk_buff *skb)
 {
 	sctp_chunkhdr_t *ch;
 	__u8 *ch_end;
@@ -620,6 +620,14 @@ int sctp_rcv_ootb(struct sk_buff *skb)
 		 * and take no further action.
 		 */
 		if (SCTP_CID_SHUTDOWN_COMPLETE == ch->type)
+			goto discard;
+
+		/* RFC 4460, 2.11.2
+		 * This will discard packets with INIT chunk bundled as
+		 * subsequent chunks in the packet.  When INIT is first,
+		 * the normal INIT processing will discard the chunk.
+		 */
+		if (SCTP_CID_INIT == ch->type && (void *)ch != skb->data)
 			goto discard;
 
 		/* RFC 8.4, 7) If the packet contains a "Stale cookie" ERROR
@@ -903,15 +911,6 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 
 	ch = (sctp_chunkhdr_t *) skb->data;
 
-	/* If this is INIT/INIT-ACK look inside the chunk too. */
-	switch (ch->type) {
-	case SCTP_CID_INIT:
-	case SCTP_CID_INIT_ACK:
-		break;
-	default:
-		return NULL;
-	}
-
 	/* The code below will attempt to walk the chunk and extract
 	 * parameter information.  Before we do that, we need to verify
 	 * that the chunk length doesn't cause overflow.  Otherwise, we'll
@@ -956,6 +955,60 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 	return NULL;
 }
 
+/* SCTP-AUTH, Section 6.3:
+*    If the receiver does not find a STCB for a packet containing an AUTH
+*    chunk as the first chunk and not a COOKIE-ECHO chunk as the second
+*    chunk, it MUST use the chunks after the AUTH chunk to look up an existing
+*    association.
+*
+* This means that any chunks that can help us identify the association need
+* to be looked at to find this assocation.
+*
+* TODO: The only chunk currently defined that can do that is ASCONF, but we
+* don't support that functionality yet.
+*/
+static struct sctp_association *__sctp_rcv_auth_lookup(struct sk_buff *skb,
+				      const union sctp_addr *paddr,
+				      const union sctp_addr *laddr,
+				      struct sctp_transport **transportp)
+{
+	/* XXX - walk through the chunks looking for something that can
+	 * help us find the association.  INIT, and INIT-ACK are not permitted.
+	 * That leaves ASCONF, but we don't support that yet.
+	 */
+	return NULL;
+}
+
+/*
+ * There are circumstances when we need to look inside the SCTP packet
+ * for information to help us find the association.   Examples
+ * include looking inside of INIT/INIT-ACK chunks or after the AUTH
+ * chunks.
+ */
+static struct sctp_association *__sctp_rcv_lookup_harder(struct sk_buff *skb,
+				      const union sctp_addr *paddr,
+				      const union sctp_addr *laddr,
+				      struct sctp_transport **transportp)
+{
+	sctp_chunkhdr_t *ch;
+
+	ch = (sctp_chunkhdr_t *) skb->data;
+
+	/* If this is INIT/INIT-ACK look inside the chunk too. */
+	switch (ch->type) {
+	case SCTP_CID_INIT:
+	case SCTP_CID_INIT_ACK:
+		return __sctp_rcv_init_lookup(skb, laddr, transportp);
+		break;
+
+	case SCTP_CID_AUTH:
+		return __sctp_rcv_auth_lookup(skb, paddr, laddr, transportp);
+		break;
+	}
+
+	return NULL;
+}
+
 /* Lookup an association for an inbound skb. */
 static struct sctp_association *__sctp_rcv_lookup(struct sk_buff *skb,
 				      const union sctp_addr *paddr,
@@ -971,7 +1024,7 @@ static struct sctp_association *__sctp_rcv_lookup(struct sk_buff *skb,
 	 * parameters within the INIT or INIT-ACK.
 	 */
 	if (!asoc)
-		asoc = __sctp_rcv_init_lookup(skb, laddr, transportp);
+		asoc = __sctp_rcv_lookup_harder(skb, paddr, laddr, transportp);
 
 	return asoc;
 }

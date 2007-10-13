@@ -81,6 +81,13 @@ static struct pcie_port_service_driver aerdriver = {
 	.reset_link	= aer_root_reset,
 };
 
+static int pcie_aer_disable;
+
+void pci_no_aer(void)
+{
+	pcie_aer_disable = 1;	/* has priority over 'forceload' */
+}
+
 /**
  * aer_irq - Root Port's ISR
  * @irq: IRQ assigned to Root Port
@@ -148,11 +155,10 @@ static struct aer_rpc* aer_alloc_rpc(struct pcie_device *dev)
 {
 	struct aer_rpc *rpc;
 
-	if (!(rpc = kmalloc(sizeof(struct aer_rpc),
+	if (!(rpc = kzalloc(sizeof(struct aer_rpc),
 		GFP_KERNEL)))
 		return NULL;
 
-	memset(rpc, 0, sizeof(struct aer_rpc));
 	/*
 	 * Initialize Root lock access, e_lock, to Root Error Status Reg,
 	 * Root Error ID Reg, and Root error producer/consumer index.
@@ -328,6 +334,8 @@ static void aer_error_resume(struct pci_dev *dev)
  **/
 static int __init aer_service_init(void)
 {
+	if (pcie_aer_disable)
+		return -ENXIO;
 	return pcie_port_service_register(&aerdriver);
 }
 

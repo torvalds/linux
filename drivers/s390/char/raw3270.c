@@ -21,6 +21,7 @@
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/ebcdic.h>
+#include <asm/diag.h>
 
 #include "raw3270.h"
 
@@ -147,8 +148,7 @@ raw3270_request_alloc(size_t size)
  * Allocate a new 3270 ccw request from bootmem. Only works very
  * early in the boot process. Only con3270.c should be using this.
  */
-struct raw3270_request *
-raw3270_request_alloc_bootmem(size_t size)
+struct raw3270_request __init *raw3270_request_alloc_bootmem(size_t size)
 {
 	struct raw3270_request *rq;
 
@@ -848,8 +848,7 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 /*
  * Setup 3270 device configured as console.
  */
-struct raw3270 *
-raw3270_setup_console(struct ccw_device *cdev)
+struct raw3270 __init *raw3270_setup_console(struct ccw_device *cdev)
 {
 	struct raw3270 *rp;
 	char *ascebc;

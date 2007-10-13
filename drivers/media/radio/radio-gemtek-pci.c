@@ -94,7 +94,6 @@ struct gemtek_pci_card {
 
 	u32 iobase;
 	u32 length;
-	u16 model;
 
 	u32 current_frequency;
 	u8  mute;
@@ -377,7 +376,6 @@ static struct video_device vdev_template = {
 	.owner         = THIS_MODULE,
 	.name          = "Gemtek PCI Radio",
 	.type          = VID_TYPE_TUNER,
-	.hardware      = 0,
 	.fops          = &gemtek_pci_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
@@ -413,8 +411,6 @@ static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci
 		printk( KERN_ERR "gemtek_pci: i/o port already in use\n" );
 		goto err_pci;
 	}
-
-	pci_read_config_word( pci_dev, PCI_SUBSYSTEM_ID, &card->model );
 
 	pci_set_drvdata( pci_dev, card );
 

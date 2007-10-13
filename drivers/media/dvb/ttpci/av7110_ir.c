@@ -25,7 +25,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
 #include <asm/bitops.h>
@@ -280,7 +279,7 @@ static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 	if (count < size)
 		return -EINVAL;
 
-	page = (char *) vmalloc(size);
+	page = vmalloc(size);
 	if (!page)
 		return -ENOMEM;
 
@@ -356,7 +355,7 @@ int __devinit av7110_ir_init(struct av7110 *av7110)
 		input_dev->id.vendor = av7110->dev->pci->vendor;
 		input_dev->id.product = av7110->dev->pci->device;
 	}
-	input_dev->cdev.dev = &av7110->dev->pci->dev;
+	input_dev->dev.parent = &av7110->dev->pci->dev;
 	/* initial keymap */
 	memcpy(av7110->ir.key_map, default_key_map, sizeof av7110->ir.key_map);
 	input_register_keys(&av7110->ir);

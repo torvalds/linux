@@ -84,7 +84,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 	set_freezable();
 	for (;;) {
 		allow_signal(SIGHUP);
-
+	again:
 		if (!jffs2_thread_should_wake(c)) {
 			set_current_state (TASK_INTERRUPTIBLE);
 			D1(printk(KERN_DEBUG "jffs2_garbage_collect_thread sleeping...\n"));
@@ -94,9 +94,6 @@ static int jffs2_garbage_collect_thread(void *_c)
 			   is only an optimisation anyway. */
 			schedule();
 		}
-
-		if (try_to_freeze())
-			continue;
 
 		/* This thread is purely an optimisation. But if it runs when
 		   other things could be running, it actually makes things a
@@ -111,6 +108,9 @@ static int jffs2_garbage_collect_thread(void *_c)
 		while (signal_pending(current)) {
 			siginfo_t info;
 			unsigned long signr;
+
+			if (try_to_freeze())
+				goto again;
 
 			signr = dequeue_signal_lock(current, &current->blocked, &info);
 

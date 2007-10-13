@@ -7,6 +7,7 @@
 config CPU_S3C2412
 	bool
 	depends on ARCH_S3C2410
+	select CPU_LLSERIAL_S3C2440
 	select S3C2412_PM if PM
 	select S3C2412_DMA if S3C2410_DMA
 	help

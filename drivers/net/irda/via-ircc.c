@@ -429,9 +429,6 @@ static __devinit int via_ircc_open(int i, chipio_t * info, unsigned int id)
 	self->tx_fifo.len = self->tx_fifo.ptr = self->tx_fifo.free = 0;
 	self->tx_fifo.tail = self->tx_buff.head;
 
-	/* Keep track of module usage */
-	SET_MODULE_OWNER(dev);
-
 	/* Override the network functions we need to use */
 	dev->hard_start_xmit = via_ircc_hard_xmit_sir;
 	dev->open = via_ircc_net_open;

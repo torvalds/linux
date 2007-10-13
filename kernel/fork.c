@@ -137,7 +137,7 @@ void __init fork_init(unsigned long mempages)
 	/* create a slab on which task_structs can be allocated */
 	task_struct_cachep =
 		kmem_cache_create("task_struct", sizeof(struct task_struct),
-			ARCH_MIN_TASKALIGN, SLAB_PANIC, NULL, NULL);
+			ARCH_MIN_TASKALIGN, SLAB_PANIC, NULL);
 #endif
 
 	/*
@@ -334,6 +334,8 @@ static struct mm_struct * mm_init(struct mm_struct * mm)
 	atomic_set(&mm->mm_count, 1);
 	init_rwsem(&mm->mmap_sem);
 	INIT_LIST_HEAD(&mm->mmlist);
+	mm->flags = (current->mm) ? current->mm->flags
+				  : MMF_DUMP_FILTER_DEFAULT;
 	mm->core_waiters = 0;
 	mm->nr_ptes = 0;
 	set_mm_counter(mm, file_rss, 0);
@@ -1436,7 +1438,7 @@ static void sighand_ctor(void *data, struct kmem_cache *cachep,
 	struct sighand_struct *sighand = data;
 
 	spin_lock_init(&sighand->siglock);
-	INIT_LIST_HEAD(&sighand->signalfd_list);
+	init_waitqueue_head(&sighand->signalfd_wqh);
 }
 
 void __init proc_caches_init(void)
@@ -1444,22 +1446,22 @@ void __init proc_caches_init(void)
 	sighand_cachep = kmem_cache_create("sighand_cache",
 			sizeof(struct sighand_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_DESTROY_BY_RCU,
-			sighand_ctor, NULL);
+			sighand_ctor);
 	signal_cachep = kmem_cache_create("signal_cache",
 			sizeof(struct signal_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
-	files_cachep = kmem_cache_create("files_cache", 
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+	files_cachep = kmem_cache_create("files_cache",
 			sizeof(struct files_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
-	fs_cachep = kmem_cache_create("fs_cache", 
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+	fs_cachep = kmem_cache_create("fs_cache",
 			sizeof(struct fs_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 	vm_area_cachep = kmem_cache_create("vm_area_struct",
 			sizeof(struct vm_area_struct), 0,
-			SLAB_PANIC, NULL, NULL);
+			SLAB_PANIC, NULL);
 	mm_cachep = kmem_cache_create("mm_struct",
 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 }
 
 /*
@@ -1606,7 +1608,8 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	err = -EINVAL;
 	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
 				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|
-				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWUSER))
+				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWUSER|
+				CLONE_NEWNET))
 		goto bad_unshare_out;
 
 	if ((err = unshare_thread(unshare_flags)))

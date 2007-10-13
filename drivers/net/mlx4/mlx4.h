@@ -39,6 +39,7 @@
 
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
+#include <linux/timer.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -55,11 +56,7 @@ enum {
 };
 
 enum {
-	MLX4_BOARD_ID_LEN	= 64
-};
-
-enum {
-	MLX4_MGM_ENTRY_SIZE	=  0x40,
+	MLX4_MGM_ENTRY_SIZE	=  0x100,
 	MLX4_QP_PER_MGM		= 4 * (MLX4_MGM_ENTRY_SIZE / 16 - 2),
 	MLX4_MTT_ENTRY_PER_SEG	= 8
 };
@@ -67,7 +64,6 @@ enum {
 enum {
 	MLX4_EQ_ASYNC,
 	MLX4_EQ_COMP,
-	MLX4_EQ_CATAS,
 	MLX4_NUM_EQ
 };
 
@@ -133,6 +129,7 @@ struct mlx4_icm_table {
 	int			num_obj;
 	int			obj_size;
 	int			lowmem;
+	int			coherent;
 	struct mutex		mutex;
 	struct mlx4_icm	      **icm;
 };
@@ -248,7 +245,8 @@ struct mlx4_mcg_table {
 
 struct mlx4_catas_err {
 	u32 __iomem	       *map;
-	int			size;
+	struct timer_list	timer;
+	struct list_head	list;
 };
 
 struct mlx4_priv {
@@ -276,9 +274,6 @@ struct mlx4_priv {
 
 	struct mlx4_uar		driver_uar;
 	void __iomem	       *kar;
-
-	u32			rev_id;
-	char			board_id[MLX4_BOARD_ID_LEN];
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -311,9 +306,11 @@ void mlx4_cleanup_qp_table(struct mlx4_dev *dev);
 void mlx4_cleanup_srq_table(struct mlx4_dev *dev);
 void mlx4_cleanup_mcg_table(struct mlx4_dev *dev);
 
-void mlx4_map_catas_buf(struct mlx4_dev *dev);
-void mlx4_unmap_catas_buf(struct mlx4_dev *dev);
-
+void mlx4_start_catas_poll(struct mlx4_dev *dev);
+void mlx4_stop_catas_poll(struct mlx4_dev *dev);
+int mlx4_catas_init(void);
+void mlx4_catas_cleanup(void);
+int mlx4_restart_one(struct pci_dev *pdev);
 int mlx4_register_device(struct mlx4_dev *dev);
 void mlx4_unregister_device(struct mlx4_dev *dev);
 void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_event type,

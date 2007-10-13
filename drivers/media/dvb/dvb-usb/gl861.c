@@ -157,6 +157,7 @@ static int gl861_probe(struct usb_interface *intf,
 
 static struct usb_device_id gl861_table [] = {
 		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580_55801) },
+		{ USB_DEVICE(USB_VID_ALINK, USB_VID_ALINK_DTU) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, gl861_table);
@@ -187,10 +188,14 @@ static struct dvb_usb_device_properties gl861_properties = {
 	}},
 	.i2c_algo         = &gl861_i2c_algo,
 
-	.num_device_descs = 1,
+	.num_device_descs = 2,
 	.devices = {
 		{   "MSI Mega Sky 55801 DVB-T USB2.0",
 			{ &gl861_table[0], NULL },
+			{ NULL },
+		},
+		{   "A-LINK DTU DVB-T USB2.0",
+			{ &gl861_table[1], NULL },
 			{ NULL },
 		},
 	}

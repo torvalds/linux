@@ -661,7 +661,6 @@ CONFIG_I2C_ALGOBIT=m
 # CONFIG_I2C_I801 is not set
 # CONFIG_I2C_I810 is not set
 # CONFIG_I2C_PIIX4 is not set
-# CONFIG_I2C_ISA is not set
 # CONFIG_I2C_MPC is not set
 # CONFIG_I2C_NFORCE2 is not set
 # CONFIG_I2C_PARPORT is not set

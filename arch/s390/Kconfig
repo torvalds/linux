@@ -109,10 +109,6 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-config DEFAULT_MIGRATION_COST
-	int
-	default "1000000"
-
 config MATHEMU
 	bool "IEEE FPU emulation"
 	depends on MARCH_G5

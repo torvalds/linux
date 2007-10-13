@@ -41,7 +41,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
 
 #include <asm/uaccess.h>
 #include <asm/vio.h>
@@ -75,52 +74,8 @@ enum {
 static DEFINE_SPINLOCK(viodasd_spinlock);
 
 #define VIOMAXREQ		16
-#define VIOMAXBLOCKDMA		12
 
 #define DEVICE_NO(cell)	((struct viodasd_device *)(cell) - &viodasd_devices[0])
-
-struct open_data {
-	u64	disk_size;
-	u16	max_disk;
-	u16	cylinders;
-	u16	tracks;
-	u16	sectors;
-	u16	bytes_per_sector;
-};
-
-struct rw_data {
-	u64	offset;
-	struct {
-		u32	token;
-		u32	reserved;
-		u64	len;
-	} dma_info[VIOMAXBLOCKDMA];
-};
-
-struct vioblocklpevent {
-	struct HvLpEvent	event;
-	u32			reserved;
-	u16			version;
-	u16			sub_result;
-	u16			disk;
-	u16			flags;
-	union {
-		struct open_data	open_data;
-		struct rw_data		rw_data;
-		u64			changed;
-	} u;
-};
-
-#define vioblockflags_ro   0x0001
-
-enum vioblocksubtype {
-	vioblockopen = 0x0001,
-	vioblockclose = 0x0002,
-	vioblockread = 0x0003,
-	vioblockwrite = 0x0004,
-	vioblockflush = 0x0005,
-	vioblockcheck = 0x0007
-};
 
 struct viodasd_waitevent {
 	struct completion	com;
@@ -400,7 +355,7 @@ error_ret:
 /*
  * This is the external request processing routine
  */
-static void do_viodasd_request(request_queue_t *q)
+static void do_viodasd_request(struct request_queue *q)
 {
 	struct request *req;
 
@@ -430,7 +385,7 @@ static void do_viodasd_request(request_queue_t *q)
  * Probe a single disk and fill in the viodasd_device structure
  * for it.
  */
-static void probe_disk(struct viodasd_device *d)
+static int probe_disk(struct viodasd_device *d)
 {
 	HvLpEvent_Rc hvrc;
 	struct viodasd_waitevent we;
@@ -454,14 +409,14 @@ retry:
 			0, 0, 0);
 	if (hvrc != 0) {
 		printk(VIOD_KERN_WARNING "bad rc on HV open %d\n", (int)hvrc);
-		return;
+		return 0;
 	}
 
 	wait_for_completion(&we.com);
 
 	if (we.rc != 0) {
 		if (flags != 0)
-			return;
+			return 0;
 		/* try again with read only flag set */
 		flags = vioblockflags_ro;
 		goto retry;
@@ -491,15 +446,32 @@ retry:
 	if (hvrc != 0) {
 		printk(VIOD_KERN_WARNING
 		       "bad rc sending event to OS/400 %d\n", (int)hvrc);
-		return;
+		return 0;
 	}
+
+	if (d->dev == NULL) {
+		/* this is when we reprobe for new disks */
+		if (vio_create_viodasd(dev_no) == NULL) {
+			printk(VIOD_KERN_WARNING
+				"cannot allocate virtual device for disk %d\n",
+				dev_no);
+			return 0;
+		}
+		/*
+		 * The vio_create_viodasd will have recursed into this
+		 * routine with d->dev set to the new vio device and
+		 * will finish the setup of the disk below.
+		 */
+		return 1;
+	}
+
 	/* create the request queue for the disk */
 	spin_lock_init(&d->q_lock);
 	q = blk_init_queue(do_viodasd_request, &d->q_lock);
 	if (q == NULL) {
 		printk(VIOD_KERN_WARNING "cannot allocate queue for disk %d\n",
 				dev_no);
-		return;
+		return 0;
 	}
 	g = alloc_disk(1 << PARTITION_SHIFT);
 	if (g == NULL) {
@@ -507,7 +479,7 @@ retry:
 				"cannot allocate disk structure for disk %d\n",
 				dev_no);
 		blk_cleanup_queue(q);
-		return;
+		return 0;
 	}
 
 	d->disk = g;
@@ -539,6 +511,7 @@ retry:
 
 	/* register us in the global list */
 	add_disk(g);
+	return 1;
 }
 
 /* returns the total number of scatterlist elements converted */
@@ -719,8 +692,7 @@ static int viodasd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct viodasd_device *d = &viodasd_devices[vdev->unit_address];
 
 	d->dev = &vdev->dev;
-	probe_disk(d);
-	if (d->disk == NULL)
+	if (!probe_disk(d))
 		return -ENODEV;
 	return 0;
 }

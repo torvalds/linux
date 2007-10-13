@@ -1,5 +1,6 @@
 #undef __s390x__
 #include <asm/unistd.h>
+#include "audit.h"
 
 unsigned s390_dir_class[] = {
 #include <asm-generic/audit_dir_write.h>

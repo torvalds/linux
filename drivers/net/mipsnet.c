@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/netdevice.h>
 #include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/mips-boards/simint.h>
@@ -21,10 +20,6 @@
 #define MIPSNET_VERSION "2005-06-20"
 
 #define mipsnet_reg_address(dev, field) (dev->base_addr + field_offset(field))
-
-struct mipsnet_priv {
-	struct net_device_stats stats;
-};
 
 static char mipsnet_string[] = "mipsnet";
 
@@ -50,7 +45,6 @@ static inline ssize_t mipsnet_put_todevice(struct net_device *dev,
 {
 	int count_to_go = skb->len;
 	char *buf_ptr = skb->data;
-	struct mipsnet_priv *mp = netdev_priv(dev);
 
 	pr_debug("%s: %s(): telling MIPSNET txDataCount(%d)\n",
 	         dev->name, __FUNCTION__, skb->len);
@@ -64,8 +58,8 @@ static inline ssize_t mipsnet_put_todevice(struct net_device *dev,
 		outb(*buf_ptr, mipsnet_reg_address(dev, txDataBuffer));
 	}
 
-	mp->stats.tx_packets++;
-	mp->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	return skb->len;
 }
@@ -88,10 +82,9 @@ static inline ssize_t mipsnet_get_fromdev(struct net_device *dev, size_t count)
 {
 	struct sk_buff *skb;
 	size_t len = count;
-	struct mipsnet_priv *mp = netdev_priv(dev);
 
 	if (!(skb = alloc_skb(len + 2, GFP_KERNEL))) {
-		mp->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return -ENOMEM;
 	}
 
@@ -106,8 +99,8 @@ static inline ssize_t mipsnet_get_fromdev(struct net_device *dev, size_t count)
 	         dev->name, __FUNCTION__);
 	netif_rx(skb);
 
-	mp->stats.rx_packets++;
-	mp->stats.rx_bytes += len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += len;
 
 	return count;
 }
@@ -204,13 +197,6 @@ static int mipsnet_close(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *mipsnet_get_stats(struct net_device *dev)
-{
-	struct mipsnet_priv *mp = netdev_priv(dev);
-
-	return &mp->stats;
-}
-
 static void mipsnet_set_mclist(struct net_device *dev)
 {
 	// we don't do anything
@@ -222,7 +208,7 @@ static int __init mipsnet_probe(struct device *dev)
 	struct net_device *netdev;
 	int err;
 
-	netdev = alloc_etherdev(sizeof(struct mipsnet_priv));
+	netdev = alloc_etherdev(0);
 	if (!netdev) {
 		err = -ENOMEM;
 		goto out;
@@ -233,7 +219,6 @@ static int __init mipsnet_probe(struct device *dev)
 	netdev->open			= mipsnet_open;
 	netdev->stop			= mipsnet_close;
 	netdev->hard_start_xmit		= mipsnet_xmit;
-	netdev->get_stats		= mipsnet_get_stats;
 	netdev->set_multicast_list	= mipsnet_set_mclist;
 
 	/*

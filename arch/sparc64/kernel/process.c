@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
 #include <linux/ptrace.h>
@@ -119,7 +120,7 @@ extern void (*prom_keyboard)(void);
 void machine_halt(void)
 {
 	sstate_halt();
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette (1);
 	if (prom_keyboard)
 		prom_keyboard();
@@ -130,7 +131,7 @@ void machine_halt(void)
 void machine_alt_power_off(void)
 {
 	sstate_poweroff();
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette(1);
 	if (prom_keyboard)
 		prom_keyboard();
@@ -145,7 +146,7 @@ void machine_restart(char * cmd)
 	sstate_reboot();
 	p = strchr (reboot_command, '\n');
 	if (p) *p = 0;
-	if (!serial_console && prom_palette)
+	if (prom_palette)
 		prom_palette (1);
 	if (prom_keyboard)
 		prom_keyboard();

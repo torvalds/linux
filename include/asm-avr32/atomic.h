@@ -101,7 +101,7 @@ static inline int atomic_sub_unless(atomic_t *v, int a, int u)
 		"	mov	%1, 1\n"
 		"1:"
 		: "=&r"(tmp), "=&r"(result), "=o"(v->counter)
-		: "m"(v->counter), "rKs21"(a), "rKs21"(u)
+		: "m"(v->counter), "rKs21"(a), "rKs21"(u), "1"(result)
 		: "cc", "memory");
 
 	return result;
@@ -137,7 +137,7 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 			"	mov	%1, 1\n"
 			"1:"
 			: "=&r"(tmp), "=&r"(result), "=o"(v->counter)
-			: "m"(v->counter), "r"(a), "ir"(u)
+			: "m"(v->counter), "r"(a), "ir"(u), "1"(result)
 			: "cc", "memory");
 	}
 

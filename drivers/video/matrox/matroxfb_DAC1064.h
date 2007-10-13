@@ -33,6 +33,21 @@ void DAC1064_global_restore(WPMINFO2);
 #define     M1064_XCURCTRL_3COLOR	0x01	/* transparent, 0, 1, 2 */
 #define     M1064_XCURCTRL_XGA		0x02	/* 0, 1, transparent, complement */
 #define     M1064_XCURCTRL_XWIN		0x03	/* transparent, transparent, 0, 1 */
+	/* drive DVI by standard(0)/DVI(1) PLL */
+	/* if set(1), C?DVICLKEN and C?DVICLKSEL must be set(1) */
+#define      M1064_XDVICLKCTRL_DVIDATAPATHSEL   0x01
+	/* drive CRTC1 by standard(0)/DVI(1) PLL */
+#define      M1064_XDVICLKCTRL_C1DVICLKSEL      0x02
+	/* drive CRTC2 by standard(0)/DVI(1) PLL */
+#define      M1064_XDVICLKCTRL_C2DVICLKSEL      0x04
+	/* pixel clock allowed to(0)/blocked from(1) driving CRTC1 */
+#define      M1064_XDVICLKCTRL_C1DVICLKEN       0x08
+	/* DVI PLL loop filter bandwidth selection bits */
+#define      M1064_XDVICLKCTRL_DVILOOPCTL       0x30
+	/* CRTC2 pixel clock allowed to(0)/blocked from(1) driving CRTC2 */
+#define      M1064_XDVICLKCTRL_C2DVICLKEN       0x40
+	/* P1PLL loop filter bandwith selection */
+#define      M1064_XDVICLKCTRL_P1LOOPBWDTCTL    0x80
 #define M1064_XCURCOL0RED	0x08
 #define M1064_XCURCOL0GREEN	0x09
 #define M1064_XCURCOL0BLUE	0x0A

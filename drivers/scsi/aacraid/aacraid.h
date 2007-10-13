@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2447
+# define AAC_DRIVER_BUILD 2449
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -1567,6 +1567,20 @@ struct aac_get_name_resp {
 	u8		data[16];
 };
 
+#define CT_CID_TO_32BITS_UID 165
+struct aac_get_serial {
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_CID_TO_32BITS_UID */
+	__le32		cid;
+};
+
+struct aac_get_serial_resp {
+	__le32		dummy0;
+	__le32		dummy1;
+	__le32		status;	/* CT_OK */
+	__le32		uid;
+};
+
 /*
  * The following command is sent to shut down each container.
  */
@@ -1793,10 +1807,10 @@ struct aac_aifcmd {
  *  	accounting for the fact capacity could be a 64 bit value
  *
  */
-static inline u32 cap_to_cyls(sector_t capacity, u32 divisor)
+static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 {
 	sector_div(capacity, divisor);
-	return (u32)capacity;
+	return capacity;
 }
 
 /* SCp.phase values */

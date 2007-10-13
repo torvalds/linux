@@ -23,6 +23,8 @@ int have_vmlinux = 0;
 static int all_versions = 0;
 /* If we are modposting external module set to 1 */
 static int external_module = 0;
+/* Warn about section mismatch in vmlinux if set to 1 */
+static int vmlinux_section_warnings = 1;
 /* Only warn about unresolved symbols */
 static int warn_unresolved = 0;
 /* How a symbol is exported */
@@ -75,7 +77,8 @@ static int is_vmlinux(const char *modname)
 	else
 		myname = modname;
 
-	return strcmp(myname, "vmlinux") == 0;
+	return (strcmp(myname, "vmlinux") == 0) ||
+	       (strcmp(myname, "vmlinux.o") == 0);
 }
 
 void *do_nofail(void *ptr, const char *expr)
@@ -374,6 +377,7 @@ static int parse_elf(struct elf_info *info, const char *filename)
 	hdr->e_shstrndx = TO_NATIVE(hdr->e_shstrndx);
 	hdr->e_shnum    = TO_NATIVE(hdr->e_shnum);
 	hdr->e_machine  = TO_NATIVE(hdr->e_machine);
+	hdr->e_type     = TO_NATIVE(hdr->e_type);
 	sechdrs = (void *)hdr + hdr->e_shoff;
 	info->sechdrs = sechdrs;
 
@@ -384,6 +388,8 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		sechdrs[i].sh_size   = TO_NATIVE(sechdrs[i].sh_size);
 		sechdrs[i].sh_link   = TO_NATIVE(sechdrs[i].sh_link);
 		sechdrs[i].sh_name   = TO_NATIVE(sechdrs[i].sh_name);
+		sechdrs[i].sh_info   = TO_NATIVE(sechdrs[i].sh_info);
+		sechdrs[i].sh_addr   = TO_NATIVE(sechdrs[i].sh_addr);
 	}
 	/* Find symbol table. */
 	for (i = 1; i < hdr->e_shnum; i++) {
@@ -580,13 +586,61 @@ static int strrcmp(const char *s, const char *sub)
         return memcmp(s + slen - sublen, sub, sublen);
 }
 
+/*
+ * Functions used only during module init is marked __init and is stored in
+ * a .init.text section. Likewise data is marked __initdata and stored in
+ * a .init.data section.
+ * If this section is one of these sections return 1
+ * See include/linux/init.h for the details
+ */
+static int init_section(const char *name)
+{
+	if (strcmp(name, ".init") == 0)
+		return 1;
+	if (strncmp(name, ".init.", strlen(".init.")) == 0)
+		return 1;
+	return 0;
+}
+
+/*
+ * Functions used only during module exit is marked __exit and is stored in
+ * a .exit.text section. Likewise data is marked __exitdata and stored in
+ * a .exit.data section.
+ * If this section is one of these sections return 1
+ * See include/linux/init.h for the details
+ **/
+static int exit_section(const char *name)
+{
+	if (strcmp(name, ".exit.text") == 0)
+		return 1;
+	if (strcmp(name, ".exit.data") == 0)
+		return 1;
+	return 0;
+
+}
+
+/*
+ * Data sections are named like this:
+ * .data | .data.rel | .data.rel.*
+ * Return 1 if the specified section is a data section
+ */
+static int data_section(const char *name)
+{
+	if ((strcmp(name, ".data") == 0) ||
+	    (strcmp(name, ".data.rel") == 0) ||
+	    (strncmp(name, ".data.rel.", strlen(".data.rel.")) == 0))
+		return 1;
+	else
+		return 0;
+}
+
 /**
  * Whitelist to allow certain references to pass with no warning.
  *
  * Pattern 0:
  *   Do not warn if funtion/data are marked with __init_refok/__initdata_refok.
  *   The pattern is identified by:
- *   fromsec = .text.init.refok | .data.init.refok
+ *   fromsec = .text.init.refok* | .data.init.refok*
  *
  * Pattern 1:
  *   If a module parameter is declared __initdata and permissions=0
@@ -604,19 +658,15 @@ static int strrcmp(const char *s, const char *sub)
  *   These functions may often be marked __init and we do not want to
  *   warn here.
  *   the pattern is identified by:
- *   tosec   = .init.text | .exit.text | .init.data
- *   fromsec = .data
- *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console
+ *   tosec   = init or exit section
+ *   fromsec = data section
+ *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one, *_console, *_timer
  *
  * Pattern 3:
- *   Whitelist all references from .pci_fixup* section to .init.text
- *   This is part of the PCI init when built-in
- *
- * Pattern 4:
  *   Whitelist all refereces from .text.head to .init.data
  *   Whitelist all refereces from .text.head to .init.text
  *
- * Pattern 5:
+ * Pattern 4:
  *   Some symbols belong to init section but still it is ok to reference
  *   these from non-init sections as these symbols don't have any memory
  *   allocated for them and symbol address and value are same. So even
@@ -625,42 +675,28 @@ static int strrcmp(const char *s, const char *sub)
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
  *
- * Pattern 7:
- *  Logos used in drivers/video/logo reside in __initdata but the
- *  funtion that references them are EXPORT_SYMBOL() so cannot be
- *  marker __init. So we whitelist them here.
- *  The pattern is:
- *  tosec      = .init.data
- *  fromsec    = .text*
- *  refsymname = logo_
- *
- * Pattern 8:
- *  Symbols contained in .paravirtprobe may safely reference .init.text.
- *  The pattern is:
- *  tosec   = .init.text
- *  fromsec  = .paravirtprobe
- *
- * Pattern 10:
- *  ia64 has machvec table for each platform and
- *  powerpc has a machine desc table for each platform.
- *  It is mixture of function pointers of .init.text and .text.
- *  fromsec  = .machvec | .machine.desc
+ * Pattern 5:
+ *   Xtensa uses literal sections for constants that are accessed PC-relative.
+ *   Literal sections may safely reference their text sections.
+ *   (Note that the name for the literal section omits any trailing '.text')
+ *   tosec = <section>[.text]
+ *   fromsec = <section>.literal
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
 			    const char *refsymname)
 {
-	int f1 = 1, f2 = 1;
+	int len;
 	const char **s;
 	const char *pat2sym[] = {
 		"driver",
 		"_template", /* scsi uses *_template a lot */
+		"_timer",    /* arm uses ops structures named _timer a lot */
 		"_sht",      /* scsi also used *_sht to some extent */
 		"_ops",
 		"_probe",
 		"_probe_one",
 		"_console",
-		"apic_es7000",
 		NULL
 	};
 
@@ -672,65 +708,41 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	};
 
 	/* Check for pattern 0 */
-	if ((strcmp(fromsec, ".text.init.refok") == 0) ||
-	    (strcmp(fromsec, ".data.init.refok") == 0))
+	if ((strncmp(fromsec, ".text.init.refok", strlen(".text.init.refok")) == 0) ||
+	    (strncmp(fromsec, ".exit.text.refok", strlen(".exit.text.refok")) == 0) ||
+	    (strncmp(fromsec, ".data.init.refok", strlen(".data.init.refok")) == 0))
 		return 1;
 
 	/* Check for pattern 1 */
-	if (strcmp(tosec, ".init.data") != 0)
-		f1 = 0;
-	if (strncmp(fromsec, ".data", strlen(".data")) != 0)
-		f1 = 0;
-	if (strncmp(atsym, "__param", strlen("__param")) != 0)
-		f1 = 0;
-
-	if (f1)
-		return f1;
-
-	/* Check for pattern 2 */
-	if ((strcmp(tosec, ".init.text") != 0) &&
-	    (strcmp(tosec, ".exit.text") != 0) &&
-	    (strcmp(tosec, ".init.data") != 0))
-		f2 = 0;
-	if (strcmp(fromsec, ".data") != 0)
-		f2 = 0;
-
-	for (s = pat2sym; *s; s++)
-		if (strrcmp(atsym, *s) == 0)
-			f1 = 1;
-	if (f1 && f2)
+	if ((strcmp(tosec, ".init.data") == 0) &&
+	    (strncmp(fromsec, ".data", strlen(".data")) == 0) &&
+	    (strncmp(atsym, "__param", strlen("__param")) == 0))
 		return 1;
 
-	/* Check for pattern 3 */
-	if ((strncmp(fromsec, ".pci_fixup", strlen(".pci_fixup")) == 0) &&
-	    (strcmp(tosec, ".init.text") == 0))
-	return 1;
+	/* Check for pattern 2 */
+	if ((init_section(tosec) || exit_section(tosec)) && data_section(fromsec))
+		for (s = pat2sym; *s; s++)
+			if (strrcmp(atsym, *s) == 0)
+				return 1;
 
-	/* Check for pattern 4 */
+	/* Check for pattern 3 */
 	if ((strcmp(fromsec, ".text.head") == 0) &&
 		((strcmp(tosec, ".init.data") == 0) ||
 		(strcmp(tosec, ".init.text") == 0)))
 	return 1;
 
-	/* Check for pattern 5 */
+	/* Check for pattern 4 */
 	for (s = pat3refsym; *s; s++)
 		if (strcmp(refsymname, *s) == 0)
 			return 1;
 
-	/* Check for pattern 7 */
-	if ((strcmp(tosec, ".init.data") == 0) &&
-	    (strncmp(fromsec, ".text", strlen(".text")) == 0) &&
-	    (strncmp(refsymname, "logo_", strlen("logo_")) == 0))
-		return 1;
-
-	/* Check for pattern 8 */
-	if ((strcmp(tosec, ".init.text") == 0) &&
-	    (strcmp(fromsec, ".paravirtprobe") == 0))
-		return 1;
-
-	/* Check for pattern 10 */
-	if ((strcmp(fromsec, ".machvec") == 0) ||
-	    (strcmp(fromsec, ".machine.desc") == 0))
+	/* Check for pattern 5 */
+	if (strrcmp(tosec, ".text") == 0)
+		len = strlen(tosec) - strlen(".text");
+	else
+		len = strlen(tosec);
+	if ((strncmp(tosec, fromsec, len) == 0) && (strlen(fromsec) > len) &&
+	    (strcmp(fromsec + len, ".literal") == 0))
 		return 1;
 
 	return 0;
@@ -752,6 +764,8 @@ static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf_Addr addr,
 		return relsym;
 	for (sym = elf->symtab_start; sym < elf->symtab_stop; sym++) {
 		if (sym->st_shndx != relsym->st_shndx)
+			continue;
+		if (ELF_ST_TYPE(sym->st_info) == STT_SECTION)
 			continue;
 		if (sym->st_value == addr)
 			return sym;
@@ -859,14 +873,9 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 		refsymname = elf->strtab + refsym->st_name;
 
 	/* check whitelist - we may ignore it */
-	if (before &&
-	    secref_whitelist(modname, secname, fromsec,
-			     elf->strtab + before->st_name, refsymname))
-		return;
-
-	/* fromsec whitelist - without a valid 'before'
-	 * powerpc has a GOT table in .got2 section */
-	if (strcmp(fromsec, ".got2") == 0)
+	if (secref_whitelist(modname, secname, fromsec,
+			     before ? elf->strtab + before->st_name : "",
+	                     refsymname))
 		return;
 
 	if (before && after) {
@@ -893,6 +902,78 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 		     modname, fromsec, (unsigned long long)r.r_offset,
 		     secname, refsymname);
 	}
+}
+
+static unsigned int *reloc_location(struct elf_info *elf,
+					   int rsection, Elf_Rela *r)
+{
+	Elf_Shdr *sechdrs = elf->sechdrs;
+	int section = sechdrs[rsection].sh_info;
+
+	return (void *)elf->hdr + sechdrs[section].sh_offset +
+		(r->r_offset - sechdrs[section].sh_addr);
+}
+
+static int addend_386_rel(struct elf_info *elf, int rsection, Elf_Rela *r)
+{
+	unsigned int r_typ = ELF_R_TYPE(r->r_info);
+	unsigned int *location = reloc_location(elf, rsection, r);
+
+	switch (r_typ) {
+	case R_386_32:
+		r->r_addend = TO_NATIVE(*location);
+		break;
+	case R_386_PC32:
+		r->r_addend = TO_NATIVE(*location) + 4;
+		/* For CONFIG_RELOCATABLE=y */
+		if (elf->hdr->e_type == ET_EXEC)
+			r->r_addend += r->r_offset;
+		break;
+	}
+	return 0;
+}
+
+static int addend_arm_rel(struct elf_info *elf, int rsection, Elf_Rela *r)
+{
+	unsigned int r_typ = ELF_R_TYPE(r->r_info);
+
+	switch (r_typ) {
+	case R_ARM_ABS32:
+		/* From ARM ABI: (S + A) | T */
+		r->r_addend = (int)(long)(elf->symtab_start + ELF_R_SYM(r->r_info));
+		break;
+	case R_ARM_PC24:
+		/* From ARM ABI: ((S + A) | T) - P */
+		r->r_addend = (int)(long)(elf->hdr + elf->sechdrs[rsection].sh_offset +
+		                          (r->r_offset - elf->sechdrs[rsection].sh_addr));
+		break;
+	default:
+		return 1;
+	}
+	return 0;
+}
+
+static int addend_mips_rel(struct elf_info *elf, int rsection, Elf_Rela *r)
+{
+	unsigned int r_typ = ELF_R_TYPE(r->r_info);
+	unsigned int *location = reloc_location(elf, rsection, r);
+	unsigned int inst;
+
+	if (r_typ == R_MIPS_HI16)
+		return 1;	/* skip this */
+	inst = TO_NATIVE(*location);
+	switch (r_typ) {
+	case R_MIPS_LO16:
+		r->r_addend = inst & 0xffff;
+		break;
+	case R_MIPS_26:
+		r->r_addend = (inst & 0x03ffffff) << 2;
+		break;
+	case R_MIPS_32:
+		r->r_addend = inst;
+		break;
+	}
+	return 0;
 }
 
 /**
@@ -938,8 +1019,11 @@ static void check_sec_ref(struct module *mod, const char *modname,
 				r.r_offset = TO_NATIVE(rela->r_offset);
 #if KERNEL_ELFCLASS == ELFCLASS64
 				if (hdr->e_machine == EM_MIPS) {
+					unsigned int r_typ;
 					r_sym = ELF64_MIPS_R_SYM(rela->r_info);
 					r_sym = TO_NATIVE(r_sym);
+					r_typ = ELF64_MIPS_R_TYPE(rela->r_info);
+					r.r_info = ELF64_R_INFO(r_sym, r_typ);
 				} else {
 					r.r_info = TO_NATIVE(rela->r_info);
 					r_sym = ELF_R_SYM(r.r_info);
@@ -972,8 +1056,11 @@ static void check_sec_ref(struct module *mod, const char *modname,
 				r.r_offset = TO_NATIVE(rel->r_offset);
 #if KERNEL_ELFCLASS == ELFCLASS64
 				if (hdr->e_machine == EM_MIPS) {
+					unsigned int r_typ;
 					r_sym = ELF64_MIPS_R_SYM(rel->r_info);
 					r_sym = TO_NATIVE(r_sym);
+					r_typ = ELF64_MIPS_R_TYPE(rel->r_info);
+					r.r_info = ELF64_R_INFO(r_sym, r_typ);
 				} else {
 					r.r_info = TO_NATIVE(rel->r_info);
 					r_sym = ELF_R_SYM(r.r_info);
@@ -983,6 +1070,20 @@ static void check_sec_ref(struct module *mod, const char *modname,
 				r_sym = ELF_R_SYM(r.r_info);
 #endif
 				r.r_addend = 0;
+				switch (hdr->e_machine) {
+				case EM_386:
+					if (addend_386_rel(elf, i, &r))
+						continue;
+					break;
+				case EM_ARM:
+					if(addend_arm_rel(elf, i, &r))
+						continue;
+					break;
+				case EM_MIPS:
+					if (addend_mips_rel(elf, i, &r))
+						continue;
+					break;
+				}
 				sym = elf->symtab_start + r_sym;
 				/* Skip special sections */
 				if (sym->st_shndx >= SHN_LORESERVE)
@@ -998,147 +1099,47 @@ static void check_sec_ref(struct module *mod, const char *modname,
 	}
 }
 
-/**
- * Functions used only during module init is marked __init and is stored in
- * a .init.text section. Likewise data is marked __initdata and stored in
- * a .init.data section.
- * If this section is one of these sections return 1
- * See include/linux/init.h for the details
- **/
-static int init_section(const char *name)
-{
-	if (strcmp(name, ".init") == 0)
-		return 1;
-	if (strncmp(name, ".init.", strlen(".init.")) == 0)
-		return 1;
-	return 0;
-}
-
-/**
- * Identify sections from which references to a .init section is OK.
- *
- * Unfortunately references to read only data that referenced .init
- * sections had to be excluded. Almost all of these are false
- * positives, they are created by gcc. The downside of excluding rodata
- * is that there really are some user references from rodata to
- * init code, e.g. drivers/video/vgacon.c:
- *
- * const struct consw vga_con = {
- *        con_startup:            vgacon_startup,
- *
- * where vgacon_startup is __init.  If you want to wade through the false
- * positives, take out the check for rodata.
- **/
-static int init_section_ref_ok(const char *name)
-{
-	const char **s;
-	/* Absolute section names */
-	const char *namelist1[] = {
-		".init",
-		".opd",   /* see comment [OPD] at exit_section_ref_ok() */
-		".toc1",  /* used by ppc64 */
-		".stab",
-		".data.rel.ro", /* used by parisc64 */
-		".parainstructions",
-		".text.lock",
-		"__bug_table", /* used by powerpc for BUG() */
-		".pci_fixup_header",
-		".pci_fixup_final",
-		".pdr",
-		"__param",
-		"__ex_table",
-		".fixup",
-		".smp_locks",
-		".plt",  /* seen on ARCH=um build on x86_64. Harmless */
-		"__ftr_fixup",		/* powerpc cpu feature fixup */
-		"__fw_ftr_fixup",	/* powerpc firmware feature fixup */
-		".cranges",	/* used by sh64 */
-		NULL
-	};
-	/* Start of section names */
-	const char *namelist2[] = {
-		".init.",
-		".altinstructions",
-		".eh_frame",
-		".debug",
-		".parainstructions",
-		".rodata",
-		NULL
-	};
-	/* part of section name */
-	const char *namelist3 [] = {
-		".unwind",  /* sample: IA_64.unwind.init.text */
-		NULL
-	};
-
-	for (s = namelist1; *s; s++)
-		if (strcmp(*s, name) == 0)
-			return 1;
-	for (s = namelist2; *s; s++)
-		if (strncmp(*s, name, strlen(*s)) == 0)
-			return 1;
-	for (s = namelist3; *s; s++)
-		if (strstr(name, *s) != NULL)
-			return 1;
-	if (strrcmp(name, ".init") == 0)
-		return 1;
-	return 0;
-}
-
 /*
- * Functions used only during module exit is marked __exit and is stored in
- * a .exit.text section. Likewise data is marked __exitdata and stored in
- * a .exit.data section.
- * If this section is one of these sections return 1
- * See include/linux/init.h for the details
- **/
-static int exit_section(const char *name)
-{
-	if (strcmp(name, ".exit.text") == 0)
-		return 1;
-	if (strcmp(name, ".exit.data") == 0)
-		return 1;
-	return 0;
-
-}
-
-/*
- * Identify sections from which references to a .exit section is OK.
+ * Identify sections from which references to either a
+ * .init or a .exit section is OK.
  *
  * [OPD] Keith Ownes <kaos@sgi.com> commented:
  * For our future {in}sanity, add a comment that this is the ppc .opd
  * section, not the ia64 .opd section.
  * ia64 .opd should not point to discarded sections.
  * [.rodata] like for .init.text we ignore .rodata references -same reason
- **/
-static int exit_section_ref_ok(const char *name)
+ */
+static int initexit_section_ref_ok(const char *name)
 {
 	const char **s;
 	/* Absolute section names */
 	const char *namelist1[] = {
-		".exit.text",
-		".exit.data",
-		".init.text",
-		".rodata",
-		".opd", /* See comment [OPD] */
-		".toc1",  /* used by ppc64 */
-		".altinstructions",
-		".pdr",
-		"__bug_table", /* used by powerpc for BUG() */
-		".exitcall.exit",
-		".eh_frame",
-		".parainstructions",
-		".stab",
+		"__bug_table",		/* used by powerpc for BUG() */
 		"__ex_table",
+		".altinstructions",
+		".cranges",		/* used by sh64 */
 		".fixup",
+		".machvec",		/* ia64 + powerpc uses these */
+		".machine.desc",
+		".opd",			/* See comment [OPD] */
+		"__dbe_table",
+		".parainstructions",
+		".pdr",
+		".plt",			/* seen on ARCH=um build on x86_64. Harmless */
 		".smp_locks",
-		".plt",  /* seen on ARCH=um build on x86_64. Harmless */
-		".cranges",	/* used by sh64 */
+		".stab",
+		".m68k_fixup",
+		".xt.prop",		/* xtensa informational section */
+		".xt.lit",		/* xtensa informational section */
 		NULL
 	};
 	/* Start of section names */
 	const char *namelist2[] = {
 		".debug",
+		".eh_frame",
+		".note",		/* ignore ELF notes - may contain anything */
+		".got",			/* powerpc - global offset table */
+		".toc",			/* powerpc - table of contents */
 		NULL
 	};
 	/* part of section name */
@@ -1155,6 +1156,86 @@ static int exit_section_ref_ok(const char *name)
 			return 1;
 	for (s = namelist3; *s; s++)
 		if (strstr(name, *s) != NULL)
+			return 1;
+	return 0;
+}
+
+
+/*
+ * Identify sections from which references to a .init section is OK.
+ *
+ * Unfortunately references to read only data that referenced .init
+ * sections had to be excluded. Almost all of these are false
+ * positives, they are created by gcc. The downside of excluding rodata
+ * is that there really are some user references from rodata to
+ * init code, e.g. drivers/video/vgacon.c:
+ *
+ * const struct consw vga_con = {
+ *        con_startup:            vgacon_startup,
+ *
+ * where vgacon_startup is __init.  If you want to wade through the false
+ * positives, take out the check for rodata.
+ */
+static int init_section_ref_ok(const char *name)
+{
+	const char **s;
+	/* Absolute section names */
+	const char *namelist1[] = {
+		"__dbe_table",		/* MIPS generate these */
+		"__ftr_fixup",		/* powerpc cpu feature fixup */
+		"__fw_ftr_fixup",	/* powerpc firmware feature fixup */
+		"__param",
+		".data.rel.ro",		/* used by parisc64 */
+		".init",
+		".text.lock",
+		NULL
+	};
+	/* Start of section names */
+	const char *namelist2[] = {
+		".init.",
+		".pci_fixup",
+		".rodata",
+		NULL
+	};
+
+	if (initexit_section_ref_ok(name))
+		return 1;
+
+	for (s = namelist1; *s; s++)
+		if (strcmp(*s, name) == 0)
+			return 1;
+	for (s = namelist2; *s; s++)
+		if (strncmp(*s, name, strlen(*s)) == 0)
+			return 1;
+
+	/* If section name ends with ".init" we allow references
+	 * as is the case with .initcallN.init, .early_param.init, .taglist.init etc
+	 */
+	if (strrcmp(name, ".init") == 0)
+		return 1;
+	return 0;
+}
+
+/*
+ * Identify sections from which references to a .exit section is OK.
+ */
+static int exit_section_ref_ok(const char *name)
+{
+	const char **s;
+	/* Absolute section names */
+	const char *namelist1[] = {
+		".exit.data",
+		".exit.text",
+		".exitcall.exit",
+		".rodata",
+		NULL
+	};
+
+	if (initexit_section_ref_ok(name))
+		return 1;
+
+	for (s = namelist1; *s; s++)
+		if (strcmp(*s, name) == 0)
 			return 1;
 	return 0;
 }
@@ -1198,8 +1279,10 @@ static void read_symbols(char *modname)
 		handle_modversions(mod, &info, sym, symname);
 		handle_moddevtable(mod, &info, sym, symname);
 	}
-	check_sec_ref(mod, modname, &info, init_section, init_section_ref_ok);
-	check_sec_ref(mod, modname, &info, exit_section, exit_section_ref_ok);
+	if (is_vmlinux(modname) && vmlinux_section_warnings) {
+		check_sec_ref(mod, modname, &info, init_section, init_section_ref_ok);
+		check_sec_ref(mod, modname, &info, exit_section, exit_section_ref_ok);
+	}
 
 	version = get_modinfo(info.modinfo, info.modinfo_len, "version");
 	if (version)
@@ -1567,7 +1650,7 @@ int main(int argc, char **argv)
 	int opt;
 	int err;
 
-	while ((opt = getopt(argc, argv, "i:I:mo:aw")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:mso:aw")) != -1) {
 		switch(opt) {
 			case 'i':
 				kernel_read = optarg;
@@ -1584,6 +1667,9 @@ int main(int argc, char **argv)
 				break;
 			case 'a':
 				all_versions = 1;
+				break;
+			case 's':
+				vmlinux_section_warnings = 0;
 				break;
 			case 'w':
 				warn_unresolved = 1;

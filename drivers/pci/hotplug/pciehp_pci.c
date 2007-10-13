@@ -243,9 +243,10 @@ int pciehp_configure_device(struct slot *p_slot)
 
 int pciehp_unconfigure_device(struct slot *p_slot)
 {
-	int rc = 0;
+	int ret, rc = 0;
 	int j;
 	u8 bctl = 0;
+	u8 presence = 0;
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 
 	dbg("%s: bus/dev = %x/%x\n", __FUNCTION__, p_slot->bus,
@@ -263,23 +264,28 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 			continue;
 		}
 		if (temp->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-			pci_read_config_byte(temp, PCI_BRIDGE_CONTROL, &bctl);
-			if (bctl & PCI_BRIDGE_CTL_VGA) {
-				err("Cannot remove display device %s\n",
+			ret = p_slot->hpc_ops->get_adapter_status(p_slot,
+								&presence);
+			if (!ret && presence) {
+				pci_read_config_byte(temp, PCI_BRIDGE_CONTROL,
+					&bctl);
+				if (bctl & PCI_BRIDGE_CTL_VGA) {
+					err("Cannot remove display device %s\n",
 						pci_name(temp));
-				pci_dev_put(temp);
-				continue;
+					pci_dev_put(temp);
+					continue;
+				}
 			}
 		}
 		pci_remove_bus_device(temp);
 		pci_dev_put(temp);
 	}
-	/* 
+	/*
 	 * Some PCI Express root ports require fixup after hot-plug operation.
 	 */
-	if (pcie_mch_quirk) 
+	if (pcie_mch_quirk)
 		pci_fixup_device(pci_fixup_final, p_slot->ctrl->pci_dev);
-	
+
 	return rc;
 }
 

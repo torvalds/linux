@@ -1482,6 +1482,7 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 	lvb->lvb_imtime_packed =
 		cpu_to_be64(ocfs2_pack_timespec(&inode->i_mtime));
 	lvb->lvb_iattr    = cpu_to_be32(oi->ip_attr);
+	lvb->lvb_idynfeatures = cpu_to_be16(oi->ip_dyn_features);
 	lvb->lvb_igeneration = cpu_to_be32(inode->i_generation);
 
 out:
@@ -1515,6 +1516,7 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	i_size_write(inode, be64_to_cpu(lvb->lvb_isize));
 
 	oi->ip_attr = be32_to_cpu(lvb->lvb_iattr);
+	oi->ip_dyn_features = be16_to_cpu(lvb->lvb_idynfeatures);
 	ocfs2_set_inode_flags(inode);
 
 	/* fast-symlinks are a special case */

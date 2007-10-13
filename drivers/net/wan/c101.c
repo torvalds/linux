@@ -315,12 +315,11 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 		return -ENODEV;
 	}
 
-	card = kmalloc(sizeof(card_t), GFP_KERNEL);
+	card = kzalloc(sizeof(card_t), GFP_KERNEL);
 	if (card == NULL) {
 		printk(KERN_ERR "c101: unable to allocate memory\n");
 		return -ENOBUFS;
 	}
-	memset(card, 0, sizeof(card_t));
 
 	card->dev = alloc_hdlcdev(card);
 	if (!card->dev) {
@@ -364,7 +363,6 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 	hdlc = dev_to_hdlc(dev);
 
 	spin_lock_init(&card->lock);
-	SET_MODULE_OWNER(dev);
 	dev->irq = irq;
 	dev->mem_start = winbase;
 	dev->mem_end = winbase + C101_MAPPED_RAM_SIZE - 1;

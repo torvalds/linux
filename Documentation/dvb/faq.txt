@@ -150,7 +150,7 @@ Some very frequently asked questions about linuxtv-dvb
 	- saa7146_vv: SAA7146 video and vbi functions. These are only needed
 	  for full-featured cards.
 
-	- video-buf: capture helper module for the saa7146_vv driver. This
+	- videobuf-dma-sg: capture helper module for the saa7146_vv driver. This
 	  one is responsible to handle capture buffers.
 
 	- dvb-ttpci: The main driver for AV7110 based, full-featured

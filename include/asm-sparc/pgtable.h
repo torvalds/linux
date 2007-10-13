@@ -46,7 +46,6 @@ BTFIXUPDEF_SIMM13(user_ptrs_per_pgd)
 #define pgd_ERROR(e)   __builtin_trap()
 
 BTFIXUPDEF_INT(page_none)
-BTFIXUPDEF_INT(page_shared)
 BTFIXUPDEF_INT(page_copy)
 BTFIXUPDEF_INT(page_readonly)
 BTFIXUPDEF_INT(page_kernel)
@@ -66,7 +65,7 @@ BTFIXUPDEF_INT(page_kernel)
 #define PTE_SIZE		(PTRS_PER_PTE*4)
 
 #define PAGE_NONE      __pgprot(BTFIXUP_INT(page_none))
-#define PAGE_SHARED    __pgprot(BTFIXUP_INT(page_shared))
+extern pgprot_t PAGE_SHARED;
 #define PAGE_COPY      __pgprot(BTFIXUP_INT(page_copy))
 #define PAGE_READONLY  __pgprot(BTFIXUP_INT(page_readonly))
 

@@ -46,6 +46,7 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
+	struct timespec		ts = current_kernel_time();
 
 	if (strncmp(rtc->dev.bus_id,
 				CONFIG_RTC_HCTOSYS_DEVICE,
@@ -57,8 +58,8 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 
 	/* RTC precision is 1 second; adjust delta for avg 1/2 sec err */
 	set_normalized_timespec(&delta,
-				xtime.tv_sec - oldtime,
-				xtime.tv_nsec - (NSEC_PER_SEC >> 1));
+				ts.tv_sec - oldtime,
+				ts.tv_nsec - (NSEC_PER_SEC >> 1));
 
 	return 0;
 }

@@ -133,7 +133,7 @@
 #define MCFDMA_DIR_ASCEN     0x0800 /* Address Sequence Complete (Completion) interrupt enable */
 #define MCFDMA_DIR_TEEN      0x0200 /* Transfer Error interrupt enable */
 #define MCFDMA_DIR_TCEN      0x0100 /* Transfer Complete (a bus transfer, that is) interrupt enable */
-#define MCFDMA_DIR_INV       0x1000 /* Invalid Combination */
+#define MCFDMA_DIR_INV       0x0010 /* Invalid Combination */
 #define MCFDMA_DIR_ASC       0x0008 /* Address Sequence Complete (DMA Completion) */
 #define MCFDMA_DIR_TE        0x0002 /* Transfer Error */
 #define MCFDMA_DIR_TC        0x0001 /* Transfer Complete */

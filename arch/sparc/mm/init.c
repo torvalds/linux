@@ -308,6 +308,9 @@ extern void sun4c_paging_init(void);
 extern void srmmu_paging_init(void);
 extern void device_scan(void);
 
+pgprot_t PAGE_SHARED __read_mostly;
+EXPORT_SYMBOL(PAGE_SHARED);
+
 void __init paging_init(void)
 {
 	switch(sparc_cpu_model) {

@@ -90,6 +90,9 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
 source "init/Kconfig"
 
 menu "System type"
@@ -134,8 +137,8 @@ config SH_FPU_EMU
 
 config SH_DSP
 	bool "DSP support"
-	default y if SH4AL_DSP || !CPU_SH4
-	default n
+	depends on CPU_HAS_DSP
+	default y
 	help
 	  Selecting this option will enable support for SH processors that
 	  have DSP units (ie, SH2-DSP, SH3-DSP, and SH4AL-DSP).
@@ -172,10 +175,10 @@ config SPECULATIVE_EXECUTION
 config CPU_HAS_INTEVT
 	bool
 
-config CPU_HAS_PINT_IRQ
+config CPU_HAS_MASKREG_IRQ
 	bool
 
-config CPU_HAS_MASKREG_IRQ
+config CPU_HAS_INTC_IRQ
 	bool
 
 config CPU_HAS_INTC2_IRQ
@@ -199,6 +202,9 @@ config CPU_HAS_SR_RB
 config CPU_HAS_PTEA
 	bool
 
+config CPU_HAS_DSP
+	bool
+
 endmenu
 
 menu "Board support"
@@ -209,6 +215,7 @@ config SOLUTION_ENGINE
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
 	select SOLUTION_ENGINE
+	select CPU_HAS_IPR_IRQ
 	depends on CPU_SUBTYPE_SH7709 || CPU_SUBTYPE_SH7750
 	help
 	  Select SolutionEngine if configuring for a Hitachi SH7709
@@ -241,6 +248,7 @@ config SH_7722_SOLUTION_ENGINE
 config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
 	select SOLUTION_ENGINE
+	select CPU_HAS_IPR_IRQ
 	depends on CPU_SUBTYPE_SH7751
 	help
 	  Select 7751 SolutionEngine if configuring for a Hitachi SH7751
@@ -250,18 +258,11 @@ config SH_7780_SOLUTION_ENGINE
 	bool "SolutionEngine7780"
 	select SOLUTION_ENGINE
 	select SYS_SUPPORTS_PCI
+	select CPU_HAS_INTC2_IRQ
 	depends on CPU_SUBTYPE_SH7780
 	help
 	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
 	  evaluation board.
-
-config SH_7300_SOLUTION_ENGINE
-	bool "SolutionEngine7300"
-	select SOLUTION_ENGINE
-	depends on CPU_SUBTYPE_SH7300
-	help
-	  Select 7300 SolutionEngine if configuring for a Hitachi
-	  SH7300(SH-Mobile V) evaluation board.
 
 config SH_7343_SOLUTION_ENGINE
 	bool "SolutionEngine7343"
@@ -270,14 +271,6 @@ config SH_7343_SOLUTION_ENGINE
 	help
 	  Select 7343 SolutionEngine if configuring for a Hitachi
 	  SH7343 (SH-Mobile 3AS) evaluation board.
-
-config SH_73180_SOLUTION_ENGINE
-	bool "SolutionEngine73180"
-	select SOLUTION_ENGINE
-	depends on CPU_SUBTYPE_SH73180
-	help
-	  Select 73180 SolutionEngine if configuring for a Hitachi
-	  SH73180(SH-Mobile 3) evaluation board.
 
 config SH_7751_SYSTEMH
 	bool "SystemH7751R"
@@ -317,6 +310,7 @@ config SH_MPC1211
 config SH_SH03
 	bool "Interface CTP/PCI-SH03"
 	depends on CPU_SUBTYPE_SH7751 && BROKEN
+	select CPU_HAS_IPR_IRQ
 	select SYS_SUPPORTS_PCI
 	help
 	  CTP/PCI-SH03 is a CPU module computer that is produced
@@ -326,6 +320,7 @@ config SH_SH03
 config SH_SECUREEDGE5410
 	bool "SecureEdge5410"
 	depends on CPU_SUBTYPE_SH7751R
+	select CPU_HAS_IPR_IRQ
 	select SYS_SUPPORTS_PCI
 	help
 	  Select SecureEdge5410 if configuring for a SnapGear SH board.
@@ -380,6 +375,7 @@ config SH_LANDISK
 config SH_TITAN
 	bool "TITAN"
 	depends on CPU_SUBTYPE_SH7751R
+	select CPU_HAS_IPR_IRQ
 	select SYS_SUPPORTS_PCI
 	help
 	  Select Titan if you are configuring for a Nimble Microsystems
@@ -388,6 +384,7 @@ config SH_TITAN
 config SH_SHMIN
 	bool "SHMIN"
 	depends on CPU_SUBTYPE_SH7706
+	select CPU_HAS_IPR_IRQ
 	help
 	  Select SHMIN if configuring for the SHMIN board.
 
@@ -438,10 +435,10 @@ config SH_TIMER_IRQ
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
-	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
+	default "27000000" if CPU_SUBTYPE_SH7343
 	default "31250000" if CPU_SUBTYPE_SH7619
 	default "32000000" if CPU_SUBTYPE_SH7722
-	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
+	default "33333333" if CPU_SUBTYPE_SH7770 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
 			      CPU_SUBTYPE_SH7206
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R

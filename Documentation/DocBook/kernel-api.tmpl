@@ -159,7 +159,6 @@ X!Ilib/string.c
 !Earch/i386/lib/usercopy.c
      </sect1>
      <sect1><title>More Memory Management Functions</title>
-!Iinclude/linux/rmap.h
 !Emm/readahead.c
 !Emm/filemap.c
 !Emm/memory.c
@@ -241,17 +240,23 @@ X!Ilib/string.c
      <sect1><title>Driver Support</title>
 !Enet/core/dev.c
 !Enet/ethernet/eth.c
+!Enet/sched/sch_generic.c
 !Iinclude/linux/etherdevice.h
+!Iinclude/linux/netdevice.h
+     </sect1>
+     <sect1><title>PHY Support</title>
 !Edrivers/net/phy/phy.c
 !Idrivers/net/phy/phy.c
 !Edrivers/net/phy/phy_device.c
 !Idrivers/net/phy/phy_device.c
 !Edrivers/net/phy/mdio_bus.c
 !Idrivers/net/phy/mdio_bus.c
-<!-- FIXME: Removed for now since no structured comments in source
-X!Enet/core/wireless.c
--->
      </sect1>
+<!-- FIXME: Removed for now since no structured comments in source
+     <sect1><title>Wireless</title>
+X!Enet/core/wireless.c
+     </sect1>
+-->
      <sect1><title>Synchronous PPP</title>
 !Edrivers/net/wan/syncppp.c
      </sect1>
@@ -381,7 +386,6 @@ X!Edrivers/base/interface.c
 !Edrivers/base/bus.c
      </sect1>
      <sect1><title>Device Drivers Power Management</title>
-!Edrivers/base/power/main.c
 !Edrivers/base/power/resume.c
 !Edrivers/base/power/suspend.c
      </sect1>
@@ -399,14 +403,18 @@ X!Edrivers/acpi/pci_bind.c
 -->
      </sect1>
      <sect1><title>Device drivers PnP support</title>
-!Edrivers/pnp/core.c
+!Idrivers/pnp/core.c
 <!-- No correct structured comments
 X!Edrivers/pnp/system.c
  -->
 !Edrivers/pnp/card.c
-!Edrivers/pnp/driver.c
+!Idrivers/pnp/driver.c
 !Edrivers/pnp/manager.c
 !Edrivers/pnp/support.c
+     </sect1>
+     <sect1><title>Userspace IO devices</title>
+!Edrivers/uio/uio.c
+!Iinclude/linux/uio_driver.h
      </sect1>
   </chapter>
 
@@ -701,14 +709,22 @@ X!Idrivers/video/console/fonts.c
 
   <chapter id="splice">
       <title>splice API</title>
-  <para>)
+  <para>
 	splice is a method for moving blocks of data around inside the
-	kernel, without continually transferring it between the kernel
+	kernel, without continually transferring them between the kernel
 	and user space.
   </para>
-!Iinclude/linux/splice.h
 !Ffs/splice.c
   </chapter>
 
+  <chapter id="pipes">
+      <title>pipes API</title>
+  <para>
+	Pipe interfaces are all for in-kernel (builtin image) use.
+	They are not exported for use by modules.
+  </para>
+!Iinclude/linux/pipe_fs_i.h
+!Ffs/pipe.c
+  </chapter>
 
 </book>

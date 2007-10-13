@@ -13,6 +13,7 @@
 #ifndef __LEDS_H_INCLUDED
 #define __LEDS_H_INCLUDED
 
+#include <linux/device.h>
 #include <linux/leds.h>
 
 static inline void led_set_brightness(struct led_classdev *led_cdev,
@@ -37,8 +38,9 @@ void led_trigger_set(struct led_classdev *led_cdev,
 #define led_trigger_set(x, y) do {} while(0)
 #endif
 
-ssize_t led_trigger_store(struct class_device *dev, const char *buf,
-			size_t count);
-ssize_t led_trigger_show(struct class_device *dev, char *buf);
+ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count);
+ssize_t led_trigger_show(struct device *dev, struct device_attribute *attr,
+			char *buf);
 
 #endif	/* __LEDS_H_INCLUDED */

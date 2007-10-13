@@ -50,6 +50,7 @@
 
 #define NFS3_sattrargs_sz	(NFS3_fh_sz+NFS3_sattr_sz+3)
 #define NFS3_diropargs_sz	(NFS3_fh_sz+NFS3_filename_sz)
+#define NFS3_removeargs_sz	(NFS3_fh_sz+NFS3_filename_sz)
 #define NFS3_accessargs_sz	(NFS3_fh_sz+1)
 #define NFS3_readlinkargs_sz	(NFS3_fh_sz)
 #define NFS3_readargs_sz	(NFS3_fh_sz+3)
@@ -65,6 +66,7 @@
 
 #define NFS3_attrstat_sz	(1+NFS3_fattr_sz)
 #define NFS3_wccstat_sz		(1+NFS3_wcc_data_sz)
+#define NFS3_removeres_sz	(NFS3_wccstat_sz)
 #define NFS3_lookupres_sz	(1+NFS3_fh_sz+(2 * NFS3_post_op_attr_sz))
 #define NFS3_accessres_sz	(1+NFS3_post_op_attr_sz+1)
 #define NFS3_readlinkres_sz	(1+NFS3_post_op_attr_sz+1)
@@ -106,7 +108,7 @@ static struct {
  * Common NFS XDR functions as inlines
  */
 static inline __be32 *
-xdr_encode_fhandle(__be32 *p, struct nfs_fh *fh)
+xdr_encode_fhandle(__be32 *p, const struct nfs_fh *fh)
 {
 	return xdr_encode_array(p, fh->data, fh->size);
 }
@@ -295,6 +297,18 @@ nfs3_xdr_diropargs(struct rpc_rqst *req, __be32 *p, struct nfs3_diropargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_array(p, args->name, args->len);
+	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
+	return 0;
+}
+
+/*
+ * Encode REMOVE argument
+ */
+static int
+nfs3_xdr_removeargs(struct rpc_rqst *req, __be32 *p, const struct nfs_removeargs *args)
+{
+	p = xdr_encode_fhandle(p, args->fh);
+	p = xdr_encode_array(p, args->name.name, args->name.len);
 	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
 	return 0;
 }
@@ -736,6 +750,12 @@ nfs3_xdr_wccstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 	return status;
 }
 
+static int
+nfs3_xdr_removeres(struct rpc_rqst *req, __be32 *p, struct nfs_removeres *res)
+{
+	return nfs3_xdr_wccstat(req, p, &res->dir_attr);
+}
+
 /*
  * Decode LOOKUP reply
  */
@@ -1126,7 +1146,7 @@ struct rpc_procinfo	nfs3_procedures[] = {
   PROC(MKDIR,		mkdirargs,	createres, 0),
   PROC(SYMLINK,		symlinkargs,	createres, 0),
   PROC(MKNOD,		mknodargs,	createres, 0),
-  PROC(REMOVE,		diropargs,	wccstat, 0),
+  PROC(REMOVE,		removeargs,	removeres, 0),
   PROC(RMDIR,		diropargs,	wccstat, 0),
   PROC(RENAME,		renameargs,	renameres, 0),
   PROC(LINK,		linkargs,	linkres, 0),

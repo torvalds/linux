@@ -467,7 +467,7 @@ int main(int argc, char *argv[])
 	esecs[0].s_scnptr = N_TXTOFF(efh, eah);
 	esecs[1].s_scnptr = N_DATOFF(efh, eah);
 #define ECOFF_SEGMENT_ALIGNMENT(a) 0x10
-#define ECOFF_ROUND(s,a) (((s)+(a)-1)&~((a)-1))
+#define ECOFF_ROUND(s, a) (((s)+(a)-1)&~((a)-1))
 	esecs[2].s_scnptr = esecs[1].s_scnptr +
 	    ECOFF_ROUND(esecs[1].s_size, ECOFF_SEGMENT_ALIGNMENT(&eah));
 	if (addflag) {

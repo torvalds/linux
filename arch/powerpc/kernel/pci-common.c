@@ -69,10 +69,7 @@ struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
 
-	if (mem_init_done)
-		phb = kmalloc(sizeof(struct pci_controller), GFP_KERNEL);
-	else
-		phb = alloc_bootmem(sizeof (struct pci_controller));
+	phb = alloc_maybe_bootmem(sizeof(struct pci_controller), GFP_KERNEL);
 	if (phb == NULL)
 		return NULL;
 	pci_setup_pci_controller(phb);
@@ -99,6 +96,29 @@ void pcibios_free_controller(struct pci_controller *phb)
 
 	if (phb->is_dynamic)
 		kfree(phb);
+}
+
+int pcibios_vaddr_is_ioport(void __iomem *address)
+{
+	int ret = 0;
+	struct pci_controller *hose;
+	unsigned long size;
+
+	spin_lock(&hose_spinlock);
+	list_for_each_entry(hose, &hose_list, list_node) {
+#ifdef CONFIG_PPC64
+		size = hose->pci_io_size;
+#else
+		size = hose->io_resource.end - hose->io_resource.start + 1;
+#endif
+		if (address >= hose->io_base_virt &&
+		    address < (hose->io_base_virt + size)) {
+			ret = 1;
+			break;
+		}
+	}
+	spin_unlock(&hose_spinlock);
+	return ret;
 }
 
 /*
@@ -156,14 +176,17 @@ static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
 #endif /* CONFIG_PPC_OF */
 
 /* Add sysfs properties */
-void pcibios_add_platform_entries(struct pci_dev *pdev)
+int pcibios_add_platform_entries(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PPC_OF
-	device_create_file(&pdev->dev, &dev_attr_devspec);
+	return device_create_file(&pdev->dev, &dev_attr_devspec);
+#else
+	return 0;
 #endif /* CONFIG_PPC_OF */
+
 }
 
-char __init *pcibios_setup(char *str)
+char __devinit *pcibios_setup(char *str)
 {
 	return str;
 }

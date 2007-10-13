@@ -123,14 +123,10 @@ static u32 tid;
 	.field_name          = "sa_path_rec:" #field
 
 static const struct ib_field path_rec_table[] = {
-	{ RESERVED,
+	{ PATH_REC_FIELD(service_id),
 	  .offset_words = 0,
 	  .offset_bits  = 0,
-	  .size_bits    = 32 },
-	{ RESERVED,
-	  .offset_words = 1,
-	  .offset_bits  = 0,
-	  .size_bits    = 32 },
+	  .size_bits    = 64 },
 	{ PATH_REC_FIELD(dgid),
 	  .offset_words = 2,
 	  .offset_bits  = 0,
@@ -179,7 +175,7 @@ static const struct ib_field path_rec_table[] = {
 	  .offset_words = 12,
 	  .offset_bits  = 16,
 	  .size_bits    = 16 },
-	{ RESERVED,
+	{ PATH_REC_FIELD(qos_class),
 	  .offset_words = 13,
 	  .offset_bits  = 0,
 	  .size_bits    = 12 },
@@ -385,9 +381,7 @@ static void update_sm_ah(struct work_struct *work)
 
 	new_ah->pkey_index = 0;
 	if (ib_find_pkey(port->agent->device, port->port_num,
-			 IB_DEFAULT_PKEY_FULL, &new_ah->pkey_index) &&
-	    ib_find_pkey(port->agent->device, port->port_num,
-			 IB_DEFAULT_PKEY_PARTIAL, &new_ah->pkey_index))
+			 IB_DEFAULT_PKEY_FULL, &new_ah->pkey_index))
 		printk(KERN_ERR "Couldn't find index for default PKey\n");
 
 	memset(&ah_attr, 0, sizeof ah_attr);
@@ -533,7 +527,7 @@ static int alloc_mad(struct ib_sa_query *query, gfp_t gfp_mask)
 					    query->sm_ah->pkey_index,
 					    0, IB_MGMT_SA_HDR, IB_MGMT_SA_DATA,
 					    gfp_mask);
-	if (!query->mad_buf) {
+	if (IS_ERR(query->mad_buf)) {
 		kref_put(&query->sm_ah->ref, free_sm_ah);
 		return -ENOMEM;
 	}

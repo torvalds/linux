@@ -92,9 +92,9 @@ config I2C_AU1550
 
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
-	depends on BF534 || BF536 || BF537
+	depends on BF534 || BF536 || BF537 || BF54x
 	help
-	  This is the TWI I2C device driver for Blackfin 534/536/537.
+	  This is the TWI I2C device driver for Blackfin 534/536/537/54x.
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-bfin-twi.
 
@@ -208,6 +208,7 @@ config I2C_PIIX4
 	    ATI IXP400
 	    ATI SB600
 	    ATI SB700
+	    ATI SB800
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6
@@ -236,9 +237,6 @@ config I2C_IOP3XX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
-
-config I2C_ISA
-	tristate
 
 config I2C_IXP4XX
 	tristate "IXP4xx GPIO-Based I2C Interface (DEPRECATED)"

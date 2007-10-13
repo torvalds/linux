@@ -15,7 +15,7 @@
 #define TCP_SCALABLE_AI_CNT	50U
 #define TCP_SCALABLE_MD_SCALE	3
 
-static void tcp_scalable_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
+static void tcp_scalable_cong_avoid(struct sock *sk, u32 ack,
 				    u32 in_flight, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);

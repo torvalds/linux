@@ -215,6 +215,11 @@ static int mixcomwd_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 			}
 			break;
+		case WDIOC_GETBOOTSTATUS:
+			if (copy_to_user(p, &status, sizeof(int))) {
+				return -EFAULT;
+			}
+			break;
 		case WDIOC_GETSUPPORT:
 			if (copy_to_user(argp, &ident, sizeof(ident))) {
 				return -EFAULT;

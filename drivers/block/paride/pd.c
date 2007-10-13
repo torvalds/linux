@@ -698,7 +698,7 @@ static enum action pd_identify(struct pd_unit *disk)
 
 /* end of io request engine */
 
-static void do_pd_request(request_queue_t * q)
+static void do_pd_request(struct request_queue * q)
 {
 	if (pd_req)
 		return;

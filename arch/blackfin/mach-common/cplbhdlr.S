@@ -69,14 +69,14 @@ ENTRY(__cplb_hdr)
 
 .Lis_icplb_miss:
 
-#if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)
-# if defined(CONFIG_BLKFIN_CACHE) && !defined(CONFIG_BLKFIN_DCACHE)
+#if defined(CONFIG_BFIN_ICACHE) || defined(CONFIG_BFIN_DCACHE)
+# if defined(CONFIG_BFIN_ICACHE) && !defined(CONFIG_BFIN_DCACHE)
 	R1 = CPLB_ENABLE_ICACHE;
 # endif
-# if !defined(CONFIG_BLKFIN_CACHE) && defined(CONFIG_BLKFIN_DCACHE)
+# if !defined(CONFIG_BFIN_ICACHE) && defined(CONFIG_BFIN_DCACHE)
 	R1 = CPLB_ENABLE_DCACHE;
 # endif
-# if defined(CONFIG_BLKFIN_CACHE) && defined(CONFIG_BLKFIN_DCACHE)
+# if defined(CONFIG_BFIN_ICACHE) && defined(CONFIG_BFIN_DCACHE)
 	R1 = CPLB_ENABLE_DCACHE | CPLB_ENABLE_ICACHE;
 # endif
 #else

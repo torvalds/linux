@@ -25,7 +25,6 @@
 #define MSP_BOARD_RESET_GPIO	9
 #endif
 
-extern void msp_timer_init(void);
 extern void msp_serial_setup(void);
 extern void pmctwiled_setup(void);
 
@@ -149,8 +148,6 @@ void __init plat_mem_setup(void)
 	_machine_restart = msp_restart;
 	_machine_halt = msp_halt;
 	pm_power_off = msp_power_off;
-
-	board_time_init = msp_timer_init;
 }
 
 void __init prom_init(void)
@@ -176,16 +173,13 @@ void __init prom_init(void)
 	case FAMILY_FPGA:
 		if (FPGA_IS_MSP4200(revision)) {
 			/* Old-style revision ID */
-			mips_machgroup = MACH_GROUP_MSP;
 			mips_machtype = MACH_MSP4200_FPGA;
 		} else {
-			mips_machgroup = MACH_GROUP_MSP;
 			mips_machtype = MACH_MSP_OTHER;
 		}
 		break;
 
 	case FAMILY_MSP4200:
-		mips_machgroup = MACH_GROUP_MSP;
 #if defined(CONFIG_PMC_MSP4200_EVAL)
 		mips_machtype  = MACH_MSP4200_EVAL;
 #elif defined(CONFIG_PMC_MSP4200_GW)
@@ -196,12 +190,10 @@ void __init prom_init(void)
 		break;
 
 	case FAMILY_MSP4200_FPGA:
-		mips_machgroup = MACH_GROUP_MSP;
 		mips_machtype  = MACH_MSP4200_FPGA;
 		break;
 
 	case FAMILY_MSP7100:
-		mips_machgroup = MACH_GROUP_MSP;
 #if defined(CONFIG_PMC_MSP7120_EVAL)
 		mips_machtype = MACH_MSP7120_EVAL;
 #elif defined(CONFIG_PMC_MSP7120_GW)
@@ -212,22 +204,14 @@ void __init prom_init(void)
 		break;
 
 	case FAMILY_MSP7100_FPGA:
-		mips_machgroup = MACH_GROUP_MSP;
 		mips_machtype  = MACH_MSP7120_FPGA;
 		break;
 
 	default:
 		/* we don't recognize the machine */
-		mips_machgroup = MACH_GROUP_UNKNOWN;
 		mips_machtype  = MACH_UNKNOWN;
-		break;
-	}
-
-	/* make sure we have the right initialization routine - sanity */
-	if (mips_machgroup != MACH_GROUP_MSP) {
-		ppfinit("Unknown machine group in a "
-			"MSP initialization routine\n");
 		panic("***Bogosity factor five***, exiting\n");
+		break;
 	}
 
 	prom_init_cmdline();

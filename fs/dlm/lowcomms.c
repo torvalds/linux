@@ -313,6 +313,7 @@ static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 		in6_addr->sin6_port = cpu_to_be16(port);
 		*addr_len = sizeof(struct sockaddr_in6);
 	}
+	memset((char *)saddr + *addr_len, 0, sizeof(struct sockaddr_storage) - *addr_len);
 }
 
 /* Close a remote connection and tidy up */
@@ -332,6 +333,7 @@ static void close_connection(struct connection *con, bool and_other)
 		__free_page(con->rx_page);
 		con->rx_page = NULL;
 	}
+
 	con->retries = 0;
 	mutex_unlock(&con->sock_mutex);
 }
@@ -631,7 +633,7 @@ out_resched:
 
 out_close:
 	mutex_unlock(&con->sock_mutex);
-	if (ret != -EAGAIN && !test_bit(CF_IS_OTHERCON, &con->flags)) {
+	if (ret != -EAGAIN) {
 		close_connection(con, false);
 		/* Reconnect when there is something to send */
 	}
@@ -719,6 +721,8 @@ static int tcp_accept_from_sock(struct connection *con)
 			INIT_WORK(&othercon->swork, process_send_sockets);
 			INIT_WORK(&othercon->rwork, process_recv_sockets);
 			set_bit(CF_IS_OTHERCON, &othercon->flags);
+		}
+		if (!othercon->sock) {
 			newcon->othercon = othercon;
 			othercon->sock = newsock;
 			newsock->sk->sk_user_data = othercon;
@@ -1122,8 +1126,6 @@ static int tcp_listen_for_all(void)
 
 	log_print("Using TCP for communications");
 
-	set_bit(CF_IS_OTHERCON, &con->flags);
-
 	sock = tcp_create_listen_sock(con, dlm_local_addr[0]);
 	if (sock) {
 		add_sock(sock, con);
@@ -1262,14 +1264,15 @@ static void send_to_sock(struct connection *con)
 		if (len) {
 			ret = sendpage(con->sock, e->page, offset, len,
 				       msg_flags);
-			if (ret == -EAGAIN || ret == 0)
+			if (ret == -EAGAIN || ret == 0) {
+				cond_resched();
 				goto out;
+			}
 			if (ret <= 0)
 				goto send_error;
-		} else {
+		}
 			/* Don't starve people filling buffers */
 			cond_resched();
-		}
 
 		spin_lock(&con->writequeue_lock);
 		e->offset += ret;
@@ -1407,7 +1410,7 @@ void dlm_lowcomms_stop(void)
 	for (i = 0; i <= max_nodeid; i++) {
 		con = __nodeid2con(i, 0);
 		if (con) {
-			con->flags |= 0xFF;
+			con->flags |= 0x0F;
 			if (con->sock)
 				con->sock->sk->sk_user_data = NULL;
 		}
@@ -1423,8 +1426,6 @@ void dlm_lowcomms_stop(void)
 		con = __nodeid2con(i, 0);
 		if (con) {
 			close_connection(con, true);
-			if (con->othercon)
-				kmem_cache_free(con_cache, con->othercon);
 			kmem_cache_free(con_cache, con);
 		}
 	}
@@ -1449,7 +1450,7 @@ int dlm_lowcomms_start(void)
 	error = -ENOMEM;
 	con_cache = kmem_cache_create("dlm_conn", sizeof(struct connection),
 				      __alignof__(struct connection), 0,
-				      NULL, NULL);
+				      NULL);
 	if (!con_cache)
 		goto out;
 

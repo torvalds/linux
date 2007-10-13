@@ -415,8 +415,10 @@ xfs_fs_write_inode(
 
 	if (vp) {
 		vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-		if (sync)
+		if (sync) {
+			filemap_fdatawait(inode->i_mapping);
 			flags |= FLUSH_SYNC;
+		}
 		error = bhv_vop_iflush(vp, flags);
 		if (error == EAGAIN)
 			error = sync? bhv_vop_iflush(vp, flags | FLUSH_LOG) : 0;

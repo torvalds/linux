@@ -139,12 +139,14 @@ static void debugfs_ul_set(void *data, u64 val)
 	*(unsigned long *)data = val;
 }
 
+#ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
 static void debugfs_ul_set_MAX_STACK_TRACE_DEPTH(void *data, u64 val)
 {
 	*(unsigned long *)data =
 		val < MAX_STACK_TRACE_DEPTH ?
 		val : MAX_STACK_TRACE_DEPTH;
 }
+#endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
 static u64 debugfs_ul_get(void *data)
 {
@@ -159,6 +161,7 @@ static struct dentry *debugfs_create_ul(const char *name, mode_t mode,
 	return debugfs_create_file(name, mode, parent, value, &fops_ul);
 }
 
+#ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
 DEFINE_SIMPLE_ATTRIBUTE(fops_ul_MAX_STACK_TRACE_DEPTH, debugfs_ul_get,
 			debugfs_ul_set_MAX_STACK_TRACE_DEPTH, "%llu\n");
 
@@ -169,6 +172,7 @@ static struct dentry *debugfs_create_ul_MAX_STACK_TRACE_DEPTH(
 	return debugfs_create_file(name, mode, parent, value,
 				   &fops_ul_MAX_STACK_TRACE_DEPTH);
 }
+#endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
 static void debugfs_atomic_t_set(void *data, u64 val)
 {

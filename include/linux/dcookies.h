@@ -12,6 +12,7 @@
 
 #ifdef CONFIG_PROFILING
  
+#include <linux/dcache.h>
 #include <linux/types.h>
  
 struct dcookie_user;

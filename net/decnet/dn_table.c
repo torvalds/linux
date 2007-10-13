@@ -881,7 +881,7 @@ void __init dn_fib_table_init(void)
 	dn_hash_kmem = kmem_cache_create("dn_fib_info_cache",
 					sizeof(struct dn_fib_info),
 					0, SLAB_HWCACHE_ALIGN,
-					NULL, NULL);
+					NULL);
 }
 
 void __exit dn_fib_table_cleanup(void)

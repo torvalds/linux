@@ -73,40 +73,37 @@ extern int ehca_debug_level;
 		if (unlikely(ehca_debug_level)) \
 			dev_printk(KERN_DEBUG, (ib_dev)->dma_device, \
 				   "PU%04x EHCA_DBG:%s " format "\n", \
-				   get_paca()->paca_index, __FUNCTION__, \
+				   raw_smp_processor_id(), __FUNCTION__, \
 				   ## arg); \
 	} while (0)
 
 #define ehca_info(ib_dev, format, arg...) \
 	dev_info((ib_dev)->dma_device, "PU%04x EHCA_INFO:%s " format "\n", \
-		 get_paca()->paca_index, __FUNCTION__, ## arg)
+		 raw_smp_processor_id(), __FUNCTION__, ## arg)
 
 #define ehca_warn(ib_dev, format, arg...) \
 	dev_warn((ib_dev)->dma_device, "PU%04x EHCA_WARN:%s " format "\n", \
-		 get_paca()->paca_index, __FUNCTION__, ## arg)
+		 raw_smp_processor_id(), __FUNCTION__, ## arg)
 
 #define ehca_err(ib_dev, format, arg...) \
 	dev_err((ib_dev)->dma_device, "PU%04x EHCA_ERR:%s " format "\n", \
-		get_paca()->paca_index, __FUNCTION__, ## arg)
+		raw_smp_processor_id(), __FUNCTION__, ## arg)
 
 /* use this one only if no ib_dev available */
 #define ehca_gen_dbg(format, arg...) \
 	do { \
 		if (unlikely(ehca_debug_level)) \
-			printk(KERN_DEBUG "PU%04x EHCA_DBG:%s " format "\n",\
-			       get_paca()->paca_index, __FUNCTION__, ## arg); \
+			printk(KERN_DEBUG "PU%04x EHCA_DBG:%s " format "\n", \
+			       raw_smp_processor_id(), __FUNCTION__, ## arg); \
 	} while (0)
 
 #define ehca_gen_warn(format, arg...) \
-	do { \
-		if (unlikely(ehca_debug_level)) \
-			printk(KERN_INFO "PU%04x EHCA_WARN:%s " format "\n",\
-			       get_paca()->paca_index, __FUNCTION__, ## arg); \
-	} while (0)
+	printk(KERN_INFO "PU%04x EHCA_WARN:%s " format "\n", \
+	       raw_smp_processor_id(), __FUNCTION__, ## arg)
 
 #define ehca_gen_err(format, arg...) \
 	printk(KERN_ERR "PU%04x EHCA_ERR:%s " format "\n", \
-		get_paca()->paca_index, __FUNCTION__, ## arg)
+	       raw_smp_processor_id(), __FUNCTION__, ## arg)
 
 /**
  * ehca_dmp - printk a memory block, whose length is n*8 bytes.
@@ -114,12 +111,12 @@ extern int ehca_debug_level;
  * <format string> adr=X ofs=Y <8 bytes hex> <8 bytes hex>
  */
 #define ehca_dmp(adr, len, format, args...) \
-	do {				       \
-		unsigned int x;			      \
+	do { \
+		unsigned int x; \
 		unsigned int l = (unsigned int)(len); \
-		unsigned char *deb = (unsigned char*)(adr);	\
+		unsigned char *deb = (unsigned char *)(adr); \
 		for (x = 0; x < l; x += 16) { \
-			printk("EHCA_DMP:%s " format \
+			printk(KERN_INFO "EHCA_DMP:%s " format \
 			       " adr=%p ofs=%04x %016lx %016lx\n", \
 			       __FUNCTION__, ##args, deb, x, \
 			       *((u64 *)&deb[0]), *((u64 *)&deb[8])); \
@@ -128,16 +125,16 @@ extern int ehca_debug_level;
 	} while (0)
 
 /* define a bitmask, little endian version */
-#define EHCA_BMASK(pos,length) (((pos)<<16)+(length))
+#define EHCA_BMASK(pos, length) (((pos) << 16) + (length))
 
 /* define a bitmask, the ibm way... */
-#define EHCA_BMASK_IBM(from,to) (((63-to)<<16)+((to)-(from)+1))
+#define EHCA_BMASK_IBM(from, to) (((63 - to) << 16) + ((to) - (from) + 1))
 
 /* internal function, don't use */
-#define EHCA_BMASK_SHIFTPOS(mask) (((mask)>>16)&0xffff)
+#define EHCA_BMASK_SHIFTPOS(mask) (((mask) >> 16) & 0xffff)
 
 /* internal function, don't use */
-#define EHCA_BMASK_MASK(mask) (0xffffffffffffffffULL >> ((64-(mask))&0xffff))
+#define EHCA_BMASK_MASK(mask) (~0ULL >> ((64 - (mask)) & 0xffff))
 
 /**
  * EHCA_BMASK_SET - return value shifted and masked by mask
@@ -145,30 +142,16 @@ extern int ehca_debug_level;
  * variable&=~EHCA_BMASK_SET(MY_MASK,-1) clears the bits from the mask
  * in variable
  */
-#define EHCA_BMASK_SET(mask,value) \
-	((EHCA_BMASK_MASK(mask) & ((u64)(value)))<<EHCA_BMASK_SHIFTPOS(mask))
+#define EHCA_BMASK_SET(mask, value) \
+	((EHCA_BMASK_MASK(mask) & ((u64)(value))) << EHCA_BMASK_SHIFTPOS(mask))
 
 /**
  * EHCA_BMASK_GET - extract a parameter from value by mask
  */
-#define EHCA_BMASK_GET(mask,value) \
-	(EHCA_BMASK_MASK(mask)& (((u64)(value))>>EHCA_BMASK_SHIFTPOS(mask)))
-
+#define EHCA_BMASK_GET(mask, value) \
+	(EHCA_BMASK_MASK(mask) & (((u64)(value)) >> EHCA_BMASK_SHIFTPOS(mask)))
 
 /* Converts ehca to ib return code */
-static inline int ehca2ib_return_code(u64 ehca_rc)
-{
-	switch (ehca_rc) {
-	case H_SUCCESS:
-		return 0;
-	case H_BUSY:
-		return -EBUSY;
-	case H_NO_MEM:
-		return -ENOMEM;
-	default:
-		return -EINVAL;
-	}
-}
-
+int ehca2ib_return_code(u64 ehca_rc);
 
 #endif /* EHCA_TOOLS_H */

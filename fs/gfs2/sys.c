@@ -222,7 +222,6 @@ static struct kobj_type gfs2_ktype = {
 };
 
 static struct kset gfs2_kset = {
-	.kobj   = {.name = "gfs2"},
 	.ktype  = &gfs2_ktype,
 };
 
@@ -442,7 +441,6 @@ TUNE_ATTR(quota_simul_sync, 1);
 TUNE_ATTR(quota_cache_secs, 1);
 TUNE_ATTR(stall_secs, 1);
 TUNE_ATTR(statfs_quantum, 1);
-TUNE_ATTR_DAEMON(scand_secs, scand_process);
 TUNE_ATTR_DAEMON(recoverd_secs, recoverd_process);
 TUNE_ATTR_DAEMON(logd_secs, logd_process);
 TUNE_ATTR_DAEMON(quotad_secs, quotad_process);
@@ -464,7 +462,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_quota_cache_secs.attr,
 	&tune_attr_stall_secs.attr,
 	&tune_attr_statfs_quantum.attr,
-	&tune_attr_scand_secs.attr,
 	&tune_attr_recoverd_secs.attr,
 	&tune_attr_logd_secs.attr,
 	&tune_attr_quotad_secs.attr,
@@ -553,6 +550,7 @@ int gfs2_sys_init(void)
 {
 	gfs2_sys_margs = NULL;
 	spin_lock_init(&gfs2_sys_margs_lock);
+	kobject_set_name(&gfs2_kset.kobj, "gfs2");
 	kobj_set_kset_s(&gfs2_kset, fs_subsys);
 	return kset_register(&gfs2_kset);
 }

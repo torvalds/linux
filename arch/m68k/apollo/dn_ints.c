@@ -37,7 +37,7 @@ static struct irq_controller apollo_irq_controller = {
 };
 
 
-void dn_init_IRQ(void)
+void __init dn_init_IRQ(void)
 {
 	m68k_setup_user_interrupt(VEC_USER + 96, 16, dn_process_int);
 	m68k_setup_irq_controller(&apollo_irq_controller, IRQ_APOLLO, 16);

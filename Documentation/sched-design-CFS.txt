@@ -83,7 +83,7 @@ Some implementation details:
    CFS uses nanosecond granularity accounting and does not rely on any
    jiffies or other HZ detail. Thus the CFS scheduler has no notion of
    'timeslices' and has no heuristics whatsoever. There is only one
-   central tunable:
+   central tunable (you have to switch on CONFIG_SCHED_DEBUG):
 
          /proc/sys/kernel/sched_granularity_ns
 

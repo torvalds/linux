@@ -636,6 +636,8 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 static int aac_cfg_ioctl(struct inode *inode,  struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 	return aac_do_ioctl(file->private_data, cmd, (void __user *)arg);
 }
 
@@ -689,6 +691,8 @@ static int aac_compat_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 
 static long aac_compat_cfg_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 	return aac_compat_do_ioctl((struct aac_dev *)file->private_data, cmd, arg);
 }
 #endif
@@ -822,7 +826,7 @@ static ssize_t aac_show_reset_adapter(struct class_device *class_dev,
 	tmp = aac_adapter_check_health(dev);
 	if ((tmp == 0) && dev->in_reset)
 		tmp = -EBUSY;
-	len = snprintf(buf, PAGE_SIZE, "0x%x", tmp);
+	len = snprintf(buf, PAGE_SIZE, "0x%x\n", tmp);
 	return len;
 }
 
@@ -1106,7 +1110,9 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	__aac_shutdown(aac);
  out_unmap:
 	aac_fib_map_free(aac);
-	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
+	if (aac->comm_addr)
+		pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr,
+		  aac->comm_phys);
 	kfree(aac->queues);
 	aac_adapter_ioremap(aac, 0);
 	kfree(aac->fibs);
@@ -1122,9 +1128,8 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 static void aac_shutdown(struct pci_dev *dev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(dev);
-	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
 	scsi_block_requests(shost);
-	__aac_shutdown(aac);
+	__aac_shutdown((struct aac_dev *)shost->hostdata);
 }
 
 static void __devexit aac_remove_one(struct pci_dev *pdev)

@@ -341,27 +341,42 @@ int conf_read(const char *name)
 		conf_unsaved++;
 		/* maybe print value in verbose mode... */
 	sym_ok:
-		if (sym_has_value(sym) && !sym_is_choice_value(sym)) {
-			if (sym->visible == no)
-				sym->flags &= ~SYMBOL_DEF_USER;
-			switch (sym->type) {
-			case S_STRING:
-			case S_INT:
-			case S_HEX:
-				if (!sym_string_within_range(sym, sym->def[S_DEF_USER].val))
-					sym->flags &= ~(SYMBOL_VALID|SYMBOL_DEF_USER);
-			default:
-				break;
-			}
-		}
 		if (!sym_is_choice(sym))
 			continue;
+		/* The choice symbol only has a set value (and thus is not new)
+		 * if all its visible childs have values.
+		 */
 		prop = sym_get_choice_prop(sym);
 		flags = sym->flags;
 		for (e = prop->expr; e; e = e->left.expr)
 			if (e->right.sym->visible != no)
 				flags &= e->right.sym->flags;
 		sym->flags &= flags | ~SYMBOL_DEF_USER;
+	}
+
+	for_all_symbols(i, sym) {
+		if (sym_has_value(sym) && !sym_is_choice_value(sym)) {
+			/* Reset values of generates values, so they'll appear
+			 * as new, if they should become visible, but that
+			 * doesn't quite work if the Kconfig and the saved
+			 * configuration disagree.
+			 */
+			if (sym->visible == no && !conf_unsaved)
+				sym->flags &= ~SYMBOL_DEF_USER;
+			switch (sym->type) {
+			case S_STRING:
+			case S_INT:
+			case S_HEX:
+				/* Reset a string value if it's out of range */
+				if (sym_string_within_range(sym, sym->def[S_DEF_USER].val))
+					break;
+				sym->flags &= ~(SYMBOL_VALID|SYMBOL_DEF_USER);
+				conf_unsaved++;
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
 	sym_add_change_count(conf_warnings || conf_unsaved);

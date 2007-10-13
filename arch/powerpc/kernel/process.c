@@ -83,7 +83,7 @@ void flush_fp_to_thread(struct task_struct *tsk)
 			 */
 			BUG_ON(tsk != current);
 #endif
-			giveup_fpu(current);
+			giveup_fpu(tsk);
 		}
 		preempt_enable();
 	}
@@ -143,7 +143,7 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 #ifdef CONFIG_SMP
 			BUG_ON(tsk != current);
 #endif
-			giveup_altivec(current);
+			giveup_altivec(tsk);
 		}
 		preempt_enable();
 	}
@@ -182,7 +182,7 @@ void flush_spe_to_thread(struct task_struct *tsk)
 #ifdef CONFIG_SMP
 			BUG_ON(tsk != current);
 #endif
-			giveup_spe(current);
+			giveup_spe(tsk);
 		}
 		preempt_enable();
 	}
@@ -354,6 +354,14 @@ static void show_instructions(struct pt_regs *regs)
 		if (!(i % 8))
 			printk("\n");
 
+#if !defined(CONFIG_BOOKE)
+		/* If executing with the IMMU off, adjust pc rather
+		 * than print XXXXXXXX.
+		 */
+		if (!(regs->msr & MSR_IR))
+			pc = (unsigned long)phys_to_virt(pc);
+#endif
+
 		/* We use __get_user here *only* to avoid an OOPS on a
 		 * bad address because the pc *should* only be a
 		 * kernel address.
@@ -423,7 +431,11 @@ void show_regs(struct pt_regs * regs)
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
 	if (trap == 0x300 || trap == 0x600)
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
+#else
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
+#endif
 	printk("TASK = %p[%d] '%s' THREAD: %p",
 	       current, current->pid, current->comm, task_thread_info(current));
 
@@ -552,10 +564,15 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SLB)) {
-		unsigned long sp_vsid = get_kernel_vsid(sp);
+		unsigned long sp_vsid;
 		unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
 
-		sp_vsid <<= SLB_VSID_SHIFT;
+		if (cpu_has_feature(CPU_FTR_1T_SEGMENT))
+			sp_vsid = get_kernel_vsid(sp, MMU_SEGSIZE_1T)
+				<< SLB_VSID_SHIFT_1T;
+		else
+			sp_vsid = get_kernel_vsid(sp, MMU_SEGSIZE_256M)
+				<< SLB_VSID_SHIFT;
 		sp_vsid |= SLB_VSID_KERNEL | llp;
 		p->thread.ksp_vsid = sp_vsid;
 	}
@@ -600,6 +617,13 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->xer = 0;
 	regs->ccr = 0;
 	regs->gpr[1] = sp;
+
+	/*
+	 * We have just cleared all the nonvolatile GPRs, so make
+	 * FULL_REGS(regs) return true.  This is necessary to allow
+	 * ptrace to examine the thread immediately after exec.
+	 */
+	regs->trap &= ~1UL;
 
 #ifdef CONFIG_PPC32
 	regs->mq = 0;
@@ -665,9 +689,13 @@ int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 	 * mode (asyn, precise, disabled) for 'Classic' FP. */
 	if (val & PR_FP_EXC_SW_ENABLE) {
 #ifdef CONFIG_SPE
-		tsk->thread.fpexc_mode = val &
-			(PR_FP_EXC_SW_ENABLE | PR_FP_ALL_EXCEPT);
-		return 0;
+		if (cpu_has_feature(CPU_FTR_SPE)) {
+			tsk->thread.fpexc_mode = val &
+				(PR_FP_EXC_SW_ENABLE | PR_FP_ALL_EXCEPT);
+			return 0;
+		} else {
+			return -EINVAL;
+		}
 #else
 		return -EINVAL;
 #endif
@@ -693,7 +721,10 @@ int get_fpexc_mode(struct task_struct *tsk, unsigned long adr)
 
 	if (tsk->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE)
 #ifdef CONFIG_SPE
-		val = tsk->thread.fpexc_mode;
+		if (cpu_has_feature(CPU_FTR_SPE))
+			val = tsk->thread.fpexc_mode;
+		else
+			return -EINVAL;
 #else
 		return -EINVAL;
 #endif

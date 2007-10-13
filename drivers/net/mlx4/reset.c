@@ -119,6 +119,9 @@ int mlx4_reset(struct mlx4_dev *dev)
 	writel(MLX4_RESET_VALUE, reset + MLX4_RESET_OFFSET);
 	iounmap(reset);
 
+	/* Docs say to wait one second before accessing device */
+	msleep(1000);
+
 	end = jiffies + MLX4_RESET_TIMEOUT_JIFFIES;
 	do {
 		if (!pci_read_config_word(dev->pdev, PCI_VENDOR_ID, &vendor) &&

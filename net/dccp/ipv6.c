@@ -301,50 +301,23 @@ static void dccp_v6_reqsk_destructor(struct request_sock *req)
 
 static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 {
-	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
 	struct ipv6hdr *rxip6h;
-	const u32 dccp_hdr_reset_len = sizeof(struct dccp_hdr) +
-				       sizeof(struct dccp_hdr_ext) +
-				       sizeof(struct dccp_hdr_reset);
 	struct sk_buff *skb;
 	struct flowi fl;
-	u64 seqno = 0;
 
-	if (rxdh->dccph_type == DCCP_PKT_RESET)
+	if (dccp_hdr(rxskb)->dccph_type == DCCP_PKT_RESET)
 		return;
 
 	if (!ipv6_unicast_destination(rxskb))
 		return;
 
-	skb = alloc_skb(dccp_v6_ctl_socket->sk->sk_prot->max_header,
-			GFP_ATOMIC);
+	skb = dccp_ctl_make_reset(dccp_v6_ctl_socket, rxskb);
 	if (skb == NULL)
 		return;
 
-	skb_reserve(skb, dccp_v6_ctl_socket->sk->sk_prot->max_header);
-
-	dh = dccp_zeroed_hdr(skb, dccp_hdr_reset_len);
-
-	/* Swap the send and the receive. */
-	dh->dccph_type	= DCCP_PKT_RESET;
-	dh->dccph_sport	= rxdh->dccph_dport;
-	dh->dccph_dport	= rxdh->dccph_sport;
-	dh->dccph_doff	= dccp_hdr_reset_len / 4;
-	dh->dccph_x	= 1;
-	dccp_hdr_reset(skb)->dccph_reset_code =
-				DCCP_SKB_CB(rxskb)->dccpd_reset_code;
-
-	/* See "8.3.1. Abnormal Termination" in RFC 4340 */
-	if (DCCP_SKB_CB(rxskb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
-		dccp_set_seqno(&seqno, DCCP_SKB_CB(rxskb)->dccpd_ack_seq + 1);
-
-	dccp_hdr_set_seq(dh, seqno);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
-
-	dccp_csum_outgoing(skb);
 	rxip6h = ipv6_hdr(rxskb);
-	dh->dccph_checksum = dccp_v6_csum_finish(skb, &rxip6h->saddr,
-						      &rxip6h->daddr);
+	dccp_hdr(skb)->dccph_checksum = dccp_v6_csum_finish(skb, &rxip6h->saddr,
+							    &rxip6h->daddr);
 
 	memset(&fl, 0, sizeof(fl));
 	ipv6_addr_copy(&fl.fl6_dst, &rxip6h->saddr);
@@ -352,8 +325,8 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 
 	fl.proto = IPPROTO_DCCP;
 	fl.oif = inet6_iif(rxskb);
-	fl.fl_ip_dport = dh->dccph_dport;
-	fl.fl_ip_sport = dh->dccph_sport;
+	fl.fl_ip_dport = dccp_hdr(skb)->dccph_dport;
+	fl.fl_ip_sport = dccp_hdr(skb)->dccph_sport;
 	security_skb_classify_flow(rxskb, &fl);
 
 	/* sk = NULL, but it is safe for now. RST socket required. */
@@ -417,21 +390,21 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
-	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 
 	if (skb->protocol == htons(ETH_P_IP))
 		return dccp_v4_conn_request(sk, skb);
 
 	if (!ipv6_unicast_destination(skb))
-		goto drop;
+		return 0;	/* discard, don't send a reset here */
 
 	if (dccp_bad_service_code(sk, service)) {
-		reset_code = DCCP_RESET_CODE_BAD_SERVICE_CODE;
+		dcb->dccpd_reset_code = DCCP_RESET_CODE_BAD_SERVICE_CODE;
 		goto drop;
 	}
 	/*
 	 * There are no SYN attacks on IPv6, yet...
 	 */
+	dcb->dccpd_reset_code = DCCP_RESET_CODE_TOO_BUSY;
 	if (inet_csk_reqsk_queue_is_full(sk))
 		goto drop;
 
@@ -491,7 +464,6 @@ drop_and_free:
 	reqsk_free(req);
 drop:
 	DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
-	dcb->dccpd_reset_code = reset_code;
 	return -1;
 }
 

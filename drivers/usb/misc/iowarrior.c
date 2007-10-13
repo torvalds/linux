@@ -158,9 +158,10 @@ static void iowarrior_callback(struct urb *urb)
 	int read_idx;
 	int aux_idx;
 	int offset;
-	int status;
+	int status = urb->status;
+	int retval;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -213,10 +214,10 @@ static void iowarrior_callback(struct urb *urb)
 	wake_up_interruptible(&dev->read_wait);
 
 exit:
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status)
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
 		dev_err(&dev->interface->dev, "%s - usb_submit_urb failed with result %d",
-			__FUNCTION__, status);
+			__FUNCTION__, retval);
 
 }
 
@@ -226,13 +227,15 @@ exit:
 static void iowarrior_write_callback(struct urb *urb)
 {
 	struct iowarrior *dev;
+	int status = urb->status;
+
 	dev = (struct iowarrior *)urb->context;
 	/* sync/async unlink faults aren't errors */
-	if (urb->status &&
-	    !(urb->status == -ENOENT ||
-	      urb->status == -ECONNRESET || urb->status == -ESHUTDOWN)) {
+	if (status &&
+	    !(status == -ENOENT ||
+	      status == -ECONNRESET || status == -ESHUTDOWN)) {
 		dbg("%s - nonzero write bulk status received: %d",
-		    __func__, urb->status);
+		    __func__, status);
 	}
 	/* free up our allocated buffer */
 	usb_buffer_free(urb->dev, urb->transfer_buffer_length,

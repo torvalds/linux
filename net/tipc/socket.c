@@ -162,12 +162,15 @@ static void advance_queue(struct tipc_sock *tsock)
  *
  * Returns 0 on success, errno otherwise
  */
-static int tipc_create(struct socket *sock, int protocol)
+static int tipc_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct tipc_sock *tsock;
 	struct tipc_port *port;
 	struct sock *sk;
 	u32 ref;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	if (unlikely(protocol != 0))
 		return -EPROTONOSUPPORT;
@@ -198,7 +201,7 @@ static int tipc_create(struct socket *sock, int protocol)
 		return -EPROTOTYPE;
 	}
 
-	sk = sk_alloc(AF_TIPC, GFP_KERNEL, &tipc_proto, 1);
+	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto, 1);
 	if (!sk) {
 		tipc_deleteport(ref);
 		return -ENOMEM;
@@ -1372,7 +1375,7 @@ static int accept(struct socket *sock, struct socket *newsock, int flags)
 	}
 	buf = skb_peek(&sock->sk->sk_receive_queue);
 
-	res = tipc_create(newsock, 0);
+	res = tipc_create(sock->sk->sk_net, newsock, 0);
 	if (!res) {
 		struct tipc_sock *new_tsock = tipc_sk(newsock->sk);
 		struct tipc_portid id;
@@ -1629,8 +1632,8 @@ static struct proto_ops msg_ops = {
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_msg,
 	.recvmsg	= recv_msg,
-        .mmap		= sock_no_mmap,
-        .sendpage	= sock_no_sendpage
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage
 };
 
 static struct proto_ops packet_ops = {
@@ -1650,8 +1653,8 @@ static struct proto_ops packet_ops = {
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_packet,
 	.recvmsg	= recv_msg,
-        .mmap		= sock_no_mmap,
-        .sendpage	= sock_no_sendpage
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage
 };
 
 static struct proto_ops stream_ops = {
@@ -1671,8 +1674,8 @@ static struct proto_ops stream_ops = {
 	.getsockopt	= getsockopt,
 	.sendmsg	= send_stream,
 	.recvmsg	= recv_stream,
-        .mmap		= sock_no_mmap,
-        .sendpage	= sock_no_sendpage
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage
 };
 
 static struct net_proto_family tipc_family_ops = {

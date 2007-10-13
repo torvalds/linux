@@ -2,7 +2,7 @@
  * Linux-DVB Driver for DiBcom's DiB7000M and
  *              first generation DiB7000P-demodulator-family.
  *
- * Copyright (C) 2005-6 DiBcom (http://www.dibcom.fr/)
+ * Copyright (C) 2005-7 DiBcom (http://www.dibcom.fr/)
  *
  * This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -19,7 +19,7 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 
-#define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB7000M:"); printk(args); } } while (0)
+#define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB7000M: "); printk(args); printk("\n"); } } while (0)
 
 struct dib7000m_state {
 	struct dvb_frontend demod;
@@ -39,8 +39,16 @@ struct dib7000m_state {
 	fe_bandwidth_t current_bandwidth;
 	struct dibx000_agc_config *current_agc;
 	u32 timf;
+	u32 timf_default;
+	u32 internal_clk;
+
+	u8 div_force_off : 1;
+	u8 div_state : 1;
+	u16 div_sync_wait;
 
 	u16 revision;
+
+	u8 agc_state;
 };
 
 enum dib7000m_power_mode {
@@ -63,7 +71,7 @@ static u16 dib7000m_read_word(struct dib7000m_state *state, u16 reg)
 	};
 
 	if (i2c_transfer(state->i2c_adap, msg, 2) != 2)
-		dprintk("i2c read error on %d\n",reg);
+		dprintk("i2c read error on %d",reg);
 
 	return (rb[0] << 8) | rb[1];
 }
@@ -79,6 +87,25 @@ static int dib7000m_write_word(struct dib7000m_state *state, u16 reg, u16 val)
 	};
 	return i2c_transfer(state->i2c_adap, &msg, 1) != 1 ? -EREMOTEIO : 0;
 }
+static void dib7000m_write_tab(struct dib7000m_state *state, u16 *buf)
+{
+	u16 l = 0, r, *n;
+	n = buf;
+	l = *n++;
+	while (l) {
+		r = *n++;
+
+		if (state->reg_offs && (r >= 112 && r <= 331)) // compensate for 7000MC
+			r++;
+
+		do {
+			dib7000m_write_word(state, r, *n++);
+			r++;
+		} while (--l);
+		l = *n++;
+	}
+}
+
 static int dib7000m_set_output_mode(struct dib7000m_state *state, int mode)
 {
 	int    ret = 0;
@@ -89,8 +116,7 @@ static int dib7000m_set_output_mode(struct dib7000m_state *state, int mode)
 	fifo_threshold = 1792;
 	smo_mode = (dib7000m_read_word(state, 294 + state->reg_offs) & 0x0010) | (1 << 1);
 
-	dprintk("-I-  Setting output mode for demod %p to %d\n",
-			&state->demod, mode);
+	dprintk( "setting output mode for demod %p to %d", &state->demod, mode);
 
 	switch (mode) {
 		case OUTMODE_MPEG2_PAR_GATED_CLK:   // STBs with parallel gated clock
@@ -117,7 +143,7 @@ static int dib7000m_set_output_mode(struct dib7000m_state *state, int mode)
 			outreg = 0;
 			break;
 		default:
-			dprintk("Unhandled output_mode passed to be set for demod %p\n",&state->demod);
+			dprintk( "Unhandled output_mode passed to be set for demod %p",&state->demod);
 			break;
 	}
 
@@ -129,13 +155,20 @@ static int dib7000m_set_output_mode(struct dib7000m_state *state, int mode)
 	ret |= dib7000m_write_word(state, 1795, outreg);
 	ret |= dib7000m_write_word(state, 1805, sram);
 
+	if (state->revision == 0x4003) {
+		u16 clk_cfg1 = dib7000m_read_word(state, 909) & 0xfffd;
+		if (mode == OUTMODE_DIVERSITY)
+			clk_cfg1 |= (1 << 1); // P_O_CLK_en
+		dib7000m_write_word(state, 909, clk_cfg1);
+	}
 	return ret;
 }
 
-static int dib7000m_set_power_mode(struct dib7000m_state *state, enum dib7000m_power_mode mode)
+static void dib7000m_set_power_mode(struct dib7000m_state *state, enum dib7000m_power_mode mode)
 {
 	/* by default everything is going to be powered off */
 	u16 reg_903 = 0xffff, reg_904 = 0xffff, reg_905 = 0xffff, reg_906  = 0x3fff;
+	u8  offset = 0;
 
 	/* now, depending on the requested mode, we power on */
 	switch (mode) {
@@ -170,16 +203,17 @@ static int dib7000m_set_power_mode(struct dib7000m_state *state, enum dib7000m_p
 	if (!state->cfg.mobile_mode)
 		reg_904 |= (1 << 7) | (1 << 6) | (1 << 4) | (1 << 2) | (1 << 1);
 
-	/* P_sdio_select_clk = 0 on MC */
+	/* P_sdio_select_clk = 0 on MC and after*/
 	if (state->revision != 0x4000)
 		reg_906 <<= 1;
 
-	dib7000m_write_word(state,  903,  reg_903);
-	dib7000m_write_word(state,  904,  reg_904);
-	dib7000m_write_word(state,  905,  reg_905);
-	dib7000m_write_word(state,  906,  reg_906);
+	if (state->revision == 0x4003)
+		offset = 1;
 
-	return 0;
+	dib7000m_write_word(state, 903 + offset, reg_903);
+	dib7000m_write_word(state, 904 + offset, reg_904);
+	dib7000m_write_word(state, 905 + offset, reg_905);
+	dib7000m_write_word(state, 906 + offset, reg_906);
 }
 
 static int dib7000m_set_adc_state(struct dib7000m_state *state, enum dibx000_adc_states no)
@@ -230,34 +264,55 @@ static int dib7000m_set_adc_state(struct dib7000m_state *state, enum dibx000_adc
 			break;
 	}
 
-//	dprintk("-D-  913: %x, 914: %x\n", reg_913, reg_914);
-
+//	dprintk( "913: %x, 914: %x", reg_913, reg_914);
 	ret |= dib7000m_write_word(state, 913, reg_913);
 	ret |= dib7000m_write_word(state, 914, reg_914);
 
 	return ret;
 }
 
-static int dib7000m_set_bandwidth(struct dvb_frontend *demod, u8 bw_idx)
+static int dib7000m_set_bandwidth(struct dib7000m_state *state, u32 bw)
 {
-	struct dib7000m_state *state = demod->demodulator_priv;
 	u32 timf;
 
 	// store the current bandwidth for later use
-	state->current_bandwidth = bw_idx;
+	state->current_bandwidth = bw;
 
 	if (state->timf == 0) {
-		dprintk("-D-  Using default timf\n");
-		timf = state->cfg.bw->timf;
+		dprintk( "using default timf");
+		timf = state->timf_default;
 	} else {
-		dprintk("-D-  Using updated timf\n");
+		dprintk( "using updated timf");
 		timf = state->timf;
 	}
 
-	timf = timf * (BW_INDEX_TO_KHZ(bw_idx) / 100) / 80;
+	timf = timf * (bw / 50) / 160;
 
-	dib7000m_write_word(state, 23, (timf >> 16) & 0xffff);
-	dib7000m_write_word(state, 24, (timf      ) & 0xffff);
+	dib7000m_write_word(state, 23, (u16) ((timf >> 16) & 0xffff));
+	dib7000m_write_word(state, 24, (u16) ((timf      ) & 0xffff));
+
+	return 0;
+}
+
+static int dib7000m_set_diversity_in(struct dvb_frontend *demod, int onoff)
+{
+	struct dib7000m_state *state = demod->demodulator_priv;
+
+	if (state->div_force_off) {
+		dprintk( "diversity combination deactivated - forced by COFDM parameters");
+		onoff = 0;
+	}
+	state->div_state = (u8)onoff;
+
+	if (onoff) {
+		dib7000m_write_word(state, 263 + state->reg_offs, 6);
+		dib7000m_write_word(state, 264 + state->reg_offs, 6);
+		dib7000m_write_word(state, 266 + state->reg_offs, (state->div_sync_wait << 4) | (1 << 2) | (2 << 0));
+	} else {
+		dib7000m_write_word(state, 263 + state->reg_offs, 1);
+		dib7000m_write_word(state, 264 + state->reg_offs, 0);
+		dib7000m_write_word(state, 266 + state->reg_offs, 0);
+	}
 
 	return 0;
 }
@@ -266,7 +321,7 @@ static int dib7000m_sad_calib(struct dib7000m_state *state)
 {
 
 /* internal */
-//	dib7000m_write_word(state, 928, (3 << 14) | (1 << 12) | (524 << 0)); // sampling clock of the SAD is written in set_bandwidth
+//	dib7000m_write_word(state, 928, (3 << 14) | (1 << 12) | (524 << 0)); // sampling clock of the SAD is writting in set_bandwidth
 	dib7000m_write_word(state, 929, (0 << 1) | (0 << 0));
 	dib7000m_write_word(state, 930, 776); // 0.625*3.3 / 4096
 
@@ -281,10 +336,10 @@ static int dib7000m_sad_calib(struct dib7000m_state *state)
 
 static void dib7000m_reset_pll_common(struct dib7000m_state *state, const struct dibx000_bandwidth_config *bw)
 {
-	dib7000m_write_word(state, 18, ((bw->internal*1000) >> 16) & 0xffff);
-	dib7000m_write_word(state, 19,  (bw->internal*1000)        & 0xffff);
-	dib7000m_write_word(state, 21,  (bw->ifreq          >> 16) & 0xffff);
-	dib7000m_write_word(state, 22,   bw->ifreq                 & 0xffff);
+	dib7000m_write_word(state, 18, (u16) (((bw->internal*1000) >> 16) & 0xffff));
+	dib7000m_write_word(state, 19, (u16) ( (bw->internal*1000)        & 0xffff));
+	dib7000m_write_word(state, 21, (u16) ( (bw->ifreq          >> 16) & 0xffff));
+	dib7000m_write_word(state, 22, (u16) (  bw->ifreq                 & 0xffff));
 
 	dib7000m_write_word(state, 928, bw->sad_cfg);
 }
@@ -325,15 +380,19 @@ static void dib7000m_reset_pll(struct dib7000m_state *state)
 static void dib7000mc_reset_pll(struct dib7000m_state *state)
 {
 	const struct dibx000_bandwidth_config *bw = state->cfg.bw;
+	u16 clk_cfg1;
 
 	// clk_cfg0
 	dib7000m_write_word(state, 907, (bw->pll_prediv << 8) | (bw->pll_ratio << 0));
 
 	// clk_cfg1
 	//dib7000m_write_word(state, 908, (1 << 14) | (3 << 12) |(0 << 11) |
-	dib7000m_write_word(state, 908, (0 << 14) | (3 << 12) |(0 << 11) |
+	clk_cfg1 = (0 << 14) | (3 << 12) |(0 << 11) |
 			(bw->IO_CLK_en_core << 10) | (bw->bypclk_div << 5) | (bw->enable_refdiv << 4) |
-			(bw->pll_bypass << 3) | (bw->pll_range << 1) | (bw->pll_reset << 0));
+			(1 << 3) | (bw->pll_range << 1) | (bw->pll_reset << 0);
+	dib7000m_write_word(state, 908, clk_cfg1);
+	clk_cfg1 = (clk_cfg1 & 0xfff7) | (bw->pll_bypass << 3);
+	dib7000m_write_word(state, 908, clk_cfg1);
 
 	// smpl_cfg
 	dib7000m_write_word(state, 910, (1 << 12) | (2 << 10) | (bw->modulo << 8) | (bw->ADClkSrc << 7));
@@ -344,9 +403,6 @@ static void dib7000mc_reset_pll(struct dib7000m_state *state)
 static int dib7000m_reset_gpio(struct dib7000m_state *st)
 {
 	/* reset the GPIOs */
-	dprintk("-D-  gpio dir: %x: gpio val: %x, gpio pwm pos: %x\n",
-		st->cfg.gpio_dir, st->cfg.gpio_val,st->cfg.gpio_pwm_pos);
-
 	dib7000m_write_word(st, 773, st->cfg.gpio_dir);
 	dib7000m_write_word(st, 774, st->cfg.gpio_val);
 
@@ -357,6 +413,107 @@ static int dib7000m_reset_gpio(struct dib7000m_state *st)
 	dib7000m_write_word(st, 780, st->cfg.pwm_freq_div);
 	return 0;
 }
+
+static u16 dib7000m_defaults_common[] =
+
+{
+	// auto search configuration
+	3, 2,
+		0x0004,
+		0x1000,
+		0x0814,
+
+	12, 6,
+		0x001b,
+		0x7740,
+		0x005b,
+		0x8d80,
+		0x01c9,
+		0xc380,
+		0x0000,
+		0x0080,
+		0x0000,
+		0x0090,
+		0x0001,
+		0xd4c0,
+
+	1, 26,
+		0x6680, // P_corm_thres Lock algorithms configuration
+
+	1, 170,
+		0x0410, // P_palf_alpha_regul, P_palf_filter_freeze, P_palf_filter_on
+
+	8, 173,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+
+	1, 182,
+		8192, // P_fft_nb_to_cut
+
+	2, 195,
+		0x0ccd, // P_pha3_thres
+		0,      // P_cti_use_cpe, P_cti_use_prog
+
+	1, 205,
+		0x200f, // P_cspu_regul, P_cspu_win_cut
+
+	5, 214,
+		0x023d, // P_adp_regul_cnt
+		0x00a4, // P_adp_noise_cnt
+		0x00a4, // P_adp_regul_ext
+		0x7ff0, // P_adp_noise_ext
+		0x3ccc, // P_adp_fil
+
+	1, 226,
+		0, // P_2d_byp_ti_num
+
+	1, 255,
+		0x800, // P_equal_thres_wgn
+
+	1, 263,
+		0x0001,
+
+	1, 281,
+		0x0010, // P_fec_*
+
+	1, 294,
+		0x0062, // P_smo_mode, P_smo_rs_discard, P_smo_fifo_flush, P_smo_pid_parse, P_smo_error_discard
+
+	0
+};
+
+static u16 dib7000m_defaults[] =
+
+{
+	/* set ADC level to -16 */
+	11, 76,
+		(1 << 13) - 825 - 117,
+		(1 << 13) - 837 - 117,
+		(1 << 13) - 811 - 117,
+		(1 << 13) - 766 - 117,
+		(1 << 13) - 737 - 117,
+		(1 << 13) - 693 - 117,
+		(1 << 13) - 648 - 117,
+		(1 << 13) - 619 - 117,
+		(1 << 13) - 575 - 117,
+		(1 << 13) - 531 - 117,
+		(1 << 13) - 501 - 117,
+
+	// Tuner IO bank: max drive (14mA)
+	1, 912,
+		0x2c8a,
+
+	1, 1817,
+		1,
+
+	0,
+};
 
 static int dib7000m_demod_reset(struct dib7000m_state *state)
 {
@@ -382,21 +539,46 @@ static int dib7000m_demod_reset(struct dib7000m_state *state)
 		dib7000mc_reset_pll(state);
 
 	if (dib7000m_reset_gpio(state) != 0)
-		dprintk("-E-  GPIO reset was not successful.\n");
+		dprintk( "GPIO reset was not successful.");
 
 	if (dib7000m_set_output_mode(state, OUTMODE_HIGH_Z) != 0)
-		dprintk("-E-  OUTPUT_MODE could not be resetted.\n");
+		dprintk( "OUTPUT_MODE could not be reset.");
 
 	/* unforce divstr regardless whether i2c enumeration was done or not */
 	dib7000m_write_word(state, 1794, dib7000m_read_word(state, 1794) & ~(1 << 1) );
 
-	dib7000m_set_bandwidth(&state->demod, BANDWIDTH_8_MHZ);
+	dib7000m_set_bandwidth(state, 8000);
 
 	dib7000m_set_adc_state(state, DIBX000_SLOW_ADC_ON);
 	dib7000m_sad_calib(state);
 	dib7000m_set_adc_state(state, DIBX000_SLOW_ADC_OFF);
 
+	if (state->cfg.dvbt_mode)
+		dib7000m_write_word(state, 1796, 0x0); // select DVB-T output
+
+	if (state->cfg.mobile_mode)
+		dib7000m_write_word(state, 261 + state->reg_offs, 2);
+	else
+		dib7000m_write_word(state, 224 + state->reg_offs, 1);
+
+	// P_iqc_alpha_pha, P_iqc_alpha_amp, P_iqc_dcc_alpha, ...
+	if(state->cfg.tuner_is_baseband)
+		dib7000m_write_word(state, 36, 0x0755);
+	else
+		dib7000m_write_word(state, 36, 0x1f55);
+
+	// P_divclksel=3 P_divbitsel=1
+	if (state->revision == 0x4000)
+		dib7000m_write_word(state, 909, (3 << 10) | (1 << 6));
+	else
+		dib7000m_write_word(state, 909, (3 << 4) | 1);
+
+	dib7000m_write_tab(state, dib7000m_defaults_common);
+	dib7000m_write_tab(state, dib7000m_defaults);
+
 	dib7000m_set_power_mode(state, DIB7000M_POWER_INTERFACE_ONLY);
+
+	state->internal_clk = state->cfg.bw->internal;
 
 	return 0;
 }
@@ -427,7 +609,7 @@ static int dib7000m_agc_soft_split(struct dib7000m_state *state)
 			(agc - state->current_agc->split.min_thres) /
 			(state->current_agc->split.max_thres - state->current_agc->split.min_thres);
 
-	dprintk("AGC split_offset: %d\n",split_offset);
+	dprintk( "AGC split_offset: %d",split_offset);
 
 	// P_agc_force_split and P_agc_split_offset
 	return dib7000m_write_word(state, 103, (dib7000m_read_word(state, 103) & 0xff00) | split_offset);
@@ -435,35 +617,26 @@ static int dib7000m_agc_soft_split(struct dib7000m_state *state)
 
 static int dib7000m_update_lna(struct dib7000m_state *state)
 {
-	int i;
 	u16 dyn_gain;
 
-	// when there is no LNA to program return immediatly
-	if (state->cfg.update_lna == NULL)
-		return 0;
-
-	msleep(60);
-	for (i = 0; i < 20; i++) {
-		// read dyn_gain here (because it is demod-dependent and not tuner)
+	if (state->cfg.update_lna) {
+		// read dyn_gain here (because it is demod-dependent and not fe)
 		dyn_gain = dib7000m_read_word(state, 390);
-
-		dprintk("agc global: %d\n", dyn_gain);
 
 		if (state->cfg.update_lna(&state->demod,dyn_gain)) { // LNA has changed
 			dib7000m_restart_agc(state);
-			msleep(60);
-		} else
-			break;
+			return 1;
+		}
 	}
 	return 0;
 }
 
-static void dib7000m_set_agc_config(struct dib7000m_state *state, u8 band)
+static int dib7000m_set_agc_config(struct dib7000m_state *state, u8 band)
 {
 	struct dibx000_agc_config *agc = NULL;
 	int i;
-	if (state->current_band == band)
-		return;
+	if (state->current_band == band && state->current_agc != NULL)
+		return 0;
 	state->current_band = band;
 
 	for (i = 0; i < state->cfg.agc_config_count; i++)
@@ -473,8 +646,8 @@ static void dib7000m_set_agc_config(struct dib7000m_state *state, u8 band)
 		}
 
 	if (agc == NULL) {
-		dprintk("-E-  No valid AGC configuration found for band 0x%02x\n",band);
-		return;
+		dprintk( "no valid AGC configuration found for band 0x%02x",band);
+		return -EINVAL;
 	}
 
 	state->current_agc = agc;
@@ -489,7 +662,7 @@ static void dib7000m_set_agc_config(struct dib7000m_state *state, u8 band)
 	dib7000m_write_word(state, 98, (agc->alpha_mant << 5) | agc->alpha_exp);
 	dib7000m_write_word(state, 99, (agc->beta_mant  << 6) | agc->beta_exp);
 
-	dprintk("-D-  WBD: ref: %d, sel: %d, active: %d, alpha: %d\n",
+	dprintk( "WBD: ref: %d, sel: %d, active: %d, alpha: %d",
 		state->wbd_ref != 0 ? state->wbd_ref : agc->wbd_ref, agc->wbd_sel, !agc->perform_agc_softsplit, agc->wbd_sel);
 
 	/* AGC continued */
@@ -510,7 +683,7 @@ static void dib7000m_set_agc_config(struct dib7000m_state *state, u8 band)
 
 	if (state->revision > 0x4000) { // settings for the MC
 		dib7000m_write_word(state, 71,   agc->agc1_pt3);
-//		dprintk("-D-  929: %x %d %d\n",
+//		dprintk( "929: %x %d %d",
 //			(dib7000m_read_word(state, 929) & 0xffe3) | (agc->wbd_inv << 4) | (agc->wbd_sel << 2), agc->wbd_inv, agc->wbd_sel);
 		dib7000m_write_word(state, 929, (dib7000m_read_word(state, 929) & 0xffe3) | (agc->wbd_inv << 4) | (agc->wbd_sel << 2));
 	} else {
@@ -519,33 +692,160 @@ static void dib7000m_set_agc_config(struct dib7000m_state *state, u8 band)
 		for (i = 0; i < 9; i++)
 			dib7000m_write_word(state, 88 + i, b[i]);
 	}
+	return 0;
 }
 
-static void dib7000m_update_timf_freq(struct dib7000m_state *state)
+static void dib7000m_update_timf(struct dib7000m_state *state)
 {
 	u32 timf = (dib7000m_read_word(state, 436) << 16) | dib7000m_read_word(state, 437);
-	state->timf = timf * 80 / (BW_INDEX_TO_KHZ(state->current_bandwidth) / 100);
+	state->timf = timf * 160 / (state->current_bandwidth / 50);
 	dib7000m_write_word(state, 23, (u16) (timf >> 16));
 	dib7000m_write_word(state, 24, (u16) (timf & 0xffff));
-	dprintk("-D-  Updated timf_frequency: %d (default: %d)\n",state->timf, state->cfg.bw->timf);
+	dprintk( "updated timf_frequency: %d (default: %d)",state->timf, state->timf_default);
 }
 
-static void dib7000m_set_channel(struct dib7000m_state *state, struct dibx000_ofdm_channel *ch, u8 seq)
+static int dib7000m_agc_startup(struct dvb_frontend *demod, struct dvb_frontend_parameters *ch)
+{
+	struct dib7000m_state *state = demod->demodulator_priv;
+	u16 cfg_72 = dib7000m_read_word(state, 72);
+	int ret = -1;
+	u8 *agc_state = &state->agc_state;
+	u8 agc_split;
+
+	switch (state->agc_state) {
+		case 0:
+			// set power-up level: interf+analog+AGC
+			dib7000m_set_power_mode(state, DIB7000M_POWER_INTERF_ANALOG_AGC);
+			dib7000m_set_adc_state(state, DIBX000_ADC_ON);
+
+			if (dib7000m_set_agc_config(state, BAND_OF_FREQUENCY(ch->frequency/1000)) != 0)
+				return -1;
+
+			ret = 7; /* ADC power up */
+			(*agc_state)++;
+			break;
+
+		case 1:
+			/* AGC initialization */
+			if (state->cfg.agc_control)
+				state->cfg.agc_control(&state->demod, 1);
+
+			dib7000m_write_word(state, 75, 32768);
+			if (!state->current_agc->perform_agc_softsplit) {
+				/* we are using the wbd - so slow AGC startup */
+				dib7000m_write_word(state, 103, 1 << 8); /* force 0 split on WBD and restart AGC */
+				(*agc_state)++;
+				ret = 5;
+			} else {
+				/* default AGC startup */
+				(*agc_state) = 4;
+				/* wait AGC rough lock time */
+				ret = 7;
+			}
+
+			dib7000m_restart_agc(state);
+			break;
+
+		case 2: /* fast split search path after 5sec */
+			dib7000m_write_word(state,  72, cfg_72 | (1 << 4)); /* freeze AGC loop */
+			dib7000m_write_word(state, 103, 2 << 9);            /* fast split search 0.25kHz */
+			(*agc_state)++;
+			ret = 14;
+			break;
+
+	case 3: /* split search ended */
+			agc_split = (u8)dib7000m_read_word(state, 392); /* store the split value for the next time */
+			dib7000m_write_word(state, 75, dib7000m_read_word(state, 390)); /* set AGC gain start value */
+
+			dib7000m_write_word(state, 72,  cfg_72 & ~(1 << 4));   /* std AGC loop */
+			dib7000m_write_word(state, 103, (state->current_agc->wbd_alpha << 9) | agc_split); /* standard split search */
+
+			dib7000m_restart_agc(state);
+
+			dprintk( "SPLIT %p: %hd", demod, agc_split);
+
+			(*agc_state)++;
+			ret = 5;
+			break;
+
+		case 4: /* LNA startup */
+			/* wait AGC accurate lock time */
+			ret = 7;
+
+			if (dib7000m_update_lna(state))
+				// wait only AGC rough lock time
+				ret = 5;
+			else
+				(*agc_state)++;
+			break;
+
+		case 5:
+			dib7000m_agc_soft_split(state);
+
+			if (state->cfg.agc_control)
+				state->cfg.agc_control(&state->demod, 0);
+
+			(*agc_state)++;
+			break;
+
+		default:
+			break;
+	}
+	return ret;
+}
+
+static void dib7000m_set_channel(struct dib7000m_state *state, struct dvb_frontend_parameters *ch, u8 seq)
 {
 	u16 value, est[4];
 
-	dib7000m_set_agc_config(state, BAND_OF_FREQUENCY(ch->RF_kHz));
+	dib7000m_set_bandwidth(state, BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth));
 
 	/* nfft, guard, qam, alpha */
-	dib7000m_write_word(state, 0, (ch->nfft << 7) | (ch->guard << 5) | (ch->nqam << 3) | (ch->vit_alpha));
+	value = 0;
+	switch (ch->u.ofdm.transmission_mode) {
+		case TRANSMISSION_MODE_2K: value |= (0 << 7); break;
+		case /* 4K MODE */ 255: value |= (2 << 7); break;
+		default:
+		case TRANSMISSION_MODE_8K: value |= (1 << 7); break;
+	}
+	switch (ch->u.ofdm.guard_interval) {
+		case GUARD_INTERVAL_1_32: value |= (0 << 5); break;
+		case GUARD_INTERVAL_1_16: value |= (1 << 5); break;
+		case GUARD_INTERVAL_1_4:  value |= (3 << 5); break;
+		default:
+		case GUARD_INTERVAL_1_8:  value |= (2 << 5); break;
+	}
+	switch (ch->u.ofdm.constellation) {
+		case QPSK:  value |= (0 << 3); break;
+		case QAM_16: value |= (1 << 3); break;
+		default:
+		case QAM_64: value |= (2 << 3); break;
+	}
+	switch (HIERARCHY_1) {
+		case HIERARCHY_2: value |= 2; break;
+		case HIERARCHY_4: value |= 4; break;
+		default:
+		case HIERARCHY_1: value |= 1; break;
+	}
+	dib7000m_write_word(state, 0, value);
 	dib7000m_write_word(state, 5, (seq << 4));
 
-	/* P_dintl_native, P_dintlv_inv, P_vit_hrch, P_vit_code_rate, P_vit_select_hp */
-	value = (ch->intlv_native << 6) | (ch->vit_hrch << 4) | (ch->vit_select_hp & 0x1);
-	if (ch->vit_hrch == 0 || ch->vit_select_hp == 1)
-		value |= (ch->vit_code_rate_hp << 1);
-	else
-		value |= (ch->vit_code_rate_lp << 1);
+	/* P_dintl_native, P_dintlv_inv, P_hrch, P_code_rate, P_select_hp */
+	value = 0;
+	if (1 != 0)
+		value |= (1 << 6);
+	if (ch->u.ofdm.hierarchy_information == 1)
+		value |= (1 << 4);
+	if (1 == 1)
+		value |= 1;
+	switch ((ch->u.ofdm.hierarchy_information == 0 || 1 == 1) ? ch->u.ofdm.code_rate_HP : ch->u.ofdm.code_rate_LP) {
+		case FEC_2_3: value |= (2 << 1); break;
+		case FEC_3_4: value |= (3 << 1); break;
+		case FEC_5_6: value |= (5 << 1); break;
+		case FEC_7_8: value |= (7 << 1); break;
+		default:
+		case FEC_1_2: value |= (1 << 1); break;
+	}
 	dib7000m_write_word(state, 267 + state->reg_offs, value);
 
 	/* offset loop parameters */
@@ -563,32 +863,38 @@ static void dib7000m_set_channel(struct dib7000m_state *state, struct dibx000_of
 	dib7000m_write_word(state, 33, (0 << 4) | 0x5);
 
 	/* P_dvsy_sync_wait */
-	switch (ch->nfft) {
-		case 1: value = 256; break;
-		case 2: value = 128; break;
-		case 0:
+	switch (ch->u.ofdm.transmission_mode) {
+		case TRANSMISSION_MODE_8K: value = 256; break;
+		case /* 4K MODE */ 255: value = 128; break;
+		case TRANSMISSION_MODE_2K:
 		default: value = 64; break;
 	}
-	value *= ((1 << (ch->guard)) * 3 / 2); // add 50% SFN margin
-	value <<= 4;
+	switch (ch->u.ofdm.guard_interval) {
+		case GUARD_INTERVAL_1_16: value *= 2; break;
+		case GUARD_INTERVAL_1_8:  value *= 4; break;
+		case GUARD_INTERVAL_1_4:  value *= 8; break;
+		default:
+		case GUARD_INTERVAL_1_32: value *= 1; break;
+	}
+	state->div_sync_wait = (value * 3) / 2 + 32; // add 50% SFN margin + compensate for one DVSY-fifo TODO
 
 	/* deactive the possibility of diversity reception if extended interleave - not for 7000MC */
 	/* P_dvsy_sync_mode = 0, P_dvsy_sync_enable=1, P_dvcb_comb_mode=2 */
-	if (ch->intlv_native || state->revision > 0x4000)
-		value |= (1 << 2) | (2 << 0);
+	if (1 == 1 || state->revision > 0x4000)
+		state->div_force_off = 0;
 	else
-		value |= 0;
-	dib7000m_write_word(state, 266 + state->reg_offs, value);
+		state->div_force_off = 1;
+	dib7000m_set_diversity_in(&state->demod, state->div_state);
 
 	/* channel estimation fine configuration */
-	switch (ch->nqam) {
-		case 2:
+	switch (ch->u.ofdm.constellation) {
+		case QAM_64:
 			est[0] = 0x0148;       /* P_adp_regul_cnt 0.04 */
 			est[1] = 0xfff0;       /* P_adp_noise_cnt -0.002 */
 			est[2] = 0x00a4;       /* P_adp_regul_ext 0.02 */
 			est[3] = 0xfff8;       /* P_adp_noise_ext -0.001 */
 			break;
-		case 1:
+		case QAM_16:
 			est[0] = 0x023d;       /* P_adp_regul_cnt 0.07 */
 			est[1] = 0xffdf;       /* P_adp_noise_cnt -0.004 */
 			est[2] = 0x00a4;       /* P_adp_regul_ext 0.02 */
@@ -604,70 +910,48 @@ static void dib7000m_set_channel(struct dib7000m_state *state, struct dibx000_of
 	for (value = 0; value < 4; value++)
 		dib7000m_write_word(state, 214 + value + state->reg_offs, est[value]);
 
-	// set power-up level: interf+analog+AGC
-	dib7000m_set_power_mode(state, DIB7000M_POWER_INTERF_ANALOG_AGC);
-	dib7000m_set_adc_state(state, DIBX000_ADC_ON);
-
-	msleep(7);
-
-	//AGC initialization
-	if (state->cfg.agc_control)
-		state->cfg.agc_control(&state->demod, 1);
-
-	dib7000m_restart_agc(state);
-
-	// wait AGC rough lock time
-	msleep(5);
-
-	dib7000m_update_lna(state);
-	dib7000m_agc_soft_split(state);
-
-	// wait AGC accurate lock time
-	msleep(7);
-
-	if (state->cfg.agc_control)
-		state->cfg.agc_control(&state->demod, 0);
-
 	// set power-up level: autosearch
 	dib7000m_set_power_mode(state, DIB7000M_POWER_COR4_DINTLV_ICIRM_EQUAL_CFROD);
 }
 
-static int dib7000m_autosearch_start(struct dvb_frontend *demod, struct dibx000_ofdm_channel *ch)
+static int dib7000m_autosearch_start(struct dvb_frontend *demod, struct dvb_frontend_parameters *ch)
 {
 	struct dib7000m_state *state = demod->demodulator_priv;
-	struct dibx000_ofdm_channel auto_ch;
+	struct dvb_frontend_parameters schan;
 	int ret = 0;
-	u32 value;
+	u32 value, factor;
 
-	INIT_OFDM_CHANNEL(&auto_ch);
-	auto_ch.RF_kHz           = ch->RF_kHz;
-	auto_ch.Bw               = ch->Bw;
-	auto_ch.nqam             = 2;
-	auto_ch.guard            = 0;
-	auto_ch.nfft             = 1;
-	auto_ch.vit_alpha        = 1;
-	auto_ch.vit_select_hp    = 1;
-	auto_ch.vit_code_rate_hp = 2;
-	auto_ch.vit_code_rate_lp = 3;
-	auto_ch.vit_hrch         = 0;
-	auto_ch.intlv_native     = 1;
+	schan = *ch;
 
-	dib7000m_set_channel(state, &auto_ch, 7);
+	schan.u.ofdm.constellation = QAM_64;
+	schan.u.ofdm.guard_interval        = GUARD_INTERVAL_1_32;
+	schan.u.ofdm.transmission_mode         = TRANSMISSION_MODE_8K;
+	schan.u.ofdm.code_rate_HP = FEC_2_3;
+	schan.u.ofdm.code_rate_LP = FEC_3_4;
+	schan.u.ofdm.hierarchy_information         = 0;
+
+	dib7000m_set_channel(state, &schan, 7);
+
+	factor = BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth);
+	if (factor >= 5000)
+		factor = 1;
+	else
+		factor = 6;
 
 	// always use the setting for 8MHz here lock_time for 7,6 MHz are longer
-	value = 30 * state->cfg.bw->internal;
+	value = 30 * state->internal_clk * factor;
 	ret |= dib7000m_write_word(state, 6,  (u16) ((value >> 16) & 0xffff)); // lock0 wait time
 	ret |= dib7000m_write_word(state, 7,  (u16)  (value        & 0xffff)); // lock0 wait time
-	value = 100 * state->cfg.bw->internal;
+	value = 100 * state->internal_clk * factor;
 	ret |= dib7000m_write_word(state, 8,  (u16) ((value >> 16) & 0xffff)); // lock1 wait time
 	ret |= dib7000m_write_word(state, 9,  (u16)  (value        & 0xffff)); // lock1 wait time
-	value = 500 * state->cfg.bw->internal;
+	value = 500 * state->internal_clk * factor;
 	ret |= dib7000m_write_word(state, 10, (u16) ((value >> 16) & 0xffff)); // lock2 wait time
 	ret |= dib7000m_write_word(state, 11, (u16)  (value        & 0xffff)); // lock2 wait time
 
 	// start search
 	value = dib7000m_read_word(state, 0);
-	ret |= dib7000m_write_word(state, 0, value | (1 << 9));
+	ret |= dib7000m_write_word(state, 0, (u16) (value | (1 << 9)));
 
 	/* clear n_irq_pending */
 	if (state->revision == 0x4000)
@@ -685,12 +969,12 @@ static int dib7000m_autosearch_irq(struct dib7000m_state *state, u16 reg)
 	u16 irq_pending = dib7000m_read_word(state, reg);
 
 	if (irq_pending & 0x1) { // failed
-		dprintk("#\n");
+		dprintk( "autosearch failed");
 		return 1;
 	}
 
 	if (irq_pending & 0x2) { // succeeded
-		dprintk("!\n");
+		dprintk( "autosearch succeeded");
 		return 2;
 	}
 	return 0; // still pending
@@ -705,7 +989,7 @@ static int dib7000m_autosearch_is_irq(struct dvb_frontend *demod)
 		return dib7000m_autosearch_irq(state, 537);
 }
 
-static int dib7000m_tune(struct dvb_frontend *demod, struct dibx000_ofdm_channel *ch)
+static int dib7000m_tune(struct dvb_frontend *demod, struct dvb_frontend_parameters *ch)
 {
 	struct dib7000m_state *state = demod->demodulator_priv;
 	int ret = 0;
@@ -722,182 +1006,103 @@ static int dib7000m_tune(struct dvb_frontend *demod, struct dibx000_ofdm_channel
 	ret |= dib7000m_write_word(state, 898, 0x0000);
 	msleep(45);
 
-	ret |= dib7000m_set_power_mode(state, DIB7000M_POWER_COR4_CRY_ESRAM_MOUT_NUD);
+	dib7000m_set_power_mode(state, DIB7000M_POWER_COR4_CRY_ESRAM_MOUT_NUD);
 	/* P_ctrl_inh_cor=0, P_ctrl_alpha_cor=4, P_ctrl_inh_isi=0, P_ctrl_alpha_isi=3, P_ctrl_inh_cor4=1, P_ctrl_alpha_cor4=3 */
 	ret |= dib7000m_write_word(state, 29, (0 << 14) | (4 << 10) | (0 << 9) | (3 << 5) | (1 << 4) | (0x3));
 
-	// never achieved a lock with that bandwidth so far - wait for timfreq to update
+	// never achieved a lock before - wait for timfreq to update
 	if (state->timf == 0)
 		msleep(200);
 
 	//dump_reg(state);
 	/* P_timf_alpha, P_corm_alpha=6, P_corm_thres=0x80 */
 	value = (6 << 8) | 0x80;
-	switch (ch->nfft) {
-		case 0: value |= (7 << 12); break;
-		case 1: value |= (9 << 12); break;
-		case 2: value |= (8 << 12); break;
+	switch (ch->u.ofdm.transmission_mode) {
+		case TRANSMISSION_MODE_2K: value |= (7 << 12); break;
+		case /* 4K MODE */ 255: value |= (8 << 12); break;
+		default:
+		case TRANSMISSION_MODE_8K: value |= (9 << 12); break;
 	}
 	ret |= dib7000m_write_word(state, 26, value);
 
 	/* P_ctrl_freeze_pha_shift=0, P_ctrl_pha_off_max */
 	value = (0 << 4);
-	switch (ch->nfft) {
-		case 0: value |= 0x6; break;
-		case 1: value |= 0x8; break;
-		case 2: value |= 0x7; break;
+	switch (ch->u.ofdm.transmission_mode) {
+		case TRANSMISSION_MODE_2K: value |= 0x6; break;
+		case /* 4K MODE */ 255: value |= 0x7; break;
+		default:
+		case TRANSMISSION_MODE_8K: value |= 0x8; break;
 	}
 	ret |= dib7000m_write_word(state, 32, value);
 
 	/* P_ctrl_sfreq_inh=0, P_ctrl_sfreq_step */
 	value = (0 << 4);
-	switch (ch->nfft) {
-		case 0: value |= 0x6; break;
-		case 1: value |= 0x8; break;
-		case 2: value |= 0x7; break;
+	switch (ch->u.ofdm.transmission_mode) {
+		case TRANSMISSION_MODE_2K: value |= 0x6; break;
+		case /* 4K MODE */ 255: value |= 0x7; break;
+		default:
+		case TRANSMISSION_MODE_8K: value |= 0x8; break;
 	}
 	ret |= dib7000m_write_word(state, 33,  value);
 
-	// we achieved a lock - it's time to update the osc freq
+	// we achieved a lock - it's time to update the timf freq
 	if ((dib7000m_read_word(state, 535) >> 6)  & 0x1)
-		dib7000m_update_timf_freq(state);
+		dib7000m_update_timf(state);
 
+    dib7000m_set_bandwidth(state, BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth));
 	return ret;
 }
 
-static int dib7000m_init(struct dvb_frontend *demod)
+static int dib7000m_wakeup(struct dvb_frontend *demod)
 {
 	struct dib7000m_state *state = demod->demodulator_priv;
-	int ret = 0;
-	u8 o = state->reg_offs;
 
 	dib7000m_set_power_mode(state, DIB7000M_POWER_ALL);
 
 	if (dib7000m_set_adc_state(state, DIBX000_SLOW_ADC_ON) != 0)
-		dprintk("-E-  could not start Slow ADC\n");
+		dprintk( "could not start Slow ADC");
 
-	if (state->cfg.dvbt_mode)
-		dib7000m_write_word(state, 1796, 0x0); // select DVB-T output
-
-	if (state->cfg.mobile_mode)
-		ret |= dib7000m_write_word(state, 261 + o, 2);
-	else
-		ret |= dib7000m_write_word(state, 224 + o, 1);
-
-	ret |= dib7000m_write_word(state, 173 + o, 0);
-	ret |= dib7000m_write_word(state, 174 + o, 0);
-	ret |= dib7000m_write_word(state, 175 + o, 0);
-	ret |= dib7000m_write_word(state, 176 + o, 0);
-	ret |= dib7000m_write_word(state, 177 + o, 0);
-	ret |= dib7000m_write_word(state, 178 + o, 0);
-	ret |= dib7000m_write_word(state, 179 + o, 0);
-	ret |= dib7000m_write_word(state, 180 + o, 0);
-
-	// P_corm_thres Lock algorithms configuration
-	ret |= dib7000m_write_word(state, 26, 0x6680);
-
-	// P_palf_alpha_regul, P_palf_filter_freeze, P_palf_filter_on
-	ret |= dib7000m_write_word(state, 170 + o, 0x0410);
-	// P_fft_nb_to_cut
-	ret |= dib7000m_write_word(state, 182 + o, 8192);
-	// P_pha3_thres
-	ret |= dib7000m_write_word(state, 195 + o, 0x0ccd);
-	// P_cti_use_cpe, P_cti_use_prog
-	ret |= dib7000m_write_word(state, 196 + o,     0);
-	// P_cspu_regul, P_cspu_win_cut
-	ret |= dib7000m_write_word(state, 205 + o, 0x200f);
-	// P_adp_regul_cnt
-	ret |= dib7000m_write_word(state, 214 + o, 0x023d);
-	// P_adp_noise_cnt
-	ret |= dib7000m_write_word(state, 215 + o, 0x00a4);
-	// P_adp_regul_ext
-	ret |= dib7000m_write_word(state, 216 + o, 0x00a4);
-	// P_adp_noise_ext
-	ret |= dib7000m_write_word(state, 217 + o, 0x7ff0);
-	// P_adp_fil
-	ret |= dib7000m_write_word(state, 218 + o, 0x3ccc);
-
-	// P_2d_byp_ti_num
-	ret |= dib7000m_write_word(state, 226 + o, 0);
-
-	// P_fec_*
-	ret |= dib7000m_write_word(state, 281 + o, 0x0010);
-	// P_smo_mode, P_smo_rs_discard, P_smo_fifo_flush, P_smo_pid_parse, P_smo_error_discard
-	ret |= dib7000m_write_word(state, 294 + o,0x0062);
-
-	// P_iqc_alpha_pha, P_iqc_alpha_amp, P_iqc_dcc_alpha, ...
-	if(state->cfg.tuner_is_baseband)
-		ret |= dib7000m_write_word(state, 36, 0x0755);
-	else
-		ret |= dib7000m_write_word(state, 36, 0x1f55);
-
-	// auto search configuration
-	ret |= dib7000m_write_word(state, 2,  0x0004);
-	ret |= dib7000m_write_word(state, 3,  0x1000);
-	ret |= dib7000m_write_word(state, 4,  0x0814);
-	ret |= dib7000m_write_word(state, 6,  0x001b);
-	ret |= dib7000m_write_word(state, 7,  0x7740);
-	ret |= dib7000m_write_word(state, 8,  0x005b);
-	ret |= dib7000m_write_word(state, 9,  0x8d80);
-	ret |= dib7000m_write_word(state, 10, 0x01c9);
-	ret |= dib7000m_write_word(state, 11, 0xc380);
-	ret |= dib7000m_write_word(state, 12, 0x0000);
-	ret |= dib7000m_write_word(state, 13, 0x0080);
-	ret |= dib7000m_write_word(state, 14, 0x0000);
-	ret |= dib7000m_write_word(state, 15, 0x0090);
-	ret |= dib7000m_write_word(state, 16, 0x0001);
-	ret |= dib7000m_write_word(state, 17, 0xd4c0);
-	ret |= dib7000m_write_word(state, 263 + o,0x0001);
-
-	// P_divclksel=3 P_divbitsel=1
-	if (state->revision == 0x4000)
-		dib7000m_write_word(state, 909, (3 << 10) | (1 << 6));
-	else
-		dib7000m_write_word(state, 909, (3 << 4) | 1);
-
-	// Tuner IO bank: max drive (14mA)
-	ret |= dib7000m_write_word(state, 912 ,0x2c8a);
-
-	ret |= dib7000m_write_word(state, 1817, 1);
-
-	return ret;
+	return 0;
 }
 
 static int dib7000m_sleep(struct dvb_frontend *demod)
 {
 	struct dib7000m_state *st = demod->demodulator_priv;
 	dib7000m_set_output_mode(st, OUTMODE_HIGH_Z);
-	return dib7000m_set_power_mode(st, DIB7000M_POWER_INTERFACE_ONLY) |
-		dib7000m_set_adc_state(st, DIBX000_SLOW_ADC_OFF) |
+	dib7000m_set_power_mode(st, DIB7000M_POWER_INTERFACE_ONLY);
+	return dib7000m_set_adc_state(st, DIBX000_SLOW_ADC_OFF) |
 		dib7000m_set_adc_state(st, DIBX000_ADC_OFF);
 }
 
 static int dib7000m_identify(struct dib7000m_state *state)
 {
 	u16 value;
+
 	if ((value = dib7000m_read_word(state, 896)) != 0x01b3) {
-		dprintk("-E-  DiB7000M: wrong Vendor ID (read=0x%x)\n",value);
+		dprintk( "wrong Vendor ID (0x%x)",value);
 		return -EREMOTEIO;
 	}
 
 	state->revision = dib7000m_read_word(state, 897);
 	if (state->revision != 0x4000 &&
 		state->revision != 0x4001 &&
-		state->revision != 0x4002) {
-		dprintk("-E-  DiB7000M: wrong Device ID (%x)\n",value);
+		state->revision != 0x4002 &&
+		state->revision != 0x4003) {
+		dprintk( "wrong Device ID (0x%x)",value);
 		return -EREMOTEIO;
 	}
 
 	/* protect this driver to be used with 7000PC */
 	if (state->revision == 0x4000 && dib7000m_read_word(state, 769) == 0x4000) {
-		dprintk("-E-  DiB7000M: this driver does not work with DiB7000PC\n");
+		dprintk( "this driver does not work with DiB7000PC");
 		return -EREMOTEIO;
 	}
 
 	switch (state->revision) {
-		case 0x4000: dprintk("-I-  found DiB7000MA/PA/MB/PB\n"); break;
-		case 0x4001: state->reg_offs = 1; dprintk("-I-  found DiB7000HC\n"); break;
-		case 0x4002: state->reg_offs = 1; dprintk("-I-  found DiB7000MC\n"); break;
+		case 0x4000: dprintk( "found DiB7000MA/PA/MB/PB"); break;
+		case 0x4001: state->reg_offs = 1; dprintk( "found DiB7000HC"); break;
+		case 0x4002: state->reg_offs = 1; dprintk( "found DiB7000MC"); break;
+		case 0x4003: state->reg_offs = 1; dprintk( "found DiB9000"); break;
 	}
 
 	return 0;
@@ -966,16 +1171,21 @@ static int dib7000m_set_frontend(struct dvb_frontend* fe,
 				struct dvb_frontend_parameters *fep)
 {
 	struct dib7000m_state *state = fe->demodulator_priv;
-	struct dibx000_ofdm_channel ch;
-
-	INIT_OFDM_CHANNEL(&ch);
-	FEP2DIB(fep,&ch);
+	int time;
 
 	state->current_bandwidth = fep->u.ofdm.bandwidth;
-	dib7000m_set_bandwidth(fe, fep->u.ofdm.bandwidth);
+	dib7000m_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->u.ofdm.bandwidth));
 
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe, fep);
+
+	/* start up the AGC */
+	state->agc_state = 0;
+	do {
+		time = dib7000m_agc_startup(fe, fep);
+		if (time != -1)
+			msleep(time);
+	} while (time != -1);
 
 	if (fep->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ||
 		fep->u.ofdm.guard_interval    == GUARD_INTERVAL_AUTO ||
@@ -983,24 +1193,23 @@ static int dib7000m_set_frontend(struct dvb_frontend* fe,
 		fep->u.ofdm.code_rate_HP      == FEC_AUTO) {
 		int i = 800, found;
 
-		dib7000m_autosearch_start(fe, &ch);
+		dib7000m_autosearch_start(fe, fep);
 		do {
 			msleep(1);
 			found = dib7000m_autosearch_is_irq(fe);
 		} while (found == 0 && i--);
 
-		dprintk("autosearch returns: %d\n",found);
+		dprintk("autosearch returns: %d",found);
 		if (found == 0 || found == 1)
 			return 0; // no channel found
 
 		dib7000m_get_frontend(fe, fep);
-		FEP2DIB(fep, &ch);
 	}
 
 	/* make this a config parameter */
 	dib7000m_set_output_mode(state, OUTMODE_MPEG2_FIFO);
 
-	return dib7000m_tune(fe, &ch);
+	return dib7000m_tune(fe, fep);
 }
 
 static int dib7000m_read_status(struct dvb_frontend *fe, fe_status_t *stat)
@@ -1087,7 +1296,7 @@ int dib7000m_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defau
 		if (dib7000m_identify(&st) != 0) {
 			st.i2c_addr = default_addr;
 			if (dib7000m_identify(&st) != 0) {
-				dprintk("DiB7000M #%d: not identified\n", k);
+				dprintk("DiB7000M #%d: not identified", k);
 				return -EIO;
 			}
 		}
@@ -1100,7 +1309,7 @@ int dib7000m_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defau
 		/* set new i2c address and force divstart */
 		dib7000m_write_word(&st, 1794, (new_addr << 2) | 0x2);
 
-		dprintk("IC %d initialized (to i2c_address 0x%x)\n", k, new_addr);
+		dprintk("IC %d initialized (to i2c_address 0x%x)", k, new_addr);
 	}
 
 	for (k = 0; k < no_of_demods; k++) {
@@ -1134,6 +1343,8 @@ struct dvb_frontend * dib7000m_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 	demod                   = &st->demod;
 	demod->demodulator_priv = st;
 	memcpy(&st->demod.ops, &dib7000m_ops, sizeof(struct dvb_frontend_ops));
+
+	st->timf_default = cfg->bw->timf;
 
 	if (dib7000m_identify(st) != 0)
 		goto error;
@@ -1172,7 +1383,7 @@ static struct dvb_frontend_ops dib7000m_ops = {
 
 	.release              = dib7000m_release,
 
-	.init                 = dib7000m_init,
+	.init                 = dib7000m_wakeup,
 	.sleep                = dib7000m_sleep,
 
 	.set_frontend         = dib7000m_set_frontend,

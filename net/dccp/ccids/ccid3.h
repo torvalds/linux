@@ -38,7 +38,6 @@
 
 #include <linux/ktime.h>
 #include <linux/list.h>
-#include <linux/time.h>
 #include <linux/types.h>
 #include <linux/tfrc.h>
 #include "../ccid.h"
@@ -111,12 +110,19 @@ struct ccid3_hc_tx_sock {
 	u8				ccid3hctx_idle;
 	ktime_t				ccid3hctx_t_last_win_count;
 	struct timer_list		ccid3hctx_no_feedback_timer;
-	struct timeval			ccid3hctx_t_ld;
+	ktime_t				ccid3hctx_t_ld;
 	ktime_t				ccid3hctx_t_nom;
 	u32				ccid3hctx_delta;
 	struct list_head		ccid3hctx_hist;
 	struct ccid3_options_received	ccid3hctx_options_received;
 };
+
+static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
+{
+    struct ccid3_hc_tx_sock *hctx = ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
+    BUG_ON(hctx == NULL);
+    return hctx;
+}
 
 /* TFRC receiver states */
 enum ccid3_hc_rx_states {
@@ -153,8 +159,8 @@ struct ccid3_hc_rx_sock {
 					ccid3hcrx_ccval_last_counter:4;
 	enum ccid3_hc_rx_states		ccid3hcrx_state:8;
 	u32				ccid3hcrx_bytes_recv;
-	struct timeval			ccid3hcrx_tstamp_last_feedback;
-	struct timeval			ccid3hcrx_tstamp_last_ack;
+	ktime_t				ccid3hcrx_tstamp_last_feedback;
+	ktime_t				ccid3hcrx_tstamp_last_ack;
 	struct list_head		ccid3hcrx_hist;
 	struct list_head		ccid3hcrx_li_hist;
 	u16				ccid3hcrx_s;
@@ -162,14 +168,11 @@ struct ccid3_hc_rx_sock {
 	u32				ccid3hcrx_elapsed_time;
 };
 
-static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
-{
-    return ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
-}
-
 static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
 {
-    return ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
+    struct ccid3_hc_rx_sock *hcrx = ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
+    BUG_ON(hcrx == NULL);
+    return hcrx;
 }
 
 #endif /* _DCCP_CCID3_H_ */

@@ -45,6 +45,7 @@ o  nfs-utils              1.0.5                   # showmount --version
 o  procps                 3.2.0                   # ps --version
 o  oprofile               0.9                     # oprofiled --version
 o  udev                   081                     # udevinfo -V
+o  grub                   0.93                    # grub --version
 
 Kernel compilation
 ==================

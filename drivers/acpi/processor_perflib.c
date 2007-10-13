@@ -539,7 +539,7 @@ end:
 }
 
 int acpi_processor_preregister_performance(
-		struct acpi_processor_performance **performance)
+		struct acpi_processor_performance *performance)
 {
 	int count, count_target;
 	int retval = 0;
@@ -567,12 +567,12 @@ int acpi_processor_preregister_performance(
 			continue;
 		}
 
-		if (!performance || !performance[i]) {
+		if (!performance || !percpu_ptr(performance, i)) {
 			retval = -EINVAL;
 			continue;
 		}
 
-		pr->performance = performance[i];
+		pr->performance = percpu_ptr(performance, i);
 		cpu_set(i, pr->performance->shared_cpu_map);
 		if (acpi_processor_get_psd(pr)) {
 			retval = -EINVAL;

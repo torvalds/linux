@@ -55,4 +55,10 @@ dvb-usb-opera-objs = opera1.o
 obj-$(CONFIG_DVB_USB_OPERA1) += dvb-usb-opera.o
 
 
-EXTRA_CFLAGS = -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
+dvb-usb-af9005-objs = af9005.o af9005-fe.o
+obj-$(CONFIG_DVB_USB_AF9005) += dvb-usb-af9005.o
+
+dvb-usb-af9005-remote-objs = af9005-remote.o
+obj-$(CONFIG_DVB_USB_AF9005_REMOTE) += dvb-usb-af9005-remote.o
+
+EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/

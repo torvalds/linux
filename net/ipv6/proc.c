@@ -23,6 +23,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stddef.h>
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -85,46 +86,32 @@ static struct snmp_mib snmp6_ipstats_list[] = {
 };
 
 static struct snmp_mib snmp6_icmp6_list[] = {
-/* icmpv6 mib according to RFC 2466
-
-   Exceptions:  {In|Out}AdminProhibs are removed, because I see
-		no good reasons to account them separately
-		of another dest.unreachs.
-		OutErrs is zero identically.
-		OutEchos too.
-		OutRouterAdvertisements too.
-		OutGroupMembQueries too.
- */
+/* icmpv6 mib according to RFC 2466 */
 	SNMP_MIB_ITEM("Icmp6InMsgs", ICMP6_MIB_INMSGS),
 	SNMP_MIB_ITEM("Icmp6InErrors", ICMP6_MIB_INERRORS),
-	SNMP_MIB_ITEM("Icmp6InDestUnreachs", ICMP6_MIB_INDESTUNREACHS),
-	SNMP_MIB_ITEM("Icmp6InPktTooBigs", ICMP6_MIB_INPKTTOOBIGS),
-	SNMP_MIB_ITEM("Icmp6InTimeExcds", ICMP6_MIB_INTIMEEXCDS),
-	SNMP_MIB_ITEM("Icmp6InParmProblems", ICMP6_MIB_INPARMPROBLEMS),
-	SNMP_MIB_ITEM("Icmp6InEchos", ICMP6_MIB_INECHOS),
-	SNMP_MIB_ITEM("Icmp6InEchoReplies", ICMP6_MIB_INECHOREPLIES),
-	SNMP_MIB_ITEM("Icmp6InGroupMembQueries", ICMP6_MIB_INGROUPMEMBQUERIES),
-	SNMP_MIB_ITEM("Icmp6InGroupMembResponses", ICMP6_MIB_INGROUPMEMBRESPONSES),
-	SNMP_MIB_ITEM("Icmp6InGroupMembReductions", ICMP6_MIB_INGROUPMEMBREDUCTIONS),
-	SNMP_MIB_ITEM("Icmp6InRouterSolicits", ICMP6_MIB_INROUTERSOLICITS),
-	SNMP_MIB_ITEM("Icmp6InRouterAdvertisements", ICMP6_MIB_INROUTERADVERTISEMENTS),
-	SNMP_MIB_ITEM("Icmp6InNeighborSolicits", ICMP6_MIB_INNEIGHBORSOLICITS),
-	SNMP_MIB_ITEM("Icmp6InNeighborAdvertisements", ICMP6_MIB_INNEIGHBORADVERTISEMENTS),
-	SNMP_MIB_ITEM("Icmp6InRedirects", ICMP6_MIB_INREDIRECTS),
 	SNMP_MIB_ITEM("Icmp6OutMsgs", ICMP6_MIB_OUTMSGS),
-	SNMP_MIB_ITEM("Icmp6OutDestUnreachs", ICMP6_MIB_OUTDESTUNREACHS),
-	SNMP_MIB_ITEM("Icmp6OutPktTooBigs", ICMP6_MIB_OUTPKTTOOBIGS),
-	SNMP_MIB_ITEM("Icmp6OutTimeExcds", ICMP6_MIB_OUTTIMEEXCDS),
-	SNMP_MIB_ITEM("Icmp6OutParmProblems", ICMP6_MIB_OUTPARMPROBLEMS),
-	SNMP_MIB_ITEM("Icmp6OutEchoReplies", ICMP6_MIB_OUTECHOREPLIES),
-	SNMP_MIB_ITEM("Icmp6OutRouterSolicits", ICMP6_MIB_OUTROUTERSOLICITS),
-	SNMP_MIB_ITEM("Icmp6OutNeighborSolicits", ICMP6_MIB_OUTNEIGHBORSOLICITS),
-	SNMP_MIB_ITEM("Icmp6OutNeighborAdvertisements", ICMP6_MIB_OUTNEIGHBORADVERTISEMENTS),
-	SNMP_MIB_ITEM("Icmp6OutRedirects", ICMP6_MIB_OUTREDIRECTS),
-	SNMP_MIB_ITEM("Icmp6OutGroupMembResponses", ICMP6_MIB_OUTGROUPMEMBRESPONSES),
-	SNMP_MIB_ITEM("Icmp6OutGroupMembReductions", ICMP6_MIB_OUTGROUPMEMBREDUCTIONS),
 	SNMP_MIB_SENTINEL
 };
+
+/* RFC 4293 v6 ICMPMsgStatsTable; named items for RFC 2466 compatibility */
+static char *icmp6type2name[256] = {
+	[ICMPV6_DEST_UNREACH] = "DestUnreachs",
+	[ICMPV6_PKT_TOOBIG] = "PktTooBigs",
+	[ICMPV6_TIME_EXCEED] = "TimeExcds",
+	[ICMPV6_PARAMPROB] = "ParmProblems",
+	[ICMPV6_ECHO_REQUEST] = "EchoRequest",
+	[ICMPV6_ECHO_REPLY] = "EchoReplies",
+	[ICMPV6_MGM_QUERY] = "GroupMembQueries",
+	[ICMPV6_MGM_REPORT] = "GroupMembResponses",
+	[ICMPV6_MGM_REDUCTION] = "GroupMembReductions",
+	[ICMPV6_MLD2_REPORT] = "MLDv2Reports",
+	[NDISC_ROUTER_ADVERTISEMENT] = "RouterAdvertisements",
+	[NDISC_ROUTER_SOLICITATION] = "RouterSolicits",
+	[NDISC_NEIGHBOUR_ADVERTISEMENT] = "NeighborAdvertisements",
+	[NDISC_NEIGHBOUR_SOLICITATION] = "NeighborSolicits",
+	[NDISC_REDIRECT] = "NeighborRedirects",
+};
+
 
 static struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6InDatagrams", UDP_MIB_INDATAGRAMS),
@@ -141,6 +128,40 @@ static struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_SENTINEL
 };
+
+static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
+{
+	static char name[32];
+	int i;
+
+	/* print by name -- deprecated items */
+	for (i = 0; i < ICMP6MSG_MIB_MAX; i++) {
+		int icmptype;
+		char *p;
+
+		icmptype = i & 0xff;
+		p = icmp6type2name[icmptype];
+		if (!p)	/* don't print un-named types here */
+			continue;
+		(void) snprintf(name, sizeof(name)-1, "Icmp6%s%s",
+			i & 0x100 ? "Out" : "In", p);
+		seq_printf(seq, "%-32s\t%lu\n", name,
+			snmp_fold_field(mib, i));
+	}
+
+	/* print by number (nonzero only) - ICMPMsgStat format */
+	for (i = 0; i < ICMP6MSG_MIB_MAX; i++) {
+		unsigned long val;
+
+		val = snmp_fold_field(mib, i);
+		if (!val)
+			continue;
+		(void) snprintf(name, sizeof(name)-1, "Icmp6%sType%u",
+			i & 0x100 ?  "Out" : "In", i & 0xff);
+		seq_printf(seq, "%-32s\t%lu\n", name, val);
+	}
+	return;
+}
 
 static inline void
 snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
@@ -159,9 +180,11 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "%-32s\t%u\n", "ifIndex", idev->dev->ifindex);
 		snmp6_seq_show_item(seq, (void **)idev->stats.ipv6, snmp6_ipstats_list);
 		snmp6_seq_show_item(seq, (void **)idev->stats.icmpv6, snmp6_icmp6_list);
+		snmp6_seq_show_icmpv6msg(seq, (void **)idev->stats.icmpv6msg);
 	} else {
 		snmp6_seq_show_item(seq, (void **)ipv6_statistics, snmp6_ipstats_list);
 		snmp6_seq_show_item(seq, (void **)icmpv6_statistics, snmp6_icmp6_list);
+		snmp6_seq_show_icmpv6msg(seq, (void **)icmpv6msg_statistics);
 		snmp6_seq_show_item(seq, (void **)udp_stats_in6, snmp6_udp6_list);
 		snmp6_seq_show_item(seq, (void **)udplite_stats_in6, snmp6_udplite6_list);
 	}
@@ -231,22 +254,22 @@ int __init ipv6_misc_proc_init(void)
 {
 	int rc = 0;
 
-	if (!proc_net_fops_create("snmp6", S_IRUGO, &snmp6_seq_fops))
+	if (!proc_net_fops_create(&init_net, "snmp6", S_IRUGO, &snmp6_seq_fops))
 		goto proc_snmp6_fail;
 
-	proc_net_devsnmp6 = proc_mkdir("dev_snmp6", proc_net);
+	proc_net_devsnmp6 = proc_mkdir("dev_snmp6", init_net.proc_net);
 	if (!proc_net_devsnmp6)
 		goto proc_dev_snmp6_fail;
 
-	if (!proc_net_fops_create("sockstat6", S_IRUGO, &sockstat6_seq_fops))
+	if (!proc_net_fops_create(&init_net, "sockstat6", S_IRUGO, &sockstat6_seq_fops))
 		goto proc_sockstat6_fail;
 out:
 	return rc;
 
 proc_sockstat6_fail:
-	proc_net_remove("dev_snmp6");
+	proc_net_remove(&init_net, "dev_snmp6");
 proc_dev_snmp6_fail:
-	proc_net_remove("snmp6");
+	proc_net_remove(&init_net, "snmp6");
 proc_snmp6_fail:
 	rc = -ENOMEM;
 	goto out;
@@ -254,8 +277,8 @@ proc_snmp6_fail:
 
 void ipv6_misc_proc_exit(void)
 {
-	proc_net_remove("sockstat6");
-	proc_net_remove("dev_snmp6");
-	proc_net_remove("snmp6");
+	proc_net_remove(&init_net, "sockstat6");
+	proc_net_remove(&init_net, "dev_snmp6");
+	proc_net_remove(&init_net, "snmp6");
 }
 

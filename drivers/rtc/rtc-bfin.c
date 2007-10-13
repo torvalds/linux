@@ -1,6 +1,6 @@
 /*
  * Blackfin On-Chip Real Time Clock Driver
- *  Supports BF531/BF532/BF533/BF534/BF536/BF537
+ *  Supports BF53[123]/BF53[467]/BF54[2489]
  *
  * Copyright 2004-2007 Analog Devices Inc.
  *

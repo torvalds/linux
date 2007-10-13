@@ -32,7 +32,7 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-mem.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 
 	/* s3c2410_cpu_suspend
 	 *

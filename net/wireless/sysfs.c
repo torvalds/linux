@@ -52,12 +52,13 @@ static void wiphy_dev_release(struct device *dev)
 	cfg80211_dev_free(rdev);
 }
 
-static int wiphy_uevent(struct device *dev, char **envp,
-			int num_envp, char *buf, int size)
+#ifdef CONFIG_HOTPLUG
+static int wiphy_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	/* TODO, we probably need stuff here */
 	return 0;
 }
+#endif
 
 struct class ieee80211_class = {
 	.name = "ieee80211",

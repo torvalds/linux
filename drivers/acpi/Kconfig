@@ -2,15 +2,11 @@
 # ACPI Configuration
 #
 
-menu "ACPI (Advanced Configuration and Power Interface) Support"
+menuconfig ACPI
+	bool "ACPI Support (Advanced Configuration and Power Interface) Support"
 	depends on !X86_NUMAQ
 	depends on !X86_VISWS
 	depends on !IA64_HP_SIM
-	depends on IA64 || X86
-	depends on PM
-
-config ACPI
-	bool "ACPI Support"
 	depends on IA64 || X86
 	depends on PCI
 	depends on PM
@@ -47,52 +43,48 @@ config ACPI
 if ACPI
 
 config ACPI_SLEEP
-	bool "Sleep States"
-	depends on X86 && (!SMP || SUSPEND_SMP)
-	depends on PM
-	default y
-	---help---
-	  This option adds support for ACPI suspend states. 
-
-	  With this option, you will be able to put the system "to sleep". 
-	  Sleep states are low power states for the system and devices. All
-	  of the system operating state is saved to either memory or disk
-	  (depending on the state), to allow the system to resume operation
-	  quickly at your request.
-
-	  Although this option sounds really nifty, barely any of the device
-	  drivers have been converted to the new driver model and hence few
-	  have proper power management support. 
-
-	  This option is not recommended for anyone except those doing driver
-	  power management development.
-
-config ACPI_SLEEP_PROC_FS
 	bool
-	depends on ACPI_SLEEP && PROC_FS
+	depends on PM_SLEEP
 	default y
-
-config ACPI_SLEEP_PROC_SLEEP
-	bool "/proc/acpi/sleep (deprecated)"
-	depends on ACPI_SLEEP_PROC_FS
-	default n
-	---help---
-	  Create /proc/acpi/sleep
-	  Deprecated by /sys/power/state
 
 config ACPI_PROCFS
-	bool "Procfs interface (deprecated)"
-	depends on ACPI
+	bool "Deprecated /proc/acpi files"
+	depends on PROC_FS
+	---help---
+	  For backwards compatibility, this option allows
+	  depricated /proc/acpi/ files to exist, even when
+	  they have been replaced by functions in /sys.
+	  The deprecated files (and their replacements) include:
+
+	  /proc/acpi/sleep (/sys/power/state)
+	  /proc/acpi/info (/sys/modules/acpi/parameters/acpica_version)
+	  /proc/acpi/dsdt (/sys/firmware/acpi/tables/DSDT)
+	  /proc/acpi/fadt (/sys/firmware/acpi/tables/FACP)
+	  /proc/acpi/debug_layer (/sys/module/acpi/parameters/debug_layer)
+	  /proc/acpi/debug_level (/sys/module/acpi/parameters/debug_level)
+
+	  This option has no effect on /proc/acpi/ files
+	  and functions which do not yet exist in /sys.
+
+	  Say N to delete /proc/acpi/ files that have moved to /sys/
+
+config ACPI_PROC_EVENT
+	bool "Deprecated /proc/acpi/event support"
+	depends on PROC_FS
 	default y
 	---help---
-	  The Procfs interface for ACPI is made optional for backward compatibility.
-	  As the same functions are duplicated in the sysfs interface
-	  and this proc interface will be removed some time later,
-	  it's marked as deprecated.
-	  ( /proc/acpi/debug_layer && debug_level are deprecated by
-	    /sys/module/acpi/parameters/debug_layer && debug_level.
-	    /proc/acpi/info is deprecated by
-	    /sys/module/acpi/parameters/acpica_version )
+	  A user-space daemon, acpi, typically read /proc/acpi/event
+	  and handled all ACPI sub-system generated events.
+
+	  These events are now delivered to user-space via
+	  either the input layer, or as netlink events.
+
+	  This build option enables the old code for legacy
+	  user-space implementation.  After some time, this will
+	  be moved under CONFIG_ACPI_PROCFS, and then deleted.
+
+	  Say Y here to retain the old behaviour.  Say N if your
+	  user-space is newer than kernel 2.6.23 (September 2007).
 
 config ACPI_AC
 	tristate "AC Adapter"
@@ -124,7 +116,7 @@ config ACPI_BUTTON
 
 config ACPI_VIDEO
 	tristate "Video"
-	depends on X86 && BACKLIGHT_CLASS_DEVICE
+	depends on X86 && BACKLIGHT_CLASS_DEVICE && VIDEO_OUTPUT_CONTROL
 	help
 	  This driver implement the ACPI Extensions For Display Adapters
 	  for integrated graphics devices on motherboard, as specified in
@@ -280,6 +272,14 @@ config ACPI_DEBUG
 	  of verbosity. Saying Y enables these statements. This will increase
 	  your kernel size by around 50K.
 
+config ACPI_DEBUG_FUNC_TRACE
+	bool "Additionally enable ACPI function tracing"
+	default n
+	depends on ACPI_DEBUG
+	help
+	  ACPI Debug Statements slow down ACPI processing. Function trace
+	  is about half of the penalty and is rarely useful.
+
 config ACPI_EC
 	bool
 	default y
@@ -330,7 +330,6 @@ config ACPI_CONTAINER
 
 config ACPI_HOTPLUG_MEMORY
 	tristate "Memory Hotplug"
-	depends on ACPI
 	depends on MEMORY_HOTPLUG
 	default n
 	help
@@ -359,5 +358,3 @@ config ACPI_SBS
 	  to today's ACPI "Control Method" battery.
 
 endif	# ACPI
-
-endmenu

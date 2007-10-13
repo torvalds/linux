@@ -40,6 +40,7 @@ static inline void ccids_write_unlock(void)
 static inline void ccids_read_lock(void)
 {
 	atomic_inc(&ccids_lockct);
+	smp_mb__after_atomic_inc();
 	spin_unlock_wait(&ccids_lock);
 }
 
@@ -69,7 +70,7 @@ static struct kmem_cache *ccid_kmem_cache_create(int obj_size, const char *fmt,.
 	if (slab_name == NULL)
 		return NULL;
 	slab = kmem_cache_create(slab_name, sizeof(struct ccid) + obj_size, 0,
-				 SLAB_HWCACHE_ALIGN, NULL, NULL);
+				 SLAB_HWCACHE_ALIGN, NULL);
 	if (slab == NULL)
 		kfree(slab_name);
 	return slab;

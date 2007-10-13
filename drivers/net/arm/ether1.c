@@ -36,7 +36,6 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/interrupt.h>
-#include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/slab.h>
@@ -75,7 +74,7 @@ static void ether1_timeout(struct net_device *dev);
 
 /* ------------------------------------------------------------------------- */
 
-static char version[] __initdata = "ether1 ethernet driver (c) 2000 Russell King v1.07\n";
+static char version[] __devinitdata = "ether1 ethernet driver (c) 2000 Russell King v1.07\n";
 
 #define BUS_16 16
 #define BUS_8  8
@@ -997,6 +996,7 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct net_device *dev;
 	int i, ret = 0;
+	DECLARE_MAC_BUF(mac);
 
 	ether1_banner();
 
@@ -1010,7 +1010,6 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto release;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &ec->dev);
 
 	dev->irq = ec->irq;
@@ -1045,12 +1044,9 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto free;
 
-	printk(KERN_INFO "%s: ether1 in slot %d, ",
-		dev->name, ec->slot_no);
+	printk(KERN_INFO "%s: ether1 in slot %d, %s\n",
+		dev->name, ec->slot_no, print_mac(mac, dev->dev_addr));
     
-	for (i = 0; i < 6; i++)
-		printk ("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
-
 	ecard_set_drvdata(ec, dev);
 	return 0;
 

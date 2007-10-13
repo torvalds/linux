@@ -259,6 +259,7 @@ static struct sas_function_template sft = {
 	.phy_reset = sas_phy_reset,
 	.set_phy_speed = sas_set_phy_speed,
 	.get_linkerrors = sas_get_linkerrors,
+	.smp_handler = sas_smp_handler,
 };
 
 struct scsi_transport_template *
@@ -292,7 +293,7 @@ EXPORT_SYMBOL_GPL(sas_domain_release_transport);
 static int __init sas_class_init(void)
 {
 	sas_task_cache = kmem_cache_create("sas_task", sizeof(struct sas_task),
-					   0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+					   0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!sas_task_cache)
 		return -ENOMEM;
 

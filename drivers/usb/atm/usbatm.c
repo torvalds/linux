@@ -257,9 +257,10 @@ static void usbatm_complete(struct urb *urb)
 {
 	struct usbatm_channel *channel = urb->context;
 	unsigned long flags;
+	int status = urb->status;
 
 	vdbg("%s: urb 0x%p, status %d, actual_length %d",
-	     __func__, urb, urb->status, urb->actual_length);
+	     __func__, urb, status, urb->actual_length);
 
 	/* usually in_interrupt(), but not always */
 	spin_lock_irqsave(&channel->lock, flags);
@@ -269,16 +270,16 @@ static void usbatm_complete(struct urb *urb)
 
 	spin_unlock_irqrestore(&channel->lock, flags);
 
-	if (unlikely(urb->status) &&
+	if (unlikely(status) &&
 			(!(channel->usbatm->flags & UDSL_IGNORE_EILSEQ) ||
-			 urb->status != -EILSEQ ))
+			 status != -EILSEQ ))
 	{
-		if (urb->status == -ESHUTDOWN)
+		if (status == -ESHUTDOWN)
 			return;
 
 		if (printk_ratelimit())
 			atm_warn(channel->usbatm, "%s: urb 0x%p failed (%d)!\n",
-				__func__, urb, urb->status);
+				__func__, urb, status);
 		/* throttle processing in case of an error */
 		mod_timer(&channel->delay, jiffies + msecs_to_jiffies(THROTTLE_MSECS));
 	} else

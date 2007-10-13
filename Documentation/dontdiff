@@ -18,6 +18,7 @@
 *.moc
 *.mod.c
 *.o
+*.o.*
 *.orig
 *.out
 *.pdf
@@ -163,6 +164,8 @@ raid6tables.c
 relocs
 series
 setup
+setup.bin
+setup.elf
 sim710_d.h*
 sImage
 sm_tbl*

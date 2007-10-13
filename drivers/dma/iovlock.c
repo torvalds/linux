@@ -143,29 +143,6 @@ void dma_unpin_iovec_pages(struct dma_pinned_list *pinned_list)
 	kfree(pinned_list);
 }
 
-static dma_cookie_t dma_memcpy_to_kernel_iovec(struct dma_chan *chan, struct
-	iovec *iov, unsigned char *kdata, size_t len)
-{
-	dma_cookie_t dma_cookie = 0;
-
-	while (len > 0) {
-		if (iov->iov_len) {
-			int copy = min_t(unsigned int, iov->iov_len, len);
-			dma_cookie = dma_async_memcpy_buf_to_buf(
-					chan,
-					iov->iov_base,
-					kdata,
-					copy);
-			kdata += copy;
-			len -= copy;
-			iov->iov_len -= copy;
-			iov->iov_base += copy;
-		}
-		iov++;
-	}
-
-	return dma_cookie;
-}
 
 /*
  * We have already pinned down the pages we will be using in the iovecs.
@@ -186,10 +163,6 @@ dma_cookie_t dma_memcpy_to_iovec(struct dma_chan *chan, struct iovec *iov,
 
 	if (!chan)
 		return memcpy_toiovec(iov, kdata, len);
-
-	/* -> kernel copies (e.g. smbfs) */
-	if (!pinned_list)
-		return dma_memcpy_to_kernel_iovec(chan, iov, kdata, len);
 
 	iovec_idx = 0;
 	while (iovec_idx < pinned_list->nr_iovecs) {

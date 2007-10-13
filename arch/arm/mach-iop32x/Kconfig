@@ -42,6 +42,13 @@ config IOP3XX_ATU
           Say N if the IOP is an add in card, the host system owns the PCI
           bus in this case.
 
+config MACH_EM7210
+	bool "Enable support for the Lanner EM7210"
+	help
+	  Say Y here if you want to run your kernel on the Lanner EM7210
+	  board. Say also Y here if you have a SS4000e Baxter Creek NAS
+	  appliance."
+
 endmenu
 
 endif

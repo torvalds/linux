@@ -41,11 +41,11 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_pull(skb, ETH_HLEN);
 
 	if (dest[0] & 1)
-		br_flood_deliver(br, skb, 0);
+		br_flood_deliver(br, skb);
 	else if ((dst = __br_fdb_get(br, dest)) != NULL)
 		br_deliver(dst->dst, skb);
 	else
-		br_flood_deliver(br, skb, 0);
+		br_flood_deliver(br, skb);
 
 	return 0;
 }
@@ -150,11 +150,8 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 static struct ethtool_ops br_ethtool_ops = {
 	.get_drvinfo = br_getinfo,
 	.get_link = ethtool_op_get_link,
-	.get_sg = ethtool_op_get_sg,
 	.set_sg = br_set_sg,
-	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = br_set_tx_csum,
-	.get_tso = ethtool_op_get_tso,
 	.set_tso = br_set_tso,
 };
 
@@ -171,7 +168,6 @@ void br_dev_setup(struct net_device *dev)
 	dev->set_multicast_list = br_dev_set_multicast_list;
 	dev->change_mtu = br_change_mtu;
 	dev->destructor = free_netdev;
-	SET_MODULE_OWNER(dev);
 	SET_ETHTOOL_OPS(dev, &br_ethtool_ops);
 	dev->stop = br_dev_stop;
 	dev->tx_queue_len = 0;
@@ -179,5 +175,5 @@ void br_dev_setup(struct net_device *dev)
 	dev->priv_flags = IFF_EBRIDGE;
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-			NETIF_F_TSO | NETIF_F_NO_CSUM | NETIF_F_GSO_ROBUST;
+			NETIF_F_GSO_MASK | NETIF_F_NO_CSUM | NETIF_F_LLTX;
 }

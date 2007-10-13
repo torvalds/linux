@@ -214,27 +214,25 @@ static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_
 }
 
 /*
- * This routine selects drive's best PIO mode and writes into the chipset
- * registers setup/active/recovery timings.
+ * This routine writes into the chipset registers
+ * PIO setup/active/recovery timings.
  */
-static u8 cmd64x_tune_pio (ide_drive_t *drive, u8 mode_wanted)
+static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	ide_pio_data_t pio;
-	u8 pio_mode, setup_count, arttim = 0;
+	unsigned int cycle_time;
+	u8 setup_count, arttim = 0;
+
 	static const u8 setup_values[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
 	static const u8 arttim_regs[4] = {ARTTIM0, ARTTIM1, ARTTIM23, ARTTIM23};
-	pio_mode = ide_get_best_pio_mode(drive, mode_wanted, 5, &pio);
 
-	cmdprintk("%s: PIO mode wanted %d, selected %d (%d ns)%s\n",
-		  drive->name, mode_wanted, pio_mode, pio.cycle_time,
-		  pio.overridden ? " (overriding vendor mode)" : "");
+	cycle_time = ide_pio_cycle_time(drive, pio);
 
-	program_cycle_times(drive, pio.cycle_time,
-			    ide_pio_timings[pio_mode].active_time);
+	program_cycle_times(drive, cycle_time,
+			    ide_pio_timings[pio].active_time);
 
-	setup_count = quantize_timing(ide_pio_timings[pio_mode].setup_time,
+	setup_count = quantize_timing(ide_pio_timings[pio].setup_time,
 				      1000 / system_bus_clock());
 
 	/*
@@ -265,16 +263,14 @@ static u8 cmd64x_tune_pio (ide_drive_t *drive, u8 mode_wanted)
 	arttim |= setup_values[setup_count];
 	(void) pci_write_config_byte(dev, arttim_regs[drive->dn], arttim);
 	cmdprintk("Write 0x%02x to reg 0x%x\n", arttim, arttim_regs[drive->dn]);
-
-	return pio_mode;
 }
 
 /*
  * Attempts to set drive's PIO mode.
- * Special cases are 8: prefetch off, 9: prefetch on (both never worked),
- * and 255: auto-select best mode (used at boot time).
+ * Special cases are 8: prefetch off, 9: prefetch on (both never worked)
  */
-static void cmd64x_tune_drive (ide_drive_t *drive, u8 pio)
+
+static void cmd64x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	/*
 	 * Filter out the prefetch control values
@@ -283,18 +279,16 @@ static void cmd64x_tune_drive (ide_drive_t *drive, u8 pio)
 	if (pio == 8 || pio == 9)
 		return;
 
-	pio = cmd64x_tune_pio(drive, pio);
+	cmd64x_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static int cmd64x_tune_chipset (ide_drive_t *drive, u8 speed)
+static int cmd64x_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 unit			= drive->dn & 0x01;
 	u8 regU = 0, pciU	= hwif->channel ? UDIDETCR1 : UDIDETCR0;
-
-	speed = ide_rate_filter(drive, speed);
 
 	if (speed >= XFER_SW_DMA_0) {
 		(void) pci_read_config_byte(dev, pciU, &regU);
@@ -329,14 +323,6 @@ static int cmd64x_tune_chipset (ide_drive_t *drive, u8 speed)
 	case XFER_MW_DMA_0:
 		program_cycle_times(drive, 480, 215);
 		break;
-	case XFER_PIO_5:
-	case XFER_PIO_4:
-	case XFER_PIO_3:
-	case XFER_PIO_2:
-	case XFER_PIO_1:
-	case XFER_PIO_0:
-		(void) cmd64x_tune_pio(drive, speed - XFER_PIO_0);
-		break;
 	default:
 		return 1;
 	}
@@ -353,7 +339,7 @@ static int cmd64x_config_drive_for_dma (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		cmd64x_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -474,11 +460,11 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 		switch (rev) {
 		case 0x07:
 		case 0x05:
-			printk("%s: UltraDMA capable", name);
+			printk("%s: UltraDMA capable\n", name);
 			break;
 		case 0x03:
 		default:
-			printk("%s: MultiWord DMA force limited", name);
+			printk("%s: MultiWord DMA force limited\n", name);
 			break;
 		case 0x01:
 			printk("%s: MultiWord DMA limited, "
@@ -537,7 +523,7 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 
 	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
 
-	hwif->tuneproc  = &cmd64x_tune_drive;
+	hwif->set_pio_mode = &cmd64x_set_pio_mode;
 	hwif->speedproc = &cmd64x_tune_chipset;
 
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
@@ -618,40 +604,44 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
+		.pio_mask	= ATA_PIO5,
 		.udma_mask	= 0x00, /* no udma */
 	},{	/* 1 */
 		.name		= "CMD646",
 		.init_setup	= init_setup_cmd646,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
+		.pio_mask	= ATA_PIO5,
 		.udma_mask	= 0x07, /* udma0-2 */
 	},{	/* 2 */
 		.name		= "CMD648",
 		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
+		.pio_mask	= ATA_PIO5,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
 		.name		= "CMD649",
 		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
-		.channels	= 2,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
+		.pio_mask	= ATA_PIO5,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	}
 };

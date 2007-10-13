@@ -1,0 +1,30 @@
+config LGUEST
+	tristate "Linux hypervisor example code"
+	depends on X86 && PARAVIRT && EXPERIMENTAL && !X86_PAE && FUTEX
+	select LGUEST_GUEST
+	select HVC_DRIVER
+	---help---
+	  This is a very simple module which allows you to run
+	  multiple instances of the same Linux kernel, using the
+	  "lguest" command found in the Documentation/lguest directory.
+	  Note that "lguest" is pronounced to rhyme with "fell quest",
+	  not "rustyvisor".  See Documentation/lguest/lguest.txt.
+
+	  If unsure, say N.  If curious, say M.  If masochistic, say Y.
+
+config LGUEST_GUEST
+	bool
+	help
+	  The guest needs code built-in, even if the host has lguest
+	  support as a module.  The drivers are tiny, so we build them
+	  in too.
+
+config LGUEST_NET
+	tristate
+	default y
+	depends on LGUEST_GUEST && NET
+
+config LGUEST_BLOCK
+	tristate
+	default y
+	depends on LGUEST_GUEST && BLOCK

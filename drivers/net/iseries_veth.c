@@ -196,7 +196,6 @@ struct veth_lpar_connection {
 
 struct veth_port {
 	struct device *dev;
-	struct net_device_stats stats;
 	u64 mac_addr;
 	HvLpIndexMap lpar_map;
 
@@ -822,10 +821,9 @@ static int veth_init_connection(u8 rlp)
 	     || ! HvLpConfig_doLpsCommunicateOnVirtualLan(this_lp, rlp) )
 		return 0;
 
-	cnx = kmalloc(sizeof(*cnx), GFP_KERNEL);
+	cnx = kzalloc(sizeof(*cnx), GFP_KERNEL);
 	if (! cnx)
 		return -ENOMEM;
-	memset(cnx, 0, sizeof(*cnx));
 
 	cnx->remote_lp = rlp;
 	spin_lock_init(&cnx->lock);
@@ -852,14 +850,13 @@ static int veth_init_connection(u8 rlp)
 	if (rc != 0)
 		return rc;
 
-	msgs = kmalloc(VETH_NUMBUFFERS * sizeof(struct veth_msg), GFP_KERNEL);
+	msgs = kcalloc(VETH_NUMBUFFERS, sizeof(struct veth_msg), GFP_KERNEL);
 	if (! msgs) {
 		veth_error("Can't allocate buffers for LPAR %d.\n", rlp);
 		return -ENOMEM;
 	}
 
 	cnx->msgs = msgs;
-	memset(msgs, 0, VETH_NUMBUFFERS * sizeof(struct veth_msg));
 
 	for (i = 0; i < VETH_NUMBUFFERS; i++) {
 		msgs[i].token = i;
@@ -938,9 +935,6 @@ static void veth_release_connection(struct kobject *kobj)
 
 static int veth_open(struct net_device *dev)
 {
-	struct veth_port *port = (struct veth_port *) dev->priv;
-
-	memset(&port->stats, 0, sizeof (port->stats));
 	netif_start_queue(dev);
 	return 0;
 }
@@ -949,13 +943,6 @@ static int veth_close(struct net_device *dev)
 {
 	netif_stop_queue(dev);
 	return 0;
-}
-
-static struct net_device_stats *veth_get_stats(struct net_device *dev)
-{
-	struct veth_port *port = (struct veth_port *) dev->priv;
-
-	return &port->stats;
 }
 
 static int veth_change_mtu(struct net_device *dev, int new_mtu)
@@ -1086,7 +1073,6 @@ static struct net_device * __init veth_probe_one(int vlan,
 	dev->open = veth_open;
 	dev->hard_start_xmit = veth_start_xmit;
 	dev->stop = veth_close;
-	dev->get_stats = veth_get_stats;
 	dev->change_mtu = veth_change_mtu;
 	dev->set_mac_address = NULL;
 	dev->set_multicast_list = veth_set_multicast_list;
@@ -1185,7 +1171,6 @@ static void veth_transmit_to_many(struct sk_buff *skb,
 					  HvLpIndexMap lpmask,
 					  struct net_device *dev)
 {
-	struct veth_port *port = (struct veth_port *) dev->priv;
 	int i, success, error;
 
 	success = error = 0;
@@ -1201,11 +1186,11 @@ static void veth_transmit_to_many(struct sk_buff *skb,
 	}
 
 	if (error)
-		port->stats.tx_errors++;
+		dev->stats.tx_errors++;
 
 	if (success) {
-		port->stats.tx_packets++;
-		port->stats.tx_bytes += skb->len;
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
 	}
 }
 
@@ -1543,8 +1528,8 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 		skb->protocol = eth_type_trans(skb, dev);
 		skb->ip_summed = CHECKSUM_NONE;
 		netif_rx(skb);	/* send it up */
-		port->stats.rx_packets++;
-		port->stats.rx_bytes += length;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += length;
 	} while (startchunk += nchunks, startchunk < VETH_MAX_FRAMES_PER_MSG);
 
 	/* Ack it */

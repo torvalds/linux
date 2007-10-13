@@ -1,7 +1,7 @@
 /**
  * attrib.c - NTFS attribute operations.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2006 Anton Altaparmakov
+ * Copyright (c) 2001-2007 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -2500,7 +2500,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	struct page *page;
 	u8 *kaddr;
 	pgoff_t idx, end;
-	unsigned int start_ofs, end_ofs, size;
+	unsigned start_ofs, end_ofs, size;
 
 	ntfs_debug("Entering for ofs 0x%llx, cnt 0x%llx, val 0x%hx.",
 			(long long)ofs, (long long)cnt, val);
@@ -2548,6 +2548,8 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		kunmap_atomic(kaddr, KM_USER0);
 		set_page_dirty(page);
 		page_cache_release(page);
+		balance_dirty_pages_ratelimited(mapping);
+		cond_resched();
 		if (idx == end)
 			goto done;
 		idx++;
@@ -2604,6 +2606,8 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		kunmap_atomic(kaddr, KM_USER0);
 		set_page_dirty(page);
 		page_cache_release(page);
+		balance_dirty_pages_ratelimited(mapping);
+		cond_resched();
 	}
 done:
 	ntfs_debug("Done.");

@@ -663,15 +663,13 @@ int cpia2_reset_camera(struct camera_data *cam)
 		cpia2_send_command(cam, &cmd);
 	}
 
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(100 * HZ / 1000);	/* wait for 100 msecs */
+	schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 	if (cam->params.pnp_id.device_type == DEVICE_STV_672)
 		retval = apply_vp_patch(cam);
 
 	/* wait for vp to go to sleep */
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(100 * HZ / 1000);	/* wait for 100 msecs */
+	schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 	/***
 	 * If this is a 676, apply VP5 fixes before we start streaming
@@ -720,8 +718,7 @@ int cpia2_reset_camera(struct camera_data *cam)
 	set_default_user_mode(cam);
 
 	/* Give VP time to wake up */
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(100 * HZ / 1000);	/* wait for 100 msecs */
+	schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 	set_all_properties(cam);
 
@@ -2227,15 +2224,13 @@ struct camera_data *cpia2_init_camera_struct(void)
 {
 	struct camera_data *cam;
 
-	cam = kmalloc(sizeof(*cam), GFP_KERNEL);
+	cam = kzalloc(sizeof(*cam), GFP_KERNEL);
 
 	if (!cam) {
 		ERR("couldn't kmalloc cpia2 struct\n");
 		return NULL;
 	}
 
-	/* Default everything to 0 */
-	memset(cam, 0, sizeof(struct camera_data));
 
 	cam->present = 1;
 	mutex_init(&cam->busy_lock);

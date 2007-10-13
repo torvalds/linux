@@ -117,10 +117,9 @@ static struct wf_lm75_sensor *wf_lm75_create(struct i2c_adapter *adapter,
 	DBG("wf_lm75: creating  %s device at address 0x%02x\n",
 	    ds1775 ? "ds1775" : "lm75", addr);
 
-	lm = kmalloc(sizeof(struct wf_lm75_sensor), GFP_KERNEL);
+	lm = kzalloc(sizeof(struct wf_lm75_sensor), GFP_KERNEL);
 	if (lm == NULL)
 		return NULL;
-	memset(lm, 0, sizeof(struct wf_lm75_sensor));
 
 	/* Usual rant about sensor names not beeing very consistent in
 	 * the device-tree, oh well ...

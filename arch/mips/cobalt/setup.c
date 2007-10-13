@@ -15,15 +15,16 @@
 
 #include <asm/bootinfo.h>
 #include <asm/time.h>
+#include <asm/i8253.h>
 #include <asm/io.h>
 #include <asm/reboot.h>
 #include <asm/gt64120.h>
 
 #include <cobalt.h>
+#include <irq.h>
 
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
-extern void cobalt_machine_power_off(void);
 
 const char *get_system_type(void)
 {
@@ -45,14 +46,10 @@ void __init plat_timer_setup(struct irqaction *irq)
 	/* Load timer value for HZ (TCLK is 50MHz) */
 	GT_WRITE(GT_TC0_OFS, 50*1000*1000 / HZ);
 
-	/* Enable timer */
+	/* Enable timer0 */
 	GT_WRITE(GT_TC_CONTROL_OFS, GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK);
 
-	/* Register interrupt */
-	setup_irq(COBALT_GALILEO_IRQ, irq);
-
-	/* Enable interrupt */
-	GT_WRITE(GT_INTRMASK_OFS, GT_INTR_T0EXP_MSK | GT_READ(GT_INTRMASK_OFS));
+	setup_irq(GT641XX_TIMER0_IRQ, irq);
 }
 
 /*
@@ -87,13 +84,18 @@ static struct resource cobalt_reserved_resources[] = {
 	},
 };
 
+void __init plat_time_init(void)
+{
+	setup_pit_timer();
+}
+
 void __init plat_mem_setup(void)
 {
 	int i;
 
 	_machine_restart = cobalt_machine_restart;
 	_machine_halt = cobalt_machine_halt;
-	pm_power_off = cobalt_machine_power_off;
+	pm_power_off = cobalt_machine_halt;
 
 	set_io_port_base(CKSEG1ADDR(GT_DEF_PCI0_IO_BASE));
 
@@ -116,8 +118,6 @@ void __init prom_init(void)
 	int narg, indx, posn, nchr;
 	unsigned long memsz;
 	char **argv;
-
-	mips_machgroup = MACH_GROUP_COBALT;
 
 	memsz = fw_arg0 & 0x7fff0000;
 	narg = fw_arg0 & 0x0000ffff;

@@ -81,7 +81,7 @@ MODULE_LICENSE("GPL");
 
 static int smsc_nopnp = 1;
 module_param_named(nopnp, smsc_nopnp, bool, 0);
-MODULE_PARM_DESC(nopnp, "Do not use PNP to detect controller settings");
+MODULE_PARM_DESC(nopnp, "Do not use PNP to detect controller settings, defaults to true");
 
 #define DMA_INVAL 255
 static int ircc_dma = DMA_INVAL;
@@ -518,8 +518,6 @@ static int __init smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u
 		IRDA_WARNING("%s() can't allocate net device\n", __FUNCTION__);
 		goto err_out1;
 	}
-
-	SET_MODULE_OWNER(dev);
 
 	dev->hard_start_xmit = smsc_ircc_hard_xmit_sir;
 #if SMSC_IRCC2_C_NET_TIMEOUT

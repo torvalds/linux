@@ -17,11 +17,11 @@
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/m68360.h>
 
@@ -51,11 +51,15 @@ extern unsigned long int system_clock; //In kernel setup.c
 
 extern void config_M68360_irq(void);
 
+static struct irqaction m68360_timer_irq = {
+	.name    = "timer",
+	.flags   = IRQF_DISABLED | IRQF_TIMER,
+};
+
 void BSP_sched_init(irq_handler_t timer_routine)
 {
   unsigned char prescaler;
   unsigned short tgcr_save;
-  int return_value;
 
 #if 0
   /* Restart mode, Enable int, 32KHz, Enable timer */
@@ -86,10 +90,8 @@ void BSP_sched_init(irq_handler_t timer_routine)
   pquicc->timer_ter1 = 0x0003; /* clear timer events */
 
   /* enable timer 1 interrupt in CIMR */
-//  request_irq(IRQ_MACHSPEC | CPMVEC_TIMER1, timer_routine, IRQ_FLG_LOCK, "timer", NULL);
-  //return_value = request_irq( CPMVEC_TIMER1, timer_routine, IRQ_FLG_LOCK, "timer", NULL);
-  return_value = request_irq(CPMVEC_TIMER1 , timer_routine, IRQ_FLG_LOCK,
-          "Timer", NULL);
+  m68360_timer_irq.handler = timer_routine;
+  setup_irq(CPMVEC_TIMER1, &m68360_timer_irq);
 
   /* Start timer 1: */
   tgcr_save = (pquicc->timer_tgcr & 0xfff0) | 0x0001;

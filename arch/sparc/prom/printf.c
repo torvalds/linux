@@ -13,6 +13,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <asm/openprom.h>
 #include <asm/oplib.h>
@@ -44,3 +45,4 @@ prom_printf(char *fmt, ...)
 
 	prom_write(ppbuf, i);
 }
+EXPORT_SYMBOL(prom_printf);

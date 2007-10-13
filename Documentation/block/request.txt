@@ -83,6 +83,6 @@ struct bio *bio			DBI	First bio in request
 
 struct bio *biotail		DBI	Last bio in request
 
-request_queue_t *q		DB	Request queue this request belongs to
+struct request_queue *q		DB	Request queue this request belongs to
 
 struct request_list *rl		B	Request list this request came from

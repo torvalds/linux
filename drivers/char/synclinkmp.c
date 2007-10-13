@@ -3786,14 +3786,13 @@ static SLMP_INFO *alloc_dev(int adapter_num, int port_num, struct pci_dev *pdev)
 {
 	SLMP_INFO *info;
 
-	info = kmalloc(sizeof(SLMP_INFO),
+	info = kzalloc(sizeof(SLMP_INFO),
 		 GFP_KERNEL);
 
 	if (!info) {
 		printk("%s(%d) Error can't allocate device instance data for adapter %d, port %d\n",
 			__FILE__,__LINE__, adapter_num, port_num);
 	} else {
-		memset(info, 0, sizeof(SLMP_INFO));
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;

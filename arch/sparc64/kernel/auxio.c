@@ -155,7 +155,7 @@ static struct of_platform_driver auxio_driver = {
 
 static int __init auxio_init(void)
 {
-	return of_register_driver(&auxio_driver, &of_bus_type);
+	return of_register_driver(&auxio_driver, &of_platform_bus_type);
 }
 
 /* Must be after subsys_initcall() so that busses are probed.  Must

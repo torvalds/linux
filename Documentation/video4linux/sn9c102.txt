@@ -436,7 +436,7 @@ HV7131D    Hynix Semiconductor     | Yes         No       No       No
 HV7131R    Hynix Semiconductor     | No          Yes      Yes      Yes
 MI-0343    Micron Technology       | Yes         No       No       No
 MI-0360    Micron Technology       | No          Yes      Yes      Yes
-OV7630     OmniVision Technologies | Yes         Yes      No       No
+OV7630     OmniVision Technologies | Yes         Yes      Yes      Yes
 OV7660     OmniVision Technologies | No          No       Yes      Yes
 PAS106B    PixArt Imaging          | Yes         No       No       No
 PAS202B    PixArt Imaging          | Yes         Yes      No       No
@@ -583,6 +583,7 @@ order):
 - Bertrik Sikken, who reverse-engineered and documented the Huffman compression
   algorithm used in the SN9C101, SN9C102 and SN9C103 controllers and
   implemented the first decoder;
+- Ronny Standke for the donation of a webcam;
 - Mizuno Takafumi for the donation of a webcam;
 - an "anonymous" donator (who didn't want his name to be revealed) for the
   donation of a webcam.

@@ -1427,8 +1427,6 @@ mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 	dlprintk((KERN_INFO MYNAM ": Finished registering dev "
 		"and setting initial values\n"));
 
-	SET_MODULE_OWNER(dev);
-
 	if (register_netdev(dev) != 0) {
 		free_netdev(dev);
 		dev = NULL;
@@ -1524,8 +1522,7 @@ static int __init mpt_lan_init (void)
 
 	dlprintk((KERN_INFO MYNAM ": Registered for IOC reset notifications\n"));
 	
-	if (mpt_device_driver_register(&mptlan_driver, MPTLAN_DRIVER))
-		dprintk((KERN_INFO MYNAM ": failed to register dd callbacks\n"));
+	mpt_device_driver_register(&mptlan_driver, MPTLAN_DRIVER);
 	return 0;
 }
 

@@ -78,7 +78,7 @@ static char *check[] = {
 	"twofish", "serpent", "sha384", "sha512", "md4", "aes", "cast6",
 	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", NULL
+	"camellia", "seed", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -955,6 +955,10 @@ static void do_test(void)
 			    AES_LRW_ENC_TEST_VECTORS);
 		test_cipher("lrw(aes)", DECRYPT, aes_lrw_dec_tv_template,
 			    AES_LRW_DEC_TEST_VECTORS);
+		test_cipher("xts(aes)", ENCRYPT, aes_xts_enc_tv_template,
+			    AES_XTS_ENC_TEST_VECTORS);
+		test_cipher("xts(aes)", DECRYPT, aes_xts_dec_tv_template,
+			    AES_XTS_DEC_TEST_VECTORS);
 
 		//CAST5
 		test_cipher("ecb(cast5)", ENCRYPT, cast5_enc_tv_template,
@@ -1028,6 +1032,12 @@ static void do_test(void)
 		test_cipher("cbc(camellia)", DECRYPT,
 			    camellia_cbc_dec_tv_template,
 			    CAMELLIA_CBC_DEC_TEST_VECTORS);
+
+		//SEED
+		test_cipher("ecb(seed)", ENCRYPT, seed_enc_tv_template,
+			    SEED_ENC_TEST_VECTORS);
+		test_cipher("ecb(seed)", DECRYPT, seed_dec_tv_template,
+			    SEED_DEC_TEST_VECTORS);
 
 		test_hash("sha384", sha384_tv_template, SHA384_TEST_VECTORS);
 		test_hash("sha512", sha512_tv_template, SHA512_TEST_VECTORS);
@@ -1132,6 +1142,10 @@ static void do_test(void)
 			    AES_LRW_ENC_TEST_VECTORS);
 		test_cipher("lrw(aes)", DECRYPT, aes_lrw_dec_tv_template,
 			    AES_LRW_DEC_TEST_VECTORS);
+		test_cipher("xts(aes)", ENCRYPT, aes_xts_enc_tv_template,
+			    AES_XTS_ENC_TEST_VECTORS);
+		test_cipher("xts(aes)", DECRYPT, aes_xts_dec_tv_template,
+			    AES_XTS_DEC_TEST_VECTORS);
 		break;
 
 	case 11:
@@ -1307,6 +1321,10 @@ static void do_test(void)
 				  aes_lrw_speed_template);
 		test_cipher_speed("lrw(aes)", DECRYPT, sec, NULL, 0,
 				  aes_lrw_speed_template);
+		test_cipher_speed("xts(aes)", ENCRYPT, sec, NULL, 0,
+				  aes_xts_speed_template);
+		test_cipher_speed("xts(aes)", DECRYPT, sec, NULL, 0,
+				  aes_xts_speed_template);
 		break;
 
 	case 201:

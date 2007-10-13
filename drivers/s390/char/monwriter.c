@@ -17,6 +17,7 @@
 #include <linux/miscdevice.h>
 #include <linux/ctype.h>
 #include <linux/poll.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
@@ -41,6 +42,7 @@ struct mon_private {
 	size_t hdr_to_read;
 	size_t data_to_read;
 	struct mon_buf *current_buf;
+	struct mutex thread_mutex;
 };
 
 /*
@@ -179,6 +181,7 @@ static int monwrite_open(struct inode *inode, struct file *filp)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&monpriv->list);
 	monpriv->hdr_to_read = sizeof(monpriv->hdr);
+	mutex_init(&monpriv->thread_mutex);
 	filp->private_data = monpriv;
 	return nonseekable_open(inode, filp);
 }
@@ -209,6 +212,7 @@ static ssize_t monwrite_write(struct file *filp, const char __user *data,
 	void *to;
 	int rc;
 
+	mutex_lock(&monpriv->thread_mutex);
 	for (written = 0; written < count; ) {
 		if (monpriv->hdr_to_read) {
 			len = min(count - written, monpriv->hdr_to_read);
@@ -247,11 +251,13 @@ static ssize_t monwrite_write(struct file *filp, const char __user *data,
 		}
 		monpriv->hdr_to_read = sizeof(monpriv->hdr);
 	}
+	mutex_unlock(&monpriv->thread_mutex);
 	return written;
 
 out_error:
 	monpriv->data_to_read = 0;
 	monpriv->hdr_to_read = sizeof(struct monwrite_hdr);
+	mutex_unlock(&monpriv->thread_mutex);
 	return rc;
 }
 

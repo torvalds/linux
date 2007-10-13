@@ -1466,7 +1466,7 @@ repeat:
 }
 
 
-void do_fd_request(request_queue_t * q)
+void do_fd_request(struct request_queue * q)
 {
  	unsigned long flags;
 

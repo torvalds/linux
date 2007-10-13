@@ -52,11 +52,8 @@ static void level_mask_and_ack_msc_irq(unsigned int irq)
 	mask_msc_irq(irq);
 	if (!cpu_has_veic)
 		MSCIC_WRITE(MSC01_IC_EOI, 0);
-#ifdef CONFIG_MIPS_MT_SMTC
 	/* This actually needs to be a call into platform code */
-	if (irq_hwmask[irq] & ST0_IM)
-		set_c0_status(irq_hwmask[irq] & ST0_IM);
-#endif /* CONFIG_MIPS_MT_SMTC */
+	smtc_im_ack_irq(irq);
 }
 
 /*
@@ -73,10 +70,7 @@ static void edge_mask_and_ack_msc_irq(unsigned int irq)
 		MSCIC_WRITE(MSC01_IC_SUP+irq*8, r | ~MSC01_IC_SUP_EDGE_BIT);
 		MSCIC_WRITE(MSC01_IC_SUP+irq*8, r);
 	}
-#ifdef CONFIG_MIPS_MT_SMTC
-	if (irq_hwmask[irq] & ST0_IM)
-		set_c0_status(irq_hwmask[irq] & ST0_IM);
-#endif /* CONFIG_MIPS_MT_SMTC */
+	smtc_im_ack_irq(irq);
 }
 
 /*
@@ -105,7 +99,7 @@ void ll_msc_irq(void)
 }
 
 void
-msc_bind_eic_interrupt (unsigned int irq, unsigned int set)
+msc_bind_eic_interrupt(unsigned int irq, unsigned int set)
 {
 	MSCIC_WRITE(MSC01_IC_RAMW,
 		    (irq<<MSC01_IC_RAMW_ADDR_SHF) | (set<<MSC01_IC_RAMW_DATA_SHF));
@@ -136,7 +130,7 @@ void __init init_msc_irqs(unsigned long icubase, unsigned int irqbase, msc_irqma
 {
 	extern void (*board_bind_eic_interrupt)(unsigned int irq, unsigned int regset);
 
-	_icctrl_msc = (unsigned long) ioremap (icubase, 0x40000);
+	_icctrl_msc = (unsigned long) ioremap(icubase, 0x40000);
 
 	/* Reset interrupt controller - initialises all registers to 0 */
 	MSCIC_WRITE(MSC01_IC_RST, MSC01_IC_RST_RST_BIT);

@@ -35,6 +35,7 @@
 #include <linux/netlink.h>
 #include <linux/init.h>
 
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>
@@ -771,13 +772,13 @@ struct fib_table * __init fib_hash_init(u32 id)
 		fn_hash_kmem = kmem_cache_create("ip_fib_hash",
 						 sizeof(struct fib_node),
 						 0, SLAB_HWCACHE_ALIGN,
-						 NULL, NULL);
+						 NULL);
 
 	if (fn_alias_kmem == NULL)
 		fn_alias_kmem = kmem_cache_create("ip_fib_alias",
 						  sizeof(struct fib_alias),
 						  0, SLAB_HWCACHE_ALIGN,
-						  NULL, NULL);
+						  NULL);
 
 	tb = kmalloc(sizeof(struct fib_table) + sizeof(struct fn_hash),
 		     GFP_KERNEL);
@@ -1038,24 +1039,8 @@ static const struct seq_operations fib_seq_ops = {
 
 static int fib_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct fib_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &fib_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &fib_seq_ops,
+			sizeof(struct fib_iter_state));
 }
 
 static const struct file_operations fib_seq_fops = {
@@ -1068,13 +1053,13 @@ static const struct file_operations fib_seq_fops = {
 
 int __init fib_proc_init(void)
 {
-	if (!proc_net_fops_create("route", S_IRUGO, &fib_seq_fops))
+	if (!proc_net_fops_create(&init_net, "route", S_IRUGO, &fib_seq_fops))
 		return -ENOMEM;
 	return 0;
 }
 
 void __init fib_proc_exit(void)
 {
-	proc_net_remove("route");
+	proc_net_remove(&init_net, "route");
 }
 #endif /* CONFIG_PROC_FS */

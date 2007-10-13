@@ -19,8 +19,8 @@
 
 typedef u64	hubreg_t;
 
-#define cputonasid(cpu)			(cpu_data[(cpu)].p_nasid)
-#define cputoslice(cpu)			(cpu_data[(cpu)].p_slice)
+#define cputonasid(cpu)		(sn_cpu_info[(cpu)].p_nasid)
+#define cputoslice(cpu)		(sn_cpu_info[(cpu)].p_slice)
 #define makespnum(_nasid, _slice)					\
 		(((_nasid) << CPUS_PER_NODE_SHFT) | (_slice))
 

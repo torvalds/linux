@@ -580,7 +580,6 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->irq.Instance = dev;
 
     /* Fill in card specific entries */
-    SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &do_start_xmit;
     dev->set_config = &do_config;
     dev->get_stats = &do_get_stats;
@@ -732,6 +731,7 @@ xirc2ps_config(struct pcmcia_device * link)
     u_char buf[64];
     cistpl_lan_node_id_t *node_id = (cistpl_lan_node_id_t*)parse.funce.data;
     cistpl_cftable_entry_t *cf = &parse.cftable_entry;
+    DECLARE_MAC_BUF(mac);
 
     local->dingo_ccr = NULL;
 
@@ -1033,11 +1033,9 @@ xirc2ps_config(struct pcmcia_device * link)
     strcpy(local->node.dev_name, dev->name);
 
     /* give some infos about the hardware */
-    printk(KERN_INFO "%s: %s: port %#3lx, irq %d, hwaddr",
-	 dev->name, local->manf_str,(u_long)dev->base_addr, (int)dev->irq);
-    for (i = 0; i < 6; i++)
-	printk("%c%02X", i?':':' ', dev->dev_addr[i]);
-    printk("\n");
+    printk(KERN_INFO "%s: %s: port %#3lx, irq %d, hwaddr %s\n",
+	   dev->name, local->manf_str,(u_long)dev->base_addr, (int)dev->irq,
+	   print_mac(mac, dev->dev_addr));
 
     return 0;
 

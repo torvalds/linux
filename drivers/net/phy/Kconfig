@@ -76,4 +76,27 @@ config FIXED_MII_100_FDX
 	bool "Emulation for 100M Fdx fixed PHY behavior"
 	depends on FIXED_PHY
 
+config FIXED_MII_1000_FDX
+	bool "Emulation for 1000M Fdx fixed PHY behavior"
+	depends on FIXED_PHY
+
+config FIXED_MII_AMNT
+        int "Number of emulated PHYs to allocate "
+        depends on FIXED_PHY
+        default "1"
+        ---help---
+        Sometimes it is required to have several independent emulated
+        PHYs on the bus (in case of multi-eth but phy-less HW for instance).
+        This control will have specified number allocated for each fixed
+        PHY type enabled.
+
+config MDIO_BITBANG
+	tristate "Support for bitbanged MDIO buses"
+	help
+	  This module implements the MDIO bus protocol in software,
+	  for use by low level drivers that export the ability to
+	  drive the relevant pins.
+
+	  If in doubt, say N.
+
 endif # PHYLIB

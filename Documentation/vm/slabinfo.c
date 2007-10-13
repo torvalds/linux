@@ -396,7 +396,7 @@ void report(struct slabinfo *s)
 	if (strcmp(s->name, "*") == 0)
 		return;
 
-	printf("\nSlabcache: %-20s  Aliases: %2d Order : %2d Objects: %d\n",
+	printf("\nSlabcache: %-20s  Aliases: %2d Order : %2d Objects: %lu\n",
 		s->name, s->aliases, s->order, s->objects);
 	if (s->hwcache_align)
 		printf("** Hardware cacheline aligned\n");

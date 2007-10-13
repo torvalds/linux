@@ -115,7 +115,7 @@ static void __exit hvc_rtas_exit(void)
 module_exit(hvc_rtas_exit);
 
 /* This will happen prior to module init.  There is no tty at this time? */
-static int hvc_rtas_console_init(void)
+static int __init hvc_rtas_console_init(void)
 {
 	rtascons_put_char_token = rtas_token("put-term-char");
 	if (rtascons_put_char_token == RTAS_UNKNOWN_SERVICE)

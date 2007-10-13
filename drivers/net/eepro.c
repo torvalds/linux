@@ -192,7 +192,6 @@ static unsigned int net_debug = NET_DEBUG;
 
 /* Information that need to be kept for each board. */
 struct eepro_local {
-	struct net_device_stats stats;
 	unsigned rx_start;
 	unsigned tx_start; /* start of the transmit chain */
 	int tx_last;  /* pointer to last packet in the transmit chain */
@@ -315,7 +314,6 @@ static irqreturn_t eepro_interrupt(int irq, void *dev_id);
 static void 	eepro_rx(struct net_device *dev);
 static void 	eepro_transmit_interrupt(struct net_device *dev);
 static int	eepro_close(struct net_device *dev);
-static struct net_device_stats *eepro_get_stats(struct net_device *dev);
 static void     set_multicast_list(struct net_device *dev);
 static void     eepro_tx_timeout (struct net_device *dev);
 
@@ -514,7 +512,7 @@ buffer (transmit-buffer = 32K - receive-buffer).
 
 /* a complete sel reset */
 #define eepro_complete_selreset(ioaddr) { \
-						lp->stats.tx_errors++;\
+						dev->stats.tx_errors++;\
 						eepro_sel_reset(ioaddr);\
 						lp->tx_end = \
 							lp->xmt_lower_limit;\
@@ -536,8 +534,6 @@ static int __init do_eepro_probe(struct net_device *dev)
 	int i;
 	int base_addr = dev->base_addr;
 	int irq = dev->irq;
-
-	SET_MODULE_OWNER(dev);
 
 #ifdef PnPWakeup
 	/* XXXX for multiple cards should this only be run once? */
@@ -593,8 +589,6 @@ struct net_device * __init eepro_probe(int unit)
 
 	if (!dev)
 		return ERR_PTR(-ENODEV);
-
-	SET_MODULE_OWNER(dev);
 
 	sprintf(dev->name, "eth%d", unit);
 	netdev_boot_setup_check(dev);
@@ -696,6 +690,7 @@ static void __init eepro_print_info (struct net_device *dev)
 	struct eepro_local *	lp = netdev_priv(dev);
 	int			i;
 	const char *		ifmap[] = {"AUI", "10Base2", "10BaseT"};
+	DECLARE_MAC_BUF(mac);
 
 	i = inb(dev->base_addr + ID_REG);
 	printk(KERN_DEBUG " id: %#x ",i);
@@ -717,10 +712,10 @@ static void __init eepro_print_info (struct net_device *dev)
 		case LAN595:
 			printk("%s: Intel 82595-based lan card at %#x,",
 					dev->name, (unsigned)dev->base_addr);
+			break;
 	}
 
-	for (i=0; i < 6; i++)
-		printk("%c%02x", i ? ':' : ' ', dev->dev_addr[i]);
+	printk(" %s", print_mac(mac, dev->dev_addr));
 
 	if (net_debug > 3)
 		printk(KERN_DEBUG ", %dK RCV buffer",
@@ -860,7 +855,6 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
  	dev->open               = eepro_open;
  	dev->stop               = eepro_close;
  	dev->hard_start_xmit    = eepro_send_packet;
- 	dev->get_stats          = eepro_get_stats;
  	dev->set_multicast_list = &set_multicast_list;
  	dev->tx_timeout		= eepro_tx_timeout;
  	dev->watchdog_timeo	= TX_TIMEOUT;
@@ -1158,9 +1152,9 @@ static int eepro_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 		if (hardware_send_packet(dev, buf, length))
 			/* we won't wake queue here because we're out of space */
-			lp->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 		else {
-		lp->stats.tx_bytes+=skb->len;
+		dev->stats.tx_bytes+=skb->len;
 		dev->trans_start = jiffies;
 			netif_wake_queue(dev);
 		}
@@ -1170,7 +1164,7 @@ static int eepro_send_packet(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb (skb);
 
 	/* You might need to clean up and record Tx statistics here. */
-	/* lp->stats.tx_aborted_errors++; */
+	/* dev->stats.tx_aborted_errors++; */
 
 	if (net_debug > 5)
 		printk(KERN_DEBUG "%s: exiting eepro_send_packet routine.\n", dev->name);
@@ -1275,16 +1269,6 @@ static int eepro_close(struct net_device *dev)
 	/* Update the statistics here. What statistics? */
 
 	return 0;
-}
-
-/* Get the current statistics.	This may be called with the card open or
-   closed. */
-static struct net_device_stats *
-eepro_get_stats(struct net_device *dev)
-{
-	struct eepro_local *lp = netdev_priv(dev);
-
-	return &lp->stats;
 }
 
 /* Set or clear the multicast filter for this adaptor.
@@ -1579,12 +1563,12 @@ eepro_rx(struct net_device *dev)
 			/* Malloc up new buffer. */
 			struct sk_buff *skb;
 
-			lp->stats.rx_bytes+=rcv_size;
+			dev->stats.rx_bytes+=rcv_size;
 			rcv_size &= 0x3fff;
 			skb = dev_alloc_skb(rcv_size+5);
 			if (skb == NULL) {
 				printk(KERN_NOTICE "%s: Memory squeeze, dropping packet.\n", dev->name);
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				rcv_car = lp->rx_start + RCV_HEADER + rcv_size;
 				lp->rx_start = rcv_next_frame;
 				outw(rcv_next_frame, ioaddr + HOST_ADDRESS_REG);
@@ -1606,28 +1590,28 @@ eepro_rx(struct net_device *dev)
 			skb->protocol = eth_type_trans(skb,dev);
 			netif_rx(skb);
 			dev->last_rx = jiffies;
-			lp->stats.rx_packets++;
+			dev->stats.rx_packets++;
 		}
 
 		else { /* Not sure will ever reach here,
 			I set the 595 to discard bad received frames */
-			lp->stats.rx_errors++;
+			dev->stats.rx_errors++;
 
 			if (rcv_status & 0x0100)
-				lp->stats.rx_over_errors++;
+				dev->stats.rx_over_errors++;
 
 			else if (rcv_status & 0x0400)
-				lp->stats.rx_frame_errors++;
+				dev->stats.rx_frame_errors++;
 
 			else if (rcv_status & 0x0800)
-				lp->stats.rx_crc_errors++;
+				dev->stats.rx_crc_errors++;
 
 			printk(KERN_DEBUG "%s: event = %#x, status = %#x, next = %#x, size = %#x\n",
 				dev->name, rcv_event, rcv_status, rcv_next_frame, rcv_size);
 		}
 
 		if (rcv_status & 0x1000)
-			lp->stats.rx_length_errors++;
+			dev->stats.rx_length_errors++;
 
 		rcv_car = lp->rx_start + RCV_HEADER + rcv_size;
 		lp->rx_start = rcv_next_frame;
@@ -1670,11 +1654,11 @@ eepro_transmit_interrupt(struct net_device *dev)
 		netif_wake_queue (dev);
 
 		if (xmt_status & TX_OK)
-			lp->stats.tx_packets++;
+			dev->stats.tx_packets++;
 		else {
-			lp->stats.tx_errors++;
+			dev->stats.tx_errors++;
 			if (xmt_status & 0x0400) {
-				lp->stats.tx_carrier_errors++;
+				dev->stats.tx_carrier_errors++;
 				printk(KERN_DEBUG "%s: carrier error\n",
 					dev->name);
 				printk(KERN_DEBUG "%s: XMT status = %#x\n",
@@ -1688,11 +1672,11 @@ eepro_transmit_interrupt(struct net_device *dev)
 			}
 		}
 		if (xmt_status & 0x000f) {
-			lp->stats.collisions += (xmt_status & 0x000f);
+			dev->stats.collisions += (xmt_status & 0x000f);
 		}
 
 		if ((xmt_status & 0x0040) == 0x0) {
-			lp->stats.tx_heartbeat_errors++;
+			dev->stats.tx_heartbeat_errors++;
 		}
 	}
 }

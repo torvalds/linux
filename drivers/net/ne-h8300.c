@@ -149,8 +149,6 @@ static int __init do_ne_probe(struct net_device *dev)
 {
 	unsigned int base_addr = dev->base_addr;
 
-	SET_MODULE_OWNER(dev);
-
 	/* First check any supplied i/o locations. User knows best. <cough> */
 	if (base_addr > 0x1ff)	/* Check a single specified location. */
 		return ne_probe1(dev, base_addr);
@@ -206,6 +204,7 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	static unsigned version_printed;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
 	unsigned char bus_width;
+	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, NE_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -259,7 +258,7 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 			{E8390_RREAD+E8390_START, E8390_CMD},
 		};
 
-		for (i = 0; i < sizeof(program_seq)/sizeof(program_seq[0]); i++)
+		for (i = 0; i < ARRAY_SIZE(program_seq); i++)
 			outb_p(program_seq[i].value, ioaddr + program_seq[i].offset);
 
 	}
@@ -298,12 +297,11 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 
 	dev->base_addr = ioaddr;
 
-	for(i = 0; i < ETHER_ADDR_LEN; i++) {
-		printk(" %2.2x", SA_prom[i]);
+	for(i = 0; i < ETHER_ADDR_LEN; i++)
 		dev->dev_addr[i] = SA_prom[i];
-	}
+	printk(" %s\n", print_mac(mac, dev->dev_addr));
 
-	printk("\n%s: %s found at %#x, using IRQ %d.\n",
+	printk("%s: %s found at %#x, using IRQ %d.\n",
 		dev->name, name, ioaddr, dev->irq);
 
 	ei_status.name = name;

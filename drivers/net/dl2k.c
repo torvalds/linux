@@ -10,9 +10,9 @@
     (at your option) any later version.
 */
 
-#define DRV_NAME	"D-Link DL2000-based linux driver"
-#define DRV_VERSION	"v1.18"
-#define DRV_RELDATE	"2006/06/27"
+#define DRV_NAME	"DL2000/TC902x-based linux driver"
+#define DRV_VERSION	"v1.19"
+#define DRV_RELDATE	"2007/08/12"
 #include "dl2k.h"
 #include <linux/dma-mapping.h>
 
@@ -97,6 +97,7 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int version_printed;
 	void *ring_space;
 	dma_addr_t ring_dma;
+	DECLARE_MAC_BUF(mac);
 
 	if (!version_printed++)
 		printk ("%s", version);
@@ -116,7 +117,6 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto err_out_res;
 	}
-	SET_MODULE_OWNER (dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 #ifdef MEM_MAPPING
@@ -257,10 +257,8 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	card_idx++;
 
-	printk (KERN_INFO "%s: %s, %02x:%02x:%02x:%02x:%02x:%02x, IRQ %d\n",
-		dev->name, np->name,
-		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5], irq);
+	printk (KERN_INFO "%s: %s, %s, IRQ %d\n",
+		dev->name, np->name, print_mac(mac, dev->dev_addr), irq);
 	if (tx_coalesce > 1)
 		printk(KERN_INFO "tx_coalesce:\t%d packets\n",
 				tx_coalesce);
@@ -292,7 +290,7 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	return err;
 }
 
-int
+static int
 find_miiphy (struct net_device *dev)
 {
 	int i, phy_found = 0;
@@ -316,7 +314,7 @@ find_miiphy (struct net_device *dev)
 	return 0;
 }
 
-int
+static int
 parse_eeprom (struct net_device *dev)
 {
 	int i, j;
@@ -339,16 +337,23 @@ parse_eeprom (struct net_device *dev)
 #ifdef	MEM_MAPPING
 	ioaddr = dev->base_addr;
 #endif
-	/* Check CRC */
-	crc = ~ether_crc_le (256 - 4, sromdata);
-	if (psrom->crc != crc) {
-		printk (KERN_ERR "%s: EEPROM data CRC error.\n", dev->name);
-		return -1;
+	if (np->pdev->vendor == PCI_VENDOR_ID_DLINK) {	/* D-Link Only */
+		/* Check CRC */
+		crc = ~ether_crc_le (256 - 4, sromdata);
+		if (psrom->crc != crc) {
+			printk (KERN_ERR "%s: EEPROM data CRC error.\n",
+					dev->name);
+			return -1;
+		}
 	}
 
 	/* Set MAC address */
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = psrom->mac_addr[i];
+
+	if (np->pdev->vendor != PCI_VENDOR_ID_DLINK) {
+		return 0;
+	}
 
 	/* Parse Software Information Block */
 	i = 0x30;
@@ -1091,7 +1096,7 @@ clear_stats (struct net_device *dev)
 }
 
 
-int
+static int
 change_mtu (struct net_device *dev, int new_mtu)
 {
 	struct netdev_private *np = netdev_priv(dev);
@@ -1326,7 +1331,7 @@ rio_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 #define EEP_BUSY 0x8000
 /* Read the EEPROM word */
 /* We use I/O instruction to read/write eeprom to avoid fail on some machines */
-int
+static int
 read_eeprom (long ioaddr, int eep_addr)
 {
 	int i = 1000;

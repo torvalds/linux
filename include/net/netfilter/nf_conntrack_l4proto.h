@@ -9,10 +9,11 @@
 
 #ifndef _NF_CONNTRACK_L4PROTO_H
 #define _NF_CONNTRACK_L4PROTO_H
+#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <net/netfilter/nf_conntrack.h>
 
 struct seq_file;
-struct nfattr;
 
 struct nf_conntrack_l4proto
 {
@@ -65,16 +66,17 @@ struct nf_conntrack_l4proto
 		     int pf, unsigned int hooknum);
 
 	/* convert protoinfo to nfnetink attributes */
-	int (*to_nfattr)(struct sk_buff *skb, struct nfattr *nfa,
+	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,
 			 const struct nf_conn *ct);
 
 	/* convert nfnetlink attributes to protoinfo */
-	int (*from_nfattr)(struct nfattr *tb[], struct nf_conn *ct);
+	int (*from_nlattr)(struct nlattr *tb[], struct nf_conn *ct);
 
-	int (*tuple_to_nfattr)(struct sk_buff *skb,
+	int (*tuple_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
-	int (*nfattr_to_tuple)(struct nfattr *tb[],
+	int (*nlattr_to_tuple)(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
+	const struct nla_policy *nla_policy;
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	**ctl_table_header;
@@ -111,10 +113,11 @@ extern int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *proto);
 extern void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *proto);
 
 /* Generic netlink helpers */
-extern int nf_ct_port_tuple_to_nfattr(struct sk_buff *skb,
+extern int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 				      const struct nf_conntrack_tuple *tuple);
-extern int nf_ct_port_nfattr_to_tuple(struct nfattr *tb[],
+extern int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 				      struct nf_conntrack_tuple *t);
+extern const struct nla_policy nf_ct_port_nla_policy[];
 
 /* Log invalid packets */
 extern unsigned int nf_ct_log_invalid;

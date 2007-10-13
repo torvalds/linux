@@ -501,7 +501,7 @@ end_node:
  * sequence overlapping with the requested sequence
  */
 
-void tipc_nameseq_subscribe(struct name_seq *nseq, struct subscription *s)
+static void tipc_nameseq_subscribe(struct name_seq *nseq, struct subscription *s)
 {
 	struct sub_seq *sseq = nseq->sseqs;
 
@@ -1052,12 +1052,11 @@ int tipc_nametbl_init(void)
 {
 	int array_size = sizeof(struct hlist_head) * tipc_nametbl_size;
 
-	table.types = kmalloc(array_size, GFP_ATOMIC);
+	table.types = kzalloc(array_size, GFP_ATOMIC);
 	if (!table.types)
 		return -ENOMEM;
 
 	write_lock_bh(&tipc_nametbl_lock);
-	memset(table.types, 0, array_size);
 	table.local_publ_count = 0;
 	write_unlock_bh(&tipc_nametbl_lock);
 	return 0;

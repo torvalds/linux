@@ -21,7 +21,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/jiffies.h>
 #include <media/ir-common.h>
@@ -107,21 +106,20 @@ void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
 }
 
 /* -------------------------------------------------------------------------- */
-
+/* extract mask bits out of data and pack them into the result */
 u32 ir_extract_bits(u32 data, u32 mask)
 {
-	int mbit, vbit;
-	u32 value;
+	u32 vbit = 1, value = 0;
 
-	value = 0;
-	vbit  = 0;
-	for (mbit = 0; mbit < 32; mbit++) {
-		if (!(mask & ((u32)1 << mbit)))
-			continue;
-		if (data & ((u32)1 << mbit))
-			value |= (1 << vbit);
-		vbit++;
-	}
+	do {
+	    if (mask&1) {
+		if (data&1)
+			value |= vbit;
+		vbit<<=1;
+	    }
+	    data>>=1;
+	} while (mask>>=1);
+
 	return value;
 }
 
@@ -346,8 +344,8 @@ void ir_rc5_timer_end(unsigned long data)
 			}
 
 			/* Set/reset key-up timer */
-			timeout = current_jiffies + (500 + ir->rc5_key_timeout
-						     * HZ) / 1000;
+			timeout = current_jiffies +
+				  msecs_to_jiffies(ir->rc5_key_timeout);
 			mod_timer(&ir->timer_keyup, timeout);
 
 			/* Save code for repeat test */

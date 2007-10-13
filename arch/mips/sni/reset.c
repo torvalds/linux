@@ -35,13 +35,9 @@ void sni_machine_restart(char *command)
 			kb_wait();
 			for (j = 0; j < 100000 ; j++)
 				/* nothing */;
-			outb_p(0xfe,0x64);	 /* pulse reset low */
+			outb_p(0xfe, 0x64);	 /* pulse reset low */
 		}
 	}
-}
-
-void sni_machine_halt(void)
-{
 }
 
 void sni_machine_power_off(void)

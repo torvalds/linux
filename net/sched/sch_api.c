@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/hrtimer.h>
 
+#include <net/net_namespace.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
@@ -380,6 +381,10 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 		return;
 	while ((parentid = sch->parent)) {
 		sch = qdisc_lookup(sch->dev, TC_H_MAJ(parentid));
+		if (sch == NULL) {
+			WARN_ON(parentid != TC_H_ROOT);
+			return;
+		}
 		cops = sch->ops->cl_ops;
 		if (cops->qlen_notify) {
 			cl = cops->get(sch, parentid);
@@ -420,8 +425,6 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 			unsigned long cl = cops->get(parent, classid);
 			if (cl) {
 				err = cops->graft(parent, cl, new, old);
-				if (new)
-					new->parent = classid;
 				cops->put(parent, cl);
 			}
 		}
@@ -436,7 +439,8 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
  */
 
 static struct Qdisc *
-qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
+qdisc_create(struct net_device *dev, u32 parent, u32 handle,
+	   struct rtattr **tca, int *errp)
 {
 	int err;
 	struct rtattr *kind = tca[TCA_KIND-1];
@@ -481,6 +485,8 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 		err = PTR_ERR(sch);
 		goto err_out2;
 	}
+
+	sch->parent = parent;
 
 	if (handle == TC_H_INGRESS) {
 		sch->flags |= TCQ_F_INGRESS;
@@ -601,7 +607,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	struct Qdisc *p = NULL;
 	int err;
 
-	if ((dev = __dev_get_by_index(tcm->tcm_ifindex)) == NULL)
+	if ((dev = __dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
 		return -ENODEV;
 
 	if (clid) {
@@ -668,7 +674,7 @@ replay:
 	clid = tcm->tcm_parent;
 	q = p = NULL;
 
-	if ((dev = __dev_get_by_index(tcm->tcm_ifindex)) == NULL)
+	if ((dev = __dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
 		return -ENODEV;
 
 	if (clid) {
@@ -758,9 +764,11 @@ create_n_graft:
 	if (!(n->nlmsg_flags&NLM_F_CREATE))
 		return -ENOENT;
 	if (clid == TC_H_INGRESS)
-		q = qdisc_create(dev, tcm->tcm_parent, tca, &err);
+		q = qdisc_create(dev, tcm->tcm_parent, tcm->tcm_parent,
+				 tca, &err);
 	else
-		q = qdisc_create(dev, tcm->tcm_handle, tca, &err);
+		q = qdisc_create(dev, tcm->tcm_parent, tcm->tcm_handle,
+				 tca, &err);
 	if (q == NULL) {
 		if (err == -EAGAIN)
 			goto replay;
@@ -873,7 +881,7 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	s_q_idx = q_idx = cb->args[1];
 	read_lock(&dev_base_lock);
 	idx = 0;
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		if (idx < s_idx)
 			goto cont;
 		if (idx > s_idx)
@@ -924,7 +932,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	u32 qid = TC_H_MAJ(clid);
 	int err;
 
-	if ((dev = __dev_get_by_index(tcm->tcm_ifindex)) == NULL)
+	if ((dev = __dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
 		return -ENODEV;
 
 	/*
@@ -1107,7 +1115,7 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
 		return 0;
-	if ((dev = dev_get_by_index(tcm->tcm_ifindex)) == NULL)
+	if ((dev = dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
 		return 0;
 
 	s_t = cb->args[0];
@@ -1218,10 +1226,13 @@ EXPORT_SYMBOL(tcf_destroy_chain);
 #ifdef CONFIG_PROC_FS
 static int psched_show(struct seq_file *seq, void *v)
 {
+	struct timespec ts;
+
+	hrtimer_get_res(CLOCK_MONOTONIC, &ts);
 	seq_printf(seq, "%08x %08x %08x %08x\n",
 		   (u32)NSEC_PER_USEC, (u32)PSCHED_US2NS(1),
 		   1000000,
-		   (u32)NSEC_PER_SEC/(u32)ktime_to_ns(KTIME_MONOTONIC_RES));
+		   (u32)NSEC_PER_SEC/(u32)ktime_to_ns(timespec_to_ktime(ts)));
 
 	return 0;
 }
@@ -1244,7 +1255,7 @@ static int __init pktsched_init(void)
 {
 	register_qdisc(&pfifo_qdisc_ops);
 	register_qdisc(&bfifo_qdisc_ops);
-	proc_net_fops_create("psched", 0, &psched_fops);
+	proc_net_fops_create(&init_net, "psched", 0, &psched_fops);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWQDISC, tc_modify_qdisc, NULL);
 	rtnl_register(PF_UNSPEC, RTM_DELQDISC, tc_get_qdisc, NULL);

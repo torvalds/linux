@@ -555,6 +555,8 @@ static int udp_v6_push_pending_frames(struct sock *sk)
 out:
 	up->len = 0;
 	up->pending = 0;
+	if (!err)
+		UDP6_INC_STATS_USER(UDP_MIB_OUTDATAGRAMS, up->pcflag);
 	return err;
 }
 
@@ -610,7 +612,7 @@ int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		daddr = NULL;
 
 	if (daddr) {
-		if (ipv6_addr_type(daddr) == IPV6_ADDR_MAPPED) {
+		if (ipv6_addr_v4mapped(daddr)) {
 			struct sockaddr_in sin;
 			sin.sin_family = AF_INET;
 			sin.sin_port = sin6 ? sin6->sin6_port : inet->dport;
@@ -823,10 +825,8 @@ do_append_data:
 	release_sock(sk);
 out:
 	fl6_sock_release(flowlabel);
-	if (!err) {
-		UDP6_INC_STATS_USER(UDP_MIB_OUTDATAGRAMS, is_udplite);
+	if (!err)
 		return len;
-	}
 	/*
 	 * ENOBUFS = no kernel mem, SOCK_NOSPACE = no sndbuf space.  Reporting
 	 * ENOBUFS might not be good (it's not tunable per se), but otherwise

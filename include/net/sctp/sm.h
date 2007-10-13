@@ -114,7 +114,6 @@ sctp_state_fn_t sctp_sf_do_4_C;
 sctp_state_fn_t sctp_sf_eat_data_6_2;
 sctp_state_fn_t sctp_sf_eat_data_fast_4_4;
 sctp_state_fn_t sctp_sf_eat_sack_6_2;
-sctp_state_fn_t sctp_sf_tabort_8_4_8;
 sctp_state_fn_t sctp_sf_operr_notify;
 sctp_state_fn_t sctp_sf_t1_init_timer_expire;
 sctp_state_fn_t sctp_sf_t1_cookie_timer_expire;
@@ -144,6 +143,7 @@ sctp_state_fn_t sctp_sf_do_asconf_ack;
 sctp_state_fn_t sctp_sf_do_9_2_reshutack;
 sctp_state_fn_t sctp_sf_eat_fwd_tsn;
 sctp_state_fn_t sctp_sf_eat_fwd_tsn_fast;
+sctp_state_fn_t sctp_sf_eat_auth;
 
 /* Prototypes for primitive event state functions.  */
 sctp_state_fn_t sctp_sf_do_prm_asoc;
@@ -214,7 +214,7 @@ struct sctp_chunk *sctp_make_shutdown_ack(const struct sctp_association *asoc,
 					  const struct sctp_chunk *);
 struct sctp_chunk *sctp_make_shutdown_complete(const struct sctp_association *,
 					  const struct sctp_chunk *);
-void sctp_init_cause(struct sctp_chunk *, __be16 cause, const void *, size_t);
+void sctp_init_cause(struct sctp_chunk *, __be16 cause, size_t);
 struct sctp_chunk *sctp_make_abort(const struct sctp_association *,
 			      const struct sctp_chunk *,
 			      const size_t hint);
@@ -247,6 +247,9 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *,
 					      int, __be16);
 struct sctp_chunk *sctp_make_asconf_set_prim(struct sctp_association *asoc,
 					     union sctp_addr *addr);
+int sctp_verify_asconf(const struct sctp_association *asoc,
+		       struct sctp_paramhdr *param_hdr, void *chunk_end,
+		       struct sctp_paramhdr **errp);
 struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 				       struct sctp_chunk *asconf);
 int sctp_process_asconf_ack(struct sctp_association *asoc,
@@ -254,6 +257,7 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 				    __u32 new_cum_tsn, size_t nstreams,
 				    struct sctp_fwdtsn_skip *skiplist);
+struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc);
 
 void sctp_chunk_assign_tsn(struct sctp_chunk *);
 void sctp_chunk_assign_ssn(struct sctp_chunk *);

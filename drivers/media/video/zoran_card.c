@@ -64,15 +64,15 @@
 extern const struct zoran_format zoran_formats[];
 
 static int card[BUZ_MAX] = { -1, -1, -1, -1 };
-module_param_array(card, int, NULL, 0);
+module_param_array(card, int, NULL, 0444);
 MODULE_PARM_DESC(card, "The type of card");
 
 static int encoder[BUZ_MAX] = { -1, -1, -1, -1 };
-module_param_array(encoder, int, NULL, 0);
+module_param_array(encoder, int, NULL, 0444);
 MODULE_PARM_DESC(encoder, "i2c TV encoder");
 
 static int decoder[BUZ_MAX] = { -1, -1, -1, -1 };
-module_param_array(decoder, int, NULL, 0);
+module_param_array(decoder, int, NULL, 0444);
 MODULE_PARM_DESC(decoder, "i2c TV decoder");
 
 /*
@@ -84,29 +84,31 @@ MODULE_PARM_DESC(decoder, "i2c TV decoder");
  */
 
 static unsigned long vidmem = 0;	/* Video memory base address */
-module_param(vidmem, ulong, 0);
+module_param(vidmem, ulong, 0444);
+MODULE_PARM_DESC(vidmem, "Default video memory base address");
 
 /*
    Default input and video norm at startup of the driver.
 */
 
-static int default_input = 0;	/* 0=Composite, 1=S-Video */
-module_param(default_input, int, 0);
+static unsigned int default_input = 0;	/* 0=Composite, 1=S-Video */
+module_param(default_input, uint, 0444);
 MODULE_PARM_DESC(default_input,
 		 "Default input (0=Composite, 1=S-Video, 2=Internal)");
 
 static int default_mux = 1;	/* 6 Eyes input selection */
-module_param(default_mux, int, 0);
+module_param(default_mux, int, 0644);
 MODULE_PARM_DESC(default_mux,
 		 "Default 6 Eyes mux setting (Input selection)");
 
 static int default_norm = 0;	/* 0=PAL, 1=NTSC 2=SECAM */
-module_param(default_norm, int, 0);
+module_param(default_norm, int, 0444);
 MODULE_PARM_DESC(default_norm, "Default norm (0=PAL, 1=NTSC, 2=SECAM)");
 
-static int video_nr = -1;	/* /dev/videoN, -1 for autodetect */
-module_param(video_nr, int, 0);
-MODULE_PARM_DESC(video_nr, "video device number");
+/* /dev/videoN, -1 for autodetect */
+static int video_nr[BUZ_MAX] = {-1, -1, -1, -1};
+module_param_array(video_nr, int, NULL, 0444);
+MODULE_PARM_DESC(video_nr, "video device number (-1=Auto)");
 
 /*
    Number and size of grab buffers for Video 4 Linux
@@ -127,28 +129,27 @@ MODULE_PARM_DESC(video_nr, "video device number");
 
 int v4l_nbufs = 2;
 int v4l_bufsize = 128;		/* Everybody should be able to work with this setting */
-module_param(v4l_nbufs, int, 0);
+module_param(v4l_nbufs, int, 0644);
 MODULE_PARM_DESC(v4l_nbufs, "Maximum number of V4L buffers to use");
-module_param(v4l_bufsize, int, 0);
+module_param(v4l_bufsize, int, 0644);
 MODULE_PARM_DESC(v4l_bufsize, "Maximum size per V4L buffer (in kB)");
 
 int jpg_nbufs = 32;
 int jpg_bufsize = 512;		/* max size for 100% quality full-PAL frame */
-module_param(jpg_nbufs, int, 0);
+module_param(jpg_nbufs, int, 0644);
 MODULE_PARM_DESC(jpg_nbufs, "Maximum number of JPG buffers to use");
-module_param(jpg_bufsize, int, 0);
+module_param(jpg_bufsize, int, 0644);
 MODULE_PARM_DESC(jpg_bufsize, "Maximum size per JPG buffer (in kB)");
 
 int pass_through = 0;		/* 1=Pass through TV signal when device is not used */
 				/* 0=Show color bar when device is not used (LML33: only if lml33dpath=1) */
-module_param(pass_through, int, 0);
+module_param(pass_through, int, 0644);
 MODULE_PARM_DESC(pass_through,
 		 "Pass TV signal through to TV-out when idling");
 
-static int debug = 1;
-int *zr_debug = &debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-4)");
+int zr36067_debug = 1;
+module_param_named(debug, zr36067_debug, int, 0644);
+MODULE_PARM_DESC(debug, "Debug level (0-5)");
 
 MODULE_DESCRIPTION("Zoran-36057/36067 JPEG codec driver");
 MODULE_AUTHOR("Serguei Miridonov");
@@ -160,12 +161,6 @@ static struct pci_device_id zr36067_pci_tbl[] = {
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
-
-#define dprintk(num, format, args...) \
-	do { \
-		if (*zr_debug >= num) \
-			printk(format, ##args); \
-	} while (0)
 
 int zoran_num;			/* number of Buzs in use */
 struct zoran zoran[BUZ_MAX];
@@ -1075,7 +1070,7 @@ test_interrupts (struct zoran *zr)
 	if (timeout) {
 		dprintk(1, ": time spent: %d\n", 1 * HZ - timeout);
 	}
-	if (*zr_debug > 1)
+	if (zr36067_debug > 1)
 		print_interrupts(zr);
 	btwrite(icr, ZR36057_ICR);
 }
@@ -1121,7 +1116,14 @@ zr36057_init (struct zoran *zr)
 		zr->timing = zr->card.tvn[zr->norm];
 	}
 
-	zr->input = default_input = (default_input ? 1 : 0);
+	if (default_input > zr->card.inputs-1) {
+		dprintk(1,
+			KERN_WARNING
+			"%s: default_input value %d out of range (0-%d)\n",
+			ZR_DEVNAME(zr), default_input, zr->card.inputs-1);
+		default_input = 0;
+	}
+	zr->input = default_input;
 
 	/* Should the following be reset at every open ? */
 	zr->hue = 32768;
@@ -1153,12 +1155,12 @@ zr36057_init (struct zoran *zr)
 	 */
 	memcpy(zr->video_dev, &zoran_template, sizeof(zoran_template));
 	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
-	err = video_register_device(zr->video_dev, VFL_TYPE_GRABBER, video_nr);
+	err = video_register_device(zr->video_dev, VFL_TYPE_GRABBER, video_nr[zr->id]);
 	if (err < 0)
 		goto exit_unregister;
 
 	zoran_init_hardware(zr);
-	if (*zr_debug > 2)
+	if (zr36067_debug > 2)
 		detect_guest_activity(zr);
 	test_interrupts(zr);
 	if (!pass_through) {
@@ -1620,7 +1622,7 @@ init_dc10_cards (void)
 	}
 
 	/* random nonsense */
-	dprintk(5, KERN_DEBUG "Jotti is een held!\n");
+	dprintk(6, KERN_DEBUG "Jotti is een held!\n");
 
 	/* some mainboards might not do PCI-PCI data transfer well */
 	if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL|PCIPCI_ALIMAGIK)) {

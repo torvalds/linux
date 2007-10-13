@@ -122,8 +122,6 @@ static int __init do_hpp_probe(struct net_device *dev)
 	int base_addr = dev->base_addr;
 	int irq = dev->irq;
 
-	SET_MODULE_OWNER(dev);
-
 	if (base_addr > 0x1ff)		/* Check a single specified location. */
 		return hpp_probe1(dev, base_addr);
 	else if (base_addr != 0)	/* Don't probe at all. */
@@ -168,6 +166,7 @@ static int __init hpp_probe1(struct net_device *dev, int ioaddr)
 	const char name[] = "HP-PC-LAN+";
 	int mem_start;
 	static unsigned version_printed;
+	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, HP_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -182,7 +181,7 @@ static int __init hpp_probe1(struct net_device *dev, int ioaddr)
 	if (ei_debug  &&  version_printed++ == 0)
 		printk(version);
 
-	printk("%s: %s at %#3x,", dev->name, name, ioaddr);
+	printk("%s: %s at %#3x, ", dev->name, name, ioaddr);
 
 	/* Retrieve and checksum the station address. */
 	outw(MAC_Page, ioaddr + HP_PAGING);
@@ -191,9 +190,10 @@ static int __init hpp_probe1(struct net_device *dev, int ioaddr)
 		unsigned char inval = inb(ioaddr + 8 + i);
 		dev->dev_addr[i] = inval;
 		checksum += inval;
-		printk(" %2.2x", inval);
 	}
 	checksum += inb(ioaddr + 14);
+
+	printk("%s", print_mac(mac, dev->dev_addr));
 
 	if (checksum != 0xff) {
 		printk(" bad checksum %2.2x.\n", checksum);

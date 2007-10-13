@@ -138,7 +138,7 @@ static unsigned long __meminitdata dma_reserve;
 #endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
   unsigned long __initdata required_kernelcore;
   unsigned long __initdata required_movablecore;
-  unsigned long __initdata zone_movable_pfn[MAX_NUMNODES];
+  unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
 
   /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
   int movable_zone;
@@ -453,12 +453,6 @@ static inline int free_pages_check(struct page *page)
 			1 << PG_reserved |
 			1 << PG_buddy ))))
 		bad_page(page);
-	/*
-	 * PageReclaim == PageTail. It is only an error
-	 * for PageReclaim to be set if PageCompound is clear.
-	 */
-	if (unlikely(!PageCompound(page) && PageReclaim(page)))
-		bad_page(page);
 	if (PageDirty(page))
 		__ClearPageDirty(page);
 	/*
@@ -602,7 +596,6 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 			1 << PG_locked	|
 			1 << PG_active	|
 			1 << PG_dirty	|
-			1 << PG_reclaim	|
 			1 << PG_slab    |
 			1 << PG_swapcache |
 			1 << PG_writeback |
@@ -617,7 +610,7 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 	if (PageReserved(page))
 		return 1;
 
-	page->flags &= ~(1 << PG_uptodate | 1 << PG_error |
+	page->flags &= ~(1 << PG_uptodate | 1 << PG_error | 1 << PG_readahead |
 			1 << PG_referenced | 1 << PG_arch_1 |
 			1 << PG_owner_priv_1 | 1 << PG_mappedtodisk);
 	set_page_private(page, 0);
@@ -733,7 +726,7 @@ static void __drain_pages(unsigned int cpu)
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_HIBERNATION
 
 void mark_free_pages(struct zone *zone)
 {
@@ -779,7 +772,7 @@ void drain_local_pages(void)
 	__drain_pages(smp_processor_id());
 	local_irq_restore(flags);	
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_HIBERNATION */
 
 /*
  * Free a 0-order page
@@ -1164,6 +1157,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
 	int zlc_active = 0;		/* set if using zonelist_cache */
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+	enum zone_type highest_zoneidx = -1; /* Gets set for policy zonelists */
 
 zonelist_scan:
 	/*
@@ -1173,6 +1167,18 @@ zonelist_scan:
 	z = zonelist->zones;
 
 	do {
+		/*
+		 * In NUMA, this could be a policy zonelist which contains
+		 * zones that may not be allowed by the current gfp_mask.
+		 * Check the zone is allowed by the current flags
+		 */
+		if (unlikely(alloc_should_filter_zonelist(zonelist))) {
+			if (highest_zoneidx == -1)
+				highest_zoneidx = gfp_zone(gfp_mask);
+			if (zone_idx(*z) > highest_zoneidx)
+				continue;
+		}
+
 		if (NUMA_BUILD && zlc_active &&
 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
 				continue;
@@ -1356,6 +1362,10 @@ nofail_alloc:
 				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
 		if (page)
 			goto got_pg;
+
+		/* The OOM killer will not help higher order allocs so fail */
+		if (order > PAGE_ALLOC_COSTLY_ORDER)
+			goto nopage;
 
 		out_of_memory(zonelist, gfp_mask, order);
 		goto restart;
@@ -2335,6 +2345,8 @@ static int __cpuinit process_zones(int cpu)
 	return 0;
 bad:
 	for_each_zone(dzone) {
+		if (!populated_zone(dzone))
+			continue;
 		if (dzone == zone)
 			break;
 		kfree(zone_pcp(dzone, cpu));
@@ -2782,11 +2794,11 @@ unsigned long __meminit __absent_pages_in_range(int nid,
 	if (i == -1)
 		return 0;
 
+	prev_end_pfn = min(early_node_map[i].start_pfn, range_end_pfn);
+
 	/* Account for ranges before physical memory on this node */
 	if (early_node_map[i].start_pfn > range_start_pfn)
-		hole_pages = early_node_map[i].start_pfn - range_start_pfn;
-
-	prev_end_pfn = early_node_map[i].start_pfn;
+		hole_pages = prev_end_pfn - range_start_pfn;
 
 	/* Find all holes for the zone within the node */
 	for (; i != -1; i = next_active_region_index_in_nid(i, nid)) {

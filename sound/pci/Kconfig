@@ -33,6 +33,7 @@ config SND_ALS4000
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_SB_COMMON
 	help
 	  Say Y here to include support for soundcards based on Avance Logic
 	  ALS4000 chips.
@@ -214,6 +215,16 @@ config SND_CS46XX_NEW_DSP
 	  Say Y here to use a new DSP image for SPDIF and dual codecs.
 
 	  This works better than the old code, so say Y.
+
+config SND_CS5530
+	tristate "CS5530 Audio"
+	depends on SND && ISA_DMA_API
+	select SND_SB16_DSP
+	help
+	  Say Y here to include support for audio on Cyrix/NatSemi CS5530 chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-cs5530.
 
 config SND_CS5535AUDIO
 	tristate "CS5535/CS5536 Audio"

@@ -142,7 +142,7 @@ static int may_attach(struct task_struct *task)
 		return -EPERM;
 	smp_rmb();
 	if (task->mm)
-		dumpable = task->mm->dumpable;
+		dumpable = get_dumpable(task->mm);
 	if (!dumpable && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
@@ -233,6 +233,7 @@ int ptrace_detach(struct task_struct *child, unsigned int data)
 
 	/* Architecture-specific hardware disable .. */
 	ptrace_disable(child);
+	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 
 	write_lock_irq(&tasklist_lock);
 	/* protect against de_thread()->release_task() */

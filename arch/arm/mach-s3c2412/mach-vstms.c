@@ -33,14 +33,14 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-lcd.h>
 
 #include <asm/arch/idle.h>
 #include <asm/arch/fb.h>
 
-#include <asm/arch/nand.h>
+#include <asm/plat-s3c/nand.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>
 #include <asm/plat-s3c24xx/s3c2412.h>

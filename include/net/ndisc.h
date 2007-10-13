@@ -24,6 +24,7 @@ enum {
 	ND_OPT_MTU = 5,			/* RFC2461 */
 	__ND_OPT_ARRAY_MAX,
 	ND_OPT_ROUTE_INFO = 24,		/* RFC4191 */
+	ND_OPT_RDNSS = 25,		/* RFC5006 */
 	__ND_OPT_MAX
 };
 

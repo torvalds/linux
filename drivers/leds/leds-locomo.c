@@ -19,7 +19,7 @@
 static void locomoled_brightness_set(struct led_classdev *led_cdev,
 				enum led_brightness value, int offset)
 {
-	struct locomo_dev *locomo_dev = LOCOMO_DEV(led_cdev->class_dev->dev);
+	struct locomo_dev *locomo_dev = LOCOMO_DEV(led_cdev->dev);
 	unsigned long flags;
 
 	local_irq_save(flags);

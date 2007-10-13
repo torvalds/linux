@@ -125,7 +125,7 @@ aoeblk_release(struct inode *inode, struct file *filp)
 }
 
 static int
-aoeblk_make_request(request_queue_t *q, struct bio *bio)
+aoeblk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct aoedev *d;
 	struct buf *buf;
@@ -138,7 +138,7 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 	buf = mempool_alloc(d->bufpool, GFP_NOIO);
 	if (buf == NULL) {
 		printk(KERN_INFO "aoe: buf allocation failure\n");
-		bio_endio(bio, bio->bi_size, -ENOMEM);
+		bio_endio(bio, -ENOMEM);
 		return 0;
 	}
 	memset(buf, 0, sizeof(*buf));
@@ -159,7 +159,7 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 			d->aoemajor, d->aoeminor);
 		spin_unlock_irqrestore(&d->lock, flags);
 		mempool_free(buf, d->bufpool);
-		bio_endio(bio, bio->bi_size, -ENXIO);
+		bio_endio(bio, -ENXIO);
 		return 0;
 	}
 
@@ -257,9 +257,9 @@ aoeblk_exit(void)
 int __init
 aoeblk_init(void)
 {
-	buf_pool_cache = kmem_cache_create("aoe_bufs", 
+	buf_pool_cache = kmem_cache_create("aoe_bufs",
 					   sizeof(struct buf),
-					   0, 0, NULL, NULL);
+					   0, 0, NULL);
 	if (buf_pool_cache == NULL)
 		return -ENOMEM;
 

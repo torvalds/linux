@@ -17,4 +17,6 @@ extern int honeypot;
 #define STACK_TOP \
 	CHOOSE_MODE((honeypot ? host_task_size : task_size), task_size)
 
+#define STACK_TOP_MAX	STACK_TOP
+
 #endif

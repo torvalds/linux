@@ -3,7 +3,7 @@
 #
 config ISDN_DRV_ICN
 	tristate "ICN 2B and 4B support"
-	depends on ISDN_I4L && ISA
+	depends on ISA
 	help
 	  This enables support for two kinds of ISDN-cards made by a German
 	  company called ICN.  2B is the standard version for a single ISDN

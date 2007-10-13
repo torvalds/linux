@@ -285,6 +285,8 @@ static void davinci_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		t->opts = TIMER_OPTS_DISABLED;
 		break;
+	case CLOCK_EVT_MODE_RESUME:
+		break;
 	}
 }
 

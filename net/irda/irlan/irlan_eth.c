@@ -60,8 +60,6 @@ static void irlan_eth_setup(struct net_device *dev)
 	dev->set_multicast_list = irlan_eth_set_multicast_list;
 	dev->destructor		= free_netdev;
 
-	SET_MODULE_OWNER(dev);
-
 	ether_setup(dev);
 
 	/*

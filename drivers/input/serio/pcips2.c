@@ -140,15 +140,13 @@ static int __devinit pcips2_probe(struct pci_dev *dev, const struct pci_device_i
 	if (ret)
 		goto disable;
 
-	ps2if = kmalloc(sizeof(struct pcips2_data), GFP_KERNEL);
-	serio = kmalloc(sizeof(struct serio), GFP_KERNEL);
+	ps2if = kzalloc(sizeof(struct pcips2_data), GFP_KERNEL);
+	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!ps2if || !serio) {
 		ret = -ENOMEM;
 		goto release;
 	}
 
-	memset(ps2if, 0, sizeof(struct pcips2_data));
-	memset(serio, 0, sizeof(struct serio));
 
 	serio->id.type		= SERIO_8042;
 	serio->write		= pcips2_write;

@@ -29,7 +29,7 @@ kernel_pmd_table:              .skip 0x2000
 .globl kernel_pg_dir
 .equ    kernel_pg_dir,kernel_pmd_table
 
-	.section .head
+	.section .text.head
 ENTRY(_stext)
 ENTRY(_start)
 

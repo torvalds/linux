@@ -2015,9 +2015,14 @@ acpi_sba_ioc_add(struct acpi_device *device)
 	return 0;
 }
 
+static const struct acpi_device_id hp_ioc_iommu_device_ids[] = {
+	{"HWP0001", 0},
+	{"HWP0004", 0},
+	{"", 0},
+};
 static struct acpi_driver acpi_sba_ioc_driver = {
 	.name		= "IOC IOMMU Driver",
-	.ids		= "HWP0001,HWP0004",
+	.ids		= hp_ioc_iommu_device_ids,
 	.ops		= {
 		.add	= acpi_sba_ioc_add,
 	},

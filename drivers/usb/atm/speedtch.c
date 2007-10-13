@@ -251,7 +251,6 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 {
 	unsigned char *buffer;
 	struct usbatm_data *usbatm = instance->usbatm;
-	struct usb_interface *intf;
 	struct usb_device *usb_dev = usbatm->usb_dev;
 	int actual_length;
 	int ret = 0;
@@ -265,7 +264,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 		goto out;
 	}
 
-	if (!(intf = usb_ifnum_to_if(usb_dev, 2))) {
+	if (!usb_ifnum_to_if(usb_dev, 2)) {
 		ret = -ENODEV;
 		usb_dbg(usbatm, "%s: interface not found!\n", __func__);
 		goto out_free;
@@ -612,7 +611,8 @@ static void speedtch_handle_int(struct urb *int_urb)
 	struct speedtch_instance_data *instance = int_urb->context;
 	struct usbatm_data *usbatm = instance->usbatm;
 	unsigned int count = int_urb->actual_length;
-	int ret = int_urb->status;
+	int status = int_urb->status;
+	int ret;
 
 	/* The magic interrupt for "up state" */
 	static const unsigned char up_int[6]   = { 0xa1, 0x00, 0x01, 0x00, 0x00, 0x00 };
@@ -621,8 +621,8 @@ static void speedtch_handle_int(struct urb *int_urb)
 
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
-	if (ret < 0) {
-		atm_dbg(usbatm, "%s: nonzero urb status %d!\n", __func__, ret);
+	if (status < 0) {
+		atm_dbg(usbatm, "%s: nonzero urb status %d!\n", __func__, status);
 		goto fail;
 	}
 

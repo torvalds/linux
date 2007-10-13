@@ -126,6 +126,7 @@ zfcp_address_to_sg(void *address, struct scatterlist *list)
 #define ZFCP_MIN_OUTPUT_THRESHOLD 	1	/* ignored by QDIO layer */
 
 #define QDIO_SCSI_QFMT			1	/* 1 for FSF */
+#define QBUFF_PER_PAGE			(PAGE_SIZE / sizeof(struct qdio_buffer))
 
 /********************* FSF SPECIFIC DEFINES *********************************/
 

@@ -178,18 +178,18 @@ enum tulip_busconfig_bits {
 
 /* The Tulip Rx and Tx buffer descriptors. */
 struct tulip_rx_desc {
-	s32 status;
-	s32 length;
-	u32 buffer1;
-	u32 buffer2;
+	__le32 status;
+	__le32 length;
+	__le32 buffer1;
+	__le32 buffer2;
 };
 
 
 struct tulip_tx_desc {
-	s32 status;
-	s32 length;
-	u32 buffer1;
-	u32 buffer2;		/* We use only buffer 1.  */
+	__le32 status;
+	__le32 length;
+	__le32 buffer1;
+	__le32 buffer2;		/* We use only buffer 1.  */
 };
 
 
@@ -353,6 +353,7 @@ struct tulip_private {
 	int chip_id;
 	int revision;
 	int flags;
+	struct napi_struct napi;
 	struct net_device_stats stats;
 	struct timer_list timer;	/* Media selection timer. */
 	struct timer_list oom_timer;    /* Out of memory timer. */
@@ -429,7 +430,7 @@ extern int tulip_rx_copybreak;
 irqreturn_t tulip_interrupt(int irq, void *dev_instance);
 int tulip_refill_rx(struct net_device *dev);
 #ifdef CONFIG_TULIP_NAPI
-int tulip_poll(struct net_device *dev, int *budget);
+int tulip_poll(struct napi_struct *napi, int budget);
 #endif
 
 

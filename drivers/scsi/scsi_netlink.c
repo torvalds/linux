@@ -64,7 +64,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 
 		if (nlh->nlmsg_type != SCSI_TRANSPORT_MSG) {
 			err = -EBADMSG;
-			goto next_msg;
+			return;
 		}
 
 		hdr = NLMSG_DATA(nlh);
@@ -94,27 +94,6 @@ next_msg:
 			netlink_ack(skb, nlh, err);
 
 		skb_pull(skb, rlen);
-	}
-}
-
-
-/**
- * scsi_nl_rcv_msg -
- *    Receive handler for a socket. Extracts a received message buffer from
- *    the socket, and starts message processing.
- *
- * @sk:		socket
- * @len:	unused
- *
- **/
-static void
-scsi_nl_rcv(struct sock *sk, int len)
-{
-	struct sk_buff *skb;
-
-	while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
-		scsi_nl_rcv_msg(skb);
-		kfree_skb(skb);
 	}
 }
 
@@ -167,8 +146,8 @@ scsi_netlink_init(void)
 		return;
 	}
 
-	scsi_nl_sock = netlink_kernel_create(NETLINK_SCSITRANSPORT,
-				SCSI_NL_GRP_CNT, scsi_nl_rcv, NULL,
+	scsi_nl_sock = netlink_kernel_create(&init_net, NETLINK_SCSITRANSPORT,
+				SCSI_NL_GRP_CNT, scsi_nl_rcv_msg, NULL,
 				THIS_MODULE);
 	if (!scsi_nl_sock) {
 		printk(KERN_ERR "%s: register of recieve handler failed\n",

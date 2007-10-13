@@ -52,12 +52,14 @@ int gfs2_ail1_empty(struct gfs2_sbd *sdp, int flags);
 
 int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
 void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
+void gfs2_log_incr_head(struct gfs2_sbd *sdp);
 
 struct buffer_head *gfs2_log_get_buf(struct gfs2_sbd *sdp);
 struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
 				      struct buffer_head *real);
 void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
 void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
+void gfs2_remove_from_ail(struct address_space *mapping, struct gfs2_bufdata *bd);
 
 void gfs2_log_shutdown(struct gfs2_sbd *sdp);
 void gfs2_meta_syncfs(struct gfs2_sbd *sdp);

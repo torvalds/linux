@@ -172,6 +172,7 @@ static int patch_atihdmi(struct hda_codec *codec)
  */
 struct hda_codec_preset snd_hda_preset_atihdmi[] = {
 	{ .id = 0x1002793c, .name = "ATI RS600 HDMI", .patch = patch_atihdmi },
+	{ .id = 0x10027919, .name = "ATI RS600 HDMI", .patch = patch_atihdmi },
 	{ .id = 0x1002791a, .name = "ATI RS690/780 HDMI", .patch = patch_atihdmi },
 	{ .id = 0x1002aa01, .name = "ATI R600 HDMI", .patch = patch_atihdmi },
 	{} /* terminator */

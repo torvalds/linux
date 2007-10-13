@@ -310,7 +310,7 @@ static int __init pmb_init(void)
 	BUG_ON(unlikely(nr_entries >= NR_PMB_ENTRIES));
 
 	pmb_cache = kmem_cache_create("pmb", sizeof(struct pmb_entry), 0,
-				      SLAB_PANIC, pmb_cache_ctor, NULL);
+				      SLAB_PANIC, pmb_cache_ctor);
 
 	jump_to_P2();
 

@@ -990,14 +990,18 @@ out:
 	return ret;
 }
 
-static int __init
-chsc_alloc_sei_area(void)
+int __init chsc_alloc_sei_area(void)
 {
 	sei_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sei_page)
-		printk(KERN_WARNING"Can't allocate page for processing of " \
-		       "chsc machine checks!\n");
+		CIO_MSG_EVENT(0, "Can't allocate page for processing of "
+			      "chsc machine checks!\n");
 	return (sei_page ? 0 : -ENOMEM);
+}
+
+void __init chsc_free_sei_area(void)
+{
+	kfree(sei_page);
 }
 
 int __init
@@ -1051,8 +1055,6 @@ chsc_enable_facility(int operation_code)
 	return ret;
 }
 
-subsys_initcall(chsc_alloc_sei_area);
-
 struct css_general_char css_general_characteristics;
 struct css_chsc_char css_chsc_characteristics;
 
@@ -1073,8 +1075,8 @@ chsc_determine_css_characteristics(void)
 
 	scsc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scsc_area) {
-	        printk(KERN_WARNING"cio: Was not able to determine available" \
-		       "CHSCs due to no memory.\n");
+		CIO_MSG_EVENT(0, "Was not able to determine available"
+			      "CHSCs due to no memory.\n");
 		return -ENOMEM;
 	}
 
@@ -1083,15 +1085,15 @@ chsc_determine_css_characteristics(void)
 
 	result = chsc(scsc_area);
 	if (result) {
-		printk(KERN_WARNING"cio: Was not able to determine " \
-		       "available CHSCs, cc=%i.\n", result);
+		CIO_MSG_EVENT(0, "Was not able to determine available CHSCs, "
+			      "cc=%i.\n", result);
 		result = -EIO;
 		goto exit;
 	}
 
 	if (scsc_area->response.code != 1) {
-		printk(KERN_WARNING"cio: Was not able to determine " \
-		       "available CHSCs.\n");
+		CIO_MSG_EVENT(0, "Was not able to determine "
+			      "available CHSCs.\n");
 		result = -EIO;
 		goto exit;
 	}

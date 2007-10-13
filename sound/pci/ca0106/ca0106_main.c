@@ -168,6 +168,25 @@ MODULE_PARM_DESC(subsystem, "Force card subsystem model.");
 #include "ca0106.h"
 
 static struct snd_ca0106_details ca0106_chip_details[] = {
+	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
+	 /* It is really just a normal SB Live 24bit. */
+	 /*
+ 	  * CTRL:CA0111-WTLF
+	  * ADC: WM8775SEDS
+	  * DAC: CS4382-KQZ
+	  */
+	 /* Tested:
+	  * Playback on front, rear, center/lfe speakers
+	  * Capture from Mic in.
+	  * Not-Tested:
+	  * Capture from Line in.
+	  * Playback to digital out.
+	  */
+	 { .serial = 0x10121102,
+	   .name   = "X-Fi Extreme Audio [SB0790]",
+	   .gpio_type = 1,
+	   .i2c_adc = 1 } ,
+	 /* New Dell Sound Blaster Live! 7.1 24bit. This does not have an AC97.  */
 	 /* AudigyLS[SB0310] */
 	 { .serial = 0x10021102,
 	   .name   = "AudigyLS [SB0310]",

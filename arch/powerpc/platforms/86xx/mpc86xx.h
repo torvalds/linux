@@ -15,11 +15,6 @@
  * mpc86xx_* files. Mostly for use by mpc86xx_setup().
  */
 
-extern int mpc86xx_add_bridge(struct device_node *dev);
-
-extern int mpc86xx_exclude_device(struct pci_controller *hose,
-				  u_char bus, u_char devfn);
-
 extern void __init mpc86xx_smp_init(void);
 
 #endif	/* __MPC86XX_H__ */

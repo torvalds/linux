@@ -103,21 +103,6 @@ __alloc_zeroed_user_highpage(gfp_t movableflags,
 #endif
 
 /**
- * alloc_zeroed_user_highpage - Allocate a zeroed HIGHMEM page for a VMA
- * @vma: The VMA the page is to be allocated for
- * @vaddr: The virtual address the page will be inserted into
- *
- * This function will allocate a page for a VMA that the caller knows will
- * not be able to move in the future using move_pages() or reclaim. If it
- * is known that the page can move, use alloc_zeroed_user_highpage_movable
- */
-static inline struct page *
-alloc_zeroed_user_highpage(struct vm_area_struct *vma, unsigned long vaddr)
-{
-	return __alloc_zeroed_user_highpage(0, vma, vaddr);
-}
-
-/**
  * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move
  * @vma: The VMA the page is to be allocated for
  * @vaddr: The virtual address the page will be inserted into

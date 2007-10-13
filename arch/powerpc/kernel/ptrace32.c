@@ -53,6 +53,7 @@ static long compat_ptrace_old(struct task_struct *child, long request,
 		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
 		unsigned int __user *tmp = (unsigned int __user *)addr;
 
+		CHECK_FULL_REGS(child->thread.regs);
 		for (i = 0; i < 32; i++) {
 			ret = put_user(*reg, tmp);
 			if (ret)
@@ -68,6 +69,7 @@ static long compat_ptrace_old(struct task_struct *child, long request,
 		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
 		unsigned int __user *tmp = (unsigned int __user *)addr;
 
+		CHECK_FULL_REGS(child->thread.regs);
 		for (i = 0; i < 32; i++) {
 			ret = get_user(*reg, tmp);
 			if (ret)
@@ -164,6 +166,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		if ((addr & 3) || (index > PT_FPSCR32))
 			break;
 
+		CHECK_FULL_REGS(child->thread.regs);
 		if (index < PT_FPR0) {
 			tmp = ptrace_get_reg(child, index);
 		} else {
@@ -210,6 +213,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		if ((addr & 3) || numReg > PT_FPSCR)
 			break;
 
+		CHECK_FULL_REGS(child->thread.regs);
 		if (numReg >= PT_FPR0) {
 			flush_fp_to_thread(child);
 			tmp = ((unsigned long int *)child->thread.fpr)[numReg - PT_FPR0];
@@ -270,6 +274,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		if ((addr & 3) || (index > PT_FPSCR32))
 			break;
 
+		CHECK_FULL_REGS(child->thread.regs);
 		if (index < PT_FPR0) {
 			ret = ptrace_put_reg(child, index, data);
 		} else {
@@ -307,6 +312,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		 */
 		if ((addr & 3) || (numReg > PT_FPSCR))
 			break;
+		CHECK_FULL_REGS(child->thread.regs);
 		if (numReg < PT_FPR0) {
 			unsigned long freg = ptrace_get_reg(child, numReg);
 			if (index % 2)
@@ -342,6 +348,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 			ret = -EIO;
 			break;
 		}
+		CHECK_FULL_REGS(child->thread.regs);
 		ret = 0;
 		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
 			ret |= __put_user(ptrace_get_reg(child, ui),
@@ -359,6 +366,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 			ret = -EIO;
 			break;
 		}
+		CHECK_FULL_REGS(child->thread.regs);
 		ret = 0;
 		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
 			ret = __get_user(tmp, (unsigned int __user *) data);

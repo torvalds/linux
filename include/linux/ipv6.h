@@ -96,27 +96,6 @@ struct ipv6_destopt_hao {
 	struct in6_addr		addr;
 } __attribute__ ((__packed__));
 
-struct ipv6_auth_hdr {
-	__u8  nexthdr;
-	__u8  hdrlen;           /* This one is measured in 32 bit units! */
-	__be16 reserved;
-	__be32 spi;
-	__be32 seq_no;           /* Sequence number */
-	__u8  auth_data[0];     /* Length variable but >=4. Mind the 64 bit alignment! */
-};
-
-struct ipv6_esp_hdr {
-	__be32 spi;
-	__be32 seq_no;           /* Sequence number */
-	__u8  enc_data[0];      /* Length variable but >=8. Mind the 64 bit alignment! */
-};
-
-struct ipv6_comp_hdr {
-	__u8 nexthdr;
-	__u8 flags;
-	__be16 cpi;
-};
-
 /*
  *	IPv6 fixed header
  *
@@ -219,7 +198,6 @@ enum {
 #include <linux/tcp.h>
 #include <linux/udp.h>
 
-#include <net/if_inet6.h>       /* struct ipv6_mc_socklist */
 #include <net/inet_sock.h>
 
 static inline struct ipv6hdr *ipv6_hdr(const struct sk_buff *skb)
@@ -272,6 +250,10 @@ struct tcp6_request_sock {
 	struct tcp_request_sock	  tcp6rsk_tcp;
 	struct inet6_request_sock tcp6rsk_inet6;
 };
+
+struct ipv6_mc_socklist;
+struct ipv6_ac_socklist;
+struct ipv6_fl_socklist;
 
 /**
  * struct ipv6_pinfo - ipv6 private area

@@ -30,8 +30,6 @@ struct rate_control_extra {
 
 	/* parameters from the caller to rate_control_get_rate(): */
 	struct ieee80211_hw_mode *mode;
-	int mgmt_data; /* this is data frame that is used for management
-			* (e.g., IEEE 802.1X EAPOL) */
 	u16 ethertype;
 };
 
@@ -140,5 +138,11 @@ static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
 		ref->ops->remove_sta_debugfs(ref->priv, sta->rate_ctrl_priv);
 #endif
 }
+
+
+/* functions for rate control related to a device */
+int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
+				 const char *name);
+void rate_control_deinitialize(struct ieee80211_local *local);
 
 #endif /* IEEE80211_RATE_H */

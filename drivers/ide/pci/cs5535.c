@@ -2,6 +2,7 @@
  * linux/drivers/ide/pci/cs5535.c
  *
  * Copyright (C) 2004-2005 Advanced Micro Devices, Inc.
+ * Copyright (C)      2007 Bartlomiej Zolnierkiewicz
  *
  * History:
  * 09/20/2005 - Jaya Kumar <jayakumar.ide@gmail.com>
@@ -74,7 +75,7 @@ static unsigned int cs5535_udma_timings[5] =
  *
  *	cs5535_set_speed() configures the chipset to a new speed.
  */
-static void cs5535_set_speed(ide_drive_t *drive, u8 speed)
+static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
 {
 
 	u32 reg = 0, dummy;
@@ -83,14 +84,17 @@ static void cs5535_set_speed(ide_drive_t *drive, u8 speed)
 
 	/* Set the PIO timings */
 	if ((speed & XFER_MODE) == XFER_PIO) {
-		u8 pioa;
-		u8 piob;
-		u8 cmd;
+		ide_drive_t *pair = &drive->hwif->drives[drive->dn ^ 1];
+		u8 cmd, pioa;
 
-		pioa = speed - XFER_PIO_0;
-		piob = ide_get_best_pio_mode(&(drive->hwif->drives[!unit]),
-						255, 4, NULL);
-		cmd = pioa < piob ? pioa : piob;
+		cmd = pioa = speed - XFER_PIO_0;
+
+		if (pair->present) {
+			u8 piob = ide_get_best_pio_mode(pair, 255, 4);
+
+			if (piob < cmd)
+				cmd = piob;
+		}
 
 		/* Write the speed of the current drive */
 		reg = (cs5535_pio_cmd_timings[cmd] << 16) |
@@ -116,7 +120,7 @@ static void cs5535_set_speed(ide_drive_t *drive, u8 speed)
 
 		reg &= 0x80000000UL;  /* Preserve the PIO format bit */
 
-		if (speed >= XFER_UDMA_0 && speed <= XFER_UDMA_7)
+		if (speed >= XFER_UDMA_0 && speed <= XFER_UDMA_4)
 			reg |= cs5535_udma_timings[speed - XFER_UDMA_0];
 		else if (speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2)
 			reg |= cs5535_mwdma_timings[speed - XFER_MW_DMA_0];
@@ -137,46 +141,35 @@ static void cs5535_set_speed(ide_drive_t *drive, u8 speed)
  */
 static int cs5535_set_drive(ide_drive_t *drive, u8 speed)
 {
-	speed = ide_rate_filter(drive, speed);
 	ide_config_drive_speed(drive, speed);
 	cs5535_set_speed(drive, speed);
 
 	return 0;
 }
 
-/****
- *	cs5535_tuneproc    -       PIO setup
- *	@drive: drive to set up
- *	@pio: mode to use (255 for 'best possible')
+/**
+ *	cs5535_set_pio_mode	-	PIO setup
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
  *	A callback from the upper layers for PIO-only tuning.
  */
-static void cs5535_tuneproc(ide_drive_t *drive, u8 xferspeed)
-{
-	u8 modes[] = {	XFER_PIO_0, XFER_PIO_1, XFER_PIO_2, XFER_PIO_3,
-			XFER_PIO_4 };
 
-	/* cs5535 max pio is pio 4, best_pio will check the blacklist.
-	i think we don't need to rate_filter the incoming xferspeed
-	since we know we're only going to choose pio */
-	xferspeed = ide_get_best_pio_mode(drive, xferspeed, 4, NULL);
-	ide_config_drive_speed(drive, modes[xferspeed]);
-	cs5535_set_speed(drive, xferspeed);
+static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
+{
+	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
+	cs5535_set_speed(drive, XFER_PIO_0 + pio);
 }
 
 static int cs5535_dma_check(ide_drive_t *drive)
 {
-	u8 speed;
-
 	drive->init_speed = 0;
 
 	if (ide_tune_dma(drive))
 		return 0;
 
-	if (ide_use_fast_pio(drive)) {
-		speed = ide_get_best_pio_mode(drive, 255, 4, NULL);
-		cs5535_set_drive(drive, speed);
-	}
+	if (ide_use_fast_pio(drive))
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -205,7 +198,7 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 
 	hwif->autodma = 0;
 
-	hwif->tuneproc = &cs5535_tuneproc;
+	hwif->set_pio_mode = &cs5535_set_pio_mode;
 	hwif->speedproc = &cs5535_set_drive;
 	hwif->ide_dma_check = &cs5535_dma_check;
 
@@ -228,9 +221,10 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 static ide_pci_device_t cs5535_chipset __devinitdata = {
 	.name		= "CS5535",
 	.init_hwif	= init_hwif_cs5535,
-	.channels	= 1,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_SINGLE,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit cs5535_init_one(struct pci_dev *dev,

@@ -256,7 +256,7 @@ nfs4_close_delegation(struct nfs4_delegation *dp)
 	/* The following nfsd_close may not actually close the file,
 	 * but we want to remove the lease in any case. */
 	if (dp->dl_flock)
-		setlease(filp, F_UNLCK, &dp->dl_flock);
+		vfs_setlease(filp, F_UNLCK, &dp->dl_flock);
 	nfsd_close(filp);
 }
 
@@ -1032,19 +1032,19 @@ static int
 nfsd4_init_slabs(void)
 {
 	stateowner_slab = kmem_cache_create("nfsd4_stateowners",
-			sizeof(struct nfs4_stateowner), 0, 0, NULL, NULL);
+			sizeof(struct nfs4_stateowner), 0, 0, NULL);
 	if (stateowner_slab == NULL)
 		goto out_nomem;
 	file_slab = kmem_cache_create("nfsd4_files",
-			sizeof(struct nfs4_file), 0, 0, NULL, NULL);
+			sizeof(struct nfs4_file), 0, 0, NULL);
 	if (file_slab == NULL)
 		goto out_nomem;
 	stateid_slab = kmem_cache_create("nfsd4_stateids",
-			sizeof(struct nfs4_stateid), 0, 0, NULL, NULL);
+			sizeof(struct nfs4_stateid), 0, 0, NULL);
 	if (stateid_slab == NULL)
 		goto out_nomem;
 	deleg_slab = kmem_cache_create("nfsd4_delegations",
-			sizeof(struct nfs4_delegation), 0, 0, NULL, NULL);
+			sizeof(struct nfs4_delegation), 0, 0, NULL);
 	if (deleg_slab == NULL)
 		goto out_nomem;
 	return 0;
@@ -1402,7 +1402,7 @@ void nfsd_release_deleg_cb(struct file_lock *fl)
 /*
  * Set the delegation file_lock back pointer.
  *
- * Called from __setlease() with lock_kernel() held.
+ * Called from setlease() with lock_kernel() held.
  */
 static
 void nfsd_copy_lock_deleg_cb(struct file_lock *new, struct file_lock *fl)
@@ -1416,7 +1416,7 @@ void nfsd_copy_lock_deleg_cb(struct file_lock *new, struct file_lock *fl)
 }
 
 /*
- * Called from __setlease() with lock_kernel() held
+ * Called from setlease() with lock_kernel() held
  */
 static
 int nfsd_same_client_deleg_cb(struct file_lock *onlist, struct file_lock *try)
@@ -1716,10 +1716,10 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	fl.fl_file = stp->st_vfs_file;
 	fl.fl_pid = current->tgid;
 
-	/* setlease checks to see if delegation should be handed out.
+	/* vfs_setlease checks to see if delegation should be handed out.
 	 * the lock_manager callbacks fl_mylease and fl_change are used
 	 */
-	if ((status = setlease(stp->st_vfs_file,
+	if ((status = vfs_setlease(stp->st_vfs_file,
 		flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK, &flp))) {
 		dprintk("NFSD: setlease failed [%d], no delegation\n", status);
 		unhash_delegation(dp);

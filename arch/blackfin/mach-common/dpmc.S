@@ -39,8 +39,8 @@ ENTRY(_unmask_wdog_wakeup_evt)
 	P0.H = hi(SICA_IWR1);
 	P0.L = lo(SICA_IWR1);
 #else
-	P0.h = (SIC_IWR >> 16);
-	P0.l = (SIC_IWR & 0xFFFF);
+	P0.h = HI(SIC_IWR);
+	P0.l = LO(SIC_IWR);
 #endif
 	R7 = [P0];
 #if defined(CONFIG_BF561)
@@ -60,11 +60,11 @@ ENTRY(_unmask_wdog_wakeup_evt)
 	 */
 	R7 = 0x0000(z);
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_STAT >> 16);
-	P0.l = (WDOGA_STAT & 0xFFFF);
+	P0.h = HI(WDOGA_STAT);
+	P0.l = LO(WDOGA_STAT);
 #else
-	P0.h = (WDOG_STAT >> 16);
-	P0.l = (WDOG_STAT & 0xFFFF);
+	P0.h = HI(WDOG_STAT);
+	P0.l = LO(WDOG_STAT);
 #endif
 	[P0] = R7;
 	SSYNC;
@@ -73,21 +73,21 @@ ENTRY(_unmask_wdog_wakeup_evt)
 ENTRY(_program_wdog_timer)
 	[--SP] = ( R7:0, P5:0 );
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CNT >> 16);
-	P0.l = (WDOGA_CNT & 0xFFFF);
+	P0.h = HI(WDOGA_CNT);
+	P0.l = LO(WDOGA_CNT);
 #else
-	P0.h = (WDOG_CNT >> 16);
-	P0.l = (WDOG_CNT & 0xFFFF);
+	P0.h = HI(WDOG_CNT);
+	P0.l = LO(WDOG_CNT);
 #endif
 	[P0] = R0;
 	SSYNC;
 
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CTL >> 16);
-	P0.l = (WDOGA_CTL & 0xFFFF);
+	P0.h = HI(WDOGA_CTL);
+	P0.l = LO(WDOGA_CTL);
 #else
-	P0.h = (WDOG_CTL >> 16);
-	P0.l = (WDOG_CTL & 0xFFFF);
+	P0.h = HI(WDOG_CTL);
+	P0.l = LO(WDOG_CTL);
 #endif
 	R7 = W[P0](Z);
 	CC = BITTST(R7,1);
@@ -97,11 +97,11 @@ ENTRY(_program_wdog_timer)
 
 .LSKIP_WRITE_TO_STAT:
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CTL >> 16);
-	    P0.l = (WDOGA_CTL & 0xFFFF);
+	P0.h = HI(WDOGA_CTL);
+	P0.l = LO(WDOGA_CTL);
 #else
-	P0.h = (WDOG_CTL >> 16);
-	    P0.l = (WDOG_CTL & 0xFFFF);
+	P0.h = HI(WDOG_CTL);
+	P0.l = LO(WDOG_CTL);
 #endif
 	R7 = W[P0](Z);
 	BITCLR(R7,1);   /* Enable GP event */
@@ -122,11 +122,11 @@ ENTRY(_clear_wdog_wakeup_evt)
 	[--SP] = ( R7:0, P5:0 );
 
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CTL >> 16);
-	P0.l = (WDOGA_CTL & 0xFFFF);
+	P0.h = HI(WDOGA_CTL);
+	P0.l = LO(WDOGA_CTL);
 #else
-	P0.h = (WDOG_CTL >> 16);
-	P0.l = (WDOG_CTL & 0xFFFF);
+	P0.h = HI(WDOG_CTL);
+	P0.l = LO(WDOG_CTL);
 #endif
 	R7 = 0x0AD6(Z);
 	W[P0] = R7.L;
@@ -149,11 +149,11 @@ ENTRY(_clear_wdog_wakeup_evt)
 ENTRY(_disable_wdog_timer)
 	[--SP] = ( R7:0, P5:0 );
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CTL >> 16);
-	P0.l = (WDOGA_CTL & 0xFFFF);
+	P0.h = HI(WDOGA_CTL);
+	P0.l = LO(WDOGA_CTL);
 #else
-	P0.h = (WDOG_CTL >> 16);
-	P0.l = (WDOG_CTL & 0xFFFF);
+	P0.h = HI(WDOG_CTL);
+	P0.l = LO(WDOG_CTL);
 #endif
 	R7 = 0xAD6(Z);
 	W[P0] = R7.L;
@@ -300,7 +300,7 @@ ENTRY(_sleep_deeper)
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
 	R5 = W[P0](z);
-	R0.L = (MIN_VC/CONFIG_CLKIN_HZ) << 9;
+	R0.L = (CONFIG_MIN_VCO_HZ/CONFIG_CLKIN_HZ) << 9;
 	W[P0] = R0.l;
 
 	SSYNC;

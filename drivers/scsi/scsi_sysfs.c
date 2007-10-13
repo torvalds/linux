@@ -16,6 +16,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport.h>
+#include <scsi/scsi_driver.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -276,16 +277,11 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 	return (sdp->inq_periph_qual == SCSI_INQ_PQ_CON)? 1: 0;
 }
 
-static int scsi_bus_uevent(struct device *dev, char **envp, int num_envp,
-		           char *buffer, int buffer_size)
+static int scsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	int i = 0;
-	int length = 0;
 
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "MODALIAS=" SCSI_DEVICE_MODALIAS_FMT, sdev->type);
-	envp[i] = NULL;
+	add_uevent_var(env, "MODALIAS=" SCSI_DEVICE_MODALIAS_FMT, sdev->type);
 	return 0;
 }
 
@@ -714,6 +710,7 @@ static int attr_add(struct device *dev, struct device_attribute *attr)
 int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 {
 	int error, i;
+	struct request_queue *rq = sdev->request_queue;
 
 	if ((error = scsi_device_set_state(sdev, SDEV_RUNNING)) != 0)
 		return error;
@@ -733,6 +730,17 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	/* take a reference for the sdev_classdev; this is
 	 * released by the sdev_class .release */
 	get_device(&sdev->sdev_gendev);
+
+	error = bsg_register_queue(rq, &sdev->sdev_gendev, NULL);
+
+	if (error)
+		sdev_printk(KERN_INFO, sdev,
+			    "Failed to register bsg queue, errno=%d\n", error);
+
+	/* we're treating error on bsg register as non-fatal, so pretend
+	 * nothing went wrong */
+	error = 0;
+
 	if (sdev->host->hostt->sdev_attrs) {
 		for (i = 0; sdev->host->hostt->sdev_attrs[i]; i++) {
 			error = attr_add(&sdev->sdev_gendev,
@@ -779,6 +787,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	if (scsi_device_set_state(sdev, SDEV_CANCEL) != 0)
 		return;
 
+	bsg_unregister_queue(sdev->request_queue);
 	class_device_unregister(&sdev->sdev_classdev);
 	transport_remove_device(dev);
 	device_del(dev);
@@ -803,7 +812,7 @@ void scsi_remove_device(struct scsi_device *sdev)
 }
 EXPORT_SYMBOL(scsi_remove_device);
 
-void __scsi_remove_target(struct scsi_target *starget)
+static void __scsi_remove_target(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;

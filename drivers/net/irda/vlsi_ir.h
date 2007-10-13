@@ -537,10 +537,10 @@ calc_width_bits(unsigned baudrate, unsigned widthselect, unsigned clockselect)
  */
 
 struct ring_descr_hw {
-	volatile u16	rd_count;	/* tx/rx count [11:0] */
-	u16		reserved;
+	volatile __le16	rd_count;	/* tx/rx count [11:0] */
+	__le16		reserved;
 	union {
-		u32	addr;		/* [23:0] of the buffer's busaddress */
+		__le32	addr;		/* [23:0] of the buffer's busaddress */
 		struct {
 			u8		addr_res[3];
 			volatile u8	status;		/* descriptor status */

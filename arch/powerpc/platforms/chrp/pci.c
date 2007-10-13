@@ -13,7 +13,6 @@
 #include <asm/irq.h>
 #include <asm/hydra.h>
 #include <asm/prom.h>
-#include <asm/gg2.h>
 #include <asm/machdep.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
@@ -21,6 +20,7 @@
 #include <asm/rtas.h>
 
 #include "chrp.h"
+#include "gg2.h"
 
 /* LongTrail */
 void __iomem *gg2_pci_config_base;
@@ -86,8 +86,8 @@ int gg2_write_config(struct pci_bus *bus, unsigned int devfn, int off,
 
 static struct pci_ops gg2_pci_ops =
 {
-	gg2_read_config,
-	gg2_write_config
+	.read = gg2_read_config,
+	.write = gg2_write_config,
 };
 
 /*
@@ -124,8 +124,8 @@ int rtas_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 
 static struct pci_ops rtas_pci_ops =
 {
-	rtas_read_config,
-	rtas_write_config
+	.read = rtas_read_config,
+	.write = rtas_write_config,
 };
 
 volatile struct Hydra __iomem *Hydra = NULL;
@@ -181,7 +181,7 @@ setup_python(struct pci_controller *hose, struct device_node *dev)
 	}
 	iounmap(reg);
 
-	setup_indirect_pci(hose, r.start + 0xf8000, r.start + 0xf8010);
+	setup_indirect_pci(hose, r.start + 0xf8000, r.start + 0xf8010, 0);
 }
 
 /* Marvell Discovery II based Pegasos 2 */
@@ -277,13 +277,14 @@ chrp_find_bridges(void)
 			hose->cfg_data = p;
 			gg2_pci_config_base = p;
 		} else if (is_pegasos == 1) {
-			setup_indirect_pci(hose, 0xfec00cf8, 0xfee00cfc);
+			setup_indirect_pci(hose, 0xfec00cf8, 0xfee00cfc, 0);
 		} else if (is_pegasos == 2) {
 			setup_peg2(hose, dev);
 		} else if (!strncmp(model, "IBM,CPC710", 10)) {
 			setup_indirect_pci(hose,
 					   r.start + 0x000f8000,
-					   r.start + 0x000f8010);
+					   r.start + 0x000f8010,
+					   0);
 			if (index == 0) {
 				dma = of_get_property(dev, "system-dma-base",
 							&len);
@@ -337,3 +338,32 @@ void chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
 		chrp_pci_fixup_winbond_ata);
+
+/* Pegasos2 firmware version 20040810 configures the built-in IDE controller
+ * in legacy mode, but sets the PCI registers to PCI native mode.
+ * The chip can only operate in legacy mode, so force the PCI class into legacy
+ * mode as well. The same fixup must be done to the class-code property in
+ * the IDE node /pci@80000000/ide@C,1
+ */
+static void chrp_pci_fixup_vt8231_ata(struct pci_dev *viaide)
+{
+	u8 progif;
+	struct pci_dev *viaisa;
+
+	if (!machine_is(chrp) || _chrp_type != _CHRP_Pegasos)
+		return;
+	if (viaide->irq != 14)
+		return;
+
+	viaisa = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231, NULL);
+	if (!viaisa)
+		return;
+	printk("Fixing VIA IDE, force legacy mode on '%s'\n", viaide->dev.bus_id);
+
+	pci_read_config_byte(viaide, PCI_CLASS_PROG, &progif);
+	pci_write_config_byte(viaide, PCI_CLASS_PROG, progif & ~0x5);
+	viaide->class &= ~0x5;
+
+	pci_dev_put(viaisa);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1, chrp_pci_fixup_vt8231_ata);

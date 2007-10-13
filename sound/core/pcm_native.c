@@ -1487,7 +1487,7 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream)
 
 	snd_pcm_stream_lock_irq(substream);
 	/* resume pause */
-	if (runtime->status->state == SNDRV_PCM_STATE_PAUSED)
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_PAUSED)
 		snd_pcm_pause(substream, 0);
 
 	/* pre-start/stop - all running streams are changed to DRAINING state */

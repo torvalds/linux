@@ -825,7 +825,7 @@ static int hfa384x_get_rid(struct net_device *dev, u16 rid, void *buf, int len,
 	    local->hw_downloading)
 		return -ENODEV;
 
-	res = down_interruptible(&local->rid_bap_sem);
+	res = mutex_lock_interruptible(&local->rid_bap_mtx);
 	if (res)
 		return res;
 
@@ -834,7 +834,7 @@ static int hfa384x_get_rid(struct net_device *dev, u16 rid, void *buf, int len,
 		printk(KERN_DEBUG "%s: hfa384x_get_rid: CMDCODE_ACCESS failed "
 		       "(res=%d, rid=%04x, len=%d)\n",
 		       dev->name, res, rid, len);
-		up(&local->rid_bap_sem);
+		mutex_unlock(&local->rid_bap_mtx);
 		return res;
 	}
 
@@ -861,7 +861,7 @@ static int hfa384x_get_rid(struct net_device *dev, u16 rid, void *buf, int len,
 		res = hfa384x_from_bap(dev, BAP0, buf, len);
 
 	spin_unlock_bh(&local->baplock);
-	up(&local->rid_bap_sem);
+	mutex_unlock(&local->rid_bap_mtx);
 
 	if (res) {
 		if (res != -ENODATA)
@@ -902,7 +902,7 @@ static int hfa384x_set_rid(struct net_device *dev, u16 rid, void *buf, int len)
 	/* RID len in words and +1 for rec.rid */
 	rec.len = cpu_to_le16(len / 2 + len % 2 + 1);
 
-	res = down_interruptible(&local->rid_bap_sem);
+	res = mutex_lock_interruptible(&local->rid_bap_mtx);
 	if (res)
 		return res;
 
@@ -917,12 +917,12 @@ static int hfa384x_set_rid(struct net_device *dev, u16 rid, void *buf, int len)
 	if (res) {
 		printk(KERN_DEBUG "%s: hfa384x_set_rid (rid=%04x, len=%d) - "
 		       "failed - res=%d\n", dev->name, rid, len, res);
-		up(&local->rid_bap_sem);
+		mutex_unlock(&local->rid_bap_mtx);
 		return res;
 	}
 
 	res = hfa384x_cmd(dev, HFA384X_CMDCODE_ACCESS_WRITE, rid, NULL, NULL);
-	up(&local->rid_bap_sem);
+	mutex_unlock(&local->rid_bap_mtx);
 
 	if (res) {
 		printk(KERN_DEBUG "%s: hfa384x_set_rid: CMDCODE_ACCESS_WRITE "
@@ -2335,6 +2335,10 @@ static void prism2_txexc(local_info_t *local)
 	int show_dump, res;
 	char *payload = NULL;
 	struct hfa384x_tx_frame txdesc;
+	DECLARE_MAC_BUF(mac);
+	DECLARE_MAC_BUF(mac2);
+	DECLARE_MAC_BUF(mac3);
+	DECLARE_MAC_BUF(mac4);
 
 	show_dump = local->frame_dump & PRISM2_DUMP_TXEXC_HDR;
 	local->stats.tx_errors++;
@@ -2400,10 +2404,9 @@ static void prism2_txexc(local_info_t *local)
 	       WLAN_FC_GET_STYPE(fc) >> 4,
 	       fc & IEEE80211_FCTL_TODS ? " ToDS" : "",
 	       fc & IEEE80211_FCTL_FROMDS ? " FromDS" : "");
-	PDEBUG(DEBUG_EXTRA, "   A1=" MACSTR " A2=" MACSTR " A3="
-	       MACSTR " A4=" MACSTR "\n",
-	       MAC2STR(txdesc.addr1), MAC2STR(txdesc.addr2),
-	       MAC2STR(txdesc.addr3), MAC2STR(txdesc.addr4));
+	PDEBUG(DEBUG_EXTRA, "   A1=%s A2=%s A3=%s A4=%s\n",
+	       print_mac(mac, txdesc.addr1), print_mac(mac2, txdesc.addr2),
+	       print_mac(mac3, txdesc.addr3), print_mac(mac4, txdesc.addr4));
 }
 
 
@@ -3171,7 +3174,7 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	spin_lock_init(&local->cmdlock);
 	spin_lock_init(&local->baplock);
 	spin_lock_init(&local->lock);
-	init_MUTEX(&local->rid_bap_sem);
+	mutex_init(&local->rid_bap_mtx);
 
 	if (card_idx < 0 || card_idx >= MAX_PARM_DEVICES)
 		card_idx = 0;
@@ -3254,12 +3257,11 @@ while (0)
 
 	INIT_LIST_HEAD(&local->bss_list);
 
-	hostap_setup_dev(dev, local, 1);
-	local->saved_eth_header_parse = dev->hard_header_parse;
+	hostap_setup_dev(dev, local, HOSTAP_INTERFACE_MASTER);
 
 	dev->hard_start_xmit = hostap_master_start_xmit;
 	dev->type = ARPHRD_IEEE80211;
-	dev->hard_header_parse = hostap_80211_header_parse;
+	dev->header_ops = &hostap_80211_ops;
 
 	rtnl_lock();
 	ret = dev_alloc_name(dev, "wifi%d");
@@ -3424,7 +3426,7 @@ static void prism2_suspend(struct net_device *dev)
 	struct local_info *local;
 	union iwreq_data wrqu;
 
-	iface = dev->priv;
+	iface = netdev_priv(dev);
 	local = iface->local;
 
 	/* Send disconnect event, e.g., to trigger reassociation after resume

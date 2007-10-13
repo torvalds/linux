@@ -399,6 +399,11 @@ static struct agp_device_ids via_agp_device_ids[] __devinitdata =
 		.device_id  = PCI_DEVICE_ID_VIA_P4M890,
 		.chipset_name   = "P4M890",
 	},
+	/* P4M900 */
+	{
+		.device_id  = PCI_DEVICE_ID_VIA_VT3364,
+		.chipset_name   = "P4M900",
+	},
 	{ }, /* dummy final entry, always present */
 };
 

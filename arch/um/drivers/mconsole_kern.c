@@ -499,7 +499,7 @@ static struct mc_device mem_mc = {
 	.remove		= mem_remove,
 };
 
-static int mem_mc_init(void)
+static int __init mem_mc_init(void)
 {
 	if(can_drop_memory())
 		mconsole_register_dev(&mem_mc);
@@ -798,7 +798,7 @@ void mconsole_stack(struct mc_request *req)
  */
 static char *notify_socket = NULL;
 
-static int mconsole_init(void)
+static int __init mconsole_init(void)
 {
 	/* long to avoid size mismatch warnings from gcc */
 	long sock;

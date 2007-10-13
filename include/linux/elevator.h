@@ -5,29 +5,29 @@
 
 #ifdef CONFIG_BLOCK
 
-typedef int (elevator_merge_fn) (request_queue_t *, struct request **,
+typedef int (elevator_merge_fn) (struct request_queue *, struct request **,
 				 struct bio *);
 
-typedef void (elevator_merge_req_fn) (request_queue_t *, struct request *, struct request *);
+typedef void (elevator_merge_req_fn) (struct request_queue *, struct request *, struct request *);
 
-typedef void (elevator_merged_fn) (request_queue_t *, struct request *, int);
+typedef void (elevator_merged_fn) (struct request_queue *, struct request *, int);
 
-typedef int (elevator_allow_merge_fn) (request_queue_t *, struct request *, struct bio *);
+typedef int (elevator_allow_merge_fn) (struct request_queue *, struct request *, struct bio *);
 
-typedef int (elevator_dispatch_fn) (request_queue_t *, int);
+typedef int (elevator_dispatch_fn) (struct request_queue *, int);
 
-typedef void (elevator_add_req_fn) (request_queue_t *, struct request *);
-typedef int (elevator_queue_empty_fn) (request_queue_t *);
-typedef struct request *(elevator_request_list_fn) (request_queue_t *, struct request *);
-typedef void (elevator_completed_req_fn) (request_queue_t *, struct request *);
-typedef int (elevator_may_queue_fn) (request_queue_t *, int);
+typedef void (elevator_add_req_fn) (struct request_queue *, struct request *);
+typedef int (elevator_queue_empty_fn) (struct request_queue *);
+typedef struct request *(elevator_request_list_fn) (struct request_queue *, struct request *);
+typedef void (elevator_completed_req_fn) (struct request_queue *, struct request *);
+typedef int (elevator_may_queue_fn) (struct request_queue *, int);
 
-typedef int (elevator_set_req_fn) (request_queue_t *, struct request *, gfp_t);
+typedef int (elevator_set_req_fn) (struct request_queue *, struct request *, gfp_t);
 typedef void (elevator_put_req_fn) (struct request *);
-typedef void (elevator_activate_req_fn) (request_queue_t *, struct request *);
-typedef void (elevator_deactivate_req_fn) (request_queue_t *, struct request *);
+typedef void (elevator_activate_req_fn) (struct request_queue *, struct request *);
+typedef void (elevator_deactivate_req_fn) (struct request_queue *, struct request *);
 
-typedef void *(elevator_init_fn) (request_queue_t *);
+typedef void *(elevator_init_fn) (struct request_queue *);
 typedef void (elevator_exit_fn) (elevator_t *);
 
 struct elevator_ops
@@ -94,27 +94,27 @@ struct elevator_queue
 /*
  * block elevator interface
  */
-extern void elv_dispatch_sort(request_queue_t *, struct request *);
-extern void elv_dispatch_add_tail(request_queue_t *, struct request *);
-extern void elv_add_request(request_queue_t *, struct request *, int, int);
-extern void __elv_add_request(request_queue_t *, struct request *, int, int);
-extern void elv_insert(request_queue_t *, struct request *, int);
-extern int elv_merge(request_queue_t *, struct request **, struct bio *);
-extern void elv_merge_requests(request_queue_t *, struct request *,
+extern void elv_dispatch_sort(struct request_queue *, struct request *);
+extern void elv_dispatch_add_tail(struct request_queue *, struct request *);
+extern void elv_add_request(struct request_queue *, struct request *, int, int);
+extern void __elv_add_request(struct request_queue *, struct request *, int, int);
+extern void elv_insert(struct request_queue *, struct request *, int);
+extern int elv_merge(struct request_queue *, struct request **, struct bio *);
+extern void elv_merge_requests(struct request_queue *, struct request *,
 			       struct request *);
-extern void elv_merged_request(request_queue_t *, struct request *, int);
-extern void elv_dequeue_request(request_queue_t *, struct request *);
-extern void elv_requeue_request(request_queue_t *, struct request *);
-extern int elv_queue_empty(request_queue_t *);
+extern void elv_merged_request(struct request_queue *, struct request *, int);
+extern void elv_dequeue_request(struct request_queue *, struct request *);
+extern void elv_requeue_request(struct request_queue *, struct request *);
+extern int elv_queue_empty(struct request_queue *);
 extern struct request *elv_next_request(struct request_queue *q);
-extern struct request *elv_former_request(request_queue_t *, struct request *);
-extern struct request *elv_latter_request(request_queue_t *, struct request *);
-extern int elv_register_queue(request_queue_t *q);
-extern void elv_unregister_queue(request_queue_t *q);
-extern int elv_may_queue(request_queue_t *, int);
-extern void elv_completed_request(request_queue_t *, struct request *);
-extern int elv_set_request(request_queue_t *, struct request *, gfp_t);
-extern void elv_put_request(request_queue_t *, struct request *);
+extern struct request *elv_former_request(struct request_queue *, struct request *);
+extern struct request *elv_latter_request(struct request_queue *, struct request *);
+extern int elv_register_queue(struct request_queue *q);
+extern void elv_unregister_queue(struct request_queue *q);
+extern int elv_may_queue(struct request_queue *, int);
+extern void elv_completed_request(struct request_queue *, struct request *);
+extern int elv_set_request(struct request_queue *, struct request *, gfp_t);
+extern void elv_put_request(struct request_queue *, struct request *);
 
 /*
  * io scheduler registration
@@ -125,18 +125,18 @@ extern void elv_unregister(struct elevator_type *);
 /*
  * io scheduler sysfs switching
  */
-extern ssize_t elv_iosched_show(request_queue_t *, char *);
-extern ssize_t elv_iosched_store(request_queue_t *, const char *, size_t);
+extern ssize_t elv_iosched_show(struct request_queue *, char *);
+extern ssize_t elv_iosched_store(struct request_queue *, const char *, size_t);
 
-extern int elevator_init(request_queue_t *, char *);
+extern int elevator_init(struct request_queue *, char *);
 extern void elevator_exit(elevator_t *);
 extern int elv_rq_merge_ok(struct request *, struct bio *);
 
 /*
  * Helper functions.
  */
-extern struct request *elv_rb_former_request(request_queue_t *, struct request *);
-extern struct request *elv_rb_latter_request(request_queue_t *, struct request *);
+extern struct request *elv_rb_former_request(struct request_queue *, struct request *);
+extern struct request *elv_rb_latter_request(struct request_queue *, struct request *);
 
 /*
  * rb support functions.

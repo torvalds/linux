@@ -130,6 +130,7 @@ config ROCKETPORT
 config CYCLADES
 	tristate "Cyclades async mux support"
 	depends on SERIAL_NONSTANDARD && (PCI || ISA)
+	select FW_LOADER
 	---help---
 	  This driver supports Cyclades Z and Y multiserial boards.
 	  You would need something like this to connect more than two modems to
@@ -185,7 +186,7 @@ config ESPSERIAL
 
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
 	help
 	  Say Y here if you have a Moxa Intellio multiport serial card.
 
@@ -241,7 +242,7 @@ config SYNCLINK
 
 config SYNCLINKMP
 	tristate "SyncLink Multiport support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && PCI
 	help
 	  Enable support for the SyncLink Multiport (2 or 4 ports)
 	  serial adapter, running asynchronous and HDLC communications up
@@ -371,39 +372,6 @@ config ISTALLION
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called istallion.
-
-config SERIAL_DEC
-	bool "DECstation serial support"
-	depends on MACH_DECSTATION
-	default y
-	help
-	  This selects whether you want to be asked about drivers for
-	  DECstation serial ports.
-
-	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about DECstation serial ports.
-
-config SERIAL_DEC_CONSOLE
-	bool "Support for console on a DECstation serial port"
-	depends on SERIAL_DEC
-	default y
-	help
-	  If you say Y here, it will be possible to use a serial port as the
-	  system console (the system console is the device which receives all
-	  kernel messages and warnings and which allows logins in single user
-	  mode).  Note that the firmware uses ttyS0 as the serial console on
-	  the Maxine and ttyS2 on the others.
-
-	  If unsure, say Y.
-
-config ZS
-	bool "Z85C30 Serial Support"
-	depends on SERIAL_DEC
-	default y
-	help
-	  Documentation on the Zilog 85C350 serial communications controller
-	  is downloadable at <http://www.zilog.com/pdfs/serial/z85c30.pdf>
 
 config A2232
 	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
@@ -637,6 +605,14 @@ config HVC_BEAT
 	help
 	  Toshiba's Cell Reference Set Beat Console device driver
 
+config HVC_XEN
+	bool "Xen Hypervisor Console support"
+	depends on XEN
+	select HVC_DRIVER
+	default y
+	help
+	  Xen virtual console device driver
+
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
 	depends on PPC_PSERIES
@@ -751,7 +727,7 @@ config NVRAM
 
 config RTC
 	tristate "Enhanced Real Time Clock Support"
-	depends on !PPC && !PARISC && !IA64 && !M68K && (!SPARC || PCI) && !FRV && !ARM && !SUPERH && !S390
+	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC && !FRV && !ARM && !SUPERH && !S390
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -774,6 +750,28 @@ config RTC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc.
+
+config JS_RTC
+	tristate "Enhanced Real Time Clock Support"
+	depends on SPARC32 && PCI
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+	  Every PC has such a clock built in. It can be used to generate
+	  signals from as low as 1Hz up to 8192Hz, and can also be used
+	  as a 24 hour alarm. It reports status information via the file
+	  /proc/driver/rtc and its behaviour is set by various ioctls on
+	  /dev/rtc.
+
+	  If you think you have a use for such a device (such as periodic data
+	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called js-rtc.
 
 config SGI_DS1286
 	tristate "SGI DS1286 RTC support"

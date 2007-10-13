@@ -237,7 +237,7 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 static int remote_wakeup_is_broken(struct uhci_hcd *uhci)
 {
 	int port;
-	char *sys_info;
+	const char *sys_info;
 	static char bad_Asus_board[] = "A7V8X";
 
 	/* One of Asus's motherboards has a bug which causes it to
@@ -933,7 +933,7 @@ static int __init uhci_hcd_init(void)
 	}
 
 	uhci_up_cachep = kmem_cache_create("uhci_urb_priv",
-		sizeof(struct urb_priv), 0, 0, NULL, NULL);
+		sizeof(struct urb_priv), 0, 0, NULL);
 	if (!uhci_up_cachep)
 		goto up_failed;
 

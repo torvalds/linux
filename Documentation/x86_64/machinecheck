@@ -49,12 +49,14 @@ tolerant
 	Since machine check exceptions can happen any time it is sometimes
 	risky for the kernel to kill a process because it defies
 	normal kernel locking rules. The tolerance level configures
-	how hard the kernel tries to recover even at some risk of deadlock.
+	how hard the kernel tries to recover even at some risk of
+	deadlock.  Higher tolerant values trade potentially better uptime
+	with the risk of a crash or even corruption (for tolerant >= 3).
 
-	0: always panic,
-	1: panic if deadlock possible,
-	2: try to avoid panic,
-   	3: never panic or exit (for testing only)
+	0: always panic on uncorrected errors, log corrected errors
+	1: panic or SIGBUS on uncorrected errors, log corrected errors
+	2: SIGBUS or log uncorrected errors, log corrected errors
+	3: never panic or SIGBUS, log all errors (for testing only)
 
 	Default: 1
 

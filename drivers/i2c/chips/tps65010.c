@@ -352,7 +352,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 			/* REVISIT:  this might need its own workqueue
 			 * plus tweaks including deadlock avoidance ...
 			 * also needs to get error handling and probably
-			 * an #ifdef CONFIG_SOFTWARE_SUSPEND
+			 * an #ifdef CONFIG_HIBERNATION
 			 */
 			hibernate();
 #endif

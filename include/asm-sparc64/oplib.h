@@ -1,8 +1,7 @@
-/* $Id: oplib.h,v 1.14 2001/12/19 00:29:51 davem Exp $
- * oplib.h:  Describes the interface and available routines in the
+/* oplib.h:  Describes the interface and available routines in the
  *           Linux Prom library.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
@@ -31,8 +30,10 @@ extern int prom_chosen_node;
 extern const char prom_peer_name[];
 extern const char prom_compatible_name[];
 extern const char prom_root_compatible[];
+extern const char prom_cpu_compatible[];
 extern const char prom_finddev_name[];
 extern const char prom_chosen_path[];
+extern const char prom_cpu_path[];
 extern const char prom_getprop_name[];
 extern const char prom_mmu_name[];
 extern const char prom_callmethod_name[];
@@ -139,32 +140,6 @@ extern void prom_putchar(char character);
 /* Prom's internal routines, don't use in kernel/boot code. */
 extern void prom_printf(const char *fmt, ...);
 extern void prom_write(const char *buf, unsigned int len);
-
-/* Query for input device type */
-
-enum prom_input_device {
-	PROMDEV_IKBD,			/* input from keyboard */
-	PROMDEV_ITTYA,			/* input from ttya */
-	PROMDEV_ITTYB,			/* input from ttyb */
-	PROMDEV_IRSC,			/* input from rsc */
-	PROMDEV_IVCONS,			/* input from virtual-console */
-	PROMDEV_I_UNK,
-};
-
-extern enum prom_input_device prom_query_input_device(void);
-
-/* Query for output device type */
-
-enum prom_output_device {
-	PROMDEV_OSCREEN,		/* to screen */
-	PROMDEV_OTTYA,			/* to ttya */
-	PROMDEV_OTTYB,			/* to ttyb */
-	PROMDEV_ORSC,			/* to rsc */
-	PROMDEV_OVCONS,			/* to virtual-console */
-	PROMDEV_O_UNK,
-};
-
-extern enum prom_output_device prom_query_output_device(void);
 
 /* Multiprocessor operations... */
 #ifdef CONFIG_SMP
@@ -319,12 +294,10 @@ extern int prom_inst2pkg(int);
 extern int prom_service_exists(const char *service_name);
 extern void prom_sun4v_guest_soft_state(void);
 
-/* Client interface level routines. */
-extern void prom_set_trap_table(unsigned long tba);
-extern void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa);
+extern int prom_ihandle2path(int handle, char *buffer, int bufsize);
 
+/* Client interface level routines. */
 extern long p1275_cmd(const char *, long, ...);
-				   
 
 #if 0
 #define P1275_SIZE(x) ((((long)((x) / 32)) << 32) | (x))

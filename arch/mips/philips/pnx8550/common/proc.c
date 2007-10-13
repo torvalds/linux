@@ -27,20 +27,20 @@
 #include <uart.h>
 
 
-static int pnx8550_timers_read (char* page, char** start, off_t offset, int count, int* eof, void* data)
+static int pnx8550_timers_read(char* page, char** start, off_t offset, int count, int* eof, void* data)
 {
         int len = 0;
 	int configPR = read_c0_config7();
 
         if (offset==0) {
-		len += sprintf(&page[len],"Timer:       count,  compare, tc, status\n");
-                len += sprintf(&page[len],"    1: %11i, %8i,  %1i, %s\n",
+		len += sprintf(&page[len], "Timer:       count,  compare, tc, status\n");
+                len += sprintf(&page[len], "    1: %11i, %8i,  %1i, %s\n",
 			       read_c0_count(), read_c0_compare(),
 			      (configPR>>6)&0x1, ((configPR>>3)&0x1)? "off":"on");
-                len += sprintf(&page[len],"    2: %11i, %8i,  %1i, %s\n",
+                len += sprintf(&page[len], "    2: %11i, %8i,  %1i, %s\n",
 			       read_c0_count2(), read_c0_compare2(),
 			      (configPR>>7)&0x1, ((configPR>>4)&0x1)? "off":"on");
-                len += sprintf(&page[len],"    3: %11i, %8i,  %1i, %s\n",
+                len += sprintf(&page[len], "    3: %11i, %8i,  %1i, %s\n",
 			       read_c0_count3(), read_c0_compare3(),
 			      (configPR>>8)&0x1, ((configPR>>5)&0x1)? "off":"on");
         }
@@ -48,23 +48,23 @@ static int pnx8550_timers_read (char* page, char** start, off_t offset, int coun
         return len;
 }
 
-static int pnx8550_registers_read (char* page, char** start, off_t offset, int count, int* eof, void* data)
+static int pnx8550_registers_read(char* page, char** start, off_t offset, int count, int* eof, void* data)
 {
         int len = 0;
 
         if (offset==0) {
-                len += sprintf(&page[len],"config1:   %#10.8x\n",read_c0_config1());
-                len += sprintf(&page[len],"config2:   %#10.8x\n",read_c0_config2());
-                len += sprintf(&page[len],"config3:   %#10.8x\n",read_c0_config3());
-                len += sprintf(&page[len],"configPR:  %#10.8x\n",read_c0_config7());
-                len += sprintf(&page[len],"status:    %#10.8x\n",read_c0_status());
-                len += sprintf(&page[len],"cause:     %#10.8x\n",read_c0_cause());
-                len += sprintf(&page[len],"count:     %#10.8x\n",read_c0_count());
-                len += sprintf(&page[len],"count_2:   %#10.8x\n",read_c0_count2());
-                len += sprintf(&page[len],"count_3:   %#10.8x\n",read_c0_count3());
-                len += sprintf(&page[len],"compare:   %#10.8x\n",read_c0_compare());
-                len += sprintf(&page[len],"compare_2: %#10.8x\n",read_c0_compare2());
-                len += sprintf(&page[len],"compare_3: %#10.8x\n",read_c0_compare3());
+                len += sprintf(&page[len], "config1:   %#10.8x\n", read_c0_config1());
+                len += sprintf(&page[len], "config2:   %#10.8x\n", read_c0_config2());
+                len += sprintf(&page[len], "config3:   %#10.8x\n", read_c0_config3());
+                len += sprintf(&page[len], "configPR:  %#10.8x\n", read_c0_config7());
+                len += sprintf(&page[len], "status:    %#10.8x\n", read_c0_status());
+                len += sprintf(&page[len], "cause:     %#10.8x\n", read_c0_cause());
+                len += sprintf(&page[len], "count:     %#10.8x\n", read_c0_count());
+                len += sprintf(&page[len], "count_2:   %#10.8x\n", read_c0_count2());
+                len += sprintf(&page[len], "count_3:   %#10.8x\n", read_c0_count3());
+                len += sprintf(&page[len], "compare:   %#10.8x\n", read_c0_compare());
+                len += sprintf(&page[len], "compare_2: %#10.8x\n", read_c0_compare2());
+                len += sprintf(&page[len], "compare_3: %#10.8x\n", read_c0_compare3());
         }
 
         return len;

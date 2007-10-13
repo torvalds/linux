@@ -304,3 +304,11 @@ prom_pathtoinode(const char *path)
 	if (node == -1) return 0;
 	return node;
 }
+
+int prom_ihandle2path(int handle, char *buffer, int bufsize)
+{
+	return p1275_cmd("instance-to-path",
+			 P1275_ARG(1,P1275_ARG_OUT_BUF)|
+			 P1275_INOUT(3, 1),
+			 handle, buffer, P1275_SIZE(bufsize));
+}

@@ -132,3 +132,8 @@ void xmon_printf(const char *format, ...)
 	va_end(args);
 	xmon_write(xmon_outbuf, n);
 }
+
+void xmon_puts(const char *str)
+{
+	xmon_write(str, strlen(str));
+}

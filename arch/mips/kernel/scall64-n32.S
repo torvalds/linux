@@ -375,7 +375,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_mkdirat
 	PTR	sys_mknodat
 	PTR	sys_fchownat
-	PTR	sys_futimesat			/* 6255 */
+	PTR	compat_sys_futimesat		/* 6255 */
 	PTR	sys_newfstatat
 	PTR	sys_unlinkat
 	PTR	sys_renameat
@@ -403,4 +403,5 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_signalfd		/* 5280 */
 	PTR	compat_sys_timerfd
 	PTR	sys_eventfd
+	PTR	sys_fallocate
 	.size	sysn32_call_table,.-sysn32_call_table

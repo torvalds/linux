@@ -1,8 +1,7 @@
-/* $Id: systbls.S,v 1.103 2002/02/08 03:57:14 davem Exp $
- * systbls.S: System call entry point tables for OS compatibility.
+/* systbls.S: System call entry point tables for OS compatibility.
  *            The native Linux system call table lives here also.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
  *
  * Based upon preliminary work which is:
  *
@@ -80,7 +79,7 @@ sys_call_table:
 /*295*/	.long sys_fchmodat, sys_faccessat, sys_pselect6, sys_ppoll, sys_unshare
 /*300*/	.long sys_set_robust_list, sys_get_robust_list, sys_migrate_pages, sys_mbind, sys_get_mempolicy
 /*305*/	.long sys_set_mempolicy, sys_kexec_load, sys_move_pages, sys_getcpu, sys_epoll_pwait
-/*310*/	.long sys_utimensat, sys_signalfd, sys_timerfd, sys_eventfd
+/*310*/	.long sys_utimensat, sys_signalfd, sys_timerfd, sys_eventfd, sys_fallocate
 
 #ifdef CONFIG_SUNOS_EMUL
 	/* Now the SunOS syscall table. */
@@ -198,6 +197,6 @@ sunos_sys_table:
 	.long sunos_nosys, sunos_nosys, sunos_nosys
 	.long sunos_nosys
 /*310*/	.long sunos_nosys, sunos_nosys, sunos_nosys
-	.long sunos_nosys
+	.long sunos_nosys, sunos_nosys
 
 #endif

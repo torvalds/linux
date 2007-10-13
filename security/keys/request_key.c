@@ -108,7 +108,8 @@ static int call_sbin_request_key(struct key *key,
 	argv[i] = NULL;
 
 	/* do it */
-	ret = call_usermodehelper_keys(argv[0], argv, envp, keyring, 1);
+	ret = call_usermodehelper_keys(argv[0], argv, envp, keyring,
+				       UMH_WAIT_PROC);
 
 error_link:
 	key_put(keyring);

@@ -18,6 +18,7 @@
 #include <linux/kdebug.h>
 #include <linux/tick.h>
 #include <linux/reboot.h>
+#include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
@@ -474,7 +475,6 @@ out:
 
 unsigned long get_wchan(struct task_struct *p)
 {
-	unsigned long schedule_frame;
 	unsigned long pc;
 
 	if (!p || p == current || p->state == TASK_RUNNING)
@@ -484,10 +484,13 @@ unsigned long get_wchan(struct task_struct *p)
 	 * The same comment as on the Alpha applies here, too ...
 	 */
 	pc = thread_saved_pc(p);
+
+#ifdef CONFIG_FRAME_POINTER
 	if (in_sched_functions(pc)) {
-		schedule_frame = (unsigned long)p->thread.sp;
+		unsigned long schedule_frame = (unsigned long)p->thread.sp;
 		return ((unsigned long *)schedule_frame)[21];
 	}
+#endif
 
 	return pc;
 }

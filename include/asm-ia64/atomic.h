@@ -55,7 +55,7 @@ ia64_atomic64_add (__s64 i, atomic64_t *v)
 
 	do {
 		CMPXCHG_BUGCHECK(v);
-		old = atomic_read(v);
+		old = atomic64_read(v);
 		new = old + i;
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic64_t)) != old);
 	return new;
@@ -83,7 +83,7 @@ ia64_atomic64_sub (__s64 i, atomic64_t *v)
 
 	do {
 		CMPXCHG_BUGCHECK(v);
-		old = atomic_read(v);
+		old = atomic64_read(v);
 		new = old - i;
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic64_t)) != old);
 	return new;

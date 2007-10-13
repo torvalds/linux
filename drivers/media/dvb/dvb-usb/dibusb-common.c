@@ -295,7 +295,7 @@ int dibusb_dib3000mc_tuner_attach(struct dvb_usb_adapter *adap)
 	tun_i2c = dib3000mc_get_tuner_i2c_master(adap->fe, 1);
 	if (dvb_attach(mt2060_attach, adap->fe, tun_i2c, &stk3000p_mt2060_config, if1) == NULL) {
 		/* not found - use panasonic pll parameters */
-		if (dvb_attach(dvb_pll_attach, adap->fe, 0x60, tun_i2c, &dvb_pll_env57h1xd5) == NULL)
+		if (dvb_attach(dvb_pll_attach, adap->fe, 0x60, tun_i2c, DVB_PLL_ENV57H1XD5) == NULL)
 			return -ENOMEM;
 	} else {
 		st->mt2060_present = 1;

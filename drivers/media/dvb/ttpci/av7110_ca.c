@@ -151,7 +151,7 @@ static ssize_t ci_ll_write(struct dvb_ringbuffer *cibuf, struct file *file,
 {
 	int free;
 	int non_blocking = file->f_flags & O_NONBLOCK;
-	char *page = (char *)__get_free_page(GFP_USER);
+	u8 *page = (u8 *)__get_free_page(GFP_USER);
 	int res;
 
 	if (!page)
@@ -208,7 +208,7 @@ static ssize_t ci_ll_read(struct dvb_ringbuffer *cibuf, struct file *file,
 		return -EINVAL;
 	DVB_RINGBUFFER_SKIP(cibuf, 2);
 
-	return dvb_ringbuffer_read(cibuf, buf, len, 1);
+	return dvb_ringbuffer_read(cibuf, (u8 *)buf, len, 1);
 }
 
 static int dvb_ca_open(struct inode *inode, struct file *file)

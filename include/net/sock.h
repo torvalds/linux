@@ -40,6 +40,7 @@
 #ifndef _SOCK_H
 #define _SOCK_H
 
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/cache.h>
@@ -55,6 +56,7 @@
 #include <asm/atomic.h>
 #include <net/dst.h>
 #include <net/checksum.h>
+#include <net/net_namespace.h>
 
 /*
  * This structure really needs to be cleaned up.
@@ -75,10 +77,9 @@
  * between user contexts and software interrupt processing, whereas the
  * mini-semaphore synchronizes multiple users amongst themselves.
  */
-struct sock_iocb;
 typedef struct {
 	spinlock_t		slock;
-	struct sock_iocb	*owner;
+	int			owned;
 	wait_queue_head_t	wq;
 	/*
 	 * We express the mutex-alike socket_lock semantics
@@ -105,6 +106,7 @@ struct proto;
  *	@skc_refcnt: reference count
  *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_prot: protocol handlers inside a network family
+ *	@skc_net: reference to the network namespace of this socket
  *
  *	This is the minimal network layer representation of sockets, the header
  *	for struct sock and struct inet_timewait_sock.
@@ -119,6 +121,7 @@ struct sock_common {
 	atomic_t		skc_refcnt;
 	unsigned int		skc_hash;
 	struct proto		*skc_prot;
+	struct net	 	*skc_net;
 };
 
 /**
@@ -195,6 +198,7 @@ struct sock {
 #define sk_refcnt		__sk_common.skc_refcnt
 #define sk_hash			__sk_common.skc_hash
 #define sk_prot			__sk_common.skc_prot
+#define sk_net			__sk_common.skc_net
 	unsigned char		sk_shutdown : 2,
 				sk_no_check : 2,
 				sk_userlocks : 4;
@@ -481,17 +485,17 @@ static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 	skb->next = NULL;
 }
 
-#define sk_wait_event(__sk, __timeo, __condition)		\
-({	int rc;							\
-	release_sock(__sk);					\
-	rc = __condition;					\
-	if (!rc) {						\
-		*(__timeo) = schedule_timeout(*(__timeo));	\
-	}							\
-	lock_sock(__sk);					\
-	rc = __condition;					\
-	rc;							\
-})
+#define sk_wait_event(__sk, __timeo, __condition)			\
+	({	int __rc;						\
+		release_sock(__sk);					\
+		__rc = __condition;					\
+		if (!__rc) {						\
+			*(__timeo) = schedule_timeout(*(__timeo));	\
+		}							\
+		lock_sock(__sk);					\
+		__rc = __condition;					\
+		__rc;							\
+	})
 
 extern int sk_stream_wait_connect(struct sock *sk, long *timeo_p);
 extern int sk_stream_wait_memory(struct sock *sk, long *timeo_p);
@@ -702,7 +706,7 @@ extern int sk_stream_mem_schedule(struct sock *sk, int size, int kind);
 
 static inline int sk_stream_pages(int amt)
 {
-	return (amt + SK_STREAM_MEM_QUANTUM - 1) / SK_STREAM_MEM_QUANTUM;
+	return DIV_ROUND_UP(amt, SK_STREAM_MEM_QUANTUM);
 }
 
 static inline void sk_stream_mem_reclaim(struct sock *sk)
@@ -736,7 +740,7 @@ static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
  * Since ~2.3.5 it is also exclusive sleep lock serializing
  * accesses from user process context.
  */
-#define sock_owned_by_user(sk)	((sk)->sk_lock.owner)
+#define sock_owned_by_user(sk)	((sk)->sk_lock.owned)
 
 /*
  * Macro so as to not evaluate some arguments when
@@ -747,7 +751,7 @@ static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
  */
 #define sock_lock_init_class_and_name(sk, sname, skey, name, key) 	\
 do {									\
-	sk->sk_lock.owner = NULL;					\
+	sk->sk_lock.owned = 0;					\
 	init_waitqueue_head(&sk->sk_lock.wq);				\
 	spin_lock_init(&(sk)->sk_lock.slock);				\
 	debug_check_no_locks_freed((void *)&(sk)->sk_lock,		\
@@ -773,7 +777,7 @@ extern void FASTCALL(release_sock(struct sock *sk));
 				SINGLE_DEPTH_NESTING)
 #define bh_unlock_sock(__sk)	spin_unlock(&((__sk)->sk_lock.slock))
 
-extern struct sock		*sk_alloc(int family,
+extern struct sock		*sk_alloc(struct net *net, int family,
 					  gfp_t priority,
 					  struct proto *prot, int zero_it);
 extern void			sk_free(struct sock *sk);
@@ -1002,6 +1006,7 @@ static inline void sock_copy(struct sock *nsk, const struct sock *osk)
 #endif
 
 	memcpy(nsk, osk, osk->sk_prot->obj_size);
+	get_net(nsk->sk_net);
 #ifdef CONFIG_SECURITY_NETWORK
 	nsk->sk_security = sptr;
 	security_sk_clone(osk, nsk);

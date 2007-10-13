@@ -655,32 +655,32 @@ typedef enum {
 
 struct amd8111e_tx_dr{
 
-	u16 buff_count; /* Size of the buffer pointed by this descriptor */
+	__le16 buff_count; /* Size of the buffer pointed by this descriptor */
 
-	u16 tx_flags;
+	__le16 tx_flags;
 
-	u16 tag_ctrl_info;
+	__le16 tag_ctrl_info;
 
-	u16 tag_ctrl_cmd;
+	__le16 tag_ctrl_cmd;
 
-	u32 buff_phy_addr;
+	__le32 buff_phy_addr;
 
-	u32 reserved;
+	__le32 reserved;
 };
 
 struct amd8111e_rx_dr{
 
-	u32 reserved;
+	__le32 reserved;
 
-	u16 msg_count; /* Received message len */
+	__le16 msg_count; /* Received message len */
 
-	u16 tag_ctrl_info;
+	__le16 tag_ctrl_info;
 
-	u16 buff_count;  /* Len of the buffer pointed by descriptor. */
+	__le16 buff_count;  /* Len of the buffer pointed by descriptor. */
 
-	u16 rx_flags;
+	__le16 rx_flags;
 
-	u32 buff_phy_addr;
+	__le32 buff_phy_addr;
 
 };
 struct amd8111e_link_config{
@@ -762,6 +762,8 @@ struct amd8111e_priv{
 	dma_addr_t rx_dma_addr[NUM_RX_BUFFERS];
 	/* Reg memory mapped address */
 	void __iomem *mmio;
+
+	struct napi_struct napi;
 
 	spinlock_t lock;	/* Guard lock */
 	unsigned long rx_idx, tx_idx;	/* The next free ring entry */

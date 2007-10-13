@@ -41,7 +41,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	/*
 	 * We are in process context(kernel thread), so can sleep.
 	 */
-	dev = kmalloc(sizeof(struct w1_master) + sizeof(struct w1_bus_master), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct w1_master) + sizeof(struct w1_bus_master), GFP_KERNEL);
 	if (!dev) {
 		printk(KERN_ERR
 			"Failed to allocate %zd bytes for new w1 device.\n",
@@ -49,7 +49,6 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 		return NULL;
 	}
 
-	memset(dev, 0, sizeof(struct w1_master) + sizeof(struct w1_bus_master));
 
 	dev->bus_master = (struct w1_bus_master *)(dev + 1);
 
@@ -171,22 +170,24 @@ void __w1_remove_master_device(struct w1_master *dev)
 
 void w1_remove_master_device(struct w1_bus_master *bm)
 {
-	struct w1_master *dev = NULL;
+	struct w1_master *dev, *found = NULL;
 
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
 		if (!dev->initialized)
 			continue;
 
-		if (dev->bus_master->data == bm->data)
+		if (dev->bus_master->data == bm->data) {
+			found = dev;
 			break;
+		}
 	}
 
-	if (!dev) {
+	if (!found) {
 		printk(KERN_ERR "Device doesn't exist.\n");
 		return;
 	}
 
-	__w1_remove_master_device(dev);
+	__w1_remove_master_device(found);
 }
 
 EXPORT_SYMBOL(w1_add_master_device);

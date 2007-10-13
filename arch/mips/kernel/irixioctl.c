@@ -238,7 +238,7 @@ asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 		       current->comm, current->pid, cmd);
 		do_exit(255);
 #else
-		error = sys_ioctl (fd, cmd, arg);
+		error = sys_ioctl(fd, cmd, arg);
 #endif
 	}
 

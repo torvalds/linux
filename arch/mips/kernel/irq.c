@@ -74,19 +74,11 @@ EXPORT_SYMBOL_GPL(free_irqno);
  */
 void ack_bad_irq(unsigned int irq)
 {
+	smtc_im_ack_irq(irq);
 	printk("unexpected IRQ # %d\n", irq);
 }
 
 atomic_t irq_err_count;
-
-#ifdef CONFIG_MIPS_MT_SMTC
-/*
- * SMTC Kernel needs to manipulate low-level CPU interrupt mask
- * in do_IRQ. These are passed in setup_irq_smtc() and stored
- * in this table.
- */
-unsigned long irq_hwmask[NR_IRQS];
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 /*
  * Generic, controller-independent functions:
@@ -101,7 +93,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (i == 0) {
 		seq_printf(p, "           ");
 		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ",j);
+			seq_printf(p, "CPU%d       ", j);
 		seq_putc(p, '\n');
 	}
 
@@ -110,7 +102,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		action = irq_desc[i].action;
 		if (!action)
 			goto skip;
-		seq_printf(p, "%3d: ",i);
+		seq_printf(p, "%3d: ", i);
 #ifndef CONFIG_SMP
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #else

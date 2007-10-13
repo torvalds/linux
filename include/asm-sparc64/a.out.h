@@ -101,6 +101,8 @@ struct relocation_info /* used when header.a_machtype == M_SPARC */
 #define STACK_TOP (test_thread_flag(TIF_32BIT) ? \
 		   STACK_TOP32 : STACK_TOP64)
 
+#define STACK_TOP_MAX STACK_TOP64
+
 #endif
 
 #endif /* !(__ASSEMBLY__) */

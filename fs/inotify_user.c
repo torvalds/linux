@@ -716,10 +716,10 @@ static int __init inotify_user_setup(void)
 
 	watch_cachep = kmem_cache_create("inotify_watch_cache",
 					 sizeof(struct inotify_user_watch),
-					 0, SLAB_PANIC, NULL, NULL);
+					 0, SLAB_PANIC, NULL);
 	event_cachep = kmem_cache_create("inotify_event_cache",
 					 sizeof(struct inotify_kernel_event),
-					 0, SLAB_PANIC, NULL, NULL);
+					 0, SLAB_PANIC, NULL);
 
 	return 0;
 }

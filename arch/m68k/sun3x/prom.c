@@ -92,7 +92,7 @@ static struct console sun3x_debug = {
 	.index	= -1,
 };
 
-void sun3x_prom_init(void)
+void __init sun3x_prom_init(void)
 {
 	/* Read the vector table */
 

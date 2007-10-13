@@ -5,9 +5,8 @@
  *	         hardware timer only exists in the Freescale ColdFire
  *		 5270/5271, 5282 and other CPUs.
  *
- *	Copyright (C) 1999-2006, Greg Ungerer (gerg@snapgear.com)
+ *	Copyright (C) 1999-2007, Greg Ungerer (gerg@snapgear.com)
  *	Copyright (C) 2001-2004, SnapGear Inc. (www.snapgear.com)
- *
  */
 
 /***************************************************************************/
@@ -17,8 +16,8 @@
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/coldfire.h>
 #include <asm/mcfpit.h>
 #include <asm/mcfsim.h>
@@ -43,13 +42,18 @@ void coldfire_pit_tick(void)
 
 /***************************************************************************/
 
+static struct irqaction coldfire_pit_irq = {
+	.name    = "timer",
+	.flags   = IRQF_DISABLED | IRQF_TIMER,
+};
+
 void coldfire_pit_init(irq_handler_t handler)
 {
 	volatile unsigned char *icrp;
 	volatile unsigned long *imrp;
 
-	request_irq(MCFINT_VECBASE + MCFINT_PIT1, handler, IRQF_DISABLED,
-		"ColdFire Timer", NULL);
+	coldfire_pit_irq.handler = handler;
+	setup_irq(MCFINT_VECBASE + MCFINT_PIT1, &coldfire_pit_irq);
 
 	icrp = (volatile unsigned char *) (MCF_IPSBAR + MCFICM_INTC0 +
 		MCFINTC_ICR0 + MCFINT_PIT1);

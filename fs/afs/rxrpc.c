@@ -792,6 +792,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 {
 	struct msghdr msg;
 	struct iovec iov[1];
+	int n;
 
 	_enter("");
 
@@ -806,22 +807,20 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	msg.msg_flags		= 0;
 
 	call->state = AFS_CALL_AWAIT_ACK;
-	switch (rxrpc_kernel_send_data(call->rxcall, &msg, len)) {
-	case 0:
+	n = rxrpc_kernel_send_data(call->rxcall, &msg, len);
+	if (n >= 0) {
 		_leave(" [replied]");
 		return;
-
-	case -ENOMEM:
+	}
+	if (n == -ENOMEM) {
 		_debug("oom");
 		rxrpc_kernel_abort_call(call->rxcall, RX_USER_ABORT);
-	default:
-		rxrpc_kernel_end_call(call->rxcall);
-		call->rxcall = NULL;
-		call->type->destructor(call);
-		afs_free_call(call);
-		_leave(" [error]");
-		return;
 	}
+	rxrpc_kernel_end_call(call->rxcall);
+	call->rxcall = NULL;
+	call->type->destructor(call);
+	afs_free_call(call);
+	_leave(" [error]");
 }
 
 /*

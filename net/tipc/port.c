@@ -41,7 +41,6 @@
 #include "addr.h"
 #include "link.h"
 #include "node.h"
-#include "port.h"
 #include "name_table.h"
 #include "user_reg.h"
 #include "msg.h"

@@ -119,7 +119,6 @@ struct lance_private {
 	int lance_log_rx_bufs, lance_log_tx_bufs;
 	int rx_ring_mod_mask, tx_ring_mod_mask;
 
-	struct net_device_stats stats;
 	int tpe;		      /* cable-selection is TPE */
 	int auto_select;	      /* cable-selection by carrier */
 	unsigned short busmaster_regval;
@@ -294,18 +293,18 @@ static int lance_rx (struct net_device *dev)
 
 		/* We got an incomplete frame? */
 		if ((bits & LE_R1_POK) != LE_R1_POK) {
-			lp->stats.rx_over_errors++;
-			lp->stats.rx_errors++;
+			dev->stats.rx_over_errors++;
+			dev->stats.rx_errors++;
 			continue;
 		} else if (bits & LE_R1_ERR) {
 			/* Count only the end frame as a rx error,
 			 * not the beginning
 			 */
-			if (bits & LE_R1_BUF) lp->stats.rx_fifo_errors++;
-			if (bits & LE_R1_CRC) lp->stats.rx_crc_errors++;
-			if (bits & LE_R1_OFL) lp->stats.rx_over_errors++;
-			if (bits & LE_R1_FRA) lp->stats.rx_frame_errors++;
-			if (bits & LE_R1_EOP) lp->stats.rx_errors++;
+			if (bits & LE_R1_BUF) dev->stats.rx_fifo_errors++;
+			if (bits & LE_R1_CRC) dev->stats.rx_crc_errors++;
+			if (bits & LE_R1_OFL) dev->stats.rx_over_errors++;
+			if (bits & LE_R1_FRA) dev->stats.rx_frame_errors++;
+			if (bits & LE_R1_EOP) dev->stats.rx_errors++;
 		} else {
 			len = (rd->mblength & 0xfff) - 4;
 			skb = dev_alloc_skb (len+2);
@@ -313,7 +312,7 @@ static int lance_rx (struct net_device *dev)
 			if (skb == 0) {
 				printk(KERN_WARNING "%s: Memory squeeze, "
 				       "deferring packet.\n", dev->name);
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				rd->mblength = 0;
 				rd->rmd1_bits = LE_R1_OWN;
 				lp->rx_new = (lp->rx_new + 1) & lp->rx_ring_mod_mask;
@@ -328,8 +327,8 @@ static int lance_rx (struct net_device *dev)
 			skb->protocol = eth_type_trans (skb, dev);
 			netif_rx (skb);
 			dev->last_rx = jiffies;
-			lp->stats.rx_packets++;
-			lp->stats.rx_bytes += len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += len;
 		}
 
 		/* Return the packet to the pool */
@@ -364,12 +363,12 @@ static int lance_tx (struct net_device *dev)
 		if (td->tmd1_bits & LE_T1_ERR) {
 			status = td->misc;
 
-			lp->stats.tx_errors++;
-			if (status & LE_T3_RTY)  lp->stats.tx_aborted_errors++;
-			if (status & LE_T3_LCOL) lp->stats.tx_window_errors++;
+			dev->stats.tx_errors++;
+			if (status & LE_T3_RTY)  dev->stats.tx_aborted_errors++;
+			if (status & LE_T3_LCOL) dev->stats.tx_window_errors++;
 
 			if (status & LE_T3_CLOS) {
-				lp->stats.tx_carrier_errors++;
+				dev->stats.tx_carrier_errors++;
 				if (lp->auto_select) {
 					lp->tpe = 1 - lp->tpe;
 					printk(KERN_ERR "%s: Carrier Lost, "
@@ -388,7 +387,7 @@ static int lance_tx (struct net_device *dev)
 			/* buffer errors and underflows turn off the transmitter */
 			/* Restart the adapter */
 			if (status & (LE_T3_BUF|LE_T3_UFL)) {
-				lp->stats.tx_fifo_errors++;
+				dev->stats.tx_fifo_errors++;
 
 				printk(KERN_ERR "%s: Tx: ERR_BUF|ERR_UFL, "
 				       "restarting\n", dev->name);
@@ -408,13 +407,13 @@ static int lance_tx (struct net_device *dev)
 
 			/* One collision before packet was sent. */
 			if (td->tmd1_bits & LE_T1_EONE)
-				lp->stats.collisions++;
+				dev->stats.collisions++;
 
 			/* More than one collision, be optimistic. */
 			if (td->tmd1_bits & LE_T1_EMORE)
-				lp->stats.collisions += 2;
+				dev->stats.collisions += 2;
 
-			lp->stats.tx_packets++;
+			dev->stats.tx_packets++;
 		}
 
 		j = (j + 1) & lp->tx_ring_mod_mask;
@@ -459,9 +458,9 @@ static irqreturn_t lance_interrupt (int irq, void *dev_id)
 
 	/* Log misc errors. */
 	if (csr0 & LE_C0_BABL)
-		lp->stats.tx_errors++;       /* Tx babble. */
+		dev->stats.tx_errors++;       /* Tx babble. */
 	if (csr0 & LE_C0_MISS)
-		lp->stats.rx_errors++;       /* Missed a Rx frame. */
+		dev->stats.rx_errors++;       /* Missed a Rx frame. */
 	if (csr0 & LE_C0_MERR) {
 		printk(KERN_ERR "%s: Bus master arbitration failure, status "
 		       "%4.4x.\n", dev->name, csr0);
@@ -606,7 +605,7 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	/* Now, give the packet to the lance */
 	ib->btx_ring [entry].tmd1_bits = (LE_T1_POK|LE_T1_OWN);
 	lp->tx_new = (lp->tx_new+1) & lp->tx_ring_mod_mask;
-	lp->stats.tx_bytes += skblen;
+	dev->stats.tx_bytes += skblen;
 
 	if (TX_BUFFS_AVAIL <= 0)
 		netif_stop_queue(dev);
@@ -619,13 +618,6 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	local_irq_restore(flags);
 
 	return status;
-}
-
-static struct net_device_stats *lance_get_stats (struct net_device *dev)
-{
-	struct lance_private *lp = netdev_priv(dev);
-
-	return &lp->stats;
 }
 
 /* taken from the depca driver */
@@ -724,6 +716,7 @@ static int __devinit a2065_init_one(struct zorro_dev *z,
 	unsigned long board, base_addr, mem_start;
 	struct resource *r1, *r2;
 	int err;
+	DECLARE_MAC_BUF(mac);
 
 	board = z->resource.start;
 	base_addr = board+A2065_LANCE;
@@ -746,7 +739,6 @@ static int __devinit a2065_init_one(struct zorro_dev *z,
 		return -ENOMEM;
 	}
 
-	SET_MODULE_OWNER(dev);
 	priv = netdev_priv(dev);
 
 	r1->name = dev->name;
@@ -783,7 +775,6 @@ static int __devinit a2065_init_one(struct zorro_dev *z,
 	dev->hard_start_xmit = &lance_start_xmit;
 	dev->tx_timeout = &lance_tx_timeout;
 	dev->watchdog_timeo = 5*HZ;
-	dev->get_stats = &lance_get_stats;
 	dev->set_multicast_list = &lance_set_multicast;
 	dev->dma = 0;
 
@@ -802,9 +793,8 @@ static int __devinit a2065_init_one(struct zorro_dev *z,
 	zorro_set_drvdata(z, dev);
 
 	printk(KERN_INFO "%s: A2065 at 0x%08lx, Ethernet Address "
-	       "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name, board,
-	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	       "%s\n", dev->name, board,
+	       print_mac(mac, dev->dev_addr));
 
 	return 0;
 }

@@ -183,7 +183,7 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 	int err;
 	int header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
 
-	err = skb_cow(skb, header_size);
+	err = skb_cow_head(skb, header_size);
 	if (err)
 		return err;
 
@@ -509,8 +509,14 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 				      int (*okfn)(struct sk_buff *))
 {
 	struct iphdr *iph;
-	__u32 len;
 	struct sk_buff *skb = *pskb;
+	__u32 len = nf_bridge_encap_header_len(skb);
+
+	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+		return NF_STOLEN;
+
+	if (unlikely(!pskb_may_pull(skb, len)))
+		goto out;
 
 	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
 	    IS_PPPOE_IPV6(skb)) {
@@ -518,8 +524,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		if (!brnf_call_ip6tables)
 			return NF_ACCEPT;
 #endif
-		if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
-			goto out;
 		nf_bridge_pull_encap_header_rcsum(skb);
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
@@ -532,8 +536,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 	    !IS_PPPOE_IP(skb))
 		return NF_ACCEPT;
 
-	if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
-		goto out;
 	nf_bridge_pull_encap_header_rcsum(skb);
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
@@ -902,7 +904,6 @@ int brnf_sysctl_call_tables(ctl_table * ctl, int write, struct file *filp,
 
 static ctl_table brnf_table[] = {
 	{
-		.ctl_name	= NET_BRIDGE_NF_CALL_ARPTABLES,
 		.procname	= "bridge-nf-call-arptables",
 		.data		= &brnf_call_arptables,
 		.maxlen		= sizeof(int),
@@ -910,7 +911,6 @@ static ctl_table brnf_table[] = {
 		.proc_handler	= &brnf_sysctl_call_tables,
 	},
 	{
-		.ctl_name	= NET_BRIDGE_NF_CALL_IPTABLES,
 		.procname	= "bridge-nf-call-iptables",
 		.data		= &brnf_call_iptables,
 		.maxlen		= sizeof(int),
@@ -918,7 +918,6 @@ static ctl_table brnf_table[] = {
 		.proc_handler	= &brnf_sysctl_call_tables,
 	},
 	{
-		.ctl_name	= NET_BRIDGE_NF_CALL_IP6TABLES,
 		.procname	= "bridge-nf-call-ip6tables",
 		.data		= &brnf_call_ip6tables,
 		.maxlen		= sizeof(int),
@@ -926,7 +925,6 @@ static ctl_table brnf_table[] = {
 		.proc_handler	= &brnf_sysctl_call_tables,
 	},
 	{
-		.ctl_name	= NET_BRIDGE_NF_FILTER_VLAN_TAGGED,
 		.procname	= "bridge-nf-filter-vlan-tagged",
 		.data		= &brnf_filter_vlan_tagged,
 		.maxlen		= sizeof(int),
@@ -934,7 +932,6 @@ static ctl_table brnf_table[] = {
 		.proc_handler	= &brnf_sysctl_call_tables,
 	},
 	{
-		.ctl_name	= NET_BRIDGE_NF_FILTER_PPPOE_TAGGED,
 		.procname	= "bridge-nf-filter-pppoe-tagged",
 		.data		= &brnf_filter_pppoe_tagged,
 		.maxlen		= sizeof(int),

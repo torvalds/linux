@@ -178,7 +178,7 @@ swapper_pg_dir:
 halt_msg:
 	stringz "Halting kernel\n"
 
-	.text
+	.section .text.head,"ax"
 
 	.global start_ap
 
@@ -391,6 +391,8 @@ start_ap:
 self:	hint @pause
 	br.sptk.many self		// endless loop
 END(_start)
+
+	.text
 
 GLOBAL_ENTRY(ia64_save_debug_regs)
 	alloc r16=ar.pfs,1,0,0,0

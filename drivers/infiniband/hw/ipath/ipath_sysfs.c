@@ -163,6 +163,42 @@ static ssize_t show_boardversion(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->ipath_boardversion);
 }
 
+static ssize_t show_lmc(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->ipath_lmc);
+}
+
+static ssize_t store_lmc(struct device *dev,
+			 struct device_attribute *attr,
+			 const char *buf,
+			 size_t count)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	u16 lmc = 0;
+	int ret;
+
+	ret = ipath_parse_ushort(buf, &lmc);
+	if (ret < 0)
+		goto invalid;
+
+	if (lmc > 7) {
+		ret = -EINVAL;
+		goto invalid;
+	}
+
+	ipath_set_lid(dd, dd->ipath_lid, lmc);
+
+	goto bail;
+invalid:
+	ipath_dev_err(dd, "attempt to set invalid LMC %u\n", lmc);
+bail:
+	return ret;
+}
+
 static ssize_t show_lid(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
@@ -190,7 +226,7 @@ static ssize_t store_lid(struct device *dev,
 		goto invalid;
 	}
 
-	ipath_set_lid(dd, lid, 0);
+	ipath_set_lid(dd, lid, dd->ipath_lmc);
 
 	goto bail;
 invalid:
@@ -648,6 +684,7 @@ static struct attribute_group driver_attr_group = {
 };
 
 static DEVICE_ATTR(guid, S_IWUSR | S_IRUGO, show_guid, store_guid);
+static DEVICE_ATTR(lmc, S_IWUSR | S_IRUGO, show_lmc, store_lmc);
 static DEVICE_ATTR(lid, S_IWUSR | S_IRUGO, show_lid, store_lid);
 static DEVICE_ATTR(link_state, S_IWUSR, NULL, store_link_state);
 static DEVICE_ATTR(mlid, S_IWUSR | S_IRUGO, show_mlid, store_mlid);
@@ -667,6 +704,7 @@ static DEVICE_ATTR(logged_errors, S_IRUGO, show_logged_errs, NULL);
 
 static struct attribute *dev_attributes[] = {
 	&dev_attr_guid.attr,
+	&dev_attr_lmc.attr,
 	&dev_attr_lid.attr,
 	&dev_attr_link_state.attr,
 	&dev_attr_mlid.attr,

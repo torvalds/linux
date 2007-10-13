@@ -770,6 +770,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		/*
 		 * Switching-from response
 		 */
+		acquire_console_sem();
 		if (vc->vt_newvt >= 0) {
 			if (arg == 0)
 				/*
@@ -784,7 +785,6 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 				 * complete the switch.
 				 */
 				int newvt;
-				acquire_console_sem();
 				newvt = vc->vt_newvt;
 				vc->vt_newvt = -1;
 				i = vc_allocate(newvt);
@@ -798,7 +798,6 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 				 * other console switches..
 				 */
 				complete_change_console(vc_cons[newvt].d);
-				release_console_sem();
 			}
 		}
 
@@ -810,9 +809,12 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 			/*
 			 * If it's just an ACK, ignore it
 			 */
-			if (arg != VT_ACKACQ)
+			if (arg != VT_ACKACQ) {
+				release_console_sem();
 				return -EINVAL;
+			}
 		}
+		release_console_sem();
 
 		return 0;
 
@@ -1030,7 +1032,7 @@ static DECLARE_WAIT_QUEUE_HEAD(vt_activate_queue);
 
 /*
  * Sleeps until a vt is activated, or the task is interrupted. Returns
- * 0 if activation, -EINTR if interrupted.
+ * 0 if activation, -EINTR if interrupted by a signal handler.
  */
 int vt_waitactive(int vt)
 {
@@ -1055,7 +1057,7 @@ int vt_waitactive(int vt)
 			break;
 		}
 		release_console_sem();
-		retval = -EINTR;
+		retval = -ERESTARTNOHAND;
 		if (signal_pending(current))
 			break;
 		schedule();
@@ -1208,15 +1210,18 @@ void change_console(struct vc_data *new_vc)
 		/*
 		 * Send the signal as privileged - kill_pid() will
 		 * tell us if the process has gone or something else
-		 * is awry
+		 * is awry.
+		 *
+		 * We need to set vt_newvt *before* sending the signal or we
+		 * have a race.
 		 */
+		vc->vt_newvt = new_vc->vc_num;
 		if (kill_pid(vc->vt_pid, vc->vt_mode.relsig, 1) == 0) {
 			/*
 			 * It worked. Mark the vt to switch to and
 			 * return. The process needs to send us a
 			 * VT_RELDISP ioctl to complete the switch.
 			 */
-			vc->vt_newvt = new_vc->vc_num;
 			return;
 		}
 

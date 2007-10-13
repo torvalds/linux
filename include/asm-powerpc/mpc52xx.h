@@ -243,7 +243,7 @@ struct mpc52xx_cdm {
 
 extern void __iomem * mpc52xx_find_and_map(const char *);
 extern unsigned int mpc52xx_find_ipb_freq(struct device_node *node);
-extern void mpc52xx_setup_cpu(void);
+extern void mpc5200_setup_xlb_arbiter(void);
 extern void mpc52xx_declare_of_platform_devices(void);
 
 extern void mpc52xx_init_irq(void);
@@ -262,6 +262,16 @@ struct mpc52xx_suspend {
 extern struct mpc52xx_suspend mpc52xx_suspend;
 extern int __init mpc52xx_pm_init(void);
 extern int mpc52xx_set_wakeup_gpio(u8 pin, u8 level);
+
+#ifdef CONFIG_PPC_LITE5200
+extern int __init lite5200_pm_init(void);
+
+/* lite5200 calls mpc5200 suspend functions, so here they are */
+extern int mpc52xx_pm_prepare(suspend_state_t);
+extern int mpc52xx_pm_enter(suspend_state_t);
+extern int mpc52xx_pm_finish(suspend_state_t);
+extern char saved_sram[0x4000]; /* reuse buffer from mpc52xx suspend */
+#endif
 #endif /* CONFIG_PM */
 
 #endif /* __ASM_POWERPC_MPC52xx_H__ */

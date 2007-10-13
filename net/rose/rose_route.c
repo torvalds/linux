@@ -45,7 +45,7 @@ static DEFINE_SPINLOCK(rose_neigh_list_lock);
 static struct rose_route *rose_route_list;
 static DEFINE_SPINLOCK(rose_route_list_lock);
 
-struct rose_neigh rose_loopback_neigh;
+struct rose_neigh *rose_loopback_neigh;
 
 /*
  *	Add a new route to a node, and in the process add the node and the
@@ -362,7 +362,12 @@ out:
  */
 void rose_add_loopback_neigh(void)
 {
-	struct rose_neigh *sn = &rose_loopback_neigh;
+	struct rose_neigh *sn;
+
+	rose_loopback_neigh = kmalloc(sizeof(struct rose_neigh), GFP_KERNEL);
+	if (!rose_loopback_neigh)
+		return;
+	sn = rose_loopback_neigh;
 
 	sn->callsign  = null_ax25_address;
 	sn->digipeat  = NULL;
@@ -417,13 +422,13 @@ int rose_add_loopback_node(rose_address *address)
 	rose_node->mask         = 10;
 	rose_node->count        = 1;
 	rose_node->loopback     = 1;
-	rose_node->neighbour[0] = &rose_loopback_neigh;
+	rose_node->neighbour[0] = rose_loopback_neigh;
 
 	/* Insert at the head of list. Address is always mask=10 */
 	rose_node->next = rose_node_list;
 	rose_node_list  = rose_node;
 
-	rose_loopback_neigh.count++;
+	rose_loopback_neigh->count++;
 
 out:
 	spin_unlock_bh(&rose_node_list_lock);
@@ -454,7 +459,7 @@ void rose_del_loopback_node(rose_address *address)
 
 	rose_remove_node(rose_node);
 
-	rose_loopback_neigh.count--;
+	rose_loopback_neigh->count--;
 
 out:
 	spin_unlock_bh(&rose_node_list_lock);
@@ -578,7 +583,7 @@ static struct net_device *rose_ax25_dev_get(char *devname)
 {
 	struct net_device *dev;
 
-	if ((dev = dev_get_by_name(devname)) == NULL)
+	if ((dev = dev_get_by_name(&init_net, devname)) == NULL)
 		return NULL;
 
 	if ((dev->flags & IFF_UP) && dev->type == ARPHRD_AX25)
@@ -596,7 +601,7 @@ struct net_device *rose_dev_first(void)
 	struct net_device *dev, *first = NULL;
 
 	read_lock(&dev_base_lock);
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_ROSE)
 			if (first == NULL || strncmp(dev->name, first->name, 3) < 0)
 				first = dev;
@@ -614,7 +619,7 @@ struct net_device *rose_dev_get(rose_address *addr)
 	struct net_device *dev;
 
 	read_lock(&dev_base_lock);
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_ROSE && rosecmp(addr, (rose_address *)dev->dev_addr) == 0) {
 			dev_hold(dev);
 			goto out;
@@ -631,7 +636,7 @@ static int rose_dev_exists(rose_address *addr)
 	struct net_device *dev;
 
 	read_lock(&dev_base_lock);
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_ROSE && rosecmp(addr, (rose_address *)dev->dev_addr) == 0)
 			goto out;
 	}

@@ -1,32 +1,32 @@
-/* 
+/*
    Unix SMB/Netbios implementation.
    Version 1.9.
 
-   a partial implementation of DES designed for use in the 
+   a partial implementation of DES designed for use in the
    SMB authentication protocol
 
    Copyright (C) Andrew Tridgell 1998
    Modified by Steve French (sfrench@us.ibm.com) 2002,2004
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-/* NOTES: 
+/* NOTES:
 
    This code makes no attempt to be fast! In fact, it is a very
-   slow implementation 
+   slow implementation
 
    This code is NOT a complete DES implementation. It implements only
    the minimum necessary for SMB authentication, as used by all SMB
@@ -153,7 +153,7 @@ static uchar sbox[8][4][16] = {
 };
 
 static void
-permute(char *out, char *in, uchar * p, int n)
+permute(char *out, char *in, uchar *p, int n)
 {
 	int i;
 	for (i = 0; i < n; i++)
@@ -202,18 +202,18 @@ dohash(char *out, char *in, char *key, int forw)
 	char *rl;
 
 	/* Have to reduce stack usage */
-	pk1 = kmalloc(56+56+64+64,GFP_KERNEL);
-	if(pk1 == NULL)
+	pk1 = kmalloc(56+56+64+64, GFP_KERNEL);
+	if (pk1 == NULL)
 		return;
 
 	ki = kmalloc(16*48, GFP_KERNEL);
-	if(ki == NULL) {
+	if (ki == NULL) {
 		kfree(pk1);
 		return;
 	}
 
 	cd = pk1 + 56;
-	pd1= cd  + 56;
+	pd1 = cd  + 56;
 	rl = pd1 + 64;
 
 	permute(pk1, key, perm1, 56);
@@ -247,7 +247,7 @@ dohash(char *out, char *in, char *key, int forw)
 		char *r2;  /* r2[32]  */
 
 		er = kmalloc(48+48+32+32+32, GFP_KERNEL);
-		if(er == NULL) {
+		if (er == NULL) {
 			kfree(pk1);
 			kfree(ki);
 			return;
@@ -327,8 +327,8 @@ smbhash(unsigned char *out, unsigned char *in, unsigned char *key, int forw)
 	char *keyb; /* keyb[64] */
 	unsigned char key2[8];
 
-	outb = kmalloc(64 * 3,GFP_KERNEL);
-	if(outb == NULL)
+	outb = kmalloc(64 * 3, GFP_KERNEL);
+	if (outb == NULL)
 		return;
 
 	inb  = outb + 64;

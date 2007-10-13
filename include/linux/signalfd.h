@@ -45,49 +45,17 @@ struct signalfd_siginfo {
 #ifdef CONFIG_SIGNALFD
 
 /*
- * Deliver the signal to listening signalfd. This must be called
- * with the sighand lock held. Same are the following that end up
- * calling signalfd_deliver().
- */
-void signalfd_deliver(struct task_struct *tsk, int sig);
-
-/*
- * No need to fall inside signalfd_deliver() if no signal listeners
- * are available.
+ * Deliver the signal to listening signalfd.
  */
 static inline void signalfd_notify(struct task_struct *tsk, int sig)
 {
-	if (unlikely(!list_empty(&tsk->sighand->signalfd_list)))
-		signalfd_deliver(tsk, sig);
-}
-
-/*
- * The signal -1 is used to notify the signalfd that the sighand
- * is on its way to be detached.
- */
-static inline void signalfd_detach_locked(struct task_struct *tsk)
-{
-	if (unlikely(!list_empty(&tsk->sighand->signalfd_list)))
-		signalfd_deliver(tsk, -1);
-}
-
-static inline void signalfd_detach(struct task_struct *tsk)
-{
-	struct sighand_struct *sighand = tsk->sighand;
-
-	if (unlikely(!list_empty(&sighand->signalfd_list))) {
-		spin_lock_irq(&sighand->siglock);
-		signalfd_deliver(tsk, -1);
-		spin_unlock_irq(&sighand->siglock);
-	}
+	if (unlikely(waitqueue_active(&tsk->sighand->signalfd_wqh)))
+		wake_up(&tsk->sighand->signalfd_wqh);
 }
 
 #else /* CONFIG_SIGNALFD */
 
-#define signalfd_deliver(t, s) do { } while (0)
-#define signalfd_notify(t, s) do { } while (0)
-#define signalfd_detach_locked(t) do { } while (0)
-#define signalfd_detach(t) do { } while (0)
+static inline void signalfd_notify(struct task_struct *tsk, int sig) { }
 
 #endif /* CONFIG_SIGNALFD */
 

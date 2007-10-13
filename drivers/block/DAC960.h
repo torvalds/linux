@@ -61,13 +61,6 @@
 #define DAC960_V2_MaxPhysicalDevices		272
 
 /*
-  Define the pci dma mask supported by DAC960 V1 and V2 Firmware Controlers
- */
-
-#define DAC690_V1_PciDmaMask	0xffffffff
-#define DAC690_V2_PciDmaMask	0xffffffffffffffffULL
-
-/*
   Define a 32/64 bit I/O Address data type.
 */
 

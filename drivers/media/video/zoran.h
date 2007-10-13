@@ -240,11 +240,16 @@ enum gpcs_type {
 
 struct zoran_format {
 	char *name;
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	int palette;
+#endif
+#ifdef CONFIG_VIDEO_V4L2
 	__u32 fourcc;
 	int colorspace;
+#endif
 	int depth;
 	__u32 flags;
+	__u32 vfespfr;
 };
 /* flags */
 #define ZORAN_FORMAT_COMPRESSED 1<<0

@@ -18,6 +18,10 @@ config GENERIC_TIME
 	bool
 	default y
 
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
 config CLOCKSOURCE_WATCHDOG
 	bool
 	default y
@@ -221,6 +225,8 @@ config PARAVIRT
 	  under a hypervisor, improving performance significantly.
 	  However, when run without a hypervisor the kernel is
 	  theoretically slower.  If in doubt, say N.
+
+source "arch/x86/xen/Kconfig"
 
 config VMI
 	bool "VMI Paravirt-ops support"
@@ -452,8 +458,7 @@ config MICROCODE
 	tristate "/dev/cpu/microcode - Intel IA32 CPU microcode support"
 	select FW_LOADER
 	---help---
-	  If you say Y here and also to "/dev file system support" in the
-	  'File systems' section, you will be able to update the microcode on
+	  If you say Y here, you will be able to update the microcode on
 	  Intel processors in the IA32 family, e.g. Pentium Pro, Pentium II,
 	  Pentium III, Pentium 4, Xeon etc.  You will obviously need the
 	  actual microcode binary data itself which is not shipped with the
@@ -542,6 +547,7 @@ config HIGHMEM4G
 config HIGHMEM64G
 	bool "64GB"
 	depends on !M386 && !M486
+	select X86_PAE
 	help
 	  Select this if you have a 32-bit processor and more than 4
 	  gigabytes of physical RAM.
@@ -571,12 +577,12 @@ choice
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
 	config VMSPLIT_3G_OPT
-		depends on !HIGHMEM
+		depends on !X86_PAE
 		bool "3G/1G user/kernel split (for full 1G low memory)"
 	config VMSPLIT_2G
 		bool "2G/2G user/kernel split"
 	config VMSPLIT_2G_OPT
-		depends on !HIGHMEM
+		depends on !X86_PAE
 		bool "2G/2G user/kernel split (for full 2G low memory)"
 	config VMSPLIT_1G
 		bool "1G/3G user/kernel split"
@@ -596,17 +602,26 @@ config HIGHMEM
 	default y
 
 config X86_PAE
-	bool
-	depends on HIGHMEM64G
-	default y
+	bool "PAE (Physical Address Extension) Support"
+	default n
+	depends on !HIGHMEM4G
 	select RESOURCES_64BIT
+	help
+	  PAE is required for NX support, and furthermore enables
+	  larger swapspace support for non-overcommit purposes. It
+	  has the cost of more pagetable lookup overhead, and also
+	  consumes more pagetable space per process.
 
 # Common NUMA Features
 config NUMA
-	bool "Numa Memory Allocation and Scheduler Support"
-	depends on SMP && HIGHMEM64G && (X86_NUMAQ || (X86_SUMMIT || X86_GENERICARCH) && ACPI)
+	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
+	depends on SMP && HIGHMEM64G && (X86_NUMAQ || (X86_SUMMIT || X86_GENERICARCH) && ACPI) && EXPERIMENTAL
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
+	help
+	  NUMA support for i386. This is currently high experimental
+	  and should be only used for kernel development. It might also
+	  cause boot failures.
 
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
@@ -692,7 +707,7 @@ config MATH_EMULATION
 	  intend to use this kernel on different machines.
 
 	  More information about the internals of the Linux math coprocessor
-	  emulation can be found in <file:arch/i386/math-emu/README>.
+	  emulation can be found in <file:arch/x86/math-emu/README>.
 
 	  If you are not sure, say Y; apart from resulting in a 66 KB bigger
 	  kernel, it won't hurt.
@@ -815,6 +830,7 @@ config CRASH_DUMP
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+	default "0x1000000" if X86_NUMAQ
 	default "0x100000"
 	help
 	  This gives the physical address where the kernel is loaded.
@@ -925,7 +941,7 @@ source "drivers/acpi/Kconfig"
 
 menuconfig APM
 	tristate "APM (Advanced Power Management) BIOS support"
-	depends on PM && !X86_VISWS
+	depends on PM_SLEEP && !X86_VISWS
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
@@ -1051,7 +1067,7 @@ config APM_REAL_MODE_POWER_OFF
 
 endif # APM
 
-source "arch/i386/kernel/cpu/cpufreq/Kconfig"
+source "arch/x86/kernel/cpu/cpufreq/Kconfig"
 
 endmenu
 
@@ -1119,6 +1135,11 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool
 	depends on PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
+	default y
+
+config PCI_DOMAINS
+	bool
+	depends on PCI
 	default y
 
 source "drivers/pci/pcie/Kconfig"
@@ -1190,6 +1211,16 @@ config SCx200HR_TIMER
 	  processor goes idle (as is done by the scheduler).  The
 	  other workaround is idle=poll boot option.
 
+config GEODE_MFGPT_TIMER
+	bool "Geode Multi-Function General Purpose Timer (MFGPT) events"
+	depends on MGEODE_LX && GENERIC_TIME && GENERIC_CLOCKEVENTS
+	default y
+	help
+	  This driver provides a clock event source based on the MFGPT
+	  timer(s) in the CS5535 and CS5536 companion chip for the geode.
+	  MFGPTs have a better resolution and max interval than the
+	  generic PIT, and are suitable for use as high-res timers.
+
 config K8_NB
 	def_bool y
 	depends on AGP_AMD64
@@ -1216,10 +1247,15 @@ menuconfig INSTRUMENTATION
 	bool "Instrumentation Support"
 	depends on EXPERIMENTAL
 	default y
+	---help---
+	  Say Y here to get to see options related to performance measurement,
+	  debugging, and testing. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 if INSTRUMENTATION
 
-source "arch/i386/oprofile/Kconfig"
+source "arch/x86/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes"

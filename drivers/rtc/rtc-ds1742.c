@@ -55,7 +55,7 @@ struct rtc_plat_data {
 	void __iomem *ioaddr_rtc;
 	size_t size_nvram;
 	size_t size;
-	unsigned long baseaddr;
+	resource_size_t baseaddr;
 	unsigned long last_jiffies;
 };
 
@@ -263,7 +263,7 @@ static __init int ds1742_init(void)
 
 static __exit void ds1742_exit(void)
 {
-	return platform_driver_unregister(&ds1742_rtc_driver);
+	platform_driver_unregister(&ds1742_rtc_driver);
 }
 
 module_init(ds1742_init);

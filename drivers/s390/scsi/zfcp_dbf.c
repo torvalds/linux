@@ -19,8 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <asm/debug.h>
 #include <linux/ctype.h>
+#include <asm/debug.h>
 #include "zfcp_ext.h"
 
 static u32 dbfsize = 4;
@@ -35,17 +35,17 @@ static int
 zfcp_dbf_stck(char *out_buf, const char *label, unsigned long long stck)
 {
 	unsigned long long sec;
-	struct timespec xtime;
+	struct timespec dbftime;
 	int len = 0;
 
 	stck -= 0x8126d60e46000000LL - (0x3c26700LL * 1000000 * 4096);
 	sec = stck >> 12;
 	do_div(sec, 1000000);
-	xtime.tv_sec = sec;
+	dbftime.tv_sec = sec;
 	stck -= (sec * 1000000) << 12;
-	xtime.tv_nsec = ((stck * 1000) >> 12);
+	dbftime.tv_nsec = ((stck * 1000) >> 12);
 	len += sprintf(out_buf + len, "%-24s%011lu:%06lu\n",
-		       label, xtime.tv_sec, xtime.tv_nsec);
+		       label, dbftime.tv_sec, dbftime.tv_nsec);
 
 	return len;
 }

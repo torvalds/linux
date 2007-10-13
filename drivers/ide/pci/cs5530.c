@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.73	Mar 10 2007
+ * linux/drivers/ide/pci/cs5530.c		Version 0.74	Jul 28 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
@@ -71,19 +71,18 @@ static void cs5530_tunepio(ide_drive_t *drive, u8 pio)
 }
 
 /**
- *	cs5530_tuneproc		-	select/set PIO modes
+ *	cs5530_set_pio_mode	-	set PIO mode
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
- *	cs5530_tuneproc() handles selection/setting of PIO modes
- *	for both the chipset and drive.
+ *	Handles setting of PIO mode for both the chipset and drive.
  *
- *	The ide_init_cs5530() routine guarantees that all drives
+ *	The init_hwif_cs5530() routine guarantees that all drives
  *	will have valid default PIO timings set up before we get here.
  */
 
-static void cs5530_tuneproc (ide_drive_t *drive, u8 pio)	/* pio=255 means "autotune" */
+static void cs5530_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
-
 	if (cs5530_set_xfer_mode(drive, XFER_PIO_0 + pio) == 0)
 		cs5530_tunepio(drive, pio);
 }
@@ -143,12 +142,10 @@ static int cs5530_config_dma(ide_drive_t *drive)
 	return 1;
 }
 
-static int cs5530_tune_chipset(ide_drive_t *drive, u8 mode)
+static int cs5530_tune_chipset(ide_drive_t *drive, const u8 mode)
 {
 	unsigned long basereg;
 	unsigned int reg, timings = 0;
-
-	mode = ide_rate_filter(drive, mode);
 
 	/*
 	 * Tell the drive to switch to the new mode; abort on failure.
@@ -166,13 +163,6 @@ static int cs5530_tune_chipset(ide_drive_t *drive, u8 mode)
 		case XFER_MW_DMA_0:	timings = 0x00077771; break;
 		case XFER_MW_DMA_1:	timings = 0x00012121; break;
 		case XFER_MW_DMA_2:	timings = 0x00002020; break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-			cs5530_tunepio(drive, mode - XFER_PIO_0);
-			return 0;
 		default:
 			BUG();
 			break;
@@ -206,6 +196,9 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
 	unsigned long flags;
+
+	if (pci_resource_start(dev, 4) == 0)
+		return -EFAULT;
 
 	dev = NULL;
 	while ((dev = pci_get_device(PCI_VENDOR_ID_CYRIX, PCI_ANY_ID, dev)) != NULL) {
@@ -305,7 +298,7 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	if (hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
 
-	hwif->tuneproc = &cs5530_tuneproc;
+	hwif->set_pio_mode = &cs5530_set_pio_mode;
 	hwif->speedproc = &cs5530_tune_chipset;
 
 	basereg = CS5530_BASEREG(hwif);
@@ -325,6 +318,9 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 			/* needs autotuning later */
 	}
 
+	if (hwif->dma_base == 0)
+		return;
+
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x07;
 	hwif->mwdma_mask = 0x07;
@@ -341,9 +337,9 @@ static ide_pci_device_t cs5530_chipset __devinitdata = {
 	.name		= "CS5530",
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
-	.channels	= 2,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)

@@ -101,6 +101,16 @@ config SA1100_JORNADA720
 	  handheld computer.  See <http://www.hp.com/jornada/products/720>
 	  for details.
 
+config SA1100_JORNADA720_SSP
+	bool "HP Jornada 720 Extended SSP driver"
+	select SA1100_SSP
+	depends on SA1100_JORNADA720
+	help
+	  Say Y here if you have a HP Jornada 7xx handheld computer and you
+	  want to access devices connected to the MCU. Those include the
+	  keyboard, touchscreen, backlight and battery. This driver also activates
+	  the generic SSP which it extends.
+
 config SA1100_HACKKIT
 	bool "HackKit Core CPU Board"
 	help
@@ -145,8 +155,7 @@ config SA1100_SSP
 	help
 	  Say Y here to enable support for the generic PIO SSP driver.
 	  This isn't for audio support, but for attached sensors and
-	  other devices, eg for BadgePAD 4 sensor support, or Jornada
-	  720 touchscreen support.
+	  other devices, eg for BadgePAD 4 sensor support.
 
 config H3600_SLEEVE
 	tristate "Compaq iPAQ Handheld sleeve support"

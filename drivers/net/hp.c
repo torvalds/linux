@@ -86,8 +86,6 @@ static int __init do_hp_probe(struct net_device *dev)
 	int base_addr = dev->base_addr;
 	int irq = dev->irq;
 
-	SET_MODULE_OWNER(dev);
-
 	if (base_addr > 0x1ff)		/* Check a single specified location. */
 		return hp_probe1(dev, base_addr);
 	else if (base_addr != 0)	/* Don't probe at all. */
@@ -129,6 +127,7 @@ static int __init hp_probe1(struct net_device *dev, int ioaddr)
 	int i, retval, board_id, wordmode;
 	const char *name;
 	static unsigned version_printed;
+	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, HP_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -160,7 +159,9 @@ static int __init hp_probe1(struct net_device *dev, int ioaddr)
 	printk("%s: %s (ID %02x) at %#3x,", dev->name, name, board_id, ioaddr);
 
 	for(i = 0; i < ETHER_ADDR_LEN; i++)
-		printk(" %2.2x", dev->dev_addr[i] = inb(ioaddr + i));
+		dev->dev_addr[i] = inb(ioaddr + i);
+
+	printk(" %s", print_mac(mac, dev->dev_addr));
 
 	/* Snarf the interrupt now.  Someday this could be moved to open(). */
 	if (dev->irq < 2) {

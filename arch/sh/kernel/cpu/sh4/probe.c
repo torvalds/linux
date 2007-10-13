@@ -90,12 +90,6 @@ int __init detect_cpu_and_cache_system(void)
 		current_cpu_data.type = CPU_SH7751;
 		current_cpu_data.flags |= CPU_HAS_FPU;
 		break;
-	case 0x2000:
-		current_cpu_data.type = CPU_SH73180;
-		current_cpu_data.icache.ways = 4;
-		current_cpu_data.dcache.ways = 4;
-		current_cpu_data.flags |= CPU_HAS_LLSC;
-		break;
 	case 0x2001:
 	case 0x2004:
 		current_cpu_data.type = CPU_SH7770;

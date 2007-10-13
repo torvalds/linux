@@ -51,7 +51,6 @@ static void *sgi_tioca_alloc_page(struct agp_bridge_data *bridge)
 		return NULL;
 
 	get_page(page);
-	SetPageLocked(page);
 	atomic_inc(&agp_bridge->current_memory_agp);
 	return page_address(page);
 }

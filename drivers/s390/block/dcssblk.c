@@ -621,7 +621,7 @@ out:
 }
 
 static int
-dcssblk_make_request(request_queue_t *q, struct bio *bio)
+dcssblk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct dcssblk_dev_info *dev_info;
 	struct bio_vec *bvec;
@@ -674,10 +674,10 @@ dcssblk_make_request(request_queue_t *q, struct bio *bio)
 		}
 		bytes_done += bvec->bv_len;
 	}
-	bio_endio(bio, bytes_done, 0);
+	bio_endio(bio, 0);
 	return 0;
 fail:
-	bio_io_error(bio, bio->bi_size);
+	bio_io_error(bio);
 	return 0;
 }
 

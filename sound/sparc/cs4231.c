@@ -74,7 +74,6 @@ struct cs4231_dma_control {
         void		(*enable)(struct cs4231_dma_control *dma_cont, int on);
         int		(*request)(struct cs4231_dma_control *dma_cont, dma_addr_t bus_addr, size_t len);
         unsigned int	(*address)(struct cs4231_dma_control *dma_cont);
-        void		(*reset)(struct snd_cs4231 *chip); 
         void		(*preallocate)(struct snd_cs4231 *chip, struct snd_pcm *pcm); 
 #ifdef EBUS_SUPPORT
 	struct		ebus_dma_info	ebus_info;
@@ -1214,10 +1213,6 @@ static int __init snd_cs4231_probe(struct snd_cs4231 *chip)
 
 	spin_lock_irqsave(&chip->lock, flags);
 
-
-	/* Reset DMA engine (sbus only).  */
-	chip->p_dma.reset(chip);
-
 	__cs4231_readb(chip, CS4231P(chip, STATUS));	/* clear any pendings IRQ */
 	__cs4231_writeb(chip, 0, CS4231P(chip, STATUS));
 	mb();
@@ -1861,14 +1856,13 @@ static void sbus_dma_enable(struct cs4231_dma_control *dma_cont, int on)
 	if (!on) {
 		sbus_writel(0, base->regs + base->dir + APCNC);
 		sbus_writel(0, base->regs + base->dir + APCNVA);
-		sbus_writel(0, base->regs + base->dir + APCC);
-		sbus_writel(0, base->regs + base->dir + APCVA);
+		if ( base->dir == APC_PLAY ) {
+			sbus_writel(0, base->regs + base->dir + APCC);
+			sbus_writel(0, base->regs + base->dir + APCVA);
+		}
 
-		/* ACK any APC interrupts. */
-		csr = sbus_readl(base->regs + APCCSR);
-		sbus_writel(csr, base->regs + APCCSR);
+		udelay(1200);
 	} 
-	udelay(1000);
 	csr = sbus_readl(base->regs + APCCSR);
 	shift = 0;
 	if ( base->dir == APC_PLAY )
@@ -1892,23 +1886,6 @@ static unsigned int sbus_dma_addr(struct cs4231_dma_control *dma_cont)
 	struct sbus_dma_info *base = &dma_cont->sbus_info;
 
         return sbus_readl(base->regs + base->dir + APCVA);
-}
-
-static void sbus_dma_reset(struct snd_cs4231 *chip)
-{
-        sbus_writel(APC_CHIP_RESET, chip->port + APCCSR);
-        sbus_writel(0x00, chip->port + APCCSR);
-        sbus_writel(sbus_readl(chip->port + APCCSR) | APC_CDC_RESET,
-		    chip->port + APCCSR);
-  
-        udelay(20);
-  
-        sbus_writel(sbus_readl(chip->port + APCCSR) & ~APC_CDC_RESET,
-		    chip->port + APCCSR);
-        sbus_writel(sbus_readl(chip->port + APCCSR) | (APC_XINT_ENA |
-		       APC_XINT_PENA |
-		       APC_XINT_CENA),
-	               chip->port + APCCSR);
 }
 
 static void sbus_dma_preallocate(struct snd_cs4231 *chip, struct snd_pcm *pcm)
@@ -1986,14 +1963,12 @@ static int __init snd_cs4231_sbus_create(struct snd_card *card,
 	chip->p_dma.enable = sbus_dma_enable;
 	chip->p_dma.request = sbus_dma_request;
 	chip->p_dma.address = sbus_dma_addr;
-	chip->p_dma.reset = sbus_dma_reset;
 	chip->p_dma.preallocate = sbus_dma_preallocate;
 
 	chip->c_dma.prepare = sbus_dma_prepare;
 	chip->c_dma.enable = sbus_dma_enable;
 	chip->c_dma.request = sbus_dma_request;
 	chip->c_dma.address = sbus_dma_addr;
-	chip->c_dma.reset = sbus_dma_reset;
 	chip->c_dma.preallocate = sbus_dma_preallocate;
 
 	if (request_irq(sdev->irqs[0], snd_cs4231_sbus_interrupt,
@@ -2087,11 +2062,6 @@ static unsigned int _ebus_dma_addr(struct cs4231_dma_control *dma_cont)
 	return ebus_dma_addr(&dma_cont->ebus_info);
 }
 
-static void _ebus_dma_reset(struct snd_cs4231 *chip)
-{
-	return;
-}
-
 static void _ebus_dma_preallocate(struct snd_cs4231 *chip, struct snd_pcm *pcm)
 {
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -2171,14 +2141,12 @@ static int __init snd_cs4231_ebus_create(struct snd_card *card,
 	chip->p_dma.enable = _ebus_dma_enable;
 	chip->p_dma.request = _ebus_dma_request;
 	chip->p_dma.address = _ebus_dma_addr;
-	chip->p_dma.reset = _ebus_dma_reset;
 	chip->p_dma.preallocate = _ebus_dma_preallocate;
 
 	chip->c_dma.prepare = _ebus_dma_prepare;
 	chip->c_dma.enable = _ebus_dma_enable;
 	chip->c_dma.request = _ebus_dma_request;
 	chip->c_dma.address = _ebus_dma_addr;
-	chip->c_dma.reset = _ebus_dma_reset;
 	chip->c_dma.preallocate = _ebus_dma_preallocate;
 
 	chip->port = ioremap(edev->resource[0].start, 0x10);

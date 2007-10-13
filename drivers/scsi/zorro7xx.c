@@ -130,6 +130,7 @@ static int __devinit zorro7xx_init_one(struct zorro_dev *z,
 		goto out_put_host;
 	}
 
+	zorro_set_drvdata(z, host);
 	scsi_scan_host(host);
 
 	return 0;
@@ -148,7 +149,7 @@ static int __devinit zorro7xx_init_one(struct zorro_dev *z,
 
 static __devexit void zorro7xx_remove_one(struct zorro_dev *z)
 {
-	struct Scsi_Host *host = dev_to_shost(&z->dev);
+	struct Scsi_Host *host = zorro_get_drvdata(z);
 	struct NCR_700_Host_Parameters *hostdata = shost_priv(host);
 
 	scsi_remove_host(host);

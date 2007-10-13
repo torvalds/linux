@@ -168,4 +168,9 @@ enum {
 /* NetLabel protocol functions */
 int netlbl_mgmt_genl_init(void);
 
+/* NetLabel misc management functions */
+void netlbl_mgmt_protocount_inc(void);
+void netlbl_mgmt_protocount_dec(void);
+u32 netlbl_mgmt_protocount_value(void);
+
 #endif

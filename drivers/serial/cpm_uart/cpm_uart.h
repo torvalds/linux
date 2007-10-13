@@ -56,21 +56,21 @@ struct uart_cpm_port {
 	u16			rx_fifosize;
 	u16			tx_nrfifos;
 	u16			tx_fifosize;
-	smc_t			*smcp;
-	smc_uart_t		*smcup;
-	scc_t			*sccp;
-	scc_uart_t		*sccup;
-	volatile cbd_t		*rx_bd_base;
-	volatile cbd_t		*rx_cur;
-	volatile cbd_t		*tx_bd_base;
-	volatile cbd_t		*tx_cur;
+	smc_t __iomem		*smcp;
+	smc_uart_t __iomem	*smcup;
+	scc_t __iomem		*sccp;
+	scc_uart_t __iomem	*sccup;
+	cbd_t __iomem		*rx_bd_base;
+	cbd_t __iomem		*rx_cur;
+	cbd_t __iomem		*tx_bd_base;
+	cbd_t __iomem		*tx_cur;
 	unsigned char		*tx_buf;
 	unsigned char		*rx_buf;
 	u32			flags;
 	void			(*set_lineif)(struct uart_cpm_port *);
 	u8			brg;
 	uint			 dp_addr;
-	void			*mem_addr;
+	void 			*mem_addr;
 	dma_addr_t		 dma_addr;
 	u32			mem_size;
 	/* helpers */
@@ -80,14 +80,18 @@ struct uart_cpm_port {
 	int			is_portb;
 	/* wait on close if needed */
 	int 			wait_closing;
+	/* value to combine with opcode to form cpm command */
+	u32			command;
 };
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 extern int cpm_uart_port_map[UART_NR];
+#endif
 extern int cpm_uart_nr;
 extern struct uart_cpm_port cpm_uart_ports[UART_NR];
 
 /* these are located in their respective files */
-void cpm_line_cr_cmd(int line, int cmd);
+void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd);
 int cpm_uart_init_portdesc(void);
 int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con);
 void cpm_uart_freebuf(struct uart_cpm_port *pinfo);
@@ -102,34 +106,36 @@ void scc4_lineif(struct uart_cpm_port *pinfo);
 /*
    virtual to phys transtalion
 */
-static inline unsigned long cpu2cpm_addr(void* addr, struct uart_cpm_port *pinfo)
+static inline unsigned long cpu2cpm_addr(void *addr,
+                                         struct uart_cpm_port *pinfo)
 {
 	int offset;
 	u32 val = (u32)addr;
+	u32 mem = (u32)pinfo->mem_addr;
 	/* sane check */
-	if (likely((val >= (u32)pinfo->mem_addr)) &&
-			(val<((u32)pinfo->mem_addr + pinfo->mem_size))) {
-		offset = val - (u32)pinfo->mem_addr;
-		return pinfo->dma_addr+offset;
+	if (likely(val >= mem && val < mem + pinfo->mem_size)) {
+		offset = val - mem;
+		return pinfo->dma_addr + offset;
 	}
 	/* something nasty happened */
 	BUG();
 	return 0;
 }
 
-static inline void *cpm2cpu_addr(unsigned long addr, struct uart_cpm_port *pinfo)
+static inline void *cpm2cpu_addr(unsigned long addr,
+                                 struct uart_cpm_port *pinfo)
 {
 	int offset;
 	u32 val = addr;
+	u32 dma = (u32)pinfo->dma_addr;
 	/* sane check */
-	if (likely((val >= pinfo->dma_addr) &&
-			(val<(pinfo->dma_addr + pinfo->mem_size)))) {
-		offset = val - (u32)pinfo->dma_addr;
-		return (void*)(pinfo->mem_addr+offset);
+	if (likely(val >= dma && val < dma + pinfo->mem_size)) {
+		offset = val - dma;
+		return pinfo->mem_addr + offset;
 	}
 	/* something nasty happened */
 	BUG();
-	return 0;
+	return NULL;
 }
 
 

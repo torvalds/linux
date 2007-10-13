@@ -248,7 +248,7 @@ static int __init early_parse_fbmem(char *p)
 
 	fbmem_size = memparse(p, &p);
 	if (*p == '@') {
-		fbmem_start = memparse(p, &p);
+		fbmem_start = memparse(p + 1, &p);
 		ret = add_reserved_region(fbmem_start,
 					  fbmem_start + fbmem_size - 1,
 					  "Framebuffer");
@@ -313,7 +313,7 @@ __tagtable(ATAG_MEM, parse_tag_mem);
 
 static int __init parse_tag_rdimg(struct tag *tag)
 {
-#ifdef CONFIG_INITRD
+#ifdef CONFIG_BLK_DEV_INITRD
 	struct tag_mem_range *mem = &tag->u.mem_range;
 	int ret;
 
@@ -323,7 +323,7 @@ static int __init parse_tag_rdimg(struct tag *tag)
 		return 0;
 	}
 
-	ret = add_reserved_region(mem->start, mem->start + mem->size - 1,
+	ret = add_reserved_region(mem->addr, mem->addr + mem->size - 1,
 				  "initrd");
 	if (ret) {
 		printk(KERN_WARNING

@@ -30,7 +30,6 @@
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/ipic.h>
-#include <asm/bootinfo.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
@@ -53,10 +52,8 @@ static void __init mpc834x_itx_setup_arch(void)
 		ppc_md.progress("mpc834x_itx_setup_arch()", 0);
 
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
+	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
 		mpc83xx_add_bridge(np);
-
-	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif
 
 	mpc834x_usb_cfg();

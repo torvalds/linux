@@ -458,28 +458,22 @@ static int ap_bus_match(struct device *dev, struct device_driver *drv)
  * uevent function for AP devices. It sets up a single environment
  * variable DEV_TYPE which contains the hardware device type.
  */
-static int ap_uevent (struct device *dev, char **envp, int num_envp,
-		       char *buffer, int buffer_size)
+static int ap_uevent (struct device *dev, struct kobj_uevent_env *env)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
-	int retval = 0, length = 0, i = 0;
+	int retval = 0;
 
 	if (!ap_dev)
 		return -ENODEV;
 
 	/* Set up DEV_TYPE environment variable. */
-	retval = add_uevent_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"DEV_TYPE=%04X", ap_dev->device_type);
+	retval = add_uevent_var(env, "DEV_TYPE=%04X", ap_dev->device_type);
 	if (retval)
 		return retval;
 
 	/* Add MODALIAS= */
-	retval = add_uevent_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"MODALIAS=ap:t%02X", ap_dev->device_type);
+	retval = add_uevent_var(env, "MODALIAS=ap:t%02X", ap_dev->device_type);
 
-	envp[i] = NULL;
 	return retval;
 }
 
@@ -1231,8 +1225,9 @@ static void ap_reset_domain(void)
 {
 	int i;
 
-	for (i = 0; i < AP_DEVICES; i++)
-		ap_reset_queue(AP_MKQID(i, ap_domain_index));
+	if (ap_domain_index != -1)
+		for (i = 0; i < AP_DEVICES; i++)
+			ap_reset_queue(AP_MKQID(i, ap_domain_index));
 }
 
 static void ap_reset_all(void)

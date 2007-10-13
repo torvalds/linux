@@ -173,7 +173,7 @@ int appldata_diag(char record_nr, u16 function, unsigned long buffer,
 /*
  * appldata_mod_vtimer_wrap()
  *
- * wrapper function for mod_virt_timer(), because smp_call_function_on()
+ * wrapper function for mod_virt_timer(), because smp_call_function_single()
  * accepts only one parameter.
  */
 static void __appldata_mod_vtimer_wrap(void *p) {
@@ -208,9 +208,9 @@ __appldata_vtimer_setup(int cmd)
 					  num_online_cpus()) * TOD_MICRO;
 		for_each_online_cpu(i) {
 			per_cpu(appldata_timer, i).expires = per_cpu_interval;
-			smp_call_function_on(add_virt_timer_periodic,
-					     &per_cpu(appldata_timer, i),
-					     0, 1, i);
+			smp_call_function_single(i, add_virt_timer_periodic,
+						 &per_cpu(appldata_timer, i),
+						 0, 1);
 		}
 		appldata_timer_active = 1;
 		P_INFO("Monitoring timer started.\n");
@@ -236,8 +236,8 @@ __appldata_vtimer_setup(int cmd)
 			} args;
 			args.timer = &per_cpu(appldata_timer, i);
 			args.expires = per_cpu_interval;
-			smp_call_function_on(__appldata_mod_vtimer_wrap,
-					     &args, 0, 1, i);
+			smp_call_function_single(i, __appldata_mod_vtimer_wrap,
+						 &args, 0, 1);
 		}
 	}
 }
@@ -547,8 +547,7 @@ static void __cpuinit appldata_online_cpu(int cpu)
 	spin_unlock(&appldata_timer_lock);
 }
 
-static void
-appldata_offline_cpu(int cpu)
+static void __cpuinit appldata_offline_cpu(int cpu)
 {
 	del_virt_timer(&per_cpu(appldata_timer, cpu));
 	if (atomic_dec_and_test(&appldata_expire_count)) {
@@ -560,9 +559,9 @@ appldata_offline_cpu(int cpu)
 	spin_unlock(&appldata_timer_lock);
 }
 
-static int __cpuinit
-appldata_cpu_notify(struct notifier_block *self,
-		    unsigned long action, void *hcpu)
+static int __cpuinit appldata_cpu_notify(struct notifier_block *self,
+					 unsigned long action,
+					 void *hcpu)
 {
 	switch (action) {
 	case CPU_ONLINE:
@@ -608,62 +607,14 @@ static int __init appldata_init(void)
 	register_hotcpu_notifier(&appldata_nb);
 
 	appldata_sysctl_header = register_sysctl_table(appldata_dir_table);
-#ifdef MODULE
-	appldata_dir_table[0].de->owner = THIS_MODULE;
-	appldata_table[0].de->owner = THIS_MODULE;
-	appldata_table[1].de->owner = THIS_MODULE;
-#endif
 
 	P_DEBUG("Base interface initialized.\n");
 	return 0;
 }
 
-/*
- * appldata_exit()
- *
- * stop timer, unregister /proc entries
- */
-static void __exit appldata_exit(void)
-{
-	struct list_head *lh;
-	struct appldata_ops *ops;
-	int rc, i;
+__initcall(appldata_init);
 
-	P_DEBUG("Unloading module ...\n");
-	/*
-	 * ops list should be empty, but just in case something went wrong...
-	 */
-	spin_lock(&appldata_ops_lock);
-	list_for_each(lh, &appldata_ops_list) {
-		ops = list_entry(lh, struct appldata_ops, list);
-		rc = appldata_diag(ops->record_nr, APPLDATA_STOP_REC,
-				(unsigned long) ops->data, ops->size,
-				ops->mod_lvl);
-		if (rc != 0) {
-			P_ERROR("STOP DIAG 0xDC for %s failed, "
-				"return code: %d\n", ops->name, rc);
-		}
-	}
-	spin_unlock(&appldata_ops_lock);
-
-	for_each_online_cpu(i)
-		appldata_offline_cpu(i);
-
-	appldata_timer_active = 0;
-
-	unregister_sysctl_table(appldata_sysctl_header);
-
-	destroy_workqueue(appldata_wq);
-	P_DEBUG("... module unloaded!\n");
-}
 /**************************** init / exit <END> ******************************/
-
-
-module_init(appldata_init);
-module_exit(appldata_exit);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Gerald Schaefer");
-MODULE_DESCRIPTION("Linux-VM Monitor Stream, base infrastructure");
 
 EXPORT_SYMBOL_GPL(appldata_register_ops);
 EXPORT_SYMBOL_GPL(appldata_unregister_ops);

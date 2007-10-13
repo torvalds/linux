@@ -300,6 +300,7 @@ struct e1000_adapter {
 				int cleaned_count);
 	struct e1000_rx_ring *rx_ring;      /* One per active queue */
 #ifdef CONFIG_E1000_NAPI
+	struct napi_struct napi;
 	struct net_device *polling_netdev;  /* One per active queue */
 #endif
 	int num_tx_queues;

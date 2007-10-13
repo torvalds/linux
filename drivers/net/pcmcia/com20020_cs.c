@@ -147,7 +147,7 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     DEBUG(0, "com20020_attach()\n");
 
     /* Create new network device */
-    info = kmalloc(sizeof(struct com20020_dev_t), GFP_KERNEL);
+    info = kzalloc(sizeof(struct com20020_dev_t), GFP_KERNEL);
     if (!info)
 	goto fail_alloc_info;
 
@@ -155,7 +155,6 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     if (!dev)
 	goto fail_alloc_dev;
 
-    memset(info, 0, sizeof(struct com20020_dev_t));
     lp = dev->priv;
     lp->timeout = timeout;
     lp->backplane = backplane;

@@ -74,20 +74,18 @@ static inline struct thread_info *current_thread_info(void)
  * - other flags in MSW
  */
 #define TIF_SYSCALL_TRACE       0       /* syscall trace active */
-#define TIF_NOTIFY_RESUME       1       /* resumption notification requested */
-#define TIF_SIGPENDING          2       /* signal pending */
-#define TIF_NEED_RESCHED        3       /* rescheduling necessary */
-#define TIF_POLLING_NRFLAG      4       /* true if poll_idle() is polling
+#define TIF_SIGPENDING          1       /* signal pending */
+#define TIF_NEED_RESCHED        2       /* rescheduling necessary */
+#define TIF_POLLING_NRFLAG      3       /* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
-#define TIF_BREAKPOINT		5	/* true if we should break after return */
-#define TIF_SINGLE_STEP		6	/* single step after next break */
-#define TIF_MEMDIE		7
-#define TIF_RESTORE_SIGMASK	8	/* restore signal mask in do_signal */
-#define TIF_CPU_GOING_TO_SLEEP	9	/* CPU is entering sleep 0 mode */
+#define TIF_BREAKPOINT		4	/* true if we should break after return */
+#define TIF_SINGLE_STEP		5	/* single step after next break */
+#define TIF_MEMDIE		6
+#define TIF_RESTORE_SIGMASK	7	/* restore signal mask in do_signal */
+#define TIF_CPU_GOING_TO_SLEEP	8	/* CPU is entering sleep 0 mode */
 #define TIF_USERSPACE		31      /* true if FS sets userspace */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)

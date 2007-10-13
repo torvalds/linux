@@ -128,7 +128,7 @@ static void change_protection(struct vm_area_struct *vma,
 	flush_tlb_range(vma, start, end);
 }
 
-static int
+int
 mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 	unsigned long start, unsigned long end, unsigned long newflags)
 {

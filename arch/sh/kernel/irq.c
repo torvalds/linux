@@ -245,7 +245,6 @@ asmlinkage void do_softirq(void)
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(do_softirq);
 #endif
 
 void __init init_IRQ(void)
@@ -253,14 +252,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_CPU_HAS_PINT_IRQ
 	init_IRQ_pint();
 #endif
-
-#ifdef CONFIG_CPU_HAS_INTC2_IRQ
-	init_IRQ_intc2();
-#endif
-
-#ifdef CONFIG_CPU_HAS_IPR_IRQ
-	init_IRQ_ipr();
-#endif
+	plat_irq_setup();
 
 	/* Perform the machine specific initialisation */
 	if (sh_mv.mv_init_irq)

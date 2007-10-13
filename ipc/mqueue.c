@@ -521,8 +521,7 @@ static void __do_notify(struct mqueue_inode_info *info)
 			break;
 		case SIGEV_THREAD:
 			set_cookie(info->notify_cookie, NOTIFY_WOKENUP);
-			netlink_sendskb(info->notify_sock,
-					info->notify_cookie, 0);
+			netlink_sendskb(info->notify_sock, info->notify_cookie);
 			break;
 		}
 		/* after notification unregisters process */
@@ -568,7 +567,7 @@ static void remove_notification(struct mqueue_inode_info *info)
 	if (info->notify_owner != NULL &&
 	    info->notify.sigev_notify == SIGEV_THREAD) {
 		set_cookie(info->notify_cookie, NOTIFY_REMOVED);
-		netlink_sendskb(info->notify_sock, info->notify_cookie, 0);
+		netlink_sendskb(info->notify_sock, info->notify_cookie);
 	}
 	put_pid(info->notify_owner);
 	info->notify_owner = NULL;
@@ -1253,7 +1252,7 @@ static int __init init_mqueue_fs(void)
 
 	mqueue_inode_cachep = kmem_cache_create("mqueue_inode_cache",
 				sizeof(struct mqueue_inode_info), 0,
-				SLAB_HWCACHE_ALIGN, init_once, NULL);
+				SLAB_HWCACHE_ALIGN, init_once);
 	if (mqueue_inode_cachep == NULL)
 		return -ENOMEM;
 

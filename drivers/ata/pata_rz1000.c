@@ -26,7 +26,7 @@
 
 /**
  *	rz1000_set_mode		-	mode setting function
- *	@ap: ATA interface
+ *	@link: ATA link
  *	@unused: returned device on set_mode failure
  *
  *	Use a non standard set_mode function. We don't want to be tuned. We
@@ -34,12 +34,11 @@
  *	whacked out.
  */
 
-static int rz1000_set_mode(struct ata_port *ap, struct ata_device **unused)
+static int rz1000_set_mode(struct ata_link *link, struct ata_device **unused)
 {
-	int i;
+	struct ata_device *dev;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
+	ata_link_for_each_dev(dev, link) {
 		if (ata_dev_enabled(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;
@@ -74,7 +73,6 @@ static struct scsi_host_template rz1000_sht = {
 static struct ata_port_operations rz1000_port_ops = {
 	.set_mode	= rz1000_set_mode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -100,9 +98,8 @@ static struct ata_port_operations rz1000_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static int rz1000_fifo_disable(struct pci_dev *pdev)

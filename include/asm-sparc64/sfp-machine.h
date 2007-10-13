@@ -88,4 +88,6 @@
 
 #define FP_INHIBIT_RESULTS ((current_thread_info()->xfsr[0] >> 23) & _fex)
 
+#define FP_TRAPPING_EXCEPTIONS ((current_thread_info()->xfsr[0] >> 23) & 0x1f)
+
 #endif

@@ -17,28 +17,12 @@
 
 #include <asm/arch/pxa-regs.h>
 
-#ifdef CONFIG_PXA27x			// workaround for Errata 50
 #define MDREFR_KDIV	0x200a4000	// all banks
 #define CCCR_SLEEP	0x00000107	// L=7 2N=2 A=0 PPDIS=0 CPDIS=0
-#endif
 
 		.text
 
-/*
- * pxa_cpu_suspend()
- *
- * Forces CPU into sleep state.
- *
- * r0 = value for PWRMODE M field for desired sleep state
- */
-
-ENTRY(pxa_cpu_suspend)
-
-#ifndef CONFIG_IWMMXT
-	mra	r2, r3, acc0
-#endif
-	stmfd	sp!, {r2 - r12, lr}		@ save registers on stack
-
+pxa_cpu_save_cp:
 	@ get coprocessor registers
 	mrc	p14, 0, r3, c6, c0, 0		@ clock configuration, for turbo mode
 	mrc	p15, 0, r4, c15, c1, 0		@ CP access reg
@@ -54,12 +38,36 @@ ENTRY(pxa_cpu_suspend)
 	mov	r10, sp
 	stmfd	sp!, {r3 - r10}
 
-	mov r5, r0				@ save sleep mode
+	mov	pc, lr
+
+pxa_cpu_save_sp:
 	@ preserve phys address of stack
 	mov	r0, sp
+	mov	r2, lr
 	bl	sleep_phys_sp
 	ldr	r1, =sleep_save_sp
 	str	r0, [r1]
+	mov	pc, r2
+
+/*
+ * pxa27x_cpu_suspend()
+ *
+ * Forces CPU into sleep state.
+ *
+ * r0 = value for PWRMODE M field for desired sleep state
+ */
+
+ENTRY(pxa27x_cpu_suspend)
+
+#ifndef CONFIG_IWMMXT
+	mra	r2, r3, acc0
+#endif
+	stmfd	sp!, {r2 - r12, lr}		@ save registers on stack
+
+	bl	pxa_cpu_save_cp
+
+	mov	r5, r0				@ save sleep mode
+	bl	pxa_cpu_save_sp
 
 	@ clean data cache
 	bl	xscale_flush_kern_cache_all
@@ -80,13 +88,55 @@ ENTRY(pxa_cpu_suspend)
 	@ enable SDRAM self-refresh mode
 	orr	r5, r5, #MDREFR_SLFRSH
 
-#ifdef CONFIG_PXA27x
 	@ set SDCLKx divide-by-2 bits (this is part of a workaround for Errata 50)
 	ldr	r6, =MDREFR_KDIV
 	orr	r5, r5, r6
-#endif
 
-#ifdef CONFIG_PXA25x
+	@ Intel PXA270 Specification Update notes problems sleeping
+	@ with core operating above 91 MHz
+	@ (see Errata 50, ...processor does not exit from sleep...)
+
+	ldr	r6, =CCCR
+	ldr	r8, [r6]		@ keep original value for resume
+
+	ldr	r7, =CCCR_SLEEP		@ prepare CCCR sleep value
+	mov	r0, #0x2		@ prepare value for CLKCFG
+
+	@ align execution to a cache line
+	b	pxa_cpu_do_suspend
+
+/*
+ * pxa27x_cpu_suspend()
+ *
+ * Forces CPU into sleep state.
+ *
+ * r0 = value for PWRMODE M field for desired sleep state
+ */
+
+ENTRY(pxa25x_cpu_suspend)
+	stmfd	sp!, {r2 - r12, lr}		@ save registers on stack
+
+	bl	pxa_cpu_save_cp
+
+	mov	r5, r0				@ save sleep mode
+	bl	pxa_cpu_save_sp
+
+	@ clean data cache
+	bl	xscale_flush_kern_cache_all
+
+	@ prepare value for sleep mode
+	mov	r1, r5				@ sleep mode
+
+	@ prepare pointer to physical address 0 (virtual mapping in generic.c)
+	mov	r2, #UNCACHED_PHYS_0
+
+	@ prepare SDRAM refresh settings
+	ldr	r4, =MDREFR
+	ldr	r5, [r4]
+
+	@ enable SDRAM self-refresh mode
+	orr	r5, r5, #MDREFR_SLFRSH
+
 	@ Intel PXA255 Specification Update notes problems
 	@ about suspending with PXBus operating above 133MHz
 	@ (see Errata 31, GPIO output signals, ... unpredictable in sleep
@@ -118,30 +168,15 @@ ENTRY(pxa_cpu_suspend)
 	mov	r0, #0
 	mcr	p14, 0, r0, c6, c0, 0
 	orr	r0, r0, #2			@ initiate change bit
-#endif
-#ifdef CONFIG_PXA27x
-	@ Intel PXA270 Specification Update notes problems sleeping
-	@ with core operating above 91 MHz
-	@ (see Errata 50, ...processor does not exit from sleep...)
-
-	ldr	r6, =CCCR
-	ldr	r8, [r6]		@ keep original value for resume
-
-	ldr	r7, =CCCR_SLEEP		@ prepare CCCR sleep value
-	mov	r0, #0x2		@ prepare value for CLKCFG
-#endif
-
-	@ align execution to a cache line
-	b	1f
+	b	pxa_cpu_do_suspend
 
 	.ltorg
 	.align	5
-1:
+pxa_cpu_do_suspend:
 
 	@ All needed values are now in registers.
 	@ These last instructions should be in cache
 
-#if defined(CONFIG_PXA25x) || defined(CONFIG_PXA27x)
 	@ initiate the frequency change...
 	str	r7, [r6]
 	mcr	p14, 0, r0, c6, c0, 0
@@ -155,7 +190,6 @@ ENTRY(pxa_cpu_suspend)
 	mov	r0, #42
 10:	subs	r0, r0, #1
 	bne	10b
-#endif
 
 	@ Do not reorder...
 	@ Intel PXA270 Specification Update notes problems performing

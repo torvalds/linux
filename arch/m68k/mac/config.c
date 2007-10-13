@@ -49,6 +49,7 @@ struct mac_booter_data mac_bi_data;
 int mac_bisize = sizeof mac_bi_data;
 
 struct mac_hw_present mac_hw_present;
+EXPORT_SYMBOL(mac_hw_present);
 
 /* New m68k bootinfo stuff and videobase */
 
@@ -84,7 +85,7 @@ extern void nubus_sweep_video(void);
 
 static void mac_get_model(char *str);
 
-static void mac_sched_init(irq_handler_t vector)
+static void __init mac_sched_init(irq_handler_t vector)
 {
 	via_init_clock(vector);
 }
@@ -769,7 +770,7 @@ static struct mac_model mac_data_table[] = {
 	}
 };
 
-void mac_identify(void)
+void __init mac_identify(void)
 {
 	struct mac_model *m;
 
@@ -846,7 +847,7 @@ void mac_identify(void)
 	baboon_init();
 }
 
-void mac_report_hardware(void)
+void __init mac_report_hardware(void)
 {
 	printk(KERN_INFO "Apple Macintosh %s\n", macintosh_config->name);
 }

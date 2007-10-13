@@ -36,7 +36,7 @@ int __init br_fdb_init(void)
 	br_fdb_cache = kmem_cache_create("bridge_fdb_cache",
 					 sizeof(struct net_bridge_fdb_entry),
 					 0,
-					 SLAB_HWCACHE_ALIGN, NULL, NULL);
+					 SLAB_HWCACHE_ALIGN, NULL);
 	if (!br_fdb_cache)
 		return -ENOMEM;
 
@@ -382,6 +382,11 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 
 	/* some users want to always flood. */
 	if (hold_time(br) == 0)
+		return;
+
+	/* ignore packets unless we are using this port */
+	if (!(source->state == BR_STATE_LEARNING ||
+	      source->state == BR_STATE_FORWARDING))
 		return;
 
 	fdb = fdb_find(head, addr);

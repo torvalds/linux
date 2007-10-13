@@ -77,7 +77,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
  * stack so the first thing we do is throw away that stuff and load useful
  * values into the registers ...
  */
-void __init prom_boot_secondary(int cpu, struct task_struct *idle)
+void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long gp = (unsigned long) task_thread_info(idle);
 	unsigned long sp = __KSTK_TOS(idle);
@@ -97,32 +97,37 @@ void prom_cpus_done(void)
  *  After we've done initial boot, this function is called to allow the
  *  board code to clean up state, if needed
  */
-void prom_init_secondary(void)
+void __cpuinit prom_init_secondary(void)
 {
 	set_c0_status(ST0_CO | ST0_IE | ST0_IM);
 }
 
-void prom_smp_finish(void)
+void __cpuinit prom_smp_finish(void)
 {
 }
 
-asmlinkage void titan_mailbox_irq(void)
+void titan_mailbox_irq(void)
 {
 	int cpu = smp_processor_id();
 	unsigned long status;
 
-	if (cpu == 0) {
+	switch (cpu) {
+	case 0:
 		status = OCD_READ(RM9000x2_OCD_INTP0STATUS3);
 		OCD_WRITE(RM9000x2_OCD_INTP0CLEAR3, status);
-	}
 
-	if (cpu == 1) {
+		if (status & 0x2)
+			smp_call_function_interrupt();
+		break;
+
+	case 1:
 		status = OCD_READ(RM9000x2_OCD_INTP1STATUS3);
 		OCD_WRITE(RM9000x2_OCD_INTP1CLEAR3, status);
-	}
 
-	if (status & 0x2)
-		smp_call_function_interrupt();
+		if (status & 0x2)
+			smp_call_function_interrupt();
+		break;
+	}
 }
 
 /*

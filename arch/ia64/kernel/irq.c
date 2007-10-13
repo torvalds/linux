@@ -33,9 +33,14 @@ void ack_bad_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_IA64_GENERIC
+ia64_vector __ia64_irq_to_vector(int irq)
+{
+	return irq_cfg[irq].vector;
+}
+
 unsigned int __ia64_local_vector_to_irq (ia64_vector vec)
 {
-	return (unsigned int) vec;
+	return __get_cpu_var(vector_irq)[vec];
 }
 #endif
 

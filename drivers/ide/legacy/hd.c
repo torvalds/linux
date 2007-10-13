@@ -652,7 +652,7 @@ repeat:
 	}
 }
 
-static void do_hd_request (request_queue_t * q)
+static void do_hd_request (struct request_queue * q)
 {
 	disable_irq(HD_IRQ);
 	hd_request();

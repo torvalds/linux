@@ -1,5 +1,5 @@
 /*
- * Version 2.20
+ * Version 2.22
  *
  * AMD 755/756/766/8111 and nVidia nForce/2/2s/3/3s/CK804/MCP04
  * IDE driver for Linux.
@@ -234,7 +234,7 @@ static void amd_set_speed(struct pci_dev *dev, unsigned char dn, struct ide_timi
  * by upper layers.
  */
 
-static int amd_set_drive(ide_drive_t *drive, u8 speed)
+static int amd_set_drive(ide_drive_t *drive, const u8 speed)
 {
 	ide_drive_t *peer = HWIF(drive)->drives + (~drive->dn & 1);
 	struct ide_timing t, p;
@@ -266,31 +266,20 @@ static int amd_set_drive(ide_drive_t *drive, u8 speed)
 }
 
 /*
- * amd74xx_tune_drive() is a callback from upper layers for
- * PIO-only tuning.
+ * amd_set_pio_mode() is a callback from upper layers for PIO-only tuning.
  */
 
-static void amd74xx_tune_drive(ide_drive_t *drive, u8 pio)
+static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	if (pio == 255) {
-		amd_set_drive(drive, ide_find_best_pio_mode(drive));
-		return;
-	}
-
-	amd_set_drive(drive, XFER_PIO_0 + min_t(byte, pio, 5));
+	amd_set_drive(drive, XFER_PIO_0 + pio);
 }
 
 static int amd74xx_ide_dma_check(ide_drive_t *drive)
 {
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (speed == 0)
-		speed = ide_find_best_pio_mode(drive);
-
-	amd_set_drive(drive, speed);
-
-	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
+	if (ide_tune_dma(drive))
 		return 0;
+
+	ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -409,7 +398,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 
 	hwif->autodma = 0;
 
-	hwif->tuneproc = &amd74xx_tune_drive;
+	hwif->set_pio_mode = &amd_set_pio_mode;
 	hwif->speedproc = &amd_set_drive;
 
 	for (i = 0; i < 2; i++) {
@@ -448,10 +437,12 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
-		.channels	= 2,					\
 		.autodma	= AUTODMA,				\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
 		.bootable	= ON_BOARD,				\
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
+				| IDE_HFLAG_PIO_NO_DOWNGRADE,		\
+		.pio_mask	= ATA_PIO5,				\
 	}
 
 #define DECLARE_NV_DEV(name_str)					\
@@ -459,10 +450,12 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
-		.channels	= 2,					\
 		.autodma	= AUTODMA,				\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
 		.bootable	= ON_BOARD,				\
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
+				| IDE_HFLAG_PIO_NO_DOWNGRADE,		\
+		.pio_mask	= ATA_PIO5,				\
 	}
 
 static ide_pci_device_t amd74xx_chipsets[] __devinitdata = {

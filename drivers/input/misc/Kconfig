@@ -68,6 +68,7 @@ config INPUT_WISTRON_BTNS
 	select INPUT_POLLDEV
 	select NEW_LEDS
 	select LEDS_CLASS
+	select CHECK_SIGNATURE
 	help
 	  Say Y here for support of Winstron laptop button interface, used on
 	  laptops of various brands, including Acer and Fujitsu-Siemens. If

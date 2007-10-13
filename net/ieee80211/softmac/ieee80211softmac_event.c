@@ -172,7 +172,7 @@ ieee80211softmac_call_events_locked(struct ieee80211softmac_device *mac, int eve
 				/* User may have subscribed to ANY event, so
 				 * we tell them which event triggered it. */
 				eventptr->event_type = event;
-				schedule_delayed_work(&eventptr->work, 0);
+				queue_delayed_work(mac->wq, &eventptr->work, 0);
 			}
 		}
 }

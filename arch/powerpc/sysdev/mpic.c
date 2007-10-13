@@ -156,8 +156,7 @@ static inline u32 _mpic_read(enum mpic_reg_type type,
 	switch(type) {
 #ifdef CONFIG_PPC_DCR
 	case mpic_access_dcr:
-		return dcr_read(rb->dhost,
-				rb->dbase + reg + rb->doff);
+		return dcr_read(rb->dhost, rb->dhost.base + reg);
 #endif
 	case mpic_access_mmio_be:
 		return in_be32(rb->base + (reg >> 2));
@@ -174,8 +173,7 @@ static inline void _mpic_write(enum mpic_reg_type type,
 	switch(type) {
 #ifdef CONFIG_PPC_DCR
 	case mpic_access_dcr:
-		return dcr_write(rb->dhost,
-				 rb->dbase + reg + rb->doff, value);
+		return dcr_write(rb->dhost, rb->dhost.base + reg, value);
 #endif
 	case mpic_access_mmio_be:
 		return out_be32(rb->base + (reg >> 2), value);
@@ -228,8 +226,13 @@ static inline u32 _mpic_irq_read(struct mpic *mpic, unsigned int src_no, unsigne
 	unsigned int	isu = src_no >> mpic->isu_shift;
 	unsigned int	idx = src_no & mpic->isu_mask;
 
-	return _mpic_read(mpic->reg_type, &mpic->isus[isu],
-			  reg + (idx * MPIC_INFO(IRQ_STRIDE)));
+#ifdef CONFIG_MPIC_BROKEN_REGREAD
+	if (reg == 0)
+		return mpic->isu_reg0_shadow[idx];
+	else
+#endif
+		return _mpic_read(mpic->reg_type, &mpic->isus[isu],
+				  reg + (idx * MPIC_INFO(IRQ_STRIDE)));
 }
 
 static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_no,
@@ -240,6 +243,11 @@ static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_no,
 
 	_mpic_write(mpic->reg_type, &mpic->isus[isu],
 		    reg + (idx * MPIC_INFO(IRQ_STRIDE)), value);
+
+#ifdef CONFIG_MPIC_BROKEN_REGREAD
+	if (reg == 0)
+		mpic->isu_reg0_shadow[idx] = value;
+#endif
 }
 
 #define mpic_read(b,r)		_mpic_read(mpic->reg_type,&(b),(r))
@@ -269,9 +277,11 @@ static void _mpic_map_mmio(struct mpic *mpic, unsigned long phys_addr,
 static void _mpic_map_dcr(struct mpic *mpic, struct mpic_reg_bank *rb,
 			  unsigned int offset, unsigned int size)
 {
-	rb->dbase = mpic->dcr_base;
-	rb->doff = offset;
-	rb->dhost = dcr_map(mpic->of_node, rb->dbase + rb->doff, size);
+	const u32 *dbasep;
+
+	dbasep = of_get_property(mpic->irqhost->of_node, "dcr-reg", NULL);
+
+	rb->dhost = dcr_map(mpic->irqhost->of_node, *dbasep + offset, size);
 	BUG_ON(!DCR_MAP_OK(rb->dhost));
 }
 
@@ -758,7 +768,7 @@ static void mpic_end_ipi(unsigned int irq)
 
 #endif /* CONFIG_SMP */
 
-static void mpic_set_affinity(unsigned int irq, cpumask_t cpumask)
+void mpic_set_affinity(unsigned int irq, cpumask_t cpumask)
 {
 	struct mpic *mpic = mpic_from_irq(irq);
 	unsigned int src = mpic_irq_to_hw(irq);
@@ -861,10 +871,8 @@ static struct irq_chip mpic_irq_ht_chip = {
 
 static int mpic_host_match(struct irq_host *h, struct device_node *node)
 {
-	struct mpic *mpic = h->host_data;
-
 	/* Exact match, unless mpic node is NULL */
-	return mpic->of_node == NULL || mpic->of_node == node;
+	return h->of_node == NULL || h->of_node == node;
 }
 
 static int mpic_host_map(struct irq_host *h, unsigned int virq,
@@ -876,6 +884,8 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 	DBG("mpic: map virq %d, hwirq 0x%lx\n", virq, hw);
 
 	if (hw == mpic->spurious_vec)
+		return -EINVAL;
+	if (mpic->protected && test_bit(hw, mpic->protected))
 		return -EINVAL;
 
 #ifdef CONFIG_SMP
@@ -983,10 +993,9 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	
 	memset(mpic, 0, sizeof(struct mpic));
 	mpic->name = name;
-	mpic->of_node = of_node_get(node);
 
-	mpic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR, isu_size,
-				       &mpic_host_ops,
+	mpic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+				       isu_size, &mpic_host_ops,
 				       flags & MPIC_LARGE_VECTORS ? 2048 : 256);
 	if (mpic->irqhost == NULL) {
 		of_node_put(node);
@@ -1034,6 +1043,25 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	if (node && of_get_property(node, "big-endian", NULL) != NULL)
 		mpic->flags |= MPIC_BIG_ENDIAN;
 
+	/* Look for protected sources */
+	if (node) {
+		unsigned int psize, bits, mapsize;
+		const u32 *psrc =
+			of_get_property(node, "protected-sources", &psize);
+		if (psrc) {
+			psize /= 4;
+			bits = intvec_top + 1;
+			mapsize = BITS_TO_LONGS(bits) * sizeof(unsigned long);
+			mpic->protected = alloc_bootmem(mapsize);
+			BUG_ON(mpic->protected == NULL);
+			memset(mpic->protected, 0, mapsize);
+			for (i = 0; i < psize; i++) {
+				if (psrc[i] > intvec_top)
+					continue;
+				__set_bit(psrc[i], mpic->protected);
+			}
+		}
+	}
 
 #ifdef CONFIG_MPIC_WEIRD
 	mpic->hw_set = mpic_infos[MPIC_GET_REGSET(flags)];
@@ -1047,20 +1075,14 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	BUG_ON(paddr == 0 && node == NULL);
 
 	/* If no physical address passed in, check if it's dcr based */
-	if (paddr == 0 && of_get_property(node, "dcr-reg", NULL) != NULL)
-		mpic->flags |= MPIC_USES_DCR;
-
+	if (paddr == 0 && of_get_property(node, "dcr-reg", NULL) != NULL) {
 #ifdef CONFIG_PPC_DCR
-	if (mpic->flags & MPIC_USES_DCR) {
-		const u32 *dbasep;
-		dbasep = of_get_property(node, "dcr-reg", NULL);
-		BUG_ON(dbasep == NULL);
-		mpic->dcr_base = *dbasep;
+		mpic->flags |= MPIC_USES_DCR;
 		mpic->reg_type = mpic_access_dcr;
-	}
 #else
-	BUG_ON (mpic->flags & MPIC_USES_DCR);
+		BUG();
 #endif /* CONFIG_PPC_DCR */
+	}
 
 	/* If the MPIC is not DCR based, and no physical address was passed
 	 * in, try to obtain one
@@ -1213,6 +1235,9 @@ void __init mpic_init(struct mpic *mpic)
 		u32 vecpri = MPIC_VECPRI_MASK | i |
 			(8 << MPIC_VECPRI_PRIORITY_SHIFT);
 		
+		/* check if protected */
+		if (mpic->protected && test_bit(i, mpic->protected))
+			continue;
 		/* init hw */
 		mpic_irq_write(i, MPIC_INFO(IRQ_VECTOR_PRI), vecpri);
 		mpic_irq_write(i, MPIC_INFO(IRQ_DESTINATION),
@@ -1407,6 +1432,14 @@ unsigned int mpic_get_one_irq(struct mpic *mpic)
 			mpic_eoi(mpic);
 		return NO_IRQ;
 	}
+	if (unlikely(mpic->protected && test_bit(src, mpic->protected))) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING "%s: Got protected source %d !\n",
+			       mpic->name, (int)src);
+		mpic_eoi(mpic);
+		return NO_IRQ;
+	}
+
 	return irq_linear_revmap(mpic->irqhost, src);
 }
 

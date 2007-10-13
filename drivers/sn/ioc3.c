@@ -629,7 +629,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 #endif
 
 	/* Set up per-IOC3 data */
-	idd = kmalloc(sizeof(struct ioc3_driver_data), GFP_KERNEL);
+	idd = kzalloc(sizeof(struct ioc3_driver_data), GFP_KERNEL);
 	if (!idd) {
 		printk(KERN_WARNING
 		       "%s: Failed to allocate IOC3 data for pci_dev %s.\n",
@@ -637,7 +637,6 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		ret = -ENODEV;
 		goto out_idd;
 	}
-	memset(idd, 0, sizeof(struct ioc3_driver_data));
 	spin_lock_init(&idd->ir_lock);
 	spin_lock_init(&idd->gpio_lock);
 	idd->pdev = pdev;

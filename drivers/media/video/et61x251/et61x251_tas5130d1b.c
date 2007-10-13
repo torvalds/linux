@@ -69,7 +69,7 @@ static int tas5130d1b_set_ctrl(struct et61x251_device* cam,
 }
 
 
-static struct et61x251_sensor tas5130d1b = {
+static const struct et61x251_sensor tas5130d1b = {
 	.name = "TAS5130D1B",
 	.interface = ET61X251_I2C_3WIRES,
 	.rsta = ET61X251_I2C_RSTA_STOP,

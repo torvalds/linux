@@ -516,6 +516,7 @@ static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id)
 {
 	unsigned long flags;
 	unsigned char str, data;
+	int ret = 0;
 
 	spin_lock_irqsave(&i8042_lock, flags);
 	str = i8042_read_status();
@@ -524,10 +525,11 @@ static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id)
 		if (i8042_irq_being_tested &&
 		    data == 0xa5 && (str & I8042_STR_AUXDATA))
 			complete(&i8042_aux_irq_delivered);
+		ret = 1;
 	}
 	spin_unlock_irqrestore(&i8042_lock, flags);
 
-	return IRQ_HANDLED;
+	return IRQ_RETVAL(ret);
 }
 
 /*
@@ -1042,7 +1044,7 @@ static void __devinit i8042_register_ports(void)
 	}
 }
 
-static void __devinit i8042_unregister_ports(void)
+static void __devexit i8042_unregister_ports(void)
 {
 	int i;
 

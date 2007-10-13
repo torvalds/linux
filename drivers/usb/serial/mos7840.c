@@ -436,11 +436,6 @@ static void mos7840_control_callback(struct urb *urb)
 	int result = 0;
 	int status = urb->status;
 
-	if (!urb) {
-		dbg("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
-
 	mos7840_port = (struct moschip_port *)urb->context;
 
 	switch (status) {
@@ -525,10 +520,6 @@ static void mos7840_interrupt_callback(struct urb *urb)
 	int status = urb->status;
 
 	dbg("%s", " : Entering\n");
-	if (!urb) {
-		dbg("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
 
 	switch (status) {
 	case 0:
@@ -676,11 +667,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	struct tty_struct *tty;
 	int status = urb->status;
 
-	if (!urb) {
-		dbg("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
-
 	if (status) {
 		dbg("nonzero read bulk status received: %d", status);
 		return;
@@ -752,11 +738,6 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 	struct tty_struct *tty;
 	int status = urb->status;
 	int i;
-
-	if (!urb) {
-		dbg("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
 
 	mos7840_port = (struct moschip_port *)urb->context;
 	spin_lock(&mos7840_port->pool_lock);

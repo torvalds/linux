@@ -60,6 +60,15 @@ extern cpumask_t phys_cpu_present_map;
  */
 extern void core_send_ipi(int cpu, unsigned int action);
 
+static inline void core_send_ipi_mask(cpumask_t mask, unsigned int action)
+{
+	unsigned int i;
+
+	for_each_cpu_mask(i, mask)
+		core_send_ipi(i, action);
+}
+
+
 /*
  * Firmware CPU startup hook
  */

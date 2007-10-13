@@ -349,7 +349,6 @@ static struct video_device trust_radio=
 	.owner		= THIS_MODULE,
 	.name		= "Trust FM Radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= 0,
 	.fops           = &trust_fops,
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,

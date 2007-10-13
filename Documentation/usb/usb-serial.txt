@@ -428,6 +428,17 @@ Options supported:
   See http://www.uuhaus.de/linux/palmconnect.html for up-to-date
   information on this driver.
 
+Winchiphead CH341 Driver
+
+  This driver is for the Winchiphead CH341 USB-RS232 Converter. This chip
+  also implements an IEEE 1284 parallel port, I2C and SPI, but that is not
+  supported by the driver. The protocol was analyzed from the behaviour
+  of the Windows driver, no datasheet is available at present.
+  The manufacturer's website: http://www.winchiphead.com/.
+  For any questions or problems with this driver, please contact
+  frank@kingswood-consulting.co.uk.
+
+
 Generic Serial driver
 
   If your device is not one of the above listed devices, compatible with

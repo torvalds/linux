@@ -277,11 +277,10 @@ static struct config_item *simple_children_make_item(struct config_group *group,
 {
 	struct simple_child *simple_child;
 
-	simple_child = kmalloc(sizeof(struct simple_child), GFP_KERNEL);
+	simple_child = kzalloc(sizeof(struct simple_child), GFP_KERNEL);
 	if (!simple_child)
 		return NULL;
 
-	memset(simple_child, 0, sizeof(struct simple_child));
 
 	config_item_init_type_name(&simple_child->item, name,
 				   &simple_child_type);
@@ -364,12 +363,11 @@ static struct config_group *group_children_make_group(struct config_group *group
 {
 	struct simple_children *simple_children;
 
-	simple_children = kmalloc(sizeof(struct simple_children),
+	simple_children = kzalloc(sizeof(struct simple_children),
 				  GFP_KERNEL);
 	if (!simple_children)
 		return NULL;
 
-	memset(simple_children, 0, sizeof(struct simple_children));
 
 	config_group_init_type_name(&simple_children->group, name,
 				    &simple_children_type);

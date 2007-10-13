@@ -109,7 +109,7 @@ int __init irttp_init(void)
  *    Called by module destruction/cleanup code
  *
  */
-void __exit irttp_cleanup(void)
+void irttp_cleanup(void)
 {
 	/* Check for main structure */
 	IRDA_ASSERT(irttp->magic == TTP_MAGIC, return;);
@@ -1884,25 +1884,8 @@ static const struct seq_operations irttp_seq_ops = {
 
 static int irttp_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct irttp_iter_state *s;
-
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &irttp_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &irttp_seq_ops,
+			sizeof(struct irttp_iter_state));
 }
 
 const struct file_operations irttp_seq_fops = {

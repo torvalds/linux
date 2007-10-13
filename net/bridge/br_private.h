@@ -170,12 +170,8 @@ extern int br_dev_queue_push_xmit(struct sk_buff *skb);
 extern void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb);
 extern int br_forward_finish(struct sk_buff *skb);
-extern void br_flood_deliver(struct net_bridge *br,
-		      struct sk_buff *skb,
-		      int clone);
-extern void br_flood_forward(struct net_bridge *br,
-		      struct sk_buff *skb,
-		      int clone);
+extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb);
+extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb);
 
 /* br_if.c */
 extern void br_port_carrier_check(struct net_bridge_port *p);
@@ -196,7 +192,7 @@ extern struct sk_buff *br_handle_frame(struct net_bridge_port *p,
 
 /* br_ioctl.c */
 extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-extern int br_ioctl_deviceless_stub(unsigned int cmd, void __user *arg);
+extern int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __user *arg);
 
 /* br_netfilter.c */
 #ifdef CONFIG_BRIDGE_NETFILTER

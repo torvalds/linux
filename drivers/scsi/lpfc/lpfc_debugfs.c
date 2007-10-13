@@ -71,14 +71,21 @@
  * lpfc_debugfs_mask_disc_trc=Y  Where Y is an event mask as defined in
  *                               lpfc_debugfs.h .
  */
-static int lpfc_debugfs_enable = 0;
+static int lpfc_debugfs_enable = 1;
 module_param(lpfc_debugfs_enable, int, 0);
 MODULE_PARM_DESC(lpfc_debugfs_enable, "Enable debugfs services");
 
-static int lpfc_debugfs_max_disc_trc = 0;  /* This MUST be a power of 2 */
+/* This MUST be a power of 2 */
+static int lpfc_debugfs_max_disc_trc = 0;
 module_param(lpfc_debugfs_max_disc_trc, int, 0);
 MODULE_PARM_DESC(lpfc_debugfs_max_disc_trc,
 	"Set debugfs discovery trace depth");
+
+/* This MUST be a power of 2 */
+static int lpfc_debugfs_max_slow_ring_trc = 0;
+module_param(lpfc_debugfs_max_slow_ring_trc, int, 0);
+MODULE_PARM_DESC(lpfc_debugfs_max_slow_ring_trc,
+	"Set debugfs slow ring trace depth");
 
 static int lpfc_debugfs_mask_disc_trc = 0;
 module_param(lpfc_debugfs_mask_disc_trc, int, 0);
@@ -87,28 +94,34 @@ MODULE_PARM_DESC(lpfc_debugfs_mask_disc_trc,
 
 #include <linux/debugfs.h>
 
-/* size of discovery_trace output line */
-#define LPFC_DISC_TRC_ENTRY_SIZE 80
+/* size of output line, for discovery_trace and slow_ring_trace */
+#define LPFC_DEBUG_TRC_ENTRY_SIZE 100
 
 /* nodelist output buffer size */
 #define LPFC_NODELIST_SIZE 8192
 #define LPFC_NODELIST_ENTRY_SIZE 120
+
+/* dumpslim output buffer size */
+#define LPFC_DUMPSLIM_SIZE 4096
+
+/* hbqinfo output buffer size */
+#define LPFC_HBQINFO_SIZE 8192
 
 struct lpfc_debug {
 	char *buffer;
 	int  len;
 };
 
-atomic_t lpfc_debugfs_disc_trc_cnt = ATOMIC_INIT(0);
-unsigned long lpfc_debugfs_start_time = 0L;
+static atomic_t lpfc_debugfs_seq_trc_cnt = ATOMIC_INIT(0);
+static unsigned long lpfc_debugfs_start_time = 0L;
 
 static int
 lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	int i, index, len, enable;
 	uint32_t ms;
-	struct lpfc_disc_trc *dtp;
-	char buffer[80];
+	struct lpfc_debugfs_trc *dtp;
+	char buffer[LPFC_DEBUG_TRC_ENTRY_SIZE];
 
 
 	enable = lpfc_debugfs_enable;
@@ -122,7 +135,8 @@ lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
 		if (!dtp->fmt)
 			continue;
 		ms = jiffies_to_msecs(dtp->jif - lpfc_debugfs_start_time);
-		snprintf(buffer, 80, "%010d:%010d ms:%s\n",
+		snprintf(buffer,
+			LPFC_DEBUG_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
 			dtp->seq_cnt, ms, dtp->fmt);
 		len +=  snprintf(buf+len, size-len, buffer,
 			dtp->data1, dtp->data2, dtp->data3);
@@ -132,13 +146,244 @@ lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
 		if (!dtp->fmt)
 			continue;
 		ms = jiffies_to_msecs(dtp->jif - lpfc_debugfs_start_time);
-		snprintf(buffer, 80, "%010d:%010d ms:%s\n",
+		snprintf(buffer,
+			LPFC_DEBUG_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
 			dtp->seq_cnt, ms, dtp->fmt);
 		len +=  snprintf(buf+len, size-len, buffer,
 			dtp->data1, dtp->data2, dtp->data3);
 	}
 
 	lpfc_debugfs_enable = enable;
+	return len;
+}
+
+static int
+lpfc_debugfs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
+{
+	int i, index, len, enable;
+	uint32_t ms;
+	struct lpfc_debugfs_trc *dtp;
+	char buffer[LPFC_DEBUG_TRC_ENTRY_SIZE];
+
+
+	enable = lpfc_debugfs_enable;
+	lpfc_debugfs_enable = 0;
+
+	len = 0;
+	index = (atomic_read(&phba->slow_ring_trc_cnt) + 1) &
+		(lpfc_debugfs_max_slow_ring_trc - 1);
+	for (i = index; i < lpfc_debugfs_max_slow_ring_trc; i++) {
+		dtp = phba->slow_ring_trc + i;
+		if (!dtp->fmt)
+			continue;
+		ms = jiffies_to_msecs(dtp->jif - lpfc_debugfs_start_time);
+		snprintf(buffer,
+			LPFC_DEBUG_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
+			dtp->seq_cnt, ms, dtp->fmt);
+		len +=  snprintf(buf+len, size-len, buffer,
+			dtp->data1, dtp->data2, dtp->data3);
+	}
+	for (i = 0; i < index; i++) {
+		dtp = phba->slow_ring_trc + i;
+		if (!dtp->fmt)
+			continue;
+		ms = jiffies_to_msecs(dtp->jif - lpfc_debugfs_start_time);
+		snprintf(buffer,
+			LPFC_DEBUG_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
+			dtp->seq_cnt, ms, dtp->fmt);
+		len +=  snprintf(buf+len, size-len, buffer,
+			dtp->data1, dtp->data2, dtp->data3);
+	}
+
+	lpfc_debugfs_enable = enable;
+	return len;
+}
+
+static int lpfc_debugfs_last_hbq = -1;
+
+static int
+lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
+{
+	int len = 0;
+	int cnt, i, j, found, posted, low;
+	uint32_t phys, raw_index, getidx;
+	struct lpfc_hbq_init *hip;
+	struct hbq_s *hbqs;
+	struct lpfc_hbq_entry *hbqe;
+	struct lpfc_dmabuf *d_buf;
+	struct hbq_dmabuf *hbq_buf;
+
+	cnt = LPFC_HBQINFO_SIZE;
+	spin_lock_irq(&phba->hbalock);
+
+	/* toggle between multiple hbqs, if any */
+	i = lpfc_sli_hbq_count();
+	if (i > 1) {
+		 lpfc_debugfs_last_hbq++;
+		 if (lpfc_debugfs_last_hbq >= i)
+			lpfc_debugfs_last_hbq = 0;
+	}
+	else
+		lpfc_debugfs_last_hbq = 0;
+
+	i = lpfc_debugfs_last_hbq;
+
+	len +=  snprintf(buf+len, size-len, "HBQ %d Info\n", i);
+
+	hbqs =  &phba->hbqs[i];
+	posted = 0;
+	list_for_each_entry(d_buf, &hbqs->hbq_buffer_list, list)
+		posted++;
+
+	hip =  lpfc_hbq_defs[i];
+	len +=  snprintf(buf+len, size-len,
+		"idx:%d prof:%d rn:%d bufcnt:%d icnt:%d acnt:%d posted %d\n",
+		hip->hbq_index, hip->profile, hip->rn,
+		hip->buffer_count, hip->init_count, hip->add_count, posted);
+
+	raw_index = phba->hbq_get[i];
+	getidx = le32_to_cpu(raw_index);
+	len +=  snprintf(buf+len, size-len,
+		"entrys:%d Put:%d nPut:%d localGet:%d hbaGet:%d\n",
+		hbqs->entry_count, hbqs->hbqPutIdx, hbqs->next_hbqPutIdx,
+		hbqs->local_hbqGetIdx, getidx);
+
+	hbqe = (struct lpfc_hbq_entry *) phba->hbqs[i].hbq_virt;
+	for (j=0; j<hbqs->entry_count; j++) {
+		len +=  snprintf(buf+len, size-len,
+			"%03d: %08x %04x %05x ", j,
+			hbqe->bde.addrLow, hbqe->bde.tus.w, hbqe->buffer_tag);
+
+		i = 0;
+		found = 0;
+
+		/* First calculate if slot has an associated posted buffer */
+		low = hbqs->hbqPutIdx - posted;
+		if (low >= 0) {
+			if ((j >= hbqs->hbqPutIdx) || (j < low)) {
+				len +=  snprintf(buf+len, size-len, "Unused\n");
+				goto skipit;
+			}
+		}
+		else {
+			if ((j >= hbqs->hbqPutIdx) &&
+				(j < (hbqs->entry_count+low))) {
+				len +=  snprintf(buf+len, size-len, "Unused\n");
+				goto skipit;
+			}
+		}
+
+		/* Get the Buffer info for the posted buffer */
+		list_for_each_entry(d_buf, &hbqs->hbq_buffer_list, list) {
+			hbq_buf = container_of(d_buf, struct hbq_dmabuf, dbuf);
+			phys = ((uint64_t)hbq_buf->dbuf.phys & 0xffffffff);
+			if (phys == hbqe->bde.addrLow) {
+				len +=  snprintf(buf+len, size-len,
+					"Buf%d: %p %06x\n", i,
+					hbq_buf->dbuf.virt, hbq_buf->tag);
+				found = 1;
+				break;
+			}
+			i++;
+		}
+		if (!found) {
+			len +=  snprintf(buf+len, size-len, "No DMAinfo?\n");
+		}
+skipit:
+		hbqe++;
+		if (len > LPFC_HBQINFO_SIZE - 54)
+			break;
+	}
+	spin_unlock_irq(&phba->hbalock);
+	return len;
+}
+
+static int
+lpfc_debugfs_dumpslim_data(struct lpfc_hba *phba, char *buf, int size)
+{
+	int len = 0;
+	int cnt, i, off;
+	uint32_t word0, word1, word2, word3;
+	uint32_t *ptr;
+	struct lpfc_pgp *pgpp;
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring;
+
+	cnt = LPFC_DUMPSLIM_SIZE;
+	off = 0;
+	spin_lock_irq(&phba->hbalock);
+
+	len +=  snprintf(buf+len, size-len, "SLIM Mailbox\n");
+	ptr = (uint32_t *)phba->slim2p;
+	i = sizeof(MAILBOX_t);
+	while (i > 0) {
+		len +=  snprintf(buf+len, size-len,
+		"%08x: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+		off, *ptr, *(ptr+1), *(ptr+2), *(ptr+3), *(ptr+4),
+		*(ptr+5), *(ptr+6), *(ptr+7));
+		ptr += 8;
+		i -= (8 * sizeof(uint32_t));
+		off += (8 * sizeof(uint32_t));
+	}
+
+	len +=  snprintf(buf+len, size-len, "SLIM PCB\n");
+	ptr = (uint32_t *)&phba->slim2p->pcb;
+	i = sizeof(PCB_t);
+	while (i > 0) {
+		len +=  snprintf(buf+len, size-len,
+		"%08x: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+		off, *ptr, *(ptr+1), *(ptr+2), *(ptr+3), *(ptr+4),
+		*(ptr+5), *(ptr+6), *(ptr+7));
+		ptr += 8;
+		i -= (8 * sizeof(uint32_t));
+		off += (8 * sizeof(uint32_t));
+	}
+
+	pgpp = (struct lpfc_pgp *)&phba->slim2p->mbx.us.s3_pgp.port;
+	pring = &psli->ring[0];
+	len +=  snprintf(buf+len, size-len,
+		"Ring 0: CMD GetInx:%d (Max:%d Next:%d Local:%d flg:x%x)  "
+		"RSP PutInx:%d Max:%d\n",
+		pgpp->cmdGetInx, pring->numCiocb,
+		pring->next_cmdidx, pring->local_getidx, pring->flag,
+		pgpp->rspPutInx, pring->numRiocb);
+	pgpp++;
+
+	pring = &psli->ring[1];
+	len +=  snprintf(buf+len, size-len,
+		"Ring 1: CMD GetInx:%d (Max:%d Next:%d Local:%d flg:x%x)  "
+		"RSP PutInx:%d Max:%d\n",
+		pgpp->cmdGetInx, pring->numCiocb,
+		pring->next_cmdidx, pring->local_getidx, pring->flag,
+		pgpp->rspPutInx, pring->numRiocb);
+	pgpp++;
+
+	pring = &psli->ring[2];
+	len +=  snprintf(buf+len, size-len,
+		"Ring 2: CMD GetInx:%d (Max:%d Next:%d Local:%d flg:x%x)  "
+		"RSP PutInx:%d Max:%d\n",
+		pgpp->cmdGetInx, pring->numCiocb,
+		pring->next_cmdidx, pring->local_getidx, pring->flag,
+		pgpp->rspPutInx, pring->numRiocb);
+	pgpp++;
+
+	pring = &psli->ring[3];
+	len +=  snprintf(buf+len, size-len,
+		"Ring 3: CMD GetInx:%d (Max:%d Next:%d Local:%d flg:x%x)  "
+		"RSP PutInx:%d Max:%d\n",
+		pgpp->cmdGetInx, pring->numCiocb,
+		pring->next_cmdidx, pring->local_getidx, pring->flag,
+		pgpp->rspPutInx, pring->numRiocb);
+
+
+	ptr = (uint32_t *)&phba->slim2p->mbx.us.s3_pgp.hbq_get;
+	word0 = readl(phba->HAregaddr);
+	word1 = readl(phba->CAregaddr);
+	word2 = readl(phba->HSregaddr);
+	word3 = readl(phba->HCregaddr);
+	len +=  snprintf(buf+len, size-len, "HA:%08x CA:%08x HS:%08x HC:%08x\n",
+	word0, word1, word2, word3);
+	spin_unlock_irq(&phba->hbalock);
 	return len;
 }
 
@@ -204,7 +449,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		len +=  snprintf(buf+len, size-len, "RPI:%03d flag:x%08x ",
 			ndlp->nlp_rpi, ndlp->nlp_flag);
 		if (!ndlp->nlp_type)
-			len +=  snprintf(buf+len, size-len, "UNKNOWN_TYPE");
+			len +=  snprintf(buf+len, size-len, "UNKNOWN_TYPE ");
 		if (ndlp->nlp_type & NLP_FC_NODE)
 			len +=  snprintf(buf+len, size-len, "FC_NODE ");
 		if (ndlp->nlp_type & NLP_FABRIC)
@@ -213,7 +458,9 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			len +=  snprintf(buf+len, size-len, "FCP_TGT sid:%d ",
 				ndlp->nlp_sid);
 		if (ndlp->nlp_type & NLP_FCP_INITIATOR)
-			len +=  snprintf(buf+len, size-len, "FCP_INITIATOR");
+			len +=  snprintf(buf+len, size-len, "FCP_INITIATOR ");
+		len += snprintf(buf+len, size-len, "refcnt:%x",
+			atomic_read(&ndlp->kref.refcount));
 		len +=  snprintf(buf+len, size-len, "\n");
 	}
 	spin_unlock_irq(shost->host_lock);
@@ -227,7 +474,7 @@ lpfc_debugfs_disc_trc(struct lpfc_vport *vport, int mask, char *fmt,
 	uint32_t data1, uint32_t data2, uint32_t data3)
 {
 #ifdef CONFIG_LPFC_DEBUG_FS
-	struct lpfc_disc_trc *dtp;
+	struct lpfc_debugfs_trc *dtp;
 	int index;
 
 	if (!(lpfc_debugfs_mask_disc_trc & mask))
@@ -244,7 +491,32 @@ lpfc_debugfs_disc_trc(struct lpfc_vport *vport, int mask, char *fmt,
 	dtp->data1 = data1;
 	dtp->data2 = data2;
 	dtp->data3 = data3;
-	dtp->seq_cnt = atomic_inc_return(&lpfc_debugfs_disc_trc_cnt);
+	dtp->seq_cnt = atomic_inc_return(&lpfc_debugfs_seq_trc_cnt);
+	dtp->jif = jiffies;
+#endif
+	return;
+}
+
+inline void
+lpfc_debugfs_slow_ring_trc(struct lpfc_hba *phba, char *fmt,
+	uint32_t data1, uint32_t data2, uint32_t data3)
+{
+#ifdef CONFIG_LPFC_DEBUG_FS
+	struct lpfc_debugfs_trc *dtp;
+	int index;
+
+	if (!lpfc_debugfs_enable || !lpfc_debugfs_max_slow_ring_trc ||
+		!phba || !phba->slow_ring_trc)
+		return;
+
+	index = atomic_inc_return(&phba->slow_ring_trc_cnt) &
+		(lpfc_debugfs_max_slow_ring_trc - 1);
+	dtp = phba->slow_ring_trc + index;
+	dtp->fmt = fmt;
+	dtp->data1 = data1;
+	dtp->data2 = data2;
+	dtp->data3 = data3;
+	dtp->seq_cnt = atomic_inc_return(&lpfc_debugfs_seq_trc_cnt);
 	dtp->jif = jiffies;
 #endif
 	return;
@@ -269,7 +541,7 @@ lpfc_debugfs_disc_trc_open(struct inode *inode, struct file *file)
 		goto out;
 
 	/* Round to page boundry */
-	size =  (lpfc_debugfs_max_disc_trc * LPFC_DISC_TRC_ENTRY_SIZE);
+	size =  (lpfc_debugfs_max_disc_trc * LPFC_DEBUG_TRC_ENTRY_SIZE);
 	size = PAGE_ALIGN(size);
 
 	debug->buffer = kmalloc(size, GFP_KERNEL);
@@ -279,6 +551,95 @@ lpfc_debugfs_disc_trc_open(struct inode *inode, struct file *file)
 	}
 
 	debug->len = lpfc_debugfs_disc_trc_data(vport, debug->buffer, size);
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+static int
+lpfc_debugfs_slow_ring_trc_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_debug *debug;
+	int size;
+	int rc = -ENOMEM;
+
+	if (!lpfc_debugfs_max_slow_ring_trc) {
+		 rc = -ENOSPC;
+		goto out;
+	}
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	/* Round to page boundry */
+	size =  (lpfc_debugfs_max_slow_ring_trc * LPFC_DEBUG_TRC_ENTRY_SIZE);
+	size = PAGE_ALIGN(size);
+
+	debug->buffer = kmalloc(size, GFP_KERNEL);
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->len = lpfc_debugfs_slow_ring_trc_data(phba, debug->buffer, size);
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+static int
+lpfc_debugfs_hbqinfo_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_debug *debug;
+	int rc = -ENOMEM;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	/* Round to page boundry */
+	debug->buffer = kmalloc(LPFC_HBQINFO_SIZE, GFP_KERNEL);
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->len = lpfc_debugfs_hbqinfo_data(phba, debug->buffer,
+		LPFC_HBQINFO_SIZE);
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+static int
+lpfc_debugfs_dumpslim_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_debug *debug;
+	int rc = -ENOMEM;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	/* Round to page boundry */
+	debug->buffer = kmalloc(LPFC_DUMPSLIM_SIZE, GFP_KERNEL);
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->len = lpfc_debugfs_dumpslim_data(phba, debug->buffer,
+		LPFC_DUMPSLIM_SIZE);
 	file->private_data = debug;
 
 	rc = 0;
@@ -372,6 +733,33 @@ static struct file_operations lpfc_debugfs_op_nodelist = {
 	.release =      lpfc_debugfs_release,
 };
 
+#undef lpfc_debugfs_op_hbqinfo
+static struct file_operations lpfc_debugfs_op_hbqinfo = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_hbqinfo_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.release =      lpfc_debugfs_release,
+};
+
+#undef lpfc_debugfs_op_dumpslim
+static struct file_operations lpfc_debugfs_op_dumpslim = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_dumpslim_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.release =      lpfc_debugfs_release,
+};
+
+#undef lpfc_debugfs_op_slow_ring_trc
+static struct file_operations lpfc_debugfs_op_slow_ring_trc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_slow_ring_trc_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.release =      lpfc_debugfs_release,
+};
+
 static struct dentry *lpfc_debugfs_root = NULL;
 static atomic_t lpfc_debugfs_hba_count;
 #endif
@@ -387,6 +775,116 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 	if (!lpfc_debugfs_enable)
 		return;
 
+	/* Setup lpfc root directory */
+	if (!lpfc_debugfs_root) {
+		lpfc_debugfs_root = debugfs_create_dir("lpfc", NULL);
+		atomic_set(&lpfc_debugfs_hba_count, 0);
+		if (!lpfc_debugfs_root) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "0409 Cannot create debugfs root\n");
+			goto debug_failed;
+		}
+	}
+	if (!lpfc_debugfs_start_time)
+		lpfc_debugfs_start_time = jiffies;
+
+	/* Setup lpfcX directory for specific HBA */
+	snprintf(name, sizeof(name), "lpfc%d", phba->brd_no);
+	if (!phba->hba_debugfs_root) {
+		phba->hba_debugfs_root =
+			debugfs_create_dir(name, lpfc_debugfs_root);
+		if (!phba->hba_debugfs_root) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "0409 Cannot create debugfs hba\n");
+			goto debug_failed;
+		}
+		atomic_inc(&lpfc_debugfs_hba_count);
+		atomic_set(&phba->debugfs_vport_count, 0);
+
+		/* Setup hbqinfo */
+		snprintf(name, sizeof(name), "hbqinfo");
+		phba->debug_hbqinfo =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_debugfs_root,
+				 phba, &lpfc_debugfs_op_hbqinfo);
+		if (!phba->debug_hbqinfo) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0409 Cannot create debugfs hbqinfo\n");
+			goto debug_failed;
+		}
+
+		/* Setup dumpslim */
+		snprintf(name, sizeof(name), "dumpslim");
+		phba->debug_dumpslim =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_debugfs_root,
+				 phba, &lpfc_debugfs_op_dumpslim);
+		if (!phba->debug_dumpslim) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0409 Cannot create debugfs dumpslim\n");
+			goto debug_failed;
+		}
+
+		/* Setup slow ring trace */
+		if (lpfc_debugfs_max_slow_ring_trc) {
+			num = lpfc_debugfs_max_slow_ring_trc - 1;
+			if (num & lpfc_debugfs_max_slow_ring_trc) {
+				/* Change to be a power of 2 */
+				num = lpfc_debugfs_max_slow_ring_trc;
+				i = 0;
+				while (num > 1) {
+					num = num >> 1;
+					i++;
+				}
+				lpfc_debugfs_max_slow_ring_trc = (1 << i);
+				printk(KERN_ERR
+				       "lpfc_debugfs_max_disc_trc changed to "
+				       "%d\n", lpfc_debugfs_max_disc_trc);
+			}
+		}
+
+
+		snprintf(name, sizeof(name), "slow_ring_trace");
+		phba->debug_slow_ring_trc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_debugfs_root,
+				 phba, &lpfc_debugfs_op_slow_ring_trc);
+		if (!phba->debug_slow_ring_trc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "0409 Cannot create debugfs "
+					 "slow_ring_trace\n");
+			goto debug_failed;
+		}
+		if (!phba->slow_ring_trc) {
+			phba->slow_ring_trc = kmalloc(
+				(sizeof(struct lpfc_debugfs_trc) *
+				lpfc_debugfs_max_slow_ring_trc),
+				GFP_KERNEL);
+			if (!phba->slow_ring_trc) {
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+						 "0409 Cannot create debugfs "
+						 "slow_ring buffer\n");
+				goto debug_failed;
+			}
+			atomic_set(&phba->slow_ring_trc_cnt, 0);
+			memset(phba->slow_ring_trc, 0,
+				(sizeof(struct lpfc_debugfs_trc) *
+				lpfc_debugfs_max_slow_ring_trc));
+		}
+	}
+
+	snprintf(name, sizeof(name), "vport%d", vport->vpi);
+	if (!vport->vport_debugfs_root) {
+		vport->vport_debugfs_root =
+			debugfs_create_dir(name, phba->hba_debugfs_root);
+		if (!vport->vport_debugfs_root) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "0409 Cant create debugfs");
+			goto debug_failed;
+		}
+		atomic_inc(&phba->debugfs_vport_count);
+	}
+
 	if (lpfc_debugfs_max_disc_trc) {
 		num = lpfc_debugfs_max_disc_trc - 1;
 		if (num & lpfc_debugfs_max_disc_trc) {
@@ -399,48 +897,24 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 			}
 			lpfc_debugfs_max_disc_trc = (1 << i);
 			printk(KERN_ERR
-				"lpfc_debugfs_max_disc_trc changed to %d\n",
-				lpfc_debugfs_max_disc_trc);
+			       "lpfc_debugfs_max_disc_trc changed to %d\n",
+			       lpfc_debugfs_max_disc_trc);
 		}
 	}
 
-	if (!lpfc_debugfs_root) {
-		lpfc_debugfs_root = debugfs_create_dir("lpfc", NULL);
-		atomic_set(&lpfc_debugfs_hba_count, 0);
-		if (!lpfc_debugfs_root)
-			goto debug_failed;
-	}
-
-	snprintf(name, sizeof(name), "lpfc%d", phba->brd_no);
-	if (!phba->hba_debugfs_root) {
-		phba->hba_debugfs_root =
-			debugfs_create_dir(name, lpfc_debugfs_root);
-		if (!phba->hba_debugfs_root)
-			goto debug_failed;
-		atomic_inc(&lpfc_debugfs_hba_count);
-		atomic_set(&phba->debugfs_vport_count, 0);
-	}
-
-	snprintf(name, sizeof(name), "vport%d", vport->vpi);
-	if (!vport->vport_debugfs_root) {
-		vport->vport_debugfs_root =
-			debugfs_create_dir(name, phba->hba_debugfs_root);
-		if (!vport->vport_debugfs_root)
-			goto debug_failed;
-		atomic_inc(&phba->debugfs_vport_count);
-	}
-
-	if (!lpfc_debugfs_start_time)
-		lpfc_debugfs_start_time = jiffies;
-
 	vport->disc_trc = kmalloc(
-		(sizeof(struct lpfc_disc_trc) * lpfc_debugfs_max_disc_trc),
+		(sizeof(struct lpfc_debugfs_trc) * lpfc_debugfs_max_disc_trc),
 		GFP_KERNEL);
 
-	if (!vport->disc_trc)
+	if (!vport->disc_trc) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "0409 Cannot create debugfs disc trace "
+				 "buffer\n");
 		goto debug_failed;
+	}
+	atomic_set(&vport->disc_trc_cnt, 0);
 	memset(vport->disc_trc, 0,
-		(sizeof(struct lpfc_disc_trc) * lpfc_debugfs_max_disc_trc));
+		(sizeof(struct lpfc_debugfs_trc) * lpfc_debugfs_max_disc_trc));
 
 	snprintf(name, sizeof(name), "discovery_trace");
 	vport->debug_disc_trc =
@@ -448,9 +922,9 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				 vport->vport_debugfs_root,
 				 vport, &lpfc_debugfs_op_disc_trc);
 	if (!vport->debug_disc_trc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0409 Cannot create debugfs",
-				phba->brd_no);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "0409 Cannot create debugfs "
+				 "discovery_trace\n");
 		goto debug_failed;
 	}
 	snprintf(name, sizeof(name), "nodelist");
@@ -459,9 +933,8 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				 vport->vport_debugfs_root,
 				 vport, &lpfc_debugfs_op_nodelist);
 	if (!vport->debug_nodelist) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0409 Cannot create debugfs",
-				phba->brd_no);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "0409 Cant create debugfs nodelist");
 		goto debug_failed;
 	}
 debug_failed:
@@ -488,21 +961,45 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		debugfs_remove(vport->debug_nodelist); /* nodelist */
 		vport->debug_nodelist = NULL;
 	}
+
 	if (vport->vport_debugfs_root) {
 		debugfs_remove(vport->vport_debugfs_root); /* vportX */
 		vport->vport_debugfs_root = NULL;
 		atomic_dec(&phba->debugfs_vport_count);
 	}
 	if (atomic_read(&phba->debugfs_vport_count) == 0) {
-		debugfs_remove(vport->phba->hba_debugfs_root); /* lpfcX */
-		vport->phba->hba_debugfs_root = NULL;
-		atomic_dec(&lpfc_debugfs_hba_count);
+
+		if (phba->debug_hbqinfo) {
+			debugfs_remove(phba->debug_hbqinfo); /* hbqinfo */
+			phba->debug_hbqinfo = NULL;
+		}
+		if (phba->debug_dumpslim) {
+			debugfs_remove(phba->debug_dumpslim); /* dumpslim */
+			phba->debug_dumpslim = NULL;
+		}
+		if (phba->slow_ring_trc) {
+			kfree(phba->slow_ring_trc);
+			phba->slow_ring_trc = NULL;
+		}
+		if (phba->debug_slow_ring_trc) {
+			/* slow_ring_trace */
+			debugfs_remove(phba->debug_slow_ring_trc);
+			phba->debug_slow_ring_trc = NULL;
+		}
+
+		if (phba->hba_debugfs_root) {
+			debugfs_remove(phba->hba_debugfs_root); /* lpfcX */
+			phba->hba_debugfs_root = NULL;
+			atomic_dec(&lpfc_debugfs_hba_count);
+		}
+
 		if (atomic_read(&lpfc_debugfs_hba_count) == 0) {
 			debugfs_remove(lpfc_debugfs_root); /* lpfc */
 			lpfc_debugfs_root = NULL;
 		}
 	}
 #endif
+	return;
 }
 
 

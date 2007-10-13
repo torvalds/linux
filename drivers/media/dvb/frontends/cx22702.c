@@ -32,7 +32,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include "dvb_frontend.h"
-#include "dvb-pll.h"
 #include "cx22702.h"
 
 

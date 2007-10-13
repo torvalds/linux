@@ -12,6 +12,13 @@ config VGASTATE
        tristate
        default n
 
+config VIDEO_OUTPUT_CONTROL
+	tristate "Lowlevel video output switch controls"
+	default m
+	help
+	  This framework adds support for low-level control of the video 
+	  output switch.
+
 config FB
 	tristate "Support for frame buffer devices"
 	---help---
@@ -849,6 +856,16 @@ config FB_INTSRAM
 	  Say Y if you want to map Frame Buffer in internal SRAM. Say N if you want
 	  to let frame buffer in external SDRAM.
 
+config FB_ATMEL_STN
+	bool "Use a STN display with AT91/AT32 LCD Controller"
+	depends on FB_ATMEL && MACH_AT91SAM9261EK
+	default n
+	help
+	  Say Y if you want to connect a STN LCD display to the AT91/AT32 LCD
+	  Controller. Say N if you want to connect a TFT.
+
+	  If unsure, say N.
+
 config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
 	depends on FB && PCI
@@ -1554,7 +1571,14 @@ config FB_PM3
 
 config FB_AU1100
 	bool "Au1100 LCD Driver"
-	depends on (FB = y) && EXPERIMENTAL && PCI && MIPS && MIPS_PB1100=y
+	depends on (FB = y) && MIPS && SOC_AU1100
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer driver for the AMD Au1100 SOC.  It can drive
+	  various panels and CRTs by passing in kernel cmd line option
+	  au1100fb:panel=<name>.
 
 config FB_AU1200
 	bool "Au1200 LCD Driver"
@@ -1620,18 +1644,6 @@ config FB_MAXINE
 	  Support for the onboard framebuffer (1024x768x8) in the Personal
 	  DECstation series (Personal DECstation 5000/20, /25, /33, /50,
 	  Codename "Maxine").
-
-config FB_TX3912
-	bool "TMPTX3912/PR31700 frame buffer support"
-	depends on (FB = y) && NINO
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  The TX3912 is a Toshiba RISC processor based on the MIPS 3900 core
-	  see <http://www.toshiba.com/taec/components/Generic/risc/tx3912.htm>.
-
-	  Say Y here to enable kernel support for the on-board framebuffer.
 
 config FB_G364
 	bool "G364 frame buffer support"
@@ -1796,13 +1808,14 @@ config FB_PS3
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
+	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
 	---help---
 	  Include support for the virtual frame buffer in the PS3 platform.
 
 config FB_PS3_DEFAULT_SIZE_M
 	int "PS3 default frame buffer size (in MiB)"
 	depends on FB_PS3
-	default 18
+	default 9
 	---help---
 	  This is the default size (in MiB) of the virtual frame buffer in
 	  the PS3.

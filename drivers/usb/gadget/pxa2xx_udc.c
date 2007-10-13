@@ -54,7 +54,7 @@
 #include <asm/hardware.h>
 
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 
 #include <asm/mach/udc_pxa2xx.h>
 
@@ -93,8 +93,6 @@ static const char driver_name [] = "pxa2xx_udc";
 static const char ep0name [] = "ep0";
 
 
-// #define	DISABLE_TEST_MODE
-
 #ifdef CONFIG_ARCH_IXP4XX
 
 /* cpu-specific register addresses are compiled in to this code */
@@ -111,17 +109,6 @@ static const char ep0name [] = "ep0";
 #define SIZE_STR	" (small)"
 #else
 #define SIZE_STR	""
-#endif
-
-#ifdef DISABLE_TEST_MODE
-/* (mode == 0) == no undocumented chip tweaks
- * (mode & 1)  == double buffer bulk IN
- * (mode & 2)  == double buffer bulk OUT
- * ... so mode = 3 (or 7, 15, etc) does it for both
- */
-static ushort fifo_mode = 0;
-module_param(fifo_mode, ushort, 0);
-MODULE_PARM_DESC (fifo_mode, "pxa2xx udc fifo mode");
 #endif
 
 /* ---------------------------------------------------------------------------
@@ -980,7 +967,7 @@ static int pxa2xx_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	udc = container_of(_gadget, struct pxa2xx_udc, gadget);
 
 	/* not all boards support pullup control */
-	if (!udc->mach->udc_command)
+	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
 		return -EOPNOTSUPP;
 
 	is_active = (is_active != 0);
@@ -1251,23 +1238,6 @@ static void udc_enable (struct pxa2xx_udc *dev)
 		UDC_RES1 = 0x00;
 		UDC_RES2 = 0x00;
 	}
-
-#ifdef	DISABLE_TEST_MODE
-	/* "test mode" seems to have become the default in later chip
-	 * revs, preventing double buffering (and invalidating docs).
-	 * this EXPERIMENT enables it for bulk endpoints by tweaking
-	 * undefined/reserved register bits (that other drivers clear).
-	 * Belcarra code comments noted this usage.
-	 */
-	if (fifo_mode & 1) {	/* IN endpoints */
-		UDC_RES1 |= USIR0_IR1|USIR0_IR6;
-		UDC_RES2 |= USIR1_IR11;
-	}
-	if (fifo_mode & 2) {	/* OUT endpoints */
-		UDC_RES1 |= USIR0_IR2|USIR0_IR7;
-		UDC_RES2 |= USIR1_IR12;
-	}
-#endif
 
 	/* enable suspend/resume and reset irqs */
 	udc_clear_mask_UDCCR(UDCCR_SRM | UDCCR_REM);
@@ -2339,7 +2309,7 @@ static int pxa2xx_udc_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct pxa2xx_udc	*udc = platform_get_drvdata(dev);
 
-	if (!udc->mach->udc_command)
+	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
 		WARN("USB host won't detect disconnect!\n");
 	pullup(udc, 0);
 

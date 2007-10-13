@@ -17,6 +17,18 @@ ToDo/Notes:
 	  happen is unclear however so it is worth waiting until someone hits
 	  the problem.
 
+2.1.29 - Fix a deadlock at mount time.
+
+	- During mount the VFS holds s_umount lock on the superblock.  So when
+	  we try to empty the journal $LogFile contents by calling
+	  ntfs_attr_set() when the machine does not have much memory and the
+	  journal is large ntfs_attr_set() results in the VM trying to balance
+	  dirty pages which in turn tries to that the s_umount lock and thus we
+	  get a deadlock.  The solution is to not use ntfs_attr_set() and
+	  instead do the zeroing by hand at the block level rather than page
+	  cache level.
+	- Fix sparse warnings.
+
 2.1.28 - Fix a deadlock.
 
 	- Fix deadlock in fs/ntfs/inode.c::ntfs_put_inode().  Thanks to Sergey

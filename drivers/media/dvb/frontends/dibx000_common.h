@@ -111,6 +111,8 @@ struct dibx000_bandwidth_config {
 
 	u32 ifreq;
 	u32 timf;
+
+	u32 xtal_hz;
 };
 
 enum dibx000_adc_states {
@@ -122,56 +124,17 @@ enum dibx000_adc_states {
 	DIBX000_VBG_DISABLE,
 };
 
-#define BW_INDEX_TO_KHZ(v) ( (v) == BANDWIDTH_8_MHZ  ? 8000 : \
+#define BANDWIDTH_TO_KHZ(v) ( (v) == BANDWIDTH_8_MHZ  ? 8000 : \
 			     (v) == BANDWIDTH_7_MHZ  ? 7000 : \
 			     (v) == BANDWIDTH_6_MHZ  ? 6000 : 8000 )
 
 /* Chip output mode. */
-#define OUTMODE_HIGH_Z                      0
-#define OUTMODE_MPEG2_PAR_GATED_CLK         1
-#define OUTMODE_MPEG2_PAR_CONT_CLK          2
-#define OUTMODE_MPEG2_SERIAL                7
-#define OUTMODE_DIVERSITY                   4
-#define OUTMODE_MPEG2_FIFO                  5
-
-/* I hope I can get rid of the following kludge in the near future */
-struct dibx000_ofdm_channel {
-	u32 RF_kHz;
-	u8  Bw;
-	s16 nfft;
-	s16 guard;
-	s16 nqam;
-	s16 vit_hrch;
-	s16 vit_select_hp;
-	s16 vit_alpha;
-	s16 vit_code_rate_hp;
-	s16 vit_code_rate_lp;
-	u8  intlv_native;
-};
-
-#define FEP2DIB(fep,ch) \
-	(ch)->RF_kHz           = (fep)->frequency / 1000; \
-	(ch)->Bw               = (fep)->u.ofdm.bandwidth; \
-	(ch)->nfft             = (fep)->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ? -1 : (fep)->u.ofdm.transmission_mode; \
-	(ch)->guard            = (fep)->u.ofdm.guard_interval == GUARD_INTERVAL_AUTO ? -1 : (fep)->u.ofdm.guard_interval; \
-	(ch)->nqam             = (fep)->u.ofdm.constellation == QAM_AUTO ? -1 : (fep)->u.ofdm.constellation == QAM_64 ? 2 : (fep)->u.ofdm.constellation; \
-	(ch)->vit_hrch         = 0; /* linux-dvb is not prepared for HIERARCHICAL TRANSMISSION */ \
-	(ch)->vit_select_hp    = 1; \
-	(ch)->vit_alpha        = 1; \
-	(ch)->vit_code_rate_hp = (fep)->u.ofdm.code_rate_HP == FEC_AUTO ? -1 : (fep)->u.ofdm.code_rate_HP; \
-	(ch)->vit_code_rate_lp = (fep)->u.ofdm.code_rate_LP == FEC_AUTO ? -1 : (fep)->u.ofdm.code_rate_LP; \
-	(ch)->intlv_native     = 1;
-
-#define INIT_OFDM_CHANNEL(ch) do {\
-	(ch)->Bw               = 0;  \
-	(ch)->nfft             = -1; \
-	(ch)->guard            = -1; \
-	(ch)->nqam             = -1; \
-	(ch)->vit_hrch         = -1; \
-	(ch)->vit_select_hp    = -1; \
-	(ch)->vit_alpha        = -1; \
-	(ch)->vit_code_rate_hp = -1; \
-	(ch)->vit_code_rate_lp = -1; \
-} while (0)
+#define OUTMODE_HIGH_Z              0
+#define OUTMODE_MPEG2_PAR_GATED_CLK 1
+#define OUTMODE_MPEG2_PAR_CONT_CLK  2
+#define OUTMODE_MPEG2_SERIAL        7
+#define OUTMODE_DIVERSITY           4
+#define OUTMODE_MPEG2_FIFO          5
+#define OUTMODE_ANALOG_ADC          6
 
 #endif

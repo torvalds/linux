@@ -8,6 +8,8 @@ source "drivers/connector/Kconfig"
 
 source "drivers/mtd/Kconfig"
 
+source "drivers/of/Kconfig"
+
 source "drivers/parport/Kconfig"
 
 source "drivers/pnp/Kconfig"
@@ -56,6 +58,8 @@ source "drivers/power/Kconfig"
 
 source "drivers/hwmon/Kconfig"
 
+source "drivers/ssb/Kconfig"
+
 source "drivers/mfd/Kconfig"
 
 source "drivers/media/Kconfig"
@@ -84,4 +88,7 @@ source "drivers/auxdisplay/Kconfig"
 
 source "drivers/kvm/Kconfig"
 
+source "drivers/uio/Kconfig"
+
+source "drivers/lguest/Kconfig"
 endmenu

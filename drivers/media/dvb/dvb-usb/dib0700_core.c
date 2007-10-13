@@ -13,6 +13,10 @@ int dvb_usb_dib0700_debug;
 module_param_named(debug,dvb_usb_dib0700_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,2=fw,4=fwdata,8=data (or-able))." DVB_USB_DEBUG_STATUS);
 
+static int dvb_usb_dib0700_ir_proto = 1;
+module_param(dvb_usb_dib0700_ir_proto, int, 0644);
+MODULE_PARM_DESC(dvb_usb_dib0700_ir_proto, "set ir protocol (0=NEC, 1=RC5 (default), 2=RC6).");
+
 /* expecting rx buffer: request data[0] data[1] ... data[2] */
 static int dib0700_ctrl_wr(struct dvb_usb_device *d, u8 *tx, u8 txlen)
 {
@@ -32,7 +36,7 @@ static int dib0700_ctrl_wr(struct dvb_usb_device *d, u8 *tx, u8 txlen)
 }
 
 /* expecting tx buffer: request data[0] ... data[n] (n <= 4) */
-static int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen)
+int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen)
 {
 	u16 index, value;
 	int status;
@@ -260,14 +264,29 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return dib0700_ctrl_wr(adap->dev, b, 4);
 }
 
+static int dib0700_rc_setup(struct dvb_usb_device *d)
+{
+	u8 rc_setup[3] = {REQUEST_SET_RC, dvb_usb_dib0700_ir_proto, 0};
+	int i = dib0700_ctrl_wr(d, rc_setup, 3);
+	if (i<0) {
+		err("ir protocol setup failed");
+		return -1;
+	}
+	return 0;
+}
+
 static int dib0700_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	int i;
+	struct dvb_usb_device *dev;
 
 	for (i = 0; i < dib0700_device_count; i++)
-		if (dvb_usb_device_init(intf, &dib0700_devices[i], THIS_MODULE, NULL) == 0)
+		if (dvb_usb_device_init(intf, &dib0700_devices[i], THIS_MODULE, &dev) == 0)
+		{
+			dib0700_rc_setup(dev);
 			return 0;
+		}
 
 	return -ENODEV;
 }

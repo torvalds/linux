@@ -23,7 +23,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <asm/pmac_pfunc.h>
 #include <asm/of_platform.h>
 

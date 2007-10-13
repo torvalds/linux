@@ -30,6 +30,10 @@
 
 #include "ucc_geth_mii.h"
 
+#define DRV_DESC "QE UCC Gigabit Ethernet Controller"
+#define DRV_NAME "ucc_geth"
+#define DRV_VERSION "1.1"
+
 #define NUM_TX_QUEUES                   8
 #define NUM_RX_QUEUES                   8
 #define NUM_BDS_IN_PREFETCHED_BDS       4
@@ -40,6 +44,7 @@
 
 struct ucc_geth {
 	struct ucc_fast uccf;
+	u8 res0[0x100 - sizeof(struct ucc_fast)];
 
 	u32 maccfg1;		/* mac configuration reg. 1 */
 	u32 maccfg2;		/* mac configuration reg. 2 */
@@ -896,6 +901,7 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_TX_VTAG_TABLE_ENTRY_MAX        8
 #define UCC_GETH_RX_BD_RING_SIZE_MIN            8
 #define UCC_GETH_TX_BD_RING_SIZE_MIN            2
+#define UCC_GETH_BD_RING_SIZE_MAX		0xffff
 
 #define UCC_GETH_SIZE_OF_BD                     QE_SIZEOF_BD
 
@@ -1135,6 +1141,7 @@ struct ucc_geth_info {
 	int bro;
 	int ecm;
 	int receiveFlowControl;
+	int transmitFlowControl;
 	u8 maxGroupAddrInHash;
 	u8 maxIndAddrInHash;
 	u8 prel;
@@ -1178,7 +1185,7 @@ struct ucc_geth_private {
 	struct ucc_geth_info *ug_info;
 	struct ucc_fast_private *uccf;
 	struct net_device *dev;
-	struct net_device_stats stats;	/* linux network statistics */
+	struct napi_struct napi;
 	struct ucc_geth *ug_regs;
 	struct ucc_geth_init_pram *p_init_enet_param_shadow;
 	struct ucc_geth_exf_global_pram *p_exf_glbl_param;

@@ -235,7 +235,7 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static int cmos_set_freq(struct device *dev, int freq)
+static int cmos_irq_set_freq(struct device *dev, int freq)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	int		f;
@@ -256,6 +256,34 @@ static int cmos_set_freq(struct device *dev, int freq)
 	CMOS_WRITE(RTC_REF_CLCK_32KHZ | f, RTC_FREQ_SELECT);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
+	return 0;
+}
+
+static int cmos_irq_set_state(struct device *dev, int enabled)
+{
+	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
+	unsigned char	rtc_control, rtc_intr;
+	unsigned long	flags;
+
+	if (!is_valid_irq(cmos->irq))
+		return -ENXIO;
+
+	spin_lock_irqsave(&rtc_lock, flags);
+	rtc_control = CMOS_READ(RTC_CONTROL);
+
+	if (enabled)
+		rtc_control |= RTC_PIE;
+	else
+		rtc_control &= ~RTC_PIE;
+
+	CMOS_WRITE(rtc_control, RTC_CONTROL);
+
+	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
+	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
+	if (is_intr(rtc_intr))
+		rtc_update_irq(cmos->rtc, 1, rtc_intr);
+
+	spin_unlock_irqrestore(&rtc_lock, flags);
 	return 0;
 }
 
@@ -360,7 +388,8 @@ static const struct rtc_class_ops cmos_rtc_ops = {
 	.read_alarm	= cmos_read_alarm,
 	.set_alarm	= cmos_set_alarm,
 	.proc		= cmos_procfs,
-	.irq_set_freq	= cmos_set_freq,
+	.irq_set_freq	= cmos_irq_set_freq,
+	.irq_set_state	= cmos_irq_set_state,
 };
 
 /*----------------------------------------------------------------*/

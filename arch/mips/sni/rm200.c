@@ -162,16 +162,16 @@ static void sni_rm200_hwint(void)
 	int irq;
 
 	if (pending & C_IRQ5)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 7);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
 	else if (pending & C_IRQ0) {
-		clear_c0_status (IE_IRQ0);
+		clear_c0_status(IE_IRQ0);
 		mask = *(volatile u8 *)SNI_RM200_INT_ENA_REG ^ 0x1f;
 		stat = *(volatile u8 *)SNI_RM200_INT_STAT_REG ^ 0x14;
 		irq = ffs(stat & mask & 0x1f);
 
 		if (likely(irq > 0))
-			do_IRQ (irq + SNI_RM200_INT_START - 1);
-		set_c0_status (IE_IRQ0);
+			do_IRQ(irq + SNI_RM200_INT_START - 1);
+		set_c0_status(IE_IRQ0);
 	}
 }
 
@@ -187,12 +187,11 @@ void __init sni_rm200_irq_init(void)
 		set_irq_chip(i, &rm200_irq_type);
 	sni_hwint = sni_rm200_hwint;
 	change_c0_status(ST0_IM, IE_IRQ0);
-	setup_irq (SNI_RM200_INT_START + 0, &sni_isa_irq);
+	setup_irq(SNI_RM200_INT_START + 0, &sni_isa_irq);
 }
 
 void __init sni_rm200_init(void)
 {
 	set_io_port_base(SNI_PORT_BASE + 0x02000000);
 	ioport_resource.end += 0x02000000;
-	board_time_init = sni_cpu_time_init;
 }

@@ -97,6 +97,7 @@ struct ppc64_tlb_batch {
 	real_pte_t		pte[PPC64_TLB_BATCH_NR];
 	unsigned long		vaddr[PPC64_TLB_BATCH_NR];
 	unsigned int		psize;
+	int			ssize;
 };
 DECLARE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 
@@ -127,7 +128,7 @@ static inline void arch_leave_lazy_mmu_mode(void)
 
 
 extern void flush_hash_page(unsigned long va, real_pte_t pte, int psize,
-			    int local);
+			    int ssize, int local);
 extern void flush_hash_range(unsigned long number, int local);
 
 

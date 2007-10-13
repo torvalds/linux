@@ -39,14 +39,16 @@ struct op_system_config {
 
 /* Per-arch configuration */
 struct op_powerpc_model {
-	void (*reg_setup) (struct op_counter_config *,
+	int (*reg_setup) (struct op_counter_config *,
 			   struct op_system_config *,
 			   int num_counters);
-	void (*cpu_setup) (struct op_counter_config *);
-	void (*start) (struct op_counter_config *);
-        void (*global_start) (struct op_counter_config *);
+	int  (*cpu_setup) (struct op_counter_config *);
+	int  (*start) (struct op_counter_config *);
+	int  (*global_start) (struct op_counter_config *);
 	void (*stop) (void);
 	void (*global_stop) (void);
+	int (*sync_start)(void);
+	int (*sync_stop)(void);
 	void (*handle_interrupt) (struct pt_regs *,
 				  struct op_counter_config *);
 	int num_counters;

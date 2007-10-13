@@ -787,10 +787,12 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 	struct scsi_target *starget = sdev->sdev_target;
 	struct Scsi_Host *shost = sdev->host;
 	int len = sdev->inquiry_len;
+	int min_period = spi_min_period(starget);
+	int max_width = spi_max_width(starget);
 	/* first set us up for narrow async */
 	DV_SET(offset, 0);
 	DV_SET(width, 0);
-	
+
 	if (spi_dv_device_compare_inquiry(sdev, buffer, buffer, DV_LOOPS)
 	    != SPI_COMPARE_SUCCESS) {
 		starget_printk(KERN_ERR, starget, "Domain Validation Initial Inquiry Failed\n");
@@ -798,9 +800,13 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		return;
 	}
 
+	if (!scsi_device_wide(sdev)) {
+		spi_max_width(starget) = 0;
+		max_width = 0;
+	}
+
 	/* test width */
-	if (i->f->set_width && spi_max_width(starget) &&
-	    scsi_device_wide(sdev)) {
+	if (i->f->set_width && max_width) {
 		i->f->set_width(starget, 1);
 
 		if (spi_dv_device_compare_inquiry(sdev, buffer,
@@ -809,6 +815,11 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		    != SPI_COMPARE_SUCCESS) {
 			starget_printk(KERN_ERR, starget, "Wide Transfers Fail\n");
 			i->f->set_width(starget, 0);
+			/* Make sure we don't force wide back on by asking
+			 * for a transfer period that requires it */
+			max_width = 0;
+			if (min_period < 10)
+				min_period = 10;
 		}
 	}
 
@@ -828,7 +839,8 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 
 	/* now set up to the maximum */
 	DV_SET(offset, spi_max_offset(starget));
-	DV_SET(period, spi_min_period(starget));
+	DV_SET(period, min_period);
+
 	/* try QAS requests; this should be harmless to set if the
 	 * target supports it */
 	if (scsi_device_qas(sdev)) {
@@ -837,14 +849,14 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		DV_SET(qas, 0);
 	}
 
-	if (scsi_device_ius(sdev) && spi_min_period(starget) < 9) {
+	if (scsi_device_ius(sdev) && min_period < 9) {
 		/* This u320 (or u640). Set IU transfers */
 		DV_SET(iu, 1);
 		/* Then set the optional parameters */
 		DV_SET(rd_strm, 1);
 		DV_SET(wr_flow, 1);
 		DV_SET(rti, 1);
-		if (spi_min_period(starget) == 8)
+		if (min_period == 8)
 			DV_SET(pcomp_en, 1);
 	} else {
 		DV_SET(iu, 0);
@@ -862,6 +874,10 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 	} else {
 		DV_SET(dt, 1);
 	}
+	/* set width last because it will pull all the other
+	 * parameters down to required values */
+	DV_SET(width, max_width);
+
 	/* Do the read only INQUIRY tests */
 	spi_dv_retrain(sdev, buffer, buffer + sdev->inquiry_len,
 		       spi_dv_device_compare_inquiry);

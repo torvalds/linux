@@ -74,7 +74,6 @@ static inline int pte_file(pte_t pte) { return 0; }
  * These would be in other places but having them here reduces the diffs.
  */
 extern unsigned int kobjsize(const void *objp);
-extern int is_in_rom(unsigned long);
 
 /*
  * No page table caches to initialise.
@@ -102,7 +101,8 @@ extern int is_in_rom(unsigned long);
 #define v4_tlb_fns	(0)
 #define v4wb_tlb_fns	(0)
 #define v4wbi_tlb_fns	(0)
-#define v6_tlb_fns	(0)
+#define v6wbi_tlb_fns	(0)
+#define v7wbi_tlb_fns	(0)
 
 #define v3_user_fns	(0)
 #define v4_user_fns	(0)

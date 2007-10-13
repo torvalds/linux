@@ -153,7 +153,7 @@ static int cmd640_port_start(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct cmd640_reg *timing;
 
-	int ret = ata_port_start(ap);
+	int ret = ata_sff_port_start(ap);
 	if (ret < 0)
 		return ret;
 
@@ -184,7 +184,6 @@ static struct scsi_host_template cmd640_sht = {
 };
 
 static struct ata_port_operations cmd640_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cmd640_set_piomode,
 	.mode_filter	= ata_pci_default_filter,
 	.tf_load	= ata_tf_load,
@@ -213,7 +212,6 @@ static struct ata_port_operations cmd640_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= cmd640_port_start,
 };

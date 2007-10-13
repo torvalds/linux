@@ -534,6 +534,7 @@ static inline int pci_write_config_dword(struct pci_dev *dev, int where, u32 val
 
 int __must_check pci_enable_device(struct pci_dev *dev);
 int __must_check pci_enable_device_bars(struct pci_dev *dev, int mask);
+int __must_check pci_reenable_device(struct pci_dev *);
 int __must_check pcim_enable_device(struct pci_dev *pdev);
 void pcim_pin_device(struct pci_dev *pdev);
 
@@ -556,6 +557,7 @@ int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
 int pcix_get_max_mmrbc(struct pci_dev *dev);
 int pcix_get_mmrbc(struct pci_dev *dev);
 int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc);
+int pcie_get_readrq(struct pci_dev *dev);
 int pcie_set_readrq(struct pci_dev *dev, int rq);
 void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
 int __must_check pci_assign_resource(struct pci_dev *dev, int i);
@@ -576,6 +578,9 @@ int pci_restore_state(struct pci_dev *dev);
 int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
 int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable);
+
+/* Functions for PCI Hotplug drivers to use */
+int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int cap);
 
 /* Helper functions for low-level code (drivers/pci/setup-[bus,res].c) */
 void pci_bus_assign_resources(struct pci_bus *bus);
@@ -680,13 +685,16 @@ extern void pci_unblock_user_cfg_access(struct pci_dev *dev);
  * a PCI domain is defined to be a set of PCI busses which share
  * configuration space.
  */
-#ifndef CONFIG_PCI_DOMAINS
+#ifdef CONFIG_PCI_DOMAINS
+extern int pci_domains_supported;
+#else
+enum { pci_domains_supported = 0 };
 static inline int pci_domain_nr(struct pci_bus *bus) { return 0; }
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_PCI_DOMAINS */
 
 #else /* CONFIG_PCI is not enabled */
 

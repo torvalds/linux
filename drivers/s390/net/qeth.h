@@ -833,8 +833,7 @@ struct qeth_card {
 	struct qeth_qdio_info qdio;
 	struct qeth_perf_stats perf_stats;
 	int use_hard_stop;
-	int (*orig_hard_header)(struct sk_buff *,struct net_device *,
-				unsigned short,void *,void *,unsigned);
+	const struct header_ops *orig_header_ops;
 	struct qeth_osn_info osn_info;
 	atomic_t force_alloc_skb;
 };
@@ -1178,9 +1177,9 @@ qeth_ipaddr_to_string(enum qeth_prot_versions proto, const __u8 *addr,
 		      char *buf)
 {
 	if (proto == QETH_PROT_IPV4)
-		return qeth_ipaddr4_to_string(addr, buf);
+		qeth_ipaddr4_to_string(addr, buf);
 	else if (proto == QETH_PROT_IPV6)
-		return qeth_ipaddr6_to_string(addr, buf);
+		qeth_ipaddr6_to_string(addr, buf);
 }
 
 static inline int

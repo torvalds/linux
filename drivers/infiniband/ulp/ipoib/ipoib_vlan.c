@@ -119,6 +119,8 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		goto sysfs_failed;
 	if (ipoib_add_pkey_attr(priv->dev))
 		goto sysfs_failed;
+	if (ipoib_add_umcast_attr(priv->dev))
+		goto sysfs_failed;
 
 	if (device_create_file(&priv->dev->dev, &dev_attr_parent))
 		goto sysfs_failed;

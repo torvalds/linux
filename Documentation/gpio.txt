@@ -75,6 +75,9 @@ using the include file:
 If you stick to this convention then it'll be easier for other developers to
 see what your code is doing, and help maintain it.
 
+Note that these operations include I/O barriers on platforms which need to
+use them; drivers don't need to add them explicitly.
+
 
 Identifying GPIOs
 -----------------
@@ -145,7 +148,7 @@ pin ... that won't always match the specified output value, because of
 issues including wire-OR and output latencies.
 
 The get/set calls have no error returns because "invalid GPIO" should have
-been reported earlier in gpio_set_direction().  However, note that not all
+been reported earlier from gpio_direction_*().  However, note that not all
 platforms can read the value of output pins; those that can't should always
 return zero.  Also, using these calls for GPIOs that can't safely be accessed
 without sleeping (see below) is an error.
@@ -236,7 +239,7 @@ map between them using calls like:
 Those return either the corresponding number in the other namespace, or
 else a negative errno code if the mapping can't be done.  (For example,
 some GPIOs can't used as IRQs.)  It is an unchecked error to use a GPIO
-number that hasn't been marked as an input using gpio_set_direction(), or
+number that wasn't set up as an input using gpio_direction_input(), or
 to use an IRQ number that didn't originally come from gpio_to_irq().
 
 These two mapping calls are expected to cost on the order of a single

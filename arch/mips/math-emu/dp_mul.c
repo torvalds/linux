@@ -121,7 +121,7 @@ ieee754dp ieee754dp_mul(ieee754dp x, ieee754dp y)
 		 */
 
 		/* 32 * 32 => 64 */
-#define DPXMULT(x,y)	((u64)(x) * (u64)y)
+#define DPXMULT(x, y)	((u64)(x) * (u64)y)
 
 		{
 			unsigned lxm = xm;

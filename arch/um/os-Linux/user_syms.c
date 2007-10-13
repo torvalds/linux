@@ -19,10 +19,7 @@ extern void *memmove(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
 extern int printf(const char *, ...);
 
-/* If they're not defined, the export is included in lib/string.c.*/
-#ifdef __HAVE_ARCH_STRLEN
-EXPORT_SYMBOL(strlen);
-#endif
+/* If it's not defined, the export is included in lib/string.c.*/
 #ifdef __HAVE_ARCH_STRSTR
 EXPORT_SYMBOL(strstr);
 #endif

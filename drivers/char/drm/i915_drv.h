@@ -210,6 +210,12 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define I915REG_INT_MASK_R 	0x020a8
 #define I915REG_INT_ENABLE_R	0x020a0
 
+#define I915REG_PIPEASTAT	0x70024
+#define I915REG_PIPEBSTAT	0x71024
+
+#define I915_VBLANK_INTERRUPT_ENABLE	(1UL<<17)
+#define I915_VBLANK_CLEAR		(1UL<<1)
+
 #define SRX_INDEX		0x3c4
 #define SRX_DATA		0x3c5
 #define SR01			1
@@ -282,6 +288,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define MI_BATCH_BUFFER_START 	(0x31<<23)
 #define MI_BATCH_BUFFER_END 	(0xA<<23)
 #define MI_BATCH_NON_SECURE	(1)
+#define MI_BATCH_NON_SECURE_I965 (1<<8)
 
 #define MI_WAIT_FOR_EVENT       ((0x3<<23))
 #define MI_WAIT_FOR_PLANE_A_FLIP      (1<<2)

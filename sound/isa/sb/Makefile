@@ -22,14 +22,13 @@ snd-es968-objs := es968.o
 sequencer = $(if $(subst y,,$(CONFIG_SND_SEQUENCER)),$(if $(1),m),$(if $(CONFIG_SND_SEQUENCER),$(1)))
 
 # Toplevel Module Dependency
-obj-$(CONFIG_SND_ALS100) += snd-sb16-dsp.o snd-sb-common.o
-obj-$(CONFIG_SND_CMI8330) += snd-sb16-dsp.o snd-sb-common.o
-obj-$(CONFIG_SND_DT019X) += snd-sb16-dsp.o snd-sb-common.o
-obj-$(CONFIG_SND_SB8) += snd-sb8.o snd-sb8-dsp.o snd-sb-common.o
-obj-$(CONFIG_SND_SB16) += snd-sb16.o snd-sb16-dsp.o snd-sb-common.o
-obj-$(CONFIG_SND_SBAWE) += snd-sbawe.o snd-sb16-dsp.o snd-sb-common.o
-obj-$(CONFIG_SND_ES968) += snd-es968.o snd-sb8-dsp.o snd-sb-common.o
-obj-$(CONFIG_SND_ALS4000) += snd-sb-common.o
+obj-$(CONFIG_SND_SB_COMMON) += snd-sb-common.o
+obj-$(CONFIG_SND_SB16_DSP) += snd-sb16-dsp.o
+obj-$(CONFIG_SND_SB8_DSP) += snd-sb8-dsp.o
+obj-$(CONFIG_SND_SB8) += snd-sb8.o
+obj-$(CONFIG_SND_SB16) += snd-sb16.o
+obj-$(CONFIG_SND_SBAWE) += snd-sbawe.o
+obj-$(CONFIG_SND_ES968) += snd-es968.o
 ifeq ($(CONFIG_SND_SB16_CSP),y)
   obj-$(CONFIG_SND_SB16) += snd-sb16-csp.o
   obj-$(CONFIG_SND_SBAWE) += snd-sb16-csp.o

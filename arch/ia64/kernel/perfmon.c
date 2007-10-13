@@ -591,13 +591,13 @@ pfm_set_task_notify(struct task_struct *task)
 	struct thread_info *info;
 
 	info = (struct thread_info *) ((char *) task + IA64_TASK_SIZE);
-	set_bit(TIF_NOTIFY_RESUME, &info->flags);
+	set_bit(TIF_PERFMON_WORK, &info->flags);
 }
 
 static inline void
 pfm_clear_task_notify(void)
 {
-	clear_thread_flag(TIF_NOTIFY_RESUME);
+	clear_thread_flag(TIF_PERFMON_WORK);
 }
 
 static inline void

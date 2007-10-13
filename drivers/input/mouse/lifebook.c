@@ -27,7 +27,7 @@ struct lifebook_data {
 
 static const char *desired_serio_phys;
 
-static int lifebook_set_serio_phys(struct dmi_system_id *d)
+static int lifebook_set_serio_phys(const struct dmi_system_id *d)
 {
 	desired_serio_phys = d->driver_data;
 	return 0;
@@ -35,13 +35,13 @@ static int lifebook_set_serio_phys(struct dmi_system_id *d)
 
 static unsigned char lifebook_use_6byte_proto;
 
-static int lifebook_set_6byte_proto(struct dmi_system_id *d)
+static int lifebook_set_6byte_proto(const struct dmi_system_id *d)
 {
 	lifebook_use_6byte_proto = 1;
 	return 0;
 }
 
-static struct dmi_system_id lifebook_dmi_table[] = {
+static const struct dmi_system_id lifebook_dmi_table[] = {
 	{
 		.ident = "FLORA-ie 55mi",
 		.matches = {
@@ -117,7 +117,7 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 {
 	struct lifebook_data *priv = psmouse->private;
 	struct input_dev *dev1 = psmouse->dev;
-	struct input_dev *dev2 = priv->dev2;
+	struct input_dev *dev2 = priv ? priv->dev2 : NULL;
 	unsigned char *packet = psmouse->packet;
 	int relative_packet = packet[0] & 0x08;
 

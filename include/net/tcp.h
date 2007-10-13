@@ -39,6 +39,7 @@
 #include <net/snmp.h>
 #include <net/ip.h>
 #include <net/tcp_states.h>
+#include <net/inet_ecn.h>
 
 #include <linux/seq_file.h>
 
@@ -281,7 +282,7 @@ extern int			tcp_v4_remember_stamp(struct sock *sk);
 
 extern int		    	tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw);
 
-extern int			tcp_sendmsg(struct kiocb *iocb, struct sock *sk,
+extern int			tcp_sendmsg(struct kiocb *iocb, struct socket *sock,
 					    struct msghdr *msg, size_t size);
 extern ssize_t			tcp_sendpage(struct socket *sock, struct page *page, int offset, size_t size, int flags);
 
@@ -328,6 +329,17 @@ extern void tcp_enter_quickack_mode(struct sock *sk);
 static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
 {
  	rx_opt->tstamp_ok = rx_opt->sack_ok = rx_opt->wscale_ok = rx_opt->snd_wscale = 0;
+}
+
+#define	TCP_ECN_OK		1
+#define	TCP_ECN_QUEUE_CWR	2
+#define	TCP_ECN_DEMAND_CWR	4
+
+static __inline__ void
+TCP_ECN_create_request(struct request_sock *req, struct tcphdr *th)
+{
+	if (sysctl_tcp_ecn && th->ece && th->cwr)
+		inet_rsk(req)->ecn_ok = 1;
 }
 
 enum tcp_tw_status
@@ -573,8 +585,6 @@ struct tcp_skb_cb {
 
 #define TCP_SKB_CB(__skb)	((struct tcp_skb_cb *)&((__skb)->cb[0]))
 
-#include <net/tcp_ecn.h>
-
 /* Due to TSO, an SKB can be composed of multiple actual
  * packets.  To keep these tracked properly, we use this.
  */
@@ -589,32 +599,19 @@ static inline int tcp_skb_mss(const struct sk_buff *skb)
 	return skb_shinfo(skb)->gso_size;
 }
 
-static inline void tcp_dec_pcount_approx(__u32 *count,
-					 const struct sk_buff *skb)
+static inline void tcp_dec_pcount_approx_int(__u32 *count, const int decr)
 {
 	if (*count) {
-		*count -= tcp_skb_pcount(skb);
+		*count -= decr;
 		if ((int)*count < 0)
 			*count = 0;
 	}
 }
 
-static inline void tcp_packets_out_inc(struct sock *sk,
-				       const struct sk_buff *skb)
+static inline void tcp_dec_pcount_approx(__u32 *count,
+					 const struct sk_buff *skb)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-	int orig = tp->packets_out;
-
-	tp->packets_out += tcp_skb_pcount(skb);
-	if (!orig)
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
-}
-
-static inline void tcp_packets_out_dec(struct tcp_sock *tp, 
-				       const struct sk_buff *skb)
-{
-	tp->packets_out -= tcp_skb_pcount(skb);
+	tcp_dec_pcount_approx_int(count, tcp_skb_pcount(skb));
 }
 
 /* Events passed to congestion control interface */
@@ -652,8 +649,7 @@ struct tcp_congestion_ops {
 	/* lower bound for congestion window (optional) */
 	u32 (*min_cwnd)(const struct sock *sk);
 	/* do new cwnd calculation (required) */
-	void (*cong_avoid)(struct sock *sk, u32 ack,
-			   u32 rtt, u32 in_flight, int good_ack);
+	void (*cong_avoid)(struct sock *sk, u32 ack, u32 in_flight, int good_ack);
 	/* call before changing ca_state (optional) */
 	void (*set_state)(struct sock *sk, u8 new_state);
 	/* call when cwnd event occurs (optional) */
@@ -661,7 +657,7 @@ struct tcp_congestion_ops {
 	/* new value of cwnd after loss (optional) */
 	u32  (*undo_cwnd)(struct sock *sk);
 	/* hook for packet ack accounting (optional) */
-	void (*pkts_acked)(struct sock *sk, u32 num_acked, ktime_t last);
+	void (*pkts_acked)(struct sock *sk, u32 num_acked, s32 rtt_us);
 	/* get info for inet_diag (optional) */
 	void (*get_info)(struct sock *sk, u32 ext, struct sk_buff *skb);
 
@@ -684,8 +680,7 @@ extern void tcp_slow_start(struct tcp_sock *tp);
 
 extern struct tcp_congestion_ops tcp_init_congestion_ops;
 extern u32 tcp_reno_ssthresh(struct sock *sk);
-extern void tcp_reno_cong_avoid(struct sock *sk, u32 ack,
-				u32 rtt, u32 in_flight, int flag);
+extern void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight, int flag);
 extern u32 tcp_reno_min_cwnd(const struct sock *sk);
 extern struct tcp_congestion_ops tcp_reno;
 
@@ -706,6 +701,39 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
 		icsk->icsk_ca_ops->cwnd_event(sk, event);
 }
 
+/* These functions determine how the current flow behaves in respect of SACK
+ * handling. SACK is negotiated with the peer, and therefore it can vary
+ * between different flows.
+ *
+ * tcp_is_sack - SACK enabled
+ * tcp_is_reno - No SACK
+ * tcp_is_fack - FACK enabled, implies SACK enabled
+ */
+static inline int tcp_is_sack(const struct tcp_sock *tp)
+{
+	return tp->rx_opt.sack_ok;
+}
+
+static inline int tcp_is_reno(const struct tcp_sock *tp)
+{
+	return !tcp_is_sack(tp);
+}
+
+static inline int tcp_is_fack(const struct tcp_sock *tp)
+{
+	return tp->rx_opt.sack_ok & 2;
+}
+
+static inline void tcp_enable_fack(struct tcp_sock *tp)
+{
+	tp->rx_opt.sack_ok |= 2;
+}
+
+static inline unsigned int tcp_left_out(const struct tcp_sock *tp)
+{
+	return tp->sacked_out + tp->lost_out;
+}
+
 /* This determines how many packets are "in the network" to the best
  * of our knowledge.  In many cases it is conservative, but where
  * detailed information is available from the receiver (via SACK
@@ -722,7 +750,7 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
  */
 static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 {
-	return (tp->packets_out - tp->left_out + tp->retrans_out);
+	return tp->packets_out - tcp_left_out(tp) + tp->retrans_out;
 }
 
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.
@@ -740,12 +768,8 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 			    (tp->snd_cwnd >> 2)));
 }
 
-static inline void tcp_sync_left_out(struct tcp_sock *tp)
-{
-	BUG_ON(tp->rx_opt.sack_ok &&
-	       (tp->sacked_out + tp->lost_out > tp->packets_out));
-	tp->left_out = tp->sacked_out + tp->lost_out;
-}
+/* Use define here intentionally to get WARN_ON location shown at the caller */
+#define tcp_verify_left_out(tp)	WARN_ON(tcp_left_out(tp) > tp->packets_out)
 
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
 extern __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst);
@@ -1042,12 +1066,18 @@ static inline void tcp_mib_init(void)
 	TCP_ADD_STATS_USER(TCP_MIB_MAXCONN, -1);
 }
 
-/*from STCP */
-static inline void clear_all_retrans_hints(struct tcp_sock *tp){
+/* from STCP */
+static inline void tcp_clear_retrans_hints_partial(struct tcp_sock *tp)
+{
 	tp->lost_skb_hint = NULL;
 	tp->scoreboard_skb_hint = NULL;
 	tp->retransmit_skb_hint = NULL;
 	tp->forward_skb_hint = NULL;
+}
+
+static inline void tcp_clear_all_retrans_hints(struct tcp_sock *tp)
+{
+	tcp_clear_retrans_hints_partial(tp);
 	tp->fastpath_skb_hint = NULL;
 }
 
@@ -1061,14 +1091,12 @@ struct tcp_md5sig_key {
 };
 
 struct tcp4_md5sig_key {
-	u8			*key;
-	u16			keylen;
+	struct tcp_md5sig_key	base;
 	__be32			addr;
 };
 
 struct tcp6_md5sig_key {
-	u8			*key;
-	u16			keylen;
+	struct tcp_md5sig_key	base;
 #if 0
 	u32			scope_id;	/* XXX */
 #endif

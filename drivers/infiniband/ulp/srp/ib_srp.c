@@ -75,15 +75,11 @@ module_param(topspin_workarounds, int, 0444);
 MODULE_PARM_DESC(topspin_workarounds,
 		 "Enable workarounds for Topspin/Cisco SRP target bugs if != 0");
 
-static const u8 topspin_oui[3] = { 0x00, 0x05, 0xad };
-
 static int mellanox_workarounds = 1;
 
 module_param(mellanox_workarounds, int, 0444);
 MODULE_PARM_DESC(mellanox_workarounds,
 		 "Enable workarounds for Mellanox SRP target bugs if != 0");
-
-static const u8 mellanox_oui[3] = { 0x00, 0x02, 0xc9 };
 
 static void srp_add_one(struct ib_device *device);
 static void srp_remove_one(struct ib_device *device);
@@ -106,6 +102,24 @@ static inline struct srp_target_port *host_to_target(struct Scsi_Host *host)
 static const char *srp_target_info(struct Scsi_Host *host)
 {
 	return host_to_target(host)->target_name;
+}
+
+static int srp_target_is_topspin(struct srp_target_port *target)
+{
+	static const u8 topspin_oui[3] = { 0x00, 0x05, 0xad };
+	static const u8 cisco_oui[3]   = { 0x00, 0x1b, 0x0d };
+
+	return topspin_workarounds &&
+		(!memcmp(&target->ioc_guid, topspin_oui, sizeof topspin_oui) ||
+		 !memcmp(&target->ioc_guid, cisco_oui, sizeof cisco_oui));
+}
+
+static int srp_target_is_mellanox(struct srp_target_port *target)
+{
+	static const u8 mellanox_oui[3] = { 0x00, 0x02, 0xc9 };
+
+	return mellanox_workarounds &&
+		!memcmp(&target->ioc_guid, mellanox_oui, sizeof mellanox_oui);
 }
 
 static struct srp_iu *srp_alloc_iu(struct srp_host *host, size_t size,
@@ -271,6 +285,7 @@ static int srp_lookup_path(struct srp_target_port *target)
 						   target->srp_host->dev->dev,
 						   target->srp_host->port,
 						   &target->path,
+						   IB_SA_PATH_REC_SERVICE_ID	|
 						   IB_SA_PATH_REC_DGID		|
 						   IB_SA_PATH_REC_SGID		|
 						   IB_SA_PATH_REC_NUMB_PATH	|
@@ -360,7 +375,7 @@ static int srp_send_req(struct srp_target_port *target)
 	 * zero out the first 8 bytes of our initiator port ID and set
 	 * the second 8 bytes to the local node GUID.
 	 */
-	if (topspin_workarounds && !memcmp(&target->ioc_guid, topspin_oui, 3)) {
+	if (srp_target_is_topspin(target)) {
 		printk(KERN_DEBUG PFX "Topspin/Cisco initiator port ID workaround "
 		       "activated for target GUID %016llx\n",
 		       (unsigned long long) be64_to_cpu(target->ioc_guid));
@@ -585,8 +600,8 @@ static int srp_map_fmr(struct srp_target_port *target, struct scatterlist *scat,
 	if (!dev->fmr_pool)
 		return -ENODEV;
 
-	if ((ib_sg_dma_address(ibdev, &scat[0]) & ~dev->fmr_page_mask) &&
-	    mellanox_workarounds && !memcmp(&target->ioc_guid, mellanox_oui, 3))
+	if (srp_target_is_mellanox(target) &&
+	    (ib_sg_dma_address(ibdev, &scat[0]) & ~dev->fmr_page_mask))
 		return -EINVAL;
 
 	len = page_cnt = 0;
@@ -1087,8 +1102,7 @@ static void srp_cm_rej_handler(struct ib_cm_id *cm_id,
 		break;
 
 	case IB_CM_REJ_PORT_REDIRECT:
-		if (topspin_workarounds &&
-		    !memcmp(&target->ioc_guid, topspin_oui, 3)) {
+		if (srp_target_is_topspin(target)) {
 			/*
 			 * Topspin/Cisco SRP gateways incorrectly send
 			 * reject reason code 25 when they mean 24
@@ -1679,6 +1693,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 				goto out;
 			}
 			target->service_id = cpu_to_be64(simple_strtoull(p, NULL, 16));
+			target->path.service_id = target->service_id;
 			kfree(p);
 			break;
 

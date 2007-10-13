@@ -419,7 +419,7 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 	 * For the moment only implement delivery to all cpus or one cpu.
 	 * Get current irq_server for the given irq
 	 */
-	irq_server = get_irq_server(irq, 1);
+	irq_server = get_irq_server(virq, 1);
 	if (irq_server == -1) {
 		char cpulist[128];
 		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
@@ -540,7 +540,7 @@ static void __init xics_init_host(void)
 		ops = &xics_host_lpar_ops;
 	else
 		ops = &xics_host_direct_ops;
-	xics_host = irq_alloc_host(IRQ_HOST_MAP_TREE, 0, ops,
+	xics_host = irq_alloc_host(NULL, IRQ_HOST_MAP_TREE, 0, ops,
 				   XICS_IRQ_SPURIOUS);
 	BUG_ON(xics_host == NULL);
 	irq_set_default_host(xics_host);

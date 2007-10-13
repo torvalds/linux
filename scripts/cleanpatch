@@ -7,7 +7,9 @@
 use bytes;
 use File::Basename;
 
-#
+# Default options
+$max_width = 79;
+
 # Clean up space-tab sequences, either by removing spaces or
 # replacing them with tabs.
 sub clean_space_tabs($)
@@ -48,9 +50,49 @@ sub clean_space_tabs($)
     return $lo;
 }
 
+# Compute the visual width of a string
+sub strwidth($) {
+    no bytes;			# Tab alignment depends on characters
+
+    my($li) = @_;
+    my($c, $i);
+    my $pos = 0;
+    my $mlen = 0;
+
+    for ($i = 0; $i < length($li); $i++) {
+	$c = substr($li,$i,1);
+	if ($c eq "\t") {
+	    $pos = ($pos+8) & ~7;
+	} elsif ($c eq "\n") {
+	    $mlen = $pos if ($pos > $mlen);
+	    $pos = 0;
+	} else {
+	    $pos++;
+	}
+    }
+
+    $mlen = $pos if ($pos > $mlen);
+    return $mlen;
+}
+
 $name = basename($0);
 
-foreach $f ( @ARGV ) {
+@files = ();
+
+while (defined($a = shift(@ARGV))) {
+    if ($a =~ /^-/) {
+	if ($a eq '-width' || $a eq '-w') {
+	    $max_width = shift(@ARGV)+0;
+	} else {
+	    print STDERR "Usage: $name [-width #] files...\n";
+	    exit 1;
+	}
+    } else {
+	push(@files, $a);
+    }
+}
+
+foreach $f ( @files ) {
     print STDERR "$name: $f\n";
 
     if (! -f $f) {
@@ -86,6 +128,7 @@ foreach $f ( @ARGV ) {
 
     $in_bytes = 0;
     $out_bytes = 0;
+    $lineno = 0;
 
     @lines  = ();
 
@@ -93,10 +136,12 @@ foreach $f ( @ARGV ) {
     $err = 0;
 
     while ( defined($line = <FILE>) ) {
+	$lineno++;
 	$in_bytes += length($line);
 
 	if (!$in_hunk) {
-	    if ($line =~ /^\@\@\s+\-([0-9]+),([0-9]+)\s+\+([0-9]+),([0-9]+)\s\@\@/) {
+	    if ($line =~
+		/^\@\@\s+\-([0-9]+),([0-9]+)\s+\+([0-9]+),([0-9]+)\s\@\@/) {
 		$minus_lines = $2;
 		$plus_lines = $4;
 		if ($minus_lines || $plus_lines) {
@@ -116,6 +161,13 @@ foreach $f ( @ARGV ) {
 		$text = substr($line, 1);
 		$text =~ s/[ \t\r]*$//;		# Remove trailing spaces
 		$text = clean_space_tabs($text);
+
+		$l_width = strwidth($text);
+		if ($max_width && $l_width > $max_width) {
+		    print STDERR
+			"$f:$lineno: adds line exceeds $max_width ",
+			"characters ($l_width)\n";
+		}
 
 		push(@hunk_lines, '+'.$text);
 	    } elsif ($line =~ /^\-/) {

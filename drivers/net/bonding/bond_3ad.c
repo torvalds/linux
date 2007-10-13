@@ -29,6 +29,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_bonding.h>
 #include <linux/pkt_sched.h>
+#include <net/net_namespace.h>
 #include "bonding.h"
 #include "bond_3ad.h"
 
@@ -100,7 +101,6 @@ static u16 __get_link_speed(struct port *port);
 static u8 __get_duplex(struct port *port);
 static inline void __initialize_port_locks(struct port *port);
 //conversions
-static void __htons_lacpdu(struct lacpdu *lacpdu);
 static u16 __ad_timer_to_ticks(u16 timer_type, u16 Par);
 
 
@@ -419,26 +419,6 @@ static inline void __initialize_port_locks(struct port *port)
 }
 
 //conversions
-/**
- * __htons_lacpdu - convert the contents of a LACPDU to network byte order
- * @lacpdu: the speicifed lacpdu
- *
- * For each multi-byte field in the lacpdu, convert its content
- */
-static void __htons_lacpdu(struct lacpdu *lacpdu)
-{
-	if (lacpdu) {
-		lacpdu->actor_system_priority =   htons(lacpdu->actor_system_priority);
-		lacpdu->actor_key =               htons(lacpdu->actor_key);
-		lacpdu->actor_port_priority =     htons(lacpdu->actor_port_priority);
-		lacpdu->actor_port =              htons(lacpdu->actor_port);
-		lacpdu->partner_system_priority = htons(lacpdu->partner_system_priority);
-		lacpdu->partner_key =             htons(lacpdu->partner_key);
-		lacpdu->partner_port_priority =   htons(lacpdu->partner_port_priority);
-		lacpdu->partner_port =            htons(lacpdu->partner_port);
-		lacpdu->collector_max_delay =     htons(lacpdu->collector_max_delay);
-	}
-}
 
 /**
  * __ad_timer_to_ticks - convert a given timer type to AD module ticks
@@ -826,11 +806,11 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	 * lacpdu->actor_information_length  initialized
 	 */
 
-	lacpdu->actor_system_priority = port->actor_system_priority;
+	lacpdu->actor_system_priority = htons(port->actor_system_priority);
 	lacpdu->actor_system = port->actor_system;
-	lacpdu->actor_key = port->actor_oper_port_key;
-	lacpdu->actor_port_priority = port->actor_port_priority;
-	lacpdu->actor_port = port->actor_port_number;
+	lacpdu->actor_key = htons(port->actor_oper_port_key);
+	lacpdu->actor_port_priority = htons(port->actor_port_priority);
+	lacpdu->actor_port = htons(port->actor_port_number);
 	lacpdu->actor_state = port->actor_oper_port_state;
 
 	/* lacpdu->reserved_3_1              initialized
@@ -838,11 +818,11 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	 * lacpdu->partner_information_length initialized
 	 */
 
-	lacpdu->partner_system_priority = port->partner_oper_system_priority;
+	lacpdu->partner_system_priority = htons(port->partner_oper_system_priority);
 	lacpdu->partner_system = port->partner_oper_system;
-	lacpdu->partner_key = port->partner_oper_key;
-	lacpdu->partner_port_priority = port->partner_oper_port_priority;
-	lacpdu->partner_port = port->partner_oper_port_number;
+	lacpdu->partner_key = htons(port->partner_oper_key);
+	lacpdu->partner_port_priority = htons(port->partner_oper_port_priority);
+	lacpdu->partner_port = htons(port->partner_oper_port_number);
 	lacpdu->partner_state = port->partner_oper_port_state;
 
 	/* lacpdu->reserved_3_2              initialized
@@ -854,9 +834,6 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	 * terminator_length                 initialized
 	 * reserved_50[50]                   initialized
 	 */
-
-	/* Convert all non u8 parameters to Big Endian for transmit */
-	__htons_lacpdu(lacpdu);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1833,7 +1810,7 @@ static void ad_initialize_lacpdu(struct lacpdu *lacpdu)
 	}
 	lacpdu->tlv_type_collector_info = 0x03;
 	lacpdu->collector_information_length= 0x10;
-	lacpdu->collector_max_delay = AD_COLLECTOR_MAX_DELAY;
+	lacpdu->collector_max_delay = htons(AD_COLLECTOR_MAX_DELAY);
 	for (index=0; index<=11; index++) {
 		lacpdu->reserved_12[index]=0;
 	}
@@ -2447,6 +2424,9 @@ int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct pac
 	struct bonding *bond = dev->priv;
 	struct slave *slave = NULL;
 	int ret = NET_RX_DROP;
+
+	if (dev->nd_net != &init_net)
+		goto out;
 
 	if (!(dev->flags & IFF_MASTER))
 		goto out;

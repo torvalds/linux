@@ -40,8 +40,6 @@ static struct scsi_host_template netcell_sht = {
 };
 
 static const struct ata_port_operations netcell_ops = {
-	.port_disable		= ata_port_disable,
-
 	/* Task file is PCI ATA format, use helpers */
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -68,10 +66,9 @@ static const struct ata_port_operations netcell_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	/* Generic PATA PCI ATA helpers */
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 

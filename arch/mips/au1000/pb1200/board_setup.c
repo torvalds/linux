@@ -57,7 +57,7 @@
 extern void _board_init_irq(void);
 extern void (*board_init_irq)(void);
 
-void board_reset (void)
+void board_reset(void)
 {
 	bcsr->resets = 0;
 	bcsr->system = 0;
@@ -148,7 +148,7 @@ void __init board_setup(void)
 }
 
 int
-board_au1200fb_panel (void)
+board_au1200fb_panel(void)
 {
 	BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 	int p;
@@ -160,7 +160,7 @@ board_au1200fb_panel (void)
 }
 
 int
-board_au1200fb_panel_init (void)
+board_au1200fb_panel_init(void)
 {
 	/* Apply power */
     BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;
@@ -170,7 +170,7 @@ board_au1200fb_panel_init (void)
 }
 
 int
-board_au1200fb_panel_shutdown (void)
+board_au1200fb_panel_shutdown(void)
 {
 	/* Remove power */
     BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;

@@ -15,8 +15,8 @@
 # define __acquire(x)	__context__(x,1)
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
-extern void __chk_user_ptr(const void __user *);
-extern void __chk_io_ptr(const void __iomem *);
+extern void __chk_user_ptr(const volatile void __user *);
+extern void __chk_io_ptr(const volatile void __iomem *);
 #else
 # define __user
 # define __kernel
@@ -172,6 +172,15 @@ extern void __chk_io_ptr(const void __iomem *);
  */
 #ifndef __attribute_const__
 # define __attribute_const__	/* unimplemented */
+#endif
+
+/*
+ * Tell gcc if a function is cold. The compiler will assume any path
+ * directly leading to the call is unlikely.
+ */
+
+#ifndef __cold
+#define __cold
 #endif
 
 #endif /* __LINUX_COMPILER_H */

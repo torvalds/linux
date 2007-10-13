@@ -47,7 +47,7 @@ static int radeon_bl_get_level_brightness(struct radeon_bl_privdata *pdata,
 
 static int radeon_bl_update_status(struct backlight_device *bd)
 {
-	struct radeon_bl_privdata *pdata = class_get_devdata(&bd->class_dev);
+	struct radeon_bl_privdata *pdata = bl_get_data(bd);
 	struct radeonfb_info *rinfo = pdata->rinfo;
 	u32 lvds_gen_cntl, tmpPixclksCntl;
 	int level;
@@ -206,7 +206,7 @@ void radeonfb_bl_exit(struct radeonfb_info *rinfo)
 	if (bd) {
 		struct radeon_bl_privdata *pdata;
 
-		pdata = class_get_devdata(&bd->class_dev);
+		pdata = bl_get_data(bd);
 		backlight_device_unregister(bd);
 		kfree(pdata);
 		rinfo->info->bl_dev = NULL;

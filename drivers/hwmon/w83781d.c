@@ -740,9 +740,9 @@ store_sensor(struct device *dev, struct device_attribute *da,
 static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO | S_IWUSR,
 	show_sensor, store_sensor, 0);
 static SENSOR_DEVICE_ATTR(temp2_type, S_IRUGO | S_IWUSR,
-	show_sensor, store_sensor, 0);
+	show_sensor, store_sensor, 1);
 static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO | S_IWUSR,
-	show_sensor, store_sensor, 0);
+	show_sensor, store_sensor, 2);
 
 /* I2C devices get this name attribute automatically, but for ISA devices
    we must create it by ourselves. */
@@ -1746,7 +1746,7 @@ w83781d_isa_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
-		.end	= address + W83781D_EXTENT,
+		.end	= address + W83781D_EXTENT - 1,
 		.name	= "w83781d",
 		.flags	= IORESOURCE_IO,
 	};

@@ -12,6 +12,7 @@ config CPU_S3C2440
 	select S3C2410_GPIO
 	select S3C2440_DMA if S3C2410_DMA
 	select CPU_S3C244X
+	select CPU_LLSERIAL_S3C2440
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
 

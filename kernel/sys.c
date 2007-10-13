@@ -32,6 +32,7 @@
 #include <linux/getcpu.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/seccomp.h>
+#include <linux/cpu.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -98,6 +99,13 @@ EXPORT_SYMBOL(fs_overflowgid);
 int C_A_D = 1;
 struct pid *cad_pid;
 EXPORT_SYMBOL(cad_pid);
+
+/*
+ * If set, this is used for preparing the system to power off.
+ */
+
+void (*pm_power_off_prepare)(void);
+EXPORT_SYMBOL(pm_power_off_prepare);
 
 /*
  *	Notifier list for kernel code which wants to be called
@@ -797,6 +805,7 @@ static void kernel_restart_prepare(char *cmd)
 	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
 	device_shutdown();
+	sysdev_shutdown();
 }
 
 /**
@@ -853,6 +862,7 @@ void kernel_shutdown_prepare(enum system_states state)
 void kernel_halt(void)
 {
 	kernel_shutdown_prepare(SYSTEM_HALT);
+	sysdev_shutdown();
 	printk(KERN_EMERG "System halted.\n");
 	machine_halt();
 }
@@ -867,6 +877,10 @@ EXPORT_SYMBOL_GPL(kernel_halt);
 void kernel_power_off(void)
 {
 	kernel_shutdown_prepare(SYSTEM_POWER_OFF);
+	if (pm_power_off_prepare)
+		pm_power_off_prepare();
+	disable_nonboot_cpus();
+	sysdev_shutdown();
 	printk(KERN_EMERG "Power down.\n");
 	machine_power_off();
 }
@@ -942,7 +956,7 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 		unlock_kernel();
 		return -EINVAL;
 
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#ifdef CONFIG_HIBERNATION
 	case LINUX_REBOOT_CMD_SW_SUSPEND:
 		{
 			int ret = hibernate();
@@ -1027,7 +1041,7 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 			return -EPERM;
 	}
 	if (new_egid != old_egid) {
-		current->mm->dumpable = suid_dumpable;
+		set_dumpable(current->mm, suid_dumpable);
 		smp_wmb();
 	}
 	if (rgid != (gid_t) -1 ||
@@ -1057,13 +1071,13 @@ asmlinkage long sys_setgid(gid_t gid)
 
 	if (capable(CAP_SETGID)) {
 		if (old_egid != gid) {
-			current->mm->dumpable = suid_dumpable;
+			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
 		current->gid = current->egid = current->sgid = current->fsgid = gid;
 	} else if ((gid == current->gid) || (gid == current->sgid)) {
 		if (old_egid != gid) {
-			current->mm->dumpable = suid_dumpable;
+			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
 		current->egid = current->fsgid = gid;
@@ -1094,7 +1108,7 @@ static int set_user(uid_t new_ruid, int dumpclear)
 	switch_uid(new_user);
 
 	if (dumpclear) {
-		current->mm->dumpable = suid_dumpable;
+		set_dumpable(current->mm, suid_dumpable);
 		smp_wmb();
 	}
 	current->uid = new_ruid;
@@ -1150,7 +1164,7 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 		return -EAGAIN;
 
 	if (new_euid != old_euid) {
-		current->mm->dumpable = suid_dumpable;
+		set_dumpable(current->mm, suid_dumpable);
 		smp_wmb();
 	}
 	current->fsuid = current->euid = new_euid;
@@ -1200,7 +1214,7 @@ asmlinkage long sys_setuid(uid_t uid)
 		return -EPERM;
 
 	if (old_euid != uid) {
-		current->mm->dumpable = suid_dumpable;
+		set_dumpable(current->mm, suid_dumpable);
 		smp_wmb();
 	}
 	current->fsuid = current->euid = uid;
@@ -1245,7 +1259,7 @@ asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 	}
 	if (euid != (uid_t) -1) {
 		if (euid != current->euid) {
-			current->mm->dumpable = suid_dumpable;
+			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
 		current->euid = euid;
@@ -1295,7 +1309,7 @@ asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 	}
 	if (egid != (gid_t) -1) {
 		if (egid != current->egid) {
-			current->mm->dumpable = suid_dumpable;
+			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
 		current->egid = egid;
@@ -1341,7 +1355,7 @@ asmlinkage long sys_setfsuid(uid_t uid)
 	    uid == current->suid || uid == current->fsuid || 
 	    capable(CAP_SETUID)) {
 		if (uid != old_fsuid) {
-			current->mm->dumpable = suid_dumpable;
+			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
 		current->fsuid = uid;
@@ -1370,7 +1384,7 @@ asmlinkage long sys_setfsgid(gid_t gid)
 	    gid == current->sgid || gid == current->fsgid || 
 	    capable(CAP_SETGID)) {
 		if (gid != old_fsgid) {
-			current->mm->dumpable = suid_dumpable;
+			set_dumpable(current->mm, suid_dumpable);
 			smp_wmb();
 		}
 		current->fsgid = gid;
@@ -1430,7 +1444,6 @@ asmlinkage long sys_times(struct tms __user * tbuf)
  * Auch. Had to add the 'did_exec' flag to conform completely to POSIX.
  * LBT 04.03.94
  */
-
 asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 {
 	struct task_struct *p;
@@ -1458,7 +1471,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 	if (!thread_group_leader(p))
 		goto out;
 
-	if (p->real_parent == group_leader) {
+	if (p->real_parent->tgid == group_leader->tgid) {
 		err = -EPERM;
 		if (task_session(p) != task_session(group_leader))
 			goto out;
@@ -2167,14 +2180,14 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			error = put_user(current->pdeath_signal, (int __user *)arg2);
 			break;
 		case PR_GET_DUMPABLE:
-			error = current->mm->dumpable;
+			error = get_dumpable(current->mm);
 			break;
 		case PR_SET_DUMPABLE:
 			if (arg2 < 0 || arg2 > 1) {
 				error = -EINVAL;
 				break;
 			}
-			current->mm->dumpable = arg2;
+			set_dumpable(current->mm, arg2);
 			break;
 
 		case PR_SET_UNALIGN:
@@ -2286,3 +2299,61 @@ asmlinkage long sys_getcpu(unsigned __user *cpup, unsigned __user *nodep,
 	}
 	return err ? -EFAULT : 0;
 }
+
+char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
+
+static void argv_cleanup(char **argv, char **envp)
+{
+	argv_free(argv);
+}
+
+/**
+ * orderly_poweroff - Trigger an orderly system poweroff
+ * @force: force poweroff if command execution fails
+ *
+ * This may be called from any context to trigger a system shutdown.
+ * If the orderly shutdown fails, it will force an immediate shutdown.
+ */
+int orderly_poweroff(bool force)
+{
+	int argc;
+	char **argv = argv_split(GFP_ATOMIC, poweroff_cmd, &argc);
+	static char *envp[] = {
+		"HOME=/",
+		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
+		NULL
+	};
+	int ret = -ENOMEM;
+	struct subprocess_info *info;
+
+	if (argv == NULL) {
+		printk(KERN_WARNING "%s failed to allocate memory for \"%s\"\n",
+		       __func__, poweroff_cmd);
+		goto out;
+	}
+
+	info = call_usermodehelper_setup(argv[0], argv, envp);
+	if (info == NULL) {
+		argv_free(argv);
+		goto out;
+	}
+
+	call_usermodehelper_setcleanup(info, argv_cleanup);
+
+	ret = call_usermodehelper_exec(info, UMH_NO_WAIT);
+
+  out:
+	if (ret && force) {
+		printk(KERN_WARNING "Failed to start orderly shutdown: "
+		       "forcing the issue\n");
+
+		/* I guess this should try to kick off some daemon to
+		   sync and poweroff asap.  Or not even bother syncing
+		   if we're doing an emergency shutdown? */
+		emergency_sync();
+		kernel_power_off();
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(orderly_poweroff);

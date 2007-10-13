@@ -42,6 +42,7 @@ enum {
 	Opt_nosuiddir,
 	Opt_data_writeback,
 	Opt_data_ordered,
+	Opt_err,
 };
 
 static match_table_t tokens = {
@@ -64,7 +65,8 @@ static match_table_t tokens = {
 	{Opt_suiddir, "suiddir"},
 	{Opt_nosuiddir, "nosuiddir"},
 	{Opt_data_writeback, "data=writeback"},
-	{Opt_data_ordered, "data=ordered"}
+	{Opt_data_ordered, "data=ordered"},
+	{Opt_err, NULL}
 };
 
 /**
@@ -82,19 +84,20 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 	char *options, *o, *v;
 	int error = 0;
 
-	/*  If someone preloaded options, use those instead  */
-	spin_lock(&gfs2_sys_margs_lock);
-	if (!remount && gfs2_sys_margs) {
-		data = gfs2_sys_margs;
-		gfs2_sys_margs = NULL;
-	}
-	spin_unlock(&gfs2_sys_margs_lock);
+	if (!remount) {
+		/*  If someone preloaded options, use those instead  */
+		spin_lock(&gfs2_sys_margs_lock);
+		if (gfs2_sys_margs) {
+			data = gfs2_sys_margs;
+			gfs2_sys_margs = NULL;
+		}
+		spin_unlock(&gfs2_sys_margs_lock);
 
-	/*  Set some defaults  */
-	memset(args, 0, sizeof(struct gfs2_args));
-	args->ar_num_glockd = GFS2_GLOCKD_DEFAULT;
-	args->ar_quota = GFS2_QUOTA_DEFAULT;
-	args->ar_data = GFS2_DATA_DEFAULT;
+		/*  Set some defaults  */
+		args->ar_num_glockd = GFS2_GLOCKD_DEFAULT;
+		args->ar_quota = GFS2_QUOTA_DEFAULT;
+		args->ar_data = GFS2_DATA_DEFAULT;
+	}
 
 	/* Split the options into tokens with the "," character and
 	   process them */
@@ -236,6 +239,7 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 		case Opt_data_ordered:
 			args->ar_data = GFS2_DATA_ORDERED;
 			break;
+		case Opt_err:
 		default:
 			fs_info(sdp, "unknown option: %s\n", o);
 			error = -EINVAL;

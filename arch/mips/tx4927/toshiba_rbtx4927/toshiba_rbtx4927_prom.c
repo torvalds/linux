@@ -66,8 +66,6 @@ void __init prom_init(void)
 
 	prom_init_cmdline();
 
-	mips_machgroup = MACH_GROUP_TOSHIBA;
-
 	if ((read_c0_prid() & 0xff) == PRID_REV_TX4927) {
 		mips_machtype = MACH_TOSHIBA_RBTX4927;
 		toshiba_name  = "TX4927";

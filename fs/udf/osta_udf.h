@@ -65,30 +65,26 @@
 #define IS_DF_HARD_WRITE_PROTECT	0x01
 #define IS_DF_SOFT_WRITE_PROTECT	0x02
 
-struct UDFIdentSuffix
-{
+struct UDFIdentSuffix {
 	__le16		UDFRevision;
 	uint8_t		OSClass;
 	uint8_t		OSIdentifier;
 	uint8_t		reserved[4];
 } __attribute__ ((packed));
 
-struct impIdentSuffix
-{
+struct impIdentSuffix {
 	uint8_t		OSClass;
 	uint8_t		OSIdentifier;
 	uint8_t		reserved[6];
 } __attribute__ ((packed));
 
-struct appIdentSuffix
-{
+struct appIdentSuffix {
 	uint8_t		impUse[8];
 } __attribute__ ((packed));
 
 /* Logical Volume Integrity Descriptor (UDF 2.50 2.2.6) */
 /* Implementation Use (UDF 2.50 2.2.6.4) */
-struct logicalVolIntegrityDescImpUse
-{
+struct logicalVolIntegrityDescImpUse {
 	regid		impIdent;
 	__le32		numFiles;
 	__le32		numDirs;
@@ -100,8 +96,7 @@ struct logicalVolIntegrityDescImpUse
 
 /* Implementation Use Volume Descriptor (UDF 2.50 2.2.7) */
 /* Implementation Use (UDF 2.50 2.2.7.2) */
-struct impUseVolDescImpUse
-{
+struct impUseVolDescImpUse {
 	charspec	LVICharset;
 	dstring		logicalVolIdent[128];
 	dstring		LVInfo1[36];
@@ -111,8 +106,7 @@ struct impUseVolDescImpUse
 	uint8_t		impUse[128];
 } __attribute__ ((packed));
 
-struct udfPartitionMap2
-{
+struct udfPartitionMap2 {
 	uint8_t		partitionMapType;
 	uint8_t		partitionMapLength;
 	uint8_t		reserved1[2];
@@ -122,8 +116,7 @@ struct udfPartitionMap2
 } __attribute__ ((packed));
 
 /* Virtual Partition Map (UDF 2.50 2.2.8) */
-struct virtualPartitionMap
-{
+struct virtualPartitionMap {
 	uint8_t		partitionMapType;
 	uint8_t		partitionMapLength;
 	uint8_t		reserved1[2];
@@ -134,24 +127,22 @@ struct virtualPartitionMap
 } __attribute__ ((packed));
 
 /* Sparable Partition Map (UDF 2.50 2.2.9) */
-struct sparablePartitionMap
-{
-	uint8_t		partitionMapType;
-	uint8_t		partitionMapLength;
-	uint8_t		reserved1[2];
-	regid		partIdent;
-	__le16		volSeqNum;
-	__le16		partitionNum;
-	__le16		packetLength;
-	uint8_t		numSparingTables;
-	uint8_t		reserved2[1];
-	__le32		sizeSparingTable;
-	__le32		locSparingTable[4];
+struct sparablePartitionMap {
+	uint8_t partitionMapType;
+	uint8_t partitionMapLength;
+	uint8_t reserved1[2];
+	regid partIdent;
+	__le16 volSeqNum;
+	__le16 partitionNum;
+	__le16 packetLength;
+	uint8_t numSparingTables;
+	uint8_t reserved2[1];
+	__le32 sizeSparingTable;
+	__le32 locSparingTable[4];
 } __attribute__ ((packed));
 
 /* Metadata Partition Map (UDF 2.4.0 2.2.10) */
-struct metadataPartitionMap
-{
+struct metadataPartitionMap {
 	uint8_t		partitionMapType;
 	uint8_t		partitionMapLength;
 	uint8_t		reserved1[2];
@@ -168,18 +159,16 @@ struct metadataPartitionMap
 } __attribute__ ((packed));
 
 /* Virtual Allocation Table (UDF 1.5 2.2.10) */
-struct virtualAllocationTable15
-{
+struct virtualAllocationTable15 {
 	__le32		VirtualSector[0];
 	regid		vatIdent;
 	__le32		previousVATICBLoc;
-} __attribute__ ((packed));  
+} __attribute__ ((packed));
 
 #define ICBTAG_FILE_TYPE_VAT15		0x00U
 
 /* Virtual Allocation Table (UDF 2.50 2.2.11) */
-struct virtualAllocationTable20
-{
+struct virtualAllocationTable20 {
 	__le16		lengthHeader;
 	__le16		lengthImpUse;
 	dstring		logicalVolIdent[128];
@@ -197,14 +186,12 @@ struct virtualAllocationTable20
 #define ICBTAG_FILE_TYPE_VAT20		0xF8U
 
 /* Sparing Table (UDF 2.50 2.2.12) */
-struct sparingEntry
-{
+struct sparingEntry {
 	__le32		origLocation;
 	__le32		mappedLocation;
 } __attribute__ ((packed));
 
-struct sparingTable
-{
+struct sparingTable {
 	tag 		descTag;
 	regid		sparingIdent;
 	__le16		reallocationTableLen;
@@ -220,8 +207,7 @@ struct sparingTable
 #define ICBTAG_FILE_TYPE_BITMAP		0xFC
 
 /* struct long_ad ICB - ADImpUse (UDF 2.50 2.2.4.3) */
-struct allocDescImpUse
-{
+struct allocDescImpUse {
 	__le16		flags;
 	uint8_t		impUse[4];
 } __attribute__ ((packed));
@@ -233,15 +219,13 @@ struct allocDescImpUse
 
 /* Implementation Use Extended Attribute (UDF 2.50 3.3.4.5) */
 /* FreeEASpace (UDF 2.50 3.3.4.5.1.1) */
-struct freeEaSpace
-{
+struct freeEaSpace {
 	__le16		headerChecksum;
 	uint8_t		freeEASpace[0];
 } __attribute__ ((packed));
 
 /* DVD Copyright Management Information (UDF 2.50 3.3.4.5.1.2) */
-struct DVDCopyrightImpUse 
-{
+struct DVDCopyrightImpUse {
 	__le16		headerChecksum;
 	uint8_t		CGMSInfo;
 	uint8_t		dataType;
@@ -250,8 +234,7 @@ struct DVDCopyrightImpUse
 
 /* Application Use Extended Attribute (UDF 2.50 3.3.4.6) */
 /* FreeAppEASpace (UDF 2.50 3.3.4.6.1) */
-struct freeAppEASpace
-{
+struct freeAppEASpace {
 	__le16		headerChecksum;
 	uint8_t		freeEASpace[0];
 } __attribute__ ((packed));

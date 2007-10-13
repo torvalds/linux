@@ -17,6 +17,8 @@
 #include <linux/parser.h>
 #include <linux/sysfs.h>
 #include <linux/module.h>
+#include <linux/seq_file.h>
+#include <linux/mount.h>
 #include <asm/ebcdic.h>
 #include "hypfs.h"
 
@@ -58,17 +60,28 @@ static void hypfs_add_dentry(struct dentry *dentry)
 	hypfs_last_dentry = dentry;
 }
 
+static inline int hypfs_positive(struct dentry *dentry)
+{
+	return dentry->d_inode && !d_unhashed(dentry);
+}
+
 static void hypfs_remove(struct dentry *dentry)
 {
 	struct dentry *parent;
 
 	parent = dentry->d_parent;
-	if (S_ISDIR(dentry->d_inode->i_mode))
-		simple_rmdir(parent->d_inode, dentry);
-	else
-		simple_unlink(parent->d_inode, dentry);
+	if (!parent || !parent->d_inode)
+		return;
+	mutex_lock(&parent->d_inode->i_mutex);
+	if (hypfs_positive(dentry)) {
+		if (S_ISDIR(dentry->d_inode->i_mode))
+			simple_rmdir(parent->d_inode, dentry);
+		else
+			simple_unlink(parent->d_inode, dentry);
+	}
 	d_delete(dentry);
 	dput(dentry);
+	mutex_unlock(&parent->d_inode->i_mutex);
 }
 
 static void hypfs_delete_tree(struct dentry *root)
@@ -256,6 +269,15 @@ static int hypfs_parse_options(char *options, struct super_block *sb)
 	return 0;
 }
 
+static int hypfs_show_options(struct seq_file *s, struct vfsmount *mnt)
+{
+	struct hypfs_sb_info *hypfs_info = mnt->mnt_sb->s_fs_info;
+
+	seq_printf(s, ",uid=%u", hypfs_info->uid);
+	seq_printf(s, ",gid=%u", hypfs_info->gid);
+	return 0;
+}
+
 static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *root_inode;
@@ -304,6 +326,7 @@ static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	hypfs_update_update(sb);
 	sb->s_root = root_dentry;
+	printk(KERN_INFO "hypfs: Hypervisor filesystem mounted\n");
 	return 0;
 
 err_tree:
@@ -345,13 +368,17 @@ static struct dentry *hypfs_create_file(struct super_block *sb,
 	qname.name = name;
 	qname.len = strlen(name);
 	qname.hash = full_name_hash(name, qname.len);
+	mutex_lock(&parent->d_inode->i_mutex);
 	dentry = lookup_one_len(name, parent, strlen(name));
-	if (IS_ERR(dentry))
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(dentry)) {
+		dentry = ERR_PTR(-ENOMEM);
+		goto fail;
+	}
 	inode = hypfs_make_inode(sb, mode);
 	if (!inode) {
 		dput(dentry);
-		return ERR_PTR(-ENOMEM);
+		dentry = ERR_PTR(-ENOMEM);
+		goto fail;
 	}
 	if (mode & S_IFREG) {
 		inode->i_fop = &hypfs_file_ops;
@@ -368,6 +395,8 @@ static struct dentry *hypfs_create_file(struct super_block *sb,
 	inode->i_private = data;
 	d_instantiate(dentry, inode);
 	dget(dentry);
+fail:
+	mutex_unlock(&parent->d_inode->i_mutex);
 	return dentry;
 }
 
@@ -380,7 +409,6 @@ struct dentry *hypfs_mkdir(struct super_block *sb, struct dentry *parent,
 	if (IS_ERR(dentry))
 		return dentry;
 	hypfs_add_dentry(dentry);
-	parent->d_inode->i_nlink++;
 	return dentry;
 }
 
@@ -459,6 +487,7 @@ static struct file_system_type hypfs_type = {
 static struct super_operations hypfs_s_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= hypfs_drop_inode,
+	.show_options	= hypfs_show_options,
 };
 
 static decl_subsys(s390, NULL, NULL);

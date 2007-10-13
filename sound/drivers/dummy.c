@@ -659,7 +659,7 @@ static struct platform_driver snd_dummy_driver = {
 	},
 };
 
-static void __init_or_module snd_dummy_unregister_all(void)
+static void snd_dummy_unregister_all(void)
 {
 	int i;
 

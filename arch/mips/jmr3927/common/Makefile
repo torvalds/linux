@@ -3,3 +3,5 @@
 #
 
 obj-y	 += prom.o puts.o
+
+EXTRA_CFLAGS += -Werror

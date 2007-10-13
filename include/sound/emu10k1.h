@@ -1120,6 +1120,16 @@
 /************************************************************************************************/
 /* EMU1010m HANA Destinations									*/
 /************************************************************************************************/
+/* 32-bit destinations of signal in the Hana FPGA. Destinations are either
+ * physical outputs of Hana, or outputs going to Alice2 (audigy) for capture
+ * - 16 x EMU_DST_ALICE2_EMU32_X.
+ */
+/* EMU32 = 32-bit serial channel between Alice2 (audigy) and Hana (FPGA) */
+/* EMU_DST_ALICE2_EMU32_X - data channels from Hana to Alice2 used for capture.
+ * Which data is fed into a EMU_DST_ALICE2_EMU32_X channel in Hana depends on
+ * setup of mixer control for each destination - see emumixer.c -
+ * snd_emu1010_output_enum_ctls[], snd_emu1010_input_enum_ctls[]
+ */
 #define EMU_DST_ALICE2_EMU32_0	0x000f	/* 16 EMU32 channels to Alice2 +0 to +0xf */
 #define EMU_DST_ALICE2_EMU32_1	0x0000	/* 16 EMU32 channels to Alice2 +0 to +0xf */
 #define EMU_DST_ALICE2_EMU32_2	0x0001	/* 16 EMU32 channels to Alice2 +0 to +0xf */
@@ -1199,6 +1209,12 @@
 /************************************************************************************************/
 /* EMU1010m HANA Sources									*/
 /************************************************************************************************/
+/* 32-bit sources of signal in the Hana FPGA. The sources are routed to
+ * destinations using mixer control for each destination - see emumixer.c
+ * Sources are either physical inputs of FPGA,
+ * or outputs from Alice (audigy) - 16 x EMU_SRC_ALICE_EMU32A +
+ * 16 x EMU_SRC_ALICE_EMU32B
+ */
 #define EMU_SRC_SILENCE		0x0000	/* Silence */
 #define EMU_SRC_DOCK_MIC_A1	0x0100	/* Audio Dock Mic A, 1st or 48kHz only */
 #define EMU_SRC_DOCK_MIC_A2	0x0101	/* Audio Dock Mic A, 2nd or 96kHz */

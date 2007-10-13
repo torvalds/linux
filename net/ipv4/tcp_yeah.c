@@ -58,7 +58,7 @@ static void tcp_yeah_init(struct sock *sk)
 }
 
 
-static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked, ktime_t last)
+static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked, s32 rtt_us)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct yeah *yeah = inet_csk_ca(sk);
@@ -66,11 +66,11 @@ static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked, ktime_t last)
 	if (icsk->icsk_ca_state == TCP_CA_Open)
 		yeah->pkts_acked = pkts_acked;
 
-	tcp_vegas_pkts_acked(sk, pkts_acked, last);
+	tcp_vegas_pkts_acked(sk, pkts_acked, rtt_us);
 }
 
 static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
-				u32 seq_rtt, u32 in_flight, int flag)
+				u32 in_flight, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct yeah *yeah = inet_csk_ca(sk);

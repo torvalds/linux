@@ -188,8 +188,8 @@ static void pcit_hwint1(void)
 	irq = ffs((pending >> 16) & 0x7f);
 
 	if (likely(irq > 0))
-		do_IRQ (irq + SNI_PCIT_INT_START - 1);
-	set_c0_status (IE_IRQ1);
+		do_IRQ(irq + SNI_PCIT_INT_START - 1);
+	set_c0_status(IE_IRQ1);
 }
 
 static void pcit_hwint0(void)
@@ -201,8 +201,8 @@ static void pcit_hwint0(void)
 	irq = ffs((pending >> 16) & 0x3f);
 
 	if (likely(irq > 0))
-		do_IRQ (irq + SNI_PCIT_INT_START - 1);
-	set_c0_status (IE_IRQ0);
+		do_IRQ(irq + SNI_PCIT_INT_START - 1);
+	set_c0_status(IE_IRQ0);
 }
 
 static void sni_pcit_hwint(void)
@@ -212,11 +212,11 @@ static void sni_pcit_hwint(void)
 	if (pending & C_IRQ1)
 		pcit_hwint1();
 	else if (pending & C_IRQ2)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 4);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 4);
 	else if (pending & C_IRQ3)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 5);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 5);
 	else if (pending & C_IRQ5)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 7);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
 }
 
 static void sni_pcit_hwint_cplus(void)
@@ -226,13 +226,13 @@ static void sni_pcit_hwint_cplus(void)
 	if (pending & C_IRQ0)
 		pcit_hwint0();
 	else if (pending & C_IRQ1)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 3);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 3);
 	else if (pending & C_IRQ2)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 4);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 4);
 	else if (pending & C_IRQ3)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 5);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 5);
 	else if (pending & C_IRQ5)
-		do_IRQ (MIPS_CPU_IRQ_BASE + 7);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
 }
 
 void __init sni_pcit_irq_init(void)
@@ -245,7 +245,7 @@ void __init sni_pcit_irq_init(void)
 	*(volatile u32 *)SNI_PCIT_INT_REG = 0;
 	sni_hwint = sni_pcit_hwint;
 	change_c0_status(ST0_IM, IE_IRQ1);
-	setup_irq (SNI_PCIT_INT_START + 6, &sni_isa_irq);
+	setup_irq(SNI_PCIT_INT_START + 6, &sni_isa_irq);
 }
 
 void __init sni_pcit_cplus_irq_init(void)
@@ -258,12 +258,11 @@ void __init sni_pcit_cplus_irq_init(void)
 	*(volatile u32 *)SNI_PCIT_INT_REG = 0x40000000;
 	sni_hwint = sni_pcit_hwint_cplus;
 	change_c0_status(ST0_IM, IE_IRQ0);
-	setup_irq (MIPS_CPU_IRQ_BASE + 3, &sni_isa_irq);
+	setup_irq(MIPS_CPU_IRQ_BASE + 3, &sni_isa_irq);
 }
 
 void __init sni_pcit_init(void)
 {
-	board_time_init = sni_cpu_time_init;
 	ioport_resource.end = sni_io_resource.end;
 #ifdef CONFIG_PCI
 	PCIBIOS_MIN_IO = 0x9000;

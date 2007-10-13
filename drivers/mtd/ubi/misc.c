@@ -67,7 +67,7 @@ int ubi_check_volume(struct ubi_device *ubi, int vol_id)
 	if (vol->vol_type != UBI_STATIC_VOLUME)
 		return 0;
 
-	buf = kmalloc(vol->usable_leb_size, GFP_KERNEL);
+	buf = vmalloc(vol->usable_leb_size);
 	if (!buf)
 		return -ENOMEM;
 
@@ -87,7 +87,7 @@ int ubi_check_volume(struct ubi_device *ubi, int vol_id)
 		}
 	}
 
-	kfree(buf);
+	vfree(buf);
 	return err;
 }
 

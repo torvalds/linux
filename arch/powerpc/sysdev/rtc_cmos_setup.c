@@ -20,14 +20,16 @@ static int  __init add_rtc(void)
 {
 	struct device_node *np;
 	struct platform_device *pd;
-	struct resource res;
+	struct resource res[2];
 	int ret;
+
+	memset(&res, 0, sizeof(res));
 
 	np = of_find_compatible_node(NULL, NULL, "pnpPNP,b00");
 	if (!np)
 		return -ENODEV;
 
-	ret = of_address_to_resource(np, 0, &res);
+	ret = of_address_to_resource(np, 0, &res[0]);
 	of_node_put(np);
 	if (ret)
 		return ret;
@@ -36,11 +38,18 @@ static int  __init add_rtc(void)
 	 * RTC_PORT(x) is hardcoded in asm/mc146818rtc.h.  Verify that the
 	 * address provided by the device node matches.
 	 */
-	if (res.start != RTC_PORT(0))
+	if (res[0].start != RTC_PORT(0))
 		return -EINVAL;
 
+	/* Use a fixed interrupt value of 8 since on PPC if we are using this
+	 * its off an i8259 which we ensure has interrupt numbers 0..15. */
+	res[1].start = 8;
+	res[1].end = 8;
+	res[1].flags = IORESOURCE_IRQ;
+
 	pd = platform_device_register_simple("rtc_cmos", -1,
-					     &res, 1);
+					     &res[0], 2);
+
 	if (IS_ERR(pd))
 		return PTR_ERR(pd);
 

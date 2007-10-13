@@ -107,6 +107,7 @@ struct dsp_scb_descriptor {
 	char scb_name[DSP_MAX_SCB_NAME];
 	u32 address;
 	int index;
+	u32 *data;
 
 	struct dsp_scb_descriptor * sub_list_ptr;
 	struct dsp_scb_descriptor * next_scb_ptr;
@@ -127,6 +128,7 @@ struct dsp_task_descriptor {
 	int size;
 	u32 address;
 	int index;
+	u32 *data;
 };
 
 struct dsp_pcm_channel_descriptor {

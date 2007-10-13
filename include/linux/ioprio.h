@@ -53,6 +53,14 @@ static inline int task_ioprio(struct task_struct *task)
 	return IOPRIO_NORM;
 }
 
+static inline int task_ioprio_class(struct task_struct *task)
+{
+	if (ioprio_valid(task->ioprio))
+		return IOPRIO_PRIO_CLASS(task->ioprio);
+
+	return IOPRIO_CLASS_BE;
+}
+
 static inline int task_nice_ioprio(struct task_struct *task)
 {
 	return (task_nice(task) + 20) / 5;

@@ -37,6 +37,7 @@ config FUSION_FC
 	  LSIFC929
 	  LSIFC929X
 	  LSIFC929XL
+	  Brocade FC 410/420
 
 config FUSION_SAS
 	tristate "Fusion MPT ScsiHost drivers for SAS"
@@ -100,5 +101,19 @@ config FUSION_LAN
 	  will be compiled.
 
 	  If unsure whether you really want or need this, say N.
+
+config FUSION_LOGGING
+	bool "Fusion MPT logging facility"
+	depends on FUSION
+	---help---
+	  This turns on a logging facility that can be used to debug a number
+	  of Fusion MPT related problems.
+
+	  The debug level can be programmed on the fly via SysFS (hex values)
+
+	  echo [level] > /sys/class/scsi_host/host#/debug_level
+
+	  There are various debug levels that an be found in the source:
+	  file:drivers/message/fusion/mptdebug.h
 
 endmenu

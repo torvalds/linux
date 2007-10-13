@@ -79,7 +79,7 @@
 		_EMIT_BUG_ENTRY					\
 		: : "i" (__FILE__), "i" (__LINE__), "i" (0),	\
 		  "i" (sizeof(struct bug_entry)),		\
-		  "r" ((long)(x)));				\
+		  "r" ((__force long)(x)));			\
 	}							\
 } while (0)
 
@@ -93,7 +93,7 @@
 } while (0)
 
 #define WARN_ON(x) ({						\
-	typeof(x) __ret_warn_on = (x);				\
+	int __ret_warn_on = !!(x);				\
 	if (__builtin_constant_p(__ret_warn_on)) {		\
 		if (__ret_warn_on)				\
 			__WARN();				\

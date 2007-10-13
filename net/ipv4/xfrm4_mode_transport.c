@@ -17,18 +17,17 @@
  *
  * The IP header will be moved forward to make space for the encapsulation
  * header.
- *
- * On exit, skb->h will be set to the start of the payload to be processed
- * by x->type->output and skb->nh will be set to the top IP header.
  */
 static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	int ihl = iph->ihl * 4;
 
+	skb_set_network_header(skb, -x->props.header_len);
+	skb->mac_header = skb->network_header +
+			  offsetof(struct iphdr, protocol);
 	skb->transport_header = skb->network_header + ihl;
-	skb_push(skb, x->props.header_len);
-	skb_reset_network_header(skb);
+	__skb_pull(skb, ihl);
 	memmove(skb_network_header(skb), iph, ihl);
 	return 0;
 }

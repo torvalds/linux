@@ -109,7 +109,6 @@ typedef unsigned char uchar;
 
 /* Information that need to be kept for each board. */
 struct net_local {
-	struct net_device_stats stats;
 	spinlock_t lock;
 	unsigned char mc_filter[8];
 	uint jumpered:1;			/* Set iff the board has jumper config. */
@@ -164,7 +163,6 @@ static int	net_send_packet(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t net_interrupt(int irq, void *dev_id);
 static void net_rx(struct net_device *dev);
 static int net_close(struct net_device *dev);
-static struct net_device_stats *net_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static void net_tx_timeout (struct net_device *dev);
 
@@ -225,8 +223,6 @@ struct net_device * __init at1700_probe(int unit)
 		dev->irq = irq;
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	if (io > 0x1ff) {	/* Check a single specified location. */
 		err = at1700_probe1(dev, io);
 	} else if (io != 0) {	/* Don't probe at all. */
@@ -269,6 +265,7 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 	unsigned int i, irq, is_fmv18x = 0, is_at1700 = 0;
 	int slot, ret = -ENODEV;
 	struct net_local *lp = netdev_priv(dev);
+	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, AT1700_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -392,16 +389,15 @@ found:
 	if (is_at1700) {
 		for(i = 0; i < 3; i++) {
 			unsigned short eeprom_val = read_eeprom(ioaddr, 4+i);
-			printk("%04x", eeprom_val);
 			((unsigned short *)dev->dev_addr)[i] = ntohs(eeprom_val);
 		}
 	} else {
 		for(i = 0; i < 6; i++) {
 			unsigned char val = inb(ioaddr + SAPROM + i);
-			printk("%02x", val);
 			dev->dev_addr[i] = val;
 		}
 	}
+	printk("%s", print_mac(mac, dev->dev_addr));
 
 	/* The EEPROM word 12 bit 0x0400 means use regular 100 ohm 10baseT signals,
 	   rather than 150 ohm shielded twisted pair compensation.
@@ -458,7 +454,6 @@ found:
 	dev->open		= net_open;
 	dev->stop		= net_close;
 	dev->hard_start_xmit = net_send_packet;
-	dev->get_stats	= net_get_stats;
 	dev->set_multicast_list = &set_rx_mode;
 	dev->tx_timeout = net_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
@@ -573,7 +568,7 @@ static void net_tx_timeout (struct net_device *dev)
 	 dev->name, inw(ioaddr + TX_STATUS), inw(ioaddr + TX_INTR), inw(ioaddr + TX_MODE),
 		inw(ioaddr + CONFIG_0), inw(ioaddr + DATAPORT), inw(ioaddr + TX_START),
 		inw(ioaddr + MODE13 - 1), inw(ioaddr + RX_CTRL));
-	lp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 	/* ToDo: We should try to restart the adaptor... */
 	outw(0xffff, ioaddr + MODE24);
 	outw (0xffff, ioaddr + TX_STATUS);
@@ -693,10 +688,10 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 				printk("%s: 16 Collision occur during Txing.\n", dev->name);
 			/* Cancel sending a packet. */
 			outb(0x03, ioaddr + COL16CNTL);
-			lp->stats.collisions++;
+			dev->stats.collisions++;
 		}
 		if (status & 0x82) {
-			lp->stats.tx_packets++;
+			dev->stats.tx_packets++;
 			/* The Tx queue has any packets and is not being
 			   transferred a packet from the host, start
 			   transmitting. */
@@ -721,7 +716,6 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 static void
 net_rx(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 	int boguscount = 5;
 
@@ -740,11 +734,11 @@ net_rx(struct net_device *dev)
 #endif
 
 		if ((status & 0xF0) != 0x20) {	/* There was an error. */
-			lp->stats.rx_errors++;
-			if (status & 0x08) lp->stats.rx_length_errors++;
-			if (status & 0x04) lp->stats.rx_frame_errors++;
-			if (status & 0x02) lp->stats.rx_crc_errors++;
-			if (status & 0x01) lp->stats.rx_over_errors++;
+			dev->stats.rx_errors++;
+			if (status & 0x08) dev->stats.rx_length_errors++;
+			if (status & 0x04) dev->stats.rx_frame_errors++;
+			if (status & 0x02) dev->stats.rx_crc_errors++;
+			if (status & 0x01) dev->stats.rx_over_errors++;
 		} else {
 			/* Malloc up new buffer. */
 			struct sk_buff *skb;
@@ -755,7 +749,7 @@ net_rx(struct net_device *dev)
 				/* Prime the FIFO and then flush the packet. */
 				inw(ioaddr + DATAPORT); inw(ioaddr + DATAPORT);
 				outb(0x05, ioaddr + RX_CTRL);
-				lp->stats.rx_errors++;
+				dev->stats.rx_errors++;
 				break;
 			}
 			skb = dev_alloc_skb(pkt_len+3);
@@ -765,7 +759,7 @@ net_rx(struct net_device *dev)
 				/* Prime the FIFO and then flush the packet. */
 				inw(ioaddr + DATAPORT); inw(ioaddr + DATAPORT);
 				outb(0x05, ioaddr + RX_CTRL);
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				break;
 			}
 			skb_reserve(skb,2);
@@ -774,8 +768,8 @@ net_rx(struct net_device *dev)
 			skb->protocol=eth_type_trans(skb, dev);
 			netif_rx(skb);
 			dev->last_rx = jiffies;
-			lp->stats.rx_packets++;
-			lp->stats.rx_bytes += pkt_len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += pkt_len;
 		}
 		if (--boguscount <= 0)
 			break;
@@ -822,17 +816,6 @@ static int net_close(struct net_device *dev)
 	/* Power-down the chip.  Green, green, green! */
 	outb(0x00, ioaddr + CONFIG_1);
 	return 0;
-}
-
-/* Get the current statistics.
-   This may be called with the card open or closed.
-   There are no on-chip counters, so this function is trivial.
-*/
-static struct net_device_stats *
-net_get_stats(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-	return &lp->stats;
 }
 
 /*

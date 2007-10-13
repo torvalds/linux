@@ -21,6 +21,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/metrics.h>
+#include <net/net_namespace.h>
 
 #define RPCDBG_FACILITY	RPCDBG_MISC
 
@@ -265,7 +266,7 @@ rpc_proc_init(void)
 	dprintk("RPC:       registering /proc/net/rpc\n");
 	if (!proc_net_rpc) {
 		struct proc_dir_entry *ent;
-		ent = proc_mkdir("rpc", proc_net);
+		ent = proc_mkdir("rpc", init_net.proc_net);
 		if (ent) {
 			ent->owner = THIS_MODULE;
 			proc_net_rpc = ent;
@@ -279,7 +280,7 @@ rpc_proc_exit(void)
 	dprintk("RPC:       unregistering /proc/net/rpc\n");
 	if (proc_net_rpc) {
 		proc_net_rpc = NULL;
-		remove_proc_entry("net/rpc", NULL);
+		remove_proc_entry("rpc", init_net.proc_net);
 	}
 }
 

@@ -34,23 +34,23 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/signal.h>
+#include <linux/types.h>
+#include <linux/i2c.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <linux/types.h>
+#include <asm/uaccess.h>
 
 #include <linux/videodev.h>
-#include <asm/uaccess.h>
+#include <linux/video_encoder.h>
 
 MODULE_DESCRIPTION("Analog Devices ADV7175 video encoder driver");
 MODULE_AUTHOR("Dave Perks");
 MODULE_LICENSE("GPL");
 
-#include <linux/i2c.h>
 
 #define I2C_NAME(s) (s)->name
 
-#include <linux/video_encoder.h>
 
 static int debug = 0;
 module_param(debug, int, 0);

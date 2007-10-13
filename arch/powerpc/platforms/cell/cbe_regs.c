@@ -16,8 +16,7 @@
 #include <asm/ptrace.h>
 #include <asm/of_device.h>
 #include <asm/of_platform.h>
-
-#include "cbe_regs.h"
+#include <asm/cell-regs.h>
 
 /*
  * Current implementation uses "cpu" nodes. We build our own mapping
@@ -173,6 +172,13 @@ static struct device_node *cbe_get_be_node(int cpu_id)
 		const phandle *cpu_handle;
 
 		cpu_handle = of_get_property(np, "cpus", &len);
+
+		/*
+		 * the CAB SLOF tree is non compliant, so we just assume
+		 * there is only one node
+		 */
+		if (WARN_ON_ONCE(!cpu_handle))
+			return np;
 
 		for (i=0; i<len; i++)
 			if (of_find_node_by_phandle(cpu_handle[i]) == of_get_cpu_node(cpu_id, NULL))

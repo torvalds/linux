@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/sdhci.c - Secure Digital Host Controller Interface driver
+ *  linux/drivers/mmc/host/sdhci.c - Secure Digital Host Controller Interface driver
  *
  *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
  *
@@ -25,8 +25,6 @@
 #define DBG(f, x...) \
 	pr_debug(DRIVER_NAME " [%s()]: " f, __func__,## x)
 
-static unsigned int debug_nodma = 0;
-static unsigned int debug_forcedma = 0;
 static unsigned int debug_quirks = 0;
 
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
@@ -34,6 +32,8 @@ static unsigned int debug_quirks = 0;
 /* Controller doesn't like some resets when there is no card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
+#define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
+#define SDHCI_QUIRK_BROKEN_DMA				(1<<5)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -67,7 +67,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_ENE_CB712_SD,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
+		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_BROKEN_DMA,
 	},
 
 	{
@@ -75,7 +76,26 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_ENE_CB712_SD_2,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
+		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_BROKEN_DMA,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_ENE,
+		.device         = PCI_DEVICE_ID_ENE_CB714_SD,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_ENE,
+		.device         = PCI_DEVICE_ID_ENE_CB714_SD_2,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
 	},
 
 	{	/* Generic SD host controller */
@@ -113,7 +133,7 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 		readb(host->ioaddr + SDHCI_POWER_CONTROL),
 		readb(host->ioaddr + SDHCI_BLOCK_GAP_CONTROL));
 	printk(KERN_DEBUG DRIVER_NAME ": Wake-up:  0x%08x | Clock:    0x%08x\n",
-		readb(host->ioaddr + SDHCI_WALK_UP_CONTROL),
+		readb(host->ioaddr + SDHCI_WAKE_UP_CONTROL),
 		readw(host->ioaddr + SDHCI_CLOCK_CONTROL));
 	printk(KERN_DEBUG DRIVER_NAME ": Timeout:  0x%08x | Int stat: 0x%08x\n",
 		readb(host->ioaddr + SDHCI_TIMEOUT_CONTROL),
@@ -361,15 +381,13 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	if (data == NULL)
 		return;
 
-	DBG("blksz %04x blks %04x flags %08x\n",
-		data->blksz, data->blocks, data->flags);
-	DBG("tsac %d ms nsac %d clk\n",
-		data->timeout_ns / 1000000, data->timeout_clks);
-
 	/* Sanity checks */
 	BUG_ON(data->blksz * data->blocks > 524288);
 	BUG_ON(data->blksz > host->mmc->max_blk_size);
 	BUG_ON(data->blocks > 65535);
+
+	host->data = data;
+	host->data_early = 0;
 
 	/* timeout in us */
 	target_timeout = data->timeout_ns / 1000 +
@@ -429,10 +447,10 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 {
 	u16 mode;
 
-	WARN_ON(host->data);
-
 	if (data == NULL)
 		return;
+
+	WARN_ON(!host->data);
 
 	mode = SDHCI_TRNS_BLK_CNT_EN;
 	if (data->blocks > 1)
@@ -463,27 +481,25 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	/*
 	 * Controller doesn't count down when in single block mode.
 	 */
-	if ((data->blocks == 1) && (data->error == MMC_ERR_NONE))
-		blocks = 0;
+	if (data->blocks == 1)
+		blocks = (data->error == 0) ? 0 : 1;
 	else
 		blocks = readw(host->ioaddr + SDHCI_BLOCK_COUNT);
 	data->bytes_xfered = data->blksz * (data->blocks - blocks);
 
-	if ((data->error == MMC_ERR_NONE) && blocks) {
+	if (!data->error && blocks) {
 		printk(KERN_ERR "%s: Controller signalled completion even "
 			"though there were blocks left.\n",
 			mmc_hostname(host->mmc));
-		data->error = MMC_ERR_FAILED;
+		data->error = -EIO;
 	}
-
-	DBG("Ending data transfer (%d bytes)\n", data->bytes_xfered);
 
 	if (data->stop) {
 		/*
 		 * The controller needs a reset of internal state machines
 		 * upon error conditions.
 		 */
-		if (data->error != MMC_ERR_NONE) {
+		if (data->error) {
 			sdhci_reset(host, SDHCI_RESET_CMD);
 			sdhci_reset(host, SDHCI_RESET_DATA);
 		}
@@ -500,8 +516,6 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	unsigned long timeout;
 
 	WARN_ON(host->cmd);
-
-	DBG("Sending cmd (%x)\n", cmd->opcode);
 
 	/* Wait max 10 ms */
 	timeout = 10;
@@ -520,7 +534,7 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 			printk(KERN_ERR "%s: Controller never released "
 				"inhibit bit(s).\n", mmc_hostname(host->mmc));
 			sdhci_dumpregs(host);
-			cmd->error = MMC_ERR_FAILED;
+			cmd->error = -EIO;
 			tasklet_schedule(&host->finish_tasklet);
 			return;
 		}
@@ -541,7 +555,7 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	if ((cmd->flags & MMC_RSP_136) && (cmd->flags & MMC_RSP_BUSY)) {
 		printk(KERN_ERR "%s: Unsupported response type!\n",
 			mmc_hostname(host->mmc));
-		cmd->error = MMC_ERR_INVALID;
+		cmd->error = -EINVAL;
 		tasklet_schedule(&host->finish_tasklet);
 		return;
 	}
@@ -588,13 +602,12 @@ static void sdhci_finish_command(struct sdhci_host *host)
 		}
 	}
 
-	host->cmd->error = MMC_ERR_NONE;
+	host->cmd->error = 0;
 
-	DBG("Ending cmd (%x)\n", host->cmd->opcode);
+	if (host->data && host->data_early)
+		sdhci_finish_data(host);
 
-	if (host->cmd->data)
-		host->data = host->cmd->data;
-	else
+	if (!host->cmd->data)
 		tasklet_schedule(&host->finish_tasklet);
 
 	host->cmd = NULL;
@@ -710,7 +723,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 
 	if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)) {
-		host->mrq->cmd->error = MMC_ERR_TIMEOUT;
+		host->mrq->cmd->error = -ENOMEDIUM;
 		tasklet_schedule(&host->finish_tasklet);
 	} else
 		sdhci_send_command(host, mrq->cmd);
@@ -759,6 +772,14 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
+	/*
+	 * Some (ENE) controllers go apeshit on some ios operation,
+	 * signalling timeout and CRC errors even on CMD0. Resetting
+	 * it on each ios seems to solve the problem.
+	 */
+	if(host->chip->quirks & SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS)
+		sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
@@ -780,10 +801,35 @@ static int sdhci_get_ro(struct mmc_host *mmc)
 	return !(present & SDHCI_WRITE_PROTECT);
 }
 
+static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
+{
+	struct sdhci_host *host;
+	unsigned long flags;
+	u32 ier;
+
+	host = mmc_priv(mmc);
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	ier = readl(host->ioaddr + SDHCI_INT_ENABLE);
+
+	ier &= ~SDHCI_INT_CARD_INT;
+	if (enable)
+		ier |= SDHCI_INT_CARD_INT;
+
+	writel(ier, host->ioaddr + SDHCI_INT_ENABLE);
+	writel(ier, host->ioaddr + SDHCI_SIGNAL_ENABLE);
+
+	mmiowb();
+
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
 static const struct mmc_host_ops sdhci_ops = {
 	.request	= sdhci_request,
 	.set_ios	= sdhci_set_ios,
 	.get_ro		= sdhci_get_ro,
+	.enable_sdio_irq = sdhci_enable_sdio_irq,
 };
 
 /*****************************************************************************\
@@ -811,7 +857,7 @@ static void sdhci_tasklet_card(unsigned long param)
 			sdhci_reset(host, SDHCI_RESET_CMD);
 			sdhci_reset(host, SDHCI_RESET_DATA);
 
-			host->mrq->cmd->error = MMC_ERR_FAILED;
+			host->mrq->cmd->error = -ENOMEDIUM;
 			tasklet_schedule(&host->finish_tasklet);
 		}
 	}
@@ -835,15 +881,13 @@ static void sdhci_tasklet_finish(unsigned long param)
 
 	mrq = host->mrq;
 
-	DBG("Ending request, cmd (%x)\n", mrq->cmd->opcode);
-
 	/*
 	 * The controller needs a reset of internal state machines
 	 * upon error conditions.
 	 */
-	if ((mrq->cmd->error != MMC_ERR_NONE) ||
-		(mrq->data && ((mrq->data->error != MMC_ERR_NONE) ||
-		(mrq->data->stop && (mrq->data->stop->error != MMC_ERR_NONE))))) {
+	if (mrq->cmd->error ||
+		(mrq->data && (mrq->data->error ||
+		(mrq->data->stop && mrq->data->stop->error)))) {
 
 		/* Some controllers need this kick or reset won't work here */
 		if (host->chip->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET) {
@@ -888,13 +932,13 @@ static void sdhci_timeout_timer(unsigned long data)
 		sdhci_dumpregs(host);
 
 		if (host->data) {
-			host->data->error = MMC_ERR_TIMEOUT;
+			host->data->error = -ETIMEDOUT;
 			sdhci_finish_data(host);
 		} else {
 			if (host->cmd)
-				host->cmd->error = MMC_ERR_TIMEOUT;
+				host->cmd->error = -ETIMEDOUT;
 			else
-				host->mrq->cmd->error = MMC_ERR_TIMEOUT;
+				host->mrq->cmd->error = -ETIMEDOUT;
 
 			tasklet_schedule(&host->finish_tasklet);
 		}
@@ -915,27 +959,23 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 	BUG_ON(intmask == 0);
 
 	if (!host->cmd) {
-		printk(KERN_ERR "%s: Got command interrupt even though no "
-			"command operation was in progress.\n",
-			mmc_hostname(host->mmc));
+		printk(KERN_ERR "%s: Got command interrupt 0x%08x even "
+			"though no command operation was in progress.\n",
+			mmc_hostname(host->mmc), (unsigned)intmask);
 		sdhci_dumpregs(host);
 		return;
 	}
 
-	if (intmask & SDHCI_INT_RESPONSE)
-		sdhci_finish_command(host);
-	else {
-		if (intmask & SDHCI_INT_TIMEOUT)
-			host->cmd->error = MMC_ERR_TIMEOUT;
-		else if (intmask & SDHCI_INT_CRC)
-			host->cmd->error = MMC_ERR_BADCRC;
-		else if (intmask & (SDHCI_INT_END_BIT | SDHCI_INT_INDEX))
-			host->cmd->error = MMC_ERR_FAILED;
-		else
-			host->cmd->error = MMC_ERR_INVALID;
+	if (intmask & SDHCI_INT_TIMEOUT)
+		host->cmd->error = -ETIMEDOUT;
+	else if (intmask & (SDHCI_INT_CRC | SDHCI_INT_END_BIT |
+			SDHCI_INT_INDEX))
+		host->cmd->error = -EILSEQ;
 
+	if (host->cmd->error)
 		tasklet_schedule(&host->finish_tasklet);
-	}
+	else if (intmask & SDHCI_INT_RESPONSE)
+		sdhci_finish_command(host);
 }
 
 static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
@@ -950,22 +990,20 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		if (intmask & SDHCI_INT_DATA_END)
 			return;
 
-		printk(KERN_ERR "%s: Got data interrupt even though no "
-			"data operation was in progress.\n",
-			mmc_hostname(host->mmc));
+		printk(KERN_ERR "%s: Got data interrupt 0x%08x even "
+			"though no data operation was in progress.\n",
+			mmc_hostname(host->mmc), (unsigned)intmask);
 		sdhci_dumpregs(host);
 
 		return;
 	}
 
 	if (intmask & SDHCI_INT_DATA_TIMEOUT)
-		host->data->error = MMC_ERR_TIMEOUT;
-	else if (intmask & SDHCI_INT_DATA_CRC)
-		host->data->error = MMC_ERR_BADCRC;
-	else if (intmask & SDHCI_INT_DATA_END_BIT)
-		host->data->error = MMC_ERR_FAILED;
+		host->data->error = -ETIMEDOUT;
+	else if (intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_END_BIT))
+		host->data->error = -EILSEQ;
 
-	if (host->data->error != MMC_ERR_NONE)
+	if (host->data->error)
 		sdhci_finish_data(host);
 	else {
 		if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL))
@@ -980,8 +1018,18 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 			writel(readl(host->ioaddr + SDHCI_DMA_ADDRESS),
 				host->ioaddr + SDHCI_DMA_ADDRESS);
 
-		if (intmask & SDHCI_INT_DATA_END)
-			sdhci_finish_data(host);
+		if (intmask & SDHCI_INT_DATA_END) {
+			if (host->cmd) {
+				/*
+				 * Data managed to finish before the
+				 * command completed. Make sure we do
+				 * things in the proper order.
+				 */
+				host->data_early = 1;
+			} else {
+				sdhci_finish_data(host);
+			}
+		}
 	}
 }
 
@@ -990,6 +1038,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	irqreturn_t result;
 	struct sdhci_host* host = dev_id;
 	u32 intmask;
+	int cardint = 0;
 
 	spin_lock(&host->lock);
 
@@ -1024,6 +1073,8 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 
 	intmask &= ~(SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK);
 
+	intmask &= ~SDHCI_INT_ERROR;
+
 	if (intmask & SDHCI_INT_BUS_POWER) {
 		printk(KERN_ERR "%s: Card is consuming too much power!\n",
 			mmc_hostname(host->mmc));
@@ -1031,6 +1082,11 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	}
 
 	intmask &= ~SDHCI_INT_BUS_POWER;
+
+	if (intmask & SDHCI_INT_CARD_INT)
+		cardint = 1;
+
+	intmask &= ~SDHCI_INT_CARD_INT;
 
 	if (intmask) {
 		printk(KERN_ERR "%s: Unexpected interrupt 0x%08x.\n",
@@ -1045,6 +1101,12 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	mmiowb();
 out:
 	spin_unlock(&host->lock);
+
+	/*
+	 * We have to delay this as it calls back into the driver.
+	 */
+	if (cardint)
+		mmc_signal_sdio_irq(host->mmc);
 
 	return result;
 }
@@ -1231,19 +1293,25 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	caps = readl(host->ioaddr + SDHCI_CAPABILITIES);
 
-	if (debug_nodma)
-		DBG("DMA forced off\n");
-	else if (debug_forcedma) {
-		DBG("DMA forced on\n");
+	if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
 		host->flags |= SDHCI_USE_DMA;
-	} else if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
-		host->flags |= SDHCI_USE_DMA;
-	else if ((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA)
-		DBG("Controller doesn't have DMA interface\n");
 	else if (!(caps & SDHCI_CAN_DO_DMA))
 		DBG("Controller doesn't have DMA capability\n");
 	else
 		host->flags |= SDHCI_USE_DMA;
+
+	if ((chip->quirks & SDHCI_QUIRK_BROKEN_DMA) &&
+		(host->flags & SDHCI_USE_DMA)) {
+		DBG("Disabling DMA as it is marked broken");
+		host->flags &= ~SDHCI_USE_DMA;
+	}
+
+	if (((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA) &&
+		(host->flags & SDHCI_USE_DMA)) {
+		printk(KERN_WARNING "%s: Will use DMA "
+			"mode even though HW doesn't fully "
+			"claim to support it.\n", host->slot_descr);
+	}
 
 	if (host->flags & SDHCI_USE_DMA) {
 		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
@@ -1285,7 +1353,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->ops = &sdhci_ops;
 	mmc->f_min = host->max_clk / 256;
 	mmc->f_max = host->max_clk;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE | MMC_CAP_BYTEBLOCK;
+	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE | MMC_CAP_SDIO_IRQ;
 
 	if (caps & SDHCI_CAN_DO_HISPD)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
@@ -1334,12 +1402,11 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	 */
 	mmc->max_blk_size = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
 	if (mmc->max_blk_size >= 3) {
-		printk(KERN_ERR "%s: Invalid maximum block size.\n",
+		printk(KERN_WARNING "%s: Invalid maximum block size, assuming 512\n",
 			host->slot_descr);
-		ret = -ENODEV;
-		goto unmap;
-	}
-	mmc->max_blk_size = 512 << mmc->max_blk_size;
+		mmc->max_blk_size = 512;
+	} else
+		mmc->max_blk_size = 512 << mmc->max_blk_size;
 
 	/*
 	 * Maximum block count.
@@ -1539,14 +1606,10 @@ static void __exit sdhci_drv_exit(void)
 module_init(sdhci_drv_init);
 module_exit(sdhci_drv_exit);
 
-module_param(debug_nodma, uint, 0444);
-module_param(debug_forcedma, uint, 0444);
 module_param(debug_quirks, uint, 0444);
 
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM_DESC(debug_nodma, "Forcefully disable DMA transfers. (default 0)");
-MODULE_PARM_DESC(debug_forcedma, "Forcefully enable DMA transfers. (default 0)");
 MODULE_PARM_DESC(debug_quirks, "Force certain quirks.");

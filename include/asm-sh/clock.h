@@ -14,6 +14,7 @@ struct clk_ops {
 	void (*disable)(struct clk *clk);
 	void (*recalc)(struct clk *clk);
 	int (*set_rate)(struct clk *clk, unsigned long rate, int algo_id);
+	long (*round_rate)(struct clk *clk, unsigned long rate);
 };
 
 struct clk {

@@ -212,4 +212,22 @@ struct rdma_ucm_event_resp {
 	} param;
 };
 
+/* Option levels */
+enum {
+	RDMA_OPTION_ID		= 0
+};
+
+/* Option details */
+enum {
+	RDMA_OPTION_ID_TOS	= 0
+};
+
+struct rdma_ucm_set_option {
+	__u64 optval;
+	__u32 id;
+	__u32 level;
+	__u32 optname;
+	__u32 optlen;
+};
+
 #endif /* RDMA_USER_CM_H */

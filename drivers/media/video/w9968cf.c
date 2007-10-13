@@ -42,7 +42,6 @@
 #include <asm/page.h>
 #include <asm/uaccess.h>
 #include <linux/page-flags.h>
-#include <linux/moduleparam.h>
 
 #include "w9968cf.h"
 #include "w9968cf_decoder.h"
@@ -2680,7 +2679,7 @@ static int w9968cf_open(struct inode* inode, struct file* filp)
 
 	/* This the only safe way to prevent race conditions with disconnect */
 	if (!down_read_trylock(&w9968cf_disconnect))
-		return -ERESTARTSYS;
+		return -EAGAIN;
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));
 

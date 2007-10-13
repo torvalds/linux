@@ -875,7 +875,7 @@ found:
 
 #ifdef CONFIG_ACPI
 	if (sonypi_acpi_device)
-		acpi_bus_generate_event(sonypi_acpi_device, 1, event);
+		acpi_bus_generate_proc_event(sonypi_acpi_device, 1, event);
 #endif
 
 	kfifo_put(sonypi_device.fifo, (unsigned char *)&event, sizeof(event));
@@ -1147,10 +1147,15 @@ static int sonypi_acpi_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
+const static struct acpi_device_id sonypi_device_ids[] = {
+	{"SNY6001", 0},
+	{"", 0},
+};
+
 static struct acpi_driver sonypi_acpi_driver = {
 	.name           = "sonypi",
 	.class          = "hkey",
-	.ids            = "SNY6001",
+	.ids            = sonypi_device_ids,
 	.ops            = {
 		           .add = sonypi_acpi_add,
 			   .remove = sonypi_acpi_remove,

@@ -304,7 +304,7 @@ int __init audit_register_class(int class, unsigned *list)
 
 int audit_match_class(int class, unsigned syscall)
 {
-	if (unlikely(syscall >= AUDIT_BITMASK_SIZE * sizeof(__u32)))
+	if (unlikely(syscall >= AUDIT_BITMASK_SIZE * 32))
 		return 0;
 	if (unlikely(class >= AUDIT_SYSCALL_CLASSES || !classes[class]))
 		return 0;
@@ -456,6 +456,13 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_DEVMINOR:
 		case AUDIT_EXIT:
 		case AUDIT_SUCCESS:
+			/* bit ops are only useful on syscall args */
+			if (f->op == AUDIT_BIT_MASK ||
+						f->op == AUDIT_BIT_TEST) {
+				err = -EINVAL;
+				goto exit_free;
+			}
+			break;
 		case AUDIT_ARG0:
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
@@ -1566,6 +1573,10 @@ int audit_comparator(const u32 left, const u32 op, const u32 right)
 		return (left > right);
 	case AUDIT_GREATER_THAN_OR_EQUAL:
 		return (left >= right);
+	case AUDIT_BIT_MASK:
+		return (left & right);
+	case AUDIT_BIT_TEST:
+		return ((left & right) == right);
 	}
 	BUG();
 	return 0;

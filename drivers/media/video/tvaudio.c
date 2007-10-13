@@ -15,7 +15,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -290,7 +289,7 @@ static int chip_thread(void *data)
 		desc->checkmode(chip);
 
 		/* schedule next check */
-		mod_timer(&chip->wt, jiffies+2*HZ);
+		mod_timer(&chip->wt, jiffies+msecs_to_jiffies(2000));
 	}
 
 	v4l_dbg(1, debug, &chip->c, "%s: thread exiting\n", chip->c.name);
@@ -1770,7 +1769,7 @@ static int chip_command(struct i2c_client *client,
 			desc->setmode(chip,VIDEO_SOUND_MONO);
 			if (chip->prevmode != VIDEO_SOUND_MONO)
 				chip->prevmode = -1; /* reset previous mode */
-			mod_timer(&chip->wt, jiffies+2*HZ);
+			mod_timer(&chip->wt, jiffies+msecs_to_jiffies(2000));
 			/* the thread will call checkmode() later */
 		}
 		break;

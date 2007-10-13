@@ -49,8 +49,8 @@
  * Macros for calculating offsets into config space given a device
  * structure or dev/fun/reg
  */
-#define CFGOFFSET(bus,devfn,where) (((bus)<<16)+((devfn)<<8)+(where))
-#define CFGADDR(bus,devfn,where)   CFGOFFSET((bus)->number,(devfn),where)
+#define CFGOFFSET(bus, devfn, where) (((bus)<<16)+((devfn)<<8)+(where))
+#define CFGADDR(bus, devfn, where)   CFGOFFSET((bus)->number, (devfn), where)
 
 static void *cfg_space;
 
@@ -255,7 +255,7 @@ static int __init bcm1480_pcibios_init(void)
 	register_pci_controller(&bcm1480_controller);
 
 #ifdef CONFIG_VGA_CONSOLE
-	take_over_console(&vga_con,0,MAX_NR_CONSOLES-1,1);
+	take_over_console(&vga_con, 0, MAX_NR_CONSOLES-1, 1);
 #endif
 	return 0;
 }

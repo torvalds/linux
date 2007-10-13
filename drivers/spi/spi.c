@@ -67,14 +67,11 @@ static int spi_match_device(struct device *dev, struct device_driver *drv)
 	return strncmp(spi->modalias, drv->name, BUS_ID_SIZE) == 0;
 }
 
-static int spi_uevent(struct device *dev, char **envp, int num_envp,
-		char *buffer, int buffer_size)
+static int spi_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct spi_device		*spi = to_spi_device(dev);
 
-	envp[0] = buffer;
-	snprintf(buffer, buffer_size, "MODALIAS=%s", spi->modalias);
-	envp[1] = NULL;
+	add_uevent_var(env, "MODALIAS=%s", spi->modalias);
 	return 0;
 }
 
@@ -200,6 +197,8 @@ static DEFINE_MUTEX(board_lock);
  * platforms may not be able to use spi_register_board_info though, and
  * this is exported so that for example a USB or parport based adapter
  * driver could add devices (which it would learn about out-of-band).
+ *
+ * Returns the new device, or NULL.
  */
 struct spi_device *spi_new_device(struct spi_master *master,
 				  struct spi_board_info *chip)
@@ -208,7 +207,20 @@ struct spi_device *spi_new_device(struct spi_master *master,
 	struct device		*dev = master->cdev.dev;
 	int			status;
 
-	/* NOTE:  caller did any chip->bus_num checks necessary */
+	/* NOTE:  caller did any chip->bus_num checks necessary.
+	 *
+	 * Also, unless we change the return value convention to use
+	 * error-or-pointer (not NULL-or-pointer), troubleshootability
+	 * suggests syslogged diagnostics are best here (ugh).
+	 */
+
+	/* Chipselects are numbered 0..max; validate. */
+	if (chip->chip_select >= master->num_chipselect) {
+		dev_err(dev, "cs%d > max %d\n",
+			chip->chip_select,
+			master->num_chipselect);
+		return NULL;
+	}
 
 	if (!spi_master_get(master))
 		return NULL;
@@ -236,10 +248,10 @@ struct spi_device *spi_new_device(struct spi_master *master,
 	proxy->controller_state = NULL;
 	proxy->dev.release = spidev_release;
 
-	/* drivers may modify this default i/o setup */
+	/* drivers may modify this initial i/o setup */
 	status = master->setup(proxy);
 	if (status < 0) {
-		dev_dbg(dev, "can't %s %s, status %d\n",
+		dev_err(dev, "can't %s %s, status %d\n",
 				"setup", proxy->dev.bus_id, status);
 		goto fail;
 	}
@@ -249,7 +261,7 @@ struct spi_device *spi_new_device(struct spi_master *master,
 	 */
 	status = device_register(&proxy->dev);
 	if (status < 0) {
-		dev_dbg(dev, "can't %s %s, status %d\n",
+		dev_err(dev, "can't %s %s, status %d\n",
 				"add", proxy->dev.bus_id, status);
 		goto fail;
 	}
@@ -303,11 +315,9 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
  * creates board info from kernel command lines
  */
 
-static void __init_or_module
-scan_boardinfo(struct spi_master *master)
+static void scan_boardinfo(struct spi_master *master)
 {
 	struct boardinfo	*bi;
-	struct device		*dev = master->cdev.dev;
 
 	mutex_lock(&board_lock);
 	list_for_each_entry(bi, &board_list, list) {
@@ -317,17 +327,9 @@ scan_boardinfo(struct spi_master *master)
 		for (n = bi->n_board_info; n > 0; n--, chip++) {
 			if (chip->bus_num != master->bus_num)
 				continue;
-			/* some controllers only have one chip, so they
-			 * might not use chipselects.  otherwise, the
-			 * chipselects are numbered 0..max.
+			/* NOTE: this relies on spi_new_device to
+			 * issue diagnostics when given bogus inputs
 			 */
-			if (chip->chip_select >= master->num_chipselect
-					&& master->num_chipselect) {
-				dev_dbg(dev, "cs%d > max %d\n",
-					chip->chip_select,
-					master->num_chipselect);
-				continue;
-			}
 			(void) spi_new_device(master, chip);
 		}
 	}
@@ -420,8 +422,17 @@ int spi_register_master(struct spi_master *master)
 	if (!dev)
 		return -ENODEV;
 
+	/* even if it's just one always-selected device, there must
+	 * be at least one chipselect
+	 */
+	if (master->num_chipselect == 0)
+		return -EINVAL;
+
 	/* convention:  dynamically assigned bus IDs count down from the max */
 	if (master->bus_num < 0) {
+		/* FIXME switch to an IDR based scheme, something like
+		 * I2C now uses, so we can't run out of "dynamic" IDs
+		 */
 		master->bus_num = atomic_dec_return(&dyn_bus_id);
 		dynamic = 1;
 	}

@@ -259,21 +259,21 @@ zfcp_module_init(void)
 	size = sizeof(struct zfcp_fsf_req_qtcb);
 	align = calc_alignment(size);
 	zfcp_data.fsf_req_qtcb_cache =
-		kmem_cache_create("zfcp_fsf", size, align, 0, NULL, NULL);
+		kmem_cache_create("zfcp_fsf", size, align, 0, NULL);
 	if (!zfcp_data.fsf_req_qtcb_cache)
 		goto out;
 
 	size = sizeof(struct fsf_status_read_buffer);
 	align = calc_alignment(size);
 	zfcp_data.sr_buffer_cache =
-		kmem_cache_create("zfcp_sr", size, align, 0, NULL, NULL);
+		kmem_cache_create("zfcp_sr", size, align, 0, NULL);
 	if (!zfcp_data.sr_buffer_cache)
 		goto out_sr_cache;
 
 	size = sizeof(struct zfcp_gid_pn_data);
 	align = calc_alignment(size);
 	zfcp_data.gid_pn_cache =
-		kmem_cache_create("zfcp_gid", size, align, 0, NULL, NULL);
+		kmem_cache_create("zfcp_gid", size, align, 0, NULL);
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 
@@ -1503,7 +1503,7 @@ zfcp_gid_pn_buffers_alloc(struct zfcp_gid_pn_data **gid_pn, mempool_t *pool)
 			data->ct.pool = pool;
 		}
 	} else {
-		data = kmalloc(sizeof(struct zfcp_gid_pn_data), GFP_ATOMIC);
+		data = kmem_cache_alloc(zfcp_data.gid_pn_cache, GFP_ATOMIC);
 	}
 
         if (NULL == data)
@@ -1526,15 +1526,12 @@ zfcp_gid_pn_buffers_alloc(struct zfcp_gid_pn_data **gid_pn, mempool_t *pool)
  * zfcp_gid_pn_buffers_free - free buffers for GID_PN nameserver request
  * @gid_pn: pointer to struct zfcp_gid_pn_data which has to be freed
  */
-static void
-zfcp_gid_pn_buffers_free(struct zfcp_gid_pn_data *gid_pn)
+static void zfcp_gid_pn_buffers_free(struct zfcp_gid_pn_data *gid_pn)
 {
-        if ((gid_pn->ct.pool != 0))
+	if (gid_pn->ct.pool)
 		mempool_free(gid_pn, gid_pn->ct.pool);
 	else
-                kfree(gid_pn);
-
-	return;
+		kmem_cache_free(zfcp_data.gid_pn_cache, gid_pn);
 }
 
 /**

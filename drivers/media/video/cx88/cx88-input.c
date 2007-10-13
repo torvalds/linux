@@ -27,7 +27,6 @@
 #include <linux/input.h>
 #include <linux/pci.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 
 #include "cx88.h"
 #include <media/ir-common.h>
@@ -74,7 +73,8 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 	/* read gpio value */
 	gpio = cx_read(ir->gpio_addr);
-	if (core->board == CX88_BOARD_NPGTECH_REALTV_TOP10FM) {
+	switch (core->boardnr) {
+	case CX88_BOARD_NPGTECH_REALTV_TOP10FM:
 		/* This board apparently uses a combination of 2 GPIO
 		   to represent the keys. Additionally, the second GPIO
 		   can be used for parity.
@@ -90,9 +90,14 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 		auxgpio = cx_read(MO_GP1_IO);
 		/* Take out the parity part */
 		gpio=(gpio & 0x7fd) + (auxgpio & 0xef);
-	} else
+		break;
+	case CX88_BOARD_WINFAST_DTV1000:
+		gpio = (gpio & 0x6ff) | ((cx_read(MO_GP1_IO) << 8) & 0x900);
 		auxgpio = gpio;
-
+		break;
+	default:
+		auxgpio = gpio;
+	}
 	if (ir->polling) {
 		if (ir->last_gpio == auxgpio)
 			return;
@@ -107,7 +112,7 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 		   (gpio & ir->mask_keydown) ? " down" : "",
 		   (gpio & ir->mask_keyup) ? " up" : "");
 
-	if (ir->core->board == CX88_BOARD_NORWOOD_MICRO) {
+	if (ir->core->boardnr == CX88_BOARD_NORWOOD_MICRO) {
 		u32 gpio_key = cx_read(MO_GP0_IO);
 
 		data = (data << 4) | ((gpio_key & 0xf0) >> 4);
@@ -148,34 +153,30 @@ static void ir_timer(unsigned long data)
 static void cx88_ir_work(struct work_struct *work)
 {
 	struct cx88_IR *ir = container_of(work, struct cx88_IR, work);
-	unsigned long timeout;
 
 	cx88_ir_handle_key(ir);
-	timeout = jiffies + (ir->polling * HZ / 1000);
-	mod_timer(&ir->timer, timeout);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-static void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
+void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
 {
 	if (ir->polling) {
+		setup_timer(&ir->timer, ir_timer, (unsigned long)ir);
 		INIT_WORK(&ir->work, cx88_ir_work);
-		init_timer(&ir->timer);
-		ir->timer.function = ir_timer;
-		ir->timer.data = (unsigned long)ir;
 		schedule_work(&ir->work);
 	}
 	if (ir->sampling) {
-		core->pci_irqmask |= (1 << 18);	/* IR_SMP_INT */
+		core->pci_irqmask |= PCI_INT_IR_SMPINT;
 		cx_write(MO_DDS_IO, 0xa80a80);	/* 4 kHz sample rate */
 		cx_write(MO_DDSCFG_IO, 0x5);	/* enable */
 	}
 }
 
-static void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
+void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
 {
 	if (ir->sampling) {
 		cx_write(MO_DDSCFG_IO, 0x0);
-		core->pci_irqmask &= ~(1 << 18);
+		core->pci_irqmask &= ~PCI_INT_IR_SMPINT;
 	}
 
 	if (ir->polling) {
@@ -202,7 +203,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	ir->input = input_dev;
 
 	/* detect & configure */
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_DNTV_LIVE_DVB_T:
 	case CX88_BOARD_KWORLD_DVB_T:
 	case CX88_BOARD_KWORLD_DVB_T_CX22702:
@@ -222,7 +223,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
-	case CX88_BOARD_HAUPPAUGE_HVR1300:
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 		ir_codes = ir_codes_hauppauge_new;
 		ir_type = IR_TYPE_RC5;
@@ -236,6 +236,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->polling = 50; /* ms */
 		break;
 	case CX88_BOARD_WINFAST2000XP_EXPERT:
+	case CX88_BOARD_WINFAST_DTV1000:
 		ir_codes = ir_codes_winfast;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0x8f8;
@@ -312,8 +313,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	}
 
 	/* init input device */
-	snprintf(ir->name, sizeof(ir->name), "cx88 IR (%s)",
-		 cx88_boards[core->board].name);
+	snprintf(ir->name, sizeof(ir->name), "cx88 IR (%s)", core->board.name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(pci));
 
 	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
@@ -328,7 +328,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		input_dev->id.vendor = pci->vendor;
 		input_dev->id.product = pci->device;
 	}
-	input_dev->cdev.dev = &pci->dev;
+	input_dev->dev.parent = &pci->dev;
 	/* record handles to ourself */
 	ir->core = core;
 	core->ir = ir;
@@ -404,7 +404,7 @@ void cx88_ir_irq(struct cx88_core *core)
 		ir_dump_samples(ir->samples, ir->scount);
 
 	/* decode it */
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
 		ircode = ir_decode_pulsedistance(ir->samples, ir->scount, 1, 4);
@@ -442,7 +442,6 @@ void cx88_ir_irq(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
-	case CX88_BOARD_HAUPPAUGE_HVR1300:
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
 		ir_dprintk("biphase decoded: %x\n", ircode);

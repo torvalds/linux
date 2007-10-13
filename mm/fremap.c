@@ -20,13 +20,14 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
-	struct page *page = NULL;
 
 	if (pte_present(pte)) {
+		struct page *page;
+
 		flush_cache_page(vma, addr, pte_pfn(pte));
 		pte = ptep_clear_flush(vma, addr, ptep);
 		page = vm_normal_page(vma, addr, pte);
@@ -35,68 +36,21 @@ static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 				set_page_dirty(page);
 			page_remove_rmap(page, vma);
 			page_cache_release(page);
+			update_hiwater_rss(mm);
+			dec_mm_counter(mm, file_rss);
 		}
 	} else {
 		if (!pte_file(pte))
 			free_swap_and_cache(pte_to_swp_entry(pte));
 		pte_clear_not_present_full(mm, addr, ptep, 0);
 	}
-	return !!page;
 }
-
-/*
- * Install a file page to a given virtual memory address, release any
- * previously existing mapping.
- */
-int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
-		unsigned long addr, struct page *page, pgprot_t prot)
-{
-	struct inode *inode;
-	pgoff_t size;
-	int err = -ENOMEM;
-	pte_t *pte;
-	pte_t pte_val;
-	spinlock_t *ptl;
-
-	pte = get_locked_pte(mm, addr, &ptl);
-	if (!pte)
-		goto out;
-
-	/*
-	 * This page may have been truncated. Tell the
-	 * caller about it.
-	 */
-	err = -EINVAL;
-	inode = vma->vm_file->f_mapping->host;
-	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	if (!page->mapping || page->index >= size)
-		goto unlock;
-	err = -ENOMEM;
-	if (page_mapcount(page) > INT_MAX/2)
-		goto unlock;
-
-	if (pte_none(*pte) || !zap_pte(mm, vma, addr, pte))
-		inc_mm_counter(mm, file_rss);
-
-	flush_icache_page(vma, page);
-	pte_val = mk_pte(page, prot);
-	set_pte_at(mm, addr, pte, pte_val);
-	page_add_file_rmap(page);
-	update_mmu_cache(vma, addr, pte_val);
-	lazy_mmu_prot_update(pte_val);
-	err = 0;
-unlock:
-	pte_unmap_unlock(pte, ptl);
-out:
-	return err;
-}
-EXPORT_SYMBOL(install_page);
 
 /*
  * Install a file pte to a given virtual memory address, release any
  * previously existing mapping.
  */
-int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+static int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long addr, unsigned long pgoff, pgprot_t prot)
 {
 	int err = -ENOMEM;
@@ -107,10 +61,8 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!pte)
 		goto out;
 
-	if (!pte_none(*pte) && zap_pte(mm, vma, addr, pte)) {
-		update_hiwater_rss(mm);
-		dec_mm_counter(mm, file_rss);
-	}
+	if (!pte_none(*pte))
+		zap_pte(mm, vma, addr, pte);
 
 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
 	/*
@@ -124,6 +76,25 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	err = 0;
 out:
 	return err;
+}
+
+static int populate_range(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long addr, unsigned long size, pgoff_t pgoff)
+{
+	int err;
+
+	do {
+		err = install_file_pte(mm, vma, addr, pgoff, vma->vm_page_prot);
+		if (err)
+			return err;
+
+		size -= PAGE_SIZE;
+		addr += PAGE_SIZE;
+		pgoff++;
+	} while (size);
+
+        return 0;
+
 }
 
 /***
@@ -183,41 +154,77 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 	 * the single existing vma.  vm_private_data is used as a
 	 * swapout cursor in a VM_NONLINEAR vma.
 	 */
-	if (vma && (vma->vm_flags & VM_SHARED) &&
-		(!vma->vm_private_data || (vma->vm_flags & VM_NONLINEAR)) &&
-		vma->vm_ops && vma->vm_ops->populate &&
-			end > start && start >= vma->vm_start &&
-				end <= vma->vm_end) {
+	if (!vma || !(vma->vm_flags & VM_SHARED))
+		goto out;
 
-		/* Must set VM_NONLINEAR before any pages are populated. */
-		if (pgoff != linear_page_index(vma, start) &&
-		    !(vma->vm_flags & VM_NONLINEAR)) {
-			if (!has_write_lock) {
-				up_read(&mm->mmap_sem);
-				down_write(&mm->mmap_sem);
-				has_write_lock = 1;
-				goto retry;
-			}
-			mapping = vma->vm_file->f_mapping;
-			spin_lock(&mapping->i_mmap_lock);
-			flush_dcache_mmap_lock(mapping);
-			vma->vm_flags |= VM_NONLINEAR;
-			vma_prio_tree_remove(vma, &mapping->i_mmap);
-			vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
-			flush_dcache_mmap_unlock(mapping);
-			spin_unlock(&mapping->i_mmap_lock);
+	if (vma->vm_private_data && !(vma->vm_flags & VM_NONLINEAR))
+		goto out;
+
+	if (!(vma->vm_flags & VM_CAN_NONLINEAR))
+		goto out;
+
+	if (end <= start || start < vma->vm_start || end > vma->vm_end)
+		goto out;
+
+	/* Must set VM_NONLINEAR before any pages are populated. */
+	if (!(vma->vm_flags & VM_NONLINEAR)) {
+		/* Don't need a nonlinear mapping, exit success */
+		if (pgoff == linear_page_index(vma, start)) {
+			err = 0;
+			goto out;
 		}
 
-		err = vma->vm_ops->populate(vma, start, size,
-					    vma->vm_page_prot,
-					    pgoff, flags & MAP_NONBLOCK);
-
+		if (!has_write_lock) {
+			up_read(&mm->mmap_sem);
+			down_write(&mm->mmap_sem);
+			has_write_lock = 1;
+			goto retry;
+		}
+		mapping = vma->vm_file->f_mapping;
 		/*
-		 * We can't clear VM_NONLINEAR because we'd have to do
-		 * it after ->populate completes, and that would prevent
-		 * downgrading the lock.  (Locks can't be upgraded).
+		 * page_mkclean doesn't work on nonlinear vmas, so if
+		 * dirty pages need to be accounted, emulate with linear
+		 * vmas.
 		 */
+		if (mapping_cap_account_dirty(mapping)) {
+			unsigned long addr;
+
+			flags &= MAP_NONBLOCK;
+			addr = mmap_region(vma->vm_file, start, size,
+					flags, vma->vm_flags, pgoff, 1);
+			if (IS_ERR_VALUE(addr)) {
+				err = addr;
+			} else {
+				BUG_ON(addr != start);
+				err = 0;
+			}
+			goto out;
+		}
+		spin_lock(&mapping->i_mmap_lock);
+		flush_dcache_mmap_lock(mapping);
+		vma->vm_flags |= VM_NONLINEAR;
+		vma_prio_tree_remove(vma, &mapping->i_mmap);
+		vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
+		flush_dcache_mmap_unlock(mapping);
+		spin_unlock(&mapping->i_mmap_lock);
 	}
+
+	err = populate_range(mm, vma, start, size, pgoff);
+	if (!err && !(flags & MAP_NONBLOCK)) {
+		if (unlikely(has_write_lock)) {
+			downgrade_write(&mm->mmap_sem);
+			has_write_lock = 0;
+		}
+		make_pages_present(start, start+size);
+	}
+
+	/*
+	 * We can't clear VM_NONLINEAR because we'd have to do
+	 * it after ->populate completes, and that would prevent
+	 * downgrading the lock.  (Locks can't be upgraded).
+	 */
+
+out:
 	if (likely(!has_write_lock))
 		up_read(&mm->mmap_sem);
 	else

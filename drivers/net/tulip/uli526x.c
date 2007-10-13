@@ -112,13 +112,13 @@
 
 /* Structure/enum declaration ------------------------------- */
 struct tx_desc {
-        u32 tdes0, tdes1, tdes2, tdes3; /* Data for the card */
+        __le32 tdes0, tdes1, tdes2, tdes3; /* Data for the card */
         char *tx_buf_ptr;               /* Data for us */
         struct tx_desc *next_tx_desc;
 } __attribute__(( aligned(32) ));
 
 struct rx_desc {
-	u32 rdes0, rdes1, rdes2, rdes3; /* Data for the card */
+	__le32 rdes0, rdes1, rdes2, rdes3; /* Data for the card */
 	struct sk_buff *rx_skb_ptr;	/* Data for us */
 	struct rx_desc *next_rx_desc;
 } __attribute__(( aligned(32) ));
@@ -258,6 +258,7 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	struct uli526x_board_info *db;	/* board information structure */
 	struct net_device *dev;
 	int i, err;
+	DECLARE_MAC_BUF(mac);
 
 	ULI526X_DBUG(0, "uli526x_init_one()", 0);
 
@@ -268,7 +269,6 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	dev = alloc_etherdev(sizeof(*db));
 	if (dev == NULL)
 		return -ENOMEM;
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
@@ -344,7 +344,7 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 
 	/* read 64 word srom data */
 	for (i = 0; i < 64; i++)
-		((u16 *) db->srom)[i] = cpu_to_le16(read_srom_word(db->ioaddr, i));
+		((__le16 *) db->srom)[i] = cpu_to_le16(read_srom_word(db->ioaddr, i));
 
 	/* Set Node address */
 	if(((u16 *) db->srom)[0] == 0xffff || ((u16 *) db->srom)[0] == 0)		/* SROM absent, so read MAC address from ID Table */
@@ -373,11 +373,9 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	if (err)
 		goto err_out_res;
 
-	printk(KERN_INFO "%s: ULi M%04lx at pci%s,",dev->name,ent->driver_data >> 16,pci_name(pdev));
-
-	for (i = 0; i < 6; i++)
-		printk("%c%02x", i ? ':' : ' ', dev->dev_addr[i]);
-	printk(", irq %d.\n", dev->irq);
+	printk(KERN_INFO "%s: ULi M%04lx at pci%s, %s, irq %d.\n",
+	       dev->name,ent->driver_data >> 16,pci_name(pdev),
+	       print_mac(mac, dev->dev_addr), dev->irq);
 
 	pci_set_master(pdev);
 
@@ -665,11 +663,6 @@ static irqreturn_t uli526x_interrupt(int irq, void *dev_id)
 	struct uli526x_board_info *db = netdev_priv(dev);
 	unsigned long ioaddr = dev->base_addr;
 	unsigned long flags;
-
-	if (!dev) {
-		ULI526X_DBUG(1, "uli526x_interrupt() without DEVICE arg", 0);
-		return IRQ_NONE;
-	}
 
 	spin_lock_irqsave(&db->lock, flags);
 	outl(0, ioaddr + DCR7);
@@ -1110,18 +1103,14 @@ static void uli526x_timer(unsigned long data)
 
 
 /*
- *	Dynamic reset the ULI526X board
  *	Stop ULI526X board
  *	Free Tx/Rx allocated memory
- *	Reset ULI526X board
- *	Re-initialize ULI526X board
+ *	Init system variable
  */
 
-static void uli526x_dynamic_reset(struct net_device *dev)
+static void uli526x_reset_prepare(struct net_device *dev)
 {
 	struct uli526x_board_info *db = netdev_priv(dev);
-
-	ULI526X_DBUG(0, "uli526x_dynamic_reset()", 0);
 
 	/* Sopt MAC controller */
 	db->cr6_data &= ~(CR6_RXSC | CR6_TXSC);	/* Disable Tx/Rx */
@@ -1141,6 +1130,22 @@ static void uli526x_dynamic_reset(struct net_device *dev)
 	db->link_failed = 1;
 	db->init=1;
 	db->wait_reset = 0;
+}
+
+
+/*
+ *	Dynamic reset the ULI526X board
+ *	Stop ULI526X board
+ *	Free Tx/Rx allocated memory
+ *	Reset ULI526X board
+ *	Re-initialize ULI526X board
+ */
+
+static void uli526x_dynamic_reset(struct net_device *dev)
+{
+	ULI526X_DBUG(0, "uli526x_dynamic_reset()", 0);
+
+	uli526x_reset_prepare(dev);
 
 	/* Re-initialize ULI526X board */
 	uli526x_init(dev);
@@ -1148,6 +1153,88 @@ static void uli526x_dynamic_reset(struct net_device *dev)
 	/* Restart upper layer interface */
 	netif_wake_queue(dev);
 }
+
+
+#ifdef CONFIG_PM
+
+/*
+ *	Suspend the interface.
+ */
+
+static int uli526x_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	pci_power_t power_state;
+	int err;
+
+	ULI526X_DBUG(0, "uli526x_suspend", 0);
+
+	if (!netdev_priv(dev))
+		return 0;
+
+	pci_save_state(pdev);
+
+	if (!netif_running(dev))
+		return 0;
+
+	netif_device_detach(dev);
+	uli526x_reset_prepare(dev);
+
+	power_state = pci_choose_state(pdev, state);
+	pci_enable_wake(pdev, power_state, 0);
+	err = pci_set_power_state(pdev, power_state);
+	if (err) {
+		netif_device_attach(dev);
+		/* Re-initialize ULI526X board */
+		uli526x_init(dev);
+		/* Restart upper layer interface */
+		netif_wake_queue(dev);
+	}
+
+	return err;
+}
+
+/*
+ *	Resume the interface.
+ */
+
+static int uli526x_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	int err;
+
+	ULI526X_DBUG(0, "uli526x_resume", 0);
+
+	if (!netdev_priv(dev))
+		return 0;
+
+	pci_restore_state(pdev);
+
+	if (!netif_running(dev))
+		return 0;
+
+	err = pci_set_power_state(pdev, PCI_D0);
+	if (err) {
+		printk(KERN_WARNING "%s: Could not put device into D0\n",
+			dev->name);
+		return err;
+	}
+
+	netif_device_attach(dev);
+	/* Re-initialize ULI526X board */
+	uli526x_init(dev);
+	/* Restart upper layer interface */
+	netif_wake_queue(dev);
+
+	return 0;
+}
+
+#else /* !CONFIG_PM */
+
+#define uli526x_suspend	NULL
+#define uli526x_resume	NULL
+
+#endif /* !CONFIG_PM */
 
 
 /*
@@ -1512,7 +1599,6 @@ static void uli526x_process_mode(struct uli526x_board_info *db)
 			case ULI526X_100MFD: phy_reg = 0x2100; break;
 			}
 			phy_write(db->ioaddr, db->phy_addr, 0, phy_reg, db->chip_id);
-       			phy_write(db->ioaddr, db->phy_addr, 0, phy_reg, db->chip_id);
 		}
 	}
 }
@@ -1689,6 +1775,8 @@ static struct pci_driver uli526x_driver = {
 	.id_table	= uli526x_pci_tbl,
 	.probe		= uli526x_init_one,
 	.remove		= __devexit_p(uli526x_remove_one),
+	.suspend	= uli526x_suspend,
+	.resume		= uli526x_resume,
 };
 
 MODULE_AUTHOR("Peer Chen, peer.chen@uli.com.tw");

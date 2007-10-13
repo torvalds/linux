@@ -54,12 +54,14 @@ static int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 	int xfrm_nr = 0;
 	int decaps = 0;
 	int err = xfrm4_parse_spi(skb, ip_hdr(skb)->protocol, &spi, &seq);
+	unsigned int nhoff = offsetof(struct iphdr, protocol);
 
 	if (err != 0)
 		goto drop;
 
 	do {
 		const struct iphdr *iph = ip_hdr(skb);
+		int nexthdr;
 
 		if (xfrm_nr == XFRM_MAX_DEPTH)
 			goto drop;
@@ -82,8 +84,11 @@ static int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		if (xfrm_state_check_expire(x))
 			goto drop_unlock;
 
-		if (x->type->input(x, skb))
+		nexthdr = x->type->input(x, skb);
+		if (nexthdr <= 0)
 			goto drop_unlock;
+
+		skb_network_header(skb)[nhoff] = nexthdr;
 
 		/* only the first xfrm gets the encap type */
 		encap_type = 0;

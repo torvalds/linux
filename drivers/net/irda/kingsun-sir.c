@@ -66,7 +66,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/usb.h>
 #include <linux/device.h>
@@ -488,7 +487,6 @@ static int kingsun_probe(struct usb_interface *intf,
 	if(!net)
 		goto err_out1;
 
-	SET_MODULE_OWNER(net);
 	SET_NETDEV_DEV(net, &intf->dev);
 	kingsun = netdev_priv(net);
 	kingsun->irlap = NULL;
@@ -509,12 +507,12 @@ static int kingsun_probe(struct usb_interface *intf,
 	spin_lock_init(&kingsun->lock);
 
 	/* Allocate input buffer */
-	kingsun->in_buf = (__u8 *)kmalloc(kingsun->max_rx, GFP_KERNEL);
+	kingsun->in_buf = kmalloc(kingsun->max_rx, GFP_KERNEL);
 	if (!kingsun->in_buf)
 		goto free_mem;
 
 	/* Allocate output buffer */
-	kingsun->out_buf = (__u8 *)kmalloc(KINGSUN_FIFO_SIZE, GFP_KERNEL);
+	kingsun->out_buf = kmalloc(KINGSUN_FIFO_SIZE, GFP_KERNEL);
 	if (!kingsun->out_buf)
 		goto free_mem;
 

@@ -12,7 +12,6 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/videodev.h>
@@ -416,7 +415,10 @@ static int ov7670_read(struct i2c_client *c, unsigned char reg,
 static int ov7670_write(struct i2c_client *c, unsigned char reg,
 		unsigned char value)
 {
-	return i2c_smbus_write_byte_data(c, reg, value);
+	int ret = i2c_smbus_write_byte_data(c, reg, value);
+	if (reg == REG_COM7 && (value & COM7_RESET))
+		msleep(2);  /* Wait for reset to run */
+	return ret;
 }
 
 
@@ -617,7 +619,7 @@ static struct ov7670_win_size {
 	},
 };
 
-#define N_WIN_SIZES (sizeof(ov7670_win_sizes)/sizeof(ov7670_win_sizes[0]))
+#define N_WIN_SIZES (ARRAY_SIZE(ov7670_win_sizes))
 
 
 /*
@@ -1183,7 +1185,7 @@ static struct ov7670_control {
 		.query = ov7670_q_hflip,
 	},
 };
-#define N_CONTROLS (sizeof(ov7670_controls)/sizeof(ov7670_controls[0]))
+#define N_CONTROLS (ARRAY_SIZE(ov7670_controls))
 
 static struct ov7670_control *ov7670_find_control(__u32 id)
 {

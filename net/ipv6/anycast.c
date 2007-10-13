@@ -30,6 +30,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/snmp.h>
 
@@ -111,10 +112,10 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 		} else {
 			/* router, no matching interface: just pick one */
 
-			dev = dev_get_by_flags(IFF_UP, IFF_UP|IFF_LOOPBACK);
+			dev = dev_get_by_flags(&init_net, IFF_UP, IFF_UP|IFF_LOOPBACK);
 		}
 	} else
-		dev = dev_get_by_index(ifindex);
+		dev = dev_get_by_index(&init_net, ifindex);
 
 	if (dev == NULL) {
 		err = -ENODEV;
@@ -195,7 +196,7 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
 
 	write_unlock_bh(&ipv6_sk_ac_lock);
 
-	dev = dev_get_by_index(pac->acl_ifindex);
+	dev = dev_get_by_index(&init_net, pac->acl_ifindex);
 	if (dev) {
 		ipv6_dev_ac_dec(dev, &pac->acl_addr);
 		dev_put(dev);
@@ -223,7 +224,7 @@ void ipv6_sock_ac_close(struct sock *sk)
 		if (pac->acl_ifindex != prev_index) {
 			if (dev)
 				dev_put(dev);
-			dev = dev_get_by_index(pac->acl_ifindex);
+			dev = dev_get_by_index(&init_net, pac->acl_ifindex);
 			prev_index = pac->acl_ifindex;
 		}
 		if (dev)
@@ -413,7 +414,7 @@ static int ipv6_chk_acast_dev(struct net_device *dev, struct in6_addr *addr)
 				break;
 		read_unlock_bh(&idev->lock);
 		in6_dev_put(idev);
-		return aca != 0;
+		return aca != NULL;
 	}
 	return 0;
 }
@@ -428,7 +429,7 @@ int ipv6_chk_acast_addr(struct net_device *dev, struct in6_addr *addr)
 	if (dev)
 		return ipv6_chk_acast_dev(dev, addr);
 	read_lock(&dev_base_lock);
-	for_each_netdev(dev)
+	for_each_netdev(&init_net, dev)
 		if (ipv6_chk_acast_dev(dev, addr)) {
 			found = 1;
 			break;
@@ -452,7 +453,7 @@ static inline struct ifacaddr6 *ac6_get_first(struct seq_file *seq)
 	struct ac6_iter_state *state = ac6_seq_private(seq);
 
 	state->idev = NULL;
-	for_each_netdev(state->dev) {
+	for_each_netdev(&init_net, state->dev) {
 		struct inet6_dev *idev;
 		idev = in6_dev_get(state->dev);
 		if (!idev)
@@ -548,24 +549,8 @@ static const struct seq_operations ac6_seq_ops = {
 
 static int ac6_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct ac6_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &ac6_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &ac6_seq_ops,
+			sizeof(struct ac6_iter_state));
 }
 
 static const struct file_operations ac6_seq_fops = {
@@ -578,7 +563,7 @@ static const struct file_operations ac6_seq_fops = {
 
 int __init ac6_proc_init(void)
 {
-	if (!proc_net_fops_create("anycast6", S_IRUGO, &ac6_seq_fops))
+	if (!proc_net_fops_create(&init_net, "anycast6", S_IRUGO, &ac6_seq_fops))
 		return -ENOMEM;
 
 	return 0;
@@ -586,7 +571,7 @@ int __init ac6_proc_init(void)
 
 void ac6_proc_exit(void)
 {
-	proc_net_remove("anycast6");
+	proc_net_remove(&init_net, "anycast6");
 }
 #endif
 

@@ -16,7 +16,7 @@
 #include <asm/tx4938/tx4938_mips.h>
 
 #define tx4938_read_nfmc(addr) (*(volatile unsigned int *)(addr))
-#define tx4938_write_nfmc(b,addr) (*(volatile unsigned int *)(addr)) = (b)
+#define tx4938_write_nfmc(b, addr) (*(volatile unsigned int *)(addr)) = (b)
 
 #define TX4938_NR_IRQ_LOCAL     TX4938_IRQ_PIC_BEG
 
@@ -84,27 +84,27 @@
 #include <asm/byteorder.h>
 
 #ifdef __BIG_ENDIAN
-#define endian_def_l2(e1,e2)	\
-	volatile unsigned long e1,e2
-#define endian_def_s2(e1,e2)	\
-	volatile unsigned short e1,e2
-#define endian_def_sb2(e1,e2,e3)	\
-	volatile unsigned short e1;volatile unsigned char e2,e3
-#define endian_def_b2s(e1,e2,e3)	\
-	volatile unsigned char e1,e2;volatile unsigned short e3
-#define endian_def_b4(e1,e2,e3,e4)	\
-	volatile unsigned char e1,e2,e3,e4
+#define endian_def_l2(e1, e2)	\
+	volatile unsigned long e1, e2
+#define endian_def_s2(e1, e2)	\
+	volatile unsigned short e1, e2
+#define endian_def_sb2(e1, e2, e3)	\
+	volatile unsigned short e1;volatile unsigned char e2, e3
+#define endian_def_b2s(e1, e2, e3)	\
+	volatile unsigned char e1, e2;volatile unsigned short e3
+#define endian_def_b4(e1, e2, e3, e4)	\
+	volatile unsigned char e1, e2, e3, e4
 #else
-#define endian_def_l2(e1,e2)	\
-	volatile unsigned long e2,e1
-#define endian_def_s2(e1,e2)	\
-	volatile unsigned short e2,e1
-#define endian_def_sb2(e1,e2,e3)	\
-	volatile unsigned char e3,e2;volatile unsigned short e1
-#define endian_def_b2s(e1,e2,e3)	\
-	volatile unsigned short e3;volatile unsigned char e2,e1
-#define endian_def_b4(e1,e2,e3,e4)	\
-	volatile unsigned char e4,e3,e2,e1
+#define endian_def_l2(e1, e2)	\
+	volatile unsigned long e2, e1
+#define endian_def_s2(e1, e2)	\
+	volatile unsigned short e2, e1
+#define endian_def_sb2(e1, e2, e3)	\
+	volatile unsigned char e3, e2;volatile unsigned short e1
+#define endian_def_b2s(e1, e2, e3)	\
+	volatile unsigned short e3;volatile unsigned char e2, e1
+#define endian_def_b4(e1, e2, e3, e4)	\
+	volatile unsigned char e4, e3, e2, e1
 #endif
 
 
@@ -272,20 +272,6 @@ struct tx4938_pio_reg {
 	volatile unsigned long maskcpu;
 	volatile unsigned long maskext;
 };
-struct tx4938_irc_reg {
-	volatile unsigned long cer;
-	volatile unsigned long cr[2];
-	volatile unsigned long unused0;
-	volatile unsigned long ilr[8];
-	volatile unsigned long unused1[4];
-	volatile unsigned long imr;
-	volatile unsigned long unused2[7];
-	volatile unsigned long scr;
-	volatile unsigned long unused3[7];
-	volatile unsigned long ssr;
-	volatile unsigned long unused4[7];
-	volatile unsigned long csr;
-};
 
 struct tx4938_ndfmc_reg {
 	endian_def_l2(unused0, dtr);
@@ -368,7 +354,7 @@ struct tx4938_ccfg_reg {
 #define TX4938_NUM_IR_SIO	2
 #define TX4938_IR_SIO(n)	(8 + (n))
 #define TX4938_NUM_IR_DMA	4
-#define TX4938_IR_DMA(ch,n)	((ch ? 27 : 10) + (n)) /* 10-13,27-30 */
+#define TX4938_IR_DMA(ch, n)	((ch ? 27 : 10) + (n)) /* 10-13, 27-30 */
 #define TX4938_IR_PIO	14
 #define TX4938_IR_PDMAC	15
 #define TX4938_IR_PCIC	16
@@ -646,39 +632,12 @@ struct tx4938_ccfg_reg {
 #define TX4938_DMA_CSR_DESERR	0x00000002
 #define TX4938_DMA_CSR_SORERR	0x00000001
 
-/* TX4938 Interrupt Controller (32-bit registers) */
-#define TX4938_IRC_BASE                 0xf510
-#define TX4938_IRC_IRFLAG0              0xf510
-#define TX4938_IRC_IRFLAG1              0xf514
-#define TX4938_IRC_IRPOL                0xf518
-#define TX4938_IRC_IRRCNT               0xf51c
-#define TX4938_IRC_IRMASKINT            0xf520
-#define TX4938_IRC_IRMASKEXT            0xf524
-#define TX4938_IRC_IRDEN                0xf600
-#define TX4938_IRC_IRDM0                0xf604
-#define TX4938_IRC_IRDM1                0xf608
-#define TX4938_IRC_IRLVL0               0xf610
-#define TX4938_IRC_IRLVL1               0xf614
-#define TX4938_IRC_IRLVL2               0xf618
-#define TX4938_IRC_IRLVL3               0xf61c
-#define TX4938_IRC_IRLVL4               0xf620
-#define TX4938_IRC_IRLVL5               0xf624
-#define TX4938_IRC_IRLVL6               0xf628
-#define TX4938_IRC_IRLVL7               0xf62c
-#define TX4938_IRC_IRMSK                0xf640
-#define TX4938_IRC_IREDC                0xf660
-#define TX4938_IRC_IRPND                0xf680
-#define TX4938_IRC_IRCS                 0xf6a0
-#define TX4938_IRC_LIMIT                0xf6ff
-
-
 #ifndef __ASSEMBLY__
 
 #define tx4938_sdramcptr	((struct tx4938_sdramc_reg *)TX4938_SDRAMC_REG)
 #define tx4938_ebuscptr         ((struct tx4938_ebusc_reg *)TX4938_EBUSC_REG)
 #define tx4938_dmaptr(ch)	((struct tx4938_dma_reg *)TX4938_DMA_REG(ch))
 #define tx4938_ndfmcptr		((struct tx4938_ndfmc_reg *)TX4938_NDFMC_REG)
-#define tx4938_ircptr		((struct tx4938_irc_reg *)TX4938_IRC_REG)
 #define tx4938_pcicptr		((struct tx4938_pcic_reg *)TX4938_PCIC_REG)
 #define tx4938_pcic1ptr		((struct tx4938_pcic_reg *)TX4938_PCIC1_REG)
 #define tx4938_ccfgptr		((struct tx4938_ccfg_reg *)TX4938_CCFG_REG)

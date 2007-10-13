@@ -80,6 +80,7 @@ dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 {
 	enum dma_status status;
 	struct dma_async_tx_descriptor *iter;
+	struct dma_async_tx_descriptor *parent;
 
 	if (!tx)
 		return DMA_SUCCESS;
@@ -87,8 +88,15 @@ dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 	/* poll through the dependency chain, return when tx is complete */
 	do {
 		iter = tx;
-		while (iter->cookie == -EBUSY)
-			iter = iter->parent;
+
+		/* find the root of the unsubmitted dependency chain */
+		while (iter->cookie == -EBUSY) {
+			parent = iter->parent;
+			if (parent && parent->cookie == -EBUSY)
+				iter = iter->parent;
+			else
+				break;
+		}
 
 		status = dma_sync_wait(iter->chan, iter->cookie);
 	} while (status == DMA_IN_PROGRESS || (iter != tx));

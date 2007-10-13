@@ -5,11 +5,11 @@ Supported chips:
   * Fintek F71805F/FG
     Prefix: 'f71805f'
     Addresses scanned: none, address read from Super I/O config space
-    Datasheet: Provided by Fintek on request
+    Datasheet: Available from the Fintek website
   * Fintek F71872F/FG
     Prefix: 'f71872f'
     Addresses scanned: none, address read from Super I/O config space
-    Datasheet: Provided by Fintek on request
+    Datasheet: Available from the Fintek website
 
 Author: Jean Delvare <khali@linux-fr.org>
 
@@ -128,7 +128,9 @@ it.
 When the PWM method is used, you can select the operating frequency,
 from 187.5 kHz (default) to 31 Hz. The best frequency depends on the
 fan model. As a rule of thumb, lower frequencies seem to give better
-control, but may generate annoying high-pitch noise. Fintek recommends
+control, but may generate annoying high-pitch noise. So a frequency just
+above the audible range, such as 25 kHz, may be a good choice; if this
+doesn't give you good linear control, try reducing it. Fintek recommends
 not going below 1 kHz, as the fan tachometers get confused by lower
 frequencies as well.
 
@@ -136,16 +138,23 @@ When the DC method is used, Fintek recommends not going below 5 V, which
 corresponds to a pwm value of 106 for the driver. The driver doesn't
 enforce this limit though.
 
-Three different fan control modes are supported:
+Three different fan control modes are supported; the mode number is written
+to the pwm<n>_enable file.
 
-* Manual mode
-  You ask for a specific PWM duty cycle or DC voltage.
+* 1: Manual mode
+  You ask for a specific PWM duty cycle or DC voltage by writing to the
+  pwm<n> file.
 
-* Fan speed mode
-  You ask for a specific fan speed. This mode assumes that pwm1
-  corresponds to fan1, pwm2 to fan2 and pwm3 to fan3.
+* 2: Temperature mode
+  You define 3 temperature/fan speed trip points using the
+  pwm<n>_auto_point<m>_temp and _fan files. These define a staircase
+  relationship between temperature and fan speed with two additional points
+  interpolated between the values that you define. When the temperature
+  is below auto_point1_temp the fan is switched off.
 
-* Temperature mode
-  You define 3 temperature/fan speed trip points, and the fan speed is
-  adjusted depending on the measured temperature, using interpolation.
-  This mode is not yet supported by the driver.
+* 3: Fan speed mode
+  You ask for a specific fan speed by writing to the fan<n>_target file.
+
+Both of the automatic modes require that pwm1 corresponds to fan1, pwm2 to
+fan2 and pwm3 to fan3. Temperature mode also requires that temp1 corresponds
+to pwm1 and fan1, etc.

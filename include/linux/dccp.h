@@ -56,10 +56,9 @@ struct dccp_hdr_ext {
 };
 
 /**
- * struct dccp_hdr_request - Conection initiation request header
+ * struct dccp_hdr_request - Connection initiation request header
  *
  * @dccph_req_service - Service to which the client app wants to connect
- * @dccph_req_options - list of options (must be a multiple of 32 bits
  */
 struct dccp_hdr_request {
 	__be32	dccph_req_service;
@@ -76,12 +75,10 @@ struct dccp_hdr_ack_bits {
 	__be32	dccph_ack_nr_low;
 };
 /**
- * struct dccp_hdr_response - Conection initiation response header
+ * struct dccp_hdr_response - Connection initiation response header
  *
- * @dccph_resp_ack_nr_high - 48 bit ack number high order bits, contains GSR
- * @dccph_resp_ack_nr_low - 48 bit ack number low order bits, contains GSR
+ * @dccph_resp_ack - 48 bit Acknowledgment Number Subheader (5.3)
  * @dccph_resp_service - Echoes the Service Code on a received DCCP-Request
- * @dccph_resp_options - list of options (must be a multiple of 32 bits
  */
 struct dccp_hdr_response {
 	struct dccp_hdr_ack_bits	dccph_resp_ack;
@@ -91,8 +88,9 @@ struct dccp_hdr_response {
 /**
  * struct dccp_hdr_reset - Unconditionally shut down a connection
  *
- * @dccph_reset_service - Echoes the Service Code on a received DCCP-Request
- * @dccph_reset_options - list of options (must be a multiple of 32 bits
+ * @dccph_reset_ack - 48 bit Acknowledgment Number Subheader (5.6)
+ * @dccph_reset_code - one of %dccp_reset_codes
+ * @dccph_reset_data - the Data 1 ... Data 3 fields from 5.6
  */
 struct dccp_hdr_reset {
 	struct dccp_hdr_ack_bits	dccph_reset_ack;
@@ -204,6 +202,7 @@ struct dccp_so_feat {
 #define DCCP_SOCKOPT_SERVICE		2
 #define DCCP_SOCKOPT_CHANGE_L		3
 #define DCCP_SOCKOPT_CHANGE_R		4
+#define DCCP_SOCKOPT_GET_CUR_MPS	5
 #define DCCP_SOCKOPT_SEND_CSCOV		10
 #define DCCP_SOCKOPT_RECV_CSCOV		11
 #define DCCP_SOCKOPT_CCID_RX_INFO	128
@@ -215,6 +214,7 @@ struct dccp_so_feat {
 #ifdef __KERNEL__
 
 #include <linux/in.h>
+#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/uio.h>
 #include <linux/workqueue.h>
@@ -391,7 +391,6 @@ struct dccp_opt_pend {
 	struct dccp_opt_conf    *dccpop_sc;
 };
 
-extern void __dccp_minisock_init(struct dccp_minisock *dmsk);
 extern void dccp_minisock_init(struct dccp_minisock *dmsk);
 
 extern int dccp_parse_options(struct sock *sk, struct sk_buff *skb);
@@ -471,6 +470,7 @@ struct dccp_ackvec;
  * @dccps_pcrlen - receiver partial checksum coverage (via sockopt)
  * @dccps_ndp_count - number of Non Data Packets since last data packet
  * @dccps_mss_cache - current value of MSS (path MTU minus header sizes)
+ * @dccps_rate_last - timestamp for rate-limiting DCCP-Sync (RFC 4340, 7.5.4)
  * @dccps_minisock - associated minisock (accessed via dccp_msk)
  * @dccps_hc_rx_ackvec - rx half connection ack vector
  * @dccps_hc_rx_ccid - CCID used for the receiver (or receiving half-connection)
@@ -498,7 +498,7 @@ struct dccp_sock {
 	__u64				dccps_gar;
 	__be32				dccps_service;
 	struct dccp_service_list	*dccps_service_list;
-	struct timeval			dccps_timestamp_time;
+	ktime_t				dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
 	__u16				dccps_l_ack_ratio;
 	__u16				dccps_r_ack_ratio;
@@ -506,12 +506,12 @@ struct dccp_sock {
 	__u16				dccps_pcrlen;
 	unsigned long			dccps_ndp_count;
 	__u32				dccps_mss_cache;
+	unsigned long			dccps_rate_last;
 	struct dccp_minisock		dccps_minisock;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;
 	struct ccid			*dccps_hc_rx_ccid;
 	struct ccid			*dccps_hc_tx_ccid;
 	struct dccp_options_received	dccps_options_received;
-	struct timeval			dccps_epoch;
 	enum dccp_role			dccps_role:2;
 	__u8				dccps_hc_rx_insert_options:1;
 	__u8				dccps_hc_tx_insert_options:1;

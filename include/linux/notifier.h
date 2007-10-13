@@ -157,6 +157,19 @@ extern int __srcu_notifier_call_chain(struct srcu_notifier_head *nh,
  */
 #define NOTIFY_STOP		(NOTIFY_OK|NOTIFY_STOP_MASK)
 
+/* Encapsulate (negative) errno value (in particular, NOTIFY_BAD <=> EPERM). */
+static inline int notifier_from_errno(int err)
+{
+	return NOTIFY_STOP_MASK | (NOTIFY_OK - err);
+}
+
+/* Restore (negative) errno value from notify return value. */
+static inline int notifier_to_errno(int ret)
+{
+	ret &= ~NOTIFY_STOP_MASK;
+	return ret > NOTIFY_OK ? NOTIFY_OK - ret : 0;
+}
+
 /*
  *	Declared notifiers so far. I can imagine quite a few more chains
  *	over time (eg laptop power reset chains, reboot chain (to clean 
@@ -211,6 +224,12 @@ extern int __srcu_notifier_call_chain(struct srcu_notifier_head *nh,
 #define CPU_DOWN_FAILED_FROZEN	(CPU_DOWN_FAILED | CPU_TASKS_FROZEN)
 #define CPU_DEAD_FROZEN		(CPU_DEAD | CPU_TASKS_FROZEN)
 #define CPU_DYING_FROZEN	(CPU_DYING | CPU_TASKS_FROZEN)
+
+/* Hibernation and suspend events */
+#define PM_HIBERNATION_PREPARE	0x0001 /* Going to hibernate */
+#define PM_POST_HIBERNATION	0x0002 /* Hibernation finished */
+#define PM_SUSPEND_PREPARE	0x0003 /* Going to suspend the system */
+#define PM_POST_SUSPEND		0x0004 /* Suspend finished */
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_NOTIFIER_H */

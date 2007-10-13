@@ -52,6 +52,8 @@ ACPI_MODULE_NAME("tbxface")
 /* Local prototypes */
 static acpi_status acpi_tb_load_namespace(void);
 
+static int no_auto_ssdt;
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_allocate_root_table
@@ -536,6 +538,10 @@ static acpi_status acpi_tb_load_namespace(void)
 
 		ACPI_INFO((AE_INFO, "Table DSDT replaced by host OS"));
 		acpi_tb_print_table_header(0, table);
+
+		if (no_auto_ssdt == 0) {
+			printk(KERN_WARNING "ACPI: DSDT override uses original SSDTs unless \"acpi_no_auto_ssdt\"");
+		}
 	}
 
 	status =
@@ -574,6 +580,11 @@ static acpi_status acpi_tb_load_namespace(void)
 		    ||
 		    ACPI_FAILURE(acpi_tb_verify_table
 				 (&acpi_gbl_root_table_list.tables[i]))) {
+			continue;
+		}
+
+		if (no_auto_ssdt) {
+			printk(KERN_WARNING "ACPI: SSDT ignored due to \"acpi_no_auto_ssdt\"\n");
 			continue;
 		}
 
@@ -622,3 +633,15 @@ acpi_status acpi_load_tables(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_load_tables)
+
+
+static int __init acpi_no_auto_ssdt_setup(char *s) {
+
+        printk(KERN_NOTICE "ACPI: SSDT auto-load disabled\n");
+
+        no_auto_ssdt = 1;
+
+        return 1;
+}
+
+__setup("acpi_no_auto_ssdt", acpi_no_auto_ssdt_setup);

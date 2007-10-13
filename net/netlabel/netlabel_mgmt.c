@@ -42,6 +42,10 @@
 #include "netlabel_user.h"
 #include "netlabel_mgmt.h"
 
+/* NetLabel configured protocol count */
+static DEFINE_SPINLOCK(netlabel_mgmt_protocount_lock);
+static u32 netlabel_mgmt_protocount = 0;
+
 /* Argument struct for netlbl_domhsh_walk() */
 struct netlbl_domhsh_walk_arg {
 	struct netlink_callback *nl_cb;
@@ -65,6 +69,67 @@ static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
 	[NLBL_MGMT_A_VERSION] = { .type = NLA_U32 },
 	[NLBL_MGMT_A_CV4DOI] = { .type = NLA_U32 },
 };
+
+/*
+ * NetLabel Misc Managment Functions
+ */
+
+/**
+ * netlbl_mgmt_protocount_inc - Increment the configured labeled protocol count
+ *
+ * Description:
+ * Increment the number of labeled protocol configurations in the current
+ * NetLabel configuration.  Keep track of this for use in determining if
+ * NetLabel label enforcement should be active/enabled or not in the LSM.
+ *
+ */
+void netlbl_mgmt_protocount_inc(void)
+{
+	rcu_read_lock();
+	spin_lock(&netlabel_mgmt_protocount_lock);
+	netlabel_mgmt_protocount++;
+	spin_unlock(&netlabel_mgmt_protocount_lock);
+	rcu_read_unlock();
+}
+
+/**
+ * netlbl_mgmt_protocount_dec - Decrement the configured labeled protocol count
+ *
+ * Description:
+ * Decrement the number of labeled protocol configurations in the current
+ * NetLabel configuration.  Keep track of this for use in determining if
+ * NetLabel label enforcement should be active/enabled or not in the LSM.
+ *
+ */
+void netlbl_mgmt_protocount_dec(void)
+{
+	rcu_read_lock();
+	spin_lock(&netlabel_mgmt_protocount_lock);
+	if (netlabel_mgmt_protocount > 0)
+		netlabel_mgmt_protocount--;
+	spin_unlock(&netlabel_mgmt_protocount_lock);
+	rcu_read_unlock();
+}
+
+/**
+ * netlbl_mgmt_protocount_value - Return the number of configured protocols
+ *
+ * Description:
+ * Return the number of labeled protocols in the current NetLabel
+ * configuration.  This value is useful in  determining if NetLabel label
+ * enforcement should be active/enabled or not in the LSM.
+ *
+ */
+u32 netlbl_mgmt_protocount_value(void)
+{
+	u32 val;
+
+	rcu_read_lock();
+	val = netlabel_mgmt_protocount;
+	rcu_read_unlock();
+
+	return val;
+}
 
 /*
  * NetLabel Command Handlers

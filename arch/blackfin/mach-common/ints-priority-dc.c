@@ -221,7 +221,7 @@ static unsigned int bf561_gpio_irq_startup(unsigned int irq)
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
 
-		ret = gpio_request(gpionr, NULL);
+		ret = gpio_request(gpionr, "IRQ");
 		if (ret)
 			return ret;
 
@@ -261,7 +261,7 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
 
-			ret = gpio_request(gpionr, NULL);
+			ret = gpio_request(gpionr, "IRQ");
 			if (ret)
 				return ret;
 
@@ -358,6 +358,30 @@ static void bf561_demux_gpio_irq(unsigned int inta_irq,
 
 #endif				/* CONFIG_IRQCHIP_DEMUX_GPIO */
 
+void __init init_exception_vectors(void)
+{
+	SSYNC();
+
+	/* cannot program in software:
+	 * evt0 - emulation (jtag)
+	 * evt1 - reset
+	 */
+	bfin_write_EVT2(evt_nmi);
+	bfin_write_EVT3(trap);
+	bfin_write_EVT5(evt_ivhw);
+	bfin_write_EVT6(evt_timer);
+	bfin_write_EVT7(evt_evt7);
+	bfin_write_EVT8(evt_evt8);
+	bfin_write_EVT9(evt_evt9);
+	bfin_write_EVT10(evt_evt10);
+	bfin_write_EVT11(evt_evt11);
+	bfin_write_EVT12(evt_evt12);
+	bfin_write_EVT13(evt_evt13);
+	bfin_write_EVT14(evt14_softirq);
+	bfin_write_EVT15(evt_system_call);
+	CSYNC();
+}
+
 /*
  * This function should be called during kernel startup to initialize
  * the BFin IRQ handling routines.
@@ -377,24 +401,6 @@ int __init init_arch_irq(void)
 	local_irq_disable();
 
 	init_exception_buff();
-
-#ifndef CONFIG_KGDB
-	bfin_write_EVT0(evt_emulation);
-#endif
-	bfin_write_EVT2(evt_evt2);
-	bfin_write_EVT3(trap);
-	bfin_write_EVT5(evt_ivhw);
-	bfin_write_EVT6(evt_timer);
-	bfin_write_EVT7(evt_evt7);
-	bfin_write_EVT8(evt_evt8);
-	bfin_write_EVT9(evt_evt9);
-	bfin_write_EVT10(evt_evt10);
-	bfin_write_EVT11(evt_evt11);
-	bfin_write_EVT12(evt_evt12);
-	bfin_write_EVT13(evt_evt13);
-	bfin_write_EVT14(evt14_softirq);
-	bfin_write_EVT15(evt_system_call);
-	CSYNC();
 
 	for (irq = 0; irq <= SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)

@@ -24,3 +24,5 @@
 #
 
 obj-y		:= sead_int.o sead_setup.o
+
+EXTRA_CFLAGS += -Werror

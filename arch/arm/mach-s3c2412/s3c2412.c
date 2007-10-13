@@ -34,12 +34,12 @@
 #include <asm/arch/idle.h>
 
 #include <asm/arch/regs-clock.h>
-#include <asm/arch/regs-serial.h>
+#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-power.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-gpioj.h>
 #include <asm/arch/regs-dsc.h>
-#include <asm/arch/regs-spi.h>
+#include <asm/plat-s3c24xx/regs-spi.h>
 #include <asm/arch/regs-s3c2412.h>
 
 #include <asm/plat-s3c24xx/s3c2412.h>
@@ -63,7 +63,6 @@ static inline void s3c2412_init_gpio2(void)
 
 static struct map_desc s3c2412_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
-	IODESC_ENT(LCD),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
 };

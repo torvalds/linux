@@ -575,7 +575,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 	int		sp_len ;
 
 	/*
-	 * skip if errror
+	 * skip if error
 	 */
 	if (pcon->pc_err)
 		return ;

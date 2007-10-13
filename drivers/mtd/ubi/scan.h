@@ -147,8 +147,6 @@ static inline void ubi_scan_move_to_list(struct ubi_scan_volume *sv,
 		list_add_tail(&seb->u.list, list);
 }
 
-int ubi_scan_add_to_list(struct ubi_scan_info *si, int pnum, int ec,
-			 struct list_head *list);
 int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
 		      int bitflips);

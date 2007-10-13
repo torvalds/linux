@@ -105,7 +105,7 @@ struct blk_io_trace {
  */
 struct blk_io_trace_remap {
 	__be32 device;
-	u32 __pad;
+	__be32 device_from;
 	__be64 sector;
 };
 
@@ -142,10 +142,14 @@ struct blk_user_trace_setup {
 	u32 pid;
 };
 
+#ifdef __KERNEL__
 #if defined(CONFIG_BLK_DEV_IO_TRACE)
 extern int blk_trace_ioctl(struct block_device *, unsigned, char __user *);
-extern void blk_trace_shutdown(request_queue_t *);
+extern void blk_trace_shutdown(struct request_queue *);
 extern void __blk_add_trace(struct blk_trace *, sector_t, int, int, u32, int, int, void *);
+extern int do_blk_trace_setup(struct request_queue *q,
+	struct block_device *bdev, struct blk_user_trace_setup *buts);
+
 
 /**
  * blk_add_trace_rq - Add a trace for a request oriented action
@@ -272,6 +276,7 @@ static inline void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 		return;
 
 	r.device = cpu_to_be32(dev);
+	r.device_from = cpu_to_be32(bio->bi_bdev->bd_dev);
 	r.sector = cpu_to_be64(to);
 
 	__blk_add_trace(bt, from, bio->bi_size, bio->bi_rw, BLK_TA_REMAP, !bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
@@ -285,6 +290,7 @@ static inline void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 #define blk_add_trace_generic(q, rq, rw, what)	do { } while (0)
 #define blk_add_trace_pdu_int(q, what, bio, pdu)	do { } while (0)
 #define blk_add_trace_remap(q, bio, dev, f, t)	do {} while (0)
+#define do_blk_trace_setup(q, bdev, buts)	(-ENOTTY)
 #endif /* CONFIG_BLK_DEV_IO_TRACE */
-
+#endif /* __KERNEL__ */
 #endif

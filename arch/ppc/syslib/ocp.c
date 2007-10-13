@@ -44,11 +44,11 @@
 #include <linux/pm.h>
 #include <linux/bootmem.h>
 #include <linux/device.h>
+#include <linux/rwsem.h>
 
 #include <asm/io.h>
 #include <asm/ocp.h>
 #include <asm/errno.h>
-#include <asm/rwsem.h>
 #include <asm/semaphore.h>
 
 //#define DBG(x)	printk x

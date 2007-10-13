@@ -484,7 +484,6 @@ static int __devexit pc87427_remove(struct platform_device *pdev)
 	struct resource *res;
 	int i;
 
-	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->class_dev);
 	device_remove_file(&pdev->dev, &dev_attr_name);
 	for (i = 0; i < 8; i++) {
@@ -492,6 +491,7 @@ static int __devexit pc87427_remove(struct platform_device *pdev)
 			continue;
 		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_fan[i]);
 	}
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);

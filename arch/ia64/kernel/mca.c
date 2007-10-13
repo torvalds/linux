@@ -1750,8 +1750,17 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 	strncpy(p->comm, type, sizeof(p->comm)-1);
 }
 
-/* Do per-CPU MCA-related initialization.  */
+/* Caller prevents this from being called after init */
+static void * __init_refok mca_bootmem(void)
+{
+	void *p;
 
+	p = alloc_bootmem(sizeof(struct ia64_mca_cpu) * NR_CPUS +
+	                  KERNEL_STACK_SIZE);
+	return (void *)ALIGN((unsigned long)p, KERNEL_STACK_SIZE);
+}
+
+/* Do per-CPU MCA-related initialization.  */
 void __cpuinit
 ia64_mca_cpu_init(void *cpu_data)
 {
@@ -1763,11 +1772,7 @@ ia64_mca_cpu_init(void *cpu_data)
 		int cpu;
 
 		first_time = 0;
-		mca_data = alloc_bootmem(sizeof(struct ia64_mca_cpu)
-					 * NR_CPUS + KERNEL_STACK_SIZE);
-		mca_data = (void *)(((unsigned long)mca_data +
-					KERNEL_STACK_SIZE - 1) &
-				(-KERNEL_STACK_SIZE));
+		mca_data = mca_bootmem();
 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
 			format_mca_init_stack(mca_data,
 					offsetof(struct ia64_mca_cpu, mca_stack),
@@ -2013,22 +2018,26 @@ ia64_mca_late_init(void)
 
 		if (cpe_vector >= 0) {
 			/* If platform supports CPEI, enable the irq. */
-			cpe_poll_enabled = 0;
-			for (irq = 0; irq < NR_IRQS; ++irq)
-				if (irq_to_vector(irq) == cpe_vector) {
-					desc = irq_desc + irq;
-					desc->status |= IRQ_PER_CPU;
-					setup_irq(irq, &mca_cpe_irqaction);
-					ia64_cpe_irq = irq;
-				}
-			ia64_mca_register_cpev(cpe_vector);
-			IA64_MCA_DEBUG("%s: CPEI/P setup and enabled.\n", __FUNCTION__);
-		} else {
-			/* If platform doesn't support CPEI, get the timer going. */
-			if (cpe_poll_enabled) {
-				ia64_mca_cpe_poll(0UL);
-				IA64_MCA_DEBUG("%s: CPEP setup and enabled.\n", __FUNCTION__);
+			irq = local_vector_to_irq(cpe_vector);
+			if (irq > 0) {
+				cpe_poll_enabled = 0;
+				desc = irq_desc + irq;
+				desc->status |= IRQ_PER_CPU;
+				setup_irq(irq, &mca_cpe_irqaction);
+				ia64_cpe_irq = irq;
+				ia64_mca_register_cpev(cpe_vector);
+				IA64_MCA_DEBUG("%s: CPEI/P setup and enabled.\n",
+					__FUNCTION__);
+				return 0;
 			}
+			printk(KERN_ERR "%s: Failed to find irq for CPE "
+					"interrupt handler, vector %d\n",
+					__FUNCTION__, cpe_vector);
+		}
+		/* If platform doesn't support CPEI, get the timer going. */
+		if (cpe_poll_enabled) {
+			ia64_mca_cpe_poll(0UL);
+			IA64_MCA_DEBUG("%s: CPEP setup and enabled.\n", __FUNCTION__);
 		}
 	}
 #endif

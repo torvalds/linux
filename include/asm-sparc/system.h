@@ -165,16 +165,6 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 	} while(0)
 
 /*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- *
- * TODO: fill this in!
- */
-static inline void sched_cacheflush(void)
-{
-}
-
-/*
  * Changing the IRQ level on the Sparc.
  */
 extern void local_irq_restore(unsigned long);

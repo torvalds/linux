@@ -21,6 +21,15 @@ static void ns9xxx_ack_irq_timer(unsigned int irq)
 {
 	u32 tc = SYS_TC(irq - IRQ_TIMER0);
 
+	/*
+	 * If the timer is programmed to halt on terminal count, the
+	 * timer must be disabled before clearing the interrupt.
+	 */
+	if (REGGET(tc, SYS_TCx, REN) == 0) {
+		REGSET(tc, SYS_TCx, TEN, DIS);
+		SYS_TC(irq - IRQ_TIMER0) = tc;
+	}
+
 	REGSET(tc, SYS_TCx, INTC, SET);
 	SYS_TC(irq - IRQ_TIMER0) = tc;
 
@@ -28,7 +37,7 @@ static void ns9xxx_ack_irq_timer(unsigned int irq)
 	SYS_TC(irq - IRQ_TIMER0) = tc;
 }
 
-void (*ns9xxx_ack_irq_functions[NR_IRQS])(unsigned int) = {
+static void (*ns9xxx_ack_irq_functions[NR_IRQS])(unsigned int) = {
 	[IRQ_TIMER0] = ns9xxx_ack_irq_timer,
 	[IRQ_TIMER1] = ns9xxx_ack_irq_timer,
 	[IRQ_TIMER2] = ns9xxx_ack_irq_timer,

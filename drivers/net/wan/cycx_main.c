@@ -113,12 +113,10 @@ static int __init cycx_init(void)
 	/* Verify number of cards and allocate adapter data space */
 	cycx_ncards = min_t(int, cycx_ncards, CYCX_MAX_CARDS);
 	cycx_ncards = max_t(int, cycx_ncards, 1);
-	cycx_card_array = kmalloc(sizeof(struct cycx_device) * cycx_ncards,
-				  GFP_KERNEL);
+	cycx_card_array = kcalloc(cycx_ncards, sizeof(struct cycx_device), GFP_KERNEL);
 	if (!cycx_card_array)
 		goto out;
 
-	memset(cycx_card_array, 0, sizeof(struct cycx_device) * cycx_ncards);
 
 	/* Register adapters with WAN router */
 	for (cnt = 0; cnt < cycx_ncards; ++cnt) {

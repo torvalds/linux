@@ -53,7 +53,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 		 * case the thread migrates to a different CPU. The
 		 * restoring is done lazily.
 		 */
-		if ((fpexc & FPEXC_ENABLE) && last_VFP_context[cpu]) {
+		if ((fpexc & FPEXC_EN) && last_VFP_context[cpu]) {
 			vfp_save_state(last_VFP_context[cpu], fpexc);
 			last_VFP_context[cpu]->hard.cpu = cpu;
 		}
@@ -70,7 +70,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 		 * Always disable VFP so we can lazily save/restore the
 		 * old state.
 		 */
-		fmxr(FPEXC, fpexc & ~FPEXC_ENABLE);
+		fmxr(FPEXC, fpexc & ~FPEXC_EN);
 		return NOTIFY_DONE;
 	}
 
@@ -81,13 +81,13 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 		 */
 		memset(vfp, 0, sizeof(union vfp_state));
 
-		vfp->hard.fpexc = FPEXC_ENABLE;
+		vfp->hard.fpexc = FPEXC_EN;
 		vfp->hard.fpscr = FPSCR_ROUND_NEAREST;
 
 		/*
 		 * Disable VFP to ensure we initialise it first.
 		 */
-		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
+		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
 	}
 
 	/* flush and release case: Per-thread VFP cleanup. */
@@ -229,7 +229,7 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	/*
 	 * Enable access to the VFP so we can handle the bounce.
 	 */
-	fmxr(FPEXC, fpexc & ~(FPEXC_EXCEPTION|FPEXC_INV|FPEXC_UFC|FPEXC_IOC));
+	fmxr(FPEXC, fpexc & ~(FPEXC_EX|FPEXC_INV|FPEXC_UFC|FPEXC_IOC));
 
 	orig_fpscr = fpscr = fmrx(FPSCR);
 
@@ -248,7 +248,7 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	/*
 	 * Modify fpscr to indicate the number of iterations remaining
 	 */
-	if (fpexc & FPEXC_EXCEPTION) {
+	if (fpexc & FPEXC_EX) {
 		u32 len;
 
 		len = fpexc + (1 << FPEXC_LENGTH_BIT);
@@ -323,6 +323,7 @@ static int __init vfp_init(void)
 	 * we just need to read the VFPSID register.
 	 */
 	vfp_vector = vfp_testing_entry;
+	barrier();
 	vfpsid = fmrx(FPSID);
 	barrier();
 	vfp_vector = vfp_null_entry;

@@ -854,17 +854,25 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
 	ssize_t ret;
 
-
-	mutex_lock(&sc->sc_send_lock);
-	ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
-					 virt_to_page(kmalloced_virt),
-					 (long)kmalloced_virt & ~PAGE_MASK,
-					 size, MSG_DONTWAIT);
-	mutex_unlock(&sc->sc_send_lock);
-	if (ret != size) {
+	while (1) {
+		mutex_lock(&sc->sc_send_lock);
+		ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
+						 virt_to_page(kmalloced_virt),
+						 (long)kmalloced_virt & ~PAGE_MASK,
+						 size, MSG_DONTWAIT);
+		mutex_unlock(&sc->sc_send_lock);
+		if (ret == size)
+			break;
+		if (ret == (ssize_t)-EAGAIN) {
+			mlog(0, "sendpage of size %zu to " SC_NODEF_FMT
+			     " returned EAGAIN\n", size, SC_NODEF_ARGS(sc));
+			cond_resched();
+			continue;
+		}
 		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT 
 		     " failed with %zd\n", size, SC_NODEF_ARGS(sc), ret);
 		o2net_ensure_shutdown(nn, sc, 0);
+		break;
 	}
 }
 

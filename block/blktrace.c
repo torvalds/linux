@@ -41,7 +41,7 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 		const int cpu = smp_processor_id();
 
 		t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
-		t->time = sched_clock() - per_cpu(blk_trace_cpu_offset, cpu);
+		t->time = cpu_clock(cpu) - per_cpu(blk_trace_cpu_offset, cpu);
 		t->device = bt->dev;
 		t->action = action;
 		t->pid = pid;
@@ -159,7 +159,7 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 
 		t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
 		t->sequence = ++(*sequence);
-		t->time = sched_clock() - per_cpu(blk_trace_cpu_offset, cpu);
+		t->time = cpu_clock(cpu) - per_cpu(blk_trace_cpu_offset, cpu);
 		t->sector = sector;
 		t->bytes = bytes;
 		t->action = what;
@@ -231,7 +231,7 @@ static void blk_trace_cleanup(struct blk_trace *bt)
 	kfree(bt);
 }
 
-static int blk_trace_remove(request_queue_t *q)
+static int blk_trace_remove(struct request_queue *q)
 {
 	struct blk_trace *bt;
 
@@ -312,33 +312,26 @@ static struct rchan_callbacks blk_relay_callbacks = {
 /*
  * Setup everything required to start tracing
  */
-static int blk_trace_setup(request_queue_t *q, struct block_device *bdev,
-			   char __user *arg)
+int do_blk_trace_setup(struct request_queue *q, struct block_device *bdev,
+			struct blk_user_trace_setup *buts)
 {
-	struct blk_user_trace_setup buts;
 	struct blk_trace *old_bt, *bt = NULL;
 	struct dentry *dir = NULL;
 	char b[BDEVNAME_SIZE];
 	int ret, i;
 
-	if (copy_from_user(&buts, arg, sizeof(buts)))
-		return -EFAULT;
-
-	if (!buts.buf_size || !buts.buf_nr)
+	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
 
-	strcpy(buts.name, bdevname(bdev, b));
+	strcpy(buts->name, bdevname(bdev, b));
 
 	/*
 	 * some device names have larger paths - convert the slashes
 	 * to underscores for this to work as expected
 	 */
-	for (i = 0; i < strlen(buts.name); i++)
-		if (buts.name[i] == '/')
-			buts.name[i] = '_';
-
-	if (copy_to_user(arg, &buts, sizeof(buts)))
-		return -EFAULT;
+	for (i = 0; i < strlen(buts->name); i++)
+		if (buts->name[i] == '/')
+			buts->name[i] = '_';
 
 	ret = -ENOMEM;
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
@@ -350,7 +343,7 @@ static int blk_trace_setup(request_queue_t *q, struct block_device *bdev,
 		goto err;
 
 	ret = -ENOENT;
-	dir = blk_create_tree(buts.name);
+	dir = blk_create_tree(buts->name);
 	if (!dir)
 		goto err;
 
@@ -363,20 +356,21 @@ static int blk_trace_setup(request_queue_t *q, struct block_device *bdev,
 	if (!bt->dropped_file)
 		goto err;
 
-	bt->rchan = relay_open("trace", dir, buts.buf_size, buts.buf_nr, &blk_relay_callbacks, bt);
+	bt->rchan = relay_open("trace", dir, buts->buf_size,
+				buts->buf_nr, &blk_relay_callbacks, bt);
 	if (!bt->rchan)
 		goto err;
 
-	bt->act_mask = buts.act_mask;
+	bt->act_mask = buts->act_mask;
 	if (!bt->act_mask)
 		bt->act_mask = (u16) -1;
 
-	bt->start_lba = buts.start_lba;
-	bt->end_lba = buts.end_lba;
+	bt->start_lba = buts->start_lba;
+	bt->end_lba = buts->end_lba;
 	if (!bt->end_lba)
 		bt->end_lba = -1ULL;
 
-	bt->pid = buts.pid;
+	bt->pid = buts->pid;
 	bt->trace_state = Blktrace_setup;
 
 	ret = -EBUSY;
@@ -401,7 +395,27 @@ err:
 	return ret;
 }
 
-static int blk_trace_startstop(request_queue_t *q, int start)
+static int blk_trace_setup(struct request_queue *q, struct block_device *bdev,
+			   char __user *arg)
+{
+	struct blk_user_trace_setup buts;
+	int ret;
+
+	ret = copy_from_user(&buts, arg, sizeof(buts));
+	if (ret)
+		return -EFAULT;
+
+	ret = do_blk_trace_setup(q, bdev, &buts);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(arg, &buts, sizeof(buts)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int blk_trace_startstop(struct request_queue *q, int start)
 {
 	struct blk_trace *bt;
 	int ret;
@@ -444,7 +458,7 @@ static int blk_trace_startstop(request_queue_t *q, int start)
  **/
 int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 {
-	request_queue_t *q;
+	struct request_queue *q;
 	int ret, start = 0;
 
 	q = bdev_get_queue(bdev);
@@ -479,7 +493,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
  * @q:    the request queue associated with the device
  *
  **/
-void blk_trace_shutdown(request_queue_t *q)
+void blk_trace_shutdown(struct request_queue *q)
 {
 	if (q->blk_trace) {
 		blk_trace_startstop(q, 0);
@@ -488,17 +502,17 @@ void blk_trace_shutdown(request_queue_t *q)
 }
 
 /*
- * Average offset over two calls to sched_clock() with a gettimeofday()
+ * Average offset over two calls to cpu_clock() with a gettimeofday()
  * in the middle
  */
-static void blk_check_time(unsigned long long *t)
+static void blk_check_time(unsigned long long *t, int this_cpu)
 {
 	unsigned long long a, b;
 	struct timeval tv;
 
-	a = sched_clock();
+	a = cpu_clock(this_cpu);
 	do_gettimeofday(&tv);
-	b = sched_clock();
+	b = cpu_clock(this_cpu);
 
 	*t = tv.tv_sec * 1000000000 + tv.tv_usec * 1000;
 	*t -= (a + b) / 2;
@@ -510,16 +524,16 @@ static void blk_check_time(unsigned long long *t)
 static void blk_trace_check_cpu_time(void *data)
 {
 	unsigned long long *t;
-	int cpu = get_cpu();
+	int this_cpu = get_cpu();
 
-	t = &per_cpu(blk_trace_cpu_offset, cpu);
+	t = &per_cpu(blk_trace_cpu_offset, this_cpu);
 
 	/*
 	 * Just call it twice, hopefully the second call will be cache hot
 	 * and a little more precise
 	 */
-	blk_check_time(t);
-	blk_check_time(t);
+	blk_check_time(t, this_cpu);
+	blk_check_time(t, this_cpu);
 
 	put_cpu();
 }

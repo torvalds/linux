@@ -79,12 +79,19 @@ static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 
 	while (dp) {
 		struct sparc_isa_device *isa_dev;
+		struct dev_archdata *sd;
 
 		isa_dev = kzalloc(sizeof(*isa_dev), GFP_KERNEL);
 		if (!isa_dev) {
 			printk(KERN_DEBUG "ISA: cannot allocate isa_dev");
 			return;
 		}
+
+		sd = &isa_dev->ofdev.dev.archdata;
+		sd->prom_node = dp;
+		sd->op = &isa_dev->ofdev;
+		sd->iommu = isa_br->ofdev.dev.parent->archdata.iommu;
+		sd->stc = isa_br->ofdev.dev.parent->archdata.stc;
 
 		isa_dev->ofdev.node = dp;
 		isa_dev->ofdev.dev.parent = &isa_br->ofdev.dev;

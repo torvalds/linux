@@ -132,6 +132,8 @@ struct netlbl_lsm_secattr_catmap {
 #define NETLBL_SECATTR_CACHE            0x00000002
 #define NETLBL_SECATTR_MLS_LVL          0x00000004
 #define NETLBL_SECATTR_MLS_CAT          0x00000008
+#define NETLBL_SECATTR_CACHEABLE        (NETLBL_SECATTR_MLS_LVL | \
+					 NETLBL_SECATTR_MLS_CAT)
 struct netlbl_lsm_secattr {
 	u32 flags;
 
@@ -144,9 +146,8 @@ struct netlbl_lsm_secattr {
 };
 
 /*
- * LSM security attribute operations
+ * LSM security attribute operations (inline)
  */
-
 
 /**
  * netlbl_secattr_cache_alloc - Allocate and initialize a secattr cache
@@ -283,6 +284,9 @@ static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr)
 }
 
 #ifdef CONFIG_NETLABEL
+/*
+ * LSM security attribute operations
+ */
 int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
 			       u32 offset);
 int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
@@ -294,6 +298,25 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
 				 u32 start,
 				 u32 end,
 				 gfp_t flags);
+
+/*
+ * LSM protocol operations
+ */
+int netlbl_enabled(void);
+int netlbl_sock_setattr(struct sock *sk,
+			const struct netlbl_lsm_secattr *secattr);
+int netlbl_sock_getattr(struct sock *sk,
+			struct netlbl_lsm_secattr *secattr);
+int netlbl_skbuff_getattr(const struct sk_buff *skb,
+			  struct netlbl_lsm_secattr *secattr);
+void netlbl_skbuff_err(struct sk_buff *skb, int error);
+
+/*
+ * LSM label mapping cache operations
+ */
+void netlbl_cache_invalidate(void);
+int netlbl_cache_add(const struct sk_buff *skb,
+		     const struct netlbl_lsm_secattr *secattr);
 #else
 static inline int netlbl_secattr_catmap_walk(
 	                              struct netlbl_lsm_secattr_catmap *catmap,
@@ -301,14 +324,12 @@ static inline int netlbl_secattr_catmap_walk(
 {
 	return -ENOENT;
 }
-
 static inline int netlbl_secattr_catmap_walk_rng(
 				      struct netlbl_lsm_secattr_catmap *catmap,
 				      u32 offset)
 {
 	return -ENOENT;
 }
-
 static inline int netlbl_secattr_catmap_setbit(
 	                              struct netlbl_lsm_secattr_catmap *catmap,
 				      u32 bit,
@@ -316,7 +337,6 @@ static inline int netlbl_secattr_catmap_setbit(
 {
 	return 0;
 }
-
 static inline int netlbl_secattr_catmap_setrng(
 	                              struct netlbl_lsm_secattr_catmap *catmap,
 				      u32 start,
@@ -325,59 +345,33 @@ static inline int netlbl_secattr_catmap_setrng(
 {
 	return 0;
 }
-#endif
-
-/*
- * LSM protocol operations
- */
-
-#ifdef CONFIG_NETLABEL
-int netlbl_sock_setattr(struct sock *sk,
-			const struct netlbl_lsm_secattr *secattr);
-int netlbl_sock_getattr(struct sock *sk,
-			struct netlbl_lsm_secattr *secattr);
-int netlbl_skbuff_getattr(const struct sk_buff *skb,
-			  struct netlbl_lsm_secattr *secattr);
-void netlbl_skbuff_err(struct sk_buff *skb, int error);
-#else
+static inline int netlbl_enabled(void)
+{
+	return 0;
+}
 static inline int netlbl_sock_setattr(struct sock *sk,
 				     const struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
 }
-
 static inline int netlbl_sock_getattr(struct sock *sk,
 				      struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
 }
-
 static inline int netlbl_skbuff_getattr(const struct sk_buff *skb,
 					struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
 }
-
 static inline void netlbl_skbuff_err(struct sk_buff *skb, int error)
 {
 	return;
 }
-#endif /* CONFIG_NETLABEL */
-
-/*
- * LSM label mapping cache operations
- */
-
-#ifdef CONFIG_NETLABEL
-void netlbl_cache_invalidate(void);
-int netlbl_cache_add(const struct sk_buff *skb,
-		     const struct netlbl_lsm_secattr *secattr);
-#else
 static inline void netlbl_cache_invalidate(void)
 {
 	return;
 }
-
 static inline int netlbl_cache_add(const struct sk_buff *skb,
 				   const struct netlbl_lsm_secattr *secattr)
 {

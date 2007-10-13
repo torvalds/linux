@@ -116,11 +116,26 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type* ptype, struct net_device *orig_dev)
 {
 	unsigned char *rawp = NULL;
-	struct vlan_hdr *vhdr = (struct vlan_hdr *)(skb->data);
+	struct vlan_hdr *vhdr;
 	unsigned short vid;
 	struct net_device_stats *stats;
 	unsigned short vlan_TCI;
 	__be16 proto;
+
+	if (dev->nd_net != &init_net) {
+		kfree_skb(skb);
+		return -1;
+	}
+
+	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+		return -1;
+
+	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN))) {
+		kfree_skb(skb);
+		return -1;
+	}
+
+	vhdr = (struct vlan_hdr *)(skb->data);
 
 	/* vlan_TCI = ntohs(get_unaligned(&vhdr->h_vlan_TCI)); */
 	vlan_TCI = ntohs(vhdr->h_vlan_TCI);
@@ -328,8 +343,8 @@ static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev
  *  physical devices.
  */
 int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
-			 unsigned short type, void *daddr, void *saddr,
-			 unsigned len)
+			 unsigned short type,
+			 const void *daddr, const void *saddr, unsigned len)
 {
 	struct vlan_hdr *vhdr;
 	unsigned short veth_TCI = 0;
@@ -419,21 +434,19 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 	if (build_vlan_header) {
 		/* Now make the underlying real hard header */
-		rc = dev->hard_header(skb, dev, ETH_P_8021Q, daddr, saddr, len + VLAN_HLEN);
-
-		if (rc > 0) {
+		rc = dev_hard_header(skb, dev, ETH_P_8021Q, daddr, saddr,
+				     len + VLAN_HLEN);
+		if (rc > 0)
 			rc += VLAN_HLEN;
-		} else if (rc < 0) {
+		else if (rc < 0)
 			rc -= VLAN_HLEN;
-		}
-	} else {
+	} else
 		/* If here, then we'll just make a normal looking ethernet frame,
 		 * but, the hard_start_xmit method will insert the tag (it has to
 		 * be able to do this for bridged and other skbs that don't come
 		 * down the protocol stack in an orderly manner.
 		 */
-		rc = dev->hard_header(skb, dev, type, daddr, saddr, len);
-	}
+		rc = dev_hard_header(skb, dev, type, daddr, saddr, len);
 
 	return rc;
 }
@@ -668,9 +681,6 @@ int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (real_dev->do_ioctl && netif_device_present(real_dev))
 			err = real_dev->do_ioctl(real_dev, &ifrr, cmd);
 		break;
-
-	case SIOCETHTOOL:
-		err = dev_ethtool(&ifrr);
 	}
 
 	if (!err)

@@ -328,7 +328,7 @@ int __init st40pci_init(unsigned memStart, unsigned memSize)
 	return 1;
 }
 
-char * __init pcibios_setup(char *str)
+char * __devinit pcibios_setup(char *str)
 {
 	return str;
 }

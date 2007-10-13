@@ -47,7 +47,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/tty.h>
 #include <net/icmp.h>
-#include <net/ip.h>		/* for sysctl_local_port_range[] */
+#include <net/ip.h>		/* for local_port_range[] */
 #include <net/tcp.h>		/* struct or_callable used in sock_rcv_skb */
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -316,6 +316,7 @@ static inline int inode_doinit(struct inode *inode)
 }
 
 enum {
+	Opt_error = -1,
 	Opt_context = 1,
 	Opt_fscontext = 2,
 	Opt_defcontext = 4,
@@ -327,6 +328,7 @@ static match_table_t tokens = {
 	{Opt_fscontext, "fscontext=%s"},
 	{Opt_defcontext, "defcontext=%s"},
 	{Opt_rootcontext, "rootcontext=%s"},
+	{Opt_error, NULL},
 };
 
 #define SEL_MOUNT_FAIL_MSG "SELinux:  duplicate or incompatible mount options\n"
@@ -1584,7 +1586,7 @@ static int selinux_syslog(int type)
  * Do not audit the selinux permission check, as this is applied to all
  * processes that allocate mappings.
  */
-static int selinux_vm_enough_memory(long pages)
+static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	int rc, cap_sys_admin = 0;
 	struct task_security_struct *tsec = current->security;
@@ -1600,7 +1602,7 @@ static int selinux_vm_enough_memory(long pages)
 	if (rc == 0)
 		cap_sys_admin = 1;
 
-	return __vm_enough_memory(pages, cap_sys_admin);
+	return __vm_enough_memory(mm, pages, cap_sys_admin);
 }
 
 /* binprm security operations */
@@ -1906,6 +1908,9 @@ static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 	}
+
+	/* Always clear parent death signal on SID transitions. */
+	current->pdeath_signal = 0;
 
 	/* Check whether the new SID can inherit resource limits
 	   from the old SID.  If not, reset all soft limits to
@@ -3129,17 +3134,19 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 /**
  * selinux_skb_extlbl_sid - Determine the external label of a packet
  * @skb: the packet
- * @base_sid: the SELinux SID to use as a context for MLS only external labels
  * @sid: the packet's SID
  *
  * Description:
  * Check the various different forms of external packet labeling and determine
- * the external SID for the packet.
+ * the external SID for the packet.  If only one form of external labeling is
+ * present then it is used, if both labeled IPsec and NetLabel labels are
+ * present then the SELinux type information is taken from the labeled IPsec
+ * SA and the MLS sensitivity label information is taken from the NetLabel
+ * security attributes.  This bit of "magic" is done in the call to
+ * selinux_netlbl_skbuff_getsid().
  *
  */
-static void selinux_skb_extlbl_sid(struct sk_buff *skb,
-				   u32 base_sid,
-				   u32 *sid)
+static void selinux_skb_extlbl_sid(struct sk_buff *skb, u32 *sid)
 {
 	u32 xfrm_sid;
 	u32 nlbl_sid;
@@ -3147,10 +3154,9 @@ static void selinux_skb_extlbl_sid(struct sk_buff *skb,
 	selinux_skb_xfrm_sid(skb, &xfrm_sid);
 	if (selinux_netlbl_skbuff_getsid(skb,
 					 (xfrm_sid == SECSID_NULL ?
-					  base_sid : xfrm_sid),
+					  SECINITSID_NETMSG : xfrm_sid),
 					 &nlbl_sid) != 0)
 		nlbl_sid = SECSID_NULL;
-
 	*sid = (nlbl_sid == SECSID_NULL ? xfrm_sid : nlbl_sid);
 }
 
@@ -3226,8 +3232,6 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 /* Range of port numbers used to automatically bind.
    Need to determine whether we should perform a name_bind
    permission check between the socket and the port number. */
-#define ip_local_port_range_0 sysctl_local_port_range[0]
-#define ip_local_port_range_1 sysctl_local_port_range[1]
 
 static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen)
 {
@@ -3270,20 +3274,27 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			addrp = (char *)&addr6->sin6_addr.s6_addr;
 		}
 
-		if (snum&&(snum < max(PROT_SOCK,ip_local_port_range_0) ||
-			   snum > ip_local_port_range_1)) {
-			err = security_port_sid(sk->sk_family, sk->sk_type,
-						sk->sk_protocol, snum, &sid);
-			if (err)
-				goto out;
-			AVC_AUDIT_DATA_INIT(&ad,NET);
-			ad.u.net.sport = htons(snum);
-			ad.u.net.family = family;
-			err = avc_has_perm(isec->sid, sid,
-					   isec->sclass,
-					   SOCKET__NAME_BIND, &ad);
-			if (err)
-				goto out;
+		if (snum) {
+			int low, high;
+
+			inet_get_local_port_range(&low, &high);
+
+			if (snum < max(PROT_SOCK, low) || snum > high) {
+				err = security_port_sid(sk->sk_family,
+							sk->sk_type,
+							sk->sk_protocol, snum,
+							&sid);
+				if (err)
+					goto out;
+				AVC_AUDIT_DATA_INIT(&ad,NET);
+				ad.u.net.sport = htons(snum);
+				ad.u.net.family = family;
+				err = avc_has_perm(isec->sid, sid,
+						   isec->sclass,
+						   SOCKET__NAME_BIND, &ad);
+				if (err)
+					goto out;
+			}
 		}
 		
 		switch(isec->sclass) {
@@ -3695,7 +3706,7 @@ static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *
 	if (sock && sock->sk->sk_family == PF_UNIX)
 		selinux_get_inode_sid(SOCK_INODE(sock), &peer_secid);
 	else if (skb)
-		selinux_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &peer_secid);
+		selinux_skb_extlbl_sid(skb, &peer_secid);
 
 	if (peer_secid == SECSID_NULL)
 		err = -EINVAL;
@@ -3756,7 +3767,7 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	u32 newsid;
 	u32 peersid;
 
-	selinux_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &peersid);
+	selinux_skb_extlbl_sid(skb, &peersid);
 	if (peersid == SECSID_NULL) {
 		req->secid = sksec->sid;
 		req->peer_secid = SECSID_NULL;
@@ -3794,7 +3805,7 @@ static void selinux_inet_conn_established(struct sock *sk,
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	selinux_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &sksec->peer_sid);
+	selinux_skb_extlbl_sid(skb, &sksec->peer_sid);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
@@ -4657,8 +4668,7 @@ static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 
 static void selinux_release_secctx(char *secdata, u32 seclen)
 {
-	if (secdata)
-		kfree(secdata);
+	kfree(secdata);
 }
 
 #ifdef CONFIG_KEYS
@@ -4912,7 +4922,7 @@ static __init int selinux_init(void)
 
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),
-					    0, SLAB_PANIC, NULL, NULL);
+					    0, SLAB_PANIC, NULL);
 	avc_init();
 
 	original_ops = secondary_ops = security_ops;

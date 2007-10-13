@@ -32,13 +32,13 @@ _lzo1x_1_do_compress(const unsigned char *in, size_t in_len,
 	ip += 4;
 
 	for (;;) {
-		dindex = ((0x21 * DX3(ip, 5, 5, 6)) >> 5) & D_MASK;
+		dindex = ((size_t)(0x21 * DX3(ip, 5, 5, 6)) >> 5) & D_MASK;
 		m_pos = dict[dindex];
 
 		if (m_pos < in)
 			goto literal;
 
-		if (ip == m_pos || (ip - m_pos) > M4_MAX_OFFSET)
+		if (ip == m_pos || ((size_t)(ip - m_pos) > M4_MAX_OFFSET))
 			goto literal;
 
 		m_off = ip - m_pos;
@@ -51,7 +51,7 @@ _lzo1x_1_do_compress(const unsigned char *in, size_t in_len,
 		if (m_pos < in)
 			goto literal;
 
-		if (ip == m_pos || (ip - m_pos) > M4_MAX_OFFSET)
+		if (ip == m_pos || ((size_t)(ip - m_pos) > M4_MAX_OFFSET))
 			goto literal;
 
 		m_off = ip - m_pos;

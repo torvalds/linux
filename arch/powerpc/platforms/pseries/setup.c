@@ -257,11 +257,6 @@ static void __init pSeries_setup_arch(void)
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000;
 
-	if (ROOT_DEV == 0) {
-		printk("No ramdisk, default root is /dev/sda2\n");
-		ROOT_DEV = Root_SDA2;
-	}
-
 	fwnmi_init();
 
 	/* Find and initialize PCI host bridges */
@@ -320,8 +315,6 @@ static void __init pSeries_init_early(void)
 {
 	DBG(" -> pSeries_init_early()\n");
 
-	fw_feature_init();
-
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		find_udbg_vterm();
 
@@ -343,14 +336,21 @@ static int __init pSeries_probe_hypertas(unsigned long node,
 					 const char *uname, int depth,
 					 void *data)
 {
+	const char *hypertas;
+	unsigned long len;
+
 	if (depth != 1 ||
 	    (strcmp(uname, "rtas") != 0 && strcmp(uname, "rtas@0") != 0))
- 		return 0;
+		return 0;
 
-	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL) != NULL)
- 		powerpc_firmware_features |= FW_FEATURE_LPAR;
+	hypertas = of_get_flat_dt_prop(node, "ibm,hypertas-functions", &len);
+	if (!hypertas)
+		return 1;
 
- 	return 1;
+	powerpc_firmware_features |= FW_FEATURE_LPAR;
+	fw_feature_init(hypertas, len);
+
+	return 1;
 }
 
 static int __init pSeries_probe(void)

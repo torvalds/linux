@@ -109,8 +109,8 @@ enum ib_sa_selector {
  * Reserved rows are indicated with comments to help maintainability.
  */
 
-/* reserved:								 0 */
-/* reserved:								 1 */
+#define IB_SA_PATH_REC_SERVICE_ID		       (IB_SA_COMP_MASK( 0) |\
+							IB_SA_COMP_MASK( 1))
 #define IB_SA_PATH_REC_DGID				IB_SA_COMP_MASK( 2)
 #define IB_SA_PATH_REC_SGID				IB_SA_COMP_MASK( 3)
 #define IB_SA_PATH_REC_DLID				IB_SA_COMP_MASK( 4)
@@ -123,7 +123,7 @@ enum ib_sa_selector {
 #define IB_SA_PATH_REC_REVERSIBLE			IB_SA_COMP_MASK(11)
 #define IB_SA_PATH_REC_NUMB_PATH			IB_SA_COMP_MASK(12)
 #define IB_SA_PATH_REC_PKEY				IB_SA_COMP_MASK(13)
-/* reserved:								14 */
+#define IB_SA_PATH_REC_QOS_CLASS			IB_SA_COMP_MASK(14)
 #define IB_SA_PATH_REC_SL				IB_SA_COMP_MASK(15)
 #define IB_SA_PATH_REC_MTU_SELECTOR			IB_SA_COMP_MASK(16)
 #define IB_SA_PATH_REC_MTU				IB_SA_COMP_MASK(17)
@@ -134,8 +134,7 @@ enum ib_sa_selector {
 #define IB_SA_PATH_REC_PREFERENCE			IB_SA_COMP_MASK(22)
 
 struct ib_sa_path_rec {
-	/* reserved */
-	/* reserved */
+	__be64       service_id;
 	union ib_gid dgid;
 	union ib_gid sgid;
 	__be16       dlid;
@@ -148,7 +147,7 @@ struct ib_sa_path_rec {
 	int          reversible;
 	u8           numb_path;
 	__be16       pkey;
-	/* reserved */
+	__be16       qos_class;
 	u8           sl;
 	u8           mtu_selector;
 	u8           mtu;

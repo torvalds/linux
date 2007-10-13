@@ -509,7 +509,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	for (nreq = 0; wr; wr = wr->next) {
 		ind = srq->first_free;
 
-		if (ind < 0) {
+		if (unlikely(ind < 0)) {
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
@@ -519,7 +519,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		wqe       = get_wqe(srq, ind);
 		next_ind  = *wqe_to_link(wqe);
 
-		if (next_ind < 0) {
+		if (unlikely(next_ind < 0)) {
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
@@ -543,20 +543,12 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		}
 
 		for (i = 0; i < wr->num_sge; ++i) {
-			((struct mthca_data_seg *) wqe)->byte_count =
-				cpu_to_be32(wr->sg_list[i].length);
-			((struct mthca_data_seg *) wqe)->lkey =
-				cpu_to_be32(wr->sg_list[i].lkey);
-			((struct mthca_data_seg *) wqe)->addr =
-				cpu_to_be64(wr->sg_list[i].addr);
+			mthca_set_data_seg(wqe, wr->sg_list + i);
 			wqe += sizeof (struct mthca_data_seg);
 		}
 
-		if (i < srq->max_gs) {
-			((struct mthca_data_seg *) wqe)->byte_count = 0;
-			((struct mthca_data_seg *) wqe)->lkey = cpu_to_be32(MTHCA_INVAL_LKEY);
-			((struct mthca_data_seg *) wqe)->addr = 0;
-		}
+		if (i < srq->max_gs)
+			mthca_set_data_seg_inval(wqe);
 
 		((struct mthca_next_seg *) prev_wqe)->nda_op =
 			cpu_to_be32((ind << srq->wqe_shift) | 1);
@@ -631,7 +623,7 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		ind = srq->first_free;
 
-		if (ind < 0) {
+		if (unlikely(ind < 0)) {
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
@@ -641,7 +633,7 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		wqe       = get_wqe(srq, ind);
 		next_ind  = *wqe_to_link(wqe);
 
-		if (next_ind < 0) {
+		if (unlikely(next_ind < 0)) {
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
@@ -662,20 +654,12 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		}
 
 		for (i = 0; i < wr->num_sge; ++i) {
-			((struct mthca_data_seg *) wqe)->byte_count =
-				cpu_to_be32(wr->sg_list[i].length);
-			((struct mthca_data_seg *) wqe)->lkey =
-				cpu_to_be32(wr->sg_list[i].lkey);
-			((struct mthca_data_seg *) wqe)->addr =
-				cpu_to_be64(wr->sg_list[i].addr);
+			mthca_set_data_seg(wqe, wr->sg_list + i);
 			wqe += sizeof (struct mthca_data_seg);
 		}
 
-		if (i < srq->max_gs) {
-			((struct mthca_data_seg *) wqe)->byte_count = 0;
-			((struct mthca_data_seg *) wqe)->lkey = cpu_to_be32(MTHCA_INVAL_LKEY);
-			((struct mthca_data_seg *) wqe)->addr = 0;
-		}
+		if (i < srq->max_gs)
+			mthca_set_data_seg_inval(wqe);
 
 		srq->wrid[ind]  = wr->wr_id;
 		srq->first_free = next_ind;

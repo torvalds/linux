@@ -102,7 +102,7 @@ static inline int __init mips_sc_probe(void)
 
 int __init mips_sc_init(void)
 {
-	int found = mips_sc_probe ();
+	int found = mips_sc_probe();
 	if (found) {
 		mips_sc_enable();
 		bcops = &mips_sc_ops;

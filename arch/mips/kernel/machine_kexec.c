@@ -14,7 +14,7 @@
 #include <asm/page.h>
 
 extern const unsigned char relocate_new_kernel[];
-extern const unsigned int relocate_new_kernel_size;
+extern const size_t relocate_new_kernel_size;
 
 extern unsigned long kexec_start_address;
 extern unsigned long kexec_indirection_page;
@@ -40,6 +40,8 @@ machine_crash_shutdown(struct pt_regs *regs)
 {
 }
 
+typedef void (*noretfun_t)(void) __attribute__((noreturn));
+
 void
 machine_kexec(struct kimage *image)
 {
@@ -51,7 +53,8 @@ machine_kexec(struct kimage *image)
 	  (unsigned long)page_address(image->control_code_page);
 
 	kexec_start_address = image->start;
-	kexec_indirection_page = phys_to_virt(image->head & PAGE_MASK);
+	kexec_indirection_page =
+		(unsigned long) phys_to_virt(image->head & PAGE_MASK);
 
 	memcpy((void*)reboot_code_buffer, relocate_new_kernel,
 	       relocate_new_kernel_size);
@@ -67,7 +70,7 @@ machine_kexec(struct kimage *image)
 	       phys_to_virt(entry & PAGE_MASK) : ptr + 1) {
 		if (*ptr & IND_SOURCE || *ptr & IND_INDIRECTION ||
 		    *ptr & IND_DESTINATION)
-			*ptr = phys_to_virt(*ptr);
+			*ptr = (unsigned long) phys_to_virt(*ptr);
 	}
 
 	/*
@@ -75,11 +78,8 @@ machine_kexec(struct kimage *image)
 	 */
 	local_irq_disable();
 
-	flush_icache_range(reboot_code_buffer,
-			   reboot_code_buffer + KEXEC_CONTROL_CODE_SIZE);
-
-	printk("Will call new kernel at %08x\n", image->start);
+	printk("Will call new kernel at %08lx\n", image->start);
 	printk("Bye ...\n");
-	flush_cache_all();
-	((void (*)(void))reboot_code_buffer)();
+	__flush_cache_all();
+	((noretfun_t) reboot_code_buffer)();
 }

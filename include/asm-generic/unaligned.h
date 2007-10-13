@@ -79,24 +79,24 @@ static inline void __ustw(__u16 val, __u16 *addr)
 
 #define __get_unaligned(ptr, size) ({		\
 	const void *__gu_p = ptr;		\
-	__u64 val;				\
+	__u64 __val;				\
 	switch (size) {				\
 	case 1:					\
-		val = *(const __u8 *)__gu_p;	\
+		__val = *(const __u8 *)__gu_p;	\
 		break;				\
 	case 2:					\
-		val = __uldw(__gu_p);		\
+		__val = __uldw(__gu_p);		\
 		break;				\
 	case 4:					\
-		val = __uldl(__gu_p);		\
+		__val = __uldl(__gu_p);		\
 		break;				\
 	case 8:					\
-		val = __uldq(__gu_p);		\
+		__val = __uldq(__gu_p);		\
 		break;				\
 	default:				\
 		bad_unaligned_access_length();	\
 	};					\
-	(__force __typeof__(*(ptr)))val;	\
+	(__force __typeof__(*(ptr)))__val;	\
 })
 
 #define __put_unaligned(val, ptr, size)		\

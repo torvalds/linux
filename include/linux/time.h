@@ -4,6 +4,7 @@
 #include <linux/types.h>
 
 #ifdef __KERNEL__
+# include <linux/cache.h>
 # include <linux/seqlock.h>
 #endif
 
@@ -94,17 +95,15 @@ extern struct timespec wall_to_monotonic;
 extern seqlock_t xtime_lock __attribute__((weak));
 
 extern unsigned long read_persistent_clock(void);
+extern int update_persistent_clock(struct timespec now);
+extern int no_sync_cmos_clock __read_mostly;
 void timekeeping_init(void);
 
-static inline unsigned long get_seconds(void)
-{
-	return xtime.tv_sec;
-}
-
+unsigned long get_seconds(void);
 struct timespec current_kernel_time(void);
 
 #define CURRENT_TIME		(current_kernel_time())
-#define CURRENT_TIME_SEC	((struct timespec) { xtime.tv_sec, 0 })
+#define CURRENT_TIME_SEC	((struct timespec) { get_seconds(), 0 })
 
 extern void do_gettimeofday(struct timeval *tv);
 extern int do_settimeofday(struct timespec *tv);

@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_serverworks"
-#define DRV_VERSION "0.4.1"
+#define DRV_VERSION "0.4.2"
 
 #define SVWKS_CSB5_REVISION_NEW	0x92 /* min PCI_REVISION_ID for UDMA5 (A2.0) */
 #define SVWKS_CSB6_REVISION	0xa0 /* min PCI_REVISION_ID for UDMA4 (A1.0) */
@@ -318,7 +318,6 @@ static struct scsi_host_template serverworks_sht = {
 };
 
 static struct ata_port_operations serverworks_osb4_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= serverworks_set_piomode,
 	.set_dmamode	= serverworks_set_dmamode,
 	.mode_filter	= serverworks_osb4_filter,
@@ -348,13 +347,11 @@ static struct ata_port_operations serverworks_osb4_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static struct ata_port_operations serverworks_csb_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= serverworks_set_piomode,
 	.set_dmamode	= serverworks_set_dmamode,
 	.mode_filter	= serverworks_csb_filter,
@@ -384,9 +381,8 @@ static struct ata_port_operations serverworks_csb_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static int serverworks_fixup_osb4(struct pci_dev *pdev)

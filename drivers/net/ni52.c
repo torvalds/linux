@@ -382,8 +382,6 @@ struct net_device * __init ni52_probe(int unit)
 		memend = dev->mem_end;
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	if (io > 0x1ff)	{	/* Check a single specified location. */
 		err = ni52_probe1(dev, io);
 	} else if (io > 0) {		/* Don't probe at all. */

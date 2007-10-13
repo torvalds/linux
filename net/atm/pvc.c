@@ -124,10 +124,13 @@ static const struct proto_ops pvc_proto_ops = {
 };
 
 
-static int pvc_create(struct socket *sock,int protocol)
+static int pvc_create(struct net *net, struct socket *sock,int protocol)
 {
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
+
 	sock->ops = &pvc_proto_ops;
-	return vcc_create(sock, protocol, PF_ATMPVC);
+	return vcc_create(net, sock, protocol, PF_ATMPVC);
 }
 
 

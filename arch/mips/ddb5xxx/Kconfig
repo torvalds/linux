@@ -1,4 +1,0 @@
-config DDB5477_BUS_FREQUENCY
-	int "bus frequency (in kHZ, 0 for auto-detect)"
-	depends on DDB5477
-	default 0

@@ -43,7 +43,7 @@
 #include "sis.h"
 
 #define DRV_NAME	"sata_sis"
-#define DRV_VERSION	"0.8"
+#define DRV_VERSION	"1.0"
 
 enum {
 	sis_180			= 0,
@@ -64,8 +64,8 @@ enum {
 };
 
 static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg);
-static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int sis_scr_read (struct ata_port *ap, unsigned int sc_reg, u32 *val);
+static int sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 
 static const struct pci_device_id sis_pci_tbl[] = {
 	{ PCI_VDEVICE(SI, 0x0180), sis_180 },		/* SiS 964/180 */
@@ -104,7 +104,6 @@ static struct scsi_host_template sis_sht = {
 };
 
 static const struct ata_port_operations sis_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -123,7 +122,6 @@ static const struct ata_port_operations sis_ops = {
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 	.scr_read		= sis_scr_read,
 	.scr_write		= sis_scr_write,
 	.port_start		= ata_port_start,
@@ -207,36 +205,37 @@ static void sis_scr_cfg_write (struct ata_port *ap, unsigned int sc_reg, u32 val
 		pci_write_config_dword(pdev, cfg_addr+0x10, val);
 }
 
-static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg)
+static int sis_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 val, val2 = 0;
 	u8 pmr;
 
 	if (sc_reg > SCR_CONTROL)
-		return 0xffffffffU;
+		return -EINVAL;
 
 	if (ap->flags & SIS_FLAG_CFGSCR)
 		return sis_scr_cfg_read(ap, sc_reg);
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 
-	val = ioread32(ap->ioaddr.scr_addr + (sc_reg * 4));
+	*val = ioread32(ap->ioaddr.scr_addr + (sc_reg * 4));
 
 	if ((pdev->device == 0x0182) || (pdev->device == 0x0183) ||
 	    (pdev->device == 0x1182) || (pmr & SIS_PMR_COMBINED))
-		val2 = ioread32(ap->ioaddr.scr_addr + (sc_reg * 4) + 0x10);
+		*val |= ioread32(ap->ioaddr.scr_addr + (sc_reg * 4) + 0x10);
 
-	return (val | val2) &  0xfffffffb;
+	*val &= 0xfffffffb;
+
+	return 0;
 }
 
-static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int sis_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 pmr;
 
 	if (sc_reg > SCR_CONTROL)
-		return;
+		return -EINVAL;
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 
@@ -248,6 +247,7 @@ static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 		    (pdev->device == 0x1182) || (pmr & SIS_PMR_COMBINED))
 			iowrite32(val, ap->ioaddr.scr_addr + (sc_reg * 4)+0x10);
 	}
+	return 0;
 }
 
 static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)

@@ -129,23 +129,25 @@ static struct v4l2_input inputs[4] = {
 
 static int ves1820_writereg(struct saa7146_dev *dev, u8 addr, u8 reg, u8 data)
 {
+	struct av7110 *av7110 = dev->ext_priv;
 	u8 buf[] = { 0x00, reg, data };
 	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = 3 };
 
 	dprintk(4, "dev: %p\n", dev);
 
-	if (1 != saa7146_i2c_transfer(dev, &msg, 1, 1))
+	if (1 != i2c_transfer(&av7110->i2c_adap, &msg, 1))
 		return -1;
 	return 0;
 }
 
 static int tuner_write(struct saa7146_dev *dev, u8 addr, u8 data [4])
 {
+	struct av7110 *av7110 = dev->ext_priv;
 	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = data, .len = 4 };
 
 	dprintk(4, "dev: %p\n", dev);
 
-	if (1 != saa7146_i2c_transfer(dev, &msg, 1, 1))
+	if (1 != i2c_transfer(&av7110->i2c_adap, &msg, 1))
 		return -1;
 	return 0;
 }
@@ -333,7 +335,7 @@ static int av7110_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 			return -EINVAL;
 
 		memset(t, 0, sizeof(*t));
-		strcpy(t->name, "Television");
+		strcpy((char *)t->name, "Television");
 
 		t->type = V4L2_TUNER_ANALOG_TV;
 		t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO |

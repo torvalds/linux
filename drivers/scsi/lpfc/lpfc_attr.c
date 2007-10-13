@@ -68,12 +68,6 @@ lpfc_drvr_version_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-management_version_show(struct class_device *cdev, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, DFC_API_VERSION "\n");
-}
-
-static ssize_t
 lpfc_info_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
@@ -319,9 +313,8 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 			if (cnt++ > 3000) {
 				lpfc_printf_log(phba,
 					KERN_WARNING, LOG_INIT,
-					"%d:0466 Outstanding IO when "
-					"bringing Adapter offline\n",
-					phba->brd_no);
+					"0466 Outstanding IO when "
+					"bringing Adapter offline\n");
 				break;
 			}
 		}
@@ -437,7 +430,7 @@ lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 		return -EIO;
 }
 
-int
+static int
 lpfc_get_hba_info(struct lpfc_hba *phba,
 		  uint32_t *mxri, uint32_t *axri,
 		  uint32_t *mrpi, uint32_t *arpi,
@@ -694,9 +687,8 @@ lpfc_##attr##_init(struct lpfc_hba *phba, int val) \
 		return 0;\
 	}\
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT, \
-			"%d:0449 lpfc_"#attr" attribute cannot be set to %d, "\
-			"allowed range is ["#minval", "#maxval"]\n", \
-			phba->brd_no, val); \
+			"0449 lpfc_"#attr" attribute cannot be set to %d, "\
+			"allowed range is ["#minval", "#maxval"]\n", val); \
 	phba->cfg_##attr = default;\
 	return -EINVAL;\
 }
@@ -710,9 +702,8 @@ lpfc_##attr##_set(struct lpfc_hba *phba, int val) \
 		return 0;\
 	}\
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT, \
-			"%d:0450 lpfc_"#attr" attribute cannot be set to %d, "\
-			"allowed range is ["#minval", "#maxval"]\n", \
-			phba->brd_no, val); \
+			"0450 lpfc_"#attr" attribute cannot be set to %d, "\
+			"allowed range is ["#minval", "#maxval"]\n", val); \
 	return -EINVAL;\
 }
 
@@ -733,6 +724,75 @@ lpfc_##attr##_store(struct class_device *cdev, const char *buf, size_t count) \
 	else \
 		return -EINVAL;\
 }
+
+#define lpfc_vport_param_show(attr)	\
+static ssize_t \
+lpfc_##attr##_show(struct class_device *cdev, char *buf) \
+{ \
+	struct Scsi_Host  *shost = class_to_shost(cdev);\
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
+	int val = 0;\
+	val = vport->cfg_##attr;\
+	return snprintf(buf, PAGE_SIZE, "%d\n", vport->cfg_##attr);\
+}
+
+#define lpfc_vport_param_hex_show(attr)	\
+static ssize_t \
+lpfc_##attr##_show(struct class_device *cdev, char *buf) \
+{ \
+	struct Scsi_Host  *shost = class_to_shost(cdev);\
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
+	int val = 0;\
+	val = vport->cfg_##attr;\
+	return snprintf(buf, PAGE_SIZE, "%#x\n", vport->cfg_##attr);\
+}
+
+#define lpfc_vport_param_init(attr, default, minval, maxval)	\
+static int \
+lpfc_##attr##_init(struct lpfc_vport *vport, int val) \
+{ \
+	if (val >= minval && val <= maxval) {\
+		vport->cfg_##attr = val;\
+		return 0;\
+	}\
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
+			 "0449 lpfc_"#attr" attribute cannot be set to %d, "\
+			 "allowed range is ["#minval", "#maxval"]\n", val); \
+	vport->cfg_##attr = default;\
+	return -EINVAL;\
+}
+
+#define lpfc_vport_param_set(attr, default, minval, maxval)	\
+static int \
+lpfc_##attr##_set(struct lpfc_vport *vport, int val) \
+{ \
+	if (val >= minval && val <= maxval) {\
+		vport->cfg_##attr = val;\
+		return 0;\
+	}\
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
+			 "0450 lpfc_"#attr" attribute cannot be set to %d, "\
+			 "allowed range is ["#minval", "#maxval"]\n", val); \
+	return -EINVAL;\
+}
+
+#define lpfc_vport_param_store(attr)	\
+static ssize_t \
+lpfc_##attr##_store(struct class_device *cdev, const char *buf, size_t count) \
+{ \
+	struct Scsi_Host  *shost = class_to_shost(cdev);\
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;\
+	int val=0;\
+	if (!isdigit(buf[0]))\
+		return -EINVAL;\
+	if (sscanf(buf, "%i", &val) != 1)\
+		return -EINVAL;\
+	if (lpfc_##attr##_set(vport, val) == 0) \
+		return strlen(buf);\
+	else \
+		return -EINVAL;\
+}
+
 
 #define LPFC_ATTR(name, defval, minval, maxval, desc) \
 static int lpfc_##name = defval;\
@@ -778,6 +838,50 @@ lpfc_param_store(name)\
 static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 			 lpfc_##name##_show, lpfc_##name##_store)
 
+#define LPFC_VPORT_ATTR(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_vport_param_init(name, defval, minval, maxval)
+
+#define LPFC_VPORT_ATTR_R(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_vport_param_show(name)\
+lpfc_vport_param_init(name, defval, minval, maxval)\
+static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
+
+#define LPFC_VPORT_ATTR_RW(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_vport_param_show(name)\
+lpfc_vport_param_init(name, defval, minval, maxval)\
+lpfc_vport_param_set(name, defval, minval, maxval)\
+lpfc_vport_param_store(name)\
+static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
+			 lpfc_##name##_show, lpfc_##name##_store)
+
+#define LPFC_VPORT_ATTR_HEX_R(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_vport_param_hex_show(name)\
+lpfc_vport_param_init(name, defval, minval, maxval)\
+static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
+
+#define LPFC_VPORT_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_vport_param_hex_show(name)\
+lpfc_vport_param_init(name, defval, minval, maxval)\
+lpfc_vport_param_set(name, defval, minval, maxval)\
+lpfc_vport_param_store(name)\
+static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
+			 lpfc_##name##_show, lpfc_##name##_store)
+
 static CLASS_DEVICE_ATTR(info, S_IRUGO, lpfc_info_show, NULL);
 static CLASS_DEVICE_ATTR(serialnum, S_IRUGO, lpfc_serialnum_show, NULL);
 static CLASS_DEVICE_ATTR(modeldesc, S_IRUGO, lpfc_modeldesc_show, NULL);
@@ -793,8 +897,6 @@ static CLASS_DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 					lpfc_num_discovered_ports_show, NULL);
 static CLASS_DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
 static CLASS_DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show,
-			 NULL);
-static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
 			 NULL);
 static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 			 lpfc_board_mode_show, lpfc_board_mode_store);
@@ -908,17 +1010,15 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	stat1 = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 	if (stat1)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"%d:0463 lpfc_soft_wwpn attribute set failed to reinit "
-			"adapter - %d\n", phba->brd_no, stat1);
-
+				"0463 lpfc_soft_wwpn attribute set failed to "
+				"reinit adapter - %d\n", stat1);
 	init_completion(&online_compl);
 	lpfc_workq_post_event(phba, &stat2, &online_compl, LPFC_EVT_ONLINE);
 	wait_for_completion(&online_compl);
 	if (stat2)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"%d:0464 lpfc_soft_wwpn attribute set failed to reinit "
-			"adapter - %d\n", phba->brd_no, stat2);
-
+				"0464 lpfc_soft_wwpn attribute set failed to "
+				"reinit adapter - %d\n", stat2);
 	return (stat1 || stat2) ? -EIO : count;
 }
 static CLASS_DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,\
@@ -927,8 +1027,8 @@ static CLASS_DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,\
 static ssize_t
 lpfc_soft_wwnn_show(struct class_device *cdev, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
 			(unsigned long long)phba->cfg_soft_wwnn);
 }
@@ -937,8 +1037,8 @@ lpfc_soft_wwnn_show(struct class_device *cdev, char *buf)
 static ssize_t
 lpfc_soft_wwnn_store(struct class_device *cdev, const char *buf, size_t count)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
-	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	unsigned int i, j, cnt=count;
 	u8 wwnn[8];
 
@@ -1002,7 +1102,7 @@ MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
-LPFC_ATTR_R(npiv_enable, 0, 0, 1, "Enable NPIV functionality");
+LPFC_ATTR_R(enable_npiv, 0, 0, 1, "Enable NPIV functionality");
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
@@ -1019,90 +1119,75 @@ lpfc_nodev_tmo_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host  *shost = class_to_shost(cdev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
 	int val = 0;
-	val = phba->cfg_devloss_tmo;
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			phba->cfg_devloss_tmo);
+	val = vport->cfg_devloss_tmo;
+	return snprintf(buf, PAGE_SIZE, "%d\n",	vport->cfg_devloss_tmo);
 }
 
 static int
-lpfc_nodev_tmo_init(struct lpfc_hba *phba, int val)
+lpfc_nodev_tmo_init(struct lpfc_vport *vport, int val)
 {
-	static int warned;
-	if (phba->cfg_devloss_tmo !=  LPFC_DEF_DEVLOSS_TMO) {
-		phba->cfg_nodev_tmo = phba->cfg_devloss_tmo;
-		if (!warned && val != LPFC_DEF_DEVLOSS_TMO) {
-			warned = 1;
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"%d:0402 Ignoring nodev_tmo module "
-					"parameter because devloss_tmo is"
-					" set.\n",
-					phba->brd_no);
-		}
+	if (vport->cfg_devloss_tmo != LPFC_DEF_DEVLOSS_TMO) {
+		vport->cfg_nodev_tmo = vport->cfg_devloss_tmo;
+		if (val != LPFC_DEF_DEVLOSS_TMO)
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "0402 Ignoring nodev_tmo module "
+					 "parameter because devloss_tmo is "
+					 "set.\n");
 		return 0;
 	}
 
 	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
-		phba->cfg_nodev_tmo = val;
-		phba->cfg_devloss_tmo = val;
+		vport->cfg_nodev_tmo = val;
+		vport->cfg_devloss_tmo = val;
 		return 0;
 	}
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"%d:0400 lpfc_nodev_tmo attribute cannot be set to %d, "
-			"allowed range is [%d, %d]\n",
-			phba->brd_no, val,
-			LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO);
-	phba->cfg_nodev_tmo = LPFC_DEF_DEVLOSS_TMO;
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+			 "0400 lpfc_nodev_tmo attribute cannot be set to"
+			 " %d, allowed range is [%d, %d]\n",
+			 val, LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO);
+	vport->cfg_nodev_tmo = LPFC_DEF_DEVLOSS_TMO;
 	return -EINVAL;
 }
 
 static void
-lpfc_update_rport_devloss_tmo(struct lpfc_hba *phba)
+lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 {
-	struct lpfc_vport *vport;
 	struct Scsi_Host  *shost;
 	struct lpfc_nodelist  *ndlp;
 
-	list_for_each_entry(vport, &phba->port_list, listentry) {
-		shost = lpfc_shost_from_vport(vport);
-		spin_lock_irq(shost->host_lock);
-		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
-			if (ndlp->rport)
-				ndlp->rport->dev_loss_tmo =
-					phba->cfg_devloss_tmo;
-		spin_unlock_irq(shost->host_lock);
-	}
+	shost = lpfc_shost_from_vport(vport);
+	spin_lock_irq(shost->host_lock);
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
+		if (ndlp->rport)
+			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
+	spin_unlock_irq(shost->host_lock);
 }
 
 static int
-lpfc_nodev_tmo_set(struct lpfc_hba *phba, int val)
+lpfc_nodev_tmo_set(struct lpfc_vport *vport, int val)
 {
-	if (phba->dev_loss_tmo_changed ||
-		(lpfc_devloss_tmo != LPFC_DEF_DEVLOSS_TMO)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"%d:0401 Ignoring change to nodev_tmo "
-				"because devloss_tmo is set.\n",
-				phba->brd_no);
+	if (vport->dev_loss_tmo_changed ||
+	    (lpfc_devloss_tmo != LPFC_DEF_DEVLOSS_TMO)) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "0401 Ignoring change to nodev_tmo "
+				 "because devloss_tmo is set.\n");
 		return 0;
 	}
-
 	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
-		phba->cfg_nodev_tmo = val;
-		phba->cfg_devloss_tmo = val;
-		lpfc_update_rport_devloss_tmo(phba);
+		vport->cfg_nodev_tmo = val;
+		vport->cfg_devloss_tmo = val;
+		lpfc_update_rport_devloss_tmo(vport);
 		return 0;
 	}
-
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"%d:0403 lpfc_nodev_tmo attribute cannot be set to %d, "
-			"allowed range is [%d, %d]\n",
-			phba->brd_no, val, LPFC_MIN_DEVLOSS_TMO,
-			LPFC_MAX_DEVLOSS_TMO);
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+			 "0403 lpfc_nodev_tmo attribute cannot be set to"
+			 "%d, allowed range is [%d, %d]\n",
+			 val, LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO);
 	return -EINVAL;
 }
 
-lpfc_param_store(nodev_tmo)
+lpfc_vport_param_store(nodev_tmo)
 
 static CLASS_DEVICE_ATTR(lpfc_nodev_tmo, S_IRUGO | S_IWUSR,
 			 lpfc_nodev_tmo_show, lpfc_nodev_tmo_store);
@@ -1116,29 +1201,28 @@ module_param(lpfc_devloss_tmo, int, 0);
 MODULE_PARM_DESC(lpfc_devloss_tmo,
 		 "Seconds driver will hold I/O waiting "
 		 "for a device to come back");
-lpfc_param_init(devloss_tmo, LPFC_DEF_DEVLOSS_TMO,
-		LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO)
-lpfc_param_show(devloss_tmo)
+lpfc_vport_param_init(devloss_tmo, LPFC_DEF_DEVLOSS_TMO,
+		      LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO)
+lpfc_vport_param_show(devloss_tmo)
 static int
-lpfc_devloss_tmo_set(struct lpfc_hba *phba, int val)
+lpfc_devloss_tmo_set(struct lpfc_vport *vport, int val)
 {
 	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
-		phba->cfg_nodev_tmo = val;
-		phba->cfg_devloss_tmo = val;
-		phba->dev_loss_tmo_changed = 1;
-		lpfc_update_rport_devloss_tmo(phba);
+		vport->cfg_nodev_tmo = val;
+		vport->cfg_devloss_tmo = val;
+		vport->dev_loss_tmo_changed = 1;
+		lpfc_update_rport_devloss_tmo(vport);
 		return 0;
 	}
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"%d:0404 lpfc_devloss_tmo attribute cannot be set to"
-			" %d, allowed range is [%d, %d]\n",
-			phba->brd_no, val, LPFC_MIN_DEVLOSS_TMO,
-			LPFC_MAX_DEVLOSS_TMO);
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+			 "0404 lpfc_devloss_tmo attribute cannot be set to"
+			 " %d, allowed range is [%d, %d]\n",
+			 val, LPFC_MIN_DEVLOSS_TMO, LPFC_MAX_DEVLOSS_TMO);
 	return -EINVAL;
 }
 
-lpfc_param_store(devloss_tmo)
+lpfc_vport_param_store(devloss_tmo)
 static CLASS_DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
 	lpfc_devloss_tmo_show, lpfc_devloss_tmo_store);
 
@@ -1160,14 +1244,15 @@ static CLASS_DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
 # LOG_LIBDFC                    0x2000     LIBDFC events
 # LOG_ALL_MSG                   0xffff     LOG all messages
 */
-LPFC_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffff, "Verbose logging bit-mask");
+LPFC_VPORT_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffff,
+		       "Verbose logging bit-mask");
 
 /*
 # lun_queue_depth:  This parameter is used to limit the number of outstanding
 # commands per FCP LUN. Value range is [1,128]. Default value is 30.
 */
-LPFC_ATTR_R(lun_queue_depth, 30, 1, 128,
-	    "Max number of FCP commands we can queue to a specific LUN");
+LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 128,
+		  "Max number of FCP commands we can queue to a specific LUN");
 
 /*
 # hba_queue_depth:  This parameter is used to limit the number of outstanding
@@ -1188,12 +1273,12 @@ LPFC_ATTR_R(hba_queue_depth, 8192, 32, 8192,
 # are allowed to login to each other.
 # Default value of this parameter is 0.
 */
-LPFC_ATTR_R(peer_port_login, 0, 0, 1,
-	    "Allow peer ports on the same physical port to login to each "
-	    "other.");
+LPFC_VPORT_ATTR_R(peer_port_login, 0, 0, 1,
+		  "Allow peer ports on the same physical port to login to each "
+		  "other.");
 
 /*
-# vport_restrict_login:  This parameter allows/prevents logins
+# restrict_login:  This parameter allows/prevents logins
 # between Virtual Ports and remote initiators.
 # When this parameter is not set (0) Virtual Ports will accept PLOGIs from
 # other initiators and will attempt to PLOGI all remote ports.
@@ -1203,8 +1288,55 @@ LPFC_ATTR_R(peer_port_login, 0, 0, 1,
 # This parameter does not restrict logins to Fabric resident remote ports.
 # Default value of this parameter is 1.
 */
-LPFC_ATTR_RW(vport_restrict_login, 1, 0, 1,
-	    "Restrict virtual ports login to remote initiators.");
+static int lpfc_restrict_login = 1;
+module_param(lpfc_restrict_login, int, 0);
+MODULE_PARM_DESC(lpfc_restrict_login,
+		 "Restrict virtual ports login to remote initiators.");
+lpfc_vport_param_show(restrict_login);
+
+static int
+lpfc_restrict_login_init(struct lpfc_vport *vport, int val)
+{
+	if (val < 0 || val > 1) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "0449 lpfc_restrict_login attribute cannot "
+				 "be set to %d, allowed range is [0, 1]\n",
+				 val);
+		vport->cfg_restrict_login = 1;
+		return -EINVAL;
+	}
+	if (vport->port_type == LPFC_PHYSICAL_PORT) {
+		vport->cfg_restrict_login = 0;
+		return 0;
+	}
+	vport->cfg_restrict_login = val;
+	return 0;
+}
+
+static int
+lpfc_restrict_login_set(struct lpfc_vport *vport, int val)
+{
+	if (val < 0 || val > 1) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "0450 lpfc_restrict_login attribute cannot "
+				 "be set to %d, allowed range is [0, 1]\n",
+				 val);
+		vport->cfg_restrict_login = 1;
+		return -EINVAL;
+	}
+	if (vport->port_type == LPFC_PHYSICAL_PORT && val != 0) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "0468 lpfc_restrict_login must be 0 for "
+				 "Physical ports.\n");
+		vport->cfg_restrict_login = 0;
+		return 0;
+	}
+	vport->cfg_restrict_login = val;
+	return 0;
+}
+lpfc_vport_param_store(restrict_login);
+static CLASS_DEVICE_ATTR(lpfc_restrict_login, S_IRUGO | S_IWUSR,
+			 lpfc_restrict_login_show, lpfc_restrict_login_store);
 
 /*
 # Some disk devices have a "select ID" or "select Target" capability.
@@ -1223,8 +1355,8 @@ LPFC_ATTR_RW(vport_restrict_login, 1, 0, 1,
 # and will not work across a fabric. Also this parameter will take
 # effect only in the case when ALPA map is not available.)
 */
-LPFC_ATTR_R(scan_down, 1, 0, 1,
-	     "Start scanning for devices from highest ALPA to lowest");
+LPFC_VPORT_ATTR_R(scan_down, 1, 0, 1,
+		  "Start scanning for devices from highest ALPA to lowest");
 
 /*
 # lpfc_topology:  link topology for init link
@@ -1255,15 +1387,15 @@ LPFC_ATTR_R(link_speed, 0, 0, 8, "Select link speed");
 # lpfc_fcp_class:  Determines FC class to use for the FCP protocol.
 # Value range is [2,3]. Default value is 3.
 */
-LPFC_ATTR_R(fcp_class, 3, 2, 3,
-	     "Select Fibre Channel class of service for FCP sequences");
+LPFC_VPORT_ATTR_R(fcp_class, 3, 2, 3,
+		  "Select Fibre Channel class of service for FCP sequences");
 
 /*
 # lpfc_use_adisc: Use ADISC for FCP rediscovery instead of PLOGI. Value range
 # is [0,1]. Default value is 0.
 */
-LPFC_ATTR_RW(use_adisc, 0, 0, 1,
-	     "Use ADISC on rediscovery to authenticate FCP devices");
+LPFC_VPORT_ATTR_RW(use_adisc, 0, 0, 1,
+		   "Use ADISC on rediscovery to authenticate FCP devices");
 
 /*
 # lpfc_ack0: Use ACK0, instead of ACK1 for class 2 acknowledgement. Value
@@ -1315,13 +1447,13 @@ LPFC_ATTR_R(multi_ring_type, FC_LLC_SNAP, 1,
 #       2 = support FDMI with attribute of hostname
 # Value range [0,2]. Default value is 0.
 */
-LPFC_ATTR_RW(fdmi_on, 0, 0, 2, "Enable FDMI support");
+LPFC_VPORT_ATTR_RW(fdmi_on, 0, 0, 2, "Enable FDMI support");
 
 /*
 # Specifies the maximum number of ELS cmds we can have outstanding (for
 # discovery). Value range is [1,64]. Default value = 32.
 */
-LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
+LPFC_VPORT_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
 		 "during discovery");
 
 /*
@@ -1329,8 +1461,7 @@ LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
 # Value range is [0,65535]. Default value is 255.
 # NOTE: The SCSI layer might probe all allowed LUN on some old targets.
 */
-LPFC_ATTR_R(max_luns, 255, 0, 65535,
-	     "Maximum allowed LUN");
+LPFC_VPORT_ATTR_R(max_luns, 255, 0, 65535, "Maximum allowed LUN");
 
 /*
 # lpfc_poll_tmo: .Milliseconds driver will wait between polling FCP ring.
@@ -1367,7 +1498,6 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_lpfc_lun_queue_depth,
 	&class_device_attr_lpfc_hba_queue_depth,
 	&class_device_attr_lpfc_peer_port_login,
-	&class_device_attr_lpfc_vport_restrict_login,
 	&class_device_attr_lpfc_nodev_tmo,
 	&class_device_attr_lpfc_devloss_tmo,
 	&class_device_attr_lpfc_fcp_class,
@@ -1383,9 +1513,8 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_lpfc_multi_ring_type,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
-	&class_device_attr_lpfc_npiv_enable,
+	&class_device_attr_lpfc_enable_npiv,
 	&class_device_attr_nport_evt_cnt,
-	&class_device_attr_management_version,
 	&class_device_attr_board_mode,
 	&class_device_attr_max_vpi,
 	&class_device_attr_used_vpi,
@@ -1401,6 +1530,28 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_lpfc_soft_wwnn,
 	&class_device_attr_lpfc_soft_wwpn,
 	&class_device_attr_lpfc_soft_wwn_enable,
+	NULL,
+};
+
+struct class_device_attribute *lpfc_vport_attrs[] = {
+	&class_device_attr_info,
+	&class_device_attr_state,
+	&class_device_attr_num_discovered_ports,
+	&class_device_attr_lpfc_drvr_version,
+
+	&class_device_attr_lpfc_log_verbose,
+	&class_device_attr_lpfc_lun_queue_depth,
+	&class_device_attr_lpfc_nodev_tmo,
+	&class_device_attr_lpfc_devloss_tmo,
+	&class_device_attr_lpfc_hba_queue_depth,
+	&class_device_attr_lpfc_peer_port_login,
+	&class_device_attr_lpfc_restrict_login,
+	&class_device_attr_lpfc_fcp_class,
+	&class_device_attr_lpfc_use_adisc,
+	&class_device_attr_lpfc_fdmi_on,
+	&class_device_attr_lpfc_max_luns,
+	&class_device_attr_nport_evt_cnt,
+	&class_device_attr_npiv_info,
 	NULL,
 };
 
@@ -2243,7 +2394,6 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.get_starget_port_name = lpfc_get_starget_port_name,
 	.show_starget_port_name = 1,
 
-	.issue_fc_host_lip = lpfc_issue_lip,
 	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
@@ -2253,39 +2403,25 @@ struct fc_function_template lpfc_vport_transport_functions = {
 void
 lpfc_get_cfgparam(struct lpfc_hba *phba)
 {
-	lpfc_log_verbose_init(phba, lpfc_log_verbose);
 	lpfc_cr_delay_init(phba, lpfc_cr_delay);
 	lpfc_cr_count_init(phba, lpfc_cr_count);
 	lpfc_multi_ring_support_init(phba, lpfc_multi_ring_support);
 	lpfc_multi_ring_rctl_init(phba, lpfc_multi_ring_rctl);
 	lpfc_multi_ring_type_init(phba, lpfc_multi_ring_type);
-	lpfc_lun_queue_depth_init(phba, lpfc_lun_queue_depth);
-	lpfc_fcp_class_init(phba, lpfc_fcp_class);
-	lpfc_use_adisc_init(phba, lpfc_use_adisc);
 	lpfc_ack0_init(phba, lpfc_ack0);
 	lpfc_topology_init(phba, lpfc_topology);
-	lpfc_scan_down_init(phba, lpfc_scan_down);
 	lpfc_link_speed_init(phba, lpfc_link_speed);
-	lpfc_fdmi_on_init(phba, lpfc_fdmi_on);
-	lpfc_discovery_threads_init(phba, lpfc_discovery_threads);
-	lpfc_max_luns_init(phba, lpfc_max_luns);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
-	lpfc_peer_port_login_init(phba, lpfc_peer_port_login);
-	lpfc_npiv_enable_init(phba, lpfc_npiv_enable);
-	lpfc_vport_restrict_login_init(phba, lpfc_vport_restrict_login);
+	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
-	lpfc_devloss_tmo_init(phba, lpfc_devloss_tmo);
-	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);
 	phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
-
 	/*
 	 * The total number of segments is the configuration value plus 2
 	 * since the IOCB need a command and response bde.
 	 */
 	phba->cfg_sg_seg_cnt = LPFC_SG_SEG_CNT + 2;
-
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated
@@ -2293,9 +2429,24 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
 			sizeof(struct fcp_rsp) +
 			(phba->cfg_sg_seg_cnt * sizeof(struct ulp_bde64));
-
-
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
+	return;
+}
 
+void
+lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
+{
+	lpfc_log_verbose_init(vport, lpfc_log_verbose);
+	lpfc_lun_queue_depth_init(vport, lpfc_lun_queue_depth);
+	lpfc_devloss_tmo_init(vport, lpfc_devloss_tmo);
+	lpfc_nodev_tmo_init(vport, lpfc_nodev_tmo);
+	lpfc_peer_port_login_init(vport, lpfc_peer_port_login);
+	lpfc_restrict_login_init(vport, lpfc_restrict_login);
+	lpfc_fcp_class_init(vport, lpfc_fcp_class);
+	lpfc_use_adisc_init(vport, lpfc_use_adisc);
+	lpfc_fdmi_on_init(vport, lpfc_fdmi_on);
+	lpfc_discovery_threads_init(vport, lpfc_discovery_threads);
+	lpfc_max_luns_init(vport, lpfc_max_luns);
+	lpfc_scan_down_init(vport, lpfc_scan_down);
 	return;
 }

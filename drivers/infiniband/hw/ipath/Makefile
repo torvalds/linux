@@ -14,7 +14,6 @@ ib_ipath-y := \
 	ipath_init_chip.o \
 	ipath_intr.o \
 	ipath_keys.o \
-	ipath_layer.o \
 	ipath_mad.o \
 	ipath_mmap.o \
 	ipath_mr.o \

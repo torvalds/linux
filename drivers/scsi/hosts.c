@@ -220,7 +220,7 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 	get_device(&shost->shost_gendev);
 
 	if (shost->transportt->host_size &&
-	    (shost->shost_data = kmalloc(shost->transportt->host_size,
+	    (shost->shost_data = kzalloc(shost->transportt->host_size,
 					 GFP_KERNEL)) == NULL)
 		goto out_del_classdev;
 

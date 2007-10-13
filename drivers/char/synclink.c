@@ -4324,13 +4324,12 @@ static struct mgsl_struct* mgsl_allocate_device(void)
 {
 	struct mgsl_struct *info;
 	
-	info = kmalloc(sizeof(struct mgsl_struct),
+	info = kzalloc(sizeof(struct mgsl_struct),
 		 GFP_KERNEL);
 		 
 	if (!info) {
 		printk("Error can't allocate device instance data\n");
 	} else {
-		memset(info, 0, sizeof(struct mgsl_struct));
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, mgsl_bh_handler);
 		info->max_frame_size = 4096;

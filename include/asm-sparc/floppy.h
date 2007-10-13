@@ -48,7 +48,7 @@ struct sun_flpy_controller {
 
 /* You'll only ever find one controller on a SparcStation anyways. */
 static struct sun_flpy_controller *sun_fdc = NULL;
-volatile unsigned char *fdc_status;
+extern volatile unsigned char *fdc_status;
 
 struct sun_floppy_ops {
 	unsigned char (*fd_inb)(int port);
@@ -101,6 +101,29 @@ static struct sun_floppy_ops sun_fdops;
 #define CROSS_64KB(a,s) (0)
 
 /* Routines unique to each controller type on a Sun. */
+static void sun_set_dor(unsigned char value, int fdc_82077)
+{
+	if (sparc_cpu_model == sun4c) {
+		unsigned int bits = 0;
+		if (value & 0x10)
+			bits |= AUXIO_FLPY_DSEL;
+		if ((value & 0x80) == 0)
+			bits |= AUXIO_FLPY_EJCT;
+		set_auxio(bits, (~bits) & (AUXIO_FLPY_DSEL|AUXIO_FLPY_EJCT));
+	}
+	if (fdc_82077) {
+		sun_fdc->dor_82077 = value;
+	}
+}
+
+static unsigned char sun_read_dir(void)
+{
+	if (sparc_cpu_model == sun4c)
+		return (get_auxio() & AUXIO_FLPY_DCHG) ? 0x80 : 0;
+	else
+		return sun_fdc->dir_82077;
+}
+
 static unsigned char sun_82072_fd_inb(int port)
 {
 	udelay(5);
@@ -113,7 +136,7 @@ static unsigned char sun_82072_fd_inb(int port)
 	case 5: /* FD_DATA */
 		return sun_fdc->data_82072;
 	case 7: /* FD_DIR */
-		return (get_auxio() & AUXIO_FLPY_DCHG)? 0x80: 0;
+		return sun_read_dir();
 	};
 	panic("sun_82072_fd_inb: How did I get here?");
 }
@@ -126,20 +149,7 @@ static void sun_82072_fd_outb(unsigned char value, int port)
 		printk("floppy: Asked to write to unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 2: /* FD_DOR */
-		/* Oh geese, 82072 on the Sun has no DOR register,
-		 * the functionality is implemented via the AUXIO
-		 * I/O register.  So we must emulate the behavior.
-		 *
-		 * ASSUMPTIONS:  There will only ever be one floppy
-		 *               drive attached to a Sun controller
-		 *               and it will be at drive zero.
-		 */
-		{
-			unsigned bits = 0;
-			if (value & 0x10) bits |= AUXIO_FLPY_DSEL;
-			if ((value & 0x80) == 0) bits |= AUXIO_FLPY_EJCT;
-			set_auxio(bits, (~bits) & (AUXIO_FLPY_DSEL|AUXIO_FLPY_EJCT));
-		}
+		sun_set_dor(value, 0);
 		break;
 	case 5: /* FD_DATA */
 		sun_fdc->data_82072 = value;
@@ -161,15 +171,22 @@ static unsigned char sun_82077_fd_inb(int port)
 	default:
 		printk("floppy: Asked to read unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
+	case 0: /* FD_STATUS_0 */
+		return sun_fdc->status1_82077;
+	case 1: /* FD_STATUS_1 */
+		return sun_fdc->status2_82077;
+	case 2: /* FD_DOR */
+		return sun_fdc->dor_82077;
+	case 3: /* FD_TDR */
+		return sun_fdc->tapectl_82077;
 	case 4: /* FD_STATUS */
 		return sun_fdc->status_82077 & ~STATUS_DMA;
 	case 5: /* FD_DATA */
 		return sun_fdc->data_82077;
 	case 7: /* FD_DIR */
-		/* XXX: Is DCL on 0x80 in sun4m? */
-		return sun_fdc->dir_82077;
+		return sun_read_dir();
 	};
-	panic("sun_82072_fd_inb: How did I get here?");
+	panic("sun_82077_fd_inb: How did I get here?");
 }
 
 static void sun_82077_fd_outb(unsigned char value, int port)
@@ -180,8 +197,7 @@ static void sun_82077_fd_outb(unsigned char value, int port)
 		printk("floppy: Asked to write to unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 2: /* FD_DOR */
-		/* Happily, the 82077 has a real DOR register. */
-		sun_fdc->dor_82077 = value;
+		sun_set_dor(value, 1);
 		break;
 	case 5: /* FD_DATA */
 		sun_fdc->data_82077 = value;
@@ -191,6 +207,9 @@ static void sun_82077_fd_outb(unsigned char value, int port)
 		break;
 	case 4: /* FD_STATUS */
 		sun_fdc->status_82077 = value;
+		break;
+	case 3: /* FD_TDR */
+		sun_fdc->tapectl_82077 = value;
 		break;
 	};
 	return;
@@ -206,13 +225,13 @@ static void sun_82077_fd_outb(unsigned char value, int port)
  * underruns.  If non-zero, doing_pdma encodes the direction of
  * the transfer for debugging.  1=read 2=write
  */
-char *pdma_vaddr;
-unsigned long pdma_size;
-volatile int doing_pdma = 0;
+extern char *pdma_vaddr;
+extern unsigned long pdma_size;
+extern volatile int doing_pdma;
 
 /* This is software state */
-char *pdma_base = NULL;
-unsigned long pdma_areasize;
+extern char *pdma_base;
+extern unsigned long pdma_areasize;
 
 /* Common routines to all controller types on the Sparc. */
 static __inline__ void virtual_dma_init(void)
@@ -262,7 +281,8 @@ static __inline__ void sun_fd_enable_dma(void)
 }
 
 /* Our low-level entry point in arch/sparc/kernel/entry.S */
-irqreturn_t floppy_hardint(int irq, void *unused);
+extern int sparc_floppy_request_irq(int irq, unsigned long flags,
+				    irqreturn_t (*irq_handler)(int irq, void *));
 
 static int sun_fd_request_irq(void)
 {
@@ -271,8 +291,9 @@ static int sun_fd_request_irq(void)
 
 	if(!once) {
 		once = 1;
-		error = request_fast_irq(FLOPPY_IRQ, floppy_hardint,
-					 IRQF_DISABLED, "floppy");
+		error = sparc_floppy_request_irq(FLOPPY_IRQ,
+						 IRQF_DISABLED,
+						 floppy_interrupt);
 		return ((error == 0) ? 0 : -1);
 	} else return 0;
 }
@@ -332,16 +353,17 @@ static int sun_floppy_init(void)
 		goto no_sun_fdc;
 	}
 
-        if(sparc_cpu_model == sun4c) {
-                sun_fdops.fd_inb = sun_82072_fd_inb;
-                sun_fdops.fd_outb = sun_82072_fd_outb;
-                fdc_status = &sun_fdc->status_82072;
-                /* printk("AUXIO @0x%lx\n", auxio_register); */ /* P3 */
-        } else {
-                sun_fdops.fd_inb = sun_82077_fd_inb;
-                sun_fdops.fd_outb = sun_82077_fd_outb;
-                fdc_status = &sun_fdc->status_82077;
-                /* printk("DOR @0x%p\n", &sun_fdc->dor_82077); */ /* P3 */
+	sun_fdops.fd_inb = sun_82077_fd_inb;
+	sun_fdops.fd_outb = sun_82077_fd_outb;
+	fdc_status = &sun_fdc->status_82077;
+
+	if (sun_fdc->dor_82077 == 0x80) {
+		sun_fdc->dor_82077 = 0x02;
+		if (sun_fdc->dor_82077 == 0x80) {
+			sun_fdops.fd_inb = sun_82072_fd_inb;
+			sun_fdops.fd_outb = sun_82072_fd_outb;
+			fdc_status = &sun_fdc->status_82072;
+		}
 	}
 
 	/* Success... */

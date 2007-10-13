@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
+#include <linux/backlight.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -142,15 +143,28 @@ struct corgissp_machinfo corgi_ssp_machinfo = {
 /*
  * Corgi Backlight Device
  */
-static struct corgibl_machinfo corgi_bl_machinfo = {
+static void corgi_bl_kick_battery(void)
+{
+	void (*kick_batt)(void);
+
+	kick_batt = symbol_get(sharpsl_battery_kick);
+	if (kick_batt) {
+		kick_batt();
+		symbol_put(sharpsl_battery_kick);
+	}
+}
+
+static struct generic_bl_info corgi_bl_machinfo = {
+	.name = "corgi-bl",
 	.max_intensity = 0x2f,
 	.default_intensity = 0x1f,
 	.limit_mask = 0x0b,
 	.set_bl_intensity = corgi_bl_set_intensity,
+	.kick_battery = corgi_bl_kick_battery,
 };
 
 static struct platform_device corgibl_device = {
-	.name		= "corgi-bl",
+	.name		= "generic-bl",
 	.dev		= {
  		.parent = &corgifb_device.dev,
 		.platform_data	= &corgi_bl_machinfo,

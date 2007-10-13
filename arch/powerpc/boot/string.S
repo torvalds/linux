@@ -49,6 +49,17 @@ strcat:
 	bne	1b
 	blr
 
+	.globl	strchr
+strchr:
+	addi	r3,r3,-1
+1:	lbzu	r0,1(r3)
+	cmpw	0,r0,r4
+	beqlr
+	cmpwi	0,r0,0
+	bne	1b
+	li	r3,0
+	blr
+
 	.globl	strcmp
 strcmp:
 	addi	r5,r3,-1
@@ -59,6 +70,19 @@ strcmp:
 	subf.	r3,r0,r3
 	beqlr	1
 	beq	1b
+	blr
+
+	.globl	strncmp
+strncmp:
+	mtctr	r5
+	addi	r5,r3,-1
+	addi	r4,r4,-1
+1:	lbzu	r3,1(r5)
+	cmpwi	1,r3,0
+	lbzu	r0,1(r4)
+	subf.	r3,r0,r3
+	beqlr	1
+	bdnzt	eq,1b
 	blr
 
 	.globl	strlen
@@ -194,6 +218,19 @@ backwards_memcpy:
 	beq	2b
 	mtctr	r7
 	b	1b
+
+	.globl	memchr
+memchr:
+	cmpwi	0,r5,0
+	blelr
+	mtctr	r5
+	addi	r3,r3,-1
+1:	lbzu	r0,1(r3)
+	cmpw	r0,r4
+	beqlr
+	bdnz	1b
+	li	r3,0
+	blr
 
 	.globl	memcmp
 memcmp:

@@ -50,16 +50,6 @@ init_irq_handlers (int base_irq, int num, int interval,
    interrupt.  */
 extern unsigned int handle_irq (int irq, struct pt_regs *regs);
 
-
-/* Enable interrupt handling on an irq.  */
-extern void enable_irq(unsigned int irq);
-
-/* Disable an irq and wait for completion.  */
-extern void disable_irq (unsigned int irq);
-
-/* Disable an irq without waiting. */
-extern void disable_irq_nosync (unsigned int irq);
-
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __V850_IRQ_H__ */

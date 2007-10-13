@@ -312,6 +312,7 @@ static int ali_notify_sys(struct notifier_block *this, unsigned long code, void 
  */
 
 static struct pci_device_id ali_pci_tbl[] = {
+	{ PCI_VENDOR_ID_AL, 0x1533, PCI_ANY_ID, PCI_ANY_ID,},
 	{ PCI_VENDOR_ID_AL, 0x1535, PCI_ANY_ID, PCI_ANY_ID,},
 	{ 0, },
 };
@@ -329,9 +330,11 @@ static int __init ali_find_watchdog(void)
 	struct pci_dev *pdev;
 	u32 wdog;
 
-	/* Check for a 1535 series bridge */
+	/* Check for a 1533/1535 series bridge */
 	pdev = pci_get_device(PCI_VENDOR_ID_AL, 0x1535, NULL);
-	if(pdev == NULL)
+	if (pdev == NULL)
+		pdev = pci_get_device(PCI_VENDOR_ID_AL, 0x1533, NULL);
+	if (pdev == NULL)
 		return -ENODEV;
 	pci_dev_put(pdev);
 

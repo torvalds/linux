@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
@@ -358,7 +359,7 @@ secondary_cpu_start(int cpuid, struct task_struct *idle)
 /*
  * Bring one cpu online.
  */
-static int __devinit
+static int __cpuinit
 smp_boot_one_cpu(int cpuid)
 {
 	struct task_struct *idle;
@@ -487,7 +488,7 @@ smp_prepare_boot_cpu(void)
 {
 }
 
-int __devinit
+int __cpuinit
 __cpu_up(unsigned int cpu)
 {
 	smp_boot_one_cpu(cpu);
@@ -541,7 +542,7 @@ smp_percpu_timer_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-int __init
+int
 setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;

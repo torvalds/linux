@@ -115,6 +115,5 @@ struct au1000_private {
 	u32 vaddr;                /* virtual address of rx/tx buffers   */
 	dma_addr_t dma_addr;      /* dma address of rx/tx buffers       */
 
-	struct net_device_stats stats;
 	spinlock_t lock;       /* Serialise access to device */
 };

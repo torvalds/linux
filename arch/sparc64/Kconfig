@@ -23,6 +23,10 @@ config GENERIC_TIME
 	bool
 	default y
 
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
 config GENERIC_CLOCKEVENTS
 	bool
 	default y
@@ -61,6 +65,12 @@ config ARCH_HAS_ILOG2_U64
 config AUDIT_ARCH
 	bool
 	default y
+
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
+config OF
+	def_bool y
 
 choice
 	prompt "Kernel page size"

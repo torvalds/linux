@@ -134,7 +134,7 @@ nicstar_read_eprom_status( virt_addr_t base )
    /* Send read instruction */
    val = NICSTAR_REG_READ( base, NICSTAR_REG_GENERAL_PURPOSE ) & 0xFFFFFFF0;
 
-   for (i=0; i<sizeof rdsrtab/sizeof rdsrtab[0]; i++)
+   for (i=0; i<ARRAY_SIZE(rdsrtab); i++)
    {
 	NICSTAR_REG_WRITE( base, NICSTAR_REG_GENERAL_PURPOSE,
 		(val | rdsrtab[i]) );

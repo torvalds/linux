@@ -47,7 +47,11 @@ void __init ps3_register_ipi_debug_brk(unsigned int cpu, unsigned int virq);
 /* smp */
 
 void smp_init_ps3(void);
+#ifdef CONFIG_SMP
 void ps3_smp_cleanup_cpu(int cpu);
+#else
+static inline void ps3_smp_cleanup_cpu(int cpu) { }
+#endif
 
 /* time */
 
@@ -58,8 +62,10 @@ int ps3_set_rtc_time(struct rtc_time *time);
 
 /* os area */
 
-int __init ps3_os_area_init(void);
-u64 ps3_os_area_rtc_diff(void);
+void __init ps3_os_area_save_params(void);
+void __init ps3_os_area_init(void);
+u64 ps3_os_area_get_rtc_diff(void);
+void ps3_os_area_set_rtc_diff(u64 rtc_diff);
 
 /* spu */
 
@@ -83,6 +89,7 @@ enum ps3_dev_type {
 	PS3_DEV_TYPE_STOR_ROM = TYPE_ROM,	/* 5 */
 	PS3_DEV_TYPE_SB_GPIO = 6,
 	PS3_DEV_TYPE_STOR_FLASH = TYPE_RBC,	/* 14 */
+	PS3_DEV_TYPE_STOR_DUMMY = 32,
 	PS3_DEV_TYPE_NOACCESS = 255,
 };
 

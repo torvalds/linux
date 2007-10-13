@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 
 #include "internal.h"
@@ -40,13 +41,13 @@ static int hash_setkey_unaligned(struct crypto_hash *crt, const u8 *key,
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
 	ret = alg->setkey(crt, alignbuffer, keylen);
-	memset(alignbuffer, 0, absize);
+	memset(alignbuffer, 0, keylen);
 	kfree(buffer);
 	return ret;
 }
 
 static int hash_setkey(struct crypto_hash *crt, const u8 *key,
-		unsigned int keylen)
+		       unsigned int keylen)
 {
 	struct crypto_tfm *tfm = crypto_hash_tfm(crt);
 	struct hash_alg *alg = &tfm->__crt_alg->cra_hash;

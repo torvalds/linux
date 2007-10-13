@@ -245,7 +245,7 @@ int __init gfar_mdio_init(void)
 	return driver_register(&gianfar_mdio_driver);
 }
 
-void __exit gfar_mdio_exit(void)
+void gfar_mdio_exit(void)
 {
 	driver_unregister(&gianfar_mdio_driver);
 }

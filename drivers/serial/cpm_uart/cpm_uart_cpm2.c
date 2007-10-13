@@ -49,9 +49,22 @@
 
 /**************************************************************/
 
-void cpm_line_cr_cmd(int line, int cmd)
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
+{
+	cpm_cpm2_t __iomem *cp = cpm2_map(im_cpm);
+
+	out_be32(&cp->cp_cpcr, port->command | cmd | CPM_CR_FLG);
+	while (in_be32(&cp->cp_cpcr) & CPM_CR_FLG)
+		;
+
+	cpm2_unmap(cp);
+}
+#else
+void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
 {
 	ulong val;
+	int line = port - cpm_uart_ports;
 	volatile cpm_cpm2_t *cp = cpm2_map(im_cpm);
 
 
@@ -211,6 +224,7 @@ void scc4_lineif(struct uart_cpm_port *pinfo)
 	cpm2_unmap(cpmux);
 	cpm2_unmap(io);
 }
+#endif
 
 /*
  * Allocate DP-Ram and memory buffers. We need to allocate a transmit and 
@@ -221,7 +235,7 @@ void scc4_lineif(struct uart_cpm_port *pinfo)
 int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 {
 	int dpmemsz, memsz;
-	u8 *dp_mem;
+	u8 __iomem *dp_mem;
 	unsigned long dp_offset;
 	u8 *mem_addr;
 	dma_addr_t dma_addr = 0;
@@ -264,7 +278,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	pinfo->tx_buf = pinfo->rx_buf + L1_CACHE_ALIGN(pinfo->rx_nrfifos
 						       * pinfo->rx_fifosize);
 
-	pinfo->rx_bd_base = (volatile cbd_t *)dp_mem;
+	pinfo->rx_bd_base = (cbd_t __iomem *)dp_mem;
 	pinfo->tx_bd_base = pinfo->rx_bd_base + pinfo->rx_nrfifos;
 
 	return 0;
@@ -275,12 +289,13 @@ void cpm_uart_freebuf(struct uart_cpm_port *pinfo)
 	dma_free_coherent(NULL, L1_CACHE_ALIGN(pinfo->rx_nrfifos *
 					       pinfo->rx_fifosize) +
 			  L1_CACHE_ALIGN(pinfo->tx_nrfifos *
-					 pinfo->tx_fifosize), pinfo->mem_addr,
+					 pinfo->tx_fifosize), (void __force *)pinfo->mem_addr,
 			  pinfo->dma_addr);
 
 	cpm_dpfree(pinfo->dp_addr);
 }
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 /* Setup any dynamic params in the uart desc */
 int cpm_uart_init_portdesc(void)
 {
@@ -386,3 +401,4 @@ int cpm_uart_init_portdesc(void)
 
 	return 0;
 }
+#endif

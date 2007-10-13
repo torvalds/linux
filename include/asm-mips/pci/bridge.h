@@ -360,7 +360,7 @@ typedef struct bridge_err_cmdword_s {
 #define BRIDGE_TYPE0_CFG_FUNC_OFF	0x00000100	/* Type 0 Cfg Func Offset (1..7) */
 #define BRIDGE_TYPE0_CFG_DEV(s)		(BRIDGE_TYPE0_CFG_DEV0+\
 					 (s)*BRIDGE_TYPE0_CFG_SLOT_OFF)
-#define BRIDGE_TYPE0_CFG_DEVF(s,f)	(BRIDGE_TYPE0_CFG_DEV0+\
+#define BRIDGE_TYPE0_CFG_DEVF(s, f)	(BRIDGE_TYPE0_CFG_DEV0+\
 					 (s)*BRIDGE_TYPE0_CFG_SLOT_OFF+\
 					 (f)*BRIDGE_TYPE0_CFG_FUNC_OFF)
 

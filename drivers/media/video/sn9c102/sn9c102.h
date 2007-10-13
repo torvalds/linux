@@ -36,6 +36,7 @@
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/stddef.h>
+#include <linux/kref.h>
 
 #include "sn9c102_config.h"
 #include "sn9c102_sensor.h"
@@ -94,7 +95,7 @@ struct sn9c102_module_param {
 };
 
 static DEFINE_MUTEX(sn9c102_sysfs_lock);
-static DECLARE_RWSEM(sn9c102_disconnect);
+static DECLARE_RWSEM(sn9c102_dev_lock);
 
 struct sn9c102_device {
 	struct video_device* v4ldev;
@@ -122,12 +123,14 @@ struct sn9c102_device {
 
 	struct sn9c102_module_param module_param;
 
+	struct kref kref;
 	enum sn9c102_dev_state state;
 	u8 users;
 
-	struct mutex dev_mutex, fileop_mutex;
+	struct completion probe;
+	struct mutex open_mutex, fileop_mutex;
 	spinlock_t queue_lock;
-	wait_queue_head_t open, wait_frame, wait_stream;
+	wait_queue_head_t wait_open, wait_frame, wait_stream;
 };
 
 /*****************************************************************************/

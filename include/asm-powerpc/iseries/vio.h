@@ -51,6 +51,116 @@
  */
 #define VIO_MAX_SUBTYPES 8
 
+#define VIOMAXBLOCKDMA	12
+
+struct open_data {
+	u64	disk_size;
+	u16	max_disk;
+	u16	cylinders;
+	u16	tracks;
+	u16	sectors;
+	u16	bytes_per_sector;
+};
+
+struct rw_data {
+	u64	offset;
+	struct {
+		u32	token;
+		u32	reserved;
+		u64	len;
+	} dma_info[VIOMAXBLOCKDMA];
+};
+
+struct vioblocklpevent {
+	struct HvLpEvent	event;
+	u32			reserved;
+	u16			version;
+	u16			sub_result;
+	u16			disk;
+	u16			flags;
+	union {
+		struct open_data	open_data;
+		struct rw_data		rw_data;
+		u64			changed;
+	} u;
+};
+
+#define vioblockflags_ro   0x0001
+
+enum vioblocksubtype {
+	vioblockopen = 0x0001,
+	vioblockclose = 0x0002,
+	vioblockread = 0x0003,
+	vioblockwrite = 0x0004,
+	vioblockflush = 0x0005,
+	vioblockcheck = 0x0007
+};
+
+struct viocdlpevent {
+	struct HvLpEvent	event;
+	u32			reserved;
+	u16			version;
+	u16			sub_result;
+	u16			disk;
+	u16			flags;
+	u32			token;
+	u64			offset;		/* On open, max number of disks */
+	u64			len;		/* On open, size of the disk */
+	u32			block_size;	/* Only set on open */
+	u32			media_size;	/* Only set on open */
+};
+
+enum viocdsubtype {
+	viocdopen = 0x0001,
+	viocdclose = 0x0002,
+	viocdread = 0x0003,
+	viocdwrite = 0x0004,
+	viocdlockdoor = 0x0005,
+	viocdgetinfo = 0x0006,
+	viocdcheck = 0x0007
+};
+
+struct viotapelpevent {
+	struct HvLpEvent event;
+	u32 reserved;
+	u16 version;
+	u16 sub_type_result;
+	u16 tape;
+	u16 flags;
+	u32 token;
+	u64 len;
+	union {
+		struct {
+			u32 tape_op;
+			u32 count;
+		} op;
+		struct {
+			u32 type;
+			u32 resid;
+			u32 dsreg;
+			u32 gstat;
+			u32 erreg;
+			u32 file_no;
+			u32 block_no;
+		} get_status;
+		struct {
+			u32 block_no;
+		} get_pos;
+	} u;
+};
+
+enum viotapesubtype {
+	viotapeopen = 0x0001,
+	viotapeclose = 0x0002,
+	viotaperead = 0x0003,
+	viotapewrite = 0x0004,
+	viotapegetinfo = 0x0005,
+	viotapeop = 0x0006,
+	viotapegetpos = 0x0007,
+	viotapesetpos = 0x0008,
+	viotapegetstatus = 0x0009
+};
+
 /*
  * Each subtype can register a handler to process their events.
  * The handler must have this interface.
@@ -67,6 +177,8 @@ extern HvLpInstanceId viopath_targetinst(HvLpIndex lp);
 extern void vio_set_hostlp(void);
 extern void *vio_get_event_buffer(int subtype);
 extern void vio_free_event_buffer(int subtype, void *buffer);
+
+extern struct vio_dev *vio_create_viodasd(u32 unit);
 
 extern HvLpIndex viopath_hostLp;
 extern HvLpIndex viopath_ourLp;
@@ -149,9 +261,5 @@ enum viocharsubtype {
 enum viochar_rc {
 	viochar_rc_ebusy = 1
 };
-
-struct device;
-
-extern struct device *iSeries_vio_dev;
 
 #endif /* _ASM_POWERPC_ISERIES_VIO_H */

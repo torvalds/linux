@@ -109,6 +109,7 @@
 
 /* SPI0 Registers */
 
+#define                     SPI0_REGBASE  0xffc00500
 #define                         SPI0_CTL  0xffc00500   /* SPI0 Control Register */
 #define                         SPI0_FLG  0xffc00504   /* SPI0 Flag Register */
 #define                        SPI0_STAT  0xffc00508   /* SPI0 Status Register */
@@ -121,6 +122,7 @@
 
 /* Two Wire Interface Registers (TWI0) */
 
+#define                     TWI0_REGBASE  0xffc00700
 #define                      TWI0_CLKDIV  0xffc00700   /* Clock Divider Register */
 #define                     TWI0_CONTROL  0xffc00704   /* TWI Control Register */
 #define                  TWI0_SLAVE_CTRL  0xffc00708   /* TWI Slave Mode Control Register */
@@ -978,6 +980,7 @@
 
 /* SPI1 Registers */
 
+#define                     SPI1_REGBASE  0xffc02300
 #define                         SPI1_CTL  0xffc02300   /* SPI1 Control Register */
 #define                         SPI1_FLG  0xffc02304   /* SPI1 Flag Register */
 #define                        SPI1_STAT  0xffc02308   /* SPI1 Status Register */

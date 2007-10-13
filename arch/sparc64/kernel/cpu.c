@@ -1,7 +1,7 @@
 /* cpu.c: Dinky routines to look for the kind of Sparc cpu
  *        we are on.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
@@ -13,6 +13,7 @@
 #include <asm/fpumacro.h>
 #include <asm/cpudata.h>
 #include <asm/spitfire.h>
+#include <asm/oplib.h>
 
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
 
@@ -61,21 +62,40 @@ struct cpu_iu_info linux_sparc_chips[] = {
 
 #define NSPARCCHIPS  ARRAY_SIZE(linux_sparc_chips)
 
-char *sparc_cpu_type = "cpu-oops";
-char *sparc_fpu_type = "fpu-oops";
+char *sparc_cpu_type;
+char *sparc_fpu_type;
 
 unsigned int fsr_storage;
+
+static void __init sun4v_cpu_probe(void)
+{
+	switch (sun4v_chip_type) {
+	case SUN4V_CHIP_NIAGARA1:
+		sparc_cpu_type = "UltraSparc T1 (Niagara)";
+		sparc_fpu_type = "UltraSparc T1 integrated FPU";
+		break;
+
+	case SUN4V_CHIP_NIAGARA2:
+		sparc_cpu_type = "UltraSparc T2 (Niagara2)";
+		sparc_fpu_type = "UltraSparc T2 integrated FPU";
+		break;
+
+	default:
+		printk(KERN_WARNING "CPU: Unknown sun4v cpu type [%s]\n",
+		       prom_cpu_compatible);
+		sparc_cpu_type = "Unknown SUN4V CPU";
+		sparc_fpu_type = "Unknown SUN4V FPU";
+		break;
+	}
+}
 
 void __init cpu_probe(void)
 {
 	unsigned long ver, fpu_vers, manuf, impl, fprs;
 	int i;
 	
-	if (tlb_type == hypervisor) {
-		sparc_cpu_type = "UltraSparc T1 (Niagara)";
-		sparc_fpu_type = "UltraSparc T1 integrated FPU";
-		return;
-	}
+	if (tlb_type == hypervisor)
+		return sun4v_cpu_probe();
 
 	fprs = fprs_read();
 	fprs_write(FPRS_FEF);

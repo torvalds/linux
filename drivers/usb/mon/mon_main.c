@@ -129,7 +129,8 @@ static void mon_submit_error(struct usb_bus *ubus, struct urb *urb, int error)
 
 /*
  */
-static void mon_bus_complete(struct mon_bus *mbus, struct urb *urb)
+static void mon_bus_complete(struct mon_bus *mbus, struct urb *urb,
+		int status)
 {
 	unsigned long flags;
 	struct list_head *pos;
@@ -139,28 +140,18 @@ static void mon_bus_complete(struct mon_bus *mbus, struct urb *urb)
 	mbus->cnt_events++;
 	list_for_each (pos, &mbus->r_list) {
 		r = list_entry(pos, struct mon_reader, r_link);
-		r->rnf_complete(r->r_data, urb);
+		r->rnf_complete(r->r_data, urb, status);
 	}
 	spin_unlock_irqrestore(&mbus->lock, flags);
 }
 
-static void mon_complete(struct usb_bus *ubus, struct urb *urb)
+static void mon_complete(struct usb_bus *ubus, struct urb *urb, int status)
 {
 	struct mon_bus *mbus;
 
-	mbus = ubus->mon_bus;
-	if (mbus == NULL) {
-		/*
-		 * This should not happen.
-		 * At this point we do not even know the bus number...
-		 */
-		printk(KERN_ERR TAG ": Null mon bus in URB, pipe 0x%x\n",
-		    urb->pipe);
-		return;
-	}
-
-	mon_bus_complete(mbus, urb);
-	mon_bus_complete(&mon_bus0, urb);
+	if ((mbus = ubus->mon_bus) != NULL)
+		mon_bus_complete(mbus, urb, status);
+	mon_bus_complete(&mon_bus0, urb, status);
 }
 
 /* int (*unlink_urb) (struct urb *urb, int status); */
@@ -170,7 +161,7 @@ static void mon_complete(struct usb_bus *ubus, struct urb *urb)
  */
 static void mon_stop(struct mon_bus *mbus)
 {
-	struct usb_bus *ubus = mbus->u_bus;
+	struct usb_bus *ubus;
 	struct list_head *p;
 
 	if (mbus == &mon_bus0) {

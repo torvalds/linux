@@ -1927,10 +1927,12 @@ static struct snd_card *snd_opti9xx_card_new(void)
 static int __devinit snd_opti9xx_isa_match(struct device *devptr,
 					   unsigned int dev)
 {
+#ifdef CONFIG_PNP
 	if (snd_opti9xx_pnp_is_probed)
 		return 0;
 	if (isapnp)
 		return 0;
+#endif
 	return 1;
 }
 
@@ -2096,6 +2098,7 @@ static int __init alsa_card_opti9xx_init(void)
 	pnp_register_card_driver(&opti9xx_pnpc_driver);
 	if (snd_opti9xx_pnp_is_probed)
 		return 0;
+	pnp_unregister_card_driver(&opti9xx_pnpc_driver);
 #endif
 	return isa_register_driver(&snd_opti9xx_driver, 1);
 }

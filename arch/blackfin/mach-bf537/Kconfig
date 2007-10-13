@@ -2,33 +2,6 @@ if (BF537 || BF534 || BF536)
 
 menu "BF537 Specific Configuration"
 
-comment "PORT F/G Selection"
-choice
-	prompt "Select BF537/6/4 default GPIO PFx PORTx"
-	help
-	  Quick Hack for BF537/6/4 default GPIO PFx PORTF.
-
-config BF537_PORT_F
-	bool "Select BF537/6/4 default GPIO PFx PORTF"
-	depends on (BF537 || BF536 || BF534)
-	help
-	  Quick Hack for BF537/6/4 default GPIO PFx PORTF.
-
-config BF537_PORT_G
-	bool "Select BF537/6/4 default GPIO PFx PORTG"
-	depends on (BF537 || BF536 || BF534)
-	help
-	  Quick Hack for BF537/6/4 default GPIO PFx PORTG.
-
-config BF537_PORT_H
-	bool "Select BF537/6/4 default GPIO PFx PORTH"
-	depends on (BF537 || BF536 || BF534)
-	help
-	  Quick Hack for BF537/6/4 default GPIO PFx PORTH
-	  Use only when Blackfin EMAC support is not required.
-
-endchoice
-
 comment "Interrupt Priority Assignment"
 menu "Priority"
 

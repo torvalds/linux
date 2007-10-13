@@ -2459,7 +2459,7 @@ static int __init espserial_init(void)
 		return 1;
 	}
 
-	info = kmalloc(sizeof(struct esp_struct), GFP_KERNEL);
+	info = kzalloc(sizeof(struct esp_struct), GFP_KERNEL);
 
 	if (!info)
 	{
@@ -2469,7 +2469,6 @@ static int __init espserial_init(void)
 		return 1;
 	}
 
-	memset((void *)info, 0, sizeof(struct esp_struct));
 	spin_lock_init(&info->lock);
 	/* rx_trigger, tx_trigger are needed by autoconfig */
 	info->config.rx_trigger = rx_trigger;
@@ -2527,7 +2526,7 @@ static int __init espserial_init(void)
 		if (!dma)
 			info->stat_flags |= ESP_STAT_NEVER_DMA;
 
-		info = kmalloc(sizeof(struct esp_struct), GFP_KERNEL);
+		info = kzalloc(sizeof(struct esp_struct), GFP_KERNEL);
 		if (!info)
 		{
 			printk(KERN_ERR "Couldn't allocate memory for esp serial device information\n"); 
@@ -2536,7 +2535,6 @@ static int __init espserial_init(void)
 			return 0;
 		}
 
-		memset((void *)info, 0, sizeof(struct esp_struct));
 		/* rx_trigger, tx_trigger are needed by autoconfig */
 		info->config.rx_trigger = rx_trigger;
 		info->config.tx_trigger = tx_trigger;

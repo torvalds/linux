@@ -74,14 +74,14 @@ extern void  kmem_free(void *, size_t);
 static inline kmem_zone_t *
 kmem_zone_init(int size, char *zone_name)
 {
-	return kmem_cache_create(zone_name, size, 0, 0, NULL, NULL);
+	return kmem_cache_create(zone_name, size, 0, 0, NULL);
 }
 
 static inline kmem_zone_t *
 kmem_zone_init_flags(int size, char *zone_name, unsigned long flags,
 		     void (*construct)(void *, kmem_zone_t *, unsigned long))
 {
-	return kmem_cache_create(zone_name, size, 0, flags, construct, NULL);
+	return kmem_cache_create(zone_name, size, 0, flags, construct);
 }
 
 static inline void
@@ -103,7 +103,7 @@ extern void *kmem_zone_zalloc(kmem_zone_t *, unsigned int __nocast);
 static inline int
 kmem_shake_allow(gfp_t gfp_mask)
 {
-	return (gfp_mask & __GFP_WAIT);
+	return (gfp_mask & __GFP_WAIT) != 0;
 }
 
 #endif /* __XFS_SUPPORT_KMEM_H__ */

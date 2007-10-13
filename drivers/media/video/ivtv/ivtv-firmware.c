@@ -36,7 +36,7 @@
 #define IVTV_CMD_SPU_STOP 		0x00000001
 #define IVTV_CMD_SDRAM_PRECHARGE_INIT 	0x0000001A
 #define IVTV_CMD_SDRAM_REFRESH_INIT 	0x80000640
-#define IVTV_SDRAM_SLEEPTIME 		(60 * HZ / 100)	/* 600 ms */
+#define IVTV_SDRAM_SLEEPTIME 		600
 
 #define IVTV_DECODE_INIT_MPEG_FILENAME 	"v4l-cx2341x-init.mpg"
 #define IVTV_DECODE_INIT_MPEG_SIZE 	(152*1024)
@@ -56,14 +56,12 @@ retry:
 		volatile u32 __iomem *dst = (volatile u32 __iomem *)mem;
 		const u32 *src = (const u32 *)fw->data;
 
-		/* temporarily allow 256 KB encoding firmwares as well for
-		   compatibility with blackbird cards */
-		if (fw->size != size && fw->size != 256 * 1024) {
+		if (fw->size != size) {
 			/* Due to race conditions in firmware loading (esp. with udev <0.95)
 			   the wrong file was sometimes loaded. So we check filesizes to
 			   see if at least the right-sized file was loaded. If not, then we
 			   retry. */
-			IVTV_INFO("retry: file loaded was not %s (expected size %ld, got %zd)\n", fn, size, fw->size);
+			IVTV_INFO("Retry: file loaded was not %s (expected size %ld, got %zd)\n", fn, size, fw->size);
 			release_firmware(fw);
 			retries--;
 			goto retry;
@@ -74,12 +72,12 @@ retry:
 			dst++;
 			src++;
 		}
+		IVTV_INFO("Loaded %s firmware (%zd bytes)\n", fn, fw->size);
 		release_firmware(fw);
-		IVTV_INFO("loaded %s firmware (%zd bytes)\n", fn, fw->size);
 		return size;
 	}
-	IVTV_ERR("unable to open firmware %s (must be %ld bytes)\n", fn, size);
-	IVTV_ERR("did you put the firmware in the hotplug firmware directory?\n");
+	IVTV_ERR("Unable to open firmware %s (must be %ld bytes)\n", fn, size);
+	IVTV_ERR("Did you put the firmware in the hotplug firmware directory?\n");
 	return -ENOMEM;
 }
 
@@ -91,7 +89,7 @@ void ivtv_halt_firmware(struct ivtv *itv)
 	if (itv->enc_mbox.mbox)
 		ivtv_vapi(itv, CX2341X_ENC_HALT_FW, 0);
 
-	ivtv_sleep_timeout(HZ / 100, 0);
+	ivtv_msleep_timeout(10, 0);
 	itv->enc_mbox.mbox = itv->dec_mbox.mbox = NULL;
 
 	IVTV_DEBUG_INFO("Stopping VDM\n");
@@ -115,7 +113,7 @@ void ivtv_halt_firmware(struct ivtv *itv)
 	IVTV_DEBUG_INFO("Stopping SPU\n");
 	write_reg(IVTV_CMD_SPU_STOP, IVTV_REG_SPU);
 
-	ivtv_sleep_timeout(HZ / 100, 0);
+	ivtv_msleep_timeout(10, 0);
 
 	IVTV_DEBUG_INFO("init Encoder SDRAM pre-charge\n");
 	write_reg(IVTV_CMD_SDRAM_PRECHARGE_INIT, IVTV_REG_ENC_SDRAM_PRECHARGE);
@@ -131,9 +129,8 @@ void ivtv_halt_firmware(struct ivtv *itv)
 		write_reg(IVTV_CMD_SDRAM_REFRESH_INIT, IVTV_REG_DEC_SDRAM_REFRESH);
 	}
 
-	IVTV_DEBUG_INFO("Sleeping for %dms (600 recommended)\n",
-		   (int)(IVTV_SDRAM_SLEEPTIME * 1000 / HZ));
-	ivtv_sleep_timeout(IVTV_SDRAM_SLEEPTIME, 0);
+	IVTV_DEBUG_INFO("Sleeping for %dms\n", IVTV_SDRAM_SLEEPTIME);
+	ivtv_msleep_timeout(IVTV_SDRAM_SLEEPTIME, 0);
 }
 
 void ivtv_firmware_versions(struct ivtv *itv)
@@ -206,12 +203,12 @@ int ivtv_firmware_init(struct ivtv *itv)
 
 	/* start firmware */
 	write_reg(read_reg(IVTV_REG_SPU) & IVTV_MASK_SPU_ENABLE, IVTV_REG_SPU);
-	ivtv_sleep_timeout(HZ / 10, 0);
+	ivtv_msleep_timeout(100, 0);
 	if (itv->has_cx23415)
 		write_reg(read_reg(IVTV_REG_VPU) & IVTV_MASK_VPU_ENABLE15, IVTV_REG_VPU);
 	else
 		write_reg(read_reg(IVTV_REG_VPU) & IVTV_MASK_VPU_ENABLE16, IVTV_REG_VPU);
-	ivtv_sleep_timeout(HZ / 10, 0);
+	ivtv_msleep_timeout(100, 0);
 
 	/* find mailboxes and ping firmware */
 	itv->enc_mbox.mbox = ivtv_search_mailbox(itv->enc_mem, IVTV_ENCODER_SIZE);
@@ -266,7 +263,7 @@ void ivtv_init_mpeg_decoder(struct ivtv *itv)
 				IVTV_DECODE_INIT_MPEG_FILENAME);
 	} else {
 		ivtv_vapi(itv, CX2341X_DEC_SCHED_DMA_FROM_HOST, 3, 0, readbytes, 0);
-		ivtv_sleep_timeout(HZ / 10, 0);
+		ivtv_msleep_timeout(100, 0);
 	}
 	ivtv_vapi(itv, CX2341X_DEC_STOP_PLAYBACK, 4, 0, 0, 0, 1);
 }
