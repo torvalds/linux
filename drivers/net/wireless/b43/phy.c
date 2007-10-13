@@ -26,6 +26,7 @@
 */
 
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/types.h>
 
 #include "b43.h"

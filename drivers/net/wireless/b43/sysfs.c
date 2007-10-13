@@ -23,12 +23,13 @@
 
 */
 
+#include <linux/capability.h>
+#include <linux/io.h>
+
 #include "b43.h"
 #include "sysfs.h"
 #include "main.h"
 #include "phy.h"
-
-#include <linux/capability.h>
 
 #define GENERIC_FILESIZE	64
 
