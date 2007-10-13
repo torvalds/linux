@@ -535,7 +535,7 @@ pmac_outbsync(ide_drive_t *drive, u8 value, unsigned long port)
 static void
 pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	u32 *timings;
+	u32 *timings, t;
 	unsigned accessTicks, recTicks;
 	unsigned accessTime, recTime;
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
@@ -546,6 +546,7 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		
 	/* which drive is it ? */
 	timings = &pmif->timings[drive->select.b.unit & 0x01];
+	t = *timings;
 
 	cycle_time = ide_pio_cycle_time(drive, pio);
 
@@ -553,14 +554,14 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	case controller_sh_ata6: {
 		/* 133Mhz cell */
 		u32 tr = kauai_lookup_timing(shasta_pio_timings, cycle_time);
-		*timings = ((*timings) & ~TR_133_PIOREG_PIO_MASK) | tr;
+		t = (t & ~TR_133_PIOREG_PIO_MASK) | tr;
 		break;
 		}
 	case controller_un_ata6:
 	case controller_k2_ata6: {
 		/* 100Mhz cell */
 		u32 tr = kauai_lookup_timing(kauai_pio_timings, cycle_time);
-		*timings = ((*timings) & ~TR_100_PIOREG_PIO_MASK) | tr;
+		t = (t & ~TR_100_PIOREG_PIO_MASK) | tr;
 		break;
 		}
 	case controller_kl_ata4:
@@ -574,9 +575,9 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		accessTicks = min(accessTicks, 0x1fU);
 		recTicks = SYSCLK_TICKS_66(recTime);
 		recTicks = min(recTicks, 0x1fU);
-		*timings = ((*timings) & ~TR_66_PIO_MASK) |
-				(accessTicks << TR_66_PIO_ACCESS_SHIFT) |
-				(recTicks << TR_66_PIO_RECOVERY_SHIFT);
+		t = (t & ~TR_66_PIO_MASK) |
+			(accessTicks << TR_66_PIO_ACCESS_SHIFT) |
+			(recTicks << TR_66_PIO_RECOVERY_SHIFT);
 		break;
 	default: {
 		/* 33Mhz cell */
@@ -596,11 +597,11 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 			recTicks--; /* guess, but it's only for PIO0, so... */
 			ebit = 1;
 		}
-		*timings = ((*timings) & ~TR_33_PIO_MASK) |
+		t = (t & ~TR_33_PIO_MASK) |
 				(accessTicks << TR_33_PIO_ACCESS_SHIFT) |
 				(recTicks << TR_33_PIO_RECOVERY_SHIFT);
 		if (ebit)
-			*timings |= TR_33_PIO_E;
+			t |= TR_33_PIO_E;
 		break;
 		}
 	}
@@ -613,6 +614,7 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	if (ide_config_drive_speed(drive, XFER_PIO_0 + pio))
 		return;
 
+	*timings = t;
 	pmac_ide_do_update_timings(drive);
 }
 
@@ -1143,6 +1145,8 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 	hwif->drives[0].unmask = 1;
 	hwif->drives[1].unmask = 1;
+	hwif->drives[0].autotune = IDE_TUNE_AUTO;
+	hwif->drives[1].autotune = IDE_TUNE_AUTO;
 	hwif->host_flags = IDE_HFLAG_SET_PIO_MODE_KEEP_DMA;
 	hwif->pio_mask = ATA_PIO4;
 	hwif->set_pio_mode = pmac_ide_set_pio_mode;
