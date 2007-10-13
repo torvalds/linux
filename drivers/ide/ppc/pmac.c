@@ -1784,7 +1784,7 @@ pmac_ide_dma_check(ide_drive_t *drive)
 			drive->using_dma = pmac_ide_udma_enable(drive, mode);
 		else if (mode >= XFER_MW_DMA_0)
 			drive->using_dma = pmac_ide_mdma_enable(drive, mode);
-		hwif->OUTB(0, IDE_CONTROL_REG);
+
 		/* Apply settings to controller */
 		pmac_ide_do_update_timings(drive);
 	}
