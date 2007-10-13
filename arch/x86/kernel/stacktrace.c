@@ -1,6 +1,4 @@
 /*
- * arch/x86_64/kernel/stacktrace.c
- *
  * Stack trace management functions
  *
  *  Copyright (C) 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>

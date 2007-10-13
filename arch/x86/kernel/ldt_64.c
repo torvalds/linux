@@ -1,6 +1,4 @@
 /*
- * linux/arch/x86_64/kernel/ldt.c
- *
  * Copyright (C) 1992 Krishna Balasubramanian and Linus Torvalds
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
  * Copyright (C) 2002 Andi Kleen

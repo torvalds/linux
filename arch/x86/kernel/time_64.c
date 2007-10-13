@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86-64/kernel/time.c
- *
  *  "High Precision Event Timer" based timekeeping.
  *
  *  Copyright (c) 1991,1992,1995  Linus Torvalds

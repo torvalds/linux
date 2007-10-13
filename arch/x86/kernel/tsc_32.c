@@ -1,9 +1,3 @@
-/*
- * This code largely moved from arch/i386/kernel/timer/timer_tsc.c
- * which was originally moved from arch/i386/kernel/time.c.
- * See comments there for proper credits.
- */
-
 #include <linux/sched.h>
 #include <linux/clocksource.h>
 #include <linux/workqueue.h>

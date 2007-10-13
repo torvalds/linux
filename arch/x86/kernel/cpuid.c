@@ -11,8 +11,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * cpuid.c
- *
  * x86 CPUID access device
  *
  * This device is accessed by lseek() to the appropriate CPUID level

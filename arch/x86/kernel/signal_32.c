@@ -1,6 +1,4 @@
 /*
- *  linux/arch/i386/kernel/signal.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  *  1997-11-28  Modified for POSIX.1b signals by Richard Henderson

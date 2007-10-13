@@ -1,6 +1,4 @@
 /*
- *  linux/arch/i386/kernel/i387.c
- *
  *  Copyright (C) 1994 Linus Torvalds
  *
  *  Pentium III FXSR, SSE support

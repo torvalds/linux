@@ -1,5 +1,5 @@
 /*
- * arch/x86_64/kernel/tsc_sync.c: check TSC synchronization.
+ * check TSC synchronization.
  *
  * Copyright (C) 2006, Red Hat, Inc., Ingo Molnar
  *

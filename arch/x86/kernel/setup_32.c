@@ -1,6 +1,4 @@
 /*
- *  linux/arch/i386/kernel/setup.c
- *
  *  Copyright (C) 1995  Linus Torvalds
  *
  *  Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999

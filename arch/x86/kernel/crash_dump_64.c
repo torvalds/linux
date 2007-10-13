@@ -1,5 +1,5 @@
 /*
- *	kernel/crash_dump.c - Memory preserving reboot related code.
+ *	Memory preserving reboot related code.
  *
  *	Created by: Hariprasad Nellitheertha (hari@in.ibm.com)
  *	Copyright (C) IBM Corporation, 2004. All rights reserved

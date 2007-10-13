@@ -1,5 +1,5 @@
 /*
- * i8237.c: 8237A DMA controller suspend functions.
+ * 8237A DMA controller suspend functions.
  *
  * Written by Pierre Ossman, 2005.
  *

@@ -1,6 +1,4 @@
 /*
- *	linux/arch/x86_64/kernel/irq.c
- *
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  *
  * This file contains the lowest level x86_64-specific interrupt

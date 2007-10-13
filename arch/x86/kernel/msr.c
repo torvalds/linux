@@ -11,8 +11,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * msr.c
- *
  * x86 MSR access device
  *
  * This device is accessed by lseek() to the appropriate register number

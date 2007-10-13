@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86_64/kernel/vsyscall.c
- *
  *  Copyright (C) 2001 Andrea Arcangeli <andrea@suse.de> SuSE
  *  Copyright 2003 Andi Kleen, SuSE Labs.
  *

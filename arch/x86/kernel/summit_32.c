@@ -1,5 +1,5 @@
 /*
- * arch/i386/kernel/summit.c - IBM Summit-Specific Code
+ * IBM Summit-Specific Code
  *
  * Written By: Matthew Dobson, IBM Corporation
  *

@@ -1,6 +1,4 @@
 /*
- * linux/arch/i386/kernel/reboot_fixups.c
- *
  * This is a good place to put board specific reboot fixups.
  *
  * List of supported fixups:

@@ -1,6 +1,4 @@
 /*
- *  linux/kernel/vm86.c
- *
  *  Copyright (C) 1994  Linus Torvalds
  *
  *  29 dec 2001 - Fixed oopses caused by unchecked access to the vm86

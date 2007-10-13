@@ -1,5 +1,5 @@
 /*
- * machine_kexec.c - handle transition of Linux booting another kernel
+ * handle transition of Linux booting another kernel
  * Copyright (C) 2002-2005 Eric Biederman  <ebiederm@xmission.com>
  *
  * This source code is licensed under the GNU General Public License,

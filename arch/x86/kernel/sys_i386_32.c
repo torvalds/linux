@@ -1,6 +1,4 @@
 /*
- * linux/arch/i386/kernel/sys_i386.c
- *
  * This file contains various random system calls that
  * have a non-standard calling sequence on the Linux/i386
  * platform.

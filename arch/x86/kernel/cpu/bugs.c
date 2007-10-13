@@ -1,6 +1,4 @@
 /*
- *  arch/i386/cpu/bugs.c
- *
  *  Copyright (C) 1994  Linus Torvalds
  *
  *  Cyrix stuff, June 1998 by:

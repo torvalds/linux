@@ -1,5 +1,4 @@
 /*
- *  linux/arch/i386/kernel/mca.c
  *  Written by Martin Kolinek, February 1996
  *
  * Changes:

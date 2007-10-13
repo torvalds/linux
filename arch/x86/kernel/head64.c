@@ -1,5 +1,5 @@
 /*
- *  linux/arch/x86_64/kernel/head64.c -- prepare to run common code
+ *  prepare to run common code
  *
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
  */

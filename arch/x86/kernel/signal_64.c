@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86_64/kernel/signal.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen SuSE Labs
  *

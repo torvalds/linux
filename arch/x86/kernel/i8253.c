@@ -1,5 +1,5 @@
 /*
- * i8253.c  8253/PIT functions
+ * 8253/PIT functions
  *
  */
 #include <linux/clockchips.h>

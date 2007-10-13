@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86-64/kernel/process.c
- *
  *  Copyright (C) 1995  Linus Torvalds
  *
  *  Pentium III FXSR, SSE support

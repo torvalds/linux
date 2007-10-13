@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86_64/kernel/i387.c
- *
  *  Copyright (C) 1994 Linus Torvalds
  *  Copyright (C) 2002 Andi Kleen, SuSE Labs
  *

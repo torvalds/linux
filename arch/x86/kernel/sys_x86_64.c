@@ -1,7 +1,3 @@
-/*
- * linux/arch/x86_64/kernel/sys_x86_64.c
- */
-
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>

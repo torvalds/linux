@@ -1,6 +1,4 @@
 /*
- *  arch/x86_64/kernel/bugs.c
- *
  *  Copyright (C) 1994  Linus Torvalds
  *  Copyright (C) 2000  SuSE
  */

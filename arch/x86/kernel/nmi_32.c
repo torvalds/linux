@@ -1,6 +1,4 @@
 /*
- *  linux/arch/i386/nmi.c
- *
  *  NMI watchdog support on APIC systems
  *
  *  Started by Ingo Molnar <mingo@redhat.com>

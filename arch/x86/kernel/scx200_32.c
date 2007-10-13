@@ -1,8 +1,8 @@
-/* linux/arch/i386/kernel/scx200.c 
-
-   Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
-
-   National Semiconductor SCx200 support. */
+/*
+ *  Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+ *
+ *  National Semiconductor SCx200 support.
+ */
 
 #include <linux/module.h>
 #include <linux/errno.h>
