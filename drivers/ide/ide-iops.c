@@ -616,11 +616,7 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 	 * - force bit13 (80c cable present) check also for !ivb devices
 	 *   (unless the slave device is pre-ATA3)
 	 */
-#ifndef CONFIG_IDEDMA_IVB
 	if ((id->hw_config & 0x4000) || (ivb && (id->hw_config & 0x2000)))
-#else
-	if (id->hw_config & 0x6000)
-#endif
 		return 1;
 
 no_80w:
