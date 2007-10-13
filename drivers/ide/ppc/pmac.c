@@ -1593,24 +1593,10 @@ pmac_ide_destroy_dmatable (ide_drive_t *drive)
 static int
 pmac_ide_dma_check(ide_drive_t *drive)
 {
-	int enable = 1;
+	if (ide_tune_dma(drive))
+		return 0;
 
-	drive->using_dma = 0;
-	
-	if (drive->media == ide_floppy)
-		enable = 0;
-	if ((drive->id->capability & 1) == 0 && !__ide_dma_good_drive(drive))
-		enable = 0;
-	if (__ide_dma_bad_drive(drive))
-		enable = 0;
-
-	if (enable) {
-		u8 mode = ide_max_dma_mode(drive);
-
-		if (mode && pmac_ide_tune_chipset(drive, mode) == 0)
-			drive->using_dma = 1;
-	}
-	return 0;
+	return -1;
 }
 
 /*
@@ -1844,7 +1830,10 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 			hwif->mwdma_mask = 0x07;
 			hwif->swdma_mask = 0x00;
 			break;
-	}	
+	}
+
+	hwif->autodma = 1;
+	hwif->drives[1].autodma = hwif->drives[0].autodma = hwif->autodma;
 }
 
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
