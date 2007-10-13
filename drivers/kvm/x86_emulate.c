@@ -96,8 +96,12 @@ static u8 opcode_table[256] = {
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	0, 0, 0, 0,
-	/* 0x40 - 0x4F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0x40 - 0x47 */
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	/* 0x48 - 0x4F */
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	/* 0x50 - 0x57 */
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
@@ -1376,6 +1380,18 @@ special_insn:
 	if (c->twobyte)
 		goto twobyte_special_insn;
 	switch (c->b) {
+	case 0x40 ... 0x47: /* inc r16/r32 */
+		c->dst.bytes = c->op_bytes;
+		c->dst.ptr = (unsigned long *)&c->regs[c->b & 0x7];
+		c->dst.val = *c->dst.ptr;
+		emulate_1op("inc", c->dst, ctxt->eflags);
+		break;
+	case 0x48 ... 0x4f: /* dec r16/r32 */
+		c->dst.bytes = c->op_bytes;
+		c->dst.ptr = (unsigned long *)&c->regs[c->b & 0x7];
+		c->dst.val = *c->dst.ptr;
+		emulate_1op("dec", c->dst, ctxt->eflags);
+		break;
 	case 0x50 ... 0x57:  /* push reg */
 		if (c->op_bytes == 2)
 			c->src.val = (u16) c->regs[c->b & 0x7];
