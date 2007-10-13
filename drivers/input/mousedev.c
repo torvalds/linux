@@ -265,6 +265,7 @@ static void mousedev_notify_readers(struct mousedev *mousedev,
 	unsigned int new_head;
 	int wake_readers = 0;
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(client, &mousedev->client_list, node) {
 
 		/* Just acquire the lock, interrupts already disabled */
@@ -309,6 +310,7 @@ static void mousedev_notify_readers(struct mousedev *mousedev,
 			wake_readers = 1;
 		}
 	}
+	rcu_read_unlock();
 
 	if (wake_readers)
 		wake_up_interruptible(&mousedev->wait);
@@ -499,12 +501,7 @@ static void mousedev_attach_client(struct mousedev *mousedev,
 	spin_lock(&mousedev->client_lock);
 	list_add_tail_rcu(&client->node, &mousedev->client_list);
 	spin_unlock(&mousedev->client_lock);
-	/*
-	 * We don't use synchronize_rcu() here because read-side
-	 * critical section is protected by a spinlock (dev->event_lock)
-	 * instead of rcu_read_lock().
-	 */
-	synchronize_sched();
+	synchronize_rcu();
 }
 
 static void mousedev_detach_client(struct mousedev *mousedev,
@@ -513,7 +510,7 @@ static void mousedev_detach_client(struct mousedev *mousedev,
 	spin_lock(&mousedev->client_lock);
 	list_del_rcu(&client->node);
 	spin_unlock(&mousedev->client_lock);
-	synchronize_sched();
+	synchronize_rcu();
 }
 
 static int mousedev_release(struct inode *inode, struct file *file)

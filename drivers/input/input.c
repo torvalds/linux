@@ -65,16 +65,16 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
 
 /*
  * Pass event through all open handles. This function is called with
- * dev->event_lock held and interrupts disabled. Because of that we
- * do not need to use rcu_read_lock() here although we are using RCU
- * to access handle list. Note that because of that write-side uses
- * synchronize_sched() instead of synchronize_ru().
+ * dev->event_lock held and interrupts disabled.
  */
 static void input_pass_event(struct input_dev *dev,
 			     unsigned int type, unsigned int code, int value)
 {
-	struct input_handle *handle = rcu_dereference(dev->grab);
+	struct input_handle *handle;
 
+	rcu_read_lock();
+
+	handle = rcu_dereference(dev->grab);
 	if (handle)
 		handle->handler->event(handle, type, code, value);
 	else
@@ -82,6 +82,7 @@ static void input_pass_event(struct input_dev *dev,
 			if (handle->open)
 				handle->handler->event(handle,
 							type, code, value);
+	rcu_read_unlock();
 }
 
 /*
@@ -293,9 +294,11 @@ void input_inject_event(struct input_handle *handle,
 	if (is_event_supported(type, dev->evbit, EV_MAX)) {
 		spin_lock_irqsave(&dev->event_lock, flags);
 
+		rcu_read_lock();
 		grab = rcu_dereference(dev->grab);
 		if (!grab || grab == handle)
 			input_handle_event(dev, type, code, value);
+		rcu_read_unlock();
 
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
@@ -325,11 +328,7 @@ int input_grab_device(struct input_handle *handle)
 	}
 
 	rcu_assign_pointer(dev->grab, handle);
-	/*
-	 * Not using synchronize_rcu() because read-side is protected
-	 * by a spinlock with interrupts off instead of rcu_read_lock().
-	 */
-	synchronize_sched();
+	synchronize_rcu();
 
  out:
 	mutex_unlock(&dev->mutex);
@@ -344,7 +343,7 @@ static void __input_release_device(struct input_handle *handle)
 	if (dev->grab == handle) {
 		rcu_assign_pointer(dev->grab, NULL);
 		/* Make sure input_pass_event() notices that grab is gone */
-		synchronize_sched();
+		synchronize_rcu();
 
 		list_for_each_entry(handle, &dev->h_list, d_node)
 			if (handle->open && handle->handler->start)
@@ -404,7 +403,7 @@ int input_open_device(struct input_handle *handle)
 			 * Make sure we are not delivering any more events
 			 * through this handle
 			 */
-			synchronize_sched();
+			synchronize_rcu();
 		}
 	}
 
@@ -451,11 +450,11 @@ void input_close_device(struct input_handle *handle)
 
 	if (!--handle->open) {
 		/*
-		 * synchronize_sched() makes sure that input_pass_event()
+		 * synchronize_rcu() makes sure that input_pass_event()
 		 * completed and that no more input events are delivered
 		 * through this handle
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 	}
 
 	mutex_unlock(&dev->mutex);
@@ -1477,12 +1476,7 @@ int input_register_handle(struct input_handle *handle)
 		return error;
 	list_add_tail_rcu(&handle->d_node, &dev->h_list);
 	mutex_unlock(&dev->mutex);
-	/*
-	 * We don't use synchronize_rcu() here because we rely
-	 * on dev->event_lock to protect read-side critical
-	 * section in input_pass_event().
-	 */
-	synchronize_sched();
+	synchronize_rcu();
 
 	/*
 	 * Since we are supposed to be called from ->connect()
@@ -1521,7 +1515,7 @@ void input_unregister_handle(struct input_handle *handle)
 	mutex_lock(&dev->mutex);
 	list_del_rcu(&handle->d_node);
 	mutex_unlock(&dev->mutex);
-	synchronize_sched();
+	synchronize_rcu();
 }
 EXPORT_SYMBOL(input_unregister_handle);
 
