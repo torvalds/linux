@@ -272,12 +272,6 @@ void cx23885_call_i2c_clients(struct cx23885_i2c *bus,
 	i2c_clients_command(&bus->i2c_adap, cmd, arg);
 }
 
-static int cx23885_algo_control(struct i2c_adapter *adap,
-				unsigned int cmd, unsigned long arg)
-{
-	return 0;
-}
-
 static u32 cx23885_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
@@ -285,7 +279,6 @@ static u32 cx23885_functionality(struct i2c_adapter *adap)
 
 static struct i2c_algorithm cx23885_i2c_algo_template = {
 	.master_xfer	= i2c_xfer,
-	.algo_control	= cx23885_algo_control,
 	.functionality	= cx23885_functionality,
 };
 
