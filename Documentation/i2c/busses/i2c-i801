@@ -13,7 +13,8 @@ Supported adapters:
   * Intel 631xESB/632xESB (ESB2)
   * Intel 82801H (ICH8)
   * Intel ICH9
-    Datasheets: Publicly available at the Intel website
+  * Intel Tolapai
+   Datasheets: Publicly available at the Intel website
 
 Authors: 
 	Frodo Looijaard <frodol@dds.nl>, 
