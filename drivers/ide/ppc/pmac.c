@@ -541,7 +541,8 @@ static int
 pmac_ide_do_setfeature(ide_drive_t *drive, u8 command)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	int result = 1;
+	int result;
+	u8 stat;
 	
 	disable_irq_nosync(hwif->irq);
 	udelay(1);
@@ -552,9 +553,9 @@ pmac_ide_do_setfeature(ide_drive_t *drive, u8 command)
 	hwif->OUTB(command, IDE_NSECTOR_REG);
 	hwif->OUTB(SETFEATURES_XFER, IDE_FEATURE_REG);
 	hwif->OUTBSYNC(drive, WIN_SETFEATURES, IDE_COMMAND_REG);
-	udelay(1);
-	/* Timeout bumped for some powerbooks */
-	result = wait_for_ready(drive, 2000);
+	result = __ide_wait_stat(drive, drive->ready_stat,
+				 BUSY_STAT|DRQ_STAT|ERR_STAT,
+				 WAIT_CMD, &stat);
 	hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
 	if (result)
 		printk(KERN_ERR "%s: pmac_ide_do_setfeature disk not ready "

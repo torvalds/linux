@@ -473,35 +473,6 @@ int drive_is_ready (ide_drive_t *drive)
 EXPORT_SYMBOL(drive_is_ready);
 
 /*
- * Global for All, and taken from ide-pmac.c. Can be called
- * with spinlock held & IRQs disabled, so don't schedule !
- */
-int wait_for_ready (ide_drive_t *drive, int timeout)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	u8 stat			= 0;
-
-	while(--timeout) {
-		stat = hwif->INB(IDE_STATUS_REG);
-		if (!(stat & BUSY_STAT)) {
-			if (drive->ready_stat == 0)
-				break;
-			else if ((stat & drive->ready_stat)||(stat & ERR_STAT))
-				break;
-		}
-		mdelay(1);
-	}
-	if ((stat & ERR_STAT) || timeout <= 0) {
-		if (stat & ERR_STAT) {
-			printk(KERN_ERR "%s: wait_for_ready, "
-				"error status: %x\n", drive->name, stat);
-		}
-		return 1;
-	}
-	return 0;
-}
-
-/*
  * This routine busy-waits for the drive status to be not "busy".
  * It then checks the status for all of the "good" bits and none
  * of the "bad" bits, and if all is okay it returns 0.  All other
@@ -512,7 +483,7 @@ int wait_for_ready (ide_drive_t *drive, int timeout)
  * setting a timer to wake up at half second intervals thereafter,
  * until timeout is achieved, before timing out.
  */
-static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long timeout, u8 *rstat)
+int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long timeout, u8 *rstat)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;

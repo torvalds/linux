@@ -1153,7 +1153,7 @@ extern void SELECT_MASK(ide_drive_t *, int);
 extern void QUIRK_LIST(ide_drive_t *);
 
 extern int drive_is_ready(ide_drive_t *);
-extern int wait_for_ready(ide_drive_t *, int /* timeout */);
+int __ide_wait_stat(ide_drive_t *, u8, u8, unsigned long);
 
 /*
  * taskfile io for disks for now...and builds request from ide_ioctl
