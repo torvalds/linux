@@ -75,10 +75,18 @@ config I2C_AMD8111
 
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
-	depends on ARCH_AT91 && EXPERIMENTAL
+	depends on ARCH_AT91 && EXPERIMENTAL && BROKEN
 	help
 	  This supports the use of the I2C interface on Atmel AT91
 	  processors.
+
+	  This driver is BROKEN because the controller which it uses
+	  will easily trigger RX overrun and TX underrun errors.  Using
+	  low I2C clock rates may partially work around those issues
+	  on some systems.  Another serious problem is that there is no
+	  documented way to issue repeated START conditions, as needed
+	  to support combined I2C messages.  Use the i2c-gpio driver
+	  unless your system can cope with those limitations.
 
 config I2C_AU1550
 	tristate "Au1550/Au1200 SMBus interface"
