@@ -62,6 +62,7 @@ struct nforce2_smbus {
 	int base;
 	int size;
 	int blockops;
+	int can_abort;
 };
 
 
@@ -83,7 +84,14 @@ struct nforce2_smbus {
 #define NVIDIA_SMB_DATA		(smbus->base + 0x04)	/* 32 data registers */
 #define NVIDIA_SMB_BCNT		(smbus->base + 0x24)	/* number of data
 							   bytes */
+#define NVIDIA_SMB_STATUS_ABRT	(smbus->base + 0x3c)	/* register used to
+							   check the status of
+							   the abort command */
+#define NVIDIA_SMB_CTRL		(smbus->base + 0x3e)	/* control register */
 
+#define NVIDIA_SMB_STATUS_ABRT_STS	0x01		/* Bit to notify that
+							   abort succeeded */
+#define NVIDIA_SMB_CTRL_ABORT	0x20
 #define NVIDIA_SMB_STS_DONE	0x80
 #define NVIDIA_SMB_STS_ALRM	0x40
 #define NVIDIA_SMB_STS_RES	0x20
@@ -103,6 +111,25 @@ struct nforce2_smbus {
 
 static struct pci_driver nforce2_driver;
 
+static void nforce2_abort(struct i2c_adapter *adap)
+{
+	struct nforce2_smbus *smbus = adap->algo_data;
+	int timeout = 0;
+	unsigned char temp;
+
+	dev_dbg(&adap->dev, "Aborting current transaction\n");
+
+	outb_p(NVIDIA_SMB_CTRL_ABORT, NVIDIA_SMB_CTRL);
+	do {
+		msleep(1);
+		temp = inb_p(NVIDIA_SMB_STATUS_ABRT);
+	} while (!(temp & NVIDIA_SMB_STATUS_ABRT_STS) &&
+			(timeout++ < MAX_TIMEOUT));
+	if (!(temp & NVIDIA_SMB_STATUS_ABRT_STS))
+		dev_err(&adap->dev, "Can't reset the smbus\n");
+	outb_p(NVIDIA_SMB_STATUS_ABRT_STS, NVIDIA_SMB_STATUS_ABRT);
+}
+
 static int nforce2_check_status(struct i2c_adapter *adap)
 {
 	struct nforce2_smbus *smbus = adap->algo_data;
@@ -116,6 +143,8 @@ static int nforce2_check_status(struct i2c_adapter *adap)
 
 	if (timeout >= MAX_TIMEOUT) {
 		dev_dbg(&adap->dev, "SMBus Timeout!\n");
+		if (smbus->can_abort)
+			nforce2_abort(adap);
 		return -1;
 	}
 	if (!(temp & NVIDIA_SMB_STS_DONE) || (temp & NVIDIA_SMB_STS_STATUS)) {
@@ -325,6 +354,8 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 	case PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS:
 		smbuses[0].blockops = 1;
 		smbuses[1].blockops = 1;
+		smbuses[0].can_abort = 1;
+		smbuses[1].can_abort = 1;
 	}
 
 	/* SMBus adapter 1 */
