@@ -738,7 +738,14 @@ static int __devinit iic_probe(struct ocp_device *ocp){
 	adap->timeout = 1;
 	adap->retries = 1;
 
-	if ((ret = i2c_add_adapter(adap)) != 0){
+	/*
+	 * If "dev->idx" is negative we consider it as zero.
+	 * The reason to do so is to avoid sysfs names that only make
+	 * sense when there are multiple adapters.
+	 */
+	adap->nr = dev->idx >= 0 ? dev->idx : 0;
+
+	if ((ret = i2c_add_numbered_adapter(adap)) < 0) {
 		printk(KERN_CRIT "ibm-iic%d: failed to register i2c adapter\n",
 			dev->idx);
 		goto fail;
