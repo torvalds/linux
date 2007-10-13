@@ -62,10 +62,11 @@ config BLK_DEV_BSG
 	protocols (e.g. Task Management Functions and SMP in Serial
 	Attached SCSI).
 
+endif # BLOCK
+
 config BLOCK_COMPAT
 	bool
+	depends on BLOCK && COMPAT
 	default y
-
-endif # BLOCK
 
 source block/Kconfig.iosched
