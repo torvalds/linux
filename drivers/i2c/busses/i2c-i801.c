@@ -516,7 +516,7 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	    I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK
-	     | (isich4 ? I2C_FUNC_SMBUS_HWPEC_CALC : 0);
+	     | (isich4 ? I2C_FUNC_SMBUS_PEC : 0);
 }
 
 static const struct i2c_algorithm smbus_algorithm = {

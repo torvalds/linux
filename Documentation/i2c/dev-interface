@@ -90,12 +90,15 @@ ioctl(file,I2C_SLAVE,long addr)
 
 ioctl(file,I2C_TENBIT,long select)
   Selects ten bit addresses if select not equals 0, selects normal 7 bit
-  addresses if select equals 0. Default 0.
+  addresses if select equals 0. Default 0.  This request is only valid
+  if the adapter has I2C_FUNC_10BIT_ADDR.
 
 ioctl(file,I2C_PEC,long select)
   Selects SMBus PEC (packet error checking) generation and verification
   if select not equals 0, disables if select equals 0. Default 0.
-  Used only for SMBus transactions.
+  Used only for SMBus transactions.  This request only has an effect if the
+  the adapter has I2C_FUNC_SMBUS_PEC; it is still safe if not, it just
+  doesn't have any effect.
 
 ioctl(file,I2C_FUNCS,unsigned long *funcs)
   Gets the adapter functionality and puts it in *funcs.
@@ -103,8 +106,10 @@ ioctl(file,I2C_FUNCS,unsigned long *funcs)
 ioctl(file,I2C_RDWR,struct i2c_rdwr_ioctl_data *msgset)
 
   Do combined read/write transaction without stop in between.
-  The argument is a pointer to a struct i2c_rdwr_ioctl_data {
+  Only valid if the adapter has I2C_FUNC_I2C.  The argument is
+  a pointer to a
 
+  struct i2c_rdwr_ioctl_data {
       struct i2c_msg *msgs;  /* ptr to array of simple messages */
       int nmsgs;             /* number of messages to exchange */
   }
