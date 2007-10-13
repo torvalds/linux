@@ -122,6 +122,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	struct jffs2_inode_cache *ic;
 	struct jffs2_eraseblock *jeb;
 	struct jffs2_raw_node_ref *raw;
+	uint32_t gcblock_dirty;
 	int ret = 0, inum, nlink;
 	int xattr = 0;
 
@@ -236,6 +237,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	}
 
 	raw = jeb->gc_node;
+	gcblock_dirty = jeb->dirty_size;
 
 	while(ref_obsolete(raw)) {
 		D1(printk(KERN_DEBUG "Node at 0x%08x is obsolete... skipping\n", ref_offset(raw)));
@@ -282,7 +284,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		} else {
 			ret = jffs2_garbage_collect_xattr_ref(c, (struct jffs2_xattr_ref *)ic, raw);
 		}
-		goto release_sem;
+		goto test_gcnode;
 	}
 #endif
 
@@ -376,7 +378,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 
 		if (ret != -EBADFD) {
 			spin_unlock(&c->inocache_lock);
-			goto release_sem;
+			goto test_gcnode;
 		}
 
 		/* Fall through if it wanted us to, with inocache_lock held */
@@ -406,6 +408,14 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	ret = jffs2_garbage_collect_live(c, jeb, raw, f);
 
 	jffs2_gc_release_inode(c, f);
+
+ test_gcnode:
+	if (jeb->dirty_size == gcblock_dirty && !ref_obsolete(jeb->gc_node)) {
+		/* Eep. This really should never happen. GC is broken */
+		printk(KERN_ERR "Error garbage collecting node at %08x!\n", ref_offset(jeb->gc_node));
+		ret = -ENOSPC;
+	} else if (ref_offset(jeb->gc_node) == 0x1c616bdc)
+		printk(KERN_ERR "Wheee. Correctly GC'd node at %08x\n", ref_offset(jeb->gc_node));
 
  release_sem:
 	up(&c->alloc_sem);
