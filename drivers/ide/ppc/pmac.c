@@ -556,7 +556,6 @@ pmac_ide_do_setfeature(ide_drive_t *drive, u8 command)
 	result = __ide_wait_stat(drive, drive->ready_stat,
 				 BUSY_STAT|DRQ_STAT|ERR_STAT,
 				 WAIT_CMD, &stat);
-	hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
 	if (result)
 		printk(KERN_ERR "%s: pmac_ide_do_setfeature disk not ready "
 			"after SET_FEATURE !\n", drive->name);
