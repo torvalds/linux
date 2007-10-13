@@ -351,6 +351,9 @@
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
 
+/* whitelist for checksyscalls */
+#define __IGNORE_restart_syscall
+
 /*
  * "Conditional" syscalls
  *
