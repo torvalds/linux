@@ -13,7 +13,8 @@
 # unless it's something special (ie not a .c file).
 #
 
-obj-y := init.o fault.o ioremap.o extable.o cache.o tlbmiss.o tlb.o
+obj-y := cache.o consistent.o extable.o fault.o init.o ioremap.o \
+	 tlbmiss.o tlb.o
 
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 
@@ -41,4 +42,3 @@ CFLAGS_tlbmiss.o += -ffixed-r7 \
 	-ffixed-r41 -ffixed-r42 -ffixed-r43  \
 	-ffixed-r60 -ffixed-r61 -ffixed-r62 \
 	-fomit-frame-pointer
-

@@ -18,19 +18,11 @@
  * lethal@linux-sh.org:          15th May 2003
  *    Use the generic procfs cpuinfo interface, just return a valid board name.
  */
-
-#include <linux/stddef.h>
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/bootmem.h>
-#include <linux/delay.h>
 #include <linux/kernel.h>
-#include <linux/seq_file.h>
-#include <asm/processor.h>
 #include <asm/platform.h>
-#include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/page.h>
+#include <asm/io.h>
 
 /*
  * Platform Dependent Interrupt Priorities.

@@ -40,6 +40,8 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .comment -R .stab -R .stabstr -S
 #
 KBUILD_DEFCONFIG	:= cayman_defconfig
 
+KBUILD_IMAGE		:= arch/$(ARCH)/boot/zImage
+
 ifdef LOADADDR
 LINKFLAGS     += -Ttext $(word 1,$(LOADADDR))
 endif
@@ -47,7 +49,6 @@ endif
 machine-$(CONFIG_SH_CAYMAN)	:= cayman
 machine-$(CONFIG_SH_SIMULATOR)	:= sim
 machine-$(CONFIG_SH_HARP)	:= harp
-machine-$(CONFIG_SH_ROMRAM)	:= romram
 
 head-y := arch/$(ARCH)/kernel/head.o arch/$(ARCH)/kernel/init_task.o
 
@@ -106,6 +107,5 @@ arch/$(ARCH)/lib/syscalltab.h: arch/sh64/kernel/syscalls.S
 CLEAN_FILES += arch/$(ARCH)/lib/syscalltab.h
 
 define archhelp
-	@echo '  zImage 	           - Compressed kernel image (arch/sh64/boot/zImage)'
+	@echo '* zImage 	           - Compressed kernel image'
 endef
-

@@ -13,7 +13,6 @@
 #include <linux/sched.h>
 
 void mach_alphanum(int pos, unsigned char val);
-void mach_led(int pos, int val);
 
 void print_seg(char *file, int line)
 {

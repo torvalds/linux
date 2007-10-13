@@ -5,9 +5,6 @@ source "lib/Kconfig.debug"
 config EARLY_PRINTK
 	bool "Early SCIF console support"
 
-config DEBUG_KERNEL_WITH_GDB_STUB
-	bool "GDB Stub kernel debug"
-
 config SH64_PROC_TLB
 	bool "Debug: report TLB fill/purge activity through /proc/tlb"
 	depends on PROC_FS
@@ -28,17 +25,9 @@ config POOR_MANS_STRACE
 
 config SH_ALPHANUMERIC
 	bool "Enable debug outputs to on-board alphanumeric display"
+	depends on SH_CAYMAN
 
 config SH_NO_BSS_INIT
 	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
-
-config FRAME_POINTER
-	bool "Compile the kernel with frame pointers"
-	default y if KGDB
-	help
-	  If you say Y here the resulting kernel image will be slightly larger
-	  and slower, but it will give very useful debugging information.
-	  If you don't debug the kernel, you can say N, but we may not be able
-	  to solve problems without frame pointers.
 
 endmenu

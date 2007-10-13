@@ -25,7 +25,7 @@ obj-$(CONFIG_SH_DMA)		+= dma.o
 obj-$(CONFIG_SH_FPU)		+= fpu.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_KALLSYMS)		+= unwind.o
-obj-$(CONFIG_PCI)		+= pci-dma.o pcibios.o
+obj-$(CONFIG_PCI)		+= pcibios.o
 obj-$(CONFIG_MODULES)		+= module.o
 
 ifeq ($(CONFIG_PCI),y)

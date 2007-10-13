@@ -10,6 +10,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
@@ -110,7 +111,7 @@ static unsigned long do_csum(const unsigned char *buff, int len)
 	if (odd)
 		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
 
-	pr_debug("\nCHECKSUM is 0x%x\n", result);
+	pr_debug("\nCHECKSUM is 0x%lx\n", result);
 
       out:
 	return result;

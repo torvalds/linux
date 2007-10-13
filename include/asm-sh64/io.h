@@ -119,6 +119,13 @@ void insw(unsigned long port, void *addr, unsigned long count);
 void outsl(unsigned long port, const void *addr, unsigned long count);
 void insl(unsigned long port, void *addr, unsigned long count);
 
+#define inb_p(addr)    inb(addr)
+#define inw_p(addr)    inw(addr)
+#define inl_p(addr)    inl(addr)
+#define outb_p(x,addr) outb(x,addr)
+#define outw_p(x,addr) outw(x,addr)
+#define outl_p(x,addr) outl(x,addr)
+
 #define __raw_readb		readb
 #define __raw_readw		readw
 #define __raw_readl		readl

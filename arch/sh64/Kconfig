@@ -36,6 +36,14 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
@@ -58,17 +66,11 @@ choice
 	prompt "SuperH system type"
 	default SH_SIMULATOR
 
-config SH_GENERIC
-	bool "Generic"
-
 config SH_SIMULATOR
 	bool "Simulator"
 
 config SH_CAYMAN
 	bool "Cayman"
-
-config SH_ROMRAM
-	bool "ROM/RAM"
 
 config SH_HARP
 	bool "ST50-Harp"
@@ -152,60 +154,54 @@ comment "Memory options"
 
 config CACHED_MEMORY_OFFSET
 	hex "Cached Area Offset"
-	depends on SH_HARP || SH_CAYMAN || SH_SIMULATOR
 	default "20000000"
 
 config MEMORY_START
 	hex "Physical memory start address"
-	depends on SH_HARP || SH_CAYMAN || SH_SIMULATOR
 	default "80000000"
 
 config MEMORY_SIZE_IN_MB
-	int "Memory size (in MB)" if SH_HARP || SH_CAYMAN || SH_SIMULATOR
-	default "64" if SH_HARP || SH_CAYMAN
+	int "Memory size (in MB)"
 	default "8" if SH_SIMULATOR
+	default "64"
 
 comment "Cache options"
 
-config DCACHE_DISABLED
-	bool "DCache Disabling"
-	depends on SH_HARP || SH_CAYMAN || SH_SIMULATOR
-
 choice
 	prompt "DCache mode"
-	depends on !DCACHE_DISABLED && !SH_SIMULATOR
+	default DCACHE_DISABLED if SH_SIMULATOR
 	default DCACHE_WRITE_BACK
 
 config DCACHE_WRITE_BACK
 	bool "Write-back"
+	depends on !SH_SIMULATOR
 
 config DCACHE_WRITE_THROUGH
 	bool "Write-through"
+	depends on !SH_SIMULATOR
+
+config DCACHE_DISABLED
+	bool "Disabled"
 
 endchoice
 
 config ICACHE_DISABLED
 	bool "ICache Disabling"
-	depends on SH_HARP || SH_CAYMAN || SH_SIMULATOR
 
 config PCIDEVICE_MEMORY_START
 	hex
-	depends on SH_HARP || SH_CAYMAN || SH_SIMULATOR
 	default "C0000000"
 
 config DEVICE_MEMORY_START
 	hex
-	depends on SH_HARP || SH_CAYMAN || SH_SIMULATOR
 	default "E0000000"
 
 config FLASH_MEMORY_START
 	hex "Flash memory/on-chip devices start address"
-	depends on SH_HARP || SH_CAYMAN || SH_SIMULATOR
 	default "00000000"
 
 config PCI_BLOCK_START
 	hex "PCI block start address"
-	depends on SH_HARP || SH_CAYMAN || SH_SIMULATOR
 	default "40000000"
 
 comment "CPU Subtype specific options"
@@ -214,8 +210,10 @@ config SH64_ID2815_WORKAROUND
 	bool "Include workaround for SH5-101 cut2 silicon defect ID2815"
 
 comment "Misc options"
+
 config HEARTBEAT
 	bool "Heartbeat LED"
+	depends on SH_CAYMAN
 
 config HDSP253_LED
 	bool "Support for HDSP-253 LED"
@@ -242,6 +240,7 @@ config SBUS
 
 config PCI
 	bool "PCI support"
+	depends on SH_CAYMAN
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -294,15 +293,3 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-
-#
-# Use the generic interrupt handling code in kernel/irq/:
-#
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-

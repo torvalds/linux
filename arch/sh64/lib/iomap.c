@@ -17,12 +17,15 @@ ioport_map(unsigned long port, unsigned int len)
 {
 	return (void __iomem *)port;
 }
+EXPORT_SYMBOL(ioport_map);
 
 void ioport_unmap(void __iomem *addr)
 {
 	/* Nothing .. */
 }
+EXPORT_SYMBOL(ioport_unmap);
 
+#ifdef CONFIG_PCI
 void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max)
 {
 	unsigned long start = pci_resource_start(dev, bar);
@@ -41,14 +44,11 @@ void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max)
 	/* What? */
 	return NULL;
 }
+EXPORT_SYMBOL(pci_iomap);
 
 void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 {
 	/* Nothing .. */
 }
-
-EXPORT_SYMBOL(ioport_map);
-EXPORT_SYMBOL(ioport_unmap);
-EXPORT_SYMBOL(pci_iomap);
 EXPORT_SYMBOL(pci_iounmap);
-
+#endif

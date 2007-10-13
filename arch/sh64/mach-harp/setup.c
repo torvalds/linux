@@ -17,20 +17,10 @@
  * lethal@linux-sh.org:          15th May 2003
  *    Use the generic procfs cpuinfo interface, just return a valid board name.
  */
-
-#include <linux/stddef.h>
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/bootmem.h>
-#include <linux/delay.h>
 #include <linux/kernel.h>
-#include <asm/processor.h>
 #include <asm/platform.h>
-#include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/page.h>
-
-#define RES_COUNT(res) ((sizeof((res))/sizeof(struct resource)))
 
 /*
  * Platform Dependent Interrupt Priorities.
@@ -78,8 +68,10 @@ struct resource io_resources[] = {
 };
 
 struct resource kram_resources[] = {
-	{ "Kernel code", 0, 0 },	/* These must be last in the array */
-	{ "Kernel data", 0, 0 }		/* These must be last in the array */
+	/* These must be last in the array */
+	{ .name = "Kernel code", .start = 0, .end = 0 },
+	/* These must be last in the array */
+	{ .name = "Kernel data", .start = 0, .end = 0 }
 };
 
 struct resource xram_resources[] = {
@@ -95,13 +87,13 @@ struct sh64_platform platform_parms = {
 	.initial_root_dev =	0x0100,
 	.loader_type =		1,
 	.io_res_p =		io_resources,
-	.io_res_count =		RES_COUNT(io_resources),
+	.io_res_count =		ARRAY_SIZE(io_resources),
 	.kram_res_p =		kram_resources,
-	.kram_res_count =	RES_COUNT(kram_resources),
+	.kram_res_count =	ARRAY_SIZE(kram_resources),
 	.xram_res_p =		xram_resources,
-	.xram_res_count =	RES_COUNT(xram_resources),
+	.xram_res_count =	ARRAY_SIZE(xram_resources),
 	.rom_res_p =		rom_resources,
-	.rom_res_count =	RES_COUNT(rom_resources),
+	.rom_res_count =	ARRAY_SIZE(rom_resources),
 };
 
 int platform_int_priority[NR_INTC_IRQS] = {
@@ -135,4 +127,3 @@ const char *get_system_type(void)
 {
 	return "ST50 Harp";
 }
-

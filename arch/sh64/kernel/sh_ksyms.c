@@ -31,15 +31,10 @@ extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 
 /* platform dependent support */
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(iounmap);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(kernel_thread);
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy_nocheck);
-
-EXPORT_SYMBOL(strstr);
 
 #ifdef CONFIG_VT
 EXPORT_SYMBOL(screen_info);
@@ -50,27 +45,18 @@ EXPORT_SYMBOL(__down_trylock);
 EXPORT_SYMBOL(__up);
 EXPORT_SYMBOL(__put_user_asm_l);
 EXPORT_SYMBOL(__get_user_asm_l);
-EXPORT_SYMBOL(memcmp);
+EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(memscan);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strlen);
-
+EXPORT_SYMBOL(udelay);
+EXPORT_SYMBOL(__udelay);
+EXPORT_SYMBOL(ndelay);
+EXPORT_SYMBOL(__ndelay);
 EXPORT_SYMBOL(flush_dcache_page);
-
-/* For ext3 */
 EXPORT_SYMBOL(sh64_page_clear);
 
 /* Ugh.  These come in from libgcc.a at link time. */
+#define DECLARE_EXPORT(name) extern void name(void);EXPORT_SYMBOL(name)
 
-extern void __sdivsi3(void);
-extern void __muldi3(void);
-extern void __udivsi3(void);
-extern char __div_table;
-EXPORT_SYMBOL(__sdivsi3);
-EXPORT_SYMBOL(__muldi3);
-EXPORT_SYMBOL(__udivsi3);
-EXPORT_SYMBOL(__div_table);
-
-
+DECLARE_EXPORT(__sdivsi3);
+DECLARE_EXPORT(__muldi3);
+DECLARE_EXPORT(__udivsi3);

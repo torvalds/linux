@@ -30,14 +30,6 @@
 #define LOAD_OFFSET	CONFIG_CACHED_MEMORY_OFFSET
 #include <asm-generic/vmlinux.lds.h>
 
-#ifdef NOTDEF
-#ifdef CONFIG_LITTLE_ENDIAN
-OUTPUT_FORMAT("elf32-sh64l-linux", "elf32-sh64l-linux", "elf32-sh64l-linux")
-#else
-OUTPUT_FORMAT("elf32-sh64", "elf32-sh64", "elf32-sh64")
-#endif
-#endif
-
 OUTPUT_ARCH(sh:sh5)
 
 #define C_PHYS(x) AT (ADDR(x) - LOAD_OFFSET)
@@ -74,9 +66,11 @@ SECTIONS
   __ex_table : C_PHYS(__ex_table) { *(__ex_table) }
   __stop___ex_table = .;
 
-  RODATA
-
   _etext = .;			/* End of text section */
+
+  NOTES 
+
+  RODATA
 
   .data : C_PHYS(.data) {			/* Data */
 	DATA_DATA
@@ -86,13 +80,9 @@ SECTIONS
   . = ALIGN(PAGE_SIZE);
   .data.page_aligned : C_PHYS(.data.page_aligned) { *(.data.page_aligned) }
 
-  . = ALIGN(PAGE_SIZE);
-  __per_cpu_start = .;
-  .data.percpu : C_PHYS(.data.percpu) {
-	*(.data.percpu)
-	*(.data.percpu.shared_aligned)
-  }
-  __per_cpu_end = . ;
+  PERCPU(PAGE_SIZE)
+
+  . = ALIGN(L1_CACHE_BYTES);
   .data.cacheline_aligned : C_PHYS(.data.cacheline_aligned) { *(.data.cacheline_aligned) }
 
   _edata = .;			/* End of data section */
@@ -145,38 +135,6 @@ SECTIONS
 	*(.exitcall.exit)
 	}
 
-  /* Stabs debugging sections.  */
-  .stab 0 : C_PHYS(.stab) { *(.stab) }
-  .stabstr 0 : C_PHYS(.stabstr) { *(.stabstr) }
-  .stab.excl 0 : C_PHYS(.stab.excl) { *(.stab.excl) }
-  .stab.exclstr 0 : C_PHYS(.stab.exclstr) { *(.stab.exclstr) }
-  .stab.index 0 : C_PHYS(.stab.index) { *(.stab.index) }
-  .stab.indexstr 0 : C_PHYS(.stab.indexstr) { *(.stab.indexstr) }
-  .comment 0 : C_PHYS(.comment) { *(.comment) }
-  /* DWARF debug sections.
-     Symbols in the DWARF debugging section are relative to the beginning
-     of the section so we begin .debug at 0.  */
-  /* DWARF 1 */
-  .debug          0 : C_PHYS(.debug) { *(.debug) }
-  .line           0 : C_PHYS(.line) { *(.line) }
-  /* GNU DWARF 1 extensions */
-  .debug_srcinfo  0 : C_PHYS(.debug_srcinfo) { *(.debug_srcinfo) }
-  .debug_sfnames  0 : C_PHYS(.debug_sfnames) { *(.debug_sfnames) }
-  /* DWARF 1.1 and DWARF 2 */
-  .debug_aranges  0 : C_PHYS(.debug_aranges) { *(.debug_aranges) }
-  .debug_pubnames 0 : C_PHYS(.debug_pubnames) { *(.debug_pubnames) }
-  /* DWARF 2 */
-  .debug_info     0 : C_PHYS(.debug_info) { *(.debug_info) }
-  .debug_abbrev   0 : C_PHYS(.debug_abbrev) { *(.debug_abbrev) }
-  .debug_line     0 : C_PHYS(.debug_line) { *(.debug_line) }
-  .debug_frame    0 : C_PHYS(.debug_frame) { *(.debug_frame) }
-  .debug_str      0 : C_PHYS(.debug_str) { *(.debug_str) }
-  .debug_loc      0 : C_PHYS(.debug_loc) { *(.debug_loc) }
-  .debug_macinfo  0 : C_PHYS(.debug_macinfo) { *(.debug_macinfo) }
-  /* SGI/MIPS DWARF 2 extensions */
-  .debug_weaknames 0 : C_PHYS(.debug_weaknames) { *(.debug_weaknames) }
-  .debug_funcnames 0 : C_PHYS(.debug_funcnames) { *(.debug_funcnames) }
-  .debug_typenames 0 : C_PHYS(.debug_typenames) { *(.debug_typenames) }
-  .debug_varnames  0 : C_PHYS(.debug_varnames) { *(.debug_varnames) }
-  /* These must appear regardless of  .  */
+  STABS_DEBUG
+  DWARF_DEBUG
 }
