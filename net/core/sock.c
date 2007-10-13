@@ -869,6 +869,7 @@ static inline void sock_lock_init(struct sock *sk)
 
 /**
  *	sk_alloc - All socket objects are allocated here
+ *	@net: the applicable net namespace
  *	@family: protocol family
  *	@priority: for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
  *	@prot: struct proto associated with this new sock instance

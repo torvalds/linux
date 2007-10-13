@@ -557,6 +557,7 @@ __setup("netdev=", netdev_boot_setup);
 
 /**
  *	__dev_get_by_name	- find a device by its name
+ *	@net: the applicable net namespace
  *	@name: name to find
  *
  *	Find an interface by name. Must be called under RTNL semaphore
@@ -581,6 +582,7 @@ struct net_device *__dev_get_by_name(struct net *net, const char *name)
 
 /**
  *	dev_get_by_name		- find a device by its name
+ *	@net: the applicable net namespace
  *	@name: name to find
  *
  *	Find an interface by name. This can be called from any
@@ -604,6 +606,7 @@ struct net_device *dev_get_by_name(struct net *net, const char *name)
 
 /**
  *	__dev_get_by_index - find a device by its ifindex
+ *	@net: the applicable net namespace
  *	@ifindex: index of device
  *
  *	Search for an interface by index. Returns %NULL if the device
@@ -629,6 +632,7 @@ struct net_device *__dev_get_by_index(struct net *net, int ifindex)
 
 /**
  *	dev_get_by_index - find a device by its ifindex
+ *	@net: the applicable net namespace
  *	@ifindex: index of device
  *
  *	Search for an interface by index. Returns NULL if the device
@@ -651,6 +655,7 @@ struct net_device *dev_get_by_index(struct net *net, int ifindex)
 
 /**
  *	dev_getbyhwaddr - find a device by its hardware address
+ *	@net: the applicable net namespace
  *	@type: media type of device
  *	@ha: hardware address
  *
@@ -709,6 +714,7 @@ EXPORT_SYMBOL(dev_getfirstbyhwtype);
 
 /**
  *	dev_get_by_flags - find any device with given flags
+ *	@net: the applicable net namespace
  *	@if_flags: IFF_* values
  *	@mask: bitmask of bits in if_flags to check
  *
@@ -948,6 +954,7 @@ void netdev_state_change(struct net_device *dev)
 
 /**
  *	dev_load 	- load a network module
+ *	@net: the applicable net namespace
  *	@name: name of interface
  *
  *	If a network interface is not present and the process has suitable
@@ -1185,7 +1192,7 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
 /**
  *	call_netdevice_notifiers - call all network notifier blocks
  *      @val: value passed unmodified to notifier function
- *      @v:   pointer passed unmodified to notifier function
+ *      @dev: net_device pointer passed unmodified to notifier function
  *
  *	Call all network notifier blocks.  Parameters and return value
  *	are as for raw_notifier_call_chain().
@@ -2097,7 +2104,7 @@ static int process_backlog(struct napi_struct *napi, int quota)
 
 /**
  * __napi_schedule - schedule for receive
- * @napi: entry to schedule
+ * @n: entry to schedule
  *
  * The entry's receive function will be scheduled to run
  */
@@ -3259,6 +3266,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 
 /**
  *	dev_ioctl	-	network device ioctl
+ *	@net: the applicable net namespace
  *	@cmd: command to issue
  *	@arg: pointer to a struct ifreq in user space
  *
@@ -3436,6 +3444,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 
 /**
  *	dev_new_index	-	allocate an ifindex
+ *	@net: the applicable net namespace
  *
  *	Returns a suitable unique value for a new device interface
  *	number.  The caller must hold the rtnl semaphore or the
