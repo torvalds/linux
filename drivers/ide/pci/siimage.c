@@ -165,16 +165,16 @@ out:
 }
 
 /**
- *	sil_tune_pio	-	tune a drive
- *	@drive: drive to tune
- *	@pio: the desired PIO mode
+ *	sil_set_pio_mode	-	set host controller for PIO mode
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
  *	Load the timing settings for this device mode into the
  *	controller. If we are in PIO mode 3 or 4 turn on IORDY
  *	monitoring (bit 9). The TF timing is bits 31:16
  */
 
-static void sil_tune_pio(ide_drive_t *drive, u8 pio)
+static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 {
 	const u16 tf_speed[]	= { 0x328a, 0x2283, 0x1281, 0x10c3, 0x10c1 };
 	const u16 data_speed[]	= { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
@@ -234,21 +234,15 @@ static void sil_tune_pio(ide_drive_t *drive, u8 pio)
 	}
 }
 
-static void sil_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	sil_tune_pio(drive, pio);
-	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
-
 /**
- *	siimage_tune_chipset	-	set controller timings
- *	@drive: Drive to set up
- *	@speed: speed we want to achieve
+ *	sil_set_dma_mode	-	set host controller for DMA mode
+ *	@drive: drive
+ *	@speed: DMA mode
  *
- *	Tune the SII chipset for the desired mode.
+ *	Tune the SiI chipset for the desired DMA mode.
  */
 
-static int siimage_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	u8 ultra6[]		= { 0x0F, 0x0B, 0x07, 0x05, 0x03, 0x02, 0x01 };
 	u8 ultra5[]		= { 0x0C, 0x07, 0x05, 0x04, 0x02, 0x01 };
@@ -303,7 +297,7 @@ static int siimage_tune_chipset(ide_drive_t *drive, const u8 speed)
 			mode |= ((unit) ? 0x30 : 0x03);
 			break;
 		default:
-			return 1;
+			return;
 	}
 
 	if (hwif->mmio) {
@@ -315,7 +309,6 @@ static int siimage_tune_chipset(ide_drive_t *drive, const u8 speed)
 		pci_write_config_word(hwif->pci_dev, ma, multi);
 		pci_write_config_word(hwif->pci_dev, ua, ultra);
 	}
-	return (ide_config_drive_speed(drive, speed));
 }
 
 /**
@@ -904,8 +897,8 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	hwif->autodma = 0;
 	
 	hwif->resetproc = &siimage_reset;
-	hwif->speedproc = &siimage_tune_chipset;
 	hwif->set_pio_mode = &sil_set_pio_mode;
+	hwif->set_dma_mode = &sil_set_dma_mode;
 	hwif->reset_poll = &siimage_reset_poll;
 	hwif->pre_reset = &siimage_pre_reset;
 	hwif->udma_filter = &sil_udma_filter;

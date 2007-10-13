@@ -153,20 +153,16 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
  *	@drive: Drive to set up
  *	@speed: desired speed
  *
- *	via_set_drive() computes timing values configures the drive and
- *	the chipset to a desired transfer mode. It also can be called
- *	by upper layers.
+ *	via_set_drive() computes timing values configures the chipset to
+ *	a desired transfer mode.  It also can be called by upper layers.
  */
 
-static int via_set_drive(ide_drive_t *drive, const u8 speed)
+static void via_set_drive(ide_drive_t *drive, const u8 speed)
 {
 	ide_drive_t *peer = HWIF(drive)->drives + (~drive->dn & 1);
 	struct via82cxxx_dev *vdev = pci_get_drvdata(drive->hwif->pci_dev);
 	struct ide_timing t, p;
 	unsigned int T, UT;
-
-	if (ide_config_drive_speed(drive, speed))
-		return 1;
 
 	T = 1000000000 / via_clock;
 
@@ -186,12 +182,10 @@ static int via_set_drive(ide_drive_t *drive, const u8 speed)
 	}
 
 	via_set_speed(HWIF(drive), drive->dn, &t);
-
-	return 0;
 }
 
 /**
- *	via_set_pio_mode	-	PIO setup
+ *	via_set_pio_mode	-	set host controller for PIO mode
  *	@drive: drive
  *	@pio: PIO mode number
  *
@@ -452,8 +446,7 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->autodma = 0;
 
 	hwif->set_pio_mode = &via_set_pio_mode;
-	hwif->speedproc = &via_set_drive;
-
+	hwif->set_dma_mode = &via_set_drive;
 
 #ifdef CONFIG_PPC_CHRP
 	if(machine_is(chrp) && _chrp_type == _CHRP_Pegasos) {
@@ -496,7 +489,8 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},
 		.bootable	= ON_BOARD,
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST
-				| IDE_HFLAG_PIO_NO_DOWNGRADE,
+				| IDE_HFLAG_PIO_NO_DOWNGRADE
+				| IDE_HFLAG_POST_SET_MODE,
 		.pio_mask	= ATA_PIO5,
 	},{	/* 1 */
 		.name		= "VP_IDE",
@@ -506,7 +500,8 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
 		.bootable	= ON_BOARD,
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST
-				| IDE_HFLAG_PIO_NO_DOWNGRADE,
+				| IDE_HFLAG_PIO_NO_DOWNGRADE
+				| IDE_HFLAG_POST_SET_MODE,
 		.pio_mask	= ATA_PIO5,
 	}
 };

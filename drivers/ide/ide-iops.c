@@ -862,9 +862,6 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	return error;
 }
 
-EXPORT_SYMBOL(ide_config_drive_speed);
-
-
 /*
  * This should get invoked any time we exit the driver to
  * wait for an interrupt response from a drive.  handler() points

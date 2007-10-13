@@ -280,10 +280,9 @@ static void cmd64x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		return;
 
 	cmd64x_tune_pio(drive, pio);
-	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static int cmd64x_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -324,13 +323,11 @@ static int cmd64x_tune_chipset(ide_drive_t *drive, const u8 speed)
 		program_cycle_times(drive, 480, 215);
 		break;
 	default:
-		return 1;
+		return;
 	}
 
 	if (speed >= XFER_SW_DMA_0)
 		(void) pci_write_config_byte(dev, pciU, regU);
-
-	return ide_config_drive_speed(drive, speed);
 }
 
 static int cmd64x_config_drive_for_dma (ide_drive_t *drive)
@@ -524,7 +521,7 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
 
 	hwif->set_pio_mode = &cmd64x_set_pio_mode;
-	hwif->speedproc = &cmd64x_tune_chipset;
+	hwif->set_dma_mode = &cmd64x_set_dma_mode;
 
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
 

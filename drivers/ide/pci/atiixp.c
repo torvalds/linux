@@ -122,14 +122,14 @@ static void atiixp_dma_host_off(ide_drive_t *drive)
 }
 
 /**
- *	atiixp_tune_pio	-	tune a drive attached to a ATIIXP
- *	@drive: drive to tune
- *	@pio: desired PIO mode
+ *	atiixp_set_pio_mode	-	set host controller for PIO mode
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
  *	Set the interface PIO mode.
  */
 
-static void atiixp_tune_pio(ide_drive_t *drive, u8 pio)
+static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
 	unsigned long flags;
@@ -153,23 +153,16 @@ static void atiixp_tune_pio(ide_drive_t *drive, u8 pio)
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 }
 
-static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	atiixp_tune_pio(drive, pio);
-	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
-
 /**
- *	atiixp_tune_chipset	-	tune a ATIIXP interface
- *	@drive: IDE drive to tune
- *	@speed: speed to configure
+ *	atiixp_set_dma_mode	-	set host controller for DMA mode
+ *	@drive: drive
+ *	@speed: DMA mode
  *
- *	Set a ATIIXP interface channel to the desired speeds. This involves
- *	requires the right timing data into the ATIIXP configuration space
- *	then setting the drive parameters appropriately
+ *	Set a ATIIXP host controller to the desired DMA mode.  This involves
+ *	programming the right timing data into the PCI configuration space.
  */
 
-static int atiixp_speedproc(ide_drive_t *drive, const u8 speed)
+static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
 	unsigned long flags;
@@ -204,9 +197,7 @@ static int atiixp_speedproc(ide_drive_t *drive, const u8 speed)
 	else
 		pio = speed - XFER_PIO_0;
 
-	atiixp_tune_pio(drive, pio);
-
-	return ide_config_drive_speed(drive, speed);
+	atiixp_set_pio_mode(drive, pio);
 }
 
 /**
@@ -249,7 +240,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 
 	hwif->autodma = 0;
 	hwif->set_pio_mode = &atiixp_set_pio_mode;
-	hwif->speedproc = &atiixp_speedproc;
+	hwif->set_dma_mode = &atiixp_set_dma_mode;
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;
 

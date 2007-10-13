@@ -124,7 +124,7 @@ static u8 svwks_csb_check (struct pci_dev *dev)
 	return 0;
 }
 
-static void svwks_tune_pio(ide_drive_t *drive, const u8 pio)
+static void svwks_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	static const u8 pio_modes[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
 	static const u8 drive_pci[] = { 0x41, 0x40, 0x43, 0x42 };
@@ -145,7 +145,7 @@ static void svwks_tune_pio(ide_drive_t *drive, const u8 pio)
 	}
 }
 
-static int svwks_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	static const u8 udma_modes[]		= { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
 	static const u8 dma_modes[]		= { 0x77, 0x21, 0x20 };
@@ -193,14 +193,6 @@ static int svwks_tune_chipset(ide_drive_t *drive, const u8 speed)
 	pci_write_config_byte(dev, drive_pci2[drive->dn], dma_timing);
 	pci_write_config_byte(dev, (0x56|hwif->channel), ultra_timing);
 	pci_write_config_byte(dev, 0x54, ultra_enable);
-
-	return (ide_config_drive_speed(drive, speed));
-}
-
-static void svwks_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	svwks_tune_pio(drive, pio);
-	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 static int svwks_config_drive_xfer_rate (ide_drive_t *drive)
@@ -384,7 +376,7 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 		hwif->irq = hwif->channel ? 15 : 14;
 
 	hwif->set_pio_mode = &svwks_set_pio_mode;
-	hwif->speedproc = &svwks_tune_chipset;
+	hwif->set_dma_mode = &svwks_set_dma_mode;
 	hwif->udma_filter = &svwks_udma_filter;
 
 	hwif->atapi_dma = 1;

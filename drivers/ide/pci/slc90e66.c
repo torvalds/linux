@@ -42,7 +42,7 @@ static u8 slc90e66_dma_2_pio (u8 xfer_rate) {
 	}
 }
 
-static void slc90e66_tune_pio (ide_drive_t *drive, u8 pio)
+static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -95,13 +95,7 @@ static void slc90e66_tune_pio (ide_drive_t *drive, u8 pio)
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
-static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	slc90e66_tune_pio(drive, pio);
-	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
-
-static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -125,7 +119,7 @@ static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:	break;
-		default:		return -1;
+		default:		return;
 	}
 
 	if (speed >= XFER_UDMA_0) {
@@ -144,9 +138,7 @@ static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
 			pci_write_config_word(dev, 0x4a, reg4a & ~a_speed);
 	}
 
-	slc90e66_tune_pio(drive, slc90e66_dma_2_pio(speed));
-
-	return ide_config_drive_speed(drive, speed);
+	slc90e66_set_pio_mode(drive, slc90e66_dma_2_pio(speed));
 }
 
 static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
@@ -172,8 +164,8 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 	if (!hwif->irq)
 		hwif->irq = hwif->channel ? 15 : 14;
 
-	hwif->speedproc = &slc90e66_tune_chipset;
 	hwif->set_pio_mode = &slc90e66_set_pio_mode;
+	hwif->set_dma_mode = &slc90e66_set_dma_mode;
 
 	pci_read_config_byte(hwif->pci_dev, 0x47, &reg47);
 

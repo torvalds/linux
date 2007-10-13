@@ -63,7 +63,7 @@ static const char *pdc_quirk_drives[] = {
 
 static void pdc_old_disable_66MHz_clock(ide_hwif_t *);
 
-static int pdc202xx_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -138,13 +138,11 @@ static int pdc202xx_tune_chipset(ide_drive_t *drive, const u8 speed)
 	pci_read_config_dword(dev, drive_pci, &drive_conf);
 	printk("0x%08x\n", drive_conf);
 #endif
-
-	return ide_config_drive_speed(drive, speed);
 }
 
 static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pdc202xx_tune_chipset(drive, XFER_PIO_0 + pio);
+	pdc202xx_set_mode(drive, XFER_PIO_0 + pio);
 }
 
 static u8 pdc202xx_old_cable_detect (ide_hwif_t *hwif)
@@ -330,13 +328,12 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->autodma = 0;
 
 	hwif->set_pio_mode = &pdc202xx_set_pio_mode;
+	hwif->set_dma_mode = &pdc202xx_set_mode;
 
 	hwif->quirkproc = &pdc202xx_quirkproc;
 
 	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246)
 		hwif->resetproc = &pdc202xx_reset;
-
-	hwif->speedproc = &pdc202xx_tune_chipset;
 
 	hwif->err_stops_fifo = 1;
 

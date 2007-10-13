@@ -75,7 +75,7 @@ static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
 /*
  * Configure the chipset for PIO mode.
  */
-static void sl82c105_tune_pio(ide_drive_t *drive, const u8 pio)
+static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	struct pci_dev *dev	= HWIF(drive)->pci_dev;
 	int reg			= 0x44 + drive->dn * 4;
@@ -105,9 +105,9 @@ static void sl82c105_tune_pio(ide_drive_t *drive, const u8 pio)
 }
 
 /*
- * Configure the drive and chipset for a new transfer speed.
+ * Configure the chipset for DMA mode.
  */
-static int sl82c105_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void sl82c105_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	static u16 mwdma_timings[] = {0x0707, 0x0201, 0x0200};
 	u16 drv_ctrl;
@@ -140,10 +140,8 @@ static int sl82c105_tune_chipset(ide_drive_t *drive, const u8 speed)
 		}
 		break;
 	default:
-		return -1;
+		return;
 	}
-
-	return ide_config_drive_speed(drive, speed);
 }
 
 /*
@@ -306,17 +304,6 @@ static void sl82c105_resetproc(ide_drive_t *drive)
 	pci_read_config_dword(dev, 0x40, &val);
 	pci_set_drvdata(dev, (void *)val);
 }
-	
-/*
- * We only deal with PIO mode here - DMA mode 'using_dma' is not
- * initialised at the point that this function is called.
- */
-static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	sl82c105_tune_pio(drive, pio);
-
-	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
 
 /*
  * Return the revision of the Winbond bridge
@@ -383,7 +370,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	DBG(("init_hwif_sl82c105(hwif: ide%d)\n", hwif->index));
 
 	hwif->set_pio_mode	= &sl82c105_set_pio_mode;
-	hwif->speedproc 	= &sl82c105_tune_chipset;
+	hwif->set_dma_mode	= &sl82c105_set_dma_mode;
 	hwif->selectproc	= &sl82c105_selectproc;
 	hwif->resetproc 	= &sl82c105_resetproc;
 

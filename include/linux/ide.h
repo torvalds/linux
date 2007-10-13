@@ -681,7 +681,7 @@ typedef struct hwif_s {
 	u8 straight8;	/* Alan's straight 8 check */
 	u8 bus_state;	/* power state of the IDE bus */
 
-	u8 host_flags;
+	u16 host_flags;
 
 	u8 pio_mask;
 
@@ -702,10 +702,10 @@ typedef struct hwif_s {
 #if 0
 	ide_hwif_ops_t	*hwifops;
 #else
-	/* routine to set PIO mode for drives */
+	/* routine to program host for PIO mode */
 	void	(*set_pio_mode)(ide_drive_t *, const u8);
-	/* routine to retune DMA modes for drives */
-	int	(*speedproc)(ide_drive_t *, const u8);
+	/* routine to program host for DMA mode */
+	void	(*set_dma_mode)(ide_drive_t *, const u8);
 	/* tweaks hardware to select drive */
 	void	(*selectproc)(ide_drive_t *);
 	/* chipset polling based on hba specifics */
@@ -1257,6 +1257,10 @@ enum {
 	 * for hosts which have separate PIO and DMA timings (ie. PMAC)
 	 */
 	IDE_HFLAG_SET_PIO_MODE_KEEP_DMA	= (1 << 7),
+	/* program host for the transfer mode after programming device */
+	IDE_HFLAG_POST_SET_MODE		= (1 << 8),
+	/* don't program host/device for the transfer mode ("smart" hosts) */
+	IDE_HFLAG_NO_SET_MODE		= (1 << 9),
 };
 
 typedef struct ide_pci_device_s {
@@ -1273,7 +1277,7 @@ typedef struct ide_pci_device_s {
 	u8			bootable;
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
-	u8			host_flags;
+	u16			host_flags;
 	u8			pio_mask;
 	u8			udma_mask;
 } ide_pci_device_t;
@@ -1413,6 +1417,9 @@ typedef struct ide_pio_timings_s {
 unsigned int ide_pio_cycle_time(ide_drive_t *, u8);
 u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
 extern const ide_pio_timings_t ide_pio_timings[6];
+
+int ide_set_pio_mode(ide_drive_t *, u8);
+int ide_set_dma_mode(ide_drive_t *, u8);
 
 void ide_set_pio(ide_drive_t *, u8);
 

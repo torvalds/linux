@@ -229,24 +229,24 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 }
 
 /**
- *	it821x_tunepio	-	tune a drive
- *	@drive: drive to tune
- *	@pio: the desired PIO mode
+ *	it821x_set_pio_mode	-	set host controller for PIO mode
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
- *	Try to tune the drive/host to the desired PIO mode taking into
- *	the consideration the maximum PIO mode supported by the other
- *	device on the cable.
+ *	Tune the host to the desired PIO mode taking into the consideration
+ *	the maximum PIO mode supported by the other device on the cable.
  */
 
-static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
+static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int unit = drive->select.b.unit;
 	ide_drive_t *pair = &hwif->drives[1 - unit];
+	u8 set_pio = pio;
 
 	/* Spec says 89 ref driver uses 88 */
-	static u16 pio[]	= { 0xAA88, 0xA382, 0xA181, 0x3332, 0x3121 };
+	static u16 pio_timings[]= { 0xAA88, 0xA382, 0xA181, 0x3332, 0x3121 };
 	static u8 pio_want[]    = { ATA_66, ATA_66, ATA_66, ATA_66, ATA_ANY };
 
 	/*
@@ -261,22 +261,12 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 			set_pio = pair_pio;
 	}
 
-	if (itdev->smart)
-		return 0;
-
 	/* We prefer 66Mhz clock for PIO 0-3, don't care for PIO4 */
 	itdev->want[unit][1] = pio_want[set_pio];
 	itdev->want[unit][0] = 1;	/* PIO is lowest priority */
-	itdev->pio[unit] = pio[set_pio];
+	itdev->pio[unit] = pio_timings[set_pio];
 	it821x_clock_strategy(drive);
 	it821x_program(drive, itdev->pio[unit]);
-
-	return ide_config_drive_speed(drive, XFER_PIO_0 + set_pio);
-}
-
-static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	(void)it821x_tunepio(drive, pio);
 }
 
 /**
@@ -405,47 +395,24 @@ static int it821x_dma_end(ide_drive_t *drive)
 }
 
 /**
- *	it821x_tune_chipset	-	set controller timings
- *	@drive: Drive to set up
- *	@speed: speed we want to achieve
+ *	it821x_set_dma_mode	-	set host controller for DMA mode
+ *	@drive: drive
+ *	@speed: DMA mode
  *
- *	Tune the ITE chipset for the desired mode.
+ *	Tune the ITE chipset for the desired DMA mode.
  */
 
-static int it821x_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void it821x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
-
-	ide_hwif_t *hwif	= drive->hwif;
-	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-
-	if (itdev->smart == 0) {
-		switch (speed) {
-			/* MWDMA tuning is really hard because our MWDMA and PIO
-			   timings are kept in the same place. We can switch in the
-			   host dma on/off callbacks */
-			case XFER_MW_DMA_2:
-			case XFER_MW_DMA_1:
-			case XFER_MW_DMA_0:
-				it821x_tune_mwdma(drive, (speed - XFER_MW_DMA_0));
-				break;
-			case XFER_UDMA_6:
-			case XFER_UDMA_5:
-			case XFER_UDMA_4:
-			case XFER_UDMA_3:
-			case XFER_UDMA_2:
-			case XFER_UDMA_1:
-			case XFER_UDMA_0:
-				it821x_tune_udma(drive, (speed - XFER_UDMA_0));
-				break;
-			default:
-				return 1;
-		}
-
-		return ide_config_drive_speed(drive, speed);
-	}
-
-	/* don't touch anything in the smart mode */
-	return 0;
+	/*
+	 * MWDMA tuning is really hard because our MWDMA and PIO
+	 * timings are kept in the same place.  We can switch in the
+	 * host dma on/off callbacks.
+	 */
+	if (speed >= XFER_UDMA_0 && speed <= XFER_UDMA_6)
+		it821x_tune_udma(drive, speed - XFER_UDMA_0);
+	else if (speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2)
+		it821x_tune_mwdma(drive, speed - XFER_MW_DMA_0);
 }
 
 /**
@@ -629,14 +596,15 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 			printk(KERN_WARNING "it821x: Revision 0x10, workarounds activated.\n");
 	}
 
-	hwif->speedproc = &it821x_tune_chipset;
-	hwif->set_pio_mode = &it821x_set_pio_mode;
+	if (idev->smart == 0) {
+		hwif->set_pio_mode = &it821x_set_pio_mode;
+		hwif->set_dma_mode = &it821x_set_dma_mode;
 
-	/* MWDMA/PIO clock switching for pass through mode */
-	if(!idev->smart) {
+		/* MWDMA/PIO clock switching for pass through mode */
 		hwif->dma_start = &it821x_dma_start;
 		hwif->ide_dma_end = &it821x_dma_end;
-	}
+	} else
+		hwif->host_flags |= IDE_HFLAG_NO_SET_MODE;
 
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;

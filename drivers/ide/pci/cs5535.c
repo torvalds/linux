@@ -131,26 +131,21 @@ static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-/****
- *	cs5535_set_drive         -     Configure the drive to the new speed
- *	@drive: Drive to set up
- *	@speed: desired speed
+/**
+ *	cs5535_set_dma_mode	-	set host controller for DMA mode
+ *	@drive: drive
+ *	@speed: DMA mode
  *
- *	cs5535_set_drive() configures the drive and the chipset to a
- *	new speed. It also can be called by upper layers.
+ *	Programs the chipset for DMA mode.
  */
-static int cs5535_set_drive(ide_drive_t *drive, u8 speed)
+
+static void cs5535_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
-	if (ide_config_drive_speed(drive, speed))
-		return 1;
-
 	cs5535_set_speed(drive, speed);
-
-	return 0;
 }
 
 /**
- *	cs5535_set_pio_mode	-	PIO setup
+ *	cs5535_set_pio_mode	-	set host controller for PIO mode
  *	@drive: drive
  *	@pio: PIO mode number
  *
@@ -159,9 +154,6 @@ static int cs5535_set_drive(ide_drive_t *drive, u8 speed)
 
 static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	if (ide_config_drive_speed(drive, XFER_PIO_0 + pio))
-		return;
-
 	cs5535_set_speed(drive, XFER_PIO_0 + pio);
 }
 
@@ -203,7 +195,7 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	hwif->autodma = 0;
 
 	hwif->set_pio_mode = &cs5535_set_pio_mode;
-	hwif->speedproc = &cs5535_set_drive;
+	hwif->set_dma_mode = &cs5535_set_dma_mode;
 	hwif->ide_dma_check = &cs5535_dma_check;
 
 	hwif->atapi_dma = 1;
@@ -227,7 +219,7 @@ static ide_pci_device_t cs5535_chipset __devinitdata = {
 	.init_hwif	= init_hwif_cs5535,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
-	.host_flags	= IDE_HFLAG_SINGLE,
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE,
 	.pio_mask	= ATA_PIO4,
 };
 

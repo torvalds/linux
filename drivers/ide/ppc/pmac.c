@@ -611,9 +611,6 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		drive->name, pio,  *timings);
 #endif	
 
-	if (ide_config_drive_speed(drive, XFER_PIO_0 + pio))
-		return;
-
 	*timings = t;
 	pmac_ide_do_update_timings(drive);
 }
@@ -822,11 +819,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 }
 #endif /* #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC */
 
-/* 
- * Speedproc. This function is called by the core to set any of the standard
- * DMA timing (MDMA or UDMA) to both the drive and the controller.
- */
-static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void pmac_ide_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	int unit = (drive->select.b.unit & 0x01);
 	int ret = 0;
@@ -867,25 +860,19 @@ static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_SW_DMA_2:
 		case XFER_SW_DMA_1:
 		case XFER_SW_DMA_0:
-			return 1;
+			return;
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
 		default:
 			ret = 1;
 	}
 	if (ret)
-		return ret;
-
-	ret = ide_config_drive_speed(drive, speed);
-	if (ret)
-		return ret;
+		return;
 
 	/* Apply timings to controller */
 	*timings = tl[0];
 	*timings2 = tl[1];
 
 	pmac_ide_do_update_timings(drive);	
-
-	return 0;
 }
 
 /*
@@ -1147,7 +1134,8 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->drives[1].unmask = 1;
 	hwif->drives[0].autotune = IDE_TUNE_AUTO;
 	hwif->drives[1].autotune = IDE_TUNE_AUTO;
-	hwif->host_flags = IDE_HFLAG_SET_PIO_MODE_KEEP_DMA;
+	hwif->host_flags = IDE_HFLAG_SET_PIO_MODE_KEEP_DMA |
+			   IDE_HFLAG_POST_SET_MODE;
 	hwif->pio_mask = ATA_PIO4;
 	hwif->set_pio_mode = pmac_ide_set_pio_mode;
 	if (pmif->kind == controller_un_ata6
@@ -1156,7 +1144,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 		hwif->selectproc = pmac_ide_kauai_selectproc;
 	else
 		hwif->selectproc = pmac_ide_selectproc;
-	hwif->speedproc = pmac_ide_tune_chipset;
+	hwif->set_dma_mode = pmac_ide_set_dma_mode;
 
 	printk(KERN_INFO "ide%d: Found Apple %s controller, bus ID %d%s, irq %d\n",
 	       hwif->index, model_name[pmif->kind], pmif->aapl_bus_id,

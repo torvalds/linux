@@ -600,7 +600,7 @@ static u32 get_speed_setting(u8 speed, struct hpt_info *info)
 	return (*info->settings)[i];
 }
 
-static int hpt36x_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void hpt36x_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev  *dev	= hwif->pci_dev;
@@ -623,11 +623,9 @@ static int hpt36x_tune_chipset(ide_drive_t *drive, const u8 speed)
 	new_itr &= ~0xc0000000;
 
 	pci_write_config_dword(dev, itr_addr, new_itr);
-
-	return ide_config_drive_speed(drive, speed);
 }
 
-static int hpt37x_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void hpt37x_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev  *dev	= hwif->pci_dev;
@@ -647,24 +645,22 @@ static int hpt37x_tune_chipset(ide_drive_t *drive, const u8 speed)
 	if (speed < XFER_MW_DMA_0)
 		new_itr &= ~0x80000000; /* Disable on-chip PIO FIFO/buffer */
 	pci_write_config_dword(dev, itr_addr, new_itr);
-
-	return ide_config_drive_speed(drive, speed);
 }
 
-static int hpt3xx_tune_chipset(ide_drive_t *drive, u8 speed)
+static void hpt3xx_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct hpt_info	*info	= pci_get_drvdata(hwif->pci_dev);
 
 	if (info->chip_type >= HPT370)
-		return hpt37x_tune_chipset(drive, speed);
+		hpt37x_set_mode(drive, speed);
 	else	/* hpt368: hpt_minimum_revision(dev, 2) */
-		return hpt36x_tune_chipset(drive, speed);
+		hpt36x_set_mode(drive, speed);
 }
 
 static void hpt3xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	(void) hpt3xx_tune_chipset (drive, XFER_PIO_0 + pio);
+	hpt3xx_set_mode(drive, XFER_PIO_0 + pio);
 }
 
 static int hpt3xx_quirkproc(ide_drive_t *drive)
@@ -1257,7 +1253,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	hwif->select_data	= hwif->channel ? 0x54 : 0x50;
 
 	hwif->set_pio_mode	= &hpt3xx_set_pio_mode;
-	hwif->speedproc		= &hpt3xx_tune_chipset;
+	hwif->set_dma_mode	= &hpt3xx_set_mode;
 	hwif->quirkproc		= &hpt3xx_quirkproc;
 	hwif->intrproc		= &hpt3xx_intrproc;
 	hwif->maskproc		= &hpt3xx_maskproc;

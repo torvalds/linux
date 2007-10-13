@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/ide.h>
 
-static int tc86c001_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long scr_port	= hwif->config_data + (drive->dn ? 0x02 : 0x00);
@@ -39,13 +39,11 @@ static int tc86c001_tune_chipset(ide_drive_t *drive, const u8 speed)
 	scr &= (speed < XFER_MW_DMA_0) ? 0xf8ff : 0xff0f;
 	scr |= mode;
 	outw(scr, scr_port);
-
-	return ide_config_drive_speed(drive, speed);
 }
 
 static void tc86c001_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	(void) tc86c001_tune_chipset(drive, XFER_PIO_0 + pio);
+	tc86c001_set_mode(drive, XFER_PIO_0 + pio);
 }
 
 /*
@@ -193,7 +191,8 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	hwif->config_data = sc_base;
 
 	hwif->set_pio_mode = &tc86c001_set_pio_mode;
-	hwif->speedproc = &tc86c001_tune_chipset;
+	hwif->set_dma_mode = &tc86c001_set_mode;
+
 	hwif->busproc	= &tc86c001_busproc;
 
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
