@@ -277,25 +277,13 @@ struct link {
 };
 
 /*
- * Clear all counters inside the link structure.
- */
-static inline void rt2x00_clear_link(struct link *link)
-{
-	link->count = 0;
-	memset(&link->qual, 0, sizeof(link->qual));
-	link->qual.rx_percentage = 50;
-	link->qual.tx_percentage = 50;
-}
-
-/*
  * Update the rssi using the walking average approach.
  */
 static inline void rt2x00_update_link_rssi(struct link *link, int rssi)
 {
-	if (!link->qual.avg_rssi)
-		link->qual.avg_rssi = rssi;
-	else
-		link->qual.avg_rssi = ((link->qual.avg_rssi * 7) + rssi) / 8;
+	if (link->qual.avg_rssi)
+		rssi = ((link->qual.avg_rssi * 7) + rssi) / 8;
+	link->qual.avg_rssi = rssi;
 }
 
 /*

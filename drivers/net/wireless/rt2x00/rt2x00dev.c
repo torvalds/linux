@@ -67,7 +67,21 @@ EXPORT_SYMBOL_GPL(rt2x00lib_get_ring);
  */
 static void rt2x00lib_start_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
-	rt2x00_clear_link(&rt2x00dev->link);
+	rt2x00dev->link.count = 0;
+	rt2x00dev->link.vgc_level = 0;
+
+	memset(&rt2x00dev->link.qual, 0, sizeof(rt2x00dev->link.qual));
+
+	/*
+	 * The RX and TX percentage should start at 50%
+	 * this will assure we will get at least get some
+	 * decent value when the link tuner starts.
+	 * The value will be dropped and overwritten with
+	 * the correct (measured )value anyway during the
+	 * first run of the link tuner.
+	 */
+	rt2x00dev->link.qual.rx_percentage = 50;
+	rt2x00dev->link.qual.tx_percentage = 50;
 
 	/*
 	 * Reset the link tuner.
