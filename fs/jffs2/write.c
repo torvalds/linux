@@ -215,6 +215,17 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 		BUG();
 	   });
 
+	if (strnlen(name, namelen) != namelen) {
+		/* This should never happen, but seems to have done on at least one
+		   occasion: https://dev.laptop.org/ticket/4184 */
+		printk(KERN_CRIT "Error in jffs2_write_dirent() -- name contains zero bytes!\n");
+		printk(KERN_CRIT "Directory inode #%u, name at *0x%p \"%s\"->ino #%u, name_crc 0x%08x\n",
+		       je32_to_cpu(rd->pino), name, name, je32_to_cpu(rd->ino),
+		       je32_to_cpu(rd->name_crc));
+		WARN_ON(1);
+		return ERR_PTR(-EIO);
+	}
+
 	vecs[0].iov_base = rd;
 	vecs[0].iov_len = sizeof(*rd);
 	vecs[1].iov_base = (unsigned char *)name;
@@ -226,7 +237,7 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 
 	fd->version = je32_to_cpu(rd->version);
 	fd->ino = je32_to_cpu(rd->ino);
-	fd->nhash = full_name_hash(name, strlen(name));
+	fd->nhash = full_name_hash(name, namelen);
 	fd->type = rd->type;
 	memcpy(fd->name, name, namelen);
 	fd->name[namelen]=0;

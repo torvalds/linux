@@ -65,7 +65,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 		err = c->mtd->point(c->mtd, ofs, len, &retlen, &buffer);
 		if (!err && retlen < tn->csize) {
 			JFFS2_WARNING("MTD point returned len too short: %zu instead of %u.\n", retlen, tn->csize);
-			c->mtd->unpoint(c->mtd, buffer, ofs, len);
+			c->mtd->unpoint(c->mtd, buffer, ofs, retlen);
 		} else if (err)
 			JFFS2_WARNING("MTD point failed: error code %d.\n", err);
 		else
@@ -211,7 +211,7 @@ static void jffs2_kill_tn(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info *
  * ordering.
  *
  * Returns 0 if the node was handled (including marking it obsolete)
- *         < 0 an if error occurred
+ *	 < 0 an if error occurred
  */
 static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				struct jffs2_readinode_info *rii,
@@ -862,8 +862,8 @@ static inline int read_unknown(struct jffs2_sb_info *c, struct jffs2_raw_node_re
 		JFFS2_ERROR("REF_UNCHECKED but unknown node at %#08x\n",
 			    ref_offset(ref));
 		JFFS2_ERROR("Node is {%04x,%04x,%08x,%08x}. Please report this error.\n",
-                            je16_to_cpu(un->magic), je16_to_cpu(un->nodetype),
-                            je32_to_cpu(un->totlen), je32_to_cpu(un->hdr_crc));
+			    je16_to_cpu(un->magic), je16_to_cpu(un->nodetype),
+			    je32_to_cpu(un->totlen), je32_to_cpu(un->hdr_crc));
 		jffs2_mark_node_obsolete(c, ref);
 		return 0;
 	}

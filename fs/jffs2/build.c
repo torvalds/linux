@@ -285,6 +285,14 @@ static void jffs2_calc_trigger_levels(struct jffs2_sb_info *c)
 	   than actually making progress? */
 	c->resv_blocks_gcbad = 0;//c->resv_blocks_deletion + 2;
 
+	/* What number of 'very dirty' eraseblocks do we allow before we
+	   trigger the GC thread even if we don't _need_ the space. When we
+	   can't mark nodes obsolete on the medium, the old dirty nodes cause
+	   performance problems because we have to inspect and discard them. */
+	c->vdirty_blocks_gctrigger = c->resv_blocks_gctrigger;
+	if (jffs2_can_mark_obsolete(c))
+		c->vdirty_blocks_gctrigger *= 10;
+
 	/* If there's less than this amount of dirty space, don't bother
 	   trying to GC to make more space. It'll be a fruitless task */
 	c->nospc_dirty_size = c->sector_size + (c->flash_size / 100);
@@ -303,6 +311,8 @@ static void jffs2_calc_trigger_levels(struct jffs2_sb_info *c)
 		  c->resv_blocks_gcbad, c->resv_blocks_gcbad*c->sector_size/1024);
 	dbg_fsbuild("Amount of dirty space required to GC: %d bytes\n",
 		  c->nospc_dirty_size);
+	dbg_fsbuild("Very dirty blocks before GC triggered: %d\n",
+		  c->vdirty_blocks_gctrigger);
 }
 
 int jffs2_do_mount_fs(struct jffs2_sb_info *c)

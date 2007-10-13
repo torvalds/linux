@@ -1272,7 +1272,13 @@ static int prog_page(struct nandsim *ns, int num)
 	mypage = NS_GET_PAGE(ns);
 	if (mypage->byte == NULL) {
 		NS_DBG("prog_page: allocating page %d\n", ns->regs.row);
-		mypage->byte = kmalloc(ns->geom.pgszoob, GFP_KERNEL);
+		/*
+		 * We allocate memory with GFP_NOFS because a flash FS may
+		 * utilize this. If it is holding an FS lock, then gets here,
+		 * then kmalloc runs writeback which goes to the FS again
+		 * and deadlocks. This was seen in practice.
+		 */
+		mypage->byte = kmalloc(ns->geom.pgszoob, GFP_NOFS);
 		if (mypage->byte == NULL) {
 			NS_ERR("prog_page: error allocating memory for page %d\n", ns->regs.row);
 			return -1;

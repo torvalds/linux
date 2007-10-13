@@ -623,6 +623,11 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	uint32_t ctrl;
 	int err = 0;
 
+	/* Very old versions shared the same PCI ident for all three
+	   functions on the chip. Verify the class too... */
+	if ((pdev->class >> 8) != PCI_CLASS_MEMORY_FLASH)
+		return -ENODEV;
+
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
@@ -816,21 +821,57 @@ static void __devexit cafe_nand_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id cafe_nand_tbl[] = {
-	{ 0x11ab, 0x4100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_MEMORY_FLASH << 8, 0xFFFF0 },
-	{ 0, }
+	{ 0x11ab, 0x4100, PCI_ANY_ID, PCI_ANY_ID },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, cafe_nand_tbl);
+
+static int cafe_nand_resume(struct pci_dev *pdev)
+{
+	uint32_t ctrl;
+	struct mtd_info *mtd = pci_get_drvdata(pdev);
+	struct cafe_priv *cafe = mtd->priv;
+
+       /* Start off by resetting the NAND controller completely */
+	cafe_writel(cafe, 1, NAND_RESET);
+	cafe_writel(cafe, 0, NAND_RESET);
+	cafe_writel(cafe, 0xffffffff, NAND_IRQ_MASK);
+
+	/* Restore timing configuration */
+	cafe_writel(cafe, timing[0], NAND_TIMING1);
+	cafe_writel(cafe, timing[1], NAND_TIMING2);
+	cafe_writel(cafe, timing[2], NAND_TIMING3);
+
+        /* Disable master reset, enable NAND clock */
+	ctrl = cafe_readl(cafe, GLOBAL_CTRL);
+	ctrl &= 0xffffeff0;
+	ctrl |= 0x00007000;
+	cafe_writel(cafe, ctrl | 0x05, GLOBAL_CTRL);
+	cafe_writel(cafe, ctrl | 0x0a, GLOBAL_CTRL);
+	cafe_writel(cafe, 0, NAND_DMA_CTRL);
+	cafe_writel(cafe, 0x7006, GLOBAL_CTRL);
+	cafe_writel(cafe, 0x700a, GLOBAL_CTRL);
+
+	/* Set up DMA address */
+	cafe_writel(cafe, cafe->dmaaddr & 0xffffffff, NAND_DMA_ADDR0);
+	if (sizeof(cafe->dmaaddr) > 4)
+	/* Shift in two parts to shut the compiler up */
+		cafe_writel(cafe, (cafe->dmaaddr >> 16) >> 16, NAND_DMA_ADDR1);
+	else
+		cafe_writel(cafe, 0, NAND_DMA_ADDR1);
+
+	/* Enable NAND IRQ in global IRQ mask register */
+	cafe_writel(cafe, 0x80000007, GLOBAL_IRQ_MASK);
+	return 0;
+}
 
 static struct pci_driver cafe_nand_pci_driver = {
 	.name = "CAFÉ NAND",
 	.id_table = cafe_nand_tbl,
 	.probe = cafe_nand_probe,
 	.remove = __devexit_p(cafe_nand_remove),
-#ifdef CONFIG_PMx
-	.suspend = cafe_nand_suspend,
 	.resume = cafe_nand_resume,
-#endif
 };
 
 static int cafe_nand_init(void)

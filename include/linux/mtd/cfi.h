@@ -57,6 +57,15 @@
 #define cfi_interleave_is_8(cfi) (0)
 #endif
 
+#ifndef cfi_interleave
+#warning No CONFIG_MTD_CFI_Ix selected. No NOR chip support can work.
+static inline int cfi_interleave(void *cfi)
+{
+	BUG();
+	return 0;
+}
+#endif
+
 static inline int cfi_interleave_supported(int i)
 {
 	switch (i) {

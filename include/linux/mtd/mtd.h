@@ -133,6 +133,13 @@ struct mtd_info {
 	int numeraseregions;
 	struct mtd_erase_region_info *eraseregions;
 
+	/*
+	 * Erase is an asynchronous operation.  Device drivers are supposed
+	 * to call instr->callback() whenever the operation completes, even
+	 * if it completes with a failure.
+	 * Callers are supposed to pass a callback function and wait for it
+	 * to be called before writing to the block.
+	 */
 	int (*erase) (struct mtd_info *mtd, struct erase_info *instr);
 
 	/* This stuff for eXecute-In-Place */

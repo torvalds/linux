@@ -24,7 +24,7 @@
 
 static int jffs2_flash_setup(struct jffs2_sb_info *c);
 
-static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
+int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 {
 	struct jffs2_full_dnode *old_metadata, *new_metadata;
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
@@ -36,10 +36,8 @@ static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	unsigned int ivalid;
 	uint32_t alloclen;
 	int ret;
+
 	D1(printk(KERN_DEBUG "jffs2_setattr(): ino #%lu\n", inode->i_ino));
-	ret = inode_change_ok(inode, iattr);
-	if (ret)
-		return ret;
 
 	/* Special cases - we don't want more than one data node
 	   for these types on the medium at any time. So setattr
@@ -183,9 +181,14 @@ int jffs2_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	int rc;
 
+	rc = inode_change_ok(dentry->d_inode, iattr);
+	if (rc)
+		return rc;
+
 	rc = jffs2_do_setattr(dentry->d_inode, iattr);
 	if (!rc && (iattr->ia_valid & ATTR_MODE))
 		rc = jffs2_acl_chmod(dentry->d_inode);
+
 	return rc;
 }
 
@@ -399,7 +402,8 @@ void jffs2_write_super (struct super_block *sb)
 
 /* jffs2_new_inode: allocate a new inode and inocache, add it to the hash,
    fill in the raw_inode while you're at it. */
-struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_inode *ri)
+struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_inode *ri,
+			       struct posix_acl **acl)
 {
 	struct inode *inode;
 	struct super_block *sb = dir_i->i_sb;
@@ -431,7 +435,23 @@ struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_i
 	} else {
 		ri->gid = cpu_to_je16(current->fsgid);
 	}
-	ri->mode =  cpu_to_jemode(mode);
+
+	/* POSIX ACLs have to be processed now, at least partly.
+	   The umask is only applied if there's no default ACL */
+	if (!S_ISLNK(mode)) {
+		*acl = jffs2_get_acl(dir_i, ACL_TYPE_DEFAULT);
+		if (IS_ERR(*acl)) {
+			make_bad_inode(inode);
+			iput(inode);
+			inode = (void *)*acl;
+			*acl = NULL;
+			return inode;
+		}
+		if (!(*acl))
+			mode &= ~current->fs->umask;
+	} else {
+		*acl = NULL;
+	}
 	ret = jffs2_do_new_inode (c, f, mode, ri);
 	if (ret) {
 		make_bad_inode(inode);

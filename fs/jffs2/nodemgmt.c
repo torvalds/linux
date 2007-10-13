@@ -154,7 +154,7 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 	while(ret == -EAGAIN) {
 		ret = jffs2_do_reserve_space(c, minsize, len, sumsize);
 		if (ret) {
-		        D1(printk(KERN_DEBUG "jffs2_reserve_space_gc: looping, ret is %d\n", ret));
+			D1(printk(KERN_DEBUG "jffs2_reserve_space_gc: looping, ret is %d\n", ret));
 		}
 	}
 	spin_unlock(&c->erase_completion_lock);
@@ -423,7 +423,12 @@ struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
 	   even after refiling c->nextblock */
 	if ((c->nextblock || ((ofs & 3) != REF_OBSOLETE))
 	    && (jeb != c->nextblock || (ofs & ~3) != jeb->offset + (c->sector_size - jeb->free_size))) {
-		printk(KERN_WARNING "argh. node added in wrong place\n");
+		printk(KERN_WARNING "argh. node added in wrong place at 0x%08x(%d)\n", ofs & ~3, ofs & 3);
+		if (c->nextblock)
+			printk(KERN_WARNING "nextblock 0x%08x", c->nextblock->offset);
+		else
+			printk(KERN_WARNING "No nextblock");
+		printk(", expected at %08x\n", jeb->offset + (c->sector_size - jeb->free_size));
 		return ERR_PTR(-EINVAL);
 	}
 #endif
@@ -717,6 +722,8 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 {
 	int ret = 0;
 	uint32_t dirty;
+	int nr_very_dirty = 0;
+	struct jffs2_eraseblock *jeb;
 
 	if (c->unchecked_size) {
 		D1(printk(KERN_DEBUG "jffs2_thread_should_wake(): unchecked_size %d, checked_ino #%d\n",
@@ -738,8 +745,18 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 			(dirty > c->nospc_dirty_size))
 		ret = 1;
 
-	D1(printk(KERN_DEBUG "jffs2_thread_should_wake(): nr_free_blocks %d, nr_erasing_blocks %d, dirty_size 0x%x: %s\n",
-		  c->nr_free_blocks, c->nr_erasing_blocks, c->dirty_size, ret?"yes":"no"));
+	list_for_each_entry(jeb, &c->very_dirty_list, list) {
+		nr_very_dirty++;
+		if (nr_very_dirty == c->vdirty_blocks_gctrigger) {
+			ret = 1;
+			/* In debug mode, actually go through and count them all */
+			D1(continue);
+			break;
+		}
+	}
+
+	D1(printk(KERN_DEBUG "jffs2_thread_should_wake(): nr_free_blocks %d, nr_erasing_blocks %d, dirty_size 0x%x, vdirty_blocks %d: %s\n",
+		  c->nr_free_blocks, c->nr_erasing_blocks, c->dirty_size, nr_very_dirty, ret?"yes":"no"));
 
 	return ret;
 }

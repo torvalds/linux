@@ -38,9 +38,9 @@ int jffs2_init_security(struct inode *inode, struct inode *dir)
 	}
 	rc = do_jffs2_setxattr(inode, JFFS2_XPREFIX_SECURITY, name, value, len, 0);
 
-        kfree(name);
-        kfree(value);
-        return rc;
+	kfree(name);
+	kfree(value);
+	return rc;
 }
 
 /* ---- XATTR Handler for "security.*" ----------------- */

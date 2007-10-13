@@ -384,7 +384,7 @@ static int jffs2_rubinmips_decompress(unsigned char *data_in,
 				      void *model)
 {
 	rubin_do_decompress(BIT_DIVIDER_MIPS, bits_mips, data_in, cpage_out, sourcelen, dstlen);
-        return 0;
+	return 0;
 }
 
 static int jffs2_dynrubin_decompress(unsigned char *data_in,
@@ -399,7 +399,7 @@ static int jffs2_dynrubin_decompress(unsigned char *data_in,
 		bits[c] = data_in[c];
 
 	rubin_do_decompress(256, bits, data_in+8, cpage_out, sourcelen-8, dstlen);
-        return 0;
+	return 0;
 }
 
 static struct jffs2_compressor jffs2_rubinmips_comp = {

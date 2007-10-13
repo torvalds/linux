@@ -1225,6 +1225,14 @@ config JFFS2_FS_WRITEBUFFER
 	    - NOR flash with transparent ECC
 	    - DataFlash
 
+config JFFS2_FS_WBUF_VERIFY
+	bool "Verify JFFS2 write-buffer reads"
+	depends on JFFS2_FS_WRITEBUFFER
+	default n
+	help
+	  This causes JFFS2 to read back every page written through the
+	  write-buffer, and check for errors.
+
 config JFFS2_SUMMARY
 	bool "JFFS2 summary support (EXPERIMENTAL)"
 	depends on JFFS2_FS && EXPERIMENTAL
@@ -1295,52 +1303,71 @@ config JFFS2_ZLIB
 	select ZLIB_DEFLATE
 	depends on JFFS2_FS
 	default y
-        help
-          Zlib is designed to be a free, general-purpose, legally unencumbered,
-          lossless data-compression library for use on virtually any computer
-          hardware and operating system. See <http://www.gzip.org/zlib/> for
-          further information.
+	help
+	  Zlib is designed to be a free, general-purpose, legally unencumbered,
+	  lossless data-compression library for use on virtually any computer
+	  hardware and operating system. See <http://www.gzip.org/zlib/> for
+	  further information.
 
-          Say 'Y' if unsure.
+	  Say 'Y' if unsure.
+
+config JFFS2_LZO
+	bool "JFFS2 LZO compression support" if JFFS2_COMPRESSION_OPTIONS
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
+	depends on JFFS2_FS
+	default n
+	help
+	  minilzo-based compression. Generally works better than Zlib.
+
+	  This feature was added in July, 2007. Say 'N' if you need
+	  compatibility with older bootloaders or kernels.
 
 config JFFS2_RTIME
 	bool "JFFS2 RTIME compression support" if JFFS2_COMPRESSION_OPTIONS
 	depends on JFFS2_FS
 	default y
-        help
-          Rtime does manage to recompress already-compressed data. Say 'Y' if unsure.
+	help
+	  Rtime does manage to recompress already-compressed data. Say 'Y' if unsure.
 
 config JFFS2_RUBIN
 	bool "JFFS2 RUBIN compression support" if JFFS2_COMPRESSION_OPTIONS
 	depends on JFFS2_FS
 	default n
-        help
-          RUBINMIPS and DYNRUBIN compressors. Say 'N' if unsure.
+	help
+	  RUBINMIPS and DYNRUBIN compressors. Say 'N' if unsure.
 
 choice
-        prompt "JFFS2 default compression mode" if JFFS2_COMPRESSION_OPTIONS
-        default JFFS2_CMODE_PRIORITY
-        depends on JFFS2_FS
-        help
-          You can set here the default compression mode of JFFS2 from
-          the available compression modes. Don't touch if unsure.
+	prompt "JFFS2 default compression mode" if JFFS2_COMPRESSION_OPTIONS
+	default JFFS2_CMODE_PRIORITY
+	depends on JFFS2_FS
+	help
+	  You can set here the default compression mode of JFFS2 from
+	  the available compression modes. Don't touch if unsure.
 
 config JFFS2_CMODE_NONE
-        bool "no compression"
-        help
-          Uses no compression.
+	bool "no compression"
+	help
+	  Uses no compression.
 
 config JFFS2_CMODE_PRIORITY
-        bool "priority"
-        help
-          Tries the compressors in a predefined order and chooses the first
-          successful one.
+	bool "priority"
+	help
+	  Tries the compressors in a predefined order and chooses the first
+	  successful one.
 
 config JFFS2_CMODE_SIZE
-        bool "size (EXPERIMENTAL)"
-        help
-          Tries all compressors and chooses the one which has the smallest
-          result.
+	bool "size (EXPERIMENTAL)"
+	help
+	  Tries all compressors and chooses the one which has the smallest
+	  result.
+
+config JFFS2_CMODE_FAVOURLZO
+	bool "Favour LZO"
+	help
+	  Tries all compressors and chooses the one which has the smallest
+	  result but gives some preference to LZO (which has faster
+	  decompression) at the expense of size.
 
 endchoice
 

@@ -232,7 +232,6 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		goto err_out;
-	memset(info, 0, sizeof(*info));
 
 	dev_set_drvdata(&dev->dev, info);
 

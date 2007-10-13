@@ -779,10 +779,8 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	else {
 		if (!mtd->erasesize) {
 			printk(KERN_WARNING PREFIX "please provide block_size");
-			kfree(part);
-			return;
-		}
-		else
+			goto out;
+		} else
 			part->block_size = mtd->erasesize;
 	}
 
@@ -804,7 +802,7 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		if (!add_mtd_blktrans_dev((void*)part))
 			return;
 	}
-
+out:
 	kfree(part);
 }
 

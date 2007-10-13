@@ -17,7 +17,7 @@
 #include "nodelist.h"
 
 static int jffs2_user_getxattr(struct inode *inode, const char *name,
-                               void *buffer, size_t size)
+			       void *buffer, size_t size)
 {
 	if (!strcmp(name, ""))
 		return -EINVAL;
@@ -25,7 +25,7 @@ static int jffs2_user_getxattr(struct inode *inode, const char *name,
 }
 
 static int jffs2_user_setxattr(struct inode *inode, const char *name, const void *buffer,
-                               size_t size, int flags)
+			       size_t size, int flags)
 {
 	if (!strcmp(name, ""))
 		return -EINVAL;

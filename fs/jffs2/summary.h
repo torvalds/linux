@@ -2,9 +2,9 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2004  Ferenc Havasi <havasi@inf.u-szeged.hu>,
- *                   Zoltan Sogor <weth@inf.u-szeged.hu>,
- *                   Patrik Kluba <pajko@halom.u-szeged.hu>,
- *                   University of Szeged, Hungary
+ *		     Zoltan Sogor <weth@inf.u-szeged.hu>,
+ *		     Patrik Kluba <pajko@halom.u-szeged.hu>,
+ *		     University of Szeged, Hungary
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *

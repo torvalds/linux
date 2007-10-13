@@ -526,7 +526,7 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
 
 	/*
-	 * Probing of multi-partition flash ships.
+	 * Probing of multi-partition flash chips.
 	 *
 	 * To support multiple partitions when available, we simply arrange
 	 * for each of them to have their own flchip structure even if they
@@ -653,7 +653,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
  resettime:
 	timeo = jiffies + HZ;
  retry:
-	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING || mode == FL_OTP_WRITE)) {
+	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING || mode == FL_OTP_WRITE || mode == FL_SHUTDOWN)) {
 		/*
 		 * OK. We have possibility for contension on the write/erase
 		 * operations which are global to the real chip and not per
@@ -798,6 +798,9 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		if (mode == FL_READY && chip->oldstate == FL_READY)
 			return 0;
 
+	case FL_SHUTDOWN:
+		/* The machine is rebooting now,so no one can get chip anymore */
+		return -EIO;
 	default:
 	sleep:
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -1166,15 +1169,12 @@ static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, si
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
-	unsigned long ofs;
+	unsigned long ofs, last_end = 0;
 	int chipnum;
 	int ret = 0;
 
 	if (!map->virt || (from + len > mtd->size))
 		return -EINVAL;
-
-	*mtdbuf = (void *)map->virt + from;
-	*retlen = 0;
 
 	/* Now lock the chip(s) to POINT state */
 
@@ -1182,10 +1182,19 @@ static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, si
 	chipnum = (from >> cfi->chipshift);
 	ofs = from - (chipnum << cfi->chipshift);
 
+	*mtdbuf = (void *)map->virt + cfi->chips[chipnum].start + ofs;
+	*retlen = 0;
+
 	while (len) {
 		unsigned long thislen;
 
 		if (chipnum >= cfi->numchips)
+			break;
+
+		/* We cannot point across chips that are virtually disjoint */
+		if (!last_end)
+			last_end = cfi->chips[chipnum].start;
+		else if (cfi->chips[chipnum].start != last_end)
 			break;
 
 		if ((len + ofs -1) >> cfi->chipshift)
@@ -1201,6 +1210,7 @@ static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, si
 		len -= thislen;
 
 		ofs = 0;
+		last_end += 1 << cfi->chipshift;
 		chipnum++;
 	}
 	return 0;
@@ -1780,7 +1790,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	return ret;
 }
 
-int cfi_intelext_erase_varsize(struct mtd_info *mtd, struct erase_info *instr)
+static int cfi_intelext_erase_varsize(struct mtd_info *mtd, struct erase_info *instr)
 {
 	unsigned long ofs, len;
 	int ret;
@@ -1930,7 +1940,7 @@ static int cfi_intelext_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	printk(KERN_DEBUG "%s: lock status before, ofs=0x%08llx, len=0x%08X\n",
 	       __FUNCTION__, ofs, len);
 	cfi_varsize_frob(mtd, do_printlockstatus_oneblock,
-		ofs, len, 0);
+		ofs, len, NULL);
 #endif
 
 	ret = cfi_varsize_frob(mtd, do_xxlock_oneblock,
@@ -1940,7 +1950,7 @@ static int cfi_intelext_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	printk(KERN_DEBUG "%s: lock status after, ret=%d\n",
 	       __FUNCTION__, ret);
 	cfi_varsize_frob(mtd, do_printlockstatus_oneblock,
-		ofs, len, 0);
+		ofs, len, NULL);
 #endif
 
 	return ret;
@@ -1954,7 +1964,7 @@ static int cfi_intelext_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	printk(KERN_DEBUG "%s: lock status before, ofs=0x%08llx, len=0x%08X\n",
 	       __FUNCTION__, ofs, len);
 	cfi_varsize_frob(mtd, do_printlockstatus_oneblock,
-		ofs, len, 0);
+		ofs, len, NULL);
 #endif
 
 	ret = cfi_varsize_frob(mtd, do_xxlock_oneblock,
@@ -1964,7 +1974,7 @@ static int cfi_intelext_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	printk(KERN_DEBUG "%s: lock status after, ret=%d\n",
 	       __FUNCTION__, ret);
 	cfi_varsize_frob(mtd, do_printlockstatus_oneblock,
-		ofs, len, 0);
+		ofs, len, NULL);
 #endif
 
 	return ret;
@@ -2255,7 +2265,7 @@ static void cfi_intelext_save_locks(struct mtd_info *mtd)
 			adr = region->offset + block * len;
 
 			status = cfi_varsize_frob(mtd,
-					do_getlockstatus_oneblock, adr, len, 0);
+					do_getlockstatus_oneblock, adr, len, NULL);
 			if (status)
 				set_bit(block, region->lockmap);
 			else
@@ -2402,10 +2412,10 @@ static int cfi_intelext_reset(struct mtd_info *mtd)
 		   and switch to array mode so any bootloader in
 		   flash is accessible for soft reboot. */
 		spin_lock(chip->mutex);
-		ret = get_chip(map, chip, chip->start, FL_SYNCING);
+		ret = get_chip(map, chip, chip->start, FL_SHUTDOWN);
 		if (!ret) {
 			map_write(map, CMD(0xff), chip->start);
-			chip->state = FL_READY;
+			chip->state = FL_SHUTDOWN;
 		}
 		spin_unlock(chip->mutex);
 	}

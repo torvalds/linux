@@ -1314,11 +1314,10 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 	 * Make sure that all the physical eraseblocks are in one of the lists
 	 * or trees.
 	 */
-	buf = kmalloc(ubi->peb_count, GFP_KERNEL);
+	buf = kzalloc(ubi->peb_count, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	memset(buf, 1, ubi->peb_count);
 	for (pnum = 0; pnum < ubi->peb_count; pnum++) {
 		err = ubi_io_is_bad(ubi, pnum);
 		if (err < 0) {
@@ -1326,28 +1325,28 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 			return err;
 		}
 		else if (err)
-			buf[pnum] = 0;
+			buf[pnum] = 1;
 	}
 
 	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb)
 		ubi_rb_for_each_entry(rb2, seb, &sv->root, u.rb)
-			buf[seb->pnum] = 0;
+			buf[seb->pnum] = 1;
 
 	list_for_each_entry(seb, &si->free, u.list)
-		buf[seb->pnum] = 0;
+		buf[seb->pnum] = 1;
 
 	list_for_each_entry(seb, &si->corr, u.list)
-		buf[seb->pnum] = 0;
+		buf[seb->pnum] = 1;
 
 	list_for_each_entry(seb, &si->erase, u.list)
-		buf[seb->pnum] = 0;
+		buf[seb->pnum] = 1;
 
 	list_for_each_entry(seb, &si->alien, u.list)
-		buf[seb->pnum] = 0;
+		buf[seb->pnum] = 1;
 
 	err = 0;
 	for (pnum = 0; pnum < ubi->peb_count; pnum++)
-		if (buf[pnum]) {
+		if (!buf[pnum]) {
 			ubi_err("PEB %d is not referred", pnum);
 			err = 1;
 		}

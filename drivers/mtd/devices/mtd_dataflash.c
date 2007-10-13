@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
@@ -89,7 +90,7 @@ struct dataflash {
 	unsigned short		page_offset;	/* offset in flash address */
 	unsigned int		page_size;	/* of bytes per page */
 
-	struct semaphore	lock;
+	struct mutex		lock;
 	struct spi_device	*spi;
 
 	struct mtd_info		mtd;
@@ -167,7 +168,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 	x.len = 4;
 	spi_message_add_tail(&x, &msg);
 
-	down(&priv->lock);
+	mutex_lock(&priv->lock);
 	while (instr->len > 0) {
 		unsigned int	pageaddr;
 		int		status;
@@ -210,7 +211,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 			instr->len -= priv->page_size;
 		}
 	}
-	up(&priv->lock);
+	mutex_unlock(&priv->lock);
 
 	/* Inform MTD subsystem that erase is complete */
 	instr->state = MTD_ERASE_DONE;
@@ -266,7 +267,7 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	x[1].len = len;
 	spi_message_add_tail(&x[1], &msg);
 
-	down(&priv->lock);
+	mutex_lock(&priv->lock);
 
 	/* Continuous read, max clock = f(car) which may be less than
 	 * the peak rate available.  Some chips support commands with
@@ -279,7 +280,7 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	/* plus 4 "don't care" bytes */
 
 	status = spi_sync(priv->spi, &msg);
-	up(&priv->lock);
+	mutex_unlock(&priv->lock);
 
 	if (status >= 0) {
 		*retlen = msg.actual_length - 8;
@@ -336,7 +337,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	else
 		writelen = len;
 
-	down(&priv->lock);
+	mutex_lock(&priv->lock);
 	while (remaining > 0) {
 		DEBUG(MTD_DEBUG_LEVEL3, "write @ %i:%i len=%i\n",
 			pageaddr, offset, writelen);
@@ -441,7 +442,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		else
 			writelen = remaining;
 	}
-	up(&priv->lock);
+	mutex_unlock(&priv->lock);
 
 	return status;
 }
@@ -463,7 +464,7 @@ add_dataflash(struct spi_device *spi, char *name,
 	if (!priv)
 		return -ENOMEM;
 
-	init_MUTEX(&priv->lock);
+	mutex_init(&priv->lock);
 	priv->spi = spi;
 	priv->page_size = pagesize;
 	priv->page_offset = pageoffset;

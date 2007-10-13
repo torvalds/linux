@@ -158,68 +158,11 @@ static struct notifier_block nettel_notifier_block = {
 	nettel_reboot_notifier, NULL, 0
 };
 
-/*
- *	Erase the configuration file system.
- *	Used to support the software reset button.
- */
-static void nettel_erasecallback(struct erase_info *done)
-{
-	wait_queue_head_t *wait_q = (wait_queue_head_t *)done->priv;
-	wake_up(wait_q);
-}
-
-static struct erase_info nettel_erase;
-
-int nettel_eraseconfig(void)
-{
-	struct mtd_info *mtd;
-	DECLARE_WAITQUEUE(wait, current);
-	wait_queue_head_t wait_q;
-	int ret;
-
-	init_waitqueue_head(&wait_q);
-	mtd = get_mtd_device(NULL, 2);
-	if (!IS_ERR(mtd)) {
-		nettel_erase.mtd = mtd;
-		nettel_erase.callback = nettel_erasecallback;
-		nettel_erase.callback = NULL;
-		nettel_erase.addr = 0;
-		nettel_erase.len = mtd->size;
-		nettel_erase.priv = (u_long) &wait_q;
-		nettel_erase.priv = 0;
-
-		set_current_state(TASK_INTERRUPTIBLE);
-		add_wait_queue(&wait_q, &wait);
-
-		ret = mtd->erase(mtd, &nettel_erase);
-		if (ret) {
-			set_current_state(TASK_RUNNING);
-			remove_wait_queue(&wait_q, &wait);
-			put_mtd_device(mtd);
-			return(ret);
-		}
-
-		schedule();  /* Wait for erase to finish. */
-		remove_wait_queue(&wait_q, &wait);
-
-		put_mtd_device(mtd);
-	}
-
-	return(0);
-}
-
-#else
-
-int nettel_eraseconfig(void)
-{
-	return(0);
-}
-
 #endif
 
 /****************************************************************************/
 
-int __init nettel_init(void)
+static int __init nettel_init(void)
 {
 	volatile unsigned long *amdpar;
 	unsigned long amdaddr, maxsize;
@@ -421,10 +364,6 @@ int __init nettel_init(void)
 
 	intel_mtd->owner = THIS_MODULE;
 
-#ifndef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, 1);
-#endif
-
 	num_intel_partitions = sizeof(nettel_intel_partitions) /
 		sizeof(nettel_intel_partitions[0]);
 
@@ -477,7 +416,7 @@ out_unmap2:
 
 /****************************************************************************/
 
-void __exit nettel_cleanup(void)
+static void __exit nettel_cleanup(void)
 {
 #ifdef CONFIG_MTD_CFI_INTELEXT
 	unregister_reboot_notifier(&nettel_notifier_block);

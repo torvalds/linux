@@ -1609,7 +1609,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 }
 
 
-int cfi_amdstd_erase_varsize(struct mtd_info *mtd, struct erase_info *instr)
+static int cfi_amdstd_erase_varsize(struct mtd_info *mtd, struct erase_info *instr)
 {
 	unsigned long ofs, len;
 	int ret;

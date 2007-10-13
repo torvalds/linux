@@ -127,7 +127,7 @@ static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_nod
 	return ((struct jffs2_inode_cache *)raw);
 }
 
-        /* flash_offset & 3 always has to be zero, because nodes are
+	/* flash_offset & 3 always has to be zero, because nodes are
 	   always aligned at 4 bytes. So we have a couple of extra bits
 	   to play with, which indicate the node's status; see below: */
 #define REF_UNCHECKED	0	/* We haven't yet checked the CRC or built its inode */

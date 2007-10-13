@@ -2,10 +2,10 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2004  Ferenc Havasi <havasi@inf.u-szeged.hu>,
- *                   Zoltan Sogor <weth@inf.u-szeged.hu>,
- *                   Patrik Kluba <pajko@halom.u-szeged.hu>,
- *                   University of Szeged, Hungary
- *             2006  KaiGai Kohei <kaigai@ak.jp.nec.com>
+ *		     Zoltan Sogor <weth@inf.u-szeged.hu>,
+ *		     Patrik Kluba <pajko@halom.u-szeged.hu>,
+ *		     University of Szeged, Hungary
+ *	       2006  KaiGai Kohei <kaigai@ak.jp.nec.com>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
@@ -429,6 +429,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 			case JFFS2_NODETYPE_DIRENT: {
 				struct jffs2_sum_dirent_flash *spd;
+				int checkedlen;
 				spd = sp;
 
 				dbg_summary("Dirent at 0x%08x-0x%08x\n",
@@ -436,12 +437,25 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 					    jeb->offset + je32_to_cpu(spd->offset) + je32_to_cpu(spd->totlen));
 
 
-				fd = jffs2_alloc_full_dirent(spd->nsize+1);
+				/* This should never happen, but https://dev.laptop.org/ticket/4184 */
+				checkedlen = strnlen(spd->name, spd->nsize);
+				if (!checkedlen) {
+					printk(KERN_ERR "Dirent at %08x has zero at start of name. Aborting mount.\n",
+					       jeb->offset + je32_to_cpu(spd->offset));
+					return -EIO;
+				}
+				if (checkedlen < spd->nsize) {
+					printk(KERN_ERR "Dirent at %08x has zeroes in name. Truncating to %d chars\n",
+					       jeb->offset + je32_to_cpu(spd->offset), checkedlen);
+				}
+
+
+				fd = jffs2_alloc_full_dirent(checkedlen+1);
 				if (!fd)
 					return -ENOMEM;
 
-				memcpy(&fd->name, spd->name, spd->nsize);
-				fd->name[spd->nsize] = 0;
+				memcpy(&fd->name, spd->name, checkedlen);
+				fd->name[checkedlen] = 0;
 
 				ic = jffs2_scan_make_ino_cache(c, je32_to_cpu(spd->pino));
 				if (!ic) {
@@ -455,7 +469,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				fd->next = NULL;
 				fd->version = je32_to_cpu(spd->version);
 				fd->ino = je32_to_cpu(spd->ino);
-				fd->nhash = full_name_hash(fd->name, spd->nsize);
+				fd->nhash = full_name_hash(fd->name, checkedlen);
 				fd->type = spd->type;
 
 				jffs2_add_fd_to_list(c, fd, &ic->scan_dents);

@@ -60,21 +60,22 @@ config MTD_DATAFLASH
 	  Sometimes DataFlash chips are packaged inside MMC-format
 	  cards; at this writing, the MMC stack won't handle those.
 
-config MTD_DATAFLASH26
-	tristate "AT91RM9200 DataFlash AT26xxx"
-	depends on MTD && ARCH_AT91RM9200 && AT91_SPI
-	help
-	  This enables access to the DataFlash chip (AT26xxx) on an
-	  AT91RM9200-based board.
-	  If you have such a board and such a DataFlash, say 'Y'.
-
 config MTD_M25P80
-	tristate "Support for M25 SPI Flash"
+	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
 	depends on SPI_MASTER && EXPERIMENTAL
 	help
-	  This enables access to ST M25P80 and similar SPI flash chips,
-	  used for program and data storage.  Set up your spi devices
-	  with the right board-specific platform data.
+	  This enables access to most modern SPI flash chips, used for
+	  program and data storage.   Series supported include Atmel AT26DF,
+	  Spansion S25SL, SST 25VF, ST M25P, and Winbond W25X.  Other chips
+	  are supported as well.  See the driver source for the current list,
+	  or to add other chips.
+
+	  Note that the original DataFlash chips (AT45 series, not AT26DF),
+	  need an entirely different driver.
+
+	  Set up your spi devices with the right board-specific platform data,
+	  if you want to specify device partitioning or to use a device which
+	  doesn't support the JEDEC ID instruction.
 
 config MTD_SLRAM
 	tristate "Uncached system RAM"

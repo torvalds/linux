@@ -101,7 +101,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 		if (!ret && pointlen < c->mtd->size) {
 			/* Don't muck about if it won't let us point to the whole flash */
 			D1(printk(KERN_DEBUG "MTD point returned len too short: 0x%zx\n", pointlen));
-			c->mtd->unpoint(c->mtd, flashbuf, 0, c->mtd->size);
+			c->mtd->unpoint(c->mtd, flashbuf, 0, pointlen);
 			flashbuf = NULL;
 		}
 		if (ret)
@@ -863,7 +863,7 @@ scan_more:
 			switch (je16_to_cpu(node->nodetype) & JFFS2_COMPAT_MASK) {
 			case JFFS2_FEATURE_ROCOMPAT:
 				printk(KERN_NOTICE "Read-only compatible feature node (0x%04x) found at offset 0x%08x\n", je16_to_cpu(node->nodetype), ofs);
-			        c->flags |= JFFS2_SB_FLAG_RO;
+				c->flags |= JFFS2_SB_FLAG_RO;
 				if (!(jffs2_is_readonly(c)))
 					return -EROFS;
 				if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(node->totlen)))))
@@ -1004,6 +1004,7 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 {
 	struct jffs2_full_dirent *fd;
 	struct jffs2_inode_cache *ic;
+	uint32_t checkedlen;
 	uint32_t crc;
 	int err;
 
@@ -1024,12 +1025,18 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 
 	pseudo_random += je32_to_cpu(rd->version);
 
-	fd = jffs2_alloc_full_dirent(rd->nsize+1);
+	/* Should never happen. Did. (OLPC trac #4184)*/
+	checkedlen = strnlen(rd->name, rd->nsize);
+	if (checkedlen < rd->nsize) {
+		printk(KERN_ERR "Dirent at %08x has zeroes in name. Truncating to %d chars\n",
+		       ofs, checkedlen);
+	}
+	fd = jffs2_alloc_full_dirent(checkedlen+1);
 	if (!fd) {
 		return -ENOMEM;
 	}
-	memcpy(&fd->name, rd->name, rd->nsize);
-	fd->name[rd->nsize] = 0;
+	memcpy(&fd->name, rd->name, checkedlen);
+	fd->name[checkedlen] = 0;
 
 	crc = crc32(0, fd->name, rd->nsize);
 	if (crc != je32_to_cpu(rd->name_crc)) {
@@ -1055,7 +1062,7 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 	fd->next = NULL;
 	fd->version = je32_to_cpu(rd->version);
 	fd->ino = je32_to_cpu(rd->ino);
-	fd->nhash = full_name_hash(fd->name, rd->nsize);
+	fd->nhash = full_name_hash(fd->name, checkedlen);
 	fd->type = rd->type;
 	jffs2_add_fd_to_list(c, fd, &ic->scan_dents);
 

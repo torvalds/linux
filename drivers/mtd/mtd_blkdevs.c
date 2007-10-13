@@ -24,10 +24,9 @@
 #include <linux/kthread.h>
 #include <asm/uaccess.h>
 
-static LIST_HEAD(blktrans_majors);
+#include "mtdcore.h"
 
-extern struct mutex mtd_table_mutex;
-extern struct mtd_info *mtd_table[];
+static LIST_HEAD(blktrans_majors);
 
 struct mtd_blkcore_priv {
 	struct task_struct *thread;
@@ -202,7 +201,7 @@ static int blktrans_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-struct block_device_operations mtd_blktrans_ops = {
+static struct block_device_operations mtd_blktrans_ops = {
 	.owner		= THIS_MODULE,
 	.open		= blktrans_open,
 	.release	= blktrans_release,

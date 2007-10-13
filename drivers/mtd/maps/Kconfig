@@ -163,20 +163,12 @@ config MTD_SBC_GXX
 	  More info at
 	  <http://www.arcomcontrols.com/products/icp/pc104/processors/SBC_GX1.htm>.
 
-config MTD_LUBBOCK
-	tristate "CFI Flash device mapped on Intel Lubbock XScale eval board"
-	depends on ARCH_LUBBOCK && MTD_CFI_INTELEXT && MTD_PARTITIONS
-	help
-	  This provides a driver for the on-board flash of the Intel
-	  'Lubbock' XScale evaluation board.
-
-config MTD_MAINSTONE
-	tristate "CFI Flash device mapped on Intel Mainstone XScale eval board"
-	depends on MACH_MAINSTONE && MTD_CFI_INTELEXT
+config MTD_PXA2XX
+	tristate "CFI Flash device mapped on Intel XScale PXA2xx based boards"
+	depends on (PXA25x || PXA27x) && MTD_CFI_INTELEXT
 	select MTD_PARTITIONS
 	help
-	  This provides a driver for the on-board flash of the Intel
-	  'Mainstone PXA27x evaluation board.
+	  This provides a driver for the NOR flash attached to a PXA2xx chip.
 
 config MTD_OCTAGON
 	tristate "JEDEC Flash device mapped on Octagon 5066 SBC"
@@ -354,7 +346,7 @@ config MTD_CFI_FLAGADM
 
 config MTD_WALNUT
 	tristate "Flash device mapped on IBM 405GP Walnut"
-	depends on MTD_JEDECPROBE && WALNUT
+	depends on MTD_JEDECPROBE && WALNUT && !PPC_MERGE
 	help
 	  This enables access routines for the flash chips on the IBM 405GP
 	  Walnut board. If you have one of these boards and would like to
@@ -370,7 +362,7 @@ config MTD_EBONY
 
 config MTD_OCOTEA
 	tristate "Flash devices mapped on IBM 440GX Ocotea"
-	depends on MTD_CFI && OCOTEA
+	depends on MTD_CFI && OCOTEA && !PPC_MERGE
 	help
 	  This enables access routines for the flash chips on the IBM 440GX
 	  Ocotea board. If you have one of these boards and would like to
@@ -383,22 +375,6 @@ config MTD_REDWOOD
 	  This enables access routines for the flash chips on the IBM
 	  Redwood board. If you have one of these boards and would like to
 	  use the flash chips on it, say 'Y'.
-
-config MTD_TQM834x
-	tristate "Flash device mapped on TQ Components TQM834x Boards"
-	depends on MTD_CFI && TQM834x
-	help
-	  This enables access routines for the flash chips on the
-	  TQ Components TQM834x boards. If you have one of these boards
-	  and would like to use the flash chips on it, say 'Y'.
-
-config MTD_OCELOT
-	tristate "Momenco Ocelot boot flash device"
-	depends on MOMENCO_OCELOT
-	help
-	  This enables access routines for the boot flash device and for the
-	  NVRAM on the Momenco Ocelot board. If you have one of these boards
-	  and would like access to either of these, say 'Y'.
 
 config MTD_SOLUTIONENGINE
 	tristate "CFI Flash device mapped on Hitachi SolutionEngine"
@@ -604,6 +580,13 @@ config MTD_SHARP_SL
 	depends on ARCH_PXA
 	help
 	  This enables access to the flash chip on the Sharp SL Series of PDAs.
+
+config MTD_INTEL_VR_NOR
+	tristate "NOR flash on Intel Vermilion Range Expansion Bus CS0"
+	depends on PCI
+	help
+	  Map driver for a NOR flash bank located on the Expansion Bus of the
+	  Intel Vermilion Range chipset.
 
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"
