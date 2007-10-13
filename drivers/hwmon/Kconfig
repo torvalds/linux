@@ -645,6 +645,7 @@ config SENSORS_W83627EHF
 config SENSORS_HDAPS
 	tristate "IBM Hard Drive Active Protection System (hdaps)"
 	depends on INPUT && X86
+	select INPUT_POLLDEV
 	default n
 	help
 	  This driver provides support for the IBM Hard Drive Active Protection
