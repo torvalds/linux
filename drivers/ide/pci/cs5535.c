@@ -190,12 +190,16 @@ static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)
  */
 static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 {
-	int i;
-
 	hwif->autodma = 0;
 
 	hwif->set_pio_mode = &cs5535_set_pio_mode;
 	hwif->set_dma_mode = &cs5535_set_dma_mode;
+
+	hwif->drives[1].autotune = hwif->drives[0].autotune = 1;
+
+	if (hwif->dma_base == 0)
+		return;
+
 	hwif->ide_dma_check = &cs5535_dma_check;
 
 	hwif->atapi_dma = 1;
@@ -207,11 +211,7 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	if (!noautodma)
 		hwif->autodma = 1;
 
-	/* just setting autotune and not worrying about bios timings */
-	for (i = 0; i < 2; i++) {
-		hwif->drives[i].autotune = 1;
-		hwif->drives[i].autodma = hwif->autodma;
-	}
+	hwif->drives[1].autodma = hwif->drives[0].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t cs5535_chipset __devinitdata = {
