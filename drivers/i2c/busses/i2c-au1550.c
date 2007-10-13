@@ -48,17 +48,14 @@ wait_xfer_done(struct i2c_au1550_data *adap)
 
 	sp = (volatile psc_smb_t *)(adap->psc_base);
 
-	/* Wait for Tx FIFO Underflow.
+	/* Wait for Tx Buffer Empty
 	*/
 	for (i = 0; i < adap->xfer_timeout; i++) {
-		stat = sp->psc_smbevnt;
+		stat = sp->psc_smbstat;
 		au_sync();
-		if ((stat & PSC_SMBEVNT_TU) != 0) {
-			/* Clear it.  */
-			sp->psc_smbevnt = PSC_SMBEVNT_TU;
-			au_sync();
+		if ((stat & PSC_SMBSTAT_TE) != 0)
 			return 0;
-		}
+
 		udelay(1);
 	}
 
