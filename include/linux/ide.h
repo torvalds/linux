@@ -1079,16 +1079,7 @@ extern void ide_fix_driveid(struct hd_driveid *);
  */
 extern void ide_fixstring(u8 *, const int, const int);
 
-/*
- * This routine busy-waits for the drive status to be not "busy".
- * It then checks the status for all of the "good" bits and none
- * of the "bad" bits, and if all is okay it returns 0.  All other
- * cases return 1 after doing "*startstop = ide_error()", and the
- * caller should return the updated value of "startstop" in this case.
- * "startstop" is unchanged when the function returns 0;
- * (startstop, drive, good, bad, timeout)
- */
-extern int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
+int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 /*
  * Start a reset operation for an IDE interface.
