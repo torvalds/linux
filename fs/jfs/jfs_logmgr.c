@@ -2234,6 +2234,8 @@ static void lbmIODone(struct bio *bio, int error)
 
 		/* wakeup I/O initiator */
 		LCACHE_WAKEUP(&bp->l_ioevent);
+
+		return;
 	}
 
 	/*
@@ -2258,6 +2260,7 @@ static void lbmIODone(struct bio *bio, int error)
 	if (bp->l_flag & lbmDIRECT) {
 		LCACHE_WAKEUP(&bp->l_ioevent);
 		LCACHE_UNLOCK(flags);
+		return;
 	}
 
 	tail = log->wqueue;
