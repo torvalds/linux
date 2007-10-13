@@ -117,6 +117,7 @@ ENTRY(__copy_user_nocache)
 	popq %rbx
 	CFI_ADJUST_CFA_OFFSET -8
 	CFI_RESTORE rbx
+	sfence
 	ret
 	CFI_RESTORE_STATE
 
