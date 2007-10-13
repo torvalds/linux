@@ -24,24 +24,41 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
 
-static unsigned short chip_addr;
-module_param(chip_addr, ushort, S_IRUGO);
-MODULE_PARM_DESC(chip_addr, "Chip address (between 0x03 and 0x77)\n");
+#define MAX_CHIPS 10
 
-static u8  stub_pointer;
-static u8  stub_bytes[256];
-static u16 stub_words[256];
+static unsigned short chip_addr[MAX_CHIPS];
+module_param_array(chip_addr, ushort, NULL, S_IRUGO);
+MODULE_PARM_DESC(chip_addr,
+		 "Chip addresses (up to 10, between 0x03 and 0x77)\n");
+
+struct stub_chip {
+	u8 pointer;
+	u8 bytes[256];
+	u16 words[256];
+};
+
+static struct stub_chip *stub_chips;
 
 /* Return -1 on error. */
 static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 	char read_write, u8 command, int size, union i2c_smbus_data * data)
 {
 	s32 ret;
+	int i;
+	struct stub_chip *chip = NULL;
 
-	if (addr != chip_addr)
+	/* Search for the right chip */
+	for (i = 0; i < MAX_CHIPS && chip_addr[i]; i++) {
+		if (addr == chip_addr[i]) {
+			chip = stub_chips + i;
+			break;
+		}
+	}
+	if (!chip)
 		return -ENODEV;
 
 	switch (size) {
@@ -53,12 +70,12 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 
 	case I2C_SMBUS_BYTE:
 		if (read_write == I2C_SMBUS_WRITE) {
-			stub_pointer = command;
+			chip->pointer = command;
 			dev_dbg(&adap->dev, "smbus byte - addr 0x%02x, "
 					"wrote 0x%02x.\n",
 					addr, command);
 		} else {
-			data->byte = stub_bytes[stub_pointer++];
+			data->byte = chip->bytes[chip->pointer++];
 			dev_dbg(&adap->dev, "smbus byte - addr 0x%02x, "
 					"read  0x%02x.\n",
 					addr, data->byte);
@@ -69,29 +86,29 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 
 	case I2C_SMBUS_BYTE_DATA:
 		if (read_write == I2C_SMBUS_WRITE) {
-			stub_bytes[command] = data->byte;
+			chip->bytes[command] = data->byte;
 			dev_dbg(&adap->dev, "smbus byte data - addr 0x%02x, "
 					"wrote 0x%02x at 0x%02x.\n",
 					addr, data->byte, command);
 		} else {
-			data->byte = stub_bytes[command];
+			data->byte = chip->bytes[command];
 			dev_dbg(&adap->dev, "smbus byte data - addr 0x%02x, "
 					"read  0x%02x at 0x%02x.\n",
 					addr, data->byte, command);
 		}
-		stub_pointer = command + 1;
+		chip->pointer = command + 1;
 
 		ret = 0;
 		break;
 
 	case I2C_SMBUS_WORD_DATA:
 		if (read_write == I2C_SMBUS_WRITE) {
-			stub_words[command] = data->word;
+			chip->words[command] = data->word;
 			dev_dbg(&adap->dev, "smbus word data - addr 0x%02x, "
 					"wrote 0x%04x at 0x%02x.\n",
 					addr, data->word, command);
 		} else {
-			data->word = stub_words[command];
+			data->word = chip->words[command];
 			dev_dbg(&adap->dev, "smbus word data - addr 0x%02x, "
 					"read  0x%04x at 0x%02x.\n",
 					addr, data->word, command);
@@ -129,23 +146,41 @@ static struct i2c_adapter stub_adapter = {
 
 static int __init i2c_stub_init(void)
 {
-	if (!chip_addr) {
+	int i, ret;
+
+	if (!chip_addr[0]) {
 		printk(KERN_ERR "i2c-stub: Please specify a chip address\n");
 		return -ENODEV;
 	}
-	if (chip_addr < 0x03 || chip_addr > 0x77) {
-		printk(KERN_ERR "i2c-stub: Invalid chip address 0x%02x\n",
-		       chip_addr);
-		return -EINVAL;
+
+	for (i = 0; i < MAX_CHIPS && chip_addr[i]; i++) {
+		if (chip_addr[i] < 0x03 || chip_addr[i] > 0x77) {
+			printk(KERN_ERR "i2c-stub: Invalid chip address "
+			       "0x%02x\n", chip_addr[i]);
+			return -EINVAL;
+		}
+
+		printk(KERN_INFO "i2c-stub: Virtual chip at 0x%02x\n",
+		       chip_addr[i]);
 	}
 
-	printk(KERN_INFO "i2c-stub: Virtual chip at 0x%02x\n", chip_addr);
-	return i2c_add_adapter(&stub_adapter);
+	/* Allocate memory for all chips at once */
+	stub_chips = kzalloc(i * sizeof(struct stub_chip), GFP_KERNEL);
+	if (!stub_chips) {
+		printk(KERN_ERR "i2c-stub: Out of memory\n");
+		return -ENOMEM;
+	}
+
+	ret = i2c_add_adapter(&stub_adapter);
+	if (ret)
+		kfree(stub_chips);
+	return ret;
 }
 
 static void __exit i2c_stub_exit(void)
 {
 	i2c_del_adapter(&stub_adapter);
+	kfree(stub_chips);
 }
 
 MODULE_AUTHOR("Mark M. Hoffman <mhoffman@lightlink.com>");
