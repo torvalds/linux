@@ -150,13 +150,13 @@ static int pdcnew_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
-	int			err;
 
 	/*
 	 * Issue SETFEATURES_XFER to the drive first. PDC202xx hardware will
 	 * automatically set the timing registers based on 100 MHz PLL output.
 	 */
- 	err = ide_config_drive_speed(drive, speed);
+	if (ide_config_drive_speed(drive, speed))
+		return 1;
 
 	/*
 	 * As we set up the PLL to output 133 MHz for UltraDMA/133 capable
@@ -212,7 +212,7 @@ static int pdcnew_tune_chipset(ide_drive_t *drive, const u8 speed)
 		set_indexed_reg(hwif, 0x10 + adj, tmp & 0x7f);
  	}
 
-	return err;
+	return 0;
 }
 
 static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
