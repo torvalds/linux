@@ -548,16 +548,6 @@ pmac_ide_do_setfeature(ide_drive_t *drive, u8 command)
 	SELECT_DRIVE(drive);
 	SELECT_MASK(drive, 0);
 	udelay(1);
-	/* Get rid of pending error state */
-	(void) hwif->INB(IDE_STATUS_REG);
-	/* Timeout bumped for some powerbooks */
-	if (wait_for_ready(drive, 2000)) {
-		/* Timeout bumped for some powerbooks */
-		printk(KERN_ERR "%s: pmac_ide_do_setfeature disk not ready "
-			"before SET_FEATURE!\n", drive->name);
-		goto out;
-	}
-	udelay(10);
 	hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
 	hwif->OUTB(command, IDE_NSECTOR_REG);
 	hwif->OUTB(SETFEATURES_XFER, IDE_FEATURE_REG);
@@ -569,7 +559,7 @@ pmac_ide_do_setfeature(ide_drive_t *drive, u8 command)
 	if (result)
 		printk(KERN_ERR "%s: pmac_ide_do_setfeature disk not ready "
 			"after SET_FEATURE !\n", drive->name);
-out:
+
 	SELECT_MASK(drive, 0);
 	if (result == 0) {
 		drive->id->dma_ultra &= ~0xFF00;
