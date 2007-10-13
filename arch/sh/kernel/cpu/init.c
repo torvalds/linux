@@ -22,6 +22,7 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/ubc.h>
+#include <asm/smp.h>
 
 /*
  * Generic wrapper for command line arguments to disable on-chip
@@ -143,12 +144,15 @@ static void __init cache_init(void)
 		flags &= ~CCR_CACHE_EMODE;
 #endif
 
-#ifdef CONFIG_SH_WRITETHROUGH
-	/* Turn on Write-through caching */
+#if defined(CONFIG_CACHE_WRITETHROUGH)
+	/* Write-through */
 	flags |= CCR_CACHE_WT;
-#else
-	/* .. or default to Write-back */
+#elif defined(CONFIG_CACHE_WRITEBACK)
+	/* Write-back */
 	flags |= CCR_CACHE_CB;
+#else
+	/* Off */
+	flags &= ~CCR_CACHE_ENABLE;
 #endif
 
 	ctrl_outl(flags, CCR);
@@ -213,8 +217,11 @@ static void __init dsp_init(void)
  * Each processor family is still responsible for doing its own probing
  * and cache configuration in detect_cpu_and_cache_system().
  */
-asmlinkage void __init sh_cpu_init(void)
+
+asmlinkage void __cpuinit sh_cpu_init(void)
 {
+	current_thread_info()->cpu = hard_smp_processor_id();
+
 	/* First, probe the CPU */
 	detect_cpu_and_cache_system();
 
@@ -224,9 +231,10 @@ asmlinkage void __init sh_cpu_init(void)
 	/* Init the cache */
 	cache_init();
 
-	shm_align_mask = max_t(unsigned long,
-			       current_cpu_data.dcache.way_size - 1,
-			       PAGE_SIZE - 1);
+	if (raw_smp_processor_id() == 0)
+		shm_align_mask = max_t(unsigned long,
+				       current_cpu_data.dcache.way_size - 1,
+				       PAGE_SIZE - 1);
 
 	/* Disable the FPU */
 	if (fpu_disabled) {
@@ -265,6 +273,7 @@ asmlinkage void __init sh_cpu_init(void)
 	 * like PTRACE_SINGLESTEP or doing hardware watchpoints in GDB.  So ..
 	 * we wake it up and hope that all is well.
 	 */
-	ubc_wakeup();
+	if (raw_smp_processor_id() == 0)
+		ubc_wakeup();
 	speculative_execution_init();
 }

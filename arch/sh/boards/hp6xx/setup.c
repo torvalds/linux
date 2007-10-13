@@ -7,7 +7,7 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  *
- * Setup code for an HP680  (internal peripherials only)
+ * Setup code for HP620/HP660/HP680/HP690 (internal peripherials only)
  */
 #include <linux/types.h>
 #include <linux/init.h>
@@ -19,7 +19,7 @@
 #include <asm/cpu/dac.h>
 
 #define	SCPCR	0xa4000116
-#define SCPDR	0xa4000136
+#define	SCPDR	0xa4000136
 
 /* CF Slot */
 static struct resource cf_ide_resources[] = {
@@ -34,7 +34,7 @@ static struct resource cf_ide_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[2] = {
-		.start = 93,
+		.start = 77,
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -46,9 +46,21 @@ static struct platform_device cf_ide_device = {
 	.resource	= cf_ide_resources,
 };
 
-static struct platform_device *hp6xx_devices[] __initdata = {
-       &cf_ide_device,
+static struct platform_device jornadakbd_device = {
+	.name		= "jornada680_kbd",
+	.id		= -1,
 };
+
+static struct platform_device *hp6xx_devices[] __initdata = {
+	&cf_ide_device,
+	&jornadakbd_device,
+};
+
+static void __init hp6xx_init_irq(void)
+{
+	/* Gets touchscreen and powerbutton IRQ working */
+	plat_irq_setup_pins(IRQ_MODE_IRQ);
+}
 
 static int __init hp6xx_devices_setup(void)
 {
@@ -61,11 +73,11 @@ static void __init hp6xx_setup(char **cmdline_p)
 	u16 v;
 
 	v = inw(HD64461_STBCR);
-	v |= HD64461_STBCR_SURTST | HD64461_STBCR_SIRST |
-	    HD64461_STBCR_STM1ST | HD64461_STBCR_STM0ST |
-	    HD64461_STBCR_SAFEST | HD64461_STBCR_SPC0ST |
-	    HD64461_STBCR_SMIAST | HD64461_STBCR_SAFECKE_OST |
-	    HD64461_STBCR_SAFECKE_IST;
+	v |=	HD64461_STBCR_SURTST | HD64461_STBCR_SIRST	|
+		HD64461_STBCR_STM1ST | HD64461_STBCR_STM0ST	|
+		HD64461_STBCR_SAFEST | HD64461_STBCR_SPC0ST	|
+		HD64461_STBCR_SMIAST | HD64461_STBCR_SAFECKE_OST|
+		HD64461_STBCR_SAFECKE_IST;
 #ifndef CONFIG_HD64461_ENABLER
 	v |= HD64461_STBCR_SPC1ST;
 #endif
@@ -101,6 +113,9 @@ device_initcall(hp6xx_devices_setup);
 static struct sh_machine_vector mv_hp6xx __initmv = {
 	.mv_name = "hp6xx",
 	.mv_setup = hp6xx_setup,
-	.mv_nr_irqs = HD64461_IRQBASE + HD64461_IRQ_NUM,
+	/* IRQ's : CPU(64) + CCHIP(16) + FREE_TO_USE(6) */
+	.mv_nr_irqs = HD64461_IRQBASE + HD64461_IRQ_NUM + 6,
 	.mv_irq_demux = hd64461_irq_demux,
+	/* Enable IRQ0 -> IRQ3 in IRQ_MODE */
+	.mv_init_irq = hp6xx_init_irq,
 };

@@ -23,149 +23,79 @@
 #include <asm/voyagergx.h>
 #include <asm/rts7751r2d.h>
 
-static void disable_voyagergx_irq(unsigned int irq)
-{
-	unsigned long val;
-	unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
+enum {
+	UNUSED = 0,
 
-	pr_debug("disable_voyagergx_irq(%d): mask=%lx\n", irq, mask);
-	val = readl((void __iomem *)VOYAGER_INT_MASK);
-	val &= ~mask;
-	writel(val, (void __iomem *)VOYAGER_INT_MASK);
-}
-
-static void enable_voyagergx_irq(unsigned int irq)
-{
-	unsigned long val;
-	unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
-
-	pr_debug("disable_voyagergx_irq(%d): mask=%lx\n", irq, mask);
-	val = readl((void __iomem *)VOYAGER_INT_MASK);
-	val |= mask;
-	writel(val, (void __iomem *)VOYAGER_INT_MASK);
-}
-
-static void mask_and_ack_voyagergx(unsigned int irq)
-{
-	disable_voyagergx_irq(irq);
-}
-
-static void end_voyagergx_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_voyagergx_irq(irq);
-}
-
-static unsigned int startup_voyagergx_irq(unsigned int irq)
-{
-	enable_voyagergx_irq(irq);
-	return 0;
-}
-
-static void shutdown_voyagergx_irq(unsigned int irq)
-{
-	disable_voyagergx_irq(irq);
-}
-
-static struct hw_interrupt_type voyagergx_irq_type = {
-	.typename	= "VOYAGERGX-IRQ",
-	.startup	= startup_voyagergx_irq,
-	.shutdown	= shutdown_voyagergx_irq,
-	.enable		= enable_voyagergx_irq,
-	.disable	= disable_voyagergx_irq,
-	.ack		= mask_and_ack_voyagergx,
-	.end		= end_voyagergx_irq,
+	/* voyager specific interrupt sources */
+	UP, G54, G53, G52, G51, G50, G49, G48,
+	I2C, PW, DMA, PCI, I2S, AC, US,
+	U1, U0, CV, MC, S1, S0,
+	UH, TWOD, ZD, PV, CI,
 };
 
-static irqreturn_t voyagergx_interrupt(int irq, void *dev_id)
+static struct intc_vect vectors[] __initdata = {
+	INTC_IRQ(UP, IRQ_SM501_UP), INTC_IRQ(G54, IRQ_SM501_G54),
+	INTC_IRQ(G53, IRQ_SM501_G53), INTC_IRQ(G52, IRQ_SM501_G52),
+	INTC_IRQ(G51, IRQ_SM501_G51), INTC_IRQ(G50, IRQ_SM501_G50),
+	INTC_IRQ(G49, IRQ_SM501_G49), INTC_IRQ(G48, IRQ_SM501_G48),
+	INTC_IRQ(I2C, IRQ_SM501_I2C), INTC_IRQ(PW, IRQ_SM501_PW),
+	INTC_IRQ(DMA, IRQ_SM501_DMA), INTC_IRQ(PCI, IRQ_SM501_PCI),
+	INTC_IRQ(I2S, IRQ_SM501_I2S), INTC_IRQ(AC, IRQ_SM501_AC),
+	INTC_IRQ(US, IRQ_SM501_US), INTC_IRQ(U1, IRQ_SM501_U1),
+	INTC_IRQ(U0, IRQ_SM501_U0), INTC_IRQ(CV, IRQ_SM501_CV),
+	INTC_IRQ(MC, IRQ_SM501_MC), INTC_IRQ(S1, IRQ_SM501_S1),
+	INTC_IRQ(S0, IRQ_SM501_S0), INTC_IRQ(UH, IRQ_SM501_UH),
+	INTC_IRQ(TWOD, IRQ_SM501_2D), INTC_IRQ(ZD, IRQ_SM501_ZD),
+	INTC_IRQ(PV, IRQ_SM501_PV), INTC_IRQ(CI, IRQ_SM501_CI),
+};
+
+static struct intc_mask_reg mask_registers[] __initdata = {
+	{ VOYAGER_INT_MASK, 0, 32, /* "Interrupt Mask", MMIO_base + 0x30 */
+	  { UP, G54, G53, G52, G51, G50, G49, G48,
+	    I2C, PW, 0, DMA, PCI, I2S, AC, US,
+	    0, 0, U1, U0, CV, MC, S1, S0,
+	    0, UH, 0, 0, TWOD, ZD, PV, CI } },
+};
+
+static DECLARE_INTC_DESC(intc_desc, "voyagergx", vectors,
+			 NULL, NULL, mask_registers, NULL, NULL);
+
+static unsigned int voyagergx_stat2irq[32] = {
+	IRQ_SM501_CI, IRQ_SM501_PV, IRQ_SM501_ZD, IRQ_SM501_2D,
+	0, 0, IRQ_SM501_UH, 0,
+	IRQ_SM501_S0, IRQ_SM501_S1, IRQ_SM501_MC, IRQ_SM501_CV,
+	IRQ_SM501_U0, IRQ_SM501_U1, 0, 0,
+	IRQ_SM501_US, IRQ_SM501_AC, IRQ_SM501_I2S, IRQ_SM501_PCI,
+	IRQ_SM501_DMA, 0, IRQ_SM501_PW, IRQ_SM501_I2C,
+	IRQ_SM501_G48, IRQ_SM501_G49, IRQ_SM501_G50, IRQ_SM501_G51,
+	IRQ_SM501_G52, IRQ_SM501_G53, IRQ_SM501_G54, IRQ_SM501_UP
+};
+
+static void voyagergx_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	printk(KERN_INFO
-	       "VoyagerGX: spurious interrupt, status: 0x%x\n",
-			(unsigned int)readl((void __iomem *)INT_STATUS));
-	return IRQ_HANDLED;
-}
+	unsigned long intv = ctrl_inl(INT_STATUS);
+	struct irq_desc *ext_desc;
+	unsigned int ext_irq;
+	unsigned int k = 0;
 
-static struct {
-	int (*func)(int, void *);
-	void *dev;
-} voyagergx_demux[VOYAGER_IRQ_NUM];
-
-void voyagergx_register_irq_demux(int irq,
-		int (*demux)(int irq, void *dev), void *dev)
-{
-	voyagergx_demux[irq - VOYAGER_IRQ_BASE].func = demux;
-	voyagergx_demux[irq - VOYAGER_IRQ_BASE].dev = dev;
-}
-
-void voyagergx_unregister_irq_demux(int irq)
-{
-	voyagergx_demux[irq - VOYAGER_IRQ_BASE].func = 0;
-}
-
-int voyagergx_irq_demux(int irq)
-{
-
-	if (irq == IRQ_VOYAGER ) {
-		unsigned long i = 0, bit __attribute__ ((unused));
-		unsigned long val  = readl((void __iomem *)INT_STATUS);
-
-		if (val & (1 << 1))
-			i = 1;
-		else if (val & (1 << 2))
-			i = 2;
-		else if (val & (1 << 6))
-			i = 6;
-		else if (val & (1 << 10))
-			i = 10;
-		else if (val & (1 << 11))
-			i = 11;
-		else if (val & (1 << 12))
-			i = 12;
-		else if (val & (1 << 17))
-			i = 17;
-		else
-			printk("Unexpected IRQ irq = %d status = 0x%08lx\n", irq, val);
-		pr_debug("voyagergx_irq_demux %ld \n", i);
-		if (i < VOYAGER_IRQ_NUM) {
-			irq = VOYAGER_IRQ_BASE + i;
-			if (voyagergx_demux[i].func != 0)
-				irq = voyagergx_demux[i].func(irq,
-						voyagergx_demux[i].dev);
+	while (intv) {
+		ext_irq = voyagergx_stat2irq[k];
+		if (ext_irq && (intv & 1)) {
+			ext_desc = irq_desc + ext_irq;
+			handle_level_irq(ext_irq, ext_desc);
 		}
+		intv >>= 1;
+		k++;
 	}
-	return irq;
 }
-
-static struct irqaction irq0  = {
-	.name		= "voyagergx",
-	.handler	= voyagergx_interrupt,
-	.flags		= IRQF_DISABLED,
-	.mask		= CPU_MASK_NONE,
-};
 
 void __init setup_voyagergx_irq(void)
 {
-	int i, flag;
-
-	printk(KERN_INFO "VoyagerGX configured at 0x%x on irq %d(mapped into %d to %d)\n",
-	       VOYAGER_BASE,
+	printk(KERN_INFO "VoyagerGX on irq %d (mapped into %d to %d)\n",
 	       IRQ_VOYAGER,
 	       VOYAGER_IRQ_BASE,
 	       VOYAGER_IRQ_BASE + VOYAGER_IRQ_NUM - 1);
 
-	for (i=0; i<VOYAGER_IRQ_NUM; i++) {
-		flag = 0;
-		switch (VOYAGER_IRQ_BASE + i) {
-		case VOYAGER_USBH_IRQ:
-		case VOYAGER_8051_IRQ:
-		case VOYAGER_UART0_IRQ:
-		case VOYAGER_UART1_IRQ:
-		case VOYAGER_AC97_IRQ:
-			flag = 1;
-		}
-		if (flag == 1)
-			irq_desc[VOYAGER_IRQ_BASE + i].chip = &voyagergx_irq_type;
-	}
-
-	setup_irq(IRQ_VOYAGER, &irq0);
+	register_intc_controller(&intc_desc);
+	set_irq_chained_handler(IRQ_VOYAGER, voyagergx_irq_demux);
 }

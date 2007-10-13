@@ -118,6 +118,7 @@ machdir-$(CONFIG_SH_7751_SYSTEMH)		+= renesas/systemh
 machdir-$(CONFIG_SH_EDOSK7705)			+= renesas/edosk7705
 machdir-$(CONFIG_SH_HIGHLANDER)			+= renesas/r7780rp
 machdir-$(CONFIG_SH_7710VOIPGW)			+= renesas/sh7710voipgw
+machdir-$(CONFIG_SH_X3PROTO)			+= renesas/x3proto
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			+= landisk
 machdir-$(CONFIG_SH_TITAN)			+= titan
@@ -125,6 +126,7 @@ machdir-$(CONFIG_SH_SHMIN)			+= shmin
 machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	+= se/7206
 machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	+= se/7619
 machdir-$(CONFIG_SH_LBOX_RE2)			+= lboxre2
+machdir-$(CONFIG_SH_MAGIC_PANEL_R2)		+= magicpanelr2
 
 incdir-y	:= $(notdir $(machdir-y))
 
@@ -135,7 +137,7 @@ endif
 
 # Companion chips
 core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
-core-$(CONFIG_VOYAGERGX)	+= arch/sh/cchips/voyagergx/
+core-$(CONFIG_MFD_SM501)	+= arch/sh/cchips/voyagergx/
 
 cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2
 cpuincdir-$(CONFIG_CPU_SH2A)	:= cpu-sh2a

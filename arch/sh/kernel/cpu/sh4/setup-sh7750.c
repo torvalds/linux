@@ -104,7 +104,7 @@ enum {
 	DMAC, PCIC1, TMU2, RTC, SCI1, SCIF, REF,
 };
 
-static struct intc_vect vectors[] = {
+static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(HUDI, 0x600), INTC_VECT(GPIOI, 0x620),
 	INTC_VECT(TMU0, 0x400), INTC_VECT(TMU1, 0x420),
 	INTC_VECT(TMU2_TUNI, 0x440), INTC_VECT(TMU2_TICPI, 0x460),
@@ -118,7 +118,7 @@ static struct intc_vect vectors[] = {
 	INTC_VECT(REF_RCMI, 0x580), INTC_VECT(REF_ROVI, 0x5a0),
 };
 
-static struct intc_group groups[] = {
+static struct intc_group groups[] __initdata = {
 	INTC_GROUP(TMU2, TMU2_TUNI, TMU2_TICPI),
 	INTC_GROUP(RTC, RTC_ATI, RTC_PRI, RTC_CUI),
 	INTC_GROUP(SCI1, SCI1_ERI, SCI1_RXI, SCI1_TXI, SCI1_TEI),
@@ -126,20 +126,20 @@ static struct intc_group groups[] = {
 	INTC_GROUP(REF, REF_RCMI, REF_ROVI),
 };
 
-static struct intc_prio priorities[] = {
+static struct intc_prio priorities[] __initdata = {
 	INTC_PRIO(SCIF, 3),
 	INTC_PRIO(SCI1, 3),
 	INTC_PRIO(DMAC, 7),
 };
 
-static struct intc_prio_reg prio_registers[] = {
-	{ 0xffd00004, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
-	{ 0xffd00008, 16, 4, /* IPRB */ { WDT, REF, SCI1, 0 } },
-	{ 0xffd0000c, 16, 4, /* IPRC */ { GPIOI, DMAC, SCIF, HUDI } },
-	{ 0xffd00010, 16, 4, /* IPRD */ { IRL0, IRL1, IRL2, IRL3 } },
-	{ 0xfe080000, 32, 4, /* INTPRI00 */ { 0, 0, 0, 0,
-					      TMU4, TMU3,
-					      PCIC1, PCIC0_PCISERR } },
+static struct intc_prio_reg prio_registers[] __initdata = {
+	{ 0xffd00004, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
+	{ 0xffd00008, 0, 16, 4, /* IPRB */ { WDT, REF, SCI1, 0 } },
+	{ 0xffd0000c, 0, 16, 4, /* IPRC */ { GPIOI, DMAC, SCIF, HUDI } },
+	{ 0xffd00010, 0, 16, 4, /* IPRD */ { IRL0, IRL1, IRL2, IRL3 } },
+	{ 0xfe080000, 0, 32, 4, /* INTPRI00 */ { 0, 0, 0, 0,
+						 TMU4, TMU3,
+						 PCIC1, PCIC0_PCISERR } },
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7750", vectors, groups,
@@ -150,13 +150,13 @@ static DECLARE_INTC_DESC(intc_desc, "sh7750", vectors, groups,
 	defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
 	defined(CONFIG_CPU_SUBTYPE_SH7751) || \
 	defined(CONFIG_CPU_SUBTYPE_SH7091)
-static struct intc_vect vectors_dma4[] = {
+static struct intc_vect vectors_dma4[] __initdata = {
 	INTC_VECT(DMAC_DMTE0, 0x640), INTC_VECT(DMAC_DMTE1, 0x660),
 	INTC_VECT(DMAC_DMTE2, 0x680), INTC_VECT(DMAC_DMTE3, 0x6a0),
 	INTC_VECT(DMAC_DMAE, 0x6c0),
 };
 
-static struct intc_group groups_dma4[] = {
+static struct intc_group groups_dma4[] __initdata = {
 	INTC_GROUP(DMAC, DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2,
 		   DMAC_DMTE3, DMAC_DMAE),
 };
@@ -168,7 +168,7 @@ static DECLARE_INTC_DESC(intc_desc_dma4, "sh7750_dma4",
 
 /* SH7750R and SH7751R both have 8-channel DMA controllers */
 #if defined(CONFIG_CPU_SUBTYPE_SH7750R) || defined(CONFIG_CPU_SUBTYPE_SH7751R)
-static struct intc_vect vectors_dma8[] = {
+static struct intc_vect vectors_dma8[] __initdata = {
 	INTC_VECT(DMAC_DMTE0, 0x640), INTC_VECT(DMAC_DMTE1, 0x660),
 	INTC_VECT(DMAC_DMTE2, 0x680), INTC_VECT(DMAC_DMTE3, 0x6a0),
 	INTC_VECT(DMAC_DMTE4, 0x780), INTC_VECT(DMAC_DMTE5, 0x7a0),
@@ -176,7 +176,7 @@ static struct intc_vect vectors_dma8[] = {
 	INTC_VECT(DMAC_DMAE, 0x6c0),
 };
 
-static struct intc_group groups_dma8[] = {
+static struct intc_group groups_dma8[] __initdata = {
 	INTC_GROUP(DMAC, DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2,
 		   DMAC_DMTE3, DMAC_DMTE4, DMAC_DMTE5,
 		   DMAC_DMTE6, DMAC_DMTE7, DMAC_DMAE),
@@ -191,11 +191,11 @@ static DECLARE_INTC_DESC(intc_desc_dma8, "sh7750_dma8",
 #if defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
 	defined(CONFIG_CPU_SUBTYPE_SH7751) || \
 	defined(CONFIG_CPU_SUBTYPE_SH7751R)
-static struct intc_vect vectors_tmu34[] = {
+static struct intc_vect vectors_tmu34[] __initdata = {
 	INTC_VECT(TMU3, 0xb00), INTC_VECT(TMU4, 0xb80),
 };
 
-static struct intc_mask_reg mask_registers[] = {
+static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xfe080040, 0xfe080060, 32, /* INTMSK00 / INTMSKCLR00 */
 	  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	    0, 0, 0, 0, 0, 0, TMU4, TMU3,
@@ -210,7 +210,7 @@ static DECLARE_INTC_DESC(intc_desc_tmu34, "sh7750_tmu34",
 #endif
 
 /* SH7750S, SH7750R, SH7751 and SH7751R all have IRLM priority registers */
-static struct intc_vect vectors_irlm[] = {
+static struct intc_vect vectors_irlm[] __initdata = {
 	INTC_VECT(IRL0, 0x240), INTC_VECT(IRL1, 0x2a0),
 	INTC_VECT(IRL2, 0x300), INTC_VECT(IRL3, 0x360),
 };
@@ -220,14 +220,14 @@ static DECLARE_INTC_DESC(intc_desc_irlm, "sh7750_irlm", vectors_irlm, NULL,
 
 /* SH7751 and SH7751R both have PCI */
 #if defined(CONFIG_CPU_SUBTYPE_SH7751) || defined(CONFIG_CPU_SUBTYPE_SH7751R)
-static struct intc_vect vectors_pci[] = {
+static struct intc_vect vectors_pci[] __initdata = {
 	INTC_VECT(PCIC0_PCISERR, 0xa00), INTC_VECT(PCIC1_PCIERR, 0xae0),
 	INTC_VECT(PCIC1_PCIPWDWN, 0xac0), INTC_VECT(PCIC1_PCIPWON, 0xaa0),
 	INTC_VECT(PCIC1_PCIDMA0, 0xa80), INTC_VECT(PCIC1_PCIDMA1, 0xa60),
 	INTC_VECT(PCIC1_PCIDMA2, 0xa40), INTC_VECT(PCIC1_PCIDMA3, 0xa20),
 };
 
-static struct intc_group groups_pci[] = {
+static struct intc_group groups_pci[] __initdata = {
 	INTC_GROUP(PCIC1, PCIC1_PCIERR, PCIC1_PCIPWDWN, PCIC1_PCIPWON,
 		   PCIC1_PCIDMA0, PCIC1_PCIDMA1, PCIC1_PCIDMA2, PCIC1_PCIDMA3),
 };
@@ -282,13 +282,19 @@ void __init plat_irq_setup(void)
 #define INTC_ICR	0xffd00000UL
 #define INTC_ICR_IRLM   (1<<7)
 
-/* enable individual interrupt mode for external interupts */
-void __init ipr_irq_enable_irlm(void)
+void __init plat_irq_setup_pins(int mode)
 {
 #if defined(CONFIG_CPU_SUBTYPE_SH7750) || defined(CONFIG_CPU_SUBTYPE_SH7091)
 	BUG(); /* impossible to mask interrupts on SH7750 and SH7091 */
+	return;
 #endif
-	register_intc_controller(&intc_desc_irlm);
 
-	ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
+	switch (mode) {
+	case IRQ_MODE_IRQ: /* individual interrupt mode for IRL3-0 */
+		ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
+		register_intc_controller(&intc_desc_irlm);
+		break;
+	default:
+		BUG();
+	}
 }

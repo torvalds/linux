@@ -9,13 +9,15 @@
  * for more details.
  */
 #include <linux/init.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/r7780rp.h>
 
-void __init highlander_init_irq(void)
+unsigned char * __init highlander_init_irq_r7780rp(void)
 {
 	int i;
 
 	for (i = 0; i < 15; i++)
 		make_r7780rp_irq(i);
+
+	return NULL;
 }

@@ -285,7 +285,7 @@ static int put_smb_blk(unsigned char *p, int address, int command, int no)
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start	= 0xa2000000,
-		.end	= 0xa2000000 + 8 - 1,
+		.end	= 0xa2000000,
 		.flags	= IORESOURCE_MEM,
 	},
 };

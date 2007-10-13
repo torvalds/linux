@@ -1,11 +1,22 @@
 if SH_RTS7751R2D
 
-menu "RTS7751R2D options"
+menu "RTS7751R2D Board Revision"
 
-config RTS7751R2D_REV11
-	bool "RTS7751R2D Rev. 1.1 board support"
+config RTS7751R2D_PLUS
+	bool "R2D-PLUS"
 	help
-	  Selecting this option will support version rev. 1.1.
+	  Selecting this option will configure the kernel for R2D-PLUS.
+
+	  R2D-PLUS is the smaller of the two R2D board versions, equipped
+	  with a single PCI slot.
+
+config RTS7751R2D_1
+	bool "R2D-1"
+	help
+	  Selecting this option will configure the kernel for R2D-1.
+
+	  R2D-1 is the larger of the two R2D board versions, equipped
+	  with two PCI slots.
 endmenu
 
 endif

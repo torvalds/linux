@@ -58,11 +58,11 @@ do {						\
  */
 void sq_flush_range(unsigned long start, unsigned int len)
 {
-	volatile unsigned long *sq = (unsigned long *)start;
+	unsigned long *sq = (unsigned long *)start;
 
 	/* Flush the queues */
 	for (len >>= 5; len--; sq += 8)
-		prefetchw((void *)sq);
+		prefetchw(sq);
 
 	/* Wait for completion */
 	store_queue_barrier();

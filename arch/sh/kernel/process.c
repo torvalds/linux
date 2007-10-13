@@ -19,6 +19,7 @@
 #include <linux/tick.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
+#include <linux/preempt.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
@@ -349,12 +350,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	unlazy_fpu(prev, task_pt_regs(prev));
 #endif
 
-#ifdef CONFIG_PREEMPT
+#if defined(CONFIG_GUSA) && defined(CONFIG_PREEMPT)
 	{
-		unsigned long flags;
 		struct pt_regs *regs;
 
-		local_irq_save(flags);
+		preempt_disable();
 		regs = task_pt_regs(prev);
 		if (user_mode(regs) && regs->regs[15] >= 0xc0000000) {
 			int offset = (int)regs->regs[15];
@@ -365,7 +365,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 				/* Go to rewind point */
 				regs->pc = regs->regs[0] + offset;
 		}
-		local_irq_restore(flags);
+		preempt_enable_no_resched();
 	}
 #endif
 

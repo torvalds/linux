@@ -45,7 +45,7 @@ enum cpu_type {
 	CPU_SH7705, CPU_SH7706, CPU_SH7707,
 	CPU_SH7708, CPU_SH7708S, CPU_SH7708R,
 	CPU_SH7709, CPU_SH7709A, CPU_SH7710, CPU_SH7712,
-	CPU_SH7729,
+	CPU_SH7720, CPU_SH7729,
 
 	/* SH-4 types */
 	CPU_SH7750, CPU_SH7750S, CPU_SH7750R, CPU_SH7751, CPU_SH7751R,
@@ -73,15 +73,10 @@ struct sh_cpuinfo {
 	unsigned long flags;
 } __attribute__ ((aligned(SMP_CACHE_BYTES)));
 
-extern struct sh_cpuinfo boot_cpu_data;
-
-#ifdef CONFIG_SMP
 extern struct sh_cpuinfo cpu_data[];
+#define boot_cpu_data cpu_data[0]
 #define current_cpu_data cpu_data[smp_processor_id()]
-#else
-#define cpu_data (&boot_cpu_data)
-#define current_cpu_data boot_cpu_data
-#endif
+#define raw_current_cpu_data cpu_data[raw_smp_processor_id()]
 
 /*
  * User space process size: 2GB.

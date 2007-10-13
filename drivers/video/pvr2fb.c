@@ -667,6 +667,8 @@ static int pvr2_init_cable(void)
 	  related */
 	if (cable_type == CT_COMPOSITE)
 		fb_writel(3 << 8, VOUTC);
+	else if (cable_type == CT_RGB)
+		fb_writel(1 << 9, VOUTC);
 	else
 		fb_writel(0, VOUTC);
 
@@ -890,7 +892,7 @@ static int __init pvr2fb_dc_init(void)
 	pvr2_fix.mmio_start	= 0xa05f8000;	/* registers start here */
 	pvr2_fix.mmio_len	= 0x2000;
 
-	if (request_irq(HW_EVENT_VSYNC, pvr2fb_interrupt, 0,
+	if (request_irq(HW_EVENT_VSYNC, pvr2fb_interrupt, IRQF_SHARED,
 	                "pvr2 VBL handler", fb_info)) {
 		return -EBUSY;
 	}

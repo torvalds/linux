@@ -99,8 +99,11 @@ shmse_irq_demux(int irq)
  *
  * We configure IRQ5 as a cascade IRQ.
  */
-static struct irqaction irq5 = { no_action, 0, CPU_MASK_NONE, "IRQ5-cascade",
-				NULL, NULL};
+static struct irqaction irq5 = {
+	.handler = no_action,
+	.mask = CPU_MASK_NONE,
+	.name = "IRQ5-cascade",
+};
 
 static struct ipr_data se7343_irq5_ipr_map[] = {
 	{ IRQ5_IRQ, IRQ5_IPR_ADDR+2, IRQ5_IPR_POS, IRQ5_PRIORITY },

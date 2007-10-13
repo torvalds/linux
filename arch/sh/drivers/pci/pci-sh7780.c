@@ -79,19 +79,6 @@ static int __init sh7780_pci_init(void)
 		ctrl_outl(0xAAAA0000, INTC_ICR1);
 		/* INTPRI: priority=3(all) */
 		ctrl_outl(0x33333333, INTC_INTPRI);
-	} else {
-		/* INTC SH-4 Mode */
-		ctrl_outl(0x00200000, INTC_ICR0);
-		/* enable PCIINTA - PCIINTD */
-		ctrl_outl(0x00078000, INTC_INT2MSKCR);
-		/* disable IRL4-7 Interrupt */
-		ctrl_outl(0x40000000, INTC_INTMSK1);
-		/* disable IRL4-7 Interrupt */
-		ctrl_outl(0x0000fffe, INTC_INTMSK2);
-		/* enable IRL0-3 Interrupt */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
-		/* enable IRL0-3 Interrupt */
-		ctrl_outl(0xfffe0000, INTC_INTMSKCLR2);
 	}
 
 	if ((ret = sh4_pci_check_direct()) != 0)

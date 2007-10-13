@@ -14,6 +14,9 @@
 #include <asm/irq.h>
 #include <asm/hd64461.h>
 
+/* This belongs in cpu specific */
+#define INTC_ICR1 0xA4140010UL
+
 static void disable_hd64461_irq(unsigned int irq)
 {
 	unsigned short nimr;
@@ -121,10 +124,15 @@ int hd64461_irq_demux(int irq)
 			}
 		}
 	}
-	return __irq_demux(irq);
+	return irq;
 }
 
-static struct irqaction irq0 = { hd64461_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "HD64461", NULL, NULL };
+static struct irqaction irq0 = {
+	.handler = hd64461_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "HD64461",
+};
 
 int __init setup_hd64461(void)
 {
@@ -143,6 +151,7 @@ int __init setup_hd64461(void)
 #endif
 	outw(0xffff, HD64461_NIMR);
 
+	/*  IRQ 80 -> 95 belongs to HD64461  */
 	for (i = HD64461_IRQBASE; i < HD64461_IRQBASE + 16; i++) {
 		irq_desc[i].chip = &hd64461_irq_type;
 	}

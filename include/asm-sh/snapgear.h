@@ -19,20 +19,16 @@
  * is the interrupt :-)
  */
 
-#define IRL0_IRQ		2
-#define IRL0_IPR_POS	3
+#define IRL0_IRQ	2
 #define IRL0_PRIORITY	13
 
-#define IRL1_IRQ		5
-#define IRL1_IPR_POS	2
+#define IRL1_IRQ	5
 #define IRL1_PRIORITY	10
 
-#define IRL2_IRQ		8
-#define IRL2_IPR_POS	1
+#define IRL2_IRQ	8
 #define IRL2_PRIORITY	7
 
-#define IRL3_IRQ		11
-#define IRL3_IPR_POS	0
+#define IRL3_IRQ	11
 #define IRL3_PRIORITY	4
 #endif
 

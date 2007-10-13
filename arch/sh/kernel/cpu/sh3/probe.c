@@ -50,44 +50,47 @@ int __init detect_cpu_and_cache_system(void)
 
 	back_to_P1();
 
-	current_cpu_data.dcache.ways		= 4;
-	current_cpu_data.dcache.entry_shift	= 4;
-	current_cpu_data.dcache.linesz		= L1_CACHE_BYTES;
-	current_cpu_data.dcache.flags		= 0;
+	boot_cpu_data.dcache.ways		= 4;
+	boot_cpu_data.dcache.entry_shift	= 4;
+	boot_cpu_data.dcache.linesz		= L1_CACHE_BYTES;
+	boot_cpu_data.dcache.flags		= 0;
 
 	/*
 	 * 7709A/7729 has 16K cache (256-entry), while 7702 has only
 	 * 2K(direct) 7702 is not supported (yet)
 	 */
 	if (data0 == data1 && data2 == data3) {	/* Shadow */
-		current_cpu_data.dcache.way_incr	= (1 << 11);
-		current_cpu_data.dcache.entry_mask	= 0x7f0;
-		current_cpu_data.dcache.sets		= 128;
-		current_cpu_data.type = CPU_SH7708;
+		boot_cpu_data.dcache.way_incr	= (1 << 11);
+		boot_cpu_data.dcache.entry_mask	= 0x7f0;
+		boot_cpu_data.dcache.sets	= 128;
+		boot_cpu_data.type = CPU_SH7708;
 
-		current_cpu_data.flags |= CPU_HAS_MMU_PAGE_ASSOC;
+		boot_cpu_data.flags |= CPU_HAS_MMU_PAGE_ASSOC;
 	} else {				/* 7709A or 7729  */
-		current_cpu_data.dcache.way_incr	= (1 << 12);
-		current_cpu_data.dcache.entry_mask	= 0xff0;
-		current_cpu_data.dcache.sets		= 256;
-		current_cpu_data.type = CPU_SH7729;
+		boot_cpu_data.dcache.way_incr	= (1 << 12);
+		boot_cpu_data.dcache.entry_mask	= 0xff0;
+		boot_cpu_data.dcache.sets	= 256;
+		boot_cpu_data.type = CPU_SH7729;
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7706)
-		current_cpu_data.type = CPU_SH7706;
+		boot_cpu_data.type = CPU_SH7706;
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7710)
-		current_cpu_data.type = CPU_SH7710;
+		boot_cpu_data.type = CPU_SH7710;
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7712)
-		current_cpu_data.type = CPU_SH7712;
+		boot_cpu_data.type = CPU_SH7712;
+#endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7720)
+		boot_cpu_data.type = CPU_SH7720;
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
-		current_cpu_data.type = CPU_SH7705;
+		boot_cpu_data.type = CPU_SH7705;
 
 #if defined(CONFIG_SH7705_CACHE_32KB)
-		current_cpu_data.dcache.way_incr	= (1 << 13);
-		current_cpu_data.dcache.entry_mask	= 0x1ff0;
-		current_cpu_data.dcache.sets		= 512;
+		boot_cpu_data.dcache.way_incr	= (1 << 13);
+		boot_cpu_data.dcache.entry_mask	= 0x1ff0;
+		boot_cpu_data.dcache.sets	= 512;
 		ctrl_outl(CCR_CACHE_32KB, CCR3);
 #else
 		ctrl_outl(CCR_CACHE_16KB, CCR3);
@@ -98,9 +101,8 @@ int __init detect_cpu_and_cache_system(void)
 	/*
 	 * SH-3 doesn't have separate caches
 	 */
-	current_cpu_data.dcache.flags |= SH_CACHE_COMBINED;
-	current_cpu_data.icache = current_cpu_data.dcache;
+	boot_cpu_data.dcache.flags |= SH_CACHE_COMBINED;
+	boot_cpu_data.icache = boot_cpu_data.dcache;
 
 	return 0;
 }
-

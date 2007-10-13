@@ -118,7 +118,7 @@ endchoice
 
 config SH_FPU
 	bool "FPU support"
-	depends on CPU_SH4
+	depends on CPU_HAS_FPU
 	default y
 	help
 	  Selecting this option will enable support for SH processors that
@@ -178,12 +178,6 @@ config CPU_HAS_INTEVT
 config CPU_HAS_MASKREG_IRQ
 	bool
 
-config CPU_HAS_INTC_IRQ
-	bool
-
-config CPU_HAS_INTC2_IRQ
-	bool
-
 config CPU_HAS_IPR_IRQ
 	bool
 
@@ -203,6 +197,9 @@ config CPU_HAS_PTEA
 	bool
 
 config CPU_HAS_DSP
+	bool
+
+config CPU_HAS_FPU
 	bool
 
 endmenu
@@ -258,7 +255,6 @@ config SH_7780_SOLUTION_ENGINE
 	bool "SolutionEngine7780"
 	select SOLUTION_ENGINE
 	select SYS_SUPPORTS_PCI
-	select CPU_HAS_INTC2_IRQ
 	depends on CPU_SUBTYPE_SH7780
 	help
 	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
@@ -309,7 +305,7 @@ config SH_MPC1211
 
 config SH_SH03
 	bool "Interface CTP/PCI-SH03"
-	depends on CPU_SUBTYPE_SH7751 && BROKEN
+	depends on CPU_SUBTYPE_SH7751
 	select CPU_HAS_IPR_IRQ
 	select SYS_SUPPORTS_PCI
 	help
@@ -395,11 +391,22 @@ config SH_LBOX_RE2
 	help
 	  Select L-BOX RE2 if configuring for the NTT COMWARE L-BOX RE2.
 
+config SH_X3PROTO
+	bool "SH-X3 Prototype board"
+	depends on CPU_SUBTYPE_SHX3
+
+config SH_MAGIC_PANEL_R2
+	bool "Magic Panel R2"
+	depends on CPU_SUBTYPE_SH7720
+	help
+	  Select Magic Panel R2 if configuring for Magic Panel R2.
+
 endmenu
 
 source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
 source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
+source "arch/sh/boards/magicpanelr2/Kconfig"
 
 menu "Timer and clock configuration"
 
@@ -563,10 +570,19 @@ config NR_CPUS
 
 source "kernel/Kconfig.preempt"
 
-config NODES_SHIFT
-	int
-	default "1"
-	depends on NEED_MULTIPLE_NODES
+config GUSA
+	def_bool y
+	depends on !SMP
+	help
+	  This enables support for gUSA (general UserSpace Atomicity).
+	  This is the default implementation for both UP and non-ll/sc
+	  CPUs, and is used by the libc, amongst others.
+
+	  For additional information, design information can be found 
+	  in <http://lc.linux.or.jp/lc2002/papers/niibe0919p.pdf>.
+
+	  This should only be disabled for special cases where alternate
+	  atomicity implementations exist.
 
 endmenu
 
@@ -658,6 +674,17 @@ config SBUS
 config SUPERHYWAY
 	tristate "SuperHyway Bus support"
 	depends on CPU_SUBTYPE_SH4_202
+
+config MAPLE
+       bool "Maple Bus support"
+       depends on SH_DREAMCAST
+       help
+         The Maple Bus is SEGA's serial communication bus for peripherals
+         on the Dreamcast. Without this bus support you won't be able to
+         get your Dreamcast keyboard etc to work, so most users
+         probably want to say 'Y' here, unless you are only using the
+         Dreamcast with a serial line terminal or a remote network
+         connection.
 
 config CF_ENABLER
 	bool "Compact Flash Enabler support"

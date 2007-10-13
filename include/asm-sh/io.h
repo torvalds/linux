@@ -135,6 +135,32 @@ void __raw_readsl(unsigned long addr, void *data, int longlen);
 # define writel(v,a)	({ __raw_writel((v),(a)); mb(); })
 #endif
 
+#define __BUILD_MEMORY_STRING(bwlq, type)				\
+									\
+static inline void writes##bwlq(volatile void __iomem *mem,		\
+				const void *addr, unsigned int count)	\
+{									\
+	const volatile type *__addr = addr;				\
+									\
+	while (count--) {						\
+		__raw_write##bwlq(*__addr, mem);			\
+		__addr++;						\
+	}								\
+}									\
+									\
+static inline void reads##bwlq(volatile void __iomem *mem, void *addr,	\
+			       unsigned int count)			\
+{									\
+	volatile type *__addr = addr;					\
+									\
+	while (count--) {						\
+		*__addr = __raw_read##bwlq(mem);			\
+		__addr++;						\
+	}								\
+}
+
+__BUILD_MEMORY_STRING(b, u8)
+__BUILD_MEMORY_STRING(w, u16)
 #define writesl __raw_writesl
 #define readsl  __raw_readsl
 

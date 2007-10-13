@@ -6,19 +6,16 @@
 #endif
 
 typedef struct {
-	volatile unsigned long lock;
+	volatile unsigned int lock;
 } raw_spinlock_t;
 
-#define __RAW_SPIN_LOCK_UNLOCKED	{ 1 }
-
-#include <asm/atomic.h>
+#define __RAW_SPIN_LOCK_UNLOCKED		{ 1 }
 
 typedef struct {
-	raw_spinlock_t lock;
-	atomic_t counter;
+	volatile unsigned int lock;
 } raw_rwlock_t;
 
 #define RW_LOCK_BIAS			0x01000000
-#define __RAW_RW_LOCK_UNLOCKED		{ { 0 }, { RW_LOCK_BIAS } }
+#define __RAW_RW_LOCK_UNLOCKED		{ RW_LOCK_BIAS }
 
 #endif

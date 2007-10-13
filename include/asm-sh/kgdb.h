@@ -17,9 +17,6 @@
 #define __KGDB_H
 
 #include <asm/ptrace.h>
-#include <asm/cacheflush.h>
-
-struct console;
 
 /* Same as pt_regs but has vbr in place of syscall_nr */
 struct kgdb_regs {
@@ -35,10 +32,7 @@ struct kgdb_regs {
 
 /* State info */
 extern char kgdb_in_gdb_mode;
-extern int kgdb_done_init;
-extern int kgdb_enabled;
 extern int kgdb_nofault;	/* Ignore bus errors (in gdb mem access) */
-extern int kgdb_halt;		/* Execute initial breakpoint at startup */
 extern char in_nmi;		/* Debounce flag to prevent NMI reentry*/
 
 /* SCI */
@@ -59,6 +53,7 @@ extern kgdb_debug_hook_t  *kgdb_debug_hook;
 extern kgdb_bus_error_hook_t *kgdb_bus_err_hook;
 
 /* Console */
+struct console;
 void kgdb_console_write(struct console *co, const char *s, unsigned count);
 extern int kgdb_console_setup(struct console *, char *);
 
@@ -69,22 +64,7 @@ extern void    longjmp(jmp_buf __jmpb, int __retval);
 extern int     setjmp(jmp_buf __jmpb);
 
 /* Forced breakpoint */
-#define breakpoint()					\
-do {							\
-	if (kgdb_enabled)				\
-		__asm__ __volatile__("trapa   #0x3c");	\
-} while (0)
-
-/* KGDB should be able to flush all kernel text space */
-#if defined(CONFIG_CPU_SH4)
-#define kgdb_flush_icache_range(start, end) \
-{									\
-	__flush_purge_region((void*)(start), (int)(end) - (int)(start));\
-	flush_icache_range((start), (end));				\
-}
-#else
-#define kgdb_flush_icache_range(start, end)	do { } while (0)
-#endif
+#define breakpoint()	__asm__ __volatile__("trapa   #0x3c")
 
 /* Taken from sh-stub.c of GDB 4.18 */
 static const char hexchars[] = "0123456789abcdef";

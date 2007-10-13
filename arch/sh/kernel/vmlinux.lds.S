@@ -62,6 +62,8 @@ SECTIONS
   __nosave_end = .;
 
   PERCPU(PAGE_SIZE)
+
+  . = ALIGN(L1_CACHE_BYTES);
   .data.cacheline_aligned : { *(.data.cacheline_aligned) }
 
   _edata = .;			/* End of data section */
@@ -89,7 +91,14 @@ SECTIONS
   __con_initcall_end = .;
   SECURITY_INIT
 
+  /* .exit.text is discarded at runtime, not link time, to deal with
+     references from .rodata */
+  .exit.text : { *(.exit.text) }
+  .exit.data : { *(.exit.data) }
+
 #ifdef CONFIG_BLK_DEV_INITRD
+  . = ALIGN(PAGE_SIZE);
+
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
@@ -107,6 +116,7 @@ SECTIONS
   	*(.bss.page_aligned)
   	*(.bss)
 	. = ALIGN(4);
+	_ebss = .;			/* uClinux MTD sucks */
 	_end = . ;
   }
 

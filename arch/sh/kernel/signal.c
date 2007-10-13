@@ -507,13 +507,11 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 						ctrl_inw(regs->pc - 4));
 				break;
 		}
+#ifdef CONFIG_GUSA
 	} else {
 		/* gUSA handling */
-#ifdef CONFIG_PREEMPT
-		unsigned long flags;
+		preempt_disable();
 
-		local_irq_save(flags);
-#endif
 		if (regs->regs[15] >= 0xc0000000) {
 			int offset = (int)regs->regs[15];
 
@@ -524,8 +522,8 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 				regs->pc = regs->regs[0] + offset -
 					instruction_size(ctrl_inw(regs->pc-4));
 		}
-#ifdef CONFIG_PREEMPT
-		local_irq_restore(flags);
+
+		preempt_enable_no_resched();
 #endif
 	}
 

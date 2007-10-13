@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/module.h>
+#include <linux/smp.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -42,7 +43,13 @@ extern void * __rd_start, * __rd_end;
  * This value will be used at the very early stage of serial setup.
  * The bigger value means no problem.
  */
-struct sh_cpuinfo boot_cpu_data = { CPU_SH_NONE, 10000000, };
+struct sh_cpuinfo cpu_data[NR_CPUS] __read_mostly = {
+	[0] = {
+		.type			= CPU_SH_NONE,
+		.loops_per_jiffy	= 10000000,
+	},
+};
+EXPORT_SYMBOL(cpu_data);
 
 /*
  * The machine vector. First entry in .machvec.init, or clobbered by
@@ -272,6 +279,10 @@ void __init setup_arch(char **cmdline_p)
 		sh_mv.mv_setup(cmdline_p);
 
 	paging_init();
+
+#ifdef CONFIG_SMP
+	plat_smp_setup();
+#endif
 }
 
 static const char *cpu_name[] = {
@@ -279,7 +290,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7705]	= "SH7705",	[CPU_SH7706]	= "SH7706",
 	[CPU_SH7707]	= "SH7707",	[CPU_SH7708]	= "SH7708",
 	[CPU_SH7709]	= "SH7709",	[CPU_SH7710]	= "SH7710",
-	[CPU_SH7712]	= "SH7712",
+	[CPU_SH7712]	= "SH7712",	[CPU_SH7720]	= "SH7720",
 	[CPU_SH7729]	= "SH7729",	[CPU_SH7750]	= "SH7750",
 	[CPU_SH7750S]	= "SH7750S",	[CPU_SH7750R]	= "SH7750R",
 	[CPU_SH7751]	= "SH7751",	[CPU_SH7751R]	= "SH7751R",

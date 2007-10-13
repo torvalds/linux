@@ -28,13 +28,17 @@ config EARLY_SCIF_CONSOLE
 	  serial I/O.
 
 config EARLY_SCIF_CONSOLE_PORT
-	hex "SCIF port for early console"
+	hex
 	depends on EARLY_SCIF_CONSOLE
 	default "0xffe00000" if CPU_SUBTYPE_SH7780
+	default "0xffea0000" if CPU_SUBTYPE_SH7785
 	default "0xfffe9800" if CPU_SUBTYPE_SH7206
 	default "0xf8420000" if CPU_SUBTYPE_SH7619
 	default "0xa4400000" if CPU_SUBTYPE_SH7712 || CPU_SUBTYPE_SH7705
+	default "0xa4430000" if CPU_SUBTYPE_SH7720
+	default "0xffc30000" if CPU_SUBTYPE_SHX3
 	default "0xffe80000" if CPU_SH4
+	default "0x00000000"
 
 config EARLY_PRINTK
 	bool "Early printk support"

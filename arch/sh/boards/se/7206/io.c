@@ -26,22 +26,24 @@ static inline void delay(void)
 static inline volatile __u16 *
 port2adr(unsigned int port)
 {
-	if (port >= 0x2000)
+	if (port >= 0x2000 && port < 0x2020)
 		return (volatile __u16 *) (PA_MRSHPC + (port - 0x2000));
-	else if (port >= 0x300 || port < 0x310)
+	else if (port >= 0x300 && port < 0x310)
 		return (volatile __u16 *) (PA_SMSC + (port - 0x300));
+
+	return (volatile __u16 *)port;
 }
 
 unsigned char se7206_inb(unsigned long port)
 {
-	return (*port2adr(port))&0xff; 
+	return (*port2adr(port)) & 0xff;
 }
 
 unsigned char se7206_inb_p(unsigned long port)
 {
 	unsigned long v;
 
-	v = (*port2adr(port))&0xff; 
+	v = (*port2adr(port)) & 0xff;
 	delay();
 	return v;
 }
@@ -49,12 +51,6 @@ unsigned char se7206_inb_p(unsigned long port)
 unsigned short se7206_inw(unsigned long port)
 {
 	return *port2adr(port);;
-}
-
-unsigned int se7206_inl(unsigned long port)
-{
-	maybebadio(port);
-	return 0;
 }
 
 void se7206_outb(unsigned char value, unsigned long port)
@@ -71,11 +67,6 @@ void se7206_outb_p(unsigned char value, unsigned long port)
 void se7206_outw(unsigned short value, unsigned long port)
 {
 	*port2adr(port) = value;
-}
-
-void se7206_outl(unsigned int value, unsigned long port)
-{
-	maybebadio(port);
 }
 
 void se7206_insb(unsigned long port, void *addr, unsigned long count)
@@ -95,11 +86,6 @@ void se7206_insw(unsigned long port, void *addr, unsigned long count)
 		*ap++ = *p;
 }
 
-void se7206_insl(unsigned long port, void *addr, unsigned long count)
-{
-	maybebadio(port);
-}
-
 void se7206_outsb(unsigned long port, const void *addr, unsigned long count)
 {
 	volatile __u16 *p = port2adr(port);
@@ -115,9 +101,4 @@ void se7206_outsw(unsigned long port, const void *addr, unsigned long count)
 	const __u16 *ap = addr;
 	while (count--)
 		*p = *ap++;
-}
-
-void se7206_outsl(unsigned long port, const void *addr, unsigned long count)
-{
-	maybebadio(port);
 }

@@ -22,12 +22,20 @@
 #define MMU_UTLB_ADDRESS_ARRAY	0xF6000000
 #define MMU_PAGE_ASSOC_BIT	0x80
 
-#define MMU_NTLB_ENTRIES	64	/* for 7750 */
-#ifdef CONFIG_SH_STORE_QUEUES
-#define MMU_CONTROL_INIT	0x05	/* SQMD=0, SV=0, TI=1, AT=1 */
+#ifdef CONFIG_X2TLB
+#define MMUCR_ME		(1 << 7)
 #else
-#define MMU_CONTROL_INIT	0x205	/* SQMD=1, SV=0, TI=1, AT=1 */
+#define MMUCR_ME		(0)
 #endif
+
+#ifdef CONFIG_SH_STORE_QUEUES
+#define MMUCR_SQMD		(1 << 9)
+#else
+#define MMUCR_SQMD		(0)
+#endif
+
+#define MMU_NTLB_ENTRIES	64
+#define MMU_CONTROL_INIT	(0x05|MMUCR_SQMD|MMUCR_ME)
 
 #define MMU_ITLB_DATA_ARRAY	0xF3000000
 #define MMU_UTLB_DATA_ARRAY	0xF7000000

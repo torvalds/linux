@@ -1,7 +1,7 @@
 /*
  * SuperH On-Chip RTC Support
  *
- * Copyright (C) 2006  Paul Mundt
+ * Copyright (C) 2006, 2007  Paul Mundt
  * Copyright (C) 2006  Jamie Lenehan
  *
  * Based on the old arch/sh/kernel/cpu/rtc.c by:
@@ -23,16 +23,19 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
-#define DRV_VERSION	"0.1.2"
+#define DRV_VERSION	"0.1.3"
 
 #ifdef CONFIG_CPU_SH3
 #define rtc_reg_size		sizeof(u16)
 #define RTC_BIT_INVERTED	0	/* No bug on SH7708, SH7709A */
+#define RTC_DEF_CAPABILITIES	0UL
 #elif defined(CONFIG_CPU_SH4)
 #define rtc_reg_size		sizeof(u32)
 #define RTC_BIT_INVERTED	0x40	/* bug on SH7750, SH7750S */
+#define RTC_DEF_CAPABILITIES	RTC_CAP_4_DIGIT_YEAR
 #endif
 
 #define RTC_REG(r)	((r) * rtc_reg_size)
@@ -80,6 +83,7 @@ struct sh_rtc {
 	struct rtc_device *rtc_dev;
 	spinlock_t lock;
 	int rearm_aie;
+	unsigned long capabilities;	/* See asm-sh/rtc.h for cap bits */
 };
 
 static irqreturn_t sh_rtc_interrupt(int irq, void *dev_id)
@@ -319,14 +323,14 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_mday	= BCD2BIN(readb(rtc->regbase + RDAYCNT));
 		tm->tm_mon	= BCD2BIN(readb(rtc->regbase + RMONCNT)) - 1;
 
-#if defined(CONFIG_CPU_SH4)
-		yr  = readw(rtc->regbase + RYRCNT);
-		yr100 = BCD2BIN(yr >> 8);
-		yr &= 0xff;
-#else
-		yr  = readb(rtc->regbase + RYRCNT);
-		yr100 = BCD2BIN((yr == 0x99) ? 0x19 : 0x20);
-#endif
+		if (rtc->capabilities & RTC_CAP_4_DIGIT_YEAR) {
+			yr  = readw(rtc->regbase + RYRCNT);
+			yr100 = BCD2BIN(yr >> 8);
+			yr &= 0xff;
+		} else {
+			yr  = readb(rtc->regbase + RYRCNT);
+			yr100 = BCD2BIN((yr == 0x99) ? 0x19 : 0x20);
+		}
 
 		tm->tm_year = (yr100 * 100 + BCD2BIN(yr)) - 1900;
 
@@ -375,14 +379,14 @@ static int sh_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	writeb(BIN2BCD(tm->tm_mday), rtc->regbase + RDAYCNT);
 	writeb(BIN2BCD(tm->tm_mon + 1), rtc->regbase + RMONCNT);
 
-#ifdef CONFIG_CPU_SH3
-	year = tm->tm_year % 100;
-	writeb(BIN2BCD(year), rtc->regbase + RYRCNT);
-#else
-	year = (BIN2BCD((tm->tm_year + 1900) / 100) << 8) |
-		BIN2BCD(tm->tm_year % 100);
-	writew(year, rtc->regbase + RYRCNT);
-#endif
+	if (rtc->capabilities & RTC_CAP_4_DIGIT_YEAR) {
+		year = (BIN2BCD((tm->tm_year + 1900) / 100) << 8) |
+			BIN2BCD(tm->tm_year % 100);
+		writew(year, rtc->regbase + RYRCNT);
+	} else {
+		year = tm->tm_year % 100;
+		writeb(BIN2BCD(year), rtc->regbase + RYRCNT);
+	}
 
 	/* Start RTC */
 	tmp = readb(rtc->regbase + RCR2);
@@ -587,6 +591,17 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc)) {
 		ret = PTR_ERR(rtc->rtc_dev);
 		goto err_badmap;
+	}
+
+	rtc->capabilities = RTC_DEF_CAPABILITIES;
+	if (pdev->dev.platform_data) {
+		struct sh_rtc_platform_info *pinfo = pdev->dev.platform_data;
+
+		/*
+		 * Some CPUs have special capabilities in addition to the
+		 * default set. Add those in here.
+		 */
+		rtc->capabilities |= pinfo->capabilities;
 	}
 
 	platform_set_drvdata(pdev, rtc);

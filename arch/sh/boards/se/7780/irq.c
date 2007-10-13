@@ -16,32 +16,6 @@
 #include <asm/io.h>
 #include <asm/se7780.h>
 
-static struct intc2_data intc2_irq_table[] = {
-	{ 2,  0, 31, 0, 31, 3 }, /* daughter board EXTINT1 */
-	{ 4,  0, 30, 0, 30, 3 }, /* daughter board EXTINT2 */
-	{ 6,  0, 29, 0, 29, 3 }, /* daughter board EXTINT3 */
-	{ 8,  0, 28, 0, 28, 3 }, /* SMC 91C111 (LAN) */
-	{ 10, 0, 27, 0, 27, 3 }, /* daughter board EXTINT4 */
-	{ 4,  0, 30, 0, 30, 3 }, /* daughter board EXTINT5 */
-	{ 2,  0, 31, 0, 31, 3 }, /* daughter board EXTINT6 */
-	{ 2,  0, 31, 0, 31, 3 }, /* daughter board EXTINT7 */
-	{ 2,  0, 31, 0, 31, 3 }, /* daughter board EXTINT8 */
-	{ 0 , 0, 24, 0, 24, 3 }, /* SM501 */
-};
-
-static struct intc2_desc intc2_irq_desc __read_mostly = {
-	.prio_base	= 0, /* N/A */
-	.msk_base	= 0xffd00044,
-	.mskclr_base	= 0xffd00064,
-
-	.intc2_data	= intc2_irq_table,
-	.nr_irqs	= ARRAY_SIZE(intc2_irq_table),
-
-	.chip = {
-		.name	= "INTC2-se7780",
-	},
-};
-
 /*
  * Initialize IRQ setting
  */
@@ -68,5 +42,5 @@ void __init init_se7780_IRQ(void)
 	/* FPGA + 0x0A */
 	ctrl_outw((IRQPIN_PCCPW << IRQPOS_PCCPW), FPGA_INTSEL3);
 
-	register_intc2_controller(&intc2_irq_desc);
+	plat_irq_setup_pins(IRQ_MODE_IRQ); /* install handlers for IRQ0-7 */
 }

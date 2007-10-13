@@ -9,7 +9,7 @@
  * Renesas Technology Sales RTS7751R2D support
  */
 
-/* Box specific addresses.  */
+/* Board specific addresses.  */
 
 #define PA_BCR		0xa4000000	/* FPGA */
 #define PA_IRLMON	0xa4000002	/* Interrupt Status control */
@@ -20,19 +20,19 @@
 #define PA_RTCCE	0xa400000c	/* RTC(9701) Enable control */
 #define PA_PCICD	0xa400000e	/* PCI Extention detect control */
 #define PA_VOYAGERRTS	0xa4000020	/* VOYAGER Reset control */
-#if defined(CONFIG_RTS7751R2D_REV11)
-#define PA_AXRST	0xa4000022	/* AX_LAN Reset control */
-#define PA_CFRST	0xa4000024	/* CF Reset control */
-#define	PA_ADMRTS	0xa4000026	/* SD Reset control */
-#define PA_EXTRST	0xa4000028	/* Extention Reset control */
-#define PA_CFCDINTCLR	0xa400002a	/* CF Insert Interrupt clear */
-#else
-#define PA_CFRST	0xa4000022	/* CF Reset control */
-#define	PA_ADMRTS	0xa4000024	/* SD Reset control */
-#define PA_EXTRST	0xa4000026	/* Extention Reset control */
-#define PA_CFCDINTCLR	0xa4000028	/* CF Insert Interrupt clear */
-#define	PA_KEYCTLCLR	0xa400002a	/* Key Interrupt clear */
-#endif
+
+#define PA_R2D1_AXRST		0xa4000022	/* AX_LAN Reset control */
+#define PA_R2D1_CFRST		0xa4000024	/* CF Reset control */
+#define PA_R2D1_ADMRTS		0xa4000026	/* SD Reset control */
+#define PA_R2D1_EXTRST		0xa4000028	/* Extention Reset control */
+#define PA_R2D1_CFCDINTCLR	0xa400002a	/* CF Insert Interrupt clear */
+
+#define PA_R2DPLUS_CFRST	0xa4000022	/* CF Reset control */
+#define PA_R2DPLUS_ADMRTS	0xa4000024	/* SD Reset control */
+#define PA_R2DPLUS_EXTRST	0xa4000026	/* Extention Reset control */
+#define PA_R2DPLUS_CFCDINTCLR	0xa4000028	/* CF Insert Interrupt clear */
+#define PA_R2DPLUS_KEYCTLCLR	0xa400002a	/* Key Interrupt clear */
+
 #define PA_POWOFF	0xa4000030	/* Board Power OFF control */
 #define PA_VERREG	0xa4000032	/* FPGA Version Register */
 #define PA_INPORT	0xa4000034	/* KEY Input Port control */
@@ -46,27 +46,22 @@
 
 #define IRLCNTR1	(PA_BCR + 0)	/* Interrupt Control Register1 */
 
-#if defined(CONFIG_RTS7751R2D_REV11)
-#define IRQ_PCIETH	0		/* PCI Ethernet IRQ */
-#define IRQ_CFCARD	1		/* CF Card IRQ */
-#define IRQ_CFINST	2		/* CF Card Insert IRQ */
-#define IRQ_PCMCIA	3		/* PCMCIA IRQ */
-#define IRQ_VOYAGER	4		/* VOYAGER IRQ */
-#define IRQ_ONETH	5		/* On board Ethernet IRQ */
-#else
-#define IRQ_KEYIN	0		/* Key Input IRQ */
-#define IRQ_PCIETH	1		/* PCI Ethernet IRQ */
-#define IRQ_CFCARD	2		/* CF Card IRQ */
-#define IRQ_CFINST	3		/* CF Card Insert IRQ */
-#define IRQ_PCMCIA	4		/* PCMCIA IRQ */
-#define IRQ_VOYAGER	5		/* VOYAGER IRQ */
-#endif
-#define IRQ_RTCALM	6		/* RTC Alarm IRQ */
-#define IRQ_RTCTIME	7		/* RTC Timer IRQ */
-#define IRQ_SDCARD	8		/* SD Card IRQ */
-#define IRQ_PCISLOT1	9		/* PCI Slot #1 IRQ */
-#define IRQ_PCISLOT2	10		/* PCI Slot #2 IRQ */
-#define	IRQ_EXTENTION	11		/* EXTn IRQ */
+#define R2D_FPGA_IRQ_BASE	100
+
+#define IRQ_VOYAGER		(R2D_FPGA_IRQ_BASE + 0)
+#define IRQ_EXT			(R2D_FPGA_IRQ_BASE + 1)
+#define IRQ_TP			(R2D_FPGA_IRQ_BASE + 2)
+#define IRQ_RTC_T		(R2D_FPGA_IRQ_BASE + 3)
+#define IRQ_RTC_A		(R2D_FPGA_IRQ_BASE + 4)
+#define IRQ_SDCARD		(R2D_FPGA_IRQ_BASE + 5)
+#define IRQ_CF_CD		(R2D_FPGA_IRQ_BASE + 6)
+#define IRQ_CF_IDE		(R2D_FPGA_IRQ_BASE + 7)
+#define IRQ_AX88796		(R2D_FPGA_IRQ_BASE + 8)
+#define IRQ_KEY			(R2D_FPGA_IRQ_BASE + 9)
+#define IRQ_PCI_INTA		(R2D_FPGA_IRQ_BASE + 10)
+#define IRQ_PCI_INTB		(R2D_FPGA_IRQ_BASE + 11)
+#define IRQ_PCI_INTC		(R2D_FPGA_IRQ_BASE + 12)
+#define IRQ_PCI_INTD		(R2D_FPGA_IRQ_BASE + 13)
 
 /* arch/sh/boards/renesas/rts7751r2d/irq.c */
 void init_rts7751r2d_IRQ(void);

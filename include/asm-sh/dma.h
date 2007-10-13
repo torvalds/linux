@@ -152,14 +152,9 @@ extern struct dma_info *get_dma_info_by_name(const char *dmac_name);
 extern int dma_extend(unsigned int chan, unsigned long op, void *param);
 extern int register_chan_caps(const char *dmac, struct dma_chan_caps *capslist);
 
-#ifdef CONFIG_SYSFS
 /* arch/sh/drivers/dma/dma-sysfs.c */
 extern int dma_create_sysfs_files(struct dma_channel *, struct dma_info *);
 extern void dma_remove_sysfs_files(struct dma_channel *, struct dma_info *);
-#else
-#define dma_create_sysfs_file(channel, info)		do { } while (0)
-#define dma_remove_sysfs_file(channel, info)		do { } while (0)
-#endif
 
 #ifdef CONFIG_PCI
 extern int isa_dma_bridge_buggy;

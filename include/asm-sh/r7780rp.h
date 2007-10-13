@@ -65,24 +65,6 @@
 #define PA_PMR          (PA_BCR+0x0900) /*  */
 
 #define IRLCNTR1        (PA_BCR + 0)    /* Interrupt Control Register1 */
-
-#define IRQ_PCISLOT1    65              /* PCI Slot #1 IRQ */
-#define IRQ_PCISLOT2    66              /* PCI Slot #2 IRQ */
-#define IRQ_PCISLOT3    67              /* PCI Slot #3 IRQ */
-#define IRQ_PCISLOT4    68              /* PCI Slot #4 IRQ */
-#define IRQ_TP          2               /* Touch Panel IRQ */
-#define IRQ_SCI1        3               /* SCI1 IRQ */
-#define IRQ_SCI0        4               /* SCI0 IRQ */
-#define IRQ_2SERIAL     5               /* Serial IRQ */
-#define IRQ_RTC         6               /* RTC A / B IRQ */
-#define IRQ_EXTENTION6  7               /* EXT6n IRQ */
-#define IRQ_EXTENTION5  8               /* EXT5n IRQ */
-#define IRQ_EXTENTION4  9               /* EXT4n IRQ */
-#define IRQ_EXTENTION2  10              /* EXT2n IRQ */
-#define IRQ_EXTENTION1  11              /* EXT1n IRQ */
-#define IRQ_ONETH       13              /* On board Ethernet IRQ */
-#define IRQ_PSW         14              /* Push Switch IRQ */
-
 #define IVDR_CK_ON	8		/* iVDR Clock ON */
 
 #elif defined(CONFIG_SH_R7780RP)
@@ -203,11 +185,24 @@
 #define PA_MMSR		(PA_BCR+0x0400)
 
 #define IVDR_CK_ON	4		/* iVDR Clock ON */
-
 #endif
 
+#define HL_FPGA_IRQ_BASE	200
+#define HL_NR_IRL		15
+
+#define IRQ_AX88796		(HL_FPGA_IRQ_BASE + 0)
+#define IRQ_CF			(HL_FPGA_IRQ_BASE + 1)
+#ifndef IRQ_PSW
+#define IRQ_PSW			(HL_FPGA_IRQ_BASE + 2)
+#endif
+#define IRQ_EXT1		(HL_FPGA_IRQ_BASE + 3)
+#define IRQ_EXT4		(HL_FPGA_IRQ_BASE + 4)
+
 void make_r7780rp_irq(unsigned int irq);
-void highlander_init_irq(void);
+
+unsigned char *highlander_init_irq_r7780mp(void);
+unsigned char *highlander_init_irq_r7780rp(void);
+unsigned char *highlander_init_irq_r7785rp(void);
 
 #define __IO_PREFIX	r7780rp
 #include <asm/io_generic.h>

@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1999, 2000  Niibe Yutaka
  *  Copyright (C) 2002  M. R. Brown
- *  Copyright (C) 2004 - 2006  Paul Mundt
+ *  Copyright (C) 2004 - 2007  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -13,6 +13,7 @@
 #include <linux/tty.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #ifdef CONFIG_SH_STANDARD_BIOS
 #include <asm/sh_bios.h>
@@ -62,6 +63,16 @@ static struct console bios_console = {
 #include <linux/serial_core.h>
 #include "../../../drivers/serial/sh-sci.h"
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7720)
+#define EPK_SCSMR_VALUE 0x000
+#define EPK_SCBRR_VALUE 0x00C
+#define EPK_FIFO_SIZE 64
+#define EPK_FIFO_BITS (0x7f00 >> 8)
+#else
+#define EPK_FIFO_SIZE 16
+#define EPK_FIFO_BITS (0x1f00 >> 8)
+#endif
+
 static struct uart_port scif_port = {
 	.mapbase	= CONFIG_EARLY_SCIF_CONSOLE_PORT,
 	.membase	= (char __iomem *)CONFIG_EARLY_SCIF_CONSOLE_PORT,
@@ -69,7 +80,7 @@ static struct uart_port scif_port = {
 
 static void scif_sercon_putc(int c)
 {
-	while (((sci_in(&scif_port, SCFDR) & 0x1f00 >> 8) == 16))
+	while (((sci_in(&scif_port, SCFDR) & EPK_FIFO_BITS) >= EPK_FIFO_SIZE))
 		;
 
 	sci_out(&scif_port, SCxTDR, c);
@@ -105,7 +116,22 @@ static struct console scif_console = {
 	.index		= -1,
 };
 
-#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SH_STANDARD_BIOS)
+#if !defined(CONFIG_SH_STANDARD_BIOS)
+#if defined(CONFIG_CPU_SUBTYPE_SH7720)
+static void scif_sercon_init(char *s)
+{
+	sci_out(&scif_port, SCSCR, 0x0000);	/* clear TE and RE */
+	sci_out(&scif_port, SCFCR, 0x4006);	/* reset */
+	sci_out(&scif_port, SCSCR, 0x0000);	/* select internal clock */
+	sci_out(&scif_port, SCSMR, EPK_SCSMR_VALUE);
+	sci_out(&scif_port, SCBRR, EPK_SCBRR_VALUE);
+
+	mdelay(1);	/* wait 1-bit time */
+
+	sci_out(&scif_port, SCFCR, 0x0030);	/* TTRG=b'11 */
+	sci_out(&scif_port, SCSCR, 0x0030);	/* TE, RE */
+}
+#elif defined(CONFIG_CPU_SH4)
 #define DEFAULT_BAUD 115200
 /*
  * Simple SCIF init, primarily aimed at SH7750 and other similar SH-4
@@ -146,7 +172,8 @@ static void scif_sercon_init(char *s)
 	ctrl_outw(0, scif_port.mapbase + 36);
 	ctrl_outw(0x30, scif_port.mapbase + 8);
 }
-#endif /* CONFIG_CPU_SH4 && !CONFIG_SH_STANDARD_BIOS */
+#endif /* defined(CONFIG_CPU_SUBTYPE_SH7720) */
+#endif /* !defined(CONFIG_SH_STANDARD_BIOS) */
 #endif /* CONFIG_EARLY_SCIF_CONSOLE */
 
 /*
@@ -163,17 +190,12 @@ static struct console *early_console =
 #endif
 	;
 
-static int __initdata keep_early;
-static int early_console_initialized;
-
-int __init setup_early_printk(char *buf)
+static int __init setup_early_printk(char *buf)
 {
+	int keep_early = 0;
+
 	if (!buf)
 		return 0;
-
-	if (early_console_initialized)
-		return 0;
-	early_console_initialized = 1;
 
 	if (strstr(buf, "keep"))
 		keep_early = 1;
@@ -186,7 +208,8 @@ int __init setup_early_printk(char *buf)
 	if (!strncmp(buf, "serial", 6)) {
 		early_console = &scif_console;
 
-#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SH_STANDARD_BIOS)
+#if (defined(CONFIG_CPU_SH4) || defined(CONFIG_CPU_SUBTYPE_SH7720)) && \
+    !defined(CONFIG_SH_STANDARD_BIOS)
 		scif_sercon_init(buf + 6);
 #endif
 	}
