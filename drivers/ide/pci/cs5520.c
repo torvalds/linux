@@ -142,25 +142,24 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 {
 	hwif->set_pio_mode = &cs5520_set_pio_mode;
 	hwif->set_dma_mode = &cs5520_set_dma_mode;
-	hwif->ide_dma_check = &cs5520_config_drive_xfer_rate;
-	hwif->ide_dma_on = &cs5520_dma_on;
 
-	if(!noautodma)
-		hwif->autodma = 1;
-	
-	if(!hwif->dma_base)
-	{
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+	if (hwif->dma_base == 0) {
+		hwif->drives[1].autotune = hwif->drives[0].autotune = 1;
 		return;
 	}
+
+	hwif->ide_dma_check = &cs5520_config_drive_xfer_rate;
+	hwif->ide_dma_on = &cs5520_dma_on;
 
 	/* ATAPI is harder so leave it for now */
 	hwif->atapi_dma = 0;
 	hwif->ultra_mask = 0;
 	hwif->swdma_mask = 0;
 	hwif->mwdma_mask = 0;
-	
+
+	if (!noautodma)
+		hwif->autodma = 1;
+
 	hwif->drives[0].autodma = hwif->autodma;
 	hwif->drives[1].autodma = hwif->autodma;
 }
