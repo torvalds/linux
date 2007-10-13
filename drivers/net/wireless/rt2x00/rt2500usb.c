@@ -401,7 +401,6 @@ static void rt2500usb_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * Configure the TX antenna.
 	 */
 	switch (ant->tx) {
-	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r2, BBP_R2_TX_ANTENNA, 1);
 		rt2x00_set_field16(&csr5, PHY_CSR5_CCK, 1);
@@ -412,6 +411,13 @@ static void rt2500usb_config_antenna(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field16(&csr5, PHY_CSR5_CCK, 0);
 		rt2x00_set_field16(&csr6, PHY_CSR6_OFDM, 0);
 		break;
+	case ANTENNA_SW_DIVERSITY:
+		/*
+		 * NOTE: We should never come here because rt2x00lib is
+		 * supposed to catch this and send us the correct antenna
+		 * explicitely. However we are nog going to bug about this.
+		 * Instead, just default to antenna B.
+		 */
 	case ANTENNA_B:
 		rt2x00_set_field8(&r2, BBP_R2_TX_ANTENNA, 2);
 		rt2x00_set_field16(&csr5, PHY_CSR5_CCK, 2);
@@ -423,13 +429,19 @@ static void rt2500usb_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * Configure the RX antenna.
 	 */
 	switch (ant->rx) {
-	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r14, BBP_R14_RX_ANTENNA, 1);
 		break;
 	case ANTENNA_A:
 		rt2x00_set_field8(&r14, BBP_R14_RX_ANTENNA, 0);
 		break;
+	case ANTENNA_SW_DIVERSITY:
+		/*
+		 * NOTE: We should never come here because rt2x00lib is
+		 * supposed to catch this and send us the correct antenna
+		 * explicitely. However we are nog going to bug about this.
+		 * Instead, just default to antenna B.
+		 */
 	case ANTENNA_B:
 		rt2x00_set_field8(&r14, BBP_R14_RX_ANTENNA, 2);
 		break;

@@ -409,13 +409,19 @@ static void rt2400pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * Configure the TX antenna.
 	 */
 	switch (ant->tx) {
-	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r1, BBP_R1_TX_ANTENNA, 1);
 		break;
 	case ANTENNA_A:
 		rt2x00_set_field8(&r1, BBP_R1_TX_ANTENNA, 0);
 		break;
+	case ANTENNA_SW_DIVERSITY:
+		/*
+		 * NOTE: We should never come here because rt2x00lib is
+		 * supposed to catch this and send us the correct antenna
+		 * explicitely. However we are nog going to bug about this.
+		 * Instead, just default to antenna B.
+		 */
 	case ANTENNA_B:
 		rt2x00_set_field8(&r1, BBP_R1_TX_ANTENNA, 2);
 		break;
@@ -425,13 +431,19 @@ static void rt2400pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * Configure the RX antenna.
 	 */
 	switch (ant->rx) {
-	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
 		break;
 	case ANTENNA_A:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 0);
 		break;
+	case ANTENNA_SW_DIVERSITY:
+		/*
+		 * NOTE: We should never come here because rt2x00lib is
+		 * supposed to catch this and send us the correct antenna
+		 * explicitely. However we are nog going to bug about this.
+		 * Instead, just default to antenna B.
+		 */
 	case ANTENNA_B:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
 		break;

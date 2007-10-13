@@ -425,7 +425,6 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 			  !rt2x00_rf(&rt2x00dev->chip, RF5225));
 
 	switch (ant->rx) {
-	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
@@ -440,6 +439,13 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 		else
 			rt2x00_set_field8(&r77, BBP_R77_PAIR, 3);
 		break;
+	case ANTENNA_SW_DIVERSITY:
+		/*
+		 * NOTE: We should never come here because rt2x00lib is
+		 * supposed to catch this and send us the correct antenna
+		 * explicitely. However we are nog going to bug about this.
+		 * Instead, just default to antenna B.
+		 */
 	case ANTENNA_B:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
@@ -473,7 +479,6 @@ static void rt61pci_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 			  !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags));
 
 	switch (ant->rx) {
-	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
 		break;
@@ -481,6 +486,13 @@ static void rt61pci_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
 		rt2x00_set_field8(&r77, BBP_R77_PAIR, 3);
 		break;
+	case ANTENNA_SW_DIVERSITY:
+		/*
+		 * NOTE: We should never come here because rt2x00lib is
+		 * supposed to catch this and send us the correct antenna
+		 * explicitely. However we are nog going to bug about this.
+		 * Instead, just default to antenna B.
+		 */
 	case ANTENNA_B:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
 		rt2x00_set_field8(&r77, BBP_R77_PAIR, 0);
