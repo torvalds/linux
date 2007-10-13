@@ -627,15 +627,11 @@ static int blackbird_start_codec(struct file *file, void *priv)
 
 static int blackbird_stop_codec(struct cx8802_dev *dev)
 {
-	struct cx88_core *core = dev->core;
-
 	blackbird_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
 			BLACKBIRD_END_NOW,
 			BLACKBIRD_MPEG_CAPTURE,
 			BLACKBIRD_RAW_BITS_NONE
 		);
-	/* mute audio source */
-	cx_set(AUD_VOL_CTL, (1 << 6));
 
 	dev->mpeg_active = 0;
 	return 0;
