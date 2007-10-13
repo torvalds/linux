@@ -62,8 +62,6 @@ if the corresponding output is set as 1, otherwise the current output
 value, that is to say 0.
 
 The write file is read/write. Writing a value outputs it on the I/O
-port. Reading returns the last written value.
-
-On module initialization the chip is configured as eight inputs (all
-outputs to 1), so you can connect any circuit to the PCF8574(A) without
-being afraid of short-circuit.
+port. Reading returns the last written value. As it is not possible
+to read this value from the chip, you need to write at least once to
+this file before you can read back from it.
