@@ -1003,8 +1003,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 
 	IVTV_DEBUG_INFO("base addr: 0x%08x\n", itv->base_addr);
 
-	mutex_lock(&itv->serialize_lock);
-
 	/* PCI Device Setup */
 	if ((retval = ivtv_setup_pci(itv, dev, pci_id)) != 0) {
 		if (retval == -EIO)
@@ -1064,7 +1062,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	IVTV_DEBUG_INFO("activating i2c...\n");
 	if (init_ivtv_i2c(itv)) {
 		IVTV_ERR("Could not initialize i2c\n");
-		goto free_irq;
+		goto free_io;
 	}
 
 	IVTV_DEBUG_INFO("Active card count: %d.\n", ivtv_cards_active);
@@ -1176,7 +1174,11 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		IVTV_ERR("Failed to register irq %d\n", retval);
 		goto free_streams;
 	}
-	mutex_unlock(&itv->serialize_lock);
+	retval = ivtv_streams_register(itv);
+	if (retval) {
+		IVTV_ERR("Error %d registering devices\n", retval);
+		goto free_irq;
+	}
 	IVTV_INFO("Initialized card #%d: %s\n", itv->num, itv->card_name);
 	return 0;
 
@@ -1195,7 +1197,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
       free_workqueue:
 	destroy_workqueue(itv->irq_work_queues);
-	mutex_unlock(&itv->serialize_lock);
       err:
 	if (retval == 0)
 		retval = -ENODEV;
