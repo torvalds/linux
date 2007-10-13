@@ -205,20 +205,6 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
-What:	Compaq touchscreen device emulation
-When:	Oct 2007
-Files:	drivers/input/tsdev.c
-Why:	The code says it was obsolete when it was written in 2001.
-	tslib is a userspace library which does anything tsdev can do and
-	much more besides in userspace where this code belongs. There is no
-	longer any need for tsdev and applications should have converted to
-	use tslib by now.
-	The name "tsdev" is also extremely confusing and lots of people have
-	it loaded when they don't need/use it.
-Who:	Richard Purdie <rpurdie@rpsys.net>
-
----------------------------
-
 What:	i2c-ixp2000, i2c-ixp4xx and scx200_i2c drivers
 When:	September 2007
 Why:	Obsolete. The new i2c-gpio driver replaces all hardware-specific

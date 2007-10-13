@@ -114,28 +114,6 @@ config INPUT_JOYDEV
 	  To compile this driver as a module, choose M here: the
 	  module will be called joydev.
 
-config INPUT_TSDEV
-	tristate "Touchscreen interface"
-	---help---
-	  Say Y here if you have an application that only can understand the
-	  Compaq touchscreen protocol for absolute pointer data. This is
-	  useful namely for embedded configurations.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tsdev.
-
-config INPUT_TSDEV_SCREEN_X
-	int "Horizontal screen resolution"
-	depends on INPUT_TSDEV
-	default "240"
-
-config INPUT_TSDEV_SCREEN_Y
-	int "Vertical screen resolution"
-	depends on INPUT_TSDEV
-	default "320"
-
 config INPUT_EVDEV
 	tristate "Event interface"
 	help
