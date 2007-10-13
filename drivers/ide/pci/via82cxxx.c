@@ -1,6 +1,6 @@
 /*
  *
- * Version 3.48
+ * Version 3.49
  *
  * VIA IDE driver for Linux. Supported southbridges:
  *
@@ -165,8 +165,8 @@ static int via_set_drive(ide_drive_t *drive, const u8 speed)
 	struct ide_timing t, p;
 	unsigned int T, UT;
 
-	if (speed != XFER_PIO_SLOW)
-		ide_config_drive_speed(drive, speed);
+	if (ide_config_drive_speed(drive, speed))
+		return 1;
 
 	T = 1000000000 / via_clock;
 
@@ -186,10 +186,6 @@ static int via_set_drive(ide_drive_t *drive, const u8 speed)
 	}
 
 	via_set_speed(HWIF(drive), drive->dn, &t);
-
-	if (!drive->init_speed)
-		drive->init_speed = speed;
-	drive->current_speed = speed;
 
 	return 0;
 }

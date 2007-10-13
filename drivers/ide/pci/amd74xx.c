@@ -1,5 +1,5 @@
 /*
- * Version 2.22
+ * Version 2.23
  *
  * AMD 755/756/766/8111 and nVidia nForce/2/2s/3/3s/CK804/MCP04
  * IDE driver for Linux.
@@ -240,8 +240,8 @@ static int amd_set_drive(ide_drive_t *drive, const u8 speed)
 	struct ide_timing t, p;
 	int T, UT;
 
-	if (speed != XFER_PIO_SLOW)
-		ide_config_drive_speed(drive, speed);
+	if (ide_config_drive_speed(drive, speed))
+		return 1;
 
 	T = 1000000000 / amd_clock;
 	UT = (amd_config->udma_mask == ATA_UDMA2) ? T : (T / 2);
@@ -257,10 +257,6 @@ static int amd_set_drive(ide_drive_t *drive, const u8 speed)
 	if (speed == XFER_UDMA_6 && amd_clock <= 33333) t.udma = 15;
 
 	amd_set_speed(HWIF(drive)->pci_dev, drive->dn, &t);
-
-	if (!drive->init_speed)	
-		drive->init_speed = speed;
-	drive->current_speed = speed;
 
 	return 0;
 }
