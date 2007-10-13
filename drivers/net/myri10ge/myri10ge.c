@@ -1047,7 +1047,8 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 
 	hlen = MYRI10GE_HLEN > len ? len : MYRI10GE_HLEN;
 
-	/* allocate an skb to attach the page(s) to. */
+	/* allocate an skb to attach the page(s) to. This is done
+	 * after trying LRO, so as to avoid skb allocation overheads */
 
 	skb = netdev_alloc_skb(dev, MYRI10GE_HLEN + 16);
 	if (unlikely(skb == NULL)) {
@@ -1217,7 +1218,8 @@ static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
 
 static int myri10ge_poll(struct napi_struct *napi, int budget)
 {
-	struct myri10ge_priv *mgp = container_of(napi, struct myri10ge_priv, napi);
+	struct myri10ge_priv *mgp =
+	    container_of(napi, struct myri10ge_priv, napi);
 	struct net_device *netdev = mgp->dev;
 	struct myri10ge_rx_done *rx_done = &mgp->rx_done;
 	int work_done;
@@ -2706,7 +2708,6 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 }
 
 #ifdef CONFIG_PM
-
 static int myri10ge_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct myri10ge_priv *mgp;
@@ -2787,7 +2788,6 @@ abort_with_enabled:
 	return -EIO;
 
 }
-
 #endif				/* CONFIG_PM */
 
 static u32 myri10ge_read_reboot(struct myri10ge_priv *mgp)
@@ -2954,8 +2954,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	mgp = netdev_priv(netdev);
 	mgp->dev = netdev;
-	netif_napi_add(netdev, &mgp->napi,
-		       myri10ge_poll, myri10ge_napi_weight);
+	netif_napi_add(netdev, &mgp->napi, myri10ge_poll, myri10ge_napi_weight);
 	mgp->pdev = pdev;
 	mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
 	mgp->pause = myri10ge_flow_control;
