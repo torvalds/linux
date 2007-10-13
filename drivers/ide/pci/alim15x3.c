@@ -694,6 +694,10 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 		return;
 	}
 
+	/*
+	 * check in ->init_dma guarantees m5229_revision >= 0x20 here
+	 */
+
 	if (m5229_revision > 0x20)
 		hwif->atapi_dma = 1;
 
@@ -711,18 +715,15 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 
-        if (m5229_revision >= 0x20) {
-                /*
-                 * M1543C or newer for DMAing
-                 */
-                hwif->ide_dma_check = &ali15x3_config_drive_for_dma;
-		hwif->dma_setup = &ali15x3_dma_setup;
-		if (!noautodma)
-			hwif->autodma = 1;
+	hwif->ide_dma_check = &ali15x3_config_drive_for_dma;
+	hwif->dma_setup = &ali15x3_dma_setup;
 
-		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = ata66_ali15x3(hwif);
-	}
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = ata66_ali15x3(hwif);
+
+	if (!noautodma)
+		hwif->autodma = 1;
+
 	hwif->drives[0].autodma = hwif->autodma;
 	hwif->drives[1].autodma = hwif->autodma;
 }
