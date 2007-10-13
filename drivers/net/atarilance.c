@@ -1023,7 +1023,7 @@ static int lance_rx( struct net_device *dev )
 					DECLARE_MAC_BUF(mac);
 					DECLARE_MAC_BUF(mac2);
 
-					printk(KERN_DEBUG "%s: RX pkt type 0x%04x from %s to %s ",
+					printk(KERN_DEBUG "%s: RX pkt type 0x%04x from %s to %s "
 						   "data %02x %02x %02x %02x %02x %02x %02x %02x "
 						   "len %d\n",
 						   dev->name, ((u_short *)data)[6],

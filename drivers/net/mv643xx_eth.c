@@ -784,7 +784,6 @@ static int mv643xx_eth_open(struct net_device *dev)
 	unsigned int port_num = mp->port_num;
 	unsigned int size;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	/* Clear any pending ethernet port interrupts */
 	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
@@ -1296,6 +1295,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	struct ethtool_cmd cmd;
 	int duplex = DUPLEX_HALF;
 	int speed = 0;			/* default to auto-negotiation */
+	DECLARE_MAC_BUF(mac);
 
 	pd = pdev->dev.platform_data;
 	if (pd == NULL) {
