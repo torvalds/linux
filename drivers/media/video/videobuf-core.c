@@ -967,6 +967,7 @@ int videobuf_cgmbuf(struct videobuf_queue *q,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(videobuf_cgmbuf);
 #endif
 
 /* --------------------------------------------------------------------- */
@@ -985,7 +986,6 @@ EXPORT_SYMBOL_GPL(videobuf_reqbufs);
 EXPORT_SYMBOL_GPL(videobuf_querybuf);
 EXPORT_SYMBOL_GPL(videobuf_qbuf);
 EXPORT_SYMBOL_GPL(videobuf_dqbuf);
-EXPORT_SYMBOL_GPL(videobuf_cgmbuf);
 EXPORT_SYMBOL_GPL(videobuf_streamon);
 EXPORT_SYMBOL_GPL(videobuf_streamoff);
 
