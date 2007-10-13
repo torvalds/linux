@@ -608,10 +608,15 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 			goto bail;
 		}
 
+		if (strnlen(node->d.name, node->d.nsize) != node->d.nsize) {
+			printk(KERN_WARNING "Name in dirent node at 0x%08x contains zeroes\n", ref_offset(raw));
+			goto bail;
+		}
+
 		if (node->d.nsize) {
 			crc = crc32(0, node->d.name, node->d.nsize);
 			if (je32_to_cpu(node->d.name_crc) != crc) {
-				printk(KERN_WARNING "Name CRC failed on REF_PRISTINE dirent ode at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
+				printk(KERN_WARNING "Name CRC failed on REF_PRISTINE dirent node at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
 				       ref_offset(raw), je32_to_cpu(node->d.name_crc), crc);
 				goto bail;
 			}
