@@ -294,6 +294,10 @@ static void tulip_up(struct net_device *dev)
 	int next_tick = 3*HZ;
 	int i;
 
+#ifdef CONFIG_TULIP_NAPI
+	napi_enable(&tp->napi);
+#endif
+
 	/* Wake the chip from sleep/snooze mode. */
 	tulip_set_power_state (tp, 0, 0);
 
@@ -322,8 +326,8 @@ static void tulip_up(struct net_device *dev)
 	tp->dirty_rx = tp->dirty_tx = 0;
 
 	if (tp->flags & MC_HASH_ONLY) {
-		u32 addr_low = le32_to_cpu(get_unaligned((u32 *)dev->dev_addr));
-		u32 addr_high = le16_to_cpu(get_unaligned((u16 *)(dev->dev_addr+4)));
+		u32 addr_low = le32_to_cpu(get_unaligned((__le32 *)dev->dev_addr));
+		u32 addr_high = le16_to_cpu(get_unaligned((__le16 *)(dev->dev_addr+4)));
 		if (tp->chip_id == AX88140) {
 			iowrite32(0, ioaddr + CSR13);
 			iowrite32(addr_low,  ioaddr + CSR14);
@@ -728,6 +732,10 @@ static void tulip_down (struct net_device *dev)
 
 	flush_scheduled_work();
 
+#ifdef CONFIG_TULIP_NAPI
+	napi_disable(&tp->napi);
+#endif
+
 	del_timer_sync (&tp->timer);
 #ifdef CONFIG_TULIP_NAPI
 	del_timer_sync (&tp->oom_timer);
@@ -1043,12 +1051,11 @@ static void set_rx_mode(struct net_device *dev)
 				filterbit &= 0x3f;
 				mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
 				if (tulip_debug > 2) {
-					printk(KERN_INFO "%s: Added filter for %2.2x:%2.2x:%2.2x:"
-						   "%2.2x:%2.2x:%2.2x  %8.8x bit %d.\n", dev->name,
-						   mclist->dmi_addr[0], mclist->dmi_addr[1],
-						   mclist->dmi_addr[2], mclist->dmi_addr[3],
-						   mclist->dmi_addr[4], mclist->dmi_addr[5],
-						   ether_crc(ETH_ALEN, mclist->dmi_addr), filterbit);
+					DECLARE_MAC_BUF(mac);
+					printk(KERN_INFO "%s: Added filter for %s"
+					       "  %8.8x bit %d.\n",
+					       dev->name, print_mac(mac, mclist->dmi_addr),
+					       ether_crc(ETH_ALEN, mclist->dmi_addr), filterbit);
 				}
 			}
 			if (mc_filter[0] == tp->mc_filter[0]  &&
@@ -1248,6 +1255,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	const char *chip_name = tulip_tbl[chip_idx].chip_name;
 	unsigned int eeprom_missing = 0;
 	unsigned int force_csr0 = 0;
+	DECLARE_MAC_BUF(mac);
 
 #ifndef MODULE
 	static int did_version;		/* Already printed version info. */
@@ -1337,7 +1345,6 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	if (pci_resource_len (pdev, 0) < tulip_tbl[chip_idx].io_size) {
 		printk (KERN_ERR PFX "%s: I/O region (0x%llx@0x%llx) too small, "
@@ -1436,13 +1443,13 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 			do
 				value = ioread32(ioaddr + CSR9);
 			while (value < 0  && --boguscnt > 0);
-			put_unaligned(le16_to_cpu(value), ((u16*)dev->dev_addr) + i);
+			put_unaligned(cpu_to_le16(value), ((__le16*)dev->dev_addr) + i);
 			sum += value & 0xffff;
 		}
 	} else if (chip_idx == COMET) {
 		/* No need to read the EEPROM. */
-		put_unaligned(cpu_to_le32(ioread32(ioaddr + 0xA4)), (u32 *)dev->dev_addr);
-		put_unaligned(cpu_to_le16(ioread32(ioaddr + 0xA8)), (u16 *)(dev->dev_addr + 4));
+		put_unaligned(cpu_to_le32(ioread32(ioaddr + 0xA4)), (__le32 *)dev->dev_addr);
+		put_unaligned(cpu_to_le16(ioread32(ioaddr + 0xA8)), (__le16 *)(dev->dev_addr + 4));
 		for (i = 0; i < 6; i ++)
 			sum += dev->dev_addr[i];
 	} else {
@@ -1606,8 +1613,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	dev->tx_timeout = tulip_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 #ifdef CONFIG_TULIP_NAPI
-	dev->poll = tulip_poll;
-	dev->weight = 16;
+	netif_napi_add(dev, &tp->napi, tulip_poll, 16);
 #endif
 	dev->stop = tulip_close;
 	dev->get_stats = tulip_get_stats;
@@ -1633,8 +1639,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 	if (eeprom_missing)
 		printk(" EEPROM not present,");
-	for (i = 0; i < 6; i++)
-		printk("%c%2.2X", i ? ':' : ' ', dev->dev_addr[i]);
+	printk(" %s", print_mac(mac, dev->dev_addr));
 	printk(", IRQ %d.\n", irq);
 
         if (tp->chip_id == PNIC2)

@@ -116,7 +116,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void gfar_timeout(struct net_device *dev);
 static int gfar_close(struct net_device *dev);
 struct sk_buff *gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp);
-static struct net_device_stats *gfar_get_stats(struct net_device *dev);
 static int gfar_set_mac_address(struct net_device *dev);
 static int gfar_change_mtu(struct net_device *dev, int new_mtu);
 static irqreturn_t gfar_error(int irq, void *dev_id);
@@ -134,7 +133,7 @@ static void gfar_configure_serdes(struct net_device *dev);
 extern int gfar_local_mdio_write(struct gfar_mii *regs, int mii_id, int regnum, u16 value);
 extern int gfar_local_mdio_read(struct gfar_mii *regs, int mii_id, int regnum);
 #ifdef CONFIG_GFAR_NAPI
-static int gfar_poll(struct net_device *dev, int *budget);
+static int gfar_poll(struct napi_struct *napi, int budget);
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void gfar_netpoll(struct net_device *dev);
@@ -171,6 +170,7 @@ static int gfar_probe(struct platform_device *pdev)
 	struct resource *r;
 	int idx;
 	int err = 0;
+	DECLARE_MAC_BUF(mac);
 
 	einfo = (struct gianfar_platform_data *) pdev->dev.platform_data;
 
@@ -188,6 +188,7 @@ static int gfar_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv = netdev_priv(dev);
+	priv->dev = dev;
 
 	/* Set the info in the priv to the current info */
 	priv->einfo = einfo;
@@ -253,7 +254,6 @@ static int gfar_probe(struct platform_device *pdev)
 	/* Set the dev->base_addr to the gfar reg region */
 	dev->base_addr = (unsigned long) (priv->regs);
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	/* Fill in the dev structure */
@@ -261,15 +261,11 @@ static int gfar_probe(struct platform_device *pdev)
 	dev->hard_start_xmit = gfar_start_xmit;
 	dev->tx_timeout = gfar_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef CONFIG_GFAR_NAPI
-	dev->poll = gfar_poll;
-	dev->weight = GFAR_DEV_WEIGHT;
-#endif
+	netif_napi_add(dev, &priv->napi, gfar_poll, GFAR_DEV_WEIGHT);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = gfar_netpoll;
 #endif
 	dev->stop = gfar_close;
-	dev->get_stats = gfar_get_stats;
 	dev->change_mtu = gfar_change_mtu;
 	dev->mtu = 1500;
 	dev->set_multicast_list = gfar_set_multi;
@@ -361,10 +357,8 @@ static int gfar_probe(struct platform_device *pdev)
 	gfar_init_sysfs(dev);
 
 	/* Print out the device info */
-	printk(KERN_INFO DEVICE_NAME, dev->name);
-	for (idx = 0; idx < 6; idx++)
-		printk("%2.2x%c", dev->dev_addr[idx], idx == 5 ? ' ' : ':');
-	printk("\n");
+	printk(KERN_INFO DEVICE_NAME "%s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	/* Even more device info helps when determining which kernel */
 	/* provided which set of benchmarks. */
@@ -939,6 +933,8 @@ static int gfar_enet_open(struct net_device *dev)
 {
 	int err;
 
+	napi_enable(&priv->napi);
+
 	/* Initialize a bunch of registers */
 	init_registers(dev);
 
@@ -946,10 +942,14 @@ static int gfar_enet_open(struct net_device *dev)
 
 	err = init_phy(dev);
 
-	if(err)
+	if(err) {
+		napi_disable(&priv->napi);
 		return err;
+	}
 
 	err = startup_gfar(dev);
+	if (err)
+		napi_disable(&priv->napi);
 
 	netif_start_queue(dev);
 
@@ -1010,7 +1010,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	/* Update transmit stats */
-	priv->stats.tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb->len;
 
 	/* Lock priv now */
 	spin_lock_irqsave(&priv->txlock, flags);
@@ -1083,7 +1083,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (txbdp == priv->dirty_tx) {
 		netif_stop_queue(dev);
 
-		priv->stats.tx_fifo_errors++;
+		dev->stats.tx_fifo_errors++;
 	}
 
 	/* Update the current txbd to the next one */
@@ -1102,6 +1102,9 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static int gfar_close(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+
+	napi_disable(&priv->napi);
+
 	stop_gfar(dev);
 
 	/* Disconnect from the PHY */
@@ -1111,14 +1114,6 @@ static int gfar_close(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	return 0;
-}
-
-/* returns a net_device_stats structure pointer */
-static struct net_device_stats * gfar_get_stats(struct net_device *dev)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-
-	return &(priv->stats);
 }
 
 /* Changes the mac address if the controller is not running. */
@@ -1232,7 +1227,7 @@ static void gfar_timeout(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	priv->stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 	if (dev->flags & IFF_UP) {
 		stop_gfar(dev);
@@ -1262,12 +1257,12 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id)
 		if ((bdp == priv->cur_tx) && (netif_queue_stopped(dev) == 0))
 			break;
 
-		priv->stats.tx_packets++;
+		dev->stats.tx_packets++;
 
 		/* Deferred means some collisions occurred during transmit, */
 		/* but we eventually sent the packet. */
 		if (bdp->status & TXBD_DEF)
-			priv->stats.collisions++;
+			dev->stats.collisions++;
 
 		/* Free the sk buffer associated with this TxBD */
 		dev_kfree_skb_irq(priv->tx_skbuff[priv->skb_dirtytx]);
@@ -1318,7 +1313,7 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 		return NULL;
 
 	alignamount = RXBUF_ALIGNMENT -
-		(((unsigned) skb->data) & (RXBUF_ALIGNMENT - 1));
+		(((unsigned long) skb->data) & (RXBUF_ALIGNMENT - 1));
 
 	/* We need the data buffer to be aligned properly.  We will reserve
 	 * as many bytes as needed to align the data properly
@@ -1339,7 +1334,7 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 
 static inline void count_errors(unsigned short status, struct gfar_private *priv)
 {
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct gfar_extra_stats *estats = &priv->extra_stats;
 
 	/* If the packet was truncated, none of the other errors
@@ -1390,12 +1385,12 @@ irqreturn_t gfar_receive(int irq, void *dev_id)
 
 	/* support NAPI */
 #ifdef CONFIG_GFAR_NAPI
-	if (netif_rx_schedule_prep(dev)) {
+	if (netif_rx_schedule_prep(dev, &priv->napi)) {
 		tempval = gfar_read(&priv->regs->imask);
 		tempval &= IMASK_RX_DISABLED;
 		gfar_write(&priv->regs->imask, tempval);
 
-		__netif_rx_schedule(dev);
+		__netif_rx_schedule(dev, &priv->napi);
 	} else {
 		if (netif_msg_rx_err(priv))
 			printk(KERN_DEBUG "%s: receive called twice (%x)[%x]\n",
@@ -1464,7 +1459,7 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	if (NULL == skb) {
 		if (netif_msg_rx_err(priv))
 			printk(KERN_WARNING "%s: Missing skb!!.\n", dev->name);
-		priv->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		priv->extra_stats.rx_skbmissing++;
 	} else {
 		int ret;
@@ -1522,7 +1517,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 		      (RXBD_LARGE | RXBD_SHORT | RXBD_NONOCTET
 		       | RXBD_CRCERR | RXBD_OVERRUN | RXBD_TRUNCATED))) {
 			/* Increment the number of packets */
-			priv->stats.rx_packets++;
+			dev->stats.rx_packets++;
 			howmany++;
 
 			/* Remove the FCS from the packet length */
@@ -1530,7 +1525,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 			gfar_process_frame(dev, skb, pkt_len);
 
-			priv->stats.rx_bytes += pkt_len;
+			dev->stats.rx_bytes += pkt_len;
 		} else {
 			count_errors(bdp->status, priv);
 
@@ -1569,23 +1564,16 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 }
 
 #ifdef CONFIG_GFAR_NAPI
-static int gfar_poll(struct net_device *dev, int *budget)
+static int gfar_poll(struct napi_struct *napi, int budget)
 {
+	struct gfar_private *priv = container_of(napi, struct gfar_private, napi);
+	struct net_device *dev = priv->dev;
 	int howmany;
-	struct gfar_private *priv = netdev_priv(dev);
-	int rx_work_limit = *budget;
 
-	if (rx_work_limit > dev->quota)
-		rx_work_limit = dev->quota;
+	howmany = gfar_clean_rx_ring(dev, budget);
 
-	howmany = gfar_clean_rx_ring(dev, rx_work_limit);
-
-	dev->quota -= howmany;
-	rx_work_limit -= howmany;
-	*budget -= howmany;
-
-	if (rx_work_limit > 0) {
-		netif_rx_complete(dev);
+	if (howmany < budget) {
+		netif_rx_complete(dev, napi);
 
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&priv->regs->rstat, RSTAT_CLEAR_RHALT);
@@ -1601,8 +1589,7 @@ static int gfar_poll(struct net_device *dev, int *budget)
 			gfar_write(&priv->regs->rxic, 0);
 	}
 
-	/* Return 1 if there's more work to do */
-	return (rx_work_limit > 0) ? 0 : 1;
+	return howmany;
 }
 #endif
 
@@ -1918,17 +1905,17 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 
 	/* Update the error counters */
 	if (events & IEVENT_TXE) {
-		priv->stats.tx_errors++;
+		dev->stats.tx_errors++;
 
 		if (events & IEVENT_LC)
-			priv->stats.tx_window_errors++;
+			dev->stats.tx_window_errors++;
 		if (events & IEVENT_CRL)
-			priv->stats.tx_aborted_errors++;
+			dev->stats.tx_aborted_errors++;
 		if (events & IEVENT_XFUN) {
 			if (netif_msg_tx_err(priv))
 				printk(KERN_DEBUG "%s: TX FIFO underrun, "
 				       "packet dropped.\n", dev->name);
-			priv->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 			priv->extra_stats.tx_underrun++;
 
 			/* Reactivate the Tx Queues */
@@ -1938,7 +1925,7 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 			printk(KERN_DEBUG "%s: Transmit Error\n", dev->name);
 	}
 	if (events & IEVENT_BSY) {
-		priv->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		priv->extra_stats.rx_bsy++;
 
 		gfar_receive(irq, dev_id);
@@ -1953,7 +1940,7 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 			       dev->name, gfar_read(&priv->regs->rstat));
 	}
 	if (events & IEVENT_BABR) {
-		priv->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		priv->extra_stats.rx_babr++;
 
 		if (netif_msg_rx_err(priv))

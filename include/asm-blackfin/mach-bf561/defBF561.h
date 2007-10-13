@@ -120,6 +120,7 @@
 #define UART_GCTL      	      	0xFFC00424	/* Global Control Register */
 
 /* SPI Controller (0xFFC00500 - 0xFFC005FF) */
+#define SPI0_REGBASE          		0xFFC00500
 #define SPI_CTL               		0xFFC00500	/* SPI Control Register */
 #define SPI_FLG               		0xFFC00504	/* SPI Flag register */
 #define SPI_STAT              		0xFFC00508	/* SPI Status register */

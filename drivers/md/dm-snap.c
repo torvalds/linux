@@ -636,7 +636,7 @@ static void error_bios(struct bio *bio)
 	while (bio) {
 		n = bio->bi_next;
 		bio->bi_next = NULL;
-		bio_io_error(bio, bio->bi_size);
+		bio_io_error(bio);
 		bio = n;
 	}
 }

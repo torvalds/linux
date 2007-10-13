@@ -150,3 +150,119 @@ struct clk *clk_get_parent(struct clk *clk)
 	return clk->parent;
 }
 EXPORT_SYMBOL(clk_get_parent);
+
+
+
+#ifdef CONFIG_DEBUG_FS
+
+/* /sys/kernel/debug/at32ap_clk */
+
+#include <linux/io.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#include "pm.h"
+
+
+#define	NEST_DELTA	2
+#define	NEST_MAX	6
+
+struct clkinf {
+	struct seq_file	*s;
+	unsigned	nest;
+};
+
+static void
+dump_clock(struct clk *parent, struct clkinf *r)
+{
+	unsigned	nest = r->nest;
+	char		buf[16 + NEST_MAX];
+	struct clk	*clk;
+	unsigned	i;
+
+	/* skip clocks coupled to devices that aren't registered */
+	if (parent->dev && !parent->dev->bus_id[0] && !parent->users)
+		return;
+
+	/* <nest spaces> name <pad to end> */
+	memset(buf, ' ', sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = 0;
+	i = strlen(parent->name);
+	memcpy(buf + nest, parent->name,
+			min(i, (unsigned)(sizeof(buf) - 1 - nest)));
+
+	seq_printf(r->s, "%s%c users=%2d %-3s %9ld Hz",
+		buf, parent->set_parent ? '*' : ' ',
+		parent->users,
+		parent->users ? "on" : "off",	/* NOTE: not-paranoid!! */
+		clk_get_rate(parent));
+	if (parent->dev)
+		seq_printf(r->s, ", for %s", parent->dev->bus_id);
+	seq_printf(r->s, "\n");
+
+	/* cost of this scan is small, but not linear... */
+	r->nest = nest + NEST_DELTA;
+	for (i = 3; i < at32_nr_clocks; i++) {
+		clk = at32_clock_list[i];
+		if (clk->parent == parent)
+			dump_clock(clk, r);
+	}
+	r->nest = nest;
+}
+
+static int clk_show(struct seq_file *s, void *unused)
+{
+	struct clkinf	r;
+	int		i;
+
+	/* show all the power manager registers */
+	seq_printf(s, "MCCTRL  = %8x\n", pm_readl(MCCTRL));
+	seq_printf(s, "CKSEL   = %8x\n", pm_readl(CKSEL));
+	seq_printf(s, "CPUMASK = %8x\n", pm_readl(CPU_MASK));
+	seq_printf(s, "HSBMASK = %8x\n", pm_readl(HSB_MASK));
+	seq_printf(s, "PBAMASK = %8x\n", pm_readl(PBA_MASK));
+	seq_printf(s, "PBBMASK = %8x\n", pm_readl(PBB_MASK));
+	seq_printf(s, "PLL0    = %8x\n", pm_readl(PLL0));
+	seq_printf(s, "PLL1    = %8x\n", pm_readl(PLL1));
+	seq_printf(s, "IMR     = %8x\n", pm_readl(IMR));
+	for (i = 0; i < 8; i++) {
+		if (i == 5)
+			continue;
+		seq_printf(s, "GCCTRL%d = %8x\n", i, pm_readl(GCCTRL(i)));
+	}
+
+	seq_printf(s, "\n");
+
+	/* show clock tree as derived from the three oscillators
+	 * we "know" are at the head of the list
+	 */
+	r.s = s;
+	r.nest = 0;
+	dump_clock(at32_clock_list[0], &r);
+	dump_clock(at32_clock_list[1], &r);
+	dump_clock(at32_clock_list[2], &r);
+
+	return 0;
+}
+
+static int clk_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clk_show, NULL);
+}
+
+static const struct file_operations clk_operations = {
+	.open		= clk_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init clk_debugfs_init(void)
+{
+	(void) debugfs_create_file("at32ap_clk", S_IFREG | S_IRUGO,
+			NULL, NULL, &clk_operations);
+
+	return 0;
+}
+postcore_initcall(clk_debugfs_init);
+
+#endif

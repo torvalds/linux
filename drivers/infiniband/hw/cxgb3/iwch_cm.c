@@ -63,37 +63,37 @@ static char *states[] = {
 };
 
 static int ep_timeout_secs = 10;
-module_param(ep_timeout_secs, int, 0444);
+module_param(ep_timeout_secs, int, 0644);
 MODULE_PARM_DESC(ep_timeout_secs, "CM Endpoint operation timeout "
 				   "in seconds (default=10)");
 
 static int mpa_rev = 1;
-module_param(mpa_rev, int, 0444);
+module_param(mpa_rev, int, 0644);
 MODULE_PARM_DESC(mpa_rev, "MPA Revision, 0 supports amso1100, "
 		 "1 is spec compliant. (default=1)");
 
 static int markers_enabled = 0;
-module_param(markers_enabled, int, 0444);
+module_param(markers_enabled, int, 0644);
 MODULE_PARM_DESC(markers_enabled, "Enable MPA MARKERS (default(0)=disabled)");
 
 static int crc_enabled = 1;
-module_param(crc_enabled, int, 0444);
+module_param(crc_enabled, int, 0644);
 MODULE_PARM_DESC(crc_enabled, "Enable MPA CRC (default(1)=enabled)");
 
 static int rcv_win = 256 * 1024;
-module_param(rcv_win, int, 0444);
+module_param(rcv_win, int, 0644);
 MODULE_PARM_DESC(rcv_win, "TCP receive window in bytes (default=256)");
 
 static int snd_win = 32 * 1024;
-module_param(snd_win, int, 0444);
+module_param(snd_win, int, 0644);
 MODULE_PARM_DESC(snd_win, "TCP send window in bytes (default=32KB)");
 
 static unsigned int nocong = 0;
-module_param(nocong, uint, 0444);
+module_param(nocong, uint, 0644);
 MODULE_PARM_DESC(nocong, "Turn off congestion control (default=0)");
 
 static unsigned int cong_flavor = 1;
-module_param(cong_flavor, uint, 0444);
+module_param(cong_flavor, uint, 0644);
 MODULE_PARM_DESC(cong_flavor, "TCP Congestion control flavor (default=1)");
 
 static void process_work(struct work_struct *work);

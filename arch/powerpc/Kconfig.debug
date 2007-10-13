@@ -124,6 +124,16 @@ config IRQSTACKS
 	  for handling hard and soft interrupts.  This can help avoid
 	  overflowing the process kernel stacks.
 
+config VIRQ_DEBUG
+	bool "Expose hardware/virtual IRQ mapping via debugfs"
+	depends on DEBUG_FS && PPC_MERGE
+	help
+	  This option will show the mapping relationship between hardware irq
+	  numbers and virtual irq numbers. The mapping is exposed via debugfs
+	  in the file powerpc/virq_mapping.
+
+	  If you don't know what this means you don't need it.
+
 config BDI_SWITCH
 	bool "Include BDI-2000 user context switcher"
 	depends on DEBUG_KERNEL && PPC32
@@ -211,6 +221,15 @@ config PPC_EARLY_DEBUG_44x
 	  Select this to enable early debugging for IBM 44x chips via the
 	  inbuilt serial port.
 
+config PPC_EARLY_DEBUG_CPM
+	bool "Early serial debugging for Freescale CPM-based serial ports"
+	depends on SERIAL_CPM
+	select PIN_TLB if PPC_8xx
+	help
+	  Select this to enable early debugging for Freescale chips
+	  using a CPM-based serial port.  This assumes that the bootwrapper
+	  has run, and set up the CPM in a particular way.
+
 endchoice
 
 config PPC_EARLY_DEBUG_44x_PHYSLOW
@@ -222,5 +241,17 @@ config PPC_EARLY_DEBUG_44x_PHYSHIGH
 	hex "EPRN of early debug UART physical address"
 	depends PPC_EARLY_DEBUG_44x
 	default "0x1"
+
+config PPC_EARLY_DEBUG_CPM_ADDR
+	hex "CPM UART early debug transmit descriptor address"
+	depends on PPC_EARLY_DEBUG_CPM
+	default "0xfa202008" if PPC_EP88XC
+	default "0xf0000008" if CPM2
+	default "0xff002008" if CPM1
+	help
+	  This specifies the address of the transmit descriptor
+	  used for early debug output.  Because it is needed before
+	  platform probing is done, all platforms selected must
+	  share the same address.
 
 endmenu

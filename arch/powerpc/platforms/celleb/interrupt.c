@@ -175,11 +175,18 @@ static int beatic_pic_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
+static int beatic_pic_host_match(struct irq_host *h, struct device_node *np)
+{
+	/* Match all */
+	return 1;
+}
+
 static struct irq_host_ops beatic_pic_host_ops = {
 	.map = beatic_pic_host_map,
 	.remap = beatic_pic_host_remap,
 	.unmap = beatic_pic_host_unmap,
 	.xlate = beatic_pic_host_xlate,
+	.match = beatic_pic_host_match,
 };
 
 /*
@@ -242,7 +249,7 @@ void __init beatic_init_IRQ(void)
 	ppc_md.get_irq = beatic_get_irq;
 
 	/* Allocate an irq host */
-	beatic_host = irq_alloc_host(IRQ_HOST_MAP_NOMAP, 0,
+	beatic_host = irq_alloc_host(NULL, IRQ_HOST_MAP_NOMAP, 0,
 					 &beatic_pic_host_ops,
 					 0);
 	BUG_ON(beatic_host == NULL);

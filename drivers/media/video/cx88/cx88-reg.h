@@ -582,6 +582,28 @@
 /* ---------------------------------------------------------------------- */
 /* various constants                                                      */
 
+// DMA
+/* Interrupt mask/status */
+#define PCI_INT_VIDINT		(1 <<  0)
+#define PCI_INT_AUDINT		(1 <<  1)
+#define PCI_INT_TSINT		(1 <<  2)
+#define PCI_INT_VIPINT		(1 <<  3)
+#define PCI_INT_HSTINT		(1 <<  4)
+#define PCI_INT_TM1INT		(1 <<  5)
+#define PCI_INT_SRCDMAINT	(1 <<  6)
+#define PCI_INT_DSTDMAINT	(1 <<  7)
+#define PCI_INT_RISC_RD_BERRINT	(1 << 10)
+#define PCI_INT_RISC_WR_BERRINT	(1 << 11)
+#define PCI_INT_BRDG_BERRINT	(1 << 12)
+#define PCI_INT_SRC_DMA_BERRINT	(1 << 13)
+#define PCI_INT_DST_DMA_BERRINT	(1 << 14)
+#define PCI_INT_IPB_DMA_BERRINT	(1 << 15)
+#define PCI_INT_I2CDONE		(1 << 16)
+#define PCI_INT_I2CRACK		(1 << 17)
+#define PCI_INT_IR_SMPINT	(1 << 18)
+#define PCI_INT_GPIO_INT0	(1 << 19)
+#define PCI_INT_GPIO_INT1	(1 << 20)
+
 #define SEL_BTSC     0x01
 #define SEL_EIAJ     0x02
 #define SEL_A2       0x04
@@ -590,6 +612,19 @@
 #define SEL_FMRADIO  0x20
 
 // AUD_CTL
+#define AUD_INT_DN_RISCI1	(1 <<  0)
+#define AUD_INT_UP_RISCI1	(1 <<  1)
+#define AUD_INT_RDS_DN_RISCI1	(1 <<  2)
+#define AUD_INT_DN_RISCI2	(1 <<  4) /* yes, 3 is skipped */
+#define AUD_INT_UP_RISCI2	(1 <<  5)
+#define AUD_INT_RDS_DN_RISCI2	(1 <<  6)
+#define AUD_INT_DN_SYNC		(1 << 12)
+#define AUD_INT_UP_SYNC		(1 << 13)
+#define AUD_INT_RDS_DN_SYNC	(1 << 14)
+#define AUD_INT_OPC_ERR		(1 << 16)
+#define AUD_INT_BER_IRQ		(1 << 20)
+#define AUD_INT_MCHG_IRQ	(1 << 21)
+
 #define EN_BTSC_FORCE_MONO      0
 #define EN_BTSC_FORCE_STEREO    1
 #define EN_BTSC_FORCE_SAP       2

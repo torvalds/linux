@@ -46,30 +46,6 @@
 
 .align 4 	/* just in case */
 
-/*
- * initial interrupt handlers
- */
-
-#ifndef CONFIG_KGDB
- 	/* interrupt routine for emulation - 0 */
-	/* Currently used only if GDB stub is not in - invalid */
-	/* gdb-stub set the evt itself */
-	/* save registers for post-mortem only */
-ENTRY(_evt_emulation)
-	SAVE_ALL_SYS
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = IRQ_EMU;
-	r1 = sp;
-	SP += -12;
-	call _irq_panic;
-	SP += 12;
-	/* - GDB stub fills this in by itself (if defined) */
-	rte;
-ENDPROC(_evt_emulation)
-#endif
-
 /* Common interrupt entry code.	 First we do CLI, then push
  * RETI, to keep interrupts disabled, but to allow this state to be changed
  * by local_bh_enable.
@@ -140,7 +116,7 @@ __common_int_entry:
 	fp = 0;
 #endif
 
-#if defined (ANOMALY_05000283) || defined (ANOMALY_05000315)
+#if ANOMALY_05000283 || ANOMALY_05000315
 	cc = r7 == r7;
 	p5.h = 0xffc0;
 	p5.l = 0x0014;
@@ -163,7 +139,7 @@ ENTRY(_evt_ivhw)
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
 #endif
-#ifdef	ANOMALY_05000283
+#if ANOMALY_05000283
 	cc = r7 == r7;
 	p5.h = 0xffc0;
 	p5.l = 0x0014;
@@ -201,27 +177,15 @@ ENTRY(_evt_ivhw)
 	jump .Lcommon_restore_context;
 #endif
 
-/* interrupt routine for evt2 - 2.  This is NMI.  */
-ENTRY(_evt_evt2)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-#ifdef	ANOMALY_05000283
-	cc = r7 == r7;
-	p5.h = 0xffc0;
-	p5.l = 0x0014;
-	if cc jump 1f;
-	r7.l = W[p5];
-1:
-#endif
-	r0 = IRQ_NMI;
-	r1 =  sp;
-	SP += -12;
-	call _asm_do_IRQ;
-	SP += 12;
-	RESTORE_CONTEXT
+/* Interrupt routine for evt2 (NMI).
+ * We don't actually use this, so just return.
+ * For inner circle type details, please see:
+ * http://docs.blackfin.uclinux.org/doku.php?id=linux:nmi
+ */
+ENTRY(_evt_nmi)
+.weak _evt_nmi
 	rtn;
+ENDPROC(_evt_nmi)
 
 /* interrupt routine for core timer - 6 */
 ENTRY(_evt_timer)

@@ -24,7 +24,7 @@
  * small: 0) header + data packets 1) just header
  */
 static void __maybe_unused
-urb_print (struct urb * urb, char * str, int small)
+urb_print(struct urb * urb, char * str, int small, int status)
 {
 	unsigned int pipe= urb->pipe;
 
@@ -34,7 +34,7 @@ urb_print (struct urb * urb, char * str, int small)
 	}
 
 #ifndef	OHCI_VERBOSE_DEBUG
-	if (urb->status != 0)
+	if (status != 0)
 #endif
 	dbg("%s %p dev=%d ep=%d%s-%s flags=%x len=%d/%d stat=%d",
 		    str,
@@ -46,7 +46,7 @@ urb_print (struct urb * urb, char * str, int small)
 		    urb->transfer_flags,
 		    urb->actual_length,
 		    urb->transfer_buffer_length,
-		    urb->status);
+		    status);
 
 #ifdef	OHCI_VERBOSE_DEBUG
 	if (!small) {
@@ -66,7 +66,7 @@ urb_print (struct urb * urb, char * str, int small)
 						urb->transfer_buffer_length: urb->actual_length;
 			for (i = 0; i < 16 && i < len; i++)
 				printk (" %02x", ((__u8 *) urb->transfer_buffer) [i]);
-			printk ("%s stat:%d\n", i < len? "...": "", urb->status);
+			printk ("%s stat:%d\n", i < len? "...": "", status);
 		}
 	}
 #endif

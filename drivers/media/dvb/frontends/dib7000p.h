@@ -9,6 +9,7 @@ struct dib7000p_config {
 	u8 tuner_is_baseband;
 	int (*update_lna) (struct dvb_frontend *, u16 agc_global);
 
+	u8 agc_config_count;
 	struct dibx000_agc_config *agc;
 	struct dibx000_bandwidth_config *bw;
 
@@ -27,20 +28,19 @@ struct dib7000p_config {
 
 	u8 quartz_direct;
 
+	u8 spur_protect;
+
 	int (*agc_control) (struct dvb_frontend *, u8 before);
 };
 
 #define DEFAULT_DIB7000P_I2C_ADDRESS 18
 
 extern struct dvb_frontend * dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg);
+extern int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[]);
+
 extern struct i2c_adapter * dib7000p_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 extern int dib7000pc_detection(struct i2c_adapter *i2c_adap);
-
-/* TODO
-extern INT dib7000p_set_gpio(struct dibDemod *demod, UCHAR num, UCHAR dir, UCHAR val);
-extern INT dib7000p_enable_vbg_voltage(struct dibDemod *demod);
-extern void dib7000p_set_hostbus_diversity(struct dibDemod *demod, UCHAR onoff);
-extern USHORT dib7000p_get_current_agc_global(struct dibDemod *demod);
-*/
+extern int dib7000p_set_gpio(struct dvb_frontend *, u8 num, u8 dir, u8 val);
+extern int dib7000p_set_wbd_ref(struct dvb_frontend *, u16 value);
 
 #endif

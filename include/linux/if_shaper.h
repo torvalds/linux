@@ -24,19 +24,7 @@ struct shaper
 	unsigned long recovery;	/* Time we can next clock a packet out on
 				   an empty queue */
 	spinlock_t lock;
-        struct net_device_stats stats;
 	struct net_device *dev;
-	int  (*hard_start_xmit) (struct sk_buff *skb,
-		struct net_device *dev);
-	int  (*hard_header) (struct sk_buff *skb,
-		struct net_device *dev,
-		unsigned short type,
-		void *daddr,
-		void *saddr,
-		unsigned len);
-	int  (*rebuild_header)(struct sk_buff *skb);
-	int (*hard_header_cache)(struct neighbour *neigh, struct hh_cache *hh);
-	void (*header_cache_update)(struct hh_cache *hh, struct net_device *dev, unsigned char *  haddr);
 	struct net_device_stats* (*get_stats)(struct net_device *dev);
 	struct timer_list timer;
 };

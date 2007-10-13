@@ -986,6 +986,31 @@ config SERIAL_PMACZILOG
 	  PowerMac machines.
 	  Say Y or M if you want to be able to these serial ports.
 
+config SERIAL_PMACZILOG_TTYS
+	bool "Use ttySn device nodes for Zilog z85c30"
+	depends on SERIAL_PMACZILOG
+	help
+	  The pmac_zilog driver for the z85C30 chip on many powermacs
+	  historically used the device numbers for /dev/ttySn.  The
+	  8250 serial port driver also uses these numbers, which means
+	  the two drivers being unable to coexist; you could not use
+	  both z85C30 and 8250 type ports at the same time.
+
+	  If this option is not selected, the pmac_zilog driver will
+	  use the device numbers allocated for /dev/ttyPZn.  This allows
+	  the pmac_zilog and 8250 drivers to co-exist, but may cause
+	  existing userspace setups to break.  Programs that need to
+	  access the built-in serial ports on powermacs will need to
+	  be reconfigured to use /dev/ttyPZn instead of /dev/ttySn.
+
+	  If you enable this option, any z85c30 ports in the system will
+	  be registered as ttyS0 onwards as in the past, and you will be
+	  unable to use the 8250 module for PCMCIA or other 16C550-style
+	  UARTs.
+
+	  Say N unless you need the z85c30 ports on your powermac
+	  to appear as /dev/ttySn.
+
 config SERIAL_PMACZILOG_CONSOLE
 	bool "Console on PowerMac z85c30 serial port"
 	depends on SERIAL_PMACZILOG=y

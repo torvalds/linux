@@ -25,8 +25,8 @@
 #include <asm/ebcdic.h>
 #include <asm/uaccess.h>
 
-
 #include "raw3270.h"
+#include "tty3270.h"
 #include "keyboard.h"
 
 #define TTY3270_CHAR_BUF_SIZE 256
@@ -1338,8 +1338,11 @@ tty3270_getpar(struct tty3270 *tp, int ix)
 static void
 tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
 {
-	tp->cx = min_t(int, tp->view.cols - 1, max_t(int, 0, cx));
-	cy = min_t(int, tp->view.rows - 3, max_t(int, 0, cy));
+	int max_cx = max(0, cx);
+	int max_cy = max(0, cy);
+
+	tp->cx = min_t(int, tp->view.cols - 1, max_cx);
+	cy = min_t(int, tp->view.rows - 3, max_cy);
 	if (cy != tp->cy) {
 		tty3270_convert_line(tp, tp->cy);
 		tp->cy = cy;

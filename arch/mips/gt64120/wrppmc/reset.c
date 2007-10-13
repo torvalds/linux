@@ -5,14 +5,10 @@
  *
  * Copyright (C) 1997 Ralf Baechle
  */
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <asm/io.h>
-#include <asm/pgtable.h>
-#include <asm/processor.h>
-#include <asm/reboot.h>
-#include <asm/system.h>
+#include <linux/kernel.h>
+
 #include <asm/cacheflush.h>
+#include <asm/mipsregs.h>
 
 void wrppmc_machine_restart(char *command)
 {

@@ -164,7 +164,7 @@ static ssize_t backlight_show_actual_brightness(struct device *dev,
 	return rc;
 }
 
-struct class *backlight_class;
+static struct class *backlight_class;
 
 static void bl_device_release(struct device *dev)
 {

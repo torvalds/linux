@@ -112,7 +112,6 @@ static int __init stnic_probe(void)
   dev = alloc_ei_netdev();
   if (!dev)
   	return -ENOMEM;
-  SET_MODULE_OWNER(dev);
 
 #ifdef CONFIG_SH_STANDARD_BIOS
   sh_bios_get_node_addr (stnic_eadr);

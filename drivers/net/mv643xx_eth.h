@@ -320,6 +320,8 @@ struct mv643xx_private {
 
 	struct work_struct tx_timeout_task;
 
+	struct net_device *dev;
+	struct napi_struct napi;
 	struct net_device_stats stats;
 	struct mv643xx_mib_counters mib_counters;
 	spinlock_t lock;

@@ -200,14 +200,6 @@ const struct zoran_format zoran_formats[] = {
 // RJ: Test only - want to test BUZ_USE_HIMEM even when CONFIG_BIGPHYS_AREA is defined
 
 
-extern int *zr_debug;
-
-#define dprintk(num, format, args...) \
-	do { \
-		if (*zr_debug >= num) \
-			printk(format, ##args);	\
-	} while (0)
-
 extern int v4l_nbufs;
 extern int v4l_bufsize;
 extern int jpg_nbufs;
@@ -215,8 +207,8 @@ extern int jpg_bufsize;
 extern int pass_through;
 
 static int lock_norm = 0;	/* 1=Don't change TV standard (norm) */
-module_param(lock_norm, int, 0);
-MODULE_PARM_DESC(lock_norm, "Users can't change norm");
+module_param(lock_norm, int, 0644);
+MODULE_PARM_DESC(lock_norm, "Prevent norm changes (1 = ignore, >1 = fail)");
 
 #ifdef CONFIG_VIDEO_V4L2
 	/* small helper function for calculating buffersizes for v4l2
@@ -347,10 +339,7 @@ v4l_fbuffer_alloc (struct file *file)
 		if (fh->v4l_buffers.buffer_size <= MAX_KMALLOC_MEM) {
 			/* Use kmalloc */
 
-			mem =
-			    (unsigned char *) kmalloc(fh->v4l_buffers.
-						      buffer_size,
-						      GFP_KERNEL);
+			mem = kmalloc(fh->v4l_buffers.buffer_size, GFP_KERNEL);
 			if (mem == 0) {
 				dprintk(1,
 					KERN_ERR
@@ -1106,12 +1095,10 @@ jpg_sync (struct file       *file,
 		frame = zr->jpg_pend[zr->jpg_que_tail & BUZ_MASK_FRAME];
 
 	/* buffer should now be in BUZ_STATE_DONE */
-	if (*zr_debug > 0)
-		if (zr->jpg_buffers.buffer[frame].state != BUZ_STATE_DONE)
-			dprintk(2,
-				KERN_ERR
-				"%s: jpg_sync() - internal state error\n",
-				ZR_DEVNAME(zr));
+	if (zr->jpg_buffers.buffer[frame].state != BUZ_STATE_DONE)
+		dprintk(2,
+			KERN_ERR "%s: jpg_sync() - internal state error\n",
+			ZR_DEVNAME(zr));
 
 	*bs = zr->jpg_buffers.buffer[frame].bs;
 	bs->frame = frame;
@@ -1389,7 +1376,7 @@ zoran_close (struct inode *inode,
 		/* disable interrupts */
 		btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
 
-		if (*zr_debug > 1)
+		if (zr36067_debug > 1)
 			print_interrupts(zr);
 
 		/* Overlay off */
@@ -3206,7 +3193,7 @@ zoran_do_ioctl (struct inode *inode,
 			"%s: VIDIOC_QUERYBUF - index=%d, type=%d\n",
 			ZR_DEVNAME(zr), buf->index, buf->type);
 
-		memset(buf, 0, sizeof(buf));
+		memset(buf, 0, sizeof(*buf));
 		buf->type = type;
 		buf->index = index;
 

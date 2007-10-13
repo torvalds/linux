@@ -135,7 +135,6 @@
 
 struct net_local
 {
-	struct net_device_stats stats;
 	unsigned long last_tx;       /* jiffies when last transmit started */
 	unsigned long init_time;     /* jiffies when eexp_hw_init586 called */
 	unsigned short rx_first;     /* first rx buf, same as RX_BUF_START */
@@ -247,7 +246,6 @@ static char mca_irqmap[] = { 12, 9, 3, 4, 5, 10, 11, 15 };
 static int eexp_open(struct net_device *dev);
 static int eexp_close(struct net_device *dev);
 static void eexp_timeout(struct net_device *dev);
-static struct net_device_stats *eexp_stats(struct net_device *dev);
 static int eexp_xmit(struct sk_buff *buf, struct net_device *dev);
 
 static irqreturn_t eexp_irq(int irq, void *dev_addr);
@@ -340,8 +338,6 @@ static int __init do_express_probe(struct net_device *dev)
 	unsigned short ioaddr = dev->base_addr;
 	int dev_irq = dev->irq;
 	int err;
-
-	SET_MODULE_OWNER(dev);
 
 	dev->if_port = 0xff; /* not set */
 
@@ -535,17 +531,6 @@ static int eexp_close(struct net_device *dev)
 }
 
 /*
- * Return interface stats
- */
-
-static struct net_device_stats *eexp_stats(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-
-	return &lp->stats;
-}
-
-/*
  * This gets called when a higher level thinks we are broken.  Check that
  * nothing has become jammed in the CU.
  */
@@ -648,7 +633,7 @@ static void eexp_timeout(struct net_device *dev)
 	printk(KERN_INFO "%s: transmit timed out, %s?\n", dev->name,
 	       (SCB_complete(status)?"lost interrupt":
 		"board on fire"));
-	lp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 	lp->last_tx = jiffies;
 	if (!SCB_complete(status)) {
 		scb_command(dev, SCB_CUabort);
@@ -696,7 +681,7 @@ static int eexp_xmit(struct sk_buff *buf, struct net_device *dev)
 	{
 		unsigned short *data = (unsigned short *)buf->data;
 
-		lp->stats.tx_bytes += length;
+		dev->stats.tx_bytes += length;
 
 	        eexp_hw_tx_pio(dev,data,length);
 	}
@@ -845,7 +830,7 @@ static irqreturn_t eexp_irq(int irq, void *dev_info)
 			outw(rbd+8, ioaddr+READ_PTR);
 			printk("[%04x]\n", inw(ioaddr+DATAPORT));
 #endif
-			lp->stats.rx_errors++;
+			dev->stats.rx_errors++;
 #if 1
 		        eexp_hw_rxinit(dev);
 #else
@@ -954,17 +939,17 @@ static void eexp_hw_rx_pio(struct net_device *dev)
   			}
   			else if (!FD_OK(status))
 			{
-				lp->stats.rx_errors++;
+				dev->stats.rx_errors++;
 				if (FD_CRC(status))
-					lp->stats.rx_crc_errors++;
+					dev->stats.rx_crc_errors++;
 				if (FD_Align(status))
-					lp->stats.rx_frame_errors++;
+					dev->stats.rx_frame_errors++;
 				if (FD_Resrc(status))
-					lp->stats.rx_fifo_errors++;
+					dev->stats.rx_fifo_errors++;
 				if (FD_DMA(status))
-					lp->stats.rx_over_errors++;
+					dev->stats.rx_over_errors++;
 				if (FD_Short(status))
-					lp->stats.rx_length_errors++;
+					dev->stats.rx_length_errors++;
 			}
 			else
 			{
@@ -974,7 +959,7 @@ static void eexp_hw_rx_pio(struct net_device *dev)
 				if (skb == NULL)
 				{
 					printk(KERN_WARNING "%s: Memory squeeze, dropping packet\n",dev->name);
-					lp->stats.rx_dropped++;
+					dev->stats.rx_dropped++;
 					break;
 				}
 				skb_reserve(skb, 2);
@@ -983,8 +968,8 @@ static void eexp_hw_rx_pio(struct net_device *dev)
 				skb->protocol = eth_type_trans(skb,dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;
-				lp->stats.rx_packets++;
-				lp->stats.rx_bytes += pkt_len;
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes += pkt_len;
 			}
 			outw(rx_block, ioaddr+WRITE_PTR);
 			outw(0, ioaddr+DATAPORT);
@@ -1055,7 +1040,7 @@ static void eexp_hw_tx_pio(struct net_device *dev, unsigned short *buf,
 		outw(0xFFFF, ioaddr+SIGNAL_CA);
 	}
 
-	lp->stats.tx_packets++;
+	dev->stats.tx_packets++;
 	lp->last_tx = jiffies;
 }
 
@@ -1182,7 +1167,6 @@ static int __init eexp_hw_probe(struct net_device *dev, unsigned short ioaddr)
 	dev->open = eexp_open;
 	dev->stop = eexp_close;
 	dev->hard_start_xmit = eexp_xmit;
-	dev->get_stats = eexp_stats;
 	dev->set_multicast_list = &eexp_set_multicast;
 	dev->tx_timeout = eexp_timeout;
 	dev->watchdog_timeo = 2*HZ;
@@ -1265,35 +1249,35 @@ static unsigned short eexp_hw_lasttxstat(struct net_device *dev)
 		else
 		{
 			lp->last_tx_restart = 0;
-			lp->stats.collisions += Stat_NoColl(status);
+			dev->stats.collisions += Stat_NoColl(status);
 			if (!Stat_OK(status))
 			{
 				char *whatsup = NULL;
-				lp->stats.tx_errors++;
+				dev->stats.tx_errors++;
   				if (Stat_Abort(status))
-  					lp->stats.tx_aborted_errors++;
+					dev->stats.tx_aborted_errors++;
 				if (Stat_TNoCar(status)) {
 					whatsup = "aborted, no carrier";
-					lp->stats.tx_carrier_errors++;
+					dev->stats.tx_carrier_errors++;
 				}
 				if (Stat_TNoCTS(status)) {
 					whatsup = "aborted, lost CTS";
-  					lp->stats.tx_carrier_errors++;
+					dev->stats.tx_carrier_errors++;
 				}
 				if (Stat_TNoDMA(status)) {
 					whatsup = "FIFO underran";
-  					lp->stats.tx_fifo_errors++;
+					dev->stats.tx_fifo_errors++;
 				}
 				if (Stat_TXColl(status)) {
 					whatsup = "aborted, too many collisions";
-					lp->stats.tx_aborted_errors++;
+					dev->stats.tx_aborted_errors++;
 				}
 				if (whatsup)
 					printk(KERN_INFO "%s: transmit %s\n",
 					       dev->name, whatsup);
 			}
 			else
-				lp->stats.tx_packets++;
+				dev->stats.tx_packets++;
 		}
 		if (tx_block == TX_BUF_START+((lp->num_tx_bufs-1)*TX_BUF_SIZE))
 			lp->tx_reap = tx_block = TX_BUF_START;

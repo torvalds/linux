@@ -489,7 +489,7 @@ static void dec_pending(struct dm_crypt_io *io, int error)
 	if (!atomic_dec_and_test(&io->pending))
 		return;
 
-	bio_endio(io->base_bio, io->base_bio->bi_size, io->error);
+	bio_endio(io->base_bio, io->error);
 
 	mempool_free(io, cc->io_pool);
 }
@@ -509,25 +509,19 @@ static void kcryptd_queue_io(struct dm_crypt_io *io)
 	queue_work(_kcryptd_workqueue, &io->work);
 }
 
-static int crypt_endio(struct bio *clone, unsigned int done, int error)
+static void crypt_endio(struct bio *clone, int error)
 {
 	struct dm_crypt_io *io = clone->bi_private;
 	struct crypt_config *cc = io->target->private;
 	unsigned read_io = bio_data_dir(clone) == READ;
 
 	/*
-	 * free the processed pages, even if
-	 * it's only a partially completed write
+	 * free the processed pages
 	 */
-	if (!read_io)
-		crypt_free_buffer_pages(cc, clone, done);
-
-	/* keep going - not finished yet */
-	if (unlikely(clone->bi_size))
-		return 1;
-
-	if (!read_io)
+	if (!read_io) {
+		crypt_free_buffer_pages(cc, clone, clone->bi_size);
 		goto out;
+	}
 
 	if (unlikely(!bio_flagged(clone, BIO_UPTODATE))) {
 		error = -EIO;
@@ -537,12 +531,11 @@ static int crypt_endio(struct bio *clone, unsigned int done, int error)
 	bio_put(clone);
 	io->post_process = 1;
 	kcryptd_queue_io(io);
-	return 0;
+	return;
 
 out:
 	bio_put(clone);
 	dec_pending(io, error);
-	return error;
 }
 
 static void clone_init(struct dm_crypt_io *io, struct bio *clone)

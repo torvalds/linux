@@ -294,6 +294,9 @@ simeth_device_event(struct notifier_block *this,unsigned long event, void *ptr)
 		return NOTIFY_DONE;
 	}
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if ( event != NETDEV_UP && event != NETDEV_DOWN ) return NOTIFY_DONE;
 
 	/*

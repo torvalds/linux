@@ -7,6 +7,7 @@
 #include <linux/magic.h>
 #include <asm/atomic.h>
 
+struct net;
 struct completion;
 
 /*
@@ -97,8 +98,6 @@ struct vmcore {
 
 extern struct proc_dir_entry proc_root;
 extern struct proc_dir_entry *proc_root_fs;
-extern struct proc_dir_entry *proc_net;
-extern struct proc_dir_entry *proc_net_stat;
 extern struct proc_dir_entry *proc_bus;
 extern struct proc_dir_entry *proc_root_driver;
 extern struct proc_dir_entry *proc_root_kcore;
@@ -192,36 +191,21 @@ static inline struct proc_dir_entry *create_proc_info_entry(const char *name,
 	if (res) res->get_info=get_info;
 	return res;
 }
- 
-static inline struct proc_dir_entry *proc_net_create(const char *name,
-	mode_t mode, get_info_t *get_info)
-{
-	return create_proc_info_entry(name,mode,proc_net,get_info);
-}
 
-static inline struct proc_dir_entry *proc_net_fops_create(const char *name,
-	mode_t mode, const struct file_operations *fops)
-{
-	struct proc_dir_entry *res = create_proc_entry(name, mode, proc_net);
-	if (res)
-		res->proc_fops = fops;
-	return res;
-}
-
-static inline void proc_net_remove(const char *name)
-{
-	remove_proc_entry(name,proc_net);
-}
+extern struct proc_dir_entry *proc_net_create(struct net *net,
+	const char *name, mode_t mode, get_info_t *get_info);
+extern struct proc_dir_entry *proc_net_fops_create(struct net *net,
+	const char *name, mode_t mode, const struct file_operations *fops);
+extern void proc_net_remove(struct net *net, const char *name);
 
 #else
 
 #define proc_root_driver NULL
-#define proc_net NULL
 #define proc_bus NULL
 
-#define proc_net_fops_create(name, mode, fops)  ({ (void)(mode), NULL; })
-#define proc_net_create(name, mode, info)	({ (void)(mode), NULL; })
-static inline void proc_net_remove(const char *name) {}
+#define proc_net_fops_create(net, name, mode, fops)  ({ (void)(mode), NULL; })
+#define proc_net_create(net, name, mode, info)	({ (void)(mode), NULL; })
+static inline void proc_net_remove(struct net *net, const char *name) {}
 
 static inline void proc_flush_task(struct task_struct *task) { }
 
@@ -280,6 +264,13 @@ static inline struct proc_dir_entry *PDE(const struct inode *inode)
 {
 	return PROC_I(inode)->pde;
 }
+
+static inline struct net *PDE_NET(struct proc_dir_entry *pde)
+{
+	return pde->parent->data;
+}
+
+struct net *get_proc_net(const struct inode *inode);
 
 struct proc_maps_private {
 	struct pid *pid;

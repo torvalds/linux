@@ -18,6 +18,24 @@
 #include <asm/gt64120.h>
 
 #include <cobalt.h>
+#include <irq.h>
+
+/*
+ * PCI slot numbers
+ */
+#define COBALT_PCICONF_CPU	0x06
+#define COBALT_PCICONF_ETH0	0x07
+#define COBALT_PCICONF_RAQSCSI	0x08
+#define COBALT_PCICONF_VIA	0x09
+#define COBALT_PCICONF_PCISLOT	0x0A
+#define COBALT_PCICONF_ETH1	0x0C
+
+/*
+ * The Cobalt board ID information.  The boards have an ID number wired
+ * into the VIA that is available in the high nibble of register 94.
+ */
+#define VIA_COBALT_BRD_ID_REG  0x94
+#define VIA_COBALT_BRD_REG_to_ID(reg)	((unsigned char)(reg) >> 4)
 
 static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
 {
@@ -132,29 +150,29 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_0,
 
 static char irq_tab_qube1[] __initdata = {
   [COBALT_PCICONF_CPU]     = 0,
-  [COBALT_PCICONF_ETH0]    = COBALT_QUBE1_ETH0_IRQ,
-  [COBALT_PCICONF_RAQSCSI] = COBALT_SCSI_IRQ,
+  [COBALT_PCICONF_ETH0]    = QUBE1_ETH0_IRQ,
+  [COBALT_PCICONF_RAQSCSI] = SCSI_IRQ,
   [COBALT_PCICONF_VIA]     = 0,
-  [COBALT_PCICONF_PCISLOT] = COBALT_QUBE_SLOT_IRQ,
+  [COBALT_PCICONF_PCISLOT] = PCISLOT_IRQ,
   [COBALT_PCICONF_ETH1]    = 0
 };
 
 static char irq_tab_cobalt[] __initdata = {
   [COBALT_PCICONF_CPU]     = 0,
-  [COBALT_PCICONF_ETH0]    = COBALT_ETH0_IRQ,
-  [COBALT_PCICONF_RAQSCSI] = COBALT_SCSI_IRQ,
+  [COBALT_PCICONF_ETH0]    = ETH0_IRQ,
+  [COBALT_PCICONF_RAQSCSI] = SCSI_IRQ,
   [COBALT_PCICONF_VIA]     = 0,
-  [COBALT_PCICONF_PCISLOT] = COBALT_QUBE_SLOT_IRQ,
-  [COBALT_PCICONF_ETH1]    = COBALT_ETH1_IRQ
+  [COBALT_PCICONF_PCISLOT] = PCISLOT_IRQ,
+  [COBALT_PCICONF_ETH1]    = ETH1_IRQ
 };
 
 static char irq_tab_raq2[] __initdata = {
   [COBALT_PCICONF_CPU]     = 0,
-  [COBALT_PCICONF_ETH0]    = COBALT_ETH0_IRQ,
-  [COBALT_PCICONF_RAQSCSI] = COBALT_RAQ_SCSI_IRQ,
+  [COBALT_PCICONF_ETH0]    = ETH0_IRQ,
+  [COBALT_PCICONF_RAQSCSI] = RAQ2_SCSI_IRQ,
   [COBALT_PCICONF_VIA]     = 0,
-  [COBALT_PCICONF_PCISLOT] = COBALT_QUBE_SLOT_IRQ,
-  [COBALT_PCICONF_ETH1]    = COBALT_ETH1_IRQ
+  [COBALT_PCICONF_PCISLOT] = PCISLOT_IRQ,
+  [COBALT_PCICONF_ETH1]    = ETH1_IRQ
 };
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)

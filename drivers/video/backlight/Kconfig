@@ -24,6 +24,18 @@ config LCD_CLASS_DEVICE
 	  To have support for your specific LCD panel you will have to
 	  select the proper drivers which depend on this option.
 
+config LCD_LTV350QV
+	tristate "Samsung LTV350QV LCD Panel"
+	depends on LCD_CLASS_DEVICE && SPI_MASTER
+	default n
+	help
+	  If you have a Samsung LTV350QV LCD panel, say y to include a
+	  power control driver for it.  The panel starts up in power
+	  off state, so you need this driver in order to see any
+	  output.
+
+	  The LTV350QV panel is present on all ATSTK1000 boards.
+
 #
 # Backlight
 #
@@ -39,12 +51,13 @@ config BACKLIGHT_CLASS_DEVICE
 	  select the proper drivers which depend on this option.
 
 config BACKLIGHT_CORGI
-	tristate "Sharp Corgi Backlight Driver (SL Series)"
-	depends on BACKLIGHT_CLASS_DEVICE && PXA_SHARPSL
-	default y
+	tristate "Generic (aka Sharp Corgi) Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
 	help
-	  If you have a Sharp Zaurus SL-C7xx, SL-Cxx00 or SL-6000x say y to enable the
-	  backlight driver.
+	  Say y to enable the generic platform backlight driver previously
+	  known as the Corgi backlight driver. If you have a Sharp Zaurus
+	  SL-C7xx, SL-Cxx00 or SL-6000x say y. Most users can say n.
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"

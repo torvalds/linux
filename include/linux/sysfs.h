@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2001,2002 Patrick Mochel
  * Copyright (c) 2004 Silicon Graphics, Inc.
+ * Copyright (c) 2007 SUSE Linux Products GmbH
+ * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  *
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
@@ -17,23 +19,20 @@
 
 struct kobject;
 struct module;
-struct nameidata;
-struct dentry;
-struct sysfs_dirent;
 
 /* FIXME
  * The *owner field is no longer used, but leave around
  * until the tree gets cleaned up fully.
  */
 struct attribute {
-	const char		* name;
-	struct module		* owner;
+	const char		*name;
+	struct module		*owner;
 	mode_t			mode;
 };
 
 struct attribute_group {
-	const char		* name;
-	struct attribute	** attrs;
+	const char		*name;
+	struct attribute	**attrs;
 };
 
 
@@ -77,72 +76,41 @@ struct sysfs_ops {
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
 };
 
-#define SYSFS_TYPE_MASK		0x00ff
-#define SYSFS_ROOT		0x0001
-#define SYSFS_DIR		0x0002
-#define SYSFS_KOBJ_ATTR 	0x0004
-#define SYSFS_KOBJ_BIN_ATTR	0x0008
-#define SYSFS_KOBJ_LINK 	0x0020
-#define SYSFS_COPY_NAME		(SYSFS_DIR | SYSFS_KOBJ_LINK)
-
-#define SYSFS_FLAG_MASK		~SYSFS_TYPE_MASK
-#define SYSFS_FLAG_REMOVED	0x0100
-
 #ifdef CONFIG_SYSFS
 
-extern int sysfs_schedule_callback(struct kobject *kobj,
-		void (*func)(void *), void *data, struct module *owner);
+int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
+			    void *data, struct module *owner);
 
-extern int __must_check
-sysfs_create_dir(struct kobject *kobj, struct sysfs_dirent *shadow_parent_sd);
+int __must_check sysfs_create_dir(struct kobject *kobj);
+void sysfs_remove_dir(struct kobject *kobj);
+int __must_check sysfs_rename_dir(struct kobject *kobj, const char *new_name);
+int __must_check sysfs_move_dir(struct kobject *kobj,
+				struct kobject *new_parent_kobj);
 
-extern void
-sysfs_remove_dir(struct kobject *);
-
-extern int __must_check
-sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
-		 const char *new_name);
-
-extern int __must_check
-sysfs_move_dir(struct kobject *, struct kobject *);
-
-extern int __must_check
-sysfs_create_file(struct kobject *, const struct attribute *);
-
-extern int __must_check
-sysfs_update_file(struct kobject *, const struct attribute *);
-
-extern int __must_check
-sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode);
-
-extern void
-sysfs_remove_file(struct kobject *, const struct attribute *);
-
-extern int __must_check
-sysfs_create_link(struct kobject * kobj, struct kobject * target, const char * name);
-
-extern void
-sysfs_remove_link(struct kobject *, const char * name);
+int __must_check sysfs_create_file(struct kobject *kobj,
+				   const struct attribute *attr);
+int __must_check sysfs_chmod_file(struct kobject *kobj, struct attribute *attr,
+				  mode_t mode);
+void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 
 int __must_check sysfs_create_bin_file(struct kobject *kobj,
-					struct bin_attribute *attr);
+				       struct bin_attribute *attr);
 void sysfs_remove_bin_file(struct kobject *kobj, struct bin_attribute *attr);
 
-int __must_check sysfs_create_group(struct kobject *,
-					const struct attribute_group *);
-void sysfs_remove_group(struct kobject *, const struct attribute_group *);
+int __must_check sysfs_create_link(struct kobject *kobj, struct kobject *target,
+				   const char *name);
+void sysfs_remove_link(struct kobject *kobj, const char *name);
+
+int __must_check sysfs_create_group(struct kobject *kobj,
+				    const struct attribute_group *grp);
+void sysfs_remove_group(struct kobject *kobj,
+			const struct attribute_group *grp);
 int sysfs_add_file_to_group(struct kobject *kobj,
-		const struct attribute *attr, const char *group);
+			const struct attribute *attr, const char *group);
 void sysfs_remove_file_from_group(struct kobject *kobj,
-		const struct attribute *attr, const char *group);
+			const struct attribute *attr, const char *group);
 
-void sysfs_notify(struct kobject * k, char *dir, char *attr);
-
-
-extern int sysfs_make_shadowed_dir(struct kobject *kobj,
-	void * (*follow_link)(struct dentry *, struct nameidata *));
-extern struct sysfs_dirent *sysfs_create_shadow_dir(struct kobject *kobj);
-extern void sysfs_remove_shadow_dir(struct sysfs_dirent *shadow_sd);
+void sysfs_notify(struct kobject *kobj, char *dir, char *attr);
 
 extern int __must_check sysfs_init(void);
 
@@ -154,75 +122,76 @@ static inline int sysfs_schedule_callback(struct kobject *kobj,
 	return -ENOSYS;
 }
 
-static inline int sysfs_create_dir(struct kobject *kobj,
-				   struct sysfs_dirent *shadow_parent_sd)
+static inline int sysfs_create_dir(struct kobject *kobj)
 {
 	return 0;
 }
 
-static inline void sysfs_remove_dir(struct kobject * k)
+static inline void sysfs_remove_dir(struct kobject *kobj)
 {
 	;
 }
 
-static inline int sysfs_rename_dir(struct kobject *kobj,
-				   struct sysfs_dirent *new_parent_sd,
-				   const char *new_name)
+static inline int sysfs_rename_dir(struct kobject *kobj, const char *new_name)
 {
 	return 0;
 }
 
-static inline int sysfs_move_dir(struct kobject * k, struct kobject * new_parent)
+static inline int sysfs_move_dir(struct kobject *kobj,
+				 struct kobject *new_parent_kobj)
 {
 	return 0;
 }
 
-static inline int sysfs_create_file(struct kobject * k, const struct attribute * a)
+static inline int sysfs_create_file(struct kobject *kobj,
+				    const struct attribute *attr)
 {
 	return 0;
 }
 
-static inline int sysfs_update_file(struct kobject * k, const struct attribute * a)
-{
-	return 0;
-}
-static inline int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
+static inline int sysfs_chmod_file(struct kobject *kobj,
+				   struct attribute *attr, mode_t mode)
 {
 	return 0;
 }
 
-static inline void sysfs_remove_file(struct kobject * k, const struct attribute * a)
+static inline void sysfs_remove_file(struct kobject *kobj,
+				     const struct attribute *attr)
 {
 	;
 }
 
-static inline int sysfs_create_link(struct kobject * k, struct kobject * t, const char * n)
+static inline int sysfs_create_bin_file(struct kobject *kobj,
+					struct bin_attribute *attr)
 {
 	return 0;
 }
 
-static inline void sysfs_remove_link(struct kobject * k, const char * name)
+static inline int sysfs_remove_bin_file(struct kobject *kobj,
+					struct bin_attribute *attr)
+{
+	return 0;
+}
+
+static inline int sysfs_create_link(struct kobject *kobj,
+				    struct kobject *target, const char *name)
+{
+	return 0;
+}
+
+static inline void sysfs_remove_link(struct kobject *kobj, const char *name)
 {
 	;
 }
 
-
-static inline int sysfs_create_bin_file(struct kobject * k, struct bin_attribute * a)
+static inline int sysfs_create_group(struct kobject *kobj,
+				     const struct attribute_group *grp)
 {
 	return 0;
 }
 
-static inline int sysfs_remove_bin_file(struct kobject * k, struct bin_attribute * a)
-{
-	return 0;
-}
-
-static inline int sysfs_create_group(struct kobject * k, const struct attribute_group *g)
-{
-	return 0;
-}
-
-static inline void sysfs_remove_group(struct kobject * k, const struct attribute_group * g)
+static inline void sysfs_remove_group(struct kobject *kobj,
+				      const struct attribute_group *grp)
 {
 	;
 }
@@ -238,14 +207,8 @@ static inline void sysfs_remove_file_from_group(struct kobject *kobj,
 {
 }
 
-static inline void sysfs_notify(struct kobject * k, char *dir, char *attr)
+static inline void sysfs_notify(struct kobject *kobj, char *dir, char *attr)
 {
-}
-
-static inline int sysfs_make_shadowed_dir(struct kobject *kobj,
-	void * (*follow_link)(struct dentry *, struct nameidata *))
-{
-	return 0;
 }
 
 static inline int __must_check sysfs_init(void)

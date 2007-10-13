@@ -3,6 +3,7 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/log2.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
 #include "hcd.h"
@@ -38,7 +39,6 @@ void usb_init_urb(struct urb *urb)
 	if (urb) {
 		memset(urb, 0, sizeof(*urb));
 		kref_init(&urb->kref);
-		spin_lock_init(&urb->lock);
 		INIT_LIST_HEAD(&urb->anchor_list);
 	}
 }
@@ -277,44 +277,58 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  */
 int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
-	int			pipe, temp, max;
-	struct usb_device	*dev;
-	int			is_out;
+	int				xfertype, max;
+	struct usb_device		*dev;
+	struct usb_host_endpoint	*ep;
+	int				is_out;
 
 	if (!urb || urb->hcpriv || !urb->complete)
 		return -EINVAL;
-	if (!(dev = urb->dev) ||
-	    (dev->state < USB_STATE_DEFAULT) ||
-	    (!dev->bus) || (dev->devnum <= 0))
+	if (!(dev = urb->dev) || dev->state < USB_STATE_DEFAULT)
 		return -ENODEV;
-	if (dev->bus->controller->power.power_state.event != PM_EVENT_ON
-			|| dev->state == USB_STATE_SUSPENDED)
-		return -EHOSTUNREACH;
 
+	/* For now, get the endpoint from the pipe.  Eventually drivers
+	 * will be required to set urb->ep directly and we will eliminate
+	 * urb->pipe.
+	 */
+	ep = (usb_pipein(urb->pipe) ? dev->ep_in : dev->ep_out)
+			[usb_pipeendpoint(urb->pipe)];
+	if (!ep)
+		return -ENOENT;
+
+	urb->ep = ep;
 	urb->status = -EINPROGRESS;
 	urb->actual_length = 0;
 
 	/* Lots of sanity checks, so HCDs can rely on clean data
 	 * and don't need to duplicate tests
 	 */
-	pipe = urb->pipe;
-	temp = usb_pipetype(pipe);
-	is_out = usb_pipeout(pipe);
+	xfertype = usb_endpoint_type(&ep->desc);
+	if (xfertype == USB_ENDPOINT_XFER_CONTROL) {
+		struct usb_ctrlrequest *setup =
+				(struct usb_ctrlrequest *) urb->setup_packet;
 
-	if (!usb_pipecontrol(pipe) && dev->state < USB_STATE_CONFIGURED)
+		if (!setup)
+			return -ENOEXEC;
+		is_out = !(setup->bRequestType & USB_DIR_IN) ||
+				!setup->wLength;
+	} else {
+		is_out = usb_endpoint_dir_out(&ep->desc);
+	}
+
+	/* Cache the direction for later use */
+	urb->transfer_flags = (urb->transfer_flags & ~URB_DIR_MASK) |
+			(is_out ? URB_DIR_OUT : URB_DIR_IN);
+
+	if (xfertype != USB_ENDPOINT_XFER_CONTROL &&
+			dev->state < USB_STATE_CONFIGURED)
 		return -ENODEV;
 
-	/* FIXME there should be a sharable lock protecting us against
-	 * config/altsetting changes and disconnects, kicking in here.
-	 * (here == before maxpacket, and eventually endpoint type,
-	 * checks get made.)
-	 */
-
-	max = usb_maxpacket(dev, pipe, is_out);
+	max = le16_to_cpu(ep->desc.wMaxPacketSize);
 	if (max <= 0) {
 		dev_dbg(&dev->dev,
 			"bogus endpoint ep%d%s in %s (bad maxpacket %d)\n",
-			usb_pipeendpoint(pipe), is_out ? "out" : "in",
+			usb_endpoint_num(&ep->desc), is_out ? "out" : "in",
 			__FUNCTION__, max);
 		return -EMSGSIZE;
 	}
@@ -323,7 +337,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * but drivers only control those sizes for ISO.
 	 * while we're checking, initialize return status.
 	 */
-	if (temp == PIPE_ISOCHRONOUS) {
+	if (xfertype == USB_ENDPOINT_XFER_ISOC) {
 		int	n, len;
 
 		/* "high bandwidth" mode, 1-3 packets/uframe? */
@@ -358,20 +372,20 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	/* enforce simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP |
-			URB_NO_INTERRUPT);
-	switch (temp) {
-	case PIPE_BULK:
+			URB_NO_INTERRUPT | URB_DIR_MASK);
+	switch (xfertype) {
+	case USB_ENDPOINT_XFER_BULK:
 		if (is_out)
 			allowed |= URB_ZERO_PACKET;
 		/* FALLTHROUGH */
-	case PIPE_CONTROL:
+	case USB_ENDPOINT_XFER_CONTROL:
 		allowed |= URB_NO_FSBR;	/* only affects UHCI */
 		/* FALLTHROUGH */
 	default:			/* all non-iso endpoints */
 		if (!is_out)
 			allowed |= URB_SHORT_NOT_OK;
 		break;
-	case PIPE_ISOCHRONOUS:
+	case USB_ENDPOINT_XFER_ISOC:
 		allowed |= URB_ISO_ASAP;
 		break;
 	}
@@ -393,9 +407,9 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * supports different values... this uses EHCI/UHCI defaults (and
 	 * EHCI can use smaller non-default values).
 	 */
-	switch (temp) {
-	case PIPE_ISOCHRONOUS:
-	case PIPE_INTERRUPT:
+	switch (xfertype) {
+	case USB_ENDPOINT_XFER_ISOC:
+	case USB_ENDPOINT_XFER_INT:
 		/* too small? */
 		if (urb->interval <= 0)
 			return -EINVAL;
@@ -405,29 +419,27 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			// NOTE usb handles 2^15
 			if (urb->interval > (1024 * 8))
 				urb->interval = 1024 * 8;
-			temp = 1024 * 8;
+			max = 1024 * 8;
 			break;
 		case USB_SPEED_FULL:	/* units are frames/msec */
 		case USB_SPEED_LOW:
-			if (temp == PIPE_INTERRUPT) {
+			if (xfertype == USB_ENDPOINT_XFER_INT) {
 				if (urb->interval > 255)
 					return -EINVAL;
 				// NOTE ohci only handles up to 32
-				temp = 128;
+				max = 128;
 			} else {
 				if (urb->interval > 1024)
 					urb->interval = 1024;
 				// NOTE usb and ohci handle up to 2^15
-				temp = 1024;
+				max = 1024;
 			}
 			break;
 		default:
 			return -EINVAL;
 		}
-		/* power of two? */
-		while (temp > urb->interval)
-			temp >>= 1;
-		urb->interval = temp;
+		/* Round down to a power of 2, no more than max */
+		urb->interval = min(max, 1 << ilog2(urb->interval));
 	}
 
 	return usb_hcd_submit_urb(urb, mem_flags);
@@ -496,8 +508,10 @@ int usb_unlink_urb(struct urb *urb)
 {
 	if (!urb)
 		return -EINVAL;
-	if (!(urb->dev && urb->dev->bus))
+	if (!urb->dev)
 		return -ENODEV;
+	if (!urb->ep)
+		return -EIDRM;
 	return usb_hcd_unlink_urb(urb, -ECONNRESET);
 }
 
@@ -523,19 +537,21 @@ int usb_unlink_urb(struct urb *urb)
  */
 void usb_kill_urb(struct urb *urb)
 {
+	static DEFINE_MUTEX(reject_mutex);
+
 	might_sleep();
-	if (!(urb && urb->dev && urb->dev->bus))
+	if (!(urb && urb->dev && urb->ep))
 		return;
-	spin_lock_irq(&urb->lock);
+	mutex_lock(&reject_mutex);
 	++urb->reject;
-	spin_unlock_irq(&urb->lock);
+	mutex_unlock(&reject_mutex);
 
 	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
 
-	spin_lock_irq(&urb->lock);
+	mutex_lock(&reject_mutex);
 	--urb->reject;
-	spin_unlock_irq(&urb->lock);
+	mutex_unlock(&reject_mutex);
 }
 
 /**

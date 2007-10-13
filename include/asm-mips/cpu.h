@@ -106,6 +106,13 @@
 #define PRID_IMP_SR71000        0x0400
 
 /*
+ * These are the PRID's for when 23:16 == PRID_COMP_BROADCOM
+ */
+
+#define PRID_IMP_BCM4710	0x4000
+#define PRID_IMP_BCM3302	0x9000
+
+/*
  * Definitions for 7:0 on legacy processors
  */
 
@@ -150,75 +157,55 @@
 
 #define FPIR_IMP_NONE		0x0000
 
-#define CPU_UNKNOWN		 0
-#define CPU_R2000		 1
-#define CPU_R3000		 2
-#define CPU_R3000A		 3
-#define CPU_R3041		 4
-#define CPU_R3051		 5
-#define CPU_R3052		 6
-#define CPU_R3081		 7
-#define CPU_R3081E		 8
-#define CPU_R4000PC		 9
-#define CPU_R4000SC		10
-#define CPU_R4000MC		11
-#define CPU_R4200		12
-#define CPU_R4400PC		13
-#define CPU_R4400SC		14
-#define CPU_R4400MC		15
-#define CPU_R4600		16
-#define CPU_R6000		17
-#define CPU_R6000A		18
-#define CPU_R8000		19
-#define CPU_R10000		20
-#define CPU_R12000		21
-#define CPU_R4300		22
-#define CPU_R4650		23
-#define CPU_R4700		24
-#define CPU_R5000		25
-#define CPU_R5000A		26
-#define CPU_R4640		27
-#define CPU_NEVADA		28
-#define CPU_RM7000		29
-#define CPU_R5432		30
-#define CPU_4KC			31
-#define CPU_5KC			32
-#define CPU_R4310		33
-#define CPU_SB1			34
-#define CPU_TX3912		35
-#define CPU_TX3922		36
-#define CPU_TX3927		37
-#define CPU_AU1000		38
-#define CPU_4KEC		39
-#define CPU_4KSC		40
-#define CPU_VR41XX		41
-#define CPU_R5500		42
-#define CPU_TX49XX		43
-#define CPU_AU1500		44
-#define CPU_20KC		45
-#define CPU_VR4111		46
-#define CPU_VR4121		47
-#define CPU_VR4122		48
-#define CPU_VR4131		49
-#define CPU_VR4181		50
-#define CPU_VR4181A		51
-#define CPU_AU1100		52
-#define CPU_SR71000		53
-#define CPU_RM9000		54
-#define CPU_25KF		55
-#define CPU_VR4133		56
-#define CPU_AU1550		57
-#define CPU_24K			58
-#define CPU_AU1200		59
-#define CPU_34K			60
-#define CPU_PR4450		61
-#define CPU_SB1A		62
-#define CPU_74K			63
-#define CPU_R14000		64
-#define CPU_LOONGSON1           65
-#define CPU_LOONGSON2           66
+enum cpu_type_enum {
+	CPU_UNKNOWN,
 
-#define CPU_LAST		66
+	/*
+	 * R2000 class processors
+	 */
+	CPU_R2000, CPU_R3000, CPU_R3000A, CPU_R3041, CPU_R3051, CPU_R3052,
+	CPU_R3081, CPU_R3081E,
+
+	/*
+	 * R6000 class processors
+	 */
+	CPU_R6000, CPU_R6000A,
+
+	/*
+	 * R4000 class processors
+	 */
+	CPU_R4000PC, CPU_R4000SC, CPU_R4000MC, CPU_R4200, CPU_R4300, CPU_R4310,
+	CPU_R4400PC, CPU_R4400SC, CPU_R4400MC, CPU_R4600, CPU_R4640, CPU_R4650,
+	CPU_R4700, CPU_R5000, CPU_R5000A, CPU_R5500, CPU_NEVADA, CPU_R5432,
+	CPU_R10000, CPU_R12000, CPU_R14000, CPU_VR41XX, CPU_VR4111, CPU_VR4121,
+	CPU_VR4122, CPU_VR4131, CPU_VR4133, CPU_VR4181, CPU_VR4181A, CPU_RM7000,
+	CPU_SR71000, CPU_RM9000, CPU_TX49XX,
+
+	/*
+	 * R8000 class processors
+	 */
+	CPU_R8000,
+
+	/*
+	 * TX3900 class processors
+	 */
+	CPU_TX3912, CPU_TX3922, CPU_TX3927,
+
+	/*
+	 * MIPS32 class processors
+	 */
+	CPU_4KC, CPU_4KEC, CPU_4KSC, CPU_24K, CPU_34K, CPU_74K, CPU_AU1000,
+	CPU_AU1100, CPU_AU1200, CPU_AU1500, CPU_AU1550, CPU_PR4450,
+	CPU_BCM3302, CPU_BCM4710,
+
+	/*
+	 * MIPS64 class processors
+	 */
+	CPU_5KC, CPU_20KC, CPU_25KF, CPU_SB1, CPU_SB1A, CPU_LOONGSON2,
+
+	CPU_LAST
+};
+
 
 /*
  * ISA Level encodings
@@ -247,24 +234,23 @@
 #define MIPS_CPU_3K_CACHE	0x00000004 /* R3000-style caches */
 #define MIPS_CPU_4K_CACHE	0x00000008 /* R4000-style caches */
 #define MIPS_CPU_TX39_CACHE	0x00000010 /* TX3900-style caches */
-#define MIPS_CPU_SB1_CACHE	0x00000020 /* SB1-style caches */
-#define MIPS_CPU_FPU		0x00000040 /* CPU has FPU */
-#define MIPS_CPU_32FPR		0x00000080 /* 32 dbl. prec. FP registers */
-#define MIPS_CPU_COUNTER	0x00000100 /* Cycle count/compare */
-#define MIPS_CPU_WATCH		0x00000200 /* watchpoint registers */
-#define MIPS_CPU_DIVEC		0x00000400 /* dedicated interrupt vector */
-#define MIPS_CPU_VCE		0x00000800 /* virt. coherence conflict possible */
-#define MIPS_CPU_CACHE_CDEX_P	0x00001000 /* Create_Dirty_Exclusive CACHE op */
-#define MIPS_CPU_CACHE_CDEX_S	0x00002000 /* ... same for seconary cache ... */
-#define MIPS_CPU_MCHECK		0x00004000 /* Machine check exception */
-#define MIPS_CPU_EJTAG		0x00008000 /* EJTAG exception */
-#define MIPS_CPU_NOFPUEX	0x00010000 /* no FPU exception */
-#define MIPS_CPU_LLSC		0x00020000 /* CPU has ll/sc instructions */
-#define MIPS_CPU_INCLUSIVE_CACHES	0x00040000 /* P-cache subset enforced */
-#define MIPS_CPU_PREFETCH	0x00080000 /* CPU has usable prefetch */
-#define MIPS_CPU_VINT		0x00100000 /* CPU supports MIPSR2 vectored interrupts */
-#define MIPS_CPU_VEIC		0x00200000 /* CPU supports MIPSR2 external interrupt controller mode */
-#define MIPS_CPU_ULRI		0x00400000 /* CPU has ULRI feature */
+#define MIPS_CPU_FPU		0x00000020 /* CPU has FPU */
+#define MIPS_CPU_32FPR		0x00000040 /* 32 dbl. prec. FP registers */
+#define MIPS_CPU_COUNTER	0x00000080 /* Cycle count/compare */
+#define MIPS_CPU_WATCH		0x00000100 /* watchpoint registers */
+#define MIPS_CPU_DIVEC		0x00000200 /* dedicated interrupt vector */
+#define MIPS_CPU_VCE		0x00000400 /* virt. coherence conflict possible */
+#define MIPS_CPU_CACHE_CDEX_P	0x00000800 /* Create_Dirty_Exclusive CACHE op */
+#define MIPS_CPU_CACHE_CDEX_S	0x00001000 /* ... same for seconary cache ... */
+#define MIPS_CPU_MCHECK		0x00002000 /* Machine check exception */
+#define MIPS_CPU_EJTAG		0x00004000 /* EJTAG exception */
+#define MIPS_CPU_NOFPUEX	0x00008000 /* no FPU exception */
+#define MIPS_CPU_LLSC		0x00010000 /* CPU has ll/sc instructions */
+#define MIPS_CPU_INCLUSIVE_CACHES	0x00020000 /* P-cache subset enforced */
+#define MIPS_CPU_PREFETCH	0x00040000 /* CPU has usable prefetch */
+#define MIPS_CPU_VINT		0x00080000 /* CPU supports MIPSR2 vectored interrupts */
+#define MIPS_CPU_VEIC		0x00100000 /* CPU supports MIPSR2 external interrupt controller mode */
+#define MIPS_CPU_ULRI		0x00200000 /* CPU has ULRI feature */
 
 /*
  * CPU ASE encodings

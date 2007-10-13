@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kmod.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -36,7 +35,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
-#include <linux/dma-mapping.h>
 #include <asm/div64.h>
 
 #include "cx88.h"
@@ -369,17 +367,17 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 	/* struct cx88_core *core = dev->core; */
 
 	dprintk(1,"video_mux: %d [vmux=%d,gpio=0x%x,0x%x,0x%x,0x%x]\n",
-		input, INPUT(input)->vmux,
-		INPUT(input)->gpio0,INPUT(input)->gpio1,
-		INPUT(input)->gpio2,INPUT(input)->gpio3);
+		input, INPUT(input).vmux,
+		INPUT(input).gpio0,INPUT(input).gpio1,
+		INPUT(input).gpio2,INPUT(input).gpio3);
 	core->input = input;
-	cx_andor(MO_INPUT_FORMAT, 0x03 << 14, INPUT(input)->vmux << 14);
-	cx_write(MO_GP3_IO, INPUT(input)->gpio3);
-	cx_write(MO_GP0_IO, INPUT(input)->gpio0);
-	cx_write(MO_GP1_IO, INPUT(input)->gpio1);
-	cx_write(MO_GP2_IO, INPUT(input)->gpio2);
+	cx_andor(MO_INPUT_FORMAT, 0x03 << 14, INPUT(input).vmux << 14);
+	cx_write(MO_GP3_IO, INPUT(input).gpio3);
+	cx_write(MO_GP0_IO, INPUT(input).gpio0);
+	cx_write(MO_GP1_IO, INPUT(input).gpio1);
+	cx_write(MO_GP2_IO, INPUT(input).gpio2);
 
-	switch (INPUT(input)->type) {
+	switch (INPUT(input).type) {
 	case CX88_VMUX_SVIDEO:
 		cx_set(MO_AFECFG_IO,    0x00000001);
 		cx_set(MO_INPUT_FORMAT, 0x00010010);
@@ -394,9 +392,9 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 		break;
 	}
 
-	if (cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD) {
+	if (core->board.mpeg & CX88_MPEG_BLACKBIRD) {
 		/* sets sound input from external adc */
-		if (INPUT(input)->extadc)
+		if (INPUT(input).extadc)
 			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
 		else
 			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
@@ -424,7 +422,7 @@ static int start_video_dma(struct cx8800_dev    *dev,
 	q->count = 1;
 
 	/* enable irqs */
-	cx_set(MO_PCI_INTMSK, core->pci_irqmask | 0x01);
+	cx_set(MO_PCI_INTMSK, core->pci_irqmask | PCI_INT_VIDINT);
 
 	/* Enables corresponding bits at PCI_INT_STAT:
 		bits 0 to 4: video, audio, transport stream, VIP, Host
@@ -457,7 +455,7 @@ static int stop_video_dma(struct cx8800_dev    *dev)
 	cx_clear(VID_CAPTURE_CONTROL,0x06);
 
 	/* disable irqs */
-	cx_clear(MO_PCI_INTMSK, 0x000001);
+	cx_clear(MO_PCI_INTMSK, PCI_INT_VIDINT);
 	cx_clear(MO_VID_INTMSK, 0x0f0011);
 	return 0;
 }
@@ -468,17 +466,14 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 {
 	struct cx88_core *core = dev->core;
 	struct cx88_buffer *buf, *prev;
-	struct list_head *item;
 
 	if (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 		dprintk(2,"restart_queue [%p/%d]: restart dma\n",
 			buf, buf->vb.i);
 		start_video_dma(dev, q, buf);
-		list_for_each(item,&q->active) {
-			buf = list_entry(item, struct cx88_buffer, vb.queue);
-			buf->count    = q->count++;
-		}
+		list_for_each_entry(buf, &q->active, vb.queue)
+			buf->count = q->count++;
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 		return 0;
 	}
@@ -536,6 +531,7 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	struct cx8800_dev  *dev = fh->dev;
 	struct cx88_core *core = dev->core;
 	struct cx88_buffer *buf = container_of(vb,struct cx88_buffer,vb);
+	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	int rc, init_buffer = 0;
 
 	BUG_ON(NULL == fh->fmt);
@@ -568,30 +564,30 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		switch (buf->vb.field) {
 		case V4L2_FIELD_TOP:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist, 0, UNSET,
+					 dma->sglist, 0, UNSET,
 					 buf->bpl, 0, buf->vb.height);
 			break;
 		case V4L2_FIELD_BOTTOM:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist, UNSET, 0,
+					 dma->sglist, UNSET, 0,
 					 buf->bpl, 0, buf->vb.height);
 			break;
 		case V4L2_FIELD_INTERLACED:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist, 0, buf->bpl,
+					 dma->sglist, 0, buf->bpl,
 					 buf->bpl, buf->bpl,
 					 buf->vb.height >> 1);
 			break;
 		case V4L2_FIELD_SEQ_TB:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist,
+					 dma->sglist,
 					 0, buf->bpl * (buf->vb.height >> 1),
 					 buf->bpl, 0,
 					 buf->vb.height >> 1);
 			break;
 		case V4L2_FIELD_SEQ_BT:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist,
+					 dma->sglist,
 					 buf->bpl * (buf->vb.height >> 1), 0,
 					 buf->bpl, 0,
 					 buf->vb.height >> 1);
@@ -714,12 +710,10 @@ static int video_open(struct inode *inode, struct file *file)
 	struct cx8800_dev *h,*dev = NULL;
 	struct cx88_core *core;
 	struct cx8800_fh *fh;
-	struct list_head *list;
 	enum v4l2_buf_type type = 0;
 	int radio = 0;
 
-	list_for_each(list,&cx8800_devlist) {
-		h = list_entry(list, struct cx8800_dev, devlist);
+	list_for_each_entry(h, &cx8800_devlist, devlist) {
 		if (h->video_dev->minor == minor) {
 			dev  = h;
 			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -754,13 +748,13 @@ static int video_open(struct inode *inode, struct file *file)
 	fh->height   = 240;
 	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 
-	videobuf_queue_init(&fh->vidq, &cx8800_video_qops,
+	videobuf_queue_pci_init(&fh->vidq, &cx8800_video_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx88_buffer),
 			    fh);
-	videobuf_queue_init(&fh->vbiq, &cx8800_vbi_qops,
+	videobuf_queue_pci_init(&fh->vbiq, &cx8800_vbi_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
@@ -768,12 +762,11 @@ static int video_open(struct inode *inode, struct file *file)
 			    fh);
 
 	if (fh->radio) {
-		int board = core->board;
 		dprintk(1,"video_open: setting radio device\n");
-		cx_write(MO_GP3_IO, cx88_boards[board].radio.gpio3);
-		cx_write(MO_GP0_IO, cx88_boards[board].radio.gpio0);
-		cx_write(MO_GP1_IO, cx88_boards[board].radio.gpio1);
-		cx_write(MO_GP2_IO, cx88_boards[board].radio.gpio2);
+		cx_write(MO_GP3_IO, core->board.radio.gpio3);
+		cx_write(MO_GP0_IO, core->board.radio.gpio0);
+		cx_write(MO_GP1_IO, core->board.radio.gpio1);
+		cx_write(MO_GP2_IO, core->board.radio.gpio2);
 		core->tvaudio = WW_FM;
 		cx88_set_tvaudio(core);
 		cx88_set_stereo(core,V4L2_TUNER_MODE_STEREO,1);
@@ -1079,8 +1072,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	struct cx88_core  *core = dev->core;
 
 	strcpy(cap->driver, "cx8800");
-	strlcpy(cap->card, cx88_boards[core->board].name,
-		sizeof(cap->card));
+	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
 	cap->version = CX88_VERSION_CODE;
 	cap->capabilities =
@@ -1088,7 +1080,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 		V4L2_CAP_READWRITE     |
 		V4L2_CAP_STREAMING     |
 		V4L2_CAP_VBI_CAPTURE;
-	if (UNSET != core->tuner_type)
+	if (UNSET != core->board.tuner_type)
 		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
@@ -1108,28 +1100,9 @@ static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 {
-	struct cx8800_fh           *fh   = priv;
-	struct videobuf_queue      *q;
-	struct v4l2_requestbuffers req;
-	unsigned int i;
-	int err;
+	struct cx8800_fh           *fh  = priv;
 
-	q = get_queue(fh);
-	memset(&req,0,sizeof(req));
-	req.type   = q->type;
-	req.count  = 8;
-	req.memory = V4L2_MEMORY_MMAP;
-	err = videobuf_reqbufs(q,&req);
-	if (err < 0)
-		return err;
-
-	mbuf->frames = req.count;
-	mbuf->size   = 0;
-	for (i = 0; i < mbuf->frames; i++) {
-		mbuf->offsets[i]  = q->bufs[i]->boff;
-		mbuf->size       += q->bufs[i]->bsize;
-	}
-	return 0;
+	return videobuf_cgmbuf (get_queue(fh), mbuf, 8);
 }
 #endif
 
@@ -1222,14 +1195,14 @@ int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i)
 	n = i->index;
 	if (n >= 4)
 		return -EINVAL;
-	if (0 == INPUT(n)->type)
+	if (0 == INPUT(n).type)
 		return -EINVAL;
 	memset(i,0,sizeof(*i));
 	i->index = n;
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
-	strcpy(i->name,iname[INPUT(n)->type]);
-	if ((CX88_VMUX_TELEVISION == INPUT(n)->type) ||
-		(CX88_VMUX_CABLE      == INPUT(n)->type))
+	strcpy(i->name,iname[INPUT(n).type]);
+	if ((CX88_VMUX_TELEVISION == INPUT(n).type) ||
+	    (CX88_VMUX_CABLE      == INPUT(n).type))
 		i->type = V4L2_INPUT_TYPE_TUNER;
 		i->std = CX88_NORMS;
 	return 0;
@@ -1298,7 +1271,7 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 	u32 reg;
 
-	if (unlikely(UNSET == core->tuner_type))
+	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -1319,7 +1292,7 @@ static int vidioc_s_tuner (struct file *file, void *priv,
 {
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 
-	if (UNSET == core->tuner_type)
+	if (UNSET == core->board.tuner_type)
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -1334,7 +1307,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 	struct cx8800_fh  *fh   = priv;
 	struct cx88_core  *core = fh->dev->core;
 
-	if (unlikely(UNSET == core->tuner_type))
+	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 
 	/* f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV; */
@@ -1349,7 +1322,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 int cx88_set_freq (struct cx88_core  *core,
 				struct v4l2_frequency *f)
 {
-	if (unlikely(UNSET == core->tuner_type))
+	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
@@ -1420,8 +1393,7 @@ static int radio_querycap (struct file *file, void  *priv,
 	struct cx88_core  *core = dev->core;
 
 	strcpy(cap->driver, "cx8800");
-	strlcpy(cap->card, cx88_boards[core->board].name,
-		sizeof(cap->card));
+	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
 	cap->version = CX88_VERSION_CODE;
 	cap->capabilities = V4L2_CAP_TUNER;
@@ -1608,7 +1580,8 @@ static irqreturn_t cx8800_irq(int irq, void *dev_id)
 	int loop, handled = 0;
 
 	for (loop = 0; loop < 10; loop++) {
-		status = cx_read(MO_PCI_INTSTAT) & (core->pci_irqmask | 0x01);
+		status = cx_read(MO_PCI_INTSTAT) &
+			(core->pci_irqmask | PCI_INT_VIDINT);
 		if (0 == status)
 			goto out;
 		cx_write(MO_PCI_INTSTAT, status);
@@ -1616,7 +1589,7 @@ static irqreturn_t cx8800_irq(int irq, void *dev_id)
 
 		if (status & core->pci_irqmask)
 			cx88_core_irq(core,status);
-		if (status & 0x01)
+		if (status & PCI_INT_VIDINT)
 			cx8800_vid_irq(dev);
 	};
 	if (10 == loop) {
@@ -1717,6 +1690,10 @@ static struct video_device cx8800_radio_template =
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register    = vidioc_g_register,
+	.vidioc_s_register    = vidioc_s_register,
+#endif
 };
 
 /* ----------------------------------------------------------- */
@@ -1818,18 +1795,24 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	err = request_irq(pci_dev->irq, cx8800_irq,
 			  IRQF_SHARED | IRQF_DISABLED, core->name, dev);
 	if (err < 0) {
-		printk(KERN_ERR "%s: can't get IRQ %d\n",
+		printk(KERN_ERR "%s/0: can't get IRQ %d\n",
 		       core->name,pci_dev->irq);
 		goto fail_core;
 	}
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
 	/* load and configure helper modules */
-	if (TUNER_ABSENT != core->tuner_type)
+	if (TUNER_ABSENT != core->board.tuner_type)
 		request_module("tuner");
 
-	if (cx88_boards[ core->board ].audio_chip == AUDIO_CHIP_WM8775)
+	if (core->board.audio_chip == AUDIO_CHIP_WM8775)
 		request_module("wm8775");
+
+	switch (core->boardnr) {
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
+		request_module("ir-kbd-i2c");
+		request_module("rtc-isl1208");
+	}
 
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
@@ -1837,7 +1820,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[core->nr]);
 	if (err < 0) {
-		printk(KERN_INFO "%s: can't register video device\n",
+		printk(KERN_ERR "%s/0: can't register video device\n",
 		       core->name);
 		goto fail_unreg;
 	}
@@ -1848,20 +1831,20 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[core->nr]);
 	if (err < 0) {
-		printk(KERN_INFO "%s/0: can't register vbi device\n",
+		printk(KERN_ERR "%s/0: can't register vbi device\n",
 		       core->name);
 		goto fail_unreg;
 	}
 	printk(KERN_INFO "%s/0: registered device vbi%d\n",
 	       core->name,dev->vbi_dev->minor & 0x1f);
 
-	if (core->has_radio) {
+	if (core->board.radio.type == CX88_RADIO) {
 		dev->radio_dev = cx88_vdev_init(core,dev->pci,
 						&cx8800_radio_template,"radio");
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[core->nr]);
 		if (err < 0) {
-			printk(KERN_INFO "%s/0: can't register radio device\n",
+			printk(KERN_ERR "%s/0: can't register radio device\n",
 			       core->name);
 			goto fail_unreg;
 		}
@@ -1881,12 +1864,12 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	mutex_unlock(&core->lock);
 
 	/* start tvaudio thread */
-	if (core->tuner_type != TUNER_ABSENT) {
+	if (core->board.tuner_type != TUNER_ABSENT) {
 		core->kthread = kthread_run(cx88_audio_thread, core, "cx88 tvaudio");
 		if (IS_ERR(core->kthread)) {
 			err = PTR_ERR(core->kthread);
-			printk(KERN_ERR "Failed to create cx88 audio thread, err=%d\n",
-			       err);
+			printk(KERN_ERR "%s/0: failed to create cx88 audio thread, err=%d\n",
+			       core->name, err);
 		}
 	}
 	return 0;
@@ -1937,17 +1920,19 @@ static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	/* stop video+vbi capture */
 	spin_lock(&dev->slock);
 	if (!list_empty(&dev->vidq.active)) {
-		printk("%s: suspend video\n", core->name);
+		printk("%s/0: suspend video\n", core->name);
 		stop_video_dma(dev);
 		del_timer(&dev->vidq.timeout);
 	}
 	if (!list_empty(&dev->vbiq.active)) {
-		printk("%s: suspend vbi\n", core->name);
+		printk("%s/0: suspend vbi\n", core->name);
 		cx8800_stop_vbi_dma(dev);
 		del_timer(&dev->vbiq.timeout);
 	}
 	spin_unlock(&dev->slock);
 
+	if (core->ir)
+		cx88_ir_stop(core, core->ir);
 	/* FIXME -- shutdown device */
 	cx88_shutdown(core);
 
@@ -1968,8 +1953,8 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 	if (dev->state.disabled) {
 		err=pci_enable_device(pci_dev);
 		if (err) {
-			printk(KERN_ERR "%s: can't enable device\n",
-						       core->name);
+			printk(KERN_ERR "%s/0: can't enable device\n",
+			       core->name);
 			return err;
 		}
 
@@ -1977,9 +1962,7 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 	}
 	err= pci_set_power_state(pci_dev, PCI_D0);
 	if (err) {
-		printk(KERN_ERR "%s: can't enable device\n",
-				       core->name);
-
+		printk(KERN_ERR "%s/0: can't set power state\n", core->name);
 		pci_disable_device(pci_dev);
 		dev->state.disabled = 1;
 
@@ -1989,15 +1972,19 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 
 	/* FIXME: re-initialize hardware */
 	cx88_reset(core);
+	if (core->ir)
+		cx88_ir_start(core, core->ir);
+
+	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
 	/* restart video+vbi capture */
 	spin_lock(&dev->slock);
 	if (!list_empty(&dev->vidq.active)) {
-		printk("%s: resume video\n", core->name);
+		printk("%s/0: resume video\n", core->name);
 		restart_video_queue(dev,&dev->vidq);
 	}
 	if (!list_empty(&dev->vbiq.active)) {
-		printk("%s: resume vbi\n", core->name);
+		printk("%s/0: resume vbi\n", core->name);
 		cx8800_restart_vbi_queue(dev,&dev->vbiq);
 	}
 	spin_unlock(&dev->slock);
@@ -2033,7 +2020,7 @@ static struct pci_driver cx8800_pci_driver = {
 
 static int cx8800_init(void)
 {
-	printk(KERN_INFO "cx2388x v4l2 driver version %d.%d.%d loaded\n",
+	printk(KERN_INFO "cx88/0: cx2388x v4l2 driver version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
 	       (CX88_VERSION_CODE >>  8) & 0xff,
 	       CX88_VERSION_CODE & 0xff);

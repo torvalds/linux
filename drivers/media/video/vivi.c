@@ -33,7 +33,7 @@
 #include <linux/videodev.h>
 #endif
 #include <linux/interrupt.h>
-#include <media/video-buf.h>
+#include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
@@ -145,7 +145,6 @@ struct vivi_buffer {
 	struct videobuf_buffer vb;
 
 	struct vivi_fmt        *fmt;
-
 };
 
 struct vivi_dmaqueue {
@@ -171,7 +170,6 @@ struct vivi_dev {
 	int                        users;
 
 	/* various device info */
-	unsigned int               resources;
 	struct video_device        vfd;
 
 	struct vivi_dmaqueue       vidq;
@@ -230,9 +228,8 @@ static u8 bars[8][3] = {
 #define TSTAMP_MAX_Y TSTAMP_MIN_Y+15
 #define TSTAMP_MIN_X 64
 
-
 static void gen_line(char *basep,int inipos,int wmax,
-		     int hmax, int line, char *timestr)
+		     int hmax, int line, int count, char *timestr)
 {
 	int  w,i,j,pos=inipos,y;
 	char *p,*s;
@@ -243,9 +240,10 @@ static void gen_line(char *basep,int inipos,int wmax,
 
 	/* Generate a standard color bar pattern */
 	for (w=0;w<wmax;w++) {
-		r=bars[w*7/wmax][0];
-		g=bars[w*7/wmax][1];
-		b=bars[w*7/wmax][2];
+		int colorpos=((w+count)*8/(wmax+1)) % 8;
+		r=bars[colorpos][0];
+		g=bars[colorpos][1];
+		b=bars[colorpos][2];
 
 		for (color=0;color<4;color++) {
 			p=basep+pos;
@@ -326,26 +324,26 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 	int hmax  = buf->vb.height;
 	int wmax  = buf->vb.width;
 	struct timeval ts;
-	char *tmpbuf;
+	char *tmpbuf = kmalloc(wmax*2,GFP_KERNEL);
+	void *vbuf=videobuf_to_vmalloc (&buf->vb);
+	/* FIXME: move to dev struct */
+	static int mv_count=0;
 
-	if (buf->vb.dma.varea) {
-		tmpbuf=kmalloc (wmax*2, GFP_KERNEL);
-	} else {
-		tmpbuf=buf->vb.dma.vmalloc;
-	}
-
+	if (!tmpbuf)
+		return;
 
 	for (h=0;h<hmax;h++) {
-		if (buf->vb.dma.varea) {
-			gen_line(tmpbuf,0,wmax,hmax,h,dev->timestr);
-			/* FIXME: replacing to __copy_to_user */
-			if (copy_to_user(buf->vb.dma.varea+pos,tmpbuf,wmax*2)!=0)
-				dprintk(2,"vivifill copy_to_user failed.\n");
-		} else {
-			gen_line(tmpbuf,pos,wmax,hmax,h,dev->timestr);
-		}
+		gen_line(tmpbuf,0,wmax,hmax,h,mv_count,
+			 dev->timestr);
+		/* FIXME: replacing to __copy_to_user */
+		if (copy_to_user(vbuf+pos,tmpbuf,wmax*2)!=0)
+			dprintk(2,"vivifill copy_to_user failed.\n");
 		pos += wmax*2;
 	}
+
+	mv_count++;
+
+	kfree(tmpbuf);
 
 	/* Updates stream time */
 
@@ -369,7 +367,7 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 			dev->h,dev->m,dev->s,(dev->us+500)/1000);
 
 	dprintk(2,"vivifill at %s: Buffer 0x%08lx size= %d\n",dev->timestr,
-			(unsigned long)buf->vb.dma.varea,pos);
+			(unsigned long)tmpbuf,pos);
 
 	/* Advice that buffer was filled */
 	buf->vb.state = STATE_DONE;
@@ -509,7 +507,6 @@ static void vivi_stop_thread(struct vivi_dmaqueue  *dma_q)
 static int restart_video_queue(struct vivi_dmaqueue *dma_q)
 {
 	struct vivi_buffer *buf, *prev;
-	struct list_head *item;
 
 	dprintk(1,"%s dma_q=0x%08lx\n",__FUNCTION__,(unsigned long)dma_q);
 
@@ -523,9 +520,7 @@ static int restart_video_queue(struct vivi_dmaqueue *dma_q)
 //		vivi_start_thread(dma_q);
 
 		/* cancel all outstanding capture / vbi requests */
-		list_for_each(item,&dma_q->active) {
-			buf = list_entry(item, struct vivi_buffer, vb.queue);
-
+		list_for_each_entry_safe(buf, prev, &dma_q->active, vb.queue) {
 			list_del(&buf->vb.queue);
 			buf->vb.state = STATE_ERROR;
 			wake_up(&buf->vb.done);
@@ -597,8 +592,12 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 
 	if (0 == *count)
 		*count = 32;
+
 	while (*size * *count > vid_limit * 1024 * 1024)
 		(*count)--;
+
+	dprintk(1,"%s, count=%d, size=%d\n",__FUNCTION__,*count, *size);
+
 	return 0;
 }
 
@@ -609,10 +608,8 @@ static void free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
 	if (in_interrupt())
 		BUG();
 
-
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_unmap(vq, &buf->vb.dma);
-	videobuf_dma_free(&buf->vb.dma);
+	videobuf_vmalloc_free(&buf->vb);
 	buf->vb.state = STATE_NEEDS_INIT;
 }
 
@@ -626,7 +623,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct vivi_buffer *buf = container_of(vb,struct vivi_buffer,vb);
 	int rc, init_buffer = 0;
 
-//	dprintk(1,"%s, field=%d\n",__FUNCTION__,field);
+	dprintk(1,"%s, field=%d\n",__FUNCTION__,field);
 
 	BUG_ON(NULL == fh->fmt);
 	if (fh->width  < 48 || fh->width  > norm_maxw() ||
@@ -718,52 +715,12 @@ static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb
 	free_buffer(vq,buf);
 }
 
-
 static struct videobuf_queue_ops vivi_video_qops = {
 	.buf_setup      = buffer_setup,
 	.buf_prepare    = buffer_prepare,
 	.buf_queue      = buffer_queue,
 	.buf_release    = buffer_release,
-
-	/* Non-pci handling routines */
-//	.vb_map_sg      = vivi_map_sg,
-//	.vb_dma_sync_sg = vivi_dma_sync_sg,
-//	.vb_unmap_sg    = vivi_unmap_sg,
 };
-
-/* ------------------------------------------------------------------
-	IOCTL handling
-   ------------------------------------------------------------------*/
-
-
-static int res_get(struct vivi_dev *dev, struct vivi_fh *fh)
-{
-	/* is it free? */
-	mutex_lock(&dev->lock);
-	if (dev->resources) {
-		/* no, someone else uses it */
-		mutex_unlock(&dev->lock);
-		return 0;
-	}
-	/* it's free, grab it */
-	dev->resources =1;
-	dprintk(1,"res: get\n");
-	mutex_unlock(&dev->lock);
-	return 1;
-}
-
-static int res_locked(struct vivi_dev *dev)
-{
-	return (dev->resources);
-}
-
-static void res_free(struct vivi_dev *dev, struct vivi_fh *fh)
-{
-	mutex_lock(&dev->lock);
-	dev->resources = 0;
-	dprintk(1,"res: put\n");
-	mutex_lock(&dev->lock);
-}
 
 /* ------------------------------------------------------------------
 	IOCTL vidioc handling
@@ -825,8 +782,7 @@ static int vidioc_try_fmt_cap (struct file *file, void *priv,
 	field = f->fmt.pix.field;
 
 	if (field == V4L2_FIELD_ANY) {
-//		field=V4L2_FIELD_INTERLACED;
-		field=V4L2_FIELD_SEQ_TB;
+		field=V4L2_FIELD_INTERLACED;
 	} else if (V4L2_FIELD_INTERLACED != field) {
 		dprintk(1,"Field type invalid.\n");
 		return -EINVAL;
@@ -904,57 +860,33 @@ static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *p)
 static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 {
 	struct vivi_fh  *fh=priv;
-	struct videobuf_queue *q=&fh->vb_vidq;
-	struct v4l2_requestbuffers req;
-	unsigned int i;
-	int ret;
 
-	req.type   = q->type;
-	req.count  = 8;
-	req.memory = V4L2_MEMORY_MMAP;
-	ret = videobuf_reqbufs(q,&req);
-	if (ret < 0)
-		return (ret);
-
-	mbuf->frames = req.count;
-	mbuf->size   = 0;
-	for (i = 0; i < mbuf->frames; i++) {
-		mbuf->offsets[i]  = q->bufs[i]->boff;
-		mbuf->size       += q->bufs[i]->bsize;
-	}
-	return (0);
+	return videobuf_cgmbuf (&fh->vb_vidq, mbuf, 8);
 }
 #endif
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct vivi_fh  *fh=priv;
-	struct vivi_dev *dev    = fh->dev;
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (i != fh->type)
 		return -EINVAL;
 
-	if (!res_get(dev,fh))
-		return -EBUSY;
-	return (videobuf_streamon(&fh->vb_vidq));
+	return videobuf_streamon(&fh->vb_vidq);
 }
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct vivi_fh  *fh=priv;
-	struct vivi_dev *dev    = fh->dev;
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (i != fh->type)
 		return -EINVAL;
 
-	videobuf_streamoff(&fh->vb_vidq);
-	res_free(dev,fh);
-
-	return (0);
+	return videobuf_streamoff(&fh->vb_vidq);
 }
 
 static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *i)
@@ -1047,31 +979,25 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 static int vivi_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
-	struct vivi_dev *h,*dev = NULL;
+	struct vivi_dev *dev;
 	struct vivi_fh *fh;
-	struct list_head *list;
-	enum v4l2_buf_type type = 0;
 	int i;
 
 	printk(KERN_DEBUG "vivi: open called (minor=%d)\n",minor);
 
-	list_for_each(list,&vivi_devlist) {
-		h = list_entry(list, struct vivi_dev, vivi_devlist);
-		if (h->vfd.minor == minor) {
-			dev  = h;
-			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		}
-	}
-	if (NULL == dev)
-		return -ENODEV;
+	list_for_each_entry(dev, &vivi_devlist, vivi_devlist)
+		if (dev->vfd.minor == minor)
+			goto found;
+	return -ENODEV;
+found:
 
 
 
 	/* If more than one user, mutex should be added */
 	dev->users++;
 
-	dprintk(1,"open minor=%d type=%s users=%d\n",
-				minor,v4l2_type_names[type],dev->users);
+	dprintk(1, "open minor=%d type=%s users=%d\n", minor,
+		v4l2_type_names[V4L2_BUF_TYPE_VIDEO_CAPTURE], dev->users);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
@@ -1106,7 +1032,7 @@ static int vivi_open(struct inode *inode, struct file *file)
 	sprintf(dev->timestr,"%02d:%02d:%02d:%03d",
 			dev->h,dev->m,dev->s,(dev->us+500)/1000);
 
-	videobuf_queue_init(&fh->vb_vidq, &vivi_video_qops,
+	videobuf_queue_vmalloc_init(&fh->vb_vidq, &vivi_video_qops,
 			NULL, NULL,
 			fh->type,
 			V4L2_FIELD_INTERLACED,
@@ -1121,9 +1047,7 @@ vivi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 	struct vivi_fh        *fh = file->private_data;
 
 	if (fh->type==V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		if (res_locked(fh->dev))
-			return -EBUSY;
-		return videobuf_read_one(&fh->vb_vidq, data, count, ppos,
+		return videobuf_read_stream(&fh->vb_vidq, data, count, ppos, 0,
 					file->f_flags & O_NONBLOCK);
 	}
 	return 0;
@@ -1133,31 +1057,14 @@ static unsigned int
 vivi_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct vivi_fh        *fh = file->private_data;
-	struct vivi_buffer    *buf;
+	struct videobuf_queue *q = &fh->vb_vidq;
 
 	dprintk(1,"%s\n",__FUNCTION__);
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
 		return POLLERR;
 
-	if (res_get(fh->dev,fh)) {
-		dprintk(1,"poll: mmap interface\n");
-		/* streaming capture */
-		if (list_empty(&fh->vb_vidq.stream))
-			return POLLERR;
-		buf = list_entry(fh->vb_vidq.stream.next,struct vivi_buffer,vb.stream);
-	} else {
-		dprintk(1,"poll: read() interface\n");
-		/* read() capture */
-		buf = (struct vivi_buffer*)fh->vb_vidq.read_buf;
-		if (NULL == buf)
-			return POLLERR;
-	}
-	poll_wait(file, &buf->vb.done, wait);
-	if (buf->vb.state == STATE_DONE ||
-	    buf->vb.state == STATE_ERROR)
-		return POLLIN|POLLRDNORM;
-	return 0;
+	return videobuf_poll_stream(file, q, wait);
 }
 
 static int vivi_release(struct inode *inode, struct file *file)
@@ -1205,7 +1112,7 @@ static const struct file_operations vivi_fops = {
 	.read           = vivi_read,
 	.poll		= vivi_poll,
 	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
-	.mmap		= vivi_mmap,
+	.mmap           = vivi_mmap,
 	.llseek         = no_llseek,
 };
 

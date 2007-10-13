@@ -178,24 +178,24 @@ static int isBranchInstr(mips_instruction * i)
 #define FR_BIT 0
 #endif
 
-#define SIFROMREG(si,x)	((si) = \
+#define SIFROMREG(si, x) ((si) = \
 			(xcp->cp0_status & FR_BIT) || !(x & 1) ? \
 			(int)ctx->fpr[x] : \
 			(int)(ctx->fpr[x & ~1] >> 32 ))
-#define SITOREG(si,x)	(ctx->fpr[x & ~((xcp->cp0_status & FR_BIT) == 0)] = \
+#define SITOREG(si, x)	(ctx->fpr[x & ~((xcp->cp0_status & FR_BIT) == 0)] = \
 			(xcp->cp0_status & FR_BIT) || !(x & 1) ? \
 			ctx->fpr[x & ~1] >> 32 << 32 | (u32)(si) : \
 			ctx->fpr[x & ~1] << 32 >> 32 | (u64)(si) << 32)
 
-#define DIFROMREG(di,x)	((di) = \
+#define DIFROMREG(di, x) ((di) = \
 			ctx->fpr[x & ~((xcp->cp0_status & FR_BIT) == 0)])
-#define DITOREG(di,x)	(ctx->fpr[x & ~((xcp->cp0_status & FR_BIT) == 0)] \
+#define DITOREG(di, x)	(ctx->fpr[x & ~((xcp->cp0_status & FR_BIT) == 0)] \
 			= (di))
 
-#define SPFROMREG(sp,x)	SIFROMREG((sp).bits,x)
-#define SPTOREG(sp,x)	SITOREG((sp).bits,x)
-#define DPFROMREG(dp,x)	DIFROMREG((dp).bits,x)
-#define DPTOREG(dp,x)	DITOREG((dp).bits,x)
+#define SPFROMREG(sp, x) SIFROMREG((sp).bits, x)
+#define SPTOREG(sp, x)	SITOREG((sp).bits, x)
+#define DPFROMREG(dp, x)	DIFROMREG((dp).bits, x)
+#define DPTOREG(dp, x)	DITOREG((dp).bits, x)
 
 /*
  * Emulate the single floating point instruction pointed at by EPC.
@@ -549,16 +549,16 @@ static const unsigned char cmptab[8] = {
  */
 
 #define DEF3OP(name, p, f1, f2, f3) \
-static ieee754##p fpemu_##p##_##name (ieee754##p r, ieee754##p s, \
+static ieee754##p fpemu_##p##_##name(ieee754##p r, ieee754##p s, \
     ieee754##p t) \
 { \
 	struct _ieee754_csr ieee754_csr_save; \
-	s = f1 (s, t); \
+	s = f1(s, t); \
 	ieee754_csr_save = ieee754_csr; \
-	s = f2 (s, r); \
+	s = f2(s, r); \
 	ieee754_csr_save.cx |= ieee754_csr.cx; \
 	ieee754_csr_save.sx |= ieee754_csr.sx; \
-	s = f3 (s); \
+	s = f3(s); \
 	ieee754_csr.cx |= ieee754_csr_save.cx; \
 	ieee754_csr.sx |= ieee754_csr_save.sx; \
 	return s; \
@@ -584,12 +584,12 @@ static ieee754sp fpemu_sp_rsqrt(ieee754sp s)
 	return ieee754sp_div(ieee754sp_one(0), ieee754sp_sqrt(s));
 }
 
-DEF3OP(madd, sp, ieee754sp_mul, ieee754sp_add,);
-DEF3OP(msub, sp, ieee754sp_mul, ieee754sp_sub,);
+DEF3OP(madd, sp, ieee754sp_mul, ieee754sp_add, );
+DEF3OP(msub, sp, ieee754sp_mul, ieee754sp_sub, );
 DEF3OP(nmadd, sp, ieee754sp_mul, ieee754sp_add, ieee754sp_neg);
 DEF3OP(nmsub, sp, ieee754sp_mul, ieee754sp_sub, ieee754sp_neg);
-DEF3OP(madd, dp, ieee754dp_mul, ieee754dp_add,);
-DEF3OP(msub, dp, ieee754dp_mul, ieee754dp_sub,);
+DEF3OP(madd, dp, ieee754dp_mul, ieee754dp_add, );
+DEF3OP(msub, dp, ieee754dp_mul, ieee754dp_sub, );
 DEF3OP(nmadd, dp, ieee754dp_mul, ieee754dp_add, ieee754dp_neg);
 DEF3OP(nmsub, dp, ieee754dp_mul, ieee754dp_sub, ieee754dp_neg);
 

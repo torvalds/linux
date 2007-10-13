@@ -169,15 +169,12 @@ static int u3_agp_write_config(struct pci_bus *bus, unsigned int devfn,
 	switch (len) {
 	case 1:
 		out_8(addr, val);
-		(void) in_8(addr);
 		break;
 	case 2:
 		out_le16(addr, val);
-		(void) in_le16(addr);
 		break;
 	default:
 		out_le32(addr, val);
-		(void) in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -185,8 +182,8 @@ static int u3_agp_write_config(struct pci_bus *bus, unsigned int devfn,
 
 static struct pci_ops u3_agp_pci_ops =
 {
-	u3_agp_read_config,
-	u3_agp_write_config
+	.read = u3_agp_read_config,
+	.write = u3_agp_write_config,
 };
 
 static unsigned long u3_ht_cfa0(u8 devfn, u8 off)
@@ -268,15 +265,12 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 	switch (len) {
 	case 1:
 		out_8(addr, val);
-		(void) in_8(addr);
 		break;
 	case 2:
 		out_le16(addr, val);
-		(void) in_le16(addr);
 		break;
 	default:
 		out_le32(addr, val);
-		(void) in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -284,8 +278,8 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 
 static struct pci_ops u3_ht_pci_ops =
 {
-	u3_ht_read_config,
-	u3_ht_write_config
+	.read = u3_ht_read_config,
+	.write = u3_ht_write_config,
 };
 
 static unsigned int u4_pcie_cfa0(unsigned int devfn, unsigned int off)
@@ -376,15 +370,12 @@ static int u4_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
         switch (len) {
         case 1:
                 out_8(addr, val);
-                (void) in_8(addr);
                 break;
         case 2:
                 out_le16(addr, val);
-                (void) in_le16(addr);
                 break;
         default:
                 out_le32(addr, val);
-                (void) in_le32(addr);
                 break;
         }
         return PCIBIOS_SUCCESSFUL;
@@ -392,8 +383,8 @@ static int u4_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 
 static struct pci_ops u4_pcie_pci_ops =
 {
-        u4_pcie_read_config,
-        u4_pcie_write_config
+	.read = u4_pcie_read_config,
+	.write = u4_pcie_write_config,
 };
 
 static void __init setup_u3_agp(struct pci_controller* hose)

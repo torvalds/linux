@@ -71,7 +71,7 @@ static int magic_charge(struct usb_device *udev)
 	if (retval != 2) {
 		dev_err(&udev->dev, "First magic command failed: %d.\n",
 			retval);
-		return retval;
+		goto exit;
 	}
 
 	dbg(&udev->dev, "Sending second magic command\n");
@@ -80,7 +80,7 @@ static int magic_charge(struct usb_device *udev)
 	if (retval != 0) {
 		dev_err(&udev->dev, "Second magic command failed: %d.\n",
 			retval);
-		return retval;
+		goto exit;
 	}
 
 	dbg(&udev->dev, "Calling set_configuration\n");
@@ -88,6 +88,8 @@ static int magic_charge(struct usb_device *udev)
 	if (retval)
 		dev_err(&udev->dev, "Set Configuration failed :%d.\n", retval);
 
+exit:
+	kfree(dummy_buffer);
 	return retval;
 }
 
@@ -112,6 +114,7 @@ static int magic_dual_mode(struct usb_device *udev)
 	if (retval)
 		dev_err(&udev->dev, "Set Configuration failed :%d.\n", retval);
 
+	kfree(dummy_buffer);
 	return retval;
 }
 

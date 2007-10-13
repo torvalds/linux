@@ -2,8 +2,10 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 
+#include <asm/i8253.h>
 #include <asm/sni.h>
 #include <asm/time.h>
+#include <asm-generic/rtc.h>
 
 #define SNI_CLOCK_TICK_RATE     3686400
 #define SNI_COUNTER2_DIV        64
@@ -42,23 +44,23 @@ static __init unsigned long dosample(void)
 	volatile u8 msb, lsb;
 
 	/* Start the counter. */
-	outb_p (0x34, 0x43);
+	outb_p(0x34, 0x43);
 	outb_p(SNI_8254_TCSAMP_COUNTER & 0xff, 0x40);
-	outb (SNI_8254_TCSAMP_COUNTER >> 8, 0x40);
+	outb(SNI_8254_TCSAMP_COUNTER >> 8, 0x40);
 
 	/* Get initial counter invariant */
 	ct0 = read_c0_count();
 
 	/* Latch and spin until top byte of counter0 is zero */
 	do {
-		outb (0x00, 0x43);
-		lsb = inb (0x40);
-		msb = inb (0x40);
+		outb(0x00, 0x43);
+		lsb = inb(0x40);
+		msb = inb(0x40);
 		ct1 = read_c0_count();
 	} while (msb);
 
 	/* Stop the counter. */
-	outb (0x38, 0x43);
+	outb(0x38, 0x43);
 	/*
 	 * Return the difference, this is how far the r4k counter increments
 	 * for every 1/HZ seconds. We round off the nearest 1 MHz of master
@@ -71,7 +73,7 @@ static __init unsigned long dosample(void)
 /*
  * Here we need to calibrate the cycle counter to at least be close.
  */
-__init void sni_cpu_time_init(void)
+void __init plat_time_init(void)
 {
 	unsigned long r4k_ticks[3];
 	unsigned long r4k_tick;
@@ -115,6 +117,8 @@ __init void sni_cpu_time_init(void)
 		(int) (r4k_tick % (500000 / HZ)));
 
 	mips_hpt_frequency = r4k_tick * HZ;
+
+	setup_pit_timer();
 }
 
 /*
@@ -133,7 +137,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	case SNI_BRD_10NEW:
 	case SNI_BRD_TOWER_OASIC:
 	case SNI_BRD_MINITOWER:
-	        sni_a20r_timer_setup (irq);
+	        sni_a20r_timer_setup(irq);
 	        break;
 
 	case SNI_BRD_PCI_TOWER:
@@ -142,7 +146,12 @@ void __init plat_timer_setup(struct irqaction *irq)
 	case SNI_BRD_PCI_DESKTOP:
 	case SNI_BRD_PCI_TOWER_CPLUS:
 	case SNI_BRD_PCI_MTOWER_CPLUS:
-	        sni_cpu_timer_setup (irq);
+	        sni_cpu_timer_setup(irq);
 	        break;
 	}
+}
+
+unsigned long read_persistent_clock(void)
+{
+	return -1;
 }

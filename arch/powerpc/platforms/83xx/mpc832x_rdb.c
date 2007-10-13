@@ -15,6 +15,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/spi/spi.h>
 
 #include <asm/of_platform.h>
 #include <asm/time.h>
@@ -22,6 +23,7 @@
 #include <asm/udbg.h>
 #include <asm/qe.h>
 #include <asm/qe_ic.h>
+#include <sysdev/fsl_soc.h>
 
 #include "mpc83xx.h"
 
@@ -31,6 +33,50 @@
 #else
 #define DBG(fmt...)
 #endif
+
+static void mpc83xx_spi_activate_cs(u8 cs, u8 polarity)
+{
+	pr_debug("%s %d %d\n", __func__, cs, polarity);
+	par_io_data_set(3, 13, polarity);
+}
+
+static void mpc83xx_spi_deactivate_cs(u8 cs, u8 polarity)
+{
+	pr_debug("%s %d %d\n", __func__, cs, polarity);
+	par_io_data_set(3, 13, !polarity);
+}
+
+static struct spi_board_info mpc832x_spi_boardinfo = {
+	.bus_num = 0x4c0,
+	.chip_select = 0,
+	.max_speed_hz = 50000000,
+	/*
+	 * XXX: This is spidev (spi in userspace) stub, should
+	 * be replaced by "mmc_spi" when mmc_spi will hit mainline.
+	 */
+	.modalias = "spidev",
+};
+
+static int __init mpc832x_spi_init(void)
+{
+	if (!machine_is(mpc832x_rdb))
+		return 0;
+
+	par_io_config_pin(3,  0, 3, 0, 1, 0); /* SPI1 MOSI, I/O */
+	par_io_config_pin(3,  1, 3, 0, 1, 0); /* SPI1 MISO, I/O */
+	par_io_config_pin(3,  2, 3, 0, 1, 0); /* SPI1 CLK,  I/O */
+	par_io_config_pin(3,  3, 2, 0, 1, 0); /* SPI1 SEL,  I   */
+
+	par_io_config_pin(3, 13, 1, 0, 0, 0); /* !SD_CS,    O */
+	par_io_config_pin(3, 14, 2, 0, 0, 0); /* SD_INSERT, I */
+	par_io_config_pin(3, 15, 2, 0, 0, 0); /* SD_PROTECT,I */
+
+	return fsl_spi_init(&mpc832x_spi_boardinfo, 1,
+			    mpc83xx_spi_activate_cs,
+			    mpc83xx_spi_deactivate_cs);
+}
+
+device_initcall(mpc832x_spi_init);
 
 /* ************************************************************************
  *
@@ -47,10 +93,8 @@ static void __init mpc832x_rdb_setup_arch(void)
 		ppc_md.progress("mpc832x_rdb_setup_arch()", 0);
 
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
+	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
 		mpc83xx_add_bridge(np);
-
-	ppc_md.pci_exclude_device = mpc83xx_exclude_device;
 #endif
 
 #ifdef CONFIG_QUICC_ENGINE
@@ -107,7 +151,7 @@ void __init mpc832x_rdb_init_IRQ(void)
 	if (!np)
 		return;
 
-	qe_ic_init(np, 0);
+	qe_ic_init(np, 0, qe_ic_cascade_low_ipic, qe_ic_cascade_high_ipic);
 	of_node_put(np);
 #endif				/* CONFIG_QUICC_ENGINE */
 }

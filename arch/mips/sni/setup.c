@@ -15,7 +15,7 @@
 #include <linux/screen_info.h>
 
 #ifdef CONFIG_ARC
-#include <asm/arc/types.h>
+#include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 #endif
 
@@ -106,11 +106,11 @@ static void __devinit quirk_cirrus_ram_size(struct pci_dev *dev)
 	 * need to do it here, otherwise we get screen corruption
 	 * on older Cirrus chips
 	 */
-	pci_read_config_word (dev, PCI_COMMAND, &cmd);
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	if ((cmd & (PCI_COMMAND_IO|PCI_COMMAND_MEMORY))
 	        == (PCI_COMMAND_IO|PCI_COMMAND_MEMORY)) {
-		vga_wseq (NULL, CL_SEQR6, 0x12);	/* unlock all extension registers */
-		vga_wseq (NULL, CL_SEQRF, 0x18);
+		vga_wseq(NULL, CL_SEQR6, 0x12);	/* unlock all extension registers */
+		vga_wseq(NULL, CL_SEQRF, 0x18);
 	}
 }
 

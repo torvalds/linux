@@ -106,8 +106,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 };
 
 #define E1000_QUEUE_STATS_LEN 0
-#define E1000_GLOBAL_STATS_LEN	\
-	sizeof(e1000_gstrings_stats) / sizeof(struct e1000_stats)
+#define E1000_GLOBAL_STATS_LEN ARRAY_SIZE(e1000_gstrings_stats)
 #define E1000_STATS_LEN (E1000_GLOBAL_STATS_LEN + E1000_QUEUE_STATS_LEN)
 static const char e1000_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register test  (offline)", "Eeprom test    (offline)",
@@ -619,8 +618,6 @@ e1000_get_drvinfo(struct net_device *netdev,
 
 	strncpy(drvinfo->fw_version, firmware_version, 32);
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
-	drvinfo->n_stats = E1000_STATS_LEN;
-	drvinfo->testinfo_len = E1000_TEST_LEN;
 	drvinfo->regdump_len = e1000_get_regs_len(netdev);
 	drvinfo->eedump_len = e1000_get_eeprom_len(netdev);
 }
@@ -1612,9 +1609,16 @@ e1000_link_test(struct e1000_adapter *adapter, uint64_t *data)
 }
 
 static int
-e1000_diag_test_count(struct net_device *netdev)
+e1000_get_sset_count(struct net_device *netdev, int sset)
 {
-	return E1000_TEST_LEN;
+	switch (sset) {
+	case ETH_SS_TEST:
+		return E1000_TEST_LEN;
+	case ETH_SS_STATS:
+		return E1000_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 extern void e1000_power_up_phy(struct e1000_adapter *);
@@ -1899,12 +1903,6 @@ e1000_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-static int
-e1000_get_stats_count(struct net_device *netdev)
-{
-	return E1000_STATS_LEN;
-}
-
 static void
 e1000_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
@@ -1966,16 +1964,13 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.set_rx_csum            = e1000_set_rx_csum,
 	.get_tx_csum            = e1000_get_tx_csum,
 	.set_tx_csum            = e1000_set_tx_csum,
-	.get_sg                 = ethtool_op_get_sg,
 	.set_sg                 = ethtool_op_set_sg,
-	.get_tso                = ethtool_op_get_tso,
 	.set_tso                = e1000_set_tso,
-	.self_test_count        = e1000_diag_test_count,
 	.self_test              = e1000_diag_test,
 	.get_strings            = e1000_get_strings,
 	.phys_id                = e1000_phys_id,
-	.get_stats_count        = e1000_get_stats_count,
 	.get_ethtool_stats      = e1000_get_ethtool_stats,
+	.get_sset_count		= e1000_get_sset_count,
 };
 
 void e1000_set_ethtool_ops(struct net_device *netdev)

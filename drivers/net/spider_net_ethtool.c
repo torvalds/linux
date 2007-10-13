@@ -28,8 +28,6 @@
 #include "spider_net.h"
 
 
-#define SPIDER_NET_NUM_STATS 13
-
 static struct {
 	const char str[ETH_GSTRING_LEN];
 } ethtool_stats_keys[] = {
@@ -147,9 +145,14 @@ spider_net_ethtool_get_ringparam(struct net_device *netdev,
 	ering->rx_pending = card->rx_chain.num_desc;
 }
 
-static int spider_net_get_stats_count(struct net_device *netdev)
+static int spider_net_get_sset_count(struct net_device *netdev, int sset)
 {
-	return SPIDER_NET_NUM_STATS;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(ethtool_stats_keys);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void spider_net_get_ethtool_stats(struct net_device *netdev,
@@ -157,13 +160,13 @@ static void spider_net_get_ethtool_stats(struct net_device *netdev,
 {
 	struct spider_net_card *card = netdev->priv;
 
-	data[0] = card->netdev_stats.tx_packets;
-	data[1] = card->netdev_stats.tx_bytes;
-	data[2] = card->netdev_stats.rx_packets;
-	data[3] = card->netdev_stats.rx_bytes;
-	data[4] = card->netdev_stats.tx_errors;
-	data[5] = card->netdev_stats.tx_dropped;
-	data[6] = card->netdev_stats.rx_dropped;
+	data[0] = netdev->stats.tx_packets;
+	data[1] = netdev->stats.tx_bytes;
+	data[2] = netdev->stats.rx_packets;
+	data[3] = netdev->stats.rx_bytes;
+	data[4] = netdev->stats.tx_errors;
+	data[5] = netdev->stats.tx_dropped;
+	data[6] = netdev->stats.rx_dropped;
 	data[7] = card->spider_stats.rx_desc_error;
 	data[8] = card->spider_stats.tx_timeouts;
 	data[9] = card->spider_stats.alloc_rx_skb_error;
@@ -188,11 +191,10 @@ const struct ethtool_ops spider_net_ethtool_ops = {
 	.nway_reset		= spider_net_ethtool_nway_reset,
 	.get_rx_csum		= spider_net_ethtool_get_rx_csum,
 	.set_rx_csum		= spider_net_ethtool_set_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.set_tx_csum		= ethtool_op_set_tx_csum,
 	.get_ringparam          = spider_net_ethtool_get_ringparam,
 	.get_strings		= spider_net_get_strings,
-	.get_stats_count	= spider_net_get_stats_count,
+	.get_sset_count		= spider_net_get_sset_count,
 	.get_ethtool_stats	= spider_net_get_ethtool_stats,
 };
 

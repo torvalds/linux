@@ -314,7 +314,7 @@ static void bictcp_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 	struct bictcp *ca = inet_csk_ca(sk);
 	u32 delay;
 
-	if (cnt > 0 && icsk->icsk_ca_state == TCP_CA_Open) {
+	if (icsk->icsk_ca_state == TCP_CA_Open) {
 		cnt -= ca->delayed_ack >> ACK_RATIO_SHIFT;
 		ca->delayed_ack += cnt;
 	}

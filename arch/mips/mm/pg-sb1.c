@@ -188,9 +188,9 @@ static inline void copy_page_cpu(void *to, void *from)
 	: "+r" (src), "+r" (dst)
 	: "r" (end)
 #ifdef CONFIG_64BIT
-	: "$8","$9","$10","$11","memory");
+	: "$8", "$9", "$10", "$11", "memory");
 #else
-	: "$2","$3","$6","$7","$8","$9","$10","$11","memory");
+	: "$2", "$3", "$6", "$7", "$8", "$9", "$10", "$11", "memory");
 #endif
 }
 
@@ -292,3 +292,11 @@ void copy_page(void *to, void *from)
 
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
+
+void __init build_clear_page(void)
+{
+}
+
+void __init build_copy_page(void)
+{
+}

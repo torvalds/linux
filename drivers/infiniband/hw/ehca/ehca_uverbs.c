@@ -109,7 +109,7 @@ static int ehca_mmap_fw(struct vm_area_struct *vma, struct h_galpas *galpas,
 	u64 vsize, physical;
 
 	vsize = vma->vm_end - vma->vm_start;
-	if (vsize != EHCA_PAGESIZE) {
+	if (vsize < EHCA_PAGESIZE) {
 		ehca_gen_err("invalid vsize=%lx", vma->vm_end - vma->vm_start);
 		return -EINVAL;
 	}
@@ -118,10 +118,10 @@ static int ehca_mmap_fw(struct vm_area_struct *vma, struct h_galpas *galpas,
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	ehca_gen_dbg("vsize=%lx physical=%lx", vsize, physical);
 	/* VM_IO | VM_RESERVED are set by remap_pfn_range() */
-	ret = remap_pfn_range(vma, vma->vm_start, physical >> PAGE_SHIFT,
-			      vsize, vma->vm_page_prot);
+	ret = remap_4k_pfn(vma, vma->vm_start, physical >> EHCA_PAGESHIFT,
+			   vma->vm_page_prot);
 	if (unlikely(ret)) {
-		ehca_gen_err("remap_pfn_range() failed ret=%x", ret);
+		ehca_gen_err("remap_pfn_range() failed ret=%i", ret);
 		return -ENOMEM;
 	}
 
@@ -146,7 +146,7 @@ static int ehca_mmap_queue(struct vm_area_struct *vma, struct ipz_queue *queue,
 		page = virt_to_page(virt_addr);
 		ret = vm_insert_page(vma, start, page);
 		if (unlikely(ret)) {
-			ehca_gen_err("vm_insert_page() failed rc=%x", ret);
+			ehca_gen_err("vm_insert_page() failed rc=%i", ret);
 			return ret;
 		}
 		start += PAGE_SIZE;
@@ -164,23 +164,23 @@ static int ehca_mmap_cq(struct vm_area_struct *vma, struct ehca_cq *cq,
 	int ret;
 
 	switch (rsrc_type) {
-	case 1: /* galpa fw handle */
+	case 0: /* galpa fw handle */
 		ehca_dbg(cq->ib_cq.device, "cq_num=%x fw", cq->cq_number);
 		ret = ehca_mmap_fw(vma, &cq->galpas, &cq->mm_count_galpa);
 		if (unlikely(ret)) {
 			ehca_err(cq->ib_cq.device,
-				 "ehca_mmap_fw() failed rc=%x cq_num=%x",
+				 "ehca_mmap_fw() failed rc=%i cq_num=%x",
 				 ret, cq->cq_number);
 			return ret;
 		}
 		break;
 
-	case 2: /* cq queue_addr */
+	case 1: /* cq queue_addr */
 		ehca_dbg(cq->ib_cq.device, "cq_num=%x queue", cq->cq_number);
 		ret = ehca_mmap_queue(vma, &cq->ipz_queue, &cq->mm_count_queue);
 		if (unlikely(ret)) {
 			ehca_err(cq->ib_cq.device,
-				 "ehca_mmap_queue() failed rc=%x cq_num=%x",
+				 "ehca_mmap_queue() failed rc=%i cq_num=%x",
 				 ret, cq->cq_number);
 			return ret;
 		}
@@ -201,38 +201,38 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 	int ret;
 
 	switch (rsrc_type) {
-	case 1: /* galpa fw handle */
+	case 0: /* galpa fw handle */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x fw", qp->ib_qp.qp_num);
 		ret = ehca_mmap_fw(vma, &qp->galpas, &qp->mm_count_galpa);
 		if (unlikely(ret)) {
 			ehca_err(qp->ib_qp.device,
-				 "remap_pfn_range() failed ret=%x qp_num=%x",
+				 "remap_pfn_range() failed ret=%i qp_num=%x",
 				 ret, qp->ib_qp.qp_num);
 			return -ENOMEM;
 		}
 		break;
 
-	case 2: /* qp rqueue_addr */
+	case 1: /* qp rqueue_addr */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x rqueue",
 			 qp->ib_qp.qp_num);
 		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue,
 				      &qp->mm_count_rqueue);
 		if (unlikely(ret)) {
 			ehca_err(qp->ib_qp.device,
-				 "ehca_mmap_queue(rq) failed rc=%x qp_num=%x",
+				 "ehca_mmap_queue(rq) failed rc=%i qp_num=%x",
 				 ret, qp->ib_qp.qp_num);
 			return ret;
 		}
 		break;
 
-	case 3: /* qp squeue_addr */
+	case 2: /* qp squeue_addr */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x squeue",
 			 qp->ib_qp.qp_num);
 		ret = ehca_mmap_queue(vma, &qp->ipz_squeue,
 				      &qp->mm_count_squeue);
 		if (unlikely(ret)) {
 			ehca_err(qp->ib_qp.device,
-				 "ehca_mmap_queue(sq) failed rc=%x qp_num=%x",
+				 "ehca_mmap_queue(sq) failed rc=%i qp_num=%x",
 				 ret, qp->ib_qp.qp_num);
 			return ret;
 		}
@@ -249,10 +249,10 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 
 int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
-	u64 fileoffset = vma->vm_pgoff << PAGE_SHIFT;
-	u32 idr_handle = fileoffset >> 32;
-	u32 q_type = (fileoffset >> 28) & 0xF;	  /* CQ, QP,...        */
-	u32 rsrc_type = (fileoffset >> 24) & 0xF; /* sq,rq,cmnd_window */
+	u64 fileoffset = vma->vm_pgoff;
+	u32 idr_handle = fileoffset & 0x1FFFFFF;
+	u32 q_type = (fileoffset >> 27) & 0x1;	  /* CQ, QP,...        */
+	u32 rsrc_type = (fileoffset >> 25) & 0x3; /* sq,rq,cmnd_window */
 	u32 cur_pid = current->tgid;
 	u32 ret;
 	struct ehca_cq *cq;
@@ -261,7 +261,7 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	struct ib_uobject *uobject;
 
 	switch (q_type) {
-	case  1: /* CQ */
+	case  0: /* CQ */
 		read_lock(&ehca_cq_idr_lock);
 		cq = idr_find(&ehca_cq_idr, idr_handle);
 		read_unlock(&ehca_cq_idr_lock);
@@ -283,13 +283,13 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		ret = ehca_mmap_cq(vma, cq, rsrc_type);
 		if (unlikely(ret)) {
 			ehca_err(cq->ib_cq.device,
-				 "ehca_mmap_cq() failed rc=%x cq_num=%x",
+				 "ehca_mmap_cq() failed rc=%i cq_num=%x",
 				 ret, cq->cq_number);
 			return ret;
 		}
 		break;
 
-	case 2: /* QP */
+	case 1: /* QP */
 		read_lock(&ehca_qp_idr_lock);
 		qp = idr_find(&ehca_qp_idr, idr_handle);
 		read_unlock(&ehca_qp_idr_lock);
@@ -313,7 +313,7 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		ret = ehca_mmap_qp(vma, qp, rsrc_type);
 		if (unlikely(ret)) {
 			ehca_err(qp->ib_qp.device,
-				 "ehca_mmap_qp() failed rc=%x qp_num=%x",
+				 "ehca_mmap_qp() failed rc=%i qp_num=%x",
 				 ret, qp->ib_qp.qp_num);
 			return ret;
 		}

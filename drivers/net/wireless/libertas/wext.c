@@ -22,60 +22,6 @@
 
 
 /**
- * the rates supported by the card
- */
-static u8 libertas_wlan_data_rates[WLAN_SUPPORTED_RATES] =
-    { 0x02, 0x04, 0x0B, 0x16, 0x00, 0x0C, 0x12,
-      0x18, 0x24, 0x30, 0x48, 0x60, 0x6C, 0x00
-};
-
-/**
- *  @brief Convert mw value to dbm value
- *
- *  @param mw	   the value of mw
- *  @return 	   the value of dbm
- */
-static int mw_to_dbm(int mw)
-{
-	if (mw < 2)
-		return 0;
-	else if (mw < 3)
-		return 3;
-	else if (mw < 4)
-		return 5;
-	else if (mw < 6)
-		return 7;
-	else if (mw < 7)
-		return 8;
-	else if (mw < 8)
-		return 9;
-	else if (mw < 10)
-		return 10;
-	else if (mw < 13)
-		return 11;
-	else if (mw < 16)
-		return 12;
-	else if (mw < 20)
-		return 13;
-	else if (mw < 25)
-		return 14;
-	else if (mw < 32)
-		return 15;
-	else if (mw < 40)
-		return 16;
-	else if (mw < 50)
-		return 17;
-	else if (mw < 63)
-		return 18;
-	else if (mw < 79)
-		return 19;
-	else if (mw < 100)
-		return 20;
-	else
-		return 21;
-}
-
-/**
  *  @brief Find the channel frequency power info with specific channel
  *
  *  @param adapter 	A pointer to wlan_adapter structure
@@ -165,7 +111,7 @@ static struct chan_freq_power *find_cfp_by_band_and_freq(wlan_adapter * adapter,
  *  @option 			Radio Option
  *  @return 	   		0 --success, otherwise fail
  */
-int wlan_radio_ioctl(wlan_private * priv, u8 option)
+static int wlan_radio_ioctl(wlan_private * priv, u8 option)
 {
 	int ret = 0;
 	wlan_adapter *adapter = priv->adapter;
@@ -177,9 +123,9 @@ int wlan_radio_ioctl(wlan_private * priv, u8 option)
 		adapter->radioon = option;
 
 		ret = libertas_prepare_and_send_command(priv,
-					    cmd_802_11_radio_control,
-					    cmd_act_set,
-					    cmd_option_waitforrsp, 0, NULL);
+					    CMD_802_11_RADIO_CONTROL,
+					    CMD_ACT_SET,
+					    CMD_OPTION_WAITFORRSP, 0, NULL);
 	}
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -187,84 +133,31 @@ int wlan_radio_ioctl(wlan_private * priv, u8 option)
 }
 
 /**
- *  @brief Copy rates
- *
- *  @param dest                 A pointer to Dest Buf
- *  @param src		        A pointer to Src Buf
- *  @param len                  The len of Src Buf
- *  @return 	   	        Number of rates copyed
- */
-static inline int copyrates(u8 * dest, int pos, u8 * src, int len)
-{
-	int i;
-
-	for (i = 0; i < len && src[i]; i++, pos++) {
-		if (pos >= sizeof(u8) * WLAN_SUPPORTED_RATES)
-			break;
-		dest[pos] = src[i];
-	}
-
-	return pos;
-}
-
-/**
- *  @brief Get active data rates
+ *  @brief Copy active data rates based on adapter mode and status
  *
  *  @param adapter              A pointer to wlan_adapter structure
  *  @param rate		        The buf to return the active rates
- *  @return 	   	        The number of rates
  */
-static int get_active_data_rates(wlan_adapter * adapter,
-				 u8* rates)
+static void copy_active_data_rates(wlan_adapter * adapter, u8 * rates)
 {
-	int k = 0;
-
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (adapter->connect_status != libertas_connected) {
-		if (adapter->mode == IW_MODE_INFRA) {
-			lbs_deb_wext("infra\n");
-			k = copyrates(rates, k, libertas_supported_rates,
-				      sizeof(libertas_supported_rates));
-		} else {
-			lbs_deb_wext("Adhoc G\n");
-			k = copyrates(rates, k, libertas_adhoc_rates_g,
-				      sizeof(libertas_adhoc_rates_g));
-		}
-	} else {
-		k = copyrates(rates, 0, adapter->curbssparams.datarates,
-			      adapter->curbssparams.numofrates);
-	}
+	if (adapter->connect_status != LIBERTAS_CONNECTED)
+		memcpy(rates, libertas_bg_rates, MAX_RATES);
+	else
+		memcpy(rates, adapter->curbssparams.rates, MAX_RATES);
 
-	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", k);
-	return k;
+	lbs_deb_leave(LBS_DEB_WEXT);
 }
 
 static int wlan_get_name(struct net_device *dev, struct iw_request_info *info,
 			 char *cwrq, char *extra)
 {
-	const char *cp;
-	char comm[6] = { "COMM-" };
-	char mrvl[6] = { "MRVL-" };
-	int cnt;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	strcpy(cwrq, mrvl);
-
-	cp = strstr(libertas_driver_version, comm);
-	if (cp == libertas_driver_version)	//skip leading "COMM-"
-		cp = libertas_driver_version + strlen(comm);
-	else
-		cp = libertas_driver_version;
-
-	cnt = strlen(mrvl);
-	cwrq += cnt;
-	while (cnt < 16 && (*cp != '-')) {
-		*cwrq++ = toupper(*cp++);
-		cnt++;
-	}
-	*cwrq = '\0';
+	/* We could add support for 802.11n here as needed. Jean II */
+	snprintf(cwrq, IFNAMSIZ, "IEEE 802.11b/g");
 
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
@@ -305,7 +198,7 @@ static int wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (adapter->connect_status == libertas_connected) {
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
 		memcpy(awrq->sa_data, adapter->curbssparams.bssid, ETH_ALEN);
 	} else {
 		memset(awrq->sa_data, 0, ETH_ALEN);
@@ -349,24 +242,11 @@ static int wlan_get_nick(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	/*
-	 * Get the Nick Name saved
-	 */
+	dwrq->length = strlen(adapter->nodename);
+	memcpy(extra, adapter->nodename, dwrq->length);
+	extra[dwrq->length] = '\0';
 
-	mutex_lock(&adapter->lock);
-	strncpy(extra, adapter->nodename, 16);
-	mutex_unlock(&adapter->lock);
-
-	extra[16] = '\0';
-
-	/*
-	 * If none, we may want to get the one that was set
-	 */
-
-	/*
-	 * Push it out !
-	 */
-	dwrq->length = strlen(extra) + 1;
+	dwrq->flags = 1;	/* active */
 
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
@@ -382,20 +262,21 @@ static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 
 	/* Use nickname to indicate that mesh is on */
 
-	if (adapter->connect_status == libertas_connected) {
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
 		strncpy(extra, "Mesh", 12);
 		extra[12] = '\0';
-		dwrq->length = strlen(extra) + 1;
+		dwrq->length = strlen(extra);
 	}
 
 	else {
 		extra[0] = '\0';
-		dwrq->length = 1 ;
+		dwrq->length = 0;
 	}
 
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
 }
+
 static int wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 			struct iw_param *vwrq, char *extra)
 {
@@ -414,8 +295,8 @@ static int wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 		adapter->rtsthsd = rthr;
 	}
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_snmp_mib,
-				    cmd_act_set, cmd_option_waitforrsp,
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
+				    CMD_ACT_SET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_RTS_THRESHOLD, &rthr);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -432,8 +313,8 @@ static int wlan_get_rts(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	adapter->rtsthsd = 0;
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_snmp_mib,
-				    cmd_act_get, cmd_option_waitforrsp,
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
+				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_RTS_THRESHOLD, NULL);
 	if (ret)
 		goto out;
@@ -467,8 +348,8 @@ static int wlan_set_frag(struct net_device *dev, struct iw_request_info *info,
 		adapter->fragthsd = fthr;
 	}
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_snmp_mib,
-				    cmd_act_set, cmd_option_waitforrsp,
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
+				    CMD_ACT_SET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_FRAGMENTATION_THRESHOLD, &fthr);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -486,8 +367,8 @@ static int wlan_get_frag(struct net_device *dev, struct iw_request_info *info,
 
 	adapter->fragthsd = 0;
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_snmp_mib,
-				    cmd_act_get, cmd_option_waitforrsp,
+				    CMD_802_11_SNMP_MIB,
+				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_FRAGMENTATION_THRESHOLD, NULL);
 	if (ret)
 		goto out;
@@ -539,9 +420,9 @@ static int wlan_get_txpow(struct net_device *dev,
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_rf_tx_power,
-				    cmd_act_tx_power_opt_get,
-				    cmd_option_waitforrsp, 0, NULL);
+				    CMD_802_11_RF_TX_POWER,
+				    CMD_ACT_TX_POWER_OPT_GET,
+				    CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	if (ret)
 		goto out;
@@ -581,9 +462,9 @@ static int wlan_set_retry(struct net_device *dev, struct iw_request_info *info,
 		/* Adding 1 to convert retry count to try count */
 		adapter->txretrycount = vwrq->value + 1;
 
-		ret = libertas_prepare_and_send_command(priv, cmd_802_11_snmp_mib,
-					    cmd_act_set,
-					    cmd_option_waitforrsp,
+		ret = libertas_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
+					    CMD_ACT_SET,
+					    CMD_OPTION_WAITFORRSP,
 					    OID_802_11_TX_RETRYCOUNT, NULL);
 
 		if (ret)
@@ -608,8 +489,8 @@ static int wlan_get_retry(struct net_device *dev, struct iw_request_info *info,
 
 	adapter->txretrycount = 0;
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_snmp_mib,
-				    cmd_act_get, cmd_option_waitforrsp,
+				    CMD_802_11_SNMP_MIB,
+				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_TX_RETRYCOUNT, NULL);
 	if (ret)
 		goto out;
@@ -673,7 +554,7 @@ static int wlan_get_range(struct net_device *dev, struct iw_request_info *info,
 	wlan_adapter *adapter = priv->adapter;
 	struct iw_range *range = (struct iw_range *)extra;
 	struct chan_freq_power *cfp;
-	u8 rates[WLAN_SUPPORTED_RATES];
+	u8 rates[MAX_RATES + 1];
 
 	u8 flag = 0;
 
@@ -686,19 +567,17 @@ static int wlan_get_range(struct net_device *dev, struct iw_request_info *info,
 	range->max_nwid = 0;
 
 	memset(rates, 0, sizeof(rates));
-	range->num_bitrates = get_active_data_rates(adapter, rates);
-
-	for (i = 0; i < min_t(__u8, range->num_bitrates, IW_MAX_BITRATES) && rates[i];
-	     i++) {
-		range->bitrate[i] = (rates[i] & 0x7f) * 500000;
-	}
+	copy_active_data_rates(adapter, rates);
+	range->num_bitrates = strnlen(rates, IW_MAX_BITRATES);
+	for (i = 0; i < range->num_bitrates; i++)
+		range->bitrate[i] = rates[i] * 500000;
 	range->num_bitrates = i;
 	lbs_deb_wext("IW_MAX_BITRATES %d, num_bitrates %d\n", IW_MAX_BITRATES,
 	       range->num_bitrates);
 
 	range->num_frequency = 0;
 	if (priv->adapter->enable11d &&
-	    adapter->connect_status == libertas_connected) {
+	    adapter->connect_status == LIBERTAS_CONNECTED) {
 		u8 chan_no;
 		u8 band;
 
@@ -858,9 +737,9 @@ static int wlan_set_power(struct net_device *dev, struct iw_request_info *info,
 	 */
 
 	if (vwrq->disabled) {
-		adapter->psmode = wlan802_11powermodecam;
+		adapter->psmode = WLAN802_11POWERMODECAM;
 		if (adapter->psstate != PS_STATE_FULL_POWER) {
-			libertas_ps_wakeup(priv, cmd_option_waitforrsp);
+			libertas_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
 		}
 
 		return 0;
@@ -875,14 +754,14 @@ static int wlan_set_power(struct net_device *dev, struct iw_request_info *info,
 		return -EINVAL;
 	}
 
-	if (adapter->psmode != wlan802_11powermodecam) {
+	if (adapter->psmode != WLAN802_11POWERMODECAM) {
 		return 0;
 	}
 
-	adapter->psmode = wlan802_11powermodemax_psp;
+	adapter->psmode = WLAN802_11POWERMODEMAX_PSP;
 
-	if (adapter->connect_status == libertas_connected) {
-		libertas_ps_sleep(priv, cmd_option_waitforrsp);
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
+		libertas_ps_sleep(priv, CMD_OPTION_WAITFORRSP);
 	}
 
 	lbs_deb_leave(LBS_DEB_WEXT);
@@ -900,8 +779,8 @@ static int wlan_get_power(struct net_device *dev, struct iw_request_info *info,
 
 	mode = adapter->psmode;
 
-	if ((vwrq->disabled = (mode == wlan802_11powermodecam))
-	    || adapter->connect_status == libertas_disconnected)
+	if ((vwrq->disabled = (mode == WLAN802_11POWERMODECAM))
+	    || adapter->connect_status == LIBERTAS_DISCONNECTED)
 	{
 		goto out;
 	}
@@ -937,7 +816,7 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 	priv->wstats.status = adapter->mode;
 
 	/* If we're not associated, all quality values are meaningless */
-	if (adapter->connect_status != libertas_connected)
+	if (adapter->connect_status != LIBERTAS_CONNECTED)
 		goto out;
 
 	/* Quality by RSSI */
@@ -973,7 +852,7 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 	/* Quality by TX errors */
 	priv->wstats.discard.retries = priv->stats.tx_errors;
 
-	tx_retries = le16_to_cpu(adapter->logmsg.retry);
+	tx_retries = le32_to_cpu(adapter->logmsg.retry);
 
 	if (tx_retries > 75)
 		tx_qual = (90 - tx_retries) * POOR / 15;
@@ -989,20 +868,20 @@ static struct iw_statistics *wlan_get_wireless_stats(struct net_device *dev)
 		    (PERFECT - VERY_GOOD) / 50 + VERY_GOOD;
 	quality = min(quality, tx_qual);
 
-	priv->wstats.discard.code = le16_to_cpu(adapter->logmsg.wepundecryptable);
-	priv->wstats.discard.fragment = le16_to_cpu(adapter->logmsg.rxfrag);
+	priv->wstats.discard.code = le32_to_cpu(adapter->logmsg.wepundecryptable);
+	priv->wstats.discard.fragment = le32_to_cpu(adapter->logmsg.rxfrag);
 	priv->wstats.discard.retries = tx_retries;
-	priv->wstats.discard.misc = le16_to_cpu(adapter->logmsg.ackfailure);
+	priv->wstats.discard.misc = le32_to_cpu(adapter->logmsg.ackfailure);
 
 	/* Calculate quality */
-	priv->wstats.qual.qual = max(quality, (u32)100);
+	priv->wstats.qual.qual = min_t(u8, quality, 100);
 	priv->wstats.qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	stats_valid = 1;
 
 	/* update stats asynchronously for future calls */
-	libertas_prepare_and_send_command(priv, cmd_802_11_rssi, 0,
+	libertas_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
 					0, 0, NULL);
-	libertas_prepare_and_send_command(priv, cmd_802_11_get_log, 0,
+	libertas_prepare_and_send_command(priv, CMD_802_11_GET_LOG, 0,
 					0, 0, NULL);
 out:
 	if (!stats_valid) {
@@ -1080,88 +959,46 @@ out:
 	return ret;
 }
 
-/**
- *  @brief use index to get the data rate
- *
- *  @param index                The index of data rate
- *  @return 	   		data rate or 0
- */
-u32 libertas_index_to_data_rate(u8 index)
-{
-	if (index >= sizeof(libertas_wlan_data_rates))
-		index = 0;
-
-	return libertas_wlan_data_rates[index];
-}
-
-/**
- *  @brief use rate to get the index
- *
- *  @param rate                 data rate
- *  @return 	   		index or 0
- */
-u8 libertas_data_rate_to_index(u32 rate)
-{
-	u8 *ptr;
-
-	if (rate)
-		if ((ptr = memchr(libertas_wlan_data_rates, (u8) rate,
-				  sizeof(libertas_wlan_data_rates))))
-			return (ptr - libertas_wlan_data_rates);
-
-	return 0;
-}
-
 static int wlan_set_rate(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *vwrq, char *extra)
 {
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
-	u32 data_rate;
+	u32 new_rate;
 	u16 action;
-	int ret = 0;
-	u8 rates[WLAN_SUPPORTED_RATES];
-	u8 *rate;
+	int ret = -EINVAL;
+	u8 rates[MAX_RATES + 1];
 
 	lbs_deb_enter(LBS_DEB_WEXT);
-
 	lbs_deb_wext("vwrq->value %d\n", vwrq->value);
 
+	/* Auto rate? */
 	if (vwrq->value == -1) {
-		action = cmd_act_set_tx_auto;	// Auto
-		adapter->is_datarate_auto = 1;
-		adapter->datarate = 0;
+		action = CMD_ACT_SET_TX_AUTO;
+		adapter->auto_rate = 1;
+		adapter->cur_rate = 0;
 	} else {
-		if (vwrq->value % 100000) {
-			return -EINVAL;
-		}
-
-		data_rate = vwrq->value / 500000;
+		if (vwrq->value % 100000)
+			goto out;
 
 		memset(rates, 0, sizeof(rates));
-		get_active_data_rates(adapter, rates);
-		rate = rates;
-		while (*rate) {
-			lbs_deb_wext("rate=0x%X, wanted data_rate 0x%X\n", *rate,
-			       data_rate);
-			if ((*rate & 0x7f) == (data_rate & 0x7f))
-				break;
-			rate++;
-		}
-		if (!*rate) {
-			lbs_pr_alert("fixed data rate 0x%X out "
-			       "of range\n", data_rate);
-			return -EINVAL;
+		copy_active_data_rates(adapter, rates);
+		new_rate = vwrq->value / 500000;
+		if (!memchr(rates, new_rate, sizeof(rates))) {
+			lbs_pr_alert("fixed data rate 0x%X out of range\n",
+				new_rate);
+			goto out;
 		}
 
-		adapter->datarate = data_rate;
-		action = cmd_act_set_tx_fix_rate;
-		adapter->is_datarate_auto = 0;
+		adapter->cur_rate = new_rate;
+		action = CMD_ACT_SET_TX_FIX_RATE;
+		adapter->auto_rate = 0;
 	}
 
-	ret = libertas_prepare_and_send_command(priv, cmd_802_11_data_rate,
-				    action, cmd_option_waitforrsp, 0, NULL);
+	ret = libertas_prepare_and_send_command(priv, CMD_802_11_DATA_RATE,
+				    action, CMD_OPTION_WAITFORRSP, 0, NULL);
 
+out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
 }
@@ -1174,13 +1011,18 @@ static int wlan_get_rate(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (adapter->is_datarate_auto) {
-		vwrq->fixed = 0;
-	} else {
-		vwrq->fixed = 1;
-	}
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
+		vwrq->value = adapter->cur_rate * 500000;
 
-	vwrq->value = adapter->datarate * 500000;
+		if (adapter->auto_rate)
+			vwrq->fixed = 0;
+		else
+			vwrq->fixed = 1;
+
+	} else {
+		vwrq->fixed = 0;
+		vwrq->value = 0;
+	}
 
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
@@ -1298,7 +1140,7 @@ static int wlan_get_encode(struct net_device *dev,
 
 	dwrq->flags |= IW_ENCODE_NOKEY;
 
-	lbs_deb_wext("key: " MAC_FMT ", keylen %d\n",
+	lbs_deb_wext("key: %02x:%02x:%02x:%02x:%02x:%02x, keylen %d\n",
 	       extra[0], extra[1], extra[2],
 	       extra[3], extra[4], extra[5], dwrq->length);
 
@@ -1325,7 +1167,7 @@ static int wlan_set_wep_key(struct assoc_request *assoc_req,
 			    int set_tx_key)
 {
 	int ret = 0;
-	struct WLAN_802_11_KEY *pkey;
+	struct enc_key *pkey;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -1344,7 +1186,7 @@ static int wlan_set_wep_key(struct assoc_request *assoc_req,
 	pkey = &assoc_req->wep_keys[index];
 
 	if (key_length > 0) {
-		memset(pkey, 0, sizeof(struct WLAN_802_11_KEY));
+		memset(pkey, 0, sizeof(struct enc_key));
 		pkey->type = KEY_TYPE_ID_WEP;
 
 		/* Standardize the key length */
@@ -1412,11 +1254,11 @@ static void disable_wpa(struct assoc_request *assoc_req)
 {
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	memset(&assoc_req->wpa_mcast_key, 0, sizeof (struct WLAN_802_11_KEY));
+	memset(&assoc_req->wpa_mcast_key, 0, sizeof (struct enc_key));
 	assoc_req->wpa_mcast_key.flags = KEY_INFO_WPA_MCAST;
 	set_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags);
 
-	memset(&assoc_req->wpa_unicast_key, 0, sizeof (struct WLAN_802_11_KEY));
+	memset(&assoc_req->wpa_unicast_key, 0, sizeof (struct enc_key));
 	assoc_req->wpa_unicast_key.flags = KEY_INFO_WPA_UNICAST;
 	set_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
 
@@ -1567,7 +1409,7 @@ static int wlan_get_encodeext(struct net_device *dev,
 		           && (adapter->secinfo.WPAenabled ||
 		               adapter->secinfo.WPA2enabled)) {
 			/* WPA */
-			struct WLAN_802_11_KEY * pkey = NULL;
+			struct enc_key * pkey = NULL;
 
 			if (   adapter->wpa_mcast_key.len
 			    && (adapter->wpa_mcast_key.flags & KEY_INFO_WPA_ENABLED))
@@ -1679,7 +1521,7 @@ static int wlan_set_encodeext(struct net_device *dev,
 		if (set_tx_key)
 			set_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags);
 	} else if ((alg == IW_ENCODE_ALG_TKIP) || (alg == IW_ENCODE_ALG_CCMP)) {
-		struct WLAN_802_11_KEY * pkey;
+		struct enc_key * pkey;
 
 		/* validate key length */
 		if (((alg == IW_ENCODE_ALG_TKIP)
@@ -1702,7 +1544,7 @@ static int wlan_set_encodeext(struct net_device *dev,
 			set_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
 		}
 
-		memset(pkey, 0, sizeof (struct WLAN_802_11_KEY));
+		memset(pkey, 0, sizeof (struct enc_key));
 		memcpy(pkey->key, ext->key, ext->key_len);
 		pkey->len = ext->key_len;
 		if (pkey->len)
@@ -1976,12 +1818,14 @@ static int wlan_set_txpow(struct net_device *dev, struct iw_request_info *info,
 		return 0;
 	}
 
-	adapter->preamble = cmd_type_auto_preamble;
+	adapter->preamble = CMD_TYPE_AUTO_PREAMBLE;
 
 	wlan_radio_ioctl(priv, RADIO_ON);
 
+	/* Userspace check in iwrange if it should use dBm or mW,
+	 * therefore this should never happen... Jean II */
 	if ((vwrq->flags & IW_TXPOW_TYPE) == IW_TXPOW_MWATT) {
-		dbm = (u16) mw_to_dbm(vwrq->value);
+		return -EOPNOTSUPP;
 	} else
 		dbm = (u16) vwrq->value;
 
@@ -1993,9 +1837,9 @@ static int wlan_set_txpow(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_wext("txpower set %d dbm\n", dbm);
 
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_rf_tx_power,
-				    cmd_act_tx_power_opt_set_low,
-				    cmd_option_waitforrsp, 0, (void *)&dbm);
+				    CMD_802_11_RF_TX_POWER,
+				    CMD_ACT_TX_POWER_OPT_SET_LOW,
+				    CMD_OPTION_WAITFORRSP, 0, (void *)&dbm);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
@@ -2017,7 +1861,7 @@ static int wlan_get_essid(struct net_device *dev, struct iw_request_info *info,
 	/*
 	 * Get the current SSID
 	 */
-	if (adapter->connect_status == libertas_connected) {
+	if (adapter->connect_status == LIBERTAS_CONNECTED) {
 		memcpy(extra, adapter->curbssparams.ssid,
 		       adapter->curbssparams.ssid_len);
 		extra[adapter->curbssparams.ssid_len] = '\0';
@@ -2029,12 +1873,7 @@ static int wlan_get_essid(struct net_device *dev, struct iw_request_info *info,
 	 * If none, we may want to get the one that was set
 	 */
 
-	/* To make the driver backward compatible with WPA supplicant v0.2.4 */
-	if (dwrq->length == 32)	/* check with WPA supplicant buffer size */
-		dwrq->length = min_t(size_t, adapter->curbssparams.ssid_len,
-				   IW_ESSID_MAX_SIZE);
-	else
-		dwrq->length = adapter->curbssparams.ssid_len + 1;
+	dwrq->length = adapter->curbssparams.ssid_len;
 
 	dwrq->flags = 1;	/* active */
 
@@ -2054,14 +1893,6 @@ static int wlan_set_essid(struct net_device *dev, struct iw_request_info *info,
 	int in_ssid_len = dwrq->length;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
-
-	/*
-	 * WE-20 and earlier NULL pad the end of the SSID and increment
-	 * SSID length so it can be used like a string.  WE-21 and later don't,
-	 * but some userspace tools aren't able to cope with the change.
-	 */
-	if ((in_ssid_len > 0) && (extra[in_ssid_len - 1] == '\0'))
-		in_ssid_len--;
 
 	/* Check the size of the string */
 	if (in_ssid_len > IW_ESSID_MAX_SIZE) {
@@ -2129,13 +1960,14 @@ static int wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 	wlan_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req;
 	int ret = 0;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	if (awrq->sa_family != ARPHRD_ETHER)
 		return -EINVAL;
 
-	lbs_deb_wext("ASSOC: WAP: sa_data " MAC_FMT "\n", MAC_ARG(awrq->sa_data));
+	lbs_deb_wext("ASSOC: WAP: sa_data %s\n", print_mac(mac, awrq->sa_data));
 
 	mutex_lock(&adapter->lock);
 
@@ -2298,13 +2130,13 @@ static const iw_handler mesh_wlan_handler[] = {
 	(iw_handler) NULL,		/* SIOCSIWPMKSA */
 };
 struct iw_handler_def libertas_handler_def = {
-	.num_standard	= sizeof(wlan_handler) / sizeof(iw_handler),
+	.num_standard	= ARRAY_SIZE(wlan_handler),
 	.standard	= (iw_handler *) wlan_handler,
 	.get_wireless_stats = wlan_get_wireless_stats,
 };
 
 struct iw_handler_def mesh_handler_def = {
-	.num_standard	= sizeof(mesh_wlan_handler) / sizeof(iw_handler),
+	.num_standard	= ARRAY_SIZE(mesh_wlan_handler),
 	.standard	= (iw_handler *) mesh_wlan_handler,
 	.get_wireless_stats = wlan_get_wireless_stats,
 };

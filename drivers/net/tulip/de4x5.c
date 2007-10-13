@@ -482,7 +482,7 @@
 static char version[] __devinitdata = "de4x5.c:V0.546 2001/02/22 davies@maniac.ultranet.com\n";
 
 #define c_char const char
-#define TWIDDLE(a) (u_short)le16_to_cpu(get_unaligned((u_short *)(a)))
+#define TWIDDLE(a) (u_short)le16_to_cpu(get_unaligned((__le16 *)(a)))
 
 /*
 ** MII Information
@@ -756,10 +756,10 @@ struct de4x5_srom {
                                         /* Multiple of 4 for DC21040  */
                                         /* Allows 512 byte alignment  */
 struct de4x5_desc {
-    volatile s32 status;
-    u32 des1;
-    u32 buf;
-    u32 next;
+    volatile __le32 status;
+    __le32 des1;
+    __le32 buf;
+    __le32 next;
     DESC_ALIGN
 };
 
@@ -1088,6 +1088,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     struct de4x5_private *lp = netdev_priv(dev);
     struct pci_dev *pdev = NULL;
     int i, status=0;
+    DECLARE_MAC_BUF(mac);
 
     gendev->driver_data = dev;
 
@@ -1123,12 +1124,8 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     dev->base_addr = iobase;
     printk ("%s: %s at 0x%04lx", gendev->bus_id, name, iobase);
 
-    printk(", h/w address ");
     status = get_hw_addr(dev);
-    for (i = 0; i < ETH_ALEN - 1; i++) {     /* get the ethernet addr. */
-	printk("%2.2x:", dev->dev_addr[i]);
-    }
-    printk("%2.2x,\n", dev->dev_addr[i]);
+    printk(", h/w address %s\n", print_mac(mac, dev->dev_addr));
 
     if (status != 0) {
 	printk("      which has an Ethernet PROM CRC error.\n");
@@ -1261,7 +1258,6 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     }
 
     /* The DE4X5-specific entries in the device structure. */
-    SET_MODULE_OWNER(dev);
     SET_NETDEV_DEV(dev, gendev);
     dev->open = &de4x5_open;
     dev->hard_start_xmit = &de4x5_queue_pkt;
@@ -3946,7 +3942,7 @@ create_packet(struct net_device *dev, char *frame, int len)
 static int
 EISA_signature(char *name, struct device *device)
 {
-    int i, status = 0, siglen = sizeof(de4x5_signatures)/sizeof(c_char *);
+    int i, status = 0, siglen = ARRAY_SIZE(de4x5_signatures);
     struct eisa_device *edev;
 
     *name = '\0';
@@ -3967,7 +3963,7 @@ EISA_signature(char *name, struct device *device)
 static int
 PCI_signature(char *name, struct de4x5_private *lp)
 {
-    int i, status = 0, siglen = sizeof(de4x5_signatures)/sizeof(c_char *);
+    int i, status = 0, siglen = ARRAY_SIZE(de4x5_signatures);
 
     if (lp->chipset == DC21040) {
 	strcpy(name, "DE434/5");
@@ -5073,7 +5069,7 @@ mii_get_phy(struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
     u_long iobase = dev->base_addr;
-    int i, j, k, n, limit=sizeof(phy_info)/sizeof(struct phy_table);
+    int i, j, k, n, limit=ARRAY_SIZE(phy_info);
     int id;
 
     lp->active = 0;
@@ -5469,19 +5465,16 @@ static void
 de4x5_dbg_srom(struct de4x5_srom *p)
 {
     int i;
+    DECLARE_MAC_BUF(mac);
 
     if (de4x5_debug & DEBUG_SROM) {
 	printk("Sub-system Vendor ID: %04x\n", *((u_short *)p->sub_vendor_id));
 	printk("Sub-system ID:        %04x\n", *((u_short *)p->sub_system_id));
 	printk("ID Block CRC:         %02x\n", (u_char)(p->id_block_crc));
 	printk("SROM version:         %02x\n", (u_char)(p->version));
-	printk("# controllers:         %02x\n", (u_char)(p->num_controllers));
+	printk("# controllers:        %02x\n", (u_char)(p->num_controllers));
 
-	printk("Hardware Address:     ");
-	for (i=0;i<ETH_ALEN-1;i++) {
-	    printk("%02x:", (u_char)*(p->ieee_addr+i));
-	}
-	printk("%02x\n", (u_char)*(p->ieee_addr+i));
+	printk("Hardware Address:     %s\n", print_mac(mac, p->ieee_addr));
 	printk("CRC checksum:         %04x\n", (u_short)(p->chksum));
 	for (i=0; i<64; i++) {
 	    printk("%3d %04x\n", i<<1, (u_short)*((u_short *)p+i));
@@ -5495,21 +5488,12 @@ static void
 de4x5_dbg_rx(struct sk_buff *skb, int len)
 {
     int i, j;
+    DECLARE_MAC_BUF(mac);
+    DECLARE_MAC_BUF(mac2);
 
     if (de4x5_debug & DEBUG_RX) {
-	printk("R: %02x:%02x:%02x:%02x:%02x:%02x <- %02x:%02x:%02x:%02x:%02x:%02x len/SAP:%02x%02x [%d]\n",
-	       (u_char)skb->data[0],
-	       (u_char)skb->data[1],
-	       (u_char)skb->data[2],
-	       (u_char)skb->data[3],
-	       (u_char)skb->data[4],
-	       (u_char)skb->data[5],
-	       (u_char)skb->data[6],
-	       (u_char)skb->data[7],
-	       (u_char)skb->data[8],
-	       (u_char)skb->data[9],
-	       (u_char)skb->data[10],
-	       (u_char)skb->data[11],
+	printk("R: %s <- %s len/SAP:%02x%02x [%d]\n",
+	       print_mac(mac, skb->data), print_mac(mac2, &skb->data[6]),
 	       (u_char)skb->data[12],
 	       (u_char)skb->data[13],
 	       len);

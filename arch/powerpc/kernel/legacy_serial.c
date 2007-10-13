@@ -340,9 +340,10 @@ void __init find_legacy_serial_ports(void)
 	}
 
 	/* First fill our array with opb bus ports */
-	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16750")) != NULL;) {
+	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16550")) != NULL;) {
 		struct device_node *opb = of_get_parent(np);
-		if (opb && !strcmp(opb->type, "opb")) {
+		if (opb && (!strcmp(opb->type, "opb") ||
+			    of_device_is_compatible(opb, "ibm,opb"))) {
 			index = add_legacy_soc_port(np, np);
 			if (index >= 0 && np == stdout)
 				legacy_serial_console = index;

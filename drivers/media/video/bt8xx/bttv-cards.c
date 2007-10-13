@@ -27,7 +27,6 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -2989,6 +2988,23 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
+	/* ---- card 0x95---------------------------------- */
+	[BTTV_BOARD_TYPHOON_TVTUNERPCI] = {
+		.name           = "Typhoon TV-Tuner PCI (50684)",
+		.video_inputs   = 3,
+		.audio_inputs   = 1,
+		.tuner          = 0,
+		.svhs           = 2,
+		.gpiomask       = 0x3014f,
+		.muxsel         = { 2, 3, 1, 1 },
+		.gpiomux        = { 0x20001,0x10001, 0, 0 },
+		.gpiomute       = 10,
+		.needs_tvaudio  = 1,
+		.pll            = PLL_28,
+		.tuner_type     = TUNER_PHILIPS_PAL_I,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -3276,15 +3292,15 @@ static void eagle_muxsel(struct bttv *btv, unsigned int input)
 	btaor((2)<<5, ~(3<<5), BT848_IFORM);
 	gpio_bits(3,bttv_tvcards[btv->c.type].muxsel[input&7]);
 
-       /* composite */
-       /* set chroma ADC to sleep */
-       btor(BT848_ADC_C_SLEEP, BT848_ADC);
-       /* set to composite video */
-       btand(~BT848_CONTROL_COMP, BT848_E_CONTROL);
-       btand(~BT848_CONTROL_COMP, BT848_O_CONTROL);
+	/* composite */
+	/* set chroma ADC to sleep */
+	btor(BT848_ADC_C_SLEEP, BT848_ADC);
+	/* set to composite video */
+	btand(~BT848_CONTROL_COMP, BT848_E_CONTROL);
+	btand(~BT848_CONTROL_COMP, BT848_O_CONTROL);
 
-       /* switch sync drive off */
-       gpio_bits(LM1882_SYNC_DRIVE,LM1882_SYNC_DRIVE);
+	/* switch sync drive off */
+	gpio_bits(LM1882_SYNC_DRIVE,LM1882_SYNC_DRIVE);
 }
 
 static void gvc1100_muxsel(struct bttv *btv, unsigned int input)
@@ -3453,7 +3469,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 			printk("bttv%d: radio detected by subsystem id (CPH05x)\n",btv->c.nr);
 		}
 		break;
-       case BTTV_BOARD_STB2:
+	case BTTV_BOARD_STB2:
 		if (btv->cardid == 0x3060121a) {
 			/* Fix up entry for 3DFX VoodooTV 100,
 			   which is an OEM STB card variant. */
@@ -3784,7 +3800,7 @@ static void __devinit osprey_eeprom(struct bttv *btv, const u8 ee[256])
 			for (i = 12; i < 21; i++)
 				serial *= 10, serial += ee[i] - '0';
 		}
-       } else {
+	} else {
 		unsigned short type;
 
 		for (i = 4*16; i < 8*16; i += 16) {

@@ -248,14 +248,19 @@ static int pty_bsd_ioctl(struct tty_struct *tty, struct file *file,
 	return -ENOIOCTLCMD;
 }
 
+static int legacy_count = CONFIG_LEGACY_PTY_COUNT;
+module_param(legacy_count, int, 0);
+
 static void __init legacy_pty_init(void)
 {
+	if (legacy_count <= 0)
+		return;
 
-	pty_driver = alloc_tty_driver(NR_PTYS);
+	pty_driver = alloc_tty_driver(legacy_count);
 	if (!pty_driver)
 		panic("Couldn't allocate pty driver");
 
-	pty_slave_driver = alloc_tty_driver(NR_PTYS);
+	pty_slave_driver = alloc_tty_driver(legacy_count);
 	if (!pty_slave_driver)
 		panic("Couldn't allocate pty slave driver");
 

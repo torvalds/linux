@@ -91,30 +91,29 @@ static void ps3disk_scatter_gather(struct ps3_storage_device *dev,
 				   struct request *req, int gather)
 {
 	unsigned int offset = 0;
-	struct bio *bio;
-	sector_t sector;
+	struct req_iterator iter;
 	struct bio_vec *bvec;
-	unsigned int i = 0, j;
+	unsigned int i = 0;
 	size_t size;
 	void *buf;
 
-	rq_for_each_bio(bio, req) {
-		sector = bio->bi_sector;
+	rq_for_each_segment(bvec, req, iter) {
+		unsigned long flags;
 		dev_dbg(&dev->sbd.core,
 			"%s:%u: bio %u: %u segs %u sectors from %lu\n",
-			__func__, __LINE__, i, bio_segments(bio),
-			bio_sectors(bio), sector);
-		bio_for_each_segment(bvec, bio, j) {
-			size = bvec->bv_len;
-			buf = __bio_kmap_atomic(bio, j, KM_IRQ0);
-			if (gather)
-				memcpy(dev->bounce_buf+offset, buf, size);
-			else
-				memcpy(buf, dev->bounce_buf+offset, size);
-			offset += size;
-			flush_kernel_dcache_page(bio_iovec_idx(bio, j)->bv_page);
-			__bio_kunmap_atomic(bio, KM_IRQ0);
-		}
+			__func__, __LINE__, i, bio_segments(iter.bio),
+			bio_sectors(iter.bio),
+			(unsigned long)iter.bio->bi_sector);
+
+		size = bvec->bv_len;
+		buf = bvec_kmap_irq(bvec, &flags);
+		if (gather)
+			memcpy(dev->bounce_buf+offset, buf, size);
+		else
+			memcpy(buf, dev->bounce_buf+offset, size);
+		offset += size;
+		flush_kernel_dcache_page(bvec->bv_page);
+		bvec_kunmap_irq(bvec, &flags);
 		i++;
 	}
 }
@@ -130,12 +129,13 @@ static int ps3disk_submit_request_sg(struct ps3_storage_device *dev,
 
 #ifdef DEBUG
 	unsigned int n = 0;
-	struct bio *bio;
+	struct bio_vec *bv;
+	struct req_iterator iter;
 
-	rq_for_each_bio(bio, req)
+	rq_for_each_segment(bv, req, iter)
 		n++;
 	dev_dbg(&dev->sbd.core,
-		"%s:%u: %s req has %u bios for %lu sectors %lu hard sectors\n",
+		"%s:%u: %s req has %u bvecs for %lu sectors %lu hard sectors\n",
 		__func__, __LINE__, op, n, req->nr_sectors,
 		req->hard_nr_sectors);
 #endif

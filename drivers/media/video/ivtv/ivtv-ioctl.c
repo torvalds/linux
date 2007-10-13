@@ -25,8 +25,7 @@
 #include "ivtv-queue.h"
 #include "ivtv-fileops.h"
 #include "ivtv-vbi.h"
-#include "ivtv-audio.h"
-#include "ivtv-video.h"
+#include "ivtv-routing.h"
 #include "ivtv-streams.h"
 #include "ivtv-yuv.h"
 #include "ivtv-ioctl.h"
@@ -164,7 +163,7 @@ void ivtv_set_osd_alpha(struct ivtv *itv)
 {
 	ivtv_vapi(itv, CX2341X_OSD_SET_GLOBAL_ALPHA, 3,
 		itv->osd_global_alpha_state, itv->osd_global_alpha, !itv->osd_local_alpha_state);
-	ivtv_vapi(itv, CX2341X_OSD_SET_CHROMA_KEY, 2, itv->osd_color_key_state, itv->osd_color_key);
+	ivtv_vapi(itv, CX2341X_OSD_SET_CHROMA_KEY, 2, itv->osd_chroma_key_state, itv->osd_chroma_key);
 }
 
 int ivtv_set_speed(struct ivtv *itv, int speed)
@@ -427,7 +426,7 @@ static int ivtv_get_fmt(struct ivtv *itv, int streamtype, struct v4l2_format *fm
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
-		fmt->fmt.win.chromakey = itv->osd_color_key;
+		fmt->fmt.win.chromakey = itv->osd_chroma_key;
 		fmt->fmt.win.global_alpha = itv->osd_global_alpha;
 		break;
 
@@ -547,7 +546,7 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		if (set_fmt) {
-			itv->osd_color_key = fmt->fmt.win.chromakey;
+			itv->osd_chroma_key = fmt->fmt.win.chromakey;
 			itv->osd_global_alpha = fmt->fmt.win.global_alpha;
 			ivtv_set_osd_alpha(itv);
 		}
@@ -584,9 +583,7 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 
 	/* set raw VBI format */
 	if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-		if (set_fmt && streamtype == IVTV_ENC_STREAM_TYPE_VBI &&
-		    itv->vbi.sliced_in->service_set &&
-		    atomic_read(&itv->capturing) > 0) {
+		if (set_fmt && atomic_read(&itv->capturing) > 0) {
 			return -EBUSY;
 		}
 		if (set_fmt) {
@@ -624,7 +621,7 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 		return 0;
 	if (set == 0)
 		return -EINVAL;
-	if (atomic_read(&itv->capturing) > 0 && itv->vbi.sliced_in->service_set == 0) {
+	if (atomic_read(&itv->capturing) > 0) {
 		return -EBUSY;
 	}
 	itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);
@@ -677,13 +674,21 @@ static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case VIDIOC_INT_S_AUDIO_ROUTING: {
 		struct v4l2_routing *route = arg;
 
-		ivtv_audio_set_route(itv, route);
+		ivtv_i2c_hw(itv, itv->card->hw_audio, VIDIOC_INT_S_AUDIO_ROUTING, route);
 		break;
 	}
 
-	case VIDIOC_INT_RESET:
-		ivtv_reset_ir_gpio(itv);
+	case VIDIOC_INT_RESET: {
+		u32 val = *(u32 *)arg;
+
+		if ((val == 0 && itv->options.newi2c) || (val & 0x01)) {
+			ivtv_reset_ir_gpio(itv);
+		}
+		if (val & 0x02) {
+			itv->video_dec_func(itv, cmd, 0);
+		}
 		break;
+	}
 
 	default:
 		return -EINVAL;
@@ -694,6 +699,7 @@ static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void *arg)
 {
 	struct ivtv_open_id *id = NULL;
+	u32 data[CX2341X_MBOX_MAX_DATA];
 
 	if (filp) id = (struct ivtv_open_id *)filp->private_data;
 
@@ -897,6 +903,9 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		if (inp == itv->active_input) {
 			IVTV_DEBUG_INFO("Input unchanged\n");
 			break;
+		}
+		if (atomic_read(&itv->capturing) > 0) {
+			return -EBUSY;
 		}
 		IVTV_DEBUG_INFO("Changing input from %d to %d\n",
 				itv->active_input, inp);
@@ -1127,12 +1136,14 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		memset(&enc->raw, 0, sizeof(enc->raw));
 		switch (enc->cmd) {
 		case V4L2_ENC_CMD_START:
+			IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_START\n");
 			enc->flags = 0;
 			if (try)
 				return 0;
 			return ivtv_start_capture(id);
 
 		case V4L2_ENC_CMD_STOP:
+			IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_STOP\n");
 			enc->flags &= V4L2_ENC_CMD_STOP_AT_GOP_END;
 			if (try)
 				return 0;
@@ -1140,6 +1151,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			return 0;
 
 		case V4L2_ENC_CMD_PAUSE:
+			IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_PAUSE\n");
 			enc->flags = 0;
 			if (try)
 				return 0;
@@ -1152,6 +1164,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			break;
 
 		case V4L2_ENC_CMD_RESUME:
+			IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_RESUME\n");
 			enc->flags = 0;
 			if (try)
 				return 0;
@@ -1163,6 +1176,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			ivtv_unmute(itv);
 			break;
 		default:
+			IVTV_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
 			return -EINVAL;
 		}
 		break;
@@ -1170,22 +1184,58 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 
 	case VIDIOC_G_FBUF: {
 		struct v4l2_framebuffer *fb = arg;
+		int pixfmt;
+		static u32 pixel_format[16] = {
+			V4L2_PIX_FMT_PAL8, /* Uses a 256-entry RGB colormap */
+			V4L2_PIX_FMT_RGB565,
+			V4L2_PIX_FMT_RGB555,
+			V4L2_PIX_FMT_RGB444,
+			V4L2_PIX_FMT_RGB32,
+			0,
+			0,
+			0,
+			V4L2_PIX_FMT_PAL8, /* Uses a 256-entry YUV colormap */
+			V4L2_PIX_FMT_YUV565,
+			V4L2_PIX_FMT_YUV555,
+			V4L2_PIX_FMT_YUV444,
+			V4L2_PIX_FMT_YUV32,
+			0,
+			0,
+			0,
+		};
 
 		memset(fb, 0, sizeof(*fb));
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
 			return -EINVAL;
 		fb->capability = V4L2_FBUF_CAP_EXTERNOVERLAY | V4L2_FBUF_CAP_CHROMAKEY |
-			V4L2_FBUF_CAP_LOCAL_ALPHA | V4L2_FBUF_CAP_GLOBAL_ALPHA;
-		fb->fmt.pixelformat = itv->osd_pixelformat;
+			V4L2_FBUF_CAP_GLOBAL_ALPHA;
+		ivtv_vapi_result(itv, data, CX2341X_OSD_GET_STATE, 0);
+		data[0] |= (read_reg(0x2a00) >> 7) & 0x40;
+		pixfmt = (data[0] >> 3) & 0xf;
+		fb->fmt.pixelformat = pixel_format[pixfmt];
 		fb->fmt.width = itv->osd_rect.width;
 		fb->fmt.height = itv->osd_rect.height;
 		fb->base = (void *)itv->osd_video_pbase;
+		if (itv->osd_chroma_key_state)
+			fb->flags |= V4L2_FBUF_FLAG_CHROMAKEY;
 		if (itv->osd_global_alpha_state)
 			fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
-		if (itv->osd_local_alpha_state)
-			fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
-		if (itv->osd_color_key_state)
-			fb->flags |= V4L2_FBUF_FLAG_CHROMAKEY;
+		pixfmt &= 7;
+		/* no local alpha for RGB565 or unknown formats */
+		if (pixfmt == 1 || pixfmt > 4)
+			break;
+		/* 16-bit formats have inverted local alpha */
+		if (pixfmt == 2 || pixfmt == 3)
+			fb->capability |= V4L2_FBUF_CAP_LOCAL_INV_ALPHA;
+		else
+			fb->capability |= V4L2_FBUF_CAP_LOCAL_ALPHA;
+		if (itv->osd_local_alpha_state) {
+			/* 16-bit formats have inverted local alpha */
+			if (pixfmt == 2 || pixfmt == 3)
+				fb->flags |= V4L2_FBUF_FLAG_LOCAL_INV_ALPHA;
+			else
+				fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
+		}
 		break;
 	}
 
@@ -1195,9 +1245,19 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
 			return -EINVAL;
 		itv->osd_global_alpha_state = (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
-		itv->osd_local_alpha_state = (fb->flags & V4L2_FBUF_FLAG_LOCAL_ALPHA) != 0;
-		itv->osd_color_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
+		itv->osd_local_alpha_state =
+			(fb->flags & (V4L2_FBUF_FLAG_LOCAL_ALPHA|V4L2_FBUF_FLAG_LOCAL_INV_ALPHA)) != 0;
+		itv->osd_chroma_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
 		ivtv_set_osd_alpha(itv);
+		break;
+	}
+
+	case VIDIOC_OVERLAY: {
+		int *on = arg;
+
+		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
+			return -EINVAL;
+		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, *on != 0);
 		break;
 	}
 
@@ -1209,6 +1269,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		int i;
 
 		IVTV_INFO("=================  START STATUS CARD #%d  =================\n", itv->num);
+		IVTV_INFO("Version: %s Card: %s\n", IVTV_VERSION, itv->card_name);
 		if (itv->hw_flags & IVTV_HW_TVEEPROM) {
 			struct tveeprom tv;
 
@@ -1217,32 +1278,72 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		ivtv_call_i2c_clients(itv, VIDIOC_LOG_STATUS, NULL);
 		ivtv_get_input(itv, itv->active_input, &vidin);
 		ivtv_get_audio_input(itv, itv->audio_input, &audin);
-		IVTV_INFO("Video Input: %s\n", vidin.name);
-		IVTV_INFO("Audio Input: %s\n", audin.name);
+		IVTV_INFO("Video Input:  %s\n", vidin.name);
+		IVTV_INFO("Audio Input:  %s%s\n", audin.name,
+			(itv->dualwatch_stereo_mode & ~0x300) == 0x200 ? " (Bilingual)" : "");
 		if (has_output) {
 			struct v4l2_output vidout;
 			struct v4l2_audioout audout;
 			int mode = itv->output_mode;
-			static const char * const output_modes[] = {
+			static const char * const output_modes[5] = {
 				"None",
 				"MPEG Streaming",
 				"YUV Streaming",
 				"YUV Frames",
 				"Passthrough",
 			};
+			static const char * const audio_modes[5] = {
+				"Stereo",
+				"Left",
+				"Right",
+				"Mono",
+				"Swapped"
+			};
+			static const char * const alpha_mode[4] = {
+				"None",
+				"Global",
+				"Local",
+				"Global and Local"
+			};
+			static const char * const pixel_format[16] = {
+				"ARGB Indexed",
+				"RGB 5:6:5",
+				"ARGB 1:5:5:5",
+				"ARGB 1:4:4:4",
+				"ARGB 8:8:8:8",
+				"5",
+				"6",
+				"7",
+				"AYUV Indexed",
+				"YUV 5:6:5",
+				"AYUV 1:5:5:5",
+				"AYUV 1:4:4:4",
+				"AYUV 8:8:8:8",
+				"13",
+				"14",
+				"15",
+			};
 
 			ivtv_get_output(itv, itv->active_output, &vidout);
 			ivtv_get_audio_output(itv, 0, &audout);
 			IVTV_INFO("Video Output: %s\n", vidout.name);
-			IVTV_INFO("Audio Output: %s\n", audout.name);
+			IVTV_INFO("Audio Output: %s (Stereo/Bilingual: %s/%s)\n", audout.name,
+				audio_modes[itv->audio_stereo_mode],
+				audio_modes[itv->audio_bilingual_mode]);
 			if (mode < 0 || mode > OUT_PASSTHROUGH)
 				mode = OUT_NONE;
-			IVTV_INFO("Output Mode: %s\n", output_modes[mode]);
+			IVTV_INFO("Output Mode:  %s\n", output_modes[mode]);
+			ivtv_vapi_result(itv, data, CX2341X_OSD_GET_STATE, 0);
+			data[0] |= (read_reg(0x2a00) >> 7) & 0x40;
+			IVTV_INFO("Overlay:      %s, Alpha: %s, Pixel Format: %s\n",
+				data[0] & 1 ? "On" : "Off",
+				alpha_mode[(data[0] >> 1) & 0x3],
+				pixel_format[(data[0] >> 3) & 0xf]);
 		}
-		IVTV_INFO("Tuner: %s\n",
+		IVTV_INFO("Tuner:  %s\n",
 			test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
 		cx2341x_log_status(&itv->params, itv->name);
-		IVTV_INFO("Version: %s Status flags: 0x%08lx\n", IVTV_VERSION, itv->i_flags);
+		IVTV_INFO("Status flags:    0x%08lx\n", itv->i_flags);
 		for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 			struct ivtv_stream *s = &itv->streams[i];
 
@@ -1252,7 +1353,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 					(s->buffers - s->q_free.buffers) * 100 / s->buffers,
 					(s->buffers * s->buf_size) / 1024, s->buffers);
 		}
-		IVTV_INFO("Read MPEG/VBI: %lld/%lld bytes\n", (long long)itv->mpg_data_received, (long long)itv->vbi_data_inserted);
+		IVTV_INFO("Read MPG/VBI: %lld/%lld bytes\n", (long long)itv->mpg_data_received, (long long)itv->vbi_data_inserted);
 		IVTV_INFO("==================  END STATUS CARD #%d  ==================\n", itv->num);
 		break;
 	}
@@ -1288,6 +1389,8 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			ivtv_release_stream(s);
 			return -EBUSY;
 		}
+		/* Mark that this file handle started the UDMA_YUV mode */
+		id->yuv_frames = 1;
 		if (args->y_source == NULL)
 			return 0;
 		return ivtv_yuv_prep_frame(itv, args);
@@ -1396,9 +1499,9 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		int try = (cmd == VIDEO_TRY_COMMAND);
 
 		if (try)
-			IVTV_DEBUG_IOCTL("VIDEO_TRY_COMMAND\n");
+			IVTV_DEBUG_IOCTL("VIDEO_TRY_COMMAND %d\n", vc->cmd);
 		else
-			IVTV_DEBUG_IOCTL("VIDEO_COMMAND\n");
+			IVTV_DEBUG_IOCTL("VIDEO_COMMAND %d\n", vc->cmd);
 		return ivtv_video_command(itv, id, vc, try);
 	}
 
@@ -1429,11 +1532,15 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 				return 0;
 			if (nonblocking)
 				return -EAGAIN;
-			/* wait for event */
+			/* Wait for event. Note that serialize_lock is locked,
+			   so to allow other processes to access the driver while
+			   we are waiting unlock first and later lock again. */
+			mutex_unlock(&itv->serialize_lock);
 			prepare_to_wait(&itv->event_waitq, &wait, TASK_INTERRUPTIBLE);
 			if ((itv->i_flags & (IVTV_F_I_EV_DEC_STOPPED|IVTV_F_I_EV_VSYNC)) == 0)
 				schedule();
 			finish_wait(&itv->event_waitq, &wait);
+			mutex_lock(&itv->serialize_lock);
 			if (signal_pending(current)) {
 				/* return if a signal was received */
 				IVTV_DEBUG_INFO("User stopped wait for event\n");
@@ -1470,6 +1577,7 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_S_AUDOUT:
 	case VIDIOC_S_EXT_CTRLS:
 	case VIDIOC_S_FBUF:
+	case VIDIOC_OVERLAY:
 		ret = v4l2_prio_check(&itv->prio, &id->prio);
 		if (ret)
 			return ret;
@@ -1523,6 +1631,7 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_TRY_ENCODER_CMD:
 	case VIDIOC_G_FBUF:
 	case VIDIOC_S_FBUF:
+	case VIDIOC_OVERLAY:
 		if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
 			printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
 			v4l_printk_ioctl(cmd);
@@ -1563,12 +1672,9 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		    unsigned long arg)
+static int ivtv_serialized_ioctl(struct ivtv *itv, struct inode *inode, struct file *filp,
+		unsigned int cmd, unsigned long arg)
 {
-	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
-	struct ivtv *itv = id->itv;
-
 	/* Filter dvb ioctls that cannot be handled by video_usercopy */
 	switch (cmd) {
 	case VIDEO_SELECT_SOURCE:
@@ -1602,4 +1708,17 @@ int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		break;
 	}
 	return video_usercopy(inode, filp, cmd, arg, ivtv_v4l2_do_ioctl);
+}
+
+int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
+		    unsigned long arg)
+{
+	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
+	struct ivtv *itv = id->itv;
+	int res;
+
+	mutex_lock(&itv->serialize_lock);
+	res = ivtv_serialized_ioctl(itv, inode, filp, cmd, arg);
+	mutex_unlock(&itv->serialize_lock);
+	return res;
 }

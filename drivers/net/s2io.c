@@ -37,8 +37,8 @@
  * tx_fifo_len: This too is an array of 8. Each element defines the number of
  * Tx descriptors that can be associated with each corresponding FIFO.
  * intr_type: This defines the type of interrupt. The values can be 0(INTA),
- *     2(MSI_X). Default value is '0(INTA)'
- * lro: Specifies whether to enable Large Receive Offload (LRO) or not.
+ *     2(MSI_X). Default value is '2(MSI_X)'
+ * lro_enable: Specifies whether to enable Large Receive Offload (LRO) or not.
  *     Possible values '1' for enable '0' for disable. Default is '0'
  * lro_max_pkts: This parameter defines maximum number of packets can be
  *     aggregated as a single large packet
@@ -84,7 +84,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.25.1"
+#define DRV_VERSION "2.0.26.5"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -128,6 +128,11 @@ static inline int rx_buffer_level(struct s2io_nic * sp, int rxb_size, int ring)
 	else if ((mac_control->rings[ring].pkt_cnt - rxb_size) > 16)
 		return  LOW;
 	return 0;
+}
+
+static inline int is_s2io_card_up(const struct s2io_nic * sp)
+{
+	return test_bit(__S2IO_STATE_CARD_UP, &sp->state);
 }
 
 /* Ethtool related variables and Macros. */
@@ -263,47 +268,71 @@ static char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
 	{"serious_err_cnt"},
 	{"soft_reset_cnt"},
 	{"fifo_full_cnt"},
-	{"ring_full_cnt"},
-	("alarm_transceiver_temp_high"),
-	("alarm_transceiver_temp_low"),
-	("alarm_laser_bias_current_high"),
-	("alarm_laser_bias_current_low"),
-	("alarm_laser_output_power_high"),
-	("alarm_laser_output_power_low"),
-	("warn_transceiver_temp_high"),
-	("warn_transceiver_temp_low"),
-	("warn_laser_bias_current_high"),
-	("warn_laser_bias_current_low"),
-	("warn_laser_output_power_high"),
-	("warn_laser_output_power_low"),
-	("lro_aggregated_pkts"),
-	("lro_flush_both_count"),
-	("lro_out_of_sequence_pkts"),
-	("lro_flush_due_to_max_pkts"),
-	("lro_avg_aggr_pkts"),
-	("mem_alloc_fail_cnt"),
-	("pci_map_fail_cnt"),
-	("watchdog_timer_cnt"),
-	("mem_allocated"),
-	("mem_freed"),
-	("link_up_cnt"),
-	("link_down_cnt"),
-	("link_up_time"),
-	("link_down_time"),
-	("tx_tcode_buf_abort_cnt"),
-	("tx_tcode_desc_abort_cnt"),
-	("tx_tcode_parity_err_cnt"),
-	("tx_tcode_link_loss_cnt"),
-	("tx_tcode_list_proc_err_cnt"),
-	("rx_tcode_parity_err_cnt"),
-	("rx_tcode_abort_cnt"),
-	("rx_tcode_parity_abort_cnt"),
-	("rx_tcode_rda_fail_cnt"),
-	("rx_tcode_unkn_prot_cnt"),
-	("rx_tcode_fcs_err_cnt"),
-	("rx_tcode_buf_size_err_cnt"),
-	("rx_tcode_rxd_corrupt_cnt"),
-	("rx_tcode_unkn_err_cnt")
+	{"ring_0_full_cnt"},
+	{"ring_1_full_cnt"},
+	{"ring_2_full_cnt"},
+	{"ring_3_full_cnt"},
+	{"ring_4_full_cnt"},
+	{"ring_5_full_cnt"},
+	{"ring_6_full_cnt"},
+	{"ring_7_full_cnt"},
+	{"alarm_transceiver_temp_high"},
+	{"alarm_transceiver_temp_low"},
+	{"alarm_laser_bias_current_high"},
+	{"alarm_laser_bias_current_low"},
+	{"alarm_laser_output_power_high"},
+	{"alarm_laser_output_power_low"},
+	{"warn_transceiver_temp_high"},
+	{"warn_transceiver_temp_low"},
+	{"warn_laser_bias_current_high"},
+	{"warn_laser_bias_current_low"},
+	{"warn_laser_output_power_high"},
+	{"warn_laser_output_power_low"},
+	{"lro_aggregated_pkts"},
+	{"lro_flush_both_count"},
+	{"lro_out_of_sequence_pkts"},
+	{"lro_flush_due_to_max_pkts"},
+	{"lro_avg_aggr_pkts"},
+	{"mem_alloc_fail_cnt"},
+	{"pci_map_fail_cnt"},
+	{"watchdog_timer_cnt"},
+	{"mem_allocated"},
+	{"mem_freed"},
+	{"link_up_cnt"},
+	{"link_down_cnt"},
+	{"link_up_time"},
+	{"link_down_time"},
+	{"tx_tcode_buf_abort_cnt"},
+	{"tx_tcode_desc_abort_cnt"},
+	{"tx_tcode_parity_err_cnt"},
+	{"tx_tcode_link_loss_cnt"},
+	{"tx_tcode_list_proc_err_cnt"},
+	{"rx_tcode_parity_err_cnt"},
+	{"rx_tcode_abort_cnt"},
+	{"rx_tcode_parity_abort_cnt"},
+	{"rx_tcode_rda_fail_cnt"},
+	{"rx_tcode_unkn_prot_cnt"},
+	{"rx_tcode_fcs_err_cnt"},
+	{"rx_tcode_buf_size_err_cnt"},
+	{"rx_tcode_rxd_corrupt_cnt"},
+	{"rx_tcode_unkn_err_cnt"},
+	{"tda_err_cnt"},
+	{"pfc_err_cnt"},
+	{"pcc_err_cnt"},
+	{"tti_err_cnt"},
+	{"tpa_err_cnt"},
+	{"sm_err_cnt"},
+	{"lso_err_cnt"},
+	{"mac_tmac_err_cnt"},
+	{"mac_rmac_err_cnt"},
+	{"xgxs_txgxs_err_cnt"},
+	{"xgxs_rxgxs_err_cnt"},
+	{"rc_err_cnt"},
+	{"prc_pcix_err_cnt"},
+	{"rpa_err_cnt"},
+	{"rda_err_cnt"},
+	{"rti_err_cnt"},
+	{"mc_err_cnt"}
 };
 
 #define S2IO_XENA_STAT_LEN sizeof(ethtool_xena_stats_keys)/ ETH_GSTRING_LEN
@@ -326,6 +355,16 @@ static char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
 			timer.data = (unsigned long) arg;	\
 			mod_timer(&timer, (jiffies + exp))	\
 
+/* copy mac addr to def_mac_addr array */
+static void do_s2io_copy_mac_addr(struct s2io_nic *sp, int offset, u64 mac_addr)
+{
+	sp->def_mac_addr[offset].mac_addr[5] = (u8) (mac_addr);
+	sp->def_mac_addr[offset].mac_addr[4] = (u8) (mac_addr >> 8);
+	sp->def_mac_addr[offset].mac_addr[3] = (u8) (mac_addr >> 16);
+	sp->def_mac_addr[offset].mac_addr[2] = (u8) (mac_addr >> 24);
+	sp->def_mac_addr[offset].mac_addr[1] = (u8) (mac_addr >> 32);
+	sp->def_mac_addr[offset].mac_addr[0] = (u8) (mac_addr >> 40);
+}
 /* Add the vlan */
 static void s2io_vlan_rx_register(struct net_device *dev,
 					struct vlan_group *grp)
@@ -423,14 +462,15 @@ S2IO_PARM_INT(mc_pause_threshold_q4q7, 187);
 S2IO_PARM_INT(shared_splits, 0);
 S2IO_PARM_INT(tmac_util_period, 5);
 S2IO_PARM_INT(rmac_util_period, 5);
-S2IO_PARM_INT(bimodal, 0);
 S2IO_PARM_INT(l3l4hdr_size, 128);
 /* Frequency of Rx desc syncs expressed as power of 2 */
 S2IO_PARM_INT(rxsync_frequency, 3);
 /* Interrupt type. Values can be 0(INTA), 2(MSI_X) */
-S2IO_PARM_INT(intr_type, 0);
+S2IO_PARM_INT(intr_type, 2);
 /* Large receive offload feature */
-S2IO_PARM_INT(lro, 0);
+static unsigned int lro_enable;
+module_param_named(lro, lro_enable, uint, 0);
+
 /* Max pkts to be aggregated by LRO at one time. If not specified,
  * aggregation happens until we hit max IP pkt size(64K)
  */
@@ -532,7 +572,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 	for (i = 0; i < config->tx_fifo_num; i++) {
 		int fifo_len = config->tx_cfg[i].fifo_len;
 		int list_holder_size = fifo_len * sizeof(struct list_info_hold);
-		mac_control->fifos[i].list_info = kmalloc(list_holder_size,
+		mac_control->fifos[i].list_info = kzalloc(list_holder_size,
 							  GFP_KERNEL);
 		if (!mac_control->fifos[i].list_info) {
 			DBG_PRINT(INFO_DBG,
@@ -540,7 +580,6 @@ static int init_shared_mem(struct s2io_nic *nic)
 			return -ENOMEM;
 		}
 		mem_allocated += list_holder_size;
-		memset(mac_control->fifos[i].list_info, 0, list_holder_size);
 	}
 	for (i = 0; i < config->tx_fifo_num; i++) {
 		int page_num = TXD_MEM_PAGE_CNT(config->tx_cfg[i].fifo_len,
@@ -671,7 +710,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 						  GFP_KERNEL);
 			if (!rx_blocks->rxds)
 				return -ENOMEM;
-			mem_allocated += 
+			mem_allocated +=
 			(sizeof(struct rxd_info)* rxd_count[nic->rxd_mode]);
 			for (l=0; l<rxd_count[nic->rxd_mode];l++) {
 				rx_blocks->rxds[l].virt_addr =
@@ -733,7 +772,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 					    (BUF0_LEN + ALIGN_SIZE, GFP_KERNEL);
 					if (!ba->ba_0_org)
 						return -ENOMEM;
-					mem_allocated += 
+					mem_allocated +=
 						(BUF0_LEN + ALIGN_SIZE);
 					tmp = (unsigned long)ba->ba_0_org;
 					tmp += ALIGN_SIZE;
@@ -744,7 +783,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 					    (BUF1_LEN + ALIGN_SIZE, GFP_KERNEL);
 					if (!ba->ba_1_org)
 						return -ENOMEM;
-					mem_allocated 
+					mem_allocated
 						+= (BUF1_LEN + ALIGN_SIZE);
 					tmp = (unsigned long) ba->ba_1_org;
 					tmp += ALIGN_SIZE;
@@ -829,7 +868,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 					    mac_control->fifos[i].
 					    list_info[mem_blks].
 					    list_phy_addr);
-			nic->mac_control.stats_info->sw_stat.mem_freed 
+			nic->mac_control.stats_info->sw_stat.mem_freed
 						+= PAGE_SIZE;
 		}
 		/* If we got a zero DMA address during allocation,
@@ -844,11 +883,11 @@ static void free_shared_mem(struct s2io_nic *nic)
 				dev->name);
 			DBG_PRINT(INIT_DBG, "Virtual address %p\n",
 				mac_control->zerodma_virt_addr);
-			nic->mac_control.stats_info->sw_stat.mem_freed 
+			nic->mac_control.stats_info->sw_stat.mem_freed
 						+= PAGE_SIZE;
 		}
 		kfree(mac_control->fifos[i].list_info);
-		nic->mac_control.stats_info->sw_stat.mem_freed += 
+		nic->mac_control.stats_info->sw_stat.mem_freed +=
 		(nic->config.tx_cfg[i].fifo_len *sizeof(struct list_info_hold));
 	}
 
@@ -866,7 +905,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 					    tmp_v_addr, tmp_p_addr);
 			nic->mac_control.stats_info->sw_stat.mem_freed += size;
 			kfree(mac_control->rings[i].rx_blocks[j].rxds);
-			nic->mac_control.stats_info->sw_stat.mem_freed += 
+			nic->mac_control.stats_info->sw_stat.mem_freed +=
 			( sizeof(struct rxd_info)* rxd_count[nic->rxd_mode]);
 		}
 	}
@@ -892,11 +931,12 @@ static void free_shared_mem(struct s2io_nic *nic)
 					k++;
 				}
 				kfree(mac_control->rings[i].ba[j]);
-				nic->mac_control.stats_info->sw_stat.mem_freed 				+= (sizeof(struct buffAdd) * 
-				(rxd_count[nic->rxd_mode] + 1));
+				nic->mac_control.stats_info->sw_stat.mem_freed +=
+					(sizeof(struct buffAdd) *
+					(rxd_count[nic->rxd_mode] + 1));
 			}
 			kfree(mac_control->rings[i].ba);
-			nic->mac_control.stats_info->sw_stat.mem_freed += 
+			nic->mac_control.stats_info->sw_stat.mem_freed +=
 			(sizeof(struct buffAdd *) * blk_cnt);
 		}
 	}
@@ -906,12 +946,12 @@ static void free_shared_mem(struct s2io_nic *nic)
 				    mac_control->stats_mem_sz,
 				    mac_control->stats_mem,
 				    mac_control->stats_mem_phy);
-		nic->mac_control.stats_info->sw_stat.mem_freed += 
+		nic->mac_control.stats_info->sw_stat.mem_freed +=
 			mac_control->stats_mem_sz;
 	}
 	if (nic->ufo_in_band_v) {
 		kfree(nic->ufo_in_band_v);
-		nic->mac_control.stats_info->sw_stat.mem_freed 
+		nic->mac_control.stats_info->sw_stat.mem_freed
 			+= (ufo_size * sizeof(u64));
 	}
 }
@@ -1456,7 +1496,7 @@ static int init_nic(struct s2io_nic *nic)
 				&bar0->rts_frm_len_n[i]);
 		}
 	}
-	
+
 	/* Disable differentiated services steering logic */
 	for (i = 0; i < 64; i++) {
 		if (rts_ds_steer(nic, i, 0) == FAILURE) {
@@ -1536,90 +1576,57 @@ static int init_nic(struct s2io_nic *nic)
 		time++;
 	}
 
-	if (nic->config.bimodal) {
-		int k = 0;
-		for (k = 0; k < config->rx_ring_num; k++) {
-			val64 = TTI_CMD_MEM_WE | TTI_CMD_MEM_STROBE_NEW_CMD;
-			val64 |= TTI_CMD_MEM_OFFSET(0x38+k);
-			writeq(val64, &bar0->tti_command_mem);
+	/* RTI Initialization */
+	if (nic->device_type == XFRAME_II_DEVICE) {
+		/*
+		 * Programmed to generate Apprx 500 Intrs per
+		 * second
+		 */
+		int count = (nic->config.bus_speed * 125)/4;
+		val64 = RTI_DATA1_MEM_RX_TIMER_VAL(count);
+	} else
+		val64 = RTI_DATA1_MEM_RX_TIMER_VAL(0xFFF);
+	val64 |= RTI_DATA1_MEM_RX_URNG_A(0xA) |
+		 RTI_DATA1_MEM_RX_URNG_B(0x10) |
+		 RTI_DATA1_MEM_RX_URNG_C(0x30) | RTI_DATA1_MEM_RX_TIMER_AC_EN;
+
+	writeq(val64, &bar0->rti_data1_mem);
+
+	val64 = RTI_DATA2_MEM_RX_UFC_A(0x1) |
+		RTI_DATA2_MEM_RX_UFC_B(0x2) ;
+	if (nic->config.intr_type == MSI_X)
+	    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x20) | \
+			RTI_DATA2_MEM_RX_UFC_D(0x40));
+	else
+	    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x40) | \
+			RTI_DATA2_MEM_RX_UFC_D(0x80));
+	writeq(val64, &bar0->rti_data2_mem);
+
+	for (i = 0; i < config->rx_ring_num; i++) {
+		val64 = RTI_CMD_MEM_WE | RTI_CMD_MEM_STROBE_NEW_CMD
+				| RTI_CMD_MEM_OFFSET(i);
+		writeq(val64, &bar0->rti_command_mem);
 
 		/*
-		 * Once the operation completes, the Strobe bit of the command
-		 * register will be reset. We poll for this particular condition
-		 * We wait for a maximum of 500ms for the operation to complete,
-		 * if it's not complete by then we return error.
-		*/
-			time = 0;
-			while (TRUE) {
-				val64 = readq(&bar0->tti_command_mem);
-				if (!(val64 & TTI_CMD_MEM_STROBE_NEW_CMD)) {
-					break;
-				}
-				if (time > 10) {
-					DBG_PRINT(ERR_DBG,
-						"%s: TTI init Failed\n",
-					dev->name);
-					return -1;
-				}
-				time++;
-				msleep(50);
+		 * Once the operation completes, the Strobe bit of the
+		 * command register will be reset. We poll for this
+		 * particular condition. We wait for a maximum of 500ms
+		 * for the operation to complete, if it's not complete
+		 * by then we return error.
+		 */
+		time = 0;
+		while (TRUE) {
+			val64 = readq(&bar0->rti_command_mem);
+			if (!(val64 & RTI_CMD_MEM_STROBE_NEW_CMD))
+				break;
+
+			if (time > 10) {
+				DBG_PRINT(ERR_DBG, "%s: RTI init Failed\n",
+					  dev->name);
+				return -1;
 			}
-		}
-	} else {
-
-		/* RTI Initialization */
-		if (nic->device_type == XFRAME_II_DEVICE) {
-			/*
-			 * Programmed to generate Apprx 500 Intrs per
-			 * second
-			 */
-			int count = (nic->config.bus_speed * 125)/4;
-			val64 = RTI_DATA1_MEM_RX_TIMER_VAL(count);
-		} else {
-			val64 = RTI_DATA1_MEM_RX_TIMER_VAL(0xFFF);
-		}
-		val64 |= RTI_DATA1_MEM_RX_URNG_A(0xA) |
-		    RTI_DATA1_MEM_RX_URNG_B(0x10) |
-		    RTI_DATA1_MEM_RX_URNG_C(0x30) | RTI_DATA1_MEM_RX_TIMER_AC_EN;
-
-		writeq(val64, &bar0->rti_data1_mem);
-
-		val64 = RTI_DATA2_MEM_RX_UFC_A(0x1) |
-		    RTI_DATA2_MEM_RX_UFC_B(0x2) ;
-		if (nic->intr_type == MSI_X)
-		    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x20) | \
-				RTI_DATA2_MEM_RX_UFC_D(0x40));
-		else
-		    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x40) | \
-				RTI_DATA2_MEM_RX_UFC_D(0x80));
-		writeq(val64, &bar0->rti_data2_mem);
-
-		for (i = 0; i < config->rx_ring_num; i++) {
-			val64 = RTI_CMD_MEM_WE | RTI_CMD_MEM_STROBE_NEW_CMD
-					| RTI_CMD_MEM_OFFSET(i);
-			writeq(val64, &bar0->rti_command_mem);
-
-			/*
-			 * Once the operation completes, the Strobe bit of the
-			 * command register will be reset. We poll for this
-			 * particular condition. We wait for a maximum of 500ms
-			 * for the operation to complete, if it's not complete
-			 * by then we return error.
-			 */
-			time = 0;
-			while (TRUE) {
-				val64 = readq(&bar0->rti_command_mem);
-				if (!(val64 & RTI_CMD_MEM_STROBE_NEW_CMD)) {
-					break;
-				}
-				if (time > 10) {
-					DBG_PRINT(ERR_DBG, "%s: RTI init Failed\n",
-						  dev->name);
-					return -1;
-				}
-				time++;
-				msleep(50);
-			}
+			time++;
+			msleep(50);
 		}
 	}
 
@@ -1724,7 +1731,7 @@ static int init_nic(struct s2io_nic *nic)
 
 static int s2io_link_fault_indication(struct s2io_nic *nic)
 {
-	if (nic->intr_type != INTA)
+	if (nic->config.intr_type != INTA)
 		return MAC_RMAC_ERR_TIMER;
 	if (nic->device_type == XFRAME_II_DEVICE)
 		return LINK_UP_DOWN_INTERRUPT;
@@ -1732,6 +1739,150 @@ static int s2io_link_fault_indication(struct s2io_nic *nic)
 		return MAC_RMAC_ERR_TIMER;
 }
 
+/**
+ *  do_s2io_write_bits -  update alarm bits in alarm register
+ *  @value: alarm bits
+ *  @flag: interrupt status
+ *  @addr: address value
+ *  Description: update alarm bits in alarm register
+ *  Return Value:
+ *  NONE.
+ */
+static void do_s2io_write_bits(u64 value, int flag, void __iomem *addr)
+{
+	u64 temp64;
+
+	temp64 = readq(addr);
+
+	if(flag == ENABLE_INTRS)
+		temp64 &= ~((u64) value);
+	else
+		temp64 |= ((u64) value);
+	writeq(temp64, addr);
+}
+
+static void en_dis_err_alarms(struct s2io_nic *nic, u16 mask, int flag)
+{
+	struct XENA_dev_config __iomem *bar0 = nic->bar0;
+	register u64 gen_int_mask = 0;
+
+	if (mask & TX_DMA_INTR) {
+
+		gen_int_mask |= TXDMA_INT_M;
+
+		do_s2io_write_bits(TXDMA_TDA_INT | TXDMA_PFC_INT |
+				TXDMA_PCC_INT | TXDMA_TTI_INT |
+				TXDMA_LSO_INT | TXDMA_TPA_INT |
+				TXDMA_SM_INT, flag, &bar0->txdma_int_mask);
+
+		do_s2io_write_bits(PFC_ECC_DB_ERR | PFC_SM_ERR_ALARM |
+				PFC_MISC_0_ERR | PFC_MISC_1_ERR |
+				PFC_PCIX_ERR | PFC_ECC_SG_ERR, flag,
+				&bar0->pfc_err_mask);
+
+		do_s2io_write_bits(TDA_Fn_ECC_DB_ERR | TDA_SM0_ERR_ALARM |
+				TDA_SM1_ERR_ALARM | TDA_Fn_ECC_SG_ERR |
+				TDA_PCIX_ERR, flag, &bar0->tda_err_mask);
+
+		do_s2io_write_bits(PCC_FB_ECC_DB_ERR | PCC_TXB_ECC_DB_ERR |
+				PCC_SM_ERR_ALARM | PCC_WR_ERR_ALARM |
+				PCC_N_SERR | PCC_6_COF_OV_ERR |
+				PCC_7_COF_OV_ERR | PCC_6_LSO_OV_ERR |
+				PCC_7_LSO_OV_ERR | PCC_FB_ECC_SG_ERR |
+				PCC_TXB_ECC_SG_ERR, flag, &bar0->pcc_err_mask);
+
+		do_s2io_write_bits(TTI_SM_ERR_ALARM | TTI_ECC_SG_ERR |
+				TTI_ECC_DB_ERR, flag, &bar0->tti_err_mask);
+
+		do_s2io_write_bits(LSO6_ABORT | LSO7_ABORT |
+				LSO6_SM_ERR_ALARM | LSO7_SM_ERR_ALARM |
+				LSO6_SEND_OFLOW | LSO7_SEND_OFLOW,
+				flag, &bar0->lso_err_mask);
+
+		do_s2io_write_bits(TPA_SM_ERR_ALARM | TPA_TX_FRM_DROP,
+				flag, &bar0->tpa_err_mask);
+
+		do_s2io_write_bits(SM_SM_ERR_ALARM, flag, &bar0->sm_err_mask);
+
+	}
+
+	if (mask & TX_MAC_INTR) {
+		gen_int_mask |= TXMAC_INT_M;
+		do_s2io_write_bits(MAC_INT_STATUS_TMAC_INT, flag,
+				&bar0->mac_int_mask);
+		do_s2io_write_bits(TMAC_TX_BUF_OVRN | TMAC_TX_SM_ERR |
+				TMAC_ECC_SG_ERR | TMAC_ECC_DB_ERR |
+				TMAC_DESC_ECC_SG_ERR | TMAC_DESC_ECC_DB_ERR,
+				flag, &bar0->mac_tmac_err_mask);
+	}
+
+	if (mask & TX_XGXS_INTR) {
+		gen_int_mask |= TXXGXS_INT_M;
+		do_s2io_write_bits(XGXS_INT_STATUS_TXGXS, flag,
+				&bar0->xgxs_int_mask);
+		do_s2io_write_bits(TXGXS_ESTORE_UFLOW | TXGXS_TX_SM_ERR |
+				TXGXS_ECC_SG_ERR | TXGXS_ECC_DB_ERR,
+				flag, &bar0->xgxs_txgxs_err_mask);
+	}
+
+	if (mask & RX_DMA_INTR) {
+		gen_int_mask |= RXDMA_INT_M;
+		do_s2io_write_bits(RXDMA_INT_RC_INT_M | RXDMA_INT_RPA_INT_M |
+				RXDMA_INT_RDA_INT_M | RXDMA_INT_RTI_INT_M,
+				flag, &bar0->rxdma_int_mask);
+		do_s2io_write_bits(RC_PRCn_ECC_DB_ERR | RC_FTC_ECC_DB_ERR |
+				RC_PRCn_SM_ERR_ALARM | RC_FTC_SM_ERR_ALARM |
+				RC_PRCn_ECC_SG_ERR | RC_FTC_ECC_SG_ERR |
+				RC_RDA_FAIL_WR_Rn, flag, &bar0->rc_err_mask);
+		do_s2io_write_bits(PRC_PCI_AB_RD_Rn | PRC_PCI_AB_WR_Rn |
+				PRC_PCI_AB_F_WR_Rn | PRC_PCI_DP_RD_Rn |
+				PRC_PCI_DP_WR_Rn | PRC_PCI_DP_F_WR_Rn, flag,
+				&bar0->prc_pcix_err_mask);
+		do_s2io_write_bits(RPA_SM_ERR_ALARM | RPA_CREDIT_ERR |
+				RPA_ECC_SG_ERR | RPA_ECC_DB_ERR, flag,
+				&bar0->rpa_err_mask);
+		do_s2io_write_bits(RDA_RXDn_ECC_DB_ERR | RDA_FRM_ECC_DB_N_AERR |
+				RDA_SM1_ERR_ALARM | RDA_SM0_ERR_ALARM |
+				RDA_RXD_ECC_DB_SERR | RDA_RXDn_ECC_SG_ERR |
+				RDA_FRM_ECC_SG_ERR | RDA_MISC_ERR|RDA_PCIX_ERR,
+				flag, &bar0->rda_err_mask);
+		do_s2io_write_bits(RTI_SM_ERR_ALARM |
+				RTI_ECC_SG_ERR | RTI_ECC_DB_ERR,
+				flag, &bar0->rti_err_mask);
+	}
+
+	if (mask & RX_MAC_INTR) {
+		gen_int_mask |= RXMAC_INT_M;
+		do_s2io_write_bits(MAC_INT_STATUS_RMAC_INT, flag,
+				&bar0->mac_int_mask);
+		do_s2io_write_bits(RMAC_RX_BUFF_OVRN | RMAC_RX_SM_ERR |
+				RMAC_UNUSED_INT | RMAC_SINGLE_ECC_ERR |
+				RMAC_DOUBLE_ECC_ERR |
+				RMAC_LINK_STATE_CHANGE_INT,
+				flag, &bar0->mac_rmac_err_mask);
+	}
+
+	if (mask & RX_XGXS_INTR)
+	{
+		gen_int_mask |= RXXGXS_INT_M;
+		do_s2io_write_bits(XGXS_INT_STATUS_RXGXS, flag,
+				&bar0->xgxs_int_mask);
+		do_s2io_write_bits(RXGXS_ESTORE_OFLOW | RXGXS_RX_SM_ERR, flag,
+				&bar0->xgxs_rxgxs_err_mask);
+	}
+
+	if (mask & MC_INTR) {
+		gen_int_mask |= MC_INT_M;
+		do_s2io_write_bits(MC_INT_MASK_MC_INT, flag, &bar0->mc_int_mask);
+		do_s2io_write_bits(MC_ERR_REG_SM_ERR | MC_ERR_REG_ECC_ALL_SNG |
+				MC_ERR_REG_ECC_ALL_DBL | PLL_LOCK_N, flag,
+				&bar0->mc_err_mask);
+	}
+	nic->general_int_mask = gen_int_mask;
+
+	/* Remove this line when alarm interrupts are enabled */
+	nic->general_int_mask = 0;
+}
 /**
  *  en_dis_able_nic_intrs - Enable or Disable the interrupts
  *  @nic: device private variable,
@@ -1746,17 +1897,16 @@ static int s2io_link_fault_indication(struct s2io_nic *nic)
 static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 {
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
-	register u64 val64 = 0, temp64 = 0;
+	register u64 temp64 = 0, intr_mask = 0;
+
+	intr_mask = nic->general_int_mask;
 
 	/*  Top level interrupt classification */
 	/*  PIC Interrupts */
-	if ((mask & (TX_PIC_INTR | RX_PIC_INTR))) {
+	if (mask & TX_PIC_INTR) {
 		/*  Enable PIC Intrs in the general intr mask register */
-		val64 = TXPIC_INT_M;
+		intr_mask |= TXPIC_INT_M;
 		if (flag == ENABLE_INTRS) {
-			temp64 = readq(&bar0->general_int_mask);
-			temp64 &= ~((u64) val64);
-			writeq(temp64, &bar0->general_int_mask);
 			/*
 			 * If Hercules adapter enable GPIO otherwise
 			 * disable all PCIX, Flash, MDIO, IIC and GPIO
@@ -1765,64 +1915,25 @@ static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 			 */
 			if (s2io_link_fault_indication(nic) ==
 					LINK_UP_DOWN_INTERRUPT ) {
-				temp64 = readq(&bar0->pic_int_mask);
-				temp64 &= ~((u64) PIC_INT_GPIO);
-				writeq(temp64, &bar0->pic_int_mask);
-				temp64 = readq(&bar0->gpio_int_mask);
-				temp64 &= ~((u64) GPIO_INT_MASK_LINK_UP);
-				writeq(temp64, &bar0->gpio_int_mask);
-			} else {
+				do_s2io_write_bits(PIC_INT_GPIO, flag,
+						&bar0->pic_int_mask);
+				do_s2io_write_bits(GPIO_INT_MASK_LINK_UP, flag,
+						&bar0->gpio_int_mask);
+			} else
 				writeq(DISABLE_ALL_INTRS, &bar0->pic_int_mask);
-			}
-			/*
-			 * No MSI Support is available presently, so TTI and
-			 * RTI interrupts are also disabled.
-			 */
 		} else if (flag == DISABLE_INTRS) {
 			/*
 			 * Disable PIC Intrs in the general
 			 * intr mask register
 			 */
 			writeq(DISABLE_ALL_INTRS, &bar0->pic_int_mask);
-			temp64 = readq(&bar0->general_int_mask);
-			val64 |= temp64;
-			writeq(val64, &bar0->general_int_mask);
-		}
-	}
-
-	/*  MAC Interrupts */
-	/*  Enabling/Disabling MAC interrupts */
-	if (mask & (TX_MAC_INTR | RX_MAC_INTR)) {
-		val64 = TXMAC_INT_M | RXMAC_INT_M;
-		if (flag == ENABLE_INTRS) {
-			temp64 = readq(&bar0->general_int_mask);
-			temp64 &= ~((u64) val64);
-			writeq(temp64, &bar0->general_int_mask);
-			/*
-			 * All MAC block error interrupts are disabled for now
-			 * TODO
-			 */
-		} else if (flag == DISABLE_INTRS) {
-			/*
-			 * Disable MAC Intrs in the general intr mask register
-			 */
-			writeq(DISABLE_ALL_INTRS, &bar0->mac_int_mask);
-			writeq(DISABLE_ALL_INTRS,
-			       &bar0->mac_rmac_err_mask);
-
-			temp64 = readq(&bar0->general_int_mask);
-			val64 |= temp64;
-			writeq(val64, &bar0->general_int_mask);
 		}
 	}
 
 	/*  Tx traffic interrupts */
 	if (mask & TX_TRAFFIC_INTR) {
-		val64 = TXTRAFFIC_INT_M;
+		intr_mask |= TXTRAFFIC_INT_M;
 		if (flag == ENABLE_INTRS) {
-			temp64 = readq(&bar0->general_int_mask);
-			temp64 &= ~((u64) val64);
-			writeq(temp64, &bar0->general_int_mask);
 			/*
 			 * Enable all the Tx side interrupts
 			 * writing 0 Enables all 64 TX interrupt levels
@@ -1834,19 +1945,13 @@ static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 			 * register.
 			 */
 			writeq(DISABLE_ALL_INTRS, &bar0->tx_traffic_mask);
-			temp64 = readq(&bar0->general_int_mask);
-			val64 |= temp64;
-			writeq(val64, &bar0->general_int_mask);
 		}
 	}
 
 	/*  Rx traffic interrupts */
 	if (mask & RX_TRAFFIC_INTR) {
-		val64 = RXTRAFFIC_INT_M;
+		intr_mask |= RXTRAFFIC_INT_M;
 		if (flag == ENABLE_INTRS) {
-			temp64 = readq(&bar0->general_int_mask);
-			temp64 &= ~((u64) val64);
-			writeq(temp64, &bar0->general_int_mask);
 			/* writing 0 Enables all 8 RX interrupt levels */
 			writeq(0x0, &bar0->rx_traffic_mask);
 		} else if (flag == DISABLE_INTRS) {
@@ -1855,11 +1960,17 @@ static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 			 * register.
 			 */
 			writeq(DISABLE_ALL_INTRS, &bar0->rx_traffic_mask);
-			temp64 = readq(&bar0->general_int_mask);
-			val64 |= temp64;
-			writeq(val64, &bar0->general_int_mask);
 		}
 	}
+
+	temp64 = readq(&bar0->general_int_mask);
+	if (flag == ENABLE_INTRS)
+		temp64 &= ~((u64) intr_mask);
+	else
+		temp64 = DISABLE_ALL_INTRS;
+	writeq(temp64, &bar0->general_int_mask);
+
+	nic->general_int_mask = readq(&bar0->general_int_mask);
 }
 
 /**
@@ -1872,7 +1983,7 @@ static int verify_pcc_quiescent(struct s2io_nic *sp, int flag)
 	int ret = 0, herc;
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
 	u64 val64 = readq(&bar0->adapter_status);
-	
+
 	herc = (sp->device_type == XFRAME_II_DEVICE);
 
 	if (flag == FALSE) {
@@ -2018,8 +2129,6 @@ static int start_nic(struct s2io_nic *nic)
 		       &bar0->prc_rxd0_n[i]);
 
 		val64 = readq(&bar0->prc_ctrl_n[i]);
-		if (nic->config.bimodal)
-			val64 |= PRC_CTRL_BIMODAL_INTERRUPT;
 		if (nic->rxd_mode == RXD_MODE_1)
 			val64 |= PRC_CTRL_RC_ENABLED;
 		else
@@ -2061,14 +2170,6 @@ static int start_nic(struct s2io_nic *nic)
 	val64 = readq(&bar0->adapter_control);
 	val64 &= ~ADAPTER_ECC_EN;
 	writeq(val64, &bar0->adapter_control);
-
-	/*
-	 * Clearing any possible Link state change interrupts that
-	 * could have popped up just before Enabling the card.
-	 */
-	val64 = readq(&bar0->mac_rmac_err_reg);
-	if (val64)
-		writeq(val64, &bar0->mac_rmac_err_reg);
 
 	/*
 	 * Verify if the device is ready to be enabled, if so enable
@@ -2187,7 +2288,7 @@ static void free_tx_buffers(struct s2io_nic *nic)
 			mac_control->fifos[i].list_info[j].list_virt_addr;
 			skb = s2io_txdl_getskb(&mac_control->fifos[i], txdp, j);
 			if (skb) {
-				nic->mac_control.stats_info->sw_stat.mem_freed 
+				nic->mac_control.stats_info->sw_stat.mem_freed
 					+= skb->truesize;
 				dev_kfree_skb(skb);
 				cnt++;
@@ -2223,9 +2324,9 @@ static void stop_nic(struct s2io_nic *nic)
 	config = &nic->config;
 
 	/*  Disable all interrupts */
+	en_dis_err_alarms(nic, ENA_ALL_INTRS, DISABLE_INTRS);
 	interruptible = TX_TRAFFIC_INTR | RX_TRAFFIC_INTR;
-	interruptible |= TX_PIC_INTR | RX_PIC_INTR;
-	interruptible |= TX_MAC_INTR | RX_MAC_INTR;
+	interruptible |= TX_PIC_INTR;
 	en_dis_able_nic_intrs(nic, interruptible, DISABLE_INTRS);
 
 	/* Clearing Adapter_En bit of ADAPTER_CONTROL Register */
@@ -2352,7 +2453,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 				mem_alloc_fail_cnt++;
 			return -ENOMEM ;
 		}
-		nic->mac_control.stats_info->sw_stat.mem_allocated 
+		nic->mac_control.stats_info->sw_stat.mem_allocated
 			+= skb->truesize;
 		if (nic->rxd_mode == RXD_MODE_1) {
 			/* 1 buffer mode - normal operation mode */
@@ -2367,7 +2468,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 				DMA_ERROR_CODE))
 				goto pci_map_failed;
 
-			rxdp->Control_2 = 
+			rxdp->Control_2 =
 				SET_BUFFER0_SIZE_1(size - NET_IP_ALIGN);
 
 		} else if (nic->rxd_mode == RXD_MODE_3B) {
@@ -2568,7 +2669,7 @@ static void free_rx_buffers(struct s2io_nic *sp)
 
 /**
  * s2io_poll - Rx interrupt handler for NAPI support
- * @dev : pointer to the device structure.
+ * @napi : pointer to the napi structure.
  * @budget : The number of packets that were budgeted to be processed
  * during  one pass through the 'Poll" function.
  * Description:
@@ -2579,22 +2680,23 @@ static void free_rx_buffers(struct s2io_nic *sp)
  * 0 on success and 1 if there are No Rx packets to be processed.
  */
 
-static int s2io_poll(struct net_device *dev, int *budget)
+static int s2io_poll(struct napi_struct *napi, int budget)
 {
-	struct s2io_nic *nic = dev->priv;
+	struct s2io_nic *nic = container_of(napi, struct s2io_nic, napi);
+	struct net_device *dev = nic->dev;
 	int pkt_cnt = 0, org_pkts_to_process;
 	struct mac_info *mac_control;
 	struct config_param *config;
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	int i;
 
-	atomic_inc(&nic->isr_cnt);
+	if (!is_s2io_card_up(nic))
+		return 0;
+
 	mac_control = &nic->mac_control;
 	config = &nic->config;
 
-	nic->pkts_to_process = *budget;
-	if (nic->pkts_to_process > dev->quota)
-		nic->pkts_to_process = dev->quota;
+	nic->pkts_to_process = budget;
 	org_pkts_to_process = nic->pkts_to_process;
 
 	writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
@@ -2608,12 +2710,8 @@ static int s2io_poll(struct net_device *dev, int *budget)
 			goto no_rx;
 		}
 	}
-	if (!pkt_cnt)
-		pkt_cnt = 1;
 
-	dev->quota -= pkt_cnt;
-	*budget -= pkt_cnt;
-	netif_rx_complete(dev);
+	netif_rx_complete(dev, napi);
 
 	for (i = 0; i < config->rx_ring_num; i++) {
 		if (fill_rx_buffers(nic, i) == -ENOMEM) {
@@ -2625,13 +2723,9 @@ static int s2io_poll(struct net_device *dev, int *budget)
 	/* Re enable the Rx interrupts. */
 	writeq(0x0, &bar0->rx_traffic_mask);
 	readl(&bar0->rx_traffic_mask);
-	atomic_dec(&nic->isr_cnt);
-	return 0;
+	return pkt_cnt;
 
 no_rx:
-	dev->quota -= pkt_cnt;
-	*budget -= pkt_cnt;
-
 	for (i = 0; i < config->rx_ring_num; i++) {
 		if (fill_rx_buffers(nic, i) == -ENOMEM) {
 			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
@@ -2639,8 +2733,7 @@ no_rx:
 			break;
 		}
 	}
-	atomic_dec(&nic->isr_cnt);
-	return 1;
+	return pkt_cnt;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2667,7 +2760,6 @@ static void s2io_netpoll(struct net_device *dev)
 
 	disable_irq(dev->irq);
 
-	atomic_inc(&nic->isr_cnt);
 	mac_control = &nic->mac_control;
 	config = &nic->config;
 
@@ -2692,7 +2784,6 @@ static void s2io_netpoll(struct net_device *dev)
 			break;
 		}
 	}
-	atomic_dec(&nic->isr_cnt);
 	enable_irq(dev->irq);
 	return;
 }
@@ -2724,12 +2815,6 @@ static void rx_intr_handler(struct ring_info *ring_data)
 	struct RxD3* rxdp3;
 
 	spin_lock(&nic->rx_lock);
-	if (atomic_read(&nic->card_state) == CARD_DOWN) {
-		DBG_PRINT(INTR_DBG, "%s: %s going down for reset\n",
-			  __FUNCTION__, dev->name);
-		spin_unlock(&nic->rx_lock);
-		return;
-	}
 
 	get_info = ring_data->rx_curr_get_info;
 	get_block = get_info.block_index;
@@ -3164,135 +3249,6 @@ static void s2io_updt_xpak_counter(struct net_device *dev)
 }
 
 /**
- *  alarm_intr_handler - Alarm Interrrupt handler
- *  @nic: device private variable
- *  Description: If the interrupt was neither because of Rx packet or Tx
- *  complete, this function is called. If the interrupt was to indicate
- *  a loss of link, the OSM link status handler is invoked for any other
- *  alarm interrupt the block that raised the interrupt is displayed
- *  and a H/W reset is issued.
- *  Return Value:
- *  NONE
-*/
-
-static void alarm_intr_handler(struct s2io_nic *nic)
-{
-	struct net_device *dev = (struct net_device *) nic->dev;
-	struct XENA_dev_config __iomem *bar0 = nic->bar0;
-	register u64 val64 = 0, err_reg = 0;
-	u64 cnt;
-	int i;
-	if (atomic_read(&nic->card_state) == CARD_DOWN)
-		return;
-	if (pci_channel_offline(nic->pdev))
-		return;
-	nic->mac_control.stats_info->sw_stat.ring_full_cnt = 0;
-	/* Handling the XPAK counters update */
-	if(nic->mac_control.stats_info->xpak_stat.xpak_timer_count < 72000) {
-		/* waiting for an hour */
-		nic->mac_control.stats_info->xpak_stat.xpak_timer_count++;
-	} else {
-		s2io_updt_xpak_counter(dev);
-		/* reset the count to zero */
-		nic->mac_control.stats_info->xpak_stat.xpak_timer_count = 0;
-	}
-
-	/* Handling link status change error Intr */
-	if (s2io_link_fault_indication(nic) == MAC_RMAC_ERR_TIMER) {
-		err_reg = readq(&bar0->mac_rmac_err_reg);
-		writeq(err_reg, &bar0->mac_rmac_err_reg);
-		if (err_reg & RMAC_LINK_STATE_CHANGE_INT) {
-			schedule_work(&nic->set_link_task);
-		}
-	}
-
-	/* Handling Ecc errors */
-	val64 = readq(&bar0->mc_err_reg);
-	writeq(val64, &bar0->mc_err_reg);
-	if (val64 & (MC_ERR_REG_ECC_ALL_SNG | MC_ERR_REG_ECC_ALL_DBL)) {
-		if (val64 & MC_ERR_REG_ECC_ALL_DBL) {
-			nic->mac_control.stats_info->sw_stat.
-				double_ecc_errs++;
-			DBG_PRINT(INIT_DBG, "%s: Device indicates ",
-				  dev->name);
-			DBG_PRINT(INIT_DBG, "double ECC error!!\n");
-			if (nic->device_type != XFRAME_II_DEVICE) {
-				/* Reset XframeI only if critical error */
-				if (val64 & (MC_ERR_REG_MIRI_ECC_DB_ERR_0 |
-					     MC_ERR_REG_MIRI_ECC_DB_ERR_1)) {
-					netif_stop_queue(dev);
-					schedule_work(&nic->rst_timer_task);
-					nic->mac_control.stats_info->sw_stat.
-							soft_reset_cnt++;
-				}
-			}
-		} else {
-			nic->mac_control.stats_info->sw_stat.
-				single_ecc_errs++;
-		}
-	}
-
-	/* In case of a serious error, the device will be Reset. */
-	val64 = readq(&bar0->serr_source);
-	if (val64 & SERR_SOURCE_ANY) {
-		nic->mac_control.stats_info->sw_stat.serious_err_cnt++;
-		DBG_PRINT(ERR_DBG, "%s: Device indicates ", dev->name);
-		DBG_PRINT(ERR_DBG, "serious error %llx!!\n",
-			  (unsigned long long)val64);
-		netif_stop_queue(dev);
-		schedule_work(&nic->rst_timer_task);
-		nic->mac_control.stats_info->sw_stat.soft_reset_cnt++;
-	}
-
-	/*
-	 * Also as mentioned in the latest Errata sheets if the PCC_FB_ECC
-	 * Error occurs, the adapter will be recycled by disabling the
-	 * adapter enable bit and enabling it again after the device
-	 * becomes Quiescent.
-	 */
-	val64 = readq(&bar0->pcc_err_reg);
-	writeq(val64, &bar0->pcc_err_reg);
-	if (val64 & PCC_FB_ECC_DB_ERR) {
-		u64 ac = readq(&bar0->adapter_control);
-		ac &= ~(ADAPTER_CNTL_EN);
-		writeq(ac, &bar0->adapter_control);
-		ac = readq(&bar0->adapter_control);
-		schedule_work(&nic->set_link_task);
-	}
-	/* Check for data parity error */
-	val64 = readq(&bar0->pic_int_status);
-	if (val64 & PIC_INT_GPIO) {
-		val64 = readq(&bar0->gpio_int_reg);
-		if (val64 & GPIO_INT_REG_DP_ERR_INT) {
-			nic->mac_control.stats_info->sw_stat.parity_err_cnt++;
-			schedule_work(&nic->rst_timer_task);
-			nic->mac_control.stats_info->sw_stat.soft_reset_cnt++;
-		}
-	}
-
-	/* Check for ring full counter */
-	if (nic->device_type & XFRAME_II_DEVICE) {
-		val64 = readq(&bar0->ring_bump_counter1);
-		for (i=0; i<4; i++) {
-			cnt = ( val64 & vBIT(0xFFFF,(i*16),16));
-			cnt >>= 64 - ((i+1)*16);
-			nic->mac_control.stats_info->sw_stat.ring_full_cnt
-				+= cnt;
-		}
-
-		val64 = readq(&bar0->ring_bump_counter2);
-		for (i=0; i<4; i++) {
-			cnt = ( val64 & vBIT(0xFFFF,(i*16),16));
-			cnt >>= 64 - ((i+1)*16);
-			nic->mac_control.stats_info->sw_stat.ring_full_cnt
-				+= cnt;
-		}
-	}
-
-	/* Other type of interrupts are not being handled now,  TODO */
-}
-
-/**
  *  wait_for_cmd_complete - waits for a command to complete.
  *  @sp : private member of the device structure, which is a pointer to the
  *  s2io_nic structure.
@@ -3426,7 +3382,7 @@ static void s2io_reset(struct s2io_nic * sp)
 
 	/* Reset device statistics maintained by OS */
 	memset(&sp->stats, 0, sizeof (struct net_device_stats));
-	
+
 	up_cnt = sp->mac_control.stats_info->sw_stat.link_up_cnt;
 	down_cnt = sp->mac_control.stats_info->sw_stat.link_down_cnt;
 	up_time = sp->mac_control.stats_info->sw_stat.link_up_time;
@@ -3468,7 +3424,7 @@ static void s2io_reset(struct s2io_nic * sp)
 	}
 
 	/* restore the previously assigned mac address */
-	s2io_set_mac_addr(sp->dev, (u8 *)&sp->def_mac_addr[0].mac_addr);
+	do_s2io_prog_unicast(sp->dev, (u8 *)&sp->def_mac_addr[0].mac_addr);
 
 	sp->device_enabled_once = FALSE;
 }
@@ -3565,7 +3521,7 @@ static int s2io_set_swapper(struct s2io_nic * sp)
 		 SWAPPER_CTRL_RXF_W_FE |
 		 SWAPPER_CTRL_XMSI_FE |
 		 SWAPPER_CTRL_STATS_FE | SWAPPER_CTRL_STATS_SE);
-	if (sp->intr_type == INTA)
+	if (sp->config.intr_type == INTA)
 		val64 |= SWAPPER_CTRL_XMSI_SE;
 	writeq(val64, &bar0->swapper_ctrl);
 #else
@@ -3588,7 +3544,7 @@ static int s2io_set_swapper(struct s2io_nic * sp)
 		 SWAPPER_CTRL_RXF_W_FE |
 		 SWAPPER_CTRL_XMSI_FE |
 		 SWAPPER_CTRL_STATS_FE | SWAPPER_CTRL_STATS_SE);
-	if (sp->intr_type == INTA)
+	if (sp->config.intr_type == INTA)
 		val64 |= SWAPPER_CTRL_XMSI_SE;
 	writeq(val64, &bar0->swapper_ctrl);
 #endif
@@ -3680,34 +3636,31 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	u16 msi_control; /* Temp variable */
 	int ret, i, j, msix_indx = 1;
 
-	nic->entries = kmalloc(MAX_REQUESTED_MSI_X * sizeof(struct msix_entry),
+	nic->entries = kcalloc(MAX_REQUESTED_MSI_X, sizeof(struct msix_entry),
 			       GFP_KERNEL);
-	if (nic->entries == NULL) {
+	if (!nic->entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", \
 			__FUNCTION__);
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		return -ENOMEM;
 	}
-	nic->mac_control.stats_info->sw_stat.mem_allocated 
+	nic->mac_control.stats_info->sw_stat.mem_allocated
 		+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
-	memset(nic->entries, 0,MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 
 	nic->s2io_entries =
-		kmalloc(MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry),
+		kcalloc(MAX_REQUESTED_MSI_X, sizeof(struct s2io_msix_entry),
 				   GFP_KERNEL);
-	if (nic->s2io_entries == NULL) {
-		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", 
+	if (!nic->s2io_entries) {
+		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n",
 			__FUNCTION__);
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		kfree(nic->entries);
-		nic->mac_control.stats_info->sw_stat.mem_freed 
+		nic->mac_control.stats_info->sw_stat.mem_freed
 			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 		return -ENOMEM;
 	}
-	 nic->mac_control.stats_info->sw_stat.mem_allocated 
+	 nic->mac_control.stats_info->sw_stat.mem_allocated
 		+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
-	memset(nic->s2io_entries, 0,
-	       MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
 
 	for (i=0; i< MAX_REQUESTED_MSI_X; i++) {
 		nic->entries[i].entry = i;
@@ -3725,27 +3678,15 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	}
 	writeq(tx_mat, &bar0->tx_mat0_n[0]);
 
-	if (!nic->config.bimodal) {
-		rx_mat = readq(&bar0->rx_mat);
-		for (j=0; j<nic->config.rx_ring_num; j++, msix_indx++) {
-			rx_mat |= RX_MAT_SET(j, msix_indx);
-			nic->s2io_entries[msix_indx].arg 
-				= &nic->mac_control.rings[j];
-			nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
-			nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
-		}
-		writeq(rx_mat, &bar0->rx_mat);
-	} else {
-		tx_mat = readq(&bar0->tx_mat0_n[7]);
-		for (j=0; j<nic->config.rx_ring_num; j++, msix_indx++) {
-			tx_mat |= TX_MAT_SET(i, msix_indx);
-			nic->s2io_entries[msix_indx].arg 
-				= &nic->mac_control.rings[j];
-			nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
-			nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
-		}
-		writeq(tx_mat, &bar0->tx_mat0_n[7]);
+	rx_mat = readq(&bar0->rx_mat);
+	for (j = 0; j < nic->config.rx_ring_num; j++, msix_indx++) {
+		rx_mat |= RX_MAT_SET(j, msix_indx);
+		nic->s2io_entries[msix_indx].arg
+			= &nic->mac_control.rings[j];
+		nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
+		nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
 	}
+	writeq(rx_mat, &bar0->rx_mat);
 
 	nic->avail_msix_vectors = 0;
 	ret = pci_enable_msix(nic->pdev, nic->entries, MAX_REQUESTED_MSI_X);
@@ -3757,10 +3698,10 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	if (ret) {
 		DBG_PRINT(ERR_DBG, "%s: Enabling MSIX failed\n", nic->dev->name);
 		kfree(nic->entries);
-		nic->mac_control.stats_info->sw_stat.mem_freed 
+		nic->mac_control.stats_info->sw_stat.mem_freed
 			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 		kfree(nic->s2io_entries);
-		nic->mac_control.stats_info->sw_stat.mem_freed 
+		nic->mac_control.stats_info->sw_stat.mem_freed
 		+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
 		nic->entries = NULL;
 		nic->s2io_entries = NULL;
@@ -3781,6 +3722,59 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	return 0;
 }
 
+/* Handle software interrupt used during MSI(X) test */
+static irqreturn_t __devinit s2io_test_intr(int irq, void *dev_id)
+{
+	struct s2io_nic *sp = dev_id;
+
+	sp->msi_detected = 1;
+	wake_up(&sp->msi_wait);
+
+	return IRQ_HANDLED;
+}
+
+/* Test interrupt path by forcing a a software IRQ */
+static int __devinit s2io_test_msi(struct s2io_nic *sp)
+{
+	struct pci_dev *pdev = sp->pdev;
+	struct XENA_dev_config __iomem *bar0 = sp->bar0;
+	int err;
+	u64 val64, saved64;
+
+	err = request_irq(sp->entries[1].vector, s2io_test_intr, 0,
+			sp->name, sp);
+	if (err) {
+		DBG_PRINT(ERR_DBG, "%s: PCI %s: cannot assign irq %d\n",
+		       sp->dev->name, pci_name(pdev), pdev->irq);
+		return err;
+	}
+
+	init_waitqueue_head (&sp->msi_wait);
+	sp->msi_detected = 0;
+
+	saved64 = val64 = readq(&bar0->scheduled_int_ctrl);
+	val64 |= SCHED_INT_CTRL_ONE_SHOT;
+	val64 |= SCHED_INT_CTRL_TIMER_EN;
+	val64 |= SCHED_INT_CTRL_INT2MSI(1);
+	writeq(val64, &bar0->scheduled_int_ctrl);
+
+	wait_event_timeout(sp->msi_wait, sp->msi_detected, HZ/10);
+
+	if (!sp->msi_detected) {
+		/* MSI(X) test failed, go back to INTx mode */
+		DBG_PRINT(ERR_DBG, "%s: PCI %s: No interrupt was generated"
+			"using MSI(X) during test\n", sp->dev->name,
+			pci_name(pdev));
+
+		err = -EOPNOTSUPP;
+	}
+
+	free_irq(sp->entries[1].vector, sp);
+
+	writeq(saved64, &bar0->scheduled_int_ctrl);
+
+	return err;
+}
 /* ********************************************************* *
  * Functions defined below concern the OS part of the driver *
  * ********************************************************* */
@@ -3809,6 +3803,50 @@ static int s2io_open(struct net_device *dev)
 	netif_carrier_off(dev);
 	sp->last_link_state = 0;
 
+	napi_enable(&sp->napi);
+
+	if (sp->config.intr_type == MSI_X) {
+		int ret = s2io_enable_msi_x(sp);
+
+		if (!ret) {
+			u16 msi_control;
+
+			ret = s2io_test_msi(sp);
+
+			/* rollback MSI-X, will re-enable during add_isr() */
+			kfree(sp->entries);
+			sp->mac_control.stats_info->sw_stat.mem_freed +=
+				(MAX_REQUESTED_MSI_X *
+				sizeof(struct msix_entry));
+			kfree(sp->s2io_entries);
+			sp->mac_control.stats_info->sw_stat.mem_freed +=
+				(MAX_REQUESTED_MSI_X *
+				sizeof(struct s2io_msix_entry));
+			sp->entries = NULL;
+			sp->s2io_entries = NULL;
+
+			pci_read_config_word(sp->pdev, 0x42, &msi_control);
+			msi_control &= 0xFFFE; /* Disable MSI */
+			pci_write_config_word(sp->pdev, 0x42, msi_control);
+
+			pci_disable_msix(sp->pdev);
+
+		}
+		if (ret) {
+
+			DBG_PRINT(ERR_DBG,
+			  "%s: MSI-X requested but failed to enable\n",
+			  dev->name);
+			sp->config.intr_type = INTA;
+		}
+	}
+
+	/* NAPI doesn't work well with MSI(X) */
+	 if (sp->config.intr_type != INTA) {
+		if(sp->config.napi)
+			sp->config.napi = 0;
+	}
+
 	/* Initialize H/W and enable interrupts */
 	err = s2io_card_up(sp);
 	if (err) {
@@ -3817,7 +3855,7 @@ static int s2io_open(struct net_device *dev)
 		goto hw_init_failed;
 	}
 
-	if (s2io_set_mac_addr(dev, dev->dev_addr) == FAILURE) {
+	if (do_s2io_prog_unicast(dev, dev->dev_addr) == FAILURE) {
 		DBG_PRINT(ERR_DBG, "Set Mac Address Failed\n");
 		s2io_card_down(sp);
 		err = -ENODEV;
@@ -3828,15 +3866,16 @@ static int s2io_open(struct net_device *dev)
 	return 0;
 
 hw_init_failed:
-	if (sp->intr_type == MSI_X) {
+	napi_disable(&sp->napi);
+	if (sp->config.intr_type == MSI_X) {
 		if (sp->entries) {
 			kfree(sp->entries);
-			sp->mac_control.stats_info->sw_stat.mem_freed 
+			sp->mac_control.stats_info->sw_stat.mem_freed
 			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 		}
 		if (sp->s2io_entries) {
 			kfree(sp->s2io_entries);
-			sp->mac_control.stats_info->sw_stat.mem_freed 
+			sp->mac_control.stats_info->sw_stat.mem_freed
 			+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
 		}
 	}
@@ -3861,6 +3900,7 @@ static int s2io_close(struct net_device *dev)
 	struct s2io_nic *sp = dev->priv;
 
 	netif_stop_queue(dev);
+	napi_disable(&sp->napi);
 	/* Reset card, kill tasklet and free Tx and Rx buffers. */
 	s2io_card_down(sp);
 
@@ -3907,7 +3947,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 	spin_lock_irqsave(&sp->tx_lock, flags);
-	if (atomic_read(&sp->card_state) == CARD_DOWN) {
+	if (!is_s2io_card_up(sp)) {
 		DBG_PRINT(TX_DBG, "%s: Card going down for reset\n",
 			  dev->name);
 		spin_unlock_irqrestore(&sp->tx_lock, flags);
@@ -4059,8 +4099,9 @@ static void
 s2io_alarm_handle(unsigned long data)
 {
 	struct s2io_nic *sp = (struct s2io_nic *)data;
+	struct net_device *dev = sp->dev;
 
-	alarm_intr_handler(sp);
+	s2io_handle_errors(dev);
 	mod_timer(&sp->alarm_timer, jiffies + HZ / 2);
 }
 
@@ -4098,12 +4139,12 @@ static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 	struct ring_info *ring = (struct ring_info *)dev_id;
 	struct s2io_nic *sp = ring->nic;
 
-	atomic_inc(&sp->isr_cnt);
+	if (!is_s2io_card_up(sp))
+		return IRQ_HANDLED;
 
 	rx_intr_handler(ring);
 	s2io_chk_rx_buffers(sp, ring->ring_no);
 
-	atomic_dec(&sp->isr_cnt);
 	return IRQ_HANDLED;
 }
 
@@ -4112,9 +4153,10 @@ static irqreturn_t s2io_msix_fifo_handle(int irq, void *dev_id)
 	struct fifo_info *fifo = (struct fifo_info *)dev_id;
 	struct s2io_nic *sp = fifo->nic;
 
-	atomic_inc(&sp->isr_cnt);
+	if (!is_s2io_card_up(sp))
+		return IRQ_HANDLED;
+
 	tx_intr_handler(fifo);
-	atomic_dec(&sp->isr_cnt);
 	return IRQ_HANDLED;
 }
 static void s2io_txpic_intr_handle(struct s2io_nic *sp)
@@ -4179,6 +4221,292 @@ static void s2io_txpic_intr_handle(struct s2io_nic *sp)
 }
 
 /**
+ *  do_s2io_chk_alarm_bit - Check for alarm and incrment the counter
+ *  @value: alarm bits
+ *  @addr: address value
+ *  @cnt: counter variable
+ *  Description: Check for alarm and increment the counter
+ *  Return Value:
+ *  1 - if alarm bit set
+ *  0 - if alarm bit is not set
+ */
+static int do_s2io_chk_alarm_bit(u64 value, void __iomem * addr,
+			  unsigned long long *cnt)
+{
+	u64 val64;
+	val64 = readq(addr);
+	if ( val64 & value ) {
+		writeq(val64, addr);
+		(*cnt)++;
+		return 1;
+	}
+	return 0;
+
+}
+
+/**
+ *  s2io_handle_errors - Xframe error indication handler
+ *  @nic: device private variable
+ *  Description: Handle alarms such as loss of link, single or
+ *  double ECC errors, critical and serious errors.
+ *  Return Value:
+ *  NONE
+ */
+static void s2io_handle_errors(void * dev_id)
+{
+	struct net_device *dev = (struct net_device *) dev_id;
+	struct s2io_nic *sp = dev->priv;
+	struct XENA_dev_config __iomem *bar0 = sp->bar0;
+	u64 temp64 = 0,val64=0;
+	int i = 0;
+
+	struct swStat *sw_stat = &sp->mac_control.stats_info->sw_stat;
+	struct xpakStat *stats = &sp->mac_control.stats_info->xpak_stat;
+
+	if (!is_s2io_card_up(sp))
+		return;
+
+	if (pci_channel_offline(sp->pdev))
+		return;
+
+	memset(&sw_stat->ring_full_cnt, 0,
+		sizeof(sw_stat->ring_full_cnt));
+
+	/* Handling the XPAK counters update */
+	if(stats->xpak_timer_count < 72000) {
+		/* waiting for an hour */
+		stats->xpak_timer_count++;
+	} else {
+		s2io_updt_xpak_counter(dev);
+		/* reset the count to zero */
+		stats->xpak_timer_count = 0;
+	}
+
+	/* Handling link status change error Intr */
+	if (s2io_link_fault_indication(sp) == MAC_RMAC_ERR_TIMER) {
+		val64 = readq(&bar0->mac_rmac_err_reg);
+		writeq(val64, &bar0->mac_rmac_err_reg);
+		if (val64 & RMAC_LINK_STATE_CHANGE_INT)
+			schedule_work(&sp->set_link_task);
+	}
+
+	/* In case of a serious error, the device will be Reset. */
+	if (do_s2io_chk_alarm_bit(SERR_SOURCE_ANY, &bar0->serr_source,
+				&sw_stat->serious_err_cnt))
+		goto reset;
+
+	/* Check for data parity error */
+	if (do_s2io_chk_alarm_bit(GPIO_INT_REG_DP_ERR_INT, &bar0->gpio_int_reg,
+				&sw_stat->parity_err_cnt))
+		goto reset;
+
+	/* Check for ring full counter */
+	if (sp->device_type == XFRAME_II_DEVICE) {
+		val64 = readq(&bar0->ring_bump_counter1);
+		for (i=0; i<4; i++) {
+			temp64 = ( val64 & vBIT(0xFFFF,(i*16),16));
+			temp64 >>= 64 - ((i+1)*16);
+			sw_stat->ring_full_cnt[i] += temp64;
+		}
+
+		val64 = readq(&bar0->ring_bump_counter2);
+		for (i=0; i<4; i++) {
+			temp64 = ( val64 & vBIT(0xFFFF,(i*16),16));
+			temp64 >>= 64 - ((i+1)*16);
+			 sw_stat->ring_full_cnt[i+4] += temp64;
+		}
+	}
+
+	val64 = readq(&bar0->txdma_int_status);
+	/*check for pfc_err*/
+	if (val64 & TXDMA_PFC_INT) {
+		if (do_s2io_chk_alarm_bit(PFC_ECC_DB_ERR | PFC_SM_ERR_ALARM|
+				PFC_MISC_0_ERR | PFC_MISC_1_ERR|
+				PFC_PCIX_ERR, &bar0->pfc_err_reg,
+				&sw_stat->pfc_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(PFC_ECC_SG_ERR, &bar0->pfc_err_reg,
+				&sw_stat->pfc_err_cnt);
+	}
+
+	/*check for tda_err*/
+	if (val64 & TXDMA_TDA_INT) {
+		if(do_s2io_chk_alarm_bit(TDA_Fn_ECC_DB_ERR | TDA_SM0_ERR_ALARM |
+				TDA_SM1_ERR_ALARM, &bar0->tda_err_reg,
+				&sw_stat->tda_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(TDA_Fn_ECC_SG_ERR | TDA_PCIX_ERR,
+				&bar0->tda_err_reg, &sw_stat->tda_err_cnt);
+	}
+	/*check for pcc_err*/
+	if (val64 & TXDMA_PCC_INT) {
+		if (do_s2io_chk_alarm_bit(PCC_SM_ERR_ALARM | PCC_WR_ERR_ALARM
+				| PCC_N_SERR | PCC_6_COF_OV_ERR
+				| PCC_7_COF_OV_ERR | PCC_6_LSO_OV_ERR
+				| PCC_7_LSO_OV_ERR | PCC_FB_ECC_DB_ERR
+				| PCC_TXB_ECC_DB_ERR, &bar0->pcc_err_reg,
+				&sw_stat->pcc_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(PCC_FB_ECC_SG_ERR | PCC_TXB_ECC_SG_ERR,
+				&bar0->pcc_err_reg, &sw_stat->pcc_err_cnt);
+	}
+
+	/*check for tti_err*/
+	if (val64 & TXDMA_TTI_INT) {
+		if (do_s2io_chk_alarm_bit(TTI_SM_ERR_ALARM, &bar0->tti_err_reg,
+				&sw_stat->tti_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(TTI_ECC_SG_ERR | TTI_ECC_DB_ERR,
+				&bar0->tti_err_reg, &sw_stat->tti_err_cnt);
+	}
+
+	/*check for lso_err*/
+	if (val64 & TXDMA_LSO_INT) {
+		if (do_s2io_chk_alarm_bit(LSO6_ABORT | LSO7_ABORT
+				| LSO6_SM_ERR_ALARM | LSO7_SM_ERR_ALARM,
+				&bar0->lso_err_reg, &sw_stat->lso_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(LSO6_SEND_OFLOW | LSO7_SEND_OFLOW,
+				&bar0->lso_err_reg, &sw_stat->lso_err_cnt);
+	}
+
+	/*check for tpa_err*/
+	if (val64 & TXDMA_TPA_INT) {
+		if (do_s2io_chk_alarm_bit(TPA_SM_ERR_ALARM, &bar0->tpa_err_reg,
+			&sw_stat->tpa_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(TPA_TX_FRM_DROP, &bar0->tpa_err_reg,
+			&sw_stat->tpa_err_cnt);
+	}
+
+	/*check for sm_err*/
+	if (val64 & TXDMA_SM_INT) {
+		if (do_s2io_chk_alarm_bit(SM_SM_ERR_ALARM, &bar0->sm_err_reg,
+			&sw_stat->sm_err_cnt))
+			goto reset;
+	}
+
+	val64 = readq(&bar0->mac_int_status);
+	if (val64 & MAC_INT_STATUS_TMAC_INT) {
+		if (do_s2io_chk_alarm_bit(TMAC_TX_BUF_OVRN | TMAC_TX_SM_ERR,
+				&bar0->mac_tmac_err_reg,
+				&sw_stat->mac_tmac_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(TMAC_ECC_SG_ERR | TMAC_ECC_DB_ERR
+				| TMAC_DESC_ECC_SG_ERR | TMAC_DESC_ECC_DB_ERR,
+				&bar0->mac_tmac_err_reg,
+				&sw_stat->mac_tmac_err_cnt);
+	}
+
+	val64 = readq(&bar0->xgxs_int_status);
+	if (val64 & XGXS_INT_STATUS_TXGXS) {
+		if (do_s2io_chk_alarm_bit(TXGXS_ESTORE_UFLOW | TXGXS_TX_SM_ERR,
+				&bar0->xgxs_txgxs_err_reg,
+				&sw_stat->xgxs_txgxs_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(TXGXS_ECC_SG_ERR | TXGXS_ECC_DB_ERR,
+				&bar0->xgxs_txgxs_err_reg,
+				&sw_stat->xgxs_txgxs_err_cnt);
+	}
+
+	val64 = readq(&bar0->rxdma_int_status);
+	if (val64 & RXDMA_INT_RC_INT_M) {
+		if (do_s2io_chk_alarm_bit(RC_PRCn_ECC_DB_ERR | RC_FTC_ECC_DB_ERR
+				| RC_PRCn_SM_ERR_ALARM |RC_FTC_SM_ERR_ALARM,
+				&bar0->rc_err_reg, &sw_stat->rc_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(RC_PRCn_ECC_SG_ERR | RC_FTC_ECC_SG_ERR
+				| RC_RDA_FAIL_WR_Rn, &bar0->rc_err_reg,
+				&sw_stat->rc_err_cnt);
+		if (do_s2io_chk_alarm_bit(PRC_PCI_AB_RD_Rn | PRC_PCI_AB_WR_Rn
+				| PRC_PCI_AB_F_WR_Rn, &bar0->prc_pcix_err_reg,
+				&sw_stat->prc_pcix_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(PRC_PCI_DP_RD_Rn | PRC_PCI_DP_WR_Rn
+				| PRC_PCI_DP_F_WR_Rn, &bar0->prc_pcix_err_reg,
+				&sw_stat->prc_pcix_err_cnt);
+	}
+
+	if (val64 & RXDMA_INT_RPA_INT_M) {
+		if (do_s2io_chk_alarm_bit(RPA_SM_ERR_ALARM | RPA_CREDIT_ERR,
+				&bar0->rpa_err_reg, &sw_stat->rpa_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(RPA_ECC_SG_ERR | RPA_ECC_DB_ERR,
+				&bar0->rpa_err_reg, &sw_stat->rpa_err_cnt);
+	}
+
+	if (val64 & RXDMA_INT_RDA_INT_M) {
+		if (do_s2io_chk_alarm_bit(RDA_RXDn_ECC_DB_ERR
+				| RDA_FRM_ECC_DB_N_AERR | RDA_SM1_ERR_ALARM
+				| RDA_SM0_ERR_ALARM | RDA_RXD_ECC_DB_SERR,
+				&bar0->rda_err_reg, &sw_stat->rda_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(RDA_RXDn_ECC_SG_ERR | RDA_FRM_ECC_SG_ERR
+				| RDA_MISC_ERR | RDA_PCIX_ERR,
+				&bar0->rda_err_reg, &sw_stat->rda_err_cnt);
+	}
+
+	if (val64 & RXDMA_INT_RTI_INT_M) {
+		if (do_s2io_chk_alarm_bit(RTI_SM_ERR_ALARM, &bar0->rti_err_reg,
+				&sw_stat->rti_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(RTI_ECC_SG_ERR | RTI_ECC_DB_ERR,
+				&bar0->rti_err_reg, &sw_stat->rti_err_cnt);
+	}
+
+	val64 = readq(&bar0->mac_int_status);
+	if (val64 & MAC_INT_STATUS_RMAC_INT) {
+		if (do_s2io_chk_alarm_bit(RMAC_RX_BUFF_OVRN | RMAC_RX_SM_ERR,
+				&bar0->mac_rmac_err_reg,
+				&sw_stat->mac_rmac_err_cnt))
+			goto reset;
+		do_s2io_chk_alarm_bit(RMAC_UNUSED_INT|RMAC_SINGLE_ECC_ERR|
+				RMAC_DOUBLE_ECC_ERR, &bar0->mac_rmac_err_reg,
+				&sw_stat->mac_rmac_err_cnt);
+	}
+
+	val64 = readq(&bar0->xgxs_int_status);
+	if (val64 & XGXS_INT_STATUS_RXGXS) {
+		if (do_s2io_chk_alarm_bit(RXGXS_ESTORE_OFLOW | RXGXS_RX_SM_ERR,
+				&bar0->xgxs_rxgxs_err_reg,
+				&sw_stat->xgxs_rxgxs_err_cnt))
+			goto reset;
+	}
+
+	val64 = readq(&bar0->mc_int_status);
+	if(val64 & MC_INT_STATUS_MC_INT) {
+		if (do_s2io_chk_alarm_bit(MC_ERR_REG_SM_ERR, &bar0->mc_err_reg,
+				&sw_stat->mc_err_cnt))
+			goto reset;
+
+		/* Handling Ecc errors */
+		if (val64 & (MC_ERR_REG_ECC_ALL_SNG | MC_ERR_REG_ECC_ALL_DBL)) {
+			writeq(val64, &bar0->mc_err_reg);
+			if (val64 & MC_ERR_REG_ECC_ALL_DBL) {
+				sw_stat->double_ecc_errs++;
+				if (sp->device_type != XFRAME_II_DEVICE) {
+					/*
+					 * Reset XframeI only if critical error
+					 */
+					if (val64 &
+						(MC_ERR_REG_MIRI_ECC_DB_ERR_0 |
+						MC_ERR_REG_MIRI_ECC_DB_ERR_1))
+								goto reset;
+					}
+			} else
+				sw_stat->single_ecc_errs++;
+		}
+	}
+	return;
+
+reset:
+	netif_stop_queue(dev);
+	schedule_work(&sp->rst_timer_task);
+	sw_stat->soft_reset_cnt++;
+	return;
+}
+
+/**
  *  s2io_isr - ISR handler of the device .
  *  @irq: the irq of the device.
  *  @dev_id: a void pointer to the dev structure of the NIC.
@@ -4205,7 +4533,9 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 	if (pci_channel_offline(sp->pdev))
 		return IRQ_NONE;
 
-	atomic_inc(&sp->isr_cnt);
+	if (!is_s2io_card_up(sp))
+		return IRQ_NONE;
+
 	mac_control = &sp->mac_control;
 	config = &sp->config;
 
@@ -4215,73 +4545,75 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 	 * 1. Rx of packet.
 	 * 2. Tx complete.
 	 * 3. Link down.
-	 * 4. Error in any functional blocks of the NIC.
 	 */
 	reason = readq(&bar0->general_int_status);
 
-	if (!reason) {
-		/* The interrupt was not raised by us. */
-		atomic_dec(&sp->isr_cnt);
-		return IRQ_NONE;
-	}
-	else if (unlikely(reason == S2IO_MINUS_ONE) ) {
-		/* Disable device and get out */
-		atomic_dec(&sp->isr_cnt);
-		return IRQ_NONE;
+	if (unlikely(reason == S2IO_MINUS_ONE) ) {
+		/* Nothing much can be done. Get out */
+		return IRQ_HANDLED;
 	}
 
-	if (napi) {
-		if (reason & GEN_INTR_RXTRAFFIC) {
-			if ( likely ( netif_rx_schedule_prep(dev)) ) {
-				__netif_rx_schedule(dev);
-				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_mask);
+	if (reason & (GEN_INTR_RXTRAFFIC |
+		GEN_INTR_TXTRAFFIC | GEN_INTR_TXPIC))
+	{
+		writeq(S2IO_MINUS_ONE, &bar0->general_int_mask);
+
+		if (config->napi) {
+			if (reason & GEN_INTR_RXTRAFFIC) {
+				if (likely(netif_rx_schedule_prep(dev,
+							&sp->napi))) {
+					__netif_rx_schedule(dev, &sp->napi);
+					writeq(S2IO_MINUS_ONE,
+					       &bar0->rx_traffic_mask);
+				} else
+					writeq(S2IO_MINUS_ONE,
+					       &bar0->rx_traffic_int);
 			}
-			else
+		} else {
+			/*
+			 * rx_traffic_int reg is an R1 register, writing all 1's
+			 * will ensure that the actual interrupt causing bit
+			 * get's cleared and hence a read can be avoided.
+			 */
+			if (reason & GEN_INTR_RXTRAFFIC)
 				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
+
+			for (i = 0; i < config->rx_ring_num; i++)
+				rx_intr_handler(&mac_control->rings[i]);
 		}
-	} else {
+
 		/*
-		 * Rx handler is called by default, without checking for the
-		 * cause of interrupt.
-		 * rx_traffic_int reg is an R1 register, writing all 1's
+		 * tx_traffic_int reg is an R1 register, writing all 1's
 		 * will ensure that the actual interrupt causing bit get's
 		 * cleared and hence a read can be avoided.
 		 */
-		if (reason & GEN_INTR_RXTRAFFIC)
-			writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
+		if (reason & GEN_INTR_TXTRAFFIC)
+			writeq(S2IO_MINUS_ONE, &bar0->tx_traffic_int);
 
-		for (i = 0; i < config->rx_ring_num; i++) {
-			rx_intr_handler(&mac_control->rings[i]);
+		for (i = 0; i < config->tx_fifo_num; i++)
+			tx_intr_handler(&mac_control->fifos[i]);
+
+		if (reason & GEN_INTR_TXPIC)
+			s2io_txpic_intr_handle(sp);
+
+		/*
+		 * Reallocate the buffers from the interrupt handler itself.
+		 */
+		if (!config->napi) {
+			for (i = 0; i < config->rx_ring_num; i++)
+				s2io_chk_rx_buffers(sp, i);
 		}
+		writeq(sp->general_int_mask, &bar0->general_int_mask);
+		readl(&bar0->general_int_status);
+
+		return IRQ_HANDLED;
+
+	}
+	else if (!reason) {
+		/* The interrupt was not raised by us */
+		return IRQ_NONE;
 	}
 
-	/*
-	 * tx_traffic_int reg is an R1 register, writing all 1's
-	 * will ensure that the actual interrupt causing bit get's
-	 * cleared and hence a read can be avoided.
-	 */
-	if (reason & GEN_INTR_TXTRAFFIC)
-		writeq(S2IO_MINUS_ONE, &bar0->tx_traffic_int);
-
-	for (i = 0; i < config->tx_fifo_num; i++)
-		tx_intr_handler(&mac_control->fifos[i]);
-
-	if (reason & GEN_INTR_TXPIC)
-		s2io_txpic_intr_handle(sp);
-	/*
-	 * If the Rx buffer count is below the panic threshold then
-	 * reallocate the buffers from the interrupt handler itself,
-	 * else schedule a tasklet to reallocate the buffers.
-	 */
-	if (!napi) {
-		for (i = 0; i < config->rx_ring_num; i++)
-			s2io_chk_rx_buffers(sp, i);
-	}
-
-	writeq(0, &bar0->general_int_mask);
-	readl(&bar0->general_int_status);
-
-	atomic_dec(&sp->isr_cnt);
 	return IRQ_HANDLED;
 }
 
@@ -4294,7 +4626,7 @@ static void s2io_updt_stats(struct s2io_nic *sp)
 	u64 val64;
 	int cnt = 0;
 
-	if (atomic_read(&sp->card_state) == CARD_UP) {
+	if (is_s2io_card_up(sp)) {
 		/* Apprx 30us on a 133 MHz bus */
 		val64 = SET_UPDT_CLICKS(10) |
 			STAT_CFG_ONE_SHOT_EN | STAT_CFG_STAT_EN;
@@ -4308,7 +4640,7 @@ static void s2io_updt_stats(struct s2io_nic *sp)
 			if (cnt == 5)
 				break; /* Updt failed */
 		} while(1);
-	} 
+	}
 }
 
 /**
@@ -4525,8 +4857,48 @@ static void s2io_set_multicast(struct net_device *dev)
 	}
 }
 
+/* add unicast MAC address to CAM */
+static int do_s2io_add_unicast(struct s2io_nic *sp, u64 addr, int off)
+{
+	u64 val64;
+	struct XENA_dev_config __iomem *bar0 = sp->bar0;
+
+	writeq(RMAC_ADDR_DATA0_MEM_ADDR(addr),
+		&bar0->rmac_addr_data0_mem);
+
+	val64 =
+		RMAC_ADDR_CMD_MEM_WE | RMAC_ADDR_CMD_MEM_STROBE_NEW_CMD |
+		RMAC_ADDR_CMD_MEM_OFFSET(off);
+	writeq(val64, &bar0->rmac_addr_cmd_mem);
+
+	/* Wait till command completes */
+	if (wait_for_cmd_complete(&bar0->rmac_addr_cmd_mem,
+		RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING,
+		S2IO_BIT_RESET)) {
+		DBG_PRINT(INFO_DBG, "add_mac_addr failed\n");
+		return FAILURE;
+	}
+	return SUCCESS;
+}
+
 /**
- *  s2io_set_mac_addr - Programs the Xframe mac address
+ * s2io_set_mac_addr driver entry point
+ */
+static int s2io_set_mac_addr(struct net_device *dev, void *p)
+{
+	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+
+	/* store the MAC address in CAM */
+	return (do_s2io_prog_unicast(dev, dev->dev_addr));
+}
+
+/**
+ *  do_s2io_prog_unicast - Programs the Xframe mac address
  *  @dev : pointer to the device structure.
  *  @addr: a uchar pointer to the new mac address which is to be set.
  *  Description : This procedure will program the Xframe to receive
@@ -4534,56 +4906,31 @@ static void s2io_set_multicast(struct net_device *dev)
  *  Return value: SUCCESS on success and an appropriate (-)ve integer
  *  as defined in errno.h file on failure.
  */
-
-static int s2io_set_mac_addr(struct net_device *dev, u8 * addr)
+static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr)
 {
 	struct s2io_nic *sp = dev->priv;
-	struct XENA_dev_config __iomem *bar0 = sp->bar0;
-	register u64 val64, mac_addr = 0;
+	register u64 mac_addr = 0, perm_addr = 0;
 	int i;
-	u64 old_mac_addr = 0;
 
 	/*
-	 * Set the new MAC address as the new unicast filter and reflect this
-	 * change on the device address registered with the OS. It will be
-	 * at offset 0.
-	 */
+	* Set the new MAC address as the new unicast filter and reflect this
+	* change on the device address registered with the OS. It will be
+	* at offset 0.
+	*/
 	for (i = 0; i < ETH_ALEN; i++) {
 		mac_addr <<= 8;
 		mac_addr |= addr[i];
-		old_mac_addr <<= 8;
-		old_mac_addr |= sp->def_mac_addr[0].mac_addr[i];
+		perm_addr <<= 8;
+		perm_addr |= sp->def_mac_addr[0].mac_addr[i];
 	}
 
-	if(0 == mac_addr)
+	/* check if the dev_addr is different than perm_addr */
+	if (mac_addr == perm_addr)
 		return SUCCESS;
 
 	/* Update the internal structure with this new mac address */
-	if(mac_addr != old_mac_addr) {
-		memset(sp->def_mac_addr[0].mac_addr, 0, sizeof(ETH_ALEN));
-		sp->def_mac_addr[0].mac_addr[5] = (u8) (mac_addr);
-		sp->def_mac_addr[0].mac_addr[4] = (u8) (mac_addr >> 8);
-		sp->def_mac_addr[0].mac_addr[3] = (u8) (mac_addr >> 16);
-		sp->def_mac_addr[0].mac_addr[2] = (u8) (mac_addr >> 24);
-		sp->def_mac_addr[0].mac_addr[1] = (u8) (mac_addr >> 32);
-		sp->def_mac_addr[0].mac_addr[0] = (u8) (mac_addr >> 40);
-	}
-
-	writeq(RMAC_ADDR_DATA0_MEM_ADDR(mac_addr),
-	       &bar0->rmac_addr_data0_mem);
-
-	val64 =
-	    RMAC_ADDR_CMD_MEM_WE | RMAC_ADDR_CMD_MEM_STROBE_NEW_CMD |
-	    RMAC_ADDR_CMD_MEM_OFFSET(0);
-	writeq(val64, &bar0->rmac_addr_cmd_mem);
-	/* Wait till command completes */
-	if (wait_for_cmd_complete(&bar0->rmac_addr_cmd_mem,
-		      RMAC_ADDR_CMD_MEM_STROBE_CMD_EXECUTING, S2IO_BIT_RESET)) {
-		DBG_PRINT(ERR_DBG, "%s: set_mac_addr failed\n", dev->name);
-		return FAILURE;
-	}
-
-	return SUCCESS;
+	do_s2io_copy_mac_addr(sp, 0, mac_addr);
+	return (do_s2io_add_unicast(sp, mac_addr, 0));
 }
 
 /**
@@ -4631,7 +4978,9 @@ static int s2io_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 	info->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
 	info->advertising = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
 	info->port = PORT_FIBRE;
-	/* info->transceiver?? TODO */
+
+	/* info->transceiver */
+	info->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(sp->dev)) {
 		info->speed = 10000;
@@ -4668,12 +5017,6 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
 	strncpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
 	info->regdump_len = XENA_REG_SPACE;
 	info->eedump_len = XENA_EEPROM_SPACE;
-	info->testinfo_len = S2IO_TEST_LEN;
-
-	if (sp->device_type == XFRAME_I_DEVICE)
-		info->n_stats = XFRAME_I_STAT_LEN;
-	else
-		info->n_stats = XFRAME_II_STAT_LEN;
 }
 
 /**
@@ -4803,13 +5146,13 @@ static void s2io_ethtool_gringparam(struct net_device *dev,
 		ering->rx_max_pending = MAX_RX_DESC_2;
 
 	ering->tx_max_pending = MAX_TX_DESC;
-	for (i = 0 ; i < sp->config.tx_fifo_num ; i++) 
+	for (i = 0 ; i < sp->config.tx_fifo_num ; i++)
 		tx_desc_count += sp->config.tx_cfg[i].fifo_len;
-	
+
 	DBG_PRINT(INFO_DBG,"\nmax txds : %d\n",sp->config.max_txds);
 	ering->tx_pending = tx_desc_count;
 	rx_desc_count = 0;
-	for (i = 0 ; i < sp->config.rx_ring_num ; i++) 
+	for (i = 0 ; i < sp->config.rx_ring_num ; i++)
 		rx_desc_count += sp->config.rx_cfg[i].num_rxd;
 
 	ering->rx_pending = rx_desc_count;
@@ -5567,7 +5910,7 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 				   struct ethtool_stats *estats,
 				   u64 * tmp_stats)
 {
-	int i = 0;
+	int i = 0, k;
 	struct s2io_nic *sp = dev->priv;
 	struct stat_block *stat_info = sp->mac_control.stats_info;
 
@@ -5762,7 +6105,8 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 	tmp_stats[i++] = stat_info->sw_stat.serious_err_cnt;
 	tmp_stats[i++] = stat_info->sw_stat.soft_reset_cnt;
 	tmp_stats[i++] = stat_info->sw_stat.fifo_full_cnt;
-	tmp_stats[i++] = stat_info->sw_stat.ring_full_cnt;
+	for (k = 0; k < MAX_RX_RINGS; k++)
+		tmp_stats[i++] = stat_info->sw_stat.ring_full_cnt[k];
 	tmp_stats[i++] = stat_info->xpak_stat.alarm_transceiver_temp_high;
 	tmp_stats[i++] = stat_info->xpak_stat.alarm_transceiver_temp_low;
 	tmp_stats[i++] = stat_info->xpak_stat.alarm_laser_bias_current_high;
@@ -5819,6 +6163,23 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 	tmp_stats[i++] = stat_info->sw_stat.rx_buf_size_err_cnt;
 	tmp_stats[i++] = stat_info->sw_stat.rx_rxd_corrupt_cnt;
 	tmp_stats[i++] = stat_info->sw_stat.rx_unkn_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.tda_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.pfc_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.pcc_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.tti_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.tpa_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.sm_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.lso_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.mac_tmac_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.mac_rmac_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.xgxs_txgxs_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.xgxs_rxgxs_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.rc_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.prc_pcix_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.rpa_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.rda_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.rti_err_cnt;
+	tmp_stats[i++] = stat_info->sw_stat.mc_err_cnt;
 }
 
 static int s2io_ethtool_get_regs_len(struct net_device *dev)
@@ -5851,9 +6212,25 @@ static int s2io_get_eeprom_len(struct net_device *dev)
 	return (XENA_EEPROM_SPACE);
 }
 
-static int s2io_ethtool_self_test_count(struct net_device *dev)
+static int s2io_get_sset_count(struct net_device *dev, int sset)
 {
-	return (S2IO_TEST_LEN);
+	struct s2io_nic *sp = dev->priv;
+
+	switch (sset) {
+	case ETH_SS_TEST:
+		return S2IO_TEST_LEN;
+	case ETH_SS_STATS:
+		switch(sp->device_type) {
+		case XFRAME_I_DEVICE:
+			return XFRAME_I_STAT_LEN;
+		case XFRAME_II_DEVICE:
+			return XFRAME_II_STAT_LEN;
+		default:
+			return 0;
+		}
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void s2io_ethtool_get_strings(struct net_device *dev,
@@ -5879,22 +6256,6 @@ static void s2io_ethtool_get_strings(struct net_device *dev,
 		memcpy(data + stat_size, &ethtool_driver_stats_keys,
 			sizeof(ethtool_driver_stats_keys));
 	}
-}
-static int s2io_ethtool_get_stats_count(struct net_device *dev)
-{
-	struct s2io_nic *sp = dev->priv;
-	int stat_count = 0;
-	switch(sp->device_type) {
-	case XFRAME_I_DEVICE:
-		stat_count = XFRAME_I_STAT_LEN;
-	break;
-
-	case XFRAME_II_DEVICE:
-		stat_count = XFRAME_II_STAT_LEN;
-	break;
-	}
-
-	return stat_count;
 }
 
 static int s2io_ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
@@ -5936,20 +6297,16 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.set_pauseparam = s2io_ethtool_setpause_data,
 	.get_rx_csum = s2io_ethtool_get_rx_csum,
 	.set_rx_csum = s2io_ethtool_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = s2io_ethtool_op_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = s2io_ethtool_op_get_tso,
 	.set_tso = s2io_ethtool_op_set_tso,
-	.get_ufo = ethtool_op_get_ufo,
 	.set_ufo = ethtool_op_set_ufo,
-	.self_test_count = s2io_ethtool_self_test_count,
 	.self_test = s2io_ethtool_test,
 	.get_strings = s2io_ethtool_get_strings,
 	.phys_id = s2io_ethtool_idnic,
-	.get_stats_count = s2io_ethtool_get_stats_count,
-	.get_ethtool_stats = s2io_get_ethtool_stats
+	.get_ethtool_stats = s2io_get_ethtool_stats,
+	.get_sset_count = s2io_get_sset_count,
 };
 
 /**
@@ -6072,7 +6429,7 @@ static void s2io_set_link(struct work_struct *work)
 	if (!netif_running(dev))
 		goto out_unlock;
 
-	if (test_and_set_bit(0, &(nic->link_state))) {
+	if (test_and_set_bit(__S2IO_STATE_LINK_TASK, &(nic->state))) {
 		/* The card is being reset, no point doing anything */
 		goto out_unlock;
 	}
@@ -6110,13 +6467,10 @@ static void s2io_set_link(struct work_struct *work)
 				netif_stop_queue(dev);
 			}
 		}
-		val64 = readq(&bar0->adapter_status);
-		if (!LINK_IS_UP(val64)) {
-			DBG_PRINT(ERR_DBG, "%s:", dev->name);
-			DBG_PRINT(ERR_DBG, " Link down after enabling ");
-			DBG_PRINT(ERR_DBG, "device \n");
-		} else
-			s2io_link(nic, LINK_UP);
+		val64 = readq(&bar0->adapter_control);
+		val64 |= ADAPTER_LED_ON;
+		writeq(val64, &bar0->adapter_control);
+		s2io_link(nic, LINK_UP);
 	} else {
 		if (CARDS_WITH_FAULTY_LINK_INDICATORS(nic->device_type,
 						      subid)) {
@@ -6125,9 +6479,13 @@ static void s2io_set_link(struct work_struct *work)
 			writeq(val64, &bar0->gpio_control);
 			val64 = readq(&bar0->gpio_control);
 		}
+		/* turn off LED */
+		val64 = readq(&bar0->adapter_control);
+		val64 = val64 &(~ADAPTER_LED_ON);
+		writeq(val64, &bar0->adapter_control);
 		s2io_link(nic, LINK_DOWN);
 	}
-	clear_bit(0, &(nic->link_state));
+	clear_bit(__S2IO_STATE_LINK_TASK, &(nic->state));
 
 out_unlock:
 	rtnl_unlock();
@@ -6162,7 +6520,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 					mem_alloc_fail_cnt++;
 				return -ENOMEM ;
 			}
-			sp->mac_control.stats_info->sw_stat.mem_allocated 
+			sp->mac_control.stats_info->sw_stat.mem_allocated
 				+= (*skb)->truesize;
 			/* storing the mapped addr in a temp variable
 			 * such it will be used for next rxd whose
@@ -6195,7 +6553,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 					mem_alloc_fail_cnt++;
 				return -ENOMEM;
 			}
-			sp->mac_control.stats_info->sw_stat.mem_allocated 
+			sp->mac_control.stats_info->sw_stat.mem_allocated
 				+= (*skb)->truesize;
 			rxdp3->Buffer2_ptr = *temp2 =
 				pci_map_single(sp->pdev, (*skb)->data,
@@ -6308,18 +6666,18 @@ static int s2io_add_isr(struct s2io_nic * sp)
 	struct net_device *dev = sp->dev;
 	int err = 0;
 
-	if (sp->intr_type == MSI_X)
+	if (sp->config.intr_type == MSI_X)
 		ret = s2io_enable_msi_x(sp);
 	if (ret) {
 		DBG_PRINT(ERR_DBG, "%s: Defaulting to INTA\n", dev->name);
-		sp->intr_type = INTA;
+		sp->config.intr_type = INTA;
 	}
 
 	/* Store the values of the MSIX table in the struct s2io_nic structure */
 	store_xmsi_data(sp);
 
 	/* After proper initialization of H/W, register ISR */
-	if (sp->intr_type == MSI_X) {
+	if (sp->config.intr_type == MSI_X) {
 		int i, msix_tx_cnt=0,msix_rx_cnt=0;
 
 		for (i=1; (sp->s2io_entries[i].in_use == MSIX_FLG); i++) {
@@ -6371,7 +6729,7 @@ static int s2io_add_isr(struct s2io_nic * sp)
 		printk("MSI-X-TX %d entries enabled\n",msix_tx_cnt);
 		printk("MSI-X-RX %d entries enabled\n",msix_rx_cnt);
 	}
-	if (sp->intr_type == INTA) {
+	if (sp->config.intr_type == INTA) {
 		err = request_irq((int) sp->pdev->irq, s2io_isr, IRQF_SHARED,
 				sp->name, dev);
 		if (err) {
@@ -6384,10 +6742,10 @@ static int s2io_add_isr(struct s2io_nic * sp)
 }
 static void s2io_rem_isr(struct s2io_nic * sp)
 {
-	int cnt = 0;
 	struct net_device *dev = sp->dev;
+	struct swStat *stats = &sp->mac_control.stats_info->sw_stat;
 
-	if (sp->intr_type == MSI_X) {
+	if (sp->config.intr_type == MSI_X) {
 		int i;
 		u16 msi_control;
 
@@ -6396,24 +6754,28 @@ static void s2io_rem_isr(struct s2io_nic * sp)
 			int vector = sp->entries[i].vector;
 			void *arg = sp->s2io_entries[i].arg;
 
+			synchronize_irq(vector);
 			free_irq(vector, arg);
 		}
+
+		kfree(sp->entries);
+		stats->mem_freed +=
+			(MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
+		kfree(sp->s2io_entries);
+		stats->mem_freed +=
+			(MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
+		sp->entries = NULL;
+		sp->s2io_entries = NULL;
+
 		pci_read_config_word(sp->pdev, 0x42, &msi_control);
 		msi_control &= 0xFFFE; /* Disable MSI */
 		pci_write_config_word(sp->pdev, 0x42, msi_control);
 
 		pci_disable_msix(sp->pdev);
 	} else {
+		synchronize_irq(sp->pdev->irq);
 		free_irq(sp->pdev->irq, dev);
 	}
-	/* Waiting till all Interrupt handlers are complete */
-	cnt = 0;
-	do {
-		msleep(10);
-		if (!atomic_read(&sp->isr_cnt))
-			break;
-		cnt++;
-	} while(cnt < 5);
 }
 
 static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
@@ -6425,10 +6787,10 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 
 	del_timer_sync(&sp->alarm_timer);
 	/* If s2io_set_link task is executing, wait till it completes. */
-	while (test_and_set_bit(0, &(sp->link_state))) {
+	while (test_and_set_bit(__S2IO_STATE_LINK_TASK, &(sp->state))) {
 		msleep(50);
 	}
-	atomic_set(&sp->card_state, CARD_DOWN);
+	clear_bit(__S2IO_STATE_CARD_UP, &sp->state);
 
 	/* disable Tx and Rx traffic on the NIC */
 	if (do_io)
@@ -6479,7 +6841,7 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 	free_rx_buffers(sp);
 	spin_unlock_irqrestore(&sp->rx_lock, flags);
 
-	clear_bit(0, &(sp->link_state));
+	clear_bit(__S2IO_STATE_LINK_TASK, &(sp->state));
 }
 
 static void s2io_card_down(struct s2io_nic * sp)
@@ -6550,7 +6912,7 @@ static int s2io_card_up(struct s2io_nic * sp)
 
 	/* Add interrupt service routine */
 	if (s2io_add_isr(sp) != 0) {
-		if (sp->intr_type == MSI_X)
+		if (sp->config.intr_type == MSI_X)
 			s2io_rem_isr(sp);
 		s2io_reset(sp);
 		free_rx_buffers(sp);
@@ -6563,17 +6925,16 @@ static int s2io_card_up(struct s2io_nic * sp)
 	tasklet_init(&sp->task, s2io_tasklet, (unsigned long) dev);
 
 	/*  Enable select interrupts */
-	if (sp->intr_type != INTA)
+	en_dis_err_alarms(sp, ENA_ALL_INTRS, ENABLE_INTRS);
+	if (sp->config.intr_type != INTA)
 		en_dis_able_nic_intrs(sp, ENA_ALL_INTRS, DISABLE_INTRS);
 	else {
 		interruptible = TX_TRAFFIC_INTR | RX_TRAFFIC_INTR;
-		interruptible |= TX_PIC_INTR | RX_PIC_INTR;
-		interruptible |= TX_MAC_INTR | RX_MAC_INTR;
+		interruptible |= TX_PIC_INTR;
 		en_dis_able_nic_intrs(sp, interruptible, ENABLE_INTRS);
 	}
 
-
-	atomic_set(&sp->card_state, CARD_UP);
+	set_bit(__S2IO_STATE_CARD_UP, &sp->state);
 	return 0;
 }
 
@@ -6727,7 +7088,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			DBG_PRINT(ERR_DBG, "%s: Rx error Value: 0x%x\n",
 				dev->name, err_mask);
 			sp->stats.rx_crc_errors++;
-			sp->mac_control.stats_info->sw_stat.mem_freed 
+			sp->mac_control.stats_info->sw_stat.mem_freed
 				+= skb->truesize;
 			dev_kfree_skb(skb);
 			atomic_dec(&sp->rx_bufs_left[ring_no]);
@@ -6776,7 +7137,8 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 				int ret = 0;
 
 				ret = s2io_club_tcp_session(skb->data, &tcp,
-						&tcp_len, &lro, rxdp, sp);
+							    &tcp_len, &lro,
+							    rxdp, sp);
 				switch (ret) {
 					case 3: /* Begin anew */
 						lro->parent = skb;
@@ -6881,13 +7243,13 @@ static void s2io_link(struct s2io_nic * sp, int link)
 			DBG_PRINT(ERR_DBG, "%s: Link down\n", dev->name);
 			netif_carrier_off(dev);
 			if(sp->mac_control.stats_info->sw_stat.link_up_cnt)
-			sp->mac_control.stats_info->sw_stat.link_up_time = 
+			sp->mac_control.stats_info->sw_stat.link_up_time =
 				jiffies - sp->start_time;
 			sp->mac_control.stats_info->sw_stat.link_down_cnt++;
 		} else {
 			DBG_PRINT(ERR_DBG, "%s: Link Up\n", dev->name);
 			if (sp->mac_control.stats_info->sw_stat.link_down_cnt)
-			sp->mac_control.stats_info->sw_stat.link_down_time = 
+			sp->mac_control.stats_info->sw_stat.link_down_time =
 				jiffies - sp->start_time;
 			sp->mac_control.stats_info->sw_stat.link_up_cnt++;
 			netif_carrier_on(dev);
@@ -6944,19 +7306,12 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type)
 	if (*dev_intr_type != INTA)
 		napi = 0;
 
-#ifndef CONFIG_PCI_MSI
-	if (*dev_intr_type != INTA) {
-		DBG_PRINT(ERR_DBG, "s2io: This kernel does not support"
-			  "MSI/MSI-X. Defaulting to INTA\n");
-		*dev_intr_type = INTA;
-	}
-#else
 	if ((*dev_intr_type != INTA) && (*dev_intr_type != MSI_X)) {
 		DBG_PRINT(ERR_DBG, "s2io: Wrong intr_type requested. "
 			  "Defaulting to INTA\n");
 		*dev_intr_type = INTA;
 	}
-#endif
+
 	if ((*dev_intr_type == MSI_X) &&
 			((pdev->device != PCI_DEVICE_ID_HERC_WIN) &&
 			(pdev->device != PCI_DEVICE_ID_HERC_UNI))) {
@@ -7033,6 +7388,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	struct config_param *config;
 	int mode;
 	u8 dev_intr_type = intr_type;
+	DECLARE_MAC_BUF(mac);
 
 	if ((ret = s2io_verify_parm(pdev, &dev_intr_type)))
 		return ret;
@@ -7076,7 +7432,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	pci_set_master(pdev);
 	pci_set_drvdata(pdev, dev);
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	/*  Private member variable initialized to s2io NIC structure */
@@ -7091,7 +7446,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	if (rx_ring_mode == 2)
 		sp->rxd_mode = RXD_MODE_3B;
 
-	sp->intr_type = dev_intr_type;
+	sp->config.intr_type = dev_intr_type;
 
 	if ((pdev->device == PCI_DEVICE_ID_HERC_WIN) ||
 		(pdev->device == PCI_DEVICE_ID_HERC_UNI))
@@ -7099,7 +7454,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	else
 		sp->device_type = XFRAME_I_DEVICE;
 
-	sp->lro = lro;
+	sp->lro = lro_enable;
 
 	/* Initialize some PCI/PCI-X fields of the NIC. */
 	s2io_init_pci(sp);
@@ -7113,6 +7468,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 */
 	mac_control = &sp->mac_control;
 	config = &sp->config;
+
+	config->napi = napi;
 
 	/* Tx side parameters. */
 	config->tx_fifo_num = tx_fifo_num;
@@ -7161,9 +7518,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	for (i = 0; i < config->rx_ring_num; i++)
 		atomic_set(&sp->rx_bufs_left[i], 0);
 
-	/* Initialize the number of ISRs currently running */
-	atomic_set(&sp->isr_cnt, 0);
-
 	/*  initialize the shared memory used by the NIC and the host */
 	if (init_shared_mem(sp)) {
 		DBG_PRINT(ERR_DBG, "%s: Memory allocation failed\n",
@@ -7206,6 +7560,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	dev->get_stats = &s2io_get_stats;
 	dev->set_multicast_list = &s2io_set_multicast;
 	dev->do_ioctl = &s2io_ioctl;
+	dev->set_mac_address = &s2io_set_mac_addr;
 	dev->change_mtu = &s2io_change_mtu;
 	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
@@ -7215,8 +7570,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * will use eth_mac_addr() for  dev->set_mac_address
 	 * mac address will be set every time dev->open() is called
 	 */
-	dev->poll = s2io_poll;
-	dev->weight = 32;
+	netif_napi_add(dev, &sp->napi, s2io_poll, 32);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = s2io_netpoll;
@@ -7292,7 +7646,10 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/*  Set the factory defined MAC address initially   */
 	dev->addr_len = ETH_ALEN;
 	memcpy(dev->dev_addr, sp->def_mac_addr, ETH_ALEN);
+	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
+	 /* Store the values of the MSIX table in the s2io_nic structure */
+	store_xmsi_data(sp);
 	/* reset Nic and bring it to known state */
 	s2io_reset(sp);
 
@@ -7300,9 +7657,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * Initialize the tasklet status and link state flags
 	 * and the card state parameter
 	 */
-	atomic_set(&(sp->card_state), 0);
 	sp->tasklet_status = 0;
-	sp->link_state = 0;
+	sp->state = 0;
 
 	/* Initialize spinlocks */
 	spin_lock_init(&sp->tx_lock);
@@ -7338,14 +7694,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		  sp->product_name, pdev->revision);
 	DBG_PRINT(ERR_DBG, "%s: Driver version %s\n", dev->name,
 		  s2io_driver_version);
-	DBG_PRINT(ERR_DBG, "%s: MAC ADDR: "
-			  "%02x:%02x:%02x:%02x:%02x:%02x", dev->name,
-			  sp->def_mac_addr[0].mac_addr[0],
-			  sp->def_mac_addr[0].mac_addr[1],
-			  sp->def_mac_addr[0].mac_addr[2],
-			  sp->def_mac_addr[0].mac_addr[3],
-			  sp->def_mac_addr[0].mac_addr[4],
-			  sp->def_mac_addr[0].mac_addr[5]);
+	DBG_PRINT(ERR_DBG, "%s: MAC ADDR: %s\n",
+		  dev->name, print_mac(mac, dev->dev_addr));
 	DBG_PRINT(ERR_DBG, "SERIAL NUMBER: %s\n", sp->serial_num);
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		mode = s2io_print_pci_mode(sp);
@@ -7369,7 +7719,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	if (napi)
 		DBG_PRINT(ERR_DBG, "%s: NAPI enabled\n", dev->name);
-	switch(sp->intr_type) {
+	switch(sp->config.intr_type) {
 		case INTA:
 		    DBG_PRINT(ERR_DBG, "%s: Interrupt type INTA\n", dev->name);
 		    break;
@@ -7385,14 +7735,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 					" enabled\n", dev->name);
 	/* Initialize device name */
 	sprintf(sp->name, "%s Neterion %s", dev->name, sp->product_name);
-
-	/* Initialize bimodal Interrupts */
-	sp->config.bimodal = bimodal;
-	if (!(sp->device_type & XFRAME_II_DEVICE) && bimodal) {
-		sp->config.bimodal = 0;
-		DBG_PRINT(ERR_DBG,"%s:Bimodal intr not supported by Xframe I\n",
-			dev->name);
-	}
 
 	/*
 	 * Make Link state as off at this point, when the Link change
@@ -7459,7 +7801,7 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev)
  * the module loadable parameters and initializes PCI configuration space.
  */
 
-int __init s2io_starter(void)
+static int __init s2io_starter(void)
 {
 	return pci_register_driver(&s2io_driver);
 }

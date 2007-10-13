@@ -46,6 +46,38 @@ static inline void smtc_im_ack_irq(unsigned int irq)
 
 #endif /* CONFIG_MIPS_MT_SMTC */
 
+#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
+#include <linux/cpumask.h>
+
+extern void plat_set_irq_affinity(unsigned int irq, cpumask_t affinity);
+extern void smtc_forward_irq(unsigned int irq);
+
+/*
+ * IRQ affinity hook invoked at the beginning of interrupt dispatch
+ * if option is enabled.
+ *
+ * Up through Linux 2.6.22 (at least) cpumask operations are very
+ * inefficient on MIPS.  Initial prototypes of SMTC IRQ affinity
+ * used a "fast path" per-IRQ-descriptor cache of affinity information
+ * to reduce latency.  As there is a project afoot to optimize the
+ * cpumask implementations, this version is optimistically assuming
+ * that cpumask.h macro overhead is reasonable during interrupt dispatch.
+ */
+#define IRQ_AFFINITY_HOOK(irq)						\
+do {									\
+    if (!cpu_isset(smp_processor_id(), irq_desc[irq].affinity)) {	\
+	smtc_forward_irq(irq);						\
+	irq_exit();							\
+	return;								\
+    }									\
+} while (0)
+
+#else /* Not doing SMTC affinity */
+
+#define IRQ_AFFINITY_HOOK(irq) do { } while (0)
+
+#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */
+
 #ifdef CONFIG_MIPS_MT_SMTC_IM_BACKSTOP
 
 /*
@@ -56,13 +88,27 @@ static inline void smtc_im_ack_irq(unsigned int irq)
  */
 #define __DO_IRQ_SMTC_HOOK(irq)						\
 do {									\
+	IRQ_AFFINITY_HOOK(irq);						\
 	if (irq_hwmask[irq] & 0x0000ff00)				\
 		write_c0_tccontext(read_c0_tccontext() &		\
-		                   ~(irq_hwmask[irq] & 0x0000ff00));	\
+				   ~(irq_hwmask[irq] & 0x0000ff00));	\
 } while (0)
+
+#define __NO_AFFINITY_IRQ_SMTC_HOOK(irq)				\
+do {									\
+	if (irq_hwmask[irq] & 0x0000ff00)                               \
+		write_c0_tccontext(read_c0_tccontext() &		\
+				   ~(irq_hwmask[irq] & 0x0000ff00));	\
+} while (0)
+
 #else
 
-#define __DO_IRQ_SMTC_HOOK(irq) do { } while (0)
+#define __DO_IRQ_SMTC_HOOK(irq)						\
+do {									\
+	IRQ_AFFINITY_HOOK(irq);						\
+} while (0)
+#define __NO_AFFINITY_IRQ_SMTC_HOOK(irq) do { } while (0)
+
 #endif
 
 /*
@@ -80,6 +126,23 @@ do {									\
 	generic_handle_irq(irq);					\
 	irq_exit();							\
 } while (0)
+
+#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
+/*
+ * To avoid inefficient and in some cases pathological re-checking of
+ * IRQ affinity, we have this variant that skips the affinity check.
+ */
+
+
+#define do_IRQ_no_affinity(irq)						\
+do {									\
+	irq_enter();							\
+	__NO_AFFINITY_IRQ_SMTC_HOOK(irq);				\
+	generic_handle_irq(irq);					\
+	irq_exit();							\
+} while (0)
+
+#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */
 
 extern void arch_init_irq(void);
 extern void spurious_interrupt(void);

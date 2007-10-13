@@ -20,10 +20,10 @@
 #include <asm/mipsregs.h>
 #include <asm/addrspace.h>
 #include <asm/irq_cpu.h>
-
 #include <asm/sgi/ioc.h>
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
+#include <asm/time.h>
 
 /* #define DEBUG_SGINT */
 
@@ -204,7 +204,6 @@ static struct irqaction map1_cascade = {
 #define SGI_INTERRUPTS	SGINT_LOCAL3
 #endif
 
-extern void indy_r4k_timer_interrupt(void);
 extern void indy_8254timer_irq(void);
 
 /*
@@ -243,7 +242,7 @@ asmlinkage void plat_irq_dispatch(void)
 	 * First we check for r4k counter/timer IRQ.
 	 */
 	if (pending & CAUSEF_IP7)
-		indy_r4k_timer_interrupt();
+		do_IRQ(SGI_TIMER_IRQ);
 	else if (pending & CAUSEF_IP2)
 		indy_local0_irqdispatch();
 	else if (pending & CAUSEF_IP3)
@@ -345,6 +344,6 @@ void __init arch_init_irq(void)
 
 #ifdef CONFIG_EISA
 	if (ip22_is_fullhouse())	/* Only Indigo-2 has EISA stuff */
-	        ip22_eisa_init ();
+	        ip22_eisa_init();
 #endif
 }

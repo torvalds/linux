@@ -77,6 +77,49 @@ static struct inode *gfs2_iget(struct super_block *sb, u64 no_addr)
 	return iget5_locked(sb, hash, iget_test, iget_set, &no_addr);
 }
 
+struct gfs2_skip_data {
+	u64	no_addr;
+	int	skipped;
+};
+
+static int iget_skip_test(struct inode *inode, void *opaque)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_skip_data *data = opaque;
+
+	if (ip->i_no_addr == data->no_addr && inode->i_private != NULL){
+		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)){
+			data->skipped = 1;
+			return 0;
+		}
+		return 1;
+	}
+	return 0;
+}
+
+static int iget_skip_set(struct inode *inode, void *opaque)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_skip_data *data = opaque;
+
+	if (data->skipped)
+		return 1;
+	inode->i_ino = (unsigned long)(data->no_addr);
+	ip->i_no_addr = data->no_addr;
+	return 0;
+}
+
+static struct inode *gfs2_iget_skip(struct super_block *sb,
+				    u64 no_addr)
+{
+	struct gfs2_skip_data data;
+	unsigned long hash = (unsigned long)no_addr;
+
+	data.no_addr = no_addr;
+	data.skipped = 0;
+	return iget5_locked(sb, hash, iget_skip_test, iget_skip_set, &data);
+}
+
 /**
  * GFS2 lookup code fills in vfs inode contents based on info obtained
  * from directory entry inside gfs2_inode_lookup(). This has caused issues
@@ -112,6 +155,7 @@ void gfs2_set_iop(struct inode *inode)
  * @sb: The super block
  * @no_addr: The inode number
  * @type: The type of the inode
+ * @skip_freeing: set this not return an inode if it is currently being freed.
  *
  * Returns: A VFS inode, or an error
  */
@@ -119,12 +163,18 @@ void gfs2_set_iop(struct inode *inode)
 struct inode *gfs2_inode_lookup(struct super_block *sb, 
 				unsigned int type,
 				u64 no_addr,
-				u64 no_formal_ino)
+				u64 no_formal_ino, int skip_freeing)
 {
-	struct inode *inode = gfs2_iget(sb, no_addr);
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct inode *inode;
+	struct gfs2_inode *ip;
 	struct gfs2_glock *io_gl;
 	int error;
+
+	if (skip_freeing)
+		inode = gfs2_iget_skip(sb, no_addr);
+	else
+		inode = gfs2_iget(sb, no_addr);
+	ip = GFS2_I(inode);
 
 	if (!inode)
 		return ERR_PTR(-ENOBUFS);
@@ -242,6 +292,11 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 
 	di->di_eattr = be64_to_cpu(str->di_eattr);
 	return 0;
+}
+
+static void gfs2_inode_bh(struct gfs2_inode *ip, struct buffer_head *bh)
+{
+	ip->i_cache[0] = bh;
 }
 
 /**
@@ -688,7 +743,7 @@ out:
 static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 			const struct gfs2_inum_host *inum, unsigned int mode,
 			unsigned int uid, unsigned int gid,
-			const u64 *generation, dev_t dev)
+			const u64 *generation, dev_t dev, struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_dinode *di;
@@ -743,13 +798,15 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_mtime_nsec = cpu_to_be32(tv.tv_nsec);
 	di->di_ctime_nsec = cpu_to_be32(tv.tv_nsec);
 	memset(&di->di_reserved, 0, sizeof(di->di_reserved));
+	
+	set_buffer_uptodate(dibh);
 
-	brelse(dibh);
+	*bhp = dibh;
 }
 
 static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 		       unsigned int mode, const struct gfs2_inum_host *inum,
-		       const u64 *generation, dev_t dev)
+		       const u64 *generation, dev_t dev, struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	unsigned int uid, gid;
@@ -770,7 +827,7 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	if (error)
 		goto out_quota;
 
-	init_dinode(dip, gl, inum, mode, uid, gid, generation, dev);
+	init_dinode(dip, gl, inum, mode, uid, gid, generation, dev, bhp);
 	gfs2_quota_change(dip, +1, uid, gid);
 	gfs2_trans_end(sdp);
 
@@ -909,6 +966,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	struct gfs2_inum_host inum = { .no_addr = 0, .no_formal_ino = 0 };
 	int error;
 	u64 generation;
+	struct buffer_head *bh=NULL;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -935,15 +993,17 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock;
 
-	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum, &generation, dev);
+	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum, &generation, dev, &bh);
 	if (error)
 		goto fail_gunlock2;
 
 	inode = gfs2_inode_lookup(dir->i_sb, IF2DT(mode),
 					inum.no_addr,
-					inum.no_formal_ino);
+					inum.no_formal_ino, 0);
 	if (IS_ERR(inode))
 		goto fail_gunlock2;
+
+	gfs2_inode_bh(GFS2_I(inode), bh);
 
 	error = gfs2_inode_refresh(GFS2_I(inode));
 	if (error)

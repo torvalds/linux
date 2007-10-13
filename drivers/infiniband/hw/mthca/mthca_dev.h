@@ -83,7 +83,7 @@ enum {
 	MTHCA_QP_CONTEXT_SIZE = 0x200,
 	MTHCA_RDB_ENTRY_SIZE  =  0x20,
 	MTHCA_AV_SIZE         =  0x20,
-	MTHCA_MGM_ENTRY_SIZE  =  0x40,
+	MTHCA_MGM_ENTRY_SIZE  = 0x100,
 
 	/* Arbel FW gives us these, but we need them for Tavor */
 	MTHCA_MPT_ENTRY_SIZE  =  0x40,

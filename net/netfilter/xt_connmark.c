@@ -29,6 +29,7 @@ MODULE_AUTHOR("Henrik Nordstrom <hno@marasytems.com>");
 MODULE_DESCRIPTION("IP tables connmark match module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_connmark");
+MODULE_ALIAS("ip6t_connmark");
 
 static bool
 match(const struct sk_buff *skb,

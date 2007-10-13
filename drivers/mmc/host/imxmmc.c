@@ -428,11 +428,11 @@ static int imxmci_finish_data(struct imxmci_host *host, unsigned int stat)
 	if ( stat & STATUS_ERR_MASK ) {
 		dev_dbg(mmc_dev(host->mmc), "request failed. status: 0x%08x\n",stat);
 		if(stat & (STATUS_CRC_READ_ERR | STATUS_CRC_WRITE_ERR))
-			data->error = MMC_ERR_BADCRC;
+			data->error = -EILSEQ;
 		else if(stat & STATUS_TIME_OUT_READ)
-			data->error = MMC_ERR_TIMEOUT;
+			data->error = -ETIMEDOUT;
 		else
-			data->error = MMC_ERR_FAILED;
+			data->error = -EIO;
 	} else {
 		data->bytes_xfered = host->dma_size;
 	}
@@ -458,10 +458,10 @@ static int imxmci_cmd_done(struct imxmci_host *host, unsigned int stat)
 
 	if (stat & STATUS_TIME_OUT_RESP) {
 		dev_dbg(mmc_dev(host->mmc), "CMD TIMEOUT\n");
-		cmd->error = MMC_ERR_TIMEOUT;
+		cmd->error = -ETIMEDOUT;
 	} else if (stat & STATUS_RESP_CRC_ERR && cmd->flags & MMC_RSP_CRC) {
 		dev_dbg(mmc_dev(host->mmc), "cmd crc error\n");
-		cmd->error = MMC_ERR_BADCRC;
+		cmd->error = -EILSEQ;
 	}
 
 	if(cmd->flags & MMC_RSP_PRESENT) {
@@ -482,7 +482,7 @@ static int imxmci_cmd_done(struct imxmci_host *host, unsigned int stat)
 	dev_dbg(mmc_dev(host->mmc), "RESP 0x%08x, 0x%08x, 0x%08x, 0x%08x, error %d\n",
 		cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3], cmd->error);
 
-	if (data && (cmd->error == MMC_ERR_NONE) && !(stat & STATUS_ERR_MASK)) {
+	if (data && !cmd->error && !(stat & STATUS_ERR_MASK)) {
 		if (host->req->data->flags & MMC_DATA_WRITE) {
 
 			/* Wait for FIFO to be empty before starting DMA write */
@@ -491,7 +491,7 @@ static int imxmci_cmd_done(struct imxmci_host *host, unsigned int stat)
 			if(imxmci_busy_wait_for_status(host, &stat,
 				STATUS_APPL_BUFF_FE,
 				40, "imxmci_cmd_done DMA WR") < 0) {
-				cmd->error = MMC_ERR_FIFO;
+				cmd->error = -EIO;
 				imxmci_finish_data(host, stat);
 				if(host->req)
 					imxmci_finish_request(host, host->req);
@@ -884,9 +884,21 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 }
 
+static int imxmci_get_ro(struct mmc_host *mmc)
+{
+	struct imxmci_host *host = mmc_priv(mmc);
+
+	if (host->pdata && host->pdata->get_ro)
+		return host->pdata->get_ro(mmc_dev(mmc));
+	/* Host doesn't support read only detection so assume writeable */
+	return 0;
+}
+
+
 static const struct mmc_host_ops imxmci_ops = {
 	.request	= imxmci_request,
 	.set_ios	= imxmci_set_ios,
+	.get_ro		= imxmci_get_ro,
 };
 
 static struct resource *platform_device_resource(struct platform_device *dev, unsigned int mask, int nr)
@@ -913,7 +925,7 @@ static void imxmci_check_status(unsigned long data)
 {
 	struct imxmci_host *host = (struct imxmci_host *)data;
 
-	if( host->pdata->card_present() != host->present ) {
+	if( host->pdata->card_present(mmc_dev(host->mmc)) != host->present ) {
 		host->present ^= 1;
 		dev_info(mmc_dev(host->mmc), "card %s\n",
 		      host->present ? "inserted" : "removed");
@@ -963,7 +975,7 @@ static int imxmci_probe(struct platform_device *pdev)
 	mmc->f_min = 150000;
 	mmc->f_max = CLK_RATE/2;
 	mmc->ocr_avail = MMC_VDD_32_33;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_BYTEBLOCK;
+	mmc->caps = MMC_CAP_4_BIT_DATA;
 
 	/* MMC core transfer sizes tunable parameters */
 	mmc->max_hw_segs = 64;
@@ -1022,7 +1034,7 @@ static int imxmci_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	host->present = host->pdata->card_present();
+	host->present = host->pdata->card_present(mmc_dev(mmc));
 	init_timer(&host->timer);
 	host->timer.data = (unsigned long)host;
 	host->timer.function = imxmci_check_status;

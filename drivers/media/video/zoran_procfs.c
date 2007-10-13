@@ -48,14 +48,7 @@
 #include "videocodec.h"
 #include "zoran.h"
 #include "zoran_procfs.h"
-
-extern int *zr_debug;
-
-#define dprintk(num, format, args...) \
-	do { \
-		if (*zr_debug >= num) \
-			printk(format, ##args); \
-	} while (0)
+#include "zoran_card.h"
 
 #ifdef CONFIG_PROC_FS
 struct procfs_params_zr36067 {

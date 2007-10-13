@@ -69,6 +69,8 @@
 
 DEFINE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics) __read_mostly;
 EXPORT_SYMBOL(icmpv6_statistics);
+DEFINE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics) __read_mostly;
+EXPORT_SYMBOL(icmpv6msg_statistics);
 
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
@@ -456,8 +458,6 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	}
 	err = icmpv6_push_pending_frames(sk, &fl, &tmp_hdr, len + sizeof(struct icmp6hdr));
 
-	if (type >= ICMPV6_DEST_UNREACH && type <= ICMPV6_PARAMPROB)
-		ICMP6_INC_STATS_OFFSET_BH(idev, ICMP6_MIB_OUTDESTUNREACHS, type - ICMPV6_DEST_UNREACH);
 	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTMSGS);
 
 out_put:
@@ -546,9 +546,6 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 		goto out_put;
 	}
 	err = icmpv6_push_pending_frames(sk, &fl, &tmp_hdr, skb->len + sizeof(struct icmp6hdr));
-
-	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTECHOREPLIES);
-	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTMSGS);
 
 out_put:
 	if (likely(idev != NULL))
@@ -656,10 +653,7 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 
 	type = hdr->icmp6_type;
 
-	if (type >= ICMPV6_DEST_UNREACH && type <= ICMPV6_PARAMPROB)
-		ICMP6_INC_STATS_OFFSET_BH(idev, ICMP6_MIB_INDESTUNREACHS, type - ICMPV6_DEST_UNREACH);
-	else if (type >= ICMPV6_ECHO_REQUEST && type <= NDISC_REDIRECT)
-		ICMP6_INC_STATS_OFFSET_BH(idev, ICMP6_MIB_INECHOS, type - ICMPV6_ECHO_REQUEST);
+	ICMP6MSGIN_INC_STATS_BH(idev, type);
 
 	switch (type) {
 	case ICMPV6_ECHO_REQUEST:

@@ -2,6 +2,7 @@
 #define __NET_PKT_CLS_H
 
 #include <linux/pkt_cls.h>
+#include <net/net_namespace.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
@@ -351,7 +352,7 @@ tcf_match_indev(struct sk_buff *skb, char *indev)
 	if (indev[0]) {
 		if  (!skb->iif)
 			return 0;
-		dev = __dev_get_by_index(skb->iif);
+		dev = __dev_get_by_index(&init_net, skb->iif);
 		if (!dev || strcmp(indev, dev->name))
 			return 0;
 	}

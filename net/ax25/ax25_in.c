@@ -451,6 +451,11 @@ int ax25_kiss_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb->sk = NULL;		/* Initially we don't know who it's for */
 	skb->destructor = NULL;	/* Who initializes this, dammit?! */
 
+	if (dev->nd_net != &init_net) {
+		kfree_skb(skb);
+		return 0;
+	}
+
 	if ((*skb->data & 0x0F) != 0) {
 		kfree_skb(skb);	/* Not a KISS data frame */
 		return 0;

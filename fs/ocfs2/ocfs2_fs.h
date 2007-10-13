@@ -87,7 +87,8 @@
 
 #define OCFS2_FEATURE_COMPAT_SUPP	OCFS2_FEATURE_COMPAT_BACKUP_SB
 #define OCFS2_FEATURE_INCOMPAT_SUPP	(OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT \
-					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC)
+					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC \
+					 | OCFS2_FEATURE_INCOMPAT_INLINE_DATA)
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	OCFS2_FEATURE_RO_COMPAT_UNWRITTEN
 
 /*
@@ -111,6 +112,20 @@
 #define OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC	0x0010
 
 /*
+ * Tunefs sets this incompat flag before starting an operation which
+ * would require cleanup on abort. This is done to protect users from
+ * inadvertently mounting the fs after an aborted run without
+ * fsck-ing.
+ *
+ * s_tunefs_flags on the super block describes precisely which
+ * operations were in progress.
+ */
+#define OCFS2_FEATURE_INCOMPAT_TUNEFS_INPROG	0x0020
+
+/* Support for data packed into inode blocks */
+#define OCFS2_FEATURE_INCOMPAT_INLINE_DATA	0x0040
+
+/*
  * backup superblock flag is used to indicate that this volume
  * has backup superblocks.
  */
@@ -130,6 +145,11 @@
 #define OCFS2_MAX_BACKUP_SUPERBLOCKS	6
 
 /*
+ * Flags on ocfs2_super_block.s_tunefs_flags
+ */
+#define OCFS2_TUNEFS_INPROG_REMOVE_SLOT		0x0001	/* Removing slots */
+
+/*
  * Flags on ocfs2_dinode.i_flags
  */
 #define OCFS2_VALID_FL		(0x00000001)	/* Inode is valid */
@@ -145,6 +165,17 @@
 #define OCFS2_HEARTBEAT_FL	(0x00000200)	/* Heartbeat area */
 #define OCFS2_CHAIN_FL		(0x00000400)	/* Chain allocator */
 #define OCFS2_DEALLOC_FL	(0x00000800)	/* Truncate log */
+
+/*
+ * Flags on ocfs2_dinode.i_dyn_features
+ *
+ * These can change much more often than i_flags. When adding flags,
+ * keep in mind that i_dyn_features is only 16 bits wide.
+ */
+#define OCFS2_INLINE_DATA_FL	(0x0001)	/* Data stored in inode block */
+#define OCFS2_HAS_XATTR_FL	(0x0002)
+#define OCFS2_INLINE_XATTR_FL	(0x0004)
+#define OCFS2_INDEXED_DIR_FL	(0x0008)
 
 /* Inode attributes, keep in sync with EXT2 */
 #define OCFS2_SECRM_FL		(0x00000001)	/* Secure deletion */
@@ -447,8 +478,8 @@ struct ocfs2_super_block {
 	__le32 s_clustersize_bits;	/* Clustersize for this fs */
 /*40*/	__le16 s_max_slots;		/* Max number of simultaneous mounts
 					   before tunefs required */
-	__le16 s_reserved1;
-	__le32 s_reserved2;
+	__le16 s_tunefs_flag;
+	__le32 s_reserved1;
 	__le64 s_first_cluster_group;	/* Block offset of 1st cluster
 					 * group header */
 /*50*/	__u8  s_label[OCFS2_MAX_VOL_LABEL_LEN];	/* Label for mounting, etc. */
@@ -468,6 +499,19 @@ struct ocfs2_local_alloc
 	__le16 la_reserved1;
 	__le64 la_reserved2;
 /*10*/	__u8   la_bitmap[0];
+};
+
+/*
+ * Data-in-inode header. This is only used if i_dyn_features has
+ * OCFS2_INLINE_DATA_FL set.
+ */
+struct ocfs2_inline_data
+{
+/*00*/	__le16	id_count;	/* Number of bytes that can be used
+				 * for data, starting at id_data */
+	__le16	id_reserved0;
+	__le32	id_reserved1;
+	__u8	id_data[0];	/* Start of user data */
 };
 
 /*
@@ -502,7 +546,7 @@ struct ocfs2_dinode {
 	__le32 i_attr;
 	__le16 i_orphaned_slot;		/* Only valid when OCFS2_ORPHANED_FL
 					   was set in i_flags */
-	__le16 i_reserved1;
+	__le16 i_dyn_features;
 /*70*/	__le64 i_reserved2[8];
 /*B8*/	union {
 		__le64 i_pad1;		/* Generic way to refer to this
@@ -528,6 +572,7 @@ struct ocfs2_dinode {
 		struct ocfs2_chain_list		i_chain;
 		struct ocfs2_extent_list	i_list;
 		struct ocfs2_truncate_log	i_dealloc;
+		struct ocfs2_inline_data	i_data;
 		__u8               		i_symlink[0];
 	} id2;
 /* Actual on-disk size is one block */
@@ -575,6 +620,12 @@ static inline int ocfs2_fast_symlink_chars(struct super_block *sb)
 {
 	return  sb->s_blocksize -
 		 offsetof(struct ocfs2_dinode, id2.i_symlink);
+}
+
+static inline int ocfs2_max_inline_data(struct super_block *sb)
+{
+	return sb->s_blocksize -
+		offsetof(struct ocfs2_dinode, id2.i_data.id_data);
 }
 
 static inline int ocfs2_extent_recs_per_inode(struct super_block *sb)
@@ -654,6 +705,11 @@ static inline u64 ocfs2_backup_super_blkno(struct super_block *sb, int index)
 static inline int ocfs2_fast_symlink_chars(int blocksize)
 {
 	return blocksize - offsetof(struct ocfs2_dinode, id2.i_symlink);
+}
+
+static inline int ocfs2_max_inline_data(int blocksize)
+{
+	return blocksize - offsetof(struct ocfs2_dinode, id2.i_data.id_data);
 }
 
 static inline int ocfs2_extent_recs_per_inode(int blocksize)

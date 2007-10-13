@@ -36,6 +36,7 @@
 
 #include <linux/linkage.h>
 #include <linux/compiler.h>
+#include <asm/mach/anomaly.h>
 
 /*
  * Interrupt configuring macros.
@@ -43,53 +44,60 @@
 
 extern unsigned long irq_flags;
 
-#define local_irq_enable() do {		\
-	__asm__ __volatile__ (		\
-		"sti %0;"		\
-		::"d"(irq_flags));	\
-} while (0)
+#define local_irq_enable() \
+	__asm__ __volatile__( \
+		"sti %0;" \
+		: \
+		: "d" (irq_flags) \
+	)
 
-#define local_irq_disable() do {	\
-	int _tmp_dummy;			\
-	__asm__ __volatile__ (		\
-		"cli %0;"		\
-		:"=d" (_tmp_dummy):);	\
-} while (0)
+#define local_irq_disable() \
+	do { \
+		int __tmp_dummy; \
+		__asm__ __volatile__( \
+			"cli %0;" \
+			: "=d" (__tmp_dummy) \
+		); \
+	} while (0)
 
-#if defined(ANOMALY_05000244) && defined (CONFIG_BLKFIN_CACHE)
-#define idle_with_irq_disabled() do {   \
-        __asm__ __volatile__ (          \
-                "nop; nop;\n"           \
-                ".align 8;\n"           \
-                "sti %0; idle;\n"       \
-                ::"d" (irq_flags));     \
-} while (0)
+#if ANOMALY_05000244 && defined(CONFIG_BFIN_ICACHE)
+# define NOP_PAD_ANOMALY_05000244 "nop; nop;"
 #else
-#define idle_with_irq_disabled() do {   \
-	__asm__ __volatile__ (          \
-		".align 8;\n"           \
-		"sti %0; idle;\n"       \
-		::"d" (irq_flags));     \
-} while (0)
+# define NOP_PAD_ANOMALY_05000244
 #endif
+
+#define idle_with_irq_disabled() \
+	__asm__ __volatile__( \
+		NOP_PAD_ANOMALY_05000244 \
+		".align 8;" \
+		"sti %0;" \
+		"idle;" \
+		: \
+		: "d" (irq_flags) \
+	)
 
 #ifdef CONFIG_DEBUG_HWERR
-#define __save_and_cli(x) do {			\
-	__asm__ __volatile__ (		        \
-		"cli %0;\n\tsti %1;"		\
-		:"=&d"(x): "d" (0x3F));		\
-} while (0)
+# define __save_and_cli(x) \
+	__asm__ __volatile__( \
+		"cli %0;" \
+		"sti %1;" \
+		: "=&d" (x) \
+		: "d" (0x3F) \
+	)
 #else
-#define __save_and_cli(x) do {		\
-	__asm__ __volatile__ (          \
-		"cli %0;"		\
-		:"=&d"(x):);		\
-} while (0)
+# define __save_and_cli(x) \
+	__asm__ __volatile__( \
+		"cli %0;" \
+		: "=&d" (x) \
+	)
 #endif
 
-#define local_save_flags(x) asm volatile ("cli %0;"     \
-					  "sti %0;"     \
-				    	  :"=d"(x):);
+#define local_save_flags(x) \
+	__asm__ __volatile__( \
+		"cli %0;" \
+		"sti %0;" \
+		: "=d" (x) \
+	)
 
 #ifdef CONFIG_DEBUG_HWERR
 #define irqs_enabled_from_flags(x) (((x) & ~0x3f) != 0)
@@ -97,10 +105,11 @@ extern unsigned long irq_flags;
 #define irqs_enabled_from_flags(x) ((x) != 0x1f)
 #endif
 
-#define local_irq_restore(x) do {			\
-	if (irqs_enabled_from_flags(x))			\
-		local_irq_enable ();			\
-} while (0)
+#define local_irq_restore(x) \
+	do { \
+		if (irqs_enabled_from_flags(x)) \
+			local_irq_enable(); \
+	} while (0)
 
 /* For spinlocks etc */
 #define local_irq_save(x) __save_and_cli(x)

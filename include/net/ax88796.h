@@ -14,6 +14,7 @@
 
 #define AXFLG_HAS_EEPROM		(1<<0)
 #define AXFLG_MAC_FROMDEV		(1<<1)	/* device already has MAC */
+#define AXFLG_HAS_93CX6			(1<<2)	/* use eeprom_93cx6 driver */
 
 struct ax_plat_data {
 	unsigned int	 flags;

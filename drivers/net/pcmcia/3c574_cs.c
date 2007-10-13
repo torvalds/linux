@@ -343,6 +343,7 @@ static int tc574_config(struct pcmcia_device *link)
 	u16 *phys_addr;
 	char *cardname;
 	union wn3_config config;
+	DECLARE_MAC_BUF(mac);
 
 	phys_addr = (u16 *)dev->dev_addr;
 
@@ -458,10 +459,10 @@ static int tc574_config(struct pcmcia_device *link)
 
 	strcpy(lp->node.dev_name, dev->name);
 
-	printk(KERN_INFO "%s: %s at io %#3lx, irq %d, hw_addr ",
-		   dev->name, cardname, dev->base_addr, dev->irq);
-	for (i = 0; i < 6; i++)
-		printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : ".\n"));
+	printk(KERN_INFO "%s: %s at io %#3lx, irq %d, "
+	       "hw_addr %s.\n",
+	       dev->name, cardname, dev->base_addr, dev->irq,
+	       print_mac(mac, dev->dev_addr));
 	printk(" %dK FIFO split %s Rx:Tx, %sMII interface.\n",
 		   8 << config.u.ram_size, ram_split[config.u.ram_split],
 		   config.u.autoselect ? "autoselect " : "");

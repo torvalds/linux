@@ -1,7 +1,7 @@
 /*
  *  pmu.c, Power Management Unit routines for NEC VR4100 series.
  *
- *  Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2003-2007  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,11 +22,13 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/pm.h>
-#include <linux/smp.h>
+#include <linux/sched.h>
 #include <linux/types.h>
 
+#include <asm/cacheflush.h>
 #include <asm/cpu.h>
 #include <asm/io.h>
+#include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/system.h>
 
@@ -44,11 +46,23 @@ static void __iomem *pmu_base;
 #define pmu_read(offset)		readw(pmu_base + (offset))
 #define pmu_write(offset, value)	writew((value), pmu_base + (offset))
 
+static void vr41xx_cpu_wait(void)
+{
+	local_irq_disable();
+	if (!need_resched())
+		/*
+		 * "standby" sets IE bit of the CP0_STATUS to 1.
+		 */
+		__asm__("standby;\n");
+	else
+		local_irq_enable();
+}
+
 static inline void software_reset(void)
 {
 	uint16_t pmucnt2;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4122:
 	case CPU_VR4131:
 	case CPU_VR4133:
@@ -57,6 +71,11 @@ static inline void software_reset(void)
 		pmu_write(PMUCNT2REG, pmucnt2);
 		break;
 	default:
+		set_c0_status(ST0_BEV | ST0_ERL);
+		change_c0_config(CONF_CM_CMASK, CONF_CM_UNCACHED);
+		flush_cache_all();
+		write_c0_wired(0);
+		__asm__("jr     %0"::"r"(0xbfc00000));
 		break;
 	}
 }
@@ -65,7 +84,6 @@ static void vr41xx_restart(char *command)
 {
 	local_irq_disable();
 	software_reset();
-	printk(KERN_NOTICE "\nYou can reset your system\n");
 	while (1) ;
 }
 
@@ -73,21 +91,14 @@ static void vr41xx_halt(void)
 {
 	local_irq_disable();
 	printk(KERN_NOTICE "\nYou can turn off the power supply\n");
-	while (1) ;
-}
-
-static void vr41xx_power_off(void)
-{
-	local_irq_disable();
-	printk(KERN_NOTICE "\nYou can turn off the power supply\n");
-	while (1) ;
+	__asm__("hibernate;\n");
 }
 
 static int __init vr41xx_pmu_init(void)
 {
 	unsigned long start, size;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4111:
 	case CPU_VR4121:
 		start = PMU_TYPE1_BASE;
@@ -113,9 +124,10 @@ static int __init vr41xx_pmu_init(void)
 		return -EBUSY;
 	}
 
+	cpu_wait = vr41xx_cpu_wait;
 	_machine_restart = vr41xx_restart;
 	_machine_halt = vr41xx_halt;
-	pm_power_off = vr41xx_power_off;
+	pm_power_off = vr41xx_halt;
 
 	return 0;
 }

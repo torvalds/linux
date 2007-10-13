@@ -332,7 +332,7 @@ static void fir_eof(struct stir_cb *stir)
 	}
 
 	fcs = ~(crc32_le(~0, rx_buff->data, len));
-	if (fcs != le32_to_cpu(get_unaligned((u32 *)(rx_buff->data+len)))) {
+	if (fcs != le32_to_cpu(get_unaligned((__le32 *)(rx_buff->data+len)))) {
 		pr_debug("crc error calc 0x%x len %d\n", fcs, len);
 		stir->stats.rx_errors++;
 		stir->stats.rx_crc_errors++;
@@ -1034,7 +1034,6 @@ static int stir_probe(struct usb_interface *intf,
 	if(!net)
 		goto err_out1;
 
-	SET_MODULE_OWNER(net);
 	SET_NETDEV_DEV(net, &intf->dev);
 	stir = netdev_priv(net);
 	stir->netdev = net;

@@ -172,6 +172,8 @@
 #define BTTV_BOARD_SSAI_ULTRASOUND	   0x92
 #define BTTV_BOARD_VOODOOTV_200		   0x93
 #define BTTV_BOARD_DVICO_FUSIONHDTV_2	   0x94
+#define BTTV_BOARD_TYPHOON_TVTUNERPCI	   0x95
+
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10

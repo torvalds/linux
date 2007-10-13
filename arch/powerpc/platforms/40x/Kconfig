@@ -1,0 +1,150 @@
+#config BUBINGA
+#	bool "Bubinga"
+#	depends on 40x
+#	default n
+#	select 405EP
+#	help
+#	  This option enables support for the IBM 405EP evaluation board.
+
+#config CPCI405
+#	bool "CPCI405"
+#	depends on 40x
+#	default n
+#	select 405GP
+#	help
+#	  This option enables support for the CPCI405 board.
+
+#config EP405
+#	bool "EP405/EP405PC"
+#	depends on 40x
+#	default n
+#	select 405GP
+#	help
+#	  This option enables support for the EP405/EP405PC boards.
+
+#config EP405PC
+#	bool "EP405PC Support"
+#	depends on EP405
+#	default y
+#	help
+#	  This option enables support for the extra features of the EP405PC board.
+
+config KILAUEA
+	bool "Kilauea"
+	depends on 40x
+	default n
+	help
+	  This option enables support for the AMCC PPC405EX evaluation board.
+
+#config REDWOOD_5
+#	bool "Redwood-5"
+#	depends on 40x
+#	default n
+#	select STB03xxx
+#	help
+#	  This option enables support for the IBM STB04 evaluation board.
+
+#config REDWOOD_6
+#	bool "Redwood-6"
+#	depends on 40x
+#	default n
+#	select STB03xxx
+#	help
+#	  This option enables support for the IBM STBx25xx evaluation board.
+
+#config SYCAMORE
+#	bool "Sycamore"
+#	depends on 40x
+#	default n
+#	select 405GPR
+#	help
+#	  This option enables support for the IBM PPC405GPr evaluation board.
+
+config WALNUT
+	bool "Walnut"
+	depends on 40x
+	default y
+	select 405GP
+	help
+	  This option enables support for the IBM PPC405GP evaluation board.
+
+config XILINX_VIRTEX_GENERIC_BOARD
+	bool "Generic Xilinx Virtex board"
+	depends on 40x
+	default n
+	select XILINX_VIRTEX_II_PRO
+	select XILINX_VIRTEX_4_FX
+	help
+	  This option enables generic support for Xilinx Virtex based boards.
+
+	  The generic virtex board support matches any device tree which
+	  specifies 'xilinx,virtex' in its compatible field.  This includes
+	  the Xilinx ML3xx and ML4xx reference designs using the powerpc
+	  core.
+
+	  Most Virtex designs should use this unless it needs to do some
+	  special configuration at board probe time.
+
+# 40x specific CPU modules, selected based on the board above.
+config NP405H
+	bool
+	#depends on ASH
+
+# OAK doesn't exist but wanted to keep this around for any future 403GCX boards
+config 403GCX
+	bool
+	#depends on OAK
+	select IBM405_ERR51
+
+config 405GP
+	bool
+	select IBM405_ERR77
+	select IBM405_ERR51
+
+config 405EP
+	bool
+
+config 405GPR
+	bool
+
+config XILINX_VIRTEX
+	bool
+
+config XILINX_VIRTEX_II_PRO
+	bool
+	select XILINX_VIRTEX
+	select IBM405_ERR77
+	select IBM405_ERR51
+
+config XILINX_VIRTEX_4_FX
+	bool
+	select XILINX_VIRTEX
+
+config STB03xxx
+	bool
+	select IBM405_ERR77
+	select IBM405_ERR51
+
+# 40x errata/workaround config symbols, selected by the CPU models above
+
+# All 405-based cores up until the 405GPR and 405EP have this errata.
+config IBM405_ERR77
+	bool
+
+# All 40x-based cores, up until the 405GPR and 405EP have this errata.
+config IBM405_ERR51
+	bool
+
+#config BIOS_FIXUP
+#	bool
+#	depends on BUBINGA || EP405 || SYCAMORE || WALNUT
+#	default y
+
+#config PPC4xx_DMA
+#	bool "PPC4xx DMA controller support"
+#	depends on 4xx
+
+#config PPC4xx_EDMA
+#	bool
+#	depends on !STB03xxx && PPC4xx_DMA
+#	default y

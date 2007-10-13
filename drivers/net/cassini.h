@@ -4280,6 +4280,8 @@ struct cas {
 	int rx_cur[N_RX_COMP_RINGS], rx_new[N_RX_COMP_RINGS];
 	int rx_last[N_RX_DESC_RINGS];
 
+	struct napi_struct napi;
+
 	/* Set when chip is actually in operational state
 	 * (ie. not power managed) */
 	int hw_running;

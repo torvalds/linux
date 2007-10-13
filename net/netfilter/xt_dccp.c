@@ -24,6 +24,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("Match for DCCP protocol packets");
 MODULE_ALIAS("ipt_dccp");
+MODULE_ALIAS("ip6t_dccp");
 
 #define DCCHECK(cond, option, flag, invflag) (!((flag) & (option)) \
 				  || (!!((invflag) & (option)) ^ (cond)))

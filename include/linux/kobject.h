@@ -1,8 +1,10 @@
 /*
  * kobject.h - generic kernel object infrastructure.
  *
- * Copyright (c) 2002-2003	Patrick Mochel
- * Copyright (c) 2002-2003	Open Source Development Labs
+ * Copyright (c) 2002-2003 Patrick Mochel
+ * Copyright (c) 2002-2003 Open Source Development Labs
+ * Copyright (c) 2006-2007 Greg Kroah-Hartman <greg@kroah.com>
+ * Copyright (c) 2006-2007 Novell Inc.
  *
  * This file is released under the GPLv2.
  *
@@ -29,6 +31,8 @@
 
 #define KOBJ_NAME_LEN			20
 #define UEVENT_HELPER_PATH_LEN		256
+#define UEVENT_NUM_ENVP			32	/* number of env pointers */
+#define UEVENT_BUFFER_SIZE		2048	/* buffer for the variables */
 
 /* path to the userspace helper executed on an event */
 extern char uevent_helper[];
@@ -56,19 +60,14 @@ enum kobject_action {
 	KOBJ_MAX
 };
 
-/* The list of strings defining the valid kobject actions as specified above */
-extern const char *kobject_actions[];
-
 struct kobject {
 	const char		* k_name;
-	char			name[KOBJ_NAME_LEN];
 	struct kref		kref;
 	struct list_head	entry;
 	struct kobject		* parent;
 	struct kset		* kset;
 	struct kobj_type	* ktype;
 	struct sysfs_dirent	* sd;
-	wait_queue_head_t	poll;
 };
 
 extern int kobject_set_name(struct kobject *, const char *, ...)
@@ -83,14 +82,9 @@ extern void kobject_init(struct kobject *);
 extern void kobject_cleanup(struct kobject *);
 
 extern int __must_check kobject_add(struct kobject *);
-extern int __must_check kobject_shadow_add(struct kobject *kobj,
-					   struct sysfs_dirent *shadow_parent);
 extern void kobject_del(struct kobject *);
 
 extern int __must_check kobject_rename(struct kobject *, const char *new_name);
-extern int __must_check kobject_shadow_rename(struct kobject *kobj,
-					      struct sysfs_dirent *new_parent,
-					      const char *new_name);
 extern int __must_check kobject_move(struct kobject *, struct kobject *);
 
 extern int __must_check kobject_register(struct kobject *);
@@ -111,36 +105,44 @@ struct kobj_type {
 	struct attribute	** default_attrs;
 };
 
+struct kobj_uevent_env {
+	char *envp[UEVENT_NUM_ENVP];
+	int envp_idx;
+	char buf[UEVENT_BUFFER_SIZE];
+	int buflen;
+};
+
 struct kset_uevent_ops {
 	int (*filter)(struct kset *kset, struct kobject *kobj);
 	const char *(*name)(struct kset *kset, struct kobject *kobj);
-	int (*uevent)(struct kset *kset, struct kobject *kobj, char **envp,
-			int num_envp, char *buffer, int buffer_size);
+	int (*uevent)(struct kset *kset, struct kobject *kobj,
+		      struct kobj_uevent_env *env);
 };
 
-/*
- *	struct kset - a set of kobjects of a specific type, belonging
- *	to a specific subsystem.
+/**
+ * struct kset - a set of kobjects of a specific type, belonging to a specific subsystem.
  *
- *	All kobjects of a kset should be embedded in an identical 
- *	type. This type may have a descriptor, which the kset points
- *	to. This allows there to exist sets of objects of the same
- *	type in different subsystems.
+ * A kset defines a group of kobjects.  They can be individually
+ * different "types" but overall these kobjects all want to be grouped
+ * together and operated on in the same manner.  ksets are used to
+ * define the attribute callbacks and other common events that happen to
+ * a kobject.
  *
- *	A subsystem does not have to be a list of only one type 
- *	of object; multiple ksets can belong to one subsystem. All 
- *	ksets of a subsystem share the subsystem's lock.
- *
- *	Each kset can support specific event variables; it can
- *	supress the event generation or add subsystem specific
- *	variables carried with the event.
+ * @ktype: the struct kobj_type for this specific kset
+ * @list: the list of all kobjects for this kset
+ * @list_lock: a lock for iterating over the kobjects
+ * @kobj: the embedded kobject for this kset (recursion, isn't it fun...)
+ * @uevent_ops: the set of uevent operations for this kset.  These are
+ * called whenever a kobject has something happen to it so that the kset
+ * can add new environment variables, or filter out the uevents if so
+ * desired.
  */
 struct kset {
-	struct kobj_type	* ktype;
+	struct kobj_type	*ktype;
 	struct list_head	list;
 	spinlock_t		list_lock;
 	struct kobject		kobj;
-	struct kset_uevent_ops	* uevent_ops;
+	struct kset_uevent_ops	*uevent_ops;
 };
 
 
@@ -179,18 +181,18 @@ extern struct kobject * kset_find_obj(struct kset *, const char *);
  * Use this when initializing an embedded kset with no other 
  * fields to initialize.
  */
-#define set_kset_name(str)	.kset = { .kobj = { .name = str } }
+#define set_kset_name(str)	.kset = { .kobj = { .k_name = str } }
 
 
 #define decl_subsys(_name,_type,_uevent_ops) \
 struct kset _name##_subsys = { \
-	.kobj = { .name = __stringify(_name) }, \
+	.kobj = { .k_name = __stringify(_name) }, \
 	.ktype = _type, \
 	.uevent_ops =_uevent_ops, \
 }
 #define decl_subsys_name(_varname,_name,_type,_uevent_ops) \
 struct kset _varname##_subsys = { \
-	.kobj = { .name = __stringify(_name) }, \
+	.kobj = { .k_name = __stringify(_name) }, \
 	.ktype = _type, \
 	.uevent_ops =_uevent_ops, \
 }
@@ -218,48 +220,8 @@ extern struct kset hypervisor_subsys;
 #define kobj_set_kset_s(obj,subsys) \
 	(obj)->kobj.kset = &(subsys)
 
-/**
- *	kset_set_kset_s(obj,subsys) - set kset for embedded kset.
- *	@obj:		ptr to some object type.
- *	@subsys:	a subsystem object (not a ptr).
- *
- *	Can be used for any object type with an embedded ->kset.
- *	Sets the kset of @obj's  embedded kobject (via its embedded
- *	kset) to @subsys.kset. This makes @obj a member of that 
- *	kset.
- */
-
-#define kset_set_kset_s(obj,subsys) \
-	(obj)->kset.kobj.kset = &(subsys)
-
-/**
- *	subsys_set_kset(obj,subsys) - set kset for subsystem
- *	@obj:		ptr to some object type.
- *	@_subsys:	a subsystem object (not a ptr).
- *
- *	Can be used for any object type with an embedded ->subsys.
- *	Sets the kset of @obj's kobject to @subsys.kset. This makes
- *	the object a member of that kset.
- */
-
-#define subsys_set_kset(obj,_subsys) \
-	(obj)->subsys.kobj.kset = &(_subsys)
-
-extern void subsystem_init(struct kset *);
 extern int __must_check subsystem_register(struct kset *);
 extern void subsystem_unregister(struct kset *);
-
-static inline struct kset *subsys_get(struct kset *s)
-{
-	if (s)
-		return kset_get(s);
-	return NULL;
-}
-
-static inline void subsys_put(struct kset *s)
-{
-	kset_put(s);
-}
 
 struct subsys_attribute {
 	struct attribute attr;
@@ -275,10 +237,11 @@ int kobject_uevent(struct kobject *kobj, enum kobject_action action);
 int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			char *envp[]);
 
-int add_uevent_var(char **envp, int num_envp, int *cur_index,
-			char *buffer, int buffer_size, int *cur_len,
-			const char *format, ...)
-	__attribute__((format (printf, 7, 8)));
+int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
+	__attribute__((format (printf, 2, 3)));
+
+int kobject_action_type(const char *buf, size_t count,
+			enum kobject_action *type);
 #else
 static inline int kobject_uevent(struct kobject *kobj, enum kobject_action action)
 { return 0; }
@@ -287,10 +250,12 @@ static inline int kobject_uevent_env(struct kobject *kobj,
 				      char *envp[])
 { return 0; }
 
-static inline int add_uevent_var(char **envp, int num_envp, int *cur_index,
-				      char *buffer, int buffer_size, int *cur_len, 
-				      const char *format, ...)
+static inline int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
 { return 0; }
+
+static inline int kobject_action_type(const char *buf, size_t count,
+			enum kobject_action *type)
+{ return -EINVAL; }
 #endif
 
 #endif /* __KERNEL__ */

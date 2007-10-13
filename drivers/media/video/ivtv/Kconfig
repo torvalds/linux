@@ -14,6 +14,7 @@ config VIDEO_IVTV
 	select VIDEO_CS53L32A
 	select VIDEO_WM8775
 	select VIDEO_WM8739
+	select VIDEO_VP27SMPX
 	select VIDEO_UPD64031A
 	select VIDEO_UPD64083
 	---help---
@@ -25,3 +26,19 @@ config VIDEO_IVTV
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtv.
+
+config VIDEO_FB_IVTV
+	tristate "Conexant cx23415 framebuffer support"
+	depends on VIDEO_IVTV && FB && EXPERIMENTAL
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  This is a framebuffer driver for the Conexant cx23415 MPEG
+	  encoder/decoder.
+
+	  This is used in the Hauppauge PVR-350 card. There is a driver
+	  homepage at <http://www.ivtvdriver.org>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ivtvfb.

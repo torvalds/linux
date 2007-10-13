@@ -313,8 +313,6 @@ struct net_device * __init mac8390_probe(int unit)
 	if (unit >= 0)
 		sprintf(dev->name, "eth%d", unit);
 
- 	SET_MODULE_OWNER(dev);
-
 	while ((ndev = nubus_find_type(NUBUS_CAT_NETWORK, NUBUS_TYPE_ETHERNET, ndev))) {
 		/* Have we seen it already? */
 		if (slots & (1<<ndev->board->slot))

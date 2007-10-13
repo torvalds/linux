@@ -91,7 +91,7 @@ struct swStat {
 	unsigned long long serious_err_cnt;
 	unsigned long long soft_reset_cnt;
 	unsigned long long fifo_full_cnt;
-	unsigned long long ring_full_cnt;
+	unsigned long long ring_full_cnt[8];
 	/* LRO statistics */
 	unsigned long long clubbed_frms_cnt;
 	unsigned long long sending_both;
@@ -126,6 +126,26 @@ struct swStat {
 	unsigned long long rx_buf_size_err_cnt;
 	unsigned long long rx_rxd_corrupt_cnt;
 	unsigned long long rx_unkn_err_cnt;
+
+	/* Error/alarm statistics*/
+	unsigned long long tda_err_cnt;
+	unsigned long long pfc_err_cnt;
+	unsigned long long pcc_err_cnt;
+	unsigned long long tti_err_cnt;
+	unsigned long long lso_err_cnt;
+	unsigned long long tpa_err_cnt;
+	unsigned long long sm_err_cnt;
+	unsigned long long mac_tmac_err_cnt;
+	unsigned long long mac_rmac_err_cnt;
+	unsigned long long xgxs_txgxs_err_cnt;
+	unsigned long long xgxs_rxgxs_err_cnt;
+	unsigned long long rc_err_cnt;
+	unsigned long long prc_pcix_err_cnt;
+	unsigned long long rpa_err_cnt;
+	unsigned long long rda_err_cnt;
+	unsigned long long rti_err_cnt;
+	unsigned long long mc_err_cnt;
+
 };
 
 /* Xpak releated alarm and warnings */
@@ -412,6 +432,11 @@ struct config_param {
 	struct tx_fifo_config tx_cfg[MAX_TX_FIFOS];	/*Per-Tx FIFO config */
 	u32 max_txds;		/*Max no. of Tx buffer descriptor per TxDL */
 	u64 tx_intr_type;
+#define INTA	0
+#define MSI_X	2
+	u8 intr_type;
+	u8 napi;
+
 	/* Specifies if Tx Intr is UTILZ or PER_LIST type. */
 
 /* Rx Side */
@@ -419,7 +444,6 @@ struct config_param {
 #define MAX_RX_BLOCKS_PER_RING  150
 
 	struct rx_ring_config rx_cfg[MAX_RX_RINGS];	/*Per-Rx Ring config */
-	u8 bimodal;		/*Flag for setting bimodal interrupts*/
 
 #define HEADER_ETHERNET_II_802_3_SIZE 14
 #define HEADER_802_2_SIZE              3
@@ -777,6 +801,13 @@ struct lro {
 	u8		saw_ts;
 };
 
+/* These flags represent the devices temporary state */
+enum s2io_device_state_t
+{
+	__S2IO_STATE_LINK_TASK=0,
+	__S2IO_STATE_CARD_UP
+};
+
 /* Structure representing one instance of the NIC */
 struct s2io_nic {
 	int rxd_mode;
@@ -786,6 +817,7 @@ struct s2io_nic {
 	 */
 	int pkts_to_process;
 	struct net_device *dev;
+	struct napi_struct napi;
 	struct mac_info mac_control;
 	struct config_param config;
 	struct pci_dev *pdev;
@@ -854,13 +886,11 @@ struct s2io_nic {
 
 	int task_flag;
 	unsigned long long start_time;
-#define CARD_DOWN 1
-#define CARD_UP 2
-	atomic_t card_state;
-	volatile unsigned long link_state;
 	struct vlan_group *vlgrp;
 #define MSIX_FLG                0xA5
 	struct msix_entry *entries;
+	int msi_detected;
+	wait_queue_head_t msi_wait;
 	struct s2io_msix_entry *s2io_entries;
 	char desc[MAX_REQUESTED_MSI_X][25];
 
@@ -878,13 +908,9 @@ struct s2io_nic {
 	unsigned long	sending_both;
 	u8		lro;
 	u16		lro_max_aggr_per_sess;
-
-#define INTA	0
-#define MSI_X	2
-	u8 intr_type;
-
+	volatile unsigned long state;
 	spinlock_t	rx_lock;
-	atomic_t	isr_cnt;
+	u64		general_int_mask;
 	u64 *ufo_in_band_v;
 #define VPD_STRING_LEN 80
 	u8  product_name[VPD_STRING_LEN];
@@ -1009,7 +1035,7 @@ static void free_shared_mem(struct s2io_nic *sp);
 static int init_nic(struct s2io_nic *nic);
 static void rx_intr_handler(struct ring_info *ring_data);
 static void tx_intr_handler(struct fifo_info *fifo_data);
-static void alarm_intr_handler(struct s2io_nic *sp);
+static void s2io_handle_errors(void * dev_id);
 
 static int s2io_starter(void);
 static void s2io_closer(void);
@@ -1019,9 +1045,9 @@ static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp);
 static void s2io_link(struct s2io_nic * sp, int link);
 static void s2io_reset(struct s2io_nic * sp);
-static int s2io_poll(struct net_device *dev, int *budget);
+static int s2io_poll(struct napi_struct *napi, int budget);
 static void s2io_init_pci(struct s2io_nic * sp);
-static int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
+static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr);
 static void s2io_alarm_handle(unsigned long data);
 static irqreturn_t
 s2io_msix_ring_handle(int irq, void *dev_id);

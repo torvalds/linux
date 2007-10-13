@@ -39,7 +39,7 @@
 #include <asm/pgtable.h>
 #include <asm/au1000.h>
 
-void board_reset (void)
+void board_reset(void)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
 	au_writel(0x00000000, 0xAE00001C);

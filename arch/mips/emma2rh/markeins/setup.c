@@ -88,7 +88,7 @@ static unsigned int __init detect_bus_frequency(unsigned long rtc_base)
 	return clock[reg];
 }
 
-static void __init emma2rh_time_init(void)
+void __init plat_time_init(void)
 {
 	u32 reg;
 	if (bus_frequency == 0)
@@ -123,8 +123,6 @@ void __init plat_mem_setup(void)
 	markeins_board_init();
 
 	set_io_port_base(KSEG1ADDR(EMMA2RH_PCI_IO_BASE));
-
-	board_time_init = emma2rh_time_init;
 
 	_machine_restart = markeins_machine_restart;
 	_machine_halt = markeins_machine_halt;

@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/pci_regs.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -242,8 +243,8 @@ static int celleb_fake_pci_write_config(struct pci_bus *bus,
 }
 
 static struct pci_ops celleb_fake_pci_ops = {
-	celleb_fake_pci_read_config,
-	celleb_fake_pci_write_config
+	.read = celleb_fake_pci_read_config,
+	.write = celleb_fake_pci_write_config,
 };
 
 static inline void celleb_setup_pci_base_addrs(struct pci_controller *hose,
@@ -288,8 +289,8 @@ static inline void celleb_setup_pci_base_addrs(struct pci_controller *hose,
 	celleb_config_write_fake(config, PCI_COMMAND, 2, val);
 }
 
-static int __devinit celleb_setup_fake_pci_device(struct device_node *node,
-						  struct pci_controller *hose)
+static int __init celleb_setup_fake_pci_device(struct device_node *node,
+					       struct pci_controller *hose)
 {
 	unsigned int rlen;
 	int num_base_addr = 0;
@@ -327,10 +328,7 @@ static int __devinit celleb_setup_fake_pci_device(struct device_node *node,
 
 	size = 256;
 	config = &private->fake_config[devno][fn];
-	if (mem_init_done)
-		*config = kzalloc(size, GFP_KERNEL);
-	else
-		*config = alloc_bootmem(size);
+	*config = alloc_maybe_bootmem(size, GFP_KERNEL);
 	if (*config == NULL) {
 		printk(KERN_ERR "PCI: "
 		       "not enough memory for fake configuration space\n");
@@ -341,10 +339,7 @@ static int __devinit celleb_setup_fake_pci_device(struct device_node *node,
 
 	size = sizeof(struct celleb_pci_resource);
 	res = &private->res[devno][fn];
-	if (mem_init_done)
-		*res = kzalloc(size, GFP_KERNEL);
-	else
-		*res = alloc_bootmem(size);
+	*res = alloc_maybe_bootmem(size, GFP_KERNEL);
 	if (*res == NULL) {
 		printk(KERN_ERR
 		       "PCI: not enough memory for resource data space\n");
@@ -418,8 +413,8 @@ error:
 	return 1;
 }
 
-static int __devinit phb_set_bus_ranges(struct device_node *dev,
-					struct pci_controller *phb)
+static int __init phb_set_bus_ranges(struct device_node *dev,
+				     struct pci_controller *phb)
 {
 	const int *bus_range;
 	unsigned int len;
@@ -434,46 +429,65 @@ static int __devinit phb_set_bus_ranges(struct device_node *dev,
 	return 0;
 }
 
-static void __devinit celleb_alloc_private_mem(struct pci_controller *hose)
+static void __init celleb_alloc_private_mem(struct pci_controller *hose)
 {
-	if (mem_init_done)
-		hose->private_data =
-			kzalloc(sizeof(struct celleb_pci_private), GFP_KERNEL);
-	else
-		hose->private_data =
-			alloc_bootmem(sizeof(struct celleb_pci_private));
+	hose->private_data =
+		alloc_maybe_bootmem(sizeof(struct celleb_pci_private),
+			GFP_KERNEL);
 }
 
-int __devinit celleb_setup_phb(struct pci_controller *phb)
+static int __init celleb_setup_fake_pci(struct device_node *dev,
+					struct pci_controller *phb)
 {
-	const char *name;
-	struct device_node *dev = phb->arch_data;
 	struct device_node *node;
-	unsigned int rlen;
 
-	name = of_get_property(dev, "name", &rlen);
-	if (!name)
+	phb->ops = &celleb_fake_pci_ops;
+	celleb_alloc_private_mem(phb);
+
+	for (node = of_get_next_child(dev, NULL);
+	     node != NULL; node = of_get_next_child(dev, node))
+		celleb_setup_fake_pci_device(node, phb);
+
+	return 0;
+}
+
+void __init fake_pci_workaround_init(struct pci_controller *phb)
+{
+	/**
+	 *  We will add fake pci bus to scc_pci_bus for the purpose to improve
+	 *  I/O Macro performance. But device-tree and device drivers
+	 *  are not ready to use address with a token.
+	 */
+
+	/* celleb_pci_add_one(phb, NULL); */
+}
+
+static struct of_device_id celleb_phb_match[] __initdata = {
+	{
+		.name = "pci-pseudo",
+		.data = celleb_setup_fake_pci,
+	}, {
+		.name = "epci",
+		.data = celleb_setup_epci,
+	}, {
+	},
+};
+
+int __init celleb_setup_phb(struct pci_controller *phb)
+{
+	struct device_node *dev = phb->arch_data;
+	const struct of_device_id *match;
+	int (*setup_func)(struct device_node *, struct pci_controller *);
+
+	match = of_match_node(celleb_phb_match, dev);
+	if (!match)
 		return 1;
 
-	pr_debug("PCI: celleb_setup_phb() %s\n", name);
 	phb_set_bus_ranges(dev, phb);
 	phb->buid = 1;
 
-	if (strcmp(name, "epci") == 0) {
-		phb->ops = &celleb_epci_ops;
-		return celleb_setup_epci(dev, phb);
-
-	} else if (strcmp(name, "pci-pseudo") == 0) {
-		phb->ops = &celleb_fake_pci_ops;
-		celleb_alloc_private_mem(phb);
-		for (node = of_get_next_child(dev, NULL);
-		     node != NULL; node = of_get_next_child(dev, node))
-			celleb_setup_fake_pci_device(node, phb);
-
-	} else
-		return 1;
-
-	return 0;
+	setup_func = match->data;
+	return (*setup_func)(dev, phb);
 }
 
 int celleb_pci_probe_mode(struct pci_bus *bus)

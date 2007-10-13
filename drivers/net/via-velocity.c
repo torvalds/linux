@@ -72,6 +72,7 @@
 #include <linux/mii.h>
 #include <linux/in.h>
 #include <linux/if_arp.h>
+#include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
@@ -84,6 +85,163 @@
 static int velocity_nics = 0;
 static int msglevel = MSG_LEVEL_INFO;
 
+/**
+ *	mac_get_cam_mask	-	Read a CAM mask
+ *	@regs: register block for this velocity
+ *	@mask: buffer to store mask
+ *
+ *	Fetch the mask bits of the selected CAM and store them into the
+ *	provided mask buffer.
+ */
+
+static void mac_get_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+{
+	int i;
+
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_MASK, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	writeb(0, &regs->CAMADDR);
+
+	/* read mask */
+	for (i = 0; i < 8; i++)
+		*mask++ = readb(&(regs->MARCAM[i]));
+
+	/* disable CAMEN */
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+}
+
+
+/**
+ *	mac_set_cam_mask	-	Set a CAM mask
+ *	@regs: register block for this velocity
+ *	@mask: CAM mask to load
+ *
+ *	Store a new mask into a CAM
+ */
+
+static void mac_set_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+{
+	int i;
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_MASK, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	writeb(CAMADDR_CAMEN, &regs->CAMADDR);
+
+	for (i = 0; i < 8; i++) {
+		writeb(*mask++, &(regs->MARCAM[i]));
+	}
+	/* disable CAMEN */
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+}
+
+static void mac_set_vlan_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+{
+	int i;
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_MASK, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	writeb(CAMADDR_CAMEN | CAMADDR_VCAMSL, &regs->CAMADDR);
+
+	for (i = 0; i < 8; i++) {
+		writeb(*mask++, &(regs->MARCAM[i]));
+	}
+	/* disable CAMEN */
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+}
+
+/**
+ *	mac_set_cam	-	set CAM data
+ *	@regs: register block of this velocity
+ *	@idx: Cam index
+ *	@addr: 2 or 6 bytes of CAM data
+ *
+ *	Load an address or vlan tag into a CAM
+ */
+
+static void mac_set_cam(struct mac_regs __iomem * regs, int idx, const u8 *addr)
+{
+	int i;
+
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_DATA, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	idx &= (64 - 1);
+
+	writeb(CAMADDR_CAMEN | idx, &regs->CAMADDR);
+
+	for (i = 0; i < 6; i++) {
+		writeb(*addr++, &(regs->MARCAM[i]));
+	}
+	BYTE_REG_BITS_ON(CAMCR_CAMWR, &regs->CAMCR);
+
+	udelay(10);
+
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+}
+
+static void mac_set_vlan_cam(struct mac_regs __iomem * regs, int idx,
+			     const u8 *addr)
+{
+
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_DATA, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	idx &= (64 - 1);
+
+	writeb(CAMADDR_CAMEN | CAMADDR_VCAMSL | idx, &regs->CAMADDR);
+	writew(*((u16 *) addr), &regs->MARCAM[0]);
+
+	BYTE_REG_BITS_ON(CAMCR_CAMWR, &regs->CAMCR);
+
+	udelay(10);
+
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+}
+
+
+/**
+ *	mac_wol_reset	-	reset WOL after exiting low power
+ *	@regs: register block of this velocity
+ *
+ *	Called after we drop out of wake on lan mode in order to
+ *	reset the Wake on lan features. This function doesn't restore
+ *	the rest of the logic from the result of sleep/wakeup
+ */
+
+static void mac_wol_reset(struct mac_regs __iomem * regs)
+{
+
+	/* Turn off SWPTAG right after leaving power mode */
+	BYTE_REG_BITS_OFF(STICKHW_SWPTAG, &regs->STICKHW);
+	/* clear sticky bits */
+	BYTE_REG_BITS_OFF((STICKHW_DS1 | STICKHW_DS0), &regs->STICKHW);
+
+	BYTE_REG_BITS_OFF(CHIPGCR_FCGMII, &regs->CHIPGCR);
+	BYTE_REG_BITS_OFF(CHIPGCR_FCMODE, &regs->CHIPGCR);
+	/* disable force PME-enable */
+	writeb(WOLCFG_PMEOVR, &regs->WOLCFGClr);
+	/* disable power-event config bit */
+	writew(0xFFFF, &regs->WOLCRClr);
+	/* clear power status */
+	writew(0xFFFF, &regs->WOLSRClr);
+}
 
 static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static const struct ethtool_ops velocity_ethtool_ops;
@@ -111,15 +269,6 @@ VELOCITY_PARAM(RxDescriptors, "Number of receive descriptors");
 #define TX_DESC_DEF     64
 VELOCITY_PARAM(TxDescriptors, "Number of transmit descriptors");
 
-#define VLAN_ID_MIN     0
-#define VLAN_ID_MAX     4095
-#define VLAN_ID_DEF     0
-/* VID_setting[] is used for setting the VID of NIC.
-   0: default VID.
-   1-4094: other VIDs.
-*/
-VELOCITY_PARAM(VID_setting, "802.1Q VLAN ID");
-
 #define RX_THRESH_MIN   0
 #define RX_THRESH_MAX   3
 #define RX_THRESH_DEF   0
@@ -146,13 +295,6 @@ VELOCITY_PARAM(rx_thresh, "Receive fifo threshold");
    7: SF(flush till emply)
 */
 VELOCITY_PARAM(DMA_length, "DMA length");
-
-#define TAGGING_DEF     0
-/* enable_tagging[] is used for enabling 802.1Q VID tagging.
-   0: disable VID seeting(default).
-   1: enable VID setting.
-*/
-VELOCITY_PARAM(enable_tagging, "Enable 802.1Q tagging");
 
 #define IP_ALIG_DEF     0
 /* IP_byte_align[] is used for IP header DWORD byte aligned
@@ -324,7 +466,7 @@ MODULE_DEVICE_TABLE(pci, velocity_id_table);
  *	a pointer a static string valid while the driver is loaded.
  */
 
-static char __devinit *get_chip_name(enum chip_type chip_id)
+static const char __devinit *get_chip_name(enum chip_type chip_id)
 {
 	int i;
 	for (i = 0; chip_info_table[i].name != NULL; i++)
@@ -442,8 +584,7 @@ static void __devinit velocity_get_options(struct velocity_opt *opts, int index,
 	velocity_set_int_opt(&opts->DMA_length, DMA_length[index], DMA_LENGTH_MIN, DMA_LENGTH_MAX, DMA_LENGTH_DEF, "DMA_length", devname);
 	velocity_set_int_opt(&opts->numrx, RxDescriptors[index], RX_DESC_MIN, RX_DESC_MAX, RX_DESC_DEF, "RxDescriptors", devname);
 	velocity_set_int_opt(&opts->numtx, TxDescriptors[index], TX_DESC_MIN, TX_DESC_MAX, TX_DESC_DEF, "TxDescriptors", devname);
-	velocity_set_int_opt(&opts->vid, VID_setting[index], VLAN_ID_MIN, VLAN_ID_MAX, VLAN_ID_DEF, "VID_setting", devname);
-	velocity_set_bool_opt(&opts->flags, enable_tagging[index], TAGGING_DEF, VELOCITY_FLAGS_TAGGING, "enable_tagging", devname);
+
 	velocity_set_bool_opt(&opts->flags, txcsum_offload[index], TX_CSUM_DEF, VELOCITY_FLAGS_TX_CSUM, "txcsum_offload", devname);
 	velocity_set_int_opt(&opts->flow_cntl, flow_control[index], FLOW_CNTL_MIN, FLOW_CNTL_MAX, FLOW_CNTL_DEF, "flow_control", devname);
 	velocity_set_bool_opt(&opts->flags, IP_byte_align[index], IP_ALIG_DEF, VELOCITY_FLAGS_IP_ALIGN, "IP_byte_align", devname);
@@ -465,6 +606,7 @@ static void __devinit velocity_get_options(struct velocity_opt *opts, int index,
 static void velocity_init_cam_filter(struct velocity_info *vptr)
 {
 	struct mac_regs __iomem * regs = vptr->mac_regs;
+	unsigned short vid;
 
 	/* Turn on MCFG_PQEN, turn off MCFG_RTGOPT */
 	WORD_REG_BITS_SET(MCFG_PQEN, MCFG_RTGOPT, &regs->MCFG);
@@ -473,26 +615,51 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 	/* Disable all CAMs */
 	memset(vptr->vCAMmask, 0, sizeof(u8) * 8);
 	memset(vptr->mCAMmask, 0, sizeof(u8) * 8);
-	mac_set_cam_mask(regs, vptr->vCAMmask, VELOCITY_VLAN_ID_CAM);
-	mac_set_cam_mask(regs, vptr->mCAMmask, VELOCITY_MULTICAST_CAM);
+	mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
+	mac_set_cam_mask(regs, vptr->mCAMmask);
 
 	/* Enable first VCAM */
-	if (vptr->flags & VELOCITY_FLAGS_TAGGING) {
-		/* If Tagging option is enabled and VLAN ID is not zero, then
-		   turn on MCFG_RTGOPT also */
-		if (vptr->options.vid != 0)
-			WORD_REG_BITS_ON(MCFG_RTGOPT, &regs->MCFG);
+	if (vptr->vlgrp) {
+		for (vid = 0; vid < VLAN_VID_MASK; vid++) {
+			if (vlan_group_get_device(vptr->vlgrp, vid)) {
+				/* If Tagging option is enabled and
+				   VLAN ID is not zero, then
+				   turn on MCFG_RTGOPT also */
+				if (vid != 0)
+					WORD_REG_BITS_ON(MCFG_RTGOPT, &regs->MCFG);
 
-		mac_set_cam(regs, 0, (u8 *) & (vptr->options.vid), VELOCITY_VLAN_ID_CAM);
+				mac_set_vlan_cam(regs, 0, (u8 *) &vid);
+			}
+		}
 		vptr->vCAMmask[0] |= 1;
-		mac_set_cam_mask(regs, vptr->vCAMmask, VELOCITY_VLAN_ID_CAM);
+		mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
 	} else {
 		u16 temp = 0;
-		mac_set_cam(regs, 0, (u8 *) &temp, VELOCITY_VLAN_ID_CAM);
+		mac_set_vlan_cam(regs, 0, (u8 *) &temp);
 		temp = 1;
-		mac_set_cam_mask(regs, (u8 *) &temp, VELOCITY_VLAN_ID_CAM);
+		mac_set_vlan_cam_mask(regs, (u8 *) &temp);
 	}
 }
+
+static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+{
+	struct velocity_info *vptr = netdev_priv(dev);
+
+        spin_lock_irq(&vptr->lock);
+	velocity_init_cam_filter(vptr);
+        spin_unlock_irq(&vptr->lock);
+}
+
+static void velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+{
+	struct velocity_info *vptr = netdev_priv(dev);
+
+        spin_lock_irq(&vptr->lock);
+	vlan_group_set_device(vptr->vlgrp, vid, NULL);
+	velocity_init_cam_filter(vptr);
+        spin_unlock_irq(&vptr->lock);
+}
+
 
 /**
  *	velocity_rx_reset	-	handle a receive reset
@@ -712,7 +879,6 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 
 	/* Chain it all together */
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	vptr = netdev_priv(dev);
 
@@ -791,13 +957,17 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	dev->do_ioctl = velocity_ioctl;
 	dev->ethtool_ops = &velocity_ethtool_ops;
 	dev->change_mtu = velocity_change_mtu;
+
+	dev->vlan_rx_add_vid = velocity_vlan_rx_add_vid;
+	dev->vlan_rx_kill_vid = velocity_vlan_rx_kill_vid;
+
 #ifdef  VELOCITY_ZERO_COPY_SUPPORT
 	dev->features |= NETIF_F_SG;
 #endif
+	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER;
 
-	if (vptr->flags & VELOCITY_FLAGS_TX_CSUM) {
+	if (vptr->flags & VELOCITY_FLAGS_TX_CSUM)
 		dev->features |= NETIF_F_IP_CSUM;
-	}
 
 	ret = register_netdev(dev);
 	if (ret < 0)
@@ -1071,14 +1241,12 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 
 static int velocity_init_rd_ring(struct velocity_info *vptr)
 {
-	int ret = -ENOMEM;
-	unsigned int rsize = sizeof(struct velocity_rd_info) *
-					vptr->options.numrx;
+	int ret;
 
-	vptr->rd_info = kmalloc(rsize, GFP_KERNEL);
-	if(vptr->rd_info == NULL)
-		goto out;
-	memset(vptr->rd_info, 0, rsize);
+	vptr->rd_info = kcalloc(vptr->options.numrx,
+				sizeof(struct velocity_rd_info), GFP_KERNEL);
+	if (!vptr->rd_info)
+		return -ENOMEM;
 
 	vptr->rd_filled = vptr->rd_dirty = vptr->rd_curr = 0;
 
@@ -1088,7 +1256,7 @@ static int velocity_init_rd_ring(struct velocity_info *vptr)
 			"%s: failed to allocate RX buffer.\n", vptr->dev->name);
 		velocity_free_rd_ring(vptr);
 	}
-out:
+
 	return ret;
 }
 
@@ -1142,21 +1310,19 @@ static int velocity_init_td_ring(struct velocity_info *vptr)
 	dma_addr_t curr;
 	struct tx_desc *td;
 	struct velocity_td_info *td_info;
-	unsigned int tsize = sizeof(struct velocity_td_info) *
-					vptr->options.numtx;
 
 	/* Init the TD ring entries */
 	for (j = 0; j < vptr->num_txq; j++) {
 		curr = vptr->td_pool_dma[j];
 
-		vptr->td_infos[j] = kmalloc(tsize, GFP_KERNEL);
-		if(vptr->td_infos[j] == NULL)
-		{
+		vptr->td_infos[j] = kcalloc(vptr->options.numtx,
+					    sizeof(struct velocity_td_info),
+					    GFP_KERNEL);
+		if (!vptr->td_infos[j])	{
 			while(--j >= 0)
 				kfree(vptr->td_infos[j]);
 			return -ENOMEM;
 		}
-		memset(vptr->td_infos[j], 0, tsize);
 
 		for (i = 0; i < vptr->options.numtx; i++, curr += sizeof(struct tx_desc)) {
 			td = &(vptr->td_rings[j][i]);
@@ -1994,8 +2160,8 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 		td_ptr->tdesc1.CMDZ = 2;
 	}
 
-	if (vptr->flags & VELOCITY_FLAGS_TAGGING) {
-		td_ptr->tdesc1.pqinf.VID = (vptr->options.vid & 0xfff);
+	if (vptr->vlgrp && vlan_tx_tag_present(skb)) {
+		td_ptr->tdesc1.pqinf.VID = vlan_tx_tag_get(skb);
 		td_ptr->tdesc1.pqinf.priority = 0;
 		td_ptr->tdesc1.pqinf.CFI = 0;
 		td_ptr->tdesc1.TCR |= TCR0_VETAG;
@@ -2121,14 +2287,14 @@ static void velocity_set_multi(struct net_device *dev)
 		rx_mode = (RCR_AM | RCR_AB);
 	} else {
 		int offset = MCAM_SIZE - vptr->multicast_limit;
-		mac_get_cam_mask(regs, vptr->mCAMmask, VELOCITY_MULTICAST_CAM);
+		mac_get_cam_mask(regs, vptr->mCAMmask);
 
 		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count; i++, mclist = mclist->next) {
-			mac_set_cam(regs, i + offset, mclist->dmi_addr, VELOCITY_MULTICAST_CAM);
+			mac_set_cam(regs, i + offset, mclist->dmi_addr);
 			vptr->mCAMmask[(offset + i) / 8] |= 1 << ((offset + i) & 7);
 		}
 
-		mac_set_cam_mask(regs, vptr->mCAMmask, VELOCITY_MULTICAST_CAM);
+		mac_set_cam_mask(regs, vptr->mCAMmask);
 		rx_mode = (RCR_AM | RCR_AB);
 	}
 	if (dev->mtu > 1500)

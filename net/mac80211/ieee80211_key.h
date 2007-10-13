@@ -11,7 +11,7 @@
 #define IEEE80211_KEY_H
 
 #include <linux/types.h>
-#include <linux/kref.h>
+#include <linux/list.h>
 #include <linux/crypto.h>
 #include <net/mac80211.h>
 
@@ -41,11 +41,21 @@
 
 #define NUM_RX_DATA_QUEUES 17
 
-struct ieee80211_key {
-	struct kref kref;
+struct ieee80211_local;
+struct ieee80211_sub_if_data;
+struct sta_info;
 
-	int hw_key_idx; /* filled and used by low-level driver */
-	ieee80211_key_alg alg;
+#define KEY_FLAG_UPLOADED_TO_HARDWARE	(1<<0)
+
+struct ieee80211_key {
+	struct ieee80211_local *local;
+	struct ieee80211_sub_if_data *sdata;
+	struct sta_info *sta;
+
+	struct list_head list;
+
+	unsigned int flags;
+
 	union {
 		struct {
 			/* last used TSC */
@@ -73,22 +83,16 @@ struct ieee80211_key {
 			u8 rx_crypto_buf[6 * AES_BLOCK_LEN];
 		} ccmp;
 	} u;
-	int tx_rx_count; /* number of times this key has been used */
-	int keylen;
 
-	/* if the low level driver can provide hardware acceleration it should
-	 * clear this flag */
-	unsigned int force_sw_encrypt:1;
-	unsigned int default_tx_key:1; /* This key is the new default TX key
-					* (used only for broadcast keys). */
-	s8 keyidx; /* WEP key index */
+	/* number of times this key has been used */
+	int tx_rx_count;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
 		struct dentry *stalink;
 		struct dentry *dir;
 		struct dentry *keylen;
-		struct dentry *force_sw_encrypt;
+		struct dentry *flags;
 		struct dentry *keyidx;
 		struct dentry *hw_key_idx;
 		struct dentry *tx_rx_count;
@@ -97,10 +101,27 @@ struct ieee80211_key {
 		struct dentry *rx_spec;
 		struct dentry *replays;
 		struct dentry *key;
+		struct dentry *ifindex;
 	} debugfs;
 #endif
 
-	u8 key[0];
+	/*
+	 * key config, must be last because it contains key
+	 * material as variable length member
+	 */
+	struct ieee80211_key_conf conf;
 };
+
+struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
+					  struct sta_info *sta,
+					  enum ieee80211_key_alg alg,
+					  int idx,
+					  size_t key_len,
+					  const u8 *key_data);
+void ieee80211_key_free(struct ieee80211_key *key);
+void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx);
+void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata);
+void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata);
+void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata);
 
 #endif /* IEEE80211_KEY_H */

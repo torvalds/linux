@@ -41,6 +41,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <linux/skbuff.h>
@@ -186,11 +187,12 @@ EXPORT_SYMBOL(dev_mc_unsync);
 #ifdef CONFIG_PROC_FS
 static void *dev_mc_seq_start(struct seq_file *seq, loff_t *pos)
 {
+	struct net *net = seq->private;
 	struct net_device *dev;
 	loff_t off = 0;
 
 	read_lock(&dev_base_lock);
-	for_each_netdev(dev) {
+	for_each_netdev(net, dev) {
 		if (off++ == *pos)
 			return dev;
 	}
@@ -239,7 +241,26 @@ static const struct seq_operations dev_mc_seq_ops = {
 
 static int dev_mc_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &dev_mc_seq_ops);
+	struct seq_file *seq;
+	int res;
+	res = seq_open(file, &dev_mc_seq_ops);
+	if (!res) {
+		seq = file->private_data;
+		seq->private = get_proc_net(inode);
+		if (!seq->private) {
+			seq_release(inode, file);
+			res = -ENXIO;
+		}
+	}
+	return res;
+}
+
+static int dev_mc_seq_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct net *net = seq->private;
+	put_net(net);
+	return seq_release(inode, file);
 }
 
 static const struct file_operations dev_mc_seq_fops = {
@@ -247,14 +268,31 @@ static const struct file_operations dev_mc_seq_fops = {
 	.open    = dev_mc_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = dev_mc_seq_release,
 };
 
 #endif
 
+static int __net_init dev_mc_net_init(struct net *net)
+{
+	if (!proc_net_fops_create(net, "dev_mcast", 0, &dev_mc_seq_fops))
+		return -ENOMEM;
+	return 0;
+}
+
+static void __net_exit dev_mc_net_exit(struct net *net)
+{
+	proc_net_remove(net, "dev_mcast");
+}
+
+static struct pernet_operations __net_initdata dev_mc_net_ops = {
+	.init = dev_mc_net_init,
+	.exit = dev_mc_net_exit,
+};
+
 void __init dev_mcast_init(void)
 {
-	proc_net_fops_create("dev_mcast", 0, &dev_mc_seq_fops);
+	register_pernet_subsys(&dev_mc_net_ops);
 }
 
 EXPORT_SYMBOL(dev_mc_add);

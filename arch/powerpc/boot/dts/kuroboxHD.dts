@@ -15,9 +15,6 @@
 
 XXXX add flash parts, rtc, ??
 
-build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
-
-
  */
 
 / {
@@ -50,7 +47,6 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 	soc10x { /* AFAICT need to make soc for 8245's uarts to be defined */
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		compatible = "mpc10x";
 		store-gathering = <0>; /* 0 == off, !0 == on */
@@ -72,7 +68,7 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 
 			rtc@32 {
 				device_type = "rtc";
-				compatible = "ricoh,rs5c372b";
+				compatible = "ricoh,rs5c372a";
 				reg = <32>;
 			};
 		};
@@ -83,7 +79,7 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 			reg = <80004500 8>;
 			clock-frequency = <5d08d88>;
 			current-speed = <2580>;
-			interrupts = <9 2>;
+			interrupts = <9 0>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -104,7 +100,6 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 			compatible = "chrp,open-pic";
 			interrupt-controller;
 			reg = <80040000 40000>;
-			built-in;
 		};
 
 		pci@fec00000 {

@@ -36,8 +36,13 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	dev = alloc_ieee80211(sizeof(*softmac) + sizeof_priv);
 	if (!dev)
 		return NULL;
-
 	softmac = ieee80211_priv(dev);
+	softmac->wq = create_freezeable_workqueue("softmac");
+	if (!softmac->wq) {
+		free_ieee80211(dev);
+		return NULL;
+	}
+
 	softmac->dev = dev;
 	softmac->ieee = netdev_priv(dev);
 	spin_lock_init(&softmac->lock);
@@ -105,7 +110,7 @@ ieee80211softmac_clear_pending_work(struct ieee80211softmac_device *sm)
 		cancel_delayed_work(&eventptr->work);
 
 	spin_unlock_irqrestore(&sm->lock, flags);
-	flush_scheduled_work();
+	flush_workqueue(sm->wq);
 
 	/* now we should be save and no longer need locking... */
 	spin_lock_irqsave(&sm->lock, flags);
@@ -139,6 +144,7 @@ void free_ieee80211softmac(struct net_device *dev)
 	ieee80211softmac_clear_pending_work(sm);
 	kfree(sm->scaninfo);
 	kfree(sm->wpa.IE);
+	destroy_workqueue(sm->wq);
 	free_ieee80211(dev);
 }
 EXPORT_SYMBOL_GPL(free_ieee80211softmac);

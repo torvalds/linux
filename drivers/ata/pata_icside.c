@@ -70,6 +70,8 @@ struct pata_icside_info {
 	unsigned int		mwdma_mask;
 	unsigned int		nr_ports;
 	const struct portinfo	*port[2];
+	unsigned long		raw_base;
+	unsigned long		raw_ioc_base;
 };
 
 #define ICS_TYPE_A3IN	0
@@ -357,26 +359,7 @@ static void pata_icside_error_handler(struct ata_port *ap)
 			   pata_icside_postreset);
 }
 
-static u8 pata_icside_irq_ack(struct ata_port *ap, unsigned int chk_drq)
-{
-	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
-	u8 status;
-
-	status = ata_busy_wait(ap, bits, 1000);
-	if (status & bits)
-		if (ata_msg_err(ap))
-			printk(KERN_ERR "abnormal status 0x%X\n", status);
-
-	if (ata_msg_intr(ap))
-		printk(KERN_INFO "%s: irq ack: drv_stat 0x%X\n",
-			__FUNCTION__, status);
-
-	return status;
-}
-
 static struct ata_port_operations pata_icside_port_ops = {
-	.port_disable		= ata_port_disable,
-
 	.set_dmamode		= pata_icside_set_dmamode,
 
 	.tf_load		= ata_tf_load,
@@ -403,7 +386,6 @@ static struct ata_port_operations pata_icside_port_ops = {
 
 	.irq_clear		= ata_dummy_noret,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= pata_icside_irq_ack,
 
 	.port_start		= pata_icside_port_start,
 
@@ -412,9 +394,10 @@ static struct ata_port_operations pata_icside_port_ops = {
 };
 
 static void __devinit
-pata_icside_setup_ioaddr(struct ata_ioports *ioaddr, void __iomem *base,
+pata_icside_setup_ioaddr(struct ata_port *ap, void __iomem *base,
 			 const struct portinfo *info)
 {
+	struct ata_ioports *ioaddr = &ap->ioaddr;
 	void __iomem *cmd = base + info->dataoffset;
 
 	ioaddr->cmd_addr	= cmd;
@@ -431,6 +414,13 @@ pata_icside_setup_ioaddr(struct ata_ioports *ioaddr, void __iomem *base,
 
 	ioaddr->ctl_addr	= base + info->ctrloffset;
 	ioaddr->altstatus_addr	= ioaddr->ctl_addr;
+
+	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx",
+		      info->raw_base + info->dataoffset,
+		      info->raw_base + info->ctrloffset);
+
+	if (info->raw_ioc_base)
+		ata_port_desc(ap, "iocbase 0x%lx", info->raw_ioc_base);
 }
 
 static int __devinit pata_icside_register_v5(struct pata_icside_info *info)
@@ -450,6 +440,8 @@ static int __devinit pata_icside_register_v5(struct pata_icside_info *info)
 	info->irqops = &pata_icside_ops_arcin_v5;
 	info->nr_ports = 1;
 	info->port[0] = &pata_icside_portinfo_v5;
+
+	info->raw_base = ecard_resource_start(ec, ECARD_RES_MEMC);
 
 	return 0;
 }
@@ -491,6 +483,9 @@ static int __devinit pata_icside_register_v6(struct pata_icside_info *info)
 	info->port[0] = &pata_icside_portinfo_v6_1;
 	info->port[1] = &pata_icside_portinfo_v6_2;
 
+	info->raw_base = ecard_resource_start(ec, ECARD_RES_EASI);
+	info->raw_ioc_base = ecard_resource_start(ec, ECARD_RES_IOCFAST);
+
 	return icside_dma_init(info);
 }
 
@@ -527,7 +522,7 @@ static int __devinit pata_icside_add_ports(struct pata_icside_info *info)
 		ap->flags |= ATA_FLAG_SLAVE_POSS;
 		ap->ops = &pata_icside_port_ops;
 
-		pata_icside_setup_ioaddr(&ap->ioaddr, info->base, info->port[i]);
+		pata_icside_setup_ioaddr(ap, info->base, info->port[i]);
 	}
 
 	return ata_host_activate(host, ec->irq, ata_interrupt, 0,

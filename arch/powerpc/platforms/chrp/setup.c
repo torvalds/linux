@@ -32,13 +32,11 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
-#include <linux/module.h>
 #include <linux/timer.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
-#include <asm/gg2.h>
 #include <asm/pci-bridge.h>
 #include <asm/dma.h>
 #include <asm/machdep.h>
@@ -52,6 +50,7 @@
 #include <asm/xmon.h>
 
 #include "chrp.h"
+#include "gg2.h"
 
 void rtas_indicator_progress(char *, unsigned short);
 
@@ -290,16 +289,6 @@ void __init chrp_setup_arch(void)
 		ppc_md.get_rtc_time	= rtas_get_rtc_time;
 		ppc_md.set_rtc_time	= rtas_set_rtc_time;
 	}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	/* this is fine for chrp */
-	initrd_below_start_ok = 1;
-
-	if (initrd_start)
-		ROOT_DEV = Root_RAM0;
-	else
-#endif
-		ROOT_DEV = Root_SDA2; /* sda2 (sda1 is for the kernel) */
 
 	/* On pegasos, enable the L2 cache if not already done by OF */
 	pegasos_set_l2cr();

@@ -500,7 +500,7 @@ static int __init pnpbios_probe_system(void)
 	return 0;
 }
 
-static int __init exploding_pnp_bios(struct dmi_system_id *d)
+static int __init exploding_pnp_bios(const struct dmi_system_id *d)
 {
 	printk(KERN_WARNING "%s detected. Disabling PnPBIOS\n", d->ident);
 	return 0;

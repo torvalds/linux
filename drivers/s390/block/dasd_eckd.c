@@ -1176,7 +1176,7 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 	struct LO_eckd_data *LO_data;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
-	struct bio *bio;
+	struct req_iterator iter;
 	struct bio_vec *bv;
 	char *dst;
 	unsigned int blksize, blk_per_trk, off;
@@ -1185,7 +1185,6 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 	sector_t first_trk, last_trk;
 	unsigned int first_offs, last_offs;
 	unsigned char cmd, rcmd;
-	int i;
 
 	private = (struct dasd_eckd_private *) device->private;
 	if (rq_data_dir(req) == READ)
@@ -1206,18 +1205,15 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 	/* Check struct bio and count the number of blocks for the request. */
 	count = 0;
 	cidaw = 0;
-	rq_for_each_bio(bio, req) {
-		bio_for_each_segment(bv, bio, i) {
-			if (bv->bv_len & (blksize - 1))
-				/* Eckd can only do full blocks. */
-				return ERR_PTR(-EINVAL);
-			count += bv->bv_len >> (device->s2b_shift + 9);
+	rq_for_each_segment(bv, req, iter) {
+		if (bv->bv_len & (blksize - 1))
+			/* Eckd can only do full blocks. */
+			return ERR_PTR(-EINVAL);
+		count += bv->bv_len >> (device->s2b_shift + 9);
 #if defined(CONFIG_64BIT)
-			if (idal_is_needed (page_address(bv->bv_page),
-					    bv->bv_len))
-				cidaw += bv->bv_len >> (device->s2b_shift + 9);
+		if (idal_is_needed (page_address(bv->bv_page), bv->bv_len))
+			cidaw += bv->bv_len >> (device->s2b_shift + 9);
 #endif
-		}
 	}
 	/* Paranoia. */
 	if (count != last_rec - first_rec + 1)
@@ -1257,7 +1253,7 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 		locate_record(ccw++, LO_data++, first_trk, first_offs + 1,
 			      last_rec - recid + 1, cmd, device, blksize);
 	}
-	rq_for_each_bio(bio, req) bio_for_each_segment(bv, bio, i) {
+	rq_for_each_segment(bv, req, iter) {
 		dst = page_address(bv->bv_page) + bv->bv_offset;
 		if (dasd_page_cache) {
 			char *copy = kmem_cache_alloc(dasd_page_cache,
@@ -1328,12 +1324,12 @@ dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 {
 	struct dasd_eckd_private *private;
 	struct ccw1 *ccw;
-	struct bio *bio;
+	struct req_iterator iter;
 	struct bio_vec *bv;
 	char *dst, *cda;
 	unsigned int blksize, blk_per_trk, off;
 	sector_t recid;
-	int i, status;
+	int status;
 
 	if (!dasd_page_cache)
 		goto out;
@@ -1346,7 +1342,7 @@ dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 	ccw++;
 	if (private->uses_cdl == 0 || recid > 2*blk_per_trk)
 		ccw++;
-	rq_for_each_bio(bio, req) bio_for_each_segment(bv, bio, i) {
+	rq_for_each_segment(bv, req, iter) {
 		dst = page_address(bv->bv_page) + bv->bv_offset;
 		for (off = 0; off < bv->bv_len; off += blksize) {
 			/* Skip locate record. */

@@ -993,6 +993,7 @@ struct gem {
 	u32			msg_enable;
 	u32			status;
 
+	struct napi_struct	napi;
 	struct net_device_stats net_stats;
 
 	int			tx_fifo_sz;

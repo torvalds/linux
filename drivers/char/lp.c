@@ -799,8 +799,7 @@ static int lp_register(int nr, struct parport *port)
 	if (reset)
 		lp_reset(nr);
 
-	class_device_create(lp_class, NULL, MKDEV(LP_MAJOR, nr), port->dev,
-				"lp%d", nr);
+	device_create(lp_class, port->dev, MKDEV(LP_MAJOR, nr), "lp%d", nr);
 
 	printk(KERN_INFO "lp%d: using %s (%s).\n", nr, port->name, 
 	       (port->irq == PARPORT_IRQ_NONE)?"polling":"interrupt-driven");
@@ -971,7 +970,7 @@ static void lp_cleanup_module (void)
 		if (lp_table[offset].dev == NULL)
 			continue;
 		parport_unregister_device(lp_table[offset].dev);
-		class_device_destroy(lp_class, MKDEV(LP_MAJOR, offset));
+		device_destroy(lp_class, MKDEV(LP_MAJOR, offset));
 	}
 	class_destroy(lp_class);
 }

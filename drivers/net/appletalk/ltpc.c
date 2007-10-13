@@ -870,15 +870,6 @@ static void set_multicast_list(struct net_device *dev)
 	/* Actually netatalk needs fixing! */
 }
 
-static int ltpc_hard_header (struct sk_buff *skb, struct net_device *dev, 
-	unsigned short type, void *daddr, void *saddr, unsigned len)
-{
-	if(debug & DEBUG_VERBOSE)
-		printk("ltpc_hard_header called for device %s\n",
-			dev->name);
-	return 0;
-}
-
 static int ltpc_poll_counter;
 
 static void ltpc_poll(unsigned long l)
@@ -1046,8 +1037,6 @@ struct net_device * __init ltpc_probe(void)
 	if (!dev)
 		goto out;
 
-	SET_MODULE_OWNER(dev);
-
 	/* probe for the I/O port address */
 	
 	if (io != 0x240 && request_region(0x220,8,"ltpc")) {
@@ -1143,7 +1132,6 @@ struct net_device * __init ltpc_probe(void)
 
 	/* Fill in the fields of the device structure with ethernet-generic values. */
 	dev->hard_start_xmit = ltpc_xmit;
-	dev->hard_header = ltpc_hard_header;
 	dev->get_stats = ltpc_get_stats;
 
 	/* add the ltpc-specific things */

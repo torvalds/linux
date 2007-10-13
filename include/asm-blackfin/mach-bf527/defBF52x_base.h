@@ -102,6 +102,7 @@
 
 
 /* SPI Controller			(0xFFC00500 - 0xFFC005FF)								*/
+#define SPI0_REGBASE			0xFFC00500
 #define SPI_CTL				0xFFC00500	/* SPI Control Register						*/
 #define SPI_FLG				0xFFC00504	/* SPI Flag register						*/
 #define SPI_STAT			0xFFC00508	/* SPI Status register						*/
@@ -480,6 +481,7 @@
 
 
 /* Two-Wire Interface		(0xFFC01400 - 0xFFC014FF)								*/
+#define TWI0_REGBASE			0xFFC01400
 #define TWI_CLKDIV			0xFFC01400	/* Serial Clock Divider Register			*/
 #define TWI_CONTROL			0xFFC01404	/* TWI Control Register						*/
 #define TWI_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register				*/

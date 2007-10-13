@@ -47,14 +47,15 @@ static int pci_clock;	/* 0 = 33 1 = 25 */
 
 /**
  *	optidma_pre_reset		-	probe begin
- *	@ap: ATA port
+ *	@link: ATA link
  *	@deadline: deadline jiffies for the operation
  *
  *	Set up cable type and use generic probe init
  */
 
-static int optidma_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int optidma_pre_reset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	static const struct pci_bits optidma_enable_bits = {
 		0x40, 1, 0x08, 0x00
@@ -63,7 +64,7 @@ static int optidma_pre_reset(struct ata_port *ap, unsigned long deadline)
 	if (ap->port_no && !pci_test_config_bits(pdev, &optidma_enable_bits))
 		return -ENOENT;
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -323,25 +324,26 @@ static u8 optidma_make_bits43(struct ata_device *adev)
 
 /**
  *	optidma_set_mode	-	mode setup
- *	@ap: port to set up
+ *	@link: link to set up
  *
  *	Use the standard setup to tune the chipset and then finalise the
  *	configuration by writing the nibble of extra bits of data into
  *	the chip.
  */
 
-static int optidma_set_mode(struct ata_port *ap, struct ata_device **r_failed)
+static int optidma_set_mode(struct ata_link *link, struct ata_device **r_failed)
 {
+	struct ata_port *ap = link->ap;
 	u8 r;
 	int nybble = 4 * ap->port_no;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int rc  = ata_do_set_mode(ap, r_failed);
+	int rc  = ata_do_set_mode(link, r_failed);
 	if (rc == 0) {
 		pci_read_config_byte(pdev, 0x43, &r);
 
 		r &= (0x0F << nybble);
-		r |= (optidma_make_bits43(&ap->device[0]) +
-		     (optidma_make_bits43(&ap->device[0]) << 2)) << nybble;
+		r |= (optidma_make_bits43(&link->device[0]) +
+		     (optidma_make_bits43(&link->device[0]) << 2)) << nybble;
 		pci_write_config_byte(pdev, 0x43, r);
 	}
 	return rc;
@@ -366,7 +368,6 @@ static struct scsi_host_template optidma_sht = {
 };
 
 static struct ata_port_operations optidma_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= optidma_set_pio_mode,
 	.set_dmamode	= optidma_set_dma_mode,
 
@@ -396,13 +397,11 @@ static struct ata_port_operations optidma_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static struct ata_port_operations optiplus_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= optiplus_set_pio_mode,
 	.set_dmamode	= optiplus_set_dma_mode,
 
@@ -432,9 +431,8 @@ static struct ata_port_operations optiplus_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /**

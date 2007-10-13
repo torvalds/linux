@@ -39,7 +39,6 @@
 #include <asm/tx4938/spi.h>
 #include <asm/gpio.h>
 
-extern void rbtx4938_time_init(void) __init;
 extern char * __init prom_getcmdline(void);
 static inline void tx4938_report_pcic_status1(struct tx4938_pcic_reg *pcicptr);
 
@@ -458,9 +457,9 @@ extern struct pci_controller tx4938_pci_controller[];
 static int __init tx4938_pcibios_init(void)
 {
 	unsigned long mem_base[2];
-	unsigned long mem_size[2] = {TX4938_PCIMEM_SIZE_0,TX4938_PCIMEM_SIZE_1}; /* MAX 128M,64K */
+	unsigned long mem_size[2] = {TX4938_PCIMEM_SIZE_0, TX4938_PCIMEM_SIZE_1}; /* MAX 128M,64K */
 	unsigned long io_base[2];
-	unsigned long io_size[2] = {TX4938_PCIIO_SIZE_0,TX4938_PCIIO_SIZE_1}; /* MAX 16M,64K */
+	unsigned long io_size[2] = {TX4938_PCIIO_SIZE_0, TX4938_PCIIO_SIZE_1}; /* MAX 16M,64K */
 	/* TX4938 PCIC1: 64K MEM/IO is enough for ETH0,ETH1 */
 	int extarb = !(tx4938_ccfgptr->ccfg & TX4938_CCFG_PCIXARB);
 
@@ -856,7 +855,7 @@ void tx4938_report_pcic_status(void)
 /* We use onchip r4k counter or TMR timer as our system wide timer
  * interrupt running at 100HZ. */
 
-void __init rbtx4938_time_init(void)
+void __init plat_time_init(void)
 {
 	mips_hpt_frequency = txx9_cpu_clock / 2;
 }

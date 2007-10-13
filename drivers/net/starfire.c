@@ -155,7 +155,7 @@ static int full_duplex[MAX_UNITS] = {0, };
 #if (defined(__i386__) && defined(CONFIG_HIGHMEM64G)) || defined(__x86_64__) || defined (__ia64__) || defined(__alpha__) || defined(__mips64__) || (defined(__mips__) && defined(CONFIG_HIGHMEM) && defined(CONFIG_64BIT_PHYS_ADDR))
 /* 64-bit dma_addr_t */
 #define ADDR_64BITS	/* This chip uses 64 bit addresses. */
-#define netdrv_addr_t u64
+#define netdrv_addr_t __le64
 #define cpu_to_dma(x) cpu_to_le64(x)
 #define dma_to_cpu(x) le64_to_cpu(x)
 #define RX_DESC_Q_ADDR_SIZE RxDescQAddr64bit
@@ -164,7 +164,7 @@ static int full_duplex[MAX_UNITS] = {0, };
 #define TX_COMPL_Q_ADDR_SIZE TxComplQAddr64bit
 #define RX_DESC_ADDR_SIZE RxDescAddr64bit
 #else  /* 32-bit dma_addr_t */
-#define netdrv_addr_t u32
+#define netdrv_addr_t __le32
 #define cpu_to_dma(x) cpu_to_le32(x)
 #define dma_to_cpu(x) le32_to_cpu(x)
 #define RX_DESC_Q_ADDR_SIZE RxDescQAddr32bit
@@ -178,16 +178,13 @@ static int full_duplex[MAX_UNITS] = {0, };
 #define skb_num_frags(skb) (skb_shinfo(skb)->nr_frags + 1)
 
 #ifdef HAVE_NETDEV_POLL
-#define init_poll(dev) \
-do { \
-	dev->poll = &netdev_poll; \
-	dev->weight = max_interrupt_work; \
-} while (0)
-#define netdev_rx(dev, ioaddr) \
+#define init_poll(dev, np) \
+	netif_napi_add(dev, &np->napi, netdev_poll, max_interrupt_work)
+#define netdev_rx(dev, np, ioaddr) \
 do { \
 	u32 intr_enable; \
-	if (netif_rx_schedule_prep(dev)) { \
-		__netif_rx_schedule(dev); \
+	if (netif_rx_schedule_prep(dev, &np->napi)) { \
+		__netif_rx_schedule(dev, &np->napi); \
 		intr_enable = readl(ioaddr + IntrEnable); \
 		intr_enable &= ~(IntrRxDone | IntrRxEmpty); \
 		writel(intr_enable, ioaddr + IntrEnable); \
@@ -204,12 +201,12 @@ do { \
 } while (0)
 #define netdev_receive_skb(skb) netif_receive_skb(skb)
 #define vlan_netdev_receive_skb(skb, vlgrp, vlid) vlan_hwaccel_receive_skb(skb, vlgrp, vlid)
-static int	netdev_poll(struct net_device *dev, int *budget);
+static int	netdev_poll(struct napi_struct *napi, int budget);
 #else  /* not HAVE_NETDEV_POLL */
-#define init_poll(dev)
+#define init_poll(dev, np)
 #define netdev_receive_skb(skb) netif_rx(skb)
 #define vlan_netdev_receive_skb(skb, vlgrp, vlid) vlan_hwaccel_rx(skb, vlgrp, vlid)
-#define netdev_rx(dev, ioaddr) \
+#define netdev_rx(dev, np, ioaddr) \
 do { \
 	int quota = np->dirty_rx + RX_RING_SIZE - np->cur_rx; \
 	__netdev_rx(dev, &quota);\
@@ -497,7 +494,7 @@ enum intr_ctrl_bits {
 
 /* The Rx and Tx buffer descriptors. */
 struct starfire_rx_desc {
-	dma_addr_t rxaddr;
+	netdrv_addr_t rxaddr;
 };
 enum rx_desc_bits {
 	RxDescValid=1, RxDescEndRing=2,
@@ -505,25 +502,25 @@ enum rx_desc_bits {
 
 /* Completion queue entry. */
 struct short_rx_done_desc {
-	u32 status;			/* Low 16 bits is length. */
+	__le32 status;			/* Low 16 bits is length. */
 };
 struct basic_rx_done_desc {
-	u32 status;			/* Low 16 bits is length. */
-	u16 vlanid;
-	u16 status2;
+	__le32 status;			/* Low 16 bits is length. */
+	__le16 vlanid;
+	__le16 status2;
 };
 struct csum_rx_done_desc {
-	u32 status;			/* Low 16 bits is length. */
-	u16 csum;			/* Partial checksum */
-	u16 status2;
+	__le32 status;			/* Low 16 bits is length. */
+	__le16 csum;			/* Partial checksum */
+	__le16 status2;
 };
 struct full_rx_done_desc {
-	u32 status;			/* Low 16 bits is length. */
-	u16 status3;
-	u16 status2;
-	u16 vlanid;
-	u16 csum;			/* partial checksum */
-	u32 timestamp;
+	__le32 status;			/* Low 16 bits is length. */
+	__le16 status3;
+	__le16 status2;
+	__le16 vlanid;
+	__le16 csum;			/* partial checksum */
+	__le32 timestamp;
 };
 /* XXX: this is ugly and I'm not sure it's worth the trouble -Ion */
 #ifdef VLAN_SUPPORT
@@ -540,15 +537,15 @@ enum rx_done_bits {
 
 /* Type 1 Tx descriptor. */
 struct starfire_tx_desc_1 {
-	u32 status;			/* Upper bits are status, lower 16 length. */
-	u32 addr;
+	__le32 status;			/* Upper bits are status, lower 16 length. */
+	__le32 addr;
 };
 
 /* Type 2 Tx descriptor. */
 struct starfire_tx_desc_2 {
-	u32 status;			/* Upper bits are status, lower 16 length. */
-	u32 reserved;
-	u64 addr;
+	__le32 status;			/* Upper bits are status, lower 16 length. */
+	__le32 reserved;
+	__le64 addr;
 };
 
 #ifdef ADDR_64BITS
@@ -566,9 +563,9 @@ enum tx_desc_bits {
 	TxRingWrap=0x04000000, TxCalTCP=0x02000000,
 };
 struct tx_done_desc {
-	u32 status;			/* timestamp, index. */
+	__le32 status;			/* timestamp, index. */
 #if 0
-	u32 intrstatus;			/* interrupt status */
+	__le32 intrstatus;		/* interrupt status */
 #endif
 };
 
@@ -599,6 +596,8 @@ struct netdev_private {
 	struct tx_done_desc *tx_done_q;
 	dma_addr_t tx_done_q_dma;
 	unsigned int tx_done;
+	struct napi_struct napi;
+	struct net_device *dev;
 	struct net_device_stats stats;
 	struct pci_dev *pci_dev;
 #ifdef VLAN_SUPPORT
@@ -695,6 +694,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	void __iomem *base;
 	int drv_flags, io_size;
 	int boguscnt;
+	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -720,7 +720,6 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 		printk(KERN_ERR DRV_NAME " %d: cannot alloc etherdev, aborting\n", card_idx);
 		return -ENOMEM;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	irq = pdev->irq;
@@ -791,6 +790,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	dev->irq = irq;
 
 	np = netdev_priv(dev);
+	np->dev = dev;
 	np->base = base;
 	spin_lock_init(&np->lock);
 	pci_set_drvdata(pdev, dev);
@@ -851,7 +851,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	dev->hard_start_xmit = &start_tx;
 	dev->tx_timeout = tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	init_poll(dev);
+	init_poll(dev, np);
 	dev->stop = &netdev_close;
 	dev->get_stats = &get_stats;
 	dev->set_multicast_list = &set_rx_mode;
@@ -864,11 +864,9 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	if (register_netdev(dev))
 		goto err_out_cleardev;
 
-	printk(KERN_INFO "%s: %s at %p, ",
-		   dev->name, netdrv_tbl[chip_idx].name, base);
-	for (i = 0; i < 5; i++)
-		printk("%2.2x:", dev->dev_addr[i]);
-	printk("%2.2x, IRQ %d.\n", dev->dev_addr[i], irq);
+	printk(KERN_INFO "%s: %s at %p, %s, IRQ %d.\n",
+	       dev->name, netdrv_tbl[chip_idx].name, base,
+	       print_mac(mac, dev->dev_addr), irq);
 
 	if (drv_flags & CanHaveMII) {
 		int phy, phy_idx = 0;
@@ -965,7 +963,7 @@ static int netdev_open(struct net_device *dev)
 		       dev->name, dev->irq);
 
 	/* Allocate the various queues. */
-	if (np->queue_mem == 0) {
+	if (!np->queue_mem) {
 		tx_done_q_size = ((sizeof(struct tx_done_desc) * DONE_Q_SIZE + QUEUE_ALIGN - 1) / QUEUE_ALIGN) * QUEUE_ALIGN;
 		rx_done_q_size = ((sizeof(rx_done_desc) * DONE_Q_SIZE + QUEUE_ALIGN - 1) / QUEUE_ALIGN) * QUEUE_ALIGN;
 		tx_ring_size = ((sizeof(starfire_tx_desc) * TX_RING_SIZE + QUEUE_ALIGN - 1) / QUEUE_ALIGN) * QUEUE_ALIGN;
@@ -1038,11 +1036,11 @@ static int netdev_open(struct net_device *dev)
 	writew(0, ioaddr + PerfFilterTable + 4);
 	writew(0, ioaddr + PerfFilterTable + 8);
 	for (i = 1; i < 16; i++) {
-		u16 *eaddrs = (u16 *)dev->dev_addr;
+		__be16 *eaddrs = (__be16 *)dev->dev_addr;
 		void __iomem *setup_frm = ioaddr + PerfFilterTable + i * 16;
-		writew(cpu_to_be16(eaddrs[2]), setup_frm); setup_frm += 4;
-		writew(cpu_to_be16(eaddrs[1]), setup_frm); setup_frm += 4;
-		writew(cpu_to_be16(eaddrs[0]), setup_frm); setup_frm += 8;
+		writew(be16_to_cpu(eaddrs[2]), setup_frm); setup_frm += 4;
+		writew(be16_to_cpu(eaddrs[1]), setup_frm); setup_frm += 4;
+		writew(be16_to_cpu(eaddrs[0]), setup_frm); setup_frm += 8;
 	}
 
 	/* Initialize other registers. */
@@ -1056,6 +1054,9 @@ static int netdev_open(struct net_device *dev)
 
 	writel(np->intr_timer_ctrl, ioaddr + IntrTimerCtrl);
 
+#ifdef HAVE_NETDEV_POLL
+	napi_enable(&np->napi);
+#endif
 	netif_start_queue(dev);
 
 	if (debug > 1)
@@ -1330,7 +1331,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		handled = 1;
 
 		if (intr_status & (IntrRxDone | IntrRxEmpty))
-			netdev_rx(dev, ioaddr);
+			netdev_rx(dev, np, ioaddr);
 
 		/* Scavenge the skbuff list based on the Tx-done queue.
 		   There are redundant checks here that may be cleaned up
@@ -1470,13 +1471,16 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		}
 #ifndef final_version			/* Remove after testing. */
 		/* You will want this info for the initial debug. */
-		if (debug > 5)
-			printk(KERN_DEBUG "  Rx data %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:"
-			       "%2.2x %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x %2.2x%2.2x.\n",
-			       skb->data[0], skb->data[1], skb->data[2], skb->data[3],
-			       skb->data[4], skb->data[5], skb->data[6], skb->data[7],
-			       skb->data[8], skb->data[9], skb->data[10],
-			       skb->data[11], skb->data[12], skb->data[13]);
+		if (debug > 5) {
+			DECLARE_MAC_BUF(mac);
+			DECLARE_MAC_BUF(mac2);
+
+			printk(KERN_DEBUG "  Rx data %s %s"
+			       " %2.2x%2.2x.\n",
+			       print_mac(mac, &skb->data[0]),
+			       print_mac(mac2, &skb->data[6]),
+			       skb->data[12], skb->data[13]);
+		}
 #endif
 
 		skb->protocol = eth_type_trans(skb, dev);
@@ -1531,36 +1535,35 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 
 
 #ifdef HAVE_NETDEV_POLL
-static int netdev_poll(struct net_device *dev, int *budget)
+static int netdev_poll(struct napi_struct *napi, int budget)
 {
+	struct netdev_private *np = container_of(napi, struct netdev_private, napi);
+	struct net_device *dev = np->dev;
 	u32 intr_status;
-	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
-	int retcode = 0, quota = dev->quota;
+	int quota = budget;
 
 	do {
 		writel(IntrRxDone | IntrRxEmpty, ioaddr + IntrClear);
 
-		retcode = __netdev_rx(dev, &quota);
-		*budget -= (dev->quota - quota);
-		dev->quota = quota;
-		if (retcode)
+		if (__netdev_rx(dev, &quota))
 			goto out;
 
 		intr_status = readl(ioaddr + IntrStatus);
 	} while (intr_status & (IntrRxDone | IntrRxEmpty));
 
-	netif_rx_complete(dev);
+	netif_rx_complete(dev, napi);
 	intr_status = readl(ioaddr + IntrEnable);
 	intr_status |= IntrRxDone | IntrRxEmpty;
 	writel(intr_status, ioaddr + IntrEnable);
 
  out:
 	if (debug > 5)
-		printk(KERN_DEBUG "  exiting netdev_poll(): %d.\n", retcode);
+		printk(KERN_DEBUG "  exiting netdev_poll(): %d.\n",
+		       budget - quota);
 
 	/* Restart Rx engine if stopped. */
-	return retcode;
+	return budget - quota;
 }
 #endif /* HAVE_NETDEV_POLL */
 
@@ -1764,26 +1767,26 @@ static void set_rx_mode(struct net_device *dev)
 	} else if (dev->mc_count <= 14) {
 		/* Use the 16 element perfect filter, skip first two entries. */
 		void __iomem *filter_addr = ioaddr + PerfFilterTable + 2 * 16;
-		u16 *eaddrs;
+		__be16 *eaddrs;
 		for (i = 2, mclist = dev->mc_list; mclist && i < dev->mc_count + 2;
 		     i++, mclist = mclist->next) {
-			eaddrs = (u16 *)mclist->dmi_addr;
-			writew(cpu_to_be16(eaddrs[2]), filter_addr); filter_addr += 4;
-			writew(cpu_to_be16(eaddrs[1]), filter_addr); filter_addr += 4;
-			writew(cpu_to_be16(eaddrs[0]), filter_addr); filter_addr += 8;
+			eaddrs = (__be16 *)mclist->dmi_addr;
+			writew(be16_to_cpu(eaddrs[2]), filter_addr); filter_addr += 4;
+			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;
+			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 8;
 		}
-		eaddrs = (u16 *)dev->dev_addr;
+		eaddrs = (__be16 *)dev->dev_addr;
 		while (i++ < 16) {
-			writew(cpu_to_be16(eaddrs[0]), filter_addr); filter_addr += 4;
-			writew(cpu_to_be16(eaddrs[1]), filter_addr); filter_addr += 4;
-			writew(cpu_to_be16(eaddrs[2]), filter_addr); filter_addr += 8;
+			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 4;
+			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;
+			writew(be16_to_cpu(eaddrs[2]), filter_addr); filter_addr += 8;
 		}
 		rx_mode |= AcceptBroadcast|PerfectFilter;
 	} else {
 		/* Must use a multicast hash table. */
 		void __iomem *filter_addr;
-		u16 *eaddrs;
-		u16 mc_filter[32] __attribute__ ((aligned(sizeof(long))));	/* Multicast hash filter */
+		__be16 *eaddrs;
+		__le16 mc_filter[32] __attribute__ ((aligned(sizeof(long))));	/* Multicast hash filter */
 
 		memset(mc_filter, 0, sizeof(mc_filter));
 		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
@@ -1791,17 +1794,17 @@ static void set_rx_mode(struct net_device *dev)
 			/* The chip uses the upper 9 CRC bits
 			   as index into the hash table */
 			int bit_nr = ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 23;
-			__u32 *fptr = (__u32 *) &mc_filter[(bit_nr >> 4) & ~1];
+			__le32 *fptr = (__le32 *) &mc_filter[(bit_nr >> 4) & ~1];
 
 			*fptr |= cpu_to_le32(1 << (bit_nr & 31));
 		}
 		/* Clear the perfect filter list, skip first two entries. */
 		filter_addr = ioaddr + PerfFilterTable + 2 * 16;
-		eaddrs = (u16 *)dev->dev_addr;
+		eaddrs = (__be16 *)dev->dev_addr;
 		for (i = 2; i < 16; i++) {
-			writew(cpu_to_be16(eaddrs[0]), filter_addr); filter_addr += 4;
-			writew(cpu_to_be16(eaddrs[1]), filter_addr); filter_addr += 4;
-			writew(cpu_to_be16(eaddrs[2]), filter_addr); filter_addr += 8;
+			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 4;
+			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;
+			writew(be16_to_cpu(eaddrs[2]), filter_addr); filter_addr += 8;
 		}
 		for (filter_addr = ioaddr + HashTable, i = 0; i < 32; filter_addr+= 16, i++)
 			writew(mc_filter[i], filter_addr);
@@ -1904,6 +1907,9 @@ static int netdev_close(struct net_device *dev)
 	int i;
 
 	netif_stop_queue(dev);
+#ifdef HAVE_NETDEV_POLL
+	napi_disable(&np->napi);
+#endif
 
 	if (debug > 1) {
 		printk(KERN_DEBUG "%s: Shutting down ethercard, Intr status %#8.8x.\n",

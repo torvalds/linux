@@ -53,6 +53,7 @@ static void cp2101_shutdown(struct usb_serial*);
 static int debug;
 
 static struct usb_device_id id_table [] = {
+	{ USB_DEVICE(0x08e6, 0x5501) }, /* Gemalto Prox-PU/CU contactless smartcard reader */
 	{ USB_DEVICE(0x0FCF, 0x1003) }, /* Dynastream ANT development board */
 	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Knock-off DCU-11 cable */
 	{ USB_DEVICE(0x10AB, 0x10C5) }, /* Siemens MC60 Cable */
@@ -521,7 +522,7 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if ((!port->tty) || (!port->tty->termios)) {
+	if (!port->tty || !port->tty->termios) {
 		dbg("%s - no tty structures", __FUNCTION__);
 		return;
 	}

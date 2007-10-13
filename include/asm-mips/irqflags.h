@@ -16,7 +16,7 @@
 #include <linux/compiler.h>
 #include <asm/hazards.h>
 
-__asm__ (
+__asm__(
 	"	.macro	raw_local_irq_enable				\n"
 	"	.set	push						\n"
 	"	.set	reorder						\n"
@@ -65,7 +65,7 @@ static inline void raw_local_irq_enable(void)
  *
  * Workaround: mask EXL bit of the result or place a nop before mfc0.
  */
-__asm__ (
+__asm__(
 	"	.macro	raw_local_irq_disable\n"
 	"	.set	push						\n"
 	"	.set	noat						\n"
@@ -96,7 +96,7 @@ static inline void raw_local_irq_disable(void)
 		: "memory");
 }
 
-__asm__ (
+__asm__(
 	"	.macro	raw_local_save_flags flags			\n"
 	"	.set	push						\n"
 	"	.set	reorder						\n"
@@ -113,7 +113,7 @@ __asm__ __volatile__(							\
 	"raw_local_save_flags %0"					\
 	: "=r" (x))
 
-__asm__ (
+__asm__(
 	"	.macro	raw_local_irq_save result			\n"
 	"	.set	push						\n"
 	"	.set	reorder						\n"
@@ -145,7 +145,7 @@ __asm__ __volatile__(							\
 	: /* no inputs */						\
 	: "memory")
 
-__asm__ (
+__asm__(
 	"	.macro	raw_local_irq_restore flags			\n"
 	"	.set	push						\n"
 	"	.set	noreorder					\n"

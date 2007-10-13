@@ -108,7 +108,7 @@ static int full_duplex[MAX_UNITS];
 #define TX_TIMEOUT  (2*HZ)
 
 #define NATSEMI_HW_TIMEOUT	400
-#define NATSEMI_TIMER_FREQ	3*HZ
+#define NATSEMI_TIMER_FREQ	5*HZ
 #define NATSEMI_PG0_NREGS	64
 #define NATSEMI_RFDR_NREGS	8
 #define NATSEMI_PG1_NREGS	4
@@ -560,6 +560,8 @@ struct netdev_private {
 	/* address of a sent-in-place packet/buffer, for later free() */
 	struct sk_buff *tx_skbuff[TX_RING_SIZE];
 	dma_addr_t tx_dma[TX_RING_SIZE];
+	struct net_device *dev;
+	struct napi_struct napi;
 	struct net_device_stats stats;
 	/* Media monitoring timer */
 	struct timer_list timer;
@@ -636,7 +638,7 @@ static void init_registers(struct net_device *dev);
 static int start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t intr_handler(int irq, void *dev_instance);
 static void netdev_error(struct net_device *dev, int intr_status);
-static int natsemi_poll(struct net_device *dev, int *budget);
+static int natsemi_poll(struct napi_struct *napi, int budget);
 static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do);
 static void netdev_tx_done(struct net_device *dev);
 static int natsemi_change_mtu(struct net_device *dev, int new_mtu);
@@ -803,6 +805,7 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	const int pcibar = 1; /* PCI base address register */
 	int prev_eedata;
 	u32 tmp;
+	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -835,7 +838,6 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	dev = alloc_etherdev(sizeof (struct netdev_private));
 	if (!dev)
 		return -ENOMEM;
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	i = pci_request_regions(pdev, DRV_NAME);
@@ -861,6 +863,7 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	dev->irq = irq;
 
 	np = netdev_priv(dev);
+	netif_napi_add(dev, &np->napi, natsemi_poll, 64);
 
 	np->pci_dev = pdev;
 	pci_set_drvdata(pdev, dev);
@@ -931,8 +934,6 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	dev->do_ioctl = &netdev_ioctl;
 	dev->tx_timeout = &tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->poll = natsemi_poll;
-	dev->weight = 64;
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = &natsemi_poll_controller;
@@ -958,12 +959,10 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 		goto err_create_file;
 
 	if (netif_msg_drv(np)) {
-		printk(KERN_INFO "natsemi %s: %s at %#08lx (%s), ",
-			dev->name, natsemi_pci_info[chip_idx].name, iostart,
-			pci_name(np->pci_dev));
-		for (i = 0; i < ETH_ALEN-1; i++)
-				printk("%02x:", dev->dev_addr[i]);
-		printk("%02x, IRQ %d", dev->dev_addr[i], irq);
+		printk(KERN_INFO "natsemi %s: %s at %#08lx "
+		       "(%s), %s, IRQ %d",
+		       dev->name, natsemi_pci_info[chip_idx].name, iostart,
+		       pci_name(np->pci_dev), print_mac(mac, dev->dev_addr), irq);
 		if (dev->if_port == PORT_TP)
 			printk(", port TP.\n");
 		else if (np->ignore_phy)
@@ -1554,6 +1553,8 @@ static int netdev_open(struct net_device *dev)
 		free_irq(dev->irq, dev);
 		return i;
 	}
+	napi_enable(&np->napi);
+
 	init_ring(dev);
 	spin_lock_irq(&np->lock);
 	init_registers(dev);
@@ -1614,7 +1615,7 @@ static void do_cable_magic(struct net_device *dev)
 		 * (these values all come from National)
 		 */
 		if (!(data & 0x80) || ((data >= 0xd8) && (data <= 0xff))) {
-			struct netdev_private *np = netdev_priv(dev);
+			np = netdev_priv(dev);
 
 			/* the bug has been triggered - fix the coefficient */
 			writew(TSTDAT_FIXED, ioaddr + TSTDAT);
@@ -1797,7 +1798,7 @@ static void netdev_timer(unsigned long data)
 	struct net_device *dev = (struct net_device *)data;
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem * ioaddr = ns_ioaddr(dev);
-	int next_tick = 5*HZ;
+	int next_tick = NATSEMI_TIMER_FREQ;
 
 	if (netif_msg_timer(np)) {
 		/* DO NOT read the IntrStatus register,
@@ -2200,10 +2201,10 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 
 	prefetch(&np->rx_skbuff[np->cur_rx % RX_RING_SIZE]);
 
-	if (netif_rx_schedule_prep(dev)) {
+	if (netif_rx_schedule_prep(dev, &np->napi)) {
 		/* Disable interrupts and register for poll */
 		natsemi_irq_disable(dev);
-		__netif_rx_schedule(dev);
+		__netif_rx_schedule(dev, &np->napi);
 	} else
 		printk(KERN_WARNING
 	       	       "%s: Ignoring interrupt, status %#08x, mask %#08x.\n",
@@ -2216,12 +2217,11 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 /* This is the NAPI poll routine.  As well as the standard RX handling
  * it also handles all other interrupts that the chip might raise.
  */
-static int natsemi_poll(struct net_device *dev, int *budget)
+static int natsemi_poll(struct napi_struct *napi, int budget)
 {
-	struct netdev_private *np = netdev_priv(dev);
+	struct netdev_private *np = container_of(napi, struct netdev_private, napi);
+	struct net_device *dev = np->dev;
 	void __iomem * ioaddr = ns_ioaddr(dev);
-
-	int work_to_do = min(*budget, dev->quota);
 	int work_done = 0;
 
 	do {
@@ -2236,7 +2236,7 @@ static int natsemi_poll(struct net_device *dev, int *budget)
 		if (np->intr_status &
 		    (IntrRxDone | IntrRxIntr | RxStatusFIFOOver |
 		     IntrRxErr | IntrRxOverrun)) {
-			netdev_rx(dev, &work_done, work_to_do);
+			netdev_rx(dev, &work_done, budget);
 		}
 
 		if (np->intr_status &
@@ -2250,16 +2250,13 @@ static int natsemi_poll(struct net_device *dev, int *budget)
 		if (np->intr_status & IntrAbnormalSummary)
 			netdev_error(dev, np->intr_status);
 
-		*budget -= work_done;
-		dev->quota -= work_done;
-
-		if (work_done >= work_to_do)
-			return 1;
+		if (work_done >= budget)
+			return work_done;
 
 		np->intr_status = readl(ioaddr + IntrStatus);
 	} while (np->intr_status);
 
-	netif_rx_complete(dev);
+	netif_rx_complete(dev, napi);
 
 	/* Reenable interrupts providing nothing is trying to shut
 	 * the chip down. */
@@ -2268,7 +2265,7 @@ static int natsemi_poll(struct net_device *dev, int *budget)
 		natsemi_irq_enable(dev);
 	spin_unlock(&np->lock);
 
-	return 0;
+	return work_done;
 }
 
 /* This routine is logically part of the interrupt handler, but separated
@@ -2505,8 +2502,8 @@ static void __set_rx_mode(struct net_device *dev)
 		memset(mc_filter, 0, sizeof(mc_filter));
 		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
 			 i++, mclist = mclist->next) {
-			int i = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 23) & 0x1ff;
-			mc_filter[i/8] |= (1 << (i & 0x07));
+			int b = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 23) & 0x1ff;
+			mc_filter[b/8] |= (1 << (b & 0x07));
 		}
 		rx_mode = RxFilterEnable | AcceptBroadcast
 			| AcceptMulticast | AcceptMyPhys;
@@ -3158,6 +3155,8 @@ static int netdev_close(struct net_device *dev)
 			dev->name, np->cur_tx, np->dirty_tx,
 			np->cur_rx, np->dirty_rx);
 
+	napi_disable(&np->napi);
+
 	/*
 	 * FIXME: what if someone tries to close a device
 	 * that is suspended?
@@ -3253,7 +3252,7 @@ static void __devexit natsemi_remove1 (struct pci_dev *pdev)
  *		disable_irq() to enforce synchronization.
  *      * natsemi_poll: checks before reenabling interrupts.  suspend
  *              sets hands_off, disables interrupts and then waits with
- *              netif_poll_disable().
+ *              napi_disable().
  *
  * Interrupts must be disabled, otherwise hands_off can cause irq storms.
  */
@@ -3279,7 +3278,7 @@ static int natsemi_suspend (struct pci_dev *pdev, pm_message_t state)
 		spin_unlock_irq(&np->lock);
 		enable_irq(dev->irq);
 
-		netif_poll_disable(dev);
+		napi_disable(&np->napi);
 
 		/* Update the error counts. */
 		__get_stats(dev);
@@ -3320,6 +3319,8 @@ static int natsemi_resume (struct pci_dev *pdev)
 		pci_enable_device(pdev);
 	/*	pci_power_on(pdev); */
 
+		napi_enable(&np->napi);
+
 		natsemi_reset(dev);
 		init_ring(dev);
 		disable_irq(dev->irq);
@@ -3333,7 +3334,6 @@ static int natsemi_resume (struct pci_dev *pdev)
 		mod_timer(&np->timer, jiffies + 1*HZ);
 	}
 	netif_device_attach(dev);
-	netif_poll_enable(dev);
 out:
 	rtnl_unlock();
 	return 0;

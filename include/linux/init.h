@@ -57,6 +57,7 @@
  * The markers follow same syntax rules as __init / __initdata. */
 #define __init_refok     noinline __attribute__ ((__section__ (".text.init.refok")))
 #define __initdata_refok          __attribute__ ((__section__ (".data.init.refok")))
+#define __exit_refok     noinline __attribute__ ((__section__ (".exit.text.refok")))
 
 #ifdef MODULE
 #define __exit		__attribute__ ((__section__(".exit.text"))) __cold

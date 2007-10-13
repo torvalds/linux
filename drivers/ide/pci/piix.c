@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.51	Jul 6, 2007
+ *  linux/drivers/ide/pci/piix.c	Version 0.52	Jul 14, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -17,11 +17,11 @@
  *                 41
  *                 43
  *
- * | PIO 0       | c0 | 80 | 0 | 	piix_tune_drive(drive, 0);
- * | PIO 2 | SW2 | d0 | 90 | 4 | 	piix_tune_drive(drive, 2);
- * | PIO 3 | MW1 | e1 | a1 | 9 | 	piix_tune_drive(drive, 3);
- * | PIO 4 | MW2 | e3 | a3 | b | 	piix_tune_drive(drive, 4);
- * 
+ * | PIO 0       | c0 | 80 | 0 |
+ * | PIO 2 | SW2 | d0 | 90 | 4 |
+ * | PIO 3 | MW1 | e1 | a1 | 9 |
+ * | PIO 4 | MW2 | e3 | a3 | b |
+ *
  * sitre = word40 & 0x4000; primary
  * sitre = word42 & 0x4000; secondary
  *
@@ -204,16 +204,16 @@ static void piix_tune_pio (ide_drive_t *drive, u8 pio)
 }
 
 /**
- *	piix_tune_drive		-	tune a drive attached to PIIX
+ *	piix_set_pio_mode	-	set PIO mode
  *	@drive: drive to tune
  *	@pio: desired PIO mode
  *
  *	Set the drive's PIO mode (might be useful if drive is not registered
  *	in CMOS for any reason).
  */
-static void piix_tune_drive (ide_drive_t *drive, u8 pio)
+
+static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	piix_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -221,19 +221,18 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 /**
  *	piix_tune_chipset	-	tune a PIIX interface
  *	@drive: IDE drive to tune
- *	@xferspeed: speed to configure
+ *	@speed: speed to configure
  *
  *	Set a PIIX interface channel to the desired speeds. This involves
  *	requires the right timing data into the PIIX configuration space
  *	then setting the drive parameters appropriately
  */
- 
-static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+
+static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 maslave		= hwif->channel ? 0x42 : 0x40;
-	u8 speed		= ide_rate_filter(drive, xferspeed);
 	int a_speed		= 3 << (drive->dn * 4);
 	int u_flag		= 1 << drive->dn;
 	int v_flag		= 0x01 << drive->dn;
@@ -260,11 +259,6 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:	break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:	break;
 		default:		return -1;
 	}
 
@@ -294,10 +288,7 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 	}
 
-	if (speed > XFER_PIO_4)
-		piix_tune_pio(drive, piix_dma_2_pio(speed));
-	else
-		piix_tune_pio(drive, speed - XFER_PIO_0);
+	piix_tune_pio(drive, piix_dma_2_pio(speed));
 
 	return ide_config_drive_speed(drive, speed);
 }
@@ -318,7 +309,7 @@ static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		piix_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -455,7 +446,8 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	}
 
 	hwif->autodma = 0;
-	hwif->tuneproc = &piix_tune_drive;
+
+	hwif->set_pio_mode = &piix_set_pio_mode;
 	hwif->speedproc = &piix_tune_chipset;
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;

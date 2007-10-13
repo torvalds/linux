@@ -11,7 +11,6 @@ static irqreturn_t el_interrupt(int irq, void *dev_id);
 static void el_receive(struct net_device *dev);
 static void el_reset(struct net_device *dev);
 static int  el1_close(struct net_device *dev);
-static struct net_device_stats *el1_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static const struct ethtool_ops netdev_ethtool_ops;
 
@@ -29,7 +28,6 @@ static int el_debug = EL_DEBUG;
 
 struct net_local
 {
-	struct net_device_stats stats;
 	int		tx_pkt_start;	/* The length of the current Tx packet. */
 	int		collisions;	/* Tx collisions this packet */
 	int		loading;	/* Spot buffer load collisions */

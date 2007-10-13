@@ -84,7 +84,7 @@ static int sis_short_ata40(struct pci_dev *dev)
 
 static int sis_old_port_base(struct ata_device *adev)
 {
-	return  0x40 + (4 * adev->ap->port_no) +  (2 * adev->devno);
+	return  0x40 + (4 * adev->link->ap->port_no) +  (2 * adev->devno);
 }
 
 /**
@@ -133,19 +133,20 @@ static int sis_66_cable_detect(struct ata_port *ap)
 
 /**
  *	sis_pre_reset		-	probe begin
- *	@ap: ATA port
+ *	@link: ATA link
  *	@deadline: deadline jiffies for the operation
  *
  *	Set up cable type and use generic probe init
  */
 
-static int sis_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int sis_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits sis_enable_bits[] = {
 		{ 0x4aU, 1U, 0x02UL, 0x02UL },	/* port 0 */
 		{ 0x4aU, 1U, 0x04UL, 0x04UL },	/* port 1 */
 	};
 
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_no]))
@@ -154,7 +155,7 @@ static int sis_pre_reset(struct ata_port *ap, unsigned long deadline)
 	/* Clear the FIFO settings. We can't enable the FIFO until
 	   we know we are poking at a disk */
 	pci_write_config_byte(pdev, 0x4B, 0);
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 
@@ -530,7 +531,6 @@ static struct scsi_host_template sis_sht = {
 };
 
 static const struct ata_port_operations sis_133_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= sis_133_set_piomode,
 	.set_dmamode		= sis_133_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -558,13 +558,11 @@ static const struct ata_port_operations sis_133_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_133_for_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= sis_133_set_piomode,
 	.set_dmamode		= sis_133_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -592,13 +590,11 @@ static const struct ata_port_operations sis_133_for_sata_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_133_early_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= sis_100_set_piomode,
 	.set_dmamode		= sis_133_early_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -626,13 +622,11 @@ static const struct ata_port_operations sis_133_early_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_100_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= sis_100_set_piomode,
 	.set_dmamode		= sis_100_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -660,13 +654,11 @@ static const struct ata_port_operations sis_100_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_66_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= sis_old_set_piomode,
 	.set_dmamode		= sis_66_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -694,13 +686,11 @@ static const struct ata_port_operations sis_66_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_old_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= sis_old_set_piomode,
 	.set_dmamode		= sis_old_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -728,9 +718,8 @@ static const struct ata_port_operations sis_old_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_info sis_info = {

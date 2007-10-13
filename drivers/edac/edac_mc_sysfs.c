@@ -743,7 +743,7 @@ static struct kobj_type ktype_mc_set_attribs = {
  *	/sys/devices/system/edac/mc
  */
 static struct kset mc_kset = {
-	.kobj = {.name = "mc", .ktype = &ktype_mc_set_attribs },
+	.kobj = {.ktype = &ktype_mc_set_attribs },
 	.ktype = &ktype_mci,
 };
 
@@ -1010,6 +1010,7 @@ int edac_sysfs_setup_mc_kset(void)
 	}
 
 	/* Init the MC's kobject */
+	kobject_set_name(&mc_kset.kobj, "mc");
 	mc_kset.kobj.parent = &edac_class->kset.kobj;
 
 	/* register the mc_kset */

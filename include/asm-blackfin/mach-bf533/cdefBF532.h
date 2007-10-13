@@ -30,11 +30,9 @@
 
 #ifndef _CDEF_BF532_H
 #define _CDEF_BF532_H
-/*
-#if !defined(__ADSPLPBLACKFIN__)
-#warning cdefBF532.h should only be included for 532 compatible chips.
-#endif
-*/
+
+#include <asm/blackfin.h>
+
 /*include all Core registers and bit definitions*/
 #include "defBF532.h"
 
@@ -65,7 +63,7 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 	bfin_write32(SIC_IWR, IWR_ENABLE(0));
 
 	bfin_write16(VR_CTL, val);
-	__builtin_bfin_ssync();
+	SSYNC();
 
 	local_irq_save(flags);
 	asm("IDLE;");
@@ -132,10 +130,6 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 /* General Purpose IO (0xFFC0 2400-0xFFC0 27FF) */
 #define bfin_read_FIO_DIR()                  bfin_read16(FIO_DIR)
 #define bfin_write_FIO_DIR(val)              bfin_write16(FIO_DIR,val)
-#define bfin_read_FIO_FLAG_C()               bfin_read16(FIO_FLAG_C)
-#define bfin_write_FIO_FLAG_C(val)           bfin_write16(FIO_FLAG_C,val)
-#define bfin_read_FIO_FLAG_S()               bfin_read16(FIO_FLAG_S)
-#define bfin_write_FIO_FLAG_S(val)           bfin_write16(FIO_FLAG_S,val)
 #define bfin_read_FIO_MASKA_C()              bfin_read16(FIO_MASKA_C)
 #define bfin_write_FIO_MASKA_C(val)          bfin_write16(FIO_MASKA_C,val)
 #define bfin_read_FIO_MASKA_S()              bfin_read16(FIO_MASKA_S)
@@ -152,10 +146,6 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_FIO_BOTH(val)             bfin_write16(FIO_BOTH,val)
 #define bfin_read_FIO_INEN()                 bfin_read16(FIO_INEN)
 #define bfin_write_FIO_INEN(val)             bfin_write16(FIO_INEN,val)
-#define bfin_read_FIO_FLAG_D()               bfin_read16(FIO_FLAG_D)
-#define bfin_write_FIO_FLAG_D(val)           bfin_write16(FIO_FLAG_D,val)
-#define bfin_read_FIO_FLAG_T()               bfin_read16(FIO_FLAG_T)
-#define bfin_write_FIO_FLAG_T(val)           bfin_write16(FIO_FLAG_T,val)
 #define bfin_read_FIO_MASKA_D()              bfin_read16(FIO_MASKA_D)
 #define bfin_write_FIO_MASKA_D(val)          bfin_write16(FIO_MASKA_D,val)
 #define bfin_read_FIO_MASKA_T()              bfin_read16(FIO_MASKA_T)
@@ -164,6 +154,50 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_FIO_MASKB_D(val)          bfin_write16(FIO_MASKB_D,val)
 #define bfin_read_FIO_MASKB_T()              bfin_read16(FIO_MASKB_T)
 #define bfin_write_FIO_MASKB_T(val)          bfin_write16(FIO_MASKB_T,val)
+
+
+#if ANOMALY_05000311
+#define BFIN_WRITE_FIO_FLAG(name) \
+static __inline__ void bfin_write_FIO_FLAG_ ## name (unsigned short val)\
+{\
+	unsigned long flags;\
+	local_irq_save(flags);\
+	bfin_write16(FIO_FLAG_ ## name,val);\
+	bfin_read_CHIPID();\
+	local_irq_restore(flags);\
+}
+BFIN_WRITE_FIO_FLAG(D)
+BFIN_WRITE_FIO_FLAG(C)
+BFIN_WRITE_FIO_FLAG(S)
+BFIN_WRITE_FIO_FLAG(T)
+
+#define BFIN_READ_FIO_FLAG(name) \
+static __inline__ unsigned short bfin_read_FIO_FLAG_ ## name (void)\
+{\
+	unsigned long flags;\
+	unsigned short ret;\
+	local_irq_save(flags);\
+	ret = bfin_read16(FIO_FLAG_ ## name);\
+	bfin_read_CHIPID();\
+	local_irq_restore(flags);\
+	return ret;\
+}
+BFIN_READ_FIO_FLAG(D)
+BFIN_READ_FIO_FLAG(C)
+BFIN_READ_FIO_FLAG(S)
+BFIN_READ_FIO_FLAG(T)
+
+#else
+#define bfin_write_FIO_FLAG_D(val)           bfin_write16(FIO_FLAG_D,val)
+#define bfin_write_FIO_FLAG_C(val)           bfin_write16(FIO_FLAG_C,val)
+#define bfin_write_FIO_FLAG_S(val)           bfin_write16(FIO_FLAG_S,val)
+#define bfin_write_FIO_FLAG_T(val)           bfin_write16(FIO_FLAG_T,val)
+#define bfin_read_FIO_FLAG_T()               bfin_read16(FIO_FLAG_T)
+#define bfin_read_FIO_FLAG_C()               bfin_read16(FIO_FLAG_C)
+#define bfin_read_FIO_FLAG_S()               bfin_read16(FIO_FLAG_S)
+#define bfin_read_FIO_FLAG_D()               bfin_read16(FIO_FLAG_D)
+#endif
+
 
 /* DMA Controller */
 #define bfin_read_DMA0_CONFIG()              bfin_read16(DMA0_CONFIG)

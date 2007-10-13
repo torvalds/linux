@@ -235,7 +235,7 @@ static struct ip6_tnl *ip6_tnl_create(struct ip6_tnl_parm *p)
 		int i;
 		for (i = 1; i < IP6_TNL_MAX; i++) {
 			sprintf(name, "ip6tnl%d", i);
-			if (__dev_get_by_name(name) == NULL)
+			if (__dev_get_by_name(&init_net, name) == NULL)
 				break;
 		}
 		if (i == IP6_TNL_MAX)
@@ -650,7 +650,7 @@ static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
 		struct net_device *ldev = NULL;
 
 		if (p->link)
-			ldev = dev_get_by_index(p->link);
+			ldev = dev_get_by_index(&init_net, p->link);
 
 		if ((ipv6_addr_is_multicast(&p->laddr) ||
 		     likely(ipv6_chk_addr(&p->laddr, ldev, 0))) &&
@@ -786,7 +786,7 @@ static inline int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
 		struct net_device *ldev = NULL;
 
 		if (p->link)
-			ldev = dev_get_by_index(p->link);
+			ldev = dev_get_by_index(&init_net, p->link);
 
 		if (unlikely(!ipv6_chk_addr(&p->laddr, ldev, 0)))
 			printk(KERN_WARNING
@@ -1313,7 +1313,6 @@ ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
 
 static void ip6_tnl_dev_setup(struct net_device *dev)
 {
-	SET_MODULE_OWNER(dev);
 	dev->uninit = ip6_tnl_dev_uninit;
 	dev->destructor = free_netdev;
 	dev->hard_start_xmit = ip6_tnl_xmit;

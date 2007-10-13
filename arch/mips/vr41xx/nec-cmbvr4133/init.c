@@ -36,7 +36,7 @@ void disable_pcnet(void)
 	 */
 
 	writel((2 << 16)		|
-	       (PCI_DEVFN(1,0) << 8)	|
+	       (PCI_DEVFN(1, 0) << 8)	|
 	       (0 & 0xfc)		|
                1UL,
 	       PCICONFAREG);
@@ -44,7 +44,7 @@ void disable_pcnet(void)
 	data = readl(PCICONFDREG);
 
 	writel((2 << 16)		|
-	       (PCI_DEVFN(1,0) << 8)	|
+	       (PCI_DEVFN(1, 0) << 8)	|
 	       (4 & 0xfc)		|
                1UL,
 	       PCICONFAREG);
@@ -52,7 +52,7 @@ void disable_pcnet(void)
 	data = readl(PCICONFDREG);
 
 	writel((2 << 16)		|
-	       (PCI_DEVFN(1,0) << 8)	|
+	       (PCI_DEVFN(1, 0) << 8)	|
 	       (4 & 0xfc)		|
                1UL,
 	       PCICONFAREG);

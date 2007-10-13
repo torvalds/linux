@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -443,12 +442,12 @@ static struct dvb_frontend_ops tda8083_ops = {
 	.info = {
 		.name			= "Philips TDA8083 DVB-S",
 		.type			= FE_QPSK,
-		.frequency_min		= 950000,     /* FIXME: guessed! */
-		.frequency_max		= 1400000,    /* FIXME: guessed! */
+		.frequency_min		= 920000,     /* TDA8060 */
+		.frequency_max		= 2200000,    /* TDA8060 */
 		.frequency_stepsize	= 125,   /* kHz for QPSK frontends */
 	/*      .frequency_tolerance	= ???,*/
-		.symbol_rate_min	= 1000000,   /* FIXME: guessed! */
-		.symbol_rate_max	= 45000000,  /* FIXME: guessed! */
+		.symbol_rate_min	= 12000000,
+		.symbol_rate_max	= 30000000,
 	/*      .symbol_rate_tolerance	= ???,*/
 		.caps = FE_CAN_INVERSION_AUTO |
 			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |

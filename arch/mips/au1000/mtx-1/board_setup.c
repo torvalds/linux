@@ -46,7 +46,7 @@
 extern int (*board_pci_idsel)(unsigned int devsel, int assert);
 int    mtx1_pci_idsel(unsigned int devsel, int assert);
 
-void board_reset (void)
+void board_reset(void)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
 	au_writel(0x00000000, 0xAE00001C);

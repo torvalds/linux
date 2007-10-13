@@ -100,8 +100,7 @@ static inline void dn_rt_finish_output(struct sk_buff *skb, char *dst, char *src
 	if ((dev->type != ARPHRD_ETHER) && (dev->type != ARPHRD_LOOPBACK))
 		dst = NULL;
 
-	if (!dev->hard_header || (dev->hard_header(skb, dev, ETH_P_DNA_RT,
-			dst, src, skb->len) >= 0))
+	if (dev_hard_header(skb, dev, ETH_P_DNA_RT, dst, src, skb->len) >= 0)
 		dn_rt_send(skb);
 	else
 		kfree_skb(skb);

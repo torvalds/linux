@@ -159,11 +159,18 @@ handle_vmalloc_miss:
 
 	.section .scall.text,"ax",@progbits
 system_call:
+#ifdef CONFIG_PREEMPT
+	mask_interrupts
+#endif
 	pushm	r12		/* r12_orig */
 	stmts	--sp, r0-lr
-	zero_fp
+
 	mfsr	r0, SYSREG_RAR_SUP
 	mfsr	r1, SYSREG_RSR_SUP
+#ifdef CONFIG_PREEMPT
+	unmask_interrupts
+#endif
+	zero_fp
 	stm	--sp, r0-r1
 
 	/* check for syscall tracing */
@@ -638,6 +645,13 @@ irq_level\level:
 	stmts	--sp,r0-lr
 	mfsr	r8, rar_int\level
 	mfsr	r9, rsr_int\level
+
+#ifdef CONFIG_PREEMPT
+	sub	r11, pc, (. - system_call)
+	cp.w	r11, r8
+	breq	4f
+#endif
+
 	pushm	r8-r9
 
 	mov	r11, sp
@@ -667,6 +681,16 @@ irq_level\level:
 	ldmts	sp++,r0-lr
 	sub	sp, -4		/* ignore r12_orig */
 	rete
+
+#ifdef CONFIG_PREEMPT
+4:	mask_interrupts
+	mfsr	r8, rsr_int\level
+	sbr	r8, 16
+	mtsr	rsr_int\level, r8
+	ldmts	sp++, r0-lr
+	sub	sp, -4		/* ignore r12_orig */
+	rete
+#endif
 
 2:	get_thread_info	r0
 	ld.w	r1, r0[TI_flags]

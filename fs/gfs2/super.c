@@ -58,7 +58,6 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_incore_log_blocks = 1024;
 	gt->gt_log_flush_secs = 60;
 	gt->gt_jindex_refresh_secs = 60;
-	gt->gt_scand_secs = 15;
 	gt->gt_recoverd_secs = 60;
 	gt->gt_logd_secs = 1;
 	gt->gt_quotad_secs = 5;
@@ -160,18 +159,15 @@ int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb_host *sb, int silent)
 }
 
 
-static int end_bio_io_page(struct bio *bio, unsigned int bytes_done, int error)
+static void end_bio_io_page(struct bio *bio, int error)
 {
 	struct page *page = bio->bi_private;
-	if (bio->bi_size)
-		return 1;
 
 	if (!error)
 		SetPageUptodate(page);
 	else
 		printk(KERN_WARNING "gfs2: error %d reading superblock\n", error);
 	unlock_page(page);
-	return 0;
 }
 
 static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)

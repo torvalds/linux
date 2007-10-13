@@ -132,7 +132,7 @@ static void pb1200_shutdown_irq( unsigned int irq_nr )
 	pb1200_disable_irq(irq_nr);
 	if (--pb1200_cascade_en == 0)
 	{
-		free_irq(AU1000_GPIO_7,&pb1200_cascade_handler );
+		free_irq(AU1000_GPIO_7, &pb1200_cascade_handler );
 	}
 	return;
 }

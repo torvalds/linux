@@ -2219,6 +2219,9 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
+	enum ib_cm_state cm_state;
+	enum ib_cm_lap_state lap_state;
+	enum cm_msg_response msg_response;
 	void *data;
 	unsigned long flags;
 	int ret;
@@ -2235,48 +2238,40 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	switch(cm_id_priv->id.state) {
 	case IB_CM_REQ_RCVD:
-		ret = cm_alloc_msg(cm_id_priv, &msg);
-		if (ret)
-			goto error1;
-
-		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
-			      CM_MSG_RESPONSE_REQ, service_timeout,
-			      private_data, private_data_len);
-		ret = ib_post_send_mad(msg, NULL);
-		if (ret)
-			goto error2;
-		cm_id->state = IB_CM_MRA_REQ_SENT;
+		cm_state = IB_CM_MRA_REQ_SENT;
+		lap_state = cm_id->lap_state;
+		msg_response = CM_MSG_RESPONSE_REQ;
 		break;
 	case IB_CM_REP_RCVD:
-		ret = cm_alloc_msg(cm_id_priv, &msg);
-		if (ret)
-			goto error1;
-
-		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
-			      CM_MSG_RESPONSE_REP, service_timeout,
-			      private_data, private_data_len);
-		ret = ib_post_send_mad(msg, NULL);
-		if (ret)
-			goto error2;
-		cm_id->state = IB_CM_MRA_REP_SENT;
+		cm_state = IB_CM_MRA_REP_SENT;
+		lap_state = cm_id->lap_state;
+		msg_response = CM_MSG_RESPONSE_REP;
 		break;
 	case IB_CM_ESTABLISHED:
-		ret = cm_alloc_msg(cm_id_priv, &msg);
-		if (ret)
-			goto error1;
-
-		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
-			      CM_MSG_RESPONSE_OTHER, service_timeout,
-			      private_data, private_data_len);
-		ret = ib_post_send_mad(msg, NULL);
-		if (ret)
-			goto error2;
-		cm_id->lap_state = IB_CM_MRA_LAP_SENT;
+		cm_state = cm_id->state;
+		lap_state = IB_CM_MRA_LAP_SENT;
+		msg_response = CM_MSG_RESPONSE_OTHER;
 		break;
 	default:
 		ret = -EINVAL;
 		goto error1;
 	}
+
+	if (!(service_timeout & IB_CM_MRA_FLAG_DELAY)) {
+		ret = cm_alloc_msg(cm_id_priv, &msg);
+		if (ret)
+			goto error1;
+
+		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
+			      msg_response, service_timeout,
+			      private_data, private_data_len);
+		ret = ib_post_send_mad(msg, NULL);
+		if (ret)
+			goto error2;
+	}
+
+	cm_id->state = cm_state;
+	cm_id->lap_state = lap_state;
 	cm_id_priv->service_timeout = service_timeout;
 	cm_set_private_data(cm_id_priv, data, private_data_len);
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);

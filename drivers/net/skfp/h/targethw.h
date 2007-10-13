@@ -53,11 +53,6 @@ struct	s_oem_ids {
 	u_char 	oi_sub_id[4] ;		/* sub id bytes, representation as */
 					/* defined by hardware,		*/
 #endif
-#ifdef ISA
-	u_char	oi_logo_len ;		/* the length of the adapter logo */	
-	u_char	oi_logo[6] ;		/* the adapter logo		*/
-	u_char	oi_reserved1 ;
-#endif	/* ISA */
 } ;
 #endif	/* MULT_OEM */
 
@@ -70,41 +65,15 @@ struct s_smt_hw {
 	short	dma ;			/* DMA channel */
 	short	irq ;			/* IRQ level */
 	short	eprom ;			/* FLASH prom */
-#ifndef	PCI
-	short	DmaWriteExtraBytes ;	/* add bytes for DMA write */
-#endif
 
 #ifndef SYNC
 	u_short	n_a_send ;		/* pending send requests */
 #endif
 
-#if	(defined(EISA) || defined(MCA) || defined(PCI))
+#if	defined(PCI)
 	short	slot ;			/* slot number */
 	short   max_slots ;		/* maximum number of slots */
-#endif
-
-#if	(defined(PCI) || defined(MCA))
 	short	wdog_used ;		/* TRUE if the watch dog is used */
-#endif
-
-#ifdef	MCA
-	short	slot_32 ;		/* 32bit slot (1) or 16bit slot (0) */
-	short	rev ;			/* Board revision (FMx_REV). */
-	short	VFullRead ;		/* V_full value for DMA read */
-	short	VFullWrite ;		/* V_full value for DMA write */
-#endif
-
-#ifdef	EISA
-	short	led ;			/* LED for FE card */
-
-	short	dma_rmode ;		/* read mode */
-	short	dma_wmode ;		/* write mode */
-	short	dma_emode ;		/* extend mode */
-
-	/* DMA controller channel dependent io addresses */
-	u_short dma_base_word_count ;
-	u_short dma_base_address ;
-	u_short dma_base_address_page ;
 #endif
 
 #ifdef	PCI

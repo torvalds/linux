@@ -66,7 +66,7 @@
 #define MC_REGISTER_SPACING         0x1000
 
 #define A_MC_BASE(ctlid)            ((ctlid)*MC_REGISTER_SPACING+A_MC_BASE_0)
-#define A_MC_REGISTER(ctlid,reg)    (A_MC_BASE(ctlid)+(reg))
+#define A_MC_REGISTER(ctlid, reg)    (A_MC_BASE(ctlid)+(reg))
 
 #define R_MC_CONFIG                 0x0000000100
 #define R_MC_DRAMCMD                0x0000000120
@@ -173,23 +173,23 @@
 
 #define R_MAC_DMA_CHANNELS		0x800 /* Relative to A_MAC_CHANNEL_BASE */
 
-#define A_MAC_DMA_CHANNEL_BASE(macnum,txrx,chan)    \
+#define A_MAC_DMA_CHANNEL_BASE(macnum, txrx, chan)  \
              ((A_MAC_CHANNEL_BASE(macnum)) +        \
              R_MAC_DMA_CHANNELS +                   \
              (MAC_DMA_TXRX_SPACING*(txrx)) +        \
              (MAC_DMA_CHANNEL_SPACING*(chan)))
 
-#define R_MAC_DMA_CHANNEL_BASE(txrx,chan)    \
+#define R_MAC_DMA_CHANNEL_BASE(txrx, chan)		\
              (R_MAC_DMA_CHANNELS +                   \
              (MAC_DMA_TXRX_SPACING*(txrx)) +        \
              (MAC_DMA_CHANNEL_SPACING*(chan)))
 
-#define A_MAC_DMA_REGISTER(macnum,txrx,chan,reg)           \
-            (A_MAC_DMA_CHANNEL_BASE(macnum,txrx,chan) +    \
+#define A_MAC_DMA_REGISTER(macnum, txrx, chan, reg)           \
+            (A_MAC_DMA_CHANNEL_BASE(macnum, txrx, chan) +    \
             (reg))
 
-#define R_MAC_DMA_REGISTER(txrx,chan,reg)           \
-            (R_MAC_DMA_CHANNEL_BASE(txrx,chan) +    \
+#define R_MAC_DMA_REGISTER(txrx, chan, reg)           \
+            (R_MAC_DMA_CHANNEL_BASE(txrx, chan) +    \
             (reg))
 
 /*
@@ -415,8 +415,8 @@
              R_SER_DMA_CHANNELS +                   \
              (SER_DMA_TXRX_SPACING*(txrx)))
 
-#define A_SER_DMA_REGISTER(sernum,txrx,reg)           \
-            (A_SER_DMA_CHANNEL_BASE(sernum,txrx) +    \
+#define A_SER_DMA_REGISTER(sernum, txrx, reg)           \
+            (A_SER_DMA_CHANNEL_BASE(sernum, txrx) +    \
             (reg))
 
 
@@ -499,7 +499,7 @@
 
 #define IO_EXT_REGISTER_SPACING	    8
 #define A_IO_EXT_CS_BASE(cs)	    (A_IO_EXT_CFG_BASE+IO_EXT_REGISTER_SPACING*(cs))
-#define R_IO_EXT_REG(reg,cs)	    ((cs)*IO_EXT_REGISTER_SPACING + (reg))
+#define R_IO_EXT_REG(reg, cs)	    ((cs)*IO_EXT_REGISTER_SPACING + (reg))
 
 #define R_IO_EXT_CFG		    0x0000
 #define R_IO_EXT_MULT_SIZE          0x0100
@@ -587,7 +587,7 @@
 #define A_SMB_1                     0x0010060008
 #define SMB_REGISTER_SPACING        0x8
 #define A_SMB_BASE(idx)             (A_SMB_0+(idx)*SMB_REGISTER_SPACING)
-#define A_SMB_REGISTER(idx,reg)     (A_SMB_BASE(idx)+(reg))
+#define A_SMB_REGISTER(idx, reg)    (A_SMB_BASE(idx)+(reg))
 
 #define R_SMB_XTRA                  0x0000000000
 #define R_SMB_FREQ                  0x0000000010
@@ -611,7 +611,7 @@
 #define SCD_WDOG_SPACING            0x100
 #define SCD_NUM_WDOGS		    2
 #define A_SCD_WDOG_BASE(w)          (A_SCD_WDOG_0+SCD_WDOG_SPACING*(w))
-#define A_SCD_WDOG_REGISTER(w,r)    (A_SCD_WDOG_BASE(w) + (r))
+#define A_SCD_WDOG_REGISTER(w, r)   (A_SCD_WDOG_BASE(w) + (r))
 
 #define R_SCD_WDOG_INIT		    0x0000000000
 #define R_SCD_WDOG_CNT		    0x0000000008
@@ -635,7 +635,7 @@
 #define A_SCD_TIMER_3               0x0010020178
 #define SCD_NUM_TIMERS		    4
 #define A_SCD_TIMER_BASE(w)         (A_SCD_TIMER_0+0x08*((w)&1)+0x100*(((w)&2)>>1))
-#define A_SCD_TIMER_REGISTER(w,r)   (A_SCD_TIMER_BASE(w) + (r))
+#define A_SCD_TIMER_REGISTER(w, r)  (A_SCD_TIMER_BASE(w) + (r))
 
 #define R_SCD_TIMER_INIT	    0x0000000000
 #define R_SCD_TIMER_CNT		    0x0000000010
@@ -714,7 +714,7 @@
 #define IMR_REGISTER_SPACING_SHIFT      13
 
 #define A_IMR_MAPPER(cpu) (A_IMR_CPU0_BASE+(cpu)*IMR_REGISTER_SPACING)
-#define A_IMR_REGISTER(cpu,reg) (A_IMR_MAPPER(cpu)+(reg))
+#define A_IMR_REGISTER(cpu, reg) (A_IMR_MAPPER(cpu)+(reg))
 
 #define R_IMR_INTERRUPT_DIAG            0x0010
 #define R_IMR_INTERRUPT_LDT             0x0018
@@ -821,7 +821,7 @@
 #define DM_REGISTER_SPACING	    0x20
 #define DM_NUM_CHANNELS		    4
 #define A_DM_BASE(idx) (A_DM_0 + ((idx) * DM_REGISTER_SPACING))
-#define A_DM_REGISTER(idx,reg) (A_DM_BASE(idx) + (reg))
+#define A_DM_REGISTER(idx, reg) (A_DM_BASE(idx) + (reg))
 
 #define R_DM_DSCR_BASE		    0x0000000000
 #define R_DM_DSCR_COUNT		    0x0000000008
@@ -843,7 +843,7 @@
 #define DM_CRC_REGISTER_SPACING	    0x10
 #define DM_CRC_NUM_CHANNELS	    2
 #define A_DM_CRC_BASE(idx)	    (A_DM_CRC_0 + ((idx) * DM_CRC_REGISTER_SPACING))
-#define A_DM_CRC_REGISTER(idx,reg)  (A_DM_CRC_BASE(idx) + (reg))
+#define A_DM_CRC_REGISTER(idx, reg)  (A_DM_CRC_BASE(idx) + (reg))
 
 #define R_CRC_DEF_0		    0x00
 #define R_CTCP_DEF_0		    0x08

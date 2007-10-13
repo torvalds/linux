@@ -216,7 +216,6 @@ MODULE_PARM_DESC(de620_debug, "DE-620 debug level (0-2)");
 /* Put in the device structure. */
 static int	de620_open(struct net_device *);
 static int	de620_close(struct net_device *);
-static struct	net_device_stats *get_stats(struct net_device *);
 static void	de620_set_multicast_list(struct net_device *);
 static int	de620_start_xmit(struct sk_buff *, struct net_device *);
 
@@ -480,16 +479,6 @@ static int de620_close(struct net_device *dev)
 
 /*********************************************
  *
- * Return current statistics
- *
- */
-static struct net_device_stats *get_stats(struct net_device *dev)
-{
-	return (struct net_device_stats *)(dev->priv);
-}
-
-/*********************************************
- *
  * Set or clear the multicast filter for this adaptor.
  * (no real multicast implemented for the DE-620, but she can be promiscuous...)
  *
@@ -579,7 +568,7 @@ static int de620_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if(!(using_txbuf == (TXBF0 | TXBF1)))
 		netif_wake_queue(dev);
 
-	((struct net_device_stats *)(dev->priv))->tx_packets++;
+	dev->stats.tx_packets++;
 	spin_unlock_irqrestore(&de620_lock, flags);
 	dev_kfree_skb (skb);
 	return 0;
@@ -660,7 +649,7 @@ static int de620_rx_intr(struct net_device *dev)
 		/* You win some, you lose some. And sometimes plenty... */
 		adapter_init(dev);
 		netif_wake_queue(dev);
-		((struct net_device_stats *)(dev->priv))->rx_over_errors++;
+		dev->stats.rx_over_errors++;
 		return 0;
 	}
 
@@ -680,7 +669,7 @@ static int de620_rx_intr(struct net_device *dev)
 		next_rx_page = header_buf.Rx_NextPage; /* at least a try... */
 		de620_send_command(dev, W_DUMMY);
 		de620_set_register(dev, W_NPRF, next_rx_page);
-		((struct net_device_stats *)(dev->priv))->rx_over_errors++;
+		dev->stats.rx_over_errors++;
 		return 0;
 	}
 	next_rx_page = pagelink;
@@ -693,7 +682,7 @@ static int de620_rx_intr(struct net_device *dev)
 		skb = dev_alloc_skb(size+2);
 		if (skb == NULL) { /* Yeah, but no place to put it... */
 			printk(KERN_WARNING "%s: Couldn't allocate a sk_buff of size %d.\n", dev->name, size);
-			((struct net_device_stats *)(dev->priv))->rx_dropped++;
+			dev->stats.rx_dropped++;
 		}
 		else { /* Yep! Go get it! */
 			skb_reserve(skb,2);	/* Align */
@@ -706,8 +695,8 @@ static int de620_rx_intr(struct net_device *dev)
 			netif_rx(skb); /* deliver it "upstairs" */
 			dev->last_rx = jiffies;
 			/* count all receives */
-			((struct net_device_stats *)(dev->priv))->rx_packets++;
-			((struct net_device_stats *)(dev->priv))->rx_bytes += size;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += size;
 		}
 	}
 
@@ -818,12 +807,11 @@ struct net_device * __init de620_probe(int unit)
 	struct net_device *dev;
 	int err = -ENOMEM;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
-	dev = alloc_etherdev(sizeof(struct net_device_stats));
+	dev = alloc_etherdev(0);
 	if (!dev)
 		goto out;
-
-	SET_MODULE_OWNER(dev);
 
 	spin_lock_init(&de620_lock);
 
@@ -866,12 +854,13 @@ struct net_device * __init de620_probe(int unit)
 	}
 
 	/* else, got it! */
-	printk(", Ethernet Address: %2.2X",
-		dev->dev_addr[0] = nic_data.NodeID[0]);
+	dev->dev_addr[0] = nic_data.NodeID[0];
 	for (i = 1; i < ETH_ALEN; i++) {
-		printk(":%2.2X", dev->dev_addr[i] = nic_data.NodeID[i]);
+		dev->dev_addr[i] = nic_data.NodeID[i];
 		dev->broadcast[i] = 0xff;
 	}
+
+	printk(", Ethernet Address: %s", print_mac(mac, dev->dev_addr));
 
 	printk(" (%dk RAM,",
 		(nic_data.RAM_Size) ? (nic_data.RAM_Size >> 2) : 64);
@@ -881,7 +870,6 @@ struct net_device * __init de620_probe(int unit)
 	else
 		printk(" UTP)\n");
 
-	dev->get_stats 		= get_stats;
 	dev->open 		= de620_open;
 	dev->stop 		= de620_close;
 	dev->hard_start_xmit 	= de620_start_xmit;

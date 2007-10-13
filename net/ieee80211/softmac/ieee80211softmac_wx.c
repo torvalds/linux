@@ -72,6 +72,7 @@ ieee80211softmac_wx_set_essid(struct net_device *net_dev,
 	struct ieee80211softmac_device *sm = ieee80211_priv(net_dev);
 	struct ieee80211softmac_auth_queue_item *authptr;
 	int length = 0;
+	DECLARE_MAC_BUF(mac);
 
 check_assoc_again:
 	mutex_lock(&sm->associnfo.mutex);
@@ -90,7 +91,7 @@ check_assoc_again:
 		/* We must unlock to avoid deadlocks with the assoc workqueue
 		 * on the associnfo.mutex */
 		mutex_unlock(&sm->associnfo.mutex);
-		flush_scheduled_work();
+		flush_workqueue(sm->wq);
 		/* Avoid race! Check assoc status again. Maybe someone started an
 		 * association while we flushed. */
 		goto check_assoc_again;
@@ -113,7 +114,7 @@ check_assoc_again:
 
 	sm->associnfo.associating = 1;
 	/* queue lower level code to do work (if necessary) */
-	schedule_delayed_work(&sm->associnfo.work, 0);
+	queue_delayed_work(sm->wq, &sm->associnfo.work, 0);
 
 	mutex_unlock(&sm->associnfo.mutex);
 
@@ -348,7 +349,7 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 		/* force reassociation */
 		mac->associnfo.bssvalid = 0;
 		if (mac->associnfo.associated)
-			schedule_delayed_work(&mac->associnfo.work, 0);
+			queue_delayed_work(mac->wq, &mac->associnfo.work, 0);
 	} else if (is_zero_ether_addr(data->ap_addr.sa_data)) {
 		/* the bssid we have is no longer fixed */
 		mac->associnfo.bssfixed = 0;
@@ -365,7 +366,7 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 		/* tell the other code that this bssid should be used no matter what */
 		mac->associnfo.bssfixed = 1;
 		/* queue associate if new bssid or (old one again and not associated) */
-		schedule_delayed_work(&mac->associnfo.work, 0);
+		queue_delayed_work(mac->wq, &mac->associnfo.work, 0);
 	}
 
  out:

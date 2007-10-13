@@ -31,6 +31,7 @@
 #include <asm/blackfin.h>
 #include <asm/trace.h>
 #if CONFIG_BFIN_KERNEL_CLOCK
+#include <asm/mach-common/clocks.h>
 #include <asm/mach/mem_init.h>
 #endif
 
@@ -49,9 +50,13 @@ ENTRY(__start)
 ENTRY(__stext)
 	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
-	/* Set the SYSCFG register */
-	R0 = 0x36;
-	SYSCFG = R0;   /*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
+	/* Enable Cycle Counter and Nesting Of Interrupts */
+#ifdef CONFIG_BFIN_SCRATCH_REG_CYCLES
+	R0 = SYSCFG_SNEN;
+#else
+	R0 = SYSCFG_SNEN | SYSCFG_CCEN;
+#endif
+	SYSCFG = R0;
 	R0 = 0;
 
 	/* Clear Out All the data and pointer  Registers*/
@@ -92,13 +97,13 @@ ENTRY(__stext)
 	M2 = r0;
 	M3 = r0;
 
-	trace_buffer_start(p0,r0);
+	trace_buffer_init(p0,r0);
 	P0 = R1;
 	R0 = R1;
 
 	/* Turn off the icache */
-	p0.l = (IMEM_CONTROL & 0xFFFF);
-	p0.h = (IMEM_CONTROL >> 16);
+	p0.l = LO(IMEM_CONTROL);
+	p0.h = HI(IMEM_CONTROL);
 	R1 = [p0];
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
@@ -106,8 +111,8 @@ ENTRY(__stext)
 	SSYNC;
 
 	/* Turn off the dcache */
-	p0.l = (DMEM_CONTROL & 0xFFFF);
-	p0.h = (DMEM_CONTROL >> 16);
+	p0.l = LO(DMEM_CONTROL);
+	p0.h = HI(DMEM_CONTROL);
 	R1 = [p0];
 	R0 = ~ENDCPLB;
 	R0 = R0 & R1;
@@ -119,6 +124,12 @@ ENTRY(__stext)
 	SP.H = HI(INITIAL_STACK);
 	FP = SP;
 	USP = SP;
+
+#ifdef CONFIG_EARLY_PRINTK
+	SP += -12;
+	call _init_early_exception_vectors;
+	SP += 12;
+#endif
 
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bf53x_relocate_l1_mem;
@@ -172,7 +183,7 @@ ENTRY(__stext)
 	p0.l = .LWAIT_HERE;
 	p0.h = .LWAIT_HERE;
 	reti = p0;
-#if defined (ANOMALY_05000281)
+#if ANOMALY_05000281
 	nop;
 	nop;
 	nop;
@@ -335,8 +346,8 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-	p0.l = (EBIU_SDBCTL & 0xFFFF);
-	p0.h = (EBIU_SDBCTL >> 16);     /* SDRAM Memory Bank Control Register */
+	p0.l = LO(EBIU_SDBCTL);
+	p0.h = HI(EBIU_SDBCTL);     /* SDRAM Memory Bank Control Register */
 	r0 = mem_SDBCTL;
 	w[p0] = r0.l;
 	ssync;
@@ -372,129 +383,6 @@ ENTRY(_start_dma_code)
 
 	RTS;
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
-
-ENTRY(_bfin_reset)
-	/* No more interrupts to be handled*/
-	CLI R6;
-	SSYNC;
-
-#if defined(CONFIG_MTD_M25P80)
-/*
- * The following code fix the SPI flash reboot issue,
- * /CS signal of the chip which is using PF10 return to GPIO mode
- */
-	p0.h = hi(PORTF_FER);
-	p0.l = lo(PORTF_FER);
-	r0.l = 0x0000;
-	w[p0] = r0.l;
-	SSYNC;
-
-/* /CS return to high */
-	p0.h = hi(PORTFIO);
-	p0.l = lo(PORTFIO);
-	r0.l = 0xFFFF;
-	w[p0] = r0.l;
-	SSYNC;
-
-/* Delay some time, This is necessary */
-	r1.h = 0;
-	r1.l = 0x400;
-	p1   = r1;
-	lsetup (_delay_lab1,_delay_lab1_end ) lc1 = p1;
-_delay_lab1:
-	r0.h = 0;
-	r0.l = 0x8000;
-	p0   = r0;
-	lsetup (_delay_lab0,_delay_lab0_end ) lc0 = p0;
-_delay_lab0:
-	nop;
-_delay_lab0_end:
-	nop;
-_delay_lab1_end:
-	nop;
-#endif
-
-	/* Clear the bits 13-15 in SWRST if they werent cleared */
-	p0.h = hi(SWRST);
-	p0.l = lo(SWRST);
-	csync;
-	r0.l = w[p0];
-
-	/* Clear the IMASK register */
-	p0.h = hi(IMASK);
-	p0.l = lo(IMASK);
-	r0 = 0x0;
-	[p0] = r0;
-
-	/* Clear the ILAT register */
-	p0.h = hi(ILAT);
-	p0.l = lo(ILAT);
-	r0 = [p0];
-	[p0] = r0;
-	SSYNC;
-
-	/* Disable the WDOG TIMER */
-	p0.h = hi(WDOG_CTL);
-	p0.l = lo(WDOG_CTL);
-	r0.l = 0xAD6;
-	w[p0] = r0.l;
-	SSYNC;
-
-	/* Clear the sticky bit incase it is already set */
-	p0.h = hi(WDOG_CTL);
-	p0.l = lo(WDOG_CTL);
-	r0.l = 0x8AD6;
-	w[p0] = r0.l;
-	SSYNC;
-
-	/* Program the count value */
-	R0.l = 0x100;
-	R0.h = 0x0;
-	P0.h = hi(WDOG_CNT);
-	P0.l = lo(WDOG_CNT);
-	[P0] = R0;
-	SSYNC;
-
-	/* Program WDOG_STAT if necessary */
-	P0.h = hi(WDOG_CTL);
-	P0.l = lo(WDOG_CTL);
-	R0 = W[P0](Z);
-	CC = BITTST(R0,1);
-	if !CC JUMP .LWRITESTAT;
-	CC = BITTST(R0,2);
-	if !CC JUMP .LWRITESTAT;
-	JUMP .LSKIP_WRITE;
-
-.LWRITESTAT:
-	/* When watch dog timer is enabled,
-	 * a write to STAT will load the contents of CNT to STAT
-	 */
-	R0 = 0x0000(z);
-	P0.h = hi(WDOG_STAT);
-	P0.l = lo(WDOG_STAT)
-	[P0] = R0;
-	SSYNC;
-
-.LSKIP_WRITE:
-	/* Enable the reset event */
-	P0.h = hi(WDOG_CTL);
-	P0.l = lo(WDOG_CTL);
-	R0 = W[P0](Z);
-	BITCLR(R0,1);
-	BITCLR(R0,2);
-	W[P0] = R0.L;
-	SSYNC;
-	NOP;
-
-	/* Enable the wdog counter */
-	R0 = W[P0](Z);
-	BITCLR(R0,4);
-	W[P0] = R0.L;
-	SSYNC;
-
-	IDLE;
-
-	RTS;
 
 .data
 

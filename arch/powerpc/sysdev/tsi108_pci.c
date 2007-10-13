@@ -52,7 +52,6 @@
 u32 tsi108_pci_cfg_base;
 static u32 tsi108_pci_cfg_phys;
 u32 tsi108_csr_vir_base;
-static struct device_node *pci_irq_node;
 static struct irq_host *pci_irq_host;
 
 extern u32 get_vir_csrbase(void);
@@ -193,8 +192,8 @@ void tsi108_clear_pci_cfg_error(void)
 }
 
 static struct pci_ops tsi108_direct_pci_ops = {
-	tsi108_direct_read_config,
-	tsi108_direct_write_config
+	.read = tsi108_direct_read_config,
+	.write = tsi108_direct_write_config,
 };
 
 int __init tsi108_setup_pci(struct device_node *dev, u32 cfg_phys, int primary)
@@ -405,13 +404,7 @@ static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int pci_irq_host_match(struct irq_host *h, struct device_node *node)
-{
-	return pci_irq_node == node;
-}
-
 static struct irq_host_ops pci_irq_host_ops = {
-	.match = pci_irq_host_match,
 	.map = pci_irq_host_map,
 	.xlate = pci_irq_host_xlate,
 };
@@ -433,10 +426,11 @@ void __init tsi108_pci_int_init(struct device_node *node)
 {
 	DBG("Tsi108_pci_int_init: initializing PCI interrupts\n");
 
-	pci_irq_node = of_node_get(node);
-	pci_irq_host = irq_alloc_host(IRQ_HOST_MAP_LEGACY, 0, &pci_irq_host_ops, 0);
+	pci_irq_host = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LEGACY,
+				      0, &pci_irq_host_ops, 0);
 	if (pci_irq_host == NULL) {
 		printk(KERN_ERR "pci_irq_host: failed to allocate irq host !\n");
+		of_node_put(node);
 		return;
 	}
 

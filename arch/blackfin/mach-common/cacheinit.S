@@ -38,13 +38,13 @@
 
 .text
 
-#ifdef ANOMALY_05000125
-#if defined(CONFIG_BLKFIN_CACHE)
+#if ANOMALY_05000125
+#if defined(CONFIG_BFIN_ICACHE)
 ENTRY(_bfin_write_IMEM_CONTROL)
 
 	/* Enable Instruction Cache */
-	P0.l = (IMEM_CONTROL & 0xFFFF);
-	P0.h = (IMEM_CONTROL >> 16);
+	P0.l = LO(IMEM_CONTROL);
+	P0.h = HI(IMEM_CONTROL);
 
 	/* Anomaly 05000125 */
 	CLI R1;
@@ -58,10 +58,10 @@ ENTRY(_bfin_write_IMEM_CONTROL)
 ENDPROC(_bfin_write_IMEM_CONTROL)
 #endif
 
-#if defined(CONFIG_BLKFIN_DCACHE)
+#if defined(CONFIG_BFIN_DCACHE)
 ENTRY(_bfin_write_DMEM_CONTROL)
-	P0.l = (DMEM_CONTROL & 0xFFFF);
-	P0.h = (DMEM_CONTROL >> 16);
+	P0.l = LO(DMEM_CONTROL);
+	P0.h = HI(DMEM_CONTROL);
 
 	CLI R1;
 	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */

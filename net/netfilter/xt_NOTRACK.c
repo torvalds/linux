@@ -9,6 +9,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_NOTRACK");
+MODULE_ALIAS("ip6t_NOTRACK");
 
 static unsigned int
 target(struct sk_buff **pskb,

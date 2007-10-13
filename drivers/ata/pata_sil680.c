@@ -95,15 +95,16 @@ static int sil680_cable_detect(struct ata_port *ap) {
 
 /**
  *	sil680_bus_reset	-	reset the SIL680 bus
- *	@ap: ATA port to reset
+ *	@link: ATA link to reset
  *	@deadline: deadline jiffies for the operation
  *
  *	Perform the SIL680 housekeeping when doing an ATA bus reset
  */
 
-static int sil680_bus_reset(struct ata_port *ap,unsigned int *classes,
+static int sil680_bus_reset(struct ata_link *link, unsigned int *classes,
 			    unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned long addr = sil680_selreg(ap, 0);
 	u8 reset;
@@ -112,7 +113,7 @@ static int sil680_bus_reset(struct ata_port *ap,unsigned int *classes,
 	pci_write_config_byte(pdev, addr, reset | 0x03);
 	udelay(25);
 	pci_write_config_byte(pdev, addr, reset);
-	return ata_std_softreset(ap, classes, deadline);
+	return ata_std_softreset(link, classes, deadline);
 }
 
 static void sil680_error_handler(struct ata_port *ap)
@@ -237,7 +238,6 @@ static struct scsi_host_template sil680_sht = {
 };
 
 static struct ata_port_operations sil680_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= sil680_set_piomode,
 	.set_dmamode	= sil680_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -266,9 +266,8 @@ static struct ata_port_operations sil680_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /**

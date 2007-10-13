@@ -31,7 +31,6 @@
 			timebase-frequency = <0>;	// 33 MHz, from uboot
 			clock-frequency = <0>;		// From U-Boot
 			bus-frequency = <0>;		// From U-Boot
-			32-bit;
 		};
 	};
 
@@ -44,7 +43,6 @@
   	tsi108@c0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "tsi-bridge";
 		ranges = <00000000 c0000000 00010000>;
 		reg = <c0000000 00010000>;
@@ -80,6 +78,7 @@
 		};
 
 		ethernet@6200 {
+			linux,network-index = <0>;
 			#size-cells = <0>;
 			device_type = "network";
 			compatible = "tsi108-ethernet";
@@ -92,6 +91,7 @@
 		};
 
 		ethernet@6600 {
+			linux,network-index = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "network";
@@ -128,7 +128,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <7400 400>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
                        	big-endian;
@@ -180,12 +179,14 @@
 				device_type = "pic-router";
 				#address-cells = <0>;
 				#interrupt-cells = <2>;
-				built-in;
 				big-endian;
 				interrupts = <17 2>;
 				interrupt-parent = <&mpic>;
 			};
 		};
+	};
+	chosen {
+		linux,stdout-path = "/tsi108@c0000000/serial@7808";
 	};
 
 };

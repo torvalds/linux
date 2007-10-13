@@ -124,8 +124,6 @@ static int  __init do_e2100_probe(struct net_device *dev)
 	int base_addr = dev->base_addr;
 	int irq = dev->irq;
 
-	SET_MODULE_OWNER(dev);
-
 	if (base_addr > 0x1ff)		/* Check a single specified location. */
 		return e21_probe1(dev, base_addr);
 	else if (base_addr != 0)	/* Don't probe at all. */

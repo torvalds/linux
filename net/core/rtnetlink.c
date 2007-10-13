@@ -35,6 +35,7 @@
 #include <linux/security.h>
 #include <linux/mutex.h>
 #include <linux/if_addr.h>
+#include <linux/nsproxy.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -74,8 +75,6 @@ void __rtnl_unlock(void)
 void rtnl_unlock(void)
 {
 	mutex_unlock(&rtnl_mutex);
-	if (rtnl && rtnl->sk_receive_queue.qlen)
-		rtnl->sk_data_ready(rtnl, 0);
 	netdev_run_todo();
 }
 
@@ -306,10 +305,13 @@ EXPORT_SYMBOL_GPL(rtnl_link_register);
 void __rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
 	struct net_device *dev, *n;
+	struct net *net;
 
-	for_each_netdev_safe(dev, n) {
-		if (dev->rtnl_link_ops == ops)
-			ops->dellink(dev);
+	for_each_net(net) {
+		for_each_netdev_safe(net, dev, n) {
+			if (dev->rtnl_link_ops == ops)
+				ops->dellink(dev);
+		}
 	}
 	list_del(&ops->list);
 }
@@ -634,7 +636,6 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 
 	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
 	NLA_PUT_U32(skb, IFLA_TXQLEN, dev->tx_queue_len);
-	NLA_PUT_U32(skb, IFLA_WEIGHT, dev->weight);
 	NLA_PUT_U8(skb, IFLA_OPERSTATE,
 		   netif_running(dev) ? dev->operstate : IF_OPER_DOWN);
 	NLA_PUT_U8(skb, IFLA_LINKMODE, dev->link_mode);
@@ -694,12 +695,13 @@ nla_put_failure:
 
 static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int idx;
 	int s_idx = cb->args[0];
 	struct net_device *dev;
 
 	idx = 0;
-	for_each_netdev(dev) {
+	for_each_netdev(net, dev) {
 		if (idx < s_idx)
 			goto cont;
 		if (rtnl_fill_ifinfo(skb, dev, RTM_NEWLINK,
@@ -714,7 +716,7 @@ cont:
 	return skb->len;
 }
 
-static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
+const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_IFNAME]		= { .type = NLA_STRING, .len = IFNAMSIZ-1 },
 	[IFLA_ADDRESS]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
 	[IFLA_BROADCAST]	= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
@@ -724,6 +726,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_WEIGHT]		= { .type = NLA_U32 },
 	[IFLA_OPERSTATE]	= { .type = NLA_U8 },
 	[IFLA_LINKMODE]		= { .type = NLA_U8 },
+	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -731,11 +734,44 @@ static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
 	[IFLA_INFO_DATA]	= { .type = NLA_NESTED },
 };
 
+static struct net *get_net_ns_by_pid(pid_t pid)
+{
+	struct task_struct *tsk;
+	struct net *net;
+
+	/* Lookup the network namespace */
+	net = ERR_PTR(-ESRCH);
+	rcu_read_lock();
+	tsk = find_task_by_pid(pid);
+	if (tsk) {
+		task_lock(tsk);
+		if (tsk->nsproxy)
+			net = get_net(tsk->nsproxy->net_ns);
+		task_unlock(tsk);
+	}
+	rcu_read_unlock();
+	return net;
+}
+
 static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		      struct nlattr **tb, char *ifname, int modified)
 {
 	int send_addr_notify = 0;
 	int err;
+
+	if (tb[IFLA_NET_NS_PID]) {
+		struct net *net;
+		net = get_net_ns_by_pid(nla_get_u32(tb[IFLA_NET_NS_PID]));
+		if (IS_ERR(net)) {
+			err = PTR_ERR(net);
+			goto errout;
+		}
+		err = dev_change_net_namespace(dev, net, ifname);
+		put_net(net);
+		if (err)
+			goto errout;
+		modified = 1;
+	}
 
 	if (tb[IFLA_MAP]) {
 		struct rtnl_link_ifmap *u_map;
@@ -834,9 +870,6 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	if (tb[IFLA_TXQLEN])
 		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
 
-	if (tb[IFLA_WEIGHT])
-		dev->weight = nla_get_u32(tb[IFLA_WEIGHT]);
-
 	if (tb[IFLA_OPERSTATE])
 		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
 
@@ -862,6 +895,7 @@ errout:
 
 static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ifinfomsg *ifm;
 	struct net_device *dev;
 	int err;
@@ -880,9 +914,9 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	err = -EINVAL;
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
-		dev = dev_get_by_index(ifm->ifi_index);
+		dev = dev_get_by_index(net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME])
-		dev = dev_get_by_name(ifname);
+		dev = dev_get_by_name(net, ifname);
 	else
 		goto errout;
 
@@ -908,6 +942,7 @@ errout:
 
 static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	const struct rtnl_link_ops *ops;
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
@@ -924,9 +959,9 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
-		dev = __dev_get_by_index(ifm->ifi_index);
+		dev = __dev_get_by_index(net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME])
-		dev = __dev_get_by_name(ifname);
+		dev = __dev_get_by_name(net, ifname);
 	else
 		return -EINVAL;
 
@@ -941,8 +976,52 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
+struct net_device *rtnl_create_link(struct net *net, char *ifname,
+		const struct rtnl_link_ops *ops, struct nlattr *tb[])
+{
+	int err;
+	struct net_device *dev;
+
+	err = -ENOMEM;
+	dev = alloc_netdev(ops->priv_size, ifname, ops->setup);
+	if (!dev)
+		goto err;
+
+	if (strchr(dev->name, '%')) {
+		err = dev_alloc_name(dev, dev->name);
+		if (err < 0)
+			goto err_free;
+	}
+
+	dev->nd_net = net;
+	dev->rtnl_link_ops = ops;
+
+	if (tb[IFLA_MTU])
+		dev->mtu = nla_get_u32(tb[IFLA_MTU]);
+	if (tb[IFLA_ADDRESS])
+		memcpy(dev->dev_addr, nla_data(tb[IFLA_ADDRESS]),
+				nla_len(tb[IFLA_ADDRESS]));
+	if (tb[IFLA_BROADCAST])
+		memcpy(dev->broadcast, nla_data(tb[IFLA_BROADCAST]),
+				nla_len(tb[IFLA_BROADCAST]));
+	if (tb[IFLA_TXQLEN])
+		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
+	if (tb[IFLA_OPERSTATE])
+		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
+	if (tb[IFLA_LINKMODE])
+		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
+
+	return dev;
+
+err_free:
+	free_netdev(dev);
+err:
+	return ERR_PTR(err);
+}
+
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	const struct rtnl_link_ops *ops;
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
@@ -966,9 +1045,9 @@ replay:
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
-		dev = __dev_get_by_index(ifm->ifi_index);
+		dev = __dev_get_by_index(net, ifm->ifi_index);
 	else if (ifname[0])
-		dev = __dev_get_by_name(ifname);
+		dev = __dev_get_by_name(net, ifname);
 	else
 		dev = NULL;
 
@@ -1053,40 +1132,17 @@ replay:
 
 		if (!ifname[0])
 			snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
-		dev = alloc_netdev(ops->priv_size, ifname, ops->setup);
-		if (!dev)
-			return -ENOMEM;
 
-		if (strchr(dev->name, '%')) {
-			err = dev_alloc_name(dev, dev->name);
-			if (err < 0)
-				goto err_free;
-		}
-		dev->rtnl_link_ops = ops;
+		dev = rtnl_create_link(net, ifname, ops, tb);
 
-		if (tb[IFLA_MTU])
-			dev->mtu = nla_get_u32(tb[IFLA_MTU]);
-		if (tb[IFLA_ADDRESS])
-			memcpy(dev->dev_addr, nla_data(tb[IFLA_ADDRESS]),
-			       nla_len(tb[IFLA_ADDRESS]));
-		if (tb[IFLA_BROADCAST])
-			memcpy(dev->broadcast, nla_data(tb[IFLA_BROADCAST]),
-			       nla_len(tb[IFLA_BROADCAST]));
-		if (tb[IFLA_TXQLEN])
-			dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
-		if (tb[IFLA_WEIGHT])
-			dev->weight = nla_get_u32(tb[IFLA_WEIGHT]);
-		if (tb[IFLA_OPERSTATE])
-			set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
-		if (tb[IFLA_LINKMODE])
-			dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
-
-		if (ops->newlink)
+		if (IS_ERR(dev))
+			err = PTR_ERR(dev);
+		else if (ops->newlink)
 			err = ops->newlink(dev, tb, data);
 		else
 			err = register_netdevice(dev);
-err_free:
-		if (err < 0)
+
+		if (err < 0 && !IS_ERR(dev))
 			free_netdev(dev);
 		return err;
 	}
@@ -1094,6 +1150,7 @@ err_free:
 
 static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ifinfomsg *ifm;
 	struct nlattr *tb[IFLA_MAX+1];
 	struct net_device *dev = NULL;
@@ -1106,7 +1163,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0) {
-		dev = dev_get_by_index(ifm->ifi_index);
+		dev = dev_get_by_index(net, ifm->ifi_index);
 		if (dev == NULL)
 			return -ENODEV;
 	} else
@@ -1255,22 +1312,20 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return doit(skb, nlh, (void *)&rta_buf[0]);
 }
 
-static void rtnetlink_rcv(struct sock *sk, int len)
+static void rtnetlink_rcv(struct sk_buff *skb)
 {
-	unsigned int qlen = 0;
-
-	do {
-		mutex_lock(&rtnl_mutex);
-		netlink_run_queue(sk, &qlen, &rtnetlink_rcv_msg);
-		mutex_unlock(&rtnl_mutex);
-
-		netdev_run_todo();
-	} while (qlen);
+	rtnl_lock();
+	netlink_rcv_skb(skb, &rtnetlink_rcv_msg);
+	rtnl_unlock();
 }
 
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	switch (event) {
 	case NETDEV_UNREGISTER:
 		rtmsg_ifinfo(RTM_DELLINK, dev, ~0U);
@@ -1308,8 +1363,8 @@ void __init rtnetlink_init(void)
 	if (!rta_buf)
 		panic("rtnetlink_init: cannot allocate rta_buf\n");
 
-	rtnl = netlink_kernel_create(NETLINK_ROUTE, RTNLGRP_MAX, rtnetlink_rcv,
-				     &rtnl_mutex, THIS_MODULE);
+	rtnl = netlink_kernel_create(&init_net, NETLINK_ROUTE, RTNLGRP_MAX,
+				     rtnetlink_rcv, &rtnl_mutex, THIS_MODULE);
 	if (rtnl == NULL)
 		panic("rtnetlink_init: cannot initialize rtnetlink\n");
 	netlink_set_nonroot(NETLINK_ROUTE, NL_NONROOT_RECV);
@@ -1335,3 +1390,5 @@ EXPORT_SYMBOL(rtnl_unlock);
 EXPORT_SYMBOL(rtnl_unicast);
 EXPORT_SYMBOL(rtnl_notify);
 EXPORT_SYMBOL(rtnl_set_sk_err);
+EXPORT_SYMBOL(rtnl_create_link);
+EXPORT_SYMBOL(ifla_policy);

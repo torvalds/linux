@@ -51,6 +51,7 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 
+#include <net/net_namespace.h>
 #include <net/syncppp.h>
 
 #include <asm/byteorder.h>
@@ -358,8 +359,10 @@ done:
  *	Handle transmit packets.
  */
  
-static int sppp_hard_header(struct sk_buff *skb, struct net_device *dev, __u16 type,
-		void *daddr, void *saddr, unsigned int len)
+static int sppp_hard_header(struct sk_buff *skb,
+			    struct net_device *dev, __u16 type,
+			    const void *daddr, const void *saddr,
+			    unsigned int len)
 {
 	struct sppp *sp = (struct sppp *)sppp_of(dev);
 	struct ppp_header *h;
@@ -391,10 +394,9 @@ static int sppp_hard_header(struct sk_buff *skb, struct net_device *dev, __u16 t
 	return sizeof(struct ppp_header);
 }
 
-static int sppp_rebuild_header(struct sk_buff *skb)
-{
-	return 0;
-}
+static const struct header_ops sppp_header_ops = {
+	.create = sppp_hard_header,
+};
 
 /*
  * Send keepalive packets, every 10 seconds.
@@ -1097,8 +1099,8 @@ void sppp_attach(struct ppp_device *pd)
 	 *	hard_start_xmit.
 	 */
 	 
-	dev->hard_header = sppp_hard_header;
-	dev->rebuild_header = sppp_rebuild_header;
+	dev->header_ops = &sppp_header_ops;
+
 	dev->tx_queue_len = 10;
 	dev->type = ARPHRD_HDLC;
 	dev->addr_len = 0;
@@ -1114,8 +1116,6 @@ void sppp_attach(struct ppp_device *pd)
 	dev->stop = sppp_close;
 #endif	
 	dev->change_mtu = sppp_change_mtu;
-	dev->hard_header_cache = NULL;
-	dev->header_cache_update = NULL;
 	dev->flags = IFF_MULTICAST|IFF_POINTOPOINT|IFF_NOARP;
 }
 
@@ -1445,6 +1445,11 @@ static void sppp_print_bytes (u_char *p, u16 len)
 
 static int sppp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p, struct net_device *orig_dev)
 {
+	if (dev->nd_net != &init_net) {
+		kfree_skb(skb);
+		return 0;
+	}
+
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;
 	sppp_input(dev,skb);

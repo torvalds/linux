@@ -121,7 +121,7 @@ static void r3k_flush_icache_range(unsigned long start, unsigned long end)
 	write_c0_status((ST0_ISC|ST0_SWC|flags)&~ST0_IEC);
 
 	for (i = 0; i < size; i += 0x080) {
-		asm ( 	"sb\t$0, 0x000(%0)\n\t"
+		asm( 	"sb\t$0, 0x000(%0)\n\t"
 			"sb\t$0, 0x004(%0)\n\t"
 			"sb\t$0, 0x008(%0)\n\t"
 			"sb\t$0, 0x00c(%0)\n\t"
@@ -178,7 +178,7 @@ static void r3k_flush_dcache_range(unsigned long start, unsigned long end)
 	write_c0_status((ST0_ISC|flags)&~ST0_IEC);
 
 	for (i = 0; i < size; i += 0x080) {
-		asm ( 	"sb\t$0, 0x000(%0)\n\t"
+		asm( 	"sb\t$0, 0x000(%0)\n\t"
 			"sb\t$0, 0x004(%0)\n\t"
 			"sb\t$0, 0x008(%0)\n\t"
 			"sb\t$0, 0x00c(%0)\n\t"
@@ -217,8 +217,8 @@ static void r3k_flush_dcache_range(unsigned long start, unsigned long end)
 	write_c0_status(flags);
 }
 
-static inline unsigned long get_phys_page (unsigned long addr,
-					   struct mm_struct *mm)
+static inline unsigned long get_phys_page(unsigned long addr,
+					  struct mm_struct *mm)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -281,13 +281,13 @@ static void r3k_flush_cache_sigtramp(unsigned long addr)
 	write_c0_status(flags&~ST0_IEC);
 
 	/* Fill the TLB to avoid an exception with caches isolated. */
-	asm ( 	"lw\t$0, 0x000(%0)\n\t"
+	asm( 	"lw\t$0, 0x000(%0)\n\t"
 		"lw\t$0, 0x004(%0)\n\t"
 		: : "r" (addr) );
 
 	write_c0_status((ST0_ISC|ST0_SWC|flags)&~ST0_IEC);
 
-	asm ( 	"sb\t$0, 0x000(%0)\n\t"
+	asm( 	"sb\t$0, 0x000(%0)\n\t"
 		"sb\t$0, 0x004(%0)\n\t"
 		: : "r" (addr) );
 

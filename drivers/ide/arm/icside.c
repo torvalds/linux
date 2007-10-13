@@ -248,15 +248,9 @@ static void icside_build_sglist(ide_drive_t *drive, struct request *rq)
  *	MW1	80	50	50	150	C
  *	MW2	70	25	25	120	C
  */
-static int icside_set_speed(ide_drive_t *drive, u8 xfer_mode)
+static int icside_set_speed(ide_drive_t *drive, const u8 xfer_mode)
 {
-	int on = 0, cycle_time = 0, use_dma_info = 0;
-
-	/*
-	 * Limit the transfer speed to MW_DMA_2.
-	 */
-	if (xfer_mode > XFER_MW_DMA_2)
-		xfer_mode = XFER_MW_DMA_2;
+	int cycle_time, use_dma_info = 0;
 
 	switch (xfer_mode) {
 	case XFER_MW_DMA_2:
@@ -278,6 +272,8 @@ static int icside_set_speed(ide_drive_t *drive, u8 xfer_mode)
 	case XFER_SW_DMA_0:
 		cycle_time = 480;
 		break;
+	default:
+		return 1;
 	}
 
 	/*
@@ -289,17 +285,10 @@ static int icside_set_speed(ide_drive_t *drive, u8 xfer_mode)
 
 	drive->drive_data = cycle_time;
 
-	if (cycle_time && ide_config_drive_speed(drive, xfer_mode) == 0)
-		on = 1;
-	else
-		drive->drive_data = 480;
-
 	printk("%s: %s selected (peak %dMB/s)\n", drive->name,
 		ide_xfer_verbose(xfer_mode), 2000 / drive->drive_data);
 
-	drive->current_speed = xfer_mode;
-
-	return on;
+	return ide_config_drive_speed(drive, xfer_mode);
 }
 
 static void icside_dma_host_off(ide_drive_t *drive)
@@ -326,8 +315,7 @@ static int icside_dma_check(ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
 	ide_hwif_t *hwif = HWIF(drive);
-	int xfer_mode = XFER_PIO_2;
-	int on;
+	int xfer_mode = 0;
 
 	if (!(id->capability & 1) || !hwif->autodma)
 		goto out;
@@ -356,9 +344,10 @@ static int icside_dma_check(ide_drive_t *drive)
 	}
 
 out:
-	on = icside_set_speed(drive, xfer_mode);
+	if (xfer_mode == 0)
+		return -1;
 
-	return on ? 0 : -1;
+	return icside_set_speed(drive, xfer_mode) ? -1 : 0;
 }
 
 static int icside_dma_end(ide_drive_t *drive)

@@ -1,7 +1,8 @@
 /* DVB USB compliant Linux driver for the
- *  - GENPIX 8pks/qpsk USB2.0 DVB-S module
+ *  - GENPIX 8pks/qpsk/DCII USB2.0 DVB-S module
  *
- * Copyright (C) 2006 Alan Nisota (alannisota@gmail.com)
+ * Copyright (C) 2006,2007 Alan Nisota (alannisota@gmail.com)
+ * Copyright (C) 2006,2007 Genpix Electronics (genpix@genpix-electronics.com)
  *
  * Thanks to GENPIX for the sample code used to implement this module.
  *
@@ -17,27 +18,39 @@
 
 struct gp8psk_fe_state {
 	struct dvb_frontend fe;
-
 	struct dvb_usb_device *d;
-
+	u8 lock;
 	u16 snr;
-
-	unsigned long next_snr_check;
+	unsigned long next_status_check;
+	unsigned long status_check_interval;
 };
+
+static int gp8psk_fe_update_status(struct gp8psk_fe_state *st)
+{
+	u8 buf[6];
+	if (time_after(jiffies,st->next_status_check)) {
+		gp8psk_usb_in_op(st->d, GET_SIGNAL_LOCK, 0,0,&st->lock,1);
+		gp8psk_usb_in_op(st->d, GET_SIGNAL_STRENGTH, 0,0,buf,6);
+		st->snr = (buf[1]) << 8 | buf[0];
+		st->next_status_check = jiffies + (st->status_check_interval*HZ)/1000;
+	}
+	return 0;
+}
 
 static int gp8psk_fe_read_status(struct dvb_frontend* fe, fe_status_t *status)
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
-	u8 lock;
+	gp8psk_fe_update_status(st);
 
-	if (gp8psk_usb_in_op(st->d, GET_SIGNAL_LOCK, 0, 0, &lock,1))
-		return -EINVAL;
-
-	if (lock)
+	if (st->lock)
 		*status = FE_HAS_LOCK | FE_HAS_SYNC | FE_HAS_VITERBI | FE_HAS_SIGNAL | FE_HAS_CARRIER;
 	else
 		*status = 0;
 
+	if (*status & FE_HAS_LOCK)
+		st->status_check_interval = 1000;
+	else
+		st->status_check_interval = 100;
 	return 0;
 }
 
@@ -60,33 +73,29 @@ static int gp8psk_fe_read_unc_blocks(struct dvb_frontend* fe, u32 *unc)
 static int gp8psk_fe_read_snr(struct dvb_frontend* fe, u16 *snr)
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
-	u8 buf[2];
-
-	if (time_after(jiffies,st->next_snr_check)) {
-		gp8psk_usb_in_op(st->d,GET_SIGNAL_STRENGTH,0,0,buf,2);
-		*snr = (int)(buf[1]) << 8 | buf[0];
-		/* snr is reported in dBu*256 */
-		/* snr / 38.4 ~= 100% strength */
-		/* snr * 17 returns 100% strength as 65535 */
-		if (*snr <= 3855)
-			*snr = (*snr<<4) + *snr; // snr * 17
-		else
-			*snr = 65535;
-		st->next_snr_check = jiffies + (10*HZ)/1000;
-	} else {
-		*snr = st->snr;
-	}
+	gp8psk_fe_update_status(st);
+	/* snr is reported in dBu*256 */
+	*snr = st->snr;
 	return 0;
 }
 
 static int gp8psk_fe_read_signal_strength(struct dvb_frontend* fe, u16 *strength)
 {
-	return gp8psk_fe_read_snr(fe, strength);
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
+	gp8psk_fe_update_status(st);
+	/* snr is reported in dBu*256 */
+	/* snr / 38.4 ~= 100% strength */
+	/* snr * 17 returns 100% strength as 65535 */
+	if (st->snr > 0xf00)
+		*strength = 0xffff;
+	else
+		*strength = (st->snr << 4) + st->snr; /* snr*17 */
+	return 0;
 }
 
 static int gp8psk_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings *tune)
 {
-	tune->min_delay_ms = 800;
+	tune->min_delay_ms = 200;
 	return 0;
 }
 
@@ -124,7 +133,9 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend* fe,
 
 	gp8psk_usb_out_op(state->d,TUNE_8PSK,0,0,cmd,10);
 
-	state->next_snr_check = jiffies;
+	state->lock = 0;
+	state->next_status_check = jiffies;
+	state->status_check_interval = 200;
 
 	return 0;
 }
@@ -190,6 +201,12 @@ static int gp8psk_fe_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t volt
 	return 0;
 }
 
+static int gp8psk_fe_enable_high_lnb_voltage(struct dvb_frontend* fe, long onoff)
+{
+	struct gp8psk_fe_state* state = fe->demodulator_priv;
+	return gp8psk_usb_out_op(state->d, USE_EXTRA_VOLT, onoff, 0,NULL,0);
+}
+
 static int gp8psk_fe_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long sw_cmd)
 {
 	struct gp8psk_fe_state* state = fe->demodulator_priv;
@@ -235,10 +252,10 @@ success:
 
 static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.info = {
-		.name			= "Genpix 8psk-USB DVB-S",
+		.name			= "Genpix 8psk-to-USB2 DVB-S",
 		.type			= FE_QPSK,
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
+		.frequency_min		= 800000,
+		.frequency_max		= 2250000,
 		.frequency_stepsize	= 100,
 		.symbol_rate_min        = 1000000,
 		.symbol_rate_max        = 45000000,
@@ -269,4 +286,5 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.set_tone = gp8psk_fe_set_tone,
 	.set_voltage = gp8psk_fe_set_voltage,
 	.dishnetwork_send_legacy_command = gp8psk_fe_send_legacy_dish_cmd,
+	.enable_high_lnb_voltage = gp8psk_fe_enable_high_lnb_voltage
 };

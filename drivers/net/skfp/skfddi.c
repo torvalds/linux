@@ -260,9 +260,7 @@ static int skfp_init_one(struct pci_dev *pdev,
 	dev->set_multicast_list = &skfp_ctl_set_multicast_list;
 	dev->set_mac_address = &skfp_ctl_set_mac_address;
 	dev->do_ioctl = &skfp_ioctl;
-	dev->header_cache_update = NULL;	/* not supported */
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	/* Initialize board structure with bus-specific info */

@@ -33,8 +33,10 @@ static void pvr2_context_destroy(struct pvr2_context *mp)
 {
 	if (mp->hdw) pvr2_hdw_destroy(mp->hdw);
 	pvr2_trace(PVR2_TRACE_STRUCT,"Destroying pvr_main id=%p",mp);
-	flush_workqueue(mp->workqueue);
-	destroy_workqueue(mp->workqueue);
+	if (mp->workqueue) {
+		flush_workqueue(mp->workqueue);
+		destroy_workqueue(mp->workqueue);
+	}
 	kfree(mp);
 }
 

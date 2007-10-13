@@ -52,9 +52,9 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/of_platform.h>
+#include <asm/cell-regs.h>
 
 #include "interrupt.h"
-#include "cbe_regs.h"
 #include "pervasive.h"
 #include "ras.h"
 
@@ -83,12 +83,22 @@ static void cell_progress(char *s, unsigned short hex)
 
 static int __init cell_publish_devices(void)
 {
+	int node;
+
 	if (!machine_is(cell))
 		return 0;
 
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, NULL, NULL);
 
+	/* There is no device for the MIC memory controller, thus we create
+	 * a platform device for it to attach the EDAC driver to.
+	 */
+	for_each_online_node(node) {
+		if (cbe_get_cpu_mic_tm_regs(cbe_node_to_cpu(node)) == NULL)
+			continue;
+		platform_device_register_simple("cbe-mic", node, NULL, 0);
+	}
 	return 0;
 }
 device_initcall(cell_publish_devices);
@@ -160,11 +170,6 @@ static void __init cell_setup_arch(void)
 #endif
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000;
-
-	if (ROOT_DEV == 0) {
-		printk("No ramdisk, default root is /dev/hda2\n");
-		ROOT_DEV = Root_HDA2;
-	}
 
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();

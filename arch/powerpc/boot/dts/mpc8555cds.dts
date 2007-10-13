@@ -30,7 +30,6 @@
 			timebase-frequency = <0>;	//  33 MHz, from uboot
 			bus-frequency = <0>;	// 166 MHz
 			clock-frequency = <0>;	// 825 MHz, from uboot
-			32-bit;
 		};
 	};
 
@@ -42,10 +41,9 @@
 	soc8555@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
-		reg = <e0000000 00100000>;	// CCSRBAR 1M
+		reg = <e0000000 00001000>;	// CCSRBAR 1M
 		bus-frequency = <0>;
 
 		memory-controller@2000 {
@@ -137,113 +135,145 @@
 			interrupt-parent = <&mpic>;
 		};
 
-		pci1: pci@8000 {
-			interrupt-map-mask = <1f800 0 0 7>;
-			interrupt-map = <
-
-				/* IDSEL 0x10 */
-				08000 0 0 1 &mpic 0 1
-				08000 0 0 2 &mpic 1 1
-				08000 0 0 3 &mpic 2 1
-				08000 0 0 4 &mpic 3 1
-
-				/* IDSEL 0x11 */
-				08800 0 0 1 &mpic 0 1
-				08800 0 0 2 &mpic 1 1
-				08800 0 0 3 &mpic 2 1
-				08800 0 0 4 &mpic 3 1
-
-				/* IDSEL 0x12 (Slot 1) */
-				09000 0 0 1 &mpic 0 1
-				09000 0 0 2 &mpic 1 1
-				09000 0 0 3 &mpic 2 1
-				09000 0 0 4 &mpic 3 1
-
-				/* IDSEL 0x13 (Slot 2) */
-				09800 0 0 1 &mpic 1 1
-				09800 0 0 2 &mpic 2 1
-				09800 0 0 3 &mpic 3 1
-				09800 0 0 4 &mpic 0 1
-
-				/* IDSEL 0x14 (Slot 3) */
-				0a000 0 0 1 &mpic 2 1
-				0a000 0 0 2 &mpic 3 1
-				0a000 0 0 3 &mpic 0 1
-				0a000 0 0 4 &mpic 1 1
-
-				/* IDSEL 0x15 (Slot 4) */
-				0a800 0 0 1 &mpic 3 1
-				0a800 0 0 2 &mpic 0 1
-				0a800 0 0 3 &mpic 1 1
-				0a800 0 0 4 &mpic 2 1
-
-				/* Bus 1 (Tundra Bridge) */
-				/* IDSEL 0x12 (ISA bridge) */
-				19000 0 0 1 &mpic 0 1
-				19000 0 0 2 &mpic 1 1
-				19000 0 0 3 &mpic 2 1
-				19000 0 0 4 &mpic 3 1>;
-			interrupt-parent = <&mpic>;
-			interrupts = <18 2>;
-			bus-range = <0 0>;
-			ranges = <02000000 0 80000000 80000000 0 20000000
-				  01000000 0 00000000 e2000000 0 00100000>;
-			clock-frequency = <3f940aa>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <8000 1000>;
-			compatible = "fsl,mpc8540-pci";
-			device_type = "pci";
-
-			i8259@19000 {
-				clock-frequency = <0>;
-				interrupt-controller;
-				device_type = "interrupt-controller";
-				reg = <19000 0 0 0 1>;
-				#address-cells = <0>;
-				#interrupt-cells = <2>;
-				built-in;
-				compatible = "chrp,iic";
-				big-endian;
-				interrupts = <1>;
-				interrupt-parent = <&pci1>;
-			};
-		};
-
-		pci@9000 {
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-
-				/* IDSEL 0x15 */
-				a800 0 0 1 &mpic b 1
-				a800 0 0 2 &mpic b 1
-				a800 0 0 3 &mpic b 1
-				a800 0 0 4 &mpic b 1>;
-			interrupt-parent = <&mpic>;
-			interrupts = <19 2>;
-			bus-range = <0 0>;
-			ranges = <02000000 0 a0000000 a0000000 0 20000000
-				  01000000 0 00000000 e3000000 0 00100000>;
-			clock-frequency = <3f940aa>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <9000 1000>;
-			compatible = "fsl,mpc8540-pci";
-			device_type = "pci";
-		};
-
 		mpic: pic@40000 {
 			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
                         big-endian;
 		};
+
+		cpm@919c0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8555-cpm", "fsl,cpm2";
+			reg = <919c0 30>;
+			ranges;
+
+			muram@80000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 80000 10000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0 2000 9000 1000>;
+				};
+			};
+
+			brg@919f0 {
+				compatible = "fsl,mpc8555-brg",
+				             "fsl,cpm2-brg",
+				             "fsl,cpm-brg";
+				reg = <919f0 10 915f0 10>;
+			};
+
+			cpmpic: pic@90c00 {
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <2>;
+				interrupts = <2e 2>;
+				interrupt-parent = <&mpic>;
+				reg = <90c00 80>;
+				compatible = "fsl,mpc8555-cpm-pic", "fsl,cpm2-pic";
+			};
+		};
+	};
+
+	pci1: pci@e0008000 {
+		interrupt-map-mask = <1f800 0 0 7>;
+		interrupt-map = <
+
+			/* IDSEL 0x10 */
+			08000 0 0 1 &mpic 0 1
+			08000 0 0 2 &mpic 1 1
+			08000 0 0 3 &mpic 2 1
+			08000 0 0 4 &mpic 3 1
+
+			/* IDSEL 0x11 */
+			08800 0 0 1 &mpic 0 1
+			08800 0 0 2 &mpic 1 1
+			08800 0 0 3 &mpic 2 1
+			08800 0 0 4 &mpic 3 1
+
+			/* IDSEL 0x12 (Slot 1) */
+			09000 0 0 1 &mpic 0 1
+			09000 0 0 2 &mpic 1 1
+			09000 0 0 3 &mpic 2 1
+			09000 0 0 4 &mpic 3 1
+
+			/* IDSEL 0x13 (Slot 2) */
+			09800 0 0 1 &mpic 1 1
+			09800 0 0 2 &mpic 2 1
+			09800 0 0 3 &mpic 3 1
+			09800 0 0 4 &mpic 0 1
+
+			/* IDSEL 0x14 (Slot 3) */
+			0a000 0 0 1 &mpic 2 1
+			0a000 0 0 2 &mpic 3 1
+			0a000 0 0 3 &mpic 0 1
+			0a000 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x15 (Slot 4) */
+			0a800 0 0 1 &mpic 3 1
+			0a800 0 0 2 &mpic 0 1
+			0a800 0 0 3 &mpic 1 1
+			0a800 0 0 4 &mpic 2 1
+
+			/* Bus 1 (Tundra Bridge) */
+			/* IDSEL 0x12 (ISA bridge) */
+			19000 0 0 1 &mpic 0 1
+			19000 0 0 2 &mpic 1 1
+			19000 0 0 3 &mpic 2 1
+			19000 0 0 4 &mpic 3 1>;
+		interrupt-parent = <&mpic>;
+		interrupts = <18 2>;
+		bus-range = <0 0>;
+		ranges = <02000000 0 80000000 80000000 0 20000000
+			  01000000 0 00000000 e2000000 0 00100000>;
+		clock-frequency = <3f940aa>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e0008000 1000>;
+		compatible = "fsl,mpc8540-pci";
+		device_type = "pci";
+
+		i8259@19000 {
+			interrupt-controller;
+			device_type = "interrupt-controller";
+			reg = <19000 0 0 0 1>;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			compatible = "chrp,iic";
+			interrupts = <1>;
+			interrupt-parent = <&pci1>;
+		};
+	};
+
+	pci@e0009000 {
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+
+			/* IDSEL 0x15 */
+			a800 0 0 1 &mpic b 1
+			a800 0 0 2 &mpic b 1
+			a800 0 0 3 &mpic b 1
+			a800 0 0 4 &mpic b 1>;
+		interrupt-parent = <&mpic>;
+		interrupts = <19 2>;
+		bus-range = <0 0>;
+		ranges = <02000000 0 a0000000 a0000000 0 20000000
+			  01000000 0 00000000 e3000000 0 00100000>;
+		clock-frequency = <3f940aa>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e0009000 1000>;
+		compatible = "fsl,mpc8540-pci";
+		device_type = "pci";
 	};
 };

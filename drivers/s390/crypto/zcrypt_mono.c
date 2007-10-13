@@ -45,7 +45,7 @@
 /**
  * The module initialization code.
  */
-int __init zcrypt_init(void)
+static int __init zcrypt_init(void)
 {
 	int rc;
 
@@ -86,7 +86,7 @@ out:
 /**
  * The module termination code.
  */
-void __exit zcrypt_exit(void)
+static void __exit zcrypt_exit(void)
 {
 	zcrypt_cex2a_exit();
 	zcrypt_pcixcc_exit();

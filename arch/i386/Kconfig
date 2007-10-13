@@ -226,7 +226,7 @@ config PARAVIRT
 	  However, when run without a hypervisor the kernel is
 	  theoretically slower.  If in doubt, say N.
 
-source "arch/i386/xen/Kconfig"
+source "arch/x86/xen/Kconfig"
 
 config VMI
 	bool "VMI Paravirt-ops support"
@@ -707,7 +707,7 @@ config MATH_EMULATION
 	  intend to use this kernel on different machines.
 
 	  More information about the internals of the Linux math coprocessor
-	  emulation can be found in <file:arch/i386/math-emu/README>.
+	  emulation can be found in <file:arch/x86/math-emu/README>.
 
 	  If you are not sure, say Y; apart from resulting in a 66 KB bigger
 	  kernel, it won't hurt.
@@ -1067,7 +1067,7 @@ config APM_REAL_MODE_POWER_OFF
 
 endif # APM
 
-source "arch/i386/kernel/cpu/cpufreq/Kconfig"
+source "arch/x86/kernel/cpu/cpufreq/Kconfig"
 
 endmenu
 
@@ -1135,6 +1135,11 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool
 	depends on PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
+	default y
+
+config PCI_DOMAINS
+	bool
+	depends on PCI
 	default y
 
 source "drivers/pci/pcie/Kconfig"
@@ -1206,6 +1211,16 @@ config SCx200HR_TIMER
 	  processor goes idle (as is done by the scheduler).  The
 	  other workaround is idle=poll boot option.
 
+config GEODE_MFGPT_TIMER
+	bool "Geode Multi-Function General Purpose Timer (MFGPT) events"
+	depends on MGEODE_LX && GENERIC_TIME && GENERIC_CLOCKEVENTS
+	default y
+	help
+	  This driver provides a clock event source based on the MFGPT
+	  timer(s) in the CS5535 and CS5536 companion chip for the geode.
+	  MFGPTs have a better resolution and max interval than the
+	  generic PIT, and are suitable for use as high-res timers.
+
 config K8_NB
 	def_bool y
 	depends on AGP_AMD64
@@ -1240,7 +1255,7 @@ menuconfig INSTRUMENTATION
 
 if INSTRUMENTATION
 
-source "arch/i386/oprofile/Kconfig"
+source "arch/x86/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes"

@@ -32,7 +32,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp);
 
 void gfs2_trans_add_gl(struct gfs2_glock *gl);
 void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta);
-void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, u64 blkno);
+void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
 void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno);
 void gfs2_trans_add_rg(struct gfs2_rgrpd *rgd);
 

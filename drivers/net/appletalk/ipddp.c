@@ -65,7 +65,6 @@ static struct net_device * __init ipddp_init(void)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	SET_MODULE_OWNER(dev);
 	strcpy(dev->name, "ipddp%d");
 
 	if (version_printed++ == 0)
@@ -117,7 +116,7 @@ static struct net_device_stats *ipddp_get_stats(struct net_device *dev)
  */
 static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	u32 paddr = ((struct rtable*)skb->dst)->rt_gateway;
+	__be32 paddr = ((struct rtable*)skb->dst)->rt_gateway;
         struct ddpehdr *ddp;
         struct ipddp_route *rt;
         struct atalk_addr *our_addr;

@@ -54,7 +54,6 @@ extern int of_device_is_compatible(const struct device_node *device,
 extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
-#define get_property(a, b, c)	of_get_property((a), (b), (c))
 extern int of_n_addr_cells(struct device_node *np);
 extern int of_n_size_cells(struct device_node *np);
 

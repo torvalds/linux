@@ -29,6 +29,7 @@ initrd=
 dtb=
 dts=
 cacheit=
+binary=
 gzip=.gz
 
 # cross-compilation prefix
@@ -142,16 +143,22 @@ miboot|uboot)
     isection=initrd
     ;;
 cuboot*)
+    binary=y
     gzip=
     ;;
 ps3)
     platformo="$object/ps3-head.o $object/ps3-hvcall.o $object/ps3.o"
     lds=$object/zImage.ps3.lds
+    binary=y
     gzip=
     ext=bin
     objflags="-O binary --set-section-flags=.bss=contents,alloc,load,data"
     ksection=.kernel:vmlinux.bin
     isection=.kernel:initrd
+    ;;
+ep88xc)
+    platformo="$object/fixed-head.o $object/$platform.o"
+    binary=y
     ;;
 esac
 
@@ -224,6 +231,11 @@ fi
 base=0x`${CROSS}nm "$ofile" | grep ' _start$' | cut -d' ' -f1`
 entry=`${CROSS}objdump -f "$ofile" | grep '^start address ' | cut -d' ' -f3`
 
+if [ -n "$binary" ]; then
+    mv "$ofile" "$ofile".elf
+    ${CROSS}objcopy -O binary "$ofile".elf "$ofile".bin
+fi
+
 # post-processing needed for some platforms
 case "$platform" in
 pseries|chrp)
@@ -234,8 +246,6 @@ coff)
     $object/hack-coff "$ofile"
     ;;
 cuboot*)
-    mv "$ofile" "$ofile".elf
-    ${CROSS}objcopy -O binary "$ofile".elf "$ofile".bin
     gzip -f -9 "$ofile".bin
     mkimage -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
             $uboot_version -d "$ofile".bin.gz "$ofile"
@@ -259,11 +269,11 @@ ps3)
     # then copied to offset 0x100.  At runtime the bootwrapper program
     # copies the 0x100 bytes at __system_reset_kernel to addr 0x100.
 
-    system_reset_overlay=0x`${CROSS}nm "$ofile" \
+    system_reset_overlay=0x`${CROSS}nm "$ofile".elf \
         | grep ' __system_reset_overlay$'       \
         | cut -d' ' -f1`
     system_reset_overlay=`printf "%d" $system_reset_overlay`
-    system_reset_kernel=0x`${CROSS}nm "$ofile" \
+    system_reset_kernel=0x`${CROSS}nm "$ofile".elf \
         | grep ' __system_reset_kernel$'       \
         | cut -d' ' -f1`
     system_reset_kernel=`printf "%d" $system_reset_kernel`
@@ -271,8 +281,6 @@ ps3)
     overlay_size="256"
 
     rm -f "$object/otheros.bld"
-
-    ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
 
     msg=$(dd if="$ofile.bin" of="$ofile.bin" conv=notrunc \
         skip=$overlay_dest seek=$system_reset_kernel      \

@@ -24,7 +24,7 @@
 #define OF_ROOT_NODE_ADDR_CELLS_DEFAULT	1
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT	1
 
-#define of_compat_cmp(s1, s2, l)	strncasecmp((s1), (s2), (l))
+#define of_compat_cmp(s1, s2, l)	strcasecmp((s1), (s2))
 #define of_prop_cmp(s1, s2)		strcmp((s1), (s2))
 #define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
 
@@ -145,7 +145,6 @@ extern void of_detach_node(struct device_node *);
 extern void finish_device_tree(void);
 extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
-#define device_is_compatible(d, c)	of_device_is_compatible((d), (c))
 extern int machine_is_compatible(const char *compat);
 extern void print_properties(struct device_node *node);
 extern int prom_n_intr_cells(struct device_node* np);

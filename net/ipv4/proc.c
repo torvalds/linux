@@ -34,6 +34,7 @@
  *		2 of the License, or (at your option) any later version.
  */
 #include <linux/types.h>
+#include <net/net_namespace.h>
 #include <net/icmp.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
@@ -123,32 +124,29 @@ static const struct snmp_mib snmp4_ipextstats_list[] = {
 static const struct snmp_mib snmp4_icmp_list[] = {
 	SNMP_MIB_ITEM("InMsgs", ICMP_MIB_INMSGS),
 	SNMP_MIB_ITEM("InErrors", ICMP_MIB_INERRORS),
-	SNMP_MIB_ITEM("InDestUnreachs", ICMP_MIB_INDESTUNREACHS),
-	SNMP_MIB_ITEM("InTimeExcds", ICMP_MIB_INTIMEEXCDS),
-	SNMP_MIB_ITEM("InParmProbs", ICMP_MIB_INPARMPROBS),
-	SNMP_MIB_ITEM("InSrcQuenchs", ICMP_MIB_INSRCQUENCHS),
-	SNMP_MIB_ITEM("InRedirects", ICMP_MIB_INREDIRECTS),
-	SNMP_MIB_ITEM("InEchos", ICMP_MIB_INECHOS),
-	SNMP_MIB_ITEM("InEchoReps", ICMP_MIB_INECHOREPS),
-	SNMP_MIB_ITEM("InTimestamps", ICMP_MIB_INTIMESTAMPS),
-	SNMP_MIB_ITEM("InTimestampReps", ICMP_MIB_INTIMESTAMPREPS),
-	SNMP_MIB_ITEM("InAddrMasks", ICMP_MIB_INADDRMASKS),
-	SNMP_MIB_ITEM("InAddrMaskReps", ICMP_MIB_INADDRMASKREPS),
 	SNMP_MIB_ITEM("OutMsgs", ICMP_MIB_OUTMSGS),
 	SNMP_MIB_ITEM("OutErrors", ICMP_MIB_OUTERRORS),
-	SNMP_MIB_ITEM("OutDestUnreachs", ICMP_MIB_OUTDESTUNREACHS),
-	SNMP_MIB_ITEM("OutTimeExcds", ICMP_MIB_OUTTIMEEXCDS),
-	SNMP_MIB_ITEM("OutParmProbs", ICMP_MIB_OUTPARMPROBS),
-	SNMP_MIB_ITEM("OutSrcQuenchs", ICMP_MIB_OUTSRCQUENCHS),
-	SNMP_MIB_ITEM("OutRedirects", ICMP_MIB_OUTREDIRECTS),
-	SNMP_MIB_ITEM("OutEchos", ICMP_MIB_OUTECHOS),
-	SNMP_MIB_ITEM("OutEchoReps", ICMP_MIB_OUTECHOREPS),
-	SNMP_MIB_ITEM("OutTimestamps", ICMP_MIB_OUTTIMESTAMPS),
-	SNMP_MIB_ITEM("OutTimestampReps", ICMP_MIB_OUTTIMESTAMPREPS),
-	SNMP_MIB_ITEM("OutAddrMasks", ICMP_MIB_OUTADDRMASKS),
-	SNMP_MIB_ITEM("OutAddrMaskReps", ICMP_MIB_OUTADDRMASKREPS),
 	SNMP_MIB_SENTINEL
 };
+
+static struct {
+	char *name;
+	int index;
+} icmpmibmap[] = {
+	{ "DestUnreachs", ICMP_DEST_UNREACH },
+	{ "TimeExcds", ICMP_TIME_EXCEEDED },
+	{ "ParmProbs", ICMP_PARAMETERPROB },
+	{ "SrcQuenchs", ICMP_SOURCE_QUENCH },
+	{ "Redirects", ICMP_REDIRECT },
+	{ "Echos", ICMP_ECHO },
+	{ "EchoReps", ICMP_ECHOREPLY },
+	{ "Timestamps", ICMP_TIMESTAMP },
+	{ "TimestampReps", ICMP_TIMESTAMPREPLY },
+	{ "AddrMasks", ICMP_ADDRESS },
+	{ "AddrMaskReps", ICMP_ADDRESSREPLY },
+	{ NULL, 0 }
+};
+
 
 static const struct snmp_mib snmp4_tcp_list[] = {
 	SNMP_MIB_ITEM("RtoAlgorithm", TCP_MIB_RTOALGORITHM),
@@ -244,8 +242,78 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPAbortOnLinger", LINUX_MIB_TCPABORTONLINGER),
 	SNMP_MIB_ITEM("TCPAbortFailed", LINUX_MIB_TCPABORTFAILED),
 	SNMP_MIB_ITEM("TCPMemoryPressures", LINUX_MIB_TCPMEMORYPRESSURES),
+	SNMP_MIB_ITEM("TCPSACKDiscard", LINUX_MIB_TCPSACKDISCARD),
+	SNMP_MIB_ITEM("TCPDSACKIgnoredOld", LINUX_MIB_TCPDSACKIGNOREDOLD),
+	SNMP_MIB_ITEM("TCPDSACKIgnoredNoUndo", LINUX_MIB_TCPDSACKIGNOREDNOUNDO),
+	SNMP_MIB_ITEM("TCPSpuriousRTOs", LINUX_MIB_TCPSPURIOUSRTOS),
 	SNMP_MIB_SENTINEL
 };
+
+static void icmpmsg_put(struct seq_file *seq)
+{
+#define PERLINE	16
+
+	int j, i, count;
+	static int out[PERLINE];
+
+	count = 0;
+	for (i = 0; i < ICMPMSG_MIB_MAX; i++) {
+
+		if (snmp_fold_field((void **) icmpmsg_statistics, i))
+			out[count++] = i;
+		if (count < PERLINE)
+			continue;
+
+		seq_printf(seq, "\nIcmpMsg:");
+		for (j = 0; j < PERLINE; ++j)
+			seq_printf(seq, " %sType%u", i & 0x100 ? "Out" : "In",
+					i & 0xff);
+		seq_printf(seq, "\nIcmpMsg: ");
+		for (j = 0; j < PERLINE; ++j)
+			seq_printf(seq, " %lu",
+				snmp_fold_field((void **) icmpmsg_statistics,
+				out[j]));
+		seq_putc(seq, '\n');
+	}
+	if (count) {
+		seq_printf(seq, "\nIcmpMsg:");
+		for (j = 0; j < count; ++j)
+			seq_printf(seq, " %sType%u", out[j] & 0x100 ? "Out" :
+				"In", out[j] & 0xff);
+		seq_printf(seq, "\nIcmpMsg:");
+		for (j = 0; j < count; ++j)
+			seq_printf(seq, " %lu", snmp_fold_field((void **)
+				icmpmsg_statistics, out[j]));
+	}
+
+#undef PERLINE
+}
+
+static void icmp_put(struct seq_file *seq)
+{
+	int i;
+
+	seq_puts(seq, "\nIcmp: InMsgs InErrors");
+	for (i=0; icmpmibmap[i].name != NULL; i++)
+		seq_printf(seq, " In%s", icmpmibmap[i].name);
+	seq_printf(seq, " OutMsgs OutErrors");
+	for (i=0; icmpmibmap[i].name != NULL; i++)
+		seq_printf(seq, " Out%s", icmpmibmap[i].name);
+	seq_printf(seq, "\nIcmp: %lu %lu",
+		snmp_fold_field((void **) icmp_statistics, ICMP_MIB_INMSGS),
+		snmp_fold_field((void **) icmp_statistics, ICMP_MIB_INERRORS));
+	for (i=0; icmpmibmap[i].name != NULL; i++)
+		seq_printf(seq, " %lu",
+			snmp_fold_field((void **) icmpmsg_statistics,
+				icmpmibmap[i].index));
+	seq_printf(seq, " %lu %lu",
+		snmp_fold_field((void **) icmp_statistics, ICMP_MIB_OUTMSGS),
+		snmp_fold_field((void **) icmp_statistics, ICMP_MIB_OUTERRORS));
+	for (i=0; icmpmibmap[i].name != NULL; i++)
+		seq_printf(seq, " %lu",
+			snmp_fold_field((void **) icmpmsg_statistics,
+				icmpmibmap[i].index));
+}
 
 /*
  *	Called from the PROCfs module. This outputs /proc/net/snmp.
@@ -267,15 +335,8 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 			   snmp_fold_field((void **)ip_statistics,
 					   snmp4_ipstats_list[i].entry));
 
-	seq_puts(seq, "\nIcmp:");
-	for (i = 0; snmp4_icmp_list[i].name != NULL; i++)
-		seq_printf(seq, " %s", snmp4_icmp_list[i].name);
-
-	seq_puts(seq, "\nIcmp:");
-	for (i = 0; snmp4_icmp_list[i].name != NULL; i++)
-		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)icmp_statistics,
-					   snmp4_icmp_list[i].entry));
+	icmp_put(seq);	/* RFC 2011 compatibility */
+	icmpmsg_put(seq);
 
 	seq_puts(seq, "\nTcp:");
 	for (i = 0; snmp4_tcp_list[i].name != NULL; i++)
@@ -332,6 +393,8 @@ static const struct file_operations snmp_seq_fops = {
 	.release = single_release,
 };
 
+
+
 /*
  *	Output /proc/net/netstat
  */
@@ -380,20 +443,20 @@ int __init ip_misc_proc_init(void)
 {
 	int rc = 0;
 
-	if (!proc_net_fops_create("netstat", S_IRUGO, &netstat_seq_fops))
+	if (!proc_net_fops_create(&init_net, "netstat", S_IRUGO, &netstat_seq_fops))
 		goto out_netstat;
 
-	if (!proc_net_fops_create("snmp", S_IRUGO, &snmp_seq_fops))
+	if (!proc_net_fops_create(&init_net, "snmp", S_IRUGO, &snmp_seq_fops))
 		goto out_snmp;
 
-	if (!proc_net_fops_create("sockstat", S_IRUGO, &sockstat_seq_fops))
+	if (!proc_net_fops_create(&init_net, "sockstat", S_IRUGO, &sockstat_seq_fops))
 		goto out_sockstat;
 out:
 	return rc;
 out_sockstat:
-	proc_net_remove("snmp");
+	proc_net_remove(&init_net, "snmp");
 out_snmp:
-	proc_net_remove("netstat");
+	proc_net_remove(&init_net, "netstat");
 out_netstat:
 	rc = -ENOMEM;
 	goto out;

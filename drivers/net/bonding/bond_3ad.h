@@ -108,7 +108,7 @@ typedef enum {
 typedef struct ad_header {
 	struct mac_addr destination_address;
 	struct mac_addr source_address;
-	u16 length_type;
+	__be16 length_type;
 } ad_header_t;
 
 // Link Aggregation Control Protocol(LACP) data unit structure(43.4.2.2 in the 802.3ad standard)
@@ -117,25 +117,25 @@ typedef struct lacpdu {
 	u8 version_number;
 	u8 tlv_type_actor_info;	      // = actor information(type/length/value)
 	u8 actor_information_length; // = 20
-	u16 actor_system_priority;
+	__be16 actor_system_priority;
 	struct mac_addr actor_system;
-	u16 actor_key;
-	u16 actor_port_priority;
-	u16 actor_port;
+	__be16 actor_key;
+	__be16 actor_port_priority;
+	__be16 actor_port;
 	u8 actor_state;
 	u8 reserved_3_1[3];	     // = 0
 	u8 tlv_type_partner_info;     // = partner information
 	u8 partner_information_length;	 // = 20
-	u16 partner_system_priority;
+	__be16 partner_system_priority;
 	struct mac_addr partner_system;
-	u16 partner_key;
-	u16 partner_port_priority;
-	u16 partner_port;
+	__be16 partner_key;
+	__be16 partner_port_priority;
+	__be16 partner_port;
 	u8 partner_state;
 	u8 reserved_3_2[3];	     // = 0
 	u8 tlv_type_collector_info;	  // = collector information
 	u8 collector_information_length; // = 16
-	u16 collector_max_delay;
+	__be16 collector_max_delay;
 	u8 reserved_12[12];
 	u8 tlv_type_terminator;	     // = terminator
 	u8 terminator_length;	     // = 0

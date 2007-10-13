@@ -24,6 +24,7 @@
 #include <linux/bitops.h>
 #include <linux/skbuff.h>
 #include <linux/inet.h>
+#include <net/net_namespace.h>
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_recent.h>
@@ -380,25 +381,14 @@ static const struct seq_operations recent_seq_ops = {
 static int recent_seq_open(struct inode *inode, struct file *file)
 {
 	struct proc_dir_entry *pde = PDE(inode);
-	struct seq_file *seq;
 	struct recent_iter_state *st;
-	int ret;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = __seq_open_private(file, &recent_seq_ops, sizeof(*st));
 	if (st == NULL)
 		return -ENOMEM;
 
-	ret = seq_open(file, &recent_seq_ops);
-	if (ret) {
-		kfree(st);
-		goto out;
-	}
-
 	st->table    = pde->data;
-	seq          = file->private_data;
-	seq->private = st;
-out:
-	return ret;
+	return 0;
 }
 
 static ssize_t recent_proc_write(struct file *file, const char __user *input,
@@ -487,7 +477,7 @@ static int __init ipt_recent_init(void)
 #ifdef CONFIG_PROC_FS
 	if (err)
 		return err;
-	proc_dir = proc_mkdir("ipt_recent", proc_net);
+	proc_dir = proc_mkdir("ipt_recent", init_net.proc_net);
 	if (proc_dir == NULL) {
 		xt_unregister_match(&recent_match);
 		err = -ENOMEM;
@@ -501,7 +491,7 @@ static void __exit ipt_recent_exit(void)
 	BUG_ON(!list_empty(&tables));
 	xt_unregister_match(&recent_match);
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("ipt_recent", proc_net);
+	remove_proc_entry("ipt_recent", init_net.proc_net);
 #endif
 }
 

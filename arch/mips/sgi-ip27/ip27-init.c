@@ -47,6 +47,9 @@ cnodeid_t	cpuid_to_compact_node[MAXCPUS];
 
 EXPORT_SYMBOL(nasid_to_compact_node);
 
+struct cpuinfo_ip27 sn_cpu_info[NR_CPUS];
+EXPORT_SYMBOL_GPL(sn_cpu_info);
+
 extern void pcibr_setup(cnodeid_t);
 
 extern void xtalk_probe_node(cnodeid_t nid);
@@ -191,7 +194,6 @@ static inline void ioc3_eth_init(void)
 	ioc3->eier = 0;
 }
 
-extern void ip27_time_init(void);
 extern void ip27_reboot_setup(void);
 
 void __init plat_mem_setup(void)
@@ -238,6 +240,4 @@ void __init plat_mem_setup(void)
 	per_cpu_init();
 
 	set_io_port_base(IO_BASE);
-
-	board_time_init = ip27_time_init;
 }

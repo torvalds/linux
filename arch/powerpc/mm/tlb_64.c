@@ -132,6 +132,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 	unsigned long vsid, vaddr;
 	unsigned int psize;
+	int ssize;
 	real_pte_t rpte;
 	int i;
 
@@ -161,11 +162,14 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 
 	/* Build full vaddr */
 	if (!is_kernel_addr(addr)) {
-		vsid = get_vsid(mm->context.id, addr);
+		ssize = user_segment_size(addr);
+		vsid = get_vsid(mm->context.id, addr, ssize);
 		WARN_ON(vsid == 0);
-	} else
-		vsid = get_kernel_vsid(addr);
-	vaddr = (vsid << 28 ) | (addr & 0x0fffffff);
+	} else {
+		vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
+		ssize = mmu_kernel_ssize;
+	}
+	vaddr = hpt_va(addr, vsid, ssize);
 	rpte = __real_pte(__pte(pte), ptep);
 
 	/*
@@ -175,7 +179,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	 * and decide to use local invalidates instead...
 	 */
 	if (!batch->active) {
-		flush_hash_page(vaddr, rpte, psize, 0);
+		flush_hash_page(vaddr, rpte, psize, ssize, 0);
 		return;
 	}
 
@@ -189,13 +193,15 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	 * We also need to ensure only one page size is present in a given
 	 * batch
 	 */
-	if (i != 0 && (mm != batch->mm || batch->psize != psize)) {
+	if (i != 0 && (mm != batch->mm || batch->psize != psize ||
+		       batch->ssize != ssize)) {
 		__flush_tlb_pending(batch);
 		i = 0;
 	}
 	if (i == 0) {
 		batch->mm = mm;
 		batch->psize = psize;
+		batch->ssize = ssize;
 	}
 	batch->pte[i] = rpte;
 	batch->vaddr[i] = vaddr;
@@ -222,7 +228,7 @@ void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 		local = 1;
 	if (i == 1)
 		flush_hash_page(batch->vaddr[0], batch->pte[0],
-				batch->psize, local);
+				batch->psize, batch->ssize, local);
 	else
 		flush_hash_range(i, local);
 	batch->index = 0;

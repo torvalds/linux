@@ -493,7 +493,7 @@ static int sctp_v6_cmp_addr(const union sctp_addr *addr1,
 	if (addr1->sa.sa_family != addr2->sa.sa_family) {
 		if (addr1->sa.sa_family == AF_INET &&
 		    addr2->sa.sa_family == AF_INET6 &&
-		    IPV6_ADDR_MAPPED == ipv6_addr_type(&addr2->v6.sin6_addr)) {
+		    ipv6_addr_v4mapped(&addr2->v6.sin6_addr)) {
 			if (addr2->v6.sin6_port == addr1->v4.sin_port &&
 			    addr2->v6.sin6_addr.s6_addr32[3] ==
 			    addr1->v4.sin_addr.s_addr)
@@ -501,7 +501,7 @@ static int sctp_v6_cmp_addr(const union sctp_addr *addr1,
 		}
 		if (addr2->sa.sa_family == AF_INET &&
 		    addr1->sa.sa_family == AF_INET6 &&
-		    IPV6_ADDR_MAPPED == ipv6_addr_type(&addr1->v6.sin6_addr)) {
+		    ipv6_addr_v4mapped(&addr1->v6.sin6_addr)) {
 			if (addr1->v6.sin6_port == addr2->v4.sin_port &&
 			    addr1->v6.sin6_addr.s6_addr32[3] ==
 			    addr2->v4.sin_addr.s_addr)
@@ -631,7 +631,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct sctp6_sock *newsctp6sk;
 
-	newsk = sk_alloc(PF_INET6, GFP_KERNEL, sk->sk_prot, 1);
+	newsk = sk_alloc(sk->sk_net, PF_INET6, GFP_KERNEL, sk->sk_prot, 1);
 	if (!newsk)
 		goto out;
 
@@ -855,7 +855,7 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 		if (type & IPV6_ADDR_LINKLOCAL) {
 			if (!addr->v6.sin6_scope_id)
 				return 0;
-			dev = dev_get_by_index(addr->v6.sin6_scope_id);
+			dev = dev_get_by_index(&init_net, addr->v6.sin6_scope_id);
 			if (!dev)
 				return 0;
 			if (!ipv6_chk_addr(&addr->v6.sin6_addr, dev, 0)) {
@@ -886,7 +886,7 @@ static int sctp_inet6_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
 		if (type & IPV6_ADDR_LINKLOCAL) {
 			if (!addr->v6.sin6_scope_id)
 				return 0;
-			dev = dev_get_by_index(addr->v6.sin6_scope_id);
+			dev = dev_get_by_index(&init_net, addr->v6.sin6_scope_id);
 			if (!dev)
 				return 0;
 			dev_put(dev);

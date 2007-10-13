@@ -578,6 +578,17 @@ static void kill_traffic(struct usb_serial_port *port)
 {
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
+	/*
+	 * This is tricky.
+	 * Some drivers submit the read_urb in the
+	 * handler for the write_urb or vice versa
+	 * this order determines the order in which
+	 * usb_kill_urb() must be used to reliably
+	 * kill the URBs. As it is unknown here,
+	 * both orders must be used in turn.
+	 * The call below is not redundant.
+	 */
+	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_out_urb);
 }
@@ -651,16 +662,14 @@ exit:
 
 static struct usb_serial_driver *search_serial_device(struct usb_interface *iface)
 {
-	struct list_head *p;
 	const struct usb_device_id *id;
-	struct usb_serial_driver *t;
+	struct usb_serial_driver *drv;
 
 	/* Check if the usb id matches a known device */
-	list_for_each(p, &usb_serial_driver_list) {
-		t = list_entry(p, struct usb_serial_driver, driver_list);
-		id = get_iface_id(t, iface);
+	list_for_each_entry(drv, &usb_serial_driver_list, driver_list) {
+		id = get_iface_id(drv, iface);
 		if (id)
-			return t;
+			return drv;
 	}
 
 	return NULL;
@@ -800,9 +809,6 @@ int usb_serial_probe(struct usb_interface *interface,
 	/* END HORRIBLE HACK FOR PL2303 */
 #endif
 
-	/* found all that we need */
-	dev_info(&interface->dev, "%s converter detected\n", type->description);
-
 #ifdef CONFIG_USB_SERIAL_GENERIC
 	if (type == &usb_serial_generic_device) {
 		num_ports = num_bulk_out;
@@ -835,6 +841,24 @@ int usb_serial_probe(struct usb_interface *interface,
 	serial->num_bulk_out = num_bulk_out;
 	serial->num_interrupt_in = num_interrupt_in;
 	serial->num_interrupt_out = num_interrupt_out;
+
+	/* check that the device meets the driver's requirements */
+	if ((type->num_interrupt_in != NUM_DONT_CARE &&
+				type->num_interrupt_in != num_interrupt_in)
+			|| (type->num_interrupt_out != NUM_DONT_CARE &&
+				type->num_interrupt_out != num_interrupt_out)
+			|| (type->num_bulk_in != NUM_DONT_CARE &&
+				type->num_bulk_in != num_bulk_in)
+			|| (type->num_bulk_out != NUM_DONT_CARE &&
+				type->num_bulk_out != num_bulk_out)) {
+		dbg("wrong number of endpoints");
+		kfree(serial);
+		return -EIO;
+	}
+
+	/* found all that we need */
+	dev_info(&interface->dev, "%s converter detected\n",
+			type->description);
 
 	/* create our ports, we need as many as the max endpoints */
 	/* we don't use num_ports here cauz some devices have more endpoint pairs than ports */

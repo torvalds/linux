@@ -26,143 +26,383 @@
 #include <media/v4l2-common.h>
 #include <linux/spinlock.h>
 
-#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
-#define RADIO_VERSION KERNEL_VERSION(0,0,2)
+#include <linux/version.h>	/* for KERNEL_VERSION MACRO	*/
+#define RADIO_VERSION KERNEL_VERSION(0,0,3)
+#define RADIO_BANNER "GemTek Radio card driver: v0.0.3"
 
-static struct v4l2_queryctrl radio_qctrl[] = {
-	{
-		.id            = V4L2_CID_AUDIO_MUTE,
-		.name          = "Mute",
-		.minimum       = 0,
-		.maximum       = 1,
-		.default_value = 1,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},{
-		.id            = V4L2_CID_AUDIO_VOLUME,
-		.name          = "Volume",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535,
-		.default_value = 0xff,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	}
-};
+/*
+ * Module info.
+ */
+
+MODULE_AUTHOR("Jonas Munsin, Pekka Seppänen <pexu@kapsi.fi>");
+MODULE_DESCRIPTION("A driver for the GemTek Radio card.");
+MODULE_LICENSE("GPL");
+
+/*
+ * Module params.
+ */
 
 #ifndef CONFIG_RADIO_GEMTEK_PORT
 #define CONFIG_RADIO_GEMTEK_PORT -1
 #endif
+#ifndef CONFIG_RADIO_GEMTEK_PROBE
+#define CONFIG_RADIO_GEMTEK_PROBE 1
+#endif
 
-static int io = CONFIG_RADIO_GEMTEK_PORT;
-static int radio_nr = -1;
-static spinlock_t lock;
+static int io		= CONFIG_RADIO_GEMTEK_PORT;
+static int probe	= CONFIG_RADIO_GEMTEK_PROBE;
+static int hardmute;
+static int shutdown	= 1;
+static int keepmuted	= 1;
+static int initmute	= 1;
+static int radio_nr	= -1;
 
-struct gemtek_device
-{
-	int port;
-	unsigned long curfreq;
+module_param(io, int, 0444);
+MODULE_PARM_DESC(io, "Force I/O port for the GemTek Radio card if automatic"
+	 "probing is disabled or fails. The most common I/O ports are: 0x20c "
+	 "0x30c, 0x24c or 0x34c (0x20c, 0x248 and 0x28c have been reported to "
+	 " work for the combined sound/radiocard).");
+
+module_param(probe, bool, 0444);
+MODULE_PARM_DESC(probe, "Enable automatic device probing. Note: only the most "
+	"common I/O ports used by the card are probed.");
+
+module_param(hardmute, bool, 0644);
+MODULE_PARM_DESC(hardmute, "Enable `hard muting' by shutting down PLL, may "
+	 "reduce static noise.");
+
+module_param(shutdown, bool, 0644);
+MODULE_PARM_DESC(shutdown, "Enable shutting down PLL and muting line when "
+	 "module is unloaded.");
+
+module_param(keepmuted, bool, 0644);
+MODULE_PARM_DESC(keepmuted, "Keep card muted even when frequency is changed.");
+
+module_param(initmute, bool, 0444);
+MODULE_PARM_DESC(initmute, "Mute card when module is loaded.");
+
+module_param(radio_nr, int, 0444);
+
+/*
+ * Functions for controlling the card.
+ */
+#define GEMTEK_LOWFREQ	(87*16000)
+#define GEMTEK_HIGHFREQ	(108*16000)
+
+/*
+ * Frequency calculation constants.  Intermediate frequency 10.52 MHz (nominal
+ * value 10.7 MHz), reference divisor 6.39 kHz (nominal 6.25 kHz).
+ */
+#define FSCALE		8
+#define IF_OFFSET	((unsigned int)(10.52 * 16000 * (1<<FSCALE)))
+#define REF_FREQ	((unsigned int)(6.39 * 16 * (1<<FSCALE)))
+
+#define GEMTEK_CK		0x01	/* Clock signal			*/
+#define GEMTEK_DA		0x02	/* Serial data			*/
+#define GEMTEK_CE		0x04	/* Chip enable			*/
+#define GEMTEK_NS		0x08	/* No signal			*/
+#define GEMTEK_MT		0x10	/* Line mute			*/
+#define GEMTEK_STDF_3_125_KHZ	0x01	/* Standard frequency 3.125 kHz	*/
+#define GEMTEK_PLL_OFF		0x07	/* PLL off			*/
+
+#define BU2614_BUS_SIZE	32	/* BU2614 / BU2614FS bus size		*/
+
+#define SHORT_DELAY 5		/* usec */
+#define LONG_DELAY 75		/* usec */
+
+struct gemtek_device {
+	unsigned long lastfreq;
 	int muted;
+	u32 bu2614data;
 };
 
+#define BU2614_FREQ_BITS 	16 /* D0..D15, Frequency data		*/
+#define BU2614_PORT_BITS	3 /* P0..P2, Output port control data	*/
+#define BU2614_VOID_BITS	4 /* unused 				*/
+#define BU2614_FMES_BITS	1 /* CT, Frequency measurement beginning data */
+#define BU2614_STDF_BITS	3 /* R0..R2, Standard frequency data	*/
+#define BU2614_SWIN_BITS	1 /* S, Switch between FMIN / AMIN	*/
+#define BU2614_SWAL_BITS        1 /* PS, Swallow counter division (AMIN only)*/
+#define BU2614_VOID2_BITS	1 /* unused				*/
+#define BU2614_FMUN_BITS	1 /* GT, Frequency measurement time & unlock */
+#define BU2614_TEST_BITS	1 /* TS, Test data is input		*/
 
-/* local things */
+#define BU2614_FREQ_SHIFT 	0
+#define BU2614_PORT_SHIFT	(BU2614_FREQ_BITS + BU2614_FREQ_SHIFT)
+#define BU2614_VOID_SHIFT	(BU2614_PORT_BITS + BU2614_PORT_SHIFT)
+#define BU2614_FMES_SHIFT	(BU2614_VOID_BITS + BU2614_VOID_SHIFT)
+#define BU2614_STDF_SHIFT	(BU2614_FMES_BITS + BU2614_FMES_SHIFT)
+#define BU2614_SWIN_SHIFT	(BU2614_STDF_BITS + BU2614_STDF_SHIFT)
+#define BU2614_SWAL_SHIFT	(BU2614_SWIN_BITS + BU2614_SWIN_SHIFT)
+#define BU2614_VOID2_SHIFT	(BU2614_SWAL_BITS + BU2614_SWAL_SHIFT)
+#define BU2614_FMUN_SHIFT	(BU2614_VOID2_BITS + BU2614_VOID2_SHIFT)
+#define BU2614_TEST_SHIFT	(BU2614_FMUN_BITS + BU2614_FMUN_SHIFT)
 
-/* the correct way to mute the gemtek may be to write the last written
- * frequency || 0x10, but just writing 0x10 once seems to do it as well
+#define MKMASK(field)	(((1<<BU2614_##field##_BITS) - 1) << \
+			BU2614_##field##_SHIFT)
+#define BU2614_PORT_MASK	MKMASK(PORT)
+#define BU2614_FREQ_MASK	MKMASK(FREQ)
+#define BU2614_VOID_MASK	MKMASK(VOID)
+#define BU2614_FMES_MASK	MKMASK(FMES)
+#define BU2614_STDF_MASK	MKMASK(STDF)
+#define BU2614_SWIN_MASK	MKMASK(SWIN)
+#define BU2614_SWAL_MASK	MKMASK(SWAL)
+#define BU2614_VOID2_MASK	MKMASK(VOID2)
+#define BU2614_FMUN_MASK	MKMASK(FMUN)
+#define BU2614_TEST_MASK	MKMASK(TEST)
+
+static struct gemtek_device gemtek_unit;
+
+static spinlock_t lock;
+
+/*
+ * Set data which will be sent to BU2614FS.
+ */
+#define gemtek_bu2614_set(dev, field, data) ((dev)->bu2614data = \
+	((dev)->bu2614data & ~field##_MASK) | ((data) << field##_SHIFT))
+
+/*
+ * Transmit settings to BU2614FS over GemTek IC.
+ */
+static void gemtek_bu2614_transmit(struct gemtek_device *dev)
+{
+	int i, bit, q, mute;
+
+	spin_lock(&lock);
+
+	mute = dev->muted ? GEMTEK_MT : 0x00;
+
+	outb_p(mute | GEMTEK_DA | GEMTEK_CK, io);
+	udelay(SHORT_DELAY);
+	outb_p(mute | GEMTEK_CE | GEMTEK_DA | GEMTEK_CK, io);
+	udelay(LONG_DELAY);
+
+	for (i = 0, q = dev->bu2614data; i < 32; i++, q >>= 1) {
+	    bit = (q & 1) ? GEMTEK_DA : 0;
+	    outb_p(mute | GEMTEK_CE | bit, io);
+	    udelay(SHORT_DELAY);
+	    outb_p(mute | GEMTEK_CE | bit | GEMTEK_CK, io);
+	    udelay(SHORT_DELAY);
+	}
+
+	outb_p(mute | GEMTEK_DA | GEMTEK_CK, io);
+	udelay(SHORT_DELAY);
+	outb_p(mute | GEMTEK_CE | GEMTEK_DA | GEMTEK_CK, io);
+	udelay(LONG_DELAY);
+
+	spin_unlock(&lock);
+}
+
+/*
+ * Calculate divisor from FM-frequency for BU2614FS (3.125 KHz STDF expected).
+ */
+static unsigned long gemtek_convfreq(unsigned long freq)
+{
+	return ((freq<<FSCALE) + IF_OFFSET + REF_FREQ/2) / REF_FREQ;
+}
+
+/*
+ * Set FM-frequency.
+ */
+static void gemtek_setfreq(struct gemtek_device *dev, unsigned long freq)
+{
+
+	if (keepmuted && hardmute && dev->muted)
+		return;
+
+	if (freq < GEMTEK_LOWFREQ)
+		freq = GEMTEK_LOWFREQ;
+	else if (freq > GEMTEK_HIGHFREQ)
+		freq = GEMTEK_HIGHFREQ;
+
+	dev->lastfreq = freq;
+	dev->muted = 0;
+
+	gemtek_bu2614_set(dev, BU2614_PORT, 0);
+	gemtek_bu2614_set(dev, BU2614_FMES, 0);
+	gemtek_bu2614_set(dev, BU2614_SWIN, 0);	/* FM-mode	*/
+	gemtek_bu2614_set(dev, BU2614_SWAL, 0);
+	gemtek_bu2614_set(dev, BU2614_FMUN, 1);	/* GT bit set	*/
+	gemtek_bu2614_set(dev, BU2614_TEST, 0);
+
+	gemtek_bu2614_set(dev, BU2614_STDF, GEMTEK_STDF_3_125_KHZ);
+	gemtek_bu2614_set(dev, BU2614_FREQ, gemtek_convfreq(freq));
+
+	gemtek_bu2614_transmit(dev);
+}
+
+/*
+ * Set mute flag.
  */
 static void gemtek_mute(struct gemtek_device *dev)
 {
-	if(dev->muted)
-		return;
-	spin_lock(&lock);
-	outb(0x10, io);
-	spin_unlock(&lock);
+	int i;
 	dev->muted = 1;
+
+	if (hardmute) {
+		/* Turn off PLL, disable data output */
+		gemtek_bu2614_set(dev, BU2614_PORT, 0);
+		gemtek_bu2614_set(dev, BU2614_FMES, 0);	/* CT bit off	*/
+		gemtek_bu2614_set(dev, BU2614_SWIN, 0);	/* FM-mode	*/
+		gemtek_bu2614_set(dev, BU2614_SWAL, 0);
+		gemtek_bu2614_set(dev, BU2614_FMUN, 0);	/* GT bit off	*/
+		gemtek_bu2614_set(dev, BU2614_TEST, 0);
+		gemtek_bu2614_set(dev, BU2614_STDF, GEMTEK_PLL_OFF);
+		gemtek_bu2614_set(dev, BU2614_FREQ, 0);
+		gemtek_bu2614_transmit(dev);
+	} else {
+		spin_lock(&lock);
+
+		/* Read bus contents (CE, CK and DA). */
+		i = inb_p(io);
+		/* Write it back with mute flag set. */
+		outb_p((i >> 5) | GEMTEK_MT, io);
+		udelay(SHORT_DELAY);
+
+		spin_unlock(&lock);
+	}
 }
 
+/*
+ * Unset mute flag.
+ */
 static void gemtek_unmute(struct gemtek_device *dev)
 {
-	if(dev->muted == 0)
-		return;
-	spin_lock(&lock);
-	outb(0x20, io);
-	spin_unlock(&lock);
+	int i;
 	dev->muted = 0;
+
+	if (hardmute) {
+		/* Turn PLL back on. */
+		gemtek_setfreq(dev, dev->lastfreq);
+	} else {
+		spin_lock(&lock);
+
+		i = inb_p(io);
+		outb_p(i >> 5, io);
+		udelay(SHORT_DELAY);
+
+		spin_unlock(&lock);
+	}
 }
 
-static void zero(void)
+/*
+ * Get signal strength (= stereo status).
+ */
+static inline int gemtek_getsigstr(void)
 {
-	outb_p(0x04, io);
-	udelay(5);
-	outb_p(0x05, io);
-	udelay(5);
+	return inb_p(io) & GEMTEK_NS ? 0 : 1;
 }
 
-static void one(void)
+/*
+ * Check if requested card acts like GemTek Radio card.
+ */
+static int gemtek_verify(int port)
 {
-	outb_p(0x06, io);
-	udelay(5);
-	outb_p(0x07, io);
-	udelay(5);
+	static int verified = -1;
+	int i, q;
+
+	if (verified == port)
+		return 1;
+
+	spin_lock(&lock);
+
+	q = inb_p(port);	/* Read bus contents before probing. */
+	/* Try to turn on CE, CK and DA respectively and check if card responds
+	   properly. */
+	for (i = 0; i < 3; ++i) {
+		outb_p(1 << i, port);
+		udelay(SHORT_DELAY);
+
+		if ((inb_p(port) & (~GEMTEK_NS)) != (0x17 | (1 << (i + 5)))) {
+			spin_unlock(&lock);
+			return 0;
+		}
+	}
+	outb_p(q >> 5, port);	/* Write bus contents back. */
+	udelay(SHORT_DELAY);
+
+	spin_unlock(&lock);
+	verified = port;
+
+	return 1;
 }
 
-static int gemtek_setfreq(struct gemtek_device *dev, unsigned long freq)
+/*
+ * Automatic probing for card.
+ */
+static int gemtek_probe(void)
 {
+	int ioports[] = { 0x20c, 0x30c, 0x24c, 0x34c, 0x248, 0x28c };
 	int i;
 
-/*        freq = 78.25*((float)freq/16000.0 + 10.52); */
+	if (!probe) {
+		printk(KERN_INFO "Automatic device probing disabled.\n");
+		return -1;
+	}
 
-	freq /= 16;
-	freq += 10520;
-	freq *= 7825;
-	freq /= 100000;
+	printk(KERN_INFO "Automatic device probing enabled.\n");
 
-	spin_lock(&lock);
+	for (i = 0; i < ARRAY_SIZE(ioports); ++i) {
+		printk(KERN_INFO "Trying I/O port 0x%x...\n", ioports[i]);
 
-	/* 2 start bits */
-	outb_p(0x03, io);
-	udelay(5);
-	outb_p(0x07, io);
-	udelay(5);
+		if (!request_region(ioports[i], 1, "gemtek-probe")) {
+			printk(KERN_WARNING "I/O port 0x%x busy!\n",
+			       ioports[i]);
+			continue;
+		}
 
-	/* 28 frequency bits (lsb first) */
-	for (i = 0; i < 14; i++)
-		if (freq & (1 << i))
-			one();
-		else
-			zero();
-	/* 36 unknown bits */
-	for (i = 0; i < 11; i++)
-		zero();
-	one();
-	for (i = 0; i < 4; i++)
-		zero();
-	one();
-	zero();
+		if (gemtek_verify(ioports[i])) {
+			printk(KERN_INFO "Card found from I/O port "
+			       "0x%x!\n", ioports[i]);
 
-	/* 2 end bits */
-	outb_p(0x03, io);
-	udelay(5);
-	outb_p(0x07, io);
-	udelay(5);
+			release_region(ioports[i], 1);
 
-	spin_unlock(&lock);
+			io = ioports[i];
+			return io;
+		}
 
-	return 0;
+		release_region(ioports[i], 1);
+	}
+
+	printk(KERN_ERR "Automatic probing failed!\n");
+
+	return -1;
 }
 
-static int gemtek_getsigstr(struct gemtek_device *dev)
-{
-	spin_lock(&lock);
-	inb(io);
-	udelay(5);
-	spin_unlock(&lock);
-	if (inb(io) & 8)		/* bit set = no signal present */
-		return 0;
-	return 1;		/* signal present */
-}
+/*
+ * Video 4 Linux stuff.
+ */
 
-static int vidioc_querycap(struct file *file, void  *priv,
-					struct v4l2_capability *v)
+static struct v4l2_queryctrl radio_qctrl[] = {
+	{
+		.id = V4L2_CID_AUDIO_MUTE,
+		.name = "Mute",
+		.minimum = 0,
+		.maximum = 1,
+		.default_value = 1,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+	}, {
+		.id = V4L2_CID_AUDIO_VOLUME,
+		.name = "Volume",
+		.minimum = 0,
+		.maximum = 65535,
+		.step = 65535,
+		.default_value = 0xff,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+	}
+};
+
+static struct file_operations gemtek_fops = {
+	.owner		= THIS_MODULE,
+	.open		= video_exclusive_open,
+	.release	= video_exclusive_release,
+	.ioctl		= video_ioctl2,
+	.compat_ioctl	= v4l_compat_ioctl32,
+	.llseek		= no_llseek
+};
+
+static int vidioc_querycap(struct file *file, void *priv,
+			   struct v4l2_capability *v)
 {
 	strlcpy(v->driver, "radio-gemtek", sizeof(v->driver));
 	strlcpy(v->card, "GemTek", sizeof(v->card));
@@ -172,28 +412,29 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *v)
+static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *v)
 {
-	struct video_device *dev = video_devdata(file);
-	struct gemtek_device *rt = dev->priv;
-
 	if (v->index > 0)
 		return -EINVAL;
 
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
-	v->rangelow = (87*16000);
-	v->rangehigh = (108*16000);
-	v->rxsubchans = V4L2_TUNER_SUB_MONO;
-	v->capability = V4L2_TUNER_CAP_LOW;
-	v->audmode = V4L2_TUNER_MODE_MONO;
-	v->signal = 0xffff*gemtek_getsigstr(rt);
+	v->rangelow = GEMTEK_LOWFREQ;
+	v->rangehigh = GEMTEK_HIGHFREQ;
+	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
+	v->signal = 0xffff * gemtek_getsigstr();
+	if (v->signal) {
+		v->audmode = V4L2_TUNER_MODE_STEREO;
+		v->rxsubchans = V4L2_TUNER_SUB_STEREO;
+	} else {
+		v->audmode = V4L2_TUNER_MODE_MONO;
+		v->rxsubchans = V4L2_TUNER_SUB_MONO;
+	}
+
 	return 0;
 }
 
-static int vidioc_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *v)
+static int vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *v)
 {
 	if (v->index > 0)
 		return -EINVAL;
@@ -201,38 +442,35 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *f)
+			      struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
 	struct gemtek_device *rt = dev->priv;
 
-	rt->curfreq = f->frequency;
-	/* needs to be called twice in order for getsigstr to work */
-	gemtek_setfreq(rt, rt->curfreq);
-	gemtek_setfreq(rt, rt->curfreq);
+	gemtek_setfreq(rt, f->frequency);
+
 	return 0;
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *f)
+			      struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
 	struct gemtek_device *rt = dev->priv;
 
 	f->type = V4L2_TUNER_RADIO;
-	f->frequency = rt->curfreq;
+	f->frequency = rt->lastfreq;
 	return 0;
 }
 
 static int vidioc_queryctrl(struct file *file, void *priv,
-					struct v4l2_queryctrl *qc)
+			    struct v4l2_queryctrl *qc)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+	for (i = 0; i < ARRAY_SIZE(radio_qctrl); ++i) {
 		if (qc->id && qc->id == radio_qctrl[i].id) {
-			memcpy(qc, &(radio_qctrl[i]),
-						sizeof(*qc));
+			memcpy(qc, &(radio_qctrl[i]), sizeof(*qc));
 			return 0;
 		}
 	}
@@ -240,7 +478,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 }
 
 static int vidioc_g_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
+			 struct v4l2_control *ctrl)
 {
 	struct video_device *dev = video_devdata(file);
 	struct gemtek_device *rt = dev->priv;
@@ -260,7 +498,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 }
 
 static int vidioc_s_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
+			 struct v4l2_control *ctrl)
 {
 	struct video_device *dev = video_devdata(file);
 	struct gemtek_device *rt = dev->priv;
@@ -282,8 +520,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	return -EINVAL;
 }
 
-static int vidioc_g_audio (struct file *file, void *priv,
-					struct v4l2_audio *a)
+static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	if (a->index > 1)
 		return -EINVAL;
@@ -306,99 +543,102 @@ static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_s_audio(struct file *file, void *priv,
-					struct v4l2_audio *a)
+static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	if (a->index != 0)
 		return -EINVAL;
 	return 0;
 }
 
-static struct gemtek_device gemtek_unit;
-
-static const struct file_operations gemtek_fops = {
-	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
-	.ioctl		= video_ioctl2,
-	.compat_ioctl	= v4l_compat_ioctl32,
-	.llseek         = no_llseek,
+static struct video_device gemtek_radio = {
+	.owner			= THIS_MODULE,
+	.name			= "GemTek Radio card",
+	.type			= VID_TYPE_TUNER,
+	.hardware		= VID_HARDWARE_GEMTEK,
+	.fops			= &gemtek_fops,
+	.vidioc_querycap	= vidioc_querycap,
+	.vidioc_g_tuner		= vidioc_g_tuner,
+	.vidioc_s_tuner		= vidioc_s_tuner,
+	.vidioc_g_audio		= vidioc_g_audio,
+	.vidioc_s_audio		= vidioc_s_audio,
+	.vidioc_g_input		= vidioc_g_input,
+	.vidioc_s_input		= vidioc_s_input,
+	.vidioc_g_frequency	= vidioc_g_frequency,
+	.vidioc_s_frequency	= vidioc_s_frequency,
+	.vidioc_queryctrl	= vidioc_queryctrl,
+	.vidioc_g_ctrl		= vidioc_g_ctrl,
+	.vidioc_s_ctrl		= vidioc_s_ctrl
 };
 
-static struct video_device gemtek_radio=
-{
-	.owner		= THIS_MODULE,
-	.name		= "GemTek radio",
-	.type		= VID_TYPE_TUNER,
-	.fops           = &gemtek_fops,
-	.vidioc_querycap    = vidioc_querycap,
-	.vidioc_g_tuner     = vidioc_g_tuner,
-	.vidioc_s_tuner     = vidioc_s_tuner,
-	.vidioc_g_audio     = vidioc_g_audio,
-	.vidioc_s_audio     = vidioc_s_audio,
-	.vidioc_g_input     = vidioc_g_input,
-	.vidioc_s_input     = vidioc_s_input,
-	.vidioc_g_frequency = vidioc_g_frequency,
-	.vidioc_s_frequency = vidioc_s_frequency,
-	.vidioc_queryctrl   = vidioc_queryctrl,
-	.vidioc_g_ctrl      = vidioc_g_ctrl,
-	.vidioc_s_ctrl      = vidioc_s_ctrl,
-};
+/*
+ * Initialization / cleanup related stuff.
+ */
 
+/*
+ * Initilize card.
+ */
 static int __init gemtek_init(void)
 {
-	if(io==-1)
-	{
-		printk(KERN_ERR "You must set an I/O address with io=0x20c, io=0x30c, io=0x24c or io=0x34c (io=0x020c or io=0x248 for the combined sound/radiocard)\n");
-		return -EINVAL;
-	}
-
-	if (!request_region(io, 4, "gemtek"))
-	{
-		printk(KERN_ERR "gemtek: port 0x%x already in use\n", io);
-		return -EBUSY;
-	}
-
-	gemtek_radio.priv=&gemtek_unit;
-
-	if(video_register_device(&gemtek_radio, VFL_TYPE_RADIO, radio_nr)==-1)
-	{
-		release_region(io, 4);
-		return -EINVAL;
-	}
-	printk(KERN_INFO "GemTek Radio Card driver.\n");
+	printk(KERN_INFO RADIO_BANNER "\n");
 
 	spin_lock_init(&lock);
 
-	/* this is _maybe_ unnecessary */
-	outb(0x01, io);
+	gemtek_probe();
+	if (io) {
+		if (!request_region(io, 1, "gemtek")) {
+			printk(KERN_ERR "I/O port 0x%x already in use.\n", io);
+			return -EBUSY;
+		}
 
-	/* mute card - prevents noisy bootups */
-	gemtek_unit.muted = 0;
-	gemtek_mute(&gemtek_unit);
+		if (!gemtek_verify(io))
+			printk(KERN_WARNING "Card at I/O port 0x%x does not "
+			       "respond properly, check your "
+			       "configuration.\n", io);
+		else
+			printk(KERN_INFO "Using I/O port 0x%x.\n", io);
+	} else if (probe) {
+		printk(KERN_ERR "Automatic probing failed and no "
+		       "fixed I/O port defined.\n");
+		return -ENODEV;
+	} else {
+		printk(KERN_ERR "Automatic probing disabled but no fixed "
+		       "I/O port defined.");
+		return -EINVAL;
+	}
+
+	gemtek_radio.priv = &gemtek_unit;
+
+	if (video_register_device(&gemtek_radio, VFL_TYPE_RADIO,
+		radio_nr) == -1) {
+		release_region(io, 1);
+		return -EBUSY;
+	}
+
+	/* Set defaults */
+	gemtek_unit.lastfreq = GEMTEK_LOWFREQ;
+	gemtek_unit.bu2614data = 0;
+
+	if (initmute)
+		gemtek_mute(&gemtek_unit);
 
 	return 0;
 }
 
-MODULE_AUTHOR("Jonas Munsin");
-MODULE_DESCRIPTION("A driver for the GemTek Radio Card");
-MODULE_LICENSE("GPL");
-
-module_param(io, int, 0);
-MODULE_PARM_DESC(io, "I/O address of the GemTek card (0x20c, 0x30c, 0x24c or 0x34c (0x20c or 0x248 have been reported to work for the combined sound/radiocard)).");
-module_param(radio_nr, int, 0);
-
-static void __exit gemtek_cleanup(void)
+/*
+ * Module cleanup
+ */
+static void __exit gemtek_exit(void)
 {
+	if (shutdown) {
+		hardmute = 1;	/* Turn off PLL */
+		gemtek_mute(&gemtek_unit);
+	} else {
+		printk(KERN_INFO "Module unloaded but card not muted!\n");
+	}
+
 	video_unregister_device(&gemtek_radio);
-	release_region(io,4);
+	release_region(io, 1);
 }
 
 module_init(gemtek_init);
-module_exit(gemtek_cleanup);
-
-/*
-  Local variables:
-  compile-command: "gcc -c -DMODVERSIONS -D__KERNEL__ -DMODULE -O6 -Wall -Wstrict-prototypes -I /home/blp/tmp/linux-2.1.111-rtrack/include radio-rtrack2.c"
-  End:
-*/
+module_exit(gemtek_exit);

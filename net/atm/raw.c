@@ -13,14 +13,6 @@
 #include "common.h"
 #include "protocols.h"
 
-
-#if 0
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
-#else
-#define DPRINTK(format,args...)
-#endif
-
-
 /*
  * SKB == NULL indicates that the link is being closed
  */
@@ -40,8 +32,8 @@ static void atm_pop_raw(struct atm_vcc *vcc,struct sk_buff *skb)
 {
 	struct sock *sk = sk_atm(vcc);
 
-	DPRINTK("APopR (%d) %d -= %d\n", vcc->vci, sk->sk_wmem_alloc,
-		skb->truesize);
+	pr_debug("APopR (%d) %d -= %d\n", vcc->vci,
+		atomic_read(&sk->sk_wmem_alloc), skb->truesize);
 	atomic_sub(skb->truesize, &sk->sk_wmem_alloc);
 	dev_kfree_skb_any(skb);
 	sk->sk_write_space(sk);

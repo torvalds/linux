@@ -183,6 +183,9 @@ static char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
 	{"PR5 free_swqes"},
 	{"PR6 free_swqes"},
 	{"PR7 free_swqes"},
+	{"LRO aggregated"},
+	{"LRO flushed"},
+	{"LRO no_desc"},
 };
 
 static void ehea_get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -193,9 +196,14 @@ static void ehea_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	}
 }
 
-static int ehea_get_stats_count(struct net_device *dev)
+static int ehea_get_sset_count(struct net_device *dev, int sset)
 {
-	return ARRAY_SIZE(ehea_ethtool_stats_keys);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(ehea_ethtool_stats_keys);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void ehea_get_ethtool_stats(struct net_device *dev,
@@ -204,7 +212,7 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 	int i, k, tmp;
 	struct ehea_port *port = netdev_priv(dev);
 
-	for (i = 0; i < ehea_get_stats_count(dev); i++)
+	for (i = 0; i < ehea_get_sset_count(dev, ETH_SS_STATS); i++)
 		data[i] = 0;
 	i = 0;
 
@@ -239,6 +247,18 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 	for (k = 0; k < 8; k++)
 		data[i++] = atomic_read(&port->port_res[k].swqe_avail);
 
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp |= port->port_res[k].lro_mgr.stats.aggregated;
+	data[i++] = tmp;
+
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp |= port->port_res[k].lro_mgr.stats.flushed;
+	data[i++] = tmp;
+
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp |= port->port_res[k].lro_mgr.stats.no_desc;
+	data[i++] = tmp;
+
 }
 
 const struct ethtool_ops ehea_ethtool_ops = {
@@ -247,12 +267,9 @@ const struct ethtool_ops ehea_ethtool_ops = {
 	.get_msglevel = ehea_get_msglevel,
 	.set_msglevel = ehea_set_msglevel,
 	.get_link = ethtool_op_get_link,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.get_sg = ethtool_op_get_sg,
-	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 	.get_strings = ehea_get_strings,
-	.get_stats_count = ehea_get_stats_count,
+	.get_sset_count = ehea_get_sset_count,
 	.get_ethtool_stats = ehea_get_ethtool_stats,
 	.get_rx_csum = ehea_get_rx_csum,
 	.set_settings = ehea_set_settings,

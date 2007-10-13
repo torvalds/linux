@@ -54,7 +54,6 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	if (!dynid)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&dynid->node);
 	dynid->id.vendor = vendor;
 	dynid->id.device = device;
 	dynid->id.subvendor = subvendor;
@@ -65,7 +64,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		driver_data : 0UL;
 
 	spin_lock(&pdrv->dynids.lock);
-	list_add_tail(&pdrv->dynids.list, &dynid->node);
+	list_add_tail(&dynid->node, &pdrv->dynids.list);
 	spin_unlock(&pdrv->dynids.lock);
 
 	if (get_driver(&pdrv->driver)) {
@@ -532,8 +531,7 @@ void pci_dev_put(struct pci_dev *dev)
 }
 
 #ifndef CONFIG_HOTPLUG
-int pci_uevent(struct device *dev, char **envp, int num_envp,
-	       char *buffer, int buffer_size)
+int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	return -ENODEV;
 }

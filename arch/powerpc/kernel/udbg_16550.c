@@ -206,11 +206,22 @@ static void udbg_44x_as1_putc(char c)
 	}
 }
 
+static int udbg_44x_as1_getc(void)
+{
+	if (udbg_comport) {
+		while ((as1_readb(&udbg_comport->lsr) & LSR_DR) == 0)
+			; /* wait for char */
+		return as1_readb(&udbg_comport->rbr);
+	}
+	return -1;
+}
+
 void __init udbg_init_44x_as1(void)
 {
 	udbg_comport =
 		(volatile struct NS16550 __iomem *)PPC44x_EARLY_DEBUG_VIRTADDR;
 
 	udbg_putc = udbg_44x_as1_putc;
+	udbg_getc = udbg_44x_as1_getc;
 }
 #endif /* CONFIG_PPC_EARLY_DEBUG_44x */

@@ -105,6 +105,8 @@ struct fec;
 struct fec_enet_private {
 	spinlock_t lock;	/* during all ops except TX pckt processing */
 	spinlock_t tx_lock;	/* during fec_start_xmit and fec_tx         */
+	struct net_device *dev;
+	struct napi_struct napi;
 	int fecno;
 	struct fec *fecp;
 	const struct fec_platform_info *fpi;

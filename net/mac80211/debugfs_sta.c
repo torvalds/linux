@@ -60,9 +60,7 @@ static const struct file_operations sta_ ##name## _ops = {		\
 		STA_OPS(name)
 
 STA_FILE(aid, aid, D);
-STA_FILE(key_idx_compression, key_idx_compression, D);
 STA_FILE(dev, dev->name, S);
-STA_FILE(vlan_id, vlan_id, D);
 STA_FILE(rx_packets, rx_packets, LU);
 STA_FILE(tx_packets, tx_packets, LU);
 STA_FILE(rx_bytes, rx_bytes, LU);
@@ -204,15 +202,15 @@ STA_OPS(wme_tx_queue);
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
 {
-	char buf[3*6];
 	struct dentry *stations_dir = sta->local->debugfs.stations;
+	DECLARE_MAC_BUF(mac);
 
 	if (!stations_dir)
 		return;
 
-	sprintf(buf, MAC_FMT, MAC_ARG(sta->addr));
+	print_mac(mac, sta->addr);
 
-	sta->debugfs.dir = debugfs_create_dir(buf, stations_dir);
+	sta->debugfs.dir = debugfs_create_dir(mac, stations_dir);
 	if (!sta->debugfs.dir)
 		return;
 

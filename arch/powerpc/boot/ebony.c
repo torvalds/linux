@@ -24,11 +24,10 @@
 #include "page.h"
 #include "ops.h"
 #include "reg.h"
+#include "io.h"
 #include "dcr.h"
+#include "4xx.h"
 #include "44x.h"
-
-extern char _dtb_start[];
-extern char _dtb_end[];
 
 static u8 *ebony_mac0, *ebony_mac1;
 
@@ -92,15 +91,53 @@ void ibm440gp_fixup_clocks(unsigned int sysclk, unsigned int ser_clk)
 	dt_fixup_clock("/plb/opb/serial@40000300", uart1);
 }
 
+#define EBONY_FPGA_PATH		"/plb/opb/ebc/fpga"
+#define	EBONY_FPGA_FLASH_SEL	0x01
+#define EBONY_SMALL_FLASH_PATH	"/plb/opb/ebc/small-flash"
+
+static void ebony_flashsel_fixup(void)
+{
+	void *devp;
+	u32 reg[3] = {0x0, 0x0, 0x80000};
+	u8 *fpga;
+	u8 fpga_reg0 = 0x0;
+
+	devp = finddevice(EBONY_FPGA_PATH);
+	if (!devp)
+		fatal("Couldn't locate FPGA node %s\n\r", EBONY_FPGA_PATH);
+
+	if (getprop(devp, "virtual-reg", &fpga, sizeof(fpga)) != sizeof(fpga))
+		fatal("%s has missing or invalid virtual-reg property\n\r",
+		      EBONY_FPGA_PATH);
+
+	fpga_reg0 = in_8(fpga);
+
+	devp = finddevice(EBONY_SMALL_FLASH_PATH);
+	if (!devp)
+		fatal("Couldn't locate small flash node %s\n\r",
+		      EBONY_SMALL_FLASH_PATH);
+
+	if (getprop(devp, "reg", reg, sizeof(reg)) != sizeof(reg))
+		fatal("%s has reg property of unexpected size\n\r",
+		      EBONY_SMALL_FLASH_PATH);
+
+	/* Invert address bit 14 (IBM-endian) if FLASH_SEL fpga bit is set */
+	if (fpga_reg0 & EBONY_FPGA_FLASH_SEL)
+		reg[1] ^= 0x80000;
+
+	setprop(devp, "reg", reg, sizeof(reg));
+}
+
 static void ebony_fixups(void)
 {
 	// FIXME: sysclk should be derived by reading the FPGA registers
 	unsigned long sysclk = 33000000;
 
 	ibm440gp_fixup_clocks(sysclk, 6 * 1843200);
-	ibm44x_fixup_memsize();
+	ibm4xx_fixup_memsize();
 	dt_fixup_mac_addresses(ebony_mac0, ebony_mac1);
 	ibm4xx_fixup_ebc_ranges("/plb/opb/ebc");
+	ebony_flashsel_fixup();
 }
 
 void ebony_init(void *mac0, void *mac1)

@@ -161,6 +161,8 @@ void gf128mul_lle(be128 *a, const be128 *b);
 
 void gf128mul_bbe(be128 *a, const be128 *b);
 
+/* multiply by x in ble format, needed by XTS */
+void gf128mul_x_ble(be128 *a, const be128 *b);
 
 /* 4k table optimization */
 

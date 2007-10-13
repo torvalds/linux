@@ -148,6 +148,15 @@ config VIDEO_WM8739
 	  To compile this driver as a module, choose M here: the
 	  module will be called wm8739.
 
+config VIDEO_VP27SMPX
+	tristate "Panasonic VP27s internal MPX"
+	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	---help---
+	  Support for the internal MPX of the Panasonic VP27s tuner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vp27smpx.
+
 comment "Video decoders"
 
 config VIDEO_BT819
@@ -196,6 +205,13 @@ config VIDEO_OV7670
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
+
+config VIDEO_TCM825X
+	tristate "TCM825x camera sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a driver for the Toshiba TCM825x VGA camera sensor.
+	  It is used for example in Nokia N800.
 
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
@@ -348,7 +364,7 @@ endmenu # encoder / decoder chips
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
 	depends on VIDEO_V4L2 && !SPARC32 && !SPARC64 && PCI
-	select VIDEO_BUF
+	select VIDEOBUF_VMALLOC
 	default n
 	---help---
 	  Enables a virtual video driver. This device shows a color bar
@@ -487,15 +503,6 @@ config TUNER_3036
 	depends on I2C && VIDEO_V4L1
 	help
 	  Say Y here to include support for Philips SAB3036 compatible tuners.
-	  If in doubt, say N.
-
-config TUNER_TEA5761
-	bool "TEA 5761 radio tuner (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	depends on I2C
-	select VIDEO_TUNER
-	help
-	  Say Y here to include support for Philips TEA5761 radio tuner.
 	  If in doubt, say N.
 
 config VIDEO_VINO
@@ -660,6 +667,8 @@ config VIDEO_HEXIUM_GEMINI
 	  module will be called hexium_gemini.
 
 source "drivers/media/video/cx88/Kconfig"
+
+source "drivers/media/video/cx23885/Kconfig"
 
 source "drivers/media/video/ivtv/Kconfig"
 

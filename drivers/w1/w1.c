@@ -197,7 +197,7 @@ static struct w1_family w1_default_family = {
 	.fops = &w1_default_fops,
 };
 
-static int w1_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size);
+static int w1_uevent(struct device *dev, struct kobj_uevent_env *env);
 
 static struct bus_type w1_bus_type = {
 	.name = "w1",
@@ -396,13 +396,12 @@ static void w1_destroy_master_attributes(struct w1_master *master)
 }
 
 #ifdef CONFIG_HOTPLUG
-static int w1_uevent(struct device *dev, char **envp, int num_envp,
-			char *buffer, int buffer_size)
+static int w1_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct w1_master *md = NULL;
 	struct w1_slave *sl = NULL;
 	char *event_owner, *name;
-	int err, cur_index=0, cur_len=0;
+	int err;
 
 	if (dev->driver == &w1_master_driver) {
 		md = container_of(dev, struct w1_master, dev);
@@ -423,23 +422,19 @@ static int w1_uevent(struct device *dev, char **envp, int num_envp,
 	if (dev->driver != &w1_slave_driver || !sl)
 		return 0;
 
-	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size,
-			&cur_len, "W1_FID=%02X", sl->reg_num.family);
+	err = add_uevent_var(env, "W1_FID=%02X", sl->reg_num.family);
 	if (err)
 		return err;
 
-	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size,
-			&cur_len, "W1_SLAVE_ID=%024LX",
-			(unsigned long long)sl->reg_num.id);
-	envp[cur_index] = NULL;
+	err = add_uevent_var(env, "W1_SLAVE_ID=%024LX",
+			     (unsigned long long)sl->reg_num.id);
 	if (err)
 		return err;
 
 	return 0;
 };
 #else
-static int w1_uevent(struct device *dev, char **envp, int num_envp,
-			char *buffer, int buffer_size)
+static int w1_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	return 0;
 }

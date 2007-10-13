@@ -28,7 +28,6 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int index;
 	int err;
-	int new_context = (mm->context.id == 0);
 
 again:
 	if (!idr_pre_get(&mmu_context_idr, GFP_KERNEL))
@@ -50,19 +49,13 @@ again:
 		return -ENOMEM;
 	}
 
-	mm->context.id = index;
-#ifdef CONFIG_PPC_MM_SLICES
 	/* The old code would re-promote on fork, we don't do that
 	 * when using slices as it could cause problem promoting slices
 	 * that have been forced down to 4K
 	 */
-	if (new_context)
+	if (slice_mm_new_context(mm))
 		slice_set_user_psize(mm, mmu_virtual_psize);
-#else
-	mm->context.user_psize = mmu_virtual_psize;
-	mm->context.sllp = SLB_VSID_USER |
-		mmu_psize_defs[mmu_virtual_psize].sllp;
-#endif
+	mm->context.id = index;
 
 	return 0;
 }

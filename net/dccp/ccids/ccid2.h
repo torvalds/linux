@@ -50,7 +50,7 @@ struct ccid2_seq {
  * @ccid2hctx_rpdupack - dupacks since rpseq
 */
 struct ccid2_hc_tx_sock {
-	int			ccid2hctx_cwnd;
+	u32			ccid2hctx_cwnd;
 	int			ccid2hctx_ssacks;
 	int			ccid2hctx_acks;
 	unsigned int		ccid2hctx_ssthresh;

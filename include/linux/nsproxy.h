@@ -29,6 +29,7 @@ struct nsproxy {
 	struct mnt_namespace *mnt_ns;
 	struct pid_namespace *pid_ns;
 	struct user_namespace *user_ns;
+	struct net 	     *net_ns;
 };
 extern struct nsproxy init_nsproxy;
 

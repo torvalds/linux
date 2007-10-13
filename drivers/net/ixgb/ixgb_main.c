@@ -97,7 +97,7 @@ static irqreturn_t ixgb_intr(int irq, void *data);
 static boolean_t ixgb_clean_tx_irq(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_IXGB_NAPI
-static int ixgb_clean(struct net_device *netdev, int *budget);
+static int ixgb_clean(struct napi_struct *napi, int budget);
 static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter,
 				   int *work_done, int work_to_do);
 #else
@@ -288,7 +288,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
 #ifdef CONFIG_IXGB_NAPI
-	netif_poll_enable(netdev);
+	napi_enable(&adapter->napi);
 #endif
 	ixgb_irq_enable(adapter);
 
@@ -309,7 +309,7 @@ ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog)
 	if(kill_watchdog)
 		del_timer_sync(&adapter->watchdog_timer);
 #ifdef CONFIG_IXGB_NAPI
-	netif_poll_disable(netdev);
+	napi_disable(&adapter->napi);
 #endif
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
@@ -382,7 +382,6 @@ ixgb_probe(struct pci_dev *pdev,
 		goto err_alloc_etherdev;
 	}
 
-	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	pci_set_drvdata(pdev, netdev);
@@ -421,8 +420,7 @@ ixgb_probe(struct pci_dev *pdev,
 	netdev->tx_timeout = &ixgb_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
 #ifdef CONFIG_IXGB_NAPI
-	netdev->poll = &ixgb_clean;
-	netdev->weight = 64;
+	netif_napi_add(netdev, &adapter->napi, ixgb_clean, 64);
 #endif
 	netdev->vlan_rx_register = ixgb_vlan_rx_register;
 	netdev->vlan_rx_add_vid = ixgb_vlan_rx_add_vid;
@@ -1746,7 +1744,7 @@ ixgb_intr(int irq, void *data)
 	}
 
 #ifdef CONFIG_IXGB_NAPI
-	if(netif_rx_schedule_prep(netdev)) {
+	if (netif_rx_schedule_prep(netdev, &adapter->napi)) {
 
 		/* Disable interrupts and register for poll. The flush 
 		  of the posted write is intentionally left out.
@@ -1754,7 +1752,7 @@ ixgb_intr(int irq, void *data)
 
 		atomic_inc(&adapter->irq_sem);
 		IXGB_WRITE_REG(&adapter->hw, IMC, ~0);
-		__netif_rx_schedule(netdev);
+		__netif_rx_schedule(netdev, &adapter->napi);
 	}
 #else
 	/* yes, that is actually a & and it is meant to make sure that
@@ -1776,27 +1774,23 @@ ixgb_intr(int irq, void *data)
  **/
 
 static int
-ixgb_clean(struct net_device *netdev, int *budget)
+ixgb_clean(struct napi_struct *napi, int budget)
 {
-	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	int work_to_do = min(*budget, netdev->quota);
+	struct ixgb_adapter *adapter = container_of(napi, struct ixgb_adapter, napi);
+	struct net_device *netdev = adapter->netdev;
 	int tx_cleaned;
 	int work_done = 0;
 
 	tx_cleaned = ixgb_clean_tx_irq(adapter);
-	ixgb_clean_rx_irq(adapter, &work_done, work_to_do);
-
-	*budget -= work_done;
-	netdev->quota -= work_done;
+	ixgb_clean_rx_irq(adapter, &work_done, budget);
 
 	/* if no Tx and not enough Rx work done, exit the polling mode */
 	if((!tx_cleaned && (work_done == 0)) || !netif_running(netdev)) {
-		netif_rx_complete(netdev);
+		netif_rx_complete(netdev, napi);
 		ixgb_irq_enable(adapter);
-		return 0;
 	}
 
-	return 1;
+	return work_done;
 }
 #endif
 

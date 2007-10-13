@@ -46,7 +46,7 @@ struct mon_reader {
 
 	void (*rnf_submit)(void *data, struct urb *urb);
 	void (*rnf_error)(void *data, struct urb *urb, int error);
-	void (*rnf_complete)(void *data, struct urb *urb);
+	void (*rnf_complete)(void *data, struct urb *urb, int status);
 };
 
 void mon_reader_add(struct mon_bus *mbus, struct mon_reader *r);

@@ -157,12 +157,11 @@ void cx25840_audio_set_path(struct i2c_client *client)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 
+	/* assert soft reset */
+	cx25840_and_or(client, 0x810, ~0x1, 0x01);
+
 	/* stop microcontroller */
 	cx25840_and_or(client, 0x803, ~0x10, 0);
-
-	/* assert soft reset */
-	if (!state->is_cx25836)
-		cx25840_and_or(client, 0x810, ~0x1, 0x01);
 
 	/* Mute everything to prevent the PFFT! */
 	cx25840_write(client, 0x8d3, 0x1f);
@@ -181,32 +180,46 @@ void cx25840_audio_set_path(struct i2c_client *client)
 
 	set_audclk_freq(client, state->audclk_freq);
 
-	/* deassert soft reset */
-	if (!state->is_cx25836)
-		cx25840_and_or(client, 0x810, ~0x1, 0x00);
-
 	if (state->aud_input != CX25840_AUDIO_SERIAL) {
 		/* When the microcontroller detects the
 		 * audio format, it will unmute the lines */
 		cx25840_and_or(client, 0x803, ~0x10, 0x10);
 	}
+
+	/* deassert soft reset */
+	cx25840_and_or(client, 0x810, ~0x1, 0x00);
 }
 
 static int get_volume(struct i2c_client *client)
 {
+	struct cx25840_state *state = i2c_get_clientdata(client);
+	int vol;
+
+	if (state->unmute_volume >= 0)
+		return state->unmute_volume;
+
 	/* Volume runs +18dB to -96dB in 1/2dB steps
 	 * change to fit the msp3400 -114dB to +12dB range */
 
 	/* check PATH1_VOLUME */
-	int vol = 228 - cx25840_read(client, 0x8d4);
+	vol = 228 - cx25840_read(client, 0x8d4);
 	vol = (vol / 2) + 23;
 	return vol << 9;
 }
 
 static void set_volume(struct i2c_client *client, int volume)
 {
-	/* First convert the volume to msp3400 values (0-127) */
-	int vol = volume >> 9;
+	struct cx25840_state *state = i2c_get_clientdata(client);
+	int vol;
+
+	if (state->unmute_volume >= 0) {
+		state->unmute_volume = volume;
+		return;
+	}
+
+	/* Convert the volume to msp3400 values (0-127) */
+	vol = volume >> 9;
+
 	/* now scale it up to cx25840 values
 	 * -114dB to -96dB maps to 0
 	 * this should be 19, but in my testing that was 4dB too loud */
@@ -284,30 +297,26 @@ static void set_balance(struct i2c_client *client, int balance)
 
 static int get_mute(struct i2c_client *client)
 {
-	/* check SRC1_MUTE_EN */
-	return cx25840_read(client, 0x8d3) & 0x2 ? 1 : 0;
+	struct cx25840_state *state = i2c_get_clientdata(client);
+
+	return state->unmute_volume >= 0;
 }
 
 static void set_mute(struct i2c_client *client, int mute)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 
-	if (state->aud_input != CX25840_AUDIO_SERIAL) {
-		/* Must turn off microcontroller in order to mute sound.
-		 * Not sure if this is the best method, but it does work.
-		 * If the microcontroller is running, then it will undo any
-		 * changes to the mute register. */
-		if (mute) {
-			/* disable microcontroller */
-			cx25840_and_or(client, 0x803, ~0x10, 0x00);
-			cx25840_write(client, 0x8d3, 0x1f);
-		} else {
-			/* enable microcontroller */
-			cx25840_and_or(client, 0x803, ~0x10, 0x10);
-		}
-	} else {
-		/* SRC1_MUTE_EN */
-		cx25840_and_or(client, 0x8d3, ~0x2, mute ? 0x02 : 0x00);
+	if (mute && state->unmute_volume == -1) {
+		int vol = get_volume(client);
+
+		set_volume(client, 0);
+		state->unmute_volume = vol;
+	}
+	else if (!mute && state->unmute_volume != -1) {
+		int vol = state->unmute_volume;
+
+		state->unmute_volume = -1;
+		set_volume(client, vol);
 	}
 }
 
@@ -319,18 +328,18 @@ int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
+		if (!state->is_cx25836)
+			cx25840_and_or(client, 0x810, ~0x1, 1);
 		if (state->aud_input != CX25840_AUDIO_SERIAL) {
 			cx25840_and_or(client, 0x803, ~0x10, 0);
 			cx25840_write(client, 0x8d3, 0x1f);
 		}
-		if (!state->is_cx25836)
-			cx25840_and_or(client, 0x810, ~0x1, 1);
 		retval = set_audclk_freq(client, *(u32 *)arg);
-		if (!state->is_cx25836)
-			cx25840_and_or(client, 0x810, ~0x1, 0);
 		if (state->aud_input != CX25840_AUDIO_SERIAL) {
 			cx25840_and_or(client, 0x803, ~0x10, 0x10);
 		}
+		if (!state->is_cx25836)
+			cx25840_and_or(client, 0x810, ~0x1, 0);
 		return retval;
 
 	case VIDIOC_G_CTRL:

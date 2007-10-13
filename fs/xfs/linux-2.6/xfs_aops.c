@@ -323,16 +323,12 @@ xfs_iomap_valid(
 /*
  * BIO completion handler for buffered IO.
  */
-STATIC int
+STATIC void
 xfs_end_bio(
 	struct bio		*bio,
-	unsigned int		bytes_done,
 	int			error)
 {
 	xfs_ioend_t		*ioend = bio->bi_private;
-
-	if (bio->bi_size)
-		return 1;
 
 	ASSERT(atomic_read(&bio->bi_cnt) >= 1);
 	ioend->io_error = test_bit(BIO_UPTODATE, &bio->bi_flags) ? 0 : error;
@@ -343,7 +339,6 @@ xfs_end_bio(
 	bio_put(bio);
 
 	xfs_finish_ioend(ioend, 0);
-	return 0;
 }
 
 STATIC void

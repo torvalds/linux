@@ -21,8 +21,8 @@
 #include <linux/smp.h>
 #include <asm/processor.h>
 
-#include "cfe_api.h"
-#include "cfe_error.h"
+#include <asm/fw/cfe/cfe_api.h>
+#include <asm/fw/cfe/cfe_error.h>
 
 /*
  * Use CFE to find out how many CPUs are available, setting up

@@ -44,7 +44,7 @@ cache_begin:	li	t0, (1<<28)
 	mfc0 	t0, CP0_CONFIG, 7
 	HAZARD_CP0
 
-	and t0,~((1<<19) | (1<<20))     /* TLB/MAP cleared */
+	and	t0, ~((1<<19) | (1<<20))     /* TLB/MAP cleared */
 	mtc0	t0, CP0_CONFIG, 7
 	HAZARD_CP0
 
@@ -200,10 +200,10 @@ pr4450_instr_cache_invalidated:
 
 	icache_invd_loop:
 	/* 9 == register t1 */
-	.word   (CACHE_OPC | (9 << 21) | (Index_Invalidate_I << 16) | \
-		(0 * ICACHE_SET_SIZE))  /* invalidate inst cache WAY0 */
-	.word   (CACHE_OPC | (9 << 21) | (Index_Invalidate_I << 16) | \
-		(1 * ICACHE_SET_SIZE))  /* invalidate inst cache WAY1 */
+	.word   CACHE_OPC | (9 << 21) | (Index_Invalidate_I << 16) | \
+		(0 * ICACHE_SET_SIZE)  /* invalidate inst cache WAY0 */
+	.word   CACHE_OPC | (9 << 21) | (Index_Invalidate_I << 16) | \
+		(1 * ICACHE_SET_SIZE)  /* invalidate inst cache WAY1 */
 
 	addiu   t1, t1, ICACHE_LINE_SIZE    /* T1 = next cache line index */
 	bne     t2, zero, icache_invd_loop /* T2 = 0 if all sets invalidated */
@@ -235,14 +235,14 @@ pr4450_instr_cache_invalidated:
 
 	dcache_wbinvd_loop:
 	/* 9 == register t1 */
-	.word   (CACHE_OPC | (9 << 21) | (Index_Writeback_Inv_D << 16) | \
-		(0 * DCACHE_SET_SIZE))  /* writeback/invalidate WAY0 */
-	.word   (CACHE_OPC | (9 << 21) | (Index_Writeback_Inv_D << 16) | \
-		(1 * DCACHE_SET_SIZE))  /* writeback/invalidate WAY1 */
-	.word   (CACHE_OPC | (9 << 21) | (Index_Writeback_Inv_D << 16) | \
-		(2 * DCACHE_SET_SIZE))  /* writeback/invalidate WAY2 */
-	.word   (CACHE_OPC | (9 << 21) | (Index_Writeback_Inv_D << 16) | \
-		(3 * DCACHE_SET_SIZE))  /* writeback/invalidate WAY3 */
+	.word   CACHE_OPC | (9 << 21) | (Index_Writeback_Inv_D << 16) | \
+		(0 * DCACHE_SET_SIZE)  /* writeback/invalidate WAY0 */
+	.word   CACHE_OPC | (9 << 21) | (Index_Writeback_Inv_D << 16) | \
+		(1 * DCACHE_SET_SIZE)  /* writeback/invalidate WAY1 */
+	.word   CACHE_OPC | (9 << 21) | (Index_Writeback_Inv_D << 16) | \
+		(2 * DCACHE_SET_SIZE)  /* writeback/invalidate WAY2 */
+	.word   CACHE_OPC | (9 << 21) | (Index_Writeback_Inv_D << 16) | \
+		(3 * DCACHE_SET_SIZE)  /* writeback/invalidate WAY3 */
 
 	addiu   t1, t1, DCACHE_LINE_SIZE  /* T1 = next data cache line index */
 	bne     t2, zero, dcache_wbinvd_loop /* T2 = 0 when wbinvd entire cache */

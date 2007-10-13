@@ -202,7 +202,8 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, u32* dword, int short_d
 				/* a signal arrived */
 				return -ERESTARTSYS;
 
-			printk(KERN_WARNING "saa7146_i2c_writeout: timed out waiting for end of xfer\n");
+			printk(KERN_WARNING "%s %s [irq]: timed out waiting for end of xfer\n",
+				dev->name, __FUNCTION__);
 			return -EIO;
 		}
 		status = saa7146_read(dev, I2C_STATUS);
@@ -219,7 +220,8 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, u32* dword, int short_d
 				break;
 			}
 			if (time_after(jiffies,timeout)) {
-				printk(KERN_WARNING "saa7146_i2c_writeout: timed out waiting for MC2\n");
+				printk(KERN_WARNING "%s %s: timed out waiting for MC2\n",
+					dev->name, __FUNCTION__);
 				return -EIO;
 			}
 		}
@@ -235,7 +237,8 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, u32* dword, int short_d
 				/* this is normal when probing the bus
 				 * (no answer from nonexisistant device...)
 				 */
-				DEB_I2C(("saa7146_i2c_writeout: timed out waiting for end of xfer\n"));
+				printk(KERN_WARNING "%s %s [poll]: timed out waiting for end of xfer\n",
+					dev->name, __FUNCTION__);
 				return -EIO;
 			}
 			if (++trial < 50 && short_delay)
@@ -246,8 +249,16 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, u32* dword, int short_d
 	}
 
 	/* give a detailed status report */
-	if ( 0 != (status & SAA7146_I2C_ERR)) {
+	if ( 0 != (status & (SAA7146_I2C_SPERR | SAA7146_I2C_APERR |
+			     SAA7146_I2C_DTERR | SAA7146_I2C_DRERR |
+			     SAA7146_I2C_AL    | SAA7146_I2C_ERR   |
+			     SAA7146_I2C_BUSY)) ) {
 
+		if ( 0 == (status & SAA7146_I2C_ERR) ||
+		     0 == (status & SAA7146_I2C_BUSY) ) {
+			/* it may take some time until ERR goes high - ignore */
+			DEB_I2C(("unexpected i2c status %04x\n", status));
+		}
 		if( 0 != (status & SAA7146_I2C_SPERR) ) {
 			DEB_I2C(("error due to invalid start/stop condition.\n"));
 		}
@@ -277,7 +288,7 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, u32* dword, int short_d
 	return 0;
 }
 
-int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, int num, int retries)
+static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, int num, int retries)
 {
 	int i = 0, count = 0;
 	u32* buffer = dev->d_i2c.cpu_addr;

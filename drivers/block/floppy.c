@@ -2437,22 +2437,19 @@ static void rw_interrupt(void)
 /* Compute maximal contiguous buffer size. */
 static int buffer_chain_size(void)
 {
-	struct bio *bio;
 	struct bio_vec *bv;
-	int size, i;
+	int size;
+	struct req_iterator iter;
 	char *base;
 
 	base = bio_data(current_req->bio);
 	size = 0;
 
-	rq_for_each_bio(bio, current_req) {
-		bio_for_each_segment(bv, bio, i) {
-			if (page_address(bv->bv_page) + bv->bv_offset !=
-			    base + size)
-				break;
+	rq_for_each_segment(bv, current_req, iter) {
+		if (page_address(bv->bv_page) + bv->bv_offset != base + size)
+			break;
 
-			size += bv->bv_len;
-		}
+		size += bv->bv_len;
 	}
 
 	return size >> 9;
@@ -2479,9 +2476,9 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
 {
 	int remaining;		/* number of transferred 512-byte sectors */
 	struct bio_vec *bv;
-	struct bio *bio;
 	char *buffer, *dma_buffer;
-	int size, i;
+	int size;
+	struct req_iterator iter;
 
 	max_sector = transfer_size(ssize,
 				   min(max_sector, max_sector_2),
@@ -2514,43 +2511,41 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
 
 	size = current_req->current_nr_sectors << 9;
 
-	rq_for_each_bio(bio, current_req) {
-		bio_for_each_segment(bv, bio, i) {
-			if (!remaining)
-				break;
+	rq_for_each_segment(bv, current_req, iter) {
+		if (!remaining)
+			break;
 
-			size = bv->bv_len;
-			SUPBOUND(size, remaining);
+		size = bv->bv_len;
+		SUPBOUND(size, remaining);
 
-			buffer = page_address(bv->bv_page) + bv->bv_offset;
+		buffer = page_address(bv->bv_page) + bv->bv_offset;
 #ifdef FLOPPY_SANITY_CHECK
-			if (dma_buffer + size >
-			    floppy_track_buffer + (max_buffer_sectors << 10) ||
-			    dma_buffer < floppy_track_buffer) {
-				DPRINT("buffer overrun in copy buffer %d\n",
-				       (int)((floppy_track_buffer -
-					      dma_buffer) >> 9));
-				printk("fsector_t=%d buffer_min=%d\n",
-				       fsector_t, buffer_min);
-				printk("current_count_sectors=%ld\n",
-				       current_count_sectors);
-				if (CT(COMMAND) == FD_READ)
-					printk("read\n");
-				if (CT(COMMAND) == FD_WRITE)
-					printk("write\n");
-				break;
-			}
-			if (((unsigned long)buffer) % 512)
-				DPRINT("%p buffer not aligned\n", buffer);
-#endif
+		if (dma_buffer + size >
+		    floppy_track_buffer + (max_buffer_sectors << 10) ||
+		    dma_buffer < floppy_track_buffer) {
+			DPRINT("buffer overrun in copy buffer %d\n",
+			       (int)((floppy_track_buffer -
+				      dma_buffer) >> 9));
+			printk("fsector_t=%d buffer_min=%d\n",
+			       fsector_t, buffer_min);
+			printk("current_count_sectors=%ld\n",
+			       current_count_sectors);
 			if (CT(COMMAND) == FD_READ)
-				memcpy(buffer, dma_buffer, size);
-			else
-				memcpy(dma_buffer, buffer, size);
-
-			remaining -= size;
-			dma_buffer += size;
+				printk("read\n");
+			if (CT(COMMAND) == FD_WRITE)
+				printk("write\n");
+			break;
 		}
+		if (((unsigned long)buffer) % 512)
+			DPRINT("%p buffer not aligned\n", buffer);
+#endif
+		if (CT(COMMAND) == FD_READ)
+			memcpy(buffer, dma_buffer, size);
+		else
+			memcpy(dma_buffer, buffer, size);
+
+		remaining -= size;
+		dma_buffer += size;
 	}
 #ifdef FLOPPY_SANITY_CHECK
 	if (remaining) {
@@ -3815,14 +3810,10 @@ static int check_floppy_change(struct gendisk *disk)
  * a disk in the drive, and whether that disk is writable.
  */
 
-static int floppy_rb0_complete(struct bio *bio, unsigned int bytes_done,
+static void floppy_rb0_complete(struct bio *bio,
 			       int err)
 {
-	if (bio->bi_size)
-		return 1;
-
 	complete((struct completion *)bio->bi_private);
-	return 0;
 }
 
 static int __floppy_read_block_0(struct block_device *bdev)

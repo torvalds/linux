@@ -407,7 +407,7 @@ raiddev /dev/md0
 	device		/dev/hda5
 	raid-disk	0
 	device		/dev/hdb1
-	raid-disl	1
+	raid-disk	1
 
 For linear raid, just change the raid-level above to "raid-level linear", for
 mirrors, change it to "raid-level 1", and for stripe sets with parity, change
@@ -457,6 +457,8 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.29:
+	- Fix a deadlock when mounting read-write.
 2.1.28:
 	- Fix a deadlock.
 2.1.27:

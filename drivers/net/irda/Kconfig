@@ -162,7 +162,33 @@ config EP7211_DONGLE
 	  Say Y here if you want to build support for the Cirrus logic
 	  EP7211 chipset's infrared module.
 
+config KSDAZZLE_DONGLE
+	tristate "KingSun Dazzle IrDA-USB dongle (EXPERIMENTAL)"
+	depends on IRDA && USB && EXPERIMENTAL
+	help
+	  Say Y or M here if you want to build support for the KingSun Dazzle
+	  IrDA-USB bridge device driver.
 
+	  This USB bridge does not conform to the IrDA-USB device class
+	  specification, and therefore needs its own specific driver. This
+	  dongle supports SIR speeds only (9600 through 115200 bps).
+
+	  To compile it as a module, choose M here: the module will be called
+	  ksdazzle-sir.
+
+config KS959_DONGLE
+	tristate "KingSun KS-959 IrDA-USB dongle (EXPERIMENTAL)"
+	depends on IRDA && USB && EXPERIMENTAL
+	help
+	  Say Y or M here if you want to build support for the KingSun KS-959
+	  IrDA-USB bridge device driver.
+
+	  This USB bridge does not conform to the IrDA-USB device class
+	  specification, and therefore needs its own specific driver. This
+	  dongle supports SIR speeds only (9600 through 57600 bps).
+
+	  To compile it as a module, choose M here: the module will be called
+	  ks959-sir.
 
 comment "Old SIR device drivers"
 

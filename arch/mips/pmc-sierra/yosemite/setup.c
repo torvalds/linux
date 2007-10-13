@@ -70,7 +70,7 @@ void __init bus_error_init(void)
 }
 
 
-unsigned long m48t37y_get_time(void)
+unsigned long read_persistent_clock(void)
 {
 	unsigned int year, month, day, hour, min, sec;
 	unsigned long flags;
@@ -95,13 +95,17 @@ unsigned long m48t37y_get_time(void)
 	return mktime(year, month, day, hour, min, sec);
 }
 
-int m48t37y_set_time(unsigned long sec)
+int rtc_mips_set_time(unsigned long tim)
 {
 	struct rtc_time tm;
 	unsigned long flags;
 
-	/* convert to a more useful format -- note months count from 0 */
-	to_tm(sec, &tm);
+	/*
+	 * Convert to a more useful format -- note months count from 0
+	 * and years from 1900
+	 */
+	rtc_time_to_tm(tim, &tm);
+	tm.tm_year += 1900;
 	tm.tm_mon += 1;
 
 	spin_lock_irqsave(&rtc_lock, flags);
@@ -138,7 +142,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	setup_irq(7, irq);
 }
 
-void yosemite_time_init(void)
+void __init plat_time_init(void)
 {
 	mips_hpt_frequency = cpu_clock_freq / 2;
 mips_hpt_frequency = 33000000 * 3 * 5;
@@ -198,17 +202,6 @@ static void __init py_rtc_setup(void)
 	m48t37_base = ioremap(YOSEMITE_RTC_BASE, YOSEMITE_RTC_SIZE);
 	if (!m48t37_base)
 		printk(KERN_ERR "Mapping the RTC failed\n");
-
-	rtc_mips_get_time = m48t37y_get_time;
-	rtc_mips_set_time = m48t37y_set_time;
-
-	write_seqlock(&xtime_lock);
-	xtime.tv_sec = m48t37y_get_time();
-	xtime.tv_nsec = 0;
-
-	set_normalized_timespec(&wall_to_monotonic,
-	                        -xtime.tv_sec, -xtime.tv_nsec);
-	write_sequnlock(&xtime_lock);
 }
 
 /* Not only time init but that's what the hook it's called through is named */
@@ -221,7 +214,6 @@ static void __init py_late_time_init(void)
 
 void __init plat_mem_setup(void)
 {
-	board_time_init = yosemite_time_init;
 	late_time_init = py_late_time_init;
 
 	/* Add memory regions */

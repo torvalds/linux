@@ -1,7 +1,11 @@
 /*
- * inode.c - basic inode and dentry operations.
+ * fs/sysfs/inode.c - basic sysfs inode and dentry operations
  *
- * sysfs is Copyright (c) 2001-3 Patrick Mochel
+ * Copyright (c) 2001-3 Patrick Mochel
+ * Copyright (c) 2007 SUSE Linux Products GmbH
+ * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
+ *
+ * This file is released under the GPLv2.
  *
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
@@ -14,7 +18,6 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <asm/semaphore.h>
 #include "sysfs.h"
 
 extern struct super_block * sysfs_sb;
@@ -33,16 +36,6 @@ static struct backing_dev_info sysfs_backing_dev_info = {
 static const struct inode_operations sysfs_inode_operations ={
 	.setattr	= sysfs_setattr,
 };
-
-void sysfs_delete_inode(struct inode *inode)
-{
-	/* Free the shadowed directory inode operations */
-	if (sysfs_is_shadowed_inode(inode)) {
-		kfree(inode->i_op);
-		inode->i_op = NULL;
-	}
-	return generic_delete_inode(inode);
-}
 
 int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 {
@@ -133,8 +126,22 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
  */
 static struct lock_class_key sysfs_inode_imutex_key;
 
+static int sysfs_count_nlink(struct sysfs_dirent *sd)
+{
+	struct sysfs_dirent *child;
+	int nr = 0;
+
+	for (child = sd->s_dir.children; child; child = child->s_sibling)
+		if (sysfs_type(child) == SYSFS_DIR)
+			nr++;
+
+	return nr + 2;
+}
+
 static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 {
+	struct bin_attribute *bin_attr;
+
 	inode->i_blocks = 0;
 	inode->i_mapping->a_ops = &sysfs_aops;
 	inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
@@ -150,6 +157,32 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 		set_inode_attr(inode, sd->s_iattr);
 	} else
 		set_default_inode_attr(inode, sd->s_mode);
+
+
+	/* initialize inode according to type */
+	switch (sysfs_type(sd)) {
+	case SYSFS_DIR:
+		inode->i_op = &sysfs_dir_inode_operations;
+		inode->i_fop = &sysfs_dir_operations;
+		inode->i_nlink = sysfs_count_nlink(sd);
+		break;
+	case SYSFS_KOBJ_ATTR:
+		inode->i_size = PAGE_SIZE;
+		inode->i_fop = &sysfs_file_operations;
+		break;
+	case SYSFS_KOBJ_BIN_ATTR:
+		bin_attr = sd->s_bin_attr.bin_attr;
+		inode->i_size = bin_attr->size;
+		inode->i_fop = &bin_fops;
+		break;
+	case SYSFS_KOBJ_LINK:
+		inode->i_op = &sysfs_symlink_inode_operations;
+		break;
+	default:
+		BUG();
+	}
+
+	unlock_new_inode(inode);
 }
 
 /**
@@ -177,50 +210,24 @@ struct inode * sysfs_get_inode(struct sysfs_dirent *sd)
 	return inode;
 }
 
-/**
- *	sysfs_instantiate - instantiate dentry
- *	@dentry: dentry to be instantiated
- *	@inode: inode associated with @sd
- *
- *	Unlock @inode if locked and instantiate @dentry with @inode.
- *
- *	LOCKING:
- *	None.
- */
-void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
-{
-	BUG_ON(!dentry || dentry->d_inode);
-
-	if (inode->i_state & I_NEW)
-		unlock_new_inode(inode);
-
-	d_instantiate(dentry, inode);
-}
-
 int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 {
 	struct sysfs_addrm_cxt acxt;
-	struct sysfs_dirent **pos, *sd;
+	struct sysfs_dirent *sd;
 
 	if (!dir_sd)
 		return -ENOENT;
 
 	sysfs_addrm_start(&acxt, dir_sd);
 
-	for (pos = &dir_sd->s_children; *pos; pos = &(*pos)->s_sibling) {
-		sd = *pos;
+	sd = sysfs_find_dirent(dir_sd, name);
+	if (sd)
+		sysfs_remove_one(&acxt, sd);
 
-		if (!sysfs_type(sd))
-			continue;
-		if (!strcmp(sd->s_name, name)) {
-			*pos = sd->s_sibling;
-			sd->s_sibling = NULL;
-			sysfs_remove_one(&acxt, sd);
-			break;
-		}
-	}
+	sysfs_addrm_finish(&acxt);
 
-	if (sysfs_addrm_finish(&acxt))
+	if (sd)
 		return 0;
-	return -ENOENT;
+	else
+		return -ENOENT;
 }

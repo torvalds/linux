@@ -174,8 +174,6 @@ struct net_device * __init el1_probe(int unit)
 		mem_start = dev->mem_start & 7;
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	if (io > 0x1ff) {	/* Check a single specified location. */
 		err = el1_probe1(dev, io);
 	} else if (io != 0) {
@@ -317,7 +315,6 @@ static int __init el1_probe1(struct net_device *dev, int ioaddr)
 	dev->tx_timeout = &el_timeout;
 	dev->watchdog_timeo = HZ;
 	dev->stop = &el1_close;
-	dev->get_stats = &el1_get_stats;
 	dev->set_multicast_list = &set_multicast_list;
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	return 0;
@@ -376,7 +373,7 @@ static void el_timeout(struct net_device *dev)
 	if (el_debug)
 		printk (KERN_DEBUG "%s: transmit timed out, txsr %#2x axsr=%02x rxsr=%02x.\n",
 			dev->name, inb(TX_STATUS), inb(AX_STATUS), inb(RX_STATUS));
-	lp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 	outb(TX_NORM, TX_CMD);
 	outb(RX_NORM, RX_CMD);
 	outb(AX_OFF, AX_CMD);	/* Just trigger a false interrupt. */
@@ -443,7 +440,7 @@ static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lp->tx_pkt_start = gp_start;
     		lp->collisions = 0;
 
-    		lp->stats.tx_bytes += skb->len;
+		dev->stats.tx_bytes += skb->len;
 
 		/*
 		 *	Command mode with status cleared should [in theory]
@@ -590,7 +587,7 @@ static irqreturn_t el_interrupt(int irq, void *dev_id)
 				printk (KERN_DEBUG "%s: Transmit failed 16 times, Ethernet jammed?\n",dev->name);
 			outb(AX_SYS, AX_CMD);
 			lp->txing = 0;
-			lp->stats.tx_aborted_errors++;
+			dev->stats.tx_aborted_errors++;
 			netif_wake_queue(dev);
 		}
 		else if (txsr & TX_COLLISION)
@@ -608,7 +605,7 @@ static irqreturn_t el_interrupt(int irq, void *dev_id)
 			outb(AX_SYS, AX_CMD);
 			outw(lp->tx_pkt_start, GP_LOW);
 			outb(AX_XMIT, AX_CMD);
-			lp->stats.collisions++;
+			dev->stats.collisions++;
 			spin_unlock(&lp->lock);
 			goto out;
 		}
@@ -617,7 +614,7 @@ static irqreturn_t el_interrupt(int irq, void *dev_id)
 			/*
 			 *	It worked.. we will now fall through and receive
 			 */
-			lp->stats.tx_packets++;
+			dev->stats.tx_packets++;
 			if (el_debug > 6)
 				printk(KERN_DEBUG " Tx succeeded %s\n",
 		       			(txsr & TX_RDY) ? "." : "but tx is busy!");
@@ -642,10 +639,10 @@ static irqreturn_t el_interrupt(int irq, void *dev_id)
 		 *	Just reading rx_status fixes most errors.
 		 */
 		if (rxsr & RX_MISSED)
-			lp->stats.rx_missed_errors++;
+			dev->stats.rx_missed_errors++;
 		else if (rxsr & RX_RUNT)
 		{	/* Handled to avoid board lock-up. */
-			lp->stats.rx_length_errors++;
+			dev->stats.rx_length_errors++;
 			if (el_debug > 5)
 				printk(KERN_DEBUG " runt.\n");
 		}
@@ -696,7 +693,6 @@ out:
 
 static void el_receive(struct net_device *dev)
 {
-	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 	int pkt_len;
 	struct sk_buff *skb;
@@ -710,7 +706,7 @@ static void el_receive(struct net_device *dev)
 	{
 		if (el_debug)
 			printk(KERN_DEBUG "%s: bogus packet, length=%d\n", dev->name, pkt_len);
-		lp->stats.rx_over_errors++;
+		dev->stats.rx_over_errors++;
 		return;
 	}
 
@@ -729,7 +725,7 @@ static void el_receive(struct net_device *dev)
 	if (skb == NULL)
 	{
 		printk(KERN_INFO "%s: Memory squeeze, dropping packet.\n", dev->name);
-		lp->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 	else
@@ -744,8 +740,8 @@ static void el_receive(struct net_device *dev)
 		skb->protocol=eth_type_trans(skb,dev);
 		netif_rx(skb);
 		dev->last_rx = jiffies;
-		lp->stats.rx_packets++;
-		lp->stats.rx_bytes+=pkt_len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes+=pkt_len;
 	}
 	return;
 }
@@ -810,23 +806,6 @@ static int el1_close(struct net_device *dev)
 	outb(AX_RESET, AX_CMD);		/* Reset the chip */
 
 	return 0;
-}
-
-/**
- * el1_get_stats:
- * @dev: The card to get the statistics for
- *
- * In smarter devices this function is needed to pull statistics off the
- * board itself. The 3c501 has no hardware statistics. We maintain them all
- * so they are by definition always up to date.
- *
- * Returns the statistics for the card from the card private data
- */
-
-static struct net_device_stats *el1_get_stats(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-	return &lp->stats;
 }
 
 /**

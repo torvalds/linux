@@ -13,15 +13,35 @@ The radiotap format is discussed in
 ./Documentation/networking/radiotap-headers.txt.
 
 Despite 13 radiotap argument types are currently defined, most only make sense
-to appear on received packets.  Currently three kinds of argument are used by
-the injection code, although it knows to skip any other arguments that are
-present (facilitating replay of captured radiotap headers directly):
+to appear on received packets.  The following information is parsed from the
+radiotap headers and used to control injection:
 
- - IEEE80211_RADIOTAP_RATE - u8 arg in 500kbps units (0x02 --> 1Mbps)
+ * IEEE80211_RADIOTAP_RATE
 
- - IEEE80211_RADIOTAP_ANTENNA - u8 arg, 0x00 = ant1, 0x01 = ant2
+   rate in 500kbps units, automatic if invalid or not present
 
- - IEEE80211_RADIOTAP_DBM_TX_POWER - u8 arg, dBm
+
+ * IEEE80211_RADIOTAP_ANTENNA
+
+   antenna to use, automatic if not present
+
+
+ * IEEE80211_RADIOTAP_DBM_TX_POWER
+
+   transmit power in dBm, automatic if not present
+
+
+ * IEEE80211_RADIOTAP_FLAGS
+
+   IEEE80211_RADIOTAP_F_FCS: FCS will be removed and recalculated
+   IEEE80211_RADIOTAP_F_WEP: frame will be encrypted if key available
+   IEEE80211_RADIOTAP_F_FRAG: frame will be fragmented if longer than the
+			      current fragmentation threshold. Note that
+			      this flag is only reliable when software
+			      fragmentation is enabled)
+
+The injection code can also skip all other currently defined radiotap fields
+facilitating replay of captured radiotap headers directly.
 
 Here is an example valid radiotap header defining these three parameters
 

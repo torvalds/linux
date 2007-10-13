@@ -96,7 +96,7 @@ static int iordy_mask = 0xFFFFFFFF;	/* Use iordy if available */
 
 /**
  *	legacy_set_mode		-	mode setting
- *	@ap: IDE interface
+ *	@link: IDE link
  *	@unused: Device that failed when error is returned
  *
  *	Use a non standard set_mode function. We don't want to be tuned.
@@ -107,12 +107,11 @@ static int iordy_mask = 0xFFFFFFFF;	/* Use iordy if available */
  *	expand on this as per hdparm in the base kernel.
  */
 
-static int legacy_set_mode(struct ata_port *ap, struct ata_device **unused)
+static int legacy_set_mode(struct ata_link *link, struct ata_device **unused)
 {
-	int i;
+	struct ata_device *dev;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
+	ata_link_for_each_dev(dev, link) {
 		if (ata_dev_enabled(dev)) {
 			ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
 			dev->pio_mode = XFER_PIO_0;
@@ -151,7 +150,6 @@ static struct scsi_host_template legacy_sht = {
  */
 
 static struct ata_port_operations simple_port_ops = {
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -172,7 +170,6 @@ static struct ata_port_operations simple_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -180,7 +177,6 @@ static struct ata_port_operations simple_port_ops = {
 static struct ata_port_operations legacy_port_ops = {
 	.set_mode	= legacy_set_mode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -201,7 +197,6 @@ static struct ata_port_operations legacy_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -256,7 +251,7 @@ static void pdc20230_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void pdc_data_xfer_vlb(struct ata_device *adev, unsigned char *buf, unsigned int buflen, int write_data)
 {
-	struct ata_port *ap = adev->ap;
+	struct ata_port *ap = adev->link->ap;
 	int slop = buflen & 3;
 	unsigned long flags;
 
@@ -296,7 +291,6 @@ static void pdc_data_xfer_vlb(struct ata_device *adev, unsigned char *buf, unsig
 static struct ata_port_operations pdc20230_port_ops = {
 	.set_piomode	= pdc20230_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -317,7 +311,6 @@ static struct ata_port_operations pdc20230_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -352,7 +345,6 @@ static void ht6560a_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static struct ata_port_operations ht6560a_port_ops = {
 	.set_piomode	= ht6560a_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -373,7 +365,6 @@ static struct ata_port_operations ht6560a_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -419,7 +410,6 @@ static void ht6560b_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static struct ata_port_operations ht6560b_port_ops = {
 	.set_piomode	= ht6560b_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -440,7 +430,6 @@ static struct ata_port_operations ht6560b_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -541,7 +530,6 @@ static void opti82c611a_set_piomode(struct ata_port *ap, struct ata_device *adev
 static struct ata_port_operations opti82c611a_port_ops = {
 	.set_piomode	= opti82c611a_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -562,7 +550,6 @@ static struct ata_port_operations opti82c611a_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -675,7 +662,6 @@ static unsigned int opti82c46x_qc_issue_prot(struct ata_queued_cmd *qc)
 static struct ata_port_operations opti82c46x_port_ops = {
 	.set_piomode	= opti82c46x_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -696,7 +682,6 @@ static struct ata_port_operations opti82c46x_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -813,6 +798,8 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	ap->ioaddr.ctl_addr = ctrl_addr;
 	ata_std_ports(&ap->ioaddr);
 	ap->private_data = ld;
+
+	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", io, ctrl);
 
 	ret = ata_host_activate(host, irq, ata_interrupt, 0, &legacy_sht);
 	if (ret)

@@ -25,7 +25,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
 #include <asm/bitops.h>
@@ -280,7 +279,7 @@ static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 	if (count < size)
 		return -EINVAL;
 
-	page = (char *) vmalloc(size);
+	page = vmalloc(size);
 	if (!page)
 		return -ENOMEM;
 

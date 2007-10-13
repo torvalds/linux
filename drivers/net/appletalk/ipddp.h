@@ -14,7 +14,7 @@
 struct ipddp_route
 {
         struct net_device *dev;             /* Carrier device */
-        __u32 ip;                       /* IP address */
+        __be32 ip;                       /* IP address */
         struct atalk_addr at;              /* Gateway appletalk address */
         int flags;
         struct ipddp_route *next;

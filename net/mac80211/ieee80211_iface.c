@@ -25,6 +25,8 @@ void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata)
 	sdata->eapol = 1;
 	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++)
 		skb_queue_head_init(&sdata->fragments[i].skb_list);
+
+	INIT_LIST_HEAD(&sdata->key_list);
 }
 
 static void ieee80211_if_sdata_deinit(struct ieee80211_sub_if_data *sdata)
@@ -77,94 +79,52 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 	ieee80211_debugfs_add_netdev(sdata);
 	ieee80211_if_set_type(ndev, type);
 
-	write_lock_bh(&local->sub_if_lock);
+	/* we're under RTNL so all this is fine */
 	if (unlikely(local->reg_state == IEEE80211_DEV_UNREGISTERED)) {
-		write_unlock_bh(&local->sub_if_lock);
 		__ieee80211_if_del(local, sdata);
 		return -ENODEV;
 	}
-	list_add(&sdata->list, &local->sub_if_list);
+	list_add_tail_rcu(&sdata->list, &local->interfaces);
+
 	if (new_dev)
 		*new_dev = ndev;
-	write_unlock_bh(&local->sub_if_lock);
-
-	ieee80211_update_default_wep_only(local);
 
 	return 0;
 
 fail:
 	free_netdev(ndev);
 	return ret;
-}
-
-int ieee80211_if_add_mgmt(struct ieee80211_local *local)
-{
-	struct net_device *ndev;
-	struct ieee80211_sub_if_data *nsdata;
-	int ret;
-
-	ASSERT_RTNL();
-
-	ndev = alloc_netdev(sizeof(struct ieee80211_sub_if_data), "wmgmt%d",
-			    ieee80211_if_mgmt_setup);
-	if (!ndev)
-		return -ENOMEM;
-	ret = dev_alloc_name(ndev, ndev->name);
-	if (ret < 0)
-		goto fail;
-
-	memcpy(ndev->dev_addr, local->hw.wiphy->perm_addr, ETH_ALEN);
-	SET_NETDEV_DEV(ndev, wiphy_dev(local->hw.wiphy));
-
-	nsdata = IEEE80211_DEV_TO_SUB_IF(ndev);
-	ndev->ieee80211_ptr = &nsdata->wdev;
-	nsdata->wdev.wiphy = local->hw.wiphy;
-	nsdata->type = IEEE80211_IF_TYPE_MGMT;
-	nsdata->dev = ndev;
-	nsdata->local = local;
-	ieee80211_if_sdata_init(nsdata);
-
-	ret = register_netdevice(ndev);
-	if (ret)
-		goto fail;
-
-	ieee80211_debugfs_add_netdev(nsdata);
-
-	if (local->open_count > 0)
-		dev_open(ndev);
-	local->apdev = ndev;
-	return 0;
-
-fail:
-	free_netdev(ndev);
-	return ret;
-}
-
-void ieee80211_if_del_mgmt(struct ieee80211_local *local)
-{
-	struct net_device *apdev;
-
-	ASSERT_RTNL();
-	apdev = local->apdev;
-	ieee80211_debugfs_remove_netdev(IEEE80211_DEV_TO_SUB_IF(apdev));
-	local->apdev = NULL;
-	unregister_netdevice(apdev);
 }
 
 void ieee80211_if_set_type(struct net_device *dev, int type)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	int oldtype = sdata->type;
 
-	dev->hard_start_xmit = ieee80211_subif_start_xmit;
+	/*
+	 * We need to call this function on the master interface
+	 * which already has a hard_start_xmit routine assigned
+	 * which must not be changed.
+	 */
+	if (dev != sdata->local->mdev)
+		dev->hard_start_xmit = ieee80211_subif_start_xmit;
 
+	/*
+	 * Called even when register_netdevice fails, it would
+	 * oops if assigned before initialising the rest.
+	 */
+	dev->uninit = ieee80211_if_reinit;
+
+	/* most have no BSS pointer */
+	sdata->bss = NULL;
 	sdata->type = type;
+
 	switch (type) {
 	case IEEE80211_IF_TYPE_WDS:
-		sdata->bss = NULL;
+		/* nothing special */
 		break;
 	case IEEE80211_IF_TYPE_VLAN:
+		sdata->u.vlan.ap = NULL;
 		break;
 	case IEEE80211_IF_TYPE_AP:
 		sdata->u.ap.dtim_period = 2;
@@ -172,6 +132,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		sdata->u.ap.max_ratectrl_rateidx = -1;
 		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
 		sdata->bss = &sdata->u.ap;
+		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS: {
@@ -187,10 +148,10 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		ifsta->capab = WLAN_CAPABILITY_ESS;
 		ifsta->auth_algs = IEEE80211_AUTH_ALG_OPEN |
 			IEEE80211_AUTH_ALG_SHARED_KEY;
-		ifsta->create_ibss = 1;
-		ifsta->wmm_enabled = 1;
-		ifsta->auto_channel_sel = 1;
-		ifsta->auto_bssid_sel = 1;
+		ifsta->flags |= IEEE80211_STA_CREATE_IBSS |
+			IEEE80211_STA_WMM_ENABLED |
+			IEEE80211_STA_AUTO_BSSID_SEL |
+			IEEE80211_STA_AUTO_CHANNEL_SEL;
 
 		msdata = IEEE80211_DEV_TO_SUB_IF(sdata->local->mdev);
 		sdata->bss = &msdata->u.ap;
@@ -205,7 +166,6 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		       dev->name, __FUNCTION__, type);
 	}
 	ieee80211_debugfs_change_if_type(sdata, oldtype);
-	ieee80211_update_default_wep_only(local);
 }
 
 /* Must be called with rtnl lock held. */
@@ -214,57 +174,46 @@ void ieee80211_if_reinit(struct net_device *dev)
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta;
-	int i;
+	struct sk_buff *skb;
 
 	ASSERT_RTNL();
+
+	ieee80211_free_keys(sdata);
+
 	ieee80211_if_sdata_deinit(sdata);
-	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-		if (!sdata->keys[i])
-			continue;
-#if 0
-		/* The interface is down at the moment, so there is not
-		 * really much point in disabling the keys at this point. */
-		memset(addr, 0xff, ETH_ALEN);
-		if (local->ops->set_key)
-			local->ops->set_key(local_to_hw(local), DISABLE_KEY, addr,
-					    local->keys[i], 0);
-#endif
-		ieee80211_key_free(sdata->keys[i]);
-		sdata->keys[i] = NULL;
-	}
 
 	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_INVALID:
+		/* cannot happen */
+		WARN_ON(1);
+		break;
 	case IEEE80211_IF_TYPE_AP: {
 		/* Remove all virtual interfaces that use this BSS
 		 * as their sdata->bss */
 		struct ieee80211_sub_if_data *tsdata, *n;
-		LIST_HEAD(tmp_list);
 
-		write_lock_bh(&local->sub_if_lock);
-		list_for_each_entry_safe(tsdata, n, &local->sub_if_list, list) {
+		list_for_each_entry_safe(tsdata, n, &local->interfaces, list) {
 			if (tsdata != sdata && tsdata->bss == &sdata->u.ap) {
 				printk(KERN_DEBUG "%s: removing virtual "
 				       "interface %s because its BSS interface"
 				       " is being removed\n",
 				       sdata->dev->name, tsdata->dev->name);
-				list_move_tail(&tsdata->list, &tmp_list);
+				list_del_rcu(&tsdata->list);
+				/*
+				 * We have lots of time and can afford
+				 * to sync for each interface
+				 */
+				synchronize_rcu();
+				__ieee80211_if_del(local, tsdata);
 			}
 		}
-		write_unlock_bh(&local->sub_if_lock);
-
-		list_for_each_entry_safe(tsdata, n, &tmp_list, list)
-			__ieee80211_if_del(local, tsdata);
 
 		kfree(sdata->u.ap.beacon_head);
 		kfree(sdata->u.ap.beacon_tail);
-		kfree(sdata->u.ap.generic_elem);
 
-		if (dev != local->mdev) {
-			struct sk_buff *skb;
-			while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
-				local->total_ps_buffered--;
-				dev_kfree_skb(skb);
-			}
+		while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
+			local->total_ps_buffered--;
+			dev_kfree_skb(skb);
 		}
 
 		break;
@@ -272,8 +221,8 @@ void ieee80211_if_reinit(struct net_device *dev)
 	case IEEE80211_IF_TYPE_WDS:
 		sta = sta_info_get(local, sdata->u.wds.remote_addr);
 		if (sta) {
+			sta_info_free(sta);
 			sta_info_put(sta);
-			sta_info_free(sta, 0);
 		} else {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			printk(KERN_DEBUG "%s: Someone had deleted my STA "
@@ -297,6 +246,9 @@ void ieee80211_if_reinit(struct net_device *dev)
 		break;
 	case IEEE80211_IF_TYPE_MNTR:
 		dev->type = ARPHRD_ETHER;
+		break;
+	case IEEE80211_IF_TYPE_VLAN:
+		sdata->u.vlan.ap = NULL;
 		break;
 	}
 
@@ -327,29 +279,23 @@ int ieee80211_if_remove(struct net_device *dev, const char *name, int id)
 
 	ASSERT_RTNL();
 
-	write_lock_bh(&local->sub_if_lock);
-	list_for_each_entry_safe(sdata, n, &local->sub_if_list, list) {
+	list_for_each_entry_safe(sdata, n, &local->interfaces, list) {
 		if ((sdata->type == id || id == -1) &&
 		    strcmp(name, sdata->dev->name) == 0 &&
 		    sdata->dev != local->mdev) {
-			list_del(&sdata->list);
-			write_unlock_bh(&local->sub_if_lock);
+			list_del_rcu(&sdata->list);
+			synchronize_rcu();
 			__ieee80211_if_del(local, sdata);
-			ieee80211_update_default_wep_only(local);
 			return 0;
 		}
 	}
-	write_unlock_bh(&local->sub_if_lock);
 	return -ENODEV;
 }
 
 void ieee80211_if_free(struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	/* local->apdev must be NULL when freeing management interface */
-	BUG_ON(dev == local->apdev);
 	ieee80211_if_sdata_deinit(sdata);
 	free_netdev(dev);
 }

@@ -245,7 +245,7 @@ static int recv_subn_get_portinfo(struct ib_smp *smp,
 
 	/* Only return the mkey if the protection field allows it. */
 	if (smp->method == IB_MGMT_METHOD_SET || dev->mkey == smp->mkey ||
-	    (dev->mkeyprot_resv_lmc >> 6) == 0)
+	    dev->mkeyprot == 0)
 		pip->mkey = dev->mkey;
 	pip->gid_prefix = dev->gid_prefix;
 	lid = dev->dd->ipath_lid;
@@ -264,7 +264,7 @@ static int recv_subn_get_portinfo(struct ib_smp *smp,
 	pip->portphysstate_linkdown =
 		(ipath_cvt_physportstate[ibcstat & 0xf] << 4) |
 		(get_linkdowndefaultstate(dev->dd) ? 1 : 2);
-	pip->mkeyprot_resv_lmc = dev->mkeyprot_resv_lmc;
+	pip->mkeyprot_resv_lmc = (dev->mkeyprot << 6) | dev->dd->ipath_lmc;
 	pip->linkspeedactive_enabled = 0x11;	/* 2.5Gbps, 2.5Gbps */
 	switch (dev->dd->ipath_ibmtu) {
 	case 4096:
@@ -401,7 +401,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	struct ib_port_info *pip = (struct ib_port_info *)smp->data;
 	struct ib_event event;
 	struct ipath_ibdev *dev;
-	u32 flags;
+	struct ipath_devdata *dd;
 	char clientrereg = 0;
 	u16 lid, smlid;
 	u8 lwe;
@@ -415,6 +415,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		goto err;
 
 	dev = to_idev(ibdev);
+	dd = dev->dd;
 	event.device = ibdev;
 	event.element.port_num = port;
 
@@ -423,11 +424,12 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	dev->mkey_lease_period = be16_to_cpu(pip->mkey_lease_period);
 
 	lid = be16_to_cpu(pip->lid);
-	if (lid != dev->dd->ipath_lid) {
+	if (dd->ipath_lid != lid ||
+	    dd->ipath_lmc != (pip->mkeyprot_resv_lmc & 7)) {
 		/* Must be a valid unicast LID address. */
 		if (lid == 0 || lid >= IPATH_MULTICAST_LID_BASE)
 			goto err;
-		ipath_set_lid(dev->dd, lid, pip->mkeyprot_resv_lmc & 7);
+		ipath_set_lid(dd, lid, pip->mkeyprot_resv_lmc & 7);
 		event.event = IB_EVENT_LID_CHANGE;
 		ib_dispatch_event(&event);
 	}
@@ -461,18 +463,18 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	case 0: /* NOP */
 		break;
 	case 1: /* SLEEP */
-		if (set_linkdowndefaultstate(dev->dd, 1))
+		if (set_linkdowndefaultstate(dd, 1))
 			goto err;
 		break;
 	case 2: /* POLL */
-		if (set_linkdowndefaultstate(dev->dd, 0))
+		if (set_linkdowndefaultstate(dd, 0))
 			goto err;
 		break;
 	default:
 		goto err;
 	}
 
-	dev->mkeyprot_resv_lmc = pip->mkeyprot_resv_lmc;
+	dev->mkeyprot = pip->mkeyprot_resv_lmc >> 6;
 	dev->vl_high_limit = pip->vl_high_limit;
 
 	switch ((pip->neighbormtu_mastersmsl >> 4) & 0xF) {
@@ -495,7 +497,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		/* XXX We have already partially updated our state! */
 		goto err;
 	}
-	ipath_set_mtu(dev->dd, mtu);
+	ipath_set_mtu(dd, mtu);
 
 	dev->sm_sl = pip->neighbormtu_mastersmsl & 0xF;
 
@@ -511,16 +513,16 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	 * later.
 	 */
 	if (pip->pkey_violations == 0)
-		dev->z_pkey_violations = ipath_get_cr_errpkey(dev->dd);
+		dev->z_pkey_violations = ipath_get_cr_errpkey(dd);
 
 	if (pip->qkey_violations == 0)
 		dev->qkey_violations = 0;
 
 	ore = pip->localphyerrors_overrunerrors;
-	if (set_phyerrthreshold(dev->dd, (ore >> 4) & 0xF))
+	if (set_phyerrthreshold(dd, (ore >> 4) & 0xF))
 		goto err;
 
-	if (set_overrunthreshold(dev->dd, (ore & 0xF)))
+	if (set_overrunthreshold(dd, (ore & 0xF)))
 		goto err;
 
 	dev->subnet_timeout = pip->clientrereg_resv_subnetto & 0x1F;
@@ -538,7 +540,6 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	 * is down or is being set to down.
 	 */
 	state = pip->linkspeed_portstate & 0xF;
-	flags = dev->dd->ipath_flags;
 	lstate = (pip->portphysstate_linkdown >> 4) & 0xF;
 	if (lstate && !(state == IB_PORT_DOWN || state == IB_PORT_NOP))
 		goto err;
@@ -554,7 +555,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		/* FALLTHROUGH */
 	case IB_PORT_DOWN:
 		if (lstate == 0)
-			if (get_linkdowndefaultstate(dev->dd))
+			if (get_linkdowndefaultstate(dd))
 				lstate = IPATH_IB_LINKDOWN_SLEEP;
 			else
 				lstate = IPATH_IB_LINKDOWN;
@@ -566,27 +567,13 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 			lstate = IPATH_IB_LINKDOWN_DISABLE;
 		else
 			goto err;
-		ipath_set_linkstate(dev->dd, lstate);
-		if (flags & IPATH_LINKACTIVE) {
-			event.event = IB_EVENT_PORT_ERR;
-			ib_dispatch_event(&event);
-		}
+		ipath_set_linkstate(dd, lstate);
 		break;
 	case IB_PORT_ARMED:
-		if (!(flags & (IPATH_LINKINIT | IPATH_LINKACTIVE)))
-			break;
-		ipath_set_linkstate(dev->dd, IPATH_IB_LINKARM);
-		if (flags & IPATH_LINKACTIVE) {
-			event.event = IB_EVENT_PORT_ERR;
-			ib_dispatch_event(&event);
-		}
+		ipath_set_linkstate(dd, IPATH_IB_LINKARM);
 		break;
 	case IB_PORT_ACTIVE:
-		if (!(flags & IPATH_LINKARMED))
-			break;
-		ipath_set_linkstate(dev->dd, IPATH_IB_LINKACTIVE);
-		event.event = IB_EVENT_PORT_ACTIVE;
-		ib_dispatch_event(&event);
+		ipath_set_linkstate(dd, IPATH_IB_LINKACTIVE);
 		break;
 	default:
 		/* XXX We have already partially updated our state! */
@@ -1350,7 +1337,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 	if (dev->mkey_lease_timeout && jiffies >= dev->mkey_lease_timeout) {
 		/* Clear timeout and mkey protection field. */
 		dev->mkey_lease_timeout = 0;
-		dev->mkeyprot_resv_lmc &= 0x3F;
+		dev->mkeyprot = 0;
 	}
 
 	/*
@@ -1361,7 +1348,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 	    dev->mkey != smp->mkey &&
 	    (smp->method == IB_MGMT_METHOD_SET ||
 	     (smp->method == IB_MGMT_METHOD_GET &&
-	      (dev->mkeyprot_resv_lmc >> 7) != 0))) {
+	      dev->mkeyprot >= 2))) {
 		if (dev->mkey_violations != 0xFFFF)
 			++dev->mkey_violations;
 		if (dev->mkey_lease_timeout ||

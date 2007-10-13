@@ -54,7 +54,7 @@ void ptrace_disable(struct task_struct *child)
  * for 32-bit kernels and for 32-bit processes on a 64-bit kernel.
  * Registers are sign extended to fill the available space.
  */
-int ptrace_getregs (struct task_struct *child, __s64 __user *data)
+int ptrace_getregs(struct task_struct *child, __s64 __user *data)
 {
 	struct pt_regs *regs;
 	int i;
@@ -65,13 +65,13 @@ int ptrace_getregs (struct task_struct *child, __s64 __user *data)
 	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
-		__put_user (regs->regs[i], data + i);
-	__put_user (regs->lo, data + EF_LO - EF_R0);
-	__put_user (regs->hi, data + EF_HI - EF_R0);
-	__put_user (regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
-	__put_user (regs->cp0_badvaddr, data + EF_CP0_BADVADDR - EF_R0);
-	__put_user (regs->cp0_status, data + EF_CP0_STATUS - EF_R0);
-	__put_user (regs->cp0_cause, data + EF_CP0_CAUSE - EF_R0);
+		__put_user(regs->regs[i], data + i);
+	__put_user(regs->lo, data + EF_LO - EF_R0);
+	__put_user(regs->hi, data + EF_HI - EF_R0);
+	__put_user(regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
+	__put_user(regs->cp0_badvaddr, data + EF_CP0_BADVADDR - EF_R0);
+	__put_user(regs->cp0_status, data + EF_CP0_STATUS - EF_R0);
+	__put_user(regs->cp0_cause, data + EF_CP0_CAUSE - EF_R0);
 
 	return 0;
 }
@@ -81,7 +81,7 @@ int ptrace_getregs (struct task_struct *child, __s64 __user *data)
  * the 64-bit format.  On a 32-bit kernel only the lower order half
  * (according to endianness) will be used.
  */
-int ptrace_setregs (struct task_struct *child, __s64 __user *data)
+int ptrace_setregs(struct task_struct *child, __s64 __user *data)
 {
 	struct pt_regs *regs;
 	int i;
@@ -92,17 +92,17 @@ int ptrace_setregs (struct task_struct *child, __s64 __user *data)
 	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
-		__get_user (regs->regs[i], data + i);
-	__get_user (regs->lo, data + EF_LO - EF_R0);
-	__get_user (regs->hi, data + EF_HI - EF_R0);
-	__get_user (regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
+		__get_user(regs->regs[i], data + i);
+	__get_user(regs->lo, data + EF_LO - EF_R0);
+	__get_user(regs->hi, data + EF_HI - EF_R0);
+	__get_user(regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
 
 	/* badvaddr, status, and cause may not be written.  */
 
 	return 0;
 }
 
-int ptrace_getfpregs (struct task_struct *child, __u32 __user *data)
+int ptrace_getfpregs(struct task_struct *child, __u32 __user *data)
 {
 	int i;
 	unsigned int tmp;
@@ -113,13 +113,13 @@ int ptrace_getfpregs (struct task_struct *child, __u32 __user *data)
 	if (tsk_used_math(child)) {
 		fpureg_t *fregs = get_fpu_regs(child);
 		for (i = 0; i < 32; i++)
-			__put_user (fregs[i], i + (__u64 __user *) data);
+			__put_user(fregs[i], i + (__u64 __user *) data);
 	} else {
 		for (i = 0; i < 32; i++)
-			__put_user ((__u64) -1, i + (__u64 __user *) data);
+			__put_user((__u64) -1, i + (__u64 __user *) data);
 	}
 
-	__put_user (child->thread.fpu.fcr31, data + 64);
+	__put_user(child->thread.fpu.fcr31, data + 64);
 
 	preempt_disable();
 	if (cpu_has_fpu) {
@@ -142,12 +142,12 @@ int ptrace_getfpregs (struct task_struct *child, __u32 __user *data)
 		tmp = 0;
 	}
 	preempt_enable();
-	__put_user (tmp, data + 65);
+	__put_user(tmp, data + 65);
 
 	return 0;
 }
 
-int ptrace_setfpregs (struct task_struct *child, __u32 __user *data)
+int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 {
 	fpureg_t *fregs;
 	int i;
@@ -158,9 +158,9 @@ int ptrace_setfpregs (struct task_struct *child, __u32 __user *data)
 	fregs = get_fpu_regs(child);
 
 	for (i = 0; i < 32; i++)
-		__get_user (fregs[i], i + (__u64 __user *) data);
+		__get_user(fregs[i], i + (__u64 __user *) data);
 
-	__get_user (child->thread.fpu.fcr31, data + 64);
+	__get_user(child->thread.fpu.fcr31, data + 64);
 
 	/* FIR may not be written.  */
 
@@ -390,19 +390,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 
 	case PTRACE_GETREGS:
-		ret = ptrace_getregs (child, (__u64 __user *) data);
+		ret = ptrace_getregs(child, (__u64 __user *) data);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = ptrace_setregs (child, (__u64 __user *) data);
+		ret = ptrace_setregs(child, (__u64 __user *) data);
 		break;
 
 	case PTRACE_GETFPREGS:
-		ret = ptrace_getfpregs (child, (__u32 __user *) data);
+		ret = ptrace_getfpregs(child, (__u32 __user *) data);
 		break;
 
 	case PTRACE_SETFPREGS:
-		ret = ptrace_setfpregs (child, (__u32 __user *) data);
+		ret = ptrace_setfpregs(child, (__u32 __user *) data);
 		break;
 
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */

@@ -53,13 +53,14 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits)
 void saa7146_dma_free(struct saa7146_dev *dev,struct videobuf_queue *q,
 						struct saa7146_buf *buf)
 {
+	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	DEB_EE(("dev:%p, buf:%p\n",dev,buf));
 
 	BUG_ON(in_interrupt());
 
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_unmap(q, &buf->vb.dma);
-	videobuf_dma_free(&buf->vb.dma);
+	videobuf_dma_unmap(q, dma);
+	videobuf_dma_free(dma);
 	buf->vb.state = STATE_NEEDS_INIT;
 }
 

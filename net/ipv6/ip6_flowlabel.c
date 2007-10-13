@@ -21,6 +21,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <net/net_namespace.h>
 #include <net/sock.h>
 
 #include <net/ipv6.h>
@@ -657,24 +658,8 @@ static const struct seq_operations ip6fl_seq_ops = {
 
 static int ip6fl_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct ip6fl_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &ip6fl_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &ip6fl_seq_ops,
+			sizeof(struct ip6fl_iter_state));
 }
 
 static const struct file_operations ip6fl_seq_fops = {
@@ -690,7 +675,7 @@ static const struct file_operations ip6fl_seq_fops = {
 void ip6_flowlabel_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create("ip6_flowlabel", S_IRUGO, &ip6fl_seq_fops);
+	proc_net_fops_create(&init_net, "ip6_flowlabel", S_IRUGO, &ip6fl_seq_fops);
 #endif
 }
 
@@ -698,6 +683,6 @@ void ip6_flowlabel_cleanup(void)
 {
 	del_timer(&ip6_fl_gc_timer);
 #ifdef CONFIG_PROC_FS
-	proc_net_remove("ip6_flowlabel");
+	proc_net_remove(&init_net, "ip6_flowlabel");
 #endif
 }

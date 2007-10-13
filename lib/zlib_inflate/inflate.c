@@ -332,14 +332,14 @@ static int zlib_inflateSyncPacket(z_streamp strm)
 int zlib_inflate(z_streamp strm, int flush)
 {
     struct inflate_state *state;
-    unsigned char *next;    /* next input */
-    unsigned char *put;     /* next output */
+    const unsigned char *next;  /* next input */
+    unsigned char *put;         /* next output */
     unsigned have, left;        /* available input and output */
     unsigned long hold;         /* bit buffer */
     unsigned bits;              /* bits in bit buffer */
     unsigned in, out;           /* save starting available input and output */
     unsigned copy;              /* number of stored or match bytes to copy */
-    unsigned char *from;    /* where to copy match bytes from */
+    unsigned char *from;        /* where to copy match bytes from */
     code this;                  /* current decoding table entry */
     code last;                  /* parent table entry */
     unsigned len;               /* length to copy for repeats, bits to drop */
@@ -897,7 +897,7 @@ int zlib_inflateIncomp(z_stream *z)
 
     /* Setup some variables to allow misuse of updateWindow */
     z->avail_out = 0;
-    z->next_out = z->next_in + z->avail_in;
+    z->next_out = (unsigned char*)z->next_in + z->avail_in;
 
     zlib_updatewindow(z, z->avail_in);
 

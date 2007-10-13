@@ -1,0 +1,89 @@
+rfkill - RF switch subsystem support
+====================================
+
+1 Implementation details
+2 Driver support
+3 Userspace support
+
+===============================================================================
+1: Implementation details
+
+The rfkill switch subsystem offers support for keys often found on laptops
+to enable wireless devices like WiFi and Bluetooth.
+
+This is done by providing the user 3 possibilities:
+ 1 - The rfkill system handles all events; userspace is not aware of events.
+ 2 - The rfkill system handles all events; userspace is informed about the events.
+ 3 - The rfkill system does not handle events; userspace handles all events.
+
+The buttons to enable and disable the wireless radios are important in
+situations where the user is for example using his laptop on a location where
+wireless radios _must_ be disabled (e.g. airplanes).
+Because of this requirement, userspace support for the keys should not be
+made mandatory. Because userspace might want to perform some additional smarter
+tasks when the key is pressed, rfkill still provides userspace the possibility
+to take over the task to handle the key events.
+
+The system inside the kernel has been split into 2 separate sections:
+	1 - RFKILL
+	2 - RFKILL_INPUT
+
+The first option enables rfkill support and will make sure userspace will
+be notified of any events through the input device. It also creates several
+sysfs entries which can be used by userspace. See section "Userspace support".
+
+The second option provides an rfkill input handler. This handler will
+listen to all rfkill key events and will toggle the radio accordingly.
+With this option enabled userspace could either do nothing or simply
+perform monitoring tasks.
+
+====================================
+2: Driver support
+
+To build a driver with rfkill subsystem support, the driver should
+depend on the Kconfig symbol RFKILL; it should _not_ depend on
+RKFILL_INPUT.
+
+Unless key events trigger an interrupt to which the driver listens, polling
+will be required to determine the key state changes. For this the input
+layer providers the input-polldev handler.
+
+A driver should implement a few steps to correctly make use of the
+rfkill subsystem. First for non-polling drivers:
+
+	- rfkill_allocate()
+	- input_allocate_device()
+	- rfkill_register()
+	- input_register_device()
+
+For polling drivers:
+
+	- rfkill_allocate()
+	- input_allocate_polled_device()
+	- rfkill_register()
+	- input_register_polled_device()
+
+When a key event has been detected, the correct event should be
+sent over the input device which has been registered by the driver.
+
+====================================
+3: Userspace support
+
+For each key an input device will be created which will send out the correct
+key event when the rfkill key has been pressed.
+
+The following sysfs entries will be created:
+
+	name: Name assigned by driver to this key (interface or driver name).
+	type: Name of the key type ("wlan", "bluetooth", etc).
+	state: Current state of the key. 1: On, 0: Off.
+	claim: 1: Userspace handles events, 0: Kernel handles events
+
+Both the "state" and "claim" entries are also writable. For the "state" entry
+this means that when 1 or 0 is written all radios, not yet in the requested
+state, will be will be toggled accordingly.
+For the "claim" entry writing 1 to it means that the kernel no longer handles
+key events even though RFKILL_INPUT input was enabled. When "claim" has been
+set to 0, userspace should make sure that it listens for the input events or
+check the sysfs "state" entry regularly to correctly perform the required
+tasks when the rkfill key is pressed.

@@ -192,7 +192,7 @@ extern struct sk_buff *br_handle_frame(struct net_bridge_port *p,
 
 /* br_ioctl.c */
 extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-extern int br_ioctl_deviceless_stub(unsigned int cmd, void __user *arg);
+extern int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __user *arg);
 
 /* br_netfilter.c */
 #ifdef CONFIG_BRIDGE_NETFILTER

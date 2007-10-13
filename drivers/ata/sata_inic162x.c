@@ -285,7 +285,7 @@ static void inic_irq_clear(struct ata_port *ap)
 static void inic_host_intr(struct ata_port *ap)
 {
 	void __iomem *port_base = inic_port_base(ap);
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 	u8 irq_stat;
 
 	/* fetch and clear irq */
@@ -293,7 +293,8 @@ static void inic_host_intr(struct ata_port *ap)
 	writeb(irq_stat, port_base + PORT_IRQ_STAT);
 
 	if (likely(!(irq_stat & PIRQ_ERR))) {
-		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+		struct ata_queued_cmd *qc =
+			ata_qc_from_tag(ap, ap->link.active_tag);
 
 		if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
 			ata_chk_status(ap);	/* clear ATA interrupt */
@@ -416,12 +417,13 @@ static void inic_thaw(struct ata_port *ap)
  * SRST and SControl hardreset don't give valid signature on this
  * controller.  Only controller specific hardreset mechanism works.
  */
-static int inic_hardreset(struct ata_port *ap, unsigned int *class,
+static int inic_hardreset(struct ata_link *link, unsigned int *class,
 			  unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	void __iomem *port_base = inic_port_base(ap);
 	void __iomem *idma_ctl = port_base + PORT_IDMA_CTL;
-	const unsigned long *timing = sata_ehc_deb_timing(&ap->eh_context);
+	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
 	u16 val;
 	int rc;
 
@@ -434,15 +436,15 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class,
 	msleep(1);
 	writew(val & ~IDMA_CTL_RST_ATA, idma_ctl);
 
-	rc = sata_phy_resume(ap, timing, deadline);
+	rc = sata_link_resume(link, timing, deadline);
 	if (rc) {
-		ata_port_printk(ap, KERN_WARNING, "failed to resume "
+		ata_link_printk(link, KERN_WARNING, "failed to resume "
 				"link after reset (errno=%d)\n", rc);
 		return rc;
 	}
 
 	*class = ATA_DEV_NONE;
-	if (ata_port_online(ap)) {
+	if (ata_link_online(link)) {
 		struct ata_taskfile tf;
 
 		/* wait a while before checking status */
@@ -451,7 +453,7 @@ static int inic_hardreset(struct ata_port *ap, unsigned int *class,
 		rc = ata_wait_ready(ap, deadline);
 		/* link occupied, -ENODEV too is an error */
 		if (rc) {
-			ata_port_printk(ap, KERN_WARNING, "device not ready "
+			ata_link_printk(link, KERN_WARNING, "device not ready "
 					"after hardreset (errno=%d)\n", rc);
 			return rc;
 		}
@@ -550,7 +552,6 @@ static int inic_port_start(struct ata_port *ap)
 }
 
 static struct ata_port_operations inic_port_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -567,7 +568,6 @@ static struct ata_port_operations inic_port_ops = {
 
 	.irq_clear		= inic_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.qc_prep	 	= ata_qc_prep,
 	.qc_issue		= inic_qc_issue,
@@ -693,16 +693,24 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->iomap = iomap = pcim_iomap_table(pdev);
 
 	for (i = 0; i < NR_PORTS; i++) {
-		struct ata_ioports *port = &host->ports[i]->ioaddr;
-		void __iomem *port_base = iomap[MMIO_BAR] + i * PORT_SIZE;
+		struct ata_port *ap = host->ports[i];
+		struct ata_ioports *port = &ap->ioaddr;
+		unsigned int offset = i * PORT_SIZE;
 
 		port->cmd_addr = iomap[2 * i];
 		port->altstatus_addr =
 		port->ctl_addr = (void __iomem *)
 			((unsigned long)iomap[2 * i + 1] | ATA_PCI_CTL_OFS);
-		port->scr_addr = port_base + PORT_SCR;
+		port->scr_addr = iomap[MMIO_BAR] + offset + PORT_SCR;
 
 		ata_std_ports(port);
+
+		ata_port_pbar_desc(ap, MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, MMIO_BAR, offset, "port");
+		ata_port_desc(ap, "cmd 0x%llx ctl 0x%llx",
+		  (unsigned long long)pci_resource_start(pdev, 2 * i),
+		  (unsigned long long)pci_resource_start(pdev, (2 * i + 1)) |
+				      ATA_PCI_CTL_OFS);
 	}
 
 	hpriv->cached_hctl = readw(iomap[MMIO_BAR] + HOST_CTL);

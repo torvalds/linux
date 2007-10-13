@@ -14,6 +14,7 @@
 #include <linux/skbuff.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
@@ -605,12 +606,15 @@ static unsigned int rxrpc_poll(struct file *file, struct socket *sock,
 /*
  * create an RxRPC socket
  */
-static int rxrpc_create(struct socket *sock, int protocol)
+static int rxrpc_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct rxrpc_sock *rx;
 	struct sock *sk;
 
 	_enter("%p,%d", sock, protocol);
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	/* we support transport protocol UDP only */
 	if (protocol != PF_INET)
@@ -622,7 +626,7 @@ static int rxrpc_create(struct socket *sock, int protocol)
 	sock->ops = &rxrpc_rpc_ops;
 	sock->state = SS_UNCONNECTED;
 
-	sk = sk_alloc(PF_RXRPC, GFP_KERNEL, &rxrpc_proto, 1);
+	sk = sk_alloc(net, PF_RXRPC, GFP_KERNEL, &rxrpc_proto, 1);
 	if (!sk)
 		return -ENOMEM;
 
@@ -829,8 +833,8 @@ static int __init af_rxrpc_init(void)
 	}
 
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create("rxrpc_calls", 0, &rxrpc_call_seq_fops);
-	proc_net_fops_create("rxrpc_conns", 0, &rxrpc_connection_seq_fops);
+	proc_net_fops_create(&init_net, "rxrpc_calls", 0, &rxrpc_call_seq_fops);
+	proc_net_fops_create(&init_net, "rxrpc_conns", 0, &rxrpc_connection_seq_fops);
 #endif
 	return 0;
 
@@ -868,8 +872,8 @@ static void __exit af_rxrpc_exit(void)
 
 	_debug("flush scheduled work");
 	flush_workqueue(rxrpc_workqueue);
-	proc_net_remove("rxrpc_conns");
-	proc_net_remove("rxrpc_calls");
+	proc_net_remove(&init_net, "rxrpc_conns");
+	proc_net_remove(&init_net, "rxrpc_calls");
 	destroy_workqueue(rxrpc_workqueue);
 	kmem_cache_destroy(rxrpc_call_jar);
 	_leave("");

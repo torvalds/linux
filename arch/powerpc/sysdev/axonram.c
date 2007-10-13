@@ -117,7 +117,7 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 	transfered = 0;
 	bio_for_each_segment(vec, bio, idx) {
 		if (unlikely(phys_mem + vec->bv_len > phys_end)) {
-			bio_io_error(bio, bio->bi_size);
+			bio_io_error(bio);
 			rc = -ERANGE;
 			break;
 		}
@@ -131,7 +131,7 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 		phys_mem += vec->bv_len;
 		transfered += vec->bv_len;
 	}
-	bio_endio(bio, transfered, 0);
+	bio_endio(bio, 0);
 
 	return rc;
 }
@@ -324,11 +324,13 @@ static struct of_device_id axon_ram_device_id[] = {
 };
 
 static struct of_platform_driver axon_ram_driver = {
-	.owner		= THIS_MODULE,
-	.name		= AXON_RAM_MODULE_NAME,
 	.match_table	= axon_ram_device_id,
 	.probe		= axon_ram_probe,
-	.remove		= axon_ram_remove
+	.remove		= axon_ram_remove,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= AXON_RAM_MODULE_NAME,
+	},
 };
 
 /**

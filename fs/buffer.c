@@ -2634,12 +2634,9 @@ sector_t generic_block_bmap(struct address_space *mapping, sector_t block,
 	return tmp.b_blocknr;
 }
 
-static int end_bio_bh_io_sync(struct bio *bio, unsigned int bytes_done, int err)
+static void end_bio_bh_io_sync(struct bio *bio, int err)
 {
 	struct buffer_head *bh = bio->bi_private;
-
-	if (bio->bi_size)
-		return 1;
 
 	if (err == -EOPNOTSUPP) {
 		set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
@@ -2648,7 +2645,6 @@ static int end_bio_bh_io_sync(struct bio *bio, unsigned int bytes_done, int err)
 
 	bh->b_end_io(bh, test_bit(BIO_UPTODATE, &bio->bi_flags));
 	bio_put(bio);
-	return 0;
 }
 
 int submit_bh(int rw, struct buffer_head * bh)

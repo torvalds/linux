@@ -28,8 +28,8 @@
 #include <linux/time.h>
 #include <asm/machdep.h>
 #include <asm/hw_irq.h>
+#include <asm/cell-regs.h>
 
-#include "cbe_regs.h"
 #include "cbe_cpufreq.h"
 
 /* to write to MIC register */

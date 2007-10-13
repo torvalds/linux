@@ -66,7 +66,7 @@ static void prom_linux_exit(void)
 {
 #ifdef CONFIG_SMP
 	if (smp_processor_id()) {
-		smp_call_function(prom_cpu0_exit,NULL,1,1);
+		smp_call_function(prom_cpu0_exit, NULL, 1, 1);
 	}
 #endif
 	while(1);
@@ -83,7 +83,6 @@ void __init prom_init(void)
 
 	strcpy(arcs_cmdline, "root=/dev/ram0 ");
 
-	mips_machgroup = MACH_GROUP_SIBYTE;
 	prom_meminit();
 }
 

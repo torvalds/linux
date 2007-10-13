@@ -34,5 +34,6 @@ extern int mpic_set_irq_type(unsigned int virq, unsigned int flow_type);
 extern void mpic_end_irq(unsigned int irq);
 extern void mpic_mask_irq(unsigned int irq);
 extern void mpic_unmask_irq(unsigned int irq);
+extern void mpic_set_affinity(unsigned int irq, cpumask_t cpumask);
 
 #endif /* _POWERPC_SYSDEV_MPIC_H */

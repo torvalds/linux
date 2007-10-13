@@ -53,7 +53,7 @@
 #define SCC_EPCI_STATUS         0x808
 #define SCC_EPCI_ABTSET         0x80c
 #define SCC_EPCI_WATRP          0x810
-#define SCC_EPCI_DUMMYRADR      0x814
+#define SCC_EPCI_DUMYRADR       0x814
 #define SCC_EPCI_SWRESP         0x818
 #define SCC_EPCI_CNTOPT         0x81c
 #define SCC_EPCI_ECMODE         0xf00

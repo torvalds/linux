@@ -380,10 +380,12 @@ static int __init sat_sensors_init(void)
 	return i2c_add_driver(&wf_sat_driver);
 }
 
+#if 0	/* uncomment when module_exit() below is uncommented */
 static void __exit sat_sensors_exit(void)
 {
 	i2c_del_driver(&wf_sat_driver);
 }
+#endif
 
 module_init(sat_sensors_init);
 /*module_exit(sat_sensors_exit); Uncomment when cleanup is implemented */

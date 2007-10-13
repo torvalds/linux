@@ -34,8 +34,11 @@ if usbmon is built into the kernel.
 Verify that bus sockets are present.
 
 # ls /sys/kernel/debug/usbmon
-1s  1t  1u  2s  2t  2u  3s  3t  3u  4s  4t  4u
+0s  0t  0u  1s  1t  1u  2s  2t  2u  3s  3t  3u  4s  4t  4u
 #
+
+Now you can choose to either use the sockets numbered '0' (to capture packets on
+all buses), and skip to step #3, or find the bus used by your device with step #2.
 
 2. Find which bus connects to the desired device
 
@@ -55,6 +58,10 @@ Bus=03 means it's bus 3.
 3. Start 'cat'
 
 # cat /sys/kernel/debug/usbmon/3u > /tmp/1.mon.out
+
+to listen on a single bus, otherwise, to listen on all buses, type:
+
+# cat /sys/kernel/debug/usbmon/0u > /tmp/1.mon.out
 
 This process will be reading until killed. Naturally, the output can be
 redirected to a desirable location. This is preferred, because it is going

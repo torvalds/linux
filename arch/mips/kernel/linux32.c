@@ -58,10 +58,10 @@
 #define AA(__x) ((unsigned long)((int)__x))
 
 #ifdef __MIPSEB__
-#define merge_64(r1,r2)	((((r1) & 0xffffffffUL) << 32) + ((r2) & 0xffffffffUL))
+#define merge_64(r1, r2) ((((r1) & 0xffffffffUL) << 32) + ((r2) & 0xffffffffUL))
 #endif
 #ifdef __MIPSEL__
-#define merge_64(r1,r2)	((((r2) & 0xffffffffUL) << 32) + ((r1) & 0xffffffffUL))
+#define merge_64(r1, r2) ((((r2) & 0xffffffffUL) << 32) + ((r1) & 0xffffffffUL))
 #endif
 
 /*
@@ -96,7 +96,7 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 #endif
 	tmp.st_blocks = stat->blocks;
 	tmp.st_blksize = stat->blksize;
-	return copy_to_user(statbuf,&tmp,sizeof(tmp)) ? -EFAULT : 0;
+	return copy_to_user(statbuf, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
 asmlinkage unsigned long
@@ -300,13 +300,13 @@ asmlinkage int sys32_sched_rr_get_interval(compat_pid_t pid,
 {
 	struct timespec t;
 	int ret;
-	mm_segment_t old_fs = get_fs ();
+	mm_segment_t old_fs = get_fs();
 
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *)&t);
-	set_fs (old_fs);
+	set_fs(old_fs);
 	if (put_user (t.tv_sec, &interval->tv_sec) ||
-	    __put_user (t.tv_nsec, &interval->tv_nsec))
+	    __put_user(t.tv_nsec, &interval->tv_nsec))
 		return -EFAULT;
 	return ret;
 }
@@ -314,7 +314,7 @@ asmlinkage int sys32_sched_rr_get_interval(compat_pid_t pid,
 #ifdef CONFIG_SYSVIPC
 
 asmlinkage long
-sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
+sys32_ipc(u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 {
 	int version, err;
 
@@ -373,7 +373,7 @@ sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 #else
 
 asmlinkage long
-sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
+sys32_ipc(u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 {
 	return -ENOSYS;
 }
@@ -505,16 +505,16 @@ asmlinkage int sys32_ustat(dev_t dev, struct ustat32 __user * ubuf32)
 
 	set_fs(KERNEL_DS);
 	err = sys_ustat(dev, (struct ustat __user *)&tmp);
-	set_fs (old_fs);
+	set_fs(old_fs);
 
 	if (err)
 		goto out;
 
-	memset(&tmp32,0,sizeof(struct ustat32));
+	memset(&tmp32, 0, sizeof(struct ustat32));
 	tmp32.f_tfree = tmp.f_tfree;
 	tmp32.f_tinode = tmp.f_tinode;
 
-	err = copy_to_user(ubuf32,&tmp32,sizeof(struct ustat32)) ? -EFAULT : 0;
+	err = copy_to_user(ubuf32, &tmp32, sizeof(struct ustat32)) ? -EFAULT : 0;
 
 out:
 	return err;

@@ -11,6 +11,7 @@
 #define __INCORE_DOT_H__
 
 #include <linux/fs.h>
+#include <linux/workqueue.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -113,7 +114,13 @@ struct gfs2_bufdata {
 	struct buffer_head *bd_bh;
 	struct gfs2_glock *bd_gl;
 
-	struct list_head bd_list_tr;
+	union {
+		struct list_head list_tr;
+		u64 blkno;
+	} u;
+#define bd_list_tr u.list_tr
+#define bd_blkno u.blkno
+
 	struct gfs2_log_element bd_le;
 
 	struct gfs2_ail *bd_ail;
@@ -130,6 +137,7 @@ struct gfs2_glock_operations {
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
 	const int go_type;
+	const unsigned long go_min_hold_time;
 };
 
 enum {
@@ -161,6 +169,7 @@ enum {
 	GLF_LOCK		= 1,
 	GLF_STICKY		= 2,
 	GLF_DEMOTE		= 3,
+	GLF_PENDING_DEMOTE	= 4,
 	GLF_DIRTY		= 5,
 };
 
@@ -193,6 +202,7 @@ struct gfs2_glock {
 
 	u64 gl_vn;
 	unsigned long gl_stamp;
+	unsigned long gl_tchange;
 	void *gl_object;
 
 	struct list_head gl_reclaim;
@@ -203,6 +213,7 @@ struct gfs2_glock {
 	struct gfs2_log_element gl_le;
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
+	struct delayed_work gl_work;
 };
 
 struct gfs2_alloc {
@@ -293,11 +304,6 @@ struct gfs2_file {
 	struct gfs2_holder f_fl_gh;
 };
 
-struct gfs2_revoke {
-	struct gfs2_log_element rv_le;
-	u64 rv_blkno;
-};
-
 struct gfs2_revoke_replay {
 	struct list_head rr_list;
 	u64 rr_blkno;
@@ -333,12 +339,6 @@ struct gfs2_quota_data {
 	u64 qd_sync_gen;
 	unsigned long qd_last_warn;
 	unsigned long qd_last_touched;
-};
-
-struct gfs2_log_buf {
-	struct list_head lb_list;
-	struct buffer_head *lb_bh;
-	struct buffer_head *lb_real;
 };
 
 struct gfs2_trans {
@@ -429,7 +429,6 @@ struct gfs2_tune {
 	unsigned int gt_log_flush_secs;
 	unsigned int gt_jindex_refresh_secs; /* Check for new journal index */
 
-	unsigned int gt_scand_secs;
 	unsigned int gt_recoverd_secs;
 	unsigned int gt_logd_secs;
 	unsigned int gt_quotad_secs;
@@ -574,7 +573,6 @@ struct gfs2_sbd {
 
 	/* Daemon stuff */
 
-	struct task_struct *sd_scand_process;
 	struct task_struct *sd_recoverd_process;
 	struct task_struct *sd_logd_process;
 	struct task_struct *sd_quotad_process;
@@ -609,13 +607,13 @@ struct gfs2_sbd {
 	unsigned int sd_log_num_revoke;
 	unsigned int sd_log_num_rg;
 	unsigned int sd_log_num_databuf;
-	unsigned int sd_log_num_jdata;
 
 	struct list_head sd_log_le_gl;
 	struct list_head sd_log_le_buf;
 	struct list_head sd_log_le_revoke;
 	struct list_head sd_log_le_rg;
 	struct list_head sd_log_le_databuf;
+	struct list_head sd_log_le_ordered;
 
 	unsigned int sd_log_blks_free;
 	struct mutex sd_log_reserve_mutex;
@@ -627,7 +625,8 @@ struct gfs2_sbd {
 
 	unsigned long sd_log_flush_time;
 	struct rw_semaphore sd_log_flush_lock;
-	struct list_head sd_log_flush_list;
+	atomic_t sd_log_in_flight;
+	wait_queue_head_t sd_log_flush_wait;
 
 	unsigned int sd_log_flush_head;
 	u64 sd_log_flush_wrapped;

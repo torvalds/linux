@@ -5,6 +5,7 @@ config PPC_PASEMI
 	select MPIC
 	select PPC_UDBG_16550
 	select PPC_NATIVE
+	select MPIC_BROKEN_REGREAD
 	help
 	  This option enables support for PA Semi's PWRficient line
 	  of SoC processors, including PA6T-1682M
@@ -17,6 +18,16 @@ config PPC_PASEMI_IOMMU
 	depends on PPC_PASEMI
 	help
 	  IOMMU support for PA6T-1682M
+
+config PPC_PASEMI_IOMMU_DMA_FORCE
+	bool "Force DMA engine to use IOMMU"
+	depends on PPC_PASEMI_IOMMU
+	help
+	  This option forces the use of the IOMMU also for the
+	  DMA engine. Otherwise the kernel will use it only when
+	  running under a hypervisor.
+
+	  If in doubt, say "N".
 
 config PPC_PASEMI_MDIO
 	depends on PHYLIB

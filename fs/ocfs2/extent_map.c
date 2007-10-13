@@ -387,6 +387,12 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 	struct ocfs2_extent_rec *rec;
 	u32 coff;
 
+	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+		ret = -ERANGE;
+		mlog_errno(ret);
+		goto out;
+	}
+
 	ret = ocfs2_extent_map_lookup(inode, v_cluster, p_cluster,
 				      num_clusters, extent_flags);
 	if (ret == 0)

@@ -31,9 +31,9 @@ struct output_properties {
 struct output_device {
 	int request_state;
 	struct output_properties *props;
-	struct class_device class_dev;
+	struct device dev;
 };
-#define to_output_device(obj) container_of(obj, struct output_device, class_dev)
+#define to_output_device(obj) container_of(obj, struct output_device, dev)
 struct output_device *video_output_register(const char *name,
 	struct device *dev,
 	void *devdata,

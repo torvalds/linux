@@ -43,6 +43,7 @@
 
 static struct kmem_cache *spufs_inode_cache;
 char *isolated_loader;
+static int isolated_loader_size;
 
 static struct inode *
 spufs_alloc_inode(struct super_block *sb)
@@ -667,7 +668,8 @@ spufs_parse_options(char *options, struct inode *root)
 
 static void spufs_exit_isolated_loader(void)
 {
-	kfree(isolated_loader);
+	free_pages((unsigned long) isolated_loader,
+			get_order(isolated_loader_size));
 }
 
 static void
@@ -685,11 +687,12 @@ spufs_init_isolated_loader(void)
 	if (!loader)
 		return;
 
-	/* kmalloc should align on a 16 byte boundary..* */
-	isolated_loader = kmalloc(size, GFP_KERNEL);
+	/* the loader must be align on a 16 byte boundary */
+	isolated_loader = (char *)__get_free_pages(GFP_KERNEL, get_order(size));
 	if (!isolated_loader)
 		return;
 
+	isolated_loader_size = size;
 	memcpy(isolated_loader, loader, size);
 	printk(KERN_INFO "spufs: SPU isolation mode enabled\n");
 }
@@ -787,16 +790,11 @@ static int __init spufs_init(void)
 	ret = register_spu_syscalls(&spufs_calls);
 	if (ret)
 		goto out_fs;
-	ret = register_arch_coredump_calls(&spufs_coredump_calls);
-	if (ret)
-		goto out_syscalls;
 
 	spufs_init_isolated_loader();
 
 	return 0;
 
-out_syscalls:
-	unregister_spu_syscalls(&spufs_calls);
 out_fs:
 	unregister_filesystem(&spufs_type);
 out_sched:
@@ -812,7 +810,6 @@ static void __exit spufs_exit(void)
 {
 	spu_sched_exit();
 	spufs_exit_isolated_loader();
-	unregister_arch_coredump_calls(&spufs_coredump_calls);
 	unregister_spu_syscalls(&spufs_calls);
 	unregister_filesystem(&spufs_type);
 	kmem_cache_destroy(spufs_inode_cache);

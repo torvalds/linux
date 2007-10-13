@@ -44,6 +44,7 @@
 
 struct ucc_geth {
 	struct ucc_fast uccf;
+	u8 res0[0x100 - sizeof(struct ucc_fast)];
 
 	u32 maccfg1;		/* mac configuration reg. 1 */
 	u32 maccfg2;		/* mac configuration reg. 2 */
@@ -1184,7 +1185,7 @@ struct ucc_geth_private {
 	struct ucc_geth_info *ug_info;
 	struct ucc_fast_private *uccf;
 	struct net_device *dev;
-	struct net_device_stats stats;	/* linux network statistics */
+	struct napi_struct napi;
 	struct ucc_geth *ug_regs;
 	struct ucc_geth_init_pram *p_init_enet_param_shadow;
 	struct ucc_geth_exf_global_pram *p_exf_glbl_param;

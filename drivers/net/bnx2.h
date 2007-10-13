@@ -6473,6 +6473,8 @@ struct bnx2 {
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
+	struct napi_struct	napi;
+
 	atomic_t		intr_sem;
 
 	struct status_block	*status_blk;
@@ -6679,9 +6681,6 @@ struct bnx2 {
 	u32			flash_size;
 
 	int			status_stats_size;
-
-	struct z_stream_s	*strm;
-	void			*gunzip_buf;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);
@@ -6753,13 +6752,11 @@ struct fw_info {
 	const u32 sbss_addr;
 	const u32 sbss_len;
 	const u32 sbss_index;
-	const u32 *sbss;
 
 	/* BSS section. */
 	const u32 bss_addr;
 	const u32 bss_len;
 	const u32 bss_index;
-	const u32 *bss;
 
 	/* Read-only section. */
 	const u32 rodata_addr;
@@ -6911,6 +6908,7 @@ struct fw_info {
 #define BNX2_SHARED_HW_CFG_LED_MODE_MAC		 0
 #define BNX2_SHARED_HW_CFG_LED_MODE_GPHY1	 0x100
 #define BNX2_SHARED_HW_CFG_LED_MODE_GPHY2	 0x200
+#define BNX2_SHARED_HW_CFG_GIG_LINK_ON_VAUX	 0x8000
 
 #define BNX2_SHARED_HW_CFG_CONFIG2		0x00000040
 #define BNX2_SHARED_HW_CFG2_NVM_SIZE_MASK	 0x00fff000

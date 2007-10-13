@@ -59,7 +59,8 @@ static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 				pipe++;
 
 			/* packets are sent sequentially */
-			BUG_ON(seqp->ccid2s_seq <= prev->ccid2s_seq);
+			BUG_ON(dccp_delta_seqno(seqp->ccid2s_seq,
+						prev->ccid2s_seq ) >= 0);
 			BUG_ON(time_before(seqp->ccid2s_sent,
 					   prev->ccid2s_sent));
 
@@ -83,8 +84,7 @@ static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 #define ccid2_hc_tx_check_sanity(hctx)
 #endif
 
-static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx, int num,
-				 gfp_t gfp)
+static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx)
 {
 	struct ccid2_seq *seqp;
 	int i;
@@ -95,16 +95,16 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx, int num,
 		return -ENOMEM;
 
 	/* allocate buffer and initialize linked list */
-	seqp = kmalloc(sizeof(*seqp) * num, gfp);
+	seqp = kmalloc(CCID2_SEQBUF_LEN * sizeof(struct ccid2_seq), gfp_any());
 	if (seqp == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < (num - 1); i++) {
+	for (i = 0; i < (CCID2_SEQBUF_LEN - 1); i++) {
 		seqp[i].ccid2s_next = &seqp[i + 1];
 		seqp[i + 1].ccid2s_prev = &seqp[i];
 	}
-	seqp[num - 1].ccid2s_next = seqp;
-	seqp->ccid2s_prev = &seqp[num - 1];
+	seqp[CCID2_SEQBUF_LEN - 1].ccid2s_next = seqp;
+	seqp->ccid2s_prev = &seqp[CCID2_SEQBUF_LEN - 1];
 
 	/* This is the first allocation.  Initiate the head and tail.  */
 	if (hctx->ccid2hctx_seqbufc == 0)
@@ -114,8 +114,8 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx, int num,
 		hctx->ccid2hctx_seqh->ccid2s_next = seqp;
 		seqp->ccid2s_prev = hctx->ccid2hctx_seqh;
 
-		hctx->ccid2hctx_seqt->ccid2s_prev = &seqp[num - 1];
-		seqp[num - 1].ccid2s_next = hctx->ccid2hctx_seqt;
+		hctx->ccid2hctx_seqt->ccid2s_prev = &seqp[CCID2_SEQBUF_LEN - 1];
+		seqp[CCID2_SEQBUF_LEN - 1].ccid2s_next = hctx->ccid2hctx_seqt;
 	}
 
 	/* store the original pointer to the buffer so we can free it */
@@ -127,19 +127,7 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx, int num,
 
 static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
-	struct ccid2_hc_tx_sock *hctx;
-
-	switch (DCCP_SKB_CB(skb)->dccpd_type) {
-	case 0: /* XXX data packets from userland come through like this */
-	case DCCP_PKT_DATA:
-	case DCCP_PKT_DATAACK:
-		break;
-	/* No congestion control on other packets */
-	default:
-		return 0;
-	}
-
-	hctx = ccid2_hc_tx_sk(sk);
+	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
 	ccid2_pr_debug("pipe=%d cwnd=%d\n", hctx->ccid2hctx_pipe,
 		       hctx->ccid2hctx_cwnd);
@@ -180,16 +168,11 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, int val)
 	dp->dccps_l_ack_ratio = val;
 }
 
-static void ccid2_change_cwnd(struct ccid2_hc_tx_sock *hctx, int val)
+static void ccid2_change_cwnd(struct ccid2_hc_tx_sock *hctx, u32 val)
 {
-	if (val == 0)
-		val = 1;
-
 	/* XXX do we need to change ack ratio? */
-	ccid2_pr_debug("change cwnd to %d\n", val);
-
-	BUG_ON(val < 1);
-	hctx->ccid2hctx_cwnd = val;
+	hctx->ccid2hctx_cwnd = val? : 1;
+	ccid2_pr_debug("changed cwnd to %u\n", hctx->ccid2hctx_cwnd);
 }
 
 static void ccid2_change_srtt(struct ccid2_hc_tx_sock *hctx, long val)
@@ -295,12 +278,11 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	next = hctx->ccid2hctx_seqh->ccid2s_next;
 	/* check if we need to alloc more space */
 	if (next == hctx->ccid2hctx_seqt) {
-		int rc;
-
-		ccid2_pr_debug("allocating more space in history\n");
-		rc = ccid2_hc_tx_alloc_seq(hctx, CCID2_SEQBUF_LEN, gfp_any());
-		BUG_ON(rc); /* XXX what do we do? */
-
+		if (ccid2_hc_tx_alloc_seq(hctx)) {
+			DCCP_CRIT("packet history - out of memory!");
+			/* FIXME: find a more graceful way to bail out */
+			return;
+		}
 		next = hctx->ccid2hctx_seqh->ccid2s_next;
 		BUG_ON(next == hctx->ccid2hctx_seqt);
 	}
@@ -581,8 +563,8 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hctx->ccid2hctx_rpseq = seqno;
 	} else {
 		/* check if packet is consecutive */
-		if ((hctx->ccid2hctx_rpseq + 1) == seqno)
-			hctx->ccid2hctx_rpseq++;
+		if (dccp_delta_seqno(hctx->ccid2hctx_rpseq, seqno) == 1)
+			hctx->ccid2hctx_rpseq = seqno;
 		/* it's a later packet */
 		else if (after48(seqno, hctx->ccid2hctx_rpseq)) {
 			hctx->ccid2hctx_rpdupack++;
@@ -771,7 +753,7 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	hctx->ccid2hctx_seqbufc   = 0;
 
 	/* XXX init ~ to window size... */
-	if (ccid2_hc_tx_alloc_seq(hctx, CCID2_SEQBUF_LEN, GFP_ATOMIC) != 0)
+	if (ccid2_hc_tx_alloc_seq(hctx))
 		return -ENOMEM;
 
 	hctx->ccid2hctx_sent	 = 0;
@@ -835,7 +817,7 @@ static struct ccid_operations ccid2 = {
 };
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
-module_param(ccid2_debug, int, 0444);
+module_param(ccid2_debug, bool, 0444);
 MODULE_PARM_DESC(ccid2_debug, "Enable debug messages");
 #endif
 

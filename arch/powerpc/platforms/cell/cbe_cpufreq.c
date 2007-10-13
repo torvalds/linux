@@ -24,7 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/of_platform.h>
 #include <asm/prom.h>
-#include "cbe_regs.h"
+#include <asm/cell-regs.h>
 #include "cbe_cpufreq.h"
 
 static DEFINE_MUTEX(cbe_switch_mutex);
@@ -106,8 +106,6 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		cbe_freqs[i].frequency = max_freq / cbe_freqs[i].index;
 		pr_debug("%d: %d\n", i, cbe_freqs[i].frequency);
 	}
-
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
 	/* if DEBUG is enabled set_pmode() measures the latency
 	 * of a transition */

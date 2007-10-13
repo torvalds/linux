@@ -18,7 +18,7 @@ static struct ft_cxt cxt;
 
 static void *fdtm_finddevice(const char *name)
 {
-	return ft_find_device(&cxt, name);
+	return ft_find_device(&cxt, NULL, name);
 }
 
 static int fdtm_getprop(const void *phandle, const char *propname,
@@ -58,6 +58,11 @@ static unsigned long fdtm_finalize(void)
 	return (unsigned long)cxt.bph;
 }
 
+static char *fdtm_get_path(const void *phandle, char *buf, int len)
+{
+	return ft_get_path(&cxt, phandle, buf, len);
+}
+
 int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device)
 {
 	dt_ops.finddevice = fdtm_finddevice;
@@ -67,6 +72,7 @@ int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device)
 	dt_ops.create_node = fdtm_create_node;
 	dt_ops.find_node_by_prop_value = fdtm_find_node_by_prop_value;
 	dt_ops.finalize = fdtm_finalize;
+	dt_ops.get_path = fdtm_get_path;
 
 	return ft_open(&cxt, dt_blob, max_size, max_find_device,
 			platform_ops.realloc);

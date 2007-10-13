@@ -46,7 +46,7 @@
 
 static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 
-void board_reset (void)
+void board_reset(void)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
 	bcsr->swreset = 0x0000;

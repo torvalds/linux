@@ -106,11 +106,9 @@ int bttv_sub_add_device(struct bttv_core *core, char *name)
 
 int bttv_sub_del_devices(struct bttv_core *core)
 {
-	struct bttv_sub_device *sub;
-	struct list_head *item,*save;
+	struct bttv_sub_device *sub, *save;
 
-	list_for_each_safe(item,save,&core->subs) {
-		sub = list_entry(item,struct bttv_sub_device,list);
+	list_for_each_entry_safe(sub, save, &core->subs, list) {
 		list_del(&sub->list);
 		device_unregister(&sub->dev);
 	}

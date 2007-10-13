@@ -259,7 +259,6 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* The FMVJ18x specific entries in the device structure. */
-    SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &fjn_start_xmit;
     dev->set_config = &fjn_config;
     dev->get_stats = &fjn_get_stats;
@@ -347,6 +346,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     cardtype_t cardtype;
     char *card_name = "unknown";
     u_char *node_id;
+    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "fmvj18x_config(0x%p)\n", link);
 
@@ -534,11 +534,10 @@ static int fmvj18x_config(struct pcmcia_device *link)
     strcpy(lp->node.dev_name, dev->name);
 
     /* print current configuration */
-    printk(KERN_INFO "%s: %s, sram %s, port %#3lx, irq %d, hw_addr ", 
+    printk(KERN_INFO "%s: %s, sram %s, port %#3lx, irq %d, "
+	   "hw_addr %s\n",
 	   dev->name, card_name, sram_config == 0 ? "4K TX*2" : "8K TX*2", 
-	   dev->base_addr, dev->irq);
-    for (i = 0; i < 6; i++)
-	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+	   dev->base_addr, dev->irq, print_mac(mac, dev->dev_addr));
 
     return 0;
     

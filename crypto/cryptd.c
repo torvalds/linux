@@ -131,7 +131,7 @@ static int cryptd_blkcipher_enqueue(struct ablkcipher_request *req,
 	req->base.complete = complete;
 
 	spin_lock_bh(&state->lock);
-	err = ablkcipher_enqueue_request(crypto_ablkcipher_alg(tfm), req);
+	err = ablkcipher_enqueue_request(&state->queue, req);
 	spin_unlock_bh(&state->lock);
 
 	wake_up_process(state->task);
@@ -173,7 +173,8 @@ static void cryptd_blkcipher_exit_tfm(struct crypto_tfm *tfm)
 	int active;
 
 	mutex_lock(&state->mutex);
-	active = ablkcipher_tfm_in_queue(__crypto_ablkcipher_cast(tfm));
+	active = ablkcipher_tfm_in_queue(&state->queue,
+					 __crypto_ablkcipher_cast(tfm));
 	mutex_unlock(&state->mutex);
 
 	BUG_ON(active);
@@ -250,8 +251,6 @@ static struct crypto_instance *cryptd_alloc_blkcipher(
 	inst->alg.cra_ablkcipher.setkey = cryptd_blkcipher_setkey;
 	inst->alg.cra_ablkcipher.encrypt = cryptd_blkcipher_encrypt_enqueue;
 	inst->alg.cra_ablkcipher.decrypt = cryptd_blkcipher_decrypt_enqueue;
-
-	inst->alg.cra_ablkcipher.queue = &state->queue;
 
 out_put_alg:
 	crypto_mod_put(alg);

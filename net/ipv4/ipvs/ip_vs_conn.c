@@ -35,6 +35,7 @@
 #include <linux/jhash.h>
 #include <linux/random.h>
 
+#include <net/net_namespace.h>
 #include <net/ip_vs.h>
 
 
@@ -922,7 +923,7 @@ int ip_vs_conn_init(void)
 		rwlock_init(&__ip_vs_conntbl_lock_array[idx].l);
 	}
 
-	proc_net_fops_create("ip_vs_conn", 0, &ip_vs_conn_fops);
+	proc_net_fops_create(&init_net, "ip_vs_conn", 0, &ip_vs_conn_fops);
 
 	/* calculate the random value for connection hash */
 	get_random_bytes(&ip_vs_conn_rnd, sizeof(ip_vs_conn_rnd));
@@ -938,6 +939,6 @@ void ip_vs_conn_cleanup(void)
 
 	/* Release the empty cache */
 	kmem_cache_destroy(ip_vs_conn_cachep);
-	proc_net_remove("ip_vs_conn");
+	proc_net_remove(&init_net, "ip_vs_conn");
 	vfree(ip_vs_conn_tab);
 }

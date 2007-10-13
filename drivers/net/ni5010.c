@@ -89,7 +89,6 @@ static unsigned int ports[] __initdata =
 
 /* Information that needs to be kept for each board. */
 struct ni5010_local {
-	struct net_device_stats stats;
 	int o_pkt_size;
 	spinlock_t lock;
 };
@@ -103,7 +102,6 @@ static irqreturn_t ni5010_interrupt(int irq, void *dev_id);
 static void	ni5010_rx(struct net_device *dev);
 static void	ni5010_timeout(struct net_device *dev);
 static int	ni5010_close(struct net_device *dev);
-static struct net_device_stats *ni5010_get_stats(struct net_device *dev);
 static void 	ni5010_set_multicast_list(struct net_device *dev);
 static void	reset_receiver(struct net_device *dev);
 
@@ -134,8 +132,6 @@ struct net_device * __init ni5010_probe(int unit)
 	}
 
 	PRINTK2((KERN_DEBUG "%s: Entering ni5010_probe\n", dev->name));
-
-	SET_MODULE_OWNER(dev);
 
 	if (io > 0x1ff)	{	/* Check a single specified location. */
 		err = ni5010_probe1(dev, io);
@@ -207,6 +203,7 @@ static int __init ni5010_probe1(struct net_device *dev, int ioaddr)
 	unsigned int data = 0;
 	int boguscount = 40;
 	int err = -ENODEV;
+	DECLARE_MAC_BUF(mac);
 
 	dev->base_addr = ioaddr;
 	dev->irq = irq;
@@ -272,8 +269,9 @@ static int __init ni5010_probe1(struct net_device *dev, int ioaddr)
 
 	for (i=0; i<6; i++) {
 		outw(i, IE_GP);
-		printk("%2.2x ", dev->dev_addr[i] = inb(IE_SAPROM));
+		dev->dev_addr[i] = inb(IE_SAPROM);
 	}
+	printk("%s ", print_mac(mac, dev->dev_addr));
 
 	PRINTK2((KERN_DEBUG "%s: I/O #4 passed!\n", dev->name));
 
@@ -336,7 +334,6 @@ static int __init ni5010_probe1(struct net_device *dev, int ioaddr)
 	dev->open		= ni5010_open;
 	dev->stop		= ni5010_close;
 	dev->hard_start_xmit	= ni5010_send_packet;
-	dev->get_stats		= ni5010_get_stats;
 	dev->set_multicast_list = ni5010_set_multicast_list;
 	dev->tx_timeout		= ni5010_timeout;
 	dev->watchdog_timeo	= HZ/20;
@@ -534,11 +531,11 @@ static void ni5010_rx(struct net_device *dev)
 
 	if ( (rcv_stat & RS_VALID_BITS) != RS_PKT_OK) {
 		PRINTK((KERN_INFO "%s: receive error.\n", dev->name));
-		lp->stats.rx_errors++;
-		if (rcv_stat & RS_RUNT) lp->stats.rx_length_errors++;
-		if (rcv_stat & RS_ALIGN) lp->stats.rx_frame_errors++;
-		if (rcv_stat & RS_CRC_ERR) lp->stats.rx_crc_errors++;
-		if (rcv_stat & RS_OFLW) lp->stats.rx_fifo_errors++;
+		dev->stats.rx_errors++;
+		if (rcv_stat & RS_RUNT) dev->stats.rx_length_errors++;
+		if (rcv_stat & RS_ALIGN) dev->stats.rx_frame_errors++;
+		if (rcv_stat & RS_CRC_ERR) dev->stats.rx_crc_errors++;
+		if (rcv_stat & RS_OFLW) dev->stats.rx_fifo_errors++;
         	outb(0xff, EDLC_RCLR); /* Clear the interrupt */
 		return;
 	}
@@ -549,8 +546,8 @@ static void ni5010_rx(struct net_device *dev)
 	if (i_pkt_size > ETH_FRAME_LEN || i_pkt_size < 10 ) {
 		PRINTK((KERN_DEBUG "%s: Packet size error, packet size = %#4.4x\n",
 			dev->name, i_pkt_size));
-		lp->stats.rx_errors++;
-		lp->stats.rx_length_errors++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_length_errors++;
 		return;
 	}
 
@@ -558,7 +555,7 @@ static void ni5010_rx(struct net_device *dev)
 	skb = dev_alloc_skb(i_pkt_size + 3);
 	if (skb == NULL) {
 		printk(KERN_WARNING "%s: Memory squeeze, dropping packet.\n", dev->name);
-		lp->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 
@@ -575,8 +572,8 @@ static void ni5010_rx(struct net_device *dev)
 	skb->protocol = eth_type_trans(skb,dev);
 	netif_rx(skb);
 	dev->last_rx = jiffies;
-	lp->stats.rx_packets++;
-	lp->stats.rx_bytes += i_pkt_size;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += i_pkt_size;
 
 	PRINTK2((KERN_DEBUG "%s: Received packet, size=%#4.4x\n",
 		dev->name, i_pkt_size));
@@ -604,14 +601,14 @@ static int process_xmt_interrupt(struct net_device *dev)
 		/* outb(0, IE_MMODE); */ /* xmt buf on sysbus FIXME: needed ? */
 		outb(MM_EN_XMT | MM_MUX, IE_MMODE);
 		outb(XM_ALL, EDLC_XMASK); /* Enable xmt IRQ's */
-		lp->stats.collisions++;
+		dev->stats.collisions++;
 		return 1;
 	}
 
 	/* FIXME: handle other xmt error conditions */
 
-	lp->stats.tx_packets++;
-	lp->stats.tx_bytes += lp->o_pkt_size;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += lp->o_pkt_size;
 	netif_wake_queue(dev);
 
 	PRINTK2((KERN_DEBUG "%s: sent packet, size=%#4.4x\n",
@@ -638,24 +635,6 @@ static int ni5010_close(struct net_device *dev)
 	PRINTK((KERN_DEBUG "%s: %s closed down\n", dev->name, boardname));
 	return 0;
 
-}
-
-/* Get the current statistics.	This may be called with the card open or
-   closed. */
-static struct net_device_stats *ni5010_get_stats(struct net_device *dev)
-{
-	struct ni5010_local *lp = netdev_priv(dev);
-
-	PRINTK2((KERN_DEBUG "%s: entering ni5010_get_stats\n", dev->name));
-
-	if (NI5010_DEBUG) ni5010_show_registers(dev);
-
-	/* cli(); */
-	/* Update the statistics from the device registers. */
-	/* We do this in the interrupt handler */
-	/* sti(); */
-
-	return &lp->stats;
 }
 
 /* Set or clear the multicast filter for this adaptor.

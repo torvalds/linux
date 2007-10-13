@@ -215,12 +215,6 @@ static int tda10023_set_symbolrate (struct tda10023_state* state, u32 sr)
 	s16 SFIL=0;
 	u16 NDEC = 0;
 
-	if (sr > (SYSCLK/(2*4)))
-		sr=SYSCLK/(2*4);
-
-	if (sr<870000)
-		sr=870000;
-
 	if (sr < (u32)(SYSCLK/98.40)) {
 		NDEC=3;
 		SFIL=1;
@@ -506,8 +500,8 @@ static struct dvb_frontend_ops tda10023_ops = {
 		.name = "Philips TDA10023 DVB-C",
 		.type = FE_QAM,
 		.frequency_stepsize = 62500,
-		.frequency_min = 51000000,
-		.frequency_max = 858000000,
+		.frequency_min = 47000000,
+		.frequency_max = 862000000,
 		.symbol_rate_min = (SYSCLK/2)/64,     /* SACLK/64 == (SYSCLK/2)/64 */
 		.symbol_rate_max = (SYSCLK/2)/4,      /* SACLK/4 */
 		.caps = 0x400 | //FE_CAN_QAM_4

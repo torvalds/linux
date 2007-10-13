@@ -63,9 +63,6 @@ static int crypto_check_alg(struct crypto_alg *alg)
 	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
 		return -EINVAL;
 
-	if (alg->cra_alignmask & alg->cra_blocksize)
-		return -EINVAL;
-
 	if (alg->cra_blocksize > PAGE_SIZE / 8)
 		return -EINVAL;
 
@@ -152,6 +149,11 @@ static int __crypto_register_alg(struct crypto_alg *alg,
 		if (crypto_is_larval(q)) {
 			struct crypto_larval *larval = (void *)q;
 
+			/*
+			 * Check to see if either our generic name or
+			 * specific name can satisfy the name requested
+			 * by the larval entry q.
+			 */
 			if (strcmp(alg->cra_name, q->cra_name) &&
 			    strcmp(alg->cra_driver_name, q->cra_name))
 				continue;
@@ -439,12 +441,14 @@ EXPORT_SYMBOL_GPL(crypto_unregister_notifier);
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb)
 {
-	struct rtattr *rta = tb[CRYPTOA_TYPE - 1];
+	struct rtattr *rta = tb[0];
 	struct crypto_attr_type *algt;
 
 	if (!rta)
 		return ERR_PTR(-ENOENT);
 	if (RTA_PAYLOAD(rta) < sizeof(*algt))
+		return ERR_PTR(-EINVAL);
+	if (rta->rta_type != CRYPTOA_TYPE)
 		return ERR_PTR(-EINVAL);
 
 	algt = RTA_DATA(rta);
@@ -468,14 +472,15 @@ int crypto_check_attr_type(struct rtattr **tb, u32 type)
 }
 EXPORT_SYMBOL_GPL(crypto_check_attr_type);
 
-struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb, u32 type, u32 mask)
+struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
 {
-	struct rtattr *rta = tb[CRYPTOA_ALG - 1];
 	struct crypto_attr_alg *alga;
 
 	if (!rta)
 		return ERR_PTR(-ENOENT);
 	if (RTA_PAYLOAD(rta) < sizeof(*alga))
+		return ERR_PTR(-EINVAL);
+	if (rta->rta_type != CRYPTOA_ALG)
 		return ERR_PTR(-EINVAL);
 
 	alga = RTA_DATA(rta);
@@ -483,7 +488,25 @@ struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb, u32 type, u32 mask)
 
 	return crypto_alg_mod_lookup(alga->name, type, mask);
 }
-EXPORT_SYMBOL_GPL(crypto_get_attr_alg);
+EXPORT_SYMBOL_GPL(crypto_attr_alg);
+
+int crypto_attr_u32(struct rtattr *rta, u32 *num)
+{
+	struct crypto_attr_u32 *nu32;
+
+	if (!rta)
+		return -ENOENT;
+	if (RTA_PAYLOAD(rta) < sizeof(*nu32))
+		return -EINVAL;
+	if (rta->rta_type != CRYPTOA_U32)
+		return -EINVAL;
+
+	nu32 = RTA_DATA(rta);
+	*num = nu32->num;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_attr_u32);
 
 struct crypto_instance *crypto_alloc_instance(const char *name,
 					      struct crypto_alg *alg)

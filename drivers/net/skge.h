@@ -1351,8 +1351,6 @@ enum {
 	PHY_M_PC_EN_DET_PLUS	= 3<<8, /* Energy Detect Plus (Mode 2) */
 };
 
-#define PHY_M_PC_MDI_XMODE(x)	((((u16)(x)<<5) & PHY_M_PC_MDIX_MSK)
-
 enum {
 	PHY_M_PC_MAN_MDI	= 0, /* 00 = Manual MDI configuration */
 	PHY_M_PC_MAN_MDIX	= 1, /* 01 = Manual MDIX configuration */
@@ -2448,6 +2446,7 @@ enum pause_status {
 struct skge_port {
 	struct skge_hw	     *hw;
 	struct net_device    *netdev;
+	struct napi_struct   napi;
 	int		     port;
 	u32		     msg_enable;
 

@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -442,7 +441,7 @@ static int ar_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct video_window *w = arg;
 		DEBUG(1, "VIDIOCGWIN:\n");
-		memset(w, 0, sizeof(w));
+		memset(w, 0, sizeof(*w));
 		w->width = ar->width;
 		w->height = ar->height;
 		return 0;

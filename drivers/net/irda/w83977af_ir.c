@@ -232,9 +232,6 @@ int w83977af_open(int i, unsigned int iobase, unsigned int irq,
 	self->rx_buff.data = self->rx_buff.head;
 	self->netdev = dev;
 
-	/* Keep track of module usage */
-	SET_MODULE_OWNER(dev);
-
 	/* Override the network functions we need to use */
 	dev->hard_start_xmit = w83977af_hard_xmit;
 	dev->open            = w83977af_net_open;

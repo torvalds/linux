@@ -511,10 +511,8 @@ static struct irq_chip ipic_irq_chip = {
 
 static int ipic_host_match(struct irq_host *h, struct device_node *node)
 {
-	struct ipic *ipic = h->host_data;
-
 	/* Exact match, unless ipic node is NULL */
-	return ipic->of_node == NULL || ipic->of_node == node;
+	return h->of_node == NULL || h->of_node == node;
 }
 
 static int ipic_host_map(struct irq_host *h, unsigned int virq,
@@ -568,9 +566,8 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 		return NULL;
 
 	memset(ipic, 0, sizeof(struct ipic));
-	ipic->of_node = of_node_get(node);
 
-	ipic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR,
+	ipic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
 				       NR_IPIC_INTS,
 				       &ipic_host_ops, 0);
 	if (ipic->irqhost == NULL) {

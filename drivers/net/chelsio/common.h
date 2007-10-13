@@ -278,6 +278,7 @@ struct adapter {
 	struct peespi *espi;
 	struct petp   *tp;
 
+	struct napi_struct napi;
 	struct port_info port[MAX_NPORTS];
 	struct delayed_work stats_update_task;
 	struct timer_list stats_update_timer;
@@ -371,6 +372,7 @@ extern void t1_interrupts_enable(adapter_t *adapter);
 extern void t1_interrupts_disable(adapter_t *adapter);
 extern void t1_interrupts_clear(adapter_t *adapter);
 extern int t1_elmer0_ext_intr_handler(adapter_t *adapter);
+extern void t1_elmer0_ext_intr(adapter_t *adapter);
 extern int t1_slow_intr_handler(adapter_t *adapter);
 
 extern int t1_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);

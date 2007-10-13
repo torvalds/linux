@@ -249,17 +249,17 @@ static void sas_ata_phy_reset(struct ata_port *ap)
 	switch (dev->sata_dev.command_set) {
 		case ATA_COMMAND_SET:
 			SAS_DPRINTK("%s: Found ATA device.\n", __FUNCTION__);
-			ap->device[0].class = ATA_DEV_ATA;
+			ap->link.device[0].class = ATA_DEV_ATA;
 			break;
 		case ATAPI_COMMAND_SET:
 			SAS_DPRINTK("%s: Found ATAPI device.\n", __FUNCTION__);
-			ap->device[0].class = ATA_DEV_ATAPI;
+			ap->link.device[0].class = ATA_DEV_ATAPI;
 			break;
 		default:
 			SAS_DPRINTK("%s: Unknown SATA command set: %d.\n",
 				    __FUNCTION__,
 				    dev->sata_dev.command_set);
-			ap->device[0].class = ATA_DEV_UNKNOWN;
+			ap->link.device[0].class = ATA_DEV_UNKNOWN;
 			break;
 	}
 
@@ -317,7 +317,7 @@ static int sas_ata_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 			dev->sata_dev.serror = val;
 			break;
 		case SCR_ACTIVE:
-			dev->sata_dev.ap->sactive = val;
+			dev->sata_dev.ap->link.sactive = val;
 			break;
 		default:
 			return -EINVAL;
@@ -342,7 +342,7 @@ static int sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
 			*val = dev->sata_dev.serror;
 			return 0;
 		case SCR_ACTIVE:
-			*val = dev->sata_dev.ap->sactive;
+			*val = dev->sata_dev.ap->link.sactive;
 			return 0;
 		default:
 			return -EINVAL;
@@ -350,7 +350,6 @@ static int sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
 }
 
 static struct ata_port_operations sas_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.check_status		= sas_ata_check_status,
 	.check_altstatus	= sas_ata_check_status,
 	.dev_select		= ata_noop_dev_select,

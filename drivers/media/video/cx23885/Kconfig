@@ -1,0 +1,20 @@
+config VIDEO_CX23885
+	tristate "Conexant cx23885 (2388x successor) support"
+	depends on DVB_CORE && VIDEO_DEV && PCI && I2C
+	select I2C_ALGOBIT
+	select FW_LOADER
+	select VIDEO_BTCX
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	select VIDEO_IR
+	select VIDEOBUF_DVB
+	select DVB_TUNER_MT2131 if !DVB_FE_CUSTOMISE
+	select DVB_S5H1409 if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
+	---help---
+	  This is a video4linux driver for Conexant 23885 based
+	  TV cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx23885
+

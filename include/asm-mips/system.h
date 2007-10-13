@@ -62,7 +62,7 @@ do {									\
 #define __mips_mt_fpaff_switch_to(prev) do { (void) (prev); } while (0)
 #endif
 
-#define switch_to(prev,next,last)					\
+#define switch_to(prev, next, last)					\
 do {									\
 	__mips_mt_fpaff_switch_to(prev);				\
 	if (cpu_has_dsp)						\
@@ -193,13 +193,13 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 	return x;
 }
 
-#define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
+#define xchg(ptr, x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))))
 
-extern void set_handler (unsigned long offset, void *addr, unsigned long len);
-extern void set_uncached_handler (unsigned long offset, void *addr, unsigned long len);
+extern void set_handler(unsigned long offset, void *addr, unsigned long len);
+extern void set_uncached_handler(unsigned long offset, void *addr, unsigned long len);
 
 typedef void (*vi_handler_t)(void);
-extern void *set_vi_handler (int n, vi_handler_t addr);
+extern void *set_vi_handler(int n, vi_handler_t addr);
 
 extern void *set_except_vector(int n, void *addr);
 extern unsigned long ebase;

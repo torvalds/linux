@@ -2777,12 +2777,14 @@ static int ftdi_elan_probe(struct usb_interface *interface,
         size_t buffer_size;
         int i;
         int retval = -ENOMEM;
-        struct usb_ftdi *ftdi = kmalloc(sizeof(struct usb_ftdi), GFP_KERNEL);
-        if (ftdi == NULL) {
+        struct usb_ftdi *ftdi;
+
+	ftdi = kzalloc(sizeof(struct usb_ftdi), GFP_KERNEL);
+	if (!ftdi) {
                 printk(KERN_ERR "Out of memory\n");
                 return -ENOMEM;
         }
-        memset(ftdi, 0x00, sizeof(struct usb_ftdi));
+
         mutex_lock(&ftdi_module_lock);
         list_add_tail(&ftdi->ftdi_list, &ftdi_static_list);
         ftdi->sequence_num = ++ftdi_instances;

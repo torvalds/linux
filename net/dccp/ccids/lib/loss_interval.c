@@ -125,14 +125,14 @@ static int dccp_li_hist_interval_new(struct list_head *list,
  * returns estimated loss interval in usecs */
 static u32 dccp_li_calc_first_li(struct sock *sk,
 				 struct list_head *hist_list,
-				 struct timeval *last_feedback,
+				 ktime_t last_feedback,
 				 u16 s, u32 bytes_recv,
 				 u32 previous_x_recv)
 {
 	struct dccp_rx_hist_entry *entry, *next, *tail = NULL;
 	u32 x_recv, p;
 	suseconds_t rtt, delta;
-	struct timeval tstamp = { 0, 0 };
+	ktime_t tstamp = ktime_set(0, 0);
 	int interval = 0;
 	int win_count = 0;
 	int step = 0;
@@ -176,7 +176,7 @@ found:
 		return ~0;
 	}
 
-	delta = timeval_delta(&tstamp, &tail->dccphrx_tstamp);
+	delta = ktime_us_delta(tstamp, tail->dccphrx_tstamp);
 	DCCP_BUG_ON(delta < 0);
 
 	rtt = delta * 4 / interval;
@@ -196,8 +196,7 @@ found:
 		return ~0;
 	}
 
-	dccp_timestamp(sk, &tstamp);
-	delta = timeval_delta(&tstamp, last_feedback);
+	delta = ktime_us_delta(ktime_get_real(), last_feedback);
 	DCCP_BUG_ON(delta <= 0);
 
 	x_recv = scaled_div32(bytes_recv, delta);
@@ -226,7 +225,7 @@ found:
 void dccp_li_update_li(struct sock *sk,
 		       struct list_head *li_hist_list,
 		       struct list_head *hist_list,
-		       struct timeval *last_feedback, u16 s, u32 bytes_recv,
+		       ktime_t last_feedback, u16 s, u32 bytes_recv,
 		       u32 previous_x_recv, u64 seq_loss, u8 win_loss)
 {
 	struct dccp_li_hist_entry *head;

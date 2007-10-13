@@ -596,7 +596,11 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 		goto bail;
 	}
 
-	len = offsetof(struct ipath_flash, if_future);
+	/*
+	 * read full flash, not just currently used part, since it may have
+	 * been written with a newer definition
+	 * */
+	len = sizeof(struct ipath_flash);
 	buf = vmalloc(len);
 	if (!buf) {
 		ipath_dev_err(dd, "Couldn't allocate memory to read %u "
@@ -737,8 +741,10 @@ int ipath_update_eeprom_log(struct ipath_devdata *dd)
 	/*
 	 * The quick-check above determined that there is something worthy
 	 * of logging, so get current contents and do a more detailed idea.
+	 * read full flash, not just currently used part, since it may have
+	 * been written with a newer definition
 	 */
-	len = offsetof(struct ipath_flash, if_future);
+	len = sizeof(struct ipath_flash);
 	buf = vmalloc(len);
 	ret = 1;
 	if (!buf) {

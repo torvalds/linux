@@ -205,7 +205,7 @@ static int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
  * This means we can only do a very rough approximation of POSIX
  * signal semantics.
  */
-int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
+static int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
 			  unsigned int *npc)
 {
 	int ret;
@@ -241,7 +241,7 @@ int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
 	return ret;
 }
 
-int spu_process_callback(struct spu_context *ctx)
+static int spu_process_callback(struct spu_context *ctx)
 {
 	struct spu_syscall_block s;
 	u32 ls_pointer, npc;

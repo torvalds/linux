@@ -115,7 +115,7 @@ static int titan_ht_config_read_word(struct pci_dev *device,
 
 u32 longswap(unsigned long l)
 {
-        unsigned char b1,b2,b3,b4;
+        unsigned char b1, b2, b3, b4;
 
         b1 = l&255;
         b2 = (l>>8)&255;

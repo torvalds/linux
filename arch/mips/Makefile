@@ -60,11 +60,6 @@ vmlinux-32		= vmlinux.32
 vmlinux-64		= vmlinux
 
 cflags-y		+= -mabi=64
-ifdef CONFIG_BUILD_ELF64
-cflags-y		+= $(call cc-option,-mno-explicit-relocs)
-else
-cflags-y		+= $(call cc-option,-msym32)
-endif
 endif
 
 all-$(CONFIG_BOOT_ELF32)	:= $(vmlinux-32)
@@ -153,7 +148,8 @@ endif
 #
 # Firmware support
 #
-libs-$(CONFIG_ARC)		+= arch/mips/arc/
+libs-$(CONFIG_ARC)		+= arch/mips/fw/arc/
+libs-$(CONFIG_CFE)		+= arch/mips/fw/cfe/
 libs-$(CONFIG_SIBYTE_CFE)	+= arch/mips/sibyte/cfe/
 
 #
@@ -367,6 +363,13 @@ cflags-$(CONFIG_BASLER_EXCITE)	+= -Iinclude/asm-mips/mach-excite
 load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
 
 #
+# LASAT platforms
+#
+core-$(CONFIG_LASAT)		+= arch/mips/lasat/
+cflags-$(CONFIG_LASAT)		+= -Iinclude/asm-mips/mach-lasat
+load-$(CONFIG_LASAT)		+= 0xffffffff80000000
+
+#
 # Common VR41xx
 #
 core-$(CONFIG_MACH_VR41XX)	+= arch/mips/vr41xx/common/
@@ -533,6 +536,13 @@ libs-$(CONFIG_SIBYTE_BIGSUR)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 
 #
+# Broadcom BCM47XX boards
+#
+core-$(CONFIG_BCM47XX)		+= arch/mips/bcm47xx/
+cflags-$(CONFIG_BCM47XX)	+= -Iinclude/asm-mips/mach-bcm47xx
+load-$(CONFIG_BCM47XX)		:= 0xffffffff80001000
+
+#
 # SNI RM
 #
 core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
@@ -578,6 +588,26 @@ else
 JIFFIES			= jiffies_64
 endif
 
+#
+# Automatically detect the build format. By default we choose
+# the elf format according to the load address.
+# We can always force a build with a 64-bits symbol format by
+# passing 'KBUILD_SYM32=no' option to the make's command line.
+#
+ifdef CONFIG_64BIT
+  ifndef KBUILD_SYM32
+    ifeq ($(shell expr $(load-y) \< 0xffffffff80000000), 0)
+      KBUILD_SYM32 = y
+    endif
+  endif
+
+  ifeq ($(KBUILD_SYM32), y)
+    ifeq ($(call cc-option-yn,-msym32), y)
+      cflags-y += -msym32 -DKBUILD_64BIT_SYM32
+    endif
+  endif
+endif
+
 AFLAGS		+= $(cflags-y)
 CFLAGS		+= $(cflags-y) \
 			-D"VMLINUX_LOAD_ADDRESS=$(load-y)"
@@ -614,6 +644,11 @@ libs-y			+= arch/mips/lib/
 core-y			+= arch/mips/kernel/ arch/mips/mm/ arch/mips/math-emu/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
+
+ifdef CONFIG_LASAT
+rom.bin rom.sw: vmlinux
+	$(Q)$(MAKE) $(build)=arch/mips/lasat/image $@
+endif
 
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
@@ -658,6 +693,7 @@ endif
 
 archclean:
 	@$(MAKE) $(clean)=arch/mips/boot
+	@$(MAKE) $(clean)=arch/mips/lasat
 
 define archhelp
 	echo '  vmlinux.ecoff        - ECOFF boot image'

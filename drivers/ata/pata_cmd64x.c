@@ -31,7 +31,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_cmd64x"
-#define DRV_VERSION "0.2.4"
+#define DRV_VERSION "0.2.5"
 
 /*
  * CMD64x specific registers definition.
@@ -88,14 +88,15 @@ static int cmd648_cable_detect(struct ata_port *ap)
 }
 
 /**
- *	cmd64x_set_piomode	-	set initial PIO mode data
+ *	cmd64x_set_piomode	-	set PIO and MWDMA timing
  *	@ap: ATA interface
  *	@adev: ATA device
+ *	@mode: mode
  *
- *	Called to do the PIO mode setup.
+ *	Called to do the PIO and MWDMA mode setup.
  */
 
-static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
+static void cmd64x_set_timing(struct ata_port *ap, struct ata_device *adev, u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct ata_timing t;
@@ -117,8 +118,9 @@ static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	int arttim = arttim_port[ap->port_no][adev->devno];
 	int drwtim = drwtim_port[ap->port_no][adev->devno];
 
-
-	if (ata_timing_compute(adev, adev->pio_mode, &t, T, 0) < 0) {
+	/* ata_timing_compute is smart and will produce timings for MWDMA
+	   that don't violate the drives PIO capabilities. */
+	if (ata_timing_compute(adev, mode, &t, T, 0) < 0) {
 		printk(KERN_ERR DRV_NAME ": mode computation failed.\n");
 		return;
 	}
@@ -168,6 +170,20 @@ static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
+ *	cmd64x_set_piomode	-	set initial PIO mode data
+ *	@ap: ATA interface
+ *	@adev: ATA device
+ *
+ *	Used when configuring the devices ot set the PIO timings. All the
+ *	actual work is done by the PIO/MWDMA setting helper
+ */
+
+static void cmd64x_set_piomode(struct ata_port *ap, struct ata_device *adev)
+{
+	cmd64x_set_timing(ap, adev, adev->pio_mode);
+}
+
+/**
  *	cmd64x_set_dmamode	-	set initial DMA mode data
  *	@ap: ATA interface
  *	@adev: ATA device
@@ -179,9 +195,6 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u8 udma_data[] = {
 		0x30, 0x20, 0x10, 0x20, 0x10, 0x00
-	};
-	static const u8 mwdma_data[] = {
-		0x30, 0x20, 0x10
 	};
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -208,8 +221,10 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		regU |= 1 << adev->devno; /* UDMA on */
 		if (adev->dma_mode > 2)	/* 15nS timing */
 			regU |= 4 << adev->devno;
-	} else
-		regD |= mwdma_data[adev->dma_mode - XFER_MW_DMA_0] << shift;
+	} else {
+		regU &= ~ (1 << adev->devno);	/* UDMA off */
+		cmd64x_set_timing(ap, adev, adev->dma_mode);
+	}
 
 	regD |= 0x20 << adev->devno;
 
@@ -269,7 +284,6 @@ static struct scsi_host_template cmd64x_sht = {
 };
 
 static struct ata_port_operations cmd64x_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cmd64x_set_piomode,
 	.set_dmamode	= cmd64x_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -298,13 +312,11 @@ static struct ata_port_operations cmd64x_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
 
 static struct ata_port_operations cmd646r1_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cmd64x_set_piomode,
 	.set_dmamode	= cmd64x_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -333,13 +345,11 @@ static struct ata_port_operations cmd646r1_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
 
 static struct ata_port_operations cmd648_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cmd64x_set_piomode,
 	.set_dmamode	= cmd64x_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -368,7 +378,6 @@ static struct ata_port_operations cmd648_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };

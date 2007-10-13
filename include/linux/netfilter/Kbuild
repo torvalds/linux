@@ -40,5 +40,6 @@ unifdef-y += nf_conntrack_common.h
 unifdef-y += nf_conntrack_ftp.h
 unifdef-y += nf_conntrack_tcp.h
 unifdef-y += nfnetlink.h
+unifdef-y += nfnetlink_compat.h
 unifdef-y += x_tables.h
 unifdef-y += xt_physdev.h

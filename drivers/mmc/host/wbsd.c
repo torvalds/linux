@@ -317,7 +317,7 @@ static inline void wbsd_get_short_reply(struct wbsd_host *host,
 	 * Correct response type?
 	 */
 	if (wbsd_read_index(host, WBSD_IDX_RSPLEN) != WBSD_RSP_SHORT) {
-		cmd->error = MMC_ERR_INVALID;
+		cmd->error = -EILSEQ;
 		return;
 	}
 
@@ -337,7 +337,7 @@ static inline void wbsd_get_long_reply(struct wbsd_host *host,
 	 * Correct response type?
 	 */
 	if (wbsd_read_index(host, WBSD_IDX_RSPLEN) != WBSD_RSP_LONG) {
-		cmd->error = MMC_ERR_INVALID;
+		cmd->error = -EILSEQ;
 		return;
 	}
 
@@ -372,7 +372,7 @@ static void wbsd_send_command(struct wbsd_host *host, struct mmc_command *cmd)
 	for (i = 3; i >= 0; i--)
 		outb((cmd->arg >> (i * 8)) & 0xff, host->base + WBSD_CMDR);
 
-	cmd->error = MMC_ERR_NONE;
+	cmd->error = 0;
 
 	/*
 	 * Wait for the request to complete.
@@ -392,13 +392,13 @@ static void wbsd_send_command(struct wbsd_host *host, struct mmc_command *cmd)
 
 		/* Card removed? */
 		if (isr & WBSD_INT_CARD)
-			cmd->error = MMC_ERR_TIMEOUT;
+			cmd->error = -ENOMEDIUM;
 		/* Timeout? */
 		else if (isr & WBSD_INT_TIMEOUT)
-			cmd->error = MMC_ERR_TIMEOUT;
+			cmd->error = -ETIMEDOUT;
 		/* CRC? */
 		else if ((cmd->flags & MMC_RSP_CRC) && (isr & WBSD_INT_CRC))
-			cmd->error = MMC_ERR_BADCRC;
+			cmd->error = -EILSEQ;
 		/* All ok */
 		else {
 			if (cmd->flags & MMC_RSP_136)
@@ -585,7 +585,7 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 			((blksize >> 4) & 0xF0) | WBSD_DATA_WIDTH);
 		wbsd_write_index(host, WBSD_IDX_PBSLSB, blksize & 0xFF);
 	} else {
-		data->error = MMC_ERR_INVALID;
+		data->error = -EINVAL;
 		return;
 	}
 
@@ -607,7 +607,7 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 		 */
 		BUG_ON(size > 0x10000);
 		if (size > 0x10000) {
-			data->error = MMC_ERR_INVALID;
+			data->error = -EINVAL;
 			return;
 		}
 
@@ -669,7 +669,7 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 		}
 	}
 
-	data->error = MMC_ERR_NONE;
+	data->error = 0;
 }
 
 static void wbsd_finish_data(struct wbsd_host *host, struct mmc_data *data)
@@ -724,8 +724,8 @@ static void wbsd_finish_data(struct wbsd_host *host, struct mmc_data *data)
 				"%d bytes left.\n",
 				mmc_hostname(host->mmc), count);
 
-			if (data->error == MMC_ERR_NONE)
-				data->error = MMC_ERR_FAILED;
+			if (!data->error)
+				data->error = -EIO;
 		} else {
 			/*
 			 * Transfer data from DMA buffer to
@@ -735,7 +735,7 @@ static void wbsd_finish_data(struct wbsd_host *host, struct mmc_data *data)
 				wbsd_dma_to_sg(host, data);
 		}
 
-		if (data->error != MMC_ERR_NONE) {
+		if (data->error) {
 			if (data->bytes_xfered)
 				data->bytes_xfered -= data->blksz;
 		}
@@ -767,11 +767,10 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 
 	/*
-	 * If there is no card in the slot then
-	 * timeout immediatly.
+	 * Check that there is actually a card in the slot.
 	 */
 	if (!(host->flags & WBSD_FCARD_PRESENT)) {
-		cmd->error = MMC_ERR_TIMEOUT;
+		cmd->error = -ENOMEDIUM;
 		goto done;
 	}
 
@@ -807,7 +806,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				"supported by this controller.\n",
 				mmc_hostname(host->mmc), cmd->opcode);
 #endif
-			cmd->error = MMC_ERR_INVALID;
+			cmd->error = -EINVAL;
 
 			goto done;
 		};
@@ -819,7 +818,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (cmd->data) {
 		wbsd_prepare_data(host, cmd->data);
 
-		if (cmd->data->error != MMC_ERR_NONE)
+		if (cmd->data->error)
 			goto done;
 	}
 
@@ -830,7 +829,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 * will be finished after the data has
 	 * transfered.
 	 */
-	if (cmd->data && (cmd->error == MMC_ERR_NONE)) {
+	if (cmd->data && !cmd->error) {
 		/*
 		 * Dirty fix for hardware bug.
 		 */
@@ -1033,7 +1032,7 @@ static void wbsd_tasklet_card(unsigned long param)
 				mmc_hostname(host->mmc));
 			wbsd_reset(host);
 
-			host->mrq->cmd->error = MMC_ERR_FAILED;
+			host->mrq->cmd->error = -ENOMEDIUM;
 			tasklet_schedule(&host->finish_tasklet);
 		}
 
@@ -1097,7 +1096,7 @@ static void wbsd_tasklet_crc(unsigned long param)
 
 	DBGF("CRC error\n");
 
-	data->error = MMC_ERR_BADCRC;
+	data->error = -EILSEQ;
 
 	tasklet_schedule(&host->finish_tasklet);
 
@@ -1121,7 +1120,7 @@ static void wbsd_tasklet_timeout(unsigned long param)
 
 	DBGF("Timeout\n");
 
-	data->error = MMC_ERR_TIMEOUT;
+	data->error = -ETIMEDOUT;
 
 	tasklet_schedule(&host->finish_tasklet);
 
@@ -1220,7 +1219,7 @@ static int __devinit wbsd_alloc_mmc(struct device *dev)
 	mmc->f_min = 375000;
 	mmc->f_max = 24000000;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE | MMC_CAP_BYTEBLOCK;
+	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE;
 
 	spin_lock_init(&host->lock);
 

@@ -100,7 +100,7 @@ int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop)
  * general helper functions
  ****************************************************************************/
 
-/* this is videobuf_vmalloc_to_sg() from video-buf.c
+/* this is videobuf_vmalloc_to_sg() from videobuf-dma-sg.c
    make sure virt has been allocated with vmalloc_32(), otherwise the BUG()
    may be triggered on highmem machines */
 static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
@@ -248,18 +248,17 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 static irqreturn_t interrupt_hw(int irq, void *dev_id)
 {
 	struct saa7146_dev *dev = dev_id;
-	u32 isr = 0;
+	u32 isr;
+	u32 ack_isr;
 
 	/* read out the interrupt status register */
-	isr = saa7146_read(dev, ISR);
+	ack_isr = isr = saa7146_read(dev, ISR);
 
 	/* is this our interrupt? */
 	if ( 0 == isr ) {
 		/* nope, some other device */
 		return IRQ_NONE;
 	}
-
-	saa7146_write(dev, ISR, isr);
 
 	if( 0 != (dev->ext)) {
 		if( 0 != (dev->ext->irq_mask & isr )) {
@@ -283,21 +282,16 @@ static irqreturn_t interrupt_hw(int irq, void *dev_id)
 		isr &= ~MASK_28;
 	}
 	if (0 != (isr & (MASK_16|MASK_17))) {
-		u32 status = saa7146_read(dev, I2C_STATUS);
-		if( (0x3 == (status & 0x3)) || (0 == (status & 0x1)) ) {
-			SAA7146_IER_DISABLE(dev, MASK_16|MASK_17);
-			/* only wake up if we expect something */
-			if( 0 != dev->i2c_op ) {
-				u32 psr = (saa7146_read(dev, PSR) >> 16) & 0x2;
-				u32 ssr = (saa7146_read(dev, SSR) >> 17) & 0x1f;
-				DEB_I2C(("irq: i2c, status: 0x%08x, psr:0x%02x, ssr:0x%02x).\n",status,psr,ssr));
-				dev->i2c_op = 0;
-				wake_up(&dev->i2c_wq);
-			} else {
-				DEB_I2C(("unexpected irq: i2c, status: 0x%08x, isr %#x\n",status, isr));
-			}
+		SAA7146_IER_DISABLE(dev, MASK_16|MASK_17);
+		/* only wake up if we expect something */
+		if (0 != dev->i2c_op) {
+			dev->i2c_op = 0;
+			wake_up(&dev->i2c_wq);
 		} else {
-			DEB_I2C(("unhandled irq: i2c, status: 0x%08x, isr %#x\n",status, isr));
+			u32 psr = saa7146_read(dev, PSR);
+			u32 ssr = saa7146_read(dev, SSR);
+			printk(KERN_WARNING "%s: unexpected i2c irq: isr %08x psr %08x ssr %08x\n",
+			       dev->name, isr, psr, ssr);
 		}
 		isr &= ~(MASK_16|MASK_17);
 	}
@@ -306,6 +300,7 @@ static irqreturn_t interrupt_hw(int irq, void *dev_id)
 		ERR(("disabling interrupt source(s)!\n"));
 		SAA7146_IER_DISABLE(dev,isr);
 	}
+	saa7146_write(dev, ISR, ack_isr);
 	return IRQ_HANDLED;
 }
 
@@ -548,7 +543,6 @@ EXPORT_SYMBOL_GPL(saa7146_wait_for_debi_done);
 
 EXPORT_SYMBOL_GPL(saa7146_setgpio);
 
-EXPORT_SYMBOL_GPL(saa7146_i2c_transfer);
 EXPORT_SYMBOL_GPL(saa7146_i2c_adapter_prepare);
 
 EXPORT_SYMBOL_GPL(saa7146_debug);

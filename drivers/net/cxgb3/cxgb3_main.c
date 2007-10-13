@@ -339,49 +339,17 @@ static void setup_rss(struct adapter *adap)
 		      V_RRCPLCPUSIZE(6), cpus, rspq_map);
 }
 
-/*
- * If we have multiple receive queues per port serviced by NAPI we need one
- * netdevice per queue as NAPI operates on netdevices.  We already have one
- * netdevice, namely the one associated with the interface, so we use dummy
- * ones for any additional queues.  Note that these netdevices exist purely
- * so that NAPI has something to work with, they do not represent network
- * ports and are not registered.
- */
-static int init_dummy_netdevs(struct adapter *adap)
+static void init_napi(struct adapter *adap)
 {
-	int i, j, dummy_idx = 0;
-	struct net_device *nd;
+	int i;
 
-	for_each_port(adap, i) {
-		struct net_device *dev = adap->port[i];
-		const struct port_info *pi = netdev_priv(dev);
+	for (i = 0; i < SGE_QSETS; i++) {
+		struct sge_qset *qs = &adap->sge.qs[i];
 
-		for (j = 0; j < pi->nqsets - 1; j++) {
-			if (!adap->dummy_netdev[dummy_idx]) {
-				struct port_info *p;
-
-				nd = alloc_netdev(sizeof(*p), "", ether_setup);
-				if (!nd)
-					goto free_all;
-
-				p = netdev_priv(nd);
-				p->adapter = adap;
-				nd->weight = 64;
-				set_bit(__LINK_STATE_START, &nd->state);
-				adap->dummy_netdev[dummy_idx] = nd;
-			}
-			strcpy(adap->dummy_netdev[dummy_idx]->name, dev->name);
-			dummy_idx++;
-		}
+		if (qs->adap)
+			netif_napi_add(qs->netdev, &qs->napi, qs->napi.poll,
+				       64);
 	}
-	return 0;
-
-free_all:
-	while (--dummy_idx >= 0) {
-		free_netdev(adap->dummy_netdev[dummy_idx]);
-		adap->dummy_netdev[dummy_idx] = NULL;
-	}
-	return -ENOMEM;
 }
 
 /*
@@ -392,20 +360,18 @@ free_all:
 static void quiesce_rx(struct adapter *adap)
 {
 	int i;
-	struct net_device *dev;
 
-	for_each_port(adap, i) {
-		dev = adap->port[i];
-		while (test_bit(__LINK_STATE_RX_SCHED, &dev->state))
-			msleep(1);
-	}
+	for (i = 0; i < SGE_QSETS; i++)
+		if (adap->sge.qs[i].adap)
+			napi_disable(&adap->sge.qs[i].napi);
+}
 
-	for (i = 0; i < ARRAY_SIZE(adap->dummy_netdev); i++) {
-		dev = adap->dummy_netdev[i];
-		if (dev)
-			while (test_bit(__LINK_STATE_RX_SCHED, &dev->state))
-				msleep(1);
-	}
+static void enable_all_napi(struct adapter *adap)
+{
+	int i;
+	for (i = 0; i < SGE_QSETS; i++)
+		if (adap->sge.qs[i].adap)
+			napi_enable(&adap->sge.qs[i].napi);
 }
 
 /**
@@ -418,7 +384,7 @@ static void quiesce_rx(struct adapter *adap)
  */
 static int setup_sge_qsets(struct adapter *adap)
 {
-	int i, j, err, irq_idx = 0, qset_idx = 0, dummy_dev_idx = 0;
+	int i, j, err, irq_idx = 0, qset_idx = 0;
 	unsigned int ntxq = SGE_TXQ_PER_SET;
 
 	if (adap->params.rev > 0 && !(adap->flags & USING_MSI))
@@ -426,15 +392,14 @@ static int setup_sge_qsets(struct adapter *adap)
 
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
-		const struct port_info *pi = netdev_priv(dev);
+		struct port_info *pi = netdev_priv(dev);
 
+		pi->qs = &adap->sge.qs[pi->first_qset];
 		for (j = 0; j < pi->nqsets; ++j, ++qset_idx) {
 			err = t3_sge_alloc_qset(adap, qset_idx, 1,
 				(adap->flags & USING_MSIX) ? qset_idx + 1 :
 							     irq_idx,
-				&adap->params.sge.qset[qset_idx], ntxq,
-				j == 0 ? dev :
-					 adap-> dummy_netdev[dummy_dev_idx++]);
+				&adap->params.sge.qset[qset_idx], ntxq, dev);
 			if (err) {
 				t3_free_sge_resources(adap);
 				return err;
@@ -768,11 +733,14 @@ static inline char t3rev2char(struct adapter *adapter)
 	case T3_REV_B2:
 		rev = 'b';
 		break;
+	case T3_REV_C:
+		rev = 'c';
+		break;
 	}
 	return rev;
 }
 
-int update_tpsram(struct adapter *adap)
+static int update_tpsram(struct adapter *adap)
 {
 	const struct firmware *tpsram;
 	char buf[64];
@@ -828,15 +796,16 @@ release_tpsram:
  */
 static int cxgb_up(struct adapter *adap)
 {
-	int err = 0;
+	int err;
 	int must_load;
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
-		err = t3_check_fw_version(adap);
-		if (err == -EINVAL)
+		err = t3_check_fw_version(adap, &must_load);
+		if (err == -EINVAL) {
 			err = upgrade_fw(adap);
-		if (err)
-			goto out;
+			if (err && must_load)
+				goto out;
+		}
 
 		err = t3_check_tpsram_version(adap, &must_load);
 		if (err == -EINVAL) {
@@ -845,21 +814,18 @@ static int cxgb_up(struct adapter *adap)
 				goto out;
 		}
 
-		err = init_dummy_netdevs(adap);
-		if (err)
-			goto out;
-
 		err = t3_init_hw(adap, 0);
 		if (err)
 			goto out;
 
 		t3_write_reg(adap, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
-		
+
 		err = setup_sge_qsets(adap);
 		if (err)
 			goto out;
 
 		setup_rss(adap);
+		init_napi(adap);
 		adap->flags |= FULL_INIT_DONE;
 	}
 
@@ -886,6 +852,7 @@ static int cxgb_up(struct adapter *adap)
 				      adap->name, adap)))
 		goto irq_err;
 
+	enable_all_napi(adap);
 	t3_sge_start(adap);
 	t3_intr_enable(adap);
 
@@ -944,7 +911,7 @@ static int offload_open(struct net_device *dev)
 	struct adapter *adapter = pi->adapter;
 	struct t3cdev *tdev = dev2t3cdev(dev);
 	int adap_up = adapter->open_device_map & PORT_MASK;
-	int err = 0;
+	int err;
 
 	if (test_and_set_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
 		return 0;
@@ -1012,8 +979,10 @@ static int cxgb_open(struct net_device *dev)
 	int other_ports = adapter->open_device_map & PORT_MASK;
 	int err;
 
-	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0)
+	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0) {
+		quiesce_rx(adapter);
 		return err;
+	}
 
 	set_bit(pi->port_id, &adapter->open_device_map);
 	if (is_offload(adapter) && !ofld_disable) {
@@ -1162,9 +1131,14 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 
 };
 
-static int get_stats_count(struct net_device *dev)
+static int get_sset_count(struct net_device *dev, int sset)
 {
-	return ARRAY_SIZE(stats_strings);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(stats_strings);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 #define T3_REGMAP_SIZE (3 * 1024)
@@ -1601,7 +1575,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	struct adapter *adapter = pi->adapter;
 	u32 aligned_offset, aligned_len, *p;
 	u8 *buf;
-	int err = 0;
+	int err;
 
 	if (eeprom->magic != EEPROM_MAGIC)
 		return -EINVAL;
@@ -1665,20 +1639,17 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_pauseparam = set_pauseparam,
 	.get_rx_csum = get_rx_csum,
 	.set_rx_csum = set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = ethtool_op_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
 	.get_link = ethtool_op_get_link,
 	.get_strings = get_strings,
 	.phys_id = cxgb3_phys_id,
 	.nway_reset = restart_autoneg,
-	.get_stats_count = get_stats_count,
+	.get_sset_count = get_sset_count,
 	.get_ethtool_stats = get_stats,
 	.get_regs_len = get_regs_len,
 	.get_regs = get_regs,
 	.get_wol = get_wol,
-	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 };
 
@@ -1798,7 +1769,6 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 	}
 	case CHELSIO_SET_QSET_NUM:{
 		struct ch_reg edata;
-		struct port_info *pi = netdev_priv(dev);
 		unsigned int i, first_qset = 0, other_qsets = 0;
 
 		if (!capable(CAP_NET_ADMIN))
@@ -1830,7 +1800,6 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 	}
 	case CHELSIO_GET_QSET_NUM:{
 		struct ch_reg edata;
-		struct port_info *pi = netdev_priv(dev);
 
 		edata.cmd = CHELSIO_GET_QSET_NUM;
 		edata.val = pi->nqsets;
@@ -2332,6 +2301,10 @@ void t3_fatal_err(struct adapter *adapter)
 
 	if (adapter->flags & FULL_INIT_DONE) {
 		t3_sge_stop(adapter);
+		t3_write_reg(adapter, A_XGM_TX_CTRL, 0);
+		t3_write_reg(adapter, A_XGM_RX_CTRL, 0);
+		t3_write_reg(adapter, XGM_REG(A_XGM_TX_CTRL, 1), 0);
+		t3_write_reg(adapter, XGM_REG(A_XGM_RX_CTRL, 1), 0);
 		t3_intr_disable(adapter);
 	}
 	CH_ALERT(adapter, "encountered fatal error, operation suspended\n");
@@ -2391,10 +2364,12 @@ static void __devinit print_port_info(struct adapter *adap,
 		       (adap->flags & USING_MSIX) ? " MSI-X" :
 		       (adap->flags & USING_MSI) ? " MSI" : "");
 		if (adap->name == dev->name && adap->params.vpd.mclk)
-			printk(KERN_INFO "%s: %uMB CM, %uMB PMTX, %uMB PMRX\n",
+			printk(KERN_INFO
+			       "%s: %uMB CM, %uMB PMTX, %uMB PMRX, S/N: %s\n",
 			       adap->name, t3_mc7_size(&adap->cm) >> 20,
 			       t3_mc7_size(&adap->pmtx) >> 20,
-			       t3_mc7_size(&adap->pmrx) >> 20);
+			       t3_mc7_size(&adap->pmrx) >> 20,
+			       adap->params.vpd.sn);
 	}
 }
 
@@ -2490,7 +2465,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 			goto out_free_dev;
 		}
 
-		SET_MODULE_OWNER(netdev);
 		SET_NETDEV_DEV(netdev, &pdev->dev);
 
 		adapter->port[i] = netdev;
@@ -2524,7 +2498,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		netdev->poll_controller = cxgb_netpoll;
 #endif
-		netdev->weight = 64;
 
 		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
 	}
@@ -2624,12 +2597,6 @@ static void __devexit remove_one(struct pci_dev *pdev)
 
 		t3_free_sge_resources(adapter);
 		cxgb_disable_msi(adapter);
-
-		for (i = 0; i < ARRAY_SIZE(adapter->dummy_netdev); i++)
-			if (adapter->dummy_netdev[i]) {
-				free_netdev(adapter->dummy_netdev[i]);
-				adapter->dummy_netdev[i] = NULL;
-			}
 
 		for_each_port(adapter, i)
 			if (adapter->port[i])

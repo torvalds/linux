@@ -274,9 +274,8 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 	return ide_config_drive_speed(drive, XFER_PIO_0 + set_pio);
 }
 
-static void it821x_tuneproc(ide_drive_t *drive, u8 pio)
+static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void)it821x_tunepio(drive, pio);
 }
 
@@ -405,32 +404,19 @@ static int it821x_dma_end(ide_drive_t *drive)
 	return ret;
 }
 
-
 /**
  *	it821x_tune_chipset	-	set controller timings
  *	@drive: Drive to set up
- *	@xferspeed: speed we want to achieve
+ *	@speed: speed we want to achieve
  *
- *	Tune the ITE chipset for the desired mode. If we can't achieve
- *	the desired mode then tune for a lower one, but ultimately
- *	make the thing work.
+ *	Tune the ITE chipset for the desired mode.
  */
 
-static int it821x_tune_chipset (ide_drive_t *drive, byte xferspeed)
+static int it821x_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 
 	ide_hwif_t *hwif	= drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	u8 speed		= ide_rate_filter(drive, xferspeed);
-
-	switch (speed) {
-	case XFER_PIO_4:
-	case XFER_PIO_3:
-	case XFER_PIO_2:
-	case XFER_PIO_1:
-	case XFER_PIO_0:
-		return it821x_tunepio(drive, speed - XFER_PIO_0);
-	}
 
 	if (itdev->smart == 0) {
 		switch (speed) {
@@ -477,7 +463,7 @@ static int it821x_config_drive_for_dma (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	it821x_tuneproc(drive, 255);
+	ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -644,7 +630,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	}
 
 	hwif->speedproc = &it821x_tune_chipset;
-	hwif->tuneproc	= &it821x_tuneproc;
+	hwif->set_pio_mode = &it821x_set_pio_mode;
 
 	/* MWDMA/PIO clock switching for pass through mode */
 	if(!idev->smart) {

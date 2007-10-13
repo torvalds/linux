@@ -160,6 +160,8 @@ Core        Emulation               **
 #define IRQ_PH14        96
 #define IRQ_PH15        97
 
+#define GPIO_IRQ_BASE	IRQ_PF0
+
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 #define NR_IRQS     (IRQ_PH15+1)
 #else

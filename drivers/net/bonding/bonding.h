@@ -132,7 +132,7 @@ struct bond_params {
 	int downdelay;
 	int lacp_fast;
 	char primary[IFNAMSIZ];
-	u32 arp_targets[BOND_MAX_ARP_TARGETS];
+	__be32 arp_targets[BOND_MAX_ARP_TARGETS];
 };
 
 struct bond_parm_tbl {
@@ -142,7 +142,7 @@ struct bond_parm_tbl {
 
 struct vlan_entry {
 	struct list_head vlan_list;
-	u32 vlan_ip;
+	__be32 vlan_ip;
 	unsigned short vlan_id;
 };
 
@@ -193,7 +193,7 @@ struct bonding {
 	struct   list_head bond_list;
 	struct   dev_mc_list *mc_list;
 	int      (*xmit_hash_policy)(struct sk_buff *, struct net_device *, int);
-	u32      master_ip;
+	__be32   master_ip;
 	u16      flags;
 	struct   ad_bond_info ad_info;
 	struct   alb_bond_info alb_info;

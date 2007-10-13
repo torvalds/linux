@@ -94,8 +94,7 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 	{"tx_csum_offload_errors", IXGB_STAT(hw_csum_tx_error)}
 };
 
-#define IXGB_STATS_LEN	\
-	sizeof(ixgb_gstrings_stats) / sizeof(struct ixgb_stats)
+#define IXGB_STATS_LEN	ARRAY_SIZE(ixgb_gstrings_stats)
 
 static int
 ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
@@ -423,7 +422,7 @@ ixgb_get_eeprom(struct net_device *netdev,
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	uint16_t *eeprom_buff;
+	__le16 *eeprom_buff;
 	int i, max_len, first_word, last_word;
 	int ret_val = 0;
 
@@ -447,7 +446,7 @@ ixgb_get_eeprom(struct net_device *netdev,
 	first_word = eeprom->offset >> 1;
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 
-	eeprom_buff = kmalloc(sizeof(uint16_t) *
+	eeprom_buff = kmalloc(sizeof(__le16) *
 			(last_word - first_word + 1), GFP_KERNEL);
 	if(!eeprom_buff)
 		return -ENOMEM;
@@ -660,9 +659,14 @@ ixgb_phys_id(struct net_device *netdev, uint32_t data)
 }
 
 static int 
-ixgb_get_stats_count(struct net_device *netdev)
+ixgb_get_sset_count(struct net_device *netdev, int sset)
 {
-	return IXGB_STATS_LEN;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return IXGB_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void 
@@ -714,15 +718,13 @@ static const struct ethtool_ops ixgb_ethtool_ops = {
 	.set_rx_csum = ixgb_set_rx_csum,
 	.get_tx_csum = ixgb_get_tx_csum,
 	.set_tx_csum = ixgb_set_tx_csum,
-	.get_sg	= ethtool_op_get_sg,
 	.set_sg	= ethtool_op_set_sg,
 	.get_msglevel = ixgb_get_msglevel,
 	.set_msglevel = ixgb_set_msglevel,
-	.get_tso = ethtool_op_get_tso,
 	.set_tso = ixgb_set_tso,
 	.get_strings = ixgb_get_strings,
 	.phys_id = ixgb_phys_id,
-	.get_stats_count = ixgb_get_stats_count,
+	.get_sset_count = ixgb_get_sset_count,
 	.get_ethtool_stats = ixgb_get_ethtool_stats,
 };
 

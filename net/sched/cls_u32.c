@@ -592,7 +592,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	} else
 		handle = gen_new_kid(ht, htid);
 
-	if (tb[TCA_U32_SEL-1] == 0 ||
+	if (tb[TCA_U32_SEL-1] == NULL ||
 	    RTA_PAYLOAD(tb[TCA_U32_SEL-1]) < sizeof(struct tc_u32_sel))
 		return -EINVAL;
 

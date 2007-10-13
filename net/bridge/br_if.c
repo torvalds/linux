@@ -303,7 +303,7 @@ int br_del_bridge(const char *name)
 	int ret = 0;
 
 	rtnl_lock();
-	dev = __dev_get_by_name(name);
+	dev = __dev_get_by_name(&init_net, name);
 	if (dev == NULL)
 		ret =  -ENXIO; 	/* Could not find device */
 
@@ -444,7 +444,7 @@ void __exit br_cleanup_bridges(void)
 	struct net_device *dev, *nxt;
 
 	rtnl_lock();
-	for_each_netdev_safe(dev, nxt)
+	for_each_netdev_safe(&init_net, dev, nxt)
 		if (dev->priv_flags & IFF_EBRIDGE)
 			del_br(dev->priv);
 	rtnl_unlock();

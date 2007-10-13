@@ -27,12 +27,12 @@ static int validate_nla(struct nlattr *nla, int maxtype,
 			const struct nla_policy *policy)
 {
 	const struct nla_policy *pt;
-	int minlen = 0, attrlen = nla_len(nla);
+	int minlen = 0, attrlen = nla_len(nla), type = nla_type(nla);
 
-	if (nla->nla_type <= 0 || nla->nla_type > maxtype)
+	if (type <= 0 || type > maxtype)
 		return 0;
 
-	pt = &policy[nla->nla_type];
+	pt = &policy[type];
 
 	BUG_ON(pt->type > NLA_TYPE_MAX);
 
@@ -149,7 +149,7 @@ int nla_parse(struct nlattr *tb[], int maxtype, struct nlattr *head, int len,
 	memset(tb, 0, sizeof(struct nlattr *) * (maxtype + 1));
 
 	nla_for_each_attr(nla, head, len, rem) {
-		u16 type = nla->nla_type;
+		u16 type = nla_type(nla);
 
 		if (type > 0 && type <= maxtype) {
 			if (policy) {
@@ -185,7 +185,7 @@ struct nlattr *nla_find(struct nlattr *head, int len, int attrtype)
 	int rem;
 
 	nla_for_each_attr(nla, head, len, rem)
-		if (nla->nla_type == attrtype)
+		if (nla_type(nla) == attrtype)
 			return nla;
 
 	return NULL;

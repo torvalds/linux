@@ -38,8 +38,13 @@ Socket options
 DCCP_SOCKOPT_SERVICE sets the service. The specification mandates use of
 service codes (RFC 4340, sec. 8.1.2); if this socket option is not set,
 the socket will fall back to 0 (which means that no meaningful service code
-is present). Connecting sockets set at most one service option; for
-listening sockets, multiple service codes can be specified.
+is present). On active sockets this is set before connect(); specifying more
+than one code has no effect (all subsequent service codes are ignored). The
+case is different for passive sockets, where multiple service codes (up to 32)
+can be set before calling bind().
+
+DCCP_SOCKOPT_GET_CUR_MPS is read-only and retrieves the current maximum packet
+size (application payload size) in bytes, see RFC 4340, section 14.
 
 DCCP_SOCKOPT_SEND_CSCOV and DCCP_SOCKOPT_RECV_CSCOV are used for setting the
 partial checksum coverage (RFC 4340, sec. 9.2). The default is that checksums
@@ -50,12 +55,13 @@ be enabled at the receiver, too with suitable choice of CsCov.
 DCCP_SOCKOPT_SEND_CSCOV sets the sender checksum coverage. Values in the
 	range 0..15 are acceptable. The default setting is 0 (full coverage),
 	values between 1..15 indicate partial coverage.
-DCCP_SOCKOPT_SEND_CSCOV is for the receiver and has a different meaning: it
+DCCP_SOCKOPT_RECV_CSCOV is for the receiver and has a different meaning: it
 	sets a threshold, where again values 0..15 are acceptable. The default
 	of 0 means that all packets with a partial coverage will be discarded.
 	Values in the range 1..15 indicate that packets with minimally such a
 	coverage value are also acceptable. The higher the number, the more
-	restrictive this setting (see [RFC 4340, sec. 9.2.1]).
+	restrictive this setting (see [RFC 4340, sec. 9.2.1]). Partial coverage
+	settings are inherited to the child socket after accept().
 
 The following two options apply to CCID 3 exclusively and are getsockopt()-only.
 In either case, a TFRC info struct (defined in <linux/tfrc.h>) is returned.
@@ -112,9 +118,14 @@ tx_qlen = 5
 	The size of the transmit buffer in packets. A value of 0 corresponds
 	to an unbounded transmit buffer.
 
+sync_ratelimit = 125 ms
+	The timeout between subsequent DCCP-Sync packets sent in response to
+	sequence-invalid packets on the same socket (RFC 4340, 7.5.4). The unit
+	of this parameter is milliseconds; a value of 0 disables rate-limiting.
+
 Notes
 =====
 
 DCCP does not travel through NAT successfully at present on many boxes. This is
-because the checksum covers the psuedo-header as per TCP and UDP. Linux NAT
+because the checksum covers the pseudo-header as per TCP and UDP. Linux NAT
 support for DCCP has been added.

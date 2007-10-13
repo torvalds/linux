@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
 #include <linux/bitrev.h>
+#include <linux/ethtool.h>
 #include <asm/prom.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
@@ -74,7 +75,6 @@ struct bmac_data {
 	int tx_fill;
 	int tx_empty;
 	unsigned char tx_fullup;
-	struct net_device_stats stats;
 	struct timer_list tx_timeout;
 	int timeout_active;
 	int sleeping;
@@ -144,7 +144,6 @@ static unsigned char *bmac_emergency_rxbuf;
 static int bmac_open(struct net_device *dev);
 static int bmac_close(struct net_device *dev);
 static int bmac_transmit_packet(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *bmac_stats(struct net_device *dev);
 static void bmac_set_multicast(struct net_device *dev);
 static void bmac_reset_and_enable(struct net_device *dev);
 static void bmac_start_chip(struct net_device *dev);
@@ -667,7 +666,7 @@ static int bmac_transmit_packet(struct sk_buff *skb, struct net_device *dev)
 	bp->tx_bufs[bp->tx_fill] = skb;
 	bp->tx_fill = i;
 
-	bp->stats.tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb->len;
 
 	dbdma_continue(td);
 
@@ -706,8 +705,8 @@ static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id)
 		nb = RX_BUFLEN - residual - 2;
 		if (nb < (ETHERMINPACKET - ETHERCRC)) {
 			skb = NULL;
-			bp->stats.rx_length_errors++;
-			bp->stats.rx_errors++;
+			dev->stats.rx_length_errors++;
+			dev->stats.rx_errors++;
 		} else {
 			skb = bp->rx_bufs[i];
 			bp->rx_bufs[i] = NULL;
@@ -718,10 +717,10 @@ static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
 			dev->last_rx = jiffies;
-			++bp->stats.rx_packets;
-			bp->stats.rx_bytes += nb;
+			++dev->stats.rx_packets;
+			dev->stats.rx_bytes += nb;
 		} else {
-			++bp->stats.rx_dropped;
+			++dev->stats.rx_dropped;
 		}
 		dev->last_rx = jiffies;
 		if ((skb = bp->rx_bufs[i]) == NULL) {
@@ -784,7 +783,7 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 		}
 
 		if (bp->tx_bufs[bp->tx_empty]) {
-			++bp->stats.tx_packets;
+			++dev->stats.tx_packets;
 			dev_kfree_skb_irq(bp->tx_bufs[bp->tx_empty]);
 		}
 		bp->tx_bufs[bp->tx_empty] = NULL;
@@ -804,13 +803,6 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 
 	bmac_start(dev);
 	return IRQ_HANDLED;
-}
-
-static struct net_device_stats *bmac_stats(struct net_device *dev)
-{
-	struct bmac_data *p = netdev_priv(dev);
-
-	return &p->stats;
 }
 
 #ifndef SUNHME_MULTICAST
@@ -1079,17 +1071,17 @@ static irqreturn_t bmac_misc_intr(int irq, void *dev_id)
 	}
 	/* XXDEBUG(("bmac_misc_intr, status=%#08x\n", status)); */
 	/*     bmac_txdma_intr_inner(irq, dev_id); */
-	/*   if (status & FrameReceived) bp->stats.rx_dropped++; */
-	if (status & RxErrorMask) bp->stats.rx_errors++;
-	if (status & RxCRCCntExp) bp->stats.rx_crc_errors++;
-	if (status & RxLenCntExp) bp->stats.rx_length_errors++;
-	if (status & RxOverFlow) bp->stats.rx_over_errors++;
-	if (status & RxAlignCntExp) bp->stats.rx_frame_errors++;
+	/*   if (status & FrameReceived) dev->stats.rx_dropped++; */
+	if (status & RxErrorMask) dev->stats.rx_errors++;
+	if (status & RxCRCCntExp) dev->stats.rx_crc_errors++;
+	if (status & RxLenCntExp) dev->stats.rx_length_errors++;
+	if (status & RxOverFlow) dev->stats.rx_over_errors++;
+	if (status & RxAlignCntExp) dev->stats.rx_frame_errors++;
 
-	/*   if (status & FrameSent) bp->stats.tx_dropped++; */
-	if (status & TxErrorMask) bp->stats.tx_errors++;
-	if (status & TxUnderrun) bp->stats.tx_fifo_errors++;
-	if (status & TxNormalCollExp) bp->stats.collisions++;
+	/*   if (status & FrameSent) dev->stats.tx_dropped++; */
+	if (status & TxErrorMask) dev->stats.tx_errors++;
+	if (status & TxUnderrun) dev->stats.tx_fifo_errors++;
+	if (status & TxNormalCollExp) dev->stats.collisions++;
 	return IRQ_HANDLED;
 }
 
@@ -1246,6 +1238,17 @@ static void bmac_reset_and_enable(struct net_device *dev)
 	}
 	spin_unlock_irqrestore(&bp->lock, flags);
 }
+static void bmac_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
+{
+	struct bmac_data *bp = netdev_priv(dev);
+	strcpy(info->driver, "bmac");
+	strcpy(info->bus_info, bp->mdev->ofdev.dev.bus_id);
+}
+
+static const struct ethtool_ops bmac_ethtool_ops = {
+	.get_drvinfo		= bmac_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+};
 
 static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
@@ -1255,6 +1258,7 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 	unsigned char addr[6];
 	struct net_device *dev;
 	int is_bmac_plus = ((int)match->data) != 0;
+	DECLARE_MAC_BUF(mac);
 
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
 		printk(KERN_ERR "BMAC: can't use, need 3 addrs and 3 intrs\n");
@@ -1279,7 +1283,6 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 	}
 
 	bp = netdev_priv(dev);
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 	macio_set_drvdata(mdev, dev);
 
@@ -1311,8 +1314,8 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 
 	dev->open = bmac_open;
 	dev->stop = bmac_close;
+	dev->ethtool_ops = &bmac_ethtool_ops;
 	dev->hard_start_xmit = bmac_output;
-	dev->get_stats = bmac_stats;
 	dev->set_multicast_list = bmac_set_multicast;
 	dev->set_mac_address = bmac_set_address;
 
@@ -1365,9 +1368,8 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 		goto err_out_irq2;
 	}
 
-	printk(KERN_INFO "%s: BMAC%s at", dev->name, (is_bmac_plus? "+": ""));
-	for (j = 0; j < 6; ++j)
-		printk("%c%.2x", (j? ':': ' '), dev->dev_addr[j]);
+	printk(KERN_INFO "%s: BMAC%s at %s",
+	       dev->name, (is_bmac_plus ? "+" : ""), print_mac(mac, dev->dev_addr));
 	XXDEBUG((", base_addr=%#0lx", dev->base_addr));
 	printk("\n");
 
@@ -1530,7 +1532,7 @@ static void bmac_tx_timeout(unsigned long data)
 	XXDEBUG((KERN_DEBUG "bmac: tx empty=%d fill=%d fullup=%d\n",
 		 bp->tx_empty, bp->tx_fill, bp->tx_fullup));
 	i = bp->tx_empty;
-	++bp->stats.tx_errors;
+	++dev->stats.tx_errors;
 	if (i != bp->tx_fill) {
 		dev_kfree_skb(bp->tx_bufs[i]);
 		bp->tx_bufs[i] = NULL;

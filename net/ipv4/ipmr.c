@@ -49,6 +49,7 @@
 #include <linux/mroute.h>
 #include <linux/init.h>
 #include <linux/if_ether.h>
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -124,7 +125,7 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 {
 	struct net_device  *dev;
 
-	dev = __dev_get_by_name("tunl0");
+	dev = __dev_get_by_name(&init_net, "tunl0");
 
 	if (dev) {
 		int err;
@@ -148,7 +149,7 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 
 		dev = NULL;
 
-		if (err == 0 && (dev = __dev_get_by_name(p.name)) != NULL) {
+		if (err == 0 && (dev = __dev_get_by_name(&init_net, p.name)) != NULL) {
 			dev->flags |= IFF_MULTICAST;
 
 			in_dev = __in_dev_get_rtnl(dev);
@@ -1082,13 +1083,18 @@ int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
 
 static int ipmr_device_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
+	struct net_device *dev = ptr;
 	struct vif_device *v;
 	int ct;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if (event != NETDEV_UNREGISTER)
 		return NOTIFY_DONE;
 	v=&vif_table[0];
 	for (ct=0;ct<maxvif;ct++,v++) {
-		if (v->dev==ptr)
+		if (v->dev==dev)
 			vif_delete(ct);
 	}
 	return NOTIFY_DONE;
@@ -1708,26 +1714,8 @@ static const struct seq_operations ipmr_vif_seq_ops = {
 
 static int ipmr_vif_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct ipmr_vif_iter *s = kmalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &ipmr_vif_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	s->ct = 0;
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
-
+	return seq_open_private(file, &ipmr_vif_seq_ops,
+			sizeof(struct ipmr_vif_iter));
 }
 
 static const struct file_operations ipmr_vif_fops = {
@@ -1871,25 +1859,8 @@ static const struct seq_operations ipmr_mfc_seq_ops = {
 
 static int ipmr_mfc_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct ipmr_mfc_iter *s = kmalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &ipmr_mfc_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
-
+	return seq_open_private(file, &ipmr_mfc_seq_ops,
+			sizeof(struct ipmr_mfc_iter));
 }
 
 static const struct file_operations ipmr_mfc_fops = {
@@ -1922,7 +1893,7 @@ void __init ip_mr_init(void)
 	ipmr_expire_timer.function=ipmr_expire_process;
 	register_netdevice_notifier(&ip_mr_notifier);
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create("ip_mr_vif", 0, &ipmr_vif_fops);
-	proc_net_fops_create("ip_mr_cache", 0, &ipmr_mfc_fops);
+	proc_net_fops_create(&init_net, "ip_mr_vif", 0, &ipmr_vif_fops);
+	proc_net_fops_create(&init_net, "ip_mr_cache", 0, &ipmr_mfc_fops);
 #endif
 }

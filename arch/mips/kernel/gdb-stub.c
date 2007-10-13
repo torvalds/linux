@@ -676,15 +676,18 @@ static void kgdb_wait(void *arg)
 static int kgdb_smp_call_kgdb_wait(void)
 {
 #ifdef CONFIG_SMP
+	cpumask_t mask = cpu_online_map;
 	struct call_data_struct data;
-	int i, cpus = num_online_cpus() - 1;
 	int cpu = smp_processor_id();
+	int cpus;
 
 	/*
 	 * Can die spectacularly if this CPU isn't yet marked online
 	 */
 	BUG_ON(!cpu_online(cpu));
 
+	cpu_clear(cpu, mask);
+	cpus = cpus_weight(mask);
 	if (!cpus)
 		return 0;
 
@@ -711,10 +714,7 @@ static int kgdb_smp_call_kgdb_wait(void)
 	call_data = &data;
 	mb();
 
-	/* Send a message to all other CPUs and wait for them to respond */
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_online(i) && i != cpu)
-			core_send_ipi(i, SMP_CALL_FUNCTION);
+	core_send_ipi_mask(mask, SMP_CALL_FUNCTION);
 
 	/* Wait for response */
 	/* FIXME: lock-up detection, backtrace on lock-up */
@@ -733,7 +733,7 @@ static int kgdb_smp_call_kgdb_wait(void)
  * returns 1 if you should skip the instruction at the trap address, 0
  * otherwise.
  */
-void handle_exception (struct gdb_regs *regs)
+void handle_exception(struct gdb_regs *regs)
 {
 	int trap;			/* Trap type */
 	int sigval;
@@ -769,7 +769,7 @@ void handle_exception (struct gdb_regs *regs)
 	/*
 	 * acquire the CPU spinlocks
 	 */
-	for (i = num_online_cpus()-1; i >= 0; i--)
+	for_each_online_cpu(i)
 		if (__raw_spin_trylock(&kgdb_cpulock[i]) == 0)
 			panic("kgdb: couldn't get cpulock %d\n", i);
 
@@ -902,7 +902,7 @@ void handle_exception (struct gdb_regs *regs)
 			hex2mem(ptr, (char *)&regs->frame_ptr, 2*sizeof(long), 0, 0);
 			ptr += 2*(2*sizeof(long));
 			hex2mem(ptr, (char *)&regs->cp0_index, 16*sizeof(long), 0, 0);
-			strcpy(output_buffer,"OK");
+			strcpy(output_buffer, "OK");
 		 }
 		break;
 
@@ -917,9 +917,9 @@ void handle_exception (struct gdb_regs *regs)
 				&& hexToInt(&ptr, &length)) {
 				if (mem2hex((char *)addr, output_buffer, length, 1))
 					break;
-				strcpy (output_buffer, "E03");
+				strcpy(output_buffer, "E03");
 			} else
-				strcpy(output_buffer,"E01");
+				strcpy(output_buffer, "E01");
 			break;
 
 		/*
@@ -996,7 +996,7 @@ void handle_exception (struct gdb_regs *regs)
 			ptr = &input_buffer[1];
 			if (!hexToInt(&ptr, &baudrate))
 			{
-				strcpy(output_buffer,"B01");
+				strcpy(output_buffer, "B01");
 				break;
 			}
 
@@ -1015,7 +1015,7 @@ void handle_exception (struct gdb_regs *regs)
 					break;
 				default:
 					baudrate = 0;
-					strcpy(output_buffer,"B02");
+					strcpy(output_buffer, "B02");
 					goto x1;
 			}
 
@@ -1044,7 +1044,7 @@ finish_kgdb:
 
 exit_kgdb_exception:
 	/* release locks so other CPUs can go */
-	for (i = num_online_cpus()-1; i >= 0; i--)
+	for_each_online_cpu(i)
 		__raw_spin_unlock(&kgdb_cpulock[i]);
 	spin_unlock(&kgdb_lock);
 

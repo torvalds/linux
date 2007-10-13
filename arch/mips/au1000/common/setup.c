@@ -50,7 +50,6 @@ extern void au1000_halt(void);
 extern void au1000_power_off(void);
 extern void au1x_time_init(void);
 extern void au1x_timer_setup(struct irqaction *irq);
-extern void au1xxx_time_init(void);
 extern void set_cpuspec(void);
 
 void __init plat_mem_setup(void)
@@ -112,7 +111,6 @@ void __init plat_mem_setup(void)
 	_machine_restart = au1000_restart;
 	_machine_halt = au1000_halt;
 	pm_power_off = au1000_power_off;
-	board_time_init = au1xxx_time_init;
 
 	/* IO/MEM resources. */
 	set_io_port_base(0);

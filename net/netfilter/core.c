@@ -19,6 +19,7 @@
 #include <linux/inetdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 
 #include "nf_internals.h"
@@ -293,7 +294,7 @@ void __init netfilter_init(void)
 	}
 
 #ifdef CONFIG_PROC_FS
-	proc_net_netfilter = proc_mkdir("netfilter", proc_net);
+	proc_net_netfilter = proc_mkdir("netfilter", init_net.proc_net);
 	if (!proc_net_netfilter)
 		panic("cannot create netfilter proc entry");
 #endif

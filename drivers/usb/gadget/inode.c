@@ -20,8 +20,7 @@
  */
 
 
-// #define	DEBUG			/* data to help fault diagnosis */
-// #define	VERBOSE		/* extra debug messages (success too) */
+/* #define VERBOSE_DEBUG */
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -38,7 +37,7 @@
 #include <linux/moduleparam.h>
 
 #include <linux/usb/gadgetfs.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 
 
 /*
@@ -253,7 +252,7 @@ static const char *CHIP;
 	do { } while (0)
 #endif /* DEBUG */
 
-#ifdef VERBOSE
+#ifdef VERBOSE_DEBUG
 #define VDEBUG	DBG
 #else
 #define VDEBUG(dev,fmt,args...) \
@@ -1010,11 +1009,12 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 			/* assume that was SET_CONFIGURATION */
 			if (dev->current_config) {
 				unsigned power;
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-				if (dev->gadget->speed == USB_SPEED_HIGH)
+
+				if (gadget_is_dualspeed(dev->gadget)
+						&& (dev->gadget->speed
+							== USB_SPEED_HIGH))
 					power = dev->hs_config->bMaxPower;
 				else
-#endif
 					power = dev->config->bMaxPower;
 				usb_gadget_vbus_draw(dev->gadget, 2 * power);
 			}
@@ -1355,24 +1355,21 @@ static int
 config_buf (struct dev_data *dev, u8 type, unsigned index)
 {
 	int		len;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-	int		hs;
-#endif
+	int		hs = 0;
 
 	/* only one configuration */
 	if (index > 0)
 		return -EINVAL;
 
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-	hs = (dev->gadget->speed == USB_SPEED_HIGH);
-	if (type == USB_DT_OTHER_SPEED_CONFIG)
-		hs = !hs;
+	if (gadget_is_dualspeed(dev->gadget)) {
+		hs = (dev->gadget->speed == USB_SPEED_HIGH);
+		if (type == USB_DT_OTHER_SPEED_CONFIG)
+			hs = !hs;
+	}
 	if (hs) {
 		dev->req->buf = dev->hs_config;
 		len = le16_to_cpu(dev->hs_config->wTotalLength);
-	} else
-#endif
-	{
+	} else {
 		dev->req->buf = dev->config;
 		len = le16_to_cpu(dev->config->wTotalLength);
 	}
@@ -1393,13 +1390,13 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	spin_lock (&dev->lock);
 	dev->setup_abort = 0;
 	if (dev->state == STATE_DEV_UNCONNECTED) {
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-		if (gadget->speed == USB_SPEED_HIGH && dev->hs_config == NULL) {
+		if (gadget_is_dualspeed(gadget)
+				&& gadget->speed == USB_SPEED_HIGH
+				&& dev->hs_config == NULL) {
 			spin_unlock(&dev->lock);
 			ERROR (dev, "no high speed config??\n");
 			return -EINVAL;
 		}
-#endif	/* CONFIG_USB_GADGET_DUALSPEED */
 
 		dev->state = STATE_DEV_CONNECTED;
 		dev->dev->bMaxPacketSize0 = gadget->ep0->maxpacket;
@@ -1469,13 +1466,12 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			// user mode expected to disable endpoints
 		} else {
 			u8	config, power;
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-			if (gadget->speed == USB_SPEED_HIGH) {
+
+			if (gadget_is_dualspeed(gadget)
+					&& gadget->speed == USB_SPEED_HIGH) {
 				config = dev->hs_config->bConfigurationValue;
 				power = dev->hs_config->bMaxPower;
-			} else
-#endif
-			{
+			} else {
 				config = dev->config->bConfigurationValue;
 				power = dev->config->bMaxPower;
 			}

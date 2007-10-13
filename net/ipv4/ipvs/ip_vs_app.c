@@ -25,6 +25,7 @@
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
 #include <asm/system.h>
@@ -616,12 +617,12 @@ int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 int ip_vs_app_init(void)
 {
 	/* we will replace it with proc_net_ipvs_create() soon */
-	proc_net_fops_create("ip_vs_app", 0, &ip_vs_app_fops);
+	proc_net_fops_create(&init_net, "ip_vs_app", 0, &ip_vs_app_fops);
 	return 0;
 }
 
 
 void ip_vs_app_cleanup(void)
 {
-	proc_net_remove("ip_vs_app");
+	proc_net_remove(&init_net, "ip_vs_app");
 }

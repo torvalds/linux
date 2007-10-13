@@ -1474,6 +1474,7 @@ static struct usb_driver asix_driver = {
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
 	.disconnect =	usbnet_disconnect,
+	.supports_autosuspend = 1,
 };
 
 static int __init asix_init(void)

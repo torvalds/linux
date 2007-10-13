@@ -69,10 +69,11 @@
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"1.0"
+#define DRV_VERSION	"1.01"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -420,6 +421,7 @@ static void mv_error_handler(struct ata_port *ap);
 static void mv_post_int_cmd(struct ata_queued_cmd *qc);
 static void mv_eh_freeze(struct ata_port *ap);
 static void mv_eh_thaw(struct ata_port *ap);
+static int mv_slave_config(struct scsi_device *sdev);
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
 static void mv5_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
@@ -457,7 +459,7 @@ static struct scsi_host_template mv5_sht = {
 	.use_clustering		= 1,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= MV_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
+	.slave_configure	= mv_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
@@ -475,14 +477,12 @@ static struct scsi_host_template mv6_sht = {
 	.use_clustering		= 1,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= MV_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
+	.slave_configure	= mv_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
 static const struct ata_port_operations mv5_ops = {
-	.port_disable		= ata_port_disable,
-
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -497,7 +497,6 @@ static const struct ata_port_operations mv5_ops = {
 
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.error_handler		= mv_error_handler,
 	.post_internal_cmd	= mv_post_int_cmd,
@@ -512,8 +511,6 @@ static const struct ata_port_operations mv5_ops = {
 };
 
 static const struct ata_port_operations mv6_ops = {
-	.port_disable		= ata_port_disable,
-
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -528,7 +525,6 @@ static const struct ata_port_operations mv6_ops = {
 
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.error_handler		= mv_error_handler,
 	.post_internal_cmd	= mv_post_int_cmd,
@@ -543,8 +539,6 @@ static const struct ata_port_operations mv6_ops = {
 };
 
 static const struct ata_port_operations mv_iie_ops = {
-	.port_disable		= ata_port_disable,
-
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -559,7 +553,6 @@ static const struct ata_port_operations mv_iie_ops = {
 
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.error_handler		= mv_error_handler,
 	.post_internal_cmd	= mv_post_int_cmd,
@@ -761,6 +754,17 @@ static inline int mv_get_hc_count(unsigned long port_flags)
 
 static void mv_irq_clear(struct ata_port *ap)
 {
+}
+
+static int mv_slave_config(struct scsi_device *sdev)
+{
+	int rc = ata_scsi_slave_config(sdev);
+	if (rc)
+		return rc;
+
+	blk_queue_max_phys_segments(sdev->request_queue, MV_MAX_SG_CT / 2);
+
+	return 0;	/* scsi layer doesn't check return value, sigh */
 }
 
 static void mv_set_edma_ptrs(void __iomem *port_mmio,
@@ -1130,10 +1134,9 @@ static void mv_port_stop(struct ata_port *ap)
  *      LOCKING:
  *      Inherited from caller.
  */
-static unsigned int mv_fill_sg(struct ata_queued_cmd *qc)
+static void mv_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct mv_port_priv *pp = qc->ap->private_data;
-	unsigned int n_sg = 0;
 	struct scatterlist *sg;
 	struct mv_sg *mv_sg;
 
@@ -1151,7 +1154,7 @@ static unsigned int mv_fill_sg(struct ata_queued_cmd *qc)
 
 			mv_sg->addr = cpu_to_le32(addr & 0xffffffff);
 			mv_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
-			mv_sg->flags_size = cpu_to_le32(len);
+			mv_sg->flags_size = cpu_to_le32(len & 0xffff);
 
 			sg_len -= len;
 			addr += len;
@@ -1160,12 +1163,9 @@ static unsigned int mv_fill_sg(struct ata_queued_cmd *qc)
 				mv_sg->flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
 
 			mv_sg++;
-			n_sg++;
 		}
 
 	}
-
-	return n_sg;
 }
 
 static inline void mv_crqb_pack_cmd(__le16 *cmdw, u8 data, u8 addr, unsigned last)
@@ -1406,7 +1406,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	unsigned int edma_enabled = (pp->pp_flags & MV_PP_FLAG_EDMA_EN);
 	unsigned int action = 0, err_mask = 0;
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 
 	ata_ehi_clear_desc(ehi);
 
@@ -1414,8 +1414,8 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		/* just a guess: do we need to do this? should we
 		 * expand this, and do it in all cases?
 		 */
-		sata_scr_read(ap, SCR_ERROR, &serr);
-		sata_scr_write_flush(ap, SCR_ERROR, serr);
+		sata_scr_read(&ap->link, SCR_ERROR, &serr);
+		sata_scr_write_flush(&ap->link, SCR_ERROR, serr);
 	}
 
 	edma_err_cause = readl(port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
@@ -1459,8 +1459,8 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		}
 
 		if (edma_err_cause & EDMA_ERR_SERR) {
-			sata_scr_read(ap, SCR_ERROR, &serr);
-			sata_scr_write_flush(ap, SCR_ERROR, serr);
+			sata_scr_read(&ap->link, SCR_ERROR, &serr);
+			sata_scr_write_flush(&ap->link, SCR_ERROR, serr);
 			err_mask = AC_ERR_ATA_BUS;
 			action |= ATA_EH_HARDRESET;
 		}
@@ -1499,7 +1499,7 @@ static void mv_intr_pio(struct ata_port *ap)
 		return;
 
 	/* get active ATA command */
-	qc = ata_qc_from_tag(ap, ap->active_tag);
+	qc = ata_qc_from_tag(ap, ap->link.active_tag);
 	if (unlikely(!qc))			/* no active tag */
 		return;
 	if (qc->tf.flags & ATA_TFLAG_POLLING)	/* polling; we don't own qc */
@@ -1534,7 +1534,7 @@ static void mv_intr_edma(struct ata_port *ap)
 
 		/* 50xx: get active ATA command */
 		if (IS_GEN_I(hpriv))
-			tag = ap->active_tag;
+			tag = ap->link.active_tag;
 
 		/* Gen II/IIE: get active ATA command via tag, to enable
 		 * support for queueing.  this works transparently for
@@ -1637,7 +1637,7 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 		if (unlikely(have_err_bits)) {
 			struct ata_queued_cmd *qc;
 
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
 				continue;
 
@@ -1678,15 +1678,15 @@ static void mv_pci_error(struct ata_host *host, void __iomem *mmio)
 
 	for (i = 0; i < host->n_ports; i++) {
 		ap = host->ports[i];
-		if (!ata_port_offline(ap)) {
-			ehi = &ap->eh_info;
+		if (!ata_link_offline(&ap->link)) {
+			ehi = &ap->link.eh_info;
 			ata_ehi_clear_desc(ehi);
 			if (!printed++)
 				ata_ehi_push_desc(ehi,
 					"PCI err cause 0x%08x", err_cause);
 			err_mask = AC_ERR_HOST_BUS;
 			ehi->action = ATA_EH_HARDRESET;
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc)
 				qc->err_mask |= err_mask;
 			else
@@ -2189,14 +2189,14 @@ static void mv_phy_reset(struct ata_port *ap, unsigned int *class,
 
 	/* Issue COMRESET via SControl */
 comreset_retry:
-	sata_scr_write_flush(ap, SCR_CONTROL, 0x301);
+	sata_scr_write_flush(&ap->link, SCR_CONTROL, 0x301);
 	msleep(1);
 
-	sata_scr_write_flush(ap, SCR_CONTROL, 0x300);
+	sata_scr_write_flush(&ap->link, SCR_CONTROL, 0x300);
 	msleep(20);
 
 	do {
-		sata_scr_read(ap, SCR_STATUS, &sstatus);
+		sata_scr_read(&ap->link, SCR_STATUS, &sstatus);
 		if (((sstatus & 0x3) == 3) || ((sstatus & 0x3) == 0))
 			break;
 
@@ -2221,7 +2221,7 @@ comreset_retry:
 	}
 #endif
 
-	if (ata_port_offline(ap)) {
+	if (ata_link_offline(&ap->link)) {
 		*class = ATA_DEV_NONE;
 		return;
 	}
@@ -2248,7 +2248,7 @@ comreset_retry:
 	 */
 
 	/* finally, read device signature from TF registers */
-	*class = ata_dev_try_classify(ap, 0, NULL);
+	*class = ata_dev_try_classify(ap->link.device, 1, NULL);
 
 	writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
@@ -2257,10 +2257,11 @@ comreset_retry:
 	VPRINTK("EXIT\n");
 }
 
-static int mv_prereset(struct ata_port *ap, unsigned long deadline)
+static int mv_prereset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct mv_port_priv *pp	= ap->private_data;
-	struct ata_eh_context *ehc = &ap->eh_context;
+	struct ata_eh_context *ehc = &link->eh_context;
 	int rc;
 
 	rc = mv_stop_dma(ap);
@@ -2276,7 +2277,7 @@ static int mv_prereset(struct ata_port *ap, unsigned long deadline)
 	if (ehc->i.action & ATA_EH_HARDRESET)
 		return 0;
 
-	if (ata_port_online(ap))
+	if (ata_link_online(link))
 		rc = ata_wait_ready(ap, deadline);
 	else
 		rc = -ENODEV;
@@ -2284,9 +2285,10 @@ static int mv_prereset(struct ata_port *ap, unsigned long deadline)
 	return rc;
 }
 
-static int mv_hardreset(struct ata_port *ap, unsigned int *class,
+static int mv_hardreset(struct ata_link *link, unsigned int *class,
 			unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	void __iomem *mmio = ap->host->iomap[MV_PRIMARY_BAR];
 
@@ -2299,16 +2301,17 @@ static int mv_hardreset(struct ata_port *ap, unsigned int *class,
 	return 0;
 }
 
-static void mv_postreset(struct ata_port *ap, unsigned int *classes)
+static void mv_postreset(struct ata_link *link, unsigned int *classes)
 {
+	struct ata_port *ap = link->ap;
 	u32 serr;
 
 	/* print link status */
-	sata_print_link_status(ap);
+	sata_print_link_status(link);
 
 	/* clear SError */
-	sata_scr_read(ap, SCR_ERROR, &serr);
-	sata_scr_write_flush(ap, SCR_ERROR, serr);
+	sata_scr_read(link, SCR_ERROR, &serr);
+	sata_scr_write_flush(link, SCR_ERROR, serr);
 
 	/* bail out if no device is present */
 	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
@@ -2581,8 +2584,14 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 	}
 
 	for (port = 0; port < host->n_ports; port++) {
+		struct ata_port *ap = host->ports[port];
 		void __iomem *port_mmio = mv_port_base(mmio, port);
-		mv_port_init(&host->ports[port]->ioaddr, port_mmio);
+		unsigned int offset = port_mmio - mmio;
+
+		mv_port_init(&ap->ioaddr, port_mmio);
+
+		ata_port_pbar_desc(ap, MV_PRIMARY_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, MV_PRIMARY_BAR, offset, "port");
 	}
 
 	for (hc = 0; hc < n_hc; hc++) {

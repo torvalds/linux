@@ -45,7 +45,6 @@
 #include <media/tuner.h>
 #include <media/audiochip.h>
 
-#include <linux/moduleparam.h>
 #include <linux/workqueue.h>
 
 #ifdef CONFIG_KMOD

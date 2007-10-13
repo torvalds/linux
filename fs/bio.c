@@ -798,13 +798,9 @@ void bio_unmap_user(struct bio *bio)
 	bio_put(bio);
 }
 
-static int bio_map_kern_endio(struct bio *bio, unsigned int bytes_done, int err)
+static void bio_map_kern_endio(struct bio *bio, int err)
 {
-	if (bio->bi_size)
-		return 1;
-
 	bio_put(bio);
-	return 0;
 }
 
 
@@ -1002,34 +998,26 @@ void bio_check_pages_dirty(struct bio *bio)
 /**
  * bio_endio - end I/O on a bio
  * @bio:	bio
- * @bytes_done:	number of bytes completed
  * @error:	error, if any
  *
  * Description:
- *   bio_endio() will end I/O on @bytes_done number of bytes. This may be
- *   just a partial part of the bio, or it may be the whole bio. bio_endio()
- *   is the preferred way to end I/O on a bio, it takes care of decrementing
- *   bi_size and clearing BIO_UPTODATE on error. @error is 0 on success, and
- *   and one of the established -Exxxx (-EIO, for instance) error values in
- *   case something went wrong. Noone should call bi_end_io() directly on
- *   a bio unless they own it and thus know that it has an end_io function.
+ *   bio_endio() will end I/O on the whole bio. bio_endio() is the
+ *   preferred way to end I/O on a bio, it takes care of clearing
+ *   BIO_UPTODATE on error. @error is 0 on success, and and one of the
+ *   established -Exxxx (-EIO, for instance) error values in case
+ *   something went wrong. Noone should call bi_end_io() directly on a
+ *   bio unless they own it and thus know that it has an end_io
+ *   function.
  **/
-void bio_endio(struct bio *bio, unsigned int bytes_done, int error)
+void bio_endio(struct bio *bio, int error)
 {
 	if (error)
 		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-
-	if (unlikely(bytes_done > bio->bi_size)) {
-		printk("%s: want %u bytes done, only %u left\n", __FUNCTION__,
-						bytes_done, bio->bi_size);
-		bytes_done = bio->bi_size;
-	}
-
-	bio->bi_size -= bytes_done;
-	bio->bi_sector += (bytes_done >> 9);
+	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+		error = -EIO;
 
 	if (bio->bi_end_io)
-		bio->bi_end_io(bio, bytes_done, error);
+		bio->bi_end_io(bio, error);
 }
 
 void bio_pair_release(struct bio_pair *bp)
@@ -1037,37 +1025,29 @@ void bio_pair_release(struct bio_pair *bp)
 	if (atomic_dec_and_test(&bp->cnt)) {
 		struct bio *master = bp->bio1.bi_private;
 
-		bio_endio(master, master->bi_size, bp->error);
+		bio_endio(master, bp->error);
 		mempool_free(bp, bp->bio2.bi_private);
 	}
 }
 
-static int bio_pair_end_1(struct bio * bi, unsigned int done, int err)
+static void bio_pair_end_1(struct bio *bi, int err)
 {
 	struct bio_pair *bp = container_of(bi, struct bio_pair, bio1);
 
 	if (err)
 		bp->error = err;
 
-	if (bi->bi_size)
-		return 1;
-
 	bio_pair_release(bp);
-	return 0;
 }
 
-static int bio_pair_end_2(struct bio * bi, unsigned int done, int err)
+static void bio_pair_end_2(struct bio *bi, int err)
 {
 	struct bio_pair *bp = container_of(bi, struct bio_pair, bio2);
 
 	if (err)
 		bp->error = err;
 
-	if (bi->bi_size)
-		return 1;
-
 	bio_pair_release(bp);
-	return 0;
 }
 
 /*

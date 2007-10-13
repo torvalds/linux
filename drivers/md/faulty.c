@@ -65,18 +65,16 @@
 #include <linux/raid/md.h>
 
 
-static int faulty_fail(struct bio *bio, unsigned int bytes_done, int error)
+static void faulty_fail(struct bio *bio, int error)
 {
 	struct bio *b = bio->bi_private;
 
 	b->bi_size = bio->bi_size;
 	b->bi_sector = bio->bi_sector;
 
-	if (bio->bi_size == 0)
-		bio_put(bio);
+	bio_put(bio);
 
-	clear_bit(BIO_UPTODATE, &b->bi_flags);
-	return (b->bi_end_io)(b, bytes_done, -EIO);
+	bio_io_error(b);
 }
 
 typedef struct faulty_conf {
@@ -179,7 +177,7 @@ static int make_request(struct request_queue *q, struct bio *bio)
 			/* special case - don't decrement, don't generic_make_request,
 			 * just fail immediately
 			 */
-			bio_endio(bio, bio->bi_size, -EIO);
+			bio_endio(bio, -EIO);
 			return 0;
 		}
 

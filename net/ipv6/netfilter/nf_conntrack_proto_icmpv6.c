@@ -210,45 +210,42 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
-static int icmpv6_tuple_to_nfattr(struct sk_buff *skb,
+static int icmpv6_tuple_to_nlattr(struct sk_buff *skb,
 				  const struct nf_conntrack_tuple *t)
 {
-	NFA_PUT(skb, CTA_PROTO_ICMPV6_ID, sizeof(u_int16_t),
+	NLA_PUT(skb, CTA_PROTO_ICMPV6_ID, sizeof(u_int16_t),
 		&t->src.u.icmp.id);
-	NFA_PUT(skb, CTA_PROTO_ICMPV6_TYPE, sizeof(u_int8_t),
+	NLA_PUT(skb, CTA_PROTO_ICMPV6_TYPE, sizeof(u_int8_t),
 		&t->dst.u.icmp.type);
-	NFA_PUT(skb, CTA_PROTO_ICMPV6_CODE, sizeof(u_int8_t),
+	NLA_PUT(skb, CTA_PROTO_ICMPV6_CODE, sizeof(u_int8_t),
 		&t->dst.u.icmp.code);
 
 	return 0;
 
-nfattr_failure:
+nla_put_failure:
 	return -1;
 }
 
-static const size_t cta_min_proto[CTA_PROTO_MAX] = {
-	[CTA_PROTO_ICMPV6_TYPE-1] = sizeof(u_int8_t),
-	[CTA_PROTO_ICMPV6_CODE-1] = sizeof(u_int8_t),
-	[CTA_PROTO_ICMPV6_ID-1]   = sizeof(u_int16_t)
+static const struct nla_policy icmpv6_nla_policy[CTA_PROTO_MAX+1] = {
+	[CTA_PROTO_ICMPV6_TYPE]	= { .type = NLA_U8 },
+	[CTA_PROTO_ICMPV6_CODE]	= { .type = NLA_U8 },
+	[CTA_PROTO_ICMPV6_ID]	= { .type = NLA_U16 },
 };
 
-static int icmpv6_nfattr_to_tuple(struct nfattr *tb[],
+static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 				struct nf_conntrack_tuple *tuple)
 {
-	if (!tb[CTA_PROTO_ICMPV6_TYPE-1]
-	    || !tb[CTA_PROTO_ICMPV6_CODE-1]
-	    || !tb[CTA_PROTO_ICMPV6_ID-1])
-		return -EINVAL;
-
-	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
+	if (!tb[CTA_PROTO_ICMPV6_TYPE]
+	    || !tb[CTA_PROTO_ICMPV6_CODE]
+	    || !tb[CTA_PROTO_ICMPV6_ID])
 		return -EINVAL;
 
 	tuple->dst.u.icmp.type =
-			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMPV6_TYPE-1]);
+			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMPV6_TYPE]);
 	tuple->dst.u.icmp.code =
-			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMPV6_CODE-1]);
+			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMPV6_CODE]);
 	tuple->src.u.icmp.id =
-			*(__be16 *)NFA_DATA(tb[CTA_PROTO_ICMPV6_ID-1]);
+			*(__be16 *)nla_data(tb[CTA_PROTO_ICMPV6_ID]);
 
 	if (tuple->dst.u.icmp.type < 128
 	    || tuple->dst.u.icmp.type - 128 >= sizeof(invmap)
@@ -289,8 +286,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 	.new			= icmpv6_new,
 	.error			= icmpv6_error,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.tuple_to_nfattr	= icmpv6_tuple_to_nfattr,
-	.nfattr_to_tuple	= icmpv6_nfattr_to_tuple,
+	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,
+	.nlattr_to_tuple	= icmpv6_nlattr_to_tuple,
+	.nla_policy		= icmpv6_nla_policy,
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_header	= &icmpv6_sysctl_header,

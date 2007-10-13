@@ -189,6 +189,8 @@ typedef enum _ipath_ureg {
 #define IPATH_RUNTIME_RCVHDR_COPY	0x8
 #define IPATH_RUNTIME_MASTER	0x10
 /* 0x20 and 0x40 are no longer used, but are reserved for ABI compatibility */
+#define IPATH_RUNTIME_FORCE_PIOAVAIL 0x400
+#define IPATH_RUNTIME_PIO_REGSWAPPED 0x800
 
 /*
  * This structure is returned by ipath_userinit() immediately after
@@ -350,7 +352,7 @@ struct ipath_base_info {
  * may not be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define IPATH_USER_SWMINOR 5
+#define IPATH_USER_SWMINOR 6
 
 #define IPATH_USER_SWVERSION ((IPATH_USER_SWMAJOR<<16) | IPATH_USER_SWMINOR)
 

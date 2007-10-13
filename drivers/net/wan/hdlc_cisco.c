@@ -74,7 +74,7 @@ static inline struct cisco_state * state(hdlc_device *hdlc)
 
 
 static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
-			     u16 type, void *daddr, void *saddr,
+			     u16 type, const void *daddr, const void *saddr,
 			     unsigned int len)
 {
 	struct hdlc_header *data;
@@ -309,7 +309,6 @@ static void cisco_stop(struct net_device *dev)
 }
 
 
-
 static struct hdlc_proto proto = {
 	.start		= cisco_start,
 	.stop		= cisco_stop,
@@ -317,7 +316,10 @@ static struct hdlc_proto proto = {
 	.ioctl		= cisco_ioctl,
 	.module		= THIS_MODULE,
 };
- 
+
+static const struct header_ops cisco_header_ops = {
+	.create = cisco_hard_header,
+};
  
 static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
@@ -365,7 +367,7 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 		memcpy(&state(hdlc)->settings, &new_settings, size);
 		dev->hard_start_xmit = hdlc->xmit;
-		dev->hard_header = cisco_hard_header;
+		dev->header_ops = &cisco_header_ops;
 		dev->type = ARPHRD_CISCO;
 		netif_dormant_on(dev);
 		return 0;

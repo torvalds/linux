@@ -26,6 +26,7 @@
 #define GL_SKIP			0x00000100
 #define GL_ATIME		0x00000200
 #define GL_NOCACHE		0x00000400
+#define GL_FLOCK		0x00000800
 #define GL_NOCANCEL		0x00001000
 
 #define GLR_TRYFAILED		13
@@ -132,11 +133,11 @@ void gfs2_glock_cb(void *cb_data, unsigned int type, void *data);
 
 void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl);
 void gfs2_reclaim_glock(struct gfs2_sbd *sdp);
-
-void gfs2_scand_internal(struct gfs2_sbd *sdp);
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait);
 
 int __init gfs2_glock_init(void);
+void gfs2_glock_exit(void);
+
 int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
 void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
 int gfs2_register_debugfs(void);

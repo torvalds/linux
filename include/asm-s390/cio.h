@@ -15,30 +15,50 @@
 #define LPM_ANYPATH 0xff
 #define __MAX_CSSID 0
 
-/*
- * subchannel status word
+/**
+ * struct scsw - subchannel status word
+ * @key: subchannel key
+ * @sctl: suspend control
+ * @eswf: esw format
+ * @cc: deferred condition code
+ * @fmt: format
+ * @pfch: prefetch
+ * @isic: initial-status interruption control
+ * @alcc: adress-limit checking control
+ * @ssi: supress-suspended interruption
+ * @zcc: zero condition code
+ * @ectl: extended control
+ * @pno: path not operational
+ * @res: reserved
+ * @fctl: function control
+ * @actl: activity control
+ * @stctl: status control
+ * @cpa: channel program address
+ * @dstat: device status
+ * @cstat: subchannel status
+ * @count: residual count
  */
 struct scsw {
-	__u32 key  : 4;		/* subchannel key */
-	__u32 sctl : 1; 	/* suspend control */
-	__u32 eswf : 1; 	/* ESW format */
-	__u32 cc   : 2; 	/* deferred condition code */
-	__u32 fmt  : 1; 	/* format */
-	__u32 pfch : 1; 	/* prefetch */
-	__u32 isic : 1; 	/* initial-status interruption control */
-	__u32 alcc : 1; 	/* address-limit checking control */
-	__u32 ssi  : 1; 	/* supress-suspended interruption */
-	__u32 zcc  : 1; 	/* zero condition code */
-	__u32 ectl : 1; 	/* extended control */
-	__u32 pno  : 1;	    	/* path not operational */
-	__u32 res  : 1;	    	/* reserved */
-	__u32 fctl : 3;	    	/* function control */
-	__u32 actl : 7;	    	/* activity control */
-	__u32 stctl : 5;    	/* status control */
-	__u32 cpa;	    	/* channel program address */
-	__u32 dstat : 8;    	/* device status */
-	__u32 cstat : 8;    	/* subchannel status */
-	__u32 count : 16;   	/* residual count */
+	__u32 key  : 4;
+	__u32 sctl : 1;
+	__u32 eswf : 1;
+	__u32 cc   : 2;
+	__u32 fmt  : 1;
+	__u32 pfch : 1;
+	__u32 isic : 1;
+	__u32 alcc : 1;
+	__u32 ssi  : 1;
+	__u32 zcc  : 1;
+	__u32 ectl : 1;
+	__u32 pno  : 1;
+	__u32 res  : 1;
+	__u32 fctl : 3;
+	__u32 actl : 7;
+	__u32 stctl : 5;
+	__u32 cpa;
+	__u32 dstat : 8;
+	__u32 cstat : 8;
+	__u32 count : 16;
 } __attribute__ ((packed));
 
 #define SCSW_FCTL_CLEAR_FUNC	 0x1
@@ -110,11 +130,22 @@ struct scsw {
 #define SNS2_ENV_DATA_PRESENT	0x10
 #define SNS2_INPRECISE_END	0x04
 
+/**
+ * struct ccw1 - channel command word
+ * @cmd_code: command code
+ * @flags: flags, like IDA adressing, etc.
+ * @count: byte count
+ * @cda: data address
+ *
+ * The ccw is the basic structure to build channel programs that perform
+ * operations with the device or the control unit. Only Format-1 channel
+ * command words are supported.
+ */
 struct ccw1 {
-	__u8  cmd_code;		/* command code */
-	__u8  flags;   		/* flags, like IDA addressing, etc. */
-	__u16 count;   		/* byte count */
-	__u32 cda;     		/* data address */
+	__u8  cmd_code;
+	__u8  flags;
+	__u16 count;
+	__u32 cda;
 } __attribute__ ((packed,aligned(8)));
 
 #define CCW_FLAG_DC		0x80
@@ -140,102 +171,162 @@ struct ccw1 {
 
 #define SENSE_MAX_COUNT		0x20
 
+/**
+ * struct erw - extended report word
+ * @res0: reserved
+ * @auth: authorization check
+ * @pvrf: path-verification-required flag
+ * @cpt: channel-path timeout
+ * @fsavf: failing storage address validity flag
+ * @cons: concurrent sense
+ * @scavf: secondary ccw address validity flag
+ * @fsaf: failing storage address format
+ * @scnt: sense count, if @cons == %1
+ * @res16: reserved
+ */
 struct erw {
-	__u32 res0  : 3;  	/* reserved */
-	__u32 auth  : 1;	/* Authorization check */
-	__u32 pvrf  : 1;  	/* path-verification-required flag */
-	__u32 cpt   : 1;  	/* channel-path timeout */
-	__u32 fsavf : 1;  	/* Failing storage address validity flag */
-	__u32 cons  : 1;  	/* concurrent-sense */
-	__u32 scavf : 1;	/* Secondary ccw address validity flag */
-	__u32 fsaf  : 1;	/* Failing storage address format */
-	__u32 scnt  : 6;  	/* sense count if cons == 1 */
-	__u32 res16 : 16; 	/* reserved */
+	__u32 res0  : 3;
+	__u32 auth  : 1;
+	__u32 pvrf  : 1;
+	__u32 cpt   : 1;
+	__u32 fsavf : 1;
+	__u32 cons  : 1;
+	__u32 scavf : 1;
+	__u32 fsaf  : 1;
+	__u32 scnt  : 6;
+	__u32 res16 : 16;
 } __attribute__ ((packed));
 
-/*
- * subchannel logout area
+/**
+ * struct sublog - subchannel logout area
+ * @res0: reserved
+ * @esf: extended status flags
+ * @lpum: last path used mask
+ * @arep: ancillary report
+ * @fvf: field-validity flags
+ * @sacc: storage access code
+ * @termc: termination code
+ * @devsc: device-status check
+ * @serr: secondary error
+ * @ioerr: i/o-error alert
+ * @seqc: sequence code
  */
 struct sublog {
-	__u32 res0  : 1;  	/* reserved */
-	__u32 esf   : 7;  	/* extended status flags */
-	__u32 lpum  : 8;  	/* last path used mask */
-	__u32 arep  : 1;  	/* ancillary report */
-	__u32 fvf   : 5;  	/* field-validity flags */
-	__u32 sacc  : 2;  	/* storage access code */
-	__u32 termc : 2;  	/* termination code */
-	__u32 devsc : 1;  	/* device-status check */
-	__u32 serr  : 1;  	/* secondary error */
-	__u32 ioerr : 1;  	/* i/o-error alert */
-	__u32 seqc  : 3;  	/* sequence code */
+	__u32 res0  : 1;
+	__u32 esf   : 7;
+	__u32 lpum  : 8;
+	__u32 arep  : 1;
+	__u32 fvf   : 5;
+	__u32 sacc  : 2;
+	__u32 termc : 2;
+	__u32 devsc : 1;
+	__u32 serr  : 1;
+	__u32 ioerr : 1;
+	__u32 seqc  : 3;
 } __attribute__ ((packed));
 
-/*
- * Format 0 Extended Status Word (ESW)
+/**
+ * struct esw0 - Format 0 Extended Status Word (ESW)
+ * @sublog: subchannel logout
+ * @erw: extended report word
+ * @faddr: failing storage address
+ * @saddr: secondary ccw address
  */
 struct esw0 {
-	struct sublog sublog;	/* subchannel logout */
-	struct erw erw;	    	/* extended report word */
-	__u32  faddr[2];    	/* failing storage address */
-	__u32  saddr;  		/* secondary ccw address */
+	struct sublog sublog;
+	struct erw erw;
+	__u32  faddr[2];
+	__u32  saddr;
 } __attribute__ ((packed));
 
-/*
- * Format 1 Extended Status Word (ESW)
+/**
+ * struct esw1 - Format 1 Extended Status Word (ESW)
+ * @zero0: reserved zeros
+ * @lpum: last path used mask
+ * @zero16: reserved zeros
+ * @erw: extended report word
+ * @zeros: three fullwords of zeros
  */
 struct esw1 {
-	__u8  zero0;		/* reserved zeros */
-	__u8  lpum;		/* last path used mask */
-	__u16 zero16;		/* reserved zeros */
-	struct erw erw;		/* extended report word */
-	__u32 zeros[3]; 	/* 2 fullwords of zeros */
+	__u8  zero0;
+	__u8  lpum;
+	__u16 zero16;
+	struct erw erw;
+	__u32 zeros[3];
 } __attribute__ ((packed));
 
-/*
- * Format 2 Extended Status Word (ESW)
+/**
+ * struct esw2 - Format 2 Extended Status Word (ESW)
+ * @zero0: reserved zeros
+ * @lpum: last path used mask
+ * @dcti: device-connect-time interval
+ * @erw: extended report word
+ * @zeros: three fullwords of zeros
  */
 struct esw2 {
-	__u8  zero0;		/* reserved zeros */
-	__u8  lpum;		/* last path used mask */
-	__u16 dcti;		/* device-connect-time interval */
-	struct erw erw;		/* extended report word */
-	__u32 zeros[3]; 	/* 2 fullwords of zeros */
+	__u8  zero0;
+	__u8  lpum;
+	__u16 dcti;
+	struct erw erw;
+	__u32 zeros[3];
 } __attribute__ ((packed));
 
-/*
- * Format 3 Extended Status Word (ESW)
+/**
+ * struct esw3 - Format 3 Extended Status Word (ESW)
+ * @zero0: reserved zeros
+ * @lpum: last path used mask
+ * @res: reserved
+ * @erw: extended report word
+ * @zeros: three fullwords of zeros
  */
 struct esw3 {
-	__u8  zero0;		/* reserved zeros */
-	__u8  lpum;		/* last path used mask */
-	__u16 res;		/* reserved */
-	struct erw erw;		/* extended report word */
-	__u32 zeros[3]; 	/* 2 fullwords of zeros */
+	__u8  zero0;
+	__u8  lpum;
+	__u16 res;
+	struct erw erw;
+	__u32 zeros[3];
 } __attribute__ ((packed));
 
-/*
- * interruption response block
+/**
+ * struct irb - interruption response block
+ * @scsw: subchannel status word
+ * @esw: extened status word, 4 formats
+ * @ecw: extended control word
+ *
+ * The irb that is handed to the device driver when an interrupt occurs. For
+ * solicited interrupts, the common I/O layer already performs checks whether
+ * a field is valid; a field not being valid is always passed as %0.
+ * If a unit check occured, @ecw may contain sense data; this is retrieved
+ * by the common I/O layer itself if the device doesn't support concurrent
+ * sense (so that the device driver never needs to perform basic sene itself).
+ * For unsolicited interrupts, the irb is passed as-is (expect for sense data,
+ * if applicable).
  */
 struct irb {
-	struct scsw scsw;	/* subchannel status word */
-	union {			/* extended status word, 4 formats */
+	struct scsw scsw;
+	union {
 		struct esw0 esw0;
 		struct esw1 esw1;
 		struct esw2 esw2;
 		struct esw3 esw3;
 	} esw;
-	__u8   ecw[32];		/* extended control word */
+	__u8   ecw[32];
 } __attribute__ ((packed,aligned(4)));
 
-/*
- * command information word  (CIW) layout
+/**
+ * struct ciw - command information word  (CIW) layout
+ * @et: entry type
+ * @reserved: reserved bits
+ * @ct: command type
+ * @cmd: command code
+ * @count: command count
  */
 struct ciw {
-	__u32 et       :  2; 	/* entry type */
-	__u32 reserved :  2; 	/* reserved */
-	__u32 ct       :  4; 	/* command type */
-	__u32 cmd      :  8; 	/* command */
-	__u32 count    : 16; 	/* coun */
+	__u32 et       :  2;
+	__u32 reserved :  2;
+	__u32 ct       :  4;
+	__u32 cmd      :  8;
+	__u32 count    : 16;
 } __attribute__ ((packed));
 
 #define CIW_TYPE_RCD	0x0    	/* read configuration data */
@@ -258,11 +349,32 @@ struct ciw {
 /* Sick revalidation of device. */
 #define CIO_REVALIDATE 0x0008
 
+/**
+ * struct ccw_dev_id - unique identifier for ccw devices
+ * @ssid: subchannel set id
+ * @devno: device number
+ *
+ * This structure is not directly based on any hardware structure. The
+ * hardware identifies a device by its device number and its subchannel,
+ * which is in turn identified by its id. In order to get a unique identifier
+ * for ccw devices across subchannel sets, @struct ccw_dev_id has been
+ * introduced.
+ */
 struct ccw_dev_id {
 	u8 ssid;
 	u16 devno;
 };
 
+/**
+ * ccw_device_id_is_equal() - compare two ccw_dev_ids
+ * @dev_id1: a ccw_dev_id
+ * @dev_id2: another ccw_dev_id
+ * Returns:
+ *  %1 if the two structures are equal field-by-field,
+ *  %0 if not.
+ * Context:
+ *  any
+ */
 static inline int ccw_dev_id_is_equal(struct ccw_dev_id *dev_id1,
 				      struct ccw_dev_id *dev_id2)
 {

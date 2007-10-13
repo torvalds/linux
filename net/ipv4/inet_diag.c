@@ -11,6 +11,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
@@ -112,7 +113,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 	}
 #endif
 
-#define EXPIRES_IN_MS(tmo)  ((tmo - jiffies) * 1000 + HZ - 1) / HZ
+#define EXPIRES_IN_MS(tmo)  DIV_ROUND_UP((tmo - jiffies) * 1000, HZ)
 
 	if (icsk->icsk_pending == ICSK_TIME_RETRANS) {
 		r->idiag_timer = 1;
@@ -190,7 +191,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	r->id.idiag_dst[0]    = tw->tw_daddr;
 	r->idiag_state	      = tw->tw_substate;
 	r->idiag_timer	      = 3;
-	r->idiag_expires      = (tmo * 1000 + HZ - 1) / HZ;
+	r->idiag_expires      = DIV_ROUND_UP(tmo * 1000, HZ);
 	r->idiag_rqueue	      = 0;
 	r->idiag_wqueue	      = 0;
 	r->idiag_uid	      = 0;
@@ -838,15 +839,11 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 static DEFINE_MUTEX(inet_diag_mutex);
 
-static void inet_diag_rcv(struct sock *sk, int len)
+static void inet_diag_rcv(struct sk_buff *skb)
 {
-	unsigned int qlen = 0;
-
-	do {
-		mutex_lock(&inet_diag_mutex);
-		netlink_run_queue(sk, &qlen, &inet_diag_rcv_msg);
-		mutex_unlock(&inet_diag_mutex);
-	} while (qlen);
+	mutex_lock(&inet_diag_mutex);
+	netlink_rcv_skb(skb, &inet_diag_rcv_msg);
+	mutex_unlock(&inet_diag_mutex);
 }
 
 static DEFINE_SPINLOCK(inet_diag_register_lock);
@@ -896,8 +893,8 @@ static int __init inet_diag_init(void)
 	if (!inet_diag_table)
 		goto out;
 
-	idiagnl = netlink_kernel_create(NETLINK_INET_DIAG, 0, inet_diag_rcv,
-					NULL, THIS_MODULE);
+	idiagnl = netlink_kernel_create(&init_net, NETLINK_INET_DIAG, 0,
+					inet_diag_rcv, NULL, THIS_MODULE);
 	if (idiagnl == NULL)
 		goto out_free_table;
 	err = 0;

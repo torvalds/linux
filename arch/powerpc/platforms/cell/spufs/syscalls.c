@@ -58,26 +58,8 @@ out:
 	return ret;
 }
 
-#ifndef MODULE
-asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
-{
-	int fput_needed;
-	struct file *filp;
-	long ret;
-
-	ret = -EBADF;
-	filp = fget_light(fd, &fput_needed);
-	if (filp) {
-		ret = do_spu_run(filp, unpc, ustatus);
-		fput_light(filp, fput_needed);
-	}
-
-	return ret;
-}
-#endif
-
-asmlinkage long do_spu_create(const char __user *pathname, unsigned int flags,
-				mode_t mode, struct file *neighbor)
+static long do_spu_create(const char __user *pathname, unsigned int flags,
+		mode_t mode, struct file *neighbor)
 {
 	char *tmp;
 	int ret;
@@ -99,32 +81,10 @@ asmlinkage long do_spu_create(const char __user *pathname, unsigned int flags,
 	return ret;
 }
 
-#ifndef MODULE
-asmlinkage long sys_spu_create(const char __user *pathname, unsigned int flags,
-				mode_t mode, int neighbor_fd)
-{
-	int fput_needed;
-	struct file *neighbor;
-	long ret;
-
-	if (flags & SPU_CREATE_AFFINITY_SPU) {
-		ret = -EBADF;
-		neighbor = fget_light(neighbor_fd, &fput_needed);
-		if (neighbor) {
-			ret = do_spu_create(pathname, flags, mode, neighbor);
-			fput_light(neighbor, fput_needed);
-		}
-	}
-	else {
-		ret = do_spu_create(pathname, flags, mode, NULL);
-	}
-
-	return ret;
-}
-#endif
-
 struct spufs_calls spufs_calls = {
 	.create_thread = do_spu_create,
 	.spu_run = do_spu_run,
+	.coredump_extra_notes_size = spufs_coredump_extra_notes_size,
+	.coredump_extra_notes_write = spufs_coredump_extra_notes_write,
 	.owner = THIS_MODULE,
 };

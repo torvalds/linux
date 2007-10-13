@@ -11,15 +11,15 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/pci.h>
 #include <linux/initrd.h>
 #include <linux/mtd/physmap.h>
 
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/mpic.h>
-#include <asm/mpc10x.h>
 #include <asm/pci-bridge.h>
+
+#include "mpc10x.h"
 
 static struct mtd_partition linkstation_physmap_partitions[] = {
 	{
@@ -91,7 +91,7 @@ static void __init linkstation_setup_arch(void)
 #endif
 
 	/* Lookup PCI host bridges */
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
+	for_each_compatible_node(np, "pci", "mpc10x-pci")
 		linkstation_add_bridge(np);
 
 	printk(KERN_INFO "BUFFALO Network Attached Storage Series\n");
@@ -99,7 +99,7 @@ static void __init linkstation_setup_arch(void)
 }
 
 /*
- * Interrupt setup and service.  Interrrupts on the linkstation come
+ * Interrupt setup and service.  Interrupts on the linkstation come
  * from the four PCI slots plus onboard 8241 devices: I2C, DUART.
  */
 static void __init linkstation_init_IRQ(void)

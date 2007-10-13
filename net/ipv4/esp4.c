@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
 #include <linux/random.h>
+#include <linux/spinlock.h>
 #include <net/icmp.h>
 #include <net/protocol.h>
 #include <net/udp.h>
@@ -15,7 +16,6 @@
 static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
-	struct iphdr *top_iph;
 	struct ip_esp_hdr *esph;
 	struct crypto_blkcipher *tfm;
 	struct blkcipher_desc desc;
@@ -27,9 +27,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	int alen;
 	int nfrags;
 
-	/* Strip IP+ESP header. */
-	__skb_pull(skb, skb_transport_offset(skb));
-	/* Now skb is pure payload to encrypt */
+	/* skb is pure payload to encrypt */
 
 	err = -ENOMEM;
 
@@ -59,12 +57,12 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	tail[clen - skb->len - 2] = (clen - skb->len) - 2;
 	pskb_put(skb, trailer, clen - skb->len);
 
-	__skb_push(skb, skb->data - skb_network_header(skb));
-	top_iph = ip_hdr(skb);
-	esph = (struct ip_esp_hdr *)(skb_network_header(skb) +
-				     top_iph->ihl * 4);
-	top_iph->tot_len = htons(skb->len + alen);
-	*(skb_tail_pointer(trailer) - 1) = top_iph->protocol;
+	skb_push(skb, -skb_network_offset(skb));
+	esph = ip_esp_hdr(skb);
+	*(skb_tail_pointer(trailer) - 1) = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_ESP;
+
+	spin_lock_bh(&x->lock);
 
 	/* this is non-NULL only with UDP Encapsulation */
 	if (x->encap) {
@@ -75,7 +73,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		uh = (struct udphdr *)esph;
 		uh->source = encap->encap_sport;
 		uh->dest = encap->encap_dport;
-		uh->len = htons(skb->len + alen - top_iph->ihl*4);
+		uh->len = htons(skb->len + alen - skb_transport_offset(skb));
 		uh->check = 0;
 
 		switch (encap->encap_type) {
@@ -90,13 +88,11 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 			break;
 		}
 
-		top_iph->protocol = IPPROTO_UDP;
-	} else
-		top_iph->protocol = IPPROTO_ESP;
+		*skb_mac_header(skb) = IPPROTO_UDP;
+	}
 
 	esph->spi = x->id.spi;
-	esph->seq_no = htonl(++x->replay.oseq);
-	xfrm_aevent_doreplay(x);
+	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
 
 	if (esp->conf.ivlen) {
 		if (unlikely(!esp->conf.ivinitted)) {
@@ -112,7 +108,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
 			sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
 			if (!sg)
-				goto error;
+				goto unlock;
 		}
 		skb_to_sgvec(skb, sg, esph->enc_data+esp->conf.ivlen-skb->data, clen);
 		err = crypto_blkcipher_encrypt(&desc, sg, sg, clen);
@@ -121,7 +117,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	} while (0);
 
 	if (unlikely(err))
-		goto error;
+		goto unlock;
 
 	if (esp->conf.ivlen) {
 		memcpy(esph->enc_data, esp->conf.ivec, esp->conf.ivlen);
@@ -134,7 +130,8 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		memcpy(pskb_put(skb, trailer, alen), esp->auth.work_icv, alen);
 	}
 
-	ip_send_check(top_iph);
+unlock:
+	spin_unlock_bh(&x->lock);
 
 error:
 	return err;
@@ -155,7 +152,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct sk_buff *trailer;
 	int blksize = ALIGN(crypto_blkcipher_blocksize(tfm), 4);
 	int alen = esp->auth.icv_trunc_len;
-	int elen = skb->len - sizeof(struct ip_esp_hdr) - esp->conf.ivlen - alen;
+	int elen = skb->len - sizeof(*esph) - esp->conf.ivlen - alen;
 	int nfrags;
 	int ihl;
 	u8 nexthdr[2];
@@ -163,7 +160,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	int padlen;
 	int err;
 
-	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr)))
+	if (!pskb_may_pull(skb, sizeof(*esph)))
 		goto out;
 
 	if (elen <= 0 || (elen & (blksize-1)))
@@ -191,7 +188,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	esph = (struct ip_esp_hdr*)skb->data;
+	esph = (struct ip_esp_hdr *)skb->data;
 
 	/* Get ivec. This can be wrong, check against another impls. */
 	if (esp->conf.ivlen)
@@ -204,7 +201,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 		if (!sg)
 			goto out;
 	}
-	skb_to_sgvec(skb, sg, sizeof(struct ip_esp_hdr) + esp->conf.ivlen, elen);
+	skb_to_sgvec(skb, sg, sizeof(*esph) + esp->conf.ivlen, elen);
 	err = crypto_blkcipher_decrypt(&desc, sg, sg, elen);
 	if (unlikely(sg != &esp->sgbuf[0]))
 		kfree(sg);
@@ -256,17 +253,15 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 		 *    as per draft-ietf-ipsec-udp-encaps-06,
 		 *    section 3.1.2
 		 */
-		if (x->props.mode == XFRM_MODE_TRANSPORT ||
-		    x->props.mode == XFRM_MODE_BEET)
+		if (x->props.mode == XFRM_MODE_TRANSPORT)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	iph->protocol = nexthdr[1];
 	pskb_trim(skb, skb->len - alen - padlen - 2);
 	__skb_pull(skb, sizeof(*esph) + esp->conf.ivlen);
 	skb_set_transport_header(skb, -ihl);
 
-	return 0;
+	return nexthdr[1];
 
 out:
 	return -EINVAL;
@@ -343,11 +338,6 @@ static int esp_init_state(struct xfrm_state *x)
 	struct crypto_blkcipher *tfm;
 	u32 align;
 
-	/* null auth and encryption can have zero length keys */
-	if (x->aalg) {
-		if (x->aalg->alg_key_len > 512)
-			goto error;
-	}
 	if (x->ealg == NULL)
 		goto error;
 
@@ -359,15 +349,14 @@ static int esp_init_state(struct xfrm_state *x)
 		struct xfrm_algo_desc *aalg_desc;
 		struct crypto_hash *hash;
 
-		esp->auth.key = x->aalg->alg_key;
-		esp->auth.key_len = (x->aalg->alg_key_len+7)/8;
 		hash = crypto_alloc_hash(x->aalg->alg_name, 0,
 					 CRYPTO_ALG_ASYNC);
 		if (IS_ERR(hash))
 			goto error;
 
 		esp->auth.tfm = hash;
-		if (crypto_hash_setkey(hash, esp->auth.key, esp->auth.key_len))
+		if (crypto_hash_setkey(hash, x->aalg->alg_key,
+				       (x->aalg->alg_key_len + 7) / 8))
 			goto error;
 
 		aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
@@ -389,8 +378,7 @@ static int esp_init_state(struct xfrm_state *x)
 		if (!esp->auth.work_icv)
 			goto error;
 	}
-	esp->conf.key = x->ealg->alg_key;
-	esp->conf.key_len = (x->ealg->alg_key_len+7)/8;
+
 	tfm = crypto_alloc_blkcipher(x->ealg->alg_name, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm))
 		goto error;
@@ -403,7 +391,8 @@ static int esp_init_state(struct xfrm_state *x)
 			goto error;
 		esp->conf.ivinitted = 0;
 	}
-	if (crypto_blkcipher_setkey(tfm, esp->conf.key, esp->conf.key_len))
+	if (crypto_blkcipher_setkey(tfm, x->ealg->alg_key,
+				    (x->ealg->alg_key_len + 7) / 8))
 		goto error;
 	x->props.header_len = sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
 	if (x->props.mode == XFRM_MODE_TUNNEL)
@@ -443,6 +432,7 @@ static struct xfrm_type esp_type =
 	.description	= "ESP4",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_ESP,
+	.flags		= XFRM_TYPE_REPLAY_PROT,
 	.init_state	= esp_init_state,
 	.destructor	= esp_destroy,
 	.get_mtu	= esp4_get_mtu,

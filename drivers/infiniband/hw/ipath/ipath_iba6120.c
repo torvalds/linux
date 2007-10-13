@@ -1143,11 +1143,14 @@ static void ipath_pe_put_tid(struct ipath_devdata *dd, u64 __iomem *tidptr,
 			pa |= 2 << 29;
 	}
 
-	/* workaround chip bug 9437 by writing each TID twice
-	 * and holding a spinlock around the writes, so they don't
-	 * intermix with other TID (eager or expected) writes
-	 * Unfortunately, this call can be done from interrupt level
-	 * for the port 0 eager TIDs, so we have to use irqsave
+	/*
+	 * Workaround chip bug 9437 by writing the scratch register
+	 * before and after the TID, and with an io write barrier.
+	 * We use a spinlock around the writes, so they can't intermix
+	 * with other TID (eager or expected) writes (the chip bug
+	 * is triggered by back to back TID writes). Unfortunately, this
+	 * call can be done from interrupt level for the port 0 eager TIDs,
+	 * so we have to use irqsave locks.
 	 */
 	spin_lock_irqsave(&dd->ipath_tid_lock, flags);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_scratch, 0xfeeddeaf);
@@ -1273,6 +1276,8 @@ static void ipath_pe_tidtemplate(struct ipath_devdata *dd)
 static int ipath_pe_early_init(struct ipath_devdata *dd)
 {
 	dd->ipath_flags |= IPATH_4BYTE_TID;
+	if (ipath_unordered_wc())
+		dd->ipath_flags |= IPATH_PIO_FLUSH_WC;
 
 	/*
 	 * For openfabrics, we need to be able to handle an IB header of
@@ -1343,7 +1348,8 @@ static int ipath_pe_get_base_info(struct ipath_portdata *pd, void *kbase)
 	dd = pd->port_dd;
 
 done:
-	kinfo->spi_runtime_flags |= IPATH_RUNTIME_PCIE;
+	kinfo->spi_runtime_flags |= IPATH_RUNTIME_PCIE |
+		IPATH_RUNTIME_FORCE_PIOAVAIL | IPATH_RUNTIME_PIO_REGSWAPPED;
 	return 0;
 }
 

@@ -9,59 +9,84 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/workqueue.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <net/net_namespace.h>
 
+#include <net/net_namespace.h>
 #include <net/dst.h>
 
-/* Locking strategy:
- * 1) Garbage collection state of dead destination cache
- *    entries is protected by dst_lock.
- * 2) GC is run only from BH context, and is the only remover
- *    of entries.
- * 3) Entries are added to the garbage list from both BH
- *    and non-BH context, so local BH disabling is needed.
- * 4) All operations modify state, so a spinlock is used.
+/*
+ * Theory of operations:
+ * 1) We use a list, protected by a spinlock, to add
+ *    new entries from both BH and non-BH context.
+ * 2) In order to keep spinlock held for a small delay,
+ *    we use a second list where are stored long lived
+ *    entries, that are handled by the garbage collect thread
+ *    fired by a workqueue.
+ * 3) This list is guarded by a mutex,
+ *    so that the gc_task and dst_dev_event() can be synchronized.
  */
-static struct dst_entry 	*dst_garbage_list;
 #if RT_CACHE_DEBUG >= 2
 static atomic_t			 dst_total = ATOMIC_INIT(0);
 #endif
-static DEFINE_SPINLOCK(dst_lock);
 
-static unsigned long dst_gc_timer_expires;
-static unsigned long dst_gc_timer_inc = DST_GC_MAX;
-static void dst_run_gc(unsigned long);
+/*
+ * We want to keep lock & list close together
+ * to dirty as few cache lines as possible in __dst_free().
+ * As this is not a very strong hint, we dont force an alignment on SMP.
+ */
+static struct {
+	spinlock_t		lock;
+	struct dst_entry 	*list;
+	unsigned long		timer_inc;
+	unsigned long		timer_expires;
+} dst_garbage = {
+	.lock = __SPIN_LOCK_UNLOCKED(dst_garbage.lock),
+	.timer_inc = DST_GC_MAX,
+};
+static void dst_gc_task(struct work_struct *work);
 static void ___dst_free(struct dst_entry * dst);
 
-static DEFINE_TIMER(dst_gc_timer, dst_run_gc, DST_GC_MIN, 0);
+static DECLARE_DELAYED_WORK(dst_gc_work, dst_gc_task);
 
-static void dst_run_gc(unsigned long dummy)
+static DEFINE_MUTEX(dst_gc_mutex);
+/*
+ * long lived entries are maintained in this list, guarded by dst_gc_mutex
+ */
+static struct dst_entry         *dst_busy_list;
+
+static void dst_gc_task(struct work_struct *work)
 {
 	int    delayed = 0;
-	int    work_performed;
-	struct dst_entry * dst, **dstp;
+	int    work_performed = 0;
+	unsigned long expires = ~0L;
+	struct dst_entry *dst, *next, head;
+	struct dst_entry *last = &head;
+#if RT_CACHE_DEBUG >= 2
+	ktime_t time_start = ktime_get();
+	struct timespec elapsed;
+#endif
 
-	if (!spin_trylock(&dst_lock)) {
-		mod_timer(&dst_gc_timer, jiffies + HZ/10);
-		return;
-	}
+	mutex_lock(&dst_gc_mutex);
+	next = dst_busy_list;
 
-	del_timer(&dst_gc_timer);
-	dstp = &dst_garbage_list;
-	work_performed = 0;
-	while ((dst = *dstp) != NULL) {
-		if (atomic_read(&dst->__refcnt)) {
-			dstp = &dst->next;
+loop:
+	while ((dst = next) != NULL) {
+		next = dst->next;
+		prefetch(&next->next);
+		if (likely(atomic_read(&dst->__refcnt))) {
+			last->next = dst;
+			last = dst;
 			delayed++;
 			continue;
 		}
-		*dstp = dst->next;
-		work_performed = 1;
+		work_performed++;
 
 		dst = dst_destroy(dst);
 		if (dst) {
@@ -77,38 +102,56 @@ static void dst_run_gc(unsigned long dummy)
 				continue;
 
 			___dst_free(dst);
-			dst->next = *dstp;
-			*dstp = dst;
-			dstp = &dst->next;
+			dst->next = next;
+			next = dst;
 		}
 	}
-	if (!dst_garbage_list) {
-		dst_gc_timer_inc = DST_GC_MAX;
-		goto out;
-	}
-	if (!work_performed) {
-		if ((dst_gc_timer_expires += dst_gc_timer_inc) > DST_GC_MAX)
-			dst_gc_timer_expires = DST_GC_MAX;
-		dst_gc_timer_inc += DST_GC_INC;
-	} else {
-		dst_gc_timer_inc = DST_GC_INC;
-		dst_gc_timer_expires = DST_GC_MIN;
-	}
-#if RT_CACHE_DEBUG >= 2
-	printk("dst_total: %d/%d %ld\n",
-	       atomic_read(&dst_total), delayed,  dst_gc_timer_expires);
-#endif
-	/* if the next desired timer is more than 4 seconds in the future
-	 * then round the timer to whole seconds
-	 */
-	if (dst_gc_timer_expires > 4*HZ)
-		mod_timer(&dst_gc_timer,
-			round_jiffies(jiffies + dst_gc_timer_expires));
-	else
-		mod_timer(&dst_gc_timer, jiffies + dst_gc_timer_expires);
 
-out:
-	spin_unlock(&dst_lock);
+	spin_lock_bh(&dst_garbage.lock);
+	next = dst_garbage.list;
+	if (next) {
+		dst_garbage.list = NULL;
+		spin_unlock_bh(&dst_garbage.lock);
+		goto loop;
+	}
+	last->next = NULL;
+	dst_busy_list = head.next;
+	if (!dst_busy_list)
+		dst_garbage.timer_inc = DST_GC_MAX;
+	else {
+		/*
+		 * if we freed less than 1/10 of delayed entries,
+		 * we can sleep longer.
+		 */
+		if (work_performed <= delayed/10) {
+			dst_garbage.timer_expires += dst_garbage.timer_inc;
+			if (dst_garbage.timer_expires > DST_GC_MAX)
+				dst_garbage.timer_expires = DST_GC_MAX;
+			dst_garbage.timer_inc += DST_GC_INC;
+		} else {
+			dst_garbage.timer_inc = DST_GC_INC;
+			dst_garbage.timer_expires = DST_GC_MIN;
+		}
+		expires = dst_garbage.timer_expires;
+		/*
+		 * if the next desired timer is more than 4 seconds in the future
+		 * then round the timer to whole seconds
+		 */
+		if (expires > 4*HZ)
+			expires = round_jiffies_relative(expires);
+		schedule_delayed_work(&dst_gc_work, expires);
+	}
+
+	spin_unlock_bh(&dst_garbage.lock);
+	mutex_unlock(&dst_gc_mutex);
+#if RT_CACHE_DEBUG >= 2
+	elapsed = ktime_to_timespec(ktime_sub(ktime_get(), time_start));
+	printk(KERN_DEBUG "dst_total: %d delayed: %d work_perf: %d"
+		" expires: %lu elapsed: %lu us\n",
+		atomic_read(&dst_total), delayed, work_performed,
+		expires,
+		elapsed.tv_sec * USEC_PER_SEC + elapsed.tv_nsec / NSEC_PER_USEC);
+#endif
 }
 
 static int dst_discard(struct sk_buff *skb)
@@ -153,16 +196,16 @@ static void ___dst_free(struct dst_entry * dst)
 
 void __dst_free(struct dst_entry * dst)
 {
-	spin_lock_bh(&dst_lock);
+	spin_lock_bh(&dst_garbage.lock);
 	___dst_free(dst);
-	dst->next = dst_garbage_list;
-	dst_garbage_list = dst;
-	if (dst_gc_timer_inc > DST_GC_INC) {
-		dst_gc_timer_inc = DST_GC_INC;
-		dst_gc_timer_expires = DST_GC_MIN;
-		mod_timer(&dst_gc_timer, jiffies + dst_gc_timer_expires);
+	dst->next = dst_garbage.list;
+	dst_garbage.list = dst;
+	if (dst_garbage.timer_inc > DST_GC_INC) {
+		dst_garbage.timer_inc = DST_GC_INC;
+		dst_garbage.timer_expires = DST_GC_MIN;
+		schedule_delayed_work(&dst_gc_work, dst_garbage.timer_expires);
 	}
-	spin_unlock_bh(&dst_lock);
+	spin_unlock_bh(&dst_garbage.lock);
 }
 
 struct dst_entry *dst_destroy(struct dst_entry * dst)
@@ -236,13 +279,13 @@ static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	if (!unregister) {
 		dst->input = dst->output = dst_discard;
 	} else {
-		dst->dev = &loopback_dev;
-		dev_hold(&loopback_dev);
+		dst->dev = init_net.loopback_dev;
+		dev_hold(dst->dev);
 		dev_put(dev);
 		if (dst->neighbour && dst->neighbour->dev == dev) {
-			dst->neighbour->dev = &loopback_dev;
+			dst->neighbour->dev = init_net.loopback_dev;
 			dev_put(dev);
-			dev_hold(&loopback_dev);
+			dev_hold(dst->neighbour->dev);
 		}
 	}
 }
@@ -250,16 +293,33 @@ static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 static int dst_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct dst_entry *dst;
+	struct dst_entry *dst, *last = NULL;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
 	case NETDEV_DOWN:
-		spin_lock_bh(&dst_lock);
-		for (dst = dst_garbage_list; dst; dst = dst->next) {
+		mutex_lock(&dst_gc_mutex);
+		for (dst = dst_busy_list; dst; dst = dst->next) {
+			last = dst;
 			dst_ifdown(dst, dev, event != NETDEV_DOWN);
 		}
-		spin_unlock_bh(&dst_lock);
+
+		spin_lock_bh(&dst_garbage.lock);
+		dst = dst_garbage.list;
+		dst_garbage.list = NULL;
+		spin_unlock_bh(&dst_garbage.lock);
+
+		if (last)
+			last->next = dst;
+		else
+			dst_busy_list = dst;
+		for (; dst; dst = dst->next) {
+			dst_ifdown(dst, dev, event != NETDEV_DOWN);
+		}
+		mutex_unlock(&dst_gc_mutex);
 		break;
 	}
 	return NOTIFY_DONE;

@@ -58,7 +58,7 @@ static int model		= M_UNKNOWN;
 static int manual_height;
 static int manual_width;
 
-static int set_system(struct dmi_system_id *id)
+static int set_system(const struct dmi_system_id *id)
 {
 	printk(KERN_INFO "imacfb: %s detected - set system to %ld\n",
 		id->ident, (long)id->driver_data);

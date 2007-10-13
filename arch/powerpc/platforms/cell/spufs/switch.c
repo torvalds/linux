@@ -699,7 +699,7 @@ static inline void get_kernel_slb(u64 ea, u64 slb[2])
 		llp = mmu_psize_defs[mmu_linear_psize].sllp;
 	else
 		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
-	slb[0] = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+	slb[0] = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
 		SLB_VSID_KERNEL | llp;
 	slb[1] = (ea & ESID_MASK) | SLB_ESID_V;
 }
@@ -1559,15 +1559,15 @@ static inline void restore_decr_wrapped(struct spu_state *csa, struct spu *spu)
 	 *     "wrapped" flag is set, OR in a '1' to
 	 *     CSA.SPU_Event_Status[Tm].
 	 */
-	if (csa->lscsa->decr_status.slot[0] & SPU_DECR_STATUS_WRAPPED) {
-		csa->spu_chnldata_RW[0] |= 0x20;
-	}
-	if ((csa->lscsa->decr_status.slot[0] & SPU_DECR_STATUS_WRAPPED) &&
-	    (csa->spu_chnlcnt_RW[0] == 0 &&
-	     ((csa->spu_chnldata_RW[2] & 0x20) == 0x0) &&
-	     ((csa->spu_chnldata_RW[0] & 0x20) != 0x1))) {
+	if (!(csa->lscsa->decr_status.slot[0] & SPU_DECR_STATUS_WRAPPED))
+		return;
+
+	if ((csa->spu_chnlcnt_RW[0] == 0) &&
+	    (csa->spu_chnldata_RW[1] & 0x20) &&
+	    !(csa->spu_chnldata_RW[0] & 0x20))
 		csa->spu_chnlcnt_RW[0] = 1;
-	}
+
+	csa->spu_chnldata_RW[0] |= 0x20;
 }
 
 static inline void restore_ch_part1(struct spu_state *csa, struct spu *spu)
@@ -2145,19 +2145,6 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(spu_restore);
-
-/**
- * spu_harvest - SPU harvest (reset) operation
- * @spu: pointer to SPU iomem structure.
- *
- * Perform SPU harvest (reset) operation.
- */
-void spu_harvest(struct spu *spu)
-{
-	acquire_spu_lock(spu);
-	harvest(NULL, spu);
-	release_spu_lock(spu);
-}
 
 static void init_prob(struct spu_state *csa)
 {

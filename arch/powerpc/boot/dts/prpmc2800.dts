@@ -9,10 +9,6 @@
  *
  * Property values that are labeled as "Default" will be updated by bootwrapper
  * if it can determine the exact PrPMC type.
- *
- * To build:
- *   dtc -I dts -O asm -o prpmc2800.S -b 0 prpmc2800.dts
- *   dtc -I dts -O dtb -o prpmc2800.dtb -b 0 prpmc2800.dts
  */
 
 / {
@@ -47,7 +43,6 @@
 	mv64x60@f1000000 { /* Marvell Discovery */
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <1>;
 		model = "mv64360";			/* Default */
 		compatible = "marvell,mv64x60";
 		clock-frequency = <7f28155>;		/* 133.333333 MHz */

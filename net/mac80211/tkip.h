@@ -31,6 +31,7 @@ enum {
 int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 				struct ieee80211_key *key,
 				u8 *payload, size_t payload_len, u8 *ta,
-				int only_iv, int queue);
+				int only_iv, int queue,
+				u32 *out_iv32, u16 *out_iv16);
 
 #endif /* TKIP_H */

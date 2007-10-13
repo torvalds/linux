@@ -92,7 +92,6 @@ static void gfs2_put_super(struct super_block *sb)
 	kthread_stop(sdp->sd_recoverd_process);
 	while (sdp->sd_glockd_num--)
 		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
-	kthread_stop(sdp->sd_scand_process);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		error = gfs2_make_fs_ro(sdp);
@@ -456,12 +455,15 @@ static void gfs2_delete_inode(struct inode *inode)
 	}
 
 	error = gfs2_dinode_dealloc(ip);
-	/*
-	 * Must do this before unlock to avoid trying to write back
-	 * potentially dirty data now that inode no longer exists
-	 * on disk.
-	 */
+	if (error)
+		goto out_unlock;
+
+	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
+	if (error)
+		goto out_unlock;
+	/* Needs to be done before glock release & also in a transaction */
 	truncate_inode_pages(&inode->i_data, 0);
+	gfs2_trans_end(sdp);
 
 out_unlock:
 	gfs2_glock_dq(&ip->i_iopen_gh);

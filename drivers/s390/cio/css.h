@@ -167,7 +167,7 @@ struct channel_subsystem {
 #define to_css(dev) container_of(dev, struct channel_subsystem, device)
 
 extern struct bus_type css_bus_type;
-extern struct channel_subsystem *css[];
+extern struct channel_subsystem *channel_subsystems[];
 
 /* Some helper functions for disconnected state. */
 int device_is_disconnected(struct subchannel *);
@@ -191,6 +191,5 @@ int sch_is_pseudo_sch(struct subchannel *);
 
 extern struct workqueue_struct *slow_path_wq;
 
-int subchannel_add_files (struct device *);
 extern struct attribute_group *subch_attr_groups[];
 #endif

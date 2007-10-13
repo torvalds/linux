@@ -25,7 +25,7 @@
 #define DBG(fmt...)
 #endif
 
-void reserve_kdump_trampoline(void)
+void __init reserve_kdump_trampoline(void)
 {
 	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
 }
@@ -54,8 +54,10 @@ void __init setup_kdump_trampoline(void)
 		create_trampoline(i);
 	}
 
+#ifdef CONFIG_PPC_PSERIES
 	create_trampoline(__pa(system_reset_fwnmi) - PHYSICAL_START);
 	create_trampoline(__pa(machine_check_fwnmi) - PHYSICAL_START);
+#endif /* CONFIG_PPC_PSERIES */
 
 	DBG(" <- setup_kdump_trampoline()\n");
 }

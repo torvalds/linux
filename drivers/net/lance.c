@@ -466,6 +466,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	unsigned long flags;
 	int err = -ENOMEM;
 	void __iomem *bios;
+	DECLARE_MAC_BUF(mac);
 
 	/* First we look for special cases.
 	   Check for HP's on-board ethernet by looking for 'HP' in the BIOS.
@@ -521,14 +522,14 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 
 	/* We can't allocate dev->priv from alloc_etherdev() because it must
 	   a ISA DMA-able region. */
-	SET_MODULE_OWNER(dev);
 	chipname = chip_table[lance_version].name;
-	printk("%s: %s at %#3x,", dev->name, chipname, ioaddr);
+	printk("%s: %s at %#3x, ", dev->name, chipname, ioaddr);
 
 	/* There is a 16 byte station address PROM at the base address.
 	   The first six bytes are the station address. */
 	for (i = 0; i < 6; i++)
-		printk(" %2.2x", dev->dev_addr[i] = inb(ioaddr + i));
+		dev->dev_addr[i] = inb(ioaddr + i);
+	printk("%s", print_mac(mac, dev->dev_addr));
 
 	dev->base_addr = ioaddr;
 	/* Make certain the data structures used by the LANCE are aligned and DMAble. */

@@ -316,7 +316,7 @@ static int acpi_video_output_get(struct output_device *od)
 {
 	unsigned long state;
 	struct acpi_video_device *vd =
-		(struct acpi_video_device *)class_get_devdata(&od->class_dev);
+		(struct acpi_video_device *)dev_get_drvdata(&od->dev);
 	acpi_video_device_get_state(vd, &state);
 	return (int)state;
 }
@@ -325,7 +325,7 @@ static int acpi_video_output_set(struct output_device *od)
 {
 	unsigned long state = od->request_state;
 	struct acpi_video_device *vd=
-		(struct acpi_video_device *)class_get_devdata(&od->class_dev);
+		(struct acpi_video_device *)dev_get_drvdata(&od->dev);
 	return acpi_video_device_set_state(vd, state);
 }
 

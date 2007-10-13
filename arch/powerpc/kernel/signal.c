@@ -16,6 +16,12 @@
 
 #include "signal.h"
 
+/* Log an error when sending an unhandled signal to a process. Controlled
+ * through debug.exception-trace sysctl.
+ */
+
+int show_unhandled_signals = 0;
+
 /*
  * Allocate space for the signal frame
  */

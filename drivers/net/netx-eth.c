@@ -97,7 +97,6 @@
 struct netx_eth_priv {
 	void                    __iomem *sram_base, *xpec_base, *xmac_base;
 	int                     id;
-	struct net_device_stats stats;
 	struct mii_if_info      mii;
 	u32                     msg_enable;
 	struct xc               *xc;
@@ -129,8 +128,8 @@ netx_eth_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	           FIFO_PTR_FRAMELEN(len));
 
 	ndev->trans_start = jiffies;
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	netif_stop_queue(ndev);
 	spin_unlock_irq(&priv->lock);
@@ -156,7 +155,7 @@ static void netx_eth_receive(struct net_device *ndev)
 	if (unlikely(skb == NULL)) {
 		printk(KERN_NOTICE "%s: Low memory, packet dropped.\n",
 			ndev->name);
-		priv->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 
@@ -170,8 +169,8 @@ static void netx_eth_receive(struct net_device *ndev)
 	ndev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, ndev);
 	netif_rx(skb);
-	priv->stats.rx_packets++;
-	priv->stats.rx_bytes += len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += len;
 }
 
 static irqreturn_t
@@ -208,12 +207,6 @@ netx_eth_interrupt(int irq, void *dev_id)
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return IRQ_HANDLED;
-}
-
-static struct net_device_stats *netx_eth_query_statistics(struct net_device *ndev)
-{
-	struct netx_eth_priv *priv = netdev_priv(ndev);
-	return &priv->stats;
 }
 
 static int netx_eth_open(struct net_device *ndev)
@@ -323,7 +316,6 @@ static int netx_eth_enable(struct net_device *ndev)
 	ndev->hard_start_xmit = netx_eth_hard_start_xmit;
 	ndev->tx_timeout = netx_eth_timeout;
 	ndev->watchdog_timeo = msecs_to_jiffies(5000);
-	ndev->get_stats = netx_eth_query_statistics;
 	ndev->set_multicast_list = netx_eth_set_multicast_list;
 
 	priv->msg_enable       = NETIF_MSG_LINK;
@@ -390,7 +382,6 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto exit;
 	}
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	platform_set_drvdata(pdev, ndev);

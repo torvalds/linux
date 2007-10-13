@@ -580,6 +580,7 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 	void *ring_space;
 	dma_addr_t ring_dma;
 	int ret = -ENOMEM;
+	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -613,7 +614,6 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 	if (!dev)
 		goto err_out_iounmap;
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 #ifdef TX_CHECKSUM
@@ -742,12 +742,9 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 		goto err_out_unmap_rx;
 	}
 
-	printk(KERN_INFO "%s: %s type %x at %p, ",
+	printk(KERN_INFO "%s: %s type %x at %p, %s, IRQ %d.\n",
 		   dev->name, chip_tbl[chip_id].name, readl(ioaddr + ChipRev),
-		   ioaddr);
-	for (i = 0; i < 5; i++)
-			printk("%2.2x:", dev->dev_addr[i]);
-	printk("%2.2x, IRQ %d.\n", dev->dev_addr[i], irq);
+		   ioaddr, print_mac(mac, dev->dev_addr), irq);
 	i = readb(ioaddr + PCIClkMeas);
 	printk(KERN_INFO "%s:  %d-bit %d Mhz PCI bus (%d), Virtual Jumpers "
 		   "%2.2x, LPA %4.4x.\n",
@@ -1020,7 +1017,7 @@ static inline int hamachi_tx(struct net_device *dev)
 			break;
 		/* Free the original skb. */
 		skb = hmp->tx_skbuff[entry];
-		if (skb != 0) {
+		if (skb) {
 			pci_unmap_single(hmp->pci_dev,
 				hmp->tx_ring[entry].addr, skb->len,
 				PCI_DMA_TODEVICE);
@@ -1072,7 +1069,6 @@ static void hamachi_tx_timeout(struct net_device *dev)
 		   " resetting...\n", dev->name, (int)readw(ioaddr + TxStatus));
 
 	{
-		int i;
 		printk(KERN_DEBUG "  Rx ring %p: ", hmp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
 			printk(" %8.8x", (unsigned int)hmp->rx_ring[i].status_n_length);

@@ -1118,10 +1118,13 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 
 	skb = (struct sk_buff *)buffer->skb;
 
-	if (likely(netxen_get_sts_status(desc) == STATUS_CKSUM_OK)) {
+	if (likely(adapter->rx_csum &&
+				netxen_get_sts_status(desc) == STATUS_CKSUM_OK)) {
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	}
+	} else
+		skb->ip_summed = CHECKSUM_NONE;
+
 	skb->dev = netdev;
 	if (desc_ctx == RCV_DESC_LRO_CTXID) {
 		/* True length was only available on the last pkt */

@@ -58,7 +58,7 @@ static unsigned int 				def_sampling_rate;
 #define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
-#define TRANSITION_LATENCY_LIMIT		(10 * 1000)
+#define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
 
 static void do_dbs_timer(struct work_struct *work);
 
@@ -466,9 +466,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		    (!policy->cur))
 			return -EINVAL;
 
-		if (policy->cpuinfo.transition_latency >
-				(TRANSITION_LATENCY_LIMIT * 1000))
-			return -EINVAL;
 		if (this_dbs_info->enable) /* Already enabled */
 			break;
 		 
@@ -551,15 +548,17 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static struct cpufreq_governor cpufreq_gov_dbs = {
-	.name		= "conservative",
-	.governor	= cpufreq_governor_dbs,
-	.owner		= THIS_MODULE,
+struct cpufreq_governor cpufreq_gov_conservative = {
+	.name			= "conservative",
+	.governor		= cpufreq_governor_dbs,
+	.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
+	.owner			= THIS_MODULE,
 };
+EXPORT_SYMBOL(cpufreq_gov_conservative);
 
 static int __init cpufreq_gov_dbs_init(void)
 {
-	return cpufreq_register_governor(&cpufreq_gov_dbs);
+	return cpufreq_register_governor(&cpufreq_gov_conservative);
 }
 
 static void __exit cpufreq_gov_dbs_exit(void)
@@ -567,7 +566,7 @@ static void __exit cpufreq_gov_dbs_exit(void)
 	/* Make sure that the scheduled work is indeed not running */
 	flush_scheduled_work();
 
-	cpufreq_unregister_governor(&cpufreq_gov_dbs);
+	cpufreq_unregister_governor(&cpufreq_gov_conservative);
 }
 
 

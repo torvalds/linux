@@ -18,17 +18,11 @@
  * http://www.usb.org/developers/devclass_docs/midi10.pdf
  */
 
-#define DEBUG 1
-// #define VERBOSE
+/* #define VERBOSE_DEBUG */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/utsname.h>
 #include <linux/device.h>
-#include <linux/moduleparam.h>
 
 #include <sound/driver.h>
 #include <sound/core.h>
@@ -36,7 +30,7 @@
 #include <sound/rawmidi.h>
 
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 #include <linux/usb/audio.h>
 #include <linux/usb/midi.h>
 
@@ -139,30 +133,16 @@ struct gmidi_device {
 static void gmidi_transmit(struct gmidi_device* dev, struct usb_request* req);
 
 
-#define xprintk(d,level,fmt,args...) \
-	dev_printk(level , &(d)->gadget->dev , fmt , ## args)
-
-#ifdef DEBUG
-#define DBG(dev,fmt,args...) \
-	xprintk(dev , KERN_DEBUG , fmt , ## args)
-#else
-#define DBG(dev,fmt,args...) \
-	do { } while (0)
-#endif /* DEBUG */
-
-#ifdef VERBOSE
-#define VDBG	DBG
-#else
-#define VDBG(dev,fmt,args...) \
-	do { } while (0)
-#endif /* VERBOSE */
-
-#define ERROR(dev,fmt,args...) \
-	xprintk(dev , KERN_ERR , fmt , ## args)
-#define WARN(dev,fmt,args...) \
-	xprintk(dev , KERN_WARNING , fmt , ## args)
-#define INFO(dev,fmt,args...) \
-	xprintk(dev , KERN_INFO , fmt , ## args)
+#define DBG(d, fmt, args...) \
+	dev_dbg(&(d)->gadget->dev , fmt , ## args)
+#define VDBG(d, fmt, args...) \
+	dev_vdbg(&(d)->gadget->dev , fmt , ## args)
+#define ERROR(d, fmt, args...) \
+	dev_err(&(d)->gadget->dev , fmt , ## args)
+#define WARN(d, fmt, args...) \
+	dev_warn(&(d)->gadget->dev , fmt , ## args)
+#define INFO(d, fmt, args...) \
+	dev_info(&(d)->gadget->dev , fmt , ## args)
 
 
 static unsigned buflen = 256;
@@ -425,7 +405,7 @@ static int config_buf(struct usb_gadget *gadget,
 	return len;
 }
 
-static struct usb_request* alloc_ep_req(struct usb_ep *ep, unsigned length)
+static struct usb_request *alloc_ep_req(struct usb_ep *ep, unsigned length)
 {
 	struct usb_request	*req;
 
@@ -455,7 +435,7 @@ static const uint8_t gmidi_cin_length[] = {
  * Receives a chunk of MIDI data.
  */
 static void gmidi_read_data(struct usb_ep *ep, int cable,
-				   uint8_t* data, int length)
+				   uint8_t *data, int length)
 {
 	struct gmidi_device *dev = ep->driver_data;
 	/* cable is ignored, because for now we only have one. */
@@ -541,7 +521,7 @@ static int set_gmidi_config(struct gmidi_device *dev, gfp_t gfp_flags)
 {
 	int err = 0;
 	struct usb_request *req;
-	struct usb_ep* ep;
+	struct usb_ep *ep;
 	unsigned i;
 
 	err = usb_ep_enable(dev->in_ep, &bulk_in_desc);
@@ -628,7 +608,7 @@ gmidi_set_config(struct gmidi_device *dev, unsigned number, gfp_t gfp_flags)
 
 	if (gadget_is_sa1100(gadget) && dev->config) {
 		/* tx fifo is full, but we can't clear it...*/
-		INFO(dev, "can't change configurations\n");
+		ERROR(dev, "can't change configurations\n");
 		return -ESPIPE;
 	}
 	gmidi_reset_config(dev);
@@ -843,7 +823,7 @@ static void gmidi_disconnect(struct usb_gadget *gadget)
 static void /* __init_or_exit */ gmidi_unbind(struct usb_gadget *gadget)
 {
 	struct gmidi_device *dev = get_gadget_data(gadget);
-	struct snd_card* card;
+	struct snd_card *card;
 
 	DBG(dev, "unbind\n");
 
@@ -867,12 +847,12 @@ static int gmidi_snd_free(struct snd_device *device)
 	return 0;
 }
 
-static void gmidi_transmit_packet(struct usb_request* req, uint8_t p0,
+static void gmidi_transmit_packet(struct usb_request *req, uint8_t p0,
 					uint8_t p1, uint8_t p2, uint8_t p3)
 {
 	unsigned length = req->length;
+	u8 *buf = (u8 *)req->buf + length;
 
-	uint8_t* buf = (uint8_t*)req->buf + length;
 	buf[0] = p0;
 	buf[1] = p1;
 	buf[2] = p2;
@@ -883,8 +863,8 @@ static void gmidi_transmit_packet(struct usb_request* req, uint8_t p0,
 /*
  * Converts MIDI commands to USB MIDI packets.
  */
-static void gmidi_transmit_byte(struct usb_request* req,
-				struct gmidi_in_port* port, uint8_t b)
+static void gmidi_transmit_byte(struct usb_request *req,
+				struct gmidi_in_port *port, uint8_t b)
 {
 	uint8_t p0 = port->cable;
 
@@ -981,10 +961,10 @@ static void gmidi_transmit_byte(struct usb_request* req,
 	}
 }
 
-static void gmidi_transmit(struct gmidi_device* dev, struct usb_request* req)
+static void gmidi_transmit(struct gmidi_device *dev, struct usb_request *req)
 {
-	struct usb_ep* ep = dev->in_ep;
-	struct gmidi_in_port* port = &dev->in_port;
+	struct usb_ep *ep = dev->in_ep;
+	struct gmidi_in_port *port = &dev->in_port;
 
 	if (!ep) {
 		return;
@@ -1020,14 +1000,14 @@ static void gmidi_transmit(struct gmidi_device* dev, struct usb_request* req)
 
 static void gmidi_in_tasklet(unsigned long data)
 {
-	struct gmidi_device* dev = (struct gmidi_device*)data;
+	struct gmidi_device *dev = (struct gmidi_device *)data;
 
 	gmidi_transmit(dev, NULL);
 }
 
 static int gmidi_in_open(struct snd_rawmidi_substream *substream)
 {
-	struct gmidi_device* dev = substream->rmidi->private_data;
+	struct gmidi_device *dev = substream->rmidi->private_data;
 
 	VDBG(dev, "gmidi_in_open\n");
 	dev->in_substream = substream;
@@ -1037,13 +1017,15 @@ static int gmidi_in_open(struct snd_rawmidi_substream *substream)
 
 static int gmidi_in_close(struct snd_rawmidi_substream *substream)
 {
+	struct gmidi_device *dev = substream->rmidi->private_data;
+
 	VDBG(dev, "gmidi_in_close\n");
 	return 0;
 }
 
 static void gmidi_in_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	struct gmidi_device* dev = substream->rmidi->private_data;
+	struct gmidi_device *dev = substream->rmidi->private_data;
 
 	VDBG(dev, "gmidi_in_trigger %d\n", up);
 	dev->in_port.active = up;
@@ -1054,7 +1036,7 @@ static void gmidi_in_trigger(struct snd_rawmidi_substream *substream, int up)
 
 static int gmidi_out_open(struct snd_rawmidi_substream *substream)
 {
-	struct gmidi_device* dev = substream->rmidi->private_data;
+	struct gmidi_device *dev = substream->rmidi->private_data;
 
 	VDBG(dev, "gmidi_out_open\n");
 	dev->out_substream = substream;
@@ -1063,13 +1045,15 @@ static int gmidi_out_open(struct snd_rawmidi_substream *substream)
 
 static int gmidi_out_close(struct snd_rawmidi_substream *substream)
 {
+	struct gmidi_device *dev = substream->rmidi->private_data;
+
 	VDBG(dev, "gmidi_out_close\n");
 	return 0;
 }
 
 static void gmidi_out_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	struct gmidi_device* dev = substream->rmidi->private_data;
+	struct gmidi_device *dev = substream->rmidi->private_data;
 
 	VDBG(dev, "gmidi_out_trigger %d\n", up);
 	if (up) {

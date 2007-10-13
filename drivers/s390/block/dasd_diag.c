@@ -472,14 +472,13 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	struct dasd_ccw_req *cqr;
 	struct dasd_diag_req *dreq;
 	struct dasd_diag_bio *dbio;
-	struct bio *bio;
+	struct req_iterator iter;
 	struct bio_vec *bv;
 	char *dst;
 	unsigned int count, datasize;
 	sector_t recid, first_rec, last_rec;
 	unsigned int blksize, off;
 	unsigned char rw_cmd;
-	int i;
 
 	if (rq_data_dir(req) == READ)
 		rw_cmd = MDSK_READ_REQ;
@@ -493,13 +492,11 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	last_rec = (req->sector + req->nr_sectors - 1) >> device->s2b_shift;
 	/* Check struct bio and count the number of blocks for the request. */
 	count = 0;
-	rq_for_each_bio(bio, req) {
-		bio_for_each_segment(bv, bio, i) {
-			if (bv->bv_len & (blksize - 1))
-				/* Fba can only do full blocks. */
-				return ERR_PTR(-EINVAL);
-			count += bv->bv_len >> (device->s2b_shift + 9);
-		}
+	rq_for_each_segment(bv, req, iter) {
+		if (bv->bv_len & (blksize - 1))
+			/* Fba can only do full blocks. */
+			return ERR_PTR(-EINVAL);
+		count += bv->bv_len >> (device->s2b_shift + 9);
 	}
 	/* Paranoia. */
 	if (count != last_rec - first_rec + 1)
@@ -516,18 +513,16 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	dreq->block_count = count;
 	dbio = dreq->bio;
 	recid = first_rec;
-	rq_for_each_bio(bio, req) {
-		bio_for_each_segment(bv, bio, i) {
-			dst = page_address(bv->bv_page) + bv->bv_offset;
-			for (off = 0; off < bv->bv_len; off += blksize) {
-				memset(dbio, 0, sizeof (struct dasd_diag_bio));
-				dbio->type = rw_cmd;
-				dbio->block_number = recid + 1;
-				dbio->buffer = dst;
-				dbio++;
-				dst += blksize;
-				recid++;
-			}
+	rq_for_each_segment(bv, req, iter) {
+		dst = page_address(bv->bv_page) + bv->bv_offset;
+		for (off = 0; off < bv->bv_len; off += blksize) {
+			memset(dbio, 0, sizeof (struct dasd_diag_bio));
+			dbio->type = rw_cmd;
+			dbio->block_number = recid + 1;
+			dbio->buffer = dst;
+			dbio++;
+			dst += blksize;
+			recid++;
 		}
 	}
 	cqr->retries = DIAG_MAX_RETRIES;

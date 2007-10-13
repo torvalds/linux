@@ -35,6 +35,23 @@ config MMC_SDHCI
 
 	  If unsure, say N.
 
+config MMC_RICOH_MMC
+	tristate "Ricoh MMC Controller Disabler  (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL && MMC_SDHCI
+	help
+	  This selects the disabler for the Ricoh MMC Controller. This
+	  proprietary controller is unnecessary because the SDHCI driver
+	  supports MMC cards on the SD controller, but if it is not
+	  disabled, it will steal the MMC cards away - rendering them
+	  useless. It is safe to select this driver even if you don't
+	  have a Ricoh based card reader.
+
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called ricoh_mmc.
+
+	  If unsure, say Y.
+
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
 	depends on ARCH_OMAP
@@ -99,4 +116,17 @@ config MMC_TIFM_SD
 
           To compile this driver as a module, choose M here: the
 	  module will be called tifm_sd.
+
+config MMC_SPI
+	tristate "MMC/SD over SPI (EXPERIMENTAL)"
+	depends on MMC && SPI_MASTER && !HIGHMEM && EXPERIMENTAL
+	select CRC7
+	select CRC_ITU_T
+	help
+	  Some systems accss MMC/SD cards using a SPI controller instead of
+	  using a "native" MMC/SD controller.  This has a disadvantage of
+	  being relatively high overhead, but a compensating advantage of
+	  working on many systems without dedicated MMC/SD controllers.
+
+	  If unsure, or if your system has no SPI master driver, say N.
 

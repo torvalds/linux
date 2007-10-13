@@ -32,10 +32,13 @@
 extern void qe_reset(void);
 extern int par_io_init(struct device_node *np);
 extern int par_io_of_config(struct device_node *np);
+extern int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
+			     int assignment, int has_irq);
+extern int par_io_data_set(u8 port, u8 pin, u8 val);
 
 /* QE internal API */
 int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input);
-void qe_setbrg(u32 brg, u32 rate);
+void qe_setbrg(unsigned int brg, unsigned int rate, unsigned int multiplier);
 int qe_get_snum(void);
 void qe_put_snum(u8 snum);
 unsigned long qe_muram_alloc(int size, int align);
@@ -46,13 +49,27 @@ void *qe_muram_addr(unsigned long offset);
 
 /* Buffer descriptors */
 struct qe_bd {
-	u16 status;
-	u16 length;
-	u32 buf;
+	__be16 status;
+	__be16 length;
+	__be32 buf;
 } __attribute__ ((packed));
 
 #define BD_STATUS_MASK	0xffff0000
 #define BD_LENGTH_MASK	0x0000ffff
+
+#define BD_SC_EMPTY	0x8000	/* Receive is empty */
+#define BD_SC_READY	0x8000	/* Transmit is ready */
+#define BD_SC_WRAP	0x2000	/* Last buffer descriptor */
+#define BD_SC_INTRPT	0x1000	/* Interrupt on change */
+#define BD_SC_LAST	0x0800	/* Last buffer in frame */
+#define BD_SC_CM	0x0200	/* Continous mode */
+#define BD_SC_ID	0x0100	/* Rec'd too many idles */
+#define BD_SC_P		0x0100	/* xmt preamble */
+#define BD_SC_BR	0x0020	/* Break received */
+#define BD_SC_FR	0x0010	/* Framing error */
+#define BD_SC_PR	0x0008	/* Parity error */
+#define BD_SC_OV	0x0002	/* Overrun */
+#define BD_SC_CD	0x0001	/* ?? */
 
 /* Alignment */
 #define QE_INTR_TABLE_ALIGN	16	/* ??? */
@@ -266,14 +283,11 @@ enum qe_clock {
 /* QE CECR Protocol - For non-MCC, specifies mode for QE CECR command */
 #define QE_CR_PROTOCOL_UNSPECIFIED	0x00	/* For all other protocols */
 #define QE_CR_PROTOCOL_HDLC_TRANSPARENT	0x00
+#define QE_CR_PROTOCOL_QMC		0x02
+#define QE_CR_PROTOCOL_UART		0x04
 #define QE_CR_PROTOCOL_ATM_POS		0x0A
 #define QE_CR_PROTOCOL_ETHERNET		0x0C
 #define QE_CR_PROTOCOL_L2_SWITCH	0x0D
-
-/* BMR byte order */
-#define QE_BMR_BYTE_ORDER_BO_PPC	0x08	/* powerpc little endian */
-#define QE_BMR_BYTE_ORDER_BO_MOT	0x10	/* motorola big endian */
-#define QE_BMR_BYTE_ORDER_BO_MAX	0x18
 
 /* BRG configuration register */
 #define QE_BRGC_ENABLE		0x00010000
@@ -321,41 +335,41 @@ enum qe_clock {
 #define UPGCR_ADDR	0x10000000	/* Master MPHY Addr multiplexing */
 #define UPGCR_DIAG	0x01000000	/* Diagnostic mode */
 
-/* UCC */
+/* UCC GUEMR register */
 #define UCC_GUEMR_MODE_MASK_RX	0x02
-#define UCC_GUEMR_MODE_MASK_TX	0x01
 #define UCC_GUEMR_MODE_FAST_RX	0x02
-#define UCC_GUEMR_MODE_FAST_TX	0x01
 #define UCC_GUEMR_MODE_SLOW_RX	0x00
+#define UCC_GUEMR_MODE_MASK_TX	0x01
+#define UCC_GUEMR_MODE_FAST_TX	0x01
 #define UCC_GUEMR_MODE_SLOW_TX	0x00
+#define UCC_GUEMR_MODE_MASK (UCC_GUEMR_MODE_MASK_RX | UCC_GUEMR_MODE_MASK_TX)
 #define UCC_GUEMR_SET_RESERVED3	0x10	/* Bit 3 in the guemr is reserved but
 					   must be set 1 */
 
 /* structure representing UCC SLOW parameter RAM */
 struct ucc_slow_pram {
-	u16 rbase;		/* RX BD base address */
-	u16 tbase;		/* TX BD base address */
-	u8 rfcr;		/* Rx function code */
-	u8 tfcr;		/* Tx function code */
-	u16 mrblr;		/* Rx buffer length */
-	u32 rstate;		/* Rx internal state */
-	u32 rptr;		/* Rx internal data pointer */
-	u16 rbptr;		/* rb BD Pointer */
-	u16 rcount;		/* Rx internal byte count */
-	u32 rtemp;		/* Rx temp */
-	u32 tstate;		/* Tx internal state */
-	u32 tptr;		/* Tx internal data pointer */
-	u16 tbptr;		/* Tx BD pointer */
-	u16 tcount;		/* Tx byte count */
-	u32 ttemp;		/* Tx temp */
-	u32 rcrc;		/* temp receive CRC */
-	u32 tcrc;		/* temp transmit CRC */
+	__be16 rbase;		/* RX BD base address */
+	__be16 tbase;		/* TX BD base address */
+	u8 rbmr;		/* RX bus mode register (same as CPM's RFCR) */
+	u8 tbmr;		/* TX bus mode register (same as CPM's TFCR) */
+	__be16 mrblr;		/* Rx buffer length */
+	__be32 rstate;		/* Rx internal state */
+	__be32 rptr;		/* Rx internal data pointer */
+	__be16 rbptr;		/* rb BD Pointer */
+	__be16 rcount;		/* Rx internal byte count */
+	__be32 rtemp;		/* Rx temp */
+	__be32 tstate;		/* Tx internal state */
+	__be32 tptr;		/* Tx internal data pointer */
+	__be16 tbptr;		/* Tx BD pointer */
+	__be16 tcount;		/* Tx byte count */
+	__be32 ttemp;		/* Tx temp */
+	__be32 rcrc;		/* temp receive CRC */
+	__be32 tcrc;		/* temp transmit CRC */
 } __attribute__ ((packed));
 
 /* General UCC SLOW Mode Register (GUMRH & GUMRL) */
-#define UCC_SLOW_GUMR_H_CRC16		0x00004000
-#define UCC_SLOW_GUMR_H_CRC16CCITT	0x00000000
-#define UCC_SLOW_GUMR_H_CRC32CCITT	0x00008000
+#define UCC_SLOW_GUMR_H_SAM_QMC		0x00000000
+#define UCC_SLOW_GUMR_H_SAM_SATM	0x00008000
 #define UCC_SLOW_GUMR_H_REVD		0x00002000
 #define UCC_SLOW_GUMR_H_TRX		0x00001000
 #define UCC_SLOW_GUMR_H_TTX		0x00000800
@@ -375,9 +389,33 @@ struct ucc_slow_pram {
 #define UCC_SLOW_GUMR_L_TCI		0x10000000
 #define UCC_SLOW_GUMR_L_RINV		0x02000000
 #define UCC_SLOW_GUMR_L_TINV		0x01000000
-#define UCC_SLOW_GUMR_L_TEND		0x00020000
+#define UCC_SLOW_GUMR_L_TEND		0x00040000
+#define UCC_SLOW_GUMR_L_TDCR_MASK	0x00030000
+#define UCC_SLOW_GUMR_L_TDCR_32	        0x00030000
+#define UCC_SLOW_GUMR_L_TDCR_16	        0x00020000
+#define UCC_SLOW_GUMR_L_TDCR_8	        0x00010000
+#define UCC_SLOW_GUMR_L_TDCR_1	        0x00000000
+#define UCC_SLOW_GUMR_L_RDCR_MASK	0x0000c000
+#define UCC_SLOW_GUMR_L_RDCR_32		0x0000c000
+#define UCC_SLOW_GUMR_L_RDCR_16	        0x00008000
+#define UCC_SLOW_GUMR_L_RDCR_8	        0x00004000
+#define UCC_SLOW_GUMR_L_RDCR_1		0x00000000
+#define UCC_SLOW_GUMR_L_RENC_NRZI	0x00000800
+#define UCC_SLOW_GUMR_L_RENC_NRZ	0x00000000
+#define UCC_SLOW_GUMR_L_TENC_NRZI	0x00000100
+#define UCC_SLOW_GUMR_L_TENC_NRZ	0x00000000
+#define UCC_SLOW_GUMR_L_DIAG_MASK	0x000000c0
+#define UCC_SLOW_GUMR_L_DIAG_LE	        0x000000c0
+#define UCC_SLOW_GUMR_L_DIAG_ECHO	0x00000080
+#define UCC_SLOW_GUMR_L_DIAG_LOOP	0x00000040
+#define UCC_SLOW_GUMR_L_DIAG_NORM	0x00000000
 #define UCC_SLOW_GUMR_L_ENR		0x00000020
 #define UCC_SLOW_GUMR_L_ENT		0x00000010
+#define UCC_SLOW_GUMR_L_MODE_MASK	0x0000000F
+#define UCC_SLOW_GUMR_L_MODE_BISYNC	0x00000008
+#define UCC_SLOW_GUMR_L_MODE_AHDLC	0x00000006
+#define UCC_SLOW_GUMR_L_MODE_UART	0x00000004
+#define UCC_SLOW_GUMR_L_MODE_QMC	0x00000002
 
 /* General UCC FAST Mode Register */
 #define UCC_FAST_GUMR_TCI	0x20000000
@@ -394,52 +432,110 @@ struct ucc_slow_pram {
 #define UCC_FAST_GUMR_ENR	0x00000020
 #define UCC_FAST_GUMR_ENT	0x00000010
 
-/* Slow UCC Event Register (UCCE) */
-#define UCC_SLOW_UCCE_GLR	0x1000
-#define UCC_SLOW_UCCE_GLT	0x0800
-#define UCC_SLOW_UCCE_DCC	0x0400
-#define UCC_SLOW_UCCE_FLG	0x0200
-#define UCC_SLOW_UCCE_AB	0x0200
-#define UCC_SLOW_UCCE_IDLE	0x0100
-#define UCC_SLOW_UCCE_GRA	0x0080
-#define UCC_SLOW_UCCE_TXE	0x0010
-#define UCC_SLOW_UCCE_RXF	0x0008
-#define UCC_SLOW_UCCE_CCR	0x0008
-#define UCC_SLOW_UCCE_RCH	0x0008
-#define UCC_SLOW_UCCE_BSY	0x0004
-#define UCC_SLOW_UCCE_TXB	0x0002
-#define UCC_SLOW_UCCE_TX	0x0002
-#define UCC_SLOW_UCCE_RX	0x0001
-#define UCC_SLOW_UCCE_GOV	0x0001
-#define UCC_SLOW_UCCE_GUN	0x0002
-#define UCC_SLOW_UCCE_GINT	0x0004
-#define UCC_SLOW_UCCE_IQOV	0x0008
+/* UART Slow UCC Event Register (UCCE) */
+#define UCC_UART_UCCE_AB	0x0200
+#define UCC_UART_UCCE_IDLE	0x0100
+#define UCC_UART_UCCE_GRA	0x0080
+#define UCC_UART_UCCE_BRKE	0x0040
+#define UCC_UART_UCCE_BRKS	0x0020
+#define UCC_UART_UCCE_CCR	0x0008
+#define UCC_UART_UCCE_BSY	0x0004
+#define UCC_UART_UCCE_TX	0x0002
+#define UCC_UART_UCCE_RX	0x0001
 
-#define UCC_SLOW_UCCE_HDLC_SET	(UCC_SLOW_UCCE_TXE | UCC_SLOW_UCCE_BSY | \
-		UCC_SLOW_UCCE_GRA | UCC_SLOW_UCCE_TXB | UCC_SLOW_UCCE_RXF | \
-		UCC_SLOW_UCCE_DCC | UCC_SLOW_UCCE_GLT | UCC_SLOW_UCCE_GLR)
-#define UCC_SLOW_UCCE_ENET_SET	(UCC_SLOW_UCCE_TXE | UCC_SLOW_UCCE_BSY | \
-		UCC_SLOW_UCCE_GRA | UCC_SLOW_UCCE_TXB | UCC_SLOW_UCCE_RXF)
-#define UCC_SLOW_UCCE_TRANS_SET	(UCC_SLOW_UCCE_TXE | UCC_SLOW_UCCE_BSY | \
-		UCC_SLOW_UCCE_GRA | UCC_SLOW_UCCE_TX | UCC_SLOW_UCCE_RX | \
-		UCC_SLOW_UCCE_DCC | UCC_SLOW_UCCE_GLT | UCC_SLOW_UCCE_GLR)
-#define UCC_SLOW_UCCE_UART_SET	(UCC_SLOW_UCCE_BSY | UCC_SLOW_UCCE_GRA | \
-		UCC_SLOW_UCCE_TXB | UCC_SLOW_UCCE_TX | UCC_SLOW_UCCE_RX | \
-		UCC_SLOW_UCCE_GLT | UCC_SLOW_UCCE_GLR)
-#define UCC_SLOW_UCCE_QMC_SET	(UCC_SLOW_UCCE_IQOV | UCC_SLOW_UCCE_GINT | \
-		UCC_SLOW_UCCE_GUN | UCC_SLOW_UCCE_GOV)
+/* HDLC Slow UCC Event Register (UCCE) */
+#define UCC_HDLC_UCCE_GLR	0x1000
+#define UCC_HDLC_UCCE_GLT	0x0800
+#define UCC_HDLC_UCCE_IDLE	0x0100
+#define UCC_HDLC_UCCE_BRKE	0x0040
+#define UCC_HDLC_UCCE_BRKS	0x0020
+#define UCC_HDLC_UCCE_TXE	0x0010
+#define UCC_HDLC_UCCE_RXF	0x0008
+#define UCC_HDLC_UCCE_BSY	0x0004
+#define UCC_HDLC_UCCE_TXB	0x0002
+#define UCC_HDLC_UCCE_RXB	0x0001
 
-#define UCC_SLOW_UCCE_OTHER	(UCC_SLOW_UCCE_TXE | UCC_SLOW_UCCE_BSY | \
-		UCC_SLOW_UCCE_GRA | UCC_SLOW_UCCE_DCC | UCC_SLOW_UCCE_GLT | \
-		UCC_SLOW_UCCE_GLR)
+/* BISYNC Slow UCC Event Register (UCCE) */
+#define UCC_BISYNC_UCCE_GRA	0x0080
+#define UCC_BISYNC_UCCE_TXE	0x0010
+#define UCC_BISYNC_UCCE_RCH	0x0008
+#define UCC_BISYNC_UCCE_BSY	0x0004
+#define UCC_BISYNC_UCCE_TXB	0x0002
+#define UCC_BISYNC_UCCE_RXB	0x0001
 
-#define UCC_SLOW_INTR_TX	UCC_SLOW_UCCE_TXB
-#define UCC_SLOW_INTR_RX	(UCC_SLOW_UCCE_RXF | UCC_SLOW_UCCE_RX)
-#define UCC_SLOW_INTR		(UCC_SLOW_INTR_TX | UCC_SLOW_INTR_RX)
+/* Gigabit Ethernet Fast UCC Event Register (UCCE) */
+#define UCC_GETH_UCCE_MPD       0x80000000
+#define UCC_GETH_UCCE_SCAR      0x40000000
+#define UCC_GETH_UCCE_GRA       0x20000000
+#define UCC_GETH_UCCE_CBPR      0x10000000
+#define UCC_GETH_UCCE_BSY       0x08000000
+#define UCC_GETH_UCCE_RXC       0x04000000
+#define UCC_GETH_UCCE_TXC       0x02000000
+#define UCC_GETH_UCCE_TXE       0x01000000
+#define UCC_GETH_UCCE_TXB7      0x00800000
+#define UCC_GETH_UCCE_TXB6      0x00400000
+#define UCC_GETH_UCCE_TXB5      0x00200000
+#define UCC_GETH_UCCE_TXB4      0x00100000
+#define UCC_GETH_UCCE_TXB3      0x00080000
+#define UCC_GETH_UCCE_TXB2      0x00040000
+#define UCC_GETH_UCCE_TXB1      0x00020000
+#define UCC_GETH_UCCE_TXB0      0x00010000
+#define UCC_GETH_UCCE_RXB7      0x00008000
+#define UCC_GETH_UCCE_RXB6      0x00004000
+#define UCC_GETH_UCCE_RXB5      0x00002000
+#define UCC_GETH_UCCE_RXB4      0x00001000
+#define UCC_GETH_UCCE_RXB3      0x00000800
+#define UCC_GETH_UCCE_RXB2      0x00000400
+#define UCC_GETH_UCCE_RXB1      0x00000200
+#define UCC_GETH_UCCE_RXB0      0x00000100
+#define UCC_GETH_UCCE_RXF7      0x00000080
+#define UCC_GETH_UCCE_RXF6      0x00000040
+#define UCC_GETH_UCCE_RXF5      0x00000020
+#define UCC_GETH_UCCE_RXF4      0x00000010
+#define UCC_GETH_UCCE_RXF3      0x00000008
+#define UCC_GETH_UCCE_RXF2      0x00000004
+#define UCC_GETH_UCCE_RXF1      0x00000002
+#define UCC_GETH_UCCE_RXF0      0x00000001
+
+/* UPSMR, when used as a UART */
+#define UCC_UART_UPSMR_FLC		0x8000
+#define UCC_UART_UPSMR_SL		0x4000
+#define UCC_UART_UPSMR_CL_MASK		0x3000
+#define UCC_UART_UPSMR_CL_8		0x3000
+#define UCC_UART_UPSMR_CL_7		0x2000
+#define UCC_UART_UPSMR_CL_6		0x1000
+#define UCC_UART_UPSMR_CL_5		0x0000
+#define UCC_UART_UPSMR_UM_MASK		0x0c00
+#define UCC_UART_UPSMR_UM_NORMAL	0x0000
+#define UCC_UART_UPSMR_UM_MAN_MULTI	0x0400
+#define UCC_UART_UPSMR_UM_AUTO_MULTI	0x0c00
+#define UCC_UART_UPSMR_FRZ		0x0200
+#define UCC_UART_UPSMR_RZS		0x0100
+#define UCC_UART_UPSMR_SYN		0x0080
+#define UCC_UART_UPSMR_DRT		0x0040
+#define UCC_UART_UPSMR_PEN		0x0010
+#define UCC_UART_UPSMR_RPM_MASK		0x000c
+#define UCC_UART_UPSMR_RPM_ODD		0x0000
+#define UCC_UART_UPSMR_RPM_LOW		0x0004
+#define UCC_UART_UPSMR_RPM_EVEN		0x0008
+#define UCC_UART_UPSMR_RPM_HIGH		0x000C
+#define UCC_UART_UPSMR_TPM_MASK		0x0003
+#define UCC_UART_UPSMR_TPM_ODD		0x0000
+#define UCC_UART_UPSMR_TPM_LOW		0x0001
+#define UCC_UART_UPSMR_TPM_EVEN		0x0002
+#define UCC_UART_UPSMR_TPM_HIGH		0x0003
 
 /* UCC Transmit On Demand Register (UTODR) */
 #define UCC_SLOW_TOD	0x8000
 #define UCC_FAST_TOD	0x8000
+
+/* UCC Bus Mode Register masks */
+/* Not to be confused with the Bundle Mode Register */
+#define UCC_BMR_GBL		0x20
+#define UCC_BMR_BO_BE		0x10
+#define UCC_BMR_CETM		0x04
+#define UCC_BMR_DTB		0x02
+#define UCC_BMR_BDB		0x01
 
 /* Function code masks */
 #define FC_GBL				0x20

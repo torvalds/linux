@@ -37,9 +37,9 @@
 #ifndef _DCCP_PKT_HIST_
 #define _DCCP_PKT_HIST_
 
+#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/time.h>
 
 #include "../../dccp.h"
 
@@ -57,7 +57,7 @@ struct dccp_tx_hist_entry {
 	u64		 dccphtx_seqno:48,
 			 dccphtx_sent:1;
 	u32		 dccphtx_rtt;
-	struct timeval	 dccphtx_tstamp;
+	ktime_t		 dccphtx_tstamp;
 };
 
 struct dccp_tx_hist {
@@ -124,7 +124,7 @@ struct dccp_rx_hist_entry {
 			 dccphrx_ccval:4,
 			 dccphrx_type:4;
 	u32		 dccphrx_ndp; /* In fact it is from 8 to 24 bits */
-	struct timeval	 dccphrx_tstamp;
+	ktime_t		 dccphrx_tstamp;
 };
 
 struct dccp_rx_hist {
@@ -136,7 +136,6 @@ extern void 		dccp_rx_hist_delete(struct dccp_rx_hist *hist);
 
 static inline struct dccp_rx_hist_entry *
 			dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
-					       const struct sock *sk,
 					       const u32 ndp,
 					       const struct sk_buff *skb,
 					       const gfp_t prio)
@@ -151,7 +150,7 @@ static inline struct dccp_rx_hist_entry *
 		entry->dccphrx_ccval = dh->dccph_ccval;
 		entry->dccphrx_type  = dh->dccph_type;
 		entry->dccphrx_ndp   = ndp;
-		dccp_timestamp(sk, &entry->dccphrx_tstamp);
+		entry->dccphrx_tstamp = ktime_get_real();
 	}
 
 	return entry;

@@ -27,12 +27,12 @@
 #include <asm/processor.h>
 #include <asm/prom.h>
 #include <asm/pmi.h>
+#include <asm/cell-regs.h>
 
 #ifdef DEBUG
 #include <asm/time.h>
 #endif
 
-#include "cbe_regs.h"
 #include "cbe_cpufreq.h"
 
 static u8 pmi_slow_mode_limit[MAX_CBE];

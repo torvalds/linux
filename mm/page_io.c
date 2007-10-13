@@ -44,13 +44,10 @@ static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
 	return bio;
 }
 
-static int end_swap_bio_write(struct bio *bio, unsigned int bytes_done, int err)
+static void end_swap_bio_write(struct bio *bio, int err)
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct page *page = bio->bi_io_vec[0].bv_page;
-
-	if (bio->bi_size)
-		return 1;
 
 	if (!uptodate) {
 		SetPageError(page);
@@ -71,16 +68,12 @@ static int end_swap_bio_write(struct bio *bio, unsigned int bytes_done, int err)
 	}
 	end_page_writeback(page);
 	bio_put(bio);
-	return 0;
 }
 
-int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err)
+void end_swap_bio_read(struct bio *bio, int err)
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct page *page = bio->bi_io_vec[0].bv_page;
-
-	if (bio->bi_size)
-		return 1;
 
 	if (!uptodate) {
 		SetPageError(page);
@@ -94,7 +87,6 @@ int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err)
 	}
 	unlock_page(page);
 	bio_put(bio);
-	return 0;
 }
 
 /*

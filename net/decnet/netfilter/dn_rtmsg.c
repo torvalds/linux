@@ -115,17 +115,6 @@ static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 	RCV_SKB_FAIL(-EINVAL);
 }
 
-static void dnrmg_receive_user_sk(struct sock *sk, int len)
-{
-	struct sk_buff *skb;
-	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
-
-	for (; qlen && (skb = skb_dequeue(&sk->sk_receive_queue)); qlen--) {
-		dnrmg_receive_user_skb(skb);
-		kfree_skb(skb);
-	}
-}
-
 static struct nf_hook_ops dnrmg_ops = {
 	.hook		= dnrmg_hook,
 	.pf		= PF_DECnet,
@@ -137,8 +126,10 @@ static int __init dn_rtmsg_init(void)
 {
 	int rv = 0;
 
-	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, DNRNG_NLGRP_MAX,
-				      dnrmg_receive_user_sk, NULL, THIS_MODULE);
+	dnrmg = netlink_kernel_create(&init_net,
+				      NETLINK_DNRTMSG, DNRNG_NLGRP_MAX,
+				      dnrmg_receive_user_skb,
+				      NULL, THIS_MODULE);
 	if (dnrmg == NULL) {
 		printk(KERN_ERR "dn_rtmsg: Cannot create netlink socket");
 		return -ENOMEM;

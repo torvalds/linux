@@ -81,6 +81,13 @@ static struct pcie_port_service_driver aerdriver = {
 	.reset_link	= aer_root_reset,
 };
 
+static int pcie_aer_disable;
+
+void pci_no_aer(void)
+{
+	pcie_aer_disable = 1;	/* has priority over 'forceload' */
+}
+
 /**
  * aer_irq - Root Port's ISR
  * @irq: IRQ assigned to Root Port
@@ -327,6 +334,8 @@ static void aer_error_resume(struct pci_dev *dev)
  **/
 static int __init aer_service_init(void)
 {
+	if (pcie_aer_disable)
+		return -ENXIO;
 	return pcie_port_service_register(&aerdriver);
 }
 

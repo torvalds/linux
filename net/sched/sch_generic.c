@@ -134,34 +134,19 @@ static inline int qdisc_restart(struct net_device *dev)
 {
 	struct Qdisc *q = dev->qdisc;
 	struct sk_buff *skb;
-	unsigned lockless;
 	int ret;
 
 	/* Dequeue packet */
 	if (unlikely((skb = dev_dequeue_skb(dev, q)) == NULL))
 		return 0;
 
-	/*
-	 * When the driver has LLTX set, it does its own locking in
-	 * start_xmit. These checks are worth it because even uncongested
-	 * locks can be quite expensive. The driver can do a trylock, as
-	 * is being done here; in case of lock contention it should return
-	 * NETDEV_TX_LOCKED and the packet will be requeued.
-	 */
-	lockless = (dev->features & NETIF_F_LLTX);
-
-	if (!lockless && !netif_tx_trylock(dev)) {
-		/* Another CPU grabbed the driver tx lock */
-		return handle_dev_cpu_collision(skb, dev, q);
-	}
 
 	/* And release queue */
 	spin_unlock(&dev->queue_lock);
 
+	HARD_TX_LOCK(dev, smp_processor_id());
 	ret = dev_hard_start_xmit(skb, dev);
-
-	if (!lockless)
-		netif_tx_unlock(dev);
+	HARD_TX_UNLOCK(dev);
 
 	spin_lock(&dev->queue_lock);
 	q = dev->qdisc;
@@ -256,6 +241,12 @@ static void dev_watchdog_down(struct net_device *dev)
 	netif_tx_unlock_bh(dev);
 }
 
+/**
+ *	netif_carrier_on - set carrier
+ *	@dev: network device
+ *
+ * Device has detected that carrier.
+ */
 void netif_carrier_on(struct net_device *dev)
 {
 	if (test_and_clear_bit(__LINK_STATE_NOCARRIER, &dev->state))
@@ -264,6 +255,12 @@ void netif_carrier_on(struct net_device *dev)
 		__netdev_watchdog_up(dev);
 }
 
+/**
+ *	netif_carrier_off - clear carrier
+ *	@dev: network device
+ *
+ * Device has detected loss of carrier.
+ */
 void netif_carrier_off(struct net_device *dev)
 {
 	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state))

@@ -987,7 +987,7 @@ static inline void complete_buffers(struct bio *bio, int ok)
 		xbh = bio->bi_next;
 		bio->bi_next = NULL;
 		
-		bio_endio(bio, nr_sectors << 9, ok ? 0 : -EIO);
+		bio_endio(bio, ok ? 0 : -EIO);
 
 		bio = xbh;
 	}

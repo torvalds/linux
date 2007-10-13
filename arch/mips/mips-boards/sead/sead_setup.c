@@ -35,7 +35,6 @@
 #include <asm/time.h>
 
 extern void mips_reboot_setup(void);
-extern void mips_time_init(void);
 
 static void __init serial_init(void);
 
@@ -50,9 +49,7 @@ void __init plat_mem_setup(void)
 {
 	ioport_resource.end = 0x7fffffff;
 
-	serial_init ();
-
-	board_time_init = mips_time_init;
+	serial_init();
 
 	mips_reboot_setup();
 }

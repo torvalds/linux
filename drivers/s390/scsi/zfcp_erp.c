@@ -54,7 +54,7 @@ static int zfcp_erp_strategy_check_adapter(struct zfcp_adapter *, int);
 static int zfcp_erp_strategy_statechange(int, u32, struct zfcp_adapter *,
 					 struct zfcp_port *,
 					 struct zfcp_unit *, int);
-static inline int zfcp_erp_strategy_statechange_detected(atomic_t *, u32);
+static int zfcp_erp_strategy_statechange_detected(atomic_t *, u32);
 static int zfcp_erp_strategy_followup_actions(int, struct zfcp_adapter *,
 					      struct zfcp_port *,
 					      struct zfcp_unit *, int);
@@ -106,8 +106,8 @@ static void zfcp_erp_action_cleanup(int, struct zfcp_adapter *,
 static void zfcp_erp_action_ready(struct zfcp_erp_action *);
 static int  zfcp_erp_action_exists(struct zfcp_erp_action *);
 
-static inline void zfcp_erp_action_to_ready(struct zfcp_erp_action *);
-static inline void zfcp_erp_action_to_running(struct zfcp_erp_action *);
+static void zfcp_erp_action_to_ready(struct zfcp_erp_action *);
+static void zfcp_erp_action_to_running(struct zfcp_erp_action *);
 
 static void zfcp_erp_memwait_handler(unsigned long);
 
@@ -952,7 +952,7 @@ zfcp_erp_memwait_handler(unsigned long data)
  *		action gets an appropriate flag and will be processed
  *		accordingly
  */
-void zfcp_erp_timeout_handler(unsigned long data)
+static void zfcp_erp_timeout_handler(unsigned long data)
 {
 	struct zfcp_erp_action *erp_action = (struct zfcp_erp_action *) data;
 	struct zfcp_adapter *adapter = erp_action->adapter;
@@ -1491,7 +1491,7 @@ zfcp_erp_strategy_statechange(int action,
 	return retval;
 }
 
-static inline int
+static int
 zfcp_erp_strategy_statechange_detected(atomic_t * target_status, u32 erp_status)
 {
 	return
@@ -2001,7 +2001,7 @@ zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *erp_action, int close)
  * returns:	0 - successful setup
  *		!0 - failed setup
  */
-int
+static int
 zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *erp_action)
 {
 	int retval;
@@ -3248,8 +3248,7 @@ static void zfcp_erp_action_dismiss_unit(struct zfcp_unit *unit)
 		zfcp_erp_action_dismiss(&unit->erp_action);
 }
 
-static inline void
-zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
+static void zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 {
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
@@ -3258,8 +3257,7 @@ zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 	list_move(&erp_action->list, &erp_action->adapter->erp_running_head);
 }
 
-static inline void
-zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
+static void zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
 {
 	struct zfcp_adapter *adapter = erp_action->adapter;
 

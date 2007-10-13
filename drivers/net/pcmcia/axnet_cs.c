@@ -232,7 +232,7 @@ static int get_prom(struct pcmcia_device *link)
     axnet_reset_8390(dev);
     mdelay(10);
 
-    for (i = 0; i < sizeof(program_seq)/sizeof(program_seq[0]); i++)
+    for (i = 0; i < ARRAY_SIZE(program_seq); i++)
 	outb_p(program_seq[i].value, ioaddr + program_seq[i].offset);
 
     for (i = 0; i < 6; i += 2) {
@@ -292,6 +292,7 @@ static int axnet_config(struct pcmcia_device *link)
     cisparse_t parse;
     int i, j, last_ret, last_fn;
     u_short buf[64];
+    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "axnet_config(0x%p)\n", link);
 
@@ -403,11 +404,11 @@ static int axnet_config(struct pcmcia_device *link)
 
     strcpy(info->node.dev_name, dev->name);
 
-    printk(KERN_INFO "%s: Asix AX88%d90: io %#3lx, irq %d, hw_addr ",
+    printk(KERN_INFO "%s: Asix AX88%d90: io %#3lx, irq %d, "
+	   "hw_addr %s\n",
 	   dev->name, ((info->flags & IS_AX88790) ? 7 : 1),
-	   dev->base_addr, dev->irq);
-    for (i = 0; i < 6; i++)
-	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+	   dev->base_addr, dev->irq,
+	   print_mac(mac, dev->dev_addr));
     if (info->phy_id != -1) {
 	DEBUG(0, "  MII transceiver at index %d, status %x.\n", info->phy_id, j);
     } else {
@@ -771,6 +772,7 @@ static struct pcmcia_device_id axnet_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0274, 0x1106),
 	PCMCIA_DEVICE_MANF_CARD(0x8a01, 0xc1ab),
 	PCMCIA_DEVICE_MANF_CARD(0x021b, 0x0202), 
+	PCMCIA_DEVICE_MANF_CARD(0xffff, 0x1090),
 	PCMCIA_DEVICE_PROD_ID12("AmbiCom,Inc.", "Fast Ethernet PC Card(AMB8110)", 0x49b020a7, 0x119cc9fc),
 	PCMCIA_DEVICE_PROD_ID124("Fast Ethernet", "16-bit PC Card", "AX88190", 0xb4be14e3, 0x9a12eb6a, 0xab9be5ef),
 	PCMCIA_DEVICE_PROD_ID12("ASIX", "AX88190", 0x0959823b, 0xab9be5ef),
@@ -1728,9 +1730,6 @@ static void axdev_setup(struct net_device *dev)
 	if (ei_debug > 1)
 		printk(version_8390);
     
-	SET_MODULE_OWNER(dev);
-
-		
 	ei_local = (struct ei_device *)netdev_priv(dev);
 	spin_lock_init(&ei_local->page_lock);
     

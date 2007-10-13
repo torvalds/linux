@@ -41,7 +41,6 @@ void __init prom_init(void)
 
 	prom_init_cmdline();
 
-	mips_machgroup = MACH_GROUP_PHILIPS;
 	mips_machtype = MACH_PHILIPS_STB810;
 
 	memsize = 0x08000000; /* Trimedia uses memory above */

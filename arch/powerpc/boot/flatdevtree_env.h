@@ -24,24 +24,4 @@
 #define be64_to_cpu(x)		(x)
 #define cpu_to_be64(x)		(x)
 
-static inline int strncmp(const char *cs, const char *ct, size_t count)
-{
-	signed char __res = 0;
-
-	while (count) {
-		if ((__res = *cs - *ct++) != 0 || !*cs++)
-			break;
-		count--;
-	}
-	return __res;
-}
-
-static inline char *strchr(const char *s, int c)
-{
-	for (; *s != (char)c; ++s)
-		if (*s == '\0')
-			return NULL;
-	return (char *)s;
-}
-
 #endif /* _PPC_BOOT_FLATDEVTREE_ENV_H_ */

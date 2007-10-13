@@ -32,10 +32,8 @@
 #include <asm/blackfin.h>
 #include <asm/trace.h>
 #if CONFIG_BFIN_KERNEL_CLOCK
+#include <asm/mach-common/clocks.h>
 #include <asm/mach/mem_init.h>
-#endif
-#if CONFIG_DEBUG_KERNEL_START
-#include <asm/mach-common/def_LPBlackfin.h>
 #endif
 
 .global __rambase
@@ -52,10 +50,12 @@ __INIT
 ENTRY(__start)
 	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
-	/* Set the SYSCFG register:
-	 * Enable Cycle Counter and Nesting Of Interrupts (3rd Bit)
-	 */
-	R0 = 0x36;
+	/* Enable Cycle Counter and Nesting Of Interrupts */
+#ifdef CONFIG_BFIN_SCRATCH_REG_CYCLES
+	R0 = SYSCFG_SNEN;
+#else
+	R0 = SYSCFG_SNEN | SYSCFG_CCEN;
+#endif
 	SYSCFG = R0;
 	R0 = 0;
 
@@ -97,39 +97,9 @@ ENTRY(__start)
 	M2 = r0;
 	M3 = r0;
 
-	trace_buffer_start(p0,r0);
+	trace_buffer_init(p0,r0);
 	P0 = R1;
 	R0 = R1;
-
-#if CONFIG_DEBUG_KERNEL_START
-
-/*
- * Set up a temporary Event Vector Table, so if something bad happens before
- * the kernel is fully started, it doesn't vector off into the bootloaders
- * table
- */
-	P0.l = lo(EVT2);
-	P0.h = hi(EVT2);
-	P1.l = lo(EVT15);
-	P1.h = hi(EVT15);
-	P2.l = debug_kernel_start_trap;
-	P2.h = debug_kernel_start_trap;
-
-	RTS = P2;
-	RTI = P2;
-	RTX = P2;
-	RTN = P2;
-	RTE = P2;
-
-.Lfill_temp_vector_table:
-	[P0++] = P2;	/* Core Event Vector Table */
-	CC = P0 == P1;
-	if !CC JUMP .Lfill_temp_vector_table
-	P0 = r0;
-	P1 = r0;
-	P2 = r0;
-
-#endif
 
 	p0.h = hi(FIO_MASKA_C);
 	p0.l = lo(FIO_MASKA_C);
@@ -144,38 +114,38 @@ ENTRY(__start)
 	ssync;
 
 	/* Turn off the icache */
-	p0.l = (IMEM_CONTROL & 0xFFFF);
-	p0.h = (IMEM_CONTROL >> 16);
+	p0.l = LO(IMEM_CONTROL);
+	p0.h = HI(IMEM_CONTROL);
 	R1 = [p0];
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
 
 	/* Anomaly 05000125 */
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	CLI R2;
 	SSYNC;
 #endif
 	[p0] = R0;
 	SSYNC;
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	STI R2;
 #endif
 
 	/* Turn off the dcache */
-	p0.l = (DMEM_CONTROL & 0xFFFF);
-	p0.h = (DMEM_CONTROL >> 16);
+	p0.l = LO(DMEM_CONTROL);
+	p0.h = HI(DMEM_CONTROL);
 	R1 = [p0];
 	R0 = ~ENDCPLB;
 	R0 = R0 & R1;
 
 	/* Anomaly 05000125 */
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	CLI R2;
 	SSYNC;
 #endif
 	[p0] = R0;
 	SSYNC;
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	STI R2;
 #endif
 
@@ -210,6 +180,12 @@ ENTRY(__start)
 	sp.h = hi(INITIAL_STACK);
 	fp = sp;
 	usp = sp;
+
+#ifdef CONFIG_EARLY_PRINTK
+	SP += -12;
+	call _init_early_exception_vectors;
+	SP += 12;
+#endif
 
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bf53x_relocate_l1_mem;
@@ -264,7 +240,7 @@ ENTRY(__start)
 	p0.l = .LWAIT_HERE;
 	p0.h = .LWAIT_HERE;
 	reti = p0;
-#if defined(ANOMALY_05000281)
+#if ANOMALY_05000281
 	nop; nop; nop;
 #endif
 	rti;
@@ -417,8 +393,8 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-	p0.l = (EBIU_SDBCTL & 0xFFFF);
-	p0.h = (EBIU_SDBCTL >> 16);     /* SDRAM Memory Bank Control Register */
+	p0.l = LO(EBIU_SDBCTL);
+	p0.h = HI(EBIU_SDBCTL);     /* SDRAM Memory Bank Control Register */
 	r0 = mem_SDBCTL;
 	w[p0] = r0.l;
 	ssync;
@@ -455,276 +431,6 @@ ENTRY(_start_dma_code)
 	RTS;
 ENDPROC(_start_dma_code)
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
-
-ENTRY(_bfin_reset)
-	/* No more interrupts to be handled*/
-	CLI R6;
-	SSYNC;
-
-#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-	p0.h = hi(FIO_INEN);
-	p0.l = lo(FIO_INEN);
-	r0.l = ~(1 << CONFIG_ENET_FLASH_PIN);
-	w[p0] = r0.l;
-
-	p0.h = hi(FIO_DIR);
-	p0.l = lo(FIO_DIR);
-	r0.l = (1 << CONFIG_ENET_FLASH_PIN);
-	w[p0] = r0.l;
-
-	p0.h = hi(FIO_FLAG_C);
-	p0.l = lo(FIO_FLAG_C);
-	r0.l = (1 << CONFIG_ENET_FLASH_PIN);
-	w[p0] = r0.l;
-#endif
-
-	/* Clear the IMASK register */
-	p0.h = hi(IMASK);
-	p0.l = lo(IMASK);
-	r0 = 0x0;
-	[p0] = r0;
-
-	/* Clear the ILAT register */
-	p0.h = hi(ILAT);
-	p0.l = lo(ILAT);
-	r0 = [p0];
-	[p0] = r0;
-	SSYNC;
-
-	/* make sure SYSCR is set to use BMODE */
-	P0.h = hi(SYSCR);
-	P0.l = lo(SYSCR);
-	R0.l = 0x0;
-	W[P0] = R0.l;
-	SSYNC;
-
-	/* issue a system soft reset */
-	P1.h = hi(SWRST);
-	P1.l = lo(SWRST);
-	R1.l = 0x0007;
-	W[P1] = R1;
-	SSYNC;
-
-	/* clear system soft reset */
-	R0.l = 0x0000;
-	W[P0] = R0;
-	SSYNC;
-
-	/* issue core reset */
-	raise 1;
-
-	RTS;
-ENDPROC(_bfin_reset)
-
-#if CONFIG_DEBUG_KERNEL_START
-debug_kernel_start_trap:
-	/* Set up a temp stack in L1 - SDRAM might not be working  */
-	P0.L = lo(L1_DATA_A_START + 0x100);
-	P0.H = hi(L1_DATA_A_START + 0x100);
-	SP = P0;
-
-	/* Make sure the Clocks are the way I think they should be */
-	r0 = CONFIG_VCO_MULT & 63;       /* Load the VCO multiplier         */
-	r0 = r0 << 9;                    /* Shift it over,                  */
-	r1 = CLKIN_HALF;                 /* Do we need to divide CLKIN by 2?*/
-	r0 = r1 | r0;
-	r1 = PLL_BYPASS;                 /* Bypass the PLL?                 */
-	r1 = r1 << 8;                    /* Shift it over                   */
-	r0 = r1 | r0;                    /* add them all together           */
-
-	p0.h = hi(PLL_CTL);
-	p0.l = lo(PLL_CTL);              /* Load the address                */
-	cli r2;                          /* Disable interrupts              */
-	ssync;
-	w[p0] = r0.l;                    /* Set the value                   */
-	idle;                            /* Wait for the PLL to stablize    */
-	sti r2;                          /* Enable interrupts               */
-
-.Lcheck_again1:
-	p0.h = hi(PLL_STAT);
-	p0.l = lo(PLL_STAT);
-	R0 = W[P0](Z);
-	CC = BITTST(R0,5);
-	if ! CC jump .Lcheck_again1;
-
-	/* Configure SCLK & CCLK Dividers */
-	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
-	p0.h = hi(PLL_DIV);
-	p0.l = lo(PLL_DIV);
-	w[p0] = r0.l;
-	ssync;
-
-	/* Make sure UART is enabled - you can never be sure */
-
-/*
- * Setup for console. Argument comes from the menuconfig
- */
-
-#ifdef CONFIG_BAUD_9600
-#define CONSOLE_BAUD_RATE       9600
-#elif CONFIG_BAUD_19200
-#define CONSOLE_BAUD_RATE       19200
-#elif CONFIG_BAUD_38400
-#define CONSOLE_BAUD_RATE       38400
-#elif CONFIG_BAUD_57600
-#define CONSOLE_BAUD_RATE       57600
-#elif CONFIG_BAUD_115200
-#define CONSOLE_BAUD_RATE       115200
-#endif
-
-	p0.h = hi(UART_GCTL);
-	p0.l = lo(UART_GCTL);
-	r0 = 0x00(Z);
-	w[p0] = r0.L;   /* To Turn off UART clocks */
-	ssync;
-
-	p0.h = hi(UART_LCR);
-	p0.l = lo(UART_LCR);
-	r0 = 0x83(Z);
-	w[p0] = r0.L;   /* To enable DLL writes */
-	ssync;
-
-	R1 = (((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT) / CONFIG_SCLK_DIV) / (CONSOLE_BAUD_RATE * 16));
-
-	p0.h = hi(UART_DLL);
-	p0.l = lo(UART_DLL);
-	r0 = 0xFF(Z);
-	r0 = R1 & R0;
-	w[p0] = r0.L;
-	ssync;
-
-	p0.h = hi(UART_DLH);
-	p0.l = lo(UART_DLH);
-	r1 >>= 8 ;
-	w[p0] = r1.L;
-	ssync;
-
-	p0.h = hi(UART_GCTL);
-	p0.l = lo(UART_GCTL);
-	r0 = 0x0(Z);
-	w[p0] = r0.L;   /* To enable UART clock */
-	ssync;
-
-	p0.h = hi(UART_LCR);
-	p0.l = lo(UART_LCR);
-	r0 = 0x03(Z);
-	w[p0] = r0.L;   /* To Turn on UART */
-	ssync;
-
-	p0.h = hi(UART_GCTL);
-	p0.l = lo(UART_GCTL);
-	r0 = 0x01(Z);
-	w[p0] = r0.L;   /* To Turn on UART Clocks */
-	ssync;
-
-	P0.h = hi(UART_THR);
-	P0.l = lo(UART_THR);
-	P1.h = hi(UART_LSR);
-	P1.l = lo(UART_LSR);
-
-	R0.L = 'K';
-	call .Lwait_char;
-	R0.L='e';
-	call .Lwait_char;
-	R0.L='r';
-	call .Lwait_char;
-	R0.L='n'
-	call .Lwait_char;
-	R0.L='e'
-	call .Lwait_char;
-	R0.L='l';
-	call .Lwait_char;
-	R0.L=' ';
-	call .Lwait_char;
-	R0.L='c';
-	call .Lwait_char;
-	R0.L='r';
-	call .Lwait_char;
-	R0.L='a';
-	call .Lwait_char;
-	R0.L='s';
-	call .Lwait_char;
-	R0.L='h';
-	call .Lwait_char;
-	R0.L='\r';
-	call .Lwait_char;
-	R0.L='\n';
-	call .Lwait_char;
-
-	R0.L='S';
-	call .Lwait_char;
-	R0.L='E';
-	call .Lwait_char;
-	R0.L='Q'
-	call .Lwait_char;
-	R0.L='S'
-	call .Lwait_char;
-	R0.L='T';
-	call .Lwait_char;
-	R0.L='A';
-	call .Lwait_char;
-	R0.L='T';
-	call .Lwait_char;
-	R0.L='=';
-	call .Lwait_char;
-	R2 = SEQSTAT;
-	call .Ldump_reg;
-
-	R0.L=' ';
-	call .Lwait_char;
-	R0.L='R';
-	call .Lwait_char;
-	R0.L='E'
-	call .Lwait_char;
-	R0.L='T'
-	call .Lwait_char;
-	R0.L='X';
-	call .Lwait_char;
-	R0.L='=';
-	call .Lwait_char;
-	R2 = RETX;
-	call .Ldump_reg;
-
-	R0.L='\r';
-	call .Lwait_char;
-	R0.L='\n';
-	call .Lwait_char;
-
-.Ldebug_kernel_start_trap_done:
-	JUMP    .Ldebug_kernel_start_trap_done;
-.Ldump_reg:
-	R3 = 32;
-	R4 = 0x0F;
-	R5 = ':';  /* one past 9 */
-
-.Ldump_reg2:
-	R0 = R2;
-	R3 += -4;
-	R0 >>>= R3;
-	R0 = R0 & R4;
-	R0 += 0x30;
-	CC = R0 <= R5;
-	if CC JUMP .Ldump_reg1;
-	R0 += 7;
-
-.Ldump_reg1:
-	R1.l = W[P1];
-	CC = BITTST(R1, 5);
-	if !CC JUMP .Ldump_reg1;
-	W[P0] = r0;
-
-	CC = R3 == 0;
-	if !CC JUMP .Ldump_reg2
-	RTS;
-
-.Lwait_char:
-	R1.l = W[P1];
-	CC = BITTST(R1, 5);
-	if !CC JUMP .Lwait_char;
-	W[P0] = r0;
-	RTS;
-
-#endif  /* CONFIG_DEBUG_KERNEL_START  */
 
 .data
 

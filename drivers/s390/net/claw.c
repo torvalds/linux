@@ -3891,7 +3891,6 @@ claw_init_netdevice(struct net_device * dev)
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 1300;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-	SET_MODULE_OWNER(dev);
 #ifdef FUNCTRACE
         printk(KERN_INFO "%s:%s Exit\n",dev->name,__FUNCTION__);
 #endif

@@ -146,7 +146,6 @@ struct uhci_qh {
 	short phase;			/* Between 0 and period-1 */
 	short load;			/* Periodic time requirement, in us */
 	unsigned int iso_frame;		/* Frame # for iso_packet_desc */
-	int iso_status;			/* Status for Isochronous URBs */
 
 	int state;			/* QH_STATE_xxx; see above */
 	int type;			/* Queue type (control, bulk, etc) */
@@ -455,21 +454,6 @@ struct urb_priv {
 
 	unsigned fsbr:1;		/* URB wants FSBR */
 };
-
-
-/*
- * Locking in uhci.c
- *
- * Almost everything relating to the hardware schedule and processing
- * of URBs is protected by uhci->lock.  urb->status is protected by
- * urb->lock; that's the one exception.
- *
- * To prevent deadlocks, never lock uhci->lock while holding urb->lock.
- * The safe order of locking is:
- *
- * #1 uhci->lock
- * #2 urb->lock
- */
 
 
 /* Some special IDs */

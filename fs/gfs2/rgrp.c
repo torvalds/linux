@@ -31,6 +31,7 @@
 #include "inode.h"
 
 #define BFITNOENT ((u32)~0)
+#define NO_BLOCK ((u64)~0)
 
 /*
  * These routines are used by the resource group routines (rgrp.c)
@@ -116,8 +117,7 @@ static unsigned char gfs2_testbit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
  * @buffer: the buffer that holds the bitmaps
  * @buflen: the length (in bytes) of the buffer
  * @goal: start search at this block's bit-pair (within @buffer)
- * @old_state: GFS2_BLKST_XXX the state of the block we're looking for;
- *       bit 0 = alloc(1)/free(0), bit 1 = meta(1)/data(0)
+ * @old_state: GFS2_BLKST_XXX the state of the block we're looking for.
  *
  * Scope of @goal and returned block number is only within this bitmap buffer,
  * not entire rgrp or filesystem.  @buffer will be offset from the actual
@@ -137,9 +137,13 @@ static u32 gfs2_bitfit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
 	byte = buffer + (goal / GFS2_NBBY);
 	bit = (goal % GFS2_NBBY) * GFS2_BIT_SIZE;
 	end = buffer + buflen;
-	alloc = (old_state & 1) ? 0 : 0x55;
+	alloc = (old_state == GFS2_BLKST_FREE) ? 0x55 : 0;
 
 	while (byte < end) {
+		/* If we're looking for a free block we can eliminate all
+		   bitmap settings with 0x55, which represents four data
+		   blocks in a row.  If we're looking for a data block, we can
+		   eliminate 0x00 which corresponds to four free blocks. */
 		if ((*byte & 0x55) == alloc) {
 			blk += (8 - bit) >> 1;
 
@@ -859,23 +863,28 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
 static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 {
 	struct inode *inode;
-	u32 goal = 0;
+	u32 goal = 0, block;
 	u64 no_addr;
+	struct gfs2_sbd *sdp = rgd->rd_sbd;
 
 	for(;;) {
 		if (goal >= rgd->rd_data)
 			break;
-		goal = rgblk_search(rgd, goal, GFS2_BLKST_UNLINKED,
-				    GFS2_BLKST_UNLINKED);
-		if (goal == BFITNOENT)
+		down_write(&sdp->sd_log_flush_lock);
+		block = rgblk_search(rgd, goal, GFS2_BLKST_UNLINKED,
+				     GFS2_BLKST_UNLINKED);
+		up_write(&sdp->sd_log_flush_lock);
+		if (block == BFITNOENT)
 			break;
-		no_addr = goal + rgd->rd_data0;
+		/* rgblk_search can return a block < goal, so we need to
+		   keep it marching forward. */
+		no_addr = block + rgd->rd_data0;
 		goal++;
-		if (no_addr < *last_unlinked)
+		if (*last_unlinked != NO_BLOCK && no_addr <= *last_unlinked)
 			continue;
 		*last_unlinked = no_addr;
 		inode = gfs2_inode_lookup(rgd->rd_sbd->sd_vfs, DT_UNKNOWN,
-					  no_addr, -1);
+					  no_addr, -1, 1);
 		if (!IS_ERR(inode))
 			return inode;
 	}
@@ -1152,7 +1161,7 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file, unsigned int line)
 	struct gfs2_alloc *al = &ip->i_alloc;
 	struct inode *inode;
 	int error = 0;
-	u64 last_unlinked = 0;
+	u64 last_unlinked = NO_BLOCK;
 
 	if (gfs2_assert_warn(sdp, al->al_requested))
 		return -EINVAL;
@@ -1289,7 +1298,9 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 	   allocatable block anywhere else, we want to be able wrap around and
 	   search in the first part of our first-searched bit block.  */
 	for (x = 0; x <= length; x++) {
-		if (bi->bi_clone)
+		/* The GFS2_BLKST_UNLINKED state doesn't apply to the clone
+		   bitmaps, so we must search the originals for that. */
+		if (old_state != GFS2_BLKST_UNLINKED && bi->bi_clone)
 			blk = gfs2_bitfit(rgd, bi->bi_clone + bi->bi_offset,
 					  bi->bi_len, goal, old_state);
 		else
@@ -1305,9 +1316,7 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 		goal = 0;
 	}
 
-	if (old_state != new_state) {
-		gfs2_assert_withdraw(rgd->rd_sbd, blk != BFITNOENT);
-
+	if (blk != BFITNOENT && old_state != new_state) {
 		gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
 		gfs2_setbit(rgd, bi->bi_bh->b_data + bi->bi_offset,
 			    bi->bi_len, blk, new_state);

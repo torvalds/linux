@@ -9,6 +9,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/rtnetlink.h>
 #include "ieee80211_rate.h"
 #include "ieee80211_i.h"
 
@@ -136,4 +137,44 @@ struct rate_control_ref *rate_control_get(struct rate_control_ref *ref)
 void rate_control_put(struct rate_control_ref *ref)
 {
 	kref_put(&ref->kref, rate_control_release);
+}
+
+int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
+				 const char *name)
+{
+	struct rate_control_ref *ref, *old;
+
+	ASSERT_RTNL();
+	if (local->open_count || netif_running(local->mdev))
+		return -EBUSY;
+
+	ref = rate_control_alloc(name, local);
+	if (!ref) {
+		printk(KERN_WARNING "%s: Failed to select rate control "
+		       "algorithm\n", wiphy_name(local->hw.wiphy));
+		return -ENOENT;
+	}
+
+	old = local->rate_ctrl;
+	local->rate_ctrl = ref;
+	if (old) {
+		rate_control_put(old);
+		sta_info_flush(local, NULL);
+	}
+
+	printk(KERN_DEBUG "%s: Selected rate control "
+	       "algorithm '%s'\n", wiphy_name(local->hw.wiphy),
+	       ref->ops->name);
+
+
+	return 0;
+}
+
+void rate_control_deinitialize(struct ieee80211_local *local)
+{
+	struct rate_control_ref *ref;
+
+	ref = local->rate_ctrl;
+	local->rate_ctrl = NULL;
+	rate_control_put(ref);
 }

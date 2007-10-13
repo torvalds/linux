@@ -1,5 +1,13 @@
 /*
- * symlink.c - operations for sysfs symlinks.
+ * fs/sysfs/symlink.c - sysfs symlink implementation
+ *
+ * Copyright (c) 2001-3 Patrick Mochel
+ * Copyright (c) 2007 SUSE Linux Products GmbH
+ * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
+ *
+ * This file is released under the GPLv2.
+ *
+ * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
 #include <linux/fs.h>
@@ -7,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include "sysfs.h"
 
@@ -60,10 +68,9 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 
 	BUG_ON(!name);
 
-	if (!kobj) {
-		if (sysfs_mount && sysfs_mount->mnt_sb)
-			parent_sd = sysfs_mount->mnt_sb->s_root->d_fsdata;
-	} else
+	if (!kobj)
+		parent_sd = &sysfs_root;
+	else
 		parent_sd = kobj->sd;
 
 	error = -EFAULT;
@@ -87,20 +94,15 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 	if (!sd)
 		goto out_put;
 
-	sd->s_elem.symlink.target_sd = target_sd;
+	sd->s_symlink.target_sd = target_sd;
 	target_sd = NULL;	/* reference is now owned by the symlink */
 
 	sysfs_addrm_start(&acxt, parent_sd);
+	error = sysfs_add_one(&acxt, sd);
+	sysfs_addrm_finish(&acxt);
 
-	if (!sysfs_find_dirent(parent_sd, name)) {
-		sysfs_add_one(&acxt, sd);
-		sysfs_link_sibling(sd);
-	}
-
-	if (!sysfs_addrm_finish(&acxt)) {
-		error = -EEXIST;
+	if (error)
 		goto out_put;
-	}
 
 	return 0;
 
@@ -148,7 +150,7 @@ static int sysfs_getlink(struct dentry *dentry, char * path)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
 	struct sysfs_dirent *parent_sd = sd->s_parent;
-	struct sysfs_dirent *target_sd = sd->s_elem.symlink.target_sd;
+	struct sysfs_dirent *target_sd = sd->s_symlink.target_sd;
 	int error;
 
 	mutex_lock(&sysfs_mutex);

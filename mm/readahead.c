@@ -15,6 +15,7 @@
 #include <linux/backing-dev.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/pagevec.h>
+#include <linux/pagemap.h>
 
 void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {

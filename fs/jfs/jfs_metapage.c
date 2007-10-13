@@ -280,13 +280,9 @@ static void last_read_complete(struct page *page)
 	unlock_page(page);
 }
 
-static int metapage_read_end_io(struct bio *bio, unsigned int bytes_done,
-				int err)
+static void metapage_read_end_io(struct bio *bio, int err)
 {
 	struct page *page = bio->bi_private;
-
-	if (bio->bi_size)
-		return 1;
 
 	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
 		printk(KERN_ERR "metapage_read_end_io: I/O error\n");
@@ -295,8 +291,6 @@ static int metapage_read_end_io(struct bio *bio, unsigned int bytes_done,
 
 	dec_io(page, last_read_complete);
 	bio_put(bio);
-
-	return 0;
 }
 
 static void remove_from_logsync(struct metapage *mp)
@@ -341,15 +335,11 @@ static void last_write_complete(struct page *page)
 	end_page_writeback(page);
 }
 
-static int metapage_write_end_io(struct bio *bio, unsigned int bytes_done,
-				 int err)
+static void metapage_write_end_io(struct bio *bio, int err)
 {
 	struct page *page = bio->bi_private;
 
 	BUG_ON(!PagePrivate(page));
-
-	if (bio->bi_size)
-		return 1;
 
 	if (! test_bit(BIO_UPTODATE, &bio->bi_flags)) {
 		printk(KERN_ERR "metapage_write_end_io: I/O error\n");
@@ -357,7 +347,6 @@ static int metapage_write_end_io(struct bio *bio, unsigned int bytes_done,
 	}
 	dec_io(page, last_write_complete);
 	bio_put(bio);
-	return 0;
 }
 
 static int metapage_writepage(struct page *page, struct writeback_control *wbc)

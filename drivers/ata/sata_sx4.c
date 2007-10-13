@@ -254,7 +254,6 @@ static struct scsi_host_template pdc_sata_sht = {
 };
 
 static const struct ata_port_operations pdc_20621_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -267,7 +266,6 @@ static const struct ata_port_operations pdc_20621_ops = {
 	.eng_timeout		= pdc_eng_timeout,
 	.irq_clear		= pdc20621_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 	.port_start		= pdc_port_start,
 };
 
@@ -854,7 +852,7 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance)
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
 
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 				handled += pdc20621_host_intr(ap, qc, (i > 4),
 							      mmio_base);
@@ -881,7 +879,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	qc = ata_qc_from_tag(ap, ap->active_tag);
+	qc = ata_qc_from_tag(ap, ap->link.active_tag);
 
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
@@ -1383,9 +1381,8 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	const struct ata_port_info *ppi[] =
 		{ &pdc_port_info[ent->driver_data], NULL };
 	struct ata_host *host;
-	void __iomem *base;
 	struct pdc_host_priv *hpriv;
-	int rc;
+	int i, rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
@@ -1411,11 +1408,17 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 		return rc;
 	host->iomap = pcim_iomap_table(pdev);
 
-	base = host->iomap[PDC_MMIO_BAR] + PDC_CHIP0_OFS;
-	pdc_sata_setup_port(&host->ports[0]->ioaddr, base + 0x200);
-	pdc_sata_setup_port(&host->ports[1]->ioaddr, base + 0x280);
-	pdc_sata_setup_port(&host->ports[2]->ioaddr, base + 0x300);
-	pdc_sata_setup_port(&host->ports[3]->ioaddr, base + 0x380);
+	for (i = 0; i < 4; i++) {
+		struct ata_port *ap = host->ports[i];
+		void __iomem *base = host->iomap[PDC_MMIO_BAR] + PDC_CHIP0_OFS;
+		unsigned int offset = 0x200 + i * 0x80;
+
+		pdc_sata_setup_port(&ap->ioaddr, base + offset);
+
+		ata_port_pbar_desc(ap, PDC_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, PDC_DIMM_BAR, -1, "dimm");
+		ata_port_pbar_desc(ap, PDC_MMIO_BAR, offset, "port");
+	}
 
 	/* configure and activate */
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);

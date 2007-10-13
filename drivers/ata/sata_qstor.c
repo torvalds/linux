@@ -145,7 +145,6 @@ static struct scsi_host_template qs_ata_sht = {
 };
 
 static const struct ata_port_operations qs_ata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -159,7 +158,6 @@ static const struct ata_port_operations qs_ata_ops = {
 	.eng_timeout		= qs_eng_timeout,
 	.irq_clear		= qs_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 	.scr_read		= qs_scr_read,
 	.scr_write		= qs_scr_write,
 	.port_start		= qs_port_start,
@@ -404,7 +402,7 @@ static inline unsigned int qs_intr_pkt(struct ata_host *host)
 				struct qs_port_priv *pp = ap->private_data;
 				if (!pp || pp->state != qs_state_pkt)
 					continue;
-				qc = ata_qc_from_tag(ap, ap->active_tag);
+				qc = ata_qc_from_tag(ap, ap->link.active_tag);
 				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 					switch (sHST) {
 					case 0: /* successful CPB */
@@ -437,7 +435,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 			struct qs_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != qs_state_mmio)
 				continue;
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 
 				/* check main status, clearing INTRQ */
@@ -637,9 +635,14 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 		return rc;
 
 	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		void __iomem *chan =
-			host->iomap[QS_MMIO_BAR] + (port_no * 0x4000);
-		qs_ata_setup_port(&host->ports[port_no]->ioaddr, chan);
+		struct ata_port *ap = host->ports[port_no];
+		unsigned int offset = port_no * 0x4000;
+		void __iomem *chan = host->iomap[QS_MMIO_BAR] + offset;
+
+		qs_ata_setup_port(&ap->ioaddr, chan);
+
+		ata_port_pbar_desc(ap, QS_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, QS_MMIO_BAR, offset, "port");
 	}
 
 	/* initialize adapter */

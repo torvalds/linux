@@ -960,6 +960,10 @@ static int storage_probe(struct usb_interface *intf,
 		return -ENOMEM;
 	}
 
+	/*
+	 * Allow 16-byte CDBs and thus > 2TB
+	 */
+	host->max_cmd_len = 16;
 	us = host_to_us(host);
 	memset(us, 0, sizeof(struct us_data));
 	mutex_init(&(us->dev_mutex));

@@ -4,8 +4,8 @@
 
 #include <asm/sibyte/board.h>
 
-#include "cfe_api.h"
-#include "cfe_error.h"
+#include <asm/fw/cfe/cfe_api.h>
+#include <asm/fw/cfe/cfe_error.h>
 
 extern int cfe_cons_handle;
 
@@ -14,7 +14,7 @@ static void cfe_console_write(struct console *cons, const char *str,
 {
 	int i, last, written;
 
-	for (i=0,last=0; i<count; i++) {
+	for (i=0, last=0; i<count; i++) {
 		if (!str[i])
 			/* XXXKW can/should this ever happen? */
 			return;

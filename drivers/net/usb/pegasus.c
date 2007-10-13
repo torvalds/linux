@@ -1297,6 +1297,7 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus_t *pegasus;
 	int dev_index = id - pegasus_ids;
 	int res = -ENOMEM;
+	DECLARE_MAC_BUF(mac);
 
 	usb_get_dev(dev);
 	net = alloc_etherdev(sizeof(struct pegasus));
@@ -1306,7 +1307,6 @@ static int pegasus_probe(struct usb_interface *intf,
 	}
 
 	pegasus = netdev_priv(net);
-	memset(pegasus, 0, sizeof (struct pegasus));
 	pegasus->dev_index = dev_index;
 	init_waitqueue_head(&pegasus->ctrl_wait);
 
@@ -1322,7 +1322,6 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus->intf = intf;
 	pegasus->usb = dev;
 	pegasus->net = net;
-	SET_MODULE_OWNER(net);
 	net->open = pegasus_open;
 	net->stop = pegasus_close;
 	net->watchdog_timeo = PEGASUS_TX_TIMEOUT;
@@ -1369,12 +1368,10 @@ static int pegasus_probe(struct usb_interface *intf,
 	queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
 				CARRIER_CHECK_DELAY);
 
-	dev_info(&intf->dev, "%s, %s, %02x:%02x:%02x:%02x:%02x:%02x\n",
-		net->name,
-		usb_dev_id[dev_index].name,
-		net->dev_addr [0], net->dev_addr [1],
-		net->dev_addr [2], net->dev_addr [3],
-		net->dev_addr [4], net->dev_addr [5]);
+	dev_info(&intf->dev, "%s, %s, %s\n",
+		 net->name,
+		 usb_dev_id[dev_index].name,
+		 print_mac(mac, net->dev_addr));
 	return 0;
 
 out3:

@@ -277,7 +277,7 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 	};
 	struct {
 		struct type6_hdr hdr;
-		struct ica_CPRBX cprbx;
+		struct CPRBX cprbx;
 	} __attribute__((packed)) *msg = ap_msg->message;
 
 	int rcblen = CEIL4(xcRB->request_control_blk_length);
@@ -432,13 +432,16 @@ static int convert_type86_ica(struct zcrypt_device *zdev,
 		}
 		if (service_rc == 8 && service_rs == 770) {
 			PDEBUG("Invalid key length on PCIXCC/CEX2C\n");
-			zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE_OLD;
-			return -EAGAIN;
+			return -EINVAL;
 		}
 		if (service_rc == 8 && service_rs == 783) {
 			PDEBUG("Extended bitlengths not enabled on PCIXCC/CEX2C\n");
 			zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE_OLD;
 			return -EAGAIN;
+		}
+		if (service_rc == 12 && service_rs == 769) {
+			PDEBUG("Invalid key on PCIXCC/CEX2C\n");
+			return -EINVAL;
 		}
 		PRINTK("Unknown service rc/rs (PCIXCC/CEX2C): %d/%d\n",
 		       service_rc, service_rs);

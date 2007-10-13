@@ -30,7 +30,6 @@
 			timebase-frequency = <0>;	// 33 MHz, from uboot
 			bus-frequency = <0>;		// From uboot
 			clock-frequency = <0>;		// From uboot
-			32-bit;
 		};
 		PowerPC,8641@1 {
 			device_type = "cpu";
@@ -42,7 +41,6 @@
 			timebase-frequency = <0>;	// 33 MHz, from uboot
 			bus-frequency = <0>;		// From uboot
 			clock-frequency = <0>;		// From uboot
-			32-bit;
 		};
 	};
 
@@ -54,13 +52,8 @@
 	soc8641@f8000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
-		ranges = <00001000 f8001000 000ff000
-			  80000000 80000000 20000000
-			  e2000000 e2000000 00100000
-			  a0000000 a0000000 20000000
-			  e3000000 e3000000 00100000>;
+		ranges = <00000000 f8000000 00100000>;
 		reg = <f8000000 00001000>;	// CCSRBAR
 		bus-frequency = <0>;
 
@@ -211,50 +204,81 @@
 			interrupt-parent = <&mpic>;
 		};
 
-		pcie@8000 {
-			compatible = "fsl,mpc8641-pcie";
-			device_type = "pci";
-			#interrupt-cells = <1>;
+		mpic: pic@40000 {
+			clock-frequency = <0>;
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <40000 40000>;
+			compatible = "chrp,open-pic";
+			device_type = "open-pic";
+			big-endian;
+		};
+
+		global-utilities@e0000 {
+			compatible = "fsl,mpc8641-guts";
+			reg = <e0000 1000>;
+			fsl,has-rstcr;
+		};
+	};
+
+	pcie@f8008000 {
+		compatible = "fsl,mpc8641-pcie";
+		device_type = "pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <f8008000 1000>;
+		bus-range = <0 ff>;
+		ranges = <02000000 0 80000000 80000000 0 20000000
+			  01000000 0 00000000 e2000000 0 00100000>;
+		clock-frequency = <1fca055>;
+		interrupt-parent = <&mpic>;
+		interrupts = <18 2>;
+		interrupt-map-mask = <fb00 0 0 0>;
+		interrupt-map = <
+			/* IDSEL 0x11 */
+			8800 0 0 1 &i8259 9 2
+			8800 0 0 2 &i8259 a 2
+			8800 0 0 3 &i8259 b 2
+			8800 0 0 4 &i8259 c 2
+
+			/* IDSEL 0x12 */
+			9000 0 0 1 &i8259 a 2
+			9000 0 0 2 &i8259 b 2
+			9000 0 0 3 &i8259 c 2
+			9000 0 0 4 &i8259 9 2
+
+			// IDSEL 0x1c  USB
+			e000 0 0 0 &i8259 c 2
+			e100 0 0 0 &i8259 9 2
+			e200 0 0 0 &i8259 a 2
+			e300 0 0 0 &i8259 b 2
+
+			// IDSEL 0x1d  Audio
+			e800 0 0 0 &i8259 6 2
+
+			// IDSEL 0x1e Legacy
+			f000 0 0 0 &i8259 7 2
+			f100 0 0 0 &i8259 7 2
+
+			// IDSEL 0x1f IDE/SATA
+			f800 0 0 0 &i8259 e 2
+			f900 0 0 0 &i8259 5 2
+			>;
+
+		pcie@0 {
+			reg = <0 0 0 0 0>;
 			#size-cells = <2>;
 			#address-cells = <3>;
-			reg = <8000 1000>;
-			bus-range = <0 ff>;
-			ranges = <02000000 0 80000000 80000000 0 20000000
-				  01000000 0 00000000 e2000000 0 00100000>;
-			clock-frequency = <1fca055>;
-			interrupt-parent = <&mpic>;
-			interrupts = <18 2>;
-			interrupt-map-mask = <fb00 0 0 0>;
-			interrupt-map = <
-				/* IDSEL 0x11 */
-				8800 0 0 1 &i8259 9 2
-				8800 0 0 2 &i8259 a 2
-				8800 0 0 3 &i8259 b 2
-				8800 0 0 4 &i8259 c 2
+			device_type = "pci";
+			ranges = <02000000 0 80000000
+				  02000000 0 80000000
+				  0 20000000
 
-				/* IDSEL 0x12 */
-				9000 0 0 1 &i8259 a 2
-				9000 0 0 2 &i8259 b 2
-				9000 0 0 3 &i8259 c 2
-				9000 0 0 4 &i8259 9 2
-
-				// IDSEL 0x1c  USB
-				e000 0 0 0 &i8259 c 2
-				e100 0 0 0 &i8259 9 2
-				e200 0 0 0 &i8259 a 2
-				e300 0 0 0 &i8259 b 2
-
-				// IDSEL 0x1d  Audio
-				e800 0 0 0 &i8259 6 2
-
-				// IDSEL 0x1e Legacy
-				f000 0 0 0 &i8259 7 2
-				f100 0 0 0 &i8259 7 2
-
-				// IDSEL 0x1f IDE/SATA
-				f800 0 0 0 &i8259 e 2
-				f900 0 0 0 &i8259 5 2
-				>;
+				  01000000 0 00000000
+				  01000000 0 00000000
+				  0 00100000>;
 			uli1575@0 {
 				reg = <0 0 0 0 0>;
 				#size-cells = <2>;
@@ -265,111 +289,96 @@
 					  01000000 0 00000000
 					  01000000 0 00000000
 					  0 00100000>;
+				isa@1e {
+					device_type = "isa";
+					#interrupt-cells = <2>;
+					#size-cells = <1>;
+					#address-cells = <2>;
+					reg = <f000 0 0 0 0>;
+					ranges = <1 0 01000000 0 0
+						  00001000>;
+					interrupt-parent = <&i8259>;
 
-				pci_bridge@0 {
-					reg = <0 0 0 0 0>;
-					#size-cells = <2>;
-					#address-cells = <3>;
-					ranges = <02000000 0 80000000
-						  02000000 0 80000000
-						  0 20000000
-						  01000000 0 00000000
-						  01000000 0 00000000
-						  0 00100000>;
-
-					isa@1e {
-						device_type = "isa";
+					i8259: interrupt-controller@20 {
+						reg = <1 20 2
+						       1 a0 2
+						       1 4d0 2>;
+						interrupt-controller;
+						device_type = "interrupt-controller";
+						#address-cells = <0>;
 						#interrupt-cells = <2>;
-						#size-cells = <1>;
-						#address-cells = <2>;
-						reg = <f000 0 0 0 0>;
-						ranges = <1 0 01000000 0 0
-							  00001000>;
-						interrupt-parent = <&i8259>;
+						compatible = "chrp,iic";
+						interrupts = <9 2>;
+						interrupt-parent = <&mpic>;
+					};
 
-						i8259: interrupt-controller@20 {
-							reg = <1 20 2
-							       1 a0 2
-							       1 4d0 2>;
-							clock-frequency = <0>;
-							interrupt-controller;
-							device_type = "interrupt-controller";
-							#address-cells = <0>;
-							#interrupt-cells = <2>;
-							built-in;
-							compatible = "chrp,iic";
-							interrupts = <9 2>;
-							interrupt-parent =
-								<&mpic>;
+					i8042@60 {
+						#size-cells = <0>;
+						#address-cells = <1>;
+						reg = <1 60 1 1 64 1>;
+						interrupts = <1 3 c 3>;
+						interrupt-parent =
+							<&i8259>;
+
+						keyboard@0 {
+							reg = <0>;
+							compatible = "pnpPNP,303";
 						};
 
-						i8042@60 {
-							#size-cells = <0>;
-							#address-cells = <1>;
-							reg = <1 60 1 1 64 1>;
-							interrupts = <1 3 c 3>;
-							interrupt-parent =
-								<&i8259>;
-
-							keyboard@0 {
-								reg = <0>;
-								compatible = "pnpPNP,303";
-							};
-
-							mouse@1 {
-								reg = <1>;
-								compatible = "pnpPNP,f03";
-							};
+						mouse@1 {
+							reg = <1>;
+							compatible = "pnpPNP,f03";
 						};
+					};
 
-						rtc@70 {
-							compatible =
-								"pnpPNP,b00";
-							reg = <1 70 2>;
-						};
+					rtc@70 {
+						compatible =
+							"pnpPNP,b00";
+						reg = <1 70 2>;
+					};
 
-						gpio@400 {
-							reg = <1 400 80>;
-						};
+					gpio@400 {
+						reg = <1 400 80>;
 					};
 				};
 			};
-
 		};
 
-		pcie@9000 {
-			compatible = "fsl,mpc8641-pcie";
-			device_type = "pci";
-			#interrupt-cells = <1>;
+	};
+
+	pcie@f8009000 {
+		compatible = "fsl,mpc8641-pcie";
+		device_type = "pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <f8009000 1000>;
+		bus-range = <0 ff>;
+		ranges = <02000000 0 a0000000 a0000000 0 20000000
+			  01000000 0 00000000 e3000000 0 00100000>;
+		clock-frequency = <1fca055>;
+		interrupt-parent = <&mpic>;
+		interrupts = <19 2>;
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+			/* IDSEL 0x0 */
+			0000 0 0 1 &mpic 4 1
+			0000 0 0 2 &mpic 5 1
+			0000 0 0 3 &mpic 6 1
+			0000 0 0 4 &mpic 7 1
+			>;
+		pcie@0 {
+			reg = <0 0 0 0 0>;
 			#size-cells = <2>;
 			#address-cells = <3>;
-			reg = <9000 1000>;
-			bus-range = <0 ff>;
-			ranges = <02000000 0 a0000000 a0000000 0 20000000
-				  01000000 0 00000000 e3000000 0 00100000>;
-			clock-frequency = <1fca055>;
-			interrupt-parent = <&mpic>;
-			interrupts = <19 2>;
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-				/* IDSEL 0x0 */
-				0000 0 0 1 &mpic 4 1
-				0000 0 0 2 &mpic 5 1
-				0000 0 0 3 &mpic 6 1
-				0000 0 0 4 &mpic 7 1
-				>;
-		};
+			device_type = "pci";
+			ranges = <02000000 0 a0000000
+				  02000000 0 a0000000
+				  0 20000000
 
-		mpic: pic@40000 {
-			clock-frequency = <0>;
-			interrupt-controller;
-			#address-cells = <0>;
-			#interrupt-cells = <2>;
-			reg = <40000 40000>;
-			built-in;
-			compatible = "chrp,open-pic";
-			device_type = "open-pic";
-			big-endian;
+				  01000000 0 00000000
+				  01000000 0 00000000
+				  0 00100000>;
 		};
 	};
 };

@@ -1514,9 +1514,6 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 	int thread_status_size = 0;
 	elf_addr_t *auxv;
 	unsigned long mm_flags;
-#ifdef ELF_CORE_WRITE_EXTRA_NOTES
-	int extra_notes_size;
-#endif
 
 	/*
 	 * We no longer stop all VM operations.
@@ -1645,10 +1642,7 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 		
 		sz += thread_status_size;
 
-#ifdef ELF_CORE_WRITE_EXTRA_NOTES
-		extra_notes_size = ELF_CORE_EXTRA_NOTES_SIZE;
-		sz += extra_notes_size;
-#endif
+		sz += elf_coredump_extra_notes_size();
 
 		fill_elf_note_phdr(&phdr, sz, offset);
 		offset += sz;
@@ -1698,10 +1692,8 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 		if (!writenote(notes + i, file, &foffset))
 			goto end_coredump;
 
-#ifdef ELF_CORE_WRITE_EXTRA_NOTES
-	ELF_CORE_WRITE_EXTRA_NOTES;
-	foffset += extra_notes_size;
-#endif
+	if (elf_coredump_extra_notes_write(file, &foffset))
+		goto end_coredump;
 
 	/* write out the thread status notes section */
 	list_for_each(t, &thread_list) {

@@ -74,6 +74,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 {
 	struct sctp_sock *sp;
 	int i;
+	sctp_paramhdr_t *p;
+	int err;
 
 	/* Retrieve the SCTP per socket area.  */
 	sp = sctp_sk((struct sock *)sk);
@@ -298,6 +300,30 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->default_timetolive = sp->default_timetolive;
 	asoc->default_rcv_context = sp->default_rcv_context;
 
+	/* AUTH related initializations */
+	INIT_LIST_HEAD(&asoc->endpoint_shared_keys);
+	err = sctp_auth_asoc_copy_shkeys(ep, asoc, gfp);
+	if (err)
+		goto fail_init;
+
+	asoc->active_key_id = ep->active_key_id;
+	asoc->asoc_shared_key = NULL;
+
+	asoc->default_hmac_id = 0;
+	/* Save the hmacs and chunks list into this association */
+	if (ep->auth_hmacs_list)
+		memcpy(asoc->c.auth_hmacs, ep->auth_hmacs_list,
+			ntohs(ep->auth_hmacs_list->param_hdr.length));
+	if (ep->auth_chunk_list)
+		memcpy(asoc->c.auth_chunks, ep->auth_chunk_list,
+			ntohs(ep->auth_chunk_list->param_hdr.length));
+
+	/* Get the AUTH random number for this association */
+	p = (sctp_paramhdr_t *)asoc->c.auth_random;
+	p->type = SCTP_PARAM_RANDOM;
+	p->length = htons(sizeof(sctp_paramhdr_t) + SCTP_AUTH_RANDOM_LENGTH);
+	get_random_bytes(p+1, SCTP_AUTH_RANDOM_LENGTH);
+
 	return asoc;
 
 fail_init:
@@ -389,6 +415,9 @@ void sctp_association_free(struct sctp_association *asoc)
 
 	/* Free peer's cached cookie. */
 	kfree(asoc->peer.cookie);
+	kfree(asoc->peer.peer_random);
+	kfree(asoc->peer.peer_chunks);
+	kfree(asoc->peer.peer_hmacs);
 
 	/* Release the transport structures. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
@@ -406,6 +435,12 @@ void sctp_association_free(struct sctp_association *asoc)
 	/* Free any cached ASCONF chunk. */
 	if (asoc->addip_last_asconf)
 		sctp_chunk_free(asoc->addip_last_asconf);
+
+	/* AUTH - Free the endpoint shared keys */
+	sctp_auth_destroy_keys(&asoc->endpoint_shared_keys);
+
+	/* AUTH - Free the association shared key */
+	sctp_auth_key_put(asoc->asoc_shared_key);
 
 	sctp_association_put(asoc);
 }
@@ -976,6 +1011,16 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		state = asoc->state;
 		subtype = SCTP_ST_CHUNK(chunk->chunk_hdr->type);
 
+		/* SCTP-AUTH, Section 6.3:
+		 *    The receiver has a list of chunk types which it expects
+		 *    to be received only after an AUTH-chunk.  This list has
+		 *    been sent to the peer during the association setup.  It
+		 *    MUST silently discard these chunks if they are not placed
+		 *    after an AUTH chunk in the packet.
+		 */
+		if (sctp_auth_recv_cid(subtype.chunk, asoc) && !chunk->auth)
+			continue;
+
 		/* Remember where the last DATA chunk came from so we
 		 * know where to send the SACK.
 		 */
@@ -1112,6 +1157,24 @@ void sctp_assoc_update(struct sctp_association *asoc,
 			sctp_assoc_set_id(asoc, GFP_ATOMIC);
 		}
 	}
+
+	/* SCTP-AUTH: Save the peer parameters from the new assocaitions
+	 * and also move the association shared keys over
+	 */
+	kfree(asoc->peer.peer_random);
+	asoc->peer.peer_random = new->peer.peer_random;
+	new->peer.peer_random = NULL;
+
+	kfree(asoc->peer.peer_chunks);
+	asoc->peer.peer_chunks = new->peer.peer_chunks;
+	new->peer.peer_chunks = NULL;
+
+	kfree(asoc->peer.peer_hmacs);
+	asoc->peer.peer_hmacs = new->peer.peer_hmacs;
+	new->peer.peer_hmacs = NULL;
+
+	sctp_auth_key_put(asoc->asoc_shared_key);
+	sctp_auth_asoc_init_active_key(asoc, GFP_ATOMIC);
 }
 
 /* Update the retran path for sending a retransmitted packet.

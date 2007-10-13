@@ -8,7 +8,7 @@
  *		From code orinally in TCP
  */
 
-
+#include <linux/kernel.h>
 #include <net/inet_hashtables.h>
 #include <net/inet_timewait_sock.h>
 #include <net/ip.h>
@@ -292,7 +292,7 @@ void inet_twsk_schedule(struct inet_timewait_sock *tw,
 		if (timeo >= timewait_len) {
 			slot = INET_TWDR_TWKILL_SLOTS - 1;
 		} else {
-			slot = (timeo + twdr->period - 1) / twdr->period;
+			slot = DIV_ROUND_UP(timeo, twdr->period);
 			if (slot >= INET_TWDR_TWKILL_SLOTS)
 				slot = INET_TWDR_TWKILL_SLOTS - 1;
 		}

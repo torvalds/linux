@@ -664,6 +664,7 @@ static int hostap_join_ap(struct net_device *dev)
 	unsigned long flags;
 	int i;
 	struct hfa384x_hostscan_result *entry;
+	DECLARE_MAC_BUF(mac);
 
 	iface = netdev_priv(dev);
 	local = iface->local;
@@ -685,14 +686,14 @@ static int hostap_join_ap(struct net_device *dev)
 
 	if (local->func->set_rid(dev, HFA384X_RID_JOINREQUEST, &req,
 				 sizeof(req))) {
-		printk(KERN_DEBUG "%s: JoinRequest " MACSTR
+		printk(KERN_DEBUG "%s: JoinRequest %s"
 		       " failed\n",
-		       dev->name, MAC2STR(local->preferred_ap));
+		       dev->name, print_mac(mac, local->preferred_ap));
 		return -1;
 	}
 
-	printk(KERN_DEBUG "%s: Trying to join BSSID " MACSTR "\n",
-	       dev->name, MAC2STR(local->preferred_ap));
+	printk(KERN_DEBUG "%s: Trying to join BSSID %s\n",
+	       dev->name, print_mac(mac, local->preferred_ap));
 
 	return 0;
 }
@@ -896,11 +897,8 @@ static void hostap_monitor_set_type(local_info_t *local)
 	if (local->monitor_type == PRISM2_MONITOR_PRISM ||
 	    local->monitor_type == PRISM2_MONITOR_CAPHDR) {
 		dev->type = ARPHRD_IEEE80211_PRISM;
-		dev->hard_header_parse =
-			hostap_80211_prism_header_parse;
 	} else {
 		dev->type = ARPHRD_IEEE80211;
-		dev->hard_header_parse = hostap_80211_header_parse;
 	}
 }
 
@@ -1140,7 +1138,7 @@ static int hostap_monitor_mode_disable(local_info_t *local)
 
 	printk(KERN_DEBUG "%s: Disabling monitor mode\n", dev->name);
 	dev->type = ARPHRD_ETHER;
-	dev->hard_header_parse = local->saved_eth_header_parse;
+
 	if (local->func->cmd(dev, HFA384X_CMDCODE_TEST |
 			     (HFA384X_TEST_STOP << 8),
 			     0, NULL, NULL))
@@ -3088,7 +3086,7 @@ static int prism2_ioctl_priv_download(local_info_t *local, struct iw_point *p)
 static int prism2_set_genericelement(struct net_device *dev, u8 *elem,
 				     size_t len)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	u8 *buf;
 
@@ -3116,7 +3114,7 @@ static int prism2_ioctl_siwauth(struct net_device *dev,
 				struct iw_request_info *info,
 				struct iw_param *data, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 
 	switch (data->flags & IW_AUTH_INDEX) {
@@ -3182,7 +3180,7 @@ static int prism2_ioctl_giwauth(struct net_device *dev,
 				struct iw_request_info *info,
 				struct iw_param *data, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 
 	switch (data->flags & IW_AUTH_INDEX) {
@@ -3221,7 +3219,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *erq, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *) extra;
 	int i, ret = 0;
@@ -3395,7 +3393,7 @@ static int prism2_ioctl_giwencodeext(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *erq, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	struct ieee80211_crypt_data **crypt;
 	void *sta_ptr;
@@ -3697,8 +3695,10 @@ static int prism2_ioctl_set_assoc_ap_addr(local_info_t *local,
 					  struct prism2_hostapd_param *param,
 					  int param_len)
 {
-	printk(KERN_DEBUG "%ssta: associated as client with AP " MACSTR "\n",
-	       local->dev->name, MAC2STR(param->sta_addr));
+	DECLARE_MAC_BUF(mac);
+	printk(KERN_DEBUG "%ssta: associated as client with AP "
+	       "%s\n",
+	       local->dev->name, print_mac(mac, param->sta_addr));
 	memcpy(local->assoc_ap_addr, param->sta_addr, ETH_ALEN);
 	return 0;
 }
@@ -3716,7 +3716,7 @@ static int prism2_ioctl_giwgenie(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_point *data, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	int len = local->generic_elem_len - 2;
 
@@ -3755,7 +3755,7 @@ static int prism2_ioctl_siwmlme(struct net_device *dev,
 				struct iw_request_info *info,
 				struct iw_point *data, char *extra)
 {
-	struct hostap_interface *iface = dev->priv;
+	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	struct iw_mlme *mlme = (struct iw_mlme *) extra;
 	u16 reason;
@@ -3976,9 +3976,9 @@ static const iw_handler prism2_private_handler[] =
 
 const struct iw_handler_def hostap_iw_handler_def =
 {
-	.num_standard	= sizeof(prism2_handler) / sizeof(iw_handler),
-	.num_private	= sizeof(prism2_private_handler) / sizeof(iw_handler),
-	.num_private_args = sizeof(prism2_priv) / sizeof(struct iw_priv_args),
+	.num_standard	= ARRAY_SIZE(prism2_handler),
+	.num_private	= ARRAY_SIZE(prism2_private_handler),
+	.num_private_args = ARRAY_SIZE(prism2_priv),
 	.standard	= (iw_handler *) prism2_handler,
 	.private	= (iw_handler *) prism2_private_handler,
 	.private_args	= (struct iw_priv_args *) prism2_priv,

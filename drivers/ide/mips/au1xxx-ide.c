@@ -99,17 +99,11 @@ void auide_outsw(unsigned long port, void *addr, u32 count)
 
 #endif
 
-static void auide_tune_drive(ide_drive_t *drive, byte pio)
+static void au1xxx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	int mem_sttime;
 	int mem_stcfg;
 	u8 speed;
-
-	/* get the best pio mode for the drive */
-	pio = ide_get_best_pio_mode(drive, pio, 4);
-
-	printk(KERN_INFO "%s: setting Au1XXX IDE to PIO mode%d\n",
-	       drive->name, pio);
 
 	mem_sttime = 0;
 	mem_stcfg  = au_readl(MEM_STCFG2);
@@ -175,18 +169,13 @@ static void auide_tune_drive(ide_drive_t *drive, byte pio)
 	ide_config_drive_speed(drive, speed);
 }
 
-static int auide_tune_chipset (ide_drive_t *drive, u8 speed)
+static int auide_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	int mem_sttime;
 	int mem_stcfg;
 
 	mem_sttime = 0;
 	mem_stcfg  = au_readl(MEM_STCFG2);
-
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		auide_tune_drive(drive, speed - XFER_PIO_0);
-		return 0;
-	}
 
 	switch(speed) {
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
@@ -712,7 +701,7 @@ static int au_ide_probe(struct device *dev)
 	hwif->OUTSW                     = auide_outsw;
 #endif
 
-	hwif->tuneproc                  = &auide_tune_drive;
+	hwif->set_pio_mode		= &au1xxx_set_pio_mode;
 	hwif->speedproc                 = &auide_tune_chipset;
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA

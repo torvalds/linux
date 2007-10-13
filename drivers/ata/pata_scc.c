@@ -603,16 +603,17 @@ static unsigned int scc_bus_softreset(struct ata_port *ap, unsigned int devmask,
  *	Note: Original code is ata_std_softreset().
  */
 
-static int scc_std_softreset (struct ata_port *ap, unsigned int *classes,
-                              unsigned long deadline)
+static int scc_std_softreset(struct ata_link *link, unsigned int *classes,
+                             unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
 	unsigned int devmask = 0, err_mask;
 	u8 err;
 
 	DPRINTK("ENTER\n");
 
-	if (ata_port_offline(ap)) {
+	if (ata_link_offline(link)) {
 		classes[0] = ATA_DEV_NONE;
 		goto out;
 	}
@@ -636,9 +637,11 @@ static int scc_std_softreset (struct ata_port *ap, unsigned int *classes,
 	}
 
 	/* determine by signature whether we have ATA or ATAPI devices */
-	classes[0] = ata_dev_try_classify(ap, 0, &err);
+	classes[0] = ata_dev_try_classify(&ap->link.device[0],
+					  devmask & (1 << 0), &err);
 	if (slave_possible && err != 0x81)
-		classes[1] = ata_dev_try_classify(ap, 1, &err);
+		classes[1] = ata_dev_try_classify(&ap->link.device[1],
+						  devmask & (1 << 1), &err);
 
  out:
 	DPRINTK("EXIT, classes[0]=%u [1]=%u\n", classes[0], classes[1]);
@@ -701,7 +704,7 @@ static void scc_bmdma_stop (struct ata_queued_cmd *qc)
 			printk(KERN_WARNING "%s: Internal Bus Error\n", DRV_NAME);
 			out_be32(bmid_base + SCC_DMA_INTST, INTSTS_BMSINT);
 			/* TBD: SW reset */
-			scc_std_softreset(ap, &classes, deadline);
+			scc_std_softreset(&ap->link, &classes, deadline);
 			continue;
 		}
 
@@ -740,7 +743,7 @@ static u8 scc_bmdma_status (struct ata_port *ap)
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 	u8 host_stat = in_be32(mmio + SCC_DMA_STATUS);
 	u32 int_status = in_be32(mmio + SCC_DMA_INTST);
-	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->link.active_tag);
 	static int retry = 0;
 
 	/* return if IOS_SS is cleared */
@@ -785,7 +788,7 @@ static u8 scc_bmdma_status (struct ata_port *ap)
 static void scc_data_xfer (struct ata_device *adev, unsigned char *buf,
 			   unsigned int buflen, int write_data)
 {
-	struct ata_port *ap = adev->ap;
+	struct ata_port *ap = adev->link->ap;
 	unsigned int words = buflen >> 1;
 	unsigned int i;
 	u16 *buf16 = (u16 *) buf;
@@ -839,38 +842,6 @@ static u8 scc_irq_on (struct ata_port *ap)
 }
 
 /**
- *	scc_irq_ack - Acknowledge a device interrupt.
- *	@ap: Port on which interrupts are enabled.
- *
- *	Note: Original code is ata_irq_ack().
- */
-
-static u8 scc_irq_ack (struct ata_port *ap, unsigned int chk_drq)
-{
-	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
-	u8 host_stat, post_stat, status;
-
-	status = ata_busy_wait(ap, bits, 1000);
-	if (status & bits)
-		if (ata_msg_err(ap))
-			printk(KERN_ERR "abnormal status 0x%X\n", status);
-
-	/* get controller status; clear intr, err bits */
-	host_stat = in_be32(ap->ioaddr.bmdma_addr + SCC_DMA_STATUS);
-	out_be32(ap->ioaddr.bmdma_addr + SCC_DMA_STATUS,
-		 host_stat | ATA_DMA_INTR | ATA_DMA_ERR);
-
-	post_stat = in_be32(ap->ioaddr.bmdma_addr + SCC_DMA_STATUS);
-
-	if (ata_msg_intr(ap))
-		printk(KERN_INFO "%s: irq ack: host_stat 0x%X, new host_stat 0x%X, drv_stat 0x%X\n",
-		       __FUNCTION__,
-		       host_stat, post_stat, status);
-
-	return status;
-}
-
-/**
  *	scc_bmdma_freeze - Freeze BMDMA controller port
  *	@ap: port to freeze
  *
@@ -901,10 +872,10 @@ static void scc_bmdma_freeze (struct ata_port *ap)
  *	@deadline: deadline jiffies for the operation
  */
 
-static int scc_pata_prereset(struct ata_port *ap, unsigned long deadline)
+static int scc_pata_prereset(struct ata_link *link, unsigned long deadline)
 {
-	ap->cbl = ATA_CBL_PATA80;
-	return ata_std_prereset(ap, deadline);
+	link->ap->cbl = ATA_CBL_PATA80;
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -915,8 +886,10 @@ static int scc_pata_prereset(struct ata_port *ap, unsigned long deadline)
  *	Note: Original code is ata_std_postreset().
  */
 
-static void scc_std_postreset (struct ata_port *ap, unsigned int *classes)
+static void scc_std_postreset(struct ata_link *link, unsigned int *classes)
 {
+	struct ata_port *ap = link->ap;
+
 	DPRINTK("ENTER\n");
 
 	/* is double-select really necessary? */
@@ -1020,7 +993,6 @@ static struct scsi_host_template scc_sht = {
 };
 
 static const struct ata_port_operations scc_pata_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= scc_set_piomode,
 	.set_dmamode		= scc_set_dmamode,
 	.mode_filter		= scc_mode_filter,
@@ -1047,7 +1019,6 @@ static const struct ata_port_operations scc_pata_ops = {
 
 	.irq_clear		= scc_bmdma_irq_clear,
 	.irq_on			= scc_irq_on,
-	.irq_ack		= scc_irq_ack,
 
 	.port_start		= scc_port_start,
 	.port_stop		= scc_port_stop,
@@ -1192,6 +1163,9 @@ static int scc_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 	host->iomap = pcim_iomap_table(pdev);
+
+	ata_port_pbar_desc(host->ports[0], SCC_CTRL_BAR, -1, "ctrl");
+	ata_port_pbar_desc(host->ports[0], SCC_BMID_BAR, -1, "bmid");
 
 	rc = scc_host_init(host);
 	if (rc)

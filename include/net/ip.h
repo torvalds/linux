@@ -171,7 +171,8 @@ extern unsigned long snmp_fold_field(void *mib[], int offt);
 extern int snmp_mib_init(void *ptr[2], size_t mibsize, size_t mibalign);
 extern void snmp_mib_free(void *ptr[2]);
 
-extern int sysctl_local_port_range[2];
+extern void inet_get_local_port_range(int *low, int *high);
+
 extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;
 

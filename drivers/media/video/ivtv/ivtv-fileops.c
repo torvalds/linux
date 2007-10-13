@@ -27,10 +27,9 @@
 #include "ivtv-irq.h"
 #include "ivtv-vbi.h"
 #include "ivtv-mailbox.h"
-#include "ivtv-audio.h"
+#include "ivtv-routing.h"
 #include "ivtv-streams.h"
 #include "ivtv-yuv.h"
-#include "ivtv-controls.h"
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
 #include <media/saa7115.h>
@@ -247,8 +246,9 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 		/* do we have new data? */
 		buf = ivtv_dequeue(s, &s->q_full);
 		if (buf) {
-			if (!test_and_clear_bit(IVTV_F_B_NEED_BUF_SWAP, &buf->b_flags))
+			if ((buf->b_flags & IVTV_F_B_NEED_BUF_SWAP) == 0)
 				return buf;
+			buf->b_flags &= ~IVTV_F_B_NEED_BUF_SWAP;
 			if (s->type == IVTV_ENC_STREAM_TYPE_MPG)
 				/* byteswap MPG data */
 				ivtv_buf_swap(buf);
@@ -258,16 +258,16 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 			}
 			return buf;
 		}
-		/* return if file was opened with O_NONBLOCK */
-		if (non_block) {
-			*err = -EAGAIN;
-			return NULL;
-		}
 
 		/* return if end of stream */
 		if (s->type != IVTV_DEC_STREAM_TYPE_VBI && !test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
-			clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 			IVTV_DEBUG_INFO("EOS %s\n", s->name);
+			return NULL;
+		}
+
+		/* return if file was opened with O_NONBLOCK */
+		if (non_block) {
+			*err = -EAGAIN;
 			return NULL;
 		}
 
@@ -378,10 +378,20 @@ static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_co
 		int rc;
 
 		buf = ivtv_get_buffer(s, non_block, &rc);
-		if (buf == NULL && rc == -EAGAIN && tot_written)
-			break;
-		if (buf == NULL)
+		/* if there is no data available... */
+		if (buf == NULL) {
+			/* if we got data, then return that regardless */
+			if (tot_written)
+				break;
+			/* EOS condition */
+			if (rc == 0) {
+				clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
+				clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
+				ivtv_release_stream(s);
+			}
+			/* set errno */
 			return rc;
+		}
 		rc = ivtv_copy_buf_to_user(s, buf, ubuf + tot_written, tot_count - tot_written);
 		if (buf != &itv->vbi.sliced_mpeg_buf) {
 			ivtv_enqueue(s, buf, (buf->readpos == buf->bytesused) ? &s->q_free : &s->q_io);
@@ -408,7 +418,7 @@ static ssize_t ivtv_read_pos(struct ivtv_stream *s, char __user *ubuf, size_t co
 	ssize_t rc = count ? ivtv_read(s, ubuf, count, non_block) : 0;
 	struct ivtv *itv = s->itv;
 
-	IVTV_DEBUG_HI_INFO("read %zd from %s, got %zd\n", count, s->name, rc);
+	IVTV_DEBUG_HI_FILE("read %zd from %s, got %zd\n", count, s->name, rc);
 	if (rc > 0)
 		pos += rc;
 	return rc;
@@ -499,9 +509,11 @@ ssize_t ivtv_v4l2_read(struct file * filp, char __user *buf, size_t count, loff_
 	struct ivtv_stream *s = &itv->streams[id->type];
 	int rc;
 
-	IVTV_DEBUG_HI_IOCTL("read %zd bytes from %s\n", count, s->name);
+	IVTV_DEBUG_HI_FILE("read %zd bytes from %s\n", count, s->name);
 
+	mutex_lock(&itv->serialize_lock);
 	rc = ivtv_start_capture(id);
+	mutex_unlock(&itv->serialize_lock);
 	if (rc)
 		return rc;
 	return ivtv_read_pos(s, buf, count, pos, filp->f_flags & O_NONBLOCK);
@@ -537,7 +549,7 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	int rc;
 	DEFINE_WAIT(wait);
 
-	IVTV_DEBUG_HI_IOCTL("write %zd bytes to %s\n", count, s->name);
+	IVTV_DEBUG_HI_FILE("write %zd bytes to %s\n", count, s->name);
 
 	if (s->type != IVTV_DEC_STREAM_TYPE_MPG &&
 	    s->type != IVTV_DEC_STREAM_TYPE_YUV &&
@@ -551,8 +563,11 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 
 	/* This stream does not need to start any decoding */
 	if (s->type == IVTV_DEC_STREAM_TYPE_VOUT) {
+		int elems = count / sizeof(struct v4l2_sliced_vbi_data);
+
 		set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
-		return ivtv_write_vbi(itv, user_buf, count);
+		ivtv_write_vbi(itv, (const struct v4l2_sliced_vbi_data *)user_buf, elems);
+		return elems * sizeof(struct v4l2_sliced_vbi_data);
 	}
 
 	mode = s->type == IVTV_DEC_STREAM_TYPE_MPG ? OUT_MPG : OUT_YUV;
@@ -612,7 +627,9 @@ retry:
 	}
 
 	/* Start decoder (returns 0 if already started) */
+	mutex_lock(&itv->serialize_lock);
 	rc = ivtv_start_decoding(id, itv->speed);
+	mutex_unlock(&itv->serialize_lock);
 	if (rc) {
 		IVTV_DEBUG_WARN("Failed start decode stream %s\n", s->name);
 
@@ -645,7 +662,7 @@ retry:
 	   to transfer the rest. */
 	if (count && !(filp->f_flags & O_NONBLOCK))
 		goto retry;
-	IVTV_DEBUG_HI_INFO("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
+	IVTV_DEBUG_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
 	return bytes_written;
 }
 
@@ -657,6 +674,7 @@ unsigned int ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 	int res = 0;
 
 	/* add stream's waitq to the poll list */
+	IVTV_DEBUG_HI_FILE("Decoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
 	set_bit(IVTV_F_I_EV_VSYNC_ENABLED, &itv->i_flags);
@@ -679,16 +697,21 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 
 	/* Start a capture if there is none */
 	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
-		int rc = ivtv_start_capture(id);
+		int rc;
 
+		mutex_lock(&itv->serialize_lock);
+		rc = ivtv_start_capture(id);
+		mutex_unlock(&itv->serialize_lock);
 		if (rc) {
 			IVTV_DEBUG_INFO("Could not start capture for %s (%d)\n",
 					s->name, rc);
 			return POLLERR;
 		}
+		IVTV_DEBUG_FILE("Encoder poll started capture\n");
 	}
 
 	/* add stream's waitq to the poll list */
+	IVTV_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
 	if (eof || s->q_full.length)
@@ -701,7 +724,7 @@ void ivtv_stop_capture(struct ivtv_open_id *id, int gop_end)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_IOCTL("close() of %s\n", s->name);
+	IVTV_DEBUG_FILE("close() of %s\n", s->name);
 
 	/* 'Unclaim' this stream */
 
@@ -728,10 +751,11 @@ void ivtv_stop_capture(struct ivtv_open_id *id, int gop_end)
 			ivtv_stop_v4l2_encode_stream(s, gop_end);
 		}
 	}
-	clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
-	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
-
-	ivtv_release_stream(s);
+	if (!gop_end) {
+		clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
+		clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
+		ivtv_release_stream(s);
+	}
 }
 
 static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
@@ -739,13 +763,14 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_IOCTL("close() of %s\n", s->name);
+	IVTV_DEBUG_FILE("close() of %s\n", s->name);
 
 	/* Stop decoding */
 	if (test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
 		IVTV_DEBUG_INFO("close stopping decode\n");
 
 		ivtv_stop_v4l2_decode_stream(s, flags, pts);
+		itv->output_mode = OUT_NONE;
 	}
 	clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
@@ -753,11 +778,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 		/* Restore registers we've changed & clean up any mess we've made */
 		ivtv_yuv_close(itv);
 	}
-	if (s->type == IVTV_DEC_STREAM_TYPE_YUV && itv->output_mode == OUT_YUV)
-		itv->output_mode = OUT_NONE;
-	else if (s->type == IVTV_DEC_STREAM_TYPE_YUV && itv->output_mode == OUT_UDMA_YUV)
-		itv->output_mode = OUT_NONE;
-	else if (s->type == IVTV_DEC_STREAM_TYPE_MPG && itv->output_mode == OUT_MPG)
+	if (itv->output_mode == OUT_UDMA_YUV && id->yuv_frames)
 		itv->output_mode = OUT_NONE;
 
 	itv->speed = 0;
@@ -771,7 +792,7 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_IOCTL("close() of %s\n", s->name);
+	IVTV_DEBUG_FILE("close %s\n", s->name);
 
 	v4l2_prio_close(&itv->prio, &id->prio);
 
@@ -784,6 +805,7 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 	/* 'Unclaim' this stream */
 
 	/* Stop radio */
+	mutex_lock(&itv->serialize_lock);
 	if (id->type == IVTV_ENC_STREAM_TYPE_RAD) {
 		/* Closing radio device, return to TV mode */
 		ivtv_mute(itv);
@@ -809,22 +831,101 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 		ivtv_stop_decoding(id, VIDEO_CMD_STOP_TO_BLACK | VIDEO_CMD_STOP_IMMEDIATELY, 0);
 
 		/* If all output streams are closed, and if the user doesn't have
-		   IVTV_DEC_STREAM_TYPE_VOUT open, then disable VBI on TV-out. */
+		   IVTV_DEC_STREAM_TYPE_VOUT open, then disable CC on TV-out. */
 		if (itv->output_mode == OUT_NONE && !test_bit(IVTV_F_S_APPL_IO, &s_vout->s_flags)) {
-			/* disable VBI on TV-out */
-			ivtv_disable_vbi(itv);
+			/* disable CC on TV-out */
+			ivtv_disable_cc(itv);
 		}
 	} else {
 		ivtv_stop_capture(id, 0);
 	}
 	kfree(id);
+	mutex_unlock(&itv->serialize_lock);
+	return 0;
+}
+
+static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
+{
+	struct ivtv *itv = s->itv;
+	struct ivtv_open_id *item;
+
+	IVTV_DEBUG_FILE("open %s\n", s->name);
+
+	if (s->type == IVTV_DEC_STREAM_TYPE_MPG &&
+		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_YUV].s_flags))
+		return -EBUSY;
+
+	if (s->type == IVTV_DEC_STREAM_TYPE_YUV &&
+		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_MPG].s_flags))
+		return -EBUSY;
+
+	if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
+		if (read_reg(0x82c) == 0) {
+			IVTV_ERR("Tried to open YUV output device but need to send data to mpeg decoder before it can be used\n");
+			/* return -ENODEV; */
+		}
+		ivtv_udma_alloc(itv);
+	}
+
+	/* Allocate memory */
+	item = kmalloc(sizeof(struct ivtv_open_id), GFP_KERNEL);
+	if (NULL == item) {
+		IVTV_DEBUG_WARN("nomem on v4l2 open\n");
+		return -ENOMEM;
+	}
+	item->itv = itv;
+	item->type = s->type;
+	v4l2_prio_open(&itv->prio, &item->prio);
+
+	item->open_id = itv->open_id++;
+	filp->private_data = item;
+
+	if (item->type == IVTV_ENC_STREAM_TYPE_RAD) {
+		/* Try to claim this stream */
+		if (ivtv_claim_stream(item, item->type)) {
+			/* No, it's already in use */
+			kfree(item);
+			return -EBUSY;
+		}
+
+		if (!test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
+			if (atomic_read(&itv->capturing) > 0) {
+				/* switching to radio while capture is
+				   in progress is not polite */
+				kfree(item);
+				return -EBUSY;
+			}
+		}
+		/* Mark that the radio is being used. */
+		set_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
+		/* We have the radio */
+		ivtv_mute(itv);
+		/* Switch tuner to radio */
+		ivtv_call_i2c_clients(itv, AUDC_SET_RADIO, NULL);
+		/* Select the correct audio input (i.e. radio tuner) */
+		ivtv_audio_set_io(itv);
+		if (itv->hw_flags & IVTV_HW_SAA711X)
+		{
+			struct v4l2_crystal_freq crystal_freq;
+			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
+			crystal_freq.flags = SAA7115_FREQ_FL_APLL;
+			ivtv_saa7115(itv, VIDIOC_INT_S_CRYSTAL_FREQ, &crystal_freq);
+		}
+		/* Done! Unmute and continue. */
+		ivtv_unmute(itv);
+	}
+
+	/* YUV or MPG Decoding Mode? */
+	if (s->type == IVTV_DEC_STREAM_TYPE_MPG)
+		clear_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
+	else if (s->type == IVTV_DEC_STREAM_TYPE_YUV)
+		set_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
 	return 0;
 }
 
 int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 {
-	int x, y = 0;
-	struct ivtv_open_id *item;
+	int res, x, y = 0;
 	struct ivtv *itv = NULL;
 	struct ivtv_stream *s = NULL;
 	int minor = iminor(inode);
@@ -846,106 +947,34 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	if (itv == NULL) {
 		/* Couldn't find a device registered
 		   on that minor, shouldn't happen! */
-		printk(KERN_WARNING "ivtv:  No ivtv device found on minor %d\n", minor);
+		IVTV_WARN("No ivtv device found on minor %d\n", minor);
 		return -ENXIO;
 	}
 
-	if (y == IVTV_DEC_STREAM_TYPE_MPG &&
-		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_YUV].s_flags))
-		return -EBUSY;
-
-	if (y == IVTV_DEC_STREAM_TYPE_YUV &&
-		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_MPG].s_flags))
-		return -EBUSY;
-
-	if (y == IVTV_DEC_STREAM_TYPE_YUV) {
-		if (read_reg(0x82c) == 0) {
-			IVTV_ERR("Tried to open YUV output device but need to send data to mpeg decoder before it can be used\n");
-			/* return -ENODEV; */
-		}
-		ivtv_udma_alloc(itv);
+	mutex_lock(&itv->serialize_lock);
+	if (ivtv_init_on_first_open(itv)) {
+		IVTV_ERR("Failed to initialize on minor %d\n", minor);
+		mutex_unlock(&itv->serialize_lock);
+		return -ENXIO;
 	}
-
-	/* Allocate memory */
-	item = kmalloc(sizeof(struct ivtv_open_id), GFP_KERNEL);
-	if (NULL == item) {
-		IVTV_DEBUG_WARN("nomem on v4l2 open\n");
-		return -ENOMEM;
-	}
-	item->itv = itv;
-	item->type = y;
-	v4l2_prio_open(&itv->prio, &item->prio);
-
-	item->open_id = itv->open_id++;
-	filp->private_data = item;
-
-	if (item->type == IVTV_ENC_STREAM_TYPE_RAD) {
-		/* Try to claim this stream */
-		if (ivtv_claim_stream(item, item->type)) {
-			/* No, it's already in use */
-			kfree(item);
-			return -EBUSY;
-		}
-
-		/* We have the radio */
-		ivtv_mute(itv);
-		/* Switch tuner to radio */
-		ivtv_call_i2c_clients(itv, AUDC_SET_RADIO, NULL);
-		/* Mark that the radio is being used. */
-		set_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
-		/* Select the correct audio input (i.e. radio tuner) */
-		ivtv_audio_set_io(itv);
-		if (itv->hw_flags & IVTV_HW_SAA711X)
-		{
-			struct v4l2_crystal_freq crystal_freq;
-			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
-			crystal_freq.flags = SAA7115_FREQ_FL_APLL;
-			ivtv_saa7115(itv, VIDIOC_INT_S_CRYSTAL_FREQ, &crystal_freq);
-		}
-		/* Done! Unmute and continue. */
-		ivtv_unmute(itv);
-	}
-
-	/* YUV or MPG Decoding Mode? */
-	if (y == IVTV_DEC_STREAM_TYPE_MPG)
-		clear_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
-	else if (y == IVTV_DEC_STREAM_TYPE_YUV)
-	{
-		set_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
-	}
-
-	return 0;
+	res = ivtv_serialized_open(s, filp);
+	mutex_unlock(&itv->serialize_lock);
+	return res;
 }
 
 void ivtv_mute(struct ivtv *itv)
 {
-	struct v4l2_control ctrl = { V4L2_CID_AUDIO_MUTE, 1 };
-
-	/* Mute sound to avoid pop */
-	ivtv_control_ioctls(itv, VIDIOC_S_CTRL, &ctrl);
-
 	if (atomic_read(&itv->capturing))
 		ivtv_vapi(itv, CX2341X_ENC_MUTE_AUDIO, 1, 1);
-
 	IVTV_DEBUG_INFO("Mute\n");
 }
 
 void ivtv_unmute(struct ivtv *itv)
 {
-	struct v4l2_control ctrl = { V4L2_CID_AUDIO_MUTE, 0 };
-
-	/* initialize or refresh input */
-	if (atomic_read(&itv->capturing) == 0)
-		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
-
-	ivtv_msleep_timeout(100, 0);
-
 	if (atomic_read(&itv->capturing)) {
+		ivtv_msleep_timeout(100, 0);
 		ivtv_vapi(itv, CX2341X_ENC_MISC, 1, 12);
 		ivtv_vapi(itv, CX2341X_ENC_MUTE_AUDIO, 1, 0);
 	}
-
-	/* Unmute */
-	ivtv_control_ioctls(itv, VIDIOC_S_CTRL, &ctrl);
 	IVTV_DEBUG_INFO("Unmute\n");
 }

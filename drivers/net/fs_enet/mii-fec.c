@@ -36,6 +36,10 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+#include <asm/of_platform.h>
+#endif
+
 #include "fs_enet.h"
 #include "fec.h"
 
@@ -47,6 +51,7 @@
 
 #define FEC_MII_LOOPS	10000
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 static int match_has_phy (struct device *dev, void* data)
 {
 	struct platform_device* pdev = container_of(dev, struct platform_device, dev);
@@ -65,7 +70,7 @@ static int match_has_phy (struct device *dev, void* data)
 static int fs_mii_fec_init(struct fec_info* fec, struct fs_mii_fec_platform_info *fmpi)
 {
 	struct resource *r;
-	fec_t *fecp;
+	fec_t __iomem *fecp;
 	char* name = "fsl-cpm-fec";
 
 	/* we need fec in order to be useful */
@@ -80,7 +85,7 @@ static int fs_mii_fec_init(struct fec_info* fec, struct fs_mii_fec_platform_info
 
 	r = platform_get_resource_byname(fec_pdev, IORESOURCE_MEM, "regs");
 
-	fec->fecp = fecp = (fec_t*)ioremap(r->start,sizeof(fec_t));
+	fec->fecp = fecp = ioremap(r->start,sizeof(fec_t));
 	fec->mii_speed = fmpi->mii_speed;
 
 	setbits32(&fecp->fec_r_cntrl, FEC_RCNTRL_MII_MODE);	/* MII enable */
@@ -90,11 +95,12 @@ static int fs_mii_fec_init(struct fec_info* fec, struct fs_mii_fec_platform_info
 
 	return 0;
 }
+#endif
 
 static int fs_enet_fec_mii_read(struct mii_bus *bus , int phy_id, int location)
 {
 	struct fec_info* fec = bus->priv;
-	fec_t *fecp = fec->fecp;
+	fec_t __iomem *fecp = fec->fecp;
 	int i, ret = -1;
 
 	if ((in_be32(&fecp->fec_r_cntrl) & FEC_RCNTRL_MII_MODE) == 0)
@@ -113,13 +119,12 @@ static int fs_enet_fec_mii_read(struct mii_bus *bus , int phy_id, int location)
 	}
 
 	return ret;
-
 }
 
 static int fs_enet_fec_mii_write(struct mii_bus *bus, int phy_id, int location, u16 val)
 {
 	struct fec_info* fec = bus->priv;
-	fec_t *fecp = fec->fecp;
+	fec_t __iomem *fecp = fec->fecp;
 	int i;
 
 	/* this must never happen */
@@ -146,6 +151,141 @@ static int fs_enet_fec_mii_reset(struct mii_bus *bus)
 	return 0;
 }
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+static void __devinit add_phy(struct mii_bus *bus, struct device_node *np)
+{
+	const u32 *data;
+	int len, id, irq;
+
+	data = of_get_property(np, "reg", &len);
+	if (!data || len != 4)
+		return;
+
+	id = *data;
+	bus->phy_mask &= ~(1 << id);
+
+	irq = of_irq_to_resource(np, 0, NULL);
+	if (irq != NO_IRQ)
+		bus->irq[id] = irq;
+}
+
+static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
+                                        const struct of_device_id *match)
+{
+	struct device_node *np = NULL;
+	struct resource res;
+	struct mii_bus *new_bus;
+	struct fec_info *fec;
+	int ret = -ENOMEM, i;
+
+	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
+	if (!new_bus)
+		goto out;
+
+	fec = kzalloc(sizeof(struct fec_info), GFP_KERNEL);
+	if (!fec)
+		goto out_mii;
+
+	new_bus->priv = fec;
+	new_bus->name = "FEC MII Bus";
+	new_bus->read = &fs_enet_fec_mii_read;
+	new_bus->write = &fs_enet_fec_mii_write;
+	new_bus->reset = &fs_enet_fec_mii_reset;
+
+	ret = of_address_to_resource(ofdev->node, 0, &res);
+	if (ret)
+		return ret;
+
+	new_bus->id = res.start;
+
+	fec->fecp = ioremap(res.start, res.end - res.start + 1);
+	if (!fec->fecp)
+		goto out_fec;
+
+	fec->mii_speed = ((ppc_proc_freq + 4999999) / 5000000) << 1;
+
+	setbits32(&fec->fecp->fec_r_cntrl, FEC_RCNTRL_MII_MODE);
+	setbits32(&fec->fecp->fec_ecntrl, FEC_ECNTRL_PINMUX |
+	                                  FEC_ECNTRL_ETHER_EN);
+	out_be32(&fec->fecp->fec_ievent, FEC_ENET_MII);
+	out_be32(&fec->fecp->fec_mii_speed, fec->mii_speed);
+
+	new_bus->phy_mask = ~0;
+	new_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	if (!new_bus->irq)
+		goto out_unmap_regs;
+
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		new_bus->irq[i] = -1;
+
+	while ((np = of_get_next_child(ofdev->node, np)))
+		if (!strcmp(np->type, "ethernet-phy"))
+			add_phy(new_bus, np);
+
+	new_bus->dev = &ofdev->dev;
+	dev_set_drvdata(&ofdev->dev, new_bus);
+
+	ret = mdiobus_register(new_bus);
+	if (ret)
+		goto out_free_irqs;
+
+	return 0;
+
+out_free_irqs:
+	dev_set_drvdata(&ofdev->dev, NULL);
+	kfree(new_bus->irq);
+out_unmap_regs:
+	iounmap(fec->fecp);
+out_fec:
+	kfree(fec);
+out_mii:
+	kfree(new_bus);
+out:
+	return ret;
+}
+
+static int fs_enet_mdio_remove(struct of_device *ofdev)
+{
+	struct mii_bus *bus = dev_get_drvdata(&ofdev->dev);
+	struct fec_info *fec = bus->priv;
+
+	mdiobus_unregister(bus);
+	dev_set_drvdata(&ofdev->dev, NULL);
+	kfree(bus->irq);
+	iounmap(fec->fecp);
+	kfree(fec);
+	kfree(bus);
+
+	return 0;
+}
+
+static struct of_device_id fs_enet_mdio_fec_match[] = {
+	{
+		.compatible = "fsl,pq1-fec-mdio",
+	},
+	{},
+};
+
+static struct of_platform_driver fs_enet_fec_mdio_driver = {
+	.name = "fsl-fec-mdio",
+	.match_table = fs_enet_mdio_fec_match,
+	.probe = fs_enet_mdio_probe,
+	.remove = fs_enet_mdio_remove,
+};
+
+static int fs_enet_mdio_fec_init(void)
+{
+	return of_register_platform_driver(&fs_enet_fec_mdio_driver);
+}
+
+static void fs_enet_mdio_fec_exit(void)
+{
+	of_unregister_platform_driver(&fs_enet_fec_mdio_driver);
+}
+
+module_init(fs_enet_mdio_fec_init);
+module_exit(fs_enet_mdio_fec_exit);
+#else
 static int __devinit fs_enet_fec_mdio_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -236,4 +376,4 @@ void fs_enet_mdio_fec_exit(void)
 {
 	driver_unregister(&fs_enet_fec_mdio_driver);
 }
-
+#endif

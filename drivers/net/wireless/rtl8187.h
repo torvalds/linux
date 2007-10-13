@@ -36,8 +36,7 @@ struct rtl8187_rx_info {
 };
 
 struct rtl8187_rx_hdr {
-	__le16 len;
-	__le16 rate;
+	__le32 flags;
 	u8 noise;
 	u8 signal;
 	u8 agc;
@@ -67,13 +66,14 @@ struct rtl8187_priv {
 	struct rtl818x_csr *map;
 	void (*rf_init)(struct ieee80211_hw *);
 	int mode;
+	int if_id;
 
 	/* rtl8187 specific */
 	struct ieee80211_channel channels[14];
 	struct ieee80211_rate rates[12];
 	struct ieee80211_hw_mode modes[2];
 	struct usb_device *udev;
-	u8 *hwaddr;
+	u32 rx_conf;
 	u16 txpwr_base;
 	u8 asic_rev;
 	struct sk_buff_head rx_queue;

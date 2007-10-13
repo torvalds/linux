@@ -119,7 +119,7 @@ aoedev_downdev(struct aoedev *d)
 		bio = buf->bio;
 		if (--buf->nframesout == 0) {
 			mempool_free(buf, d->bufpool);
-			bio_endio(bio, bio->bi_size, -EIO);
+			bio_endio(bio, -EIO);
 		}
 		skb_shinfo(f->skb)->nr_frags = f->skb->data_len = 0;
 	}
@@ -130,7 +130,7 @@ aoedev_downdev(struct aoedev *d)
 		list_del(d->bufq.next);
 		bio = buf->bio;
 		mempool_free(buf, d->bufpool);
-		bio_endio(bio, bio->bi_size, -EIO);
+		bio_endio(bio, -EIO);
 	}
 
 	if (d->gd)

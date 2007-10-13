@@ -30,29 +30,10 @@ extern const struct inode_operations ocfs2_dir_iops;
 
 struct dentry *ocfs2_get_parent(struct dentry *child);
 
-int ocfs2_check_dir_entry (struct inode *dir,
-			   struct ocfs2_dir_entry *de,
-			   struct buffer_head *bh,
-			   unsigned long offset);
-struct buffer_head *ocfs2_find_entry(const char *name,
-				     int namelen,
-				     struct inode *dir,
-				     struct ocfs2_dir_entry **res_dir);
 int ocfs2_orphan_del(struct ocfs2_super *osb,
 		     handle_t *handle,
 		     struct inode *orphan_dir_inode,
 		     struct inode *inode,
 		     struct buffer_head *orphan_dir_bh);
-
-static inline int ocfs2_match(int len,
-			      const char * const name,
-			      struct ocfs2_dir_entry *de)
-{
-	if (len != de->name_len)
-		return 0;
-	if (!de->inode)
-		return 0;
-	return !memcmp(name, de->name, len);
-}
 
 #endif /* OCFS2_NAMEI_H */

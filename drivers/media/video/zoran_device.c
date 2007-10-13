@@ -52,20 +52,13 @@
 #include "videocodec.h"
 #include "zoran.h"
 #include "zoran_device.h"
+#include "zoran_card.h"
 
 #define IRQ_MASK ( ZR36057_ISR_GIRQ0 | \
 		   ZR36057_ISR_GIRQ1 | \
 		   ZR36057_ISR_JPEGRepIRQ )
 
 extern const struct zoran_format zoran_formats[];
-
-extern int *zr_debug;
-
-#define dprintk(num, format, args...) \
-	do { \
-		if (*zr_debug >= num) \
-			printk(format, ##args); \
-	} while (0)
 
 static int lml33dpath = 0;	/* 1 will use digital path in capture
 				 * mode instead of analog. It can be
@@ -76,7 +69,7 @@ static int lml33dpath = 0;	/* 1 will use digital path in capture
 				 * load on Bt819 input, there will be
 				 * some image imperfections */
 
-module_param(lml33dpath, bool, 0);
+module_param(lml33dpath, bool, 0644);
 MODULE_PARM_DESC(lml33dpath,
 		 "Use digital path capture mode (on LML33 cards)");
 
@@ -174,7 +167,7 @@ post_office_read (struct zoran *zr,
 static void
 dump_guests (struct zoran *zr)
 {
-	if (*zr_debug > 2) {
+	if (zr36067_debug > 2) {
 		int i, guest[8];
 
 		for (i = 1; i < 8; i++) {	// Don't read jpeg codec here
@@ -1271,7 +1264,7 @@ error_handler (struct zoran *zr,
 		zr->num_errors++;
 
 		/* Report error */
-		if (*zr_debug > 1 && zr->num_errors <= 8) {
+		if (zr36067_debug > 1 && zr->num_errors <= 8) {
 			long frame;
 			frame =
 			    zr->jpg_pend[zr->jpg_dma_tail & BUZ_MASK_FRAME];
@@ -1531,7 +1524,7 @@ zoran_irq (int             irq,
 
 			if (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS ||
 			    zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
-				if (*zr_debug > 1 &&
+				if (zr36067_debug > 1 &&
 				    (!zr->frame_num || zr->JPEG_error)) {
 					printk(KERN_INFO
 					       "%s: first frame ready: state=0x%08x odd_even=%d field_per_buff=%d delay=%d\n",
@@ -1568,7 +1561,7 @@ zoran_irq (int             irq,
 						    zr->JPEG_missed;
 				}
 
-				if (*zr_debug > 2 && zr->frame_num < 6) {
+				if (zr36067_debug > 2 && zr->frame_num < 6) {
 					int i;
 					printk("%s: seq=%ld stat_com:",
 					       ZR_DEVNAME(zr), zr->jpg_seq_num);

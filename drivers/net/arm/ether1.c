@@ -996,6 +996,7 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct net_device *dev;
 	int i, ret = 0;
+	DECLARE_MAC_BUF(mac);
 
 	ether1_banner();
 
@@ -1009,7 +1010,6 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto release;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &ec->dev);
 
 	dev->irq = ec->irq;
@@ -1044,12 +1044,9 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto free;
 
-	printk(KERN_INFO "%s: ether1 in slot %d, ",
-		dev->name, ec->slot_no);
+	printk(KERN_INFO "%s: ether1 in slot %d, %s\n",
+		dev->name, ec->slot_no, print_mac(mac, dev->dev_addr));
     
-	for (i = 0; i < 6; i++)
-		printk ("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
-
 	ecard_set_drvdata(ec, dev);
 	return 0;
 

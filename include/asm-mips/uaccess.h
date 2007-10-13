@@ -63,7 +63,7 @@
 #define get_fs()	(current_thread_info()->addr_limit)
 #define set_fs(x)	(current_thread_info()->addr_limit = (x))
 
-#define segment_eq(a,b)	((a).seg == (b).seg)
+#define segment_eq(a, b)	((a).seg == (b).seg)
 
 
 /*
@@ -108,7 +108,7 @@
 	(((signed long)((mask) & ((addr) | ((addr) + (size)) | __ua_size(size)))) == 0)
 
 #define access_ok(type, addr, size)					\
-	likely(__access_ok((unsigned long)(addr), (size),__access_mask))
+	likely(__access_ok((unsigned long)(addr), (size), __access_mask))
 
 /*
  * put_user: - Write a simple value into user space.
@@ -127,7 +127,7 @@
  * Returns zero on success, or -EFAULT on error.
  */
 #define put_user(x,ptr)	\
-	__put_user_check((x),(ptr),sizeof(*(ptr)))
+	__put_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * get_user: - Get a simple variable from user space.
@@ -147,7 +147,7 @@
  * On error, the variable @x is set to zero.
  */
 #define get_user(x,ptr) \
-	__get_user_check((x),(ptr),sizeof(*(ptr)))
+	__get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * __put_user: - Write a simple value into user space, with less checking.
@@ -169,7 +169,7 @@
  * Returns zero on success, or -EFAULT on error.
  */
 #define __put_user(x,ptr) \
-	__put_user_nocheck((x),(ptr),sizeof(*(ptr)))
+	__put_user_nocheck((x), (ptr), sizeof(*(ptr)))
 
 /*
  * __get_user: - Get a simple variable from user space, with less checking.
@@ -192,7 +192,7 @@
  * On error, the variable @x is set to zero.
  */
 #define __get_user(x,ptr) \
-	__get_user_nocheck((x),(ptr),sizeof(*(ptr)))
+	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct __user *)(x))
@@ -221,7 +221,7 @@ do {									\
 	}								\
 } while (0)
 
-#define __get_user_nocheck(x,ptr,size)					\
+#define __get_user_nocheck(x, ptr, size)				\
 ({									\
 	long __gu_err;							\
 									\
@@ -229,7 +229,7 @@ do {									\
 	__gu_err;							\
 })
 
-#define __get_user_check(x,ptr,size)					\
+#define __get_user_check(x, ptr, size)					\
 ({									\
 	long __gu_err = -EFAULT;					\
 	const __typeof__(*(ptr)) __user * __gu_ptr = (ptr);		\
@@ -300,7 +300,7 @@ do {									\
 #define __PUT_USER_DW(ptr) __put_user_asm("sd", ptr)
 #endif
 
-#define __put_user_nocheck(x,ptr,size)					\
+#define __put_user_nocheck(x, ptr, size)				\
 ({									\
 	__typeof__(*(ptr)) __pu_val;					\
 	long __pu_err = 0;						\
@@ -316,7 +316,7 @@ do {									\
 	__pu_err;							\
 })
 
-#define __put_user_check(x,ptr,size)					\
+#define __put_user_check(x, ptr, size)					\
 ({									\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
 	__typeof__(*(ptr)) __pu_val = (x);				\
@@ -389,11 +389,11 @@ extern void __put_user_unknown(void);
 
 extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 
-#define __invoke_copy_to_user(to,from,n)				\
+#define __invoke_copy_to_user(to, from, n)				\
 ({									\
-	register void __user *__cu_to_r __asm__ ("$4");			\
-	register const void *__cu_from_r __asm__ ("$5");		\
-	register long __cu_len_r __asm__ ("$6");			\
+	register void __user *__cu_to_r __asm__("$4");			\
+	register const void *__cu_from_r __asm__("$5");			\
+	register long __cu_len_r __asm__("$6");				\
 									\
 	__cu_to_r = (to);						\
 	__cu_from_r = (from);						\
@@ -421,7 +421,7 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
  * Returns number of bytes that could not be copied.
  * On success, this will be zero.
  */
-#define __copy_to_user(to,from,n)					\
+#define __copy_to_user(to, from, n)					\
 ({									\
 	void __user *__cu_to;						\
 	const void *__cu_from;						\
@@ -437,7 +437,7 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 
 extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 
-#define __copy_to_user_inatomic(to,from,n)				\
+#define __copy_to_user_inatomic(to, from, n)				\
 ({									\
 	void __user *__cu_to;						\
 	const void *__cu_from;						\
@@ -450,7 +450,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_len;							\
 })
 
-#define __copy_from_user_inatomic(to,from,n)				\
+#define __copy_from_user_inatomic(to, from, n)				\
 ({									\
 	void *__cu_to;							\
 	const void __user *__cu_from;					\
@@ -477,7 +477,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
  * Returns number of bytes that could not be copied.
  * On success, this will be zero.
  */
-#define copy_to_user(to,from,n)						\
+#define copy_to_user(to, from, n)					\
 ({									\
 	void __user *__cu_to;						\
 	const void *__cu_from;						\
@@ -493,11 +493,11 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_len;							\
 })
 
-#define __invoke_copy_from_user(to,from,n)				\
+#define __invoke_copy_from_user(to, from, n)				\
 ({									\
-	register void *__cu_to_r __asm__ ("$4");			\
-	register const void __user *__cu_from_r __asm__ ("$5");		\
-	register long __cu_len_r __asm__ ("$6");			\
+	register void *__cu_to_r __asm__("$4");				\
+	register const void __user *__cu_from_r __asm__("$5");		\
+	register long __cu_len_r __asm__("$6");				\
 									\
 	__cu_to_r = (to);						\
 	__cu_from_r = (from);						\
@@ -516,11 +516,11 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_len_r;							\
 })
 
-#define __invoke_copy_from_user_inatomic(to,from,n)			\
+#define __invoke_copy_from_user_inatomic(to, from, n)			\
 ({									\
-	register void *__cu_to_r __asm__ ("$4");			\
-	register const void __user *__cu_from_r __asm__ ("$5");		\
-	register long __cu_len_r __asm__ ("$6");			\
+	register void *__cu_to_r __asm__("$4");				\
+	register const void __user *__cu_from_r __asm__("$5");		\
+	register long __cu_len_r __asm__("$6");				\
 									\
 	__cu_to_r = (to);						\
 	__cu_from_r = (from);						\
@@ -556,7 +556,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-#define __copy_from_user(to,from,n)					\
+#define __copy_from_user(to, from, n)					\
 ({									\
 	void *__cu_to;							\
 	const void __user *__cu_from;					\
@@ -587,7 +587,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-#define copy_from_user(to,from,n)					\
+#define copy_from_user(to, from, n)					\
 ({									\
 	void *__cu_to;							\
 	const void __user *__cu_from;					\
@@ -605,7 +605,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 
 #define __copy_in_user(to, from, n)	__copy_from_user(to, from, n)
 
-#define copy_in_user(to,from,n)						\
+#define copy_in_user(to, from, n)					\
 ({									\
 	void __user *__cu_to;						\
 	const void __user *__cu_from;					\

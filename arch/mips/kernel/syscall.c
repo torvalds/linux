@@ -245,7 +245,7 @@ asmlinkage int sys_olduname(struct oldold_utsname __user * name)
 
 	if (!name)
 		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE,name,sizeof(struct oldold_utsname)))
+	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
 		return -EFAULT;
 
 	error = __copy_to_user(&name->sysname, &utsname()->sysname,
@@ -314,8 +314,8 @@ asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
  *
  * This is really horribly ugly.
  */
-asmlinkage int sys_ipc (unsigned int call, int first, int second,
-			unsigned long third, void __user *ptr, long fifth)
+asmlinkage int sys_ipc(unsigned int call, int first, int second,
+		       unsigned long third, void __user *ptr, long fifth)
 {
 	int version, ret;
 
@@ -324,26 +324,26 @@ asmlinkage int sys_ipc (unsigned int call, int first, int second,
 
 	switch (call) {
 	case SEMOP:
-		return sys_semtimedop (first, (struct sembuf __user *)ptr,
-		                       second, NULL);
+		return sys_semtimedop(first, (struct sembuf __user *)ptr,
+		                      second, NULL);
 	case SEMTIMEDOP:
-		return sys_semtimedop (first, (struct sembuf __user *)ptr,
-				       second,
-				       (const struct timespec __user *)fifth);
+		return sys_semtimedop(first, (struct sembuf __user *)ptr,
+				      second,
+				      (const struct timespec __user *)fifth);
 	case SEMGET:
-		return sys_semget (first, second, third);
+		return sys_semget(first, second, third);
 	case SEMCTL: {
 		union semun fourth;
 		if (!ptr)
 			return -EINVAL;
 		if (get_user(fourth.__pad, (void __user *__user *) ptr))
 			return -EFAULT;
-		return sys_semctl (first, second, third, fourth);
+		return sys_semctl(first, second, third, fourth);
 	}
 
 	case MSGSND:
-		return sys_msgsnd (first, (struct msgbuf __user *) ptr,
-				   second, third);
+		return sys_msgsnd(first, (struct msgbuf __user *) ptr,
+				  second, third);
 	case MSGRCV:
 		switch (version) {
 		case 0: {
@@ -353,45 +353,45 @@ asmlinkage int sys_ipc (unsigned int call, int first, int second,
 
 			if (copy_from_user(&tmp,
 					   (struct ipc_kludge __user *) ptr,
-					   sizeof (tmp)))
+					   sizeof(tmp)))
 				return -EFAULT;
-			return sys_msgrcv (first, tmp.msgp, second,
-					   tmp.msgtyp, third);
+			return sys_msgrcv(first, tmp.msgp, second,
+					  tmp.msgtyp, third);
 		}
 		default:
-			return sys_msgrcv (first,
-					   (struct msgbuf __user *) ptr,
-					   second, fifth, third);
+			return sys_msgrcv(first,
+					  (struct msgbuf __user *) ptr,
+					  second, fifth, third);
 		}
 	case MSGGET:
-		return sys_msgget ((key_t) first, second);
+		return sys_msgget((key_t) first, second);
 	case MSGCTL:
-		return sys_msgctl (first, second,
-				   (struct msqid_ds __user *) ptr);
+		return sys_msgctl(first, second,
+				  (struct msqid_ds __user *) ptr);
 
 	case SHMAT:
 		switch (version) {
 		default: {
 			unsigned long raddr;
-			ret = do_shmat (first, (char __user *) ptr, second,
-					&raddr);
+			ret = do_shmat(first, (char __user *) ptr, second,
+				       &raddr);
 			if (ret)
 				return ret;
-			return put_user (raddr, (unsigned long __user *) third);
+			return put_user(raddr, (unsigned long __user *) third);
 		}
 		case 1:	/* iBCS2 emulator entry point */
 			if (!segment_eq(get_fs(), get_ds()))
 				return -EINVAL;
-			return do_shmat (first, (char __user *) ptr, second,
-					 (unsigned long *) third);
+			return do_shmat(first, (char __user *) ptr, second,
+				        (unsigned long *) third);
 		}
 	case SHMDT:
-		return sys_shmdt ((char __user *)ptr);
+		return sys_shmdt((char __user *)ptr);
 	case SHMGET:
-		return sys_shmget (first, second, third);
+		return sys_shmget(first, second, third);
 	case SHMCTL:
-		return sys_shmctl (first, second,
-				   (struct shmid_ds __user *) ptr);
+		return sys_shmctl(first, second,
+				  (struct shmid_ds __user *) ptr);
 	default:
 		return -ENOSYS;
 	}

@@ -925,7 +925,6 @@ static int dscc4_found1(struct pci_dev *pdev, void __iomem *ioaddr)
 	        d->do_ioctl = dscc4_ioctl;
 		d->tx_timeout = dscc4_tx_timeout;
 		d->watchdog_timeo = TX_TIMEOUT;
-		SET_MODULE_OWNER(d);
 		SET_NETDEV_DEV(d, &pdev->dev);
 
 		dpriv->dev_id = i;

@@ -65,7 +65,6 @@ struct mace_data {
 	unsigned char *rx_ring;
 	dma_addr_t rx_ring_phys;
 	int dma_intr;
-	struct net_device_stats stats;
 	int rx_slot, rx_tail;
 	int tx_slot, tx_sloti, tx_count;
 	int chipid;
@@ -92,7 +91,6 @@ struct mace_frame {
 static int mace_open(struct net_device *dev);
 static int mace_close(struct net_device *dev);
 static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *mace_stats(struct net_device *dev);
 static void mace_set_multicast(struct net_device *dev);
 static int mace_set_address(struct net_device *dev, void *addr);
 static void mace_reset(struct net_device *dev);
@@ -196,6 +194,7 @@ static int __devinit mace_probe(struct platform_device *pdev)
 	unsigned char checksum = 0;
 	static int found = 0;
 	int err;
+	DECLARE_MAC_BUF(mac);
 
 	if (found || macintosh_config->ether_type != MAC_ETHER_MACE)
 		return -ENODEV;
@@ -210,7 +209,6 @@ static int __devinit mace_probe(struct platform_device *pdev)
 
 	mp->device = &pdev->dev;
 	SET_NETDEV_DEV(dev, &pdev->dev);
- 	SET_MODULE_OWNER(dev);
 
 	dev->base_addr = (u32)MACE_BASE;
 	mp->mace = (volatile struct mace *) MACE_BASE;
@@ -243,20 +241,16 @@ static int __devinit mace_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	memset(&mp->stats, 0, sizeof(mp->stats));
-
 	dev->open		= mace_open;
 	dev->stop		= mace_close;
 	dev->hard_start_xmit	= mace_xmit_start;
 	dev->tx_timeout		= mace_tx_timeout;
 	dev->watchdog_timeo	= TX_TIMEOUT;
-	dev->get_stats		= mace_stats;
 	dev->set_multicast_list	= mace_set_multicast;
 	dev->set_mac_address	= mace_set_address;
 
-	printk(KERN_INFO "%s: 68K MACE, hardware address %.2X", dev->name, dev->dev_addr[0]);
-	for (j = 1 ; j < 6 ; j++) printk(":%.2X", dev->dev_addr[j]);
-	printk("\n");
+	printk(KERN_INFO "%s: 68K MACE, hardware address %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	err = register_netdev(dev);
 	if (!err)
@@ -473,8 +467,8 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 	mp->tx_count--;
 	local_irq_restore(flags);
 
-	mp->stats.tx_packets++;
-	mp->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	/* We need to copy into our xmit buffer to take care of alignment and caching issues */
 	skb_copy_from_linear_data(skb, mp->tx_ring, skb->len);
@@ -491,12 +485,6 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
-}
-
-static struct net_device_stats *mace_stats(struct net_device *dev)
-{
-	struct mace_data *mp = netdev_priv(dev);
-	return &mp->stats;
 }
 
 static void mace_set_multicast(struct net_device *dev)
@@ -556,13 +544,13 @@ static void mace_handle_misc_intrs(struct mace_data *mp, int intr)
 	static int mace_babbles, mace_jabbers;
 
 	if (intr & MPCO)
-		mp->stats.rx_missed_errors += 256;
-	mp->stats.rx_missed_errors += mb->mpc;   /* reading clears it */
+		dev->stats.rx_missed_errors += 256;
+	dev->stats.rx_missed_errors += mb->mpc;   /* reading clears it */
 	if (intr & RNTPCO)
-		mp->stats.rx_length_errors += 256;
-	mp->stats.rx_length_errors += mb->rntpc; /* reading clears it */
+		dev->stats.rx_length_errors += 256;
+	dev->stats.rx_length_errors += mb->rntpc; /* reading clears it */
 	if (intr & CERR)
-		++mp->stats.tx_heartbeat_errors;
+		++dev->stats.tx_heartbeat_errors;
 	if (intr & BABBLE)
 		if (mace_babbles++ < 4)
 			printk(KERN_DEBUG "macmace: babbling transmitter\n");
@@ -601,14 +589,14 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 		}
 		/* Update stats */
 		if (fs & (UFLO|LCOL|LCAR|RTRY)) {
-			++mp->stats.tx_errors;
+			++dev->stats.tx_errors;
 			if (fs & LCAR)
-				++mp->stats.tx_carrier_errors;
+				++dev->stats.tx_carrier_errors;
 			else if (fs & (UFLO|LCOL|RTRY)) {
-				++mp->stats.tx_aborted_errors;
+				++dev->stats.tx_aborted_errors;
 				if (mb->xmtfs & UFLO) {
 					printk(KERN_ERR "%s: DMA underrun.\n", dev->name);
-					mp->stats.tx_fifo_errors++;
+					dev->stats.tx_fifo_errors++;
 					mace_txdma_reset(dev);
 				}
 			}
@@ -662,23 +650,23 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 	unsigned int frame_status = mf->rcvsts;
 
 	if (frame_status & (RS_OFLO | RS_CLSN | RS_FRAMERR | RS_FCSERR)) {
-		mp->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		if (frame_status & RS_OFLO) {
 			printk(KERN_DEBUG "%s: fifo overflow.\n", dev->name);
-			mp->stats.rx_fifo_errors++;
+			dev->stats.rx_fifo_errors++;
 		}
 		if (frame_status & RS_CLSN)
-			mp->stats.collisions++;
+			dev->stats.collisions++;
 		if (frame_status & RS_FRAMERR)
-			mp->stats.rx_frame_errors++;
+			dev->stats.rx_frame_errors++;
 		if (frame_status & RS_FCSERR)
-			mp->stats.rx_crc_errors++;
+			dev->stats.rx_crc_errors++;
 	} else {
 		unsigned int frame_length = mf->rcvcnt + ((frame_status & 0x0F) << 8 );
 
 		skb = dev_alloc_skb(frame_length + 2);
 		if (!skb) {
-			mp->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			return;
 		}
 		skb_reserve(skb, 2);
@@ -687,8 +675,8 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 		dev->last_rx = jiffies;
-		mp->stats.rx_packets++;
-		mp->stats.rx_bytes += frame_length;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += frame_length;
 	}
 }
 

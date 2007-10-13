@@ -625,13 +625,13 @@ static void edd_release(struct kobject * kobj)
 	kfree(dev);
 }
 
-static struct kobj_type ktype_edd = {
+static struct kobj_type edd_ktype = {
 	.release	= edd_release,
 	.sysfs_ops	= &edd_attr_ops,
 	.default_attrs	= def_attrs,
 };
 
-static decl_subsys(edd,&ktype_edd,NULL);
+static decl_subsys(edd, &edd_ktype, NULL);
 
 
 /**

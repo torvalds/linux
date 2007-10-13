@@ -122,30 +122,6 @@ void ivtv_reset_ir_gpio(struct ivtv *itv)
 	write_reg(curdir, IVTV_REG_GPIO_DIR);
 }
 
-#ifdef HAVE_XC3028
-int ivtv_reset_tuner_gpio(enum v4l2_tuner_type mode, void *priv, int ptr)
-{
-	int curdir, curout;
-	struct ivtv *itv = (struct ivtv *) priv;
-
-	if (itv->card->type != IVTV_CARD_PG600V2 || itv->options.tuner != TUNER_XCEIVE_XC3028)
-		return -EINVAL;
-	IVTV_INFO("Resetting tuner\n");
-	curout = read_reg(IVTV_REG_GPIO_OUT);
-	curdir = read_reg(IVTV_REG_GPIO_DIR);
-	curdir |= (1 << 12);  /* GPIO bit 12 */
-
-	curout &= ~(1 << 12);
-	write_reg(curout, IVTV_REG_GPIO_OUT);
-	schedule_timeout_interruptible(msecs_to_jiffies(1));
-
-	curout |= (1 << 12);
-	write_reg(curout, IVTV_REG_GPIO_OUT);
-	schedule_timeout_interruptible(msecs_to_jiffies(1));
-
-	return 0;
-}
-#endif
 
 void ivtv_gpio_init(struct ivtv *itv)
 {

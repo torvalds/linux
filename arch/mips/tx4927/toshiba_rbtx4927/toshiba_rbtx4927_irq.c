@@ -176,7 +176,7 @@ static const u32 toshiba_rbtx4927_irq_debug_flag =
            printk( "%s(%s:%u)::%s", __FUNCTION__, __FILE__, __LINE__, tmp ); \
         }
 #else
-#define TOSHIBA_RBTX4927_IRQ_DPRINTK(flag,str...)
+#define TOSHIBA_RBTX4927_IRQ_DPRINTK(flag, str...)
 #endif
 
 
@@ -204,8 +204,8 @@ static struct irq_chip toshiba_rbtx4927_irq_ioc_type = {
 	.mask_ack = toshiba_rbtx4927_irq_ioc_disable,
 	.unmask = toshiba_rbtx4927_irq_ioc_enable,
 };
-#define TOSHIBA_RBTX4927_IOC_INTR_ENAB 0xbc002000
-#define TOSHIBA_RBTX4927_IOC_INTR_STAT 0xbc002006
+#define TOSHIBA_RBTX4927_IOC_INTR_ENAB (void __iomem *)0xbc002000UL
+#define TOSHIBA_RBTX4927_IOC_INTR_STAT (void __iomem *)0xbc002006UL
 
 
 u32 bit2num(u32 num)
@@ -224,7 +224,7 @@ int toshiba_rbtx4927_irq_nested(int sw_irq)
 {
 	u32 level3;
 
-	level3 = reg_rd08(TOSHIBA_RBTX4927_IOC_INTR_STAT) & 0x1f;
+	level3 = readb(TOSHIBA_RBTX4927_IOC_INTR_STAT) & 0x1f;
 	if (level3) {
 		sw_irq = TOSHIBA_RBTX4927_IRQ_IOC_BEG + bit2num(level3);
 		if (sw_irq != TOSHIBA_RBTX4927_IRQ_NEST_ISA_ON_IOC) {
@@ -243,10 +243,12 @@ int toshiba_rbtx4927_irq_nested(int sw_irq)
 	return (sw_irq);
 }
 
-//#define TOSHIBA_RBTX4927_PIC_ACTION(s) { no_action, 0, CPU_MASK_NONE, s, NULL, NULL }
-#define TOSHIBA_RBTX4927_PIC_ACTION(s) { no_action, IRQF_SHARED, CPU_MASK_NONE, s, NULL, NULL }
-static struct irqaction toshiba_rbtx4927_irq_ioc_action =
-TOSHIBA_RBTX4927_PIC_ACTION(TOSHIBA_RBTX4927_IOC_NAME);
+static struct irqaction toshiba_rbtx4927_irq_ioc_action = {
+	.handler	= no_action,
+	.flags		= IRQF_SHARED,
+	.mask		= CPU_MASK_NONE,
+	.name		= TOSHIBA_RBTX4927_IOC_NAME
+};
 
 
 /**********************************************************************************/
@@ -286,9 +288,9 @@ static void toshiba_rbtx4927_irq_ioc_enable(unsigned int irq)
 		panic("\n");
 	}
 
-	v = TX4927_RD08(TOSHIBA_RBTX4927_IOC_INTR_ENAB);
+	v = readb(TOSHIBA_RBTX4927_IOC_INTR_ENAB);
 	v |= (1 << (irq - TOSHIBA_RBTX4927_IRQ_IOC_BEG));
-	TOSHIBA_RBTX4927_WR08(TOSHIBA_RBTX4927_IOC_INTR_ENAB, v);
+	writeb(v, TOSHIBA_RBTX4927_IOC_INTR_ENAB);
 }
 
 
@@ -306,9 +308,10 @@ static void toshiba_rbtx4927_irq_ioc_disable(unsigned int irq)
 		panic("\n");
 	}
 
-	v = TX4927_RD08(TOSHIBA_RBTX4927_IOC_INTR_ENAB);
+	v = readb(TOSHIBA_RBTX4927_IOC_INTR_ENAB);
 	v &= ~(1 << (irq - TOSHIBA_RBTX4927_IRQ_IOC_BEG));
-	TOSHIBA_RBTX4927_WR08(TOSHIBA_RBTX4927_IOC_INTR_ENAB, v);
+	writeb(v, TOSHIBA_RBTX4927_IOC_INTR_ENAB);
+	mmiowb();
 }
 
 
@@ -385,12 +388,12 @@ void toshiba_rbtx4927_irq_dump_pics(char *s)
 	level1_m = level0_m;
 	level1_s = level0_s & 0x87;
 
-	level2 = TX4927_RD(0xff1ff6a0);
+	level2 = __raw_readl((void __iomem *)0xff1ff6a0UL);
 	level2_p = (((level2 & 0x10000)) ? 0 : 1);
 	level2_s = (((level2 & 0x1f) == 0x1f) ? 0 : (level2 & 0x1f));
 
-	level3_m = reg_rd08(TOSHIBA_RBTX4927_IOC_INTR_ENAB) & 0x1f;
-	level3_s = reg_rd08(TOSHIBA_RBTX4927_IOC_INTR_STAT) & 0x1f;
+	level3_m = readb(TOSHIBA_RBTX4927_IOC_INTR_ENAB) & 0x1f;
+	level3_s = readb(TOSHIBA_RBTX4927_IOC_INTR_STAT) & 0x1f;
 
 	level4_m = inb(0x21);
 	outb(0x0A, 0x20);

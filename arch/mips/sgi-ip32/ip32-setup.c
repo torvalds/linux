@@ -62,10 +62,15 @@ static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 }
 #endif
 
+unsigned long read_persistent_clock(void)
+{
+	return mc146818_get_cmos_time();
+}
+
 /* An arbitrary time; this can be decreased if reliability looks good */
 #define WAIT_MS 10
 
-void __init ip32_time_init(void)
+void __init plat_time_init(void)
 {
 	printk(KERN_INFO "Calibrating system timer... ");
 	write_c0_count(0);
@@ -84,11 +89,6 @@ void __init plat_timer_setup(struct irqaction *irq)
 void __init plat_mem_setup(void)
 {
 	board_be_init = ip32_be_init;
-
-	rtc_mips_get_time = mc146818_get_cmos_time;
-	rtc_mips_set_mmss = mc146818_set_rtc_mmss;
-
-	board_time_init = ip32_time_init;
 
 #ifdef CONFIG_SGI_O2MACE_ETH
 	{

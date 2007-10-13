@@ -87,7 +87,7 @@
 #define BCM1480_MC_REGISTER_SPACING         0x1000
 
 #define A_BCM1480_MC_BASE(ctlid)            (A_BCM1480_MC_BASE_0+(ctlid)*BCM1480_MC_REGISTER_SPACING)
-#define A_BCM1480_MC_REGISTER(ctlid,reg)    (A_BCM1480_MC_BASE(ctlid)+(reg))
+#define A_BCM1480_MC_REGISTER(ctlid, reg)    (A_BCM1480_MC_BASE(ctlid)+(reg))
 
 #define R_BCM1480_MC_CONFIG                 0x0000000100
 #define R_BCM1480_MC_CS_START               0x0000000120
@@ -327,7 +327,7 @@
 #define BCM1480_SCD_NUM_WDOGS               4
 
 #define A_BCM1480_SCD_WDOG_BASE(w)       (A_BCM1480_SCD_WDOG_0+((w)&2)*0x1000 + ((w)&1)*0x100)
-#define A_BCM1480_SCD_WDOG_REGISTER(w,r) (A_BCM1480_SCD_WDOG_BASE(w) + (r))
+#define A_BCM1480_SCD_WDOG_REGISTER(w, r) (A_BCM1480_SCD_WDOG_BASE(w) + (r))
 
 #define A_BCM1480_SCD_WDOG_INIT_2       0x0010022050
 #define A_BCM1480_SCD_WDOG_CNT_2        0x0010022058
@@ -372,7 +372,7 @@
 #define BCM1480_IMR_REGISTER_SPACING_SHIFT  13
 
 #define A_BCM1480_IMR_MAPPER(cpu)       (A_BCM1480_IMR_CPU0_BASE+(cpu)*BCM1480_IMR_REGISTER_SPACING)
-#define A_BCM1480_IMR_REGISTER(cpu,reg) (A_BCM1480_IMR_MAPPER(cpu)+(reg))
+#define A_BCM1480_IMR_REGISTER(cpu, reg) (A_BCM1480_IMR_MAPPER(cpu)+(reg))
 
 /* Most IMR registers are 128 bits, implemented as non-contiguous
    64-bit registers high (_H) and low (_L) */
@@ -413,7 +413,7 @@
 
 #define A_BCM1480_IMR_ALIAS_MAILBOX(cpu)     (A_BCM1480_IMR_ALIAS_MAILBOX_CPU0_BASE + \
                                         (cpu)*BCM1480_IMR_ALIAS_MAILBOX_SPACING)
-#define A_BCM1480_IMR_ALIAS_MAILBOX_REGISTER(cpu,reg) (A_BCM1480_IMR_ALIAS_MAILBOX(cpu)+(reg))
+#define A_BCM1480_IMR_ALIAS_MAILBOX_REGISTER(cpu, reg) (A_BCM1480_IMR_ALIAS_MAILBOX(cpu)+(reg))
 
 #define R_BCM1480_IMR_ALIAS_MAILBOX_0           0x0000		/* 0x0x0 */
 #define R_BCM1480_IMR_ALIAS_MAILBOX_0_SET       0x0008		/* 0x0x8 */
@@ -427,7 +427,7 @@
 #define R_BCM1480_IMR_MAILBOX_SET         0x08
 #define R_BCM1480_IMR_MAILBOX_CLR         0x10
 #define R_BCM1480_IMR_MAILBOX_NUM_SPACING 0x20
-#define A_BCM1480_MAILBOX_REGISTER(num,reg,cpu) \
+#define A_BCM1480_MAILBOX_REGISTER(num, reg, cpu) \
     (A_BCM1480_IMR_CPU0_BASE + \
      (num * R_BCM1480_IMR_MAILBOX_NUM_SPACING) + \
      (cpu * BCM1480_IMR_REGISTER_SPACING) + \
@@ -550,7 +550,7 @@
 #define BCM1480_HR_REGISTER_SPACING         0x80000
 
 #define A_BCM1480_HR_BASE(idx)              (A_BCM1480_HR_BASE_0 + ((idx)*BCM1480_HR_REGISTER_SPACING))
-#define A_BCM1480_HR_REGISTER(idx,reg)      (A_BCM1480_HR_BASE(idx) + (reg))
+#define A_BCM1480_HR_REGISTER(idx, reg)      (A_BCM1480_HR_BASE(idx) + (reg))
 
 #define R_BCM1480_HR_CFG                    0x0000000000
 
@@ -599,9 +599,9 @@
 #define BCM1480_PM_NUM_CHANNELS             32
 
 #define A_BCM1480_PMI_LCL_BASE(idx)             (A_BCM1480_PMI_LCL_0 + ((idx)*BCM1480_PM_LCL_REGISTER_SPACING))
-#define A_BCM1480_PMI_LCL_REGISTER(idx,reg)     (A_BCM1480_PMI_LCL_BASE(idx) + (reg))
+#define A_BCM1480_PMI_LCL_REGISTER(idx, reg)     (A_BCM1480_PMI_LCL_BASE(idx) + (reg))
 #define A_BCM1480_PMO_LCL_BASE(idx)             (A_BCM1480_PMO_LCL_0 + ((idx)*BCM1480_PM_LCL_REGISTER_SPACING))
-#define A_BCM1480_PMO_LCL_REGISTER(idx,reg)     (A_BCM1480_PMO_LCL_BASE(idx) + (reg))
+#define A_BCM1480_PMO_LCL_REGISTER(idx, reg)     (A_BCM1480_PMO_LCL_BASE(idx) + (reg))
 
 #define BCM1480_PM_INT_PACKING              8
 #define BCM1480_PM_INT_FUNCTION_SPACING     0x40
@@ -721,7 +721,7 @@
 #define BCM1480_HSP_REGISTER_SPACING        0x80000
 
 #define A_BCM1480_HSP_BASE(idx)             (A_BCM1480_HSP_BASE_0 + ((idx)*BCM1480_HSP_REGISTER_SPACING))
-#define A_BCM1480_HSP_REGISTER(idx,reg)     (A_BCM1480_HSP_BASE(idx) + (reg))
+#define A_BCM1480_HSP_REGISTER(idx, reg)     (A_BCM1480_HSP_BASE(idx) + (reg))
 
 #define R_BCM1480_HSP_RX_SPI4_CFG_0           0x0000000000
 #define R_BCM1480_HSP_RX_SPI4_CFG_1           0x0000000008

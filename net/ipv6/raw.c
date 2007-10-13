@@ -35,6 +35,7 @@
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -282,7 +283,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			if (!sk->sk_bound_dev_if)
 				goto out;
 
-			dev = dev_get_by_index(sk->sk_bound_dev_if);
+			dev = dev_get_by_index(&init_net, sk->sk_bound_dev_if);
 			if (!dev) {
 				err = -ENODEV;
 				goto out;
@@ -1288,21 +1289,8 @@ static const struct seq_operations raw6_seq_ops = {
 
 static int raw6_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct raw6_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-	if (!s)
-		goto out;
-	rc = seq_open(file, &raw6_seq_ops);
-	if (rc)
-		goto out_kfree;
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &raw6_seq_ops,
+			sizeof(struct raw6_iter_state));
 }
 
 static const struct file_operations raw6_seq_fops = {
@@ -1315,13 +1303,13 @@ static const struct file_operations raw6_seq_fops = {
 
 int __init raw6_proc_init(void)
 {
-	if (!proc_net_fops_create("raw6", S_IRUGO, &raw6_seq_fops))
+	if (!proc_net_fops_create(&init_net, "raw6", S_IRUGO, &raw6_seq_fops))
 		return -ENOMEM;
 	return 0;
 }
 
 void raw6_proc_exit(void)
 {
-	proc_net_remove("raw6");
+	proc_net_remove(&init_net, "raw6");
 }
 #endif	/* CONFIG_PROC_FS */

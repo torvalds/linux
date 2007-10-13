@@ -146,7 +146,8 @@ int m41t81_set_time(unsigned long t)
 	struct rtc_time tm;
 	unsigned long flags;
 
-	to_tm(t, &tm);
+	/* Note we don't care about the century */
+	rtc_time_to_tm(t, &tm);
 
 	/*
 	 * Note the write order matters as it ensures the correctness.

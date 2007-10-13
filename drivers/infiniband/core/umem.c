@@ -37,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
+#include <linux/hugetlb.h>
 
 #include "uverbs.h"
 
@@ -75,6 +76,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 {
 	struct ib_umem *umem;
 	struct page **page_list;
+	struct vm_area_struct **vma_list;
 	struct ib_umem_chunk *chunk;
 	unsigned long locked;
 	unsigned long lock_limit;
@@ -104,6 +106,9 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	 */
 	umem->writable  = !!(access & ~IB_ACCESS_REMOTE_READ);
 
+	/* We assume the memory is from hugetlb until proved otherwise */
+	umem->hugetlb   = 1;
+
 	INIT_LIST_HEAD(&umem->chunk_list);
 
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
@@ -111,6 +116,14 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 		kfree(umem);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	/*
+	 * if we can't alloc the vma_list, it's not so bad;
+	 * just assume the memory is not hugetlb memory
+	 */
+	vma_list = (struct vm_area_struct **) __get_free_page(GFP_KERNEL);
+	if (!vma_list)
+		umem->hugetlb = 0;
 
 	npages = PAGE_ALIGN(size + umem->offset) >> PAGE_SHIFT;
 
@@ -131,7 +144,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 		ret = get_user_pages(current, current->mm, cur_base,
 				     min_t(int, npages,
 					   PAGE_SIZE / sizeof (struct page *)),
-				     1, !umem->writable, page_list, NULL);
+				     1, !umem->writable, page_list, vma_list);
 
 		if (ret < 0)
 			goto out;
@@ -152,6 +165,9 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 			chunk->nents = min_t(int, ret, IB_UMEM_MAX_PAGE_CHUNK);
 			for (i = 0; i < chunk->nents; ++i) {
+				if (vma_list &&
+				    !is_vm_hugetlb_page(vma_list[i + off]))
+					umem->hugetlb = 0;
 				chunk->page_list[i].page   = page_list[i + off];
 				chunk->page_list[i].offset = 0;
 				chunk->page_list[i].length = PAGE_SIZE;
@@ -186,6 +202,8 @@ out:
 		current->mm->locked_vm = locked;
 
 	up_write(&current->mm->mmap_sem);
+	if (vma_list)
+		free_page((unsigned long) vma_list);
 	free_page((unsigned long) page_list);
 
 	return ret < 0 ? ERR_PTR(ret) : umem;

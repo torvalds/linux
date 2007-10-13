@@ -709,6 +709,7 @@ static int secref_whitelist(const char *modname, const char *tosec,
 
 	/* Check for pattern 0 */
 	if ((strncmp(fromsec, ".text.init.refok", strlen(".text.init.refok")) == 0) ||
+	    (strncmp(fromsec, ".exit.text.refok", strlen(".exit.text.refok")) == 0) ||
 	    (strncmp(fromsec, ".data.init.refok", strlen(".data.init.refok")) == 0))
 		return 1;
 

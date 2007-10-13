@@ -201,8 +201,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		return do_rw_taskfile(drive, args);
 
 	case idedisk_pm_restore_pio:	/* Resume step 1 (restore PIO) */
-		if (drive->hwif->tuneproc != NULL)
-			drive->hwif->tuneproc(drive, 255);
+		ide_set_max_pio(drive);
 		/*
 		 * skip idedisk_pm_idle for ATAPI devices
 		 */
@@ -788,6 +787,30 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 	return ide_started;
 }
 
+/*
+ * handle HDIO_SET_PIO_MODE ioctl abusers here, eventually it will go away
+ */
+static int set_pio_mode_abuse(ide_hwif_t *hwif, u8 req_pio)
+{
+	switch (req_pio) {
+	case 202:
+	case 201:
+	case 200:
+	case 102:
+	case 101:
+	case 100:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_DMA_MODES) ? 1 : 0;
+	case 9:
+	case 8:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_PREFETCH) ? 1 : 0;
+	case 7:
+	case 6:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_FAST_DEVSEL) ? 1 : 0;
+	default:
+		return 0;
+	}
+}
+
 /**
  *	do_special		-	issue some special commands
  *	@drive: drive the command is for
@@ -805,9 +828,17 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 	printk("%s: do_special: 0x%02x\n", drive->name, s->all);
 #endif
 	if (s->b.set_tune) {
+		ide_hwif_t *hwif = drive->hwif;
+		u8 req_pio = drive->tune_req;
+
 		s->b.set_tune = 0;
-		if (HWIF(drive)->tuneproc != NULL)
-			HWIF(drive)->tuneproc(drive, drive->tune_req);
+
+		if (set_pio_mode_abuse(drive->hwif, req_pio)) {
+			if (hwif->set_pio_mode)
+				hwif->set_pio_mode(drive, req_pio);
+		} else
+			ide_set_pio(drive, req_pio);
+
 		return ide_stopped;
 	} else {
 		if (drive->media == ide_disk)

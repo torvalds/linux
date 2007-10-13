@@ -35,7 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -1090,14 +1090,11 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
  */
 static int fsl_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 {
-#ifdef CONFIG_USB_OTG
 	struct fsl_udc *udc;
 
 	udc = container_of(gadget, struct fsl_udc, gadget);
-
 	if (udc->transceiver)
 		return otg_set_power(udc->transceiver, mA);
-#endif
 	return -ENOTSUPP;
 }
 
@@ -1120,7 +1117,7 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-/* defined in usb_gadget.h */
+/* defined in gadget.h */
 static struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
 	.wakeup = fsl_wakeup,
@@ -1321,7 +1318,7 @@ static void setup_received_irq(struct fsl_udc *udc,
 				| USB_TYPE_STANDARD)) {
 			/* Note: The driver has not include OTG support yet.
 			 * This will be set when OTG support is added */
-			if (!udc->gadget.is_otg)
+			if (!gadget_is_otg(udc->gadget))
 				break;
 			else if (setup->bRequest == USB_DEVICE_B_HNP_ENABLE)
 				udc->gadget.b_hnp_enable = 1;
@@ -1330,6 +1327,8 @@ static void setup_received_irq(struct fsl_udc *udc,
 			else if (setup->bRequest ==
 					USB_DEVICE_A_ALT_HNP_SUPPORT)
 				udc->gadget.a_alt_hnp_support = 1;
+			else
+				break;
 			rc = 0;
 		} else
 			break;
@@ -1840,10 +1839,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	if (!driver || driver != udc_controller->driver || !driver->unbind)
 		return -EINVAL;
 
-#ifdef CONFIG_USB_OTG
 	if (udc_controller->transceiver)
 		(void)otg_set_peripheral(udc_controller->transceiver, 0);
-#endif
 
 	/* stop DR, disable intr */
 	dr_controller_stop(udc_controller);

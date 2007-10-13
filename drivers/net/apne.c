@@ -148,7 +148,6 @@ struct net_device * __init apne_probe(int unit)
 		sprintf(dev->name, "eth%d", unit);
 		netdev_boot_setup_check(dev);
 	}
-	SET_MODULE_OWNER(dev);
 
 	/* disable pcmcia irq for readtuple */
 	pcmcia_disable_irq();
@@ -205,6 +204,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     int neX000, ctron;
 #endif
     static unsigned version_printed;
+    DECLARE_MAC_BUF(mac);
 
     if (ei_debug  &&  version_printed++ == 0)
 	printk(version);
@@ -247,7 +247,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 	    {0x00,	NE_EN0_RSARHI},
 	    {E8390_RREAD+E8390_START, NE_CMD},
 	};
-	for (i = 0; i < sizeof(program_seq)/sizeof(program_seq[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(program_seq); i++) {
 	    outb(program_seq[i].value, ioaddr + program_seq[i].offset);
 	}
 
@@ -317,12 +317,12 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     i = request_irq(dev->irq, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
     if (i) return i;
 
-    for(i = 0; i < ETHER_ADDR_LEN; i++) {
-	printk(" %2.2x", SA_prom[i]);
+    for(i = 0; i < ETHER_ADDR_LEN; i++)
 	dev->dev_addr[i] = SA_prom[i];
-    }
 
-    printk("\n%s: %s found.\n", dev->name, name);
+    printk(" %s\n", print_mac(mac, dev->dev_addr));
+
+    printk("%s: %s found.\n", dev->name, name);
 
     ei_status.name = name;
     ei_status.tx_start_page = start_page;

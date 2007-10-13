@@ -51,7 +51,6 @@
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
-#include <linux/pci_ids.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -184,7 +183,7 @@ struct u132_ring {
 struct u132 {
         struct kref kref;
         struct list_head u132_list;
-        struct semaphore sw_lock;
+        struct mutex sw_lock;
         struct semaphore scheduler_lock;
         struct u132_platform_data *board;
         struct platform_device *platform_dev;
@@ -493,20 +492,20 @@ static void u132_hcd_monitor_work(struct work_struct *work)
                 return;
         } else {
                 int retval;
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 retval = read_roothub_info(u132);
                 if (retval) {
                         struct usb_hcd *hcd = u132_to_hcd(u132);
                         u132_disable(u132);
                         u132->going = 1;
-                        up(&u132->sw_lock);
+                        mutex_unlock(&u132->sw_lock);
                         usb_hc_died(hcd);
                         ftdi_elan_gone_away(u132->platform_dev);
                         u132_monitor_put_kref(u132);
                         return;
                 } else {
                         u132_monitor_requeue_work(u132, 500);
-                        up(&u132->sw_lock);
+                        mutex_unlock(&u132->sw_lock);
                         return;
                 }
         }
@@ -519,9 +518,8 @@ static void u132_hcd_giveback_urb(struct u132 *u132, struct u132_endp *endp,
         unsigned long irqs;
         struct usb_hcd *hcd = u132_to_hcd(u132);
         urb->error_count = 0;
-        urb->status = status;
-        urb->hcpriv = NULL;
         spin_lock_irqsave(&endp->queue_lock.slock, irqs);
+	usb_hcd_unlink_urb_from_ep(hcd, urb);
         endp->queue_next += 1;
         if (ENDP_QUEUE_SIZE > --endp->queue_size) {
                 endp->active = 0;
@@ -543,7 +541,7 @@ static void u132_hcd_giveback_urb(struct u132 *u132, struct u132_endp *endp,
         u132_ring_queue_work(u132, ring, 0);
         up(&u132->scheduler_lock);
         u132_endp_put_kref(u132, endp);
-        usb_hcd_giveback_urb(hcd, urb);
+	usb_hcd_giveback_urb(hcd, urb, status);
         return;
 }
 
@@ -559,9 +557,8 @@ static void u132_hcd_abandon_urb(struct u132 *u132, struct u132_endp *endp,
         unsigned long irqs;
         struct usb_hcd *hcd = u132_to_hcd(u132);
         urb->error_count = 0;
-        urb->status = status;
-        urb->hcpriv = NULL;
         spin_lock_irqsave(&endp->queue_lock.slock, irqs);
+	usb_hcd_unlink_urb_from_ep(hcd, urb);
         endp->queue_next += 1;
         if (ENDP_QUEUE_SIZE > --endp->queue_size) {
                 endp->active = 0;
@@ -576,7 +573,7 @@ static void u132_hcd_abandon_urb(struct u132 *u132, struct u132_endp *endp,
                 endp->active = 0;
                 spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
                 kfree(urbq);
-        } usb_hcd_giveback_urb(hcd, urb);
+	} usb_hcd_giveback_urb(hcd, urb, status);
         return;
 }
 
@@ -646,12 +643,12 @@ static void u132_hcd_interrupt_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 struct u132_ring *ring = endp->ring;
                 u8 *u = urb->transfer_buffer + urb->actual_length;
                 u8 *b = buf;
@@ -717,10 +714,10 @@ static void u132_hcd_interrupt_recv(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -745,12 +742,12 @@ static void u132_hcd_bulk_output_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 struct u132_ring *ring = endp->ring;
                 urb->actual_length += len;
                 endp->toggle_bits = toggle_bits;
@@ -769,10 +766,10 @@ static void u132_hcd_bulk_output_sent(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -798,12 +795,12 @@ static void u132_hcd_bulk_input_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 struct u132_ring *ring = endp->ring;
                 u8 *u = urb->transfer_buffer + urb->actual_length;
                 u8 *b = buf;
@@ -872,10 +869,10 @@ static void u132_hcd_bulk_input_recv(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -899,20 +896,20 @@ static void u132_hcd_configure_empty_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -937,12 +934,12 @@ static void u132_hcd_configure_input_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 struct u132_ring *ring = endp->ring;
                 u8 *u = urb->transfer_buffer;
                 u8 *b = buf;
@@ -981,10 +978,10 @@ static void u132_hcd_configure_input_recv(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1008,20 +1005,20 @@ static void u132_hcd_configure_empty_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1046,12 +1043,12 @@ static void u132_hcd_configure_setup_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 if (usb_pipein(urb->pipe)) {
                         int retval;
                         struct u132_ring *ring = endp->ring;
@@ -1078,10 +1075,10 @@ static void u132_hcd_configure_setup_sent(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1107,22 +1104,22 @@ static void u132_hcd_enumeration_empty_recv(void *data, struct urb *urb,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 u132->addr[0].address = 0;
                 endp->usb_addr = udev->usb_addr;
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1146,12 +1143,12 @@ static void u132_hcd_enumeration_address_sent(void *data, struct urb *urb,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 int retval;
                 struct u132_ring *ring = endp->ring;
                 up(&u132->scheduler_lock);
@@ -1163,10 +1160,10 @@ static void u132_hcd_enumeration_address_sent(void *data, struct urb *urb,
                         u132_hcd_giveback_urb(u132, endp, urb, retval);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1190,20 +1187,20 @@ static void u132_hcd_initial_empty_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1228,12 +1225,12 @@ static void u132_hcd_initial_input_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 int retval;
                 struct u132_ring *ring = endp->ring;
                 u8 *u = urb->transfer_buffer;
@@ -1252,10 +1249,10 @@ static void u132_hcd_initial_input_recv(void *data, struct urb *urb, u8 *buf,
                         u132_hcd_giveback_urb(u132, endp, urb, retval);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1280,12 +1277,12 @@ static void u132_hcd_initial_setup_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 int retval;
                 struct u132_ring *ring = endp->ring;
                 up(&u132->scheduler_lock);
@@ -1297,10 +1294,10 @@ static void u132_hcd_initial_setup_sent(void *data, struct urb *urb, u8 *buf,
                         u132_hcd_giveback_urb(u132, endp, urb, retval);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1805,10 +1802,10 @@ static void u132_hcd_stop(struct usb_hcd *hcd)
                 dev_err(&u132->platform_dev->dev, "device hcd=%p is being remov"
                         "ed\n", hcd);
         } else {
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 msleep(100);
                 u132_power(u132, 0);
-                up(&u132->sw_lock);
+                mutex_unlock(&u132->sw_lock);
         }
 }
 
@@ -1830,7 +1827,7 @@ static int u132_hcd_start(struct usb_hcd *hcd)
                         (pdev->dev.platform_data))->vendor;
                 u16 device = ((struct u132_platform_data *)
                         (pdev->dev.platform_data))->device;
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 msleep(10);
                 if (vendor == PCI_VENDOR_ID_AMD && device == 0x740c) {
                         u132->flags = OHCI_QUIRK_AMD756;
@@ -1845,7 +1842,7 @@ static int u132_hcd_start(struct usb_hcd *hcd)
                         u132->going = 1;
                 }
                 msleep(100);
-                up(&u132->sw_lock);
+                mutex_unlock(&u132->sw_lock);
                 return retval;
         } else {
                 dev_err(&u132->platform_dev->dev, "platform_device missing\n");
@@ -1865,32 +1862,44 @@ static int u132_hcd_reset(struct usb_hcd *hcd)
                 return -ESHUTDOWN;
         } else {
                 int retval;
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 retval = u132_init(u132);
                 if (retval) {
                         u132_disable(u132);
                         u132->going = 1;
                 }
-                up(&u132->sw_lock);
+                mutex_unlock(&u132->sw_lock);
                 return retval;
         }
 }
 
 static int create_endpoint_and_queue_int(struct u132 *u132,
-        struct u132_udev *udev, struct usb_host_endpoint *hep, struct urb *urb,
+	struct u132_udev *udev, struct urb *urb,
         struct usb_device *usb_dev, u8 usb_addr, u8 usb_endp, u8 address,
         gfp_t mem_flags)
 {
         struct u132_ring *ring;
         unsigned long irqs;
-        u8 endp_number = ++u132->num_endpoints;
-        struct u132_endp *endp = hep->hcpriv = u132->endp[endp_number - 1] =
-                kmalloc(sizeof(struct u132_endp), mem_flags);
+	int rc;
+	u8 endp_number;
+	struct u132_endp *endp = kmalloc(sizeof(struct u132_endp), mem_flags);
+
         if (!endp) {
                 return -ENOMEM;
         }
+
+	spin_lock_init(&endp->queue_lock.slock);
+	spin_lock_irqsave(&endp->queue_lock.slock, irqs);
+	rc = usb_hcd_link_urb_to_ep(u132_to_hcd(u132), urb);
+	if (rc) {
+		spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
+		kfree(endp);
+		return rc;
+	}
+
+	endp_number = ++u132->num_endpoints;
+	urb->ep->hcpriv = u132->endp[endp_number - 1] = endp;
         INIT_DELAYED_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler);
-        spin_lock_init(&endp->queue_lock.slock);
         INIT_LIST_HEAD(&endp->urb_more);
         ring = endp->ring = &u132->ring[0];
         if (ring->curr_endp) {
@@ -1906,7 +1915,7 @@ static int create_endpoint_and_queue_int(struct u132 *u132,
         endp->delayed = 0;
         endp->endp_number = endp_number;
         endp->u132 = u132;
-        endp->hep = hep;
+	endp->hep = urb->ep;
         endp->pipetype = usb_pipetype(urb->pipe);
         u132_endp_init_kref(u132, endp);
         if (usb_pipein(urb->pipe)) {
@@ -1925,7 +1934,6 @@ static int create_endpoint_and_queue_int(struct u132 *u132,
                 u132_udev_get_kref(u132, udev);
         }
         urb->hcpriv = u132;
-        spin_lock_irqsave(&endp->queue_lock.slock, irqs);
         endp->delayed = 1;
         endp->jiffies = jiffies + msecs_to_jiffies(urb->interval);
         endp->udev_number = address;
@@ -1940,8 +1948,8 @@ static int create_endpoint_and_queue_int(struct u132 *u132,
         return 0;
 }
 
-static int queue_int_on_old_endpoint(struct u132 *u132, struct u132_udev *udev,
-        struct usb_host_endpoint *hep, struct urb *urb,
+static int queue_int_on_old_endpoint(struct u132 *u132,
+	struct u132_udev *udev, struct urb *urb,
         struct usb_device *usb_dev, struct u132_endp *endp, u8 usb_addr,
         u8 usb_endp, u8 address)
 {
@@ -1965,21 +1973,33 @@ static int queue_int_on_old_endpoint(struct u132 *u132, struct u132_udev *udev,
 }
 
 static int create_endpoint_and_queue_bulk(struct u132 *u132,
-        struct u132_udev *udev, struct usb_host_endpoint *hep, struct urb *urb,
+	struct u132_udev *udev, struct urb *urb,
         struct usb_device *usb_dev, u8 usb_addr, u8 usb_endp, u8 address,
         gfp_t mem_flags)
 {
         int ring_number;
         struct u132_ring *ring;
         unsigned long irqs;
-        u8 endp_number = ++u132->num_endpoints;
-        struct u132_endp *endp = hep->hcpriv = u132->endp[endp_number - 1] =
-                kmalloc(sizeof(struct u132_endp), mem_flags);
+	int rc;
+	u8 endp_number;
+	struct u132_endp *endp = kmalloc(sizeof(struct u132_endp), mem_flags);
+
         if (!endp) {
                 return -ENOMEM;
         }
+
+	spin_lock_init(&endp->queue_lock.slock);
+	spin_lock_irqsave(&endp->queue_lock.slock, irqs);
+	rc = usb_hcd_link_urb_to_ep(u132_to_hcd(u132), urb);
+	if (rc) {
+		spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
+		kfree(endp);
+		return rc;
+	}
+
+	endp_number = ++u132->num_endpoints;
+	urb->ep->hcpriv = u132->endp[endp_number - 1] = endp;
         INIT_DELAYED_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler);
-        spin_lock_init(&endp->queue_lock.slock);
         INIT_LIST_HEAD(&endp->urb_more);
         endp->dequeueing = 0;
         endp->edset_flush = 0;
@@ -1987,7 +2007,7 @@ static int create_endpoint_and_queue_bulk(struct u132 *u132,
         endp->delayed = 0;
         endp->endp_number = endp_number;
         endp->u132 = u132;
-        endp->hep = hep;
+	endp->hep = urb->ep;
         endp->pipetype = usb_pipetype(urb->pipe);
         u132_endp_init_kref(u132, endp);
         if (usb_pipein(urb->pipe)) {
@@ -2016,7 +2036,6 @@ static int create_endpoint_and_queue_bulk(struct u132 *u132,
         }
         ring->length += 1;
         urb->hcpriv = u132;
-        spin_lock_irqsave(&endp->queue_lock.slock, irqs);
         endp->udev_number = address;
         endp->usb_addr = usb_addr;
         endp->usb_endp = usb_endp;
@@ -2030,7 +2049,7 @@ static int create_endpoint_and_queue_bulk(struct u132 *u132,
 }
 
 static int queue_bulk_on_old_endpoint(struct u132 *u132, struct u132_udev *udev,
-         struct usb_host_endpoint *hep, struct urb *urb,
+	struct urb *urb,
         struct usb_device *usb_dev, struct u132_endp *endp, u8 usb_addr,
         u8 usb_endp, u8 address)
 {
@@ -2052,19 +2071,32 @@ static int queue_bulk_on_old_endpoint(struct u132 *u132, struct u132_udev *udev,
 }
 
 static int create_endpoint_and_queue_control(struct u132 *u132,
-        struct usb_host_endpoint *hep, struct urb *urb,
+	struct urb *urb,
         struct usb_device *usb_dev, u8 usb_addr, u8 usb_endp,
         gfp_t mem_flags)
 {
         struct u132_ring *ring;
-        u8 endp_number = ++u132->num_endpoints;
-        struct u132_endp *endp = hep->hcpriv = u132->endp[endp_number - 1] =
-                kmalloc(sizeof(struct u132_endp), mem_flags);
+	unsigned long irqs;
+	int rc;
+	u8 endp_number;
+	struct u132_endp *endp = kmalloc(sizeof(struct u132_endp), mem_flags);
+
         if (!endp) {
                 return -ENOMEM;
         }
+
+	spin_lock_init(&endp->queue_lock.slock);
+	spin_lock_irqsave(&endp->queue_lock.slock, irqs);
+	rc = usb_hcd_link_urb_to_ep(u132_to_hcd(u132), urb);
+	if (rc) {
+		spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
+		kfree(endp);
+		return rc;
+	}
+
+	endp_number = ++u132->num_endpoints;
+	urb->ep->hcpriv = u132->endp[endp_number - 1] = endp;
         INIT_DELAYED_WORK(&endp->scheduler, u132_hcd_endp_work_scheduler);
-        spin_lock_init(&endp->queue_lock.slock);
         INIT_LIST_HEAD(&endp->urb_more);
         ring = endp->ring = &u132->ring[0];
         if (ring->curr_endp) {
@@ -2080,11 +2112,10 @@ static int create_endpoint_and_queue_control(struct u132 *u132,
         endp->delayed = 0;
         endp->endp_number = endp_number;
         endp->u132 = u132;
-        endp->hep = hep;
+	endp->hep = urb->ep;
         u132_endp_init_kref(u132, endp);
         u132_endp_get_kref(u132, endp);
         if (usb_addr == 0) {
-                unsigned long irqs;
                 u8 address = u132->addr[usb_addr].address;
                 struct u132_udev *udev = &u132->udev[address];
                 endp->udev_number = address;
@@ -2098,7 +2129,6 @@ static int create_endpoint_and_queue_control(struct u132 *u132,
                 udev->endp_number_in[usb_endp] = endp_number;
                 udev->endp_number_out[usb_endp] = endp_number;
                 urb->hcpriv = u132;
-                spin_lock_irqsave(&endp->queue_lock.slock, irqs);
                 endp->queue_size = 1;
                 endp->queue_last = 0;
                 endp->queue_next = 0;
@@ -2107,7 +2137,6 @@ static int create_endpoint_and_queue_control(struct u132 *u132,
                 u132_endp_queue_work(u132, endp, 0);
                 return 0;
         } else {                /*(usb_addr > 0) */
-                unsigned long irqs;
                 u8 address = u132->addr[usb_addr].address;
                 struct u132_udev *udev = &u132->udev[address];
                 endp->udev_number = address;
@@ -2121,7 +2150,6 @@ static int create_endpoint_and_queue_control(struct u132 *u132,
                 udev->endp_number_in[usb_endp] = endp_number;
                 udev->endp_number_out[usb_endp] = endp_number;
                 urb->hcpriv = u132;
-                spin_lock_irqsave(&endp->queue_lock.slock, irqs);
                 endp->queue_size = 1;
                 endp->queue_last = 0;
                 endp->queue_next = 0;
@@ -2133,7 +2161,7 @@ static int create_endpoint_and_queue_control(struct u132 *u132,
 }
 
 static int queue_control_on_old_endpoint(struct u132 *u132,
-        struct usb_host_endpoint *hep, struct urb *urb,
+	struct urb *urb,
         struct usb_device *usb_dev, struct u132_endp *endp, u8 usb_addr,
         u8 usb_endp)
 {
@@ -2233,8 +2261,8 @@ static int queue_control_on_old_endpoint(struct u132 *u132,
         }
 }
 
-static int u132_urb_enqueue(struct usb_hcd *hcd, struct usb_host_endpoint *hep,
-        struct urb *urb, gfp_t mem_flags)
+static int u132_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
+		gfp_t mem_flags)
 {
         struct u132 *u132 = hcd_to_u132(hcd);
         if (irqs_disabled()) {
@@ -2249,8 +2277,8 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct usb_host_endpoint *hep,
                         , u132->going);
                 return -ENODEV;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 return -ESHUTDOWN;
         } else {
                 u8 usb_addr = usb_pipedevice(urb->pipe);
@@ -2259,16 +2287,24 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct usb_host_endpoint *hep,
                 if (usb_pipetype(urb->pipe) == PIPE_INTERRUPT) {
                         u8 address = u132->addr[usb_addr].address;
                         struct u132_udev *udev = &u132->udev[address];
-                        struct u132_endp *endp = hep->hcpriv;
+                        struct u132_endp *endp = urb->ep->hcpriv;
                         urb->actual_length = 0;
                         if (endp) {
                                 unsigned long irqs;
                                 int retval;
                                 spin_lock_irqsave(&endp->queue_lock.slock,
                                         irqs);
-                                retval = queue_int_on_old_endpoint(u132, udev,
-                                        hep, urb, usb_dev, endp, usb_addr,
-                                        usb_endp, address);
+				retval = usb_hcd_link_urb_to_ep(hcd, urb);
+				if (retval == 0) {
+					retval = queue_int_on_old_endpoint(
+							u132, udev, urb,
+							usb_dev, endp,
+							usb_addr, usb_endp,
+							address);
+					if (retval)
+						usb_hcd_unlink_urb_from_ep(
+								hcd, urb);
+				}
                                 spin_unlock_irqrestore(&endp->queue_lock.slock,
                                         irqs);
                                 if (retval) {
@@ -2283,8 +2319,8 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct usb_host_endpoint *hep,
                                 return -EINVAL;
                         } else {        /*(endp == NULL) */
                                 return create_endpoint_and_queue_int(u132, udev,
-                                         hep, urb, usb_dev, usb_addr, usb_endp,
-                                        address, mem_flags);
+						urb, usb_dev, usb_addr,
+						usb_endp, address, mem_flags);
                         }
                 } else if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
                         dev_err(&u132->platform_dev->dev, "the hardware does no"
@@ -2293,16 +2329,24 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct usb_host_endpoint *hep,
                 } else if (usb_pipetype(urb->pipe) == PIPE_BULK) {
                         u8 address = u132->addr[usb_addr].address;
                         struct u132_udev *udev = &u132->udev[address];
-                        struct u132_endp *endp = hep->hcpriv;
+                        struct u132_endp *endp = urb->ep->hcpriv;
                         urb->actual_length = 0;
                         if (endp) {
                                 unsigned long irqs;
                                 int retval;
                                 spin_lock_irqsave(&endp->queue_lock.slock,
                                         irqs);
-                                retval = queue_bulk_on_old_endpoint(u132, udev,
-                                        hep, urb, usb_dev, endp, usb_addr,
-                                        usb_endp, address);
+				retval = usb_hcd_link_urb_to_ep(hcd, urb);
+				if (retval == 0) {
+					retval = queue_bulk_on_old_endpoint(
+							u132, udev, urb,
+							usb_dev, endp,
+							usb_addr, usb_endp,
+							address);
+					if (retval)
+						usb_hcd_unlink_urb_from_ep(
+								hcd, urb);
+				}
                                 spin_unlock_irqrestore(&endp->queue_lock.slock,
                                         irqs);
                                 if (retval) {
@@ -2315,10 +2359,10 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct usb_host_endpoint *hep,
                                 return -EINVAL;
                         } else
                                 return create_endpoint_and_queue_bulk(u132,
-                                        udev, hep, urb, usb_dev, usb_addr,
+					udev, urb, usb_dev, usb_addr,
                                         usb_endp, address, mem_flags);
                 } else {
-                        struct u132_endp *endp = hep->hcpriv;
+                        struct u132_endp *endp = urb->ep->hcpriv;
                         u16 urb_size = 8;
                         u8 *b = urb->setup_packet;
                         int i = 0;
@@ -2341,9 +2385,16 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct usb_host_endpoint *hep,
                                 int retval;
                                 spin_lock_irqsave(&endp->queue_lock.slock,
                                         irqs);
-                                retval = queue_control_on_old_endpoint(u132,
-                                        hep, urb, usb_dev, endp, usb_addr,
-                                        usb_endp);
+				retval = usb_hcd_link_urb_to_ep(hcd, urb);
+				if (retval == 0) {
+					retval = queue_control_on_old_endpoint(
+							u132, urb, usb_dev,
+							endp, usb_addr,
+							usb_endp);
+					if (retval)
+						usb_hcd_unlink_urb_from_ep(
+								hcd, urb);
+				}
                                 spin_unlock_irqrestore(&endp->queue_lock.slock,
                                         irqs);
                                 if (retval) {
@@ -2356,7 +2407,7 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct usb_host_endpoint *hep,
                                 return -EINVAL;
                         } else
                                 return create_endpoint_and_queue_control(u132,
-                                        hep, urb, usb_dev, usb_addr, usb_endp,
+					urb, usb_dev, usb_addr, usb_endp,
                                         mem_flags);
                 }
         }
@@ -2375,8 +2426,7 @@ static int dequeue_from_overflow_chain(struct u132 *u132,
                         list_del(scan);
                         endp->queue_size -= 1;
                         urb->error_count = 0;
-                        urb->hcpriv = NULL;
-                        usb_hcd_giveback_urb(hcd, urb);
+			usb_hcd_giveback_urb(hcd, urb, 0);
                         return 0;
                 } else
                         continue;
@@ -2391,10 +2441,17 @@ static int dequeue_from_overflow_chain(struct u132 *u132,
 }
 
 static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
-        struct urb *urb)
+		struct urb *urb, int status)
 {
         unsigned long irqs;
+	int rc;
+
         spin_lock_irqsave(&endp->queue_lock.slock, irqs);
+	rc = usb_hcd_check_unlink_urb(u132_to_hcd(u132), urb, status);
+	if (rc) {
+		spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
+		return rc;
+	}
         if (endp->queue_size == 0) {
                 dev_err(&u132->platform_dev->dev, "urb=%p not found in endp[%d]"
                         "=%p ring[%d] %c%c usb_endp=%d usb_addr=%d\n", urb,
@@ -2410,11 +2467,10 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
                         endp->edset_flush = 1;
                         u132_endp_queue_work(u132, endp, 0);
                         spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
-                        urb->hcpriv = NULL;
                         return 0;
                 } else {
                         spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
-                        u132_hcd_abandon_urb(u132, endp, urb, urb->status);
+			u132_hcd_abandon_urb(u132, endp, urb, status);
                         return 0;
                 }
         } else {
@@ -2439,6 +2495,8 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
                 }
                 if (urb_slot) {
                         struct usb_hcd *hcd = u132_to_hcd(u132);
+
+			usb_hcd_unlink_urb_from_ep(hcd, urb);
                         endp->queue_size -= 1;
                         if (list_empty(&endp->urb_more)) {
                                 spin_unlock_irqrestore(&endp->queue_lock.slock,
@@ -2453,8 +2511,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
                                         irqs);
                                 kfree(urbq);
                         } urb->error_count = 0;
-                        urb->hcpriv = NULL;
-                        usb_hcd_giveback_urb(hcd, urb);
+			usb_hcd_giveback_urb(hcd, urb, status);
                         return 0;
                 } else if (list_empty(&endp->urb_more)) {
                         dev_err(&u132->platform_dev->dev, "urb=%p not found in "
@@ -2468,7 +2525,10 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
                         spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
                         return -EINVAL;
                 } else {
-                        int retval = dequeue_from_overflow_chain(u132, endp,
+			int retval;
+
+			usb_hcd_unlink_urb_from_ep(u132_to_hcd(u132), urb);
+			retval = dequeue_from_overflow_chain(u132, endp,
                                 urb);
                         spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
                         return retval;
@@ -2476,7 +2536,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
         }
 }
 
-static int u132_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
+static int u132_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
         struct u132 *u132 = hcd_to_u132(hcd);
         if (u132->going > 2) {
@@ -2491,11 +2551,11 @@ static int u132_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
                 if (usb_pipein(urb->pipe)) {
                         u8 endp_number = udev->endp_number_in[usb_endp];
                         struct u132_endp *endp = u132->endp[endp_number - 1];
-                        return u132_endp_urb_dequeue(u132, endp, urb);
+                        return u132_endp_urb_dequeue(u132, endp, urb, status);
                 } else {
                         u8 endp_number = udev->endp_number_out[usb_endp];
                         struct u132_endp *endp = u132->endp[endp_number - 1];
-                        return u132_endp_urb_dequeue(u132, endp, urb);
+                        return u132_endp_urb_dequeue(u132, endp, urb, status);
                 }
         }
 }
@@ -2805,7 +2865,7 @@ static int u132_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
                 return -ESHUTDOWN;
         } else {
                 int retval = 0;
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 switch (typeReq) {
                 case ClearHubFeature:
                         switch (wValue) {
@@ -2868,7 +2928,7 @@ static int u132_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
                       stall:retval = -EPIPE;
                         break;
                 }
-                up(&u132->sw_lock);
+                mutex_unlock(&u132->sw_lock);
                 return retval;
         }
 }
@@ -3004,7 +3064,7 @@ static int __devexit u132_remove(struct platform_device *pdev)
                         dev_err(&u132->platform_dev->dev, "removing device u132"
 				".%d\n", u132->sequence_num);
                         msleep(100);
-                        down(&u132->sw_lock);
+                        mutex_lock(&u132->sw_lock);
                         u132_monitor_cancel_work(u132);
                         while (rings-- > 0) {
                                 struct u132_ring *ring = &u132->ring[rings];
@@ -3017,7 +3077,7 @@ static int __devexit u132_remove(struct platform_device *pdev)
                         u132->going += 1;
                         printk(KERN_INFO "removing device u132.%d\n",
                                 u132->sequence_num);
-                        up(&u132->sw_lock);
+                        mutex_unlock(&u132->sw_lock);
                         usb_remove_hcd(hcd);
                         u132_u132_put_kref(u132);
                         return 0;
@@ -3037,7 +3097,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
         u132->platform_dev = pdev;
         u132->power = 0;
         u132->reset = 0;
-        init_MUTEX(&u132->sw_lock);
+        mutex_init(&u132->sw_lock);
         init_MUTEX(&u132->scheduler_lock);
         while (rings-- > 0) {
                 struct u132_ring *ring = &u132->ring[rings];
@@ -3047,7 +3107,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
                 ring->curr_endp = NULL;
                 INIT_DELAYED_WORK(&ring->scheduler,
 				  u132_hcd_ring_work_scheduler);
-        } down(&u132->sw_lock);
+        } mutex_lock(&u132->sw_lock);
         INIT_DELAYED_WORK(&u132->monitor, u132_hcd_monitor_work);
         while (ports-- > 0) {
                 struct u132_port *port = &u132->port[ports];
@@ -3077,7 +3137,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
         while (endps-- > 0) {
                 u132->endp[endps] = NULL;
         }
-        up(&u132->sw_lock);
+        mutex_unlock(&u132->sw_lock);
         return;
 }
 

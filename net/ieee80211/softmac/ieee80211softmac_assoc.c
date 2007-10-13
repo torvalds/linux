@@ -53,7 +53,7 @@ ieee80211softmac_assoc(struct ieee80211softmac_device *mac, struct ieee80211soft
 	/* Set a timer for timeout */
 	/* FIXME: make timeout configurable */
 	if (likely(mac->running))
-		schedule_delayed_work(&mac->associnfo.timeout, 5 * HZ);
+		queue_delayed_work(mac->wq, &mac->associnfo.timeout, 5 * HZ);
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
 
@@ -372,6 +372,7 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 	u16 status = le16_to_cpup(&resp->status);
 	struct ieee80211softmac_network *network = NULL;
 	unsigned long flags;
+	DECLARE_MAC_BUF(mac2);
 
 	if (unlikely(!mac->running))
 		return -ENODEV;
@@ -388,7 +389,8 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 
 	/* someone sending us things without us knowing him? Ignore. */
 	if (!network) {
-		dprintk(KERN_INFO PFX "Received unrequested assocation response from " MAC_FMT "\n", MAC_ARG(resp->header.addr3));
+		dprintk(KERN_INFO PFX "Received unrequested assocation response from %s\n",
+			print_mac(mac2, resp->header.addr3));
 		spin_unlock_irqrestore(&mac->lock, flags);
 		return 0;
 	}
@@ -417,7 +419,7 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 				network->authenticated = 0;
 				/* we don't want to do this more than once ... */
 				network->auth_desynced_once = 1;
-				schedule_delayed_work(&mac->associnfo.work, 0);
+				queue_delayed_work(mac->wq, &mac->associnfo.work, 0);
 				break;
 			}
 		default:
@@ -439,7 +441,7 @@ ieee80211softmac_try_reassoc(struct ieee80211softmac_device *mac)
 
 	spin_lock_irqsave(&mac->lock, flags);
 	mac->associnfo.associating = 1;
-	schedule_delayed_work(&mac->associnfo.work, 0);
+	queue_delayed_work(mac->wq, &mac->associnfo.work, 0);
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
 
@@ -481,7 +483,7 @@ ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 		dprintkl(KERN_INFO PFX "reassoc request from unknown network\n");
 		return 0;
 	}
-	schedule_delayed_work(&mac->associnfo.work, 0);
+	queue_delayed_work(mac->wq, &mac->associnfo.work, 0);
 
 	return 0;
 }

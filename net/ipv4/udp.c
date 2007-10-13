@@ -98,6 +98,7 @@
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <net/net_namespace.h>
 #include <net/icmp.h>
 #include <net/route.h>
 #include <net/checksum.h>
@@ -113,9 +114,8 @@ DEFINE_SNMP_STAT(struct udp_mib, udp_statistics) __read_mostly;
 struct hlist_head udp_hash[UDP_HTABLE_SIZE];
 DEFINE_RWLOCK(udp_hash_lock);
 
-static int udp_port_rover;
-
-static inline int __udp_lib_lport_inuse(__u16 num, struct hlist_head udptable[])
+static inline int __udp_lib_lport_inuse(__u16 num,
+					const struct hlist_head udptable[])
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -132,11 +132,10 @@ static inline int __udp_lib_lport_inuse(__u16 num, struct hlist_head udptable[])
  *  @sk:          socket struct in question
  *  @snum:        port number to look up
  *  @udptable:    hash list table, must be of UDP_HTABLE_SIZE
- *  @port_rover:  pointer to record of last unallocated port
  *  @saddr_comp:  AF-dependent comparison of bound local IP addresses
  */
 int __udp_lib_get_port(struct sock *sk, unsigned short snum,
-		       struct hlist_head udptable[], int *port_rover,
+		       struct hlist_head udptable[],
 		       int (*saddr_comp)(const struct sock *sk1,
 					 const struct sock *sk2 )    )
 {
@@ -146,49 +145,56 @@ int __udp_lib_get_port(struct sock *sk, unsigned short snum,
 	int    error = 1;
 
 	write_lock_bh(&udp_hash_lock);
-	if (snum == 0) {
-		int best_size_so_far, best, result, i;
 
-		if (*port_rover > sysctl_local_port_range[1] ||
-		    *port_rover < sysctl_local_port_range[0])
-			*port_rover = sysctl_local_port_range[0];
-		best_size_so_far = 32767;
-		best = result = *port_rover;
-		for (i = 0; i < UDP_HTABLE_SIZE; i++, result++) {
-			int size;
+	if (!snum) {
+		int i, low, high;
+		unsigned rover, best, best_size_so_far;
 
-			head = &udptable[result & (UDP_HTABLE_SIZE - 1)];
-			if (hlist_empty(head)) {
-				if (result > sysctl_local_port_range[1])
-					result = sysctl_local_port_range[0] +
-						((result - sysctl_local_port_range[0]) &
-						 (UDP_HTABLE_SIZE - 1));
+		inet_get_local_port_range(&low, &high);
+
+		best_size_so_far = UINT_MAX;
+		best = rover = net_random() % (high - low) + low;
+
+		/* 1st pass: look for empty (or shortest) hash chain */
+		for (i = 0; i < UDP_HTABLE_SIZE; i++) {
+			int size = 0;
+
+			head = &udptable[rover & (UDP_HTABLE_SIZE - 1)];
+			if (hlist_empty(head))
 				goto gotit;
-			}
-			size = 0;
+
 			sk_for_each(sk2, node, head) {
 				if (++size >= best_size_so_far)
 					goto next;
 			}
 			best_size_so_far = size;
-			best = result;
+			best = rover;
 		next:
-			;
+			/* fold back if end of range */
+			if (++rover > high)
+				rover = low + ((rover - low)
+					       & (UDP_HTABLE_SIZE - 1));
+
+
 		}
-		result = best;
-		for (i = 0; i < (1 << 16) / UDP_HTABLE_SIZE;
-		     i++, result += UDP_HTABLE_SIZE) {
-			if (result > sysctl_local_port_range[1])
-				result = sysctl_local_port_range[0]
-					+ ((result - sysctl_local_port_range[0]) &
-					   (UDP_HTABLE_SIZE - 1));
-			if (! __udp_lib_lport_inuse(result, udptable))
-				break;
+
+		/* 2nd pass: find hole in shortest hash chain */
+		rover = best;
+		for (i = 0; i < (1 << 16) / UDP_HTABLE_SIZE; i++) {
+			if (! __udp_lib_lport_inuse(rover, udptable))
+				goto gotit;
+			rover += UDP_HTABLE_SIZE;
+			if (rover > high)
+				rover = low + ((rover - low)
+					       & (UDP_HTABLE_SIZE - 1));
 		}
-		if (i >= (1 << 16) / UDP_HTABLE_SIZE)
-			goto fail;
+
+
+		/* All ports in use! */
+		goto fail;
+
 gotit:
-		*port_rover = snum = result;
+		snum = rover;
 	} else {
 		head = &udptable[snum & (UDP_HTABLE_SIZE - 1)];
 
@@ -201,6 +207,7 @@ gotit:
 			    (*saddr_comp)(sk, sk2)                             )
 				goto fail;
 	}
+
 	inet_sk(sk)->num = snum;
 	sk->sk_hash = snum;
 	if (sk_unhashed(sk)) {
@@ -217,7 +224,7 @@ fail:
 int udp_get_port(struct sock *sk, unsigned short snum,
 			int (*scmp)(const struct sock *, const struct sock *))
 {
-	return  __udp_lib_get_port(sk, snum, udp_hash, &udp_port_rover, scmp);
+	return  __udp_lib_get_port(sk, snum, udp_hash, scmp);
 }
 
 int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
@@ -1560,7 +1567,7 @@ int udp_proc_register(struct udp_seq_afinfo *afinfo)
 	afinfo->seq_fops->llseek	= seq_lseek;
 	afinfo->seq_fops->release	= seq_release_private;
 
-	p = proc_net_fops_create(afinfo->name, S_IRUGO, afinfo->seq_fops);
+	p = proc_net_fops_create(&init_net, afinfo->name, S_IRUGO, afinfo->seq_fops);
 	if (p)
 		p->data = afinfo;
 	else
@@ -1572,7 +1579,7 @@ void udp_proc_unregister(struct udp_seq_afinfo *afinfo)
 {
 	if (!afinfo)
 		return;
-	proc_net_remove(afinfo->name);
+	proc_net_remove(&init_net, afinfo->name);
 	memset(afinfo->seq_fops, 0, sizeof(*afinfo->seq_fops));
 }
 

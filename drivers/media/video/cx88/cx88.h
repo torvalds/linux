@@ -28,11 +28,11 @@
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/video-buf.h>
+#include <media/videobuf-dma-sg.h>
 #include <media/cx2341x.h>
 #include <media/audiochip.h>
-#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
-#include <media/video-buf-dvb.h>
+#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
+#include <media/videobuf-dvb.h>
 #endif
 
 #include "btcx-risc.h"
@@ -226,8 +226,8 @@ enum cx88_itype {
 
 struct cx88_input {
 	enum cx88_itype type;
-	unsigned int    vmux;
 	u32             gpio0, gpio1, gpio2, gpio3;
+	unsigned int    vmux:2;
 	unsigned int    extadc:1;
 };
 
@@ -250,7 +250,7 @@ struct cx88_subid {
 	u32     card;
 };
 
-#define INPUT(nr) (&cx88_boards[core->board].input[nr])
+#define INPUT(nr) (core->board.input[nr])
 
 /* ----------------------------------------------------------- */
 /* device / file handle status                                 */
@@ -304,19 +304,14 @@ struct cx88_core {
 	u32                        i2c_state, i2c_rc;
 
 	/* config info -- analog */
-	unsigned int               board;
-	unsigned int               tuner_type;
-	unsigned int               radio_type;
-	unsigned char              tuner_addr;
-	unsigned char              radio_addr;
-	unsigned int               tda9887_conf;
-	unsigned int               has_radio;
+	unsigned int               boardnr;
+	struct cx88_board	   board;
 
 	/* Supported V4L _STD_ tuner formats */
 	unsigned int               tuner_formats;
 
 	/* config info -- dvb */
-#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
+#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 	int 			   (*prev_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
 #endif
 
@@ -463,7 +458,7 @@ struct cx8802_dev {
 	int                        width;
 	int                        height;
 
-#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
+#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 	/* for dvb only */
 	struct videobuf_dvb        dvb;
 
@@ -524,7 +519,7 @@ cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 extern int
 cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 		     struct scatterlist *sglist, unsigned int bpl,
-		     unsigned int lines);
+		     unsigned int lines, unsigned int lpi);
 extern int
 cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 		  u32 reg, u32 mask, u32 value);
@@ -585,15 +580,9 @@ extern void cx88_call_i2c_clients(struct cx88_core *core,
 /* ----------------------------------------------------------- */
 /* cx88-cards.c                                                */
 
-extern struct cx88_board cx88_boards[];
-extern const unsigned int cx88_bcount;
-
-extern struct cx88_subid cx88_subids[];
-extern const unsigned int cx88_idcount;
-
-extern void cx88_card_list(struct cx88_core *core, struct pci_dev *pci);
-extern void cx88_card_setup(struct cx88_core *core);
-extern void cx88_card_setup_pre_i2c(struct cx88_core *core);
+extern int cx88_get_resources(const struct cx88_core *core,
+			      struct pci_dev *pci);
+extern struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr);
 
 /* ----------------------------------------------------------- */
 /* cx88-tvaudio.c                                              */
@@ -625,6 +614,8 @@ struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board
 int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci);
 int cx88_ir_fini(struct cx88_core *core);
 void cx88_ir_irq(struct cx88_core *core);
+void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir);
+void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir);
 
 /* ----------------------------------------------------------- */
 /* cx88-mpeg.c                                                 */

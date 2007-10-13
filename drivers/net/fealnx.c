@@ -486,6 +486,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 #else
 	int bar = 1;
 #endif
+	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -527,7 +528,6 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_out_unmap;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	/* read ethernet id */
@@ -665,11 +665,9 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	if (err)
 		goto err_out_free_tx;
 
-	printk(KERN_INFO "%s: %s at %p, ",
-	       dev->name, skel_netdrv_tbl[chip_id].chip_name, ioaddr);
-	for (i = 0; i < 5; i++)
-		printk("%2.2x:", dev->dev_addr[i]);
-	printk("%2.2x, IRQ %d.\n", dev->dev_addr[i], irq);
+	printk(KERN_INFO "%s: %s at %p, %s, IRQ %d.\n",
+	       dev->name, skel_netdrv_tbl[chip_id].chip_name, ioaddr,
+	       print_mac(mac, dev->dev_addr), irq);
 
 	return 0;
 
@@ -1892,8 +1890,6 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_link		= netdev_get_link,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
-	.get_sg			= ethtool_op_get_sg,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
 };
 
 static int mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

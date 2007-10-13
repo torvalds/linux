@@ -35,9 +35,7 @@
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/ipic.h>
-#include <asm/bootinfo.h>
 #include <asm/pci-bridge.h>
-#include <asm/mpc85xx.h>
 #include <asm/irq.h>
 #include <mm/mmu_decl.h>
 #include <asm/prom.h>
@@ -47,7 +45,15 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
-#include "mpc85xx.h"
+
+/* CADMUS info */
+/* xxx - galak, move into device tree */
+#define CADMUS_BASE (0xf8004000)
+#define CADMUS_SIZE (256)
+#define CM_VER	(0)
+#define CM_CSR	(1)
+#define CM_RST	(2)
+
 
 static int cds_pci_slot = 2;
 static volatile u8 *cadmus;
@@ -97,7 +103,7 @@ static void mpc85xx_cds_restart(char *cmd)
 	 *  If we can't find the VIA chip (maybe the P2P bridge is disabled)
 	 *  or the VIA chip reset didn't work, just use the default reset.
 	 */
-	mpc85xx_restart(NULL);
+	fsl_rstcr_restart(NULL);
 }
 
 static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
@@ -266,25 +272,12 @@ device_initcall(mpc85xx_cds_8259_attach);
  */
 static void __init mpc85xx_cds_setup_arch(void)
 {
-	struct device_node *cpu;
 #ifdef CONFIG_PCI
 	struct device_node *np;
 #endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_cds_setup_arch()", 0);
-
-	cpu = of_find_node_by_type(NULL, "cpu");
-	if (cpu != 0) {
-		const unsigned int *fp;
-
-		fp = of_get_property(cpu, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 500000000 / HZ;
-		of_node_put(cpu);
-	}
 
 	cadmus = ioremap(CADMUS_BASE, CADMUS_SIZE);
 	cds_pci_slot = ((cadmus[CM_CSR] >> 6) & 0x3) + 1;
@@ -297,14 +290,18 @@ static void __init mpc85xx_cds_setup_arch(void)
 	}
 
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;) {
-		struct resource rsrc;
-		of_address_to_resource(np, 0, &rsrc);
-		if ((rsrc.start & 0xfffff) == 0x8000)
-			fsl_add_bridge(np, 1);
-		else
-			fsl_add_bridge(np, 0);
+	for_each_node_by_type(np, "pci") {
+		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
+		    of_device_is_compatible(np, "fsl,mpc8548-pcie")) {
+			struct resource rsrc;
+			of_address_to_resource(np, 0, &rsrc);
+			if ((rsrc.start & 0xfffff) == 0x8000)
+				fsl_add_bridge(np, 1);
+			else
+				fsl_add_bridge(np, 0);
+		}
 	}
+
 	ppc_md.pci_irq_fixup = mpc85xx_cds_pci_irq_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
@@ -353,7 +350,7 @@ define_machine(mpc85xx_cds) {
 	.restart	= mpc85xx_cds_restart,
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 #else
-	.restart	= mpc85xx_restart,
+	.restart	= fsl_rstcr_restart,
 #endif
 	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,

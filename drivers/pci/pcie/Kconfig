@@ -25,13 +25,4 @@ config HOTPLUG_PCI_PCIE
 
 	  When in doubt, say N.
 
-config HOTPLUG_PCI_PCIE_POLL_EVENT_MODE
-	bool "Use polling mechanism for hot-plug events (for testing purpose)"
-	depends on HOTPLUG_PCI_PCIE
-	help
-	  Say Y here if you want to use the polling mechanism for hot-plug 
-	  events for early platform testing.
-	   
-	  When in doubt, say N.
-
 source "drivers/pci/pcie/aer/Kconfig"

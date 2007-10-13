@@ -287,10 +287,10 @@ static int rd_make_request(struct request_queue *q, struct bio *bio)
 	if (ret)
 		goto fail;
 
-	bio_endio(bio, bio->bi_size, 0);
+	bio_endio(bio, 0);
 	return 0;
 fail:
-	bio_io_error(bio, bio->bi_size);
+	bio_io_error(bio);
 	return 0;
 } 
 

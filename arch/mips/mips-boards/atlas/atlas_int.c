@@ -112,7 +112,7 @@ static inline void atlas_hw0_irqdispatch(void)
 
 static inline int clz(unsigned long x)
 {
-	__asm__ (
+	__asm__(
 	"	.set	push					\n"
 	"	.set	mips32					\n"
 	"	clz	%0, %1					\n"
@@ -194,7 +194,7 @@ asmlinkage void plat_irq_dispatch(void)
 		spurious_interrupt();
 }
 
-static inline void init_atlas_irqs (int base)
+static inline void init_atlas_irqs(int base)
 {
 	int i;
 
@@ -249,21 +249,21 @@ void __init arch_init_irq(void)
 	case MIPS_REVISION_CORID_CORE_24K:
 	case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 		if (cpu_has_veic)
-			init_msc_irqs (MSC01E_INT_BASE, MSC01E_INT_BASE,
-				       msc_eicirqmap, msc_nr_eicirqs);
+			init_msc_irqs(MSC01E_INT_BASE, MSC01E_INT_BASE,
+				      msc_eicirqmap, msc_nr_eicirqs);
 		else
-			init_msc_irqs (MSC01E_INT_BASE, MSC01C_INT_BASE,
-				       msc_irqmap, msc_nr_irqs);
+			init_msc_irqs(MSC01E_INT_BASE, MSC01C_INT_BASE,
+				      msc_irqmap, msc_nr_irqs);
 	}
 
 	if (cpu_has_veic) {
-		set_vi_handler (MSC01E_INT_ATLAS, atlas_hw0_irqdispatch);
-		setup_irq (MSC01E_INT_BASE + MSC01E_INT_ATLAS, &atlasirq);
+		set_vi_handler(MSC01E_INT_ATLAS, atlas_hw0_irqdispatch);
+		setup_irq(MSC01E_INT_BASE + MSC01E_INT_ATLAS, &atlasirq);
 	} else if (cpu_has_vint) {
-		set_vi_handler (MIPSCPU_INT_ATLAS, atlas_hw0_irqdispatch);
+		set_vi_handler(MIPSCPU_INT_ATLAS, atlas_hw0_irqdispatch);
 #ifdef CONFIG_MIPS_MT_SMTC
-		setup_irq_smtc (MIPS_CPU_IRQ_BASE + MIPSCPU_INT_ATLAS,
-				&atlasirq, (0x100 << MIPSCPU_INT_ATLAS));
+		setup_irq_smtc(MIPS_CPU_IRQ_BASE + MIPSCPU_INT_ATLAS,
+			       &atlasirq, (0x100 << MIPSCPU_INT_ATLAS));
 #else /* Not SMTC */
 		setup_irq(MIPS_CPU_IRQ_BASE + MIPSCPU_INT_ATLAS, &atlasirq);
 #endif /* CONFIG_MIPS_MT_SMTC */

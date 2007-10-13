@@ -46,13 +46,6 @@
 
 #include "common.h"
 
-#if 0
-#define DPRINTK(format, args...) \
-	printk(KERN_DEBUG "pppoatm: " format, ##args)
-#else
-#define DPRINTK(format, args...)
-#endif
-
 enum pppoatm_encaps {
 	e_autodetect = PPPOATM_ENCAPS_AUTODETECT,
 	e_vc = PPPOATM_ENCAPS_VC,
@@ -139,9 +132,9 @@ static void pppoatm_unassign_vcc(struct atm_vcc *atmvcc)
 static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 {
 	struct pppoatm_vcc *pvcc = atmvcc_to_pvcc(atmvcc);
-	DPRINTK("pppoatm push\n");
+	pr_debug("pppoatm push\n");
 	if (skb == NULL) {			/* VCC was closed */
-		DPRINTK("removing ATMPPP VCC %p\n", pvcc);
+		pr_debug("removing ATMPPP VCC %p\n", pvcc);
 		pppoatm_unassign_vcc(atmvcc);
 		atmvcc->push(atmvcc, NULL);	/* Pass along bad news */
 		return;
@@ -172,9 +165,8 @@ static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			pvcc->chan.mtu += LLC_LEN;
 			break;
 		}
-		DPRINTK("(unit %d): Couldn't autodetect yet "
+		pr_debug("Couldn't autodetect yet "
 		    "(skb: %02X %02X %02X %02X %02X %02X)\n",
-		    pvcc->chan.unit,
 		    skb->data[0], skb->data[1], skb->data[2],
 		    skb->data[3], skb->data[4], skb->data[5]);
 		goto error;
@@ -202,8 +194,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 {
 	struct pppoatm_vcc *pvcc = chan_to_pvcc(chan);
 	ATM_SKB(skb)->vcc = pvcc->atmvcc;
-	DPRINTK("(unit %d): pppoatm_send (skb=0x%p, vcc=0x%p)\n",
-	    pvcc->chan.unit, skb, pvcc->atmvcc);
+	pr_debug("pppoatm_send (skb=0x%p, vcc=0x%p)\n", skb, pvcc->atmvcc);
 	if (skb->data[0] == '\0' && (pvcc->flags & SC_COMP_PROT))
 		(void) skb_pull(skb, 1);
 	switch (pvcc->encaps) {		/* LLC encapsulation needed */
@@ -228,16 +219,14 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 			goto nospace;
 		break;
 	case e_autodetect:
-		DPRINTK("(unit %d): Trying to send without setting encaps!\n",
-		    pvcc->chan.unit);
+		pr_debug("Trying to send without setting encaps!\n");
 		kfree_skb(skb);
 		return 1;
 	}
 
 	atomic_add(skb->truesize, &sk_atm(ATM_SKB(skb)->vcc)->sk_wmem_alloc);
 	ATM_SKB(skb)->atm_options = ATM_SKB(skb)->vcc->atm_options;
-	DPRINTK("(unit %d): atm_skb(%p)->vcc(%p)->dev(%p)\n",
-	    pvcc->chan.unit, skb, ATM_SKB(skb)->vcc,
+	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, ATM_SKB(skb)->vcc,
 	    ATM_SKB(skb)->vcc->dev);
 	return ATM_SKB(skb)->vcc->send(ATM_SKB(skb)->vcc, skb)
 	    ? DROP_PACKET : 1;

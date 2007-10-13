@@ -67,6 +67,17 @@ config USB_GADGET_DEBUG_FILES
 	   driver on a new board.   Enable these files by choosing "Y"
 	   here.  If in doubt, or to conserve kernel memory, say "N".
 
+config USB_GADGET_DEBUG_FS
+	boolean "Debugging information files in debugfs"
+	depends on USB_GADGET && DEBUG_FS
+	help
+	   Some of the drivers in the "gadget" framework can expose
+	   debugging information in files under /sys/kernel/debug/.
+	   The information in these files may help when you're
+	   troubleshooting or bringing up a driver on a new board.
+	   Enable these files by choosing "Y" here.  If in doubt, or
+	   to conserve kernel memory, say "N".
+
 config	USB_GADGET_SELECTED
 	boolean
 
@@ -100,6 +111,20 @@ config USB_GADGET_AMD5536UDC
 config USB_AMD5536UDC
 	tristate
 	depends on USB_GADGET_AMD5536UDC
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
+config USB_GADGET_ATMEL_USBA
+	boolean "Atmel USBA"
+	select USB_GADGET_DUALSPEED
+	depends on AVR32
+	help
+	  USBA is the integrated high-speed USB Device controller on
+	  the AT32AP700x processors from Atmel.
+
+config USB_ATMEL_USBA
+	tristate
+	depends on USB_GADGET_ATMEL_USBA
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
@@ -227,7 +252,6 @@ config USB_LH7A40X
 	depends on USB_GADGET_LH7A40X
 	default USB_GADGET
 	select USB_GADGET_SELECTED
-
 
 config USB_GADGET_OMAP
 	boolean "OMAP USB Device Controller"

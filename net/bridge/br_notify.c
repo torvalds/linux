@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/rtnetlink.h>
+#include <net/net_namespace.h>
 
 #include "br_private.h"
 
@@ -35,6 +36,9 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	struct net_device *dev = ptr;
 	struct net_bridge_port *p = dev->br_port;
 	struct net_bridge *br;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
 
 	/* not a port of a bridge */
 	if (p == NULL)

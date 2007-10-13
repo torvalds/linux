@@ -52,7 +52,7 @@
 
 static int fddi_header(struct sk_buff *skb, struct net_device *dev,
 		       unsigned short type,
-		       void *daddr, void *saddr, unsigned len)
+		       const void *daddr, const void *saddr, unsigned len)
 {
 	int hl = FDDI_K_SNAP_HLEN;
 	struct fddihdr *fddi;
@@ -175,11 +175,15 @@ static int fddi_change_mtu(struct net_device *dev, int new_mtu)
 	return(0);
 }
 
+static const struct header_ops fddi_header_ops = {
+	.create		= fddi_header,
+	.rebuild	= fddi_rebuild_header,
+};
+
 static void fddi_setup(struct net_device *dev)
 {
 	dev->change_mtu		= fddi_change_mtu;
-	dev->hard_header	= fddi_header;
-	dev->rebuild_header	= fddi_rebuild_header;
+	dev->header_ops		= &fddi_header_ops;
 
 	dev->type		= ARPHRD_FDDI;
 	dev->hard_header_len	= FDDI_K_SNAP_HLEN+3;	/* Assume 802.2 SNAP hdr len + 3 pad bytes */

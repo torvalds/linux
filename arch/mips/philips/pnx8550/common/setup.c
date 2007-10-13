@@ -47,7 +47,6 @@ extern void pnx8550_machine_halt(void);
 extern void pnx8550_machine_power_off(void);
 extern struct resource ioport_resource;
 extern struct resource iomem_resource;
-extern void pnx8550_time_init(void);
 extern void rs_kgdb_hook(int tty_no);
 extern char *prom_getcmdline(void);
 
@@ -103,8 +102,6 @@ void __init plat_mem_setup(void)
         _machine_restart = pnx8550_machine_restart;
         _machine_halt = pnx8550_machine_halt;
         pm_power_off = pnx8550_machine_power_off;
-
-	board_time_init = pnx8550_time_init;
 
 	/* Clear the Global 2 Register, PCI Inta Output Enable Registers
 	   Bit 1:Enable DAC Powerdown

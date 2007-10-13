@@ -37,7 +37,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/moduleparam.h>
 
 #include "cpia2.h"
 #include "cpia2dev.h"

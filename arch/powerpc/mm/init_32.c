@@ -41,7 +41,6 @@
 #include <asm/machdep.h>
 #include <asm/btext.h>
 #include <asm/tlb.h>
-#include <asm/prom.h>
 #include <asm/lmb.h>
 #include <asm/sections.h>
 
@@ -133,6 +132,9 @@ void __init MMU_init(void)
 	/* 601 can only access 16MB at the moment */
 	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
 		__initial_memory_limit = 0x01000000;
+	/* 8xx can only access 8MB at the moment */
+	if (PVR_VER(mfspr(SPRN_PVR)) == 0x50)
+		__initial_memory_limit = 0x00800000;
 
 	/* parse args from command line */
 	MMU_setup();
@@ -255,4 +257,41 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		totalram_pages++;
 	}
 }
+#endif
+
+#ifdef CONFIG_PROC_KCORE
+static struct kcore_list kcore_vmem;
+
+static int __init setup_kcore(void)
+{
+	int i;
+
+	for (i = 0; i < lmb.memory.cnt; i++) {
+		unsigned long base;
+		unsigned long size;
+		struct kcore_list *kcore_mem;
+
+		base = lmb.memory.region[i].base;
+		size = lmb.memory.region[i].size;
+
+		kcore_mem = kmalloc(sizeof(struct kcore_list), GFP_ATOMIC);
+		if (!kcore_mem)
+			panic("%s: kmalloc failed\n", __FUNCTION__);
+
+		/* must stay under 32 bits */
+		if ( 0xfffffffful - (unsigned long)__va(base) < size) {
+			size = 0xfffffffful - (unsigned long)(__va(base));
+			printk(KERN_DEBUG "setup_kcore: restrict size=%lx\n",
+						size);
+		}
+
+		kclist_add(kcore_mem, __va(base), size);
+	}
+
+	kclist_add(&kcore_vmem, (void *)VMALLOC_START,
+		VMALLOC_END-VMALLOC_START);
+
+	return 0;
+}
+module_init(setup_kcore);
 #endif

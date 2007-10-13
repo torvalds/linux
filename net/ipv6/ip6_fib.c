@@ -1313,7 +1313,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 {
 	int res;
 	struct rt6_info *rt;
-	struct fib6_cleaner_t *c = (struct fib6_cleaner_t*)w;
+	struct fib6_cleaner_t *c = container_of(w, struct fib6_cleaner_t, w);
 
 	for (rt = w->leaf; rt; rt = rt->u.dst.rt6_next) {
 		res = c->func(rt, c->arg);

@@ -39,6 +39,8 @@
 #ifdef CONFIG_PPC64
 #define sys_sigpending	sys_ni_syscall
 #define sys_old_getrlimit sys_ni_syscall
+
+	.p2align	3
 #endif
 
 _GLOBAL(sys_call_table)

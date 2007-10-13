@@ -18,10 +18,69 @@
  */
 
 #include "ivtv-driver.h"
-#include "ivtv-video.h"
-#include "ivtv-vbi.h"
+#include "ivtv-i2c.h"
 #include "ivtv-ioctl.h"
 #include "ivtv-queue.h"
+#include "ivtv-vbi.h"
+
+static void ivtv_set_vps(struct ivtv *itv, int enabled)
+{
+	struct v4l2_sliced_vbi_data data;
+
+	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
+		return;
+	data.id = V4L2_SLICED_VPS;
+	data.field = 0;
+	data.line = enabled ? 16 : 0;
+	data.data[2] = itv->vbi.vps_payload.data[0];
+	data.data[8] = itv->vbi.vps_payload.data[1];
+	data.data[9] = itv->vbi.vps_payload.data[2];
+	data.data[10] = itv->vbi.vps_payload.data[3];
+	data.data[11] = itv->vbi.vps_payload.data[4];
+	ivtv_saa7127(itv, VIDIOC_INT_S_VBI_DATA, &data);
+}
+
+static void ivtv_set_cc(struct ivtv *itv, int mode, const struct vbi_cc *cc)
+{
+	struct v4l2_sliced_vbi_data data;
+
+	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
+		return;
+	data.id = V4L2_SLICED_CAPTION_525;
+	data.field = 0;
+	data.line = (mode & 1) ? 21 : 0;
+	data.data[0] = cc->odd[0];
+	data.data[1] = cc->odd[1];
+	ivtv_saa7127(itv, VIDIOC_INT_S_VBI_DATA, &data);
+	data.field = 1;
+	data.line = (mode & 2) ? 21 : 0;
+	data.data[0] = cc->even[0];
+	data.data[1] = cc->even[1];
+	ivtv_saa7127(itv, VIDIOC_INT_S_VBI_DATA, &data);
+}
+
+static void ivtv_set_wss(struct ivtv *itv, int enabled, int mode)
+{
+	struct v4l2_sliced_vbi_data data;
+
+	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
+		return;
+	/* When using a 50 Hz system, always turn on the
+	   wide screen signal with 4x3 ratio as the default.
+	   Turning this signal on and off can confuse certain
+	   TVs. As far as I can tell there is no reason not to
+	   transmit this signal. */
+	if ((itv->std & V4L2_STD_625_50) && !enabled) {
+		enabled = 1;
+		mode = 0x08;  /* 4x3 full format */
+	}
+	data.id = V4L2_SLICED_WSS_625;
+	data.field = 0;
+	data.line = enabled ? 23 : 0;
+	data.data[0] = mode & 0xff;
+	data.data[1] = (mode >> 8) & 0xff;
+	ivtv_saa7127(itv, VIDIOC_INT_S_VBI_DATA, &data);
+}
 
 static int odd_parity(u8 c)
 {
@@ -32,62 +91,50 @@ static int odd_parity(u8 c)
 	return c & 1;
 }
 
-static void passthrough_vbi_data(struct ivtv *itv, int cnt)
+void ivtv_write_vbi(struct ivtv *itv, const struct v4l2_sliced_vbi_data *sliced, size_t cnt)
 {
-	int wss = 0;
-	u8 cc[4] = { 0x80, 0x80, 0x80, 0x80 };
-	u8 vps[13];
+	struct vbi_info *vi = &itv->vbi;
+	struct vbi_cc cc = { .odd = { 0x80, 0x80 }, .even = { 0x80, 0x80 } };
 	int found_cc = 0;
-	int found_wss = 0;
-	int found_vps = 0;
-	int cc_pos = itv->vbi.cc_pos;
-	int i;
+	size_t i;
 
 	for (i = 0; i < cnt; i++) {
-		struct v4l2_sliced_vbi_data *d = itv->vbi.sliced_dec_data + i;
+		const struct v4l2_sliced_vbi_data *d = sliced + i;
 
 		if (d->id == V4L2_SLICED_CAPTION_525 && d->line == 21) {
-			found_cc = 1;
 			if (d->field) {
-				cc[2] = d->data[0];
-				cc[3] = d->data[1];
+				cc.even[0] = d->data[0];
+				cc.even[1] = d->data[1];
 			} else {
-				cc[0] = d->data[0];
-				cc[1] = d->data[1];
+				cc.odd[0] = d->data[0];
+				cc.odd[1] = d->data[1];
 			}
+			found_cc = 1;
 		}
 		else if (d->id == V4L2_SLICED_VPS && d->line == 16 && d->field == 0) {
-			memcpy(vps, d->data, sizeof(vps));
-			found_vps = 1;
+			struct vbi_vps vps;
+
+			vps.data[0] = d->data[2];
+			vps.data[1] = d->data[8];
+			vps.data[2] = d->data[9];
+			vps.data[3] = d->data[10];
+			vps.data[4] = d->data[11];
+			if (memcmp(&vps, &vi->vps_payload, sizeof(vps))) {
+				vi->vps_payload = vps;
+				set_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags);
+			}
 		}
 		else if (d->id == V4L2_SLICED_WSS_625 && d->line == 23 && d->field == 0) {
-			wss = d->data[0] | d->data[1] << 8;
-			found_wss = 1;
+			int wss = d->data[0] | d->data[1] << 8;
+
+			if (vi->wss_payload != wss) {
+				vi->wss_payload = wss;
+				set_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags);
+			}
 		}
 	}
-
-	if (itv->vbi.wss_found != found_wss || itv->vbi.wss != wss) {
-		itv->vbi.wss = wss;
-		itv->vbi.wss_found = found_wss;
-		set_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags);
-	}
-
-	if (found_vps || itv->vbi.vps_found) {
-		itv->vbi.vps[0] = vps[2];
-		itv->vbi.vps[1] = vps[8];
-		itv->vbi.vps[2] = vps[9];
-		itv->vbi.vps[3] = vps[10];
-		itv->vbi.vps[4] = vps[11];
-		itv->vbi.vps_found = found_vps;
-		set_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags);
-	}
-
-	if (found_cc && cc_pos < sizeof(itv->vbi.cc_data_even)) {
-		itv->vbi.cc_data_odd[cc_pos] = cc[0];
-		itv->vbi.cc_data_odd[cc_pos + 1] = cc[1];
-		itv->vbi.cc_data_even[cc_pos] = cc[2];
-		itv->vbi.cc_data_even[cc_pos + 1] = cc[3];
-		itv->vbi.cc_pos = cc_pos + 2;
+	if (found_cc && vi->cc_payload_idx < sizeof(vi->cc_payload)) {
+		vi->cc_payload[vi->cc_payload_idx++] = cc;
 		set_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
 	}
 }
@@ -163,8 +210,8 @@ static int ivtv_convert_ivtv_vbi(struct ivtv *itv, u8 *p)
 		linemask[1] = 0xf;
 		p += 4;
 	} else {
-		/* unknown VBI data stream */
-		return 0;
+		/* unknown VBI data, convert to empty VBI frame */
+		linemask[0] = linemask[1] = 0;
 	}
 	for (i = 0; i < 36; i++) {
 		int err = 0;
@@ -209,69 +256,6 @@ static int ivtv_convert_ivtv_vbi(struct ivtv *itv, u8 *p)
 		line++;
 	}
 	return line * sizeof(itv->vbi.sliced_dec_data[0]);
-}
-
-ssize_t ivtv_write_vbi(struct ivtv *itv, const char __user *ubuf, size_t count)
-{
-	/* Should be a __user pointer, but sparse doesn't parse this bit correctly. */
-	const struct v4l2_sliced_vbi_data *p = (const struct v4l2_sliced_vbi_data *)ubuf;
-	u8 cc[4] = { 0x80, 0x80, 0x80, 0x80 };
-	int found_cc = 0;
-	int cc_pos = itv->vbi.cc_pos;
-
-	while (count >= sizeof(struct v4l2_sliced_vbi_data)) {
-		switch (p->id) {
-		case V4L2_SLICED_CAPTION_525:
-			if (p->line == 21) {
-				found_cc = 1;
-				if (p->field) {
-					cc[2] = p->data[0];
-					cc[3] = p->data[1];
-				} else {
-					cc[0] = p->data[0];
-					cc[1] = p->data[1];
-				}
-			}
-			break;
-
-		case V4L2_SLICED_VPS:
-			if (p->line == 16 && p->field == 0) {
-				itv->vbi.vps[0] = p->data[2];
-				itv->vbi.vps[1] = p->data[8];
-				itv->vbi.vps[2] = p->data[9];
-				itv->vbi.vps[3] = p->data[10];
-				itv->vbi.vps[4] = p->data[11];
-				itv->vbi.vps_found = 1;
-				set_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags);
-			}
-			break;
-
-		case V4L2_SLICED_WSS_625:
-			if (p->line == 23 && p->field == 0) {
-				/* No lock needed for WSS */
-				itv->vbi.wss = p->data[0] | (p->data[1] << 8);
-				itv->vbi.wss_found = 1;
-				set_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags);
-			}
-			break;
-
-		default:
-			break;
-		}
-		count -= sizeof(*p);
-		p++;
-	}
-
-	if (found_cc && cc_pos < sizeof(itv->vbi.cc_data_even)) {
-		itv->vbi.cc_data_odd[cc_pos] = cc[0];
-		itv->vbi.cc_data_odd[cc_pos + 1] = cc[1];
-		itv->vbi.cc_data_even[cc_pos] = cc[2];
-		itv->vbi.cc_data_even[cc_pos + 1] = cc[3];
-		itv->vbi.cc_pos = cc_pos + 2;
-		set_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
-	}
-
-	return (const char __user *)p - ubuf;
 }
 
 /* Compress raw VBI format, removes leading SAV codes and surplus space after the
@@ -422,108 +406,95 @@ void ivtv_process_vbi_data(struct ivtv *itv, struct ivtv_buffer *buf,
 		memcpy(buf->buf, itv->vbi.sliced_dec_data, cnt);
 		buf->bytesused = cnt;
 
-		passthrough_vbi_data(itv, cnt / sizeof(itv->vbi.sliced_dec_data[0]));
+		ivtv_write_vbi(itv, itv->vbi.sliced_dec_data,
+			       cnt / sizeof(itv->vbi.sliced_dec_data[0]));
 		return;
 	}
 }
 
-void ivtv_disable_vbi(struct ivtv *itv)
+void ivtv_disable_cc(struct ivtv *itv)
 {
-	clear_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags);
-	clear_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags);
+	struct vbi_cc cc = { .odd = { 0x80, 0x80 }, .even = { 0x80, 0x80 } };
+
 	clear_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
-	ivtv_set_wss(itv, 0, 0);
-	ivtv_set_cc(itv, 0, 0, 0, 0, 0);
-	ivtv_set_vps(itv, 0, 0, 0, 0, 0, 0);
-	itv->vbi.vps_found = itv->vbi.wss_found = 0;
-	itv->vbi.wss = 0;
-	itv->vbi.cc_pos = 0;
+	ivtv_set_cc(itv, 0, &cc);
+	itv->vbi.cc_payload_idx = 0;
 }
 
 
 void ivtv_vbi_work_handler(struct ivtv *itv)
 {
+	struct vbi_info *vi = &itv->vbi;
 	struct v4l2_sliced_vbi_data data;
+	struct vbi_cc cc = { .odd = { 0x80, 0x80 }, .even = { 0x80, 0x80 } };
 
 	/* Lock */
 	if (itv->output_mode == OUT_PASSTHROUGH) {
-		/* Note: currently only the saa7115 is used in a PVR350,
-		   so these commands are for now saa7115 specific. */
 		if (itv->is_50hz) {
 			data.id = V4L2_SLICED_WSS_625;
 			data.field = 0;
 
 			if (itv->video_dec_func(itv, VIDIOC_INT_G_VBI_DATA, &data) == 0) {
 				ivtv_set_wss(itv, 1, data.data[0] & 0xf);
-				itv->vbi.wss_no_update = 0;
-			} else if (itv->vbi.wss_no_update == 4) {
+				vi->wss_missing_cnt = 0;
+			} else if (vi->wss_missing_cnt == 4) {
 				ivtv_set_wss(itv, 1, 0x8);  /* 4x3 full format */
 			} else {
-				itv->vbi.wss_no_update++;
+				vi->wss_missing_cnt++;
 			}
 		}
 		else {
-			u8 c1 = 0, c2 = 0, c3 = 0, c4 = 0;
 			int mode = 0;
 
 			data.id = V4L2_SLICED_CAPTION_525;
 			data.field = 0;
 			if (itv->video_dec_func(itv, VIDIOC_INT_G_VBI_DATA, &data) == 0) {
 				mode |= 1;
-				c1 = data.data[0];
-				c2 = data.data[1];
+				cc.odd[0] = data.data[0];
+				cc.odd[1] = data.data[1];
 			}
 			data.field = 1;
 			if (itv->video_dec_func(itv, VIDIOC_INT_G_VBI_DATA, &data) == 0) {
 				mode |= 2;
-				c3 = data.data[0];
-				c4 = data.data[1];
+				cc.even[0] = data.data[0];
+				cc.even[1] = data.data[1];
 			}
 			if (mode) {
-				itv->vbi.cc_no_update = 0;
-				ivtv_set_cc(itv, mode, c1, c2, c3, c4);
-			} else if (itv->vbi.cc_no_update == 4) {
-				ivtv_set_cc(itv, 0, 0, 0, 0, 0);
+				vi->cc_missing_cnt = 0;
+				ivtv_set_cc(itv, mode, &cc);
+			} else if (vi->cc_missing_cnt == 4) {
+				ivtv_set_cc(itv, 0, &cc);
 			} else {
-				itv->vbi.cc_no_update++;
+				vi->cc_missing_cnt++;
 			}
 		}
 		return;
 	}
 
 	if (test_and_clear_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags)) {
-		/* Lock */
-		ivtv_set_wss(itv, itv->vbi.wss_found, itv->vbi.wss & 0xf);
+		ivtv_set_wss(itv, 1, vi->wss_payload & 0xf);
 	}
 
-	if (test_and_clear_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags)) {
-		if (itv->vbi.cc_pos == 0) {
-			ivtv_set_cc(itv, 3, 0x80, 0x80, 0x80, 0x80);
+	if (test_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags)) {
+		if (vi->cc_payload_idx == 0) {
+			clear_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
+			ivtv_set_cc(itv, 3, &cc);
 		}
-		while (itv->vbi.cc_pos) {
-			u8 cc_odd0 = itv->vbi.cc_data_odd[0];
-			u8 cc_odd1 = itv->vbi.cc_data_odd[1];
-			u8 cc_even0 = itv->vbi.cc_data_even[0];
-			u8 cc_even1 = itv->vbi.cc_data_even[1];
+		while (vi->cc_payload_idx) {
+			cc = vi->cc_payload[0];
 
-			memcpy(itv->vbi.cc_data_odd, itv->vbi.cc_data_odd + 2, sizeof(itv->vbi.cc_data_odd) - 2);
-			memcpy(itv->vbi.cc_data_even, itv->vbi.cc_data_even + 2, sizeof(itv->vbi.cc_data_even) - 2);
-			itv->vbi.cc_pos -= 2;
-			if (itv->vbi.cc_pos && cc_odd0 == 0x80 && cc_odd1 == 0x80)
+			memcpy(vi->cc_payload, vi->cc_payload + 1,
+					sizeof(vi->cc_payload) - sizeof(vi->cc_payload[0]));
+			vi->cc_payload_idx--;
+			if (vi->cc_payload_idx && cc.odd[0] == 0x80 && cc.odd[1] == 0x80)
 				continue;
 
-			/* Send to Saa7127 */
-			ivtv_set_cc(itv, 3, cc_odd0, cc_odd1, cc_even0, cc_even1);
-			if (itv->vbi.cc_pos == 0)
-				set_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
+			ivtv_set_cc(itv, 3, &cc);
 			break;
 		}
 	}
 
 	if (test_and_clear_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags)) {
-		/* Lock */
-		ivtv_set_vps(itv, itv->vbi.vps_found,
-			itv->vbi.vps[0], itv->vbi.vps[1],
-			itv->vbi.vps[2], itv->vbi.vps[3], itv->vbi.vps[4]);
+		ivtv_set_vps(itv, 1);
 	}
 }

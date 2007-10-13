@@ -261,11 +261,11 @@ static inline int put_sigset(const sigset_t *kbuf, compat_sigset_t __user *ubuf)
 	default:
 		__put_sigset_unknown_nsig();
 	case 2:
-		err |= __put_user (kbuf->sig[1] >> 32, &ubuf->sig[3]);
-		err |= __put_user (kbuf->sig[1] & 0xffffffff, &ubuf->sig[2]);
+		err |= __put_user(kbuf->sig[1] >> 32, &ubuf->sig[3]);
+		err |= __put_user(kbuf->sig[1] & 0xffffffff, &ubuf->sig[2]);
 	case 1:
-		err |= __put_user (kbuf->sig[0] >> 32, &ubuf->sig[1]);
-		err |= __put_user (kbuf->sig[0] & 0xffffffff, &ubuf->sig[0]);
+		err |= __put_user(kbuf->sig[0] >> 32, &ubuf->sig[1]);
+		err |= __put_user(kbuf->sig[0] & 0xffffffff, &ubuf->sig[0]);
 	}
 
 	return err;
@@ -283,12 +283,12 @@ static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t __user *ubuf)
 	default:
 		__get_sigset_unknown_nsig();
 	case 2:
-		err |= __get_user (sig[3], &ubuf->sig[3]);
-		err |= __get_user (sig[2], &ubuf->sig[2]);
+		err |= __get_user(sig[3], &ubuf->sig[3]);
+		err |= __get_user(sig[2], &ubuf->sig[2]);
 		kbuf->sig[1] = sig[2] | (sig[3] << 32);
 	case 1:
-		err |= __get_user (sig[1], &ubuf->sig[1]);
-		err |= __get_user (sig[0], &ubuf->sig[0]);
+		err |= __get_user(sig[1], &ubuf->sig[1]);
+		err |= __get_user(sig[0], &ubuf->sig[0]);
 		kbuf->sig[0] = sig[0] | (sig[1] << 32);
 	}
 
@@ -412,10 +412,10 @@ asmlinkage int sys32_sigaltstack(nabi_no_regargs struct pt_regs regs)
 			return -EFAULT;
 	}
 
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	ret = do_sigaltstack(uss ? (stack_t __user *)&kss : NULL,
 			     uoss ? (stack_t __user *)&koss : NULL, usp);
-	set_fs (old_fs);
+	set_fs(old_fs);
 
 	if (!ret && uoss) {
 		if (!access_ok(VERIFY_WRITE, uoss, sizeof(*uoss)))
@@ -559,9 +559,9 @@ asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	/* It is more difficult to avoid calling this function than to
 	   call it and ignore errors.  */
 	old_fs = get_fs();
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	do_sigaltstack((stack_t __user *)&st, NULL, regs.regs[29]);
-	set_fs (old_fs);
+	set_fs(old_fs);
 
 	/*
 	 * Don't let your children do this ...
@@ -746,11 +746,11 @@ asmlinkage int sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
 	if (set && get_sigset(&new_set, set))
 		return -EFAULT;
 
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	ret = sys_rt_sigprocmask(how, set ? (sigset_t __user *)&new_set : NULL,
 				 oset ? (sigset_t __user *)&old_set : NULL,
 				 sigsetsize);
-	set_fs (old_fs);
+	set_fs(old_fs);
 
 	if (!ret && oset && put_sigset(&old_set, oset))
 		return -EFAULT;
@@ -765,9 +765,9 @@ asmlinkage int sys32_rt_sigpending(compat_sigset_t __user *uset,
 	sigset_t set;
 	mm_segment_t old_fs = get_fs();
 
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	ret = sys_rt_sigpending((sigset_t __user *)&set, sigsetsize);
-	set_fs (old_fs);
+	set_fs(old_fs);
 
 	if (!ret && put_sigset(&set, uset))
 		return -EFAULT;
@@ -781,12 +781,12 @@ asmlinkage int sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *
 	int ret;
 	mm_segment_t old_fs = get_fs();
 
-	if (copy_from_user (&info, uinfo, 3*sizeof(int)) ||
-	    copy_from_user (info._sifields._pad, uinfo->_sifields._pad, SI_PAD_SIZE))
+	if (copy_from_user(&info, uinfo, 3*sizeof(int)) ||
+	    copy_from_user(info._sifields._pad, uinfo->_sifields._pad, SI_PAD_SIZE))
 		return -EFAULT;
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __user *)&info);
-	set_fs (old_fs);
+	set_fs(old_fs);
 	return ret;
 }
 
@@ -801,10 +801,10 @@ sys32_waitid(int which, compat_pid_t pid,
 	mm_segment_t old_fs = get_fs();
 
 	info.si_signo = 0;
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	ret = sys_waitid(which, pid, (siginfo_t __user *) &info, options,
 			 uru ? (struct rusage __user *) &ru : NULL);
-	set_fs (old_fs);
+	set_fs(old_fs);
 
 	if (ret < 0 || info.si_signo == 0)
 		return ret;

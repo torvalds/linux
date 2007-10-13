@@ -361,8 +361,7 @@ config BLK_DEV_RAM_SIZE
 	default "4096"
 	help
 	  The default value is 4096 kilobytes. Only change this if you know
-	  what are you doing. If you are using IBM S/390, then set this to
-	  8192.
+	  what are you doing.
 
 config BLK_DEV_RAM_BLOCKSIZE
 	int "Default RAM disk block size (bytes)"

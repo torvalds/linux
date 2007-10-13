@@ -52,7 +52,7 @@
  */
 
 /**
- * ib_user_mad_hdr - MAD packet header
+ * ib_user_mad_hdr_old - Old version of MAD packet header without pkey_index
  * @id - ID of agent MAD received with/to be sent with
  * @status - 0 on successful receive, ETIMEDOUT if no response
  *   received (transaction ID in data[] will be set to TID of original
@@ -71,7 +71,7 @@
  * @gid - Remote GID in GRH
  * @flow_label - Flow label in GRH
  */
-struct ib_user_mad_hdr {
+struct ib_user_mad_hdr_old {
 	__u32	id;
 	__u32	status;
 	__u32	timeout_ms;
@@ -91,6 +91,52 @@ struct ib_user_mad_hdr {
 };
 
 /**
+ * ib_user_mad_hdr - MAD packet header
+ *   This layout allows specifying/receiving the P_Key index.  To use
+ *   this capability, an application must call the
+ *   IB_USER_MAD_ENABLE_PKEY ioctl on the user MAD file handle before
+ *   any other actions with the file handle.
+ * @id - ID of agent MAD received with/to be sent with
+ * @status - 0 on successful receive, ETIMEDOUT if no response
+ *   received (transaction ID in data[] will be set to TID of original
+ *   request) (ignored on send)
+ * @timeout_ms - Milliseconds to wait for response (unset on receive)
+ * @retries - Number of automatic retries to attempt
+ * @qpn - Remote QP number received from/to be sent to
+ * @qkey - Remote Q_Key to be sent with (unset on receive)
+ * @lid - Remote lid received from/to be sent to
+ * @sl - Service level received with/to be sent with
+ * @path_bits - Local path bits received with/to be sent with
+ * @grh_present - If set, GRH was received/should be sent
+ * @gid_index - Local GID index to send with (unset on receive)
+ * @hop_limit - Hop limit in GRH
+ * @traffic_class - Traffic class in GRH
+ * @gid - Remote GID in GRH
+ * @flow_label - Flow label in GRH
+ * @pkey_index - P_Key index
+ */
+struct ib_user_mad_hdr {
+	__u32	id;
+	__u32	status;
+	__u32	timeout_ms;
+	__u32	retries;
+	__u32	length;
+	__be32	qpn;
+	__be32  qkey;
+	__be16	lid;
+	__u8	sl;
+	__u8	path_bits;
+	__u8	grh_present;
+	__u8	gid_index;
+	__u8	hop_limit;
+	__u8	traffic_class;
+	__u8	gid[16];
+	__be32	flow_label;
+	__u16	pkey_index;
+	__u8	reserved[6];
+};
+
+/**
  * ib_user_mad - MAD packet
  * @hdr - MAD packet header
  * @data - Contents of MAD
@@ -100,6 +146,26 @@ struct ib_user_mad {
 	struct ib_user_mad_hdr hdr;
 	__u64	data[0];
 };
+
+/*
+ * Earlier versions of this interface definition declared the
+ * method_mask[] member as an array of __u32 but treated it as a
+ * bitmap made up of longs in the kernel.  This ambiguity meant that
+ * 32-bit big-endian applications that can run on both 32-bit and
+ * 64-bit kernels had no consistent ABI to rely on, and 64-bit
+ * big-endian applications that treated method_mask as being made up
+ * of 32-bit words would have their bitmap misinterpreted.
+ *
+ * To clear up this confusion, we change the declaration of
+ * method_mask[] to use unsigned long and handle the conversion from
+ * 32-bit userspace to 64-bit kernel for big-endian systems in the
+ * compat_ioctl method.  Unfortunately, to keep the structure layout
+ * the same, we need the method_mask[] array to be aligned only to 4
+ * bytes even when long is 64 bits, which forces us into this ugly
+ * typedef.
+ */
+typedef unsigned long __attribute__((aligned(4))) packed_ulong;
+#define IB_USER_MAD_LONGS_PER_METHOD_MASK (128 / (8 * sizeof (long)))
 
 /**
  * ib_user_mad_reg_req - MAD registration request
@@ -119,7 +185,7 @@ struct ib_user_mad {
  */
 struct ib_user_mad_reg_req {
 	__u32	id;
-	__u32	method_mask[4];
+	packed_ulong method_mask[IB_USER_MAD_LONGS_PER_METHOD_MASK];
 	__u8	qpn;
 	__u8	mgmt_class;
 	__u8	mgmt_class_version;
@@ -133,5 +199,7 @@ struct ib_user_mad_reg_req {
 					      struct ib_user_mad_reg_req)
 
 #define IB_USER_MAD_UNREGISTER_AGENT	_IOW(IB_IOCTL_MAGIC, 2, __u32)
+
+#define IB_USER_MAD_ENABLE_PKEY		_IO(IB_IOCTL_MAGIC, 3)
 
 #endif /* IB_USER_MAD_H */

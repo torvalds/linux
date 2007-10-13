@@ -47,6 +47,7 @@ struct dt_ops {
 	                                 const char *propname,
 	                                 const char *propval, int proplen);
 	unsigned long (*finalize)(void);
+	char *(*get_path)(const void *phandle, char *buf, int len);
 };
 extern struct dt_ops dt_ops;
 
@@ -82,11 +83,16 @@ int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device);
 int serial_console_init(void);
 int ns16550_console_init(void *devp, struct serial_console_data *scdp);
 int mpsc_console_init(void *devp, struct serial_console_data *scdp);
+int cpm_console_init(void *devp, struct serial_console_data *scdp);
+int mpc5200_psc_console_init(void *devp, struct serial_console_data *scdp);
+int uartlite_console_init(void *devp, struct serial_console_data *scdp);
 void *simple_alloc_init(char *base, unsigned long heap_size,
 			unsigned long granularity, unsigned long max_allocs);
 extern void flush_cache(void *, unsigned long);
 int dt_xlate_reg(void *node, int res, unsigned long *addr, unsigned long *size);
 int dt_xlate_addr(void *node, u32 *buf, int buflen, unsigned long *xlated_addr);
+int dt_is_compatible(void *node, const char *compat);
+void dt_get_reg_format(void *node, u32 *naddr, u32 *nsize);
 
 static inline void *finddevice(const char *name)
 {
@@ -156,6 +162,7 @@ static inline void *find_node_by_devtype(const void *prev,
 void dt_fixup_memory(u64 start, u64 size);
 void dt_fixup_cpu_clocks(u32 cpufreq, u32 tbfreq, u32 busfreq);
 void dt_fixup_clock(const char *path, u32 freq);
+void dt_fixup_mac_address(u32 index, const u8 *addr);
 void __dt_fixup_mac_addresses(u32 startindex, ...);
 #define dt_fixup_mac_addresses(...) \
 	__dt_fixup_mac_addresses(0, __VA_ARGS__, NULL)
@@ -165,6 +172,14 @@ static inline void *find_node_by_linuxphandle(const u32 linuxphandle)
 {
 	return find_node_by_prop_value(NULL, "linux,phandle",
 			(char *)&linuxphandle, sizeof(u32));
+}
+
+static inline char *get_path(const void *phandle, char *buf, int len)
+{
+	if (dt_ops.get_path)
+		return dt_ops.get_path(phandle, buf, len);
+
+	return NULL;
 }
 
 static inline void *malloc(unsigned long size)
@@ -190,5 +205,26 @@ static inline void exit(void)
 #define BSS_STACK(size) \
 	static char _bss_stack[size]; \
 	void *_platform_stack_top = _bss_stack + sizeof(_bss_stack);
+
+extern unsigned long timebase_period_ns;
+void udelay(long delay);
+
+extern char _start[];
+extern char __bss_start[];
+extern char _end[];
+extern char _vmlinux_start[];
+extern char _vmlinux_end[];
+extern char _initrd_start[];
+extern char _initrd_end[];
+extern char _dtb_start[];
+extern char _dtb_end[];
+
+static inline __attribute__((const))
+int __ilog2_u32(u32 n)
+{
+	int bit;
+	asm ("cntlzw %0,%1" : "=r" (bit) : "r" (n));
+	return 31 - bit;
+}
 
 #endif /* _PPC_BOOT_OPS_H_ */

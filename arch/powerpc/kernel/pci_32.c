@@ -1457,8 +1457,8 @@ null_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 
 static struct pci_ops null_pci_ops =
 {
-	null_read_config,
-	null_write_config
+	.read = null_read_config,
+	.write = null_write_config,
 };
 
 /*

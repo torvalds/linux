@@ -33,6 +33,8 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
+
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mpc8260.h>
@@ -44,14 +46,16 @@
 
 #include <sysdev/fsl_soc.h>
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 static void cpm2_dpinit(void);
-cpm_cpm2_t	*cpmp;		/* Pointer to comm processor space */
+#endif
+
+cpm_cpm2_t __iomem *cpmp; /* Pointer to comm processor space */
 
 /* We allocate this here because it is used almost exclusively for
  * the communication processor devices.
  */
-cpm2_map_t *cpm2_immr;
-intctl_cpm2_t *cpm2_intctl;
+cpm2_map_t __iomem *cpm2_immr;
 
 #define CPM_MAP_SIZE	(0x40000)	/* 256k - the PQ3 reserve this amount
 					   of space for CPM as it is larger
@@ -60,12 +64,19 @@ intctl_cpm2_t *cpm2_intctl;
 void
 cpm2_reset(void)
 {
-	cpm2_immr = (cpm2_map_t *)ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
-	cpm2_intctl = cpm2_map(im_intctl);
+#ifdef CONFIG_PPC_85xx
+	cpm2_immr = ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
+#else
+	cpm2_immr = ioremap(get_immrbase(), CPM_MAP_SIZE);
+#endif
 
 	/* Reclaim the DP memory for our use.
 	 */
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	cpm_muram_init();
+#else
 	cpm2_dpinit();
+#endif
 
 	/* Tell everyone where the comm processor resides.
 	 */
@@ -91,7 +102,7 @@ cpm2_reset(void)
 void
 cpm_setbrg(uint brg, uint rate)
 {
-	volatile uint	*bp;
+	u32 __iomem *bp;
 
 	/* This is good enough to get SMCs running.....
 	*/
@@ -113,7 +124,8 @@ cpm_setbrg(uint brg, uint rate)
 void
 cpm2_fastbrg(uint brg, uint rate, int div16)
 {
-	volatile uint	*bp;
+	u32 __iomem *bp;
+	u32 val;
 
 	if (brg < 4) {
 		bp = cpm2_map_size(im_brgc1, 16);
@@ -123,10 +135,11 @@ cpm2_fastbrg(uint brg, uint rate, int div16)
 		brg -= 4;
 	}
 	bp += brg;
-	*bp = ((BRG_INT_CLK / rate) << 1) | CPM_BRG_EN;
+	val = ((BRG_INT_CLK / rate) << 1) | CPM_BRG_EN;
 	if (div16)
-		*bp |= CPM_BRG_DIV16;
+		val |= CPM_BRG_DIV16;
 
+	out_be32(bp, val);
 	cpm2_unmap(bp);
 }
 
@@ -135,10 +148,11 @@ int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 	int ret = 0;
 	int shift;
 	int i, bits = 0;
-	cpmux_t *im_cpmux;
-	u32 *reg;
+	cpmux_t __iomem *im_cpmux;
+	u32 __iomem *reg;
 	u32 mask = 7;
-	u8 clk_map [24][3] = {
+
+	u8 clk_map[][3] = {
 		{CPM_CLK_FCC1, CPM_BRG5, 0},
 		{CPM_CLK_FCC1, CPM_BRG6, 1},
 		{CPM_CLK_FCC1, CPM_BRG7, 2},
@@ -162,8 +176,40 @@ int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 		{CPM_CLK_FCC3, CPM_CLK13, 4},
 		{CPM_CLK_FCC3, CPM_CLK14, 5},
 		{CPM_CLK_FCC3, CPM_CLK15, 6},
-		{CPM_CLK_FCC3, CPM_CLK16, 7}
-		};
+		{CPM_CLK_FCC3, CPM_CLK16, 7},
+		{CPM_CLK_SCC1, CPM_BRG1, 0},
+		{CPM_CLK_SCC1, CPM_BRG2, 1},
+		{CPM_CLK_SCC1, CPM_BRG3, 2},
+		{CPM_CLK_SCC1, CPM_BRG4, 3},
+		{CPM_CLK_SCC1, CPM_CLK11, 4},
+		{CPM_CLK_SCC1, CPM_CLK12, 5},
+		{CPM_CLK_SCC1, CPM_CLK3, 6},
+		{CPM_CLK_SCC1, CPM_CLK4, 7},
+		{CPM_CLK_SCC2, CPM_BRG1, 0},
+		{CPM_CLK_SCC2, CPM_BRG2, 1},
+		{CPM_CLK_SCC2, CPM_BRG3, 2},
+		{CPM_CLK_SCC2, CPM_BRG4, 3},
+		{CPM_CLK_SCC2, CPM_CLK11, 4},
+		{CPM_CLK_SCC2, CPM_CLK12, 5},
+		{CPM_CLK_SCC2, CPM_CLK3, 6},
+		{CPM_CLK_SCC2, CPM_CLK4, 7},
+		{CPM_CLK_SCC3, CPM_BRG1, 0},
+		{CPM_CLK_SCC3, CPM_BRG2, 1},
+		{CPM_CLK_SCC3, CPM_BRG3, 2},
+		{CPM_CLK_SCC3, CPM_BRG4, 3},
+		{CPM_CLK_SCC3, CPM_CLK5, 4},
+		{CPM_CLK_SCC3, CPM_CLK6, 5},
+		{CPM_CLK_SCC3, CPM_CLK7, 6},
+		{CPM_CLK_SCC3, CPM_CLK8, 7},
+		{CPM_CLK_SCC4, CPM_BRG1, 0},
+		{CPM_CLK_SCC4, CPM_BRG2, 1},
+		{CPM_CLK_SCC4, CPM_BRG3, 2},
+		{CPM_CLK_SCC4, CPM_BRG4, 3},
+		{CPM_CLK_SCC4, CPM_CLK5, 4},
+		{CPM_CLK_SCC4, CPM_CLK6, 5},
+		{CPM_CLK_SCC4, CPM_CLK7, 6},
+		{CPM_CLK_SCC4, CPM_CLK8, 7},
+	};
 
 	im_cpmux = cpm2_map(im_cpmux);
 
@@ -201,25 +247,83 @@ int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 	}
 
 	if (mode == CPM_CLK_RX)
-		shift +=3;
+		shift += 3;
 
-	for (i=0; i<24; i++) {
+	for (i = 0; i < ARRAY_SIZE(clk_map); i++) {
 		if (clk_map[i][0] == target && clk_map[i][1] == clock) {
 			bits = clk_map[i][2];
 			break;
 		}
 	}
-	if (i == sizeof(clk_map)/3)
+	if (i == ARRAY_SIZE(clk_map))
 	    ret = -EINVAL;
 
 	bits <<= shift;
 	mask <<= shift;
+
 	out_be32(reg, (in_be32(reg) & ~mask) | bits);
 
 	cpm2_unmap(im_cpmux);
 	return ret;
 }
 
+int cpm2_smc_clk_setup(enum cpm_clk_target target, int clock)
+{
+	int ret = 0;
+	int shift;
+	int i, bits = 0;
+	cpmux_t __iomem *im_cpmux;
+	u8 __iomem *reg;
+	u8 mask = 3;
+
+	u8 clk_map[][3] = {
+		{CPM_CLK_SMC1, CPM_BRG1, 0},
+		{CPM_CLK_SMC1, CPM_BRG7, 1},
+		{CPM_CLK_SMC1, CPM_CLK7, 2},
+		{CPM_CLK_SMC1, CPM_CLK9, 3},
+		{CPM_CLK_SMC2, CPM_BRG2, 0},
+		{CPM_CLK_SMC2, CPM_BRG8, 1},
+		{CPM_CLK_SMC2, CPM_CLK4, 2},
+		{CPM_CLK_SMC2, CPM_CLK15, 3},
+	};
+
+	im_cpmux = cpm2_map(im_cpmux);
+
+	switch (target) {
+	case CPM_CLK_SMC1:
+		reg = &im_cpmux->cmx_smr;
+		mask = 3;
+		shift = 4;
+		break;
+	case CPM_CLK_SMC2:
+		reg = &im_cpmux->cmx_smr;
+		mask = 3;
+		shift = 0;
+		break;
+	default:
+		printk(KERN_ERR "cpm2_smc_clock_setup: invalid clock target\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(clk_map); i++) {
+		if (clk_map[i][0] == target && clk_map[i][1] == clock) {
+			bits = clk_map[i][2];
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(clk_map))
+	    ret = -EINVAL;
+
+	bits <<= shift;
+	mask <<= shift;
+
+	out_8(reg, (in_8(reg) & ~mask) | bits);
+
+	cpm2_unmap(im_cpmux);
+	return ret;
+}
+
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 /*
  * dpalloc / dpfree bits.
  */
@@ -228,19 +332,19 @@ static spinlock_t cpm_dpmem_lock;
  * until the memory subsystem goes up... */
 static rh_block_t cpm_boot_dpmem_rh_block[16];
 static rh_info_t cpm_dpmem_info;
-static u8* im_dprambase;
+static u8 __iomem *im_dprambase;
 
 static void cpm2_dpinit(void)
 {
 	spin_lock_init(&cpm_dpmem_lock);
-
-	im_dprambase = ioremap(CPM_MAP_ADDR, CPM_DATAONLY_BASE + CPM_DATAONLY_SIZE);
 
 	/* initialize the info header */
 	rh_init(&cpm_dpmem_info, 1,
 			sizeof(cpm_boot_dpmem_rh_block) /
 			sizeof(cpm_boot_dpmem_rh_block[0]),
 			cpm_boot_dpmem_rh_block);
+
+	im_dprambase = cpm2_immr;
 
 	/* Attach the usable dpmem area */
 	/* XXX: This is actually crap. CPM_DATAONLY_BASE and
@@ -306,3 +410,37 @@ void *cpm_dpram_addr(unsigned long offset)
 	return (void *)(im_dprambase + offset);
 }
 EXPORT_SYMBOL(cpm_dpram_addr);
+#endif /* !CONFIG_PPC_CPM_NEW_BINDING */
+
+struct cpm2_ioports {
+	u32 dir, par, sor, odr, dat;
+	u32 res[3];
+};
+
+void cpm2_set_pin(int port, int pin, int flags)
+{
+	struct cpm2_ioports __iomem *iop =
+		(struct cpm2_ioports __iomem *)&cpm2_immr->im_ioport;
+
+	pin = 1 << (31 - pin);
+
+	if (flags & CPM_PIN_OUTPUT)
+		setbits32(&iop[port].dir, pin);
+	else
+		clrbits32(&iop[port].dir, pin);
+
+	if (!(flags & CPM_PIN_GPIO))
+		setbits32(&iop[port].par, pin);
+	else
+		clrbits32(&iop[port].par, pin);
+
+	if (flags & CPM_PIN_SECONDARY)
+		setbits32(&iop[port].sor, pin);
+	else
+		clrbits32(&iop[port].sor, pin);
+
+	if (flags & CPM_PIN_OPENDRAIN)
+		setbits32(&iop[port].odr, pin);
+	else
+		clrbits32(&iop[port].odr, pin);
+}

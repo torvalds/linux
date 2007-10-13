@@ -25,7 +25,6 @@ static unsigned char cached_8259[2] = { 0xff, 0xff };
 
 static DEFINE_SPINLOCK(i8259_lock);
 
-static struct device_node *i8259_node;
 static struct irq_host *i8259_host;
 
 /*
@@ -165,7 +164,7 @@ static struct resource pic_edgectrl_iores = {
 
 static int i8259_host_match(struct irq_host *h, struct device_node *node)
 {
-	return i8259_node == NULL || i8259_node == node;
+	return h->of_node == NULL || h->of_node == node;
 }
 
 static int i8259_host_map(struct irq_host *h, unsigned int virq,
@@ -276,9 +275,8 @@ void i8259_init(struct device_node *node, unsigned long intack_addr)
 	spin_unlock_irqrestore(&i8259_lock, flags);
 
 	/* create a legacy host */
-	if (node)
-		i8259_node = of_node_get(node);
-	i8259_host = irq_alloc_host(IRQ_HOST_MAP_LEGACY, 0, &i8259_host_ops, 0);
+	i8259_host = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LEGACY,
+				    0, &i8259_host_ops, 0);
 	if (i8259_host == NULL) {
 		printk(KERN_ERR "i8259: failed to allocate irq host !\n");
 		return;

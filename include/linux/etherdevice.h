@@ -29,15 +29,19 @@
 #include <linux/random.h>
 
 #ifdef __KERNEL__
-extern int		eth_header(struct sk_buff *skb, struct net_device *dev,
-				   unsigned short type, void *daddr,
-				   void *saddr, unsigned len);
-extern int		eth_rebuild_header(struct sk_buff *skb);
 extern __be16		eth_type_trans(struct sk_buff *skb, struct net_device *dev);
-extern void		eth_header_cache_update(struct hh_cache *hh, struct net_device *dev,
-						unsigned char * haddr);
-extern int		eth_header_cache(struct neighbour *neigh,
-					 struct hh_cache *hh);
+extern const struct header_ops eth_header_ops;
+
+extern int eth_header(struct sk_buff *skb, struct net_device *dev,
+		      unsigned short type,
+		      const void *daddr, const void *saddr, unsigned len);
+extern int eth_rebuild_header(struct sk_buff *skb);
+extern int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr);
+extern int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh);
+extern void eth_header_cache_update(struct hh_cache *hh,
+				    const struct net_device *dev,
+				    const unsigned char *haddr);
+
 
 extern struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count);
 #define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)

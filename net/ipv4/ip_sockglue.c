@@ -602,7 +602,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 				dev_put(dev);
 			}
 		} else
-			dev = __dev_get_by_index(mreq.imr_ifindex);
+			dev = __dev_get_by_index(&init_net, mreq.imr_ifindex);
 
 
 		err = -EADDRNOTAVAIL;
@@ -659,7 +659,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			break;
 		}
 		msf = kmalloc(optlen, GFP_KERNEL);
-		if (msf == 0) {
+		if (!msf) {
 			err = -ENOBUFS;
 			break;
 		}
@@ -816,7 +816,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			break;
 		}
 		gsf = kmalloc(optlen,GFP_KERNEL);
-		if (gsf == 0) {
+		if (!gsf) {
 			err = -ENOBUFS;
 			break;
 		}
@@ -836,7 +836,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		}
 		msize = IP_MSFILTER_SIZE(gsf->gf_numsrc);
 		msf = kmalloc(msize,GFP_KERNEL);
-		if (msf == 0) {
+		if (!msf) {
 			err = -ENOBUFS;
 			goto mc_msf_out;
 		}

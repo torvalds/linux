@@ -46,14 +46,15 @@ enum {
 
 /**
  *	opti_pre_reset		-	probe begin
- *	@ap: ATA port
+ *	@link: ATA link
  *	@deadline: deadline jiffies for the operation
  *
  *	Set up cable type and use generic probe init
  */
 
-static int opti_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int opti_pre_reset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	static const struct pci_bits opti_enable_bits[] = {
 		{ 0x45, 1, 0x80, 0x00 },
@@ -63,7 +64,7 @@ static int opti_pre_reset(struct ata_port *ap, unsigned long deadline)
 	if (!pci_test_config_bits(pdev, &opti_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -182,7 +183,6 @@ static struct scsi_host_template opti_sht = {
 };
 
 static struct ata_port_operations opti_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= opti_set_piomode,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
@@ -209,9 +209,8 @@ static struct ata_port_operations opti_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static int opti_init_one(struct pci_dev *dev, const struct pci_device_id *id)

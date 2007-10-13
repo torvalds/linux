@@ -67,7 +67,7 @@ static int actisys_reset(struct sir_dev *);
 /* Note : the 220L doesn't support 38400, but we will fix that below */
 static unsigned baud_rates[] = { 9600, 19200, 57600, 115200, 38400 };
 
-#define MAX_SPEEDS (sizeof(baud_rates)/sizeof(baud_rates[0]))
+#define MAX_SPEEDS ARRAY_SIZE(baud_rates)
 
 static struct dongle_driver act220l = {
 	.owner		= THIS_MODULE,

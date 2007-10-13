@@ -109,7 +109,7 @@ static void jmr3927_timer_ack(void)
 	jmr3927_tmrptr->tisr = 0;       /* ack interrupt */
 }
 
-static void __init jmr3927_time_init(void)
+void __init plat_time_init(void)
 {
 	clocksource_mips.read = jmr3927_hpt_read;
 	mips_timer_ack = jmr3927_timer_ack;
@@ -140,8 +140,6 @@ void __init plat_mem_setup(void)
 	char *argptr;
 
 	set_io_port_base(JMR3927_PORT_BASE + JMR3927_PCIIO);
-
-	board_time_init = jmr3927_time_init;
 
 	_machine_restart = jmr3927_machine_restart;
 	_machine_halt = jmr3927_machine_halt;

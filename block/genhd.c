@@ -540,60 +540,41 @@ static int block_uevent_filter(struct kset *kset, struct kobject *kobj)
 	return ((ktype == &ktype_block) || (ktype == &ktype_part));
 }
 
-static int block_uevent(struct kset *kset, struct kobject *kobj, char **envp,
-			 int num_envp, char *buffer, int buffer_size)
+static int block_uevent(struct kset *kset, struct kobject *kobj,
+			struct kobj_uevent_env *env)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
 	struct device *physdev;
 	struct gendisk *disk;
 	struct hd_struct *part;
-	int length = 0;
-	int i = 0;
 
 	if (ktype == &ktype_block) {
 		disk = container_of(kobj, struct gendisk, kobj);
-		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
-			       &length, "MINOR=%u", disk->first_minor);
+		add_uevent_var(env, "MINOR=%u", disk->first_minor);
 	} else if (ktype == &ktype_part) {
 		disk = container_of(kobj->parent, struct gendisk, kobj);
 		part = container_of(kobj, struct hd_struct, kobj);
-		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
-			       &length, "MINOR=%u",
+		add_uevent_var(env, "MINOR=%u",
 			       disk->first_minor + part->partno);
 	} else
 		return 0;
 
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "MAJOR=%u", disk->major);
+	add_uevent_var(env, "MAJOR=%u", disk->major);
 
 	/* add physical device, backing this device  */
 	physdev = disk->driverfs_dev;
 	if (physdev) {
 		char *path = kobject_get_path(&physdev->kobj, GFP_KERNEL);
 
-		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
-			       &length, "PHYSDEVPATH=%s", path);
+		add_uevent_var(env, "PHYSDEVPATH=%s", path);
 		kfree(path);
 
 		if (physdev->bus)
-			add_uevent_var(envp, num_envp, &i,
-				       buffer, buffer_size, &length,
-				       "PHYSDEVBUS=%s",
-				       physdev->bus->name);
+			add_uevent_var(env, "PHYSDEVBUS=%s", physdev->bus->name);
 
 		if (physdev->driver)
-			add_uevent_var(envp, num_envp, &i,
-				       buffer, buffer_size, &length,
-				       "PHYSDEVDRIVER=%s",
-				       physdev->driver->name);
+			add_uevent_var(env, physdev->driver->name);
 	}
-
-	/* terminate, set to next free slot, shrink available space */
-	envp[i] = NULL;
-	envp = &envp[i];
-	num_envp -= i;
-	buffer = &buffer[length];
-	buffer_size -= length;
 
 	return 0;
 }

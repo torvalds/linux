@@ -4624,9 +4624,8 @@ static int __init istallion_module_init(void)
 
 	istallion_class = class_create(THIS_MODULE, "staliomem");
 	for (i = 0; i < 4; i++)
-		class_device_create(istallion_class, NULL,
-				MKDEV(STL_SIOMEMMAJOR, i),
-				NULL, "staliomem%d", i);
+		device_create(istallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
+			      "staliomem%d", i);
 
 	return 0;
 err_deinit:
@@ -4659,8 +4658,7 @@ static void __exit istallion_module_exit(void)
 	unregister_chrdev(STL_SIOMEMMAJOR, "staliomem");
 
 	for (j = 0; j < 4; j++)
-		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR,
-					j));
+		device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, j));
 	class_destroy(istallion_class);
 
 	pci_unregister_driver(&stli_pcidriver);

@@ -24,19 +24,28 @@
 
 
 /* If the start for which we're re-enabling locking (seq) has been superseded
-   by a newer stop (ls_recover_seq), we need to leave locking disabled. */
+   by a newer stop (ls_recover_seq), we need to leave locking disabled.
+
+   We suspend dlm_recv threads here to avoid the race where dlm_recv a) sees
+   locking stopped and b) adds a message to the requestqueue, but dlm_recoverd
+   enables locking and clears the requestqueue between a and b. */
 
 static int enable_locking(struct dlm_ls *ls, uint64_t seq)
 {
 	int error = -EINTR;
 
+	down_write(&ls->ls_recv_active);
+
 	spin_lock(&ls->ls_recover_lock);
 	if (ls->ls_recover_seq == seq) {
 		set_bit(LSFL_RUNNING, &ls->ls_flags);
+		/* unblocks processes waiting to enter the dlm */
 		up_write(&ls->ls_in_recovery);
 		error = 0;
 	}
 	spin_unlock(&ls->ls_recover_lock);
+
+	up_write(&ls->ls_recv_active);
 	return error;
 }
 

@@ -159,6 +159,7 @@ static inline void check_wait(void)
 	case CPU_5KC:
 	case CPU_25KF:
 	case CPU_PR4450:
+	case CPU_BCM3302:
 		cpu_wait = r4k_wait;
 		break;
 
@@ -745,14 +746,6 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
 
-	/*
-	 * For historical reasons the SB1 comes with it's own variant of
-	 * cache code which eventually will be folded into c-r4k.c.  Until
-	 * then we pretend it's got it's own cache architecture.
-	 */
-	c->options &= ~MIPS_CPU_4K_CACHE;
-	c->options |= MIPS_CPU_SB1_CACHE;
-
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;
@@ -793,9 +786,111 @@ static inline void cpu_probe_philips(struct cpuinfo_mips *c)
 }
 
 
+static inline void cpu_probe_broadcom(struct cpuinfo_mips *c)
+{
+	decode_configs(c);
+	switch (c->processor_id & 0xff00) {
+	case PRID_IMP_BCM3302:
+		c->cputype = CPU_BCM3302;
+		break;
+	case PRID_IMP_BCM4710:
+		c->cputype = CPU_BCM4710;
+		break;
+	default:
+		c->cputype = CPU_UNKNOWN;
+		break;
+	}
+}
+
+const char *__cpu_name[NR_CPUS];
+
+/*
+ * Name a CPU
+ */
+static __init const char *cpu_to_name(struct cpuinfo_mips *c)
+{
+	const char *name = NULL;
+
+	switch (c->cputype) {
+	case CPU_UNKNOWN:	name = "unknown"; break;
+	case CPU_R2000:		name = "R2000"; break;
+	case CPU_R3000:		name = "R3000"; break;
+	case CPU_R3000A:	name = "R3000A"; break;
+	case CPU_R3041:		name = "R3041"; break;
+	case CPU_R3051:		name = "R3051"; break;
+	case CPU_R3052:		name = "R3052"; break;
+	case CPU_R3081:		name = "R3081"; break;
+	case CPU_R3081E:	name = "R3081E"; break;
+	case CPU_R4000PC:	name = "R4000PC"; break;
+	case CPU_R4000SC:	name = "R4000SC"; break;
+	case CPU_R4000MC:	name = "R4000MC"; break;
+	case CPU_R4200:		name = "R4200"; break;
+	case CPU_R4400PC:	name = "R4400PC"; break;
+	case CPU_R4400SC:	name = "R4400SC"; break;
+	case CPU_R4400MC:	name = "R4400MC"; break;
+	case CPU_R4600:		name = "R4600"; break;
+	case CPU_R6000:		name = "R6000"; break;
+	case CPU_R6000A:	name = "R6000A"; break;
+	case CPU_R8000:		name = "R8000"; break;
+	case CPU_R10000:	name = "R10000"; break;
+	case CPU_R12000:	name = "R12000"; break;
+	case CPU_R14000:	name = "R14000"; break;
+	case CPU_R4300:		name = "R4300"; break;
+	case CPU_R4650:		name = "R4650"; break;
+	case CPU_R4700:		name = "R4700"; break;
+	case CPU_R5000:		name = "R5000"; break;
+	case CPU_R5000A:	name = "R5000A"; break;
+	case CPU_R4640:		name = "R4640"; break;
+	case CPU_NEVADA:	name = "Nevada"; break;
+	case CPU_RM7000:	name = "RM7000"; break;
+	case CPU_RM9000:	name = "RM9000"; break;
+	case CPU_R5432:		name = "R5432"; break;
+	case CPU_4KC:		name = "MIPS 4Kc"; break;
+	case CPU_5KC:		name = "MIPS 5Kc"; break;
+	case CPU_R4310:		name = "R4310"; break;
+	case CPU_SB1:		name = "SiByte SB1"; break;
+	case CPU_SB1A:		name = "SiByte SB1A"; break;
+	case CPU_TX3912:	name = "TX3912"; break;
+	case CPU_TX3922:	name = "TX3922"; break;
+	case CPU_TX3927:	name = "TX3927"; break;
+	case CPU_AU1000:	name = "Au1000"; break;
+	case CPU_AU1500:	name = "Au1500"; break;
+	case CPU_AU1100:	name = "Au1100"; break;
+	case CPU_AU1550:	name = "Au1550"; break;
+	case CPU_AU1200:	name = "Au1200"; break;
+	case CPU_4KEC:		name = "MIPS 4KEc"; break;
+	case CPU_4KSC:		name = "MIPS 4KSc"; break;
+	case CPU_VR41XX:	name = "NEC Vr41xx"; break;
+	case CPU_R5500:		name = "R5500"; break;
+	case CPU_TX49XX:	name = "TX49xx"; break;
+	case CPU_20KC:		name = "MIPS 20Kc"; break;
+	case CPU_24K:		name = "MIPS 24K"; break;
+	case CPU_25KF:		name = "MIPS 25Kf"; break;
+	case CPU_34K:		name = "MIPS 34K"; break;
+	case CPU_74K:		name = "MIPS 74K"; break;
+	case CPU_VR4111:	name = "NEC VR4111"; break;
+	case CPU_VR4121:	name = "NEC VR4121"; break;
+	case CPU_VR4122:	name = "NEC VR4122"; break;
+	case CPU_VR4131:	name = "NEC VR4131"; break;
+	case CPU_VR4133:	name = "NEC VR4133"; break;
+	case CPU_VR4181:	name = "NEC VR4181"; break;
+	case CPU_VR4181A:	name = "NEC VR4181A"; break;
+	case CPU_SR71000:	name = "Sandcraft SR71000"; break;
+	case CPU_BCM3302:	name = "Broadcom BCM3302"; break;
+	case CPU_BCM4710:	name = "Broadcom BCM4710"; break;
+	case CPU_PR4450:	name = "Philips PR4450"; break;
+	case CPU_LOONGSON2:	name = "ICT Loongson-2"; break;
+	default:
+		BUG();
+	}
+
+	return name;
+}
+
 __init void cpu_probe(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
+	unsigned int cpu = smp_processor_id();
 
 	c->processor_id	= PRID_IMP_UNKNOWN;
 	c->fpu_id	= FPIR_IMP_NONE;
@@ -815,6 +910,9 @@ __init void cpu_probe(void)
 	case PRID_COMP_SIBYTE:
 		cpu_probe_sibyte(c);
 		break;
+	case PRID_COMP_BROADCOM:
+		cpu_probe_broadcom(c);
+		break;
 	case PRID_COMP_SANDCRAFT:
 		cpu_probe_sandcraft(c);
 		break;
@@ -824,6 +922,14 @@ __init void cpu_probe(void)
 	default:
 		c->cputype = CPU_UNKNOWN;
 	}
+
+	/*
+	 * Platform code can force the cpu type to optimize code
+	 * generation. In that case be sure the cpu type is correctly
+	 * manually setup otherwise it could trigger some nasty bugs.
+	 */
+	BUG_ON(current_cpu_type() != c->cputype);
+
 	if (c->options & MIPS_CPU_FPU) {
 		c->fpu_id = cpu_get_fpu_id();
 
@@ -835,13 +941,16 @@ __init void cpu_probe(void)
 				c->ases |= MIPS_ASE_MIPS3D;
 		}
 	}
+
+	__cpu_name[cpu] = cpu_to_name(c);
 }
 
 __init void cpu_report(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
-	printk("CPU revision is: %08x\n", c->processor_id);
+	printk(KERN_INFO "CPU revision is: %08x (%s)\n",
+	       c->processor_id, cpu_name_string());
 	if (c->options & MIPS_CPU_FPU)
-		printk("FPU revision is: %08x\n", c->fpu_id);
+		printk(KERN_INFO "FPU revision is: %08x\n", c->fpu_id);
 }

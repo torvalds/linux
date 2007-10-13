@@ -92,7 +92,7 @@ module_param(bm_history, uint, 0644);
  *
  * To skip this limit, boot/load with a large max_cstate limit.
  */
-static int set_max_cstate(struct dmi_system_id *id)
+static int set_max_cstate(const struct dmi_system_id *id)
 {
 	if (max_cstate > ACPI_PROCESSOR_MAX_POWER)
 		return 0;
@@ -276,21 +276,12 @@ static void acpi_timer_check_state(int state, struct acpi_processor *pr,
 
 static void acpi_propagate_timer_broadcast(struct acpi_processor *pr)
 {
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
 	unsigned long reason;
 
 	reason = pr->power.timer_broadcast_on_state < INT_MAX ?
 		CLOCK_EVT_NOTIFY_BROADCAST_ON : CLOCK_EVT_NOTIFY_BROADCAST_OFF;
 
 	clockevents_notify(reason, &pr->id);
-#else
-	cpumask_t mask = cpumask_of_cpu(pr->id);
-
-	if (pr->power.timer_broadcast_on_state < INT_MAX)
-		on_each_cpu(switch_APIC_timer_to_ipi, &mask, 1, 1);
-	else
-		on_each_cpu(switch_ipi_to_APIC_timer, &mask, 1, 1);
-#endif
 }
 
 /* Power(C) State timer broadcast control */
@@ -298,8 +289,6 @@ static void acpi_state_timer_broadcast(struct acpi_processor *pr,
 				       struct acpi_processor_cx *cx,
 				       int broadcast)
 {
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
-
 	int state = cx - pr->power.states;
 
 	if (state >= pr->power.timer_broadcast_on_state) {
@@ -309,7 +298,6 @@ static void acpi_state_timer_broadcast(struct acpi_processor *pr,
 			CLOCK_EVT_NOTIFY_BROADCAST_EXIT;
 		clockevents_notify(reason, &pr->id);
 	}
-#endif
 }
 
 #else

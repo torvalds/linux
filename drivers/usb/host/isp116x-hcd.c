@@ -277,12 +277,11 @@ static void preproc_atl_queue(struct isp116x *isp116x)
   processed urbs.
 */
 static void finish_request(struct isp116x *isp116x, struct isp116x_ep *ep,
-			   struct urb *urb)
+			   struct urb *urb, int status)
 __releases(isp116x->lock) __acquires(isp116x->lock)
 {
 	unsigned i;
 
-	urb->hcpriv = NULL;
 	ep->error_count = 0;
 
 	if (usb_pipecontrol(urb->pipe))
@@ -290,8 +289,9 @@ __releases(isp116x->lock) __acquires(isp116x->lock)
 
 	urb_dbg(urb, "Finish");
 
+	usb_hcd_unlink_urb_from_ep(isp116x_to_hcd(isp116x), urb);
 	spin_unlock(&isp116x->lock);
-	usb_hcd_giveback_urb(isp116x_to_hcd(isp116x), urb);
+	usb_hcd_giveback_urb(isp116x_to_hcd(isp116x), urb, status);
 	spin_lock(&isp116x->lock);
 
 	/* take idle endpoints out of the schedule */
@@ -445,12 +445,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			if (PTD_GET_ACTIVE(ptd)
 			    || (cc != TD_CC_NOERROR && cc < 0x0E))
 				break;
-			if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-					urb->actual_length <
-						urb->transfer_buffer_length)
-				status = -EREMOTEIO;
-			else
-				status = 0;
+			status = 0;
 			ep->nextpid = 0;
 			break;
 		default:
@@ -458,14 +453,8 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 		}
 
  done:
-		if (status != -EINPROGRESS) {
-			spin_lock(&urb->lock);
-			if (urb->status == -EINPROGRESS)
-				urb->status = status;
-			spin_unlock(&urb->lock);
-		}
-		if (urb->status != -EINPROGRESS)
-			finish_request(isp116x, ep, urb);
+		if (status != -EINPROGRESS || urb->unlinked)
+			finish_request(isp116x, ep, urb, status);
 	}
 }
 
@@ -673,7 +662,7 @@ static int balance(struct isp116x *isp116x, u16 period, u16 load)
 /*-----------------------------------------------------------------*/
 
 static int isp116x_urb_enqueue(struct usb_hcd *hcd,
-			       struct usb_host_endpoint *hep, struct urb *urb,
+			       struct urb *urb,
 			       gfp_t mem_flags)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
@@ -682,6 +671,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 	int is_out = !usb_pipein(pipe);
 	int type = usb_pipetype(pipe);
 	int epnum = usb_pipeendpoint(pipe);
+	struct usb_host_endpoint *hep = urb->ep;
 	struct isp116x_ep *ep = NULL;
 	unsigned long flags;
 	int i;
@@ -705,7 +695,12 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 	if (!HC_IS_RUNNING(hcd->state)) {
 		kfree(ep);
 		ret = -ENODEV;
-		goto fail;
+		goto fail_not_linked;
+	}
+	ret = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (ret) {
+		kfree(ep);
+		goto fail_not_linked;
 	}
 
 	if (hep->hcpriv)
@@ -808,16 +803,13 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 		}
 	}
 
-	/* in case of unlink-during-submit */
-	if (urb->status != -EINPROGRESS) {
-		finish_request(isp116x, ep, urb);
-		ret = 0;
-		goto fail;
-	}
 	urb->hcpriv = hep;
 	start_atl_transfers(isp116x);
 
       fail:
+	if (ret)
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+      fail_not_linked:
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return ret;
 }
@@ -825,20 +817,21 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 /*
    Dequeue URBs.
 */
-static int isp116x_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
+static int isp116x_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
+		int status)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	struct usb_host_endpoint *hep;
 	struct isp116x_ep *ep, *ep_act;
 	unsigned long flags;
+	int rc;
 
 	spin_lock_irqsave(&isp116x->lock, flags);
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto done;
+
 	hep = urb->hcpriv;
-	/* URB already unlinked (or never linked)? */
-	if (!hep) {
-		spin_unlock_irqrestore(&isp116x->lock, flags);
-		return 0;
-	}
 	ep = hep->hcpriv;
 	WARN_ON(hep != ep->hep);
 
@@ -855,10 +848,10 @@ static int isp116x_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 			}
 
 	if (urb)
-		finish_request(isp116x, ep, urb);
-
+		finish_request(isp116x, ep, urb, status);
+ done:
 	spin_unlock_irqrestore(&isp116x->lock, flags);
-	return 0;
+	return rc;
 }
 
 static void isp116x_endpoint_disable(struct usb_hcd *hcd,

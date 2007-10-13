@@ -150,11 +150,8 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 static struct ethtool_ops br_ethtool_ops = {
 	.get_drvinfo = br_getinfo,
 	.get_link = ethtool_op_get_link,
-	.get_sg = ethtool_op_get_sg,
 	.set_sg = br_set_sg,
-	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = br_set_tx_csum,
-	.get_tso = ethtool_op_get_tso,
 	.set_tso = br_set_tso,
 };
 
@@ -171,7 +168,6 @@ void br_dev_setup(struct net_device *dev)
 	dev->set_multicast_list = br_dev_set_multicast_list;
 	dev->change_mtu = br_change_mtu;
 	dev->destructor = free_netdev;
-	SET_MODULE_OWNER(dev);
 	SET_ETHTOOL_OPS(dev, &br_ethtool_ops);
 	dev->stop = br_dev_stop;
 	dev->tx_queue_len = 0;

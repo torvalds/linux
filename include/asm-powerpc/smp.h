@@ -45,7 +45,7 @@ void generic_mach_cpu_die(void);
 #endif
 
 #ifdef CONFIG_PPC64
-#define raw_smp_processor_id()	(get_paca()->paca_index)
+#define raw_smp_processor_id()	(local_paca->paca_index)
 #define hard_smp_processor_id() (get_paca()->hw_cpu_id)
 #else
 /* 32-bit */

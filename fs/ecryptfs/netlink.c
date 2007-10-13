@@ -165,22 +165,10 @@ static int ecryptfs_process_nl_quit(struct sk_buff *skb)
  * it to its desired netlink context element and wake up the process
  * that is waiting for a response.
  */
-static void ecryptfs_receive_nl_message(struct sock *sk, int len)
+static void ecryptfs_receive_nl_message(struct sk_buff *skb)
 {
-	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	int rc = 0;	/* skb_recv_datagram requires this */
 
-receive:
-	skb = skb_recv_datagram(sk, 0, 0, &rc);
-	if (rc == -EINTR)
-		goto receive;
-	else if (rc < 0) {
-		ecryptfs_printk(KERN_ERR, "Error occurred while "
-				"receiving eCryptfs netlink message; "
-				"rc = [%d]\n", rc);
-		return;
-	}
 	nlh = nlmsg_hdr(skb);
 	if (!NLMSG_OK(nlh, skb->len)) {
 		ecryptfs_printk(KERN_ERR, "Received corrupt netlink "
@@ -227,7 +215,7 @@ int ecryptfs_init_netlink(void)
 {
 	int rc;
 
-	ecryptfs_nl_sock = netlink_kernel_create(NETLINK_ECRYPTFS, 0,
+	ecryptfs_nl_sock = netlink_kernel_create(&init_net, NETLINK_ECRYPTFS, 0,
 						 ecryptfs_receive_nl_message,
 						 NULL, THIS_MODULE);
 	if (!ecryptfs_nl_sock) {

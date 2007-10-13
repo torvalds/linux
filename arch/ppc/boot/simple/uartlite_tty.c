@@ -16,6 +16,14 @@
 
 #define UARTLITE_BASEADDR ((void*)(XPAR_UARTLITE_0_BASEADDR))
 
+unsigned long
+serial_init(int chan, void *ignored)
+{
+	/* Clear the RX FIFO */
+	out_be32(UARTLITE_BASEADDR + 0x0C, 0x2);
+	return 0;
+}
+
 void
 serial_putc(unsigned long com_port, unsigned char c)
 {

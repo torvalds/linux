@@ -105,9 +105,8 @@ static void it8213_tune_pio(ide_drive_t *drive, const u8 pio)
 	spin_unlock_irqrestore(&tune_lock, flags);
 }
 
-static void it8213_tuneproc(ide_drive_t *drive, u8 pio)
+static void it8213_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	it8213_tune_pio(drive, pio);
 	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -115,20 +114,16 @@ static void it8213_tuneproc(ide_drive_t *drive, u8 pio)
 /**
  *	it8213_tune_chipset	-	set controller timings
  *	@drive: Drive to set up
- *	@xferspeed: speed we want to achieve
+ *	@speed: speed we want to achieve
  *
- *	Tune the ITE chipset for the desired mode. If we can't achieve
- *	the desired mode then tune for a lower one, but ultimately
- *	make the thing work.
+ *	Tune the ITE chipset for the desired mode.
  */
 
-static int it8213_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+static int it8213_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
-
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 maslave		= 0x40;
-	u8 speed		= ide_rate_filter(drive, xferspeed);
 	int a_speed		= 3 << (drive->dn * 4);
 	int u_flag		= 1 << drive->dn;
 	int v_flag		= 0x01 << drive->dn;
@@ -155,12 +150,6 @@ static int it8213_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:
-			break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
 			break;
 		default:
 			return -1;
@@ -193,10 +182,7 @@ static int it8213_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 	}
 
-	if (speed > XFER_PIO_4)
-		it8213_tune_pio(drive, it8213_dma_2_pio(speed));
-	else
-		it8213_tune_pio(drive, speed - XFER_PIO_0);
+	it8213_tune_pio(drive, it8213_dma_2_pio(speed));
 
 	return ide_config_drive_speed(drive, speed);
 }
@@ -216,7 +202,7 @@ static int it8213_config_drive_for_dma (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	it8213_tuneproc(drive, 255);
+	ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -235,7 +221,7 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	u8 reg42h = 0;
 
 	hwif->speedproc = &it8213_tune_chipset;
-	hwif->tuneproc	= &it8213_tuneproc;
+	hwif->set_pio_mode = &it8213_set_pio_mode;
 
 	hwif->autodma = 0;
 

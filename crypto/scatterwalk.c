@@ -23,14 +23,6 @@
 #include "internal.h"
 #include "scatterwalk.h"
 
-enum km_type crypto_km_types[] = {
-	KM_USER0,
-	KM_USER1,
-	KM_SOFTIRQ0,
-	KM_SOFTIRQ1,
-};
-EXPORT_SYMBOL_GPL(crypto_km_types);
-
 static inline void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
 {
 	void *src = out ? buf : sgdata;
@@ -107,3 +99,25 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 	}
 }
 EXPORT_SYMBOL_GPL(scatterwalk_copychunks);
+
+void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
+			      unsigned int start, unsigned int nbytes, int out)
+{
+	struct scatter_walk walk;
+	unsigned int offset = 0;
+
+	for (;;) {
+		scatterwalk_start(&walk, sg);
+
+		if (start < offset + sg->length)
+			break;
+
+		offset += sg->length;
+		sg = sg_next(sg);
+	}
+
+	scatterwalk_advance(&walk, start - offset);
+	scatterwalk_copychunks(buf, &walk, nbytes, out);
+	scatterwalk_done(&walk, out, 0);
+}
+EXPORT_SYMBOL_GPL(scatterwalk_map_and_copy);

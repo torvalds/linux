@@ -10,9 +10,9 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
+#include <asm/cell-regs.h>
 
 #include "ras.h"
-#include "cbe_regs.h"
 
 
 static void dump_fir(int cpu)

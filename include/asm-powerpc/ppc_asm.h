@@ -155,6 +155,20 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
+#define _INIT_GLOBAL(name) \
+	.section ".text.init.refok"; \
+	.align 2 ; \
+	.globl name; \
+	.globl GLUE(.,name); \
+	.section ".opd","aw"; \
+name: \
+	.quad GLUE(.,name); \
+	.quad .TOC.@tocbase; \
+	.quad 0; \
+	.previous; \
+	.type GLUE(.,name),@function; \
+GLUE(.,name):
+
 #define _KPROBE(name) \
 	.section ".kprobes.text","a"; \
 	.align 2 ; \
@@ -194,6 +208,10 @@ name: \
 GLUE(.,name):
 
 #else /* 32-bit */
+
+#define _ENTRY(n)	\
+	.globl n;	\
+n:
 
 #define _GLOBAL(n)	\
 	.text;		\

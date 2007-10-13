@@ -146,13 +146,11 @@ static struct udma_timing {
 	{ 0x1a, 0x01, 0xcb },	/* UDMA mode 6 */
 };
 
-static int pdcnew_tune_chipset(ide_drive_t *drive, u8 speed)
+static int pdcnew_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
 	int			err;
-
-	speed = ide_rate_filter(drive, speed);
 
 	/*
 	 * Issue SETFEATURES_XFER to the drive first. PDC202xx hardware will
@@ -217,9 +215,8 @@ static int pdcnew_tune_chipset(ide_drive_t *drive, u8 speed)
 	return err;
 }
 
-static void pdcnew_tune_drive(ide_drive_t *drive, u8 pio)
+static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void)pdcnew_tune_chipset(drive, XFER_PIO_0 + pio);
 }
 
@@ -239,7 +236,7 @@ static int pdcnew_config_drive_xfer_rate(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		pdcnew_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -492,7 +489,8 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
 
-	hwif->tuneproc  = &pdcnew_tune_drive;
+	hwif->set_pio_mode = &pdcnew_set_pio_mode;
+
 	hwif->quirkproc = &pdcnew_quirkproc;
 	hwif->speedproc = &pdcnew_tune_chipset;
 	hwif->resetproc = &pdcnew_reset;
@@ -524,44 +522,52 @@ static int __devinit init_setup_pdcnew(struct pci_dev *dev, ide_pci_device_t *d)
 	return ide_setup_pci_device(dev, d);
 }
 
-static int __devinit init_setup_pdc20270(struct pci_dev *dev,
-					 ide_pci_device_t *d)
+static int __devinit init_setup_pdc20270(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	struct pci_dev *findev = NULL;
-	int ret;
+	struct pci_dev *bridge = dev->bus->self;
 
-	if ((dev->bus->self &&
-	     dev->bus->self->vendor == PCI_VENDOR_ID_DEC) &&
-	    (dev->bus->self->device == PCI_DEVICE_ID_DEC_21150)) {
+	if (bridge != NULL &&
+	    bridge->vendor == PCI_VENDOR_ID_DEC &&
+	    bridge->device == PCI_DEVICE_ID_DEC_21150) {
+		struct pci_dev *dev2;
+
 		if (PCI_SLOT(dev->devfn) & 2)
 			return -ENODEV;
 
-		while ((findev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, findev)) != NULL) {
-			if ((findev->vendor == dev->vendor) &&
-			    (findev->device == dev->device) &&
-			    (PCI_SLOT(findev->devfn) & 2)) {
-				if (findev->irq != dev->irq) {
-					findev->irq = dev->irq;
-				}
-				ret = ide_setup_pci_devices(dev, findev, d);
-				if (ret < 0)
-					pci_dev_put(findev);
-				return ret;
+		dev2 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn) + 2,
+							PCI_FUNC(dev->devfn)));
+		if (dev2 != NULL &&
+		    dev2->vendor == dev->vendor &&
+		    dev2->device == dev->device) {
+			int ret;
+
+			if (dev2->irq != dev->irq) {
+				dev2->irq = dev->irq;
+
+				printk(KERN_WARNING "%s: PCI config space "
+				       "interrupt fixed.\n", d->name);
 			}
+
+			ret = ide_setup_pci_devices(dev, dev2, d);
+			if (ret < 0)
+				pci_dev_put(dev2);
+			return ret;
 		}
 	}
 	return ide_setup_pci_device(dev, d);
 }
 
-static int __devinit init_setup_pdc20276(struct pci_dev *dev,
-					 ide_pci_device_t *d)
+static int __devinit init_setup_pdc20276(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	if ((dev->bus->self) &&
-	    (dev->bus->self->vendor == PCI_VENDOR_ID_INTEL) &&
-	    ((dev->bus->self->device == PCI_DEVICE_ID_INTEL_I960) ||
-	     (dev->bus->self->device == PCI_DEVICE_ID_INTEL_I960RM))) {
-		printk(KERN_INFO "ide: Skipping Promise PDC20276 "
-			"attached to I2O RAID controller.\n");
+	struct pci_dev *bridge = dev->bus->self;
+
+	if (bridge != NULL &&
+	    bridge->vendor == PCI_VENDOR_ID_INTEL &&
+	   (bridge->device == PCI_DEVICE_ID_INTEL_I960 ||
+	    bridge->device == PCI_DEVICE_ID_INTEL_I960RM)) {
+
+		printk(KERN_INFO "%s: attached to I2O RAID controller, "
+				 "skipping.\n", d->name);
 		return -ENODEV;
 	}
 	return ide_setup_pci_device(dev, d);

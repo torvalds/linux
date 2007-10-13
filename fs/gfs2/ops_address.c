@@ -90,7 +90,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 	error = gfs2_block_map(inode, lblock, 0, bh_result);
 	if (error)
 		return error;
-	if (bh_result->b_blocknr == 0)
+	if (!buffer_mapped(bh_result))
 		return -EIO;
 	return 0;
 }
@@ -414,7 +414,8 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	if (ind_blocks || data_blocks)
 		rblocks += RES_STATFS + RES_QUOTA;
 
-	error = gfs2_trans_begin(sdp, rblocks, 0);
+	error = gfs2_trans_begin(sdp, rblocks,
+				 PAGE_CACHE_SIZE/sdp->sd_sb.sb_bsize);
 	if (error)
 		goto out_trans_fail;
 
@@ -616,58 +617,50 @@ static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 	return dblock;
 }
 
-static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
+static void gfs2_discard(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
 	struct gfs2_bufdata *bd;
 
+	lock_buffer(bh);
 	gfs2_log_lock(sdp);
+	clear_buffer_dirty(bh);
 	bd = bh->b_private;
 	if (bd) {
-		bd->bd_bh = NULL;
-		bh->b_private = NULL;
-		if (!bd->bd_ail && list_empty(&bd->bd_le.le_list))
-			kmem_cache_free(gfs2_bufdata_cachep, bd);
+		if (!list_empty(&bd->bd_le.le_list) && !buffer_pinned(bh))
+			list_del_init(&bd->bd_le.le_list);
+		else
+			gfs2_remove_from_journal(bh, current->journal_info, 0);
 	}
-	gfs2_log_unlock(sdp);
-
-	lock_buffer(bh);
-	clear_buffer_dirty(bh);
 	bh->b_bdev = NULL;
 	clear_buffer_mapped(bh);
 	clear_buffer_req(bh);
 	clear_buffer_new(bh);
-	clear_buffer_delay(bh);
+	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
 }
 
 static void gfs2_invalidatepage(struct page *page, unsigned long offset)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
-	struct buffer_head *head, *bh, *next;
-	unsigned int curr_off = 0;
+	struct buffer_head *bh, *head;
+	unsigned long pos = 0;
 
 	BUG_ON(!PageLocked(page));
 	if (offset == 0)
 		ClearPageChecked(page);
 	if (!page_has_buffers(page))
-		return;
+		goto out;
 
 	bh = head = page_buffers(page);
 	do {
-		unsigned int next_off = curr_off + bh->b_size;
-		next = bh->b_this_page;
-
-		if (offset <= curr_off)
-			discard_buffer(sdp, bh);
-
-		curr_off = next_off;
-		bh = next;
+		if (offset <= pos)
+			gfs2_discard(sdp, bh);
+		pos += bh->b_size;
+		bh = bh->b_this_page;
 	} while (bh != head);
-
-	if (!offset)
+out:
+	if (offset == 0)
 		try_to_release_page(page, 0);
-
-	return;
 }
 
 /**
@@ -736,59 +729,6 @@ out:
 }
 
 /**
- * stuck_releasepage - We're stuck in gfs2_releasepage().  Print stuff out.
- * @bh: the buffer we're stuck on
- *
- */
-
-static void stuck_releasepage(struct buffer_head *bh)
-{
-	struct inode *inode = bh->b_page->mapping->host;
-	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
-	struct gfs2_bufdata *bd = bh->b_private;
-	struct gfs2_glock *gl;
-static unsigned limit = 0;
-
-	if (limit > 3)
-		return;
-	limit++;
-
-	fs_warn(sdp, "stuck in gfs2_releasepage() %p\n", inode);
-	fs_warn(sdp, "blkno = %llu, bh->b_count = %d\n",
-		(unsigned long long)bh->b_blocknr, atomic_read(&bh->b_count));
-	fs_warn(sdp, "pinned = %u\n", buffer_pinned(bh));
-	fs_warn(sdp, "bh->b_private = %s\n", (bd) ? "!NULL" : "NULL");
-
-	if (!bd)
-		return;
-
-	gl = bd->bd_gl;
-
-	fs_warn(sdp, "gl = (%u, %llu)\n",
-		gl->gl_name.ln_type, (unsigned long long)gl->gl_name.ln_number);
-
-	fs_warn(sdp, "bd_list_tr = %s, bd_le.le_list = %s\n",
-		(list_empty(&bd->bd_list_tr)) ? "no" : "yes",
-		(list_empty(&bd->bd_le.le_list)) ? "no" : "yes");
-
-	if (gl->gl_ops == &gfs2_inode_glops) {
-		struct gfs2_inode *ip = gl->gl_object;
-		unsigned int x;
-
-		if (!ip)
-			return;
-
-		fs_warn(sdp, "ip = %llu %llu\n",
-			(unsigned long long)ip->i_no_formal_ino,
-			(unsigned long long)ip->i_no_addr);
-
-		for (x = 0; x < GFS2_MAX_META_HEIGHT; x++)
-			fs_warn(sdp, "ip->i_cache[%u] = %s\n",
-				x, (ip->i_cache[x]) ? "!NULL" : "NULL");
-	}
-}
-
-/**
  * gfs2_releasepage - free the metadata associated with a page
  * @page: the page that's being released
  * @gfp_mask: passed from Linux VFS, ignored by us
@@ -805,41 +745,39 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	struct gfs2_sbd *sdp = aspace->i_sb->s_fs_info;
 	struct buffer_head *bh, *head;
 	struct gfs2_bufdata *bd;
-	unsigned long t = jiffies + gfs2_tune_get(sdp, gt_stall_secs) * HZ;
 
 	if (!page_has_buffers(page))
-		goto out;
+		return 0;
+
+	gfs2_log_lock(sdp);
+	head = bh = page_buffers(page);
+	do {
+		if (atomic_read(&bh->b_count))
+			goto cannot_release;
+		bd = bh->b_private;
+		if (bd && bd->bd_ail)
+			goto cannot_release;
+		gfs2_assert_warn(sdp, !buffer_pinned(bh));
+		gfs2_assert_warn(sdp, !buffer_dirty(bh));
+		bh = bh->b_this_page;
+	} while(bh != head);
+	gfs2_log_unlock(sdp);
 
 	head = bh = page_buffers(page);
 	do {
-		while (atomic_read(&bh->b_count)) {
-			if (!atomic_read(&aspace->i_writecount))
-				return 0;
-
-			if (!(gfp_mask & __GFP_WAIT))
-				return 0;
-
-			if (time_after_eq(jiffies, t)) {
-				stuck_releasepage(bh);
-				/* should we withdraw here? */
-				return 0;
-			}
-
-			yield();
-		}
-
-		gfs2_assert_warn(sdp, !buffer_pinned(bh));
-		gfs2_assert_warn(sdp, !buffer_dirty(bh));
-
 		gfs2_log_lock(sdp);
 		bd = bh->b_private;
 		if (bd) {
 			gfs2_assert_warn(sdp, bd->bd_bh == bh);
 			gfs2_assert_warn(sdp, list_empty(&bd->bd_list_tr));
-			gfs2_assert_warn(sdp, !bd->bd_ail);
-			bd->bd_bh = NULL;
-			if (!list_empty(&bd->bd_le.le_list))
-				bd = NULL;
+			if (!list_empty(&bd->bd_le.le_list)) {
+				if (!buffer_pinned(bh))
+					list_del_init(&bd->bd_le.le_list);
+				else
+					bd = NULL;
+			}
+			if (bd)
+				bd->bd_bh = NULL;
 			bh->b_private = NULL;
 		}
 		gfs2_log_unlock(sdp);
@@ -849,8 +787,10 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bh = bh->b_this_page;
 	} while (bh != head);
 
-out:
 	return try_to_free_buffers(page);
+cannot_release:
+	gfs2_log_unlock(sdp);
+	return 0;
 }
 
 const struct address_space_operations gfs2_file_aops = {

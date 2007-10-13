@@ -17,8 +17,8 @@ typedef struct inventory_s {
 
 extern int inventory_items;
 
-extern void add_to_inventory (int class, int type, int controller, int unit, int state);
-extern int dump_inventory_to_user (void __user *userbuf, int size);
+extern void add_to_inventory(int class, int type, int controller, int unit, int state);
+extern int dump_inventory_to_user(void __user *userbuf, int size);
 extern int __init init_inventory(void);
 
 #endif /* __ASM_INVENTORY_H */

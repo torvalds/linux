@@ -60,7 +60,7 @@ static void rm9000_reg_setup(struct op_counter_config *ctr)
 
 /* Program all of the registers in preparation for enabling profiling.  */
 
-static void rm9000_cpu_setup (void *args)
+static void rm9000_cpu_setup(void *args)
 {
 	uint64_t perfcount;
 

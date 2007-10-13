@@ -41,9 +41,9 @@
 #include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
+#include <asm/cell-regs.h>
 
 #include "interrupt.h"
-#include "cbe_regs.h"
 
 struct iic {
 	struct cbe_iic_thread_regs __iomem *regs;
@@ -381,7 +381,7 @@ static int __init setup_iic(void)
 void __init iic_init_IRQ(void)
 {
 	/* Setup an irq host data structure */
-	iic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, IIC_SOURCE_COUNT,
+	iic_host = irq_alloc_host(NULL, IRQ_HOST_MAP_LINEAR, IIC_SOURCE_COUNT,
 				  &iic_host_ops, IIC_IRQ_INVALID);
 	BUG_ON(iic_host == NULL);
 	irq_set_default_host(iic_host);

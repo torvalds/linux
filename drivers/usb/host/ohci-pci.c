@@ -84,7 +84,7 @@ static int ohci_quirk_zfmicro(struct usb_hcd *hcd)
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 
 	ohci->flags |= OHCI_QUIRK_ZFMICRO;
-	ohci_dbg (ohci, "enabled Compaq ZFMicro chipset quirk\n");
+	ohci_dbg(ohci, "enabled Compaq ZFMicro chipset quirks\n");
 
 	return 0;
 }
@@ -113,11 +113,31 @@ static int ohci_quirk_toshiba_scc(struct usb_hcd *hcd)
 
 /* Check for NEC chip and apply quirk for allegedly lost interrupts.
  */
+
+static void ohci_quirk_nec_worker(struct work_struct *work)
+{
+	struct ohci_hcd *ohci = container_of(work, struct ohci_hcd, nec_work);
+	int status;
+
+	status = ohci_init(ohci);
+	if (status != 0) {
+		ohci_err(ohci, "Restarting NEC controller failed in %s, %d\n",
+			 "ohci_init", status);
+		return;
+	}
+
+	status = ohci_restart(ohci);
+	if (status != 0)
+		ohci_err(ohci, "Restarting NEC controller failed in %s, %d\n",
+			 "ohci_restart", status);
+}
+
 static int ohci_quirk_nec(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 
 	ohci->flags |= OHCI_QUIRK_NEC;
+	INIT_WORK(&ohci->nec_work, ohci_quirk_nec_worker);
 	ohci_dbg (ohci, "enabled NEC chipset lost interrupt quirk\n");
 
 	return 0;

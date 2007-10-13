@@ -166,15 +166,15 @@ static void __init console_config(void)
 			bits = '8';
 		if (flow == '\0')
 			flow = 'r';
-		sprintf (console_string, " console=ttyS0,%d%c%c%c", baud, parity, bits, flow);
-		strcat (prom_getcmdline(), console_string);
+		sprintf(console_string, " console=ttyS0,%d%c%c%c", baud, parity, bits, flow);
+		strcat(prom_getcmdline(), console_string);
 		pr_info("Config serial console:%s\n", console_string);
 	}
 }
 #endif
 
 #ifdef CONFIG_KGDB
-void __init kgdb_config (void)
+void __init kgdb_config(void)
 {
 	extern int (*generic_putDebugChar)(char);
 	extern char (*generic_getDebugChar)(void);
@@ -218,7 +218,7 @@ void __init kgdb_config (void)
 		{
 			char *s;
 			for (s = "Please connect GDB to this port\r\n"; *s; )
-				generic_putDebugChar (*s++);
+				generic_putDebugChar(*s++);
 		}
 
 		/* Breakpoint is invoked after interrupts are initialised */
@@ -226,7 +226,7 @@ void __init kgdb_config (void)
 }
 #endif
 
-void __init mips_nmi_setup (void)
+void __init mips_nmi_setup(void)
 {
 	void *base;
 	extern char except_vec_nmi;
@@ -238,7 +238,7 @@ void __init mips_nmi_setup (void)
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
 }
 
-void __init mips_ejtag_setup (void)
+void __init mips_ejtag_setup(void)
 {
 	void *base;
 	extern char except_vec_ejtag_debug;

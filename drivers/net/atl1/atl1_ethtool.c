@@ -88,9 +88,14 @@ static void atl1_get_ethtool_stats(struct net_device *netdev,
 
 }
 
-static int atl1_get_stats_count(struct net_device *netdev)
+static int atl1_get_sset_count(struct net_device *netdev, int sset)
 {
-	return ARRAY_SIZE(atl1_gstrings_stats);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(atl1_gstrings_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int atl1_get_settings(struct net_device *netdev,
@@ -489,15 +494,12 @@ const struct ethtool_ops atl1_ethtool_ops = {
 	.get_pauseparam		= atl1_get_pauseparam,
 	.set_pauseparam 	= atl1_set_pauseparam,
 	.get_rx_csum		= atl1_get_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.set_tx_csum		= ethtool_op_set_tx_hw_csum,
 	.get_link		= ethtool_op_get_link,
-	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= atl1_get_strings,
 	.nway_reset		= atl1_nway_reset,
 	.get_ethtool_stats	= atl1_get_ethtool_stats,
-	.get_stats_count	= atl1_get_stats_count,
-	.get_tso		= ethtool_op_get_tso,
+	.get_sset_count		= atl1_get_sset_count,
 	.set_tso		= ethtool_op_set_tso,
 };

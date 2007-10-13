@@ -36,7 +36,7 @@ static void __init iomem_resource_init(void)
 	iomem_resource.end = IO_MEM_RESOURCE_END;
 }
 
-static void __init setup_timer_frequency(void)
+void __init plat_time_init(void)
 {
 	unsigned long tclock;
 
@@ -53,16 +53,10 @@ void __init plat_timer_setup(struct irqaction *irq)
 	setup_irq(TIMER_IRQ, irq);
 }
 
-static void __init timer_init(void)
-{
-	board_time_init = setup_timer_frequency;
-}
-
 void __init plat_mem_setup(void)
 {
 	vr41xx_calculate_clock_frequency();
 
-	timer_init();
 	iomem_resource_init();
 }
 

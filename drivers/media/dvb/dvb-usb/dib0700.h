@@ -30,17 +30,19 @@ extern int dvb_usb_dib0700_debug;
 	// 1 Byte: 4MSB(1 = enable streaming, 0 = disable streaming) 4LSB(Video Mode: 0 = MPEG2 188Bytes, 1 = Analog)
 	// 2 Byte: MPEG2 mode:  4MSB(1 = Master Mode, 0 = Slave Mode) 4LSB(Channel 1 = bit0, Channel 2 = bit1)
 	// 2 Byte: Analog mode: 4MSB(0 = 625 lines, 1 = 525 lines)    4LSB(     "                "           )
+#define REQUEST_SET_RC       0x11
 #define REQUEST_GET_VERSION  0x15
 
 struct dib0700_state {
 	u8 channel_state;
 	u16 mt2060_if1[2];
-
+	u8 rc_toggle;
 	u8 is_dib7000pc;
 };
 
 extern int dib0700_set_gpio(struct dvb_usb_device *, enum dib07x0_gpios gpio, u8 gpio_dir, u8 gpio_val);
 extern int dib0700_ctrl_clock(struct dvb_usb_device *d, u32 clk_MHz, u8 clock_out_gp3);
+extern int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen);
 extern int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw);
 extern int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff);
 extern struct i2c_algorithm dib0700_i2c_algo;
@@ -50,5 +52,4 @@ extern int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device
 extern int dib0700_device_count;
 extern struct dvb_usb_device_properties dib0700_devices[];
 extern struct usb_device_id dib0700_usb_id_table[];
-
 #endif

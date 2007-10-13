@@ -504,9 +504,11 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_SPE
+BEGIN_FTR_SECTION
 	oris	r0,r0,MSR_SPE@h	 /* Disable SPE */
 	mfspr	r12,SPRN_SPEFSCR /* save spefscr register value */
 	stw	r12,THREAD+THREAD_SPEFSCR(r2)
+END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 #endif /* CONFIG_SPE */
 	and.	r0,r0,r11	/* FP or altivec or SPE enabled? */
 	beq+	1f
@@ -542,8 +544,10 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_SPE
+BEGIN_FTR_SECTION
 	lwz	r0,THREAD+THREAD_SPEFSCR(r2)
 	mtspr	SPRN_SPEFSCR,r0		/* restore SPEFSCR reg */
+END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 #endif /* CONFIG_SPE */
 
 	lwz	r0,_CCR(r1)

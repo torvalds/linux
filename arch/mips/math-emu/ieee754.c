@@ -47,13 +47,13 @@
 
 
 #if (defined(BYTE_ORDER) && BYTE_ORDER == LITTLE_ENDIAN) || defined(__MIPSEL__)
-#define SPSTR(s,b,m) {m,b,s}
-#define DPSTR(s,b,mh,ml) {ml,mh,b,s}
+#define SPSTR(s, b, m) {m, b, s}
+#define DPSTR(s, b, mh, ml) {ml, mh, b, s}
 #endif
 
 #ifdef __MIPSEB__
-#define SPSTR(s,b,m) {s,b,m}
-#define DPSTR(s,b,mh,ml) {s,b,mh,ml}
+#define SPSTR(s, b, m) {s, b, m}
+#define DPSTR(s, b, mh, ml) {s, b, mh, ml}
 #endif
 
 const struct ieee754dp_konst __ieee754dp_spcvals[] = {
@@ -65,7 +65,7 @@ const struct ieee754dp_konst __ieee754dp_spcvals[] = {
 	DPSTR(1, 3 + DP_EBIAS, 0x40000, 0),	/* - 10.0   */
 	DPSTR(0, DP_EMAX + 1 + DP_EBIAS, 0, 0),	/* + infinity */
 	DPSTR(1, DP_EMAX + 1 + DP_EBIAS, 0, 0),	/* - infinity */
-	DPSTR(0,DP_EMAX+1+DP_EBIAS,0x7FFFF,0xFFFFFFFF), /* + indef quiet Nan */
+	DPSTR(0, DP_EMAX+1+DP_EBIAS, 0x7FFFF, 0xFFFFFFFF), /* + indef quiet Nan */
 	DPSTR(0, DP_EMAX + DP_EBIAS, 0xFFFFF, 0xFFFFFFFF),	/* + max */
 	DPSTR(1, DP_EMAX + DP_EBIAS, 0xFFFFF, 0xFFFFFFFF),	/* - max */
 	DPSTR(0, DP_EMIN + DP_EBIAS, 0, 0),	/* + min normal */
@@ -85,7 +85,7 @@ const struct ieee754sp_konst __ieee754sp_spcvals[] = {
 	SPSTR(1, 3 + SP_EBIAS, 0x200000),	/* - 10.0   */
 	SPSTR(0, SP_EMAX + 1 + SP_EBIAS, 0),	/* + infinity */
 	SPSTR(1, SP_EMAX + 1 + SP_EBIAS, 0),	/* - infinity */
-	SPSTR(0,SP_EMAX+1+SP_EBIAS,0x3FFFFF),     /* + indef quiet Nan  */
+	SPSTR(0, SP_EMAX+1+SP_EBIAS, 0x3FFFFF),     /* + indef quiet Nan  */
 	SPSTR(0, SP_EMAX + SP_EBIAS, 0x7FFFFF),	/* + max normal */
 	SPSTR(1, SP_EMAX + SP_EBIAS, 0x7FFFFF),	/* - max normal */
 	SPSTR(0, SP_EMIN + SP_EBIAS, 0),	/* + min normal */

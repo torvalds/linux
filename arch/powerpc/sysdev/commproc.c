@@ -39,18 +39,21 @@
 #include <asm/tlbflush.h>
 #include <asm/rheap.h>
 #include <asm/prom.h>
+#include <asm/cpm.h>
 
 #include <asm/fs_pd.h>
 
 #define CPM_MAP_SIZE    (0x4000)
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 static void m8xx_cpm_dpinit(void);
-static	uint	host_buffer;	/* One page of host buffer */
-static	uint	host_end;	/* end + 1 */
-cpm8xx_t	*cpmp;		/* Pointer to comm processor space */
-cpic8xx_t	*cpic_reg;
+#endif
+static uint host_buffer; /* One page of host buffer */
+static uint host_end;    /* end + 1 */
+cpm8xx_t __iomem *cpmp;  /* Pointer to comm processor space */
+immap_t __iomem *mpc8xx_immr;
+static cpic8xx_t __iomem *cpic_reg;
 
-static struct device_node *cpm_pic_node;
 static struct irq_host *cpm_pic_host;
 
 static void cpm_mask_irq(unsigned int irq)
@@ -95,11 +98,6 @@ int cpm_get_irq(void)
 	return irq_linear_revmap(cpm_pic_host, cpm_vec);
 }
 
-static int cpm_pic_host_match(struct irq_host *h, struct device_node *node)
-{
-	return cpm_pic_node == node;
-}
-
 static int cpm_pic_host_map(struct irq_host *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
@@ -115,7 +113,7 @@ static int cpm_pic_host_map(struct irq_host *h, unsigned int virq,
  * and return.  This is a no-op function so we don't need any special
  * tests in the interrupt handler.
  */
-static	irqreturn_t cpm_error_interrupt(int irq, void *dev)
+static irqreturn_t cpm_error_interrupt(int irq, void *dev)
 {
 	return IRQ_HANDLED;
 }
@@ -127,7 +125,6 @@ static struct irqaction cpm_error_irqaction = {
 };
 
 static struct irq_host_ops cpm_pic_host_ops = {
-	.match = cpm_pic_host_match,
 	.map = cpm_pic_host_map,
 };
 
@@ -140,16 +137,19 @@ unsigned int cpm_pic_init(void)
 
 	pr_debug("cpm_pic_init\n");
 
-	np = of_find_compatible_node(NULL, "cpm-pic", "CPM");
+	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1-pic");
+	if (np == NULL)
+		np = of_find_compatible_node(NULL, "cpm-pic", "CPM");
 	if (np == NULL) {
 		printk(KERN_ERR "CPM PIC init: can not find cpm-pic node\n");
 		return sirq;
 	}
+
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
 		goto end;
 
-	cpic_reg = (void *)ioremap(res.start, res.end - res.start + 1);
+	cpic_reg = ioremap(res.start, res.end - res.start + 1);
 	if (cpic_reg == NULL)
 		goto end;
 
@@ -165,23 +165,24 @@ unsigned int cpm_pic_init(void)
 
 	out_be32(&cpic_reg->cpic_cimr, 0);
 
-	cpm_pic_node = of_node_get(np);
-
-	cpm_pic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, 64, &cpm_pic_host_ops, 64);
+	cpm_pic_host = irq_alloc_host(of_node_get(np), IRQ_HOST_MAP_LINEAR,
+				      64, &cpm_pic_host_ops, 64);
 	if (cpm_pic_host == NULL) {
 		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");
 		sirq = NO_IRQ;
 		goto end;
 	}
-	of_node_put(np);
 
 	/* Install our own error handler. */
-	np = of_find_node_by_type(NULL, "cpm");
+	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1");
+	if (np == NULL)
+		np = of_find_node_by_type(NULL, "cpm");
 	if (np == NULL) {
 		printk(KERN_ERR "CPM PIC init: can not find cpm node\n");
 		goto end;
 	}
-	eirq= irq_of_parse_and_map(np, 0);
+
+	eirq = irq_of_parse_and_map(np, 0);
 	if (eirq == NO_IRQ)
 		goto end;
 
@@ -195,23 +196,30 @@ end:
 	return sirq;
 }
 
-void cpm_reset(void)
+void __init cpm_reset(void)
 {
-	cpm8xx_t	*commproc;
-	sysconf8xx_t    *siu_conf;
+	sysconf8xx_t __iomem *siu_conf;
 
-	commproc = (cpm8xx_t *)ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
+	mpc8xx_immr = ioremap(get_immrbase(), 0x4000);
+	if (!mpc8xx_immr) {
+		printk(KERN_CRIT "Could not map IMMR\n");
+		return;
+	}
 
-#ifdef CONFIG_UCODE_PATCH
+	cpmp = &mpc8xx_immr->im_cpm;
+
+#ifndef CONFIG_PPC_EARLY_DEBUG_CPM
 	/* Perform a reset.
 	*/
-	out_be16(&commproc->cp_cpcr,  CPM_CR_RST | CPM_CR_FLG);
+	out_be16(&cpmp->cp_cpcr, CPM_CR_RST | CPM_CR_FLG);
 
 	/* Wait for it.
 	*/
-	while (in_be16(&commproc->cp_cpcr) & CPM_CR_FLG);
+	while (in_be16(&cpmp->cp_cpcr) & CPM_CR_FLG);
+#endif
 
-	cpm_load_patch(commproc);
+#ifdef CONFIG_UCODE_PATCH
+	cpm_load_patch(cpmp);
 #endif
 
 	/* Set SDMA Bus Request priority 5.
@@ -220,16 +228,16 @@ void cpm_reset(void)
 	 * manual recommends it.
 	 * Bit 25, FAM can also be set to use FEC aggressive mode (860T).
 	 */
-	siu_conf = (sysconf8xx_t*)immr_map(im_siu_conf);
+	siu_conf = immr_map(im_siu_conf);
 	out_be32(&siu_conf->sc_sdcr, 1);
 	immr_unmap(siu_conf);
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	cpm_muram_init();
+#else
 	/* Reclaim the DP memory for our use. */
 	m8xx_cpm_dpinit();
-
-	/* Tell everyone where the comm processor resides.
-	*/
-	cpmp = commproc;
+#endif
 }
 
 /* We used to do this earlier, but have to postpone as long as possible
@@ -279,22 +287,23 @@ m8xx_cpm_hostalloc(uint size)
 void
 cpm_setbrg(uint brg, uint rate)
 {
-	volatile uint	*bp;
+	u32 __iomem *bp;
 
 	/* This is good enough to get SMCs running.....
 	*/
-	bp = (uint *)&cpmp->cp_brgc1;
+	bp = &cpmp->cp_brgc1;
 	bp += brg;
 	/* The BRG has a 12-bit counter.  For really slow baud rates (or
 	 * really fast processors), we may have to further divide by 16.
 	 */
 	if (((BRG_UART_CLK / rate) - 1) < 4096)
-		*bp = (((BRG_UART_CLK / rate) - 1) << 1) | CPM_BRG_EN;
+		out_be32(bp, (((BRG_UART_CLK / rate) - 1) << 1) | CPM_BRG_EN);
 	else
-		*bp = (((BRG_UART_CLK_DIV16 / rate) - 1) << 1) |
-						CPM_BRG_EN | CPM_BRG_DIV16;
+		out_be32(bp, (((BRG_UART_CLK_DIV16 / rate) - 1) << 1) |
+		             CPM_BRG_EN | CPM_BRG_DIV16);
 }
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 /*
  * dpalloc / dpfree bits.
  */
@@ -307,15 +316,15 @@ static rh_block_t cpm_boot_dpmem_rh_block[16];
 static rh_info_t cpm_dpmem_info;
 
 #define CPM_DPMEM_ALIGNMENT	8
-static u8* dpram_vbase;
-static uint dpram_pbase;
+static u8 __iomem *dpram_vbase;
+static phys_addr_t dpram_pbase;
 
-void m8xx_cpm_dpinit(void)
+static void m8xx_cpm_dpinit(void)
 {
 	spin_lock_init(&cpm_dpmem_lock);
 
-	dpram_vbase = immr_map_size(im_cpm.cp_dpmem, CPM_DATAONLY_BASE + CPM_DATAONLY_SIZE);
-	dpram_pbase = (uint)&((immap_t *)IMAP_ADDR)->im_cpm.cp_dpmem;
+	dpram_vbase = cpmp->cp_dpmem;
+	dpram_pbase = get_immrbase() + offsetof(immap_t, im_cpm.cp_dpmem);
 
 	/* Initialize the info header */
 	rh_init(&cpm_dpmem_info, CPM_DPMEM_ALIGNMENT,
@@ -391,8 +400,210 @@ void *cpm_dpram_addr(unsigned long offset)
 }
 EXPORT_SYMBOL(cpm_dpram_addr);
 
-uint cpm_dpram_phys(u8* addr)
+uint cpm_dpram_phys(u8 *addr)
 {
 	return (dpram_pbase + (uint)(addr - dpram_vbase));
 }
 EXPORT_SYMBOL(cpm_dpram_phys);
+#endif /* !CONFIG_PPC_CPM_NEW_BINDING */
+
+struct cpm_ioport16 {
+	__be16 dir, par, sor, dat, intr;
+	__be16 res[3];
+};
+
+struct cpm_ioport32 {
+	__be32 dir, par, sor;
+};
+
+static void cpm1_set_pin32(int port, int pin, int flags)
+{
+	struct cpm_ioport32 __iomem *iop;
+	pin = 1 << (31 - pin);
+
+	if (port == CPM_PORTB)
+		iop = (struct cpm_ioport32 __iomem *)
+		      &mpc8xx_immr->im_cpm.cp_pbdir;
+	else
+		iop = (struct cpm_ioport32 __iomem *)
+		      &mpc8xx_immr->im_cpm.cp_pedir;
+
+	if (flags & CPM_PIN_OUTPUT)
+		setbits32(&iop->dir, pin);
+	else
+		clrbits32(&iop->dir, pin);
+
+	if (!(flags & CPM_PIN_GPIO))
+		setbits32(&iop->par, pin);
+	else
+		clrbits32(&iop->par, pin);
+
+	if (port == CPM_PORTE) {
+		if (flags & CPM_PIN_SECONDARY)
+			setbits32(&iop->sor, pin);
+		else
+			clrbits32(&iop->sor, pin);
+
+		if (flags & CPM_PIN_OPENDRAIN)
+			setbits32(&mpc8xx_immr->im_cpm.cp_peodr, pin);
+		else
+			clrbits32(&mpc8xx_immr->im_cpm.cp_peodr, pin);
+	}
+}
+
+static void cpm1_set_pin16(int port, int pin, int flags)
+{
+	struct cpm_ioport16 __iomem *iop =
+		(struct cpm_ioport16 __iomem *)&mpc8xx_immr->im_ioport;
+
+	pin = 1 << (15 - pin);
+
+	if (port != 0)
+		iop += port - 1;
+
+	if (flags & CPM_PIN_OUTPUT)
+		setbits16(&iop->dir, pin);
+	else
+		clrbits16(&iop->dir, pin);
+
+	if (!(flags & CPM_PIN_GPIO))
+		setbits16(&iop->par, pin);
+	else
+		clrbits16(&iop->par, pin);
+
+	if (port == CPM_PORTC) {
+		if (flags & CPM_PIN_SECONDARY)
+			setbits16(&iop->sor, pin);
+		else
+			clrbits16(&iop->sor, pin);
+	}
+}
+
+void cpm1_set_pin(enum cpm_port port, int pin, int flags)
+{
+	if (port == CPM_PORTB || port == CPM_PORTE)
+		cpm1_set_pin32(port, pin, flags);
+	else
+		cpm1_set_pin16(port, pin, flags);
+}
+
+int cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode)
+{
+	int shift;
+	int i, bits = 0;
+	u32 __iomem *reg;
+	u32 mask = 7;
+
+	u8 clk_map[][3] = {
+		{CPM_CLK_SCC1, CPM_BRG1, 0},
+		{CPM_CLK_SCC1, CPM_BRG2, 1},
+		{CPM_CLK_SCC1, CPM_BRG3, 2},
+		{CPM_CLK_SCC1, CPM_BRG4, 3},
+		{CPM_CLK_SCC1, CPM_CLK1, 4},
+		{CPM_CLK_SCC1, CPM_CLK2, 5},
+		{CPM_CLK_SCC1, CPM_CLK3, 6},
+		{CPM_CLK_SCC1, CPM_CLK4, 7},
+
+		{CPM_CLK_SCC2, CPM_BRG1, 0},
+		{CPM_CLK_SCC2, CPM_BRG2, 1},
+		{CPM_CLK_SCC2, CPM_BRG3, 2},
+		{CPM_CLK_SCC2, CPM_BRG4, 3},
+		{CPM_CLK_SCC2, CPM_CLK1, 4},
+		{CPM_CLK_SCC2, CPM_CLK2, 5},
+		{CPM_CLK_SCC2, CPM_CLK3, 6},
+		{CPM_CLK_SCC2, CPM_CLK4, 7},
+
+		{CPM_CLK_SCC3, CPM_BRG1, 0},
+		{CPM_CLK_SCC3, CPM_BRG2, 1},
+		{CPM_CLK_SCC3, CPM_BRG3, 2},
+		{CPM_CLK_SCC3, CPM_BRG4, 3},
+		{CPM_CLK_SCC3, CPM_CLK5, 4},
+		{CPM_CLK_SCC3, CPM_CLK6, 5},
+		{CPM_CLK_SCC3, CPM_CLK7, 6},
+		{CPM_CLK_SCC3, CPM_CLK8, 7},
+
+		{CPM_CLK_SCC4, CPM_BRG1, 0},
+		{CPM_CLK_SCC4, CPM_BRG2, 1},
+		{CPM_CLK_SCC4, CPM_BRG3, 2},
+		{CPM_CLK_SCC4, CPM_BRG4, 3},
+		{CPM_CLK_SCC4, CPM_CLK5, 4},
+		{CPM_CLK_SCC4, CPM_CLK6, 5},
+		{CPM_CLK_SCC4, CPM_CLK7, 6},
+		{CPM_CLK_SCC4, CPM_CLK8, 7},
+
+		{CPM_CLK_SMC1, CPM_BRG1, 0},
+		{CPM_CLK_SMC1, CPM_BRG2, 1},
+		{CPM_CLK_SMC1, CPM_BRG3, 2},
+		{CPM_CLK_SMC1, CPM_BRG4, 3},
+		{CPM_CLK_SMC1, CPM_CLK1, 4},
+		{CPM_CLK_SMC1, CPM_CLK2, 5},
+		{CPM_CLK_SMC1, CPM_CLK3, 6},
+		{CPM_CLK_SMC1, CPM_CLK4, 7},
+
+		{CPM_CLK_SMC2, CPM_BRG1, 0},
+		{CPM_CLK_SMC2, CPM_BRG2, 1},
+		{CPM_CLK_SMC2, CPM_BRG3, 2},
+		{CPM_CLK_SMC2, CPM_BRG4, 3},
+		{CPM_CLK_SMC2, CPM_CLK5, 4},
+		{CPM_CLK_SMC2, CPM_CLK6, 5},
+		{CPM_CLK_SMC2, CPM_CLK7, 6},
+		{CPM_CLK_SMC2, CPM_CLK8, 7},
+	};
+
+	switch (target) {
+	case CPM_CLK_SCC1:
+		reg = &mpc8xx_immr->im_cpm.cp_sicr;
+		shift = 0;
+		break;
+
+	case CPM_CLK_SCC2:
+		reg = &mpc8xx_immr->im_cpm.cp_sicr;
+		shift = 8;
+		break;
+
+	case CPM_CLK_SCC3:
+		reg = &mpc8xx_immr->im_cpm.cp_sicr;
+		shift = 16;
+		break;
+
+	case CPM_CLK_SCC4:
+		reg = &mpc8xx_immr->im_cpm.cp_sicr;
+		shift = 24;
+		break;
+
+	case CPM_CLK_SMC1:
+		reg = &mpc8xx_immr->im_cpm.cp_simode;
+		shift = 12;
+		break;
+
+	case CPM_CLK_SMC2:
+		reg = &mpc8xx_immr->im_cpm.cp_simode;
+		shift = 28;
+		break;
+
+	default:
+		printk(KERN_ERR "cpm1_clock_setup: invalid clock target\n");
+		return -EINVAL;
+	}
+
+	if (reg == &mpc8xx_immr->im_cpm.cp_sicr && mode == CPM_CLK_RX)
+		shift += 3;
+
+	for (i = 0; i < ARRAY_SIZE(clk_map); i++) {
+		if (clk_map[i][0] == target && clk_map[i][1] == clock) {
+			bits = clk_map[i][2];
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(clk_map)) {
+		printk(KERN_ERR "cpm1_clock_setup: invalid clock combination\n");
+		return -EINVAL;
+	}
+
+	bits <<= shift;
+	mask <<= shift;
+	out_be32(reg, (in_be32(reg) & ~mask) | bits);
+
+	return 0;
+}

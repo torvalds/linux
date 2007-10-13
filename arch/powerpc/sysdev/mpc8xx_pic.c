@@ -19,11 +19,10 @@
 
 extern int cpm_get_irq(struct pt_regs *regs);
 
-static struct device_node *mpc8xx_pic_node;
 static struct irq_host *mpc8xx_pic_host;
 #define NR_MASK_WORDS   ((NR_IRQS + 31) / 32)
 static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
-static sysconf8xx_t	*siu_reg;
+static sysconf8xx_t __iomem *siu_reg;
 
 int cpm_get_irq(struct pt_regs *regs);
 
@@ -120,11 +119,6 @@ unsigned int mpc8xx_get_irq(void)
 
 }
 
-static int mpc8xx_pic_host_match(struct irq_host *h, struct device_node *node)
-{
-	return mpc8xx_pic_node == node;
-}
-
 static int mpc8xx_pic_host_map(struct irq_host *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
@@ -158,7 +152,6 @@ static int mpc8xx_pic_host_xlate(struct irq_host *h, struct device_node *ct,
 
 
 static struct irq_host_ops mpc8xx_pic_host_ops = {
-	.match = mpc8xx_pic_host_match,
 	.map = mpc8xx_pic_host_map,
 	.xlate = mpc8xx_pic_host_xlate,
 };
@@ -166,32 +159,33 @@ static struct irq_host_ops mpc8xx_pic_host_ops = {
 int mpc8xx_pic_init(void)
 {
 	struct resource res;
-	struct device_node *np = NULL;
+	struct device_node *np;
 	int ret;
 
-	np = of_find_node_by_type(np, "mpc8xx-pic");
-
+	np = of_find_compatible_node(NULL, NULL, "fsl,pq1-pic");
+	if (np == NULL)
+		np = of_find_node_by_type(NULL, "mpc8xx-pic");
 	if (np == NULL) {
-		printk(KERN_ERR "Could not find open-pic node\n");
+		printk(KERN_ERR "Could not find fsl,pq1-pic node\n");
 		return -ENOMEM;
 	}
 
-	mpc8xx_pic_node = of_node_get(np);
-
 	ret = of_address_to_resource(np, 0, &res);
-	of_node_put(np);
 	if (ret)
-		return ret;
+		goto out;
 
-	siu_reg = (void *)ioremap(res.start, res.end - res.start + 1);
+	siu_reg = ioremap(res.start, res.end - res.start + 1);
 	if (siu_reg == NULL)
 		return -EINVAL;
 
-	mpc8xx_pic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, 64, &mpc8xx_pic_host_ops, 64);
+	mpc8xx_pic_host = irq_alloc_host(of_node_get(np), IRQ_HOST_MAP_LINEAR,
+					 64, &mpc8xx_pic_host_ops, 64);
 	if (mpc8xx_pic_host == NULL) {
 		printk(KERN_ERR "MPC8xx PIC: failed to allocate irq host!\n");
 		ret = -ENOMEM;
 	}
 
+out:
+	of_node_put(np);
 	return ret;
 }

@@ -28,6 +28,7 @@
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <net/net_namespace.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irlap.h>
@@ -66,7 +67,7 @@ void __init irda_proc_register(void)
 	int i;
 	struct proc_dir_entry *d;
 
-	proc_irda = proc_mkdir("irda", proc_net);
+	proc_irda = proc_mkdir("irda", init_net.proc_net);
 	if (proc_irda == NULL)
 		return;
 	proc_irda->owner = THIS_MODULE;
@@ -92,7 +93,7 @@ void irda_proc_unregister(void)
 		for (i=0; i<ARRAY_SIZE(irda_dirs); i++)
 			remove_proc_entry(irda_dirs[i].name, proc_irda);
 
-		remove_proc_entry("irda", proc_net);
+		remove_proc_entry("irda", init_net.proc_net);
 		proc_irda = NULL;
 	}
 }

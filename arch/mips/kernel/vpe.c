@@ -936,8 +936,18 @@ static int vpe_elfload(struct vpe * v)
 
   		}
   	} else {
-  		for (i = 0; i < hdr->e_shnum; i++) {
+		struct elf_phdr *phdr = (struct elf_phdr *) ((char *)hdr + hdr->e_phoff);
 
+		for (i = 0; i < hdr->e_phnum; i++) {
+			if (phdr->p_type != PT_LOAD)
+				continue;
+
+			memcpy((void *)phdr->p_vaddr, (char *)hdr + phdr->p_offset, phdr->p_filesz);
+			memset((void *)phdr->p_vaddr + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
+			phdr++;
+		}
+
+		for (i = 0; i < hdr->e_shnum; i++) {
  			/* Internal symbols and strings. */
  			if (sechdrs[i].sh_type == SHT_SYMTAB) {
  				symindex = i;
@@ -948,39 +958,6 @@ static int vpe_elfload(struct vpe * v)
  				   magic symbols */
  				sechdrs[i].sh_addr = (size_t) hdr + sechdrs[i].sh_offset;
  			}
-
- 			/* filter sections we dont want in the final image */
- 			if (!(sechdrs[i].sh_flags & SHF_ALLOC) ||
- 			    (sechdrs[i].sh_type == SHT_MIPS_REGINFO)) {
- 				printk( KERN_DEBUG " ignoring section, "
- 					"name %s type %x address 0x%x \n",
- 					secstrings + sechdrs[i].sh_name,
- 					sechdrs[i].sh_type, sechdrs[i].sh_addr);
- 				continue;
- 			}
-
-  			if (sechdrs[i].sh_addr < (unsigned int)v->load_addr) {
- 				printk( KERN_WARNING "VPE loader: "
- 					"fully linked image has invalid section, "
- 					"name %s type %x address 0x%x, before load "
- 					"address of 0x%x\n",
- 					secstrings + sechdrs[i].sh_name,
- 					sechdrs[i].sh_type, sechdrs[i].sh_addr,
- 					(unsigned int)v->load_addr);
-  				return -ENOEXEC;
-  			}
-
- 			printk(KERN_DEBUG " copying section sh_name %s, sh_addr 0x%x "
-			       "size 0x%x0 from x%p\n",
-			       secstrings + sechdrs[i].sh_name, sechdrs[i].sh_addr,
-			       sechdrs[i].sh_size, hdr + sechdrs[i].sh_offset);
-
-  			if (sechdrs[i].sh_type != SHT_NOBITS)
-				memcpy((void *)sechdrs[i].sh_addr,
-				       (char *)hdr + sechdrs[i].sh_offset,
- 				       sechdrs[i].sh_size);
-			else
-				memset((void *)sechdrs[i].sh_addr, 0, sechdrs[i].sh_size);
 		}
 	}
 
@@ -1044,7 +1021,7 @@ static int getcwd(char *buff, int size)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	ret = sys_getcwd(buff,size);
+	ret = sys_getcwd(buff, size);
 
 	set_fs(old_fs);
 

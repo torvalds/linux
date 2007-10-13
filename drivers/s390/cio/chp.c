@@ -14,7 +14,7 @@
 #include <linux/jiffies.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/chpid.h>
 #include <asm/sclp.h>
 
@@ -55,7 +55,7 @@ static wait_queue_head_t cfg_wait_queue;
 /* Return channel_path struct for given chpid. */
 static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
 {
-	return css[chpid.cssid]->chps[chpid.id];
+	return channel_subsystems[chpid.cssid]->chps[chpid.id];
 }
 
 /* Set vary state for given chpid. */
@@ -86,7 +86,7 @@ u8 chp_get_sch_opm(struct subchannel *sch)
 
 	opm = 0;
 	chp_id_init(&chpid);
-	for (i=0; i < 8; i++) {
+	for (i = 0; i < 8; i++) {
 		opm <<= 1;
 		chpid.id = sch->schib.pmcw.chpid[i];
 		if (chp_get_status(chpid) != 0)
@@ -118,7 +118,7 @@ static int s390_vary_chpid(struct chp_id chpid, int on)
 
 	sprintf(dbf_text, on?"varyon%x.%02x":"varyoff%x.%02x", chpid.cssid,
 		chpid.id);
-	CIO_TRACE_EVENT( 2, dbf_text);
+	CIO_TRACE_EVENT(2, dbf_text);
 
 	status = chp_get_status(chpid);
 	if (!on && !status) {
@@ -140,9 +140,11 @@ static ssize_t chp_measurement_chars_read(struct kobject *kobj,
 					  char *buf, loff_t off, size_t count)
 {
 	struct channel_path *chp;
+	struct device *device;
 	unsigned int size;
 
-	chp = to_channelpath(container_of(kobj, struct device, kobj));
+	device = container_of(kobj, struct device, kobj);
+	chp = to_channelpath(device);
 	if (!chp->cmg_chars)
 		return 0;
 
@@ -193,9 +195,11 @@ static ssize_t chp_measurement_read(struct kobject *kobj,
 {
 	struct channel_path *chp;
 	struct channel_subsystem *css;
+	struct device *device;
 	unsigned int size;
 
-	chp = to_channelpath(container_of(kobj, struct device, kobj));
+	device = container_of(kobj, struct device, kobj);
+	chp = to_channelpath(device);
 	css = to_css(chp->dev.parent);
 
 	size = sizeof(struct cmg_entry);
@@ -353,7 +357,7 @@ static ssize_t chp_shared_show(struct device *dev,
 
 static DEVICE_ATTR(shared, 0444, chp_shared_show, NULL);
 
-static struct attribute * chp_attrs[] = {
+static struct attribute *chp_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_configure.attr,
 	&dev_attr_type.attr,
@@ -395,7 +399,7 @@ int chp_new(struct chp_id chpid)
 	/* fill in status, etc. */
 	chp->chpid = chpid;
 	chp->state = 1;
-	chp->dev.parent = &css[chpid.cssid]->device;
+	chp->dev.parent = &channel_subsystems[chpid.cssid]->device;
 	chp->dev.release = chp_release;
 	snprintf(chp->dev.bus_id, BUS_ID_SIZE, "chp%x.%02x", chpid.cssid,
 		 chpid.id);
@@ -430,18 +434,18 @@ int chp_new(struct chp_id chpid)
 		device_unregister(&chp->dev);
 		goto out_free;
 	}
-	mutex_lock(&css[chpid.cssid]->mutex);
-	if (css[chpid.cssid]->cm_enabled) {
+	mutex_lock(&channel_subsystems[chpid.cssid]->mutex);
+	if (channel_subsystems[chpid.cssid]->cm_enabled) {
 		ret = chp_add_cmg_attr(chp);
 		if (ret) {
 			sysfs_remove_group(&chp->dev.kobj, &chp_attr_group);
 			device_unregister(&chp->dev);
-			mutex_unlock(&css[chpid.cssid]->mutex);
+			mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
 			goto out_free;
 		}
 	}
-	css[chpid.cssid]->chps[chpid.id] = chp;
-	mutex_unlock(&css[chpid.cssid]->mutex);
+	channel_subsystems[chpid.cssid]->chps[chpid.id] = chp;
+	mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
 	return ret;
 out_free:
 	kfree(chp);

@@ -297,74 +297,35 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 		unlock_page(bh->b_page);
 }
 
-/**
- * gfs2_pin - Pin a buffer in memory
- * @sdp: the filesystem the buffer belongs to
- * @bh: The buffer to be pinned
- *
- */
-
-void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
+void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int meta)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(bh->b_page->mapping->host);
 	struct gfs2_bufdata *bd = bh->b_private;
-
-	gfs2_assert_withdraw(sdp, test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags));
-
-	if (test_set_buffer_pinned(bh))
-		gfs2_assert_withdraw(sdp, 0);
-
-	wait_on_buffer(bh);
-
-	/* If this buffer is in the AIL and it has already been written
-	   to in-place disk block, remove it from the AIL. */
-
-	gfs2_log_lock(sdp);
-	if (bd->bd_ail && !buffer_in_io(bh))
-		list_move(&bd->bd_ail_st_list, &bd->bd_ail->ai_ail2_list);
-	gfs2_log_unlock(sdp);
-
-	clear_buffer_dirty(bh);
-	wait_on_buffer(bh);
-
-	if (!buffer_uptodate(bh))
-		gfs2_io_error_bh(sdp, bh);
-
-	get_bh(bh);
-}
-
-/**
- * gfs2_unpin - Unpin a buffer
- * @sdp: the filesystem the buffer belongs to
- * @bh: The buffer to unpin
- * @ai:
- *
- */
-
-void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
-	        struct gfs2_ail *ai)
-{
-	struct gfs2_bufdata *bd = bh->b_private;
-
-	gfs2_assert_withdraw(sdp, buffer_uptodate(bh));
-
-	if (!buffer_pinned(bh))
-		gfs2_assert_withdraw(sdp, 0);
-
-	mark_buffer_dirty(bh);
-	clear_buffer_pinned(bh);
-
-	gfs2_log_lock(sdp);
-	if (bd->bd_ail) {
-		list_del(&bd->bd_ail_st_list);
+	if (test_clear_buffer_pinned(bh)) {
+		list_del_init(&bd->bd_le.le_list);
+		if (meta) {
+			gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
+			sdp->sd_log_num_buf--;
+			tr->tr_num_buf_rm++;
+		} else {
+			gfs2_assert_warn(sdp, sdp->sd_log_num_databuf);
+			sdp->sd_log_num_databuf--;
+			tr->tr_num_databuf_rm++;
+		}
+		tr->tr_touched = 1;
 		brelse(bh);
-	} else {
-		struct gfs2_glock *gl = bd->bd_gl;
-		list_add(&bd->bd_ail_gl_list, &gl->gl_ail_list);
-		atomic_inc(&gl->gl_ail_count);
 	}
-	bd->bd_ail = ai;
-	list_add(&bd->bd_ail_st_list, &ai->ai_ail1_list);
-	gfs2_log_unlock(sdp);
+	if (bd) {
+		if (bd->bd_ail) {
+			gfs2_remove_from_ail(NULL, bd);
+			bh->b_private = NULL;
+			bd->bd_bh = NULL;
+			bd->bd_blkno = bh->b_blocknr;
+			gfs2_trans_add_revoke(sdp, bd);
+		}
+	}
+	clear_buffer_dirty(bh);
+	clear_buffer_uptodate(bh);
 }
 
 /**
@@ -383,44 +344,11 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	while (blen) {
 		bh = getbuf(ip->i_gl, bstart, NO_CREATE);
 		if (bh) {
-			struct gfs2_bufdata *bd = bh->b_private;
-
-			if (test_clear_buffer_pinned(bh)) {
-				struct gfs2_trans *tr = current->journal_info;
-				struct gfs2_inode *bh_ip =
-					GFS2_I(bh->b_page->mapping->host);
-
-				gfs2_log_lock(sdp);
-				list_del_init(&bd->bd_le.le_list);
-				gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
-				sdp->sd_log_num_buf--;
-				gfs2_log_unlock(sdp);
-				if (bh_ip->i_inode.i_private != NULL)
-					tr->tr_num_databuf_rm++;
-				else
-					tr->tr_num_buf_rm++;
-				brelse(bh);
-			}
-			if (bd) {
-				gfs2_log_lock(sdp);
-				if (bd->bd_ail) {
-					u64 blkno = bh->b_blocknr;
-					bd->bd_ail = NULL;
-					list_del(&bd->bd_ail_st_list);
-					list_del(&bd->bd_ail_gl_list);
-					atomic_dec(&bd->bd_gl->gl_ail_count);
-					brelse(bh);
-					gfs2_log_unlock(sdp);
-					gfs2_trans_add_revoke(sdp, blkno);
-				} else
-					gfs2_log_unlock(sdp);
-			}
-
 			lock_buffer(bh);
-			clear_buffer_dirty(bh);
-			clear_buffer_uptodate(bh);
+			gfs2_log_lock(sdp);
+			gfs2_remove_from_journal(bh, current->journal_info, 1);
+			gfs2_log_unlock(sdp);
 			unlock_buffer(bh);
-
 			brelse(bh);
 		}
 
@@ -446,10 +374,10 @@ void gfs2_meta_cache_flush(struct gfs2_inode *ip)
 
 	for (x = 0; x < GFS2_MAX_META_HEIGHT; x++) {
 		bh_slot = &ip->i_cache[x];
-		if (!*bh_slot)
-			break;
-		brelse(*bh_slot);
-		*bh_slot = NULL;
+		if (*bh_slot) {
+			brelse(*bh_slot);
+			*bh_slot = NULL;
+		}
 	}
 
 	spin_unlock(&ip->i_spin);

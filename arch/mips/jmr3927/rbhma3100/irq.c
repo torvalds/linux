@@ -104,7 +104,9 @@ static irqreturn_t jmr3927_ioc_interrupt(int irq, void *dev_id)
 }
 
 static struct irqaction ioc_action = {
-	jmr3927_ioc_interrupt, 0, CPU_MASK_NONE, "IOC", NULL, NULL,
+	.handler = jmr3927_ioc_interrupt,
+	.mask = CPU_MASK_NONE,
+	.name = "IOC",
 };
 
 static irqreturn_t jmr3927_pcierr_interrupt(int irq, void *dev_id)
@@ -116,7 +118,9 @@ static irqreturn_t jmr3927_pcierr_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 static struct irqaction pcierr_action = {
-	jmr3927_pcierr_interrupt, 0, CPU_MASK_NONE, "PCI error", NULL, NULL,
+	.handler = jmr3927_pcierr_interrupt,
+	.mask = CPU_MASK_NONE,
+	.name = "PCI error",
 };
 
 static void __init jmr3927_irq_init(void);

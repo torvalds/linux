@@ -52,7 +52,6 @@
 #include <asm/pSeries_reconfig.h>
 #include <asm/pci-bridge.h>
 #include <asm/kexec.h>
-#include <asm/system.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -431,9 +430,11 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
-/*
- * The device tree may be allocated below our memory limit, or inside the
- * crash kernel region for kdump. If so, move it out now.
+/**
+ * move_device_tree - move tree to an unused area, if needed.
+ *
+ * The device tree may be allocated beyond our memory limit, or inside the
+ * crash kernel region for kdump. If so, move it out of the way.
  */
 static void move_device_tree(void)
 {
@@ -530,10 +531,7 @@ static struct ibm_pa_feature {
 	{CPU_FTR_CTRL, 0,		0, 3, 0},
 	{CPU_FTR_NOEXECUTE, 0,		0, 6, 0},
 	{CPU_FTR_NODSISRALIGN, 0,	1, 1, 1},
-#if 0
-	/* put this back once we know how to test if firmware does 64k IO */
 	{CPU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
-#endif
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
@@ -780,13 +778,13 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif
 
 #ifdef CONFIG_KEXEC
-       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
-       if (lprop)
-               crashk_res.start = *lprop;
+	lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
+	if (lprop)
+		crashk_res.start = *lprop;
 
-       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
-       if (lprop)
-               crashk_res.end = crashk_res.start + *lprop - 1;
+	lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
+	if (lprop)
+		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
 
 	early_init_dt_check_for_initrd(node);

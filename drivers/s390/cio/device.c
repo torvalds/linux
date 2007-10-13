@@ -21,6 +21,7 @@
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/param.h>		/* HZ */
+#include <asm/cmb.h>
 
 #include "cio.h"
 #include "cio_debug.h"
@@ -78,49 +79,38 @@ static int snprint_alias(char *buf, size_t size,
 
 /* Set up environment variables for ccw device uevent. Return 0 on success,
  * non-zero otherwise. */
-static int ccw_uevent(struct device *dev, char **envp, int num_envp,
-		      char *buffer, int buffer_size)
+static int ccw_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_device_id *id = &(cdev->id);
-	int i = 0;
-	int len = 0;
 	int ret;
 	char modalias_buf[30];
 
 	/* CU_TYPE= */
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "CU_TYPE=%04X", id->cu_type);
+	ret = add_uevent_var(env, "CU_TYPE=%04X", id->cu_type);
 	if (ret)
 		return ret;
 
 	/* CU_MODEL= */
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "CU_MODEL=%02X", id->cu_model);
+	ret = add_uevent_var(env, "CU_MODEL=%02X", id->cu_model);
 	if (ret)
 		return ret;
 
 	/* The next two can be zero, that's ok for us */
 	/* DEV_TYPE= */
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "DEV_TYPE=%04X", id->dev_type);
+	ret = add_uevent_var(env, "DEV_TYPE=%04X", id->dev_type);
 	if (ret)
 		return ret;
 
 	/* DEV_MODEL= */
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "DEV_MODEL=%02X", id->dev_model);
+	ret = add_uevent_var(env, "DEV_MODEL=%02X", id->dev_model);
 	if (ret)
 		return ret;
 
 	/* MODALIAS=  */
 	snprint_alias(modalias_buf, sizeof(modalias_buf), id, "");
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "MODALIAS=%s", modalias_buf);
-	if (ret)
-		return ret;
-	envp[i] = NULL;
-	return 0;
+	ret = add_uevent_var(env, "MODALIAS=%s", modalias_buf);
+	return ret;
 }
 
 struct bus_type ccw_bus_type;
@@ -357,8 +347,18 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 			      cdev->private->dev_id.devno);
 }
 
-int
-ccw_device_set_offline(struct ccw_device *cdev)
+/**
+ * ccw_device_set_offline() - disable a ccw device for I/O
+ * @cdev: target ccw device
+ *
+ * This function calls the driver's set_offline() function for @cdev, if
+ * given, and then disables @cdev.
+ * Returns:
+ *   %0 on success and a negative error value on failure.
+ * Context:
+ *  enabled, ccw device lock not held
+ */
+int ccw_device_set_offline(struct ccw_device *cdev)
 {
 	int ret;
 
@@ -396,8 +396,19 @@ ccw_device_set_offline(struct ccw_device *cdev)
  	return ret;
 }
 
-int
-ccw_device_set_online(struct ccw_device *cdev)
+/**
+ * ccw_device_set_online() - enable a ccw device for I/O
+ * @cdev: target ccw device
+ *
+ * This function first enables @cdev and then calls the driver's set_online()
+ * function for @cdev, if given. If set_online() returns an error, @cdev is
+ * disabled again.
+ * Returns:
+ *   %0 on success and a negative error value on failure.
+ * Context:
+ *  enabled, ccw device lock not held
+ */
+int ccw_device_set_online(struct ccw_device *cdev)
 {
 	int ret;
 
@@ -947,8 +958,7 @@ out:
 		wake_up(&ccw_device_init_wq);
 }
 
-void
-ccw_device_call_sch_unregister(struct work_struct *work)
+static void ccw_device_call_sch_unregister(struct work_struct *work)
 {
 	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
@@ -1101,6 +1111,7 @@ io_subchannel_probe (struct subchannel *sch)
 		 * device, e.g. the console.
 		 */
 		cdev = sch->dev.driver_data;
+		cdev->dev.groups = ccwdev_attr_groups;
 		device_initialize(&cdev->dev);
 		ccw_device_register(cdev);
 		/*
@@ -1326,8 +1337,19 @@ __ccwdev_check_busid(struct device *dev, void *id)
 }
 
 
-struct ccw_device *
-get_ccwdev_by_busid(struct ccw_driver *cdrv, const char *bus_id)
+/**
+ * get_ccwdev_by_busid() - obtain device from a bus id
+ * @cdrv: driver the device is owned by
+ * @bus_id: bus id of the device to be searched
+ *
+ * This function searches all devices owned by @cdrv for a device with a bus
+ * id matching @bus_id.
+ * Returns:
+ *  If a match is found, its reference count of the found device is increased
+ *  and it is returned; else %NULL is returned.
+ */
+struct ccw_device *get_ccwdev_by_busid(struct ccw_driver *cdrv,
+				       const char *bus_id)
 {
 	struct device *dev;
 	struct device_driver *drv;
@@ -1401,16 +1423,34 @@ ccw_device_remove (struct device *dev)
 	return 0;
 }
 
+static void ccw_device_shutdown(struct device *dev)
+{
+	struct ccw_device *cdev;
+
+	cdev = to_ccwdev(dev);
+	if (cdev->drv && cdev->drv->shutdown)
+		cdev->drv->shutdown(cdev);
+	disable_cmf(cdev);
+}
+
 struct bus_type ccw_bus_type = {
 	.name   = "ccw",
 	.match  = ccw_bus_match,
 	.uevent = ccw_uevent,
 	.probe  = ccw_device_probe,
 	.remove = ccw_device_remove,
+	.shutdown = ccw_device_shutdown,
 };
 
-int
-ccw_driver_register (struct ccw_driver *cdriver)
+/**
+ * ccw_driver_register() - register a ccw driver
+ * @cdriver: driver to be registered
+ *
+ * This function is mainly a wrapper around driver_register().
+ * Returns:
+ *   %0 on success and a negative error value on failure.
+ */
+int ccw_driver_register(struct ccw_driver *cdriver)
 {
 	struct device_driver *drv = &cdriver->driver;
 
@@ -1420,8 +1460,13 @@ ccw_driver_register (struct ccw_driver *cdriver)
 	return driver_register(drv);
 }
 
-void
-ccw_driver_unregister (struct ccw_driver *cdriver)
+/**
+ * ccw_driver_unregister() - deregister a ccw driver
+ * @cdriver: driver to be deregistered
+ *
+ * This function is mainly a wrapper around driver_unregister().
+ */
+void ccw_driver_unregister(struct ccw_driver *cdriver)
 {
 	driver_unregister(&cdriver->driver);
 }

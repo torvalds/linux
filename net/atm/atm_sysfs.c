@@ -105,10 +105,9 @@ static struct class_device_attribute *atm_attrs[] = {
 	NULL
 };
 
-static int atm_uevent(struct class_device *cdev, char **envp, int num_envp, char *buf, int size)
+static int atm_uevent(struct class_device *cdev, struct kobj_uevent_env *env)
 {
 	struct atm_dev *adev;
-	int i = 0, len = 0;
 
 	if (!cdev)
 		return -ENODEV;
@@ -117,11 +116,9 @@ static int atm_uevent(struct class_device *cdev, char **envp, int num_envp, char
 	if (!adev)
 		return -ENODEV;
 
-	if (add_uevent_var(envp, num_envp, &i, buf, size, &len,
-			   "NAME=%s%d", adev->type, adev->number))
+	if (add_uevent_var(env, "NAME=%s%d", adev->type, adev->number))
 		return -ENOMEM;
 
-	envp[i] = NULL;
 	return 0;
 }
 

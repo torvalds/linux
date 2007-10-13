@@ -377,10 +377,10 @@ static int qs20_reg_memory[QS20_SPES_PER_BE] = { 1, 1, 0, 0, 0, 0, 0, 0 };
 static struct spu *spu_lookup_reg(int node, u32 reg)
 {
 	struct spu *spu;
-	u32 *spu_reg;
+	const u32 *spu_reg;
 
 	list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
-		spu_reg = (u32*)of_get_property(spu_devnode(spu), "reg", NULL);
+		spu_reg = of_get_property(spu_devnode(spu), "reg", NULL);
 		if (*spu_reg == reg)
 			return spu;
 	}

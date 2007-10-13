@@ -87,11 +87,18 @@ config LEDS_H1940
 	help
 	  This option enables support for the LEDs on the h1940.
 
-config LEDS_COBALT
-	tristate "LED Support for Cobalt Server front LED"
+config LEDS_COBALT_QUBE
+	tristate "LED Support for the Cobalt Qube series front LED"
 	depends on LEDS_CLASS && MIPS_COBALT
 	help
-	  This option enables support for the front LED on Cobalt Server
+	  This option enables support for the front LED on Cobalt Qube series
+
+config LEDS_COBALT_RAQ
+	bool "LED Support for the Cobalt Raq series"
+	depends on LEDS_CLASS && MIPS_COBALT
+	select LEDS_TRIGGERS
+	help
+	  This option enables support for the Cobalt Raq series LEDs.
 
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"

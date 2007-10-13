@@ -409,7 +409,8 @@ static int __init ipt_ulog_init(void)
 	for (i = 0; i < ULOG_MAXNLGROUPS; i++)
 		setup_timer(&ulog_buffers[i].timer, ulog_timer, i);
 
-	nflognl = netlink_kernel_create(NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
+	nflognl = netlink_kernel_create(&init_net,
+					NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
 					NULL, THIS_MODULE);
 	if (!nflognl)
 		return -ENOMEM;

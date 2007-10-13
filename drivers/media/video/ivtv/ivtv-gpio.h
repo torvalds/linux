@@ -18,8 +18,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef IVTV_GPIO_H
+#define IVTV_GPIO_H
+
 /* GPIO stuff */
 void ivtv_gpio_init(struct ivtv *itv);
 void ivtv_reset_ir_gpio(struct ivtv *itv);
-int ivtv_reset_tuner_gpio(enum v4l2_tuner_type mode, void *priv, int ptr);
+int ivtv_reset_tuner_gpio(void *dev, int cmd, int value);
 int ivtv_gpio(struct ivtv *itv, unsigned int command, void *arg);
+
+#endif

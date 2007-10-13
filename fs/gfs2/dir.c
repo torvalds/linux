@@ -1043,6 +1043,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 
 	error = gfs2_meta_inode_buffer(dip, &dibh);
 	if (!gfs2_assert_withdraw(GFS2_SB(&dip->i_inode), !error)) {
+		gfs2_trans_add_bh(dip->i_gl, dibh, 1);
 		dip->i_di.di_blocks++;
 		gfs2_set_inode_blocks(&dip->i_inode);
 		gfs2_dinode_out(dip, dibh->b_data);
@@ -1501,7 +1502,7 @@ struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name)
 		inode = gfs2_inode_lookup(dir->i_sb, 
 				be16_to_cpu(dent->de_type),
 				be64_to_cpu(dent->de_inum.no_addr),
-				be64_to_cpu(dent->de_inum.no_formal_ino));
+				be64_to_cpu(dent->de_inum.no_formal_ino), 0);
 		brelse(bh);
 		return inode;
 	}

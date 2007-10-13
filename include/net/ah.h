@@ -9,8 +9,6 @@
 
 struct ah_data
 {
-	u8			*key;
-	int			key_len;
 	u8			*work_icv;
 	int			icv_full_len;
 	int			icv_trunc_len;
@@ -38,6 +36,13 @@ static inline int ah_mac_digest(struct ah_data *ahp, struct sk_buff *skb,
 
 out:
 	return err;
+}
+
+struct ip_auth_hdr;
+
+static inline struct ip_auth_hdr *ip_auth_hdr(const struct sk_buff *skb)
+{
+	return (struct ip_auth_hdr *)skb_transport_header(skb);
 }
 
 #endif

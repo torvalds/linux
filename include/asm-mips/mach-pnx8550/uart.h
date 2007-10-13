@@ -15,7 +15,7 @@
 
 /* early macros needed for prom/kgdb */
 
-#define ip3106_lcr(base,port)    *(volatile u32 *)(base+(port*0x1000) + 0x000)
+#define ip3106_lcr(base, port)    *(volatile u32 *)(base+(port*0x1000) + 0x000)
 #define ip3106_mcr(base, port)   *(volatile u32 *)(base+(port*0x1000) + 0x004)
 #define ip3106_baud(base, port)  *(volatile u32 *)(base+(port*0x1000) + 0x008)
 #define ip3106_cfg(base, port)   *(volatile u32 *)(base+(port*0x1000) + 0x00C)

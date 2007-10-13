@@ -21,8 +21,6 @@
 #include "ops.h"
 #include "mv64x60.h"
 
-extern void udelay(long);
-
 /* Register defines */
 #define MV64x60_I2C_REG_SLAVE_ADDR			0x00
 #define MV64x60_I2C_REG_DATA				0x04

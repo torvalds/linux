@@ -28,13 +28,9 @@
 #define __ASM_TX4927_TOSHIBA_RBTX4927_H
 
 #include <asm/tx4927/tx4927.h>
-#include <asm/tx4927/tx4927_mips.h>
 #ifdef CONFIG_PCI
 #include <asm/tx4927/tx4927_pci.h>
 #endif
-
-#define TOSHIBA_RBTX4927_WR08(a,b) do { TX4927_WR08(a,b); wbflush(); } while ( 0 )
-
 
 #ifdef CONFIG_PCI
 #define TBTX4927_ISA_IO_OFFSET TX4927_PCIIO
@@ -42,10 +38,10 @@
 #define TBTX4927_ISA_IO_OFFSET 0
 #endif
 
-#define RBTX4927_SW_RESET_DO         0xbc00f000
+#define RBTX4927_SW_RESET_DO         (void __iomem *)0xbc00f000UL
 #define RBTX4927_SW_RESET_DO_SET                0x01
 
-#define RBTX4927_SW_RESET_ENABLE     0xbc00f002
+#define RBTX4927_SW_RESET_ENABLE     (void __iomem *)0xbc00f002UL
 #define RBTX4927_SW_RESET_ENABLE_SET            0x01
 
 

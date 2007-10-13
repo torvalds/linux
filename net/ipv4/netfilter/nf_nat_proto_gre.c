@@ -142,8 +142,8 @@ static struct nf_nat_protocol gre __read_mostly = {
 	.in_range		= gre_in_range,
 	.unique_tuple		= gre_unique_tuple,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.range_to_nfattr	= nf_nat_port_range_to_nfattr,
-	.nfattr_to_range	= nf_nat_port_nfattr_to_range,
+	.range_to_nlattr	= nf_nat_port_range_to_nlattr,
+	.nlattr_to_range	= nf_nat_port_nlattr_to_range,
 #endif
 };
 

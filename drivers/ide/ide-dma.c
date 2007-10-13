@@ -653,7 +653,7 @@ static const u8 xfer_mode_bases[] = {
 	XFER_SW_DMA_0,
 };
 
-static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base)
+static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 {
 	struct hd_driveid *id = drive->id;
 	ide_hwif_t *hwif = drive->hwif;
@@ -664,17 +664,28 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base)
 		if ((id->field_valid & 4) == 0)
 			break;
 
-		mask = id->dma_ultra & hwif->ultra_mask;
-
 		if (hwif->udma_filter)
-			mask &= hwif->udma_filter(drive);
+			mask = hwif->udma_filter(drive);
+		else
+			mask = hwif->ultra_mask;
+		mask &= id->dma_ultra;
 
-		if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
-			mask &= 0x07;
+		/*
+		 * avoid false cable warning from eighty_ninty_three()
+		 */
+		if (req_mode > XFER_UDMA_2) {
+			if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
+				mask &= 0x07;
+		}
 		break;
 	case XFER_MW_DMA_0:
-		if (id->field_valid & 2)
-			mask = id->dma_mword & hwif->mwdma_mask;
+		if ((id->field_valid & 2) == 0)
+			break;
+		if (hwif->mdma_filter)
+			mask = hwif->mdma_filter(drive);
+		else
+			mask = hwif->mwdma_mask;
+		mask &= id->dma_mword;
 		break;
 	case XFER_SW_DMA_0:
 		if (id->field_valid & 2) {
@@ -703,15 +714,18 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base)
 }
 
 /**
- *	ide_max_dma_mode	-	compute DMA speed
+ *	ide_find_dma_mode	-	compute DMA speed
  *	@drive: IDE device
+ *	@req_mode: requested mode
  *
- *	Checks the drive capabilities and returns the speed to use
- *	for the DMA transfer.  Returns 0 if the drive is incapable
- *	of DMA transfers.
+ *	Checks the drive/host capabilities and finds the speed to use for
+ *	the DMA transfer.  The speed is then limited by the requested mode.
+ *
+ *	Returns 0 if the drive/host combination is incapable of DMA transfers
+ *	or if the requested mode is not a DMA mode.
  */
 
-u8 ide_max_dma_mode(ide_drive_t *drive)
+u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned int mask;
@@ -722,7 +736,9 @@ u8 ide_max_dma_mode(ide_drive_t *drive)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(xfer_mode_bases); i++) {
-		mask = ide_get_mode_mask(drive, xfer_mode_bases[i]);
+		if (req_mode < xfer_mode_bases[i])
+			continue;
+		mask = ide_get_mode_mask(drive, xfer_mode_bases[i], req_mode);
 		x = fls(mask) - 1;
 		if (x >= 0) {
 			mode = xfer_mode_bases[i] + x;
@@ -732,10 +748,10 @@ u8 ide_max_dma_mode(ide_drive_t *drive)
 
 	printk(KERN_DEBUG "%s: selected mode 0x%x\n", drive->name, mode);
 
-	return mode;
+	return min(mode, req_mode);
 }
 
-EXPORT_SYMBOL_GPL(ide_max_dma_mode);
+EXPORT_SYMBOL_GPL(ide_find_dma_mode);
 
 int ide_tune_dma(ide_drive_t *drive)
 {

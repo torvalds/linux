@@ -276,8 +276,8 @@ static int sbprof_zbprof_start(struct file *filp)
 	sbp.next_tb_sample = 0;
 	filp->f_pos = 0;
 
-	err = request_irq (K_INT_TRACE_FREEZE, sbprof_tb_intr, 0,
-			   DEVNAME " trace freeze", &sbp);
+	err = request_irq(K_INT_TRACE_FREEZE, sbprof_tb_intr, 0,
+			  DEVNAME " trace freeze", &sbp);
 	if (err)
 		return -EBUSY;
 

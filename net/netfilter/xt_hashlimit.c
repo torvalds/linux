@@ -21,6 +21,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <net/net_namespace.h>
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
@@ -743,13 +744,13 @@ static int __init xt_hashlimit_init(void)
 		printk(KERN_ERR "xt_hashlimit: unable to create slab cache\n");
 		goto err2;
 	}
-	hashlimit_procdir4 = proc_mkdir("ipt_hashlimit", proc_net);
+	hashlimit_procdir4 = proc_mkdir("ipt_hashlimit", init_net.proc_net);
 	if (!hashlimit_procdir4) {
 		printk(KERN_ERR "xt_hashlimit: unable to create proc dir "
 				"entry\n");
 		goto err3;
 	}
-	hashlimit_procdir6 = proc_mkdir("ip6t_hashlimit", proc_net);
+	hashlimit_procdir6 = proc_mkdir("ip6t_hashlimit", init_net.proc_net);
 	if (!hashlimit_procdir6) {
 		printk(KERN_ERR "xt_hashlimit: unable to create proc dir "
 				"entry\n");
@@ -757,7 +758,7 @@ static int __init xt_hashlimit_init(void)
 	}
 	return 0;
 err4:
-	remove_proc_entry("ipt_hashlimit", proc_net);
+	remove_proc_entry("ipt_hashlimit", init_net.proc_net);
 err3:
 	kmem_cache_destroy(hashlimit_cachep);
 err2:
@@ -769,8 +770,8 @@ err1:
 
 static void __exit xt_hashlimit_fini(void)
 {
-	remove_proc_entry("ipt_hashlimit", proc_net);
-	remove_proc_entry("ip6t_hashlimit", proc_net);
+	remove_proc_entry("ipt_hashlimit", init_net.proc_net);
+	remove_proc_entry("ip6t_hashlimit", init_net.proc_net);
 	kmem_cache_destroy(hashlimit_cachep);
 	xt_unregister_matches(xt_hashlimit, ARRAY_SIZE(xt_hashlimit));
 }

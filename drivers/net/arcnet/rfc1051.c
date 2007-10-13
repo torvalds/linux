@@ -34,7 +34,7 @@
 #define VERSION "arcnet: RFC1051 \"simple standard\" (`s') encapsulation support loaded.\n"
 
 
-static unsigned short type_trans(struct sk_buff *skb, struct net_device *dev);
+static __be16 type_trans(struct sk_buff *skb, struct net_device *dev);
 static void rx(struct net_device *dev, int bufnum,
 	       struct archdr *pkthdr, int length);
 static int build_header(struct sk_buff *skb, struct net_device *dev,
@@ -86,7 +86,7 @@ MODULE_LICENSE("GPL");
  * 
  * With ARCnet we have to convert everything to Ethernet-style stuff.
  */
-static unsigned short type_trans(struct sk_buff *skb, struct net_device *dev)
+static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct arcnet_local *lp = dev->priv;
 	struct archdr *pkt = (struct archdr *) skb->data;

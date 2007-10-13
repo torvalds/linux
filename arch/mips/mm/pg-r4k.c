@@ -347,13 +347,14 @@ void __init build_clear_page(void)
 {
 	unsigned int loop_start;
 	unsigned long off;
+	int i;
 
 	epc = (unsigned int *) &clear_page_array;
 	instruction_pending = 0;
 	store_offset = 0;
 
 	if (cpu_has_prefetch) {
-		switch (current_cpu_data.cputype) {
+		switch (current_cpu_type()) {
 		case CPU_TX49XX:
 			/* TX49 supports only Pref_Load */
 			pref_offset_clear = 0;
@@ -434,12 +435,22 @@ dest = label();
 	build_jr_ra();
 
 	BUG_ON(epc > clear_page_array + ARRAY_SIZE(clear_page_array));
+
+	pr_info("Synthesized clear page handler (%u instructions).\n",
+		(unsigned int)(epc - clear_page_array));
+
+	pr_debug("\t.set push\n");
+	pr_debug("\t.set noreorder\n");
+	for (i = 0; i < (epc - clear_page_array); i++)
+		pr_debug("\t.word 0x%08x\n", clear_page_array[i]);
+	pr_debug("\t.set pop\n");
 }
 
 void __init build_copy_page(void)
 {
 	unsigned int loop_start;
 	unsigned long off;
+	int i;
 
 	epc = (unsigned int *) &copy_page_array;
 	store_offset = load_offset = 0;
@@ -515,4 +526,13 @@ dest = label();
 	build_jr_ra();
 
 	BUG_ON(epc > copy_page_array + ARRAY_SIZE(copy_page_array));
+
+	pr_info("Synthesized copy page handler (%u instructions).\n",
+		(unsigned int)(epc - copy_page_array));
+
+	pr_debug("\t.set push\n");
+	pr_debug("\t.set noreorder\n");
+	for (i = 0; i < (epc - copy_page_array); i++)
+		pr_debug("\t.word 0x%08x\n", copy_page_array[i]);
+	pr_debug("\t.set pop\n");
 }

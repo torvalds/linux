@@ -775,7 +775,8 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	const struct ether3_data *data = id->data;
 	struct net_device *dev;
-	int i, bus_type, ret;
+	int bus_type, ret;
+	DECLARE_MAC_BUF(mac);
 
 	ether3_banner();
 
@@ -789,7 +790,6 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto release;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &ec->dev);
 
 	priv(dev)->base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
@@ -859,9 +859,8 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto free;
 
-	printk("%s: %s in slot %d, ", dev->name, data->name, ec->slot_no);
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
+	printk("%s: %s in slot %d, %s\n",
+	       dev->name, data->name, ec->slot_no, print_mac(mac, dev->dev_addr));
 
 	ecard_set_drvdata(ec, dev);
 	return 0;

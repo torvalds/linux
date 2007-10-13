@@ -60,8 +60,8 @@ struct tlb_client_info {
  * -------------------------------------------------------------------------
  */
 struct rlb_client_info {
-	u32 ip_src;		/* the server IP address */
-	u32 ip_dst;		/* the client IP address */
+	__be32 ip_src;		/* the server IP address */
+	__be32 ip_dst;		/* the client IP address */
 	u8  mac_dst[ETH_ALEN];	/* the client MAC address */
 	u32 next;		/* The next Hash table entry index */
 	u32 prev;		/* The previous Hash table entry index */

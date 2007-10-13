@@ -86,6 +86,7 @@
 
 #include <net/dst.h>
 #include <net/arp.h>
+#include <net/net_namespace.h>
 
 struct shaper_cb {
 	unsigned long	shapeclock;		/* Time it should go out */
@@ -170,7 +171,7 @@ static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if(time_after(SHAPERCB(skb)->shapeclock,jiffies + SHAPER_LATENCY)) {
 			dev_kfree_skb(skb);
-			shaper->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 		} else
 			skb_queue_tail(&shaper->sendq, skb);
 	}
@@ -181,7 +182,7 @@ static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
  	{
  		ptr=skb_dequeue(&shaper->sendq);
                 dev_kfree_skb(ptr);
-                shaper->stats.collisions++;
+                dev->stats.collisions++;
  	}
 	shaper_kick(shaper);
 	spin_unlock(&shaper->lock);
@@ -206,8 +207,8 @@ static void shaper_queue_xmit(struct shaper *shaper, struct sk_buff *skb)
 				shaper->dev->name,newskb->priority);
 		dev_queue_xmit(newskb);
 
-                shaper->stats.tx_bytes += skb->len;
-		shaper->stats.tx_packets++;
+                shaper->dev->stats.tx_bytes += skb->len;
+		shaper->dev->stats.tx_packets++;
 
                 if(sh_debug)
 			printk("Kicked new frame out.\n");
@@ -329,22 +330,17 @@ static int shaper_close(struct net_device *dev)
  *	ARP and other resolutions and not before.
  */
 
-static struct net_device_stats *shaper_get_stats(struct net_device *dev)
-{
-     	struct shaper *sh=dev->priv;
-	return &sh->stats;
-}
-
 static int shaper_header(struct sk_buff *skb, struct net_device *dev,
-	unsigned short type, void *daddr, void *saddr, unsigned len)
+			 unsigned short type,
+			 const void *daddr, const void *saddr, unsigned len)
 {
 	struct shaper *sh=dev->priv;
 	int v;
 	if(sh_debug)
 		printk("Shaper header\n");
-	skb->dev=sh->dev;
-	v=sh->hard_header(skb,sh->dev,type,daddr,saddr,len);
-	skb->dev=dev;
+	skb->dev = sh->dev;
+	v = dev_hard_header(skb, sh->dev, type, daddr, saddr, len);
+	skb->dev = dev;
 	return v;
 }
 
@@ -356,7 +352,7 @@ static int shaper_rebuild_header(struct sk_buff *skb)
 	if(sh_debug)
 		printk("Shaper rebuild header\n");
 	skb->dev=sh->dev;
-	v=sh->rebuild_header(skb);
+	v = sh->dev->header_ops->rebuild(skb);
 	skb->dev=dev;
 	return v;
 }
@@ -420,51 +416,17 @@ static int shaper_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
 
 #endif
 
+static const struct header_ops shaper_ops = {
+	.create	 = shaper_header,
+	.rebuild = shaper_rebuild_header,
+};
+
 static int shaper_attach(struct net_device *shdev, struct shaper *sh, struct net_device *dev)
 {
 	sh->dev = dev;
-	sh->hard_start_xmit=dev->hard_start_xmit;
 	sh->get_stats=dev->get_stats;
-	if(dev->hard_header)
-	{
-		sh->hard_header=dev->hard_header;
-		shdev->hard_header = shaper_header;
-	}
-	else
-		shdev->hard_header = NULL;
 
-	if(dev->rebuild_header)
-	{
-		sh->rebuild_header	= dev->rebuild_header;
-		shdev->rebuild_header	= shaper_rebuild_header;
-	}
-	else
-		shdev->rebuild_header	= NULL;
-
-#if 0
-	if(dev->hard_header_cache)
-	{
-		sh->hard_header_cache	= dev->hard_header_cache;
-		shdev->hard_header_cache= shaper_cache;
-	}
-	else
-	{
-		shdev->hard_header_cache= NULL;
-	}
-
-	if(dev->header_cache_update)
-	{
-		sh->header_cache_update	= dev->header_cache_update;
-		shdev->header_cache_update = shaper_cache_update;
-	}
-	else
-		shdev->header_cache_update= NULL;
-#else
-	shdev->header_cache_update = NULL;
-	shdev->hard_header_cache = NULL;
-#endif
 	shdev->neigh_setup = shaper_neigh_setup_dev;
-
 	shdev->hard_header_len=dev->hard_header_len;
 	shdev->type=dev->type;
 	shdev->addr_len=dev->addr_len;
@@ -488,7 +450,7 @@ static int shaper_ioctl(struct net_device *dev,  struct ifreq *ifr, int cmd)
 	{
 		case SHAPER_SET_DEV:
 		{
-			struct net_device *them=__dev_get_by_name(ss->ss_name);
+			struct net_device *them=__dev_get_by_name(&init_net, ss->ss_name);
 			if(them==NULL)
 				return -ENODEV;
 			if(sh->dev)
@@ -532,14 +494,11 @@ static void __init shaper_setup(struct net_device *dev)
 	 *	Set up the shaper.
 	 */
 
-	SET_MODULE_OWNER(dev);
-
 	shaper_init_priv(dev);
 
 	dev->open		= shaper_open;
 	dev->stop		= shaper_close;
 	dev->hard_start_xmit 	= shaper_start_xmit;
-	dev->get_stats 		= shaper_get_stats;
 	dev->set_multicast_list = NULL;
 
 	/*
@@ -550,12 +509,6 @@ static void __init shaper_setup(struct net_device *dev)
 	 *	Handlers for when we attach to a device.
 	 */
 
-	dev->hard_header 	= shaper_header;
-	dev->rebuild_header 	= shaper_rebuild_header;
-#if 0
-	dev->hard_header_cache	= shaper_cache;
-	dev->header_cache_update= shaper_cache_update;
-#endif
 	dev->neigh_setup	= shaper_neigh_setup_dev;
 	dev->do_ioctl		= shaper_ioctl;
 	dev->hard_header_len	= 0;

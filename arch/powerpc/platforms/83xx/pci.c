@@ -33,13 +33,6 @@
 #define DBG(x...)
 #endif
 
-int mpc83xx_exclude_device(struct pci_controller *hose, u_char bus, u_char devfn)
-{
-	if ((bus == hose->first_busno) && PCI_SLOT(devfn) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	return PCIBIOS_SUCCESSFUL;
-}
-
 int __init mpc83xx_add_bridge(struct device_node *dev)
 {
 	int len;

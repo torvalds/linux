@@ -551,6 +551,7 @@ EXPORT_SYMBOL_GPL(get_slice_psize);
  *
  * This is also called in init_new_context() to change back the user
  * psize from whatever the parent context had it set to
+ * N.B. This may be called before mm->context.id has been set.
  *
  * This function will only change the content of the {low,high)_slice_psize
  * masks, it will not flush SLBs as this shall be handled lazily by the

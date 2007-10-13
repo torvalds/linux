@@ -18,70 +18,6 @@
 #include "ieee80211_i.h"
 #include "wme.h"
 
-static inline int WLAN_FC_IS_QOS_DATA(u16 fc)
-{
-	return (fc & 0x8C) == 0x88;
-}
-
-
-ieee80211_txrx_result
-ieee80211_rx_h_parse_qos(struct ieee80211_txrx_data *rx)
-{
-	u8 *data = rx->skb->data;
-	int tid;
-
-	/* does the frame have a qos control field? */
-	if (WLAN_FC_IS_QOS_DATA(rx->fc)) {
-		u8 *qc = data + ieee80211_get_hdrlen(rx->fc) - QOS_CONTROL_LEN;
-		/* frame has qos control */
-		tid = qc[0] & QOS_CONTROL_TID_MASK;
-	} else {
-		if (unlikely((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT)) {
-			/* Separate TID for management frames */
-			tid = NUM_RX_DATA_QUEUES - 1;
-		} else {
-			/* no qos control present */
-			tid = 0; /* 802.1d - Best Effort */
-		}
-	}
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	I802_DEBUG_INC(rx->local->wme_rx_queue[tid]);
-	if (rx->sta) {
-		I802_DEBUG_INC(rx->sta->wme_rx_queue[tid]);
-	}
-#endif /* CONFIG_MAC80211_DEBUG_COUNTERS */
-
-	rx->u.rx.queue = tid;
-	/* Set skb->priority to 1d tag if highest order bit of TID is not set.
-	 * For now, set skb->priority to 0 for other cases. */
-	rx->skb->priority = (tid > 7) ? 0 : tid;
-
-	return TXRX_CONTINUE;
-}
-
-
-ieee80211_txrx_result
-ieee80211_rx_h_remove_qos_control(struct ieee80211_txrx_data *rx)
-{
-	u16 fc = rx->fc;
-	u8 *data = rx->skb->data;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) data;
-
-	if (!WLAN_FC_IS_QOS_DATA(fc))
-		return TXRX_CONTINUE;
-
-	/* remove the qos control field, update frame type and meta-data */
-	memmove(data + 2, data, ieee80211_get_hdrlen(fc) - 2);
-	hdr = (struct ieee80211_hdr *) skb_pull(rx->skb, 2);
-	/* change frame type to non QOS */
-	rx->fc = fc &= ~IEEE80211_STYPE_QOS_DATA;
-	hdr->frame_control = cpu_to_le16(fc);
-
-	return TXRX_CONTINUE;
-}
-
-
-#ifdef CONFIG_NET_SCHED
 /* maximum number of hardware queues we support. */
 #define TC_80211_MAX_QUEUES 8
 
@@ -158,8 +94,6 @@ static inline int wme_downgrade_ac(struct sk_buff *skb)
 static inline int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 {
 	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
-	struct ieee80211_tx_packet_data *pkt_data =
-		(struct ieee80211_tx_packet_data *) skb->cb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	unsigned short fc = le16_to_cpu(hdr->frame_control);
 	int qos;
@@ -172,12 +106,8 @@ static inline int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 		return IEEE80211_TX_QUEUE_DATA0;
 	}
 
-	if (unlikely(pkt_data->mgmt_iface)) {
-		/* Data frames from hostapd (mainly, EAPOL) use AC_VO
-		* and they will include QoS control fields if
-		* the target STA is using WME. */
-		skb->priority = 7;
-		return ieee802_1d_to_ac[skb->priority];
+	if (0 /* injected */) {
+		/* use AC from radiotap */
 	}
 
 	/* is this a QoS frame? */
@@ -189,14 +119,13 @@ static inline int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 	}
 
 	/* use the data classifier to determine what 802.1d tag the
-	* data frame has */
+	 * data frame has */
 	skb->priority = classify_1d(skb, qd);
 
-	/* incase we are a client verify acm is not set for this ac */
+	/* in case we are a client verify acm is not set for this ac */
 	while (unlikely(local->wmm_acm & BIT(skb->priority))) {
 		if (wme_downgrade_ac(skb)) {
-			/* No AC with lower priority has acm=0,
-			* drop packet. */
+			/* No AC with lower priority has acm=0, drop packet. */
 			return -1;
 		}
 	}
@@ -217,7 +146,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 	struct Qdisc *qdisc;
 	int err, queue;
 
-	if (pkt_data->requeue) {
+	if (pkt_data->flags & IEEE80211_TXPD_REQUEUE) {
 		skb_queue_tail(&q->requeued[pkt_data->queue], skb);
 		qd->q.qlen++;
 		return 0;
@@ -675,4 +604,3 @@ void ieee80211_wme_unregister(void)
 {
 	unregister_qdisc(&wme_qdisc_ops);
 }
-#endif /* CONFIG_NET_SCHED */

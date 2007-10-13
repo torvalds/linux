@@ -144,14 +144,16 @@ indirect_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 
 static struct pci_ops indirect_pci_ops =
 {
-	indirect_read_config,
-	indirect_write_config
+	.read = indirect_read_config,
+	.write = indirect_write_config,
 };
 
 void __init
-setup_indirect_pci(struct pci_controller* hose, u32 cfg_addr, u32 cfg_data, u32 flags)
+setup_indirect_pci(struct pci_controller* hose,
+		   resource_size_t cfg_addr,
+		   resource_size_t cfg_data, u32 flags)
 {
-	unsigned long base = cfg_addr & PAGE_MASK;
+	resource_size_t base = cfg_addr & PAGE_MASK;
 	void __iomem *mbase;
 
 	mbase = ioremap(base, PAGE_SIZE);

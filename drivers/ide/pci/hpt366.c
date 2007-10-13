@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.12	Aug 19, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.13	Sep 29, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -114,7 +114,7 @@
  *   unify HPT36x/37x timing setup code and the speedproc handlers by joining
  *   the register setting lists into the table indexed by the clock selected
  * - set the correct hwif->ultra_mask for each individual chip
- * - add UltraDMA mode filtering for the HPT37[24] based SATA cards
+ * - add Ultra and MW DMA mode filtering for the HPT37[24] based SATA cards
  *	Sergei Shtylyov, <sshtylyov@ru.mvista.com> or <source@mvista.com>
  */
 
@@ -562,6 +562,24 @@ static u8 hpt3xx_udma_filter(ide_drive_t *drive)
 	return check_in_drive_list(drive, bad_ata33) ? 0x00 : mask;
 }
 
+static u8 hpt3xx_mdma_filter(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif	= HWIF(drive);
+	struct hpt_info *info	= pci_get_drvdata(hwif->pci_dev);
+
+	switch (info->chip_type) {
+	case HPT372 :
+	case HPT372A:
+	case HPT372N:
+	case HPT374 :
+		if (ide_dev_is_sata(drive->id))
+			return 0x00;
+		/* Fall thru */
+	default:
+		return 0x07;
+	}
+}
+
 static u32 get_speed_setting(u8 speed, struct hpt_info *info)
 {
 	int i;
@@ -582,19 +600,14 @@ static u32 get_speed_setting(u8 speed, struct hpt_info *info)
 	return (*info->settings)[i];
 }
 
-static int hpt36x_tune_chipset(ide_drive_t *drive, u8 xferspeed)
+static int hpt36x_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev  *dev	= hwif->pci_dev;
 	struct hpt_info	*info	= pci_get_drvdata(dev);
-	u8  speed		= ide_rate_filter(drive, xferspeed);
 	u8  itr_addr		= drive->dn ? 0x44 : 0x40;
 	u32 old_itr		= 0;
 	u32 itr_mask, new_itr;
-
-	/* TODO: move this to ide_rate_filter() [ check ->atapi_dma ] */
-	if (drive->media != ide_disk)
-		speed = min_t(u8, speed, XFER_PIO_4);
 
 	itr_mask = speed < XFER_MW_DMA_0 ? 0x30070000 :
 		  (speed < XFER_UDMA_0   ? 0xc0070000 : 0xc03800ff);
@@ -614,19 +627,14 @@ static int hpt36x_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 	return ide_config_drive_speed(drive, speed);
 }
 
-static int hpt37x_tune_chipset(ide_drive_t *drive, u8 xferspeed)
+static int hpt37x_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev  *dev	= hwif->pci_dev;
 	struct hpt_info	*info	= pci_get_drvdata(dev);
-	u8  speed		= ide_rate_filter(drive, xferspeed);
 	u8  itr_addr		= 0x40 + (drive->dn * 4);
 	u32 old_itr		= 0;
 	u32 itr_mask, new_itr;
-
-	/* TODO: move this to ide_rate_filter() [ check ->atapi_dma ] */
-	if (drive->media != ide_disk)
-		speed = min_t(u8, speed, XFER_PIO_4);
 
 	itr_mask = speed < XFER_MW_DMA_0 ? 0x303c0000 :
 		  (speed < XFER_UDMA_0   ? 0xc03c0000 : 0xc1c001ff);
@@ -654,9 +662,8 @@ static int hpt3xx_tune_chipset(ide_drive_t *drive, u8 speed)
 		return hpt36x_tune_chipset(drive, speed);
 }
 
-static void hpt3xx_tune_drive(ide_drive_t *drive, u8 pio)
+static void hpt3xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void) hpt3xx_tune_chipset (drive, XFER_PIO_0 + pio);
 }
 
@@ -718,7 +725,7 @@ static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		hpt3xx_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -1249,7 +1256,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	/* Cache the channel's MISC. control registers' offset */
 	hwif->select_data	= hwif->channel ? 0x54 : 0x50;
 
-	hwif->tuneproc		= &hpt3xx_tune_drive;
+	hwif->set_pio_mode	= &hpt3xx_set_pio_mode;
 	hwif->speedproc		= &hpt3xx_tune_chipset;
 	hwif->quirkproc		= &hpt3xx_quirkproc;
 	hwif->intrproc		= &hpt3xx_intrproc;
@@ -1257,6 +1264,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	hwif->busproc		= &hpt3xx_busproc;
 
 	hwif->udma_filter	= &hpt3xx_udma_filter;
+	hwif->mdma_filter	= &hpt3xx_mdma_filter;
 
 	/*
 	 * HPT3xxN chips have some complications:

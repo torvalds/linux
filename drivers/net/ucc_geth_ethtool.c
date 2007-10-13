@@ -276,20 +276,26 @@ uec_set_ringparam(struct net_device *netdev,
 	return ret;
 }
 
-static int uec_get_stats_count(struct net_device *netdev)
+static int uec_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
 	u32 stats_mode = ugeth->ug_info->statisticsMode;
 	int len = 0;
 
-	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_HARDWARE)
-		len += UEC_HW_STATS_LEN;
-	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_TX)
-		len += UEC_TX_FW_STATS_LEN;
-	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_RX)
-		len += UEC_RX_FW_STATS_LEN;
+	switch (sset) {
+	case ETH_SS_STATS:
+		if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_HARDWARE)
+			len += UEC_HW_STATS_LEN;
+		if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_TX)
+			len += UEC_TX_FW_STATS_LEN;
+		if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_RX)
+			len += UEC_RX_FW_STATS_LEN;
 
-	return len;
+		return len;
+
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void uec_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
@@ -353,8 +359,6 @@ uec_get_drvinfo(struct net_device *netdev,
 	strncpy(drvinfo->version, DRV_VERSION, 32);
 	strncpy(drvinfo->fw_version, "N/A", 32);
 	strncpy(drvinfo->bus_info, "QUICC ENGINE", 32);
-	drvinfo->n_stats = uec_get_stats_count(netdev);
-	drvinfo->testinfo_len = 0;
 	drvinfo->eedump_len = 0;
 	drvinfo->regdump_len = uec_get_regs_len(netdev);
 }
@@ -373,10 +377,8 @@ static const struct ethtool_ops uec_ethtool_ops = {
 	.set_ringparam          = uec_set_ringparam,
 	.get_pauseparam         = uec_get_pauseparam,
 	.set_pauseparam         = uec_set_pauseparam,
-	.get_sg                 = ethtool_op_get_sg,
 	.set_sg                 = ethtool_op_set_sg,
-	.get_tso                = ethtool_op_get_tso,
-	.get_stats_count        = uec_get_stats_count,
+	.get_sset_count		= uec_get_sset_count,
 	.get_strings            = uec_get_strings,
 	.get_ethtool_stats      = uec_get_ethtool_stats,
 };

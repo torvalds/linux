@@ -1326,6 +1326,9 @@ int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
 	int command;
 	__u8 control;
 
+	if (dev->nd_net != &init_net)
+		goto out;
+
 	/* FIXME: should we get our own field? */
 	self = (struct irlap_cb *) dev->atalk_ptr;
 

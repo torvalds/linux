@@ -76,40 +76,25 @@ EXPORT_SYMBOL(ide_xfer_verbose);
  *	Given the available transfer modes this function returns
  *	the best available speed at or below the speed requested.
  *
- *	FIXME: filter also PIO/SWDMA/MWDMA modes
+ *	TODO: check device PIO capabilities
  */
 
-u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
+static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 {
-#ifdef CONFIG_BLK_DEV_IDEDMA
 	ide_hwif_t *hwif = drive->hwif;
-	u8 mask = hwif->ultra_mask, mode = XFER_MW_DMA_2;
+	u8 mode = ide_find_dma_mode(drive, speed);
 
-	if (hwif->udma_filter)
-		mask = hwif->udma_filter(drive);
-
-	/*
-	 * TODO: speed > XFER_UDMA_2 extra check is needed to avoid false
-	 * cable warning from eighty_ninty_three(), moving ide_rate_filter()
-	 * calls from ->speedproc to core code will make this hack go away
-	 */
-	if (speed > XFER_UDMA_2) {
-		if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
-			mask &= 0x07;
+	if (mode == 0) {
+		if (hwif->pio_mask)
+			mode = fls(hwif->pio_mask) - 1 + XFER_PIO_0;
+		else
+			mode = XFER_PIO_4;
 	}
-
-	if (mask)
-		mode = fls(mask) - 1 + XFER_UDMA_0;
 
 //	printk("%s: mode 0x%02x, speed 0x%02x\n", __FUNCTION__, mode, speed);
 
 	return min(speed, mode);
-#else /* !CONFIG_BLK_DEV_IDEDMA */
-	return min(speed, (u8)XFER_PIO_4);
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 }
-
-EXPORT_SYMBOL(ide_rate_filter);
 
 int ide_use_fast_pio(ide_drive_t *drive)
 {
@@ -340,6 +325,35 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 
 EXPORT_SYMBOL_GPL(ide_get_best_pio_mode);
 
+/* req_pio == "255" for auto-tune */
+void ide_set_pio(ide_drive_t *drive, u8 req_pio)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	u8 host_pio, pio;
+
+	if (hwif->set_pio_mode == NULL)
+		return;
+
+	BUG_ON(hwif->pio_mask == 0x00);
+
+	host_pio = fls(hwif->pio_mask) - 1;
+
+	pio = ide_get_best_pio_mode(drive, req_pio, host_pio);
+
+	/*
+	 * TODO:
+	 * - report device max PIO mode
+	 * - check req_pio != 255 against device max PIO mode
+	 */
+	printk(KERN_DEBUG "%s: host max PIO%d wanted PIO%d%s selected PIO%d\n",
+			  drive->name, host_pio, req_pio,
+			  req_pio == 255 ? "(auto-tune)" : "", pio);
+
+	hwif->set_pio_mode(drive, pio);
+}
+
+EXPORT_SYMBOL_GPL(ide_set_pio);
+
 /**
  *	ide_toggle_bounce	-	handle bounce buffering
  *	@drive: drive to update
@@ -377,13 +391,26 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
  
 int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 {
-#ifndef CONFIG_BLK_DEV_IDEDMA
-	rate = min(rate, (u8) XFER_PIO_4);
-#endif
-	if(HWIF(drive)->speedproc)
-		return HWIF(drive)->speedproc(drive, rate);
-	else
+	ide_hwif_t *hwif = drive->hwif;
+
+	if (hwif->speedproc == NULL)
 		return -1;
+
+	rate = ide_rate_filter(drive, rate);
+
+	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_5) {
+		if (hwif->set_pio_mode)
+			hwif->set_pio_mode(drive, rate - XFER_PIO_0);
+
+		/*
+		 * FIXME: this is incorrect to return zero here but
+		 * since all users of ide_set_xfer_rate() ignore
+		 * the return value it is not a problem currently
+		 */
+		return 0;
+	}
+
+	return hwif->speedproc(drive, rate);
 }
 
 static void ide_dump_opcode(ide_drive_t *drive)

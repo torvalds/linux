@@ -36,29 +36,15 @@ static void urb_free_priv (struct ohci_hcd *hc, urb_priv_t *urb_priv)
  * PRECONDITION:  ohci lock held, irqs blocked.
  */
 static void
-finish_urb (struct ohci_hcd *ohci, struct urb *urb)
+finish_urb(struct ohci_hcd *ohci, struct urb *urb, int status)
 __releases(ohci->lock)
 __acquires(ohci->lock)
 {
 	// ASSERT (urb->hcpriv != 0);
 
 	urb_free_priv (ohci, urb->hcpriv);
-	urb->hcpriv = NULL;
-
-	spin_lock (&urb->lock);
-	if (likely (urb->status == -EINPROGRESS))
-		urb->status = 0;
-	/* report short control reads right even though the data TD always
-	 * has TD_R set.  (much simpler, but creates the 1-td limit.)
-	 */
-	if (unlikely (urb->transfer_flags & URB_SHORT_NOT_OK)
-			&& unlikely (usb_pipecontrol (urb->pipe))
-			&& urb->actual_length < urb->transfer_buffer_length
-			&& usb_pipein (urb->pipe)
-			&& urb->status == 0) {
-		urb->status = -EREMOTEIO;
-	}
-	spin_unlock (&urb->lock);
+	if (likely(status == -EINPROGRESS))
+		status = 0;
 
 	switch (usb_pipetype (urb->pipe)) {
 	case PIPE_ISOCHRONOUS:
@@ -70,12 +56,13 @@ __acquires(ohci->lock)
 	}
 
 #ifdef OHCI_VERBOSE_DEBUG
-	urb_print (urb, "RET", usb_pipeout (urb->pipe));
+	urb_print(urb, "RET", usb_pipeout (urb->pipe), status);
 #endif
 
 	/* urb->complete() can reenter this HCD */
+	usb_hcd_unlink_urb_from_ep(ohci_to_hcd(ohci), urb);
 	spin_unlock (&ohci->lock);
-	usb_hcd_giveback_urb (ohci_to_hcd(ohci), urb);
+	usb_hcd_giveback_urb(ohci_to_hcd(ohci), urb, status);
 	spin_lock (&ohci->lock);
 
 	/* stop periodic dma if it's not needed */
@@ -179,6 +166,10 @@ static int ed_schedule (struct ohci_hcd *ohci, struct ed *ed)
 	ed->ed_prev = NULL;
 	ed->ed_next = NULL;
 	ed->hwNextED = 0;
+	if (quirk_zfmicro(ohci)
+			&& (ed->type == PIPE_INTERRUPT)
+			&& !(ohci->eds_scheduled++))
+		mod_timer(&ohci->unlink_watchdog, round_jiffies_relative(HZ));
 	wmb ();
 
 	/* we care about rm_list when setting CLE/BLE in case the HC was at
@@ -708,19 +699,18 @@ static void td_submit_urb (
  * Done List handling functions
  *-------------------------------------------------------------------------*/
 
-/* calculate transfer length/status and update the urb
- * PRECONDITION:  irqsafe (only for urb->status locking)
- */
-static void td_done (struct ohci_hcd *ohci, struct urb *urb, struct td *td)
+/* calculate transfer length/status and update the urb */
+static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 {
 	u32	tdINFO = hc32_to_cpup (ohci, &td->hwINFO);
 	int	cc = 0;
+	int	status = -EINPROGRESS;
 
 	list_del (&td->td_list);
 
 	/* ISO ... drivers see per-TD length/status */
 	if (tdINFO & TD_ISO) {
-		u16	tdPSW = ohci_hwPSW (ohci, td, 0);
+		u16	tdPSW = ohci_hwPSW(ohci, td, 0);
 		int	dlen = 0;
 
 		/* NOTE:  assumes FC in tdINFO == 0, and that
@@ -729,7 +719,7 @@ static void td_done (struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 
 		cc = (tdPSW >> 12) & 0xF;
 		if (tdINFO & TD_CC)	/* hc didn't touch? */
-			return;
+			return status;
 
 		if (usb_pipeout (urb->pipe))
 			dlen = urb->iso_frame_desc [td->index].length;
@@ -762,12 +752,8 @@ static void td_done (struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 		if (cc == TD_DATAUNDERRUN
 				&& !(urb->transfer_flags & URB_SHORT_NOT_OK))
 			cc = TD_CC_NOERROR;
-		if (cc != TD_CC_NOERROR && cc < 0x0E) {
-			spin_lock (&urb->lock);
-			if (urb->status == -EINPROGRESS)
-				urb->status = cc_to_error [cc];
-			spin_unlock (&urb->lock);
-		}
+		if (cc != TD_CC_NOERROR && cc < 0x0E)
+			status = cc_to_error[cc];
 
 		/* count all non-empty packets except control SETUP packet */
 		if ((type != PIPE_CONTROL || td->index != 0) && tdBE != 0) {
@@ -786,14 +772,15 @@ static void td_done (struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 				urb->actual_length,
 				urb->transfer_buffer_length);
 	}
+	return status;
 }
 
 /*-------------------------------------------------------------------------*/
 
-static inline struct td *
-ed_halted (struct ohci_hcd *ohci, struct td *td, int cc, struct td *rev)
+static void ed_halted(struct ohci_hcd *ohci, struct td *td, int cc)
 {
 	struct urb		*urb = td->urb;
+	urb_priv_t		*urb_priv = urb->hcpriv;
 	struct ed		*ed = td->ed;
 	struct list_head	*tmp = td->td_list.next;
 	__hc32			toggle = ed->hwHeadP & cpu_to_hc32 (ohci, ED_C);
@@ -805,13 +792,12 @@ ed_halted (struct ohci_hcd *ohci, struct td *td, int cc, struct td *rev)
 	wmb ();
 	ed->hwHeadP &= ~cpu_to_hc32 (ohci, ED_H);
 
-	/* put any later tds from this urb onto the donelist, after 'td',
-	 * order won't matter here: no errors, and nothing was transferred.
-	 * also patch the ed so it looks as if those tds completed normally.
+	/* Get rid of all later tds from this urb.  We don't have
+	 * to be careful: no errors and nothing was transferred.
+	 * Also patch the ed so it looks as if those tds completed normally.
 	 */
 	while (tmp != &ed->td_list) {
 		struct td	*next;
-		__hc32		info;
 
 		next = list_entry (tmp, struct td, td_list);
 		tmp = next->td_list.next;
@@ -826,14 +812,9 @@ ed_halted (struct ohci_hcd *ohci, struct td *td, int cc, struct td *rev)
 		 * then we need to leave the control STATUS packet queued
 		 * and clear ED_SKIP.
 		 */
-		info = next->hwINFO;
-		info |= cpu_to_hc32 (ohci, TD_DONE);
-		info &= ~cpu_to_hc32 (ohci, TD_CC);
-		next->hwINFO = info;
 
-		next->next_dl_td = rev;
-		rev = next;
-
+		list_del(&next->td_list);
+		urb_priv->td_cnt++;
 		ed->hwHeadP = next->hwNextTD | toggle;
 	}
 
@@ -859,8 +840,6 @@ ed_halted (struct ohci_hcd *ohci, struct td *td, int cc, struct td *rev)
 			hc32_to_cpu (ohci, td->hwINFO),
 			cc, cc_to_error [cc]);
 	}
-
-	return rev;
 }
 
 /* replies to the request have to be on a FIFO basis so
@@ -897,7 +876,7 @@ static struct td *dl_reverse_done_list (struct ohci_hcd *ohci)
 		 */
 		if (cc != TD_CC_NOERROR
 				&& (td->ed->hwHeadP & cpu_to_hc32 (ohci, ED_H)))
-			td_rev = ed_halted (ohci, td, cc, td_rev);
+			ed_halted(ohci, td, cc);
 
 		td->next_dl_td = td_rev;
 		td_rev = td;
@@ -940,8 +919,12 @@ skip_ed:
 								TD_MASK;
 
 				/* INTR_WDH may need to clean up first */
-				if (td->td_dma != head)
-					goto skip_ed;
+				if (td->td_dma != head) {
+					if (ed == ohci->ed_to_check)
+						ohci->ed_to_check = NULL;
+					else
+						goto skip_ed;
+				}
 			}
 		}
 
@@ -974,7 +957,7 @@ rescan_this:
 			urb = td->urb;
 			urb_priv = td->urb->hcpriv;
 
-			if (urb->status == -EINPROGRESS) {
+			if (!urb->unlinked) {
 				prev = &td->hwNextTD;
 				continue;
 			}
@@ -990,7 +973,7 @@ rescan_this:
 			/* if URB is done, clean up */
 			if (urb_priv->td_cnt == urb_priv->length) {
 				modified = completed = 1;
-				finish_urb (ohci, urb);
+				finish_urb(ohci, urb, 0);
 			}
 		}
 		if (completed && !list_empty (&ed->td_list))
@@ -998,6 +981,8 @@ rescan_this:
 
 		/* ED's now officially unlinked, hc doesn't see */
 		ed->state = ED_IDLE;
+		if (quirk_zfmicro(ohci) && ed->type == PIPE_INTERRUPT)
+			ohci->eds_scheduled--;
 		ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_H);
 		ed->hwNextED = 0;
 		wmb ();
@@ -1021,7 +1006,7 @@ rescan_this:
 
 		if (ohci->ed_controltail) {
 			command |= OHCI_CLF;
-			if (ohci->flags & OHCI_QUIRK_ZFMICRO)
+			if (quirk_zfmicro(ohci))
 				mdelay(1);
 			if (!(ohci->hc_control & OHCI_CTRL_CLE)) {
 				control |= OHCI_CTRL_CLE;
@@ -1031,7 +1016,7 @@ rescan_this:
 		}
 		if (ohci->ed_bulktail) {
 			command |= OHCI_BLF;
-			if (ohci->flags & OHCI_QUIRK_ZFMICRO)
+			if (quirk_zfmicro(ohci))
 				mdelay(1);
 			if (!(ohci->hc_control & OHCI_CTRL_BLE)) {
 				control |= OHCI_CTRL_BLE;
@@ -1043,13 +1028,13 @@ rescan_this:
 		/* CLE/BLE to enable, CLF/BLF to (maybe) kickstart */
 		if (control) {
 			ohci->hc_control |= control;
-			if (ohci->flags & OHCI_QUIRK_ZFMICRO)
+			if (quirk_zfmicro(ohci))
 				mdelay(1);
 			ohci_writel (ohci, ohci->hc_control,
 					&ohci->regs->control);
 		}
 		if (command) {
-			if (ohci->flags & OHCI_QUIRK_ZFMICRO)
+			if (quirk_zfmicro(ohci))
 				mdelay(1);
 			ohci_writel (ohci, command, &ohci->regs->cmdstatus);
 		}
@@ -1061,11 +1046,60 @@ rescan_this:
 /*-------------------------------------------------------------------------*/
 
 /*
+ * Used to take back a TD from the host controller. This would normally be
+ * called from within dl_done_list, however it may be called directly if the
+ * HC no longer sees the TD and it has not appeared on the donelist (after
+ * two frames).  This bug has been observed on ZF Micro systems.
+ */
+static void takeback_td(struct ohci_hcd *ohci, struct td *td)
+{
+	struct urb	*urb = td->urb;
+	urb_priv_t	*urb_priv = urb->hcpriv;
+	struct ed	*ed = td->ed;
+	int		status;
+
+	/* update URB's length and status from TD */
+	status = td_done(ohci, urb, td);
+	urb_priv->td_cnt++;
+
+	/* If all this urb's TDs are done, call complete() */
+	if (urb_priv->td_cnt == urb_priv->length)
+		finish_urb(ohci, urb, status);
+
+	/* clean schedule:  unlink EDs that are no longer busy */
+	if (list_empty(&ed->td_list)) {
+		if (ed->state == ED_OPER)
+			start_ed_unlink(ohci, ed);
+
+	/* ... reenabling halted EDs only after fault cleanup */
+	} else if ((ed->hwINFO & cpu_to_hc32(ohci, ED_SKIP | ED_DEQUEUE))
+			== cpu_to_hc32(ohci, ED_SKIP)) {
+		td = list_entry(ed->td_list.next, struct td, td_list);
+		if (!(td->hwINFO & cpu_to_hc32(ohci, TD_DONE))) {
+			ed->hwINFO &= ~cpu_to_hc32(ohci, ED_SKIP);
+			/* ... hc may need waking-up */
+			switch (ed->type) {
+			case PIPE_CONTROL:
+				ohci_writel(ohci, OHCI_CLF,
+						&ohci->regs->cmdstatus);
+				break;
+			case PIPE_BULK:
+				ohci_writel(ohci, OHCI_BLF,
+						&ohci->regs->cmdstatus);
+				break;
+			}
+		}
+	}
+}
+
+/*
  * Process normal completions (error or success) and clean the schedules.
  *
  * This is the main path for handing urbs back to drivers.  The only other
- * path is finish_unlinks(), which unlinks URBs using ed_rm_list, instead of
- * scanning the (re-reversed) donelist as this does.
+ * normal path is finish_unlinks(), which unlinks URBs using ed_rm_list,
+ * instead of scanning the (re-reversed) donelist as this does.  There's
+ * an abnormal path too, handling a quirk in some Compaq silicon:  URBs
+ * with TDs that appear to be orphaned are directly reclaimed.
  */
 static void
 dl_done_list (struct ohci_hcd *ohci)
@@ -1074,44 +1108,7 @@ dl_done_list (struct ohci_hcd *ohci)
 
 	while (td) {
 		struct td	*td_next = td->next_dl_td;
-		struct urb	*urb = td->urb;
-		urb_priv_t	*urb_priv = urb->hcpriv;
-		struct ed	*ed = td->ed;
-
-		/* update URB's length and status from TD */
-		td_done (ohci, urb, td);
-		urb_priv->td_cnt++;
-
-		/* If all this urb's TDs are done, call complete() */
-		if (urb_priv->td_cnt == urb_priv->length)
-			finish_urb (ohci, urb);
-
-		/* clean schedule:  unlink EDs that are no longer busy */
-		if (list_empty (&ed->td_list)) {
-			if (ed->state == ED_OPER)
-				start_ed_unlink (ohci, ed);
-
-		/* ... reenabling halted EDs only after fault cleanup */
-		} else if ((ed->hwINFO & cpu_to_hc32 (ohci,
-						ED_SKIP | ED_DEQUEUE))
-					== cpu_to_hc32 (ohci, ED_SKIP)) {
-			td = list_entry (ed->td_list.next, struct td, td_list);
-			if (!(td->hwINFO & cpu_to_hc32 (ohci, TD_DONE))) {
-				ed->hwINFO &= ~cpu_to_hc32 (ohci, ED_SKIP);
-				/* ... hc may need waking-up */
-				switch (ed->type) {
-				case PIPE_CONTROL:
-					ohci_writel (ohci, OHCI_CLF,
-						&ohci->regs->cmdstatus);
-					break;
-				case PIPE_BULK:
-					ohci_writel (ohci, OHCI_BLF,
-						&ohci->regs->cmdstatus);
-					break;
-				}
-			}
-		}
-
+		takeback_td(ohci, td);
 		td = td_next;
 	}
 }

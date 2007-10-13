@@ -92,4 +92,13 @@ static inline void * bl_get_data(struct backlight_device *bl_dev)
 	return dev_get_drvdata(&bl_dev->dev);
 }
 
+struct generic_bl_info {
+	const char *name;
+	int max_intensity;
+	int default_intensity;
+	int limit_mask;
+	void (*set_bl_intensity)(int intensity);
+	void (*kick_battery)(void);
+};
+
 #endif

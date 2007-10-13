@@ -12,6 +12,7 @@
  * See the GNU General Public License for more details.
  */
 #include <linux/netdevice.h>
+#include <net/net_namespace.h>
 #include <net/llc.h>
 #include <net/llc_pdu.h>
 #include <net/llc_sap.h>
@@ -144,6 +145,9 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	int dest;
 	int (*rcv)(struct sk_buff *, struct net_device *,
 		   struct packet_type *, struct net_device *);
+
+	if (dev->nd_net != &init_net)
+		goto drop;
 
 	/*
 	 * When the interface is in promisc. mode, drop all the crap that it

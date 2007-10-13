@@ -735,10 +735,10 @@ void do_reipl(void)
 	case REIPL_METHOD_CCW_VM:
 		reipl_get_ascii_loadparm(loadparm);
 		if (strlen(loadparm) == 0)
-			sprintf(buf, "IPL %X",
+			sprintf(buf, "IPL %X CLEAR",
 				reipl_block_ccw->ipl_info.ccw.devno);
 		else
-			sprintf(buf, "IPL %X LOADPARM '%s'",
+			sprintf(buf, "IPL %X CLEAR LOADPARM '%s'",
 				reipl_block_ccw->ipl_info.ccw.devno, loadparm);
 		__cpcmd(buf, NULL, 0, NULL);
 		break;

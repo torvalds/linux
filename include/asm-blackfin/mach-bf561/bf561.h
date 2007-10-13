@@ -73,13 +73,13 @@
  */
 
 
-#define BLKFIN_ISUBBANKS	4
-#define BLKFIN_IWAYS		4
-#define BLKFIN_ILINES		32
+#define BFIN_ISUBBANKS	4
+#define BFIN_IWAYS		4
+#define BFIN_ILINES		32
 
-#define BLKFIN_DSUBBANKS	4
-#define BLKFIN_DWAYS		2
-#define BLKFIN_DLINES		64
+#define BFIN_DSUBBANKS	4
+#define BFIN_DWAYS		2
+#define BFIN_DLINES		64
 
 #define WAY0_L			0x1
 #define WAY1_L			0x2
@@ -230,93 +230,6 @@
 
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO | V_B0PEN | V_B1PEN | V_B2PEN | V_B3PEN | 0x0002)
 
-#define MAX_VC	600000000
-#define MIN_VC	50000000
-
-/******************************* PLL Settings ********************************/
-#ifdef CONFIG_BFIN_KERNEL_CLOCK
-#if (CONFIG_VCO_MULT < 0)
-#error "VCO Multiplier is less than 0. Please select a different value"
-#endif
-
-#if (CONFIG_VCO_MULT == 0)
-#error "VCO Multiplier should be greater than 0. Please select a different value"
-#endif
-
-#ifndef CONFIG_CLKIN_HALF
-#define CONFIG_VCO_HZ	(CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)
-#else
-#define CONFIG_VCO_HZ	((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)/2)
-#endif
-
-#ifndef CONFIG_PLL_BYPASS
-#define CONFIG_CCLK_HZ	(CONFIG_VCO_HZ/CONFIG_CCLK_DIV)
-#define CONFIG_SCLK_HZ	(CONFIG_VCO_HZ/CONFIG_SCLK_DIV)
-#else
-#define CONFIG_CCLK_HZ	CONFIG_CLKIN_HZ
-#define CONFIG_SCLK_HZ	CONFIG_CLKIN_HZ
-#endif
-
-#if (CONFIG_SCLK_DIV < 1)
-#error "SCLK DIV cannot be less than 1 or more than 15. Please select a proper value"
-#endif
-
-#if (CONFIG_SCLK_DIV > 15)
-#error "SCLK DIV cannot be less than 1 or more than 15. Please select a proper value"
-#endif
-
-#if (CONFIG_CCLK_DIV != 1)
-#if (CONFIG_CCLK_DIV != 2)
-#if (CONFIG_CCLK_DIV != 4)
-#if (CONFIG_CCLK_DIV != 8)
-#error "CCLK DIV can be 1,2,4 or 8 only. Please select a proper value"
-#endif
-#endif
-#endif
-#endif
-
-#if (CONFIG_VCO_HZ > MAX_VC)
-#error "VCO selected is more than maximum value. Please change the VCO multipler"
-#endif
-
-#if (CONFIG_SCLK_HZ > 133000000)
-#error "Sclk value selected is more than maximum. Please select a proper value for SCLK multiplier"
-#endif
-
-#if (CONFIG_SCLK_HZ < 27000000)
-#error "Sclk value selected is less than minimum. Please select a proper value for SCLK multiplier"
-#endif
-
-#if (CONFIG_SCLK_HZ >= CONFIG_CCLK_HZ)
-#if (CONFIG_SCLK_HZ != CONFIG_CLKIN_HZ)
-#if (CONFIG_CCLK_HZ != CONFIG_CLKIN_HZ)
-#error "Please select sclk less than cclk"
-#endif
-#endif
-#endif
-
-#if (CONFIG_CCLK_DIV == 1)
-#define CONFIG_CCLK_ACT_DIV   CCLK_DIV1
-#endif
-#if (CONFIG_CCLK_DIV == 2)
-#define CONFIG_CCLK_ACT_DIV   CCLK_DIV2
-#endif
-#if (CONFIG_CCLK_DIV == 4)
-#define CONFIG_CCLK_ACT_DIV   CCLK_DIV4
-#endif
-#if (CONFIG_CCLK_DIV == 8)
-#define CONFIG_CCLK_ACT_DIV   CCLK_DIV8
-#endif
-#ifndef CONFIG_CCLK_ACT_DIV
-#define CONFIG_CCLK_ACT_DIV   CONFIG_CCLK_DIV_not_defined_properly
-#endif
-
-#if defined(ANOMALY_05000273) && (CONFIG_CCLK_DIV == 1)
-#error ANOMALY 05000273, please make sure CCLK is at least 2x SCLK
-#endif
-
-#endif				/* CONFIG_BFIN_KERNEL_CLOCK */
-
 #ifdef CONFIG_BF561
 #define CPU "BF561"
 #define CPUID 0x027bb000
@@ -325,84 +238,5 @@
 #define CPU "UNKNOWN"
 #define CPUID 0x0
 #endif
-
-#if (CONFIG_MEM_SIZE % 4)
-#error "SDRAM memory size must be a multiple of 4MB!"
-#endif
-#define SDRAM_IGENERIC    (CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | CPLB_PORTPRIO)
-#define SDRAM_IKERNEL     (SDRAM_IGENERIC | CPLB_LOCK)
-#define L1_IMEMORY        (               CPLB_USER_RD | CPLB_VALID | CPLB_LOCK)
-#define SDRAM_INON_CHBL   (               CPLB_USER_RD | CPLB_VALID)
-
-/*Use the menuconfig cache policy here - CONFIG_BLKFIN_WT/CONFIG_BLKFIN_WB*/
-
-#define ANOMALY_05000158_WORKAROUND		0x200
-#ifdef CONFIG_BLKFIN_WB		/*Write Back Policy */
-#define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_DIRTY \
-			| CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
-#else				/*Write Through */
-#define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW | CPLB_DIRTY \
-			| CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
-#endif
-
-
-#define L1_DMEMORY       (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_LOCK | CPLB_DIRTY)
-#define SDRAM_DNON_CHBL  (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_DIRTY)
-#define SDRAM_EBIU       (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_DIRTY)
-#define SDRAM_OOPS  	 (CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_LOCK | CPLB_DIRTY)
-
-#define L2_MEMORY	(CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_DIRTY)
-
-#define SIZE_1K 0x00000400	/* 1K */
-#define SIZE_4K 0x00001000	/* 4K */
-#define SIZE_1M 0x00100000	/* 1M */
-#define SIZE_4M 0x00400000	/* 4M */
-
-#define MAX_CPLBS (16 * 2)
-
-/*
-* Number of required data CPLB switchtable entries
-* MEMSIZE / 4 (we mostly install 4M page size CPLBs
-* approx 16 for smaller 1MB page size CPLBs for allignment purposes
-* 1 for L1 Data Memory
-* 1 for L2 Data Memory
-* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
-* 64 for ASYNC Memory
-*/
-
-
-#define MAX_SWITCH_D_CPLBS (((CONFIG_MEM_SIZE / 4) + 16 + 1 + 1 + 1 + 64) * 2)
-
-/*
-* Number of required instruction CPLB switchtable entries
-* MEMSIZE / 4 (we mostly install 4M page size CPLBs
-* approx 12 for smaller 1MB page size CPLBs for allignment purposes
-* 1 for L1 Instruction Memory
-* 1 for L2 Instruction Memory
-* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
-*/
-
-#define MAX_SWITCH_I_CPLBS (((CONFIG_MEM_SIZE / 4) + 12 + 1 + 1 + 1) * 2)
-
-#if 0				/* comment by mhfan */
-/* Event Vector Table Address */
-#define EVT_EMULATION_ADDR      0xffe02000
-#define EVT_RESET_ADDR          0xffe02004
-#define EVT_NMI_ADDR            0xffe02008
-#define EVT_EXCEPTION_ADDR      0xffe0200c
-#define EVT_GLOBAL_INT_ENB_ADDR 0xffe02010
-#define EVT_HARDWARE_ERROR_ADDR 0xffe02014
-#define EVT_TIMER_ADDR          0xffe02018
-#define EVT_IVG7_ADDR           0xffe0201c
-#define EVT_IVG8_ADDR           0xffe02020
-#define EVT_IVG9_ADDR           0xffe02024
-#define EVT_IVG10_ADDR          0xffe02028
-#define EVT_IVG11_ADDR          0xffe0202c
-#define EVT_IVG12_ADDR          0xffe02030
-#define EVT_IVG13_ADDR          0xffe02034
-#define EVT_IVG14_ADDR          0xffe02038
-#define EVT_IVG15_ADDR          0xffe0203c
-#define EVT_OVERRIDE_ADDR       0xffe02100
-#endif				/* comment by mhfan */
 
 #endif				/* __MACH_BF561_H__  */

@@ -42,7 +42,7 @@ extern void (*flush_cache_all)(void);
 void au1000_restart(char *command)
 {
 	/* Set all integrated peripherals to disabled states */
-	extern void board_reset (void);
+	extern void board_reset(void);
 	u32 prid = read_c0_prid();
 
 	printk(KERN_NOTICE "\n** Resetting Integrated Peripherals\n");

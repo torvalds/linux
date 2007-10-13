@@ -353,7 +353,7 @@ void core_send_ipi(int cpu, unsigned int action)
 	unsigned long flags;
 	int vpflags;
 
-	local_irq_save (flags);
+	local_irq_save(flags);
 
 	vpflags = dvpe();	/* cant access the other CPU's registers whilst MVPE enabled */
 

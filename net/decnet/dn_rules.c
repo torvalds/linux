@@ -57,8 +57,6 @@ static struct dn_fib_rule default_rule = {
 	},
 };
 
-static LIST_HEAD(dn_fib_rules);
-
 
 int dn_fib_lookup(struct flowi *flp, struct dn_fib_res *res)
 {
@@ -228,9 +226,9 @@ static u32 dn_fib_rule_default_pref(void)
 	struct list_head *pos;
 	struct fib_rule *rule;
 
-	if (!list_empty(&dn_fib_rules)) {
-		pos = dn_fib_rules.next;
-		if (pos->next != &dn_fib_rules) {
+	if (!list_empty(&dn_fib_rules_ops.rules_list)) {
+		pos = dn_fib_rules_ops.rules_list.next;
+		if (pos->next != &dn_fib_rules_ops.rules_list) {
 			rule = list_entry(pos->next, struct fib_rule, list);
 			if (rule->pref)
 				return rule->pref - 1;
@@ -258,13 +256,14 @@ static struct fib_rules_ops dn_fib_rules_ops = {
 	.flush_cache	= dn_fib_rule_flush_cache,
 	.nlgroup	= RTNLGRP_DECnet_RULE,
 	.policy		= dn_fib_rule_policy,
-	.rules_list	= &dn_fib_rules,
+	.rules_list	= LIST_HEAD_INIT(dn_fib_rules_ops.rules_list),
 	.owner		= THIS_MODULE,
 };
 
 void __init dn_fib_rules_init(void)
 {
-	list_add_tail(&default_rule.common.list, &dn_fib_rules);
+	list_add_tail(&default_rule.common.list,
+			&dn_fib_rules_ops.rules_list);
 	fib_rules_register(&dn_fib_rules_ops);
 }
 

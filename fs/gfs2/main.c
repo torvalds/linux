@@ -107,6 +107,8 @@ static int __init init_gfs2_fs(void)
 fail_unregister:
 	unregister_filesystem(&gfs2_fs_type);
 fail:
+	gfs2_glock_exit();
+
 	if (gfs2_bufdata_cachep)
 		kmem_cache_destroy(gfs2_bufdata_cachep);
 
@@ -127,6 +129,7 @@ fail:
 
 static void __exit exit_gfs2_fs(void)
 {
+	gfs2_glock_exit();
 	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);

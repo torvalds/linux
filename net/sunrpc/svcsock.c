@@ -19,6 +19,7 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
@@ -103,7 +104,7 @@ static struct lock_class_key svc_slock_key[2];
 static inline void svc_reclassify_socket(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	BUG_ON(sk->sk_lock.owner != NULL);
+	BUG_ON(sock_owned_by_user(sk));
 	switch (sk->sk_family) {
 	case AF_INET:
 		sock_lock_init_class_and_name(sk, "slock-AF_INET-NFSD",
@@ -877,7 +878,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 	} else {
 		rqstp->rq_arg.page_len = len - rqstp->rq_arg.head[0].iov_len;
 		rqstp->rq_respages = rqstp->rq_pages + 1 +
-			(rqstp->rq_arg.page_len + PAGE_SIZE - 1)/ PAGE_SIZE;
+			DIV_ROUND_UP(rqstp->rq_arg.page_len, PAGE_SIZE);
 	}
 
 	if (serv->sv_stats)

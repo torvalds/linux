@@ -459,7 +459,6 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 			port->log_node = 1;
 
 		spin_lock_init(&port->lock);
-		SET_MODULE_OWNER(dev);
 		dev->irq = irq;
 		dev->mem_start = winbase;
 		dev->mem_end = winbase + USE_WINDOWSIZE - 1;

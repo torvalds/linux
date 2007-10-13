@@ -6,6 +6,8 @@
 
 #include <linux/types.h>
 
+#define GPIO_PIN_NONE	(-1)
+
 /* Add basic devices: system manager, interrupt controller, portmuxes, etc. */
 void at32_add_system_devices(void);
 
@@ -35,6 +37,12 @@ struct atmel_lcdfb_info;
 struct platform_device *
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 		     unsigned long fbmem_start, unsigned long fbmem_len);
+
+struct usba_platform_data {
+	int vbus_pin;
+};
+struct platform_device *
+at32_add_device_usba(unsigned int id, struct usba_platform_data *data);
 
 /* depending on what's hooked up, not all SSC pins will be used */
 #define	ATMEL_SSC_TK		0x01

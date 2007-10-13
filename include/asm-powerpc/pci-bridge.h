@@ -98,7 +98,8 @@ extern int early_find_capability(struct pci_controller *hose, int bus,
 				 int dev_fn, int cap);
 
 extern void setup_indirect_pci(struct pci_controller* hose,
-			       u32 cfg_addr, u32 cfg_data, u32 flags);
+			       resource_size_t cfg_addr,
+			       resource_size_t cfg_data, u32 flags);
 extern void setup_grackle(struct pci_controller *hose);
 extern void __init update_bridge_resource(struct pci_dev *dev,
 					  struct resource *res);

@@ -34,20 +34,9 @@
 
 #undef DEBUG_NVRAM
 
-static int nvram_scan_partitions(void);
-static int nvram_setup_partition(void);
-static int nvram_create_os_partition(void);
-static int nvram_remove_os_partition(void);
-
 static struct nvram_partition * nvram_part;
 static long nvram_error_log_index = -1;
 static long nvram_error_log_size = 0;
-
-int no_logging = 1; 	/* Until we initialize everything,
-			 * make sure we don't try logging
-			 * anything */
-
-extern volatile int error_log_cnt;
 
 struct err_log_info {
 	int error_type;
@@ -636,16 +625,13 @@ void __exit nvram_cleanup(void)
  * sequence #: The unique sequence # for each event. (until it wraps)
  * error log: The error log from event_scan
  */
-int nvram_write_error_log(char * buff, int length, unsigned int err_type)
+int nvram_write_error_log(char * buff, int length,
+                          unsigned int err_type, unsigned int error_log_cnt)
 {
 	int rc;
 	loff_t tmp_index;
 	struct err_log_info info;
 	
-	if (no_logging) {
-		return -EPERM;
-	}
-
 	if (nvram_error_log_index == -1) {
 		return -ESPIPE;
 	}
@@ -678,7 +664,8 @@ int nvram_write_error_log(char * buff, int length, unsigned int err_type)
  *
  * Reads nvram for error log for at most 'length'
  */
-int nvram_read_error_log(char * buff, int length, unsigned int * err_type)
+int nvram_read_error_log(char * buff, int length,
+                         unsigned int * err_type, unsigned int * error_log_cnt)
 {
 	int rc;
 	loff_t tmp_index;
@@ -704,7 +691,7 @@ int nvram_read_error_log(char * buff, int length, unsigned int * err_type)
 		return rc;
 	}
 
-	error_log_cnt = info.seq_num;
+	*error_log_cnt = info.seq_num;
 	*err_type = info.error_type;
 
 	return 0;

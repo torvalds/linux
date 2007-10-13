@@ -880,6 +880,7 @@ struct netxen_adapter {
 	struct netxen_adapter *master;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
+	struct napi_struct napi;
 	struct net_device_stats net_stats;
 	unsigned char mac_addr[ETH_ALEN];
 	int mtu;
@@ -918,7 +919,7 @@ struct netxen_adapter {
 	u16 link_duplex;
 	u16 state;
 	u16 link_autoneg;
-	int rcsum;
+	int rx_csum;
 	int status;
 	spinlock_t stats_lock;
 
@@ -1118,7 +1119,7 @@ static const struct netxen_brdinfo netxen_boards[] = {
 	{NETXEN_BRDTYPE_P2_SB31_2G, 2, "Dual Gb"},
 };
 
-#define NUM_SUPPORTED_BOARDS (sizeof(netxen_boards)/sizeof(struct netxen_brdinfo))
+#define NUM_SUPPORTED_BOARDS ARRAY_SIZE(netxen_boards)
 
 static inline void get_brd_port_by_type(u32 type, int *ports)
 {

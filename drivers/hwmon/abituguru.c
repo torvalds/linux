@@ -1449,7 +1449,7 @@ static int __init abituguru_init(void)
 	struct resource res = { .flags = IORESOURCE_IO };
 
 #ifdef CONFIG_DMI
-	char *board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
+	const char *board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
 
 	/* safety check, refuse to load on non Abit motherboards */
 	if (!force && (!board_vendor ||

@@ -31,7 +31,6 @@
 #include "zd_netdev.h"
 #include "zd_mac.h"
 #include "zd_usb.h"
-#include "zd_util.h"
 
 static struct usb_device_id usb_ids[] = {
 	/* ZD1211 */
@@ -55,6 +54,7 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x14ea, 0xab13), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x13b1, 0x001e), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0586, 0x3407), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x129b, 0x1666), .driver_info = DEVICE_ZD1211 },
 	/* ZD1211B */
 	{ USB_DEVICE(0x0ace, 0x1215), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x157e, 0x300d), .driver_info = DEVICE_ZD1211B },
@@ -74,6 +74,9 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x0411, 0x00da), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x2019, 0x5303), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x129b, 0x1667), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0cde, 0x001a), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0586, 0x340a), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0471, 0x1237), .driver_info = DEVICE_ZD1211B },
 	/* "Driverless" devices that need ejecting */
 	{ USB_DEVICE(0x0ace, 0x2011), .driver_info = DEVICE_INSTALLER },
 	{ USB_DEVICE(0x0ace, 0x20ff), .driver_info = DEVICE_INSTALLER },

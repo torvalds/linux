@@ -34,7 +34,6 @@
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
-			32-bit;
 		};
 	};
 
@@ -51,10 +50,9 @@
 	soc8568@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
-		reg = <e0000000 00100000>;
+		reg = <e0000000 00001000>;
 		bus-frequency = <0>;
 
 		memory-controller@2000 {
@@ -74,15 +72,24 @@
 		};
 
 		i2c@3000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <2b 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
+
+			rtc@68 {
+				compatible = "dallas,ds1374";
+				reg = <68>;
+			};
 		};
 
 		i2c@3100 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
@@ -97,10 +104,10 @@
 			device_type = "mdio";
 			compatible = "gianfar";
 			reg = <24520 20>;
-			phy0: ethernet-phy@0 {
+			phy0: ethernet-phy@7 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1>;
-				reg = <0>;
+				reg = <7>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
@@ -176,60 +183,6 @@
 			fsl,has-rstcr;
 		};
 
-		pci@8000 {
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-				/* IDSEL 0x12 AD18 */
-				9000 0 0 1 &mpic 5 1
-				9000 0 0 2 &mpic 6 1
-				9000 0 0 3 &mpic 7 1
-				9000 0 0 4 &mpic 4 1
-
-				/* IDSEL 0x13 AD19 */
-				9800 0 0 1 &mpic 6 1
-				9800 0 0 2 &mpic 7 1
-				9800 0 0 3 &mpic 4 1
-				9800 0 0 4 &mpic 5 1>;
-
-			interrupt-parent = <&mpic>;
-			interrupts = <18 2>;
-			bus-range = <0 ff>;
-			ranges = <02000000 0 80000000 80000000 0 20000000
-				  01000000 0 00000000 e2000000 0 00800000>;
-			clock-frequency = <3f940aa>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <8000 1000>;
-			compatible = "fsl,mpc8540-pci";
-			device_type = "pci";
-		};
-
-		/* PCI Express */
-		pcie@a000 {
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-
-				/* IDSEL 0x0 (PEX) */
-				00000 0 0 1 &mpic 0 1
-				00000 0 0 2 &mpic 1 1
-				00000 0 0 3 &mpic 2 1
-				00000 0 0 4 &mpic 3 1>;
-
-			interrupt-parent = <&mpic>;
-			interrupts = <1a 2>;
-			bus-range = <0 ff>;
-			ranges = <02000000 0 a0000000 a0000000 0 20000000
-				  01000000 0 00000000 e3000000 0 08000000>;
-			clock-frequency = <1fca055>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <a000 1000>;
-			compatible = "fsl,mpc8548-pcie";
-			device_type = "pci";
-		};
-
 		serial@4600 {
 			device_type = "serial";
 			compatible = "ns16550";
@@ -258,11 +211,11 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
                         big-endian;
 		};
+
 		par_io@e0100 {
 			reg = <e0100 100>;
 			device_type = "par_io";
@@ -289,12 +242,13 @@
 					4  1a  2  0  2  0 	/* RxD7 */
 					4  0b  1  0  2  0 	/* TX_EN */
 					4  18  1  0  2  0 	/* TX_ER */
-					4  0f  2  0  2  0 	/* RX_DV */
+					4  10  2  0  2  0 	/* RX_DV */
 					4  1e  2  0  2  0 	/* RX_ER */
 					4  11  2  0  2  0 	/* RX_CLK */
 					4  13  1  0  2  0 	/* GTX_CLK */
 					1  1f  2  0  3  0>;	/* GTX125 */
 			};
+
 			pio2: ucc_pin@02 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
@@ -380,10 +334,10 @@
 			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <0>;
-			tx-clock = <19>;
-			phy-handle = <&qe_phy0>;
-			phy-connection-type = "gmii";
+			tx-clock = <20>;
 			pio-handle = <&pio1>;
+			phy-handle = <&phy0>;
+			phy-connection-type = "rgmii-id";
 		};
 
 		ucc@3000 {
@@ -402,10 +356,10 @@
 			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <0>;
-			tx-clock = <14>;
-			phy-handle = <&qe_phy1>;
-			phy-connection-type = "gmii";
+			tx-clock = <20>;
 			pio-handle = <&pio2>;
+			phy-handle = <&phy1>;
+			phy-connection-type = "rgmii-id";
 		};
 
 		mdio@2120 {
@@ -417,10 +371,10 @@
 
 			/* These are the same PHYs as on
 			 * gianfar's MDIO bus */
-			qe_phy0: ethernet-phy@00 {
+			qe_phy0: ethernet-phy@07 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1>;
-				reg = <0>;
+				reg = <7>;
 				device_type = "ethernet-phy";
 			};
 			qe_phy1: ethernet-phy@01 {
@@ -449,11 +403,77 @@
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			reg = <80 80>;
-			built-in;
 			big-endian;
 			interrupts = <2e 2 2e 2>; //high:30 low:30
 			interrupt-parent = <&mpic>;
 		};
 
+	};
+
+	pci@e0008000 {
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+			/* IDSEL 0x12 AD18 */
+			9000 0 0 1 &mpic 5 1
+			9000 0 0 2 &mpic 6 1
+			9000 0 0 3 &mpic 7 1
+			9000 0 0 4 &mpic 4 1
+
+			/* IDSEL 0x13 AD19 */
+			9800 0 0 1 &mpic 6 1
+			9800 0 0 2 &mpic 7 1
+			9800 0 0 3 &mpic 4 1
+			9800 0 0 4 &mpic 5 1>;
+
+		interrupt-parent = <&mpic>;
+		interrupts = <18 2>;
+		bus-range = <0 ff>;
+		ranges = <02000000 0 80000000 80000000 0 20000000
+			  01000000 0 00000000 e2000000 0 00800000>;
+		clock-frequency = <3f940aa>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e0008000 1000>;
+		compatible = "fsl,mpc8540-pci";
+		device_type = "pci";
+	};
+
+	/* PCI Express */
+	pcie@e000a000 {
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+
+			/* IDSEL 0x0 (PEX) */
+			00000 0 0 1 &mpic 0 1
+			00000 0 0 2 &mpic 1 1
+			00000 0 0 3 &mpic 2 1
+			00000 0 0 4 &mpic 3 1>;
+
+		interrupt-parent = <&mpic>;
+		interrupts = <1a 2>;
+		bus-range = <0 ff>;
+		ranges = <02000000 0 a0000000 a0000000 0 10000000
+			  01000000 0 00000000 e2800000 0 00800000>;
+		clock-frequency = <1fca055>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e000a000 1000>;
+		compatible = "fsl,mpc8548-pcie";
+		device_type = "pci";
+		pcie@0 {
+			reg = <0 0 0 0 0>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			ranges = <02000000 0 a0000000
+				  02000000 0 a0000000
+				  0 10000000
+
+				  01000000 0 00000000
+				  01000000 0 00000000
+				  0 00800000>;
+		};
 	};
 };

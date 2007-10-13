@@ -25,6 +25,7 @@
 #include <asm/iommu.h>
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
+#include <asm/firmware.h>
 
 
 #define IOBMAP_PAGE_SHIFT	12
@@ -175,19 +176,23 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 {
 	pr_debug("pci_dma_dev_setup, dev %p (%s)\n", dev, pci_name(dev));
 
-	/* DMA device is untranslated, but all other PCI-e goes through
-	 * the IOMMU
+#if !defined(CONFIG_PPC_PASEMI_IOMMU_DMA_FORCE)
+	/* For non-LPAR environment, don't translate anything for the DMA
+	 * engine. The exception to this is if the user has enabled
+	 * CONFIG_PPC_PASEMI_IOMMU_DMA_FORCE at build time.
 	 */
-	if (dev->vendor == 0x1959 && dev->device == 0xa007)
+	if (dev->vendor == 0x1959 && dev->device == 0xa007 &&
+	    !firmware_has_feature(FW_FEATURE_LPAR))
 		dev->dev.archdata.dma_ops = &dma_direct_ops;
-	else
-		dev->dev.archdata.dma_data = &iommu_table_iobmap;
+#endif
+
+	dev->dev.archdata.dma_data = &iommu_table_iobmap;
 }
 
 static void pci_dma_bus_setup_null(struct pci_bus *b) { }
 static void pci_dma_dev_setup_null(struct pci_dev *d) { }
 
-int iob_init(struct device_node *dn)
+int __init iob_init(struct device_node *dn)
 {
 	unsigned long tmp;
 	u32 regword;
@@ -233,7 +238,7 @@ int iob_init(struct device_node *dn)
 
 
 /* These are called very early. */
-void iommu_init_early_pasemi(void)
+void __init iommu_init_early_pasemi(void)
 {
 	int iommu_off;
 

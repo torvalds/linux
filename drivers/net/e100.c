@@ -539,6 +539,7 @@ struct nic {
 	struct csr __iomem *csr;
 	enum scb_cmd_lo cuc_cmd;
 	unsigned int cbs_avail;
+	struct napi_struct napi;
 	struct cb *cbs;
 	struct cb *cb_to_use;
 	struct cb *cb_to_send;
@@ -557,7 +558,6 @@ struct nic {
 	enum mac mac;
 	enum phy phy;
 	struct params params;
-	struct net_device_stats net_stats;
 	struct timer_list watchdog;
 	struct timer_list blink_timer;
 	struct mii_if_info mii;
@@ -1482,7 +1482,8 @@ static void e100_set_multicast_list(struct net_device *netdev)
 
 static void e100_update_stats(struct nic *nic)
 {
-	struct net_device_stats *ns = &nic->net_stats;
+	struct net_device *dev = nic->netdev;
+	struct net_device_stats *ns = &dev->stats;
 	struct stats *s = &nic->mem->stats;
 	u32 *complete = (nic->mac < mac_82558_D101_A4) ? &s->fc_xmt_pause :
 		(nic->mac < mac_82559_D101M) ? (u32 *)&s->xmt_tco_frames :
@@ -1604,7 +1605,8 @@ static void e100_watchdog(unsigned long data)
 	else
 		nic->flags &= ~ich_10h_workaround;
 
-	mod_timer(&nic->watchdog, jiffies + E100_WATCHDOG_PERIOD);
+	mod_timer(&nic->watchdog,
+		  round_jiffies(jiffies + E100_WATCHDOG_PERIOD));
 }
 
 static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
@@ -1659,6 +1661,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 static int e100_tx_clean(struct nic *nic)
 {
+	struct net_device *dev = nic->netdev;
 	struct cb *cb;
 	int tx_cleaned = 0;
 
@@ -1673,8 +1676,8 @@ static int e100_tx_clean(struct nic *nic)
 		        cb->status);
 
 		if(likely(cb->skb != NULL)) {
-			nic->net_stats.tx_packets++;
-			nic->net_stats.tx_bytes += cb->skb->len;
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += cb->skb->len;
 
 			pci_unmap_single(nic->pdev,
 				le32_to_cpu(cb->u.tcb.tbd.buf_addr),
@@ -1805,6 +1808,7 @@ static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	unsigned int *work_done, unsigned int work_to_do)
 {
+	struct net_device *dev = nic->netdev;
 	struct sk_buff *skb = rx->skb;
 	struct rfd *rfd = (struct rfd *)skb->data;
 	u16 rfd_status, actual_size;
@@ -1849,8 +1853,8 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 		nic->rx_over_length_errors++;
 		dev_kfree_skb_any(skb);
 	} else {
-		nic->net_stats.rx_packets++;
-		nic->net_stats.rx_bytes += actual_size;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += actual_size;
 		nic->netdev->last_rx = jiffies;
 		netif_receive_skb(skb);
 		if(work_done)
@@ -1974,35 +1978,31 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 	if(stat_ack & stat_ack_rnr)
 		nic->ru_running = RU_SUSPENDED;
 
-	if(likely(netif_rx_schedule_prep(netdev))) {
+	if(likely(netif_rx_schedule_prep(netdev, &nic->napi))) {
 		e100_disable_irq(nic);
-		__netif_rx_schedule(netdev);
+		__netif_rx_schedule(netdev, &nic->napi);
 	}
 
 	return IRQ_HANDLED;
 }
 
-static int e100_poll(struct net_device *netdev, int *budget)
+static int e100_poll(struct napi_struct *napi, int budget)
 {
-	struct nic *nic = netdev_priv(netdev);
-	unsigned int work_to_do = min(netdev->quota, *budget);
+	struct nic *nic = container_of(napi, struct nic, napi);
+	struct net_device *netdev = nic->netdev;
 	unsigned int work_done = 0;
 	int tx_cleaned;
 
-	e100_rx_clean(nic, &work_done, work_to_do);
+	e100_rx_clean(nic, &work_done, budget);
 	tx_cleaned = e100_tx_clean(nic);
 
 	/* If no Rx and Tx cleanup work was done, exit polling mode. */
 	if((!tx_cleaned && (work_done == 0)) || !netif_running(netdev)) {
-		netif_rx_complete(netdev);
+		netif_rx_complete(netdev, napi);
 		e100_enable_irq(nic);
-		return 0;
 	}
 
-	*budget -= work_done;
-	netdev->quota -= work_done;
-
-	return 1;
+	return work_done;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2016,12 +2016,6 @@ static void e100_netpoll(struct net_device *netdev)
 	e100_enable_irq(nic);
 }
 #endif
-
-static struct net_device_stats *e100_get_stats(struct net_device *netdev)
-{
-	struct nic *nic = netdev_priv(netdev);
-	return &nic->net_stats;
-}
 
 static int e100_set_mac_address(struct net_device *netdev, void *p)
 {
@@ -2071,7 +2065,7 @@ static int e100_up(struct nic *nic)
 		nic->netdev->name, nic->netdev)))
 		goto err_no_irq;
 	netif_wake_queue(nic->netdev);
-	netif_poll_enable(nic->netdev);
+	napi_enable(&nic->napi);
 	/* enable ints _after_ enabling poll, preventing a race between
 	 * disable ints+schedule */
 	e100_enable_irq(nic);
@@ -2089,7 +2083,7 @@ err_rx_clean_list:
 static void e100_down(struct nic *nic)
 {
 	/* wait here for poll to complete */
-	netif_poll_disable(nic->netdev);
+	napi_disable(&nic->napi);
 	netif_stop_queue(nic->netdev);
 	e100_hw_reset(nic);
 	free_irq(nic->pdev->irq, nic->netdev);
@@ -2380,11 +2374,6 @@ static const char e100_gstrings_test[][ETH_GSTRING_LEN] = {
 };
 #define E100_TEST_LEN	sizeof(e100_gstrings_test) / ETH_GSTRING_LEN
 
-static int e100_diag_test_count(struct net_device *netdev)
-{
-	return E100_TEST_LEN;
-}
-
 static void e100_diag_test(struct net_device *netdev,
 	struct ethtool_test *test, u64 *data)
 {
@@ -2447,9 +2436,16 @@ static const char e100_gstrings_stats[][ETH_GSTRING_LEN] = {
 #define E100_NET_STATS_LEN	21
 #define E100_STATS_LEN	sizeof(e100_gstrings_stats) / ETH_GSTRING_LEN
 
-static int e100_get_stats_count(struct net_device *netdev)
+static int e100_get_sset_count(struct net_device *netdev, int sset)
 {
-	return E100_STATS_LEN;
+	switch (sset) {
+	case ETH_SS_TEST:
+		return E100_TEST_LEN;
+	case ETH_SS_STATS:
+		return E100_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void e100_get_ethtool_stats(struct net_device *netdev,
@@ -2459,7 +2455,7 @@ static void e100_get_ethtool_stats(struct net_device *netdev,
 	int i;
 
 	for(i = 0; i < E100_NET_STATS_LEN; i++)
-		data[i] = ((unsigned long *)&nic->net_stats)[i];
+		data[i] = ((unsigned long *)&netdev->stats)[i];
 
 	data[i++] = nic->tx_deferred;
 	data[i++] = nic->tx_single_collisions;
@@ -2500,12 +2496,11 @@ static const struct ethtool_ops e100_ethtool_ops = {
 	.set_eeprom		= e100_set_eeprom,
 	.get_ringparam		= e100_get_ringparam,
 	.set_ringparam		= e100_set_ringparam,
-	.self_test_count	= e100_diag_test_count,
 	.self_test		= e100_diag_test,
 	.get_strings		= e100_get_strings,
 	.phys_id		= e100_phys_id,
-	.get_stats_count	= e100_get_stats_count,
 	.get_ethtool_stats	= e100_get_ethtool_stats,
+	.get_sset_count		= e100_get_sset_count,
 };
 
 static int e100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
@@ -2554,6 +2549,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct nic *nic;
 	int err;
+	DECLARE_MAC_BUF(mac);
 
 	if(!(netdev = alloc_etherdev(sizeof(struct nic)))) {
 		if(((1 << debug) - 1) & NETIF_MSG_PROBE)
@@ -2564,7 +2560,6 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	netdev->open = e100_open;
 	netdev->stop = e100_close;
 	netdev->hard_start_xmit = e100_xmit_frame;
-	netdev->get_stats = e100_get_stats;
 	netdev->set_multicast_list = e100_set_multicast_list;
 	netdev->set_mac_address = e100_set_mac_address;
 	netdev->change_mtu = e100_change_mtu;
@@ -2572,14 +2567,13 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	SET_ETHTOOL_OPS(netdev, &e100_ethtool_ops);
 	netdev->tx_timeout = e100_tx_timeout;
 	netdev->watchdog_timeo = E100_WATCHDOG_PERIOD;
-	netdev->poll = e100_poll;
-	netdev->weight = E100_NAPI_WEIGHT;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	netdev->poll_controller = e100_netpoll;
 #endif
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
 	nic = netdev_priv(netdev);
+	netif_napi_add(netdev, &nic->napi, e100_poll, E100_NAPI_WEIGHT);
 	nic->netdev = netdev;
 	nic->pdev = pdev;
 	nic->msg_enable = (1 << debug) - 1;
@@ -2607,7 +2601,6 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_free_res;
 	}
 
-	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	if (use_io)
@@ -2688,11 +2681,9 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_free;
 	}
 
-	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, "
-		"MAC addr %02X:%02X:%02X:%02X:%02X:%02X\n",
-		(unsigned long long)pci_resource_start(pdev, use_io ? 1 : 0), pdev->irq,
-		netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2],
-		netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5]);
+	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, MAC addr %s\n",
+		(unsigned long long)pci_resource_start(pdev, use_io ? 1 : 0),
+		pdev->irq, print_mac(mac, netdev->dev_addr));
 
 	return 0;
 
@@ -2733,7 +2724,7 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct nic *nic = netdev_priv(netdev);
 
 	if (netif_running(netdev))
-		netif_poll_disable(nic->netdev);
+		napi_disable(&nic->napi);
 	del_timer_sync(&nic->watchdog);
 	netif_carrier_off(nic->netdev);
 	netif_device_detach(netdev);
@@ -2779,7 +2770,7 @@ static void e100_shutdown(struct pci_dev *pdev)
 	struct nic *nic = netdev_priv(netdev);
 
 	if (netif_running(netdev))
-		netif_poll_disable(nic->netdev);
+		napi_disable(&nic->napi);
 	del_timer_sync(&nic->watchdog);
 	netif_carrier_off(nic->netdev);
 
@@ -2804,12 +2795,13 @@ static void e100_shutdown(struct pci_dev *pdev)
 static pci_ers_result_t e100_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct nic *nic = netdev_priv(netdev);
 
 	/* Similar to calling e100_down(), but avoids adpater I/O. */
 	netdev->stop(netdev);
 
 	/* Detach; put netif into state similar to hotplug unplug. */
-	netif_poll_enable(netdev);
+	napi_enable(&nic->napi);
 	netif_device_detach(netdev);
 	pci_disable_device(pdev);
 

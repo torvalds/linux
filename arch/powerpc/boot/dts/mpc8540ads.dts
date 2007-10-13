@@ -30,7 +30,6 @@
 			timebase-frequency = <0>;	//  33 MHz, from uboot
 			bus-frequency = <0>;	// 166 MHz
 			clock-frequency = <0>;	// 825 MHz, from uboot
-			32-bit;
 		};
 	};
 
@@ -42,7 +41,6 @@
 	soc8540@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
 		reg = <e0000000 00100000>;	// CCSRBAR 1M
@@ -173,105 +171,104 @@
 			interrupts = <2a 2>;
 			interrupt-parent = <&mpic>;
 		};
-		pci@8000 {
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-
-				/* IDSEL 0x02 */
-				1000 0 0 1 &mpic 1 1
-				1000 0 0 2 &mpic 2 1
-				1000 0 0 3 &mpic 3 1
-				1000 0 0 4 &mpic 4 1
-
-				/* IDSEL 0x03 */
-				1800 0 0 1 &mpic 4 1
-				1800 0 0 2 &mpic 1 1
-				1800 0 0 3 &mpic 2 1
-				1800 0 0 4 &mpic 3 1
-
-				/* IDSEL 0x04 */
-				2000 0 0 1 &mpic 3 1
-				2000 0 0 2 &mpic 4 1
-				2000 0 0 3 &mpic 1 1
-				2000 0 0 4 &mpic 2 1
-
-				/* IDSEL 0x05 */
-				2800 0 0 1 &mpic 2 1
-				2800 0 0 2 &mpic 3 1
-				2800 0 0 3 &mpic 4 1
-				2800 0 0 4 &mpic 1 1
-
-				/* IDSEL 0x0c */
-				6000 0 0 1 &mpic 1 1
-				6000 0 0 2 &mpic 2 1
-				6000 0 0 3 &mpic 3 1
-				6000 0 0 4 &mpic 4 1
-
-				/* IDSEL 0x0d */
-				6800 0 0 1 &mpic 4 1
-				6800 0 0 2 &mpic 1 1
-				6800 0 0 3 &mpic 2 1
-				6800 0 0 4 &mpic 3 1
-
-				/* IDSEL 0x0e */
-				7000 0 0 1 &mpic 3 1
-				7000 0 0 2 &mpic 4 1
-				7000 0 0 3 &mpic 1 1
-				7000 0 0 4 &mpic 2 1
-
-				/* IDSEL 0x0f */
-				7800 0 0 1 &mpic 2 1
-				7800 0 0 2 &mpic 3 1
-				7800 0 0 3 &mpic 4 1
-				7800 0 0 4 &mpic 1 1
-
-				/* IDSEL 0x12 */
-				9000 0 0 1 &mpic 1 1
-				9000 0 0 2 &mpic 2 1
-				9000 0 0 3 &mpic 3 1
-				9000 0 0 4 &mpic 4 1
-
-				/* IDSEL 0x13 */
-				9800 0 0 1 &mpic 4 1
-				9800 0 0 2 &mpic 1 1
-				9800 0 0 3 &mpic 2 1
-				9800 0 0 4 &mpic 3 1
-
-				/* IDSEL 0x14 */
-				a000 0 0 1 &mpic 3 1
-				a000 0 0 2 &mpic 4 1
-				a000 0 0 3 &mpic 1 1
-				a000 0 0 4 &mpic 2 1
-
-				/* IDSEL 0x15 */
-				a800 0 0 1 &mpic 2 1
-				a800 0 0 2 &mpic 3 1
-				a800 0 0 3 &mpic 4 1
-				a800 0 0 4 &mpic 1 1>;
-			interrupt-parent = <&mpic>;
-			interrupts = <18 2>;
-			bus-range = <0 0>;
-			ranges = <02000000 0 80000000 80000000 0 20000000
-				  01000000 0 00000000 e2000000 0 00100000>;
-			clock-frequency = <3f940aa>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <8000 1000>;
-			compatible = "fsl,mpc8540-pcix", "fsl,mpc8540-pci";
-			device_type = "pci";
-		};
-
 		mpic: pic@40000 {
 			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
 			big-endian;
 		};
+	};
+
+	pci@e0008000 {
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+
+			/* IDSEL 0x02 */
+			1000 0 0 1 &mpic 1 1
+			1000 0 0 2 &mpic 2 1
+			1000 0 0 3 &mpic 3 1
+			1000 0 0 4 &mpic 4 1
+
+			/* IDSEL 0x03 */
+			1800 0 0 1 &mpic 4 1
+			1800 0 0 2 &mpic 1 1
+			1800 0 0 3 &mpic 2 1
+			1800 0 0 4 &mpic 3 1
+
+			/* IDSEL 0x04 */
+			2000 0 0 1 &mpic 3 1
+			2000 0 0 2 &mpic 4 1
+			2000 0 0 3 &mpic 1 1
+			2000 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x05 */
+			2800 0 0 1 &mpic 2 1
+			2800 0 0 2 &mpic 3 1
+			2800 0 0 3 &mpic 4 1
+			2800 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x0c */
+			6000 0 0 1 &mpic 1 1
+			6000 0 0 2 &mpic 2 1
+			6000 0 0 3 &mpic 3 1
+			6000 0 0 4 &mpic 4 1
+
+			/* IDSEL 0x0d */
+			6800 0 0 1 &mpic 4 1
+			6800 0 0 2 &mpic 1 1
+			6800 0 0 3 &mpic 2 1
+			6800 0 0 4 &mpic 3 1
+
+			/* IDSEL 0x0e */
+			7000 0 0 1 &mpic 3 1
+			7000 0 0 2 &mpic 4 1
+			7000 0 0 3 &mpic 1 1
+			7000 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x0f */
+			7800 0 0 1 &mpic 2 1
+			7800 0 0 2 &mpic 3 1
+			7800 0 0 3 &mpic 4 1
+			7800 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x12 */
+			9000 0 0 1 &mpic 1 1
+			9000 0 0 2 &mpic 2 1
+			9000 0 0 3 &mpic 3 1
+			9000 0 0 4 &mpic 4 1
+
+			/* IDSEL 0x13 */
+			9800 0 0 1 &mpic 4 1
+			9800 0 0 2 &mpic 1 1
+			9800 0 0 3 &mpic 2 1
+			9800 0 0 4 &mpic 3 1
+
+			/* IDSEL 0x14 */
+			a000 0 0 1 &mpic 3 1
+			a000 0 0 2 &mpic 4 1
+			a000 0 0 3 &mpic 1 1
+			a000 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x15 */
+			a800 0 0 1 &mpic 2 1
+			a800 0 0 2 &mpic 3 1
+			a800 0 0 3 &mpic 4 1
+			a800 0 0 4 &mpic 1 1>;
+		interrupt-parent = <&mpic>;
+		interrupts = <18 2>;
+		bus-range = <0 0>;
+		ranges = <02000000 0 80000000 80000000 0 20000000
+			  01000000 0 00000000 e2000000 0 00100000>;
+		clock-frequency = <3f940aa>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e0008000 1000>;
+		compatible = "fsl,mpc8540-pcix", "fsl,mpc8540-pci";
+		device_type = "pci";
 	};
 };

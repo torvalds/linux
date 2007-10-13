@@ -22,16 +22,24 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/rtc.h>
+#include <linux/interrupt.h>
+#include <linux/irqreturn.h>
+#include <linux/reboot.h>
 
 #include <asm/hvconsole.h>
 #include <asm/time.h>
+#include <asm/machdep.h>
+#include <asm/firmware.h>
 
 #include "beat_wrapper.h"
 #include "beat.h"
+#include "interrupt.h"
+
+static int beat_pm_poweroff_flag;
 
 void beat_restart(char *cmd)
 {
-	beat_shutdown_logical_partition(1);
+	beat_shutdown_logical_partition(!beat_pm_poweroff_flag);
 }
 
 void beat_power_off(void)
@@ -157,6 +165,102 @@ int64_t beat_put_term_char(u64 vterm, u64 len, u64 t1, u64 t2)
 	db[1] = t2;
 	return beat_put_characters_to_console(vterm, len, (u8*)db);
 }
+
+void beat_power_save(void)
+{
+	beat_pause(0);
+}
+
+#ifdef CONFIG_KEXEC
+void beat_kexec_cpu_down(int crash, int secondary)
+{
+	beatic_deinit_IRQ();
+}
+#endif
+
+static irqreturn_t beat_power_event(int virq, void *arg)
+{
+	printk(KERN_DEBUG "Beat: power button pressed\n");
+	beat_pm_poweroff_flag = 1;
+	ctrl_alt_del();
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t beat_reset_event(int virq, void *arg)
+{
+	printk(KERN_DEBUG "Beat: reset button pressed\n");
+	beat_pm_poweroff_flag = 0;
+	ctrl_alt_del();
+	return IRQ_HANDLED;
+}
+
+static struct beat_event_list {
+	const char *typecode;
+	irq_handler_t handler;
+	unsigned int virq;
+} beat_event_list[] = {
+	{ "power", beat_power_event, 0 },
+	{ "reset", beat_reset_event, 0 },
+};
+
+static int __init beat_register_event(void)
+{
+	u64 path[4], data[2];
+	int rc, i;
+	unsigned int virq;
+
+	for (i = 0; i < ARRAY_SIZE(beat_event_list); i++) {
+		struct beat_event_list *ev = &beat_event_list[i];
+
+		if (beat_construct_event_receive_port(data) != 0) {
+			printk(KERN_ERR "Beat: "
+			       "cannot construct event receive port for %s\n",
+			       ev->typecode);
+			return -EINVAL;
+		}
+
+		virq = irq_create_mapping(NULL, data[0]);
+		if (virq == NO_IRQ) {
+			printk(KERN_ERR "Beat: failed to get virtual IRQ"
+			       " for event receive port for %s\n",
+			       ev->typecode);
+			beat_destruct_event_receive_port(data[0]);
+			return -EIO;
+		}
+		ev->virq = virq;
+
+		rc = request_irq(virq, ev->handler, IRQF_DISABLED,
+				      ev->typecode, NULL);
+		if (rc != 0) {
+			printk(KERN_ERR "Beat: failed to request virtual IRQ"
+			       " for event receive port for %s\n",
+			       ev->typecode);
+			beat_destruct_event_receive_port(data[0]);
+			return rc;
+		}
+
+		path[0] = 0x1000000065780000ul;	/* 1,ex */
+		path[1] = 0x627574746f6e0000ul;	/* button */
+		path[2] = 0;
+		strncpy((char *)&path[2], ev->typecode, 8);
+		path[3] = 0;
+		data[1] = 0;
+
+		beat_create_repository_node(path, data);
+	}
+	return 0;
+}
+
+static int __init beat_event_init(void)
+{
+	if (!firmware_has_feature(FW_FEATURE_BEAT))
+		return -EINVAL;
+
+	beat_pm_poweroff_flag = 0;
+	return beat_register_event();
+}
+
+device_initcall(beat_event_init);
 
 EXPORT_SYMBOL(beat_get_term_char);
 EXPORT_SYMBOL(beat_put_term_char);

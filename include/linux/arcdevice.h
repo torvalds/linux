@@ -214,7 +214,7 @@ extern struct ArcProto *arc_proto_map[256], *arc_proto_default,
  */
 struct Incoming {
 	struct sk_buff *skb;	/* packet data buffer             */
-	uint16_t sequence;	/* sequence number of assembly    */
+	__be16 sequence;	/* sequence number of assembly    */
 	uint8_t lastpacket,	/* number of last packet (from 1) */
 		numpackets;	/* number of packets in split     */
 };
@@ -292,7 +292,7 @@ struct arcnet_local {
 
 	struct {
 		uint16_t sequence;	/* sequence number (incs with each packet) */
-		uint16_t aborted_seq;
+		__be16 aborted_seq;
 
 		struct Incoming incoming[256];	/* one from each address */
 	} rfc1201;

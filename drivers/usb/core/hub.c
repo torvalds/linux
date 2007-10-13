@@ -125,6 +125,12 @@ MODULE_PARM_DESC(use_both_schemes,
 		"try the other device initialization scheme if the "
 		"first one fails");
 
+/* Mutual exclusion for EHCI CF initialization.  This interferes with
+ * port reset on some companion controllers.
+ */
+DECLARE_RWSEM(ehci_cf_port_reset_rwsem);
+EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rwsem);
+
 
 static inline char *portspeed(int portstatus)
 {
@@ -347,11 +353,11 @@ void usb_kick_khubd(struct usb_device *hdev)
 static void hub_irq(struct urb *urb)
 {
 	struct usb_hub *hub = urb->context;
-	int status;
+	int status = urb->status;
 	int i;
 	unsigned long bits;
 
-	switch (urb->status) {
+	switch (status) {
 	case -ENOENT:		/* synchronous unlink */
 	case -ECONNRESET:	/* async unlink */
 	case -ESHUTDOWN:	/* hardware going away */
@@ -359,10 +365,10 @@ static void hub_irq(struct urb *urb)
 
 	default:		/* presumably an error */
 		/* Cause a hub reset after 10 consecutive errors */
-		dev_dbg (hub->intfdev, "transfer --> %d\n", urb->status);
+		dev_dbg (hub->intfdev, "transfer --> %d\n", status);
 		if ((++hub->nerrors < 10) || hub->error)
 			goto resubmit;
-		hub->error = urb->status;
+		hub->error = status;
 		/* FALL THROUGH */
 
 	/* let khubd handle things */
@@ -1220,54 +1226,14 @@ static inline void show_string(struct usb_device *udev, char *id, char *string)
 #endif
 
 /**
- * usb_new_device - perform initial device setup (usbcore-internal)
+ * usb_configure_device_otg - FIXME (usbcore-internal)
  * @udev: newly addressed device (in ADDRESS state)
  *
- * This is called with devices which have been enumerated, but not yet
- * configured.  The device descriptor is available, but not descriptors
- * for any device configuration.  The caller must have locked either
- * the parent hub (if udev is a normal device) or else the
- * usb_bus_list_lock (if udev is a root hub).  The parent's pointer to
- * udev has already been installed, but udev is not yet visible through
- * sysfs or other filesystem code.
- *
- * It will return if the device is configured properly or not.  Zero if
- * the interface was registered with the driver core; else a negative
- * errno value.
- *
- * This call is synchronous, and may not be used in an interrupt context.
- *
- * Only the hub driver or root-hub registrar should ever call this.
+ * Do configuration for On-The-Go devices
  */
-int usb_new_device(struct usb_device *udev)
+static int usb_configure_device_otg(struct usb_device *udev)
 {
-	int err;
-
-	/* Determine quirks */
-	usb_detect_quirks(udev);
-
-	err = usb_get_configuration(udev);
-	if (err < 0) {
-		dev_err(&udev->dev, "can't read configurations, error %d\n",
-			err);
-		goto fail;
-	}
-
-	/* read the standard strings and cache them if present */
-	udev->product = usb_cache_string(udev, udev->descriptor.iProduct);
-	udev->manufacturer = usb_cache_string(udev,
-			udev->descriptor.iManufacturer);
-	udev->serial = usb_cache_string(udev, udev->descriptor.iSerialNumber);
-
-	/* Tell the world! */
-	dev_dbg(&udev->dev, "new device strings: Mfr=%d, Product=%d, "
-			"SerialNumber=%d\n",
-			udev->descriptor.iManufacturer,
-			udev->descriptor.iProduct,
-			udev->descriptor.iSerialNumber);
-	show_string(udev, "Product", udev->product);
-	show_string(udev, "Manufacturer", udev->manufacturer);
-	show_string(udev, "SerialNumber", udev->serial);
+	int err = 0;
 
 #ifdef	CONFIG_USB_OTG
 	/*
@@ -1329,8 +1295,82 @@ int usb_new_device(struct usb_device *udev)
 		err = -ENOTSUPP;
 		goto fail;
 	}
+fail:
 #endif
+	return err;
+}
 
+
+/**
+ * usb_configure_device - Detect and probe device intfs/otg (usbcore-internal)
+ * @udev: newly addressed device (in ADDRESS state)
+ *
+ * This is only called by usb_new_device() and usb_authorize_device()
+ * and FIXME -- all comments that apply to them apply here wrt to
+ * environment.
+ *
+ * If the device is WUSB and not authorized, we don't attempt to read
+ * the string descriptors, as they will be errored out by the device
+ * until it has been authorized.
+ */
+static int usb_configure_device(struct usb_device *udev)
+{
+	int err;
+
+	if (udev->config == NULL) {
+		err = usb_get_configuration(udev);
+		if (err < 0) {
+			dev_err(&udev->dev, "can't read configurations, error %d\n",
+				err);
+			goto fail;
+		}
+	}
+	if (udev->wusb == 1 && udev->authorized == 0) {
+		udev->product = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+		udev->manufacturer = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+		udev->serial = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	}
+	else {
+		/* read the standard strings and cache them if present */
+		udev->product = usb_cache_string(udev, udev->descriptor.iProduct);
+		udev->manufacturer = usb_cache_string(udev,
+						      udev->descriptor.iManufacturer);
+		udev->serial = usb_cache_string(udev, udev->descriptor.iSerialNumber);
+	}
+	err = usb_configure_device_otg(udev);
+fail:
+	return err;
+}
+
+
+/**
+ * usb_new_device - perform initial device setup (usbcore-internal)
+ * @udev: newly addressed device (in ADDRESS state)
+ *
+ * This is called with devices which have been enumerated, but not yet
+ * configured.  The device descriptor is available, but not descriptors
+ * for any device configuration.  The caller must have locked either
+ * the parent hub (if udev is a normal device) or else the
+ * usb_bus_list_lock (if udev is a root hub).  The parent's pointer to
+ * udev has already been installed, but udev is not yet visible through
+ * sysfs or other filesystem code.
+ *
+ * It will return if the device is configured properly or not.  Zero if
+ * the interface was registered with the driver core; else a negative
+ * errno value.
+ *
+ * This call is synchronous, and may not be used in an interrupt context.
+ *
+ * Only the hub driver or root-hub registrar should ever call this.
+ */
+int usb_new_device(struct usb_device *udev)
+{
+	int err;
+
+	usb_detect_quirks(udev);		/* Determine quirks */
+	err = usb_configure_device(udev);	/* detect & probe dev/intfs */
+	if (err < 0)
+		goto fail;
 	/* export the usbdev device-node for libusb */
 	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
 			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
@@ -1346,18 +1386,105 @@ int usb_new_device(struct usb_device *udev)
 	err = device_add(&udev->dev);
 	if (err) {
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
-		if (udev->parent)
-			usb_autosuspend_device(udev->parent);
 		goto fail;
 	}
 
-exit:
+	/* Tell the world! */
+	dev_dbg(&udev->dev, "new device strings: Mfr=%d, Product=%d, "
+		"SerialNumber=%d\n",
+		udev->descriptor.iManufacturer,
+		udev->descriptor.iProduct,
+		udev->descriptor.iSerialNumber);
+	show_string(udev, "Product", udev->product);
+	show_string(udev, "Manufacturer", udev->manufacturer);
+	show_string(udev, "SerialNumber", udev->serial);
 	return err;
 
 fail:
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
-	goto exit;
+	return err;
 }
+
+
+/**
+ * Similar to usb_disconnect()
+ *
+ * We share a lock (that we have) with device_del(), so we need to
+ * defer its call.
+ */
+int usb_deauthorize_device(struct usb_device *usb_dev)
+{
+	unsigned cnt;
+	usb_lock_device(usb_dev);
+	if (usb_dev->authorized == 0)
+		goto out_unauthorized;
+	usb_dev->authorized = 0;
+	usb_set_configuration(usb_dev, -1);
+	usb_dev->product = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	usb_dev->manufacturer = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	usb_dev->serial = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	kfree(usb_dev->config);
+	usb_dev->config = NULL;
+	for (cnt = 0; cnt < usb_dev->descriptor.bNumConfigurations; cnt++)
+		kfree(usb_dev->rawdescriptors[cnt]);
+	usb_dev->descriptor.bNumConfigurations = 0;
+	kfree(usb_dev->rawdescriptors);
+out_unauthorized:
+	usb_unlock_device(usb_dev);
+	return 0;
+}
+
+
+int usb_authorize_device(struct usb_device *usb_dev)
+{
+	int result = 0, c;
+	usb_lock_device(usb_dev);
+	if (usb_dev->authorized == 1)
+		goto out_authorized;
+	kfree(usb_dev->product);
+	usb_dev->product = NULL;
+	kfree(usb_dev->manufacturer);
+	usb_dev->manufacturer = NULL;
+	kfree(usb_dev->serial);
+	usb_dev->serial = NULL;
+	result = usb_autoresume_device(usb_dev);
+	if (result < 0) {
+		dev_err(&usb_dev->dev,
+			"can't autoresume for authorization: %d\n", result);
+		goto error_autoresume;
+	}
+	result = usb_get_device_descriptor(usb_dev, sizeof(usb_dev->descriptor));
+	if (result < 0) {
+		dev_err(&usb_dev->dev, "can't re-read device descriptor for "
+			"authorization: %d\n", result);
+		goto error_device_descriptor;
+	}
+	usb_dev->authorized = 1;
+	result = usb_configure_device(usb_dev);
+	if (result < 0)
+		goto error_configure;
+	/* Choose and set the configuration.  This registers the interfaces
+	 * with the driver core and lets interface drivers bind to them.
+	 */
+	c = usb_choose_configuration(usb_dev);
+	if (c >= 0) {
+		result = usb_set_configuration(usb_dev, c);
+		if (result) {
+			dev_err(&usb_dev->dev,
+				"can't set config #%d, error %d\n", c, result);
+			/* This need not be fatal.  The user can try to
+			 * set other configurations. */
+		}
+	}
+	dev_info(&usb_dev->dev, "authorized to connect\n");
+error_configure:
+error_device_descriptor:
+error_autoresume:
+out_authorized:
+	usb_unlock_device(usb_dev);	// complements locktree
+	return result;
+}
+
 
 static int hub_port_status(struct usb_hub *hub, int port1,
 			       u16 *status, u16 *change)
@@ -1460,6 +1587,11 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 {
 	int i, status;
 
+	/* Block EHCI CF initialization during the port reset.
+	 * Some companion controllers don't like it when they mix.
+	 */
+	down_read(&ehci_cf_port_reset_rwsem);
+
 	/* Reset the port */
 	for (i = 0; i < PORT_RESET_TRIES; i++) {
 		status = set_port_feature(hub->hdev,
@@ -1481,6 +1613,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		case 0:
 			/* TRSTRCY = 10 ms; plus some extra */
 			msleep(10 + 40);
+		  	udev->devnum = 0;	/* Device now at address 0 */
 			/* FALL THROUGH */
 		case -ENOTCONN:
 		case -ENODEV:
@@ -1490,7 +1623,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 			usb_set_device_state(udev, status
 					? USB_STATE_NOTATTACHED
 					: USB_STATE_DEFAULT);
-			return status;
+			goto done;
 		}
 
 		dev_dbg (hub->intfdev,
@@ -1503,6 +1636,8 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		"Cannot enable port %i.  Maybe the USB cable is bad?\n",
 		port1);
 
+ done:
+	up_read(&ehci_cf_port_reset_rwsem);
 	return status;
 }
 
@@ -1833,14 +1968,7 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 		struct usb_device	*udev;
 
 		udev = hdev->children [port1-1];
-		if (udev && msg.event == PM_EVENT_SUSPEND &&
-#ifdef	CONFIG_USB_SUSPEND
-				udev->state != USB_STATE_SUSPENDED
-#else
-				udev->dev.power.power_state.event
-					== PM_EVENT_ON
-#endif
-				) {
+		if (udev && udev->can_submit) {
 			if (!hdev->auto_pm)
 				dev_dbg(&intf->dev, "port %d nyet suspended\n",
 						port1);
@@ -1999,26 +2127,27 @@ static void ep0_reinit(struct usb_device *udev)
 {
 	usb_disable_endpoint(udev, 0 + USB_DIR_IN);
 	usb_disable_endpoint(udev, 0 + USB_DIR_OUT);
-	udev->ep_in[0] = udev->ep_out[0] = &udev->ep0;
+	usb_enable_endpoint(udev, &udev->ep0);
 }
 
 #define usb_sndaddr0pipe()	(PIPE_CONTROL << 30)
 #define usb_rcvaddr0pipe()	((PIPE_CONTROL << 30) | USB_DIR_IN)
 
-static int hub_set_address(struct usb_device *udev)
+static int hub_set_address(struct usb_device *udev, int devnum)
 {
 	int retval;
 
-	if (udev->devnum == 0)
+	if (devnum <= 1)
 		return -EINVAL;
 	if (udev->state == USB_STATE_ADDRESS)
 		return 0;
 	if (udev->state != USB_STATE_DEFAULT)
 		return -EINVAL;
 	retval = usb_control_msg(udev, usb_sndaddr0pipe(),
-		USB_REQ_SET_ADDRESS, 0, udev->devnum, 0,
+		USB_REQ_SET_ADDRESS, 0, devnum, 0,
 		NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (retval == 0) {
+		udev->devnum = devnum;	/* Device now using proper address */
 		usb_set_device_state(udev, USB_STATE_ADDRESS);
 		ep0_reinit(udev);
 	}
@@ -2045,6 +2174,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	unsigned		delay = HUB_SHORT_RESET_TIME;
 	enum usb_device_speed	oldspeed = udev->speed;
 	char 			*speed, *type;
+	int			devnum = udev->devnum;
 
 	/* root hub ports have a slightly longer reset period
 	 * (from USB 2.0 spec, section 7.1.7.5)
@@ -2074,7 +2204,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		goto fail;
 	}
 	oldspeed = udev->speed;
-  
+
 	/* USB 2.0 section 5.5.3 talks about ep0 maxpacket ...
 	 * it's fixed size except for full speed devices.
 	 * For Wireless USB devices, ep0 max packet is always 512 (tho
@@ -2115,7 +2245,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	dev_info (&udev->dev,
 		  "%s %s speed %sUSB device using %s and address %d\n",
 		  (udev->config) ? "reset" : "new", speed, type,
-		  udev->bus->controller->driver->name, udev->devnum);
+		  udev->bus->controller->driver->name, devnum);
 
 	/* Set up TT records, if needed  */
 	if (hdev->tt) {
@@ -2202,7 +2332,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		}
 
 		for (j = 0; j < SET_ADDRESS_TRIES; ++j) {
-			retval = hub_set_address(udev);
+			retval = hub_set_address(udev, devnum);
 			if (retval >= 0)
 				break;
 			msleep(200);
@@ -2210,7 +2340,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		if (retval < 0) {
 			dev_err(&udev->dev,
 				"device not accepting address %d, error %d\n",
-				udev->devnum, retval);
+				devnum, retval);
 			goto fail;
 		}
  
@@ -2263,8 +2393,10 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	retval = 0;
 
 fail:
-	if (retval)
+	if (retval) {
 		hub_port_disable(hub, port1, 0);
+		udev->devnum = devnum;	/* for disconnect processing */
+	}
 	mutex_unlock(&usb_address0_mutex);
 	return retval;
 }
@@ -2699,9 +2831,9 @@ static void hub_events(void)
 				clear_hub_feature(hdev, C_HUB_LOCAL_POWER);
 				if (hubstatus & HUB_STATUS_LOCAL_POWER)
 					/* FIXME: Is this always true? */
-					hub->limited_power = 0;
-				else
 					hub->limited_power = 1;
+				else
+					hub->limited_power = 0;
 			}
 			if (hubchange & HUB_CHANGE_OVERCURRENT) {
 				dev_dbg (hub_dev, "overcurrent change\n");

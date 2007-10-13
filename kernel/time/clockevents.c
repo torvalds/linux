@@ -194,6 +194,7 @@ void clockevents_exchange_device(struct clock_event_device *old,
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
 /**
  * clockevents_notify - notification about relevant events
  */
@@ -222,4 +223,4 @@ void clockevents_notify(unsigned long reason, void *arg)
 	spin_unlock(&clockevents_lock);
 }
 EXPORT_SYMBOL_GPL(clockevents_notify);
-
+#endif

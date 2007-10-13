@@ -25,8 +25,6 @@ struct netpoll {
 
 struct netpoll_info {
 	atomic_t refcnt;
-	spinlock_t poll_lock;
-	int poll_owner;
 	int rx_flags;
 	spinlock_t rx_lock;
 	struct netpoll *rx_np; /* netpoll that registered an rx_hook */
@@ -37,6 +35,7 @@ struct netpoll_info {
 
 void netpoll_poll(struct netpoll *np);
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len);
+void netpoll_print_options(struct netpoll *np);
 int netpoll_parse_options(struct netpoll *np, char *opt);
 int netpoll_setup(struct netpoll *np);
 int netpoll_trap(void);
@@ -64,32 +63,61 @@ static inline int netpoll_rx(struct sk_buff *skb)
 	return ret;
 }
 
-static inline void *netpoll_poll_lock(struct net_device *dev)
+static inline int netpoll_receive_skb(struct sk_buff *skb)
 {
+	if (!list_empty(&skb->dev->napi_list))
+		return netpoll_rx(skb);
+	return 0;
+}
+
+static inline void *netpoll_poll_lock(struct napi_struct *napi)
+{
+	struct net_device *dev = napi->dev;
+
 	rcu_read_lock(); /* deal with race on ->npinfo */
-	if (dev->npinfo) {
-		spin_lock(&dev->npinfo->poll_lock);
-		dev->npinfo->poll_owner = smp_processor_id();
-		return dev->npinfo;
+	if (dev && dev->npinfo) {
+		spin_lock(&napi->poll_lock);
+		napi->poll_owner = smp_processor_id();
+		return napi;
 	}
 	return NULL;
 }
 
 static inline void netpoll_poll_unlock(void *have)
 {
-	struct netpoll_info *npi = have;
+	struct napi_struct *napi = have;
 
-	if (npi) {
-		npi->poll_owner = -1;
-		spin_unlock(&npi->poll_lock);
+	if (napi) {
+		napi->poll_owner = -1;
+		spin_unlock(&napi->poll_lock);
 	}
 	rcu_read_unlock();
 }
 
+static inline void netpoll_netdev_init(struct net_device *dev)
+{
+	INIT_LIST_HEAD(&dev->napi_list);
+}
+
 #else
-#define netpoll_rx(a) 0
-#define netpoll_poll_lock(a) NULL
-#define netpoll_poll_unlock(a)
+static inline int netpoll_rx(struct sk_buff *skb)
+{
+	return 0;
+}
+static inline int netpoll_receive_skb(struct sk_buff *skb)
+{
+	return 0;
+}
+static inline void *netpoll_poll_lock(struct napi_struct *napi)
+{
+	return NULL;
+}
+static inline void netpoll_poll_unlock(void *have)
+{
+}
+static inline void netpoll_netdev_init(struct net_device *dev)
+{
+}
 #endif
 
 #endif

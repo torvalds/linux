@@ -195,11 +195,10 @@ static char *kstruprdup(const char *str, gfp_t gfp)
 	return ret;
 }
 
-int power_supply_uevent(struct device *dev, char **envp, int num_envp,
-			char *buffer, int buffer_size)
+int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct power_supply *psy = dev_get_drvdata(dev);
-	int i = 0, length = 0, ret = 0, j;
+	int ret = 0, j;
 	char *prop_buf;
 	char *attrname;
 
@@ -212,8 +211,7 @@ int power_supply_uevent(struct device *dev, char **envp, int num_envp,
 
 	dev_dbg(dev, "POWER_SUPPLY_NAME=%s\n", psy->name);
 
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
-			     &length, "POWER_SUPPLY_NAME=%s", psy->name);
+	ret = add_uevent_var(env, "POWER_SUPPLY_NAME=%s", psy->name);
 	if (ret)
 		return ret;
 
@@ -243,9 +241,7 @@ int power_supply_uevent(struct device *dev, char **envp, int num_envp,
 
 		dev_dbg(dev, "Static prop %s=%s\n", attrname, prop_buf);
 
-		ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
-				     &length, "POWER_SUPPLY_%s=%s",
-				     attrname, prop_buf);
+		ret = add_uevent_var(env, "POWER_SUPPLY_%s=%s", attrname, prop_buf);
 		kfree(attrname);
 		if (ret)
 			goto out;
@@ -282,14 +278,11 @@ int power_supply_uevent(struct device *dev, char **envp, int num_envp,
 
 		dev_dbg(dev, "prop %s=%s\n", attrname, prop_buf);
 
-		ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
-				     &length, "POWER_SUPPLY_%s=%s",
-				     attrname, prop_buf);
+		ret = add_uevent_var(env, "POWER_SUPPLY_%s=%s", attrname, prop_buf);
 		kfree(attrname);
 		if (ret)
 			goto out;
 	}
-	envp[i] = NULL;
 
 out:
 	free_page((unsigned long)prop_buf);

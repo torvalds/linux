@@ -36,6 +36,18 @@ config GENERIC_CMOS_UPDATE
 	bool
 	default y
 
+config CLOCKSOURCE_WATCHDOG
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	default y
+
 config ZONE_DMA32
 	bool
 	default y
@@ -129,6 +141,8 @@ source "init/Kconfig"
 
 
 menu "Processor type and features"
+
+source "kernel/time/Kconfig"
 
 choice
 	prompt "Subarchitecture Type"
@@ -704,7 +718,7 @@ source kernel/power/Kconfig
 
 source "drivers/acpi/Kconfig"
 
-source "arch/x86_64/kernel/cpufreq/Kconfig"
+source "arch/x86/kernel/cpufreq/Kconfig"
 
 endmenu
 
@@ -723,6 +737,11 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on PCI && ACPI
+
+config PCI_DOMAINS
+	bool
+	depends on PCI
+	default y
 
 source "drivers/pci/pcie/Kconfig"
 
@@ -778,7 +797,7 @@ source fs/Kconfig
 menu "Instrumentation Support"
         depends on EXPERIMENTAL
 
-source "arch/x86_64/oprofile/Kconfig"
+source "arch/x86/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes"

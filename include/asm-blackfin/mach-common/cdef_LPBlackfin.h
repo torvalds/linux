@@ -39,7 +39,7 @@
 #define bfin_read_SRAM_BASE_ADDRESS()        bfin_read32(SRAM_BASE_ADDRESS)
 #define bfin_write_SRAM_BASE_ADDRESS(val)    bfin_write32(SRAM_BASE_ADDRESS,val)
 #define bfin_read_DMEM_CONTROL()             bfin_read32(DMEM_CONTROL)
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 extern void bfin_write_DMEM_CONTROL(unsigned int val);
 #else
 #define bfin_write_DMEM_CONTROL(val)         bfin_write32(DMEM_CONTROL,val)
@@ -129,7 +129,7 @@ extern void bfin_write_DMEM_CONTROL(unsigned int val);
 #define DTEST_DATA3            0xFFE0040C
 */
 #define bfin_read_IMEM_CONTROL()             bfin_read32(IMEM_CONTROL)
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 extern void bfin_write_IMEM_CONTROL(unsigned int val);
 #else
 #define bfin_write_IMEM_CONTROL(val)         bfin_write32(IMEM_CONTROL,val)

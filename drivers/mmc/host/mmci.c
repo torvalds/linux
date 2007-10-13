@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
+#include <linux/log2.h>
 #include <linux/mmc/host.h>
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
@@ -154,11 +155,11 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	}
 	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
 		if (status & MCI_DATACRCFAIL)
-			data->error = MMC_ERR_BADCRC;
+			data->error = -EILSEQ;
 		else if (status & MCI_DATATIMEOUT)
-			data->error = MMC_ERR_TIMEOUT;
+			data->error = -ETIMEDOUT;
 		else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN))
-			data->error = MMC_ERR_FIFO;
+			data->error = -EIO;
 		status |= MCI_DATAEND;
 
 		/*
@@ -193,12 +194,12 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	cmd->resp[3] = readl(base + MMCIRESPONSE3);
 
 	if (status & MCI_CMDTIMEOUT) {
-		cmd->error = MMC_ERR_TIMEOUT;
+		cmd->error = -ETIMEDOUT;
 	} else if (status & MCI_CMDCRCFAIL && cmd->flags & MMC_RSP_CRC) {
-		cmd->error = MMC_ERR_BADCRC;
+		cmd->error = -EILSEQ;
 	}
 
-	if (!cmd->data || cmd->error != MMC_ERR_NONE) {
+	if (!cmd->data || cmd->error) {
 		if (host->data)
 			mmci_stop_data(host);
 		mmci_request_end(host, cmd->mrq);
@@ -390,6 +391,14 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct mmci_host *host = mmc_priv(mmc);
 
 	WARN_ON(host->mrq != NULL);
+
+	if (mrq->data && !is_power_of_2(mrq->data->blksz)) {
+		printk(KERN_ERR "%s: Unsupported block size (%d bytes)\n",
+			mmc_hostname(mmc), mrq->data->blksz);
+		mrq->cmd->error = -EINVAL;
+		mmc_request_done(mmc, mrq);
+		return;
+	}
 
 	spin_lock_irq(&host->lock);
 

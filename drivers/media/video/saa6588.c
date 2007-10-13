@@ -406,6 +406,7 @@ static int saa6588_attach(struct i2c_adapter *adap, int addr, int kind)
 		kfree(s);
 		return -ENOMEM;
 	}
+	spin_lock_init(&s->lock);
 	s->client = client_template;
 	s->block_count = 0;
 	s->wr_index = 0;

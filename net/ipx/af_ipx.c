@@ -347,6 +347,9 @@ static int ipxitf_device_event(struct notifier_block *notifier,
 	struct net_device *dev = ptr;
 	struct ipx_interface *i, *tmp;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if (event != NETDEV_DOWN && event != NETDEV_UP)
 		goto out;
 
@@ -986,7 +989,7 @@ static int ipxitf_create(struct ipx_interface_definition *idef)
 	if (intrfc)
 		ipxitf_put(intrfc);
 
-	dev = dev_get_by_name(idef->ipx_device);
+	dev = dev_get_by_name(&init_net, idef->ipx_device);
 	rc = -ENODEV;
 	if (!dev)
 		goto out;
@@ -1094,7 +1097,7 @@ static int ipxitf_delete(struct ipx_interface_definition *idef)
 	if (!dlink_type)
 		goto out;
 
-	dev = __dev_get_by_name(idef->ipx_device);
+	dev = __dev_get_by_name(&init_net, idef->ipx_device);
 	rc = -ENODEV;
 	if (!dev)
 		goto out;
@@ -1189,7 +1192,7 @@ static int ipxitf_ioctl(unsigned int cmd, void __user *arg)
 		if (copy_from_user(&ifr, arg, sizeof(ifr)))
 			break;
 		sipx = (struct sockaddr_ipx *)&ifr.ifr_addr;
-		dev  = __dev_get_by_name(ifr.ifr_name);
+		dev  = __dev_get_by_name(&init_net, ifr.ifr_name);
 		rc   = -ENODEV;
 		if (!dev)
 			break;
@@ -1360,10 +1363,13 @@ static struct proto ipx_proto = {
 	.obj_size = sizeof(struct ipx_sock),
 };
 
-static int ipx_create(struct socket *sock, int protocol)
+static int ipx_create(struct net *net, struct socket *sock, int protocol)
 {
 	int rc = -ESOCKTNOSUPPORT;
 	struct sock *sk;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	/*
 	 * SPX support is not anymore in the kernel sources. If you want to
@@ -1375,7 +1381,7 @@ static int ipx_create(struct socket *sock, int protocol)
 		goto out;
 
 	rc = -ENOMEM;
-	sk = sk_alloc(PF_IPX, GFP_KERNEL, &ipx_proto, 1);
+	sk = sk_alloc(net, PF_IPX, GFP_KERNEL, &ipx_proto, 1);
 	if (!sk)
 		goto out;
 #ifdef IPX_REFCNT_DEBUG
@@ -1643,6 +1649,9 @@ static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	struct ipxhdr *ipx;
 	u16 ipx_pktsize;
 	int rc = 0;
+
+	if (dev->nd_net != &init_net)
+		goto drop;
 
 	/* Not ours */
 	if (skb->pkt_type == PACKET_OTHERHOST)

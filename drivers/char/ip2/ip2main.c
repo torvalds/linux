@@ -411,8 +411,8 @@ cleanup_module(void)
 			iiResetDelay( i2BoardPtrTable[i] );
 			/* free io addresses and Tibet */
 			release_region( ip2config.addr[i], 8 );
-			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i));
-			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
+			device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i));
+			device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
 		}
 		/* Disable and remove interrupt handler. */
 		if ( (ip2config.irq[i] > 0) && have_requested_irq(ip2config.irq[i]) ) {	
@@ -718,12 +718,12 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 			}
 
 			if ( NULL != ( pB = i2BoardPtrTable[i] ) ) {
-				class_device_create(ip2_class, NULL,
+				device_create(ip2_class, NULL,
 						MKDEV(IP2_IPL_MAJOR, 4 * i),
-						NULL, "ipl%d", i);
-				class_device_create(ip2_class, NULL,
+						"ipl%d", i);
+				device_create(ip2_class, NULL,
 						MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
-						NULL, "stat%d", i);
+						"stat%d", i);
 
 			    for ( box = 0; box < ABS_MAX_BOXES; ++box )
 			    {

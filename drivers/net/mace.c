@@ -57,7 +57,6 @@ struct mace_data {
     unsigned char tx_fullup;
     unsigned char tx_active;
     unsigned char tx_bad_runt;
-    struct net_device_stats stats;
     struct timer_list tx_timeout;
     int timeout_active;
     int port_aaui;
@@ -78,7 +77,6 @@ struct mace_data {
 static int mace_open(struct net_device *dev);
 static int mace_close(struct net_device *dev);
 static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *mace_stats(struct net_device *dev);
 static void mace_set_multicast(struct net_device *dev);
 static void mace_reset(struct net_device *dev);
 static int mace_set_address(struct net_device *dev, void *addr);
@@ -103,6 +101,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	struct mace_data *mp;
 	const unsigned char *addr;
 	int j, rev, rc = -EBUSY;
+	DECLARE_MAC_BUF(mac);
 
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
 		printk(KERN_ERR "can't use MACE %s: need 3 addrs and 3 irqs\n",
@@ -143,7 +142,6 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 		rc = -ENOMEM;
 		goto err_release;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 
 	mp = dev->priv;
@@ -189,7 +187,6 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	mp->tx_cmds = (volatile struct dbdma_cmd *) DBDMA_ALIGN(mp + 1);
 	mp->rx_cmds = mp->tx_cmds + NCMDS_TX * N_TX_RING + 1;
 
-	memset(&mp->stats, 0, sizeof(mp->stats));
 	memset((char *) mp->tx_cmds, 0,
 	       (NCMDS_TX*N_TX_RING + N_RX_RING + 2) * sizeof(struct dbdma_cmd));
 	init_timer(&mp->tx_timeout);
@@ -214,7 +211,6 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	dev->open = mace_open;
 	dev->stop = mace_close;
 	dev->hard_start_xmit = mace_xmit_start;
-	dev->get_stats = mace_stats;
 	dev->set_multicast_list = mace_set_multicast;
 	dev->set_mac_address = mace_set_address;
 
@@ -245,11 +241,9 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 		goto err_free_rx_irq;
 	}
 
-	printk(KERN_INFO "%s: MACE at", dev->name);
-	for (j = 0; j < 6; ++j) {
-		printk("%c%.2x", (j? ':': ' '), dev->dev_addr[j]);
-	}
-	printk(", chip revision %d.%d\n", mp->chipid >> 8, mp->chipid & 0xff);
+	printk(KERN_INFO "%s: MACE at %s, chip revision %d.%d\n",
+	       dev->name, print_mac(mac, dev->dev_addr),
+	       mp->chipid >> 8, mp->chipid & 0xff);
 
 	return 0;
 
@@ -585,13 +579,6 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
     return 0;
 }
 
-static struct net_device_stats *mace_stats(struct net_device *dev)
-{
-    struct mace_data *p = (struct mace_data *) dev->priv;
-
-    return &p->stats;
-}
-
 static void mace_set_multicast(struct net_device *dev)
 {
     struct mace_data *mp = (struct mace_data *) dev->priv;
@@ -645,19 +632,19 @@ static void mace_set_multicast(struct net_device *dev)
     spin_unlock_irqrestore(&mp->lock, flags);
 }
 
-static void mace_handle_misc_intrs(struct mace_data *mp, int intr)
+static void mace_handle_misc_intrs(struct mace_data *mp, int intr, struct net_device *dev)
 {
     volatile struct mace __iomem *mb = mp->mace;
     static int mace_babbles, mace_jabbers;
 
     if (intr & MPCO)
-	mp->stats.rx_missed_errors += 256;
-    mp->stats.rx_missed_errors += in_8(&mb->mpc);   /* reading clears it */
+	dev->stats.rx_missed_errors += 256;
+    dev->stats.rx_missed_errors += in_8(&mb->mpc);   /* reading clears it */
     if (intr & RNTPCO)
-	mp->stats.rx_length_errors += 256;
-    mp->stats.rx_length_errors += in_8(&mb->rntpc); /* reading clears it */
+	dev->stats.rx_length_errors += 256;
+    dev->stats.rx_length_errors += in_8(&mb->rntpc); /* reading clears it */
     if (intr & CERR)
-	++mp->stats.tx_heartbeat_errors;
+	++dev->stats.tx_heartbeat_errors;
     if (intr & BABBLE)
 	if (mace_babbles++ < 4)
 	    printk(KERN_DEBUG "mace: babbling transmitter\n");
@@ -681,7 +668,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
     spin_lock_irqsave(&mp->lock, flags);
     intr = in_8(&mb->ir);		/* read interrupt register */
     in_8(&mb->xmtrc);			/* get retries */
-    mace_handle_misc_intrs(mp, intr);
+    mace_handle_misc_intrs(mp, intr, dev);
 
     i = mp->tx_empty;
     while (in_8(&mb->pr) & XMTSV) {
@@ -694,7 +681,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	 */
 	intr = in_8(&mb->ir);
 	if (intr != 0)
-	    mace_handle_misc_intrs(mp, intr);
+	    mace_handle_misc_intrs(mp, intr, dev);
 	if (mp->tx_bad_runt) {
 	    fs = in_8(&mb->xmtfs);
 	    mp->tx_bad_runt = 0;
@@ -768,14 +755,14 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	}
 	/* Update stats */
 	if (fs & (UFLO|LCOL|LCAR|RTRY)) {
-	    ++mp->stats.tx_errors;
+	    ++dev->stats.tx_errors;
 	    if (fs & LCAR)
-		++mp->stats.tx_carrier_errors;
+		++dev->stats.tx_carrier_errors;
 	    if (fs & (UFLO|LCOL|RTRY))
-		++mp->stats.tx_aborted_errors;
+		++dev->stats.tx_aborted_errors;
 	} else {
-	    mp->stats.tx_bytes += mp->tx_bufs[i]->len;
-	    ++mp->stats.tx_packets;
+	    dev->stats.tx_bytes += mp->tx_bufs[i]->len;
+	    ++dev->stats.tx_packets;
 	}
 	dev_kfree_skb_irq(mp->tx_bufs[i]);
 	--mp->tx_active;
@@ -829,7 +816,7 @@ static void mace_tx_timeout(unsigned long data)
 	goto out;
 
     /* update various counters */
-    mace_handle_misc_intrs(mp, in_8(&mb->ir));
+    mace_handle_misc_intrs(mp, in_8(&mb->ir), dev);
 
     cp = mp->tx_cmds + NCMDS_TX * mp->tx_empty;
 
@@ -849,7 +836,7 @@ static void mace_tx_timeout(unsigned long data)
     /* fix up the transmit side */
     i = mp->tx_empty;
     mp->tx_active = 0;
-    ++mp->stats.tx_errors;
+    ++dev->stats.tx_errors;
     if (mp->tx_bad_runt) {
 	mp->tx_bad_runt = 0;
     } else if (i != mp->tx_fill) {
@@ -917,18 +904,18 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 	/* got a packet, have a look at it */
 	skb = mp->rx_bufs[i];
 	if (skb == 0) {
-	    ++mp->stats.rx_dropped;
+	    ++dev->stats.rx_dropped;
 	} else if (nb > 8) {
 	    data = skb->data;
 	    frame_status = (data[nb-3] << 8) + data[nb-4];
 	    if (frame_status & (RS_OFLO|RS_CLSN|RS_FRAMERR|RS_FCSERR)) {
-		++mp->stats.rx_errors;
+		++dev->stats.rx_errors;
 		if (frame_status & RS_OFLO)
-		    ++mp->stats.rx_over_errors;
+		    ++dev->stats.rx_over_errors;
 		if (frame_status & RS_FRAMERR)
-		    ++mp->stats.rx_frame_errors;
+		    ++dev->stats.rx_frame_errors;
 		if (frame_status & RS_FCSERR)
-		    ++mp->stats.rx_crc_errors;
+		    ++dev->stats.rx_crc_errors;
 	    } else {
 		/* Mace feature AUTO_STRIP_RCV is on by default, dropping the
 		 * FCS on frames with 802.3 headers. This means that Ethernet
@@ -940,15 +927,15 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 		    nb -= 8;
 		skb_put(skb, nb);
 		skb->protocol = eth_type_trans(skb, dev);
-		mp->stats.rx_bytes += skb->len;
+		dev->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 		dev->last_rx = jiffies;
 		mp->rx_bufs[i] = NULL;
-		++mp->stats.rx_packets;
+		++dev->stats.rx_packets;
 	    }
 	} else {
-	    ++mp->stats.rx_errors;
-	    ++mp->stats.rx_length_errors;
+	    ++dev->stats.rx_errors;
+	    ++dev->stats.rx_length_errors;
 	}
 
 	/* advance to next */

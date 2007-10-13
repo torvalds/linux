@@ -263,7 +263,7 @@ mmc_omap_xfer_done(struct mmc_omap_host *host, struct mmc_data *data)
 		enum dma_data_direction dma_data_dir;
 
 		BUG_ON(host->dma_ch < 0);
-		if (data->error != MMC_ERR_NONE)
+		if (data->error)
 			omap_stop_dma(host->dma_ch);
 		/* Release DMA channel lazily */
 		mod_timer(&host->dma_timer, jiffies + HZ);
@@ -368,7 +368,7 @@ mmc_omap_cmd_done(struct mmc_omap_host *host, struct mmc_command *cmd)
 		}
 	}
 
-	if (host->data == NULL || cmd->error != MMC_ERR_NONE) {
+	if (host->data == NULL || cmd->error) {
 		host->mrq = NULL;
 		clk_disable(host->fclk);
 		mmc_request_done(host->mmc, cmd->mrq);
@@ -475,14 +475,14 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 		if (status & OMAP_MMC_STAT_DATA_TOUT) {
 			dev_dbg(mmc_dev(host->mmc), "data timeout\n");
 			if (host->data) {
-				host->data->error |= MMC_ERR_TIMEOUT;
+				host->data->error = -ETIMEDOUT;
 				transfer_error = 1;
 			}
 		}
 
 		if (status & OMAP_MMC_STAT_DATA_CRC) {
 			if (host->data) {
-				host->data->error |= MMC_ERR_BADCRC;
+				host->data->error = -EILSEQ;
 				dev_dbg(mmc_dev(host->mmc),
 					 "data CRC error, bytes left %d\n",
 					host->total_bytes_left);
@@ -504,7 +504,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 					dev_err(mmc_dev(host->mmc),
 						"command timeout, CMD %d\n",
 						host->cmd->opcode);
-				host->cmd->error = MMC_ERR_TIMEOUT;
+				host->cmd->error = -ETIMEDOUT;
 				end_command = 1;
 			}
 		}
@@ -514,7 +514,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 				dev_err(mmc_dev(host->mmc),
 					"command CRC error (CMD%d, arg 0x%08x)\n",
 					host->cmd->opcode, host->cmd->arg);
-				host->cmd->error = MMC_ERR_BADCRC;
+				host->cmd->error = -EILSEQ;
 				end_command = 1;
 			} else
 				dev_err(mmc_dev(host->mmc),

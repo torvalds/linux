@@ -1219,29 +1219,11 @@ static const struct seq_operations irlap_seq_ops = {
 
 static int irlap_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct irlap_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
+	if (irlap == NULL)
+		return -EINVAL;
 
-	if (!s)
-		goto out;
-
-	if (irlap == NULL) {
-		rc = -EINVAL;
-		goto out_kfree;
-	}
-
-	rc = seq_open(file, &irlap_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &irlap_seq_ops,
+			sizeof(struct irlap_iter_state));
 }
 
 const struct file_operations irlap_seq_fops = {

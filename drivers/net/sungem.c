@@ -19,7 +19,7 @@
  *
  *    gem_change_mtu() and gem_set_multicast() are called with a read_lock()
  *    help by net/core/dev.c, thus they can't schedule. That means they can't
- *    call netif_poll_disable() neither, thus force gem_poll() to keep a spinlock
+ *    call napi_disable() neither, thus force gem_poll() to keep a spinlock
  *    where it could have been dropped. change_mtu especially would love also to
  *    be able to msleep instead of horrid locked delays when resetting the HW,
  *    but that read_lock() makes it impossible, unless I defer it's action to
@@ -878,19 +878,20 @@ static int gem_rx(struct gem *gp, int work_to_do)
 	return work_done;
 }
 
-static int gem_poll(struct net_device *dev, int *budget)
+static int gem_poll(struct napi_struct *napi, int budget)
 {
-	struct gem *gp = dev->priv;
+	struct gem *gp = container_of(napi, struct gem, napi);
+	struct net_device *dev = gp->dev;
 	unsigned long flags;
+	int work_done;
 
 	/*
 	 * NAPI locking nightmare: See comment at head of driver
 	 */
 	spin_lock_irqsave(&gp->lock, flags);
 
+	work_done = 0;
 	do {
-		int work_to_do, work_done;
-
 		/* Handle anomalies */
 		if (gp->status & GREG_STAT_ABNORMAL) {
 			if (gem_abnormal_irq(dev, gp, gp->status))
@@ -906,29 +907,25 @@ static int gem_poll(struct net_device *dev, int *budget)
 
 		/* Run RX thread. We don't use any locking here,
 		 * code willing to do bad things - like cleaning the
-		 * rx ring - must call netif_poll_disable(), which
+		 * rx ring - must call napi_disable(), which
 		 * schedule_timeout()'s if polling is already disabled.
 		 */
-		work_to_do = min(*budget, dev->quota);
+		work_done += gem_rx(gp, budget);
 
-		work_done = gem_rx(gp, work_to_do);
-
-		*budget -= work_done;
-		dev->quota -= work_done;
-
-		if (work_done >= work_to_do)
-			return 1;
+		if (work_done >= budget)
+			return work_done;
 
 		spin_lock_irqsave(&gp->lock, flags);
 
 		gp->status = readl(gp->regs + GREG_STAT);
 	} while (gp->status & GREG_STAT_NAPI);
 
-	__netif_rx_complete(dev);
+	__netif_rx_complete(dev, napi);
 	gem_enable_ints(gp);
 
 	spin_unlock_irqrestore(&gp->lock, flags);
-	return 0;
+
+	return work_done;
 }
 
 static irqreturn_t gem_interrupt(int irq, void *dev_id)
@@ -946,17 +943,17 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 
 	spin_lock_irqsave(&gp->lock, flags);
 
-	if (netif_rx_schedule_prep(dev)) {
+	if (netif_rx_schedule_prep(dev, &gp->napi)) {
 		u32 gem_status = readl(gp->regs + GREG_STAT);
 
 		if (gem_status == 0) {
-			netif_poll_enable(dev);
+			napi_enable(&gp->napi);
 			spin_unlock_irqrestore(&gp->lock, flags);
 			return IRQ_NONE;
 		}
 		gp->status = gem_status;
 		gem_disable_ints(gp);
-		__netif_rx_schedule(dev);
+		__netif_rx_schedule(dev, &gp->napi);
 	}
 
 	spin_unlock_irqrestore(&gp->lock, flags);
@@ -2284,7 +2281,7 @@ static void gem_reset_task(struct work_struct *work)
 
 	mutex_lock(&gp->pm_mutex);
 
-	netif_poll_disable(gp->dev);
+	napi_disable(&gp->napi);
 
 	spin_lock_irq(&gp->lock);
 	spin_lock(&gp->tx_lock);
@@ -2307,7 +2304,7 @@ static void gem_reset_task(struct work_struct *work)
 	spin_unlock(&gp->tx_lock);
 	spin_unlock_irq(&gp->lock);
 
-	netif_poll_enable(gp->dev);
+	napi_enable(&gp->napi);
 
 	mutex_unlock(&gp->pm_mutex);
 }
@@ -2324,6 +2321,8 @@ static int gem_open(struct net_device *dev)
 	if (!gp->asleep)
 		rc = gem_do_start(dev);
 	gp->opened = (rc == 0);
+	if (gp->opened)
+		napi_enable(&gp->napi);
 
 	mutex_unlock(&gp->pm_mutex);
 
@@ -2334,9 +2333,7 @@ static int gem_close(struct net_device *dev)
 {
 	struct gem *gp = dev->priv;
 
-	/* Note: we don't need to call netif_poll_disable() here because
-	 * our caller (dev_close) already did it for us
-	 */
+	napi_disable(&gp->napi);
 
 	mutex_lock(&gp->pm_mutex);
 
@@ -2358,7 +2355,7 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	mutex_lock(&gp->pm_mutex);
 
-	netif_poll_disable(dev);
+	napi_disable(&gp->napi);
 
 	printk(KERN_INFO "%s: suspending, WakeOnLan %s\n",
 	       dev->name,
@@ -2482,7 +2479,7 @@ static int gem_resume(struct pci_dev *pdev)
 	spin_unlock(&gp->tx_lock);
 	spin_unlock_irqrestore(&gp->lock, flags);
 
-	netif_poll_enable(dev);
+	napi_enable(&gp->napi);
 
 	mutex_unlock(&gp->pm_mutex);
 
@@ -2968,7 +2965,8 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	unsigned long gemreg_base, gemreg_len;
 	struct net_device *dev;
 	struct gem *gp;
-	int i, err, pci_using_dac;
+	int err, pci_using_dac;
+	DECLARE_MAC_BUF(mac);
 
 	if (gem_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -3026,7 +3024,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_disable_device;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	gp = dev->priv;
@@ -3121,8 +3118,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	dev->get_stats = gem_get_stats;
 	dev->set_multicast_list = gem_set_multicast;
 	dev->do_ioctl = gem_ioctl;
-	dev->poll = gem_poll;
-	dev->weight = 64;
+	netif_napi_add(dev, &gp->napi, gem_poll, 64);
 	dev->ethtool_ops = &gem_ethtool_ops;
 	dev->tx_timeout = gem_tx_timeout;
 	dev->watchdog_timeo = 5 * HZ;
@@ -3154,12 +3150,9 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 		goto err_out_free_consistent;
 	}
 
-	printk(KERN_INFO "%s: Sun GEM (PCI) 10/100/1000BaseT Ethernet ",
-	       dev->name);
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i],
-		       i == 5 ? ' ' : ':');
-	printk("\n");
+	printk(KERN_INFO "%s: Sun GEM (PCI) 10/100/1000BaseT Ethernet "
+	       "%s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	if (gp->phy_type == phy_mii_mdio0 ||
      	    gp->phy_type == phy_mii_mdio1)

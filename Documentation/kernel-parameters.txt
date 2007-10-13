@@ -35,6 +35,7 @@ parameter is applicable:
 	APIC	APIC support is enabled.
 	APM	Advanced Power Management support is enabled.
 	AX25	Appropriate AX.25 support is enabled.
+	BLACKFIN Blackfin architecture is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
@@ -67,6 +68,7 @@ parameter is applicable:
 	PARIDE	The ParIDE (parallel port IDE) subsystem is enabled.
 	PARISC	The PA-RISC architecture is enabled.
 	PCI	PCI bus support is enabled.
+	PCIE	PCI Express support is enabled.
 	PCMCIA	The PCMCIA subsystem is enabled.
 	PNP	Plug & Play support is enabled.
 	PPC	PowerPC architecture is enabled.
@@ -550,7 +552,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	dtc3181e=	[HW,SCSI]
 
-	earlyprintk=	[X86-32,X86-64,SH]
+	earlyprintk=	[X86-32,X86-64,SH,BLACKFIN]
 			earlyprintk=vga
 			earlyprintk=serial[,ttySn[,baudrate]]
 
@@ -863,6 +865,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	lasi=		[HW,SCSI] PARISC LASI driver for the 53c700 chip
 			Format: addr:<io>,irq:<irq>
 
+	libata.noacpi	[LIBATA] Disables use of ACPI in libata suspend/resume
+			when set.
+			Format: <int>
+
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/ramdisk.txt.
 
@@ -1008,6 +1014,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
 
+	mfgpt_irq=	[IA-32] Specify the IRQ to use for the
+			Multi-Function General Purpose Timers on AMD Geode
+			platforms.
+
 	mga=		[HW,DRM]
 
 	mousedev.tap_time=
@@ -1078,10 +1088,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
 			emulation library even if a 387 maths coprocessor
 			is present.
-
-	noacpi		[LIBATA] Disables use of ACPI in libata suspend/resume
-			when set.
-			Format: <int>
 
 	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
 			caches in the slab allocator.  Saves per-node memory,
@@ -1158,6 +1164,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	nomca		[IA-64] Disable machine check abort handling
 
 	nomce		[X86-32] Machine Check Exception
+
+	nomfgpt		[X86-32] Disable Multi-Function General Purpose
+			Timer usage (for AMD Geode machines).
 
 	noreplace-paravirt	[X86-32,PV_OPS] Don't patch paravirt_ops
 
@@ -1269,6 +1278,11 @@ and is between 256 and 4096 characters. It is defined in the file
 				Mechanism 1.
 		conf2		[X86-32] Force use of PCI Configuration
 				Mechanism 2.
+		noaer		[PCIE] If the PCIEAER kernel config parameter is
+				enabled, this kernel boot option can be used to
+				disable the use of PCIE advanced error reporting.
+		nodomains	[PCI] Disable support for multiple PCI
+				root domains (aka PCI segments, in ACPI-speak).
 		nommconf	[X86-32,X86_64] Disable use of MMCONFIG for PCI
 				Configuration
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
@@ -1313,6 +1327,8 @@ and is between 256 and 4096 characters. It is defined in the file
 				IRQ routing is enabled.
 		noacpi		[X86-32] Do not use ACPI for IRQ routing
 				or for PCI scanning.
+		use_crs		[X86-32] Use _CRS for PCI resource
+				allocation.
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
 				so this option is a temporary workaround
@@ -1428,6 +1444,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	pt.		[PARIDE]
 			See Documentation/paride.txt.
+
+	pty.legacy_count=
+			[KNL] Number of legacy pty's. Overwrites compiled-in
+			default number.
 
 	quiet		[KNL] Disable most log messages
 

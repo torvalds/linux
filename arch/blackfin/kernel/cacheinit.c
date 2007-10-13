@@ -21,9 +21,10 @@
 
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
+#include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
-#if defined(CONFIG_BLKFIN_CACHE)
+#if defined(CONFIG_BFIN_ICACHE)
 void bfin_icache_init(void)
 {
 	unsigned long *table = icplb_table;
@@ -44,7 +45,7 @@ void bfin_icache_init(void)
 }
 #endif
 
-#if defined(CONFIG_BLKFIN_DCACHE)
+#if defined(CONFIG_BFIN_DCACHE)
 void bfin_dcache_init(void)
 {
 	unsigned long *table = dcplb_table;

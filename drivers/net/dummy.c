@@ -71,7 +71,6 @@ static void dummy_setup(struct net_device *dev)
 	dev->change_mtu = NULL;
 	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;
-	SET_MODULE_OWNER(dev);
 	random_ether_addr(dev->dev_addr);
 }
 

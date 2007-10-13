@@ -166,7 +166,6 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 		write_lock_irqsave(&ehca_cq_idr_lock, flags);
 		ret = idr_get_new(&ehca_cq_idr, my_cq, &my_cq->token);
 		write_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-
 	} while (ret == -EAGAIN);
 
 	if (ret) {
@@ -174,6 +173,12 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 		ehca_err(device, "Can't allocate new idr entry. device=%p",
 			 device);
 		goto create_cq_exit1;
+	}
+
+	if (my_cq->token > 0x1FFFFFF) {
+		cq = ERR_PTR(-ENOMEM);
+		ehca_err(device, "Invalid number of cq. device=%p", device);
+		goto create_cq_exit2;
 	}
 
 	/*
@@ -185,7 +190,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 
 	if (h_ret != H_SUCCESS) {
 		ehca_err(device, "hipz_h_alloc_resource_cq() failed "
-			 "h_ret=%lx device=%p", h_ret, device);
+			 "h_ret=%li device=%p", h_ret, device);
 		cq = ERR_PTR(ehca2ib_return_code(h_ret));
 		goto create_cq_exit2;
 	}
@@ -193,7 +198,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	ipz_rc = ipz_queue_ctor(NULL, &my_cq->ipz_queue, param.act_pages,
 				EHCA_PAGESIZE, sizeof(struct ehca_cqe), 0, 0);
 	if (!ipz_rc) {
-		ehca_err(device, "ipz_queue_ctor() failed ipz_rc=%x device=%p",
+		ehca_err(device, "ipz_queue_ctor() failed ipz_rc=%i device=%p",
 			 ipz_rc, device);
 		cq = ERR_PTR(-EINVAL);
 		goto create_cq_exit3;
@@ -221,7 +226,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 
 		if (h_ret < H_SUCCESS) {
 			ehca_err(device, "hipz_h_register_rpage_cq() failed "
-				 "ehca_cq=%p cq_num=%x h_ret=%lx counter=%i "
+				 "ehca_cq=%p cq_num=%x h_ret=%li counter=%i "
 				 "act_pages=%i", my_cq, my_cq->cq_number,
 				 h_ret, counter, param.act_pages);
 			cq = ERR_PTR(-EINVAL);
@@ -233,7 +238,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 			if ((h_ret != H_SUCCESS) || vpage) {
 				ehca_err(device, "Registration of pages not "
 					 "complete ehca_cq=%p cq_num=%x "
-					 "h_ret=%lx", my_cq, my_cq->cq_number,
+					 "h_ret=%li", my_cq, my_cq->cq_number,
 					 h_ret);
 				cq = ERR_PTR(-EAGAIN);
 				goto create_cq_exit4;
@@ -241,7 +246,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 		} else {
 			if (h_ret != H_PAGE_REGISTERED) {
 				ehca_err(device, "Registration of page failed "
-					 "ehca_cq=%p cq_num=%x h_ret=%lx"
+					 "ehca_cq=%p cq_num=%x h_ret=%li"
 					 "counter=%i act_pages=%i",
 					 my_cq, my_cq->cq_number,
 					 h_ret, counter, param.act_pages);
@@ -276,6 +281,8 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 		resp.ipz_queue.queue_length = ipz_queue->queue_length;
 		resp.ipz_queue.pagesize = ipz_queue->pagesize;
 		resp.ipz_queue.toggle_state = ipz_queue->toggle_state;
+		resp.fw_handle_ofs = (u32)
+			(my_cq->galpas.user.fw_handle & (PAGE_SIZE - 1));
 		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
 			ehca_err(device, "Copy to udata failed.");
 			goto create_cq_exit4;
@@ -291,7 +298,7 @@ create_cq_exit3:
 	h_ret = hipz_h_destroy_cq(adapter_handle, my_cq, 1);
 	if (h_ret != H_SUCCESS)
 		ehca_err(device, "hipz_h_destroy_cq() failed ehca_cq=%p "
-			 "cq_num=%x h_ret=%lx", my_cq, my_cq->cq_number, h_ret);
+			 "cq_num=%x h_ret=%li", my_cq, my_cq->cq_number, h_ret);
 
 create_cq_exit2:
 	write_lock_irqsave(&ehca_cq_idr_lock, flags);
@@ -355,7 +362,7 @@ int ehca_destroy_cq(struct ib_cq *cq)
 				 cq_num);
 	}
 	if (h_ret != H_SUCCESS) {
-		ehca_err(device, "hipz_h_destroy_cq() failed h_ret=%lx "
+		ehca_err(device, "hipz_h_destroy_cq() failed h_ret=%li "
 			 "ehca_cq=%p cq_num=%x", h_ret, my_cq, cq_num);
 		return ehca2ib_return_code(h_ret);
 	}

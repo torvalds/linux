@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/wait.h>
-#include <linux/moduleparam.h>
 #include <linux/module.h>
 #include <sound/driver.h>
 #include <sound/core.h>
@@ -313,7 +312,7 @@ static int dsp_buffer_free(struct saa7134_dev *dev)
 	dev->dmasound.blksize = 0;
 	dev->dmasound.bufsize = 0;
 
-       return 0;
+	return 0;
 }
 
 

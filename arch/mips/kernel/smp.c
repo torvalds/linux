@@ -38,6 +38,7 @@
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
+#include <asm/time.h>
 
 #ifdef CONFIG_MIPS_MT_SMTC
 #include <asm/mipsmtregs.h>
@@ -70,6 +71,7 @@ asmlinkage __cpuinit void start_secondary(void)
 	cpu_probe();
 	cpu_report();
 	per_cpu_trap_init();
+	mips_clockevent_init();
 	prom_init_secondary();
 
 	/*
@@ -95,6 +97,8 @@ struct call_data_struct *call_data;
 
 /*
  * Run a function on all other CPUs.
+ *
+ *  <mask>	cpuset_t of all processors to run the function on.
  *  <func>      The function to run. This must be fast and non-blocking.
  *  <info>      An arbitrary pointer to pass to the function.
  *  <retry>     If true, keep retrying until ready.
@@ -119,18 +123,20 @@ struct call_data_struct *call_data;
  * Spin waiting for call_lock
  * Deadlock                            Deadlock
  */
-int smp_call_function (void (*func) (void *info), void *info, int retry,
-								int wait)
+int smp_call_function_mask(cpumask_t mask, void (*func) (void *info),
+	void *info, int retry, int wait)
 {
 	struct call_data_struct data;
-	int i, cpus = num_online_cpus() - 1;
 	int cpu = smp_processor_id();
+	int cpus;
 
 	/*
 	 * Can die spectacularly if this CPU isn't yet marked online
 	 */
 	BUG_ON(!cpu_online(cpu));
 
+	cpu_clear(cpu, mask);
+	cpus = cpus_weight(mask);
 	if (!cpus)
 		return 0;
 
@@ -149,9 +155,7 @@ int smp_call_function (void (*func) (void *info), void *info, int retry,
 	smp_mb();
 
 	/* Send a message to all other CPUs and wait for them to respond */
-	for_each_online_cpu(i)
-		if (i != cpu)
-			core_send_ipi(i, SMP_CALL_FUNCTION);
+	core_send_ipi_mask(mask, SMP_CALL_FUNCTION);
 
 	/* Wait for response */
 	/* FIXME: lock-up detection, backtrace on lock-up */
@@ -167,6 +171,11 @@ int smp_call_function (void (*func) (void *info), void *info, int retry,
 	return 0;
 }
 
+int smp_call_function(void (*func) (void *info), void *info, int retry,
+	int wait)
+{
+	return smp_call_function_mask(cpu_online_map, func, info, retry, wait);
+}
 
 void smp_call_function_interrupt(void)
 {
@@ -197,8 +206,7 @@ void smp_call_function_interrupt(void)
 int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 			     int retry, int wait)
 {
-	struct call_data_struct data;
-	int me;
+	int ret, me;
 
 	/*
 	 * Can die spectacularly if this CPU isn't yet marked online
@@ -217,33 +225,8 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		return 0;
 	}
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
-	data.func = func;
-	data.info = info;
-	atomic_set(&data.started, 0);
-	data.wait = wait;
-	if (wait)
-		atomic_set(&data.finished, 0);
-
-	spin_lock(&smp_call_lock);
-	call_data = &data;
-	smp_mb();
-
-	/* Send a message to the other CPU */
-	core_send_ipi(cpu, SMP_CALL_FUNCTION);
-
-	/* Wait for response */
-	/* FIXME: lock-up detection, backtrace on lock-up */
-	while (atomic_read(&data.started) != 1)
-		barrier();
-
-	if (wait)
-		while (atomic_read(&data.finished) != 1)
-			barrier();
-	call_data = NULL;
-	spin_unlock(&smp_call_lock);
+	ret = smp_call_function_mask(cpumask_of_cpu(cpu), func, info, retry,
+				     wait);
 
 	put_cpu();
 	return 0;
@@ -390,12 +373,15 @@ void flush_tlb_mm(struct mm_struct *mm)
 	preempt_disable();
 
 	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
-		smp_on_other_tlbs(flush_tlb_mm_ipi, (void *)mm);
+		smp_on_other_tlbs(flush_tlb_mm_ipi, mm);
 	} else {
-		int i;
-		for (i = 0; i < num_online_cpus(); i++)
-			if (smp_processor_id() != i)
-				cpu_context(i, mm) = 0;
+		cpumask_t mask = cpu_online_map;
+		unsigned int cpu;
+
+		cpu_clear(smp_processor_id(), mask);
+		for_each_online_cpu(cpu)
+			if (cpu_context(cpu, mm))
+				cpu_context(cpu, mm) = 0;
 	}
 	local_flush_tlb_mm(mm);
 
@@ -410,7 +396,7 @@ struct flush_tlb_data {
 
 static void flush_tlb_range_ipi(void *info)
 {
-	struct flush_tlb_data *fd = (struct flush_tlb_data *)info;
+	struct flush_tlb_data *fd = info;
 
 	local_flush_tlb_range(fd->vma, fd->addr1, fd->addr2);
 }
@@ -421,17 +407,21 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 
 	preempt_disable();
 	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
-		struct flush_tlb_data fd;
+		struct flush_tlb_data fd = {
+			.vma = vma,
+			.addr1 = start,
+			.addr2 = end,
+		};
 
-		fd.vma = vma;
-		fd.addr1 = start;
-		fd.addr2 = end;
-		smp_on_other_tlbs(flush_tlb_range_ipi, (void *)&fd);
+		smp_on_other_tlbs(flush_tlb_range_ipi, &fd);
 	} else {
-		int i;
-		for (i = 0; i < num_online_cpus(); i++)
-			if (smp_processor_id() != i)
-				cpu_context(i, mm) = 0;
+		cpumask_t mask = cpu_online_map;
+		unsigned int cpu;
+
+		cpu_clear(smp_processor_id(), mask);
+		for_each_online_cpu(cpu)
+			if (cpu_context(cpu, mm))
+				cpu_context(cpu, mm) = 0;
 	}
 	local_flush_tlb_range(vma, start, end);
 	preempt_enable();
@@ -439,23 +429,24 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 
 static void flush_tlb_kernel_range_ipi(void *info)
 {
-	struct flush_tlb_data *fd = (struct flush_tlb_data *)info;
+	struct flush_tlb_data *fd = info;
 
 	local_flush_tlb_kernel_range(fd->addr1, fd->addr2);
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	struct flush_tlb_data fd;
+	struct flush_tlb_data fd = {
+		.addr1 = start,
+		.addr2 = end,
+	};
 
-	fd.addr1 = start;
-	fd.addr2 = end;
-	on_each_cpu(flush_tlb_kernel_range_ipi, (void *)&fd, 1, 1);
+	on_each_cpu(flush_tlb_kernel_range_ipi, &fd, 1, 1);
 }
 
 static void flush_tlb_page_ipi(void *info)
 {
-	struct flush_tlb_data *fd = (struct flush_tlb_data *)info;
+	struct flush_tlb_data *fd = info;
 
 	local_flush_tlb_page(fd->vma, fd->addr1);
 }
@@ -464,16 +455,20 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
 	preempt_disable();
 	if ((atomic_read(&vma->vm_mm->mm_users) != 1) || (current->mm != vma->vm_mm)) {
-		struct flush_tlb_data fd;
+		struct flush_tlb_data fd = {
+			.vma = vma,
+			.addr1 = page,
+		};
 
-		fd.vma = vma;
-		fd.addr1 = page;
-		smp_on_other_tlbs(flush_tlb_page_ipi, (void *)&fd);
+		smp_on_other_tlbs(flush_tlb_page_ipi, &fd);
 	} else {
-		int i;
-		for (i = 0; i < num_online_cpus(); i++)
-			if (smp_processor_id() != i)
-				cpu_context(i, vma->vm_mm) = 0;
+		cpumask_t mask = cpu_online_map;
+		unsigned int cpu;
+
+		cpu_clear(smp_processor_id(), mask);
+		for_each_online_cpu(cpu)
+			if (cpu_context(cpu, vma->vm_mm))
+				cpu_context(cpu, vma->vm_mm) = 0;
 	}
 	local_flush_tlb_page(vma, page);
 	preempt_enable();

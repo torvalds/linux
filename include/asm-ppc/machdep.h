@@ -8,10 +8,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 
-#ifdef CONFIG_APUS
-#include <asm-m68k/machdep.h>
-#endif
-
 struct pt_regs;
 struct pci_bus;	
 struct pci_dev;

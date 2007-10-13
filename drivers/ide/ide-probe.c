@@ -827,10 +827,8 @@ static void probe_hwif(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
 		ide_drive_t *drive = &hwif->drives[unit];
 
 		if (drive->present) {
-			if (hwif->tuneproc != NULL && 
-				drive->autotune == IDE_TUNE_AUTO)
-				/* auto-tune PIO mode */
-				hwif->tuneproc(drive, 255);
+			if (drive->autotune == IDE_TUNE_AUTO)
+				ide_set_max_pio(drive);
 
 			if (drive->autotune != IDE_TUNE_DEFAULT &&
 			    drive->autotune != IDE_TUNE_AUTO)

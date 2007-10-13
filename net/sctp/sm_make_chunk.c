@@ -179,6 +179,11 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	sctp_supported_addrs_param_t sat;
 	__be16 types[2];
 	sctp_adaptation_ind_param_t aiparam;
+	sctp_supported_ext_param_t ext_param;
+	int num_ext = 0;
+	__u8 extensions[3];
+	sctp_paramhdr_t *auth_chunks = NULL,
+			*auth_hmacs = NULL;
 
 	/* RFC 2960 3.3.2 Initiation (INIT) (1)
 	 *
@@ -202,10 +207,51 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 
 	chunksize = sizeof(init) + addrs_len + SCTP_SAT_LEN(num_types);
 	chunksize += sizeof(ecap_param);
-	if (sctp_prsctp_enable)
+	if (sctp_prsctp_enable) {
 		chunksize += sizeof(prsctp_param);
+		extensions[num_ext] = SCTP_CID_FWD_TSN;
+		num_ext += 1;
+	}
+	/* ADDIP: Section 4.2.7:
+	 *  An implementation supporting this extension [ADDIP] MUST list
+	 *  the ASCONF,the ASCONF-ACK, and the AUTH  chunks in its INIT and
+	 *  INIT-ACK parameters.
+	 */
+	if (sctp_addip_enable) {
+		extensions[num_ext] = SCTP_CID_ASCONF;
+		extensions[num_ext+1] = SCTP_CID_ASCONF_ACK;
+		num_ext += 2;
+	}
+
 	chunksize += sizeof(aiparam);
 	chunksize += vparam_len;
+
+	/* Account for AUTH related parameters */
+	if (sctp_auth_enable) {
+		/* Add random parameter length*/
+		chunksize += sizeof(asoc->c.auth_random);
+
+		/* Add HMACS parameter length if any were defined */
+		auth_hmacs = (sctp_paramhdr_t *)asoc->c.auth_hmacs;
+		if (auth_hmacs->length)
+			chunksize += ntohs(auth_hmacs->length);
+		else
+			auth_hmacs = NULL;
+
+		/* Add CHUNKS parameter length */
+		auth_chunks = (sctp_paramhdr_t *)asoc->c.auth_chunks;
+		if (auth_chunks->length)
+			chunksize += ntohs(auth_chunks->length);
+		else
+			auth_hmacs = NULL;
+
+		extensions[num_ext] = SCTP_CID_AUTH;
+		num_ext += 1;
+	}
+
+	/* If we have any extensions to report, account for that */
+	if (num_ext)
+		chunksize += sizeof(sctp_supported_ext_param_t) + num_ext;
 
 	/* RFC 2960 3.3.2 Initiation (INIT) (1)
 	 *
@@ -241,12 +287,38 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	sctp_addto_chunk(retval, num_types * sizeof(__u16), &types);
 
 	sctp_addto_chunk(retval, sizeof(ecap_param), &ecap_param);
+
+	/* Add the supported extensions paramter.  Be nice and add this
+	 * fist before addiding the parameters for the extensions themselves
+	 */
+	if (num_ext) {
+		ext_param.param_hdr.type = SCTP_PARAM_SUPPORTED_EXT;
+		ext_param.param_hdr.length =
+			    htons(sizeof(sctp_supported_ext_param_t) + num_ext);
+		sctp_addto_chunk(retval, sizeof(sctp_supported_ext_param_t),
+				&ext_param);
+		sctp_addto_chunk(retval, num_ext, extensions);
+	}
+
 	if (sctp_prsctp_enable)
 		sctp_addto_chunk(retval, sizeof(prsctp_param), &prsctp_param);
+
 	aiparam.param_hdr.type = SCTP_PARAM_ADAPTATION_LAYER_IND;
 	aiparam.param_hdr.length = htons(sizeof(aiparam));
 	aiparam.adaptation_ind = htonl(sp->adaptation_ind);
 	sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
+
+	/* Add SCTP-AUTH chunks to the parameter list */
+	if (sctp_auth_enable) {
+		sctp_addto_chunk(retval, sizeof(asoc->c.auth_random),
+				 asoc->c.auth_random);
+		if (auth_hmacs)
+			sctp_addto_chunk(retval, ntohs(auth_hmacs->length),
+					auth_hmacs);
+		if (auth_chunks)
+			sctp_addto_chunk(retval, ntohs(auth_chunks->length),
+					auth_chunks);
+	}
 nodata:
 	kfree(addrs.v);
 	return retval;
@@ -264,6 +336,12 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	int cookie_len;
 	size_t chunksize;
 	sctp_adaptation_ind_param_t aiparam;
+	sctp_supported_ext_param_t ext_param;
+	int num_ext = 0;
+	__u8 extensions[3];
+	sctp_paramhdr_t *auth_chunks = NULL,
+			*auth_hmacs = NULL,
+			*auth_random = NULL;
 
 	retval = NULL;
 
@@ -294,10 +372,40 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 		chunksize += sizeof(ecap_param);
 
 	/* Tell peer that we'll do PR-SCTP only if peer advertised.  */
-	if (asoc->peer.prsctp_capable)
+	if (asoc->peer.prsctp_capable) {
 		chunksize += sizeof(prsctp_param);
+		extensions[num_ext] = SCTP_CID_FWD_TSN;
+		num_ext += 1;
+	}
 
+	if (sctp_addip_enable) {
+		extensions[num_ext] = SCTP_CID_ASCONF;
+		extensions[num_ext+1] = SCTP_CID_ASCONF_ACK;
+		num_ext += 2;
+	}
+
+	chunksize += sizeof(ext_param) + num_ext;
 	chunksize += sizeof(aiparam);
+
+	if (asoc->peer.auth_capable) {
+		auth_random = (sctp_paramhdr_t *)asoc->c.auth_random;
+		chunksize += ntohs(auth_random->length);
+
+		auth_hmacs = (sctp_paramhdr_t *)asoc->c.auth_hmacs;
+		if (auth_hmacs->length)
+			chunksize += ntohs(auth_hmacs->length);
+		else
+			auth_hmacs = NULL;
+
+		auth_chunks = (sctp_paramhdr_t *)asoc->c.auth_chunks;
+		if (auth_chunks->length)
+			chunksize += ntohs(auth_chunks->length);
+		else
+			auth_chunks = NULL;
+
+		extensions[num_ext] = SCTP_CID_AUTH;
+		num_ext += 1;
+	}
 
 	/* Now allocate and fill out the chunk.  */
 	retval = sctp_make_chunk(asoc, SCTP_CID_INIT_ACK, 0, chunksize);
@@ -314,6 +422,14 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	sctp_addto_chunk(retval, cookie_len, cookie);
 	if (asoc->peer.ecn_capable)
 		sctp_addto_chunk(retval, sizeof(ecap_param), &ecap_param);
+	if (num_ext) {
+		ext_param.param_hdr.type = SCTP_PARAM_SUPPORTED_EXT;
+		ext_param.param_hdr.length =
+			    htons(sizeof(sctp_supported_ext_param_t) + num_ext);
+		sctp_addto_chunk(retval, sizeof(sctp_supported_ext_param_t),
+				 &ext_param);
+		sctp_addto_chunk(retval, num_ext, extensions);
+	}
 	if (asoc->peer.prsctp_capable)
 		sctp_addto_chunk(retval, sizeof(prsctp_param), &prsctp_param);
 
@@ -321,6 +437,17 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	aiparam.param_hdr.length = htons(sizeof(aiparam));
 	aiparam.adaptation_ind = htonl(sctp_sk(asoc->base.sk)->adaptation_ind);
 	sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
+
+	if (asoc->peer.auth_capable) {
+		sctp_addto_chunk(retval, ntohs(auth_random->length),
+				 auth_random);
+		if (auth_hmacs)
+			sctp_addto_chunk(retval, ntohs(auth_hmacs->length),
+					auth_hmacs);
+		if (auth_chunks)
+			sctp_addto_chunk(retval, ntohs(auth_chunks->length),
+					auth_chunks);
+	}
 
 	/* We need to remove the const qualifier at this point.  */
 	retval->asoc = (struct sctp_association *) asoc;
@@ -839,6 +966,26 @@ err_chunk:
 	return retval;
 }
 
+/* Append bytes to the end of a parameter.  Will panic if chunk is not big
+ * enough.
+ */
+static void *sctp_addto_param(struct sctp_chunk *chunk, int len,
+			      const void *data)
+{
+	void *target;
+	int chunklen = ntohs(chunk->chunk_hdr->length);
+
+	target = skb_put(chunk->skb, len);
+
+	memcpy(target, data, len);
+
+	/* Adjust the chunk length field.  */
+	chunk->chunk_hdr->length = htons(chunklen + len);
+	chunk->chunk_end = skb_tail_pointer(chunk->skb);
+
+	return target;
+}
+
 /* Make an ABORT chunk with a PROTOCOL VIOLATION cause code. */
 struct sctp_chunk *sctp_make_abort_violation(
 	const struct sctp_association *asoc,
@@ -964,6 +1111,41 @@ nodata:
 	return retval;
 }
 
+struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc)
+{
+	struct sctp_chunk *retval;
+	struct sctp_hmac *hmac_desc;
+	struct sctp_authhdr auth_hdr;
+	__u8 *hmac;
+
+	/* Get the first hmac that the peer told us to use */
+	hmac_desc = sctp_auth_asoc_get_hmac(asoc);
+	if (unlikely(!hmac_desc))
+		return NULL;
+
+	retval = sctp_make_chunk(asoc, SCTP_CID_AUTH, 0,
+			hmac_desc->hmac_len + sizeof(sctp_authhdr_t));
+	if (!retval)
+		return NULL;
+
+	auth_hdr.hmac_id = htons(hmac_desc->hmac_id);
+	auth_hdr.shkey_id = htons(asoc->active_key_id);
+
+	retval->subh.auth_hdr = sctp_addto_chunk(retval, sizeof(sctp_authhdr_t),
+						&auth_hdr);
+
+	hmac = skb_put(retval->skb, hmac_desc->hmac_len);
+	memset(hmac, 0, hmac_desc->hmac_len);
+
+	/* Adjust the chunk header to include the empty MAC */
+	retval->chunk_hdr->length =
+		htons(ntohs(retval->chunk_hdr->length) + hmac_desc->hmac_len);
+	retval->chunk_end = skb_tail_pointer(retval->skb);
+
+	return retval;
+}
+
+
 /********************************************************************
  * 2nd Level Abstractions
  ********************************************************************/
@@ -1078,6 +1260,10 @@ struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
 	retval->chunk_hdr = chunk_hdr;
 	retval->chunk_end = ((__u8 *)chunk_hdr) + sizeof(struct sctp_chunkhdr);
 
+	/* Determine if the chunk needs to be authenticated */
+	if (sctp_auth_send_cid(type, asoc))
+		retval->auth = 1;
+
 	/* Set the skb to the belonging sock for accounting.  */
 	skb->sk = sk;
 
@@ -1141,25 +1327,6 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length = htons(chunklen + padlen + len);
-	chunk->chunk_end = skb_tail_pointer(chunk->skb);
-
-	return target;
-}
-
-/* Append bytes to the end of a parameter.  Will panic if chunk is not big
- * enough.
- */
-void *sctp_addto_param(struct sctp_chunk *chunk, int len, const void *data)
-{
-	void *target;
-	int chunklen = ntohs(chunk->chunk_hdr->length);
-
-	target = skb_put(chunk->skb, len);
-
-	memcpy(target, data, len);
-
-	/* Adjust the chunk length field.  */
-	chunk->chunk_hdr->length = htons(chunklen + len);
 	chunk->chunk_end = skb_tail_pointer(chunk->skb);
 
 	return target;
@@ -1663,6 +1830,35 @@ static int sctp_process_hn_param(const struct sctp_association *asoc,
 	return 0;
 }
 
+static void sctp_process_ext_param(struct sctp_association *asoc,
+				    union sctp_params param)
+{
+	__u16 num_ext = ntohs(param.p->length) - sizeof(sctp_paramhdr_t);
+	int i;
+
+	for (i = 0; i < num_ext; i++) {
+		switch (param.ext->chunks[i]) {
+		    case SCTP_CID_FWD_TSN:
+			    if (sctp_prsctp_enable &&
+				!asoc->peer.prsctp_capable)
+				    asoc->peer.prsctp_capable = 1;
+			    break;
+		    case SCTP_CID_AUTH:
+			    /* if the peer reports AUTH, assume that he
+			     * supports AUTH.
+			     */
+			    asoc->peer.auth_capable = 1;
+			    break;
+		    case SCTP_CID_ASCONF:
+		    case SCTP_CID_ASCONF_ACK:
+			    asoc->peer.addip_capable = 1;
+			    break;
+		    default:
+			    break;
+		}
+	}
+}
+
 /* RFC 3.2.1 & the Implementers Guide 2.2.
  *
  * The Parameter Types are encoded such that the
@@ -1779,15 +1975,52 @@ static int sctp_verify_param(const struct sctp_association *asoc,
 	case SCTP_PARAM_UNRECOGNIZED_PARAMETERS:
 	case SCTP_PARAM_ECN_CAPABLE:
 	case SCTP_PARAM_ADAPTATION_LAYER_IND:
+	case SCTP_PARAM_SUPPORTED_EXT:
 		break;
 
 	case SCTP_PARAM_HOST_NAME_ADDRESS:
 		/* Tell the peer, we won't support this param.  */
 		return sctp_process_hn_param(asoc, param, chunk, err_chunk);
+
 	case SCTP_PARAM_FWD_TSN_SUPPORT:
 		if (sctp_prsctp_enable)
 			break;
+		goto fallthrough;
+
+	case SCTP_PARAM_RANDOM:
+		if (!sctp_auth_enable)
+			goto fallthrough;
+
+		/* SCTP-AUTH: Secion 6.1
+		 * If the random number is not 32 byte long the association
+		 * MUST be aborted.  The ABORT chunk SHOULD contain the error
+		 * cause 'Protocol Violation'.
+		 */
+		if (SCTP_AUTH_RANDOM_LENGTH !=
+			ntohs(param.p->length) - sizeof(sctp_paramhdr_t))
+			return sctp_process_inv_paramlength(asoc, param.p,
+							chunk, err_chunk);
+		break;
+
+	case SCTP_PARAM_CHUNKS:
+		if (!sctp_auth_enable)
+			goto fallthrough;
+
+		/* SCTP-AUTH: Section 3.2
+		 * The CHUNKS parameter MUST be included once in the INIT or
+		 *  INIT-ACK chunk if the sender wants to receive authenticated
+		 *  chunks.  Its maximum length is 260 bytes.
+		 */
+		if (260 < ntohs(param.p->length))
+			return sctp_process_inv_paramlength(asoc, param.p,
+							chunk, err_chunk);
+		break;
+
+	case SCTP_PARAM_HMAC_ALGO:
+		if (!sctp_auth_enable)
+			break;
 		/* Fall Through */
+fallthrough:
 	default:
 		SCTP_DEBUG_PRINTK("Unrecognized param: %d for chunk %d.\n",
 				ntohs(param.p->type), cid);
@@ -1892,11 +2125,27 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	}
 
 	/* Process the initialization parameters.  */
-
 	sctp_walk_params(param, peer_init, init_hdr.params) {
 
 		if (!sctp_process_param(asoc, param, peer_addr, gfp))
 			goto clean_up;
+	}
+
+	/* AUTH: After processing the parameters, make sure that we
+	 * have all the required info to potentially do authentications.
+	 */
+	if (asoc->peer.auth_capable && (!asoc->peer.peer_random ||
+					!asoc->peer.peer_hmacs))
+		asoc->peer.auth_capable = 0;
+
+
+	/* If the peer claims support for ADD-IP without support
+	 * for AUTH, disable support for ADD-IP.
+	 */
+	if (asoc->peer.addip_capable && !asoc->peer.auth_capable) {
+		asoc->peer.addip_disabled_mask |= (SCTP_PARAM_ADD_IP |
+						  SCTP_PARAM_DEL_IP |
+						  SCTP_PARAM_SET_PRIMARY);
 	}
 
 	/* Walk list of transports, removing transports in the UNKNOWN state. */
@@ -2128,12 +2377,57 @@ static int sctp_process_param(struct sctp_association *asoc,
 		asoc->peer.adaptation_ind = param.aind->adaptation_ind;
 		break;
 
+	case SCTP_PARAM_SUPPORTED_EXT:
+		sctp_process_ext_param(asoc, param);
+		break;
+
 	case SCTP_PARAM_FWD_TSN_SUPPORT:
 		if (sctp_prsctp_enable) {
 			asoc->peer.prsctp_capable = 1;
 			break;
 		}
 		/* Fall Through */
+		goto fall_through;
+
+	case SCTP_PARAM_RANDOM:
+		if (!sctp_auth_enable)
+			goto fall_through;
+
+		/* Save peer's random parameter */
+		asoc->peer.peer_random = kmemdup(param.p,
+					    ntohs(param.p->length), gfp);
+		if (!asoc->peer.peer_random) {
+			retval = 0;
+			break;
+		}
+		break;
+
+	case SCTP_PARAM_HMAC_ALGO:
+		if (!sctp_auth_enable)
+			goto fall_through;
+
+		/* Save peer's HMAC list */
+		asoc->peer.peer_hmacs = kmemdup(param.p,
+					    ntohs(param.p->length), gfp);
+		if (!asoc->peer.peer_hmacs) {
+			retval = 0;
+			break;
+		}
+
+		/* Set the default HMAC the peer requested*/
+		sctp_auth_asoc_set_default_hmac(asoc, param.hmac_algo);
+		break;
+
+	case SCTP_PARAM_CHUNKS:
+		if (!sctp_auth_enable)
+			goto fall_through;
+
+		asoc->peer.peer_chunks = kmemdup(param.p,
+					    ntohs(param.p->length), gfp);
+		if (!asoc->peer.peer_chunks)
+			retval = 0;
+		break;
+fall_through:
 	default:
 		/* Any unrecognized parameters should have been caught
 		 * and handled by sctp_verify_param() which should be

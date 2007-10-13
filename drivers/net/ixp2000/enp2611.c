@@ -210,7 +210,6 @@ static int __init enp2611_init_module(void)
 			return -ENOMEM;
 		}
 
-		SET_MODULE_OWNER(nds[i]);
 		nds[i]->get_stats = enp2611_get_stats;
 		pm3386_init_port(i);
 		pm3386_get_mac(i, nds[i]->dev_addr);

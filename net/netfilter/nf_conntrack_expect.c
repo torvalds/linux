@@ -20,6 +20,7 @@
 #include <linux/percpu.h>
 #include <linux/kernel.h>
 #include <linux/jhash.h>
+#include <net/net_namespace.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -40,7 +41,6 @@ static int nf_ct_expect_hash_rnd_initted __read_mostly;
 static int nf_ct_expect_vmalloc;
 
 static struct kmem_cache *nf_ct_expect_cachep __read_mostly;
-static unsigned int nf_ct_expect_next_id;
 
 /* nf_conntrack_expect helper functions */
 void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
@@ -301,7 +301,6 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	exp->timeout.expires = jiffies + master_help->helper->timeout * HZ;
 	add_timer(&exp->timeout);
 
-	exp->id = ++nf_ct_expect_next_id;
 	atomic_inc(&exp->use);
 	NF_CT_STAT_INC(expect_create);
 }
@@ -473,22 +472,8 @@ static const struct seq_operations exp_seq_ops = {
 
 static int exp_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	struct ct_expect_iter_state *st;
-	int ret;
-
-	st = kzalloc(sizeof(struct ct_expect_iter_state), GFP_KERNEL);
-	if (!st)
-		return -ENOMEM;
-	ret = seq_open(file, &exp_seq_ops);
-	if (ret)
-		goto out_free;
-	seq          = file->private_data;
-	seq->private = st;
-	return ret;
-out_free:
-	kfree(st);
-	return ret;
+	return seq_open_private(file, &exp_seq_ops,
+			sizeof(struct ct_expect_iter_state));
 }
 
 static const struct file_operations exp_file_ops = {
@@ -505,7 +490,7 @@ static int __init exp_proc_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *proc;
 
-	proc = proc_net_fops_create("nf_conntrack_expect", 0440, &exp_file_ops);
+	proc = proc_net_fops_create(&init_net, "nf_conntrack_expect", 0440, &exp_file_ops);
 	if (!proc)
 		return -ENOMEM;
 #endif /* CONFIG_PROC_FS */
@@ -515,7 +500,7 @@ static int __init exp_proc_init(void)
 static void exp_proc_remove(void)
 {
 #ifdef CONFIG_PROC_FS
-	proc_net_remove("nf_conntrack_expect");
+	proc_net_remove(&init_net, "nf_conntrack_expect");
 #endif /* CONFIG_PROC_FS */
 }
 
