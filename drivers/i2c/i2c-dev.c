@@ -226,8 +226,10 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 
 		res = 0;
 		for( i=0; i<rdwr_arg.nmsgs; i++ ) {
-			/* Limit the size of the message to a sane amount */
-			if (rdwr_pa[i].len > 8192) {
+			/* Limit the size of the message to a sane amount;
+			 * and don't let length change either. */
+			if ((rdwr_pa[i].len > 8192) ||
+			    (rdwr_pa[i].flags & I2C_M_RECV_LEN)) {
 				res = -EINVAL;
 				break;
 			}
