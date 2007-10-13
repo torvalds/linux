@@ -159,12 +159,8 @@ static inline void write_cr8(unsigned long val)
  */
 #define mb() 	asm volatile("mfence":::"memory")
 #define rmb()	asm volatile("lfence":::"memory")
-
-#ifdef CONFIG_UNORDERED_IO
 #define wmb()	asm volatile("sfence" ::: "memory")
-#else
-#define wmb()	asm volatile("" ::: "memory")
-#endif
+
 #define read_barrier_depends()	do {} while(0)
 #define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
 
