@@ -659,7 +659,8 @@ static void rt73usb_activity_led(struct rt2x00_dev *rt2x00dev, int rssi)
 /*
  * Link tuning
  */
-static void rt73usb_link_stats(struct rt2x00_dev *rt2x00dev)
+static void rt73usb_link_stats(struct rt2x00_dev *rt2x00dev,
+			       struct link_qual *qual)
 {
 	u32 reg;
 
@@ -667,15 +668,13 @@ static void rt73usb_link_stats(struct rt2x00_dev *rt2x00dev)
 	 * Update FCS error count from register.
 	 */
 	rt73usb_register_read(rt2x00dev, STA_CSR0, &reg);
-	rt2x00dev->link.rx_failed = rt2x00_get_field32(reg, STA_CSR0_FCS_ERROR);
+	qual->rx_failed = rt2x00_get_field32(reg, STA_CSR0_FCS_ERROR);
 
 	/*
 	 * Update False CCA count from register.
 	 */
 	rt73usb_register_read(rt2x00dev, STA_CSR1, &reg);
-	reg = rt2x00_get_field32(reg, STA_CSR1_FALSE_CCA_ERROR);
-	rt2x00dev->link.false_cca =
-	    rt2x00_get_field32(reg, STA_CSR1_FALSE_CCA_ERROR);
+	qual->false_cca = rt2x00_get_field32(reg, STA_CSR1_FALSE_CCA_ERROR);
 }
 
 static void rt73usb_reset_tuner(struct rt2x00_dev *rt2x00dev)
@@ -781,12 +780,12 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * r17 does not yet exceed upper limit, continue and base
 	 * the r17 tuning on the false CCA count.
 	 */
-	if (rt2x00dev->link.false_cca > 512 && r17 < up_bound) {
+	if (rt2x00dev->link.qual.false_cca > 512 && r17 < up_bound) {
 		r17 += 4;
 		if (r17 > up_bound)
 			r17 = up_bound;
 		rt73usb_bbp_write(rt2x00dev, 17, r17);
-	} else if (rt2x00dev->link.false_cca < 100 && r17 > low_bound) {
+	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > low_bound) {
 		r17 -= 4;
 		if (r17 < low_bound)
 			r17 = low_bound;

@@ -180,18 +180,9 @@ struct rf_channel {
 };
 
 /*
- * To optimize the quality of the link we need to store
- * the quality of received frames and periodically
- * optimize the link.
+ * Quality statistics about the currently active link.
  */
-struct link {
-	/*
-	 * Link tuner counter
-	 * The number of times the link has been tuned
-	 * since the radio has been switched on.
-	 */
-	u32 count;
-
+struct link_qual {
 	/*
 	 * Statistics required for Link tuning.
 	 * For the average RSSI value we use the "Walking average" approach.
@@ -211,7 +202,6 @@ struct link {
 	 * the new values correctly allowing a effective link tuning.
 	 */
 	int avg_rssi;
-	int vgc_level;
 	int false_cca;
 
 	/*
@@ -240,6 +230,30 @@ struct link {
 #define WEIGHT_RSSI	20
 #define WEIGHT_RX	40
 #define WEIGHT_TX	40
+};
+
+/*
+ * To optimize the quality of the link we need to store
+ * the quality of received frames and periodically
+ * optimize the link.
+ */
+struct link {
+	/*
+	 * Link tuner counter
+	 * The number of times the link has been tuned
+	 * since the radio has been switched on.
+	 */
+	u32 count;
+
+	/*
+	 * Quality measurement values.
+	 */
+	struct link_qual qual;
+
+	/*
+	 * Active VGC level
+	 */
+	int vgc_level;
 
 	/*
 	 * Work structure for scheduling periodic link tuning.
@@ -249,25 +263,25 @@ struct link {
 
 /*
  * Clear all counters inside the link structure.
- * This can be easiest achieved by memsetting everything
- * except for the work structure at the end.
  */
 static inline void rt2x00_clear_link(struct link *link)
 {
-	memset(link, 0x00, sizeof(*link) - sizeof(link->work));
-	link->rx_percentage = 50;
-	link->tx_percentage = 50;
+	link->count = 0;
+	memset(&link->qual, 0, sizeof(link->qual));
+	link->qual.rx_percentage = 50;
+	link->qual.tx_percentage = 50;
 }
+
 
 /*
  * Update the rssi using the walking average approach.
  */
 static inline void rt2x00_update_link_rssi(struct link *link, int rssi)
 {
-	if (!link->avg_rssi)
-		link->avg_rssi = rssi;
+	if (!link->qual.avg_rssi)
+		link->qual.avg_rssi = rssi;
 	else
-		link->avg_rssi = ((link->avg_rssi * 7) + rssi) / 8;
+		link->qual.avg_rssi = ((link->qual.avg_rssi * 7) + rssi) / 8;
 }
 
 /*
@@ -277,7 +291,9 @@ static inline void rt2x00_update_link_rssi(struct link *link, int rssi)
  */
 static inline int rt2x00_get_link_rssi(struct link *link)
 {
-	return (link->avg_rssi && link->rx_success) ? link->avg_rssi : -128;
+	if (link->qual.avg_rssi && link->qual.rx_success)
+		return link->qual.avg_rssi;
+	return -128;
 }
 
 /*
@@ -402,7 +418,8 @@ struct rt2x00lib_ops {
 	int (*set_device_state) (struct rt2x00_dev *rt2x00dev,
 				 enum dev_state state);
 	int (*rfkill_poll) (struct rt2x00_dev *rt2x00dev);
-	void (*link_stats) (struct rt2x00_dev *rt2x00dev);
+	void (*link_stats) (struct rt2x00_dev *rt2x00dev,
+			    struct link_qual *qual);
 	void (*reset_tuner) (struct rt2x00_dev *rt2x00dev);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev);
 

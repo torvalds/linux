@@ -535,7 +535,8 @@ static void rt2500usb_disable_led(struct rt2x00_dev *rt2x00dev)
 /*
  * Link tuning
  */
-static void rt2500usb_link_stats(struct rt2x00_dev *rt2x00dev)
+static void rt2500usb_link_stats(struct rt2x00_dev *rt2x00dev,
+				 struct link_qual *qual)
 {
 	u16 reg;
 
@@ -543,14 +544,13 @@ static void rt2500usb_link_stats(struct rt2x00_dev *rt2x00dev)
 	 * Update FCS error count from register.
 	 */
 	rt2500usb_register_read(rt2x00dev, STA_CSR0, &reg);
-	rt2x00dev->link.rx_failed = rt2x00_get_field16(reg, STA_CSR0_FCS_ERROR);
+	qual->rx_failed = rt2x00_get_field16(reg, STA_CSR0_FCS_ERROR);
 
 	/*
 	 * Update False CCA count from register.
 	 */
 	rt2500usb_register_read(rt2x00dev, STA_CSR3, &reg);
-	rt2x00dev->link.false_cca =
-	    rt2x00_get_field16(reg, STA_CSR3_FALSE_CCA_ERROR);
+	qual->false_cca = rt2x00_get_field16(reg, STA_CSR3_FALSE_CCA_ERROR);
 }
 
 static void rt2500usb_reset_tuner(struct rt2x00_dev *rt2x00dev)
@@ -673,10 +673,10 @@ static void rt2500usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	if (r17 > up_bound) {
 		rt2500usb_bbp_write(rt2x00dev, 17, up_bound);
 		rt2x00dev->link.vgc_level = up_bound;
-	} else if (rt2x00dev->link.false_cca > 512 && r17 < up_bound) {
+	} else if (rt2x00dev->link.qual.false_cca > 512 && r17 < up_bound) {
 		rt2500usb_bbp_write(rt2x00dev, 17, ++r17);
 		rt2x00dev->link.vgc_level = r17;
-	} else if (rt2x00dev->link.false_cca < 100 && r17 > low_bound) {
+	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > low_bound) {
 		rt2500usb_bbp_write(rt2x00dev, 17, --r17);
 		rt2x00dev->link.vgc_level = r17;
 	}

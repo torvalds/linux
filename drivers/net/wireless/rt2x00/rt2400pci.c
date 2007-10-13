@@ -542,7 +542,8 @@ static void rt2400pci_disable_led(struct rt2x00_dev *rt2x00dev)
 /*
  * Link tuning
  */
-static void rt2400pci_link_stats(struct rt2x00_dev *rt2x00dev)
+static void rt2400pci_link_stats(struct rt2x00_dev *rt2x00dev,
+				 struct link_qual *qual)
 {
 	u32 reg;
 	u8 bbp;
@@ -551,13 +552,13 @@ static void rt2400pci_link_stats(struct rt2x00_dev *rt2x00dev)
 	 * Update FCS error count from register.
 	 */
 	rt2x00pci_register_read(rt2x00dev, CNT0, &reg);
-	rt2x00dev->link.rx_failed = rt2x00_get_field32(reg, CNT0_FCS_ERROR);
+	qual->rx_failed = rt2x00_get_field32(reg, CNT0_FCS_ERROR);
 
 	/*
 	 * Update False CCA count from register.
 	 */
 	rt2400pci_bbp_read(rt2x00dev, 39, &bbp);
-	rt2x00dev->link.false_cca = bbp;
+	qual->false_cca = bbp;
 }
 
 static void rt2400pci_reset_tuner(struct rt2x00_dev *rt2x00dev)
@@ -582,10 +583,10 @@ static void rt2400pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2400pci_bbp_read(rt2x00dev, 13, &reg);
 
-	if (rt2x00dev->link.false_cca > 512 && reg < 0x20) {
+	if (rt2x00dev->link.qual.false_cca > 512 && reg < 0x20) {
 		rt2400pci_bbp_write(rt2x00dev, 13, ++reg);
 		rt2x00dev->link.vgc_level = reg;
-	} else if (rt2x00dev->link.false_cca < 100 && reg > 0x08) {
+	} else if (rt2x00dev->link.qual.false_cca < 100 && reg > 0x08) {
 		rt2400pci_bbp_write(rt2x00dev, 13, --reg);
 		rt2x00dev->link.vgc_level = reg;
 	}

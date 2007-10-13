@@ -587,7 +587,8 @@ static void rt2500pci_disable_led(struct rt2x00_dev *rt2x00dev)
 /*
  * Link tuning
  */
-static void rt2500pci_link_stats(struct rt2x00_dev *rt2x00dev)
+static void rt2500pci_link_stats(struct rt2x00_dev *rt2x00dev,
+				 struct link_qual *qual)
 {
 	u32 reg;
 
@@ -595,13 +596,13 @@ static void rt2500pci_link_stats(struct rt2x00_dev *rt2x00dev)
 	 * Update FCS error count from register.
 	 */
 	rt2x00pci_register_read(rt2x00dev, CNT0, &reg);
-	rt2x00dev->link.rx_failed = rt2x00_get_field32(reg, CNT0_FCS_ERROR);
+	qual->rx_failed = rt2x00_get_field32(reg, CNT0_FCS_ERROR);
 
 	/*
 	 * Update False CCA count from register.
 	 */
 	rt2x00pci_register_read(rt2x00dev, CNT3, &reg);
-	rt2x00dev->link.false_cca = rt2x00_get_field32(reg, CNT3_FALSE_CCA);
+	qual->false_cca = rt2x00_get_field32(reg, CNT3_FALSE_CCA);
 }
 
 static void rt2500pci_reset_tuner(struct rt2x00_dev *rt2x00dev)
@@ -679,10 +680,10 @@ dynamic_cca_tune:
 	 * R17 is inside the dynamic tuning range,
 	 * start tuning the link based on the false cca counter.
 	 */
-	if (rt2x00dev->link.false_cca > 512 && r17 < 0x40) {
+	if (rt2x00dev->link.qual.false_cca > 512 && r17 < 0x40) {
 		rt2500pci_bbp_write(rt2x00dev, 17, ++r17);
 		rt2x00dev->link.vgc_level = r17;
-	} else if (rt2x00dev->link.false_cca < 100 && r17 > 0x32) {
+	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > 0x32) {
 		rt2500pci_bbp_write(rt2x00dev, 17, --r17);
 		rt2x00dev->link.vgc_level = r17;
 	}

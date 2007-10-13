@@ -179,26 +179,26 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 		rt2x00lib_start_link_tuner(rt2x00dev);
 }
 
-static void rt2x00lib_precalculate_link_signal(struct link *link)
+static void rt2x00lib_precalculate_link_signal(struct link_qual *qual)
 {
-	if (link->rx_failed || link->rx_success)
-		link->rx_percentage =
-		    (link->rx_success * 100) /
-		    (link->rx_failed + link->rx_success);
+	if (qual->rx_failed || qual->rx_success)
+		qual->rx_percentage =
+		    (qual->rx_success * 100) /
+		    (qual->rx_failed + qual->rx_success);
 	else
-		link->rx_percentage = 50;
+		qual->rx_percentage = 50;
 
-	if (link->tx_failed || link->tx_success)
-		link->tx_percentage =
-		    (link->tx_success * 100) /
-		    (link->tx_failed + link->tx_success);
+	if (qual->tx_failed || qual->tx_success)
+		qual->tx_percentage =
+		    (qual->tx_success * 100) /
+		    (qual->tx_failed + qual->tx_success);
 	else
-		link->tx_percentage = 50;
+		qual->tx_percentage = 50;
 
-	link->rx_success = 0;
-	link->rx_failed = 0;
-	link->tx_success = 0;
-	link->tx_failed = 0;
+	qual->rx_success = 0;
+	qual->rx_failed = 0;
+	qual->tx_success = 0;
+	qual->tx_failed = 0;
 }
 
 static int rt2x00lib_calculate_link_signal(struct rt2x00_dev *rt2x00dev,
@@ -225,8 +225,8 @@ static int rt2x00lib_calculate_link_signal(struct rt2x00_dev *rt2x00dev,
 	 * defines to calculate the current link signal.
 	 */
 	signal = ((WEIGHT_RSSI * rssi_percentage) +
-		  (WEIGHT_TX * rt2x00dev->link.tx_percentage) +
-		  (WEIGHT_RX * rt2x00dev->link.rx_percentage)) / 100;
+		  (WEIGHT_TX * rt2x00dev->link.qual.tx_percentage) +
+		  (WEIGHT_RX * rt2x00dev->link.qual.rx_percentage)) / 100;
 
 	return (signal > 100) ? 100 : signal;
 }
@@ -246,10 +246,10 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	/*
 	 * Update statistics.
 	 */
-	rt2x00dev->ops->lib->link_stats(rt2x00dev);
+	rt2x00dev->ops->lib->link_stats(rt2x00dev, &rt2x00dev->link.qual);
 
 	rt2x00dev->low_level_stats.dot11FCSErrorCount +=
-	    rt2x00dev->link.rx_failed;
+	    rt2x00dev->link.qual.rx_failed;
 
 	/*
 	 * Only perform the link tuning when Link tuning
@@ -262,7 +262,7 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	 * Precalculate a portion of the link signal which is
 	 * in based on the tx/rx success/failure counters.
 	 */
-	rt2x00lib_precalculate_link_signal(&rt2x00dev->link);
+	rt2x00lib_precalculate_link_signal(&rt2x00dev->link.qual);
 
 	/*
 	 * Increase tuner counter, and reschedule the next link tuner run.
@@ -350,8 +350,8 @@ void rt2x00lib_txdone(struct data_entry *entry,
 	tx_status->ack_signal = 0;
 	tx_status->excessive_retries = (status == TX_FAIL_RETRY);
 	tx_status->retry_count = retry;
-	rt2x00dev->link.tx_success += success;
-	rt2x00dev->link.tx_failed += retry + fail;
+	rt2x00dev->link.qual.tx_success += success;
+	rt2x00dev->link.qual.tx_failed += retry + fail;
 
 	if (!(tx_status->control.flags & IEEE80211_TXCTL_NO_ACK)) {
 		if (success)
@@ -413,7 +413,7 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 	}
 
 	rt2x00_update_link_rssi(&rt2x00dev->link, desc->rssi);
-	rt2x00dev->link.rx_success++;
+	rt2x00dev->link.qual.rx_success++;
 	rx_status->rate = val;
 	rx_status->signal =
 	    rt2x00lib_calculate_link_signal(rt2x00dev, desc->rssi);
