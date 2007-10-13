@@ -1088,7 +1088,7 @@ setup_elsa_pci(struct IsdnCard *card)
 
 #else
 
-static void __devinit
+static int __devinit
 setup_elsa_pci(struct IsdnCard *card)
 {
 	return (1);
