@@ -749,7 +749,9 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 		nr_very_dirty++;
 		if (nr_very_dirty == c->vdirty_blocks_gctrigger) {
 			ret = 1;
-			D1(break);
+			/* In debug mode, actually go through and count them all */
+			D1(continue);
+			break;
 		}
 	}
 
