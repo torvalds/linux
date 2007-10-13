@@ -262,11 +262,6 @@ struct pcmcia_device_id {
 #define PCMCIA_DEV_ID_MATCH_FAKE_CIS	0x0200
 #define PCMCIA_DEV_ID_MATCH_ANONYMOUS	0x0400
 
-/* I2C */
-struct i2c_device_id {
-	__u16 id;
-};
-
 /* Input */
 #define INPUT_DEVICE_ID_EV_MAX		0x1f
 #define INPUT_DEVICE_ID_KEY_MIN_INTERESTING	0x71

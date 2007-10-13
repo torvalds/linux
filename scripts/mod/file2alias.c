@@ -396,13 +396,6 @@ static int do_vio_entry(const char *filename, struct vio_device_id *vio,
 	return 1;
 }
 
-static int do_i2c_entry(const char *filename, struct i2c_device_id *i2c, char *alias)
-{
-	strcpy(alias, "i2c:");
-	ADD(alias, "id", 1, i2c->id);
-	return 1;
-}
-
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 static void do_input(char *alias,
@@ -613,10 +606,6 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct vio_device_id), "vio",
 			 do_vio_entry, mod);
-	else if (sym_is(symname, "__mod_i2c_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct i2c_device_id), "i2c",
-			 do_i2c_entry, mod);
 	else if (sym_is(symname, "__mod_input_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct input_device_id), "input",
