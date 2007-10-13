@@ -1671,108 +1671,19 @@ pmac_ide_destroy_dmatable (ide_drive_t *drive)
 }
 
 /*
- * Pick up best MDMA timing for the drive and apply it
- */
-static int
-pmac_ide_mdma_enable(ide_drive_t *drive, u16 mode)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)hwif->hwif_data;
-	u32 *timings, *timings2;
-	u32 timing_local[2];
-	int ret;
-
-	/* which drive is it ? */
-	timings = &pmif->timings[drive->select.b.unit & 0x01];
-	timings2 = &pmif->timings[(drive->select.b.unit & 0x01) + 2];
-
-	/* Copy timings to local image */
-	timing_local[0] = *timings;
-	timing_local[1] = *timings2;
-
-	/* Calculate controller timings */
-	set_timings_mdma(drive, pmif->kind, &timing_local[0], &timing_local[1], mode);
-
-	/* Set feature on drive */
-    	printk(KERN_INFO "%s: Enabling MultiWord DMA %d\n", drive->name, mode & 0xf);
-	ret = pmac_ide_do_setfeature(drive, mode);
-	if (ret) {
-	    	printk(KERN_WARNING "%s: Failed !\n", drive->name);
-	    	return 0;
-	}
-
-	/* Apply timings to controller */
-	*timings = timing_local[0];
-	*timings2 = timing_local[1];
-
-	return 1;
-}
-
-/*
- * Pick up best UDMA timing for the drive and apply it
- */
-static int
-pmac_ide_udma_enable(ide_drive_t *drive, u16 mode)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)hwif->hwif_data;
-	u32 *timings, *timings2;
-	u32 timing_local[2];
-	int ret;
-		
-	/* which drive is it ? */
-	timings = &pmif->timings[drive->select.b.unit & 0x01];
-	timings2 = &pmif->timings[(drive->select.b.unit & 0x01) + 2];
-
-	/* Copy timings to local image */
-	timing_local[0] = *timings;
-	timing_local[1] = *timings2;
-	
-	/* Calculate timings for interface */
-	if (pmif->kind == controller_un_ata6
-	    || pmif->kind == controller_k2_ata6)
-		ret = set_timings_udma_ata6(	&timing_local[0],
-						&timing_local[1],
-						mode);
-	else if (pmif->kind == controller_sh_ata6)
-		ret = set_timings_udma_shasta(	&timing_local[0],
-						&timing_local[1],
-						mode);
-	else
-		ret = set_timings_udma_ata4(&timing_local[0], mode);
-	if (ret)
-		return 0;
-		
-	/* Set feature on drive */
-    	printk(KERN_INFO "%s: Enabling Ultra DMA %d\n", drive->name, mode & 0x0f);
-	ret = pmac_ide_do_setfeature(drive, mode);
-	if (ret) {
-		printk(KERN_WARNING "%s: Failed !\n", drive->name);
-		return 0;
-	}
-
-	/* Apply timings to controller */
-	*timings = timing_local[0];
-	*timings2 = timing_local[1];
-
-	return 1;
-}
-
-/*
  * Check what is the best DMA timing setting for the drive and
  * call appropriate functions to apply it.
  */
 static int
 pmac_ide_dma_check(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
-	ide_hwif_t *hwif = HWIF(drive);
 	int enable = 1;
+
 	drive->using_dma = 0;
 	
 	if (drive->media == ide_floppy)
 		enable = 0;
-	if (((id->capability & 1) == 0) && !__ide_dma_good_drive(drive))
+	if ((drive->id->capability & 1) == 0 && !__ide_dma_good_drive(drive))
 		enable = 0;
 	if (__ide_dma_bad_drive(drive))
 		enable = 0;
@@ -1780,13 +1691,8 @@ pmac_ide_dma_check(ide_drive_t *drive)
 	if (enable) {
 		u8 mode = ide_max_dma_mode(drive);
 
-		if (mode >= XFER_UDMA_0)
-			drive->using_dma = pmac_ide_udma_enable(drive, mode);
-		else if (mode >= XFER_MW_DMA_0)
-			drive->using_dma = pmac_ide_mdma_enable(drive, mode);
-
-		/* Apply settings to controller */
-		pmac_ide_do_update_timings(drive);
+		if (mode && pmac_ide_tune_chipset(drive, mode) == 0)
+			drive->using_dma = 1;
 	}
 	return 0;
 }
