@@ -35,8 +35,6 @@
 #include <linux/sched.h>	/* for completion */
 #include <linux/mutex.h>
 
-extern struct bus_type i2c_bus_type;
-
 /* --- General options ------------------------------------------------	*/
 
 struct i2c_msg;
