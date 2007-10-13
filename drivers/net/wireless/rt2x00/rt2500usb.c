@@ -517,18 +517,10 @@ static void rt2500usb_enable_led(struct rt2x00_dev *rt2x00dev)
 	rt2500usb_register_write(rt2x00dev, MAC_CSR21, reg);
 
 	rt2500usb_register_read(rt2x00dev, MAC_CSR20, &reg);
-
-	if (rt2x00dev->led_mode == LED_MODE_TXRX_ACTIVITY) {
-		rt2x00_set_field16(&reg, MAC_CSR20_LINK, 1);
-		rt2x00_set_field16(&reg, MAC_CSR20_ACTIVITY, 0);
-	} else if (rt2x00dev->led_mode == LED_MODE_ASUS) {
-		rt2x00_set_field16(&reg, MAC_CSR20_LINK, 0);
-		rt2x00_set_field16(&reg, MAC_CSR20_ACTIVITY, 1);
-	} else {
-		rt2x00_set_field16(&reg, MAC_CSR20_LINK, 1);
-		rt2x00_set_field16(&reg, MAC_CSR20_ACTIVITY, 1);
-	}
-
+	rt2x00_set_field16(&reg, MAC_CSR20_LINK,
+			   (rt2x00dev->led_mode != LED_MODE_ASUS));
+	rt2x00_set_field16(&reg, MAC_CSR20_ACTIVITY,
+			   (rt2x00dev->led_mode != LED_MODE_TXRX_ACTIVITY));
 	rt2500usb_register_write(rt2x00dev, MAC_CSR20, reg);
 }
 
@@ -765,9 +757,11 @@ static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_rev(&rt2x00dev->chip) >= RT2570_VERSION_C) {
 		rt2500usb_register_read(rt2x00dev, PHY_CSR2, &reg);
-		reg &= ~0x0002;
+		rt2x00_set_field16(&reg, PHY_CSR2_LNA, 0);
 	} else {
-		reg = 0x3002;
+		reg = 0;
+		rt2x00_set_field16(&reg, PHY_CSR2_LNA, 1);
+		rt2x00_set_field16(&reg, PHY_CSR2_LNA_MODE, 3);
 	}
 	rt2500usb_register_write(rt2x00dev, PHY_CSR2, reg);
 

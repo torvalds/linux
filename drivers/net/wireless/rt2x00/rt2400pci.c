@@ -524,18 +524,10 @@ static void rt2400pci_enable_led(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00_set_field32(&reg, LEDCSR_ON_PERIOD, 70);
 	rt2x00_set_field32(&reg, LEDCSR_OFF_PERIOD, 30);
-
-	if (rt2x00dev->led_mode == LED_MODE_TXRX_ACTIVITY) {
-		rt2x00_set_field32(&reg, LEDCSR_LINK, 1);
-		rt2x00_set_field32(&reg, LEDCSR_ACTIVITY, 0);
-	} else if (rt2x00dev->led_mode == LED_MODE_ASUS) {
-		rt2x00_set_field32(&reg, LEDCSR_LINK, 0);
-		rt2x00_set_field32(&reg, LEDCSR_ACTIVITY, 1);
-	} else {
-		rt2x00_set_field32(&reg, LEDCSR_LINK, 1);
-		rt2x00_set_field32(&reg, LEDCSR_ACTIVITY, 1);
-	}
-
+	rt2x00_set_field32(&reg, LEDCSR_LINK,
+			   (rt2x00dev->led_mode != LED_MODE_ASUS));
+	rt2x00_set_field32(&reg, LEDCSR_ACTIVITY,
+			   (rt2x00dev->led_mode != LED_MODE_TXRX_ACTIVITY));
 	rt2x00pci_register_write(rt2x00dev, LEDCSR, reg);
 }
 
@@ -1110,12 +1102,12 @@ static void rt2400pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	}
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
-	if (queue == IEEE80211_TX_QUEUE_DATA0)
-		rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO, 1);
-	else if (queue == IEEE80211_TX_QUEUE_DATA1)
-		rt2x00_set_field32(&reg, TXCSR0_KICK_TX, 1);
-	else if (queue == IEEE80211_TX_QUEUE_AFTER_BEACON)
-		rt2x00_set_field32(&reg, TXCSR0_KICK_ATIM, 1);
+	rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO,
+			   (queue == IEEE80211_TX_QUEUE_DATA0));
+	rt2x00_set_field32(&reg, TXCSR0_KICK_TX,
+			   (queue == IEEE80211_TX_QUEUE_DATA1));
+	rt2x00_set_field32(&reg, TXCSR0_KICK_ATIM,
+			   (queue == IEEE80211_TX_QUEUE_AFTER_BEACON));
 	rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
 }
 

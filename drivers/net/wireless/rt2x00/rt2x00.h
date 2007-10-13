@@ -133,20 +133,20 @@
  */
 static inline int is_rts_frame(u16 fc)
 {
-	return !!(((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
-		  ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_RTS));
+	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
+		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_RTS));
 }
 
 static inline int is_cts_frame(u16 fc)
 {
-	return !!(((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
-		  ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_CTS));
+	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
+		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_CTS));
 }
 
 static inline int is_probe_resp(u16 fc)
 {
-	return !!(((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) &&
-		  ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP));
+	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) &&
+		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP));
 }
 
 /*

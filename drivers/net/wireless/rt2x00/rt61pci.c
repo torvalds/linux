@@ -428,7 +428,7 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
-				  !!(rt2x00dev->curr_hwmode != HWMODE_A));
+				  (rt2x00dev->curr_hwmode != HWMODE_A));
 		break;
 	case ANTENNA_A:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
@@ -646,16 +646,16 @@ static void rt61pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00dev->curr_hwmode == HWMODE_A) {
 		sel = antenna_sel_a;
 		lna = test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
-
-		rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG, 0);
-		rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A, 1);
 	} else {
 		sel = antenna_sel_bg;
 		lna = test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
-
-		rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG, 1);
-		rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A, 0);
 	}
+
+	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG,
+			   (rt2x00dev->curr_hwmode == HWMODE_B ||
+			    rt2x00dev->curr_hwmode == HWMODE_G));
+	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A,
+			   (rt2x00dev->curr_hwmode == HWMODE_A));
 
 	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
 		rt61pci_bbp_write(rt2x00dev, sel[i].word, sel[i].value[lna]);
@@ -727,7 +727,6 @@ static void rt61pci_config(struct rt2x00_dev *rt2x00dev,
 static void rt61pci_enable_led(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
-	u16 led_reg;
 	u8 arg0;
 	u8 arg1;
 
@@ -736,15 +735,14 @@ static void rt61pci_enable_led(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, MAC_CSR14_OFF_PERIOD, 30);
 	rt2x00pci_register_write(rt2x00dev, MAC_CSR14, reg);
 
-	led_reg = rt2x00dev->led_reg;
-	rt2x00_set_field16(&led_reg, MCU_LEDCS_RADIO_STATUS, 1);
-	if (rt2x00dev->rx_status.phymode == MODE_IEEE80211A)
-		rt2x00_set_field16(&led_reg, MCU_LEDCS_LINK_A_STATUS, 1);
-	else
-		rt2x00_set_field16(&led_reg, MCU_LEDCS_LINK_BG_STATUS, 1);
+	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_RADIO_STATUS, 1);
+	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_A_STATUS,
+			   (rt2x00dev->rx_status.phymode == MODE_IEEE80211A));
+	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_BG_STATUS,
+			   (rt2x00dev->rx_status.phymode != MODE_IEEE80211A));
 
-	arg0 = led_reg & 0xff;
-	arg1 = (led_reg >> 8) & 0xff;
+	arg0 = rt2x00dev->led_reg & 0xff;
+	arg1 = (rt2x00dev->led_reg >> 8) & 0xff;
 
 	rt61pci_mcu_request(rt2x00dev, MCU_LED, 0xff, arg0, arg1);
 }
@@ -1655,16 +1653,16 @@ static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	}
 
 	rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
-	if (queue == IEEE80211_TX_QUEUE_DATA0)
-		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC0, 1);
-	else if (queue == IEEE80211_TX_QUEUE_DATA1)
-		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC1, 1);
-	else if (queue == IEEE80211_TX_QUEUE_DATA2)
-		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC2, 1);
-	else if (queue == IEEE80211_TX_QUEUE_DATA3)
-		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3, 1);
-	else if (queue == IEEE80211_TX_QUEUE_DATA4)
-		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_MGMT, 1);
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC0,
+			   (queue == IEEE80211_TX_QUEUE_DATA0));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC1,
+			   (queue == IEEE80211_TX_QUEUE_DATA1));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC2,
+			   (queue == IEEE80211_TX_QUEUE_DATA2));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3,
+			   (queue == IEEE80211_TX_QUEUE_DATA3));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_MGMT,
+			   (queue == IEEE80211_TX_QUEUE_DATA4));
 	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 }
 

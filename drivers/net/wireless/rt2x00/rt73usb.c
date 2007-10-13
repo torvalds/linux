@@ -200,8 +200,8 @@ rf_write:
 	 * all others contain 20 bits.
 	 */
 	rt2x00_set_field32(&reg, PHY_CSR4_NUMBER_OF_BITS,
-			   20 + !!(rt2x00_rf(&rt2x00dev->chip, RF5225) ||
-				   rt2x00_rf(&rt2x00dev->chip, RF2527)));
+			   20 + (rt2x00_rf(&rt2x00dev->chip, RF5225) ||
+				 rt2x00_rf(&rt2x00dev->chip, RF2527)));
 	rt2x00_set_field32(&reg, PHY_CSR4_IF_SELECT, 0);
 	rt2x00_set_field32(&reg, PHY_CSR4_BUSY, 1);
 
@@ -412,7 +412,7 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
-				  !!(rt2x00dev->curr_hwmode != HWMODE_A));
+				  (rt2x00dev->curr_hwmode != HWMODE_A));
 		break;
 	case ANTENNA_A:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
@@ -531,16 +531,16 @@ static void rt73usb_config_antenna(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00dev->curr_hwmode == HWMODE_A) {
 		sel = antenna_sel_a;
 		lna = test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
-
-		rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG, 0);
-		rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A, 1);
 	} else {
 		sel = antenna_sel_bg;
 		lna = test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
-
-		rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG, 1);
-		rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A, 0);
 	}
+
+	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG,
+			   (rt2x00dev->curr_hwmode == HWMODE_B ||
+			    rt2x00dev->curr_hwmode == HWMODE_G));
+	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A,
+			   (rt2x00dev->curr_hwmode == HWMODE_A));
 
 	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
 		rt73usb_bbp_write(rt2x00dev, sel[i].word, sel[i].value[lna]);
@@ -614,12 +614,10 @@ static void rt73usb_enable_led(struct rt2x00_dev *rt2x00dev)
 	rt73usb_register_write(rt2x00dev, MAC_CSR14, reg);
 
 	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_RADIO_STATUS, 1);
-	if (rt2x00dev->rx_status.phymode == MODE_IEEE80211A)
-		rt2x00_set_field16(&rt2x00dev->led_reg,
-				   MCU_LEDCS_LINK_A_STATUS, 1);
-	else
-		rt2x00_set_field16(&rt2x00dev->led_reg,
-				   MCU_LEDCS_LINK_BG_STATUS, 1);
+	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_A_STATUS,
+			   (rt2x00dev->rx_status.phymode == MODE_IEEE80211A));
+	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_BG_STATUS,
+			   (rt2x00dev->rx_status.phymode != MODE_IEEE80211A));
 
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_LED_CONTROL, 0x0000,
 				    rt2x00dev->led_reg, REGISTER_TIMEOUT);
