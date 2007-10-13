@@ -154,7 +154,7 @@ int64_t cfe_getticks(void);
 #define cfe_readblk(a, b, c, d)		__cfe_readblk(a, b, c, d)
 #define cfe_setenv(a, b)		__cfe_setenv(a, b)
 #define cfe_write(a, b, c)		__cfe_write(a, b, c)
-#define cfe_writeblk(a, b, c, d		__cfe_writeblk(a, b, c, d)
+#define cfe_writeblk(a, b, c, d)	__cfe_writeblk(a, b, c, d)
 #endif				/* CFE_API_IMPL_NAMESPACE */
 
 int cfe_close(int handle);
