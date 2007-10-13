@@ -11,6 +11,7 @@
 #include "ssb_private.h"
 
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_regs.h>
 #include <linux/dma-mapping.h>
