@@ -289,7 +289,7 @@ static void jffs2_calc_trigger_levels(struct jffs2_sb_info *c)
 	   trigger the GC thread even if we don't _need_ the space. When we
 	   can't mark nodes obsolete on the medium, the old dirty nodes cause
 	   performance problems because we have to inspect and discard them. */
-	c->vdirty_blocks_gctrigger = c->resv_blocks_gcmerge;
+	c->vdirty_blocks_gctrigger = c->resv_blocks_gctrigger;
 	if (jffs2_can_mark_obsolete(c))
 		c->vdirty_blocks_gctrigger *= 10;
 
