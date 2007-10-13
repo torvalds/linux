@@ -1296,7 +1296,6 @@ int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 int __ide_dma_bad_drive(ide_drive_t *);
-int __ide_dma_good_drive(ide_drive_t *);
 
 u8 ide_find_dma_mode(ide_drive_t *, u8);
 

@@ -313,41 +313,10 @@ static int icside_dma_on(ide_drive_t *drive)
 
 static int icside_dma_check(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
-	ide_hwif_t *hwif = HWIF(drive);
-	int xfer_mode = 0;
+	if (ide_tune_dma(drive))
+		return 0;
 
-	if (!(id->capability & 1) || !hwif->autodma)
-		goto out;
-
-	/*
-	 * Consult the list of known "bad" drives
-	 */
-	if (__ide_dma_bad_drive(drive))
-		goto out;
-
-	/*
-	 * Enable DMA on any drive that has multiword DMA
-	 */
-	if (id->field_valid & 2) {
-		xfer_mode = ide_max_dma_mode(drive);
-		goto out;
-	}
-
-	/*
-	 * Consult the list of known "good" drives
-	 */
-	if (__ide_dma_good_drive(drive)) {
-		if (id->eide_dma_time > 150)
-			goto out;
-		xfer_mode = XFER_MW_DMA_1;
-	}
-
-out:
-	if (xfer_mode == 0)
-		return -1;
-
-	return icside_set_speed(drive, xfer_mode) ? -1 : 0;
+	return -1;
 }
 
 static int icside_dma_end(ide_drive_t *drive)
