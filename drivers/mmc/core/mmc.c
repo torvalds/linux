@@ -213,7 +213,8 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 		printk(KERN_ERR "%s: unrecognised EXT_CSD structure "
 			"version %d\n", mmc_hostname(card->host),
 			ext_csd_struct);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
 	if (ext_csd_struct >= 2) {
