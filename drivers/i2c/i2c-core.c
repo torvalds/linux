@@ -931,28 +931,6 @@ int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
 }
 EXPORT_SYMBOL(i2c_master_recv);
 
-int i2c_control(struct i2c_client *client,
-	unsigned int cmd, unsigned long arg)
-{
-	int ret = 0;
-	struct i2c_adapter *adap = client->adapter;
-
-	dev_dbg(&client->adapter->dev, "i2c ioctl, cmd: 0x%x, arg: %#lx\n", cmd, arg);
-	switch (cmd) {
-		case I2C_RETRIES:
-			adap->retries = arg;
-			break;
-		case I2C_TIMEOUT:
-			adap->timeout = arg;
-			break;
-		default:
-			if (adap->algo->algo_control!=NULL)
-				ret = adap->algo->algo_control(adap,cmd,arg);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(i2c_control);
-
 /* ----------------------------------------------------
  * the i2c address scanning function
  * Will not work for 10-bit addresses!

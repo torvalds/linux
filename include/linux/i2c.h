@@ -290,9 +290,6 @@ struct i2c_algorithm {
 	                   unsigned short flags, char read_write,
 	                   u8 command, int size, union i2c_smbus_data * data);
 
-	/* --- ioctl like call to set div. parameters. */
-	int (*algo_control)(struct i2c_adapter *, unsigned int, unsigned long);
-
 	/* To determine what the adapter supports */
 	u32 (*functionality) (struct i2c_adapter *);
 };
@@ -415,10 +412,6 @@ extern int i2c_check_addr (struct i2c_adapter *adapter, int addr);
 extern int i2c_probe(struct i2c_adapter *adapter,
 		struct i2c_client_address_data *address_data,
 		int (*found_proc) (struct i2c_adapter *, int, int));
-
-/* An ioctl like call to set div. parameters of the adapter.
- */
-extern int i2c_control(struct i2c_client *,unsigned int, unsigned long);
 
 extern struct i2c_adapter* i2c_get_adapter(int id);
 extern void i2c_put_adapter(struct i2c_adapter *adap);

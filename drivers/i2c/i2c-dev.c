@@ -354,9 +354,19 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 		}
 		return res;
-
+	case I2C_RETRIES:
+		client->adapter->retries = arg;
+		break;
+	case I2C_TIMEOUT:
+		client->adapter->timeout = arg;
+		break;
 	default:
-		return i2c_control(client,cmd,arg);
+		/* NOTE:  returning a fault code here could cause trouble
+		 * in buggy userspace code.  Some old kernel bugs returned
+		 * zero in this case, and userspace code might accidentally
+		 * have depended on that bug.
+		 */
+		return -ENOTTY;
 	}
 	return 0;
 }
