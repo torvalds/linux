@@ -550,7 +550,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			/*
 			 * Check if we need to set the Length Extension
 			 */
-			if (bitrate == 110 && residual <= 3)
+			if (bitrate == 110 && residual <= 30)
 				desc.service |= 0x80;
 		}
 
