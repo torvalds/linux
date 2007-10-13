@@ -670,7 +670,7 @@ static struct videobuf_qtype_ops pci_ops = {
 	.sync         = __videobuf_sync,
 	.mmap_free    = __videobuf_mmap_free,
 	.mmap_mapper  = __videobuf_mmap_mapper,
-	.copy_to_user = __videobuf_copy_to_user,
+	.video_copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,
 };
 

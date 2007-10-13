@@ -674,7 +674,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	}
 
 	/* Copy to userspace */
-	retval=CALL(q,copy_to_user,q,data,count,nonblocking);
+	retval=CALL(q,video_copy_to_user,q,data,count,nonblocking);
 	if (retval<0)
 		goto done;
 
