@@ -274,7 +274,11 @@ static inline unsigned long get_limit(unsigned long segment)
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
-#define smp_rmb()	rmb()
+#ifdef CONFIG_X86_PPRO_FENCE
+# define smp_rmb()	rmb()
+#else
+# define smp_rmb()	barrier()
+#endif
 #ifdef CONFIG_X86_OOSTORE
 # define smp_wmb() 	wmb()
 #else

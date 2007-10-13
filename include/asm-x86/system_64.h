@@ -141,8 +141,8 @@ static inline void write_cr8(unsigned long val)
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
-#define smp_rmb()	rmb()
-#define smp_wmb()	wmb()
+#define smp_rmb()	barrier()
+#define smp_wmb()	barrier()
 #define smp_read_barrier_depends()	do {} while(0)
 #else
 #define smp_mb()	barrier()
