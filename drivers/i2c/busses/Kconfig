@@ -106,6 +106,19 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 	help
 	  The unit of the TWI clock is kHz.
 
+config I2C_DAVINCI
+	tristate "DaVinci I2C driver"
+	depends on ARCH_DAVINCI
+	help
+	  Support for TI DaVinci I2C controller driver.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-davinci.
+
+	  Please note that this driver might be needed to bring up other
+	  devices such as DaVinci NIC.
+	  For details please see http://www.ti.com/davinci
+
 config I2C_ELEKTOR
 	tristate "Elektor ISA card"
 	depends on ISA && BROKEN_ON_SMP
