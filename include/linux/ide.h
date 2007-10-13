@@ -1153,7 +1153,6 @@ extern void SELECT_MASK(ide_drive_t *, int);
 extern void QUIRK_LIST(ide_drive_t *);
 
 extern int drive_is_ready(ide_drive_t *);
-int __ide_wait_stat(ide_drive_t *, u8, u8, unsigned long);
 
 /*
  * taskfile io for disks for now...and builds request from ide_ioctl
@@ -1253,6 +1252,11 @@ enum {
 	IDE_HFLAG_ABUSE_FAST_DEVSEL	= (1 << 5),
 	/* use 100-102 and 200-202 PIO values to set DMA modes */
 	IDE_HFLAG_ABUSE_DMA_MODES	= (1 << 6),
+	/*
+	 * keep DMA setting when programming PIO mode, may be used only
+	 * for hosts which have separate PIO and DMA timings (ie. PMAC)
+	 */
+	IDE_HFLAG_SET_PIO_MODE_KEEP_DMA	= (1 << 7),
 };
 
 typedef struct ide_pci_device_s {

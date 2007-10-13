@@ -530,81 +530,6 @@ pmac_outbsync(ide_drive_t *drive, u8 value, unsigned long port)
 }
 
 /*
- * Send the SET_FEATURE IDE command to the drive and update drive->id with
- * the new state. We currently don't use the generic routine as it used to
- * cause various trouble, especially with older mediabays.
- * This code is sometimes triggering a spurrious interrupt though, I need
- * to sort that out sooner or later and see if I can finally get the
- * common version to work properly in all cases
- */
-static int
-pmac_ide_do_setfeature(ide_drive_t *drive, u8 command)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-	int result;
-	u8 stat;
-	
-	disable_irq_nosync(hwif->irq);
-	udelay(1);
-	SELECT_DRIVE(drive);
-	SELECT_MASK(drive, 0);
-	udelay(1);
-	hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
-	hwif->OUTB(command, IDE_NSECTOR_REG);
-	hwif->OUTB(SETFEATURES_XFER, IDE_FEATURE_REG);
-	hwif->OUTBSYNC(drive, WIN_SETFEATURES, IDE_COMMAND_REG);
-	result = __ide_wait_stat(drive, drive->ready_stat,
-				 BUSY_STAT|DRQ_STAT|ERR_STAT,
-				 WAIT_CMD, &stat);
-	if (result)
-		printk(KERN_ERR "%s: pmac_ide_do_setfeature disk not ready "
-			"after SET_FEATURE !\n", drive->name);
-
-	SELECT_MASK(drive, 0);
-	if (result == 0) {
-		drive->id->dma_ultra &= ~0xFF00;
-		drive->id->dma_mword &= ~0x0F00;
-		drive->id->dma_1word &= ~0x0F00;
-		switch(command) {
-			case XFER_UDMA_7:
-				drive->id->dma_ultra |= 0x8080; break;
-			case XFER_UDMA_6:
-				drive->id->dma_ultra |= 0x4040; break;
-			case XFER_UDMA_5:
-				drive->id->dma_ultra |= 0x2020; break;
-			case XFER_UDMA_4:
-				drive->id->dma_ultra |= 0x1010; break;
-			case XFER_UDMA_3:
-				drive->id->dma_ultra |= 0x0808; break;
-			case XFER_UDMA_2:
-				drive->id->dma_ultra |= 0x0404; break;
-			case XFER_UDMA_1:
-				drive->id->dma_ultra |= 0x0202; break;
-			case XFER_UDMA_0:
-				drive->id->dma_ultra |= 0x0101; break;
-			case XFER_MW_DMA_2:
-				drive->id->dma_mword |= 0x0404; break;
-			case XFER_MW_DMA_1:
-				drive->id->dma_mword |= 0x0202; break;
-			case XFER_MW_DMA_0:
-				drive->id->dma_mword |= 0x0101; break;
-			case XFER_SW_DMA_2:
-				drive->id->dma_1word |= 0x0404; break;
-			case XFER_SW_DMA_1:
-				drive->id->dma_1word |= 0x0202; break;
-			case XFER_SW_DMA_0:
-				drive->id->dma_1word |= 0x0101; break;
-			default: break;
-		}
-		if (!drive->init_speed)
-			drive->init_speed = command;
-		drive->current_speed = command;
-	}
-	enable_irq(hwif->irq);
-	return result;
-}
-
-/*
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
 static void
@@ -685,7 +610,7 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		drive->name, pio,  *timings);
 #endif	
 
-	if (pmac_ide_do_setfeature(drive, XFER_PIO_0 + pio))
+	if (ide_config_drive_speed(drive, XFER_PIO_0 + pio))
 		return;
 
 	pmac_ide_do_update_timings(drive);
@@ -948,7 +873,7 @@ static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 	if (ret)
 		return ret;
 
-	ret = pmac_ide_do_setfeature(drive, speed);
+	ret = ide_config_drive_speed(drive, speed);
 	if (ret)
 		return ret;
 
@@ -1218,6 +1143,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 	hwif->drives[0].unmask = 1;
 	hwif->drives[1].unmask = 1;
+	hwif->host_flags = IDE_HFLAG_SET_PIO_MODE_KEEP_DMA;
 	hwif->pio_mask = ATA_PIO4;
 	hwif->set_pio_mode = pmac_ide_set_pio_mode;
 	if (pmif->kind == controller_un_ata6
