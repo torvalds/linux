@@ -314,12 +314,6 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 /* ----------------------------------------------------------- */
 
-static int algo_control(struct i2c_adapter *adapter,
-			unsigned int cmd, unsigned long arg)
-{
-	return 0;
-}
-
 static u32 functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL;
@@ -387,7 +381,6 @@ static int attach_inform(struct i2c_client *client)
 
 static struct i2c_algorithm saa7134_algo = {
 	.master_xfer   = saa7134_i2c_xfer,
-	.algo_control  = algo_control,
 	.functionality = functionality,
 };
 

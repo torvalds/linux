@@ -124,12 +124,6 @@ static struct i2c_adapter bttv_i2c_adap_sw_template = {
 /* ----------------------------------------------------------------------- */
 /* I2C functions - hardware i2c                                            */
 
-static int algo_control(struct i2c_adapter *adapter,
-			unsigned int cmd, unsigned long arg)
-{
-	return 0;
-}
-
 static u32 functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL;
@@ -278,7 +272,6 @@ static int bttv_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int
 
 static struct i2c_algorithm bttv_algo = {
 	.master_xfer   = bttv_i2c_xfer,
-	.algo_control  = algo_control,
 	.functionality = functionality,
 };
 

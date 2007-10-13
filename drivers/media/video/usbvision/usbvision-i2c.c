@@ -183,11 +183,6 @@ usbvision_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
 	return num;
 }
 
-static int algo_control(struct i2c_adapter *adapter, unsigned int cmd, unsigned long arg)
-{
-	return 0;
-}
-
 static u32 functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR;
@@ -199,7 +194,6 @@ static u32 functionality(struct i2c_adapter *adap)
 static struct i2c_algorithm usbvision_algo = {
 	.master_xfer   = usbvision_i2c_xfer,
 	.smbus_xfer    = NULL,
-	.algo_control  = algo_control,
 	.functionality = functionality,
 };
 

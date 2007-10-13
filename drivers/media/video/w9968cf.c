@@ -444,8 +444,6 @@ static int w9968cf_i2c_smbus_xfer(struct i2c_adapter*, u16 addr,
 static u32 w9968cf_i2c_func(struct i2c_adapter*);
 static int w9968cf_i2c_attach_inform(struct i2c_client*);
 static int w9968cf_i2c_detach_inform(struct i2c_client*);
-static int w9968cf_i2c_control(struct i2c_adapter*, unsigned int cmd,
-			       unsigned long arg);
 
 /* Memory management */
 static void* rvmalloc(unsigned long size);
@@ -1543,21 +1541,12 @@ static int w9968cf_i2c_detach_inform(struct i2c_client* client)
 }
 
 
-static int
-w9968cf_i2c_control(struct i2c_adapter* adapter, unsigned int cmd,
-		    unsigned long arg)
-{
-	return 0;
-}
-
-
 static int w9968cf_i2c_init(struct w9968cf_device* cam)
 {
 	int err = 0;
 
 	static struct i2c_algorithm algo = {
 		.smbus_xfer =    w9968cf_i2c_smbus_xfer,
-		.algo_control =  w9968cf_i2c_control,
 		.functionality = w9968cf_i2c_func,
 	};
 

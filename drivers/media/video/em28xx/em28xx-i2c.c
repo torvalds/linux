@@ -383,15 +383,6 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 /* ----------------------------------------------------------- */
 
 /*
- * algo_control()
- */
-static int algo_control(struct i2c_adapter *adapter,
-			unsigned int cmd, unsigned long arg)
-{
-	return 0;
-}
-
-/*
  * functionality()
  */
 static u32 functionality(struct i2c_adapter *adap)
@@ -475,7 +466,6 @@ static int attach_inform(struct i2c_client *client)
 
 static struct i2c_algorithm em28xx_algo = {
 	.master_xfer   = em28xx_i2c_xfer,
-	.algo_control  = algo_control,
 	.functionality = functionality,
 };
 
