@@ -1239,7 +1239,7 @@ static struct block_device_operations opt_fops = {
   </para>
 
   <para>
-   <filename>include/asm-i386/delay.h:</filename>
+   <filename>include/asm-x86/delay_32.h:</filename>
   </para>
   <programlisting>
 #define ndelay(n) (__builtin_constant_p(n) ? \
@@ -1265,7 +1265,7 @@ static struct block_device_operations opt_fops = {
 </programlisting>
 
   <para>
-   <filename>include/asm-i386/uaccess.h:</filename>
+   <filename>include/asm-x86/uaccess_32.h:</filename>
   </para>
 
   <programlisting>
