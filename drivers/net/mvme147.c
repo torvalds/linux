@@ -85,7 +85,6 @@ struct net_device * __init mvme147lance_probe(int unit)
 	dev->open = &m147lance_open;
 	dev->stop = &m147lance_close;
 	dev->hard_start_xmit = &lance_start_xmit;
-	dev->get_stats = &lance_get_stats;
 	dev->set_multicast_list = &lance_set_multicast;
 	dev->tx_timeout = &lance_tx_timeout;
 	dev->dma = 0;

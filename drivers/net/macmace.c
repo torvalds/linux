@@ -538,8 +538,9 @@ static void mace_set_multicast(struct net_device *dev)
 	local_irq_restore(flags);
 }
 
-static void mace_handle_misc_intrs(struct mace_data *mp, int intr)
+static void mace_handle_misc_intrs(struct net_device *dev, int intr)
 {
+	struct mace_data *mp = netdev_priv(dev);
 	volatile struct mace *mb = mp->mace;
 	static int mace_babbles, mace_jabbers;
 
@@ -571,7 +572,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	local_irq_save(flags);
 
 	intr = mb->ir; /* read interrupt register */
-	mace_handle_misc_intrs(mp, intr);
+	mace_handle_misc_intrs(dev, intr);
 
 	if (intr & XMTINT) {
 		fs = mb->xmtfs;
@@ -645,7 +646,6 @@ static void mace_tx_timeout(struct net_device *dev)
 
 static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 {
-	struct mace_data *mp = netdev_priv(dev);
 	struct sk_buff *skb;
 	unsigned int frame_status = mf->rcvsts;
 
