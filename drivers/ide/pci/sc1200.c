@@ -378,16 +378,20 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 	if (hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
 	hwif->autodma = 0;
-	if (hwif->dma_base) {
-		hwif->udma_filter = sc1200_udma_filter;
-		hwif->ide_dma_check = &sc1200_config_dma;
-		hwif->ide_dma_end   = &sc1200_ide_dma_end;
-        	if (!noautodma)
-                	hwif->autodma = 1;
 
-		hwif->set_pio_mode = &sc1200_set_pio_mode;
-		hwif->set_dma_mode = &sc1200_set_dma_mode;
-	}
+	hwif->set_pio_mode = &sc1200_set_pio_mode;
+	hwif->set_dma_mode = &sc1200_set_dma_mode;
+
+	if (hwif->dma_base == 0)
+		return;
+
+	hwif->udma_filter = sc1200_udma_filter;
+	hwif->ide_dma_check = &sc1200_config_dma;
+	hwif->ide_dma_end   = &sc1200_ide_dma_end;
+
+	if (!noautodma)
+		hwif->autodma = 1;
+
         hwif->atapi_dma = 1;
         hwif->ultra_mask = 0x07;
         hwif->mwdma_mask = 0x07;
