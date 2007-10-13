@@ -1721,9 +1721,12 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 
 	ret = uea_boot(sc);
 	if (ret < 0)
-		goto error;
+		goto error_rm_grp;
 
 	return 0;
+
+error_rm_grp:
+	sysfs_remove_group(&intf->dev.kobj, &attr_grp);
 error:
 	kfree(sc);
 	return ret;

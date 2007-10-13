@@ -122,7 +122,11 @@ static void setup_gdt(void)
 		/* DS: data, read/write, 4 GB, base 0 */
 		[GDT_ENTRY_BOOT_DS] = GDT_ENTRY(0xc093, 0, 0xfffff),
 	};
-	struct gdt_ptr gdt;
+	/* Xen HVM incorrectly stores a pointer to the gdt_ptr, instead
+	   of the gdt_ptr contents.  Thus, make it static so it will
+	   stay in memory, at least long enough that we switch to the
+	   proper kernel GDT. */
+	static struct gdt_ptr gdt;
 
 	gdt.len = sizeof(boot_gdt)-1;
 	gdt.ptr = (u32)&boot_gdt + (ds() << 4);

@@ -57,7 +57,17 @@ static void l2x0_inv_range(unsigned long start, unsigned long end)
 {
 	unsigned long addr;
 
-	start &= ~(CACHE_LINE_SIZE - 1);
+	if (start & (CACHE_LINE_SIZE - 1)) {
+		start &= ~(CACHE_LINE_SIZE - 1);
+		sync_writel(start, L2X0_CLEAN_INV_LINE_PA, 1);
+		start += CACHE_LINE_SIZE;
+	}
+
+	if (end & (CACHE_LINE_SIZE - 1)) {
+		end &= ~(CACHE_LINE_SIZE - 1);
+		sync_writel(end, L2X0_CLEAN_INV_LINE_PA, 1);
+	}
+
 	for (addr = start; addr < end; addr += CACHE_LINE_SIZE)
 		sync_writel(addr, L2X0_INV_LINE_PA, 1);
 	cache_sync();

@@ -777,8 +777,12 @@ void __devinit mdesc_fill_in_cpu_data(cpumask_t mask)
 		cpuid = *id;
 
 #ifdef CONFIG_SMP
-		if (cpuid >= NR_CPUS)
+		if (cpuid >= NR_CPUS) {
+			printk(KERN_WARNING "Ignoring CPU %d which is "
+			       ">= NR_CPUS (%d)\n",
+			       cpuid, NR_CPUS);
 			continue;
+		}
 		if (!cpu_isset(cpuid, mask))
 			continue;
 #else

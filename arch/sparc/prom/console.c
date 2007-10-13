@@ -17,9 +17,6 @@
 
 extern void restore_current(void);
 
-static char con_name_jmc[] = "/obio/su@"; /* "/obio/su@0,3002f8"; */
-#define CON_SIZE_JMC	(sizeof(con_name_jmc))
-
 /* Non blocking get character from console input device, returns -1
  * if no input was taken.  This can be used for polling.
  */

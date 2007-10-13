@@ -74,6 +74,7 @@ static int __init au1x_pci_setup(void)
 		printk(KERN_ERR "Unable to ioremap pci space\n");
 		return 1;
 	}
+	au1x_controller.io_map_base = virt_io_addr;
 
 #ifdef CONFIG_DMA_NONCOHERENT
 	{

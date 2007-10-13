@@ -183,7 +183,7 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 	int err;
 	int header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
 
-	err = skb_cow(skb, header_size);
+	err = skb_cow_head(skb, header_size);
 	if (err)
 		return err;
 
@@ -509,8 +509,14 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 				      int (*okfn)(struct sk_buff *))
 {
 	struct iphdr *iph;
-	__u32 len;
 	struct sk_buff *skb = *pskb;
+	__u32 len = nf_bridge_encap_header_len(skb);
+
+	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+		return NF_STOLEN;
+
+	if (unlikely(!pskb_may_pull(skb, len)))
+		goto out;
 
 	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
 	    IS_PPPOE_IPV6(skb)) {
@@ -518,8 +524,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		if (!brnf_call_ip6tables)
 			return NF_ACCEPT;
 #endif
-		if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
-			goto out;
 		nf_bridge_pull_encap_header_rcsum(skb);
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
@@ -532,8 +536,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 	    !IS_PPPOE_IP(skb))
 		return NF_ACCEPT;
 
-	if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
-		goto out;
 	nf_bridge_pull_encap_header_rcsum(skb);
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))

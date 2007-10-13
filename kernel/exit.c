@@ -24,7 +24,6 @@
 #include <linux/pid_namespace.h>
 #include <linux/ptrace.h>
 #include <linux/profile.h>
-#include <linux/signalfd.h>
 #include <linux/mount.h>
 #include <linux/proc_fs.h>
 #include <linux/kthread.h>
@@ -85,14 +84,6 @@ static void __exit_signal(struct task_struct *tsk)
 	rcu_read_lock();
 	sighand = rcu_dereference(tsk->sighand);
 	spin_lock(&sighand->siglock);
-
-	/*
-	 * Notify that this sighand has been detached. This must
-	 * be called with the tsk->sighand lock held. Also, this
-	 * access tsk->sighand internally, so it must be called
-	 * before tsk->sighand is reset.
-	 */
-	signalfd_detach_locked(tsk);
 
 	posix_cpu_timers_exit(tsk);
 	if (atomic_dec_and_test(&sig->count))
@@ -975,6 +966,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (unlikely(tsk->audit_context))
 		audit_free(tsk);
 
+	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);
 
 	exit_mm(tsk);
@@ -996,7 +988,6 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (tsk->binfmt)
 		module_put(tsk->binfmt->module);
 
-	tsk->exit_code = code;
 	proc_exit_connector(tsk);
 	exit_task_namespaces(tsk);
 	exit_notify(tsk);

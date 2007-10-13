@@ -441,9 +441,6 @@ config OCFS2_FS
 
 	  Note: Features which OCFS2 does not support yet:
 	          - extended attributes
-		  - shared writeable mmap
-	          - loopback is supported, but data written will not
-	            be cluster coherent.
 	          - quotas
 	          - cluster aware flock
 	          - Directory change notification (F_NOTIFY)

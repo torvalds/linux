@@ -593,6 +593,16 @@ int cxgb3_alloc_stid(struct t3cdev *tdev, struct cxgb3_client *client,
 
 EXPORT_SYMBOL(cxgb3_alloc_stid);
 
+/* Get the t3cdev associated with a net_device */
+struct t3cdev *dev2t3cdev(struct net_device *dev)
+{
+	const struct port_info *pi = netdev_priv(dev);
+
+	return (struct t3cdev *)pi->adapter;
+}
+
+EXPORT_SYMBOL(dev2t3cdev);
+
 static int do_smt_write_rpl(struct t3cdev *dev, struct sk_buff *skb)
 {
 	struct cpl_smt_write_rpl *rpl = cplhdr(skb);
@@ -925,7 +935,7 @@ void cxgb_neigh_update(struct neighbour *neigh)
 	struct net_device *dev = neigh->dev;
 
 	if (dev && (is_offloading(dev))) {
-		struct t3cdev *tdev = T3CDEV(dev);
+		struct t3cdev *tdev = dev2t3cdev(dev);
 
 		BUG_ON(!tdev);
 		t3_l2t_update(tdev, neigh);
@@ -973,9 +983,9 @@ void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
 		       "device ignored.\n", __FUNCTION__);
 		return;
 	}
-	tdev = T3CDEV(olddev);
+	tdev = dev2t3cdev(olddev);
 	BUG_ON(!tdev);
-	if (tdev != T3CDEV(newdev)) {
+	if (tdev != dev2t3cdev(newdev)) {
 		printk(KERN_WARNING "%s: Redirect to different "
 		       "offload device ignored.\n", __FUNCTION__);
 		return;

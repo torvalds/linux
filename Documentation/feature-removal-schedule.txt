@@ -197,6 +197,14 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
+What:	/proc/acpi/event
+When:	February 2008
+Why:	/proc/acpi/event has been replaced by events via the input layer
+	and netlink since 2.6.23.
+Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
 What:	Compaq touchscreen device emulation
 When:	Oct 2007
 Files:	drivers/input/tsdev.c
@@ -288,5 +296,13 @@ Why:	All mthca hardware also supports MSI-X, which provides
 	strictly more functionality than MSI.  So there is no point in
 	having both MSI-X and MSI support in the driver.
 Who:	Roland Dreier <rolandd@cisco.com>
+
+---------------------------
+
+What:   sk98lin network driver
+When:   Feburary 2008
+Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
+	replaced by the skge driver. 
+Who:    Stephen Hemminger <shemminger@linux-foundation.org>
 
 ---------------------------

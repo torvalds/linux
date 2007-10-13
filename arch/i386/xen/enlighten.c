@@ -623,8 +623,8 @@ static unsigned long xen_read_cr2_direct(void)
 
 static void xen_write_cr4(unsigned long cr4)
 {
-	/* never allow TSC to be disabled */
-	native_write_cr4(cr4 & ~X86_CR4_TSD);
+	/* Just ignore cr4 changes; Xen doesn't allow us to do
+	   anything anyway. */
 }
 
 static unsigned long xen_read_cr3(void)

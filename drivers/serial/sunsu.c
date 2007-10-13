@@ -1198,10 +1198,11 @@ static int __init sunsu_kbd_ms_init(struct uart_sunsu_port *up)
 	if (up->port.type == PORT_UNKNOWN)
 		return -ENODEV;
 
-	printk("%s: %s port at %lx, irq %u\n",
+	printk("%s: %s port at %llx, irq %u\n",
 	       to_of_device(up->port.dev)->node->full_name,
 	       (up->su_type == SU_PORT_KBD) ? "Keyboard" : "Mouse",
-	       up->port.mapbase, up->port.irq);
+	       (unsigned long long) up->port.mapbase,
+	       up->port.irq);
 
 #ifdef CONFIG_SERIO
 	serio = &up->serio;

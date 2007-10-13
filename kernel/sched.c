@@ -262,7 +262,8 @@ struct rq {
 	s64 clock_max_delta;
 
 	unsigned int clock_warps, clock_overflows;
-	unsigned int clock_unstable_events;
+	u64 idle_clock;
+	unsigned int clock_deep_idle_events;
 	u64 tick_timestamp;
 
 	atomic_t nr_iowait;
@@ -556,18 +557,40 @@ static inline struct rq *this_rq_lock(void)
 }
 
 /*
- * CPU frequency is/was unstable - start new by setting prev_clock_raw:
+ * We are going deep-idle (irqs are disabled):
  */
-void sched_clock_unstable_event(void)
+void sched_clock_idle_sleep_event(void)
 {
-	unsigned long flags;
-	struct rq *rq;
+	struct rq *rq = cpu_rq(smp_processor_id());
 
-	rq = task_rq_lock(current, &flags);
-	rq->prev_clock_raw = sched_clock();
-	rq->clock_unstable_events++;
-	task_rq_unlock(rq, &flags);
+	spin_lock(&rq->lock);
+	__update_rq_clock(rq);
+	spin_unlock(&rq->lock);
+	rq->clock_deep_idle_events++;
 }
+EXPORT_SYMBOL_GPL(sched_clock_idle_sleep_event);
+
+/*
+ * We just idled delta nanoseconds (called with irqs disabled):
+ */
+void sched_clock_idle_wakeup_event(u64 delta_ns)
+{
+	struct rq *rq = cpu_rq(smp_processor_id());
+	u64 now = sched_clock();
+
+	rq->idle_clock += delta_ns;
+	/*
+	 * Override the previous timestamp and ignore all
+	 * sched_clock() deltas that occured while we idled,
+	 * and use the PM-provided delta_ns to advance the
+	 * rq clock:
+	 */
+	spin_lock(&rq->lock);
+	rq->prev_clock_raw = now;
+	rq->clock += delta_ns;
+	spin_unlock(&rq->lock);
+}
+EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
 /*
  * resched_task - mark a task 'to be rescheduled now'.
@@ -645,7 +668,7 @@ static u64 div64_likely32(u64 divident, unsigned long divisor)
 /*
  * Shift right and round:
  */
-#define RSR(x, y) (((x) + (1UL << ((y) - 1))) >> (y))
+#define SRR(x, y) (((x) + (1UL << ((y) - 1))) >> (y))
 
 static unsigned long
 calc_delta_mine(unsigned long delta_exec, unsigned long weight,
@@ -661,10 +684,10 @@ calc_delta_mine(unsigned long delta_exec, unsigned long weight,
 	 * Check whether we'd overflow the 64-bit multiplication:
 	 */
 	if (unlikely(tmp > WMULT_CONST))
-		tmp = RSR(RSR(tmp, WMULT_SHIFT/2) * lw->inv_weight,
+		tmp = SRR(SRR(tmp, WMULT_SHIFT/2) * lw->inv_weight,
 			WMULT_SHIFT/2);
 	else
-		tmp = RSR(tmp * lw->inv_weight, WMULT_SHIFT);
+		tmp = SRR(tmp * lw->inv_weight, WMULT_SHIFT);
 
 	return (unsigned long)min(tmp, (u64)(unsigned long)LONG_MAX);
 }
@@ -835,7 +858,6 @@ static void dec_nr_running(struct task_struct *p, struct rq *rq)
 
 static void set_load_weight(struct task_struct *p)
 {
-	task_rq(p)->cfs.wait_runtime -= p->se.wait_runtime;
 	p->se.wait_runtime = 0;
 
 	if (task_has_rt_policy(p)) {
@@ -1564,6 +1586,7 @@ static void __sched_fork(struct task_struct *p)
 	p->se.wait_start_fair		= 0;
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
+	p->se.prev_sum_exec_runtime	= 0;
 	p->se.delta_exec		= 0;
 	p->se.delta_fair_run		= 0;
 	p->se.delta_fair_sleep		= 0;
@@ -1658,6 +1681,11 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	update_rq_clock(rq);
 
 	p->prio = effective_prio(p);
+
+	if (rt_prio(p->prio))
+		p->sched_class = &rt_sched_class;
+	else
+		p->sched_class = &fair_sched_class;
 
 	if (!p->sched_class->task_new || !sysctl_sched_child_runs_first ||
 			(clone_flags & CLONE_VM) || task_cpu(p) != this_cpu ||
@@ -2157,12 +2185,6 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 	if (task_running(rq, p))
 		return 0;
 
-	/*
-	 * Aggressive migration if too many balance attempts have failed:
-	 */
-	if (sd->nr_balance_failed > sd->cache_nice_tries)
-		return 1;
-
 	return 1;
 }
 
@@ -2494,7 +2516,7 @@ group_next:
 	 * a think about bumping its value to force at least one task to be
 	 * moved
 	 */
-	if (*imbalance + SCHED_LOAD_SCALE_FUZZ < busiest_load_per_task/2) {
+	if (*imbalance < busiest_load_per_task) {
 		unsigned long tmp, pwr_now, pwr_move;
 		unsigned int imbn;
 
@@ -2546,10 +2568,8 @@ small_imbalance:
 		pwr_move /= SCHED_LOAD_SCALE;
 
 		/* Move if we gain throughput */
-		if (pwr_move <= pwr_now)
-			goto out_balanced;
-
-		*imbalance = busiest_load_per_task;
+		if (pwr_move > pwr_now)
+			*imbalance = busiest_load_per_task;
 	}
 
 	return busiest;
@@ -3020,6 +3040,7 @@ static inline void rebalance_domains(int cpu, enum cpu_idle_type idle)
 	struct sched_domain *sd;
 	/* Earliest time when we have to do rebalance again */
 	unsigned long next_balance = jiffies + 60*HZ;
+	int update_next_balance = 0;
 
 	for_each_domain(cpu, sd) {
 		if (!(sd->flags & SD_LOAD_BALANCE))
@@ -3056,8 +3077,10 @@ static inline void rebalance_domains(int cpu, enum cpu_idle_type idle)
 		if (sd->flags & SD_SERIALIZE)
 			spin_unlock(&balancing);
 out:
-		if (time_after(next_balance, sd->last_balance + interval))
+		if (time_after(next_balance, sd->last_balance + interval)) {
 			next_balance = sd->last_balance + interval;
+			update_next_balance = 1;
+		}
 
 		/*
 		 * Stop the load balance at this level. There is another
@@ -3067,7 +3090,14 @@ out:
 		if (!balance)
 			break;
 	}
-	rq->next_balance = next_balance;
+
+	/*
+	 * next_balance will be updated only when there is a need.
+	 * When the cpu is attached to null domain for ex, it will not be
+	 * updated.
+	 */
+	if (likely(update_next_balance))
+		rq->next_balance = next_balance;
 }
 
 /*
@@ -4525,10 +4555,7 @@ asmlinkage long sys_sched_yield(void)
 	struct rq *rq = this_rq_lock();
 
 	schedstat_inc(rq, yld_cnt);
-	if (unlikely(rq->nr_running == 1))
-		schedstat_inc(rq, yld_act_empty);
-	else
-		current->sched_class->yield_task(rq, current);
+	current->sched_class->yield_task(rq, current);
 
 	/*
 	 * Since we are going to call schedule() anyway, there's
@@ -4884,14 +4911,18 @@ cpumask_t nohz_cpu_mask = CPU_MASK_NONE;
 static inline void sched_init_granularity(void)
 {
 	unsigned int factor = 1 + ilog2(num_online_cpus());
-	const unsigned long gran_limit = 100000000;
+	const unsigned long limit = 100000000;
 
-	sysctl_sched_granularity *= factor;
-	if (sysctl_sched_granularity > gran_limit)
-		sysctl_sched_granularity = gran_limit;
+	sysctl_sched_min_granularity *= factor;
+	if (sysctl_sched_min_granularity > limit)
+		sysctl_sched_min_granularity = limit;
 
-	sysctl_sched_runtime_limit = sysctl_sched_granularity * 4;
-	sysctl_sched_wakeup_granularity = sysctl_sched_granularity / 2;
+	sysctl_sched_latency *= factor;
+	if (sysctl_sched_latency > limit)
+		sysctl_sched_latency = limit;
+
+	sysctl_sched_runtime_limit = sysctl_sched_latency;
+	sysctl_sched_wakeup_granularity = sysctl_sched_min_granularity / 2;
 }
 
 #ifdef CONFIG_SMP
@@ -5234,15 +5265,16 @@ static void migrate_dead_tasks(unsigned int dead_cpu)
 static struct ctl_table sd_ctl_dir[] = {
 	{
 		.procname	= "sched_domain",
-		.mode		= 0755,
+		.mode		= 0555,
 	},
 	{0,},
 };
 
 static struct ctl_table sd_ctl_root[] = {
 	{
+		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
-		.mode		= 0755,
+		.mode		= 0555,
 		.child		= sd_ctl_dir,
 	},
 	{0,},
@@ -5318,7 +5350,7 @@ static ctl_table *sd_alloc_ctl_cpu_table(int cpu)
 	for_each_domain(cpu, sd) {
 		snprintf(buf, 32, "domain%d", i);
 		entry->procname = kstrdup(buf, GFP_KERNEL);
-		entry->mode = 0755;
+		entry->mode = 0555;
 		entry->child = sd_alloc_ctl_domain_table(sd);
 		entry++;
 		i++;
@@ -5338,7 +5370,7 @@ static void init_sched_domain_sysctl(void)
 	for (i = 0; i < cpu_num; i++, entry++) {
 		snprintf(buf, 32, "cpu%d", i);
 		entry->procname = kstrdup(buf, GFP_KERNEL);
-		entry->mode = 0755;
+		entry->mode = 0555;
 		entry->child = sd_alloc_ctl_cpu_table(i);
 	}
 	sd_sysctl_header = register_sysctl_table(sd_ctl_root);

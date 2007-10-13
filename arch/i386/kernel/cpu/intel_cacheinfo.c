@@ -515,7 +515,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 
 	cpuid4_info[cpu] = kzalloc(
 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
-	if (unlikely(cpuid4_info[cpu] == NULL))
+	if (cpuid4_info[cpu] == NULL)
 		return -ENOMEM;
 
 	oldmask = current->cpus_allowed;
@@ -748,6 +748,8 @@ static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)
 	unsigned int cpu = sys_dev->id;
 	unsigned long i;
 
+	if (cpuid4_info[cpu] == NULL)
+		return;
 	for (i = 0; i < num_cache_leaves; i++) {
 		cache_remove_shared_cpu_map(cpu, i);
 		kobject_unregister(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));

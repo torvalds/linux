@@ -4,10 +4,6 @@
 #include <asm/pda.h>
 #include <linux/threads.h>
 #include <linux/mm.h>
-#include <linux/quicklist.h>
-
-#define QUICK_PGD 0	/* We preserve special mappings over free */
-#define QUICK_PT 1	/* Other page table pages that are zero on free */
 
 #define pmd_populate_kernel(mm, pmd, pte) \
 		set_pmd(pmd, __pmd(_PAGE_TABLE | __pa(pte)))
@@ -24,23 +20,23 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *p
 static inline void pmd_free(pmd_t *pmd)
 {
 	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
-	quicklist_free(QUICK_PT, NULL, pmd);
+	free_page((unsigned long)pmd);
 }
 
 static inline pmd_t *pmd_alloc_one (struct mm_struct *mm, unsigned long addr)
 {
-	return (pmd_t *)quicklist_alloc(QUICK_PT, GFP_KERNEL|__GFP_REPEAT, NULL);
+	return (pmd_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
 }
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return (pud_t *)quicklist_alloc(QUICK_PT, GFP_KERNEL|__GFP_REPEAT, NULL);
+	return (pud_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
 }
 
 static inline void pud_free (pud_t *pud)
 {
 	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
-	quicklist_free(QUICK_PT, NULL, pud);
+	free_page((unsigned long)pud);
 }
 
 static inline void pgd_list_add(pgd_t *pgd)
@@ -61,57 +57,41 @@ static inline void pgd_list_del(pgd_t *pgd)
 	spin_unlock(&pgd_lock);
 }
 
-static inline void pgd_ctor(void *x)
-{
-	unsigned boundary;
-	pgd_t *pgd = x;
-	struct page *page = virt_to_page(pgd);
-
-	/*
-	 * Copy kernel pointers in from init.
-	 */
-	boundary = pgd_index(__PAGE_OFFSET);
-	memcpy(pgd + boundary,
-		init_level4_pgt + boundary,
-		(PTRS_PER_PGD - boundary) * sizeof(pgd_t));
-
-	spin_lock(&pgd_lock);
-	list_add(&page->lru, &pgd_list);
-	spin_unlock(&pgd_lock);
-}
-
-static inline void pgd_dtor(void *x)
-{
-	pgd_t *pgd = x;
-	struct page *page = virt_to_page(pgd);
-
-        spin_lock(&pgd_lock);
-	list_del(&page->lru);
-	spin_unlock(&pgd_lock);
-}
-
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *pgd = (pgd_t *)quicklist_alloc(QUICK_PGD,
-		GFP_KERNEL|__GFP_REPEAT, pgd_ctor);
+	unsigned boundary;
+	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
+	if (!pgd)
+		return NULL;
+	pgd_list_add(pgd);
+	/*
+	 * Copy kernel pointers in from init.
+	 * Could keep a freelist or slab cache of those because the kernel
+	 * part never changes.
+	 */
+	boundary = pgd_index(__PAGE_OFFSET);
+	memset(pgd, 0, boundary * sizeof(pgd_t));
+	memcpy(pgd + boundary,
+	       init_level4_pgt + boundary,
+	       (PTRS_PER_PGD - boundary) * sizeof(pgd_t));
 	return pgd;
 }
 
 static inline void pgd_free(pgd_t *pgd)
 {
 	BUG_ON((unsigned long)pgd & (PAGE_SIZE-1));
-	quicklist_free(QUICK_PGD, pgd_dtor, pgd);
+	pgd_list_del(pgd);
+	free_page((unsigned long)pgd);
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
-	return (pte_t *)quicklist_alloc(QUICK_PT, GFP_KERNEL|__GFP_REPEAT, NULL);
+	return (pte_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
 }
 
 static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	void *p = (void *)quicklist_alloc(QUICK_PT, GFP_KERNEL|__GFP_REPEAT, NULL);
-
+	void *p = (void *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
 	if (!p)
 		return NULL;
 	return virt_to_page(p);
@@ -123,22 +103,17 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long add
 static inline void pte_free_kernel(pte_t *pte)
 {
 	BUG_ON((unsigned long)pte & (PAGE_SIZE-1));
-	quicklist_free(QUICK_PT, NULL, pte);
+	free_page((unsigned long)pte); 
 }
 
 static inline void pte_free(struct page *pte)
 {
-	quicklist_free_page(QUICK_PT, NULL, pte);
-}
+	__free_page(pte);
+} 
 
-#define __pte_free_tlb(tlb,pte) quicklist_free_page(QUICK_PT, NULL,(pte))
+#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
 
-#define __pmd_free_tlb(tlb,x)   quicklist_free(QUICK_PT, NULL, (x))
-#define __pud_free_tlb(tlb,x)   quicklist_free(QUICK_PT, NULL, (x))
+#define __pmd_free_tlb(tlb,x)   tlb_remove_page((tlb),virt_to_page(x))
+#define __pud_free_tlb(tlb,x)   tlb_remove_page((tlb),virt_to_page(x))
 
-static inline void check_pgt_cache(void)
-{
-	quicklist_trim(QUICK_PGD, pgd_dtor, 25, 16);
-	quicklist_trim(QUICK_PT, NULL, 25, 16);
-}
 #endif /* _X86_64_PGALLOC_H */

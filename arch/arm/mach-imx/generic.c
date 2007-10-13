@@ -101,10 +101,11 @@ EXPORT_SYMBOL(imx_gpio_mode);
 
 int imx_gpio_request(unsigned gpio, const char *label)
 {
-	if(gpio >= (GPIO_PORT_MAX + 1) * 32)
+	if(gpio >= (GPIO_PORT_MAX + 1) * 32) {
 		printk(KERN_ERR "imx_gpio: Attempt to request nonexistent GPIO %d for \"%s\"\n",
 			gpio, label ? label : "?");
 		return -EINVAL;
+	}
 
 	if(test_and_set_bit(gpio, imx_gpio_alloc_map)) {
 		printk(KERN_ERR "imx_gpio: GPIO %d already used. Allocation for \"%s\" failed\n",
@@ -129,7 +130,7 @@ EXPORT_SYMBOL(imx_gpio_free);
 
 int imx_gpio_direction_input(unsigned gpio)
 {
-	imx_gpio_mode(gpio| GPIO_IN);
+	imx_gpio_mode(gpio | GPIO_IN | GPIO_GIUS | GPIO_DR);
 	return 0;
 }
 
@@ -138,7 +139,7 @@ EXPORT_SYMBOL(imx_gpio_direction_input);
 int imx_gpio_direction_output(unsigned gpio, int value)
 {
 	imx_gpio_set_value(gpio, value);
-	imx_gpio_mode(gpio| GPIO_OUT);
+	imx_gpio_mode(gpio | GPIO_OUT | GPIO_GIUS | GPIO_DR);
 	return 0;
 }
 

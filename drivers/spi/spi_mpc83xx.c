@@ -384,11 +384,8 @@ irqreturn_t mpc83xx_spi_irq(s32 irq, void *context_data)
 
 	mpc83xx_spi->count -= 1;
 	if (mpc83xx_spi->count) {
-		if (mpc83xx_spi->tx) {
-			u32 word = mpc83xx_spi->get_tx(mpc83xx_spi);
-			mpc83xx_spi_write_reg(&mpc83xx_spi->base->transmit,
-					      word);
-		}
+		u32 word = mpc83xx_spi->get_tx(mpc83xx_spi);
+		mpc83xx_spi_write_reg(&mpc83xx_spi->base->transmit, word);
 	} else {
 		complete(&mpc83xx_spi->done);
 	}
@@ -530,6 +527,7 @@ static int __devexit mpc83xx_spi_remove(struct platform_device *dev)
 	return 0;
 }
 
+MODULE_ALIAS("mpc83xx_spi");			/* for platform bus hotplug */
 static struct platform_driver mpc83xx_spi_driver = {
 	.probe = mpc83xx_spi_probe,
 	.remove = __devexit_p(mpc83xx_spi_remove),

@@ -151,7 +151,7 @@ __SYSCALL( 61, sys_fcntl64, 3)
 #define __NR_available62			 62
 __SYSCALL( 62, sys_ni_syscall, 0)
 #define __NR_fadvise64_64 			 63
-__SYSCALL( 63, sys_fadvise64_64, 6)
+__SYSCALL( 63, xtensa_fadvise64_64, 6)
 #define __NR_utime				 64	/* glibc 2.3.3 ?? */
 __SYSCALL( 64, sys_utime, 2)
 #define __NR_utimes 				 65
@@ -339,8 +339,8 @@ __SYSCALL(148, sys_setpgid, 2)
 __SYSCALL(149, sys_getpgid, 1)
 #define __NR_getppid 				150
 __SYSCALL(150, sys_getppid, 0)
-#define __NR_available151			151
-__SYSCALL(151, sys_ni_syscall, 0)
+#define __NR_getpgrp				151
+__SYSCALL(151, sys_getpgrp, 0)
 
 #define __NR_reserved152 			152	/* set_thread_area */
 __SYSCALL(152, sys_ni_syscall, 0)
@@ -577,7 +577,112 @@ __SYSCALL(258, sys_keyctl, 5)
 #define __NR_available259			259
 __SYSCALL(259, sys_ni_syscall, 0)
 
-#define __NR_syscall_count			261
+
+#define __NR_readahead				260
+__SYSCALL(260, sys_readahead, 5)
+#define __NR_remap_file_pages			261
+__SYSCALL(261, sys_remap_file_pages, 5)
+#define __NR_migrate_pages			262
+__SYSCALL(262, sys_migrate_pages, 0)
+#define __NR_mbind				263
+__SYSCALL(263, sys_mbind, 6)
+#define __NR_get_mempolicy			264
+__SYSCALL(264, sys_get_mempolicy, 5)
+#define __NR_set_mempolicy			265
+__SYSCALL(265, sys_set_mempolicy, 3)
+#define __NR_unshare				266
+__SYSCALL(266, sys_unshare, 1)
+#define __NR_move_pages				267
+__SYSCALL(267, sys_move_pages, 0)
+#define __NR_splice				268
+__SYSCALL(268, sys_splice, 0)
+#define __NR_tee				269
+__SYSCALL(269, sys_tee, 0)
+#define __NR_vmsplice				270
+__SYSCALL(270, sys_vmsplice, 0)
+#define __NR_available271			271
+__SYSCALL(271, sys_ni_syscall, 0)
+
+#define __NR_pselect6				272
+__SYSCALL(272, sys_pselect6, 0)
+#define __NR_ppoll				273
+__SYSCALL(273, sys_ppoll, 0)
+#define __NR_epoll_pwait			274
+__SYSCALL(274, sys_epoll_pwait, 0)
+#define __NR_available275			275
+__SYSCALL(275, sys_ni_syscall, 0)
+
+#define __NR_inotify_init			276
+__SYSCALL(276, sys_inotify_init, 0)
+#define __NR_inotify_add_watch			277
+__SYSCALL(277, sys_inotify_add_watch, 3)
+#define __NR_inotify_rm_watch			278
+__SYSCALL(278, sys_inotify_rm_watch, 2)
+#define __NR_available279			279
+__SYSCALL(279, sys_ni_syscall, 0)
+
+#define __NR_getcpu				280
+__SYSCALL(280, sys_getcpu, 0)
+#define __NR_kexec_load				281
+__SYSCALL(281, sys_ni_syscall, 0)
+
+#define __NR_ioprio_set				282
+__SYSCALL(282, sys_ioprio_set, 2)
+#define __NR_ioprio_get				283
+__SYSCALL(283, sys_ioprio_get, 3)
+
+#define __NR_set_robust_list			284
+__SYSCALL(284, sys_set_robust_list, 3)
+#define __NR_get_robust_list			285
+__SYSCALL(285, sys_get_robust_list, 3)
+#define __NR_reserved286			286	/* sync_file_rangeX */
+__SYSCALL(286, sys_ni_syscall, 3)
+#define __NR_available287			287
+__SYSCALL(287, sys_faccessat, 0)
+
+/* Relative File Operations */
+
+#define __NR_openat				288
+__SYSCALL(288, sys_openat, 4)
+#define __NR_mkdirat				289
+__SYSCALL(289, sys_mkdirat, 3)
+#define __NR_mknodat				290
+__SYSCALL(290, sys_mknodat, 4)
+#define __NR_unlinkat				291
+__SYSCALL(291, sys_unlinkat, 3)
+#define __NR_renameat				292
+__SYSCALL(292, sys_renameat, 4)
+#define __NR_linkat				293
+__SYSCALL(293, sys_linkat, 5)
+#define __NR_symlinkat				294
+__SYSCALL(294, sys_symlinkat, 3)
+#define __NR_readlinkat				295
+__SYSCALL(295, sys_readlinkat, 4)
+#define __NR_utimensat				296
+__SYSCALL(296, sys_utimensat, 0)
+#define __NR_fchownat				297
+__SYSCALL(297, sys_fchownat, 5)
+#define __NR_futimesat				298
+__SYSCALL(298, sys_futimesat, 4)
+#define __NR_fstatat64				299
+__SYSCALL(299, sys_fstatat64, 0)
+#define __NR_fchmodat				300
+__SYSCALL(300, sys_fchmodat, 4)
+#define __NR_faccessat				301
+__SYSCALL(301, sys_faccessat, 4)
+#define __NR_available302			302
+__SYSCALL(302, sys_ni_syscall, 0)
+#define __NR_available303			303
+__SYSCALL(303, sys_ni_syscall, 0)
+
+#define __NR_signalfd				304
+__SYSCALL(304, sys_signalfd, 3)
+#define __NR_timerfd				305
+__SYSCALL(305, sys_timerfd, 4)
+#define __NR_eventfd				306
+__SYSCALL(306, sys_eventfd, 1)
+
+#define __NR_syscall_count			307
 
 /*
  * sysxtensa syscall handler
@@ -612,8 +717,19 @@ __SYSCALL(259, sys_ni_syscall, 0)
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
+#define __ARCH_WANT_SYS_GETPGRP
+
+/* 
+ * Ignore legacy system calls in the checksyscalls.sh script
+ */
+
+#define __IGNORE_fork				/* use clone */
+#define __IGNORE_time
+#define __IGNORE_alarm				/* use setitimer */
+#define __IGNORE_pause
+#define __IGNORE_mmap				/* use mmap2 */
+#define __IGNORE_vfork				/* use clone */
+#define __IGNORE_fadvise64			/* use fadvise64_64 */
 
 #endif	/* __KERNEL__ */
-
 #endif	/* _XTENSA_UNISTD_H */
-

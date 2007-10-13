@@ -1462,6 +1462,7 @@ static struct nf_sockopt_ops ip6t_sockopts = {
 	.get_optmin	= IP6T_BASE_CTL,
 	.get_optmax	= IP6T_SO_GET_MAX+1,
 	.get		= do_ip6t_get_ctl,
+	.owner		= THIS_MODULE,
 };
 
 static struct xt_match icmp6_matchstruct __read_mostly = {

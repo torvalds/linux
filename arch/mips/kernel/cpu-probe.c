@@ -199,7 +199,14 @@ static inline void check_wait(void)
 		if ((c->processor_id & 0xff) <= 0x64)
 			break;
 
-		cpu_wait = r4k_wait;
+		/*
+		 * Another rev is incremeting c0_count at a reduced clock
+		 * rate while in WAIT mode.  So we basically have the choice
+		 * between using the cp0 timer as clocksource or avoiding
+		 * the WAIT instruction.  Until more details are known,
+		 * disable the use of WAIT for 20Kc entirely.
+		   cpu_wait = r4k_wait;
+		 */
 		break;
 	case CPU_RM9000:
 		if ((c->processor_id & 0x00ff) >= 0x40)

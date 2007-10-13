@@ -147,7 +147,7 @@ int mode_defined(u16 mode)
 }
 
 /* Set mode (without recalc) */
-static int raw_set_mode(u16 mode)
+static int raw_set_mode(u16 mode, u16 *real_mode)
 {
 	int nmode, i;
 	struct card_info *card;
@@ -165,8 +165,10 @@ static int raw_set_mode(u16 mode)
 
 			if ((mode == nmode && visible) ||
 			    mode == mi->mode ||
-			    mode == (mi->y << 8)+mi->x)
+			    mode == (mi->y << 8)+mi->x) {
+				*real_mode = mi->mode;
 				return card->set_mode(mi);
+			}
 
 			if (visible)
 				nmode++;
@@ -178,7 +180,7 @@ static int raw_set_mode(u16 mode)
 		if (mode >= card->xmode_first &&
 		    mode < card->xmode_first+card->xmode_n) {
 			struct mode_info mix;
-			mix.mode = mode;
+			*real_mode = mix.mode = mode;
 			mix.x = mix.y = 0;
 			return card->set_mode(&mix);
 		}
@@ -223,6 +225,7 @@ static void vga_recalc_vertical(void)
 static int set_mode(u16 mode)
 {
 	int rv;
+	u16 real_mode;
 
 	/* Very special mode numbers... */
 	if (mode == VIDEO_CURRENT_MODE)
@@ -232,13 +235,16 @@ static int set_mode(u16 mode)
 	else if (mode == EXTENDED_VGA)
 		mode = VIDEO_8POINT;
 
-	rv = raw_set_mode(mode);
+	rv = raw_set_mode(mode, &real_mode);
 	if (rv)
 		return rv;
 
 	if (mode & VIDEO_RECALC)
 		vga_recalc_vertical();
 
+	/* Save the canonical mode number for the kernel, not
+	   an alias, size specification or menu position */
+	boot_params.hdr.vid_mode = real_mode;
 	return 0;
 }
 

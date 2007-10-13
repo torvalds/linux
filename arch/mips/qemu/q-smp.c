@@ -22,11 +22,11 @@ void core_send_ipi(int cpu, unsigned int action)
  *  After we've done initial boot, this function is called to allow the
  *  board code to clean up state, if needed
  */
-void prom_init_secondary(void)
+void __cpuinit prom_init_secondary(void)
 {
 }
 
-void prom_smp_finish(void)
+void __cpuinit prom_smp_finish(void)
 {
 }
 
@@ -43,7 +43,7 @@ void __init prom_prepare_cpus(unsigned int max_cpus)
 /*
  * Firmware CPU startup hook
  */
-void prom_boot_secondary(int cpu, struct task_struct *idle)
+void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 }
 

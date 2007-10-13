@@ -431,7 +431,7 @@ static void __exit rate_control_simple_exit(void)
 }
 
 
-module_init(rate_control_simple_init);
+subsys_initcall(rate_control_simple_init);
 module_exit(rate_control_simple_exit);
 
 MODULE_DESCRIPTION("Simple rate control algorithm for ieee80211");

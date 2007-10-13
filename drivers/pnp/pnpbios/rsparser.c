@@ -238,7 +238,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 			break;
 
 		default:	/* an unkown tag */
-		      len_err:
+len_err:
 			printk(KERN_ERR
 			       "PnPBIOS: Unknown tag '0x%x', length '%d'.\n",
 			       tag, len);
@@ -298,6 +298,7 @@ static void pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
 					     struct pnp_option *option)
 {
 	struct pnp_mem *mem;
+
 	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
@@ -468,7 +469,7 @@ static unsigned char *pnpbios_parse_resource_option_data(unsigned char *p,
 			return p + 2;
 
 		default:	/* an unkown tag */
-		      len_err:
+len_err:
 			printk(KERN_ERR
 			       "PnPBIOS: Unknown tag '0x%x', length '%d'.\n",
 			       tag, len);
@@ -562,7 +563,7 @@ static unsigned char *pnpbios_parse_compatible_ids(unsigned char *p,
 			break;
 
 		default:	/* an unkown tag */
-		      len_err:
+len_err:
 			printk(KERN_ERR
 			       "PnPBIOS: Unknown tag '0x%x', length '%d'.\n",
 			       tag, len);
@@ -756,7 +757,7 @@ static unsigned char *pnpbios_encode_allocated_resource_data(unsigned char *p,
 			break;
 
 		default:	/* an unkown tag */
-		      len_err:
+len_err:
 			printk(KERN_ERR
 			       "PnPBIOS: Unknown tag '0x%x', length '%d'.\n",
 			       tag, len);

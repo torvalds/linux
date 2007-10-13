@@ -292,7 +292,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	}
 	vdev->dp = dp;
 
-	printk(KERN_ERR "VIO: Adding device %s\n", vdev->dev.bus_id);
+	printk(KERN_INFO "VIO: Adding device %s\n", vdev->dev.bus_id);
 
 	err = device_register(&vdev->dev);
 	if (err) {
@@ -342,8 +342,33 @@ static struct mdesc_notifier_client vio_device_notifier = {
 	.node_name	= "virtual-device-port",
 };
 
+/* We are only interested in domain service ports under the
+ * "domain-services" node.  On control nodes there is another port
+ * under "openboot" that we should not mess with as aparently that is
+ * reserved exclusively for OBP use.
+ */
+static void vio_add_ds(struct mdesc_handle *hp, u64 node)
+{
+	int found;
+	u64 a;
+
+	found = 0;
+	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+		u64 target = mdesc_arc_target(hp, a);
+		const char *name = mdesc_node_name(hp, target);
+
+		if (!strcmp(name, "domain-services")) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (found)
+		(void) vio_create_one(hp, node, &root_vdev->dev);
+}
+
 static struct mdesc_notifier_client vio_ds_notifier = {
-	.add		= vio_add,
+	.add		= vio_add_ds,
 	.remove		= vio_remove,
 	.node_name	= "domain-services-port",
 };

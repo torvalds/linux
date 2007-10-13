@@ -353,7 +353,7 @@ static int __init msi_init(void)
 	if (IS_ERR(msibl_device))
 		return PTR_ERR(msibl_device);
 
-	msibl_device->props.max_brightness = MSI_LCD_LEVEL_MAX-1,
+	msibl_device->props.max_brightness = MSI_LCD_LEVEL_MAX-1;
 
 	ret = platform_driver_register(&msipf_driver);
 	if (ret)

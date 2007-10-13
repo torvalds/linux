@@ -146,9 +146,14 @@ static unsigned int __initdata max_cpus = NR_CPUS;
  * greater than 0, limits the maximum number of CPUs activated in
  * SMP mode to <NUM>.
  */
+#ifndef CONFIG_X86_IO_APIC
+static inline void disable_ioapic_setup(void) {};
+#endif
+
 static int __init nosmp(char *str)
 {
 	max_cpus = 0;
+	disable_ioapic_setup();
 	return 0;
 }
 
@@ -157,10 +162,13 @@ early_param("nosmp", nosmp);
 static int __init maxcpus(char *str)
 {
 	get_option(&str, &max_cpus);
-	return 1;
+	if (max_cpus == 0)
+		disable_ioapic_setup();
+
+	return 0;
 }
 
-__setup("maxcpus=", maxcpus);
+early_param("maxcpus", maxcpus);
 #else
 #define max_cpus NR_CPUS
 #endif
@@ -389,10 +397,6 @@ static void __init smp_init(void)
 {
 	unsigned int cpu;
 
-#ifndef CONFIG_HOTPLUG_CPU
-	cpu_possible_map = cpu_present_map;
-#endif
-
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {
 		if (num_online_cpus() >= max_cpus)
@@ -537,10 +541,6 @@ asmlinkage void __init start_kernel(void)
 	setup_arch(&command_line);
 	setup_command_line(command_line);
 	unwind_setup();
-#ifndef CONFIG_HOTPLUG_CPU
-	if (max_cpus < 2)
-		cpu_possible_map = cpu_online_map;
-#endif
 	setup_per_cpu_areas();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 

@@ -34,10 +34,11 @@ static long vdso_fallback_gettime(long clock, struct timespec *ts)
 
 static inline long vgetns(void)
 {
+	long v;
 	cycles_t (*vread)(void);
 	vread = gtod->clock.vread;
-	return ((vread() - gtod->clock.cycle_last) * gtod->clock.mult) >>
-		gtod->clock.shift;
+	v = (vread() - gtod->clock.cycle_last) & gtod->clock.mask;
+	return (v * gtod->clock.mult) >> gtod->clock.shift;
 }
 
 static noinline int do_realtime(struct timespec *ts)

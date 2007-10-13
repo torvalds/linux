@@ -56,8 +56,6 @@ static struct chan_waitqueues {
 	struct mutex mutex;
 } channel_wqs[RTLX_CHANNELS];
 
-static struct irqaction irq;
-static int irq_num;
 static struct vpe_notifications notify;
 static int sp_stopping = 0;
 
@@ -111,7 +109,7 @@ static void __used dump_rtlx(void)
 static int rtlx_init(struct rtlx_info *rtlxi)
 {
 	if (rtlxi->id != RTLX_ID) {
-		printk(KERN_ERR "no valid RTLX id at 0x%p 0x%x\n", rtlxi, rtlxi->id);
+		printk(KERN_ERR "no valid RTLX id at 0x%p 0x%lx\n", rtlxi, rtlxi->id);
 		return -ENOEXEC;
 	}
 

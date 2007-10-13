@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_amd"
-#define DRV_VERSION "0.3.8"
+#define DRV_VERSION "0.3.9"
 
 /**
  *	timing_setup		-	shared timing computation and load

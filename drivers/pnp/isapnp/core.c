@@ -47,9 +47,6 @@
 #if 0
 #define ISAPNP_REGION_OK
 #endif
-#if 0
-#define ISAPNP_DEBUG
-#endif
 
 int isapnp_disable;		/* Disable ISA PnP */
 static int isapnp_rdp;		/* Read Data Port */
@@ -93,7 +90,6 @@ MODULE_LICENSE("GPL");
 
 static unsigned char isapnp_checksum_value;
 static DEFINE_MUTEX(isapnp_cfg_mutex);
-static int isapnp_detected;
 static int isapnp_csn_count;
 
 /* some prototypes */
@@ -335,7 +331,7 @@ static int __init isapnp_isolate(void)
 		} else if (iteration > 1) {
 			break;
 		}
-	      __next:
+__next:
 		if (csn == 255)
 			break;
 		checksum = 0x6a;
@@ -733,7 +729,7 @@ static int __init isapnp_create_device(struct pnp_card *card,
 			       "isapnp: unexpected or unknown tag type 0x%x for logical device %i (device %i), ignored\n",
 			       type, dev->number, card->number);
 		}
-	      __skip:
+__skip:
 		if (size > 0)
 			isapnp_skip_bytes(size);
 	}
@@ -788,7 +784,7 @@ static void __init isapnp_parse_resource_map(struct pnp_card *card)
 			       "isapnp: unexpected or unknown tag type 0x%x for device %i, ignored\n",
 			       type, card->number);
 		}
-	      __skip:
+__skip:
 		if (size > 0)
 			isapnp_skip_bytes(size);
 	}
@@ -940,9 +936,6 @@ EXPORT_SYMBOL(isapnp_protocol);
 EXPORT_SYMBOL(isapnp_present);
 EXPORT_SYMBOL(isapnp_cfg_begin);
 EXPORT_SYMBOL(isapnp_cfg_end);
-#if 0
-EXPORT_SYMBOL(isapnp_read_byte);
-#endif
 EXPORT_SYMBOL(isapnp_write_byte);
 
 static int isapnp_read_resources(struct pnp_dev *dev,
@@ -993,6 +986,7 @@ static int isapnp_get_resources(struct pnp_dev *dev,
 				struct pnp_resource_table *res)
 {
 	int ret;
+
 	pnp_init_resource_table(res);
 	isapnp_cfg_begin(dev->card->number, dev->number);
 	ret = isapnp_read_resources(dev, res);
@@ -1046,7 +1040,7 @@ static int isapnp_set_resources(struct pnp_dev *dev,
 
 static int isapnp_disable_resources(struct pnp_dev *dev)
 {
-	if (!dev || !dev->active)
+	if (!dev->active)
 		return -EINVAL;
 	isapnp_cfg_begin(dev->card->number, dev->number);
 	isapnp_deactivate(dev->number);
@@ -1069,7 +1063,6 @@ static int __init isapnp_init(void)
 	struct pnp_dev *dev;
 
 	if (isapnp_disable) {
-		isapnp_detected = 0;
 		printk(KERN_INFO "isapnp: ISA Plug & Play support disabled\n");
 		return 0;
 	}
@@ -1117,7 +1110,6 @@ static int __init isapnp_init(void)
 		}
 		isapnp_set_rdp();
 	}
-	isapnp_detected = 1;
 	if (isapnp_rdp < 0x203 || isapnp_rdp > 0x3ff) {
 		cards = isapnp_isolate();
 		if (cards < 0 || (isapnp_rdp < 0x203 || isapnp_rdp > 0x3ff)) {
@@ -1125,7 +1117,6 @@ static int __init isapnp_init(void)
 			release_region(_PIDXR, 1);
 #endif
 			release_region(_PNPWRP, 1);
-			isapnp_detected = 0;
 			printk(KERN_INFO
 			       "isapnp: No Plug & Play device found\n");
 			return 0;
@@ -1148,13 +1139,12 @@ static int __init isapnp_init(void)
 			}
 		}
 	}
-	if (cards) {
+	if (cards)
 		printk(KERN_INFO
 		       "isapnp: %i Plug & Play card%s detected total\n", cards,
 		       cards > 1 ? "s" : "");
-	} else {
+	else
 		printk(KERN_INFO "isapnp: No Plug & Play card found\n");
-	}
 
 	isapnp_proc_init();
 	return 0;

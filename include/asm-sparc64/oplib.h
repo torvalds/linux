@@ -297,11 +297,7 @@ extern void prom_sun4v_guest_soft_state(void);
 extern int prom_ihandle2path(int handle, char *buffer, int bufsize);
 
 /* Client interface level routines. */
-extern void prom_set_trap_table(unsigned long tba);
-extern void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa);
-
 extern long p1275_cmd(const char *, long, ...);
-				   
 
 #if 0
 #define P1275_SIZE(x) ((((long)((x) / 32)) << 32) | (x))

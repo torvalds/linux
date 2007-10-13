@@ -383,11 +383,7 @@ static int tick_broadcast_set_event(ktime_t expires, int force)
 int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
 {
 	clockevents_set_mode(bc, CLOCK_EVT_MODE_ONESHOT);
-
-	if(!cpus_empty(tick_broadcast_oneshot_mask))
-		tick_broadcast_set_event(ktime_get(), 1);
-
-	return cpu_isset(smp_processor_id(), tick_broadcast_oneshot_mask);
+	return 0;
 }
 
 /*
@@ -549,19 +545,16 @@ void tick_broadcast_switch_to_oneshot(void)
  */
 void tick_shutdown_broadcast_oneshot(unsigned int *cpup)
 {
-	struct clock_event_device *bc;
 	unsigned long flags;
 	unsigned int cpu = *cpup;
 
 	spin_lock_irqsave(&tick_broadcast_lock, flags);
 
-	bc = tick_broadcast_device.evtdev;
+	/*
+	 * Clear the broadcast mask flag for the dead cpu, but do not
+	 * stop the broadcast device!
+	 */
 	cpu_clear(cpu, tick_broadcast_oneshot_mask);
-
-	if (tick_broadcast_device.mode == TICKDEV_MODE_ONESHOT) {
-		if (bc && cpus_empty(tick_broadcast_oneshot_mask))
-			clockevents_set_mode(bc, CLOCK_EVT_MODE_SHUTDOWN);
-	}
 
 	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }

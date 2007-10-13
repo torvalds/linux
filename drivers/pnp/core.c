@@ -52,9 +52,6 @@ int pnp_register_protocol(struct pnp_protocol *protocol)
 	int nodenum;
 	struct list_head *pos;
 
-	if (!protocol)
-		return -EINVAL;
-
 	INIT_LIST_HEAD(&protocol->devices);
 	INIT_LIST_HEAD(&protocol->cards);
 	nodenum = 0;
@@ -94,8 +91,6 @@ static void pnp_free_ids(struct pnp_dev *dev)
 	struct pnp_id *id;
 	struct pnp_id *next;
 
-	if (!dev)
-		return;
 	id = dev->id;
 	while (id) {
 		next = id->next;
@@ -143,7 +138,7 @@ int __pnp_add_device(struct pnp_dev *dev)
  */
 int pnp_add_device(struct pnp_dev *dev)
 {
-	if (!dev || !dev->protocol || dev->card)
+	if (dev->card)
 		return -EINVAL;
 	dev->dev.parent = &dev->protocol->dev;
 	sprintf(dev->dev.bus_id, "%02x:%02x", dev->protocol->number,

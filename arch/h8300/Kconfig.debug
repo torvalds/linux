@@ -59,7 +59,7 @@ config BLKDEV_RESERVE
 	help
 	  Reserved BLKDEV area.
 
-config CONFIG_BLKDEV_RESERVE_ADDRESS
+config BLKDEV_RESERVE_ADDRESS
 	hex 'start address'
 	depends on BLKDEV_RESERVE
 	help

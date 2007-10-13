@@ -505,6 +505,8 @@ static void mfc_sr1_set(struct spu *spu, u64 sr1)
 	static const u64 allowed = ~(MFC_STATE1_LOCAL_STORAGE_DECODE_MASK
 		| MFC_STATE1_PROBLEM_STATE_MASK);
 
+	sr1 |= MFC_STATE1_MASTER_RUN_CONTROL_MASK;
+
 	BUG_ON((sr1 & allowed) != (spu_pdata(spu)->cache.sr1 & allowed));
 
 	spu_pdata(spu)->cache.sr1 = sr1;

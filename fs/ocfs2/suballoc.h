@@ -85,6 +85,17 @@ int ocfs2_claim_clusters(struct ocfs2_super *osb,
 			 u32 min_clusters,
 			 u32 *cluster_start,
 			 u32 *num_clusters);
+/*
+ * Use this variant of ocfs2_claim_clusters to specify a maxiumum
+ * number of clusters smaller than the allocation reserved.
+ */
+int __ocfs2_claim_clusters(struct ocfs2_super *osb,
+			   handle_t *handle,
+			   struct ocfs2_alloc_context *ac,
+			   u32 min_clusters,
+			   u32 max_clusters,
+			   u32 *cluster_start,
+			   u32 *num_clusters);
 
 int ocfs2_free_suballoc_bits(handle_t *handle,
 			     struct inode *alloc_inode,

@@ -6,7 +6,7 @@ Supported adapters:
     Datasheet: Publicly available at the Intel website
   * ServerWorks OSB4, CSB5, CSB6 and HT-1000 southbridges
     Datasheet: Only available via NDA from ServerWorks
-  * ATI IXP200, IXP300, IXP400, SB600 and SB700 southbridges
+  * ATI IXP200, IXP300, IXP400, SB600, SB700 and SB800 southbridges
     Datasheet: Not publicly available
   * Standard Microsystems (SMSC) SLC90E66 (Victory66) southbridge
     Datasheet: Publicly available at the SMSC website http://www.smsc.com

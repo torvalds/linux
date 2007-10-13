@@ -60,7 +60,7 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	dynid->id.match_flags = USB_DEVICE_ID_MATCH_DEVICE;
 
 	spin_lock(&dynids->lock);
-	list_add_tail(&dynids->list, &dynid->node);
+	list_add_tail(&dynid->node, &dynids->list);
 	spin_unlock(&dynids->lock);
 
 	if (get_driver(driver)) {
@@ -1224,6 +1224,8 @@ static int usb_autopm_do_device(struct usb_device *udev, int inc_usage_cnt)
 	udev->auto_pm = 1;
 	udev->pm_usage_cnt += inc_usage_cnt;
 	WARN_ON(udev->pm_usage_cnt < 0);
+	if (inc_usage_cnt)
+		udev->last_busy = jiffies;
 	if (inc_usage_cnt >= 0 && udev->pm_usage_cnt > 0) {
 		if (udev->state == USB_STATE_SUSPENDED)
 			status = usb_resume_both(udev);
@@ -1232,8 +1234,6 @@ static int usb_autopm_do_device(struct usb_device *udev, int inc_usage_cnt)
 		else if (inc_usage_cnt)
 			udev->last_busy = jiffies;
 	} else if (inc_usage_cnt <= 0 && udev->pm_usage_cnt <= 0) {
-		if (inc_usage_cnt)
-			udev->last_busy = jiffies;
 		status = usb_suspend_both(udev, PMSG_SUSPEND);
 	}
 	usb_pm_unlock(udev);
@@ -1342,16 +1342,15 @@ static int usb_autopm_do_interface(struct usb_interface *intf,
 	else {
 		udev->auto_pm = 1;
 		intf->pm_usage_cnt += inc_usage_cnt;
+		udev->last_busy = jiffies;
 		if (inc_usage_cnt >= 0 && intf->pm_usage_cnt > 0) {
 			if (udev->state == USB_STATE_SUSPENDED)
 				status = usb_resume_both(udev);
 			if (status != 0)
 				intf->pm_usage_cnt -= inc_usage_cnt;
-			else if (inc_usage_cnt)
+			else
 				udev->last_busy = jiffies;
 		} else if (inc_usage_cnt <= 0 && intf->pm_usage_cnt <= 0) {
-			if (inc_usage_cnt)
-				udev->last_busy = jiffies;
 			status = usb_suspend_both(udev, PMSG_SUSPEND);
 		}
 	}

@@ -235,6 +235,8 @@ int ehea_destroy_cq(struct ehea_cq *cq)
 	if (!cq)
 		return 0;
 
+	hcp_epas_dtor(&cq->epas);
+
 	if ((hret = ehea_destroy_cq_res(cq, NORMAL_FREE)) == H_R_STATE) {
 		ehea_error_data(cq->adapter, cq->fw_handle);
 		hret = ehea_destroy_cq_res(cq, FORCE_FREE);
@@ -360,6 +362,8 @@ int ehea_destroy_eq(struct ehea_eq *eq)
 	u64 hret;
 	if (!eq)
 		return 0;
+
+	hcp_epas_dtor(&eq->epas);
 
 	if ((hret = ehea_destroy_eq_res(eq, NORMAL_FREE)) == H_R_STATE) {
 		ehea_error_data(eq->adapter, eq->fw_handle);
@@ -540,6 +544,8 @@ int ehea_destroy_qp(struct ehea_qp *qp)
 	u64 hret;
 	if (!qp)
 		return 0;
+
+	hcp_epas_dtor(&qp->epas);
 
 	if ((hret = ehea_destroy_qp_res(qp, NORMAL_FREE)) == H_R_STATE) {
 		ehea_error_data(qp->adapter, qp->fw_handle);

@@ -22,12 +22,26 @@
 #include <asm/m32700ut/m32700ut_pld.h>
 #include <asm/m32700ut/m32700ut_lan.h>
 #include <asm/m32700ut/m32700ut_lcd.h>
+/* for ei_handler:linux/arch/m32r/kernel/entry.S */
+#define M32R_INT1ICU_ISTS	PLD_ICUISTS
+#define M32R_INT1ICU_IRQ_BASE	M32700UT_PLD_IRQ_BASE
+#define M32R_INT0ICU_ISTS	M32700UT_LAN_ICUISTS
+#define M32R_INT0ICU_IRQ_BASE	M32700UT_LAN_PLD_IRQ_BASE
+#define M32R_INT2ICU_ISTS	M32700UT_LCD_ICUISTS
+#define M32R_INT2ICU_IRQ_BASE	M32700UT_LCD_PLD_IRQ_BASE
 #endif  /* CONFIG_PLAT_M32700UT */
 
 #if defined(CONFIG_PLAT_OPSPUT)
 #include <asm/opsput/opsput_pld.h>
 #include <asm/opsput/opsput_lan.h>
 #include <asm/opsput/opsput_lcd.h>
+/* for ei_handler:linux/arch/m32r/kernel/entry.S */
+#define M32R_INT1ICU_ISTS	PLD_ICUISTS
+#define M32R_INT1ICU_IRQ_BASE	OPSPUT_PLD_IRQ_BASE
+#define M32R_INT0ICU_ISTS	OPSPUT_LAN_ICUISTS
+#define M32R_INT0ICU_IRQ_BASE	OPSPUT_LAN_PLD_IRQ_BASE
+#define M32R_INT2ICU_ISTS	OPSPUT_LCD_ICUISTS
+#define M32R_INT2ICU_IRQ_BASE	OPSPUT_LCD_PLD_IRQ_BASE
 #endif  /* CONFIG_PLAT_OPSPUT */
 
 #if defined(CONFIG_PLAT_MAPPI2)
@@ -40,10 +54,16 @@
 
 #if defined(CONFIG_PLAT_USRV)
 #include <asm/m32700ut/m32700ut_pld.h>
+/* for ei_handler:linux/arch/m32r/kernel/entry.S */
+#define M32R_INT1ICU_ISTS	PLD_ICUISTS
+#define M32R_INT1ICU_IRQ_BASE	M32700UT_PLD_IRQ_BASE
 #endif
 
 #if defined(CONFIG_PLAT_M32104UT)
 #include <asm/m32104ut/m32104ut_pld.h>
+/* for ei_handler:linux/arch/m32r/kernel/entry.S */
+#define M32R_INT1ICU_ISTS	PLD_ICUISTS
+#define M32R_INT1ICU_IRQ_BASE	M32104UT_PLD_IRQ_BASE
 #endif  /* CONFIG_PLAT_M32104 */
 
 /*

@@ -62,6 +62,8 @@
 
 static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 
+/* This clocksource driver currently only works on ia64 */
+#ifdef CONFIG_IA64
 static void __iomem *hpet_mctr;
 
 static cycle_t read_hpet(void)
@@ -79,6 +81,7 @@ static struct clocksource clocksource_hpet = {
         .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 static struct clocksource *hpet_clocksource;
+#endif
 
 /* A lock for concurrent access by app and isr hpet activity. */
 static DEFINE_SPINLOCK(hpet_lock);
@@ -909,6 +912,8 @@ int hpet_alloc(struct hpet_data *hdp)
 
 	hpetp->hp_delta = hpet_calibrate(hpetp);
 
+/* This clocksource driver currently only works on ia64 */
+#ifdef CONFIG_IA64
 	if (!hpet_clocksource) {
 		hpet_mctr = (void __iomem *)&hpetp->hp_hpet->hpet_mc;
 		CLKSRC_FSYS_MMIO_SET(clocksource_hpet.fsys_mmio, hpet_mctr);
@@ -918,6 +923,7 @@ int hpet_alloc(struct hpet_data *hdp)
 		hpetp->hp_clocksource = &clocksource_hpet;
 		hpet_clocksource = &clocksource_hpet;
 	}
+#endif
 
 	return 0;
 }
@@ -940,14 +946,14 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
 				__FUNCTION__, hdp->hd_phys_address);
 			iounmap(hdp->hd_address);
-			return -EBUSY;
+			return AE_ALREADY_EXISTS;
 		}
 	} else if (res->type == ACPI_RESOURCE_TYPE_FIXED_MEMORY32) {
 		struct acpi_resource_fixed_memory32 *fixmem32;
 
 		fixmem32 = &res->data.fixed_memory32;
 		if (!fixmem32)
-			return -EINVAL;
+			return AE_NO_MEMORY;
 
 		hdp->hd_phys_address = fixmem32->address;
 		hdp->hd_address = ioremap(fixmem32->address,
@@ -957,7 +963,7 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
 				__FUNCTION__, hdp->hd_phys_address);
 			iounmap(hdp->hd_address);
-			return -EBUSY;
+			return AE_ALREADY_EXISTS;
 		}
 	} else if (res->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
 		struct acpi_resource_extended_irq *irqp;

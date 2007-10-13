@@ -21,6 +21,7 @@ config USB_ARCH_HAS_HCD
 	default y if USB_ARCH_HAS_EHCI
 	default y if PCMCIA && !M32R			# sl811_cs
 	default y if ARM				# SL-811
+	default y if SUPERH				# r8a66597-hcd
 	default PCI
 
 # many non-PCI SOC chips embed OHCI

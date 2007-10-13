@@ -26,8 +26,6 @@
 
 #include <asm/uaccess.h>
 
-#define DEFAULT_POLLMASK (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM)
-
 struct poll_table_page {
 	struct poll_table_page * next;
 	struct poll_table_entry * entry;

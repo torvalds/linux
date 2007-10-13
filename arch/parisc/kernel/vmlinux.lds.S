@@ -81,6 +81,8 @@ SECTIONS
   __ex_table : { *(__ex_table) }
   __stop___ex_table = .;
 
+  NOTES
+
   __start___unwind = .;         /* unwind info */
   .PARISC.unwind : { *(.PARISC.unwind) }
   __stop___unwind = .;

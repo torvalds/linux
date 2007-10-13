@@ -86,7 +86,7 @@ extern struct nsproxy init_nsproxy;
 	.count		= ATOMIC_INIT(1), 				\
 	.action		= { { { .sa_handler = NULL, } }, },		\
 	.siglock	= __SPIN_LOCK_UNLOCKED(sighand.siglock),	\
-	.signalfd_list	= LIST_HEAD_INIT(sighand.signalfd_list),	\
+	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(sighand.signalfd_wqh),	\
 }
 
 extern struct group_info init_groups;

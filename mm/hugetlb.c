@@ -42,7 +42,7 @@ static void clear_huge_page(struct page *page, unsigned long addr)
 	might_sleep();
 	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); i++) {
 		cond_resched();
-		clear_user_highpage(page + i, addr);
+		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
 	}
 }
 
@@ -71,8 +71,9 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 {
 	int nid;
 	struct page *page = NULL;
+	struct mempolicy *mpol;
 	struct zonelist *zonelist = huge_zonelist(vma, address,
-						htlb_alloc_mask);
+					htlb_alloc_mask, &mpol);
 	struct zone **z;
 
 	for (z = zonelist->zones; *z; z++) {
@@ -87,6 +88,7 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 			break;
 		}
 	}
+	mpol_free(mpol);	/* unref if mpol !NULL */
 	return page;
 }
 

@@ -619,7 +619,7 @@ unsigned long segment_base(u16 selector);
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		       const u8 *old, const u8 *new, int bytes);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
-void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
+void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
 int kvm_mmu_load(struct kvm_vcpu *vcpu);
 void kvm_mmu_unload(struct kvm_vcpu *vcpu);
 
@@ -628,9 +628,13 @@ int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run);
 static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 				     u32 error_code)
 {
-	if (unlikely(vcpu->kvm->n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
-		kvm_mmu_free_some_pages(vcpu);
 	return vcpu->mmu.page_fault(vcpu, gva, error_code);
+}
+
+static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
+{
+	if (unlikely(vcpu->kvm->n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
+		__kvm_mmu_free_some_pages(vcpu);
 }
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)

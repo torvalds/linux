@@ -836,12 +836,16 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return inet_diag_get_exact(skb, nlh);
 }
 
+static DEFINE_MUTEX(inet_diag_mutex);
+
 static void inet_diag_rcv(struct sock *sk, int len)
 {
 	unsigned int qlen = 0;
 
 	do {
+		mutex_lock(&inet_diag_mutex);
 		netlink_run_queue(sk, &qlen, &inet_diag_rcv_msg);
+		mutex_unlock(&inet_diag_mutex);
 	} while (qlen);
 }
 

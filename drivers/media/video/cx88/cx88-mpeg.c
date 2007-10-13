@@ -580,7 +580,7 @@ struct cx8802_dev * cx8802_get_device(struct inode *inode)
 
 	list_for_each(list,&cx8802_devlist) {
 		h = list_entry(list, struct cx8802_dev, devlist);
-		if (h->mpeg_dev->minor == minor)
+		if (h->mpeg_dev && h->mpeg_dev->minor == minor)
 			return h;
 	}
 

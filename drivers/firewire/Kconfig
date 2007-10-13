@@ -11,7 +11,8 @@ config FIREWIRE
 	  This is the "Juju" FireWire stack, a new alternative implementation
 	  designed for robustness and simplicity.  You can build either this
 	  stack, or the classic stack (the ieee1394 driver, ohci1394 etc.)
-	  or both.
+	  or both.  Please read http://wiki.linux1394.org/JujuMigration before
+	  you enable the new stack.
 
 	  To compile this driver as a module, say M here: the module will be
 	  called firewire-core.  It functionally replaces ieee1394, raw1394,

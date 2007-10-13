@@ -385,6 +385,9 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	BUG_ON(data->blksz > host->mmc->max_blk_size);
 	BUG_ON(data->blocks > 65535);
 
+	host->data = data;
+	host->data_early = 0;
+
 	/* timeout in us */
 	target_timeout = data->timeout_ns / 1000 +
 		data->timeout_clks / host->clock;
@@ -443,10 +446,10 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 {
 	u16 mode;
 
-	WARN_ON(host->data);
-
 	if (data == NULL)
 		return;
+
+	WARN_ON(!host->data);
 
 	mode = SDHCI_TRNS_BLK_CNT_EN;
 	if (data->blocks > 1)
@@ -477,8 +480,8 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	/*
 	 * Controller doesn't count down when in single block mode.
 	 */
-	if ((data->blocks == 1) && (data->error == MMC_ERR_NONE))
-		blocks = 0;
+	if (data->blocks == 1)
+		blocks = (data->error == MMC_ERR_NONE) ? 0 : 1;
 	else
 		blocks = readw(host->ioaddr + SDHCI_BLOCK_COUNT);
 	data->bytes_xfered = data->blksz * (data->blocks - blocks);
@@ -600,9 +603,10 @@ static void sdhci_finish_command(struct sdhci_host *host)
 
 	host->cmd->error = MMC_ERR_NONE;
 
-	if (host->cmd->data)
-		host->data = host->cmd->data;
-	else
+	if (host->data && host->data_early)
+		sdhci_finish_data(host);
+
+	if (!host->cmd->data)
 		tasklet_schedule(&host->finish_tasklet);
 
 	host->cmd = NULL;
@@ -929,9 +933,9 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 	BUG_ON(intmask == 0);
 
 	if (!host->cmd) {
-		printk(KERN_ERR "%s: Got command interrupt even though no "
-			"command operation was in progress.\n",
-			mmc_hostname(host->mmc));
+		printk(KERN_ERR "%s: Got command interrupt 0x%08x even "
+			"though no command operation was in progress.\n",
+			mmc_hostname(host->mmc), (unsigned)intmask);
 		sdhci_dumpregs(host);
 		return;
 	}
@@ -961,9 +965,9 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		if (intmask & SDHCI_INT_DATA_END)
 			return;
 
-		printk(KERN_ERR "%s: Got data interrupt even though no "
-			"data operation was in progress.\n",
-			mmc_hostname(host->mmc));
+		printk(KERN_ERR "%s: Got data interrupt 0x%08x even "
+			"though no data operation was in progress.\n",
+			mmc_hostname(host->mmc), (unsigned)intmask);
 		sdhci_dumpregs(host);
 
 		return;
@@ -991,8 +995,18 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 			writel(readl(host->ioaddr + SDHCI_DMA_ADDRESS),
 				host->ioaddr + SDHCI_DMA_ADDRESS);
 
-		if (intmask & SDHCI_INT_DATA_END)
-			sdhci_finish_data(host);
+		if (intmask & SDHCI_INT_DATA_END) {
+			if (host->cmd) {
+				/*
+				 * Data managed to finish before the
+				 * command completed. Make sure we do
+				 * things in the proper order.
+				 */
+				host->data_early = 1;
+			} else {
+				sdhci_finish_data(host);
+			}
+		}
 	}
 }
 
@@ -1347,12 +1361,11 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	 */
 	mmc->max_blk_size = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
 	if (mmc->max_blk_size >= 3) {
-		printk(KERN_ERR "%s: Invalid maximum block size.\n",
+		printk(KERN_WARNING "%s: Invalid maximum block size, assuming 512\n",
 			host->slot_descr);
-		ret = -ENODEV;
-		goto unmap;
-	}
-	mmc->max_blk_size = 512 << mmc->max_blk_size;
+		mmc->max_blk_size = 512;
+	} else
+		mmc->max_blk_size = 512 << mmc->max_blk_size;
 
 	/*
 	 * Maximum block count.

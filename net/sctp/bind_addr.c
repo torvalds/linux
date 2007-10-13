@@ -163,9 +163,15 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 		addr->a.v4.sin_port = htons(bp->port);
 
 	addr->use_as_src = use_as_src;
+	addr->valid = 1;
 
 	INIT_LIST_HEAD(&addr->list);
-	list_add_tail(&addr->list, &bp->address_list);
+	INIT_RCU_HEAD(&addr->rcu);
+
+	/* We always hold a socket lock when calling this function,
+	 * and that acts as a writer synchronizing lock.
+	 */
+	list_add_tail_rcu(&addr->list, &bp->address_list);
 	SCTP_DBG_OBJCNT_INC(addr);
 
 	return 0;
@@ -174,21 +180,33 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 /* Delete an address from the bind address list in the SCTP_bind_addr
  * structure.
  */
-int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
+int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr,
+			void fastcall (*rcu_call)(struct rcu_head *head,
+					 void (*func)(struct rcu_head *head)))
 {
-	struct list_head *pos, *temp;
-	struct sctp_sockaddr_entry *addr;
+	struct sctp_sockaddr_entry *addr, *temp;
 
-	list_for_each_safe(pos, temp, &bp->address_list) {
-		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	/* We hold the socket lock when calling this function,
+	 * and that acts as a writer synchronizing lock.
+	 */
+	list_for_each_entry_safe(addr, temp, &bp->address_list, list) {
 		if (sctp_cmp_addr_exact(&addr->a, del_addr)) {
 			/* Found the exact match. */
-			list_del(pos);
-			kfree(addr);
-			SCTP_DBG_OBJCNT_DEC(addr);
-
-			return 0;
+			addr->valid = 0;
+			list_del_rcu(&addr->list);
+			break;
 		}
+	}
+
+	/* Call the rcu callback provided in the args.  This function is
+	 * called by both BH packet processing and user side socket option
+	 * processing, but it works on different lists in those 2 contexts.
+	 * Each context provides it's own callback, whether call_rcu_bh()
+	 * or call_rcu(), to make sure that we wait for an appropriate time.
+	 */
+	if (addr && !addr->valid) {
+		rcu_call(&addr->rcu, sctp_local_addr_free);
+		SCTP_DBG_OBJCNT_DEC(addr);
 	}
 
 	return -EINVAL;
@@ -300,15 +318,20 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 			 struct sctp_sock *opt)
 {
 	struct sctp_sockaddr_entry *laddr;
-	struct list_head *pos;
+	int match = 0;
 
-	list_for_each(pos, &bp->address_list) {
-		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		if (opt->pf->cmp_addr(&laddr->a, addr, opt))
-			return 1;
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		if (!laddr->valid)
+			continue;
+		if (opt->pf->cmp_addr(&laddr->a, addr, opt)) {
+			match = 1;
+			break;
+		}
 	}
+	rcu_read_unlock();
 
-	return 0;
+	return match;
 }
 
 /* Find the first address in the bind address list that is not present in
@@ -323,18 +346,19 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 	union sctp_addr			*addr;
 	void 				*addr_buf;
 	struct sctp_af			*af;
-	struct list_head		*pos;
 	int				i;
 
-	list_for_each(pos, &bp->address_list) {
-		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-
+	/* This is only called sctp_send_asconf_del_ip() and we hold
+	 * the socket lock in that code patch, so that address list
+	 * can't change.
+	 */
+	list_for_each_entry(laddr, &bp->address_list, list) {
 		addr_buf = (union sctp_addr *)addrs;
 		for (i = 0; i < addrcnt; i++) {
 			addr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
 			if (!af)
-				return NULL;
+				break;
 
 			if (opt->pf->cmp_addr(&laddr->a, addr, opt))
 				break;

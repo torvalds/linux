@@ -292,7 +292,6 @@ static struct clocksource clocksource_tsc = {
 
 void mark_tsc_unstable(char *reason)
 {
-	sched_clock_unstable_event();
 	if (!tsc_unstable) {
 		tsc_unstable = 1;
 		tsc_enabled = 0;

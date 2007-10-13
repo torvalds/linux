@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.6.4"
-#define DRV_MODULE_RELDATE	"August 3, 2007"
+#define DRV_MODULE_VERSION	"1.6.5"
+#define DRV_MODULE_RELDATE	"September 20, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -3934,11 +3934,13 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 		/* Chip reset. */
 		REG_WR(bp, BNX2_PCICFG_MISC_CONFIG, val);
 
+		/* Reading back any register after chip reset will hang the
+		 * bus on 5706 A0 and A1.  The msleep below provides plenty
+		 * of margin for write posting.
+		 */
 		if ((CHIP_ID(bp) == CHIP_ID_5706_A0) ||
-		    (CHIP_ID(bp) == CHIP_ID_5706_A1)) {
-			current->state = TASK_UNINTERRUPTIBLE;
-			schedule_timeout(HZ / 50);
-		}
+		    (CHIP_ID(bp) == CHIP_ID_5706_A1))
+			msleep(20);
 
 		/* Reset takes approximate 30 usec */
 		for (i = 0; i < 10; i++) {
@@ -6725,7 +6727,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	} else if (CHIP_NUM(bp) == CHIP_NUM_5706 ||
 		   CHIP_NUM(bp) == CHIP_NUM_5708)
 		bp->phy_flags |= PHY_CRC_FIX_FLAG;
-	else if (CHIP_ID(bp) == CHIP_ID_5709_A0)
+	else if (CHIP_ID(bp) == CHIP_ID_5709_A0 ||
+		 CHIP_ID(bp) == CHIP_ID_5709_A1)
 		bp->phy_flags |= PHY_DIS_EARLY_DAC_FLAG;
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||

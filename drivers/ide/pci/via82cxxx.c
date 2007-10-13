@@ -1,6 +1,6 @@
 /*
  *
- * Version 3.46
+ * Version 3.47
  *
  * VIA IDE driver for Linux. Supported southbridges:
  *
@@ -74,6 +74,7 @@ static struct via_isa_bridge {
 	u8 udma_mask;
 	u8 flags;
 } via_isa_bridges[] = {
+	{ "vx800",	PCI_DEVICE_ID_VIA_VX800,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
@@ -429,19 +430,26 @@ static struct dmi_system_id cable_dmi_table[] = {
 	{ }
 };
 
-static int via_cable_override(void)
+static int via_cable_override(struct pci_dev *pdev)
 {
 	/* Systems by DMI */
 	if (dmi_check_system(cable_dmi_table))
 		return 1;
+
+	/* Arima W730-K8/Targa Visionary 811/... */
+	if (pdev->subsystem_vendor == 0x161F &&
+	    pdev->subsystem_device == 0x2032)
+		return 1;
+
 	return 0;
 }
 
 static u8 __devinit via82cxxx_cable_detect(ide_hwif_t *hwif)
 {
-	struct via82cxxx_dev *vdev = pci_get_drvdata(hwif->pci_dev);
+	struct pci_dev *pdev = hwif->pci_dev;
+	struct via82cxxx_dev *vdev = pci_get_drvdata(pdev);
 
-	if (via_cable_override())
+	if (via_cable_override(pdev))
 		return ATA_CBL_PATA40_SHORT;
 
 	if ((vdev->via_80w >> hwif->channel) & 1)

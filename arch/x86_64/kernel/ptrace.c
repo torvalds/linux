@@ -232,10 +232,6 @@ static int putreg(struct task_struct *child,
 {
 	unsigned long tmp; 
 	
-	/* Some code in the 64bit emulation may not be 64bit clean.
-	   Don't take any chances. */
-	if (test_tsk_thread_flag(child, TIF_IA32))
-		value &= 0xffffffff;
 	switch (regno) {
 		case offsetof(struct user_regs_struct,fs):
 			if (value && (value & 3) != 3)

@@ -67,7 +67,7 @@ LEN= 0e
 	Val 40 Spring (Force = f(pos))
 	Val 41 Friction (Force = f(velocity)) and Inertia (Force = f(acceleration))
 
-	
+
 02 Axes affected and trigger
 	Bits 4-7: Val 2 = effect along one axis. Byte 05 indicates direction
 	          Val 4 = X axis only. Byte 05 must contain 5a
@@ -176,7 +176,7 @@ QUERY = 50 ('P'roduct)
 Query the product id (2 bytes)
 
 **** Open device ****
-QUERY = 4f ('O'pen) 
+QUERY = 4f ('O'pen)
 No data returned.
 
 **** Close device *****
@@ -184,7 +184,7 @@ QUERY = 43 ('C')lose
 No data returned.
 
 **** Query effect ****
-QUERY = 45 ('E') 
+QUERY = 45 ('E')
 Send effect type.
 Returns nonzero if supported (2 bytes)
 
@@ -199,12 +199,12 @@ Sends back 3 bytes - major, minor, subminor
 OP=  40 <idx> <val> [<val>]
 LEN= 2 or 3
 00 Idx
-   Idx 00 Set dead zone (0..2048) 
-   Idx 01 Ignore Deadman sensor (0..1)     
-   Idx 02 Enable comm watchdog (0..1)     
-   Idx 03 Set the strength of the spring (0..100)   
+   Idx 00 Set dead zone (0..2048)
+   Idx 01 Ignore Deadman sensor (0..1)
+   Idx 02 Enable comm watchdog (0..1)
+   Idx 03 Set the strength of the spring (0..100)
    Idx 04 Enable or disable the spring (0/1)
-   Idx 05 Set axis saturation threshold (0..2048) 
+   Idx 05 Set axis saturation threshold (0..2048)
 
 **** Set Effect State ****
 OP=  42 <val>

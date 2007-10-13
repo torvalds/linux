@@ -21,6 +21,7 @@
 #include <asm/machvec.h>
 #include <asm/pgtable.h>
 #include <asm/sal.h>
+#include <asm/hpsim.h>
 
 #include "hpsim_ssc.h"
 
@@ -41,11 +42,5 @@ hpsim_setup (char **cmdline_p)
 {
 	ROOT_DEV = Root_SDA1;		/* default to first SCSI drive */
 
-#ifdef CONFIG_HP_SIMSERIAL_CONSOLE
-	{
-		extern struct console hpsim_cons;
-		if (ia64_platform_is("hpsim"))
-			register_console(&hpsim_cons);
-	}
-#endif
+	simcons_register();
 }

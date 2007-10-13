@@ -116,11 +116,13 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
  */
 int dev_mc_sync(struct net_device *to, struct net_device *from)
 {
-	struct dev_addr_list *da;
+	struct dev_addr_list *da, *next;
 	int err = 0;
 
 	netif_tx_lock_bh(to);
-	for (da = from->mc_list; da != NULL; da = da->next) {
+	da = from->mc_list;
+	while (da != NULL) {
+		next = da->next;
 		if (!da->da_synced) {
 			err = __dev_addr_add(&to->mc_list, &to->mc_count,
 					     da->da_addr, da->da_addrlen, 0);
@@ -134,6 +136,7 @@ int dev_mc_sync(struct net_device *to, struct net_device *from)
 			__dev_addr_delete(&from->mc_list, &from->mc_count,
 					  da->da_addr, da->da_addrlen, 0);
 		}
+		da = next;
 	}
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -156,12 +159,14 @@ EXPORT_SYMBOL(dev_mc_sync);
  */
 void dev_mc_unsync(struct net_device *to, struct net_device *from)
 {
-	struct dev_addr_list *da;
+	struct dev_addr_list *da, *next;
 
 	netif_tx_lock_bh(from);
 	netif_tx_lock_bh(to);
 
-	for (da = from->mc_list; da != NULL; da = da->next) {
+	da = from->mc_list;
+	while (da != NULL) {
+		next = da->next;
 		if (!da->da_synced)
 			continue;
 		__dev_addr_delete(&to->mc_list, &to->mc_count,
@@ -169,6 +174,7 @@ void dev_mc_unsync(struct net_device *to, struct net_device *from)
 		da->da_synced = 0;
 		__dev_addr_delete(&from->mc_list, &from->mc_count,
 				  da->da_addr, da->da_addrlen, 0);
+		da = next;
 	}
 	__dev_set_rx_mode(to);
 

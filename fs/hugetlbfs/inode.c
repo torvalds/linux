@@ -82,13 +82,18 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	/*
-	 * vma alignment has already been checked by prepare_hugepage_range.
-	 * If you add any error returns here, do so after setting VM_HUGETLB,
-	 * so is_vm_hugetlb_page tests below unmap_region go the right way
-	 * when do_mmap_pgoff unwinds (may be important on powerpc and ia64).
+	 * vma address alignment (but not the pgoff alignment) has
+	 * already been checked by prepare_hugepage_range.  If you add
+	 * any error returns here, do so after setting VM_HUGETLB, so
+	 * is_vm_hugetlb_page tests below unmap_region go the right
+	 * way when do_mmap_pgoff unwinds (may be important on powerpc
+	 * and ia64).
 	 */
 	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
 	vma->vm_ops = &hugetlb_vm_ops;
+
+	if (vma->vm_pgoff & ~(HPAGE_MASK >> PAGE_SHIFT))
+		return -EINVAL;
 
 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
 
@@ -132,7 +137,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED) {
-		if (prepare_hugepage_range(addr, len, pgoff))
+		if (prepare_hugepage_range(addr, len))
 			return -EINVAL;
 		return addr;
 	}

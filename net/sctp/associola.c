@@ -99,7 +99,6 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Initialize the bind addr area.  */
 	sctp_bind_addr_init(&asoc->base.bind_addr, ep->base.bind_addr.port);
-	rwlock_init(&asoc->base.addr_lock);
 
 	asoc->state = SCTP_STATE_CLOSED;
 
@@ -727,7 +726,12 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		break;
 
 	case SCTP_TRANSPORT_DOWN:
-		transport->state = SCTP_INACTIVE;
+		/* if the transort was never confirmed, do not transition it
+		 * to inactive state.
+		 */
+		if (transport->state != SCTP_UNCONFIRMED)
+			transport->state = SCTP_INACTIVE;
+
 		spc_state = SCTP_ADDR_UNREACHABLE;
 		break;
 
@@ -932,8 +936,6 @@ struct sctp_transport *sctp_assoc_is_match(struct sctp_association *asoc,
 {
 	struct sctp_transport *transport;
 
-	sctp_read_lock(&asoc->base.addr_lock);
-
 	if ((htons(asoc->base.bind_addr.port) == laddr->v4.sin_port) &&
 	    (htons(asoc->peer.port) == paddr->v4.sin_port)) {
 		transport = sctp_assoc_lookup_paddr(asoc, paddr);
@@ -947,7 +949,6 @@ struct sctp_transport *sctp_assoc_is_match(struct sctp_association *asoc,
 	transport = NULL;
 
 out:
-	sctp_read_unlock(&asoc->base.addr_lock);
 	return transport;
 }
 
@@ -1371,19 +1372,13 @@ int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *asoc,
 int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 			    const union sctp_addr *laddr)
 {
-	int found;
+	int found = 0;
 
-	sctp_read_lock(&asoc->base.addr_lock);
 	if ((asoc->base.bind_addr.port == ntohs(laddr->v4.sin_port)) &&
 	    sctp_bind_addr_match(&asoc->base.bind_addr, laddr,
-				 sctp_sk(asoc->base.sk))) {
+				 sctp_sk(asoc->base.sk)))
 		found = 1;
-		goto out;
-	}
 
-	found = 0;
-out:
-	sctp_read_unlock(&asoc->base.addr_lock);
 	return found;
 }
 

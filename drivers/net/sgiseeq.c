@@ -726,7 +726,7 @@ err_out:
 	return err;
 }
 
-static void __exit sgiseeq_remove(struct platform_device *pdev)
+static int __exit sgiseeq_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sgiseeq_private *sp = netdev_priv(dev);
@@ -735,6 +735,8 @@ static void __exit sgiseeq_remove(struct platform_device *pdev)
 	free_page((unsigned long) sp->srings);
 	free_netdev(dev);
 	platform_set_drvdata(pdev, NULL);
+
+	return 0;
 }
 
 static struct platform_driver sgiseeq_driver = {

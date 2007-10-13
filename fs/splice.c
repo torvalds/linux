@@ -1224,6 +1224,33 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 }
 
 /*
+ * Do a copy-from-user while holding the mmap_semaphore for reading, in a
+ * manner safe from deadlocking with simultaneous mmap() (grabbing mmap_sem
+ * for writing) and page faulting on the user memory pointed to by src.
+ * This assumes that we will very rarely hit the partial != 0 path, or this
+ * will not be a win.
+ */
+static int copy_from_user_mmap_sem(void *dst, const void __user *src, size_t n)
+{
+	int partial;
+
+	pagefault_disable();
+	partial = __copy_from_user_inatomic(dst, src, n);
+	pagefault_enable();
+
+	/*
+	 * Didn't copy everything, drop the mmap_sem and do a faulting copy
+	 */
+	if (unlikely(partial)) {
+		up_read(&current->mm->mmap_sem);
+		partial = copy_from_user(dst, src, n);
+		down_read(&current->mm->mmap_sem);
+	}
+
+	return partial;
+}
+
+/*
  * Map an iov into an array of pages and offset/length tupples. With the
  * partial_page structure, we can map several non-contiguous ranges into
  * our ones pages[] map instead of splitting that operation into pieces.
@@ -1236,31 +1263,26 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 {
 	int buffers = 0, error = 0;
 
-	/*
-	 * It's ok to take the mmap_sem for reading, even
-	 * across a "get_user()".
-	 */
 	down_read(&current->mm->mmap_sem);
 
 	while (nr_vecs) {
 		unsigned long off, npages;
+		struct iovec entry;
 		void __user *base;
 		size_t len;
 		int i;
 
-		/*
-		 * Get user address base and length for this iovec.
-		 */
-		error = get_user(base, &iov->iov_base);
-		if (unlikely(error))
+		error = -EFAULT;
+		if (copy_from_user_mmap_sem(&entry, iov, sizeof(entry)))
 			break;
-		error = get_user(len, &iov->iov_len);
-		if (unlikely(error))
-			break;
+
+		base = entry.iov_base;
+		len = entry.iov_len;
 
 		/*
 		 * Sanity check this iovec. 0 read succeeds.
 		 */
+		error = 0;
 		if (unlikely(!len))
 			break;
 		error = -EFAULT;

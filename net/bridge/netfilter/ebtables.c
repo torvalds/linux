@@ -1513,6 +1513,7 @@ static struct nf_sockopt_ops ebt_sockopts =
 	.get_optmin	= EBT_BASE_CTL,
 	.get_optmax	= EBT_SO_GET_MAX + 1,
 	.get		= do_ebt_get_ctl,
+	.owner		= THIS_MODULE,
 };
 
 static int __init ebtables_init(void)

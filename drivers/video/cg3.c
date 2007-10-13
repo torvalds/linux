@@ -315,7 +315,7 @@ static u_char cg3_dacvals[] __devinitdata = {
 	4, 0xff,	5, 0x00,	6, 0x70,	7, 0x00,	0
 };
 
-static void __devinit cg3_do_default_mode(struct cg3_par *par)
+static int __devinit cg3_do_default_mode(struct cg3_par *par)
 {
 	enum cg3_type type;
 	u8 *p;
@@ -332,10 +332,9 @@ static void __devinit cg3_do_default_mode(struct cg3_par *par)
 			else
 				type = CG3_AT_66HZ;
 		} else {
-			prom_printf("cgthree: can't handle SR %02x\n",
-				    status);
-			prom_halt();
-			return;
+			printk(KERN_ERR "cgthree: can't handle SR %02x\n",
+			       status);
+			return -EINVAL;
 		}
 	}
 
@@ -351,6 +350,7 @@ static void __devinit cg3_do_default_mode(struct cg3_par *par)
 		regp = (u8 __iomem *)&par->regs->cmap.control;
 		sbus_writeb(p[1], regp);
 	}
+	return 0;
 }
 
 static int __devinit cg3_probe(struct of_device *op,
@@ -400,8 +400,11 @@ static int __devinit cg3_probe(struct of_device *op,
 
 	cg3_blank(0, info);
 
-	if (!of_find_property(dp, "width", NULL))
-		cg3_do_default_mode(par);
+	if (!of_find_property(dp, "width", NULL)) {
+		err = cg3_do_default_mode(par);
+		if (err)
+			goto out_unmap_screen;
+	}
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_screen;

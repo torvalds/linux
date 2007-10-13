@@ -4,6 +4,7 @@
  */
 
 #include <errno.h>
+#include <sys/ptrace.h>
 #include <string.h>
 #include "ptrace_user.h"
 #include "uml-config.h"
@@ -16,6 +17,20 @@
 
 static unsigned long exec_regs[MAX_REG_NR];
 static unsigned long exec_fp_regs[HOST_FP_SIZE];
+
+int save_fp_registers(int pid, unsigned long *fp_regs)
+{
+	if(ptrace(PTRACE_GETFPREGS, pid, 0, fp_regs) < 0)
+		return -errno;
+	return 0;
+}
+
+int restore_fp_registers(int pid, unsigned long *fp_regs)
+{
+	if(ptrace(PTRACE_SETFPREGS, pid, 0, fp_regs) < 0)
+		return -errno;
+	return 0;
+}
 
 void init_thread_registers(union uml_pt_regs *to)
 {

@@ -1073,7 +1073,7 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned int ndesc, pidx, credits, gen, compl;
 	const struct port_info *pi = netdev_priv(dev);
-	struct adapter *adap = dev->priv;
+	struct adapter *adap = pi->adapter;
 	struct sge_qset *qs = dev2qset(dev);
 	struct sge_txq *q = &qs->txq[TXQ_ETH];
 
@@ -1326,7 +1326,8 @@ static void restart_ctrlq(unsigned long data)
 	struct sk_buff *skb;
 	struct sge_qset *qs = (struct sge_qset *)data;
 	struct sge_txq *q = &qs->txq[TXQ_CTRL];
-	struct adapter *adap = qs->netdev->priv;
+	const struct port_info *pi = netdev_priv(qs->netdev);
+	struct adapter *adap = pi->adapter;
 
 	spin_lock(&q->lock);
       again:reclaim_completed_tx_imm(q);
@@ -1531,7 +1532,8 @@ static void restart_offloadq(unsigned long data)
 	struct sk_buff *skb;
 	struct sge_qset *qs = (struct sge_qset *)data;
 	struct sge_txq *q = &qs->txq[TXQ_OFLD];
-	struct adapter *adap = qs->netdev->priv;
+	const struct port_info *pi = netdev_priv(qs->netdev);
+	struct adapter *adap = pi->adapter;
 
 	spin_lock(&q->lock);
       again:reclaim_completed_tx(adap, q);
@@ -1675,7 +1677,8 @@ static inline void deliver_partial_bundle(struct t3cdev *tdev,
  */
 static int ofld_poll(struct net_device *dev, int *budget)
 {
-	struct adapter *adapter = dev->priv;
+	const struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
 	struct sge_qset *qs = dev2qset(dev);
 	struct sge_rspq *q = &qs->rspq;
 	int work_done, limit = min(*budget, dev->quota), avail = limit;
@@ -2075,7 +2078,8 @@ static inline int is_pure_response(const struct rsp_desc *r)
  */
 static int napi_rx_handler(struct net_device *dev, int *budget)
 {
-	struct adapter *adap = dev->priv;
+	const struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
 	struct sge_qset *qs = dev2qset(dev);
 	int effective_budget = min(*budget, dev->quota);
 
@@ -2205,7 +2209,8 @@ static inline int handle_responses(struct adapter *adap, struct sge_rspq *q)
 irqreturn_t t3_sge_intr_msix(int irq, void *cookie)
 {
 	struct sge_qset *qs = cookie;
-	struct adapter *adap = qs->netdev->priv;
+	const struct port_info *pi = netdev_priv(qs->netdev);
+	struct adapter *adap = pi->adapter;
 	struct sge_rspq *q = &qs->rspq;
 
 	spin_lock(&q->lock);
@@ -2224,7 +2229,8 @@ irqreturn_t t3_sge_intr_msix(int irq, void *cookie)
 irqreturn_t t3_sge_intr_msix_napi(int irq, void *cookie)
 {
 	struct sge_qset *qs = cookie;
-	struct adapter *adap = qs->netdev->priv;
+	const struct port_info *pi = netdev_priv(qs->netdev);
+	struct adapter *adap = pi->adapter;
 	struct sge_rspq *q = &qs->rspq;
 
 	spin_lock(&q->lock);
@@ -2508,7 +2514,8 @@ static void sge_timer_cb(unsigned long data)
 {
 	spinlock_t *lock;
 	struct sge_qset *qs = (struct sge_qset *)data;
-	struct adapter *adap = qs->netdev->priv;
+	const struct port_info *pi = netdev_priv(qs->netdev);
+	struct adapter *adap = pi->adapter;
 
 	if (spin_trylock(&qs->txq[TXQ_ETH].lock)) {
 		reclaim_completed_tx(adap, &qs->txq[TXQ_ETH]);

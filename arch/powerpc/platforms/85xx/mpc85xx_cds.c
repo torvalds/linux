@@ -351,10 +351,10 @@ define_machine(mpc85xx_cds) {
 	.get_irq	= mpic_get_irq,
 #ifdef CONFIG_PCI
 	.restart	= mpc85xx_cds_restart,
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 #else
 	.restart	= mpc85xx_restart,
 #endif
 	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 };

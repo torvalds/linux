@@ -33,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_sil680"
-#define DRV_VERSION "0.4.6"
+#define DRV_VERSION "0.4.7"
 
 #define SIL680_MMIO_BAR		5
 

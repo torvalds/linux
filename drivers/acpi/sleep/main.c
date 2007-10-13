@@ -15,13 +15,39 @@
 #include <linux/dmi.h>
 #include <linux/device.h>
 #include <linux/suspend.h>
+
+#include <asm/io.h>
+
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include "sleep.h"
 
 u8 sleep_states[ACPI_S_STATE_COUNT];
 
+#ifdef CONFIG_PM_SLEEP
 static u32 acpi_target_sleep_state = ACPI_STATE_S0;
+#endif
+
+int acpi_sleep_prepare(u32 acpi_state)
+{
+#ifdef CONFIG_ACPI_SLEEP
+	/* do we have a wakeup address for S2 and S3? */
+	if (acpi_state == ACPI_STATE_S3) {
+		if (!acpi_wakeup_address) {
+			return -EFAULT;
+		}
+		acpi_set_firmware_waking_vector((acpi_physical_address)
+						virt_to_phys((void *)
+							     acpi_wakeup_address));
+
+	}
+	ACPI_FLUSH_CPU_CACHE();
+	acpi_enable_wakeup_device_prep(acpi_state);
+#endif
+	acpi_gpe_sleep_prepare(acpi_state);
+	acpi_enter_sleep_state_prep(acpi_state);
+	return 0;
+}
 
 #ifdef CONFIG_SUSPEND
 static struct pm_ops acpi_pm_ops;
@@ -275,6 +301,7 @@ int acpi_suspend(u32 acpi_state)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_PM_SLEEP
 /**
  *	acpi_pm_device_sleep_state - return preferred power state of ACPI device
  *		in the system sleep state given by %acpi_target_sleep_state
@@ -305,7 +332,7 @@ int acpi_pm_device_sleep_state(struct device *dev, int wake, int *d_min_p)
 	unsigned long d_min, d_max;
 
 	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
-		printk(KERN_ERR "ACPI handle has no context!\n");
+		printk(KERN_DEBUG "ACPI handle has no context!\n");
 		return -ENODEV;
 	}
 
@@ -349,6 +376,21 @@ int acpi_pm_device_sleep_state(struct device *dev, int wake, int *d_min_p)
 		*d_min_p = d_min;
 	return d_max;
 }
+#endif
+
+static void acpi_power_off_prepare(void)
+{
+	/* Prepare to power off the system */
+	acpi_sleep_prepare(ACPI_STATE_S5);
+}
+
+static void acpi_power_off(void)
+{
+	/* acpi_sleep_prepare(ACPI_STATE_S5) should have already been called */
+	printk("%s called\n", __FUNCTION__);
+	local_irq_disable();
+	acpi_enter_sleep_state(ACPI_STATE_S5);
+}
 
 int __init acpi_sleep_init(void)
 {
@@ -363,16 +405,17 @@ int __init acpi_sleep_init(void)
 	if (acpi_disabled)
 		return 0;
 
+	sleep_states[ACPI_STATE_S0] = 1;
+	printk(KERN_INFO PREFIX "(supports S0");
+
 #ifdef CONFIG_SUSPEND
-	printk(KERN_INFO PREFIX "(supports");
-	for (i = ACPI_STATE_S0; i < ACPI_STATE_S4; i++) {
+	for (i = ACPI_STATE_S1; i < ACPI_STATE_S4; i++) {
 		status = acpi_get_sleep_type_data(i, &type_a, &type_b);
 		if (ACPI_SUCCESS(status)) {
 			sleep_states[i] = 1;
 			printk(" S%d", i);
 		}
 	}
-	printk(")\n");
 
 	pm_set_ops(&acpi_pm_ops);
 #endif
@@ -382,10 +425,16 @@ int __init acpi_sleep_init(void)
 	if (ACPI_SUCCESS(status)) {
 		hibernation_set_ops(&acpi_hibernation_ops);
 		sleep_states[ACPI_STATE_S4] = 1;
+		printk(" S4");
 	}
-#else
-	sleep_states[ACPI_STATE_S4] = 0;
 #endif
-
+	status = acpi_get_sleep_type_data(ACPI_STATE_S5, &type_a, &type_b);
+	if (ACPI_SUCCESS(status)) {
+		sleep_states[ACPI_STATE_S5] = 1;
+		printk(" S5");
+		pm_power_off_prepare = acpi_power_off_prepare;
+		pm_power_off = acpi_power_off;
+	}
+	printk(")\n");
 	return 0;
 }

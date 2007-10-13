@@ -57,9 +57,13 @@ config PLAT_MAPPI
 
 config PLAT_USRV
 	bool "uServer"
+	select PLAT_HAS_INT1ICU
 
 config PLAT_M32700UT
 	bool "M32700UT"
+	select PLAT_HAS_INT0ICU
+	select PLAT_HAS_INT1ICU
+	select PLAT_HAS_INT2ICU
 	help
 	  The M3T-M32700UT is an evaluation board based on uT-Engine
 	  specification.  This board has an M32700 (Chaos) evaluation chip.
@@ -68,6 +72,9 @@ config PLAT_M32700UT
 
 config PLAT_OPSPUT
 	bool "OPSPUT"
+	select PLAT_HAS_INT0ICU
+	select PLAT_HAS_INT1ICU
+	select PLAT_HAS_INT2ICU
 	help
 	  The OPSPUT is an evaluation board based on uT-Engine
 	  specification.  This board has a OPSP-REP chip.
@@ -89,6 +96,7 @@ config PLAT_MAPPI3
 
 config PLAT_M32104UT
 	bool "M32104UT"
+	select PLAT_HAS_INT1ICU
 	help
 	  The M3T-M32104UT is an reference board based on uT-Engine
 	  specification.  This board has a M32104 chip.
@@ -148,6 +156,18 @@ config ISA_DUAL_ISSUE
 	bool
 	depends on CHIP_M32700 || CHIP_OPSP
 	default y
+
+config PLAT_HAS_INT0ICU
+	bool
+	default n
+
+config PLAT_HAS_INT1ICU
+	bool
+	default n
+
+config PLAT_HAS_INT2ICU
+	bool
+	default n
 
 config BUS_CLOCK
 	int "Bus Clock [Hz] (integer)"

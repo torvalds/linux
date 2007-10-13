@@ -406,8 +406,7 @@ static void *bsd_alloc (unsigned char *options, int opt_len, int decomp)
  * Allocate space for the dictionary. This may be more than one page in
  * length.
  */
-    db->dict = (struct bsd_dict *) vmalloc (hsize *
-					    sizeof (struct bsd_dict));
+    db->dict = vmalloc(hsize * sizeof(struct bsd_dict));
     if (!db->dict)
       {
 	bsd_free (db);
@@ -426,8 +425,7 @@ static void *bsd_alloc (unsigned char *options, int opt_len, int decomp)
  */
     else
       {
-        db->lens = (unsigned short *) vmalloc ((maxmaxcode + 1) *
-					       sizeof (db->lens[0]));
+        db->lens = vmalloc((maxmaxcode + 1) * sizeof(db->lens[0]));
 	if (!db->lens)
 	  {
 	    bsd_free (db);

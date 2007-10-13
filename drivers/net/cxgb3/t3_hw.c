@@ -848,16 +848,15 @@ static int t3_write_flash(struct adapter *adapter, unsigned int addr,
 }
 
 /**
- *	t3_check_tpsram_version - read the tp sram version
+ *	t3_get_tp_version - read the tp sram version
  *	@adapter: the adapter
+ *	@vers: where to place the version
  *
- *	Reads the protocol sram version from serial eeprom.
+ *	Reads the protocol sram version from sram.
  */
-int t3_check_tpsram_version(struct adapter *adapter)
+int t3_get_tp_version(struct adapter *adapter, u32 *vers)
 {
 	int ret;
-	u32 vers;
-	unsigned int major, minor;
 
 	/* Get version loaded in SRAM */
 	t3_write_reg(adapter, A_TP_EMBED_OP_FIELD0, 0);
@@ -866,7 +865,32 @@ int t3_check_tpsram_version(struct adapter *adapter)
 	if (ret)
 		return ret;
 	
-	vers = t3_read_reg(adapter, A_TP_EMBED_OP_FIELD1);
+	*vers = t3_read_reg(adapter, A_TP_EMBED_OP_FIELD1);
+
+	return 0;
+}
+
+/**
+ *	t3_check_tpsram_version - read the tp sram version
+ *	@adapter: the adapter
+ *	@must_load: set to 1 if loading a new microcode image is required
+ *
+ *	Reads the protocol sram version from flash.
+ */
+int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
+{
+	int ret;
+	u32 vers;
+	unsigned int major, minor;
+
+	if (adapter->params.rev == T3_REV_A)
+		return 0;
+
+	*must_load = 1;
+
+	ret = t3_get_tp_version(adapter, &vers);
+	if (ret)
+		return ret;
 
 	major = G_TP_VERSION_MAJOR(vers);
 	minor = G_TP_VERSION_MINOR(vers);
@@ -874,6 +898,16 @@ int t3_check_tpsram_version(struct adapter *adapter)
 	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR) 
 		return 0;
 
+	if (major != TP_VERSION_MAJOR)
+		CH_ERR(adapter, "found wrong TP version (%u.%u), "
+		       "driver needs version %d.%d\n", major, minor,
+		       TP_VERSION_MAJOR, TP_VERSION_MINOR);
+	else {
+		*must_load = 0;
+		CH_ERR(adapter, "found wrong TP version (%u.%u), "
+		       "driver compiled for version %d.%d\n", major, minor,
+		       TP_VERSION_MAJOR, TP_VERSION_MINOR);
+	}
 	return -EINVAL;
 }
 

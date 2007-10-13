@@ -21,9 +21,6 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 	resource_size_t *start, *end;
 	unsigned long *flags;
 
-	if (!dev || !rule)
-		return -EINVAL;
-
 	if (idx >= PNP_MAX_PORT) {
 		pnp_err
 		    ("More than 4 ports is incompatible with pnp specifications.");
@@ -65,9 +62,6 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 {
 	resource_size_t *start, *end;
 	unsigned long *flags;
-
-	if (!dev || !rule)
-		return -EINVAL;
 
 	if (idx >= PNP_MAX_MEM) {
 		pnp_err
@@ -127,9 +121,6 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 		5, 10, 11, 12, 9, 14, 15, 7, 3, 4, 13, 0, 1, 6, 8, 2
 	};
 
-	if (!dev || !rule)
-		return -EINVAL;
-
 	if (idx >= PNP_MAX_IRQ) {
 		pnp_err
 		    ("More than 2 irqs is incompatible with pnp specifications.");
@@ -180,9 +171,6 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 	static unsigned short xtab[8] = {
 		1, 3, 5, 6, 7, 0, 2, 4
 	};
-
-	if (!dev || !rule)
-		return -EINVAL;
 
 	if (idx >= PNP_MAX_DMA) {
 		pnp_err
@@ -390,7 +378,7 @@ static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 	up(&pnp_res_mutex);
 	return 1;
 
-      fail:
+fail:
 	pnp_clean_resource_table(&dev->res);
 	up(&pnp_res_mutex);
 	return 0;
@@ -410,8 +398,6 @@ int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res,
 	int i;
 	struct pnp_resource_table *bak;
 
-	if (!dev || !res)
-		return -EINVAL;
 	if (!pnp_can_configure(dev))
 		return -ENODEV;
 	bak = pnp_alloc(sizeof(struct pnp_resource_table));
@@ -444,7 +430,7 @@ int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res,
 	kfree(bak);
 	return 0;
 
-      fail:
+fail:
 	dev->res = *bak;
 	up(&pnp_res_mutex);
 	kfree(bak);
@@ -459,9 +445,6 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 {
 	struct pnp_option *dep;
 	int i = 1;
-
-	if (!dev)
-		return -EINVAL;
 
 	if (!pnp_can_configure(dev)) {
 		pnp_dbg("Device %s does not support resource configuration.",
@@ -541,8 +524,6 @@ int pnp_activate_dev(struct pnp_dev *dev)
 {
 	int error;
 
-	if (!dev)
-		return -EINVAL;
 	if (dev->active)
 		return 0;	/* the device is already active */
 
@@ -568,8 +549,6 @@ int pnp_disable_dev(struct pnp_dev *dev)
 {
 	int error;
 
-	if (!dev)
-		return -EINVAL;
 	if (!dev->active)
 		return 0;	/* the device is already disabled */
 
@@ -596,8 +575,6 @@ int pnp_disable_dev(struct pnp_dev *dev)
 void pnp_resource_change(struct resource *resource, resource_size_t start,
 			 resource_size_t size)
 {
-	if (resource == NULL)
-		return;
 	resource->flags &= ~(IORESOURCE_AUTO | IORESOURCE_UNSET);
 	resource->start = start;
 	resource->end = start + size - 1;

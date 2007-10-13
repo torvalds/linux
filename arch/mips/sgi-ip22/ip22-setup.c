@@ -29,6 +29,7 @@
 #include <asm/sgi/ip22.h>
 
 unsigned long sgi_gfxaddr;
+EXPORT_SYMBOL_GPL(sgi_gfxaddr);
 
 /*
  * Stop-A is originally a Sun thing that isn't standard on IP22 so to avoid

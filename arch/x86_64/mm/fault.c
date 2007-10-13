@@ -374,6 +374,13 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	if (unlikely(in_atomic() || !mm))
 		goto bad_area_nosemaphore;
 
+	/*
+	 * User-mode registers count as a user access even for any
+	 * potential system fault or CPU buglet.
+	 */
+	if (user_mode_vm(regs))
+		error_code |= PF_USER;
+
  again:
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the

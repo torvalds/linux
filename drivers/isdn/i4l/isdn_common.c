@@ -1135,7 +1135,7 @@ isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 			if (count > dev->drv[drvidx]->stavail)
 				count = dev->drv[drvidx]->stavail;
 			len = dev->drv[drvidx]->interface->readstat(buf, count,
-						drvidx, isdn_minor2chan(minor));
+				drvidx, isdn_minor2chan(minor - ISDN_MINOR_CTRL));
 			if (len < 0) {
 				retval = len;
 				goto out;
@@ -1207,7 +1207,8 @@ isdn_write(struct file *file, const char __user *buf, size_t count, loff_t * off
 		 */
 		if (dev->drv[drvidx]->interface->writecmd)
 			retval = dev->drv[drvidx]->interface->
-				writecmd(buf, count, drvidx, isdn_minor2chan(minor));
+				writecmd(buf, count, drvidx,
+				isdn_minor2chan(minor - ISDN_MINOR_CTRL));
 		else
 			retval = count;
 		goto out;
@@ -2291,7 +2292,7 @@ static int __init isdn_init(void)
 	int i;
 	char tmprev[50];
 
-	if (!(dev = (isdn_dev *) vmalloc(sizeof(isdn_dev)))) {
+	if (!(dev = vmalloc(sizeof(isdn_dev)))) {
 		printk(KERN_WARNING "isdn: Could not allocate device-struct.\n");
 		return -EIO;
 	}

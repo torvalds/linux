@@ -134,8 +134,6 @@ dvb/
 	- info on Linux Digital Video Broadcast (DVB) subsystem.
 early-userspace/
 	- info about initramfs, klibc, and userspace early during boot.
-ecryptfs.txt
-	- docs on eCryptfs: stacked cryptographic filesystem for Linux.
 eisa.txt
 	- info on EISA bus support.
 exception.txt

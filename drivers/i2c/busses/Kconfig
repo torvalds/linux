@@ -208,6 +208,7 @@ config I2C_PIIX4
 	    ATI IXP400
 	    ATI SB600
 	    ATI SB700
+	    ATI SB800
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6

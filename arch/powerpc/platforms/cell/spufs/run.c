@@ -193,11 +193,7 @@ static int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
 	if (ret)
 		return ret;
 
-	ret = spu_run_init(ctx, npc);
-	if (ret) {
-		spu_release(ctx);
-		return ret;
-	}
+	spuctx_switch_state(ctx, SPU_UTIL_USER);
 	return 0;
 }
 

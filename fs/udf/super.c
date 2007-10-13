@@ -89,7 +89,7 @@ static int udf_find_fileset(struct super_block *, kernel_lb_addr *,
 static void udf_load_pvoldesc(struct super_block *, struct buffer_head *);
 static void udf_load_fileset(struct super_block *, struct buffer_head *,
 			     kernel_lb_addr *);
-static void udf_load_partdesc(struct super_block *, struct buffer_head *);
+static int udf_load_partdesc(struct super_block *, struct buffer_head *);
 static void udf_open_lvid(struct super_block *);
 static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
@@ -877,7 +877,7 @@ static void udf_load_fileset(struct super_block *sb, struct buffer_head *bh,
 		  root->logicalBlockNum, root->partitionReferenceNum);
 }
 
-static void udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
+static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 {
 	struct partitionDesc *p;
 	int i;
@@ -912,6 +912,11 @@ static void udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 
 					UDF_SB_PARTMAPS(sb)[i].s_uspace.s_table =
 						udf_iget(sb, loc);
+					if (!UDF_SB_PARTMAPS(sb)[i].s_uspace.s_table) {
+						udf_debug("cannot load unallocSpaceTable (part %d)\n",
+							i);
+						return 1;
+					}
 					UDF_SB_PARTFLAGS(sb,i) |= UDF_PART_FLAG_UNALLOC_TABLE;
 					udf_debug("unallocSpaceTable (part %d) @ %ld\n",
 						  i, UDF_SB_PARTMAPS(sb)[i].s_uspace.s_table->i_ino);
@@ -938,6 +943,11 @@ static void udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 
 					UDF_SB_PARTMAPS(sb)[i].s_fspace.s_table =
 						udf_iget(sb, loc);
+					if (!UDF_SB_PARTMAPS(sb)[i].s_fspace.s_table) {
+						udf_debug("cannot load freedSpaceTable (part %d)\n",
+							i);
+						return 1;
+					}
 					UDF_SB_PARTFLAGS(sb,i) |= UDF_PART_FLAG_FREED_TABLE;
 					udf_debug("freedSpaceTable (part %d) @ %ld\n",
 						  i, UDF_SB_PARTMAPS(sb)[i].s_fspace.s_table->i_ino);
@@ -966,6 +976,7 @@ static void udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 			  le16_to_cpu(p->partitionNumber), i, UDF_SB_PARTTYPE(sb,i),
 			  UDF_SB_PARTROOT(sb,i), UDF_SB_PARTLEN(sb,i));
 	}
+	return 0;
 }
 
 static int udf_load_logicalvol(struct super_block *sb, struct buffer_head *bh,
@@ -1177,12 +1188,19 @@ static int udf_process_sequence(struct super_block *sb, long block, long lastblo
 				udf_load_logicalvol(sb, bh, fileset);
 			} else if (i == VDS_POS_PARTITION_DESC) {
 				struct buffer_head *bh2 = NULL;
-				udf_load_partdesc(sb, bh);
+				if (udf_load_partdesc(sb, bh)) {
+					brelse(bh);
+					return 1;
+				}
 				for (j = vds[i].block + 1; j <  vds[VDS_POS_TERMINATING_DESC].block; j++) {
 					bh2 = udf_read_tagged(sb, j, j, &ident);
 					gd = (struct generic_desc *)bh2->b_data;
 					if (ident == TAG_IDENT_PD)
-						udf_load_partdesc(sb, bh2);
+						if (udf_load_partdesc(sb, bh2)) {
+							brelse(bh);
+							brelse(bh2);
+							return 1;
+						}
 					brelse(bh2);
 				}
 			}

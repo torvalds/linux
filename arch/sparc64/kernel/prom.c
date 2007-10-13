@@ -1046,7 +1046,8 @@ static void __init irq_trans_init(struct device_node *dp)
 	if (!strcmp(dp->name, "fhc") &&
 	    !strcmp(dp->parent->name, "central"))
 		return central_irq_trans_init(dp);
-	if (!strcmp(dp->name, "virtual-devices"))
+	if (!strcmp(dp->name, "virtual-devices") ||
+	    !strcmp(dp->name, "niu"))
 		return sun4v_vdev_irq_trans_init(dp);
 }
 
@@ -1583,8 +1584,12 @@ static void __init of_fill_in_cpu_data(void)
 		ncpus_probed++;
 
 #ifdef CONFIG_SMP
-		if (cpuid >= NR_CPUS)
+		if (cpuid >= NR_CPUS) {
+			printk(KERN_WARNING "Ignoring CPU %d which is "
+			       ">= NR_CPUS (%d)\n",
+			       cpuid, NR_CPUS);
 			continue;
+		}
 #else
 		/* On uniprocessor we only want the values for the
 		 * real physical cpu the kernel booted onto, however

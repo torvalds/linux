@@ -213,6 +213,9 @@ static int ati_configure(void)
 	temp = (temp & 0xfffff000);
 	ati_generic_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
 
+	if (!ati_generic_private.registers)
+		return -ENOMEM;
+
 	if (is_r200())
 		pci_write_config_dword(agp_bridge->dev, ATI_RS100_IG_AGPMODE, 0x20000);
 	else

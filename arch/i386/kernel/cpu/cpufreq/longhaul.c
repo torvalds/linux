@@ -76,6 +76,7 @@ static unsigned int longhaul_index;
 /* Module parameters */
 static int scale_voltage;
 static int disable_acpi_c3;
+static int revid_errata;
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longhaul", msg)
 
@@ -168,7 +169,10 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index,
 
 	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
 	/* Setup new frequency */
-	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
+	if (!revid_errata)
+		longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
+	else
+		longhaul.bits.RevisionKey = 0;
 	longhaul.bits.SoftBusRatio = clock_ratio_index & 0xf;
 	longhaul.bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
 	/* Setup new voltage */
@@ -272,7 +276,7 @@ static void longhaul_setstate(unsigned int table_index)
 
 	dprintk ("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
 			fsb, mult/10, mult%10, print_speed(speed/1000));
-
+retry_loop:
 	preempt_disable();
 	local_irq_save(flags);
 
@@ -344,6 +348,47 @@ static void longhaul_setstate(unsigned int table_index)
 	preempt_enable();
 
 	freqs.new = calc_speed(longhaul_get_cpu_mult());
+	/* Check if requested frequency is set. */
+	if (unlikely(freqs.new != speed)) {
+		printk(KERN_INFO PFX "Failed to set requested frequency!\n");
+		/* Revision ID = 1 but processor is expecting revision key
+		 * equal to 0. Jumpers at the bottom of processor will change
+		 * multiplier and FSB, but will not change bits in Longhaul
+		 * MSR nor enable voltage scaling. */
+		if (!revid_errata) {
+			printk(KERN_INFO PFX "Enabling \"Ignore Revision ID\" "
+						"option.\n");
+			revid_errata = 1;
+			msleep(200);
+			goto retry_loop;
+		}
+		/* Why ACPI C3 sometimes doesn't work is a mystery for me.
+		 * But it does happen. Processor is entering ACPI C3 state,
+		 * but it doesn't change frequency. I tried poking various
+		 * bits in northbridge registers, but without success. */
+		if (longhaul_flags & USE_ACPI_C3) {
+			printk(KERN_INFO PFX "Disabling ACPI C3 support.\n");
+			longhaul_flags &= ~USE_ACPI_C3;
+			if (revid_errata) {
+				printk(KERN_INFO PFX "Disabling \"Ignore "
+						"Revision ID\" option.\n");
+				revid_errata = 0;
+			}
+			msleep(200);
+			goto retry_loop;
+		}
+		/* This shouldn't happen. Longhaul ver. 2 was reported not
+		 * working on processors without voltage scaling, but with
+		 * RevID = 1. RevID errata will make things right. Just
+		 * to be 100% sure. */
+		if (longhaul_version == TYPE_LONGHAUL_V2) {
+			printk(KERN_INFO PFX "Switching to Longhaul ver. 1\n");
+			longhaul_version = TYPE_LONGHAUL_V1;
+			msleep(200);
+			goto retry_loop;
+		}
+	}
+	/* Report true CPU frequency */
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	if (!bm_timeout)
@@ -956,11 +1001,20 @@ static void __exit longhaul_exit(void)
 	kfree(longhaul_table);
 }
 
+/* Even if BIOS is exporting ACPI C3 state, and it is used
+ * with success when CPU is idle, this state doesn't
+ * trigger frequency transition in some cases. */
 module_param (disable_acpi_c3, int, 0644);
 MODULE_PARM_DESC(disable_acpi_c3, "Don't use ACPI C3 support");
-
+/* Change CPU voltage with frequency. Very usefull to save
+ * power, but most VIA C3 processors aren't supporting it. */
 module_param (scale_voltage, int, 0644);
 MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
+/* Force revision key to 0 for processors which doesn't
+ * support voltage scaling, but are introducing itself as
+ * such. */
+module_param(revid_errata, int, 0644);
+MODULE_PARM_DESC(revid_errata, "Ignore CPU Revision ID");
 
 MODULE_AUTHOR ("Dave Jones <davej@codemonkey.org.uk>");
 MODULE_DESCRIPTION ("Longhaul driver for VIA Cyrix processors.");

@@ -206,8 +206,11 @@ _xfs_mru_cache_list_insert(
 	 */
 	if (!_xfs_mru_cache_migrate(mru, now)) {
 		mru->time_zero = now;
-		if (!mru->next_reap)
-			mru->next_reap = mru->grp_count * mru->grp_time;
+		if (!mru->queued) {
+			mru->queued = 1;
+			queue_delayed_work(xfs_mru_reap_wq, &mru->work,
+			                   mru->grp_count * mru->grp_time);
+		}
 	} else {
 		grp = (now - mru->time_zero) / mru->grp_time;
 		grp = (mru->lru_grp + grp) % mru->grp_count;
@@ -271,29 +274,26 @@ _xfs_mru_cache_reap(
 	struct work_struct	*work)
 {
 	xfs_mru_cache_t		*mru = container_of(work, xfs_mru_cache_t, work.work);
-	unsigned long		now;
+	unsigned long		now, next;
 
 	ASSERT(mru && mru->lists);
 	if (!mru || !mru->lists)
 		return;
 
 	mutex_spinlock(&mru->lock);
-	now = jiffies;
-	if (mru->reap_all ||
-	    (mru->next_reap && time_after(now, mru->next_reap))) {
-		if (mru->reap_all)
-			now += mru->grp_count * mru->grp_time * 2;
-		mru->next_reap = _xfs_mru_cache_migrate(mru, now);
-		_xfs_mru_cache_clear_reap_list(mru);
+	next = _xfs_mru_cache_migrate(mru, jiffies);
+	_xfs_mru_cache_clear_reap_list(mru);
+
+	mru->queued = next;
+	if ((mru->queued > 0)) {
+		now = jiffies;
+		if (next <= now)
+			next = 0;
+		else
+			next -= now;
+		queue_delayed_work(xfs_mru_reap_wq, &mru->work, next);
 	}
 
-	/*
-	 * the process that triggered the reap_all is responsible
-	 * for restating the periodic reap if it is required.
-	 */
-	if (!mru->reap_all)
-		queue_delayed_work(xfs_mru_reap_wq, &mru->work, mru->grp_time);
-	mru->reap_all = 0;
 	mutex_spinunlock(&mru->lock, 0);
 }
 
@@ -352,7 +352,7 @@ xfs_mru_cache_create(
 
 	/* An extra list is needed to avoid reaping up to a grp_time early. */
 	mru->grp_count = grp_count + 1;
-	mru->lists = kmem_alloc(mru->grp_count * sizeof(*mru->lists), KM_SLEEP);
+	mru->lists = kmem_zalloc(mru->grp_count * sizeof(*mru->lists), KM_SLEEP);
 
 	if (!mru->lists) {
 		err = ENOMEM;
@@ -374,11 +374,6 @@ xfs_mru_cache_create(
 	mru->grp_time  = grp_time;
 	mru->free_func = free_func;
 
-	/* start up the reaper event */
-	mru->next_reap = 0;
-	mru->reap_all = 0;
-	queue_delayed_work(xfs_mru_reap_wq, &mru->work, mru->grp_time);
-
 	*mrup = mru;
 
 exit:
@@ -394,35 +389,25 @@ exit:
  * Call xfs_mru_cache_flush() to flush out all cached entries, calling their
  * free functions as they're deleted.  When this function returns, the caller is
  * guaranteed that all the free functions for all the elements have finished
- * executing.
- *
- * While we are flushing, we stop the periodic reaper event from triggering.
- * Normally, we want to restart this periodic event, but if we are shutting
- * down the cache we do not want it restarted. hence the restart parameter
- * where 0 = do not restart reaper and 1 = restart reaper.
+ * executing and the reaper is not running.
  */
 void
 xfs_mru_cache_flush(
-	xfs_mru_cache_t		*mru,
-	int			restart)
+	xfs_mru_cache_t		*mru)
 {
 	if (!mru || !mru->lists)
 		return;
 
-	cancel_rearming_delayed_workqueue(xfs_mru_reap_wq, &mru->work);
-
 	mutex_spinlock(&mru->lock);
-	mru->reap_all = 1;
-	mutex_spinunlock(&mru->lock, 0);
+	if (mru->queued) {
+		mutex_spinunlock(&mru->lock, 0);
+		cancel_rearming_delayed_workqueue(xfs_mru_reap_wq, &mru->work);
+		mutex_spinlock(&mru->lock);
+	}
 
-	queue_work(xfs_mru_reap_wq, &mru->work.work);
-	flush_workqueue(xfs_mru_reap_wq);
+	_xfs_mru_cache_migrate(mru, jiffies + mru->grp_count * mru->grp_time);
+	_xfs_mru_cache_clear_reap_list(mru);
 
-	mutex_spinlock(&mru->lock);
-	WARN_ON_ONCE(mru->reap_all != 0);
-	mru->reap_all = 0;
-	if (restart)
-		queue_delayed_work(xfs_mru_reap_wq, &mru->work, mru->grp_time);
 	mutex_spinunlock(&mru->lock, 0);
 }
 
@@ -433,8 +418,7 @@ xfs_mru_cache_destroy(
 	if (!mru || !mru->lists)
 		return;
 
-	/* we don't want the reaper to restart here */
-	xfs_mru_cache_flush(mru, 0);
+	xfs_mru_cache_flush(mru);
 
 	kmem_free(mru->lists, mru->grp_count * sizeof(*mru->lists));
 	kmem_free(mru, sizeof(*mru));

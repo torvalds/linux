@@ -539,7 +539,7 @@ static struct tcp_md5sig_key *tcp_v6_md5_do_lookup(struct sock *sk,
 
 	for (i = 0; i < tp->md5sig_info->entries6; i++) {
 		if (ipv6_addr_cmp(&tp->md5sig_info->keys6[i].addr, addr) == 0)
-			return (struct tcp_md5sig_key *)&tp->md5sig_info->keys6[i];
+			return &tp->md5sig_info->keys6[i].base;
 	}
 	return NULL;
 }
@@ -567,9 +567,9 @@ static int tcp_v6_md5_do_add(struct sock *sk, struct in6_addr *peer,
 	key = (struct tcp6_md5sig_key*) tcp_v6_md5_do_lookup(sk, peer);
 	if (key) {
 		/* modify existing entry - just update that one */
-		kfree(key->key);
-		key->key = newkey;
-		key->keylen = newkeylen;
+		kfree(key->base.key);
+		key->base.key = newkey;
+		key->base.keylen = newkeylen;
 	} else {
 		/* reallocate new list if current one is full. */
 		if (!tp->md5sig_info) {
@@ -603,8 +603,8 @@ static int tcp_v6_md5_do_add(struct sock *sk, struct in6_addr *peer,
 
 		ipv6_addr_copy(&tp->md5sig_info->keys6[tp->md5sig_info->entries6].addr,
 			       peer);
-		tp->md5sig_info->keys6[tp->md5sig_info->entries6].key = newkey;
-		tp->md5sig_info->keys6[tp->md5sig_info->entries6].keylen = newkeylen;
+		tp->md5sig_info->keys6[tp->md5sig_info->entries6].base.key = newkey;
+		tp->md5sig_info->keys6[tp->md5sig_info->entries6].base.keylen = newkeylen;
 
 		tp->md5sig_info->entries6++;
 	}
@@ -626,7 +626,7 @@ static int tcp_v6_md5_do_del(struct sock *sk, struct in6_addr *peer)
 	for (i = 0; i < tp->md5sig_info->entries6; i++) {
 		if (ipv6_addr_cmp(&tp->md5sig_info->keys6[i].addr, peer) == 0) {
 			/* Free the key */
-			kfree(tp->md5sig_info->keys6[i].key);
+			kfree(tp->md5sig_info->keys6[i].base.key);
 			tp->md5sig_info->entries6--;
 
 			if (tp->md5sig_info->entries6 == 0) {
@@ -657,7 +657,7 @@ static void tcp_v6_clear_md5_list (struct sock *sk)
 
 	if (tp->md5sig_info->entries6) {
 		for (i = 0; i < tp->md5sig_info->entries6; i++)
-			kfree(tp->md5sig_info->keys6[i].key);
+			kfree(tp->md5sig_info->keys6[i].base.key);
 		tp->md5sig_info->entries6 = 0;
 		tcp_free_md5sig_pool();
 	}
@@ -668,7 +668,7 @@ static void tcp_v6_clear_md5_list (struct sock *sk)
 
 	if (tp->md5sig_info->entries4) {
 		for (i = 0; i < tp->md5sig_info->entries4; i++)
-			kfree(tp->md5sig_info->keys4[i].key);
+			kfree(tp->md5sig_info->keys4[i].base.key);
 		tp->md5sig_info->entries4 = 0;
 		tcp_free_md5sig_pool();
 	}

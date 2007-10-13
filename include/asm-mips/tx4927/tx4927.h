@@ -28,6 +28,7 @@
 #define __ASM_TX4927_TX4927_H
 
 #include <asm/tx4927/tx4927_mips.h>
+#include <asm/txx9irq.h>
 
 /*
  This register naming came from the integrated CPU/controller name TX4927
@@ -421,32 +422,6 @@
 #define TX4927_PIO_LIMIT                0xf50f
 
 
-/* TX4927 Interrupt Controller (32-bit registers) */
-#define TX4927_IRC_BASE                 0xf510
-#define TX4927_IRC_IRFLAG0              0xf510
-#define TX4927_IRC_IRFLAG1              0xf514
-#define TX4927_IRC_IRPOL                0xf518
-#define TX4927_IRC_IRRCNT               0xf51c
-#define TX4927_IRC_IRMASKINT            0xf520
-#define TX4927_IRC_IRMASKEXT            0xf524
-#define TX4927_IRC_IRDEN                0xf600
-#define TX4927_IRC_IRDM0                0xf604
-#define TX4927_IRC_IRDM1                0xf608
-#define TX4927_IRC_IRLVL0               0xf610
-#define TX4927_IRC_IRLVL1               0xf614
-#define TX4927_IRC_IRLVL2               0xf618
-#define TX4927_IRC_IRLVL3               0xf61c
-#define TX4927_IRC_IRLVL4               0xf620
-#define TX4927_IRC_IRLVL5               0xf624
-#define TX4927_IRC_IRLVL6               0xf628
-#define TX4927_IRC_IRLVL7               0xf62c
-#define TX4927_IRC_IRMSK                0xf640
-#define TX4927_IRC_IREDC                0xf660
-#define TX4927_IRC_IRPND                0xf680
-#define TX4927_IRC_IRCS                 0xf6a0
-#define TX4927_IRC_LIMIT                0xf6ff
-
-
 /* TX4927 AC-link controller (32-bit registers) */
 #define TX4927_ACLC_BASE                0xf700
 #define TX4927_ACLC_ACCTLEN             0xf700
@@ -493,25 +468,11 @@
 #define TX4927_WR( reg, val ) TX4927_WR32( reg, val )
 
 
+#define TX4927_IRQ_CP0_BEG  MIPS_CPU_IRQ_BASE
+#define TX4927_IRQ_CP0_END  (MIPS_CPU_IRQ_BASE + 8 - 1)
 
-
-
-#define MI8259_IRQ_ISA_RAW_BEG   0    /* optional backplane i8259 */
-#define MI8259_IRQ_ISA_RAW_END  15
-#define TX4927_IRQ_CP0_RAW_BEG   0    /* tx4927 cpu built-in cp0 */
-#define TX4927_IRQ_CP0_RAW_END   7
-#define TX4927_IRQ_PIC_RAW_BEG   0    /* tx4927 cpu build-in pic */
-#define TX4927_IRQ_PIC_RAW_END  31
-
-
-#define MI8259_IRQ_ISA_BEG                          MI8259_IRQ_ISA_RAW_BEG   /*  0 */
-#define MI8259_IRQ_ISA_END                          MI8259_IRQ_ISA_RAW_END   /* 15 */
-
-#define TX4927_IRQ_CP0_BEG  ((MI8259_IRQ_ISA_END+1)+TX4927_IRQ_CP0_RAW_BEG)  /* 16 */
-#define TX4927_IRQ_CP0_END  ((MI8259_IRQ_ISA_END+1)+TX4927_IRQ_CP0_RAW_END)  /* 23 */
-
-#define TX4927_IRQ_PIC_BEG  ((TX4927_IRQ_CP0_END+1)+TX4927_IRQ_PIC_RAW_BEG)  /* 24 */
-#define TX4927_IRQ_PIC_END  ((TX4927_IRQ_CP0_END+1)+TX4927_IRQ_PIC_RAW_END)  /* 55 */
+#define TX4927_IRQ_PIC_BEG  TXX9_IRQ_BASE
+#define TX4927_IRQ_PIC_END  (TXX9_IRQ_BASE + TXx9_MAX_IR - 1)
 
 
 #define TX4927_IRQ_USER0            (TX4927_IRQ_CP0_BEG+0)

@@ -21,7 +21,7 @@
 
 #include <syslib/virtex_devices.h>
 
-#define XILINX_SPI_NAME "xspi"
+#define XILINX_SPI_NAME "xilinx_spi"
 
 /* Register definitions as per "OPB Serial Peripheral Interface (SPI) (v1.00e)
  * Product Specification", DS464

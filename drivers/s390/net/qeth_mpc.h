@@ -565,6 +565,7 @@ extern unsigned char IDX_ACTIVATE_WRITE[];
 #define QETH_IDX_ACT_QDIO_DEV_REALADDR(buffer) (buffer+0x20)
 #define QETH_IS_IDX_ACT_POS_REPLY(buffer) (((buffer)[0x08]&3)==2)
 #define QETH_IDX_REPLY_LEVEL(buffer) (buffer+0x12)
+#define QETH_IDX_ACT_CAUSE_CODE(buffer) (buffer)[0x09]
 
 #define PDU_ENCAPSULATION(buffer) \
 	(buffer + *(buffer + (*(buffer+0x0b)) + \

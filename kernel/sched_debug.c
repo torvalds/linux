@@ -154,10 +154,11 @@ static void print_cpu(struct seq_file *m, int cpu)
 	P(next_balance);
 	P(curr->pid);
 	P(clock);
+	P(idle_clock);
 	P(prev_clock_raw);
 	P(clock_warps);
 	P(clock_overflows);
-	P(clock_unstable_events);
+	P(clock_deep_idle_events);
 	P(clock_max_delta);
 	P(cpu_load[0]);
 	P(cpu_load[1]);
@@ -282,4 +283,5 @@ void proc_sched_set_task(struct task_struct *p)
 	p->se.wait_runtime_overruns = p->se.wait_runtime_underruns = 0;
 #endif
 	p->se.sum_exec_runtime = 0;
+	p->se.prev_sum_exec_runtime	= 0;
 }

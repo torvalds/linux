@@ -120,7 +120,8 @@ xfs_Gqm_init(void)
 	 * Initialize the dquot hash tables.
 	 */
 	udqhash = kmem_zalloc_greedy(&hsize,
-				     XFS_QM_HASHSIZE_LOW, XFS_QM_HASHSIZE_HIGH,
+				     XFS_QM_HASHSIZE_LOW * sizeof(xfs_dqhash_t),
+				     XFS_QM_HASHSIZE_HIGH * sizeof(xfs_dqhash_t),
 				     KM_SLEEP | KM_MAYFAIL | KM_LARGE);
 	gdqhash = kmem_zalloc(hsize, KM_SLEEP | KM_LARGE);
 	hsize /= sizeof(xfs_dqhash_t);

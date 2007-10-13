@@ -241,7 +241,7 @@ void flush_tlb_mm (struct mm_struct * mm)
 	}
 	if (!cpus_empty(cpu_mask))
 		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
-	check_pgt_cache();
+
 	preempt_enable();
 }
 EXPORT_SYMBOL(flush_tlb_mm);

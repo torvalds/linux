@@ -284,6 +284,7 @@ static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
 
 	/* let the kset specific function add its keys */
 	pos = data;
+	memset(envp, 0, sizeof(envp));
 	retval = kset->uevent_ops->uevent(kset, &dev->kobj,
 					  envp, ARRAY_SIZE(envp),
 					  pos, PAGE_SIZE);
@@ -585,9 +586,13 @@ void device_initialize(struct device *dev)
 static struct kobject * get_device_parent(struct device *dev,
 					  struct device *parent)
 {
-	/* Set the parent to the class, not the parent device */
-	/* this keeps sysfs from having a symlink to make old udevs happy */
-	if (dev->class)
+	/*
+	 * Set the parent to the class, not the parent device
+	 * for topmost devices in class hierarchy.
+	 * This keeps sysfs from having a symlink to make old
+	 * udevs happy
+	 */
+	if (dev->class && (!parent || parent->class != dev->class))
 		return &dev->class->subsys.kobj;
 	else if (parent)
 		return &parent->kobj;
@@ -679,14 +684,26 @@ static int device_add_class_symlinks(struct device *dev)
 			goto out_subsys;
 	}
 	if (dev->parent) {
-		error = sysfs_create_link(&dev->kobj, &dev->parent->kobj,
-					  "device");
-		if (error)
-			goto out_busid;
 #ifdef CONFIG_SYSFS_DEPRECATED
 		{
-			char * class_name = make_class_name(dev->class->name,
-								&dev->kobj);
+			struct device *parent = dev->parent;
+			char *class_name;
+
+			/*
+			 * In old sysfs stacked class devices had 'device'
+			 * link pointing to real device instead of parent
+			 */
+			while (parent->class && !parent->bus && parent->parent)
+				parent = parent->parent;
+
+			error = sysfs_create_link(&dev->kobj,
+						  &parent->kobj,
+						  "device");
+			if (error)
+				goto out_busid;
+
+			class_name = make_class_name(dev->class->name,
+							&dev->kobj);
 			if (class_name)
 				error = sysfs_create_link(&dev->parent->kobj,
 							&dev->kobj, class_name);
@@ -694,6 +711,11 @@ static int device_add_class_symlinks(struct device *dev)
 			if (error)
 				goto out_device;
 		}
+#else
+		error = sysfs_create_link(&dev->kobj, &dev->parent->kobj,
+					  "device");
+		if (error)
+			goto out_busid;
 #endif
 	}
 	return 0;

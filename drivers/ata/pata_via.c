@@ -63,7 +63,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME "pata_via"
-#define DRV_VERSION "0.3.1"
+#define DRV_VERSION "0.3.2"
 
 /*
  *	The following comes directly from Vojtech Pavlik's ide/pci/via82cxxx
@@ -97,6 +97,7 @@ static const struct via_isa_bridge {
 	u8 rev_max;
 	u16 flags;
 } via_isa_bridges[] = {
+	{ "vx800",	PCI_DEVICE_ID_VIA_VX800,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8251",	PCI_DEVICE_ID_VIA_8251,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
@@ -143,6 +144,9 @@ static int via_cable_override(struct pci_dev *pdev)
 {
 	/* Systems by DMI */
 	if (dmi_check_system(cable_dmi_table))
+		return 1;
+	/* Arima W730-K8/Targa Visionary 811/... */
+	if (pdev->subsystem_vendor == 0x161F && pdev->subsystem_device == 0x2032)
 		return 1;
 	return 0;
 }
@@ -240,7 +244,6 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev, int mo
 	int ut;
 	int offset = 3 - (2*ap->port_no) - adev->devno;
 
-
 	/* Calculate the timing values we require */
 	ata_timing_compute(adev, mode, &t, T, UT);
 
@@ -287,9 +290,17 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev, int mo
 			ut = t.udma ? (0xe0 | (FIT(t.udma, 2, 9) - 2)) : 0x07;
 			break;
 	}
+
 	/* Set UDMA unless device is not UDMA capable */
-	if (udma_type)
-		pci_write_config_byte(pdev, 0x50 + offset, ut);
+	if (udma_type) {
+		u8 cable80_status;
+
+		/* Get 80-wire cable detection bit */
+		pci_read_config_byte(pdev, 0x50 + offset, &cable80_status);
+		cable80_status &= 0x10;
+
+		pci_write_config_byte(pdev, 0x50 + offset, ut | cable80_status);
+	}
 }
 
 static void via_set_piomode(struct ata_port *ap, struct ata_device *adev)

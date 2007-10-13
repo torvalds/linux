@@ -126,7 +126,7 @@ the reviewers time and will get your patch rejected, probably
 without even being read.
 
 At a minimum you should check your patches with the patch style
-checker prior to submission (scripts/patchcheck.pl).  You should
+checker prior to submission (scripts/checkpatch.pl).  You should
 be able to justify all violations that remain in your patch.
 
 
@@ -560,7 +560,7 @@ NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <http://marc.theaimsgroup.com/?l=linux-kernel&m=112112749912944&w=2>
 
 Kernel Documentation/CodingStyle:
-  <http://sosdg.org/~coywolf/lxr/source/Documentation/CodingStyle>
+  <http://users.sosdg.org/~qiyong/lxr/source/Documentation/CodingStyle>
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>

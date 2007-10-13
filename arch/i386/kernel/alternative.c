@@ -445,8 +445,6 @@ void __kprobes text_poke(void *addr, unsigned char *opcode, int len)
 {
 	memcpy(addr, opcode, len);
 	sync_core();
-	/* Not strictly needed, but can speed CPU recovery up. Ignore cross cacheline
-	   case. */
-	if (cpu_has_clflush)
-		asm("clflush (%0) " :: "r" (addr) : "memory");
+	/* Could also do a CLFLUSH here to speed up CPU recovery; but
+	   that causes hangs on some VIA CPUs. */
 }

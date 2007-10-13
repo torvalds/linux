@@ -30,9 +30,9 @@ static int read_mbr(u8 devno, void *buf)
 	cx = 0x0001;		/* Sector 0-0-1 */
 	dx = devno;
 	bx = (size_t)buf;
-	asm("pushfl; stc; int $0x13; setc %%al; popfl"
-	    : "+a" (ax), "+c" (cx), "+d" (dx), "+b" (bx)
-	    : : "esi", "edi", "memory");
+	asm volatile("pushfl; stc; int $0x13; setc %%al; popfl"
+		     : "+a" (ax), "+c" (cx), "+d" (dx), "+b" (bx)
+		     : : "esi", "edi", "memory");
 
 	return -(u8)ax;		/* 0 or -1 */
 }

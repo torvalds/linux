@@ -186,11 +186,9 @@ struct mmc_card *mmc_alloc_card(struct mmc_host *host)
 {
 	struct mmc_card *card;
 
-	card = kmalloc(sizeof(struct mmc_card), GFP_KERNEL);
+	card = kzalloc(sizeof(struct mmc_card), GFP_KERNEL);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
-
-	memset(card, 0, sizeof(struct mmc_card));
 
 	card->host = host;
 

@@ -51,6 +51,8 @@ void cxgb3_offload_deactivate(struct adapter *adapter);
 
 void cxgb3_set_dummy_ops(struct t3cdev *dev);
 
+struct t3cdev *dev2t3cdev(struct net_device *dev);
+
 /*
  * Client registration.  Users of T3 driver must register themselves.
  * The T3 driver will call the add function of every client for each T3

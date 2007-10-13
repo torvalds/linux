@@ -32,11 +32,19 @@ EXPORT_SYMBOL(rtc_lock);
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 unsigned long ccount_per_jiffy;		/* per 1/HZ */
-unsigned long ccount_nsec;		/* nsec per ccount increment */
+unsigned long nsec_per_ccount;		/* nsec per ccount increment */
 #endif
 
-unsigned int last_ccount_stamp;
 static long last_rtc_update = 0;
+
+/*
+ * Scheduler clock - returns current tim in nanosec units.
+ */
+
+unsigned long long sched_clock(void)
+{
+	return (unsigned long long)jiffies * (1000000000 / HZ);
+}
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id);
 static struct irqaction timer_irqaction = {
@@ -69,7 +77,6 @@ void __init time_init(void)
 
 	xtime.tv_nsec = 0;
 	last_rtc_update = xtime.tv_sec = sec_n;
-	last_ccount_stamp = get_ccount();
 
 	set_normalized_timespec(&wall_to_monotonic,
 		-xtime.tv_sec, -xtime.tv_nsec);
@@ -85,7 +92,7 @@ int do_settimeofday(struct timespec *tv)
 {
 	time_t wtm_sec, sec = tv->tv_sec;
 	long wtm_nsec, nsec = tv->tv_nsec;
-	unsigned long ccount;
+	unsigned long delta;
 
 	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
@@ -97,8 +104,10 @@ int do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * made, and then undo it!
 	 */
-	ccount = get_ccount();
-	nsec -= (ccount - last_ccount_stamp) * CCOUNT_NSEC;
+
+	delta = CCOUNT_PER_JIFFY;
+	delta += get_ccount() - get_linux_timer();
+	nsec -= delta * NSEC_PER_CCOUNT;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -117,17 +126,21 @@ EXPORT_SYMBOL(do_settimeofday);
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
-	unsigned long sec, usec, delta, seq;
+	unsigned long volatile sec, usec, delta, seq;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 
-		delta = get_ccount() - last_ccount_stamp;
 		sec = xtime.tv_sec;
 		usec = (xtime.tv_nsec / NSEC_PER_USEC);
+
+		delta = get_linux_timer() - get_ccount();
+
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	usec += (delta * CCOUNT_NSEC) / NSEC_PER_USEC;
+	usec += (((unsigned long) CCOUNT_PER_JIFFY - delta)
+		 * (unsigned long) NSEC_PER_CCOUNT) / NSEC_PER_USEC;
+
 	for (; usec >= 1000000; sec++, usec -= 1000000)
 		;
 
@@ -158,9 +171,12 @@ again:
 
 		write_seqlock(&xtime_lock);
 
-		last_ccount_stamp = next;
+		do_timer(1); /* Linux handler in kernel/timer.c */
+
+		/* Note that writing CCOMPARE clears the interrupt. */
+
 		next += CCOUNT_PER_JIFFY;
-		do_timer (1); /* Linux handler in kernel/timer.c */
+		set_linux_timer(next);
 
 		if (ntp_synced() &&
 		    xtime.tv_sec - last_rtc_update >= 659 &&
@@ -175,18 +191,14 @@ again:
 		write_sequnlock(&xtime_lock);
 	}
 
-	/* NOTE: writing CCOMPAREn clears the interrupt.  */
+	/* Allow platform to do something useful (Wdog). */
 
-	set_linux_timer (next);
+	platform_heartbeat();
 
 	/* Make sure we didn't miss any tick... */
 
 	if ((signed long)(get_ccount() - next) > 0)
 		goto again;
-
-	/* Allow platform to do something useful (Wdog). */
-
-	platform_heartbeat();
 
 	return IRQ_HANDLED;
 }

@@ -323,6 +323,7 @@ static int __init vfp_init(void)
 	 * we just need to read the VFPSID register.
 	 */
 	vfp_vector = vfp_testing_entry;
+	barrier();
 	vfpsid = fmrx(FPSID);
 	barrier();
 	vfp_vector = vfp_null_entry;

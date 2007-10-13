@@ -180,7 +180,7 @@ static struct platform_driver s3c2410_spigpio_drv = {
         .suspend	= s3c2410_spigpio_suspend,
         .resume		= s3c2410_spigpio_resume,
         .driver		= {
-		.name	= "s3c24xx-spi-gpio",
+		.name	= "spi_s3c24xx_gpio",
 		.owner	= THIS_MODULE,
         },
 };

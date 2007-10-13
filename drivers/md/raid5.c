@@ -514,7 +514,7 @@ static void ops_complete_biofill(void *stripe_head_ref)
 	struct stripe_head *sh = stripe_head_ref;
 	struct bio *return_bi = NULL;
 	raid5_conf_t *conf = sh->raid_conf;
-	int i, more_to_read = 0;
+	int i;
 
 	pr_debug("%s: stripe %llu\n", __FUNCTION__,
 		(unsigned long long)sh->sector);
@@ -522,16 +522,14 @@ static void ops_complete_biofill(void *stripe_head_ref)
 	/* clear completed biofills */
 	for (i = sh->disks; i--; ) {
 		struct r5dev *dev = &sh->dev[i];
-		/* check if this stripe has new incoming reads */
-		if (dev->toread)
-			more_to_read++;
 
 		/* acknowledge completion of a biofill operation */
-		/* and check if we need to reply to a read request
-		*/
-		if (test_bit(R5_Wantfill, &dev->flags) && !dev->toread) {
+		/* and check if we need to reply to a read request,
+		 * new R5_Wantfill requests are held off until
+		 * !test_bit(STRIPE_OP_BIOFILL, &sh->ops.pending)
+		 */
+		if (test_and_clear_bit(R5_Wantfill, &dev->flags)) {
 			struct bio *rbi, *rbi2;
-			clear_bit(R5_Wantfill, &dev->flags);
 
 			/* The access to dev->read is outside of the
 			 * spin_lock_irq(&conf->device_lock), but is protected
@@ -558,8 +556,7 @@ static void ops_complete_biofill(void *stripe_head_ref)
 
 	return_io(return_bi);
 
-	if (more_to_read)
-		set_bit(STRIPE_HANDLE, &sh->state);
+	set_bit(STRIPE_HANDLE, &sh->state);
 	release_stripe(sh);
 }
 
@@ -2541,7 +2538,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 	struct dma_async_tx_descriptor *tx = NULL;
 	clear_bit(STRIPE_EXPAND_SOURCE, &sh->state);
 	for (i = 0; i < sh->disks; i++)
-		if (i != sh->pd_idx && (r6s && i != r6s->qd_idx)) {
+		if (i != sh->pd_idx && (!r6s || i != r6s->qd_idx)) {
 			int dd_idx, pd_idx, j;
 			struct stripe_head *sh2;
 
@@ -2574,7 +2571,8 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 			set_bit(R5_UPTODATE, &sh2->dev[dd_idx].flags);
 			for (j = 0; j < conf->raid_disks; j++)
 				if (j != sh2->pd_idx &&
-				    (r6s && j != r6s->qd_idx) &&
+				    (!r6s || j != raid6_next_disk(sh2->pd_idx,
+								 sh2->disks)) &&
 				    !test_bit(R5_Expanded, &sh2->dev[j].flags))
 					break;
 			if (j == conf->raid_disks) {
@@ -2583,12 +2581,12 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 			}
 			release_stripe(sh2);
 
-			/* done submitting copies, wait for them to complete */
-			if (i + 1 >= sh->disks) {
-				async_tx_ack(tx);
-				dma_wait_for_async_tx(tx);
-			}
 		}
+	/* done submitting copies, wait for them to complete */
+	if (tx) {
+		async_tx_ack(tx);
+		dma_wait_for_async_tx(tx);
+	}
 }
 
 /*
@@ -2855,7 +2853,7 @@ static void handle_stripe5(struct stripe_head *sh)
 		sh->disks = conf->raid_disks;
 		sh->pd_idx = stripe_to_pdidx(sh->sector, conf,
 			conf->raid_disks);
-		s.locked += handle_write_operations5(sh, 0, 1);
+		s.locked += handle_write_operations5(sh, 1, 1);
 	} else if (s.expanded &&
 		!test_bit(STRIPE_OP_POSTXOR, &sh->ops.pending)) {
 		clear_bit(STRIPE_EXPAND_READY, &sh->state);
