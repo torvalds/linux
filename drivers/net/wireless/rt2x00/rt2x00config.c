@@ -166,6 +166,8 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	else if (conf->antenna_sel_rx &&
 		 conf->antenna_sel_rx != active_ant->rx)
 		flags |= CONFIG_UPDATE_ANTENNA;
+	else if (active_ant->rx == ANTENNA_SW_DIVERSITY)
+		flags |= CONFIG_UPDATE_ANTENNA;
 
 	if (!conf->antenna_sel_tx &&
 	    default_ant->tx != ANTENNA_SW_DIVERSITY &&
@@ -173,6 +175,8 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		flags |= CONFIG_UPDATE_ANTENNA;
 	else if (conf->antenna_sel_tx &&
 		 conf->antenna_sel_tx != active_ant->tx)
+		flags |= CONFIG_UPDATE_ANTENNA;
+	else if (active_ant->tx == ANTENNA_SW_DIVERSITY)
 		flags |= CONFIG_UPDATE_ANTENNA;
 
 	/*
@@ -262,11 +266,17 @@ config:
 	if (flags & (CONFIG_UPDATE_CHANNEL | CONFIG_UPDATE_ANTENNA))
 		rt2x00lib_reset_link_tuner(rt2x00dev);
 
-	rt2x00dev->curr_hwmode = libconf.phymode;
-	rt2x00dev->rx_status.phymode = conf->phymode;
+	if (flags & CONFIG_UPDATE_PHYMODE) {
+		rt2x00dev->curr_hwmode = libconf.phymode;
+		rt2x00dev->rx_status.phymode = conf->phymode;
+	}
+
 	rt2x00dev->rx_status.freq = conf->freq;
 	rt2x00dev->rx_status.channel = conf->channel;
 	rt2x00dev->tx_power = conf->power_level;
-	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
-	rt2x00dev->link.ant.active.tx = libconf.ant.tx;
+
+	if (flags & CONFIG_UPDATE_ANTENNA) {
+		rt2x00dev->link.ant.active.rx = libconf.ant.rx;
+		rt2x00dev->link.ant.active.tx = libconf.ant.tx;
+	}
 }
