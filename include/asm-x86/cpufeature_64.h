@@ -7,7 +7,7 @@
 #ifndef __ASM_X8664_CPUFEATURE_H
 #define __ASM_X8664_CPUFEATURE_H
 
-#include <asm/cpufeature_32.h>
+#include "cpufeature_32.h"
 
 #undef  cpu_has_vme
 #define cpu_has_vme            0

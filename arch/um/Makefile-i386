@@ -1,4 +1,4 @@
-core-y += arch/um/sys-i386/ arch/i386/crypto/
+core-y += arch/um/sys-i386/ arch/x86/crypto/
 
 TOP_ADDR := $(CONFIG_TOP_ADDR)
 
@@ -12,6 +12,7 @@ LDFLAGS			+= -m elf_i386
 ELF_ARCH		:= $(SUBARCH)
 ELF_FORMAT 		:= elf32-$(SUBARCH)
 OBJCOPYFLAGS  		:= -O binary -R .note -R .comment -S
+HEADER_ARCH		:= x86
 
 ifeq ("$(origin SUBARCH)", "command line")
 ifneq ("$(shell uname -m | sed -e s/i.86/i386/)", "$(SUBARCH)")
@@ -23,6 +24,11 @@ UML_OBJCOPYFLAGS	+= -F $(ELF_FORMAT)
 export LDFLAGS HOSTCFLAGS HOSTLDFLAGS UML_OBJCOPYFLAGS
 endif
 endif
+
+CFLAGS			+= -DCONFIG_X86_32
+AFLAGS			+= -DCONFIG_X86_32
+CONFIG_X86_32		:= y
+export CONFIG_X86_32
 
 ARCH_KERNEL_DEFINES += -U__$(SUBARCH)__ -U$(SUBARCH)
 

@@ -1,7 +1,7 @@
 # Copyright 2003 - 2004 Pathscale, Inc
 # Released under the GPL
 
-core-y += arch/um/sys-x86_64/ arch/x86_64/crypto/
+core-y += arch/um/sys-x86_64/ arch/x86/crypto/
 START := 0x60000000
 
 _extra_flags_ = -fno-builtin -m64
@@ -18,6 +18,7 @@ CPPFLAGS += -m64
 
 ELF_ARCH := i386:x86-64
 ELF_FORMAT := elf64-x86-64
+HEADER_ARCH := x86
 
 # Not on all 64-bit distros /lib is a symlink to /lib64. PLD is an example.
 
