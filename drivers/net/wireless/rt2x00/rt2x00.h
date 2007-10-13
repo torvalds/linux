@@ -180,6 +180,14 @@ struct rf_channel {
 };
 
 /*
+ * Antenna setup values.
+ */
+struct antenna_setup {
+	enum antenna rx;
+	enum antenna tx;
+};
+
+/*
  * Quality statistics about the currently active link.
  */
 struct link_qual {
@@ -251,6 +259,13 @@ struct link {
 	struct link_qual qual;
 
 	/*
+	 * Currently active TX/RX antenna setup.
+	 * When software diversity is used, this will indicate
+	 * which antenna is actually used at this time.
+	 */
+	struct antenna_setup active_ant;
+
+	/*
 	 * Active VGC level
 	 */
 	int vgc_level;
@@ -271,7 +286,6 @@ static inline void rt2x00_clear_link(struct link *link)
 	link->qual.rx_percentage = 50;
 	link->qual.tx_percentage = 50;
 }
-
 
 /*
  * Update the rssi using the walking average approach.
@@ -377,6 +391,8 @@ struct hw_mode_spec {
 struct rt2x00lib_conf {
 	struct ieee80211_conf *conf;
 	struct rf_channel rf;
+
+	struct antenna_setup ant;
 
 	int phymode;
 
@@ -581,6 +597,13 @@ struct rt2x00_dev {
 	 * hw capability specifications.
 	 */
 	struct hw_mode_spec spec;
+
+	/*
+	 * This is the default TX/RX antenna setup as indicated
+	 * by the device's EEPROM. When mac80211 sets its
+	 * antenna value to 0 we should be using these values.
+	 */
+	struct antenna_setup default_ant;
 
 	/*
 	 * Register pointers

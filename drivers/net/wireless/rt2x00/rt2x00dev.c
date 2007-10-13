@@ -419,6 +419,7 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 	    rt2x00lib_calculate_link_signal(rt2x00dev, desc->rssi);
 	rx_status->ssi = desc->rssi;
 	rx_status->flag = desc->flags;
+	rx_status->antenna = rt2x00dev->link.active_ant.rx;
 
 	/*
 	 * Send frame to mac80211

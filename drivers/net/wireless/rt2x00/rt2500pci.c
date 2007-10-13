@@ -424,7 +424,7 @@ static void rt2500pci_config_txpower(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2500pci_config_antenna(struct rt2x00_dev *rt2x00dev,
-				     const int antenna_tx, const int antenna_rx)
+				     struct antenna_setup *ant)
 {
 	u32 reg;
 	u8 r14;
@@ -437,7 +437,7 @@ static void rt2500pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Configure the TX antenna.
 	 */
-	switch (antenna_tx) {
+	switch (ant->tx) {
 	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r2, BBP_R2_TX_ANTENNA, 2);
@@ -459,7 +459,7 @@ static void rt2500pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Configure the RX antenna.
 	 */
-	switch (antenna_rx) {
+	switch (ant->rx) {
 	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r14, BBP_R14_RX_ANTENNA, 2);
@@ -541,9 +541,7 @@ static void rt2500pci_config(struct rt2x00_dev *rt2x00dev,
 		rt2500pci_config_txpower(rt2x00dev,
 					 libconf->conf->power_level);
 	if (flags & CONFIG_UPDATE_ANTENNA)
-		rt2500pci_config_antenna(rt2x00dev,
-					 libconf->conf->antenna_sel_tx,
-					 libconf->conf->antenna_sel_rx);
+		rt2500pci_config_antenna(rt2x00dev, &libconf->ant);
 	if (flags & (CONFIG_UPDATE_SLOT_TIME | CONFIG_UPDATE_BEACON_INT))
 		rt2500pci_config_duration(rt2x00dev, libconf);
 }
@@ -1485,9 +1483,9 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Identify default antenna configuration.
 	 */
-	rt2x00dev->hw->conf.antenna_sel_tx =
+	rt2x00dev->default_ant.tx =
 	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TX_DEFAULT);
-	rt2x00dev->hw->conf.antenna_sel_rx =
+	rt2x00dev->default_ant.rx =
 	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RX_DEFAULT);
 
 	/*

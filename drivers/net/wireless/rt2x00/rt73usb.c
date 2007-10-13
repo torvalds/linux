@@ -396,8 +396,7 @@ static void rt73usb_config_txpower(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
-				      const int antenna_tx,
-				      const int antenna_rx)
+				      struct antenna_setup *ant)
 {
 	u8 r3;
 	u8 r4;
@@ -409,7 +408,7 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, 0);
 
-	switch (antenna_rx) {
+	switch (ant->rx) {
 	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
@@ -442,8 +441,7 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt73usb_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
-				      const int antenna_tx,
-				      const int antenna_rx)
+				      struct antenna_setup *ant)
 {
 	u8 r3;
 	u8 r4;
@@ -457,7 +455,7 @@ static void rt73usb_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
 			  !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags));
 
-	switch (antenna_rx) {
+	switch (ant->rx) {
 	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
@@ -509,7 +507,7 @@ static const struct antenna_sel antenna_sel_bg[] = {
 };
 
 static void rt73usb_config_antenna(struct rt2x00_dev *rt2x00dev,
-				   const int antenna_tx, const int antenna_rx)
+				   struct antenna_setup *ant)
 {
 	const struct antenna_sel *sel;
 	unsigned int lna;
@@ -539,10 +537,10 @@ static void rt73usb_config_antenna(struct rt2x00_dev *rt2x00dev,
 
 	if (rt2x00_rf(&rt2x00dev->chip, RF5226) ||
 	    rt2x00_rf(&rt2x00dev->chip, RF5225))
-		rt73usb_config_antenna_5x(rt2x00dev, antenna_tx, antenna_rx);
+		rt73usb_config_antenna_5x(rt2x00dev, ant);
 	else if (rt2x00_rf(&rt2x00dev->chip, RF2528) ||
 		 rt2x00_rf(&rt2x00dev->chip, RF2527))
-		rt73usb_config_antenna_2x(rt2x00dev, antenna_tx, antenna_rx);
+		rt73usb_config_antenna_2x(rt2x00dev, ant);
 }
 
 static void rt73usb_config_duration(struct rt2x00_dev *rt2x00dev,
@@ -586,8 +584,7 @@ static void rt73usb_config(struct rt2x00_dev *rt2x00dev,
 	if ((flags & CONFIG_UPDATE_TXPOWER) && !(flags & CONFIG_UPDATE_CHANNEL))
 		rt73usb_config_txpower(rt2x00dev, libconf->conf->power_level);
 	if (flags & CONFIG_UPDATE_ANTENNA)
-		rt73usb_config_antenna(rt2x00dev, libconf->conf->antenna_sel_tx,
-				       libconf->conf->antenna_sel_rx);
+		rt73usb_config_antenna(rt2x00dev, &libconf->ant);
 	if (flags & (CONFIG_UPDATE_SLOT_TIME | CONFIG_UPDATE_BEACON_INT))
 		rt73usb_config_duration(rt2x00dev, libconf);
 }
@@ -1503,9 +1500,9 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Identify default antenna configuration.
 	 */
-	rt2x00dev->hw->conf.antenna_sel_tx =
+	rt2x00dev->default_ant.tx =
 	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TX_DEFAULT);
-	rt2x00dev->hw->conf.antenna_sel_rx =
+	rt2x00dev->default_ant.rx =
 	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RX_DEFAULT);
 
 	/*

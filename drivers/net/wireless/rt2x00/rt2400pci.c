@@ -397,7 +397,7 @@ static void rt2400pci_config_txpower(struct rt2x00_dev *rt2x00dev, int txpower)
 }
 
 static void rt2400pci_config_antenna(struct rt2x00_dev *rt2x00dev,
-				     int antenna_tx, int antenna_rx)
+				     struct antenna_setup *ant)
 {
 	u8 r1;
 	u8 r4;
@@ -408,7 +408,7 @@ static void rt2400pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Configure the TX antenna.
 	 */
-	switch (antenna_tx) {
+	switch (ant->tx) {
 	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r1, BBP_R1_TX_ANTENNA, 1);
@@ -424,7 +424,7 @@ static void rt2400pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Configure the RX antenna.
 	 */
-	switch (antenna_rx) {
+	switch (ant->rx) {
 	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
@@ -485,9 +485,7 @@ static void rt2400pci_config(struct rt2x00_dev *rt2x00dev,
 		rt2400pci_config_txpower(rt2x00dev,
 					 libconf->conf->power_level);
 	if (flags & CONFIG_UPDATE_ANTENNA)
-		rt2400pci_config_antenna(rt2x00dev,
-					 libconf->conf->antenna_sel_tx,
-					 libconf->conf->antenna_sel_rx);
+		rt2400pci_config_antenna(rt2x00dev, &libconf->ant);
 	if (flags & (CONFIG_UPDATE_SLOT_TIME | CONFIG_UPDATE_BEACON_INT))
 		rt2400pci_config_duration(rt2x00dev, libconf);
 }
@@ -1316,10 +1314,21 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Identify default antenna configuration.
 	 */
-	rt2x00dev->hw->conf.antenna_sel_tx =
+	rt2x00dev->default_ant.tx =
 	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TX_DEFAULT);
-	rt2x00dev->hw->conf.antenna_sel_rx =
+	rt2x00dev->default_ant.rx =
 	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RX_DEFAULT);
+
+	/*
+	 * When the eeprom indicates SW_DIVERSITY use HW_DIVERSITY instead.
+	 * I am not 100% sure about this, but the legacy drivers do not
+	 * indicate antenna swapping in software is required when
+	 * diversity is enabled.
+	 */
+	if (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY)
+		rt2x00dev->default_ant.tx = ANTENNA_HW_DIVERSITY;
+	if (rt2x00dev->default_ant.rx == ANTENNA_SW_DIVERSITY)
+		rt2x00dev->default_ant.rx = ANTENNA_HW_DIVERSITY;
 
 	/*
 	 * Store led mode, for correct led behaviour.
