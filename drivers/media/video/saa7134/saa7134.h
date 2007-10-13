@@ -333,6 +333,7 @@ struct saa7134_thread {
 	unsigned int               scan1;
 	unsigned int               scan2;
 	unsigned int               mode;
+	unsigned int		   stopped;
 };
 
 /* buffer for one video/vbi/ts frame */
