@@ -25,29 +25,36 @@
  *
  */
 
-#define CPU_BASED_VIRTUAL_INTR_PENDING  0x00000004
-#define CPU_BASED_USE_TSC_OFFSETING     0x00000008
-#define CPU_BASED_HLT_EXITING           0x00000080
-#define CPU_BASED_INVDPG_EXITING        0x00000200
-#define CPU_BASED_MWAIT_EXITING         0x00000400
-#define CPU_BASED_RDPMC_EXITING         0x00000800
-#define CPU_BASED_RDTSC_EXITING         0x00001000
-#define CPU_BASED_CR8_LOAD_EXITING      0x00080000
-#define CPU_BASED_CR8_STORE_EXITING     0x00100000
-#define CPU_BASED_TPR_SHADOW            0x00200000
-#define CPU_BASED_MOV_DR_EXITING        0x00800000
-#define CPU_BASED_UNCOND_IO_EXITING     0x01000000
-#define CPU_BASED_ACTIVATE_IO_BITMAP    0x02000000
-#define CPU_BASED_MSR_BITMAPS           0x10000000
-#define CPU_BASED_MONITOR_EXITING       0x20000000
-#define CPU_BASED_PAUSE_EXITING         0x40000000
+#define CPU_BASED_VIRTUAL_INTR_PENDING          0x00000004
+#define CPU_BASED_USE_TSC_OFFSETING             0x00000008
+#define CPU_BASED_HLT_EXITING                   0x00000080
+#define CPU_BASED_INVLPG_EXITING                0x00000200
+#define CPU_BASED_MWAIT_EXITING                 0x00000400
+#define CPU_BASED_RDPMC_EXITING                 0x00000800
+#define CPU_BASED_RDTSC_EXITING                 0x00001000
+#define CPU_BASED_CR8_LOAD_EXITING              0x00080000
+#define CPU_BASED_CR8_STORE_EXITING             0x00100000
+#define CPU_BASED_TPR_SHADOW                    0x00200000
+#define CPU_BASED_MOV_DR_EXITING                0x00800000
+#define CPU_BASED_UNCOND_IO_EXITING             0x01000000
+#define CPU_BASED_USE_IO_BITMAPS                0x02000000
+#define CPU_BASED_USE_MSR_BITMAPS               0x10000000
+#define CPU_BASED_MONITOR_EXITING               0x20000000
+#define CPU_BASED_PAUSE_EXITING                 0x40000000
+#define CPU_BASED_ACTIVATE_SECONDARY_CONTROLS   0x80000000
 
-#define PIN_BASED_EXT_INTR_MASK 0x1
-#define PIN_BASED_NMI_EXITING   0x8
+#define PIN_BASED_EXT_INTR_MASK                 0x00000001
+#define PIN_BASED_NMI_EXITING                   0x00000008
+#define PIN_BASED_VIRTUAL_NMIS                  0x00000020
 
-#define VM_EXIT_ACK_INTR_ON_EXIT        0x00008000
-#define VM_EXIT_HOST_ADD_SPACE_SIZE     0x00000200
+#define VM_EXIT_HOST_ADDR_SPACE_SIZE            0x00000200
+#define VM_EXIT_ACK_INTR_ON_EXIT                0x00008000
 
+#define VM_ENTRY_IA32E_MODE                     0x00000200
+#define VM_ENTRY_SMM                            0x00000400
+#define VM_ENTRY_DEACT_DUAL_MONITOR             0x00000800
+
+#define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
 
 /* VMCS Encodings */
 enum vmcs_field {
@@ -206,6 +213,7 @@ enum vmcs_field {
 #define EXIT_REASON_MSR_READ            31
 #define EXIT_REASON_MSR_WRITE           32
 #define EXIT_REASON_MWAIT_INSTRUCTION   36
+#define EXIT_REASON_TPR_BELOW_THRESHOLD 43
 
 /*
  * Interruption-information format
@@ -261,9 +269,6 @@ enum vmcs_field {
 /* segment AR */
 #define SEGMENT_AR_L_MASK (1 << 13)
 
-/* entry controls */
-#define VM_ENTRY_CONTROLS_IA32E_MASK (1 << 9)
-
 #define AR_TYPE_ACCESSES_MASK 1
 #define AR_TYPE_READABLE_MASK (1 << 1)
 #define AR_TYPE_WRITEABLE_MASK (1 << 2)
@@ -285,13 +290,21 @@ enum vmcs_field {
 
 #define AR_RESERVD_MASK 0xfffe0f00
 
-#define CR4_VMXE 0x2000
+#define MSR_IA32_VMX_BASIC                      0x480
+#define MSR_IA32_VMX_PINBASED_CTLS              0x481
+#define MSR_IA32_VMX_PROCBASED_CTLS             0x482
+#define MSR_IA32_VMX_EXIT_CTLS                  0x483
+#define MSR_IA32_VMX_ENTRY_CTLS                 0x484
+#define MSR_IA32_VMX_MISC                       0x485
+#define MSR_IA32_VMX_CR0_FIXED0                 0x486
+#define MSR_IA32_VMX_CR0_FIXED1                 0x487
+#define MSR_IA32_VMX_CR4_FIXED0                 0x488
+#define MSR_IA32_VMX_CR4_FIXED1                 0x489
+#define MSR_IA32_VMX_VMCS_ENUM                  0x48a
+#define MSR_IA32_VMX_PROCBASED_CTLS2            0x48b
 
-#define MSR_IA32_VMX_BASIC   		0x480
-#define MSR_IA32_FEATURE_CONTROL 		0x03a
-#define MSR_IA32_VMX_PINBASED_CTLS		0x481
-#define MSR_IA32_VMX_PROCBASED_CTLS		0x482
-#define MSR_IA32_VMX_EXIT_CTLS		0x483
-#define MSR_IA32_VMX_ENTRY_CTLS		0x484
+#define MSR_IA32_FEATURE_CONTROL                0x3a
+#define MSR_IA32_FEATURE_CONTROL_LOCKED         0x1
+#define MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED  0x4
 
 #endif

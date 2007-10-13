@@ -158,7 +158,7 @@ static struct kmem_cache *mmu_page_header_cache;
 
 static int is_write_protection(struct kvm_vcpu *vcpu)
 {
-	return vcpu->cr0 & CR0_WP_MASK;
+	return vcpu->cr0 & X86_CR0_WP;
 }
 
 static int is_cpuid_PSE36(void)
@@ -202,15 +202,14 @@ static void set_shadow_pte(u64 *sptep, u64 spte)
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
-				  struct kmem_cache *base_cache, int min,
-				  gfp_t gfp_flags)
+				  struct kmem_cache *base_cache, int min)
 {
 	void *obj;
 
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
-		obj = kmem_cache_zalloc(base_cache, gfp_flags);
+		obj = kmem_cache_zalloc(base_cache, GFP_KERNEL);
 		if (!obj)
 			return -ENOMEM;
 		cache->objects[cache->nobjs++] = obj;
@@ -225,14 +224,14 @@ static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
 }
 
 static int mmu_topup_memory_cache_page(struct kvm_mmu_memory_cache *cache,
-				       int min, gfp_t gfp_flags)
+				       int min)
 {
 	struct page *page;
 
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
-		page = alloc_page(gfp_flags);
+		page = alloc_page(GFP_KERNEL);
 		if (!page)
 			return -ENOMEM;
 		set_page_private(page, 0);
@@ -247,41 +246,25 @@ static void mmu_free_memory_cache_page(struct kvm_mmu_memory_cache *mc)
 		free_page((unsigned long)mc->objects[--mc->nobjs]);
 }
 
-static int __mmu_topup_memory_caches(struct kvm_vcpu *vcpu, gfp_t gfp_flags)
-{
-	int r;
-
-	r = mmu_topup_memory_cache(&vcpu->mmu_pte_chain_cache,
-				   pte_chain_cache, 4, gfp_flags);
-	if (r)
-		goto out;
-	r = mmu_topup_memory_cache(&vcpu->mmu_rmap_desc_cache,
-				   rmap_desc_cache, 1, gfp_flags);
-	if (r)
-		goto out;
-	r = mmu_topup_memory_cache_page(&vcpu->mmu_page_cache, 4, gfp_flags);
-	if (r)
-		goto out;
-	r = mmu_topup_memory_cache(&vcpu->mmu_page_header_cache,
-				   mmu_page_header_cache, 4, gfp_flags);
-out:
-	return r;
-}
-
 static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
 {
 	int r;
 
-	r = __mmu_topup_memory_caches(vcpu, GFP_NOWAIT);
 	kvm_mmu_free_some_pages(vcpu);
-	if (r < 0) {
-		spin_unlock(&vcpu->kvm->lock);
-		kvm_arch_ops->vcpu_put(vcpu);
-		r = __mmu_topup_memory_caches(vcpu, GFP_KERNEL);
-		kvm_arch_ops->vcpu_load(vcpu);
-		spin_lock(&vcpu->kvm->lock);
-		kvm_mmu_free_some_pages(vcpu);
-	}
+	r = mmu_topup_memory_cache(&vcpu->mmu_pte_chain_cache,
+				   pte_chain_cache, 4);
+	if (r)
+		goto out;
+	r = mmu_topup_memory_cache(&vcpu->mmu_rmap_desc_cache,
+				   rmap_desc_cache, 1);
+	if (r)
+		goto out;
+	r = mmu_topup_memory_cache_page(&vcpu->mmu_page_cache, 4);
+	if (r)
+		goto out;
+	r = mmu_topup_memory_cache(&vcpu->mmu_page_header_cache,
+				   mmu_page_header_cache, 4);
+out:
 	return r;
 }
 
@@ -969,7 +952,7 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu)
 static void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.tlb_flush;
-	kvm_arch_ops->tlb_flush(vcpu);
+	kvm_x86_ops->tlb_flush(vcpu);
 }
 
 static void paging_new_cr3(struct kvm_vcpu *vcpu)
@@ -982,7 +965,7 @@ static void inject_page_fault(struct kvm_vcpu *vcpu,
 			      u64 addr,
 			      u32 err_code)
 {
-	kvm_arch_ops->inject_page_fault(vcpu, addr, err_code);
+	kvm_x86_ops->inject_page_fault(vcpu, addr, err_code);
 }
 
 static void paging_free(struct kvm_vcpu *vcpu)
@@ -1071,15 +1054,15 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 {
 	int r;
 
-	spin_lock(&vcpu->kvm->lock);
+	mutex_lock(&vcpu->kvm->lock);
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		goto out;
 	mmu_alloc_roots(vcpu);
-	kvm_arch_ops->set_cr3(vcpu, vcpu->mmu.root_hpa);
+	kvm_x86_ops->set_cr3(vcpu, vcpu->mmu.root_hpa);
 	kvm_mmu_flush_tlb(vcpu);
 out:
-	spin_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&vcpu->kvm->lock);
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_load);
@@ -1124,7 +1107,7 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 }
 
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
-		       const u8 *old, const u8 *new, int bytes)
+		       const u8 *new, int bytes)
 {
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct kvm_mmu_page *page;

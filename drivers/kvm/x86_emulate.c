@@ -6,7 +6,7 @@
  * Copyright (c) 2005 Keir Fraser
  *
  * Linux coding style, mod r/m decoder, segment base fixes, real-mode
- * privieged instructions:
+ * privileged instructions:
  *
  * Copyright (C) 2006 Qumranet
  *
@@ -83,7 +83,7 @@ static u8 opcode_table[256] = {
 	/* 0x20 - 0x27 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	0, 0, 0, 0,
+	SrcImmByte, SrcImm, 0, 0,
 	/* 0x28 - 0x2F */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
@@ -99,15 +99,24 @@ static u8 opcode_table[256] = {
 	/* 0x40 - 0x4F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x50 - 0x57 */
-	0, 0, 0, 0, 0, 0, 0, 0,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	/* 0x58 - 0x5F */
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	/* 0x60 - 0x6F */
+	/* 0x60 - 0x67 */
 	0, 0, 0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/* 0x70 - 0x7F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0,
+	/* 0x68 - 0x6F */
+	0, 0, ImplicitOps|Mov, 0,
+	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
+	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
+	/* 0x70 - 0x77 */
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	/* 0x78 - 0x7F */
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	/* 0x80 - 0x87 */
 	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
 	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImmByte | ModRM,
@@ -116,9 +125,9 @@ static u8 opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	0, 0, 0, DstMem | SrcNone | ModRM | Mov,
+	0, ModRM | DstReg, 0, DstMem | SrcNone | ModRM | Mov,
 	/* 0x90 - 0x9F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps, ImplicitOps, 0, 0,
 	/* 0xA0 - 0xA7 */
 	ByteOp | DstReg | SrcMem | Mov, DstReg | SrcMem | Mov,
 	ByteOp | DstMem | SrcReg | Mov, DstMem | SrcReg | Mov,
@@ -142,8 +151,10 @@ static u8 opcode_table[256] = {
 	0, 0, 0, 0,
 	/* 0xD8 - 0xDF */
 	0, 0, 0, 0, 0, 0, 0, 0,
-	/* 0xE0 - 0xEF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0xE0 - 0xE7 */
+	0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0xE8 - 0xEF */
+	ImplicitOps, SrcImm|ImplicitOps, 0, SrcImmByte|ImplicitOps, 0, 0, 0, 0,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
 	ImplicitOps, 0,
@@ -181,7 +192,10 @@ static u16 twobyte_table[256] = {
 	/* 0x70 - 0x7F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x80 - 0x8F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
@@ -206,19 +220,6 @@ static u16 twobyte_table[256] = {
 	/* 0xF0 - 0xFF */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-
-/*
- * Tell the emulator that of the Group 7 instructions (sgdt, lidt, etc.) we
- * are interested only in invlpg and not in any of the rest.
- *
- * invlpg is a special instruction in that the data it references may not
- * be mapped.
- */
-void kvm_emulator_want_group7_invlpg(void)
-{
-	twobyte_table[1] &= ~SrcMem;
-}
-EXPORT_SYMBOL_GPL(kvm_emulator_want_group7_invlpg);
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
@@ -420,7 +421,7 @@ struct operand {
 #define insn_fetch(_type, _size, _eip)                                  \
 ({	unsigned long _x;						\
 	rc = ops->read_std((unsigned long)(_eip) + ctxt->cs_base, &_x,	\
-                                                  (_size), ctxt);       \
+                                                  (_size), ctxt->vcpu); \
 	if ( rc != 0 )							\
 		goto done;						\
 	(_eip) += (_size);						\
@@ -428,10 +429,11 @@ struct operand {
 })
 
 /* Access/update address held in a register, based on addressing mode. */
+#define address_mask(reg)						\
+	((ad_bytes == sizeof(unsigned long)) ? 				\
+		(reg) :	((reg) & ((1UL << (ad_bytes << 3)) - 1)))
 #define register_address(base, reg)                                     \
-	((base) + ((ad_bytes == sizeof(unsigned long)) ? (reg) :	\
-		   ((reg) & ((1UL << (ad_bytes << 3)) - 1))))
-
+	((base) + address_mask(reg))
 #define register_address_increment(reg, inc)                            \
 	do {								\
 		/* signed type ensures sign extension to long */        \
@@ -443,8 +445,19 @@ struct operand {
 			   (((reg) + _inc) & ((1UL << (ad_bytes << 3)) - 1)); \
 	} while (0)
 
-void *decode_register(u8 modrm_reg, unsigned long *regs,
-		      int highbyte_regs)
+#define JMP_REL(rel) 							\
+	do {								\
+		_eip += (int)(rel);					\
+		_eip = ((op_bytes == 2) ? (uint16_t)_eip : (uint32_t)_eip); \
+	} while (0)
+
+/*
+ * Given the 'reg' portion of a ModRM byte, and a register block, return a
+ * pointer into the block that addresses the relevant register.
+ * @highbyte_regs specifies whether to decode AH,CH,DH,BH.
+ */
+static void *decode_register(u8 modrm_reg, unsigned long *regs,
+			     int highbyte_regs)
 {
 	void *p;
 
@@ -464,11 +477,48 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 	if (op_bytes == 2)
 		op_bytes = 3;
 	*address = 0;
-	rc = ops->read_std((unsigned long)ptr, (unsigned long *)size, 2, ctxt);
+	rc = ops->read_std((unsigned long)ptr, (unsigned long *)size, 2,
+			   ctxt->vcpu);
 	if (rc)
 		return rc;
-	rc = ops->read_std((unsigned long)ptr + 2, address, op_bytes, ctxt);
+	rc = ops->read_std((unsigned long)ptr + 2, address, op_bytes,
+			   ctxt->vcpu);
 	return rc;
+}
+
+static int test_cc(unsigned int condition, unsigned int flags)
+{
+	int rc = 0;
+
+	switch ((condition & 15) >> 1) {
+	case 0: /* o */
+		rc |= (flags & EFLG_OF);
+		break;
+	case 1: /* b/c/nae */
+		rc |= (flags & EFLG_CF);
+		break;
+	case 2: /* z/e */
+		rc |= (flags & EFLG_ZF);
+		break;
+	case 3: /* be/na */
+		rc |= (flags & (EFLG_CF|EFLG_ZF));
+		break;
+	case 4: /* s */
+		rc |= (flags & EFLG_SF);
+		break;
+	case 5: /* p/pe */
+		rc |= (flags & EFLG_PF);
+		break;
+	case 7: /* le/ng */
+		rc |= (flags & EFLG_ZF);
+		/* fall through */
+	case 6: /* l/nge */
+		rc |= (!(flags & EFLG_SF) != !(flags & EFLG_OF));
+		break;
+	}
+
+	/* Odd condition identifiers (lsb == 1) have inverted sense. */
+	return (!!rc ^ (condition & 1));
 }
 
 int
@@ -771,11 +821,15 @@ done_prefixes:
 		goto srcmem_common;
 	case SrcMem:
 		src.bytes = (d & ByteOp) ? 1 : op_bytes;
+		/* Don't fetch the address for invlpg: it could be unmapped. */
+		if (twobyte && b == 0x01 && modrm_reg == 7)
+			break;
 	      srcmem_common:
 		src.type = OP_MEM;
 		src.ptr = (unsigned long *)cr2;
+		src.val = 0;
 		if ((rc = ops->read_emulated((unsigned long)src.ptr,
-					     &src.val, src.bytes, ctxt)) != 0)
+					     &src.val, src.bytes, ctxt->vcpu)) != 0)
 			goto done;
 		src.orig_val = src.val;
 		break;
@@ -814,7 +868,7 @@ done_prefixes:
 	case DstReg:
 		dst.type = OP_REG;
 		if ((d & ByteOp)
-		    && !(twobyte_table && (b == 0xb6 || b == 0xb7))) {
+		    && !(twobyte && (b == 0xb6 || b == 0xb7))) {
 			dst.ptr = decode_register(modrm_reg, _regs,
 						  (rex_prefix == 0));
 			dst.val = *(u8 *) dst.ptr;
@@ -838,6 +892,7 @@ done_prefixes:
 		dst.type = OP_MEM;
 		dst.ptr = (unsigned long *)cr2;
 		dst.bytes = (d & ByteOp) ? 1 : op_bytes;
+		dst.val = 0;
 		if (d & BitOp) {
 			unsigned long mask = ~(dst.bytes * 8 - 1);
 
@@ -845,7 +900,7 @@ done_prefixes:
 		}
 		if (!(d & Mov) && /* optimisation - avoid slow emulated read */
 		    ((rc = ops->read_emulated((unsigned long)dst.ptr,
-					      &dst.val, dst.bytes, ctxt)) != 0))
+					      &dst.val, dst.bytes, ctxt->vcpu)) != 0))
 			goto done;
 		break;
 	}
@@ -871,10 +926,27 @@ done_prefixes:
 	      sbb:		/* sbb */
 		emulate_2op_SrcV("sbb", src, dst, _eflags);
 		break;
-	case 0x20 ... 0x25:
+	case 0x20 ... 0x23:
 	      and:		/* and */
 		emulate_2op_SrcV("and", src, dst, _eflags);
 		break;
+	case 0x24:              /* and al imm8 */
+		dst.type = OP_REG;
+		dst.ptr = &_regs[VCPU_REGS_RAX];
+		dst.val = *(u8 *)dst.ptr;
+		dst.bytes = 1;
+		dst.orig_val = dst.val;
+		goto and;
+	case 0x25:              /* and ax imm16, or eax imm32 */
+		dst.type = OP_REG;
+		dst.bytes = op_bytes;
+		dst.ptr = &_regs[VCPU_REGS_RAX];
+		if (op_bytes == 2)
+			dst.val = *(u16 *)dst.ptr;
+		else
+			dst.val = *(u32 *)dst.ptr;
+		dst.orig_val = dst.val;
+		goto and;
 	case 0x28 ... 0x2d:
 	      sub:		/* sub */
 		emulate_2op_SrcV("sub", src, dst, _eflags);
@@ -891,6 +963,17 @@ done_prefixes:
 		if (mode != X86EMUL_MODE_PROT64)
 			goto cannot_emulate;
 		dst.val = (s32) src.val;
+		break;
+	case 0x6a: /* push imm8 */
+		src.val = 0L;
+		src.val = insn_fetch(s8, 1, _eip);
+push:
+		dst.type  = OP_MEM;
+		dst.bytes = op_bytes;
+		dst.val = src.val;
+		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
+		dst.ptr = (void *) register_address(ctxt->ss_base,
+							_regs[VCPU_REGS_RSP]);
 		break;
 	case 0x80 ... 0x83:	/* Grp1 */
 		switch (modrm_reg) {
@@ -939,6 +1022,21 @@ done_prefixes:
 		dst.val = src.val;
 		lock_prefix = 1;
 		break;
+	case 0x88 ... 0x8b:	/* mov */
+		goto mov;
+	case 0x8d: /* lea r16/r32, m */
+		dst.val = modrm_val;
+		break;
+	case 0x8f:		/* pop (sole member of Grp1a) */
+		/* 64-bit mode: POP always pops a 64-bit operand. */
+		if (mode == X86EMUL_MODE_PROT64)
+			dst.bytes = 8;
+		if ((rc = ops->read_std(register_address(ctxt->ss_base,
+							 _regs[VCPU_REGS_RSP]),
+					&dst.val, dst.bytes, ctxt->vcpu)) != 0)
+			goto done;
+		register_address_increment(_regs[VCPU_REGS_RSP], dst.bytes);
+		break;
 	case 0xa0 ... 0xa1:	/* mov */
 		dst.ptr = (unsigned long *)&_regs[VCPU_REGS_RAX];
 		dst.val = src.val;
@@ -947,20 +1045,6 @@ done_prefixes:
 	case 0xa2 ... 0xa3:	/* mov */
 		dst.val = (unsigned long)_regs[VCPU_REGS_RAX];
 		_eip += ad_bytes;	/* skip dst displacement */
-		break;
-	case 0x88 ... 0x8b:	/* mov */
-	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
-		dst.val = src.val;
-		break;
-	case 0x8f:		/* pop (sole member of Grp1a) */
-		/* 64-bit mode: POP always pops a 64-bit operand. */
-		if (mode == X86EMUL_MODE_PROT64)
-			dst.bytes = 8;
-		if ((rc = ops->read_std(register_address(ctxt->ss_base,
-							 _regs[VCPU_REGS_RSP]),
-					&dst.val, dst.bytes, ctxt)) != 0)
-			goto done;
-		register_address_increment(_regs[VCPU_REGS_RSP], dst.bytes);
 		break;
 	case 0xc0 ... 0xc1:
 	      grp2:		/* Grp2 */
@@ -989,12 +1073,41 @@ done_prefixes:
 			break;
 		}
 		break;
+	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
+	mov:
+		dst.val = src.val;
+		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
 		src.val = 1;
 		goto grp2;
 	case 0xd2 ... 0xd3:	/* Grp2 */
 		src.val = _regs[VCPU_REGS_RCX];
 		goto grp2;
+	case 0xe8: /* call (near) */ {
+		long int rel;
+		switch (op_bytes) {
+		case 2:
+			rel = insn_fetch(s16, 2, _eip);
+			break;
+		case 4:
+			rel = insn_fetch(s32, 4, _eip);
+			break;
+		case 8:
+			rel = insn_fetch(s64, 8, _eip);
+			break;
+		default:
+			DPRINTF("Call: Invalid op_bytes\n");
+			goto cannot_emulate;
+		}
+		src.val = (unsigned long) _eip;
+		JMP_REL(rel);
+		goto push;
+	}
+	case 0xe9: /* jmp rel */
+	case 0xeb: /* jmp rel short */
+		JMP_REL(src.val);
+		no_wb = 1; /* Disable writeback. */
+		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
 		switch (modrm_reg) {
 		case 0 ... 1:	/* test */
@@ -1037,13 +1150,19 @@ done_prefixes:
 		case 1:	/* dec */
 			emulate_1op("dec", dst, _eflags);
 			break;
+		case 4: /* jmp abs */
+			if (b == 0xff)
+				_eip = dst.val;
+			else
+				goto cannot_emulate;
+			break;
 		case 6:	/* push */
 			/* 64-bit mode: PUSH always pushes a 64-bit operand. */
 			if (mode == X86EMUL_MODE_PROT64) {
 				dst.bytes = 8;
 				if ((rc = ops->read_std((unsigned long)dst.ptr,
 							&dst.val, 8,
-							ctxt)) != 0)
+							ctxt->vcpu)) != 0)
 					goto done;
 			}
 			register_address_increment(_regs[VCPU_REGS_RSP],
@@ -1051,7 +1170,7 @@ done_prefixes:
 			if ((rc = ops->write_std(
 				     register_address(ctxt->ss_base,
 						      _regs[VCPU_REGS_RSP]),
-				     &dst.val, dst.bytes, ctxt)) != 0)
+				     &dst.val, dst.bytes, ctxt->vcpu)) != 0)
 				goto done;
 			no_wb = 1;
 			break;
@@ -1086,11 +1205,11 @@ writeback:
 				rc = ops->cmpxchg_emulated((unsigned long)dst.
 							   ptr, &dst.orig_val,
 							   &dst.val, dst.bytes,
-							   ctxt);
+							   ctxt->vcpu);
 			else
 				rc = ops->write_emulated((unsigned long)dst.ptr,
 							 &dst.val, dst.bytes,
-							 ctxt);
+							 ctxt->vcpu);
 			if (rc != 0)
 				goto done;
 		default:
@@ -1109,6 +1228,81 @@ done:
 special_insn:
 	if (twobyte)
 		goto twobyte_special_insn;
+	switch(b) {
+	case 0x50 ... 0x57:  /* push reg */
+		if (op_bytes == 2)
+			src.val = (u16) _regs[b & 0x7];
+		else
+			src.val = (u32) _regs[b & 0x7];
+		dst.type  = OP_MEM;
+		dst.bytes = op_bytes;
+		dst.val = src.val;
+		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
+		dst.ptr = (void *) register_address(
+			ctxt->ss_base, _regs[VCPU_REGS_RSP]);
+		break;
+	case 0x58 ... 0x5f: /* pop reg */
+		dst.ptr = (unsigned long *)&_regs[b & 0x7];
+	pop_instruction:
+		if ((rc = ops->read_std(register_address(ctxt->ss_base,
+			_regs[VCPU_REGS_RSP]), dst.ptr, op_bytes, ctxt->vcpu))
+			!= 0)
+			goto done;
+
+		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
+		no_wb = 1; /* Disable writeback. */
+		break;
+	case 0x6c:		/* insb */
+	case 0x6d:		/* insw/insd */
+		 if (kvm_emulate_pio_string(ctxt->vcpu, NULL,
+				1, 					/* in */
+				(d & ByteOp) ? 1 : op_bytes, 		/* size */
+				rep_prefix ?
+				address_mask(_regs[VCPU_REGS_RCX]) : 1,	/* count */
+				(_eflags & EFLG_DF),			/* down */
+				register_address(ctxt->es_base,
+						 _regs[VCPU_REGS_RDI]),	/* address */
+				rep_prefix,
+				_regs[VCPU_REGS_RDX]			/* port */
+				) == 0)
+			return -1;
+		return 0;
+	case 0x6e:		/* outsb */
+	case 0x6f:		/* outsw/outsd */
+		if (kvm_emulate_pio_string(ctxt->vcpu, NULL,
+				0, 					/* in */
+				(d & ByteOp) ? 1 : op_bytes, 		/* size */
+				rep_prefix ?
+				address_mask(_regs[VCPU_REGS_RCX]) : 1,	/* count */
+				(_eflags & EFLG_DF),			/* down */
+				register_address(override_base ?
+						 *override_base : ctxt->ds_base,
+						 _regs[VCPU_REGS_RSI]),	/* address */
+				rep_prefix,
+				_regs[VCPU_REGS_RDX]			/* port */
+				) == 0)
+			return -1;
+		return 0;
+	case 0x70 ... 0x7f: /* jcc (short) */ {
+		int rel = insn_fetch(s8, 1, _eip);
+
+		if (test_cc(b, _eflags))
+		JMP_REL(rel);
+		break;
+	}
+	case 0x9c: /* pushf */
+		src.val =  (unsigned long) _eflags;
+		goto push;
+	case 0x9d: /* popf */
+		dst.ptr = (unsigned long *) &_eflags;
+		goto pop_instruction;
+	case 0xc3: /* ret */
+		dst.ptr = &_eip;
+		goto pop_instruction;
+	case 0xf4:              /* hlt */
+		ctxt->vcpu->halt_request = 1;
+		goto done;
+	}
 	if (rep_prefix) {
 		if (_regs[VCPU_REGS_RCX] == 0) {
 			ctxt->vcpu->rip = _eip;
@@ -1125,7 +1319,7 @@ special_insn:
 							_regs[VCPU_REGS_RDI]);
 		if ((rc = ops->read_emulated(register_address(
 		      override_base ? *override_base : ctxt->ds_base,
-		      _regs[VCPU_REGS_RSI]), &dst.val, dst.bytes, ctxt)) != 0)
+		      _regs[VCPU_REGS_RSI]), &dst.val, dst.bytes, ctxt->vcpu)) != 0)
 			goto done;
 		register_address_increment(_regs[VCPU_REGS_RSI],
 			     (_eflags & EFLG_DF) ? -dst.bytes : dst.bytes);
@@ -1147,7 +1341,8 @@ special_insn:
 		dst.type = OP_REG;
 		dst.bytes = (d & ByteOp) ? 1 : op_bytes;
 		dst.ptr = (unsigned long *)&_regs[VCPU_REGS_RAX];
-		if ((rc = ops->read_emulated(cr2, &dst.val, dst.bytes, ctxt)) != 0)
+		if ((rc = ops->read_emulated(cr2, &dst.val, dst.bytes,
+					     ctxt->vcpu)) != 0)
 			goto done;
 		register_address_increment(_regs[VCPU_REGS_RSI],
 			   (_eflags & EFLG_DF) ? -dst.bytes : dst.bytes);
@@ -1155,23 +1350,7 @@ special_insn:
 	case 0xae ... 0xaf:	/* scas */
 		DPRINTF("Urk! I don't handle SCAS.\n");
 		goto cannot_emulate;
-	case 0xf4:              /* hlt */
-		ctxt->vcpu->halt_request = 1;
-		goto done;
-	case 0xc3: /* ret */
-		dst.ptr = &_eip;
-		goto pop_instruction;
-	case 0x58 ... 0x5f: /* pop reg */
-		dst.ptr = (unsigned long *)&_regs[b & 0x7];
 
-pop_instruction:
-		if ((rc = ops->read_std(register_address(ctxt->ss_base,
-			_regs[VCPU_REGS_RSP]), dst.ptr, op_bytes, ctxt)) != 0)
-			goto done;
-
-		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
-		no_wb = 1; /* Disable writeback. */
-		break;
 	}
 	goto writeback;
 
@@ -1230,40 +1409,50 @@ twobyte_insn:
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		dst.val = dst.orig_val = src.val;
-		d &= ~Mov;	/* default to no move */
+		no_wb = 1;
 		/*
 		 * First, assume we're decoding an even cmov opcode
 		 * (lsb == 0).
 		 */
 		switch ((b & 15) >> 1) {
 		case 0:	/* cmovo */
-			d |= (_eflags & EFLG_OF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_OF) ? 0 : 1;
 			break;
 		case 1:	/* cmovb/cmovc/cmovnae */
-			d |= (_eflags & EFLG_CF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_CF) ? 0 : 1;
 			break;
 		case 2:	/* cmovz/cmove */
-			d |= (_eflags & EFLG_ZF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_ZF) ? 0 : 1;
 			break;
 		case 3:	/* cmovbe/cmovna */
-			d |= (_eflags & (EFLG_CF | EFLG_ZF)) ? Mov : 0;
+			no_wb = (_eflags & (EFLG_CF | EFLG_ZF)) ? 0 : 1;
 			break;
 		case 4:	/* cmovs */
-			d |= (_eflags & EFLG_SF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_SF) ? 0 : 1;
 			break;
 		case 5:	/* cmovp/cmovpe */
-			d |= (_eflags & EFLG_PF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_PF) ? 0 : 1;
 			break;
 		case 7:	/* cmovle/cmovng */
-			d |= (_eflags & EFLG_ZF) ? Mov : 0;
+			no_wb = (_eflags & EFLG_ZF) ? 0 : 1;
 			/* fall through */
 		case 6:	/* cmovl/cmovnge */
-			d |= (!(_eflags & EFLG_SF) !=
-			      !(_eflags & EFLG_OF)) ? Mov : 0;
+			no_wb &= (!(_eflags & EFLG_SF) !=
+			      !(_eflags & EFLG_OF)) ? 0 : 1;
 			break;
 		}
 		/* Odd cmov opcodes (lsb == 1) have inverted sense. */
-		d ^= (b & 1) ? Mov : 0;
+		no_wb ^= b & 1;
+		break;
+	case 0xa3:
+	      bt:		/* bt */
+		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
+		emulate_2op_SrcV_nobyte("bt", src, dst, _eflags);
+		break;
+	case 0xab:
+	      bts:		/* bts */
+		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
+		emulate_2op_SrcV_nobyte("bts", src, dst, _eflags);
 		break;
 	case 0xb0 ... 0xb1:	/* cmpxchg */
 		/*
@@ -1273,8 +1462,6 @@ twobyte_insn:
 		src.orig_val = src.val;
 		src.val = _regs[VCPU_REGS_RAX];
 		emulate_2op_SrcV("cmp", src, dst, _eflags);
-		/* Always write back. The question is: where to? */
-		d |= Mov;
 		if (_eflags & EFLG_ZF) {
 			/* Success: write back to memory. */
 			dst.val = src.orig_val;
@@ -1284,29 +1471,14 @@ twobyte_insn:
 			dst.ptr = (unsigned long *)&_regs[VCPU_REGS_RAX];
 		}
 		break;
-	case 0xa3:
-	      bt:		/* bt */
-		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
-		emulate_2op_SrcV_nobyte("bt", src, dst, _eflags);
-		break;
 	case 0xb3:
 	      btr:		/* btr */
 		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
 		emulate_2op_SrcV_nobyte("btr", src, dst, _eflags);
 		break;
-	case 0xab:
-	      bts:		/* bts */
-		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
-		emulate_2op_SrcV_nobyte("bts", src, dst, _eflags);
-		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		dst.bytes = op_bytes;
 		dst.val = (d & ByteOp) ? (u8) src.val : (u16) src.val;
-		break;
-	case 0xbb:
-	      btc:		/* btc */
-		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
-		emulate_2op_SrcV_nobyte("btc", src, dst, _eflags);
 		break;
 	case 0xba:		/* Grp8 */
 		switch (modrm_reg & 3) {
@@ -1320,6 +1492,11 @@ twobyte_insn:
 			goto btc;
 		}
 		break;
+	case 0xbb:
+	      btc:		/* btc */
+		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
+		emulate_2op_SrcV_nobyte("btc", src, dst, _eflags);
+		break;
 	case 0xbe ... 0xbf:	/* movsx */
 		dst.bytes = op_bytes;
 		dst.val = (d & ByteOp) ? (s8) src.val : (s16) src.val;
@@ -1331,13 +1508,13 @@ twobyte_special_insn:
 	/* Disable writeback. */
 	no_wb = 1;
 	switch (b) {
+	case 0x06:
+		emulate_clts(ctxt->vcpu);
+		break;
 	case 0x09:		/* wbinvd */
 		break;
 	case 0x0d:		/* GrpP (prefetch) */
 	case 0x18:		/* Grp16 (prefetch/nop) */
-		break;
-	case 0x06:
-		emulate_clts(ctxt->vcpu);
 		break;
 	case 0x20: /* mov cr, reg */
 		if (modrm_mod != 3)
@@ -1355,7 +1532,7 @@ twobyte_special_insn:
 			| ((u64)_regs[VCPU_REGS_RDX] << 32);
 		rc = kvm_set_msr(ctxt->vcpu, _regs[VCPU_REGS_RCX], msr_data);
 		if (rc) {
-			kvm_arch_ops->inject_gp(ctxt->vcpu, 0);
+			kvm_x86_ops->inject_gp(ctxt->vcpu, 0);
 			_eip = ctxt->vcpu->rip;
 		}
 		rc = X86EMUL_CONTINUE;
@@ -1364,7 +1541,7 @@ twobyte_special_insn:
 		/* rdmsr */
 		rc = kvm_get_msr(ctxt->vcpu, _regs[VCPU_REGS_RCX], &msr_data);
 		if (rc) {
-			kvm_arch_ops->inject_gp(ctxt->vcpu, 0);
+			kvm_x86_ops->inject_gp(ctxt->vcpu, 0);
 			_eip = ctxt->vcpu->rip;
 		} else {
 			_regs[VCPU_REGS_RAX] = (u32)msr_data;
@@ -1372,10 +1549,32 @@ twobyte_special_insn:
 		}
 		rc = X86EMUL_CONTINUE;
 		break;
+	case 0x80 ... 0x8f: /* jnz rel, etc*/ {
+		long int rel;
+
+		switch (op_bytes) {
+		case 2:
+			rel = insn_fetch(s16, 2, _eip);
+			break;
+		case 4:
+			rel = insn_fetch(s32, 4, _eip);
+			break;
+		case 8:
+			rel = insn_fetch(s64, 8, _eip);
+			break;
+		default:
+			DPRINTF("jnz: Invalid op_bytes\n");
+			goto cannot_emulate;
+		}
+		if (test_cc(b, _eflags))
+			JMP_REL(rel);
+		break;
+	}
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
 		{
 			u64 old, new;
-			if ((rc = ops->read_emulated(cr2, &old, 8, ctxt)) != 0)
+			if ((rc = ops->read_emulated(cr2, &old, 8, ctxt->vcpu))
+									!= 0)
 				goto done;
 			if (((u32) (old >> 0) != (u32) _regs[VCPU_REGS_RAX]) ||
 			    ((u32) (old >> 32) != (u32) _regs[VCPU_REGS_RDX])) {
@@ -1386,7 +1585,7 @@ twobyte_special_insn:
 				new = ((u64)_regs[VCPU_REGS_RCX] << 32)
 					| (u32) _regs[VCPU_REGS_RBX];
 				if ((rc = ops->cmpxchg_emulated(cr2, &old,
-							  &new, 8, ctxt)) != 0)
+							  &new, 8, ctxt->vcpu)) != 0)
 					goto done;
 				_eflags |= EFLG_ZF;
 			}

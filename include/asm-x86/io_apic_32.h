@@ -11,8 +11,6 @@
  * Copyright (C) 1997, 1998, 1999, 2000 Ingo Molnar
  */
 
-#ifdef CONFIG_X86_IO_APIC
-
 /*
  * The structure of the IO-APIC:
  */
@@ -55,12 +53,6 @@ union IO_APIC_reg_03 {
 	} __attribute__ ((packed)) bits;
 };
 
-/*
- * # of IO-APICs and # of IRQ routing registers
- */
-extern int nr_ioapics;
-extern int nr_ioapic_registers[MAX_IO_APICS];
-
 enum ioapic_irq_destination_types {
 	dest_Fixed = 0,
 	dest_LowestPrio = 1,
@@ -99,6 +91,14 @@ struct IO_APIC_route_entry {
 	} dest;
 
 } __attribute__ ((packed));
+
+#ifdef CONFIG_X86_IO_APIC
+
+/*
+ * # of IO-APICs and # of IRQ routing registers
+ */
+extern int nr_ioapics;
+extern int nr_ioapic_registers[MAX_IO_APICS];
 
 /*
  * MP-BIOS irq configuration table structures:

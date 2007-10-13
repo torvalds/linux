@@ -63,7 +63,7 @@
 /*
  * x86-64 Task Priority Register, CR8
  */
-#define X86_CR8_TPR	0x00000007 /* task priority register */
+#define X86_CR8_TPR	0x0000000F /* task priority register */
 
 /*
  * AMD and Transmeta use MSRs for configuration; see <asm/msr-index.h>

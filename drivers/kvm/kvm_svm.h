@@ -20,7 +20,10 @@ static const u32 host_save_user_msrs[] = {
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
 #define NUM_DB_REGS 4
 
+struct kvm_vcpu;
+
 struct vcpu_svm {
+	struct kvm_vcpu vcpu;
 	struct vmcb *vmcb;
 	unsigned long vmcb_pa;
 	struct svm_cpu_data *svm_data;
