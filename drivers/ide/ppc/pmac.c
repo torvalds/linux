@@ -392,6 +392,7 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
 	for (i=0; table[i].cycle_time; i++)
 		if (cycle_time > table[i+1].cycle_time)
 			return table[i].timing_reg;
+	BUG();
 	return 0;
 }
 
@@ -529,97 +530,12 @@ pmac_outbsync(ide_drive_t *drive, u8 value, unsigned long port)
 }
 
 /*
- * Send the SET_FEATURE IDE command to the drive and update drive->id with
- * the new state. We currently don't use the generic routine as it used to
- * cause various trouble, especially with older mediabays.
- * This code is sometimes triggering a spurrious interrupt though, I need
- * to sort that out sooner or later and see if I can finally get the
- * common version to work properly in all cases
- */
-static int
-pmac_ide_do_setfeature(ide_drive_t *drive, u8 command)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-	int result = 1;
-	
-	disable_irq_nosync(hwif->irq);
-	udelay(1);
-	SELECT_DRIVE(drive);
-	SELECT_MASK(drive, 0);
-	udelay(1);
-	/* Get rid of pending error state */
-	(void) hwif->INB(IDE_STATUS_REG);
-	/* Timeout bumped for some powerbooks */
-	if (wait_for_ready(drive, 2000)) {
-		/* Timeout bumped for some powerbooks */
-		printk(KERN_ERR "%s: pmac_ide_do_setfeature disk not ready "
-			"before SET_FEATURE!\n", drive->name);
-		goto out;
-	}
-	udelay(10);
-	hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
-	hwif->OUTB(command, IDE_NSECTOR_REG);
-	hwif->OUTB(SETFEATURES_XFER, IDE_FEATURE_REG);
-	hwif->OUTBSYNC(drive, WIN_SETFEATURES, IDE_COMMAND_REG);
-	udelay(1);
-	/* Timeout bumped for some powerbooks */
-	result = wait_for_ready(drive, 2000);
-	hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
-	if (result)
-		printk(KERN_ERR "%s: pmac_ide_do_setfeature disk not ready "
-			"after SET_FEATURE !\n", drive->name);
-out:
-	SELECT_MASK(drive, 0);
-	if (result == 0) {
-		drive->id->dma_ultra &= ~0xFF00;
-		drive->id->dma_mword &= ~0x0F00;
-		drive->id->dma_1word &= ~0x0F00;
-		switch(command) {
-			case XFER_UDMA_7:
-				drive->id->dma_ultra |= 0x8080; break;
-			case XFER_UDMA_6:
-				drive->id->dma_ultra |= 0x4040; break;
-			case XFER_UDMA_5:
-				drive->id->dma_ultra |= 0x2020; break;
-			case XFER_UDMA_4:
-				drive->id->dma_ultra |= 0x1010; break;
-			case XFER_UDMA_3:
-				drive->id->dma_ultra |= 0x0808; break;
-			case XFER_UDMA_2:
-				drive->id->dma_ultra |= 0x0404; break;
-			case XFER_UDMA_1:
-				drive->id->dma_ultra |= 0x0202; break;
-			case XFER_UDMA_0:
-				drive->id->dma_ultra |= 0x0101; break;
-			case XFER_MW_DMA_2:
-				drive->id->dma_mword |= 0x0404; break;
-			case XFER_MW_DMA_1:
-				drive->id->dma_mword |= 0x0202; break;
-			case XFER_MW_DMA_0:
-				drive->id->dma_mword |= 0x0101; break;
-			case XFER_SW_DMA_2:
-				drive->id->dma_1word |= 0x0404; break;
-			case XFER_SW_DMA_1:
-				drive->id->dma_1word |= 0x0202; break;
-			case XFER_SW_DMA_0:
-				drive->id->dma_1word |= 0x0101; break;
-			default: break;
-		}
-		if (!drive->init_speed)
-			drive->init_speed = command;
-		drive->current_speed = command;
-	}
-	enable_irq(hwif->irq);
-	return result;
-}
-
-/*
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
 static void
 pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	u32 *timings;
+	u32 *timings, t;
 	unsigned accessTicks, recTicks;
 	unsigned accessTime, recTime;
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
@@ -630,6 +546,7 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		
 	/* which drive is it ? */
 	timings = &pmif->timings[drive->select.b.unit & 0x01];
+	t = *timings;
 
 	cycle_time = ide_pio_cycle_time(drive, pio);
 
@@ -637,18 +554,14 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	case controller_sh_ata6: {
 		/* 133Mhz cell */
 		u32 tr = kauai_lookup_timing(shasta_pio_timings, cycle_time);
-		if (tr == 0)
-			return;
-		*timings = ((*timings) & ~TR_133_PIOREG_PIO_MASK) | tr;
+		t = (t & ~TR_133_PIOREG_PIO_MASK) | tr;
 		break;
 		}
 	case controller_un_ata6:
 	case controller_k2_ata6: {
 		/* 100Mhz cell */
 		u32 tr = kauai_lookup_timing(kauai_pio_timings, cycle_time);
-		if (tr == 0)
-			return;
-		*timings = ((*timings) & ~TR_100_PIOREG_PIO_MASK) | tr;
+		t = (t & ~TR_100_PIOREG_PIO_MASK) | tr;
 		break;
 		}
 	case controller_kl_ata4:
@@ -662,9 +575,9 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		accessTicks = min(accessTicks, 0x1fU);
 		recTicks = SYSCLK_TICKS_66(recTime);
 		recTicks = min(recTicks, 0x1fU);
-		*timings = ((*timings) & ~TR_66_PIO_MASK) |
-				(accessTicks << TR_66_PIO_ACCESS_SHIFT) |
-				(recTicks << TR_66_PIO_RECOVERY_SHIFT);
+		t = (t & ~TR_66_PIO_MASK) |
+			(accessTicks << TR_66_PIO_ACCESS_SHIFT) |
+			(recTicks << TR_66_PIO_RECOVERY_SHIFT);
 		break;
 	default: {
 		/* 33Mhz cell */
@@ -684,11 +597,11 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 			recTicks--; /* guess, but it's only for PIO0, so... */
 			ebit = 1;
 		}
-		*timings = ((*timings) & ~TR_33_PIO_MASK) |
+		t = (t & ~TR_33_PIO_MASK) |
 				(accessTicks << TR_33_PIO_ACCESS_SHIFT) |
 				(recTicks << TR_33_PIO_RECOVERY_SHIFT);
 		if (ebit)
-			*timings |= TR_33_PIO_E;
+			t |= TR_33_PIO_E;
 		break;
 		}
 	}
@@ -698,9 +611,7 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		drive->name, pio,  *timings);
 #endif	
 
-	if (pmac_ide_do_setfeature(drive, XFER_PIO_0 + pio))
-		return;
-
+	*timings = t;
 	pmac_ide_do_update_timings(drive);
 }
 
@@ -746,8 +657,6 @@ set_timings_udma_ata6(u32 *pio_timings, u32 *ultra_timings, u8 speed)
 	if (speed > XFER_UDMA_5 || t == NULL)
 		return 1;
 	tr = kauai_lookup_timing(kauai_udma_timings, (int)t->udma);
-	if (tr == 0)
-		return 1;
 	*ultra_timings = ((*ultra_timings) & ~TR_100_UDMAREG_UDMA_MASK) | tr;
 	*ultra_timings = (*ultra_timings) | TR_100_UDMAREG_UDMA_EN;
 
@@ -766,8 +675,6 @@ set_timings_udma_shasta(u32 *pio_timings, u32 *ultra_timings, u8 speed)
 	if (speed > XFER_UDMA_6 || t == NULL)
 		return 1;
 	tr = kauai_lookup_timing(shasta_udma133_timings, (int)t->udma);
-	if (tr == 0)
-		return 1;
 	*ultra_timings = ((*ultra_timings) & ~TR_133_UDMAREG_UDMA_MASK) | tr;
 	*ultra_timings = (*ultra_timings) | TR_133_UDMAREG_UDMA_EN;
 
@@ -777,12 +684,13 @@ set_timings_udma_shasta(u32 *pio_timings, u32 *ultra_timings, u8 speed)
 /*
  * Calculate MDMA timings for all cells
  */
-static int
+static void
 set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
-			u8 speed, int drive_cycle_time)
+		 	u8 speed)
 {
 	int cycleTime, accessTime = 0, recTime = 0;
 	unsigned accessTicks, recTicks;
+	struct hd_driveid *id = drive->id;
 	struct mdma_timings_t* tm = NULL;
 	int i;
 
@@ -792,11 +700,14 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 		case 1: cycleTime = 150; break;
 		case 2: cycleTime = 120; break;
 		default:
-			return 1;
+			BUG();
+			break;
 	}
-	/* Adjust for drive */
-	if (drive_cycle_time && drive_cycle_time > cycleTime)
-		cycleTime = drive_cycle_time;
+
+	/* Check if drive provides explicit DMA cycle time */
+	if ((id->field_valid & 2) && id->eide_dma_time)
+		cycleTime = max_t(int, id->eide_dma_time, cycleTime);
+
 	/* OHare limits according to some old Apple sources */	
 	if ((intf_type == controller_ohare) && (cycleTime < 150))
 		cycleTime = 150;
@@ -824,8 +735,6 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 				break;
 			i++;
 		}
-		if (i < 0)
-			return 1;
 		cycleTime = tm[i].cycleTime;
 		accessTime = tm[i].accessTime;
 		recTime = tm[i].recoveryTime;
@@ -839,8 +748,6 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 	case controller_sh_ata6: {
 		/* 133Mhz cell */
 		u32 tr = kauai_lookup_timing(shasta_mdma_timings, cycleTime);
-		if (tr == 0)
-			return 1;
 		*timings = ((*timings) & ~TR_133_PIOREG_MDMA_MASK) | tr;
 		*timings2 = (*timings2) & ~TR_133_UDMAREG_UDMA_EN;
 		}
@@ -848,8 +755,6 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 	case controller_k2_ata6: {
 		/* 100Mhz cell */
 		u32 tr = kauai_lookup_timing(kauai_mdma_timings, cycleTime);
-		if (tr == 0)
-			return 1;
 		*timings = ((*timings) & ~TR_100_PIOREG_MDMA_MASK) | tr;
 		*timings2 = (*timings2) & ~TR_100_UDMAREG_UDMA_EN;
 		}
@@ -911,30 +816,23 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 	printk(KERN_ERR "%s: Set MDMA timing for mode %d, reg: 0x%08x\n",
 		drive->name, speed & 0xf,  *timings);
 #endif	
-	return 0;
 }
 #endif /* #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC */
 
-/* 
- * Speedproc. This function is called by the core to set any of the standard
- * DMA timing (MDMA or UDMA) to both the drive and the controller.
- * You may notice we don't use this function on normal "dma check" operation,
- * our dedicated function is more precise as it uses the drive provided
- * cycle time value. We should probably fix this one to deal with that too...
- */
-static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void pmac_ide_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	int unit = (drive->select.b.unit & 0x01);
 	int ret = 0;
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
-	u32 *timings, *timings2;
+	u32 *timings, *timings2, tl[2];
 
-	if (pmif == NULL)
-		return 1;
-		
 	timings = &pmif->timings[unit];
 	timings2 = &pmif->timings[unit+2];
-	
+
+	/* Copy timings to local image */
+	tl[0] = *timings;
+	tl[1] = *timings2;
+
 	switch(speed) {
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
 		case XFER_UDMA_6:
@@ -945,38 +843,36 @@ static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_UDMA_1:
 		case XFER_UDMA_0:
 			if (pmif->kind == controller_kl_ata4)
-				ret = set_timings_udma_ata4(timings, speed);
+				ret = set_timings_udma_ata4(&tl[0], speed);
 			else if (pmif->kind == controller_un_ata6
 				 || pmif->kind == controller_k2_ata6)
-				ret = set_timings_udma_ata6(timings, timings2, speed);
+				ret = set_timings_udma_ata6(&tl[0], &tl[1], speed);
 			else if (pmif->kind == controller_sh_ata6)
-				ret = set_timings_udma_shasta(timings, timings2, speed);
+				ret = set_timings_udma_shasta(&tl[0], &tl[1], speed);
 			else
-				ret = 1;		
+				ret = 1;
 			break;
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_MW_DMA_0:
-			ret = set_timings_mdma(drive, pmif->kind, timings, timings2, speed, 0);
+			set_timings_mdma(drive, pmif->kind, &tl[0], &tl[1], speed);
 			break;
 		case XFER_SW_DMA_2:
 		case XFER_SW_DMA_1:
 		case XFER_SW_DMA_0:
-			return 1;
+			return;
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
 		default:
 			ret = 1;
 	}
 	if (ret)
-		return ret;
+		return;
 
-	ret = pmac_ide_do_setfeature(drive, speed);
-	if (ret)
-		return ret;
-		
+	/* Apply timings to controller */
+	*timings = tl[0];
+	*timings2 = tl[1];
+
 	pmac_ide_do_update_timings(drive);	
-
-	return 0;
 }
 
 /*
@@ -1236,6 +1132,10 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 	hwif->drives[0].unmask = 1;
 	hwif->drives[1].unmask = 1;
+	hwif->drives[0].autotune = IDE_TUNE_AUTO;
+	hwif->drives[1].autotune = IDE_TUNE_AUTO;
+	hwif->host_flags = IDE_HFLAG_SET_PIO_MODE_KEEP_DMA |
+			   IDE_HFLAG_POST_SET_MODE;
 	hwif->pio_mask = ATA_PIO4;
 	hwif->set_pio_mode = pmac_ide_set_pio_mode;
 	if (pmif->kind == controller_un_ata6
@@ -1244,7 +1144,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 		hwif->selectproc = pmac_ide_kauai_selectproc;
 	else
 		hwif->selectproc = pmac_ide_selectproc;
-	hwif->speedproc = pmac_ide_tune_chipset;
+	hwif->set_dma_mode = pmac_ide_set_dma_mode;
 
 	printk(KERN_INFO "ide%d: Found Apple %s controller, bus ID %d%s, irq %d\n",
 	       hwif->index, model_name[pmif->kind], pmif->aapl_bus_id,
@@ -1679,138 +1579,16 @@ pmac_ide_destroy_dmatable (ide_drive_t *drive)
 }
 
 /*
- * Pick up best MDMA timing for the drive and apply it
- */
-static int
-pmac_ide_mdma_enable(ide_drive_t *drive, u16 mode)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)hwif->hwif_data;
-	int drive_cycle_time;
-	struct hd_driveid *id = drive->id;
-	u32 *timings, *timings2;
-	u32 timing_local[2];
-	int ret;
-
-	/* which drive is it ? */
-	timings = &pmif->timings[drive->select.b.unit & 0x01];
-	timings2 = &pmif->timings[(drive->select.b.unit & 0x01) + 2];
-
-	/* Check if drive provide explicit cycle time */
-	if ((id->field_valid & 2) && (id->eide_dma_time))
-		drive_cycle_time = id->eide_dma_time;
-	else
-		drive_cycle_time = 0;
-
-	/* Copy timings to local image */
-	timing_local[0] = *timings;
-	timing_local[1] = *timings2;
-
-	/* Calculate controller timings */
-	ret = set_timings_mdma(	drive, pmif->kind,
-				&timing_local[0],
-				&timing_local[1],
-				mode,
-				drive_cycle_time);
-	if (ret)
-		return 0;
-
-	/* Set feature on drive */
-    	printk(KERN_INFO "%s: Enabling MultiWord DMA %d\n", drive->name, mode & 0xf);
-	ret = pmac_ide_do_setfeature(drive, mode);
-	if (ret) {
-	    	printk(KERN_WARNING "%s: Failed !\n", drive->name);
-	    	return 0;
-	}
-
-	/* Apply timings to controller */
-	*timings = timing_local[0];
-	*timings2 = timing_local[1];
-
-	return 1;
-}
-
-/*
- * Pick up best UDMA timing for the drive and apply it
- */
-static int
-pmac_ide_udma_enable(ide_drive_t *drive, u16 mode)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)hwif->hwif_data;
-	u32 *timings, *timings2;
-	u32 timing_local[2];
-	int ret;
-		
-	/* which drive is it ? */
-	timings = &pmif->timings[drive->select.b.unit & 0x01];
-	timings2 = &pmif->timings[(drive->select.b.unit & 0x01) + 2];
-
-	/* Copy timings to local image */
-	timing_local[0] = *timings;
-	timing_local[1] = *timings2;
-	
-	/* Calculate timings for interface */
-	if (pmif->kind == controller_un_ata6
-	    || pmif->kind == controller_k2_ata6)
-		ret = set_timings_udma_ata6(	&timing_local[0],
-						&timing_local[1],
-						mode);
-	else if (pmif->kind == controller_sh_ata6)
-		ret = set_timings_udma_shasta(	&timing_local[0],
-						&timing_local[1],
-						mode);
-	else
-		ret = set_timings_udma_ata4(&timing_local[0], mode);
-	if (ret)
-		return 0;
-		
-	/* Set feature on drive */
-    	printk(KERN_INFO "%s: Enabling Ultra DMA %d\n", drive->name, mode & 0x0f);
-	ret = pmac_ide_do_setfeature(drive, mode);
-	if (ret) {
-		printk(KERN_WARNING "%s: Failed !\n", drive->name);
-		return 0;
-	}
-
-	/* Apply timings to controller */
-	*timings = timing_local[0];
-	*timings2 = timing_local[1];
-
-	return 1;
-}
-
-/*
  * Check what is the best DMA timing setting for the drive and
  * call appropriate functions to apply it.
  */
 static int
 pmac_ide_dma_check(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
-	ide_hwif_t *hwif = HWIF(drive);
-	int enable = 1;
-	drive->using_dma = 0;
-	
-	if (drive->media == ide_floppy)
-		enable = 0;
-	if (((id->capability & 1) == 0) && !__ide_dma_good_drive(drive))
-		enable = 0;
-	if (__ide_dma_bad_drive(drive))
-		enable = 0;
+	if (ide_tune_dma(drive))
+		return 0;
 
-	if (enable) {
-		u8 mode = ide_max_dma_mode(drive);
-
-		if (mode >= XFER_UDMA_0)
-			drive->using_dma = pmac_ide_udma_enable(drive, mode);
-		else if (mode >= XFER_MW_DMA_0)
-			drive->using_dma = pmac_ide_mdma_enable(drive, mode);
-		hwif->OUTB(0, IDE_CONTROL_REG);
-		/* Apply settings to controller */
-		pmac_ide_do_update_timings(drive);
-	}
-	return 0;
+	return -1;
 }
 
 /*
@@ -2044,7 +1822,10 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 			hwif->mwdma_mask = 0x07;
 			hwif->swdma_mask = 0x00;
 			break;
-	}	
+	}
+
+	hwif->autodma = 1;
+	hwif->drives[1].autodma = hwif->drives[0].autodma = hwif->autodma;
 }
 
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */

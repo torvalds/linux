@@ -87,7 +87,7 @@ static u8 pci_bus_clock_list_ultra (u8 speed, struct chipset_bus_clock_list_entr
 	return chipset_table->ultra_settings;
 }
 
-static int aec6210_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void aec6210_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -111,10 +111,9 @@ static int aec6210_tune_chipset(ide_drive_t *drive, const u8 speed)
 	tmp2 = ((ultra_conf << (2*drive->dn)) | (tmp1 & ~(3 << (2*drive->dn))));
 	pci_write_config_byte(dev, 0x54, tmp2);
 	local_irq_restore(flags);
-	return(ide_config_drive_speed(drive, speed));
 }
 
-static int aec6260_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -135,12 +134,11 @@ static int aec6260_tune_chipset(ide_drive_t *drive, const u8 speed)
 	tmp2 = ((ultra_conf << (4*unit)) | (tmp1 & ~(7 << (4*unit))));
 	pci_write_config_byte(dev, (0x44|hwif->channel), tmp2);
 	local_irq_restore(flags);
-	return(ide_config_drive_speed(drive, speed));
 }
 
 static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	(void) HWIF(drive)->speedproc(drive, pio + XFER_PIO_0);
+	drive->hwif->set_dma_mode(drive, pio + XFER_PIO_0);
 }
 
 static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
@@ -205,9 +203,9 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
 		if(hwif->mate)
 			hwif->mate->serialized = hwif->serialized = 1;
-		hwif->speedproc = &aec6210_tune_chipset;
+		hwif->set_dma_mode = &aec6210_set_mode;
 	} else
-		hwif->speedproc = &aec6260_tune_chipset;
+		hwif->set_dma_mode = &aec6260_set_mode;
 
 	if (!hwif->dma_base) {
 		hwif->drives[0].autotune = hwif->drives[1].autotune = 1;

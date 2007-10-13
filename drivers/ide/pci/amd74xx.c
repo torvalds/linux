@@ -1,5 +1,5 @@
 /*
- * Version 2.22
+ * Version 2.23
  *
  * AMD 755/756/766/8111 and nVidia nForce/2/2s/3/3s/CK804/MCP04
  * IDE driver for Linux.
@@ -229,19 +229,15 @@ static void amd_set_speed(struct pci_dev *dev, unsigned char dn, struct ide_timi
 }
 
 /*
- * amd_set_drive() computes timing values configures the drive and
- * the chipset to a desired transfer mode. It also can be called
- * by upper layers.
+ * amd_set_drive() computes timing values and configures the chipset
+ * to a desired transfer mode.  It also can be called by upper layers.
  */
 
-static int amd_set_drive(ide_drive_t *drive, const u8 speed)
+static void amd_set_drive(ide_drive_t *drive, const u8 speed)
 {
 	ide_drive_t *peer = HWIF(drive)->drives + (~drive->dn & 1);
 	struct ide_timing t, p;
 	int T, UT;
-
-	if (speed != XFER_PIO_SLOW)
-		ide_config_drive_speed(drive, speed);
 
 	T = 1000000000 / amd_clock;
 	UT = (amd_config->udma_mask == ATA_UDMA2) ? T : (T / 2);
@@ -257,12 +253,6 @@ static int amd_set_drive(ide_drive_t *drive, const u8 speed)
 	if (speed == XFER_UDMA_6 && amd_clock <= 33333) t.udma = 15;
 
 	amd_set_speed(HWIF(drive)->pci_dev, drive->dn, &t);
-
-	if (!drive->init_speed)	
-		drive->init_speed = speed;
-	drive->current_speed = speed;
-
-	return 0;
 }
 
 /*
@@ -399,7 +389,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 	hwif->autodma = 0;
 
 	hwif->set_pio_mode = &amd_set_pio_mode;
-	hwif->speedproc = &amd_set_drive;
+	hwif->set_dma_mode = &amd_set_drive;
 
 	for (i = 0; i < 2; i++) {
 		hwif->drives[i].io_32bit = 1;
@@ -441,7 +431,8 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
 		.bootable	= ON_BOARD,				\
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
-				| IDE_HFLAG_PIO_NO_DOWNGRADE,		\
+				| IDE_HFLAG_PIO_NO_DOWNGRADE		\
+				| IDE_HFLAG_POST_SET_MODE,		\
 		.pio_mask	= ATA_PIO5,				\
 	}
 
@@ -454,7 +445,8 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
 		.bootable	= ON_BOARD,				\
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
-				| IDE_HFLAG_PIO_NO_DOWNGRADE,		\
+				| IDE_HFLAG_PIO_NO_DOWNGRADE		\
+				| IDE_HFLAG_POST_SET_MODE,		\
 		.pio_mask	= ATA_PIO5,				\
 	}
 

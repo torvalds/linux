@@ -65,7 +65,7 @@ found:
 	hwif->hw.irq = hwif->irq = irq;
 
 	hwif->hw.dma = NO_DMA;
-	hwif->hw.chipset = ide_generic;
+	hwif->chipset = hwif->hw.chipset = ide_generic;
 
 	if (mmio) {
 		hwif->mmio = 1;

@@ -169,6 +169,11 @@ ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 
 EXPORT_SYMBOL_GPL(ide_dma_intr);
 
+static int ide_dma_good_drive(ide_drive_t *drive)
+{
+	return ide_in_drive_list(drive->id, drive_whitelist);
+}
+
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_build_sglist	-	map IDE scatter gather for DMA I/O
@@ -357,7 +362,7 @@ static int config_drive_for_dma (ide_drive_t *drive)
 				return 0;
 
 		/* Consult the list of known "good" drives */
-		if (__ide_dma_good_drive(drive))
+		if (ide_dma_good_drive(drive))
 			return 0;
 	}
 
@@ -639,14 +644,6 @@ int __ide_dma_bad_drive (ide_drive_t *drive)
 
 EXPORT_SYMBOL(__ide_dma_bad_drive);
 
-int __ide_dma_good_drive (ide_drive_t *drive)
-{
-	struct hd_driveid *id = drive->id;
-	return ide_in_drive_list(id, drive_whitelist);
-}
-
-EXPORT_SYMBOL(__ide_dma_good_drive);
-
 static const u8 xfer_mode_bases[] = {
 	XFER_UDMA_0,
 	XFER_MW_DMA_0,
@@ -746,6 +743,14 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 		}
 	}
 
+	if (hwif->chipset == ide_acorn && mode == 0) {
+		/*
+		 * is this correct?
+		 */
+		if (ide_dma_good_drive(drive) && drive->id->eide_dma_time < 150)
+			mode = XFER_MW_DMA_1;
+	}
+
 	printk(KERN_DEBUG "%s: selected mode 0x%x\n", drive->name, mode);
 
 	return min(mode, req_mode);
@@ -769,7 +774,10 @@ int ide_tune_dma(ide_drive_t *drive)
 	if (!speed)
 		return 0;
 
-	if (drive->hwif->speedproc(drive, speed))
+	if (drive->hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
+		return 0;
+
+	if (ide_set_dma_mode(drive, speed))
 		return 0;
 
 	return 1;

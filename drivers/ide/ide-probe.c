@@ -719,9 +719,9 @@ EXPORT_SYMBOL_GPL(ide_undecoded_slave);
  */
 static void probe_hwif(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
 {
-	unsigned int unit;
 	unsigned long flags;
 	unsigned int irqd;
+	int unit;
 
 	if (hwif->noprobe)
 		return;
@@ -777,10 +777,9 @@ static void probe_hwif(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
 		printk(KERN_DEBUG "%s: Wait for ready failed before probe !\n", hwif->name);
 
 	/*
-	 * Second drive should only exist if first drive was found,
-	 * but a lot of cdrom drives are configured as single slaves.
+	 * Need to probe slave device first to make it release PDIAG-.
 	 */
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
+	for (unit = MAX_DRIVES - 1; unit >= 0; unit--) {
 		ide_drive_t *drive = &hwif->drives[unit];
 		drive->dn = (hwif->channel ? 2 : 0) + unit;
 		(void) probe_for_drive(drive);

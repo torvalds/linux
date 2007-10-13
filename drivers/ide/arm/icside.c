@@ -248,7 +248,7 @@ static void icside_build_sglist(ide_drive_t *drive, struct request *rq)
  *	MW1	80	50	50	150	C
  *	MW2	70	25	25	120	C
  */
-static int icside_set_speed(ide_drive_t *drive, const u8 xfer_mode)
+static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 {
 	int cycle_time, use_dma_info = 0;
 
@@ -273,7 +273,7 @@ static int icside_set_speed(ide_drive_t *drive, const u8 xfer_mode)
 		cycle_time = 480;
 		break;
 	default:
-		return 1;
+		return;
 	}
 
 	/*
@@ -287,8 +287,6 @@ static int icside_set_speed(ide_drive_t *drive, const u8 xfer_mode)
 
 	printk("%s: %s selected (peak %dMB/s)\n", drive->name,
 		ide_xfer_verbose(xfer_mode), 2000 / drive->drive_data);
-
-	return ide_config_drive_speed(drive, xfer_mode);
 }
 
 static void icside_dma_host_off(ide_drive_t *drive)
@@ -313,41 +311,10 @@ static int icside_dma_on(ide_drive_t *drive)
 
 static int icside_dma_check(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
-	ide_hwif_t *hwif = HWIF(drive);
-	int xfer_mode = 0;
+	if (ide_tune_dma(drive))
+		return 0;
 
-	if (!(id->capability & 1) || !hwif->autodma)
-		goto out;
-
-	/*
-	 * Consult the list of known "bad" drives
-	 */
-	if (__ide_dma_bad_drive(drive))
-		goto out;
-
-	/*
-	 * Enable DMA on any drive that has multiword DMA
-	 */
-	if (id->field_valid & 2) {
-		xfer_mode = ide_max_dma_mode(drive);
-		goto out;
-	}
-
-	/*
-	 * Consult the list of known "good" drives
-	 */
-	if (__ide_dma_good_drive(drive)) {
-		if (id->eide_dma_time > 150)
-			goto out;
-		xfer_mode = XFER_MW_DMA_1;
-	}
-
-out:
-	if (xfer_mode == 0)
-		return -1;
-
-	return icside_set_speed(drive, xfer_mode) ? -1 : 0;
+	return -1;
 }
 
 static int icside_dma_end(ide_drive_t *drive)
@@ -464,7 +431,7 @@ static void icside_dma_init(ide_hwif_t *hwif)
 
 	hwif->dmatable_cpu	= NULL;
 	hwif->dmatable_dma	= 0;
-	hwif->speedproc		= icside_set_speed;
+	hwif->set_dma_mode	= icside_set_dma_mode;
 	hwif->autodma		= 1;
 
 	hwif->ide_dma_check	= icside_dma_check;

@@ -349,7 +349,7 @@ void ide_set_pio(ide_drive_t *drive, u8 req_pio)
 			  drive->name, host_pio, req_pio,
 			  req_pio == 255 ? "(auto-tune)" : "", pio);
 
-	hwif->set_pio_mode(drive, pio);
+	(void)ide_set_pio_mode(drive, XFER_PIO_0 + pio);
 }
 
 EXPORT_SYMBOL_GPL(ide_set_pio);
@@ -378,39 +378,83 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
 		blk_queue_bounce_limit(drive->queue, addr);
 }
 
+int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	if (hwif->set_pio_mode == NULL)
+		return -1;
+
+	/*
+	 * TODO: temporary hack for some legacy host drivers that didn't
+	 * set transfer mode on the device in ->set_pio_mode method...
+	 */
+	if (hwif->set_dma_mode == NULL) {
+		hwif->set_pio_mode(drive, mode - XFER_PIO_0);
+		return 0;
+	}
+
+	if (hwif->host_flags & IDE_HFLAG_POST_SET_MODE) {
+		if (ide_config_drive_speed(drive, mode))
+			return -1;
+		hwif->set_pio_mode(drive, mode - XFER_PIO_0);
+		return 0;
+	} else {
+		hwif->set_pio_mode(drive, mode - XFER_PIO_0);
+		return ide_config_drive_speed(drive, mode);
+	}
+}
+
+int ide_set_dma_mode(ide_drive_t *drive, const u8 mode)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	if (hwif->set_dma_mode == NULL)
+		return -1;
+
+	if (hwif->host_flags & IDE_HFLAG_POST_SET_MODE) {
+		if (ide_config_drive_speed(drive, mode))
+			return -1;
+		hwif->set_dma_mode(drive, mode);
+		return 0;
+	} else {
+		hwif->set_dma_mode(drive, mode);
+		return ide_config_drive_speed(drive, mode);
+	}
+}
+
+EXPORT_SYMBOL_GPL(ide_set_dma_mode);
+
 /**
  *	ide_set_xfer_rate	-	set transfer rate
  *	@drive: drive to set
- *	@speed: speed to attempt to set
+ *	@rate: speed to attempt to set
  *	
  *	General helper for setting the speed of an IDE device. This
  *	function knows about user enforced limits from the configuration
- *	which speedproc() does not.  High level drivers should never
- *	invoke speedproc() directly.
+ *	which ->set_pio_mode/->set_dma_mode does not.
  */
- 
+
 int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	if (hwif->speedproc == NULL)
+	if (hwif->set_dma_mode == NULL)
 		return -1;
 
 	rate = ide_rate_filter(drive, rate);
 
-	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_5) {
-		if (hwif->set_pio_mode)
-			hwif->set_pio_mode(drive, rate - XFER_PIO_0);
+	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_5)
+		return ide_set_pio_mode(drive, rate);
 
-		/*
-		 * FIXME: this is incorrect to return zero here but
-		 * since all users of ide_set_xfer_rate() ignore
-		 * the return value it is not a problem currently
-		 */
-		return 0;
-	}
+	/*
+	 * TODO: transfer modes 0x00-0x07 passed from the user-space are
+	 * currently handled here which needs fixing (please note that such
+	 * case could happen iff the transfer mode has already been set on
+	 * the device by ide-proc.c::set_xfer_rate()).
+	 */
 
-	return hwif->speedproc(drive, rate);
+	return ide_set_dma_mode(drive, rate);
 }
 
 static void ide_dump_opcode(ide_drive_t *drive)

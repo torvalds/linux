@@ -291,12 +291,8 @@ static void sgiioc4_dma_off_quietly(ide_drive_t *drive)
 	drive->hwif->dma_host_off(drive);
 }
 
-static int sgiioc4_speedproc(ide_drive_t *drive, const u8 speed)
+static void sgiioc4_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
-	if (speed != XFER_MW_DMA_2)
-		return 1;
-
-	return ide_config_drive_speed(drive, speed);
 }
 
 static int sgiioc4_ide_dma_check(ide_drive_t *drive)
@@ -591,11 +587,9 @@ static void __devinit
 ide_init_sgiioc4(ide_hwif_t * hwif)
 {
 	hwif->mmio = 1;
-	hwif->atapi_dma = 1;
-	hwif->mwdma_mask = 0x04;
 	hwif->pio_mask = 0x00;
 	hwif->set_pio_mode = NULL; /* Sets timing for PIO mode */
-	hwif->speedproc = &sgiioc4_speedproc;
+	hwif->set_dma_mode = &sgiioc4_set_dma_mode;
 	hwif->selectproc = NULL;/* Use the default routine to select drive */
 	hwif->reset_poll = NULL;/* No HBA specific reset_poll needed */
 	hwif->pre_reset = NULL;	/* No HBA specific pre_set needed */
@@ -605,6 +599,14 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->maskproc = &sgiioc4_maskproc;	/* Mask on/off NIEN register */
 	hwif->quirkproc = NULL;
 	hwif->busproc = NULL;
+
+	hwif->INB = &sgiioc4_INB;
+
+	if (hwif->dma_base == 0)
+		return;
+
+	hwif->atapi_dma = 1;
+	hwif->mwdma_mask = 0x04;
 
 	hwif->dma_setup = &sgiioc4_ide_dma_setup;
 	hwif->dma_start = &sgiioc4_ide_dma_start;
@@ -617,8 +619,6 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->dma_host_off = &sgiioc4_dma_host_off;
 	hwif->dma_lost_irq = &sgiioc4_dma_lost_irq;
 	hwif->dma_timeout = &ide_dma_timeout;
-
-	hwif->INB = &sgiioc4_INB;
 }
 
 static int __devinit
@@ -688,8 +688,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
-	ide_init_sgiioc4(hwif);
-
 	hwif->autodma = 0;
 
 	if (dma_base && ide_dma_sgiioc4(hwif, dma_base) == 0) {
@@ -698,6 +696,8 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	} else
 		printk(KERN_INFO "%s: %s Bus-Master DMA disabled\n",
 				 hwif->name, DRV_NAME);
+
+	ide_init_sgiioc4(hwif);
 
 	if (probe_hwif_init(hwif))
 		return -EIO;

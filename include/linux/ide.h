@@ -681,7 +681,7 @@ typedef struct hwif_s {
 	u8 straight8;	/* Alan's straight 8 check */
 	u8 bus_state;	/* power state of the IDE bus */
 
-	u8 host_flags;
+	u16 host_flags;
 
 	u8 pio_mask;
 
@@ -702,10 +702,10 @@ typedef struct hwif_s {
 #if 0
 	ide_hwif_ops_t	*hwifops;
 #else
-	/* routine to set PIO mode for drives */
+	/* routine to program host for PIO mode */
 	void	(*set_pio_mode)(ide_drive_t *, const u8);
-	/* routine to retune DMA modes for drives */
-	int	(*speedproc)(ide_drive_t *, const u8);
+	/* routine to program host for DMA mode */
+	void	(*set_dma_mode)(ide_drive_t *, const u8);
 	/* tweaks hardware to select drive */
 	void	(*selectproc)(ide_drive_t *);
 	/* chipset polling based on hba specifics */
@@ -1079,16 +1079,7 @@ extern void ide_fix_driveid(struct hd_driveid *);
  */
 extern void ide_fixstring(u8 *, const int, const int);
 
-/*
- * This routine busy-waits for the drive status to be not "busy".
- * It then checks the status for all of the "good" bits and none
- * of the "bad" bits, and if all is okay it returns 0.  All other
- * cases return 1 after doing "*startstop = ide_error()", and the
- * caller should return the updated value of "startstop" in this case.
- * "startstop" is unchanged when the function returns 0;
- * (startstop, drive, good, bad, timeout)
- */
-extern int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
+int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 /*
  * Start a reset operation for an IDE interface.
@@ -1162,7 +1153,6 @@ extern void SELECT_MASK(ide_drive_t *, int);
 extern void QUIRK_LIST(ide_drive_t *);
 
 extern int drive_is_ready(ide_drive_t *);
-extern int wait_for_ready(ide_drive_t *, int /* timeout */);
 
 /*
  * taskfile io for disks for now...and builds request from ide_ioctl
@@ -1262,6 +1252,15 @@ enum {
 	IDE_HFLAG_ABUSE_FAST_DEVSEL	= (1 << 5),
 	/* use 100-102 and 200-202 PIO values to set DMA modes */
 	IDE_HFLAG_ABUSE_DMA_MODES	= (1 << 6),
+	/*
+	 * keep DMA setting when programming PIO mode, may be used only
+	 * for hosts which have separate PIO and DMA timings (ie. PMAC)
+	 */
+	IDE_HFLAG_SET_PIO_MODE_KEEP_DMA	= (1 << 7),
+	/* program host for the transfer mode after programming device */
+	IDE_HFLAG_POST_SET_MODE		= (1 << 8),
+	/* don't program host/device for the transfer mode ("smart" hosts) */
+	IDE_HFLAG_NO_SET_MODE		= (1 << 9),
 };
 
 typedef struct ide_pci_device_s {
@@ -1278,7 +1277,7 @@ typedef struct ide_pci_device_s {
 	u8			bootable;
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
-	u8			host_flags;
+	u16			host_flags;
 	u8			pio_mask;
 	u8			udma_mask;
 } ide_pci_device_t;
@@ -1301,7 +1300,6 @@ int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 int __ide_dma_bad_drive(ide_drive_t *);
-int __ide_dma_good_drive(ide_drive_t *);
 
 u8 ide_find_dma_mode(ide_drive_t *, u8);
 
@@ -1419,6 +1417,9 @@ typedef struct ide_pio_timings_s {
 unsigned int ide_pio_cycle_time(ide_drive_t *, u8);
 u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
 extern const ide_pio_timings_t ide_pio_timings[6];
+
+int ide_set_pio_mode(ide_drive_t *, u8);
+int ide_set_dma_mode(ide_drive_t *, u8);
 
 void ide_set_pio(ide_drive_t *, u8);
 

@@ -283,14 +283,14 @@ static int ali_get_info (char *buffer, char **addr, off_t offset, int count)
 #endif  /* defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_IDE_PROC_FS) */
 
 /**
- *	ali_tune_pio	-	set host controller for PIO mode
+ *	ali_set_pio_mode	-	set host controller for PIO mode
  *	@drive: drive
  *	@pio: PIO mode number
  *
  *	Program the controller for the given PIO mode.
  */
 
-static void ali_tune_pio(ide_drive_t *drive, const u8 pio)
+static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *dev = hwif->pci_dev;
@@ -358,21 +358,6 @@ static void ali_tune_pio(ide_drive_t *drive, const u8 pio)
 }
 
 /**
- *	ali_set_pio_mode	-	set up drive for PIO mode
- *	@drive: drive to tune
- *	@pio: desired mode
- *
- *	Program the controller with the desired PIO timing for the given drive.
- *	Then set up the drive itself.
- */
-
-static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	ali_tune_pio(drive, pio);
-	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
-
-/**
  *	ali_udma_filter		-	compute UDMA mask
  *	@drive: IDE device
  *
@@ -401,15 +386,14 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 }
 
 /**
- *	ali15x3_tune_chipset	-	set up chipset/drive for new speed
- *	@drive: drive to configure for
- *	@speed: desired speed
+ *	ali_set_dma_mode	-	set host controller for DMA mode
+ *	@drive: drive
+ *	@speed: DMA mode
  *
  *	Configure the hardware for the desired IDE transfer mode.
- *	We also do the needed drive configuration through helpers
  */
 
-static int ali15x3_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -419,7 +403,7 @@ static int ali15x3_tune_chipset(ide_drive_t *drive, const u8 speed)
 	int m5229_udma		= (hwif->channel) ? 0x57 : 0x56;
 
 	if (speed < XFER_PIO_0)
-		return 1;
+		return;
 
 	if (speed == XFER_UDMA_6)
 		speed1 = 0x47;
@@ -450,7 +434,6 @@ static int ali15x3_tune_chipset(ide_drive_t *drive, const u8 speed)
 			pci_write_config_byte(dev, 0x4b, tmpbyte);
 		}
 	}
-	return (ide_config_drive_speed(drive, speed));
 }
 
 /**
@@ -699,7 +682,7 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
 	hwif->set_pio_mode = &ali_set_pio_mode;
-	hwif->speedproc = &ali15x3_tune_chipset;
+	hwif->set_dma_mode = &ali_set_dma_mode;
 	hwif->udma_filter = &ali_udma_filter;
 
 	/* don't use LBA48 DMA on ALi devices before rev 0xC5 */
@@ -710,6 +693,10 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 		hwif->drives[1].autotune = 1;
 		return;
 	}
+
+	/*
+	 * check in ->init_dma guarantees m5229_revision >= 0x20 here
+	 */
 
 	if (m5229_revision > 0x20)
 		hwif->atapi_dma = 1;
@@ -728,18 +715,15 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 
-        if (m5229_revision >= 0x20) {
-                /*
-                 * M1543C or newer for DMAing
-                 */
-                hwif->ide_dma_check = &ali15x3_config_drive_for_dma;
-		hwif->dma_setup = &ali15x3_dma_setup;
-		if (!noautodma)
-			hwif->autodma = 1;
+	hwif->ide_dma_check = &ali15x3_config_drive_for_dma;
+	hwif->dma_setup = &ali15x3_dma_setup;
 
-		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = ata66_ali15x3(hwif);
-	}
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = ata66_ali15x3(hwif);
+
+	if (!noautodma)
+		hwif->autodma = 1;
+
 	hwif->drives[0].autodma = hwif->autodma;
 	hwif->drives[1].autodma = hwif->autodma;
 }

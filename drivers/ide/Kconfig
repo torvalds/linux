@@ -1074,22 +1074,6 @@ endif
 config BLK_DEV_IDEDMA
 	def_bool BLK_DEV_IDEDMA_PCI || BLK_DEV_IDEDMA_PMAC || BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 
-config IDEDMA_IVB
-	bool "IGNORE word93 Validation BITS"
-	depends on BLK_DEV_IDEDMA_PCI || BLK_DEV_IDEDMA_PMAC || BLK_DEV_IDEDMA_ICS
-	---help---
-	  There are unclear terms in ATA-4 and ATA-5 standards how certain
-	  hardware (an 80c ribbon) should be detected. Different interpretations
-	  of the standards have been released in hardware. This causes problems:
-	  for example, a host with Ultra Mode 4 (or higher) will not run
-	  in that mode with an 80c ribbon.
-
-	  If you are experiencing compatibility or performance problems, you
-	  MAY try to answer Y here. However, it does not necessarily solve
-	  any of your problems, it could even cause more of them.
-
-	  It is normally safe to answer Y; however, the default is N.
-
 endif
 
 config BLK_DEV_HD_ONLY

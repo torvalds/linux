@@ -451,7 +451,7 @@ static void config_drive_art_rwp (ide_drive_t *drive)
 }
 
 /* Set per-drive active and recovery time */
-static void config_art_rwp_pio (ide_drive_t *drive, u8 pio)
+static void sis_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -519,20 +519,14 @@ static void config_art_rwp_pio (ide_drive_t *drive, u8 pio)
 	}
 }
 
-static void sis_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	config_art_rwp_pio(drive, pio);
-	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
-
-static int sis5513_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u32 regdw;
 	u8 drive_pci, reg;
 
-	/* See config_art_rwp_pio for drive pci config registers */
+	/* See sis_set_pio_mode() for drive PCI config registers */
 	drive_pci = 0x40;
 	if (chipset_family >= ATA_133) {
 		u32 reg54h;
@@ -600,8 +594,6 @@ static int sis5513_tune_chipset(ide_drive_t *drive, const u8 speed)
 			BUG();
 			break;
 	}
-
-	return ide_config_drive_speed(drive, speed);
 }
 
 static int sis5513_config_xfer_rate(ide_drive_t *drive)
@@ -841,7 +833,7 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 		hwif->irq = hwif->channel ? 15 : 14;
 
 	hwif->set_pio_mode = &sis_set_pio_mode;
-	hwif->speedproc = &sis5513_tune_chipset;
+	hwif->set_dma_mode = &sis_set_dma_mode;
 
 	if (chipset_family >= ATA_133)
 		hwif->udma_filter = sis5513_ata133_udma_filter;

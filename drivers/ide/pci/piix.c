@@ -137,13 +137,14 @@ static u8 piix_dma_2_pio (u8 xfer_rate) {
 }
 
 /**
- *	piix_tune_pio		-	tune PIIX for PIO mode
- *	@drive: drive to tune
- *	@pio: desired PIO mode
+ *	piix_set_pio_mode	-	set host controller for PIO mode
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
  *	Set the interface PIO mode based upon the settings done by AMI BIOS.
  */
-static void piix_tune_pio (ide_drive_t *drive, u8 pio)
+
+static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -204,31 +205,15 @@ static void piix_tune_pio (ide_drive_t *drive, u8 pio)
 }
 
 /**
- *	piix_set_pio_mode	-	set PIO mode
- *	@drive: drive to tune
- *	@pio: desired PIO mode
+ *	piix_set_dma_mode	-	set host controller for DMA mode
+ *	@drive: drive
+ *	@speed: DMA mode
  *
- *	Set the drive's PIO mode (might be useful if drive is not registered
- *	in CMOS for any reason).
+ *	Set a PIIX host controller to the desired DMA mode.  This involves
+ *	programming the right timing data into the PCI configuration space.
  */
 
-static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	piix_tune_pio(drive, pio);
-	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
-
-/**
- *	piix_tune_chipset	-	tune a PIIX interface
- *	@drive: IDE drive to tune
- *	@speed: speed to configure
- *
- *	Set a PIIX interface channel to the desired speeds. This involves
- *	requires the right timing data into the PIIX configuration space
- *	then setting the drive parameters appropriately
- */
-
-static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -259,7 +244,7 @@ static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:	break;
-		default:		return -1;
+		default:		return;
 	}
 
 	if (speed >= XFER_UDMA_0) {
@@ -288,9 +273,7 @@ static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 	}
 
-	piix_tune_pio(drive, piix_dma_2_pio(speed));
-
-	return ide_config_drive_speed(drive, speed);
+	piix_set_pio_mode(drive, piix_dma_2_pio(speed));
 }
 
 /**
@@ -448,7 +431,8 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	hwif->autodma = 0;
 
 	hwif->set_pio_mode = &piix_set_pio_mode;
-	hwif->speedproc = &piix_tune_chipset;
+	hwif->set_dma_mode = &piix_set_dma_mode;
+
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;
 

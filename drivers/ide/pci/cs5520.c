@@ -96,22 +96,13 @@ static void cs5520_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	reg = inb(hwif->dma_base + 0x02 + 8*controller);
 	reg |= 1<<((drive->dn&1)+5);
 	outb(reg, hwif->dma_base + 0x02 + 8*controller);
-
-	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static int cs5520_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	printk(KERN_ERR "cs55x0: bad ide timing.\n");
 
 	cs5520_set_pio_mode(drive, 0);
-
-	/*
-	 * FIXME: this is incorrect to return zero here but
-	 * since all users of ide_set_xfer_rate() ignore
-	 * the return value it is not a problem currently
-	 */
-	return 0;
 }
 
 static int cs5520_config_drive_xfer_rate(ide_drive_t *drive)
@@ -150,26 +141,25 @@ static int cs5520_dma_on(ide_drive_t *drive)
 static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 {
 	hwif->set_pio_mode = &cs5520_set_pio_mode;
-	hwif->speedproc = &cs5520_tune_chipset;
-	hwif->ide_dma_check = &cs5520_config_drive_xfer_rate;
-	hwif->ide_dma_on = &cs5520_dma_on;
+	hwif->set_dma_mode = &cs5520_set_dma_mode;
 
-	if(!noautodma)
-		hwif->autodma = 1;
-	
-	if(!hwif->dma_base)
-	{
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+	if (hwif->dma_base == 0) {
+		hwif->drives[1].autotune = hwif->drives[0].autotune = 1;
 		return;
 	}
+
+	hwif->ide_dma_check = &cs5520_config_drive_xfer_rate;
+	hwif->ide_dma_on = &cs5520_dma_on;
 
 	/* ATAPI is harder so leave it for now */
 	hwif->atapi_dma = 0;
 	hwif->ultra_mask = 0;
 	hwif->swdma_mask = 0;
 	hwif->mwdma_mask = 0;
-	
+
+	if (!noautodma)
+		hwif->autodma = 1;
+
 	hwif->drives[0].autodma = hwif->autodma;
 	hwif->drives[1].autodma = hwif->autodma;
 }

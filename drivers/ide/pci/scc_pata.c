@@ -190,15 +190,15 @@ scc_ide_outsl(unsigned long port, void *addr, u32 count)
 }
 
 /**
- *	scc_tune_pio	-	tune a drive PIO mode
- *	@drive: drive to tune
- *	@mode_wanted: the target operating mode
+ *	scc_set_pio_mode	-	set host controller for PIO mode
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
  *	Load the timing settings for this device mode into the
  *	controller.
  */
 
-static void scc_tune_pio(ide_drive_t *drive, const u8 pio)
+static void scc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct scc_ports *ports = ide_get_hwifdata(hwif);
@@ -221,22 +221,16 @@ static void scc_tune_pio(ide_drive_t *drive, const u8 pio)
 	out_be32((void __iomem *)pioct_port, reg);
 }
 
-static void scc_set_pio_mode(ide_drive_t *drive, const u8 pio)
-{
-	scc_tune_pio(drive, pio);
-	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
-
 /**
- *	scc_tune_chipset	-	tune a drive DMA mode
- *	@drive: Drive to set up
- *	@speed: speed we want to achieve
+ *	scc_set_dma_mode	-	set host controller for DMA mode
+ *	@drive: drive
+ *	@speed: DMA mode
  *
  *	Load the timing settings for this device mode into the
  *	controller.
  */
 
-static int scc_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct scc_ports *ports = ide_get_hwifdata(hwif);
@@ -271,7 +265,7 @@ static int scc_tune_chipset(ide_drive_t *drive, const u8 speed)
 		idx = speed - XFER_UDMA_0;
 		break;
 	default:
-		return 1;
+		return;
 	}
 
 	jcactsel = JCACTSELtbl[offset][idx];
@@ -287,8 +281,6 @@ static int scc_tune_chipset(ide_drive_t *drive, const u8 speed)
 	}
 	reg = JCTSStbl[offset][idx] << 16 | JCENVTtbl[offset][idx];
 	out_be32((void __iomem *)udenvt_port, reg);
-
-	return ide_config_drive_speed(drive, speed);
 }
 
 /**
@@ -708,8 +700,8 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 
 	hwif->dma_setup = scc_dma_setup;
 	hwif->ide_dma_end = scc_ide_dma_end;
-	hwif->speedproc = scc_tune_chipset;
 	hwif->set_pio_mode = scc_set_pio_mode;
+	hwif->set_dma_mode = scc_set_dma_mode;
 	hwif->ide_dma_check = scc_config_drive_for_dma;
 	hwif->ide_dma_test_irq = scc_dma_test_irq;
 	hwif->udma_filter = scc_udma_filter;

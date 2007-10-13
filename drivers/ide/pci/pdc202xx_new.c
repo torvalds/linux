@@ -146,19 +146,16 @@ static struct udma_timing {
 	{ 0x1a, 0x01, 0xcb },	/* UDMA mode 6 */
 };
 
-static int pdcnew_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void pdcnew_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
-	int			err;
 
 	/*
-	 * Issue SETFEATURES_XFER to the drive first. PDC202xx hardware will
+	 * IDE core issues SETFEATURES_XFER to the drive first (thanks to
+	 * IDE_HFLAG_POST_SET_MODE in ->host_flags).  PDC202xx hardware will
 	 * automatically set the timing registers based on 100 MHz PLL output.
-	 */
- 	err = ide_config_drive_speed(drive, speed);
-
-	/*
+	 *
 	 * As we set up the PLL to output 133 MHz for UltraDMA/133 capable
 	 * chips, we must override the default register settings...
 	 */
@@ -211,13 +208,11 @@ static int pdcnew_tune_chipset(ide_drive_t *drive, const u8 speed)
 
 		set_indexed_reg(hwif, 0x10 + adj, tmp & 0x7f);
  	}
-
-	return err;
 }
 
 static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	(void)pdcnew_tune_chipset(drive, XFER_PIO_0 + pio);
+	pdcnew_set_mode(drive, XFER_PIO_0 + pio);
 }
 
 static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
@@ -490,9 +485,9 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	hwif->autodma = 0;
 
 	hwif->set_pio_mode = &pdcnew_set_pio_mode;
+	hwif->set_dma_mode = &pdcnew_set_mode;
 
 	hwif->quirkproc = &pdcnew_quirkproc;
-	hwif->speedproc = &pdcnew_tune_chipset;
 	hwif->resetproc = &pdcnew_reset;
 
 	hwif->err_stops_fifo = 1;
@@ -583,6 +578,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.bootable	= OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
+		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 1 */
 		.name		= "PDC20269",
 		.init_setup	= init_setup_pdcnew,
@@ -592,6 +588,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.bootable	= OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
+		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 2 */
 		.name		= "PDC20270",
 		.init_setup	= init_setup_pdc20270,
@@ -601,6 +598,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.bootable	= OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
+		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 3 */
 		.name		= "PDC20271",
 		.init_setup	= init_setup_pdcnew,
@@ -610,6 +608,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.bootable	= OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
+		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 4 */
 		.name		= "PDC20275",
 		.init_setup	= init_setup_pdcnew,
@@ -619,6 +618,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.bootable	= OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
+		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 5 */
 		.name		= "PDC20276",
 		.init_setup	= init_setup_pdc20276,
@@ -628,6 +628,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.bootable	= OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
+		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 6 */
 		.name		= "PDC20277",
 		.init_setup	= init_setup_pdcnew,
@@ -637,6 +638,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.bootable	= OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
+		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	}
 };
 

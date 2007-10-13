@@ -836,8 +836,16 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 		if (set_pio_mode_abuse(drive->hwif, req_pio)) {
 			if (hwif->set_pio_mode)
 				hwif->set_pio_mode(drive, req_pio);
-		} else
+		} else {
+			int keep_dma = drive->using_dma;
+
 			ide_set_pio(drive, req_pio);
+
+			if (hwif->host_flags & IDE_HFLAG_SET_PIO_MODE_KEEP_DMA) {
+				if (keep_dma)
+					hwif->ide_dma_on(drive);
+			}
+		}
 
 		return ide_stopped;
 	} else {

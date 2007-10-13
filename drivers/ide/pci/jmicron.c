@@ -85,21 +85,18 @@ static u8 __devinit ata66_jmicron(ide_hwif_t *hwif)
 
 static void jmicron_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 /**
- *	jmicron_tune_chipset	-	set controller timings
- *	@drive: Drive to set up
- *	@speed: speed we want to achieve
+ *	jmicron_set_dma_mode	-	set host controller for DMA mode
+ *	@drive: drive
+ *	@mode: DMA mode
  *
- *	As the JMicron snoops for timings all we actually need to do is
- *	set the transfer mode on the device.
+ *	As the JMicron snoops for timings we don't need to do anything here.
  */
 
-static int jmicron_tune_chipset(ide_drive_t *drive, const u8 speed)
+static void jmicron_set_dma_mode(ide_drive_t *drive, const u8 mode)
 {
-	return ide_config_drive_speed(drive, speed);
 }
 
 /**
@@ -129,8 +126,8 @@ static int jmicron_config_drive_for_dma (ide_drive_t *drive)
 
 static void __devinit init_hwif_jmicron(ide_hwif_t *hwif)
 {
-	hwif->speedproc = &jmicron_tune_chipset;
 	hwif->set_pio_mode = &jmicron_set_pio_mode;
+	hwif->set_dma_mode = &jmicron_set_dma_mode;
 
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;

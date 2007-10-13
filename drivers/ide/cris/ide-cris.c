@@ -716,11 +716,9 @@ static void cris_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 
 	cris_ide_set_speed(TYPE_PIO, setup, strobe, hold);
-
-	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static int speed_cris_ide(ide_drive_t *drive, const u8 speed)
+static void cris_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	int cyc = 0, dvs = 0, strobe = 0, hold = 0;
 
@@ -759,8 +757,6 @@ static int speed_cris_ide(ide_drive_t *drive, const u8 speed)
 		cris_ide_set_speed(TYPE_UDMA, cyc, dvs, 0);
 	else
 		cris_ide_set_speed(TYPE_DMA, 0, strobe, hold);
-
-	return ide_config_drive_speed(drive, speed);
 }
 
 void __init
@@ -791,7 +787,7 @@ init_e100_ide (void)
 		hwif->mmio = 1;
 		hwif->chipset = ide_etrax100;
 		hwif->set_pio_mode = &cris_set_pio_mode;
-		hwif->speedproc = &speed_cris_ide;
+		hwif->set_dma_mode = &cris_set_dma_mode;
 		hwif->ata_input_data = &cris_ide_input_data;
 		hwif->ata_output_data = &cris_ide_output_data;
 		hwif->atapi_input_bytes = &cris_atapi_input_bytes;
