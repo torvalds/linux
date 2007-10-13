@@ -920,29 +920,6 @@ static noinline void ipath_bad_regread(struct ipath_devdata *dd)
 	}
 }
 
-static void handle_port_pioavail(struct ipath_devdata *dd)
-{
-	u32 i;
-	/*
-	 * start from port 1, since for now port 0  is never using
-	 * wait_event for PIO
-	 */
-	for (i = 1; dd->ipath_portpiowait && i < dd->ipath_cfgports; i++) {
-		struct ipath_portdata *pd = dd->ipath_pd[i];
-
-		if (pd && pd->port_cnt &&
-		    dd->ipath_portpiowait & (1U << i)) {
-			clear_bit(i, &dd->ipath_portpiowait);
-			if (test_bit(IPATH_PORT_WAITING_PIO,
-				     &pd->port_flag)) {
-				clear_bit(IPATH_PORT_WAITING_PIO,
-					  &pd->port_flag);
-				wake_up_interruptible(&pd->port_wait);
-			}
-		}
-	}
-}
-
 static void handle_layer_pioavail(struct ipath_devdata *dd)
 {
 	int ret;
@@ -1194,9 +1171,6 @@ irqreturn_t ipath_intr(int irq, void *data)
 		clear_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 				 dd->ipath_sendctrl);
-
-		if (dd->ipath_portpiowait)
-			handle_port_pioavail(dd);
 
 		handle_layer_pioavail(dd);
 	}

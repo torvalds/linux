@@ -457,8 +457,6 @@ struct ipath_devdata {
 	unsigned long ipath_rcvctrl;
 	/* shadow kr_sendctrl */
 	unsigned long ipath_sendctrl;
-	/* ports waiting for PIOavail intr */
-	unsigned long ipath_portpiowait;
 	unsigned long ipath_lastcancel; /* to not count armlaunch after cancel */
 
 	/* value we put in kr_rcvhdrcnt */
@@ -759,8 +757,6 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 /* portdata flag bit offsets */
 		/* waiting for a packet to arrive */
 #define IPATH_PORT_WAITING_RCV   2
-		/* waiting for a PIO buffer to be available */
-#define IPATH_PORT_WAITING_PIO   3
 		/* master has not finished initializing */
 #define IPATH_PORT_MASTER_UNINIT 4
 		/* waiting for an urgent packet to arrive */
