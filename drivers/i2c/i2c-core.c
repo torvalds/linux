@@ -1307,7 +1307,22 @@ s32 i2c_smbus_write_word_data(struct i2c_client *client, u8 command, u16 value)
 }
 EXPORT_SYMBOL(i2c_smbus_write_word_data);
 
-/* Returns the number of read bytes */
+/**
+ * i2c_smbus_read_block_data - SMBus block read request
+ * @client: Handle to slave device
+ * @command: Command byte issued to let the slave know what data should
+ *	be returned
+ * @values: Byte array into which data will be read; big enough to hold
+ *	the data returned by the slave.  SMBus allows at most 32 bytes.
+ *
+ * Returns the number of bytes read in the slave's response, else a
+ * negative number to indicate some kind of error.
+ *
+ * Note that using this function requires that the client's adapter support
+ * the I2C_FUNC_SMBUS_READ_BLOCK_DATA functionality.  Not all adapter drivers
+ * support this; its emulation through I2C messaging relies on a specific
+ * mechanism (I2C_M_RECV_LEN) which may not be implemented.
+ */
 s32 i2c_smbus_read_block_data(struct i2c_client *client, u8 command,
 			      u8 *values)
 {
