@@ -414,9 +414,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		/* Eep. This really should never happen. GC is broken */
 		printk(KERN_ERR "Error garbage collecting node at %08x!\n", ref_offset(jeb->gc_node));
 		ret = -ENOSPC;
-	} else if (ref_offset(jeb->gc_node) == 0x1c616bdc)
-		printk(KERN_ERR "Wheee. Correctly GC'd node at %08x\n", ref_offset(jeb->gc_node));
-
+	}
  release_sem:
 	up(&c->alloc_sem);
 
