@@ -54,8 +54,6 @@ static void emc_endio(struct bio *bio, int error)
 
 	/* request is freed in block layer */
 	free_bio(bio);
-
-	return 0;
 }
 
 static struct bio *get_failover_bio(struct dm_path *path, unsigned data_size)
