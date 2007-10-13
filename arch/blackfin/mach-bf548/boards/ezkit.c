@@ -88,7 +88,7 @@ static struct platform_device bf54x_lq043_device = {
 #endif
 
 #if defined(CONFIG_KEYBOARD_BFIN) || defined(CONFIG_KEYBOARD_BFIN_MODULE)
-static int bf548_keymap[] = {
+static const unsigned int bf548_keymap[] = {
 	KEYVAL(0, 0, KEY_ENTER),
 	KEYVAL(0, 1, KEY_HELP),
 	KEYVAL(0, 2, KEY_0),
@@ -110,8 +110,8 @@ static int bf548_keymap[] = {
 static struct bfin_kpad_platform_data bf54x_kpad_data = {
 	.rows			= 4,
 	.cols			= 4,
-	.keymap 		= bf548_keymap,
-	.keymapsize 		= ARRAY_SIZE(bf548_keymap),
+	.keymap			= bf548_keymap,
+	.keymapsize		= ARRAY_SIZE(bf548_keymap),
 	.repeat			= 0,
 	.debounce_time		= 5000,	/* ns (5ms) */
 	.coldrive_time		= 1000, /* ns (1ms) */
