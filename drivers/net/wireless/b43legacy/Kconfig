@@ -34,6 +34,12 @@ config B43LEGACY_PCICORE_AUTOSELECT
 	select SSB_DRIVER_PCICORE
 	default y
 
+# LED support
+config B43LEGACY_LEDS
+	bool
+	depends on MAC80211_LEDS
+	default y
+
 config B43LEGACY_DEBUG
 	bool "Broadcom 43xx-legacy debugging"
 	depends on B43LEGACY

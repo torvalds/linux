@@ -83,10 +83,6 @@ static int modparam_long_retry = B43legacy_DEFAULT_LONG_RETRY_LIMIT;
 module_param_named(long_retry, modparam_long_retry, int, 0444);
 MODULE_PARM_DESC(long_retry, "Long-Retry-Limit (0 - 15)");
 
-static int modparam_noleds;
-module_param_named(noleds, modparam_noleds, int, 0444);
-MODULE_PARM_DESC(noleds, "Turn off all LED activity");
-
 static char modparam_fwpostfix[16];
 module_param_string(fwpostfix, modparam_fwpostfix, 16, 0444);
 MODULE_PARM_DESC(fwpostfix, "Postfix for the firmware files to load.");
@@ -1217,7 +1213,6 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 	u32 dma_reason[ARRAY_SIZE(dev->dma_reason)];
 	u32 merged_dma_reason = 0;
 	int i;
-	int activity = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->wl->irq_lock, flags);
@@ -1281,7 +1276,6 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 			b43legacy_pio_rx(dev->pio.queue0);
 		else
 			b43legacy_dma_rx(dev->dma.rx_ring0);
-		/* We intentionally don't set "activity" to 1, here. */
 	}
 	B43legacy_WARN_ON(dma_reason[1] & B43legacy_DMAIRQ_RX_DONE);
 	B43legacy_WARN_ON(dma_reason[2] & B43legacy_DMAIRQ_RX_DONE);
@@ -1290,20 +1284,13 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 			b43legacy_pio_rx(dev->pio.queue3);
 		else
 			b43legacy_dma_rx(dev->dma.rx_ring3);
-		activity = 1;
 	}
 	B43legacy_WARN_ON(dma_reason[4] & B43legacy_DMAIRQ_RX_DONE);
 	B43legacy_WARN_ON(dma_reason[5] & B43legacy_DMAIRQ_RX_DONE);
 
-	if (reason & B43legacy_IRQ_TX_OK) {
+	if (reason & B43legacy_IRQ_TX_OK)
 		handle_irq_transmit_status(dev);
-		activity = 1;
-		/* TODO: In AP mode, this also causes sending of powersave
-			 responses. */
-	}
 
-	if (!modparam_noleds)
-		b43legacy_leds_update(dev, activity);
 	b43legacy_interrupt_enable(dev, dev->irq_savedstate);
 	mmiowb();
 	spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
@@ -1755,7 +1742,6 @@ static int b43legacy_gpio_init(struct b43legacy_wldev *dev)
 			  B43legacy_MMIO_STATUS_BITFIELD)
 			  & 0xFFFF3FFF);
 
-	b43legacy_leds_switch_all(dev, 0);
 	b43legacy_write16(dev, B43legacy_MMIO_GPIO_MASK,
 			  b43legacy_read16(dev,
 			  B43legacy_MMIO_GPIO_MASK)
@@ -2008,8 +1994,7 @@ static bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
 static void b43legacy_chip_exit(struct b43legacy_wldev *dev)
 {
 	b43legacy_radio_turn_off(dev);
-	if (!modparam_noleds)
-		b43legacy_leds_exit(dev);
+	b43legacy_leds_exit(dev);
 	b43legacy_gpio_cleanup(dev);
 	/* firmware is released later */
 }
@@ -2039,9 +2024,11 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	err = b43legacy_gpio_init(dev);
 	if (err)
 		goto out; /* firmware is released later */
+	b43legacy_leds_init(dev);
+
 	err = b43legacy_upload_initvals(dev);
 	if (err)
-		goto err_gpio_cleanup;
+		goto err_leds_exit;
 	b43legacy_radio_turn_on(dev);
 
 	b43legacy_write16(dev, 0x03E6, 0x0000);
@@ -2120,7 +2107,8 @@ out:
 
 err_radio_off:
 	b43legacy_radio_turn_off(dev);
-err_gpio_cleanup:
+err_leds_exit:
+	b43legacy_leds_exit(dev);
 	b43legacy_gpio_cleanup(dev);
 	goto out;
 }
@@ -2168,7 +2156,6 @@ static void b43legacy_periodic_every1sec(struct b43legacy_wldev *dev)
 		dev->radio_hw_enable = radio_hw_enable;
 		b43legacyinfo(dev->wl, "Radio hardware status changed to %s\n",
 		       (radio_hw_enable) ? "enabled" : "disabled");
-		b43legacy_leds_update(dev, 0);
 	}
 }
 
@@ -3498,18 +3485,13 @@ static int b43legacy_wireless_core_attach(struct b43legacy_wldev *dev)
 	else
 		have_bphy = 1;
 
-	/* Initialize LEDs structs. */
-	err = b43legacy_leds_init(dev);
-	if (err)
-		goto err_powerdown;
-
 	dev->phy.gmode = (have_gphy || have_bphy);
 	tmp = dev->phy.gmode ? B43legacy_TMSLOW_GMODE : 0;
 	b43legacy_wireless_core_reset(dev, tmp);
 
 	err = b43legacy_phy_versioning(dev);
 	if (err)
-		goto err_leds_exit;
+		goto err_powerdown;
 	/* Check if this device supports multiband. */
 	if (!pdev ||
 	    (pdev->device != 0x4312 &&
@@ -3535,10 +3517,10 @@ static int b43legacy_wireless_core_attach(struct b43legacy_wldev *dev)
 
 	err = b43legacy_validate_chipaccess(dev);
 	if (err)
-		goto err_leds_exit;
+		goto err_powerdown;
 	err = b43legacy_setup_modes(dev, have_bphy, have_gphy);
 	if (err)
-		goto err_leds_exit;
+		goto err_powerdown;
 
 	/* Now set some default "current_dev" */
 	if (!wl->current_dev)
@@ -3553,8 +3535,6 @@ static int b43legacy_wireless_core_attach(struct b43legacy_wldev *dev)
 out:
 	return err;
 
-err_leds_exit:
-	b43legacy_leds_exit(dev);
 err_powerdown:
 	ssb_bus_may_powerdown(bus);
 	return err;
