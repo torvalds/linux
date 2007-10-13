@@ -103,7 +103,9 @@ static void au1xxx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	int mem_sttime;
 	int mem_stcfg;
-	u8 speed;
+
+	if (ide_config_drive_speed(drive, pio + XFER_PIO_0))
+		return;
 
 	mem_sttime = 0;
 	mem_stcfg  = au_readl(MEM_STCFG2);
@@ -164,9 +166,6 @@ static void au1xxx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	au_writel(mem_sttime,MEM_STTIME2);
 	au_writel(mem_stcfg,MEM_STCFG2);
-
-	speed = pio + XFER_PIO_0;
-	ide_config_drive_speed(drive, speed);
 }
 
 static int auide_tune_chipset(ide_drive_t *drive, const u8 speed)
