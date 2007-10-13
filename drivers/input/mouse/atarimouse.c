@@ -73,14 +73,11 @@ static void atamouse_interrupt(char *buf)
 {
 	int buttons, dx, dy;
 
-/*	ikbd_mouse_disable(); */
-
 	buttons = (buf[0] & 1) | ((buf[0] & 2) << 1);
 #ifdef FIXED_ATARI_JOYSTICK
 	buttons |= atari_mouse_buttons & 2;
 	atari_mouse_buttons = buttons;
 #endif
-/*	ikbd_mouse_rel_pos(); */
 
 	/* only relative events get here */
 	dx =  buf[1];
@@ -126,15 +123,16 @@ static int __init atamouse_init(void)
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(ST_MFP))
 		return -ENODEV;
 
-	if (!(atamouse_dev = input_allocate_device()))
-		return -ENOMEM;
-
 	if (!(atari_keyb_init()))
 		return -ENODEV;
 
+	atamouse_dev = input_allocate_device();
+	if (!atamouse_dev)
+		return -ENOMEM;
+
 	atamouse_dev->name = "Atari mouse";
 	atamouse_dev->phys = "atamouse/input0";
-	atamouse_dev->id.bustype = BUS_ATARI;
+	atamouse_dev->id.bustype = BUS_HOST;
 	atamouse_dev->id.vendor = 0x0001;
 	atamouse_dev->id.product = 0x0002;
 	atamouse_dev->id.version = 0x0100;
@@ -145,9 +143,11 @@ static int __init atamouse_init(void)
 	atamouse_dev->open = atamouse_open;
 	atamouse_dev->close = atamouse_close;
 
-	input_register_device(atamouse_dev);
+	if (input_register_device(atamouse_dev)) {
+		input_free_device(atamouse_dev);
+		return -ENOMEM;
+	}
 
-	printk(KERN_INFO "input: %s at keyboard ACIA\n", atamouse_dev->name);
 	return 0;
 }
 
