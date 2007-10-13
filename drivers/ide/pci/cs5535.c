@@ -141,7 +141,9 @@ static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
  */
 static int cs5535_set_drive(ide_drive_t *drive, u8 speed)
 {
-	ide_config_drive_speed(drive, speed);
+	if (ide_config_drive_speed(drive, speed))
+		return 1;
+
 	cs5535_set_speed(drive, speed);
 
 	return 0;
@@ -157,7 +159,9 @@ static int cs5535_set_drive(ide_drive_t *drive, u8 speed)
 
 static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
+	if (ide_config_drive_speed(drive, XFER_PIO_0 + pio))
+		return;
+
 	cs5535_set_speed(drive, XFER_PIO_0 + pio);
 }
 
