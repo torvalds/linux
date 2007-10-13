@@ -45,8 +45,8 @@
      </sect1>
 
      <sect1><title>Atomic and pointer manipulation</title>
-!Iinclude/asm-i386/atomic.h
-!Iinclude/asm-i386/unaligned.h
+!Iinclude/asm-x86/atomic_32.h
+!Iinclude/asm-x86/unaligned_32.h
      </sect1>
 
      <sect1><title>Delaying, scheduling, and timer routines</title>
@@ -119,7 +119,7 @@ X!Ilib/string.c
 !Elib/string.c
      </sect1>
      <sect1><title>Bit Operations</title>
-!Iinclude/asm-i386/bitops.h
+!Iinclude/asm-x86/bitops_32.h
      </sect1>
   </chapter>
 
@@ -155,8 +155,8 @@ X!Ilib/string.c
 !Emm/slab.c
      </sect1>
      <sect1><title>User Space Memory Access</title>
-!Iinclude/asm-i386/uaccess.h
-!Earch/i386/lib/usercopy.c
+!Iinclude/asm-x86/uaccess_32.h
+!Earch/x86/lib/usercopy_32.c
      </sect1>
      <sect1><title>More Memory Management Functions</title>
 !Emm/readahead.c
@@ -293,7 +293,7 @@ X!Ekernel/module.c
      </sect1>
 
      <sect1><title>MTRR Handling</title>
-!Earch/i386/kernel/cpu/mtrr/main.c
+!Earch/x86/kernel/cpu/mtrr/main.c
      </sect1>
 
      <sect1><title>PCI Support Library</title>
@@ -316,14 +316,14 @@ X!Edrivers/pci/hotplug.c
      <sect1><title>MCA Architecture</title>
 	<sect2><title>MCA Device Functions</title>
            <para>
-              Refer to the file arch/i386/kernel/mca.c for more information.
+              Refer to the file arch/x86/kernel/mca_32.c for more information.
            </para>
 <!-- FIXME: Removed for now since no structured comments in source
-X!Earch/i386/kernel/mca.c
+X!Earch/x86/kernel/mca_32.c
 -->
 	</sect2>
 	<sect2><title>MCA Bus DMA</title>
-!Iinclude/asm-i386/mca_dma.h
+!Iinclude/asm-x86/mca_dma.h
 	</sect2>
      </sect1>
   </chapter>
