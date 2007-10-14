@@ -26,7 +26,7 @@
  */
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
-#include <linux/blkdev.h>
+#include <linux/bio.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc7.h>
 #include <linux/crc-itu-t.h>
