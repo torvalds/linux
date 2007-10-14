@@ -964,8 +964,34 @@ void __init setup_boot_APIC_clock (void)
 	setup_APIC_timer();
 }
 
+/*
+ * AMD C1E enabled CPUs have a real nasty problem: Some BIOSes set the
+ * C1E flag only in the secondary CPU, so when we detect the wreckage
+ * we already have enabled the boot CPU local apic timer. Check, if
+ * disable_apic_timer is set and the DUMMY flag is cleared. If yes,
+ * set the DUMMY flag again and force the broadcast mode in the
+ * clockevents layer.
+ */
+void __cpuinit check_boot_apic_timer_broadcast(void)
+{
+	struct clock_event_device *levt = &per_cpu(lapic_events, boot_cpu_id);
+
+	if (!disable_apic_timer ||
+	    (lapic_clockevent.features & CLOCK_EVT_FEAT_DUMMY))
+		return;
+
+	printk(KERN_INFO "AMD C1E detected late. Force timer broadcast.\n");
+	lapic_clockevent.features |= CLOCK_EVT_FEAT_DUMMY;
+	levt->features |= CLOCK_EVT_FEAT_DUMMY;
+
+	local_irq_enable();
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE, &boot_cpu_id);
+	local_irq_disable();
+}
+
 void __cpuinit setup_secondary_APIC_clock(void)
 {
+	check_boot_apic_timer_broadcast();
 	setup_APIC_timer();
 }
 
