@@ -225,11 +225,12 @@ struct pvr2_hdw {
 	unsigned int cmd_debug_write_len;  //
 	unsigned int cmd_debug_read_len;   //
 
-	int flag_ok;            // device in known good state
-	int flag_disconnected;  // flag_ok == 0 due to disconnect
-	int flag_init_ok;       // true if structure is fully initialized
-	int flag_streaming_enabled; // true if streaming should be on
-	int fw1_state;          // current situation with fw1
+	int flag_ok;            /* device in known good state */
+	int flag_disconnected;  /* flag_ok == 0 due to disconnect */
+	int flag_init_ok;       /* true if structure is fully initialized */
+	int flag_streaming_enabled; /* true if streaming should be on */
+	int fw1_state;          /* current situation with fw1 */
+	int flag_encoder_ok;    /* True if encoder is healthy */
 
 	int flag_decoder_is_tuned;
 
