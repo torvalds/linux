@@ -251,7 +251,7 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 	}
 
 	/* Check for RGMII type */
-	if (device_is_compatible(ofdev->node, "ibm,rgmii-axon"))
+	if (of_device_is_compatible(ofdev->node, "ibm,rgmii-axon"))
 		dev->type = RGMII_AXON;
 	else
 		dev->type = RGMII_STANDARD;
