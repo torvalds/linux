@@ -345,6 +345,7 @@ static int tick_notify(struct notifier_block *nb, unsigned long reason,
 
 	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
 	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
+	case CLOCK_EVT_NOTIFY_BROADCAST_FORCE:
 		tick_broadcast_on_off(reason, dev);
 		break;
 

@@ -10,6 +10,7 @@
 #include <asm/pgtable.h>
 #include <asm/mce.h>
 #include <asm/nmi.h>
+#include <asm/vsyscall.h>
 
 #define MAX_PATCH_LEN (255-1)
 
