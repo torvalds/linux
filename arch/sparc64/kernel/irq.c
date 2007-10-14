@@ -643,27 +643,42 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino)
 
 unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 {
-	unsigned long sysino, hv_err;
-	unsigned int virq;
+	struct irq_handler_data *data;
+	struct ino_bucket *bucket;
+	unsigned long hv_err, cookie;
 
-	BUG_ON(devhandle & devino);
+	bucket = kzalloc(sizeof(struct ino_bucket), GFP_ATOMIC);
+	if (unlikely(!bucket))
+		return 0;
 
-	sysino = devhandle | devino;
-	BUG_ON(sysino & ~(IMAP_IGN | IMAP_INO));
+	bucket->virt_irq = virt_irq_alloc(__irq(bucket));
+	set_irq_chip(bucket->virt_irq, &sun4v_virq);
 
-	hv_err = sun4v_vintr_set_cookie(devhandle, devino, sysino);
+	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
+	if (unlikely(!data))
+		return 0;
+
+	set_irq_chip_data(bucket->virt_irq, data);
+
+	/* Catch accidental accesses to these things.  IMAP/ICLR handling
+	 * is done by hypervisor calls on sun4v platforms, not by direct
+	 * register accesses.
+	 */
+	data->imap = ~0UL;
+	data->iclr = ~0UL;
+
+	cookie = ~__pa(bucket);
+	hv_err = sun4v_vintr_set_cookie(devhandle, devino, cookie);
 	if (hv_err) {
 		prom_printf("IRQ: Fatal, cannot set cookie for [%x:%x] "
 			    "err=%lu\n", devhandle, devino, hv_err);
 		prom_halt();
 	}
 
-	virq = sun4v_build_common(sysino, &sun4v_virq);
+	virt_to_real_irq_table[bucket->virt_irq].dev_handle = devhandle;
+	virt_to_real_irq_table[bucket->virt_irq].dev_ino = devino;
 
-	virt_to_real_irq_table[virq].dev_handle = devhandle;
-	virt_to_real_irq_table[virq].dev_ino = devino;
-
-	return virq;
+	return bucket->virt_irq;
 }
 
 void ack_bad_irq(unsigned int virt_irq)

@@ -98,13 +98,17 @@ sun4v_dev_mondo:
 
 	TRAP_LOAD_IRQ_WORK_PA(%g1, %g4)
 
+	/* For VIRQs, cookie is encoded as ~bucket_phys_addr  */
+	brlz,pt %g3, 1f
+	 xnor	%g3, %g0, %g4
+
 	/* Get __pa(&ivector_table[IVEC]) into %g4.  */
 	sethi	%hi(ivector_table_pa), %g4
 	ldx	[%g4 + %lo(ivector_table_pa)], %g4
 	sllx	%g3, 4, %g3
 	add	%g4, %g3, %g4
 
-	ldx	[%g1], %g2
+1:	ldx	[%g1], %g2
 	stxa	%g2, [%g4] ASI_PHYS_USE_EC
 	stx	%g4, [%g1]
 
