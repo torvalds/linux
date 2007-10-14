@@ -99,16 +99,21 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 {
 	int err;
 	struct ubi_volume_desc *desc;
-	struct ubi_device *ubi = ubi_devices[ubi_num];
+	struct ubi_device *ubi;
 	struct ubi_volume *vol;
 
 	dbg_msg("open device %d volume %d, mode %d", ubi_num, vol_id, mode);
 
 	err = -ENODEV;
+	if (ubi_num < 0)
+		return ERR_PTR(err);
+
+	ubi = ubi_devices[ubi_num];
+
 	if (!try_module_get(THIS_MODULE))
 		return ERR_PTR(err);
 
-	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES || !ubi)
+	if (ubi_num >= UBI_MAX_DEVICES || !ubi)
 		goto out_put;
 
 	err = -EINVAL;

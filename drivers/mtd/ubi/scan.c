@@ -45,8 +45,7 @@
 #include "ubi.h"
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-static int paranoid_check_si(const struct ubi_device *ubi,
-			     struct ubi_scan_info *si);
+static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si);
 #else
 #define paranoid_check_si(ubi, si) 0
 #endif
@@ -259,14 +258,13 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
  *     o bit 2 is cleared: the older LEB is not corrupted;
  *     o bit 2 is set: the older LEB is corrupted.
  */
-static int compare_lebs(const struct ubi_device *ubi,
-			const struct ubi_scan_leb *seb, int pnum,
-			const struct ubi_vid_hdr *vid_hdr)
+static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
+			int pnum, const struct ubi_vid_hdr *vid_hdr)
 {
 	void *buf;
 	int len, err, second_is_newer, bitflips = 0, corrupted = 0;
 	uint32_t data_crc, crc;
-	struct ubi_vid_hdr *vidh = NULL;
+	struct ubi_vid_hdr *vh = NULL;
 	unsigned long long sqnum2 = be64_to_cpu(vid_hdr->sqnum);
 
 	if (seb->sqnum == 0 && sqnum2 == 0) {
@@ -323,11 +321,11 @@ static int compare_lebs(const struct ubi_device *ubi,
 	} else {
 		pnum = seb->pnum;
 
-		vidh = ubi_zalloc_vid_hdr(ubi);
-		if (!vidh)
+		vh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
+		if (!vh)
 			return -ENOMEM;
 
-		err = ubi_io_read_vid_hdr(ubi, pnum, vidh, 0);
+		err = ubi_io_read_vid_hdr(ubi, pnum, vh, 0);
 		if (err) {
 			if (err == UBI_IO_BITFLIPS)
 				bitflips = 1;
@@ -341,7 +339,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 			}
 		}
 
-		if (!vidh->copy_flag) {
+		if (!vh->copy_flag) {
 			/* It is not a copy, so it is newer */
 			dbg_bld("first PEB %d is newer, copy_flag is unset",
 				pnum);
@@ -349,7 +347,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 			goto out_free_vidh;
 		}
 
-		vid_hdr = vidh;
+		vid_hdr = vh;
 	}
 
 	/* Read the data of the copy and check the CRC */
@@ -379,7 +377,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 	}
 
 	vfree(buf);
-	ubi_free_vid_hdr(ubi, vidh);
+	ubi_free_vid_hdr(ubi, vh);
 
 	if (second_is_newer)
 		dbg_bld("second PEB %d is newer, copy_flag is set", pnum);
@@ -391,7 +389,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 out_free_buf:
 	vfree(buf);
 out_free_vidh:
-	ubi_free_vid_hdr(ubi, vidh);
+	ubi_free_vid_hdr(ubi, vh);
 	ubi_assert(err < 0);
 	return err;
 }
@@ -413,7 +411,7 @@ out_free_vidh:
  * to be picked, while the older one has to be dropped. This function returns
  * zero in case of success and a negative error code in case of failure.
  */
-int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
+int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
 		      int bitflips)
 {
@@ -667,15 +665,11 @@ void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
  * function returns zero in case of success and a negative error code in case
  * of failure.
  */
-int ubi_scan_erase_peb(const struct ubi_device *ubi,
-		       const struct ubi_scan_info *si, int pnum, int ec)
+int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_scan_info *si,
+		       int pnum, int ec)
 {
 	int err;
 	struct ubi_ec_hdr *ec_hdr;
-
-	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
-	if (!ec_hdr)
-		return -ENOMEM;
 
 	if ((long long)ec >= UBI_MAX_ERASECOUNTER) {
 		/*
@@ -685,6 +679,10 @@ int ubi_scan_erase_peb(const struct ubi_device *ubi,
 		ubi_err("erase counter overflow at PEB %d, EC %d", pnum, ec);
 		return -EINVAL;
 	}
+
+	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
+	if (!ec_hdr)
+		return -ENOMEM;
 
 	ec_hdr->ec = cpu_to_be64(ec);
 
@@ -712,7 +710,7 @@ out_free:
  * This function returns scanning physical eraseblock information in case of
  * success and an error code in case of failure.
  */
-struct ubi_scan_leb *ubi_scan_get_free_peb(const struct ubi_device *ubi,
+struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_scan_info *si)
 {
 	int err = 0, i;
@@ -948,7 +946,7 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	if (!ech)
 		goto out_si;
 
-	vidh = ubi_zalloc_vid_hdr(ubi);
+	vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vidh)
 		goto out_ech;
 
@@ -1110,8 +1108,7 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
  * This function returns zero if the scanning information is all right, %1 if
  * not and a negative error code if an error occurred.
  */
-static int paranoid_check_si(const struct ubi_device *ubi,
-			     struct ubi_scan_info *si)
+static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
 	int pnum, err, vols_found = 0;
 	struct rb_node *rb1, *rb2;

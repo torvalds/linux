@@ -254,7 +254,7 @@ bad:
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int create_vtbl(const struct ubi_device *ubi, struct ubi_scan_info *si,
+static int create_vtbl(struct ubi_device *ubi, struct ubi_scan_info *si,
 		       int copy, void *vtbl)
 {
 	int err, tries = 0;
@@ -264,7 +264,7 @@ static int create_vtbl(const struct ubi_device *ubi, struct ubi_scan_info *si,
 
 	ubi_msg("create volume table (copy #%d)", copy + 1);
 
-	vid_hdr = ubi_zalloc_vid_hdr(ubi);
+	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vid_hdr)
 		return -ENOMEM;
 
@@ -339,7 +339,7 @@ out_free:
  * not corrupted, and recovering from corruptions if needed. Returns volume
  * table in case of success and a negative error code in case of failure.
  */
-static struct ubi_vtbl_record *process_lvol(const struct ubi_device *ubi,
+static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 					    struct ubi_scan_info *si,
 					    struct ubi_scan_volume *sv)
 {
@@ -453,7 +453,7 @@ out_free:
  * This function returns volume table contents in case of success and a
  * negative error code in case of failure.
  */
-static struct ubi_vtbl_record *create_empty_lvol(const struct ubi_device *ubi,
+static struct ubi_vtbl_record *create_empty_lvol(struct ubi_device *ubi,
 						 struct ubi_scan_info *si)
 {
 	int i;

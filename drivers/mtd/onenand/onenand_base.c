@@ -327,7 +327,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 		printk(KERN_ERR "onenand_wait: controller error = 0x%04x\n", ctrl);
 		if (ctrl & ONENAND_CTRL_LOCK)
 			printk(KERN_ERR "onenand_wait: it's locked error.\n");
-		return ctrl;
+		return -EIO;
 	}
 
 	if (interrupt & ONENAND_INT_READ) {
@@ -336,7 +336,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 			if (ecc & ONENAND_ECC_2BIT_ALL) {
 				printk(KERN_ERR "onenand_wait: ECC error = 0x%04x\n", ecc);
 				mtd->ecc_stats.failed++;
-				return ecc;
+				return -EBADMSG;
 			} else if (ecc & ONENAND_ECC_1BIT_ALL) {
 				printk(KERN_INFO "onenand_wait: correctable ECC error = 0x%04x\n", ecc);
 				mtd->ecc_stats.corrected++;
@@ -1711,12 +1711,13 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 erase_exit:
 
 	ret = instr->state == MTD_ERASE_DONE ? 0 : -EIO;
-	/* Do call back function */
-	if (!ret)
-		mtd_erase_callback(instr);
 
 	/* Deselect and wake up anyone waiting on the device */
 	onenand_release_device(mtd);
+
+	/* Do call back function */
+	if (!ret)
+		mtd_erase_callback(instr);
 
 	return ret;
 }
@@ -1904,7 +1905,12 @@ static int onenand_do_lock_cmd(struct mtd_info *mtd, loff_t ofs, size_t len, int
  */
 static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
 {
-	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_LOCK);
+	int ret;
+
+	onenand_get_device(mtd, FL_LOCKING);
+	ret = onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_LOCK);
+	onenand_release_device(mtd);
+	return ret;
 }
 
 /**
@@ -1917,7 +1923,12 @@ static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
  */
 static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 {
-	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_UNLOCK);
+	int ret;
+
+	onenand_get_device(mtd, FL_LOCKING);
+	ret = onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_UNLOCK);
+	onenand_release_device(mtd);
+	return ret;
 }
 
 /**
@@ -1979,7 +1990,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 			loff_t ofs = this->chipsize >> 1;
 			size_t len = mtd->erasesize;
 
-			onenand_unlock(mtd, ofs, len);
+			onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_UNLOCK);
 		}
 
 		onenand_check_lock_status(this);
@@ -1987,7 +1998,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 		return 0;
 	}
 
-	onenand_unlock(mtd, 0x0, this->chipsize);
+	onenand_do_lock_cmd(mtd, 0x0, this->chipsize, ONENAND_CMD_UNLOCK);
 
 	return 0;
 }
