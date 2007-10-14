@@ -412,7 +412,9 @@ struct cx8802_suspend_state {
 
 struct cx8802_driver {
 	struct cx88_core *core;
-	struct list_head devlist;
+
+	/* List of drivers attached to device */
+	struct list_head drvlist;
 
 	/* Type of driver and access required */
 	enum cx88_board_type type_id;
@@ -478,8 +480,8 @@ struct cx8802_dev {
 	unsigned char              ts_gen_cntrl;
 
 	/* List of attached drivers */
-	struct cx8802_driver       drvlist;
-	struct work_struct request_module_wk;
+	struct list_head	   drvlist;
+	struct work_struct	   request_module_wk;
 };
 
 /* ----------------------------------------------------------- */
