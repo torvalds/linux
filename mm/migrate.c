@@ -972,7 +972,7 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 	 * array. Return various errors if the user did something wrong.
 	 */
 	for (i = 0; i < nr_pages; i++) {
-		const void *p;
+		const void __user *p;
 
 		err = -EFAULT;
 		if (get_user(p, pages + i))
