@@ -10,6 +10,7 @@
 
 #include <linux/ssb/ssb.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
