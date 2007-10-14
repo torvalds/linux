@@ -4396,7 +4396,7 @@ static void sky2_shutdown(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
-	napi_disable(&hw->napi);
+	del_timer_sync(&hw->watchdog_timer);
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
