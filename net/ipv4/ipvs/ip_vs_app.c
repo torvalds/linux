@@ -25,6 +25,7 @@
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/netfilter.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
@@ -336,7 +337,7 @@ static inline int app_tcp_pkt_out(struct ip_vs_conn *cp, struct sk_buff **pskb,
 	struct tcphdr *th;
 	__u32 seq;
 
-	if (!ip_vs_make_skb_writable(pskb, tcp_offset + sizeof(*th)))
+	if (!skb_make_writable(*pskb, tcp_offset + sizeof(*th)))
 		return 0;
 
 	th = (struct tcphdr *)(skb_network_header(*pskb) + tcp_offset);
@@ -411,7 +412,7 @@ static inline int app_tcp_pkt_in(struct ip_vs_conn *cp, struct sk_buff **pskb,
 	struct tcphdr *th;
 	__u32 seq;
 
-	if (!ip_vs_make_skb_writable(pskb, tcp_offset + sizeof(*th)))
+	if (!skb_make_writable(*pskb, tcp_offset + sizeof(*th)))
 		return 0;
 
 	th = (struct tcphdr *)(skb_network_header(*pskb) + tcp_offset);

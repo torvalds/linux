@@ -984,7 +984,6 @@ static inline char ip_vs_fwd_tag(struct ip_vs_conn *cp)
 	return fwd;
 }
 
-extern int ip_vs_make_skb_writable(struct sk_buff **pskb, int len);
 extern void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		struct ip_vs_conn *cp, int dir);
 

@@ -58,7 +58,6 @@ EXPORT_SYMBOL(ip_vs_conn_put);
 #ifdef CONFIG_IP_VS_DEBUG
 EXPORT_SYMBOL(ip_vs_get_debug_level);
 #endif
-EXPORT_SYMBOL(ip_vs_make_skb_writable);
 
 
 /* ID used in ICMP lookups */
@@ -162,42 +161,6 @@ ip_vs_set_state(struct ip_vs_conn *cp, int direction,
 	return pp->state_transition(cp, direction, skb, pp);
 }
 
-
-int ip_vs_make_skb_writable(struct sk_buff **pskb, int writable_len)
-{
-	struct sk_buff *skb = *pskb;
-
-	/* skb is already used, better copy skb and its payload */
-	if (unlikely(skb_shared(skb) || skb->sk))
-		goto copy_skb;
-
-	/* skb data is already used, copy it */
-	if (unlikely(skb_cloned(skb)))
-		goto copy_data;
-
-	return pskb_may_pull(skb, writable_len);
-
-  copy_data:
-	if (unlikely(writable_len > skb->len))
-		return 0;
-	return !pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-
-  copy_skb:
-	if (unlikely(writable_len > skb->len))
-		return 0;
-	skb = skb_copy(skb, GFP_ATOMIC);
-	if (!skb)
-		return 0;
-	BUG_ON(skb_is_nonlinear(skb));
-
-	/* Rest of kernel will get very unhappy if we pass it a
-	   suddenly-orphaned skbuff */
-	if ((*pskb)->sk)
-		skb_set_owner_w(skb, (*pskb)->sk);
-	kfree_skb(*pskb);
-	*pskb = skb;
-	return 1;
-}
 
 /*
  *  IPVS persistent scheduling function
@@ -689,9 +652,8 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 
 	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol)
 		offset += 2 * sizeof(__u16);
-	if (!ip_vs_make_skb_writable(pskb, offset))
+	if (!skb_make_writable(skb, offset))
 		goto out;
-	skb = *pskb;
 
 	ip_vs_nat_icmp(skb, pp, cp, 1);
 
@@ -799,7 +761,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 
 	IP_VS_DBG_PKT(11, pp, skb, 0, "Outgoing packet");
 
-	if (!ip_vs_make_skb_writable(pskb, ihl))
+	if (!skb_make_writable(skb, ihl))
 		goto drop;
 
 	/* mangle the packet */

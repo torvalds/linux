@@ -20,6 +20,7 @@
 #include <linux/tcp.h>                  /* for tcphdr */
 #include <net/ip.h>
 #include <net/tcp.h>                    /* for csum_tcpudp_magic */
+#include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 
 #include <net/ip_vs.h>
@@ -129,7 +130,7 @@ tcp_snat_handler(struct sk_buff **pskb,
 	const unsigned int tcphoff = ip_hdrlen(*pskb);
 
 	/* csum_check requires unshared skb */
-	if (!ip_vs_make_skb_writable(pskb, tcphoff+sizeof(*tcph)))
+	if (!skb_make_writable(*pskb, tcphoff+sizeof(*tcph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
@@ -177,7 +178,7 @@ tcp_dnat_handler(struct sk_buff **pskb,
 	const unsigned int tcphoff = ip_hdrlen(*pskb);
 
 	/* csum_check requires unshared skb */
-	if (!ip_vs_make_skb_writable(pskb, tcphoff+sizeof(*tcph)))
+	if (!skb_make_writable(*pskb, tcphoff+sizeof(*tcph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {

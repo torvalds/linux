@@ -18,6 +18,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
+#include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/udp.h>
 
@@ -136,7 +137,7 @@ udp_snat_handler(struct sk_buff **pskb,
 	const unsigned int udphoff = ip_hdrlen(*pskb);
 
 	/* csum_check requires unshared skb */
-	if (!ip_vs_make_skb_writable(pskb, udphoff+sizeof(*udph)))
+	if (!skb_make_writable(*pskb, udphoff+sizeof(*udph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
@@ -190,7 +191,7 @@ udp_dnat_handler(struct sk_buff **pskb,
 	unsigned int udphoff = ip_hdrlen(*pskb);
 
 	/* csum_check requires unshared skb */
-	if (!ip_vs_make_skb_writable(pskb, udphoff+sizeof(*udph)))
+	if (!skb_make_writable(*pskb, udphoff+sizeof(*udph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
