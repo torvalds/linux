@@ -588,7 +588,10 @@ __setup("of_debug=", of_debug);
 int of_register_driver(struct of_platform_driver *drv, struct bus_type *bus)
 {
 	/* initialize common driver fields */
-	drv->driver.name = drv->name;
+	if (!drv->driver.name)
+		drv->driver.name = drv->name;
+	if (!drv->driver.owner)
+		drv->driver.owner = drv->owner;
 	drv->driver.bus = bus;
 
 	/* register with core */

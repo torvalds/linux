@@ -2569,8 +2569,8 @@ void __init trap_init(void)
 	     offsetof(struct trap_per_cpu, tsb_huge)) ||
 	    (TRAP_PER_CPU_TSB_HUGE_TEMP !=
 	     offsetof(struct trap_per_cpu, tsb_huge_temp)) ||
-	    (TRAP_PER_CPU_IRQ_WORKLIST !=
-	     offsetof(struct trap_per_cpu, irq_worklist)) ||
+	    (TRAP_PER_CPU_IRQ_WORKLIST_PA !=
+	     offsetof(struct trap_per_cpu, irq_worklist_pa)) ||
 	    (TRAP_PER_CPU_CPU_MONDO_QMASK !=
 	     offsetof(struct trap_per_cpu, cpu_mondo_qmask)) ||
 	    (TRAP_PER_CPU_DEV_MONDO_QMASK !=

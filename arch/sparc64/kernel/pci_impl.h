@@ -29,6 +29,33 @@
 #define PCI_STC_FLUSHFLAG_SET(STC) \
 	(*((STC)->strbuf_flushflag) != 0UL)
 
+#ifdef CONFIG_PCI_MSI
+struct pci_pbm_info;
+struct sparc64_msiq_ops {
+	int (*get_head)(struct pci_pbm_info *pbm, unsigned long msiqid,
+			unsigned long *head);
+	int (*dequeue_msi)(struct pci_pbm_info *pbm, unsigned long msiqid,
+			   unsigned long *head, unsigned long *msi);
+	int (*set_head)(struct pci_pbm_info *pbm, unsigned long msiqid,
+			unsigned long head);
+	int (*msi_setup)(struct pci_pbm_info *pbm, unsigned long msiqid,
+			 unsigned long msi, int is_msi64);
+	int (*msi_teardown)(struct pci_pbm_info *pbm, unsigned long msi);
+	int (*msiq_alloc)(struct pci_pbm_info *pbm);
+	void (*msiq_free)(struct pci_pbm_info *pbm);
+	int (*msiq_build_irq)(struct pci_pbm_info *pbm, unsigned long msiqid,
+			      unsigned long devino);
+};
+
+extern void sparc64_pbm_msi_init(struct pci_pbm_info *pbm,
+				 const struct sparc64_msiq_ops *ops);
+
+struct sparc64_msiq_cookie {
+	struct pci_pbm_info *pbm;
+	unsigned long msiqid;
+};
+#endif
+
 struct pci_controller_info;
 
 struct pci_pbm_info {
@@ -90,6 +117,8 @@ struct pci_pbm_info {
 	u32				msiq_ent_count;
 	u32				msiq_first;
 	u32				msiq_first_devino;
+	u32				msiq_rotor;
+	struct sparc64_msiq_cookie	*msiq_irq_cookies;
 	u32				msi_num;
 	u32				msi_first;
 	u32				msi_data_mask;
@@ -100,9 +129,11 @@ struct pci_pbm_info {
 	u32				msi64_len;
 	void				*msi_queues;
 	unsigned long			*msi_bitmap;
+	unsigned int			*msi_irq_table;
 	int (*setup_msi_irq)(unsigned int *virt_irq_p, struct pci_dev *pdev,
 			     struct msi_desc *entry);
 	void (*teardown_msi_irq)(unsigned int virt_irq, struct pci_dev *pdev);
+	const struct sparc64_msiq_ops	*msi_ops;
 #endif /* !(CONFIG_PCI_MSI) */
 
 	/* This PBM's streaming buffer. */
@@ -126,7 +157,6 @@ struct pci_controller_info {
 };
 
 extern struct pci_pbm_info *pci_pbm_root;
-extern unsigned long pci_memspace_mask;
 
 extern int pci_num_pbms;
 

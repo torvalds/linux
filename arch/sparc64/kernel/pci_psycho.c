@@ -1058,12 +1058,6 @@ void psycho_init(struct device_node *dp, char *model_name)
 	p->pbm_A.config_space = p->pbm_B.config_space =
 		(pr_regs[2].phys_addr + PSYCHO_CONFIGSPACE);
 
-	/*
-	 * Psycho's PCI MEM space is mapped to a 2GB aligned area, so
-	 * we need to adjust our MEM space mask.
-	 */
-	pci_memspace_mask = 0x7fffffffUL;
-
 	psycho_controller_hwinit(&p->pbm_A);
 
 	if (psycho_iommu_init(&p->pbm_A))

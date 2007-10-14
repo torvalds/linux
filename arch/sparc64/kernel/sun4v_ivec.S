@@ -96,19 +96,21 @@ sun4v_dev_mondo:
 	stxa	%g2, [%g4] ASI_QUEUE
 	membar	#Sync
 
-	/* Get &__irq_work[smp_processor_id()] into %g1.  */
-	TRAP_LOAD_IRQ_WORK(%g1, %g4)
+	TRAP_LOAD_IRQ_WORK_PA(%g1, %g4)
 
-	/* Get &ivector_table[IVEC] into %g4.  */
-	sethi	%hi(ivector_table), %g4
-	sllx	%g3, 3, %g3
-	or	%g4, %lo(ivector_table), %g4
+	/* For VIRQs, cookie is encoded as ~bucket_phys_addr  */
+	brlz,pt %g3, 1f
+	 xnor	%g3, %g0, %g4
+
+	/* Get __pa(&ivector_table[IVEC]) into %g4.  */
+	sethi	%hi(ivector_table_pa), %g4
+	ldx	[%g4 + %lo(ivector_table_pa)], %g4
+	sllx	%g3, 4, %g3
 	add	%g4, %g3, %g4
 
-	/* Insert ivector_table[] entry into __irq_work[] queue.  */
-	lduw	[%g1], %g2		/* g2 = irq_work(cpu) */
-	stw	%g2, [%g4 + 0x00]	/* bucket->irq_chain = g2 */
-	stw	%g4, [%g1]		/* irq_work(cpu) = bucket */
+1:	ldx	[%g1], %g2
+	stxa	%g2, [%g4] ASI_PHYS_USE_EC
+	stx	%g4, [%g1]
 
 	/* Signal the interrupt by setting (1 << pil) in %softint.  */
 	wr	%g0, 1 << PIL_DEVICE_IRQ, %set_softint

@@ -491,12 +491,12 @@ xor_niagara_4:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3 */
 	ldda		[%i1 + 0x10] %asi, %i2	/* %i2/%i3 = src1 + 0x10 */
 	xor		%g2, %i4, %g2
 	xor		%g3, %i5, %g3
-	ldda		[%i7 + 0x10] %asi, %i4	/* %i4/%i5 = src2 + 0x10 */
+	ldda		[%l7 + 0x10] %asi, %i4	/* %i4/%i5 = src2 + 0x10 */
 	xor		%l0, %g2, %l0
 	xor		%l1, %g3, %l1
 	stxa		%l0, [%i0 + 0x00] %asi
 	stxa		%l1, [%i0 + 0x08] %asi
-	ldda		[%i6 + 0x10] %asi, %g2	/* %g2/%g3 = src3 + 0x10 */
+	ldda		[%l6 + 0x10] %asi, %g2	/* %g2/%g3 = src3 + 0x10 */
 	ldda		[%i0 + 0x10] %asi, %l0	/* %l0/%l1 = dest + 0x10 */
 
 	xor		%i4, %i2, %i4
@@ -504,12 +504,12 @@ xor_niagara_4:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3 */
 	ldda		[%i1 + 0x20] %asi, %i2	/* %i2/%i3 = src1 + 0x20 */
 	xor		%g2, %i4, %g2
 	xor		%g3, %i5, %g3
-	ldda		[%i7 + 0x20] %asi, %i4	/* %i4/%i5 = src2 + 0x20 */
+	ldda		[%l7 + 0x20] %asi, %i4	/* %i4/%i5 = src2 + 0x20 */
 	xor		%l0, %g2, %l0
 	xor		%l1, %g3, %l1
 	stxa		%l0, [%i0 + 0x10] %asi
 	stxa		%l1, [%i0 + 0x18] %asi
-	ldda		[%i6 + 0x20] %asi, %g2	/* %g2/%g3 = src3 + 0x20 */
+	ldda		[%l6 + 0x20] %asi, %g2	/* %g2/%g3 = src3 + 0x20 */
 	ldda		[%i0 + 0x20] %asi, %l0	/* %l0/%l1 = dest + 0x20 */
 
 	xor		%i4, %i2, %i4
@@ -517,12 +517,12 @@ xor_niagara_4:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3 */
 	ldda		[%i1 + 0x30] %asi, %i2	/* %i2/%i3 = src1 + 0x30 */
 	xor		%g2, %i4, %g2
 	xor		%g3, %i5, %g3
-	ldda		[%i7 + 0x30] %asi, %i4	/* %i4/%i5 = src2 + 0x30 */
+	ldda		[%l7 + 0x30] %asi, %i4	/* %i4/%i5 = src2 + 0x30 */
 	xor		%l0, %g2, %l0
 	xor		%l1, %g3, %l1
 	stxa		%l0, [%i0 + 0x20] %asi
 	stxa		%l1, [%i0 + 0x28] %asi
-	ldda		[%i6 + 0x30] %asi, %g2	/* %g2/%g3 = src3 + 0x30 */
+	ldda		[%l6 + 0x30] %asi, %g2	/* %g2/%g3 = src3 + 0x30 */
 	ldda		[%i0 + 0x30] %asi, %l0	/* %l0/%l1 = dest + 0x30 */
 
 	prefetch	[%i1 + 0x40], #one_read

@@ -15,6 +15,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/irqflags.h>
+
 /*
  * Sparc (general) CPU types
  */
@@ -163,26 +165,6 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 	  "i0", "i1", "i2", "i3", "i4", "i5",			\
 	  "o0", "o1", "o2", "o3",                   "o7");	\
 	} while(0)
-
-/*
- * Changing the IRQ level on the Sparc.
- */
-extern void local_irq_restore(unsigned long);
-extern unsigned long __local_irq_save(void);
-extern void local_irq_enable(void);
-
-static inline unsigned long getipl(void)
-{
-	unsigned long retval;
-
-	__asm__ __volatile__("rd	%%psr, %0" : "=r" (retval));
-	return retval;
-}
-
-#define local_save_flags(flags)	((flags) = getipl())
-#define local_irq_save(flags)	((flags) = __local_irq_save())
-#define local_irq_disable()	((void) __local_irq_save())
-#define irqs_disabled()		((getipl() & PSR_PIL) != 0)
 
 /* XXX Change this if we ever use a PSO mode kernel. */
 #define mb()	__asm__ __volatile__ ("" : : : "memory")

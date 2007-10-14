@@ -105,9 +105,11 @@ static struct of_device_id power_match[] = {
 };
 
 static struct of_platform_driver power_driver = {
-	.name		= "power",
 	.match_table	= power_match,
 	.probe		= power_probe,
+	.driver		= {
+		.name	= "power",
+	},
 };
 
 void __init power_init(void)

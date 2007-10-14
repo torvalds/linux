@@ -21,7 +21,6 @@
 #include <linux/seq_file.h>
 #include <linux/bootmem.h>
 #include <linux/irq.h>
-#include <linux/msi.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -43,6 +42,7 @@
 #include <asm/auxio.h>
 #include <asm/head.h>
 #include <asm/hypervisor.h>
+#include <asm/cacheflush.h>
 
 /* UPA nodes send interrupt packet to UltraSparc with first data reg
  * value low 5 (7 on Starfire) bits holding the IRQ identifier being
@@ -52,86 +52,128 @@
  * To make processing these packets efficient and race free we use
  * an array of irq buckets below.  The interrupt vector handler in
  * entry.S feeds incoming packets into per-cpu pil-indexed lists.
- * The IVEC handler does not need to act atomically, the PIL dispatch
- * code uses CAS to get an atomic snapshot of the list and clear it
- * at the same time.
  *
  * If you make changes to ino_bucket, please update hand coded assembler
  * of the vectored interrupt trap handler(s) in entry.S and sun4v_ivec.S
  */
 struct ino_bucket {
-	/* Next handler in per-CPU IRQ worklist.  We know that
-	 * bucket pointers have the high 32-bits clear, so to
-	 * save space we only store the bits we need.
-	 */
-/*0x00*/unsigned int irq_chain;
+/*0x00*/unsigned long __irq_chain_pa;
 
 	/* Virtual interrupt number assigned to this INO.  */
-/*0x04*/unsigned int virt_irq;
+/*0x08*/unsigned int __virt_irq;
+/*0x0c*/unsigned int __pad;
 };
 
 #define NUM_IVECS	(IMAP_INR + 1)
-struct ino_bucket ivector_table[NUM_IVECS] __attribute__ ((aligned (SMP_CACHE_BYTES)));
+struct ino_bucket *ivector_table;
+unsigned long ivector_table_pa;
 
-#define __irq_ino(irq) \
-        (((struct ino_bucket *)(unsigned long)(irq)) - &ivector_table[0])
-#define __bucket(irq) ((struct ino_bucket *)(unsigned long)(irq))
-#define __irq(bucket) ((unsigned int)(unsigned long)(bucket))
-
-/* This has to be in the main kernel image, it cannot be
- * turned into per-cpu data.  The reason is that the main
- * kernel image is locked into the TLB and this structure
- * is accessed from the vectored interrupt trap handler.  If
- * access to this structure takes a TLB miss it could cause
- * the 5-level sparc v9 trap stack to overflow.
+/* On several sun4u processors, it is illegal to mix bypass and
+ * non-bypass accesses.  Therefore we access all INO buckets
+ * using bypass accesses only.
  */
-#define irq_work(__cpu)	&(trap_block[(__cpu)].irq_worklist)
+static unsigned long bucket_get_chain_pa(unsigned long bucket_pa)
+{
+	unsigned long ret;
+
+	__asm__ __volatile__("ldxa	[%1] %2, %0"
+			     : "=&r" (ret)
+			     : "r" (bucket_pa +
+				    offsetof(struct ino_bucket,
+					     __irq_chain_pa)),
+			       "i" (ASI_PHYS_USE_EC));
+
+	return ret;
+}
+
+static void bucket_clear_chain_pa(unsigned long bucket_pa)
+{
+	__asm__ __volatile__("stxa	%%g0, [%0] %1"
+			     : /* no outputs */
+			     : "r" (bucket_pa +
+				    offsetof(struct ino_bucket,
+					     __irq_chain_pa)),
+			       "i" (ASI_PHYS_USE_EC));
+}
+
+static unsigned int bucket_get_virt_irq(unsigned long bucket_pa)
+{
+	unsigned int ret;
+
+	__asm__ __volatile__("lduwa	[%1] %2, %0"
+			     : "=&r" (ret)
+			     : "r" (bucket_pa +
+				    offsetof(struct ino_bucket,
+					     __virt_irq)),
+			       "i" (ASI_PHYS_USE_EC));
+
+	return ret;
+}
+
+static void bucket_set_virt_irq(unsigned long bucket_pa,
+				unsigned int virt_irq)
+{
+	__asm__ __volatile__("stwa	%0, [%1] %2"
+			     : /* no outputs */
+			     : "r" (virt_irq),
+			       "r" (bucket_pa +
+				    offsetof(struct ino_bucket,
+					     __virt_irq)),
+			       "i" (ASI_PHYS_USE_EC));
+}
+
+#define irq_work_pa(__cpu)	&(trap_block[(__cpu)].irq_worklist_pa)
 
 static struct {
-	unsigned int irq;
 	unsigned int dev_handle;
 	unsigned int dev_ino;
-} virt_to_real_irq_table[NR_IRQS];
+	unsigned int in_use;
+} virt_irq_table[NR_IRQS];
+static DEFINE_SPINLOCK(virt_irq_alloc_lock);
 
-static unsigned char virt_irq_alloc(unsigned int real_irq)
+unsigned char virt_irq_alloc(unsigned int dev_handle,
+			     unsigned int dev_ino)
 {
+	unsigned long flags;
 	unsigned char ent;
 
 	BUILD_BUG_ON(NR_IRQS >= 256);
 
+	spin_lock_irqsave(&virt_irq_alloc_lock, flags);
+
 	for (ent = 1; ent < NR_IRQS; ent++) {
-		if (!virt_to_real_irq_table[ent].irq)
+		if (!virt_irq_table[ent].in_use)
 			break;
 	}
 	if (ent >= NR_IRQS) {
 		printk(KERN_ERR "IRQ: Out of virtual IRQs.\n");
-		return 0;
+		ent = 0;
+	} else {
+		virt_irq_table[ent].dev_handle = dev_handle;
+		virt_irq_table[ent].dev_ino = dev_ino;
+		virt_irq_table[ent].in_use = 1;
 	}
 
-	virt_to_real_irq_table[ent].irq = real_irq;
+	spin_unlock_irqrestore(&virt_irq_alloc_lock, flags);
 
 	return ent;
 }
 
 #ifdef CONFIG_PCI_MSI
-static void virt_irq_free(unsigned int virt_irq)
+void virt_irq_free(unsigned int virt_irq)
 {
-	unsigned int real_irq;
+	unsigned long flags;
 
 	if (virt_irq >= NR_IRQS)
 		return;
 
-	real_irq = virt_to_real_irq_table[virt_irq].irq;
-	virt_to_real_irq_table[virt_irq].irq = 0;
+	spin_lock_irqsave(&virt_irq_alloc_lock, flags);
 
-	__bucket(real_irq)->virt_irq = 0;
+	virt_irq_table[virt_irq].in_use = 0;
+
+	spin_unlock_irqrestore(&virt_irq_alloc_lock, flags);
 }
 #endif
-
-static unsigned int virt_to_real_irq(unsigned char virt_irq)
-{
-	return virt_to_real_irq_table[virt_irq].irq;
-}
 
 /*
  * /proc/interrupts printing:
@@ -217,37 +259,7 @@ struct irq_handler_data {
 	void		(*pre_handler)(unsigned int, void *, void *);
 	void		*pre_handler_arg1;
 	void		*pre_handler_arg2;
-
-	u32		msi;
 };
-
-void sparc64_set_msi(unsigned int virt_irq, u32 msi)
-{
-	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-
-	if (data)
-		data->msi = msi;
-}
-
-u32 sparc64_get_msi(unsigned int virt_irq)
-{
-	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-
-	if (data)
-		return data->msi;
-	return 0xffffffff;
-}
-
-static inline struct ino_bucket *virt_irq_to_bucket(unsigned int virt_irq)
-{
-	unsigned int real_irq = virt_to_real_irq(virt_irq);
-	struct ino_bucket *bucket = NULL;
-
-	if (likely(real_irq))
-		bucket = __bucket(real_irq);
-
-	return bucket;
-}
 
 #ifdef CONFIG_SMP
 static int irq_choose_cpu(unsigned int virt_irq)
@@ -348,201 +360,152 @@ static void sun4u_irq_end(unsigned int virt_irq)
 
 static void sun4v_irq_enable(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
-	unsigned int ino = bucket - &ivector_table[0];
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
+	unsigned long cpuid = irq_choose_cpu(virt_irq);
+	int err;
 
-	if (likely(bucket)) {
-		unsigned long cpuid;
-		int err;
-
-		cpuid = irq_choose_cpu(virt_irq);
-
-		err = sun4v_intr_settarget(ino, cpuid);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_intr_settarget(%x,%lu): "
-			       "err(%d)\n", ino, cpuid, err);
-		err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_intr_setstate(%x): "
-			       "err(%d)\n", ino, err);
-		err = sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_intr_setenabled(%x): err(%d)\n",
-			       ino, err);
-	}
+	err = sun4v_intr_settarget(ino, cpuid);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_intr_settarget(%x,%lu): "
+		       "err(%d)\n", ino, cpuid, err);
+	err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_intr_setstate(%x): "
+		       "err(%d)\n", ino, err);
+	err = sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_intr_setenabled(%x): err(%d)\n",
+		       ino, err);
 }
 
 static void sun4v_set_affinity(unsigned int virt_irq, cpumask_t mask)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
-	unsigned int ino = bucket - &ivector_table[0];
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
+	unsigned long cpuid = irq_choose_cpu(virt_irq);
+	int err;
 
-	if (likely(bucket)) {
-		unsigned long cpuid;
-		int err;
-
-		cpuid = irq_choose_cpu(virt_irq);
-
-		err = sun4v_intr_settarget(ino, cpuid);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_intr_settarget(%x,%lu): "
-			       "err(%d)\n", ino, cpuid, err);
-	}
+	err = sun4v_intr_settarget(ino, cpuid);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_intr_settarget(%x,%lu): "
+		       "err(%d)\n", ino, cpuid, err);
 }
 
 static void sun4v_irq_disable(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
-	unsigned int ino = bucket - &ivector_table[0];
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
+	int err;
 
-	if (likely(bucket)) {
-		int err;
-
-		err = sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_intr_setenabled(%x): "
-			       "err(%d)\n", ino, err);
-	}
+	err = sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_intr_setenabled(%x): "
+		       "err(%d)\n", ino, err);
 }
-
-#ifdef CONFIG_PCI_MSI
-static void sun4v_msi_enable(unsigned int virt_irq)
-{
-	sun4v_irq_enable(virt_irq);
-	unmask_msi_irq(virt_irq);
-}
-
-static void sun4v_msi_disable(unsigned int virt_irq)
-{
-	mask_msi_irq(virt_irq);
-	sun4v_irq_disable(virt_irq);
-}
-#endif
 
 static void sun4v_irq_end(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
-	unsigned int ino = bucket - &ivector_table[0];
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 	struct irq_desc *desc = irq_desc + virt_irq;
+	int err;
 
 	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		return;
 
-	if (likely(bucket)) {
-		int err;
-
-		err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_intr_setstate(%x): "
-			       "err(%d)\n", ino, err);
-	}
+	err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_intr_setstate(%x): "
+		       "err(%d)\n", ino, err);
 }
 
 static void sun4v_virq_enable(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
+	unsigned long cpuid, dev_handle, dev_ino;
+	int err;
 
-	if (likely(bucket)) {
-		unsigned long cpuid, dev_handle, dev_ino;
-		int err;
+	cpuid = irq_choose_cpu(virt_irq);
 
-		cpuid = irq_choose_cpu(virt_irq);
+	dev_handle = virt_irq_table[virt_irq].dev_handle;
+	dev_ino = virt_irq_table[virt_irq].dev_ino;
 
-		dev_handle = virt_to_real_irq_table[virt_irq].dev_handle;
-		dev_ino = virt_to_real_irq_table[virt_irq].dev_ino;
-
-		err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_vintr_set_target(%lx,%lx,%lu): "
-			       "err(%d)\n",
-			       dev_handle, dev_ino, cpuid, err);
-		err = sun4v_vintr_set_state(dev_handle, dev_ino,
-					    HV_INTR_STATE_IDLE);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
-				"HV_INTR_STATE_IDLE): err(%d)\n",
-			       dev_handle, dev_ino, err);
-		err = sun4v_vintr_set_valid(dev_handle, dev_ino,
-					    HV_INTR_ENABLED);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
-			       "HV_INTR_ENABLED): err(%d)\n",
-			       dev_handle, dev_ino, err);
-	}
+	err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_vintr_set_target(%lx,%lx,%lu): "
+		       "err(%d)\n",
+		       dev_handle, dev_ino, cpuid, err);
+	err = sun4v_vintr_set_state(dev_handle, dev_ino,
+				    HV_INTR_STATE_IDLE);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
+		       "HV_INTR_STATE_IDLE): err(%d)\n",
+		       dev_handle, dev_ino, err);
+	err = sun4v_vintr_set_valid(dev_handle, dev_ino,
+				    HV_INTR_ENABLED);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
+		       "HV_INTR_ENABLED): err(%d)\n",
+		       dev_handle, dev_ino, err);
 }
 
 static void sun4v_virt_set_affinity(unsigned int virt_irq, cpumask_t mask)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
+	unsigned long cpuid, dev_handle, dev_ino;
+	int err;
 
-	if (likely(bucket)) {
-		unsigned long cpuid, dev_handle, dev_ino;
-		int err;
+	cpuid = irq_choose_cpu(virt_irq);
 
-		cpuid = irq_choose_cpu(virt_irq);
+	dev_handle = virt_irq_table[virt_irq].dev_handle;
+	dev_ino = virt_irq_table[virt_irq].dev_ino;
 
-		dev_handle = virt_to_real_irq_table[virt_irq].dev_handle;
-		dev_ino = virt_to_real_irq_table[virt_irq].dev_ino;
-
-		err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_vintr_set_target(%lx,%lx,%lu): "
-			       "err(%d)\n",
-			       dev_handle, dev_ino, cpuid, err);
-	}
+	err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_vintr_set_target(%lx,%lx,%lu): "
+		       "err(%d)\n",
+		       dev_handle, dev_ino, cpuid, err);
 }
 
 static void sun4v_virq_disable(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
+	unsigned long dev_handle, dev_ino;
+	int err;
 
-	if (likely(bucket)) {
-		unsigned long dev_handle, dev_ino;
-		int err;
+	dev_handle = virt_irq_table[virt_irq].dev_handle;
+	dev_ino = virt_irq_table[virt_irq].dev_ino;
 
-		dev_handle = virt_to_real_irq_table[virt_irq].dev_handle;
-		dev_ino = virt_to_real_irq_table[virt_irq].dev_ino;
-
-		err = sun4v_vintr_set_valid(dev_handle, dev_ino,
-					    HV_INTR_DISABLED);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
-			       "HV_INTR_DISABLED): err(%d)\n",
-			       dev_handle, dev_ino, err);
-	}
+	err = sun4v_vintr_set_valid(dev_handle, dev_ino,
+				    HV_INTR_DISABLED);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
+		       "HV_INTR_DISABLED): err(%d)\n",
+		       dev_handle, dev_ino, err);
 }
 
 static void sun4v_virq_end(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
 	struct irq_desc *desc = irq_desc + virt_irq;
+	unsigned long dev_handle, dev_ino;
+	int err;
 
 	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		return;
 
-	if (likely(bucket)) {
-		unsigned long dev_handle, dev_ino;
-		int err;
+	dev_handle = virt_irq_table[virt_irq].dev_handle;
+	dev_ino = virt_irq_table[virt_irq].dev_ino;
 
-		dev_handle = virt_to_real_irq_table[virt_irq].dev_handle;
-		dev_ino = virt_to_real_irq_table[virt_irq].dev_ino;
-
-		err = sun4v_vintr_set_state(dev_handle, dev_ino,
-					    HV_INTR_STATE_IDLE);
-		if (err != HV_EOK)
-			printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
-				"HV_INTR_STATE_IDLE): err(%d)\n",
-			       dev_handle, dev_ino, err);
-	}
+	err = sun4v_vintr_set_state(dev_handle, dev_ino,
+				    HV_INTR_STATE_IDLE);
+	if (err != HV_EOK)
+		printk(KERN_ERR "sun4v_vintr_set_state(%lx,%lx,"
+		       "HV_INTR_STATE_IDLE): err(%d)\n",
+		       dev_handle, dev_ino, err);
 }
 
 static void run_pre_handler(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
+	unsigned int ino;
 
+	ino = virt_irq_table[virt_irq].dev_ino;
 	if (likely(data->pre_handler)) {
-		data->pre_handler(__irq_ino(__irq(bucket)),
+		data->pre_handler(ino,
 				  data->pre_handler_arg1,
 				  data->pre_handler_arg2);
 	}
@@ -573,41 +536,10 @@ static struct irq_chip sun4v_irq = {
 	.set_affinity	= sun4v_set_affinity,
 };
 
-static struct irq_chip sun4v_irq_ack = {
-	.typename	= "sun4v+ack",
-	.enable		= sun4v_irq_enable,
-	.disable	= sun4v_irq_disable,
-	.ack		= run_pre_handler,
-	.end		= sun4v_irq_end,
-	.set_affinity	= sun4v_set_affinity,
-};
-
-#ifdef CONFIG_PCI_MSI
-static struct irq_chip sun4v_msi = {
-	.typename	= "sun4v+msi",
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
-	.enable		= sun4v_msi_enable,
-	.disable	= sun4v_msi_disable,
-	.ack		= run_pre_handler,
-	.end		= sun4v_irq_end,
-	.set_affinity	= sun4v_set_affinity,
-};
-#endif
-
 static struct irq_chip sun4v_virq = {
 	.typename	= "vsun4v",
 	.enable		= sun4v_virq_enable,
 	.disable	= sun4v_virq_disable,
-	.end		= sun4v_virq_end,
-	.set_affinity	= sun4v_virt_set_affinity,
-};
-
-static struct irq_chip sun4v_virq_ack = {
-	.typename	= "vsun4v+ack",
-	.enable		= sun4v_virq_enable,
-	.disable	= sun4v_virq_disable,
-	.ack		= run_pre_handler,
 	.end		= sun4v_virq_end,
 	.set_affinity	= sun4v_virt_set_affinity,
 };
@@ -617,45 +549,43 @@ void irq_install_pre_handler(int virt_irq,
 			     void *arg1, void *arg2)
 {
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-	struct irq_chip *chip;
+	struct irq_chip *chip = get_irq_chip(virt_irq);
+
+	if (WARN_ON(chip == &sun4v_irq || chip == &sun4v_virq)) {
+		printk(KERN_ERR "IRQ: Trying to install pre-handler on "
+		       "sun4v irq %u\n", virt_irq);
+		return;
+	}
 
 	data->pre_handler = func;
 	data->pre_handler_arg1 = arg1;
 	data->pre_handler_arg2 = arg2;
 
-	chip = get_irq_chip(virt_irq);
-	if (chip == &sun4u_irq_ack ||
-	    chip == &sun4v_irq_ack ||
-	    chip == &sun4v_virq_ack
-#ifdef CONFIG_PCI_MSI
-	    || chip == &sun4v_msi
-#endif
-	    )
+	if (chip == &sun4u_irq_ack)
 		return;
 
-	chip = (chip == &sun4u_irq ?
-		&sun4u_irq_ack :
-		(chip == &sun4v_irq ?
-		 &sun4v_irq_ack : &sun4v_virq_ack));
-	set_irq_chip(virt_irq, chip);
+	set_irq_chip(virt_irq, &sun4u_irq_ack);
 }
 
 unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 {
 	struct ino_bucket *bucket;
 	struct irq_handler_data *data;
+	unsigned int virt_irq;
 	int ino;
 
 	BUG_ON(tlb_type == hypervisor);
 
 	ino = (upa_readq(imap) & (IMAP_IGN | IMAP_INO)) + inofixup;
 	bucket = &ivector_table[ino];
-	if (!bucket->virt_irq) {
-		bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-		set_irq_chip(bucket->virt_irq, &sun4u_irq);
+	virt_irq = bucket_get_virt_irq(__pa(bucket));
+	if (!virt_irq) {
+		virt_irq = virt_irq_alloc(0, ino);
+		bucket_set_virt_irq(__pa(bucket), virt_irq);
+		set_irq_chip(virt_irq, &sun4u_irq);
 	}
 
-	data = get_irq_chip_data(bucket->virt_irq);
+	data = get_irq_chip_data(virt_irq);
 	if (unlikely(data))
 		goto out;
 
@@ -664,13 +594,13 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
 	}
-	set_irq_chip_data(bucket->virt_irq, data);
+	set_irq_chip_data(virt_irq, data);
 
 	data->imap  = imap;
 	data->iclr  = iclr;
 
 out:
-	return bucket->virt_irq;
+	return virt_irq;
 }
 
 static unsigned int sun4v_build_common(unsigned long sysino,
@@ -678,16 +608,19 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 {
 	struct ino_bucket *bucket;
 	struct irq_handler_data *data;
+	unsigned int virt_irq;
 
 	BUG_ON(tlb_type != hypervisor);
 
 	bucket = &ivector_table[sysino];
-	if (!bucket->virt_irq) {
-		bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-		set_irq_chip(bucket->virt_irq, chip);
+	virt_irq = bucket_get_virt_irq(__pa(bucket));
+	if (!virt_irq) {
+		virt_irq = virt_irq_alloc(0, sysino);
+		bucket_set_virt_irq(__pa(bucket), virt_irq);
+		set_irq_chip(virt_irq, chip);
 	}
 
-	data = get_irq_chip_data(bucket->virt_irq);
+	data = get_irq_chip_data(virt_irq);
 	if (unlikely(data))
 		goto out;
 
@@ -696,7 +629,7 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
 	}
-	set_irq_chip_data(bucket->virt_irq, data);
+	set_irq_chip_data(virt_irq, data);
 
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
 	 * is done by hypervisor calls on sun4v platforms, not by direct
@@ -706,7 +639,7 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 	data->iclr = ~0UL;
 
 out:
-	return bucket->virt_irq;
+	return virt_irq;
 }
 
 unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino)
@@ -718,86 +651,52 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino)
 
 unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 {
-	unsigned long sysino, hv_err;
-	unsigned int virq;
+	struct irq_handler_data *data;
+	struct ino_bucket *bucket;
+	unsigned long hv_err, cookie;
+	unsigned int virt_irq;
 
-	BUG_ON(devhandle & devino);
+	bucket = kzalloc(sizeof(struct ino_bucket), GFP_ATOMIC);
+	if (unlikely(!bucket))
+		return 0;
+	__flush_dcache_range((unsigned long) bucket,
+			     ((unsigned long) bucket +
+			      sizeof(struct ino_bucket)));
 
-	sysino = devhandle | devino;
-	BUG_ON(sysino & ~(IMAP_IGN | IMAP_INO));
+	virt_irq = virt_irq_alloc(devhandle, devino);
+	bucket_set_virt_irq(__pa(bucket), virt_irq);
+	set_irq_chip(virt_irq, &sun4v_virq);
 
-	hv_err = sun4v_vintr_set_cookie(devhandle, devino, sysino);
+	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
+	if (unlikely(!data))
+		return 0;
+
+	set_irq_chip_data(virt_irq, data);
+
+	/* Catch accidental accesses to these things.  IMAP/ICLR handling
+	 * is done by hypervisor calls on sun4v platforms, not by direct
+	 * register accesses.
+	 */
+	data->imap = ~0UL;
+	data->iclr = ~0UL;
+
+	cookie = ~__pa(bucket);
+	hv_err = sun4v_vintr_set_cookie(devhandle, devino, cookie);
 	if (hv_err) {
 		prom_printf("IRQ: Fatal, cannot set cookie for [%x:%x] "
 			    "err=%lu\n", devhandle, devino, hv_err);
 		prom_halt();
 	}
 
-	virq = sun4v_build_common(sysino, &sun4v_virq);
-
-	virt_to_real_irq_table[virq].dev_handle = devhandle;
-	virt_to_real_irq_table[virq].dev_ino = devino;
-
-	return virq;
+	return virt_irq;
 }
-
-#ifdef CONFIG_PCI_MSI
-unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
-			     unsigned int msi_start, unsigned int msi_end)
-{
-	struct ino_bucket *bucket;
-	struct irq_handler_data *data;
-	unsigned long sysino;
-	unsigned int devino;
-
-	BUG_ON(tlb_type != hypervisor);
-
-	/* Find a free devino in the given range.  */
-	for (devino = msi_start; devino < msi_end; devino++) {
-		sysino = sun4v_devino_to_sysino(devhandle, devino);
-		bucket = &ivector_table[sysino];
-		if (!bucket->virt_irq)
-			break;
-	}
-	if (devino >= msi_end)
-		return -ENOSPC;
-
-	sysino = sun4v_devino_to_sysino(devhandle, devino);
-	bucket = &ivector_table[sysino];
-	bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-	*virt_irq_p = bucket->virt_irq;
-	set_irq_chip(bucket->virt_irq, &sun4v_msi);
-
-	data = get_irq_chip_data(bucket->virt_irq);
-	if (unlikely(data))
-		return devino;
-
-	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
-	if (unlikely(!data)) {
-		virt_irq_free(*virt_irq_p);
-		return -ENOMEM;
-	}
-	set_irq_chip_data(bucket->virt_irq, data);
-
-	data->imap = ~0UL;
-	data->iclr = ~0UL;
-
-	return devino;
-}
-
-void sun4v_destroy_msi(unsigned int virt_irq)
-{
-	virt_irq_free(virt_irq);
-}
-#endif
 
 void ack_bad_irq(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
-	unsigned int ino = 0xdeadbeef;
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 
-	if (bucket)
-		ino = bucket - &ivector_table[0];
+	if (!ino)
+		ino = 0xdeadbeef;
 
 	printk(KERN_CRIT "Unexpected IRQ from ino[%x] virt_irq[%u]\n",
 	       ino, virt_irq);
@@ -805,7 +704,7 @@ void ack_bad_irq(unsigned int virt_irq)
 
 void handler_irq(int irq, struct pt_regs *regs)
 {
-	struct ino_bucket *bucket;
+	unsigned long pstate, bucket_pa;
 	struct pt_regs *old_regs;
 
 	clear_softint(1 << irq);
@@ -813,15 +712,28 @@ void handler_irq(int irq, struct pt_regs *regs)
 	old_regs = set_irq_regs(regs);
 	irq_enter();
 
-	/* Sliiiick... */
-	bucket = __bucket(xchg32(irq_work(smp_processor_id()), 0));
-	while (bucket) {
-		struct ino_bucket *next = __bucket(bucket->irq_chain);
+	/* Grab an atomic snapshot of the pending IVECs.  */
+	__asm__ __volatile__("rdpr	%%pstate, %0\n\t"
+			     "wrpr	%0, %3, %%pstate\n\t"
+			     "ldx	[%2], %1\n\t"
+			     "stx	%%g0, [%2]\n\t"
+			     "wrpr	%0, 0x0, %%pstate\n\t"
+			     : "=&r" (pstate), "=&r" (bucket_pa)
+			     : "r" (irq_work_pa(smp_processor_id())),
+			       "i" (PSTATE_IE)
+			     : "memory");
 
-		bucket->irq_chain = 0;
-		__do_IRQ(bucket->virt_irq);
+	while (bucket_pa) {
+		unsigned long next_pa;
+		unsigned int virt_irq;
 
-		bucket = next;
+		next_pa = bucket_get_chain_pa(bucket_pa);
+		virt_irq = bucket_get_virt_irq(bucket_pa);
+		bucket_clear_chain_pa(bucket_pa);
+
+		__do_IRQ(virt_irq);
+
+		bucket_pa = next_pa;
 	}
 
 	irq_exit();
@@ -921,7 +833,7 @@ void init_irqwork_curcpu(void)
 {
 	int cpu = hard_smp_processor_id();
 
-	trap_block[cpu].irq_worklist = 0;
+	trap_block[cpu].irq_worklist_pa = 0UL;
 }
 
 /* Please be very careful with register_one_mondo() and
@@ -1035,9 +947,21 @@ static struct irqaction timer_irq_action = {
 /* Only invoked on boot processor. */
 void __init init_IRQ(void)
 {
+	unsigned long size;
+
 	map_prom_timers();
 	kill_prom_timer();
-	memset(&ivector_table[0], 0, sizeof(ivector_table));
+
+	size = sizeof(struct ino_bucket) * NUM_IVECS;
+	ivector_table = alloc_bootmem_low(size);
+	if (!ivector_table) {
+		prom_printf("Fatal error, cannot allocate ivector_table\n");
+		prom_halt();
+	}
+	__flush_dcache_range((unsigned long) ivector_table,
+			     ((unsigned long) ivector_table) + size);
+
+	ivector_table_pa = __pa(ivector_table);
 
 	if (tlb_type == hypervisor)
 		sun4v_init_mondo_queues();
