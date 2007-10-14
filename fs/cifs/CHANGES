@@ -9,7 +9,8 @@ ability to mount to IPC$ share (which allows CIFS named pipes to be
 opened, read and written as if they were files).  When 1st tree
 connect fails (e.g. due to signing negotiation failure) fix
 leak that causes cifsd not to stop and rmmod to fail to cleanup
-cifs_request_buffers pool.
+cifs_request_buffers pool. Fix problem with POSIX Open/Mkdir on
+bigendian architectures.
 
 Version 1.50
 ------------

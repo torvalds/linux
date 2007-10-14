@@ -947,7 +947,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			d_drop(direntry);
 		} else {
 			int obj_type;
-			if (pInfo->Type == -1) /* no return info - go query */ {
+			if (pInfo->Type == cpu_to_le32(-1)) {
+				/* no return info, go query for it */
 				kfree(pInfo);
 				goto mkdir_get_info;
 			}

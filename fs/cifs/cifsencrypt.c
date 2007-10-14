@@ -345,7 +345,7 @@ static int calc_ntlmv2_hash(struct cifsSesInfo *ses,
 	user = kmalloc(2 + (len * 2), GFP_KERNEL);
 	if (user == NULL)
 		goto calc_exit_2;
-	len = cifs_strtoUCS(user, ses->userName, len, nls_cp);
+	len = cifs_strtoUCS((__le16 *)user, ses->userName, len, nls_cp);
 	UniStrupr(user);
 	hmac_md5_update((char *)user, 2*len, pctxt);
 
@@ -356,7 +356,8 @@ static int calc_ntlmv2_hash(struct cifsSesInfo *ses,
 		domain = kmalloc(2 + (len * 2), GFP_KERNEL);
 		if (domain == NULL)
 			goto calc_exit_1;
-		len = cifs_strtoUCS(domain, ses->domainName, len, nls_cp);
+		len = cifs_strtoUCS((__le16 *)domain, ses->domainName, len,
+					nls_cp);
 		/* the following line was removed since it didn't work well
 		   with lower cased domain name that passed as an option.
 		   Maybe converting the domain name earlier makes sense */

@@ -51,8 +51,8 @@ struct cifs_acl {
 struct cifs_ntace { /* first part of ACE which contains perms */
 	__u8 type;
 	__u8 flags;
-	__u16 size;
-	__u32 access_req;
+	__le16 size;
+	__le32 access_req;
 } __attribute__((packed));
 
 struct cifs_ace { /* last part of ACE which includes user info */
