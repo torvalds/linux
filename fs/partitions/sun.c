@@ -95,8 +95,8 @@ int sun_partition(struct parsed_partitions *state, struct block_device *bdev)
 	 * So that old Linux-Sun partitions continue to work,
 	 * alow the VTOC to be used under the additional condition ...
 	 */
-	use_vtoc = use_vtoc || !(label->vtoc.sanity |
-				 label->vtoc.version | label->vtoc.nparts);
+	use_vtoc = use_vtoc || !(label->vtoc.sanity ||
+				 label->vtoc.version || label->vtoc.nparts);
 	spc = be16_to_cpu(label->ntrks) * be16_to_cpu(label->nsect);
 	for (i = 0; i < nparts; i++, p++) {
 		unsigned long st_sector;
