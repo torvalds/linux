@@ -206,10 +206,10 @@ static void flush_cond_wait(struct cond_wait **head);
  */
 struct slgt_desc
 {
-	unsigned short count;
-	unsigned short status;
-	unsigned int pbuf;  /* physical address of data buffer */
-	unsigned int next;  /* physical address of next descriptor */
+	__le16 count;
+	__le16 status;
+	__le32 pbuf;  /* physical address of data buffer */
+	__le32 next;  /* physical address of next descriptor */
 
 	/* driver book keeping */
 	char *buf;          /* virtual  address of data buffer */
