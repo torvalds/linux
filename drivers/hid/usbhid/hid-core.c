@@ -32,6 +32,7 @@
 #include <linux/hid.h>
 #include <linux/hiddev.h>
 #include <linux/hid-debug.h>
+#include <linux/hidraw.h>
 #include "usbhid.h"
 
 /*
@@ -512,7 +513,16 @@ static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 
 int usbhid_open(struct hid_device *hid)
 {
-	++hid->open;
+	struct usbhid_device *usbhid = hid->driver_data;
+	int res;
+
+	if (!hid->open++) {
+		res = usb_autopm_get_interface(usbhid->intf);
+		if (res < 0) {
+			hid->open--;
+			return -EIO;
+		}
+	}
 	if (hid_start_in(hid))
 		hid_io_error(hid);
 	return 0;
@@ -522,8 +532,10 @@ void usbhid_close(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	if (!--hid->open)
+	if (!--hid->open) {
 		usb_kill_urb(usbhid->urbin);
+		usb_autopm_put_interface(usbhid->intf);
+	}
 }
 
 /*
@@ -626,6 +638,28 @@ static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 		return -1;
 
 	return 0;
+}
+
+static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf, size_t count)
+{
+	struct usbhid_device *usbhid = hid->driver_data;
+	struct usb_device *dev = hid_to_usb_dev(hid);
+	struct usb_interface *intf = usbhid->intf;
+	struct usb_host_interface *interface = intf->cur_altsetting;
+	int ret;
+
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+		HID_REQ_SET_REPORT,
+		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+		cpu_to_le16(((HID_OUTPUT_REPORT + 1) << 8) | *buf),
+		interface->desc.bInterfaceNumber, buf + 1, count - 1,
+		USB_CTRL_SET_TIMEOUT);
+
+	/* count also the report id */
+	if (ret > 0)
+		ret++;
+
+	return ret;
 }
 
 static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
@@ -871,6 +905,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->hiddev_hid_event = hiddev_hid_event;
 	hid->hiddev_report_event = hiddev_report_event;
 #endif
+	hid->hid_output_raw_report = usbhid_output_raw_report;
 	return hid;
 
 fail:
@@ -909,6 +944,8 @@ static void hid_disconnect(struct usb_interface *intf)
 		hidinput_disconnect(hid);
 	if (hid->claimed & HID_CLAIMED_HIDDEV)
 		hiddev_disconnect(hid);
+	if (hid->claimed & HID_CLAIMED_HIDRAW)
+		hidraw_disconnect(hid);
 
 	usb_free_urb(usbhid->urbin);
 	usb_free_urb(usbhid->urbctrl);
@@ -941,11 +978,13 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		hid->claimed |= HID_CLAIMED_INPUT;
 	if (!hiddev_connect(hid))
 		hid->claimed |= HID_CLAIMED_HIDDEV;
+	if (!hidraw_connect(hid))
+		hid->claimed |= HID_CLAIMED_HIDRAW;
 
 	usb_set_intfdata(intf, hid);
 
 	if (!hid->claimed) {
-		printk ("HID device not claimed by input or hiddev\n");
+		printk ("HID device claimed by neither input, hiddev nor hidraw\n");
 		hid_disconnect(intf);
 		return -ENODEV;
 	}
@@ -961,10 +1000,16 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		printk("input");
-	if (hid->claimed == (HID_CLAIMED_INPUT | HID_CLAIMED_HIDDEV))
+	if ((hid->claimed & HID_CLAIMED_INPUT) && ((hid->claimed & HID_CLAIMED_HIDDEV) ||
+				hid->claimed & HID_CLAIMED_HIDRAW))
 		printk(",");
 	if (hid->claimed & HID_CLAIMED_HIDDEV)
 		printk("hiddev%d", hid->minor);
+	if ((hid->claimed & HID_CLAIMED_INPUT) && (hid->claimed & HID_CLAIMED_HIDDEV) &&
+			(hid->claimed & HID_CLAIMED_HIDRAW))
+		printk(",");
+	if (hid->claimed & HID_CLAIMED_HIDRAW)
+		printk("hidraw%d", ((struct hidraw*)hid->hidraw)->minor);
 
 	c = "Device";
 	for (i = 0; i < hid->maxcollection; i++) {
@@ -1048,6 +1093,7 @@ static struct usb_driver hid_driver = {
 	.pre_reset =	hid_pre_reset,
 	.post_reset =	hid_post_reset,
 	.id_table =	hid_usb_ids,
+	.supports_autosuspend = 1,
 };
 
 static int __init hid_init(void)

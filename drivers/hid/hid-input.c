@@ -53,7 +53,7 @@ static const unsigned char hid_keyboard[256] = {
 	115,114,unk,unk,unk,121,unk, 89, 93,124, 92, 94, 95,unk,unk,unk,
 	122,123, 90, 91, 85,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
-	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
+	unk,unk,unk,unk,unk,unk,179,180,unk,unk,unk,unk,unk,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
 	 29, 42, 56,125, 97, 54,100,126,164,166,165,163,161,115,114,113,
@@ -85,6 +85,10 @@ static const struct {
 
 #define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
 #define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
+
+/* hardware needing special handling due to colliding MSVENDOR page usages */
+#define IS_CHICONY_TACTICAL_PAD(x) (x->vendor == 0x04f2 && device->product == 0x0418)
+#define IS_MS_KB(x) (x->vendor == 0x045e && (x->product == 0x00db || x->product == 0x00f9))
 
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 
@@ -295,7 +299,7 @@ static int hidinput_getkeycode(struct input_dev *dev, int scancode,
 {
 	struct hid_device *hid = dev->private;
 	struct hid_usage *usage;
-	
+
 	usage = hidinput_find_key(hid, scancode, 0);
 	if (usage) {
 		*keycode = usage->code;
@@ -310,15 +314,15 @@ static int hidinput_setkeycode(struct input_dev *dev, int scancode,
 	struct hid_device *hid = dev->private;
 	struct hid_usage *usage;
 	int old_keycode;
-	
+
 	if (keycode < 0 || keycode > KEY_MAX)
 		return -EINVAL;
-	
+
 	usage = hidinput_find_key(hid, scancode, 0);
 	if (usage) {
 		old_keycode = usage->code;
 		usage->code = keycode;
-		
+
 		clear_bit(old_keycode, dev->keybit);
 		set_bit(usage->code, dev->keybit);
 		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n", keycode, scancode);
@@ -326,10 +330,10 @@ static int hidinput_setkeycode(struct input_dev *dev, int scancode,
 		 * by another key */
 		if (hidinput_find_key (hid, 0, old_keycode))
 			set_bit(old_keycode, dev->keybit);
-		
+
 		return 0;
 	}
-	
+
 	return -EINVAL;
 }
 
@@ -350,6 +354,13 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	if (field->flags & HID_MAIN_ITEM_CONSTANT)
 		goto ignore;
+
+	/* only LED usages are supported in output fields */
+	if (field->report_type == HID_OUTPUT_REPORT &&
+			(usage->hid & HID_USAGE_PAGE) != HID_UP_LED) {
+		dbg_hid_line(" [non-LED output field] ");
+		goto ignore;
+	}
 
 	switch (usage->hid & HID_USAGE_PAGE) {
 
@@ -595,6 +606,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x0f6: map_key_clear(KEY_NEXT);		break;
 				case 0x0fa: map_key_clear(KEY_BACK);		break;
 
+				case 0x182: map_key_clear(KEY_BOOKMARKS);	break;
 				case 0x183: map_key_clear(KEY_CONFIG);		break;
 				case 0x184: map_key_clear(KEY_WORDPROCESSOR);	break;
 				case 0x185: map_key_clear(KEY_EDITOR);		break;
@@ -611,9 +623,13 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x192: map_key_clear(KEY_CALC);		break;
 				case 0x194: map_key_clear(KEY_FILE);		break;
 				case 0x196: map_key_clear(KEY_WWW);		break;
+				case 0x19c: map_key_clear(KEY_LOGOFF);		break;
 				case 0x19e: map_key_clear(KEY_COFFEE);		break;
 				case 0x1a6: map_key_clear(KEY_HELP);		break;
 				case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
+				case 0x1ab: map_key_clear(KEY_SPELLCHECK);	break;
+				case 0x1b6: map_key_clear(KEY_MEDIA);		break;
+				case 0x1b7: map_key_clear(KEY_SOUND);		break;
 				case 0x1bc: map_key_clear(KEY_MESSENGER);	break;
 				case 0x1bd: map_key_clear(KEY_INFO);		break;
 				case 0x201: map_key_clear(KEY_NEW);		break;
@@ -720,8 +736,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case HID_UP_MSVENDOR:
 
-			/* special case - Chicony Chicony KU-0418 tactical pad */
-			if (device->vendor == 0x04f2 && device->product == 0x0418) {
+			/* Unfortunately, there are multiple devices which
+			 * emit usages from MSVENDOR page that require different
+			 * handling. If this list grows too much in the future,
+			 * more general handling will have to be introduced here
+			 * (i.e. another blacklist).
+			 */
+
+			/* Chicony Chicony KU-0418 tactical pad */
+			if (IS_CHICONY_TACTICAL_PAD(device)) {
 				set_bit(EV_REP, input->evbit);
 				switch(usage->hid & HID_USAGE) {
 					case 0xff01: map_key_clear(BTN_1);		break;
@@ -736,6 +759,26 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 					case 0xff0a: map_key_clear(BTN_A);		break;
 					case 0xff0b: map_key_clear(BTN_B);		break;
 					default:    goto ignore;
+				}
+
+			/* Microsoft Natural Ergonomic Keyboard 4000 */
+			} else if (IS_MS_KB(device)) {
+				switch(usage->hid & HID_USAGE) {
+					case 0xfd06:
+						map_key_clear(KEY_CHAT);
+						break;
+					case 0xfd07:
+						map_key_clear(KEY_PHONE);
+						break;
+					case 0xff05:
+						set_bit(EV_REP, input->evbit);
+						map_key_clear(KEY_F13);
+						set_bit(KEY_F14, input->keybit);
+						set_bit(KEY_F15, input->keybit);
+						set_bit(KEY_F16, input->keybit);
+						set_bit(KEY_F17, input->keybit);
+						set_bit(KEY_F18, input->keybit);
+					default:	goto ignore;
 				}
 			} else {
 				goto ignore;
@@ -888,6 +931,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		set_bit(KEY_VOLUMEDOWN, input->keybit);
 	}
 
+	if (usage->type == EV_KEY) {
+		set_bit(EV_MSC, input->evbit);
+		set_bit(MSC_SCAN, input->mscbit);
+	}
+
 	hid_resolv_event(usage->type, usage->code);
 
 	dbg_hid_line("\n");
@@ -991,6 +1039,29 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
+	/* Handling MS keyboards special buttons */
+	if (IS_MS_KB(hid) && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
+		int key = 0;
+		static int last_key = 0;
+		switch (value) {
+			case 0x01: key = KEY_F14; break;
+			case 0x02: key = KEY_F15; break;
+			case 0x04: key = KEY_F16; break;
+			case 0x08: key = KEY_F17; break;
+			case 0x10: key = KEY_F18; break;
+			default: break;
+		}
+		if (key) {
+			input_event(input, usage->type, key, 1);
+			last_key = key;
+		} else {
+			input_event(input, usage->type, last_key, 0);
+		}
+	}
+	/* report the usage code as scancode if the key status has changed */
+	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
+		input_event(input, EV_MSC, MSC_SCAN, usage->hid);
+
 	input_event(input, usage->type, usage->code, value);
 
 	if ((field->flags & HID_MAIN_ITEM_RELATIVE) && (usage->type == EV_KEY))
@@ -1050,6 +1121,9 @@ int hidinput_connect(struct hid_device *hid)
 	struct input_dev *input_dev;
 	int i, j, k;
 	int max_report_type = HID_OUTPUT_REPORT;
+
+	if (hid->quirks & HID_QUIRK_IGNORE_HIDINPUT)
+		return -1;
 
 	INIT_LIST_HEAD(&hid->inputs);
 

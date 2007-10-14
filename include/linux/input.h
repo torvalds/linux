@@ -523,6 +523,8 @@ struct input_absinfo {
 #define KEY_ADDRESSBOOK		0x1ad	/* AL Contacts/Address Book */
 #define KEY_MESSENGER		0x1ae	/* AL Instant Messaging */
 #define KEY_DISPLAYTOGGLE	0x1af	/* Turn display (LCD) on and off */
+#define KEY_SPELLCHECK		0x1b0   /* AL Spell Check */
+#define KEY_LOGOFF		0x1b1   /* AL Logoff */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1

@@ -4,7 +4,9 @@
 hid-objs			:= hid-core.o hid-input.o
 
 obj-$(CONFIG_HID)		+= hid.o
+
 hid-$(CONFIG_HID_DEBUG)		+= hid-debug.o
+hid-$(CONFIG_HIDRAW)		+= hidraw.o
 
 obj-$(CONFIG_USB_HID)		+= usbhid/
 obj-$(CONFIG_USB_MOUSE)		+= usbhid/

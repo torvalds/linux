@@ -34,6 +34,7 @@
 #include <linux/usb.h>
 #include <linux/hid.h>
 #include <linux/hiddev.h>
+#include <linux/compat.h>
 #include "usbhid.h"
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
@@ -738,6 +739,14 @@ inval:
 	return -EINVAL;
 }
 
+#ifdef CONFIG_COMPAT
+static long hiddev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	return hiddev_ioctl(inode, file, cmd, compat_ptr(arg));
+}
+#endif
+
 static const struct file_operations hiddev_fops = {
 	.owner =	THIS_MODULE,
 	.read =		hiddev_read,
@@ -747,6 +756,9 @@ static const struct file_operations hiddev_fops = {
 	.release =	hiddev_release,
 	.ioctl =	hiddev_ioctl,
 	.fasync =	hiddev_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= hiddev_compat_ioctl,
+#endif
 };
 
 static struct usb_class_driver hiddev_class = {
