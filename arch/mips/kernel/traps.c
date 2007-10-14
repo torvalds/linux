@@ -104,7 +104,7 @@ static int __init set_raw_show_trace(char *str)
 __setup("raw_show_trace", set_raw_show_trace);
 #endif
 
-static void show_backtrace(struct task_struct *task, struct pt_regs *regs)
+static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 {
 	unsigned long sp = regs->regs[29];
 	unsigned long ra = regs->regs[31];
@@ -126,7 +126,8 @@ static void show_backtrace(struct task_struct *task, struct pt_regs *regs)
  * This routine abuses get_user()/put_user() to reference pointers
  * with at least a bit of error checking ...
  */
-static void show_stacktrace(struct task_struct *task, struct pt_regs *regs)
+static void show_stacktrace(struct task_struct *task,
+	const struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
 	long stackdata;
@@ -203,7 +204,7 @@ static void show_code(unsigned int __user *pc)
 	}
 }
 
-void show_regs(struct pt_regs *regs)
+static void __show_regs(const struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
 	unsigned int cause = regs->cp0_cause;
@@ -299,9 +300,17 @@ void show_regs(struct pt_regs *regs)
 	       cpu_name_string());
 }
 
-void show_registers(struct pt_regs *regs)
+/*
+ * FIXME: really the generic show_regs should take a const pointer argument.
+ */
+void show_regs(struct pt_regs *regs)
 {
-	show_regs(regs);
+	__show_regs((struct pt_regs *)regs);
+}
+
+void show_registers(const struct pt_regs *regs)
+{
+	__show_regs(regs);
 	print_modules();
 	printk("Process %s (pid: %d, threadinfo=%p, task=%p)\n",
 	        current->comm, current->pid, current_thread_info(), current);
@@ -312,7 +321,7 @@ void show_registers(struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(die_lock);
 
-void __noreturn die(const char * str, struct pt_regs * regs)
+void __noreturn die(const char * str, const struct pt_regs * regs)
 {
 	static int die_counter;
 #ifdef CONFIG_MIPS_MT_SMTC

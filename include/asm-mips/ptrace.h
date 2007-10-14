@@ -86,9 +86,9 @@ struct pt_regs {
 
 extern asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit);
 
-extern NORET_TYPE void die(const char *, struct pt_regs *) ATTRIB_NORET;
+extern NORET_TYPE void die(const char *, const struct pt_regs *) ATTRIB_NORET;
 
-static inline void die_if_kernel(const char *str, struct pt_regs *regs)
+static inline void die_if_kernel(const char *str, const struct pt_regs *regs)
 {
 	if (unlikely(!user_mode(regs)))
 		die(str, regs);
