@@ -170,8 +170,9 @@ superio_exit(void)
 #define W83781D_REG_IN(nr)     ((nr < 7) ? (0x20 + (nr)) : \
 					   (0x550 + (nr) - 7))
 
-#define W83781D_REG_FAN_MIN(nr) (0x3a + (nr))
-#define W83781D_REG_FAN(nr) (0x27 + (nr))
+/* nr:0-2 for fans:1-3 */
+#define W83627HF_REG_FAN_MIN(nr)	(0x3b + (nr))
+#define W83627HF_REG_FAN(nr)		(0x28 + (nr))
 
 #define W83627HF_REG_TEMP2_CONFIG 0x152
 #define W83627HF_REG_TEMP3_CONFIG 0x252
@@ -582,7 +583,7 @@ store_fan_min(struct device *dev, struct device_attribute *devattr,
 
 	mutex_lock(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
-	w83627hf_write_value(data, W83781D_REG_FAN_MIN(nr+1),
+	w83627hf_write_value(data, W83627HF_REG_FAN_MIN(nr),
 			     data->fan_min[nr]);
 
 	mutex_unlock(&data->update_lock);
@@ -814,7 +815,7 @@ store_fan_div(struct device *dev, struct device_attribute *devattr,
 
 	/* Restore fan_min */
 	data->fan_min[nr] = FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
-	w83627hf_write_value(data, W83781D_REG_FAN_MIN(nr+1), data->fan_min[nr]);
+	w83627hf_write_value(data, W83627HF_REG_FAN_MIN(nr), data->fan_min[nr]);
 
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -1140,7 +1141,7 @@ static int __devinit w83627hf_probe(struct platform_device *pdev)
 	struct w83627hf_sio_data *sio_data = dev->platform_data;
 	struct w83627hf_data *data;
 	struct resource *res;
-	int err;
+	int err, i;
 
 	static const char *names[] = {
 		"w83627hf",
@@ -1174,9 +1175,9 @@ static int __devinit w83627hf_probe(struct platform_device *pdev)
 	w83627hf_init_device(pdev);
 
 	/* A few vars need to be filled upon startup */
-	data->fan_min[0] = w83627hf_read_value(data, W83781D_REG_FAN_MIN(1));
-	data->fan_min[1] = w83627hf_read_value(data, W83781D_REG_FAN_MIN(2));
-	data->fan_min[2] = w83627hf_read_value(data, W83781D_REG_FAN_MIN(3));
+	for (i = 0; i <= 2; i++)
+		data->fan_min[i] = w83627hf_read_value(
+					data, W83627HF_REG_FAN_MIN(i));
 	w83627hf_update_fan_div(data);
 
 	/* Register common device attributes */
@@ -1554,12 +1555,12 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 			    w83627hf_read_value(data,
 					       W83781D_REG_IN_MAX(i));
 		}
-		for (i = 1; i <= 3; i++) {
-			data->fan[i - 1] =
-			    w83627hf_read_value(data, W83781D_REG_FAN(i));
-			data->fan_min[i - 1] =
+		for (i = 0; i <= 2; i++) {
+			data->fan[i] =
+			    w83627hf_read_value(data, W83627HF_REG_FAN(i));
+			data->fan_min[i] =
 			    w83627hf_read_value(data,
-					       W83781D_REG_FAN_MIN(i));
+					       W83627HF_REG_FAN_MIN(i));
 		}
 		for (i = 0; i <= 2; i++) {
 			u8 tmp = w83627hf_read_value(data,
