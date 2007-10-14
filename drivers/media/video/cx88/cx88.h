@@ -453,10 +453,16 @@ struct cx8802_dev {
 
 	/* for blackbird only */
 	struct list_head           devlist;
+#if defined(CONFIG_VIDEO_CX88_BLACKBIRD) || \
+    defined(CONFIG_VIDEO_CX88_BLACKBIRD_MODULE)
 	struct video_device        *mpeg_dev;
 	u32                        mailbox;
 	int                        width;
 	int                        height;
+
+	/* mpeg params */
+	struct cx2341x_mpeg_params params;
+#endif
 
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 	/* for dvb only */
@@ -467,13 +473,9 @@ struct cx8802_dev {
 	/* for switching modulation types */
 	unsigned char              ts_gen_cntrl;
 
-	/* mpeg params */
-	struct cx2341x_mpeg_params params;
-
 	/* List of attached drivers */
 	struct cx8802_driver       drvlist;
 	struct work_struct request_module_wk;
-
 };
 
 /* ----------------------------------------------------------- */

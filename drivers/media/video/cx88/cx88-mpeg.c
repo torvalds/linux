@@ -79,7 +79,8 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 {
 	struct cx88_core *core = dev->core;
 
-	dprintk(1, "cx8802_start_dma w: %d, h: %d, f: %d\n", dev->width, dev->height, buf->vb.field);
+	dprintk(1, "cx8802_start_dma w: %d, h: %d, f: %d\n",
+		buf->vb.width, buf->vb.height, buf->vb.field);
 
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28],
@@ -572,6 +573,8 @@ int cx8802_resume_common(struct pci_dev *pci_dev)
 	return 0;
 }
 
+#if defined(CONFIG_VIDEO_CX88_BLACKBIRD) || \
+    defined(CONFIG_VIDEO_CX88_BLACKBIRD_MODULE)
 struct cx8802_dev * cx8802_get_device(struct inode *inode)
 {
 	int minor = iminor(inode);
@@ -586,6 +589,8 @@ struct cx8802_dev * cx8802_get_device(struct inode *inode)
 
 	return NULL;
 }
+EXPORT_SYMBOL(cx8802_get_device);
+#endif
 
 struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype)
 {
@@ -901,7 +906,6 @@ EXPORT_SYMBOL(cx8802_fini_common);
 
 EXPORT_SYMBOL(cx8802_register_driver);
 EXPORT_SYMBOL(cx8802_unregister_driver);
-EXPORT_SYMBOL(cx8802_get_device);
 EXPORT_SYMBOL(cx8802_get_driver);
 /* ----------------------------------------------------------- */
 /*
