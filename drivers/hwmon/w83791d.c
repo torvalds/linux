@@ -2,7 +2,7 @@
     w83791d.c - Part of lm_sensors, Linux kernel modules for hardware
                 monitoring
 
-    Copyright (C) 2006 Charles Spirakis <bezaur@gmail.com>
+    Copyright (C) 2006-2007 Charles Spirakis <bezaur@gmail.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -247,7 +247,7 @@ static u8 div_to_reg(int nr, long val)
 
 struct w83791d_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex update_lock;
 
 	char valid;			/* !=0 if following fields are valid */
@@ -382,6 +382,85 @@ static struct sensor_device_attribute sda_in_max[] = {
 	SENSOR_ATTR(in7_max, S_IWUSR | S_IRUGO, show_in_max, store_in_max, 7),
 	SENSOR_ATTR(in8_max, S_IWUSR | S_IRUGO, show_in_max, store_in_max, 8),
 	SENSOR_ATTR(in9_max, S_IWUSR | S_IRUGO, show_in_max, store_in_max, 9),
+};
+
+
+static ssize_t show_beep(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct sensor_device_attribute *sensor_attr =
+						to_sensor_dev_attr(attr);
+	struct w83791d_data *data = w83791d_update_device(dev);
+	int bitnr = sensor_attr->index;
+
+	return sprintf(buf, "%d\n", (data->beep_mask >> bitnr) & 1);
+}
+
+static ssize_t store_beep(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr =
+						to_sensor_dev_attr(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83791d_data *data = i2c_get_clientdata(client);
+	int bitnr = sensor_attr->index;
+	int bytenr = bitnr / 8;
+	long val = simple_strtol(buf, NULL, 10) ? 1 : 0;
+
+	mutex_lock(&data->update_lock);
+
+	data->beep_mask &= ~(0xff << (bytenr * 8));
+	data->beep_mask |= w83791d_read(client, W83791D_REG_BEEP_CTRL[bytenr])
+		<< (bytenr * 8);
+
+	data->beep_mask &= ~(1 << bitnr);
+	data->beep_mask |= val << bitnr;
+
+	w83791d_write(client, W83791D_REG_BEEP_CTRL[bytenr],
+		(data->beep_mask >> (bytenr * 8)) & 0xff);
+
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct sensor_device_attribute *sensor_attr =
+						to_sensor_dev_attr(attr);
+	struct w83791d_data *data = w83791d_update_device(dev);
+	int bitnr = sensor_attr->index;
+
+	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
+}
+
+/* Note: The bitmask for the beep enable/disable is different than
+   the bitmask for the alarm. */
+static struct sensor_device_attribute sda_in_beep[] = {
+	SENSOR_ATTR(in0_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 0),
+	SENSOR_ATTR(in1_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 13),
+	SENSOR_ATTR(in2_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 2),
+	SENSOR_ATTR(in3_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 3),
+	SENSOR_ATTR(in4_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 8),
+	SENSOR_ATTR(in5_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 9),
+	SENSOR_ATTR(in6_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 10),
+	SENSOR_ATTR(in7_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 16),
+	SENSOR_ATTR(in8_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 17),
+	SENSOR_ATTR(in9_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 14),
+};
+
+static struct sensor_device_attribute sda_in_alarm[] = {
+	SENSOR_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0),
+	SENSOR_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1),
+	SENSOR_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2),
+	SENSOR_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3),
+	SENSOR_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 8),
+	SENSOR_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 9),
+	SENSOR_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 10),
+	SENSOR_ATTR(in7_alarm, S_IRUGO, show_alarm, NULL, 19),
+	SENSOR_ATTR(in8_alarm, S_IRUGO, show_alarm, NULL, 20),
+	SENSOR_ATTR(in9_alarm, S_IRUGO, show_alarm, NULL, 14),
 };
 
 #define show_fan_reg(reg) \
@@ -536,6 +615,22 @@ static struct sensor_device_attribute sda_fan_div[] = {
 			show_fan_div, store_fan_div, 4),
 };
 
+static struct sensor_device_attribute sda_fan_beep[] = {
+	SENSOR_ATTR(fan1_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 6),
+	SENSOR_ATTR(fan2_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 7),
+	SENSOR_ATTR(fan3_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 11),
+	SENSOR_ATTR(fan4_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 21),
+	SENSOR_ATTR(fan5_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 22),
+};
+
+static struct sensor_device_attribute sda_fan_alarm[] = {
+	SENSOR_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 6),
+	SENSOR_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 7),
+	SENSOR_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 11),
+	SENSOR_ATTR(fan4_alarm, S_IRUGO, show_alarm, NULL, 21),
+	SENSOR_ATTR(fan5_alarm, S_IRUGO, show_alarm, NULL, 22),
+};
+
 /* read/write the temperature1, includes measured value and limits */
 static ssize_t show_temp1(struct device *dev, struct device_attribute *devattr,
 				char *buf)
@@ -618,6 +713,19 @@ static struct sensor_device_attribute_2 sda_temp_max_hyst[] = {
 			show_temp23, store_temp23, 1, 2),
 };
 
+/* Note: The bitmask for the beep enable/disable is different than
+   the bitmask for the alarm. */
+static struct sensor_device_attribute sda_temp_beep[] = {
+	SENSOR_ATTR(temp1_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 4),
+	SENSOR_ATTR(temp2_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 5),
+	SENSOR_ATTR(temp3_beep, S_IWUSR | S_IRUGO, show_beep, store_beep, 1),
+};
+
+static struct sensor_device_attribute sda_temp_alarm[] = {
+	SENSOR_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 4),
+	SENSOR_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5),
+	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13),
+};
 
 /* get reatime status of all sensors items: voltage, temp, fan */
 static ssize_t show_alarms_reg(struct device *dev,
@@ -724,7 +832,7 @@ static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 static ssize_t show_vrm_reg(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct w83791d_data *data = w83791d_update_device(dev);
+	struct w83791d_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", data->vrm);
 }
 
@@ -749,17 +857,23 @@ static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
 #define IN_UNIT_ATTRS(X) \
 	&sda_in_input[X].dev_attr.attr, \
 	&sda_in_min[X].dev_attr.attr,   \
-	&sda_in_max[X].dev_attr.attr
+	&sda_in_max[X].dev_attr.attr,   \
+	&sda_in_beep[X].dev_attr.attr,  \
+	&sda_in_alarm[X].dev_attr.attr
 
 #define FAN_UNIT_ATTRS(X) \
 	&sda_fan_input[X].dev_attr.attr,        \
 	&sda_fan_min[X].dev_attr.attr,          \
-	&sda_fan_div[X].dev_attr.attr
+	&sda_fan_div[X].dev_attr.attr,          \
+	&sda_fan_beep[X].dev_attr.attr,         \
+	&sda_fan_alarm[X].dev_attr.attr
 
 #define TEMP_UNIT_ATTRS(X) \
 	&sda_temp_input[X].dev_attr.attr,       \
 	&sda_temp_max[X].dev_attr.attr,         \
-	&sda_temp_max_hyst[X].dev_attr.attr
+	&sda_temp_max_hyst[X].dev_attr.attr,    \
+	&sda_temp_beep[X].dev_attr.attr,        \
+	&sda_temp_alarm[X].dev_attr.attr
 
 static struct attribute *w83791d_attributes[] = {
 	IN_UNIT_ATTRS(0),
@@ -1017,9 +1131,9 @@ static int w83791d_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto error3;
 
 	/* Everything is ready, now register the working device */
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto error4;
 	}
 
@@ -1051,7 +1165,7 @@ static int w83791d_detach_client(struct i2c_client *client)
 
 	/* main client */
 	if (data) {
-		hwmon_device_unregister(data->class_dev);
+		hwmon_device_unregister(data->hwmon_dev);
 		sysfs_remove_group(&client->dev.kobj, &w83791d_group);
 	}
 

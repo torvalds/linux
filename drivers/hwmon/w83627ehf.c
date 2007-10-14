@@ -223,7 +223,7 @@ temp1_from_reg(s8 reg)
 }
 
 static inline s8
-temp1_to_reg(int temp, int min, int max)
+temp1_to_reg(long temp, int min, int max)
 {
 	if (temp <= min)
 		return min / 1000;
@@ -256,7 +256,7 @@ struct w83627ehf_data {
 	int addr;	/* IO base of hw monitor block */
 	const char *name;
 
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex lock;
 
 	struct mutex update_lock;
@@ -805,7 +805,7 @@ store_temp1_##reg(struct device *dev, struct device_attribute *attr, \
 		  const char *buf, size_t count) \
 { \
 	struct w83627ehf_data *data = dev_get_drvdata(dev); \
-	u32 val = simple_strtoul(buf, NULL, 10); \
+	long val = simple_strtol(buf, NULL, 10); \
  \
 	mutex_lock(&data->update_lock); \
 	data->temp1_##reg = temp1_to_reg(val, -128000, 127000); \
@@ -840,7 +840,7 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	struct w83627ehf_data *data = dev_get_drvdata(dev); \
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr); \
 	int nr = sensor_attr->index; \
-	u32 val = simple_strtoul(buf, NULL, 10); \
+	long val = simple_strtol(buf, NULL, 10); \
  \
 	mutex_lock(&data->update_lock); \
 	data->reg[nr] = LM75_TEMP_TO_REG(val); \
@@ -1384,9 +1384,9 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			goto exit_remove;
 	}
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
 	}
 
@@ -1406,7 +1406,7 @@ static int __devexit w83627ehf_remove(struct platform_device *pdev)
 {
 	struct w83627ehf_data *data = platform_get_drvdata(pdev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	w83627ehf_device_remove_files(&pdev->dev);
 	release_region(data->addr, IOREGION_LENGTH);
 	platform_set_drvdata(pdev, NULL);

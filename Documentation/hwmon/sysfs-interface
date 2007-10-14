@@ -67,6 +67,10 @@ between readings to be caught and alarmed. The exact definition of an
 alarm (for example, whether a threshold must be met or must be exceeded
 to cause an alarm) is chip-dependent.
 
+When setting values of hwmon sysfs attributes, the string representation of
+the desired value must be written, note that strings which are not a number
+are interpreted as 0! For more on how written strings are interpreted see the
+"sysfs attribute writes interpretation" section at the end of this file.
 
 -------------------------------------------------------------------------
 
@@ -78,8 +82,21 @@ RW	read/write value
 Read/write values may be read-only for some chips, depending on the
 hardware implementation.
 
-All entries are optional, and should only be created in a given driver
-if the chip has the feature.
+All entries (except name) are optional, and should only be created in a
+given driver if the chip has the feature.
+
+
+********
+* Name *
+********
+
+name		The chip name.
+		This should be a short, lowercase string, not containing
+		spaces nor dashes, representing the chip name. This is
+		the only mandatory attribute.
+		I2C devices get this attribute created automatically.
+		RO
+
 
 ************
 * Voltages *
@@ -104,18 +121,17 @@ in[0-*]_input	Voltage input value.
 		by the chip driver, and must be done by the application.
 		However, some drivers (notably lm87 and via686a)
 		do scale, because of internal resistors built into a chip.
-		These drivers will output the actual voltage.
+		These drivers will output the actual voltage. Rule of
+		thumb: drivers should report the voltage values at the
+		"pins" of the chip.
 
-		Typical usage:
-			in0_*	CPU #1 voltage (not scaled)
-			in1_*	CPU #2 voltage (not scaled)
-			in2_*	3.3V nominal (not scaled)
-			in3_*	5.0V nominal (scaled)
-			in4_*	12.0V nominal (scaled)
-			in5_*	-12.0V nominal (scaled)
-			in6_*	-5.0V nominal (scaled)
-			in7_*	varies
-			in8_*	varies
+in[0-*]_label	Suggested voltage channel label.
+		Text string
+		Should only be created if the driver has hints about what
+		this voltage channel is being used for, and user-space
+		doesn't. In all other cases, the label is provided by
+		user-space.
+		RO
 
 cpu[0-*]_vid	CPU core reference voltage.
 		Unit: millivolt
@@ -158,6 +174,13 @@ fan[1-*]_target
 		RW
 		Only makes sense if the chip supports closed-loop fan speed
 		control based on the measured fan speed.
+
+fan[1-*]_label	Suggested fan channel label.
+		Text string
+		Should only be created if the driver has hints about what
+		this fan channel is being used for, and user-space doesn't.
+		In all other cases, the label is provided by user-space.
+		RO
 
 Also see the Alarms section for status flags associated with fans.
 
@@ -219,12 +242,12 @@ temp[1-*]_auto_point[1-*]_temp_hyst
 ****************
 
 temp[1-*]_type	Sensor type selection.
-		Integers 1 to 6 or thermistor Beta value (typically 3435)
+		Integers 1 to 6
 		RW
 		1: PII/Celeron Diode
 		2: 3904 transistor
 		3: thermal diode
-		4: thermistor (default/unknown Beta)
+		4: thermistor
 		5: AMD AMDSI
 		6: Intel PECI
 		Not all types are supported by all chips
@@ -260,18 +283,19 @@ temp[1-*]_crit_hyst
 		from the critical value.
 		RW
 
-temp[1-4]_offset
+temp[1-*]_offset
 		Temperature offset which is added to the temperature reading
 		by the chip.
 		Unit: millidegree Celsius
 		Read/Write value.
 
-		If there are multiple temperature sensors, temp1_* is
-		generally the sensor inside the chip itself,
-		reported as "motherboard temperature".  temp2_* to
-		temp4_* are generally sensors external to the chip
-		itself, for example the thermal diode inside the CPU or
-		a thermistor nearby.
+temp[1-*]_label	Suggested temperature channel label.
+		Text string
+		Should only be created if the driver has hints about what
+		this temperature channel is being used for, and user-space
+		doesn't. In all other cases, the label is provided by
+		user-space.
+		RO
 
 Some chips measure temperature using external thermistors and an ADC, and
 report the temperature measurement as a voltage. Converting this voltage
@@ -393,14 +417,53 @@ beep_mask	Bitmask for beep.
 		RW
 
 
-*********
-* Other *
-*********
+sysfs attribute writes interpretation
+-------------------------------------
 
-eeprom		Raw EEPROM data in binary form.
-		RO
+hwmon sysfs attributes always contain numbers, so the first thing to do is to
+convert the input to a number, there are 2 ways todo this depending whether
+the number can be negative or not:
+unsigned long u = simple_strtoul(buf, NULL, 10);
+long s = simple_strtol(buf, NULL, 10);
 
-pec		Enable or disable PEC (SMBus only)
-		0: disable
-		1: enable
-		RW
+With buf being the buffer with the user input being passed by the kernel.
+Notice that we do not use the second argument of strto[u]l, and thus cannot
+tell when 0 is returned, if this was really 0 or is caused by invalid input.
+This is done deliberately as checking this everywhere would add a lot of
+code to the kernel.
+
+Notice that it is important to always store the converted value in an
+unsigned long or long, so that no wrap around can happen before any further
+checking.
+
+After the input string is converted to an (unsigned) long, the value should be
+checked if its acceptable. Be careful with further conversions on the value
+before checking it for validity, as these conversions could still cause a wrap
+around before the check. For example do not multiply the result, and only
+add/subtract if it has been divided before the add/subtract.
+
+What to do if a value is found to be invalid, depends on the type of the
+sysfs attribute that is being set. If it is a continuous setting like a
+tempX_max or inX_max attribute, then the value should be clamped to its
+limits using SENSORS_LIMIT(value, min_limit, max_limit). If it is not
+continuous like for example a tempX_type, then when an invalid value is
+written, -EINVAL should be returned.
+
+Example1, temp1_max, register is a signed 8 bit value (-128 - 127 degrees):
+
+	long v = simple_strtol(buf, NULL, 10) / 1000;
+	v = SENSORS_LIMIT(v, -128, 127);
+	/* write v to register */
+
+Example2, fan divider setting, valid values 2, 4 and 8:
+
+	unsigned long v = simple_strtoul(buf, NULL, 10);
+
+	switch (v) {
+	case 2: v = 1; break;
+	case 4: v = 2; break;
+	case 8: v = 3; break;
+	default:
+		return -EINVAL;
+	}
+	/* write v to register */

@@ -201,7 +201,7 @@ struct block1_t {
  */
 struct lm93_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	unsigned long last_updated;	/* In jiffies */
@@ -413,7 +413,7 @@ static int LM93_TEMP_FROM_REG(u8 reg)
 
 /* TEMP: 1/1000 degrees C (-128C to +127C)
    REG: 1C/bit, two's complement */
-static u8 LM93_TEMP_TO_REG(int temp)
+static u8 LM93_TEMP_TO_REG(long temp)
 {
 	int ntemp = SENSORS_LIMIT(temp, LM93_TEMP_MIN, LM93_TEMP_MAX);
 	ntemp += (ntemp<0 ? -500 : 500);
@@ -1268,7 +1268,7 @@ static ssize_t store_temp_min(struct device *dev, struct device_attribute *attr,
 	int nr = (to_sensor_dev_attr(attr))->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm93_data *data = i2c_get_clientdata(client);
-	u32 val = simple_strtoul(buf, NULL, 10);
+	long val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
 	data->temp_lim[nr].min = LM93_TEMP_TO_REG(val);
@@ -1298,7 +1298,7 @@ static ssize_t store_temp_max(struct device *dev, struct device_attribute *attr,
 	int nr = (to_sensor_dev_attr(attr))->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm93_data *data = i2c_get_clientdata(client);
-	u32 val = simple_strtoul(buf, NULL, 10);
+	long val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
 	data->temp_lim[nr].max = LM93_TEMP_TO_REG(val);
@@ -1329,7 +1329,7 @@ static ssize_t store_temp_auto_base(struct device *dev,
 	int nr = (to_sensor_dev_attr(attr))->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm93_data *data = i2c_get_clientdata(client);
-	u32 val = simple_strtoul(buf, NULL, 10);
+	long val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
 	data->block10.base[nr] = LM93_TEMP_TO_REG(val);
@@ -1360,7 +1360,7 @@ static ssize_t store_temp_auto_boost(struct device *dev,
 	int nr = (to_sensor_dev_attr(attr))->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm93_data *data = i2c_get_clientdata(client);
-	u32 val = simple_strtoul(buf, NULL, 10);
+	long val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
 	data->boost[nr] = LM93_TEMP_TO_REG(val);
@@ -2078,8 +2078,8 @@ static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf,"%d\n",LM93_VID_FROM_REG(data->vid[nr]));
 }
 
-static SENSOR_DEVICE_ATTR(vid1, S_IRUGO, show_vid, NULL, 0);
-static SENSOR_DEVICE_ATTR(vid2, S_IRUGO, show_vid, NULL, 1);
+static SENSOR_DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL, 0);
+static SENSOR_DEVICE_ATTR(cpu1_vid, S_IRUGO, show_vid, NULL, 1);
 
 static ssize_t show_prochot(struct device *dev, struct device_attribute *attr,
 				char *buf)
@@ -2431,8 +2431,8 @@ static struct attribute *lm93_attrs[] = {
 	&sensor_dev_attr_pwm2_auto_spinup_time.dev_attr.attr,
 	&dev_attr_pwm_auto_prochot_ramp.attr,
 	&dev_attr_pwm_auto_vrdhot_ramp.attr,
-	&sensor_dev_attr_vid1.dev_attr.attr,
-	&sensor_dev_attr_vid2.dev_attr.attr,
+	&sensor_dev_attr_cpu0_vid.dev_attr.attr,
+	&sensor_dev_attr_cpu1_vid.dev_attr.attr,
 	&sensor_dev_attr_prochot1.dev_attr.attr,
 	&sensor_dev_attr_prochot2.dev_attr.attr,
 	&sensor_dev_attr_prochot1_avg.dev_attr.attr,
@@ -2590,11 +2590,11 @@ static int lm93_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto err_detach;
 
 	/* Register hwmon driver class */
-	data->class_dev = hwmon_device_register(&client->dev);
-	if ( !IS_ERR(data->class_dev))
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if ( !IS_ERR(data->hwmon_dev))
 		return 0;
 
-	err = PTR_ERR(data->class_dev);
+	err = PTR_ERR(data->hwmon_dev);
 	dev_err(&client->dev, "error registering hwmon device.\n");
 	sysfs_remove_group(&client->dev.kobj, &lm93_attr_grp);
 err_detach:
@@ -2619,7 +2619,7 @@ static int lm93_detach_client(struct i2c_client *client)
 	struct lm93_data *data = i2c_get_clientdata(client);
 	int err = 0;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm93_attr_grp);
 
 	err = i2c_detach_client(client);

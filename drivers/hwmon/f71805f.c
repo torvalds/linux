@@ -10,6 +10,9 @@
  * The F71872F/FG is almost the same, with two more voltages monitored,
  * and 6 VID inputs.
  *
+ * The F71806F/FG is essentially the same as the F71872F/FG. It even has
+ * the same chip ID, so the driver can't differentiate between.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -159,7 +162,7 @@ struct f71805f_auto_point {
 struct f71805f_data {
 	unsigned short addr;
 	const char *name;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
@@ -1378,9 +1381,9 @@ static int __devinit f71805f_probe(struct platform_device *pdev)
 		}
 	}
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		dev_err(&pdev->dev, "Class registration failed (%d)\n", err);
 		goto exit_remove_files;
 	}
@@ -1407,7 +1410,7 @@ static int __devexit f71805f_remove(struct platform_device *pdev)
 	struct resource *res;
 	int i;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group);
 	for (i = 0; i < 4; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_optin[i]);
@@ -1485,7 +1488,7 @@ static int __init f71805f_find(int sioaddr, unsigned short *address,
 
 	static const char *names[] = {
 		"F71805F/FG",
-		"F71872F/FG",
+		"F71872F/FG or F71806F/FG",
 	};
 
 	superio_enter(sioaddr);

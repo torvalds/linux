@@ -260,7 +260,7 @@ struct pwm_data {
 
 struct adm1026_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	enum chips type;
 
 	struct mutex update_lock;
@@ -1221,7 +1221,7 @@ static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 
 static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct adm1026_data *data = adm1026_update_device(dev);
+	struct adm1026_data *data = dev_get_drvdata(dev);
 	return sprintf(buf,"%d\n", data->vrm);
 }
 static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -1676,9 +1676,9 @@ static int adm1026_detect(struct i2c_adapter *adapter, int address,
 	if ((err = sysfs_create_group(&new_client->dev.kobj, &adm1026_group)))
 		goto exitdetach;
 
-	data->class_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exitremove;
 	}
 
@@ -1698,7 +1698,7 @@ exit:
 static int adm1026_detach_client(struct i2c_client *client)
 {
 	struct adm1026_data *data = i2c_get_clientdata(client);
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adm1026_group);
 	i2c_detach_client(client);
 	kfree(data);

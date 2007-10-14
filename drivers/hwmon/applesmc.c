@@ -127,7 +127,7 @@ static s16 rest_x;
 static s16 rest_y;
 static struct timer_list applesmc_timer;
 static struct input_dev *applesmc_idev;
-static struct class_device *hwmon_class_dev;
+static struct device *hwmon_dev;
 
 /* Indicates whether this computer has an accelerometer. */
 static unsigned int applesmc_accelerometer;
@@ -1287,9 +1287,9 @@ static int __init applesmc_init(void)
 			goto out_light_wq;
 	}
 
-	hwmon_class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(hwmon_class_dev)) {
-		ret = PTR_ERR(hwmon_class_dev);
+	hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(hwmon_dev)) {
+		ret = PTR_ERR(hwmon_dev);
 		goto out_light_ledclass;
 	}
 
@@ -1331,7 +1331,7 @@ out:
 
 static void __exit applesmc_exit(void)
 {
-	hwmon_device_unregister(hwmon_class_dev);
+	hwmon_device_unregister(hwmon_dev);
 	if (applesmc_light) {
 		led_classdev_unregister(&applesmc_backlight);
 		destroy_workqueue(applesmc_led_wq);

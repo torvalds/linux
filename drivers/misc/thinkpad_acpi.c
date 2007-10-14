@@ -517,7 +517,7 @@ static char *next_cmd(char **cmds)
  ****************************************************************************/
 
 static struct platform_device *tpacpi_pdev;
-static struct class_device *tpacpi_hwmon;
+static struct device *tpacpi_hwmon;
 static struct input_dev *tpacpi_inputdev;
 
 

@@ -47,7 +47,7 @@ static const u8 AD7418_REG_TEMP[] = { AD7418_REG_TEMP_IN,
 
 struct ad7418_data {
 	struct i2c_client	client;
-	struct class_device	*class_dev;
+	struct device		*hwmon_dev;
 	struct attribute_group	attrs;
 	enum chips		type;
 	struct mutex		lock;
@@ -172,7 +172,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ad7418_data *data = i2c_get_clientdata(client);
-	int temp = simple_strtol(buf, NULL, 10);
+	long temp = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->lock);
 	data->temp[attr->index] = LM75_TEMP_TO_REG(temp);
@@ -326,9 +326,9 @@ static int ad7418_detect(struct i2c_adapter *adapter, int address, int kind)
 	if ((err = sysfs_create_group(&client->dev.kobj, &data->attrs)))
 		goto exit_detach;
 
-	data->class_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
 	}
 
@@ -347,7 +347,7 @@ exit:
 static int ad7418_detach_client(struct i2c_client *client)
 {
 	struct ad7418_data *data = i2c_get_clientdata(client);
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &data->attrs);
 	i2c_detach_client(client);
 	kfree(data);

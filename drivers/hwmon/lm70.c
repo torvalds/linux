@@ -37,7 +37,7 @@
 #define DRVNAME		"lm70"
 
 struct lm70 {
-	struct class_device *cdev;
+	struct device *hwmon_dev;
 	struct semaphore sem;
 };
 
@@ -81,13 +81,21 @@ static ssize_t lm70_sense_temp(struct device *dev,
 	 * So it's equivalent to multiplying by 0.25 * 1000 = 250.
 	 */
 	val = ((int)raw/32) * 250;
-	status = sprintf(buf, "%+d\n", val); /* millidegrees Celsius */
+	status = sprintf(buf, "%d\n", val); /* millidegrees Celsius */
 out:
 	up(&p_lm70->sem);
 	return status;
 }
 
 static DEVICE_ATTR(temp1_input, S_IRUGO, lm70_sense_temp, NULL);
+
+static ssize_t lm70_show_name(struct device *dev, struct device_attribute
+			      *devattr, char *buf)
+{
+	return sprintf(buf, "lm70\n");
+}
+
+static DEVICE_ATTR(name, S_IRUGO, lm70_show_name, NULL);
 
 /*----------------------------------------------------------------------*/
 
@@ -107,15 +115,16 @@ static int __devinit lm70_probe(struct spi_device *spi)
 	init_MUTEX(&p_lm70->sem);
 
 	/* sysfs hook */
-	p_lm70->cdev = hwmon_device_register(&spi->dev);
-	if (IS_ERR(p_lm70->cdev)) {
+	p_lm70->hwmon_dev = hwmon_device_register(&spi->dev);
+	if (IS_ERR(p_lm70->hwmon_dev)) {
 		dev_dbg(&spi->dev, "hwmon_device_register failed.\n");
-		status = PTR_ERR(p_lm70->cdev);
+		status = PTR_ERR(p_lm70->hwmon_dev);
 		goto out_dev_reg_failed;
 	}
 	dev_set_drvdata(&spi->dev, p_lm70);
 
-	if ((status = device_create_file(&spi->dev, &dev_attr_temp1_input))) {
+	if ((status = device_create_file(&spi->dev, &dev_attr_temp1_input))
+	 || (status = device_create_file(&spi->dev, &dev_attr_name))) {
 		dev_dbg(&spi->dev, "device_create_file failure.\n");
 		goto out_dev_create_file_failed;
 	}
@@ -123,7 +132,8 @@ static int __devinit lm70_probe(struct spi_device *spi)
 	return 0;
 
 out_dev_create_file_failed:
-	hwmon_device_unregister(p_lm70->cdev);
+	device_remove_file(&spi->dev, &dev_attr_temp1_input);
+	hwmon_device_unregister(p_lm70->hwmon_dev);
 out_dev_reg_failed:
 	dev_set_drvdata(&spi->dev, NULL);
 	kfree(p_lm70);
@@ -135,7 +145,8 @@ static int __devexit lm70_remove(struct spi_device *spi)
 	struct lm70 *p_lm70 = dev_get_drvdata(&spi->dev);
 
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
-	hwmon_device_unregister(p_lm70->cdev);
+	device_remove_file(&spi->dev, &dev_attr_name);
+	hwmon_device_unregister(p_lm70->hwmon_dev);
 	dev_set_drvdata(&spi->dev, NULL);
 	kfree(p_lm70);
 

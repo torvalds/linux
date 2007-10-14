@@ -47,7 +47,7 @@ typedef enum { SHOW_TEMP, SHOW_TJMAX, SHOW_LABEL, SHOW_NAME } SHOW;
 static struct coretemp_data *coretemp_update_device(struct device *dev);
 
 struct coretemp_data {
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex update_lock;
 	const char *name;
 	u32 id;
@@ -57,8 +57,6 @@ struct coretemp_data {
 	int tjmax;
 	u8 alarm;
 };
-
-static struct coretemp_data *coretemp_update_device(struct device *dev);
 
 /*
  * Sysfs stuff
@@ -228,9 +226,9 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 	if ((err = sysfs_create_group(&pdev->dev.kobj, &coretemp_group)))
 		goto exit_free;
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		dev_err(&pdev->dev, "Class registration failed (%d)\n",
 			err);
 		goto exit_class;
@@ -250,7 +248,7 @@ static int __devexit coretemp_remove(struct platform_device *pdev)
 {
 	struct coretemp_data *data = platform_get_drvdata(pdev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &coretemp_group);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
@@ -350,7 +348,7 @@ static int coretemp_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata coretemp_cpu_notifier = {
+static struct notifier_block coretemp_cpu_notifier = {
 	.notifier_call = coretemp_cpu_callback,
 };
 #endif				/* !CONFIG_HOTPLUG_CPU */
@@ -371,9 +369,10 @@ static int __init coretemp_init(void)
 	for_each_online_cpu(i) {
 		struct cpuinfo_x86 *c = &(cpu_data)[i];
 
-		/* check if family 6, models e, f */
+		/* check if family 6, models e, f, 16 */
 		if ((c->cpuid_level < 0) || (c->x86 != 0x6) ||
-		    !((c->x86_model == 0xe) || (c->x86_model == 0xf))) {
+		    !((c->x86_model == 0xe) || (c->x86_model == 0xf) ||
+			(c->x86_model == 0x16))) {
 
 			/* supported CPU not found, but report the unknown
 			   family 6 CPU */

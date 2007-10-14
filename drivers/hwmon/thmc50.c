@@ -46,6 +46,11 @@ I2C_CLIENT_MODULE_PARM(adm1022_temp3, "List of adapter,address pairs "
 #define THMC50_REG_COMPANY_ID			0x3E
 #define THMC50_REG_DIE_CODE			0x3F
 #define THMC50_REG_ANALOG_OUT			0x19
+/*
+ * The mirror status register cannot be used as
+ * reading it does not clear alarms.
+ */
+#define THMC50_REG_INTR				0x41
 
 const static u8 THMC50_REG_TEMP[] = { 0x27, 0x26, 0x20 };
 const static u8 THMC50_REG_TEMP_MIN[] = { 0x3A, 0x38, 0x2C };
@@ -56,7 +61,7 @@ const static u8 THMC50_REG_TEMP_MAX[] = { 0x39, 0x37, 0x2B };
 /* Each client has this additional data */
 struct thmc50_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	enum chips type;
@@ -69,6 +74,7 @@ struct thmc50_data {
 	s8 temp_max[3];
 	s8 temp_min[3];
 	u8 analog_out;
+	u8 alarms;
 };
 
 static int thmc50_attach_adapter(struct i2c_adapter *adapter);
@@ -180,6 +186,15 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	int index = to_sensor_dev_attr(attr)->index;
+	struct thmc50_data *data = thmc50_update_device(dev);
+
+	return sprintf(buf, "%u\n", (data->alarms >> index) & 1);
+}
+
 #define temp_reg(offset)						\
 static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp,	\
 			NULL, offset - 1);				\
@@ -192,6 +207,12 @@ temp_reg(1);
 temp_reg(2);
 temp_reg(3);
 
+static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5);
+static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 7);
+static SENSOR_DEVICE_ATTR(temp3_fault, S_IRUGO, show_alarm, NULL, 2);
+
 static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_analog_out,
 			  set_analog_out, 0);
 static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO, show_pwm_mode, NULL, 0);
@@ -200,9 +221,12 @@ static struct attribute *thmc50_attributes[] = {
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
 	&sensor_dev_attr_temp2_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_fault.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_pwm1_mode.dev_attr.attr,
 	NULL
@@ -213,15 +237,17 @@ static const struct attribute_group thmc50_group = {
 };
 
 /* for ADM1022 3rd temperature mode */
-static struct attribute *adm1022_attributes[] = {
+static struct attribute *temp3_attributes[] = {
 	&sensor_dev_attr_temp3_max.dev_attr.attr,
 	&sensor_dev_attr_temp3_min.dev_attr.attr,
 	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_fault.dev_attr.attr,
 	NULL
 };
 
-static const struct attribute_group adm1022_group = {
-	.attrs = adm1022_attributes,
+static const struct attribute_group temp3_group = {
+	.attrs = temp3_attributes,
 };
 
 static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
@@ -233,7 +259,7 @@ static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct thmc50_data *data;
 	struct device *dev;
 	int err = 0;
-	const char *type_name = "";
+	const char *type_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("thmc50: detect failed, "
@@ -283,13 +309,9 @@ static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
 		pr_debug("thmc50: Detection of THMC50/ADM1022 failed\n");
 		goto exit_free;
 	}
-	pr_debug("thmc50: Detected %s (version %x, revision %x)\n",
-		 type_name, (revision >> 4) - 0xc, revision & 0xf);
 	data->type = kind;
 
-	if (kind == thmc50)
-		type_name = "thmc50";
-	else if (kind == adm1022) {
+	if (kind == adm1022) {
 		int id = i2c_adapter_id(client->adapter);
 		int i;
 
@@ -302,7 +324,11 @@ static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
 				data->has_temp3 = 1;
 				break;
 			}
+	} else {
+		type_name = "thmc50";
 	}
+	pr_debug("thmc50: Detected %s (version %x, revision %x)\n",
+		 type_name, (revision >> 4) - 0xc, revision & 0xf);
 
 	/* Fill in the remaining client fields & put it into the global list */
 	strlcpy(client->name, type_name, I2C_NAME_SIZE);
@@ -319,23 +345,23 @@ static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_detach;
 
 	/* Register ADM1022 sysfs hooks */
-	if (data->type == adm1022)
+	if (data->has_temp3)
 		if ((err = sysfs_create_group(&client->dev.kobj,
-					      &adm1022_group)))
+					      &temp3_group)))
 			goto exit_remove_sysfs_thmc50;
 
 	/* Register a new directory entry with module sensors */
-	data->class_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_sysfs;
 	}
 
 	return 0;
 
 exit_remove_sysfs:
-	if (data->type == adm1022)
-		sysfs_remove_group(&client->dev.kobj, &adm1022_group);
+	if (data->has_temp3)
+		sysfs_remove_group(&client->dev.kobj, &temp3_group);
 exit_remove_sysfs_thmc50:
 	sysfs_remove_group(&client->dev.kobj, &thmc50_group);
 exit_detach:
@@ -358,10 +384,10 @@ static int thmc50_detach_client(struct i2c_client *client)
 	struct thmc50_data *data = i2c_get_clientdata(client);
 	int err;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &thmc50_group);
-	if (data->type == adm1022)
-		sysfs_remove_group(&client->dev.kobj, &adm1022_group);
+	if (data->has_temp3)
+		sysfs_remove_group(&client->dev.kobj, &temp3_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;
@@ -414,6 +440,8 @@ static struct thmc50_data *thmc50_update_device(struct device *dev)
 		}
 		data->analog_out =
 		    i2c_smbus_read_byte_data(client, THMC50_REG_ANALOG_OUT);
+		data->alarms =
+		    i2c_smbus_read_byte_data(client, THMC50_REG_INTR);
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}

@@ -220,7 +220,7 @@ DIV_TO_REG(long val, enum chips type)
    the driver field to differentiate between I2C and ISA chips. */
 struct w83781d_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex lock;
 	enum chips type;
 
@@ -251,9 +251,7 @@ struct w83781d_data {
 	u8 pwm2_enable;		/* Boolean */
 	u16 sens[3];		/* 782D/783S only.
 				   1 = pentium diode; 2 = 3904 diode;
-				   3000-5000 = thermistor beta.
-				   Default = 3435. 
-				   Other Betas unimplemented */
+				   4 = thermistor */
 	u8 vrm;
 };
 
@@ -410,7 +408,7 @@ static ssize_t store_temp_##reg (struct device *dev, \
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da); \
 	struct w83781d_data *data = dev_get_drvdata(dev); \
 	int nr = attr->index; \
-	s32 val; \
+	long val; \
 	 \
 	val = simple_strtol(buf, NULL, 10); \
 	 \
@@ -456,7 +454,7 @@ static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 static ssize_t
 show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w83781d_data *data = w83781d_update_device(dev);
+	struct w83781d_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%ld\n", (long) data->vrm);
 }
 
@@ -482,6 +480,39 @@ show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
+
+static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct w83781d_data *data = w83781d_update_device(dev);
+	int bitnr = to_sensor_dev_attr(attr)->index;
+	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
+}
+
+/* The W83781D has a single alarm bit for temp2 and temp3 */
+static ssize_t show_temp3_alarm(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct w83781d_data *data = w83781d_update_device(dev);
+	int bitnr = (data->type == w83781d) ? 5 : 13;
+	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
+}
+
+static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3);
+static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 8);
+static SENSOR_DEVICE_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 9);
+static SENSOR_DEVICE_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 10);
+static SENSOR_DEVICE_ATTR(in7_alarm, S_IRUGO, show_alarm, NULL, 16);
+static SENSOR_DEVICE_ATTR(in8_alarm, S_IRUGO, show_alarm, NULL, 17);
+static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 6);
+static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 7);
+static SENSOR_DEVICE_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 11);
+static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5);
+static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_temp3_alarm, NULL, 0);
 
 static ssize_t show_beep_mask (struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -545,6 +576,100 @@ static DEVICE_ATTR(beep_mask, S_IRUGO | S_IWUSR,
 		show_beep_mask, store_beep_mask);
 static DEVICE_ATTR(beep_enable, S_IRUGO | S_IWUSR,
 		show_beep_enable, store_beep_enable);
+
+static ssize_t show_beep(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct w83781d_data *data = w83781d_update_device(dev);
+	int bitnr = to_sensor_dev_attr(attr)->index;
+	return sprintf(buf, "%u\n", (data->beep_mask >> bitnr) & 1);
+}
+
+static ssize_t
+store_beep(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct w83781d_data *data = dev_get_drvdata(dev);
+	int bitnr = to_sensor_dev_attr(attr)->index;
+	unsigned long bit;
+	u8 reg;
+
+	bit = simple_strtoul(buf, NULL, 10);
+	if (bit & ~1)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	if (bit)
+		data->beep_mask |= (1 << bitnr);
+	else
+		data->beep_mask &= ~(1 << bitnr);
+
+	if (bitnr < 8) {
+		reg = w83781d_read_value(data, W83781D_REG_BEEP_INTS1);
+		if (bit)
+			reg |= (1 << bitnr);
+		else
+			reg &= ~(1 << bitnr);
+		w83781d_write_value(data, W83781D_REG_BEEP_INTS1, reg);
+	} else if (bitnr < 16) {
+		reg = w83781d_read_value(data, W83781D_REG_BEEP_INTS2);
+		if (bit)
+			reg |= (1 << (bitnr - 8));
+		else
+			reg &= ~(1 << (bitnr - 8));
+		w83781d_write_value(data, W83781D_REG_BEEP_INTS2, reg);
+	} else {
+		reg = w83781d_read_value(data, W83781D_REG_BEEP_INTS3);
+		if (bit)
+			reg |= (1 << (bitnr - 16));
+		else
+			reg &= ~(1 << (bitnr - 16));
+		w83781d_write_value(data, W83781D_REG_BEEP_INTS3, reg);
+	}
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+/* The W83781D has a single beep bit for temp2 and temp3 */
+static ssize_t show_temp3_beep(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct w83781d_data *data = w83781d_update_device(dev);
+	int bitnr = (data->type == w83781d) ? 5 : 13;
+	return sprintf(buf, "%u\n", (data->beep_mask >> bitnr) & 1);
+}
+
+static SENSOR_DEVICE_ATTR(in0_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 0);
+static SENSOR_DEVICE_ATTR(in1_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 1);
+static SENSOR_DEVICE_ATTR(in2_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 2);
+static SENSOR_DEVICE_ATTR(in3_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 3);
+static SENSOR_DEVICE_ATTR(in4_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 8);
+static SENSOR_DEVICE_ATTR(in5_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 9);
+static SENSOR_DEVICE_ATTR(in6_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 10);
+static SENSOR_DEVICE_ATTR(in7_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 16);
+static SENSOR_DEVICE_ATTR(in8_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 17);
+static SENSOR_DEVICE_ATTR(fan1_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 6);
+static SENSOR_DEVICE_ATTR(fan2_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 7);
+static SENSOR_DEVICE_ATTR(fan3_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 11);
+static SENSOR_DEVICE_ATTR(temp1_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 4);
+static SENSOR_DEVICE_ATTR(temp2_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 5);
+static SENSOR_DEVICE_ATTR(temp3_beep, S_IRUGO,
+			show_temp3_beep, store_beep, 13);
 
 static ssize_t
 show_fan_div(struct device *dev, struct device_attribute *da, char *buf)
@@ -721,15 +846,19 @@ store_sensor(struct device *dev, struct device_attribute *da,
 				    tmp & ~BIT_SCFG2[nr]);
 		data->sens[nr] = val;
 		break;
-	case W83781D_DEFAULT_BETA:	/* thermistor */
+	case W83781D_DEFAULT_BETA:
+		dev_warn(dev, "Sensor type %d is deprecated, please use 4 "
+			 "instead\n", W83781D_DEFAULT_BETA);
+		/* fall through */
+	case 4:		/* thermistor */
 		tmp = w83781d_read_value(data, W83781D_REG_SCFG1);
 		w83781d_write_value(data, W83781D_REG_SCFG1,
 				    tmp & ~BIT_SCFG1[nr]);
 		data->sens[nr] = val;
 		break;
 	default:
-		dev_err(dev, "Invalid sensor type %ld; must be 1, 2, or %d\n",
-		       (long) val, W83781D_DEFAULT_BETA);
+		dev_err(dev, "Invalid sensor type %ld; must be 1, 2, or 4\n",
+		       (long) val);
 		break;
 	}
 
@@ -875,17 +1004,23 @@ ERROR_SC_0:
 #define IN_UNIT_ATTRS(X)					\
 	&sensor_dev_attr_in##X##_input.dev_attr.attr,		\
 	&sensor_dev_attr_in##X##_min.dev_attr.attr,		\
-	&sensor_dev_attr_in##X##_max.dev_attr.attr
+	&sensor_dev_attr_in##X##_max.dev_attr.attr, 		\
+	&sensor_dev_attr_in##X##_alarm.dev_attr.attr,		\
+	&sensor_dev_attr_in##X##_beep.dev_attr.attr
 
 #define FAN_UNIT_ATTRS(X)					\
 	&sensor_dev_attr_fan##X##_input.dev_attr.attr,		\
 	&sensor_dev_attr_fan##X##_min.dev_attr.attr,		\
-	&sensor_dev_attr_fan##X##_div.dev_attr.attr
+	&sensor_dev_attr_fan##X##_div.dev_attr.attr,		\
+	&sensor_dev_attr_fan##X##_alarm.dev_attr.attr,		\
+	&sensor_dev_attr_fan##X##_beep.dev_attr.attr
 
 #define TEMP_UNIT_ATTRS(X)					\
 	&sensor_dev_attr_temp##X##_input.dev_attr.attr,		\
 	&sensor_dev_attr_temp##X##_max.dev_attr.attr,		\
-	&sensor_dev_attr_temp##X##_max_hyst.dev_attr.attr
+	&sensor_dev_attr_temp##X##_max_hyst.dev_attr.attr,	\
+	&sensor_dev_attr_temp##X##_alarm.dev_attr.attr,		\
+	&sensor_dev_attr_temp##X##_beep.dev_attr.attr
 
 static struct attribute* w83781d_attributes[] = {
 	IN_UNIT_ATTRS(0),
@@ -944,7 +1079,11 @@ w83781d_create_files(struct device *dev, int kind, int is_isa)
 		    || (err = device_create_file(dev,
 				&sensor_dev_attr_in1_min.dev_attr))
 		    || (err = device_create_file(dev,
-				&sensor_dev_attr_in1_max.dev_attr)))
+				&sensor_dev_attr_in1_max.dev_attr))
+		    || (err = device_create_file(dev,
+				&sensor_dev_attr_in1_alarm.dev_attr))
+		    || (err = device_create_file(dev,
+				&sensor_dev_attr_in1_beep.dev_attr)))
 			return err;
 	}
 	if (kind != as99127f && kind != w83781d && kind != w83783s) {
@@ -955,11 +1094,19 @@ w83781d_create_files(struct device *dev, int kind, int is_isa)
 		    || (err = device_create_file(dev,
 				&sensor_dev_attr_in7_max.dev_attr))
 		    || (err = device_create_file(dev,
+				&sensor_dev_attr_in7_alarm.dev_attr))
+		    || (err = device_create_file(dev,
+				&sensor_dev_attr_in7_beep.dev_attr))
+		    || (err = device_create_file(dev,
 				&sensor_dev_attr_in8_input.dev_attr))
 		    || (err = device_create_file(dev,
 				&sensor_dev_attr_in8_min.dev_attr))
 		    || (err = device_create_file(dev,
-				&sensor_dev_attr_in8_max.dev_attr)))
+				&sensor_dev_attr_in8_max.dev_attr))
+		    || (err = device_create_file(dev,
+				&sensor_dev_attr_in8_alarm.dev_attr))
+		    || (err = device_create_file(dev,
+				&sensor_dev_attr_in8_beep.dev_attr)))
 			return err;
 	}
 	if (kind != w83783s) {
@@ -968,8 +1115,19 @@ w83781d_create_files(struct device *dev, int kind, int is_isa)
 		    || (err = device_create_file(dev,
 				&sensor_dev_attr_temp3_max.dev_attr))
 		    || (err = device_create_file(dev,
-				&sensor_dev_attr_temp3_max_hyst.dev_attr)))
+				&sensor_dev_attr_temp3_max_hyst.dev_attr))
+		    || (err = device_create_file(dev,
+				&sensor_dev_attr_temp3_alarm.dev_attr))
+		    || (err = device_create_file(dev,
+				&sensor_dev_attr_temp3_beep.dev_attr)))
 			return err;
+
+		if (kind != w83781d)
+			err = sysfs_chmod_file(&dev->kobj,
+				&sensor_dev_attr_temp3_alarm.dev_attr.attr,
+				S_IRUGO | S_IWUSR);
+			if (err)
+				return err;
 	}
 
 	if (kind != w83781d && kind != as99127f) {
@@ -1156,9 +1314,9 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (err)
 		goto ERROR4;
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto ERROR4;
 	}
 
@@ -1192,7 +1350,7 @@ w83781d_detach_client(struct i2c_client *client)
 
 	/* main client */
 	if (data) {
-		hwmon_device_unregister(data->class_dev);
+		hwmon_device_unregister(data->hwmon_dev);
 		sysfs_remove_group(&client->dev.kobj, &w83781d_group);
 		sysfs_remove_group(&client->dev.kobj, &w83781d_group_opt);
 	}
@@ -1259,9 +1417,9 @@ w83781d_isa_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_remove_files;
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_files;
 	}
 
@@ -1283,7 +1441,7 @@ w83781d_isa_remove(struct platform_device *pdev)
 {
 	struct w83781d_data *data = platform_get_drvdata(pdev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group);
 	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group_opt);
 	device_remove_file(&pdev->dev, &dev_attr_name);
@@ -1485,7 +1643,7 @@ w83781d_init_device(struct device *dev)
 		tmp = w83781d_read_value(data, W83781D_REG_SCFG1);
 		for (i = 1; i <= 3; i++) {
 			if (!(tmp & BIT_SCFG1[i - 1])) {
-				data->sens[i - 1] = W83781D_DEFAULT_BETA;
+				data->sens[i - 1] = 4;
 			} else {
 				if (w83781d_read_value
 				    (data,

@@ -6,6 +6,10 @@ Supported chips:
     Prefix: 'f71805f'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Available from the Fintek website
+  * Fintek F71806F/FG
+    Prefix: 'f71872f'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Available from the Fintek website
   * Fintek F71872F/FG
     Prefix: 'f71872f'
     Addresses scanned: none, address read from Super I/O config space
@@ -37,6 +41,9 @@ three different modes (one manual, two automatic).
 The Fintek F71872F/FG Super I/O chip is almost the same, with two
 additional internal voltages monitored (VSB and battery). It also features
 6 VID inputs. The VID inputs are not yet supported by this driver.
+
+The Fintek F71806F/FG Super-I/O chip is essentially the same as the
+F71872F/FG, and is undistinguishable therefrom.
 
 The driver assumes that no more than one chip is present, which seems
 reasonable.

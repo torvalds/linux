@@ -1,12 +1,12 @@
 /*
- * dme1737.c - driver for the SMSC DME1737 and Asus A8000 Super-I/O chips
- *             integrated hardware monitoring features.
+ * dme1737.c - Driver for the SMSC DME1737, Asus A8000, and SMSC SCH311x
+ *             Super-I/O chips integrated hardware monitoring features.
  * Copyright (c) 2007 Juerg Haefliger <juergh@gmail.com>
  *
- * This driver is based on the LM85 driver. The hardware monitoring
- * capabilities of the DME1737 are very similar to the LM85 with some
- * additional features. Even though the DME1737 is a Super-I/O chip, the
- * hardware monitoring registers are only accessible via SMBus.
+ * This driver is an I2C/ISA hybrid, meaning that it uses the I2C bus to access
+ * the chip registers if a DME1737 (or A8000) is found and the ISA bus if a
+ * SCH311x chip is found. Both types of chips have very similar hardware
+ * monitoring capabilities but differ in the way they can be accessed.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,12 +28,16 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/platform_device.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
+
+/* ISA device, if found */
+static struct platform_device *pdev;
 
 /* Module load parameters */
 static int force_start;
@@ -133,6 +137,7 @@ static const u8 DME1737_BIT_ALARM_TEMP[] = {4, 5, 6};
 static const u8 DME1737_BIT_ALARM_FAN[] = {10, 11, 12, 13, 22, 23};
 
 /* Miscellaneous registers */
+#define DME1737_REG_DEVICE		0x3d
 #define DME1737_REG_COMPANY		0x3e
 #define DME1737_REG_VERSTEP		0x3f
 #define DME1737_REG_CONFIG		0x40
@@ -148,14 +153,20 @@ static const u8 DME1737_BIT_ALARM_FAN[] = {10, 11, 12, 13, 22, 23};
 #define DME1737_COMPANY_SMSC	0x5c
 #define DME1737_VERSTEP		0x88
 #define DME1737_VERSTEP_MASK	0xf8
+#define SCH311X_DEVICE		0x8c
+
+/* Length of ISA address segment */
+#define DME1737_EXTENT	2
 
 /* ---------------------------------------------------------------------
  * Data structures and manipulation thereof
  * --------------------------------------------------------------------- */
 
+/* For ISA chips, we abuse the i2c_client addr and name fields. We also use
+   the driver field to differentiate between I2C and ISA chips. */
 struct dme1737_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	int valid;			/* !=0 if following fields are valid */
@@ -465,27 +476,48 @@ static inline int PWM_OFF_TO_REG(int val, int ix, int reg)
 
 /* ---------------------------------------------------------------------
  * Device I/O access
+ *
+ * ISA access is performed through an index/data register pair and needs to
+ * be protected by a mutex during runtime (not required for initialization).
+ * We use data->update_lock for this and need to ensure that we acquire it
+ * before calling dme1737_read or dme1737_write.
  * --------------------------------------------------------------------- */
 
 static u8 dme1737_read(struct i2c_client *client, u8 reg)
 {
-	s32 val = i2c_smbus_read_byte_data(client, reg);
+	s32 val;
 
-	if (val < 0) {
-		dev_warn(&client->dev, "Read from register 0x%02x failed! "
-			 "Please report to the driver maintainer.\n", reg);
+	if (client->driver) { /* I2C device */
+		val = i2c_smbus_read_byte_data(client, reg);
+
+		if (val < 0) {
+			dev_warn(&client->dev, "Read from register "
+				 "0x%02x failed! Please report to the driver "
+				 "maintainer.\n", reg);
+		}
+	} else { /* ISA device */
+		outb(reg, client->addr);
+		val = inb(client->addr + 1);
 	}
 
 	return val;
 }
 
-static s32 dme1737_write(struct i2c_client *client, u8 reg, u8 value)
+static s32 dme1737_write(struct i2c_client *client, u8 reg, u8 val)
 {
-	s32 res = i2c_smbus_write_byte_data(client, reg, value);
+	s32 res = 0;
 
-	if (res < 0) {
-		dev_warn(&client->dev, "Write to register 0x%02x failed! "
-			 "Please report to the driver maintainer.\n", reg);
+	if (client->driver) { /* I2C device */
+		res = i2c_smbus_write_byte_data(client, reg, val);
+
+		if (res < 0) {
+			dev_warn(&client->dev, "Write to register "
+				 "0x%02x failed! Please report to the driver "
+				 "maintainer.\n", reg);
+		}
+	} else { /* ISA device */
+		outb(reg, client->addr);
+		outb(val, client->addr + 1);
 	}
 
 	return res;
@@ -493,8 +525,8 @@ static s32 dme1737_write(struct i2c_client *client, u8 reg, u8 value)
 
 static struct dme1737_data *dme1737_update_device(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct dme1737_data *data = i2c_get_clientdata(client);
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = &data->client;
 	int ix;
 	u8 lsb[5];
 
@@ -630,6 +662,24 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 						DME1737_REG_ALARM3) << 16;
 		}
 
+		/* The ISA chips require explicit clearing of alarm bits.
+		 * Don't worry, an alarm will come back if the condition
+		 * that causes it still exists */
+		if (!client->driver) {
+			if (data->alarms & 0xff0000) {
+				dme1737_write(client, DME1737_REG_ALARM3,
+					      0xff);
+			}
+			if (data->alarms & 0xff00) {
+				dme1737_write(client, DME1737_REG_ALARM2,
+					      0xff);
+			}
+			if (data->alarms & 0xff) {
+				dme1737_write(client, DME1737_REG_ALARM1,
+					      0xff);
+			}
+		}
+
 		data->last_update = jiffies;
 		data->valid = 1;
 	}
@@ -674,7 +724,7 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -683,8 +733,8 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 		      const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct dme1737_data *data = i2c_get_clientdata(client);
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = &data->client;
 	struct sensor_device_attribute_2
 		*sensor_attr_2 = to_sensor_dev_attr_2(attr);
 	int ix = sensor_attr_2->index;
@@ -704,7 +754,7 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 			      data->in_max[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -754,7 +804,7 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -763,8 +813,8 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct dme1737_data *data = i2c_get_clientdata(client);
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = &data->client;
 	struct sensor_device_attribute_2
 		*sensor_attr_2 = to_sensor_dev_attr_2(attr);
 	int ix = sensor_attr_2->index;
@@ -789,7 +839,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 			      data->temp_offset[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -843,7 +893,7 @@ static ssize_t show_zone(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -852,8 +902,8 @@ static ssize_t show_zone(struct device *dev, struct device_attribute *attr,
 static ssize_t set_zone(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct dme1737_data *data = i2c_get_clientdata(client);
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = &data->client;
 	struct sensor_device_attribute_2
 		*sensor_attr_2 = to_sensor_dev_attr_2(attr);
 	int ix = sensor_attr_2->index;
@@ -898,7 +948,7 @@ static ssize_t set_zone(struct device *dev, struct device_attribute *attr,
 			      data->zone_abs[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -950,7 +1000,7 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -959,8 +1009,8 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct dme1737_data *data = i2c_get_clientdata(client);
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = &data->client;
 	struct sensor_device_attribute_2
 		*sensor_attr_2 = to_sensor_dev_attr_2(attr);
 	int ix = sensor_attr_2->index;
@@ -995,7 +1045,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 		/* Only valid for fan[1-4] */
 		if (!(val == 1 || val == 2 || val == 4)) {
 			count = -EINVAL;
-			dev_warn(&client->dev, "Fan type value %ld not "
+			dev_warn(dev, "Fan type value %ld not "
 				 "supported. Choose one of 1, 2, or 4.\n",
 				 val);
 			goto exit;
@@ -1006,7 +1056,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 			      data->fan_opt[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 exit:
 	mutex_unlock(&data->update_lock);
@@ -1086,20 +1136,20 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
 }
 
 static struct attribute *dme1737_attr_pwm[];
-static void dme1737_chmod_file(struct i2c_client*, struct attribute*, mode_t);
+static void dme1737_chmod_file(struct device*, struct attribute*, mode_t);
 
 static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct dme1737_data *data = i2c_get_clientdata(client);
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = &data->client;
 	struct sensor_device_attribute_2
 		*sensor_attr_2 = to_sensor_dev_attr_2(attr);
 	int ix = sensor_attr_2->index;
@@ -1122,7 +1172,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		/* Only valid for pwm[1-3] */
 		if (val < 0 || val > 2) {
 			count = -EINVAL;
-			dev_warn(&client->dev, "PWM enable %ld not "
+			dev_warn(dev, "PWM enable %ld not "
 				 "supported. Choose one of 0, 1, or 2.\n",
 				 val);
 			goto exit;
@@ -1156,7 +1206,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		switch (val) {
 		case 0:
 			/* Change permissions of pwm[ix] to read-only */
-			dme1737_chmod_file(client, dme1737_attr_pwm[ix],
+			dme1737_chmod_file(dev, dme1737_attr_pwm[ix],
 					   S_IRUGO);
 			/* Turn fan fully on */
 			data->pwm_config[ix] = PWM_EN_TO_REG(0,
@@ -1171,12 +1221,12 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 			dme1737_write(client, DME1737_REG_PWM_CONFIG(ix),
 				      data->pwm_config[ix]);
 			/* Change permissions of pwm[ix] to read-writeable */
-			dme1737_chmod_file(client, dme1737_attr_pwm[ix],
+			dme1737_chmod_file(dev, dme1737_attr_pwm[ix],
 					   S_IRUGO | S_IWUSR);
 			break;
 		case 2:
 			/* Change permissions of pwm[ix] to read-only */
-			dme1737_chmod_file(client, dme1737_attr_pwm[ix],
+			dme1737_chmod_file(dev, dme1737_attr_pwm[ix],
 					   S_IRUGO);
 			/* Turn on auto mode using the saved zone channel
 			 * assignment */
@@ -1223,7 +1273,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		if (!(val == 1 || val == 2 || val == 4 ||
 		      val == 6 || val == 7)) {
 			count = -EINVAL;
-			dev_warn(&client->dev, "PWM auto channels zone %ld "
+			dev_warn(dev, "PWM auto channels zone %ld "
 				 "not supported. Choose one of 1, 2, 4, 6, "
 				 "or 7.\n", val);
 			goto exit;
@@ -1257,12 +1307,10 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 			data->pwm_rr[0] = PWM_OFF_TO_REG(1, ix,
 						dme1737_read(client,
 						DME1737_REG_PWM_RR(0)));
-
 		} else {
 			data->pwm_rr[0] = PWM_OFF_TO_REG(0, ix,
 						dme1737_read(client,
 						DME1737_REG_PWM_RR(0)));
-
 		}
 		dme1737_write(client, DME1737_REG_PWM_RR(0),
 			      data->pwm_rr[0]);
@@ -1274,7 +1322,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 			      data->pwm_min[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unknown function %d.\n", fn);
 	}
 exit:
 	mutex_unlock(&data->update_lock);
@@ -1298,8 +1346,7 @@ static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
 static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct dme1737_data *data = i2c_get_clientdata(client);
+	struct dme1737_data *data = dev_get_drvdata(dev);
 	long val = simple_strtol(buf, NULL, 10);
 
 	data->vrm = val;
@@ -1314,6 +1361,14 @@ static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
 
+static ssize_t show_name(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct dme1737_data *data = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", data->client.name);
+}
+
 /* ---------------------------------------------------------------------
  * Sysfs device attribute defines and structs
  * --------------------------------------------------------------------- */
@@ -1322,13 +1377,13 @@ static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
 
 #define SENSOR_DEVICE_ATTR_IN(ix) \
 static SENSOR_DEVICE_ATTR_2(in##ix##_input, S_IRUGO, \
-        show_in, NULL, SYS_IN_INPUT, ix); \
+	show_in, NULL, SYS_IN_INPUT, ix); \
 static SENSOR_DEVICE_ATTR_2(in##ix##_min, S_IRUGO | S_IWUSR, \
-        show_in, set_in, SYS_IN_MIN, ix); \
+	show_in, set_in, SYS_IN_MIN, ix); \
 static SENSOR_DEVICE_ATTR_2(in##ix##_max, S_IRUGO | S_IWUSR, \
-        show_in, set_in, SYS_IN_MAX, ix); \
+	show_in, set_in, SYS_IN_MAX, ix); \
 static SENSOR_DEVICE_ATTR_2(in##ix##_alarm, S_IRUGO, \
-        show_in, NULL, SYS_IN_ALARM, ix)
+	show_in, NULL, SYS_IN_ALARM, ix)
 
 SENSOR_DEVICE_ATTR_IN(0);
 SENSOR_DEVICE_ATTR_IN(1);
@@ -1342,17 +1397,17 @@ SENSOR_DEVICE_ATTR_IN(6);
 
 #define SENSOR_DEVICE_ATTR_TEMP(ix) \
 static SENSOR_DEVICE_ATTR_2(temp##ix##_input, S_IRUGO, \
-        show_temp, NULL, SYS_TEMP_INPUT, ix-1); \
+	show_temp, NULL, SYS_TEMP_INPUT, ix-1); \
 static SENSOR_DEVICE_ATTR_2(temp##ix##_min, S_IRUGO | S_IWUSR, \
-        show_temp, set_temp, SYS_TEMP_MIN, ix-1); \
+	show_temp, set_temp, SYS_TEMP_MIN, ix-1); \
 static SENSOR_DEVICE_ATTR_2(temp##ix##_max, S_IRUGO | S_IWUSR, \
-        show_temp, set_temp, SYS_TEMP_MAX, ix-1); \
+	show_temp, set_temp, SYS_TEMP_MAX, ix-1); \
 static SENSOR_DEVICE_ATTR_2(temp##ix##_offset, S_IRUGO, \
-        show_temp, set_temp, SYS_TEMP_OFFSET, ix-1); \
+	show_temp, set_temp, SYS_TEMP_OFFSET, ix-1); \
 static SENSOR_DEVICE_ATTR_2(temp##ix##_alarm, S_IRUGO, \
-        show_temp, NULL, SYS_TEMP_ALARM, ix-1); \
+	show_temp, NULL, SYS_TEMP_ALARM, ix-1); \
 static SENSOR_DEVICE_ATTR_2(temp##ix##_fault, S_IRUGO, \
-        show_temp, NULL, SYS_TEMP_FAULT, ix-1)
+	show_temp, NULL, SYS_TEMP_FAULT, ix-1)
 
 SENSOR_DEVICE_ATTR_TEMP(1);
 SENSOR_DEVICE_ATTR_TEMP(2);
@@ -1362,15 +1417,15 @@ SENSOR_DEVICE_ATTR_TEMP(3);
 
 #define SENSOR_DEVICE_ATTR_ZONE(ix) \
 static SENSOR_DEVICE_ATTR_2(zone##ix##_auto_channels_temp, S_IRUGO, \
-        show_zone, NULL, SYS_ZONE_AUTO_CHANNELS_TEMP, ix-1); \
+	show_zone, NULL, SYS_ZONE_AUTO_CHANNELS_TEMP, ix-1); \
 static SENSOR_DEVICE_ATTR_2(zone##ix##_auto_point1_temp_hyst, S_IRUGO, \
-        show_zone, set_zone, SYS_ZONE_AUTO_POINT1_TEMP_HYST, ix-1); \
+	show_zone, set_zone, SYS_ZONE_AUTO_POINT1_TEMP_HYST, ix-1); \
 static SENSOR_DEVICE_ATTR_2(zone##ix##_auto_point1_temp, S_IRUGO, \
-        show_zone, set_zone, SYS_ZONE_AUTO_POINT1_TEMP, ix-1); \
+	show_zone, set_zone, SYS_ZONE_AUTO_POINT1_TEMP, ix-1); \
 static SENSOR_DEVICE_ATTR_2(zone##ix##_auto_point2_temp, S_IRUGO, \
-        show_zone, set_zone, SYS_ZONE_AUTO_POINT2_TEMP, ix-1); \
+	show_zone, set_zone, SYS_ZONE_AUTO_POINT2_TEMP, ix-1); \
 static SENSOR_DEVICE_ATTR_2(zone##ix##_auto_point3_temp, S_IRUGO, \
-        show_zone, set_zone, SYS_ZONE_AUTO_POINT3_TEMP, ix-1)
+	show_zone, set_zone, SYS_ZONE_AUTO_POINT3_TEMP, ix-1)
 
 SENSOR_DEVICE_ATTR_ZONE(1);
 SENSOR_DEVICE_ATTR_ZONE(2);
@@ -1380,13 +1435,13 @@ SENSOR_DEVICE_ATTR_ZONE(3);
 
 #define SENSOR_DEVICE_ATTR_FAN_1TO4(ix) \
 static SENSOR_DEVICE_ATTR_2(fan##ix##_input, S_IRUGO, \
-        show_fan, NULL, SYS_FAN_INPUT, ix-1); \
+	show_fan, NULL, SYS_FAN_INPUT, ix-1); \
 static SENSOR_DEVICE_ATTR_2(fan##ix##_min, S_IRUGO | S_IWUSR, \
-        show_fan, set_fan, SYS_FAN_MIN, ix-1); \
+	show_fan, set_fan, SYS_FAN_MIN, ix-1); \
 static SENSOR_DEVICE_ATTR_2(fan##ix##_alarm, S_IRUGO, \
-        show_fan, NULL, SYS_FAN_ALARM, ix-1); \
+	show_fan, NULL, SYS_FAN_ALARM, ix-1); \
 static SENSOR_DEVICE_ATTR_2(fan##ix##_type, S_IRUGO | S_IWUSR, \
-        show_fan, set_fan, SYS_FAN_TYPE, ix-1)
+	show_fan, set_fan, SYS_FAN_TYPE, ix-1)
 
 SENSOR_DEVICE_ATTR_FAN_1TO4(1);
 SENSOR_DEVICE_ATTR_FAN_1TO4(2);
@@ -1397,13 +1452,13 @@ SENSOR_DEVICE_ATTR_FAN_1TO4(4);
 
 #define SENSOR_DEVICE_ATTR_FAN_5TO6(ix) \
 static SENSOR_DEVICE_ATTR_2(fan##ix##_input, S_IRUGO, \
-        show_fan, NULL, SYS_FAN_INPUT, ix-1); \
+	show_fan, NULL, SYS_FAN_INPUT, ix-1); \
 static SENSOR_DEVICE_ATTR_2(fan##ix##_min, S_IRUGO | S_IWUSR, \
-        show_fan, set_fan, SYS_FAN_MIN, ix-1); \
+	show_fan, set_fan, SYS_FAN_MIN, ix-1); \
 static SENSOR_DEVICE_ATTR_2(fan##ix##_alarm, S_IRUGO, \
-        show_fan, NULL, SYS_FAN_ALARM, ix-1); \
+	show_fan, NULL, SYS_FAN_ALARM, ix-1); \
 static SENSOR_DEVICE_ATTR_2(fan##ix##_max, S_IRUGO | S_IWUSR, \
-        show_fan, set_fan, SYS_FAN_MAX, ix-1)
+	show_fan, set_fan, SYS_FAN_MAX, ix-1)
 
 SENSOR_DEVICE_ATTR_FAN_5TO6(5);
 SENSOR_DEVICE_ATTR_FAN_5TO6(6);
@@ -1412,21 +1467,21 @@ SENSOR_DEVICE_ATTR_FAN_5TO6(6);
 
 #define SENSOR_DEVICE_ATTR_PWM_1TO3(ix) \
 static SENSOR_DEVICE_ATTR_2(pwm##ix, S_IRUGO, \
-        show_pwm, set_pwm, SYS_PWM, ix-1); \
+	show_pwm, set_pwm, SYS_PWM, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_freq, S_IRUGO, \
-        show_pwm, set_pwm, SYS_PWM_FREQ, ix-1); \
+	show_pwm, set_pwm, SYS_PWM_FREQ, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_enable, S_IRUGO, \
-        show_pwm, set_pwm, SYS_PWM_ENABLE, ix-1); \
+	show_pwm, set_pwm, SYS_PWM_ENABLE, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_ramp_rate, S_IRUGO, \
-        show_pwm, set_pwm, SYS_PWM_RAMP_RATE, ix-1); \
+	show_pwm, set_pwm, SYS_PWM_RAMP_RATE, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_auto_channels_zone, S_IRUGO, \
-        show_pwm, set_pwm, SYS_PWM_AUTO_CHANNELS_ZONE, ix-1); \
+	show_pwm, set_pwm, SYS_PWM_AUTO_CHANNELS_ZONE, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_auto_pwm_min, S_IRUGO, \
-        show_pwm, set_pwm, SYS_PWM_AUTO_PWM_MIN, ix-1); \
+	show_pwm, set_pwm, SYS_PWM_AUTO_PWM_MIN, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_auto_point1_pwm, S_IRUGO, \
-        show_pwm, set_pwm, SYS_PWM_AUTO_POINT1_PWM, ix-1); \
+	show_pwm, set_pwm, SYS_PWM_AUTO_POINT1_PWM, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_auto_point2_pwm, S_IRUGO, \
-        show_pwm, NULL, SYS_PWM_AUTO_POINT2_PWM, ix-1)
+	show_pwm, NULL, SYS_PWM_AUTO_POINT2_PWM, ix-1)
 
 SENSOR_DEVICE_ATTR_PWM_1TO3(1);
 SENSOR_DEVICE_ATTR_PWM_1TO3(2);
@@ -1436,11 +1491,11 @@ SENSOR_DEVICE_ATTR_PWM_1TO3(3);
 
 #define SENSOR_DEVICE_ATTR_PWM_5TO6(ix) \
 static SENSOR_DEVICE_ATTR_2(pwm##ix, S_IRUGO | S_IWUSR, \
-        show_pwm, set_pwm, SYS_PWM, ix-1); \
+	show_pwm, set_pwm, SYS_PWM, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_freq, S_IRUGO | S_IWUSR, \
-        show_pwm, set_pwm, SYS_PWM_FREQ, ix-1); \
+	show_pwm, set_pwm, SYS_PWM_FREQ, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_enable, S_IRUGO, \
-        show_pwm, NULL, SYS_PWM_ENABLE, ix-1)
+	show_pwm, NULL, SYS_PWM_ENABLE, ix-1)
 
 SENSOR_DEVICE_ATTR_PWM_5TO6(5);
 SENSOR_DEVICE_ATTR_PWM_5TO6(6);
@@ -1449,6 +1504,7 @@ SENSOR_DEVICE_ATTR_PWM_5TO6(6);
 
 static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);   /* for ISA devices */
 
 #define SENSOR_DEV_ATTR_IN(ix) \
 &sensor_dev_attr_in##ix##_input.dev_attr.attr, \
@@ -1519,53 +1575,53 @@ SENSOR_DEV_ATTR_PWM_5TO6_LOCK(ix), \
  * permissions are created read-only and write permissions are added or removed
  * on the fly when required */
 static struct attribute *dme1737_attr[] ={
-        /* Voltages */
-        SENSOR_DEV_ATTR_IN(0),
-        SENSOR_DEV_ATTR_IN(1),
-        SENSOR_DEV_ATTR_IN(2),
-        SENSOR_DEV_ATTR_IN(3),
-        SENSOR_DEV_ATTR_IN(4),
-        SENSOR_DEV_ATTR_IN(5),
-        SENSOR_DEV_ATTR_IN(6),
-        /* Temperatures */
-        SENSOR_DEV_ATTR_TEMP(1),
-        SENSOR_DEV_ATTR_TEMP(2),
-        SENSOR_DEV_ATTR_TEMP(3),
-        /* Zones */
-        SENSOR_DEV_ATTR_ZONE(1),
-        SENSOR_DEV_ATTR_ZONE(2),
-        SENSOR_DEV_ATTR_ZONE(3),
-        /* Misc */
-        &dev_attr_vrm.attr,
-        &dev_attr_cpu0_vid.attr,
+	/* Voltages */
+	SENSOR_DEV_ATTR_IN(0),
+	SENSOR_DEV_ATTR_IN(1),
+	SENSOR_DEV_ATTR_IN(2),
+	SENSOR_DEV_ATTR_IN(3),
+	SENSOR_DEV_ATTR_IN(4),
+	SENSOR_DEV_ATTR_IN(5),
+	SENSOR_DEV_ATTR_IN(6),
+	/* Temperatures */
+	SENSOR_DEV_ATTR_TEMP(1),
+	SENSOR_DEV_ATTR_TEMP(2),
+	SENSOR_DEV_ATTR_TEMP(3),
+	/* Zones */
+	SENSOR_DEV_ATTR_ZONE(1),
+	SENSOR_DEV_ATTR_ZONE(2),
+	SENSOR_DEV_ATTR_ZONE(3),
+	/* Misc */
+	&dev_attr_vrm.attr,
+	&dev_attr_cpu0_vid.attr,
 	NULL
 };
 
 static const struct attribute_group dme1737_group = {
-        .attrs = dme1737_attr,
+	.attrs = dme1737_attr,
 };
 
 /* The following structs hold the PWM attributes, some of which are optional.
  * Their creation depends on the chip configuration which is determined during
  * module load. */
 static struct attribute *dme1737_attr_pwm1[] = {
-        SENSOR_DEV_ATTR_PWM_1TO3(1),
+	SENSOR_DEV_ATTR_PWM_1TO3(1),
 	NULL
 };
 static struct attribute *dme1737_attr_pwm2[] = {
-        SENSOR_DEV_ATTR_PWM_1TO3(2),
+	SENSOR_DEV_ATTR_PWM_1TO3(2),
 	NULL
 };
 static struct attribute *dme1737_attr_pwm3[] = {
-        SENSOR_DEV_ATTR_PWM_1TO3(3),
+	SENSOR_DEV_ATTR_PWM_1TO3(3),
 	NULL
 };
 static struct attribute *dme1737_attr_pwm5[] = {
-        SENSOR_DEV_ATTR_PWM_5TO6(5),
+	SENSOR_DEV_ATTR_PWM_5TO6(5),
 	NULL
 };
 static struct attribute *dme1737_attr_pwm6[] = {
-        SENSOR_DEV_ATTR_PWM_5TO6(6),
+	SENSOR_DEV_ATTR_PWM_5TO6(6),
 	NULL
 };
 
@@ -1582,27 +1638,27 @@ static const struct attribute_group dme1737_pwm_group[] = {
  * Their creation depends on the chip configuration which is determined during
  * module load. */
 static struct attribute *dme1737_attr_fan1[] = {
-        SENSOR_DEV_ATTR_FAN_1TO4(1),
+	SENSOR_DEV_ATTR_FAN_1TO4(1),
 	NULL
 };
 static struct attribute *dme1737_attr_fan2[] = {
-        SENSOR_DEV_ATTR_FAN_1TO4(2),
+	SENSOR_DEV_ATTR_FAN_1TO4(2),
 	NULL
 };
 static struct attribute *dme1737_attr_fan3[] = {
-        SENSOR_DEV_ATTR_FAN_1TO4(3),
+	SENSOR_DEV_ATTR_FAN_1TO4(3),
 	NULL
 };
 static struct attribute *dme1737_attr_fan4[] = {
-        SENSOR_DEV_ATTR_FAN_1TO4(4),
+	SENSOR_DEV_ATTR_FAN_1TO4(4),
 	NULL
 };
 static struct attribute *dme1737_attr_fan5[] = {
-        SENSOR_DEV_ATTR_FAN_5TO6(5),
+	SENSOR_DEV_ATTR_FAN_5TO6(5),
 	NULL
 };
 static struct attribute *dme1737_attr_fan6[] = {
-        SENSOR_DEV_ATTR_FAN_5TO6(6),
+	SENSOR_DEV_ATTR_FAN_5TO6(6),
 	NULL
 };
 
@@ -1637,23 +1693,23 @@ static const struct attribute_group dme1737_lock_group = {
  * writeable if the chip is *not* locked and the respective PWM is available.
  * Otherwise they stay read-only. */
 static struct attribute *dme1737_attr_pwm1_lock[] = {
-        SENSOR_DEV_ATTR_PWM_1TO3_LOCK(1),
+	SENSOR_DEV_ATTR_PWM_1TO3_LOCK(1),
 	NULL
 };
 static struct attribute *dme1737_attr_pwm2_lock[] = {
-        SENSOR_DEV_ATTR_PWM_1TO3_LOCK(2),
+	SENSOR_DEV_ATTR_PWM_1TO3_LOCK(2),
 	NULL
 };
 static struct attribute *dme1737_attr_pwm3_lock[] = {
-        SENSOR_DEV_ATTR_PWM_1TO3_LOCK(3),
+	SENSOR_DEV_ATTR_PWM_1TO3_LOCK(3),
 	NULL
 };
 static struct attribute *dme1737_attr_pwm5_lock[] = {
-        SENSOR_DEV_ATTR_PWM_5TO6_LOCK(5),
+	SENSOR_DEV_ATTR_PWM_5TO6_LOCK(5),
 	NULL
 };
 static struct attribute *dme1737_attr_pwm6_lock[] = {
-        SENSOR_DEV_ATTR_PWM_5TO6_LOCK(6),
+	SENSOR_DEV_ATTR_PWM_5TO6_LOCK(6),
 	NULL
 };
 
@@ -1678,6 +1734,16 @@ static struct attribute *dme1737_attr_pwm[] = {
  * Super-IO functions
  * --------------------------------------------------------------------- */
 
+static inline void dme1737_sio_enter(int sio_cip)
+{
+	outb(0x55, sio_cip);
+}
+
+static inline void dme1737_sio_exit(int sio_cip)
+{
+	outb(0xaa, sio_cip);
+}
+
 static inline int dme1737_sio_inb(int sio_cip, int reg)
 {
 	outb(reg, sio_cip);
@@ -1690,14 +1756,266 @@ static inline void dme1737_sio_outb(int sio_cip, int reg, int val)
 	outb(val, sio_cip + 1);
 }
 
-static int dme1737_sio_get_features(int sio_cip, struct i2c_client *client)
+/* ---------------------------------------------------------------------
+ * Device initialization
+ * --------------------------------------------------------------------- */
+
+static int dme1737_i2c_get_features(int, struct dme1737_data*);
+
+static void dme1737_chmod_file(struct device *dev,
+			       struct attribute *attr, mode_t mode)
 {
-	struct dme1737_data *data = i2c_get_clientdata(client);
+	if (sysfs_chmod_file(&dev->kobj, attr, mode)) {
+		dev_warn(dev, "Failed to change permissions of %s.\n",
+			 attr->name);
+	}
+}
+
+static void dme1737_chmod_group(struct device *dev,
+				const struct attribute_group *group,
+				mode_t mode)
+{
+	struct attribute **attr;
+
+	for (attr = group->attrs; *attr; attr++) {
+		dme1737_chmod_file(dev, *attr, mode);
+	}
+}
+
+static void dme1737_remove_files(struct device *dev)
+{
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	int ix;
+
+	for (ix = 0; ix < ARRAY_SIZE(dme1737_fan_group); ix++) {
+		if (data->has_fan & (1 << ix)) {
+			sysfs_remove_group(&dev->kobj,
+					   &dme1737_fan_group[ix]);
+		}
+	}
+
+	for (ix = 0; ix < ARRAY_SIZE(dme1737_pwm_group); ix++) {
+		if (data->has_pwm & (1 << ix)) {
+			sysfs_remove_group(&dev->kobj,
+					   &dme1737_pwm_group[ix]);
+		}
+	}
+
+	sysfs_remove_group(&dev->kobj, &dme1737_group);
+
+	if (!data->client.driver) {
+		sysfs_remove_file(&dev->kobj, &dev_attr_name.attr);
+	}
+}
+
+static int dme1737_create_files(struct device *dev)
+{
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	int err, ix;
+
+	/* Create a name attribute for ISA devices */
+	if (!data->client.driver &&
+	    (err = sysfs_create_file(&dev->kobj, &dev_attr_name.attr))) {
+		goto exit;
+	}
+
+	/* Create standard sysfs attributes */
+	if ((err = sysfs_create_group(&dev->kobj, &dme1737_group))) {
+		goto exit_remove;
+	}
+
+	/* Create fan sysfs attributes */
+	for (ix = 0; ix < ARRAY_SIZE(dme1737_fan_group); ix++) {
+		if (data->has_fan & (1 << ix)) {
+			if ((err = sysfs_create_group(&dev->kobj,
+						&dme1737_fan_group[ix]))) {
+				goto exit_remove;
+			}
+		}
+	}
+
+	/* Create PWM sysfs attributes */
+	for (ix = 0; ix < ARRAY_SIZE(dme1737_pwm_group); ix++) {
+		if (data->has_pwm & (1 << ix)) {
+			if ((err = sysfs_create_group(&dev->kobj,
+						&dme1737_pwm_group[ix]))) {
+				goto exit_remove;
+			}
+		}
+	}
+
+	/* Inform if the device is locked. Otherwise change the permissions of
+	 * selected attributes from read-only to read-writeable. */
+	if (data->config & 0x02) {
+		dev_info(dev, "Device is locked. Some attributes "
+			 "will be read-only.\n");
+	} else {
+		/* Change permissions of standard attributes */
+		dme1737_chmod_group(dev, &dme1737_lock_group,
+				    S_IRUGO | S_IWUSR);
+
+		/* Change permissions of PWM attributes */
+		for (ix = 0; ix < ARRAY_SIZE(dme1737_pwm_lock_group); ix++) {
+			if (data->has_pwm & (1 << ix)) {
+				dme1737_chmod_group(dev,
+						&dme1737_pwm_lock_group[ix],
+						S_IRUGO | S_IWUSR);
+			}
+		}
+
+		/* Change permissions of pwm[1-3] if in manual mode */
+		for (ix = 0; ix < 3; ix++) {
+			if ((data->has_pwm & (1 << ix)) &&
+			    (PWM_EN_FROM_REG(data->pwm_config[ix]) == 1)) {
+				dme1737_chmod_file(dev,
+						dme1737_attr_pwm[ix],
+						S_IRUGO | S_IWUSR);
+			}
+		}
+	}
+
+	return 0;
+
+exit_remove:
+	dme1737_remove_files(dev);
+exit:
+	return err;
+}
+
+static int dme1737_init_device(struct device *dev)
+{
+	struct dme1737_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = &data->client;
+	int ix;
+	u8 reg;
+
+	data->config = dme1737_read(client, DME1737_REG_CONFIG);
+	/* Inform if part is not monitoring/started */
+	if (!(data->config & 0x01)) {
+		if (!force_start) {
+			dev_err(dev, "Device is not monitoring. "
+				"Use the force_start load parameter to "
+				"override.\n");
+			return -EFAULT;
+		}
+
+		/* Force monitoring */
+		data->config |= 0x01;
+		dme1737_write(client, DME1737_REG_CONFIG, data->config);
+	}
+	/* Inform if part is not ready */
+	if (!(data->config & 0x04)) {
+		dev_err(dev, "Device is not ready.\n");
+		return -EFAULT;
+	}
+
+	/* Determine which optional fan and pwm features are enabled/present */
+	if (client->driver) {   /* I2C chip */
+		data->config2 = dme1737_read(client, DME1737_REG_CONFIG2);
+		/* Check if optional fan3 input is enabled */
+		if (data->config2 & 0x04) {
+			data->has_fan |= (1 << 2);
+		}
+
+		/* Fan4 and pwm3 are only available if the client's I2C address
+		 * is the default 0x2e. Otherwise the I/Os associated with
+		 * these functions are used for addr enable/select. */
+		if (data->client.addr == 0x2e) {
+			data->has_fan |= (1 << 3);
+			data->has_pwm |= (1 << 2);
+		}
+
+		/* Determine which of the optional fan[5-6] and pwm[5-6]
+		 * features are enabled. For this, we need to query the runtime
+		 * registers through the Super-IO LPC interface. Try both
+		 * config ports 0x2e and 0x4e. */
+		if (dme1737_i2c_get_features(0x2e, data) &&
+		    dme1737_i2c_get_features(0x4e, data)) {
+			dev_warn(dev, "Failed to query Super-IO for optional "
+				 "features.\n");
+		}
+	} else {   /* ISA chip */
+		/* Fan3 and pwm3 are always available. Fan[4-5] and pwm[5-6]
+		 * don't exist in the ISA chip. */
+		data->has_fan |= (1 << 2);
+		data->has_pwm |= (1 << 2);
+	}
+
+	/* Fan1, fan2, pwm1, and pwm2 are always present */
+	data->has_fan |= 0x03;
+	data->has_pwm |= 0x03;
+
+	dev_info(dev, "Optional features: pwm3=%s, pwm5=%s, pwm6=%s, "
+		 "fan3=%s, fan4=%s, fan5=%s, fan6=%s.\n",
+		 (data->has_pwm & (1 << 2)) ? "yes" : "no",
+		 (data->has_pwm & (1 << 4)) ? "yes" : "no",
+		 (data->has_pwm & (1 << 5)) ? "yes" : "no",
+		 (data->has_fan & (1 << 2)) ? "yes" : "no",
+		 (data->has_fan & (1 << 3)) ? "yes" : "no",
+		 (data->has_fan & (1 << 4)) ? "yes" : "no",
+		 (data->has_fan & (1 << 5)) ? "yes" : "no");
+
+	reg = dme1737_read(client, DME1737_REG_TACH_PWM);
+	/* Inform if fan-to-pwm mapping differs from the default */
+	if (client->driver && reg != 0xa4) {   /* I2C chip */
+		dev_warn(dev, "Non-standard fan to pwm mapping: "
+			 "fan1->pwm%d, fan2->pwm%d, fan3->pwm%d, "
+			 "fan4->pwm%d. Please report to the driver "
+			 "maintainer.\n",
+			 (reg & 0x03) + 1, ((reg >> 2) & 0x03) + 1,
+			 ((reg >> 4) & 0x03) + 1, ((reg >> 6) & 0x03) + 1);
+	} else if (!client->driver && reg != 0x24) {   /* ISA chip */
+		dev_warn(dev, "Non-standard fan to pwm mapping: "
+			 "fan1->pwm%d, fan2->pwm%d, fan3->pwm%d. "
+			 "Please report to the driver maintainer.\n",
+			 (reg & 0x03) + 1, ((reg >> 2) & 0x03) + 1,
+			 ((reg >> 4) & 0x03) + 1);
+	}
+
+	/* Switch pwm[1-3] to manual mode if they are currently disabled and
+	 * set the duty-cycles to 0% (which is identical to the PWMs being
+	 * disabled). */
+	if (!(data->config & 0x02)) {
+		for (ix = 0; ix < 3; ix++) {
+			data->pwm_config[ix] = dme1737_read(client,
+						DME1737_REG_PWM_CONFIG(ix));
+			if ((data->has_pwm & (1 << ix)) &&
+			    (PWM_EN_FROM_REG(data->pwm_config[ix]) == -1)) {
+				dev_info(dev, "Switching pwm%d to "
+					 "manual mode.\n", ix + 1);
+				data->pwm_config[ix] = PWM_EN_TO_REG(1,
+							data->pwm_config[ix]);
+				dme1737_write(client, DME1737_REG_PWM(ix), 0);
+				dme1737_write(client,
+					      DME1737_REG_PWM_CONFIG(ix),
+					      data->pwm_config[ix]);
+			}
+		}
+	}
+
+	/* Initialize the default PWM auto channels zone (acz) assignments */
+	data->pwm_acz[0] = 1;	/* pwm1 -> zone1 */
+	data->pwm_acz[1] = 2;	/* pwm2 -> zone2 */
+	data->pwm_acz[2] = 4;	/* pwm3 -> zone3 */
+
+	/* Set VRM */
+	data->vrm = vid_which_vrm();
+
+	return 0;
+}
+
+/* ---------------------------------------------------------------------
+ * I2C device detection and registration
+ * --------------------------------------------------------------------- */
+
+static struct i2c_driver dme1737_i2c_driver;
+
+static int dme1737_i2c_get_features(int sio_cip, struct dme1737_data *data)
+{
 	int err = 0, reg;
 	u16 addr;
 
-	/* Enter configuration mode */
-	outb(0x55, sio_cip);
+	dme1737_sio_enter(sio_cip);
 
 	/* Check device ID
 	 * The DME1737 can return either 0x78 or 0x77 as its device ID. */
@@ -1734,151 +2052,19 @@ static int dme1737_sio_get_features(int sio_cip, struct i2c_client *client)
 	}
 
 exit:
-	/* Exit configuration mode */
-	outb(0xaa, sio_cip);
+	dme1737_sio_exit(sio_cip);
 
 	return err;
 }
 
-/* ---------------------------------------------------------------------
- * Device detection, registration and initialization
- * --------------------------------------------------------------------- */
-
-static struct i2c_driver dme1737_driver;
-
-static void dme1737_chmod_file(struct i2c_client *client,
-			       struct attribute *attr, mode_t mode)
-{
-	if (sysfs_chmod_file(&client->dev.kobj, attr, mode)) {
-		dev_warn(&client->dev, "Failed to change permissions of %s.\n",
-			 attr->name);
-	}
-}
-
-static void dme1737_chmod_group(struct i2c_client *client,
-				const struct attribute_group *group,
-				mode_t mode)
-{
-	struct attribute **attr;
-
-	for (attr = group->attrs; *attr; attr++) {
-		dme1737_chmod_file(client, *attr, mode);
-	}
-}
-
-static int dme1737_init_client(struct i2c_client *client)
-{
-	struct dme1737_data *data = i2c_get_clientdata(client);
-	int ix;
-	u8 reg;
-
-        data->config = dme1737_read(client, DME1737_REG_CONFIG);
-        /* Inform if part is not monitoring/started */
-        if (!(data->config & 0x01)) {
-                if (!force_start) {
-                        dev_err(&client->dev, "Device is not monitoring. "
-                                "Use the force_start load parameter to "
-                                "override.\n");
-                        return -EFAULT;
-                }
-
-                /* Force monitoring */
-                data->config |= 0x01;
-                dme1737_write(client, DME1737_REG_CONFIG, data->config);
-        }
-	/* Inform if part is not ready */
-	if (!(data->config & 0x04)) {
-		dev_err(&client->dev, "Device is not ready.\n");
-		return -EFAULT;
-	}
-
-	data->config2 = dme1737_read(client, DME1737_REG_CONFIG2);
-	/* Check if optional fan3 input is enabled */
-	if (data->config2 & 0x04) {
-		data->has_fan |= (1 << 2);
-	}
-
-	/* Fan4 and pwm3 are only available if the client's I2C address
-	 * is the default 0x2e. Otherwise the I/Os associated with these
-	 * functions are used for addr enable/select. */
-	if (client->addr == 0x2e) {
-		data->has_fan |= (1 << 3);
-		data->has_pwm |= (1 << 2);
-	}
-
-	/* Determine if the optional fan[5-6] and/or pwm[5-6] are enabled.
-	 * For this, we need to query the runtime registers through the
-	 * Super-IO LPC interface. Try both config ports 0x2e and 0x4e. */
-	if (dme1737_sio_get_features(0x2e, client) &&
-	    dme1737_sio_get_features(0x4e, client)) {
-		dev_warn(&client->dev, "Failed to query Super-IO for optional "
-			 "features.\n");
-	}
-
-	/* Fan1, fan2, pwm1, and pwm2 are always present */
-	data->has_fan |= 0x03;
-	data->has_pwm |= 0x03;
-
-	dev_info(&client->dev, "Optional features: pwm3=%s, pwm5=%s, pwm6=%s, "
-		 "fan3=%s, fan4=%s, fan5=%s, fan6=%s.\n",
-		 (data->has_pwm & (1 << 2)) ? "yes" : "no",
-		 (data->has_pwm & (1 << 4)) ? "yes" : "no",
-		 (data->has_pwm & (1 << 5)) ? "yes" : "no",
-		 (data->has_fan & (1 << 2)) ? "yes" : "no",
-		 (data->has_fan & (1 << 3)) ? "yes" : "no",
-		 (data->has_fan & (1 << 4)) ? "yes" : "no",
-		 (data->has_fan & (1 << 5)) ? "yes" : "no");
-
-	reg = dme1737_read(client, DME1737_REG_TACH_PWM);
-	/* Inform if fan-to-pwm mapping differs from the default */
-	if (reg != 0xa4) {
-		dev_warn(&client->dev, "Non-standard fan to pwm mapping: "
-			 "fan1->pwm%d, fan2->pwm%d, fan3->pwm%d, "
-			 "fan4->pwm%d. Please report to the driver "
-			 "maintainer.\n",
-			 (reg & 0x03) + 1, ((reg >> 2) & 0x03) + 1,
-			 ((reg >> 4) & 0x03) + 1, ((reg >> 6) & 0x03) + 1);
-	}
-
-	/* Switch pwm[1-3] to manual mode if they are currently disabled and
-	 * set the duty-cycles to 0% (which is identical to the PWMs being
-	 * disabled). */
-	if (!(data->config & 0x02)) {
-		for (ix = 0; ix < 3; ix++) {
-			data->pwm_config[ix] = dme1737_read(client,
-						DME1737_REG_PWM_CONFIG(ix));
-			if ((data->has_pwm & (1 << ix)) &&
-			    (PWM_EN_FROM_REG(data->pwm_config[ix]) == -1)) {
-				dev_info(&client->dev, "Switching pwm%d to "
-					 "manual mode.\n", ix + 1);
-				data->pwm_config[ix] = PWM_EN_TO_REG(1,
-							data->pwm_config[ix]);
-				dme1737_write(client, DME1737_REG_PWM(ix), 0);
-				dme1737_write(client,
-					      DME1737_REG_PWM_CONFIG(ix),
-					      data->pwm_config[ix]);
-			}
-		}
-	}
-
-	/* Initialize the default PWM auto channels zone (acz) assignments */
-	data->pwm_acz[0] = 1;	/* pwm1 -> zone1 */
-	data->pwm_acz[1] = 2;	/* pwm2 -> zone2 */
-	data->pwm_acz[2] = 4;	/* pwm3 -> zone3 */
-
-	/* Set VRM */
-	data->vrm = vid_which_vrm();
-
-	return 0;
-}
-
-static int dme1737_detect(struct i2c_adapter *adapter, int address,
-			  int kind)
+static int dme1737_i2c_detect(struct i2c_adapter *adapter, int address,
+			      int kind)
 {
 	u8 company, verstep = 0;
 	struct i2c_client *client;
 	struct dme1737_data *data;
-	int ix, err = 0;
+	struct device *dev;
+	int err = 0;
 	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
@@ -1894,7 +2080,8 @@ static int dme1737_detect(struct i2c_adapter *adapter, int address,
 	i2c_set_clientdata(client, data);
 	client->addr = address;
 	client->adapter = adapter;
-	client->driver = &dme1737_driver;
+	client->driver = &dme1737_i2c_driver;
+	dev = &client->dev;
 
 	/* A negative kind means that the driver was loaded with no force
 	 * parameter (default), so we must identify the chip. */
@@ -1922,92 +2109,33 @@ static int dme1737_detect(struct i2c_adapter *adapter, int address,
 		goto exit_kfree;
 	}
 
+	dev_info(dev, "Found a DME1737 chip at 0x%02x (rev 0x%02x).\n",
+		 client->addr, verstep);
+
 	/* Initialize the DME1737 chip */
-	if ((err = dme1737_init_client(client))) {
+	if ((err = dme1737_init_device(dev))) {
+		dev_err(dev, "Failed to initialize device.\n");
 		goto exit_detach;
 	}
 
-	/* Create standard sysfs attributes */
-	if ((err = sysfs_create_group(&client->dev.kobj, &dme1737_group))) {
-                goto exit_detach;
-	}
-
-	/* Create fan sysfs attributes */
-	for (ix = 0; ix < ARRAY_SIZE(dme1737_fan_group); ix++) {
-		if (data->has_fan & (1 << ix)) {
-			if ((err = sysfs_create_group(&client->dev.kobj,
-						&dme1737_fan_group[ix]))) {
-				goto exit_remove;
-			}
-		}
-	}
-
-	/* Create PWM sysfs attributes */
-	for (ix = 0; ix < ARRAY_SIZE(dme1737_pwm_group); ix++) {
-		if (data->has_pwm & (1 << ix)) {
-			if ((err = sysfs_create_group(&client->dev.kobj,
-						&dme1737_pwm_group[ix]))) {
-				goto exit_remove;
-			}
-		}
-	}
-
-	/* Inform if the device is locked. Otherwise change the permissions of
-	 * selected attributes from read-only to read-writeable. */
-	if (data->config & 0x02) {
-		dev_info(&client->dev, "Device is locked. Some attributes "
-			 "will be read-only.\n");
-	} else {
-		/* Change permissions of standard attributes */
-		dme1737_chmod_group(client, &dme1737_lock_group,
-				    S_IRUGO | S_IWUSR);
-
-		/* Change permissions of PWM attributes */
-		for (ix = 0; ix < ARRAY_SIZE(dme1737_pwm_lock_group); ix++) {
-			if (data->has_pwm & (1 << ix)) {
-				dme1737_chmod_group(client,
-						&dme1737_pwm_lock_group[ix],
-						S_IRUGO | S_IWUSR);
-			}
-		}
-
-		/* Change permissions of pwm[1-3] if in manual mode */
-		for (ix = 0; ix < 3; ix++) {
-			if ((data->has_pwm & (1 << ix)) &&
-			    (PWM_EN_FROM_REG(data->pwm_config[ix]) == 1)) {
-				dme1737_chmod_file(client,
-						   dme1737_attr_pwm[ix],
-						   S_IRUGO | S_IWUSR);
-			}
-		}
+	/* Create sysfs files */
+	if ((err = dme1737_create_files(dev))) {
+		dev_err(dev, "Failed to create sysfs files.\n");
+		goto exit_detach;
 	}
 
 	/* Register device */
-	data->class_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		dev_err(dev, "Failed to register device.\n");
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
 	}
-
-	dev_info(&adapter->dev, "Found a DME1737 chip at 0x%02x "
-		 "(rev 0x%02x)\n", client->addr, verstep);
 
 	return 0;
 
 exit_remove:
-	for (ix = 0; ix < ARRAY_SIZE(dme1737_fan_group); ix++) {
-		if (data->has_fan & (1 << ix)) {
-			sysfs_remove_group(&client->dev.kobj,
-					   &dme1737_fan_group[ix]);
-		}
-	}
-	for (ix = 0; ix < ARRAY_SIZE(dme1737_pwm_group); ix++) {
-		if (data->has_pwm & (1 << ix)) {
-			sysfs_remove_group(&client->dev.kobj,
-					   &dme1737_pwm_group[ix]);
-		}
-	}
-	sysfs_remove_group(&client->dev.kobj, &dme1737_group);
+	dme1737_remove_files(dev);
 exit_detach:
 	i2c_detach_client(client);
 exit_kfree:
@@ -2016,35 +2144,22 @@ exit:
 	return err;
 }
 
-static int dme1737_attach_adapter(struct i2c_adapter *adapter)
+static int dme1737_i2c_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON)) {
 		return 0;
 	}
 
-	return i2c_probe(adapter, &addr_data, dme1737_detect);
+	return i2c_probe(adapter, &addr_data, dme1737_i2c_detect);
 }
 
-static int dme1737_detach_client(struct i2c_client *client)
+static int dme1737_i2c_detach_client(struct i2c_client *client)
 {
 	struct dme1737_data *data = i2c_get_clientdata(client);
-	int ix, err;
+	int err;
 
-	hwmon_device_unregister(data->class_dev);
-
-	for (ix = 0; ix < ARRAY_SIZE(dme1737_fan_group); ix++) {
-		if (data->has_fan & (1 << ix)) {
-			sysfs_remove_group(&client->dev.kobj,
-					   &dme1737_fan_group[ix]);
-		}
-	}
-	for (ix = 0; ix < ARRAY_SIZE(dme1737_pwm_group); ix++) {
-		if (data->has_pwm & (1 << ix)) {
-			sysfs_remove_group(&client->dev.kobj,
-					   &dme1737_pwm_group[ix]);
-		}
-	}
-	sysfs_remove_group(&client->dev.kobj, &dme1737_group);
+	hwmon_device_unregister(data->hwmon_dev);
+	dme1737_remove_files(&client->dev);
 
 	if ((err = i2c_detach_client(client))) {
 		return err;
@@ -2054,22 +2169,235 @@ static int dme1737_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_driver dme1737_driver = {
+static struct i2c_driver dme1737_i2c_driver = {
 	.driver = {
 		.name = "dme1737",
 	},
-	.attach_adapter	= dme1737_attach_adapter,
-	.detach_client = dme1737_detach_client,
+	.attach_adapter	= dme1737_i2c_attach_adapter,
+	.detach_client = dme1737_i2c_detach_client,
 };
+
+/* ---------------------------------------------------------------------
+ * ISA device detection and registration
+ * --------------------------------------------------------------------- */
+
+static int __init dme1737_isa_detect(int sio_cip, unsigned short *addr)
+{
+	int err = 0, reg;
+	unsigned short base_addr;
+
+	dme1737_sio_enter(sio_cip);
+
+	/* Check device ID
+	 * We currently know about SCH3112 (0x7c), SCH3114 (0x7d), and
+	 * SCH3116 (0x7f). */
+	reg = dme1737_sio_inb(sio_cip, 0x20);
+	if (!(reg == 0x7c || reg == 0x7d || reg == 0x7f)) {
+		err = -ENODEV;
+		goto exit;
+	}
+
+	/* Select logical device A (runtime registers) */
+	dme1737_sio_outb(sio_cip, 0x07, 0x0a);
+
+	/* Get the base address of the runtime registers */
+	if (!(base_addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
+			   dme1737_sio_inb(sio_cip, 0x61))) {
+		printk(KERN_ERR "dme1737: Base address not set.\n");
+		err = -ENODEV;
+		goto exit;
+	}
+
+	/* Access to the hwmon registers is through an index/data register
+	 * pair located at offset 0x70/0x71. */
+	*addr = base_addr + 0x70;
+
+exit:
+	dme1737_sio_exit(sio_cip);
+	return err;
+}
+
+static int __init dme1737_isa_device_add(unsigned short addr)
+{
+	struct resource res = {
+		.start	= addr,
+		.end	= addr + DME1737_EXTENT - 1,
+		.name	= "dme1737",
+		.flags	= IORESOURCE_IO,
+	};
+	int err;
+
+	if (!(pdev = platform_device_alloc("dme1737", addr))) {
+		printk(KERN_ERR "dme1737: Failed to allocate device.\n");
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	if ((err = platform_device_add_resources(pdev, &res, 1))) {
+		printk(KERN_ERR "dme1737: Failed to add device resource "
+		       "(err = %d).\n", err);
+		goto exit_device_put;
+	}
+
+	if ((err = platform_device_add(pdev))) {
+		printk(KERN_ERR "dme1737: Failed to add device (err = %d).\n",
+		       err);
+		goto exit_device_put;
+	}
+
+	return 0;
+
+exit_device_put:
+	platform_device_put(pdev);
+	pdev = NULL;
+exit:
+	return err;
+}
+
+static int __devinit dme1737_isa_probe(struct platform_device *pdev)
+{
+	u8 company, device;
+	struct resource *res;
+	struct i2c_client *client;
+	struct dme1737_data *data;
+	struct device *dev = &pdev->dev;
+	int err;
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!request_region(res->start, DME1737_EXTENT, "dme1737")) {
+		dev_err(dev, "Failed to request region 0x%04x-0x%04x.\n",
+			(unsigned short)res->start,
+			(unsigned short)res->start + DME1737_EXTENT - 1);
+                err = -EBUSY;
+                goto exit;
+        }
+
+	if (!(data = kzalloc(sizeof(struct dme1737_data), GFP_KERNEL))) {
+		err = -ENOMEM;
+		goto exit_release_region;
+	}
+
+	client = &data->client;
+	i2c_set_clientdata(client, data);
+	client->addr = res->start;
+	platform_set_drvdata(pdev, data);
+
+	company = dme1737_read(client, DME1737_REG_COMPANY);
+	device = dme1737_read(client, DME1737_REG_DEVICE);
+
+	if (!((company == DME1737_COMPANY_SMSC) &&
+	      (device == SCH311X_DEVICE))) {
+		err = -ENODEV;
+		goto exit_kfree;
+	}
+
+	/* Fill in the remaining client fields and initialize the mutex */
+	strlcpy(client->name, "sch311x", I2C_NAME_SIZE);
+	mutex_init(&data->update_lock);
+
+	dev_info(dev, "Found a SCH311x chip at 0x%04x\n", client->addr);
+
+	/* Initialize the chip */
+	if ((err = dme1737_init_device(dev))) {
+		dev_err(dev, "Failed to initialize device.\n");
+		goto exit_kfree;
+	}
+
+	/* Create sysfs files */
+	if ((err = dme1737_create_files(dev))) {
+		dev_err(dev, "Failed to create sysfs files.\n");
+		goto exit_kfree;
+	}
+
+	/* Register device */
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		dev_err(dev, "Failed to register device.\n");
+		err = PTR_ERR(data->hwmon_dev);
+		goto exit_remove_files;
+	}
+
+	return 0;
+
+exit_remove_files:
+	dme1737_remove_files(dev);
+exit_kfree:
+	platform_set_drvdata(pdev, NULL);
+	kfree(data);
+exit_release_region:
+	release_region(res->start, DME1737_EXTENT);
+exit:
+	return err;
+}
+
+static int __devexit dme1737_isa_remove(struct platform_device *pdev)
+{
+	struct dme1737_data *data = platform_get_drvdata(pdev);
+
+	hwmon_device_unregister(data->hwmon_dev);
+	dme1737_remove_files(&pdev->dev);
+	release_region(data->client.addr, DME1737_EXTENT);
+	platform_set_drvdata(pdev, NULL);
+	kfree(data);
+
+	return 0;
+}
+
+static struct platform_driver dme1737_isa_driver = {
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "dme1737",
+	},
+	.probe = dme1737_isa_probe,
+	.remove = __devexit_p(dme1737_isa_remove),
+};
+
+/* ---------------------------------------------------------------------
+ * Module initialization and cleanup
+ * --------------------------------------------------------------------- */
 
 static int __init dme1737_init(void)
 {
-	return i2c_add_driver(&dme1737_driver);
+	int err;
+	unsigned short addr;
+
+	if ((err = i2c_add_driver(&dme1737_i2c_driver))) {
+		goto exit;
+	}
+
+	if (dme1737_isa_detect(0x2e, &addr) &&
+	    dme1737_isa_detect(0x4e, &addr)) {
+		/* Return 0 if we didn't find an ISA device */
+		return 0;
+	}
+
+	if ((err = platform_driver_register(&dme1737_isa_driver))) {
+		goto exit_del_i2c_driver;
+	}
+
+	/* Sets global pdev as a side effect */
+	if ((err = dme1737_isa_device_add(addr))) {
+		goto exit_del_isa_driver;
+	}
+
+	return 0;
+
+exit_del_isa_driver:
+	platform_driver_unregister(&dme1737_isa_driver);
+exit_del_i2c_driver:
+	i2c_del_driver(&dme1737_i2c_driver);
+exit:
+	return err;
 }
 
 static void __exit dme1737_exit(void)
 {
-	i2c_del_driver(&dme1737_driver);
+	if (pdev) {
+		platform_device_unregister(pdev);
+		platform_driver_unregister(&dme1737_isa_driver);
+	}
+
+	i2c_del_driver(&dme1737_i2c_driver);
 }
 
 MODULE_AUTHOR("Juerg Haefliger <juergh@gmail.com>");

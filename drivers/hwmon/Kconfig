@@ -30,7 +30,7 @@ config HWMON_VID
 
 config SENSORS_ABITUGURU
 	tristate "Abit uGuru (rev 1 & 2)"
-	depends on EXPERIMENTAL
+	depends on X86 && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the sensor part of the first
 	  and second revision of the Abit uGuru chip. The voltage and frequency
@@ -45,7 +45,7 @@ config SENSORS_ABITUGURU
 
 config SENSORS_ABITUGURU3
 	tristate "Abit uGuru (rev 3)"
-	depends on HWMON && EXPERIMENTAL
+	depends on X86 && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the sensor part of the
 	  third revision of the Abit uGuru chip. Only reading the sensors
@@ -133,6 +133,16 @@ config SENSORS_ADM9240
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm9240.
 
+config SENSORS_ADT7470
+	tristate "Analog Devices ADT7470"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7470 temperature monitoring chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7470.
+
 config SENSORS_K8TEMP
 	tristate "AMD Athlon64/FX or Opteron temperature sensor"
 	depends on X86 && PCI && EXPERIMENTAL
@@ -172,7 +182,7 @@ config SENSORS_AMS_I2C
 
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
-	depends on I2C && EXPERIMENTAL
+	depends on X86 && I2C && EXPERIMENTAL
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the ASB100 Bach sensor
@@ -206,19 +216,39 @@ config SENSORS_DS1621
 	  will be called ds1621.
 
 config SENSORS_F71805F
-	tristate "Fintek F71805F/FG and F71872F/FG"
+	tristate "Fintek F71805F/FG, F71806F/FG and F71872F/FG"
 	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for hardware monitoring
-	  features of the Fintek F71805F/FG and F71872F/FG Super-I/O
-	  chips.
+	  features of the Fintek F71805F/FG, F71806F/FG and F71872F/FG
+	  Super-I/O chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called f71805f.
 
+config SENSORS_F71882FG
+	tristate "Fintek F71882FG and F71883FG"
+	depends on EXPERIMENTAL
+	help
+	  If you say yes here you get support for hardware monitoring
+	  features of the Fintek F71882FG and F71883FG Super-I/O chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called f71882fg.
+
+config SENSORS_F75375S
+	tristate "Fintek F75375S/SP and F75373";
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for hardware monitoring
+	  features of the Fintek F75375S/SP and F75373
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called f75375s.
+
 config SENSORS_FSCHER
 	tristate "FSC Hermes"
-	depends on I2C
+	depends on X86 && I2C
 	help
 	  If you say yes here you get support for Fujitsu Siemens
 	  Computers Hermes sensor chips.
@@ -228,13 +258,27 @@ config SENSORS_FSCHER
 
 config SENSORS_FSCPOS
 	tristate "FSC Poseidon"
-	depends on I2C
+	depends on X86 && I2C
 	help
 	  If you say yes here you get support for Fujitsu Siemens
 	  Computers Poseidon sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called fscpos.
+
+config SENSORS_FSCHMD
+	tristate "FSC Poseidon, Scylla, Hermes, Heimdall and Heracles"
+	depends on X86 && I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for various Fujitsu Siemens
+	  Computers sensor chips.
+
+	  This is a new merged driver for FSC sensor chips which is intended
+	  as a replacment for the fscpos, fscscy and fscher drivers and adds
+	  support for several other FCS sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called fschmd.
 
 config SENSORS_GL518SM
 	tristate "Genesys Logic GL518SM"
@@ -264,6 +308,19 @@ config SENSORS_CORETEMP
 	  If you say yes here you get support for the temperature
 	  sensor inside your CPU. Supported all are all known variants
 	  of Intel Core family.
+
+config SENSORS_IBMPEX
+	tristate "IBM PowerExecutive temperature/power sensors"
+	select IPMI_SI
+	depends on IPMI_HANDLER
+	help
+	  If you say yes here you get support for the temperature and
+	  power sensors in various IBM System X servers that support
+	  PowerExecutive.  So far this includes the x3550, x3650, x3655,
+	  x3755, and certain HS20 blades.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ibmpex.
 
 config SENSORS_IT87
 	tristate "ITE IT87xx and compatibles"
@@ -401,7 +458,7 @@ config SENSORS_LM92
 
 config SENSORS_LM93
 	tristate "National Semiconductor LM93 and compatibles"
-	depends on HWMON && I2C
+	depends on I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for National Semiconductor LM93
@@ -466,13 +523,13 @@ config SENSORS_SIS5595
 	  will be called sis5595.
 
 config SENSORS_DME1737
-	tristate "SMSC DME1737 and compatibles"
+	tristate "SMSC DME1737, SCH311x and compatibles"
 	depends on I2C && EXPERIMENTAL
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  and fan control features of the SMSC DME1737 (and compatibles
-	  like the Asus A8000) Super-I/O chip.
+	  like the Asus A8000) and SCH311x Super-I/O chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called dme1737.

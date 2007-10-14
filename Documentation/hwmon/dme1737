@@ -6,6 +6,10 @@ Supported chips:
     Prefix: 'dme1737'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
     Datasheet: Provided by SMSC upon request and under NDA
+  * SMSC SCH3112, SCH3114, SCH3116
+    Prefix: 'sch311x'
+    Addresses scanned: none, address read from Super-I/O config space
+    Datasheet: http://www.nuhorizons.com/FeaturedProducts/Volume1/SMSC/311x.pdf
 
 Authors:
     Juerg Haefliger <juergh@gmail.com>
@@ -27,16 +31,25 @@ Description
 -----------
 
 This driver implements support for the hardware monitoring capabilities of the
-SMSC DME1737 and Asus A8000 (which are the same) Super-I/O chips. This chip
-features monitoring of 3 temp sensors temp[1-3] (2 remote diodes and 1
-internal), 7 voltages in[0-6] (6 external and 1 internal) and 6 fan speeds
-fan[1-6]. Additionally, the chip implements 5 PWM outputs pwm[1-3,5-6] for
-controlling fan speeds both manually and automatically.
+SMSC DME1737 and Asus A8000 (which are the same) and SMSC SCH311x Super-I/O
+chips. These chips feature monitoring of 3 temp sensors temp[1-3] (2 remote
+diodes and 1 internal), 7 voltages in[0-6] (6 external and 1 internal) and up
+to 6 fan speeds fan[1-6]. Additionally, the chips implement up to 5 PWM
+outputs pwm[1-3,5-6] for controlling fan speeds both manually and
+automatically.
 
-Fan[3-6] and pwm[3,5-6] are optional features and their availability is
-dependent on the configuration of the chip. The driver will detect which
-features are present during initialization and create the sysfs attributes
-accordingly.
+For the DME1737 and A8000, fan[1-2] and pwm[1-2] are always present. Fan[3-6]
+and pwm[3,5-6] are optional features and their availability depends on the
+configuration of the chip. The driver will detect which features are present
+during initialization and create the sysfs attributes accordingly.
+
+For the SCH311x, fan[1-3] and pwm[1-3] are always present and fan[4-6] and
+pwm[5-6] don't exist.
+
+The hardware monitoring features of the DME1737 and A8000 are only accessible
+via SMBus, while the SCH311x only provides access via the ISA bus. The driver
+will therefore register itself as an I2C client driver if it detects a DME1737
+or A8000 and as a platform driver if it detects a SCH311x chip.
 
 
 Voltage Monitoring

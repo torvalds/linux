@@ -163,7 +163,7 @@ static inline u8 DIV_TO_REG(int val)
 struct sis5595_data {
 	unsigned short addr;
 	const char *name;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex lock;
 
 	struct mutex update_lock;
@@ -517,7 +517,7 @@ static int __devinit sis5595_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	/* Check revision and pin registers to determine whether 4 or 5 voltages */
-	pci_read_config_byte(s_bridge, PCI_REVISION_ID, &data->revision);
+	data->revision = s_bridge->revision;
 	/* 4 voltages, 1 temp */
 	data->maxins = 3;
 	if (data->revision >= REV2MIN) {
@@ -557,9 +557,9 @@ static int __devinit sis5595_probe(struct platform_device *pdev)
 			goto exit_remove_files;
 	}
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_files;
 	}
 
@@ -580,7 +580,7 @@ static int __devexit sis5595_remove(struct platform_device *pdev)
 {
 	struct sis5595_data *data = platform_get_drvdata(pdev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group);
 	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_opt);
 
@@ -739,11 +739,10 @@ static int __devinit sis5595_pci_probe(struct pci_dev *dev,
 	int *i;
 
 	for (i = blacklist; *i != 0; i++) {
-		struct pci_dev *dev;
-		dev = pci_get_device(PCI_VENDOR_ID_SI, *i, NULL);
-		if (dev) {
-			dev_err(&dev->dev, "Looked for SIS5595 but found unsupported device %.4x\n", *i);
-			pci_dev_put(dev);
+		struct pci_dev *d;
+		if ((d = pci_get_device(PCI_VENDOR_ID_SI, *i, NULL))) {
+			dev_err(&d->dev, "Looked for SIS5595 but found unsupported device %.4x\n", *i);
+			pci_dev_put(d);
 			return -ENODEV;
 		}
 	}

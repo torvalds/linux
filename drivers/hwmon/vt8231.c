@@ -148,7 +148,7 @@ struct vt8231_data {
 	const char *name;
 
 	struct mutex update_lock;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -676,7 +676,7 @@ static struct pci_driver vt8231_pci_driver = {
 	.probe		= vt8231_pci_probe,
 };
 
-int vt8231_probe(struct platform_device *pdev)
+static int vt8231_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct vt8231_data *data;
@@ -726,9 +726,9 @@ int vt8231_probe(struct platform_device *pdev)
 		}
 	}
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_files;
 	}
 	return 0;
@@ -756,7 +756,7 @@ static int __devexit vt8231_remove(struct platform_device *pdev)
 	struct vt8231_data *data = platform_get_drvdata(pdev);
 	int i;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 
 	for (i = 0; i < ARRAY_SIZE(vt8231_group_volts); i++)
 		sysfs_remove_group(&pdev->dev.kobj, &vt8231_group_volts[i]);

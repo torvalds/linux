@@ -41,7 +41,8 @@
  *   http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
  * Note that there is no easy way to differentiate between the three
  * variants. The extra address and features of the MAX6659 are not
- * supported by this driver.
+ * supported by this driver. These chips lack the remote temperature
+ * offset feature.
  *
  * This driver also supports the MAX6680 and MAX6681, two other sensor
  * chips made by Maxim. These are quite similar to the other Maxim
@@ -214,7 +215,7 @@ static struct i2c_driver lm90_driver = {
 
 struct lm90_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -226,9 +227,10 @@ struct lm90_data {
 			   2: local high limit
 			   3: local critical limit
 			   4: remote critical limit */
-	s16 temp11[3];	/* 0: remote input
+	s16 temp11[4];	/* 0: remote input
 			   1: remote low limit
-			   2: remote high limit */
+			   2: remote high limit
+			   3: remote offset (except max6657) */
 	u8 temp_hyst;
 	u8 alarms; /* bitvector */
 };
@@ -282,11 +284,13 @@ static ssize_t show_temp11(struct device *dev, struct device_attribute *devattr,
 static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
 			  const char *buf, size_t count)
 {
-	static const u8 reg[4] = {
+	static const u8 reg[6] = {
 		LM90_REG_W_REMOTE_LOWH,
 		LM90_REG_W_REMOTE_LOWL,
 		LM90_REG_W_REMOTE_HIGHH,
 		LM90_REG_W_REMOTE_HIGHL,
+		LM90_REG_W_REMOTE_OFFSH,
+		LM90_REG_W_REMOTE_OFFSL,
 	};
 
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -367,6 +371,8 @@ static SENSOR_DEVICE_ATTR(temp2_crit, S_IWUSR | S_IRUGO, show_temp8,
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temphyst,
 	set_temphyst, 3);
 static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_temphyst, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp2_offset, S_IWUSR | S_IRUGO, show_temp11,
+	set_temp11, 3);
 
 /* Individual alarm files */
 static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 0);
@@ -652,10 +658,15 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 					      &dev_attr_pec)))
 			goto exit_remove_files;
 	}
+	if (data->kind != max6657) {
+		if ((err = device_create_file(&new_client->dev,
+				&sensor_dev_attr_temp2_offset.dev_attr)))
+			goto exit_remove_files;
+	}
 
-	data->class_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_files;
 	}
 
@@ -707,9 +718,12 @@ static int lm90_detach_client(struct i2c_client *client)
 	struct lm90_data *data = i2c_get_clientdata(client);
 	int err;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm90_group);
 	device_remove_file(&client->dev, &dev_attr_pec);
+	if (data->kind != max6657)
+		device_remove_file(&client->dev,
+				   &sensor_dev_attr_temp2_offset.dev_attr);
 
 	if ((err = i2c_detach_client(client)))
 		return err;
@@ -763,6 +777,13 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 		if (lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHH, &newh) == 0
 		 && lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHL, &l) == 0)
 			data->temp11[2] = (newh << 8) | l;
+		if (data->kind != max6657) {
+			if (lm90_read_reg(client, LM90_REG_R_REMOTE_OFFSH,
+					  &newh) == 0
+			 && lm90_read_reg(client, LM90_REG_R_REMOTE_OFFSL,
+					  &l) == 0)
+				data->temp11[3] = (newh << 8) | l;
+		}
 		lm90_read_reg(client, LM90_REG_R_STATUS, &data->alarms);
 
 		data->last_updated = jiffies;
