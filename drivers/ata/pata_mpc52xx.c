@@ -308,7 +308,6 @@ mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv,
 	struct ata_host *host;
 	struct ata_port *ap;
 	struct ata_ioports *aio;
-	int rc;
 
 	host = ata_host_alloc(dev, 1);
 	if (!host)
