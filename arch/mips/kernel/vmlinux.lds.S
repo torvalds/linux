@@ -5,6 +5,10 @@
 #define mips mips
 OUTPUT_ARCH(mips)
 ENTRY(kernel_entry)
+PHDRS {
+	text PT_LOAD FLAGS(7);	/* RWX */
+	note PT_NOTE FLAGS(4);	/* R__ */
+}
 jiffies = JIFFIES;
 
 SECTIONS
@@ -33,7 +37,7 @@ SECTIONS
 		LOCK_TEXT
 		*(.fixup)
 		*(.gnu.warning)
-	} =0
+	} :text = 0
 	_etext = .;	/* End of text section */
 
 	/* Exception table */
@@ -50,6 +54,10 @@ SECTIONS
 		*(__dbe_table)
 		__stop___dbe_table = .;
 	}
+
+	NOTES :text :note
+	.dummy : { *(.dummy) } :text
+
 	RODATA
 
 	/* writeable */
@@ -199,8 +207,5 @@ SECTIONS
 	.gptab.sbss : {
 		*(.gptab.bss)
 		*(.gptab.sbss)
-	}
-	.note : {
-		*(.note)
 	}
 }
