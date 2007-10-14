@@ -1019,7 +1019,8 @@ hfc_dbusy_timer(struct IsdnCardState *cs)
 static unsigned int
 *init_send_hfcd(int cnt)
 {
-	int i, *send;
+	int i;
+	unsigned *send;
 
 	if (!(send = kmalloc(cnt * sizeof(unsigned int), GFP_ATOMIC))) {
 		printk(KERN_WARNING

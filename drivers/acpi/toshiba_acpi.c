@@ -362,7 +362,7 @@ static unsigned long write_video(const char *buffer, unsigned long count)
 	int crt_out = -1;
 	int tv_out = -1;
 	u32 hci_result;
-	int video_out;
+	u32 video_out;
 
 	/* scan expression.  Multiple expressions may be delimited with ;
 	 *

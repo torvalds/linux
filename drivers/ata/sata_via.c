@@ -505,7 +505,7 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	int rc;
 	struct ata_host *host;
 	int board_id = (int) ent->driver_data;
-	const int *bar_sizes;
+	const unsigned *bar_sizes;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");

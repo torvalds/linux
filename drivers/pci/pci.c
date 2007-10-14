@@ -658,7 +658,7 @@ int
 pci_restore_state(struct pci_dev *dev)
 {
 	int i;
-	int val;
+	u32 val;
 
 	/* PCI Express register must be restored first */
 	pci_restore_pcie_state(dev);

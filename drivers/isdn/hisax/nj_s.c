@@ -151,7 +151,7 @@ NETjet_S_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 static int __devinit njs_pci_probe(struct pci_dev *dev_netjet,
 				   struct IsdnCardState *cs)
 {
-	int cfg;
+	u32 cfg;
 
 	if (pci_enable_device(dev_netjet))
 		return(0);

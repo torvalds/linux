@@ -1295,7 +1295,7 @@ static const struct atmdev_ops ops = {
 
 static void __devinit undocumented_pci_fix (struct pci_dev *pdev)
 {
-	int tint;
+	u32 tint;
 
 	/* The Windows driver says: */
 	/* Switch off FireStream Retry Limit Threshold 

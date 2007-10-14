@@ -1122,7 +1122,7 @@ static void __devinit piix_init_sata_map(struct pci_dev *pdev,
 					 const struct piix_map_db *map_db)
 {
 	struct piix_host_priv *hpriv = pinfo[0].private_data;
-	const unsigned int *map;
+	const int *map;
 	int i, invalid_map = 0;
 	u8 map_value;
 

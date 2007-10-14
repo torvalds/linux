@@ -3101,7 +3101,7 @@ static void cciss_getgeometry(int cntl_num)
 	int i;
 	int listlength = 0;
 	__u32 lunid = 0;
-	int block_size;
+	unsigned block_size;
 	sector_t total_size;
 
 	ld_buff = kzalloc(sizeof(ReportLunData_struct), GFP_KERNEL);
