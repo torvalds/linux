@@ -91,7 +91,7 @@ typedef struct _fc_channel {
 	fcp_cmd			*scsi_cmd_pool;
 	char			*scsi_rsp_pool;
 	dma_addr_t		dma_scsi_cmd, dma_scsi_rsp;
-	long			*scsi_bitmap;
+	unsigned long		*scsi_bitmap;
 	long			scsi_bitmap_end;
 	int			scsi_free;
 	int			(*encode_addr)(struct scsi_cmnd *, u16 *, struct _fc_channel *, fcp_cmnd *);

@@ -136,7 +136,7 @@ static int sizeof_bootstrap = 375;
 
 
 static struct dsp56k_device {
-	long in_use;
+	unsigned long in_use;
 	long maxio, timeout;
 	int tx_wsize, rx_wsize;
 } dsp56k;

@@ -75,7 +75,7 @@ struct stlport {
 	int			ioaddr;
 	int			uartaddr;
 	unsigned int		pagenr;
-	long			istate;
+	unsigned long		istate;
 	int			flags;
 	int			baud_base;
 	int			custom_divisor;

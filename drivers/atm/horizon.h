@@ -423,7 +423,7 @@ struct hrz_dev {
   wait_queue_head_t   tx_queue;
 
   u8                  irq;
-  long		      flags;
+  unsigned long	      flags;
   u8                  tx_last;
   u8                  tx_idle;
 

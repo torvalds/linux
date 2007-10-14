@@ -56,7 +56,7 @@ struct hisax_d_if {
 	struct IsdnCardState *cs;
 	struct hisax_b_if *b_if[2];
 	struct sk_buff_head erq;
-	long ph_state;
+	unsigned long ph_state;
 };
 
 int hisax_register(struct hisax_d_if *hisax_if, struct hisax_b_if *b_if[],

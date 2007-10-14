@@ -24,7 +24,7 @@ MODULE_DESCRIPTION("NatSemi SCx200 Driver");
 MODULE_LICENSE("GPL");
 
 unsigned scx200_gpio_base = 0;
-long scx200_gpio_shadow[2];
+unsigned long scx200_gpio_shadow[2];
 
 unsigned scx200_cb_base = 0;
 

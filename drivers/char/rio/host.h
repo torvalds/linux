@@ -99,7 +99,7 @@ struct Host {
 	struct UnixRup UnixRups[MAX_RUP + LINKS_PER_UNIT];
 	int timeout_id;				/* For calling 100 ms delays */
 	int timeout_sem;			/* For calling 100 ms delays */
-	long locks;				/* long req'd for set_bit --RR */
+	unsigned long locks;			/* long req'd for set_bit --RR */
 	char ____end_marker____;
 };
 #define Control      CardP->DpControl

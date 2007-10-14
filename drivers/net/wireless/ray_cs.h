@@ -33,8 +33,8 @@ typedef struct ray_dev_t {
     void __iomem *rmem;            /* pointer to receive buffer window       */
     struct pcmcia_device *finder;            /* pointer back to struct pcmcia_device for card    */
     struct timer_list timer;
-    long tx_ccs_lock;
-    long ccs_lock;
+    unsigned long tx_ccs_lock;
+    unsigned long ccs_lock;
     int   dl_param_ccs;
     union {
         struct b4_startup_params b4;

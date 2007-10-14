@@ -27,7 +27,7 @@ struct sx_port {
   int                     c_dcd;
   struct sx_board         *board;
   int                     line;
-  long                    locks;
+  unsigned long           locks;
 };
 
 struct sx_board {
@@ -45,7 +45,7 @@ struct sx_board {
   int poll;
   int ta_type;
   struct timer_list       timer;
-  long                    locks;
+  unsigned long           locks;
 };
 
 struct vpd_prom {

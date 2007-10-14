@@ -661,7 +661,7 @@ struct local_info {
 #define HOSTAP_BITS_TRANSMIT 0
 #define HOSTAP_BITS_BAP_TASKLET 1
 #define HOSTAP_BITS_BAP_TASKLET2 2
-	long bits;
+	unsigned long bits;
 
 	struct ap_data *ap;
 

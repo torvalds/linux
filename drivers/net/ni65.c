@@ -183,7 +183,7 @@ static struct card {
 	short addr_offset;
 	unsigned char *vendor_id;
 	char *cardname;
-	long config;
+	unsigned long config;
 } cards[] = {
 	{
 		.id0	     = NI65_ID0,

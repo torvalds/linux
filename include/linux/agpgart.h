@@ -197,7 +197,7 @@ struct agp_file_private {
 	struct agp_file_private *next;
 	struct agp_file_private *prev;
 	pid_t my_pid;
-	long access_flags;	/* long req'd for set_bit --RR */
+	unsigned long access_flags;	/* long req'd for set_bit --RR */
 };
 
 struct agp_front_data {

@@ -157,7 +157,7 @@ struct snd_bt87x {
 	int dig_rate;
 
 	spinlock_t reg_lock;
-	long opened;
+	unsigned long opened;
 	struct snd_pcm_substream *substream;
 
 	struct snd_dma_buffer dma_risc;
