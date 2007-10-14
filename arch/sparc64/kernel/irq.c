@@ -122,19 +122,16 @@ static void bucket_set_virt_irq(unsigned long bucket_pa,
 			       "i" (ASI_PHYS_USE_EC));
 }
 
-#define __irq(bucket) ((unsigned long)(bucket))
-
 #define irq_work_pa(__cpu)	&(trap_block[(__cpu)].irq_worklist_pa)
 
 static struct {
-	unsigned long irq;
 	unsigned int dev_handle;
 	unsigned int dev_ino;
+	unsigned int in_use;
 } virt_to_real_irq_table[NR_IRQS];
 static DEFINE_SPINLOCK(virt_irq_alloc_lock);
 
-unsigned char virt_irq_alloc(unsigned long real_irq,
-			     unsigned int dev_handle,
+unsigned char virt_irq_alloc(unsigned int dev_handle,
 			     unsigned int dev_ino)
 {
 	unsigned long flags;
@@ -145,16 +142,16 @@ unsigned char virt_irq_alloc(unsigned long real_irq,
 	spin_lock_irqsave(&virt_irq_alloc_lock, flags);
 
 	for (ent = 1; ent < NR_IRQS; ent++) {
-		if (!virt_to_real_irq_table[ent].irq)
+		if (!virt_to_real_irq_table[ent].in_use)
 			break;
 	}
 	if (ent >= NR_IRQS) {
 		printk(KERN_ERR "IRQ: Out of virtual IRQs.\n");
 		ent = 0;
 	} else {
-		virt_to_real_irq_table[ent].irq = real_irq;
 		virt_to_real_irq_table[ent].dev_handle = dev_handle;
 		virt_to_real_irq_table[ent].dev_ino = dev_ino;
+		virt_to_real_irq_table[ent].in_use = 1;
 	}
 
 	spin_unlock_irqrestore(&virt_irq_alloc_lock, flags);
@@ -172,7 +169,7 @@ void virt_irq_free(unsigned int virt_irq)
 
 	spin_lock_irqsave(&virt_irq_alloc_lock, flags);
 
-	virt_to_real_irq_table[virt_irq].irq = 0;
+	virt_to_real_irq_table[virt_irq].in_use = 0;
 
 	spin_unlock_irqrestore(&virt_irq_alloc_lock, flags);
 }
@@ -583,7 +580,7 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 	bucket = &ivector_table[ino];
 	virt_irq = bucket_get_virt_irq(__pa(bucket));
 	if (!virt_irq) {
-		virt_irq = virt_irq_alloc(__irq(bucket), 0, ino);
+		virt_irq = virt_irq_alloc(0, ino);
 		bucket_set_virt_irq(__pa(bucket), virt_irq);
 		set_irq_chip(virt_irq, &sun4u_irq);
 	}
@@ -618,7 +615,7 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 	bucket = &ivector_table[sysino];
 	virt_irq = bucket_get_virt_irq(__pa(bucket));
 	if (!virt_irq) {
-		virt_irq = virt_irq_alloc(__irq(bucket), 0, sysino);
+		virt_irq = virt_irq_alloc(0, sysino);
 		bucket_set_virt_irq(__pa(bucket), virt_irq);
 		set_irq_chip(virt_irq, chip);
 	}
@@ -666,7 +663,7 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 			     ((unsigned long) bucket +
 			      sizeof(struct ino_bucket)));
 
-	virt_irq = virt_irq_alloc(__irq(bucket), devhandle, devino);
+	virt_irq = virt_irq_alloc(devhandle, devino);
 	bucket_set_virt_irq(__pa(bucket), virt_irq);
 	set_irq_chip(virt_irq, &sun4v_virq);
 
