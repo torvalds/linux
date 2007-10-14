@@ -36,7 +36,7 @@ static unsigned int target(struct sk_buff **pskb,
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(*pskb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
-		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
+		if (!skb_make_writable(*pskb, sizeof(struct iphdr)))
 			return NF_DROP;
 
 		ipv4_change_dsfield(ip_hdr(*pskb), (__u8)(~XT_DSCP_MASK),
@@ -57,7 +57,7 @@ static unsigned int target6(struct sk_buff **pskb,
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(*pskb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
-		if (!skb_make_writable(pskb, sizeof(struct ipv6hdr)))
+		if (!skb_make_writable(*pskb, sizeof(struct ipv6hdr)))
 			return NF_DROP;
 
 		ipv6_change_dsfield(ipv6_hdr(*pskb), (__u8)(~XT_DSCP_MASK),

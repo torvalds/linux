@@ -50,7 +50,7 @@ tcpmss_mangle_packet(struct sk_buff **pskb,
 	u16 newmss;
 	u8 *opt;
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(*pskb, (*pskb)->len))
 		return -1;
 
 	tcplen = (*pskb)->len - tcphoff;

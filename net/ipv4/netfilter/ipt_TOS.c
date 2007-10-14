@@ -33,7 +33,7 @@ target(struct sk_buff **pskb,
 
 	if ((iph->tos & IPTOS_TOS_MASK) != tosinfo->tos) {
 		__u8 oldtos;
-		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
+		if (!skb_make_writable(*pskb, sizeof(struct iphdr)))
 			return NF_DROP;
 		iph = ip_hdr(*pskb);
 		oldtos = iph->tos;

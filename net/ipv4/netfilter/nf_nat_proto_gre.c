@@ -109,7 +109,7 @@ gre_manip_pkt(struct sk_buff **pskb, unsigned int iphdroff,
 
 	/* pgreh includes two optional 32bit fields which are not required
 	 * to be there.  That's where the magic '8' comes from */
-	if (!skb_make_writable(pskb, hdroff + sizeof(*pgreh) - 8))
+	if (!skb_make_writable(*pskb, hdroff + sizeof(*pgreh) - 8))
 		return 0;
 
 	greh = (void *)(*pskb)->data + hdroff;

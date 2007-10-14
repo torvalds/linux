@@ -29,7 +29,7 @@ ipt_ttl_target(struct sk_buff **pskb,
 	const struct ipt_TTL_info *info = targinfo;
 	int new_ttl;
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(*pskb, (*pskb)->len))
 		return NF_DROP;
 
 	iph = ip_hdr(*pskb);

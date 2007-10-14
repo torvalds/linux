@@ -152,7 +152,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 	struct tcphdr *tcph;
 	int oldlen, datalen;
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(*pskb, (*pskb)->len))
 		return 0;
 
 	if (rep_len > match_len &&
@@ -234,7 +234,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 			       match_offset + match_len)
 		return 0;
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(*pskb, (*pskb)->len))
 		return 0;
 
 	if (rep_len > match_len &&
@@ -341,7 +341,7 @@ nf_nat_sack_adjust(struct sk_buff **pskb,
 	optoff = ip_hdrlen(*pskb) + sizeof(struct tcphdr);
 	optend = ip_hdrlen(*pskb) + tcph->doff * 4;
 
-	if (!skb_make_writable(pskb, optend))
+	if (!skb_make_writable(*pskb, optend))
 		return 0;
 
 	dir = CTINFO2DIR(ctinfo);
@@ -390,7 +390,7 @@ nf_nat_seq_adjust(struct sk_buff **pskb,
 	this_way = &nat->seq[dir];
 	other_way = &nat->seq[!dir];
 
-	if (!skb_make_writable(pskb, ip_hdrlen(*pskb) + sizeof(*tcph)))
+	if (!skb_make_writable(*pskb, ip_hdrlen(*pskb) + sizeof(*tcph)))
 		return 0;
 
 	tcph = (void *)(*pskb)->data + ip_hdrlen(*pskb);

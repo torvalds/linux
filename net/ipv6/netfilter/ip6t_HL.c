@@ -29,7 +29,7 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 	const struct ip6t_HL_info *info = targinfo;
 	int new_hl;
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(*pskb, (*pskb)->len))
 		return NF_DROP;
 
 	ip6h = ipv6_hdr(*pskb);

@@ -365,7 +365,7 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 		}
 		skb_put(e->skb, diff);
 	}
-	if (!skb_make_writable(&e->skb, v->data_len))
+	if (!skb_make_writable(e->skb, v->data_len))
 		return -ENOMEM;
 	skb_copy_to_linear_data(e->skb, v->payload, v->data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;

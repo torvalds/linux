@@ -1258,7 +1258,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 		 return NF_DROP;
 	}
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(*pskb, (*pskb)->len))
 		return NF_DROP;
 
 	spin_lock_bh(&snmp_lock);

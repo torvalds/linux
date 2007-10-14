@@ -196,34 +196,24 @@ unlock:
 EXPORT_SYMBOL(nf_hook_slow);
 
 
-int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len)
+int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 {
-	struct sk_buff *nskb;
-
-	if (writable_len > (*pskb)->len)
+	if (writable_len > skb->len)
 		return 0;
 
 	/* Not exclusive use of packet?  Must copy. */
-	if (skb_cloned(*pskb) && !skb_clone_writable(*pskb, writable_len))
-		goto copy_skb;
-	if (skb_shared(*pskb))
-		goto copy_skb;
+	if (!skb_cloned(skb)) {
+		if (writable_len <= skb_headlen(skb))
+			return 1;
+	} else if (skb_clone_writable(skb, writable_len))
+		return 1;
 
-	return pskb_may_pull(*pskb, writable_len);
+	if (writable_len <= skb_headlen(skb))
+		writable_len = 0;
+	else
+		writable_len -= skb_headlen(skb);
 
-copy_skb:
-	nskb = skb_copy(*pskb, GFP_ATOMIC);
-	if (!nskb)
-		return 0;
-	BUG_ON(skb_is_nonlinear(nskb));
-
-	/* Rest of kernel will get very unhappy if we pass it a
-	   suddenly-orphaned skbuff */
-	if ((*pskb)->sk)
-		skb_set_owner_w(nskb, (*pskb)->sk);
-	kfree_skb(*pskb);
-	*pskb = nskb;
-	return 1;
+	return !!__pskb_pull_tail(skb, writable_len);
 }
 EXPORT_SYMBOL(skb_make_writable);
 
