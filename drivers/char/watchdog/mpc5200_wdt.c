@@ -81,7 +81,7 @@ static int mpc5200_wdt_stop(struct mpc5200_wdt *wdt)
 
 
 /* file operations */
-static ssize_t mpc5200_wdt_write(struct file *file, const char *data,
+static ssize_t mpc5200_wdt_write(struct file *file, const char __user *data,
 		size_t len, loff_t *ppos)
 {
 	struct mpc5200_wdt *wdt = file->private_data;
