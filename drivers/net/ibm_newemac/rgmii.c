@@ -84,7 +84,7 @@ static inline u32 rgmii_mode_mask(int mode, int input)
 int __devinit rgmii_attach(struct of_device *ofdev, int input, int mode)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct rgmii_regs *p = dev->base;
+	struct rgmii_regs __iomem *p = dev->base;
 
 	RGMII_DBG(dev, "attach(%d)" NL, input);
 
@@ -113,7 +113,7 @@ int __devinit rgmii_attach(struct of_device *ofdev, int input, int mode)
 void rgmii_set_speed(struct of_device *ofdev, int input, int speed)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct rgmii_regs *p = dev->base;
+	struct rgmii_regs __iomem *p = dev->base;
 	u32 ssr;
 
 	mutex_lock(&dev->lock);
@@ -135,7 +135,7 @@ void rgmii_set_speed(struct of_device *ofdev, int input, int speed)
 void rgmii_get_mdio(struct of_device *ofdev, int input)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct rgmii_regs *p = dev->base;
+	struct rgmii_regs __iomem *p = dev->base;
 	u32 fer;
 
 	RGMII_DBG2(dev, "get_mdio(%d)" NL, input);
@@ -156,7 +156,7 @@ void rgmii_get_mdio(struct of_device *ofdev, int input)
 void rgmii_put_mdio(struct of_device *ofdev, int input)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct rgmii_regs *p = dev->base;
+	struct rgmii_regs __iomem *p = dev->base;
 	u32 fer;
 
 	RGMII_DBG2(dev, "put_mdio(%d)" NL, input);
@@ -177,7 +177,7 @@ void rgmii_put_mdio(struct of_device *ofdev, int input)
 void __devexit rgmii_detach(struct of_device *ofdev, int input)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct rgmii_regs *p = dev->base;
+	struct rgmii_regs __iomem *p = dev->base;
 
 	mutex_lock(&dev->lock);
 
@@ -242,7 +242,7 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 	}
 
 	rc = -ENOMEM;
-	dev->base = (struct rgmii_regs *)ioremap(regs.start,
+	dev->base = (struct rgmii_regs __iomem *)ioremap(regs.start,
 						 sizeof(struct rgmii_regs));
 	if (dev->base == NULL) {
 		printk(KERN_ERR "%s: Can't map device registers!\n",

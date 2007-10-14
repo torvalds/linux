@@ -1950,7 +1950,7 @@ static u32 emac_ethtool_get_rx_csum(struct net_device *ndev)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 
-	return dev->tah_dev != 0;
+	return dev->tah_dev != NULL;
 }
 
 static int emac_get_regs_len(struct emac_instance *dev)

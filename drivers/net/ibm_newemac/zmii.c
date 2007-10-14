@@ -79,7 +79,7 @@ static inline u32 zmii_mode_mask(int mode, int input)
 int __devinit zmii_attach(struct of_device *ofdev, int input, int *mode)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct zmii_regs *p = dev->base;
+	struct zmii_regs __iomem *p = dev->base;
 
 	ZMII_DBG(dev, "init(%d, %d)" NL, input, *mode);
 
@@ -250,7 +250,7 @@ static int __devinit zmii_probe(struct of_device *ofdev,
 	}
 
 	rc = -ENOMEM;
-	dev->base = (struct zmii_regs *)ioremap(regs.start,
+	dev->base = (struct zmii_regs __iomem *)ioremap(regs.start,
 						sizeof(struct zmii_regs));
 	if (dev->base == NULL) {
 		printk(KERN_ERR "%s: Can't map device registers!\n",

@@ -42,7 +42,7 @@ void __devexit tah_detach(struct of_device *ofdev, int channel)
 void tah_reset(struct of_device *ofdev)
 {
 	struct tah_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct tah_regs *p = dev->base;
+	struct tah_regs __iomem *p = dev->base;
 	int n;
 
 	/* Reset TAH */
@@ -108,7 +108,7 @@ static int __devinit tah_probe(struct of_device *ofdev,
 	}
 
 	rc = -ENOMEM;
-	dev->base = (struct tah_regs *)ioremap(regs.start,
+	dev->base = (struct tah_regs __iomem *)ioremap(regs.start,
 					       sizeof(struct tah_regs));
 	if (dev->base == NULL) {
 		printk(KERN_ERR "%s: Can't map device registers!\n",
