@@ -138,12 +138,12 @@ DEF_MMIO_IN_BE(in_be64, 64, ld);
 /* There is no asm instructions for 64 bits reverse loads and stores */
 static inline u64 in_le64(const volatile u64 __iomem *addr)
 {
-	return le64_to_cpu(in_be64(addr));
+	return swab64(in_be64(addr));
 }
 
 static inline void out_le64(volatile u64 __iomem *addr, u64 val)
 {
-	out_be64(addr, cpu_to_le64(val));
+	out_be64(addr, swab64(val));
 }
 #endif /* __powerpc64__ */
 
