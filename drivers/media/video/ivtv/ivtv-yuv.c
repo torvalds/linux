@@ -710,7 +710,7 @@ static u32 ivtv_yuv_window_setup (struct ivtv *itv, struct yuv_frame_info *windo
 
 	/* If there's nothing to safe to display, we may as well stop now */
 	if ((int)window->dst_w <= 2 || (int)window->dst_h <= 2 || (int)window->src_w <= 2 || (int)window->src_h <= 2) {
-		return 0;
+		return IVTV_YUV_UPDATE_INVALID;
 	}
 
 	/* Ensure video remains inside OSD area */
@@ -791,7 +791,7 @@ static u32 ivtv_yuv_window_setup (struct ivtv *itv, struct yuv_frame_info *windo
 
 	/* Check again. If there's nothing to safe to display, stop now */
 	if ((int)window->dst_w <= 2 || (int)window->dst_h <= 2 || (int)window->src_w <= 2 || (int)window->src_h <= 2) {
-		return 0;
+		return IVTV_YUV_UPDATE_INVALID;
 	}
 
 	/* Both x offset & width are linked, so they have to be done together */
@@ -840,12 +840,17 @@ void ivtv_yuv_work_handler (struct ivtv *itv)
 	if (!(yuv_update = ivtv_yuv_window_setup (itv, &window)))
 		return;
 
-	/* Update horizontal settings */
-	if (yuv_update & IVTV_YUV_UPDATE_HORIZONTAL)
-		ivtv_yuv_handle_horizontal(itv, &window);
+	if (yuv_update & IVTV_YUV_UPDATE_INVALID) {
+		write_reg(0x01008080, 0x2898);
+	} else if (yuv_update) {
+		write_reg(0x00108080, 0x2898);
 
-	if (yuv_update & IVTV_YUV_UPDATE_VERTICAL)
-		ivtv_yuv_handle_vertical(itv, &window);
+		if (yuv_update & IVTV_YUV_UPDATE_HORIZONTAL)
+			ivtv_yuv_handle_horizontal(itv, &window);
+
+		if (yuv_update & IVTV_YUV_UPDATE_VERTICAL)
+			ivtv_yuv_handle_vertical(itv, &window);
+	}
 
 	memcpy(&itv->yuv_info.old_frame_info, &window, sizeof (itv->yuv_info.old_frame_info));
 }
@@ -935,9 +940,6 @@ static void ivtv_yuv_init (struct ivtv *itv)
 		itv->yuv_info.blanking_dmaptr = 0;
 		IVTV_DEBUG_WARN ("Failed to allocate yuv blanking buffer\n");
 	}
-
-	IVTV_DEBUG_WARN("Enable video output\n");
-	write_reg_sync(0x00108080, 0x2898);
 
 	/* Enable YUV decoder output */
 	write_reg_sync(0x01, IVTV_REG_VDM);

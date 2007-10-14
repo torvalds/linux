@@ -34,6 +34,7 @@
 
 #define IVTV_YUV_UPDATE_HORIZONTAL  0x01
 #define IVTV_YUV_UPDATE_VERTICAL    0x02
+#define IVTV_YUV_UPDATE_INVALID     0x04
 
 extern const u32 yuv_offset[4];
 
