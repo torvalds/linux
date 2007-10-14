@@ -113,20 +113,12 @@ static void mangle_contents(struct sk_buff *skb,
 /* Unusual, but possible case. */
 static int enlarge_skb(struct sk_buff **pskb, unsigned int extra)
 {
-	struct sk_buff *nskb;
-
 	if ((*pskb)->len + extra > 65535)
 		return 0;
 
-	nskb = skb_copy_expand(*pskb, skb_headroom(*pskb), extra, GFP_ATOMIC);
-	if (!nskb)
+	if (pskb_expand_head(*pskb, 0, extra - skb_tailroom(*pskb), GFP_ATOMIC))
 		return 0;
 
-	/* Transfer socket to new skb. */
-	if ((*pskb)->sk)
-		skb_set_owner_w(nskb, (*pskb)->sk);
-	kfree_skb(*pskb);
-	*pskb = nskb;
 	return 1;
 }
 

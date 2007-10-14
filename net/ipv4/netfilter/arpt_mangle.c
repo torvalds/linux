@@ -1,5 +1,6 @@
 /* module that allows mangling of the arp payload */
 #include <linux/module.h>
+#include <linux/netfilter.h>
 #include <linux/netfilter_arp/arpt_mangle.h>
 #include <net/sock.h>
 
@@ -18,17 +19,8 @@ target(struct sk_buff **pskb,
 	unsigned char *arpptr;
 	int pln, hln;
 
-	if (skb_shared(*pskb) || skb_cloned(*pskb)) {
-		struct sk_buff *nskb;
-
-		nskb = skb_copy(*pskb, GFP_ATOMIC);
-		if (!nskb)
-			return NF_DROP;
-		if ((*pskb)->sk)
-			skb_set_owner_w(nskb, (*pskb)->sk);
-		kfree_skb(*pskb);
-		*pskb = nskb;
-	}
+	if (skb_make_writable(*pskb, (*pskb)->len))
+		return NF_DROP;
 
 	arp = arp_hdr(*pskb);
 	arpptr = skb_network_header(*pskb) + sizeof(*arp);

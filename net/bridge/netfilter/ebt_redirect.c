@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/netfilter.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_redirect.h>
 #include <linux/module.h>
@@ -20,17 +21,9 @@ static int ebt_target_redirect(struct sk_buff **pskb, unsigned int hooknr,
 {
 	struct ebt_redirect_info *info = (struct ebt_redirect_info *)data;
 
-	if (skb_shared(*pskb) || skb_cloned(*pskb)) {
-		struct sk_buff *nskb;
+	if (skb_make_writable(*pskb, 0))
+		return NF_DROP;
 
-		nskb = skb_copy(*pskb, GFP_ATOMIC);
-		if (!nskb)
-			return NF_DROP;
-		if ((*pskb)->sk)
-			skb_set_owner_w(nskb, (*pskb)->sk);
-		kfree_skb(*pskb);
-		*pskb = nskb;
-	}
 	if (hooknr != NF_BR_BROUTING)
 		memcpy(eth_hdr(*pskb)->h_dest,
 		       in->br_port->br->dev->dev_addr, ETH_ALEN);

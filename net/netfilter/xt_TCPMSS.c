@@ -105,14 +105,10 @@ tcpmss_mangle_packet(struct sk_buff **pskb,
 	 * MSS Option not found ?! add it..
 	 */
 	if (skb_tailroom((*pskb)) < TCPOLEN_MSS) {
-		struct sk_buff *newskb;
-
-		newskb = skb_copy_expand(*pskb, skb_headroom(*pskb),
-					 TCPOLEN_MSS, GFP_ATOMIC);
-		if (!newskb)
+		if (pskb_expand_head(*pskb, 0,
+				     TCPOLEN_MSS - skb_tailroom(*pskb),
+				     GFP_ATOMIC))
 			return -1;
-		kfree_skb(*pskb);
-		*pskb = newskb;
 		tcph = (struct tcphdr *)(skb_network_header(*pskb) + tcphoff);
 	}
 

@@ -3,6 +3,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
+#include <linux/skbuff.h>
 #include <net/route.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
@@ -66,17 +67,10 @@ int ip_route_me_harder(struct sk_buff **pskb, unsigned addr_type)
 
 	/* Change in oif may mean change in hh_len. */
 	hh_len = (*pskb)->dst->dev->hard_header_len;
-	if (skb_headroom(*pskb) < hh_len) {
-		struct sk_buff *nskb;
-
-		nskb = skb_realloc_headroom(*pskb, hh_len);
-		if (!nskb)
-			return -1;
-		if ((*pskb)->sk)
-			skb_set_owner_w(nskb, (*pskb)->sk);
-		kfree_skb(*pskb);
-		*pskb = nskb;
-	}
+	if (skb_headroom(*pskb) < hh_len &&
+	    pskb_expand_head(*pskb, hh_len - skb_headroom(*pskb), 0,
+			     GFP_ATOMIC))
+		return -1;
 
 	return 0;
 }
@@ -107,17 +101,10 @@ int ip_xfrm_me_harder(struct sk_buff **pskb)
 
 	/* Change in oif may mean change in hh_len. */
 	hh_len = (*pskb)->dst->dev->hard_header_len;
-	if (skb_headroom(*pskb) < hh_len) {
-		struct sk_buff *nskb;
-
-		nskb = skb_realloc_headroom(*pskb, hh_len);
-		if (!nskb)
-			return -1;
-		if ((*pskb)->sk)
-			skb_set_owner_w(nskb, (*pskb)->sk);
-		kfree_skb(*pskb);
-		*pskb = nskb;
-	}
+	if (skb_headroom(*pskb) < hh_len &&
+	    pskb_expand_head(*pskb, hh_len - skb_headroom(*pskb), 0,
+			     GFP_ATOMIC))
+		return -1;
 	return 0;
 }
 EXPORT_SYMBOL(ip_xfrm_me_harder);
