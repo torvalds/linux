@@ -676,7 +676,7 @@ static struct pci_driver vt8231_pci_driver = {
 	.probe		= vt8231_pci_probe,
 };
 
-int vt8231_probe(struct platform_device *pdev)
+static int vt8231_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct vt8231_data *data;
