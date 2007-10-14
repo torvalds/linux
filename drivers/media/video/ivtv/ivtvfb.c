@@ -1169,9 +1169,12 @@ static void ivtvfb_cleanup(void)
 	for (i = 0; i < ivtv_cards_active; i++) {
 		itv = ivtv_cards[i];
 		if (itv && (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) && itv->osd_info) {
+			if (unregister_framebuffer(&itv->osd_info->ivtvfb_info)) {
+				IVTVFB_WARN("Framebuffer %d is in use, cannot unload\n", i);
+				return;
+			}
 			IVTVFB_DEBUG_INFO("Unregister framebuffer %d\n", i);
 			ivtvfb_blank(FB_BLANK_POWERDOWN, &itv->osd_info->ivtvfb_info);
-			unregister_framebuffer(&itv->osd_info->ivtvfb_info);
 			ivtvfb_release_buffers(itv);
 			itv->osd_video_pbase = 0;
 		}
