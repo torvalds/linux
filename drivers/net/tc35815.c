@@ -1461,7 +1461,6 @@ static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 	}
 	return IRQ_NONE;
 #else
-	struct tc35815_local *lp = dev->priv;
 	int handled;
 	u32 status;
 
