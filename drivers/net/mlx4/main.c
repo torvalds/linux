@@ -884,7 +884,7 @@ static int __devinit mlx4_init_one(struct pci_dev *pdev,
 		++mlx4_version_printed;
 	}
 
-	return mlx4_init_one(pdev, id);
+	return __mlx4_init_one(pdev, id);
 }
 
 static void mlx4_remove_one(struct pci_dev *pdev)
