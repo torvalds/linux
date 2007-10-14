@@ -776,17 +776,17 @@ enum ipg_regs {
  * TFD field is 64 bits wide.
  */
 struct ipg_tx {
-	u64 next_desc;
-	u64 tfc;
-	u64 frag_info;
+	__le64 next_desc;
+	__le64 tfc;
+	__le64 frag_info;
 };
 
 /* Receive Frame Descriptor. Note, each RFD field is 64 bits wide.
  */
 struct ipg_rx {
-	u64 next_desc;
-	u64 rfs;
-	u64 frag_info;
+	__le64 next_desc;
+	__le64 rfs;
+	__le64 frag_info;
 };
 
 struct SJumbo {
