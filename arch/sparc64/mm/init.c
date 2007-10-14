@@ -631,7 +631,6 @@ void prom_world(int enter)
 	__asm__ __volatile__("flushw");
 }
 
-#ifdef DCACHE_ALIASING_POSSIBLE
 void __flush_dcache_range(unsigned long start, unsigned long end)
 {
 	unsigned long va;
@@ -655,7 +654,6 @@ void __flush_dcache_range(unsigned long start, unsigned long end)
 					       "i" (ASI_DCACHE_INVALIDATE));
 	}
 }
-#endif /* DCACHE_ALIASING_POSSIBLE */
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);

@@ -42,6 +42,7 @@
 #include <asm/auxio.h>
 #include <asm/head.h>
 #include <asm/hypervisor.h>
+#include <asm/cacheflush.h>
 
 /* UPA nodes send interrupt packet to UltraSparc with first data reg
  * value low 5 (7 on Starfire) bits holding the IRQ identifier being
@@ -56,16 +57,70 @@
  * of the vectored interrupt trap handler(s) in entry.S and sun4v_ivec.S
  */
 struct ino_bucket {
-/*0x00*/unsigned long irq_chain_pa;
+/*0x00*/unsigned long __irq_chain_pa;
 
 	/* Virtual interrupt number assigned to this INO.  */
-/*0x08*/unsigned int virt_irq;
+/*0x08*/unsigned int __virt_irq;
 /*0x0c*/unsigned int __pad;
 };
 
 #define NUM_IVECS	(IMAP_INR + 1)
 struct ino_bucket *ivector_table;
 unsigned long ivector_table_pa;
+
+/* On several sun4u processors, it is illegal to mix bypass and
+ * non-bypass accesses.  Therefore we access all INO buckets
+ * using bypass accesses only.
+ */
+static unsigned long bucket_get_chain_pa(unsigned long bucket_pa)
+{
+	unsigned long ret;
+
+	__asm__ __volatile__("ldxa	[%1] %2, %0"
+			     : "=&r" (ret)
+			     : "r" (bucket_pa +
+				    offsetof(struct ino_bucket,
+					     __irq_chain_pa)),
+			       "i" (ASI_PHYS_USE_EC));
+
+	return ret;
+}
+
+static void bucket_clear_chain_pa(unsigned long bucket_pa)
+{
+	__asm__ __volatile__("stxa	%%g0, [%0] %1"
+			     : /* no outputs */
+			     : "r" (bucket_pa +
+				    offsetof(struct ino_bucket,
+					     __irq_chain_pa)),
+			       "i" (ASI_PHYS_USE_EC));
+}
+
+static unsigned int bucket_get_virt_irq(unsigned long bucket_pa)
+{
+	unsigned int ret;
+
+	__asm__ __volatile__("lduwa	[%1] %2, %0"
+			     : "=&r" (ret)
+			     : "r" (bucket_pa +
+				    offsetof(struct ino_bucket,
+					     __virt_irq)),
+			       "i" (ASI_PHYS_USE_EC));
+
+	return ret;
+}
+
+static void bucket_set_virt_irq(unsigned long bucket_pa,
+				unsigned int virt_irq)
+{
+	__asm__ __volatile__("stwa	%0, [%1] %2"
+			     : /* no outputs */
+			     : "r" (virt_irq),
+			       "r" (bucket_pa +
+				    offsetof(struct ino_bucket,
+					     __virt_irq)),
+			       "i" (ASI_PHYS_USE_EC));
+}
 
 #define __irq_ino(irq) \
         (((struct ino_bucket *)(irq)) - &ivector_table[0])
@@ -569,18 +624,21 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 {
 	struct ino_bucket *bucket;
 	struct irq_handler_data *data;
+	unsigned int virt_irq;
 	int ino;
 
 	BUG_ON(tlb_type == hypervisor);
 
 	ino = (upa_readq(imap) & (IMAP_IGN | IMAP_INO)) + inofixup;
 	bucket = &ivector_table[ino];
-	if (!bucket->virt_irq) {
-		bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-		set_irq_chip(bucket->virt_irq, &sun4u_irq);
+	virt_irq = bucket_get_virt_irq(__pa(bucket));
+	if (!virt_irq) {
+		virt_irq = virt_irq_alloc(__irq(bucket));
+		bucket_set_virt_irq(__pa(bucket), virt_irq);
+		set_irq_chip(virt_irq, &sun4u_irq);
 	}
 
-	data = get_irq_chip_data(bucket->virt_irq);
+	data = get_irq_chip_data(virt_irq);
 	if (unlikely(data))
 		goto out;
 
@@ -589,13 +647,13 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
 	}
-	set_irq_chip_data(bucket->virt_irq, data);
+	set_irq_chip_data(virt_irq, data);
 
 	data->imap  = imap;
 	data->iclr  = iclr;
 
 out:
-	return bucket->virt_irq;
+	return virt_irq;
 }
 
 static unsigned int sun4v_build_common(unsigned long sysino,
@@ -603,16 +661,19 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 {
 	struct ino_bucket *bucket;
 	struct irq_handler_data *data;
+	unsigned int virt_irq;
 
 	BUG_ON(tlb_type != hypervisor);
 
 	bucket = &ivector_table[sysino];
-	if (!bucket->virt_irq) {
-		bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-		set_irq_chip(bucket->virt_irq, chip);
+	virt_irq = bucket_get_virt_irq(__pa(bucket));
+	if (!virt_irq) {
+		virt_irq = virt_irq_alloc(__irq(bucket));
+		bucket_set_virt_irq(__pa(bucket), virt_irq);
+		set_irq_chip(virt_irq, chip);
 	}
 
-	data = get_irq_chip_data(bucket->virt_irq);
+	data = get_irq_chip_data(virt_irq);
 	if (unlikely(data))
 		goto out;
 
@@ -621,7 +682,7 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
 	}
-	set_irq_chip_data(bucket->virt_irq, data);
+	set_irq_chip_data(virt_irq, data);
 
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
 	 * is done by hypervisor calls on sun4v platforms, not by direct
@@ -631,7 +692,7 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 	data->iclr = ~0UL;
 
 out:
-	return bucket->virt_irq;
+	return virt_irq;
 }
 
 unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino)
@@ -646,19 +707,24 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	struct irq_handler_data *data;
 	struct ino_bucket *bucket;
 	unsigned long hv_err, cookie;
+	unsigned int virt_irq;
 
 	bucket = kzalloc(sizeof(struct ino_bucket), GFP_ATOMIC);
 	if (unlikely(!bucket))
 		return 0;
+	__flush_dcache_range((unsigned long) bucket,
+			     ((unsigned long) bucket +
+			      sizeof(struct ino_bucket)));
 
-	bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-	set_irq_chip(bucket->virt_irq, &sun4v_virq);
+	virt_irq = virt_irq_alloc(__irq(bucket));
+	bucket_set_virt_irq(__pa(bucket), virt_irq);
+	set_irq_chip(virt_irq, &sun4v_virq);
 
 	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
 	if (unlikely(!data))
 		return 0;
 
-	set_irq_chip_data(bucket->virt_irq, data);
+	set_irq_chip_data(virt_irq, data);
 
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
 	 * is done by hypervisor calls on sun4v platforms, not by direct
@@ -675,10 +741,10 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 		prom_halt();
 	}
 
-	virt_to_real_irq_table[bucket->virt_irq].dev_handle = devhandle;
-	virt_to_real_irq_table[bucket->virt_irq].dev_ino = devino;
+	virt_to_real_irq_table[virt_irq].dev_handle = devhandle;
+	virt_to_real_irq_table[virt_irq].dev_ino = devino;
 
-	return bucket->virt_irq;
+	return virt_irq;
 }
 
 void ack_bad_irq(unsigned int virt_irq)
@@ -718,17 +784,9 @@ void handler_irq(int irq, struct pt_regs *regs)
 		unsigned long next_pa;
 		unsigned int virt_irq;
 
-		__asm__ __volatile__("ldxa	[%2] %4, %0\n\t"
-				     "lduwa	[%3] %4, %1\n\t"
-				     "stxa	%%g0, [%2] %4"
-				     : "=&r" (next_pa), "=&r" (virt_irq)
-				     : "r" (bucket_pa +
-					    offsetof(struct ino_bucket,
-						     irq_chain_pa)),
-				       "r" (bucket_pa +
-					    offsetof(struct ino_bucket,
-						     virt_irq)),
-				       "i" (ASI_PHYS_USE_EC));
+		next_pa = bucket_get_chain_pa(bucket_pa);
+		virt_irq = bucket_get_virt_irq(bucket_pa);
+		bucket_clear_chain_pa(bucket_pa);
 
 		__do_IRQ(virt_irq);
 
@@ -957,6 +1015,8 @@ void __init init_IRQ(void)
 		prom_printf("Fatal error, cannot allocate ivector_table\n");
 		prom_halt();
 	}
+	__flush_dcache_range((unsigned long) ivector_table,
+			     ((unsigned long) ivector_table) + size);
 
 	ivector_table_pa = __pa(ivector_table);
 
