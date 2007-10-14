@@ -405,6 +405,7 @@ struct hid_control_fifo {
 
 #define HID_CLAIMED_INPUT	1
 #define HID_CLAIMED_HIDDEV	2
+#define HID_CLAIMED_HIDRAW	4
 
 #define HID_CTRL_RUNNING	1
 #define HID_OUT_RUNNING		2
@@ -440,6 +441,7 @@ struct hid_device {							/* device report descriptor */
 
 	struct list_head inputs;					/* The list of inputs */
 	void *hiddev;							/* The hiddev structure */
+	void *hidraw;
 	int minor;							/* Hiddev minor number */
 
 	wait_queue_head_t wait;						/* For sleeping */
@@ -460,6 +462,9 @@ struct hid_device {							/* device report descriptor */
 	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
+
+	/* handler for raw output data, used by hidraw */
+	int (*hid_output_raw_report) (struct hid_device *, __u8 *, size_t);
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 	unsigned long pb_pressed_fn[NBITS(KEY_MAX)];
 	unsigned long pb_pressed_numlock[NBITS(KEY_MAX)];

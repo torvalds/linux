@@ -30,6 +30,7 @@
 #include <linux/hid.h>
 #include <linux/hiddev.h>
 #include <linux/hid-debug.h>
+#include <linux/hidraw.h>
 
 /*
  * Version Information
@@ -979,6 +980,8 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 
 	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_report_event)
 		hid->hiddev_report_event(hid, report);
+	if (hid->claimed & HID_CLAIMED_HIDRAW)
+		hidraw_report_event(hid, data, size);
 
 	for (n = 0; n < report->maxfield; n++)
 		hid_input_field(hid, report->field[n], data, interrupt);
@@ -989,6 +992,19 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_input_report);
+
+static int __init hid_init(void)
+{
+	return hidraw_init();
+}
+
+static void __exit hid_exit(void)
+{
+	hidraw_exit();
+}
+
+module_init(hid_init);
+module_exit(hid_exit);
 
 MODULE_LICENSE(DRIVER_LICENSE);
 

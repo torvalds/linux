@@ -46,6 +46,25 @@ config HID_DEBUG
 
 	If unsure, say N
 
+config HIDRAW
+	bool "/dev/hidraw raw HID device support"
+	depends on HID
+	---help---
+	Say Y here if you want to support HID devices (from the USB
+	specification standpoint) that aren't strictly user interface
+	devices, like monitor controls and Uninterruptable Power Supplies.
+
+	This module supports these devices separately using a separate
+	event interface on /dev/hidraw.
+
+	There is also a /dev/hiddev configuration option in the USB HID
+	configuration menu. In comparison to hiddev, this device does not process
+	the hid events at all (no parsing, no lookups). This lets applications
+	to work on raw hid events when they want to, and avoid using transport-specific
+	userspace libhid/libusb libraries.
+
+	If unsure, say Y.
+
 source "drivers/hid/usbhid/Kconfig"
 
 endif # HID_SUPPORT
