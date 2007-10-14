@@ -84,7 +84,7 @@ static struct xilinxfb_platform_data xilinx_fb_default_pdata = {
 	.xres = 640,
 	.yres = 480,
 	.xvirt = 1024,
-	.yvirt = 480;
+	.yvirt = 480,
 };
 
 /*
