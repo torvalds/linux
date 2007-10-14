@@ -1903,9 +1903,9 @@ static int fbufs;
 static int mbufs;
 static int compression = -1;
 static int leds[2] = { -1, -1 };
-static int leds_nargs;
+static unsigned int leds_nargs;
 static char *dev_hint[MAX_DEV_HINTS];
-static int dev_hint_nargs;
+static unsigned int dev_hint_nargs;
 
 module_param(size, charp, 0444);
 module_param(fps, int, 0444);

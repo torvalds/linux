@@ -1072,19 +1072,19 @@ static char          *si_type[SI_MAX_PARMS];
 #define MAX_SI_TYPE_STR 30
 static char          si_type_str[MAX_SI_TYPE_STR];
 static unsigned long addrs[SI_MAX_PARMS];
-static int num_addrs;
+static unsigned int num_addrs;
 static unsigned int  ports[SI_MAX_PARMS];
-static int num_ports;
+static unsigned int num_ports;
 static int           irqs[SI_MAX_PARMS];
-static int num_irqs;
+static unsigned int num_irqs;
 static int           regspacings[SI_MAX_PARMS];
-static int num_regspacings;
+static unsigned int num_regspacings;
 static int           regsizes[SI_MAX_PARMS];
-static int num_regsizes;
+static unsigned int num_regsizes;
 static int           regshifts[SI_MAX_PARMS];
-static int num_regshifts;
+static unsigned int num_regshifts;
 static int slave_addrs[SI_MAX_PARMS];
-static int num_slave_addrs;
+static unsigned int num_slave_addrs;
 
 #define IPMI_IO_ADDR_SPACE  0
 #define IPMI_MEM_ADDR_SPACE 1
@@ -1106,12 +1106,12 @@ MODULE_PARM_DESC(type, "Defines the type of each interface, each"
 		 " interface separated by commas.  The types are 'kcs',"
 		 " 'smic', and 'bt'.  For example si_type=kcs,bt will set"
 		 " the first interface to kcs and the second to bt");
-module_param_array(addrs, long, &num_addrs, 0);
+module_param_array(addrs, ulong, &num_addrs, 0);
 MODULE_PARM_DESC(addrs, "Sets the memory address of each interface, the"
 		 " addresses separated by commas.  Only use if an interface"
 		 " is in memory.  Otherwise, set it to zero or leave"
 		 " it blank.");
-module_param_array(ports, int, &num_ports, 0);
+module_param_array(ports, uint, &num_ports, 0);
 MODULE_PARM_DESC(ports, "Sets the port address of each interface, the"
 		 " addresses separated by commas.  Only use if an interface"
 		 " is a port.  Otherwise, set it to zero or leave"

@@ -98,9 +98,9 @@ static int radio[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1 };
 
-static int cardtype_c = 1;
-static int tuner_c = 1;
-static int radio_c = 1;
+static unsigned int cardtype_c = 1;
+static unsigned int tuner_c = 1;
+static unsigned int radio_c = 1;
 static char pal[] = "--";
 static char secam[] = "--";
 static char ntsc[] = "-";

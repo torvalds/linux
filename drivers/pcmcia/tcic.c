@@ -90,7 +90,7 @@ static int do_scan = 1;
 /* Bit map of interrupts to choose from */
 static u_int irq_mask = 0xffff;
 static int irq_list[16];
-static int irq_list_count;
+static unsigned int irq_list_count;
 
 /* The card status change interrupt -- 0 means autoselect */
 static int cs_irq;

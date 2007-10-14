@@ -181,7 +181,7 @@ module_param(force_palette, int, 0);
 MODULE_PARM_DESC(force_palette, "Force the palette to a specific value");
 module_param(backlight, int, 0);
 MODULE_PARM_DESC(backlight, "For objects that are lit from behind");
-static int num_uv;
+static unsigned int num_uv;
 module_param_array(unit_video, int, &num_uv, 0);
 MODULE_PARM_DESC(unit_video,
   "Force use of specific minor number(s). 0 is not allowed.");

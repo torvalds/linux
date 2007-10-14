@@ -58,7 +58,7 @@ MODULE_AUTHOR("Jun Komuro <komurojun-mbn@nifty.com>");
 
 static int irq_mode = 1; /* 0 = ISA interrupt, 1 = PCI interrupt */
 static int irq_list[16];
-static int irq_list_count = 0;
+static unsigned int irq_list_count = 0;
 
 module_param(irq_mode, int, 0444);
 module_param_array(irq_list, int, &irq_list_count, 0444);

@@ -29,7 +29,7 @@
 
 #define XUSBATM_PARM(name, type, parmtype, desc) \
 	static type name[XUSBATM_DRIVERS_MAX]; \
-	static int num_##name; \
+	static unsigned int num_##name; \
 	module_param_array(name, parmtype, &num_##name, 0444); \
 	MODULE_PARM_DESC(name, desc)
 

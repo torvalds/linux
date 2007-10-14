@@ -80,7 +80,7 @@ module_param(regdebug, int, 0644);
 static int checkecc = 1;
 module_param(checkecc, int, 0644);
 
-static int numtimings;
+static unsigned int numtimings;
 static int timing[3];
 module_param_array(timing, int, &numtimings, 0644);
 

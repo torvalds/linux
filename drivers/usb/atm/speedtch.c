@@ -88,7 +88,7 @@ static const unsigned char DEFAULT_MODEM_OPTION[MODEM_OPTION_LENGTH] = {
 static unsigned int BMaxDSL = DEFAULT_B_MAX_DSL;
 static unsigned char ModemMode = DEFAULT_MODEM_MODE;
 static unsigned char ModemOption[MODEM_OPTION_LENGTH];
-static int num_ModemOption;
+static unsigned int num_ModemOption;
 
 module_param(altsetting, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(altsetting,

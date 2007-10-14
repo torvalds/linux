@@ -35,9 +35,9 @@ static struct eisa_device_info __initdata eisa_table[] = {
 #define EISA_MAX_FORCED_DEV 16
 
 static int enable_dev[EISA_MAX_FORCED_DEV];
-static int enable_dev_count;
+static unsigned int enable_dev_count;
 static int disable_dev[EISA_MAX_FORCED_DEV];
-static int disable_dev_count;
+static unsigned int disable_dev_count;
 
 static int is_forced_dev (int *forced_tab,
 			  int forced_count,

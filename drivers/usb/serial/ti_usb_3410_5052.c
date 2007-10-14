@@ -214,13 +214,13 @@ static int debug;
 static int low_latency = TI_DEFAULT_LOW_LATENCY;
 static int closing_wait = TI_DEFAULT_CLOSING_WAIT;
 static ushort vendor_3410[TI_EXTRA_VID_PID_COUNT];
-static int vendor_3410_count;
+static unsigned int vendor_3410_count;
 static ushort product_3410[TI_EXTRA_VID_PID_COUNT];
-static int product_3410_count;
+static unsigned int product_3410_count;
 static ushort vendor_5052[TI_EXTRA_VID_PID_COUNT];
-static int vendor_5052_count;
+static unsigned int vendor_5052_count;
 static ushort product_5052[TI_EXTRA_VID_PID_COUNT];
-static int product_5052_count;
+static unsigned int product_5052_count;
 
 /* supported devices */
 /* the array dimension is the number of default entries plus */
