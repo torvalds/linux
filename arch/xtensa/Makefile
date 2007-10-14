@@ -28,11 +28,9 @@ PLATFORM = $(platform-y)
 export PLATFORM
 
 # temporarily until string.h is fixed
-cflags-y += -ffreestanding
+KBUILD_CFLAGS += -ffreestanding
 
-cflags-y += -pipe -mlongcalls
-
-CFLAGS  += $(cflags-y)
+KBUILD_CFLAGS += -pipe -mlongcalls
 
 KBUILD_DEFCONFIG := iss_defconfig
 
@@ -56,7 +54,7 @@ endif
 
 #
 
-LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 head-y		:= arch/xtensa/kernel/head.o
 core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/

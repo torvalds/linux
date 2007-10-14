@@ -44,7 +44,7 @@ ifeq ($(call cc-version),0304)
 	cflags-$(CONFIG_MCKINLEY)	+= -mtune=mckinley
 endif
 
-CFLAGS += $(cflags-y)
+KBUILD_CFLAGS += $(cflags-y)
 head-y := arch/ia64/kernel/head.o arch/ia64/kernel/init_task.o
 
 libs-y				+= arch/ia64/lib/

@@ -8,15 +8,15 @@
 #
 
 #
-# Uncomment the first CFLAGS if you are doing kgdb source level
+# Uncomment the first KBUILD_CFLAGS if you are doing kgdb source level
 # debugging of the kernel to get the proper debugging information.
 
 AS              := $(AS) -32
 LDFLAGS		:= -m elf32_sparc
 CHECKFLAGS	+= -D__sparc__
 
-#CFLAGS := $(CFLAGS) -g -pipe -fcall-used-g5 -fcall-used-g7
-CFLAGS := $(CFLAGS) -m32 -pipe -mno-fpu -fcall-used-g5 -fcall-used-g7
+#KBUILD_CFLAGS += -g -pipe -fcall-used-g5 -fcall-used-g7
+KBUILD_CFLAGS += -m32 -pipe -mno-fpu -fcall-used-g5 -fcall-used-g7
 AFLAGS := $(AFLAGS) -m32
 
 #LDFLAGS_vmlinux = -N -Ttext 0xf0004000

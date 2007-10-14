@@ -24,20 +24,20 @@ LDFLAGS_vmlinux	:= -Ttext $(KERNELLOAD) -Bstatic
 # The -Iarch/$(ARCH)/include is temporary while we are merging
 CPPFLAGS	+= -Iarch/$(ARCH) -Iarch/$(ARCH)/include
 AFLAGS		+= -Iarch/$(ARCH)
-CFLAGS		+= -Iarch/$(ARCH) -msoft-float -pipe \
+KBUILD_CFLAGS	+= -Iarch/$(ARCH) -msoft-float -pipe \
 		-ffixed-r2 -mmultiple
 
 # No AltiVec instruction when building kernel
-CFLAGS		+= $(call cc-option, -mno-altivec)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-altivec)
 
-CPP		= $(CC) -E $(CFLAGS)
+CPP		= $(CC) -E $(KBUILD_CFLAGS)
 # Temporary hack until we have migrated to asm-powerpc
 LINUXINCLUDE    += -Iarch/$(ARCH)/include
 
 CHECKFLAGS	+= -D__powerpc__
 
 ifndef CONFIG_FSL_BOOKE
-CFLAGS		+= -mstring
+KBUILD_CFLAGS	+= -mstring
 endif
 
 cpu-as-$(CONFIG_4xx)		+= -Wa,-m405
@@ -46,7 +46,7 @@ cpu-as-$(CONFIG_E500)		+= -Wa,-me500
 cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 
 AFLAGS += $(cpu-as-y)
-CFLAGS += $(cpu-as-y)
+KBUILD_CFLAGS += $(cpu-as-y)
 
 # Default to the common case.
 KBUILD_DEFCONFIG := common_defconfig

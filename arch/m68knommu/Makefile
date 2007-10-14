@@ -104,9 +104,9 @@ cflags-$(CONFIG_M68360)		:= -m68332
 
 AFLAGS += $(cflags-y)
 
-CFLAGS += $(cflags-y)
-CFLAGS += -D__linux__
-CFLAGS += -DUTS_SYSNAME=\"uClinux\"
+KBUILD_CFLAGS += $(cflags-y)
+KBUILD_CFLAGS += -D__linux__
+KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 
 head-y := arch/m68knommu/platform/$(cpuclass-y)/head.o
 

@@ -320,7 +320,7 @@ LINUXINCLUDE    := -Iinclude \
 
 CPPFLAGS        := -D__KERNEL__ $(LINUXINCLUDE)
 
-CFLAGS          := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration
 AFLAGS          := -D__ASSEMBLY__
@@ -335,7 +335,7 @@ export CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE
 export HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
 
 export CPPFLAGS NOSTDINC_FLAGS LINUXINCLUDE OBJCOPYFLAGS LDFLAGS
-export CFLAGS CFLAGS_KERNEL CFLAGS_MODULE
+export KBUILD_CFLAGS CFLAGS_KERNEL CFLAGS_MODULE
 export AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
 
 # When compiling out-of-tree modules, put MODVERDIR in the module
@@ -492,36 +492,36 @@ endif # $(dot-config)
 all: vmlinux
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-CFLAGS		+= -Os
+KBUILD_CFLAGS	+= -Os
 else
-CFLAGS		+= -O2
+KBUILD_CFLAGS	+= -O2
 endif
 
 include $(srctree)/arch/$(ARCH)/Makefile
 
 ifdef CONFIG_FRAME_POINTER
-CFLAGS		+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
+KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
 else
-CFLAGS		+= -fomit-frame-pointer
+KBUILD_CFLAGS	+= -fomit-frame-pointer
 endif
 
 ifdef CONFIG_DEBUG_INFO
-CFLAGS		+= -g
+KBUILD_CFLAGS	+= -g
 AFLAGS		+= -gdwarf-2
 endif
 
 # Force gcc to behave correct even for buggy distributions
-CFLAGS          += $(call cc-option, -fno-stack-protector)
+KBUILD_CFLAGS         += $(call cc-option, -fno-stack-protector)
 
 # arch Makefile may override CC so keep this after arch Makefile is included
 NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
 CHECKFLAGS     += $(NOSTDINC_FLAGS)
 
 # warn about C99 declaration after statement
-CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
+KBUILD_CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 
 # disable pointer signed / unsigned warnings in gcc 4.0
-CFLAGS += $(call cc-option,-Wno-pointer-sign,)
+KBUILD_CFLAGS += $(call cc-option,-Wno-pointer-sign,)
 
 # Use --build-id when available.
 LDFLAGS_BUILD_ID = $(patsubst -Wl$(comma)%,%,\

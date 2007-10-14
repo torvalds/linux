@@ -294,7 +294,7 @@ more details, with real examples.
 
 
 	This variable is necessary because the top Makefile owns the
-	variable $(CFLAGS) and uses it for compilation flags for the
+	variable $(KBUILD_CFLAGS) and uses it for compilation flags for the
 	entire tree.
 
 	$(EXTRA_AFLAGS) is a similar string for per-directory options
@@ -437,6 +437,7 @@ more details, with real examples.
 	-march=pentium-mmx if supported by $(CC), otherwise -march=i586.
 	The second argument to cc-option is optional, and if omitted,
 	cflags-y will be assigned no value if first option is not supported.
+	Note: cc-option uses KBUILD_CFLAGS for $(CC) options
 
    cc-option-yn
 	cc-option-yn is used to check if gcc supports a given option
@@ -452,6 +453,7 @@ more details, with real examples.
 	option. When $(biarch) equals 'y', the expanded variables $(aflags-y)
 	and $(cflags-y) will be assigned the values -a32 and -m32,
 	respectively.
+	Note: cc-option-yn uses KBUILD_CFLAGS for $(CC) options
 
     cc-option-align
 	gcc versions >= 3.0 changed the type of options used to specify
@@ -463,10 +465,11 @@ more details, with real examples.
 		cc-option-align = -falign
 
 	Example:
-		CFLAGS += $(cc-option-align)-functions=4
+		KBUILD_CFLAGS += $(cc-option-align)-functions=4
 
 	In the above example, the option -falign-functions=4 is used for
 	gcc >= 3.00. For gcc < 3.00, -malign-functions=4 is used.
+	Note: cc-option-align uses KBUILD_CFLAGS for $(CC) options
 
     cc-version
 	cc-version returns a numerical version of the $(CC) compiler version.
@@ -825,17 +828,17 @@ When kbuild executes, the following steps are followed (roughly):
 		#arch/sparc64/Makefile
 		AFLAGS += -m64 -mcpu=ultrasparc
 
-    CFLAGS		$(CC) compiler flags
+    KBUILD_CFLAGS		$(CC) compiler flags
 
 	Default value - see top level Makefile
 	Append or modify as required per architecture.
 
-	Often, the CFLAGS variable depends on the configuration.
+	Often, the KBUILD_CFLAGS variable depends on the configuration.
 
 	Example:
 		#arch/i386/Makefile
 		cflags-$(CONFIG_M386) += -march=i386
-		CFLAGS += $(cflags-y)
+		KBUILD_CFLAGS += $(cflags-y)
 
 	Many arch Makefiles dynamically run the target C compiler to
 	probe supported options:
@@ -847,7 +850,7 @@ When kbuild executes, the following steps are followed (roughly):
 						-march=pentium2,-march=i686)
 		...
 		# Disable unit-at-a-time mode ...
-		CFLAGS += $(call cc-option,-fno-unit-at-a-time)
+		KBUILD_CFLAGS += $(call cc-option,-fno-unit-at-a-time)
 		...
 
 

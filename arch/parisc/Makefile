@@ -63,7 +63,7 @@ cflags-$(CONFIG_PA8X00)		+= -march=2.0 -mschedule=8000
 
 head-y			:= arch/parisc/kernel/head.o 
 
-CFLAGS	+= $(cflags-y)
+KBUILD_CFLAGS	+= $(cflags-y)
 
 kernel-y			:= mm/ kernel/ math-emu/ kernel/init_task.o
 kernel-$(CONFIG_HPUX)		+= hpux/

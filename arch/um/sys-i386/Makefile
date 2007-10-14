@@ -20,4 +20,4 @@ CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
 
 include arch/um/scripts/Makefile.rules
 
-$(obj)/unmap.%: _c_flags = $(call unprofile,$(CFLAGS))
+$(obj)/unmap.%: _c_flags = $(call unprofile,$(KBUILD_CFLAGS))
