@@ -26,6 +26,7 @@
 #include <linux/kernel_stat.h>
 
 #include <asm/bootinfo.h>
+#include <asm/irq_cpu.h>
 #include <asm/lasat/lasatint.h>
 #include <asm/time.h>
 #include <asm/gdb-stub.h>
@@ -88,7 +89,7 @@ asmlinkage void plat_irq_dispatch(void)
 	int irq;
 
 	if (cause & CAUSEF_IP7) {	/* R4000 count / compare IRQ */
-		ll_timer_interrupt(7);
+		do_IRQ(7);
 		return;
 	}
 
@@ -96,7 +97,7 @@ asmlinkage void plat_irq_dispatch(void)
 
 	/* if int_status == 0, then the interrupt has already been cleared */
 	if (int_status) {
-		irq = ls1bit32(int_status);
+		irq = LASATINT_BASE + ls1bit32(int_status);
 
 		do_IRQ(irq);
 	}
@@ -125,6 +126,7 @@ void __init arch_init_irq(void)
 		panic("arch_init_irq: mips_machtype incorrect");
 	}
 
-	for (i = 0; i <= LASATINT_END; i++)
+	mips_cpu_irq_init();
+	for (i = LASATINT_BASE; i <= LASATINT_END; i++)
 		set_irq_chip_and_handler(i, &lasat_irq_type, handle_level_irq);
 }
