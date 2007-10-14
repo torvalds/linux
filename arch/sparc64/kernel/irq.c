@@ -128,7 +128,7 @@ static struct {
 	unsigned int dev_handle;
 	unsigned int dev_ino;
 	unsigned int in_use;
-} virt_to_real_irq_table[NR_IRQS];
+} virt_irq_table[NR_IRQS];
 static DEFINE_SPINLOCK(virt_irq_alloc_lock);
 
 unsigned char virt_irq_alloc(unsigned int dev_handle,
@@ -142,16 +142,16 @@ unsigned char virt_irq_alloc(unsigned int dev_handle,
 	spin_lock_irqsave(&virt_irq_alloc_lock, flags);
 
 	for (ent = 1; ent < NR_IRQS; ent++) {
-		if (!virt_to_real_irq_table[ent].in_use)
+		if (!virt_irq_table[ent].in_use)
 			break;
 	}
 	if (ent >= NR_IRQS) {
 		printk(KERN_ERR "IRQ: Out of virtual IRQs.\n");
 		ent = 0;
 	} else {
-		virt_to_real_irq_table[ent].dev_handle = dev_handle;
-		virt_to_real_irq_table[ent].dev_ino = dev_ino;
-		virt_to_real_irq_table[ent].in_use = 1;
+		virt_irq_table[ent].dev_handle = dev_handle;
+		virt_irq_table[ent].dev_ino = dev_ino;
+		virt_irq_table[ent].in_use = 1;
 	}
 
 	spin_unlock_irqrestore(&virt_irq_alloc_lock, flags);
@@ -169,7 +169,7 @@ void virt_irq_free(unsigned int virt_irq)
 
 	spin_lock_irqsave(&virt_irq_alloc_lock, flags);
 
-	virt_to_real_irq_table[virt_irq].in_use = 0;
+	virt_irq_table[virt_irq].in_use = 0;
 
 	spin_unlock_irqrestore(&virt_irq_alloc_lock, flags);
 }
@@ -360,7 +360,7 @@ static void sun4u_irq_end(unsigned int virt_irq)
 
 static void sun4v_irq_enable(unsigned int virt_irq)
 {
-	unsigned int ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 	unsigned long cpuid = irq_choose_cpu(virt_irq);
 	int err;
 
@@ -380,7 +380,7 @@ static void sun4v_irq_enable(unsigned int virt_irq)
 
 static void sun4v_set_affinity(unsigned int virt_irq, cpumask_t mask)
 {
-	unsigned int ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 	unsigned long cpuid = irq_choose_cpu(virt_irq);
 	int err;
 
@@ -392,7 +392,7 @@ static void sun4v_set_affinity(unsigned int virt_irq, cpumask_t mask)
 
 static void sun4v_irq_disable(unsigned int virt_irq)
 {
-	unsigned int ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 	int err;
 
 	err = sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
@@ -403,7 +403,7 @@ static void sun4v_irq_disable(unsigned int virt_irq)
 
 static void sun4v_irq_end(unsigned int virt_irq)
 {
-	unsigned int ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 	struct irq_desc *desc = irq_desc + virt_irq;
 	int err;
 
@@ -423,8 +423,8 @@ static void sun4v_virq_enable(unsigned int virt_irq)
 
 	cpuid = irq_choose_cpu(virt_irq);
 
-	dev_handle = virt_to_real_irq_table[virt_irq].dev_handle;
-	dev_ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	dev_handle = virt_irq_table[virt_irq].dev_handle;
+	dev_ino = virt_irq_table[virt_irq].dev_ino;
 
 	err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
 	if (err != HV_EOK)
@@ -452,8 +452,8 @@ static void sun4v_virt_set_affinity(unsigned int virt_irq, cpumask_t mask)
 
 	cpuid = irq_choose_cpu(virt_irq);
 
-	dev_handle = virt_to_real_irq_table[virt_irq].dev_handle;
-	dev_ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	dev_handle = virt_irq_table[virt_irq].dev_handle;
+	dev_ino = virt_irq_table[virt_irq].dev_ino;
 
 	err = sun4v_vintr_set_target(dev_handle, dev_ino, cpuid);
 	if (err != HV_EOK)
@@ -467,8 +467,8 @@ static void sun4v_virq_disable(unsigned int virt_irq)
 	unsigned long dev_handle, dev_ino;
 	int err;
 
-	dev_handle = virt_to_real_irq_table[virt_irq].dev_handle;
-	dev_ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	dev_handle = virt_irq_table[virt_irq].dev_handle;
+	dev_ino = virt_irq_table[virt_irq].dev_ino;
 
 	err = sun4v_vintr_set_valid(dev_handle, dev_ino,
 				    HV_INTR_DISABLED);
@@ -487,8 +487,8 @@ static void sun4v_virq_end(unsigned int virt_irq)
 	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
 		return;
 
-	dev_handle = virt_to_real_irq_table[virt_irq].dev_handle;
-	dev_ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	dev_handle = virt_irq_table[virt_irq].dev_handle;
+	dev_ino = virt_irq_table[virt_irq].dev_ino;
 
 	err = sun4v_vintr_set_state(dev_handle, dev_ino,
 				    HV_INTR_STATE_IDLE);
@@ -503,7 +503,7 @@ static void run_pre_handler(unsigned int virt_irq)
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
 	unsigned int ino;
 
-	ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	ino = virt_irq_table[virt_irq].dev_ino;
 	if (likely(data->pre_handler)) {
 		data->pre_handler(ino,
 				  data->pre_handler_arg1,
@@ -693,7 +693,7 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 
 void ack_bad_irq(unsigned int virt_irq)
 {
-	unsigned int ino = virt_to_real_irq_table[virt_irq].dev_ino;
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 
 	if (!ino)
 		ino = 0xdeadbeef;
