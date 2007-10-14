@@ -410,6 +410,7 @@ config SGI_IP32
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
+	select IRQ_CPU
 	select R5000_CPU_SCACHE
 	select RM7000_CPU_SCACHE
 	select SYS_HAS_CPU_R5000
