@@ -64,7 +64,7 @@ struct rtl8187_tx_hdr {
 struct rtl8187_priv {
 	/* common between rtl818x drivers */
 	struct rtl818x_csr *map;
-	void (*rf_init)(struct ieee80211_hw *);
+	const struct rtl818x_rf_ops *rf;
 	int mode;
 	int if_id;
 
