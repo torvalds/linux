@@ -228,12 +228,12 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  */
 #ifndef ioread8
 #define ioread8(p)	({ unsigned int __v = __raw_readb(p); __v; })
-#define ioread16(p)	({ unsigned int __v = le16_to_cpu(__raw_readw(p)); __v; })
-#define ioread32(p)	({ unsigned int __v = le32_to_cpu(__raw_readl(p)); __v; })
+#define ioread16(p)	({ unsigned int __v = le16_to_cpu((__force __le16)__raw_readw(p)); __v; })
+#define ioread32(p)	({ unsigned int __v = le32_to_cpu((__force __le32)__raw_readl(p)); __v; })
 
 #define iowrite8(v,p)	__raw_writeb(v, p)
-#define iowrite16(v,p)	__raw_writew(cpu_to_le16(v), p)
-#define iowrite32(v,p)	__raw_writel(cpu_to_le32(v), p)
+#define iowrite16(v,p)	__raw_writew((__force __u16)cpu_to_le16(v), p)
+#define iowrite32(v,p)	__raw_writel((__force __u32)cpu_to_le32(v), p)
 
 #define ioread8_rep(p,d,c)	__raw_readsb(p,d,c)
 #define ioread16_rep(p,d,c)	__raw_readsw(p,d,c)
