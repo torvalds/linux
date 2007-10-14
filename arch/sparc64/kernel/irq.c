@@ -64,7 +64,7 @@ struct ino_bucket {
 };
 
 #define NUM_IVECS	(IMAP_INR + 1)
-struct ino_bucket ivector_table[NUM_IVECS] __attribute__ ((aligned (SMP_CACHE_BYTES)));
+struct ino_bucket *ivector_table;
 unsigned long ivector_table_pa;
 
 #define __irq_ino(irq) \
@@ -928,22 +928,22 @@ static struct irqaction timer_irq_action = {
 	.name = "timer",
 };
 
-/* XXX Belongs in a common location. XXX */
-static unsigned long kimage_addr_to_ra(void *p)
-{
-	unsigned long val = (unsigned long) p;
-
-	return kern_base + (val - KERNBASE);
-}
-
 /* Only invoked on boot processor. */
 void __init init_IRQ(void)
 {
+	unsigned long size;
+
 	map_prom_timers();
 	kill_prom_timer();
-	memset(&ivector_table[0], 0, sizeof(ivector_table));
 
-	ivector_table_pa = kimage_addr_to_ra(&ivector_table[0]);
+	size = sizeof(struct ino_bucket) * NUM_IVECS;
+	ivector_table = alloc_bootmem_low(size);
+	if (!ivector_table) {
+		prom_printf("Fatal error, cannot allocate ivector_table\n");
+		prom_halt();
+	}
+
+	ivector_table_pa = __pa(ivector_table);
 
 	if (tlb_type == hypervisor)
 		sun4v_init_mondo_queues();
