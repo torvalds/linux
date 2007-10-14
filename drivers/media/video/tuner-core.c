@@ -113,7 +113,7 @@ static void fe_standby(struct tuner *t)
 static int fe_has_signal(struct tuner *t)
 {
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
-	u16 strength;
+	u16 strength = 0;
 
 	if (fe_tuner_ops->get_rf_strength)
 		fe_tuner_ops->get_rf_strength(&t->fe, &strength);
