@@ -42,7 +42,8 @@ void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 	dbg_msg("data_offset    %d",    be32_to_cpu(ec_hdr->data_offset));
 	dbg_msg("hdr_crc        %#08x", be32_to_cpu(ec_hdr->hdr_crc));
 	dbg_msg("erase counter header hexdump:");
-	ubi_dbg_hexdump(ec_hdr, UBI_EC_HDR_SIZE);
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+		       ec_hdr, UBI_EC_HDR_SIZE, 1);
 }
 
 /**
@@ -185,40 +186,6 @@ void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)
 	memcpy(nm, req->name, 16);
 	nm[16] = 0;
 	dbg_msg("the 1st 16 characters of the name: %s", nm);
-}
-
-#define BYTES_PER_LINE 32
-
-/**
- * ubi_dbg_hexdump - dump a buffer.
- * @ptr: the buffer to dump
- * @size: buffer size which must be multiple of 4 bytes
- */
-void ubi_dbg_hexdump(const void *ptr, int size)
-{
-	int i, k = 0, rows, columns;
-	const uint8_t *p = ptr;
-
-	size = ALIGN(size, 4);
-	rows = size/BYTES_PER_LINE + size % BYTES_PER_LINE;
-	for (i = 0; i < rows; i++) {
-		int j;
-
-		cond_resched();
-		columns = min(size - k, BYTES_PER_LINE) / 4;
-		if (columns == 0)
-			break;
-		printk(KERN_DEBUG "%5d:  ", i * BYTES_PER_LINE);
-		for (j = 0; j < columns; j++) {
-			int n, N;
-
-			N = size - k > 4 ? 4 : size - k;
-			for (n = 0; n < N; n++)
-				printk("%02x", p[k++]);
-			printk(" ");
-		}
-		printk("\n");
-	}
 }
 
 #endif /* CONFIG_MTD_UBI_DEBUG_MSG */

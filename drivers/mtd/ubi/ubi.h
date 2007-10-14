@@ -221,14 +221,15 @@ struct ubi_wl_entry;
  * @vtbl_slots: how many slots are available in the volume table
  * @vtbl_size: size of the volume table in bytes
  * @vtbl: in-RAM volume table copy
+ * @vtbl_mutex: protects on-flash volume table
  *
  * @max_ec: current highest erase counter value
  * @mean_ec: current mean erase counter value
  *
- * global_sqnum: global sequence number
+ * @global_sqnum: global sequence number
  * @ltree_lock: protects the lock tree and @global_sqnum
  * @ltree: the lock tree
- * @vtbl_mutex: protects on-flash volume table
+ * @alc_mutex: serializes "atomic LEB change" operations
  *
  * @used: RB-tree of used physical eraseblocks
  * @free: RB-tree of free physical eraseblocks
@@ -274,6 +275,12 @@ struct ubi_wl_entry;
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
  * not
  * @mtd: MTD device descriptor
+ *
+ * @peb_buf1: a buffer of PEB size used for different purposes
+ * @peb_buf2: another buffer of PEB size used for different purposes
+ * @buf_mutex: proptects @peb_buf1 and @peb_buf2
+ * @dbg_peb_buf:  buffer of PEB size used for debugging
+ * @dbg_buf_mutex: proptects @dbg_peb_buf
  */
 struct ubi_device {
 	struct cdev cdev;
@@ -302,6 +309,7 @@ struct ubi_device {
 	unsigned long long global_sqnum;
 	spinlock_t ltree_lock;
 	struct rb_root ltree;
+	struct mutex alc_mutex;
 
 	/* Wear-leveling unit's stuff */
 	struct rb_root used;
@@ -343,6 +351,14 @@ struct ubi_device {
 	int vid_hdr_shift;
 	int bad_allowed;
 	struct mtd_info *mtd;
+
+	void *peb_buf1;
+	void *peb_buf2;
+	struct mutex buf_mutex;
+#ifdef CONFIG_MTD_UBI_DEBUG
+	void *dbg_peb_buf;
+	struct mutex dbg_buf_mutex;
+#endif
 };
 
 extern struct file_operations ubi_cdev_operations;
@@ -409,18 +425,18 @@ void ubi_wl_close(struct ubi_device *ubi);
 /* io.c */
 int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 		int len);
-int ubi_io_write(const struct ubi_device *ubi, const void *buf, int pnum,
-		 int offset, int len);
-int ubi_io_sync_erase(const struct ubi_device *ubi, int pnum, int torture);
+int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
+		 int len);
+int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture);
 int ubi_io_is_bad(const struct ubi_device *ubi, int pnum);
 int ubi_io_mark_bad(const struct ubi_device *ubi, int pnum);
-int ubi_io_read_ec_hdr(const struct ubi_device *ubi, int pnum,
+int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		       struct ubi_ec_hdr *ec_hdr, int verbose);
-int ubi_io_write_ec_hdr(const struct ubi_device *ubi, int pnum,
+int ubi_io_write_ec_hdr(struct ubi_device *ubi, int pnum,
 			struct ubi_ec_hdr *ec_hdr);
-int ubi_io_read_vid_hdr(const struct ubi_device *ubi, int pnum,
+int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			struct ubi_vid_hdr *vid_hdr, int verbose);
-int ubi_io_write_vid_hdr(const struct ubi_device *ubi, int pnum,
+int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 			 struct ubi_vid_hdr *vid_hdr);
 
 /*
@@ -439,16 +455,18 @@ int ubi_io_write_vid_hdr(const struct ubi_device *ubi, int pnum,
 /**
  * ubi_zalloc_vid_hdr - allocate a volume identifier header object.
  * @ubi: UBI device description object
+ * @gfp_flags: GFP flags to allocate with
  *
  * This function returns a pointer to the newly allocated and zero-filled
  * volume identifier header object in case of success and %NULL in case of
  * failure.
  */
-static inline struct ubi_vid_hdr *ubi_zalloc_vid_hdr(const struct ubi_device *ubi)
+static inline struct ubi_vid_hdr *
+ubi_zalloc_vid_hdr(const struct ubi_device *ubi, gfp_t gfp_flags)
 {
 	void *vid_hdr;
 
-	vid_hdr = kzalloc(ubi->vid_hdr_alsize, GFP_KERNEL);
+	vid_hdr = kzalloc(ubi->vid_hdr_alsize, gfp_flags);
 	if (!vid_hdr)
 		return NULL;
 
@@ -492,7 +510,7 @@ static inline int ubi_io_read_data(const struct ubi_device *ubi, void *buf,
  * the beginning of the logical eraseblock, not to the beginning of the
  * physical eraseblock.
  */
-static inline int ubi_io_write_data(const struct ubi_device *ubi, const void *buf,
+static inline int ubi_io_write_data(struct ubi_device *ubi, const void *buf,
 				    int pnum, int offset, int len)
 {
 	ubi_assert(offset >= 0);
