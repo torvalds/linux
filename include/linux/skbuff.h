@@ -357,6 +357,7 @@ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 }
 
 extern void	       kfree_skbmem(struct sk_buff *skb);
+extern struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src);
 extern struct sk_buff *skb_clone(struct sk_buff *skb,
 				 gfp_t priority);
 extern struct sk_buff *skb_copy(const struct sk_buff *skb,
