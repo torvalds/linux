@@ -28,10 +28,20 @@ EXTRA_LDFLAGS  :=
 
 include scripts/Kbuild.include
 
+# For backward compatibility check that these variables does not change
+save-cflags := $(CFLAGS)
+
 # The filename Kbuild has precedence over Makefile
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
-include $(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, $(kbuild-dir)/Makefile)
+kbuild-file := $(if $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Kbuild,$(kbuild-dir)/Makefile)
+include $(kbuild-file)
 
+# If the save-* variables changed error out
+ifeq ($(KBUILD_NOPEDANTIC),)
+        ifneq ("$(save-cflags)","$(CFLAGS)")
+                $(error CFLAGS was changed in "$(kbuild-file)". Fix it to use EXTRA_CFLAGS)
+        endif
+endif
 include scripts/Makefile.lib
 
 ifdef host-progs
