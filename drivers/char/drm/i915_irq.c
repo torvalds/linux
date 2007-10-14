@@ -540,7 +540,7 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 		return -EBUSY;
 	}
 
-	vbl_swap = drm_calloc(1, sizeof(vbl_swap), DRM_MEM_DRIVER);
+	vbl_swap = drm_calloc(1, sizeof(*vbl_swap), DRM_MEM_DRIVER);
 
 	if (!vbl_swap) {
 		DRM_ERROR("Failed to allocate memory to queue swap\n");
