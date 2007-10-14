@@ -756,8 +756,8 @@ mpc52xx_console_setup(struct console *co, char *options)
 	if (port->membase == NULL)
 		return -EINVAL;
 
-	pr_debug("mpc52xx-psc uart at %lx, mapped to %p, irq=%x, freq=%i\n",
-	         port->mapbase, port->membase, port->irq, port->uartclk);
+	pr_debug("mpc52xx-psc uart at %p, mapped to %p, irq=%x, freq=%i\n",
+	         (void*)port->mapbase, port->membase, port->irq, port->uartclk);
 
 	/* Setup the port parameters accoding to options */
 	if (options)
@@ -974,8 +974,8 @@ mpc52xx_uart_of_probe(struct of_device *op, const struct of_device_id *match)
 	port->mapbase = res.start;
 	port->irq = irq_of_parse_and_map(op->node, 0);
 
-	dev_dbg(&op->dev, "mpc52xx-psc uart at %lx, irq=%x, freq=%i\n",
-	        port->mapbase, port->irq, port->uartclk);
+	dev_dbg(&op->dev, "mpc52xx-psc uart at %p, irq=%x, freq=%i\n",
+	        (void*)port->mapbase, port->irq, port->uartclk);
 
 	if ((port->irq==NO_IRQ) || !port->mapbase) {
 		printk(KERN_ERR "Could not allocate resources for PSC\n");
