@@ -54,7 +54,7 @@ struct net_lro_desc {
 	__wsum  data_csum;
 	__be32 tcp_rcv_tsecr;
 	__be32 tcp_rcv_tsval;
-	u32 tcp_ack;
+	__be32 tcp_ack;
 	u32 tcp_next_seq;
 	u32 skb_tot_frags_len;
 	u16 ip_tot_len;

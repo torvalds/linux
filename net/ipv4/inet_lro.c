@@ -159,7 +159,7 @@ static void lro_init_desc(struct net_lro_desc *lro_desc, struct sk_buff *skb,
 	lro_desc->iph = iph;
 	lro_desc->tcph = tcph;
 	lro_desc->tcp_next_seq = ntohl(tcph->seq) + tcp_data_len;
-	lro_desc->tcp_ack = ntohl(tcph->ack_seq);
+	lro_desc->tcp_ack = tcph->ack_seq;
 	lro_desc->tcp_window = tcph->window;
 
 	lro_desc->pkt_aggr_cnt = 1;
