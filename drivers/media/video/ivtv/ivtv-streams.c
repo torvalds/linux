@@ -441,6 +441,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv *itv = s->itv;
+	struct cx2341x_mpeg_params *p = &itv->params;
 	int captype = 0, subtype = 0;
 	int enable_passthrough = 0;
 
@@ -461,7 +462,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		}
 		itv->mpg_data_received = itv->vbi_data_inserted = 0;
 		itv->dualwatch_jiffies = jiffies;
-		itv->dualwatch_stereo_mode = itv->params.audio_properties & 0x0300;
+		itv->dualwatch_stereo_mode = p->audio_properties & 0x0300;
 		itv->search_pack_header = 0;
 		break;
 
@@ -492,10 +493,6 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	}
 	s->subtype = subtype;
 	s->buffers_stolen = 0;
-
-	/* mute/unmute video */
-	ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
-		test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? 0x00808001 : 0);
 
 	/* Clear Streamoff flags in case left from last capture */
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
@@ -553,7 +550,12 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 				itv->pgm_info_offset, itv->pgm_info_num);
 
 		/* Setup API for Stream */
-		cx2341x_update(itv, ivtv_api_func, NULL, &itv->params);
+		cx2341x_update(itv, ivtv_api_func, NULL, p);
+
+		/* mute if capturing radio */
+		if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags))
+			ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
+				1 | (p->video_mute_yuv << 8));
 	}
 
 	/* Vsync Setup */
@@ -602,6 +604,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv *itv = s->itv;
+	struct cx2341x_mpeg_params *p = &itv->params;
 	int datatype;
 
 	if (s->v4l2dev == NULL)
@@ -640,7 +643,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 		break;
 	}
 	if (ivtv_vapi(itv, CX2341X_DEC_SET_DECODER_SOURCE, 4, datatype,
-			itv->params.width, itv->params.height, itv->params.audio_properties)) {
+			p->width, p->height, p->audio_properties)) {
 		IVTV_DEBUG_WARN("Couldn't initialize decoder source\n");
 	}
 	return 0;
