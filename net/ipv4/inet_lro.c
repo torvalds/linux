@@ -77,7 +77,7 @@ static int lro_tcp_ip_check(struct iphdr *iph, struct tcphdr *tcph,
 
 	/* check tcp options (only timestamp allowed) */
 	if (tcph->doff == TCPH_LEN_W_TIMESTAMP) {
-		u32 *topt = (u32 *)(tcph + 1);
+		__be32 *topt = (__be32 *)(tcph + 1);
 
 		if (*topt != htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
 				   | (TCPOPT_TIMESTAMP << 8)
@@ -103,14 +103,14 @@ static void lro_update_tcp_ip_header(struct net_lro_desc *lro_desc)
 {
 	struct iphdr *iph = lro_desc->iph;
 	struct tcphdr *tcph = lro_desc->tcph;
-	u32 *p;
+	__be32 *p;
 	__wsum tcp_hdr_csum;
 
 	tcph->ack_seq = lro_desc->tcp_ack;
 	tcph->window = lro_desc->tcp_window;
 
 	if (lro_desc->tcp_saw_tstamp) {
-		p = (u32 *)(tcph + 1);
+		p = (__be32 *)(tcph + 1);
 		*(p+2) = lro_desc->tcp_rcv_tsecr;
 	}
 
@@ -150,7 +150,7 @@ static void lro_init_desc(struct net_lro_desc *lro_desc, struct sk_buff *skb,
 			  u16 vlan_tag, struct vlan_group *vgrp)
 {
 	int nr_frags;
-	u32 *ptr;
+	__be32 *ptr;
 	u32 tcp_data_len = TCP_PAYLOAD_LENGTH(iph, tcph);
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
@@ -166,7 +166,7 @@ static void lro_init_desc(struct net_lro_desc *lro_desc, struct sk_buff *skb,
 	lro_desc->ip_tot_len = ntohs(iph->tot_len);
 
 	if (tcph->doff == 8) {
-		ptr = (u32 *)(tcph+1);
+		ptr = (__be32 *)(tcph+1);
 		lro_desc->tcp_saw_tstamp = 1;
 		lro_desc->tcp_rcv_tsval = *(ptr+1);
 		lro_desc->tcp_rcv_tsecr = *(ptr+2);
@@ -190,7 +190,7 @@ static void lro_add_common(struct net_lro_desc *lro_desc, struct iphdr *iph,
 			   struct tcphdr *tcph, int tcp_data_len)
 {
 	struct sk_buff *parent = lro_desc->parent;
-	u32 *topt;
+	__be32 *topt;
 
 	lro_desc->pkt_aggr_cnt++;
 	lro_desc->ip_tot_len += tcp_data_len;
@@ -200,7 +200,7 @@ static void lro_add_common(struct net_lro_desc *lro_desc, struct iphdr *iph,
 
 	/* don't update tcp_rcv_tsval, would not work with PAWS */
 	if (lro_desc->tcp_saw_tstamp) {
-		topt = (u32 *) (tcph + 1);
+		topt = (__be32 *) (tcph + 1);
 		lro_desc->tcp_rcv_tsecr = *(topt + 2);
 	}
 

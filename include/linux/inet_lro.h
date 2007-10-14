@@ -52,14 +52,14 @@ struct net_lro_desc {
 	struct tcphdr *tcph;
 	struct vlan_group *vgrp;
 	__wsum  data_csum;
-	u32 tcp_rcv_tsecr;
-	u32 tcp_rcv_tsval;
+	__be32 tcp_rcv_tsecr;
+	__be32 tcp_rcv_tsval;
 	u32 tcp_ack;
 	u32 tcp_next_seq;
 	u32 skb_tot_frags_len;
 	u16 ip_tot_len;
 	u16 tcp_saw_tstamp; 		/* timestamps enabled */
-	u16 tcp_window;
+	__be16 tcp_window;
 	u16 vlan_tag;
 	int pkt_aggr_cnt;		/* counts aggregated packets */
 	int vlan_packet;
