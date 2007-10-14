@@ -739,7 +739,7 @@ out_fail:
 }
 
 /* Process an incoming IP datagram fragment. */
-struct sk_buff *ip_defrag(struct sk_buff *skb, u32 user)
+int ip_defrag(struct sk_buff *skb, u32 user)
 {
 	struct ipq *qp;
 
@@ -759,12 +759,12 @@ struct sk_buff *ip_defrag(struct sk_buff *skb, u32 user)
 
 		spin_unlock(&qp->lock);
 		ipq_put(qp, NULL);
-		return ret ? NULL : skb;
+		return ret;
 	}
 
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
 	kfree_skb(skb);
-	return NULL;
+	return -ENOMEM;
 }
 
 void __init ipfrag_init(void)

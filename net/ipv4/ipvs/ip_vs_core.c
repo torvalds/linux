@@ -541,13 +541,14 @@ __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
 	return csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
 }
 
-static inline struct sk_buff *
-ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
+static inline int ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
-	skb = ip_defrag(skb, user);
-	if (skb)
+	int err = ip_defrag(skb, user);
+
+	if (!err)
 		ip_send_check(ip_hdr(skb));
-	return skb;
+
+	return err;
 }
 
 /*
@@ -619,10 +620,8 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 
 	/* reassemble IP fragments */
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
-		if (!skb)
+		if (ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT))
 			return NF_STOLEN;
-		*pskb = skb;
 	}
 
 	iph = ip_hdr(skb);
@@ -756,11 +755,9 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	/* reassemble IP fragments */
 	if (unlikely(iph->frag_off & htons(IP_MF|IP_OFFSET) &&
 		     !pp->dont_defrag)) {
-		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
-		if (!skb)
+		if (ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT))
 			return NF_STOLEN;
 		iph = ip_hdr(skb);
-		*pskb = skb;
 	}
 
 	ihl = iph->ihl << 2;
@@ -861,12 +858,9 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 
 	/* reassemble IP fragments */
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-		skb = ip_vs_gather_frags(skb,
-					 hooknum == NF_IP_LOCAL_IN ?
-					 IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD);
-		if (!skb)
+		if (ip_vs_gather_frags(skb, hooknum == NF_IP_LOCAL_IN ?
+					    IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD))
 			return NF_STOLEN;
-		*pskb = skb;
 	}
 
 	iph = ip_hdr(skb);

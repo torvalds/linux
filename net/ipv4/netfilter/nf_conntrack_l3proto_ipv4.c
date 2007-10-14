@@ -63,19 +63,20 @@ static int ipv4_print_conntrack(struct seq_file *s,
 }
 
 /* Returns new sk_buff, or NULL */
-static struct sk_buff *
-nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
+static int nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
+	int err;
+
 	skb_orphan(skb);
 
 	local_bh_disable();
-	skb = ip_defrag(skb, user);
+	err = ip_defrag(skb, user);
 	local_bh_enable();
 
-	if (skb)
+	if (!err)
 		ip_send_check(ip_hdr(skb));
 
-	return skb;
+	return err;
 }
 
 static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
@@ -148,11 +149,10 @@ static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
 
 	/* Gather fragments. */
 	if (ip_hdr(*pskb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-		*pskb = nf_ct_ipv4_gather_frags(*pskb,
-						hooknum == NF_IP_PRE_ROUTING ?
-						IP_DEFRAG_CONNTRACK_IN :
-						IP_DEFRAG_CONNTRACK_OUT);
-		if (!*pskb)
+		if (nf_ct_ipv4_gather_frags(*pskb,
+					    hooknum == NF_IP_PRE_ROUTING ?
+					    IP_DEFRAG_CONNTRACK_IN :
+					    IP_DEFRAG_CONNTRACK_OUT))
 			return NF_STOLEN;
 	}
 	return NF_ACCEPT;

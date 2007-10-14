@@ -332,7 +332,7 @@ enum ip_defrag_users
 	IP_DEFRAG_VS_FWD
 };
 
-struct sk_buff *ip_defrag(struct sk_buff *skb, u32 user);
+int ip_defrag(struct sk_buff *skb, u32 user);
 extern int ip_frag_nqueues;
 extern atomic_t ip_frag_mem;
 
