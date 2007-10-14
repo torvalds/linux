@@ -467,8 +467,12 @@ struct cx8802_dev {
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 	/* for dvb only */
 	struct videobuf_dvb        dvb;
+#endif
 
-	void			   *card_priv;
+#if defined(CONFIG_VIDEO_CX88_VP3054) || \
+    defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
+	/* For VP3045 secondary I2C bus support */
+	struct vp3054_i2c_state	   *vp3054;
 #endif
 	/* for switching modulation types */
 	unsigned char              ts_gen_cntrl;
