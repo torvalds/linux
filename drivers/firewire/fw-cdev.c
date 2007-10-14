@@ -722,10 +722,11 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 		buffer_end = 0;
 	}
 
-	if (!access_ok(VERIFY_READ, request->packets, request->size))
+	p = (struct fw_cdev_iso_packet __user *)u64_to_uptr(request->packets);
+
+	if (!access_ok(VERIFY_READ, p, request->size))
 		return -EFAULT;
 
-	p = (struct fw_cdev_iso_packet __user *)u64_to_uptr(request->packets);
 	end = (void __user *)p + request->size;
 	count = 0;
 	while (p < end) {
