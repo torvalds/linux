@@ -75,7 +75,7 @@ struct trap_per_cpu {
 	unsigned long		tsb_huge_temp;
 
 /* Dcache line 8: IRQ work list, and keep trap_block a power-of-2 in size.  */
-	unsigned long		irq_worklist;
+	unsigned long		irq_worklist_pa;
 	unsigned int		cpu_mondo_qmask;
 	unsigned int		dev_mondo_qmask;
 	unsigned int		resum_qmask;
@@ -127,7 +127,7 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 #define TRAP_PER_CPU_CPU_LIST_PA	0xc8
 #define TRAP_PER_CPU_TSB_HUGE		0xd0
 #define TRAP_PER_CPU_TSB_HUGE_TEMP	0xd8
-#define TRAP_PER_CPU_IRQ_WORKLIST	0xe0
+#define TRAP_PER_CPU_IRQ_WORKLIST_PA	0xe0
 #define TRAP_PER_CPU_CPU_MONDO_QMASK	0xe8
 #define TRAP_PER_CPU_DEV_MONDO_QMASK	0xec
 #define TRAP_PER_CPU_RESUM_QMASK	0xf0
@@ -183,9 +183,9 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 	ldx	[DEST + TRAP_PER_CPU_PGD_PADDR], DEST;
 
 /* Clobbers TMP, loads local processor's IRQ work area into DEST.  */
-#define TRAP_LOAD_IRQ_WORK(DEST, TMP)		\
+#define TRAP_LOAD_IRQ_WORK_PA(DEST, TMP)	\
 	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
-	add	DEST, TRAP_PER_CPU_IRQ_WORKLIST, DEST;
+	add	DEST, TRAP_PER_CPU_IRQ_WORKLIST_PA, DEST;
 
 /* Clobbers TMP, loads DEST with current thread info pointer.  */
 #define TRAP_LOAD_THREAD_REG(DEST, TMP)		\
@@ -222,9 +222,9 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 	ldx	[DEST + TRAP_PER_CPU_PGD_PADDR], DEST;
 
 /* Clobbers TMP, loads local processor's IRQ work area into DEST.  */
-#define TRAP_LOAD_IRQ_WORK(DEST, TMP)		\
+#define TRAP_LOAD_IRQ_WORK_PA(DEST, TMP)	\
 	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
-	add	DEST, TRAP_PER_CPU_IRQ_WORKLIST, DEST;
+	add	DEST, TRAP_PER_CPU_IRQ_WORKLIST_PA, DEST;
 
 #define TRAP_LOAD_THREAD_REG(DEST, TMP)		\
 	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\

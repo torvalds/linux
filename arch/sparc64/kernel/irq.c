@@ -51,15 +51,12 @@
  * To make processing these packets efficient and race free we use
  * an array of irq buckets below.  The interrupt vector handler in
  * entry.S feeds incoming packets into per-cpu pil-indexed lists.
- * The IVEC handler does not need to act atomically, the PIL dispatch
- * code uses CAS to get an atomic snapshot of the list and clear it
- * at the same time.
  *
  * If you make changes to ino_bucket, please update hand coded assembler
  * of the vectored interrupt trap handler(s) in entry.S and sun4v_ivec.S
  */
 struct ino_bucket {
-/*0x00*/unsigned long irq_chain;
+/*0x00*/unsigned long irq_chain_pa;
 
 	/* Virtual interrupt number assigned to this INO.  */
 /*0x08*/unsigned int virt_irq;
@@ -68,20 +65,14 @@ struct ino_bucket {
 
 #define NUM_IVECS	(IMAP_INR + 1)
 struct ino_bucket ivector_table[NUM_IVECS] __attribute__ ((aligned (SMP_CACHE_BYTES)));
+unsigned long ivector_table_pa;
 
 #define __irq_ino(irq) \
         (((struct ino_bucket *)(irq)) - &ivector_table[0])
 #define __bucket(irq) ((struct ino_bucket *)(irq))
 #define __irq(bucket) ((unsigned long)(bucket))
 
-/* This has to be in the main kernel image, it cannot be
- * turned into per-cpu data.  The reason is that the main
- * kernel image is locked into the TLB and this structure
- * is accessed from the vectored interrupt trap handler.  If
- * access to this structure takes a TLB miss it could cause
- * the 5-level sparc v9 trap stack to overflow.
- */
-#define irq_work(__cpu)	&(trap_block[(__cpu)].irq_worklist)
+#define irq_work_pa(__cpu)	&(trap_block[(__cpu)].irq_worklist_pa)
 
 static struct {
 	unsigned long irq;
@@ -689,9 +680,8 @@ void ack_bad_irq(unsigned int virt_irq)
 
 void handler_irq(int irq, struct pt_regs *regs)
 {
-	struct ino_bucket *bucket;
+	unsigned long pstate, bucket_pa;
 	struct pt_regs *old_regs;
-	unsigned long pstate;
 
 	clear_softint(1 << irq);
 
@@ -704,18 +694,30 @@ void handler_irq(int irq, struct pt_regs *regs)
 			     "ldx	[%2], %1\n\t"
 			     "stx	%%g0, [%2]\n\t"
 			     "wrpr	%0, 0x0, %%pstate\n\t"
-			     : "=&r" (pstate), "=&r" (bucket)
-			     : "r" (irq_work(smp_processor_id())),
+			     : "=&r" (pstate), "=&r" (bucket_pa)
+			     : "r" (irq_work_pa(smp_processor_id())),
 			       "i" (PSTATE_IE)
 			     : "memory");
 
-	while (bucket) {
-		struct ino_bucket *next = __bucket(bucket->irq_chain);
+	while (bucket_pa) {
+		unsigned long next_pa;
+		unsigned int virt_irq;
 
-		bucket->irq_chain = 0UL;
-		__do_IRQ(bucket->virt_irq);
+		__asm__ __volatile__("ldxa	[%2] %4, %0\n\t"
+				     "lduwa	[%3] %4, %1\n\t"
+				     "stxa	%%g0, [%2] %4"
+				     : "=&r" (next_pa), "=&r" (virt_irq)
+				     : "r" (bucket_pa +
+					    offsetof(struct ino_bucket,
+						     irq_chain_pa)),
+				       "r" (bucket_pa +
+					    offsetof(struct ino_bucket,
+						     virt_irq)),
+				       "i" (ASI_PHYS_USE_EC));
 
-		bucket = next;
+		__do_IRQ(virt_irq);
+
+		bucket_pa = next_pa;
 	}
 
 	irq_exit();
@@ -815,7 +817,7 @@ void init_irqwork_curcpu(void)
 {
 	int cpu = hard_smp_processor_id();
 
-	trap_block[cpu].irq_worklist = 0UL;
+	trap_block[cpu].irq_worklist_pa = 0UL;
 }
 
 /* Please be very careful with register_one_mondo() and
@@ -926,12 +928,22 @@ static struct irqaction timer_irq_action = {
 	.name = "timer",
 };
 
+/* XXX Belongs in a common location. XXX */
+static unsigned long kimage_addr_to_ra(void *p)
+{
+	unsigned long val = (unsigned long) p;
+
+	return kern_base + (val - KERNBASE);
+}
+
 /* Only invoked on boot processor. */
 void __init init_IRQ(void)
 {
 	map_prom_timers();
 	kill_prom_timer();
 	memset(&ivector_table[0], 0, sizeof(ivector_table));
+
+	ivector_table_pa = kimage_addr_to_ra(&ivector_table[0]);
 
 	if (tlb_type == hypervisor)
 		sun4v_init_mondo_queues();
