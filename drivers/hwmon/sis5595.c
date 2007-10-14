@@ -739,11 +739,10 @@ static int __devinit sis5595_pci_probe(struct pci_dev *dev,
 	int *i;
 
 	for (i = blacklist; *i != 0; i++) {
-		struct pci_dev *dev;
-		dev = pci_get_device(PCI_VENDOR_ID_SI, *i, NULL);
-		if (dev) {
-			dev_err(&dev->dev, "Looked for SIS5595 but found unsupported device %.4x\n", *i);
-			pci_dev_put(dev);
+		struct pci_dev *d;
+		if ((d = pci_get_device(PCI_VENDOR_ID_SI, *i, NULL))) {
+			dev_err(&d->dev, "Looked for SIS5595 but found unsupported device %.4x\n", *i);
+			pci_dev_put(d);
 			return -ENODEV;
 		}
 	}
