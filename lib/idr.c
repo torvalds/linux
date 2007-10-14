@@ -120,7 +120,7 @@ static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa)
 	int n, m, sh;
 	struct idr_layer *p, *new;
 	int l, id, oid;
-	long bm;
+	unsigned long bm;
 
 	id = *starting_id;
  restart:

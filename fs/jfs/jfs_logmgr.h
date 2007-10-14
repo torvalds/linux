@@ -376,7 +376,7 @@ struct jfs_log {
 	int size;		/* 4: log size in log page (in page) */
 	int l2bsize;		/* 4: log2 of bsize */
 
-	long flag;		/* 4: flag */
+	unsigned long flag;	/* 4: flag */
 
 	struct lbuf *lbuf_free;	/* 4: free lbufs */
 	wait_queue_head_t free_wait;	/* 4: */

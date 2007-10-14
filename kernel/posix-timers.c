@@ -712,7 +712,7 @@ sys_timer_getoverrun(timer_t timer_id)
 {
 	struct k_itimer *timr;
 	int overrun;
-	long flags;
+	unsigned long flags;
 
 	timr = lock_timer(timer_id, &flags);
 	if (!timr)
@@ -784,7 +784,7 @@ sys_timer_settime(timer_t timer_id, int flags,
 	struct k_itimer *timr;
 	struct itimerspec new_spec, old_spec;
 	int error = 0;
-	long flag;
+	unsigned long flag;
 	struct itimerspec *rtn = old_setting ? &old_spec : NULL;
 
 	if (!new_setting)
@@ -836,7 +836,7 @@ asmlinkage long
 sys_timer_delete(timer_t timer_id)
 {
 	struct k_itimer *timer;
-	long flags;
+	unsigned long flags;
 
 retry_delete:
 	timer = lock_timer(timer_id, &flags);

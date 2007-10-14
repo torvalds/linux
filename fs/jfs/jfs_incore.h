@@ -49,7 +49,7 @@ struct jfs_inode_info {
 	short	btorder;	/* access order	*/
 	short	btindex;	/* btpage entry index*/
 	struct inode *ipimap;	/* inode map			*/
-	long	cflag;		/* commit flags		*/
+	unsigned long cflag;	/* commit flags		*/
 	u16	bxflag;		/* xflag of pseudo buffer?	*/
 	unchar	agno;		/* ag number			*/
 	signed char active_ag;	/* ag currently allocating from	*/

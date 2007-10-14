@@ -520,7 +520,7 @@ static void free_index(tid_t tid, struct inode *ip, u32 index, u32 next)
  *	Changes an entry in the directory index table
  */
 static void modify_index(tid_t tid, struct inode *ip, u32 index, s64 bn,
-			 int slot, struct metapage ** mp, u64 *lblock)
+			 int slot, struct metapage ** mp, s64 *lblock)
 {
 	struct dir_table_slot *dirtab_slot;
 

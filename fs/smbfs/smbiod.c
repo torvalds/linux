@@ -45,7 +45,7 @@ static LIST_HEAD(smb_servers);
 static DEFINE_SPINLOCK(servers_lock);
 
 #define SMBIOD_DATA_READY	(1<<0)
-static long smbiod_flags;
+static unsigned long smbiod_flags;
 
 static int smbiod(void *);
 static int smbiod_start(void);
