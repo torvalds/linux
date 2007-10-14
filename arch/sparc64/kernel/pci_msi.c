@@ -123,7 +123,7 @@ int sparc64_setup_msi_irq(unsigned int *virt_irq_p,
 	int msi, err;
 	u32 msiqid;
 
-	*virt_irq_p = virt_irq_alloc(~0);
+	*virt_irq_p = virt_irq_alloc(~0, 0, 0);
 	err = -ENOMEM;
 	if (!*virt_irq_p)
 		goto out_err;
