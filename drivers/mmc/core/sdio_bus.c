@@ -96,29 +96,22 @@ static int sdio_bus_match(struct device *dev, struct device_driver *drv)
 }
 
 static int
-sdio_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
-		int buf_size)
+sdio_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	int i = 0, length = 0;
 
-	if (add_uevent_var(envp, num_envp, &i,
-			buf, buf_size, &length,
+	if (add_uevent_var(env,
 			"SDIO_CLASS=%02X", func->class))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
-			buf, buf_size, &length,
+	if (add_uevent_var(env, 
 			"SDIO_ID=%04X:%04X", func->vendor, func->device))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
-			buf, buf_size, &length,
+	if (add_uevent_var(env,
 			"MODALIAS=sdio:c%02Xv%04Xd%04X",
 			func->class, func->vendor, func->device))
 		return -ENOMEM;
-
-	envp[i] = NULL;
 
 	return 0;
 }
