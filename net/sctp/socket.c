@@ -5058,6 +5058,7 @@ static int sctp_getsockopt_active_key(struct sock *sk, int len,
 static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 				    char __user *optval, int __user *optlen)
 {
+	struct sctp_authchunks __user *p = (void __user *)optval;
 	struct sctp_authchunks val;
 	struct sctp_association *asoc;
 	struct sctp_chunks_param *ch;
@@ -5066,10 +5067,10 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 	if (len <= sizeof(struct sctp_authchunks))
 		return -EINVAL;
 
-	if (copy_from_user(&val, optval, sizeof(struct sctp_authchunks)))
+	if (copy_from_user(&val, p, sizeof(struct sctp_authchunks)))
 		return -EFAULT;
 
-	to = val.gauth_chunks;
+	to = p->gauth_chunks;
 	asoc = sctp_id2assoc(sk, val.gauth_assoc_id);
 	if (!asoc)
 		return -EINVAL;
@@ -5092,6 +5093,7 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 				    char __user *optval, int __user *optlen)
 {
+	struct sctp_authchunks __user *p = (void __user *)optval;
 	struct sctp_authchunks val;
 	struct sctp_association *asoc;
 	struct sctp_chunks_param *ch;
@@ -5100,10 +5102,10 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 	if (len <= sizeof(struct sctp_authchunks))
 		return -EINVAL;
 
-	if (copy_from_user(&val, optval, sizeof(struct sctp_authchunks)))
+	if (copy_from_user(&val, p, sizeof(struct sctp_authchunks)))
 		return -EFAULT;
 
-	to = val.gauth_chunks;
+	to = p->gauth_chunks;
 	asoc = sctp_id2assoc(sk, val.gauth_assoc_id);
 	if (!asoc && val.gauth_assoc_id && sctp_style(sk, UDP))
 		return -EINVAL;
