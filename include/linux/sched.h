@@ -136,6 +136,7 @@ extern unsigned long weighted_cpuload(const int cpu);
 
 struct seq_file;
 struct cfs_rq;
+struct task_grp;
 #ifdef CONFIG_SCHED_DEBUG
 extern void proc_sched_show_task(struct task_struct *p, struct seq_file *m);
 extern void proc_sched_set_task(struct task_struct *p);
@@ -1833,6 +1834,17 @@ extern long sched_getaffinity(pid_t pid, cpumask_t *mask);
 extern int sched_mc_power_savings, sched_smt_power_savings;
 
 extern void normalize_rt_tasks(void);
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+
+extern struct task_grp init_task_grp;
+
+extern struct task_grp *sched_create_group(void);
+extern void sched_destroy_group(struct task_grp *tg);
+extern void sched_move_task(struct task_struct *tsk);
+extern int sched_group_set_shares(struct task_grp *tg, unsigned long shares);
+
+#endif
 
 #ifdef CONFIG_TASK_XACCT
 static inline void add_rchar(struct task_struct *tsk, ssize_t amt)

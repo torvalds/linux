@@ -877,7 +877,10 @@ static int cfs_rq_best_prio(struct cfs_rq *cfs_rq)
 	if (!cfs_rq->nr_running)
 		return MAX_PRIO;
 
-	curr = __pick_next_entity(cfs_rq);
+	curr = cfs_rq->curr;
+	if (!curr)
+		curr = __pick_next_entity(cfs_rq);
+
 	p = task_of(curr);
 
 	return p->prio;

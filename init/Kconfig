@@ -282,13 +282,12 @@ config CPUSETS
 	  Say N if unsure.
 
 config FAIR_GROUP_SCHED
-	bool "Fair group scheduler"
-	depends on EXPERIMENTAL && CONTAINERS
+	bool "Fair group cpu scheduler"
+	default n
+	depends on EXPERIMENTAL
 	help
-	  This option enables you to group tasks and control CPU resource
-	  allocation to such groups.
-
-	  Say N if unsure.
+	  This feature lets cpu scheduler recognize task groups and control cpu
+	  bandwidth allocation to such task groups.
 
 config SYSFS_DEPRECATED
 	bool "Create deprecated sysfs files"
