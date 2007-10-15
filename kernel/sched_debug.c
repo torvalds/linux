@@ -198,7 +198,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	u64 now = ktime_to_ns(ktime_get());
 	int cpu;
 
-	SEQ_printf(m, "Sched Debug Version: v0.05-v20, %s %.*s\n",
+	SEQ_printf(m, "Sched Debug Version: v0.06-v22, %s %.*s\n",
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
@@ -271,11 +271,12 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	rcu_read_unlock();
 
 	SEQ_printf(m, "%s (%d, #threads: %d)\n", p->comm, p->pid, num_threads);
-	SEQ_printf(m, "----------------------------------------------\n");
+	SEQ_printf(m,
+		"---------------------------------------------------------\n");
 #define P(F) \
-	SEQ_printf(m, "%-25s:%20Ld\n", #F, (long long)p->F)
+	SEQ_printf(m, "%-35s:%21Ld\n", #F, (long long)p->F)
 #define PN(F) \
-	SEQ_printf(m, "%-25s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
+	SEQ_printf(m, "%-35s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
 
 	PN(se.exec_start);
 	PN(se.vruntime);
@@ -292,7 +293,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	PN(se.wait_max);
 	P(sched_info.bkl_count);
 #endif
-	SEQ_printf(m, "%-25s:%20Ld\n",
+	SEQ_printf(m, "%-35s:%21Ld\n",
 		   "nr_switches", (long long)(p->nvcsw + p->nivcsw));
 	P(se.load.weight);
 	P(policy);
@@ -305,7 +306,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 
 		t0 = sched_clock();
 		t1 = sched_clock();
-		SEQ_printf(m, "%-25s:%20Ld\n",
+		SEQ_printf(m, "%-35s:%21Ld\n",
 			   "clock-delta", (long long)(t1-t0));
 	}
 }
