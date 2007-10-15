@@ -725,7 +725,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
  */
 static void yield_task_fair(struct rq *rq)
 {
-	struct cfs_rq *cfs_rq = &rq->cfs;
+	struct cfs_rq *cfs_rq = task_cfs_rq(rq->curr);
 	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
 	struct sched_entity *rightmost, *se = &rq->curr->se;
 	struct rb_node *parent;
