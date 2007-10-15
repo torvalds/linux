@@ -129,7 +129,7 @@ rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 # define schedstat_set(var, val)	do { } while (0)
 #endif
 
-#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+#ifdef CONFIG_SCHEDSTATS
 /*
  * Called when a process is dequeued from the active array and given
  * the cpu.  We should note that with the exception of interactive
@@ -233,5 +233,5 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
 #else
 #define sched_info_queued(t)		do { } while (0)
 #define sched_info_switch(t, next)	do { } while (0)
-#endif /* CONFIG_SCHEDSTATS || CONFIG_TASK_DELAY_ACCT */
+#endif /* CONFIG_SCHEDSTATS */
 
