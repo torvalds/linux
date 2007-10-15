@@ -638,6 +638,21 @@ static int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
 	return 0;
 }
 
+/**
+ * nfs_force_lookup_revalidate - Mark the directory as having changed
+ * @dir - pointer to directory inode
+ *
+ * This forces the revalidation code in nfs_lookup_revalidate() to do a
+ * full lookup on all child dentries of 'dir' whenever a change occurs
+ * on the server that might have invalidated our dcache.
+ *
+ * The caller should be holding dir->i_lock
+ */
+void nfs_force_lookup_revalidate(struct inode *dir)
+{
+	NFS_I(dir)->cache_change_attribute = jiffies;
+}
+
 /*
  * A check for whether or not the parent directory has changed.
  * In the case it has, we assume that the dentries are untrustworthy
