@@ -195,7 +195,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 	return 0;
 }
 
-static inline int ip_local_deliver_finish(struct sk_buff *skb)
+static int ip_local_deliver_finish(struct sk_buff *skb)
 {
 	__skb_pull(skb, ip_hdrlen(skb));
 
@@ -324,7 +324,7 @@ drop:
 	return -1;
 }
 
-static inline int ip_rcv_finish(struct sk_buff *skb)
+static int ip_rcv_finish(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
