@@ -279,9 +279,13 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 void proc_sched_set_task(struct task_struct *p)
 {
 #ifdef CONFIG_SCHEDSTATS
-	p->se.sleep_max = p->se.block_max = p->se.exec_max = p->se.wait_max = 0;
-	p->se.wait_runtime_overruns = p->se.wait_runtime_underruns = 0;
+	p->se.sleep_max			= 0;
+	p->se.block_max			= 0;
+	p->se.exec_max			= 0;
+	p->se.wait_max			= 0;
+	p->se.wait_runtime_overruns	= 0;
+	p->se.wait_runtime_underruns	= 0;
 #endif
-	p->se.sum_exec_runtime = 0;
+	p->se.sum_exec_runtime		= 0;
 	p->se.prev_sum_exec_runtime	= 0;
 }
