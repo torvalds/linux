@@ -2140,14 +2140,20 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 EXPORT_SYMBOL(read_extent_buffer);
 
 int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
+		      unsigned long min_len,
 		      char **token, char **map,
 		      unsigned long *map_start,
 		      unsigned long *map_len, int km)
 {
-	size_t offset;
+	size_t offset = start & (PAGE_CACHE_SIZE - 1);
 	char *kaddr;
 	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
 	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+	unsigned long end_i = (start_offset + start + min_len) >>
+				PAGE_CACHE_SHIFT;
+
+	if (i != end_i)
+		return -EINVAL;
 
 	WARN_ON(start > eb->len);
 
@@ -2155,8 +2161,7 @@ int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		offset = start_offset;
 		*map_start = 0;
 	} else {
-		offset = 0;
-		*map_start = (i << PAGE_CACHE_SHIFT) - offset;
+		*map_start = (i << PAGE_CACHE_SHIFT) - start_offset;
 	}
 
 	// kaddr = kmap_atomic(eb->pages[i], km);

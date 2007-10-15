@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
+#include <asm/kmap_types.h>
 #include "bit-radix.h"
 #include "extent_map.h"
 
@@ -431,15 +432,52 @@ struct btrfs_root {
 static inline u##bits btrfs_##name(struct extent_buffer *eb,		\
 				   type *s)				\
 {									\
-	__le##bits res;							\
-	read_eb_member(eb, s, type, member, &res);			\
-	return le##bits##_to_cpu(res);					\
+	int err;							\
+	char *map_token;						\
+	char *kaddr;							\
+	unsigned long map_start;					\
+	unsigned long map_len;						\
+	unsigned long offset = (unsigned long)s +			\
+				offsetof(type, member);			\
+	err = map_extent_buffer(eb, offset,				\
+			        sizeof(((type *)0)->member),		\
+				&map_token, &kaddr,			\
+				&map_start, &map_len, KM_USER0);	\
+	if (!err) {							\
+		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
+					       map_start);		\
+		u##bits res = le##bits##_to_cpu(*tmp);			\
+		unmap_extent_buffer(eb, map_token, KM_USER0);		\
+		return res;						\
+	} else {							\
+		__le##bits res;						\
+		read_eb_member(eb, s, type, member, &res);		\
+		return le##bits##_to_cpu(res);				\
+	}								\
 }									\
 static inline void btrfs_set_##name(struct extent_buffer *eb,		\
 				    type *s, u##bits val)		\
 {									\
-	val = cpu_to_le##bits(val);					\
-	write_eb_member(eb, s, type, member, &val);			\
+	int err;							\
+	char *map_token;						\
+	char *kaddr;							\
+	unsigned long map_start;					\
+	unsigned long map_len;						\
+	unsigned long offset = (unsigned long)s +			\
+				offsetof(type, member);			\
+	err = map_extent_buffer(eb, offset,				\
+			        sizeof(((type *)0)->member),		\
+				&map_token, &kaddr,			\
+				&map_start, &map_len, KM_USER0);	\
+	if (!err) {							\
+		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
+					       map_start);		\
+		*tmp = cpu_to_le##bits(val);				\
+		unmap_extent_buffer(eb, map_token, KM_USER0);		\
+	} else {							\
+		val = cpu_to_le##bits(val);				\
+		write_eb_member(eb, s, type, member, &val);		\
+	}								\
 }
 
 #define BTRFS_SETGET_HEADER_FUNCS(name, type, member, bits)		\

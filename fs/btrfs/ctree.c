@@ -464,22 +464,12 @@ static int check_block(struct btrfs_root *root, struct btrfs_path *path,
 			int level)
 {
 	struct extent_buffer *buf = path->nodes[level];
-	char fsid[BTRFS_FSID_SIZE];
 
-	read_extent_buffer(buf, fsid, (unsigned long)btrfs_header_fsid(buf),
-			   BTRFS_FSID_SIZE);
-
-	if (memcmp(fsid, root->fs_info->fsid, BTRFS_FSID_SIZE)) {
-		int i = 0;
+	if (memcmp_extent_buffer(buf, root->fs_info->fsid,
+				 (unsigned long)btrfs_header_fsid(buf),
+				 BTRFS_FSID_SIZE)) {
 		printk("warning bad block %Lu\n", buf->start);
-		if (!btrfs_buffer_uptodate(buf)) {
-			WARN_ON(1);
-		}
-		for (i = 0; i < BTRFS_FSID_SIZE; i++) {
-			printk("%x:%x ", root->fs_info->fsid[i], fsid[i]);
-		}
-		printk("\n");
-		// BUG();
+		BUG();
 	}
 	if (level == 0)
 		return check_leaf(root, path, level);
@@ -504,13 +494,14 @@ static int generic_bin_search(struct extent_buffer *eb, unsigned long p,
 	int high = max;
 	int mid;
 	int ret;
-	struct btrfs_disk_key *tmp;
+	struct btrfs_disk_key *tmp = NULL;
 	struct btrfs_disk_key unaligned;
 	unsigned long offset;
 	char *map_token = NULL;
 	char *kaddr = NULL;
 	unsigned long map_start = 0;
 	unsigned long map_len = 0;
+	int err;
 
 	while(low < high) {
 		mid = (low + high) / 2;
@@ -519,19 +510,24 @@ static int generic_bin_search(struct extent_buffer *eb, unsigned long p,
 		if (!map_token || offset < map_start ||
 		    (offset + sizeof(struct btrfs_disk_key)) >
 		    map_start + map_len) {
-			if (map_token)
+			if (map_token) {
 				unmap_extent_buffer(eb, map_token, KM_USER0);
-			map_extent_buffer(eb, offset, &map_token, &kaddr,
-					  &map_start, &map_len, KM_USER0);
+				map_token = NULL;
+			}
+			err = map_extent_buffer(eb, offset,
+						sizeof(struct btrfs_disk_key),
+						&map_token, &kaddr,
+						&map_start, &map_len, KM_USER0);
 
-		}
-		if (offset + sizeof(struct btrfs_disk_key) >
-		    map_start + map_len) {
-			unmap_extent_buffer(eb, map_token, KM_USER0);
-			read_extent_buffer(eb, &unaligned,
-					   offset, sizeof(unaligned));
-			map_token = NULL;
-			tmp = &unaligned;
+			if (!err) {
+				tmp = (struct btrfs_disk_key *)(kaddr + offset -
+							map_start);
+			} else {
+				read_extent_buffer(eb, &unaligned,
+						   offset, sizeof(unaligned));
+				tmp = &unaligned;
+			}
+
 		} else {
 			tmp = (struct btrfs_disk_key *)(kaddr + offset -
 							map_start);
@@ -544,7 +540,8 @@ static int generic_bin_search(struct extent_buffer *eb, unsigned long p,
 			high = mid;
 		else {
 			*slot = mid;
-			unmap_extent_buffer(eb, map_token, KM_USER0);
+			if (map_token)
+				unmap_extent_buffer(eb, map_token, KM_USER0);
 			return 0;
 		}
 	}

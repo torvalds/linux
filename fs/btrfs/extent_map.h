@@ -173,7 +173,7 @@ int set_extent_buffer_uptodate(struct extent_map_tree *tree,
 int extent_buffer_uptodate(struct extent_map_tree *tree,
 			   struct extent_buffer *eb);
 int map_extent_buffer(struct extent_buffer *eb, unsigned long offset,
-		      char **token, char **map,
+		      unsigned long min_len, char **token, char **map,
 		      unsigned long *map_start,
 		      unsigned long *map_len, int km);
 void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km);
