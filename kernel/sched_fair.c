@@ -796,7 +796,8 @@ static void yield_task_fair(struct rq *rq)
 static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 {
 	struct task_struct *curr = rq->curr;
-	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
+	struct cfs_rq *cfs_rq = task_cfs_rq(curr), *pcfs_rq;
+	struct sched_entity *se = &curr->se, *pse = &p->se;
 
 	if (unlikely(rt_prio(p->prio))) {
 		update_rq_clock(rq);
@@ -804,11 +805,21 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		resched_task(curr);
 		return;
 	}
-	if (is_same_group(curr, p)) {
-		s64 delta = curr->se.vruntime - p->se.vruntime;
 
-		if (delta > (s64)sysctl_sched_wakeup_granularity)
-			resched_task(curr);
+	for_each_sched_entity(se) {
+		cfs_rq = cfs_rq_of(se);
+		pcfs_rq = cfs_rq_of(pse);
+
+		if (cfs_rq == pcfs_rq) {
+			s64 delta = se->vruntime - pse->vruntime;
+
+			if (delta > (s64)sysctl_sched_wakeup_granularity)
+				resched_task(curr);
+			break;
+		}
+#ifdef CONFIG_FAIR_GROUP_SCHED
+		pse = pse->parent;
+#endif
 	}
 }
 
