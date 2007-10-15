@@ -648,7 +648,7 @@ void em28xx_uninit_isoc(struct em28xx *dev)
  */
 int em28xx_init_isoc(struct em28xx *dev)
 {
-	/* change interface to 3 which allowes the biggest packet sizes */
+	/* change interface to 3 which allows the biggest packet sizes */
 	int i, errCode;
 	const int sb_size = EM28XX_NUM_PACKETS * dev->max_pkt_size;
 
@@ -673,6 +673,7 @@ int em28xx_init_isoc(struct em28xx *dev)
 					("unable to allocate %i bytes for transfer buffer %i\n",
 					 sb_size, i);
 			em28xx_uninit_isoc(dev);
+			usb_free_urb(urb);
 			return -ENOMEM;
 		}
 		memset(dev->transfer_buffer[i], 0, sb_size);
