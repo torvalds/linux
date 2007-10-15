@@ -626,7 +626,7 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	 */
 	update_curr(cfs_rq);
 
-	if (cfs_rq->nr_running > 1)
+	if (cfs_rq->nr_running > 1 || !sched_feat(WAKEUP_PREEMPT))
 		check_preempt_tick(cfs_rq, curr);
 }
 
@@ -828,18 +828,20 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		return;
 	}
 
-	while (!is_same_group(se, pse)) {
-		se = parent_entity(se);
-		pse = parent_entity(pse);
+	if (sched_feat(WAKEUP_PREEMPT)) {
+		while (!is_same_group(se, pse)) {
+			se = parent_entity(se);
+			pse = parent_entity(pse);
+		}
+
+		delta = se->vruntime - pse->vruntime;
+		gran = sysctl_sched_wakeup_granularity;
+		if (unlikely(se->load.weight != NICE_0_LOAD))
+			gran = calc_delta_fair(gran, &se->load);
+
+		if (delta > gran)
+			resched_task(curr);
 	}
-
-	delta = se->vruntime - pse->vruntime;
-	gran = sysctl_sched_wakeup_granularity;
-	if (unlikely(se->load.weight != NICE_0_LOAD))
-		gran = calc_delta_fair(gran, &se->load);
-
-	if (delta > gran)
-		resched_task(curr);
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
