@@ -14,8 +14,6 @@ header-y += vsyscall32.h
 
 unifdef-y += a.out_32.h
 unifdef-y += a.out_64.h
-unifdef-y += auxvec_32.h
-unifdef-y += auxvec_64.h
 unifdef-y += byteorder_32.h
 unifdef-y += byteorder_64.h
 unifdef-y += elf_32.h
