@@ -280,7 +280,6 @@ error_s:
 error_bdev:
 	close_bdev_excl(bdev);
 error:
-printk("get_sb failed\n");
 	return error;
 }
 /* end copy & paste */
@@ -295,7 +294,6 @@ static int btrfs_get_sb(struct file_system_type *fs_type,
 	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data,
 			btrfs_fill_super, mnt,
 			subvol_name ? subvol_name : "default");
-printk("btrfs_get_sb returns %d\n", ret);
 	return ret;
 }
 

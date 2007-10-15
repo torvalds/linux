@@ -1766,8 +1766,9 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	/* first try to make some room by pushing left and right */
 	wret = push_leaf_left(trans, root, path, data_size);
-	if (wret < 0)
+	if (wret < 0) {
 		return wret;
+	}
 	if (wret) {
 		wret = push_leaf_right(trans, root, path, data_size);
 		if (wret < 0)
@@ -1777,8 +1778,9 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	/* did the pushes work? */
 	if (btrfs_leaf_free_space(root, l) >=
-	    sizeof(struct btrfs_item) + data_size)
+	    sizeof(struct btrfs_item) + data_size) {
 		return 0;
+	}
 
 	if (!path->nodes[1]) {
 		ret = insert_new_root(trans, root, path, 1);
@@ -1822,7 +1824,11 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 				return ret;
 			}
 			mid = slot;
-			double_split = 1;
+			if (mid != nritems &&
+			    leaf_space_used(l, mid, nritems - mid) +
+			    space_needed > BTRFS_LEAF_DATA_SIZE(root)) {
+				double_split = 1;
+			}
 		}
 	} else {
 		if (leaf_space_used(l, 0, mid + 1) + space_needed >
@@ -1910,8 +1916,9 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	BUG_ON(path->slots[0] < 0);
 
-	if (!double_split)
+	if (!double_split) {
 		return ret;
+	}
 
 	right = btrfs_alloc_free_block(trans, root, root->leafsize,
 				       l->start, 0);
@@ -2048,7 +2055,11 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans,
 	old_data = btrfs_item_end_nr(leaf, slot);
 
 	BUG_ON(slot < 0);
-	BUG_ON(slot >= nritems);
+	if (slot >= nritems) {
+		btrfs_print_leaf(root, leaf);
+		printk("slot %d too large, nritems %d\n", slot, nritems);
+		BUG_ON(1);
+	}
 
 	/*
 	 * item0..itemN ... dataN.offset..dataN.size .. data0.size
@@ -2132,6 +2143,9 @@ int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
 
 	if (btrfs_leaf_free_space(root, leaf) <
 	    sizeof(struct btrfs_item) + data_size) {
+		btrfs_print_leaf(root, leaf);
+		printk("not enough freespace need %u have %d\n",
+		       data_size, btrfs_leaf_free_space(root, leaf));
 		BUG();
 	}
 

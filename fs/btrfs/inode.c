@@ -87,7 +87,7 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 	BUG_ON(!trans);
 	num_bytes = (end - start + blocksize) & ~(blocksize - 1);
 	ret = btrfs_drop_extents(trans, root, inode,
-				 start, start + num_bytes, &alloc_hint);
+				 start, start + num_bytes, start, &alloc_hint);
 
 	ret = btrfs_alloc_extent(trans, root, inode->i_ino, num_bytes, 0,
 				 alloc_hint, (u64)-1, &ins, 1);
@@ -776,7 +776,8 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		trans = btrfs_start_transaction(root, 1);
 		btrfs_set_trans_block_group(trans, inode);
 		err = btrfs_drop_extents(trans, root, inode,
-					 pos, pos + hole_size, &alloc_hint);
+					 pos, pos + hole_size, pos,
+					 &alloc_hint);
 
 		err = btrfs_insert_file_extent(trans, root, inode->i_ino,
 					       pos, 0, 0, hole_size);
@@ -1581,7 +1582,9 @@ again:
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		unsigned long ptr;
 		char *map;
-		u32 size;
+		size_t size;
+		size_t extent_offset;
+		size_t copy_size;
 
 		size = btrfs_file_extent_inline_len(leaf, btrfs_item_nr(leaf,
 						    path->slots[0]));
@@ -1600,26 +1603,31 @@ again:
 			goto not_found_em;
 		}
 
+		extent_offset = (page->index << PAGE_CACHE_SHIFT) -
+			extent_start;
+		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
+		map = kmap(page);
+		copy_size = min(PAGE_CACHE_SIZE - page_offset,
+				size - extent_offset);
+
 		em->block_start = EXTENT_MAP_INLINE;
 		em->block_end = EXTENT_MAP_INLINE;
-		em->start = extent_start;
-		em->end = extent_end;
+		em->start = extent_start + extent_offset;
+		em->end = (em->start + copy_size -1) |
+			((u64)root->sectorsize -1);
 
 		if (!page) {
 			goto insert;
 		}
 
-		ptr = btrfs_file_extent_inline_start(item);
-		map = kmap(page);
-		read_extent_buffer(leaf, map + page_offset, ptr, size);
+		read_extent_buffer(leaf, map + page_offset, ptr, copy_size);
 		/*
-		memset(map + page_offset + size, 0,
-		       root->sectorsize - (page_offset + size));
+		memset(map + page_offset + copy_size, 0,
+		       PAGE_CACHE_SIZE - copy_size - page_offset);
 		       */
 		flush_dcache_page(page);
 		kunmap(page);
-		set_extent_uptodate(em_tree, extent_start,
-				    extent_end, GFP_NOFS);
+		set_extent_uptodate(em_tree, em->start, em->end, GFP_NOFS);
 		goto insert;
 	} else {
 		printk("unkknown found_type %d\n", found_type);

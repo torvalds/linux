@@ -82,8 +82,9 @@ static void btrfs_drop_pages(struct page **pages, size_t num_pages)
 
 static int insert_inline_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root, struct inode *inode,
-				u64 offset, ssize_t size,
-				struct page *page, size_t page_offset)
+				u64 offset, size_t size,
+				struct page **pages, size_t page_offset,
+				int num_pages)
 {
 	struct btrfs_key key;
 	struct btrfs_path *path;
@@ -91,9 +92,12 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	char *kaddr;
 	unsigned long ptr;
 	struct btrfs_file_extent_item *ei;
+	struct page *page;
 	u32 datasize;
 	int err = 0;
 	int ret;
+	int i;
+	ssize_t cur_size;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -104,25 +108,97 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	key.objectid = inode->i_ino;
 	key.offset = offset;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
-	BUG_ON(size >= PAGE_CACHE_SIZE);
-	datasize = btrfs_file_extent_calc_inline_size(size);
+	datasize = btrfs_file_extent_calc_inline_size(offset + size);
 
-	ret = btrfs_insert_empty_item(trans, root, path, &key,
-				      datasize);
-	if (ret) {
+	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
+	if (ret < 0) {
 		err = ret;
 		goto fail;
 	}
-	leaf = path->nodes[0];
-	ei = btrfs_item_ptr(leaf, path->slots[0],
-			    struct btrfs_file_extent_item);
-	btrfs_set_file_extent_generation(leaf, ei, trans->transid);
-	btrfs_set_file_extent_type(leaf, ei, BTRFS_FILE_EXTENT_INLINE);
-	ptr = btrfs_file_extent_inline_start(ei);
+	if (ret == 1) {
+		path->slots[0]--;
+		leaf = path->nodes[0];
+		ei = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_file_extent_item);
 
-	kaddr = kmap_atomic(page, KM_USER1);
-	write_extent_buffer(leaf, kaddr + page_offset, ptr, size);
-	kunmap_atomic(kaddr, KM_USER1);
+		if (btrfs_file_extent_type(leaf, ei) !=
+		    BTRFS_FILE_EXTENT_INLINE) {
+			goto insert;
+		}
+		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+		ret = 0;
+	}
+	if (ret == 0) {
+		u32 found_size;
+		u64 found_start;
+
+		leaf = path->nodes[0];
+		ei = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_file_extent_item);
+
+		if (btrfs_file_extent_type(leaf, ei) !=
+		    BTRFS_FILE_EXTENT_INLINE) {
+			err = ret;
+			btrfs_print_leaf(root, leaf);
+			printk("found wasn't inline offset %Lu inode %lu\n",
+			       offset, inode->i_ino);
+			goto fail;
+		}
+		found_start = key.offset;
+		found_size = btrfs_file_extent_inline_len(leaf,
+					  btrfs_item_nr(leaf, path->slots[0]));
+
+		if (found_size < offset + size) {
+			btrfs_release_path(root, path);
+			ret = btrfs_search_slot(trans, root, &key, path,
+						offset + size - found_size -
+						found_start, 1);
+			BUG_ON(ret != 0);
+			ret = btrfs_extend_item(trans, root, path,
+						offset + size - found_size -
+						found_start);
+			if (ret) {
+				err = ret;
+				goto fail;
+			}
+			leaf = path->nodes[0];
+			ei = btrfs_item_ptr(leaf, path->slots[0],
+					    struct btrfs_file_extent_item);
+		}
+	} else {
+insert:
+		btrfs_release_path(root, path);
+		ret = btrfs_insert_empty_item(trans, root, path, &key,
+					      datasize);
+		if (ret) {
+			err = ret;
+			printk("got bad ret %d\n", ret);
+			goto fail;
+		}
+		leaf = path->nodes[0];
+		ei = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_file_extent_item);
+		btrfs_set_file_extent_generation(leaf, ei, trans->transid);
+		btrfs_set_file_extent_type(leaf, ei, BTRFS_FILE_EXTENT_INLINE);
+	}
+	ptr = btrfs_file_extent_inline_start(ei) + offset;
+
+	cur_size = size;
+	i = 0;
+	while (size > 0) {
+		page = pages[i];
+		kaddr = kmap_atomic(page, KM_USER0);
+		cur_size = min(PAGE_CACHE_SIZE - page_offset, size);
+		write_extent_buffer(leaf, kaddr + page_offset, ptr, cur_size);
+		kunmap_atomic(kaddr, KM_USER0);
+		page_offset = 0;
+		ptr += cur_size;
+		size -= cur_size;
+		if (i >= num_pages) {
+			printk("i %d num_pages %d\n", i, num_pages);
+		}
+		i++;
+	}
 	btrfs_mark_buffer_dirty(leaf);
 fail:
 	btrfs_free_path(path);
@@ -193,6 +269,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 			err = btrfs_drop_extents(trans, root, inode,
 						 last_pos_in_file,
 						 last_pos_in_file + hole_size,
+						 last_pos_in_file,
 						 &hint_byte);
 			if (err)
 				goto failed;
@@ -210,11 +287,12 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	 * either allocate an extent for the new bytes or setup the key
 	 * to show we are doing inline data in the extent
 	 */
-	inline_size = end_pos - start_pos;
-	if (isize >= PAGE_CACHE_SIZE || pos + write_bytes < inode->i_size ||
-	    inline_size >= BTRFS_MAX_INLINE_DATA_SIZE(root) ||
-	    inline_size >= PAGE_CACHE_SIZE) {
+	inline_size = end_pos;
+	if (isize >= BTRFS_MAX_INLINE_DATA_SIZE(root) ||
+	    inline_size > 16384 ||
+	    inline_size >= BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		u64 last_end;
+
 		for (i = 0; i < num_pages; i++) {
 			struct page *p = pages[i];
 			SetPageUptodate(p);
@@ -225,22 +303,18 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		set_extent_delalloc(em_tree, start_pos, end_of_last_block,
 				 GFP_NOFS);
 	} else {
-		struct page *p = pages[0];
+		u64 aligned_end;
 		/* step one, delete the existing extents in this range */
+		aligned_end = (pos + write_bytes + root->sectorsize - 1) &
+			~((u64)root->sectorsize - 1);
 		err = btrfs_drop_extents(trans, root, inode, start_pos,
-			 (pos + write_bytes + root->sectorsize -1) &
-			 ~((u64)root->sectorsize - 1), &hint_byte);
+					 aligned_end, end_pos, &hint_byte);
 		if (err)
 			goto failed;
-
 		err = insert_inline_extent(trans, root, inode, start_pos,
-					   end_pos - start_pos, p, 0);
+					   end_pos - start_pos, pages, 0,
+					   num_pages);
 		BUG_ON(err);
-		em->start = start_pos;
-		em->end = end_pos - 1;
-		em->block_start = EXTENT_MAP_INLINE;
-		em->block_end = EXTENT_MAP_INLINE;
-		add_extent_mapping(em_tree, em);
 	}
 	if (end_pos > isize) {
 		i_size_write(inode, end_pos);
@@ -285,7 +359,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
  */
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
-		       u64 start, u64 end, u64 *hint_byte)
+		       u64 start, u64 end, u64 inline_end, u64 *hint_byte)
 {
 	int ret;
 	struct btrfs_key key;
@@ -401,8 +475,8 @@ next_slot:
 					BUG_ON(ret);
 				}
 			}
-			WARN_ON(found_inline);
-			bookend = 1;
+			if (!found_inline)
+				bookend = 1;
 		}
 		/* truncate existing extent */
 		if (start > key.offset) {
@@ -425,8 +499,14 @@ next_slot:
 				btrfs_set_file_extent_num_bytes(leaf, extent,
 								new_num);
 				btrfs_mark_buffer_dirty(leaf);
-			} else {
-				WARN_ON(1);
+			} else if (end > extent_end &&
+				   key.offset < inline_end &&
+				   inline_end < extent_end) {
+				u32 new_size;
+				new_size = btrfs_file_extent_calc_inline_size(
+						   inline_end - key.offset);
+				btrfs_truncate_item(trans, root, path,
+						    new_size);
 			}
 		}
 		/* delete the entire extent */
