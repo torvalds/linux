@@ -366,7 +366,6 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static inline void
 update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	update_curr(cfs_rq);
 	/*
 	 * Mark the end of the wait period if dequeueing a
 	 * waiting task:
@@ -505,7 +504,7 @@ static void
 enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 {
 	/*
-	 * Update the fair clock.
+	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
 
@@ -524,6 +523,11 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
+	/*
+	 * Update run-time statistics of the 'current'.
+	 */
+	update_curr(cfs_rq);
+
 	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
 #ifdef CONFIG_SCHEDSTATS
@@ -787,8 +791,7 @@ static void yield_task_fair(struct rq *rq)
 	if (likely(!sysctl_sched_compat_yield)) {
 		__update_rq_clock(rq);
 		/*
-		 * Dequeue and enqueue the task to update its
-		 * position within the tree:
+		 * Update run-time statistics of the 'current'.
 		 */
 		update_curr(cfs_rq);
 
