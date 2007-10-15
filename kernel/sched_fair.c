@@ -652,13 +652,19 @@ static inline struct cfs_rq *cpu_cfs_rq(struct cfs_rq *cfs_rq, int this_cpu)
 #define for_each_leaf_cfs_rq(rq, cfs_rq) \
 	list_for_each_entry(cfs_rq, &rq->leaf_cfs_rq_list, leaf_cfs_rq_list)
 
-/* Do the two (enqueued) tasks belong to the same group ? */
-static inline int is_same_group(struct task_struct *curr, struct task_struct *p)
+/* Do the two (enqueued) entities belong to the same group ? */
+static inline int
+is_same_group(struct sched_entity *se, struct sched_entity *pse)
 {
-	if (curr->se.cfs_rq == p->se.cfs_rq)
+	if (se->cfs_rq == pse->cfs_rq)
 		return 1;
 
 	return 0;
+}
+
+static inline struct sched_entity *parent_entity(struct sched_entity *se)
+{
+	return se->parent;
 }
 
 #else	/* CONFIG_FAIR_GROUP_SCHED */
@@ -693,9 +699,15 @@ static inline struct cfs_rq *cpu_cfs_rq(struct cfs_rq *cfs_rq, int this_cpu)
 #define for_each_leaf_cfs_rq(rq, cfs_rq) \
 		for (cfs_rq = &rq->cfs; cfs_rq; cfs_rq = NULL)
 
-static inline int is_same_group(struct task_struct *curr, struct task_struct *p)
+static inline int
+is_same_group(struct sched_entity *se, struct sched_entity *pse)
 {
 	return 1;
+}
+
+static inline struct sched_entity *parent_entity(struct sched_entity *se)
+{
+	return NULL;
 }
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
@@ -787,8 +799,9 @@ static void yield_task_fair(struct rq *rq)
 static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 {
 	struct task_struct *curr = rq->curr;
-	struct cfs_rq *cfs_rq = task_cfs_rq(curr), *pcfs_rq;
+	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	struct sched_entity *se = &curr->se, *pse = &p->se;
+	s64 delta;
 
 	if (unlikely(rt_prio(p->prio))) {
 		update_rq_clock(rq);
@@ -797,21 +810,15 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		return;
 	}
 
-	for_each_sched_entity(se) {
-		cfs_rq = cfs_rq_of(se);
-		pcfs_rq = cfs_rq_of(pse);
-
-		if (cfs_rq == pcfs_rq) {
-			s64 delta = se->vruntime - pse->vruntime;
-
-			if (delta > (s64)sysctl_sched_wakeup_granularity)
-				resched_task(curr);
-			break;
-		}
-#ifdef CONFIG_FAIR_GROUP_SCHED
-		pse = pse->parent;
-#endif
+	while (!is_same_group(se, pse)) {
+		se = parent_entity(se);
+		pse = parent_entity(pse);
 	}
+
+	delta = se->vruntime - pse->vruntime;
+
+	if (delta > (s64)sysctl_sched_wakeup_granularity)
+		resched_task(curr);
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
