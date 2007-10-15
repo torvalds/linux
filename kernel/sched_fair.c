@@ -892,7 +892,7 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
  * achieve that by always pre-iterating before returning
  * the current task:
  */
-static inline struct task_struct *
+static struct task_struct *
 __load_balance_iterator(struct cfs_rq *cfs_rq, struct rb_node *curr)
 {
 	struct task_struct *p;

@@ -608,7 +608,7 @@ repeat_lock_task:
 	return rq;
 }
 
-static inline void __task_rq_unlock(struct rq *rq)
+static void __task_rq_unlock(struct rq *rq)
 	__releases(rq->lock)
 {
 	spin_unlock(&rq->lock);
@@ -623,7 +623,7 @@ static inline void task_rq_unlock(struct rq *rq, unsigned long *flags)
 /*
  * this_rq_lock - lock this runqueue and disable interrupts.
  */
-static inline struct rq *this_rq_lock(void)
+static struct rq *this_rq_lock(void)
 	__acquires(rq->lock)
 {
 	struct rq *rq;
@@ -986,20 +986,6 @@ static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
 }
 
 /*
- * activate_idle_task - move idle task to the _front_ of runqueue.
- */
-static inline void activate_idle_task(struct task_struct *p, struct rq *rq)
-{
-	update_rq_clock(rq);
-
-	if (p->state == TASK_UNINTERRUPTIBLE)
-		rq->nr_uninterruptible--;
-
-	enqueue_task(rq, p, 0);
-	inc_nr_running(p, rq);
-}
-
-/*
  * deactivate_task - remove a task from the runqueue.
  */
 static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep)
@@ -1206,7 +1192,7 @@ void kick_process(struct task_struct *p)
  * We want to under-estimate the load of migration sources, to
  * balance conservatively.
  */
-static inline unsigned long source_load(int cpu, int type)
+static unsigned long source_load(int cpu, int type)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long total = weighted_cpuload(cpu);
@@ -1221,7 +1207,7 @@ static inline unsigned long source_load(int cpu, int type)
  * Return a high guess at the load of a migration-target cpu weighted
  * according to the scheduling class and "nice" value.
  */
-static inline unsigned long target_load(int cpu, int type)
+static unsigned long target_load(int cpu, int type)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long total = weighted_cpuload(cpu);
@@ -1813,7 +1799,7 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
  * with the lock held can cause deadlocks; see schedule() for
  * details.)
  */
-static inline void finish_task_switch(struct rq *rq, struct task_struct *prev)
+static void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	__releases(rq->lock)
 {
 	struct mm_struct *mm = rq->prev_mm;
@@ -3020,7 +3006,7 @@ static DEFINE_SPINLOCK(balancing);
  *
  * Balancing parameters are set up in arch_init_sched_domains.
  */
-static inline void rebalance_domains(int cpu, enum cpu_idle_type idle)
+static void rebalance_domains(int cpu, enum cpu_idle_type idle)
 {
 	int balance = 1;
 	struct rq *rq = cpu_rq(cpu);
@@ -4140,7 +4126,7 @@ struct task_struct *idle_task(int cpu)
  * find_process_by_pid - find a process with a matching PID value.
  * @pid: the pid in question.
  */
-static inline struct task_struct *find_process_by_pid(pid_t pid)
+static struct task_struct *find_process_by_pid(pid_t pid)
 {
 	return pid ? find_task_by_pid(pid) : current;
 }
@@ -5154,6 +5140,20 @@ static void migrate_live_tasks(int src_cpu)
 	} while_each_thread(t, p);
 
 	write_unlock_irq(&tasklist_lock);
+}
+
+/*
+ * activate_idle_task - move idle task to the _front_ of runqueue.
+ */
+static void activate_idle_task(struct task_struct *p, struct rq *rq)
+{
+	update_rq_clock(rq);
+
+	if (p->state == TASK_UNINTERRUPTIBLE)
+		rq->nr_uninterruptible--;
+
+	enqueue_task(rq, p, 0);
+	inc_nr_running(p, rq);
 }
 
 /*
@@ -6494,7 +6494,7 @@ int in_sched_functions(unsigned long addr)
 		&& addr < (unsigned long)__sched_text_end);
 }
 
-static inline void init_cfs_rq(struct cfs_rq *cfs_rq, struct rq *rq)
+static void init_cfs_rq(struct cfs_rq *cfs_rq, struct rq *rq)
 {
 	cfs_rq->tasks_timeline = RB_ROOT;
 #ifdef CONFIG_FAIR_GROUP_SCHED

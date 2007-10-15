@@ -7,7 +7,7 @@
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
  */
-static inline void update_curr_rt(struct rq *rq)
+static void update_curr_rt(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
 	u64 delta_exec;
