@@ -5680,7 +5680,7 @@ static int __init isolated_cpu_setup(char *str)
 	return 1;
 }
 
-__setup ("isolcpus=", isolated_cpu_setup);
+__setup("isolcpus=", isolated_cpu_setup);
 
 /*
  * init_sched_build_groups takes the cpumask we wish to span, and a pointer
