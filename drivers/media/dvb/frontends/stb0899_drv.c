@@ -1842,10 +1842,6 @@ static int stb0899_track(struct dvb_frontend *fe, struct dvbfe_params *params, i
 	struct stb0899_state *state		= fe->demodulator_priv;
 	struct stb0899_internal *internal	= &state->internal;
 
-	lock_lost = STB0899_READ_S2REG(STB0899_S2DEMOD, LOCK_LOST);
-	dprintk(verbose, FE_DEBUG, 1, "Lock Lost=[0x%02x]\n", lock_lost);
-	if (STB0899_GETFIELD(LOCK_LOST, lock_lost))
-		dprintk(verbose, FE_ERROR, 1, "Demodulator LOST LOCK !\n");
 
 	*delay = HZ/10;
 
