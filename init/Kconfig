@@ -281,6 +281,27 @@ config CPUSETS
 
 	  Say N if unsure.
 
+config FAIR_GROUP_SCHED
+	bool "Fair group CPU scheduler"
+	default y
+	depends on EXPERIMENTAL
+	help
+	  This feature lets CPU scheduler recognize task groups and control CPU
+	  bandwidth allocation to such task groups.
+
+choice
+	depends on FAIR_GROUP_SCHED
+	prompt "Basis for grouping tasks"
+	default FAIR_USER_SCHED
+
+config FAIR_USER_SCHED
+	bool "user id"
+	help
+	  This option will choose userid as the basis for grouping
+	  tasks, thus providing equal CPU bandwidth to each user.
+
+endchoice
+
 config SYSFS_DEPRECATED
 	bool "Create deprecated sysfs files"
 	default y

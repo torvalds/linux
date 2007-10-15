@@ -50,10 +50,15 @@ static void task_tick_idle(struct rq *rq, struct task_struct *curr)
 {
 }
 
+static void set_curr_task_idle(struct rq *rq)
+{
+}
+
 /*
  * Simple, special scheduling class for the per-CPU idle tasks:
  */
-static struct sched_class idle_sched_class __read_mostly = {
+const struct sched_class idle_sched_class = {
+	/* .next is NULL */
 	/* no enqueue/yield_task for idle tasks */
 
 	/* dequeue is not valid, we print a debug message there: */
@@ -66,6 +71,7 @@ static struct sched_class idle_sched_class __read_mostly = {
 
 	.load_balance		= load_balance_idle,
 
+	.set_curr_task          = set_curr_task_idle,
 	.task_tick		= task_tick_idle,
 	/* no .task_new for idle tasks */
 };

@@ -117,3 +117,70 @@ Some implementation details:
    iterators of the scheduling modules are used. The balancing code got
    quite a bit simpler as a result.
 
+
+Group scheduler extension to CFS
+================================
+
+Normally the scheduler operates on individual tasks and strives to provide
+fair CPU time to each task. Sometimes, it may be desirable to group tasks
+and provide fair CPU time to each such task group. For example, it may
+be desirable to first provide fair CPU time to each user on the system
+and then to each task belonging to a user.
+
+CONFIG_FAIR_GROUP_SCHED strives to achieve exactly that. It lets
+SCHED_NORMAL/BATCH tasks be be grouped and divides CPU time fairly among such
+groups. At present, there are two (mutually exclusive) mechanisms to group
+tasks for CPU bandwidth control purpose:
+
+	- Based on user id (CONFIG_FAIR_USER_SCHED)
+		In this option, tasks are grouped according to their user id.
+	- Based on "cgroup" pseudo filesystem (CONFIG_FAIR_CGROUP_SCHED)
+		This options lets the administrator create arbitrary groups
+		of tasks, using the "cgroup" pseudo filesystem. See
+		Documentation/cgroups.txt for more information about this
+		filesystem.
+
+Only one of these options to group tasks can be chosen and not both.
+
+Group scheduler tunables:
+
+When CONFIG_FAIR_USER_SCHED is defined, a directory is created in sysfs for
+each new user and a "cpu_share" file is added in that directory.
+
+	# cd /sys/kernel/uids
+	# cat 512/cpu_share		# Display user 512's CPU share
+	1024
+	# echo 2048 > 512/cpu_share	# Modify user 512's CPU share
+	# cat 512/cpu_share		# Display user 512's CPU share
+	2048
+	#
+
+CPU bandwidth between two users are divided in the ratio of their CPU shares.
+For ex: if you would like user "root" to get twice the bandwidth of user
+"guest", then set the cpu_share for both the users such that "root"'s
+cpu_share is twice "guest"'s cpu_share
+
+
+When CONFIG_FAIR_CGROUP_SCHED is defined, a "cpu.shares" file is created
+for each group created using the pseudo filesystem. See example steps
+below to create task groups and modify their CPU share using the "cgroups"
+pseudo filesystem
+
+	# mkdir /dev/cpuctl
+	# mount -t cgroup -ocpu none /dev/cpuctl
+	# cd /dev/cpuctl
+
+	# mkdir multimedia	# create "multimedia" group of tasks
+	# mkdir browser		# create "browser" group of tasks
+
+	# #Configure the multimedia group to receive twice the CPU bandwidth
+	# #that of browser group
+
+	# echo 2048 > multimedia/cpu.shares
+	# echo 1024 > browser/cpu.shares
+
+	# firefox &	# Launch firefox and move it to "browser" group
+	# echo <firefox_pid> > browser/tasks
+
+	# #Launch gmplayer (or your favourite movie player)
+	# echo <movie_player_pid> > multimedia/tasks

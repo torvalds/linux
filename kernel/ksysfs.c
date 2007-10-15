@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
+#include <linux/sched.h>
 
 #define KERNEL_ATTR_RO(_name) \
 static struct subsys_attribute _name##_attr = __ATTR_RO(_name)
@@ -115,6 +116,13 @@ static int __init ksysfs_init(void)
 		error = sysfs_create_bin_file(&kernel_subsys.kobj,
 					      &notes_attr);
 	}
+
+	/*
+	 * Create "/sys/kernel/uids" directory and corresponding root user's
+	 * directory under it.
+	 */
+	if (!error)
+		error = uids_kobject_init();
 
 	return error;
 }

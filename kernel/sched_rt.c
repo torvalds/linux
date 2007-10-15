@@ -7,7 +7,7 @@
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
  */
-static inline void update_curr_rt(struct rq *rq)
+static void update_curr_rt(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
 	u64 delta_exec;
@@ -59,9 +59,9 @@ static void requeue_task_rt(struct rq *rq, struct task_struct *p)
 }
 
 static void
-yield_task_rt(struct rq *rq, struct task_struct *p)
+yield_task_rt(struct rq *rq)
 {
-	requeue_task_rt(rq, p);
+	requeue_task_rt(rq, rq->curr);
 }
 
 /*
@@ -206,7 +206,7 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p)
 	if (--p->time_slice)
 		return;
 
-	p->time_slice = static_prio_timeslice(p->static_prio);
+	p->time_slice = DEF_TIMESLICE;
 
 	/*
 	 * Requeue to the end of queue if we are not the only element
@@ -218,7 +218,15 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p)
 	}
 }
 
-static struct sched_class rt_sched_class __read_mostly = {
+static void set_curr_task_rt(struct rq *rq)
+{
+	struct task_struct *p = rq->curr;
+
+	p->se.exec_start = rq->clock;
+}
+
+const struct sched_class rt_sched_class = {
+	.next			= &fair_sched_class,
 	.enqueue_task		= enqueue_task_rt,
 	.dequeue_task		= dequeue_task_rt,
 	.yield_task		= yield_task_rt,
@@ -230,5 +238,6 @@ static struct sched_class rt_sched_class __read_mostly = {
 
 	.load_balance		= load_balance_rt,
 
+	.set_curr_task          = set_curr_task_rt,
 	.task_tick		= task_tick_rt,
 };

@@ -87,6 +87,7 @@ struct sched_param {
 #include <linux/timer.h>
 #include <linux/hrtimer.h>
 #include <linux/task_io_accounting.h>
+#include <linux/kobject.h>
 
 #include <asm/processor.h>
 
@@ -136,6 +137,7 @@ extern unsigned long weighted_cpuload(const int cpu);
 
 struct seq_file;
 struct cfs_rq;
+struct task_group;
 #ifdef CONFIG_SCHED_DEBUG
 extern void proc_sched_show_task(struct task_struct *p, struct seq_file *m);
 extern void proc_sched_set_task(struct task_struct *p);
@@ -174,8 +176,7 @@ print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 #define EXIT_ZOMBIE		16
 #define EXIT_DEAD		32
 /* in tsk->state again */
-#define TASK_NONINTERACTIVE	64
-#define TASK_DEAD		128
+#define TASK_DEAD		64
 
 #define __set_task_state(tsk, state_value)		\
 	do { (tsk)->state = (state_value); } while (0)
@@ -516,6 +517,8 @@ struct signal_struct {
 	 * in __exit_signal, except for the group leader.
 	 */
 	cputime_t utime, stime, cutime, cstime;
+	cputime_t gtime;
+	cputime_t cgtime;
 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
 	unsigned long inblock, oublock, cinblock, coublock;
@@ -596,7 +599,20 @@ struct user_struct {
 	/* Hash table maintenance information */
 	struct hlist_node uidhash_node;
 	uid_t uid;
+
+#ifdef CONFIG_FAIR_USER_SCHED
+	struct task_group *tg;
+	struct kset kset;
+	struct subsys_attribute user_attr;
+	struct work_struct work;
+#endif
 };
+
+#ifdef CONFIG_FAIR_USER_SCHED
+extern int uids_kobject_init(void);
+#else
+static inline int uids_kobject_init(void) { return 0; }
+#endif
 
 extern struct user_struct *find_user(uid_t);
 
@@ -609,13 +625,17 @@ struct reclaim_state;
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 struct sched_info {
 	/* cumulative counters */
-	unsigned long pcnt;	      /* # of times run on this cpu */
+	unsigned long pcount;	      /* # of times run on this cpu */
 	unsigned long long cpu_time,  /* time spent on the cpu */
 			   run_delay; /* time spent waiting on a runqueue */
 
 	/* timestamps */
 	unsigned long long last_arrival,/* when we last ran on a cpu */
 			   last_queued;	/* when we were last queued to run */
+#ifdef CONFIG_SCHEDSTATS
+	/* BKL stats */
+	unsigned long bkl_count;
+#endif
 };
 #endif /* defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT) */
 
@@ -750,7 +770,7 @@ struct sched_domain {
 
 #ifdef CONFIG_SCHEDSTATS
 	/* load_balance() stats */
-	unsigned long lb_cnt[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_count[CPU_MAX_IDLE_TYPES];
 	unsigned long lb_failed[CPU_MAX_IDLE_TYPES];
 	unsigned long lb_balanced[CPU_MAX_IDLE_TYPES];
 	unsigned long lb_imbalance[CPU_MAX_IDLE_TYPES];
@@ -760,17 +780,17 @@ struct sched_domain {
 	unsigned long lb_nobusyq[CPU_MAX_IDLE_TYPES];
 
 	/* Active load balancing */
-	unsigned long alb_cnt;
+	unsigned long alb_count;
 	unsigned long alb_failed;
 	unsigned long alb_pushed;
 
 	/* SD_BALANCE_EXEC stats */
-	unsigned long sbe_cnt;
+	unsigned long sbe_count;
 	unsigned long sbe_balanced;
 	unsigned long sbe_pushed;
 
 	/* SD_BALANCE_FORK stats */
-	unsigned long sbf_cnt;
+	unsigned long sbf_count;
 	unsigned long sbf_balanced;
 	unsigned long sbf_pushed;
 
@@ -854,11 +874,11 @@ struct rq;
 struct sched_domain;
 
 struct sched_class {
-	struct sched_class *next;
+	const struct sched_class *next;
 
 	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int wakeup);
 	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int sleep);
-	void (*yield_task) (struct rq *rq, struct task_struct *p);
+	void (*yield_task) (struct rq *rq);
 
 	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
 
@@ -888,31 +908,22 @@ struct load_weight {
  *     4 se->block_start
  *     4 se->run_node
  *     4 se->sleep_start
- *     4 se->sleep_start_fair
  *     6 se->load.weight
- *     7 se->delta_fair
- *    15 se->wait_runtime
  */
 struct sched_entity {
-	long			wait_runtime;
-	unsigned long		delta_fair_run;
-	unsigned long		delta_fair_sleep;
-	unsigned long		delta_exec;
-	s64			fair_key;
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
 	unsigned int		on_rq;
+	int			peer_preempt;
 
 	u64			exec_start;
 	u64			sum_exec_runtime;
+	u64			vruntime;
 	u64			prev_sum_exec_runtime;
-	u64			wait_start_fair;
-	u64			sleep_start_fair;
 
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
 	u64			wait_max;
-	s64			sum_wait_runtime;
 
 	u64			sleep_start;
 	u64			sleep_max;
@@ -921,9 +932,25 @@ struct sched_entity {
 	u64			block_start;
 	u64			block_max;
 	u64			exec_max;
+	u64			slice_max;
 
-	unsigned long		wait_runtime_overruns;
-	unsigned long		wait_runtime_underruns;
+	u64			nr_migrations;
+	u64			nr_migrations_cold;
+	u64			nr_failed_migrations_affine;
+	u64			nr_failed_migrations_running;
+	u64			nr_failed_migrations_hot;
+	u64			nr_forced_migrations;
+	u64			nr_forced2_migrations;
+
+	u64			nr_wakeups;
+	u64			nr_wakeups_sync;
+	u64			nr_wakeups_migrate;
+	u64			nr_wakeups_local;
+	u64			nr_wakeups_remote;
+	u64			nr_wakeups_affine;
+	u64			nr_wakeups_affine_attempts;
+	u64			nr_wakeups_passive;
+	u64			nr_wakeups_idle;
 #endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -952,7 +979,7 @@ struct task_struct {
 
 	int prio, static_prio, normal_prio;
 	struct list_head run_list;
-	struct sched_class *sched_class;
+	const struct sched_class *sched_class;
 	struct sched_entity se;
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
@@ -1023,6 +1050,7 @@ struct task_struct {
 
 	unsigned int rt_priority;
 	cputime_t utime, stime;
+	cputime_t gtime;
 	unsigned long nvcsw, nivcsw; /* context switch counts */
 	struct timespec start_time; 		/* monotonic time */
 	struct timespec real_start_time;	/* boot based time */
@@ -1314,6 +1342,7 @@ static inline void put_task_struct(struct task_struct *t)
 #define PF_STARTING	0x00000002	/* being created */
 #define PF_EXITING	0x00000004	/* getting shut down */
 #define PF_EXITPIDONE	0x00000008	/* pi exit done on shut down */
+#define PF_VCPU		0x00000010	/* I'm a virtual CPU */
 #define PF_FORKNOEXEC	0x00000040	/* forked but didn't exec */
 #define PF_SUPERPRIV	0x00000100	/* used super-user privileges */
 #define PF_DUMPCORE	0x00000200	/* dumped core */
@@ -1401,15 +1430,17 @@ static inline void idle_task_exit(void) {}
 
 extern void sched_idle_next(void);
 
+#ifdef CONFIG_SCHED_DEBUG
 extern unsigned int sysctl_sched_latency;
-extern unsigned int sysctl_sched_min_granularity;
+extern unsigned int sysctl_sched_nr_latency;
 extern unsigned int sysctl_sched_wakeup_granularity;
 extern unsigned int sysctl_sched_batch_wakeup_granularity;
-extern unsigned int sysctl_sched_stat_granularity;
-extern unsigned int sysctl_sched_runtime_limit;
-extern unsigned int sysctl_sched_compat_yield;
 extern unsigned int sysctl_sched_child_runs_first;
 extern unsigned int sysctl_sched_features;
+extern unsigned int sysctl_sched_migration_cost;
+#endif
+
+extern unsigned int sysctl_sched_compat_yield;
 
 #ifdef CONFIG_RT_MUTEXES
 extern int rt_mutex_getprio(struct task_struct *p);
@@ -1842,6 +1873,18 @@ extern long sched_getaffinity(pid_t pid, cpumask_t *mask);
 extern int sched_mc_power_savings, sched_smt_power_savings;
 
 extern void normalize_rt_tasks(void);
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+
+extern struct task_group init_task_group;
+
+extern struct task_group *sched_create_group(void);
+extern void sched_destroy_group(struct task_group *tg);
+extern void sched_move_task(struct task_struct *tsk);
+extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
+extern unsigned long sched_group_shares(struct task_group *tg);
+
+#endif
 
 #ifdef CONFIG_TASK_XACCT
 static inline void add_rchar(struct task_struct *tsk, ssize_t amt)

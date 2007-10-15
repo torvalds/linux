@@ -16,18 +16,18 @@ static int show_schedstat(struct seq_file *seq, void *v)
 		struct rq *rq = cpu_rq(cpu);
 #ifdef CONFIG_SMP
 		struct sched_domain *sd;
-		int dcnt = 0;
+		int dcount = 0;
 #endif
 
 		/* runqueue-specific stats */
 		seq_printf(seq,
 		    "cpu%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %llu %llu %lu",
 		    cpu, rq->yld_both_empty,
-		    rq->yld_act_empty, rq->yld_exp_empty, rq->yld_cnt,
-		    rq->sched_switch, rq->sched_cnt, rq->sched_goidle,
-		    rq->ttwu_cnt, rq->ttwu_local,
+		    rq->yld_act_empty, rq->yld_exp_empty, rq->yld_count,
+		    rq->sched_switch, rq->sched_count, rq->sched_goidle,
+		    rq->ttwu_count, rq->ttwu_local,
 		    rq->rq_sched_info.cpu_time,
-		    rq->rq_sched_info.run_delay, rq->rq_sched_info.pcnt);
+		    rq->rq_sched_info.run_delay, rq->rq_sched_info.pcount);
 
 		seq_printf(seq, "\n");
 
@@ -39,12 +39,12 @@ static int show_schedstat(struct seq_file *seq, void *v)
 			char mask_str[NR_CPUS];
 
 			cpumask_scnprintf(mask_str, NR_CPUS, sd->span);
-			seq_printf(seq, "domain%d %s", dcnt++, mask_str);
+			seq_printf(seq, "domain%d %s", dcount++, mask_str);
 			for (itype = CPU_IDLE; itype < CPU_MAX_IDLE_TYPES;
 					itype++) {
 				seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu "
 						"%lu",
-				    sd->lb_cnt[itype],
+				    sd->lb_count[itype],
 				    sd->lb_balanced[itype],
 				    sd->lb_failed[itype],
 				    sd->lb_imbalance[itype],
@@ -55,9 +55,9 @@ static int show_schedstat(struct seq_file *seq, void *v)
 			}
 			seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu %lu"
 			    " %lu %lu %lu\n",
-			    sd->alb_cnt, sd->alb_failed, sd->alb_pushed,
-			    sd->sbe_cnt, sd->sbe_balanced, sd->sbe_pushed,
-			    sd->sbf_cnt, sd->sbf_balanced, sd->sbf_pushed,
+			    sd->alb_count, sd->alb_failed, sd->alb_pushed,
+			    sd->sbe_count, sd->sbe_balanced, sd->sbe_pushed,
+			    sd->sbf_count, sd->sbf_balanced, sd->sbf_pushed,
 			    sd->ttwu_wake_remote, sd->ttwu_move_affine,
 			    sd->ttwu_move_balance);
 		}
@@ -101,7 +101,7 @@ rq_sched_info_arrive(struct rq *rq, unsigned long long delta)
 {
 	if (rq) {
 		rq->rq_sched_info.run_delay += delta;
-		rq->rq_sched_info.pcnt++;
+		rq->rq_sched_info.pcount++;
 	}
 }
 
@@ -129,7 +129,7 @@ rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 # define schedstat_set(var, val)	do { } while (0)
 #endif
 
-#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+#ifdef CONFIG_SCHEDSTATS
 /*
  * Called when a process is dequeued from the active array and given
  * the cpu.  We should note that with the exception of interactive
@@ -164,7 +164,7 @@ static void sched_info_arrive(struct task_struct *t)
 	sched_info_dequeued(t);
 	t->sched_info.run_delay += delta;
 	t->sched_info.last_arrival = now;
-	t->sched_info.pcnt++;
+	t->sched_info.pcount++;
 
 	rq_sched_info_arrive(task_rq(t), delta);
 }
@@ -233,5 +233,5 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
 #else
 #define sched_info_queued(t)		do { } while (0)
 #define sched_info_switch(t, next)	do { } while (0)
-#endif /* CONFIG_SCHEDSTATS || CONFIG_TASK_DELAY_ACCT */
+#endif /* CONFIG_SCHEDSTATS */
 
