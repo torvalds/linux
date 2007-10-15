@@ -614,7 +614,7 @@ struct reclaim_state;
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 struct sched_info {
 	/* cumulative counters */
-	unsigned long pcnt;	      /* # of times run on this cpu */
+	unsigned long pcount;	      /* # of times run on this cpu */
 	unsigned long long cpu_time,  /* time spent on the cpu */
 			   run_delay; /* time spent waiting on a runqueue */
 
@@ -623,7 +623,7 @@ struct sched_info {
 			   last_queued;	/* when we were last queued to run */
 #ifdef CONFIG_SCHEDSTATS
 	/* BKL stats */
-	unsigned long bkl_cnt;
+	unsigned long bkl_count;
 #endif
 };
 #endif /* defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT) */
@@ -759,7 +759,7 @@ struct sched_domain {
 
 #ifdef CONFIG_SCHEDSTATS
 	/* load_balance() stats */
-	unsigned long lb_cnt[CPU_MAX_IDLE_TYPES];
+	unsigned long lb_count[CPU_MAX_IDLE_TYPES];
 	unsigned long lb_failed[CPU_MAX_IDLE_TYPES];
 	unsigned long lb_balanced[CPU_MAX_IDLE_TYPES];
 	unsigned long lb_imbalance[CPU_MAX_IDLE_TYPES];
@@ -769,17 +769,17 @@ struct sched_domain {
 	unsigned long lb_nobusyq[CPU_MAX_IDLE_TYPES];
 
 	/* Active load balancing */
-	unsigned long alb_cnt;
+	unsigned long alb_count;
 	unsigned long alb_failed;
 	unsigned long alb_pushed;
 
 	/* SD_BALANCE_EXEC stats */
-	unsigned long sbe_cnt;
+	unsigned long sbe_count;
 	unsigned long sbe_balanced;
 	unsigned long sbe_pushed;
 
 	/* SD_BALANCE_FORK stats */
-	unsigned long sbf_cnt;
+	unsigned long sbf_count;
 	unsigned long sbf_balanced;
 	unsigned long sbf_pushed;
 

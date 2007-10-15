@@ -349,19 +349,19 @@ struct rq {
 	unsigned long yld_exp_empty;
 	unsigned long yld_act_empty;
 	unsigned long yld_both_empty;
-	unsigned long yld_cnt;
+	unsigned long yld_count;
 
 	/* schedule() stats */
 	unsigned long sched_switch;
-	unsigned long sched_cnt;
+	unsigned long sched_count;
 	unsigned long sched_goidle;
 
 	/* try_to_wake_up() stats */
-	unsigned long ttwu_cnt;
+	unsigned long ttwu_count;
 	unsigned long ttwu_local;
 
 	/* BKL stats */
-	unsigned long bkl_cnt;
+	unsigned long bkl_count;
 #endif
 	struct lock_class_key rq_lock_key;
 };
@@ -1481,7 +1481,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 
 	new_cpu = cpu;
 
-	schedstat_inc(rq, ttwu_cnt);
+	schedstat_inc(rq, ttwu_count);
 	if (cpu == this_cpu) {
 		schedstat_inc(rq, ttwu_local);
 		goto out_set_cpu;
@@ -2637,7 +2637,7 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		sd_idle = 1;
 
-	schedstat_inc(sd, lb_cnt[idle]);
+	schedstat_inc(sd, lb_count[idle]);
 
 redo:
 	group = find_busiest_group(sd, this_cpu, &imbalance, idle, &sd_idle,
@@ -2790,7 +2790,7 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		sd_idle = 1;
 
-	schedstat_inc(sd, lb_cnt[CPU_NEWLY_IDLE]);
+	schedstat_inc(sd, lb_count[CPU_NEWLY_IDLE]);
 redo:
 	group = find_busiest_group(sd, this_cpu, &imbalance, CPU_NEWLY_IDLE,
 				   &sd_idle, &cpus, NULL);
@@ -2924,7 +2924,7 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 	}
 
 	if (likely(sd)) {
-		schedstat_inc(sd, alb_cnt);
+		schedstat_inc(sd, alb_count);
 
 		if (move_one_task(target_rq, target_cpu, busiest_rq,
 				  sd, CPU_IDLE))
@@ -3414,11 +3414,11 @@ static inline void schedule_debug(struct task_struct *prev)
 
 	profile_hit(SCHED_PROFILING, __builtin_return_address(0));
 
-	schedstat_inc(this_rq(), sched_cnt);
+	schedstat_inc(this_rq(), sched_count);
 #ifdef CONFIG_SCHEDSTATS
 	if (unlikely(prev->lock_depth >= 0)) {
-		schedstat_inc(this_rq(), bkl_cnt);
-		schedstat_inc(prev, sched_info.bkl_cnt);
+		schedstat_inc(this_rq(), bkl_count);
+		schedstat_inc(prev, sched_info.bkl_count);
 	}
 #endif
 }
@@ -4558,7 +4558,7 @@ asmlinkage long sys_sched_yield(void)
 {
 	struct rq *rq = this_rq_lock();
 
-	schedstat_inc(rq, yld_cnt);
+	schedstat_inc(rq, yld_count);
 	current->sched_class->yield_task(rq);
 
 	/*

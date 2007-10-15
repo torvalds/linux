@@ -137,8 +137,8 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	SEQ_printf(m, "  .%-30s: %ld\n", "nr_running", cfs_rq->nr_running);
 	SEQ_printf(m, "  .%-30s: %ld\n", "load", cfs_rq->load.weight);
 #ifdef CONFIG_SCHEDSTATS
-	SEQ_printf(m, "  .%-30s: %ld\n", "bkl_cnt",
-			rq->bkl_cnt);
+	SEQ_printf(m, "  .%-30s: %ld\n", "bkl_count",
+			rq->bkl_count);
 #endif
 	SEQ_printf(m, "  .%-30s: %ld\n", "nr_spread_over",
 			cfs_rq->nr_spread_over);
@@ -342,7 +342,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	PN(se.exec_max);
 	PN(se.slice_max);
 	PN(se.wait_max);
-	P(sched_info.bkl_cnt);
+	P(sched_info.bkl_count);
 #endif
 	SEQ_printf(m, "%-25s:%20Ld\n",
 		   "nr_switches", (long long)(p->nvcsw + p->nivcsw));
@@ -370,7 +370,7 @@ void proc_sched_set_task(struct task_struct *p)
 	p->se.exec_max			= 0;
 	p->se.slice_max			= 0;
 	p->se.wait_max			= 0;
-	p->sched_info.bkl_cnt		= 0;
+	p->sched_info.bkl_count		= 0;
 #endif
 	p->se.sum_exec_runtime		= 0;
 	p->se.prev_sum_exec_runtime	= 0;
