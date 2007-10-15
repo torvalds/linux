@@ -1040,6 +1040,8 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 {
 	int old_cpu = task_cpu(p);
 	struct rq *old_rq = cpu_rq(old_cpu), *new_rq = cpu_rq(new_cpu);
+	struct cfs_rq *old_cfsrq = task_cfs_rq(p),
+		      *new_cfsrq = cpu_cfs_rq(old_cfsrq, new_cpu);
 	u64 clock_offset;
 
 	clock_offset = old_rq->clock - new_rq->clock;
@@ -1052,7 +1054,8 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	if (p->se.block_start)
 		p->se.block_start -= clock_offset;
 #endif
-	p->se.vruntime -= old_rq->cfs.min_vruntime - new_rq->cfs.min_vruntime;
+	p->se.vruntime -= old_cfsrq->min_vruntime -
+					 new_cfsrq->min_vruntime;
 
 	__set_task_cpu(p, new_cpu);
 }
