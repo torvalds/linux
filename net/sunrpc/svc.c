@@ -777,6 +777,30 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 }
 
 /*
+ * Printk the given error with the address of the client that caused it.
+ */
+static int
+__attribute__ ((format (printf, 2, 3)))
+svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
+{
+	va_list args;
+	int 	r;
+	char 	buf[RPC_MAX_ADDRBUFLEN];
+
+	if (!net_ratelimit())
+		return 0;
+
+	printk(KERN_WARNING "svc: %s: ",
+		svc_print_addr(rqstp, buf, sizeof(buf)));
+
+	va_start(args, fmt);
+	r = vprintk(fmt, args);
+	va_end(args);
+
+	return r;
+}
+
+/*
  * Process the RPC request.
  */
 int
@@ -963,14 +987,13 @@ svc_process(struct svc_rqst *rqstp)
 	return 0;
 
 err_short_len:
-	if (net_ratelimit())
-		printk("svc: short len %Zd, dropping request\n", argv->iov_len);
+	svc_printk(rqstp, "short len %Zd, dropping request\n",
+			argv->iov_len);
 
 	goto dropit;			/* drop request */
 
 err_bad_dir:
-	if (net_ratelimit())
-		printk("svc: bad direction %d, dropping request\n", dir);
+	svc_printk(rqstp, "bad direction %d, dropping request\n", dir);
 
 	serv->sv_stats->rpcbadfmt++;
 	goto dropit;			/* drop request */
@@ -1000,8 +1023,7 @@ err_bad_prog:
 	goto sendit;
 
 err_bad_vers:
-	if (net_ratelimit())
-		printk("svc: unknown version (%d for prog %d, %s)\n",
+	svc_printk(rqstp, "unknown version (%d for prog %d, %s)\n",
 		       vers, prog, progp->pg_name);
 
 	serv->sv_stats->rpcbadfmt++;
@@ -1011,16 +1033,14 @@ err_bad_vers:
 	goto sendit;
 
 err_bad_proc:
-	if (net_ratelimit())
-		printk("svc: unknown procedure (%d)\n", proc);
+	svc_printk(rqstp, "unknown procedure (%d)\n", proc);
 
 	serv->sv_stats->rpcbadfmt++;
 	svc_putnl(resv, RPC_PROC_UNAVAIL);
 	goto sendit;
 
 err_garbage:
-	if (net_ratelimit())
-		printk("svc: failed to decode args\n");
+	svc_printk(rqstp, "failed to decode args\n");
 
 	rpc_stat = rpc_garbage_args;
 err_bad:

@@ -207,6 +207,7 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 {
 	struct ent ent, *res;
 	char *buf1, *bp;
+	int len;
 	int error = -EINVAL;
 
 	if (buf[buflen - 1] != '\n')
@@ -248,10 +249,11 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 		goto out;
 
 	/* Name */
-	error = qword_get(&buf, buf1, PAGE_SIZE);
-	if (error == -EINVAL)
+	error = -EINVAL;
+	len = qword_get(&buf, buf1, PAGE_SIZE);
+	if (len < 0)
 		goto out;
-	if (error == -ENOENT)
+	if (len == 0)
 		set_bit(CACHE_NEGATIVE, &ent.h.flags);
 	else {
 		if (error >= IDMAP_NAMESZ) {

@@ -298,7 +298,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	 * qword quoting is used, so filehandle will be \x....
 	 */
 	char *dname, *path;
-	int maxsize;
+	int uninitialized_var(maxsize);
 	char *mesg = buf;
 	int len;
 	struct auth_domain *dom;
@@ -679,11 +679,13 @@ static int __init init_nfsd(void)
 	int retval;
 	printk(KERN_INFO "Installing knfsd (copyright (C) 1996 okir@monad.swb.de).\n");
 
+	retval = nfs4_state_init(); /* nfs4 locking state */
+	if (retval)
+		return retval;
 	nfsd_stat_init();	/* Statistics */
 	nfsd_cache_init();	/* RPC reply cache */
 	nfsd_export_init();	/* Exports table */
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
-	nfs4_state_init();	/* NFSv4 locking state */
 	nfsd_idmap_init();      /* Name to ID mapping */
 	if (proc_mkdir("fs/nfs", NULL)) {
 		struct proc_dir_entry *entry;
@@ -712,6 +714,7 @@ static void __exit exit_nfsd(void)
 	nfsd_stat_shutdown();
 	nfsd_lockd_shutdown();
 	nfsd_idmap_shutdown();
+	nfsd4_free_slabs();
 	unregister_filesystem(&nfsd_fs_type);
 }
 

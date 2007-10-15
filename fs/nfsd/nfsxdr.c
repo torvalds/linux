@@ -523,6 +523,10 @@ nfssvc_encode_entry(void *ccdv, const char *name,
 		cd->common.err = nfserr_toosmall;
 		return -EINVAL;
 	}
+	if (ino > ~((u32) 0)) {
+		cd->common.err = nfserr_fbig;
+		return -EINVAL;
+	}
 	*p++ = xdr_one;				/* mark entry present */
 	*p++ = htonl((u32) ino);		/* file id */
 	p    = xdr_encode_array(p, name, namlen);/* name length & name */
