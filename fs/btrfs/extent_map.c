@@ -1963,18 +1963,27 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb, int i)
 	struct page *p;
 	if (i == 0)
 		return eb->first_page;
+
 	i += eb->start >> PAGE_CACHE_SHIFT;
+	if (eb->last_page && eb->last_page->index == i)
+		return eb->last_page;
+
 	p = find_get_page(eb->first_page->mapping, i);
 	page_cache_release(p);
+	eb->last_page = p;
 	return p;
 }
 
+static inline unsigned long num_extent_pages(u64 start, u64 len)
+{
+	return ((start + len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT) -
+		(start >> PAGE_CACHE_SHIFT);
+}
 struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 					  u64 start, unsigned long len,
 					  gfp_t mask)
 {
-	unsigned long num_pages = ((start + len - 1) >> PAGE_CACHE_SHIFT) -
-				  (start >> PAGE_CACHE_SHIFT) + 1;
+	unsigned long num_pages = num_extent_pages(start, len);
 	unsigned long i;
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	struct extent_buffer *eb;
@@ -1986,7 +1995,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 	if (!eb || IS_ERR(eb))
 		return NULL;
 
-	eb->alloc_addr = __builtin_return_address(0);
+	eb->alloc_addr = (unsigned long)__builtin_return_address(0);
 	eb->start = start;
 	eb->len = len;
 	atomic_set(&eb->refs, 1);
@@ -1994,6 +2003,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 	for (i = 0; i < num_pages; i++, index++) {
 		p = find_or_create_page(mapping, index, mask | __GFP_HIGHMEM);
 		if (!p) {
+			WARN_ON(1);
 			/* make sure the free only frees the pages we've
 			 * grabbed a reference on
 			 */
@@ -2021,8 +2031,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 					 u64 start, unsigned long len,
 					  gfp_t mask)
 {
-	unsigned long num_pages = ((start + len - 1) >> PAGE_CACHE_SHIFT) -
-				  (start >> PAGE_CACHE_SHIFT) + 1;
+	unsigned long num_pages = num_extent_pages(start, len);
 	unsigned long i;
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	struct extent_buffer *eb;
@@ -2033,7 +2042,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 	if (!eb || IS_ERR(eb))
 		return NULL;
 
-	eb->alloc_addr = __builtin_return_address(0);
+	eb->alloc_addr = (unsigned long)__builtin_return_address(0);
 	eb->start = start;
 	eb->len = len;
 	atomic_set(&eb->refs, 1);
@@ -2070,8 +2079,7 @@ void free_extent_buffer(struct extent_buffer *eb)
 	if (!atomic_dec_and_test(&eb->refs))
 		return;
 
-	num_pages = ((eb->start + eb->len - 1) >> PAGE_CACHE_SHIFT) -
-		(eb->start >> PAGE_CACHE_SHIFT) + 1;
+	num_pages = num_extent_pages(eb->start, eb->len);
 
 	if (eb->first_page)
 		page_cache_release(eb->first_page);
@@ -2094,8 +2102,7 @@ int clear_extent_buffer_dirty(struct extent_map_tree *tree,
 	u64 end = start + eb->len - 1;
 
 	set = clear_extent_dirty(tree, start, end, GFP_NOFS);
-	num_pages = ((eb->start + eb->len - 1) >> PAGE_CACHE_SHIFT) -
-		(eb->start >> PAGE_CACHE_SHIFT) + 1;
+	num_pages = num_extent_pages(eb->start, eb->len);
 
 	for (i = 0; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
@@ -2145,8 +2152,7 @@ int set_extent_buffer_uptodate(struct extent_map_tree *tree,
 	struct page *page;
 	unsigned long num_pages;
 
-	num_pages = ((eb->start + eb->len - 1) >> PAGE_CACHE_SHIFT) -
-		(eb->start >> PAGE_CACHE_SHIFT) + 1;
+	num_pages = num_extent_pages(eb->start, eb->len);
 
 	set_extent_uptodate(tree, eb->start, eb->start + eb->len - 1,
 			    GFP_NOFS);
@@ -2191,8 +2197,7 @@ int read_extent_buffer_pages(struct extent_map_tree *tree,
 		return 0;
 	}
 
-	num_pages = ((eb->start + eb->len - 1) >> PAGE_CACHE_SHIFT) -
-		(eb->start >> PAGE_CACHE_SHIFT) + 1;
+	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = 0; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
 		if (PageUptodate(page)) {
@@ -2267,14 +2272,14 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 }
 EXPORT_SYMBOL(read_extent_buffer);
 
-int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
-		      unsigned long min_len,
-		      char **token, char **map,
-		      unsigned long *map_start,
-		      unsigned long *map_len, int km)
+static int __map_extent_buffer(struct extent_buffer *eb, unsigned long start,
+			       unsigned long min_len, char **token, char **map,
+			       unsigned long *map_start,
+			       unsigned long *map_len, int km)
 {
 	size_t offset = start & (PAGE_CACHE_SIZE - 1);
 	char *kaddr;
+	struct page *p;
 	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
 	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
 	unsigned long end_i = (start_offset + start + min_len) >>
@@ -2283,20 +2288,58 @@ int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	if (i != end_i)
 		return -EINVAL;
 
-	WARN_ON(start > eb->len);
+	if (start >= eb->len) {
+		printk("bad start in map eb start %Lu len %lu caller start %lu min %lu\n", eb->start, eb->len, start, min_len);
+		WARN_ON(1);
+	}
 
 	if (i == 0) {
 		offset = start_offset;
 		*map_start = 0;
 	} else {
+		offset = 0;
 		*map_start = (i << PAGE_CACHE_SHIFT) - start_offset;
 	}
 
-	kaddr = kmap_atomic(extent_buffer_page(eb, i), km);
+	p = extent_buffer_page(eb, i);
+	WARN_ON(!PageUptodate(p));
+	kaddr = kmap_atomic(p, km);
 	*token = kaddr;
 	*map = kaddr + offset;
 	*map_len = PAGE_CACHE_SIZE - offset;
 	return 0;
+}
+
+int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
+		      unsigned long min_len,
+		      char **token, char **map,
+		      unsigned long *map_start,
+		      unsigned long *map_len, int km)
+{
+	int err;
+	int save = 0;
+	if (eb->map_token) {
+		if (start >= eb->map_start &&
+		    start + min_len <= eb->map_start + eb->map_len) {
+			*token = eb->map_token;
+			*map = eb->kaddr;
+			*map_start = eb->map_start;
+			*map_len = eb->map_len;
+			return 0;
+		}
+		unmap_extent_buffer(eb, eb->map_token, km);
+		eb->map_token = NULL;
+		save = 1;
+	}
+	err = __map_extent_buffer(eb, start, min_len, token, map,
+				   map_start, map_len, km);
+	if (!err && save) {
+		eb->map_token = *token;
+		eb->kaddr = *map;
+		eb->map_start = *map_start;
+		eb->map_len = *map_len;
+	}
+	return err;
 }
 EXPORT_SYMBOL(map_extent_buffer);
 
@@ -2574,7 +2617,6 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 			((unsigned long)PAGE_CACHE_SIZE - 1);
 		src_off_in_page = src_end &
 			((unsigned long)PAGE_CACHE_SIZE - 1);
-
 		if (src_i == 0)
 			src_off_in_page += start_offset;
 		if (dst_i == 0)
@@ -2582,14 +2624,13 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 
 		cur = min(len, src_off_in_page + 1);
 		cur = min(cur, dst_off_in_page + 1);
-
 		move_pages(extent_buffer_page(dst, dst_i),
 			   extent_buffer_page(dst, src_i),
 			   dst_off_in_page - cur + 1,
 			   src_off_in_page - cur + 1, cur);
 
-		dst_end -= cur - 1;
-		src_end -= cur - 1;
+		dst_end -= cur;
+		src_end -= cur;
 		len -= cur;
 	}
 }

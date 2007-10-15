@@ -205,12 +205,13 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 
 	btrfs_write_dirty_block_groups(trans, extent_root);
 	while(1) {
-		old_extent_block = btrfs_root_blocknr(&extent_root->root_item);
-		if (old_extent_block ==
-		    extent_buffer_blocknr(extent_root->node))
+		old_extent_block = btrfs_root_bytenr(&extent_root->root_item);
+		if (old_extent_block == extent_root->node->start)
 			break;
-		btrfs_set_root_blocknr(&extent_root->root_item,
-			       extent_buffer_blocknr(extent_root->node));
+		btrfs_set_root_bytenr(&extent_root->root_item,
+				      extent_root->node->start);
+		btrfs_set_root_level(&extent_root->root_item,
+				     btrfs_header_level(extent_root->node));
 		ret = btrfs_update_root(trans, tree_root,
 					&extent_root->root_key,
 					&extent_root->root_item);
@@ -284,8 +285,8 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 				     (unsigned long)root->root_key.objectid,
 				     BTRFS_ROOT_TRANS_TAG);
 			if (root->commit_root == root->node) {
-				WARN_ON(extent_buffer_blocknr(root->node) !=
-					btrfs_root_blocknr(&root->root_item));
+				WARN_ON(root->node->start !=
+					btrfs_root_bytenr(&root->root_item));
 				free_extent_buffer(root->commit_root);
 				root->commit_root = NULL;
 
@@ -314,8 +315,10 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 			root->commit_root = NULL;
 
 			root->root_key.offset = root->fs_info->generation;
-			btrfs_set_root_blocknr(&root->root_item,
-				       extent_buffer_blocknr(root->node));
+			btrfs_set_root_bytenr(&root->root_item,
+					      root->node->start);
+			btrfs_set_root_level(&root->root_item,
+					     btrfs_header_level(root->node));
 			err = btrfs_insert_root(trans, root->fs_info->tree_root,
 						&root->root_key,
 						&root->root_item);
@@ -407,8 +410,8 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 	struct dirty_root *dirty;
 	struct btrfs_trans_handle *trans;
 	unsigned long nr;
-	u64 num_blocks;
-	u64 blocks_used;
+	u64 num_bytes;
+	u64 bytes_used;
 	int ret = 0;
 	int err;
 
@@ -419,7 +422,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		dirty = list_entry(list->next, struct dirty_root, list);
 		list_del_init(&dirty->list);
 
-		num_blocks = btrfs_root_used(&dirty->root->root_item);
+		num_bytes = btrfs_root_used(&dirty->root->root_item);
 		root = dirty->latest_root;
 
 		while(1) {
@@ -446,12 +449,12 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		}
 		BUG_ON(ret);
 
-		num_blocks -= btrfs_root_used(&dirty->root->root_item);
-		blocks_used = btrfs_root_used(&root->root_item);
-		if (num_blocks) {
+		num_bytes -= btrfs_root_used(&dirty->root->root_item);
+		bytes_used = btrfs_root_used(&root->root_item);
+		if (num_bytes) {
 			record_root_in_trans(root);
 			btrfs_set_root_used(&root->root_item,
-						   blocks_used - num_blocks);
+					    bytes_used - num_bytes);
 		}
 		ret = btrfs_del_root(trans, tree_root, &dirty->root->root_key);
 		if (ret) {
@@ -560,7 +563,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	btrfs_set_super_generation(&root->fs_info->super_copy,
 				   cur_trans->transid);
 	btrfs_set_super_root(&root->fs_info->super_copy,
-		     extent_buffer_blocknr(root->fs_info->tree_root->node));
+			     root->fs_info->tree_root->node->start);
+	btrfs_set_super_root_level(&root->fs_info->super_copy,
+			   btrfs_header_level(root->fs_info->tree_root->node));
 
 	write_extent_buffer(root->fs_info->sb_buffer,
 			    &root->fs_info->super_copy, 0,

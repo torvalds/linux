@@ -27,13 +27,15 @@ static void reada_defrag(struct btrfs_root *root,
 {
 	int i;
 	u32 nritems;
-	u64 blocknr;
+	u64 bytenr;
+	u32 blocksize;
 	int ret;
 
+	blocksize = btrfs_level_size(root, btrfs_header_level(node) - 1);
 	nritems = btrfs_header_nritems(node);
 	for (i = 0; i < nritems; i++) {
-		blocknr = btrfs_node_blockptr(node, i);
-		ret = readahead_tree_block(root, blocknr);
+		bytenr = btrfs_node_blockptr(node, i);
+		ret = readahead_tree_block(root, bytenr, blocksize);
 		if (ret)
 			break;
 	}
@@ -46,7 +48,7 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 {
 	struct extent_buffer *next;
 	struct extent_buffer *cur;
-	u64 blocknr;
+	u64 bytenr;
 	int ret = 0;
 	int is_extent = 0;
 
@@ -80,10 +82,11 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 
 			break;
 		}
-		blocknr = btrfs_node_blockptr(cur, path->slots[*level]);
+		bytenr = btrfs_node_blockptr(cur, path->slots[*level]);
 
 		if (cache_only) {
-			next = btrfs_find_tree_block(root, blocknr);
+			next = btrfs_find_tree_block(root, bytenr,
+					   btrfs_level_size(root, *level - 1));
 			/* FIXME, test for defrag */
 			if (!next || !btrfs_buffer_uptodate(next)) {
 				free_extent_buffer(next);
@@ -91,7 +94,8 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 				continue;
 			}
 		} else {
-			next = read_tree_block(root, blocknr);
+			next = read_tree_block(root, bytenr,
+				       btrfs_level_size(root, *level - 1));
 		}
 		ret = btrfs_cow_block(trans, root, next, path->nodes[*level],
 				      path->slots[*level], &next);

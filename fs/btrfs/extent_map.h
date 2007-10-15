@@ -70,7 +70,12 @@ struct extent_buffer {
 	struct list_head list;
 	struct list_head leak_list;
 	struct page *first_page;
+	struct page *last_page;
 	unsigned long alloc_addr;
+	char *map_token;
+	char *kaddr;
+	unsigned long map_start;
+	unsigned long map_len;
 };
 
 typedef struct extent_map *(get_extent_t)(struct inode *inode,
@@ -145,11 +150,6 @@ int read_extent_buffer_pages(struct extent_map_tree *tree,
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {
 	atomic_inc(&eb->refs);
-}
-
-static inline u64 extent_buffer_blocknr(struct extent_buffer *eb)
-{
-	return eb->start / 4096;
 }
 
 int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,

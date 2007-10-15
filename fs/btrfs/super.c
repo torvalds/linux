@@ -303,10 +303,12 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
 	struct btrfs_super_block *disk_super = &root->fs_info->super_copy;
+	int bits = dentry->d_sb->s_blocksize_bits;
 
 	buf->f_namelen = BTRFS_NAME_LEN;
-	buf->f_blocks = btrfs_super_total_blocks(disk_super);
-	buf->f_bfree = buf->f_blocks - btrfs_super_blocks_used(disk_super);
+	buf->f_blocks = btrfs_super_total_bytes(disk_super) >> bits;
+	buf->f_bfree = buf->f_blocks -
+		(btrfs_super_bytes_used(disk_super) >> bits);
 	buf->f_bavail = buf->f_bfree;
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;

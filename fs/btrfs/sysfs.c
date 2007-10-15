@@ -42,14 +42,15 @@ static ssize_t root_block_limit_show(struct btrfs_root *root, char *buf)
 
 static ssize_t super_blocks_used_show(struct btrfs_fs_info *fs, char *buf)
 {
+
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long)btrfs_super_blocks_used(&fs->super_copy));
+		(unsigned long long)btrfs_super_bytes_used(&fs->super_copy));
 }
 
 static ssize_t super_total_blocks_show(struct btrfs_fs_info *fs, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long)btrfs_super_total_blocks(&fs->super_copy));
+		(unsigned long long)btrfs_super_total_bytes(&fs->super_copy));
 }
 
 static ssize_t super_blocksize_show(struct btrfs_fs_info *fs, char *buf)

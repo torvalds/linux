@@ -28,6 +28,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
+#include "print-tree.h"
 
 #if 0
 static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
@@ -43,26 +44,25 @@ static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
 #endif
 
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
-					    u64 blocknr)
+					    u64 bytenr, u32 blocksize)
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	struct extent_buffer *eb;
 	eb = find_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
-				   blocknr * root->sectorsize,
-				   root->sectorsize, GFP_NOFS);
+				bytenr, blocksize, GFP_NOFS);
 	if (eb)
 		eb->alloc_addr = (unsigned long)__builtin_return_address(0);
 	return eb;
 }
 
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
-						 u64 blocknr)
+						 u64 bytenr, u32 blocksize)
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	struct extent_buffer *eb;
+
 	eb = alloc_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
-				   blocknr * root->sectorsize,
-				   root->sectorsize, GFP_NOFS);
+				 bytenr, blocksize, GFP_NOFS);
 	eb->alloc_addr = (unsigned long)__builtin_return_address(0);
 	return eb;
 }
@@ -208,13 +208,13 @@ static struct address_space_operations btree_aops = {
 	.sync_page	= block_sync_page,
 };
 
-int readahead_tree_block(struct btrfs_root *root, u64 blocknr)
+int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize)
 {
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	int ret = 0;
 
-	buf = btrfs_find_create_tree_block(root, blocknr);
+	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
 	if (!buf)
 		return 0;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
@@ -223,12 +223,13 @@ int readahead_tree_block(struct btrfs_root *root, u64 blocknr)
 	return ret;
 }
 
-struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 blocknr)
+struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
+				      u32 blocksize)
 {
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = root->fs_info->btree_inode;
 
-	buf = btrfs_find_create_tree_block(root, blocknr);
+	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
 	if (!buf)
 		return NULL;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
@@ -261,7 +262,7 @@ int set_tree_block_dirty(struct btrfs_root *root, struct extent_buffer *buf)
 	return 0;
 }
 
-static int __setup_root(int blocksize,
+static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 			struct btrfs_root *root,
 			struct btrfs_fs_info *fs_info,
 			u64 objectid)
@@ -269,9 +270,9 @@ static int __setup_root(int blocksize,
 	root->node = NULL;
 	root->inode = NULL;
 	root->commit_root = NULL;
-	root->sectorsize = blocksize;
-	root->nodesize = blocksize;
-	root->leafsize = blocksize;
+	root->sectorsize = sectorsize;
+	root->nodesize = nodesize;
+	root->leafsize = leafsize;
 	root->ref_cows = 0;
 	root->fs_info = fs_info;
 	root->objectid = objectid;
@@ -291,21 +292,23 @@ static int __setup_root(int blocksize,
 	return 0;
 }
 
-static int find_and_setup_root(int blocksize,
-			       struct btrfs_root *tree_root,
+static int find_and_setup_root(struct btrfs_root *tree_root,
 			       struct btrfs_fs_info *fs_info,
 			       u64 objectid,
 			       struct btrfs_root *root)
 {
 	int ret;
+	u32 blocksize;
 
-	__setup_root(blocksize, root, fs_info, objectid);
+	__setup_root(tree_root->nodesize, tree_root->leafsize,
+		     tree_root->sectorsize, root, fs_info, objectid);
 	ret = btrfs_find_last_root(tree_root, objectid,
 				   &root->root_item, &root->root_key);
 	BUG_ON(ret);
 
-	root->node = read_tree_block(root,
-				     btrfs_root_blocknr(&root->root_item));
+	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
+	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
+				     blocksize);
 	BUG_ON(!root->node);
 	return 0;
 }
@@ -318,14 +321,14 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
 	struct btrfs_path *path;
 	struct extent_buffer *l;
 	u64 highest_inode;
+	u32 blocksize;
 	int ret = 0;
 
 	root = kzalloc(sizeof(*root), GFP_NOFS);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 	if (location->offset == (u64)-1) {
-		ret = find_and_setup_root(fs_info->sb->s_blocksize,
-					  fs_info->tree_root, fs_info,
+		ret = find_and_setup_root(tree_root, fs_info,
 					  location->objectid, root);
 		if (ret) {
 			kfree(root);
@@ -334,7 +337,8 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
 		goto insert;
 	}
 
-	__setup_root(fs_info->sb->s_blocksize, root, fs_info,
+	__setup_root(tree_root->nodesize, tree_root->leafsize,
+		     tree_root->sectorsize, root, fs_info,
 		     location->objectid);
 
 	path = btrfs_alloc_path();
@@ -357,8 +361,9 @@ out:
 		kfree(root);
 		return ERR_PTR(ret);
 	}
-	root->node = read_tree_block(root,
-				     btrfs_root_blocknr(&root->root_item));
+	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
+	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
+				     blocksize);
 	BUG_ON(!root->node);
 insert:
 	root->ref_cows = 1;
@@ -418,6 +423,10 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 
 struct btrfs_root *open_ctree(struct super_block *sb)
 {
+	u32 sectorsize;
+	u32 nodesize;
+	u32 leafsize;
+	u32 blocksize;
 	struct btrfs_root *extent_root = kmalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
 	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
@@ -474,12 +483,12 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
 
-	__setup_root(sb->s_blocksize, tree_root,
+	__setup_root(512, 512, 512, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
 	fs_info->sb_buffer = read_tree_block(tree_root,
-					     BTRFS_SUPER_INFO_OFFSET /
-					     sb->s_blocksize);
+					     BTRFS_SUPER_INFO_OFFSET,
+					     512);
 
 	if (!fs_info->sb_buffer)
 		goto fail_iput;
@@ -494,9 +503,15 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	if (!btrfs_super_root(disk_super))
 		goto fail_sb_buffer;
 
+	nodesize = btrfs_super_nodesize(disk_super);
+	leafsize = btrfs_super_leafsize(disk_super);
+	sectorsize = btrfs_super_sectorsize(disk_super);
+	tree_root->nodesize = nodesize;
+	tree_root->leafsize = leafsize;
+	tree_root->sectorsize = sectorsize;
+
 	i_size_write(fs_info->btree_inode,
-		     btrfs_super_total_blocks(disk_super) <<
-		     fs_info->btree_inode->i_blkbits);
+		     btrfs_super_total_bytes(disk_super));
 
 
 	if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
@@ -504,13 +519,22 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 		printk("btrfs: valid FS not found on %s\n", sb->s_id);
 		goto fail_sb_buffer;
 	}
+	blocksize = btrfs_level_size(tree_root,
+				     btrfs_super_root_level(disk_super));
 	tree_root->node = read_tree_block(tree_root,
-					  btrfs_super_root(disk_super));
+					  btrfs_super_root(disk_super),
+					  blocksize);
 	if (!tree_root->node)
 		goto fail_sb_buffer;
 
+#if 0
+	btrfs_print_leaf(tree_root, tree_root->node);
+	err = -EIO;
+	goto fail_tree_root;
+#endif
 	mutex_lock(&fs_info->fs_mutex);
-	ret = find_and_setup_root(sb->s_blocksize, tree_root, fs_info,
+
+	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
 	if (ret) {
 		mutex_unlock(&fs_info->fs_mutex);
@@ -611,11 +635,11 @@ int close_ctree(struct btrfs_root *root)
 		free_extent_buffer(fs_info->tree_root->node);
 
 	free_extent_buffer(fs_info->sb_buffer);
-	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
-	iput(fs_info->btree_inode);
 
 	btrfs_free_block_groups(root->fs_info);
 	del_fs_roots(fs_info);
+	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
+	iput(fs_info->btree_inode);
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);
 	return 0;
@@ -642,7 +666,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 
 	if (transid != root->fs_info->generation) {
 		printk(KERN_CRIT "transid mismatch buffer %llu, found %Lu running %Lu\n",
-			(unsigned long long)extent_buffer_blocknr(buf),
+			(unsigned long long)buf->start,
 			transid, root->fs_info->generation);
 		WARN_ON(1);
 	}
