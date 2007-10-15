@@ -217,6 +217,15 @@ static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
  * Scheduling class statistics methods:
  */
 
+
+/*
+ * The idea is to set a period in which each task runs once.
+ *
+ * When there are too many tasks (sysctl_sched_nr_latency) we have to stretch
+ * this period because otherwise the slices get too small.
+ *
+ * p = (nr <= nl) ? l : l*nr/nl
+ */
 static u64 __sched_period(unsigned long nr_running)
 {
 	u64 period = sysctl_sched_latency;
@@ -230,27 +239,45 @@ static u64 __sched_period(unsigned long nr_running)
 	return period;
 }
 
+/*
+ * We calculate the wall-time slice from the period by taking a part
+ * proportional to the weight.
+ *
+ * s = p*w/rw
+ */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	u64 period = __sched_period(cfs_rq->nr_running);
+	u64 slice = __sched_period(cfs_rq->nr_running);
 
-	period *= se->load.weight;
-	do_div(period, cfs_rq->load.weight);
+	slice *= se->load.weight;
+	do_div(slice, cfs_rq->load.weight);
 
-	return period;
+	return slice;
 }
 
-static u64 __sched_vslice(unsigned long nr_running)
+/*
+ * We calculate the vruntime slice.
+ *
+ * vs = s/w = p/rw
+ */
+static u64 __sched_vslice(unsigned long rq_weight, unsigned long nr_running)
 {
-	unsigned long period = sysctl_sched_latency;
-	unsigned long nr_latency = sysctl_sched_nr_latency;
+	u64 vslice = __sched_period(nr_running);
 
-	if (unlikely(nr_running > nr_latency))
-		nr_running = nr_latency;
+	do_div(vslice, rq_weight);
 
-	period /= nr_running;
+	return vslice;
+}
 
-	return (u64)period;
+static u64 sched_vslice(struct cfs_rq *cfs_rq)
+{
+	return __sched_vslice(cfs_rq->load.weight, cfs_rq->nr_running);
+}
+
+static u64 sched_vslice_add(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	return __sched_vslice(cfs_rq->load.weight + se->load.weight,
+			cfs_rq->nr_running + 1);
 }
 
 /*
@@ -469,10 +496,10 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 			vruntime >>= 1;
 		}
 	} else if (sched_feat(APPROX_AVG) && cfs_rq->nr_running)
-		vruntime += __sched_vslice(cfs_rq->nr_running)/2;
+		vruntime += sched_vslice(cfs_rq)/2;
 
 	if (initial && sched_feat(START_DEBIT))
-		vruntime += __sched_vslice(cfs_rq->nr_running + 1);
+		vruntime += sched_vslice_add(cfs_rq, se);
 
 	if (!initial) {
 		if (sched_feat(NEW_FAIR_SLEEPERS))
