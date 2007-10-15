@@ -156,29 +156,34 @@ static void *m1541_alloc_page(struct agp_bridge_data *bridge)
 	return addr;
 }
 
-static void ali_destroy_page(void * addr)
+static void ali_destroy_page(void * addr, int flags)
 {
 	if (addr) {
-		global_cache_flush();	/* is this really needed?  --hch */
-		agp_generic_destroy_page(addr);
-		global_flush_tlb();
+		if (flags & AGP_PAGE_DESTROY_UNMAP) {
+			global_cache_flush();	/* is this really needed?  --hch */
+			agp_generic_destroy_page(addr, flags);
+			global_flush_tlb();
+		} else
+			agp_generic_destroy_page(addr, flags);
 	}
 }
 
-static void m1541_destroy_page(void * addr)
+static void m1541_destroy_page(void * addr, int flags)
 {
 	u32 temp;
 
 	if (addr == NULL)
 		return;
 
-	global_cache_flush();
+	if (flags & AGP_PAGE_DESTROY_UNMAP) {
+		global_cache_flush();
 
-	pci_read_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL, &temp);
-	pci_write_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL,
-			(((temp & ALI_CACHE_FLUSH_ADDR_MASK) |
-			  virt_to_gart(addr)) | ALI_CACHE_FLUSH_EN));
-	agp_generic_destroy_page(addr);
+		pci_read_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL, &temp);
+		pci_write_config_dword(agp_bridge->dev, ALI_CACHE_FLUSH_CTRL,
+				       (((temp & ALI_CACHE_FLUSH_ADDR_MASK) |
+					 virt_to_gart(addr)) | ALI_CACHE_FLUSH_EN));
+	}
+	agp_generic_destroy_page(addr, flags);
 }
 
 

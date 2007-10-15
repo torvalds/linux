@@ -536,10 +536,10 @@ static void *i460_alloc_page (struct agp_bridge_data *bridge)
 	return page;
 }
 
-static void i460_destroy_page (void *page)
+static void i460_destroy_page (void *page, int flags)
 {
 	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT) {
-		agp_generic_destroy_page(page);
+		agp_generic_destroy_page(page, flags);
 		global_flush_tlb();
 	}
 }

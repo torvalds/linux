@@ -195,9 +195,12 @@ void agp_free_memory(struct agp_memory *curr)
 	}
 	if (curr->page_count != 0) {
 		for (i = 0; i < curr->page_count; i++) {
-			curr->bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[i]));
+			curr->bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[i]), AGP_PAGE_DESTROY_UNMAP);
 		}
 		flush_agp_mappings();
+		for (i = 0; i < curr->page_count; i++) {
+			curr->bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[i]), AGP_PAGE_DESTROY_FREE);
+		}
 	}
 	agp_free_key(curr->key);
 	agp_free_page_array(curr);
@@ -1176,7 +1179,7 @@ void *agp_generic_alloc_page(struct agp_bridge_data *bridge)
 EXPORT_SYMBOL(agp_generic_alloc_page);
 
 
-void agp_generic_destroy_page(void *addr)
+void agp_generic_destroy_page(void *addr, int flags)
 {
 	struct page *page;
 
@@ -1184,10 +1187,14 @@ void agp_generic_destroy_page(void *addr)
 		return;
 
 	page = virt_to_page(addr);
-	unmap_page_from_agp(page);
-	put_page(page);
-	free_page((unsigned long)addr);
-	atomic_dec(&agp_bridge->current_memory_agp);
+	if (flags & AGP_PAGE_DESTROY_UNMAP)
+		unmap_page_from_agp(page);
+
+	if (flags & AGP_PAGE_DESTROY_FREE) {
+		put_page(page);
+		free_page((unsigned long)addr);
+		atomic_dec(&agp_bridge->current_memory_agp);
+	}
 }
 EXPORT_SYMBOL(agp_generic_destroy_page);
 
