@@ -476,8 +476,8 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 		int wakeup, int set_curr)
 {
 	/*
- 	 * In case of the 'current'.
- 	 */
+	 * In case of the 'current'.
+	 */
 	if (unlikely(set_curr)) {
 		update_stats_curr_start(cfs_rq, se);
 		cfs_rq->curr = se;
@@ -992,9 +992,9 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	if (sysctl_sched_child_runs_first &&
 			curr->vruntime < se->vruntime) {
 		/*
- 		 * Upon rescheduling, sched_class::put_prev_task() will place
- 		 * 'current' within the tree based on its new key value.
- 		 */
+		 * Upon rescheduling, sched_class::put_prev_task() will place
+		 * 'current' within the tree based on its new key value.
+		 */
 		swap(curr->vruntime, se->vruntime);
 	}
 
