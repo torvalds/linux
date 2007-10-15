@@ -4898,32 +4898,6 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
  */
 cpumask_t nohz_cpu_mask = CPU_MASK_NONE;
 
-/*
- * Increase the granularity value when there are more CPUs,
- * because with more CPUs the 'effective latency' as visible
- * to users decreases. But the relationship is not linear,
- * so pick a second-best guess by going with the log2 of the
- * number of CPUs.
- *
- * This idea comes from the SD scheduler of Con Kolivas:
- */
-static inline void sched_init_granularity(void)
-{
-	unsigned int factor = 1 + ilog2(num_online_cpus());
-	const unsigned long limit = 100000000;
-
-	sysctl_sched_min_granularity *= factor;
-	if (sysctl_sched_min_granularity > limit)
-		sysctl_sched_min_granularity = limit;
-
-	sysctl_sched_latency *= factor;
-	if (sysctl_sched_latency > limit)
-		sysctl_sched_latency = limit;
-
-	sysctl_sched_runtime_limit = sysctl_sched_latency;
-	sysctl_sched_wakeup_granularity = sysctl_sched_min_granularity / 2;
-}
-
 #ifdef CONFIG_SMP
 /*
  * This is how migration works:
@@ -6491,12 +6465,10 @@ void __init sched_init_smp(void)
 	/* Move init over to a non-isolated CPU */
 	if (set_cpus_allowed(current, non_isolated_cpus) < 0)
 		BUG();
-	sched_init_granularity();
 }
 #else
 void __init sched_init_smp(void)
 {
-	sched_init_granularity();
 }
 #endif /* CONFIG_SMP */
 
