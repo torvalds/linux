@@ -48,7 +48,6 @@ config USB_STORAGE_FREECOM
 config USB_STORAGE_ISD200
 	bool "ISD-200 USB/ATA Bridge support"
 	depends on USB_STORAGE
-	depends on BLK_DEV_IDE=y || BLK_DEV_IDE=USB_STORAGE
 	---help---
 	  Say Y here if you want to use USB Mass Store devices based
 	  on the In-Systems Design ISD-200 USB/ATA bridge.
