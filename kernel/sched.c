@@ -96,7 +96,7 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 /*
  * Some helpers for converting nanosecond timing to jiffy resolution
  */
-#define NS_TO_JIFFIES(TIME)	((TIME) / (1000000000 / HZ))
+#define NS_TO_JIFFIES(TIME)	((unsigned long)(TIME) / (1000000000 / HZ))
 #define JIFFIES_TO_NS(TIME)	((TIME) * (1000000000 / HZ))
 
 #define NICE_0_LOAD		SCHED_LOAD_SCALE
@@ -105,11 +105,9 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 /*
  * These are the 'tuning knobs' of the scheduler:
  *
- * Minimum timeslice is 5 msecs (or 1 jiffy, whichever is larger),
- * default timeslice is 100 msecs, maximum timeslice is 800 msecs.
+ * default timeslice is 100 msecs (used only for SCHED_RR tasks).
  * Timeslices get refilled after they expire.
  */
-#define MIN_TIMESLICE		max(5 * HZ / 1000, 1)
 #define DEF_TIMESLICE		(100 * HZ / 1000)
 
 #ifdef CONFIG_SMP
@@ -132,24 +130,6 @@ static inline void sg_inc_cpu_power(struct sched_group *sg, u32 val)
 	sg->reciprocal_cpu_power = reciprocal_value(sg->__cpu_power);
 }
 #endif
-
-#define SCALE_PRIO(x, prio) \
-	max(x * (MAX_PRIO - prio) / (MAX_USER_PRIO / 2), MIN_TIMESLICE)
-
-/*
- * static_prio_timeslice() scales user-nice values [ -20 ... 0 ... 19 ]
- * to time slice values: [800ms ... 100ms ... 5ms]
- */
-static unsigned int static_prio_timeslice(int static_prio)
-{
-	if (static_prio == NICE_TO_PRIO(19))
-		return 1;
-
-	if (static_prio < NICE_TO_PRIO(0))
-		return SCALE_PRIO(DEF_TIMESLICE * 4, static_prio);
-	else
-		return SCALE_PRIO(DEF_TIMESLICE, static_prio);
-}
 
 static inline int rt_policy(int policy)
 {
@@ -4746,6 +4726,7 @@ asmlinkage
 long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
 {
 	struct task_struct *p;
+	unsigned int time_slice;
 	int retval = -EINVAL;
 	struct timespec t;
 
@@ -4762,9 +4743,21 @@ long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
 	if (retval)
 		goto out_unlock;
 
-	jiffies_to_timespec(p->policy == SCHED_FIFO ?
-				0 : static_prio_timeslice(p->static_prio), &t);
+	if (p->policy == SCHED_FIFO)
+		time_slice = 0;
+	else if (p->policy == SCHED_RR)
+		time_slice = DEF_TIMESLICE;
+	else {
+		struct sched_entity *se = &p->se;
+		unsigned long flags;
+		struct rq *rq;
+
+		rq = task_rq_lock(p, &flags);
+		time_slice = NS_TO_JIFFIES(sched_slice(cfs_rq_of(se), se));
+		task_rq_unlock(rq, &flags);
+	}
 	read_unlock(&tasklist_lock);
+	jiffies_to_timespec(time_slice, &t);
 	retval = copy_to_user(interval, &t, sizeof(t)) ? -EFAULT : 0;
 out_nounlock:
 	return retval;
