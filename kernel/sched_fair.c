@@ -124,9 +124,16 @@ set_leftmost(struct cfs_rq *cfs_rq, struct rb_node *leftmost)
 	cfs_rq->rb_leftmost = leftmost;
 	if (leftmost) {
 		se = rb_entry(leftmost, struct sched_entity, run_node);
-		cfs_rq->min_vruntime = max(se->vruntime,
-						cfs_rq->min_vruntime);
+		if ((se->vruntime > cfs_rq->min_vruntime) ||
+		    (cfs_rq->min_vruntime > (1ULL << 61) &&
+		     se->vruntime < (1ULL << 50)))
+			cfs_rq->min_vruntime = se->vruntime;
 	}
+}
+
+s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	return se->fair_key - cfs_rq->min_vruntime;
 }
 
 /*
@@ -138,7 +145,7 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
 	struct rb_node *parent = NULL;
 	struct sched_entity *entry;
-	s64 key = se->fair_key;
+	s64 key = entity_key(cfs_rq, se);
 	int leftmost = 1;
 
 	/*
@@ -151,7 +158,7 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		 * We dont care about collisions. Nodes with
 		 * the same key stay together.
 		 */
-		if (key - entry->fair_key < 0) {
+		if (key < entity_key(cfs_rq, entry)) {
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
