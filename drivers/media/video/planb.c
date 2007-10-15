@@ -2013,7 +2013,6 @@ static struct video_device planb_template=
 	.owner		= THIS_MODULE,
 	.name		= PLANB_DEVICE_NAME,
 	.type		= VID_TYPE_OVERLAY,
-	.hardware	= VID_HARDWARE_PLANB,
 	.open		= planb_open,
 	.close		= planb_close,
 	.read		= planb_read,

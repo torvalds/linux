@@ -952,7 +952,6 @@ static const struct file_operations usbvideo_fops = {
 static const struct video_device usbvideo_template = {
 	.owner =      THIS_MODULE,
 	.type =       VID_TYPE_CAPTURE,
-	.hardware =   VID_HARDWARE_CPIA,
 	.fops =       &usbvideo_fops,
 };
 

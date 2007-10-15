@@ -65,10 +65,6 @@ MODULE_PARM_DESC(colorspace_conv,
 
 #define ABOUT "V4L-Driver for Vision CPiA based cameras"
 
-#ifndef VID_HARDWARE_CPIA
-#define VID_HARDWARE_CPIA 24    /* FIXME -> from linux/videodev.h */
-#endif
-
 #define CPIA_MODULE_CPIA			(0<<5)
 #define CPIA_MODULE_SYSTEM			(1<<5)
 #define CPIA_MODULE_VP_CTRL			(5<<5)
@@ -3804,7 +3800,6 @@ static struct video_device cpia_template = {
 	.owner		= THIS_MODULE,
 	.name		= "CPiA Camera",
 	.type		= VID_TYPE_CAPTURE,
-	.hardware	= VID_HARDWARE_CPIA,
 	.fops           = &cpia_fops,
 };
 

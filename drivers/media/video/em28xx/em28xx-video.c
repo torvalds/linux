@@ -1617,7 +1617,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	/* Fills VBI device info */
 	dev->vbi_dev->type = VFL_TYPE_VBI;
-	dev->vbi_dev->hardware = 0;
 	dev->vbi_dev->fops = &em28xx_v4l_fops;
 	dev->vbi_dev->minor = -1;
 	dev->vbi_dev->dev = &dev->udev->dev;
@@ -1629,7 +1628,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->vdev->type = VID_TYPE_CAPTURE;
 	if (dev->has_tuner)
 		dev->vdev->type |= VID_TYPE_TUNER;
-	dev->vdev->hardware = 0;
 	dev->vdev->fops = &em28xx_v4l_fops;
 	dev->vdev->minor = -1;
 	dev->vdev->dev = &dev->udev->dev;

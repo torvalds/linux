@@ -1235,8 +1235,14 @@ zoran_setup_videocodec (struct zoran *zr,
 		return m;
 	}
 
-	m->magic = 0L; /* magic not used */
-	m->type = VID_HARDWARE_ZR36067;
+	/* magic and type are unused for master struct. Makes sense only at
+	   codec structs.
+	   In the past, .type were initialized to the old V4L1 .hardware
+	   value, as VID_HARDWARE_ZR36067
+	 */
+	m->magic = 0L;
+	m->type = 0;
+
 	m->flags = CODEC_FLAG_ENCODER | CODEC_FLAG_DECODER;
 	strncpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
 	m->data = zr;

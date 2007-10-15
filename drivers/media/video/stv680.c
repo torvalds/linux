@@ -1398,7 +1398,6 @@ static struct video_device stv680_template = {
 	.owner =	THIS_MODULE,
 	.name =		"STV0680 USB camera",
 	.type =		VID_TYPE_CAPTURE,
-	.hardware =	VID_HARDWARE_SE401,
 	.fops =         &stv680_fops,
 	.release =	video_device_release,
 	.minor = 	-1,

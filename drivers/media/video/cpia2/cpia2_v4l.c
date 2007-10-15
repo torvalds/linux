@@ -86,10 +86,6 @@ MODULE_LICENSE("GPL");
 
 #define ABOUT "V4L-Driver for Vision CPiA2 based cameras"
 
-#ifndef VID_HARDWARE_CPIA2
-#error "VID_HARDWARE_CPIA2 should have been defined in linux/videodev.h"
-#endif
-
 struct control_menu_info {
 	int value;
 	char name[32];
@@ -1942,7 +1938,6 @@ static struct video_device cpia2_template = {
 	.type=		VID_TYPE_CAPTURE,
 	.type2 = 	V4L2_CAP_VIDEO_CAPTURE |
 			V4L2_CAP_STREAMING,
-	.hardware=	VID_HARDWARE_CPIA2,
 	.minor=		-1,
 	.fops=		&fops_template,
 	.release=	video_device_release,

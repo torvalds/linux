@@ -86,8 +86,8 @@ videocodec_attach (struct videocodec_master *master)
 	}
 
 	dprintk(2,
-		"videocodec_attach: '%s', type: %x, flags %lx, magic %lx\n",
-		master->name, master->type, master->flags, master->magic);
+		"videocodec_attach: '%s', flags %lx, magic %lx\n",
+		master->name, master->flags, master->magic);
 
 	if (!h) {
 		dprintk(1,

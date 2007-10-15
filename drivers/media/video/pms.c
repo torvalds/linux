@@ -895,7 +895,6 @@ static struct video_device pms_template=
 	.owner		= THIS_MODULE,
 	.name		= "Mediavision PMS",
 	.type		= VID_TYPE_CAPTURE,
-	.hardware	= VID_HARDWARE_PMS,
 	.fops           = &pms_fops,
 };
 

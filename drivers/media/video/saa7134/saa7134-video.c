@@ -2352,7 +2352,6 @@ struct video_device saa7134_video_template =
 	.name          = "saa7134-video",
 	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|
 			 VID_TYPE_CLIPPING|VID_TYPE_SCALES,
-	.hardware      = 0,
 	.fops          = &video_fops,
 	.minor         = -1,
 };
@@ -2361,7 +2360,6 @@ struct video_device saa7134_vbi_template =
 {
 	.name          = "saa7134-vbi",
 	.type          = VID_TYPE_TUNER|VID_TYPE_TELETEXT,
-	.hardware      = 0,
 	.fops          = &video_fops,
 	.minor         = -1,
 };
@@ -2370,7 +2368,6 @@ struct video_device saa7134_radio_template =
 {
 	.name          = "saa7134-radio",
 	.type          = VID_TYPE_TUNER,
-	.hardware      = 0,
 	.fops          = &radio_fops,
 	.minor         = -1,
 };

@@ -196,7 +196,6 @@ static struct video_device w9966_template = {
 	.owner		= THIS_MODULE,
 	.name           = W9966_DRIVERNAME,
 	.type           = VID_TYPE_CAPTURE | VID_TYPE_SCALES,
-	.hardware       = VID_HARDWARE_W9966,
 	.fops           = &w9966_fops,
 };
 

@@ -94,7 +94,6 @@ struct video_device
 	char name[32];
 	int type;       /* v4l1 */
 	int type2;      /* v4l2 */
-	int hardware;
 	int minor;
 
 	int debug;	/* Activates debug level*/

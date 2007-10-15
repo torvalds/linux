@@ -342,7 +342,6 @@ static struct video_device saa7134_empress_template =
 	.name          = "saa7134-empress",
 	.type          = 0 /* FIXME */,
 	.type2         = 0 /* FIXME */,
-	.hardware      = 0,
 	.fops          = &ts_fops,
 	.minor	       = -1,
 };

@@ -60,7 +60,6 @@
 
 #include <linux/spinlock.h>
 #define     MAP_NR(x)       virt_to_page(x)
-#define     ZORAN_HARDWARE  VID_HARDWARE_ZR36067
 #define     ZORAN_VID_TYPE  ( \
 				VID_TYPE_CAPTURE | \
 				VID_TYPE_OVERLAY | \
@@ -4659,7 +4658,6 @@ struct video_device zoran_template __devinitdata = {
 #ifdef CONFIG_VIDEO_V4L2
 	.type2 = ZORAN_V4L2_VID_FLAGS,
 #endif
-	.hardware = ZORAN_HARDWARE,
 	.fops = &zoran_fops,
 	.release = &zoran_vdev_release,
 	.minor = -1
