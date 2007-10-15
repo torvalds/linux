@@ -934,7 +934,7 @@ void ehca_poll_eqs(unsigned long data)
 				ehca_process_eq(shca, 0);
 		}
 	}
-	mod_timer(&poll_eqs_timer, jiffies + HZ);
+	mod_timer(&poll_eqs_timer, round_jiffies(jiffies + HZ));
 	spin_unlock(&shca_list_lock);
 }
 
