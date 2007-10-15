@@ -665,7 +665,7 @@ static void initio_init(struct initio_host * host, u8 *bios_addr)
 		host->max_tags[i] = 0xFF;
 	}			/* for                          */
 	printk("i91u: PCI Base=0x%04X, IRQ=%d, BIOS=0x%04X0, SCSI ID=%d\n",
-	       host->addr, host->irq,
+	       host->addr, host->pci_dev->irq,
 	       host->bios_addr, host->scsi_id);
 	/* Reset SCSI Bus */
 	if (host->config & HCC_SCSI_RESET) {
@@ -2891,6 +2891,8 @@ static int initio_probe_one(struct pci_dev *pdev,
 		goto out_release_region;
 	}
 
+	host->pci_dev = pdev;
+
 	host->num_scbs = num_scb;
 	host->scb = scb;
 	host->next_pending = scb;
@@ -2905,6 +2907,7 @@ static int initio_probe_one(struct pci_dev *pdev,
 	host->scb_end = tmp;
 	host->first_avail = scb;
 	host->last_avail = prev;
+	spin_lock_init(&host->avail_lock);
 
 	initio_init(host, phys_to_virt(bios_seg << 4));
 
@@ -2928,7 +2931,6 @@ static int initio_probe_one(struct pci_dev *pdev,
 	}
 
 	pci_set_drvdata(pdev, shost);
-	host->pci_dev = pdev;
 
 	error = scsi_add_host(shost, &pdev->dev);
 	if (error)
