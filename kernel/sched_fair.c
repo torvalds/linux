@@ -148,7 +148,7 @@ static inline struct task_struct *task_of(struct sched_entity *se)
 /*
  * Enqueue an entity into the rb-tree:
  */
-static inline void
+static void
 __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
@@ -191,7 +191,7 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }
 
-static inline void
+static void
 __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->rb_leftmost == &se->run_node)
