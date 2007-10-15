@@ -17,7 +17,16 @@
 #define EXTENT_DEFRAG (1 << 6)
 #define EXTENT_DEFRAG_DONE (1 << 7)
 #define EXTENT_BUFFER_FILLED (1 << 8)
+#define EXTENT_CSUM (1 << 9)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
+
+/*
+ * page->private values.  Every page that is controlled by the extent
+ * map has page->private set to one.
+ */
+
+#define EXTENT_PAGE_PRIVATE 1
+#define EXTENT_PAGE_PRIVATE_FIRST_PAGE 3
 
 
 struct extent_map_ops {
@@ -89,7 +98,7 @@ typedef struct extent_map *(get_extent_t)(struct inode *inode,
 
 void extent_map_tree_init(struct extent_map_tree *tree,
 			  struct address_space *mapping, gfp_t mask);
-void extent_map_tree_cleanup(struct extent_map_tree *tree);
+void extent_map_tree_empty_lru(struct extent_map_tree *tree);
 struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 					 u64 start, u64 end);
 int add_extent_mapping(struct extent_map_tree *tree,
@@ -143,13 +152,14 @@ void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 					  u64 start, unsigned long len,
+					  struct page *page0,
 					  gfp_t mask);
 struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 					 u64 start, unsigned long len,
 					  gfp_t mask);
 void free_extent_buffer(struct extent_buffer *eb);
 int read_extent_buffer_pages(struct extent_map_tree *tree,
-			     struct extent_buffer *eb, int wait);
+			     struct extent_buffer *eb, u64 start, int wait);
 
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {
@@ -184,6 +194,10 @@ int set_extent_buffer_uptodate(struct extent_map_tree *tree,
 int extent_buffer_uptodate(struct extent_map_tree *tree,
 			   struct extent_buffer *eb);
 int map_extent_buffer(struct extent_buffer *eb, unsigned long offset,
+		      unsigned long min_len, char **token, char **map,
+		      unsigned long *map_start,
+		      unsigned long *map_len, int km);
+int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long min_len, char **token, char **map,
 		      unsigned long *map_start,
 		      unsigned long *map_len, int km);

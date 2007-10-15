@@ -81,7 +81,7 @@ void extent_map_tree_init(struct extent_map_tree *tree,
 }
 EXPORT_SYMBOL(extent_map_tree_init);
 
-void extent_map_tree_cleanup(struct extent_map_tree *tree)
+void extent_map_tree_empty_lru(struct extent_map_tree *tree)
 {
 	struct extent_buffer *eb;
 	while(!list_empty(&tree->buffer_lru)) {
@@ -91,7 +91,7 @@ void extent_map_tree_cleanup(struct extent_map_tree *tree)
 		free_extent_buffer(eb);
 	}
 }
-EXPORT_SYMBOL(extent_map_tree_cleanup);
+EXPORT_SYMBOL(extent_map_tree_empty_lru);
 
 struct extent_map *alloc_extent_map(gfp_t mask)
 {
@@ -1464,7 +1464,7 @@ void set_page_extent_mapped(struct page *page)
 	if (!PagePrivate(page)) {
 		SetPagePrivate(page);
 		WARN_ON(!page->mapping->a_ops->invalidatepage);
-		set_page_private(page, 1);
+		set_page_private(page, EXTENT_PAGE_PRIVATE);
 		page_cache_get(page);
 	}
 }
@@ -1979,8 +1979,9 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_map_tree *tree,
 
 	spin_lock(&tree->lru_lock);
 	eb = find_lru(tree, start, len);
-	if (eb)
+	if (eb) {
 		goto lru_add;
+	}
 	spin_unlock(&tree->lru_lock);
 
 	if (eb) {
@@ -2007,6 +2008,7 @@ static void __free_extent_buffer(struct extent_buffer *eb)
 
 struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 					  u64 start, unsigned long len,
+					  struct page *page0,
 					  gfp_t mask)
 {
 	unsigned long num_pages = num_extent_pages(start, len);
@@ -2024,7 +2026,18 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 	if (eb->flags & EXTENT_BUFFER_FILLED)
 		return eb;
 
-	for (i = 0; i < num_pages; i++, index++) {
+	if (page0) {
+		eb->first_page = page0;
+		i = 1;
+		index++;
+		page_cache_get(page0);
+		set_page_extent_mapped(page0);
+		set_page_private(page0, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
+				 len << 2);
+	} else {
+		i = 0;
+	}
+	for (; i < num_pages; i++, index++) {
 		p = find_or_create_page(mapping, index, mask | __GFP_HIGHMEM);
 		if (!p) {
 			WARN_ON(1);
@@ -2036,8 +2049,13 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 			goto fail;
 		}
 		set_page_extent_mapped(p);
-		if (i == 0)
+		if (i == 0) {
 			eb->first_page = p;
+			set_page_private(p, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
+					 len << 2);
+		} else {
+			set_page_private(p, EXTENT_PAGE_PRIVATE);
+		}
 		if (!PageUptodate(p))
 			uptodate = 0;
 		unlock_page(p);
@@ -2057,8 +2075,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 					  gfp_t mask)
 {
 	unsigned long num_pages = num_extent_pages(start, len);
-	unsigned long i;
-	unsigned long index = start >> PAGE_CACHE_SHIFT;
+	unsigned long i; unsigned long index = start >> PAGE_CACHE_SHIFT;
 	struct extent_buffer *eb;
 	struct page *p;
 	struct address_space *mapping = tree->mapping;
@@ -2082,8 +2099,15 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 			goto fail;
 		}
 		set_page_extent_mapped(p);
-		if (i == 0)
+
+		if (i == 0) {
 			eb->first_page = p;
+			set_page_private(p, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
+					 len << 2);
+		} else {
+			set_page_private(p, EXTENT_PAGE_PRIVATE);
+		}
+
 		if (!PageUptodate(p))
 			uptodate = 0;
 		unlock_page(p);
@@ -2174,7 +2198,21 @@ int set_extent_buffer_dirty(struct extent_map_tree *tree,
 
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = 0; i < num_pages; i++) {
+		struct page *page = extent_buffer_page(eb, i);
+		/* writepage may need to do something special for the
+		 * first page, we have to make sure page->private is
+		 * properly set.  releasepage may drop page->private
+		 * on us if the page isn't already dirty.
+		 */
+		if (i == 0) {
+			lock_page(page);
+			set_page_private(page,
+					 EXTENT_PAGE_PRIVATE_FIRST_PAGE |
+					 eb->len << 2);
+		}
 		__set_page_dirty_nobuffers(extent_buffer_page(eb, i));
+		if (i == 0)
+			unlock_page(page);
 	}
 	return set_extent_dirty(tree, eb->start,
 				eb->start + eb->len - 1, GFP_NOFS);
@@ -2217,9 +2255,12 @@ int extent_buffer_uptodate(struct extent_map_tree *tree,
 EXPORT_SYMBOL(extent_buffer_uptodate);
 
 int read_extent_buffer_pages(struct extent_map_tree *tree,
-			     struct extent_buffer *eb, int wait)
+			     struct extent_buffer *eb,
+			     u64 start,
+			     int wait)
 {
 	unsigned long i;
+	unsigned long start_i;
 	struct page *page;
 	int err;
 	int ret = 0;
@@ -2232,9 +2273,16 @@ int read_extent_buffer_pages(struct extent_map_tree *tree,
 			   EXTENT_UPTODATE, 1)) {
 		return 0;
 	}
+	if (start) {
+		WARN_ON(start < eb->start);
+		start_i = (start >> PAGE_CACHE_SHIFT) -
+			(eb->start >> PAGE_CACHE_SHIFT);
+	} else {
+		start_i = 0;
+	}
 
 	num_pages = num_extent_pages(eb->start, eb->len);
-	for (i = 0; i < num_pages; i++) {
+	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
 		if (PageUptodate(page)) {
 			continue;
@@ -2260,7 +2308,7 @@ int read_extent_buffer_pages(struct extent_map_tree *tree,
 		return ret;
 	}
 
-	for (i = 0; i < num_pages; i++) {
+	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
 		wait_on_page_locked(page);
 		if (!PageUptodate(page)) {
@@ -2314,7 +2362,7 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 }
 EXPORT_SYMBOL(read_extent_buffer);
 
-static int __map_extent_buffer(struct extent_buffer *eb, unsigned long start,
+int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 			       unsigned long min_len, char **token, char **map,
 			       unsigned long *map_start,
 			       unsigned long *map_len, int km)
@@ -2337,6 +2385,10 @@ static int __map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		offset = 0;
 		*map_start = (i << PAGE_CACHE_SHIFT) - start_offset;
 	}
+	if (start + min_len >= eb->len) {
+printk("bad mapping eb start %Lu len %lu, wanted %lu %lu\n", eb->start, eb->len, start, min_len);
+		WARN_ON(1);
+	}
 
 	p = extent_buffer_page(eb, i);
 	WARN_ON(!PageUptodate(p));
@@ -2346,6 +2398,7 @@ static int __map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	*map_len = PAGE_CACHE_SIZE - offset;
 	return 0;
 }
+EXPORT_SYMBOL(map_private_extent_buffer);
 
 int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		      unsigned long min_len,
@@ -2360,8 +2413,8 @@ int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		eb->map_token = NULL;
 		save = 1;
 	}
-	err = __map_extent_buffer(eb, start, min_len, token, map,
-				   map_start, map_len, km);
+	err = map_private_extent_buffer(eb, start, min_len, token, map,
+				       map_start, map_len, km);
 	if (!err && save) {
 		eb->map_token = *token;
 		eb->kaddr = *map;

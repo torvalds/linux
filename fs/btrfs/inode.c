@@ -1713,10 +1713,6 @@ static int btrfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
 	struct extent_map_tree *tree;
 	int ret;
 
-	if (page->private != 1) {
-		WARN_ON(1);
-		return try_to_free_buffers(page);
-	}
 	tree = &BTRFS_I(page->mapping->host)->extent_tree;
 	ret = try_release_extent_mapping(tree, page);
 	if (ret == 1) {

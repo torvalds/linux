@@ -310,9 +310,11 @@ struct btrfs_fs_info {
 	struct extent_buffer *sb_buffer;
 	struct super_block *sb;
 	struct inode *btree_inode;
+	spinlock_t hash_lock;
 	struct mutex trans_mutex;
 	struct mutex fs_mutex;
 	struct list_head trans_list;
+	struct list_head hashers;
 	struct list_head dead_roots;
 	struct delayed_work trans_work;
 	struct kobject super_kobj;
