@@ -147,10 +147,10 @@ static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
 
 /* Destruction primitives. */
 
-static __inline__ void fq_put(struct nf_ct_frag6_queue *fq, unsigned int *work)
+static __inline__ void fq_put(struct nf_ct_frag6_queue *fq)
 {
 	if (atomic_dec_and_test(&fq->q.refcnt))
-		inet_frag_destroy(&fq->q, &nf_frags, work);
+		inet_frag_destroy(&fq->q, &nf_frags, NULL);
 }
 
 /* Kill fq entry. It is not destroyed immediately,
@@ -179,7 +179,7 @@ static void nf_ct_frag6_expire(unsigned long data)
 
 out:
 	spin_unlock(&fq->q.lock);
-	fq_put(fq, NULL);
+	fq_put(fq);
 }
 
 /* Creation primitives. */
@@ -201,7 +201,7 @@ static struct nf_ct_frag6_queue *nf_ct_frag6_intern(unsigned int hash,
 			atomic_inc(&fq->q.refcnt);
 			write_unlock(&nf_frags.lock);
 			fq_in->q.last_in |= COMPLETE;
-			fq_put(fq_in, NULL);
+			fq_put(fq_in);
 			return fq;
 		}
 	}
@@ -692,7 +692,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	if (nf_ct_frag6_queue(fq, clone, fhdr, nhoff) < 0) {
 		spin_unlock(&fq->q.lock);
 		pr_debug("Can't insert skb to queue\n");
-		fq_put(fq, NULL);
+		fq_put(fq);
 		goto ret_orig;
 	}
 
@@ -703,7 +703,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	}
 	spin_unlock(&fq->q.lock);
 
-	fq_put(fq, NULL);
+	fq_put(fq);
 	return ret_skb;
 
 ret_orig:

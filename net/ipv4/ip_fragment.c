@@ -155,10 +155,10 @@ static __inline__ struct ipq *frag_alloc_queue(void)
 
 /* Destruction primitives. */
 
-static __inline__ void ipq_put(struct ipq *ipq, int *work)
+static __inline__ void ipq_put(struct ipq *ipq)
 {
 	if (atomic_dec_and_test(&ipq->q.refcnt))
-		inet_frag_destroy(&ipq->q, &ip4_frags, work);
+		inet_frag_destroy(&ipq->q, &ip4_frags, NULL);
 }
 
 /* Kill ipq entry. It is not destroyed immediately,
@@ -208,7 +208,7 @@ static void ip_expire(unsigned long arg)
 	}
 out:
 	spin_unlock(&qp->q.lock);
-	ipq_put(qp, NULL);
+	ipq_put(qp);
 }
 
 /* Creation primitives. */
@@ -238,7 +238,7 @@ static struct ipq *ip_frag_intern(struct ipq *qp_in)
 			atomic_inc(&qp->q.refcnt);
 			write_unlock(&ip4_frags.lock);
 			qp_in->q.last_in |= COMPLETE;
-			ipq_put(qp_in, NULL);
+			ipq_put(qp_in);
 			return qp;
 		}
 	}
@@ -664,7 +664,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 		ret = ip_frag_queue(qp, skb);
 
 		spin_unlock(&qp->q.lock);
-		ipq_put(qp, NULL);
+		ipq_put(qp);
 		return ret;
 	}
 

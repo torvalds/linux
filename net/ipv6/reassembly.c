@@ -169,10 +169,10 @@ static inline struct frag_queue *frag_alloc_queue(void)
 
 /* Destruction primitives. */
 
-static __inline__ void fq_put(struct frag_queue *fq, int *work)
+static __inline__ void fq_put(struct frag_queue *fq)
 {
 	if (atomic_dec_and_test(&fq->q.refcnt))
-		inet_frag_destroy(&fq->q, &ip6_frags, work);
+		inet_frag_destroy(&fq->q, &ip6_frags, NULL);
 }
 
 /* Kill fq entry. It is not destroyed immediately,
@@ -228,7 +228,7 @@ out:
 	if (dev)
 		dev_put(dev);
 	spin_unlock(&fq->q.lock);
-	fq_put(fq, NULL);
+	fq_put(fq);
 }
 
 /* Creation primitives. */
@@ -252,7 +252,7 @@ static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in)
 			atomic_inc(&fq->q.refcnt);
 			write_unlock(&ip6_frags.lock);
 			fq_in->q.last_in |= COMPLETE;
-			fq_put(fq_in, NULL);
+			fq_put(fq_in);
 			return fq;
 		}
 	}
@@ -677,7 +677,7 @@ static int ipv6_frag_rcv(struct sk_buff **skbp)
 		ret = ip6_frag_queue(fq, skb, fhdr, IP6CB(skb)->nhoff);
 
 		spin_unlock(&fq->q.lock);
-		fq_put(fq, NULL);
+		fq_put(fq);
 		return ret;
 	}
 
