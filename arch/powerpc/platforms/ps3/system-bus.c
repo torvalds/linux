@@ -440,7 +440,6 @@ static void ps3_system_bus_shutdown(struct device *_dev)
 static int ps3_system_bus_uevent(struct device *_dev, struct kobj_uevent_env *env)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
-	int i = 0, length = 0;
 
 	if (add_uevent_var(env, "MODALIAS=ps3:%d", dev->match_id))
 		return -ENOMEM;
