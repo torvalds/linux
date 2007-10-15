@@ -1972,42 +1972,11 @@ unsigned long nr_active(void)
  */
 static void update_cpu_load(struct rq *this_rq)
 {
-	u64 fair_delta64, exec_delta64, idle_delta64, sample_interval64, tmp64;
 	unsigned long total_load = this_rq->ls.load.weight;
 	unsigned long this_load =  total_load;
-	struct load_stat *ls = &this_rq->ls;
 	int i, scale;
 
 	this_rq->nr_load_updates++;
-	if (unlikely(!(sysctl_sched_features & SCHED_FEAT_PRECISE_CPU_LOAD)))
-		goto do_avg;
-
-	/* Update delta_fair/delta_exec fields first */
-	update_curr_load(this_rq);
-
-	fair_delta64 = ls->delta_fair + 1;
-	ls->delta_fair = 0;
-
-	exec_delta64 = ls->delta_exec + 1;
-	ls->delta_exec = 0;
-
-	sample_interval64 = this_rq->clock - ls->load_update_last;
-	ls->load_update_last = this_rq->clock;
-
-	if ((s64)sample_interval64 < (s64)TICK_NSEC)
-		sample_interval64 = TICK_NSEC;
-
-	if (exec_delta64 > sample_interval64)
-		exec_delta64 = sample_interval64;
-
-	idle_delta64 = sample_interval64 - exec_delta64;
-
-	tmp64 = div64_64(SCHED_LOAD_SCALE * exec_delta64, fair_delta64);
-	tmp64 = div64_64(tmp64 * exec_delta64, sample_interval64);
-
-	this_load = (unsigned long)tmp64;
-
-do_avg:
 
 	/* Update our load: */
 	for (i = 0, scale = 1; i < CPU_LOAD_IDX_MAX; i++, scale += scale) {
@@ -2017,7 +1986,13 @@ do_avg:
 
 		old_load = this_rq->cpu_load[i];
 		new_load = this_load;
-
+		/*
+		 * Round up the averaging division if load is increasing. This
+		 * prevents us from getting stuck on 9 if the load is 10, for
+		 * example.
+		 */
+		if (new_load > old_load)
+			new_load += scale-1;
 		this_rq->cpu_load[i] = (old_load*(scale-1) + new_load) >> i;
 	}
 }
@@ -6484,7 +6459,6 @@ static inline void init_cfs_rq(struct cfs_rq *cfs_rq, struct rq *rq)
 
 void __init sched_init(void)
 {
-	u64 now = sched_clock();
 	int highest_cpu = 0;
 	int i, j;
 
@@ -6509,8 +6483,6 @@ void __init sched_init(void)
 		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
 		list_add(&rq->cfs.leaf_cfs_rq_list, &rq->leaf_cfs_rq_list);
 #endif
-		rq->ls.load_update_last = now;
-		rq->ls.load_update_start = now;
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
 			rq->cpu_load[j] = 0;
