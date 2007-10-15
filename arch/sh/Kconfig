@@ -291,9 +291,7 @@ config SH_DREAMCAST
 	depends on CPU_SUBTYPE_SH7091
 	help
 	  Select Dreamcast if configuring for a SEGA Dreamcast.
-	  More information at
-	  <http://www.m17n.org/linux-sh/dreamcast/>.  There is a
-	  Dreamcast project is at <http://linuxdc.sourceforge.net/>.
+	  More information at <http://www.linux-sh.org>
 
 config SH_MPC1211
 	bool "Interface MPC1211"
