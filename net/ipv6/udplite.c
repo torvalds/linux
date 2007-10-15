@@ -17,9 +17,9 @@
 
 DEFINE_SNMP_STAT(struct udp_mib, udplite_stats_in6) __read_mostly;
 
-static int udplitev6_rcv(struct sk_buff **pskb)
+static int udplitev6_rcv(struct sk_buff *skb)
 {
-	return __udp6_lib_rcv(pskb, udplite_hash, IPPROTO_UDPLITE);
+	return __udp6_lib_rcv(skb, udplite_hash, IPPROTO_UDPLITE);
 }
 
 static void udplitev6_err(struct sk_buff *skb,

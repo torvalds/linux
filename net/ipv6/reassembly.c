@@ -628,9 +628,8 @@ out_fail:
 	return -1;
 }
 
-static int ipv6_frag_rcv(struct sk_buff **skbp)
+static int ipv6_frag_rcv(struct sk_buff *skb)
 {
-	struct sk_buff *skb = *skbp;
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);

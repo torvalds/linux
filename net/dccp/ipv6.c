@@ -767,10 +767,9 @@ discard:
 	return 0;
 }
 
-static int dccp_v6_rcv(struct sk_buff **pskb)
+static int dccp_v6_rcv(struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh;
-	struct sk_buff *skb = *pskb;
 	struct sock *sk;
 	int min_cov;
 

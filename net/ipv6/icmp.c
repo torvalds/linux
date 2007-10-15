@@ -82,7 +82,7 @@ EXPORT_SYMBOL(icmpv6msg_statistics);
 static DEFINE_PER_CPU(struct socket *, __icmpv6_socket) = NULL;
 #define icmpv6_socket	__get_cpu_var(__icmpv6_socket)
 
-static int icmpv6_rcv(struct sk_buff **pskb);
+static int icmpv6_rcv(struct sk_buff *skb);
 
 static struct inet6_protocol icmpv6_protocol = {
 	.handler	=	icmpv6_rcv,
@@ -614,9 +614,8 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
  *	Handle icmp messages
  */
 
-static int icmpv6_rcv(struct sk_buff **pskb)
+static int icmpv6_rcv(struct sk_buff *skb)
 {
-	struct sk_buff *skb = *pskb;
 	struct net_device *dev = skb->dev;
 	struct inet6_dev *idev = __in6_dev_get(dev);
 	struct in6_addr *saddr, *daddr;
