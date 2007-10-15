@@ -697,16 +697,17 @@ calc_delta_fair(unsigned long delta_exec, struct load_weight *lw)
 	return calc_delta_mine(delta_exec, NICE_0_LOAD, lw);
 }
 
-static void update_load_add(struct load_weight *lw, unsigned long inc)
+static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 {
 	lw->weight += inc;
-	lw->inv_weight = 0;
+	lw->inv_weight = WMULT_CONST / lw->weight;
 }
 
-static void update_load_sub(struct load_weight *lw, unsigned long dec)
+static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
 {
 	lw->weight -= dec;
-	lw->inv_weight = 0;
+	if (likely(lw->weight))
+		lw->inv_weight = WMULT_CONST / lw->weight;
 }
 
 /*
