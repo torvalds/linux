@@ -115,32 +115,12 @@ static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
 			    ip4_frags.rnd) & (INETFRAGS_HASHSZ - 1);
 }
 
-static void ipfrag_secret_rebuild(unsigned long dummy)
+static unsigned int ip4_hashfn(struct inet_frag_queue *q)
 {
-	unsigned long now = jiffies;
-	int i;
+	struct ipq *ipq;
 
-	write_lock(&ip4_frags.lock);
-	get_random_bytes(&ip4_frags.rnd, sizeof(u32));
-	for (i = 0; i < INETFRAGS_HASHSZ; i++) {
-		struct ipq *q;
-		struct hlist_node *p, *n;
-
-		hlist_for_each_entry_safe(q, p, n, &ip4_frags.hash[i], q.list) {
-			unsigned int hval = ipqhashfn(q->id, q->saddr,
-						      q->daddr, q->protocol);
-
-			if (hval != i) {
-				hlist_del(&q->q.list);
-
-				/* Relink to new hash chain. */
-				hlist_add_head(&q->q.list, &ip4_frags.hash[hval]);
-			}
-		}
-	}
-	write_unlock(&ip4_frags.lock);
-
-	mod_timer(&ip4_frags.secret_timer, now + ip4_frags_ctl.secret_interval);
+	ipq = container_of(q, struct ipq, q);
+	return ipqhashfn(ipq->id, ipq->saddr, ipq->daddr, ipq->protocol);
 }
 
 /* Memory Tracking Functions. */
@@ -739,12 +719,8 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 
 void __init ipfrag_init(void)
 {
-	init_timer(&ip4_frags.secret_timer);
-	ip4_frags.secret_timer.function = ipfrag_secret_rebuild;
-	ip4_frags.secret_timer.expires = jiffies + ip4_frags_ctl.secret_interval;
-	add_timer(&ip4_frags.secret_timer);
-
 	ip4_frags.ctl = &ip4_frags_ctl;
+	ip4_frags.hashfn = ip4_hashfn;
 	inet_frags_init(&ip4_frags);
 }
 

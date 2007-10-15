@@ -106,32 +106,12 @@ static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 	return c & (INETFRAGS_HASHSZ - 1);
 }
 
-static void nf_ct_frag6_secret_rebuild(unsigned long dummy)
+static unsigned int nf_hashfn(struct inet_frag_queue *q)
 {
-	unsigned long now = jiffies;
-	int i;
+	struct nf_ct_frag6_queue *nq;
 
-	write_lock(&nf_frags.lock);
-	get_random_bytes(&nf_frags.rnd, sizeof(u32));
-	for (i = 0; i < INETFRAGS_HASHSZ; i++) {
-		struct nf_ct_frag6_queue *q;
-		struct hlist_node *p, *n;
-
-		hlist_for_each_entry_safe(q, p, n, &nf_frags.hash[i], q.list) {
-			unsigned int hval = ip6qhashfn(q->id,
-						       &q->saddr,
-						       &q->daddr);
-			if (hval != i) {
-				hlist_del(&q->q.list);
-				/* Relink to new hash chain. */
-				hlist_add_head(&q->q.list,
-					       &nf_frags.hash[hval]);
-			}
-		}
-	}
-	write_unlock(&nf_frags.lock);
-
-	mod_timer(&nf_frags.secret_timer, now + nf_frags_ctl.secret_interval);
+	nq = container_of(q, struct nf_ct_frag6_queue, q);
+	return ip6qhashfn(nq->id, &nq->saddr, &nq->daddr);
 }
 
 /* Memory Tracking Functions. */
@@ -817,11 +797,8 @@ int nf_ct_frag6_kfree_frags(struct sk_buff *skb)
 
 int nf_ct_frag6_init(void)
 {
-	setup_timer(&nf_frags.secret_timer, nf_ct_frag6_secret_rebuild, 0);
-	nf_frags.secret_timer.expires = jiffies + nf_frags_ctl.secret_interval;
-	add_timer(&nf_frags.secret_timer);
-
 	nf_frags.ctl = &nf_frags_ctl;
+	nf_frags.hashfn = nf_hashfn;
 	inet_frags_init(&nf_frags);
 
 	return 0;
@@ -831,7 +808,6 @@ void nf_ct_frag6_cleanup(void)
 {
 	inet_frags_fini(&nf_frags);
 
-	del_timer(&nf_frags.secret_timer);
 	nf_frags_ctl.low_thresh = 0;
 	nf_ct_frag6_evictor();
 }

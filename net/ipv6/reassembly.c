@@ -135,35 +135,12 @@ static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 	return c & (INETFRAGS_HASHSZ - 1);
 }
 
-static void ip6_frag_secret_rebuild(unsigned long dummy)
+static unsigned int ip6_hashfn(struct inet_frag_queue *q)
 {
-	unsigned long now = jiffies;
-	int i;
+	struct frag_queue *fq;
 
-	write_lock(&ip6_frags.lock);
-	get_random_bytes(&ip6_frags.rnd, sizeof(u32));
-	for (i = 0; i < INETFRAGS_HASHSZ; i++) {
-		struct frag_queue *q;
-		struct hlist_node *p, *n;
-
-		hlist_for_each_entry_safe(q, p, n, &ip6_frags.hash[i], q.list) {
-			unsigned int hval = ip6qhashfn(q->id,
-						       &q->saddr,
-						       &q->daddr);
-
-			if (hval != i) {
-				hlist_del(&q->q.list);
-
-				/* Relink to new hash chain. */
-				hlist_add_head(&q->q.list,
-					       &ip6_frags.hash[hval]);
-
-			}
-		}
-	}
-	write_unlock(&ip6_frags.lock);
-
-	mod_timer(&ip6_frags.secret_timer, now + ip6_frags_ctl.secret_interval);
+	fq = container_of(q, struct frag_queue, q);
+	return ip6qhashfn(fq->id, &fq->saddr, &fq->daddr);
 }
 
 /* Memory Tracking Functions. */
@@ -765,11 +742,7 @@ void __init ipv6_frag_init(void)
 	if (inet6_add_protocol(&frag_protocol, IPPROTO_FRAGMENT) < 0)
 		printk(KERN_ERR "ipv6_frag_init: Could not register protocol\n");
 
-	init_timer(&ip6_frags.secret_timer);
-	ip6_frags.secret_timer.function = ip6_frag_secret_rebuild;
-	ip6_frags.secret_timer.expires = jiffies + ip6_frags_ctl.secret_interval;
-	add_timer(&ip6_frags.secret_timer);
-
 	ip6_frags.ctl = &ip6_frags_ctl;
+	ip6_frags.hashfn = ip6_hashfn;
 	inet_frags_init(&ip6_frags);
 }

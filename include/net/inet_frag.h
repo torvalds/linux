@@ -36,6 +36,8 @@ struct inet_frags {
 	atomic_t		mem;
 	struct timer_list	secret_timer;
 	struct inet_frags_ctl	*ctl;
+
+	unsigned int		(*hashfn)(struct inet_frag_queue *);
 };
 
 void inet_frags_init(struct inet_frags *);

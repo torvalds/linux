@@ -16,8 +16,37 @@
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
+#include <linux/random.h>
 
 #include <net/inet_frag.h>
+
+static void inet_frag_secret_rebuild(unsigned long dummy)
+{
+	struct inet_frags *f = (struct inet_frags *)dummy;
+	unsigned long now = jiffies;
+	int i;
+
+	write_lock(&f->lock);
+	get_random_bytes(&f->rnd, sizeof(u32));
+	for (i = 0; i < INETFRAGS_HASHSZ; i++) {
+		struct inet_frag_queue *q;
+		struct hlist_node *p, *n;
+
+		hlist_for_each_entry_safe(q, p, n, &f->hash[i], list) {
+			unsigned int hval = f->hashfn(q);
+
+			if (hval != i) {
+				hlist_del(&q->list);
+
+				/* Relink to new hash chain. */
+				hlist_add_head(&q->list, &f->hash[hval]);
+			}
+		}
+	}
+	write_unlock(&f->lock);
+
+	mod_timer(&f->secret_timer, now + f->ctl->secret_interval);
+}
 
 void inet_frags_init(struct inet_frags *f)
 {
@@ -35,11 +64,17 @@ void inet_frags_init(struct inet_frags *f)
 	f->nqueues = 0;
 	atomic_set(&f->mem, 0);
 
+	init_timer(&f->secret_timer);
+	f->secret_timer.function = inet_frag_secret_rebuild;
+	f->secret_timer.data = (unsigned long)f;
+	f->secret_timer.expires = jiffies + f->ctl->secret_interval;
+	add_timer(&f->secret_timer);
 }
 EXPORT_SYMBOL(inet_frags_init);
 
 void inet_frags_fini(struct inet_frags *f)
 {
+	del_timer(&f->secret_timer);
 }
 EXPORT_SYMBOL(inet_frags_fini);
 
