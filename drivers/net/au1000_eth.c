@@ -54,13 +54,16 @@
 #include <linux/delay.h>
 #include <linux/crc32.h>
 #include <linux/phy.h>
+
+#include <asm/cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 
-#include <asm/mach-au1x00/au1000.h>
-#include <asm/cpu.h>
+#include <au1000.h>
+#include <prom.h>
+
 #include "au1000_eth.h"
 
 #ifdef AU1000_ETH_DEBUG
@@ -95,9 +98,6 @@ static int mdio_read(struct net_device *, int, int);
 static void mdio_write(struct net_device *, int, int, u16);
 static void au1000_adjust_link(struct net_device *);
 static void enable_mac(struct net_device *, int);
-
-// externs
-extern int prom_get_ethernet_addr(char *ethernet_addr);
 
 /*
  * Theory of operation

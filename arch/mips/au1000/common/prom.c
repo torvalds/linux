@@ -33,7 +33,6 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -41,18 +40,16 @@
 
 #include <asm/bootinfo.h>
 
-/* #define DEBUG_CMDLINE */
-
-extern int prom_argc;
-extern char **prom_argv, **prom_envp;
-
+int prom_argc;
+char **prom_argv;
+char **prom_envp;
 
 char * __init_or_module prom_getcmdline(void)
 {
 	return &(arcs_cmdline[0]);
 }
 
-void  prom_init_cmdline(void)
+void prom_init_cmdline(void)
 {
 	char *cp;
 	int actr;
@@ -61,7 +58,7 @@ void  prom_init_cmdline(void)
 
 	cp = &(arcs_cmdline[0]);
 	while(actr < prom_argc) {
-	        strcpy(cp, prom_argv[actr]);
+		strcpy(cp, prom_argv[actr]);
 		cp += strlen(prom_argv[actr]);
 		*cp++ = ' ';
 		actr++;
@@ -70,9 +67,7 @@ void  prom_init_cmdline(void)
 		--cp;
 	if (prom_argc > 1)
 		*cp = '\0';
-
 }
-
 
 char *prom_getenv(char *envname)
 {
@@ -95,17 +90,19 @@ char *prom_getenv(char *envname)
 		}
 		env++;
 	}
+
 	return NULL;
 }
 
 static inline unsigned char str2hexnum(unsigned char c)
 {
-	if(c >= '0' && c <= '9')
+	if (c >= '0' && c <= '9')
 		return c - '0';
-	if(c >= 'a' && c <= 'f')
+	if (c >= 'a' && c <= 'f')
 		return c - 'a' + 10;
-	if(c >= 'A' && c <= 'F')
+	if (c >= 'A' && c <= 'F')
 		return c - 'A' + 10;
+
 	return 0; /* foo */
 }
 
