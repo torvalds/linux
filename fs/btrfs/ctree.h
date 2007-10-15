@@ -19,6 +19,8 @@
 #ifndef __BTRFS__
 #define __BTRFS__
 
+#include <linux/mm.h>
+#include <linux/highmem.h>
 #include <linux/fs.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
@@ -499,70 +501,22 @@ static inline void btrfs_set_##name(struct extent_buffer *eb,		\
 #define BTRFS_SETGET_HEADER_FUNCS(name, type, member, bits)		\
 static inline u##bits btrfs_##name(struct extent_buffer *eb)		\
 {									\
-	int err;							\
-	char *map_token;						\
-	char *kaddr;							\
-	unsigned long map_start;					\
-	unsigned long map_len;						\
+	char *kaddr = kmap_atomic(eb->first_page, KM_USER0);		\
 	unsigned long offset = offsetof(type, member);			\
-	int unmap_on_exit = (eb->map_token == NULL);			\
-	if (eb->map_token && offset >= eb->map_start &&			\
-	    offset + sizeof(((type *)0)->member) <= eb->map_start +	\
-	    eb->map_len) {						\
-	    kaddr = eb->kaddr;						\
-	    map_start = eb->map_start;					\
-	    err = 0;							\
-	} else {							\
-		err = map_extent_buffer(eb, offset,			\
-			        sizeof(((type *)0)->member),		\
-				&map_token, &kaddr,			\
-				&map_start, &map_len, KM_USER1);	\
-	}								\
-	if (!err) {							\
-		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
-					       map_start);		\
-		u##bits res = le##bits##_to_cpu(*tmp);			\
-		if (unmap_on_exit)					\
-			unmap_extent_buffer(eb, map_token, KM_USER1);	\
-		return res;						\
-	} else {							\
-		__le##bits res;						\
-		read_eb_member(eb, NULL, type, member, &res);		\
-		return le##bits##_to_cpu(res);				\
-	}								\
+	u##bits res;							\
+	__le##bits *tmp = (__le##bits *)(kaddr + offset);		\
+	res = le##bits##_to_cpu(*tmp);					\
+	kunmap_atomic(kaddr, KM_USER0);					\
+	return res;							\
 }									\
 static inline void btrfs_set_##name(struct extent_buffer *eb,		\
 				    u##bits val)			\
 {									\
-	int err;							\
-	char *map_token;						\
-	char *kaddr;							\
-	unsigned long map_start;					\
-	unsigned long map_len;						\
+	char *kaddr = kmap_atomic(eb->first_page, KM_USER0);		\
 	unsigned long offset = offsetof(type, member);			\
-	int unmap_on_exit = (eb->map_token == NULL);			\
-	if (eb->map_token && offset >= eb->map_start &&			\
-	    offset + sizeof(((type *)0)->member) <= eb->map_start +	\
-	    eb->map_len) {						\
-	    kaddr = eb->kaddr;						\
-	    map_start = eb->map_start;					\
-	    err = 0;							\
-	} else {							\
-		err = map_extent_buffer(eb, offset,			\
-			        sizeof(((type *)0)->member),		\
-				&map_token, &kaddr,			\
-				&map_start, &map_len, KM_USER1);	\
-	}								\
-	if (!err) {							\
-		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
-					       map_start);		\
-		*tmp = cpu_to_le##bits(val);				\
-		if (unmap_on_exit)					\
-			unmap_extent_buffer(eb, map_token, KM_USER1);	\
-	} else {							\
-		val = cpu_to_le##bits(val);				\
-		write_eb_member(eb, NULL, type, member, &val);		\
-	}								\
+	__le##bits *tmp = (__le##bits *)(kaddr + offset);		\
+	*tmp = cpu_to_le##bits(val);					\
+	kunmap_atomic(kaddr, KM_USER0);					\
 }
 
 #define BTRFS_SETGET_STACK_FUNCS(name, type, member, bits)		\
@@ -659,13 +613,13 @@ static inline void btrfs_set_node_blockptr(struct extent_buffer *eb,
 	btrfs_set_key_blockptr(eb, (struct btrfs_key_ptr *)ptr, val);
 }
 
-static unsigned long btrfs_node_key_ptr_offset(int nr)
+static inline unsigned long btrfs_node_key_ptr_offset(int nr)
 {
 	return offsetof(struct btrfs_node, ptrs) +
 		sizeof(struct btrfs_key_ptr) * nr;
 }
 
-static void btrfs_node_key(struct extent_buffer *eb,
+static inline void btrfs_node_key(struct extent_buffer *eb,
 			   struct btrfs_disk_key *disk_key, int nr)
 {
 	unsigned long ptr;

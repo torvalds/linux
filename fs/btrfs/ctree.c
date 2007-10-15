@@ -463,6 +463,7 @@ static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
 static int check_block(struct btrfs_root *root, struct btrfs_path *path,
 			int level)
 {
+	return 0;
 #if 0
 	struct extent_buffer *buf = path->nodes[level];
 

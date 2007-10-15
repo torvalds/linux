@@ -75,7 +75,7 @@ struct extent_buffer {
 	char *kaddr;
 	unsigned long map_start;
 	unsigned long map_len;
-	struct page *last_page;
+	struct page *first_page;
 	struct list_head lru;
 	atomic_t refs;
 	int flags;

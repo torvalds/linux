@@ -289,7 +289,6 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	 */
 	inline_size = end_pos;
 	if (isize >= BTRFS_MAX_INLINE_DATA_SIZE(root) ||
-	    inline_size > 16384 ||
 	    inline_size >= BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		u64 last_end;
 

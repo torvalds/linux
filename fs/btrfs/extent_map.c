@@ -1963,9 +1963,9 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 	struct page *p;
 
 	if (i == 0)
-		return eb->last_page;
+		return eb->first_page;
 	i += eb->start >> PAGE_CACHE_SHIFT;
-	p = find_get_page(eb->last_page->mapping, i);
+	p = find_get_page(eb->first_page->mapping, i);
 	page_cache_release(p);
 	return p;
 }
@@ -2037,7 +2037,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 		}
 		set_page_extent_mapped(p);
 		if (i == 0)
-			eb->last_page = p;
+			eb->first_page = p;
 		if (!PageUptodate(p))
 			uptodate = 0;
 		unlock_page(p);
@@ -2083,7 +2083,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 		}
 		set_page_extent_mapped(p);
 		if (i == 0)
-			eb->last_page = p;
+			eb->first_page = p;
 		if (!PageUptodate(p))
 			uptodate = 0;
 		unlock_page(p);
@@ -2169,7 +2169,15 @@ EXPORT_SYMBOL(wait_on_extent_buffer_writeback);
 int set_extent_buffer_dirty(struct extent_map_tree *tree,
 			     struct extent_buffer *eb)
 {
-	return set_range_dirty(tree, eb->start, eb->start + eb->len - 1);
+	unsigned long i;
+	unsigned long num_pages;
+
+	num_pages = num_extent_pages(eb->start, eb->len);
+	for (i = 0; i < num_pages; i++) {
+		__set_page_dirty_nobuffers(extent_buffer_page(eb, i));
+	}
+	return set_extent_dirty(tree, eb->start,
+				eb->start + eb->len - 1, GFP_NOFS);
 }
 EXPORT_SYMBOL(set_extent_buffer_dirty);
 
@@ -2317,15 +2325,10 @@ static int __map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
 	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
 	unsigned long end_i = (start_offset + start + min_len) >>
-				PAGE_CACHE_SHIFT;
+		PAGE_CACHE_SHIFT;
 
 	if (i != end_i)
 		return -EINVAL;
-
-	if (start >= eb->len) {
-		printk("bad start in map eb start %Lu len %lu caller start %lu min %lu\n", eb->start, eb->len, start, min_len);
-		WARN_ON(1);
-	}
 
 	if (i == 0) {
 		offset = start_offset;
@@ -2353,14 +2356,6 @@ int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	int err;
 	int save = 0;
 	if (eb->map_token) {
-		if (start >= eb->map_start &&
-		    start + min_len <= eb->map_start + eb->map_len) {
-			*token = eb->map_token;
-			*map = eb->kaddr;
-			*map_start = eb->map_start;
-			*map_len = eb->map_len;
-			return 0;
-		}
 		unmap_extent_buffer(eb, eb->map_token, km);
 		eb->map_token = NULL;
 		save = 1;
