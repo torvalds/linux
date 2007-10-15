@@ -1052,9 +1052,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	if (p->se.block_start)
 		p->se.block_start -= clock_offset;
 #endif
-	if (likely(new_rq->cfs.min_vruntime))
-		p->se.vruntime -= old_rq->cfs.min_vruntime -
-						new_rq->cfs.min_vruntime;
+	p->se.vruntime -= old_rq->cfs.min_vruntime - new_rq->cfs.min_vruntime;
 
 	__set_task_cpu(p, new_cpu);
 }
