@@ -379,15 +379,6 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->exec_start = rq_of(cfs_rq)->clock;
 }
 
-/*
- * We are descheduling a task - update its stats:
- */
-static inline void
-update_stats_curr_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	se->exec_start = 0;
-}
-
 /**************************************************
  * Scheduling class queueing methods:
  */
@@ -608,8 +599,6 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 	 */
 	if (prev->on_rq)
 		update_curr(cfs_rq);
-
-	update_stats_curr_end(cfs_rq, prev);
 
 	check_spread(cfs_rq, prev);
 	if (prev->on_rq) {
