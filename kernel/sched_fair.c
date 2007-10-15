@@ -1191,6 +1191,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 		se->wait_runtime = -(sched_granularity(cfs_rq) / 2);
 
 	__enqueue_entity(cfs_rq, se);
+	resched_task(rq->curr);
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
