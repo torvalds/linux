@@ -217,77 +217,14 @@ static u64 __sched_period(unsigned long nr_running)
 	return period;
 }
 
-/*
- * Calculate the preemption granularity needed to schedule every
- * runnable task once per sysctl_sched_latency amount of time.
- * (down to a sensible low limit on granularity)
- *
- * For example, if there are 2 tasks running and latency is 10 msecs,
- * we switch tasks every 5 msecs. If we have 3 tasks running, we have
- * to switch tasks every 3.33 msecs to get a 10 msecs observed latency
- * for each task. We do finer and finer scheduling up to until we
- * reach the minimum granularity value.
- *
- * To achieve this we use the following dynamic-granularity rule:
- *
- *    gran = lat/nr - lat/nr/nr
- *
- * This comes out of the following equations:
- *
- *    kA1 + gran = kB1
- *    kB2 + gran = kA2
- *    kA2 = kA1
- *    kB2 = kB1 - d + d/nr
- *    lat = d * nr
- *
- * Where 'k' is key, 'A' is task A (waiting), 'B' is task B (running),
- * '1' is start of time, '2' is end of time, 'd' is delay between
- * 1 and 2 (during which task B was running), 'nr' is number of tasks
- * running, 'lat' is the the period of each task. ('lat' is the
- * sched_latency that we aim for.)
- */
-static long
-sched_granularity(struct cfs_rq *cfs_rq)
+static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	unsigned int gran = sysctl_sched_latency;
-	unsigned int nr = cfs_rq->nr_running;
+	u64 period = __sched_period(cfs_rq->nr_running);
 
-	if (nr > 1) {
-		gran = gran/nr - gran/nr/nr;
-		gran = max(gran, sysctl_sched_min_granularity);
-	}
+	period *= se->load.weight;
+	do_div(period, cfs_rq->load.weight);
 
-	return gran;
-}
-
-/*
- * We rescale the rescheduling granularity of tasks according to their
- * nice level, but only linearly, not exponentially:
- */
-static long
-niced_granularity(struct sched_entity *curr, unsigned long granularity)
-{
-	u64 tmp;
-
-	if (likely(curr->load.weight == NICE_0_LOAD))
-		return granularity;
-	/*
-	 * Positive nice levels get the same granularity as nice-0:
-	 */
-	if (likely(curr->load.weight < NICE_0_LOAD)) {
-		tmp = curr->load.weight * (u64)granularity;
-		return (long) (tmp >> NICE_0_SHIFT);
-	}
-	/*
-	 * Negative nice level tasks get linearly finer
-	 * granularity:
-	 */
-	tmp = curr->load.inv_weight * (u64)granularity;
-
-	/*
-	 * It will always fit into 'long':
-	 */
-	return (long) (tmp >> (WMULT_SHIFT-NICE_0_SHIFT));
+	return period;
 }
 
 static inline void
@@ -646,36 +583,13 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
  */
 static void
 __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
-			  struct sched_entity *curr, unsigned long granularity)
+			  struct sched_entity *curr)
 {
-	s64 __delta = curr->fair_key - se->fair_key;
 	unsigned long ideal_runtime, delta_exec;
 
-	/*
-	 * ideal_runtime is compared against sum_exec_runtime, which is
-	 * walltime, hence do not scale.
-	 */
-	ideal_runtime = max(sysctl_sched_latency / cfs_rq->nr_running,
-			(unsigned long)sysctl_sched_min_granularity);
-
-	/*
-	 * If we executed more than what the latency constraint suggests,
-	 * reduce the rescheduling granularity. This way the total latency
-	 * of how much a task is not scheduled converges to
-	 * sysctl_sched_latency:
-	 */
+	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
 	if (delta_exec > ideal_runtime)
-		granularity = 0;
-
-	/*
-	 * Take scheduling granularity into account - do not
-	 * preempt the current task unless the best task has
-	 * a larger than sched_granularity fairness advantage:
-	 *
-	 * scale granularity as key space is in fair_clock.
-	 */
-	if (__delta > niced_granularity(curr, granularity))
 		resched_task(rq_of(cfs_rq)->curr);
 }
 
@@ -749,8 +663,7 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if (next == curr)
 		return;
 
-	__check_preempt_curr_fair(cfs_rq, next, curr,
-			sched_granularity(cfs_rq));
+	__check_preempt_curr_fair(cfs_rq, next, curr);
 }
 
 /**************************************************
@@ -944,7 +857,6 @@ static void check_preempt_curr_fair(struct rq *rq, struct task_struct *p)
 {
 	struct task_struct *curr = rq->curr;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
-	unsigned long gran;
 
 	if (unlikely(rt_prio(p->prio))) {
 		update_rq_clock(rq);
@@ -953,15 +865,8 @@ static void check_preempt_curr_fair(struct rq *rq, struct task_struct *p)
 		return;
 	}
 
-	gran = sysctl_sched_wakeup_granularity;
-	/*
-	 * Batch tasks prefer throughput over latency:
-	 */
-	if (unlikely(p->policy == SCHED_BATCH))
-		gran = sysctl_sched_batch_wakeup_granularity;
-
 	if (is_same_group(curr, p))
-		__check_preempt_curr_fair(cfs_rq, &p->se, &curr->se, gran);
+		__check_preempt_curr_fair(cfs_rq, &p->se, &curr->se);
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
