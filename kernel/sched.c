@@ -1657,7 +1657,7 @@ void sched_fork(struct task_struct *p, int clone_flags)
 #ifdef CONFIG_SMP
 	cpu = sched_balance_self(cpu, SD_BALANCE_FORK);
 #endif
-	__set_task_cpu(p, cpu);
+	set_task_cpu(p, cpu);
 
 	/*
 	 * Make sure we do not leak PI boosting priority to the child:
