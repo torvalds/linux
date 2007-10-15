@@ -734,58 +734,14 @@ static int ecryptfs_init_kmem_caches(void)
 	return 0;
 }
 
-struct ecryptfs_obj {
-	char *name;
-	struct list_head slot_list;
-	struct kobject kobj;
-};
+static decl_subsys(ecryptfs, NULL, NULL);
 
-struct ecryptfs_attribute {
-	struct attribute attr;
-	ssize_t(*show) (struct ecryptfs_obj *, char *);
-	ssize_t(*store) (struct ecryptfs_obj *, const char *, size_t);
-};
-
-static ssize_t
-ecryptfs_attr_store(struct kobject *kobj,
-		    struct attribute *attr, const char *buf, size_t len)
-{
-	struct ecryptfs_obj *obj = container_of(kobj, struct ecryptfs_obj,
-						kobj);
-	struct ecryptfs_attribute *attribute =
-		container_of(attr, struct ecryptfs_attribute, attr);
-
-	return (attribute->store ? attribute->store(obj, buf, len) : 0);
-}
-
-static ssize_t
-ecryptfs_attr_show(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	struct ecryptfs_obj *obj = container_of(kobj, struct ecryptfs_obj,
-						kobj);
-	struct ecryptfs_attribute *attribute =
-		container_of(attr, struct ecryptfs_attribute, attr);
-
-	return (attribute->show ? attribute->show(obj, buf) : 0);
-}
-
-static struct sysfs_ops ecryptfs_sysfs_ops = {
-	.show = ecryptfs_attr_show,
-	.store = ecryptfs_attr_store
-};
-
-static struct kobj_type ecryptfs_ktype = {
-	.sysfs_ops = &ecryptfs_sysfs_ops
-};
-
-static decl_subsys(ecryptfs, &ecryptfs_ktype, NULL);
-
-static ssize_t version_show(struct ecryptfs_obj *obj, char *buff)
+static ssize_t version_show(struct kset *kset, char *buff)
 {
 	return snprintf(buff, PAGE_SIZE, "%d\n", ECRYPTFS_VERSIONING_MASK);
 }
 
-static struct ecryptfs_attribute sysfs_attr_version = __ATTR_RO(version);
+static struct subsys_attribute version_attr = __ATTR_RO(version);
 
 static struct ecryptfs_version_str_map_elem {
 	u32 flag;
@@ -799,7 +755,7 @@ static struct ecryptfs_version_str_map_elem {
 	{ECRYPTFS_VERSIONING_MULTKEY, "multiple keys per file"}
 };
 
-static ssize_t version_str_show(struct ecryptfs_obj *obj, char *buff)
+static ssize_t version_str_show(struct kset *kset, char *buff)
 {
 	int i;
 	int remaining = PAGE_SIZE;
@@ -826,7 +782,17 @@ out:
 	return total_written;
 }
 
-static struct ecryptfs_attribute sysfs_attr_version_str = __ATTR_RO(version_str);
+static struct subsys_attribute version_attr_str = __ATTR_RO(version_str);
+
+static struct attribute *attributes[] = {
+	&version_attr.attr,
+	&version_attr_str.attr,
+	NULL,
+};
+
+static struct attribute_group attr_group = {
+	.attrs = attributes,
+};
 
 static int do_sysfs_registration(void)
 {
@@ -838,23 +804,11 @@ static int do_sysfs_registration(void)
 		       "Unable to register ecryptfs sysfs subsystem\n");
 		goto out;
 	}
-	rc = sysfs_create_file(&ecryptfs_subsys.kobj,
-			       &sysfs_attr_version.attr);
+	rc = sysfs_create_group(&ecryptfs_subsys.kobj, &attr_group);
 	if (rc) {
 		printk(KERN_ERR
-		       "Unable to create ecryptfs version attribute\n");
+		       "Unable to create ecryptfs version attributes\n");
 		subsystem_unregister(&ecryptfs_subsys);
-		goto out;
-	}
-	rc = sysfs_create_file(&ecryptfs_subsys.kobj,
-			       &sysfs_attr_version_str.attr);
-	if (rc) {
-		printk(KERN_ERR
-		       "Unable to create ecryptfs version_str attribute\n");
-		sysfs_remove_file(&ecryptfs_subsys.kobj,
-				  &sysfs_attr_version.attr);
-		subsystem_unregister(&ecryptfs_subsys);
-		goto out;
 	}
 out:
 	return rc;
@@ -862,10 +816,7 @@ out:
 
 static void do_sysfs_unregistration(void)
 {
-	sysfs_remove_file(&ecryptfs_subsys.kobj,
-			  &sysfs_attr_version.attr);
-	sysfs_remove_file(&ecryptfs_subsys.kobj,
-			  &sysfs_attr_version_str.attr);
+	sysfs_remove_group(&ecryptfs_subsys.kobj, &attr_group);
 	subsystem_unregister(&ecryptfs_subsys);
 }
 
