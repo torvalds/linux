@@ -58,23 +58,23 @@ unsigned int __read_mostly sysctl_sched_compat_yield;
 
 /*
  * SCHED_BATCH wake-up granularity.
- * (default: 25 msec, units: nanoseconds)
+ * (default: 10 msec, units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 25000000UL;
+const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 10000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
- * (default: 1 msec, units: nanoseconds)
+ * (default: 10 msec, units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-const_debug unsigned int sysctl_sched_wakeup_granularity = 2000000UL;
+const_debug unsigned int sysctl_sched_wakeup_granularity = 10000000UL;
 
 /**************************************************************
  * CFS operations on generic schedulable entities:
