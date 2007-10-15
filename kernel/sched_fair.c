@@ -21,15 +21,6 @@
  */
 
 /*
- * Tunables that become constants when CONFIG_SCHED_DEBUG is off:
- */
-#ifdef CONFIG_SCHED_DEBUG
-# define const_debug __read_mostly
-#else
-# define const_debug static const
-#endif
-
-/*
  * Targeted preemption latency for CPU-bound tasks:
  * (default: 20ms, units: nanoseconds)
  *
@@ -86,28 +77,6 @@ const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 25000000UL;
 const_debug unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
 
 unsigned int sysctl_sched_runtime_limit __read_mostly;
-
-/*
- * Debugging: various feature bits
- */
-enum {
-	SCHED_FEAT_FAIR_SLEEPERS	= 1,
-	SCHED_FEAT_NEW_FAIR_SLEEPERS	= 2,
-	SCHED_FEAT_SLEEPER_AVG		= 4,
-	SCHED_FEAT_SLEEPER_LOAD_AVG	= 8,
-	SCHED_FEAT_START_DEBIT		= 16,
-	SCHED_FEAT_SKIP_INITIAL		= 32,
-};
-
-const_debug unsigned int sysctl_sched_features =
-		SCHED_FEAT_FAIR_SLEEPERS	*0 |
-		SCHED_FEAT_NEW_FAIR_SLEEPERS	*1 |
-		SCHED_FEAT_SLEEPER_AVG		*0 |
-		SCHED_FEAT_SLEEPER_LOAD_AVG	*1 |
-		SCHED_FEAT_START_DEBIT		*1 |
-		SCHED_FEAT_SKIP_INITIAL		*0;
-
-#define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
 
 extern struct sched_class fair_sched_class;
 
