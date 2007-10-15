@@ -249,41 +249,11 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	return period;
 }
 
-static inline void
-limit_wait_runtime(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	long limit = sysctl_sched_runtime_limit;
-
-	/*
-	 * Niced tasks have the same history dynamic range as
-	 * non-niced tasks:
-	 */
-	if (unlikely(se->wait_runtime > limit)) {
-		se->wait_runtime = limit;
-		schedstat_inc(se, wait_runtime_overruns);
-		schedstat_inc(cfs_rq, wait_runtime_overruns);
-	}
-	if (unlikely(se->wait_runtime < -limit)) {
-		se->wait_runtime = -limit;
-		schedstat_inc(se, wait_runtime_underruns);
-		schedstat_inc(cfs_rq, wait_runtime_underruns);
-	}
-}
-
-static inline void
-__add_wait_runtime(struct cfs_rq *cfs_rq, struct sched_entity *se, long delta)
-{
-	se->wait_runtime += delta;
-	schedstat_add(se, sum_wait_runtime, delta);
-	limit_wait_runtime(cfs_rq, se);
-}
-
 static void
 add_wait_runtime(struct cfs_rq *cfs_rq, struct sched_entity *se, long delta)
 {
-	schedstat_add(cfs_rq, wait_runtime, -se->wait_runtime);
-	__add_wait_runtime(cfs_rq, se, delta);
-	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
+	se->wait_runtime += delta;
+	schedstat_add(cfs_rq, wait_runtime, delta);
 }
 
 /*
@@ -294,7 +264,7 @@ static inline void
 __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	      unsigned long delta_exec)
 {
-	unsigned long delta, delta_fair, delta_mine, delta_exec_weighted;
+	unsigned long delta_fair, delta_mine, delta_exec_weighted;
 	struct load_weight *lw = &cfs_rq->load;
 	unsigned long load = lw->weight;
 
@@ -317,14 +287,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 
 	delta_fair = calc_delta_fair(delta_exec, lw);
 	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
-
-	if (cfs_rq->sleeper_bonus > sysctl_sched_min_granularity) {
-		delta = min((u64)delta_mine, cfs_rq->sleeper_bonus);
-		delta = min(delta, (unsigned long)(
-			(long)sysctl_sched_runtime_limit - curr->wait_runtime));
-		cfs_rq->sleeper_bonus -= delta;
-		delta_mine -= delta;
-	}
 
 	cfs_rq->fair_clock += delta_fair;
 	/*
@@ -461,58 +423,8 @@ update_stats_curr_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * Scheduling class queueing methods:
  */
 
-static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se,
-			      unsigned long delta_fair)
-{
-	unsigned long load = cfs_rq->load.weight;
-	long prev_runtime;
-
-	/*
-	 * Do not boost sleepers if there's too much bonus 'in flight'
-	 * already:
-	 */
-	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
-		return;
-
-	if (sched_feat(SLEEPER_LOAD_AVG))
-		load = rq_of(cfs_rq)->cpu_load[2];
-
-	/*
-	 * Fix up delta_fair with the effect of us running
-	 * during the whole sleep period:
-	 */
-	if (sched_feat(SLEEPER_AVG))
-		delta_fair = div64_likely32((u64)delta_fair * load,
-						load + se->load.weight);
-
-	delta_fair = calc_weighted(delta_fair, se);
-
-	prev_runtime = se->wait_runtime;
-	__add_wait_runtime(cfs_rq, se, delta_fair);
-	delta_fair = se->wait_runtime - prev_runtime;
-
-	/*
-	 * Track the amount of bonus we've given to sleepers:
-	 */
-	cfs_rq->sleeper_bonus += delta_fair;
-}
-
 static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	struct task_struct *tsk = task_of(se);
-	unsigned long delta_fair;
-
-	if ((entity_is_task(se) && tsk->policy == SCHED_BATCH) ||
-			 !sched_feat(FAIR_SLEEPERS))
-		return;
-
-	delta_fair = (unsigned long)min((u64)(2*sysctl_sched_runtime_limit),
-		(u64)(cfs_rq->fair_clock - se->sleep_start_fair));
-
-	__enqueue_sleeper(cfs_rq, se, delta_fair);
-
-	se->sleep_start_fair = 0;
-
 #ifdef CONFIG_SCHEDSTATS
 	if (se->sleep_start) {
 		u64 delta = rq_of(cfs_rq)->clock - se->sleep_start;
@@ -544,6 +456,8 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		 * time that the task spent sleeping:
 		 */
 		if (unlikely(prof_on == SLEEP_PROFILING)) {
+			struct task_struct *tsk = task_of(se);
+
 			profile_hits(SLEEP_PROFILING, (void *)get_wchan(tsk),
 				     delta >> 20);
 		}
@@ -604,7 +518,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
 	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
-		se->sleep_start_fair = cfs_rq->fair_clock;
 #ifdef CONFIG_SCHEDSTATS
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);

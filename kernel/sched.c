@@ -180,7 +180,6 @@ struct cfs_rq {
 	u64 exec_clock;
 	u64 min_vruntime;
 	s64 wait_runtime;
-	u64 sleeper_bonus;
 	unsigned long wait_runtime_overruns, wait_runtime_underruns;
 
 	struct rb_root tasks_timeline;
@@ -673,19 +672,6 @@ static inline void resched_task(struct task_struct *p)
 }
 #endif
 
-static u64 div64_likely32(u64 divident, unsigned long divisor)
-{
-#if BITS_PER_LONG == 32
-	if (likely(divident <= 0xffffffffULL))
-		return (u32)divident / divisor;
-	do_div(divident, divisor);
-
-	return divident;
-#else
-	return divident / divisor;
-#endif
-}
-
 #if BITS_PER_LONG == 32
 # define WMULT_CONST	(~0UL)
 #else
@@ -1016,8 +1002,6 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 
 	if (p->se.wait_start_fair)
 		p->se.wait_start_fair -= fair_clock_offset;
-	if (p->se.sleep_start_fair)
-		p->se.sleep_start_fair -= fair_clock_offset;
 
 #ifdef CONFIG_SCHEDSTATS
 	if (p->se.wait_start)
@@ -1592,7 +1576,6 @@ static void __sched_fork(struct task_struct *p)
 	p->se.sum_exec_runtime		= 0;
 	p->se.prev_sum_exec_runtime	= 0;
 	p->se.wait_runtime		= 0;
-	p->se.sleep_start_fair		= 0;
 
 #ifdef CONFIG_SCHEDSTATS
 	p->se.wait_start		= 0;
@@ -6582,7 +6565,6 @@ void normalize_rt_tasks(void)
 		p->se.wait_runtime		= 0;
 		p->se.exec_start		= 0;
 		p->se.wait_start_fair		= 0;
-		p->se.sleep_start_fair		= 0;
 #ifdef CONFIG_SCHEDSTATS
 		p->se.wait_start		= 0;
 		p->se.sleep_start		= 0;

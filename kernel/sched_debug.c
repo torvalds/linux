@@ -148,7 +148,6 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	P(wait_runtime);
 	P(wait_runtime_overruns);
 	P(wait_runtime_underruns);
-	P(sleeper_bonus);
 #undef P
 
 	print_cfs_rq_runtime_sum(m, cpu, cfs_rq);
@@ -272,7 +271,6 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	P(se.wait_runtime);
 	P(se.wait_start_fair);
 	P(se.exec_start);
-	P(se.sleep_start_fair);
 	P(se.vruntime);
 	P(se.sum_exec_runtime);
 
