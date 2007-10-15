@@ -483,7 +483,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 		if (sched_feat(NEW_FAIR_SLEEPERS))
 			vruntime -= sysctl_sched_latency;
 
-		vruntime = max(vruntime, se->vruntime);
+		vruntime = max_t(s64, vruntime, se->vruntime);
 	}
 
 	se->vruntime = vruntime;
