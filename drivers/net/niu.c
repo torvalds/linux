@@ -6213,7 +6213,7 @@ static int __devinit niu_pci_probe_sprom(struct niu *np)
 	val = nr64(ESPC_MOD_STR_LEN);
 	niudbg(PROBE, "SPROM: MOD_STR_LEN[%llu]\n",
 	       (unsigned long long) val);
-	if (val > 8 * 4)
+	if (val >= 8 * 4)
 		return -EINVAL;
 
 	for (i = 0; i < val; i += 4) {
@@ -6229,7 +6229,7 @@ static int __devinit niu_pci_probe_sprom(struct niu *np)
 	val = nr64(ESPC_BD_MOD_STR_LEN);
 	niudbg(PROBE, "SPROM: BD_MOD_STR_LEN[%llu]\n",
 	       (unsigned long long) val);
-	if (val > 4 * 4)
+	if (val >= 4 * 4)
 		return -EINVAL;
 
 	for (i = 0; i < val; i += 4) {
