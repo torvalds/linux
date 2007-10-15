@@ -2122,11 +2122,16 @@ static void pull_task(struct rq *src_rq, struct task_struct *p,
  * Is this task likely cache-hot:
  */
 static inline int
-task_hot(struct task_struct *p, unsigned long long now, struct sched_domain *sd)
+task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 {
-	s64 delta = now - p->se.exec_start;
+	s64 delta;
 
-	return delta < (long long)sysctl_sched_migration_cost;
+	if (p->sched_class != &fair_sched_class)
+		return 0;
+
+	delta = now - p->se.exec_start;
+
+	return delta < (s64)sysctl_sched_migration_cost;
 }
 
 /*
