@@ -199,6 +199,21 @@ static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
 	return rb_entry(first_fair(cfs_rq), struct sched_entity, run_node);
 }
 
+static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
+{
+	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
+	struct sched_entity *se = NULL;
+	struct rb_node *parent;
+
+	while (*link) {
+		parent = *link;
+		se = rb_entry(parent, struct sched_entity, run_node);
+		link = &parent->rb_right;
+	}
+
+	return se;
+}
+
 /**************************************************************
  * Scheduling class statistics methods:
  */
@@ -530,6 +545,31 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 static void
+place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
+{
+	struct sched_entity *last = __pick_last_entity(cfs_rq);
+	u64 min_runtime, latency;
+
+	min_runtime = cfs_rq->min_vruntime;
+	if (last) {
+		min_runtime += last->vruntime;
+		min_runtime >>= 1;
+		if (initial && sched_feat(START_DEBIT))
+			min_runtime += sysctl_sched_latency/2;
+	}
+
+	if (!initial && sched_feat(NEW_FAIR_SLEEPERS)) {
+		latency = sysctl_sched_latency;
+		if (min_runtime > latency)
+			min_runtime -= latency;
+		else
+			min_runtime = 0;
+	}
+
+	se->vruntime = max(se->vruntime, min_runtime);
+}
+
+static void
 enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 {
 	/*
@@ -538,19 +578,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 	update_curr(cfs_rq);
 
 	if (wakeup) {
-		u64 min_runtime, latency;
-
-		min_runtime = cfs_rq->min_vruntime;
-		min_runtime += sysctl_sched_latency/2;
-
-		if (sched_feat(NEW_FAIR_SLEEPERS)) {
-			latency = calc_weighted(sysctl_sched_latency, se);
-			if (min_runtime > latency)
-				min_runtime -= latency;
-		}
-
-		se->vruntime = max(se->vruntime, min_runtime);
-
+		place_entity(cfs_rq, se, 0);
 		enqueue_sleeper(cfs_rq, se);
 	}
 
@@ -1033,8 +1061,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	sched_info_queued(p);
 
 	update_curr(cfs_rq);
-	se->vruntime = cfs_rq->min_vruntime;
-	update_stats_enqueue(cfs_rq, se);
+	place_entity(cfs_rq, se, 1);
 
 	/*
 	 * The first wait is dominated by the child-runs-first logic,
