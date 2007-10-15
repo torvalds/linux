@@ -621,6 +621,10 @@ struct sched_info {
 	/* timestamps */
 	unsigned long long last_arrival,/* when we last ran on a cpu */
 			   last_queued;	/* when we were last queued to run */
+#ifdef CONFIG_SCHEDSTATS
+	/* BKL stats */
+	unsigned long bkl_cnt;
+#endif
 };
 #endif /* defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT) */
 

@@ -356,6 +356,9 @@ struct rq {
 	/* try_to_wake_up() stats */
 	unsigned long ttwu_cnt;
 	unsigned long ttwu_local;
+
+	/* BKL stats */
+	unsigned long bkl_cnt;
 #endif
 	struct lock_class_key rq_lock_key;
 };
@@ -3414,6 +3417,12 @@ static inline void schedule_debug(struct task_struct *prev)
 	profile_hit(SCHED_PROFILING, __builtin_return_address(0));
 
 	schedstat_inc(this_rq(), sched_cnt);
+#ifdef CONFIG_SCHEDSTATS
+	if (unlikely(prev->lock_depth >= 0)) {
+		schedstat_inc(this_rq(), bkl_cnt);
+		schedstat_inc(prev, sched_info.bkl_cnt);
+	}
+#endif
 }
 
 /*
