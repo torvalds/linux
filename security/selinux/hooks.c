@@ -3932,7 +3932,7 @@ out:
 }
 
 static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
-                                              struct sk_buff **pskb,
+                                              struct sk_buff *skb,
                                               const struct net_device *in,
                                               const struct net_device *out,
                                               int (*okfn)(struct sk_buff *),
@@ -3941,7 +3941,6 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 	char *addrp;
 	int len, err = 0;
 	struct sock *sk;
-	struct sk_buff *skb = *pskb;
 	struct avc_audit_data ad;
 	struct net_device *dev = (struct net_device *)out;
 	struct sk_security_struct *sksec;
@@ -3977,23 +3976,23 @@ out:
 }
 
 static unsigned int selinux_ipv4_postroute_last(unsigned int hooknum,
-						struct sk_buff **pskb,
+						struct sk_buff *skb,
 						const struct net_device *in,
 						const struct net_device *out,
 						int (*okfn)(struct sk_buff *))
 {
-	return selinux_ip_postroute_last(hooknum, pskb, in, out, okfn, PF_INET);
+	return selinux_ip_postroute_last(hooknum, skb, in, out, okfn, PF_INET);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 
 static unsigned int selinux_ipv6_postroute_last(unsigned int hooknum,
-						struct sk_buff **pskb,
+						struct sk_buff *skb,
 						const struct net_device *in,
 						const struct net_device *out,
 						int (*okfn)(struct sk_buff *))
 {
-	return selinux_ip_postroute_last(hooknum, pskb, in, out, okfn, PF_INET6);
+	return selinux_ip_postroute_last(hooknum, skb, in, out, okfn, PF_INET6);
 }
 
 #endif	/* IPV6 */
