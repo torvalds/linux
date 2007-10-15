@@ -15,9 +15,11 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/hid.h>
+
 struct hidraw_report_descriptor {
 	__u32 size;
-	__u8 *value;
+	__u8 value[HID_MAX_DESCRIPTOR_SIZE];
 };
 
 struct hidraw_devinfo {
@@ -39,8 +41,6 @@ struct hidraw_devinfo {
 
 /* kernel-only API declarations */
 #ifdef __KERNEL__
-
-#include <linux/hid.h>
 
 struct hidraw {
 	unsigned int minor;

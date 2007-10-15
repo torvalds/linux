@@ -29,13 +29,6 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
-#include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/list.h>
-#include <linux/timer.h>
-#include <linux/workqueue.h>
-#include <linux/input.h>
-
 /*
  * USB HID (Human Interface Device) interface class code
  */
@@ -68,6 +61,17 @@
 #define HID_DT_HID			(USB_TYPE_CLASS | 0x01)
 #define HID_DT_REPORT			(USB_TYPE_CLASS | 0x02)
 #define HID_DT_PHYSICAL			(USB_TYPE_CLASS | 0x03)
+
+#define HID_MAX_DESCRIPTOR_SIZE		4096
+
+#ifdef __KERNEL__
+
+#include <linux/types.h>
+#include <linux/slab.h>
+#include <linux/list.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
+#include <linux/input.h>
 
 /*
  * We parse each description item into this structure. Short items data
@@ -311,7 +315,6 @@ struct hid_global {
  * This is the local environment. It is persistent up the next main-item.
  */
 
-#define HID_MAX_DESCRIPTOR_SIZE		4096
 #define HID_MAX_USAGES			8192
 #define HID_DEFAULT_NUM_COLLECTIONS	16
 
@@ -559,5 +562,6 @@ static inline int hid_ff_init(struct hid_device *hid) { return -1; }
 
 #define err_hid(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
 		__FILE__ , ## arg)
+#endif
 #endif
 

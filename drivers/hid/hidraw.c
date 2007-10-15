@@ -229,9 +229,15 @@ static int hidraw_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 
 				if (get_user(len, (int __user *)arg))
 					return -EFAULT;
-				if (copy_to_user(*((__u8 **)(user_arg +
-							sizeof(__u32))),
-							dev->hid->rdesc, len))
+
+				if (len > HID_MAX_DESCRIPTOR_SIZE - 1)
+					return -EINVAL;
+
+				if (copy_to_user(user_arg + offsetof(
+								struct hidraw_report_descriptor,
+								value[0]),
+							dev->hid->rdesc,
+							min(dev->hid->rsize, len)))
 						return -EFAULT;
 				return 0;
 			}
