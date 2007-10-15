@@ -1616,7 +1616,6 @@ static void __sched_fork(struct task_struct *p)
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
 	p->se.prev_sum_exec_runtime	= 0;
-	p->se.last_min_vruntime		= 0;
 
 #ifdef CONFIG_SCHEDSTATS
 	p->se.wait_start		= 0;

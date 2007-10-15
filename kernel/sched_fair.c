@@ -480,14 +480,9 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 		vruntime += __sched_vslice(cfs_rq->nr_running + 1);
 
 	if (!initial) {
-		if (sched_feat(NEW_FAIR_SLEEPERS)) {
-			s64 latency = cfs_rq->min_vruntime - se->vruntime;
-			if (latency < 0 || !cfs_rq->nr_running)
-				latency = 0;
-			else
-				latency = min_t(s64, latency, sysctl_sched_latency);
-			vruntime -= latency;
-		}
+		if (sched_feat(NEW_FAIR_SLEEPERS))
+			vruntime -= sysctl_sched_latency;
+
 		vruntime = max(vruntime, se->vruntime);
 	}
 
@@ -531,8 +526,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 				se->block_start = rq_of(cfs_rq)->clock;
 		}
 #endif
-		/* se->vruntime = entity_key(cfs_rq, se); */
-		se->last_min_vruntime = cfs_rq->min_vruntime;
 	}
 
 	if (se != cfs_rq->curr)

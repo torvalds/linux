@@ -908,7 +908,6 @@ struct sched_entity {
 	u64			sum_exec_runtime;
 	u64			vruntime;
 	u64			prev_sum_exec_runtime;
-	u64			last_min_vruntime;
 
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
