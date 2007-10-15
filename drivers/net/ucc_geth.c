@@ -63,7 +63,7 @@
 #define UGETH_MSG_DEFAULT	(NETIF_MSG_IFUP << 1 ) - 1
 
 void uec_set_ethtool_ops(struct net_device *netdev);
-	
+
 static DEFINE_SPINLOCK(ugeth_lock);
 
 static struct {
@@ -3454,8 +3454,11 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 	u16 length, howmany = 0;
 	u32 bd_status;
 	u8 *bdBuffer;
+	struct net_device * dev;
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
+
+	dev = ugeth->dev;
 
 	/* collect received buffers */
 	bd = ugeth->rxBd[rxQ];
