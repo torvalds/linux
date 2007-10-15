@@ -75,12 +75,6 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
-#ifdef CONFIG_SMP
-#define is_migration_thread(p, rq) ((p) == (rq)->migration_thread)
-#else
-#define is_migration_thread(p, rq) 0
-#endif
-
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -366,6 +360,15 @@ static inline int cpu_of(struct rq *rq)
 {
 #ifdef CONFIG_SMP
 	return rq->cpu;
+#else
+	return 0;
+#endif
+}
+
+static inline int is_migration_thread(struct task_struct *p, struct rq *rq)
+{
+#ifdef CONFIG_SMP
+	return p == rq->migration_thread;
 #else
 	return 0;
 #endif
