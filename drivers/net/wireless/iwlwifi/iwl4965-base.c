@@ -7670,6 +7670,29 @@ static void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211("leave\n");
 
 }
+static void iwl_mac_erp_ie_changed(struct ieee80211_hw *hw,
+		u8 changes, int cts_protection, int preamble)
+{
+
+	struct iwl_priv *priv = hw->priv;
+
+	if (changes & IEEE80211_ERP_CHANGE_PREAMBLE) {
+		if (preamble == WLAN_ERP_PREAMBLE_SHORT)
+			priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+		else
+			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+	}
+
+	if (changes & IEEE80211_ERP_CHANGE_PROTECTION) {
+		if (cts_protection)
+			priv->staging_rxon.flags |= RXON_FLG_TGG_PROTECT_MSK;
+		else
+			priv->staging_rxon.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
+	}
+
+	if (iwl_is_associated(priv))
+		iwl_send_rxon_assoc(priv);
+}
 
 #define IWL_DELAY_NEXT_SCAN (HZ*2)
 static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
@@ -8929,6 +8952,7 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.get_tsf = iwl_mac_get_tsf,
 	.reset_tsf = iwl_mac_reset_tsf,
 	.beacon_update = iwl_mac_beacon_update,
+	.erp_ie_changed = iwl_mac_erp_ie_changed,
 #ifdef CONFIG_IWLWIFI_HT
 	.conf_ht = iwl_mac_conf_ht,
 	.get_ht_capab = iwl_mac_get_ht_capab,
