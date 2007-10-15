@@ -932,10 +932,14 @@ tx_skb_fail:
 /* Returns 0 for success. */
 static int gfar_enet_open(struct net_device *dev)
 {
+#ifdef CONFIG_GFAR_NAPI
 	struct gfar_private *priv = netdev_priv(dev);
+#endif
 	int err;
 
+#ifdef CONFIG_GFAR_NAPI
 	napi_enable(&priv->napi);
+#endif
 
 	/* Initialize a bunch of registers */
 	init_registers(dev);
@@ -945,13 +949,17 @@ static int gfar_enet_open(struct net_device *dev)
 	err = init_phy(dev);
 
 	if(err) {
+#ifdef CONFIG_GFAR_NAPI
 		napi_disable(&priv->napi);
+#endif
 		return err;
 	}
 
 	err = startup_gfar(dev);
 	if (err)
+#ifdef CONFIG_GFAR_NAPI
 		napi_disable(&priv->napi);
+#endif
 
 	netif_start_queue(dev);
 
@@ -1105,7 +1113,9 @@ static int gfar_close(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
+#ifdef CONFIG_GFAR_NAPI
 	napi_disable(&priv->napi);
+#endif
 
 	stop_gfar(dev);
 
