@@ -436,10 +436,18 @@ static inline u##bits btrfs_##name(struct extent_buffer *eb,		\
 	unsigned long map_len;						\
 	unsigned long offset = (unsigned long)s +			\
 				offsetof(type, member);			\
-	err = map_extent_buffer(eb, offset,				\
+	if (eb->map_token && offset >= eb->map_start &&			\
+	    offset + sizeof(((type *)0)->member) <= eb->map_start +	\
+	    eb->map_len) {						\
+	    kaddr = eb->kaddr;						\
+	    map_start = eb->map_start;					\
+	    err = 0;							\
+	} else {							\
+		err = map_extent_buffer(eb, offset,			\
 			        sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
 				&map_start, &map_len, KM_USER1);	\
+	}								\
 	if (!err) {							\
 		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
 					       map_start);		\
@@ -464,10 +472,18 @@ static inline void btrfs_set_##name(struct extent_buffer *eb,		\
 	int unmap_on_exit = (eb->map_token == NULL);			\
 	unsigned long offset = (unsigned long)s +			\
 				offsetof(type, member);			\
-	err = map_extent_buffer(eb, offset,				\
+	if (eb->map_token && offset >= eb->map_start &&			\
+	    offset + sizeof(((type *)0)->member) <= eb->map_start +	\
+	    eb->map_len) {						\
+	    kaddr = eb->kaddr;						\
+	    map_start = eb->map_start;					\
+	    err = 0;							\
+	} else {							\
+		err = map_extent_buffer(eb, offset,			\
 			        sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
 				&map_start, &map_len, KM_USER1);	\
+	}								\
 	if (!err) {							\
 		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
 					       map_start);		\
@@ -490,10 +506,18 @@ static inline u##bits btrfs_##name(struct extent_buffer *eb)		\
 	unsigned long map_len;						\
 	unsigned long offset = offsetof(type, member);			\
 	int unmap_on_exit = (eb->map_token == NULL);			\
-	err = map_extent_buffer(eb, offset,				\
+	if (eb->map_token && offset >= eb->map_start &&			\
+	    offset + sizeof(((type *)0)->member) <= eb->map_start +	\
+	    eb->map_len) {						\
+	    kaddr = eb->kaddr;						\
+	    map_start = eb->map_start;					\
+	    err = 0;							\
+	} else {							\
+		err = map_extent_buffer(eb, offset,			\
 			        sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
 				&map_start, &map_len, KM_USER1);	\
+	}								\
 	if (!err) {							\
 		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
 					       map_start);		\
@@ -517,10 +541,18 @@ static inline void btrfs_set_##name(struct extent_buffer *eb,		\
 	unsigned long map_len;						\
 	unsigned long offset = offsetof(type, member);			\
 	int unmap_on_exit = (eb->map_token == NULL);			\
-	err = map_extent_buffer(eb, offset,				\
+	if (eb->map_token && offset >= eb->map_start &&			\
+	    offset + sizeof(((type *)0)->member) <= eb->map_start +	\
+	    eb->map_len) {						\
+	    kaddr = eb->kaddr;						\
+	    map_start = eb->map_start;					\
+	    err = 0;							\
+	} else {							\
+		err = map_extent_buffer(eb, offset,			\
 			        sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
 				&map_start, &map_len, KM_USER1);	\
+	}								\
 	if (!err) {							\
 		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
 					       map_start);		\

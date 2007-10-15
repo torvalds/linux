@@ -2037,6 +2037,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 	struct extent_buffer *eb;
 	struct page *p;
 	struct address_space *mapping = tree->mapping;
+	int uptodate = 1;
 
 	eb = __alloc_extent_buffer(mask);
 	if (!eb || IS_ERR(eb))
@@ -2048,7 +2049,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 	atomic_set(&eb->refs, 1);
 
 	for (i = 0; i < num_pages; i++, index++) {
-		p = find_get_page(mapping, index);
+		p = find_lock_page(mapping, index);
 		if (!p) {
 			/* make sure the free only frees the pages we've
 			 * grabbed a reference on
@@ -2060,7 +2061,12 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 		set_page_extent_mapped(p);
 		if (i == 0)
 			eb->first_page = p;
+		if (!PageUptodate(p))
+			uptodate = 0;
+		unlock_page(p);
 	}
+	if (uptodate)
+		eb->flags |= EXTENT_UPTODATE;
 	return eb;
 fail:
 	free_extent_buffer(eb);
@@ -2192,7 +2198,7 @@ int read_extent_buffer_pages(struct extent_map_tree *tree,
 	if (eb->flags & EXTENT_UPTODATE)
 		return 0;
 
-	if (test_range_bit(tree, eb->start, eb->start + eb->len - 1,
+	if (0 && test_range_bit(tree, eb->start, eb->start + eb->len - 1,
 			   EXTENT_UPTODATE, 1)) {
 		return 0;
 	}
@@ -2247,6 +2253,7 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 	char *dst = (char *)dstv;
 	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
 	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+	unsigned long num_pages = num_extent_pages(eb->start, eb->len);
 
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
@@ -2257,6 +2264,10 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 
 	while(len > 0) {
 		page = extent_buffer_page(eb, i);
+		if (!PageUptodate(page)) {
+			printk("page %lu not up to date i %lu, total %lu, len %lu\n", page->index, i, num_pages, eb->len);
+			WARN_ON(1);
+		}
 		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
