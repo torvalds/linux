@@ -624,6 +624,16 @@ void kvm_mmu_unload(struct kvm_vcpu *vcpu);
 
 int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run);
 
+static inline void kvm_guest_enter(void)
+{
+	current->flags |= PF_VCPU;
+}
+
+static inline void kvm_guest_exit(void)
+{
+	current->flags &= ~PF_VCPU;
+}
+
 static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 				     u32 error_code)
 {
