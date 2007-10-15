@@ -397,27 +397,16 @@ update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_set(se->wait_start, rq_of(cfs_rq)->clock);
 }
 
-/*
- * We calculate fair deltas here, so protect against the random effects
- * of a multiplication overflow by capping it to the runtime limit:
- */
-#if BITS_PER_LONG == 32
 static inline unsigned long
-calc_weighted(unsigned long delta, unsigned long weight, int shift)
+calc_weighted(unsigned long delta, struct sched_entity *se)
 {
-	u64 tmp = (u64)delta * weight >> shift;
+	unsigned long weight = se->load.weight;
 
-	if (unlikely(tmp > sysctl_sched_runtime_limit*2))
-		return sysctl_sched_runtime_limit*2;
-	return tmp;
+	if (unlikely(weight != NICE_0_LOAD))
+		return (u64)delta * se->load.weight >> NICE_0_SHIFT;
+	else
+		return delta;
 }
-#else
-static inline unsigned long
-calc_weighted(unsigned long delta, unsigned long weight, int shift)
-{
-	return delta * weight >> shift;
-}
-#endif
 
 /*
  * Task is being enqueued - update stats:
@@ -469,9 +458,7 @@ __update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	schedstat_set(se->wait_max, max(se->wait_max,
 			rq_of(cfs_rq)->clock - se->wait_start));
 
-	if (unlikely(se->load.weight != NICE_0_LOAD))
-		delta_fair = calc_weighted(delta_fair, se->load.weight,
-							NICE_0_SHIFT);
+	delta_fair = calc_weighted(delta_fair, se);
 
 	add_wait_runtime(cfs_rq, se, delta_fair);
 }
@@ -554,9 +541,7 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se,
 		delta_fair = div64_likely32((u64)delta_fair * load,
 						load + se->load.weight);
 
-	if (unlikely(se->load.weight != NICE_0_LOAD))
-		delta_fair = calc_weighted(delta_fair, se->load.weight,
-							NICE_0_SHIFT);
+	delta_fair = calc_weighted(delta_fair, se);
 
 	prev_runtime = se->wait_runtime;
 	__add_wait_runtime(cfs_rq, se, delta_fair);
