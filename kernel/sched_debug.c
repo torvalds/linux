@@ -203,6 +203,19 @@ static int sched_debug_show(struct seq_file *m, void *v)
 
 	SEQ_printf(m, "now at %Lu.%06ld msecs\n", SPLIT_NS(now));
 
+#define P(x) \
+	SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(x))
+#define PN(x) \
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", #x, SPLIT_NS(x))
+	PN(sysctl_sched_latency);
+	PN(sysctl_sched_min_granularity);
+	PN(sysctl_sched_wakeup_granularity);
+	PN(sysctl_sched_batch_wakeup_granularity);
+	PN(sysctl_sched_child_runs_first);
+	P(sysctl_sched_features);
+#undef PN
+#undef P
+
 	for_each_online_cpu(cpu)
 		print_cpu(m, cpu);
 
