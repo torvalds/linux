@@ -582,8 +582,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
  * Preempt the current task with a newly woken task if needed:
  */
 static void
-__check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
-			  struct sched_entity *curr)
+__check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
 	unsigned long ideal_runtime, delta_exec;
 
@@ -663,7 +662,7 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if (next == curr)
 		return;
 
-	__check_preempt_curr_fair(cfs_rq, next, curr);
+	__check_preempt_curr_fair(cfs_rq, curr);
 }
 
 /**************************************************
@@ -866,7 +865,7 @@ static void check_preempt_curr_fair(struct rq *rq, struct task_struct *p)
 	}
 
 	if (is_same_group(curr, p))
-		__check_preempt_curr_fair(cfs_rq, &p->se, &curr->se);
+		__check_preempt_curr_fair(cfs_rq, &curr->se);
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
