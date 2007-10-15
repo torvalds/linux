@@ -35,7 +35,7 @@ KBUILD_CFLAGS += -mint32 -fno-builtin
 KBUILD_CFLAGS += -g
 KBUILD_CFLAGS += -D__linux__
 KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
-AFLAGS += -DPLATFORM=$(PLATFORM) -DMODEL=$(MODEL) $(cflags-y)
+KBUILD_AFLAGS += -DPLATFORM=$(PLATFORM) -DMODEL=$(MODEL) $(cflags-y)
 LDFLAGS += $(ldflags-y)
 
 CROSS_COMPILE = h8300-elf-

@@ -45,7 +45,7 @@ else
   KBUILD_CFLAGS += -m64 -pipe -mno-fpu -mcpu=ultrasparc -mcmodel=medlow \
 	    -ffixed-g4 -ffixed-g5 -fcall-used-g7 -Wno-sign-compare \
 	    $(CC_UNDECL)
-  AFLAGS += -m64 -mcpu=ultrasparc $(CC_UNDECL)
+  KBUILD_AFLAGS += -m64 -mcpu=ultrasparc $(CC_UNDECL)
 endif
 
 ifeq ($(CONFIG_MCOUNT),y)

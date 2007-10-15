@@ -102,7 +102,7 @@ cflags-$(CONFIG_M68EZ328)	:= -m68000
 cflags-$(CONFIG_M68VZ328)	:= -m68000
 cflags-$(CONFIG_M68360)		:= -m68332
 
-AFLAGS += $(cflags-y)
+KBUILD_AFLAGS += $(cflags-y)
 
 KBUILD_CFLAGS += $(cflags-y)
 KBUILD_CFLAGS += -D__linux__

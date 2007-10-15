@@ -54,7 +54,7 @@ rev-$(CONFIG_BF_REV_NONE) := none
 rev-$(CONFIG_BF_REV_ANY)  := any
 
 KBUILD_CFLAGS += -mcpu=$(cpu-y)-$(rev-y)
-AFLAGS += -mcpu=$(cpu-y)-$(rev-y)
+KBUILD_AFLAGS += -mcpu=$(cpu-y)-$(rev-y)
 
 head-y   := arch/$(ARCH)/mach-$(MACHINE)/head.o arch/$(ARCH)/kernel/init_task.o
 

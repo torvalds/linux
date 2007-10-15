@@ -25,7 +25,7 @@ cflags-$(CONFIG_ISA_M32R)	+= -DNO_FPU
 aflags-$(CONFIG_ISA_M32R)	+= -DNO_FPU -O2 -Wa,-no-bitinst
 
 KBUILD_CFLAGS += $(cflags-y)
-AFLAGS += $(aflags-y)
+KBUILD_AFLAGS += $(aflags-y)
 
 CHECKFLAGS	+= -D__m32r__ -D__BIG_ENDIAN__=1
 

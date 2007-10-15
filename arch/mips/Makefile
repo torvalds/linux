@@ -608,7 +608,7 @@ ifdef CONFIG_64BIT
   endif
 endif
 
-AFLAGS		+= $(cflags-y)
+KBUILD_AFLAGS	+= $(cflags-y)
 KBUILD_CFLAGS	+= $(cflags-y) \
 			-D"VMLINUX_LOAD_ADDRESS=$(load-y)"
 

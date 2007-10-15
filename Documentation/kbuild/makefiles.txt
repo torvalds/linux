@@ -424,6 +424,7 @@ more details, with real examples.
 	as-instr checks if the assembler reports a specific instruction
 	and then outputs either option1 or option2
 	C escapes are supported in the test instruction
+	Note: as-instr-option uses KBUILD_AFLAGS for $(AS) options
 
     cc-option
 	cc-option is used to check if $(CC) supports a given option, and not
@@ -819,14 +820,14 @@ When kbuild executes, the following steps are followed (roughly):
 	In this example, the binary $(obj)/image is a binary version of
 	vmlinux. The usage of $(call if_changed,xxx) will be described later.
 
-    AFLAGS		$(AS) assembler flags
+    KBUILD_AFLAGS		$(AS) assembler flags
 
 	Default value - see top level Makefile
 	Append or modify as required per architecture.
 
 	Example:
 		#arch/sparc64/Makefile
-		AFLAGS += -m64 -mcpu=ultrasparc
+		KBUILD_AFLAGS += -m64 -mcpu=ultrasparc
 
     KBUILD_CFLAGS		$(CC) compiler flags
 

@@ -16,7 +16,7 @@
 ifndef CONFIG_64BIT
 LDFLAGS		:= -m elf_s390
 KBUILD_CFLAGS	+= -m31
-AFLAGS		+= -m31
+KBUILD_AFLAGS	+= -m31
 UTS_MACHINE	:= s390
 STACK_SIZE	:= 8192
 CHECKFLAGS	+= -D__s390__ -msize-long
@@ -24,7 +24,7 @@ else
 LDFLAGS		:= -m elf64_s390
 MODFLAGS	+= -fpic -D__PIC__
 KBUILD_CFLAGS	+= -m64
-AFLAGS		+= -m64
+KBUILD_AFLAGS	+= -m64
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= 16384
 CHECKFLAGS	+= -D__s390__ -D__s390x__
@@ -79,7 +79,7 @@ endif
 
 KBUILD_CFLAGS	+= -mbackchain -msoft-float $(cflags-y)
 KBUILD_CFLAGS	+= -pipe -fno-strength-reduce -Wno-sign-compare
-AFLAGS		+= $(aflags-y)
+KBUILD_AFLAGS	+= $(aflags-y)
 
 OBJCOPYFLAGS	:= -O binary
 LDFLAGS_vmlinux := -e start

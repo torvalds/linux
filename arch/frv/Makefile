@@ -63,16 +63,16 @@ endif
 
 ifdef CONFIG_CPU_FR451_COMPILE
 KBUILD_CFLAGS	+= -mcpu=fr450
-AFLAGS		+= -mcpu=fr450
+KBUILD_AFLAGS	+= -mcpu=fr450
 ASFLAGS		+= -mcpu=fr450
 else
 ifdef CONFIG_CPU_FR551_COMPILE
 KBUILD_CFLAGS	+= -mcpu=fr550
-AFLAGS		+= -mcpu=fr550
+KBUILD_AFLAGS	+= -mcpu=fr550
 ASFLAGS		+= -mcpu=fr550
 else
 KBUILD_CFLAGS	+= -mcpu=fr400
-AFLAGS		+= -mcpu=fr400
+KBUILD_AFLAGS	+= -mcpu=fr400
 ASFLAGS		+= -mcpu=fr400
 endif
 endif
@@ -82,14 +82,14 @@ endif
 # - all the extra registers are dealt with only at context switch time
 KBUILD_CFLAGS	+= -mno-fdpic -mgpr-32 -msoft-float -mno-media
 KBUILD_CFLAGS	+= -ffixed-fcc3 -ffixed-cc3 -ffixed-gr15 -ffixed-icc2
-AFLAGS		+= -mno-fdpic
+KBUILD_AFLAGS	+= -mno-fdpic
 ASFLAGS		+= -mno-fdpic
 
 # make sure the .S files get compiled with debug info
 # and disable optimisations that are unhelpful whilst debugging
 ifdef CONFIG_DEBUG_INFO
 #KBUILD_CFLAGS	+= -O1
-AFLAGS		+= -Wa,--gdwarf2
+KBUILD_AFLAGS	+= -Wa,--gdwarf2
 ASFLAGS		+= -Wa,--gdwarf2
 endif
 

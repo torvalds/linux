@@ -92,7 +92,7 @@ LDFLAGS			+= -EB
 endif
 
 KBUILD_CFLAGS		+= -pipe $(cflags-y)
-AFLAGS		+= $(cflags-y)
+KBUILD_AFLAGS		+= $(cflags-y)
 
 head-y := arch/sh/kernel/head.o arch/sh/kernel/init_task.o
 
