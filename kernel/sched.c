@@ -829,7 +829,7 @@ static void update_curr_load(struct rq *rq)
 	 * Stagger updates to ls->delta_fair. Very frequent updates
 	 * can be expensive.
 	 */
-	if (ls->delta_stat >= sysctl_sched_stat_granularity)
+	if (ls->delta_stat)
 		__update_curr_load(rq, ls);
 }
 
@@ -1588,9 +1588,6 @@ static void __sched_fork(struct task_struct *p)
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
 	p->se.prev_sum_exec_runtime	= 0;
-	p->se.delta_exec		= 0;
-	p->se.delta_fair_run		= 0;
-	p->se.delta_fair_sleep		= 0;
 	p->se.wait_runtime		= 0;
 	p->se.sleep_start_fair		= 0;
 

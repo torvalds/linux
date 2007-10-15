@@ -895,9 +895,6 @@ struct load_weight {
  */
 struct sched_entity {
 	long			wait_runtime;
-	unsigned long		delta_fair_run;
-	unsigned long		delta_fair_sleep;
-	unsigned long		delta_exec;
 	s64			fair_key;
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;

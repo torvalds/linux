@@ -85,8 +85,6 @@ const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 25000000UL;
  */
 const_debug unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
 
-const_debug unsigned int sysctl_sched_stat_granularity;
-
 unsigned int sysctl_sched_runtime_limit __read_mostly;
 
 /*
@@ -360,13 +358,13 @@ add_wait_runtime(struct cfs_rq *cfs_rq, struct sched_entity *se, long delta)
  * are not in our scheduling class.
  */
 static inline void
-__update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+__update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
+	      unsigned long delta_exec)
 {
-	unsigned long delta, delta_exec, delta_fair, delta_mine;
+	unsigned long delta, delta_fair, delta_mine;
 	struct load_weight *lw = &cfs_rq->load;
 	unsigned long load = lw->weight;
 
-	delta_exec = curr->delta_exec;
 	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
 	curr->sum_exec_runtime += delta_exec;
@@ -400,6 +398,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 static void update_curr(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq_curr(cfs_rq);
+	u64 now = rq_of(cfs_rq)->clock;
 	unsigned long delta_exec;
 
 	if (unlikely(!curr))
@@ -410,15 +409,10 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	 * since the last time we changed load (this cannot
 	 * overflow on 32 bits):
 	 */
-	delta_exec = (unsigned long)(rq_of(cfs_rq)->clock - curr->exec_start);
+	delta_exec = (unsigned long)(now - curr->exec_start);
 
-	curr->delta_exec += delta_exec;
-
-	if (unlikely(curr->delta_exec > sysctl_sched_stat_granularity)) {
-		__update_curr(cfs_rq, curr);
-		curr->delta_exec = 0;
-	}
-	curr->exec_start = rq_of(cfs_rq)->clock;
+	__update_curr(cfs_rq, curr, delta_exec);
+	curr->exec_start = now;
 }
 
 static inline void
@@ -494,10 +488,9 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * Note: must be called with a freshly updated rq->fair_clock.
  */
 static inline void
-__update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
+__update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se,
+			unsigned long delta_fair)
 {
-	unsigned long delta_fair = se->delta_fair_run;
-
 	schedstat_set(se->wait_max, max(se->wait_max,
 			rq_of(cfs_rq)->clock - se->wait_start));
 
@@ -519,12 +512,7 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	delta_fair = (unsigned long)min((u64)(2*sysctl_sched_runtime_limit),
 			(u64)(cfs_rq->fair_clock - se->wait_start_fair));
 
-	se->delta_fair_run += delta_fair;
-	if (unlikely(abs(se->delta_fair_run) >=
-				sysctl_sched_stat_granularity)) {
-		__update_stats_wait_end(cfs_rq, se);
-		se->delta_fair_run = 0;
-	}
+	__update_stats_wait_end(cfs_rq, se, delta_fair);
 
 	se->wait_start_fair = 0;
 	schedstat_set(se->wait_start, 0);
@@ -567,9 +555,10 @@ update_stats_curr_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * Scheduling class queueing methods:
  */
 
-static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se,
+			      unsigned long delta_fair)
 {
-	unsigned long load = cfs_rq->load.weight, delta_fair;
+	unsigned long load = cfs_rq->load.weight;
 	long prev_runtime;
 
 	/*
@@ -581,8 +570,6 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	if (sysctl_sched_features & SCHED_FEAT_SLEEPER_LOAD_AVG)
 		load = rq_of(cfs_rq)->cpu_load[2];
-
-	delta_fair = se->delta_fair_sleep;
 
 	/*
 	 * Fix up delta_fair with the effect of us running
@@ -618,12 +605,7 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	delta_fair = (unsigned long)min((u64)(2*sysctl_sched_runtime_limit),
 		(u64)(cfs_rq->fair_clock - se->sleep_start_fair));
 
-	se->delta_fair_sleep += delta_fair;
-	if (unlikely(abs(se->delta_fair_sleep) >=
-				sysctl_sched_stat_granularity)) {
-		__enqueue_sleeper(cfs_rq, se);
-		se->delta_fair_sleep = 0;
-	}
+	__enqueue_sleeper(cfs_rq, se, delta_fair);
 
 	se->sleep_start_fair = 0;
 
