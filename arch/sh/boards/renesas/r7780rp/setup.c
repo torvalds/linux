@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pata_platform.h>
+#include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <asm/r7780rp.h>
 #include <asm/clock.h>
@@ -136,11 +137,50 @@ static struct platform_device heartbeat_device = {
 	.resource	= heartbeat_resources,
 };
 
+static struct ax_plat_data ax88796_platdata = {
+	.flags          = AXFLG_HAS_93CX6,
+	.wordlength     = 2,
+	.dcr_val        = 0x1,
+	.rcr_val        = 0x40,
+};
+
+static struct resource ax88796_resources[] = {
+	{
+#ifdef CONFIG_SH_R7780RP
+		.start  = 0xa5800400,
+		.end    = 0xa5800400 + (0x20 * 0x2) - 1,
+#else
+		.start  = 0xa4100400,
+		.end    = 0xa4100400 + (0x20 * 0x2) - 1,
+#endif
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = IRQ_AX88796,
+		.end    = IRQ_AX88796,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ax88796_device = {
+	.name           = "ax88796",
+	.id             = 0,
+
+	.dev    = {
+		.platform_data = &ax88796_platdata,
+	},
+
+	.num_resources  = ARRAY_SIZE(ax88796_resources),
+	.resource       = ax88796_resources,
+};
+
+
 static struct platform_device *r7780rp_devices[] __initdata = {
 	&r8a66597_usb_host_device,
 	&m66592_usb_peripheral_device,
 	&cf_ide_device,
 	&heartbeat_device,
+	&ax88796_device,
 };
 
 static int __init r7780rp_devices_setup(void)
