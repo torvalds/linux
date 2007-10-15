@@ -92,14 +92,16 @@ unsigned int sysctl_sched_runtime_limit __read_mostly;
  */
 enum {
 	SCHED_FEAT_FAIR_SLEEPERS	= 1,
-	SCHED_FEAT_SLEEPER_AVG		= 2,
-	SCHED_FEAT_SLEEPER_LOAD_AVG	= 4,
-	SCHED_FEAT_START_DEBIT		= 8,
-	SCHED_FEAT_SKIP_INITIAL		= 16,
+	SCHED_FEAT_NEW_FAIR_SLEEPERS	= 2,
+	SCHED_FEAT_SLEEPER_AVG		= 4,
+	SCHED_FEAT_SLEEPER_LOAD_AVG	= 8,
+	SCHED_FEAT_START_DEBIT		= 16,
+	SCHED_FEAT_SKIP_INITIAL		= 32,
 };
 
 const_debug unsigned int sysctl_sched_features =
-		SCHED_FEAT_FAIR_SLEEPERS	*1 |
+		SCHED_FEAT_FAIR_SLEEPERS	*0 |
+		SCHED_FEAT_NEW_FAIR_SLEEPERS	*1 |
 		SCHED_FEAT_SLEEPER_AVG		*0 |
 		SCHED_FEAT_SLEEPER_LOAD_AVG	*1 |
 		SCHED_FEAT_START_DEBIT		*1 |
@@ -145,6 +147,19 @@ static inline struct task_struct *task_of(struct sched_entity *se)
  * Scheduling class tree data structure manipulation methods:
  */
 
+static inline void
+set_leftmost(struct cfs_rq *cfs_rq, struct rb_node *leftmost)
+{
+	struct sched_entity *se;
+
+	cfs_rq->rb_leftmost = leftmost;
+	if (leftmost) {
+		se = rb_entry(leftmost, struct sched_entity, run_node);
+		cfs_rq->min_vruntime = max(se->vruntime,
+						cfs_rq->min_vruntime);
+	}
+}
+
 /*
  * Enqueue an entity into the rb-tree:
  */
@@ -180,7 +195,7 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * used):
 	 */
 	if (leftmost)
-		cfs_rq->rb_leftmost = &se->run_node;
+		set_leftmost(cfs_rq, &se->run_node);
 
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
@@ -195,7 +210,8 @@ static void
 __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->rb_leftmost == &se->run_node)
-		cfs_rq->rb_leftmost = rb_next(&se->run_node);
+		set_leftmost(cfs_rq, rb_next(&se->run_node));
+
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 	update_load_sub(&cfs_rq->load, se->load.weight);
 	cfs_rq->nr_running--;
@@ -336,7 +352,7 @@ static inline void
 __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	      unsigned long delta_exec)
 {
-	unsigned long delta, delta_fair, delta_mine;
+	unsigned long delta, delta_fair, delta_mine, delta_exec_weighted;
 	struct load_weight *lw = &cfs_rq->load;
 	unsigned long load = lw->weight;
 
@@ -344,6 +360,12 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 
 	curr->sum_exec_runtime += delta_exec;
 	cfs_rq->exec_clock += delta_exec;
+	delta_exec_weighted = delta_exec;
+	if (unlikely(curr->load.weight != NICE_0_LOAD)) {
+		delta_exec_weighted = calc_delta_fair(delta_exec_weighted,
+							&curr->load);
+	}
+	curr->vruntime += delta_exec_weighted;
 
 	if (unlikely(!load))
 		return;
@@ -413,8 +435,6 @@ calc_weighted(unsigned long delta, struct sched_entity *se)
  */
 static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	s64 key;
-
 	/*
 	 * Are we enqueueing a waiting task? (for current tasks
 	 * a dequeue/enqueue event is a NOP)
@@ -424,28 +444,7 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	/*
 	 * Update the key:
 	 */
-	key = cfs_rq->fair_clock;
-
-	/*
-	 * Optimize the common nice 0 case:
-	 */
-	if (likely(se->load.weight == NICE_0_LOAD)) {
-		key -= se->wait_runtime;
-	} else {
-		u64 tmp;
-
-		if (se->wait_runtime < 0) {
-			tmp = -se->wait_runtime;
-			key += (tmp * se->load.inv_weight) >>
-					(WMULT_SHIFT - NICE_0_SHIFT);
-		} else {
-			tmp = se->wait_runtime;
-			key -= (tmp * se->load.inv_weight) >>
-					(WMULT_SHIFT - NICE_0_SHIFT);
-		}
-	}
-
-	se->fair_key = key;
+	se->fair_key = se->vruntime;
 }
 
 /*
@@ -615,8 +614,22 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 	 */
 	update_curr(cfs_rq);
 
-	if (wakeup)
+	if (wakeup) {
+		u64 min_runtime, latency;
+
+		min_runtime = cfs_rq->min_vruntime;
+		min_runtime += sysctl_sched_latency/2;
+
+		if (sched_feat(NEW_FAIR_SLEEPERS)) {
+			latency = calc_weighted(sysctl_sched_latency, se);
+			if (min_runtime > latency)
+				min_runtime -= latency;
+		}
+
+		se->vruntime = max(se->vruntime, min_runtime);
+
 		enqueue_sleeper(cfs_rq, se);
+	}
 
 	update_stats_enqueue(cfs_rq, se);
 	__enqueue_entity(cfs_rq, se);
@@ -1155,6 +1168,8 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	if (sched_feat(START_DEBIT))
 		se->wait_runtime = -(sched_granularity(cfs_rq) / 2);
 
+	se->vruntime = cfs_rq->min_vruntime;
+	update_stats_enqueue(cfs_rq, se);
 	__enqueue_entity(cfs_rq, se);
 	resched_task(rq->curr);
 }

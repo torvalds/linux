@@ -182,6 +182,7 @@ struct cfs_rq {
 
 	s64 fair_clock;
 	u64 exec_clock;
+	u64 min_vruntime;
 	s64 wait_runtime;
 	u64 sleeper_bonus;
 	unsigned long wait_runtime_overruns, wait_runtime_underruns;
