@@ -732,13 +732,14 @@ calc_delta_fair(unsigned long delta_exec, struct load_weight *lw)
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 {
 	lw->weight += inc;
-	lw->inv_weight = WMULT_CONST / lw->weight;
+	if (sched_feat(FAIR_SLEEPERS))
+		lw->inv_weight = WMULT_CONST / lw->weight;
 }
 
 static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
 {
 	lw->weight -= dec;
-	if (likely(lw->weight))
+	if (sched_feat(FAIR_SLEEPERS) && likely(lw->weight))
 		lw->inv_weight = WMULT_CONST / lw->weight;
 }
 

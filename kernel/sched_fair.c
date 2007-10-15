@@ -336,6 +336,9 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	}
 	curr->vruntime += delta_exec_weighted;
 
+	if (!sched_feat(FAIR_SLEEPERS))
+		return;
+
 	if (unlikely(!load))
 		return;
 
