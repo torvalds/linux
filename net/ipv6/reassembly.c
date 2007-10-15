@@ -42,6 +42,7 @@
 #include <linux/icmpv6.h>
 #include <linux/random.h>
 #include <linux/jhash.h>
+#include <linux/skbuff.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -106,6 +107,9 @@ static DEFINE_RWLOCK(ip6_frag_lock);
 static u32 ip6_frag_hash_rnd;
 static LIST_HEAD(ip6_frag_lru_list);
 int ip6_frag_nqueues = 0;
+
+static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
+			  struct net_device *dev);
 
 static __inline__ void __fq_unlink(struct frag_queue *fq)
 {
@@ -420,10 +424,11 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 }
 
 
-static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
+static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 			   struct frag_hdr *fhdr, int nhoff)
 {
 	struct sk_buff *prev, *next;
+	struct net_device *dev;
 	int offset, end;
 
 	if (fq->last_in & COMPLETE)
@@ -439,7 +444,7 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 				  ((u8 *)&fhdr->frag_off -
 				   skb_network_header(skb)));
-		return;
+		return -1;
 	}
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
@@ -471,7 +476,7 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 					 IPSTATS_MIB_INHDRERRORS);
 			icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 					  offsetof(struct ipv6hdr, payload_len));
-			return;
+			return -1;
 		}
 		if (end > fq->len) {
 			/* Some bits beyond end -> corruption. */
@@ -564,9 +569,11 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	else
 		fq->fragments = skb;
 
-	if (skb->dev)
-		fq->iif = skb->dev->ifindex;
-	skb->dev = NULL;
+	dev = skb->dev;
+	if (dev) {
+		fq->iif = dev->ifindex;
+		skb->dev = NULL;
+	}
 	fq->stamp = skb->tstamp;
 	fq->meat += skb->len;
 	atomic_add(skb->truesize, &ip6_frag_mem);
@@ -578,14 +585,19 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		fq->nhoffset = nhoff;
 		fq->last_in |= FIRST_IN;
 	}
+
+	if (fq->last_in == (FIRST_IN | LAST_IN) && fq->meat == fq->len)
+		return ip6_frag_reasm(fq, prev, dev);
+
 	write_lock(&ip6_frag_lock);
 	list_move_tail(&fq->lru_list, &ip6_frag_lru_list);
 	write_unlock(&ip6_frag_lock);
-	return;
+	return -1;
 
 err:
 	IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_REASMFAILS);
 	kfree_skb(skb);
+	return -1;
 }
 
 /*
@@ -597,7 +609,7 @@ err:
  *	queue is eligible for reassembly i.e. it is not COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
  */
-static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
+static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 			  struct net_device *dev)
 {
 	struct sk_buff *fp, *head = fq->fragments;
@@ -605,6 +617,24 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	unsigned int nhoff;
 
 	fq_kill(fq);
+
+	/* Make the one we just received the head. */
+	if (prev) {
+		head = prev->next;
+		fp = skb_clone(head, GFP_ATOMIC);
+
+		if (!fp)
+			goto out_oom;
+
+		fp->next = head->next;
+		prev->next = fp;
+
+		skb_morph(head, fq->fragments);
+		head->next = fq->fragments->next;
+
+		kfree_skb(fq->fragments);
+		fq->fragments = head;
+	}
 
 	BUG_TRAP(head != NULL);
 	BUG_TRAP(FRAG6_CB(head)->offset == 0);
@@ -674,8 +704,6 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	ipv6_hdr(head)->payload_len = htons(payload_len);
 	IP6CB(head)->nhoff = nhoff;
 
-	*skb_in = head;
-
 	/* Yes, and fold redundant checksum back. 8) */
 	if (head->ip_summed == CHECKSUM_COMPLETE)
 		head->csum = csum_partial(skb_network_header(head),
@@ -705,7 +733,6 @@ out_fail:
 static int ipv6_frag_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
-	struct net_device *dev = skb->dev;
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -744,15 +771,11 @@ static int ipv6_frag_rcv(struct sk_buff **skbp)
 
 	if ((fq = fq_find(fhdr->identification, &hdr->saddr, &hdr->daddr,
 			  ip6_dst_idev(skb->dst))) != NULL) {
-		int ret = -1;
+		int ret;
 
 		spin_lock(&fq->lock);
 
-		ip6_frag_queue(fq, skb, fhdr, IP6CB(skb)->nhoff);
-
-		if (fq->last_in == (FIRST_IN|LAST_IN) &&
-		    fq->meat == fq->len)
-			ret = ip6_frag_reasm(fq, skbp, dev);
+		ret = ip6_frag_queue(fq, skb, fhdr, IP6CB(skb)->nhoff);
 
 		spin_unlock(&fq->lock);
 		fq_put(fq, NULL);
