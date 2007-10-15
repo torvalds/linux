@@ -1363,6 +1363,7 @@ nothing_to_do:
 static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
+	struct ata_eh_info *ehi = &qc->dev->link->eh_info;
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	u8 *cdb = cmd->cmnd;
  	int need_sense = (qc->err_mask != 0);
@@ -1376,14 +1377,14 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 		case ATA_CMD_SET_FEATURES:
 			if ((qc->tf.feature == SETFEATURES_WC_ON) ||
 			    (qc->tf.feature == SETFEATURES_WC_OFF)) {
-				ap->link.eh_info.action |= ATA_EH_REVALIDATE;
+				ehi->action |= ATA_EH_REVALIDATE;
 				ata_port_schedule_eh(ap);
 			}
 			break;
 
 		case ATA_CMD_INIT_DEV_PARAMS: /* CHS translation changed */
 		case ATA_CMD_SET_MULTI: /* multi_count changed */
-			ap->link.eh_info.action |= ATA_EH_REVALIDATE;
+			ehi->action |= ATA_EH_REVALIDATE;
 			ata_port_schedule_eh(ap);
 			break;
 		}

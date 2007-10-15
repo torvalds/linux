@@ -3984,6 +3984,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "ST9120822AS",	"3.CLF",	ATA_HORKAGE_NONCQ, },
 	{ "ST9160821AS",	"3.CLF",	ATA_HORKAGE_NONCQ, },
 	{ "ST9160821AS",	"3.ALD",	ATA_HORKAGE_NONCQ, },
+	{ "ST9160821AS",	"3.CCD",	ATA_HORKAGE_NONCQ, },
 	{ "ST3160812AS",	"3.ADJ",	ATA_HORKAGE_NONCQ, },
 	{ "ST980813AS",		"3.ADB",	ATA_HORKAGE_NONCQ, },
 	{ "SAMSUNG HD401LJ",	"ZZ100-15",	ATA_HORKAGE_NONCQ, },
@@ -4013,8 +4014,14 @@ int strn_pattern_cmp(const char *patt, const char *name, int wildchar)
 	p = strchr(patt, wildchar);
 	if (p && ((*(p + 1)) == 0))
 		len = p - patt;
-	else
+	else {
 		len = strlen(name);
+		if (!len) {
+			if (!*patt)
+				return 0;
+			return -1;
+		}
+	}
 
 	return strncmp(patt, name, len);
 }
