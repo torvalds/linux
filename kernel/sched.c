@@ -5245,8 +5245,6 @@ static struct ctl_table *sd_alloc_ctl_entry(int n)
 	struct ctl_table *entry =
 		kcalloc(n, sizeof(struct ctl_table), GFP_KERNEL);
 
-	BUG_ON(!entry);
-
 	return entry;
 }
 
@@ -5278,6 +5276,9 @@ static struct ctl_table *
 sd_alloc_ctl_domain_table(struct sched_domain *sd)
 {
 	struct ctl_table *table = sd_alloc_ctl_entry(12);
+
+	if (table == NULL)
+		return NULL;
 
 	set_table_entry(&table[0], "min_interval", &sd->min_interval,
 		sizeof(long), 0644, proc_doulongvec_minmax);
@@ -5316,6 +5317,8 @@ static ctl_table *sd_alloc_ctl_cpu_table(int cpu)
 	for_each_domain(cpu, sd)
 		domain_num++;
 	entry = table = sd_alloc_ctl_entry(domain_num + 1);
+	if (table == NULL)
+		return NULL;
 
 	i = 0;
 	for_each_domain(cpu, sd) {
@@ -5335,6 +5338,9 @@ static void register_sched_domain_sysctl(void)
 	int i, cpu_num = num_online_cpus();
 	struct ctl_table *entry = sd_alloc_ctl_entry(cpu_num + 1);
 	char buf[32];
+
+	if (entry == NULL)
+		return;
 
 	sd_ctl_dir[0].child = entry;
 
