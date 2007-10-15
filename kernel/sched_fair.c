@@ -124,16 +124,6 @@ max_vruntime(u64 min_vruntime, u64 vruntime)
 	return min_vruntime;
 }
 
-static inline void
-set_leftmost(struct cfs_rq *cfs_rq, struct rb_node *leftmost)
-{
-	struct sched_entity *se;
-
-	cfs_rq->rb_leftmost = leftmost;
-	if (leftmost)
-		se = rb_entry(leftmost, struct sched_entity, run_node);
-}
-
 static inline s64
 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -175,7 +165,7 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * used):
 	 */
 	if (leftmost)
-		set_leftmost(cfs_rq, &se->run_node);
+		cfs_rq->rb_leftmost = &se->run_node;
 
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
@@ -185,7 +175,7 @@ static void
 __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->rb_leftmost == &se->run_node)
-		set_leftmost(cfs_rq, rb_next(&se->run_node));
+		cfs_rq->rb_leftmost = rb_next(&se->run_node);
 
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 }
