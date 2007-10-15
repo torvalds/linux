@@ -847,9 +847,9 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		      int *this_best_prio, struct rq_iterator *iterator);
 
 #include "sched_stats.h"
-#include "sched_rt.c"
-#include "sched_fair.c"
 #include "sched_idletask.c"
+#include "sched_fair.c"
+#include "sched_rt.c"
 #ifdef CONFIG_SCHED_DEBUG
 # include "sched_debug.c"
 #endif
@@ -2251,7 +2251,7 @@ static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		      struct sched_domain *sd, enum cpu_idle_type idle,
 		      int *all_pinned)
 {
-	struct sched_class *class = sched_class_highest;
+	const struct sched_class *class = sched_class_highest;
 	unsigned long total_load_moved = 0;
 	int this_best_prio = this_rq->curr->prio;
 
@@ -2276,7 +2276,7 @@ static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 static int move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			 struct sched_domain *sd, enum cpu_idle_type idle)
 {
-	struct sched_class *class;
+	const struct sched_class *class;
 	int this_best_prio = MAX_PRIO;
 
 	for (class = sched_class_highest; class; class = class->next)
@@ -3432,7 +3432,7 @@ static inline void schedule_debug(struct task_struct *prev)
 static inline struct task_struct *
 pick_next_task(struct rq *rq, struct task_struct *prev)
 {
-	struct sched_class *class;
+	const struct sched_class *class;
 	struct task_struct *p;
 
 	/*
@@ -6503,13 +6503,6 @@ void __init sched_init(void)
 {
 	int highest_cpu = 0;
 	int i, j;
-
-	/*
-	 * Link up the scheduling class hierarchy:
-	 */
-	rt_sched_class.next = &fair_sched_class;
-	fair_sched_class.next = &idle_sched_class;
-	idle_sched_class.next = NULL;
 
 	for_each_possible_cpu(i) {
 		struct rt_prio_array *array;

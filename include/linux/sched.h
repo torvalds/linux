@@ -863,7 +863,7 @@ struct rq;
 struct sched_domain;
 
 struct sched_class {
-	struct sched_class *next;
+	const struct sched_class *next;
 
 	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int wakeup);
 	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int sleep);
@@ -949,7 +949,7 @@ struct task_struct {
 
 	int prio, static_prio, normal_prio;
 	struct list_head run_list;
-	struct sched_class *sched_class;
+	const struct sched_class *sched_class;
 	struct sched_entity se;
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS

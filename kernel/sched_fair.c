@@ -76,8 +76,6 @@ const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 25000000UL;
  */
 const_debug unsigned int sysctl_sched_wakeup_granularity = 2000000UL;
 
-extern struct sched_class fair_sched_class;
-
 /**************************************************************
  * CFS operations on generic schedulable entities:
  */
@@ -1031,7 +1029,8 @@ static void set_curr_task_fair(struct rq *rq)
 /*
  * All the scheduling class methods:
  */
-struct sched_class fair_sched_class __read_mostly = {
+static const struct sched_class fair_sched_class = {
+	.next			= &idle_sched_class,
 	.enqueue_task		= enqueue_task_fair,
 	.dequeue_task		= dequeue_task_fair,
 	.yield_task		= yield_task_fair,
