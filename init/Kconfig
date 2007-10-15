@@ -294,10 +294,10 @@ choice
 	prompt "Basis for grouping tasks"
 	default FAIR_USER_SCHED
 
- 	config FAIR_USER_SCHED
- 		bool "user id"
- 		help
- 		  This option will choose userid as the basis for grouping
+	config FAIR_USER_SCHED
+		bool "user id"
+		help
+		  This option will choose userid as the basis for grouping
 		  tasks, thus providing equal cpu bandwidth to each user.
 
 endchoice
