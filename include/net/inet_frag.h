@@ -18,4 +18,19 @@ struct inet_frag_queue {
 #define LAST_IN			1
 };
 
+#define INETFRAGS_HASHSZ		64
+
+struct inet_frags {
+	struct list_head	lru_list;
+	struct hlist_head	hash[INETFRAGS_HASHSZ];
+	rwlock_t		lock;
+	u32			rnd;
+	int			nqueues;
+	atomic_t		mem;
+	struct timer_list	secret_timer;
+};
+
+void inet_frags_init(struct inet_frags *);
+void inet_frags_fini(struct inet_frags *);
+
 #endif

@@ -333,8 +333,8 @@ enum ip_defrag_users
 };
 
 int ip_defrag(struct sk_buff *skb, u32 user);
-extern int ip_frag_nqueues;
-extern atomic_t ip_frag_mem;
+int ip_frag_mem(void);
+int ip_frag_nqueues(void);
 
 /*
  *	Functions provided by ip_forward.c
