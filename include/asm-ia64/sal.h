@@ -46,25 +46,28 @@
 extern spinlock_t sal_lock;
 
 /* SAL spec _requires_ eight args for each call. */
-#define __SAL_CALL(result,a0,a1,a2,a3,a4,a5,a6,a7)	\
-	result = (*ia64_sal)(a0,a1,a2,a3,a4,a5,a6,a7)
+#define __IA64_FW_CALL(entry,result,a0,a1,a2,a3,a4,a5,a6,a7)	\
+	result = (*entry)(a0,a1,a2,a3,a4,a5,a6,a7)
 
-# define SAL_CALL(result,args...) do {				\
+# define IA64_FW_CALL(entry,result,args...) do {		\
 	unsigned long __ia64_sc_flags;				\
 	struct ia64_fpreg __ia64_sc_fr[6];			\
 	ia64_save_scratch_fpregs(__ia64_sc_fr);			\
 	spin_lock_irqsave(&sal_lock, __ia64_sc_flags);		\
-	__SAL_CALL(result, args);				\
+	__IA64_FW_CALL(entry, result, args);			\
 	spin_unlock_irqrestore(&sal_lock, __ia64_sc_flags);	\
 	ia64_load_scratch_fpregs(__ia64_sc_fr);			\
 } while (0)
+
+# define SAL_CALL(result,args...)			\
+	IA64_FW_CALL(ia64_sal, result, args);
 
 # define SAL_CALL_NOLOCK(result,args...) do {		\
 	unsigned long __ia64_scn_flags;			\
 	struct ia64_fpreg __ia64_scn_fr[6];		\
 	ia64_save_scratch_fpregs(__ia64_scn_fr);	\
 	local_irq_save(__ia64_scn_flags);		\
-	__SAL_CALL(result, args);			\
+	__IA64_FW_CALL(ia64_sal, result, args);		\
 	local_irq_restore(__ia64_scn_flags);		\
 	ia64_load_scratch_fpregs(__ia64_scn_fr);	\
 } while (0)
@@ -73,7 +76,7 @@ extern spinlock_t sal_lock;
 	struct ia64_fpreg __ia64_scs_fr[6];		\
 	ia64_save_scratch_fpregs(__ia64_scs_fr);	\
 	preempt_disable();				\
-	__SAL_CALL(result, args);			\
+	__IA64_FW_CALL(ia64_sal, result, args);		\
 	preempt_enable();				\
 	ia64_load_scratch_fpregs(__ia64_scs_fr);	\
 } while (0)

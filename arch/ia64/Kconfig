@@ -461,6 +461,16 @@ config IA64_ESI
 	  firmware extensions, such as the ability to inject memory-errors
 	  for test-purposes.  If you're unsure, say N.
 
+config IA64_HP_AML_NFW
+	bool "Support ACPI AML calls to native firmware"
+	help
+	  This driver installs a global ACPI Operation Region handler for
+	  region 0xA1.  AML methods can use this OpRegion to call arbitrary
+	  native firmware functions.  The driver installs the OpRegion
+	  handler if there is an HPQ5001 device or if the user supplies
+	  the "force" module parameter, e.g., with the "aml_nfw.force"
+	  kernel command line option.
+
 source "drivers/sn/Kconfig"
 
 config KEXEC

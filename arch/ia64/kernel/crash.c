@@ -118,11 +118,6 @@ machine_crash_shutdown(struct pt_regs *pt)
 static void
 machine_kdump_on_init(void)
 {
-	if (!ia64_kimage) {
-		printk(KERN_NOTICE "machine_kdump_on_init(): "
-				"kdump not configured\n");
-		return;
-	}
 	local_irq_disable();
 	kexec_disable_iosapic();
 	machine_kexec(ia64_kimage);
@@ -155,6 +150,14 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 
 	if (!kdump_on_init)
 		return NOTIFY_DONE;
+
+	if (!ia64_kimage) {
+		if (val == DIE_INIT_MONARCH_LEAVE)
+			ia64_mca_printk(KERN_NOTICE
+					"%s: kdump not configured\n",
+					__FUNCTION__);
+		return NOTIFY_DONE;
+	}
 
 	if (val != DIE_INIT_MONARCH_LEAVE &&
 	    val != DIE_INIT_SLAVE_LEAVE &&
