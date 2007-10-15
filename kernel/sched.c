@@ -193,17 +193,17 @@ static struct sched_entity *init_sched_entity_p[NR_CPUS];
 static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
 
 /* Default task group.
- * 	Every task in system belong to this group at bootup.
+ *	Every task in system belong to this group at bootup.
  */
-struct task_grp init_task_grp =  {
-				.se     = init_sched_entity_p,
-				.cfs_rq = init_cfs_rq_p,
-				 };
+struct task_grp init_task_grp = {
+	.se     = init_sched_entity_p,
+	.cfs_rq = init_cfs_rq_p,
+};
 
 #ifdef CONFIG_FAIR_USER_SCHED
-#define INIT_TASK_GRP_LOAD	2*NICE_0_LOAD
+# define INIT_TASK_GRP_LOAD	2*NICE_0_LOAD
 #else
-#define INIT_TASK_GRP_LOAD	NICE_0_LOAD
+# define INIT_TASK_GRP_LOAD	NICE_0_LOAD
 #endif
 
 static int init_task_grp_load = INIT_TASK_GRP_LOAD;
@@ -6516,25 +6516,25 @@ void __init sched_init(void)
 		init_cfs_rq(&rq->cfs, rq);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
-	 	{
- 			struct cfs_rq *cfs_rq = &per_cpu(init_cfs_rq, i);
- 			struct sched_entity *se =
- 					 &per_cpu(init_sched_entity, i);
+		{
+			struct cfs_rq *cfs_rq = &per_cpu(init_cfs_rq, i);
+			struct sched_entity *se =
+					 &per_cpu(init_sched_entity, i);
 
- 			init_cfs_rq_p[i] = cfs_rq;
- 			init_cfs_rq(cfs_rq, rq);
- 			cfs_rq->tg = &init_task_grp;
- 			list_add(&cfs_rq->leaf_cfs_rq_list,
+			init_cfs_rq_p[i] = cfs_rq;
+			init_cfs_rq(cfs_rq, rq);
+			cfs_rq->tg = &init_task_grp;
+			list_add(&cfs_rq->leaf_cfs_rq_list,
 							 &rq->leaf_cfs_rq_list);
 
- 			init_sched_entity_p[i] = se;
- 			se->cfs_rq = &rq->cfs;
- 			se->my_q = cfs_rq;
- 			se->load.weight = init_task_grp_load;
+			init_sched_entity_p[i] = se;
+			se->cfs_rq = &rq->cfs;
+			se->my_q = cfs_rq;
+			se->load.weight = init_task_grp_load;
 			se->load.inv_weight =
 				 div64_64(1ULL<<32, init_task_grp_load);
- 			se->parent = NULL;
- 		}
+			se->parent = NULL;
+		}
 		init_task_grp.shares = init_task_grp_load;
 #endif
 
@@ -6840,9 +6840,9 @@ void sched_destroy_group(struct task_grp *tg)
 }
 
 /* change task's runqueue when it moves between groups.
- * 	The caller of this function should have put the task in its new group
- * 	by now. This function just updates tsk->se.cfs_rq and tsk->se.parent to
- * 	reflect its new group.
+ *	The caller of this function should have put the task in its new group
+ *	by now. This function just updates tsk->se.cfs_rq and tsk->se.parent to
+ *	reflect its new group.
  */
 void sched_move_task(struct task_struct *tsk)
 {
@@ -6915,4 +6915,4 @@ int sched_group_set_shares(struct task_grp *tg, unsigned long shares)
 	return 0;
 }
 
-#endif 	/* CONFIG_FAIR_GROUP_SCHED */
+#endif	/* CONFIG_FAIR_GROUP_SCHED */
