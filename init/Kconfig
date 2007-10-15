@@ -283,7 +283,7 @@ config CPUSETS
 
 config FAIR_GROUP_SCHED
 	bool "Fair group cpu scheduler"
-	default n
+	default y
 	depends on EXPERIMENTAL
 	help
 	  This feature lets cpu scheduler recognize task groups and control cpu
