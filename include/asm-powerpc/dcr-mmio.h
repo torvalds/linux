@@ -37,12 +37,12 @@ extern void dcr_unmap(dcr_host_t host, unsigned int dcr_n, unsigned int dcr_c);
 
 static inline u32 dcr_read(dcr_host_t host, unsigned int dcr_n)
 {
-	return in_be32(host.token + dcr_n * host.stride);
+	return in_be32(host.token + ((host.base + dcr_n) * host.stride));
 }
 
 static inline void dcr_write(dcr_host_t host, unsigned int dcr_n, u32 value)
 {
-	out_be32(host.token + dcr_n * host.stride, value);
+	out_be32(host.token + ((host.base + dcr_n) * host.stride), value);
 }
 
 extern u64 of_translate_dcr_address(struct device_node *dev,

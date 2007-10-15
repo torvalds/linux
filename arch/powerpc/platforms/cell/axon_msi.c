@@ -77,12 +77,12 @@ static void msic_dcr_write(struct axon_msic *msic, unsigned int dcr_n, u32 val)
 {
 	pr_debug("axon_msi: dcr_write(0x%x, 0x%x)\n", val, dcr_n);
 
-	dcr_write(msic->dcr_host, msic->dcr_host.base + dcr_n, val);
+	dcr_write(msic->dcr_host, dcr_n, val);
 }
 
 static u32 msic_dcr_read(struct axon_msic *msic, unsigned int dcr_n)
 {
-	return dcr_read(msic->dcr_host, msic->dcr_host.base + dcr_n);
+	return dcr_read(msic->dcr_host, dcr_n);
 }
 
 static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)

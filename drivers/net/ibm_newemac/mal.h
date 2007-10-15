@@ -212,12 +212,12 @@ struct mal_instance {
 
 static inline u32 get_mal_dcrn(struct mal_instance *mal, int reg)
 {
-	return dcr_read(mal->dcr_host, mal->dcr_host.base + reg);
+	return dcr_read(mal->dcr_host, reg);
 }
 
 static inline void set_mal_dcrn(struct mal_instance *mal, int reg, u32 val)
 {
-	dcr_write(mal->dcr_host, mal->dcr_host.base + reg, val);
+	dcr_write(mal->dcr_host, reg, val);
 }
 
 /* Register MAL devices */
