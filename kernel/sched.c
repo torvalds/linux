@@ -171,10 +171,6 @@ struct rt_prio_array {
 	struct list_head queue[MAX_RT_PRIO];
 };
 
-struct load_stat {
-	struct load_weight load;
-};
-
 /* CFS-related fields in a runqueue */
 struct cfs_rq {
 	struct load_weight load;
@@ -236,7 +232,7 @@ struct rq {
 #ifdef CONFIG_NO_HZ
 	unsigned char in_nohz_recently;
 #endif
-	struct load_stat ls;	/* capture load from *all* tasks on this cpu */
+	struct load_weight load;	/* capture load from *all* tasks on this cpu */
 	unsigned long nr_load_updates;
 	u64 nr_switches;
 
@@ -831,7 +827,7 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
  * Update delta_exec, delta_fair fields for rq.
  *
  * delta_fair clock advances at a rate inversely proportional to
- * total load (rq->ls.load.weight) on the runqueue, while
+ * total load (rq->load.weight) on the runqueue, while
  * delta_exec advances at the same rate as wall-clock (provided
  * cpu is not idle).
  *
@@ -839,17 +835,17 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
  * runqueue over any given interval. This (smoothened) load is used
  * during load balance.
  *
- * This function is called /before/ updating rq->ls.load
+ * This function is called /before/ updating rq->load
  * and when switching tasks.
  */
 static inline void inc_load(struct rq *rq, const struct task_struct *p)
 {
-	update_load_add(&rq->ls.load, p->se.load.weight);
+	update_load_add(&rq->load, p->se.load.weight);
 }
 
 static inline void dec_load(struct rq *rq, const struct task_struct *p)
 {
-	update_load_sub(&rq->ls.load, p->se.load.weight);
+	update_load_sub(&rq->load, p->se.load.weight);
 }
 
 static void inc_nr_running(struct task_struct *p, struct rq *rq)
@@ -996,7 +992,7 @@ inline int task_curr(const struct task_struct *p)
 /* Used instead of source_load when we know the type == 0 */
 unsigned long weighted_cpuload(const int cpu)
 {
-	return cpu_rq(cpu)->ls.load.weight;
+	return cpu_rq(cpu)->load.weight;
 }
 
 static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
@@ -1979,7 +1975,7 @@ unsigned long nr_active(void)
  */
 static void update_cpu_load(struct rq *this_rq)
 {
-	unsigned long this_load = this_rq->ls.load.weight;
+	unsigned long this_load = this_rq->load.weight;
 	int i, scale;
 
 	this_rq->nr_load_updates++;

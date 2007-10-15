@@ -174,7 +174,7 @@ static void print_cpu(struct seq_file *m, int cpu)
 
 	P(nr_running);
 	SEQ_printf(m, "  .%-30s: %lu\n", "load",
-		   rq->ls.load.weight);
+		   rq->load.weight);
 	P(nr_switches);
 	P(nr_load_updates);
 	P(nr_uninterruptible);
