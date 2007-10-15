@@ -218,10 +218,6 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p)
 	}
 }
 
-static void set_curr_task_rt(struct rq *rq)
-{
-}
-
 static struct sched_class rt_sched_class __read_mostly = {
 	.enqueue_task		= enqueue_task_rt,
 	.dequeue_task		= dequeue_task_rt,
@@ -234,6 +230,5 @@ static struct sched_class rt_sched_class __read_mostly = {
 
 	.load_balance		= load_balance_rt,
 
-	.set_curr_task          = set_curr_task_rt,
 	.task_tick		= task_tick_rt,
 };
