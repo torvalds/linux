@@ -610,8 +610,7 @@ static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
  */
 static inline struct cfs_rq *cpu_cfs_rq(struct cfs_rq *cfs_rq, int this_cpu)
 {
-	/* A later patch will take group into account */
-	return &cpu_rq(this_cpu)->cfs;
+	return cfs_rq->tg->cfs_rq[this_cpu];
 }
 
 /* Iterate thr' all leaf cfs_rq's on a runqueue */
