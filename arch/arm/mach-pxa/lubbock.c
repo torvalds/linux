@@ -512,6 +512,25 @@ static void __init lubbock_map_io(void)
 	pxa_gpio_mode(GPIO44_BTCTS_MD);
 	pxa_gpio_mode(GPIO45_BTRTS_MD);
 
+	GPSR(GPIO48_nPOE) =
+		GPIO_bit(GPIO48_nPOE) |
+		GPIO_bit(GPIO49_nPWE) |
+		GPIO_bit(GPIO50_nPIOR) |
+		GPIO_bit(GPIO51_nPIOW) |
+		GPIO_bit(GPIO52_nPCE_1) |
+		GPIO_bit(GPIO53_nPCE_2);
+
+	pxa_gpio_mode(GPIO48_nPOE_MD);
+	pxa_gpio_mode(GPIO49_nPWE_MD);
+	pxa_gpio_mode(GPIO50_nPIOR_MD);
+	pxa_gpio_mode(GPIO51_nPIOW_MD);
+	pxa_gpio_mode(GPIO52_nPCE_1_MD);
+	pxa_gpio_mode(GPIO53_nPCE_2_MD);
+	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
+	pxa_gpio_mode(GPIO55_nPREG_MD);
+	pxa_gpio_mode(GPIO56_nPWAIT_MD);
+	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+
 	/* This is for the SMC chip select */
 	pxa_gpio_mode(GPIO79_nCS_3_MD);
 

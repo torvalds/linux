@@ -339,14 +339,14 @@ config ARCH_PNX4008
 	  This enables support for Philips PNX4008 mobile platform.
 
 config ARCH_PXA
-	bool "PXA2xx-based"
+	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
-	  Support for Intel's PXA2XX processor line.
+	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
 config ARCH_RPC
 	bool "RiscPC"
@@ -489,7 +489,7 @@ source arch/arm/mm/Kconfig
 config IWMMXT
 	bool "Enable iWMMXt support"
 	depends on CPU_XSCALE || CPU_XSC3
-	default y if PXA27x
+	default y if PXA27x || PXA3xx
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.

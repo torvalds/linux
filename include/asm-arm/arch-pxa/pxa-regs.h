@@ -1177,7 +1177,7 @@
 
 #define GPIO_bit(x)	(1 << ((x) & 0x1f))
 
-#ifdef CONFIG_PXA27x
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 
 /* Interrupt Controller */
 

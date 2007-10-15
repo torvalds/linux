@@ -88,17 +88,3 @@
 #define MMC_RXFIFO	0x0040	/* 8 bit */
 
 #define MMC_TXFIFO	0x0044	/* 8 bit */
-
-/*
- * The base MMC clock rate
- */
-#ifdef CONFIG_PXA27x
-#define CLOCKRATE_MIN	304688
-#define CLOCKRATE_MAX	19500000
-#else
-#define CLOCKRATE_MIN	312500
-#define CLOCKRATE_MAX	20000000
-#endif
-
-#define CLOCKRATE	CLOCKRATE_MAX
-

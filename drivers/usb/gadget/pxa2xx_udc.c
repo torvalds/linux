@@ -43,6 +43,8 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
@@ -1157,7 +1159,7 @@ static void udc_disable(struct pxa2xx_udc *dev)
 
 #ifdef	CONFIG_ARCH_PXA
         /* Disable clock for USB device */
-	pxa_set_cken(CKEN_USB, 0);
+	clk_disable(dev->clk);
 #endif
 
 	ep0_idle (dev);
@@ -1202,8 +1204,7 @@ static void udc_enable (struct pxa2xx_udc *dev)
 
 #ifdef	CONFIG_ARCH_PXA
         /* Enable clock for USB device */
-	pxa_set_cken(CKEN_USB, 1);
-	udelay(5);
+	clk_enable(dev->clk);
 #endif
 
 	/* try to clear these bits before we enable the udc */
@@ -2137,6 +2138,14 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENODEV;
 
+#ifdef	CONFIG_ARCH_PXA
+	dev->clk = clk_get(&pdev->dev, "UDCCLK");
+	if (IS_ERR(dev->clk)) {
+		retval = PTR_ERR(dev->clk);
+		goto err_clk;
+	}
+#endif
+
 	pr_debug("%s: IRQ %d%s%s\n", driver_name, irq,
 		dev->has_cfr ? "" : " (!cfr)",
 		SIZE_STR "(pio)"
@@ -2152,11 +2161,10 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 			dev_dbg(&pdev->dev,
 				"can't get vbus gpio %d, err: %d\n",
 				dev->mach->gpio_vbus, retval);
-			return -EBUSY;
+			goto err_gpio_vbus;
 		}
 		gpio_direction_input(dev->mach->gpio_vbus);
 		vbus_irq = gpio_to_irq(dev->mach->gpio_vbus);
-		set_irq_type(vbus_irq, IRQT_BOTHEDGE);
 	} else
 		vbus_irq = 0;
 
@@ -2166,9 +2174,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 			dev_dbg(&pdev->dev,
 				"can't get pullup gpio %d, err: %d\n",
 				dev->mach->gpio_pullup, retval);
-			if (dev->mach->gpio_vbus)
-				gpio_free(dev->mach->gpio_vbus);
-			return -EBUSY;
+			goto err_gpio_pullup;
 		}
 		gpio_direction_output(dev->mach->gpio_pullup, 0);
 	}
@@ -2195,11 +2201,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	if (retval != 0) {
 		printk(KERN_ERR "%s: can't get irq %d, err %d\n",
 			driver_name, irq, retval);
-		if (dev->mach->gpio_pullup)
-			gpio_free(dev->mach->gpio_pullup);
-		if (dev->mach->gpio_vbus)
-			gpio_free(dev->mach->gpio_vbus);
-		return -EBUSY;
+		goto err_irq1;
 	}
 	dev->got_irq = 1;
 
@@ -2213,12 +2215,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
 lubbock_fail0:
-			free_irq(irq, dev);
-			if (dev->mach->gpio_pullup)
-				gpio_free(dev->mach->gpio_pullup);
-			if (dev->mach->gpio_vbus)
-				gpio_free(dev->mach->gpio_vbus);
-			return -EBUSY;
+			goto err_irq_lub;
 		}
 		retval = request_irq(LUBBOCK_USB_IRQ,
 				lubbock_vbus_irq,
@@ -2234,22 +2231,37 @@ lubbock_fail0:
 #endif
 	if (vbus_irq) {
 		retval = request_irq(vbus_irq, udc_vbus_irq,
-				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
+				IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				driver_name, dev);
 		if (retval != 0) {
 			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
 				driver_name, vbus_irq, retval);
-			free_irq(irq, dev);
-			if (dev->mach->gpio_pullup)
-				gpio_free(dev->mach->gpio_pullup);
-			if (dev->mach->gpio_vbus)
-				gpio_free(dev->mach->gpio_vbus);
-			return -EBUSY;
+			goto err_vbus_irq;
 		}
 	}
 	create_proc_files();
 
 	return 0;
+
+ err_vbus_irq:
+#ifdef	CONFIG_ARCH_LUBBOCK
+	free_irq(LUBBOCK_USB_DISC_IRQ, dev);
+ err_irq_lub:
+#endif
+	free_irq(irq, dev);
+ err_irq1:
+	if (dev->mach->gpio_pullup)
+		gpio_free(dev->mach->gpio_pullup);
+ err_gpio_pullup:
+	if (dev->mach->gpio_vbus)
+		gpio_free(dev->mach->gpio_vbus);
+ err_gpio_vbus:
+#ifdef	CONFIG_ARCH_PXA
+	clk_put(dev->clk);
+ err_clk:
+#endif
+	return retval;
 }
 
 static void pxa2xx_udc_shutdown(struct platform_device *_dev)
@@ -2283,6 +2295,10 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 	}
 	if (dev->mach->gpio_pullup)
 		gpio_free(dev->mach->gpio_pullup);
+
+#ifdef	CONFIG_ARCH_PXA
+	clk_put(dev->clk);
+#endif
 
 	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;

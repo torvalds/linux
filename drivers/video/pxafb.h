@@ -40,6 +40,7 @@ struct pxafb_dma_descriptor {
 struct pxafb_info {
 	struct fb_info		fb;
 	struct device		*dev;
+	struct clk		*clk;
 
 	/*
 	 * These are the addresses we mapped

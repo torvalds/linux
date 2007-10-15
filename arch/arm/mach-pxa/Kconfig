@@ -1,6 +1,24 @@
 if ARCH_PXA
 
-menu "Intel PXA2xx Implementations"
+menu "Intel PXA2xx/PXA3xx Implementations"
+
+if PXA3xx
+
+menu "Supported PXA3xx Processor Variants"
+
+config CPU_PXA300
+	bool "PXA300 (codename Monahans-L)"
+
+config CPU_PXA310
+	bool "PXA310 (codename Monahans-LV)"
+	select CPU_PXA300
+
+config CPU_PXA320
+	bool "PXA320 (codename Monahans-P)"
+
+endmenu
+
+endif
 
 choice
 	prompt "Select target board"
@@ -40,6 +58,15 @@ config MACH_TRIZEPS4
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
 	select PXA27x
+
+config MACH_ZYLONITE
+	bool "PXA3xx Development Platform"
+	select PXA3xx
+
+config MACH_ARMCORE
+	bool "CompuLab CM-X270 modules"
+	select PXA27x
+	select IWMMXT
 
 endchoice
 
@@ -129,6 +156,11 @@ config PXA27x
 	bool
 	help
 	  Select code specific to PXA27x variants
+
+config PXA3xx
+	bool
+	help
+	  Select code specific to PXA3xx variants
 
 config PXA_SHARP_C7xx
 	bool

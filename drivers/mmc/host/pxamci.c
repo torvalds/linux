@@ -23,6 +23,8 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/mmc/host.h>
 
 #include <asm/dma.h>
@@ -44,6 +46,8 @@ struct pxamci_host {
 	spinlock_t		lock;
 	struct resource		*res;
 	void __iomem		*base;
+	struct clk		*clk;
+	unsigned long		clkrate;
 	int			irq;
 	int			dma;
 	unsigned int		clkrt;
@@ -119,7 +123,7 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	writel(nob, host->base + MMC_NOB);
 	writel(data->blksz, host->base + MMC_BLKLEN);
 
-	clks = (unsigned long long)data->timeout_ns * CLOCKRATE;
+	clks = (unsigned long long)data->timeout_ns * host->clkrate;
 	do_div(clks, 1000000000UL);
 	timeout = (unsigned int)clks + (data->timeout_clks << host->clkrt);
 	writel((timeout + 255) / 256, host->base + MMC_RDTO);
@@ -365,18 +369,25 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct pxamci_host *host = mmc_priv(mmc);
 
 	if (ios->clock) {
-		unsigned int clk = CLOCKRATE / ios->clock;
-		if (CLOCKRATE / clk > ios->clock)
+		unsigned long rate = host->clkrate;
+		unsigned int clk = rate / ios->clock;
+
+		/*
+		 * clk might result in a lower divisor than we
+		 * desire.  check for that condition and adjust
+		 * as appropriate.
+		 */
+		if (rate / clk > ios->clock)
 			clk <<= 1;
 		host->clkrt = fls(clk) - 1;
-		pxa_set_cken(CKEN_MMC, 1);
+		clk_enable(host->clk);
 
 		/*
 		 * we write clkrt on the next command
 		 */
 	} else {
 		pxamci_stop_clock(host);
-		pxa_set_cken(CKEN_MMC, 0);
+		clk_disable(host->clk);
 	}
 
 	if (host->power_mode != ios->power_mode) {
@@ -462,8 +473,6 @@ static int pxamci_probe(struct platform_device *pdev)
 	}
 
 	mmc->ops = &pxamci_ops;
-	mmc->f_min = CLOCKRATE_MIN;
-	mmc->f_max = CLOCKRATE_MAX;
 
 	/*
 	 * We can do SG-DMA, but we don't because we never know how much
@@ -490,6 +499,22 @@ static int pxamci_probe(struct platform_device *pdev)
 	host->mmc = mmc;
 	host->dma = -1;
 	host->pdata = pdev->dev.platform_data;
+
+	host->clk = clk_get(&pdev->dev, "MMCCLK");
+	if (IS_ERR(host->clk)) {
+		ret = PTR_ERR(host->clk);
+		host->clk = NULL;
+		goto out;
+	}
+
+	host->clkrate = clk_get_rate(host->clk);
+
+	/*
+	 * Calculate minimum clock rate, rounding up.
+	 */
+	mmc->f_min = (host->clkrate + 63) / 64;
+	mmc->f_max = host->clkrate;
+
 	mmc->ocr_avail = host->pdata ?
 			 host->pdata->ocr_mask :
 			 MMC_VDD_32_33|MMC_VDD_33_34;
@@ -554,6 +579,8 @@ static int pxamci_probe(struct platform_device *pdev)
 			iounmap(host->base);
 		if (host->sg_cpu)
 			dma_free_coherent(&pdev->dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
+		if (host->clk)
+			clk_put(host->clk);
 	}
 	if (mmc)
 		mmc_free_host(mmc);
@@ -587,6 +614,8 @@ static int pxamci_remove(struct platform_device *pdev)
 		pxa_free_dma(host->dma);
 		iounmap(host->base);
 		dma_free_coherent(&pdev->dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
+
+		clk_put(host->clk);
 
 		release_resource(host->res);
 

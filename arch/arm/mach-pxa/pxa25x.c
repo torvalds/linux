@@ -30,6 +30,7 @@
 
 #include "generic.h"
 #include "devices.h"
+#include "clock.h"
 
 /*
  * Various clock factors driven by the CCCR register.
@@ -53,7 +54,7 @@ static unsigned char N2_clk_mult[8] = { 0, 0, 2, 3, 4, 0, 6, 0 };
  * We assume these values have been applied via a fcs.
  * If info is not 0 we also display the current settings.
  */
-unsigned int get_clk_frequency_khz(int info)
+unsigned int pxa25x_get_clk_frequency_khz(int info)
 {
 	unsigned long cccr, turbo;
 	unsigned int l, L, m, M, n2, N;
@@ -86,27 +87,48 @@ unsigned int get_clk_frequency_khz(int info)
 	return (turbo & 1) ? (N/1000) : (M/1000);
 }
 
-EXPORT_SYMBOL(get_clk_frequency_khz);
-
 /*
  * Return the current memory clock frequency in units of 10kHz
  */
-unsigned int get_memclk_frequency_10khz(void)
+unsigned int pxa25x_get_memclk_frequency_10khz(void)
 {
 	return L_clk_mult[(CCCR >> 0) & 0x1f] * BASE_CLK / 10000;
 }
 
-EXPORT_SYMBOL(get_memclk_frequency_10khz);
-
-/*
- * Return the current LCD clock frequency in units of 10kHz
- */
-unsigned int get_lcdclk_frequency_10khz(void)
+static unsigned long clk_pxa25x_lcd_getrate(struct clk *clk)
 {
-	return get_memclk_frequency_10khz();
+	return pxa25x_get_memclk_frequency_10khz() * 10000;
 }
 
-EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
+static const struct clkops clk_pxa25x_lcd_ops = {
+	.enable		= clk_cken_enable,
+	.disable	= clk_cken_disable,
+	.getrate	= clk_pxa25x_lcd_getrate,
+};
+
+/*
+ * 3.6864MHz -> OST, GPIO, SSP, PWM, PLLs (95.842MHz, 147.456MHz)
+ * 95.842MHz -> MMC 19.169MHz, I2C 31.949MHz, FICP 47.923MHz, USB 47.923MHz
+ * 147.456MHz -> UART 14.7456MHz, AC97 12.288MHz, I2S 5.672MHz (allegedly)
+ */
+static struct clk pxa25x_clks[] = {
+	INIT_CK("LCDCLK", LCD, &clk_pxa25x_lcd_ops, &pxa_device_fb.dev),
+	INIT_CKEN("UARTCLK", FFUART, 14745600, 1, &pxa_device_ffuart.dev),
+	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
+	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
+	INIT_CKEN("UARTCLK", STUART, 14745600, 1, NULL),
+	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa_device_udc.dev),
+	INIT_CKEN("MMCCLK", MMC, 19169000, 0, &pxa_device_mci.dev),
+	INIT_CKEN("I2CCLK", I2C, 31949000, 0, &pxa_device_i2c.dev),
+	/*
+	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
+	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
+	INIT_CKEN("SSPCLK",  SSP,  3686400,  0, NULL),
+	INIT_CKEN("I2SCLK",  I2S,  14745600, 0, NULL),
+	INIT_CKEN("NSSPCLK", NSSP, 3686400,  0, NULL),
+	*/
+	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
+};
 
 #ifdef CONFIG_PM
 
@@ -205,10 +227,52 @@ static void __init pxa25x_init_pm(void)
 }
 #endif
 
+/* PXA25x: supports wakeup from GPIO0..GPIO15 and RTC alarm
+ */
+
+static int pxa25x_set_wake(unsigned int irq, unsigned int on)
+{
+	int gpio = IRQ_TO_GPIO(irq);
+	uint32_t gpio_bit, mask = 0;
+
+	if (gpio >= 0 && gpio <= 15) {
+		gpio_bit = GPIO_bit(gpio);
+		mask = gpio_bit;
+		if (on) {
+			if (GRER(gpio) | gpio_bit)
+				PRER |= gpio_bit;
+			else
+				PRER &= ~gpio_bit;
+
+			if (GFER(gpio) | gpio_bit)
+				PFER |= gpio_bit;
+			else
+				PFER &= ~gpio_bit;
+		}
+		goto set_pwer;
+	}
+
+	if (irq == IRQ_RTCAlrm) {
+		mask = PWER_RTC;
+		goto set_pwer;
+	}
+
+	return -EINVAL;
+
+set_pwer:
+	if (on)
+		PWER |= mask;
+	else
+		PWER &=~mask;
+
+	return 0;
+}
+
 void __init pxa25x_init_irq(void)
 {
 	pxa_init_irq_low();
 	pxa_init_irq_gpio(85);
+	pxa_init_irq_set_wake(pxa25x_set_wake);
 }
 
 static struct platform_device *pxa25x_devices[] __initdata = {
@@ -229,6 +293,8 @@ static int __init pxa25x_init(void)
 	int ret = 0;
 
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+		clks_register(pxa25x_clks, ARRAY_SIZE(pxa25x_clks));
+
 		if ((ret = pxa_init_dma(16)))
 			return ret;
 #ifdef CONFIG_PM

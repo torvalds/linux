@@ -25,10 +25,6 @@
 #include <linux/pm.h>
 #include <linux/string.h>
 
-#include <linux/sched.h>
-#include <asm/cnt32_to_63.h>
-#include <asm/div64.h>
-
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/system.h>
@@ -47,66 +43,39 @@
 #include "generic.h"
 
 /*
- * This is the PXA2xx sched_clock implementation. This has a resolution
- * of at least 308ns and a maximum value that depends on the value of
- * CLOCK_TICK_RATE.
- *
- * The return value is guaranteed to be monotonic in that range as
- * long as there is always less than 582 seconds between successive
- * calls to this function.
+ * Get the clock frequency as reflected by CCCR and the turbo flag.
+ * We assume these values have been applied via a fcs.
+ * If info is not 0 we also display the current settings.
  */
-unsigned long long sched_clock(void)
+unsigned int get_clk_frequency_khz(int info)
 {
-	unsigned long long v = cnt32_to_63(OSCR);
-	/* Note: top bit ov v needs cleared unless multiplier is even. */
-
-#if	CLOCK_TICK_RATE == 3686400
-	/* 1E9 / 3686400 => 78125 / 288, max value = 32025597s (370 days). */
-	/* The <<1 is used to get rid of tick.hi top bit */
-	v *= 78125<<1;
-	do_div(v, 288<<1);
-#elif	CLOCK_TICK_RATE == 3250000
-	/* 1E9 / 3250000 => 4000 / 13, max value = 709490156s (8211 days) */
-	v *= 4000;
-	do_div(v, 13);
-#elif	CLOCK_TICK_RATE == 3249600
-	/* 1E9 / 3249600 => 625000 / 2031, max value = 4541295s (52 days) */
-	v *= 625000;
-	do_div(v, 2031);
-#else
-#warning "consider fixing sched_clock for your value of CLOCK_TICK_RATE"
-	/*
-	 * 96-bit math to perform tick * NSEC_PER_SEC / CLOCK_TICK_RATE for
-	 * any value of CLOCK_TICK_RATE. Max value is in the 80 thousand
-	 * years range and truncation to unsigned long long limits it to
-	 * sched_clock's max range of ~584 years.  This is nice but with
-	 * higher computation cost.
-	 */
-	{
-		union {
-			unsigned long long val;
-			struct { unsigned long lo, hi; };
-		} x;
-		unsigned long long y;
-
-		x.val = v;
-		x.hi &= 0x7fffffff;
-		y = (unsigned long long)x.lo * NSEC_PER_SEC;
-		x.lo = y;
-		y = (y >> 32) + (unsigned long long)x.hi * NSEC_PER_SEC;
-		x.hi = do_div(y, CLOCK_TICK_RATE);
-		do_div(x.val, CLOCK_TICK_RATE);
-		x.hi += y;
-		v = x.val;
-	}
-#endif
-
-	return v;
+	if (cpu_is_pxa21x() || cpu_is_pxa25x())
+		return pxa25x_get_clk_frequency_khz(info);
+	else if (cpu_is_pxa27x())
+		return pxa27x_get_clk_frequency_khz(info);
+	else
+		return pxa3xx_get_clk_frequency_khz(info);
 }
+EXPORT_SYMBOL(get_clk_frequency_khz);
+
+/*
+ * Return the current memory clock frequency in units of 10kHz
+ */
+unsigned int get_memclk_frequency_10khz(void)
+{
+	if (cpu_is_pxa21x() || cpu_is_pxa25x())
+		return pxa25x_get_memclk_frequency_10khz();
+	else if (cpu_is_pxa27x())
+		return pxa27x_get_memclk_frequency_10khz();
+	else
+		return pxa3xx_get_memclk_frequency_10khz();
+}
+EXPORT_SYMBOL(get_memclk_frequency_10khz);
 
 /*
  * Handy function to set GPIO alternate functions
  */
+int pxa_last_gpio;
 
 int pxa_gpio_mode(int gpio_mode)
 {
@@ -115,7 +84,7 @@ int pxa_gpio_mode(int gpio_mode)
 	int fn = (gpio_mode & GPIO_MD_MASK_FN) >> 8;
 	int gafr;
 
-	if (gpio > PXA_LAST_GPIO)
+	if (gpio > pxa_last_gpio)
 		return -EINVAL;
 
 	local_irq_save(flags);
@@ -135,6 +104,44 @@ int pxa_gpio_mode(int gpio_mode)
 }
 
 EXPORT_SYMBOL(pxa_gpio_mode);
+
+int gpio_direction_input(unsigned gpio)
+{
+	unsigned long flags;
+	u32 mask;
+
+	if (gpio > pxa_last_gpio)
+		return -EINVAL;
+
+	mask = GPIO_bit(gpio);
+	local_irq_save(flags);
+	GPDR(gpio) &= ~mask;
+	local_irq_restore(flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(gpio_direction_input);
+
+int gpio_direction_output(unsigned gpio, int value)
+{
+	unsigned long flags;
+	u32 mask;
+
+	if (gpio > pxa_last_gpio)
+		return -EINVAL;
+
+	mask = GPIO_bit(gpio);
+	local_irq_save(flags);
+	if (value)
+		GPSR(gpio) = mask;
+	else
+		GPCR(gpio) = mask;
+	GPDR(gpio) |= mask;
+	local_irq_restore(flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(gpio_direction_output);
 
 /*
  * Return GPIO level
@@ -159,7 +166,7 @@ EXPORT_SYMBOL(pxa_gpio_set_value);
 /*
  * Routine to safely enable or disable a clock in the CKEN
  */
-void pxa_set_cken(int clock, int enable)
+void __pxa_set_cken(int clock, int enable)
 {
 	unsigned long flags;
 	local_irq_save(flags);
@@ -172,7 +179,7 @@ void pxa_set_cken(int clock, int enable)
 	local_irq_restore(flags);
 }
 
-EXPORT_SYMBOL(pxa_set_cken);
+EXPORT_SYMBOL(__pxa_set_cken);
 
 /*
  * Intel PXA2xx internal register mapping.
@@ -329,21 +336,80 @@ void __init set_pxa_fb_parent(struct device *parent_dev)
 	pxa_device_fb.dev.parent = parent_dev;
 }
 
+static struct resource pxa_resource_ffuart[] = {
+	{
+		.start	= __PREG(FFUART),
+		.end	= __PREG(FFUART) + 35,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_FFUART,
+		.end	= IRQ_FFUART,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 struct platform_device pxa_device_ffuart= {
 	.name		= "pxa2xx-uart",
 	.id		= 0,
+	.resource	= pxa_resource_ffuart,
+	.num_resources	= ARRAY_SIZE(pxa_resource_ffuart),
 };
+
+static struct resource pxa_resource_btuart[] = {
+	{
+		.start	= __PREG(BTUART),
+		.end	= __PREG(BTUART) + 35,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_BTUART,
+		.end	= IRQ_BTUART,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 struct platform_device pxa_device_btuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 1,
+	.resource	= pxa_resource_btuart,
+	.num_resources	= ARRAY_SIZE(pxa_resource_btuart),
 };
+
+static struct resource pxa_resource_stuart[] = {
+	{
+		.start	= __PREG(STUART),
+		.end	= __PREG(STUART) + 35,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_STUART,
+		.end	= IRQ_STUART,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 struct platform_device pxa_device_stuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 2,
+	.resource	= pxa_resource_stuart,
+	.num_resources	= ARRAY_SIZE(pxa_resource_stuart),
 };
+
+static struct resource pxa_resource_hwuart[] = {
+	{
+		.start	= __PREG(HWUART),
+		.end	= __PREG(HWUART) + 47,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_HWUART,
+		.end	= IRQ_HWUART,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 struct platform_device pxa_device_hwuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 3,
+	.resource	= pxa_resource_hwuart,
+	.num_resources	= ARRAY_SIZE(pxa_resource_hwuart),
 };
 
 static struct resource pxai2c_resources[] = {

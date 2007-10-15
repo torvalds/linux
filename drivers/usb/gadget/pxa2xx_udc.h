@@ -125,6 +125,7 @@ struct pxa2xx_udc {
 	struct timer_list			timer;
 
 	struct device				*dev;
+	struct clk				*clk;
 	struct pxa2xx_udc_mach_info		*mach;
 	u64					dma_mask;
 	struct pxa2xx_ep			ep [PXA_UDC_NUM_ENDPOINTS];

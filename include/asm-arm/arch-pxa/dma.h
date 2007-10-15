@@ -30,6 +30,10 @@ typedef enum {
 	DMA_PRIO_LOW = 2
 } pxa_dma_prio;
 
+#if defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)
+#define HAVE_ARCH_PCI_SET_DMA_MASK	1
+#endif
+
 /*
  * DMA registration
  */

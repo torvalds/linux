@@ -27,6 +27,7 @@
 
 #include "generic.h"
 #include "devices.h"
+#include "clock.h"
 
 /* Crystal clock: 13MHz */
 #define BASE_CLK	13000000
@@ -36,7 +37,7 @@
  * We assume these values have been applied via a fcs.
  * If info is not 0 we also display the current settings.
  */
-unsigned int get_clk_frequency_khz( int info)
+unsigned int pxa27x_get_clk_frequency_khz(int info)
 {
 	unsigned long ccsr, clkcfg;
 	unsigned int l, L, m, M, n2, N, S;
@@ -79,7 +80,7 @@ unsigned int get_clk_frequency_khz( int info)
  * Return the current mem clock frequency in units of 10kHz as
  * reflected by CCCR[A], B, and L
  */
-unsigned int get_memclk_frequency_10khz(void)
+unsigned int pxa27x_get_memclk_frequency_10khz(void)
 {
 	unsigned long ccsr, clkcfg;
 	unsigned int l, L, m, M;
@@ -104,7 +105,7 @@ unsigned int get_memclk_frequency_10khz(void)
 /*
  * Return the current LCD clock frequency in units of 10kHz as
  */
-unsigned int get_lcdclk_frequency_10khz(void)
+static unsigned int pxa27x_get_lcdclk_frequency_10khz(void)
 {
 	unsigned long ccsr;
 	unsigned int l, L, k, K;
@@ -120,9 +121,47 @@ unsigned int get_lcdclk_frequency_10khz(void)
 	return (K / 10000);
 }
 
-EXPORT_SYMBOL(get_clk_frequency_khz);
-EXPORT_SYMBOL(get_memclk_frequency_10khz);
-EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
+static unsigned long clk_pxa27x_lcd_getrate(struct clk *clk)
+{
+	return pxa27x_get_lcdclk_frequency_10khz() * 10000;
+}
+
+static const struct clkops clk_pxa27x_lcd_ops = {
+	.enable		= clk_cken_enable,
+	.disable	= clk_cken_disable,
+	.getrate	= clk_pxa27x_lcd_getrate,
+};
+
+static struct clk pxa27x_clks[] = {
+	INIT_CK("LCDCLK", LCD,    &clk_pxa27x_lcd_ops, &pxa_device_fb.dev),
+	INIT_CK("CAMCLK", CAMERA, &clk_pxa27x_lcd_ops, NULL),
+
+	INIT_CKEN("UARTCLK", FFUART, 14857000, 1, &pxa_device_ffuart.dev),
+	INIT_CKEN("UARTCLK", BTUART, 14857000, 1, &pxa_device_btuart.dev),
+	INIT_CKEN("UARTCLK", STUART, 14857000, 1, NULL),
+
+	INIT_CKEN("I2SCLK",  I2S,  14682000, 0, &pxa_device_i2s.dev),
+	INIT_CKEN("I2CCLK",  I2C,  32842000, 0, &pxa_device_i2c.dev),
+	INIT_CKEN("UDCCLK",  USB,  48000000, 5, &pxa_device_udc.dev),
+	INIT_CKEN("MMCCLK",  MMC,  19500000, 0, &pxa_device_mci.dev),
+	INIT_CKEN("FICPCLK", FICP, 48000000, 0, &pxa_device_ficp.dev),
+
+	INIT_CKEN("USBCLK", USB,    48000000, 0, &pxa27x_device_ohci.dev),
+	INIT_CKEN("I2CCLK", PWRI2C, 13000000, 0, &pxa27x_device_i2c_power.dev),
+	INIT_CKEN("KBDCLK", KEYPAD, 32768, 0, NULL),
+
+	/*
+	INIT_CKEN("PWMCLK",  PWM0, 13000000, 0, NULL),
+	INIT_CKEN("SSPCLK",  SSP1, 13000000, 0, NULL),
+	INIT_CKEN("SSPCLK",  SSP2, 13000000, 0, NULL),
+	INIT_CKEN("SSPCLK",  SSP3, 13000000, 0, NULL),
+	INIT_CKEN("MSLCLK",  MSL,  48000000, 0, NULL),
+	INIT_CKEN("USIMCLK", USIM, 48000000, 0, NULL),
+	INIT_CKEN("MSTKCLK", MEMSTK, 19500000, 0, NULL),
+	INIT_CKEN("IMCLK",   IM,   0, 0, NULL),
+	INIT_CKEN("MEMCLK",  MEMC, 0, 0, NULL),
+	*/
+};
 
 #ifdef CONFIG_PM
 
@@ -267,6 +306,69 @@ static void __init pxa27x_init_pm(void)
 }
 #endif
 
+/* PXA27x:  Various gpios can issue wakeup events.  This logic only
+ * handles the simple cases, not the WEMUX2 and WEMUX3 options
+ */
+#define PXA27x_GPIO_NOWAKE_MASK \
+        ((1 << 8) | (1 << 7) | (1 << 6) | (1 << 5) | (1 << 2))
+#define WAKEMASK(gpio) \
+        (((gpio) <= 15) \
+                 ? ((1 << (gpio)) & ~PXA27x_GPIO_NOWAKE_MASK) \
+                 : ((gpio == 35) ? (1 << 24) : 0))
+
+static int pxa27x_set_wake(unsigned int irq, unsigned int on)
+{
+	int gpio = IRQ_TO_GPIO(irq);
+	uint32_t mask;
+
+	if ((gpio >= 0 && gpio <= 15) || (gpio == 35)) {
+		if (WAKEMASK(gpio) == 0)
+			return -EINVAL;
+
+		mask = WAKEMASK(gpio);
+
+		if (on) {
+			if (GRER(gpio) | GPIO_bit(gpio))
+				PRER |= mask;
+			else
+				PRER &= ~mask;
+
+			if (GFER(gpio) | GPIO_bit(gpio))
+				PFER |= mask;
+			else
+				PFER &= ~mask;
+		}
+		goto set_pwer;
+	}
+
+	switch (irq) {
+	case IRQ_RTCAlrm:
+		mask = PWER_RTC;
+		break;
+	case IRQ_USB:
+		mask = 1u << 26;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+set_pwer:
+	if (on)
+		PWER |= mask;
+	else
+		PWER &=~mask;
+
+	return 0;
+}
+
+void __init pxa27x_init_irq(void)
+{
+	pxa_init_irq_low();
+	pxa_init_irq_high();
+	pxa_init_irq_gpio(128);
+	pxa_init_irq_set_wake(pxa27x_set_wake);
+}
+
 /*
  * device registration specific to PXA27x.
  */
@@ -286,7 +388,7 @@ static struct resource pxa27x_ohci_resources[] = {
 	},
 };
 
-static struct platform_device pxa27x_device_ohci = {
+struct platform_device pxa27x_device_ohci = {
 	.name		= "pxa27x-ohci",
 	.id		= -1,
 	.dev		= {
@@ -314,7 +416,7 @@ static struct resource i2c_power_resources[] = {
 	},
 };
 
-static struct platform_device pxa27x_device_i2c_power = {
+struct platform_device pxa27x_device_i2c_power = {
 	.name		= "pxa2xx-i2c",
 	.id		= 1,
 	.resource	= i2c_power_resources,
@@ -336,17 +438,12 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_ohci,
 };
 
-void __init pxa27x_init_irq(void)
-{
-	pxa_init_irq_low();
-	pxa_init_irq_high();
-	pxa_init_irq_gpio(128);
-}
-
 static int __init pxa27x_init(void)
 {
 	int ret = 0;
 	if (cpu_is_pxa27x()) {
+		clks_register(pxa27x_clks, ARRAY_SIZE(pxa27x_clks));
+
 		if ((ret = pxa_init_dma(32)))
 			return ret;
 #ifdef CONFIG_PM

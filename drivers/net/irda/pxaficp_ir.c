@@ -23,6 +23,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/clk.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>
@@ -87,7 +88,29 @@ struct pxa_irda {
 
 	struct device		*dev;
 	struct pxaficp_platform_data *pdata;
+	struct clk		*fir_clk;
+	struct clk		*sir_clk;
+	struct clk		*cur_clk;
 };
+
+static inline void pxa_irda_disable_clk(struct pxa_irda *si)
+{
+	if (si->cur_clk)
+		clk_disable(si->cur_clk);
+	si->cur_clk = NULL;
+}
+
+static inline void pxa_irda_enable_firclk(struct pxa_irda *si)
+{
+	si->cur_clk = si->fir_clk;
+	clk_enable(si->fir_clk);
+}
+
+static inline void pxa_irda_enable_sirclk(struct pxa_irda *si)
+{
+	si->cur_clk = si->sir_clk;
+	clk_enable(si->sir_clk);
+}
 
 
 #define IS_FIR(si)		((si)->speed >= 4000000)
@@ -134,7 +157,7 @@ static int pxa_irda_set_speed(struct pxa_irda *si, int speed)
 			DCSR(si->rxdma) &= ~DCSR_RUN;
 			/* disable FICP */
 			ICCR0 = 0;
-			pxa_set_cken(CKEN_FICP, 0);
+			pxa_irda_disable_clk(si);
 
 			/* set board transceiver to SIR mode */
 			si->pdata->transceiver_mode(si->dev, IR_SIRMODE);
@@ -144,7 +167,7 @@ static int pxa_irda_set_speed(struct pxa_irda *si, int speed)
 			pxa_gpio_mode(GPIO47_STTXD_MD);
 
 			/* enable the STUART clock */
-			pxa_set_cken(CKEN_STUART, 1);
+			pxa_irda_enable_sirclk(si);
 		}
 
 		/* disable STUART first */
@@ -169,7 +192,7 @@ static int pxa_irda_set_speed(struct pxa_irda *si, int speed)
 		/* disable STUART */
 		STIER = 0;
 		STISR = 0;
-		pxa_set_cken(CKEN_STUART, 0);
+		pxa_irda_disable_clk(si);
 
 		/* disable FICP first */
 		ICCR0 = 0;
@@ -182,7 +205,7 @@ static int pxa_irda_set_speed(struct pxa_irda *si, int speed)
 		pxa_gpio_mode(GPIO47_ICPTXD_MD);
 
 		/* enable the FICP clock */
-		pxa_set_cken(CKEN_FICP, 1);
+		pxa_irda_enable_firclk(si);
 
 		si->speed = speed;
 		pxa_irda_fir_dma_rx_start(si);
@@ -592,16 +615,15 @@ static void pxa_irda_shutdown(struct pxa_irda *si)
 	STIER = 0;
 	/* disable STUART SIR mode */
 	STISR = 0;
-	/* disable the STUART clock */
-	pxa_set_cken(CKEN_STUART, 0);
 
 	/* disable DMA */
 	DCSR(si->txdma) &= ~DCSR_RUN;
 	DCSR(si->rxdma) &= ~DCSR_RUN;
 	/* disable FICP */
 	ICCR0 = 0;
-	/* disable the FICP clock */
-	pxa_set_cken(CKEN_FICP, 0);
+
+	/* disable the STUART or FICP clocks */
+	pxa_irda_disable_clk(si);
 
 	DRCMR17 = 0;
 	DRCMR18 = 0;
@@ -792,6 +814,13 @@ static int pxa_irda_probe(struct platform_device *pdev)
 	si->dev = &pdev->dev;
 	si->pdata = pdev->dev.platform_data;
 
+	si->sir_clk = clk_get(&pdev->dev, "UARTCLK");
+	si->fir_clk = clk_get(&pdev->dev, "FICPCLK");
+	if (IS_ERR(si->sir_clk) || IS_ERR(si->fir_clk)) {
+		err = PTR_ERR(IS_ERR(si->sir_clk) ? si->sir_clk : si->fir_clk);
+		goto err_mem_4;
+	}
+
 	/*
 	 * Initialise the SIR buffers
 	 */
@@ -831,6 +860,10 @@ static int pxa_irda_probe(struct platform_device *pdev)
 err_mem_5:
 		kfree(si->rx_buff.head);
 err_mem_4:
+		if (si->sir_clk && !IS_ERR(si->sir_clk))
+			clk_put(si->sir_clk);
+		if (si->fir_clk && !IS_ERR(si->fir_clk))
+			clk_put(si->fir_clk);
 		free_netdev(dev);
 err_mem_3:
 		release_mem_region(__PREG(FICP), 0x1c);
@@ -850,6 +883,8 @@ static int pxa_irda_remove(struct platform_device *_dev)
 		unregister_netdev(dev);
 		kfree(si->tx_buff.head);
 		kfree(si->rx_buff.head);
+		clk_put(si->fir_clk);
+		clk_put(si->sir_clk);
 		free_netdev(dev);
 	}
 
