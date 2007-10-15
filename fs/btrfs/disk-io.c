@@ -436,8 +436,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	init_bit_radix(&fs_info->pending_del_radix);
 	init_bit_radix(&fs_info->extent_ins_radix);
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
-	INIT_RADIX_TREE(&fs_info->block_group_radix, GFP_KERNEL);
-	INIT_RADIX_TREE(&fs_info->block_group_data_radix, GFP_KERNEL);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	memset(&fs_info->super_kobj, 0, sizeof(fs_info->super_kobj));
@@ -457,6 +455,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 			     fs_info->btree_inode->i_mapping,
 			     GFP_NOFS);
 	extent_map_tree_init(&fs_info->free_space_cache,
+			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+	extent_map_tree_init(&fs_info->block_group_cache,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 	fs_info->closing = 0;

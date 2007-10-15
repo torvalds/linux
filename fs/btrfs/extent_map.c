@@ -574,7 +574,7 @@ out:
 	return set;
 
 search_again:
-	if (start >= end)
+	if (start > end)
 		goto out;
 	write_unlock_irqrestore(&tree->lock, flags);
 	if (mask & __GFP_WAIT)
@@ -818,6 +818,21 @@ int set_extent_dirty(struct extent_map_tree *tree, u64 start, u64 end,
 			      mask);
 }
 EXPORT_SYMBOL(set_extent_dirty);
+
+int set_extent_bits(struct extent_map_tree *tree, u64 start, u64 end,
+		    int bits, gfp_t mask)
+{
+	return set_extent_bit(tree, start, end, bits, 0, NULL,
+			      mask);
+}
+EXPORT_SYMBOL(set_extent_bits);
+
+int clear_extent_bits(struct extent_map_tree *tree, u64 start, u64 end,
+		      int bits, gfp_t mask)
+{
+	return clear_extent_bit(tree, start, end, bits, 0, 0, mask);
+}
+EXPORT_SYMBOL(clear_extent_bits);
 
 int set_extent_delalloc(struct extent_map_tree *tree, u64 start, u64 end,
 		     gfp_t mask)
@@ -1138,7 +1153,6 @@ int set_state_private(struct extent_map_tree *tree, u64 start, u64 private)
 out:
 	write_unlock_irq(&tree->lock);
 	return ret;
-
 }
 
 int get_state_private(struct extent_map_tree *tree, u64 start, u64 *private)

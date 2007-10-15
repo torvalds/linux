@@ -271,8 +271,6 @@ struct btrfs_csum_item {
 } __attribute__ ((__packed__));
 
 /* tag for the radix tree of block groups in ram */
-#define BTRFS_BLOCK_GROUP_DIRTY 0
-#define BTRFS_BLOCK_GROUP_AVAIL 1
 #define BTRFS_BLOCK_GROUP_SIZE (256 * 1024 * 1024)
 
 
@@ -285,7 +283,6 @@ struct btrfs_block_group_item {
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
-	struct radix_tree_root *radix;
 	u64 first_free;
 	u64 last_alloc;
 	u64 pinned;
@@ -301,10 +298,9 @@ struct btrfs_fs_info {
 	struct radix_tree_root fs_roots_radix;
 	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
-	struct radix_tree_root block_group_radix;
-	struct radix_tree_root block_group_data_radix;
 	struct radix_tree_root extent_ins_radix;
 	struct extent_map_tree free_space_cache;
+	struct extent_map_tree block_group_cache;
 	u64 generation;
 	u64 last_trans_committed;
 	struct btrfs_transaction *running_transaction;
