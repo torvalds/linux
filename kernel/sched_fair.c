@@ -116,22 +116,28 @@ static inline struct task_struct *task_of(struct sched_entity *se)
  * Scheduling class tree data structure manipulation methods:
  */
 
+static inline u64
+max_vruntime(u64 min_vruntime, u64 vruntime)
+{
+	if ((vruntime > min_vruntime) ||
+	    (min_vruntime > (1ULL << 61) && vruntime < (1ULL << 50)))
+		min_vruntime = vruntime;
+
+	return min_vruntime;
+}
+
 static inline void
 set_leftmost(struct cfs_rq *cfs_rq, struct rb_node *leftmost)
 {
 	struct sched_entity *se;
 
 	cfs_rq->rb_leftmost = leftmost;
-	if (leftmost) {
+	if (leftmost)
 		se = rb_entry(leftmost, struct sched_entity, run_node);
-		if ((se->vruntime > cfs_rq->min_vruntime) ||
-		    (cfs_rq->min_vruntime > (1ULL << 61) &&
-		     se->vruntime < (1ULL << 50)))
-			cfs_rq->min_vruntime = se->vruntime;
-	}
 }
 
-s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static inline s64
+entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	return se->fair_key - cfs_rq->min_vruntime;
 }
@@ -254,6 +260,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	      unsigned long delta_exec)
 {
 	unsigned long delta_exec_weighted;
+	u64 next_vruntime, min_vruntime;
 
 	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
@@ -265,6 +272,25 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 							&curr->load);
 	}
 	curr->vruntime += delta_exec_weighted;
+
+	/*
+	 * maintain cfs_rq->min_vruntime to be a monotonic increasing
+	 * value tracking the leftmost vruntime in the tree.
+	 */
+	if (first_fair(cfs_rq)) {
+		next_vruntime = __pick_next_entity(cfs_rq)->vruntime;
+
+		/* min_vruntime() := !max_vruntime() */
+		min_vruntime = max_vruntime(curr->vruntime, next_vruntime);
+		if (min_vruntime == next_vruntime)
+			min_vruntime = curr->vruntime;
+		else
+			min_vruntime = next_vruntime;
+	} else
+		min_vruntime = curr->vruntime;
+
+	cfs_rq->min_vruntime =
+		max_vruntime(cfs_rq->min_vruntime, min_vruntime);
 }
 
 static void update_curr(struct cfs_rq *cfs_rq)
