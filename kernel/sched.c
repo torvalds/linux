@@ -1016,6 +1016,11 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 	if (p->sched_class != &fair_sched_class)
 		return 0;
 
+	if (sysctl_sched_migration_cost == -1)
+		return 1;
+	if (sysctl_sched_migration_cost == 0)
+		return 0;
+
 	delta = now - p->se.exec_start;
 
 	return delta < (s64)sysctl_sched_migration_cost;
@@ -2189,7 +2194,8 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 	 * 2) too many balance attempts have failed.
 	 */
 
-	if (sd->nr_balance_failed > sd->cache_nice_tries) {
+	if (!task_hot(p, rq->clock, sd) ||
+			sd->nr_balance_failed > sd->cache_nice_tries) {
 #ifdef CONFIG_SCHEDSTATS
 		if (task_hot(p, rq->clock, sd)) {
 			schedstat_inc(sd, lb_hot_gained[idle]);
