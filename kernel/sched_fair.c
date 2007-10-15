@@ -25,14 +25,12 @@
  * (default: 20ms, units: nanoseconds)
  *
  * NOTE: this latency value is not the same as the concept of
- * 'timeslice length' - timeslices in CFS are of variable length.
- * (to see the precise effective timeslice length of your workload,
- *  run vmstat and monitor the context-switches field)
+ * 'timeslice length' - timeslices in CFS are of variable length
+ * and have no persistent notion like in traditional, time-slice
+ * based scheduling concepts.
  *
- * On SMP systems the value of this is multiplied by the log2 of the
- * number of CPUs. (i.e. factor 2x on 2-way systems, 3x on 4-way
- * systems, 4x on 8-way systems, 5x on 16-way systems, etc.)
- * Targeted preemption latency for CPU-bound tasks:
+ * (to see the precise effective timeslice length of your workload,
+ *  run vmstat and monitor the context-switches (cs) field)
  */
 const_debug unsigned int sysctl_sched_latency = 20000000ULL;
 
