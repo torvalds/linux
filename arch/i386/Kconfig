@@ -214,6 +214,17 @@ config X86_ES7000
 
 endchoice
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool "Single-depth WCHAN output"
+	default y
+	help
+	  Calculate simpler /proc/<PID>/wchan values. If this option
+	  is disabled then wchan values will recurse back to the
+	  caller function. This provides more accurate wchan values,
+	  at the expense of slightly more scheduling overhead.
+
+	  If in doubt, say "Y".
+
 config PARAVIRT
 	bool "Paravirtualization support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
