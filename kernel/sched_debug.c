@@ -236,7 +236,7 @@ static int sched_debug_open(struct inode *inode, struct file *filp)
 	return single_open(filp, sched_debug_show, NULL);
 }
 
-static struct file_operations sched_debug_fops = {
+static const struct file_operations sched_debug_fops = {
 	.open		= sched_debug_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
