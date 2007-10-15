@@ -239,11 +239,7 @@ static int
 root_user_share_read_proc(char *page, char **start, off_t off, int count,
 				 int *eof, void *data)
 {
-	int len;
-
-	len = sprintf(page, "%d\n", init_task_grp_load);
-
-	return len;
+	return sprintf(page, "%d\n", init_task_grp_load);
 }
 
 static int
@@ -297,7 +293,7 @@ static int __init init_sched_debug_procfs(void)
 	pe->proc_fops = &sched_debug_fops;
 
 #ifdef CONFIG_FAIR_USER_SCHED
-	pe = create_proc_entry("root_user_share", 0644, NULL);
+	pe = create_proc_entry("root_user_cpu_share", 0644, NULL);
 	if (!pe)
 		return -ENOMEM;
 
