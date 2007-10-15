@@ -577,8 +577,7 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	nfs_inc_stats(inode, NFSIOS_VFSLOCK);
 
 	/* No mandatory locks over NFS */
-	if ((inode->i_mode & (S_ISGID | S_IXGRP)) == S_ISGID &&
-	    fl->fl_type != F_UNLCK)
+	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
 		return -ENOLCK;
 
 	if (IS_GETLK(cmd))

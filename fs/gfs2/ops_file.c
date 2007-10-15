@@ -535,7 +535,7 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (!(fl->fl_flags & FL_POSIX))
 		return -ENOLCK;
-	if ((ip->i_inode.i_mode & (S_ISGID | S_IXGRP)) == S_ISGID)
+	if (__mandatory_lock(&ip->i_inode))
 		return -ENOLCK;
 
 	if (sdp->sd_args.ar_localflocks) {
@@ -636,7 +636,7 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
-	if ((ip->i_inode.i_mode & (S_ISGID | S_IXGRP)) == S_ISGID)
+	if (__mandatory_lock(&ip->i_inode))
 		return -ENOLCK;
 
 	if (sdp->sd_args.ar_localflocks)

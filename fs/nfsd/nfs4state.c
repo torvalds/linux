@@ -2035,7 +2035,7 @@ static inline int
 io_during_grace_disallowed(struct inode *inode, int flags)
 {
 	return nfs4_in_grace() && (flags & (RD_STATE | WR_STATE))
-		&& MANDATORY_LOCK(inode);
+		&& mandatory_lock(inode);
 }
 
 /*

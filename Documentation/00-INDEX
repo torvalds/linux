@@ -145,7 +145,7 @@ fb/
 feature-removal-schedule.txt
 	- list of files and features that are going to be removed.
 filesystems/
-	- directory with info on the various filesystems that Linux supports.
+	- info on the vfs and the various filesystems that Linux supports.
 firmware_class/
 	- request_firmware() hotplug interface info.
 floppy.txt
@@ -230,8 +230,6 @@ local_ops.txt
 	- semantics and behavior of local atomic operations.
 lockdep-design.txt
 	- documentation on the runtime locking correctness validator.
-locks.txt
-	- info on file locking implementations, flock() vs. fcntl(), etc.
 logo.gif
 	- full colour GIF image of Linux logo (penguin - Tux).
 logo.txt
@@ -240,8 +238,6 @@ m68k/
 	- directory with info about Linux on Motorola 68k architecture.
 magic-number.txt
 	- list of magic numbers used to mark/protect kernel data structures.
-mandatory.txt
-	- info on the Linux implementation of Sys V mandatory file locking.
 mca.txt
 	- info on supporting Micro Channel Architecture (e.g. PS/2) systems.
 md.txt

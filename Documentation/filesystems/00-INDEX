@@ -52,6 +52,10 @@ isofs.txt
 	- info and mount options for the ISO 9660 (CDROM) filesystem.
 jfs.txt
 	- info and mount options for the JFS filesystem.
+locks.txt
+	- info on file locking implementations, flock() vs. fcntl(), etc.
+mandatory-locking.txt
+	- info on the Linux implementation of Sys V mandatory file locking.
 ncpfs.txt
 	- info on Novell Netware(tm) filesystem using NCP protocol.
 ntfs.txt

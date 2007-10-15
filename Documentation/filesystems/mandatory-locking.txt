@@ -3,7 +3,26 @@
 		Andy Walker <andy@lysaker.kvaerner.no>
 
 			   15 April 1996
+		     (Updated September 2007)
 
+0. Why you should avoid mandatory locking
+-----------------------------------------
+
+The Linux implementation is prey to a number of difficult-to-fix race
+conditions which in practice make it not dependable:
+
+	- The write system call checks for a mandatory lock only once
+	  at its start.  It is therefore possible for a lock request to
+	  be granted after this check but before the data is modified.
+	  A process may then see file data change even while a mandatory
+	  lock was held.
+	- Similarly, an exclusive lock may be granted on a file after
+	  the kernel has decided to proceed with a read, but before the
+	  read has actually completed, and the reading process may see
+	  the file data in a state which should not have been visible
+	  to it.
+	- Similar races make the claimed mutual exclusion between lock
+	  and mmap similarly unreliable.
 
 1. What is  mandatory locking?
 ------------------------------
