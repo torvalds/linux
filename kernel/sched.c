@@ -1688,10 +1688,8 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	else
 		p->sched_class = &fair_sched_class;
 
-	if (!p->sched_class->task_new || !sysctl_sched_child_runs_first ||
-			(clone_flags & CLONE_VM) || task_cpu(p) != this_cpu ||
-			!current->se.on_rq) {
-
+	if (task_cpu(p) != this_cpu || !p->sched_class->task_new ||
+							!current->se.on_rq) {
 		activate_task(rq, p, 0);
 	} else {
 		/*
