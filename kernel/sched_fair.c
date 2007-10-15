@@ -74,6 +74,8 @@ const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 10000000UL;
  */
 const_debug unsigned int sysctl_sched_wakeup_granularity = 10000000UL;
 
+const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
+
 /**************************************************************
  * CFS operations on generic schedulable entities:
  */

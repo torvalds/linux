@@ -2119,6 +2119,17 @@ static void pull_task(struct rq *src_rq, struct task_struct *p,
 }
 
 /*
+ * Is this task likely cache-hot:
+ */
+static inline int
+task_hot(struct task_struct *p, unsigned long long now, struct sched_domain *sd)
+{
+	s64 delta = now - p->se.exec_start;
+
+	return delta < (long long)sysctl_sched_migration_cost;
+}
+
+/*
  * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
  */
 static
@@ -2139,6 +2150,22 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 	if (task_running(rq, p))
 		return 0;
 
+	/*
+	 * Aggressive migration if:
+	 * 1) task is cache cold, or
+	 * 2) too many balance attempts have failed.
+	 */
+
+	if (sd->nr_balance_failed > sd->cache_nice_tries) {
+#ifdef CONFIG_SCHEDSTATS
+		if (task_hot(p, rq->clock, sd))
+			schedstat_inc(sd, lb_hot_gained[idle]);
+#endif
+		return 1;
+	}
+
+	if (task_hot(p, rq->clock, sd))
+		return 0;
 	return 1;
 }
 
