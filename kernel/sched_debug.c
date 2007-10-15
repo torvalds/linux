@@ -109,7 +109,8 @@ print_cfs_rq_runtime_sum(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
-	s64 MIN_vruntime = -1, max_vruntime = -1, spread;
+	s64 MIN_vruntime = -1, min_vruntime, max_vruntime = -1,
+		spread, rq0_min_vruntime, spread0;
 	struct rq *rq = &per_cpu(runqueues, cpu);
 	struct sched_entity *last;
 	unsigned long flags;
@@ -121,7 +122,6 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 	P(fair_clock);
 	P(exec_clock);
-	P(min_vruntime);
 
 	spin_lock_irqsave(&rq->lock, flags);
 	if (cfs_rq->rb_leftmost)
@@ -129,14 +129,21 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	last = __pick_last_entity(cfs_rq);
 	if (last)
 		max_vruntime = last->vruntime;
+	min_vruntime = rq->cfs.min_vruntime;
+	rq0_min_vruntime = per_cpu(runqueues, 0).cfs.min_vruntime;
 	spin_unlock_irqrestore(&rq->lock, flags);
 	SEQ_printf(m, "  .%-30s: %Ld\n", "MIN_vruntime",
 			(long long)MIN_vruntime);
+	SEQ_printf(m, "  .%-30s: %Ld\n", "min_vruntime",
+			(long long)min_vruntime);
 	SEQ_printf(m, "  .%-30s: %Ld\n", "max_vruntime",
 			(long long)max_vruntime);
 	spread = max_vruntime - MIN_vruntime;
 	SEQ_printf(m, "  .%-30s: %Ld\n", "spread",
 			(long long)spread);
+	spread0 = min_vruntime - rq0_min_vruntime;
+	SEQ_printf(m, "  .%-30s: %Ld\n", "spread0",
+			(long long)spread0);
 
 	P(wait_runtime);
 	P(wait_runtime_overruns);
