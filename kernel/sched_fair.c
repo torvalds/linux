@@ -727,6 +727,7 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 			break;
 		cfs_rq = cfs_rq_of(se);
 		enqueue_entity(cfs_rq, se, wakeup);
+		wakeup = 1;
 	}
 }
 
@@ -746,6 +747,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 		/* Don't dequeue parent if it has other entities besides us */
 		if (cfs_rq->load.weight)
 			break;
+		sleep = 1;
 	}
 }
 
