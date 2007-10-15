@@ -627,7 +627,7 @@ static int __devinit mal_probe(struct of_device *ofdev,
  fail2:
 	dma_free_coherent(&ofdev->dev, bd_size, mal->bd_virt, mal->bd_dma);
  fail_unmap:
-	dcr_unmap(mal->dcr_host, dcr_base, 0x100);
+	dcr_unmap(mal->dcr_host, 0x100);
  fail:
 	kfree(mal);
 

@@ -33,7 +33,7 @@ typedef struct {
 
 extern dcr_host_t dcr_map(struct device_node *dev, unsigned int dcr_n,
 			  unsigned int dcr_c);
-extern void dcr_unmap(dcr_host_t host, unsigned int dcr_n, unsigned int dcr_c);
+extern void dcr_unmap(dcr_host_t host, unsigned int dcr_c);
 
 static inline u32 dcr_read(dcr_host_t host, unsigned int dcr_n)
 {

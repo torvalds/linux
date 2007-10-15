@@ -126,13 +126,13 @@ dcr_host_t dcr_map(struct device_node *dev, unsigned int dcr_n,
 }
 EXPORT_SYMBOL_GPL(dcr_map);
 
-void dcr_unmap(dcr_host_t host, unsigned int dcr_n, unsigned int dcr_c)
+void dcr_unmap(dcr_host_t host, unsigned int dcr_c)
 {
 	dcr_host_t h = host;
 
 	if (h.token == NULL)
 		return;
-	h.token += dcr_n * h.stride;
+	h.token += host.base * h.stride;
 	iounmap(h.token);
 	h.token = NULL;
 }
