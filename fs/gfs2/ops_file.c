@@ -33,57 +33,12 @@
 #include "lm.h"
 #include "log.h"
 #include "meta_io.h"
-#include "ops_file.h"
 #include "ops_vm.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
 #include "eaops.h"
-
-/*
- * Most fields left uninitialised to catch anybody who tries to
- * use them. f_flags set to prevent file_accessed() from touching
- * any other part of this. Its use is purely as a flag so that we
- * know (in readpage()) whether or not do to locking.
- */
-struct file gfs2_internal_file_sentinel = {
-	.f_flags = O_NOATIME|O_RDONLY,
-};
-
-static int gfs2_read_actor(read_descriptor_t *desc, struct page *page,
-			   unsigned long offset, unsigned long size)
-{
-	char *kaddr;
-	unsigned long count = desc->count;
-
-	if (size > count)
-		size = count;
-
-	kaddr = kmap(page);
-	memcpy(desc->arg.data, kaddr + offset, size);
-	kunmap(page);
-
-	desc->count = count - size;
-	desc->written += size;
-	desc->arg.buf += size;
-	return size;
-}
-
-int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
-		       char *buf, loff_t *pos, unsigned size)
-{
-	struct inode *inode = &ip->i_inode;
-	read_descriptor_t desc;
-	desc.written = 0;
-	desc.arg.data = buf;
-	desc.count = size;
-	desc.error = 0;
-	do_generic_mapping_read(inode->i_mapping, ra_state,
-				&gfs2_internal_file_sentinel, pos, &desc,
-				gfs2_read_actor);
-	return desc.written ? desc.written : desc.error;
-}
 
 /**
  * gfs2_llseek - seek to a location in a file

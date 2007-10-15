@@ -20,6 +20,7 @@
 #include <linux/swap.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
+#include <linux/swap.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -32,7 +33,6 @@
 #include "quota.h"
 #include "trans.h"
 #include "rgrp.h"
-#include "ops_file.h"
 #include "super.h"
 #include "util.h"
 #include "glops.h"
@@ -231,62 +231,115 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 
 
 /**
- * gfs2_readpage - readpage with locking
- * @file: The file to read a page for. N.B. This may be NULL if we are
- * reading an internal file.
+ * __gfs2_readpage - readpage
+ * @file: The file to read a page for
  * @page: The page to read
  *
- * Returns: errno
+ * This is the core of gfs2's readpage. Its used by the internal file
+ * reading code as in that case we already hold the glock. Also its
+ * called by gfs2_readpage() once the required lock has been granted.
+ *
+ */
+
+static int __gfs2_readpage(void *file, struct page *page)
+{
+	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
+	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
+	int error;
+
+	if (gfs2_is_stuffed(ip)) {
+		error = stuffed_readpage(ip, page);
+		unlock_page(page);
+	} else {
+		error = mpage_readpage(page, gfs2_get_block);
+	}
+
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		return -EIO;
+
+	return error;
+}
+
+/**
+ * gfs2_readpage - read a page of a file
+ * @file: The file to read
+ * @page: The page of the file
+ *
+ * This deals with the locking required. If the GFF_EXLOCK flags is set
+ * then we already hold the glock (due to page fault) and thus we call
+ * __gfs2_readpage() directly. Otherwise we use a trylock in order to
+ * avoid the page lock / glock ordering problems returning AOP_TRUNCATED_PAGE
+ * in the event that we are unable to get the lock.
  */
 
 static int gfs2_readpage(struct file *file, struct page *page)
 {
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
-	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
-	struct gfs2_file *gf = NULL;
 	struct gfs2_holder gh;
 	int error;
-	int do_unlock = 0;
 
-	if (likely(file != &gfs2_internal_file_sentinel)) {
-		if (file) {
-			gf = file->private_data;
-			if (test_bit(GFF_EXLOCK, &gf->f_flags))
-				/* gfs2_sharewrite_fault has grabbed the ip->i_gl already */
-				goto skip_lock;
-		}
-		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
-		do_unlock = 1;
-		error = gfs2_glock_nq_atime(&gh);
-		if (unlikely(error))
-			goto out_unlock;
+	if (file) {
+		struct gfs2_file *gf = file->private_data;
+		if (test_bit(GFF_EXLOCK, &gf->f_flags))
+			return __gfs2_readpage(file, page);
 	}
 
-skip_lock:
-	if (gfs2_is_stuffed(ip)) {
-		error = stuffed_readpage(ip, page);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
+	error = gfs2_glock_nq_atime(&gh);
+	if (unlikely(error)) {
 		unlock_page(page);
-	} else
-		error = mpage_readpage(page, gfs2_get_block);
-
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		error = -EIO;
-
-	if (do_unlock) {
-		gfs2_glock_dq_m(1, &gh);
-		gfs2_holder_uninit(&gh);
+		goto out;
 	}
+	error = __gfs2_readpage(file, page);
+	gfs2_glock_dq(&gh);
 out:
-	return error;
-out_unlock:
-	unlock_page(page);
+	gfs2_holder_uninit(&gh);
 	if (error == GLR_TRYFAILED) {
-		error = AOP_TRUNCATED_PAGE;
 		yield();
+		return AOP_TRUNCATED_PAGE;
 	}
-	if (do_unlock)
-		gfs2_holder_uninit(&gh);
-	goto out;
+	return error;
+}
+
+/**
+ * gfs2_internal_read - read an internal file
+ * @ip: The gfs2 inode
+ * @ra_state: The readahead state (or NULL for no readahead)
+ * @buf: The buffer to fill
+ * @pos: The file position
+ * @size: The amount to read
+ *
+ */
+
+int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
+                       char *buf, loff_t *pos, unsigned size)
+{
+	struct address_space *mapping = ip->i_inode.i_mapping;
+	unsigned long index = *pos / PAGE_CACHE_SIZE;
+	unsigned offset = *pos & (PAGE_CACHE_SIZE - 1);
+	unsigned copied = 0;
+	unsigned amt;
+	struct page *page;
+	void *p;
+
+	do {
+		amt = size - copied;
+		if (offset + size > PAGE_CACHE_SIZE)
+			amt = PAGE_CACHE_SIZE - offset;
+		page = read_cache_page(mapping, index, __gfs2_readpage, NULL);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+		p = kmap_atomic(page, KM_USER0);
+		memcpy(buf + copied, p + offset, amt);
+		kunmap_atomic(p, KM_USER0);
+		mark_page_accessed(page);
+		page_cache_release(page);
+		copied += amt;
+		index++;
+		offset = 0;
+	} while(copied < size);
+	(*pos) += size;
+	return size;
 }
 
 /**
@@ -314,21 +367,19 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	int ret = 0;
 	int do_unlock = 0;
 
-	if (likely(file != &gfs2_internal_file_sentinel)) {
-		if (file) {
-			struct gfs2_file *gf = file->private_data;
-			if (test_bit(GFF_EXLOCK, &gf->f_flags))
-				goto skip_lock;
-		}
-		gfs2_holder_init(ip->i_gl, LM_ST_SHARED,
-				 LM_FLAG_TRY_1CB|GL_ATIME, &gh);
-		do_unlock = 1;
-		ret = gfs2_glock_nq_atime(&gh);
-		if (ret == GLR_TRYFAILED)
-			goto out_noerror;
-		if (unlikely(ret))
-			goto out_unlock;
+	if (file) {
+		struct gfs2_file *gf = file->private_data;
+		if (test_bit(GFF_EXLOCK, &gf->f_flags))
+			goto skip_lock;
 	}
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED,
+			 LM_FLAG_TRY_1CB|GL_ATIME, &gh);
+	do_unlock = 1;
+	ret = gfs2_glock_nq_atime(&gh);
+	if (ret == GLR_TRYFAILED)
+		goto out_noerror;
+	if (unlikely(ret))
+		goto out_unlock;
 skip_lock:
 	if (!gfs2_is_stuffed(ip))
 		ret = mpage_readpages(mapping, pages, nr_pages, gfs2_get_block);

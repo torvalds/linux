@@ -59,7 +59,6 @@
 #include "super.h"
 #include "trans.h"
 #include "inode.h"
-#include "ops_file.h"
 #include "ops_address.h"
 #include "util.h"
 
@@ -793,11 +792,9 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	struct gfs2_holder i_gh;
 	struct gfs2_quota_host q;
 	char buf[sizeof(struct gfs2_quota)];
-	struct file_ra_state ra_state;
 	int error;
 	struct gfs2_quota_lvb *qlvb;
 
-	file_ra_state_init(&ra_state, sdp->sd_quota_inode->i_mapping);
 restart:
 	error = gfs2_glock_nq_init(qd->qd_gl, LM_ST_SHARED, 0, q_gh);
 	if (error)
@@ -820,8 +817,8 @@ restart:
 
 		memset(buf, 0, sizeof(struct gfs2_quota));
 		pos = qd2offset(qd);
-		error = gfs2_internal_read(ip, &ra_state, buf,
-					   &pos, sizeof(struct gfs2_quota));
+		error = gfs2_internal_read(ip, NULL, buf, &pos,
+					   sizeof(struct gfs2_quota));
 		if (error < 0)
 			goto fail_gunlock;
 
