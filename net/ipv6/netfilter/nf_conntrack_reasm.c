@@ -149,8 +149,7 @@ static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
 
 static __inline__ void fq_put(struct nf_ct_frag6_queue *fq)
 {
-	if (atomic_dec_and_test(&fq->q.refcnt))
-		inet_frag_destroy(&fq->q, &nf_frags, NULL);
+	inet_frag_put(&fq->q, &nf_frags);
 }
 
 /* Kill fq entry. It is not destroyed immediately,

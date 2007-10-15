@@ -157,8 +157,7 @@ static __inline__ struct ipq *frag_alloc_queue(void)
 
 static __inline__ void ipq_put(struct ipq *ipq)
 {
-	if (atomic_dec_and_test(&ipq->q.refcnt))
-		inet_frag_destroy(&ipq->q, &ip4_frags, NULL);
+	inet_frag_put(&ipq->q, &ip4_frags);
 }
 
 /* Kill ipq entry. It is not destroyed immediately,
