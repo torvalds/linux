@@ -72,6 +72,16 @@
 #define L4_24XX_PHYS	L4_24XX_BASE	/* 0x48000000 */
 #define L4_24XX_VIRT	0xd8000000
 #define L4_24XX_SIZE	SZ_1M		/* 1MB of 128MB used, want 1MB sect */
+
+#ifdef CONFIG_ARCH_OMAP2430
+#define L4_WK_243X_PHYS		L4_WK_243X_BASE		/* 0x49000000 */
+#define L4_WK_243X_VIRT		0xd9000000
+#define L4_WK_243X_SIZE		SZ_1M
+#define OMAP243X_GPMC_PHYS	OMAP243X_GPMC_BASE	/* 0x49000000 */
+#define OMAP243X_GPMC_VIRT	0xFE000000
+#define OMAP243X_GPMC_SIZE	SZ_1M
+#endif
+
 #define IO_OFFSET	0x90000000
 #define IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
 #define io_p2v(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */

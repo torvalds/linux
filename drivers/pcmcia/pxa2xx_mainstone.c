@@ -43,24 +43,6 @@ static int mst_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	 * Setup default state of GPIO outputs
 	 * before we enable them as outputs.
 	 */
-	GPSR(GPIO48_nPOE) =
-		GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) |
-		GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) |
-		GPIO_bit(GPIO85_nPCE_1) |
-		GPIO_bit(GPIO54_nPCE_2);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO85_nPCE_1_MD);
-	pxa_gpio_mode(GPIO54_nPCE_2_MD);
-	pxa_gpio_mode(GPIO79_pSKTSEL_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
 
 	skt->irq = (skt->nr == 0) ? MAINSTONE_S0_IRQ : MAINSTONE_S1_IRQ;
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));

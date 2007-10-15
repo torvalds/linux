@@ -11,6 +11,10 @@ config ARCH_OMAP2420
 	select OMAP_DM_TIMER
 	select ARCH_OMAP_OTG
 
+config ARCH_OMAP2430
+	bool "OMAP2430 support"
+	depends on ARCH_OMAP24XX
+
 comment "OMAP Board Type"
 	depends on ARCH_OMAP2
 
@@ -21,8 +25,13 @@ config MACH_OMAP_GENERIC
 config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
 	depends on ARCH_OMAP2 && ARCH_OMAP24XX
-	select OMAP_DEBUG_LEDS if LEDS || LEDS_OMAP_DEBUG
+	select OMAP_DEBUG_DEVICES
 
 config MACH_OMAP_APOLLON
 	bool "OMAP 2420 Apollon board"
 	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+
+config MACH_OMAP_2430SDP
+	bool "OMAP 2430 SDP board"
+	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+

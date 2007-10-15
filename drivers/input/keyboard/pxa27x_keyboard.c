@@ -23,6 +23,8 @@
 #include <linux/input.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,6 +41,8 @@
 				 col/2 == 1 ? KPASMKP1 : \
 				 col/2 == 2 ? KPASMKP2 : KPASMKP3)
 #define KPASMKPx_MKC(row, col)	(1 << (row + 16 * (col % 2)))
+
+static struct clk *pxakbd_clk;
 
 static irqreturn_t pxakbd_irq_handler(int irq, void *dev_id)
 {
@@ -104,7 +108,7 @@ static int pxakbd_open(struct input_dev *dev)
 	KPREC = 0x7F;
 
 	/* Enable unit clock */
-	pxa_set_cken(CKEN_KEYPAD, 1);
+	clk_enable(pxakbd_clk);
 
 	return 0;
 }
@@ -112,7 +116,7 @@ static int pxakbd_open(struct input_dev *dev)
 static void pxakbd_close(struct input_dev *dev)
 {
 	/* Disable clock unit */
-	pxa_set_cken(CKEN_KEYPAD, 0);
+	clk_disable(pxakbd_clk);
 }
 
 #ifdef CONFIG_PM
@@ -140,7 +144,8 @@ static int pxakbd_resume(struct platform_device *pdev)
 		KPREC = pdata->reg_kprec;
 
 		/* Enable unit clock */
-		pxa_set_cken(CKEN_KEYPAD, 1);
+		clk_disable(pxakbd_clk);
+		clk_enable(pxakbd_clk);
 	}
 
 	mutex_unlock(&input_dev->mutex);
@@ -158,11 +163,18 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	int i, row, col, error;
 
+	pxakbd_clk = clk_get(&pdev->dev, "KBDCLK");
+	if (IS_ERR(pxakbd_clk)) {
+		error = PTR_ERR(pxakbd_clk);
+		goto err_clk;
+	}
+
 	/* Create and register the input driver. */
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		printk(KERN_ERR "Cannot request keypad device\n");
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto err_alloc;
 	}
 
 	input_dev->name = DRIVER_NAME;
@@ -185,7 +197,6 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
 			    DRIVER_NAME, pdev);
 	if (error) {
 		printk(KERN_ERR "Cannot request keypad IRQ\n");
-		pxa_set_cken(CKEN_KEYPAD, 0);
 		goto err_free_dev;
 	}
 
@@ -217,6 +228,9 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
 	free_irq(IRQ_KEYPAD, pdev);
  err_free_dev:
 	input_free_device(input_dev);
+ err_alloc:
+	clk_put(pxakbd_clk);
+ err_clk:
 	return error;
 }
 
@@ -226,6 +240,7 @@ static int __devexit pxakbd_remove(struct platform_device *pdev)
 
 	input_unregister_device(input_dev);
 	free_irq(IRQ_KEYPAD, pdev);
+	clk_put(pxakbd_clk);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

@@ -26,7 +26,7 @@ config FLASH_SIZE
 	default 0x00400000
 
 config PROCESSOR_ID
-	hex
+	hex 'Hard wire the processor ID'
 	default 0x00007700
 	depends on !CPU_CP15
 	help

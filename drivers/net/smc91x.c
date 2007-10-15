@@ -173,49 +173,6 @@ MODULE_LICENSE("GPL");
  */
 #define MII_DELAY		1
 
-/* store this information for the driver.. */
-struct smc_local {
-	/*
-	 * If I have to wait until memory is available to send a
-	 * packet, I will store the skbuff here, until I get the
-	 * desired memory.  Then, I'll send it out and free it.
-	 */
-	struct sk_buff *pending_tx_skb;
-	struct tasklet_struct tx_task;
-
-	/* version/revision of the SMC91x chip */
-	int	version;
-
-	/* Contains the current active transmission mode */
-	int	tcr_cur_mode;
-
-	/* Contains the current active receive mode */
-	int	rcr_cur_mode;
-
-	/* Contains the current active receive/phy mode */
-	int	rpc_cur_mode;
-	int	ctl_rfduplx;
-	int	ctl_rspeed;
-
-	u32	msg_enable;
-	u32	phy_type;
-	struct mii_if_info mii;
-
-	/* work queue */
-	struct work_struct phy_configure;
-	struct net_device *dev;
-	int	work_pending;
-
-	spinlock_t lock;
-
-#ifdef SMC_USE_PXA_DMA
-	/* DMA needs the physical address of the chip */
-	u_long physaddr;
-#endif
-	void __iomem *base;
-	void __iomem *datacs;
-};
-
 #if SMC_DEBUG > 0
 #define DBG(n, args...)					\
 	do {						\
@@ -2215,16 +2172,18 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_release_attrib;
 	}
 
+#ifdef SMC_USE_PXA_DMA
+	{
+		struct smc_local *lp = netdev_priv(ndev);
+		lp->device = &pdev->dev;
+		lp->physaddr = res->start;
+	}
+#endif
+
 	platform_set_drvdata(pdev, ndev);
 	ret = smc_probe(ndev, addr);
 	if (ret != 0)
 		goto out_iounmap;
-#ifdef SMC_USE_PXA_DMA
-	else {
-		struct smc_local *lp = netdev_priv(ndev);
-		lp->physaddr = res->start;
-	}
-#endif
 
 	smc_request_datacs(pdev, ndev);
 

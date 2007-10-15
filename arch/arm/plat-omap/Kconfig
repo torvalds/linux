@@ -20,10 +20,15 @@ endchoice
 
 comment "OMAP Feature Selections"
 
-config OMAP_DEBUG_LEDS
+config OMAP_DEBUG_DEVICES
 	bool
 	help
-	  For debug card leds on TI reference boards.
+	  For debug cards on TI reference boards.
+
+config OMAP_DEBUG_LEDS
+	bool
+	depends on OMAP_DEBUG_DEVICES
+	default y if LEDS || LEDS_OMAP_DEBUG
 
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"

@@ -19,49 +19,36 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/time.h>
+#include <linux/clockchips.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
 #include <asm/mach/time.h>
 
 #include <asm/arch/at91_st.h>
 
 static unsigned long last_crtr;
+static u32 irqmask;
+static struct clock_event_device clkevt;
 
 /*
- * The ST_CRTR is updated asynchronously to the master clock.  It is therefore
- *  necessary to read it twice (with the same value) to ensure accuracy.
+ * The ST_CRTR is updated asynchronously to the master clock ... but
+ * the updates as seen by the CPU don't seem to be strictly monotonic.
+ * Waiting until we read the same value twice avoids glitching.
  */
-static inline unsigned long read_CRTR(void) {
+static inline unsigned long read_CRTR(void)
+{
 	unsigned long x1, x2;
 
+	x1 = at91_sys_read(AT91_ST_CRTR);
 	do {
-		x1 = at91_sys_read(AT91_ST_CRTR);
 		x2 = at91_sys_read(AT91_ST_CRTR);
-	} while (x1 != x2);
-
+		if (x1 == x2)
+			break;
+		x1 = x2;
+	} while (1);
 	return x1;
-}
-
-/*
- * Returns number of microseconds since last timer interrupt.  Note that interrupts
- * will have been disabled by do_gettimeofday()
- *  'LATCH' is hwclock ticks (see CLOCK_TICK_RATE in timex.h) per jiffy.
- *  'tick' is usecs per jiffy (linux/timex.h).
- */
-static unsigned long at91rm9200_gettimeoffset(void)
-{
-	unsigned long elapsed;
-
-	elapsed = (read_CRTR() - last_crtr) & AT91_ST_ALMV;
-
-	return (unsigned long)(elapsed * (tick_nsec / 1000)) / LATCH;
 }
 
 /*
@@ -69,20 +56,27 @@ static unsigned long at91rm9200_gettimeoffset(void)
  */
 static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 {
-	if (at91_sys_read(AT91_ST_SR) & AT91_ST_PITS) {	/* This is a shared interrupt */
-		write_seqlock(&xtime_lock);
+	u32	sr = at91_sys_read(AT91_ST_SR) & irqmask;
 
-		while (((read_CRTR() - last_crtr) & AT91_ST_ALMV) >= LATCH) {
-			timer_tick();
-			last_crtr = (last_crtr + LATCH) & AT91_ST_ALMV;
-		}
-
-		write_sequnlock(&xtime_lock);
-
+	/* simulate "oneshot" timer with alarm */
+	if (sr & AT91_ST_ALMS) {
+		clkevt.event_handler(&clkevt);
 		return IRQ_HANDLED;
 	}
-	else
-		return IRQ_NONE;		/* not handled */
+
+	/* periodic mode should handle delayed ticks */
+	if (sr & AT91_ST_PITS) {
+		u32	crtr = read_CRTR();
+
+		while (((crtr - last_crtr) & AT91_ST_CRTV) >= LATCH) {
+			last_crtr += LATCH;
+			clkevt.event_handler(&clkevt);
+		}
+		return IRQ_HANDLED;
+	}
+
+	/* this irq is shared ... */
+	return IRQ_NONE;
 }
 
 static struct irqaction at91rm9200_timer_irq = {
@@ -91,56 +85,127 @@ static struct irqaction at91rm9200_timer_irq = {
 	.handler	= at91rm9200_timer_interrupt
 };
 
-void at91rm9200_timer_reset(void)
+static cycle_t read_clk32k(void)
 {
-	last_crtr = 0;
-
-	/* Real time counter incremented every 30.51758 microseconds */
-	at91_sys_write(AT91_ST_RTMR, 1);
-
-	/* Set Period Interval timer */
-	at91_sys_write(AT91_ST_PIMR, LATCH);
-
-	/* Clear any pending interrupts */
-	(void) at91_sys_read(AT91_ST_SR);
-
-	/* Enable Period Interval Timer interrupt */
-	at91_sys_write(AT91_ST_IER, AT91_ST_PITS);
+	return read_CRTR();
 }
 
+static struct clocksource clk32k = {
+	.name		= "32k_counter",
+	.rating		= 150,
+	.read		= read_clk32k,
+	.mask		= CLOCKSOURCE_MASK(20),
+	.shift		= 10,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static void
+clkevt32k_mode(enum clock_event_mode mode, struct clock_event_device *dev)
+{
+	/* Disable and flush pending timer interrupts */
+	at91_sys_write(AT91_ST_IDR, AT91_ST_PITS | AT91_ST_ALMS);
+	(void) at91_sys_read(AT91_ST_SR);
+
+	last_crtr = read_CRTR();
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		/* PIT for periodic irqs; fixed rate of 1/HZ */
+		irqmask = AT91_ST_PITS;
+		at91_sys_write(AT91_ST_PIMR, LATCH);
+		break;
+	case CLOCK_EVT_MODE_ONESHOT:
+		/* ALM for oneshot irqs, set by next_event()
+		 * before 32 seconds have passed
+		 */
+		irqmask = AT91_ST_ALMS;
+		at91_sys_write(AT91_ST_RTAR, last_crtr);
+		break;
+	case CLOCK_EVT_MODE_SHUTDOWN:
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_RESUME:
+		irqmask = 0;
+		break;
+	}
+	at91_sys_write(AT91_ST_IER, irqmask);
+}
+
+static int
+clkevt32k_next_event(unsigned long delta, struct clock_event_device *dev)
+{
+	unsigned long	flags;
+	u32		alm;
+	int		status = 0;
+
+	BUG_ON(delta < 2);
+
+	/* Use "raw" primitives so we behave correctly on RT kernels. */
+	raw_local_irq_save(flags);
+
+	/* The alarm IRQ uses absolute time (now+delta), not the relative
+	 * time (delta) in our calling convention.  Like all clockevents
+	 * using such "match" hardware, we have a race to defend against.
+	 *
+	 * Our defense here is to have set up the clockevent device so the
+	 * delta is at least two.  That way we never end up writing RTAR
+	 * with the value then held in CRTR ... which would mean the match
+	 * wouldn't trigger until 32 seconds later, after CRTR wraps.
+	 */
+	alm = read_CRTR();
+
+	/* Cancel any pending alarm; flush any pending IRQ */
+	at91_sys_write(AT91_ST_RTAR, alm);
+	(void) at91_sys_read(AT91_ST_SR);
+
+	/* Schedule alarm by writing RTAR. */
+	alm += delta;
+	at91_sys_write(AT91_ST_RTAR, alm);
+
+	raw_local_irq_restore(flags);
+	return status;
+}
+
+static struct clock_event_device clkevt = {
+	.name		= "at91_tick",
+	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.shift		= 32,
+	.rating		= 150,
+	.cpumask	= CPU_MASK_CPU0,
+	.set_next_event	= clkevt32k_next_event,
+	.set_mode	= clkevt32k_mode,
+};
+
 /*
- * Set up timer interrupt.
+ * ST (system timer) module supports both clockevents and clocksource.
  */
 void __init at91rm9200_timer_init(void)
 {
-	/* Disable all timer interrupts */
-	at91_sys_write(AT91_ST_IDR, AT91_ST_PITS | AT91_ST_WDOVF | AT91_ST_RTTINC | AT91_ST_ALMS);
-	(void) at91_sys_read(AT91_ST_SR);	/* Clear any pending interrupts */
+	/* Disable all timer interrupts, and clear any pending ones */
+	at91_sys_write(AT91_ST_IDR,
+		AT91_ST_PITS | AT91_ST_WDOVF | AT91_ST_RTTINC | AT91_ST_ALMS);
+	(void) at91_sys_read(AT91_ST_SR);
 
 	/* Make IRQs happen for the system timer */
 	setup_irq(AT91_ID_SYS, &at91rm9200_timer_irq);
 
-	/* Change the kernel's 'tick' value to 10009 usec. (the default is 10000) */
-	tick_usec = (LATCH * 1000000) / CLOCK_TICK_RATE;
+	/* The 32KiHz "Slow Clock" (tick every 30517.58 nanoseconds) is used
+	 * directly for the clocksource and all clockevents, after adjusting
+	 * its prescaler from the 1 Hz default.
+	 */
+	at91_sys_write(AT91_ST_RTMR, 1);
 
-	/* Initialize and enable the timer interrupt */
-	at91rm9200_timer_reset();
-}
+	/* Setup timer clockevent, with minimum of two ticks (important!!) */
+	clkevt.mult = div_sc(AT91_SLOW_CLOCK, NSEC_PER_SEC, clkevt.shift);
+	clkevt.max_delta_ns = clockevent_delta2ns(AT91_ST_ALMV, &clkevt);
+	clkevt.min_delta_ns = clockevent_delta2ns(2, &clkevt) + 1;
+	clkevt.cpumask = cpumask_of_cpu(0);
+	clockevents_register_device(&clkevt);
 
-#ifdef CONFIG_PM
-static void at91rm9200_timer_suspend(void)
-{
-	/* disable Period Interval Timer interrupt */
-	at91_sys_write(AT91_ST_IDR, AT91_ST_PITS);
+	/* register clocksource */
+	clk32k.mult = clocksource_hz2mult(AT91_SLOW_CLOCK, clk32k.shift);
+	clocksource_register(&clk32k);
 }
-#else
-#define at91rm9200_timer_suspend	NULL
-#endif
 
 struct sys_timer at91rm9200_timer = {
 	.init		= at91rm9200_timer_init,
-	.offset		= at91rm9200_gettimeoffset,
-	.suspend	= at91rm9200_timer_suspend,
-	.resume		= at91rm9200_timer_reset,
 };
 

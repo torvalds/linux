@@ -318,6 +318,9 @@ config ARCH_KS8695
 
 config ARCH_NS9XXX
 	bool "NetSilicon NS9xxx"
+	select GENERIC_GPIO
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  Say Y here if you intend to run this kernel on a NetSilicon NS9xxx
 	  System.
@@ -336,14 +339,14 @@ config ARCH_PNX4008
 	  This enables support for Philips PNX4008 mobile platform.
 
 config ARCH_PXA
-	bool "PXA2xx-based"
+	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
-	  Support for Intel's PXA2XX processor line.
+	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
 config ARCH_RPC
 	bool "RiscPC"
@@ -486,7 +489,7 @@ source arch/arm/mm/Kconfig
 config IWMMXT
 	bool "Enable iWMMXt support"
 	depends on CPU_XSCALE || CPU_XSC3
-	default y if PXA27x
+	default y if PXA27x || PXA3xx
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
@@ -994,6 +997,10 @@ source "drivers/pnp/Kconfig"
 
 source "drivers/block/Kconfig"
 
+# misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
+
+source "drivers/misc/Kconfig"
+
 if PCMCIA || ARCH_CLPS7500 || ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
 	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE \
@@ -1029,15 +1036,15 @@ source "drivers/spi/Kconfig"
 
 source "drivers/w1/Kconfig"
 
+source "drivers/power/Kconfig"
+
 source "drivers/hwmon/Kconfig"
+
+source "drivers/ssb/Kconfig"
 
 #source "drivers/l3/Kconfig"
 
-source "drivers/misc/Kconfig"
-
 source "drivers/mfd/Kconfig"
-
-source "drivers/leds/Kconfig"
 
 source "drivers/media/Kconfig"
 
@@ -1050,6 +1057,8 @@ source "drivers/hid/Kconfig"
 source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
+
+source "drivers/leds/Kconfig"
 
 source "drivers/rtc/Kconfig"
 

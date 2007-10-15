@@ -78,6 +78,11 @@ void __init s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c_device_lcd.name  = "s3c2412-lcd";
 	s3c_device_nand.name = "s3c2412-nand";
 
+	/* alter IRQ of SDI controller */
+
+	s3c_device_sdi.resource[1].start = IRQ_S3C2412_SDI;
+	s3c_device_sdi.resource[1].end   = IRQ_S3C2412_SDI;
+
 	/* spi channel related changes, s3c2412/13 specific */
 	s3c_device_spi0.name = "s3c2412-spi";
 	s3c_device_spi0.resource[0].end = S3C24XX_PA_SPI + 0x24;

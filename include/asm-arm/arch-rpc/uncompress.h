@@ -11,9 +11,11 @@
  
 #include <asm/hardware.h>
 #include <asm/io.h>
+#include <asm/setup.h>
+#include <asm/page.h>
 
-int video_num_columns, video_num_lines, video_size_row;
-int white, bytes_per_char_h;
+int video_size_row;
+unsigned char bytes_per_char_h;
 extern unsigned long con_charconvtable[256];
 
 struct param_struct {
@@ -64,6 +66,13 @@ extern __attribute__((pure)) struct param_struct *params(void);
 #define params (params())
 
 #ifndef STANDALONE_DEBUG 
+static unsigned long video_num_cols;
+static unsigned long video_num_rows;
+static unsigned long video_x;
+static unsigned long video_y;
+static unsigned char bytes_per_char_v;
+static int white;
+
 /*
  * This does not append a newline
  */
@@ -73,27 +82,27 @@ static void putc(int c)
 	int x,y;
 	char *ptr;
 
-	x = params->video_x;
-	y = params->video_y;
+	x = video_x;
+	y = video_y;
 
 	if (c == '\n') {
-		if (++y >= video_num_lines)
+		if (++y >= video_num_rows)
 			y--;
 	} else if (c == '\r') {
 		x = 0;
 	} else {
-		ptr = VIDMEM + ((y*video_num_columns*params->bytes_per_char_v+x)*bytes_per_char_h);
+		ptr = VIDMEM + ((y*video_num_cols*bytes_per_char_v+x)*bytes_per_char_h);
 		ll_write_char(ptr, c, white);
-		if (++x >= video_num_columns) {
+		if (++x >= video_num_cols) {
 			x = 0;
-			if ( ++y >= video_num_lines ) {
+			if ( ++y >= video_num_rows ) {
 				y--;
 			}
 		}
 	}
 
-	params->video_x = x;
-	params->video_y = y;
+	video_x = x;
+	video_y = y;
 }
 
 static inline void flush(void)
@@ -108,11 +117,44 @@ static void error(char *x);
 static void arch_decomp_setup(void)
 {
 	int i;
+	struct tag *t = (struct tag *)params;
+	unsigned int nr_pages = 0, page_size = PAGE_SIZE;
+
+	if (t->hdr.tag == ATAG_CORE)
+	{
+		for (; t->hdr.size; t = tag_next(t))
+		{
+			if (t->hdr.tag == ATAG_VIDEOTEXT)
+			{
+				video_num_rows = t->u.videotext.video_lines;
+				video_num_cols = t->u.videotext.video_cols;
+				bytes_per_char_h = t->u.videotext.video_points;
+				bytes_per_char_v = t->u.videotext.video_points;
+				video_x = t->u.videotext.x;
+				video_y = t->u.videotext.y;
+			}
+
+			if (t->hdr.tag == ATAG_MEM)
+			{
+				page_size = PAGE_SIZE;
+				nr_pages += (t->u.mem.size / PAGE_SIZE);
+			}
+		}
+	}
+	else
+	{
+		nr_pages = params->nr_pages;
+		page_size = params->page_size;
+		video_num_rows = params->video_num_rows;
+		video_num_cols = params->video_num_cols;
+		video_x = params->video_x;
+		video_y = params->video_y;
+		bytes_per_char_h = params->bytes_per_char_h;
+		bytes_per_char_v = params->bytes_per_char_v;
+	}
+
+	video_size_row = video_num_cols * bytes_per_char_h;
 	
-	video_num_lines = params->video_num_rows;
-	video_num_columns = params->video_num_cols;
-	bytes_per_char_h = params->bytes_per_char_h;
-	video_size_row = video_num_columns * bytes_per_char_h;
 	if (bytes_per_char_h == 4)
 		for (i = 0; i < 256; i++)
 			con_charconvtable[i] =
@@ -146,7 +188,7 @@ static void arch_decomp_setup(void)
 		white = 7;
 	}
 
-	if (params->nr_pages * params->page_size < 4096*1024) error("<4M of mem\n");
+	if (nr_pages * page_size < 4096*1024) error("<4M of mem\n");
 }
 #endif
 

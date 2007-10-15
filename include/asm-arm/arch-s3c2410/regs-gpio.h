@@ -1140,10 +1140,16 @@
 
 /* definitions for each pin bit */
 #define S3C2412_SLPCON_LOW(x)	( 0x00 << ((x) * 2))
-#define S3C2412_SLPCON_HI(x)	( 0x01 << ((x) * 2))
+#define S3C2412_SLPCON_HIGH(x)	( 0x01 << ((x) * 2))
 #define S3C2412_SLPCON_IN(x)	( 0x02 << ((x) * 2))
-#define S3C2412_SLPCON_PDWN(x)	( 0x03 << ((x) * 2))
+#define S3C2412_SLPCON_PULL(x)	( 0x03 << ((x) * 2))
+#define S3C2412_SLPCON_EINT(x)	( 0x02 << ((x) * 2))  /* only IRQ pins */
 #define S3C2412_SLPCON_MASK(x)	( 0x03 << ((x) * 2))
+
+#define S3C2412_SLPCON_ALL_LOW	(0x0)
+#define S3C2412_SLPCON_ALL_HIGH	(0x11111111 | 0x44444444)
+#define S3C2412_SLPCON_ALL_IN  	(0x22222222 | 0x88888888)
+#define S3C2412_SLPCON_ALL_PULL	(0x33333333)
 
 #endif	/* __ASM_ARCH_REGS_GPIO_H */
 

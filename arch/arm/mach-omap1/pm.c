@@ -153,11 +153,8 @@ void omap_pm_idle(void)
 	use_idlect1 = omap_dm_timer_modify_idlect_mask(use_idlect1);
 #endif
 
-	if (omap_dma_running()) {
+	if (omap_dma_running())
 		use_idlect1 &= ~(1 << 6);
-		if (omap_lcd_dma_ext_running())
-			use_idlect1 &= ~(1 << 12);
-	}
 
 	/* We should be able to remove the do_sleep variable and multiple
 	 * tests above as soon as drivers, timer and DMA code have been fixed.

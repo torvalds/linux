@@ -140,6 +140,66 @@ static struct platform_device h2_nor_device = {
 	.resource	= &h2_nor_resource,
 };
 
+#if 0	/* REVISIT: Enable when nand_platform_data is applied */
+
+static struct mtd_partition h2_nand_partitions[] = {
+#if 0
+	/* REVISIT:  enable these partitions if you make NAND BOOT
+	 * work on your H2 (rev C or newer); published versions of
+	 * x-load only support P2 and H3.
+	 */
+	{
+		.name		= "xloader",
+		.offset		= 0,
+		.size		= 64 * 1024,
+		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
+	},
+	{
+		.name		= "bootloader",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 256 * 1024,
+		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
+	},
+	{
+		.name		= "params",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 192 * 1024,
+	},
+	{
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 2 * SZ_1M,
+	},
+#endif
+	{
+		.name		= "filesystem",
+		.size		= MTDPART_SIZ_FULL,
+		.offset		= MTDPART_OFS_APPEND,
+	},
+};
+
+/* dip switches control NAND chip access:  8 bit, 16 bit, or neither */
+static struct nand_platform_data h2_nand_data = {
+	.options	= NAND_SAMSUNG_LP_OPTIONS,
+	.parts		= h2_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(h2_nand_partitions),
+};
+
+static struct resource h2_nand_resource = {
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device h2_nand_device = {
+	.name		= "omapnand",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &h2_nand_data,
+	},
+	.num_resources	= 1,
+	.resource	= &h2_nand_resource,
+};
+#endif
+
 static struct resource h2_smc91x_resources[] = {
 	[0] = {
 		.start	= OMAP1610_ETHR_START,		/* Physical */
@@ -219,11 +279,15 @@ static struct resource h2_irda_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
+
+static u64 irda_dmamask = 0xffffffff;
+
 static struct platform_device h2_irda_device = {
 	.name		= "omapirda",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &h2_irda_data,
+		.dma_mask	= &irda_dmamask,
 	},
 	.num_resources	= ARRAY_SIZE(h2_irda_resources),
 	.resource	= h2_irda_resources,
@@ -271,6 +335,7 @@ static struct platform_device h2_mcbsp1_device = {
 
 static struct platform_device *h2_devices[] __initdata = {
 	&h2_nor_device,
+	//&h2_nand_device,
 	&h2_smc91x_device,
 	&h2_irda_device,
 	&h2_kp_device,
@@ -348,6 +413,13 @@ static struct omap_board_config_kernel h2_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&h2_lcd_config },
 };
 
+#define H2_NAND_RB_GPIO_PIN	62
+
+static int h2_nand_dev_ready(struct nand_platform_data *data)
+{
+	return omap_get_gpio_datain(H2_NAND_RB_GPIO_PIN);
+}
+
 static void __init h2_init(void)
 {
 	/* Here we assume the NOR boot config:  NOR on CS3 (possibly swapped
@@ -361,6 +433,13 @@ static void __init h2_init(void)
 	 */
 	h2_nor_resource.end = h2_nor_resource.start = omap_cs3_phys();
 	h2_nor_resource.end += SZ_32M - 1;
+
+#if 0	/* REVISIT: Enable when nand_platform_data is applied */
+	h2_nand_resource.end = h2_nand_resource.start = OMAP_CS2B_PHYS;
+	h2_nand_resource.end += SZ_4K - 1;
+	if (!(omap_request_gpio(H2_NAND_RB_GPIO_PIN)))
+		h2_nand_data.dev_ready = h2_nand_dev_ready;
+#endif
 
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);

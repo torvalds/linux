@@ -17,7 +17,7 @@
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-extern void consistent_sync(const void *kaddr, size_t size, int rw);
+extern void dma_cache_maint(const void *kaddr, size_t size, int rw);
 
 /*
  * Return whether the given device DMA address mask can be supported
@@ -165,7 +165,7 @@ dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 	       enum dma_data_direction dir)
 {
 	if (!arch_is_coherent())
-		consistent_sync(cpu_addr, size, dir);
+		dma_cache_maint(cpu_addr, size, dir);
 
 	return virt_to_dma(dev, (unsigned long)cpu_addr);
 }
@@ -278,7 +278,7 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		virt = page_address(sg->page) + sg->offset;
 
 		if (!arch_is_coherent())
-			consistent_sync(virt, sg->length, dir);
+			dma_cache_maint(virt, sg->length, dir);
 	}
 
 	return nents;
@@ -334,7 +334,7 @@ dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle, size_t size,
 			enum dma_data_direction dir)
 {
 	if (!arch_is_coherent())
-		consistent_sync((void *)dma_to_virt(dev, handle), size, dir);
+		dma_cache_maint((void *)dma_to_virt(dev, handle), size, dir);
 }
 
 static inline void
@@ -342,7 +342,7 @@ dma_sync_single_for_device(struct device *dev, dma_addr_t handle, size_t size,
 			   enum dma_data_direction dir)
 {
 	if (!arch_is_coherent())
-		consistent_sync((void *)dma_to_virt(dev, handle), size, dir);
+		dma_cache_maint((void *)dma_to_virt(dev, handle), size, dir);
 }
 #else
 extern void dma_sync_single_for_cpu(struct device*, dma_addr_t, size_t, enum dma_data_direction);
@@ -373,7 +373,7 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
 	for (i = 0; i < nents; i++, sg++) {
 		char *virt = page_address(sg->page) + sg->offset;
 		if (!arch_is_coherent())
-			consistent_sync(virt, sg->length, dir);
+			dma_cache_maint(virt, sg->length, dir);
 	}
 }
 
@@ -386,7 +386,7 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 	for (i = 0; i < nents; i++, sg++) {
 		char *virt = page_address(sg->page) + sg->offset;
 		if (!arch_is_coherent())
-			consistent_sync(virt, sg->length, dir);
+			dma_cache_maint(virt, sg->length, dir);
 	}
 }
 #else

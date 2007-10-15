@@ -47,6 +47,8 @@
 #include <asm/arch/keypad.h>
 #include <asm/arch/dma.h>
 #include <asm/arch/common.h>
+#include <asm/arch/mcbsp.h>
+#include <asm/arch/omap-alsa.h>
 
 extern int omap_gpio_init(void);
 
@@ -354,11 +356,14 @@ static struct resource h3_irda_resources[] = {
 	},
 };
 
+static u64 irda_dmamask = 0xffffffff;
+
 static struct platform_device h3_irda_device = {
 	.name		= "omapirda",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &h3_irda_data,
+		.dma_mask	= &irda_dmamask,
 	},
 	.num_resources	= ARRAY_SIZE(h3_irda_resources),
 	.resource	= h3_irda_resources,
@@ -369,6 +374,41 @@ static struct platform_device h3_lcd_device = {
 	.id		= -1,
 };
 
+static struct omap_mcbsp_reg_cfg mcbsp_regs = {
+	.spcr2 = FREE | FRST | GRST | XRST | XINTM(3),
+	.spcr1 = RINTM(3) | RRST,
+	.rcr2  = RPHASE | RFRLEN2(OMAP_MCBSP_WORD_8) |
+                RWDLEN2(OMAP_MCBSP_WORD_16) | RDATDLY(1),
+	.rcr1  = RFRLEN1(OMAP_MCBSP_WORD_8) | RWDLEN1(OMAP_MCBSP_WORD_16),
+	.xcr2  = XPHASE | XFRLEN2(OMAP_MCBSP_WORD_8) |
+                XWDLEN2(OMAP_MCBSP_WORD_16) | XDATDLY(1) | XFIG,
+	.xcr1  = XFRLEN1(OMAP_MCBSP_WORD_8) | XWDLEN1(OMAP_MCBSP_WORD_16),
+	.srgr1 = FWID(15),
+	.srgr2 = GSYNC | CLKSP | FSGM | FPER(31),
+
+	.pcr0  = CLKRM | SCLKME | FSXP | FSRP | CLKXP | CLKRP,
+	//.pcr0 = CLKXP | CLKRP,        /* mcbsp: slave */
+};
+
+static struct omap_alsa_codec_config alsa_config = {
+	.name                   = "H3 TSC2101",
+	.mcbsp_regs_alsa        = &mcbsp_regs,
+	.codec_configure_dev    = NULL, // tsc2101_configure,
+	.codec_set_samplerate   = NULL, // tsc2101_set_samplerate,
+	.codec_clock_setup      = NULL, // tsc2101_clock_setup,
+	.codec_clock_on         = NULL, // tsc2101_clock_on,
+	.codec_clock_off        = NULL, // tsc2101_clock_off,
+	.get_default_samplerate = NULL, // tsc2101_get_default_samplerate,
+};
+
+static struct platform_device h3_mcbsp1_device = {
+	.name	= "omap_alsa_mcbsp",
+	.id	= 1,
+	.dev = {
+		.platform_data	= &alsa_config,
+	},
+};
+
 static struct platform_device *devices[] __initdata = {
 	&nor_device,
 	&nand_device,
@@ -377,6 +417,7 @@ static struct platform_device *devices[] __initdata = {
 	&h3_irda_device,
 	&h3_kp_device,
 	&h3_lcd_device,
+	&h3_mcbsp1_device,
 };
 
 static struct omap_usb_config h3_usb_config __initdata = {

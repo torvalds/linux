@@ -108,6 +108,12 @@ config LEDS_GPIO
 	  outputs. To be useful the particular board must have LEDs
 	  and they must be connected to the GPIO lines.
 
+config LEDS_CM_X270
+	tristate "LED Support for the CM-X270 LEDs"
+	depends on LEDS_CLASS && MACH_ARMCORE
+	help
+	  This option enables support for the CM-X270 LEDs.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS

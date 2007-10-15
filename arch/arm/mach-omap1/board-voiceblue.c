@@ -235,7 +235,7 @@ static struct notifier_block panic_block = {
 static int __init voiceblue_setup(void)
 {
 	/* Setup panic notifier */
-	notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 
 	return 0;
 }

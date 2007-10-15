@@ -17,7 +17,13 @@
 
 #include <asm/io.h>
 
+#if defined(CONFIG_ARCH_OMAP2420)
 #define OMAP24XX_TAP_BASE	io_p2v(0x48014000)
+#endif
+
+#if defined(CONFIG_ARCH_OMAP2430)
+#define OMAP24XX_TAP_BASE	io_p2v(0x4900A000)
+#endif
 
 #define OMAP_TAP_IDCODE		0x0204
 #define OMAP_TAP_PROD_ID	0x0208

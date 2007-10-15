@@ -145,7 +145,7 @@ static struct s3c24xx_dma_order __initdata s3c2410_dma_order = {
 	},
 };
 
-static int s3c2410_dma_add(struct sys_device *sysdev)
+static int __init s3c2410_dma_add(struct sys_device *sysdev)
 {
 	s3c2410_dma_init();
 	s3c24xx_dma_order_set(&s3c2410_dma_order);

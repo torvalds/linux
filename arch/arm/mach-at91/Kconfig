@@ -7,6 +7,8 @@ choice
 
 config ARCH_AT91RM9200
 	bool "AT91RM9200"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 
 config ARCH_AT91SAM9260
 	bool "AT91SAM9260 or AT91SAM9XE"
@@ -20,7 +22,14 @@ config ARCH_AT91SAM9263
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
 
+config ARCH_AT91X40
+	bool "AT91x40"
+
 endchoice
+
+config AT91_PMC_UNIT
+	bool
+	default !ARCH_AT91X40
 
 # ----------------------------------------------------------
 
@@ -164,6 +173,22 @@ config MACH_AT91SAM9RLEK
 	depends on ARCH_AT91SAM9RL
 	help
 	  Select this if you are using Atmel's AT91SAM9RL-EK Evaluation Kit.
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91X40
+
+comment "AT91X40 Board Type"
+
+config MACH_AT91EB01
+	bool "Atmel AT91EB01 Evaluation Kit"
+	help
+	  Select this if you are using Atmel's AT91EB01 Evaluation Kit.
+	  It is also a popular target for simulators such as GDB's
+	  ARM simulator (commonly known as the ARMulator) and the
+	  Skyeye simulator.
 
 endif
 

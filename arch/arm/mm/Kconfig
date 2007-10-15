@@ -322,7 +322,7 @@ config CPU_SA1100
 # XScale
 config CPU_XSCALE
 	bool
-	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_PXA || ARCH_IXP4XX || ARCH_IXP2000
+	depends on ARCH_IOP32X || ARCH_IOP33X || PXA25x || PXA27x || ARCH_IXP4XX || ARCH_IXP2000
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
@@ -333,7 +333,7 @@ config CPU_XSCALE
 # XScale Core Version 3
 config CPU_XSC3
 	bool
-	depends on ARCH_IXP23XX || ARCH_IOP13XX
+	depends on ARCH_IXP23XX || ARCH_IOP13XX || PXA3xx
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T

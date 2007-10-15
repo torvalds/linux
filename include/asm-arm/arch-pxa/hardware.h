@@ -62,6 +62,7 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PXA25x
 #define __cpu_is_pxa21x(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xf3f;	\
@@ -73,12 +74,50 @@
 		unsigned int _id = (id) >> 4 & 0xfff;	\
 		_id == 0x2d0 || _id == 0x290;		\
 	})
+#else
+#define __cpu_is_pxa21x(id)	(0)
+#define __cpu_is_pxa25x(id)	(0)
+#endif
 
+#ifdef CONFIG_PXA27x
 #define __cpu_is_pxa27x(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xfff;	\
 		_id == 0x411;				\
 	})
+#else
+#define __cpu_is_pxa27x(id)	(0)
+#endif
+
+#ifdef CONFIG_CPU_PXA300
+#define __cpu_is_pxa300(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x688;				\
+	 })
+#else
+#define __cpu_is_pxa300(id)	(0)
+#endif
+
+#ifdef CONFIG_CPU_PXA310
+#define __cpu_is_pxa310(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x689;				\
+	 })
+#else
+#define __cpu_is_pxa310(id)	(0)
+#endif
+
+#ifdef CONFIG_CPU_PXA320
+#define __cpu_is_pxa320(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x603 || _id == 0x682;		\
+	 })
+#else
+#define __cpu_is_pxa320(id)	(0)
+#endif
 
 #define cpu_is_pxa21x()					\
 	({						\
@@ -98,6 +137,53 @@
 		__cpu_is_pxa27x(id);			\
 	})
 
+#define cpu_is_pxa300()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa300(id);			\
+	 })
+
+#define cpu_is_pxa310()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa310(id);			\
+	 })
+
+#define cpu_is_pxa320()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa320(id);			\
+	 })
+
+/*
+ * CPUID Core Generation Bit
+ * <= 0x2 for pxa21x/pxa25x/pxa26x/pxa27x
+ * == 0x3 for pxa300/pxa310/pxa320
+ */
+#define __cpu_is_pxa2xx(id)				\
+	({						\
+		unsigned int _id = (id) >> 13 & 0x7;	\
+		_id <= 0x2;				\
+	 })
+
+#define __cpu_is_pxa3xx(id)				\
+	({						\
+		unsigned int _id = (id) >> 13 & 0x7;	\
+		_id == 0x3;				\
+	 })
+
+#define cpu_is_pxa2xx()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa2xx(id);			\
+	 })
+
+#define cpu_is_pxa3xx()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa3xx(id);			\
+	 })
+
 /*
  * Handy routine to set GPIO alternate functions
  */
@@ -116,14 +202,23 @@ extern void pxa_gpio_set_value(unsigned gpio, int value);
 /*
  * Routine to enable or disable CKEN
  */
-extern void pxa_set_cken(int clock, int enable);
+static inline void __deprecated pxa_set_cken(int clock, int enable)
+{
+	extern void __pxa_set_cken(int clock, int enable);
+	__pxa_set_cken(clock, enable);
+}
 
 /*
  * return current memory and LCD clock frequency in units of 10kHz
  */
 extern unsigned int get_memclk_frequency_10khz(void);
-extern unsigned int get_lcdclk_frequency_10khz(void);
 
+#endif
+
+#if defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)
+#define PCIBIOS_MIN_IO		0
+#define PCIBIOS_MIN_MEM		0
+#define pcibios_assign_all_busses()	1
 #endif
 
 #endif  /* _ASM_ARCH_HARDWARE_H */
