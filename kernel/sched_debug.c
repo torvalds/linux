@@ -28,6 +28,31 @@
 		printk(x);			\
  } while (0)
 
+/*
+ * Ease the printing of nsec fields:
+ */
+static long long nsec_high(long long nsec)
+{
+	if (nsec < 0) {
+		nsec = -nsec;
+		do_div(nsec, 1000000);
+		return -nsec;
+	}
+	do_div(nsec, 1000000);
+
+	return nsec;
+}
+
+static unsigned long nsec_low(long long nsec)
+{
+	if (nsec < 0)
+		nsec = -nsec;
+
+	return do_div(nsec, 1000000);
+}
+
+#define SPLIT_NS(x) nsec_high(x), nsec_low(x)
+
 static void
 print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 {
@@ -36,19 +61,19 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 	else
 		SEQ_printf(m, " ");
 
-	SEQ_printf(m, "%15s %5d %15Ld %13Ld %5d ",
+	SEQ_printf(m, "%15s %5d %9Ld.%06ld %9Ld %5d ",
 		p->comm, p->pid,
-		(long long)p->se.vruntime,
+		SPLIT_NS(p->se.vruntime),
 		(long long)(p->nvcsw + p->nivcsw),
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS
-	SEQ_printf(m, "%15Ld %15Ld %15Ld\n",
-		(long long)p->se.vruntime,
-		(long long)p->se.sum_exec_runtime,
-		(long long)p->se.sum_sleep_runtime);
+	SEQ_printf(m, "%15Ld.%06ld %15Ld.%06ld %15Ld.%06ld\n",
+		SPLIT_NS(p->se.vruntime),
+		SPLIT_NS(p->se.sum_exec_runtime),
+		SPLIT_NS(p->se.sum_sleep_runtime));
 #else
-	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
-		0LL, 0LL, 0LL, 0LL, 0LL);
+	SEQ_printf(m, "%15Ld %15Ld %15Ld.%06ld %15Ld.%06ld %15Ld.%06ld\n",
+		0LL, 0LL, 0LL, 0L, 0LL, 0L, 0LL, 0L);
 #endif
 }
 
@@ -85,10 +110,8 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 	SEQ_printf(m, "\ncfs_rq\n");
 
-#define P(x) \
-	SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(cfs_rq->x))
-
-	P(exec_clock);
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "exec_clock",
+			SPLIT_NS(cfs_rq->exec_clock));
 
 	spin_lock_irqsave(&rq->lock, flags);
 	if (cfs_rq->rb_leftmost)
@@ -99,19 +122,18 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	min_vruntime = rq->cfs.min_vruntime;
 	rq0_min_vruntime = per_cpu(runqueues, 0).cfs.min_vruntime;
 	spin_unlock_irqrestore(&rq->lock, flags);
-	SEQ_printf(m, "  .%-30s: %Ld\n", "MIN_vruntime",
-			(long long)MIN_vruntime);
-	SEQ_printf(m, "  .%-30s: %Ld\n", "min_vruntime",
-			(long long)min_vruntime);
-	SEQ_printf(m, "  .%-30s: %Ld\n", "max_vruntime",
-			(long long)max_vruntime);
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "MIN_vruntime",
+			SPLIT_NS(MIN_vruntime));
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "min_vruntime",
+			SPLIT_NS(min_vruntime));
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "max_vruntime",
+			SPLIT_NS(max_vruntime));
 	spread = max_vruntime - MIN_vruntime;
-	SEQ_printf(m, "  .%-30s: %Ld\n", "spread",
-			(long long)spread);
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "spread",
+			SPLIT_NS(spread));
 	spread0 = min_vruntime - rq0_min_vruntime;
-	SEQ_printf(m, "  .%-30s: %Ld\n", "spread0",
-			(long long)spread0);
-#undef P
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "spread0",
+			SPLIT_NS(spread0));
 }
 
 static void print_cpu(struct seq_file *m, int cpu)
@@ -131,6 +153,8 @@ static void print_cpu(struct seq_file *m, int cpu)
 
 #define P(x) \
 	SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(rq->x))
+#define PN(x) \
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", #x, SPLIT_NS(rq->x))
 
 	P(nr_running);
 	SEQ_printf(m, "  .%-30s: %lu\n", "load",
@@ -139,21 +163,22 @@ static void print_cpu(struct seq_file *m, int cpu)
 	P(nr_load_updates);
 	P(nr_uninterruptible);
 	SEQ_printf(m, "  .%-30s: %lu\n", "jiffies", jiffies);
-	P(next_balance);
+	PN(next_balance);
 	P(curr->pid);
-	P(clock);
-	P(idle_clock);
-	P(prev_clock_raw);
+	PN(clock);
+	PN(idle_clock);
+	PN(prev_clock_raw);
 	P(clock_warps);
 	P(clock_overflows);
 	P(clock_deep_idle_events);
-	P(clock_max_delta);
+	PN(clock_max_delta);
 	P(cpu_load[0]);
 	P(cpu_load[1]);
 	P(cpu_load[2]);
 	P(cpu_load[3]);
 	P(cpu_load[4]);
 #undef P
+#undef PN
 
 	print_cfs_stats(m, cpu);
 
@@ -170,7 +195,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
 
-	SEQ_printf(m, "now at %Lu nsecs\n", (unsigned long long)now);
+	SEQ_printf(m, "now at %Lu.%06ld msecs\n", SPLIT_NS(now));
 
 	for_each_online_cpu(cpu)
 		print_cpu(m, cpu);
@@ -228,20 +253,22 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	SEQ_printf(m, "----------------------------------------------\n");
 #define P(F) \
 	SEQ_printf(m, "%-25s:%20Ld\n", #F, (long long)p->F)
+#define PN(F) \
+	SEQ_printf(m, "%-25s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
 
-	P(se.exec_start);
-	P(se.vruntime);
-	P(se.sum_exec_runtime);
+	PN(se.exec_start);
+	PN(se.vruntime);
+	PN(se.sum_exec_runtime);
 
 #ifdef CONFIG_SCHEDSTATS
-	P(se.wait_start);
-	P(se.sleep_start);
-	P(se.block_start);
-	P(se.sleep_max);
-	P(se.block_max);
-	P(se.exec_max);
-	P(se.slice_max);
-	P(se.wait_max);
+	PN(se.wait_start);
+	PN(se.sleep_start);
+	PN(se.block_start);
+	PN(se.sleep_max);
+	PN(se.block_max);
+	PN(se.exec_max);
+	PN(se.slice_max);
+	PN(se.wait_max);
 #endif
 	SEQ_printf(m, "%-25s:%20Ld\n",
 		   "nr_switches", (long long)(p->nvcsw + p->nivcsw));
@@ -249,6 +276,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	P(policy);
 	P(prio);
 #undef P
+#undef PN
 
 	{
 		u64 t0, t1;
