@@ -399,6 +399,8 @@ enum {
 	SCHED_FEAT_SLEEPER_AVG		= 4,
 	SCHED_FEAT_SLEEPER_LOAD_AVG	= 8,
 	SCHED_FEAT_START_DEBIT		= 16,
+	SCHED_FEAT_USE_TREE_AVG         = 32,
+	SCHED_FEAT_APPROX_AVG           = 64,
 };
 
 const_debug unsigned int sysctl_sched_features =
@@ -406,7 +408,9 @@ const_debug unsigned int sysctl_sched_features =
 		SCHED_FEAT_NEW_FAIR_SLEEPERS	*1 |
 		SCHED_FEAT_SLEEPER_AVG		*0 |
 		SCHED_FEAT_SLEEPER_LOAD_AVG	*1 |
-		SCHED_FEAT_START_DEBIT		*1;
+		SCHED_FEAT_START_DEBIT		*1 |
+		SCHED_FEAT_USE_TREE_AVG		*0 |
+		SCHED_FEAT_APPROX_AVG		*0;
 
 #define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
 

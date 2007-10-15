@@ -547,16 +547,22 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
-	struct sched_entity *last = __pick_last_entity(cfs_rq);
 	u64 min_runtime, latency;
 
 	min_runtime = cfs_rq->min_vruntime;
-	if (last) {
-		min_runtime += last->vruntime;
-		min_runtime >>= 1;
-		if (initial && sched_feat(START_DEBIT))
-			min_runtime += sysctl_sched_latency/2;
-	}
+
+	if (sched_feat(USE_TREE_AVG)) {
+		struct sched_entity *last = __pick_last_entity(cfs_rq);
+		if (last) {
+			min_runtime = __pick_next_entity(cfs_rq)->vruntime;
+			min_runtime += last->vruntime;
+			min_runtime >>= 1;
+		}
+	} else if (sched_feat(APPROX_AVG))
+		min_runtime += sysctl_sched_latency/2;
+
+	if (initial && sched_feat(START_DEBIT))
+		min_runtime += sched_slice(cfs_rq, se);
 
 	if (!initial && sched_feat(NEW_FAIR_SLEEPERS)) {
 		latency = sysctl_sched_latency;
