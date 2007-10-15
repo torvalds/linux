@@ -56,12 +56,12 @@ static struct arpt_table packet_filter = {
 
 /* The work comes in here from netfilter.c */
 static unsigned int arpt_hook(unsigned int hook,
-			      struct sk_buff **pskb,
+			      struct sk_buff *skb,
 			      const struct net_device *in,
 			      const struct net_device *out,
 			      int (*okfn)(struct sk_buff *))
 {
-	return arpt_do_table(pskb, hook, in, out, &packet_filter);
+	return arpt_do_table(skb, hook, in, out, &packet_filter);
 }
 
 static struct nf_hook_ops arpt_ops[] = {

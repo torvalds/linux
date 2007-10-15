@@ -335,6 +335,7 @@ static int
 ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 {
 	int diff;
+	int err;
 	struct iphdr *user_iph = (struct iphdr *)v->payload;
 
 	if (v->data_len < sizeof(*user_iph))
@@ -347,25 +348,18 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 		if (v->data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
-			struct sk_buff *newskb;
-
-			newskb = skb_copy_expand(e->skb,
-						 skb_headroom(e->skb),
-						 diff,
-						 GFP_ATOMIC);
-			if (newskb == NULL) {
-				printk(KERN_WARNING "ip_queue: OOM "
-				      "in mangle, dropping packet\n");
-				return -ENOMEM;
+			err = pskb_expand_head(e->skb, 0,
+					       diff - skb_tailroom(e->skb),
+					       GFP_ATOMIC);
+			if (err) {
+				printk(KERN_WARNING "ip_queue: error "
+				      "in mangle, dropping packet: %d\n", -err);
+				return err;
 			}
-			if (e->skb->sk)
-				skb_set_owner_w(newskb, e->skb->sk);
-			kfree_skb(e->skb);
-			e->skb = newskb;
 		}
 		skb_put(e->skb, diff);
 	}
-	if (!skb_make_writable(&e->skb, v->data_len))
+	if (!skb_make_writable(e->skb, v->data_len))
 		return -ENOMEM;
 	skb_copy_to_linear_data(e->skb, v->payload, v->data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;

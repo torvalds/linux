@@ -15,8 +15,7 @@ extern void nf_ct_frag6_output(unsigned int hooknum, struct sk_buff *skb,
 			       struct net_device *out,
 			       int (*okfn)(struct sk_buff *));
 
-extern unsigned int nf_ct_frag6_timeout;
-extern unsigned int nf_ct_frag6_low_thresh;
-extern unsigned int nf_ct_frag6_high_thresh;
+struct inet_frags_ctl;
+extern struct inet_frags_ctl nf_frags_ctl;
 
 #endif /* _NF_CONNTRACK_IPV6_H*/

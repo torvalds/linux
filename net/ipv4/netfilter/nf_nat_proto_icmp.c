@@ -52,20 +52,20 @@ icmp_unique_tuple(struct nf_conntrack_tuple *tuple,
 }
 
 static int
-icmp_manip_pkt(struct sk_buff **pskb,
+icmp_manip_pkt(struct sk_buff *skb,
 	       unsigned int iphdroff,
 	       const struct nf_conntrack_tuple *tuple,
 	       enum nf_nat_manip_type maniptype)
 {
-	struct iphdr *iph = (struct iphdr *)((*pskb)->data + iphdroff);
+	struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
 	struct icmphdr *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 
-	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
+	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
 		return 0;
 
-	hdr = (struct icmphdr *)((*pskb)->data + hdroff);
-	nf_proto_csum_replace2(&hdr->checksum, *pskb,
+	hdr = (struct icmphdr *)(skb->data + hdroff);
+	nf_proto_csum_replace2(&hdr->checksum, skb,
 			       hdr->un.echo.id, tuple->src.u.icmp.id, 0);
 	hdr->un.echo.id = tuple->src.u.icmp.id;
 	return 1;

@@ -80,7 +80,7 @@ static int xfrm6_output_finish2(struct sk_buff *skb)
 	while (likely((err = xfrm6_output_one(skb)) == 0)) {
 		nf_reset(skb);
 
-		err = nf_hook(PF_INET6, NF_IP6_LOCAL_OUT, &skb, NULL,
+		err = nf_hook(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL,
 			      skb->dst->dev, dst_output);
 		if (unlikely(err != 1))
 			break;
@@ -88,7 +88,7 @@ static int xfrm6_output_finish2(struct sk_buff *skb)
 		if (!skb->dst->xfrm)
 			return dst_output(skb);
 
-		err = nf_hook(PF_INET6, NF_IP6_POST_ROUTING, &skb, NULL,
+		err = nf_hook(PF_INET6, NF_IP6_POST_ROUTING, skb, NULL,
 			      skb->dst->dev, xfrm6_output_finish2);
 		if (unlikely(err != 1))
 			break;

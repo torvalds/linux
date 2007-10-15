@@ -142,7 +142,7 @@ static inline int ebt_basic_match(struct ebt_entry *e, struct ethhdr *h,
 }
 
 /* Do some firewalling */
-unsigned int ebt_do_table (unsigned int hook, struct sk_buff **pskb,
+unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out,
    struct ebt_table *table)
 {
@@ -172,19 +172,19 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff **pskb,
 	base = private->entries;
 	i = 0;
 	while (i < nentries) {
-		if (ebt_basic_match(point, eth_hdr(*pskb), in, out))
+		if (ebt_basic_match(point, eth_hdr(skb), in, out))
 			goto letscontinue;
 
-		if (EBT_MATCH_ITERATE(point, ebt_do_match, *pskb, in, out) != 0)
+		if (EBT_MATCH_ITERATE(point, ebt_do_match, skb, in, out) != 0)
 			goto letscontinue;
 
 		/* increase counter */
 		(*(counter_base + i)).pcnt++;
-		(*(counter_base + i)).bcnt+=(**pskb).len;
+		(*(counter_base + i)).bcnt += skb->len;
 
 		/* these should only watch: not modify, nor tell us
 		   what to do with the packet */
-		EBT_WATCHER_ITERATE(point, ebt_do_watcher, *pskb, hook, in,
+		EBT_WATCHER_ITERATE(point, ebt_do_watcher, skb, hook, in,
 		   out);
 
 		t = (struct ebt_entry_target *)
@@ -193,7 +193,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff **pskb,
 		if (!t->u.target->target)
 			verdict = ((struct ebt_standard_target *)t)->verdict;
 		else
-			verdict = t->u.target->target(pskb, hook,
+			verdict = t->u.target->target(skb, hook,
 			   in, out, t->data, t->target_size);
 		if (verdict == EBT_ACCEPT) {
 			read_unlock_bh(&table->lock);

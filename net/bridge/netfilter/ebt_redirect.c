@@ -8,35 +8,28 @@
  *
  */
 
+#include <linux/netfilter.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_redirect.h>
 #include <linux/module.h>
 #include <net/sock.h>
 #include "../br_private.h"
 
-static int ebt_target_redirect(struct sk_buff **pskb, unsigned int hooknr,
+static int ebt_target_redirect(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
 	struct ebt_redirect_info *info = (struct ebt_redirect_info *)data;
 
-	if (skb_shared(*pskb) || skb_cloned(*pskb)) {
-		struct sk_buff *nskb;
+	if (skb_make_writable(skb, 0))
+		return NF_DROP;
 
-		nskb = skb_copy(*pskb, GFP_ATOMIC);
-		if (!nskb)
-			return NF_DROP;
-		if ((*pskb)->sk)
-			skb_set_owner_w(nskb, (*pskb)->sk);
-		kfree_skb(*pskb);
-		*pskb = nskb;
-	}
 	if (hooknr != NF_BR_BROUTING)
-		memcpy(eth_hdr(*pskb)->h_dest,
+		memcpy(eth_hdr(skb)->h_dest,
 		       in->br_port->br->dev->dev_addr, ETH_ALEN);
 	else
-		memcpy(eth_hdr(*pskb)->h_dest, in->dev_addr, ETH_ALEN);
-	(*pskb)->pkt_type = PACKET_HOST;
+		memcpy(eth_hdr(skb)->h_dest, in->dev_addr, ETH_ALEN);
+	skb->pkt_type = PACKET_HOST;
 	return info->target;
 }
 

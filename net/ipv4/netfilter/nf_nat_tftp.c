@@ -20,7 +20,7 @@ MODULE_DESCRIPTION("TFTP NAT helper");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ip_nat_tftp");
 
-static unsigned int help(struct sk_buff **pskb,
+static unsigned int help(struct sk_buff *skb,
 			 enum ip_conntrack_info ctinfo,
 			 struct nf_conntrack_expect *exp)
 {

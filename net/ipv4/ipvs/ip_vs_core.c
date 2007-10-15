@@ -58,7 +58,6 @@ EXPORT_SYMBOL(ip_vs_conn_put);
 #ifdef CONFIG_IP_VS_DEBUG
 EXPORT_SYMBOL(ip_vs_get_debug_level);
 #endif
-EXPORT_SYMBOL(ip_vs_make_skb_writable);
 
 
 /* ID used in ICMP lookups */
@@ -162,42 +161,6 @@ ip_vs_set_state(struct ip_vs_conn *cp, int direction,
 	return pp->state_transition(cp, direction, skb, pp);
 }
 
-
-int ip_vs_make_skb_writable(struct sk_buff **pskb, int writable_len)
-{
-	struct sk_buff *skb = *pskb;
-
-	/* skb is already used, better copy skb and its payload */
-	if (unlikely(skb_shared(skb) || skb->sk))
-		goto copy_skb;
-
-	/* skb data is already used, copy it */
-	if (unlikely(skb_cloned(skb)))
-		goto copy_data;
-
-	return pskb_may_pull(skb, writable_len);
-
-  copy_data:
-	if (unlikely(writable_len > skb->len))
-		return 0;
-	return !pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-
-  copy_skb:
-	if (unlikely(writable_len > skb->len))
-		return 0;
-	skb = skb_copy(skb, GFP_ATOMIC);
-	if (!skb)
-		return 0;
-	BUG_ON(skb_is_nonlinear(skb));
-
-	/* Rest of kernel will get very unhappy if we pass it a
-	   suddenly-orphaned skbuff */
-	if ((*pskb)->sk)
-		skb_set_owner_w(skb, (*pskb)->sk);
-	kfree_skb(*pskb);
-	*pskb = skb;
-	return 1;
-}
 
 /*
  *  IPVS persistent scheduling function
@@ -525,12 +488,12 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
  *      for VS/NAT.
  */
 static unsigned int ip_vs_post_routing(unsigned int hooknum,
-				       struct sk_buff **pskb,
+				       struct sk_buff *skb,
 				       const struct net_device *in,
 				       const struct net_device *out,
 				       int (*okfn)(struct sk_buff *))
 {
-	if (!((*pskb)->ipvs_property))
+	if (!skb->ipvs_property)
 		return NF_ACCEPT;
 	/* The packet was sent from IPVS, exit this chain */
 	return NF_STOP;
@@ -541,13 +504,14 @@ __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
 	return csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
 }
 
-static inline struct sk_buff *
-ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
+static inline int ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
-	skb = ip_defrag(skb, user);
-	if (skb)
+	int err = ip_defrag(skb, user);
+
+	if (!err)
 		ip_send_check(ip_hdr(skb));
-	return skb;
+
+	return err;
 }
 
 /*
@@ -605,9 +569,8 @@ void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
  *	Currently handles error types - unreachable, quench, ttl exceeded.
  *	(Only used in VS/NAT)
  */
-static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
+static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 {
-	struct sk_buff *skb = *pskb;
 	struct iphdr *iph;
 	struct icmphdr	_icmph, *ic;
 	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
@@ -619,10 +582,8 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 
 	/* reassemble IP fragments */
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
-		if (!skb)
+		if (ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT))
 			return NF_STOLEN;
-		*pskb = skb;
 	}
 
 	iph = ip_hdr(skb);
@@ -690,9 +651,8 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 
 	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol)
 		offset += 2 * sizeof(__u16);
-	if (!ip_vs_make_skb_writable(pskb, offset))
+	if (!skb_make_writable(skb, offset))
 		goto out;
-	skb = *pskb;
 
 	ip_vs_nat_icmp(skb, pp, cp, 1);
 
@@ -724,11 +684,10 @@ static inline int is_tcp_reset(const struct sk_buff *skb)
  *      rewrite addresses of the packet and send it on its way...
  */
 static unsigned int
-ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
+ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 	  const struct net_device *in, const struct net_device *out,
 	  int (*okfn)(struct sk_buff *))
 {
-	struct sk_buff  *skb = *pskb;
 	struct iphdr	*iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
@@ -741,11 +700,10 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 
 	iph = ip_hdr(skb);
 	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
-		int related, verdict = ip_vs_out_icmp(pskb, &related);
+		int related, verdict = ip_vs_out_icmp(skb, &related);
 
 		if (related)
 			return verdict;
-		skb = *pskb;
 		iph = ip_hdr(skb);
 	}
 
@@ -756,11 +714,9 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	/* reassemble IP fragments */
 	if (unlikely(iph->frag_off & htons(IP_MF|IP_OFFSET) &&
 		     !pp->dont_defrag)) {
-		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
-		if (!skb)
+		if (ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT))
 			return NF_STOLEN;
 		iph = ip_hdr(skb);
-		*pskb = skb;
 	}
 
 	ihl = iph->ihl << 2;
@@ -802,13 +758,12 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 
 	IP_VS_DBG_PKT(11, pp, skb, 0, "Outgoing packet");
 
-	if (!ip_vs_make_skb_writable(pskb, ihl))
+	if (!skb_make_writable(skb, ihl))
 		goto drop;
 
 	/* mangle the packet */
-	if (pp->snat_handler && !pp->snat_handler(pskb, pp, cp))
+	if (pp->snat_handler && !pp->snat_handler(skb, pp, cp))
 		goto drop;
-	skb = *pskb;
 	ip_hdr(skb)->saddr = cp->vaddr;
 	ip_send_check(ip_hdr(skb));
 
@@ -818,9 +773,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	 * if it came from this machine itself.  So re-compute
 	 * the routing information.
 	 */
-	if (ip_route_me_harder(pskb, RTN_LOCAL) != 0)
+	if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
 		goto drop;
-	skb = *pskb;
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After SNAT");
 
@@ -835,7 +789,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 
   drop:
 	ip_vs_conn_put(cp);
-	kfree_skb(*pskb);
+	kfree_skb(skb);
 	return NF_STOLEN;
 }
 
@@ -847,9 +801,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
  *	Currently handles error types - unreachable, quench, ttl exceeded.
  */
 static int
-ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
+ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 {
-	struct sk_buff *skb = *pskb;
 	struct iphdr *iph;
 	struct icmphdr	_icmph, *ic;
 	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
@@ -861,12 +814,9 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 
 	/* reassemble IP fragments */
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-		skb = ip_vs_gather_frags(skb,
-					 hooknum == NF_IP_LOCAL_IN ?
-					 IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD);
-		if (!skb)
+		if (ip_vs_gather_frags(skb, hooknum == NF_IP_LOCAL_IN ?
+					    IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD))
 			return NF_STOLEN;
-		*pskb = skb;
 	}
 
 	iph = ip_hdr(skb);
@@ -945,11 +895,10 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
  *	and send it on its way...
  */
 static unsigned int
-ip_vs_in(unsigned int hooknum, struct sk_buff **pskb,
+ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	 const struct net_device *in, const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	struct sk_buff	*skb = *pskb;
 	struct iphdr	*iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
@@ -971,11 +920,10 @@ ip_vs_in(unsigned int hooknum, struct sk_buff **pskb,
 
 	iph = ip_hdr(skb);
 	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
-		int related, verdict = ip_vs_in_icmp(pskb, &related, hooknum);
+		int related, verdict = ip_vs_in_icmp(skb, &related, hooknum);
 
 		if (related)
 			return verdict;
-		skb = *pskb;
 		iph = ip_hdr(skb);
 	}
 
@@ -1056,16 +1004,16 @@ ip_vs_in(unsigned int hooknum, struct sk_buff **pskb,
  *      and send them to ip_vs_in_icmp.
  */
 static unsigned int
-ip_vs_forward_icmp(unsigned int hooknum, struct sk_buff **pskb,
+ip_vs_forward_icmp(unsigned int hooknum, struct sk_buff *skb,
 		   const struct net_device *in, const struct net_device *out,
 		   int (*okfn)(struct sk_buff *))
 {
 	int r;
 
-	if (ip_hdr(*pskb)->protocol != IPPROTO_ICMP)
+	if (ip_hdr(skb)->protocol != IPPROTO_ICMP)
 		return NF_ACCEPT;
 
-	return ip_vs_in_icmp(pskb, &r, hooknum);
+	return ip_vs_in_icmp(skb, &r, hooknum);
 }
 
 

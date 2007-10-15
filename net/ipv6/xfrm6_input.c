@@ -133,9 +133,9 @@ drop:
 
 EXPORT_SYMBOL(xfrm6_rcv_spi);
 
-int xfrm6_rcv(struct sk_buff **pskb)
+int xfrm6_rcv(struct sk_buff *skb)
 {
-	return xfrm6_rcv_spi(*pskb, 0);
+	return xfrm6_rcv_spi(skb, 0);
 }
 
 EXPORT_SYMBOL(xfrm6_rcv);

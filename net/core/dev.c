@@ -1362,22 +1362,21 @@ int skb_checksum_help(struct sk_buff *skb)
 		goto out_set_summed;
 	}
 
-	if (skb_cloned(skb)) {
+	offset = skb->csum_start - skb_headroom(skb);
+	BUG_ON(offset >= skb_headlen(skb));
+	csum = skb_checksum(skb, offset, skb->len - offset, 0);
+
+	offset += skb->csum_offset;
+	BUG_ON(offset + sizeof(__sum16) > skb_headlen(skb));
+
+	if (skb_cloned(skb) &&
+	    !skb_clone_writable(skb, offset + sizeof(__sum16))) {
 		ret = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 		if (ret)
 			goto out;
 	}
 
-	offset = skb->csum_start - skb_headroom(skb);
-	BUG_ON(offset > (int)skb->len);
-	csum = skb_checksum(skb, offset, skb->len-offset, 0);
-
-	offset = skb_headlen(skb) - offset;
-	BUG_ON(offset <= 0);
-	BUG_ON(skb->csum_offset + 2 > offset);
-
-	*(__sum16 *)(skb->head + skb->csum_start + skb->csum_offset) =
-		csum_fold(csum);
+	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
 out_set_summed:
 	skb->ip_summed = CHECKSUM_NONE;
 out:
@@ -1949,27 +1948,51 @@ static int ing_filter(struct sk_buff *skb)
 	struct Qdisc *q;
 	struct net_device *dev = skb->dev;
 	int result = TC_ACT_OK;
+	u32 ttl = G_TC_RTTL(skb->tc_verd);
 
-	if (dev->qdisc_ingress) {
-		__u32 ttl = (__u32) G_TC_RTTL(skb->tc_verd);
-		if (MAX_RED_LOOP < ttl++) {
-			printk(KERN_WARNING "Redir loop detected Dropping packet (%d->%d)\n",
-				skb->iif, skb->dev->ifindex);
-			return TC_ACT_SHOT;
-		}
-
-		skb->tc_verd = SET_TC_RTTL(skb->tc_verd,ttl);
-
-		skb->tc_verd = SET_TC_AT(skb->tc_verd,AT_INGRESS);
-
-		spin_lock(&dev->ingress_lock);
-		if ((q = dev->qdisc_ingress) != NULL)
-			result = q->enqueue(skb, q);
-		spin_unlock(&dev->ingress_lock);
-
+	if (MAX_RED_LOOP < ttl++) {
+		printk(KERN_WARNING
+		       "Redir loop detected Dropping packet (%d->%d)\n",
+		       skb->iif, dev->ifindex);
+		return TC_ACT_SHOT;
 	}
 
+	skb->tc_verd = SET_TC_RTTL(skb->tc_verd, ttl);
+	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_INGRESS);
+
+	spin_lock(&dev->ingress_lock);
+	if ((q = dev->qdisc_ingress) != NULL)
+		result = q->enqueue(skb, q);
+	spin_unlock(&dev->ingress_lock);
+
 	return result;
+}
+
+static inline struct sk_buff *handle_ing(struct sk_buff *skb,
+					 struct packet_type **pt_prev,
+					 int *ret, struct net_device *orig_dev)
+{
+	if (!skb->dev->qdisc_ingress)
+		goto out;
+
+	if (*pt_prev) {
+		*ret = deliver_skb(skb, *pt_prev, orig_dev);
+		*pt_prev = NULL;
+	} else {
+		/* Huh? Why does turning on AF_PACKET affect this? */
+		skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
+	}
+
+	switch (ing_filter(skb)) {
+	case TC_ACT_SHOT:
+	case TC_ACT_STOLEN:
+		kfree_skb(skb);
+		return NULL;
+	}
+
+out:
+	skb->tc_verd = 0;
+	return skb;
 }
 #endif
 
@@ -2021,21 +2044,9 @@ int netif_receive_skb(struct sk_buff *skb)
 	}
 
 #ifdef CONFIG_NET_CLS_ACT
-	if (pt_prev) {
-		ret = deliver_skb(skb, pt_prev, orig_dev);
-		pt_prev = NULL; /* noone else should process this after*/
-	} else {
-		skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
-	}
-
-	ret = ing_filter(skb);
-
-	if (ret == TC_ACT_SHOT || (ret == TC_ACT_STOLEN)) {
-		kfree_skb(skb);
+	skb = handle_ing(skb, &pt_prev, &ret, orig_dev);
+	if (!skb)
 		goto out;
-	}
-
-	skb->tc_verd = 0;
 ncls:
 #endif
 

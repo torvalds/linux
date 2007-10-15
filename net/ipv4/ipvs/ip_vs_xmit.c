@@ -253,7 +253,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	/* copy-on-write the packet before mangling it */
-	if (!ip_vs_make_skb_writable(&skb, sizeof(struct iphdr)))
+	if (!skb_make_writable(skb, sizeof(struct iphdr)))
 		goto tx_error_put;
 
 	if (skb_cow(skb, rt->u.dst.dev->hard_header_len))
@@ -264,7 +264,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	skb->dst = &rt->u.dst;
 
 	/* mangle the packet */
-	if (pp->dnat_handler && !pp->dnat_handler(&skb, pp, cp))
+	if (pp->dnat_handler && !pp->dnat_handler(skb, pp, cp))
 		goto tx_error;
 	ip_hdr(skb)->daddr = cp->daddr;
 	ip_send_check(ip_hdr(skb));
@@ -529,7 +529,7 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	/* copy-on-write the packet before mangling it */
-	if (!ip_vs_make_skb_writable(&skb, offset))
+	if (!skb_make_writable(skb, offset))
 		goto tx_error_put;
 
 	if (skb_cow(skb, rt->u.dst.dev->hard_header_len))

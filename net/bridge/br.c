@@ -23,7 +23,7 @@
 
 #include "br_private.h"
 
-int (*br_should_route_hook) (struct sk_buff **pskb) = NULL;
+int (*br_should_route_hook)(struct sk_buff *skb);
 
 static struct llc_sap *br_stp_sap;
 

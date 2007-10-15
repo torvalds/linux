@@ -30,7 +30,7 @@ static unsigned int dcc_timeout __read_mostly = 300;
 static char *irc_buffer;
 static DEFINE_SPINLOCK(irc_buffer_lock);
 
-unsigned int (*nf_nat_irc_hook)(struct sk_buff **pskb,
+unsigned int (*nf_nat_irc_hook)(struct sk_buff *skb,
 				enum ip_conntrack_info ctinfo,
 				unsigned int matchoff,
 				unsigned int matchlen,
@@ -89,7 +89,7 @@ static int parse_dcc(char *data, char *data_end, u_int32_t *ip,
 	return 0;
 }
 
-static int help(struct sk_buff **pskb, unsigned int protoff,
+static int help(struct sk_buff *skb, unsigned int protoff,
 		struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
 	unsigned int dataoff;
@@ -116,22 +116,22 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 		return NF_ACCEPT;
 
 	/* Not a full tcp header? */
-	th = skb_header_pointer(*pskb, protoff, sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return NF_ACCEPT;
 
 	/* No data? */
 	dataoff = protoff + th->doff*4;
-	if (dataoff >= (*pskb)->len)
+	if (dataoff >= skb->len)
 		return NF_ACCEPT;
 
 	spin_lock_bh(&irc_buffer_lock);
-	ib_ptr = skb_header_pointer(*pskb, dataoff, (*pskb)->len - dataoff,
+	ib_ptr = skb_header_pointer(skb, dataoff, skb->len - dataoff,
 				    irc_buffer);
 	BUG_ON(ib_ptr == NULL);
 
 	data = ib_ptr;
-	data_limit = ib_ptr + (*pskb)->len - dataoff;
+	data_limit = ib_ptr + skb->len - dataoff;
 
 	/* strlen("\1DCC SENT t AAAAAAAA P\1\n")=24
 	 * 5+MINMATCHLEN+strlen("t AAAAAAAA P\1\n")=14 */
@@ -143,7 +143,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 		data += 5;
 		/* we have at least (19+MINMATCHLEN)-5 bytes valid data left */
 
-		iph = ip_hdr(*pskb);
+		iph = ip_hdr(skb);
 		pr_debug("DCC found in master %u.%u.%u.%u:%u %u.%u.%u.%u:%u\n",
 			 NIPQUAD(iph->saddr), ntohs(th->source),
 			 NIPQUAD(iph->daddr), ntohs(th->dest));
@@ -193,7 +193,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 
 			nf_nat_irc = rcu_dereference(nf_nat_irc_hook);
 			if (nf_nat_irc && ct->status & IPS_NAT_MASK)
-				ret = nf_nat_irc(pskb, ctinfo,
+				ret = nf_nat_irc(skb, ctinfo,
 						 addr_beg_p - ib_ptr,
 						 addr_end_p - addr_beg_p,
 						 exp);

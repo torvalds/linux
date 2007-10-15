@@ -6123,19 +6123,19 @@ static int __devinit niu_pci_probe_sprom(struct niu *np)
 	val = nr64(ESPC_PHY_TYPE);
 	switch (np->port) {
 	case 0:
-		val = (val & ESPC_PHY_TYPE_PORT0) >>
+		val8 = (val & ESPC_PHY_TYPE_PORT0) >>
 			ESPC_PHY_TYPE_PORT0_SHIFT;
 		break;
 	case 1:
-		val = (val & ESPC_PHY_TYPE_PORT1) >>
+		val8 = (val & ESPC_PHY_TYPE_PORT1) >>
 			ESPC_PHY_TYPE_PORT1_SHIFT;
 		break;
 	case 2:
-		val = (val & ESPC_PHY_TYPE_PORT2) >>
+		val8 = (val & ESPC_PHY_TYPE_PORT2) >>
 			ESPC_PHY_TYPE_PORT2_SHIFT;
 		break;
 	case 3:
-		val = (val & ESPC_PHY_TYPE_PORT3) >>
+		val8 = (val & ESPC_PHY_TYPE_PORT3) >>
 			ESPC_PHY_TYPE_PORT3_SHIFT;
 		break;
 	default:
@@ -6143,9 +6143,9 @@ static int __devinit niu_pci_probe_sprom(struct niu *np)
 			np->port);
 		return -EINVAL;
 	}
-	niudbg(PROBE, "SPROM: PHY type %llx\n", (unsigned long long) val);
+	niudbg(PROBE, "SPROM: PHY type %x\n", val8);
 
-	switch (val) {
+	switch (val8) {
 	case ESPC_PHY_TYPE_1G_COPPER:
 		/* 1G copper, MII */
 		np->flags &= ~(NIU_FLAGS_FIBER |
@@ -6175,8 +6175,7 @@ static int __devinit niu_pci_probe_sprom(struct niu *np)
 		break;
 
 	default:
-		dev_err(np->device, PFX "Bogus SPROM phy type %llu\n",
-			(unsigned long long) val);
+		dev_err(np->device, PFX "Bogus SPROM phy type %u\n", val8);
 		return -EINVAL;
 	}
 
@@ -6213,7 +6212,7 @@ static int __devinit niu_pci_probe_sprom(struct niu *np)
 	val = nr64(ESPC_MOD_STR_LEN);
 	niudbg(PROBE, "SPROM: MOD_STR_LEN[%llu]\n",
 	       (unsigned long long) val);
-	if (val > 8 * 4)
+	if (val >= 8 * 4)
 		return -EINVAL;
 
 	for (i = 0; i < val; i += 4) {
@@ -6229,7 +6228,7 @@ static int __devinit niu_pci_probe_sprom(struct niu *np)
 	val = nr64(ESPC_BD_MOD_STR_LEN);
 	niudbg(PROBE, "SPROM: BD_MOD_STR_LEN[%llu]\n",
 	       (unsigned long long) val);
-	if (val > 4 * 4)
+	if (val >= 4 * 4)
 		return -EINVAL;
 
 	for (i = 0; i < val; i += 4) {

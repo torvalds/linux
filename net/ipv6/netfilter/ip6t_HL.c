@@ -18,7 +18,7 @@ MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
 MODULE_DESCRIPTION("IP6 tables Hop Limit modification module");
 MODULE_LICENSE("GPL");
 
-static unsigned int ip6t_hl_target(struct sk_buff **pskb,
+static unsigned int ip6t_hl_target(struct sk_buff *skb,
 				   const struct net_device *in,
 				   const struct net_device *out,
 				   unsigned int hooknum,
@@ -29,10 +29,10 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 	const struct ip6t_HL_info *info = targinfo;
 	int new_hl;
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(skb, skb->len))
 		return NF_DROP;
 
-	ip6h = ipv6_hdr(*pskb);
+	ip6h = ipv6_hdr(skb);
 
 	switch (info->mode) {
 		case IP6T_HL_SET:

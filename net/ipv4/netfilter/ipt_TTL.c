@@ -20,7 +20,7 @@ MODULE_DESCRIPTION("IP tables TTL modification module");
 MODULE_LICENSE("GPL");
 
 static unsigned int
-ipt_ttl_target(struct sk_buff **pskb,
+ipt_ttl_target(struct sk_buff *skb,
 	       const struct net_device *in, const struct net_device *out,
 	       unsigned int hooknum, const struct xt_target *target,
 	       const void *targinfo)
@@ -29,10 +29,10 @@ ipt_ttl_target(struct sk_buff **pskb,
 	const struct ipt_TTL_info *info = targinfo;
 	int new_ttl;
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(skb, skb->len))
 		return NF_DROP;
 
-	iph = ip_hdr(*pskb);
+	iph = ip_hdr(skb);
 
 	switch (info->mode) {
 		case IPT_TTL_SET:

@@ -286,7 +286,6 @@ typedef struct {
 /* Local interface-data */
 typedef struct isdn_net_local_s {
   ulong                  magic;
-  char                   name[10];     /* Name of device                   */
   struct net_device_stats stats;       /* Ethernet Statistics              */
   int                    isdn_device;  /* Index to isdn-device             */
   int                    isdn_channel; /* Index to isdn-channel            */

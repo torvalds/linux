@@ -70,7 +70,7 @@ static __inline__ void ipv6_select_ident(struct sk_buff *skb, struct frag_hdr *f
 	spin_unlock_bh(&ip6_id_lock);
 }
 
-static inline int ip6_output_finish(struct sk_buff *skb)
+static int ip6_output_finish(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
 

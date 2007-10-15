@@ -18,7 +18,7 @@ struct nf_nat_protocol
 
 	/* Translate a packet to the target according to manip type.
 	   Return true if succeeded. */
-	int (*manip_pkt)(struct sk_buff **pskb,
+	int (*manip_pkt)(struct sk_buff *skb,
 			 unsigned int iphdroff,
 			 const struct nf_conntrack_tuple *tuple,
 			 enum nf_nat_manip_type maniptype);

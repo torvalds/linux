@@ -172,8 +172,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 		    (!sk->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == skb->dev->ifindex)) {
 			if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-				skb = ip_defrag(skb, IP_DEFRAG_CALL_RA_CHAIN);
-				if (skb == NULL) {
+				if (ip_defrag(skb, IP_DEFRAG_CALL_RA_CHAIN)) {
 					read_unlock(&ip_ra_lock);
 					return 1;
 				}
@@ -196,7 +195,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 	return 0;
 }
 
-static inline int ip_local_deliver_finish(struct sk_buff *skb)
+static int ip_local_deliver_finish(struct sk_buff *skb)
 {
 	__skb_pull(skb, ip_hdrlen(skb));
 
@@ -265,8 +264,7 @@ int ip_local_deliver(struct sk_buff *skb)
 	 */
 
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-		skb = ip_defrag(skb, IP_DEFRAG_LOCAL_DELIVER);
-		if (!skb)
+		if (ip_defrag(skb, IP_DEFRAG_LOCAL_DELIVER))
 			return 0;
 	}
 
@@ -326,7 +324,7 @@ drop:
 	return -1;
 }
 
-static inline int ip_rcv_finish(struct sk_buff *skb)
+static int ip_rcv_finish(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;

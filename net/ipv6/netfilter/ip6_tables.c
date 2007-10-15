@@ -205,7 +205,7 @@ ip6_checkentry(const struct ip6t_ip6 *ipv6)
 }
 
 static unsigned int
-ip6t_error(struct sk_buff **pskb,
+ip6t_error(struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
@@ -350,7 +350,7 @@ static void trace_packet(struct sk_buff *skb,
 
 /* Returns one of the generic firewall policies, like NF_ACCEPT. */
 unsigned int
-ip6t_do_table(struct sk_buff **pskb,
+ip6t_do_table(struct sk_buff *skb,
 	      unsigned int hook,
 	      const struct net_device *in,
 	      const struct net_device *out,
@@ -389,17 +389,17 @@ ip6t_do_table(struct sk_buff **pskb,
 	do {
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
-		if (ip6_packet_match(*pskb, indev, outdev, &e->ipv6,
+		if (ip6_packet_match(skb, indev, outdev, &e->ipv6,
 			&protoff, &offset, &hotdrop)) {
 			struct ip6t_entry_target *t;
 
 			if (IP6T_MATCH_ITERATE(e, do_match,
-					       *pskb, in, out,
+					       skb, in, out,
 					       offset, protoff, &hotdrop) != 0)
 				goto no_match;
 
 			ADD_COUNTER(e->counters,
-				    ntohs(ipv6_hdr(*pskb)->payload_len)
+				    ntohs(ipv6_hdr(skb)->payload_len)
 				    + IPV6_HDR_LEN,
 				    1);
 
@@ -409,8 +409,8 @@ ip6t_do_table(struct sk_buff **pskb,
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
     defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
 			/* The packet is traced: log it */
-			if (unlikely((*pskb)->nf_trace))
-				trace_packet(*pskb, hook, in, out,
+			if (unlikely(skb->nf_trace))
+				trace_packet(skb, hook, in, out,
 					     table->name, private, e);
 #endif
 			/* Standard target? */
@@ -448,7 +448,7 @@ ip6t_do_table(struct sk_buff **pskb,
 				((struct ip6t_entry *)table_base)->comefrom
 					= 0xeeeeeeec;
 #endif
-				verdict = t->u.kernel.target->target(pskb,
+				verdict = t->u.kernel.target->target(skb,
 								     in, out,
 								     hook,
 								     t->u.kernel.target,

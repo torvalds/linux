@@ -22,7 +22,7 @@ MODULE_ALIAS("ipt_MARK");
 MODULE_ALIAS("ip6t_MARK");
 
 static unsigned int
-target_v0(struct sk_buff **pskb,
+target_v0(struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
@@ -31,12 +31,12 @@ target_v0(struct sk_buff **pskb,
 {
 	const struct xt_mark_target_info *markinfo = targinfo;
 
-	(*pskb)->mark = markinfo->mark;
+	skb->mark = markinfo->mark;
 	return XT_CONTINUE;
 }
 
 static unsigned int
-target_v1(struct sk_buff **pskb,
+target_v1(struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
@@ -52,15 +52,15 @@ target_v1(struct sk_buff **pskb,
 		break;
 
 	case XT_MARK_AND:
-		mark = (*pskb)->mark & markinfo->mark;
+		mark = skb->mark & markinfo->mark;
 		break;
 
 	case XT_MARK_OR:
-		mark = (*pskb)->mark | markinfo->mark;
+		mark = skb->mark | markinfo->mark;
 		break;
 	}
 
-	(*pskb)->mark = mark;
+	skb->mark = mark;
 	return XT_CONTINUE;
 }
 

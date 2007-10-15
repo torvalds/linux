@@ -86,22 +86,22 @@ udp_unique_tuple(struct nf_conntrack_tuple *tuple,
 }
 
 static int
-udp_manip_pkt(struct sk_buff **pskb,
+udp_manip_pkt(struct sk_buff *skb,
 	      unsigned int iphdroff,
 	      const struct nf_conntrack_tuple *tuple,
 	      enum nf_nat_manip_type maniptype)
 {
-	struct iphdr *iph = (struct iphdr *)((*pskb)->data + iphdroff);
+	struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
 	struct udphdr *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 	__be32 oldip, newip;
 	__be16 *portptr, newport;
 
-	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
+	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
 		return 0;
 
-	iph = (struct iphdr *)((*pskb)->data + iphdroff);
-	hdr = (struct udphdr *)((*pskb)->data + hdroff);
+	iph = (struct iphdr *)(skb->data + iphdroff);
+	hdr = (struct udphdr *)(skb->data + hdroff);
 
 	if (maniptype == IP_NAT_MANIP_SRC) {
 		/* Get rid of src ip and src pt */
@@ -116,9 +116,9 @@ udp_manip_pkt(struct sk_buff **pskb,
 		newport = tuple->dst.u.udp.port;
 		portptr = &hdr->dest;
 	}
-	if (hdr->check || (*pskb)->ip_summed == CHECKSUM_PARTIAL) {
-		nf_proto_csum_replace4(&hdr->check, *pskb, oldip, newip, 1);
-		nf_proto_csum_replace2(&hdr->check, *pskb, *portptr, newport,
+	if (hdr->check || skb->ip_summed == CHECKSUM_PARTIAL) {
+		nf_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
+		nf_proto_csum_replace2(&hdr->check, skb, *portptr, newport,
 				       0);
 		if (!hdr->check)
 			hdr->check = CSUM_MANGLED_0;

@@ -287,7 +287,7 @@ struct arpt_error
 extern int arpt_register_table(struct arpt_table *table,
 			       const struct arpt_replace *repl);
 extern void arpt_unregister_table(struct arpt_table *table);
-extern unsigned int arpt_do_table(struct sk_buff **pskb,
+extern unsigned int arpt_do_table(struct sk_buff *skb,
 				  unsigned int hook,
 				  const struct net_device *in,
 				  const struct net_device *out,

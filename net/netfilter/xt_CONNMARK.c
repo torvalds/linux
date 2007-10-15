@@ -34,7 +34,7 @@ MODULE_ALIAS("ip6t_CONNMARK");
 #include <net/netfilter/nf_conntrack_ecache.h>
 
 static unsigned int
-target(struct sk_buff **pskb,
+target(struct sk_buff *skb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
@@ -48,28 +48,28 @@ target(struct sk_buff **pskb,
 	u_int32_t mark;
 	u_int32_t newmark;
 
-	ct = nf_ct_get(*pskb, &ctinfo);
+	ct = nf_ct_get(skb, &ctinfo);
 	if (ct) {
 		switch(markinfo->mode) {
 		case XT_CONNMARK_SET:
 			newmark = (ct->mark & ~markinfo->mask) | markinfo->mark;
 			if (newmark != ct->mark) {
 				ct->mark = newmark;
-				nf_conntrack_event_cache(IPCT_MARK, *pskb);
+				nf_conntrack_event_cache(IPCT_MARK, skb);
 			}
 			break;
 		case XT_CONNMARK_SAVE:
 			newmark = (ct->mark & ~markinfo->mask) |
-				  ((*pskb)->mark & markinfo->mask);
+				  (skb->mark & markinfo->mask);
 			if (ct->mark != newmark) {
 				ct->mark = newmark;
-				nf_conntrack_event_cache(IPCT_MARK, *pskb);
+				nf_conntrack_event_cache(IPCT_MARK, skb);
 			}
 			break;
 		case XT_CONNMARK_RESTORE:
-			mark = (*pskb)->mark;
+			mark = skb->mark;
 			diff = (ct->mark ^ mark) & markinfo->mask;
-			(*pskb)->mark = mark ^ diff;
+			skb->mark = mark ^ diff;
 			break;
 		}
 	}

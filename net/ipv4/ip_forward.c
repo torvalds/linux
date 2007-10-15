@@ -40,7 +40,7 @@
 #include <net/route.h>
 #include <net/xfrm.h>
 
-static inline int ip_forward_finish(struct sk_buff *skb)
+static int ip_forward_finish(struct sk_buff *skb)
 {
 	struct ip_options * opt	= &(IPCB(skb)->opt);
 

@@ -146,7 +146,7 @@ void __inet6_csk_dst_store(struct sock *sk, struct dst_entry *dst,
 	__ip6_dst_store(sk, dst, daddr, saddr);
 
 #ifdef CONFIG_XFRM
-	if (dst) {
+	{
 		struct rt6_info *rt = (struct rt6_info  *)dst;
 		rt->rt6i_flow_cache_genid = atomic_read(&flow_cache_genid);
 	}

@@ -464,10 +464,10 @@ struct ip_vs_protocol {
 			unsigned int proto_off,
 			int inverse);
 
-	int (*snat_handler)(struct sk_buff **pskb,
+	int (*snat_handler)(struct sk_buff *skb,
 			    struct ip_vs_protocol *pp, struct ip_vs_conn *cp);
 
-	int (*dnat_handler)(struct sk_buff **pskb,
+	int (*dnat_handler)(struct sk_buff *skb,
 			    struct ip_vs_protocol *pp, struct ip_vs_conn *cp);
 
 	int (*csum_check)(struct sk_buff *skb, struct ip_vs_protocol *pp);
@@ -654,11 +654,11 @@ struct ip_vs_app
 
 	/* output hook: return false if can't linearize. diff set for TCP.  */
 	int (*pkt_out)(struct ip_vs_app *, struct ip_vs_conn *,
-		       struct sk_buff **, int *diff);
+		       struct sk_buff *, int *diff);
 
 	/* input hook: return false if can't linearize. diff set for TCP. */
 	int (*pkt_in)(struct ip_vs_app *, struct ip_vs_conn *,
-		      struct sk_buff **, int *diff);
+		      struct sk_buff *, int *diff);
 
 	/* ip_vs_app initializer */
 	int (*init_conn)(struct ip_vs_app *, struct ip_vs_conn *);
@@ -832,8 +832,8 @@ register_ip_vs_app_inc(struct ip_vs_app *app, __u16 proto, __u16 port);
 extern int ip_vs_app_inc_get(struct ip_vs_app *inc);
 extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 
-extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff **pskb);
-extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff **pskb);
+extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff *skb);
+extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff *skb);
 extern int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 			     char *o_buf, int o_len, char *n_buf, int n_len);
 extern int ip_vs_app_init(void);
@@ -984,7 +984,6 @@ static inline char ip_vs_fwd_tag(struct ip_vs_conn *cp)
 	return fwd;
 }
 
-extern int ip_vs_make_skb_writable(struct sk_buff **pskb, int len);
 extern void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		struct ip_vs_conn *cp, int dir);
 

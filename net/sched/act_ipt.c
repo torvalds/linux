@@ -202,11 +202,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 	/* yes, we have to worry about both in and out dev
 	 worry later - danger - this API seems to have changed
 	 from earlier kernels */
-
-	/* iptables targets take a double skb pointer in case the skb
-	 * needs to be replaced. We don't own the skb, so this must not
-	 * happen. The pskb_expand_head above should make sure of this */
-	ret = ipt->tcfi_t->u.kernel.target->target(&skb, skb->dev, NULL,
+	ret = ipt->tcfi_t->u.kernel.target->target(skb, skb->dev, NULL,
 						   ipt->tcfi_hook,
 						   ipt->tcfi_t->u.kernel.target,
 						   ipt->tcfi_t->data);

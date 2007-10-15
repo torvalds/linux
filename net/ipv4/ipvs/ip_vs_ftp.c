@@ -30,6 +30,7 @@
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/netfilter.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
 #include <asm/unaligned.h>
@@ -135,7 +136,7 @@ static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
  * xxx,xxx,xxx,xxx is the server address, ppp,ppp is the server port number.
  */
 static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
-			 struct sk_buff **pskb, int *diff)
+			 struct sk_buff *skb, int *diff)
 {
 	struct iphdr *iph;
 	struct tcphdr *th;
@@ -155,14 +156,14 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		return 1;
 
 	/* Linear packets are much easier to deal with. */
-	if (!ip_vs_make_skb_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(skb, skb->len))
 		return 0;
 
 	if (cp->app_data == &ip_vs_ftp_pasv) {
-		iph = ip_hdr(*pskb);
+		iph = ip_hdr(skb);
 		th = (struct tcphdr *)&(((char *)iph)[iph->ihl*4]);
 		data = (char *)th + (th->doff << 2);
-		data_limit = skb_tail_pointer(*pskb);
+		data_limit = skb_tail_pointer(skb);
 
 		if (ip_vs_ftp_get_addrport(data, data_limit,
 					   SERVER_STRING,
@@ -213,7 +214,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 			memcpy(start, buf, buf_len);
 			ret = 1;
 		} else {
-			ret = !ip_vs_skb_replace(*pskb, GFP_ATOMIC, start,
+			ret = !ip_vs_skb_replace(skb, GFP_ATOMIC, start,
 					  end-start, buf, buf_len);
 		}
 
@@ -238,7 +239,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
  * the client.
  */
 static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
-			struct sk_buff **pskb, int *diff)
+			struct sk_buff *skb, int *diff)
 {
 	struct iphdr *iph;
 	struct tcphdr *th;
@@ -256,20 +257,20 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		return 1;
 
 	/* Linear packets are much easier to deal with. */
-	if (!ip_vs_make_skb_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(skb, skb->len))
 		return 0;
 
 	/*
 	 * Detecting whether it is passive
 	 */
-	iph = ip_hdr(*pskb);
+	iph = ip_hdr(skb);
 	th = (struct tcphdr *)&(((char *)iph)[iph->ihl*4]);
 
 	/* Since there may be OPTIONS in the TCP packet and the HLEN is
 	   the length of the header in 32-bit multiples, it is accurate
 	   to calculate data address by th+HLEN*4 */
 	data = data_start = (char *)th + (th->doff << 2);
-	data_limit = skb_tail_pointer(*pskb);
+	data_limit = skb_tail_pointer(skb);
 
 	while (data <= data_limit - 6) {
 		if (strnicmp(data, "PASV\r\n", 6) == 0) {

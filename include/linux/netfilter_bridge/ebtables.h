@@ -237,7 +237,7 @@ struct ebt_target
 	struct list_head list;
 	const char name[EBT_FUNCTION_MAXNAMELEN];
 	/* returns one of the standard verdicts */
-	int (*target)(struct sk_buff **pskb, unsigned int hooknr,
+	int (*target)(struct sk_buff *skb, unsigned int hooknr,
 	   const struct net_device *in, const struct net_device *out,
 	   const void *targetdata, unsigned int datalen);
 	/* 0 == let it in */
@@ -294,7 +294,7 @@ extern int ebt_register_watcher(struct ebt_watcher *watcher);
 extern void ebt_unregister_watcher(struct ebt_watcher *watcher);
 extern int ebt_register_target(struct ebt_target *target);
 extern void ebt_unregister_target(struct ebt_target *target);
-extern unsigned int ebt_do_table(unsigned int hook, struct sk_buff **pskb,
+extern unsigned int ebt_do_table(unsigned int hook, struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out,
    struct ebt_table *table);
 

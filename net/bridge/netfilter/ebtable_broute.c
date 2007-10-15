@@ -51,11 +51,11 @@ static struct ebt_table broute_table =
 	.me		= THIS_MODULE,
 };
 
-static int ebt_broute(struct sk_buff **pskb)
+static int ebt_broute(struct sk_buff *skb)
 {
 	int ret;
 
-	ret = ebt_do_table(NF_BR_BROUTING, pskb, (*pskb)->dev, NULL,
+	ret = ebt_do_table(NF_BR_BROUTING, skb, skb->dev, NULL,
 	   &broute_table);
 	if (ret == NF_DROP)
 		return 1; /* route it */

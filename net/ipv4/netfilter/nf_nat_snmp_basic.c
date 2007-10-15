@@ -1188,9 +1188,9 @@ static int snmp_parse_mangle(unsigned char *msg,
  */
 static int snmp_translate(struct nf_conn *ct,
 			  enum ip_conntrack_info ctinfo,
-			  struct sk_buff **pskb)
+			  struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(*pskb);
+	struct iphdr *iph = ip_hdr(skb);
 	struct udphdr *udph = (struct udphdr *)((__be32 *)iph + iph->ihl);
 	u_int16_t udplen = ntohs(udph->len);
 	u_int16_t paylen = udplen - sizeof(struct udphdr);
@@ -1225,13 +1225,13 @@ static int snmp_translate(struct nf_conn *ct,
 
 /* We don't actually set up expectations, just adjust internal IP
  * addresses if this is being NATted */
-static int help(struct sk_buff **pskb, unsigned int protoff,
+static int help(struct sk_buff *skb, unsigned int protoff,
 		struct nf_conn *ct,
 		enum ip_conntrack_info ctinfo)
 {
 	int dir = CTINFO2DIR(ctinfo);
 	unsigned int ret;
-	struct iphdr *iph = ip_hdr(*pskb);
+	struct iphdr *iph = ip_hdr(skb);
 	struct udphdr *udph = (struct udphdr *)((u_int32_t *)iph + iph->ihl);
 
 	/* SNMP replies and originating SNMP traps get mangled */
@@ -1250,7 +1250,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 	 * enough room for a UDP header.  Just verify the UDP length field so we
 	 * can mess around with the payload.
 	 */
-	if (ntohs(udph->len) != (*pskb)->len - (iph->ihl << 2)) {
+	if (ntohs(udph->len) != skb->len - (iph->ihl << 2)) {
 		 if (net_ratelimit())
 			 printk(KERN_WARNING "SNMP: dropping malformed packet "
 				"src=%u.%u.%u.%u dst=%u.%u.%u.%u\n",
@@ -1258,11 +1258,11 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 		 return NF_DROP;
 	}
 
-	if (!skb_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(skb, skb->len))
 		return NF_DROP;
 
 	spin_lock_bh(&snmp_lock);
-	ret = snmp_translate(ct, ctinfo, pskb);
+	ret = snmp_translate(ct, ctinfo, skb);
 	spin_unlock_bh(&snmp_lock);
 	return ret;
 }

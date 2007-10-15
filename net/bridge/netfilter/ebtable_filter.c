@@ -61,10 +61,10 @@ static struct ebt_table frame_filter =
 };
 
 static unsigned int
-ebt_hook (unsigned int hook, struct sk_buff **pskb, const struct net_device *in,
+ebt_hook(unsigned int hook, struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
-	return ebt_do_table(hook, pskb, in, out, &frame_filter);
+	return ebt_do_table(hook, skb, in, out, &frame_filter);
 }
 
 static struct nf_hook_ops ebt_ops_filter[] = {
