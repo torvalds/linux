@@ -2,7 +2,7 @@
 #define __SOUND_YMFPCI_H
 
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Definitions for Yahama YMF724/740/744/754 chips
  *
  *

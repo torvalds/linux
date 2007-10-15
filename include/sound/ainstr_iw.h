@@ -2,7 +2,7 @@
  *  Advanced Linux Sound Architecture
  *
  *  InterWave FFFF Instrument Format
- *  Copyright (c) 1994-99 by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) 1994-99 by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify

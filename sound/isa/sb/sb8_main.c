@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Uros Bizjak <uros@kss-loka.si>
  *
  *  Routines for control of 8-bit SoundBlaster cards and clones
@@ -38,7 +38,7 @@
 #include <sound/core.h>
 #include <sound/sb.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Uros Bizjak <uros@kss-loka.si>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Uros Bizjak <uros@kss-loka.si>");
 MODULE_DESCRIPTION("Routines for control of 8-bit SoundBlaster cards and clones");
 MODULE_LICENSE("GPL");
 

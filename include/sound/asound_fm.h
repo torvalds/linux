@@ -5,7 +5,7 @@
  *  Advanced Linux Sound Architecture - ALSA
  *
  *  Interface file between ALSA driver & user space
- *  Copyright (c) 1994-98 by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) 1994-98 by Jaroslav Kysela <perex@perex.cz>,
  *                           4Front Technologies
  *
  *  Direct FM control

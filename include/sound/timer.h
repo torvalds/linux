@@ -3,7 +3,7 @@
 
 /*
  *  Timer abstract layer
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Abramo Bagnara <abramo@alsa-project.org>
  *
  *

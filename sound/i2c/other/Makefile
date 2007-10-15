@@ -1,6 +1,6 @@
 #
 # Makefile for ALSA
-# Copyright (c) 2003 by Jaroslav Kysela <perex@suse.cz>
+# Copyright (c) 2003 by Jaroslav Kysela <perex@perex.cz>
 #
 
 snd-ak4114-objs := ak4114.o

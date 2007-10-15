@@ -6,7 +6,7 @@
  *
  *   Lowlevel functions for Terratec EWS88MT/D, EWX24/96, DMX 6Fire
  *
- *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *                    2002 Takashi Iwai <tiwai@suse.de>
  *
  *   This program is free software; you can redistribute it and/or modify

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of SoundBlaster cards - MIDI interface
  *
  *   This program is free software; you can redistribute it and/or modify

@@ -5,7 +5,7 @@
  * Based entirely upon drivers/sbus/audio/cs4231.c which is:
  * Copyright (C) 1996, 1997, 1998 Derrick J Brashear (shadow@andrew.cmu.edu)
  * and also sound/isa/cs423x/cs4231_lib.c which is:
- * Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ * Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  */
 
 #include <linux/module.h>

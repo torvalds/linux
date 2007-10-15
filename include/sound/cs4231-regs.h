@@ -2,7 +2,7 @@
 #define __SOUND_CS4231_REGS_H
 
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Definitions for CS4231 & InterWave chips & compatible chips registers
  *
  *

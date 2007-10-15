@@ -1,6 +1,6 @@
 /*
  *  Mu-Law conversion Plug-In Interface
- *  Copyright (c) 1999 by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
  *                        Uros Bizjak <uros@kss-loka.si>
  *
  *  Based on reference implementation by Sun Microsystems, Inc.

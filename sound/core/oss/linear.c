@@ -1,6 +1,6 @@
 /*
  *  Linear conversion Plug-In
- *  Copyright (c) 1999 by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>,
  *			  Abramo Bagnara <abramo@alsa-project.org>
  *
  *

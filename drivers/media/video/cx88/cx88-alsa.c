@@ -7,7 +7,7 @@
  *    (c) 2005,2006 Ricardo Cerqueira <v4l@cerqueira.org>
  *    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
  *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
- *    Based on dummy.c by Jaroslav Kysela <perex@suse.cz>
+ *    Based on dummy.c by Jaroslav Kysela <perex@perex.cz>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

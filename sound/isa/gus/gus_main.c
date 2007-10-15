@@ -1,6 +1,6 @@
 /*
  *  Routines for Gravis UltraSound soundcards
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -31,7 +31,7 @@
 
 #include <asm/dma.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for Gravis UltraSound soundcards");
 MODULE_LICENSE("GPL");
 
@@ -398,7 +398,7 @@ static int snd_gus_check_version(struct snd_gus_card * gus)
 				gus->ess_flag = 1;
 			} else {
 				snd_printk(KERN_ERR "unknown GF1 revision number at 0x%lx - 0x%x (0x%x)\n", gus->gf1.port, rev, val);
-				snd_printk(KERN_ERR "  please - report to <perex@suse.cz>\n");
+				snd_printk(KERN_ERR "  please - report to <perex@perex.cz>\n");
 			}
 		}
 	}

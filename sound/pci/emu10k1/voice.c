@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Creative Labs, Inc.
  *                   Lee Revell <rlrevell@joe-job.com>
  *  Routines for control of EMU10K1 chips - voice manager

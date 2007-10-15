@@ -1,6 +1,6 @@
 /*
  *   serial.c
- *   Copyright (c) by Jaroslav Kysela <perex@suse.cz>,
+ *   Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *                    Isaku Yamahata <yamahata@private.email.ne.jp>,
  *		      George Hansper <ghansper@apana.org.au>,
  *		      Hannu Savolainen

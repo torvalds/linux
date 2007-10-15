@@ -7,7 +7,7 @@
  *   Lowlevel functions for M-Audio Delta 1010, 44, 66, Dio2496, Audiophile
  *                          Digigram VX442
  *
- *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by

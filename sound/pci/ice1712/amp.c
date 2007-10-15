@@ -3,7 +3,7 @@
  *
  *   Lowlevel functions for Advanced Micro Peripherals Ltd AUDIO2000
  *
- *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by

@@ -8,7 +8,7 @@
 ** Extended for new busmaster capable chipsets by
 ** Siegfried "Frieder" Loeffler (dg1sek) <floeff@mathematik.uni-stuttgart.de>
 **
-** Maintained by: Jaroslav Kysela <perex@suse.cz>
+** Maintained by: Jaroslav Kysela <perex@perex.cz>
 **
 ** This driver has only been tested with
 ** -- HP J2585B 10/100 Mbit/s PCI Busmaster
@@ -2951,7 +2951,7 @@ static struct pci_driver hp100_pci_driver = {
  */
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, "
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, "
               "Siegfried \"Frieder\" Loeffler (dg1sek) <floeff@mathematik.uni-stuttgart.de>");
 MODULE_DESCRIPTION("HP CASCADE Architecture Driver for 100VG-AnyLan Network Adapters");
 

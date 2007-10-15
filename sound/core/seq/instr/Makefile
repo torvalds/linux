@@ -1,6 +1,6 @@
 #
 # Makefile for ALSA
-# Copyright (c) 1999 by Jaroslav Kysela <perex@suse.cz>
+# Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
 #
 
 snd-ainstr-fm-objs := ainstr_fm.o

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of CS4235/4236B/4237B/4238B/4239 chips
  *
  *  Note:
@@ -89,7 +89,7 @@
 #include <sound/cs4231.h>
 #include <sound/asoundef.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of CS4235/4236B/4237B/4238B/4239 chips");
 MODULE_LICENSE("GPL");
 

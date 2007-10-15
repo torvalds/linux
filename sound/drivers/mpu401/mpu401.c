@@ -1,6 +1,6 @@
 /*
  *  Driver for generic MPU-401 boards (UART mode only)
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Copyright (c) 2004 by Castet Matthieu <castet.matthieu@free.fr>
  *
  *
@@ -30,7 +30,7 @@
 #include <sound/mpu401.h>
 #include <sound/initval.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("MPU-401 UART");
 MODULE_LICENSE("GPL");
 
