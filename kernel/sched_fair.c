@@ -472,19 +472,8 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 }
 
 static void
-enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
-		int wakeup, int set_curr)
+enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 {
-	/*
-	 * In case of the 'current'.
-	 */
-	if (unlikely(set_curr)) {
-		update_stats_curr_start(cfs_rq, se);
-		cfs_rq->curr = se;
-		account_entity_enqueue(cfs_rq, se);
-		return;
-	}
-
 	/*
 	 * Update the fair clock.
 	 */
@@ -496,7 +485,8 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	}
 
 	update_stats_enqueue(cfs_rq, se);
-	__enqueue_entity(cfs_rq, se);
+	if (se != cfs_rq->curr)
+		__enqueue_entity(cfs_rq, se);
 	account_entity_enqueue(cfs_rq, se);
 }
 
@@ -516,12 +506,8 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 		}
 	}
 #endif
-	if (likely(se != cfs_rq->curr))
+	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
-	else {
-		update_stats_curr_end(cfs_rq, se);
-		cfs_rq->curr = NULL;
-	}
 	account_entity_dequeue(cfs_rq, se);
 }
 
@@ -539,15 +525,20 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 		resched_task(rq_of(cfs_rq)->curr);
 }
 
-static inline void
+static void
 set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	/*
-	 * Any task has to be enqueued before it get to execute on
-	 * a CPU. So account for the time it spent waiting on the
-	 * runqueue.
-	 */
-	update_stats_wait_end(cfs_rq, se);
+	/* 'current' is not kept within the tree. */
+	if (se->on_rq) {
+		/*
+		 * Any task has to be enqueued before it get to execute on
+		 * a CPU. So account for the time it spent waiting on the
+		 * runqueue.
+		 */
+		update_stats_wait_end(cfs_rq, se);
+		__dequeue_entity(cfs_rq, se);
+	}
+
 	update_stats_curr_start(cfs_rq, se);
 	cfs_rq->curr = se;
 #ifdef CONFIG_SCHEDSTATS
@@ -567,10 +558,6 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = __pick_next_entity(cfs_rq);
-
-	/* 'current' is not kept within the tree. */
-	if (se)
-		__dequeue_entity(cfs_rq, se);
 
 	set_next_entity(cfs_rq, se);
 
@@ -703,17 +690,12 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
-	int set_curr = 0;
-
-	/* Are we enqueuing the current task? */
-	if (unlikely(task_running(rq, p)))
-		set_curr = 1;
 
 	for_each_sched_entity(se) {
 		if (se->on_rq)
 			break;
 		cfs_rq = cfs_rq_of(se);
-		enqueue_entity(cfs_rq, se, wakeup, set_curr);
+		enqueue_entity(cfs_rq, se, wakeup);
 	}
 }
 
@@ -761,7 +743,7 @@ static void yield_task_fair(struct rq *rq)
 		 * position within the tree:
 		 */
 		dequeue_entity(cfs_rq, se, 0);
-		enqueue_entity(cfs_rq, se, 0, 1);
+		enqueue_entity(cfs_rq, se, 0);
 
 		return;
 	}
@@ -1004,6 +986,19 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	resched_task(rq->curr);
 }
 
+/* Account for a task changing its policy or group.
+ *
+ * This routine is mostly called to set cfs_rq->curr field when a task
+ * migrates between groups/classes.
+ */
+static void set_curr_task_fair(struct rq *rq)
+{
+	struct sched_entity *se = &rq->curr->se;
+
+	for_each_sched_entity(se)
+		set_next_entity(cfs_rq_of(se), se);
+}
+
 /*
  * All the scheduling class methods:
  */
@@ -1019,6 +1014,7 @@ struct sched_class fair_sched_class __read_mostly = {
 
 	.load_balance		= load_balance_fair,
 
+	.set_curr_task          = set_curr_task_fair,
 	.task_tick		= task_tick_fair,
 	.task_new		= task_new_fair,
 };
