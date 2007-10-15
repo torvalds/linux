@@ -460,8 +460,8 @@ static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
 	update_stats_dequeue(cfs_rq, se);
-	if (sleep) {
 #ifdef CONFIG_SCHEDSTATS
+	if (sleep) {
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);
 
@@ -470,8 +470,8 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 			if (tsk->state & TASK_UNINTERRUPTIBLE)
 				se->block_start = rq_of(cfs_rq)->clock;
 		}
-#endif
 	}
+#endif
 	__dequeue_entity(cfs_rq, se);
 }
 
