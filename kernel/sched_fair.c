@@ -76,8 +76,6 @@ const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 25000000UL;
  */
 const_debug unsigned int sysctl_sched_wakeup_granularity = 2000000UL;
 
-unsigned int sysctl_sched_runtime_limit __read_mostly;
-
 extern struct sched_class fair_sched_class;
 
 /**************************************************************
