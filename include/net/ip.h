@@ -177,10 +177,8 @@ extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;
 
 /* From ip_fragment.c */
-extern int sysctl_ipfrag_high_thresh; 
-extern int sysctl_ipfrag_low_thresh;
-extern int sysctl_ipfrag_time;
-extern int sysctl_ipfrag_secret_interval;
+struct inet_frags_ctl;
+extern struct inet_frags_ctl ip4_frags_ctl;
 extern int sysctl_ipfrag_max_dist;
 
 /* From inetpeer.c */

@@ -20,6 +20,13 @@ struct inet_frag_queue {
 
 #define INETFRAGS_HASHSZ		64
 
+struct inet_frags_ctl {
+	int high_thresh;
+	int low_thresh;
+	int timeout;
+	int secret_interval;
+};
+
 struct inet_frags {
 	struct list_head	lru_list;
 	struct hlist_head	hash[INETFRAGS_HASHSZ];
@@ -28,6 +35,7 @@ struct inet_frags {
 	int			nqueues;
 	atomic_t		mem;
 	struct timer_list	secret_timer;
+	struct inet_frags_ctl	*ctl;
 };
 
 void inet_frags_init(struct inet_frags *);

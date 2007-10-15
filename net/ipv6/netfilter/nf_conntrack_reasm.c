@@ -49,10 +49,6 @@
 #define NF_CT_FRAG6_LOW_THRESH 196608  /* == 192*1024 */
 #define NF_CT_FRAG6_TIMEOUT IPV6_FRAG_TIMEOUT
 
-unsigned int nf_ct_frag6_high_thresh __read_mostly = 256*1024;
-unsigned int nf_ct_frag6_low_thresh __read_mostly = 192*1024;
-unsigned long nf_ct_frag6_timeout __read_mostly = IPV6_FRAG_TIMEOUT;
-
 struct nf_ct_frag6_skb_cb
 {
 	struct inet6_skb_parm	h;
@@ -72,6 +68,13 @@ struct nf_ct_frag6_queue
 
 	unsigned int		csum;
 	__u16			nhoffset;
+};
+
+struct inet_frags_ctl nf_frags_ctl __read_mostly = {
+	.high_thresh	 = 256 * 1024,
+	.low_thresh	 = 192 * 1024,
+	.timeout	 = IPV6_FRAG_TIMEOUT,
+	.secret_interval = 10 * 60 * HZ,
 };
 
 static struct inet_frags nf_frags;
@@ -117,8 +120,6 @@ static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 	return c & (INETFRAGS_HASHSZ - 1);
 }
 
-int nf_ct_frag6_secret_interval = 10 * 60 * HZ;
-
 static void nf_ct_frag6_secret_rebuild(unsigned long dummy)
 {
 	unsigned long now = jiffies;
@@ -144,7 +145,7 @@ static void nf_ct_frag6_secret_rebuild(unsigned long dummy)
 	}
 	write_unlock(&nf_frags.lock);
 
-	mod_timer(&nf_frags.secret_timer, now + nf_ct_frag6_secret_interval);
+	mod_timer(&nf_frags.secret_timer, now + nf_frags_ctl.secret_interval);
 }
 
 /* Memory Tracking Functions. */
@@ -229,10 +230,10 @@ static void nf_ct_frag6_evictor(void)
 	unsigned int work;
 
 	work = atomic_read(&nf_frags.mem);
-	if (work <= nf_ct_frag6_low_thresh)
+	if (work <= nf_frags_ctl.low_thresh)
 		return;
 
-	work -= nf_ct_frag6_low_thresh;
+	work -= nf_frags_ctl.low_thresh;
 	while (work > 0) {
 		read_lock(&nf_frags.lock);
 		if (list_empty(&nf_frags.lru_list)) {
@@ -296,7 +297,7 @@ static struct nf_ct_frag6_queue *nf_ct_frag6_intern(unsigned int hash,
 #endif
 	fq = fq_in;
 
-	if (!mod_timer(&fq->q.timer, jiffies + nf_ct_frag6_timeout))
+	if (!mod_timer(&fq->q.timer, jiffies + nf_frags_ctl.timeout))
 		atomic_inc(&fq->q.refcnt);
 
 	atomic_inc(&fq->q.refcnt);
@@ -766,7 +767,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 		goto ret_orig;
 	}
 
-	if (atomic_read(&nf_frags.mem) > nf_ct_frag6_high_thresh)
+	if (atomic_read(&nf_frags.mem) > nf_frags_ctl.high_thresh)
 		nf_ct_frag6_evictor();
 
 	fq = fq_find(fhdr->identification, &hdr->saddr, &hdr->daddr);
@@ -838,10 +839,10 @@ int nf_ct_frag6_kfree_frags(struct sk_buff *skb)
 int nf_ct_frag6_init(void)
 {
 	setup_timer(&nf_frags.secret_timer, nf_ct_frag6_secret_rebuild, 0);
-	nf_frags.secret_timer.expires = jiffies
-					   + nf_ct_frag6_secret_interval;
+	nf_frags.secret_timer.expires = jiffies + nf_frags_ctl.secret_interval;
 	add_timer(&nf_frags.secret_timer);
 
+	nf_frags.ctl = &nf_frags_ctl;
 	inet_frags_init(&nf_frags);
 
 	return 0;
@@ -852,6 +853,6 @@ void nf_ct_frag6_cleanup(void)
 	inet_frags_fini(&nf_frags);
 
 	del_timer(&nf_frags.secret_timer);
-	nf_ct_frag6_low_thresh = 0;
+	nf_frags_ctl.low_thresh = 0;
 	nf_ct_frag6_evictor();
 }

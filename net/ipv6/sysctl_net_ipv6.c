@@ -12,6 +12,7 @@
 #include <net/ndisc.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
+#include <net/inet_frag.h>
 
 #ifdef CONFIG_SYSCTL
 
@@ -41,7 +42,7 @@ static ctl_table ipv6_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_HIGH_THRESH,
 		.procname	= "ip6frag_high_thresh",
-		.data		= &sysctl_ip6frag_high_thresh,
+		.data		= &ip6_frags_ctl.high_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -49,7 +50,7 @@ static ctl_table ipv6_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
 		.procname	= "ip6frag_low_thresh",
-		.data		= &sysctl_ip6frag_low_thresh,
+		.data		= &ip6_frags_ctl.low_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -57,7 +58,7 @@ static ctl_table ipv6_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_TIME,
 		.procname	= "ip6frag_time",
-		.data		= &sysctl_ip6frag_time,
+		.data		= &ip6_frags_ctl.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -66,7 +67,7 @@ static ctl_table ipv6_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_SECRET_INTERVAL,
 		.procname	= "ip6frag_secret_interval",
-		.data		= &sysctl_ip6frag_secret_interval,
+		.data		= &ip6_frags_ctl.secret_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,

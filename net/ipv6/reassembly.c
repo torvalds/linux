@@ -56,11 +56,6 @@
 #include <net/addrconf.h>
 #include <net/inet_frag.h>
 
-int sysctl_ip6frag_high_thresh __read_mostly = 256*1024;
-int sysctl_ip6frag_low_thresh __read_mostly = 192*1024;
-
-int sysctl_ip6frag_time __read_mostly = IPV6_FRAG_TIMEOUT;
-
 struct ip6frag_skb_cb
 {
 	struct inet6_skb_parm	h;
@@ -85,6 +80,13 @@ struct frag_queue
 	int			iif;
 	unsigned int		csum;
 	__u16			nhoffset;
+};
+
+struct inet_frags_ctl ip6_frags_ctl __read_mostly = {
+	.high_thresh 	 = 256 * 1024,
+	.low_thresh	 = 192 * 1024,
+	.timeout	 = IPV6_FRAG_TIMEOUT,
+	.secret_interval = 10 * 60 * HZ,
 };
 
 static struct inet_frags ip6_frags;
@@ -147,8 +149,6 @@ static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 	return c & (INETFRAGS_HASHSZ - 1);
 }
 
-int sysctl_ip6frag_secret_interval __read_mostly = 10 * 60 * HZ;
-
 static void ip6_frag_secret_rebuild(unsigned long dummy)
 {
 	unsigned long now = jiffies;
@@ -177,7 +177,7 @@ static void ip6_frag_secret_rebuild(unsigned long dummy)
 	}
 	write_unlock(&ip6_frags.lock);
 
-	mod_timer(&ip6_frags.secret_timer, now + sysctl_ip6frag_secret_interval);
+	mod_timer(&ip6_frags.secret_timer, now + ip6_frags_ctl.secret_interval);
 }
 
 /* Memory Tracking Functions. */
@@ -256,7 +256,7 @@ static void ip6_evictor(struct inet6_dev *idev)
 	struct list_head *tmp;
 	int work;
 
-	work = atomic_read(&ip6_frags.mem) - sysctl_ip6frag_low_thresh;
+	work = atomic_read(&ip6_frags.mem) - ip6_frags_ctl.low_thresh;
 	if (work <= 0)
 		return;
 
@@ -348,7 +348,7 @@ static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in)
 #endif
 	fq = fq_in;
 
-	if (!mod_timer(&fq->q.timer, jiffies + sysctl_ip6frag_time))
+	if (!mod_timer(&fq->q.timer, jiffies + ip6_frags_ctl.timeout))
 		atomic_inc(&fq->q.refcnt);
 
 	atomic_inc(&fq->q.refcnt);
@@ -754,7 +754,7 @@ static int ipv6_frag_rcv(struct sk_buff **skbp)
 		return 1;
 	}
 
-	if (atomic_read(&ip6_frags.mem) > sysctl_ip6frag_high_thresh)
+	if (atomic_read(&ip6_frags.mem) > ip6_frags_ctl.high_thresh)
 		ip6_evictor(ip6_dst_idev(skb->dst));
 
 	if ((fq = fq_find(fhdr->identification, &hdr->saddr, &hdr->daddr,
@@ -788,8 +788,9 @@ void __init ipv6_frag_init(void)
 
 	init_timer(&ip6_frags.secret_timer);
 	ip6_frags.secret_timer.function = ip6_frag_secret_rebuild;
-	ip6_frags.secret_timer.expires = jiffies + sysctl_ip6frag_secret_interval;
+	ip6_frags.secret_timer.expires = jiffies + ip6_frags_ctl.secret_interval;
 	add_timer(&ip6_frags.secret_timer);
 
+	ip6_frags.ctl = &ip6_frags_ctl;
 	inet_frags_init(&ip6_frags);
 }

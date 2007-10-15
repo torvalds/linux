@@ -50,20 +50,7 @@
  * as well. Or notify me, at least. --ANK
  */
 
-/* Fragment cache limits. We will commit 256K at one time. Should we
- * cross that limit we will prune down to 192K. This should cope with
- * even the most extreme cases without allowing an attacker to measurably
- * harm machine performance.
- */
-int sysctl_ipfrag_high_thresh __read_mostly = 256*1024;
-int sysctl_ipfrag_low_thresh __read_mostly = 192*1024;
-
 int sysctl_ipfrag_max_dist __read_mostly = 64;
-
-/* Important NOTE! Fragment queue must be destroyed before MSL expires.
- * RFC791 is wrong proposing to prolongate timer each fragment arrival by TTL.
- */
-int sysctl_ipfrag_time __read_mostly = IP_FRAG_TIME;
 
 struct ipfrag_skb_cb
 {
@@ -85,6 +72,25 @@ struct ipq {
 	int             iif;
 	unsigned int    rid;
 	struct inet_peer *peer;
+};
+
+struct inet_frags_ctl ip4_frags_ctl __read_mostly = {
+	/*
+	 * Fragment cache limits. We will commit 256K at one time. Should we
+	 * cross that limit we will prune down to 192K. This should cope with
+	 * even the most extreme cases without allowing an attacker to
+	 * measurably harm machine performance.
+	 */
+	.high_thresh	 = 256 * 1024,
+	.low_thresh	 = 192 * 1024,
+
+	/*
+	 * Important NOTE! Fragment queue must be destroyed before MSL expires.
+	 * RFC791 is wrong proposing to prolongate timer each fragment arrival
+	 * by TTL.
+	 */
+	.timeout	 = IP_FRAG_TIME,
+	.secret_interval = 10 * 60 * HZ,
 };
 
 static struct inet_frags ip4_frags;
@@ -123,8 +129,6 @@ static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
 			    ip4_frags.rnd) & (INETFRAGS_HASHSZ - 1);
 }
 
-int sysctl_ipfrag_secret_interval __read_mostly = 10 * 60 * HZ;
-
 static void ipfrag_secret_rebuild(unsigned long dummy)
 {
 	unsigned long now = jiffies;
@@ -150,7 +154,7 @@ static void ipfrag_secret_rebuild(unsigned long dummy)
 	}
 	write_unlock(&ip4_frags.lock);
 
-	mod_timer(&ip4_frags.secret_timer, now + sysctl_ipfrag_secret_interval);
+	mod_timer(&ip4_frags.secret_timer, now + ip4_frags_ctl.secret_interval);
 }
 
 /* Memory Tracking Functions. */
@@ -237,7 +241,7 @@ static void ip_evictor(void)
 	struct list_head *tmp;
 	int work;
 
-	work = atomic_read(&ip4_frags.mem) - sysctl_ipfrag_low_thresh;
+	work = atomic_read(&ip4_frags.mem) - ip4_frags_ctl.low_thresh;
 	if (work <= 0)
 		return;
 
@@ -326,7 +330,7 @@ static struct ipq *ip_frag_intern(struct ipq *qp_in)
 #endif
 	qp = qp_in;
 
-	if (!mod_timer(&qp->q.timer, jiffies + sysctl_ipfrag_time))
+	if (!mod_timer(&qp->q.timer, jiffies + ip4_frags_ctl.timeout))
 		atomic_inc(&qp->q.refcnt);
 
 	atomic_inc(&qp->q.refcnt);
@@ -432,7 +436,7 @@ static int ip_frag_reinit(struct ipq *qp)
 {
 	struct sk_buff *fp;
 
-	if (!mod_timer(&qp->q.timer, jiffies + sysctl_ipfrag_time)) {
+	if (!mod_timer(&qp->q.timer, jiffies + ip4_frags_ctl.timeout)) {
 		atomic_inc(&qp->q.refcnt);
 		return -ETIMEDOUT;
 	}
@@ -733,7 +737,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMREQDS);
 
 	/* Start by cleaning up the memory. */
-	if (atomic_read(&ip4_frags.mem) > sysctl_ipfrag_high_thresh)
+	if (atomic_read(&ip4_frags.mem) > ip4_frags_ctl.high_thresh)
 		ip_evictor();
 
 	/* Lookup (or create) queue header */
@@ -758,9 +762,10 @@ void __init ipfrag_init(void)
 {
 	init_timer(&ip4_frags.secret_timer);
 	ip4_frags.secret_timer.function = ipfrag_secret_rebuild;
-	ip4_frags.secret_timer.expires = jiffies + sysctl_ipfrag_secret_interval;
+	ip4_frags.secret_timer.expires = jiffies + ip4_frags_ctl.secret_interval;
 	add_timer(&ip4_frags.secret_timer);
 
+	ip4_frags.ctl = &ip4_frags_ctl;
 	inet_frags_init(&ip4_frags);
 }
 
