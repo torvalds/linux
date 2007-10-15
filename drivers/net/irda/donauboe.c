@@ -840,7 +840,7 @@ toshoboe_probe (struct toshoboe_cb *self)
 
   /* test 1: SIR filter and back to back */
 
-  for (j = 0; j < (sizeof (bauds) / sizeof (int)); ++j)
+  for (j = 0; j < ARRAY_SIZE(bauds); ++j)
     {
       int fir = (j > 1);
       toshoboe_stopchip (self);

@@ -1041,7 +1041,7 @@ static struct InfoLeaf infoleaf_array[] = {
     {DC21142, dc21142_infoleaf},
     {DC21143, dc21143_infoleaf}
 };
-#define INFOLEAF_SIZE (sizeof(infoleaf_array)/(sizeof(int)+sizeof(int *)))
+#define INFOLEAF_SIZE ARRAY_SIZE(infoleaf_array)
 
 /*
 ** List the SROM info block functions
@@ -1056,7 +1056,7 @@ static int (*dc_infoblock[])(struct net_device *dev, u_char, u_char *) = {
     compact_infoblock
 };
 
-#define COMPACT (sizeof(dc_infoblock)/sizeof(int *) - 1)
+#define COMPACT (ARRAY_SIZE(dc_infoblock) - 1)
 
 /*
 ** Miscellaneous defines...

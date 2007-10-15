@@ -9034,7 +9034,7 @@ static int tg3_do_mem_test(struct tg3 *tp, u32 offset, u32 len)
 	int i;
 	u32 j;
 
-	for (i = 0; i < sizeof(test_pattern)/sizeof(u32); i++) {
+	for (i = 0; i < ARRAY_SIZE(test_pattern); i++) {
 		for (j = 0; j < len; j += 4) {
 			u32 val;
 
