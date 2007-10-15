@@ -173,11 +173,6 @@ static inline u64 async_mask(struct mthca_dev *dev)
 
 static inline void tavor_set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u32 ci)
 {
-	__be32 doorbell[2];
-
-	doorbell[0] = cpu_to_be32(MTHCA_EQ_DB_SET_CI | eq->eqn);
-	doorbell[1] = cpu_to_be32(ci & (eq->nent - 1));
-
 	/*
 	 * This barrier makes sure that all updates to ownership bits
 	 * done by set_eqe_hw() hit memory before the consumer index
@@ -187,7 +182,7 @@ static inline void tavor_set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u
 	 * having set_eqe_hw() overwrite the owner field.
 	 */
 	wmb();
-	mthca_write64(doorbell,
+	mthca_write64(MTHCA_EQ_DB_SET_CI | eq->eqn, ci & (eq->nent - 1),
 		      dev->kar + MTHCA_EQ_DOORBELL,
 		      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 }
@@ -212,12 +207,7 @@ static inline void set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u32 ci)
 
 static inline void tavor_eq_req_not(struct mthca_dev *dev, int eqn)
 {
-	__be32 doorbell[2];
-
-	doorbell[0] = cpu_to_be32(MTHCA_EQ_DB_REQ_NOT | eqn);
-	doorbell[1] = 0;
-
-	mthca_write64(doorbell,
+	mthca_write64(MTHCA_EQ_DB_REQ_NOT | eqn, 0,
 		      dev->kar + MTHCA_EQ_DOORBELL,
 		      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 }
@@ -230,12 +220,7 @@ static inline void arbel_eq_req_not(struct mthca_dev *dev, u32 eqn_mask)
 static inline void disarm_cq(struct mthca_dev *dev, int eqn, int cqn)
 {
 	if (!mthca_is_memfree(dev)) {
-		__be32 doorbell[2];
-
-		doorbell[0] = cpu_to_be32(MTHCA_EQ_DB_DISARM_CQ | eqn);
-		doorbell[1] = cpu_to_be32(cqn);
-
-		mthca_write64(doorbell,
+		mthca_write64(MTHCA_EQ_DB_DISARM_CQ | eqn, cqn,
 			      dev->kar + MTHCA_EQ_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 	}
