@@ -217,11 +217,9 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       root->fs_info->generation);
 		WARN_ON(1);
 	}
-	if (btrfs_buffer_defrag_done(parent))
-		return 0;
+	parent_level = btrfs_header_level(parent);
 
 	parent_nritems = btrfs_header_nritems(parent);
-	parent_level = btrfs_header_level(parent);
 	blocksize = btrfs_level_size(root, parent_level - 1);
 
 	start_slot = 0;

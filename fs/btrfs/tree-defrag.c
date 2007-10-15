@@ -118,7 +118,6 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
 
 	btrfs_clear_buffer_defrag(path->nodes[*level]);
-	btrfs_clear_buffer_defrag_done(path->nodes[*level]);
 
 	free_extent_buffer(path->nodes[*level]);
 	path->nodes[*level] = NULL;
@@ -148,6 +147,26 @@ static int defrag_walk_up(struct btrfs_trans_handle *trans,
 			root->defrag_level = i;
 			return 0;
 		} else {
+			if (*level > 1 && path->nodes[*level] != root->node) {
+				struct extent_buffer *next;
+				u64 last;
+				int ret;
+				ret = btrfs_cow_block(trans, root,
+						      path->nodes[*level],
+						      path->nodes[*level + 1],
+						      path->slots[*level + 1],
+						      &next);
+				BUG_ON(ret);
+				path->nodes[*level] = next;
+				last = next->start;
+				ret = btrfs_realloc_node(trans, root, next,
+							 cache_only, &last);
+				BUG_ON(ret);
+
+				if (root == root->fs_info->extent_root)
+					btrfs_extent_post_op(trans, root);
+			}
+
 			btrfs_clear_buffer_defrag(path->nodes[*level]);
 			btrfs_clear_buffer_defrag_done(path->nodes[*level]);
 			free_extent_buffer(path->nodes[*level]);
@@ -183,9 +202,11 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 
 	level = btrfs_header_level(root->node);
 	orig_level = level;
+
 	if (level == 0) {
 		goto out;
 	}
+
 	if (root->defrag_progress.objectid == 0) {
 		extent_buffer_get(root->node);
 		ret = btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
