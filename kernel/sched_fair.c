@@ -496,7 +496,6 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 	update_curr(cfs_rq);
 
 	if (wakeup) {
-		/* se->vruntime += cfs_rq->min_vruntime; */
 		place_entity(cfs_rq, se, 0);
 		enqueue_sleeper(cfs_rq, se);
 	}
