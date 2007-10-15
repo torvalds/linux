@@ -31,7 +31,6 @@ static void gfs2_init_inode_once(struct kmem_cache *cachep, void *foo)
 	inode_init_once(&ip->i_inode);
 	spin_lock_init(&ip->i_spin);
 	init_rwsem(&ip->i_rw_mutex);
-	memset(ip->i_cache, 0, sizeof(ip->i_cache));
 }
 
 static void gfs2_init_glock_once(struct kmem_cache *cachep, void *foo)

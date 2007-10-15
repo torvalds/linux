@@ -293,11 +293,6 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	return 0;
 }
 
-static void gfs2_inode_bh(struct gfs2_inode *ip, struct buffer_head *bh)
-{
-	ip->i_cache[0] = bh;
-}
-
 /**
  * gfs2_inode_refresh - Refresh the incore copy of the dinode
  * @ip: The GFS2 inode
@@ -965,7 +960,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	struct gfs2_inum_host inum = { .no_addr = 0, .no_formal_ino = 0 };
 	int error;
 	u64 generation;
-	struct buffer_head *bh=NULL;
+	struct buffer_head *bh = NULL;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -1002,8 +997,6 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (IS_ERR(inode))
 		goto fail_gunlock2;
 
-	gfs2_inode_bh(GFS2_I(inode), bh);
-
 	error = gfs2_inode_refresh(GFS2_I(inode));
 	if (error)
 		goto fail_gunlock2;
@@ -1020,6 +1013,8 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock2;
 
+	if (bh)
+		brelse(bh);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	return inode;
@@ -1031,6 +1026,8 @@ fail_gunlock2:
 fail_gunlock:
 	gfs2_glock_dq(ghs);
 fail:
+	if (bh)
+		brelse(bh);
 	return ERR_PTR(error);
 }
 

@@ -154,7 +154,6 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 	error = block_write_full_page(page, gfs2_get_block_noalloc, wbc);
 	if (done_trans)
 		gfs2_trans_end(sdp);
-	gfs2_meta_cache_flush(ip);
 	return error;
 
 out_ignore:

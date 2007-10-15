@@ -59,7 +59,7 @@ struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
 				      struct buffer_head *real);
 void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
 void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
-void gfs2_remove_from_ail(struct address_space *mapping, struct gfs2_bufdata *bd);
+void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 
 void gfs2_log_shutdown(struct gfs2_sbd *sdp);
 void gfs2_meta_syncfs(struct gfs2_sbd *sdp);
