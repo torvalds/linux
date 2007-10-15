@@ -1169,6 +1169,9 @@ static void init_once(struct kmem_cache * cachep, void *foo)
 	INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
 	nfsi->ncommit = 0;
 	nfsi->npages = 0;
+	atomic_set(&nfsi->silly_count, 1);
+	INIT_HLIST_HEAD(&nfsi->silly_list);
+	init_waitqueue_head(&nfsi->waitqueue);
 	nfs4_init_once(nfsi);
 }
 

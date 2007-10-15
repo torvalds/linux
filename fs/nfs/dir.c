@@ -562,6 +562,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	nfs_fattr_init(&fattr);
 	desc->entry = &my_entry;
 
+	nfs_block_sillyrename(dentry);
 	while(!desc->entry->eof) {
 		res = readdir_search_pagecache(desc);
 
@@ -592,6 +593,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 		}
 	}
+	nfs_unblock_sillyrename(dentry);
 	unlock_kernel();
 	if (res > 0)
 		res = 0;
@@ -866,6 +868,7 @@ struct dentry_operations nfs_dentry_operations = {
 static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
 	struct dentry *res;
+	struct dentry *parent;
 	struct inode *inode = NULL;
 	int error;
 	struct nfs_fh fhandle;
@@ -894,26 +897,31 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 		goto out_unlock;
 	}
 
+	parent = dentry->d_parent;
+	/* Protect against concurrent sillydeletes */
+	nfs_block_sillyrename(parent);
 	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, &fhandle, &fattr);
 	if (error == -ENOENT)
 		goto no_entry;
 	if (error < 0) {
 		res = ERR_PTR(error);
-		goto out_unlock;
+		goto out_unblock_sillyrename;
 	}
 	inode = nfs_fhget(dentry->d_sb, &fhandle, &fattr);
 	res = (struct dentry *)inode;
 	if (IS_ERR(res))
-		goto out_unlock;
+		goto out_unblock_sillyrename;
 
 no_entry:
 	res = d_materialise_unique(dentry, inode);
 	if (res != NULL) {
 		if (IS_ERR(res))
-			goto out_unlock;
+			goto out_unblock_sillyrename;
 		dentry = res;
 	}
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+out_unblock_sillyrename:
+	nfs_unblock_sillyrename(parent);
 out_unlock:
 	unlock_kernel();
 out:
