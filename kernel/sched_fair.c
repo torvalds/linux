@@ -342,17 +342,6 @@ update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_set(se->wait_start, rq_of(cfs_rq)->clock);
 }
 
-static inline unsigned long
-calc_weighted(unsigned long delta, struct sched_entity *se)
-{
-	unsigned long weight = se->load.weight;
-
-	if (unlikely(weight != NICE_0_LOAD))
-		return (u64)delta * se->load.weight >> NICE_0_SHIFT;
-	else
-		return delta;
-}
-
 /*
  * Task is being enqueued - update stats:
  */
