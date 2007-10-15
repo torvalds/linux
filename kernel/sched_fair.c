@@ -203,6 +203,20 @@ static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
  * Scheduling class statistics methods:
  */
 
+static u64 __sched_period(unsigned long nr_running)
+{
+	u64 period = sysctl_sched_latency;
+	unsigned long nr_latency =
+		sysctl_sched_latency / sysctl_sched_min_granularity;
+
+	if (unlikely(nr_running > nr_latency)) {
+		period *= nr_running;
+		do_div(period, nr_latency);
+	}
+
+	return period;
+}
+
 /*
  * Calculate the preemption granularity needed to schedule every
  * runnable task once per sysctl_sched_latency amount of time.
@@ -1103,6 +1117,8 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr)
 	}
 }
 
+#define swap(a,b) do { typeof(a) tmp = (a); (a) = (b); (b) = tmp; } while (0)
+
 /*
  * Share the fairness runtime between parent and child, thus the
  * total amount of pressure for CPU stays equal - new tasks
@@ -1118,14 +1134,9 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	sched_info_queued(p);
 
 	update_curr(cfs_rq);
+	se->vruntime = cfs_rq->min_vruntime;
 	update_stats_enqueue(cfs_rq, se);
-	/*
-	 * Child runs first: we let it run before the parent
-	 * until it reschedules once. We set up the key so that
-	 * it will preempt the parent:
-	 */
-	se->fair_key = curr->fair_key -
-		niced_granularity(curr, sched_granularity(cfs_rq)) - 1;
+
 	/*
 	 * The first wait is dominated by the child-runs-first logic,
 	 * so do not credit it with that waiting time yet:
@@ -1138,9 +1149,16 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * -granularity/2, so initialize the task with that:
 	 */
 	if (sched_feat(START_DEBIT))
-		se->wait_runtime = -(sched_granularity(cfs_rq) / 2);
+		se->wait_runtime = -(__sched_period(cfs_rq->nr_running+1) / 2);
 
-	se->vruntime = cfs_rq->min_vruntime;
+	if (sysctl_sched_child_runs_first &&
+			curr->vruntime < se->vruntime) {
+
+		dequeue_entity(cfs_rq, curr, 0);
+		swap(curr->vruntime, se->vruntime);
+		enqueue_entity(cfs_rq, curr, 0);
+	}
+
 	update_stats_enqueue(cfs_rq, se);
 	__enqueue_entity(cfs_rq, se);
 	resched_task(rq->curr);
