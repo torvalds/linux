@@ -136,7 +136,7 @@ void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf)
 
 	buf->waiting = 0;
 	buf->pending = 0;
-	buf->filp = NULL;
+	buf->file_priv = NULL;
 	buf->used = 0;
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE)
@@ -148,11 +148,12 @@ void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf)
 /**
  * Reclaim the buffers.
  *
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  *
- * Frees each buffer associated with \p filp not already on the hardware.
+ * Frees each buffer associated with \p file_priv not already on the hardware.
  */
-void drm_core_reclaim_buffers(struct drm_device *dev, struct file *filp)
+void drm_core_reclaim_buffers(struct drm_device *dev,
+			      struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	int i;
@@ -160,7 +161,7 @@ void drm_core_reclaim_buffers(struct drm_device *dev, struct file *filp)
 	if (!dma)
 		return;
 	for (i = 0; i < dma->buf_count; i++) {
-		if (dma->buflist[i]->filp == filp) {
+		if (dma->buflist[i]->file_priv == file_priv) {
 			switch (dma->buflist[i]->list) {
 			case DRM_LIST_NONE:
 				drm_free_buffer(dev, dma->buflist[i]);

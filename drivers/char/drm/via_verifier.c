@@ -1026,12 +1026,12 @@ via_verify_command_stream(const uint32_t * buf, unsigned int size,
 		case state_error:
 		default:
 			*hc_state = saved_state;
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 	}
 	if (state == state_error) {
 		*hc_state = saved_state;
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -1082,11 +1082,11 @@ via_parse_command_stream(struct drm_device * dev, const uint32_t * buf,
 			break;
 		case state_error:
 		default:
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 	}
 	if (state == state_error) {
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	return 0;
 }

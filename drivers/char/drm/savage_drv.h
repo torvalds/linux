@@ -104,7 +104,7 @@ enum savage_family {
 	S3_LAST
 };
 
-extern drm_ioctl_desc_t savage_ioctls[];
+extern struct drm_ioctl_desc savage_ioctls[];
 extern int savage_max_ioctl;
 
 #define S3_SAVAGE3D_SERIES(chip)  ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE_MX))
@@ -197,8 +197,8 @@ typedef struct drm_savage_private {
 } drm_savage_private_t;
 
 /* ioctls */
-extern int savage_bci_cmdbuf(DRM_IOCTL_ARGS);
-extern int savage_bci_buffers(DRM_IOCTL_ARGS);
+extern int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int savage_bci_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 /* BCI functions */
 extern uint16_t savage_bci_emit_event(drm_savage_private_t * dev_priv,
@@ -212,7 +212,8 @@ extern int savage_driver_load(struct drm_device *dev, unsigned long chipset);
 extern int savage_driver_firstopen(struct drm_device *dev);
 extern void savage_driver_lastclose(struct drm_device *dev);
 extern int savage_driver_unload(struct drm_device *dev);
-extern void savage_reclaim_buffers(struct drm_device * dev, DRMFILE filp);
+extern void savage_reclaim_buffers(struct drm_device *dev,
+				   struct drm_file *file_priv);
 
 /* state functions */
 extern void savage_emit_clip_rect_s3d(drm_savage_private_t * dev_priv,

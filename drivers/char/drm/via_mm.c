@@ -33,18 +33,15 @@
 #define VIA_MM_ALIGN_SHIFT 4
 #define VIA_MM_ALIGN_MASK ( (1 << VIA_MM_ALIGN_SHIFT) - 1)
 
-int via_agp_init(DRM_IOCTL_ARGS)
+int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_via_agp_t agp;
+	drm_via_agp_t *agp = data;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	int ret;
 
-	DRM_COPY_FROM_USER_IOCTL(agp, (drm_via_agp_t __user *) data,
-				 sizeof(agp));
 	mutex_lock(&dev->struct_mutex);
 	ret = drm_sman_set_range(&dev_priv->sman, VIA_MEM_AGP, 0,
-				 agp.size >> VIA_MM_ALIGN_SHIFT);
+				 agp->size >> VIA_MM_ALIGN_SHIFT);
 
 	if (ret) {
 		DRM_ERROR("AGP memory manager initialisation error\n");
@@ -53,25 +50,22 @@ int via_agp_init(DRM_IOCTL_ARGS)
 	}
 
 	dev_priv->agp_initialized = 1;
-	dev_priv->agp_offset = agp.offset;
+	dev_priv->agp_offset = agp->offset;
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG("offset = %u, size = %u", agp.offset, agp.size);
+	DRM_DEBUG("offset = %u, size = %u", agp->offset, agp->size);
 	return 0;
 }
 
-int via_fb_init(DRM_IOCTL_ARGS)
+int via_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_via_fb_t fb;
+	drm_via_fb_t *fb = data;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	int ret;
 
-	DRM_COPY_FROM_USER_IOCTL(fb, (drm_via_fb_t __user *) data, sizeof(fb));
-
 	mutex_lock(&dev->struct_mutex);
 	ret = drm_sman_set_range(&dev_priv->sman, VIA_MEM_VIDEO, 0,
-				 fb.size >> VIA_MM_ALIGN_SHIFT);
+				 fb->size >> VIA_MM_ALIGN_SHIFT);
 
 	if (ret) {
 		DRM_ERROR("VRAM memory manager initialisation error\n");
@@ -80,10 +74,10 @@ int via_fb_init(DRM_IOCTL_ARGS)
 	}
 
 	dev_priv->vram_initialized = 1;
-	dev_priv->vram_offset = fb.offset;
+	dev_priv->vram_offset = fb->offset;
 
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("offset = %u, size = %u", fb.offset, fb.size);
+	DRM_DEBUG("offset = %u, size = %u", fb->offset, fb->size);
 
 	return 0;
 
@@ -121,80 +115,71 @@ void via_lastclose(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 }	
 
-int via_mem_alloc(DRM_IOCTL_ARGS)
+int via_mem_alloc(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-
-	drm_via_mem_t mem;
+	drm_via_mem_t *mem = data;
 	int retval = 0;
 	struct drm_memblock_item *item;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	unsigned long tmpSize;
 
-	DRM_COPY_FROM_USER_IOCTL(mem, (drm_via_mem_t __user *) data,
-				 sizeof(mem));
-
-	if (mem.type > VIA_MEM_AGP) {
+	if (mem->type > VIA_MEM_AGP) {
 		DRM_ERROR("Unknown memory type allocation\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	mutex_lock(&dev->struct_mutex);
-	if (0 == ((mem.type == VIA_MEM_VIDEO) ? dev_priv->vram_initialized :
+	if (0 == ((mem->type == VIA_MEM_VIDEO) ? dev_priv->vram_initialized :
 		      dev_priv->agp_initialized)) {
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
 		mutex_unlock(&dev->struct_mutex);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
-	tmpSize = (mem.size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
-	item = drm_sman_alloc(&dev_priv->sman, mem.type, tmpSize, 0,
-			      (unsigned long)priv);
+	tmpSize = (mem->size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
+	item = drm_sman_alloc(&dev_priv->sman, mem->type, tmpSize, 0,
+			      (unsigned long)file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	if (item) {
-		mem.offset = ((mem.type == VIA_MEM_VIDEO) ?
+		mem->offset = ((mem->type == VIA_MEM_VIDEO) ?
 			      dev_priv->vram_offset : dev_priv->agp_offset) +
 		    (item->mm->
 		     offset(item->mm, item->mm_info) << VIA_MM_ALIGN_SHIFT);
-		mem.index = item->user_hash.key;
+		mem->index = item->user_hash.key;
 	} else {
-		mem.offset = 0;
-		mem.size = 0;
-		mem.index = 0;
+		mem->offset = 0;
+		mem->size = 0;
+		mem->index = 0;
 		DRM_DEBUG("Video memory allocation failed\n");
-		retval = DRM_ERR(ENOMEM);
+		retval = -ENOMEM;
 	}
-	DRM_COPY_TO_USER_IOCTL((drm_via_mem_t __user *) data, mem, sizeof(mem));
 
 	return retval;
 }
 
-int via_mem_free(DRM_IOCTL_ARGS)
+int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_via_private_t *dev_priv = dev->dev_private;
-	drm_via_mem_t mem;
+	drm_via_mem_t *mem = data;
 	int ret;
 
-	DRM_COPY_FROM_USER_IOCTL(mem, (drm_via_mem_t __user *) data,
-				 sizeof(mem));
-
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_sman_free_key(&dev_priv->sman, mem.index);
+	ret = drm_sman_free_key(&dev_priv->sman, mem->index);
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("free = 0x%lx\n", mem.index);
+	DRM_DEBUG("free = 0x%lx\n", mem->index);
 
 	return ret;
 }
 
 
-void via_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
+void via_reclaim_buffers_locked(struct drm_device * dev,
+				struct drm_file *file_priv)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
-	struct drm_file *priv = filp->private_data;
 
 	mutex_lock(&dev->struct_mutex);
-	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)priv)) {
+	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)file_priv)) {
 		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
@@ -203,7 +188,7 @@ void via_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
 		dev->driver->dma_quiescent(dev);
 	}
 
-	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)priv);
+	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	return;
 }

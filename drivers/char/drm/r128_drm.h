@@ -222,11 +222,7 @@ typedef struct drm_r128_init {
 		R128_INIT_CCE = 0x01,
 		R128_CLEANUP_CCE = 0x02
 	} func;
-#if CONFIG_XFREE86_VERSION < XFREE86_VERSION(4,1,0,0)
-	int sarea_priv_offset;
-#else
 	unsigned long sarea_priv_offset;
-#endif
 	int is_pci;
 	int cce_mode;
 	int cce_secure;
@@ -240,21 +236,12 @@ typedef struct drm_r128_init {
 	unsigned int depth_offset, depth_pitch;
 	unsigned int span_offset;
 
-#if CONFIG_XFREE86_VERSION < XFREE86_VERSION(4,1,0,0)
-	unsigned int fb_offset;
-	unsigned int mmio_offset;
-	unsigned int ring_offset;
-	unsigned int ring_rptr_offset;
-	unsigned int buffers_offset;
-	unsigned int agp_textures_offset;
-#else
 	unsigned long fb_offset;
 	unsigned long mmio_offset;
 	unsigned long ring_offset;
 	unsigned long ring_rptr_offset;
 	unsigned long buffers_offset;
 	unsigned long agp_textures_offset;
-#endif
 } drm_r128_init_t;
 
 typedef struct drm_r128_cce_stop {
@@ -264,15 +251,10 @@ typedef struct drm_r128_cce_stop {
 
 typedef struct drm_r128_clear {
 	unsigned int flags;
-#if CONFIG_XFREE86_VERSION < XFREE86_VERSION(4,1,0,0)
-	int x, y, w, h;
-#endif
 	unsigned int clear_color;
 	unsigned int clear_depth;
-#if CONFIG_XFREE86_VERSION >= XFREE86_VERSION(4,1,0,0)
 	unsigned int color_mask;
 	unsigned int depth_mask;
-#endif
 } drm_r128_clear_t;
 
 typedef struct drm_r128_vertex {

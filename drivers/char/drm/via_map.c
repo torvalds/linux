@@ -75,19 +75,15 @@ int via_do_cleanup_map(struct drm_device * dev)
 	return 0;
 }
 
-int via_map_init(DRM_IOCTL_ARGS)
+int via_map_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_via_init_t init;
+	drm_via_init_t *init = data;
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
-	DRM_COPY_FROM_USER_IOCTL(init, (drm_via_init_t __user *) data,
-				 sizeof(init));
-
-	switch (init.func) {
+	switch (init->func) {
 	case VIA_INIT_MAP:
-		return via_do_init_map(dev, &init);
+		return via_do_init_map(dev, init);
 	case VIA_CLEANUP_MAP:
 		return via_do_cleanup_map(dev);
 	}
@@ -102,7 +98,7 @@ int via_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv = drm_calloc(1, sizeof(drm_via_private_t), DRM_MEM_DRIVER);
 	if (dev_priv == NULL)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	dev->dev_private = (void *)dev_priv;
 

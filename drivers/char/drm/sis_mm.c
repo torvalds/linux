@@ -82,14 +82,11 @@ static unsigned long sis_sman_mm_offset(void *private, void *ref)
 
 #endif /* CONFIG_FB_SIS */
 
-static int sis_fb_init(DRM_IOCTL_ARGS)
+static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_fb_t fb;
+	drm_sis_fb_t *fb = data;
 	int ret;
-
-	DRM_COPY_FROM_USER_IOCTL(fb, (drm_sis_fb_t __user *) data, sizeof(fb));
 
 	mutex_lock(&dev->struct_mutex);
 #if defined(CONFIG_FB_SIS)
@@ -105,7 +102,7 @@ static int sis_fb_init(DRM_IOCTL_ARGS)
 	}
 #else
 	ret = drm_sman_set_range(&dev_priv->sman, VIDEO_TYPE, 0,
-				 fb.size >> SIS_MM_ALIGN_SHIFT);
+				 fb->size >> SIS_MM_ALIGN_SHIFT);
 #endif
 
 	if (ret) {
@@ -115,24 +112,21 @@ static int sis_fb_init(DRM_IOCTL_ARGS)
 	}
 
 	dev_priv->vram_initialized = 1;
-	dev_priv->vram_offset = fb.offset;
+	dev_priv->vram_offset = fb->offset;
 
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("offset = %u, size = %u", fb.offset, fb.size);
+	DRM_DEBUG("offset = %u, size = %u", fb->offset, fb->size);
 
 	return 0;
 }
 
-static int sis_drm_alloc(struct drm_device *dev, struct drm_file * priv,
-			 unsigned long data, int pool)
+static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file_priv,
+			 void *data, int pool)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_mem_t __user *argp = (drm_sis_mem_t __user *) data;
-	drm_sis_mem_t mem;
+	drm_sis_mem_t *mem = data;
 	int retval = 0;
 	struct drm_memblock_item *item;
-
-	DRM_COPY_FROM_USER_IOCTL(mem, argp, sizeof(mem));
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -140,73 +134,65 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file * priv,
 		      dev_priv->agp_initialized)) {
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
-	mem.size = (mem.size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
-	item = drm_sman_alloc(&dev_priv->sman, pool, mem.size, 0,
-			      (unsigned long)priv);
+	mem->size = (mem->size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
+	item = drm_sman_alloc(&dev_priv->sman, pool, mem->size, 0,
+			      (unsigned long)file_priv);
 
 	mutex_unlock(&dev->struct_mutex);
 	if (item) {
-		mem.offset = ((pool == 0) ?
+		mem->offset = ((pool == 0) ?
 			      dev_priv->vram_offset : dev_priv->agp_offset) +
 		    (item->mm->
 		     offset(item->mm, item->mm_info) << SIS_MM_ALIGN_SHIFT);
-		mem.free = item->user_hash.key;
-		mem.size = mem.size << SIS_MM_ALIGN_SHIFT;
+		mem->free = item->user_hash.key;
+		mem->size = mem->size << SIS_MM_ALIGN_SHIFT;
 	} else {
-		mem.offset = 0;
-		mem.size = 0;
-		mem.free = 0;
-		retval = DRM_ERR(ENOMEM);
+		mem->offset = 0;
+		mem->size = 0;
+		mem->free = 0;
+		retval = -ENOMEM;
 	}
 
-	DRM_COPY_TO_USER_IOCTL(argp, mem, sizeof(mem));
-
-	DRM_DEBUG("alloc %d, size = %d, offset = %d\n", pool, mem.size,
-		  mem.offset);
+	DRM_DEBUG("alloc %d, size = %d, offset = %d\n", pool, mem->size,
+		  mem->offset);
 
 	return retval;
 }
 
-static int sis_drm_free(DRM_IOCTL_ARGS)
+static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_mem_t mem;
+	drm_sis_mem_t *mem = data;
 	int ret;
 
-	DRM_COPY_FROM_USER_IOCTL(mem, (drm_sis_mem_t __user *) data,
-				 sizeof(mem));
-
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_sman_free_key(&dev_priv->sman, mem.free);
+	ret = drm_sman_free_key(&dev_priv->sman, mem->free);
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("free = 0x%lx\n", mem.free);
+	DRM_DEBUG("free = 0x%lx\n", mem->free);
 
 	return ret;
 }
 
-static int sis_fb_alloc(DRM_IOCTL_ARGS)
+static int sis_fb_alloc(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	return sis_drm_alloc(dev, priv, data, VIDEO_TYPE);
+	return sis_drm_alloc(dev, file_priv, data, VIDEO_TYPE);
 }
 
-static int sis_ioctl_agp_init(DRM_IOCTL_ARGS)
+static int sis_ioctl_agp_init(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_agp_t agp;
+	drm_sis_agp_t *agp = data;
 	int ret;
 	dev_priv = dev->dev_private;
 
-	DRM_COPY_FROM_USER_IOCTL(agp, (drm_sis_agp_t __user *) data,
-				 sizeof(agp));
 	mutex_lock(&dev->struct_mutex);
 	ret = drm_sman_set_range(&dev_priv->sman, AGP_TYPE, 0,
-				 agp.size >> SIS_MM_ALIGN_SHIFT);
+				 agp->size >> SIS_MM_ALIGN_SHIFT);
 
 	if (ret) {
 		DRM_ERROR("AGP memory manager initialisation error\n");
@@ -215,18 +201,18 @@ static int sis_ioctl_agp_init(DRM_IOCTL_ARGS)
 	}
 
 	dev_priv->agp_initialized = 1;
-	dev_priv->agp_offset = agp.offset;
+	dev_priv->agp_offset = agp->offset;
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG("offset = %u, size = %u", agp.offset, agp.size);
+	DRM_DEBUG("offset = %u, size = %u", agp->offset, agp->size);
 	return 0;
 }
 
-static int sis_ioctl_agp_alloc(DRM_IOCTL_ARGS)
+static int sis_ioctl_agp_alloc(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 
-	return sis_drm_alloc(dev, priv, data, AGP_TYPE);
+	return sis_drm_alloc(dev, file_priv, data, AGP_TYPE);
 }
 
 static drm_local_map_t *sis_reg_init(struct drm_device *dev)
@@ -314,13 +300,13 @@ void sis_lastclose(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-void sis_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
+void sis_reclaim_buffers_locked(struct drm_device * dev,
+				struct drm_file *file_priv)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	struct drm_file *priv = filp->private_data;
 
 	mutex_lock(&dev->struct_mutex);
-	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)priv)) {
+	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)file_priv)) {
 		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
@@ -329,20 +315,18 @@ void sis_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
 		dev->driver->dma_quiescent(dev);
 	}
 
-	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)priv);
+	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	return;
 }
 
-drm_ioctl_desc_t sis_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_SIS_FB_ALLOC)] = {sis_fb_alloc, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SIS_FB_FREE)] = {sis_drm_free, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_INIT)] =
-	    {sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_ALLOC)] = {sis_ioctl_agp_alloc, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_FREE)] = {sis_drm_free, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SIS_FB_INIT)] =
-	    {sis_fb_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY}
+struct drm_ioctl_desc sis_ioctls[] = {
+	DRM_IOCTL_DEF(DRM_SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SIS_FB_FREE, sis_drm_free, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_SIS_AGP_ALLOC, sis_ioctl_agp_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SIS_AGP_FREE, sis_drm_free, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SIS_FB_INIT, sis_fb_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 };
 
 int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);

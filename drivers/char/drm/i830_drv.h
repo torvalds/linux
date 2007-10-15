@@ -122,24 +122,25 @@ typedef struct drm_i830_private {
 
 } drm_i830_private_t;
 
-extern drm_ioctl_desc_t i830_ioctls[];
+extern struct drm_ioctl_desc i830_ioctls[];
 extern int i830_max_ioctl;
 
 /* i830_irq.c */
-extern int i830_irq_emit(struct inode *inode, struct file *filp,
-			 unsigned int cmd, unsigned long arg);
-extern int i830_irq_wait(struct inode *inode, struct file *filp,
-			 unsigned int cmd, unsigned long arg);
+extern int i830_irq_emit(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+extern int i830_irq_wait(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 
 extern irqreturn_t i830_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i830_driver_irq_preinstall(struct drm_device * dev);
 extern void i830_driver_irq_postinstall(struct drm_device * dev);
 extern void i830_driver_irq_uninstall(struct drm_device * dev);
 extern int i830_driver_load(struct drm_device *, unsigned long flags);
-extern void i830_driver_preclose(struct drm_device * dev, DRMFILE filp);
+extern void i830_driver_preclose(struct drm_device * dev,
+				 struct drm_file *file_priv);
 extern void i830_driver_lastclose(struct drm_device * dev);
 extern void i830_driver_reclaim_buffers_locked(struct drm_device * dev,
-					       struct file *filp);
+					       struct drm_file *file_priv);
 extern int i830_driver_dma_quiescent(struct drm_device * dev);
 extern int i830_driver_device_is_agp(struct drm_device * dev);
 

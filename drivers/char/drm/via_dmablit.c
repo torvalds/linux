@@ -237,7 +237,7 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 		first_pfn + 1;
 	
 	if (NULL == (vsg->pages = vmalloc(sizeof(struct page *) * vsg->num_pages)))
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	memset(vsg->pages, 0, sizeof(struct page *) * vsg->num_pages);
 	down_read(&current->mm->mmap_sem);
 	ret = get_user_pages(current, current->mm,
@@ -251,7 +251,7 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 		if (ret < 0) 
 			return ret;
 		vsg->state = dr_via_pages_locked;
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	vsg->state = dr_via_pages_locked;
 	DRM_DEBUG("DMA pages locked\n");
@@ -274,13 +274,13 @@ via_alloc_desc_pages(drm_via_sg_info_t *vsg)
 		vsg->descriptors_per_page;
 
 	if (NULL ==  (vsg->desc_pages = kcalloc(vsg->num_desc_pages, sizeof(void *), GFP_KERNEL)))
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	
 	vsg->state = dr_via_desc_pages_alloc;
 	for (i=0; i<vsg->num_desc_pages; ++i) {
 		if (NULL == (vsg->desc_pages[i] = 
 			     (drm_via_descriptor_t *) __get_free_page(GFP_KERNEL)))
-			return DRM_ERR(ENOMEM);
+			return -ENOMEM;
 	}
 	DRM_DEBUG("Allocated %d pages for %d descriptors.\n", vsg->num_desc_pages,
 		  vsg->num_desc);
@@ -593,7 +593,7 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 
 	if (xfer->num_lines <= 0 || xfer->line_length <= 0) {
 		DRM_ERROR("Zero size bitblt.\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	/*
@@ -606,7 +606,7 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 	if ((xfer->mem_stride - xfer->line_length) >= PAGE_SIZE) {
 		DRM_ERROR("Too large system memory stride. Stride: %d, "
 			  "Length: %d\n", xfer->mem_stride, xfer->line_length);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if ((xfer->mem_stride == xfer->line_length) &&
@@ -624,7 +624,7 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 
 	if (xfer->num_lines > 2048 || (xfer->num_lines*xfer->mem_stride > (2048*2048*4))) {
 		DRM_ERROR("Too large PCI DMA bitblt.\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}		
 
 	/* 
@@ -635,7 +635,7 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 	if (xfer->mem_stride < xfer->line_length ||
 		abs(xfer->fb_stride) < xfer->line_length) {
 		DRM_ERROR("Invalid frame-buffer / memory stride.\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	/*
@@ -648,7 +648,7 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 	if ((((unsigned long)xfer->mem_addr & 3) != ((unsigned long)xfer->fb_addr & 3)) ||
 	    ((xfer->num_lines > 1) && ((xfer->mem_stride & 3) != (xfer->fb_stride & 3)))) {
 		DRM_ERROR("Invalid DRM bitblt alignment.\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 #else
 	if ((((unsigned long)xfer->mem_addr & 15) ||
@@ -656,7 +656,7 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 	   ((xfer->num_lines > 1) && 
 	   ((xfer->mem_stride & 15) || (xfer->fb_stride & 3)))) {
 		DRM_ERROR("Invalid DRM bitblt alignment.\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}	
 #endif
 
@@ -696,7 +696,7 @@ via_dmablit_grab_slot(drm_via_blitq_t *blitq, int engine)
 
 		DRM_WAIT_ON(ret, blitq->busy_queue, DRM_HZ, blitq->num_free > 0);
 		if (ret) {
-			return (DRM_ERR(EINTR) == ret) ? DRM_ERR(EAGAIN) : ret;
+			return (-EINTR == ret) ? -EAGAIN : ret;
 		}
 		
 		spin_lock_irqsave(&blitq->blit_lock, irqsave);
@@ -740,7 +740,7 @@ via_dmablit(struct drm_device *dev, drm_via_dmablit_t *xfer)
 
 	if (dev_priv == NULL) {
 		DRM_ERROR("Called without initialization.\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	engine = (xfer->to_fb) ? 0 : 1;
@@ -750,7 +750,7 @@ via_dmablit(struct drm_device *dev, drm_via_dmablit_t *xfer)
 	}
 	if (NULL == (vsg = kmalloc(sizeof(*vsg), GFP_KERNEL))) {
 		via_dmablit_release_slot(blitq);
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 	if (0 != (ret = via_build_sg_info(dev, vsg, xfer))) {
 		via_dmablit_release_slot(blitq);
@@ -781,21 +781,18 @@ via_dmablit(struct drm_device *dev, drm_via_dmablit_t *xfer)
  */
 
 int
-via_dma_blit_sync( DRM_IOCTL_ARGS )
+via_dma_blit_sync( struct drm_device *dev, void *data, struct drm_file *file_priv )
 {
-	drm_via_blitsync_t sync;
+	drm_via_blitsync_t *sync = data;
 	int err;
-	DRM_DEVICE;
 
-	DRM_COPY_FROM_USER_IOCTL(sync, (drm_via_blitsync_t *)data, sizeof(sync));
-	
-	if (sync.engine >= VIA_NUM_BLIT_ENGINES) 
-		return DRM_ERR(EINVAL);
+	if (sync->engine >= VIA_NUM_BLIT_ENGINES) 
+		return -EINVAL;
 
-	err = via_dmablit_sync(dev, sync.sync_handle, sync.engine);
+	err = via_dmablit_sync(dev, sync->sync_handle, sync->engine);
 
-	if (DRM_ERR(EINTR) == err)
-		err = DRM_ERR(EAGAIN);
+	if (-EINTR == err)
+		err = -EAGAIN;
 
 	return err;
 }
@@ -808,17 +805,12 @@ via_dma_blit_sync( DRM_IOCTL_ARGS )
  */
 
 int 
-via_dma_blit( DRM_IOCTL_ARGS )
+via_dma_blit( struct drm_device *dev, void *data, struct drm_file *file_priv )
 {
-	drm_via_dmablit_t xfer;
+	drm_via_dmablit_t *xfer = data;
 	int err;
-	DRM_DEVICE;
 
-	DRM_COPY_FROM_USER_IOCTL(xfer, (drm_via_dmablit_t __user *)data, sizeof(xfer));
-
-	err = via_dmablit(dev, &xfer);
-
-	DRM_COPY_TO_USER_IOCTL((void __user *)data, xfer, sizeof(xfer));
+	err = via_dmablit(dev, xfer);
 
 	return err;
 }

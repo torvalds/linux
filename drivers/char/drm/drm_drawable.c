@@ -40,11 +40,10 @@
 /**
  * Allocate drawable ID and memory to store information about it.
  */
-int drm_adddraw(DRM_IOCTL_ARGS)
+int drm_adddraw(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	unsigned long irqflags;
-	struct drm_draw draw;
+	struct drm_draw *draw = data;
 	int new_id = 0;
 	int ret;
 
@@ -63,11 +62,9 @@ again:
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 
-	draw.handle = new_id;
+	draw->handle = new_id;
 
-	DRM_DEBUG("%d\n", draw.handle);
-
-	DRM_COPY_TO_USER_IOCTL((struct drm_draw __user *)data, draw, sizeof(draw));
+	DRM_DEBUG("%d\n", draw->handle);
 
 	return 0;
 }
@@ -75,72 +72,64 @@ again:
 /**
  * Free drawable ID and memory to store information about it.
  */
-int drm_rmdraw(DRM_IOCTL_ARGS)
+int drm_rmdraw(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	struct drm_draw draw;
+	struct drm_draw *draw = data;
 	unsigned long irqflags;
-
-	DRM_COPY_FROM_USER_IOCTL(draw, (struct drm_draw __user *) data,
-				 sizeof(draw));
 
 	spin_lock_irqsave(&dev->drw_lock, irqflags);
 
-	drm_free(drm_get_drawable_info(dev, draw.handle),
+	drm_free(drm_get_drawable_info(dev, draw->handle),
 		 sizeof(struct drm_drawable_info), DRM_MEM_BUFS);
 
-	idr_remove(&dev->drw_idr, draw.handle);
+	idr_remove(&dev->drw_idr, draw->handle);
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
-	DRM_DEBUG("%d\n", draw.handle);
+	DRM_DEBUG("%d\n", draw->handle);
 	return 0;
 }
 
-int drm_update_drawable_info(DRM_IOCTL_ARGS)
+int drm_update_drawable_info(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	struct drm_update_draw update;
+	struct drm_update_draw *update = data;
 	unsigned long irqflags;
 	struct drm_clip_rect *rects;
 	struct drm_drawable_info *info;
 	int err;
 
-	DRM_COPY_FROM_USER_IOCTL(update, (struct drm_update_draw __user *) data,
-				 sizeof(update));
-
-	info = idr_find(&dev->drw_idr, update.handle);
+	info = idr_find(&dev->drw_idr, update->handle);
 	if (!info) {
 		info = drm_calloc(1, sizeof(*info), DRM_MEM_BUFS);
 		if (!info)
 			return -ENOMEM;
-		if (IS_ERR(idr_replace(&dev->drw_idr, info, update.handle))) {
-			DRM_ERROR("No such drawable %d\n", update.handle);
+		if (IS_ERR(idr_replace(&dev->drw_idr, info, update->handle))) {
+			DRM_ERROR("No such drawable %d\n", update->handle);
 			drm_free(info, sizeof(*info), DRM_MEM_BUFS);
 			return -EINVAL;
 		}
 	}
 
-	switch (update.type) {
+	switch (update->type) {
 	case DRM_DRAWABLE_CLIPRECTS:
-		if (update.num != info->num_rects) {
-			rects = drm_alloc(update.num * sizeof(struct drm_clip_rect),
+		if (update->num != info->num_rects) {
+			rects = drm_alloc(update->num * sizeof(struct drm_clip_rect),
 					 DRM_MEM_BUFS);
 		} else
 			rects = info->rects;
 
-		if (update.num && !rects) {
+		if (update->num && !rects) {
 			DRM_ERROR("Failed to allocate cliprect memory\n");
-			err = DRM_ERR(ENOMEM);
+			err = -ENOMEM;
 			goto error;
 		}
 
-		if (update.num && DRM_COPY_FROM_USER(rects,
+		if (update->num && DRM_COPY_FROM_USER(rects,
 						     (struct drm_clip_rect __user *)
-						     (unsigned long)update.data,
-						     update.num *
+						     (unsigned long)update->data,
+						     update->num *
 						     sizeof(*rects))) {
 			DRM_ERROR("Failed to copy cliprects from userspace\n");
-			err = DRM_ERR(EFAULT);
+			err = -EFAULT;
 			goto error;
 		}
 
@@ -152,23 +141,23 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS)
 		}
 
 		info->rects = rects;
-		info->num_rects = update.num;
+		info->num_rects = update->num;
 
 		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 
 		DRM_DEBUG("Updated %d cliprects for drawable %d\n",
-			  info->num_rects, update.handle);
+			  info->num_rects, update->handle);
 		break;
 	default:
-		DRM_ERROR("Invalid update type %d\n", update.type);
-		return DRM_ERR(EINVAL);
+		DRM_ERROR("Invalid update type %d\n", update->type);
+		return -EINVAL;
 	}
 
 	return 0;
 
 error:
 	if (rects != info->rects)
-		drm_free(rects, update.num * sizeof(struct drm_clip_rect),
+		drm_free(rects, update->num * sizeof(struct drm_clip_rect),
 			 DRM_MEM_BUFS);
 
 	return err;

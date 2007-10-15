@@ -155,7 +155,7 @@ int radeon_driver_vblank_do_wait(struct drm_device * dev, unsigned int *sequence
 	atomic_t *counter;
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (crtc == DRM_RADEON_VBLANK_CRTC1) {
@@ -165,7 +165,7 @@ int radeon_driver_vblank_do_wait(struct drm_device * dev, unsigned int *sequence
 		counter = &dev->vbl_received2;
 		ack |= RADEON_CRTC2_VBLANK_STAT;
 	} else
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
 	radeon_acknowledge_irqs(dev_priv, ack);
 
@@ -196,28 +196,24 @@ int radeon_driver_vblank_wait2(struct drm_device *dev, unsigned int *sequence)
 
 /* Needs the lock as it touches the ring.
  */
-int radeon_irq_emit(DRM_IOCTL_ARGS)
+int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_irq_emit_t emit;
+	drm_radeon_irq_emit_t *emit = data;
 	int result;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
-
-	DRM_COPY_FROM_USER_IOCTL(emit, (drm_radeon_irq_emit_t __user *) data,
-				 sizeof(emit));
 
 	result = radeon_emit_irq(dev);
 
-	if (DRM_COPY_TO_USER(emit.irq_seq, &result, sizeof(int))) {
+	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	return 0;
@@ -225,21 +221,17 @@ int radeon_irq_emit(DRM_IOCTL_ARGS)
 
 /* Doesn't need the hardware lock.
  */
-int radeon_irq_wait(DRM_IOCTL_ARGS)
+int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_irq_wait_t irqwait;
+	drm_radeon_irq_wait_t *irqwait = data;
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(irqwait, (drm_radeon_irq_wait_t __user *) data,
-				 sizeof(irqwait));
-
-	return radeon_wait_irq(dev, irqwait.irq_seq);
+	return radeon_wait_irq(dev, irqwait->irq_seq);
 }
 
 static void radeon_enable_interrupt(struct drm_device *dev)
@@ -320,7 +312,7 @@ int radeon_vblank_crtc_set(struct drm_device *dev, int64_t value)
 	drm_radeon_private_t *dev_priv = (drm_radeon_private_t *) dev->dev_private;
 	if (value & ~(DRM_RADEON_VBLANK_CRTC1 | DRM_RADEON_VBLANK_CRTC2)) {
 		DRM_ERROR("called with invalid crtc 0x%x\n", (unsigned int)value);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	dev_priv->vblank_crtc = (unsigned int)value;
 	radeon_enable_interrupt(dev);

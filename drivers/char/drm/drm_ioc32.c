@@ -1040,7 +1040,7 @@ drm_ioctl_compat_t *drm_compat_ioctls[] = {
  * Called whenever a 32-bit process running under a 64-bit kernel
  * performs an ioctl on /dev/drm.
  *
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument.
  * \return zero on success or negative number on failure.

@@ -148,15 +148,20 @@ typedef struct drm_mga_private {
 	unsigned int agp_size;
 } drm_mga_private_t;
 
-extern drm_ioctl_desc_t mga_ioctls[];
+extern struct drm_ioctl_desc mga_ioctls[];
 extern int mga_max_ioctl;
 
 				/* mga_dma.c */
-extern int mga_dma_bootstrap(DRM_IOCTL_ARGS);
-extern int mga_dma_init(DRM_IOCTL_ARGS);
-extern int mga_dma_flush(DRM_IOCTL_ARGS);
-extern int mga_dma_reset(DRM_IOCTL_ARGS);
-extern int mga_dma_buffers(DRM_IOCTL_ARGS);
+extern int mga_dma_bootstrap(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv);
+extern int mga_dma_init(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+extern int mga_dma_flush(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+extern int mga_dma_reset(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+extern int mga_dma_buffers(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
 extern int mga_driver_load(struct drm_device *dev, unsigned long flags);
 extern int mga_driver_unload(struct drm_device * dev);
 extern void mga_driver_lastclose(struct drm_device * dev);
@@ -245,7 +250,7 @@ do {									\
 			    dev_priv->prim.high_mark ) {		\
 			if ( MGA_DMA_DEBUG )				\
 				DRM_INFO( "%s: wrap...\n", __FUNCTION__ );	\
-			return DRM_ERR(EBUSY);			\
+			return -EBUSY;			\
 		}							\
 	}								\
 } while (0)
@@ -256,7 +261,7 @@ do {									\
 		if ( mga_do_wait_for_idle( dev_priv ) < 0 ) {		\
 			if ( MGA_DMA_DEBUG )				\
 				DRM_INFO( "%s: wrap...\n", __FUNCTION__ );	\
-			return DRM_ERR(EBUSY);			\
+			return -EBUSY;			\
 		}							\
 		mga_do_dma_wrap_end( dev_priv );			\
 	}								\

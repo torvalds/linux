@@ -6,11 +6,6 @@
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/delay.h>
 
-/** File pointer type */
-#define DRMFILE                         struct file *
-/** Ioctl arguments */
-#define DRM_IOCTL_ARGS			struct inode *inode, struct file *filp, unsigned int cmd, unsigned long data
-#define DRM_ERR(d)			-(d)
 /** Current process ID */
 #define DRM_CURRENTPID			current->pid
 #define DRM_SUSER(p)			capable(CAP_SYS_ADMIN)
@@ -33,9 +28,6 @@
 #define DRM_WRITEMEMORYBARRIER()	wmb()
 /** Read/write memory barrier */
 #define DRM_MEMORYBARRIER()		mb()
-/** DRM device local declaration */
-#define DRM_DEVICE	struct drm_file	*priv	= filp->private_data; \
-			struct drm_device *dev	= priv->head->dev
 
 /** IRQ handler arguments and return type and values */
 #define DRM_IRQ_ARGS		int irq, void *arg
@@ -93,8 +85,6 @@ static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
 	__copy_to_user(arg1, arg2, arg3)
 #define DRM_GET_USER_UNCHECKED(val, uaddr)		\
 	__get_user(val, uaddr)
-
-#define DRM_GET_PRIV_WITH_RETURN(_priv, _filp) _priv = _filp->private_data
 
 #define DRM_HZ HZ
 
