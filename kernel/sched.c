@@ -156,7 +156,7 @@ struct rt_prio_array {
 struct cfs_rq;
 
 /* task group related information */
-struct task_grp {
+struct task_group {
 	/* schedulable entities of this group on each cpu */
 	struct sched_entity **se;
 	/* runqueue "owned" by this group on each cpu */
@@ -175,7 +175,7 @@ static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
 /* Default task group.
  *	Every task in system belong to this group at bootup.
  */
-struct task_grp init_task_grp = {
+struct task_group init_task_group = {
 	.se     = init_sched_entity_p,
 	.cfs_rq = init_cfs_rq_p,
 };
@@ -186,17 +186,17 @@ struct task_grp init_task_grp = {
 # define INIT_TASK_GRP_LOAD	NICE_0_LOAD
 #endif
 
-static int init_task_grp_load = INIT_TASK_GRP_LOAD;
+static int init_task_group_load = INIT_TASK_GRP_LOAD;
 
 /* return group to which a task belongs */
-static inline struct task_grp *task_grp(struct task_struct *p)
+static inline struct task_group *task_group(struct task_struct *p)
 {
-	struct task_grp *tg;
+	struct task_group *tg;
 
 #ifdef CONFIG_FAIR_USER_SCHED
 	tg = p->user->tg;
 #else
-	tg  = &init_task_grp;
+	tg  = &init_task_group;
 #endif
 
 	return tg;
@@ -205,8 +205,8 @@ static inline struct task_grp *task_grp(struct task_struct *p)
 /* Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
 static inline void set_task_cfs_rq(struct task_struct *p)
 {
-	p->se.cfs_rq = task_grp(p)->cfs_rq[task_cpu(p)];
-	p->se.parent = task_grp(p)->se[task_cpu(p)];
+	p->se.cfs_rq = task_group(p)->cfs_rq[task_cpu(p)];
+	p->se.parent = task_group(p)->se[task_cpu(p)];
 }
 
 #else
@@ -244,7 +244,7 @@ struct cfs_rq {
 	 * list is used during load balance.
 	 */
 	struct list_head leaf_cfs_rq_list; /* Better name : task_cfs_rq_list? */
-	struct task_grp *tg;    /* group that "owns" this runqueue */
+	struct task_group *tg;    /* group that "owns" this runqueue */
 	struct rcu_head rcu;
 #endif
 };
@@ -6522,19 +6522,19 @@ void __init sched_init(void)
 
 			init_cfs_rq_p[i] = cfs_rq;
 			init_cfs_rq(cfs_rq, rq);
-			cfs_rq->tg = &init_task_grp;
+			cfs_rq->tg = &init_task_group;
 			list_add(&cfs_rq->leaf_cfs_rq_list,
 							 &rq->leaf_cfs_rq_list);
 
 			init_sched_entity_p[i] = se;
 			se->cfs_rq = &rq->cfs;
 			se->my_q = cfs_rq;
-			se->load.weight = init_task_grp_load;
+			se->load.weight = init_task_group_load;
 			se->load.inv_weight =
-				 div64_64(1ULL<<32, init_task_grp_load);
+				 div64_64(1ULL<<32, init_task_group_load);
 			se->parent = NULL;
 		}
-		init_task_grp.shares = init_task_grp_load;
+		init_task_group.shares = init_task_group_load;
 #endif
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
@@ -6725,9 +6725,9 @@ void set_curr_task(int cpu, struct task_struct *p)
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
 /* allocate runqueue etc for a new task group */
-struct task_grp *sched_create_group(void)
+struct task_group *sched_create_group(void)
 {
-	struct task_grp *tg;
+	struct task_group *tg;
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se;
 	struct rq *rq;
@@ -6800,7 +6800,7 @@ err:
 static void free_sched_group(struct rcu_head *rhp)
 {
 	struct cfs_rq *cfs_rq = container_of(rhp, struct cfs_rq, rcu);
-	struct task_grp *tg = cfs_rq->tg;
+	struct task_group *tg = cfs_rq->tg;
 	struct sched_entity *se;
 	int i;
 
@@ -6819,7 +6819,7 @@ static void free_sched_group(struct rcu_head *rhp)
 }
 
 /* Destroy runqueue etc associated with a task group */
-void sched_destroy_group(struct task_grp *tg)
+void sched_destroy_group(struct task_group *tg)
 {
 	struct cfs_rq *cfs_rq;
 	int i;
@@ -6895,7 +6895,7 @@ static void set_se_shares(struct sched_entity *se, unsigned long shares)
 	spin_unlock_irq(&rq->lock);
 }
 
-int sched_group_set_shares(struct task_grp *tg, unsigned long shares)
+int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
 

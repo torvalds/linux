@@ -136,7 +136,7 @@ extern unsigned long weighted_cpuload(const int cpu);
 
 struct seq_file;
 struct cfs_rq;
-struct task_grp;
+struct task_group;
 #ifdef CONFIG_SCHED_DEBUG
 extern void proc_sched_show_task(struct task_struct *p, struct seq_file *m);
 extern void proc_sched_set_task(struct task_struct *p);
@@ -598,7 +598,7 @@ struct user_struct {
 	uid_t uid;
 
 #ifdef CONFIG_FAIR_USER_SCHED
-	struct task_grp *tg;
+	struct task_group *tg;
 #endif
 };
 
@@ -1842,12 +1842,12 @@ extern void normalize_rt_tasks(void);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
-extern struct task_grp init_task_grp;
+extern struct task_group init_task_group;
 
-extern struct task_grp *sched_create_group(void);
-extern void sched_destroy_group(struct task_grp *tg);
+extern struct task_group *sched_create_group(void);
+extern void sched_destroy_group(struct task_group *tg);
 extern void sched_move_task(struct task_struct *tsk);
-extern int sched_group_set_shares(struct task_grp *tg, unsigned long shares);
+extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 
 #endif
 

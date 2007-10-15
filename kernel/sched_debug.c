@@ -239,7 +239,7 @@ static int
 root_user_share_read_proc(char *page, char **start, off_t off, int count,
 				 int *eof, void *data)
 {
-	return sprintf(page, "%d\n", init_task_grp_load);
+	return sprintf(page, "%d\n", init_task_group_load);
 }
 
 static int
@@ -260,8 +260,8 @@ root_user_share_write_proc(struct file *file, const char __user *buffer,
 
 	mutex_lock(&root_user_share_mutex);
 
-	init_task_grp_load = shares;
-	rc = sched_group_set_shares(&init_task_grp, shares);
+	init_task_group_load = shares;
+	rc = sched_group_set_shares(&init_task_group, shares);
 
 	mutex_unlock(&root_user_share_mutex);
 

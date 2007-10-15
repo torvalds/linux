@@ -51,7 +51,7 @@ struct user_struct root_user = {
 	.session_keyring = &root_session_keyring,
 #endif
 #ifdef CONFIG_FAIR_USER_SCHED
-	.tg		= &init_task_grp,
+	.tg		= &init_task_group,
 #endif
 };
 
