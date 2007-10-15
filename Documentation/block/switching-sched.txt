@@ -1,3 +1,18 @@
+To choose IO schedulers at boot time, use the argument 'elevator=deadline'.
+'noop', 'as' and 'cfq' (the default) are also available. IO schedulers are
+assigned globally at boot time only presently.
+
+Each io queue has a set of io scheduler tunables associated with it. These
+tunables control how the io scheduler works. You can find these entries
+in:
+
+/sys/block/<device>/queue/iosched
+
+assuming that you have sysfs mounted on /sys. If you don't have sysfs mounted,
+you can do so by typing:
+
+# mount none /sys -t sysfs
+
 As of the Linux 2.6.10 kernel, it is now possible to change the
 IO scheduler for a given block device on the fly (thus making it possible,
 for instance, to set the CFQ scheduler for the system default, but
@@ -20,3 +35,9 @@ noop anticipatory deadline [cfq]
 # echo anticipatory > /sys/block/hda/queue/scheduler
 # cat /sys/block/hda/queue/scheduler
 noop [anticipatory] deadline cfq
+
+Each io queue has a set of io scheduler tunables associated with it. These
+tunables control how the io scheduler works. You can find these entries
+in:
+
+/sys/block/<device>/queue/iosched
