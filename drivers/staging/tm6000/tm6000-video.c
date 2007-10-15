@@ -672,6 +672,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 		if (!urb) {
 			tm6000_err("cannot alloc isoc_ctl.urb %i\n", i);
 			tm6000_uninit_isoc(dev);
+			usb_free_urb(urb);
 			return -ENOMEM;
 		}
 		dev->isoc_ctl.urb[i] = urb;
