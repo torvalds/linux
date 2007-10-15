@@ -1961,16 +1961,12 @@ static void __free_extent_buffer(struct extent_buffer *eb)
 static inline struct page *extent_buffer_page(struct extent_buffer *eb, int i)
 {
 	struct page *p;
-	if (i == 0)
-		return eb->first_page;
 
+	if (i < EXTENT_INLINE_PAGES)
+		return eb->pages[i];
 	i += eb->start >> PAGE_CACHE_SHIFT;
-	if (eb->last_page && eb->last_page->index == i)
-		return eb->last_page;
-
-	p = find_get_page(eb->first_page->mapping, i);
+	p = find_get_page(eb->pages[0]->mapping, i);
 	page_cache_release(p);
-	eb->last_page = p;
 	return p;
 }
 
@@ -2012,8 +2008,8 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 			goto fail;
 		}
 		set_page_extent_mapped(p);
-		if (i == 0)
-			eb->first_page = p;
+		if (i < EXTENT_INLINE_PAGES)
+			eb->pages[i] = p;
 		if (!PageUptodate(p))
 			uptodate = 0;
 		unlock_page(p);
@@ -2059,8 +2055,8 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 			goto fail;
 		}
 		set_page_extent_mapped(p);
-		if (i == 0)
-			eb->first_page = p;
+		if (i < EXTENT_INLINE_PAGES)
+			eb->pages[i] = p;
 		if (!PageUptodate(p))
 			uptodate = 0;
 		unlock_page(p);
@@ -2087,9 +2083,7 @@ void free_extent_buffer(struct extent_buffer *eb)
 
 	num_pages = num_extent_pages(eb->start, eb->len);
 
-	if (eb->first_page)
-		page_cache_release(eb->first_page);
-	for (i = 1; i < num_pages; i++) {
+	for (i = 0; i < num_pages; i++) {
 		page_cache_release(extent_buffer_page(eb, i));
 	}
 	__free_extent_buffer(eb);

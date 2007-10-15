@@ -647,20 +647,20 @@ int close_ctree(struct btrfs_root *root)
 
 int btrfs_buffer_uptodate(struct extent_buffer *buf)
 {
-	struct inode *btree_inode = buf->first_page->mapping->host;
+	struct inode *btree_inode = buf->pages[0]->mapping->host;
 	return extent_buffer_uptodate(&BTRFS_I(btree_inode)->extent_tree, buf);
 }
 
 int btrfs_set_buffer_uptodate(struct extent_buffer *buf)
 {
-	struct inode *btree_inode = buf->first_page->mapping->host;
+	struct inode *btree_inode = buf->pages[0]->mapping->host;
 	return set_extent_buffer_uptodate(&BTRFS_I(btree_inode)->extent_tree,
 					  buf);
 }
 
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 {
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
 	u64 transid = btrfs_header_generation(buf);
 	struct inode *btree_inode = root->fs_info->btree_inode;
 

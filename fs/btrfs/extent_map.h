@@ -62,6 +62,7 @@ struct extent_state {
 	struct list_head list;
 };
 
+#define EXTENT_INLINE_PAGES 32
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
@@ -69,13 +70,12 @@ struct extent_buffer {
 	int flags;
 	struct list_head list;
 	struct list_head leak_list;
-	struct page *first_page;
-	struct page *last_page;
 	unsigned long alloc_addr;
 	char *map_token;
 	char *kaddr;
 	unsigned long map_start;
 	unsigned long map_len;
+	struct page *pages[EXTENT_INLINE_PAGES];
 };
 
 typedef struct extent_map *(get_extent_t)(struct inode *inode,
