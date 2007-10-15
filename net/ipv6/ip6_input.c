@@ -149,7 +149,7 @@ out:
  */
 
 
-static inline int ip6_input_finish(struct sk_buff *skb)
+static int ip6_input_finish(struct sk_buff *skb)
 {
 	struct inet6_protocol *ipprot;
 	struct sock *raw_sk;
