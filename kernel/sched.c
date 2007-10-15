@@ -1596,16 +1596,7 @@ out_activate:
 		schedstat_inc(p, se.nr_wakeups_remote);
 	update_rq_clock(rq);
 	activate_task(rq, p, 1);
-	/*
-	 * Sync wakeups (i.e. those types of wakeups where the waker
-	 * has indicated that it will leave the CPU in short order)
-	 * don't trigger a preemption, if the woken up task will run on
-	 * this cpu. (in this case the 'I will reschedule' promise of
-	 * the waker guarantees that the freshly woken up task is going
-	 * to be considered on this CPU.)
-	 */
-	if (!sync || rq->curr == rq->idle)
-		check_preempt_curr(rq, p);
+	check_preempt_curr(rq, p);
 	success = 1;
 
 out_running:
