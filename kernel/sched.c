@@ -1659,12 +1659,6 @@ void sched_fork(struct task_struct *p, int clone_flags)
 }
 
 /*
- * After fork, child runs first. (default) If set to 0 then
- * parent will (try to) run first.
- */
-unsigned int __read_mostly sysctl_sched_child_runs_first = 1;
-
-/*
  * wake_up_new_task - wake up a newly created task for the first time.
  *
  * This function will do some initial scheduler statistics housekeeping

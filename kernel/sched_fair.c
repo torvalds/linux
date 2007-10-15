@@ -21,6 +21,15 @@
  */
 
 /*
+ * Tunables that become constants when CONFIG_SCHED_DEBUG is off:
+ */
+#ifdef CONFIG_SCHED_DEBUG
+# define const_debug __read_mostly
+#else
+# define const_debug static const
+#endif
+
+/*
  * Targeted preemption latency for CPU-bound tasks:
  * (default: 20ms, units: nanoseconds)
  *
@@ -34,7 +43,13 @@
  * systems, 4x on 8-way systems, 5x on 16-way systems, etc.)
  * Targeted preemption latency for CPU-bound tasks:
  */
-unsigned int sysctl_sched_latency __read_mostly = 20000000ULL;
+const_debug unsigned int sysctl_sched_latency = 20000000ULL;
+
+/*
+ * After fork, child runs first. (default) If set to 0 then
+ * parent will (try to) run first.
+ */
+const_debug unsigned int sysctl_sched_child_runs_first = 1;
 
 /*
  * Minimal preemption granularity for CPU-bound tasks:
@@ -58,7 +73,7 @@ unsigned int __read_mostly sysctl_sched_compat_yield;
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly = 25000000UL;
+const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 25000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
@@ -68,13 +83,10 @@ unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly = 25000000UL;
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_wakeup_granularity __read_mostly = 1000000UL;
+const_debug unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
 
-unsigned int sysctl_sched_stat_granularity __read_mostly;
+const_debug unsigned int sysctl_sched_stat_granularity;
 
-/*
- * Initialized in sched_init_granularity() [to 5 times the base granularity]:
- */
 unsigned int sysctl_sched_runtime_limit __read_mostly;
 
 /*
@@ -89,7 +101,7 @@ enum {
 	SCHED_FEAT_SKIP_INITIAL		= 32,
 };
 
-unsigned int sysctl_sched_features __read_mostly =
+const_debug unsigned int sysctl_sched_features =
 		SCHED_FEAT_FAIR_SLEEPERS	*1 |
 		SCHED_FEAT_SLEEPER_AVG		*0 |
 		SCHED_FEAT_SLEEPER_LOAD_AVG	*1 |
