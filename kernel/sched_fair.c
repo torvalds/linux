@@ -117,8 +117,8 @@ static inline struct task_struct *task_of(struct sched_entity *se)
 static inline u64
 max_vruntime(u64 min_vruntime, u64 vruntime)
 {
-	if ((vruntime > min_vruntime) ||
-	    (min_vruntime > (1ULL << 61) && vruntime < (1ULL << 50)))
+	s64 delta = (s64)(vruntime - min_vruntime);
+	if (delta > 0)
 		min_vruntime = vruntime;
 
 	return min_vruntime;
