@@ -984,6 +984,10 @@ static void set_curr_task_fair(struct rq *rq)
 #else
 static void set_curr_task_fair(struct rq *rq)
 {
+	struct sched_entity *se = &rq->curr->se;
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+	cfs_rq->curr = se;
 }
 #endif
 
