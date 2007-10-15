@@ -1,13 +1,10 @@
-#ifdef __KERNEL__
-# ifdef CONFIG_X86_32
-#  include "siginfo_32.h"
-# else
-#  include "siginfo_64.h"
-# endif
-#else
-# ifdef __i386__
-#  include "siginfo_32.h"
-# else
-#  include "siginfo_64.h"
-# endif
+#ifndef _ASM_X86_SIGINFO_H
+#define _ASM_X86_SIGINFO_H
+
+#ifdef __x86_64__
+# define __ARCH_SI_PREAMBLE_SIZE	(4 * sizeof(int))
+#endif
+
+#include <asm-generic/siginfo.h>
+
 #endif
