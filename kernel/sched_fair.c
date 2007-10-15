@@ -112,8 +112,7 @@ static inline struct task_struct *task_of(struct sched_entity *se)
  * Scheduling class tree data structure manipulation methods:
  */
 
-static inline u64
-max_vruntime(u64 min_vruntime, u64 vruntime)
+static inline u64 max_vruntime(u64 min_vruntime, u64 vruntime)
 {
 	s64 delta = (s64)(vruntime - min_vruntime);
 	if (delta > 0)
@@ -122,8 +121,7 @@ max_vruntime(u64 min_vruntime, u64 vruntime)
 	return min_vruntime;
 }
 
-static inline u64
-min_vruntime(u64 min_vruntime, u64 vruntime)
+static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 {
 	s64 delta = (s64)(vruntime - min_vruntime);
 	if (delta < 0)
@@ -132,8 +130,7 @@ min_vruntime(u64 min_vruntime, u64 vruntime)
 	return min_vruntime;
 }
 
-static inline s64
-entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	return se->vruntime - cfs_rq->min_vruntime;
 }
@@ -141,8 +138,7 @@ entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 /*
  * Enqueue an entity into the rb-tree:
  */
-static void
-__enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
 	struct rb_node *parent = NULL;
@@ -179,8 +175,7 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
 }
 
-static void
-__dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->rb_leftmost == &se->run_node)
 		cfs_rq->rb_leftmost = rb_next(&se->run_node);
