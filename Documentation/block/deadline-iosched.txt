@@ -73,6 +73,6 @@ that comes at basically 0 cost we leave that on. We simply disable the
 rbtree front sector lookup when the io scheduler merge function is called.
 
 
-Nov 11 2002, Jens Axboe <axboe@suse.de>
+Nov 11 2002, Jens Axboe <jens.axboe@oracle.com>
 
 

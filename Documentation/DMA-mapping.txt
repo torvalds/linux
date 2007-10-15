@@ -782,5 +782,5 @@ following people:
 	Jay Estabrook <Jay.Estabrook@compaq.com>
 	Thomas Sailer <sailer@ife.ee.ethz.ch>
 	Andrea Arcangeli <andrea@suse.de>
-	Jens Axboe <axboe@suse.de>
+	Jens Axboe <jens.axboe@oracle.com>
 	David Mosberger-Tang <davidm@hpl.hp.com>
