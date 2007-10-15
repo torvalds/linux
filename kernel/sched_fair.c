@@ -481,7 +481,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	if (!initial) {
 		if (sched_feat(NEW_FAIR_SLEEPERS)) {
-			s64 latency = cfs_rq->min_vruntime - se->last_min_vruntime;
+			s64 latency = cfs_rq->min_vruntime - se->vruntime;
 			if (latency < 0 || !cfs_rq->nr_running)
 				latency = 0;
 			else
