@@ -3915,8 +3915,8 @@ EXPORT_SYMBOL(sleep_on_timeout);
  */
 void rt_mutex_setprio(struct task_struct *p, int prio)
 {
+	int oldprio, on_rq, running;
 	unsigned long flags;
-	int oldprio, on_rq;
 	struct rq *rq;
 
 	BUG_ON(prio < 0 || prio > MAX_PRIO);
@@ -3926,9 +3926,10 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 
 	oldprio = p->prio;
 	on_rq = p->se.on_rq;
+	running = task_running(rq, p);
 	if (on_rq) {
 		dequeue_task(rq, p, 0);
-		if (task_running(rq, p))
+		if (running)
 			p->sched_class->put_prev_task(rq, p);
 	}
 
@@ -3940,16 +3941,17 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	p->prio = prio;
 
 	if (on_rq) {
+		if (running)
+			p->sched_class->set_curr_task(rq);
 		enqueue_task(rq, p, 0);
 		/*
 		 * Reschedule if we are currently running on this runqueue and
 		 * our priority decreased, or if we are not currently running on
 		 * this runqueue and our priority is higher than the current's
 		 */
-		if (task_running(rq, p)) {
+		if (running) {
 			if (p->prio > oldprio)
 				resched_task(rq->curr);
-			p->sched_class->set_curr_task(rq);
 		} else {
 			check_preempt_curr(rq, p);
 		}
@@ -4153,7 +4155,7 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 int sched_setscheduler(struct task_struct *p, int policy,
 		       struct sched_param *param)
 {
-	int retval, oldprio, oldpolicy = -1, on_rq;
+	int retval, oldprio, oldpolicy = -1, on_rq, running;
 	unsigned long flags;
 	struct rq *rq;
 
@@ -4235,24 +4237,26 @@ recheck:
 	}
 	update_rq_clock(rq);
 	on_rq = p->se.on_rq;
+	running = task_running(rq, p);
 	if (on_rq) {
 		deactivate_task(rq, p, 0);
-		if (task_running(rq, p))
+		if (running)
 			p->sched_class->put_prev_task(rq, p);
 	}
 	oldprio = p->prio;
 	__setscheduler(rq, p, policy, param->sched_priority);
 	if (on_rq) {
+		if (running)
+			p->sched_class->set_curr_task(rq);
 		activate_task(rq, p, 0);
 		/*
 		 * Reschedule if we are currently running on this runqueue and
 		 * our priority decreased, or if we are not currently running on
 		 * this runqueue and our priority is higher than the current's
 		 */
-		if (task_running(rq, p)) {
+		if (running) {
 			if (p->prio > oldprio)
 				resched_task(rq->curr);
-			p->sched_class->set_curr_task(rq);
 		} else {
 			check_preempt_curr(rq, p);
 		}
@@ -6861,9 +6865,9 @@ static void sched_move_task(struct container_subsys *ss, struct container *cont,
 	set_task_cfs_rq(tsk);
 
 	if (on_rq) {
-		enqueue_task(rq, tsk, 0);
 		if (unlikely(running))
 			tsk->sched_class->set_curr_task(rq);
+		enqueue_task(rq, tsk, 0);
 	}
 
 done:
