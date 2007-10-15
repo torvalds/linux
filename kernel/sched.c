@@ -3303,6 +3303,25 @@ void account_user_time(struct task_struct *p, cputime_t cputime)
 }
 
 /*
+ * Account guest cpu time to a process.
+ * @p: the process that the cpu time gets accounted to
+ * @cputime: the cpu time spent in virtual machine since the last update
+ */
+void account_guest_time(struct task_struct *p, cputime_t cputime)
+{
+	cputime64_t tmp;
+	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
+
+	tmp = cputime_to_cputime64(cputime);
+
+	p->utime = cputime_add(p->utime, cputime);
+	p->gtime = cputime_add(p->gtime, cputime);
+
+	cpustat->user = cputime64_add(cpustat->user, tmp);
+	cpustat->guest = cputime64_add(cpustat->guest, tmp);
+}
+
+/*
  * Account system cpu time to a process.
  * @p: the process that the cpu time gets accounted to
  * @hardirq_offset: the offset to subtract from hardirq_count()
@@ -3314,6 +3333,12 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
 	struct rq *rq = this_rq();
 	cputime64_t tmp;
+
+	if (p->flags & PF_VCPU) {
+		account_guest_time(p, cputime);
+		p->flags &= ~PF_VCPU;
+		return;
+	}
 
 	p->stime = cputime_add(p->stime, cputime);
 
