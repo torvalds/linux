@@ -600,9 +600,12 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
-	struct sched_entity *se = __pick_next_entity(cfs_rq);
+	struct sched_entity *se = NULL;
 
-	set_next_entity(cfs_rq, se);
+	if (first_fair(cfs_rq)) {
+		se = __pick_next_entity(cfs_rq);
+		set_next_entity(cfs_rq, se);
+	}
 
 	return se;
 }
