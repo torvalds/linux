@@ -689,8 +689,6 @@ int pci_hp_deregister (struct hotplug_slot *slot)
 int __must_check pci_hp_change_slot_info(struct hotplug_slot *slot,
 					 struct hotplug_slot_info *info)
 {
-	int retval;
-
 	if ((slot == NULL) || (info == NULL))
 		return -ENODEV;
 
