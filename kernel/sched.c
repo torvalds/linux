@@ -5534,16 +5534,19 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 				printk("\n");
 				printk(KERN_ERR "ERROR: domain->cpu_power not "
 						"set\n");
+				break;
 			}
 
 			if (!cpus_weight(group->cpumask)) {
 				printk("\n");
 				printk(KERN_ERR "ERROR: empty group\n");
+				break;
 			}
 
 			if (cpus_intersects(groupmask, group->cpumask)) {
 				printk("\n");
 				printk(KERN_ERR "ERROR: repeated CPUs\n");
+				break;
 			}
 
 			cpus_or(groupmask, groupmask, group->cpumask);
