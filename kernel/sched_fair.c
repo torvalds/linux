@@ -46,7 +46,7 @@ const_debug unsigned int sysctl_sched_child_runs_first = 1;
  * Minimal preemption granularity for CPU-bound tasks:
  * (default: 2 msec, units: nanoseconds)
  */
-unsigned int sysctl_sched_min_granularity __read_mostly = 2000000ULL;
+const_debug unsigned int sysctl_sched_nr_latency = 20;
 
 /*
  * sys_sched_yield() compat mode
@@ -222,8 +222,7 @@ static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 static u64 __sched_period(unsigned long nr_running)
 {
 	u64 period = sysctl_sched_latency;
-	unsigned long nr_latency =
-		sysctl_sched_latency / sysctl_sched_min_granularity;
+	unsigned long nr_latency = sysctl_sched_nr_latency;
 
 	if (unlikely(nr_running > nr_latency)) {
 		period *= nr_running;
@@ -245,11 +244,15 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static u64 __sched_vslice(unsigned long nr_running)
 {
-	u64 period = __sched_period(nr_running);
+	unsigned long period = sysctl_sched_latency;
+	unsigned long nr_latency = sysctl_sched_nr_latency;
 
-	do_div(period, nr_running);
+	if (unlikely(nr_running > nr_latency))
+		nr_running = nr_latency;
 
-	return period;
+	period /= nr_running;
+
+	return (u64)period;
 }
 
 /*
