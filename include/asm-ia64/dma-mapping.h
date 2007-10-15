@@ -6,6 +6,7 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 #include <asm/machvec.h>
+#include <asm/scatterlist.h>
 
 #define dma_alloc_coherent	platform_dma_alloc_coherent
 /* coherent mem. is cheap */
