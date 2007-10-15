@@ -528,6 +528,7 @@ static int ir_probe(struct i2c_adapter *adap)
 		break;
 	case I2C_HW_B_CX2388x:
 		probe = probe_cx88;
+		break;
 	case I2C_HW_B_CX23885:
 		probe = probe_cx23885;
 		break;
