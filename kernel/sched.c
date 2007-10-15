@@ -3634,10 +3634,9 @@ EXPORT_SYMBOL(default_wake_function);
 static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
 			     int nr_exclusive, int sync, void *key)
 {
-	struct list_head *tmp, *next;
+	wait_queue_t *curr, *next;
 
-	list_for_each_safe(tmp, next, &q->task_list) {
-		wait_queue_t *curr = list_entry(tmp, wait_queue_t, task_list);
+	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
 		unsigned flags = curr->flags;
 
 		if (curr->func(curr, mode, sync, key) &&
