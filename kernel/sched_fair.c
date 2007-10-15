@@ -243,6 +243,15 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	return period;
 }
 
+static u64 __sched_vslice(unsigned long nr_running)
+{
+	u64 period = __sched_period(nr_running);
+
+	do_div(period, nr_running);
+
+	return period;
+}
+
 /*
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
@@ -441,32 +450,33 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
-	u64 min_runtime, latency;
+	u64 vruntime;
 
-	min_runtime = cfs_rq->min_vruntime;
+	vruntime = cfs_rq->min_vruntime;
 
 	if (sched_feat(USE_TREE_AVG)) {
 		struct sched_entity *last = __pick_last_entity(cfs_rq);
 		if (last) {
-			min_runtime = __pick_next_entity(cfs_rq)->vruntime;
-			min_runtime += last->vruntime;
-			min_runtime >>= 1;
+			vruntime += last->vruntime;
+			vruntime >>= 1;
 		}
-	} else if (sched_feat(APPROX_AVG))
-		min_runtime += sysctl_sched_latency/2;
+	} else if (sched_feat(APPROX_AVG) && cfs_rq->nr_running)
+		vruntime += __sched_vslice(cfs_rq->nr_running)/2;
 
 	if (initial && sched_feat(START_DEBIT))
-		min_runtime += sched_slice(cfs_rq, se);
+		vruntime += __sched_vslice(cfs_rq->nr_running + 1);
 
 	if (!initial && sched_feat(NEW_FAIR_SLEEPERS)) {
-		latency = sysctl_sched_latency;
-		if (min_runtime > latency)
-			min_runtime -= latency;
+		s64 latency = cfs_rq->min_vruntime - se->last_min_vruntime;
+		if (latency < 0 || !cfs_rq->nr_running)
+			latency = 0;
 		else
-			min_runtime = 0;
+			latency = min_t(s64, latency, sysctl_sched_latency);
+		vruntime -= latency;
 	}
 
-	se->vruntime = max(se->vruntime, min_runtime);
+	se->vruntime = vruntime;
+
 }
 
 static void
@@ -478,6 +488,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 	update_curr(cfs_rq);
 
 	if (wakeup) {
+		/* se->vruntime += cfs_rq->min_vruntime; */
 		place_entity(cfs_rq, se, 0);
 		enqueue_sleeper(cfs_rq, se);
 	}
@@ -492,8 +503,8 @@ static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
 	update_stats_dequeue(cfs_rq, se);
-#ifdef CONFIG_SCHEDSTATS
 	if (sleep) {
+#ifdef CONFIG_SCHEDSTATS
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);
 
@@ -502,8 +513,11 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 			if (tsk->state & TASK_UNINTERRUPTIBLE)
 				se->block_start = rq_of(cfs_rq)->clock;
 		}
-	}
 #endif
+		/* se->vruntime = entity_key(cfs_rq, se); */
+		se->last_min_vruntime = cfs_rq->min_vruntime;
+	}
+
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
 	account_entity_dequeue(cfs_rq, se);
