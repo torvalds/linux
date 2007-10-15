@@ -254,6 +254,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	P(se.sleep_max);
 	P(se.block_max);
 	P(se.exec_max);
+	P(se.slice_max);
 	P(se.wait_max);
 	P(se.wait_runtime_overruns);
 	P(se.wait_runtime_underruns);
@@ -282,6 +283,7 @@ void proc_sched_set_task(struct task_struct *p)
 	p->se.sleep_max			= 0;
 	p->se.block_max			= 0;
 	p->se.exec_max			= 0;
+	p->se.slice_max			= 0;
 	p->se.wait_max			= 0;
 	p->se.wait_runtime_overruns	= 0;
 	p->se.wait_runtime_underruns	= 0;

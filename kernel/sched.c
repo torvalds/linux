@@ -1603,6 +1603,7 @@ static void __sched_fork(struct task_struct *p)
 	p->se.sleep_max			= 0;
 	p->se.block_max			= 0;
 	p->se.exec_max			= 0;
+	p->se.slice_max			= 0;
 	p->se.wait_max			= 0;
 	p->se.wait_runtime_overruns	= 0;
 	p->se.wait_runtime_underruns	= 0;

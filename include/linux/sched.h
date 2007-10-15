@@ -921,6 +921,7 @@ struct sched_entity {
 	u64			block_start;
 	u64			block_max;
 	u64			exec_max;
+	u64			slice_max;
 
 	unsigned long		wait_runtime_overruns;
 	unsigned long		wait_runtime_underruns;
