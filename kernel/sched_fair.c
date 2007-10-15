@@ -479,13 +479,16 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	if (initial && sched_feat(START_DEBIT))
 		vruntime += __sched_vslice(cfs_rq->nr_running + 1);
 
-	if (!initial && sched_feat(NEW_FAIR_SLEEPERS)) {
-		s64 latency = cfs_rq->min_vruntime - se->last_min_vruntime;
-		if (latency < 0 || !cfs_rq->nr_running)
-			latency = 0;
-		else
-			latency = min_t(s64, latency, sysctl_sched_latency);
-		vruntime -= latency;
+	if (!initial) {
+		if (sched_feat(NEW_FAIR_SLEEPERS)) {
+			s64 latency = cfs_rq->min_vruntime - se->last_min_vruntime;
+			if (latency < 0 || !cfs_rq->nr_running)
+				latency = 0;
+			else
+				latency = min_t(s64, latency, sysctl_sched_latency);
+			vruntime -= latency;
+		}
+		vruntime = max(vruntime, se->vruntime);
 	}
 
 	se->vruntime = vruntime;
