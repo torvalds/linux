@@ -2713,7 +2713,7 @@ isdn_net_setcfg(isdn_net_ioctl_cfg * cfg)
 		case ISDN_NET_ENCAP_X25IFACE:
 #ifndef CONFIG_ISDN_X25
 			printk(KERN_WARNING "%s: isdn-x25 support not configured\n",
-			       p->local->name);
+			       p->dev->name);
 			return -EINVAL;
 #else
 			p->dev->type = ARPHRD_X25;	/* change ARP type */
