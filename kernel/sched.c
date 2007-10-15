@@ -1660,17 +1660,14 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 {
 	unsigned long flags;
 	struct rq *rq;
-	int this_cpu;
 
 	rq = task_rq_lock(p, &flags);
 	BUG_ON(p->state != TASK_RUNNING);
-	this_cpu = smp_processor_id(); /* parent's CPU */
 	update_rq_clock(rq);
 
 	p->prio = effective_prio(p);
 
-	if (task_cpu(p) != this_cpu || !p->sched_class->task_new ||
-							!current->se.on_rq) {
+	if (!p->sched_class->task_new || !current->se.on_rq || !rq->cfs.curr) {
 		activate_task(rq, p, 0);
 	} else {
 		/*
