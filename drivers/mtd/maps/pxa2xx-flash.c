@@ -14,20 +14,20 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>
+#include <asm/cacheflush.h>
 
 #include <asm/mach/flash.h>
 
 static void pxa2xx_map_inval_cache(struct map_info *map, unsigned long from,
 				      ssize_t len)
 {
-	consistent_sync((char *)map->cached + from, len, DMA_FROM_DEVICE);
+	flush_ioremap_region(map->phys, map->cached, from, len);
 }
 
 struct pxa2xx_flash_info {
