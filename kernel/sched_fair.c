@@ -74,7 +74,7 @@ const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 25000000UL;
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-const_debug unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
+const_debug unsigned int sysctl_sched_wakeup_granularity = 2000000UL;
 
 unsigned int sysctl_sched_runtime_limit __read_mostly;
 
@@ -582,7 +582,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
  * Preempt the current task with a newly woken task if needed:
  */
 static void
-__check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
 	unsigned long ideal_runtime, delta_exec;
 
@@ -646,8 +646,6 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
-	struct sched_entity *next;
-
 	/*
 	 * Dequeue and enqueue the task to update its
 	 * position within the tree:
@@ -655,14 +653,8 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	dequeue_entity(cfs_rq, curr, 0);
 	enqueue_entity(cfs_rq, curr, 0);
 
-	/*
-	 * Reschedule if another task tops the current one.
-	 */
-	next = __pick_next_entity(cfs_rq);
-	if (next == curr)
-		return;
-
-	__check_preempt_curr_fair(cfs_rq, curr);
+	if (cfs_rq->nr_running > 1)
+		check_preempt_tick(cfs_rq, curr);
 }
 
 /**************************************************
@@ -852,7 +844,7 @@ static void yield_task_fair(struct rq *rq, struct task_struct *p)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void check_preempt_curr_fair(struct rq *rq, struct task_struct *p)
+static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 {
 	struct task_struct *curr = rq->curr;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
@@ -863,9 +855,12 @@ static void check_preempt_curr_fair(struct rq *rq, struct task_struct *p)
 		resched_task(curr);
 		return;
 	}
+	if (is_same_group(curr, p)) {
+		s64 delta = curr->se.vruntime - p->se.vruntime;
 
-	if (is_same_group(curr, p))
-		__check_preempt_curr_fair(cfs_rq, &curr->se);
+		if (delta > (s64)sysctl_sched_wakeup_granularity)
+			resched_task(curr);
+	}
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
@@ -1095,7 +1090,7 @@ struct sched_class fair_sched_class __read_mostly = {
 	.dequeue_task		= dequeue_task_fair,
 	.yield_task		= yield_task_fair,
 
-	.check_preempt_curr	= check_preempt_curr_fair,
+	.check_preempt_curr	= check_preempt_wakeup,
 
 	.pick_next_task		= pick_next_task_fair,
 	.put_prev_task		= put_prev_task_fair,
