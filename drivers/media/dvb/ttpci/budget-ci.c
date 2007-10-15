@@ -1768,6 +1768,29 @@ static void frontend_init(struct budget_ci *budget_ci)
 		break;
 
 	case 0x1019:		// TT S2-3200 PCI
+		/*
+		 * NOTE! on some STB0899 versions, the internal PLL takes a longer time
+		 * to settle, aka LOCK. On the older revisions of the chip, we don't see
+		 * this, as a result on the newer chips the entire clock tree, will not
+		 * be stable after a freshly POWER 'ed up situation.
+		 * In this case, we should RESET the STB0899 (Active LOW) and wait for
+		 * PLL stabilization.
+		 *
+		 * On the TT S2 3200 and clones, the STB0899 demodulator's RESETB is
+		 * connected to the SAA7146 GPIO, GPIO2, Pin 142
+		 */
+		/* Reset Demodulator */
+		saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
+		/* Wait for everything to die */
+		msleep(50);
+		/* Pull it up out of Reset state */
+		saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
+		/* Wait for PLL to stabilize */
+		msleep(250);
+		/*
+		 * PLL state should be stable now. Ideally, we should check
+		 * for PLL LOCK status. But well, never mind!
+		 */
 		budget_ci->budget.dvb_frontend = dvb_attach(stb0899_attach, &tt3200_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			if (dvb_attach(stb6100_attach, budget_ci->budget.dvb_frontend, &tt3200_stb6100_config, &budget_ci->budget.i2c_adap)) {
