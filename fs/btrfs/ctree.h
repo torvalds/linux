@@ -283,10 +283,6 @@ struct btrfs_block_group_item {
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
-	u64 first_free;
-	u64 last_alloc;
-	u64 pinned;
-	u64 last_prealloc;
 	int data;
 	int cached;
 };
@@ -296,11 +292,13 @@ struct btrfs_fs_info {
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
 	struct radix_tree_root fs_roots_radix;
-	struct radix_tree_root pending_del_radix;
-	struct radix_tree_root pinned_radix;
-	struct radix_tree_root extent_ins_radix;
+
 	struct extent_map_tree free_space_cache;
 	struct extent_map_tree block_group_cache;
+	struct extent_map_tree pinned_extents;
+	struct extent_map_tree pending_del;
+	struct extent_map_tree extent_ins;
+
 	u64 generation;
 	u64 last_trans_committed;
 	struct btrfs_transaction *running_transaction;
@@ -926,7 +924,7 @@ static inline int btrfs_set_root_name(struct btrfs_root *root,
 /* extent-tree.c */
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root);
-int btrfs_copy_pinned(struct btrfs_root *root, struct radix_tree_root *copy);
+int btrfs_copy_pinned(struct btrfs_root *root, struct extent_map_tree *copy);
 struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 							 btrfs_fs_info *info,
 							 u64 blocknr);
@@ -949,7 +947,7 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, u64 blocknr, u64 num_blocks, int pin);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       struct radix_tree_root *unpin_radix);
+			       struct extent_map_tree *unpin);
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				u64 blocknr, u64 num_blocks);

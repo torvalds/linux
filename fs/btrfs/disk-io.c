@@ -432,9 +432,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 		err = -ENOMEM;
 		goto fail;
 	}
-	init_bit_radix(&fs_info->pinned_radix);
-	init_bit_radix(&fs_info->pending_del_radix);
-	init_bit_radix(&fs_info->extent_ins_radix);
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
@@ -457,6 +454,12 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	extent_map_tree_init(&fs_info->free_space_cache,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	extent_map_tree_init(&fs_info->block_group_cache,
+			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+	extent_map_tree_init(&fs_info->pinned_extents,
+			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+	extent_map_tree_init(&fs_info->pending_del,
+			     fs_info->btree_inode->i_mapping, GFP_NOFS);
+	extent_map_tree_init(&fs_info->extent_ins,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 	fs_info->closing = 0;

@@ -1188,8 +1188,8 @@ out:
  * has the bits set.  Otherwise, 1 is returned if any bit in the
  * range is found set.
  */
-static int test_range_bit(struct extent_map_tree *tree, u64 start, u64 end,
-			  int bits, int filled)
+int test_range_bit(struct extent_map_tree *tree, u64 start, u64 end,
+		   int bits, int filled)
 {
 	struct extent_state *state = NULL;
 	struct rb_node *node;
@@ -1222,6 +1222,7 @@ static int test_range_bit(struct extent_map_tree *tree, u64 start, u64 end,
 	read_unlock_irq(&tree->lock);
 	return bitset;
 }
+EXPORT_SYMBOL(test_range_bit);
 
 /*
  * helper function to set a given page up to date if all the

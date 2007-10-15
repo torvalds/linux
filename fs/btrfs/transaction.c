@@ -481,11 +481,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_transaction *prev_trans = NULL;
 	struct list_head dirty_fs_roots;
-	struct radix_tree_root pinned_copy;
+	struct extent_map_tree pinned_copy;
 	DEFINE_WAIT(wait);
 	int ret;
 
-	init_bit_radix(&pinned_copy);
+	extent_map_tree_init(&pinned_copy,
+			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
 	INIT_LIST_HEAD(&dirty_fs_roots);
 
 	mutex_lock(&root->fs_info->trans_mutex);
