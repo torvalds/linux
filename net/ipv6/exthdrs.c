@@ -234,22 +234,13 @@ static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 		goto discard;
 
 	if (skb_cloned(skb)) {
-		struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
-		struct inet6_skb_parm *opt2;
-
-		if (skb2 == NULL)
+		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 			goto discard;
 
-		opt2 = IP6CB(skb2);
-		memcpy(opt2, opt, sizeof(*opt2));
-
-		kfree_skb(skb);
-
 		/* update all variable using below by copied skbuff */
-		*skbp = skb = skb2;
-		hao = (struct ipv6_destopt_hao *)(skb_network_header(skb2) +
+		hao = (struct ipv6_destopt_hao *)(skb_network_header(skb) +
 						  optoff);
-		ipv6h = ipv6_hdr(skb2);
+		ipv6h = ipv6_hdr(skb);
 	}
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
@@ -464,18 +455,14 @@ looped_back:
 	   Do not damage packets queued somewhere.
 	 */
 	if (skb_cloned(skb)) {
-		struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
 		/* the copy is a forwarded packet */
-		if (skb2 == NULL) {
+		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
 			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_OUTDISCARDS);
 			kfree_skb(skb);
 			return -1;
 		}
-		kfree_skb(skb);
-		*skbp = skb = skb2;
-		opt = IP6CB(skb2);
-		hdr = (struct ipv6_rt_hdr *)skb_transport_header(skb2);
+		hdr = (struct ipv6_rt_hdr *)skb_transport_header(skb);
 	}
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
