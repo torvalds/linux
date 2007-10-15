@@ -1861,6 +1861,7 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 		OUT_RING((image->width << 16) | height);
 		RADEON_WAIT_UNTIL_2D_IDLE();
 		ADVANCE_RING();
+		COMMIT_RING();
 
 		radeon_cp_discard_buffer(dev, buf);
 
@@ -1878,6 +1879,8 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 	RADEON_FLUSH_CACHE();
 	RADEON_WAIT_UNTIL_2D_IDLE();
 	ADVANCE_RING();
+	COMMIT_RING();
+
 	return 0;
 }
 
@@ -2378,7 +2381,6 @@ static int radeon_cp_texture(struct drm_device *dev, void *data, struct drm_file
 
 	ret = radeon_cp_dispatch_texture(dev, file_priv, tex, &image);
 
-	COMMIT_RING();
 	return ret;
 }
 
