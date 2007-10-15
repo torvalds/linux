@@ -75,6 +75,12 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
+#ifdef CONFIG_SMP
+#define is_migration_thread(p, rq) ((p) == (rq)->migration_thread)
+#else
+#define is_migration_thread(p, rq) 0
+#endif
+
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -6532,12 +6538,25 @@ EXPORT_SYMBOL(__might_sleep);
 #endif
 
 #ifdef CONFIG_MAGIC_SYSRQ
+static void normalize_task(struct rq *rq, struct task_struct *p)
+{
+	int on_rq;
+	update_rq_clock(rq);
+	on_rq = p->se.on_rq;
+	if (on_rq)
+		deactivate_task(rq, p, 0);
+	__setscheduler(rq, p, SCHED_NORMAL, 0);
+	if (on_rq) {
+		activate_task(rq, p, 0);
+		resched_task(rq->curr);
+	}
+}
+
 void normalize_rt_tasks(void)
 {
 	struct task_struct *g, *p;
 	unsigned long flags;
 	struct rq *rq;
-	int on_rq;
 
 	read_lock_irq(&tasklist_lock);
 	do_each_thread(g, p) {
@@ -6561,26 +6580,10 @@ void normalize_rt_tasks(void)
 
 		spin_lock_irqsave(&p->pi_lock, flags);
 		rq = __task_rq_lock(p);
-#ifdef CONFIG_SMP
-		/*
-		 * Do not touch the migration thread:
-		 */
-		if (p == rq->migration_thread)
-			goto out_unlock;
-#endif
 
-		update_rq_clock(rq);
-		on_rq = p->se.on_rq;
-		if (on_rq)
-			deactivate_task(rq, p, 0);
-		__setscheduler(rq, p, SCHED_NORMAL, 0);
-		if (on_rq) {
-			activate_task(rq, p, 0);
-			resched_task(rq->curr);
-		}
-#ifdef CONFIG_SMP
- out_unlock:
-#endif
+		if (!is_migration_thread(p, rq))
+			normalize_task(rq, p);
+
 		__task_rq_unlock(rq);
 		spin_unlock_irqrestore(&p->pi_lock, flags);
 	} while_each_thread(g, p);
