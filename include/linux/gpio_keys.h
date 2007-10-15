@@ -8,6 +8,7 @@ struct gpio_keys_button {
 	int active_low;
 	char *desc;
 	int type;		/* input event type (EV_KEY, EV_SW) */
+	int wakeup;		/* configure the button as a wake-up source */
 };
 
 struct gpio_keys_platform_data {

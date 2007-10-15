@@ -233,7 +233,7 @@ static void omap_kp_tasklet(unsigned long data)
 			omap_writew(0, OMAP_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);
 			kp_cur_group = -1;
 		}
- 	}
+	}
 }
 
 static ssize_t omap_kp_enable_show(struct device *dev,
@@ -318,7 +318,7 @@ static int __init omap_kp_probe(struct platform_device *pdev)
 	keymap = pdata->keymap;
 
 	if (pdata->rep)
-		set_bit(EV_REP, input_dev->evbit);
+		__set_bit(EV_REP, input_dev->evbit);
 
 	if (pdata->delay)
 		omap_kp->delay = pdata->delay;
@@ -365,9 +365,9 @@ static int __init omap_kp_probe(struct platform_device *pdev)
 		goto err2;
 
 	/* setup input device */
-	set_bit(EV_KEY, input_dev->evbit);
+	__set_bit(EV_KEY, input_dev->evbit);
 	for (i = 0; keymap[i] != 0; i++)
-		set_bit(keymap[i] & KEY_MAX, input_dev->keybit);
+		__set_bit(keymap[i] & KEY_MAX, input_dev->keybit);
 	input_dev->name = "omap-keypad";
 	input_dev->phys = "omap-keypad/input0";
 	input_dev->dev.parent = &pdev->dev;
@@ -376,10 +376,6 @@ static int __init omap_kp_probe(struct platform_device *pdev)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
-
-	input_dev->keycode = keymap;
-	input_dev->keycodesize = sizeof(unsigned int);
-	input_dev->keycodemax = pdata->keymapsize;
 
 	ret = input_register_device(omap_kp->input);
 	if (ret < 0) {
@@ -403,15 +399,15 @@ static int __init omap_kp_probe(struct platform_device *pdev)
 	} else {
 		for (irq_idx = 0; irq_idx < omap_kp->rows; irq_idx++) {
 			if (request_irq(OMAP_GPIO_IRQ(row_gpios[irq_idx]),
-				       	omap_kp_interrupt,
+					omap_kp_interrupt,
 					IRQF_TRIGGER_FALLING,
-				       	"omap-keypad", omap_kp) < 0)
+					"omap-keypad", omap_kp) < 0)
 				goto err5;
 		}
 	}
 	return 0;
 err5:
-	for (i = irq_idx-1; i >=0; i--)
+	for (i = irq_idx - 1; i >=0; i--)
 		free_irq(row_gpios[i], 0);
 err4:
 	input_unregister_device(omap_kp->input);
@@ -440,9 +436,9 @@ static int omap_kp_remove(struct platform_device *pdev)
 	if (cpu_is_omap24xx()) {
 		int i;
 		for (i = 0; i < omap_kp->cols; i++)
-	    		omap_free_gpio(col_gpios[i]);
+			omap_free_gpio(col_gpios[i]);
 		for (i = 0; i < omap_kp->rows; i++) {
-	    		omap_free_gpio(row_gpios[i]);
+			omap_free_gpio(row_gpios[i]);
 			free_irq(OMAP_GPIO_IRQ(row_gpios[i]), 0);
 		}
 	} else {

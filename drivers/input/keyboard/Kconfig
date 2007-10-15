@@ -208,6 +208,27 @@ config KEYBOARD_HIL
 	  This driver implements support for HIL-keyboards attached
 	  to your machine, so normally you should say Y here.
 
+config KEYBOARD_HP6XX
+	tristate "HP Jornada 6XX Keyboard support"
+	depends on SH_HP6XX
+	select INPUT_POLLDEV
+	help
+	  This adds support for the onboard keyboard found on
+	  HP Jornada 620/660/680/690.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jornada680_kbd.
+
+config KEYBOARD_HP7XX
+	tristate "HP Jornada 7XX Keyboard Driver"
+	depends on SA1100_JORNADA720_SSP && SA1100_SSP
+	help
+	  Say Y here to add support for the HP Jornada 7xx (710/720/728)
+	  onboard keyboard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jornada720_kbd.
+
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
 	depends on (ARCH_OMAP1 || ARCH_OMAP2)
@@ -252,5 +273,24 @@ config KEYBOARD_GPIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio-keys.
+
+config KEYBOARD_MAPLE
+	tristate "Maple bus keyboard"
+	depends on SH_DREAMCAST && MAPLE
+	help
+	  Say Y here if you have a Dreamcast console running Linux and have
+	  a keyboard attached to its Maple bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called maple_keyb.
+
+config KEYBOARD_BFIN
+	tristate "Blackfin BF54x keypad support"
+	depends on BF54x
+	help
+	  Say Y here if you want to use the BF54x keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bf54x-keys.
 
 endif

@@ -1,5 +1,5 @@
 #include <linux/i2c.h>
-#include <linux/input.h>
+#include <linux/input-polldev.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -52,8 +52,7 @@ struct ams {
 #endif
 
 	/* Joystick emulation */
-	struct task_struct *kthread;
-	struct input_dev *idev;
+	struct input_polled_dev *idev;
 	__u16 bustype;
 
 	/* calibrated null values */

@@ -223,12 +223,16 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 	struct input_dev *dev = xpad->dev;
 
 	/* left stick */
-	input_report_abs(dev, ABS_X, (__s16) (((__s16)data[13] << 8) | data[12]));
-	input_report_abs(dev, ABS_Y, (__s16) (((__s16)data[15] << 8) | data[14]));
+	input_report_abs(dev, ABS_X,
+			 (__s16) le16_to_cpup((__le16 *)(data + 12)));
+	input_report_abs(dev, ABS_Y,
+			 (__s16) le16_to_cpup((__le16 *)(data + 14)));
 
 	/* right stick */
-	input_report_abs(dev, ABS_RX, (__s16) (((__s16)data[17] << 8) | data[16]));
-	input_report_abs(dev, ABS_RY, (__s16) (((__s16)data[19] << 8) | data[18]));
+	input_report_abs(dev, ABS_RX,
+			 (__s16) le16_to_cpup((__le16 *)(data + 16)));
+	input_report_abs(dev, ABS_RY,
+			 (__s16) le16_to_cpup((__le16 *)(data + 18)));
 
 	/* triggers left/right */
 	input_report_abs(dev, ABS_Z, data[10]);
@@ -236,8 +240,10 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 
 	/* digital pad */
 	if (xpad->dpad_mapping == MAP_DPAD_TO_AXES) {
-		input_report_abs(dev, ABS_HAT0X, !!(data[2] & 0x08) - !!(data[2] & 0x04));
-		input_report_abs(dev, ABS_HAT0Y, !!(data[2] & 0x02) - !!(data[2] & 0x01));
+		input_report_abs(dev, ABS_HAT0X,
+				 !!(data[2] & 0x08) - !!(data[2] & 0x04));
+		input_report_abs(dev, ABS_HAT0Y,
+				 !!(data[2] & 0x02) - !!(data[2] & 0x01));
 	} else /* xpad->dpad_mapping == MAP_DPAD_TO_BUTTONS */ {
 		input_report_key(dev, BTN_LEFT,  data[2] & 0x04);
 		input_report_key(dev, BTN_RIGHT, data[2] & 0x08);
@@ -274,14 +280,17 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
  *		http://www.free60.org/wiki/Gamepad
  */
 
-static void xpad360_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *data)
+static void xpad360_process_packet(struct usb_xpad *xpad,
+				   u16 cmd, unsigned char *data)
 {
 	struct input_dev *dev = xpad->dev;
 
 	/* digital pad */
 	if (xpad->dpad_mapping == MAP_DPAD_TO_AXES) {
-		input_report_abs(dev, ABS_HAT0X, !!(data[2] & 0x08) - !!(data[2] & 0x04));
-		input_report_abs(dev, ABS_HAT0Y, !!(data[2] & 0x02) - !!(data[2] & 0x01));
+		input_report_abs(dev, ABS_HAT0X,
+				 !!(data[2] & 0x08) - !!(data[2] & 0x04));
+		input_report_abs(dev, ABS_HAT0Y,
+				 !!(data[2] & 0x02) - !!(data[2] & 0x01));
 	} else if (xpad->dpad_mapping == MAP_DPAD_TO_BUTTONS) {
 		/* dpad as buttons (right, left, down, up) */
 		input_report_key(dev, BTN_LEFT, data[2] & 0x04);
@@ -308,12 +317,16 @@ static void xpad360_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 	input_report_key(dev, BTN_MODE,	data[3] & 0x04);
 
 	/* left stick */
-	input_report_abs(dev, ABS_X, (__s16) (((__s16)data[7] << 8) | (__s16)data[6]));
-	input_report_abs(dev, ABS_Y, (__s16) (((__s16)data[9] << 8) | (__s16)data[8]));
+	input_report_abs(dev, ABS_X,
+			 (__s16) le16_to_cpup((__le16 *)(data + 6)));
+	input_report_abs(dev, ABS_Y,
+			 (__s16) le16_to_cpup((__le16 *)(data + 8)));
 
 	/* right stick */
-	input_report_abs(dev, ABS_RX, (__s16) (((__s16)data[11] << 8) | (__s16)data[10]));
-	input_report_abs(dev, ABS_RY, (__s16) (((__s16)data[13] << 8) | (__s16)data[12]));
+	input_report_abs(dev, ABS_RX,
+			 (__s16) le16_to_cpup((__le16 *)(data + 10)));
+	input_report_abs(dev, ABS_RY,
+			 (__s16) le16_to_cpup((__le16 *)(data + 12)));
 
 	/* triggers left/right */
 	input_report_abs(dev, ABS_Z, data[4]);
@@ -335,10 +348,12 @@ static void xpad_irq_in(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d",
+			__FUNCTION__, urb->status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
+		dbg("%s - nonzero urb status received: %d",
+			__FUNCTION__, urb->status);
 		goto exit;
 	}
 
@@ -367,10 +382,12 @@ static void xpad_irq_out(struct urb *urb)
 		case -ENOENT:
 		case -ESHUTDOWN:
 			/* this urb is terminated, clean up */
-			dbg("%s - urb shutting down with status: %d",  __FUNCTION__, urb->status);
+			dbg("%s - urb shutting down with status: %d",
+				__FUNCTION__, urb->status);
 			return;
 		default:
-			dbg("%s - nonzero urb status received: %d",  __FUNCTION__, urb->status);
+			dbg("%s - nonzero urb status received: %d",
+				__FUNCTION__, urb->status);
 			goto exit;
 	}
 
@@ -378,7 +395,7 @@ exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		err("%s - usb_submit_urb failed with result %d",
-		   __FUNCTION__, retval);
+		    __FUNCTION__, retval);
 }
 
 static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
@@ -595,7 +612,7 @@ static void xpad_set_up_abs(struct input_dev *input_dev, signed short abs)
 
 static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
-	struct usb_device *udev = interface_to_usbdev (intf);
+	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_xpad *xpad;
 	struct input_dev *input_dev;
 	struct usb_endpoint_descriptor *ep_irq_in;

@@ -70,6 +70,7 @@ static int input_open_polled_device(struct input_dev *input)
 {
 	struct input_polled_dev *dev = input->private;
 	int error;
+	unsigned long ticks;
 
 	error = input_polldev_start_workqueue();
 	if (error)
@@ -78,8 +79,10 @@ static int input_open_polled_device(struct input_dev *input)
 	if (dev->flush)
 		dev->flush(dev);
 
-	queue_delayed_work(polldev_wq, &dev->work,
-			   msecs_to_jiffies(dev->poll_interval));
+	ticks = msecs_to_jiffies(dev->poll_interval);
+	if (ticks >= HZ)
+		ticks = round_jiffies(ticks);
+	queue_delayed_work(polldev_wq, &dev->work, ticks);
 
 	return 0;
 }

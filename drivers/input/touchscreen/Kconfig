@@ -126,6 +126,16 @@ config TOUCHSCREEN_HP600
 	  To compile this driver as a module, choose M here: the
 	  module will be called hp680_ts_input.
 
+config TOUCHSCREEN_HP7XX
+	tristate "HP Jornada 710/720/728 touchscreen"
+	depends on SA1100_JORNADA720_SSP
+	help
+	  Say Y here if you have a HP Jornada 710/720/728 and want
+	  to support the built-in touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jornada720_ts.
+
 config TOUCHSCREEN_PENMOUNT
 	tristate "Penmount serial touchscreen"
 	select SERIO
@@ -191,6 +201,7 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  - Gunze AHL61
 	  - DMC TSC-10/25
 	  - IRTOUCHSYSTEMS/UNITOP
+	  - IdealTEK URTC1000
 
 	  Have a look at <http://linux.chapter7.ch/touchkit/> for
 	  a usage description and the required user-space stuff.
@@ -236,6 +247,16 @@ config TOUCHSCREEN_USB_DMC_TSC10
 config TOUCHSCREEN_USB_IRTOUCH
 	default y
 	bool "IRTOUCHSYSTEMS/UNITOP device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_IDEALTEK
+	default y
+	bool "IdealTEK URTC1000 device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_GENERAL_TOUCH
+	default y
+	bool "GeneralTouch Touchscreen device support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
 endif

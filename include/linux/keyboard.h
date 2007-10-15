@@ -416,6 +416,7 @@ extern unsigned short plain_map[NR_KEYS];
 #define K_SHIFTRLOCK	K(KT_LOCK,KG_SHIFTR)
 #define K_CTRLLLOCK	K(KT_LOCK,KG_CTRLL)
 #define K_CTRLRLOCK	K(KT_LOCK,KG_CTRLR)
+#define K_CAPSSHIFTLOCK	K(KT_LOCK,KG_CAPSSHIFT)
 
 #define K_SHIFT_SLOCK	K(KT_SLOCK,KG_SHIFT)
 #define K_CTRL_SLOCK	K(KT_SLOCK,KG_CTRL)
@@ -425,8 +426,9 @@ extern unsigned short plain_map[NR_KEYS];
 #define K_SHIFTR_SLOCK	K(KT_SLOCK,KG_SHIFTR)
 #define K_CTRLL_SLOCK	K(KT_SLOCK,KG_CTRLL)
 #define K_CTRLR_SLOCK	K(KT_SLOCK,KG_CTRLR)
+#define K_CAPSSHIFT_SLOCK	K(KT_SLOCK,KG_CAPSSHIFT)
 
-#define NR_LOCK		8
+#define NR_LOCK		9
 
 #define K_BRL_BLANK     K(KT_BRL, 0)
 #define K_BRL_DOT1      K(KT_BRL, 1)

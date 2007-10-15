@@ -1890,9 +1890,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format:
 			<io>,<irq>,<dma>,<dma2>,<sb_io>,<sb_irq>,<sb_dma>,<mpu_io>,<mpu_irq>
 
-	tsdev.xres=	[TS] Horizontal screen resolution.
-	tsdev.yres=	[TS] Vertical screen resolution.
-
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface
 			Format:
