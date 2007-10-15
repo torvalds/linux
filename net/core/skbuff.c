@@ -682,7 +682,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->transport_header += off;
 	skb->network_header   += off;
 	skb->mac_header	      += off;
-	skb->csum_start       += off;
+	skb->csum_start       += nhead;
 	skb->cloned   = 0;
 	skb->hdr_len  = 0;
 	skb->nohdr    = 0;
