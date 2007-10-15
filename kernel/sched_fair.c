@@ -477,7 +477,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	vruntime = cfs_rq->min_vruntime;
 
-	if (sched_feat(USE_TREE_AVG)) {
+	if (sched_feat(TREE_AVG)) {
 		struct sched_entity *last = __pick_last_entity(cfs_rq);
 		if (last) {
 			vruntime += last->vruntime;
