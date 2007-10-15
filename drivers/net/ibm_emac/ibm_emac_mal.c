@@ -413,7 +413,10 @@ static int __init mal_probe(struct ocp_device *ocpdev)
 		       ocpdev->def->index);
 		return -ENOMEM;
 	}
-	mal->dcrbase = maldata->dcr_base;
+
+	/* XXX This only works for native dcr for now */
+	mal->dcrhost = dcr_map(NULL, maldata->dcr_base, 0);
+
 	mal->def = ocpdev->def;
 
 	INIT_LIST_HEAD(&mal->poll_list);
