@@ -5476,8 +5476,7 @@ int __init migration_init(void)
 int nr_cpu_ids __read_mostly = NR_CPUS;
 EXPORT_SYMBOL(nr_cpu_ids);
 
-#undef SCHED_DOMAIN_DEBUG
-#ifdef SCHED_DOMAIN_DEBUG
+#ifdef CONFIG_SCHED_DEBUG
 static void sched_domain_debug(struct sched_domain *sd, int cpu)
 {
 	int level = 0;
