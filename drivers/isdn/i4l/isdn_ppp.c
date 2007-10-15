@@ -190,9 +190,11 @@ isdn_ppp_bind(isdn_net_local * lp)
 		retval = -1;
 		goto out;
 	}
-	unit = isdn_ppp_if_get_unit(lp->name);	/* get unit number from interface name .. ugly! */
+	/* get unit number from interface name .. ugly! */
+	unit = isdn_ppp_if_get_unit(lp->netdev->dev->name);
 	if (unit < 0) {
-		printk(KERN_ERR "isdn_ppp_bind: illegal interface name %s.\n", lp->name);
+		printk(KERN_ERR "isdn_ppp_bind: illegal interface name %s.\n",
+			lp->netdev->dev->name);
 		retval = -1;
 		goto out;
 	}
@@ -507,7 +509,8 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 		case PPPIOCGIFNAME:
 			if(!lp)
 				return -EINVAL;
-			if ((r = set_arg(argp, lp->name, strlen(lp->name))))
+			if ((r = set_arg(argp, lp->netdev->dev->name,
+				strlen(lp->netdev->dev->name))))
 				return r;
 			break;
 		case PPPIOCGMPFLAGS:	/* get configuration flags */
