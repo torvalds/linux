@@ -426,77 +426,11 @@ struct btrfs_root {
 			    offsetof(type, member),			\
 			   sizeof(((type *)0)->member)))
 
+#ifndef BTRFS_SETGET_FUNCS
 #define BTRFS_SETGET_FUNCS(name, type, member, bits)			\
-static inline u##bits btrfs_##name(struct extent_buffer *eb,		\
-				   type *s)				\
-{									\
-	int err;							\
-	char *map_token;						\
-	char *kaddr;							\
-	int unmap_on_exit = (eb->map_token == NULL);			\
-	unsigned long map_start;					\
-	unsigned long map_len;						\
-	unsigned long offset = (unsigned long)s +			\
-				offsetof(type, member);			\
-	if (eb->map_token && offset >= eb->map_start &&			\
-	    offset + sizeof(((type *)0)->member) <= eb->map_start +	\
-	    eb->map_len) {						\
-	    kaddr = eb->kaddr;						\
-	    map_start = eb->map_start;					\
-	    err = 0;							\
-	} else {							\
-		err = map_extent_buffer(eb, offset,			\
-			        sizeof(((type *)0)->member),		\
-				&map_token, &kaddr,			\
-				&map_start, &map_len, KM_USER1);	\
-	}								\
-	if (!err) {							\
-		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
-					       map_start);		\
-		u##bits res = le##bits##_to_cpu(*tmp);			\
-		if (unmap_on_exit)					\
-			unmap_extent_buffer(eb, map_token, KM_USER1);	\
-		return res;						\
-	} else {							\
-		__le##bits res;						\
-		read_eb_member(eb, s, type, member, &res);		\
-		return le##bits##_to_cpu(res);				\
-	}								\
-}									\
-static inline void btrfs_set_##name(struct extent_buffer *eb,		\
-				    type *s, u##bits val)		\
-{									\
-	int err;							\
-	char *map_token;						\
-	char *kaddr;							\
-	unsigned long map_start;					\
-	unsigned long map_len;						\
-	int unmap_on_exit = (eb->map_token == NULL);			\
-	unsigned long offset = (unsigned long)s +			\
-				offsetof(type, member);			\
-	if (eb->map_token && offset >= eb->map_start &&			\
-	    offset + sizeof(((type *)0)->member) <= eb->map_start +	\
-	    eb->map_len) {						\
-	    kaddr = eb->kaddr;						\
-	    map_start = eb->map_start;					\
-	    err = 0;							\
-	} else {							\
-		err = map_extent_buffer(eb, offset,			\
-			        sizeof(((type *)0)->member),		\
-				&map_token, &kaddr,			\
-				&map_start, &map_len, KM_USER1);	\
-	}								\
-	if (!err) {							\
-		__le##bits *tmp = (__le##bits *)(kaddr + offset -	\
-					       map_start);		\
-		*tmp = cpu_to_le##bits(val);				\
-		if (unmap_on_exit)					\
-			unmap_extent_buffer(eb, map_token, KM_USER1);	\
-	} else {							\
-		val = cpu_to_le##bits(val);				\
-		write_eb_member(eb, s, type, member, &val);		\
-	}								\
-}
+u##bits btrfs_##name(struct extent_buffer *eb, type *s);		\
+void btrfs_set_##name(struct extent_buffer *eb, type *s, u##bits val);
+#endif
 
 #define BTRFS_SETGET_HEADER_FUNCS(name, type, member, bits)		\
 static inline u##bits btrfs_##name(struct extent_buffer *eb)		\

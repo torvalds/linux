@@ -1443,7 +1443,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {
 			free_extent_buffer(path->nodes[i]);
-			path->nodes[i] = 0;
+			path->nodes[i] = NULL;
 		}
 	}
 out:
