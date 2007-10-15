@@ -485,9 +485,8 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 		vruntime += sched_vslice_add(cfs_rq, se);
 
 	if (!initial) {
-		struct task_struct *p = container_of(se, struct task_struct, se);
-
-		if (sched_feat(NEW_FAIR_SLEEPERS) && p->policy != SCHED_BATCH)
+		if (sched_feat(NEW_FAIR_SLEEPERS) && entity_is_task(se) &&
+				task_of(se)->policy != SCHED_BATCH)
 			vruntime -= sysctl_sched_latency;
 
 		vruntime = max_t(s64, vruntime, se->vruntime);
