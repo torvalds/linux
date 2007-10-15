@@ -4014,8 +4014,14 @@ int strn_pattern_cmp(const char *patt, const char *name, int wildchar)
 	p = strchr(patt, wildchar);
 	if (p && ((*(p + 1)) == 0))
 		len = p - patt;
-	else
+	else {
 		len = strlen(name);
+		if (!len) {
+			if (!*patt)
+				return 0;
+			return -1;
+		}
+	}
 
 	return strncmp(patt, name, len);
 }
