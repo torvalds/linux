@@ -1378,6 +1378,8 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 		nl_table[unit].cb_mutex = cb_mutex;
 		nl_table[unit].module = module;
 		nl_table[unit].registered = 1;
+	} else {
+		kfree(listeners);
 	}
 	netlink_table_ungrab();
 
