@@ -76,7 +76,9 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 		if (*level == 1) {
 			ret = btrfs_realloc_node(trans, root,
 						 path->nodes[*level],
-						 cache_only, last_ret);
+						 path->slots[*level],
+						 cache_only, last_ret,
+						 &root->defrag_progress);
 			if (is_extent)
 				btrfs_extent_post_op(trans, root);
 
@@ -100,10 +102,6 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 		ret = btrfs_cow_block(trans, root, next, path->nodes[*level],
 				      path->slots[*level], &next);
 		BUG_ON(ret);
-		ret = btrfs_realloc_node(trans, root, next, cache_only,
-					 last_ret);
-		BUG_ON(ret);
-
 		if (is_extent)
 			btrfs_extent_post_op(trans, root);
 
@@ -122,8 +120,8 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 	free_extent_buffer(path->nodes[*level]);
 	path->nodes[*level] = NULL;
 	*level += 1;
-	WARN_ON(ret);
-	return 0;
+	WARN_ON(ret && ret != -EAGAIN);
+	return ret;
 }
 
 static int defrag_walk_up(struct btrfs_trans_handle *trans,
@@ -147,27 +145,6 @@ static int defrag_walk_up(struct btrfs_trans_handle *trans,
 			root->defrag_level = i;
 			return 0;
 		} else {
-			if (*level > 1 && path->nodes[*level] != root->node &&
-			    btrfs_buffer_defrag(path->nodes[*level])) {
-				struct extent_buffer *next;
-				u64 last;
-				int ret;
-				ret = btrfs_cow_block(trans, root,
-						      path->nodes[*level],
-						      path->nodes[*level + 1],
-						      path->slots[*level + 1],
-						      &next);
-				BUG_ON(ret);
-				path->nodes[*level] = next;
-				last = next->start;
-				ret = btrfs_realloc_node(trans, root, next,
-							 cache_only, &last);
-				BUG_ON(ret);
-
-				if (root == root->fs_info->extent_root)
-					btrfs_extent_post_op(trans, root);
-			}
-
 			btrfs_clear_buffer_defrag(path->nodes[*level]);
 			free_extent_buffer(path->nodes[*level]);
 			path->nodes[*level] = NULL;
@@ -210,9 +187,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	if (root->defrag_progress.objectid == 0) {
 		extent_buffer_get(root->node);
 		ret = btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
-		BUG_ON(ret);
-		ret = btrfs_realloc_node(trans, root, root->node, cache_only,
-					 &last_ret);
 		BUG_ON(ret);
 		path->nodes[level] = root->node;
 		path->slots[level] = 0;

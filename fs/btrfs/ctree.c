@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/sched.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -190,7 +191,8 @@ static int should_defrag_leaf(struct extent_buffer *leaf)
 
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct extent_buffer *parent,
-		       int cache_only, u64 *last_ret)
+		       int start_slot, int cache_only, u64 *last_ret,
+		       struct btrfs_key *progress)
 {
 	struct extent_buffer *cur;
 	struct extent_buffer *tmp;
@@ -199,7 +201,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	u64 last_block = 0;
 	u64 other;
 	u32 parent_nritems;
-	int start_slot;
 	int end_slot;
 	int i;
 	int err = 0;
@@ -221,15 +222,24 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 	parent_nritems = btrfs_header_nritems(parent);
 	blocksize = btrfs_level_size(root, parent_level - 1);
-
-	start_slot = 0;
 	end_slot = parent_nritems;
 
 	if (parent_nritems == 1)
 		return 0;
 
+	if (root != root->fs_info->extent_root) {
+		struct btrfs_key first_key;
+		struct btrfs_key last_key;
+
+		btrfs_node_key_to_cpu(parent, &first_key, 0);
+		btrfs_node_key_to_cpu(parent, &last_key, parent_nritems - 1);
+		if (first_key.objectid != last_key.objectid)
+			return 0;
+	}
+
 	for (i = start_slot; i < end_slot; i++) {
 		int close = 1;
+
 		blocknr = btrfs_node_blockptr(parent, i);
 		if (last_block == 0)
 			last_block = blocknr;
@@ -898,7 +908,7 @@ static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
 	u32 blocksize;
 	u32 nscan = 0;
 
-	if (level == 0)
+	if (level != 1)
 		return;
 
 	if (!path->nodes[level])
@@ -2370,7 +2380,7 @@ int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		/* delete the leaf if it is mostly empty */
-		if (used < BTRFS_LEAF_DATA_SIZE(root) / 3) {
+		if (0 && used < BTRFS_LEAF_DATA_SIZE(root) / 3) {
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below

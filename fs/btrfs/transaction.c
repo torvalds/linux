@@ -353,7 +353,6 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 
 	if (root->defrag_running)
 		return 0;
-
 	trans = btrfs_start_transaction(root, 1);
 	while (1) {
 		root->defrag_running = 1;
@@ -361,7 +360,6 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 		nr = trans->blocks_used;
 		btrfs_end_transaction(trans, root);
 		mutex_unlock(&info->fs_mutex);
-
 		btrfs_btree_balance_dirty(info->tree_root, nr);
 		cond_resched();
 
