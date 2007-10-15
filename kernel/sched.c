@@ -5250,6 +5250,18 @@ static struct ctl_table *sd_alloc_ctl_entry(int n)
 	return entry;
 }
 
+static void sd_free_ctl_entry(struct ctl_table **tablep)
+{
+	struct ctl_table *entry = *tablep;
+
+	for (entry = *tablep; entry->procname; entry++)
+		if (entry->child)
+			sd_free_ctl_entry(&entry->child);
+
+	kfree(*tablep);
+	*tablep = NULL;
+}
+
 static void
 set_table_entry(struct ctl_table *entry,
 		const char *procname, void *data, int maxlen,
@@ -5318,7 +5330,7 @@ static ctl_table *sd_alloc_ctl_cpu_table(int cpu)
 }
 
 static struct ctl_table_header *sd_sysctl_header;
-static void init_sched_domain_sysctl(void)
+static void register_sched_domain_sysctl(void)
 {
 	int i, cpu_num = num_online_cpus();
 	struct ctl_table *entry = sd_alloc_ctl_entry(cpu_num + 1);
@@ -5335,8 +5347,18 @@ static void init_sched_domain_sysctl(void)
 	}
 	sd_sysctl_header = register_sysctl_table(sd_ctl_root);
 }
+
+static void unregister_sched_domain_sysctl(void)
+{
+	unregister_sysctl_table(sd_sysctl_header);
+	sd_sysctl_header = NULL;
+	sd_free_ctl_entry(&sd_ctl_dir[0].child);
+}
 #else
-static void init_sched_domain_sysctl(void)
+static void register_sched_domain_sysctl(void)
+{
+}
+static void unregister_sched_domain_sysctl(void)
 {
 }
 #endif
@@ -6271,6 +6293,8 @@ static int arch_init_sched_domains(const cpumask_t *cpu_map)
 
 	err = build_sched_domains(&cpu_default_map);
 
+	register_sched_domain_sysctl();
+
 	return err;
 }
 
@@ -6286,6 +6310,8 @@ static void arch_destroy_sched_domains(const cpumask_t *cpu_map)
 static void detach_destroy_domains(const cpumask_t *cpu_map)
 {
 	int i;
+
+	unregister_sched_domain_sysctl();
 
 	for_each_cpu_mask(i, *cpu_map)
 		cpu_attach_domain(NULL, i);
@@ -6316,6 +6342,8 @@ int partition_sched_domains(cpumask_t *partition1, cpumask_t *partition2)
 		err = build_sched_domains(partition1);
 	if (!err && !cpus_empty(*partition2))
 		err = build_sched_domains(partition2);
+
+	register_sched_domain_sysctl();
 
 	return err;
 }
@@ -6447,8 +6475,6 @@ void __init sched_init_smp(void)
 	mutex_unlock(&sched_hotcpu_mutex);
 	/* XXX: Theoretical race here - CPU may be hotplugged now */
 	hotcpu_notifier(update_sched_domains, 0);
-
-	init_sched_domain_sysctl();
 
 	/* Move init over to a non-isolated CPU */
 	if (set_cpus_allowed(current, non_isolated_cpus) < 0)
