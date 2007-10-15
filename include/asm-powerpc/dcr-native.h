@@ -29,9 +29,9 @@ typedef struct {
 #define DCR_MAP_OK(host)	(1)
 
 #define dcr_map(dev, dcr_n, dcr_c)	((dcr_host_t){ .base = (dcr_n) })
-#define dcr_unmap(host, dcr_n, dcr_c)	do {} while (0)
-#define dcr_read(host, dcr_n)		mfdcr(dcr_n)
-#define dcr_write(host, dcr_n, value)	mtdcr(dcr_n, value)
+#define dcr_unmap(host, dcr_c)		do {} while (0)
+#define dcr_read(host, dcr_n)		mfdcr(dcr_n + host.base)
+#define dcr_write(host, dcr_n, value)	mtdcr(dcr_n + host.base, value)
 
 /* Device Control Registers */
 void __mtdcr(int reg, unsigned int val);

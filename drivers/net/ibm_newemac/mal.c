@@ -461,6 +461,7 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	struct mal_instance *mal;
 	int err = 0, i, bd_size;
 	int index = mal_count++;
+	unsigned int dcr_base;
 	const u32 *prop;
 	u32 cfg;
 
@@ -497,14 +498,14 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	}
 	mal->num_rx_chans = prop[0];
 
-	mal->dcr_base = dcr_resource_start(ofdev->node, 0);
-	if (mal->dcr_base == 0) {
+	dcr_base = dcr_resource_start(ofdev->node, 0);
+	if (dcr_base == 0) {
 		printk(KERN_ERR
 		       "mal%d: can't find DCR resource!\n", index);
 		err = -ENODEV;
 		goto fail;
 	}
-        mal->dcr_host = dcr_map(ofdev->node, mal->dcr_base, 0x100);
+	mal->dcr_host = dcr_map(ofdev->node, dcr_base, 0x100);
 	if (!DCR_MAP_OK(mal->dcr_host)) {
 		printk(KERN_ERR
 		       "mal%d: failed to map DCRs !\n", index);
@@ -626,7 +627,7 @@ static int __devinit mal_probe(struct of_device *ofdev,
  fail2:
 	dma_free_coherent(&ofdev->dev, bd_size, mal->bd_virt, mal->bd_dma);
  fail_unmap:
-	dcr_unmap(mal->dcr_host, mal->dcr_base, 0x100);
+	dcr_unmap(mal->dcr_host, 0x100);
  fail:
 	kfree(mal);
 

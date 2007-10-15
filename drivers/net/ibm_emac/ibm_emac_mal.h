@@ -191,7 +191,6 @@ struct mal_commac {
 };
 
 struct ibm_ocp_mal {
-	int			dcrbase;
 	dcr_host_t		dcrhost;
 
 	struct list_head	poll_list;
@@ -209,12 +208,12 @@ struct ibm_ocp_mal {
 
 static inline u32 get_mal_dcrn(struct ibm_ocp_mal *mal, int reg)
 {
-	return dcr_read(mal->dcrhost, mal->dcrbase + reg);
+	return dcr_read(mal->dcrhost, reg);
 }
 
 static inline void set_mal_dcrn(struct ibm_ocp_mal *mal, int reg, u32 val)
 {
-	dcr_write(mal->dcrhost, mal->dcrbase + reg, val);
+	dcr_write(mal->dcrhost, reg, val);
 }
 
 /* Register MAL devices */

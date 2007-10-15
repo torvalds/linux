@@ -281,6 +281,39 @@ downdelay
 	will be rounded down to the nearest multiple.  The default
 	value is 0.
 
+fail_over_mac
+
+	Specifies whether active-backup mode should set all slaves to
+	the same MAC address (the traditional behavior), or, when
+	enabled, change the bond's MAC address when changing the
+	active interface (i.e., fail over the MAC address itself).
+
+	Fail over MAC is useful for devices that cannot ever alter
+	their MAC address, or for devices that refuse incoming
+	broadcasts with their own source MAC (which interferes with
+	the ARP monitor).
+
+	The down side of fail over MAC is that every device on the
+	network must be updated via gratuitous ARP, vs. just updating
+	a switch or set of switches (which often takes place for any
+	traffic, not just ARP traffic, if the switch snoops incoming
+	traffic to update its tables) for the traditional method.  If
+	the gratuitous ARP is lost, communication may be disrupted.
+
+	When fail over MAC is used in conjuction with the mii monitor,
+	devices which assert link up prior to being able to actually
+	transmit and receive are particularly susecptible to loss of
+	the gratuitous ARP, and an appropriate updelay setting may be
+	required.
+
+	A value of 0 disables fail over MAC, and is the default.  A
+	value of 1 enables fail over MAC.  This option is enabled
+	automatically if the first slave added cannot change its MAC
+	address.  This option may be modified via sysfs only when no
+	slaves are present in the bond.
+
+	This option was added in bonding version 3.2.0.
+
 lacp_rate
 
 	Option specifying the rate in which we'll ask our link partner

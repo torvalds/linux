@@ -77,12 +77,7 @@ static void msic_dcr_write(struct axon_msic *msic, unsigned int dcr_n, u32 val)
 {
 	pr_debug("axon_msi: dcr_write(0x%x, 0x%x)\n", val, dcr_n);
 
-	dcr_write(msic->dcr_host, msic->dcr_host.base + dcr_n, val);
-}
-
-static u32 msic_dcr_read(struct axon_msic *msic, unsigned int dcr_n)
-{
-	return dcr_read(msic->dcr_host, msic->dcr_host.base + dcr_n);
+	dcr_write(msic->dcr_host, dcr_n, val);
 }
 
 static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
@@ -91,7 +86,7 @@ static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	u32 write_offset, msi;
 	int idx;
 
-	write_offset = msic_dcr_read(msic, MSIC_WRITE_OFFSET_REG);
+	write_offset = dcr_read(msic->dcr_host, MSIC_WRITE_OFFSET_REG);
 	pr_debug("axon_msi: original write_offset 0x%x\n", write_offset);
 
 	/* write_offset doesn't wrap properly, so we have to mask it */
@@ -306,7 +301,7 @@ static int axon_msi_notify_reboot(struct notifier_block *nb,
 	list_for_each_entry(msic, &axon_msic_list, list) {
 		pr_debug("axon_msi: disabling %s\n",
 			  msic->irq_host->of_node->full_name);
-		tmp  = msic_dcr_read(msic, MSIC_CTRL_REG);
+		tmp  = dcr_read(msic->dcr_host, MSIC_CTRL_REG);
 		tmp &= ~MSIC_CTRL_ENABLE & ~MSIC_CTRL_IRQ_ENABLE;
 		msic_dcr_write(msic, MSIC_CTRL_REG, tmp);
 	}

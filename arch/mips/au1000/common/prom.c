@@ -33,7 +33,6 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -41,18 +40,16 @@
 
 #include <asm/bootinfo.h>
 
-/* #define DEBUG_CMDLINE */
-
-extern int prom_argc;
-extern char **prom_argv, **prom_envp;
-
+int prom_argc;
+char **prom_argv;
+char **prom_envp;
 
 char * __init_or_module prom_getcmdline(void)
 {
 	return &(arcs_cmdline[0]);
 }
 
-void  prom_init_cmdline(void)
+void prom_init_cmdline(void)
 {
 	char *cp;
 	int actr;
@@ -61,7 +58,7 @@ void  prom_init_cmdline(void)
 
 	cp = &(arcs_cmdline[0]);
 	while(actr < prom_argc) {
-	        strcpy(cp, prom_argv[actr]);
+		strcpy(cp, prom_argv[actr]);
 		cp += strlen(prom_argv[actr]);
 		*cp++ = ' ';
 		actr++;
@@ -70,9 +67,7 @@ void  prom_init_cmdline(void)
 		--cp;
 	if (prom_argc > 1)
 		*cp = '\0';
-
 }
-
 
 char *prom_getenv(char *envname)
 {
@@ -95,21 +90,23 @@ char *prom_getenv(char *envname)
 		}
 		env++;
 	}
+
 	return NULL;
 }
 
-inline unsigned char str2hexnum(unsigned char c)
+static inline unsigned char str2hexnum(unsigned char c)
 {
-	if(c >= '0' && c <= '9')
+	if (c >= '0' && c <= '9')
 		return c - '0';
-	if(c >= 'a' && c <= 'f')
+	if (c >= 'a' && c <= 'f')
 		return c - 'a' + 10;
-	if(c >= 'A' && c <= 'F')
+	if (c >= 'A' && c <= 'F')
 		return c - 'A' + 10;
+
 	return 0; /* foo */
 }
 
-inline void str2eaddr(unsigned char *ea, unsigned char *str)
+static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 {
 	int i;
 
@@ -124,35 +121,29 @@ inline void str2eaddr(unsigned char *ea, unsigned char *str)
 	}
 }
 
-int get_ethernet_addr(char *ethernet_addr)
+int prom_get_ethernet_addr(char *ethernet_addr)
 {
-        char *ethaddr_str;
+	char *ethaddr_str;
+	char *argptr;
 
-        ethaddr_str = prom_getenv("ethaddr");
+	/* Check the environment variables first */
+	ethaddr_str = prom_getenv("ethaddr");
 	if (!ethaddr_str) {
-	        printk("ethaddr not set in boot prom\n");
-		return -1;
+		/* Check command line */
+		argptr = prom_getcmdline();
+		ethaddr_str = strstr(argptr, "ethaddr=");
+		if (!ethaddr_str)
+			return -1;
+
+		ethaddr_str += strlen("ethaddr=");
 	}
+
 	str2eaddr(ethernet_addr, ethaddr_str);
-
-#if 0
-	{
-		int i;
-
-	printk("get_ethernet_addr: ");
-	for (i=0; i<5; i++)
-		printk("%02x:", (unsigned char)*(ethernet_addr+i));
-	printk("%02x\n", *(ethernet_addr+i));
-	}
-#endif
 
 	return 0;
 }
+EXPORT_SYMBOL(prom_get_ethernet_addr);
 
 void __init prom_free_prom_memory(void)
 {
 }
-
-EXPORT_SYMBOL(prom_getcmdline);
-EXPORT_SYMBOL(get_ethernet_addr);
-EXPORT_SYMBOL(str2eaddr);

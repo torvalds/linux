@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.3.2-1.269"
+#define MYRI10GE_VERSION_STR "1.3.2-1.287"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -214,6 +214,8 @@ struct myri10ge_priv {
 	unsigned long serial_number;
 	int vendor_specific_offset;
 	int fw_multicast_support;
+	unsigned long features;
+	u32 max_tso6;
 	u32 read_dma;
 	u32 write_dma;
 	u32 read_write_dma;
@@ -311,6 +313,7 @@ MODULE_PARM_DESC(myri10ge_wcfifo, "Enable WC Fifo when WC is enabled\n");
 #define myri10ge_pio_copy(to,from,size) __iowrite64_copy(to,from,size/8)
 
 static void myri10ge_set_multicast_list(struct net_device *dev);
+static int myri10ge_sw_tso(struct sk_buff *skb, struct net_device *dev);
 
 static inline void put_be32(__be32 val, __be32 __iomem * p)
 {
@@ -612,6 +615,7 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 	__be32 buf[16];
 	u32 dma_low, dma_high, size;
 	int status, i;
+	struct myri10ge_cmd cmd;
 
 	size = 0;
 	status = myri10ge_load_hotplug_firmware(mgp, &size);
@@ -688,6 +692,14 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 	dev_info(&mgp->pdev->dev, "handoff confirmed\n");
 	myri10ge_dummy_rdma(mgp, 1);
 
+	/* probe for IPv6 TSO support */
+	mgp->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO;
+	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE,
+				   &cmd, 0);
+	if (status == 0) {
+		mgp->max_tso6 = cmd.data0;
+		mgp->features |= NETIF_F_TSO6;
+	}
 	return 0;
 }
 
@@ -1047,7 +1059,8 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 
 	hlen = MYRI10GE_HLEN > len ? len : MYRI10GE_HLEN;
 
-	/* allocate an skb to attach the page(s) to. */
+	/* allocate an skb to attach the page(s) to. This is done
+	 * after trying LRO, so as to avoid skb allocation overheads */
 
 	skb = netdev_alloc_skb(dev, MYRI10GE_HLEN + 16);
 	if (unlikely(skb == NULL)) {
@@ -1217,7 +1230,8 @@ static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
 
 static int myri10ge_poll(struct napi_struct *napi, int budget)
 {
-	struct myri10ge_priv *mgp = container_of(napi, struct myri10ge_priv, napi);
+	struct myri10ge_priv *mgp =
+	    container_of(napi, struct myri10ge_priv, napi);
 	struct net_device *netdev = mgp->dev;
 	struct myri10ge_rx_done *rx_done = &mgp->rx_done;
 	int work_done;
@@ -1382,6 +1396,18 @@ static int myri10ge_set_rx_csum(struct net_device *netdev, u32 csum_enabled)
 	return 0;
 }
 
+static int myri10ge_set_tso(struct net_device *netdev, u32 tso_enabled)
+{
+	struct myri10ge_priv *mgp = netdev_priv(netdev);
+	unsigned long flags = mgp->features & (NETIF_F_TSO6 | NETIF_F_TSO);
+
+	if (tso_enabled)
+		netdev->features |= flags;
+	else
+		netdev->features &= ~flags;
+	return 0;
+}
+
 static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"rx_packets", "tx_packets", "rx_bytes", "tx_bytes", "rx_errors",
 	"tx_errors", "rx_dropped", "tx_dropped", "multicast", "collisions",
@@ -1506,7 +1532,7 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.set_rx_csum = myri10ge_set_rx_csum,
 	.set_tx_csum = ethtool_op_set_tx_hw_csum,
 	.set_sg = ethtool_op_set_sg,
-	.set_tso = ethtool_op_set_tso,
+	.set_tso = myri10ge_set_tso,
 	.get_link = ethtool_op_get_link,
 	.get_strings = myri10ge_get_strings,
 	.get_sset_count = myri10ge_get_sset_count,
@@ -2164,7 +2190,8 @@ again:
 		pseudo_hdr_offset = cksum_offset + skb->csum_offset;
 		/* If the headers are excessively large, then we must
 		 * fall back to a software checksum */
-		if (unlikely(cksum_offset > 255 || pseudo_hdr_offset > 127)) {
+		if (unlikely(!mss && (cksum_offset > 255 ||
+				      pseudo_hdr_offset > 127))) {
 			if (skb_checksum_help(skb))
 				goto drop;
 			cksum_offset = 0;
@@ -2184,9 +2211,18 @@ again:
 		/* negative cum_len signifies to the
 		 * send loop that we are still in the
 		 * header portion of the TSO packet.
-		 * TSO header must be at most 134 bytes long */
+		 * TSO header can be at most 1KB long */
 		cum_len = -(skb_transport_offset(skb) + tcp_hdrlen(skb));
 
+		/* for IPv6 TSO, the checksum offset stores the
+		 * TCP header length, to save the firmware from
+		 * the need to parse the headers */
+		if (skb_is_gso_v6(skb)) {
+			cksum_offset = tcp_hdrlen(skb);
+			/* Can only handle headers <= max_tso6 long */
+			if (unlikely(-cum_len > mgp->max_tso6))
+				return myri10ge_sw_tso(skb, dev);
+		}
 		/* for TSO, pseudo_hdr_offset holds mss.
 		 * The firmware figures out where to put
 		 * the checksum by parsing the header. */
@@ -2301,10 +2337,12 @@ again:
 			req++;
 			count++;
 			rdma_count++;
-			if (unlikely(cksum_offset > seglen))
-				cksum_offset -= seglen;
-			else
-				cksum_offset = 0;
+			if (cksum_offset != 0 && !(mss && skb_is_gso_v6(skb))) {
+				if (unlikely(cksum_offset > seglen))
+					cksum_offset -= seglen;
+				else
+					cksum_offset = 0;
+			}
 		}
 		if (frag_idx == frag_cnt)
 			break;
@@ -2385,6 +2423,41 @@ drop:
 	mgp->stats.tx_dropped += 1;
 	return 0;
 
+}
+
+static int myri10ge_sw_tso(struct sk_buff *skb, struct net_device *dev)
+{
+	struct sk_buff *segs, *curr;
+	struct myri10ge_priv *mgp = dev->priv;
+	int status;
+
+	segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO6);
+	if (unlikely(IS_ERR(segs)))
+		goto drop;
+
+	while (segs) {
+		curr = segs;
+		segs = segs->next;
+		curr->next = NULL;
+		status = myri10ge_xmit(curr, dev);
+		if (status != 0) {
+			dev_kfree_skb_any(curr);
+			if (segs != NULL) {
+				curr = segs;
+				segs = segs->next;
+				curr->next = NULL;
+				dev_kfree_skb_any(segs);
+			}
+			goto drop;
+		}
+	}
+	dev_kfree_skb_any(skb);
+	return 0;
+
+drop:
+	dev_kfree_skb_any(skb);
+	mgp->stats.tx_dropped += 1;
+	return 0;
 }
 
 static struct net_device_stats *myri10ge_get_stats(struct net_device *dev)
@@ -2706,7 +2779,6 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 }
 
 #ifdef CONFIG_PM
-
 static int myri10ge_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct myri10ge_priv *mgp;
@@ -2787,7 +2859,6 @@ abort_with_enabled:
 	return -EIO;
 
 }
-
 #endif				/* CONFIG_PM */
 
 static u32 myri10ge_read_reboot(struct myri10ge_priv *mgp)
@@ -2954,8 +3025,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	mgp = netdev_priv(netdev);
 	mgp->dev = netdev;
-	netif_napi_add(netdev, &mgp->napi,
-		       myri10ge_poll, myri10ge_napi_weight);
+	netif_napi_add(netdev, &mgp->napi, myri10ge_poll, myri10ge_napi_weight);
 	mgp->pdev = pdev;
 	mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
 	mgp->pause = myri10ge_flow_control;
@@ -3077,7 +3147,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->change_mtu = myri10ge_change_mtu;
 	netdev->set_multicast_list = myri10ge_set_multicast_list;
 	netdev->set_mac_address = myri10ge_set_mac_address;
-	netdev->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO;
+	netdev->features = mgp->features;
 	if (dac_enabled)
 		netdev->features |= NETIF_F_HIGHDMA;
 

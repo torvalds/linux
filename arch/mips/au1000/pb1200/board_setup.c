@@ -41,8 +41,10 @@
 #include <asm/mipsregs.h>
 #include <asm/reboot.h>
 #include <asm/pgtable.h>
-#include <asm/mach-au1x00/au1000.h>
-#include <asm/mach-au1x00/au1xxx_dbdma.h>
+
+#include <au1000.h>
+#include <au1xxx_dbdma.h>
+#include <prom.h>
 
 #ifdef CONFIG_MIPS_PB1200
 #include <asm/mach-pb1x00/pb1200.h>

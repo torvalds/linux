@@ -7,12 +7,12 @@
 #define DEBUG
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
-#include <asm/io.h>
 #include <asm/mips-boards/simint.h>
 
 #include "mipsnet.h"		/* actual device IO mapping */
@@ -33,9 +33,8 @@ static int ioiocpy_frommipsnet(struct net_device *dev, unsigned char *kdata,
 	if (available_len < len)
 		return -EFAULT;
 
-	for (; len > 0; len--, kdata++) {
+	for (; len > 0; len--, kdata++)
 		*kdata = inb(mipsnet_reg_address(dev, rxDataBuffer));
-	}
 
 	return inl(mipsnet_reg_address(dev, rxDataCount));
 }
@@ -47,16 +46,15 @@ static inline ssize_t mipsnet_put_todevice(struct net_device *dev,
 	char *buf_ptr = skb->data;
 
 	pr_debug("%s: %s(): telling MIPSNET txDataCount(%d)\n",
-	         dev->name, __FUNCTION__, skb->len);
+		 dev->name, __FUNCTION__, skb->len);
 
 	outl(skb->len, mipsnet_reg_address(dev, txDataCount));
 
 	pr_debug("%s: %s(): sending data to MIPSNET txDataBuffer(%d)\n",
-	         dev->name, __FUNCTION__, skb->len);
+		 dev->name, __FUNCTION__, skb->len);
 
-	for (; count_to_go; buf_ptr++, count_to_go--) {
+	for (; count_to_go; buf_ptr++, count_to_go--)
 		outb(*buf_ptr, mipsnet_reg_address(dev, txDataBuffer));
-	}
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
@@ -67,7 +65,7 @@ static inline ssize_t mipsnet_put_todevice(struct net_device *dev,
 static int mipsnet_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	pr_debug("%s:%s(): transmitting %d bytes\n",
-	         dev->name, __FUNCTION__, skb->len);
+		 dev->name, __FUNCTION__, skb->len);
 
 	/* Only one packet at a time. Once TXDONE interrupt is serviced, the
 	 * queue will be restarted.
@@ -83,7 +81,8 @@ static inline ssize_t mipsnet_get_fromdev(struct net_device *dev, size_t count)
 	struct sk_buff *skb;
 	size_t len = count;
 
-	if (!(skb = alloc_skb(len + 2, GFP_KERNEL))) {
+	skb = alloc_skb(len + 2, GFP_KERNEL);
+	if (!skb) {
 		dev->stats.rx_dropped++;
 		return -ENOMEM;
 	}
@@ -96,7 +95,7 @@ static inline ssize_t mipsnet_get_fromdev(struct net_device *dev, size_t count)
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	pr_debug("%s:%s(): pushing RXed data to kernel\n",
-	         dev->name, __FUNCTION__);
+		 dev->name, __FUNCTION__);
 	netif_rx(skb);
 
 	dev->stats.rx_packets++;
@@ -114,42 +113,44 @@ static irqreturn_t mipsnet_interrupt(int irq, void *dev_id)
 
 	if (irq == dev->irq) {
 		pr_debug("%s:%s(): irq %d for device\n",
-		         dev->name, __FUNCTION__, irq);
+			 dev->name, __FUNCTION__, irq);
 
 		retval = IRQ_HANDLED;
 
 		interruptFlags =
 		    inl(mipsnet_reg_address(dev, interruptControl));
 		pr_debug("%s:%s(): intCtl=0x%016llx\n", dev->name,
-		         __FUNCTION__, interruptFlags);
+			 __FUNCTION__, interruptFlags);
 
 		if (interruptFlags & MIPSNET_INTCTL_TXDONE) {
 			pr_debug("%s:%s(): got TXDone\n",
-			         dev->name, __FUNCTION__);
+				 dev->name, __FUNCTION__);
 			outl(MIPSNET_INTCTL_TXDONE,
 			     mipsnet_reg_address(dev, interruptControl));
-			// only one packet at a time, we are done.
+			/* only one packet at a time, we are done. */
 			netif_wake_queue(dev);
 		} else if (interruptFlags & MIPSNET_INTCTL_RXDONE) {
 			pr_debug("%s:%s(): got RX data\n",
-			         dev->name, __FUNCTION__);
+				 dev->name, __FUNCTION__);
 			mipsnet_get_fromdev(dev,
-			            inl(mipsnet_reg_address(dev, rxDataCount)));
+				    inl(mipsnet_reg_address(dev, rxDataCount)));
 			pr_debug("%s:%s(): clearing RX int\n",
-			         dev->name, __FUNCTION__);
+				 dev->name, __FUNCTION__);
 			outl(MIPSNET_INTCTL_RXDONE,
 			     mipsnet_reg_address(dev, interruptControl));
 
 		} else if (interruptFlags & MIPSNET_INTCTL_TESTBIT) {
 			pr_debug("%s:%s(): got test interrupt\n",
-			         dev->name, __FUNCTION__);
-			// TESTBIT is cleared on read.
-			//    And takes effect after a write with 0
+				 dev->name, __FUNCTION__);
+			/*
+			 * TESTBIT is cleared on read.
+			 * And takes effect after a write with 0
+			 */
 			outl(0, mipsnet_reg_address(dev, interruptControl));
 		} else {
 			pr_debug("%s:%s(): no valid fags 0x%016llx\n",
-			         dev->name, __FUNCTION__, interruptFlags);
-			// Maybe shared IRQ, just ignore, no clearing.
+				 dev->name, __FUNCTION__, interruptFlags);
+			/* Maybe shared IRQ, just ignore, no clearing. */
 			retval = IRQ_NONE;
 		}
 
@@ -159,7 +160,7 @@ static irqreturn_t mipsnet_interrupt(int irq, void *dev_id)
 		retval = IRQ_NONE;
 	}
 	return retval;
-}				//mipsnet_interrupt()
+}
 
 static int mipsnet_open(struct net_device *dev)
 {
@@ -171,18 +172,18 @@ static int mipsnet_open(struct net_device *dev)
 
 	if (err) {
 		pr_debug("%s: %s(): can't get irq %d\n",
-		         dev->name, __FUNCTION__, dev->irq);
+			 dev->name, __FUNCTION__, dev->irq);
 		release_region(dev->base_addr, MIPSNET_IO_EXTENT);
 		return err;
 	}
 
 	pr_debug("%s: %s(): got IO region at 0x%04lx and irq %d for dev.\n",
-	         dev->name, __FUNCTION__, dev->base_addr, dev->irq);
+		 dev->name, __FUNCTION__, dev->base_addr, dev->irq);
 
 
 	netif_start_queue(dev);
 
-	// test interrupt handler
+	/* test interrupt handler */
 	outl(MIPSNET_INTCTL_TESTBIT,
 	     mipsnet_reg_address(dev, interruptControl));
 
@@ -199,8 +200,6 @@ static int mipsnet_close(struct net_device *dev)
 
 static void mipsnet_set_mclist(struct net_device *dev)
 {
-	// we don't do anything
-	return;
 }
 
 static int __init mipsnet_probe(struct device *dev)
@@ -226,13 +225,13 @@ static int __init mipsnet_probe(struct device *dev)
 	 */
 	netdev->base_addr = 0x4200;
 	netdev->irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_MB0 +
-	              inl(mipsnet_reg_address(netdev, interruptInfo));
+		      inl(mipsnet_reg_address(netdev, interruptInfo));
 
-	// Get the io region now, get irq on open()
+	/* Get the io region now, get irq on open() */
 	if (!request_region(netdev->base_addr, MIPSNET_IO_EXTENT, "mipsnet")) {
 		pr_debug("%s: %s(): IO region {start: 0x%04lux, len: %d} "
-		         "for dev is not availble.\n", netdev->name,
-		         __FUNCTION__, netdev->base_addr, MIPSNET_IO_EXTENT);
+			 "for dev is not availble.\n", netdev->name,
+			 __FUNCTION__, netdev->base_addr, MIPSNET_IO_EXTENT);
 		err = -EBUSY;
 		goto out_free_netdev;
 	}

@@ -4443,7 +4443,7 @@ static struct {
 	{REG_MAC_COLL_EXCESS},
 	{REG_MAC_COLL_LATE}
 };
-#define CAS_REG_LEN 	(sizeof(ethtool_register_table)/sizeof(int))
+#define CAS_REG_LEN 	ARRAY_SIZE(ethtool_register_table)
 #define CAS_MAX_REGS 	(sizeof (u32)*CAS_REG_LEN)
 
 static void cas_read_regs(struct cas *cp, u8 *ptr, int len)

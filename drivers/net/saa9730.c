@@ -97,13 +97,16 @@ static void evm_saa9730_unblock_lan_int(struct lan_saa9730_private *lp)
 	       &lp->evm_saa9730_regs->InterruptBlock1);
 }
 
-static void __attribute_used__ show_saa9730_regs(struct lan_saa9730_private *lp)
+static void __used show_saa9730_regs(struct net_device *dev)
 {
+	struct lan_saa9730_private *lp = netdev_priv(dev);
 	int i, j;
+
 	printk("TxmBufferA = %p\n", lp->TxmBuffer[0][0]);
 	printk("TxmBufferB = %p\n", lp->TxmBuffer[1][0]);
 	printk("RcvBufferA = %p\n", lp->RcvBuffer[0][0]);
 	printk("RcvBufferB = %p\n", lp->RcvBuffer[1][0]);
+
 	for (i = 0; i < LAN_SAA9730_BUFFERS; i++) {
 		for (j = 0; j < LAN_SAA9730_TXM_Q_SIZE; j++) {
 			printk("TxmBuffer[%d][%d] = %x\n", i, j,
@@ -146,11 +149,13 @@ static void __attribute_used__ show_saa9730_regs(struct lan_saa9730_private *lp)
 	       readl(&lp->lan_saa9730_regs->RxCtl));
 	printk("lp->lan_saa9730_regs->RxStatus = %x\n",
 	       readl(&lp->lan_saa9730_regs->RxStatus));
+
 	for (i = 0; i < LAN_SAA9730_CAM_DWORDS; i++) {
 		writel(i, &lp->lan_saa9730_regs->CamAddress);
 		printk("lp->lan_saa9730_regs->CamData = %x\n",
 		       readl(&lp->lan_saa9730_regs->CamData));
 	}
+
 	printk("dev->stats.tx_packets = %lx\n", dev->stats.tx_packets);
 	printk("dev->stats.tx_errors = %lx\n", dev->stats.tx_errors);
 	printk("dev->stats.tx_aborted_errors = %lx\n",
@@ -855,7 +860,7 @@ static void lan_saa9730_tx_timeout(struct net_device *dev)
 	/* Transmitter timeout, serious problems */
 	dev->stats.tx_errors++;
 	printk("%s: transmit timed out, reset\n", dev->name);
-	/*show_saa9730_regs(lp); */
+	/*show_saa9730_regs(dev); */
 	lan_saa9730_restart(lp);
 
 	dev->trans_start = jiffies;

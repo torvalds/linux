@@ -40,10 +40,11 @@
 #include <asm/mipsregs.h>
 #include <asm/reboot.h>
 #include <asm/pgtable.h>
-#include <asm/mach-au1x00/au1000.h>
 #include <asm/time.h>
 
-extern char * prom_getcmdline(void);
+#include <au1000.h>
+#include <prom.h>
+
 extern void __init board_setup(void);
 extern void au1000_restart(char *);
 extern void au1000_halt(void);

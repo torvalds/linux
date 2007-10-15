@@ -1781,6 +1781,11 @@ static inline int skb_is_gso(const struct sk_buff *skb)
 	return skb_shinfo(skb)->gso_size;
 }
 
+static inline int skb_is_gso_v6(const struct sk_buff *skb)
+{
+	return skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6;
+}
+
 static inline void skb_forward_csum(struct sk_buff *skb)
 {
 	/* Unfortunately we don't support this one.  Any brave souls? */

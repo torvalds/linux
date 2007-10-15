@@ -1780,6 +1780,15 @@ config SC92031
 	  To compile this driver as a module, choose M here: the module
 	  will be called sc92031.  This is recommended.
 
+config CPMAC
+	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
+	depends on NET_ETHERNET && EXPERIMENTAL && AR7
+	select PHYLIB
+	select FIXED_PHY
+	select FIXED_MII_100_FDX
+	help
+	  TI AR7 CPMAC Ethernet support
+
 config NET_POCKET
 	bool "Pocket and portable adapters"
 	depends on PARPORT

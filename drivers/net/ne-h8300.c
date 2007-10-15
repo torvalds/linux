@@ -93,7 +93,7 @@ static int __init init_reg_offset(struct net_device *dev,unsigned long base_addr
 	bus_width = *(volatile unsigned char *)ABWCR;
 	bus_width &= 1 << ((base_addr >> 21) & 7);
 
-	for (i = 0; i < sizeof(reg_offset) / sizeof(u32); i++)
+	for (i = 0; i < ARRAY_SIZE(reg_offset); i++)
 		if (bus_width == 0)
 			reg_offset[i] = i * 2 + 1;
 		else
@@ -115,7 +115,7 @@ static int h8300_ne_irq[] = {EXT_IRQ5};
 
 static inline int init_dev(struct net_device *dev)
 {
-	if (h8300_ne_count < (sizeof(h8300_ne_base) / sizeof(unsigned long))) {
+	if (h8300_ne_count < ARRAY_SIZE(h8300_ne_base)) {
 		dev->base_addr = h8300_ne_base[h8300_ne_count];
 		dev->irq       = h8300_ne_irq[h8300_ne_count];
 		h8300_ne_count++;

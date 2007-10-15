@@ -34,13 +34,11 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 
-int prom_argc;
-char **prom_argv, **prom_envp;
-extern void  __init prom_init_cmdline(void);
-extern char *prom_getenv(char *envname);
+#include <prom.h>
 
 const char *get_system_type(void)
 {

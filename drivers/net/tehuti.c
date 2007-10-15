@@ -1906,7 +1906,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
     /************** pci *****************/
 	if ((err = pci_enable_device(pdev)))	/* it trigers interrupt, dunno why. */
-		RET(err);			/* it's not a problem though */
+		goto err_pci;			/* it's not a problem though */
 
 	if (!(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK)) &&
 	    !(err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))) {
@@ -2076,6 +2076,7 @@ err_out_res:
 	pci_release_regions(pdev);
 err_dma:
 	pci_disable_device(pdev);
+err_pci:
 	vfree(nic);
 
 	RET(err);
