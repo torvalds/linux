@@ -481,7 +481,7 @@ static void intc0_req0_irqdispatch(void)
 		return;
 	}
 #endif
-	irq = au_ffs(intc0_req0) - 1;
+	irq = ffs(intc0_req0);
 	intc0_req0 &= ~(1 << irq);
 	do_IRQ(irq);
 }
@@ -497,7 +497,7 @@ static void intc0_req1_irqdispatch(void)
 	if (!intc0_req1)
 		return;
 
-	irq = au_ffs(intc0_req1) - 1;
+	irq = ffs(intc0_req1);
 	intc0_req1 &= ~(1 << irq);
 	do_IRQ(irq);
 }
@@ -517,7 +517,7 @@ static void intc1_req0_irqdispatch(void)
 	if (!intc1_req0)
 		return;
 
-	irq = au_ffs(intc1_req0) - 1;
+	irq = ffs(intc1_req0);
 	intc1_req0 &= ~(1 << irq);
 	irq += 32;
 	do_IRQ(irq);
@@ -534,7 +534,7 @@ static void intc1_req1_irqdispatch(void)
 	if (!intc1_req1)
 		return;
 
-	irq = au_ffs(intc1_req1) - 1;
+	irq = ffs(intc1_req1);
 	intc1_req1 &= ~(1 << irq);
 	irq += 32;
 	do_IRQ(irq);

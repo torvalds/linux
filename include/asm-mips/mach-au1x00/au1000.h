@@ -98,16 +98,6 @@ static __inline__ int au_ffz(unsigned int x)
 	return __ilog2(x & -x);
 }
 
-/*
- * ffs: find first bit set. This is defined the same way as
- * the libc and compiler builtin ffs routines, therefore
- * differs in spirit from the above ffz (man ffs).
- */
-static __inline__ int au_ffs(int x)
-{
-	return __ilog2(x & -x) + 1;
-}
-
 /* arch/mips/au1000/common/clocks.c */
 extern void set_au1x00_speed(unsigned int new_freq);
 extern unsigned int get_au1x00_speed(void);
