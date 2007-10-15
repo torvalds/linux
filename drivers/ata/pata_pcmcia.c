@@ -86,6 +86,44 @@ static int pcmcia_set_mode(struct ata_link *link, struct ata_device **r_failed_d
 	return ata_do_set_mode(link, r_failed_dev);
 }
 
+/**
+ *	pcmcia_set_mode_8bit	-	PCMCIA specific mode setup
+ *	@link: link
+ *	@r_failed_dev: Return pointer for failed device
+ *
+ *	For the simple emulated 8bit stuff the less we do the better.
+ */
+
+static int pcmcia_set_mode_8bit(struct ata_link *link,
+				struct ata_device **r_failed_dev)
+{
+	return 0;
+}
+
+/**
+ *	ata_data_xfer_8bit	 -	Transfer data by 8bit PIO
+ *	@adev: device to target
+ *	@buf: data buffer
+ *	@buflen: buffer length
+ *	@write_data: read/write
+ *
+ *	Transfer data from/to the device data register by 8 bit PIO.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+
+static void ata_data_xfer_8bit(struct ata_device *adev, unsigned char *buf,
+		   unsigned int buflen, int write_data)
+{
+	struct ata_port *ap = adev->link->ap;
+	if (write_data)
+		iowrite8_rep(ap->ioaddr.data_addr, buf, buflen);
+	else
+		ioread8_rep(ap->ioaddr.data_addr, buf, buflen);
+}
+
+
 static struct scsi_host_template pcmcia_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -129,12 +167,38 @@ static struct ata_port_operations pcmcia_port_ops = {
 	.port_start	= ata_sff_port_start,
 };
 
+static struct ata_port_operations pcmcia_8bit_port_ops = {
+	.set_mode	= pcmcia_set_mode_8bit,
+	.tf_load	= ata_tf_load,
+	.tf_read	= ata_tf_read,
+	.check_status 	= ata_check_status,
+	.exec_command	= ata_exec_command,
+	.dev_select 	= ata_std_dev_select,
+
+	.freeze		= ata_bmdma_freeze,
+	.thaw		= ata_bmdma_thaw,
+	.error_handler	= ata_bmdma_error_handler,
+	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
+
+	.qc_prep 	= ata_qc_prep,
+	.qc_issue	= ata_qc_issue_prot,
+
+	.data_xfer	= ata_data_xfer_8bit,
+
+	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_on		= ata_irq_on,
+
+	.port_start	= ata_sff_port_start,
+};
+
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 /**
  *	pcmcia_init_one		-	attach a PCMCIA interface
  *	@pdev: pcmcia device
+ *	@ops: operations for this device
  *
  *	Register a PCMCIA IDE interface. Such interfaces are PIO 0 and
  *	shared IRQ.
@@ -156,6 +220,8 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	int pass, last_ret = 0, last_fn = 0, is_kme = 0, ret = -ENOMEM;
 	unsigned long io_base, ctl_base;
 	void __iomem *io_addr, *ctl_addr;
+
+	struct ata_port_operations *ops = &pcmcia_port_ops;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
@@ -284,6 +350,8 @@ next_entry:
 	if (pdev->io.NumPorts1 >= 0x20)
 		printk(KERN_WARNING DRV_NAME ": second channel not yet supported.\n");
 
+	if (pdev->manf_id == 0x0097 && pdev->card_id == 0x1620)
+		ops = &pcmcia_8bit_port_ops;
 	/*
 	 *	Having done the PCMCIA plumbing the ATA side is relatively
 	 *	sane.
@@ -294,7 +362,7 @@ next_entry:
 		goto failed;
 	ap = host->ports[0];
 
-	ap->ops = &pcmcia_port_ops;
+	ap->ops = ops;
 	ap->pio_mask = 1;		/* ISA so PIO 0 cycles */
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 	ap->ioaddr.cmd_addr = io_addr;
@@ -360,6 +428,7 @@ static struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0032, 0x0704),
 	PCMCIA_DEVICE_MANF_CARD(0x0032, 0x2904),
 	PCMCIA_DEVICE_MANF_CARD(0x0045, 0x0401),	/* SanDisk CFA */
+	PCMCIA_DEVICE_MANF_CARD(0x0097, 0x1620), 	/* TI emulated */
 	PCMCIA_DEVICE_MANF_CARD(0x0098, 0x0000),	/* Toshiba */
 	PCMCIA_DEVICE_MANF_CARD(0x00a4, 0x002d),
 	PCMCIA_DEVICE_MANF_CARD(0x00ce, 0x0000),	/* Samsung */
