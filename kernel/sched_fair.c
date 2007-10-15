@@ -124,6 +124,16 @@ max_vruntime(u64 min_vruntime, u64 vruntime)
 	return min_vruntime;
 }
 
+static inline u64
+min_vruntime(u64 min_vruntime, u64 vruntime)
+{
+	s64 delta = (s64)(vruntime - min_vruntime);
+	if (delta < 0)
+		min_vruntime = vruntime;
+
+	return min_vruntime;
+}
+
 static inline s64
 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -251,7 +261,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	      unsigned long delta_exec)
 {
 	unsigned long delta_exec_weighted;
-	u64 next_vruntime, min_vruntime;
+	u64 vruntime;
 
 	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
@@ -269,19 +279,13 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	 * value tracking the leftmost vruntime in the tree.
 	 */
 	if (first_fair(cfs_rq)) {
-		next_vruntime = __pick_next_entity(cfs_rq)->vruntime;
-
-		/* min_vruntime() := !max_vruntime() */
-		min_vruntime = max_vruntime(curr->vruntime, next_vruntime);
-		if (min_vruntime == next_vruntime)
-			min_vruntime = curr->vruntime;
-		else
-			min_vruntime = next_vruntime;
+		vruntime = min_vruntime(curr->vruntime,
+				__pick_next_entity(cfs_rq)->vruntime);
 	} else
-		min_vruntime = curr->vruntime;
+		vruntime = curr->vruntime;
 
 	cfs_rq->min_vruntime =
-		max_vruntime(cfs_rq->min_vruntime, min_vruntime);
+		max_vruntime(cfs_rq->min_vruntime, vruntime);
 }
 
 static void update_curr(struct cfs_rq *cfs_rq)
