@@ -173,8 +173,6 @@ struct rt_prio_array {
 
 struct load_stat {
 	struct load_weight load;
-	u64 load_update_start, load_update_last;
-	unsigned long delta_fair, delta_exec, delta_stat;
 };
 
 /* CFS-related fields in a runqueue */
@@ -793,15 +791,6 @@ static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 #define sched_class_highest (&rt_sched_class)
 
-static void __update_curr_load(struct rq *rq, struct load_stat *ls)
-{
-	if (rq->curr != rq->idle && ls->load.weight) {
-		ls->delta_exec += ls->delta_stat;
-		ls->delta_fair += calc_delta_fair(ls->delta_stat, &ls->load);
-		ls->delta_stat = 0;
-	}
-}
-
 /*
  * Update delta_exec, delta_fair fields for rq.
  *
@@ -817,31 +806,13 @@ static void __update_curr_load(struct rq *rq, struct load_stat *ls)
  * This function is called /before/ updating rq->ls.load
  * and when switching tasks.
  */
-static void update_curr_load(struct rq *rq)
-{
-	struct load_stat *ls = &rq->ls;
-	u64 start;
-
-	start = ls->load_update_start;
-	ls->load_update_start = rq->clock;
-	ls->delta_stat += rq->clock - start;
-	/*
-	 * Stagger updates to ls->delta_fair. Very frequent updates
-	 * can be expensive.
-	 */
-	if (ls->delta_stat)
-		__update_curr_load(rq, ls);
-}
-
 static inline void inc_load(struct rq *rq, const struct task_struct *p)
 {
-	update_curr_load(rq);
 	update_load_add(&rq->ls.load, p->se.load.weight);
 }
 
 static inline void dec_load(struct rq *rq, const struct task_struct *p)
 {
-	update_curr_load(rq);
 	update_load_sub(&rq->ls.load, p->se.load.weight);
 }
 
@@ -1972,8 +1943,7 @@ unsigned long nr_active(void)
  */
 static void update_cpu_load(struct rq *this_rq)
 {
-	unsigned long total_load = this_rq->ls.load.weight;
-	unsigned long this_load =  total_load;
+	unsigned long this_load = this_rq->ls.load.weight;
 	int i, scale;
 
 	this_rq->nr_load_updates++;
