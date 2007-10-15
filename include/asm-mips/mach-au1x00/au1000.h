@@ -102,16 +102,16 @@ extern unsigned int get_au1x00_lcd_clock(void);
 /*
  * Every board describes its IRQ mapping with this table.
  */
-typedef struct au1xxx_irqmap {
+struct au1xxx_irqmap {
 	int	im_irq;
 	int	im_type;
 	int	im_request;
-} au1xxx_irq_map_t;
+};
 
 /*
  * init_IRQ looks for a table with this name.
  */
-extern au1xxx_irq_map_t au1xxx_irq_map[];
+extern struct au1xxx_irqmap au1xxx_irq_map[];
 
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 

@@ -47,7 +47,7 @@
 #include <asm/system.h>
 #include <asm/mach-au1x00/au1000.h>
 
-au1xxx_irq_map_t __initdata au1xxx_irq_map[] = {
+struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
 	{ AU1000_GPIO_9, INTC_INT_LOW_LEVEL, 0 }, // PCMCIA Card Fully_Interted#
 	{ AU1000_GPIO_10, INTC_INT_LOW_LEVEL, 0 }, // PCMCIA Card STSCHG#
 	{ AU1000_GPIO_11, INTC_INT_LOW_LEVEL, 0 }, // PCMCIA Card IRQ#

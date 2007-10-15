@@ -54,7 +54,7 @@
 #define PB1200_INT_END DB1200_INT_END
 #endif
 
-au1xxx_irq_map_t __initdata au1xxx_irq_map[] = {
+struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
 	{ AU1000_GPIO_7, INTC_INT_LOW_LEVEL, 0 }, // This is exteranl interrupt cascade
 };
 

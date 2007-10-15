@@ -562,9 +562,9 @@ void __init arch_init_irq(void)
 {
 	int i;
 	unsigned long cp0_status;
-	au1xxx_irq_map_t *imp;
-	extern au1xxx_irq_map_t au1xxx_irq_map[];
-	extern au1xxx_irq_map_t au1xxx_ic0_map[];
+	struct au1xxx_irqmap *imp;
+	extern struct au1xxx_irqmap au1xxx_irq_map[];
+	extern struct au1xxx_irqmap au1xxx_ic0_map[];
 	extern int au1xxx_nr_irqs;
 	extern int au1xxx_ic0_nr_irqs;
 

@@ -79,7 +79,7 @@ char irq_tab_alchemy[][5] __initdata = {
 #endif
 
 
-au1xxx_irq_map_t __initdata au1xxx_irq_map[] = {
+struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
 
 #ifndef CONFIG_MIPS_MIRAGE
 #ifdef CONFIG_MIPS_DB1550
