@@ -2138,7 +2138,7 @@ irqreturn_t scsi_esp_intr(int irq, void *dev_id)
 }
 EXPORT_SYMBOL(scsi_esp_intr);
 
-static void __devinit esp_get_revision(struct esp *esp)
+static void esp_get_revision(struct esp *esp)
 {
 	u8 val;
 
@@ -2187,7 +2187,7 @@ static void __devinit esp_get_revision(struct esp *esp)
 	}
 }
 
-static void __devinit esp_init_swstate(struct esp *esp)
+static void esp_init_swstate(struct esp *esp)
 {
 	int i;
 
@@ -2233,7 +2233,7 @@ static void esp_bootup_reset(struct esp *esp)
 	esp_read8(ESP_INTRPT);
 }
 
-static void __devinit esp_set_clock_params(struct esp *esp)
+static void esp_set_clock_params(struct esp *esp)
 {
 	int fmhz;
 	u8 ccf;
@@ -2306,7 +2306,7 @@ static const char *esp_chip_names[] = {
 
 static struct scsi_transport_template *esp_transport_template;
 
-int __devinit scsi_esp_register(struct esp *esp, struct device *dev)
+int scsi_esp_register(struct esp *esp, struct device *dev)
 {
 	static int instance;
 	int err;
@@ -2346,7 +2346,7 @@ int __devinit scsi_esp_register(struct esp *esp, struct device *dev)
 }
 EXPORT_SYMBOL(scsi_esp_register);
 
-void __devexit scsi_esp_unregister(struct esp *esp)
+void scsi_esp_unregister(struct esp *esp)
 {
 	scsi_remove_host(esp->host);
 }

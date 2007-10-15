@@ -13,7 +13,6 @@
  * $Id: gdth.h,v 1.58 2006/01/11 16:14:09 achim Exp $
  */
 
-#include <linux/version.h>
 #include <linux/types.h>
 
 #ifndef TRUE
@@ -304,15 +303,8 @@
 #define MAILBOXREG      0x0c90                  /* mailbox reg. (16 bytes) */
 #define EISAREG         0x0cc0                  /* EISA configuration */
 
-/* DMA memory mappings */
-#define GDTH_MAP_NONE   0
-#define GDTH_MAP_SINGLE 1
-#define GDTH_MAP_SG     2
-#define GDTH_MAP_IOCTL  3 
-
 /* other defines */
 #define LINUX_OS        8                       /* used for cache optim. */
-#define SCATTER_GATHER  1                       /* s/g feature */
 #define SECS32          0x1f                    /* round capacity */
 #define BIOS_ID_OFFS    0x10                    /* offset contr-ID in ISABIOS */
 #define LOCALBOARD      0                       /* board node always 0 */
@@ -854,6 +846,9 @@ typedef struct {
 
 /* controller information structure */
 typedef struct {
+    struct Scsi_Host    *shost;
+    struct list_head    list;
+    ushort      	hanum;
     ushort              oem_id;                 /* OEM */
     ushort              type;                   /* controller class */
     ulong32             stype;                  /* subtype (PCI: device ID) */
@@ -865,6 +860,7 @@ typedef struct {
     void __iomem        *brd;                   /* DPRAM address */
     ulong32             brd_phys;               /* slot number/BIOS address */
     gdt6c_plx_regs      *plx;                   /* PLX regs (new PCI contr.) */
+    gdth_cmd_str        cmdext;
     gdth_cmd_str        *pccb;                  /* address command structure */
     ulong32             ccb_phys;               /* phys. address */
 #ifdef INT_COAL
@@ -916,6 +912,19 @@ typedef struct {
         Scsi_Cmnd       *cmnd;                  /* pending request */
         ushort          service;                /* service */
     } cmd_tab[GDTH_MAXCMDS];                    /* table of pend. requests */
+    struct gdth_cmndinfo {                      /* per-command private info */
+        int index;
+        int internal_command;                   /* don't call scsi_done */
+        dma_addr_t sense_paddr;                 /* sense dma-addr */
+        unchar priority;
+        int timeout;
+        volatile int wait_for_completion;
+        ushort status;
+        ulong32 info;
+        enum dma_data_direction dma_dir;
+        int phase;                              /* ???? */
+        int OpCode;
+    } cmndinfo[GDTH_MAXCMDS];                   /* index==0 is free */
     unchar              bus_cnt;                /* SCSI bus count */
     unchar              tid_cnt;                /* Target ID count */
     unchar              bus_id[MAXBUS];         /* IOP IDs */
@@ -938,19 +947,10 @@ typedef struct {
     struct scsi_device         *sdev;
 } gdth_ha_str;
 
-/* structure for scsi_register(), SCSI bus != 0 */
-typedef struct {
-    ushort      hanum;
-    ushort      busnum;
-} gdth_num_str;
-
-/* structure for scsi_register() */
-typedef struct {
-    gdth_num_str        numext;                 /* must be the first element */
-    gdth_ha_str         haext;
-    gdth_cmd_str        cmdext;
-} gdth_ext_str;
-
+static inline struct gdth_cmndinfo *gdth_cmnd_priv(struct scsi_cmnd* cmd)
+{
+	return (struct gdth_cmndinfo *)cmd->host_scribble;
+}
 
 /* INQUIRY data format */
 typedef struct {

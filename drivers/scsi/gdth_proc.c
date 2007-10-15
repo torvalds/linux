@@ -4,62 +4,32 @@
 
 #include <linux/completion.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 int gdth_proc_info(struct Scsi_Host *host, char *buffer,char **start,off_t offset,int length,   
                    int inout)
 {
-    int hanum,busnum;
+    gdth_ha_str *ha = shost_priv(host);
 
     TRACE2(("gdth_proc_info() length %d offs %d inout %d\n",
             length,(int)offset,inout));
 
-    hanum = NUMDATA(host)->hanum;
-    busnum= NUMDATA(host)->busnum;
-
     if (inout)
-        return(gdth_set_info(buffer,length,host,hanum,busnum));
+        return(gdth_set_info(buffer,length,host,ha));
     else
-        return(gdth_get_info(buffer,start,offset,length,host,hanum,busnum));
+        return(gdth_get_info(buffer,start,offset,length,host,ha));
 }
-#else
-int gdth_proc_info(char *buffer,char **start,off_t offset,int length,int hostno,   
-                   int inout)
-{
-    int hanum,busnum,i;
-
-    TRACE2(("gdth_proc_info() length %d offs %d inout %d\n",
-            length,(int)offset,inout));
-
-    for (i = 0; i < gdth_ctr_vcount; ++i) {
-        if (gdth_ctr_vtab[i]->host_no == hostno)
-            break;
-    }
-    if (i == gdth_ctr_vcount)
-        return(-EINVAL);
-
-    hanum = NUMDATA(gdth_ctr_vtab[i])->hanum;
-    busnum= NUMDATA(gdth_ctr_vtab[i])->busnum;
-
-    if (inout)
-        return(gdth_set_info(buffer,length,gdth_ctr_vtab[i],hanum,busnum));
-    else
-        return(gdth_get_info(buffer,start,offset,length,
-                             gdth_ctr_vtab[i],hanum,busnum));
-}
-#endif
 
 static int gdth_set_info(char *buffer,int length,struct Scsi_Host *host,
-                         int hanum,int busnum)
+                         gdth_ha_str *ha)
 {
     int ret_val = -EINVAL;
 
-    TRACE2(("gdth_set_info() ha %d bus %d\n",hanum,busnum));
+    TRACE2(("gdth_set_info() ha %d\n",ha->hanum,));
 
     if (length >= 4) {
         if (strncmp(buffer,"gdth",4) == 0) {
             buffer += 5;
             length -= 5;
-            ret_val = gdth_set_asc_info(host, buffer, length, hanum);
+            ret_val = gdth_set_asc_info(host, buffer, length, ha);
         }
     }
 
@@ -67,11 +37,10 @@ static int gdth_set_info(char *buffer,int length,struct Scsi_Host *host,
 }
          
 static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
-                        int length,int hanum)
+                        int length, gdth_ha_str *ha)
 {
     int orig_length, drive, wb_mode;
     int i, found;
-    gdth_ha_str     *ha;
     gdth_cmd_str    gdtcmd;
     gdth_cpar_str   *pcpar;
     ulong64         paddr;
@@ -80,8 +49,7 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
     memset(cmnd, 0xff, 12);
     memset(&gdtcmd, 0, sizeof(gdth_cmd_str));
 
-    TRACE2(("gdth_set_asc_info() ha %d\n",hanum));
-    ha = HADATA(gdth_ctr_tab[hanum]);
+    TRACE2(("gdth_set_asc_info() ha %d\n",ha->hanum));
     orig_length = length + 5;
     drive = -1;
     wb_mode = 0;
@@ -157,7 +125,7 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
     }
 
     if (wb_mode) {
-        if (!gdth_ioctl_alloc(hanum, sizeof(gdth_cpar_str), TRUE, &paddr))
+        if (!gdth_ioctl_alloc(ha, sizeof(gdth_cpar_str), TRUE, &paddr))
             return(-EBUSY);
         pcpar = (gdth_cpar_str *)ha->pscratch;
         memcpy( pcpar, &ha->cpar, sizeof(gdth_cpar_str) );
@@ -171,7 +139,7 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
 
         gdth_execute(host, &gdtcmd, cmnd, 30, NULL);
 
-        gdth_ioctl_free(hanum, GDTH_SCRATCH, ha->pscratch, paddr);
+        gdth_ioctl_free(ha, GDTH_SCRATCH, ha->pscratch, paddr);
         printk("Done.\n");
         return(orig_length);
     }
@@ -181,11 +149,10 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
 }
 
 static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
-                         struct Scsi_Host *host,int hanum,int busnum)
+                         struct Scsi_Host *host, gdth_ha_str *ha)
 {
     int size = 0,len = 0;
     off_t begin = 0,pos = 0;
-    gdth_ha_str *ha;
     int id, i, j, k, sec, flag;
     int no_mdrv = 0, drv_no, is_mirr;
     ulong32 cnt;
@@ -214,8 +181,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     memset(cmnd, 0xff, 12);
     memset(gdtcmd, 0, sizeof(gdth_cmd_str));
 
-    TRACE2(("gdth_get_info() ha %d bus %d\n",hanum,busnum));
-    ha = HADATA(gdth_ctr_tab[hanum]);
+    TRACE2(("gdth_get_info() ha %d\n",ha->hanum));
 
     
     /* request is i.e. "cat /proc/scsi/gdth/0" */ 
@@ -245,13 +211,10 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     /* controller information */
     size = sprintf(buffer+len,"\nDisk Array Controller Information:\n");
     len += size;  pos = begin + len;
-    if (virt_ctr)
-        sprintf(hrec, "%s (Bus %d)", ha->binfo.type_string, busnum);
-    else
-        strcpy(hrec, ha->binfo.type_string);
+    strcpy(hrec, ha->binfo.type_string);
     size = sprintf(buffer+len,
                    " Number:       \t%d         \tName:          \t%s\n",
-                   hanum, hrec);
+                   ha->hanum, hrec);
     len += size;  pos = begin + len;
 
     if (ha->more_proc)
@@ -301,7 +264,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
         len += size;  pos = begin + len;
         flag = FALSE;
             
-        buf = gdth_ioctl_alloc(hanum, GDTH_SCRATCH, FALSE, &paddr);
+        buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
         if (!buf) 
             goto stop_output;
         for (i = 0; i < ha->bus_cnt; ++i) {
@@ -404,7 +367,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
                     goto stop_output;
             }
         }
-        gdth_ioctl_free(hanum, GDTH_SCRATCH, buf, paddr);
+        gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
 
         if (!flag) {
             size = sprintf(buffer+len, "\n --\n");
@@ -416,7 +379,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
         len += size;  pos = begin + len;
         flag = FALSE;
 
-        buf = gdth_ioctl_alloc(hanum, GDTH_SCRATCH, FALSE, &paddr);
+        buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
         if (!buf) 
             goto stop_output;
         for (i = 0; i < MAX_LDRIVES; ++i) {
@@ -510,7 +473,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
             if (pos > offset + length)
                 goto stop_output;
         }       
-        gdth_ioctl_free(hanum, GDTH_SCRATCH, buf, paddr);
+        gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
         
         if (!flag) {
             size = sprintf(buffer+len, "\n --\n");
@@ -522,7 +485,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
         len += size;  pos = begin + len;
         flag = FALSE;
 
-        buf = gdth_ioctl_alloc(hanum, GDTH_SCRATCH, FALSE, &paddr);
+        buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
         if (!buf) 
             goto stop_output;
         for (i = 0; i < MAX_LDRIVES; ++i) {
@@ -581,7 +544,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
                     goto stop_output;
             }
         }
-        gdth_ioctl_free(hanum, GDTH_SCRATCH, buf, paddr);
+        gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
         
         if (!flag) {
             size = sprintf(buffer+len, "\n --\n");
@@ -593,7 +556,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
         len += size;  pos = begin + len;
         flag = FALSE;
 
-        buf = gdth_ioctl_alloc(hanum, sizeof(gdth_hget_str), FALSE, &paddr);
+        buf = gdth_ioctl_alloc(ha, sizeof(gdth_hget_str), FALSE, &paddr);
         if (!buf) 
             goto stop_output;
         for (i = 0; i < MAX_LDRIVES; ++i) {
@@ -626,7 +589,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
                 }
             }
         }
-        gdth_ioctl_free(hanum, sizeof(gdth_hget_str), buf, paddr);
+        gdth_ioctl_free(ha, sizeof(gdth_hget_str), buf, paddr);
 
         for (i = 0; i < MAX_HDRIVES; ++i) {
             if (!(ha->hdr[i].present))
@@ -664,7 +627,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
         id = gdth_read_event(ha, id, estr);
         if (estr->event_source == 0)
             break;
-        if (estr->event_data.eu.driver.ionode == hanum &&
+        if (estr->event_data.eu.driver.ionode == ha->hanum &&
             estr->event_source == ES_ASYNC) { 
             gdth_log_event(&estr->event_data, hrec);
             do_gettimeofday(&tv);
@@ -699,17 +662,15 @@ free_fail:
     return rc;
 }
 
-static char *gdth_ioctl_alloc(int hanum, int size, int scratch, 
+static char *gdth_ioctl_alloc(gdth_ha_str *ha, int size, int scratch,
                               ulong64 *paddr)
 {
-    gdth_ha_str *ha;
     ulong flags;
     char *ret_val;
 
     if (size == 0)
         return NULL;
 
-    ha = HADATA(gdth_ctr_tab[hanum]);
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     if (!ha->scratch_busy && size <= GDTH_SCRATCH) {
@@ -729,12 +690,10 @@ static char *gdth_ioctl_alloc(int hanum, int size, int scratch,
     return ret_val;
 }
 
-static void gdth_ioctl_free(int hanum, int size, char *buf, ulong64 paddr)
+static void gdth_ioctl_free(gdth_ha_str *ha, int size, char *buf, ulong64 paddr)
 {
-    gdth_ha_str *ha;
     ulong flags;
 
-    ha = HADATA(gdth_ctr_tab[hanum]);
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     if (buf == ha->pscratch) {
@@ -747,13 +706,11 @@ static void gdth_ioctl_free(int hanum, int size, char *buf, ulong64 paddr)
 }
 
 #ifdef GDTH_IOCTL_PROC
-static int gdth_ioctl_check_bin(int hanum, ushort size)
+static int gdth_ioctl_check_bin(gdth_ha_str *ha, ushort size)
 {
-    gdth_ha_str *ha;
     ulong flags;
     int ret_val;
 
-    ha = HADATA(gdth_ctr_tab[hanum]);
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     ret_val = FALSE;
@@ -766,27 +723,27 @@ static int gdth_ioctl_check_bin(int hanum, ushort size)
 }
 #endif
 
-static void gdth_wait_completion(int hanum, int busnum, int id)
+static void gdth_wait_completion(gdth_ha_str *ha, int busnum, int id)
 {
-    gdth_ha_str *ha;
     ulong flags;
     int i;
     Scsi_Cmnd *scp;
+    struct gdth_cmndinfo *cmndinfo;
     unchar b, t;
 
-    ha = HADATA(gdth_ctr_tab[hanum]);
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     for (i = 0; i < GDTH_MAXCMDS; ++i) {
         scp = ha->cmd_tab[i].cmnd;
+        cmndinfo = gdth_cmnd_priv(scp);
 
-        b = virt_ctr ? NUMDATA(scp->device->host)->busnum : scp->device->channel;
+        b = scp->device->channel;
         t = scp->device->id;
         if (!SPECIAL_SCP(scp) && t == (unchar)id && 
             b == (unchar)busnum) {
-            scp->SCp.have_data_in = 0;
+            cmndinfo->wait_for_completion = 0;
             spin_unlock_irqrestore(&ha->smp_lock, flags);
-            while (!scp->SCp.have_data_in)
+            while (!cmndinfo->wait_for_completion)
                 barrier();
             spin_lock_irqsave(&ha->smp_lock, flags);
         }
@@ -794,55 +751,51 @@ static void gdth_wait_completion(int hanum, int busnum, int id)
     spin_unlock_irqrestore(&ha->smp_lock, flags);
 }
 
-static void gdth_stop_timeout(int hanum, int busnum, int id)
+static void gdth_stop_timeout(gdth_ha_str *ha, int busnum, int id)
 {
-    gdth_ha_str *ha;
     ulong flags;
     Scsi_Cmnd *scp;
     unchar b, t;
 
-    ha = HADATA(gdth_ctr_tab[hanum]);
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     for (scp = ha->req_first; scp; scp = (Scsi_Cmnd *)scp->SCp.ptr) {
-        if (scp->done != gdth_scsi_done) {
-            b = virt_ctr ?
-                NUMDATA(scp->device->host)->busnum : scp->device->channel;
+        struct gdth_cmndinfo *cmndinfo = gdth_cmnd_priv(scp);
+        if (!cmndinfo->internal_command) {
+            b = scp->device->channel;
             t = scp->device->id;
             if (t == (unchar)id && b == (unchar)busnum) {
                 TRACE2(("gdth_stop_timeout(): update_timeout()\n"));
-                scp->SCp.buffers_residual = gdth_update_timeout(hanum, scp, 0);
+                cmndinfo->timeout = gdth_update_timeout(scp, 0);
             }
         }
     }
     spin_unlock_irqrestore(&ha->smp_lock, flags);
 }
 
-static void gdth_start_timeout(int hanum, int busnum, int id)
+static void gdth_start_timeout(gdth_ha_str *ha, int busnum, int id)
 {
-    gdth_ha_str *ha;
     ulong flags;
     Scsi_Cmnd *scp;
     unchar b, t;
 
-    ha = HADATA(gdth_ctr_tab[hanum]);
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     for (scp = ha->req_first; scp; scp = (Scsi_Cmnd *)scp->SCp.ptr) {
-        if (scp->done != gdth_scsi_done) {
-            b = virt_ctr ?
-                NUMDATA(scp->device->host)->busnum : scp->device->channel;
+        struct gdth_cmndinfo *cmndinfo = gdth_cmnd_priv(scp);
+        if (!cmndinfo->internal_command) {
+            b = scp->device->channel;
             t = scp->device->id;
             if (t == (unchar)id && b == (unchar)busnum) {
                 TRACE2(("gdth_start_timeout(): update_timeout()\n"));
-                gdth_update_timeout(hanum, scp, scp->SCp.buffers_residual);
+                gdth_update_timeout(scp, cmndinfo->timeout);
             }
         }
     }
     spin_unlock_irqrestore(&ha->smp_lock, flags);
 }
 
-static int gdth_update_timeout(int hanum, Scsi_Cmnd *scp, int timeout)
+static int gdth_update_timeout(Scsi_Cmnd *scp, int timeout)
 {
     int oldto;
 

@@ -1372,8 +1372,9 @@ int aac_check_health(struct aac_dev * aac)
 
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
 
-	if (!check_reset || (aac->supplement_adapter_info.SupportedOptions2 &
-	  le32_to_cpu(AAC_OPTION_IGNORE_RESET)))
+	if (!aac_check_reset ||
+		(aac->supplement_adapter_info.SupportedOptions2 &
+			le32_to_cpu(AAC_OPTION_IGNORE_RESET)))
 		goto out;
 	host = aac->scsi_host_ptr;
 	if (aac->thread->pid != current->pid)

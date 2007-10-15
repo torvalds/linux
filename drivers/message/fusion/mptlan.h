@@ -1,10 +1,10 @@
 /*
  *  linux/drivers/message/fusion/mptlan.h
  *      IP Over Fibre Channel device driver.
- *      For use with LSI Logic Fibre Channel PCI chip/adapters
- *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
+ *      For use with LSI Fibre Channel PCI chip/adapters
+ *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 2000-2007 LSI Logic Corporation
+ *  Copyright (c) 2000-2007 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -75,7 +75,7 @@
 #include <asm/io.h>
 
     /* Override mptbase.h by pre-defining these! */
-#define MODULEAUTHOR	"LSI Logic Corporation"
+#define MODULEAUTHOR	"LSI Corporation"
 
 #include "mptbase.h"
 

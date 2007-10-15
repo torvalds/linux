@@ -134,6 +134,9 @@ extern int
 qla2x00_load_ram(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
 
 extern int
+qla2x00_dump_ram(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
+
+extern int
 qla2x00_execute_fw(scsi_qla_host_t *, uint32_t);
 
 extern void
@@ -212,8 +215,8 @@ extern int
 qla2x00_get_id_list(scsi_qla_host_t *, void *, dma_addr_t, uint16_t *);
 
 extern int
-qla2x00_get_resource_cnts(scsi_qla_host_t *, uint16_t *, uint16_t *, uint16_t *,
-    uint16_t *);
+qla2x00_get_resource_cnts(scsi_qla_host_t *, uint16_t *, uint16_t *,
+    uint16_t *, uint16_t *, uint16_t *);
 
 extern int
 qla2x00_get_fcal_position_map(scsi_qla_host_t *ha, char *pos_map);
@@ -301,6 +304,8 @@ extern int qla2x00_write_optrom_data(struct scsi_qla_host *, uint8_t *,
 extern uint8_t *qla24xx_read_optrom_data(struct scsi_qla_host *, uint8_t *,
     uint32_t, uint32_t);
 extern int qla24xx_write_optrom_data(struct scsi_qla_host *, uint8_t *,
+    uint32_t, uint32_t);
+extern uint8_t *qla25xx_read_optrom_data(struct scsi_qla_host *, uint8_t *,
     uint32_t, uint32_t);
 
 extern int qla2x00_get_flash_version(scsi_qla_host_t *, void *);

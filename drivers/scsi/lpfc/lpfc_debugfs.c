@@ -43,7 +43,6 @@
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
 #include "lpfc_version.h"
-#include "lpfc_vport.h"
 #include "lpfc_debugfs.h"
 
 #ifdef CONFIG_LPFC_DEBUG_FS
@@ -902,7 +901,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 	}
 
-	vport->disc_trc = kmalloc(
+	vport->disc_trc = kmzlloc(
 		(sizeof(struct lpfc_debugfs_trc) * lpfc_debugfs_max_disc_trc),
 		GFP_KERNEL);
 
@@ -913,8 +912,6 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		goto debug_failed;
 	}
 	atomic_set(&vport->disc_trc_cnt, 0);
-	memset(vport->disc_trc, 0,
-		(sizeof(struct lpfc_debugfs_trc) * lpfc_debugfs_max_disc_trc));
 
 	snprintf(name, sizeof(name), "discovery_trace");
 	vport->debug_disc_trc =

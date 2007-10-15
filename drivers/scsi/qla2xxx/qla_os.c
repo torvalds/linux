@@ -379,11 +379,16 @@ qla2x00_get_new_sp(scsi_qla_host_t *ha, fc_port_t *fcport,
 static int
 qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	srb_t *sp;
 	int rval;
+
+	if (unlikely(pci_channel_offline(ha->pdev))) {
+		cmd->result = DID_REQUEUE << 16;
+		goto qc_fail_command;
+	}
 
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
@@ -440,12 +445,17 @@ qc_fail_command:
 static int
 qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	srb_t *sp;
 	int rval;
 	scsi_qla_host_t *pha = to_qla_parent(ha);
+
+	if (unlikely(pci_channel_offline(ha->pdev))) {
+		cmd->result = DID_REQUEUE << 16;
+		goto qc24_fail_command;
+	}
 
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
@@ -653,7 +663,7 @@ qla2x00_block_error_handler(struct scsi_cmnd *cmnd)
 static int
 qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	srb_t *sp;
 	int ret, i;
 	unsigned int id, lun;
@@ -793,7 +803,7 @@ qla2x00_eh_wait_for_pending_target_commands(scsi_qla_host_t *ha, unsigned int t)
 static int
 qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	int ret = FAILED;
 	unsigned int id, lun;
@@ -922,7 +932,7 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *ha)
 static int
 qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	scsi_qla_host_t *pha = to_qla_parent(ha);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	int ret = FAILED;
@@ -982,7 +992,7 @@ eh_bus_reset_done:
 static int
 qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	int ret = FAILED;
 	unsigned int id, lun;
@@ -1132,7 +1142,7 @@ qla2xxx_slave_alloc(struct scsi_device *sdev)
 static int
 qla2xxx_slave_configure(struct scsi_device *sdev)
 {
-	scsi_qla_host_t *ha = to_qla_host(sdev->host);
+	scsi_qla_host_t *ha = shost_priv(sdev->host);
 	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
 
 	if (sdev->tagged_supported)
@@ -1384,7 +1394,7 @@ static struct isp_operations qla25xx_isp_ops = {
 	.beacon_on		= qla24xx_beacon_on,
 	.beacon_off		= qla24xx_beacon_off,
 	.beacon_blink		= qla24xx_beacon_blink,
-	.read_optrom		= qla24xx_read_optrom_data,
+	.read_optrom		= qla25xx_read_optrom_data,
 	.write_optrom		= qla24xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
 };
@@ -1533,7 +1543,7 @@ iospace_error_exit:
 static void
 qla2xxx_scan_start(struct Scsi_Host *shost)
 {
-	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
+	scsi_qla_host_t *ha = shost_priv(shost);
 
 	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
@@ -1543,7 +1553,7 @@ qla2xxx_scan_start(struct Scsi_Host *shost)
 static int
 qla2xxx_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
-	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
+	scsi_qla_host_t *ha = shost_priv(shost);
 
 	if (!ha->host)
 		return 1;
@@ -1571,6 +1581,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_enable_device(pdev))
 		goto probe_out;
 
+	if (pci_find_aer_capability(pdev))
+		if (pci_enable_pcie_error_reporting(pdev))
+			goto probe_out;
+
 	sht = &qla2x00_driver_template;
 	if (pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2422 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432 ||
@@ -1586,7 +1600,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Clear our data area */
-	ha = (scsi_qla_host_t *)host->hostdata;
+	ha = shost_priv(host);
 	memset(ha, 0, sizeof(scsi_qla_host_t));
 
 	ha->pdev = pdev;
@@ -2423,7 +2437,6 @@ qla2x00_do_dpc(void *data)
 				if (atomic_read(&fcport->state) != FCS_ONLINE &&
 				    fcport->login_retry) {
 
-					fcport->login_retry--;
 					if (fcport->flags & FCF_FABRIC_DEVICE) {
 						if (fcport->flags &
 						    FCF_TAPE_PRESENT)
@@ -2439,6 +2452,7 @@ qla2x00_do_dpc(void *data)
 						    qla2x00_local_device_login(
 							ha, fcport);
 
+					fcport->login_retry--;
 					if (status == QLA_SUCCESS) {
 						fcport->old_loop_id = fcport->loop_id;
 
@@ -2456,6 +2470,8 @@ qla2x00_do_dpc(void *data)
 					} else {
 						fcport->login_retry = 0;
 					}
+					if (fcport->login_retry == 0)
+						fcport->loop_id = FC_NO_LOOP_ID;
 				}
 				if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
 					break;
@@ -2814,6 +2830,105 @@ qla2x00_release_firmware(void)
 	up(&qla_fw_lock);
 }
 
+static pci_ers_result_t
+qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	switch (state) {
+	case pci_channel_io_normal:
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		pci_disable_device(pdev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		qla2x00_remove_one(pdev);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t
+qla2xxx_pci_mmio_enabled(struct pci_dev *pdev)
+{
+	int risc_paused = 0;
+	uint32_t stat;
+	unsigned long flags;
+	scsi_qla_host_t *ha = pci_get_drvdata(pdev);
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	if (IS_QLA2100(ha) || IS_QLA2200(ha)){
+		stat = RD_REG_DWORD(&reg->hccr);
+		if (stat & HCCR_RISC_PAUSE)
+			risc_paused = 1;
+	} else if (IS_QLA23XX(ha)) {
+		stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
+		if (stat & HSR_RISC_PAUSED)
+			risc_paused = 1;
+	} else if (IS_FWI2_CAPABLE(ha)) {
+		stat = RD_REG_DWORD(&reg24->host_status);
+		if (stat & HSRX_RISC_PAUSED)
+			risc_paused = 1;
+	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	if (risc_paused) {
+		qla_printk(KERN_INFO, ha, "RISC paused -- mmio_enabled, "
+		    "Dumping firmware!\n");
+		ha->isp_ops->fw_dump(ha, 0);
+
+		return PCI_ERS_RESULT_NEED_RESET;
+	} else
+		return PCI_ERS_RESULT_RECOVERED;
+}
+
+static pci_ers_result_t
+qla2xxx_pci_slot_reset(struct pci_dev *pdev)
+{
+	pci_ers_result_t ret = PCI_ERS_RESULT_DISCONNECT;
+	scsi_qla_host_t *ha = pci_get_drvdata(pdev);
+
+	if (pci_enable_device(pdev)) {
+		qla_printk(KERN_WARNING, ha,
+		    "Can't re-enable PCI device after reset.\n");
+
+		return ret;
+	}
+	pci_set_master(pdev);
+
+	if (ha->isp_ops->pci_config(ha))
+		return ret;
+
+	set_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags);
+	if (qla2x00_abort_isp(ha)== QLA_SUCCESS)
+		ret =  PCI_ERS_RESULT_RECOVERED;
+	clear_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags);
+
+	return ret;
+}
+
+static void
+qla2xxx_pci_resume(struct pci_dev *pdev)
+{
+	scsi_qla_host_t *ha = pci_get_drvdata(pdev);
+	int ret;
+
+	ret = qla2x00_wait_for_hba_online(ha);
+	if (ret != QLA_SUCCESS) {
+		qla_printk(KERN_ERR, ha,
+		    "the device failed to resume I/O "
+		    "from slot/link_reset");
+	}
+	pci_cleanup_aer_uncorrect_error_status(pdev);
+}
+
+static struct pci_error_handlers qla2xxx_err_handler = {
+	.error_detected = qla2xxx_pci_error_detected,
+	.mmio_enabled = qla2xxx_pci_mmio_enabled,
+	.slot_reset = qla2xxx_pci_slot_reset,
+	.resume = qla2xxx_pci_resume,
+};
+
 static struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2100) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2200) },
@@ -2839,6 +2954,7 @@ static struct pci_driver qla2xxx_pci_driver = {
 	.id_table	= qla2xxx_pci_tbl,
 	.probe		= qla2x00_probe_one,
 	.remove		= __devexit_p(qla2x00_remove_one),
+	.err_handler	= &qla2xxx_err_handler,
 };
 
 /**

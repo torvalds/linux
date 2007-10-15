@@ -204,8 +204,8 @@ module_param(ips, charp, 0);
 /*
  * DRIVER_VER
  */
-#define IPS_VERSION_HIGH        "7.12"
-#define IPS_VERSION_LOW         ".05 "
+#define IPS_VERSION_HIGH        IPS_VER_MAJOR_STRING "." IPS_VER_MINOR_STRING
+#define IPS_VERSION_LOW         "." IPS_VER_BUILD_STRING " "
 
 #if !defined(__i386__) && !defined(__ia64__) && !defined(__x86_64__)
 #warning "This driver has only been tested on the x86/ia64/x86_64 platforms"
@@ -656,6 +656,8 @@ ips_release(struct Scsi_Host *sh)
 
 	METHOD_TRACE("ips_release", 1);
 
+	scsi_remove_host(sh);
+
 	for (i = 0; i < IPS_MAX_ADAPTERS && ips_sh[i] != sh; i++) ;
 
 	if (i == IPS_MAX_ADAPTERS) {
@@ -707,7 +709,6 @@ ips_release(struct Scsi_Host *sh)
 	/* free IRQ */
 	free_irq(ha->irq, ha);
 
-	scsi_remove_host(sh);
 	scsi_host_put(sh);
 
 	ips_released_controllers++;
@@ -6946,7 +6947,7 @@ module_exit(ips_module_exit);
 static int __devinit
 ips_insert_device(struct pci_dev *pci_dev, const struct pci_device_id *ent)
 {
-	int index;
+	int uninitialized_var(index);
 	int rc;
 
 	METHOD_TRACE("ips_insert_device", 1);

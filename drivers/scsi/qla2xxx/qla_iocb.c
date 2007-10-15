@@ -308,7 +308,7 @@ qla2x00_start_scsi(srb_t *sp)
 		handle++;
 		if (handle == MAX_OUTSTANDING_COMMANDS)
 			handle = 1;
-		if (ha->outstanding_cmds[handle] == 0)
+		if (!ha->outstanding_cmds[handle])
 			break;
 	}
 	if (index == MAX_OUTSTANDING_COMMANDS)
@@ -711,7 +711,7 @@ qla24xx_start_scsi(srb_t *sp)
 		handle++;
 		if (handle == MAX_OUTSTANDING_COMMANDS)
 			handle = 1;
-		if (ha->outstanding_cmds[handle] == 0)
+		if (!ha->outstanding_cmds[handle])
 			break;
 	}
 	if (index == MAX_OUTSTANDING_COMMANDS)

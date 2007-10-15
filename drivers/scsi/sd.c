@@ -86,6 +86,19 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_DISK);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_MOD);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_RBC);
 
+static int  sd_revalidate_disk(struct gendisk *);
+static int  sd_probe(struct device *);
+static int  sd_remove(struct device *);
+static void sd_shutdown(struct device *);
+static int sd_suspend(struct device *, pm_message_t state);
+static int sd_resume(struct device *);
+static void sd_rescan(struct device *);
+static int sd_done(struct scsi_cmnd *);
+static void sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer);
+static void scsi_disk_release(struct class_device *cdev);
+static void sd_print_sense_hdr(struct scsi_disk *, struct scsi_sense_hdr *);
+static void sd_print_result(struct scsi_disk *, int);
+
 static DEFINE_IDR(sd_index_idr);
 static DEFINE_SPINLOCK(sd_index_lock);
 
@@ -240,7 +253,7 @@ static struct scsi_driver sd_template = {
 		.shutdown	= sd_shutdown,
 	},
 	.rescan			= sd_rescan,
-	.init_command		= sd_init_command,
+	.done			= sd_done,
 };
 
 /*
@@ -331,14 +344,31 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
  *
  *	Returns 1 if successful and 0 if error (or cannot be done now).
  **/
-static int sd_init_command(struct scsi_cmnd * SCpnt)
+static int sd_prep_fn(struct request_queue *q, struct request *rq)
 {
-	struct scsi_device *sdp = SCpnt->device;
-	struct request *rq = SCpnt->request;
+	struct scsi_cmnd *SCpnt;
+	struct scsi_device *sdp = q->queuedata;
 	struct gendisk *disk = rq->rq_disk;
 	sector_t block = rq->sector;
-	unsigned int this_count = SCpnt->request_bufflen >> 9;
+	unsigned int this_count = rq->nr_sectors;
 	unsigned int timeout = sdp->timeout;
+	int ret;
+
+	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
+		ret = scsi_setup_blk_pc_cmnd(sdp, rq);
+		goto out;
+	} else if (rq->cmd_type != REQ_TYPE_FS) {
+		ret = BLKPREP_KILL;
+		goto out;
+	}
+	ret = scsi_setup_fs_cmnd(sdp, rq);
+	if (ret != BLKPREP_OK)
+		goto out;
+	SCpnt = rq->special;
+
+	/* from here on until we're complete, any goto out
+	 * is used for a killable error condition */
+	ret = BLKPREP_KILL;
 
 	SCSI_LOG_HLQUEUE(1, scmd_printk(KERN_INFO, SCpnt,
 					"sd_init_command: block=%llu, "
@@ -353,7 +383,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 						rq->nr_sectors));
 		SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt,
 						"Retry with 0x%p\n", SCpnt));
-		return 0;
+		goto out;
 	}
 
 	if (sdp->changed) {
@@ -362,8 +392,9 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 		 * the changed bit has been reset
 		 */
 		/* printk("SCSI disk has been changed. Prohibiting further I/O.\n"); */
-		return 0;
+		goto out;
 	}
+
 	SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt, "block=%llu\n",
 					(unsigned long long)block));
 
@@ -382,7 +413,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 		if ((block & 1) || (rq->nr_sectors & 1)) {
 			scmd_printk(KERN_ERR, SCpnt,
 				    "Bad block number requested\n");
-			return 0;
+			goto out;
 		} else {
 			block = block >> 1;
 			this_count = this_count >> 1;
@@ -392,7 +423,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 		if ((block & 3) || (rq->nr_sectors & 3)) {
 			scmd_printk(KERN_ERR, SCpnt,
 				    "Bad block number requested\n");
-			return 0;
+			goto out;
 		} else {
 			block = block >> 2;
 			this_count = this_count >> 2;
@@ -402,7 +433,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 		if ((block & 7) || (rq->nr_sectors & 7)) {
 			scmd_printk(KERN_ERR, SCpnt,
 				    "Bad block number requested\n");
-			return 0;
+			goto out;
 		} else {
 			block = block >> 3;
 			this_count = this_count >> 3;
@@ -410,7 +441,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	}
 	if (rq_data_dir(rq) == WRITE) {
 		if (!sdp->writeable) {
-			return 0;
+			goto out;
 		}
 		SCpnt->cmnd[0] = WRITE_6;
 		SCpnt->sc_data_direction = DMA_TO_DEVICE;
@@ -419,7 +450,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 		SCpnt->sc_data_direction = DMA_FROM_DEVICE;
 	} else {
 		scmd_printk(KERN_ERR, SCpnt, "Unknown command %x\n", rq->cmd_flags);
-		return 0;
+		goto out;
 	}
 
 	SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt,
@@ -470,7 +501,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 			 */
 			scmd_printk(KERN_ERR, SCpnt,
 				    "FUA write on READ/WRITE(6) drive\n");
-			return 0;
+			goto out;
 		}
 
 		SCpnt->cmnd[1] |= (unsigned char) ((block >> 16) & 0x1f);
@@ -492,16 +523,12 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	SCpnt->timeout_per_command = timeout;
 
 	/*
-	 * This is the completion routine we use.  This is matched in terms
-	 * of capability to this function.
-	 */
-	SCpnt->done = sd_rw_intr;
-
-	/*
 	 * This indicates that the command is ready from our end to be
 	 * queued.
 	 */
-	return 1;
+	ret = BLKPREP_OK;
+ out:
+	return scsi_prep_return(q, rq, ret);
 }
 
 /**
@@ -889,13 +916,13 @@ static struct block_device_operations sd_fops = {
 };
 
 /**
- *	sd_rw_intr - bottom half handler: called when the lower level
+ *	sd_done - bottom half handler: called when the lower level
  *	driver has completed (successfully or otherwise) a scsi command.
  *	@SCpnt: mid-level's per command structure.
  *
  *	Note: potentially run from within an ISR. Must not block.
  **/
-static void sd_rw_intr(struct scsi_cmnd * SCpnt)
+static int sd_done(struct scsi_cmnd *SCpnt)
 {
 	int result = SCpnt->result;
  	unsigned int xfer_size = SCpnt->request_bufflen;
@@ -916,7 +943,7 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 	SCSI_LOG_HLCOMPLETE(1, scsi_print_result(SCpnt));
 	if (sense_valid) {
 		SCSI_LOG_HLCOMPLETE(1, scmd_printk(KERN_INFO, SCpnt,
-						   "sd_rw_intr: sb[respc,sk,asc,"
+						   "sd_done: sb[respc,sk,asc,"
 						   "ascq]=%x,%x,%x,%x\n",
 						   sshdr.response_code,
 						   sshdr.sense_key, sshdr.asc,
@@ -988,7 +1015,7 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 		break;
 	}
  out:
-	scsi_io_completion(SCpnt, good_bytes);
+	return good_bytes;
 }
 
 static int media_not_present(struct scsi_disk *sdkp,
@@ -1669,6 +1696,7 @@ static int sd_probe(struct device *dev)
 
 	sd_revalidate_disk(gd);
 
+	blk_queue_prep_rq(sdp->request_queue, sd_prep_fn);
 	blk_queue_issue_flush_fn(sdp->request_queue, sd_issue_flush);
 
 	gd->driverfs_dev = &sdp->sdev_gendev;

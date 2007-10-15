@@ -53,4 +53,19 @@
 **						for linux standard list
 **						enable usage of pci message signal interrupt
 **						follow Randy.Danlup kindness suggestion cleanup this code
+** 1.20.00.14   05/02/2007	 Erich Chen & Nick Cheng
+**						1.implement PCI-Express error recovery function and AER capability
+**						2.implement the selection of ARCMSR_MAX_XFER_SECTORS_B=4096
+**				 		if firmware version is newer than 1.42
+**						3.modify arcmsr_iop_reset to improve the ability
+**						4.modify the ISR, arcmsr_interrupt routine,to prevent the
+**						inconsistency with sg_mod driver if application	directly calls
+**						the arcmsr driver w/o passing through scsi mid layer
+**						specially thanks to Yanmin Zhang's openhanded help about AER
+** 1.20.00.15   08/30/2007	 Erich Chen & Nick Cheng
+**						1. support ARC1200/1201/1202 SATA RAID adapter, which is named
+**						ACB_ADAPTER_TYPE_B
+**						2. modify the arcmsr_pci_slot_reset function
+**						3. modify the arcmsr_pci_ers_disconnect_forepart function
+**						4. modify the arcmsr_pci_ers_need_reset_forepart function
 **************************************************************************

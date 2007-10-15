@@ -460,13 +460,6 @@ module_param(boot_options, charp, 0);
 module_param_array(io_port, int, NULL, 0);
 module_param_array(scsi_id, int, NULL, 0);
 
-#if 0 /* FIXME: No longer exist? --RR */
-MODULE_PARM(display, "1i");
-MODULE_PARM(adisplay, "1i");
-MODULE_PARM(normal, "1i");
-MODULE_PARM(ansi, "1i");
-#endif
-
 MODULE_LICENSE("GPL");
 #endif
 /*counter of concurrent disk read/writes, to turn on/off disk led */
@@ -1693,6 +1686,7 @@ static int __devexit ibmmca_remove(struct device *dev)
 	scsi_remove_host(shpnt);
 	release_region(shpnt->io_port, shpnt->n_io_port);
 	free_irq(shpnt->irq, dev);
+	scsi_host_put(shpnt);
 	return 0;
 }
 

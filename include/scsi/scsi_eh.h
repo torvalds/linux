@@ -1,7 +1,7 @@
 #ifndef _SCSI_SCSI_EH_H
 #define _SCSI_SCSI_EH_H
 
-struct scsi_cmnd;
+#include <scsi/scsi_cmnd.h>
 struct scsi_device;
 struct Scsi_Host;
 
@@ -64,5 +64,26 @@ extern int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
 #define SCSI_TRY_RESET_HOST	3
 
 extern int scsi_reset_provider(struct scsi_device *, int);
+
+struct scsi_eh_save {
+	int result;
+	enum dma_data_direction data_direction;
+	unsigned char cmd_len;
+	unsigned char cmnd[MAX_COMMAND_SIZE];
+
+	void *buffer;
+	unsigned bufflen;
+	unsigned short use_sg;
+	int resid;
+
+	struct scatterlist sense_sgl;
+};
+
+extern void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd,
+		struct scsi_eh_save *ses, unsigned char *cmnd,
+		int cmnd_size, unsigned sense_bytes);
+
+extern void scsi_eh_restore_cmnd(struct scsi_cmnd* scmd,
+		struct scsi_eh_save *ses);
 
 #endif /* _SCSI_SCSI_EH_H */

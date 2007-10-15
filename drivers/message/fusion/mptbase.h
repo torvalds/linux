@@ -3,9 +3,9 @@
  *      High performance SCSI + LAN / Fibre Channel device drivers.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
- *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -68,15 +68,15 @@
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
 #ifndef MODULEAUTHOR
-#define MODULEAUTHOR	"LSI Logic Corporation"
+#define MODULEAUTHOR	"LSI Corporation"
 #endif
 
 #ifndef COPYRIGHT
 #define COPYRIGHT	"Copyright (c) 1999-2007 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.05"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.05"
+#define MPT_LINUX_VERSION_COMMON	"3.04.06"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.06"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -186,11 +186,41 @@
  * MPT drivers.  NOTE: Users of these macro defs must
  * themselves define their own MYNAM.
  */
+#define MYIOC_s_FMT			MYNAM ": %s: "
 #define MYIOC_s_DEBUG_FMT		KERN_DEBUG MYNAM ": %s: "
 #define MYIOC_s_INFO_FMT		KERN_INFO MYNAM ": %s: "
 #define MYIOC_s_NOTE_FMT		KERN_NOTICE MYNAM ": %s: "
 #define MYIOC_s_WARN_FMT		KERN_WARNING MYNAM ": %s: WARNING - "
 #define MYIOC_s_ERR_FMT			KERN_ERR MYNAM ": %s: ERROR - "
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/*
+ *  ATTO UL4D associated structures and defines
+ */
+#define ATTOFLAG_DISC     0x0001
+#define ATTOFLAG_TAGGED   0x0002
+#define ATTOFLAG_WIDE_ENB 0x0008
+#define ATTOFLAG_ID_ENB   0x0010
+#define ATTOFLAG_LUN_ENB  0x0060
+
+typedef struct _ATTO_DEVICE_INFO
+{
+	u8	Offset;					/* 00h */
+	u8	Period;					/* 01h */
+	u16	ATTOFlags;				/* 02h */
+} ATTO_DEVICE_INFO, MPI_POINTER PTR_ATTO_DEVICE_INFO,
+  ATTODeviceInfo_t, MPI_POINTER pATTODeviceInfo_t;
+
+typedef struct _ATTO_CONFIG_PAGE_SCSI_PORT_2
+{
+	CONFIG_PAGE_HEADER	Header;			/* 00h */
+	u16			PortFlags;		/* 04h */
+	u16			Unused1;		/* 06h */
+	u32			Unused2;		/* 08h */
+	ATTO_DEVICE_INFO	DeviceSettings[16];	/* 0Ch */
+} fATTO_CONFIG_PAGE_SCSI_PORT_2, MPI_POINTER PTR_ATTO_CONFIG_PAGE_SCSI_PORT_2,
+  ATTO_SCSIPortPage2_t, MPI_POINTER pATTO_SCSIPortPage2_t;
+
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -307,7 +337,8 @@ typedef struct _SYSIF_REGS
 	u32	Reserved2[2];	/* 38-3F  reserved for future use    */
 	u32	RequestFifo;	/* 40     Request Post/Free FIFO     */
 	u32	ReplyFifo;	/* 44     Reply   Post/Free FIFO     */
-	u32	Reserved3[2];	/* 48-4F  reserved for future use    */
+	u32	RequestHiPriFifo; /* 48   Hi Priority Request FIFO   */
+	u32	Reserved3;	/* 4C-4F  reserved for future use    */
 	u32	HostIndex;	/* 50     Host Index register        */
 	u32	Reserved4[15];	/* 54-8F                             */
 	u32	Fubar;		/* 90     For Fubar usage            */
@@ -649,9 +680,9 @@ typedef struct _MPT_ADAPTER
 	u8			 reload_fw;	/* Force a FW Reload on next reset */
 	u8			 NBShiftFactor;  /* NB Shift Factor based on Block Size (Facts)  */
 	u8			 pad1[4];
-	int			 DoneCtx;
-	int			 TaskCtx;
-	int			 InternalCtx;
+	u8			 DoneCtx;
+	u8			 TaskCtx;
+	u8			 InternalCtx;
 	spinlock_t		 initializing_hba_lock;
 	int 	 		 initializing_hba_lock_flag;
 	struct list_head	 list;
@@ -668,10 +699,14 @@ typedef struct _MPT_ADAPTER
 
 	struct work_struct	 fc_setup_reset_work;
 	struct list_head	 fc_rports;
+	struct work_struct	 fc_lsc_work;
+	u8			 fc_link_speed[2];
 	spinlock_t		 fc_rescan_work_lock;
 	struct work_struct	 fc_rescan_work;
 	char			 fc_rescan_work_q_name[KOBJ_NAME_LEN];
 	struct workqueue_struct *fc_rescan_work_q;
+	struct scsi_cmnd	**ScsiLookup;
+	spinlock_t		  scsi_lookup_lock;
 } MPT_ADAPTER;
 
 /*
@@ -785,7 +820,6 @@ typedef struct _MPT_SCSI_HOST {
 	MPT_ADAPTER		 *ioc;
 	int			  port;
 	u32			  pad0;
-	struct scsi_cmnd	**ScsiLookup;
 	MPT_LOCAL_REPLY		 *pLocal;		/* used for internal commands */
 	struct timer_list	  timer;
 		/* Pool of memory for holding SCpnts before doing
@@ -853,20 +887,21 @@ extern void	 mpt_detach(struct pci_dev *pdev);
 extern int	 mpt_suspend(struct pci_dev *pdev, pm_message_t state);
 extern int	 mpt_resume(struct pci_dev *pdev);
 #endif
-extern int	 mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass);
-extern void	 mpt_deregister(int cb_idx);
-extern int	 mpt_event_register(int cb_idx, MPT_EVHANDLER ev_cbfunc);
-extern void	 mpt_event_deregister(int cb_idx);
-extern int	 mpt_reset_register(int cb_idx, MPT_RESETHANDLER reset_func);
-extern void	 mpt_reset_deregister(int cb_idx);
-extern int	 mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, int cb_idx);
-extern void	 mpt_device_driver_deregister(int cb_idx);
-extern MPT_FRAME_HDR	*mpt_get_msg_frame(int handle, MPT_ADAPTER *ioc);
+extern u8	 mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass);
+extern void	 mpt_deregister(u8 cb_idx);
+extern int	 mpt_event_register(u8 cb_idx, MPT_EVHANDLER ev_cbfunc);
+extern void	 mpt_event_deregister(u8 cb_idx);
+extern int	 mpt_reset_register(u8 cb_idx, MPT_RESETHANDLER reset_func);
+extern void	 mpt_reset_deregister(u8 cb_idx);
+extern int	 mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, u8 cb_idx);
+extern void	 mpt_device_driver_deregister(u8 cb_idx);
+extern MPT_FRAME_HDR	*mpt_get_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc);
 extern void	 mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
-extern void	 mpt_put_msg_frame(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
+extern void	 mpt_put_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
+extern void	 mpt_put_msg_frame_hi_pri(u8 cb_idx, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
 extern void	 mpt_add_sge(char *pAddr, u32 flagslength, dma_addr_t dma_addr);
 
-extern int	 mpt_send_handshake_request(int handle, MPT_ADAPTER *ioc, int reqBytes, u32 *req, int sleepFlag);
+extern int	 mpt_send_handshake_request(u8 cb_idx, MPT_ADAPTER *ioc, int reqBytes, u32 *req, int sleepFlag);
 extern int	 mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp);
 extern u32	 mpt_GetIocState(MPT_ADAPTER *ioc, int cooked);
 extern void	 mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buf, int *size, int len, int showlan);
@@ -883,9 +918,6 @@ extern int	 mpt_raid_phys_disk_pg0(MPT_ADAPTER *ioc, u8 phys_disk_num, pRaidPhys
  */
 extern struct list_head	  ioc_list;
 extern struct proc_dir_entry	*mpt_proc_root_dir;
-
-extern int		  mpt_lan_index;	/* needed by mptlan.c */
-extern int		  mpt_stm_index;	/* needed by mptstm.c */
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 #endif		/* } __KERNEL__ */

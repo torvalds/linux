@@ -53,7 +53,7 @@ struct srp_lp_event {
 /** 
  * standard interface for handling logical partition events.
  */
-static void ibmvscsi_handle_event(struct HvLpEvent *lpevt)
+static void iseriesvscsi_handle_event(struct HvLpEvent *lpevt)
 {
 	struct srp_lp_event *evt = (struct srp_lp_event *)lpevt;
 
@@ -74,9 +74,9 @@ static void ibmvscsi_handle_event(struct HvLpEvent *lpevt)
 /* ------------------------------------------------------------
  * Routines for driver initialization
  */
-int ibmvscsi_init_crq_queue(struct crq_queue *queue,
-			    struct ibmvscsi_host_data *hostdata,
-			    int max_requests)
+static int iseriesvscsi_init_crq_queue(struct crq_queue *queue,
+				       struct ibmvscsi_host_data *hostdata,
+				       int max_requests)
 {
 	int rc;
 
@@ -88,7 +88,7 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 		goto viopath_open_failed;
 	}
 
-	rc = vio_setHandler(viomajorsubtype_scsi, ibmvscsi_handle_event);
+	rc = vio_setHandler(viomajorsubtype_scsi, iseriesvscsi_handle_event);
 	if (rc < 0) {
 		printk("vio_setHandler failed with rc %d in open_event_path\n",
 		       rc);
@@ -102,9 +102,9 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 	return -1;
 }
 
-void ibmvscsi_release_crq_queue(struct crq_queue *queue,
-				struct ibmvscsi_host_data *hostdata,
-				int max_requests)
+static void iseriesvscsi_release_crq_queue(struct crq_queue *queue,
+					   struct ibmvscsi_host_data *hostdata,
+					   int max_requests)
 {
 	vio_clearHandler(viomajorsubtype_scsi);
 	viopath_close(viopath_hostLp, viomajorsubtype_scsi, max_requests);
@@ -117,8 +117,8 @@ void ibmvscsi_release_crq_queue(struct crq_queue *queue,
  *
  * no-op for iSeries
  */
-int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
-			      struct ibmvscsi_host_data *hostdata)
+static int iseriesvscsi_reset_crq_queue(struct crq_queue *queue,
+					struct ibmvscsi_host_data *hostdata)
 {
 	return 0;
 }
@@ -130,19 +130,20 @@ int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
  *
  * no-op for iSeries
  */
-int ibmvscsi_reenable_crq_queue(struct crq_queue *queue,
-				struct ibmvscsi_host_data *hostdata)
+static int iseriesvscsi_reenable_crq_queue(struct crq_queue *queue,
+					   struct ibmvscsi_host_data *hostdata)
 {
 	return 0;
 }
 
 /**
- * ibmvscsi_send_crq: - Send a CRQ
+ * iseriesvscsi_send_crq: - Send a CRQ
  * @hostdata:	the adapter
  * @word1:	the first 64 bits of the data
  * @word2:	the second 64 bits of the data
  */
-int ibmvscsi_send_crq(struct ibmvscsi_host_data *hostdata, u64 word1, u64 word2)
+static int iseriesvscsi_send_crq(struct ibmvscsi_host_data *hostdata,
+				 u64 word1, u64 word2)
 {
 	single_host_data = hostdata;
 	return HvCallEvent_signalLpEventFast(viopath_hostLp,
@@ -156,3 +157,11 @@ int ibmvscsi_send_crq(struct ibmvscsi_host_data *hostdata, u64 word1, u64 word2)
 					     VIOVERSION << 16, word1, word2, 0,
 					     0);
 }
+
+struct ibmvscsi_ops iseriesvscsi_ops = {
+	.init_crq_queue = iseriesvscsi_init_crq_queue,
+	.release_crq_queue = iseriesvscsi_release_crq_queue,
+	.reset_crq_queue = iseriesvscsi_reset_crq_queue,
+	.reenable_crq_queue = iseriesvscsi_reenable_crq_queue,
+	.send_crq = iseriesvscsi_send_crq,
+};

@@ -907,9 +907,10 @@ out_host_put:
 
 void aha152x_release(struct Scsi_Host *shpnt)
 {
-	if(!shpnt)
+	if (!shpnt)
 		return;
 
+	scsi_remove_host(shpnt);
 	if (shpnt->irq)
 		free_irq(shpnt->irq, shpnt);
 
@@ -923,7 +924,6 @@ void aha152x_release(struct Scsi_Host *shpnt)
 		pnp_device_detach(HOSTDATA(shpnt)->pnpdev);
 #endif
 
-	scsi_remove_host(shpnt);
 	list_del(&HOSTDATA(shpnt)->host_list);
 	scsi_host_put(shpnt);
 }

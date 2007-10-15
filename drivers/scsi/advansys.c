@@ -1,765 +1,27 @@
-#define ASC_VERSION "3.3K"	/* AdvanSys Driver Version */
+#define DRV_NAME "advansys"
+#define ASC_VERSION "3.4"	/* AdvanSys Driver Version */
 
 /*
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
  *
  * Copyright (c) 1995-2000 Advanced System Products, Inc.
  * Copyright (c) 2000-2001 ConnectCom Solutions, Inc.
+ * Copyright (c) 2007 Matthew Wilcox <matthew@wil.cx>
  * All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that redistributions of source
- * code retain the above copyright notice and this comment without
- * modification.
- *
- * As of March 8, 2000 Advanced System Products, Inc. (AdvanSys)
- * changed its name to ConnectCom Solutions, Inc.
- *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  */
 
 /*
-
-  Documentation for the AdvanSys Driver
-
-  A. Linux Kernels Supported by this Driver
-  B. Adapters Supported by this Driver
-  C. Linux source files modified by AdvanSys Driver
-  D. Source Comments
-  E. Driver Compile Time Options and Debugging
-  F. Driver LILO Option
-  G. Tests to run before releasing new driver
-  H. Release History
-  I. Known Problems/Fix List
-  J. Credits (Chronological Order)
-
-  A. Linux Kernels Supported by this Driver
-
-     This driver has been tested in the following Linux kernels: v2.2.18
-     v2.4.0. The driver is supported on v2.2 and v2.4 kernels and on x86,
-     alpha, and PowerPC platforms.
-
-  B. Adapters Supported by this Driver
-
-     AdvanSys (Advanced System Products, Inc.) manufactures the following
-     RISC-based, Bus-Mastering, Fast (10 Mhz) and Ultra (20 Mhz) Narrow
-     (8-bit transfer) SCSI Host Adapters for the ISA, EISA, VL, and PCI
-     buses and RISC-based, Bus-Mastering, Ultra (20 Mhz) Wide (16-bit
-     transfer) SCSI Host Adapters for the PCI bus.
-
-     The CDB counts below indicate the number of SCSI CDB (Command
-     Descriptor Block) requests that can be stored in the RISC chip
-     cache and board LRAM. A CDB is a single SCSI command. The driver
-     detect routine will display the number of CDBs available for each
-     adapter detected. The number of CDBs used by the driver can be
-     lowered in the BIOS by changing the 'Host Queue Size' adapter setting.
-
-     Laptop Products:
-        ABP-480 - Bus-Master CardBus (16 CDB) (2.4 kernel and greater)
-
-     Connectivity Products:
-        ABP510/5150 - Bus-Master ISA (240 CDB)
-        ABP5140 - Bus-Master ISA PnP (16 CDB)
-        ABP5142 - Bus-Master ISA PnP with floppy (16 CDB)
-        ABP902/3902 - Bus-Master PCI (16 CDB)
-        ABP3905 - Bus-Master PCI (16 CDB)
-        ABP915 - Bus-Master PCI (16 CDB)
-        ABP920 - Bus-Master PCI (16 CDB)
-        ABP3922 - Bus-Master PCI (16 CDB)
-        ABP3925 - Bus-Master PCI (16 CDB)
-        ABP930 - Bus-Master PCI (16 CDB)
-        ABP930U - Bus-Master PCI Ultra (16 CDB)
-        ABP930UA - Bus-Master PCI Ultra (16 CDB)
-        ABP960 - Bus-Master PCI MAC/PC (16 CDB)
-        ABP960U - Bus-Master PCI MAC/PC Ultra (16 CDB)
-
-     Single Channel Products:
-        ABP542 - Bus-Master ISA with floppy (240 CDB)
-        ABP742 - Bus-Master EISA (240 CDB)
-        ABP842 - Bus-Master VL (240 CDB)
-        ABP940 - Bus-Master PCI (240 CDB)
-        ABP940U - Bus-Master PCI Ultra (240 CDB)
-        ABP940UA/3940UA - Bus-Master PCI Ultra (240 CDB)
-        ABP970 - Bus-Master PCI MAC/PC (240 CDB)
-        ABP970U - Bus-Master PCI MAC/PC Ultra (240 CDB)
-        ABP3960UA - Bus-Master PCI MAC/PC Ultra (240 CDB)
-        ABP940UW/3940UW - Bus-Master PCI Ultra-Wide (253 CDB)
-        ABP970UW - Bus-Master PCI MAC/PC Ultra-Wide (253 CDB)
-        ABP3940U2W - Bus-Master PCI LVD/Ultra2-Wide (253 CDB)
-
-     Multi-Channel Products:
-        ABP752 - Dual Channel Bus-Master EISA (240 CDB Per Channel)
-        ABP852 - Dual Channel Bus-Master VL (240 CDB Per Channel)
-        ABP950 - Dual Channel Bus-Master PCI (240 CDB Per Channel)
-        ABP950UW - Dual Channel Bus-Master PCI Ultra-Wide (253 CDB Per Channel)
-        ABP980 - Four Channel Bus-Master PCI (240 CDB Per Channel)
-        ABP980U - Four Channel Bus-Master PCI Ultra (240 CDB Per Channel)
-        ABP980UA/3980UA - Four Channel Bus-Master PCI Ultra (16 CDB Per Chan.)
-        ABP3950U2W - Bus-Master PCI LVD/Ultra2-Wide and Ultra-Wide (253 CDB)
-        ABP3950U3W - Bus-Master PCI Dual LVD2/Ultra3-Wide (253 CDB)
-
-  C. Linux source files modified by AdvanSys Driver
-
-     This section for historical purposes documents the changes
-     originally made to the Linux kernel source to add the advansys
-     driver. As Linux has changed some of these files have also
-     been modified.
-
-     1. linux/arch/i386/config.in:
-
-          bool 'AdvanSys SCSI support' CONFIG_SCSI_ADVANSYS y
-
-     2. linux/drivers/scsi/hosts.c:
-
-          #ifdef CONFIG_SCSI_ADVANSYS
-          #include "advansys.h"
-          #endif
-
-        and after "static struct scsi_host_template builtin_scsi_hosts[] =":
-
-          #ifdef CONFIG_SCSI_ADVANSYS
-          ADVANSYS,
-          #endif
-
-     3. linux/drivers/scsi/Makefile:
-
-          ifdef CONFIG_SCSI_ADVANSYS
-          SCSI_SRCS := $(SCSI_SRCS) advansys.c
-          SCSI_OBJS := $(SCSI_OBJS) advansys.o
-          else
-          SCSI_MODULE_OBJS := $(SCSI_MODULE_OBJS) advansys.o
-          endif
-
-     4. linux/init/main.c:
-
-          extern void advansys_setup(char *str, int *ints);
-
-        and add the following lines to the bootsetups[] array.
-
-          #ifdef CONFIG_SCSI_ADVANSYS
-             { "advansys=", advansys_setup },
-          #endif
-
-  D. Source Comments
-
-     1. Use tab stops set to 4 for the source files. For vi use 'se tabstops=4'.
-
-     2. This driver should be maintained in multiple files. But to make
-        it easier to include with Linux and to follow Linux conventions,
-        the whole driver is maintained in the source files advansys.h and
-        advansys.c. In this file logical sections of the driver begin with
-        a comment that contains '---'. The following are the logical sections
-        of the driver below.
-
-           --- Linux Version
-           --- Linux Include File
-           --- Driver Options
-           --- Debugging Header
-           --- Asc Library Constants and Macros
-           --- Adv Library Constants and Macros
-           --- Driver Constants and Macros
-           --- Driver Structures
-           --- Driver Data
-           --- Driver Function Prototypes
-           --- Linux 'struct scsi_host_template' and advansys_setup() Functions
-           --- Loadable Driver Support
-           --- Miscellaneous Driver Functions
-           --- Functions Required by the Asc Library
-           --- Functions Required by the Adv Library
-           --- Tracing and Debugging Functions
-           --- Asc Library Functions
-           --- Adv Library Functions
-
-     3. The string 'XXX' is used to flag code that needs to be re-written
-        or that contains a problem that needs to be addressed.
-
-     4. I have stripped comments from and reformatted the source for the
-        Asc Library and Adv Library to reduce the size of this file. This
-        source can be found under the following headings. The Asc Library
-        is used to support Narrow Boards. The Adv Library is used to
-        support Wide Boards.
-
-           --- Asc Library Constants and Macros
-           --- Adv Library Constants and Macros
-           --- Asc Library Functions
-           --- Adv Library Functions
-
-  E. Driver Compile Time Options and Debugging
-
-     In this source file the following constants can be defined. They are
-     defined in the source below. Both of these options are enabled by
-     default.
-
-     1. ADVANSYS_ASSERT - Enable driver assertions (Def: Enabled)
-
-        Enabling this option adds assertion logic statements to the
-        driver. If an assertion fails a message will be displayed to
-        the console, but the system will continue to operate. Any
-        assertions encountered should be reported to the person
-        responsible for the driver. Assertion statements may proactively
-        detect problems with the driver and facilitate fixing these
-        problems. Enabling assertions will add a small overhead to the
-        execution of the driver.
-
-     2. ADVANSYS_DEBUG - Enable driver debugging (Def: Disabled)
-
-        Enabling this option adds tracing functions to the driver and
-        the ability to set a driver tracing level at boot time. This
-        option will also export symbols not required outside the driver to
-        the kernel name space. This option is very useful for debugging
-        the driver, but it will add to the size of the driver execution
-        image and add overhead to the execution of the driver.
-
-        The amount of debugging output can be controlled with the global
-        variable 'asc_dbglvl'. The higher the number the more output. By
-        default the debug level is 0.
-
-        If the driver is loaded at boot time and the LILO Driver Option
-        is included in the system, the debug level can be changed by
-        specifying a 5th (ASC_NUM_IOPORT_PROBE + 1) I/O Port. The
-        first three hex digits of the pseudo I/O Port must be set to
-        'deb' and the fourth hex digit specifies the debug level: 0 - F.
-        The following command line will look for an adapter at 0x330
-        and set the debug level to 2.
-
-           linux advansys=0x330,0,0,0,0xdeb2
-
-        If the driver is built as a loadable module this variable can be
-        defined when the driver is loaded. The following insmod command
-        will set the debug level to one.
-
-           insmod advansys.o asc_dbglvl=1
-
-        Debugging Message Levels:
-           0: Errors Only
-           1: High-Level Tracing
-           2-N: Verbose Tracing
-
-        To enable debug output to console, please make sure that:
-
-        a. System and kernel logging is enabled (syslogd, klogd running).
-        b. Kernel messages are routed to console output. Check
-           /etc/syslog.conf for an entry similar to this:
-
-                kern.*                  /dev/console
-
-        c. klogd is started with the appropriate -c parameter
-           (e.g. klogd -c 8)
-
-        This will cause printk() messages to be be displayed on the
-        current console. Refer to the klogd(8) and syslogd(8) man pages
-        for details.
-
-        Alternatively you can enable printk() to console with this
-        program. However, this is not the 'official' way to do this.
-        Debug output is logged in /var/log/messages.
-
-          main()
-          {
-                  syscall(103, 7, 0, 0);
-          }
-
-        Increasing LOG_BUF_LEN in kernel/printk.c to something like
-        40960 allows more debug messages to be buffered in the kernel
-        and written to the console or log file.
-
-     3. ADVANSYS_STATS - Enable statistics (Def: Enabled >= v1.3.0)
-
-        Enabling this option adds statistics collection and display
-        through /proc to the driver. The information is useful for
-        monitoring driver and device performance. It will add to the
-        size of the driver execution image and add minor overhead to
-        the execution of the driver.
-
-        Statistics are maintained on a per adapter basis. Driver entry
-        point call counts and transfer size counts are maintained.
-        Statistics are only available for kernels greater than or equal
-        to v1.3.0 with the CONFIG_PROC_FS (/proc) file system configured.
-
-        AdvanSys SCSI adapter files have the following path name format:
-
-           /proc/scsi/advansys/[0-(ASC_NUM_BOARD_SUPPORTED-1)]
-
-        This information can be displayed with cat. For example:
-
-           cat /proc/scsi/advansys/0
-
-        When ADVANSYS_STATS is not defined the AdvanSys /proc files only
-        contain adapter and device configuration information.
-
-  F. Driver LILO Option
-
-     If init/main.c is modified as described in the 'Directions for Adding
-     the AdvanSys Driver to Linux' section (B.4.) above, the driver will
-     recognize the 'advansys' LILO command line and /etc/lilo.conf option.
-     This option can be used to either disable I/O port scanning or to limit
-     scanning to 1 - 4 I/O ports. Regardless of the option setting EISA and
-     PCI boards will still be searched for and detected. This option only
-     affects searching for ISA and VL boards.
-
-     Examples:
-       1. Eliminate I/O port scanning:
-            boot: linux advansys=
-              or
-            boot: linux advansys=0x0
-       2. Limit I/O port scanning to one I/O port:
-            boot: linux advansys=0x110
-       3. Limit I/O port scanning to four I/O ports:
-            boot: linux advansys=0x110,0x210,0x230,0x330
-
-     For a loadable module the same effect can be achieved by setting
-     the 'asc_iopflag' variable and 'asc_ioport' array when loading
-     the driver, e.g.
-
-           insmod advansys.o asc_iopflag=1 asc_ioport=0x110,0x330
-
-     If ADVANSYS_DEBUG is defined a 5th (ASC_NUM_IOPORT_PROBE + 1)
-     I/O Port may be added to specify the driver debug level. Refer to
-     the 'Driver Compile Time Options and Debugging' section above for
-     more information.
-
-  G. Tests to run before releasing new driver
-
-     1. In the supported kernels verify there are no warning or compile
-        errors when the kernel is built as both a driver and as a module
-        and with the following options:
-
-        ADVANSYS_DEBUG - enabled and disabled
-        CONFIG_SMP - enabled and disabled
-        CONFIG_PROC_FS - enabled and disabled
-
-     2. Run tests on an x86, alpha, and PowerPC with at least one narrow
-        card and one wide card attached to a hard disk and CD-ROM drive:
-        fdisk, mkfs, fsck, bonnie, copy/compare test from the
-        CD-ROM to the hard drive.
-
-  H. Release History
-
-     BETA-1.0 (12/23/95):
-         First Release
-
-     BETA-1.1 (12/28/95):
-         1. Prevent advansys_detect() from being called twice.
-         2. Add LILO 0xdeb[0-f] option to set 'asc_dbglvl'.
-
-     1.2 (1/12/96):
-         1. Prevent re-entrancy in the interrupt handler which
-            resulted in the driver hanging Linux.
-         2. Fix problem that prevented ABP-940 cards from being
-            recognized on some PCI motherboards.
-         3. Add support for the ABP-5140 PnP ISA card.
-         4. Fix check condition return status.
-         5. Add conditionally compiled code for Linux v1.3.X.
-
-     1.3 (2/23/96):
-         1. Fix problem in advansys_biosparam() that resulted in the
-            wrong drive geometry being returned for drives > 1GB with
-            extended translation enabled.
-         2. Add additional tracing during device initialization.
-         3. Change code that only applies to ISA PnP adapter.
-         4. Eliminate 'make dep' warning.
-         5. Try to fix problem with handling resets by increasing their
-            timeout value.
-
-     1.4 (5/8/96):
-         1. Change definitions to eliminate conflicts with other subsystems.
-         2. Add versioning code for the shared interrupt changes.
-         3. Eliminate problem in asc_rmqueue() with iterating after removing
-            a request.
-         4. Remove reset request loop problem from the "Known Problems or
-            Issues" section. This problem was isolated and fixed in the
-            mid-level SCSI driver.
-
-     1.5 (8/8/96):
-         1. Add support for ABP-940U (PCI Ultra) adapter.
-         2. Add support for IRQ sharing by setting the IRQF_SHARED flag for
-            request_irq and supplying a dev_id pointer to both request_irq()
-            and free_irq().
-         3. In AscSearchIOPortAddr11() restore a call to check_region() which
-            should be used before I/O port probing.
-         4. Fix bug in asc_prt_hex() which resulted in the displaying
-            the wrong data.
-         5. Incorporate miscellaneous Asc Library bug fixes and new microcode.
-         6. Change driver versioning to be specific to each Linux sub-level.
-         7. Change statistics gathering to be per adapter instead of global
-            to the driver.
-         8. Add more information and statistics to the adapter /proc file:
-            /proc/scsi/advansys[0...].
-         9. Remove 'cmd_per_lun' from the "Known Problems or Issues" list.
-            This problem has been addressed with the SCSI mid-level changes
-            made in v1.3.89. The advansys_select_queue_depths() function
-            was added for the v1.3.89 changes.
-
-     1.6 (9/10/96):
-         1. Incorporate miscellaneous Asc Library bug fixes and new microcode.
-
-     1.7 (9/25/96):
-         1. Enable clustering and optimize the setting of the maximum number
-            of scatter gather elements for any particular board. Clustering
-            increases CPU utilization, but results in a relatively larger
-            increase in I/O throughput.
-         2. Improve the performance of the request queuing functions by
-            adding a last pointer to the queue structure.
-         3. Correct problems with reset and abort request handling that
-            could have hung or crashed Linux.
-         4. Add more information to the adapter /proc file:
-            /proc/scsi/advansys[0...].
-         5. Remove the request timeout issue form the driver issues list.
-         6. Miscellaneous documentation additions and changes.
-
-     1.8 (10/4/96):
-         1. Make changes to handle the new v2.1.0 kernel memory mapping
-            in which a kernel virtual address may not be equivalent to its
-            bus or DMA memory address.
-         2. Change abort and reset request handling to make it yet even
-            more robust.
-         3. Try to mitigate request starvation by sending ordered requests
-            to heavily loaded, tag queuing enabled devices.
-         4. Maintain statistics on request response time.
-         5. Add request response time statistics and other information to
-            the adapter /proc file: /proc/scsi/advansys[0...].
-
-     1.9 (10/21/96):
-         1. Add conditionally compiled code (ASC_QUEUE_FLOW_CONTROL) to
-            make use of mid-level SCSI driver device queue depth flow
-            control mechanism. This will eliminate aborts caused by a
-            device being unable to keep up with requests and eliminate
-            repeat busy or QUEUE FULL status returned by a device.
-         2. Incorporate miscellaneous Asc Library bug fixes.
-         3. To allow the driver to work in kernels with broken module
-            support set 'cmd_per_lun' if the driver is compiled as a
-            module. This change affects kernels v1.3.89 to present.
-         4. Remove PCI BIOS address from the driver banner. The PCI BIOS
-            is relocated by the motherboard BIOS and its new address can
-            not be determined by the driver.
-         5. Add mid-level SCSI queue depth information to the adapter
-            /proc file: /proc/scsi/advansys[0...].
-
-     2.0 (11/14/96):
-         1. Change allocation of global structures used for device
-            initialization to guarantee they are in DMA-able memory.
-            Previously when the driver was loaded as a module these
-            structures might not have been in DMA-able memory, causing
-            device initialization to fail.
-
-     2.1 (12/30/96):
-         1. In advansys_reset(), if the request is a synchronous reset
-            request, even if the request serial number has changed, then
-            complete the request.
-         2. Add Asc Library bug fixes including new microcode.
-         3. Clear inquiry buffer before using it.
-         4. Correct ifdef typo.
-
-     2.2 (1/15/97):
-         1. Add Asc Library bug fixes including new microcode.
-         2. Add synchronous data transfer rate information to the
-            adapter /proc file: /proc/scsi/advansys[0...].
-         3. Change ADVANSYS_DEBUG to be disabled by default. This
-            will reduce the size of the driver image, eliminate execution
-            overhead, and remove unneeded symbols from the kernel symbol
-            space that were previously added by the driver.
-         4. Add new compile-time option ADVANSYS_ASSERT for assertion
-            code that used to be defined within ADVANSYS_DEBUG. This
-            option is enabled by default.
-
-     2.8 (5/26/97):
-         1. Change version number to 2.8 to synchronize the Linux driver
-            version numbering with other AdvanSys drivers.
-         2. Reformat source files without tabs to present the same view
-            of the file to everyone regardless of the editor tab setting
-            being used.
-         3. Add Asc Library bug fixes.
-
-     3.1A (1/8/98):
-         1. Change version number to 3.1 to indicate that support for
-            Ultra-Wide adapters (ABP-940UW) is included in this release.
-         2. Add Asc Library (Narrow Board) bug fixes.
-         3. Report an underrun condition with the host status byte set
-            to DID_UNDERRUN. Currently DID_UNDERRUN is defined to 0 which
-            causes the underrun condition to be ignored. When Linux defines
-            its own DID_UNDERRUN the constant defined in this file can be
-            removed.
-         4. Add patch to AscWaitTixISRDone().
-         5. Add support for up to 16 different AdvanSys host adapter SCSI
-            channels in one system. This allows four cards with four channels
-            to be used in one system.
-
-     3.1B (1/9/98):
-         1. Handle that PCI register base addresses are not always page
-            aligned even though ioremap() requires that the address argument
-            be page aligned.
-
-     3.1C (1/10/98):
-         1. Update latest BIOS version checked for from the /proc file.
-         2. Don't set microcode SDTR variable at initialization. Instead
-            wait until device capabilities have been detected from an Inquiry
-            command.
-
-     3.1D (1/21/98):
-         1. Improve performance when the driver is compiled as module by
-            allowing up to 64 scatter-gather elements instead of 8.
-
-     3.1E (5/1/98):
-         1. Set time delay in AscWaitTixISRDone() to 1000 ms.
-         2. Include SMP locking changes.
-         3. For v2.1.93 and newer kernels use CONFIG_PCI and new PCI BIOS
-            access functions.
-         4. Update board serial number printing.
-         5. Try allocating an IRQ both with and without the IRQF_DISABLED
-            flag set to allow IRQ sharing with drivers that do not set
-            the IRQF_DISABLED flag. Also display a more descriptive error
-            message if request_irq() fails.
-         6. Update to latest Asc and Adv Libraries.
-
-     3.2A (7/22/99):
-         1. Update Adv Library to 4.16 which includes support for
-            the ASC38C0800 (Ultra2/LVD) IC.
-
-     3.2B (8/23/99):
-         1. Correct PCI compile time option for v2.1.93 and greater
-            kernels, advansys_info() string, and debug compile time
-            option.
-         2. Correct DvcSleepMilliSecond() for v2.1.0 and greater
-            kernels. This caused an LVD detection/BIST problem problem
-            among other things.
-         3. Sort PCI cards by PCI Bus, Slot, Function ascending order
-            to be consistent with the BIOS.
-         4. Update to Asc Library S121 and Adv Library 5.2.
-
-     3.2C (8/24/99):
-         1. Correct PCI card detection bug introduced in 3.2B that
-            prevented PCI cards from being detected in kernels older
-            than v2.1.93.
-
-     3.2D (8/26/99):
-         1. Correct /proc device synchronous speed information display.
-            Also when re-negotiation is pending for a target device
-            note this condition with an * and footnote.
-         2. Correct initialization problem with Ultra-Wide cards that
-            have a pre-3.2 BIOS. A microcode variable changed locations
-            in 3.2 and greater BIOSes which caused WDTR to be attempted
-            erroneously with drives that don't support WDTR.
-
-     3.2E (8/30/99):
-         1. Fix compile error caused by v2.3.13 PCI structure change.
-         2. Remove field from ASCEEP_CONFIG that resulted in an EEPROM
-            checksum error for ISA cards.
-         3. Remove ASC_QUEUE_FLOW_CONTROL conditional code. The mid-level
-            SCSI changes that it depended on were never included in Linux.
-
-     3.2F (9/3/99):
-         1. Handle new initial function code added in v2.3.16 for all
-            driver versions.
-
-     3.2G (9/8/99):
-         1. Fix PCI board detection in v2.3.13 and greater kernels.
-         2. Fix comiple errors in v2.3.X with debugging enabled.
-
-     3.2H (9/13/99):
-         1. Add 64-bit address, long support for Alpha and UltraSPARC.
-            The driver has been verified to work on an Alpha system.
-         2. Add partial byte order handling support for Power PC and
-            other big-endian platforms. This support has not yet been
-            completed or verified.
-         3. For wide boards replace block zeroing of request and
-            scatter-gather structures with individual field initialization
-            to improve performance.
-         4. Correct and clarify ROM BIOS version detection.
-
-     3.2I (10/8/99):
-         1. Update to Adv Library 5.4.
-         2. Add v2.3.19 underrun reporting to asc_isr_callback() and
-            adv_isr_callback().  Remove DID_UNDERRUN constant and other
-            no longer needed code that previously documented the lack
-            of underrun handling.
-
-     3.2J (10/14/99):
-         1. Eliminate compile errors for v2.0 and earlier kernels.
-
-     3.2K (11/15/99):
-         1. Correct debug compile error in asc_prt_adv_scsi_req_q().
-         2. Update Adv Library to 5.5.
-         3. Add ifdef handling for /proc changes added in v2.3.28.
-         4. Increase Wide board scatter-gather list maximum length to
-            255 when the driver is compiled into the kernel.
-
-     3.2L (11/18/99):
-         1. Fix bug in adv_get_sglist() that caused an assertion failure
-            at line 7475. The reqp->sgblkp pointer must be initialized
-            to NULL in adv_get_sglist().
-
-     3.2M (11/29/99):
-         1. Really fix bug in adv_get_sglist().
-         2. Incorporate v2.3.29 changes into driver.
-
-     3.2N (4/1/00):
-         1. Add CONFIG_ISA ifdef code.
-         2. Include advansys_interrupts_enabled name change patch.
-         3. For >= v2.3.28 use new SCSI error handling with new function
-            advansys_eh_bus_reset(). Don't include an abort function
-            because of base library limitations.
-         4. For >= v2.3.28 use per board lock instead of io_request_lock.
-         5. For >= v2.3.28 eliminate advansys_command() and
-            advansys_command_done().
-         6. Add some changes for PowerPC (Big Endian) support, but it isn't
-            working yet.
-         7. Fix "nonexistent resource free" problem that occurred on a module
-            unload for boards with an I/O space >= 255. The 'n_io_port' field
-            is only one byte and can not be used to hold an ioport length more
-            than 255.
-
-     3.3A (4/4/00):
-         1. Update to Adv Library 5.8.
-         2. For wide cards add support for CDBs up to 16 bytes.
-         3. Eliminate warnings when CONFIG_PROC_FS is not defined.
-
-     3.3B (5/1/00):
-         1. Support for PowerPC (Big Endian) wide cards. Narrow cards
-            still need work.
-         2. Change bitfields to shift and mask access for endian
-            portability.
-
-     3.3C (10/13/00):
-         1. Update for latest 2.4 kernel.
-         2. Test ABP-480 CardBus support in 2.4 kernel - works!
-         3. Update to Asc Library S123.
-         4. Update to Adv Library 5.12.
-
-     3.3D (11/22/00):
-         1. Update for latest 2.4 kernel.
-         2. Create patches for 2.2 and 2.4 kernels.
-
-     3.3E (1/9/01):
-         1. Now that 2.4 is released remove ifdef code for kernel versions
-            less than 2.2. The driver is now only supported in kernels 2.2,
-            2.4, and greater.
-         2. Add code to release and acquire the io_request_lock in
-            the driver entrypoint functions: advansys_detect and
-            advansys_queuecommand. In kernel 2.4 the SCSI mid-level driver
-            still holds the io_request_lock on entry to SCSI low-level drivers.
-            This was supposed to be removed before 2.4 was released but never
-            happened. When the mid-level SCSI driver is changed all references
-            to the io_request_lock should be removed from the driver.
-         3. Simplify error handling by removing advansys_abort(),
-            AscAbortSRB(), AscResetDevice(). SCSI bus reset requests are
-            now handled by resetting the SCSI bus and fully re-initializing
-            the chip. This simple method of error recovery has proven to work
-            most reliably after attempts at different methods. Also now only
-            support the "new" error handling method and remove the obsolete
-            error handling interface.
-         4. Fix debug build errors.
-
-     3.3F (1/24/01):
-         1. Merge with ConnectCom version from Andy Kellner which
-            updates Adv Library to 5.14.
-         2. Make PowerPC (Big Endian) work for narrow cards and
-            fix problems writing EEPROM for wide cards.
-         3. Remove interrupts_enabled assertion function.
-
-     3.3G (2/16/01):
-         1. Return an error from narrow boards if passed a 16 byte
-            CDB. The wide board can already handle 16 byte CDBs.
-
-     3.3GJ (4/15/02):
-	 1. hacks for lk 2.5 series (D. Gilbert)
-
-     3.3GJD (10/14/02):
-         1. change select_queue_depths to slave_configure
-	 2. make cmd_per_lun be sane again
-
-     3.3K [2004/06/24]:
-         1. continuing cleanup for lk 2.6 series
-         2. Fix problem in lk 2.6.7-bk2 that broke PCI wide cards
-         3. Fix problem that oopsed ISA cards
-
-  I. Known Problems/Fix List (XXX)
-
-     1. Need to add memory mapping workaround. Test the memory mapping.
-        If it doesn't work revert to I/O port access. Can a test be done
-        safely?
-     2. Handle an interrupt not working. Keep an interrupt counter in
-        the interrupt handler. In the timeout function if the interrupt
-        has not occurred then print a message and run in polled mode.
-     3. Allow bus type scanning order to be changed.
-     4. Need to add support for target mode commands, cf. CAM XPT.
-
-  J. Credits (Chronological Order)
-
-     Bob Frey <bfrey@turbolinux.com.cn> wrote the AdvanSys SCSI driver
-     and maintained it up to 3.3F. He continues to answer questions
-     and help maintain the driver.
-
-     Nathan Hartwell <mage@cdc3.cdc.net> provided the directions and
-     basis for the Linux v1.3.X changes which were included in the
-     1.2 release.
-
-     Thomas E Zerucha <zerucha@shell.portal.com> pointed out a bug
-     in advansys_biosparam() which was fixed in the 1.3 release.
-
-     Erik Ratcliffe <erik@caldera.com> has done testing of the
-     AdvanSys driver in the Caldera releases.
-
-     Rik van Riel <H.H.vanRiel@fys.ruu.nl> provided a patch to
-     AscWaitTixISRDone() which he found necessary to make the
-     driver work with a SCSI-1 disk.
-
-     Mark Moran <mmoran@mmoran.com> has helped test Ultra-Wide
-     support in the 3.1A driver.
-
-     Doug Gilbert <dgilbert@interlog.com> has made changes and
-     suggestions to improve the driver and done a lot of testing.
-
-     Ken Mort <ken@mort.net> reported a DEBUG compile bug fixed
-     in 3.2K.
-
-     Tom Rini <trini@kernel.crashing.org> provided the CONFIG_ISA
-     patch and helped with PowerPC wide and narrow board support.
-
-     Philip Blundell <philb@gnu.org> provided an
-     advansys_interrupts_enabled patch.
-
-     Dave Jones <dave@denial.force9.co.uk> reported the compiler
-     warnings generated when CONFIG_PROC_FS was not defined in
-     the 3.2M driver.
-
-     Jerry Quinn <jlquinn@us.ibm.com> fixed PowerPC support (endian
-     problems) for wide cards.
-
-     Bryan Henderson <bryanh@giraffe-data.com> helped debug narrow
-     card error handling.
-
-     Manuel Veloso <veloso@pobox.com> worked hard on PowerPC narrow
-     board support and fixed a bug in AscGetEEPConfig().
-
-     Arnaldo Carvalho de Melo <acme@conectiva.com.br> made
-     save_flags/restore_flags changes.
-
-     Andy Kellner <AKellner@connectcom.net> continues the Advansys SCSI
-     driver development for ConnectCom (Version > 3.3F).
-
-  K. ConnectCom (AdvanSys) Contact Information
-
-     Mail:                   ConnectCom Solutions, Inc.
-                             1150 Ringwood Court
-                             San Jose, CA 95131
-     Operator/Sales:         1-408-383-9400
-     FAX:                    1-408-383-9612
-     Tech Support:           1-408-467-2930
-     Tech Support E-Mail:    linux@connectcom.net
-     FTP Site:               ftp.connectcom.net (login: anonymous)
-     Web Site:               http://www.connectcom.net
-
-*/
-
-/*
- * --- Linux Include Files
+ * As of March 8, 2000 Advanced System Products, Inc. (AdvanSys)
+ * changed its name to ConnectCom Solutions, Inc.
+ * On June 18, 2001 Initio Corp. acquired ConnectCom's SCSI assets
  */
 
 #include <linux/module.h>
-
-#if defined(CONFIG_X86) && !defined(CONFIG_ISA)
-#define CONFIG_ISA
-#endif /* CONFIG_X86 && !CONFIG_ISA */
-
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -771,7 +33,9 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
-#include <linux/stat.h>
+#include <linux/isa.h>
+#include <linux/eisa.h>
+#include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 
@@ -779,49 +43,38 @@
 #include <asm/system.h>
 #include <asm/dma.h>
 
-/* FIXME: (by jejb@steeleye.com) This warning is present for two
- * reasons:
- *
- * 1) This driver badly needs converting to the correct driver model
- *    probing API
- *
- * 2) Although all of the necessary command mapping places have the
- * appropriate dma_map.. APIs, the driver still processes its internal
- * queue using bus_to_virt() and virt_to_bus() which are illegal under
- * the API.  The entire queue processing structure will need to be
- * altered to fix this.
- */
-#warning this driver is still not properly converted to the DMA API
-
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
-#ifdef CONFIG_PCI
-#include <linux/pci.h>
-#endif /* CONFIG_PCI */
 
-/*
- * --- Driver Options
+/* FIXME:
+ *
+ *  1. Although all of the necessary command mapping places have the
+ *     appropriate dma_map.. APIs, the driver still processes its internal
+ *     queue using bus_to_virt() and virt_to_bus() which are illegal under
+ *     the API.  The entire queue processing structure will need to be
+ *     altered to fix this.
+ *  2. Need to add memory mapping workaround. Test the memory mapping.
+ *     If it doesn't work revert to I/O port access. Can a test be done
+ *     safely?
+ *  3. Handle an interrupt not working. Keep an interrupt counter in
+ *     the interrupt handler. In the timeout function if the interrupt
+ *     has not occurred then print a message and run in polled mode.
+ *  4. Need to add support for target mode commands, cf. CAM XPT.
+ *  5. check DMA mapping functions for failure
+ *  6. Use scsi_transport_spi
+ *  7. advansys_info is not safe against multiple simultaneous callers
+ *  8. Add module_param to override ISA/VLB ioport array
  */
-
-/* Enable driver assertions. */
-#define ADVANSYS_ASSERT
+#warning this driver is still not properly converted to the DMA API
 
 /* Enable driver /proc statistics. */
 #define ADVANSYS_STATS
 
 /* Enable driver tracing. */
-/* #define ADVANSYS_DEBUG */
-
-/*
- * --- Asc Library Constants and Macros
- */
-
-#define ASC_LIB_VERSION_MAJOR  1
-#define ASC_LIB_VERSION_MINOR  24
-#define ASC_LIB_SERIAL_NUMBER  123
+#undef ADVANSYS_DEBUG
 
 /*
  * Portable Data Types
@@ -837,17 +90,6 @@
 #define ASC_DCNT  __u32		/* Unsigned Data count type. */
 #define ASC_SDCNT __s32		/* Signed Data count type. */
 
-/*
- * These macros are used to convert a virtual address to a
- * 32-bit value. This currently can be used on Linux Alpha
- * which uses 64-bit virtual address but a 32-bit bus address.
- * This is likely to break in the future, but doing this now
- * will give us time to change the HW and FW to handle 64-bit
- * addresses.
- */
-#define ASC_VADDR_TO_U32   virt_to_bus
-#define ASC_U32_TO_VADDR   bus_to_virt
-
 typedef unsigned char uchar;
 
 #ifndef TRUE
@@ -857,29 +99,9 @@ typedef unsigned char uchar;
 #define FALSE    (0)
 #endif
 
-#define EOF      (-1)
 #define ERR      (-1)
 #define UW_ERR   (uint)(0xFFFF)
 #define isodd_word(val)   ((((uint)val) & (uint)0x0001) != 0)
-#define AscPCIConfigVendorIDRegister      0x0000
-#define AscPCIConfigDeviceIDRegister      0x0002
-#define AscPCIConfigCommandRegister       0x0004
-#define AscPCIConfigStatusRegister        0x0006
-#define AscPCIConfigRevisionIDRegister    0x0008
-#define AscPCIConfigCacheSize             0x000C
-#define AscPCIConfigLatencyTimer          0x000D
-#define AscPCIIOBaseRegister              0x0010
-#define AscPCICmdRegBits_IOMemBusMaster   0x0007
-#define ASC_PCI_ID2BUS(id)    ((id) & 0xFF)
-#define ASC_PCI_ID2DEV(id)    (((id) >> 11) & 0x1F)
-#define ASC_PCI_ID2FUNC(id)   (((id) >> 8) & 0x7)
-#define ASC_PCI_MKID(bus, dev, func) ((((dev) & 0x1F) << 11) | (((func) & 0x7) << 8) | ((bus) & 0xFF))
-#define ASC_PCI_REVISION_3150             0x02
-#define ASC_PCI_REVISION_3050             0x03
-
-#define  ASC_DVCLIB_CALL_DONE     (1)
-#define  ASC_DVCLIB_CALL_FAILED   (0)
-#define  ASC_DVCLIB_CALL_ERROR    (-1)
 
 #define PCI_VENDOR_ID_ASP		0x10cd
 #define PCI_DEVICE_ID_ASP_1200A		0x1100
@@ -898,7 +120,7 @@ typedef unsigned char uchar;
 #define CC_VERY_LONG_SG_LIST 0
 #define ASC_SRB2SCSIQ(srb_ptr)  (srb_ptr)
 
-#define PortAddr                 unsigned short	/* port address size  */
+#define PortAddr                 unsigned int	/* port address size  */
 #define inp(port)                inb(port)
 #define outp(port, byte)         outb((byte), (port))
 
@@ -918,11 +140,10 @@ typedef unsigned char uchar;
 #define ASC_IS_PCMCIA       (0x0008)
 #define ASC_IS_MCA          (0x0020)
 #define ASC_IS_VL           (0x0040)
-#define ASC_ISA_PNP_PORT_ADDR  (0x279)
-#define ASC_ISA_PNP_PORT_WRITE (ASC_ISA_PNP_PORT_ADDR+0x800)
 #define ASC_IS_WIDESCSI_16  (0x0100)
 #define ASC_IS_WIDESCSI_32  (0x0200)
 #define ASC_IS_BIG_ENDIAN   (0x8000)
+
 #define ASC_CHIP_MIN_VER_VL      (0x01)
 #define ASC_CHIP_MAX_VER_VL      (0x07)
 #define ASC_CHIP_MIN_VER_PCI     (0x09)
@@ -941,16 +162,9 @@ typedef unsigned char uchar;
 #define ASC_CHIP_MAX_VER_EISA (0x47)
 #define ASC_CHIP_VER_EISA_BIT (0x40)
 #define ASC_CHIP_LATEST_VER_EISA   ((ASC_CHIP_MIN_VER_EISA - 1) + 3)
-#define ASC_MAX_LIB_SUPPORTED_ISA_CHIP_VER   0x21
-#define ASC_MAX_LIB_SUPPORTED_PCI_CHIP_VER   0x0A
-#define ASC_MAX_VL_DMA_ADDR     (0x07FFFFFFL)
 #define ASC_MAX_VL_DMA_COUNT    (0x07FFFFFFL)
-#define ASC_MAX_PCI_DMA_ADDR    (0xFFFFFFFFL)
 #define ASC_MAX_PCI_DMA_COUNT   (0xFFFFFFFFL)
-#define ASC_MAX_ISA_DMA_ADDR    (0x00FFFFFFL)
 #define ASC_MAX_ISA_DMA_COUNT   (0x00FFFFFFL)
-#define ASC_MAX_EISA_DMA_ADDR   (0x07FFFFFFL)
-#define ASC_MAX_EISA_DMA_COUNT  (0x07FFFFFFL)
 
 #define ASC_SCSI_ID_BITS  3
 #define ASC_SCSI_TIX_TYPE     uchar
@@ -961,82 +175,17 @@ typedef unsigned char uchar;
 #define ASC_SCSI_WIDTH_BIT_SET  0xFF
 #define ASC_MAX_SENSE_LEN   32
 #define ASC_MIN_SENSE_LEN   14
-#define ASC_MAX_CDB_LEN     12
 #define ASC_SCSI_RESET_HOLD_TIME_US  60
 
-#define ADV_INQ_CLOCKING_ST_ONLY    0x0
-#define ADV_INQ_CLOCKING_DT_ONLY    0x1
-#define ADV_INQ_CLOCKING_ST_AND_DT  0x3
-
 /*
- * Inquiry SPC-2 SPI Byte 1 EVPD (Enable Vital Product Data)
- * and CmdDt (Command Support Data) field bit definitions.
+ * Narrow boards only support 12-byte commands, while wide boards
+ * extend to 16-byte commands.
  */
-#define ADV_INQ_RTN_VPD_AND_CMDDT           0x3
-#define ADV_INQ_RTN_CMDDT_FOR_OP_CODE       0x2
-#define ADV_INQ_RTN_VPD_FOR_PG_CODE         0x1
-#define ADV_INQ_RTN_STD_INQUIRY_DATA        0x0
+#define ASC_MAX_CDB_LEN     12
+#define ADV_MAX_CDB_LEN     16
 
-#define ASC_SCSIDIR_NOCHK    0x00
-#define ASC_SCSIDIR_T2H      0x08
-#define ASC_SCSIDIR_H2T      0x10
-#define ASC_SCSIDIR_NODATA   0x18
-#define SCSI_ASC_NOMEDIA          0x3A
-#define ASC_SRB_HOST(x)  ((uchar)((uchar)(x) >> 4))
-#define ASC_SRB_TID(x)   ((uchar)((uchar)(x) & (uchar)0x0F))
-#define ASC_SRB_LUN(x)   ((uchar)((uint)(x) >> 13))
-#define PUT_CDB1(x)   ((uchar)((uint)(x) >> 8))
-#define MS_CMD_DONE    0x00
-#define MS_EXTEND      0x01
 #define MS_SDTR_LEN    0x03
-#define MS_SDTR_CODE   0x01
 #define MS_WDTR_LEN    0x02
-#define MS_WDTR_CODE   0x03
-#define MS_MDP_LEN    0x05
-#define MS_MDP_CODE   0x00
-
-/*
- * Inquiry data structure and bitfield macros
- *
- * Only quantities of more than 1 bit are shifted, since the others are
- * just tested for true or false. C bitfields aren't portable between big
- * and little-endian platforms so they are not used.
- */
-
-#define ASC_INQ_DVC_TYPE(inq)       ((inq)->periph & 0x1f)
-#define ASC_INQ_QUALIFIER(inq)      (((inq)->periph & 0xe0) >> 5)
-#define ASC_INQ_DVC_TYPE_MOD(inq)   ((inq)->devtype & 0x7f)
-#define ASC_INQ_REMOVABLE(inq)      ((inq)->devtype & 0x80)
-#define ASC_INQ_ANSI_VER(inq)       ((inq)->ver & 0x07)
-#define ASC_INQ_ECMA_VER(inq)       (((inq)->ver & 0x38) >> 3)
-#define ASC_INQ_ISO_VER(inq)        (((inq)->ver & 0xc0) >> 6)
-#define ASC_INQ_RESPONSE_FMT(inq)   ((inq)->byte3 & 0x0f)
-#define ASC_INQ_TERM_IO(inq)        ((inq)->byte3 & 0x40)
-#define ASC_INQ_ASYNC_NOTIF(inq)    ((inq)->byte3 & 0x80)
-#define ASC_INQ_SOFT_RESET(inq)     ((inq)->flags & 0x01)
-#define ASC_INQ_CMD_QUEUE(inq)      ((inq)->flags & 0x02)
-#define ASC_INQ_LINK_CMD(inq)       ((inq)->flags & 0x08)
-#define ASC_INQ_SYNC(inq)           ((inq)->flags & 0x10)
-#define ASC_INQ_WIDE16(inq)         ((inq)->flags & 0x20)
-#define ASC_INQ_WIDE32(inq)         ((inq)->flags & 0x40)
-#define ASC_INQ_REL_ADDR(inq)       ((inq)->flags & 0x80)
-#define ASC_INQ_INFO_UNIT(inq)      ((inq)->info & 0x01)
-#define ASC_INQ_QUICK_ARB(inq)      ((inq)->info & 0x02)
-#define ASC_INQ_CLOCKING(inq)       (((inq)->info & 0x0c) >> 2)
-
-typedef struct {
-	uchar periph;
-	uchar devtype;
-	uchar ver;
-	uchar byte3;
-	uchar add_len;
-	uchar res1;
-	uchar res2;
-	uchar flags;
-	uchar vendor_id[8];
-	uchar product_id[16];
-	uchar product_rev_level[4];
-} ASC_SCSI_INQUIRY;
 
 #define ASC_SG_LIST_PER_Q   7
 #define QS_FREE        0x00
@@ -1215,21 +364,8 @@ typedef struct asc_sg_head {
 	ushort queue_cnt;
 	ushort entry_to_copy;
 	ushort res;
-	ASC_SG_LIST sg_list[ASC_MAX_SG_LIST];
+	ASC_SG_LIST sg_list[0];
 } ASC_SG_HEAD;
-
-#define ASC_MIN_SG_LIST   2
-
-typedef struct asc_min_sg_head {
-	ushort entry_cnt;
-	ushort queue_cnt;
-	ushort entry_to_copy;
-	ushort res;
-	ASC_SG_LIST sg_list[ASC_MIN_SG_LIST];
-} ASC_MIN_SG_HEAD;
-
-#define QCX_SORT        (0x0001)
-#define QCX_COALEASE    (0x0002)
 
 typedef struct asc_scsi_q {
 	ASC_SCSIQ_1 q1;
@@ -1287,45 +423,12 @@ typedef struct asc_risc_sg_list_q {
 	ASC_SG_LIST sg_list[7];
 } ASC_RISC_SG_LIST_Q;
 
-#define ASC_EXE_SCSI_IO_MAX_IDLE_LOOP  0x1000000UL
-#define ASC_EXE_SCSI_IO_MAX_WAIT_LOOP  1024
-#define ASCQ_ERR_NO_ERROR             0
-#define ASCQ_ERR_IO_NOT_FOUND         1
-#define ASCQ_ERR_LOCAL_MEM            2
-#define ASCQ_ERR_CHKSUM               3
-#define ASCQ_ERR_START_CHIP           4
-#define ASCQ_ERR_INT_TARGET_ID        5
-#define ASCQ_ERR_INT_LOCAL_MEM        6
-#define ASCQ_ERR_HALT_RISC            7
-#define ASCQ_ERR_GET_ASPI_ENTRY       8
-#define ASCQ_ERR_CLOSE_ASPI           9
-#define ASCQ_ERR_HOST_INQUIRY         0x0A
-#define ASCQ_ERR_SAVED_SRB_BAD        0x0B
-#define ASCQ_ERR_QCNTL_SG_LIST        0x0C
 #define ASCQ_ERR_Q_STATUS             0x0D
-#define ASCQ_ERR_WR_SCSIQ             0x0E
-#define ASCQ_ERR_PC_ADDR              0x0F
-#define ASCQ_ERR_SYN_OFFSET           0x10
-#define ASCQ_ERR_SYN_XFER_TIME        0x11
-#define ASCQ_ERR_LOCK_DMA             0x12
-#define ASCQ_ERR_UNLOCK_DMA           0x13
-#define ASCQ_ERR_VDS_CHK_INSTALL      0x14
-#define ASCQ_ERR_MICRO_CODE_HALT      0x15
-#define ASCQ_ERR_SET_LRAM_ADDR        0x16
 #define ASCQ_ERR_CUR_QNG              0x17
 #define ASCQ_ERR_SG_Q_LINKS           0x18
-#define ASCQ_ERR_SCSIQ_PTR            0x19
 #define ASCQ_ERR_ISR_RE_ENTRY         0x1A
 #define ASCQ_ERR_CRITICAL_RE_ENTRY    0x1B
 #define ASCQ_ERR_ISR_ON_CRITICAL      0x1C
-#define ASCQ_ERR_SG_LIST_ODD_ADDRESS  0x1D
-#define ASCQ_ERR_XFER_ADDRESS_TOO_BIG 0x1E
-#define ASCQ_ERR_SCSIQ_NULL_PTR       0x1F
-#define ASCQ_ERR_SCSIQ_BAD_NEXT_PTR   0x20
-#define ASCQ_ERR_GET_NUM_OF_FREE_Q    0x21
-#define ASCQ_ERR_SEND_SCSI_Q          0x22
-#define ASCQ_ERR_HOST_REQ_RISC_HALT   0x23
-#define ASCQ_ERR_RESET_SDTR           0x24
 
 /*
  * Warning code values are set in ASC_DVC_VAR  'warn_code'.
@@ -1338,84 +441,51 @@ typedef struct asc_risc_sg_list_q {
 #define ASC_WARN_CMD_QNG_CONFLICT     0x0010
 #define ASC_WARN_EEPROM_RECOVER       0x0020
 #define ASC_WARN_CFG_MSW_RECOVER      0x0040
-#define ASC_WARN_SET_PCI_CONFIG_SPACE 0x0080
 
 /*
- * Error code values are set in ASC_DVC_VAR  'err_code'.
+ * Error code values are set in {ASC/ADV}_DVC_VAR  'err_code'.
  */
-#define ASC_IERR_WRITE_EEPROM         0x0001
-#define ASC_IERR_MCODE_CHKSUM         0x0002
-#define ASC_IERR_SET_PC_ADDR          0x0004
-#define ASC_IERR_START_STOP_CHIP      0x0008
-#define ASC_IERR_IRQ_NO               0x0010
-#define ASC_IERR_SET_IRQ_NO           0x0020
-#define ASC_IERR_CHIP_VERSION         0x0040
-#define ASC_IERR_SET_SCSI_ID          0x0080
-#define ASC_IERR_GET_PHY_ADDR         0x0100
-#define ASC_IERR_BAD_SIGNATURE        0x0200
-#define ASC_IERR_NO_BUS_TYPE          0x0400
-#define ASC_IERR_SCAM                 0x0800
-#define ASC_IERR_SET_SDTR             0x1000
-#define ASC_IERR_RW_LRAM              0x8000
+#define ASC_IERR_NO_CARRIER		0x0001	/* No more carrier memory */
+#define ASC_IERR_MCODE_CHKSUM		0x0002	/* micro code check sum error */
+#define ASC_IERR_SET_PC_ADDR		0x0004
+#define ASC_IERR_START_STOP_CHIP	0x0008	/* start/stop chip failed */
+#define ASC_IERR_ILLEGAL_CONNECTION	0x0010	/* Illegal cable connection */
+#define ASC_IERR_SINGLE_END_DEVICE	0x0020	/* SE device on DIFF bus */
+#define ASC_IERR_REVERSED_CABLE		0x0040	/* Narrow flat cable reversed */
+#define ASC_IERR_SET_SCSI_ID		0x0080	/* set SCSI ID failed */
+#define ASC_IERR_HVD_DEVICE		0x0100	/* HVD device on LVD port */
+#define ASC_IERR_BAD_SIGNATURE		0x0200	/* signature not found */
+#define ASC_IERR_NO_BUS_TYPE		0x0400
+#define ASC_IERR_BIST_PRE_TEST		0x0800	/* BIST pre-test error */
+#define ASC_IERR_BIST_RAM_TEST		0x1000	/* BIST RAM test error */
+#define ASC_IERR_BAD_CHIPTYPE		0x2000	/* Invalid chip_type setting */
 
-#define ASC_DEF_IRQ_NO  10
-#define ASC_MAX_IRQ_NO  15
-#define ASC_MIN_IRQ_NO  10
-#define ASC_MIN_REMAIN_Q        (0x02)
 #define ASC_DEF_MAX_TOTAL_QNG   (0xF0)
 #define ASC_MIN_TAG_Q_PER_DVC   (0x04)
-#define ASC_DEF_TAG_Q_PER_DVC   (0x04)
-#define ASC_MIN_FREE_Q        ASC_MIN_REMAIN_Q
+#define ASC_MIN_FREE_Q        (0x02)
 #define ASC_MIN_TOTAL_QNG     ((ASC_MAX_SG_QUEUE)+(ASC_MIN_FREE_Q))
 #define ASC_MAX_TOTAL_QNG 240
 #define ASC_MAX_PCI_ULTRA_INRAM_TOTAL_QNG 16
 #define ASC_MAX_PCI_ULTRA_INRAM_TAG_QNG   8
 #define ASC_MAX_PCI_INRAM_TOTAL_QNG  20
 #define ASC_MAX_INRAM_TAG_QNG   16
-#define ASC_IOADR_TABLE_MAX_IX  11
 #define ASC_IOADR_GAP   0x10
-#define ASC_SEARCH_IOP_GAP 0x10
-#define ASC_MIN_IOP_ADDR   (PortAddr)0x0100
-#define ASC_MAX_IOP_ADDR   (PortAddr)0x3F0
-#define ASC_IOADR_1     (PortAddr)0x0110
-#define ASC_IOADR_2     (PortAddr)0x0130
-#define ASC_IOADR_3     (PortAddr)0x0150
-#define ASC_IOADR_4     (PortAddr)0x0190
-#define ASC_IOADR_5     (PortAddr)0x0210
-#define ASC_IOADR_6     (PortAddr)0x0230
-#define ASC_IOADR_7     (PortAddr)0x0250
-#define ASC_IOADR_8     (PortAddr)0x0330
-#define ASC_IOADR_DEF   ASC_IOADR_8
-#define ASC_LIB_SCSIQ_WK_SP        256
-#define ASC_MAX_SYN_XFER_NO        16
 #define ASC_SYN_MAX_OFFSET         0x0F
 #define ASC_DEF_SDTR_OFFSET        0x0F
-#define ASC_DEF_SDTR_INDEX         0x00
 #define ASC_SDTR_ULTRA_PCI_10MB_INDEX  0x02
-#define SYN_XFER_NS_0  25
-#define SYN_XFER_NS_1  30
-#define SYN_XFER_NS_2  35
-#define SYN_XFER_NS_3  40
-#define SYN_XFER_NS_4  50
-#define SYN_XFER_NS_5  60
-#define SYN_XFER_NS_6  70
-#define SYN_XFER_NS_7  85
-#define SYN_ULTRA_XFER_NS_0    12
-#define SYN_ULTRA_XFER_NS_1    19
-#define SYN_ULTRA_XFER_NS_2    25
-#define SYN_ULTRA_XFER_NS_3    32
-#define SYN_ULTRA_XFER_NS_4    38
-#define SYN_ULTRA_XFER_NS_5    44
-#define SYN_ULTRA_XFER_NS_6    50
-#define SYN_ULTRA_XFER_NS_7    57
-#define SYN_ULTRA_XFER_NS_8    63
-#define SYN_ULTRA_XFER_NS_9    69
-#define SYN_ULTRA_XFER_NS_10   75
-#define SYN_ULTRA_XFER_NS_11   82
-#define SYN_ULTRA_XFER_NS_12   88
-#define SYN_ULTRA_XFER_NS_13   94
-#define SYN_ULTRA_XFER_NS_14  100
-#define SYN_ULTRA_XFER_NS_15  107
+#define ASYN_SDTR_DATA_FIX_PCI_REV_AB 0x41
+
+/* The narrow chip only supports a limited selection of transfer rates.
+ * These are encoded in the range 0..7 or 0..15 depending whether the chip
+ * is Ultra-capable or not.  These tables let us convert from one to the other.
+ */
+static const unsigned char asc_syn_xfer_period[8] = {
+	25, 30, 35, 40, 50, 60, 70, 85
+};
+
+static const unsigned char asc_syn_ultra_xfer_period[16] = {
+	12, 19, 25, 32, 38, 44, 50, 57, 63, 69, 75, 82, 88, 94, 100, 107
+};
 
 typedef struct ext_msg {
 	uchar msg_type;
@@ -1456,22 +526,16 @@ typedef struct asc_dvc_cfg {
 	uchar isa_dma_speed;
 	uchar isa_dma_channel;
 	uchar chip_version;
-	ushort lib_serial_no;
-	ushort lib_version;
 	ushort mcode_date;
 	ushort mcode_version;
 	uchar max_tag_qng[ASC_MAX_TID + 1];
-	uchar *overrun_buf;
 	uchar sdtr_period_offset[ASC_MAX_TID + 1];
-	ushort pci_slot_info;
 	uchar adapter_info[6];
-	struct device *dev;
 } ASC_DVC_CFG;
 
 #define ASC_DEF_DVC_CNTL       0xFFFF
 #define ASC_DEF_CHIP_SCSI_ID   7
 #define ASC_DEF_ISA_DMA_SPEED  4
-#define ASC_INIT_STATE_NULL          0x0000
 #define ASC_INIT_STATE_BEG_GET_CFG   0x0001
 #define ASC_INIT_STATE_END_GET_CFG   0x0002
 #define ASC_INIT_STATE_BEG_SET_CFG   0x0004
@@ -1484,14 +548,11 @@ typedef struct asc_dvc_cfg {
 #define ASC_INIT_STATE_WITHOUT_EEP   0x8000
 #define ASC_BUG_FIX_IF_NOT_DWB       0x0001
 #define ASC_BUG_FIX_ASYN_USE_SYN     0x0002
-#define ASYN_SDTR_DATA_FIX_PCI_REV_AB 0x41
 #define ASC_MIN_TAGGED_CMD  7
 #define ASC_MAX_SCSI_RESET_WAIT      30
+#define ASC_OVERRUN_BSIZE		64
 
 struct asc_dvc_var;		/* Forward Declaration. */
-
-typedef void (*ASC_ISR_CALLBACK) (struct asc_dvc_var *, ASC_QDONE_INFO *);
-typedef int (*ASC_EXE_CALLBACK) (struct asc_dvc_var *, ASC_SCSI_Q *);
 
 typedef struct asc_dvc_var {
 	PortAddr iop_base;
@@ -1499,28 +560,27 @@ typedef struct asc_dvc_var {
 	ushort dvc_cntl;
 	ushort bug_fix_cntl;
 	ushort bus_type;
-	ASC_ISR_CALLBACK isr_callback;
-	ASC_EXE_CALLBACK exe_callback;
 	ASC_SCSI_BIT_ID_TYPE init_sdtr;
 	ASC_SCSI_BIT_ID_TYPE sdtr_done;
 	ASC_SCSI_BIT_ID_TYPE use_tagged_qng;
 	ASC_SCSI_BIT_ID_TYPE unit_not_ready;
 	ASC_SCSI_BIT_ID_TYPE queue_full_or_busy;
 	ASC_SCSI_BIT_ID_TYPE start_motor;
+	uchar overrun_buf[ASC_OVERRUN_BSIZE] __aligned(8);
+	dma_addr_t overrun_dma;
 	uchar scsi_reset_wait;
 	uchar chip_no;
 	char is_in_int;
 	uchar max_total_qng;
 	uchar cur_total_qng;
 	uchar in_critical_cnt;
-	uchar irq_no;
 	uchar last_q_shortage;
 	ushort init_state;
 	uchar cur_dvc_qng[ASC_MAX_TID + 1];
 	uchar max_dvc_qng[ASC_MAX_TID + 1];
 	ASC_SCSI_Q *scsiq_busy_head[ASC_MAX_TID + 1];
 	ASC_SCSI_Q *scsiq_busy_tail[ASC_MAX_TID + 1];
-	uchar sdtr_period_tbl[ASC_MAX_SYN_XFER_NO];
+	const uchar *sdtr_period_tbl;
 	ASC_DVC_CFG *cfg;
 	ASC_SCSI_BIT_ID_TYPE pci_fix_asyn_xfer_always;
 	char redo_scam;
@@ -1529,9 +589,11 @@ typedef struct asc_dvc_var {
 	ASC_DCNT max_dma_count;
 	ASC_SCSI_BIT_ID_TYPE no_scam;
 	ASC_SCSI_BIT_ID_TYPE pci_fix_asyn_xfer;
+	uchar min_sdtr_index;
 	uchar max_sdtr_index;
-	uchar host_init_sdtr_index;
 	struct asc_board *drv_ptr;
+	int ptr_map_count;
+	void **ptr_map;
 	ASC_DCNT uc_break;
 } ASC_DVC_VAR;
 
@@ -1568,12 +630,7 @@ typedef struct asc_cap_info_array {
 #define ASC_EEP_MAX_DVC_ADDR_VL   15
 #define ASC_EEP_DVC_CFG_BEG      32
 #define ASC_EEP_MAX_DVC_ADDR     45
-#define ASC_EEP_DEFINED_WORDS    10
-#define ASC_EEP_MAX_ADDR         63
-#define ASC_EEP_RES_WORDS         0
 #define ASC_EEP_MAX_RETRY        20
-#define ASC_MAX_INIT_BUSY_RETRY   8
-#define ASC_EEP_ISA_PNP_WSIZE    16
 
 /*
  * These macros keep the chip SCSI id and ISA DMA speed
@@ -1609,17 +666,10 @@ typedef struct asceep_config {
 	ushort chksum;
 } ASCEEP_CONFIG;
 
-#define ASC_PCI_CFG_LSW_SCSI_PARITY  0x0800
-#define ASC_PCI_CFG_LSW_BURST_MODE   0x0080
-#define ASC_PCI_CFG_LSW_INTR_ABLE    0x0020
-
 #define ASC_EEP_CMD_READ          0x80
 #define ASC_EEP_CMD_WRITE         0x40
 #define ASC_EEP_CMD_WRITE_ABLE    0x30
 #define ASC_EEP_CMD_WRITE_DISABLE 0x00
-#define ASC_OVERRUN_BSIZE  0x00000048UL
-#define ASC_CTRL_BREAK_ONCE        0x0001
-#define ASC_CTRL_BREAK_STAY_IDLE   0x0002
 #define ASCV_MSGOUT_BEG         0x0000
 #define ASCV_MSGOUT_SDTR_PERIOD (ASCV_MSGOUT_BEG+3)
 #define ASCV_MSGOUT_SDTR_OFFSET (ASCV_MSGOUT_BEG+4)
@@ -1796,16 +846,9 @@ typedef struct asceep_config {
 #define ASC_1000_ID0W      0x04C1
 #define ASC_1000_ID0W_FIX  0x00C1
 #define ASC_1000_ID1B      0x25
-#define ASC_EISA_BIG_IOP_GAP   (0x1C30-0x0C50)
-#define ASC_EISA_SMALL_IOP_GAP (0x0020)
-#define ASC_EISA_MIN_IOP_ADDR  (0x0C30)
-#define ASC_EISA_MAX_IOP_ADDR  (0xFC50)
 #define ASC_EISA_REV_IOP_MASK  (0x0C83)
-#define ASC_EISA_PID_IOP_MASK  (0x0C80)
 #define ASC_EISA_CFG_IOP_MASK  (0x0C86)
 #define ASC_GET_EISA_SLOT(iop)  (PortAddr)((iop) & 0xF000)
-#define ASC_EISA_ID_740    0x01745004UL
-#define ASC_EISA_ID_750    0x01755004UL
 #define INS_HALTINT        (ushort)0x6281
 #define INS_HALT           (ushort)0x6280
 #define INS_SINT           (ushort)0x6200
@@ -1828,11 +871,10 @@ typedef struct asc_mc_saved {
 #define AscGetRiscVarDoneQTail(port)        AscReadLramByte((port), ASCV_DONENEXT_B)
 #define AscPutRiscVarFreeQHead(port, val)   AscWriteLramByte((port), ASCV_NEXTRDY_B, val)
 #define AscPutRiscVarDoneQTail(port, val)   AscWriteLramByte((port), ASCV_DONENEXT_B, val)
-#define AscPutMCodeSDTRDoneAtID(port, id, data)  AscWriteLramByte((port), (ushort)((ushort)ASCV_SDTR_DONE_BEG+(ushort)id), (data));
-#define AscGetMCodeSDTRDoneAtID(port, id)        AscReadLramByte((port), (ushort)((ushort)ASCV_SDTR_DONE_BEG+(ushort)id));
-#define AscPutMCodeInitSDTRAtID(port, id, data)  AscWriteLramByte((port), (ushort)((ushort)ASCV_SDTR_DATA_BEG+(ushort)id), data);
-#define AscGetMCodeInitSDTRAtID(port, id)        AscReadLramByte((port), (ushort)((ushort)ASCV_SDTR_DATA_BEG+(ushort)id));
-#define AscSynIndexToPeriod(index)        (uchar)(asc_dvc->sdtr_period_tbl[ (index) ])
+#define AscPutMCodeSDTRDoneAtID(port, id, data)  AscWriteLramByte((port), (ushort)((ushort)ASCV_SDTR_DONE_BEG+(ushort)id), (data))
+#define AscGetMCodeSDTRDoneAtID(port, id)        AscReadLramByte((port), (ushort)((ushort)ASCV_SDTR_DONE_BEG+(ushort)id))
+#define AscPutMCodeInitSDTRAtID(port, id, data)  AscWriteLramByte((port), (ushort)((ushort)ASCV_SDTR_DATA_BEG+(ushort)id), data)
+#define AscGetMCodeInitSDTRAtID(port, id)        AscReadLramByte((port), (ushort)((ushort)ASCV_SDTR_DATA_BEG+(ushort)id))
 #define AscGetChipSignatureByte(port)     (uchar)inp((port)+IOP_SIG_BYTE)
 #define AscGetChipSignatureWord(port)     (ushort)inpw((port)+IOP_SIG_WORD)
 #define AscGetChipVerNo(port)             (uchar)inp((port)+IOP_VERSION)
@@ -1887,125 +929,6 @@ typedef struct asc_mc_saved {
 #define AscReadChipDvcID(port)            (uchar)inp((port)+IOP_REG_ID)
 #define AscWriteChipDvcID(port, data)     outp((port)+IOP_REG_ID, data)
 
-static int AscWriteEEPCmdReg(PortAddr iop_base, uchar cmd_reg);
-static int AscWriteEEPDataReg(PortAddr iop_base, ushort data_reg);
-static void AscWaitEEPRead(void);
-static void AscWaitEEPWrite(void);
-static ushort AscReadEEPWord(PortAddr, uchar);
-static ushort AscWriteEEPWord(PortAddr, uchar, ushort);
-static ushort AscGetEEPConfig(PortAddr, ASCEEP_CONFIG *, ushort);
-static int AscSetEEPConfigOnce(PortAddr, ASCEEP_CONFIG *, ushort);
-static int AscSetEEPConfig(PortAddr, ASCEEP_CONFIG *, ushort);
-static int AscStartChip(PortAddr);
-static int AscStopChip(PortAddr);
-static void AscSetChipIH(PortAddr, ushort);
-static int AscIsChipHalted(PortAddr);
-static void AscAckInterrupt(PortAddr);
-static void AscDisableInterrupt(PortAddr);
-static void AscEnableInterrupt(PortAddr);
-static void AscSetBank(PortAddr, uchar);
-static int AscResetChipAndScsiBus(ASC_DVC_VAR *);
-#ifdef CONFIG_ISA
-static ushort AscGetIsaDmaChannel(PortAddr);
-static ushort AscSetIsaDmaChannel(PortAddr, ushort);
-static uchar AscSetIsaDmaSpeed(PortAddr, uchar);
-static uchar AscGetIsaDmaSpeed(PortAddr);
-#endif /* CONFIG_ISA */
-static uchar AscReadLramByte(PortAddr, ushort);
-static ushort AscReadLramWord(PortAddr, ushort);
-#if CC_VERY_LONG_SG_LIST
-static ASC_DCNT AscReadLramDWord(PortAddr, ushort);
-#endif /* CC_VERY_LONG_SG_LIST */
-static void AscWriteLramWord(PortAddr, ushort, ushort);
-static void AscWriteLramByte(PortAddr, ushort, uchar);
-static ASC_DCNT AscMemSumLramWord(PortAddr, ushort, int);
-static void AscMemWordSetLram(PortAddr, ushort, ushort, int);
-static void AscMemWordCopyPtrToLram(PortAddr, ushort, uchar *, int);
-static void AscMemDWordCopyPtrToLram(PortAddr, ushort, uchar *, int);
-static void AscMemWordCopyPtrFromLram(PortAddr, ushort, uchar *, int);
-static ushort AscInitAscDvcVar(ASC_DVC_VAR *);
-static ushort AscInitFromEEP(ASC_DVC_VAR *);
-static ushort AscInitFromAscDvcVar(ASC_DVC_VAR *);
-static ushort AscInitMicroCodeVar(ASC_DVC_VAR *);
-static int AscTestExternalLram(ASC_DVC_VAR *);
-static uchar AscMsgOutSDTR(ASC_DVC_VAR *, uchar, uchar);
-static uchar AscCalSDTRData(ASC_DVC_VAR *, uchar, uchar);
-static void AscSetChipSDTR(PortAddr, uchar, uchar);
-static uchar AscGetSynPeriodIndex(ASC_DVC_VAR *, uchar);
-static uchar AscAllocFreeQueue(PortAddr, uchar);
-static uchar AscAllocMultipleFreeQueue(PortAddr, uchar, uchar);
-static int AscHostReqRiscHalt(PortAddr);
-static int AscStopQueueExe(PortAddr);
-static int AscSendScsiQueue(ASC_DVC_VAR *,
-			    ASC_SCSI_Q *scsiq, uchar n_q_required);
-static int AscPutReadyQueue(ASC_DVC_VAR *, ASC_SCSI_Q *, uchar);
-static int AscPutReadySgListQueue(ASC_DVC_VAR *, ASC_SCSI_Q *, uchar);
-static int AscSetChipSynRegAtID(PortAddr, uchar, uchar);
-static int AscSetRunChipSynRegAtID(PortAddr, uchar, uchar);
-static ushort AscInitLram(ASC_DVC_VAR *);
-static ushort AscInitQLinkVar(ASC_DVC_VAR *);
-static int AscSetLibErrorCode(ASC_DVC_VAR *, ushort);
-static int AscIsrChipHalted(ASC_DVC_VAR *);
-static uchar _AscCopyLramScsiDoneQ(PortAddr, ushort,
-				   ASC_QDONE_INFO *, ASC_DCNT);
-static int AscIsrQDone(ASC_DVC_VAR *);
-static int AscCompareString(uchar *, uchar *, int);
-#ifdef CONFIG_ISA
-static ushort AscGetEisaChipCfg(PortAddr);
-static ASC_DCNT AscGetEisaProductID(PortAddr);
-static PortAddr AscSearchIOPortAddrEISA(PortAddr);
-static PortAddr AscSearchIOPortAddr11(PortAddr);
-static PortAddr AscSearchIOPortAddr(PortAddr, ushort);
-static void AscSetISAPNPWaitForKey(void);
-#endif /* CONFIG_ISA */
-static uchar AscGetChipScsiCtrl(PortAddr);
-static uchar AscSetChipScsiID(PortAddr, uchar);
-static uchar AscGetChipVersion(PortAddr, ushort);
-static ushort AscGetChipBusType(PortAddr);
-static ASC_DCNT AscLoadMicroCode(PortAddr, ushort, uchar *, ushort);
-static int AscFindSignature(PortAddr);
-static void AscToggleIRQAct(PortAddr);
-static uchar AscGetChipIRQ(PortAddr, ushort);
-static uchar AscSetChipIRQ(PortAddr, uchar, ushort);
-static ushort AscGetChipBiosAddress(PortAddr, ushort);
-static inline ulong DvcEnterCritical(void);
-static inline void DvcLeaveCritical(ulong);
-#ifdef CONFIG_PCI
-static uchar DvcReadPCIConfigByte(ASC_DVC_VAR *, ushort);
-static void DvcWritePCIConfigByte(ASC_DVC_VAR *, ushort, uchar);
-#endif /* CONFIG_PCI */
-static ushort AscGetChipBiosAddress(PortAddr, ushort);
-static void DvcSleepMilliSecond(ASC_DCNT);
-static void DvcDelayNanoSecond(ASC_DVC_VAR *, ASC_DCNT);
-static void DvcPutScsiQ(PortAddr, ushort, uchar *, int);
-static void DvcGetQinfo(PortAddr, ushort, uchar *, int);
-static ushort AscInitGetConfig(ASC_DVC_VAR *);
-static ushort AscInitSetConfig(ASC_DVC_VAR *);
-static ushort AscInitAsc1000Driver(ASC_DVC_VAR *);
-static void AscAsyncFix(ASC_DVC_VAR *, uchar, ASC_SCSI_INQUIRY *);
-static int AscTagQueuingSafe(ASC_SCSI_INQUIRY *);
-static void AscInquiryHandling(ASC_DVC_VAR *, uchar, ASC_SCSI_INQUIRY *);
-static int AscExeScsiQueue(ASC_DVC_VAR *, ASC_SCSI_Q *);
-static int AscISR(ASC_DVC_VAR *);
-static uint AscGetNumOfFreeQueue(ASC_DVC_VAR *, uchar, uchar);
-static int AscSgListToQueue(int);
-#ifdef CONFIG_ISA
-static void AscEnableIsaDma(uchar);
-#endif /* CONFIG_ISA */
-static ASC_DCNT AscGetMaxDmaCount(ushort);
-static const char *advansys_info(struct Scsi_Host *shost);
-
-/*
- * --- Adv Library Constants and Macros
- */
-
-#define ADV_LIB_VERSION_MAJOR  5
-#define ADV_LIB_VERSION_MINOR  14
-
-/*
- * Define Adv Library required special types.
- */
-
 /*
  * Portable Data Types
  *
@@ -2045,12 +968,6 @@ static const char *advansys_info(struct Scsi_Host *shost);
 #define ADV_CARRIER_COUNT (ASC_DEF_MAX_HOST_QNG + 15)
 
 /*
- * For wide  boards a CDB length maximum of 16 bytes
- * is supported.
- */
-#define ADV_MAX_CDB_LEN     16
-
-/*
  * Define total number of simultaneous maximum element scatter-gather
  * request blocks per wide adapter. ASC_DEF_MAX_HOST_QNG (253) is the
  * maximum number of outstanding commands per wide host adapter. Each
@@ -2058,28 +975,14 @@ static const char *advansys_info(struct Scsi_Host *shost);
  * elements. Allow each command to have at least one ADV_SG_BLOCK structure.
  * This allows about 15 commands to have the maximum 17 ADV_SG_BLOCK
  * structures or 255 scatter-gather elements.
- *
  */
 #define ADV_TOT_SG_BLOCK        ASC_DEF_MAX_HOST_QNG
 
 /*
- * Define Adv Library required maximum number of scatter-gather
- * elements per request.
+ * Define maximum number of scatter-gather elements per request.
  */
 #define ADV_MAX_SG_LIST         255
-
-/* Number of SG blocks needed. */
-#define ADV_NUM_SG_BLOCK \
-    ((ADV_MAX_SG_LIST + (NO_OF_SG_PER_BLOCK - 1))/NO_OF_SG_PER_BLOCK)
-
-/* Total contiguous memory needed for SG blocks. */
-#define ADV_SG_TOTAL_MEM_SIZE \
-    (sizeof(ADV_SG_BLOCK) *  ADV_NUM_SG_BLOCK)
-
-#define ADV_PAGE_SIZE PAGE_SIZE
-
-#define ADV_NUM_PAGE_CROSSING \
-    ((ADV_SG_TOTAL_MEM_SIZE + (ADV_PAGE_SIZE - 1))/ADV_PAGE_SIZE)
+#define NO_OF_SG_PER_BLOCK              15
 
 #define ADV_EEP_DVC_CFG_BEGIN           (0x00)
 #define ADV_EEP_DVC_CFG_END             (0x15)
@@ -2385,10 +1288,6 @@ typedef struct adveep_38C1600_config {
  * EEPROM Commands
  */
 #define ASC_EEP_CMD_DONE             0x0200
-#define ASC_EEP_CMD_DONE_ERR         0x0001
-
-/* cfg_word */
-#define EEP_CFG_WORD_BIG_ENDIAN      0x8000
 
 /* bios_ctrl */
 #define BIOS_CTRL_BIOS               0x0001
@@ -2405,10 +1304,8 @@ typedef struct adveep_38C1600_config {
 #define BIOS_CTRL_AIPP_DIS           0x2000
 
 #define ADV_3550_MEMSIZE   0x2000	/* 8 KB Internal Memory */
-#define ADV_3550_IOLEN     0x40	/* I/O Port Range in bytes */
 
 #define ADV_38C0800_MEMSIZE  0x4000	/* 16 KB Internal Memory */
-#define ADV_38C0800_IOLEN    0x100	/* I/O Port Range in bytes */
 
 /*
  * XXX - Since ASC38C1600 Rev.3 has a local RAM failure issue, there is
@@ -2418,8 +1315,6 @@ typedef struct adveep_38C1600_config {
  * #define ADV_38C1600_MEMSIZE  0x8000L   * 32 KB Internal Memory *
  */
 #define ADV_38C1600_MEMSIZE  0x4000	/* 16 KB Internal Memory */
-#define ADV_38C1600_IOLEN    0x100	/* I/O Port Range 256 bytes */
-#define ADV_38C1600_MEMLEN   0x1000	/* Memory Range 4KB bytes */
 
 /*
  * Byte I/O register address from base of 'iop_base'.
@@ -2549,8 +1444,6 @@ typedef struct adveep_38C1600_config {
 #define ADV_CHIP_ID_BYTE         0x25
 #define ADV_CHIP_ID_WORD         0x04C1
 
-#define ADV_SC_SCSI_BUS_RESET    0x2000
-
 #define ADV_INTR_ENABLE_HOST_INTR                   0x01
 #define ADV_INTR_ENABLE_SEL_INTR                    0x02
 #define ADV_INTR_ENABLE_DPR_INTR                    0x04
@@ -2589,8 +1482,6 @@ typedef struct adveep_38C1600_config {
 #define ADV_TICKLE_A                        0x01
 #define ADV_TICKLE_B                        0x02
 #define ADV_TICKLE_C                        0x03
-
-#define ADV_SCSI_CTRL_RSTOUT        0x2000
 
 #define AdvIsIntPending(port) \
     (AdvReadWordRegister(port, IOPW_CTRL_REG) & ADV_CTRL_REG_HOST_INTR)
@@ -2744,14 +1635,11 @@ typedef struct adveep_38C1600_config {
  */
 #define INTAB           0x01
 
-/* a_advlib.h */
-
 /*
  * Adv Library Status Definitions
  */
 #define ADV_TRUE        1
 #define ADV_FALSE       0
-#define ADV_NOERROR     1
 #define ADV_SUCCESS     1
 #define ADV_BUSY        0
 #define ADV_ERROR       (-1)
@@ -2762,29 +1650,10 @@ typedef struct adveep_38C1600_config {
 #define ASC_WARN_BUSRESET_ERROR         0x0001	/* SCSI Bus Reset error */
 #define ASC_WARN_EEPROM_CHKSUM          0x0002	/* EEP check sum error */
 #define ASC_WARN_EEPROM_TERMINATION     0x0004	/* EEP termination bad field */
-#define ASC_WARN_SET_PCI_CONFIG_SPACE   0x0080	/* PCI config space set error */
 #define ASC_WARN_ERROR                  0xFFFF	/* ADV_ERROR return */
 
 #define ADV_MAX_TID                     15	/* max. target identifier */
 #define ADV_MAX_LUN                     7	/* max. logical unit number */
-
-/*
- * Error code values are set in ADV_DVC_VAR 'err_code'.
- */
-#define ASC_IERR_WRITE_EEPROM       0x0001	/* write EEPROM error */
-#define ASC_IERR_MCODE_CHKSUM       0x0002	/* micro code check sum error */
-#define ASC_IERR_NO_CARRIER         0x0004	/* No more carrier memory. */
-#define ASC_IERR_START_STOP_CHIP    0x0008	/* start/stop chip failed */
-#define ASC_IERR_CHIP_VERSION       0x0040	/* wrong chip version */
-#define ASC_IERR_SET_SCSI_ID        0x0080	/* set SCSI ID failed */
-#define ASC_IERR_HVD_DEVICE         0x0100	/* HVD attached to LVD connector. */
-#define ASC_IERR_BAD_SIGNATURE      0x0200	/* signature not found */
-#define ASC_IERR_ILLEGAL_CONNECTION 0x0400	/* Illegal cable connection */
-#define ASC_IERR_SINGLE_END_DEVICE  0x0800	/* Single-end used w/differential */
-#define ASC_IERR_REVERSED_CABLE     0x1000	/* Narrow flat cable reversed */
-#define ASC_IERR_BIST_PRE_TEST      0x2000	/* BIST pre-test error */
-#define ASC_IERR_BIST_RAM_TEST      0x4000	/* BIST RAM test error */
-#define ASC_IERR_BAD_CHIPTYPE       0x8000	/* Invalid 'chip_type' setting. */
 
 /*
  * Fixed locations of microcode operating variables.
@@ -2902,8 +1771,7 @@ typedef struct adv_carr_t {
 #define ASC_GET_CARRP(carrp) ((carrp) & ASC_NEXT_VPA_MASK)
 
 #define ADV_CARRIER_NUM_PAGE_CROSSING \
-    (((ADV_CARRIER_COUNT * sizeof(ADV_CARR_T)) + \
-        (ADV_PAGE_SIZE - 1))/ADV_PAGE_SIZE)
+    (((ADV_CARRIER_COUNT * sizeof(ADV_CARR_T)) + (PAGE_SIZE - 1))/PAGE_SIZE)
 
 #define ADV_CARRIER_BUFSIZE \
     ((ADV_CARRIER_COUNT + ADV_CARRIER_NUM_PAGE_CROSSING) * sizeof(ADV_CARR_T))
@@ -2937,79 +1805,16 @@ typedef struct adv_dvc_cfg {
 	ushort disc_enable;	/* enable disconnection */
 	uchar chip_version;	/* chip version */
 	uchar termination;	/* Term. Ctrl. bits 6-5 of SCSI_CFG1 register */
-	ushort lib_version;	/* Adv Library version number */
 	ushort control_flag;	/* Microcode Control Flag */
 	ushort mcode_date;	/* Microcode date */
 	ushort mcode_version;	/* Microcode version */
-	ushort pci_slot_info;	/* high byte device/function number */
-	/* bits 7-3 device num., bits 2-0 function num. */
-	/* low byte bus num. */
 	ushort serial1;		/* EEPROM serial number word 1 */
 	ushort serial2;		/* EEPROM serial number word 2 */
 	ushort serial3;		/* EEPROM serial number word 3 */
-	struct device *dev;	/* pointer to the pci dev structure for this board */
 } ADV_DVC_CFG;
 
 struct adv_dvc_var;
 struct adv_scsi_req_q;
-
-typedef void (*ADV_ISR_CALLBACK)
- (struct adv_dvc_var *, struct adv_scsi_req_q *);
-
-typedef void (*ADV_ASYNC_CALLBACK)
- (struct adv_dvc_var *, uchar);
-
-/*
- * Adapter operation variable structure.
- *
- * One structure is required per host adapter.
- *
- * Field naming convention:
- *
- *  *_able indicates both whether a feature should be enabled or disabled
- *  and whether a device isi capable of the feature. At initialization
- *  this field may be set, but later if a device is found to be incapable
- *  of the feature, the field is cleared.
- */
-typedef struct adv_dvc_var {
-	AdvPortAddr iop_base;	/* I/O port address */
-	ushort err_code;	/* fatal error code */
-	ushort bios_ctrl;	/* BIOS control word, EEPROM word 12 */
-	ADV_ISR_CALLBACK isr_callback;
-	ADV_ASYNC_CALLBACK async_callback;
-	ushort wdtr_able;	/* try WDTR for a device */
-	ushort sdtr_able;	/* try SDTR for a device */
-	ushort ultra_able;	/* try SDTR Ultra speed for a device */
-	ushort sdtr_speed1;	/* EEPROM SDTR Speed for TID 0-3   */
-	ushort sdtr_speed2;	/* EEPROM SDTR Speed for TID 4-7   */
-	ushort sdtr_speed3;	/* EEPROM SDTR Speed for TID 8-11  */
-	ushort sdtr_speed4;	/* EEPROM SDTR Speed for TID 12-15 */
-	ushort tagqng_able;	/* try tagged queuing with a device */
-	ushort ppr_able;	/* PPR message capable per TID bitmask. */
-	uchar max_dvc_qng;	/* maximum number of tagged commands per device */
-	ushort start_motor;	/* start motor command allowed */
-	uchar scsi_reset_wait;	/* delay in seconds after scsi bus reset */
-	uchar chip_no;		/* should be assigned by caller */
-	uchar max_host_qng;	/* maximum number of Q'ed command allowed */
-	uchar irq_no;		/* IRQ number */
-	ushort no_scam;		/* scam_tolerant of EEPROM */
-	struct asc_board *drv_ptr;	/* driver pointer to private structure */
-	uchar chip_scsi_id;	/* chip SCSI target ID */
-	uchar chip_type;
-	uchar bist_err_code;
-	ADV_CARR_T *carrier_buf;
-	ADV_CARR_T *carr_freelist;	/* Carrier free list. */
-	ADV_CARR_T *icq_sp;	/* Initiator command queue stopper pointer. */
-	ADV_CARR_T *irq_sp;	/* Initiator response queue stopper pointer. */
-	ushort carr_pending_cnt;	/* Count of pending carriers. */
-	/*
-	 * Note: The following fields will not be used after initialization. The
-	 * driver may discard the buffer after initialization is done.
-	 */
-	ADV_DVC_CFG *cfg;	/* temporary configuration structure  */
-} ADV_DVC_VAR;
-
-#define NO_OF_SG_PER_BLOCK              15
 
 typedef struct asc_sg_block {
 	uchar reserved1;
@@ -3069,6 +1874,83 @@ typedef struct adv_scsi_req_q {
 } ADV_SCSI_REQ_Q;
 
 /*
+ * The following two structures are used to process Wide Board requests.
+ *
+ * The ADV_SCSI_REQ_Q structure in adv_req_t is passed to the Adv Library
+ * and microcode with the ADV_SCSI_REQ_Q field 'srb_ptr' pointing to the
+ * adv_req_t. The adv_req_t structure 'cmndp' field in turn points to the
+ * Mid-Level SCSI request structure.
+ *
+ * Zero or more ADV_SG_BLOCK are used with each ADV_SCSI_REQ_Q. Each
+ * ADV_SG_BLOCK structure holds 15 scatter-gather elements. Under Linux
+ * up to 255 scatter-gather elements may be used per request or
+ * ADV_SCSI_REQ_Q.
+ *
+ * Both structures must be 32 byte aligned.
+ */
+typedef struct adv_sgblk {
+	ADV_SG_BLOCK sg_block;	/* Sgblock structure. */
+	uchar align[32];	/* Sgblock structure padding. */
+	struct adv_sgblk *next_sgblkp;	/* Next scatter-gather structure. */
+} adv_sgblk_t;
+
+typedef struct adv_req {
+	ADV_SCSI_REQ_Q scsi_req_q;	/* Adv Library request structure. */
+	uchar align[32];	/* Request structure padding. */
+	struct scsi_cmnd *cmndp;	/* Mid-Level SCSI command pointer. */
+	adv_sgblk_t *sgblkp;	/* Adv Library scatter-gather pointer. */
+	struct adv_req *next_reqp;	/* Next Request Structure. */
+} adv_req_t;
+
+/*
+ * Adapter operation variable structure.
+ *
+ * One structure is required per host adapter.
+ *
+ * Field naming convention:
+ *
+ *  *_able indicates both whether a feature should be enabled or disabled
+ *  and whether a device isi capable of the feature. At initialization
+ *  this field may be set, but later if a device is found to be incapable
+ *  of the feature, the field is cleared.
+ */
+typedef struct adv_dvc_var {
+	AdvPortAddr iop_base;	/* I/O port address */
+	ushort err_code;	/* fatal error code */
+	ushort bios_ctrl;	/* BIOS control word, EEPROM word 12 */
+	ushort wdtr_able;	/* try WDTR for a device */
+	ushort sdtr_able;	/* try SDTR for a device */
+	ushort ultra_able;	/* try SDTR Ultra speed for a device */
+	ushort sdtr_speed1;	/* EEPROM SDTR Speed for TID 0-3   */
+	ushort sdtr_speed2;	/* EEPROM SDTR Speed for TID 4-7   */
+	ushort sdtr_speed3;	/* EEPROM SDTR Speed for TID 8-11  */
+	ushort sdtr_speed4;	/* EEPROM SDTR Speed for TID 12-15 */
+	ushort tagqng_able;	/* try tagged queuing with a device */
+	ushort ppr_able;	/* PPR message capable per TID bitmask. */
+	uchar max_dvc_qng;	/* maximum number of tagged commands per device */
+	ushort start_motor;	/* start motor command allowed */
+	uchar scsi_reset_wait;	/* delay in seconds after scsi bus reset */
+	uchar chip_no;		/* should be assigned by caller */
+	uchar max_host_qng;	/* maximum number of Q'ed command allowed */
+	ushort no_scam;		/* scam_tolerant of EEPROM */
+	struct asc_board *drv_ptr;	/* driver pointer to private structure */
+	uchar chip_scsi_id;	/* chip SCSI target ID */
+	uchar chip_type;
+	uchar bist_err_code;
+	ADV_CARR_T *carrier_buf;
+	ADV_CARR_T *carr_freelist;	/* Carrier free list. */
+	ADV_CARR_T *icq_sp;	/* Initiator command queue stopper pointer. */
+	ADV_CARR_T *irq_sp;	/* Initiator response queue stopper pointer. */
+	ushort carr_pending_cnt;	/* Count of pending carriers. */
+	struct adv_req *orig_reqp;	/* adv_req_t memory block. */
+	/*
+	 * Note: The following fields will not be used after initialization. The
+	 * driver may discard the buffer after initialization is done.
+	 */
+	ADV_DVC_CFG *cfg;	/* temporary configuration structure  */
+} ADV_DVC_VAR;
+
+/*
  * Microcode idle loop commands
  */
 #define IDLE_CMD_COMPLETED           0
@@ -3092,10 +1974,8 @@ typedef struct adv_scsi_req_q {
 /*
  * Wait loop time out values.
  */
-#define SCSI_WAIT_10_SEC             10UL	/* 10 seconds */
 #define SCSI_WAIT_100_MSEC           100UL	/* 100 milliseconds */
 #define SCSI_US_PER_MSEC             1000	/* microseconds per millisecond */
-#define SCSI_MS_PER_SEC              1000UL	/* milliseconds per second */
 #define SCSI_MAX_RETRY               10	/* retry count */
 
 #define ADV_ASYNC_RDMA_FAILURE          0x01	/* Fatal RDMA failure. */
@@ -3104,53 +1984,6 @@ typedef struct adv_scsi_req_q {
 #define ADV_RDMA_IN_CARR_AND_Q_INVALID  0x04	/* RDMAed-in data invalid. */
 
 #define ADV_HOST_SCSI_BUS_RESET      0x80	/* Host Initiated SCSI Bus Reset. */
-
-/*
- * Device drivers must define the following functions.
- */
-static inline ulong DvcEnterCritical(void);
-static inline void DvcLeaveCritical(ulong);
-static void DvcSleepMilliSecond(ADV_DCNT);
-static uchar DvcAdvReadPCIConfigByte(ADV_DVC_VAR *, ushort);
-static void DvcAdvWritePCIConfigByte(ADV_DVC_VAR *, ushort, uchar);
-static ADV_PADDR DvcGetPhyAddr(ADV_DVC_VAR *, ADV_SCSI_REQ_Q *,
-			       uchar *, ASC_SDCNT *, int);
-static void DvcDelayMicroSecond(ADV_DVC_VAR *, ushort);
-
-/*
- * Adv Library functions available to drivers.
- */
-static int AdvExeScsiQueue(ADV_DVC_VAR *, ADV_SCSI_REQ_Q *);
-static int AdvISR(ADV_DVC_VAR *);
-static int AdvInitGetConfig(ADV_DVC_VAR *);
-static int AdvInitAsc3550Driver(ADV_DVC_VAR *);
-static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *);
-static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *);
-static int AdvResetChipAndSB(ADV_DVC_VAR *);
-static int AdvResetSB(ADV_DVC_VAR *asc_dvc);
-
-/*
- * Internal Adv Library functions.
- */
-static int AdvSendIdleCmd(ADV_DVC_VAR *, ushort, ADV_DCNT);
-static void AdvInquiryHandling(ADV_DVC_VAR *, ADV_SCSI_REQ_Q *);
-static int AdvInitFrom3550EEP(ADV_DVC_VAR *);
-static int AdvInitFrom38C0800EEP(ADV_DVC_VAR *);
-static int AdvInitFrom38C1600EEP(ADV_DVC_VAR *);
-static ushort AdvGet3550EEPConfig(AdvPortAddr, ADVEEP_3550_CONFIG *);
-static void AdvSet3550EEPConfig(AdvPortAddr, ADVEEP_3550_CONFIG *);
-static ushort AdvGet38C0800EEPConfig(AdvPortAddr, ADVEEP_38C0800_CONFIG *);
-static void AdvSet38C0800EEPConfig(AdvPortAddr, ADVEEP_38C0800_CONFIG *);
-static ushort AdvGet38C1600EEPConfig(AdvPortAddr, ADVEEP_38C1600_CONFIG *);
-static void AdvSet38C1600EEPConfig(AdvPortAddr, ADVEEP_38C1600_CONFIG *);
-static void AdvWaitEEPCmd(AdvPortAddr);
-static ushort AdvReadEEPWord(AdvPortAddr, int);
-
-/*
- * PCI Bus Definitions
- */
-#define AscPCICmdRegBits_BusMastering     0x0007
-#define AscPCICmdRegBits_ParErrRespCtrl   0x0040
 
 /* Read byte from a register. */
 #define AdvReadByteRegister(iop_base, reg_off) \
@@ -3319,23 +2152,6 @@ do { \
 #define QHSTA_M_FROZEN_TIDQ         0x46	/* TID Queue frozen. */
 #define QHSTA_M_SGBACKUP_ERROR      0x47	/* Scatter-Gather backup error */
 
-/*
- * Default EEPROM Configuration structure defined in a_init.c.
- */
-static ADVEEP_3550_CONFIG Default_3550_EEPROM_Config;
-static ADVEEP_38C0800_CONFIG Default_38C0800_EEPROM_Config;
-static ADVEEP_38C1600_CONFIG Default_38C1600_EEPROM_Config;
-
-/*
- * DvcGetPhyAddr() flag arguments
- */
-#define ADV_IS_SCSIQ_FLAG       0x01	/* 'addr' is ASC_SCSI_REQ_Q pointer */
-#define ADV_ASCGETSGLIST_VADDR  0x02	/* 'addr' is AscGetSGList() virtual addr */
-#define ADV_IS_SENSE_FLAG       0x04	/* 'addr' is sense virtual pointer */
-#define ADV_IS_DATA_FLAG        0x08	/* 'addr' is data virtual pointer */
-#define ADV_IS_SGLIST_FLAG      0x10	/* 'addr' is sglist virtual pointer */
-#define ADV_IS_CARRIER_FLAG     0x20	/* 'addr' is ADV_CARR_T pointer */
-
 /* Return the address that is aligned at the next doubleword >= to 'addr'. */
 #define ADV_8BALIGN(addr)      (((ulong) (addr) + 0x7) & ~0x7)
 #define ADV_16BALIGN(addr)     (((ulong) (addr) + 0xF) & ~0xF)
@@ -3353,92 +2169,10 @@ static ADVEEP_38C1600_CONFIG Default_38C1600_EEPROM_Config;
          (sizeof(ADV_SG_BLOCK) * \
           ((ADV_MAX_SG_LIST + (NO_OF_SG_PER_BLOCK - 1))/NO_OF_SG_PER_BLOCK))
 
-/*
- * Inquiry data structure and bitfield macros
- *
- * Using bitfields to access the subchar data isn't portable across
- * endianness, so instead mask and shift. Only quantities of more
- * than 1 bit are shifted, since the others are just tested for true
- * or false.
- */
-
-#define ADV_INQ_DVC_TYPE(inq)       ((inq)->periph & 0x1f)
-#define ADV_INQ_QUALIFIER(inq)      (((inq)->periph & 0xe0) >> 5)
-#define ADV_INQ_DVC_TYPE_MOD(inq)   ((inq)->devtype & 0x7f)
-#define ADV_INQ_REMOVABLE(inq)      ((inq)->devtype & 0x80)
-#define ADV_INQ_ANSI_VER(inq)       ((inq)->ver & 0x07)
-#define ADV_INQ_ECMA_VER(inq)       (((inq)->ver & 0x38) >> 3)
-#define ADV_INQ_ISO_VER(inq)        (((inq)->ver & 0xc0) >> 6)
-#define ADV_INQ_RESPONSE_FMT(inq)   ((inq)->byte3 & 0x0f)
-#define ADV_INQ_TERM_IO(inq)        ((inq)->byte3 & 0x40)
-#define ADV_INQ_ASYNC_NOTIF(inq)    ((inq)->byte3 & 0x80)
-#define ADV_INQ_SOFT_RESET(inq)     ((inq)->flags & 0x01)
-#define ADV_INQ_CMD_QUEUE(inq)      ((inq)->flags & 0x02)
-#define ADV_INQ_LINK_CMD(inq)       ((inq)->flags & 0x08)
-#define ADV_INQ_SYNC(inq)           ((inq)->flags & 0x10)
-#define ADV_INQ_WIDE16(inq)         ((inq)->flags & 0x20)
-#define ADV_INQ_WIDE32(inq)         ((inq)->flags & 0x40)
-#define ADV_INQ_REL_ADDR(inq)       ((inq)->flags & 0x80)
-#define ADV_INQ_INFO_UNIT(inq)      ((inq)->info & 0x01)
-#define ADV_INQ_QUICK_ARB(inq)      ((inq)->info & 0x02)
-#define ADV_INQ_CLOCKING(inq)       (((inq)->info & 0x0c) >> 2)
-
-typedef struct {
-	uchar periph;		/* peripheral device type [0:4] */
-	/* peripheral qualifier [5:7] */
-	uchar devtype;		/* device type modifier (for SCSI I) [0:6] */
-	/* RMB - removable medium bit [7] */
-	uchar ver;		/* ANSI approved version [0:2] */
-	/* ECMA version [3:5] */
-	/* ISO version [6:7] */
-	uchar byte3;		/* response data format [0:3] */
-	/* 0 SCSI 1 */
-	/* 1 CCS */
-	/* 2 SCSI-2 */
-	/* 3-F reserved */
-	/* reserved [4:5] */
-	/* terminate I/O process bit (see 5.6.22) [6] */
-	/* asynch. event notification (processor) [7] */
-	uchar add_len;		/* additional length */
-	uchar res1;		/* reserved */
-	uchar res2;		/* reserved */
-	uchar flags;		/* soft reset implemented [0] */
-	/* command queuing [1] */
-	/* reserved [2] */
-	/* linked command for this logical unit [3] */
-	/* synchronous data transfer [4] */
-	/* wide bus 16 bit data transfer [5] */
-	/* wide bus 32 bit data transfer [6] */
-	/* relative addressing mode [7] */
-	uchar vendor_id[8];	/* vendor identification */
-	uchar product_id[16];	/* product identification */
-	uchar product_rev_level[4];	/* product revision level */
-	uchar vendor_specific[20];	/* vendor specific */
-	uchar info;		/* information unit supported [0] */
-	/* quick arbitrate supported [1] */
-	/* clocking field [2:3] */
-	/* reserved [4:7] */
-	uchar res3;		/* reserved */
-} ADV_SCSI_INQUIRY;		/* 58 bytes */
-
-/*
- * --- Driver Constants and Macros
- */
-
-#define ASC_NUM_BOARD_SUPPORTED 16
-#define ASC_NUM_IOPORT_PROBE    4
-#define ASC_NUM_BUS             4
-
-/* Reference Scsi_Host hostdata */
-#define ASC_BOARDP(host) ((asc_board_t *) &((host)->hostdata))
-
-/* asc_board_t flags */
-#define ASC_HOST_IN_RESET       0x01
+/* struct asc_board flags */
 #define ASC_IS_WIDE_BOARD       0x04	/* AdvanSys Wide Board */
-#define ASC_SELECT_QUEUE_DEPTHS 0x08
 
 #define ASC_NARROW_BOARD(boardp) (((boardp)->flags & ASC_IS_WIDE_BOARD) == 0)
-#define ASC_WIDE_BOARD(boardp)   ((boardp)->flags & ASC_IS_WIDE_BOARD)
 
 #define NO_ISA_DMA              0xff	/* No ISA DMA Channel Used */
 
@@ -3473,81 +2207,13 @@ typedef struct {
 #define HOST_BYTE(byte)     ((byte) << 16)
 #define DRIVER_BYTE(byte)   ((byte) << 24)
 
-/*
- * The following definitions and macros are OS independent interfaces to
- * the queue functions:
- *  REQ - SCSI request structure
- *  REQP - pointer to SCSI request structure
- *  REQPTID(reqp) - reqp's target id
- *  REQPNEXT(reqp) - reqp's next pointer
- *  REQPNEXTP(reqp) - pointer to reqp's next pointer
- *  REQPTIME(reqp) - reqp's time stamp value
- *  REQTIMESTAMP() - system time stamp value
- */
-typedef struct scsi_cmnd REQ, *REQP;
-#define REQPNEXT(reqp)       ((REQP) ((reqp)->host_scribble))
-#define REQPNEXTP(reqp)      ((REQP *) &((reqp)->host_scribble))
-#define REQPTID(reqp)        ((reqp)->device->id)
-#define REQPTIME(reqp)       ((reqp)->SCp.this_residual)
-#define REQTIMESTAMP()       (jiffies)
-
-#define REQTIMESTAT(function, ascq, reqp, tid) \
-{ \
-    /*
-     * If the request time stamp is less than the system time stamp, then \
-     * maybe the system time stamp wrapped. Set the request time to zero.\
-     */ \
-    if (REQPTIME(reqp) <= REQTIMESTAMP()) { \
-        REQPTIME(reqp) = REQTIMESTAMP() - REQPTIME(reqp); \
-    } else { \
-        /* Indicate an error occurred with the assertion. */ \
-        ASC_ASSERT(REQPTIME(reqp) <= REQTIMESTAMP()); \
-        REQPTIME(reqp) = 0; \
-    } \
-    /* Handle first minimum time case without external initialization. */ \
-    if (((ascq)->q_tot_cnt[tid] == 1) ||  \
-        (REQPTIME(reqp) < (ascq)->q_min_tim[tid])) { \
-            (ascq)->q_min_tim[tid] = REQPTIME(reqp); \
-            ASC_DBG3(1, "%s: new q_min_tim[%d] %u\n", \
-                (function), (tid), (ascq)->q_min_tim[tid]); \
-        } \
-    if (REQPTIME(reqp) > (ascq)->q_max_tim[tid]) { \
-        (ascq)->q_max_tim[tid] = REQPTIME(reqp); \
-        ASC_DBG3(1, "%s: new q_max_tim[%d] %u\n", \
-            (function), tid, (ascq)->q_max_tim[tid]); \
-    } \
-    (ascq)->q_tot_tim[tid] += REQPTIME(reqp); \
-    /* Reset the time stamp field. */ \
-    REQPTIME(reqp) = 0; \
-}
-
-/* asc_enqueue() flags */
-#define ASC_FRONT       1
-#define ASC_BACK        2
-
-/* asc_dequeue_list() argument */
-#define ASC_TID_ALL        (-1)
-
-/* Return non-zero, if the queue is empty. */
-#define ASC_QUEUE_EMPTY(ascq)    ((ascq)->q_tidmask == 0)
-
-#define PCI_MAX_SLOT            0x1F
-#define PCI_MAX_BUS             0xFF
-#define PCI_IOADDRESS_MASK      0xFFFE
-#define ASC_PCI_DEVICE_ID_CNT   6	/* PCI Device ID count. */
-
+#define ASC_STATS(shost, counter) ASC_STATS_ADD(shost, counter, 1)
 #ifndef ADVANSYS_STATS
-#define ASC_STATS(shost, counter)
 #define ASC_STATS_ADD(shost, counter, count)
 #else /* ADVANSYS_STATS */
-#define ASC_STATS(shost, counter) \
-    (ASC_BOARDP(shost)->asc_stats.counter++)
-
 #define ASC_STATS_ADD(shost, counter, count) \
-    (ASC_BOARDP(shost)->asc_stats.counter += (count))
+	(((struct asc_board *) shost_priv(shost))->asc_stats.counter += (count))
 #endif /* ADVANSYS_STATS */
-
-#define ASC_CEILING(val, unit) (((val) + ((unit) - 1))/(unit))
 
 /* If the result wraps when calculating tenths, return 0. */
 #define ASC_TENTHS(num, den) \
@@ -3589,13 +2255,8 @@ typedef struct scsi_cmnd REQ, *REQP;
 
 #ifndef ADVANSYS_DEBUG
 
-#define ASC_DBG(lvl, s)
-#define ASC_DBG1(lvl, s, a1)
-#define ASC_DBG2(lvl, s, a1, a2)
-#define ASC_DBG3(lvl, s, a1, a2, a3)
-#define ASC_DBG4(lvl, s, a1, a2, a3, a4)
+#define ASC_DBG(lvl, s...)
 #define ASC_DBG_PRT_SCSI_HOST(lvl, s)
-#define ASC_DBG_PRT_SCSI_CMND(lvl, s)
 #define ASC_DBG_PRT_ASC_SCSI_Q(lvl, scsiqp)
 #define ASC_DBG_PRT_ADV_SCSI_REQ_Q(lvl, scsiqp)
 #define ASC_DBG_PRT_ASC_QDONE_INFO(lvl, qdone)
@@ -3614,52 +2275,16 @@ typedef struct scsi_cmnd REQ, *REQP;
  * 2-N: Verbose Tracing
  */
 
-#define ASC_DBG(lvl, s) \
-    { \
-        if (asc_dbglvl >= (lvl)) { \
-            printk(s); \
-        } \
-    }
-
-#define ASC_DBG1(lvl, s, a1) \
-    { \
-        if (asc_dbglvl >= (lvl)) { \
-            printk((s), (a1)); \
-        } \
-    }
-
-#define ASC_DBG2(lvl, s, a1, a2) \
-    { \
-        if (asc_dbglvl >= (lvl)) { \
-            printk((s), (a1), (a2)); \
-        } \
-    }
-
-#define ASC_DBG3(lvl, s, a1, a2, a3) \
-    { \
-        if (asc_dbglvl >= (lvl)) { \
-            printk((s), (a1), (a2), (a3)); \
-        } \
-    }
-
-#define ASC_DBG4(lvl, s, a1, a2, a3, a4) \
-    { \
-        if (asc_dbglvl >= (lvl)) { \
-            printk((s), (a1), (a2), (a3), (a4)); \
-        } \
-    }
+#define ASC_DBG(lvl, format, arg...) {					\
+	if (asc_dbglvl >= (lvl))					\
+		printk(KERN_DEBUG "%s: %s: " format, DRV_NAME,		\
+			__FUNCTION__ , ## arg);				\
+}
 
 #define ASC_DBG_PRT_SCSI_HOST(lvl, s) \
     { \
         if (asc_dbglvl >= (lvl)) { \
             asc_prt_scsi_host(s); \
-        } \
-    }
-
-#define ASC_DBG_PRT_SCSI_CMND(lvl, s) \
-    { \
-        if (asc_dbglvl >= (lvl)) { \
-            asc_prt_scsi_cmnd(s); \
         } \
     }
 
@@ -3701,24 +2326,6 @@ typedef struct scsi_cmnd REQ, *REQP;
         ASC_DBG_PRT_HEX((lvl), "INQUIRY", (uchar *) (inq), (len));
 #endif /* ADVANSYS_DEBUG */
 
-#ifndef ADVANSYS_ASSERT
-#define ASC_ASSERT(a)
-#else /* ADVANSYS_ASSERT */
-
-#define ASC_ASSERT(a) \
-    { \
-        if (!(a)) { \
-            printk("ASC_ASSERT() Failure: file %s, line %d\n", \
-                __FILE__, __LINE__); \
-        } \
-    }
-
-#endif /* ADVANSYS_ASSERT */
-
-/*
- * --- Driver Structures
- */
-
 #ifdef ADVANSYS_STATS
 
 /* Per board statistics structure */
@@ -3739,72 +2346,23 @@ struct asc_stats {
 	ADV_DCNT exe_error;	/* # ASC_ERROR returns. */
 	ADV_DCNT exe_unknown;	/* # unknown returns. */
 	/* Data Transfer Statistics */
-	ADV_DCNT cont_cnt;	/* # non-scatter-gather I/O requests received */
-	ADV_DCNT cont_xfer;	/* # contiguous transfer 512-bytes */
-	ADV_DCNT sg_cnt;	/* # scatter-gather I/O requests received */
-	ADV_DCNT sg_elem;	/* # scatter-gather elements */
-	ADV_DCNT sg_xfer;	/* # scatter-gather transfer 512-bytes */
+	ADV_DCNT xfer_cnt;	/* # I/O requests received */
+	ADV_DCNT xfer_elem;	/* # scatter-gather elements */
+	ADV_DCNT xfer_sect;	/* # 512-byte blocks */
 };
 #endif /* ADVANSYS_STATS */
 
 /*
- * Request queuing structure
- */
-typedef struct asc_queue {
-	ADV_SCSI_BIT_ID_TYPE q_tidmask;	/* queue mask */
-	REQP q_first[ADV_MAX_TID + 1];	/* first queued request */
-	REQP q_last[ADV_MAX_TID + 1];	/* last queued request */
-#ifdef ADVANSYS_STATS
-	short q_cur_cnt[ADV_MAX_TID + 1];	/* current queue count */
-	short q_max_cnt[ADV_MAX_TID + 1];	/* maximum queue count */
-	ADV_DCNT q_tot_cnt[ADV_MAX_TID + 1];	/* total enqueue count */
-	ADV_DCNT q_tot_tim[ADV_MAX_TID + 1];	/* total time queued */
-	ushort q_max_tim[ADV_MAX_TID + 1];	/* maximum time queued */
-	ushort q_min_tim[ADV_MAX_TID + 1];	/* minimum time queued */
-#endif				/* ADVANSYS_STATS */
-} asc_queue_t;
-
-/*
- * Adv Library Request Structures
- *
- * The following two structures are used to process Wide Board requests.
- *
- * The ADV_SCSI_REQ_Q structure in adv_req_t is passed to the Adv Library
- * and microcode with the ADV_SCSI_REQ_Q field 'srb_ptr' pointing to the
- * adv_req_t. The adv_req_t structure 'cmndp' field in turn points to the
- * Mid-Level SCSI request structure.
- *
- * Zero or more ADV_SG_BLOCK are used with each ADV_SCSI_REQ_Q. Each
- * ADV_SG_BLOCK structure holds 15 scatter-gather elements. Under Linux
- * up to 255 scatter-gather elements may be used per request or
- * ADV_SCSI_REQ_Q.
- *
- * Both structures must be 32 byte aligned.
- */
-typedef struct adv_sgblk {
-	ADV_SG_BLOCK sg_block;	/* Sgblock structure. */
-	uchar align[32];	/* Sgblock structure padding. */
-	struct adv_sgblk *next_sgblkp;	/* Next scatter-gather structure. */
-} adv_sgblk_t;
-
-typedef struct adv_req {
-	ADV_SCSI_REQ_Q scsi_req_q;	/* Adv Library request structure. */
-	uchar align[32];	/* Request structure padding. */
-	struct scsi_cmnd *cmndp;	/* Mid-Level SCSI command pointer. */
-	adv_sgblk_t *sgblkp;	/* Adv Library scatter-gather pointer. */
-	struct adv_req *next_reqp;	/* Next Request Structure. */
-} adv_req_t;
-
-/*
  * Structure allocated for each board.
  *
- * This structure is allocated by scsi_register() at the end
+ * This structure is allocated by scsi_host_alloc() at the end
  * of the 'Scsi_Host' structure starting at the 'hostdata'
  * field. It is guaranteed to be allocated from DMA-able memory.
  */
-typedef struct asc_board {
-	int id;			/* Board Id */
+struct asc_board {
+	struct device *dev;
 	uint flags;		/* Board flags */
+	unsigned int irq;
 	union {
 		ASC_DVC_VAR asc_dvc_var;	/* Narrow board */
 		ADV_DVC_VAR adv_dvc_var;	/* Wide board */
@@ -3814,11 +2372,7 @@ typedef struct asc_board {
 		ADV_DVC_CFG adv_dvc_cfg;	/* Wide board */
 	} dvc_cfg;
 	ushort asc_n_io_port;	/* Number I/O ports. */
-	asc_queue_t active;	/* Active command queue */
-	asc_queue_t waiting;	/* Waiting command queue */
-	asc_queue_t done;	/* Done command queue */
 	ADV_SCSI_BIT_ID_TYPE init_tidmask;	/* Target init./valid mask */
-	struct scsi_device *device[ADV_MAX_TID + 1];	/* Mid-Level Scsi Device */
 	ushort reqcnt[ADV_MAX_TID + 1];	/* Starvation request count */
 	ADV_SCSI_BIT_ID_TYPE queue_full;	/* Queue full mask */
 	ushort queue_full_cnt[ADV_MAX_TID + 1];	/* Queue full count */
@@ -3829,415 +2383,413 @@ typedef struct asc_board {
 		ADVEEP_38C1600_CONFIG adv_38C1600_eep;	/* 38C1600 EEPROM config. */
 	} eep_config;
 	ulong last_reset;	/* Saved last reset time */
-	spinlock_t lock;	/* Board spinlock */
-#ifdef CONFIG_PROC_FS
 	/* /proc/scsi/advansys/[0...] */
 	char *prtbuf;		/* /proc print buffer */
-#endif				/* CONFIG_PROC_FS */
 #ifdef ADVANSYS_STATS
 	struct asc_stats asc_stats;	/* Board statistics */
 #endif				/* ADVANSYS_STATS */
 	/*
 	 * The following fields are used only for Narrow Boards.
 	 */
-	/* The following three structures must be in DMA-able memory. */
-	ASC_SCSI_REQ_Q scsireqq;
-	ASC_CAP_INFO cap_info;
-	ASC_SCSI_INQUIRY inquiry;
 	uchar sdtr_data[ASC_MAX_TID + 1];	/* SDTR information */
 	/*
 	 * The following fields are used only for Wide Boards.
 	 */
 	void __iomem *ioremap_addr;	/* I/O Memory remap address. */
 	ushort ioport;		/* I/O Port address. */
-	ADV_CARR_T *orig_carrp;	/* ADV_CARR_T memory block. */
-	adv_req_t *orig_reqp;	/* adv_req_t memory block. */
 	adv_req_t *adv_reqp;	/* Request structures. */
 	adv_sgblk_t *adv_sgblkp;	/* Scatter-gather structures. */
 	ushort bios_signature;	/* BIOS Signature. */
 	ushort bios_version;	/* BIOS Version. */
 	ushort bios_codeseg;	/* BIOS Code Segment. */
 	ushort bios_codelen;	/* BIOS Code Segment Length. */
-} asc_board_t;
-
-/*
- * PCI configuration structures
- */
-typedef struct _PCI_DATA_ {
-	uchar type;
-	uchar bus;
-	uchar slot;
-	uchar func;
-	uchar offset;
-} PCI_DATA;
-
-typedef struct _PCI_DEVICE_ {
-	ushort vendorID;
-	ushort deviceID;
-	ushort slotNumber;
-	ushort slotFound;
-	uchar busNumber;
-	uchar maxBusNumber;
-	uchar devFunc;
-	ushort startSlot;
-	ushort endSlot;
-	uchar bridge;
-	uchar type;
-} PCI_DEVICE;
-
-typedef struct _PCI_CONFIG_SPACE_ {
-	ushort vendorID;
-	ushort deviceID;
-	ushort command;
-	ushort status;
-	uchar revision;
-	uchar classCode[3];
-	uchar cacheSize;
-	uchar latencyTimer;
-	uchar headerType;
-	uchar bist;
-	ADV_PADDR baseAddress[6];
-	ushort reserved[4];
-	ADV_PADDR optionRomAddr;
-	ushort reserved2[4];
-	uchar irqLine;
-	uchar irqPin;
-	uchar minGnt;
-	uchar maxLatency;
-} PCI_CONFIG_SPACE;
-
-/*
- * --- Driver Data
- */
-
-/* Note: All driver global data should be initialized. */
-
-/* Number of boards detected in system. */
-static int asc_board_count = 0;
-static struct Scsi_Host *asc_host[ASC_NUM_BOARD_SUPPORTED] = { NULL };
-
-/* Overrun buffer used by all narrow boards. */
-static uchar overrun_buf[ASC_OVERRUN_BSIZE] = { 0 };
-
-/*
- * Global structures required to issue a command.
- */
-static ASC_SCSI_Q asc_scsi_q = { {0} };
-static ASC_SG_HEAD asc_sg_head = { 0 };
-
-/* List of supported bus types. */
-static ushort asc_bus[ASC_NUM_BUS] __initdata = {
-	ASC_IS_ISA,
-	ASC_IS_VL,
-	ASC_IS_EISA,
-	ASC_IS_PCI,
 };
 
-static int asc_iopflag = ASC_FALSE;
-static int asc_ioport[ASC_NUM_IOPORT_PROBE] = { 0, 0, 0, 0 };
+#define asc_dvc_to_board(asc_dvc) container_of(asc_dvc, struct asc_board, \
+							dvc_var.asc_dvc_var)
+#define adv_dvc_to_board(adv_dvc) container_of(adv_dvc, struct asc_board, \
+							dvc_var.adv_dvc_var)
+#define adv_dvc_to_pdev(adv_dvc) to_pci_dev(adv_dvc_to_board(adv_dvc)->dev)
 
 #ifdef ADVANSYS_DEBUG
-static char *asc_bus_name[ASC_NUM_BUS] = {
-	"ASC_IS_ISA",
-	"ASC_IS_VL",
-	"ASC_IS_EISA",
-	"ASC_IS_PCI",
-};
-
 static int asc_dbglvl = 3;
-#endif /* ADVANSYS_DEBUG */
-
-/* Declaration for Asc Library internal data referenced by driver. */
-static PortAddr _asc_def_iop_base[];
 
 /*
- * --- Driver Function Prototypes
- *
- * advansys.h contains function prototypes for functions global to Linux.
+ * asc_prt_asc_dvc_var()
  */
-
-static irqreturn_t advansys_interrupt(int, void *);
-static int advansys_slave_configure(struct scsi_device *);
-static void asc_scsi_done_list(struct scsi_cmnd *);
-static int asc_execute_scsi_cmnd(struct scsi_cmnd *);
-static int asc_build_req(asc_board_t *, struct scsi_cmnd *);
-static int adv_build_req(asc_board_t *, struct scsi_cmnd *, ADV_SCSI_REQ_Q **);
-static int adv_get_sglist(asc_board_t *, adv_req_t *, struct scsi_cmnd *, int);
-static void asc_isr_callback(ASC_DVC_VAR *, ASC_QDONE_INFO *);
-static void adv_isr_callback(ADV_DVC_VAR *, ADV_SCSI_REQ_Q *);
-static void adv_async_callback(ADV_DVC_VAR *, uchar);
-static void asc_enqueue(asc_queue_t *, REQP, int);
-static REQP asc_dequeue(asc_queue_t *, int);
-static REQP asc_dequeue_list(asc_queue_t *, REQP *, int);
-static int asc_rmqueue(asc_queue_t *, REQP);
-static void asc_execute_queue(asc_queue_t *);
-#ifdef CONFIG_PROC_FS
-static int asc_proc_copy(off_t, off_t, char *, int, char *, int);
-static int asc_prt_board_devices(struct Scsi_Host *, char *, int);
-static int asc_prt_adv_bios(struct Scsi_Host *, char *, int);
-static int asc_get_eeprom_string(ushort *serialnum, uchar *cp);
-static int asc_prt_asc_board_eeprom(struct Scsi_Host *, char *, int);
-static int asc_prt_adv_board_eeprom(struct Scsi_Host *, char *, int);
-static int asc_prt_driver_conf(struct Scsi_Host *, char *, int);
-static int asc_prt_asc_board_info(struct Scsi_Host *, char *, int);
-static int asc_prt_adv_board_info(struct Scsi_Host *, char *, int);
-static int asc_prt_line(char *, int, char *fmt, ...);
-#endif /* CONFIG_PROC_FS */
-
-/* Declaration for Asc Library internal functions referenced by driver. */
-static int AscFindSignature(PortAddr);
-static ushort AscGetEEPConfig(PortAddr, ASCEEP_CONFIG *, ushort);
-
-/* Statistics function prototypes. */
-#ifdef ADVANSYS_STATS
-#ifdef CONFIG_PROC_FS
-static int asc_prt_board_stats(struct Scsi_Host *, char *, int);
-static int asc_prt_target_stats(struct Scsi_Host *, int, char *, int);
-#endif /* CONFIG_PROC_FS */
-#endif /* ADVANSYS_STATS */
-
-/* Debug function prototypes. */
-#ifdef ADVANSYS_DEBUG
-static void asc_prt_scsi_host(struct Scsi_Host *);
-static void asc_prt_scsi_cmnd(struct scsi_cmnd *);
-static void asc_prt_asc_dvc_cfg(ASC_DVC_CFG *);
-static void asc_prt_asc_dvc_var(ASC_DVC_VAR *);
-static void asc_prt_asc_scsi_q(ASC_SCSI_Q *);
-static void asc_prt_asc_qdone_info(ASC_QDONE_INFO *);
-static void asc_prt_adv_dvc_cfg(ADV_DVC_CFG *);
-static void asc_prt_adv_dvc_var(ADV_DVC_VAR *);
-static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *);
-static void asc_prt_adv_sgblock(int, ADV_SG_BLOCK *);
-static void asc_prt_hex(char *f, uchar *, int);
-#endif /* ADVANSYS_DEBUG */
-
-#ifdef CONFIG_PROC_FS
-/*
- * advansys_proc_info() - /proc/scsi/advansys/[0-(ASC_NUM_BOARD_SUPPORTED-1)]
- *
- * *buffer: I/O buffer
- * **start: if inout == FALSE pointer into buffer where user read should start
- * offset: current offset into a /proc/scsi/advansys/[0...] file
- * length: length of buffer
- * hostno: Scsi_Host host_no
- * inout: TRUE - user is writing; FALSE - user is reading
- *
- * Return the number of bytes read from or written to a
- * /proc/scsi/advansys/[0...] file.
- *
- * Note: This function uses the per board buffer 'prtbuf' which is
- * allocated when the board is initialized in advansys_detect(). The
- * buffer is ASC_PRTBUF_SIZE bytes. The function asc_proc_copy() is
- * used to write to the buffer. The way asc_proc_copy() is written
- * if 'prtbuf' is too small it will not be overwritten. Instead the
- * user just won't get all the available statistics.
- */
-static int
-advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
-		   off_t offset, int length, int inout)
+static void asc_prt_asc_dvc_var(ASC_DVC_VAR *h)
 {
-	struct Scsi_Host *shp;
-	asc_board_t *boardp;
-	int i;
-	char *cp;
-	int cplen;
-	int cnt;
-	int totcnt;
-	int leftlen;
-	char *curbuf;
-	off_t advoffset;
-#ifdef ADVANSYS_STATS
-	int tgt_id;
-#endif /* ADVANSYS_STATS */
+	printk("ASC_DVC_VAR at addr 0x%lx\n", (ulong)h);
 
-	ASC_DBG(1, "advansys_proc_info: begin\n");
+	printk(" iop_base 0x%x, err_code 0x%x, dvc_cntl 0x%x, bug_fix_cntl "
+	       "%d,\n", h->iop_base, h->err_code, h->dvc_cntl, h->bug_fix_cntl);
 
-	/*
-	 * User write not supported.
-	 */
-	if (inout == TRUE) {
-		return (-ENOSYS);
+	printk(" bus_type %d, init_sdtr 0x%x,\n", h->bus_type,
+		(unsigned)h->init_sdtr);
+
+	printk(" sdtr_done 0x%x, use_tagged_qng 0x%x, unit_not_ready 0x%x, "
+	       "chip_no 0x%x,\n", (unsigned)h->sdtr_done,
+	       (unsigned)h->use_tagged_qng, (unsigned)h->unit_not_ready,
+	       (unsigned)h->chip_no);
+
+	printk(" queue_full_or_busy 0x%x, start_motor 0x%x, scsi_reset_wait "
+	       "%u,\n", (unsigned)h->queue_full_or_busy,
+	       (unsigned)h->start_motor, (unsigned)h->scsi_reset_wait);
+
+	printk(" is_in_int %u, max_total_qng %u, cur_total_qng %u, "
+	       "in_critical_cnt %u,\n", (unsigned)h->is_in_int,
+	       (unsigned)h->max_total_qng, (unsigned)h->cur_total_qng,
+	       (unsigned)h->in_critical_cnt);
+
+	printk(" last_q_shortage %u, init_state 0x%x, no_scam 0x%x, "
+	       "pci_fix_asyn_xfer 0x%x,\n", (unsigned)h->last_q_shortage,
+	       (unsigned)h->init_state, (unsigned)h->no_scam,
+	       (unsigned)h->pci_fix_asyn_xfer);
+
+	printk(" cfg 0x%lx\n", (ulong)h->cfg);
+}
+
+/*
+ * asc_prt_asc_dvc_cfg()
+ */
+static void asc_prt_asc_dvc_cfg(ASC_DVC_CFG *h)
+{
+	printk("ASC_DVC_CFG at addr 0x%lx\n", (ulong)h);
+
+	printk(" can_tagged_qng 0x%x, cmd_qng_enabled 0x%x,\n",
+	       h->can_tagged_qng, h->cmd_qng_enabled);
+	printk(" disc_enable 0x%x, sdtr_enable 0x%x,\n",
+	       h->disc_enable, h->sdtr_enable);
+
+	printk(" chip_scsi_id %d, isa_dma_speed %d, isa_dma_channel %d, "
+		"chip_version %d,\n", h->chip_scsi_id, h->isa_dma_speed,
+		h->isa_dma_channel, h->chip_version);
+
+	printk(" mcode_date 0x%x, mcode_version %d\n",
+		h->mcode_date, h->mcode_version);
+}
+
+/*
+ * asc_prt_adv_dvc_var()
+ *
+ * Display an ADV_DVC_VAR structure.
+ */
+static void asc_prt_adv_dvc_var(ADV_DVC_VAR *h)
+{
+	printk(" ADV_DVC_VAR at addr 0x%lx\n", (ulong)h);
+
+	printk("  iop_base 0x%lx, err_code 0x%x, ultra_able 0x%x\n",
+	       (ulong)h->iop_base, h->err_code, (unsigned)h->ultra_able);
+
+	printk("  sdtr_able 0x%x, wdtr_able 0x%x\n",
+	       (unsigned)h->sdtr_able, (unsigned)h->wdtr_able);
+
+	printk("  start_motor 0x%x, scsi_reset_wait 0x%x\n",
+	       (unsigned)h->start_motor, (unsigned)h->scsi_reset_wait);
+
+	printk("  max_host_qng %u, max_dvc_qng %u, carr_freelist 0x%lxn\n",
+	       (unsigned)h->max_host_qng, (unsigned)h->max_dvc_qng,
+	       (ulong)h->carr_freelist);
+
+	printk("  icq_sp 0x%lx, irq_sp 0x%lx\n",
+	       (ulong)h->icq_sp, (ulong)h->irq_sp);
+
+	printk("  no_scam 0x%x, tagqng_able 0x%x\n",
+	       (unsigned)h->no_scam, (unsigned)h->tagqng_able);
+
+	printk("  chip_scsi_id 0x%x, cfg 0x%lx\n",
+	       (unsigned)h->chip_scsi_id, (ulong)h->cfg);
+}
+
+/*
+ * asc_prt_adv_dvc_cfg()
+ *
+ * Display an ADV_DVC_CFG structure.
+ */
+static void asc_prt_adv_dvc_cfg(ADV_DVC_CFG *h)
+{
+	printk(" ADV_DVC_CFG at addr 0x%lx\n", (ulong)h);
+
+	printk("  disc_enable 0x%x, termination 0x%x\n",
+	       h->disc_enable, h->termination);
+
+	printk("  chip_version 0x%x, mcode_date 0x%x\n",
+	       h->chip_version, h->mcode_date);
+
+	printk("  mcode_version 0x%x, control_flag 0x%x\n",
+	       h->mcode_version, h->control_flag);
+}
+
+/*
+ * asc_prt_scsi_host()
+ */
+static void asc_prt_scsi_host(struct Scsi_Host *s)
+{
+	struct asc_board *boardp = shost_priv(s);
+
+	printk("Scsi_Host at addr 0x%p, device %s\n", s, boardp->dev->bus_id);
+	printk(" host_busy %u, host_no %d, last_reset %d,\n",
+	       s->host_busy, s->host_no, (unsigned)s->last_reset);
+
+	printk(" base 0x%lx, io_port 0x%lx, irq %d,\n",
+	       (ulong)s->base, (ulong)s->io_port, boardp->irq);
+
+	printk(" dma_channel %d, this_id %d, can_queue %d,\n",
+	       s->dma_channel, s->this_id, s->can_queue);
+
+	printk(" cmd_per_lun %d, sg_tablesize %d, unchecked_isa_dma %d\n",
+	       s->cmd_per_lun, s->sg_tablesize, s->unchecked_isa_dma);
+
+	if (ASC_NARROW_BOARD(boardp)) {
+		asc_prt_asc_dvc_var(&boardp->dvc_var.asc_dvc_var);
+		asc_prt_asc_dvc_cfg(&boardp->dvc_cfg.asc_dvc_cfg);
+	} else {
+		asc_prt_adv_dvc_var(&boardp->dvc_var.adv_dvc_var);
+		asc_prt_adv_dvc_cfg(&boardp->dvc_cfg.adv_dvc_cfg);
 	}
+}
 
-	/*
-	 * User read of /proc/scsi/advansys/[0...] file.
-	 */
+/*
+ * asc_prt_hex()
+ *
+ * Print hexadecimal output in 4 byte groupings 32 bytes
+ * or 8 double-words per line.
+ */
+static void asc_prt_hex(char *f, uchar *s, int l)
+{
+	int i;
+	int j;
+	int k;
+	int m;
 
-	/* Find the specified board. */
-	for (i = 0; i < asc_board_count; i++) {
-		if (asc_host[i]->host_no == shost->host_no) {
+	printk("%s: (%d bytes)\n", f, l);
+
+	for (i = 0; i < l; i += 32) {
+
+		/* Display a maximum of 8 double-words per line. */
+		if ((k = (l - i) / 4) >= 8) {
+			k = 8;
+			m = 0;
+		} else {
+			m = (l - i) % 4;
+		}
+
+		for (j = 0; j < k; j++) {
+			printk(" %2.2X%2.2X%2.2X%2.2X",
+			       (unsigned)s[i + (j * 4)],
+			       (unsigned)s[i + (j * 4) + 1],
+			       (unsigned)s[i + (j * 4) + 2],
+			       (unsigned)s[i + (j * 4) + 3]);
+		}
+
+		switch (m) {
+		case 0:
+		default:
+			break;
+		case 1:
+			printk(" %2.2X", (unsigned)s[i + (j * 4)]);
+			break;
+		case 2:
+			printk(" %2.2X%2.2X",
+			       (unsigned)s[i + (j * 4)],
+			       (unsigned)s[i + (j * 4) + 1]);
+			break;
+		case 3:
+			printk(" %2.2X%2.2X%2.2X",
+			       (unsigned)s[i + (j * 4) + 1],
+			       (unsigned)s[i + (j * 4) + 2],
+			       (unsigned)s[i + (j * 4) + 3]);
 			break;
 		}
-	}
-	if (i == asc_board_count) {
-		return (-ENOENT);
-	}
 
-	shp = asc_host[i];
-	boardp = ASC_BOARDP(shp);
-
-	/* Copy read data starting at the beginning of the buffer. */
-	*start = buffer;
-	curbuf = buffer;
-	advoffset = 0;
-	totcnt = 0;
-	leftlen = length;
-
-	/*
-	 * Get board configuration information.
-	 *
-	 * advansys_info() returns the board string from its own static buffer.
-	 */
-	cp = (char *)advansys_info(shp);
-	strcat(cp, "\n");
-	cplen = strlen(cp);
-	/* Copy board information. */
-	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
-	totcnt += cnt;
-	leftlen -= cnt;
-	if (leftlen == 0) {
-		ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-		return totcnt;
+		printk("\n");
 	}
-	advoffset += cplen;
-	curbuf += cnt;
-
-	/*
-	 * Display Wide Board BIOS Information.
-	 */
-	if (ASC_WIDE_BOARD(boardp)) {
-		cp = boardp->prtbuf;
-		cplen = asc_prt_adv_bios(shp, cp, ASC_PRTBUF_SIZE);
-		ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
-		cnt =
-		    asc_proc_copy(advoffset, offset, curbuf, leftlen, cp,
-				  cplen);
-		totcnt += cnt;
-		leftlen -= cnt;
-		if (leftlen == 0) {
-			ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-			return totcnt;
-		}
-		advoffset += cplen;
-		curbuf += cnt;
-	}
-
-	/*
-	 * Display driver information for each device attached to the board.
-	 */
-	cp = boardp->prtbuf;
-	cplen = asc_prt_board_devices(shp, cp, ASC_PRTBUF_SIZE);
-	ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
-	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
-	totcnt += cnt;
-	leftlen -= cnt;
-	if (leftlen == 0) {
-		ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-		return totcnt;
-	}
-	advoffset += cplen;
-	curbuf += cnt;
-
-	/*
-	 * Display EEPROM configuration for the board.
-	 */
-	cp = boardp->prtbuf;
-	if (ASC_NARROW_BOARD(boardp)) {
-		cplen = asc_prt_asc_board_eeprom(shp, cp, ASC_PRTBUF_SIZE);
-	} else {
-		cplen = asc_prt_adv_board_eeprom(shp, cp, ASC_PRTBUF_SIZE);
-	}
-	ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
-	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
-	totcnt += cnt;
-	leftlen -= cnt;
-	if (leftlen == 0) {
-		ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-		return totcnt;
-	}
-	advoffset += cplen;
-	curbuf += cnt;
-
-	/*
-	 * Display driver configuration and information for the board.
-	 */
-	cp = boardp->prtbuf;
-	cplen = asc_prt_driver_conf(shp, cp, ASC_PRTBUF_SIZE);
-	ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
-	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
-	totcnt += cnt;
-	leftlen -= cnt;
-	if (leftlen == 0) {
-		ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-		return totcnt;
-	}
-	advoffset += cplen;
-	curbuf += cnt;
-
-#ifdef ADVANSYS_STATS
-	/*
-	 * Display driver statistics for the board.
-	 */
-	cp = boardp->prtbuf;
-	cplen = asc_prt_board_stats(shp, cp, ASC_PRTBUF_SIZE);
-	ASC_ASSERT(cplen <= ASC_PRTBUF_SIZE);
-	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
-	totcnt += cnt;
-	leftlen -= cnt;
-	if (leftlen == 0) {
-		ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-		return totcnt;
-	}
-	advoffset += cplen;
-	curbuf += cnt;
-
-	/*
-	 * Display driver statistics for each target.
-	 */
-	for (tgt_id = 0; tgt_id <= ADV_MAX_TID; tgt_id++) {
-		cp = boardp->prtbuf;
-		cplen = asc_prt_target_stats(shp, tgt_id, cp, ASC_PRTBUF_SIZE);
-		ASC_ASSERT(cplen <= ASC_PRTBUF_SIZE);
-		cnt =
-		    asc_proc_copy(advoffset, offset, curbuf, leftlen, cp,
-				  cplen);
-		totcnt += cnt;
-		leftlen -= cnt;
-		if (leftlen == 0) {
-			ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-			return totcnt;
-		}
-		advoffset += cplen;
-		curbuf += cnt;
-	}
-#endif /* ADVANSYS_STATS */
-
-	/*
-	 * Display Asc Library dynamic configuration information
-	 * for the board.
-	 */
-	cp = boardp->prtbuf;
-	if (ASC_NARROW_BOARD(boardp)) {
-		cplen = asc_prt_asc_board_info(shp, cp, ASC_PRTBUF_SIZE);
-	} else {
-		cplen = asc_prt_adv_board_info(shp, cp, ASC_PRTBUF_SIZE);
-	}
-	ASC_ASSERT(cplen < ASC_PRTBUF_SIZE);
-	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
-	totcnt += cnt;
-	leftlen -= cnt;
-	if (leftlen == 0) {
-		ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-		return totcnt;
-	}
-	advoffset += cplen;
-	curbuf += cnt;
-
-	ASC_DBG1(1, "advansys_proc_info: totcnt %d\n", totcnt);
-
-	return totcnt;
 }
-#endif /* CONFIG_PROC_FS */
+
+/*
+ * asc_prt_asc_scsi_q()
+ */
+static void asc_prt_asc_scsi_q(ASC_SCSI_Q *q)
+{
+	ASC_SG_HEAD *sgp;
+	int i;
+
+	printk("ASC_SCSI_Q at addr 0x%lx\n", (ulong)q);
+
+	printk
+	    (" target_ix 0x%x, target_lun %u, srb_ptr 0x%lx, tag_code 0x%x,\n",
+	     q->q2.target_ix, q->q1.target_lun, (ulong)q->q2.srb_ptr,
+	     q->q2.tag_code);
+
+	printk
+	    (" data_addr 0x%lx, data_cnt %lu, sense_addr 0x%lx, sense_len %u,\n",
+	     (ulong)le32_to_cpu(q->q1.data_addr),
+	     (ulong)le32_to_cpu(q->q1.data_cnt),
+	     (ulong)le32_to_cpu(q->q1.sense_addr), q->q1.sense_len);
+
+	printk(" cdbptr 0x%lx, cdb_len %u, sg_head 0x%lx, sg_queue_cnt %u\n",
+	       (ulong)q->cdbptr, q->q2.cdb_len,
+	       (ulong)q->sg_head, q->q1.sg_queue_cnt);
+
+	if (q->sg_head) {
+		sgp = q->sg_head;
+		printk("ASC_SG_HEAD at addr 0x%lx\n", (ulong)sgp);
+		printk(" entry_cnt %u, queue_cnt %u\n", sgp->entry_cnt,
+		       sgp->queue_cnt);
+		for (i = 0; i < sgp->entry_cnt; i++) {
+			printk(" [%u]: addr 0x%lx, bytes %lu\n",
+			       i, (ulong)le32_to_cpu(sgp->sg_list[i].addr),
+			       (ulong)le32_to_cpu(sgp->sg_list[i].bytes));
+		}
+
+	}
+}
+
+/*
+ * asc_prt_asc_qdone_info()
+ */
+static void asc_prt_asc_qdone_info(ASC_QDONE_INFO *q)
+{
+	printk("ASC_QDONE_INFO at addr 0x%lx\n", (ulong)q);
+	printk(" srb_ptr 0x%lx, target_ix %u, cdb_len %u, tag_code %u,\n",
+	       (ulong)q->d2.srb_ptr, q->d2.target_ix, q->d2.cdb_len,
+	       q->d2.tag_code);
+	printk
+	    (" done_stat 0x%x, host_stat 0x%x, scsi_stat 0x%x, scsi_msg 0x%x\n",
+	     q->d3.done_stat, q->d3.host_stat, q->d3.scsi_stat, q->d3.scsi_msg);
+}
+
+/*
+ * asc_prt_adv_sgblock()
+ *
+ * Display an ADV_SG_BLOCK structure.
+ */
+static void asc_prt_adv_sgblock(int sgblockno, ADV_SG_BLOCK *b)
+{
+	int i;
+
+	printk(" ASC_SG_BLOCK at addr 0x%lx (sgblockno %d)\n",
+	       (ulong)b, sgblockno);
+	printk("  sg_cnt %u, sg_ptr 0x%lx\n",
+	       b->sg_cnt, (ulong)le32_to_cpu(b->sg_ptr));
+	BUG_ON(b->sg_cnt > NO_OF_SG_PER_BLOCK);
+	if (b->sg_ptr != 0)
+		BUG_ON(b->sg_cnt != NO_OF_SG_PER_BLOCK);
+	for (i = 0; i < b->sg_cnt; i++) {
+		printk("  [%u]: sg_addr 0x%lx, sg_count 0x%lx\n",
+		       i, (ulong)b->sg_list[i].sg_addr,
+		       (ulong)b->sg_list[i].sg_count);
+	}
+}
+
+/*
+ * asc_prt_adv_scsi_req_q()
+ *
+ * Display an ADV_SCSI_REQ_Q structure.
+ */
+static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *q)
+{
+	int sg_blk_cnt;
+	struct asc_sg_block *sg_ptr;
+
+	printk("ADV_SCSI_REQ_Q at addr 0x%lx\n", (ulong)q);
+
+	printk("  target_id %u, target_lun %u, srb_ptr 0x%lx, a_flag 0x%x\n",
+	       q->target_id, q->target_lun, (ulong)q->srb_ptr, q->a_flag);
+
+	printk("  cntl 0x%x, data_addr 0x%lx, vdata_addr 0x%lx\n",
+	       q->cntl, (ulong)le32_to_cpu(q->data_addr), (ulong)q->vdata_addr);
+
+	printk("  data_cnt %lu, sense_addr 0x%lx, sense_len %u,\n",
+	       (ulong)le32_to_cpu(q->data_cnt),
+	       (ulong)le32_to_cpu(q->sense_addr), q->sense_len);
+
+	printk
+	    ("  cdb_len %u, done_status 0x%x, host_status 0x%x, scsi_status 0x%x\n",
+	     q->cdb_len, q->done_status, q->host_status, q->scsi_status);
+
+	printk("  sg_working_ix 0x%x, target_cmd %u\n",
+	       q->sg_working_ix, q->target_cmd);
+
+	printk("  scsiq_rptr 0x%lx, sg_real_addr 0x%lx, sg_list_ptr 0x%lx\n",
+	       (ulong)le32_to_cpu(q->scsiq_rptr),
+	       (ulong)le32_to_cpu(q->sg_real_addr), (ulong)q->sg_list_ptr);
+
+	/* Display the request's ADV_SG_BLOCK structures. */
+	if (q->sg_list_ptr != NULL) {
+		sg_blk_cnt = 0;
+		while (1) {
+			/*
+			 * 'sg_ptr' is a physical address. Convert it to a virtual
+			 * address by indexing 'sg_blk_cnt' into the virtual address
+			 * array 'sg_list_ptr'.
+			 *
+			 * XXX - Assumes all SG physical blocks are virtually contiguous.
+			 */
+			sg_ptr =
+			    &(((ADV_SG_BLOCK *)(q->sg_list_ptr))[sg_blk_cnt]);
+			asc_prt_adv_sgblock(sg_blk_cnt, sg_ptr);
+			if (sg_ptr->sg_ptr == 0) {
+				break;
+			}
+			sg_blk_cnt++;
+		}
+	}
+}
+#endif /* ADVANSYS_DEBUG */
+
+/*
+ * The advansys chip/microcode contains a 32-bit identifier for each command
+ * known as the 'srb'.  I don't know what it stands for.  The driver used
+ * to encode the scsi_cmnd pointer by calling virt_to_bus and retrieve it
+ * with bus_to_virt.  Now the driver keeps a per-host map of integers to
+ * pointers.  It auto-expands when full, unless it can't allocate memory.
+ * Note that an srb of 0 is treated specially by the chip/firmware, hence
+ * the return of i+1 in this routine, and the corresponding subtraction in
+ * the inverse routine.
+ */
+#define BAD_SRB 0
+static u32 advansys_ptr_to_srb(struct asc_dvc_var *asc_dvc, void *ptr)
+{
+	int i;
+	void **new_ptr;
+
+	for (i = 0; i < asc_dvc->ptr_map_count; i++) {
+		if (!asc_dvc->ptr_map[i])
+			goto out;
+	}
+
+	if (asc_dvc->ptr_map_count == 0)
+		asc_dvc->ptr_map_count = 1;
+	else
+		asc_dvc->ptr_map_count *= 2;
+
+	new_ptr = krealloc(asc_dvc->ptr_map,
+			asc_dvc->ptr_map_count * sizeof(void *), GFP_ATOMIC);
+	if (!new_ptr)
+		return BAD_SRB;
+	asc_dvc->ptr_map = new_ptr;
+ out:
+	ASC_DBG(3, "Putting ptr %p into array offset %d\n", ptr, i);
+	asc_dvc->ptr_map[i] = ptr;
+	return i + 1;
+}
+
+static void * advansys_srb_to_ptr(struct asc_dvc_var *asc_dvc, u32 srb)
+{
+	void *ptr;
+
+	srb--;
+	if (srb >= asc_dvc->ptr_map_count) {
+		printk("advansys: bad SRB %u, max %u\n", srb,
+							asc_dvc->ptr_map_count);
+		return NULL;
+	}
+	ptr = asc_dvc->ptr_map[srb];
+	asc_dvc->ptr_map[srb] = NULL;
+	ASC_DBG(3, "Returning ptr %p from array offset %d\n", ptr, srb);
+	return ptr;
+}
 
 /*
  * advansys_info()
@@ -4251,17 +2803,15 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 static const char *advansys_info(struct Scsi_Host *shost)
 {
 	static char info[ASC_INFO_SIZE];
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
 	ASC_DVC_VAR *asc_dvc_varp;
 	ADV_DVC_VAR *adv_dvc_varp;
 	char *busname;
-	int iolen;
 	char *widename = NULL;
 
-	boardp = ASC_BOARDP(shost);
 	if (ASC_NARROW_BOARD(boardp)) {
 		asc_dvc_varp = &boardp->dvc_var.asc_dvc_var;
-		ASC_DBG(1, "advansys_info: begin\n");
+		ASC_DBG(1, "begin\n");
 		if (asc_dvc_varp->bus_type & ASC_IS_ISA) {
 			if ((asc_dvc_varp->bus_type & ASC_IS_ISAPNP) ==
 			    ASC_IS_ISAPNP) {
@@ -4269,13 +2819,12 @@ static const char *advansys_info(struct Scsi_Host *shost)
 			} else {
 				busname = "ISA";
 			}
-			/* Don't reference 'shost->n_io_port'; It may be truncated. */
 			sprintf(info,
 				"AdvanSys SCSI %s: %s: IO 0x%lX-0x%lX, IRQ 0x%X, DMA 0x%X",
 				ASC_VERSION, busname,
 				(ulong)shost->io_port,
-				(ulong)shost->io_port + boardp->asc_n_io_port -
-				1, shost->irq, shost->dma_channel);
+				(ulong)shost->io_port + ASC_IOADR_GAP - 1,
+				boardp->irq, shost->dma_channel);
 		} else {
 			if (asc_dvc_varp->bus_type & ASC_IS_VL) {
 				busname = "VL";
@@ -4290,17 +2839,14 @@ static const char *advansys_info(struct Scsi_Host *shost)
 				}
 			} else {
 				busname = "?";
-				ASC_PRINT2
-				    ("advansys_info: board %d: unknown bus type %d\n",
-				     boardp->id, asc_dvc_varp->bus_type);
+				shost_printk(KERN_ERR, shost, "unknown bus "
+					"type %d\n", asc_dvc_varp->bus_type);
 			}
-			/* Don't reference 'shost->n_io_port'; It may be truncated. */
 			sprintf(info,
 				"AdvanSys SCSI %s: %s: IO 0x%lX-0x%lX, IRQ 0x%X",
-				ASC_VERSION, busname,
-				(ulong)shost->io_port,
-				(ulong)shost->io_port + boardp->asc_n_io_port -
-				1, shost->irq);
+				ASC_VERSION, busname, (ulong)shost->io_port,
+				(ulong)shost->io_port + ASC_IOADR_GAP - 1,
+				boardp->irq);
 		}
 	} else {
 		/*
@@ -4312,1926 +2858,54 @@ static const char *advansys_info(struct Scsi_Host *shost)
 		 */
 		adv_dvc_varp = &boardp->dvc_var.adv_dvc_var;
 		if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
-			iolen = ADV_3550_IOLEN;
 			widename = "Ultra-Wide";
 		} else if (adv_dvc_varp->chip_type == ADV_CHIP_ASC38C0800) {
-			iolen = ADV_38C0800_IOLEN;
 			widename = "Ultra2-Wide";
 		} else {
-			iolen = ADV_38C1600_IOLEN;
 			widename = "Ultra3-Wide";
 		}
 		sprintf(info,
 			"AdvanSys SCSI %s: PCI %s: PCIMEM 0x%lX-0x%lX, IRQ 0x%X",
 			ASC_VERSION, widename, (ulong)adv_dvc_varp->iop_base,
-			(ulong)adv_dvc_varp->iop_base + iolen - 1, shost->irq);
+			(ulong)adv_dvc_varp->iop_base + boardp->asc_n_io_port - 1, boardp->irq);
 	}
-	ASC_ASSERT(strlen(info) < ASC_INFO_SIZE);
-	ASC_DBG(1, "advansys_info: end\n");
+	BUG_ON(strlen(info) >= ASC_INFO_SIZE);
+	ASC_DBG(1, "end\n");
 	return info;
 }
 
-/*
- * advansys_queuecommand() - interrupt-driven I/O entrypoint.
- *
- * This function always returns 0. Command return status is saved
- * in the 'scp' result field.
- */
-static int
-advansys_queuecommand(struct scsi_cmnd *scp, void (*done) (struct scsi_cmnd *))
-{
-	struct Scsi_Host *shost;
-	asc_board_t *boardp;
-	ulong flags;
-	struct scsi_cmnd *done_scp;
-
-	shost = scp->device->host;
-	boardp = ASC_BOARDP(shost);
-	ASC_STATS(shost, queuecommand);
-
-	/* host_lock taken by mid-level prior to call but need to protect */
-	/* against own ISR */
-	spin_lock_irqsave(&boardp->lock, flags);
-
-	/*
-	 * Block new commands while handling a reset or abort request.
-	 */
-	if (boardp->flags & ASC_HOST_IN_RESET) {
-		ASC_DBG1(1,
-			 "advansys_queuecommand: scp 0x%lx blocked for reset request\n",
-			 (ulong)scp);
-		scp->result = HOST_BYTE(DID_RESET);
-
-		/*
-		 * Add blocked requests to the board's 'done' queue. The queued
-		 * requests will be completed at the end of the abort or reset
-		 * handling.
-		 */
-		asc_enqueue(&boardp->done, scp, ASC_BACK);
-		spin_unlock_irqrestore(&boardp->lock, flags);
-		return 0;
-	}
-
-	/*
-	 * Attempt to execute any waiting commands for the board.
-	 */
-	if (!ASC_QUEUE_EMPTY(&boardp->waiting)) {
-		ASC_DBG(1,
-			"advansys_queuecommand: before asc_execute_queue() waiting\n");
-		asc_execute_queue(&boardp->waiting);
-	}
-
-	/*
-	 * Save the function pointer to Linux mid-level 'done' function
-	 * and attempt to execute the command.
-	 *
-	 * If ASC_NOERROR is returned the request has been added to the
-	 * board's 'active' queue and will be completed by the interrupt
-	 * handler.
-	 *
-	 * If ASC_BUSY is returned add the request to the board's per
-	 * target waiting list. This is the first time the request has
-	 * been tried. Add it to the back of the waiting list. It will be
-	 * retried later.
-	 *
-	 * If an error occurred, the request will have been placed on the
-	 * board's 'done' queue and must be completed before returning.
-	 */
-	scp->scsi_done = done;
-	switch (asc_execute_scsi_cmnd(scp)) {
-	case ASC_NOERROR:
-		break;
-	case ASC_BUSY:
-		asc_enqueue(&boardp->waiting, scp, ASC_BACK);
-		break;
-	case ASC_ERROR:
-	default:
-		done_scp = asc_dequeue_list(&boardp->done, NULL, ASC_TID_ALL);
-		/* Interrupts could be enabled here. */
-		asc_scsi_done_list(done_scp);
-		break;
-	}
-	spin_unlock_irqrestore(&boardp->lock, flags);
-
-	return 0;
-}
-
-/*
- * advansys_reset()
- *
- * Reset the bus associated with the command 'scp'.
- *
- * This function runs its own thread. Interrupts must be blocked but
- * sleeping is allowed and no locking other than for host structures is
- * required. Returns SUCCESS or FAILED.
- */
-static int advansys_reset(struct scsi_cmnd *scp)
-{
-	struct Scsi_Host *shost;
-	asc_board_t *boardp;
-	ASC_DVC_VAR *asc_dvc_varp;
-	ADV_DVC_VAR *adv_dvc_varp;
-	ulong flags;
-	struct scsi_cmnd *done_scp = NULL, *last_scp = NULL;
-	struct scsi_cmnd *tscp, *new_last_scp;
-	int status;
-	int ret = SUCCESS;
-
-	ASC_DBG1(1, "advansys_reset: 0x%lx\n", (ulong)scp);
-
-#ifdef ADVANSYS_STATS
-	if (scp->device->host != NULL) {
-		ASC_STATS(scp->device->host, reset);
-	}
-#endif /* ADVANSYS_STATS */
-
-	if ((shost = scp->device->host) == NULL) {
-		scp->result = HOST_BYTE(DID_ERROR);
-		return FAILED;
-	}
-
-	boardp = ASC_BOARDP(shost);
-
-	ASC_PRINT1("advansys_reset: board %d: SCSI bus reset started...\n",
-		   boardp->id);
-	/*
-	 * Check for re-entrancy.
-	 */
-	spin_lock_irqsave(&boardp->lock, flags);
-	if (boardp->flags & ASC_HOST_IN_RESET) {
-		spin_unlock_irqrestore(&boardp->lock, flags);
-		return FAILED;
-	}
-	boardp->flags |= ASC_HOST_IN_RESET;
-	spin_unlock_irqrestore(&boardp->lock, flags);
-
-	if (ASC_NARROW_BOARD(boardp)) {
-		/*
-		 * Narrow Board
-		 */
-		asc_dvc_varp = &boardp->dvc_var.asc_dvc_var;
-
-		/*
-		 * Reset the chip and SCSI bus.
-		 */
-		ASC_DBG(1, "advansys_reset: before AscInitAsc1000Driver()\n");
-		status = AscInitAsc1000Driver(asc_dvc_varp);
-
-		/* Refer to ASC_IERR_* defintions for meaning of 'err_code'. */
-		if (asc_dvc_varp->err_code) {
-			ASC_PRINT2
-			    ("advansys_reset: board %d: SCSI bus reset error: 0x%x\n",
-			     boardp->id, asc_dvc_varp->err_code);
-			ret = FAILED;
-		} else if (status) {
-			ASC_PRINT2
-			    ("advansys_reset: board %d: SCSI bus reset warning: 0x%x\n",
-			     boardp->id, status);
-		} else {
-			ASC_PRINT1
-			    ("advansys_reset: board %d: SCSI bus reset successful.\n",
-			     boardp->id);
-		}
-
-		ASC_DBG(1, "advansys_reset: after AscInitAsc1000Driver()\n");
-		spin_lock_irqsave(&boardp->lock, flags);
-
-	} else {
-		/*
-		 * Wide Board
-		 *
-		 * If the suggest reset bus flags are set, then reset the bus.
-		 * Otherwise only reset the device.
-		 */
-		adv_dvc_varp = &boardp->dvc_var.adv_dvc_var;
-
-		/*
-		 * Reset the target's SCSI bus.
-		 */
-		ASC_DBG(1, "advansys_reset: before AdvResetChipAndSB()\n");
-		switch (AdvResetChipAndSB(adv_dvc_varp)) {
-		case ASC_TRUE:
-			ASC_PRINT1
-			    ("advansys_reset: board %d: SCSI bus reset successful.\n",
-			     boardp->id);
-			break;
-		case ASC_FALSE:
-		default:
-			ASC_PRINT1
-			    ("advansys_reset: board %d: SCSI bus reset error.\n",
-			     boardp->id);
-			ret = FAILED;
-			break;
-		}
-		spin_lock_irqsave(&boardp->lock, flags);
-		(void)AdvISR(adv_dvc_varp);
-	}
-	/* Board lock is held. */
-
-	/*
-	 * Dequeue all board 'done' requests. A pointer to the last request
-	 * is returned in 'last_scp'.
-	 */
-	done_scp = asc_dequeue_list(&boardp->done, &last_scp, ASC_TID_ALL);
-
-	/*
-	 * Dequeue all board 'active' requests for all devices and set
-	 * the request status to DID_RESET. A pointer to the last request
-	 * is returned in 'last_scp'.
-	 */
-	if (done_scp == NULL) {
-		done_scp =
-		    asc_dequeue_list(&boardp->active, &last_scp, ASC_TID_ALL);
-		for (tscp = done_scp; tscp; tscp = REQPNEXT(tscp)) {
-			tscp->result = HOST_BYTE(DID_RESET);
-		}
-	} else {
-		/* Append to 'done_scp' at the end with 'last_scp'. */
-		ASC_ASSERT(last_scp != NULL);
-		last_scp->host_scribble =
-		    (unsigned char *)asc_dequeue_list(&boardp->active,
-						      &new_last_scp,
-						      ASC_TID_ALL);
-		if (new_last_scp != NULL) {
-			ASC_ASSERT(REQPNEXT(last_scp) != NULL);
-			for (tscp = REQPNEXT(last_scp); tscp;
-			     tscp = REQPNEXT(tscp)) {
-				tscp->result = HOST_BYTE(DID_RESET);
-			}
-			last_scp = new_last_scp;
-		}
-	}
-
-	/*
-	 * Dequeue all 'waiting' requests and set the request status
-	 * to DID_RESET.
-	 */
-	if (done_scp == NULL) {
-		done_scp =
-		    asc_dequeue_list(&boardp->waiting, &last_scp, ASC_TID_ALL);
-		for (tscp = done_scp; tscp; tscp = REQPNEXT(tscp)) {
-			tscp->result = HOST_BYTE(DID_RESET);
-		}
-	} else {
-		/* Append to 'done_scp' at the end with 'last_scp'. */
-		ASC_ASSERT(last_scp != NULL);
-		last_scp->host_scribble =
-		    (unsigned char *)asc_dequeue_list(&boardp->waiting,
-						      &new_last_scp,
-						      ASC_TID_ALL);
-		if (new_last_scp != NULL) {
-			ASC_ASSERT(REQPNEXT(last_scp) != NULL);
-			for (tscp = REQPNEXT(last_scp); tscp;
-			     tscp = REQPNEXT(tscp)) {
-				tscp->result = HOST_BYTE(DID_RESET);
-			}
-			last_scp = new_last_scp;
-		}
-	}
-
-	/* Save the time of the most recently completed reset. */
-	boardp->last_reset = jiffies;
-
-	/* Clear reset flag. */
-	boardp->flags &= ~ASC_HOST_IN_RESET;
-	spin_unlock_irqrestore(&boardp->lock, flags);
-
-	/*
-	 * Complete all the 'done_scp' requests.
-	 */
-	if (done_scp != NULL) {
-		asc_scsi_done_list(done_scp);
-	}
-
-	ASC_DBG1(1, "advansys_reset: ret %d\n", ret);
-
-	return ret;
-}
-
-/*
- * advansys_biosparam()
- *
- * Translate disk drive geometry if the "BIOS greater than 1 GB"
- * support is enabled for a drive.
- *
- * ip (information pointer) is an int array with the following definition:
- * ip[0]: heads
- * ip[1]: sectors
- * ip[2]: cylinders
- */
-static int
-advansys_biosparam(struct scsi_device *sdev, struct block_device *bdev,
-		   sector_t capacity, int ip[])
-{
-	asc_board_t *boardp;
-
-	ASC_DBG(1, "advansys_biosparam: begin\n");
-	ASC_STATS(sdev->host, biosparam);
-	boardp = ASC_BOARDP(sdev->host);
-	if (ASC_NARROW_BOARD(boardp)) {
-		if ((boardp->dvc_var.asc_dvc_var.dvc_cntl &
-		     ASC_CNTL_BIOS_GT_1GB) && capacity > 0x200000) {
-			ip[0] = 255;
-			ip[1] = 63;
-		} else {
-			ip[0] = 64;
-			ip[1] = 32;
-		}
-	} else {
-		if ((boardp->dvc_var.adv_dvc_var.bios_ctrl &
-		     BIOS_CTRL_EXTENDED_XLAT) && capacity > 0x200000) {
-			ip[0] = 255;
-			ip[1] = 63;
-		} else {
-			ip[0] = 64;
-			ip[1] = 32;
-		}
-	}
-	ip[2] = (unsigned long)capacity / (ip[0] * ip[1]);
-	ASC_DBG(1, "advansys_biosparam: end\n");
-	return 0;
-}
-
-static int __init advansys_detect(struct scsi_host_template *tpnt);
-static int advansys_release(struct Scsi_Host *shp);
-
-static struct scsi_host_template driver_template = {
-	.proc_name = "advansys",
 #ifdef CONFIG_PROC_FS
-	.proc_info = advansys_proc_info,
-#endif
-	.name = "advansys",
-	.detect = advansys_detect,
-	.release = advansys_release,
-	.info = advansys_info,
-	.queuecommand = advansys_queuecommand,
-	.eh_bus_reset_handler = advansys_reset,
-	.bios_param = advansys_biosparam,
-	.slave_configure = advansys_slave_configure,
-	/*
-	 * Because the driver may control an ISA adapter 'unchecked_isa_dma'
-	 * must be set. The flag will be cleared in advansys_detect for non-ISA
-	 * adapters. Refer to the comment in scsi_module.c for more information.
-	 */
-	.unchecked_isa_dma = 1,
-	/*
-	 * All adapters controlled by this driver are capable of large
-	 * scatter-gather lists. According to the mid-level SCSI documentation
-	 * this obviates any performance gain provided by setting
-	 * 'use_clustering'. But empirically while CPU utilization is increased
-	 * by enabling clustering, I/O throughput increases as well.
-	 */
-	.use_clustering = ENABLE_CLUSTERING,
-};
-
-#include "scsi_module.c"
-
 /*
- * --- Miscellaneous Driver Functions
- */
-
-/*
- * First-level interrupt handler.
+ * asc_prt_line()
  *
- * 'dev_id' is a pointer to the interrupting adapter's asc_board_t. Because
- * all boards are currently checked for interrupts on each interrupt, 'dev_id'
- * is not referenced. 'dev_id' could be used to identify an interrupt passed
- * to the AdvanSys driver which is for a device sharing an interrupt with
- * an AdvanSys adapter.
+ * If 'cp' is NULL print to the console, otherwise print to a buffer.
+ *
+ * Return 0 if printing to the console, otherwise return the number of
+ * bytes written to the buffer.
+ *
+ * Note: If any single line is greater than ASC_PRTLINE_SIZE bytes the stack
+ * will be corrupted. 's[]' is defined to be ASC_PRTLINE_SIZE bytes.
  */
-static irqreturn_t advansys_interrupt(int irq, void *dev_id)
+static int asc_prt_line(char *buf, int buflen, char *fmt, ...)
 {
-	ulong flags;
-	int i;
-	asc_board_t *boardp;
-	struct scsi_cmnd *done_scp = NULL, *last_scp = NULL;
-	struct scsi_cmnd *new_last_scp;
-	struct Scsi_Host *shost;
-
-	ASC_DBG(1, "advansys_interrupt: begin\n");
-
-	/*
-	 * Check for interrupts on all boards.
-	 * AscISR() will call asc_isr_callback().
-	 */
-	for (i = 0; i < asc_board_count; i++) {
-		shost = asc_host[i];
-		boardp = ASC_BOARDP(shost);
-		ASC_DBG2(2, "advansys_interrupt: i %d, boardp 0x%lx\n",
-			 i, (ulong)boardp);
-		spin_lock_irqsave(&boardp->lock, flags);
-		if (ASC_NARROW_BOARD(boardp)) {
-			/*
-			 * Narrow Board
-			 */
-			if (AscIsIntPending(shost->io_port)) {
-				ASC_STATS(shost, interrupt);
-				ASC_DBG(1,
-					"advansys_interrupt: before AscISR()\n");
-				AscISR(&boardp->dvc_var.asc_dvc_var);
-			}
-		} else {
-			/*
-			 * Wide Board
-			 */
-			ASC_DBG(1, "advansys_interrupt: before AdvISR()\n");
-			if (AdvISR(&boardp->dvc_var.adv_dvc_var)) {
-				ASC_STATS(shost, interrupt);
-			}
-		}
-
-		/*
-		 * Start waiting requests and create a list of completed requests.
-		 *
-		 * If a reset request is being performed for the board, the reset
-		 * handler will complete pending requests after it has completed.
-		 */
-		if ((boardp->flags & ASC_HOST_IN_RESET) == 0) {
-			ASC_DBG2(1,
-				 "advansys_interrupt: done_scp 0x%lx, last_scp 0x%lx\n",
-				 (ulong)done_scp, (ulong)last_scp);
-
-			/* Start any waiting commands for the board. */
-			if (!ASC_QUEUE_EMPTY(&boardp->waiting)) {
-				ASC_DBG(1,
-					"advansys_interrupt: before asc_execute_queue()\n");
-				asc_execute_queue(&boardp->waiting);
-			}
-
-			/*
-			 * Add to the list of requests that must be completed.
-			 *
-			 * 'done_scp' will always be NULL on the first iteration
-			 * of this loop. 'last_scp' is set at the same time as
-			 * 'done_scp'.
-			 */
-			if (done_scp == NULL) {
-				done_scp =
-				    asc_dequeue_list(&boardp->done, &last_scp,
-						     ASC_TID_ALL);
-			} else {
-				ASC_ASSERT(last_scp != NULL);
-				last_scp->host_scribble =
-				    (unsigned char *)asc_dequeue_list(&boardp->
-								      done,
-								      &new_last_scp,
-								      ASC_TID_ALL);
-				if (new_last_scp != NULL) {
-					ASC_ASSERT(REQPNEXT(last_scp) != NULL);
-					last_scp = new_last_scp;
-				}
-			}
-		}
-		spin_unlock_irqrestore(&boardp->lock, flags);
-	}
-
-	/*
-	 * If interrupts were enabled on entry, then they
-	 * are now enabled here.
-	 *
-	 * Complete all requests on the done list.
-	 */
-
-	asc_scsi_done_list(done_scp);
-
-	ASC_DBG(1, "advansys_interrupt: end\n");
-	return IRQ_HANDLED;
-}
-
-/*
- * Set the number of commands to queue per device for the
- * specified host adapter.
- */
-static int advansys_slave_configure(struct scsi_device *device)
-{
-	asc_board_t *boardp;
-
-	boardp = ASC_BOARDP(device->host);
-	boardp->flags |= ASC_SELECT_QUEUE_DEPTHS;
-	/*
-	 * Save a pointer to the device and set its initial/maximum
-	 * queue depth.  Only save the pointer for a lun0 dev though.
-	 */
-	if (device->lun == 0)
-		boardp->device[device->id] = device;
-	if (device->tagged_supported) {
-		if (ASC_NARROW_BOARD(boardp)) {
-			scsi_adjust_queue_depth(device, MSG_ORDERED_TAG,
-						boardp->dvc_var.asc_dvc_var.
-						max_dvc_qng[device->id]);
-		} else {
-			scsi_adjust_queue_depth(device, MSG_ORDERED_TAG,
-						boardp->dvc_var.adv_dvc_var.
-						max_dvc_qng);
-		}
-	} else {
-		scsi_adjust_queue_depth(device, 0, device->host->cmd_per_lun);
-	}
-	ASC_DBG4(1,
-		 "advansys_slave_configure: device 0x%lx, boardp 0x%lx, id %d, depth %d\n",
-		 (ulong)device, (ulong)boardp, device->id, device->queue_depth);
-	return 0;
-}
-
-/*
- * Complete all requests on the singly linked list pointed
- * to by 'scp'.
- *
- * Interrupts can be enabled on entry.
- */
-static void asc_scsi_done_list(struct scsi_cmnd *scp)
-{
-	struct scsi_cmnd *tscp;
-
-	ASC_DBG(2, "asc_scsi_done_list: begin\n");
-	while (scp != NULL) {
-		asc_board_t *boardp;
-		struct device *dev;
-
-		ASC_DBG1(3, "asc_scsi_done_list: scp 0x%lx\n", (ulong)scp);
-		tscp = REQPNEXT(scp);
-		scp->host_scribble = NULL;
-
-		boardp = ASC_BOARDP(scp->device->host);
-
-		if (ASC_NARROW_BOARD(boardp))
-			dev = boardp->dvc_cfg.asc_dvc_cfg.dev;
-		else
-			dev = boardp->dvc_cfg.adv_dvc_cfg.dev;
-
-		if (scp->use_sg)
-			dma_unmap_sg(dev,
-				     (struct scatterlist *)scp->request_buffer,
-				     scp->use_sg, scp->sc_data_direction);
-		else if (scp->request_bufflen)
-			dma_unmap_single(dev, scp->SCp.dma_handle,
-					 scp->request_bufflen,
-					 scp->sc_data_direction);
-
-		ASC_STATS(scp->device->host, done);
-		ASC_ASSERT(scp->scsi_done != NULL);
-
-		scp->scsi_done(scp);
-
-		scp = tscp;
-	}
-	ASC_DBG(2, "asc_scsi_done_list: done\n");
-	return;
-}
-
-/*
- * Execute a single 'Scsi_Cmnd'.
- *
- * The function 'done' is called when the request has been completed.
- *
- * Scsi_Cmnd:
- *
- *  host - board controlling device
- *  device - device to send command
- *  target - target of device
- *  lun - lun of device
- *  cmd_len - length of SCSI CDB
- *  cmnd - buffer for SCSI 8, 10, or 12 byte CDB
- *  use_sg - if non-zero indicates scatter-gather request with use_sg elements
- *
- *  if (use_sg == 0) {
- *    request_buffer - buffer address for request
- *    request_bufflen - length of request buffer
- *  } else {
- *    request_buffer - pointer to scatterlist structure
- *  }
- *
- *  sense_buffer - sense command buffer
- *
- *  result (4 bytes of an int):
- *    Byte Meaning
- *    0 SCSI Status Byte Code
- *    1 SCSI One Byte Message Code
- *    2 Host Error Code
- *    3 Mid-Level Error Code
- *
- *  host driver fields:
- *    SCp - Scsi_Pointer used for command processing status
- *    scsi_done - used to save caller's done function
- *    host_scribble - used for pointer to another struct scsi_cmnd
- *
- * If this function returns ASC_NOERROR the request has been enqueued
- * on the board's 'active' queue and will be completed from the
- * interrupt handler.
- *
- * If this function returns ASC_NOERROR the request has been enqueued
- * on the board's 'done' queue and must be completed by the caller.
- *
- * If ASC_BUSY is returned the request will be enqueued by the
- * caller on the target's waiting queue and re-tried later.
- */
-static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
-{
-	asc_board_t *boardp;
-	ASC_DVC_VAR *asc_dvc_varp;
-	ADV_DVC_VAR *adv_dvc_varp;
-	ADV_SCSI_REQ_Q *adv_scsiqp;
-	struct scsi_device *device;
+	va_list args;
 	int ret;
+	char s[ASC_PRTLINE_SIZE];
 
-	ASC_DBG2(1, "asc_execute_scsi_cmnd: scp 0x%lx, done 0x%lx\n",
-		 (ulong)scp, (ulong)scp->scsi_done);
-
-	boardp = ASC_BOARDP(scp->device->host);
-	device = boardp->device[scp->device->id];
-
-	if (ASC_NARROW_BOARD(boardp)) {
-		/*
-		 * Build and execute Narrow Board request.
-		 */
-
-		asc_dvc_varp = &boardp->dvc_var.asc_dvc_var;
-
-		/*
-		 * Build Asc Library request structure using the
-		 * global structures 'asc_scsi_req' and 'asc_sg_head'.
-		 *
-		 * If an error is returned, then the request has been
-		 * queued on the board done queue. It will be completed
-		 * by the caller.
-		 *
-		 * asc_build_req() can not return ASC_BUSY.
-		 */
-		if (asc_build_req(boardp, scp) == ASC_ERROR) {
-			ASC_STATS(scp->device->host, build_error);
-			return ASC_ERROR;
-		}
-
-		/*
-		 * Execute the command. If there is no error, add the command
-		 * to the active queue.
-		 */
-		switch (ret = AscExeScsiQueue(asc_dvc_varp, &asc_scsi_q)) {
-		case ASC_NOERROR:
-			ASC_STATS(scp->device->host, exe_noerror);
-			/*
-			 * Increment monotonically increasing per device successful
-			 * request counter. Wrapping doesn't matter.
-			 */
-			boardp->reqcnt[scp->device->id]++;
-			asc_enqueue(&boardp->active, scp, ASC_BACK);
-			ASC_DBG(1,
-				"asc_execute_scsi_cmnd: AscExeScsiQueue(), ASC_NOERROR\n");
-			break;
-		case ASC_BUSY:
-			/*
-			 * Caller will enqueue request on the target's waiting queue
-			 * and retry later.
-			 */
-			ASC_STATS(scp->device->host, exe_busy);
-			break;
-		case ASC_ERROR:
-			ASC_PRINT2
-			    ("asc_execute_scsi_cmnd: board %d: AscExeScsiQueue() ASC_ERROR, err_code 0x%x\n",
-			     boardp->id, asc_dvc_varp->err_code);
-			ASC_STATS(scp->device->host, exe_error);
-			scp->result = HOST_BYTE(DID_ERROR);
-			asc_enqueue(&boardp->done, scp, ASC_BACK);
-			break;
-		default:
-			ASC_PRINT2
-			    ("asc_execute_scsi_cmnd: board %d: AscExeScsiQueue() unknown, err_code 0x%x\n",
-			     boardp->id, asc_dvc_varp->err_code);
-			ASC_STATS(scp->device->host, exe_unknown);
-			scp->result = HOST_BYTE(DID_ERROR);
-			asc_enqueue(&boardp->done, scp, ASC_BACK);
-			break;
-		}
+	va_start(args, fmt);
+	ret = vsprintf(s, fmt, args);
+	BUG_ON(ret >= ASC_PRTLINE_SIZE);
+	if (buf == NULL) {
+		(void)printk(s);
+		ret = 0;
 	} else {
-		/*
-		 * Build and execute Wide Board request.
-		 */
-		adv_dvc_varp = &boardp->dvc_var.adv_dvc_var;
-
-		/*
-		 * Build and get a pointer to an Adv Library request structure.
-		 *
-		 * If the request is successfully built then send it below,
-		 * otherwise return with an error.
-		 */
-		switch (adv_build_req(boardp, scp, &adv_scsiqp)) {
-		case ASC_NOERROR:
-			ASC_DBG(3,
-				"asc_execute_scsi_cmnd: adv_build_req ASC_NOERROR\n");
-			break;
-		case ASC_BUSY:
-			ASC_DBG(1,
-				"asc_execute_scsi_cmnd: adv_build_req ASC_BUSY\n");
-			/*
-			 * If busy is returned the request has not been enqueued.
-			 * It will be enqueued by the caller on the target's waiting
-			 * queue and retried later.
-			 *
-			 * The asc_stats fields 'adv_build_noreq' and 'adv_build_nosg'
-			 * count wide board busy conditions. They are updated in
-			 * adv_build_req and adv_get_sglist, respectively.
-			 */
-			return ASC_BUSY;
-		case ASC_ERROR:
-			/* 
-			 * If an error is returned, then the request has been
-			 * queued on the board done queue. It will be completed
-			 * by the caller.
-			 */
-		default:
-			ASC_DBG(1,
-				"asc_execute_scsi_cmnd: adv_build_req ASC_ERROR\n");
-			ASC_STATS(scp->device->host, build_error);
-			return ASC_ERROR;
-		}
-
-		/*
-		 * Execute the command. If there is no error, add the command
-		 * to the active queue.
-		 */
-		switch (ret = AdvExeScsiQueue(adv_dvc_varp, adv_scsiqp)) {
-		case ASC_NOERROR:
-			ASC_STATS(scp->device->host, exe_noerror);
-			/*
-			 * Increment monotonically increasing per device successful
-			 * request counter. Wrapping doesn't matter.
-			 */
-			boardp->reqcnt[scp->device->id]++;
-			asc_enqueue(&boardp->active, scp, ASC_BACK);
-			ASC_DBG(1,
-				"asc_execute_scsi_cmnd: AdvExeScsiQueue(), ASC_NOERROR\n");
-			break;
-		case ASC_BUSY:
-			/*
-			 * Caller will enqueue request on the target's waiting queue
-			 * and retry later.
-			 */
-			ASC_STATS(scp->device->host, exe_busy);
-			break;
-		case ASC_ERROR:
-			ASC_PRINT2
-			    ("asc_execute_scsi_cmnd: board %d: AdvExeScsiQueue() ASC_ERROR, err_code 0x%x\n",
-			     boardp->id, adv_dvc_varp->err_code);
-			ASC_STATS(scp->device->host, exe_error);
-			scp->result = HOST_BYTE(DID_ERROR);
-			asc_enqueue(&boardp->done, scp, ASC_BACK);
-			break;
-		default:
-			ASC_PRINT2
-			    ("asc_execute_scsi_cmnd: board %d: AdvExeScsiQueue() unknown, err_code 0x%x\n",
-			     boardp->id, adv_dvc_varp->err_code);
-			ASC_STATS(scp->device->host, exe_unknown);
-			scp->result = HOST_BYTE(DID_ERROR);
-			asc_enqueue(&boardp->done, scp, ASC_BACK);
-			break;
-		}
+		ret = min(buflen, ret);
+		memcpy(buf, s, ret);
 	}
-
-	ASC_DBG(1, "asc_execute_scsi_cmnd: end\n");
+	va_end(args);
 	return ret;
 }
 
-/*
- * Build a request structure for the Asc Library (Narrow Board).
- *
- * The global structures 'asc_scsi_q' and 'asc_sg_head' are
- * used to build the request.
- *
- * If an error occurs, then queue the request on the board done
- * queue and return ASC_ERROR.
- */
-static int asc_build_req(asc_board_t *boardp, struct scsi_cmnd *scp)
-{
-	struct device *dev = boardp->dvc_cfg.asc_dvc_cfg.dev;
-
-	/*
-	 * Mutually exclusive access is required to 'asc_scsi_q' and
-	 * 'asc_sg_head' until after the request is started.
-	 */
-	memset(&asc_scsi_q, 0, sizeof(ASC_SCSI_Q));
-
-	/*
-	 * Point the ASC_SCSI_Q to the 'struct scsi_cmnd'.
-	 */
-	asc_scsi_q.q2.srb_ptr = ASC_VADDR_TO_U32(scp);
-
-	/*
-	 * Build the ASC_SCSI_Q request.
-	 *
-	 * For narrow boards a CDB length maximum of 12 bytes
-	 * is supported.
-	 */
-	if (scp->cmd_len > ASC_MAX_CDB_LEN) {
-		ASC_PRINT3
-		    ("asc_build_req: board %d: cmd_len %d > ASC_MAX_CDB_LEN  %d\n",
-		     boardp->id, scp->cmd_len, ASC_MAX_CDB_LEN);
-		scp->result = HOST_BYTE(DID_ERROR);
-		asc_enqueue(&boardp->done, scp, ASC_BACK);
-		return ASC_ERROR;
-	}
-	asc_scsi_q.cdbptr = &scp->cmnd[0];
-	asc_scsi_q.q2.cdb_len = scp->cmd_len;
-	asc_scsi_q.q1.target_id = ASC_TID_TO_TARGET_ID(scp->device->id);
-	asc_scsi_q.q1.target_lun = scp->device->lun;
-	asc_scsi_q.q2.target_ix =
-	    ASC_TIDLUN_TO_IX(scp->device->id, scp->device->lun);
-	asc_scsi_q.q1.sense_addr =
-	    cpu_to_le32(virt_to_bus(&scp->sense_buffer[0]));
-	asc_scsi_q.q1.sense_len = sizeof(scp->sense_buffer);
-
-	/*
-	 * If there are any outstanding requests for the current target,
-	 * then every 255th request send an ORDERED request. This heuristic
-	 * tries to retain the benefit of request sorting while preventing
-	 * request starvation. 255 is the max number of tags or pending commands
-	 * a device may have outstanding.
-	 *
-	 * The request count is incremented below for every successfully
-	 * started request.
-	 *
-	 */
-	if ((boardp->dvc_var.asc_dvc_var.cur_dvc_qng[scp->device->id] > 0) &&
-	    (boardp->reqcnt[scp->device->id] % 255) == 0) {
-		asc_scsi_q.q2.tag_code = MSG_ORDERED_TAG;
-	} else {
-		asc_scsi_q.q2.tag_code = MSG_SIMPLE_TAG;
-	}
-
-	/*
-	 * Build ASC_SCSI_Q for a contiguous buffer or a scatter-gather
-	 * buffer command.
-	 */
-	if (scp->use_sg == 0) {
-		/*
-		 * CDB request of single contiguous buffer.
-		 */
-		ASC_STATS(scp->device->host, cont_cnt);
-		scp->SCp.dma_handle = scp->request_bufflen ?
-		    dma_map_single(dev, scp->request_buffer,
-				   scp->request_bufflen,
-				   scp->sc_data_direction) : 0;
-		asc_scsi_q.q1.data_addr = cpu_to_le32(scp->SCp.dma_handle);
-		asc_scsi_q.q1.data_cnt = cpu_to_le32(scp->request_bufflen);
-		ASC_STATS_ADD(scp->device->host, cont_xfer,
-			      ASC_CEILING(scp->request_bufflen, 512));
-		asc_scsi_q.q1.sg_queue_cnt = 0;
-		asc_scsi_q.sg_head = NULL;
-	} else {
-		/*
-		 * CDB scatter-gather request list.
-		 */
-		int sgcnt;
-		int use_sg;
-		struct scatterlist *slp;
-
-		slp = (struct scatterlist *)scp->request_buffer;
-		use_sg =
-		    dma_map_sg(dev, slp, scp->use_sg, scp->sc_data_direction);
-
-		if (use_sg > scp->device->host->sg_tablesize) {
-			ASC_PRINT3
-			    ("asc_build_req: board %d: use_sg %d > sg_tablesize %d\n",
-			     boardp->id, use_sg,
-			     scp->device->host->sg_tablesize);
-			dma_unmap_sg(dev, slp, scp->use_sg,
-				     scp->sc_data_direction);
-			scp->result = HOST_BYTE(DID_ERROR);
-			asc_enqueue(&boardp->done, scp, ASC_BACK);
-			return ASC_ERROR;
-		}
-
-		ASC_STATS(scp->device->host, sg_cnt);
-
-		/*
-		 * Use global ASC_SG_HEAD structure and set the ASC_SCSI_Q
-		 * structure to point to it.
-		 */
-		memset(&asc_sg_head, 0, sizeof(ASC_SG_HEAD));
-
-		asc_scsi_q.q1.cntl |= QC_SG_HEAD;
-		asc_scsi_q.sg_head = &asc_sg_head;
-		asc_scsi_q.q1.data_cnt = 0;
-		asc_scsi_q.q1.data_addr = 0;
-		/* This is a byte value, otherwise it would need to be swapped. */
-		asc_sg_head.entry_cnt = asc_scsi_q.q1.sg_queue_cnt = use_sg;
-		ASC_STATS_ADD(scp->device->host, sg_elem,
-			      asc_sg_head.entry_cnt);
-
-		/*
-		 * Convert scatter-gather list into ASC_SG_HEAD list.
-		 */
-		for (sgcnt = 0; sgcnt < use_sg; sgcnt++, slp++) {
-			asc_sg_head.sg_list[sgcnt].addr =
-			    cpu_to_le32(sg_dma_address(slp));
-			asc_sg_head.sg_list[sgcnt].bytes =
-			    cpu_to_le32(sg_dma_len(slp));
-			ASC_STATS_ADD(scp->device->host, sg_xfer,
-				      ASC_CEILING(sg_dma_len(slp), 512));
-		}
-	}
-
-	ASC_DBG_PRT_ASC_SCSI_Q(2, &asc_scsi_q);
-	ASC_DBG_PRT_CDB(1, scp->cmnd, scp->cmd_len);
-
-	return ASC_NOERROR;
-}
-
-/*
- * Build a request structure for the Adv Library (Wide Board).
- *
- * If an adv_req_t can not be allocated to issue the request,
- * then return ASC_BUSY. If an error occurs, then return ASC_ERROR.
- *
- * Multi-byte fields in the ASC_SCSI_REQ_Q that are used by the
- * microcode for DMA addresses or math operations are byte swapped
- * to little-endian order.
- */
-static int
-adv_build_req(asc_board_t *boardp, struct scsi_cmnd *scp,
-	      ADV_SCSI_REQ_Q **adv_scsiqpp)
-{
-	adv_req_t *reqp;
-	ADV_SCSI_REQ_Q *scsiqp;
-	int i;
-	int ret;
-	struct device *dev = boardp->dvc_cfg.adv_dvc_cfg.dev;
-
-	/*
-	 * Allocate an adv_req_t structure from the board to execute
-	 * the command.
-	 */
-	if (boardp->adv_reqp == NULL) {
-		ASC_DBG(1, "adv_build_req: no free adv_req_t\n");
-		ASC_STATS(scp->device->host, adv_build_noreq);
-		return ASC_BUSY;
-	} else {
-		reqp = boardp->adv_reqp;
-		boardp->adv_reqp = reqp->next_reqp;
-		reqp->next_reqp = NULL;
-	}
-
-	/*
-	 * Get 32-byte aligned ADV_SCSI_REQ_Q and ADV_SG_BLOCK pointers.
-	 */
-	scsiqp = (ADV_SCSI_REQ_Q *)ADV_32BALIGN(&reqp->scsi_req_q);
-
-	/*
-	 * Initialize the structure.
-	 */
-	scsiqp->cntl = scsiqp->scsi_cntl = scsiqp->done_status = 0;
-
-	/*
-	 * Set the ADV_SCSI_REQ_Q 'srb_ptr' to point to the adv_req_t structure.
-	 */
-	scsiqp->srb_ptr = ASC_VADDR_TO_U32(reqp);
-
-	/*
-	 * Set the adv_req_t 'cmndp' to point to the struct scsi_cmnd structure.
-	 */
-	reqp->cmndp = scp;
-
-	/*
-	 * Build the ADV_SCSI_REQ_Q request.
-	 */
-
-	/*
-	 * Set CDB length and copy it to the request structure.
-	 * For wide  boards a CDB length maximum of 16 bytes
-	 * is supported.
-	 */
-	if (scp->cmd_len > ADV_MAX_CDB_LEN) {
-		ASC_PRINT3
-		    ("adv_build_req: board %d: cmd_len %d > ADV_MAX_CDB_LEN  %d\n",
-		     boardp->id, scp->cmd_len, ADV_MAX_CDB_LEN);
-		scp->result = HOST_BYTE(DID_ERROR);
-		asc_enqueue(&boardp->done, scp, ASC_BACK);
-		return ASC_ERROR;
-	}
-	scsiqp->cdb_len = scp->cmd_len;
-	/* Copy first 12 CDB bytes to cdb[]. */
-	for (i = 0; i < scp->cmd_len && i < 12; i++) {
-		scsiqp->cdb[i] = scp->cmnd[i];
-	}
-	/* Copy last 4 CDB bytes, if present, to cdb16[]. */
-	for (; i < scp->cmd_len; i++) {
-		scsiqp->cdb16[i - 12] = scp->cmnd[i];
-	}
-
-	scsiqp->target_id = scp->device->id;
-	scsiqp->target_lun = scp->device->lun;
-
-	scsiqp->sense_addr = cpu_to_le32(virt_to_bus(&scp->sense_buffer[0]));
-	scsiqp->sense_len = sizeof(scp->sense_buffer);
-
-	/*
-	 * Build ADV_SCSI_REQ_Q for a contiguous buffer or a scatter-gather
-	 * buffer command.
-	 */
-
-	scsiqp->data_cnt = cpu_to_le32(scp->request_bufflen);
-	scsiqp->vdata_addr = scp->request_buffer;
-	scsiqp->data_addr = cpu_to_le32(virt_to_bus(scp->request_buffer));
-
-	if (scp->use_sg == 0) {
-		/*
-		 * CDB request of single contiguous buffer.
-		 */
-		reqp->sgblkp = NULL;
-		scsiqp->data_cnt = cpu_to_le32(scp->request_bufflen);
-		if (scp->request_bufflen) {
-			scsiqp->vdata_addr = scp->request_buffer;
-			scp->SCp.dma_handle =
-			    dma_map_single(dev, scp->request_buffer,
-					   scp->request_bufflen,
-					   scp->sc_data_direction);
-		} else {
-			scsiqp->vdata_addr = NULL;
-			scp->SCp.dma_handle = 0;
-		}
-		scsiqp->data_addr = cpu_to_le32(scp->SCp.dma_handle);
-		scsiqp->sg_list_ptr = NULL;
-		scsiqp->sg_real_addr = 0;
-		ASC_STATS(scp->device->host, cont_cnt);
-		ASC_STATS_ADD(scp->device->host, cont_xfer,
-			      ASC_CEILING(scp->request_bufflen, 512));
-	} else {
-		/*
-		 * CDB scatter-gather request list.
-		 */
-		struct scatterlist *slp;
-		int use_sg;
-
-		slp = (struct scatterlist *)scp->request_buffer;
-		use_sg =
-		    dma_map_sg(dev, slp, scp->use_sg, scp->sc_data_direction);
-
-		if (use_sg > ADV_MAX_SG_LIST) {
-			ASC_PRINT3
-			    ("adv_build_req: board %d: use_sg %d > ADV_MAX_SG_LIST %d\n",
-			     boardp->id, use_sg,
-			     scp->device->host->sg_tablesize);
-			dma_unmap_sg(dev, slp, scp->use_sg,
-				     scp->sc_data_direction);
-			scp->result = HOST_BYTE(DID_ERROR);
-			asc_enqueue(&boardp->done, scp, ASC_BACK);
-
-			/*
-			 * Free the 'adv_req_t' structure by adding it back to the
-			 * board free list.
-			 */
-			reqp->next_reqp = boardp->adv_reqp;
-			boardp->adv_reqp = reqp;
-
-			return ASC_ERROR;
-		}
-
-		if ((ret =
-		     adv_get_sglist(boardp, reqp, scp,
-				    use_sg)) != ADV_SUCCESS) {
-			/*
-			 * Free the adv_req_t structure by adding it back to the
-			 * board free list.
-			 */
-			reqp->next_reqp = boardp->adv_reqp;
-			boardp->adv_reqp = reqp;
-
-			return ret;
-		}
-
-		ASC_STATS(scp->device->host, sg_cnt);
-		ASC_STATS_ADD(scp->device->host, sg_elem, use_sg);
-	}
-
-	ASC_DBG_PRT_ADV_SCSI_REQ_Q(2, scsiqp);
-	ASC_DBG_PRT_CDB(1, scp->cmnd, scp->cmd_len);
-
-	*adv_scsiqpp = scsiqp;
-
-	return ASC_NOERROR;
-}
-
-/*
- * Build scatter-gather list for Adv Library (Wide Board).
- *
- * Additional ADV_SG_BLOCK structures will need to be allocated
- * if the total number of scatter-gather elements exceeds
- * NO_OF_SG_PER_BLOCK (15). The ADV_SG_BLOCK structures are
- * assumed to be physically contiguous.
- *
- * Return:
- *      ADV_SUCCESS(1) - SG List successfully created
- *      ADV_ERROR(-1) - SG List creation failed
- */
-static int
-adv_get_sglist(asc_board_t *boardp, adv_req_t *reqp, struct scsi_cmnd *scp,
-	       int use_sg)
-{
-	adv_sgblk_t *sgblkp;
-	ADV_SCSI_REQ_Q *scsiqp;
-	struct scatterlist *slp;
-	int sg_elem_cnt;
-	ADV_SG_BLOCK *sg_block, *prev_sg_block;
-	ADV_PADDR sg_block_paddr;
-	int i;
-
-	scsiqp = (ADV_SCSI_REQ_Q *)ADV_32BALIGN(&reqp->scsi_req_q);
-	slp = (struct scatterlist *)scp->request_buffer;
-	sg_elem_cnt = use_sg;
-	prev_sg_block = NULL;
-	reqp->sgblkp = NULL;
-
-	do {
-		/*
-		 * Allocate a 'adv_sgblk_t' structure from the board free
-		 * list. One 'adv_sgblk_t' structure holds NO_OF_SG_PER_BLOCK
-		 * (15) scatter-gather elements.
-		 */
-		if ((sgblkp = boardp->adv_sgblkp) == NULL) {
-			ASC_DBG(1, "adv_get_sglist: no free adv_sgblk_t\n");
-			ASC_STATS(scp->device->host, adv_build_nosg);
-
-			/*
-			 * Allocation failed. Free 'adv_sgblk_t' structures already
-			 * allocated for the request.
-			 */
-			while ((sgblkp = reqp->sgblkp) != NULL) {
-				/* Remove 'sgblkp' from the request list. */
-				reqp->sgblkp = sgblkp->next_sgblkp;
-
-				/* Add 'sgblkp' to the board free list. */
-				sgblkp->next_sgblkp = boardp->adv_sgblkp;
-				boardp->adv_sgblkp = sgblkp;
-			}
-			return ASC_BUSY;
-		} else {
-			/* Complete 'adv_sgblk_t' board allocation. */
-			boardp->adv_sgblkp = sgblkp->next_sgblkp;
-			sgblkp->next_sgblkp = NULL;
-
-			/*
-			 * Get 8 byte aligned virtual and physical addresses for
-			 * the allocated ADV_SG_BLOCK structure.
-			 */
-			sg_block =
-			    (ADV_SG_BLOCK *)ADV_8BALIGN(&sgblkp->sg_block);
-			sg_block_paddr = virt_to_bus(sg_block);
-
-			/*
-			 * Check if this is the first 'adv_sgblk_t' for the request.
-			 */
-			if (reqp->sgblkp == NULL) {
-				/* Request's first scatter-gather block. */
-				reqp->sgblkp = sgblkp;
-
-				/*
-				 * Set ADV_SCSI_REQ_T ADV_SG_BLOCK virtual and physical
-				 * address pointers.
-				 */
-				scsiqp->sg_list_ptr = sg_block;
-				scsiqp->sg_real_addr =
-				    cpu_to_le32(sg_block_paddr);
-			} else {
-				/* Request's second or later scatter-gather block. */
-				sgblkp->next_sgblkp = reqp->sgblkp;
-				reqp->sgblkp = sgblkp;
-
-				/*
-				 * Point the previous ADV_SG_BLOCK structure to
-				 * the newly allocated ADV_SG_BLOCK structure.
-				 */
-				ASC_ASSERT(prev_sg_block != NULL);
-				prev_sg_block->sg_ptr =
-				    cpu_to_le32(sg_block_paddr);
-			}
-		}
-
-		for (i = 0; i < NO_OF_SG_PER_BLOCK; i++) {
-			sg_block->sg_list[i].sg_addr =
-			    cpu_to_le32(sg_dma_address(slp));
-			sg_block->sg_list[i].sg_count =
-			    cpu_to_le32(sg_dma_len(slp));
-			ASC_STATS_ADD(scp->device->host, sg_xfer,
-				      ASC_CEILING(sg_dma_len(slp), 512));
-
-			if (--sg_elem_cnt == 0) {	/* Last ADV_SG_BLOCK and scatter-gather entry. */
-				sg_block->sg_cnt = i + 1;
-				sg_block->sg_ptr = 0L;	/* Last ADV_SG_BLOCK in list. */
-				return ADV_SUCCESS;
-			}
-			slp++;
-		}
-		sg_block->sg_cnt = NO_OF_SG_PER_BLOCK;
-		prev_sg_block = sg_block;
-	}
-	while (1);
-	/* NOTREACHED */
-}
-
-/*
- * asc_isr_callback() - Second Level Interrupt Handler called by AscISR().
- *
- * Interrupt callback function for the Narrow SCSI Asc Library.
- */
-static void asc_isr_callback(ASC_DVC_VAR *asc_dvc_varp, ASC_QDONE_INFO *qdonep)
-{
-	asc_board_t *boardp;
-	struct scsi_cmnd *scp;
-	struct Scsi_Host *shost;
-	int i;
-
-	ASC_DBG2(1, "asc_isr_callback: asc_dvc_varp 0x%lx, qdonep 0x%lx\n",
-		 (ulong)asc_dvc_varp, (ulong)qdonep);
-	ASC_DBG_PRT_ASC_QDONE_INFO(2, qdonep);
-
-	/*
-	 * Get the struct scsi_cmnd structure and Scsi_Host structure for the
-	 * command that has been completed.
-	 */
-	scp = (struct scsi_cmnd *)ASC_U32_TO_VADDR(qdonep->d2.srb_ptr);
-	ASC_DBG1(1, "asc_isr_callback: scp 0x%lx\n", (ulong)scp);
-
-	if (scp == NULL) {
-		ASC_PRINT("asc_isr_callback: scp is NULL\n");
-		return;
-	}
-	ASC_DBG_PRT_CDB(2, scp->cmnd, scp->cmd_len);
-
-	/*
-	 * If the request's host pointer is not valid, display a
-	 * message and return.
-	 */
-	shost = scp->device->host;
-	for (i = 0; i < asc_board_count; i++) {
-		if (asc_host[i] == shost) {
-			break;
-		}
-	}
-	if (i == asc_board_count) {
-		ASC_PRINT2
-		    ("asc_isr_callback: scp 0x%lx has bad host pointer, host 0x%lx\n",
-		     (ulong)scp, (ulong)shost);
-		return;
-	}
-
-	ASC_STATS(shost, callback);
-	ASC_DBG1(1, "asc_isr_callback: shost 0x%lx\n", (ulong)shost);
-
-	/*
-	 * If the request isn't found on the active queue, it may
-	 * have been removed to handle a reset request.
-	 * Display a message and return.
-	 */
-	boardp = ASC_BOARDP(shost);
-	ASC_ASSERT(asc_dvc_varp == &boardp->dvc_var.asc_dvc_var);
-	if (asc_rmqueue(&boardp->active, scp) == ASC_FALSE) {
-		ASC_PRINT2
-		    ("asc_isr_callback: board %d: scp 0x%lx not on active queue\n",
-		     boardp->id, (ulong)scp);
-		return;
-	}
-
-	/*
-	 * 'qdonep' contains the command's ending status.
-	 */
-	switch (qdonep->d3.done_stat) {
-	case QD_NO_ERROR:
-		ASC_DBG(2, "asc_isr_callback: QD_NO_ERROR\n");
-		scp->result = 0;
-
-		/*
-		 * If an INQUIRY command completed successfully, then call
-		 * the AscInquiryHandling() function to set-up the device.
-		 */
-		if (scp->cmnd[0] == INQUIRY && scp->device->lun == 0 &&
-		    (scp->request_bufflen - qdonep->remain_bytes) >= 8) {
-			AscInquiryHandling(asc_dvc_varp, scp->device->id & 0x7,
-					   (ASC_SCSI_INQUIRY *)scp->
-					   request_buffer);
-		}
-
-		/*
-		 * Check for an underrun condition.
-		 *
-		 * If there was no error and an underrun condition, then
-		 * then return the number of underrun bytes.
-		 */
-		if (scp->request_bufflen != 0 && qdonep->remain_bytes != 0 &&
-		    qdonep->remain_bytes <= scp->request_bufflen) {
-			ASC_DBG1(1,
-				 "asc_isr_callback: underrun condition %u bytes\n",
-				 (unsigned)qdonep->remain_bytes);
-			scp->resid = qdonep->remain_bytes;
-		}
-		break;
-
-	case QD_WITH_ERROR:
-		ASC_DBG(2, "asc_isr_callback: QD_WITH_ERROR\n");
-		switch (qdonep->d3.host_stat) {
-		case QHSTA_NO_ERROR:
-			if (qdonep->d3.scsi_stat == SAM_STAT_CHECK_CONDITION) {
-				ASC_DBG(2,
-					"asc_isr_callback: SAM_STAT_CHECK_CONDITION\n");
-				ASC_DBG_PRT_SENSE(2, scp->sense_buffer,
-						  sizeof(scp->sense_buffer));
-				/*
-				 * Note: The 'status_byte()' macro used by target drivers
-				 * defined in scsi.h shifts the status byte returned by
-				 * host drivers right by 1 bit. This is why target drivers
-				 * also use right shifted status byte definitions. For
-				 * instance target drivers use CHECK_CONDITION, defined to
-				 * 0x1, instead of the SCSI defined check condition value
-				 * of 0x2. Host drivers are supposed to return the status
-				 * byte as it is defined by SCSI.
-				 */
-				scp->result = DRIVER_BYTE(DRIVER_SENSE) |
-				    STATUS_BYTE(qdonep->d3.scsi_stat);
-			} else {
-				scp->result = STATUS_BYTE(qdonep->d3.scsi_stat);
-			}
-			break;
-
-		default:
-			/* QHSTA error occurred */
-			ASC_DBG1(1, "asc_isr_callback: host_stat 0x%x\n",
-				 qdonep->d3.host_stat);
-			scp->result = HOST_BYTE(DID_BAD_TARGET);
-			break;
-		}
-		break;
-
-	case QD_ABORTED_BY_HOST:
-		ASC_DBG(1, "asc_isr_callback: QD_ABORTED_BY_HOST\n");
-		scp->result =
-		    HOST_BYTE(DID_ABORT) | MSG_BYTE(qdonep->d3.
-						    scsi_msg) |
-		    STATUS_BYTE(qdonep->d3.scsi_stat);
-		break;
-
-	default:
-		ASC_DBG1(1, "asc_isr_callback: done_stat 0x%x\n",
-			 qdonep->d3.done_stat);
-		scp->result =
-		    HOST_BYTE(DID_ERROR) | MSG_BYTE(qdonep->d3.
-						    scsi_msg) |
-		    STATUS_BYTE(qdonep->d3.scsi_stat);
-		break;
-	}
-
-	/*
-	 * If the 'init_tidmask' bit isn't already set for the target and the
-	 * current request finished normally, then set the bit for the target
-	 * to indicate that a device is present.
-	 */
-	if ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(scp->device->id)) == 0 &&
-	    qdonep->d3.done_stat == QD_NO_ERROR &&
-	    qdonep->d3.host_stat == QHSTA_NO_ERROR) {
-		boardp->init_tidmask |= ADV_TID_TO_TIDMASK(scp->device->id);
-	}
-
-	/*
-	 * Because interrupts may be enabled by the 'struct scsi_cmnd' done
-	 * function, add the command to the end of the board's done queue.
-	 * The done function for the command will be called from
-	 * advansys_interrupt().
-	 */
-	asc_enqueue(&boardp->done, scp, ASC_BACK);
-
-	return;
-}
-
-/*
- * adv_isr_callback() - Second Level Interrupt Handler called by AdvISR().
- *
- * Callback function for the Wide SCSI Adv Library.
- */
-static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
-{
-	asc_board_t *boardp;
-	adv_req_t *reqp;
-	adv_sgblk_t *sgblkp;
-	struct scsi_cmnd *scp;
-	struct Scsi_Host *shost;
-	int i;
-	ADV_DCNT resid_cnt;
-
-	ASC_DBG2(1, "adv_isr_callback: adv_dvc_varp 0x%lx, scsiqp 0x%lx\n",
-		 (ulong)adv_dvc_varp, (ulong)scsiqp);
-	ASC_DBG_PRT_ADV_SCSI_REQ_Q(2, scsiqp);
-
-	/*
-	 * Get the adv_req_t structure for the command that has been
-	 * completed. The adv_req_t structure actually contains the
-	 * completed ADV_SCSI_REQ_Q structure.
-	 */
-	reqp = (adv_req_t *)ADV_U32_TO_VADDR(scsiqp->srb_ptr);
-	ASC_DBG1(1, "adv_isr_callback: reqp 0x%lx\n", (ulong)reqp);
-	if (reqp == NULL) {
-		ASC_PRINT("adv_isr_callback: reqp is NULL\n");
-		return;
-	}
-
-	/*
-	 * Get the struct scsi_cmnd structure and Scsi_Host structure for the
-	 * command that has been completed.
-	 *
-	 * Note: The adv_req_t request structure and adv_sgblk_t structure,
-	 * if any, are dropped, because a board structure pointer can not be
-	 * determined.
-	 */
-	scp = reqp->cmndp;
-	ASC_DBG1(1, "adv_isr_callback: scp 0x%lx\n", (ulong)scp);
-	if (scp == NULL) {
-		ASC_PRINT
-		    ("adv_isr_callback: scp is NULL; adv_req_t dropped.\n");
-		return;
-	}
-	ASC_DBG_PRT_CDB(2, scp->cmnd, scp->cmd_len);
-
-	/*
-	 * If the request's host pointer is not valid, display a message
-	 * and return.
-	 */
-	shost = scp->device->host;
-	for (i = 0; i < asc_board_count; i++) {
-		if (asc_host[i] == shost) {
-			break;
-		}
-	}
-	/*
-	 * Note: If the host structure is not found, the adv_req_t request
-	 * structure and adv_sgblk_t structure, if any, is dropped.
-	 */
-	if (i == asc_board_count) {
-		ASC_PRINT2
-		    ("adv_isr_callback: scp 0x%lx has bad host pointer, host 0x%lx\n",
-		     (ulong)scp, (ulong)shost);
-		return;
-	}
-
-	ASC_STATS(shost, callback);
-	ASC_DBG1(1, "adv_isr_callback: shost 0x%lx\n", (ulong)shost);
-
-	/*
-	 * If the request isn't found on the active queue, it may have been
-	 * removed to handle a reset request. Display a message and return.
-	 *
-	 * Note: Because the structure may still be in use don't attempt
-	 * to free the adv_req_t and adv_sgblk_t, if any, structures.
-	 */
-	boardp = ASC_BOARDP(shost);
-	ASC_ASSERT(adv_dvc_varp == &boardp->dvc_var.adv_dvc_var);
-	if (asc_rmqueue(&boardp->active, scp) == ASC_FALSE) {
-		ASC_PRINT2
-		    ("adv_isr_callback: board %d: scp 0x%lx not on active queue\n",
-		     boardp->id, (ulong)scp);
-		return;
-	}
-
-	/*
-	 * 'done_status' contains the command's ending status.
-	 */
-	switch (scsiqp->done_status) {
-	case QD_NO_ERROR:
-		ASC_DBG(2, "adv_isr_callback: QD_NO_ERROR\n");
-		scp->result = 0;
-
-		/*
-		 * Check for an underrun condition.
-		 *
-		 * If there was no error and an underrun condition, then
-		 * then return the number of underrun bytes.
-		 */
-		resid_cnt = le32_to_cpu(scsiqp->data_cnt);
-		if (scp->request_bufflen != 0 && resid_cnt != 0 &&
-		    resid_cnt <= scp->request_bufflen) {
-			ASC_DBG1(1,
-				 "adv_isr_callback: underrun condition %lu bytes\n",
-				 (ulong)resid_cnt);
-			scp->resid = resid_cnt;
-		}
-		break;
-
-	case QD_WITH_ERROR:
-		ASC_DBG(2, "adv_isr_callback: QD_WITH_ERROR\n");
-		switch (scsiqp->host_status) {
-		case QHSTA_NO_ERROR:
-			if (scsiqp->scsi_status == SAM_STAT_CHECK_CONDITION) {
-				ASC_DBG(2,
-					"adv_isr_callback: SAM_STAT_CHECK_CONDITION\n");
-				ASC_DBG_PRT_SENSE(2, scp->sense_buffer,
-						  sizeof(scp->sense_buffer));
-				/*
-				 * Note: The 'status_byte()' macro used by target drivers
-				 * defined in scsi.h shifts the status byte returned by
-				 * host drivers right by 1 bit. This is why target drivers
-				 * also use right shifted status byte definitions. For
-				 * instance target drivers use CHECK_CONDITION, defined to
-				 * 0x1, instead of the SCSI defined check condition value
-				 * of 0x2. Host drivers are supposed to return the status
-				 * byte as it is defined by SCSI.
-				 */
-				scp->result = DRIVER_BYTE(DRIVER_SENSE) |
-				    STATUS_BYTE(scsiqp->scsi_status);
-			} else {
-				scp->result = STATUS_BYTE(scsiqp->scsi_status);
-			}
-			break;
-
-		default:
-			/* Some other QHSTA error occurred. */
-			ASC_DBG1(1, "adv_isr_callback: host_status 0x%x\n",
-				 scsiqp->host_status);
-			scp->result = HOST_BYTE(DID_BAD_TARGET);
-			break;
-		}
-		break;
-
-	case QD_ABORTED_BY_HOST:
-		ASC_DBG(1, "adv_isr_callback: QD_ABORTED_BY_HOST\n");
-		scp->result =
-		    HOST_BYTE(DID_ABORT) | STATUS_BYTE(scsiqp->scsi_status);
-		break;
-
-	default:
-		ASC_DBG1(1, "adv_isr_callback: done_status 0x%x\n",
-			 scsiqp->done_status);
-		scp->result =
-		    HOST_BYTE(DID_ERROR) | STATUS_BYTE(scsiqp->scsi_status);
-		break;
-	}
-
-	/*
-	 * If the 'init_tidmask' bit isn't already set for the target and the
-	 * current request finished normally, then set the bit for the target
-	 * to indicate that a device is present.
-	 */
-	if ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(scp->device->id)) == 0 &&
-	    scsiqp->done_status == QD_NO_ERROR &&
-	    scsiqp->host_status == QHSTA_NO_ERROR) {
-		boardp->init_tidmask |= ADV_TID_TO_TIDMASK(scp->device->id);
-	}
-
-	/*
-	 * Because interrupts may be enabled by the 'struct scsi_cmnd' done
-	 * function, add the command to the end of the board's done queue.
-	 * The done function for the command will be called from
-	 * advansys_interrupt().
-	 */
-	asc_enqueue(&boardp->done, scp, ASC_BACK);
-
-	/*
-	 * Free all 'adv_sgblk_t' structures allocated for the request.
-	 */
-	while ((sgblkp = reqp->sgblkp) != NULL) {
-		/* Remove 'sgblkp' from the request list. */
-		reqp->sgblkp = sgblkp->next_sgblkp;
-
-		/* Add 'sgblkp' to the board free list. */
-		sgblkp->next_sgblkp = boardp->adv_sgblkp;
-		boardp->adv_sgblkp = sgblkp;
-	}
-
-	/*
-	 * Free the adv_req_t structure used with the command by adding
-	 * it back to the board free list.
-	 */
-	reqp->next_reqp = boardp->adv_reqp;
-	boardp->adv_reqp = reqp;
-
-	ASC_DBG(1, "adv_isr_callback: done\n");
-
-	return;
-}
-
-/*
- * adv_async_callback() - Adv Library asynchronous event callback function.
- */
-static void adv_async_callback(ADV_DVC_VAR *adv_dvc_varp, uchar code)
-{
-	switch (code) {
-	case ADV_ASYNC_SCSI_BUS_RESET_DET:
-		/*
-		 * The firmware detected a SCSI Bus reset.
-		 */
-		ASC_DBG(0,
-			"adv_async_callback: ADV_ASYNC_SCSI_BUS_RESET_DET\n");
-		break;
-
-	case ADV_ASYNC_RDMA_FAILURE:
-		/*
-		 * Handle RDMA failure by resetting the SCSI Bus and
-		 * possibly the chip if it is unresponsive. Log the error
-		 * with a unique code.
-		 */
-		ASC_DBG(0, "adv_async_callback: ADV_ASYNC_RDMA_FAILURE\n");
-		AdvResetChipAndSB(adv_dvc_varp);
-		break;
-
-	case ADV_HOST_SCSI_BUS_RESET:
-		/*
-		 * Host generated SCSI bus reset occurred.
-		 */
-		ASC_DBG(0, "adv_async_callback: ADV_HOST_SCSI_BUS_RESET\n");
-		break;
-
-	default:
-		ASC_DBG1(0, "DvcAsyncCallBack: unknown code 0x%x\n", code);
-		break;
-	}
-}
-
-/*
- * Add a 'REQP' to the end of specified queue. Set 'tidmask'
- * to indicate a command is queued for the device.
- *
- * 'flag' may be either ASC_FRONT or ASC_BACK.
- *
- * 'REQPNEXT(reqp)' returns reqp's next pointer.
- */
-static void asc_enqueue(asc_queue_t *ascq, REQP reqp, int flag)
-{
-	int tid;
-
-	ASC_DBG3(3, "asc_enqueue: ascq 0x%lx, reqp 0x%lx, flag %d\n",
-		 (ulong)ascq, (ulong)reqp, flag);
-	ASC_ASSERT(reqp != NULL);
-	ASC_ASSERT(flag == ASC_FRONT || flag == ASC_BACK);
-	tid = REQPTID(reqp);
-	ASC_ASSERT(tid >= 0 && tid <= ADV_MAX_TID);
-	if (flag == ASC_FRONT) {
-		reqp->host_scribble = (unsigned char *)ascq->q_first[tid];
-		ascq->q_first[tid] = reqp;
-		/* If the queue was empty, set the last pointer. */
-		if (ascq->q_last[tid] == NULL) {
-			ascq->q_last[tid] = reqp;
-		}
-	} else {		/* ASC_BACK */
-		if (ascq->q_last[tid] != NULL) {
-			ascq->q_last[tid]->host_scribble =
-			    (unsigned char *)reqp;
-		}
-		ascq->q_last[tid] = reqp;
-		reqp->host_scribble = NULL;
-		/* If the queue was empty, set the first pointer. */
-		if (ascq->q_first[tid] == NULL) {
-			ascq->q_first[tid] = reqp;
-		}
-	}
-	/* The queue has at least one entry, set its bit. */
-	ascq->q_tidmask |= ADV_TID_TO_TIDMASK(tid);
-#ifdef ADVANSYS_STATS
-	/* Maintain request queue statistics. */
-	ascq->q_tot_cnt[tid]++;
-	ascq->q_cur_cnt[tid]++;
-	if (ascq->q_cur_cnt[tid] > ascq->q_max_cnt[tid]) {
-		ascq->q_max_cnt[tid] = ascq->q_cur_cnt[tid];
-		ASC_DBG2(2, "asc_enqueue: new q_max_cnt[%d] %d\n",
-			 tid, ascq->q_max_cnt[tid]);
-	}
-	REQPTIME(reqp) = REQTIMESTAMP();
-#endif /* ADVANSYS_STATS */
-	ASC_DBG1(3, "asc_enqueue: reqp 0x%lx\n", (ulong)reqp);
-	return;
-}
-
-/*
- * Return first queued 'REQP' on the specified queue for
- * the specified target device. Clear the 'tidmask' bit for
- * the device if no more commands are left queued for it.
- *
- * 'REQPNEXT(reqp)' returns reqp's next pointer.
- */
-static REQP asc_dequeue(asc_queue_t *ascq, int tid)
-{
-	REQP reqp;
-
-	ASC_DBG2(3, "asc_dequeue: ascq 0x%lx, tid %d\n", (ulong)ascq, tid);
-	ASC_ASSERT(tid >= 0 && tid <= ADV_MAX_TID);
-	if ((reqp = ascq->q_first[tid]) != NULL) {
-		ASC_ASSERT(ascq->q_tidmask & ADV_TID_TO_TIDMASK(tid));
-		ascq->q_first[tid] = REQPNEXT(reqp);
-		/* If the queue is empty, clear its bit and the last pointer. */
-		if (ascq->q_first[tid] == NULL) {
-			ascq->q_tidmask &= ~ADV_TID_TO_TIDMASK(tid);
-			ASC_ASSERT(ascq->q_last[tid] == reqp);
-			ascq->q_last[tid] = NULL;
-		}
-#ifdef ADVANSYS_STATS
-		/* Maintain request queue statistics. */
-		ascq->q_cur_cnt[tid]--;
-		ASC_ASSERT(ascq->q_cur_cnt[tid] >= 0);
-		REQTIMESTAT("asc_dequeue", ascq, reqp, tid);
-#endif /* ADVANSYS_STATS */
-	}
-	ASC_DBG1(3, "asc_dequeue: reqp 0x%lx\n", (ulong)reqp);
-	return reqp;
-}
-
-/*
- * Return a pointer to a singly linked list of all the requests queued
- * for 'tid' on the 'asc_queue_t' pointed to by 'ascq'.
- *
- * If 'lastpp' is not NULL, '*lastpp' will be set to point to the
- * the last request returned in the singly linked list.
- *
- * 'tid' should either be a valid target id or if it is ASC_TID_ALL,
- * then all queued requests are concatenated into one list and
- * returned.
- *
- * Note: If 'lastpp' is used to append a new list to the end of
- * an old list, only change the old list last pointer if '*lastpp'
- * (or the function return value) is not NULL, i.e. use a temporary
- * variable for 'lastpp' and check its value after the function return
- * before assigning it to the list last pointer.
- *
- * Unfortunately collecting queuing time statistics adds overhead to
- * the function that isn't inherent to the function's algorithm.
- */
-static REQP asc_dequeue_list(asc_queue_t *ascq, REQP *lastpp, int tid)
-{
-	REQP firstp, lastp;
-	int i;
-
-	ASC_DBG2(3, "asc_dequeue_list: ascq 0x%lx, tid %d\n", (ulong)ascq, tid);
-	ASC_ASSERT((tid == ASC_TID_ALL) || (tid >= 0 && tid <= ADV_MAX_TID));
-
-	/*
-	 * If 'tid' is not ASC_TID_ALL, return requests only for
-	 * the specified 'tid'. If 'tid' is ASC_TID_ALL, return all
-	 * requests for all tids.
-	 */
-	if (tid != ASC_TID_ALL) {
-		/* Return all requests for the specified 'tid'. */
-		if ((ascq->q_tidmask & ADV_TID_TO_TIDMASK(tid)) == 0) {
-			/* List is empty; Set first and last return pointers to NULL. */
-			firstp = lastp = NULL;
-		} else {
-			firstp = ascq->q_first[tid];
-			lastp = ascq->q_last[tid];
-			ascq->q_first[tid] = ascq->q_last[tid] = NULL;
-			ascq->q_tidmask &= ~ADV_TID_TO_TIDMASK(tid);
-#ifdef ADVANSYS_STATS
-			{
-				REQP reqp;
-				ascq->q_cur_cnt[tid] = 0;
-				for (reqp = firstp; reqp; reqp = REQPNEXT(reqp)) {
-					REQTIMESTAT("asc_dequeue_list", ascq,
-						    reqp, tid);
-				}
-			}
-#endif /* ADVANSYS_STATS */
-		}
-	} else {
-		/* Return all requests for all tids. */
-		firstp = lastp = NULL;
-		for (i = 0; i <= ADV_MAX_TID; i++) {
-			if (ascq->q_tidmask & ADV_TID_TO_TIDMASK(i)) {
-				if (firstp == NULL) {
-					firstp = ascq->q_first[i];
-					lastp = ascq->q_last[i];
-				} else {
-					ASC_ASSERT(lastp != NULL);
-					lastp->host_scribble =
-					    (unsigned char *)ascq->q_first[i];
-					lastp = ascq->q_last[i];
-				}
-				ascq->q_first[i] = ascq->q_last[i] = NULL;
-				ascq->q_tidmask &= ~ADV_TID_TO_TIDMASK(i);
-#ifdef ADVANSYS_STATS
-				ascq->q_cur_cnt[i] = 0;
-#endif /* ADVANSYS_STATS */
-			}
-		}
-#ifdef ADVANSYS_STATS
-		{
-			REQP reqp;
-			for (reqp = firstp; reqp; reqp = REQPNEXT(reqp)) {
-				REQTIMESTAT("asc_dequeue_list", ascq, reqp,
-					    reqp->device->id);
-			}
-		}
-#endif /* ADVANSYS_STATS */
-	}
-	if (lastpp) {
-		*lastpp = lastp;
-	}
-	ASC_DBG1(3, "asc_dequeue_list: firstp 0x%lx\n", (ulong)firstp);
-	return firstp;
-}
-
-/*
- * Remove the specified 'REQP' from the specified queue for
- * the specified target device. Clear the 'tidmask' bit for the
- * device if no more commands are left queued for it.
- *
- * 'REQPNEXT(reqp)' returns reqp's the next pointer.
- *
- * Return ASC_TRUE if the command was found and removed,
- * otherwise return ASC_FALSE.
- */
-static int asc_rmqueue(asc_queue_t *ascq, REQP reqp)
-{
-	REQP currp, prevp;
-	int tid;
-	int ret = ASC_FALSE;
-
-	ASC_DBG2(3, "asc_rmqueue: ascq 0x%lx, reqp 0x%lx\n",
-		 (ulong)ascq, (ulong)reqp);
-	ASC_ASSERT(reqp != NULL);
-
-	tid = REQPTID(reqp);
-	ASC_ASSERT(tid >= 0 && tid <= ADV_MAX_TID);
-
-	/*
-	 * Handle the common case of 'reqp' being the first
-	 * entry on the queue.
-	 */
-	if (reqp == ascq->q_first[tid]) {
-		ret = ASC_TRUE;
-		ascq->q_first[tid] = REQPNEXT(reqp);
-		/* If the queue is now empty, clear its bit and the last pointer. */
-		if (ascq->q_first[tid] == NULL) {
-			ascq->q_tidmask &= ~ADV_TID_TO_TIDMASK(tid);
-			ASC_ASSERT(ascq->q_last[tid] == reqp);
-			ascq->q_last[tid] = NULL;
-		}
-	} else if (ascq->q_first[tid] != NULL) {
-		ASC_ASSERT(ascq->q_last[tid] != NULL);
-		/*
-		 * Because the case of 'reqp' being the first entry has been
-		 * handled above and it is known the queue is not empty, if
-		 * 'reqp' is found on the queue it is guaranteed the queue will
-		 * not become empty and that 'q_first[tid]' will not be changed.
-		 *
-		 * Set 'prevp' to the first entry, 'currp' to the second entry,
-		 * and search for 'reqp'.
-		 */
-		for (prevp = ascq->q_first[tid], currp = REQPNEXT(prevp);
-		     currp; prevp = currp, currp = REQPNEXT(currp)) {
-			if (currp == reqp) {
-				ret = ASC_TRUE;
-				prevp->host_scribble =
-				    (unsigned char *)REQPNEXT(currp);
-				reqp->host_scribble = NULL;
-				if (ascq->q_last[tid] == reqp) {
-					ascq->q_last[tid] = prevp;
-				}
-				break;
-			}
-		}
-	}
-#ifdef ADVANSYS_STATS
-	/* Maintain request queue statistics. */
-	if (ret == ASC_TRUE) {
-		ascq->q_cur_cnt[tid]--;
-		REQTIMESTAT("asc_rmqueue", ascq, reqp, tid);
-	}
-	ASC_ASSERT(ascq->q_cur_cnt[tid] >= 0);
-#endif /* ADVANSYS_STATS */
-	ASC_DBG2(3, "asc_rmqueue: reqp 0x%lx, ret %d\n", (ulong)reqp, ret);
-	return ret;
-}
-
-/*
- * Execute as many queued requests as possible for the specified queue.
- *
- * Calls asc_execute_scsi_cmnd() to execute a REQP/struct scsi_cmnd.
- */
-static void asc_execute_queue(asc_queue_t *ascq)
-{
-	ADV_SCSI_BIT_ID_TYPE scan_tidmask;
-	REQP reqp;
-	int i;
-
-	ASC_DBG1(1, "asc_execute_queue: ascq 0x%lx\n", (ulong)ascq);
-	/*
-	 * Execute queued commands for devices attached to
-	 * the current board in round-robin fashion.
-	 */
-	scan_tidmask = ascq->q_tidmask;
-	do {
-		for (i = 0; i <= ADV_MAX_TID; i++) {
-			if (scan_tidmask & ADV_TID_TO_TIDMASK(i)) {
-				if ((reqp = asc_dequeue(ascq, i)) == NULL) {
-					scan_tidmask &= ~ADV_TID_TO_TIDMASK(i);
-				} else
-				    if (asc_execute_scsi_cmnd
-					((struct scsi_cmnd *)reqp)
-					== ASC_BUSY) {
-					scan_tidmask &= ~ADV_TID_TO_TIDMASK(i);
-					/*
-					 * The request returned ASC_BUSY. Enqueue at the front of
-					 * target's waiting list to maintain correct ordering.
-					 */
-					asc_enqueue(ascq, reqp, ASC_FRONT);
-				}
-			}
-		}
-	} while (scan_tidmask);
-	return;
-}
-
-#ifdef CONFIG_PROC_FS
 /*
  * asc_prt_board_devices()
  *
@@ -6245,14 +2919,13 @@ static void asc_execute_queue(asc_queue_t *ascq)
  */
 static int asc_prt_board_devices(struct Scsi_Host *shost, char *cp, int cplen)
 {
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
 	int leftlen;
 	int totlen;
 	int len;
 	int chip_scsi_id;
 	int i;
 
-	boardp = ASC_BOARDP(shost);
 	leftlen = cplen;
 	totlen = len = 0;
 
@@ -6286,13 +2959,12 @@ static int asc_prt_board_devices(struct Scsi_Host *shost, char *cp, int cplen)
  */
 static int asc_prt_adv_bios(struct Scsi_Host *shost, char *cp, int cplen)
 {
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
 	int leftlen;
 	int totlen;
 	int len;
 	ushort major, minor, letter;
 
-	boardp = ASC_BOARDP(shost);
 	leftlen = cplen;
 	totlen = len = 0;
 
@@ -6452,7 +3124,7 @@ static int asc_get_eeprom_string(ushort *serialnum, uchar *cp)
  */
 static int asc_prt_asc_board_eeprom(struct Scsi_Host *shost, char *cp, int cplen)
 {
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
 	ASC_DVC_VAR *asc_dvc_varp;
 	int leftlen;
 	int totlen;
@@ -6464,7 +3136,6 @@ static int asc_prt_asc_board_eeprom(struct Scsi_Host *shost, char *cp, int cplen
 #endif /* CONFIG_ISA */
 	uchar serialstr[13];
 
-	boardp = ASC_BOARDP(shost);
 	asc_dvc_varp = &boardp->dvc_var.asc_dvc_var;
 	ep = &boardp->eep_config.asc_eep;
 
@@ -6586,7 +3257,7 @@ static int asc_prt_asc_board_eeprom(struct Scsi_Host *shost, char *cp, int cplen
  */
 static int asc_prt_adv_board_eeprom(struct Scsi_Host *shost, char *cp, int cplen)
 {
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
 	ADV_DVC_VAR *adv_dvc_varp;
 	int leftlen;
 	int totlen;
@@ -6601,7 +3272,6 @@ static int asc_prt_adv_board_eeprom(struct Scsi_Host *shost, char *cp, int cplen
 	ushort *wordp;
 	ushort sdtr_speed = 0;
 
-	boardp = ASC_BOARDP(shost);
 	adv_dvc_varp = &boardp->dvc_var.adv_dvc_var;
 	if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
 		ep_3550 = &boardp->eep_config.adv_3550_eep;
@@ -6873,13 +3543,11 @@ static int asc_prt_adv_board_eeprom(struct Scsi_Host *shost, char *cp, int cplen
  */
 static int asc_prt_driver_conf(struct Scsi_Host *shost, char *cp, int cplen)
 {
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
 	int leftlen;
 	int totlen;
 	int len;
 	int chip_scsi_id;
-
-	boardp = ASC_BOARDP(shost);
 
 	leftlen = cplen;
 	totlen = len = 0;
@@ -6912,10 +3580,7 @@ static int asc_prt_driver_conf(struct Scsi_Host *shost, char *cp, int cplen)
 			   boardp->asc_n_io_port);
 	ASC_PRT_NEXT();
 
-	/* 'shost->n_io_port' may be truncated because it is only one byte. */
-	len = asc_prt_line(cp, leftlen,
-			   " io_port 0x%x, n_io_port 0x%x\n",
-			   shost->io_port, shost->n_io_port);
+	len = asc_prt_line(cp, leftlen, " io_port 0x%x\n", shost->io_port);
 	ASC_PRT_NEXT();
 
 	if (ASC_NARROW_BOARD(boardp)) {
@@ -6940,7 +3605,7 @@ static int asc_prt_driver_conf(struct Scsi_Host *shost, char *cp, int cplen)
  */
 static int asc_prt_asc_board_info(struct Scsi_Host *shost, char *cp, int cplen)
 {
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
 	int chip_scsi_id;
 	int leftlen;
 	int totlen;
@@ -6950,7 +3615,6 @@ static int asc_prt_asc_board_info(struct Scsi_Host *shost, char *cp, int cplen)
 	int i;
 	int renegotiate = 0;
 
-	boardp = ASC_BOARDP(shost);
 	v = &boardp->dvc_var.asc_dvc_var;
 	c = &boardp->dvc_cfg.asc_dvc_cfg;
 	chip_scsi_id = c->chip_scsi_id;
@@ -6963,15 +3627,10 @@ static int asc_prt_asc_board_info(struct Scsi_Host *shost, char *cp, int cplen)
 			   shost->host_no);
 	ASC_PRT_NEXT();
 
-	len = asc_prt_line(cp, leftlen,
-			   " chip_version %u, lib_version 0x%x, lib_serial_no %u, mcode_date 0x%x\n",
-			   c->chip_version, c->lib_version, c->lib_serial_no,
-			   c->mcode_date);
-	ASC_PRT_NEXT();
-
-	len = asc_prt_line(cp, leftlen,
-			   " mcode_version 0x%x, err_code %u\n",
-			   c->mcode_version, v->err_code);
+	len = asc_prt_line(cp, leftlen, " chip_version %u, mcode_date 0x%x, "
+			   "mcode_version 0x%x, err_code %u\n",
+			   c->chip_version, c->mcode_date, c->mcode_version,
+			   v->err_code);
 	ASC_PRT_NEXT();
 
 	/* Current number of commands waiting for the host. */
@@ -7128,7 +3787,7 @@ static int asc_prt_asc_board_info(struct Scsi_Host *shost, char *cp, int cplen)
  */
 static int asc_prt_adv_board_info(struct Scsi_Host *shost, char *cp, int cplen)
 {
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
 	int leftlen;
 	int totlen;
 	int len;
@@ -7145,7 +3804,6 @@ static int asc_prt_adv_board_info(struct Scsi_Host *shost, char *cp, int cplen)
 	ushort period = 0;
 	int renegotiate = 0;
 
-	boardp = ASC_BOARDP(shost);
 	v = &boardp->dvc_var.adv_dvc_var;
 	c = &boardp->dvc_cfg.adv_dvc_cfg;
 	iop_base = v->iop_base;
@@ -7167,10 +3825,9 @@ static int asc_prt_adv_board_info(struct Scsi_Host *shost, char *cp, int cplen)
 			   v->err_code);
 	ASC_PRT_NEXT();
 
-	len = asc_prt_line(cp, leftlen,
-			   " chip_version %u, lib_version 0x%x, mcode_date 0x%x, mcode_version 0x%x\n",
-			   c->chip_version, c->lib_version, c->mcode_date,
-			   c->mcode_version);
+	len = asc_prt_line(cp, leftlen, " chip_version %u, mcode_date 0x%x, "
+			   "mcode_version 0x%x\n", c->chip_version,
+			   c->mcode_date, c->mcode_version);
 	ASC_PRT_NEXT();
 
 	AdvReadWordLram(iop_base, ASC_MC_TAGQNG_ABLE, tagqng_able);
@@ -7376,12 +4033,12 @@ asc_proc_copy(off_t advoffset, off_t offset, char *curbuf, int leftlen,
 {
 	int cnt = 0;
 
-	ASC_DBG3(2, "asc_proc_copy: offset %d, advoffset %d, cplen %d\n",
+	ASC_DBG(2, "offset %d, advoffset %d, cplen %d\n",
 		 (unsigned)offset, (unsigned)advoffset, cplen);
 	if (offset <= advoffset) {
 		/* Read offset below current offset, copy everything. */
 		cnt = min(cplen, leftlen);
-		ASC_DBG3(2, "asc_proc_copy: curbuf 0x%lx, cp 0x%lx, cnt %d\n",
+		ASC_DBG(2, "curbuf 0x%lx, cp 0x%lx, cnt %d\n",
 			 (ulong)curbuf, (ulong)cp, cnt);
 		memcpy(curbuf, cp, cnt);
 	} else if (offset < advoffset + cplen) {
@@ -7389,263 +4046,14 @@ asc_proc_copy(off_t advoffset, off_t offset, char *curbuf, int leftlen,
 		cnt = (advoffset + cplen) - offset;
 		cp = (cp + cplen) - cnt;
 		cnt = min(cnt, leftlen);
-		ASC_DBG3(2, "asc_proc_copy: curbuf 0x%lx, cp 0x%lx, cnt %d\n",
+		ASC_DBG(2, "curbuf 0x%lx, cp 0x%lx, cnt %d\n",
 			 (ulong)curbuf, (ulong)cp, cnt);
 		memcpy(curbuf, cp, cnt);
 	}
 	return cnt;
 }
 
-/*
- * asc_prt_line()
- *
- * If 'cp' is NULL print to the console, otherwise print to a buffer.
- *
- * Return 0 if printing to the console, otherwise return the number of
- * bytes written to the buffer.
- *
- * Note: If any single line is greater than ASC_PRTLINE_SIZE bytes the stack
- * will be corrupted. 's[]' is defined to be ASC_PRTLINE_SIZE bytes.
- */
-static int asc_prt_line(char *buf, int buflen, char *fmt, ...)
-{
-	va_list args;
-	int ret;
-	char s[ASC_PRTLINE_SIZE];
-
-	va_start(args, fmt);
-	ret = vsprintf(s, fmt, args);
-	ASC_ASSERT(ret < ASC_PRTLINE_SIZE);
-	if (buf == NULL) {
-		(void)printk(s);
-		ret = 0;
-	} else {
-		ret = min(buflen, ret);
-		memcpy(buf, s, ret);
-	}
-	va_end(args);
-	return ret;
-}
-#endif /* CONFIG_PROC_FS */
-
-/*
- * --- Functions Required by the Asc Library
- */
-
-/*
- * Delay for 'n' milliseconds. Don't use the 'jiffies'
- * global variable which is incremented once every 5 ms
- * from a timer interrupt, because this function may be
- * called when interrupts are disabled.
- */
-static void DvcSleepMilliSecond(ADV_DCNT n)
-{
-	ASC_DBG1(4, "DvcSleepMilliSecond: %lu\n", (ulong)n);
-	mdelay(n);
-}
-
-/*
- * Currently and inline noop but leave as a placeholder.
- * Leave DvcEnterCritical() as a noop placeholder.
- */
-static inline ulong DvcEnterCritical(void)
-{
-	return 0;
-}
-
-/*
- * Critical sections are all protected by the board spinlock.
- * Leave DvcLeaveCritical() as a noop placeholder.
- */
-static inline void DvcLeaveCritical(ulong flags)
-{
-	return;
-}
-
-/*
- * void
- * DvcPutScsiQ(PortAddr iop_base, ushort s_addr, uchar *outbuf, int words)
- *
- * Calling/Exit State:
- *    none
- *
- * Description:
- *     Output an ASC_SCSI_Q structure to the chip
- */
-static void
-DvcPutScsiQ(PortAddr iop_base, ushort s_addr, uchar *outbuf, int words)
-{
-	int i;
-
-	ASC_DBG_PRT_HEX(2, "DvcPutScsiQ", outbuf, 2 * words);
-	AscSetChipLramAddr(iop_base, s_addr);
-	for (i = 0; i < 2 * words; i += 2) {
-		if (i == 4 || i == 20) {
-			continue;
-		}
-		outpw(iop_base + IOP_RAM_DATA,
-		      ((ushort)outbuf[i + 1] << 8) | outbuf[i]);
-	}
-}
-
-/*
- * void
- * DvcGetQinfo(PortAddr iop_base, ushort s_addr, uchar *inbuf, int words)
- *
- * Calling/Exit State:
- *    none
- *
- * Description:
- *     Input an ASC_QDONE_INFO structure from the chip
- */
-static void
-DvcGetQinfo(PortAddr iop_base, ushort s_addr, uchar *inbuf, int words)
-{
-	int i;
-	ushort word;
-
-	AscSetChipLramAddr(iop_base, s_addr);
-	for (i = 0; i < 2 * words; i += 2) {
-		if (i == 10) {
-			continue;
-		}
-		word = inpw(iop_base + IOP_RAM_DATA);
-		inbuf[i] = word & 0xff;
-		inbuf[i + 1] = (word >> 8) & 0xff;
-	}
-	ASC_DBG_PRT_HEX(2, "DvcGetQinfo", inbuf, 2 * words);
-}
-
-/*
- * Read a PCI configuration byte.
- */
-static uchar __init DvcReadPCIConfigByte(ASC_DVC_VAR *asc_dvc, ushort offset)
-{
-#ifdef CONFIG_PCI
-	uchar byte_data;
-	pci_read_config_byte(to_pci_dev(asc_dvc->cfg->dev), offset, &byte_data);
-	return byte_data;
-#else /* !defined(CONFIG_PCI) */
-	return 0;
-#endif /* !defined(CONFIG_PCI) */
-}
-
-/*
- * Write a PCI configuration byte.
- */
-static void __init
-DvcWritePCIConfigByte(ASC_DVC_VAR *asc_dvc, ushort offset, uchar byte_data)
-{
-#ifdef CONFIG_PCI
-	pci_write_config_byte(to_pci_dev(asc_dvc->cfg->dev), offset, byte_data);
-#endif /* CONFIG_PCI */
-}
-
-/*
- * Return the BIOS address of the adapter at the specified
- * I/O port and with the specified bus type.
- */
-static ushort __init AscGetChipBiosAddress(PortAddr iop_base, ushort bus_type)
-{
-	ushort cfg_lsw;
-	ushort bios_addr;
-
-	/*
-	 * The PCI BIOS is re-located by the motherboard BIOS. Because
-	 * of this the driver can not determine where a PCI BIOS is
-	 * loaded and executes.
-	 */
-	if (bus_type & ASC_IS_PCI) {
-		return (0);
-	}
-#ifdef CONFIG_ISA
-	if ((bus_type & ASC_IS_EISA) != 0) {
-		cfg_lsw = AscGetEisaChipCfg(iop_base);
-		cfg_lsw &= 0x000F;
-		bios_addr = (ushort)(ASC_BIOS_MIN_ADDR +
-				     (cfg_lsw * ASC_BIOS_BANK_SIZE));
-		return (bios_addr);
-	}			/* if */
-#endif /* CONFIG_ISA */
-
-	cfg_lsw = AscGetChipCfgLsw(iop_base);
-
-	/*
-	 *  ISA PnP uses the top bit as the 32K BIOS flag
-	 */
-	if (bus_type == ASC_IS_ISAPNP) {
-		cfg_lsw &= 0x7FFF;
-	}
-	/* if */
-	bios_addr = (ushort)(((cfg_lsw >> 12) * ASC_BIOS_BANK_SIZE) +
-			     ASC_BIOS_MIN_ADDR);
-	return (bios_addr);
-}
-
-/*
- * --- Functions Required by the Adv Library
- */
-
-/*
- * DvcGetPhyAddr()
- *
- * Return the physical address of 'vaddr' and set '*lenp' to the
- * number of physically contiguous bytes that follow 'vaddr'.
- * 'flag' indicates the type of structure whose physical address
- * is being translated.
- *
- * Note: Because Linux currently doesn't page the kernel and all
- * kernel buffers are physically contiguous, leave '*lenp' unchanged.
- */
-ADV_PADDR
-DvcGetPhyAddr(ADV_DVC_VAR *asc_dvc, ADV_SCSI_REQ_Q *scsiq,
-	      uchar *vaddr, ADV_SDCNT *lenp, int flag)
-{
-	ADV_PADDR paddr;
-
-	paddr = virt_to_bus(vaddr);
-
-	ASC_DBG4(4,
-		 "DvcGetPhyAddr: vaddr 0x%lx, lenp 0x%lx *lenp %lu, paddr 0x%lx\n",
-		 (ulong)vaddr, (ulong)lenp, (ulong)*((ulong *)lenp),
-		 (ulong)paddr);
-
-	return paddr;
-}
-
-/*
- * Read a PCI configuration byte.
- */
-static uchar __init DvcAdvReadPCIConfigByte(ADV_DVC_VAR *asc_dvc, ushort offset)
-{
-#ifdef CONFIG_PCI
-	uchar byte_data;
-	pci_read_config_byte(to_pci_dev(asc_dvc->cfg->dev), offset, &byte_data);
-	return byte_data;
-#else /* CONFIG_PCI */
-	return 0;
-#endif /* CONFIG_PCI */
-}
-
-/*
- * Write a PCI configuration byte.
- */
-static void __init
-DvcAdvWritePCIConfigByte(ADV_DVC_VAR *asc_dvc, ushort offset, uchar byte_data)
-{
-#ifdef CONFIG_PCI
-	pci_write_config_byte(to_pci_dev(asc_dvc->cfg->dev), offset, byte_data);
-#else /* CONFIG_PCI */
-	return;
-#endif /* CONFIG_PCI */
-}
-
-/*
- * --- Tracing and Debugging Functions
- */
-
 #ifdef ADVANSYS_STATS
-#ifdef CONFIG_PROC_FS
 /*
  * asc_prt_board_stats()
  *
@@ -7657,17 +4065,11 @@ DvcAdvWritePCIConfigByte(ADV_DVC_VAR *asc_dvc, ushort offset, uchar byte_data)
  */
 static int asc_prt_board_stats(struct Scsi_Host *shost, char *cp, int cplen)
 {
-	int leftlen;
-	int totlen;
-	int len;
-	struct asc_stats *s;
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
+	struct asc_stats *s = &boardp->asc_stats;
 
-	leftlen = cplen;
-	totlen = len = 0;
-
-	boardp = ASC_BOARDP(shost);
-	s = &boardp->asc_stats;
+	int leftlen = cplen;
+	int len, totlen = 0;
 
 	len = asc_prt_line(cp, leftlen,
 			   "\nLinux Driver Statistics for AdvanSys SCSI Host %d:\n",
@@ -7695,2755 +4097,254 @@ static int asc_prt_board_stats(struct Scsi_Host *shost, char *cp, int cplen)
 	/*
 	 * Display data transfer statistics.
 	 */
-	if (s->cont_cnt > 0) {
-		len = asc_prt_line(cp, leftlen, " cont_cnt %lu, ", s->cont_cnt);
+	if (s->xfer_cnt > 0) {
+		len = asc_prt_line(cp, leftlen, " xfer_cnt %lu, xfer_elem %lu, ",
+				   s->xfer_cnt, s->xfer_elem);
 		ASC_PRT_NEXT();
 
-		len = asc_prt_line(cp, leftlen, "cont_xfer %lu.%01lu kb ",
-				   s->cont_xfer / 2,
-				   ASC_TENTHS(s->cont_xfer, 2));
-		ASC_PRT_NEXT();
-
-		/* Contiguous transfer average size */
-		len = asc_prt_line(cp, leftlen, "avg_xfer %lu.%01lu kb\n",
-				   (s->cont_xfer / 2) / s->cont_cnt,
-				   ASC_TENTHS((s->cont_xfer / 2), s->cont_cnt));
-		ASC_PRT_NEXT();
-	}
-
-	if (s->sg_cnt > 0) {
-
-		len = asc_prt_line(cp, leftlen, " sg_cnt %lu, sg_elem %lu, ",
-				   s->sg_cnt, s->sg_elem);
-		ASC_PRT_NEXT();
-
-		len = asc_prt_line(cp, leftlen, "sg_xfer %lu.%01lu kb\n",
-				   s->sg_xfer / 2, ASC_TENTHS(s->sg_xfer, 2));
+		len = asc_prt_line(cp, leftlen, "xfer_bytes %lu.%01lu kb\n",
+				   s->xfer_sect / 2, ASC_TENTHS(s->xfer_sect, 2));
 		ASC_PRT_NEXT();
 
 		/* Scatter gather transfer statistics */
 		len = asc_prt_line(cp, leftlen, " avg_num_elem %lu.%01lu, ",
-				   s->sg_elem / s->sg_cnt,
-				   ASC_TENTHS(s->sg_elem, s->sg_cnt));
+				   s->xfer_elem / s->xfer_cnt,
+				   ASC_TENTHS(s->xfer_elem, s->xfer_cnt));
 		ASC_PRT_NEXT();
 
 		len = asc_prt_line(cp, leftlen, "avg_elem_size %lu.%01lu kb, ",
-				   (s->sg_xfer / 2) / s->sg_elem,
-				   ASC_TENTHS((s->sg_xfer / 2), s->sg_elem));
+				   (s->xfer_sect / 2) / s->xfer_elem,
+				   ASC_TENTHS((s->xfer_sect / 2), s->xfer_elem));
 		ASC_PRT_NEXT();
 
 		len = asc_prt_line(cp, leftlen, "avg_xfer_size %lu.%01lu kb\n",
-				   (s->sg_xfer / 2) / s->sg_cnt,
-				   ASC_TENTHS((s->sg_xfer / 2), s->sg_cnt));
+				   (s->xfer_sect / 2) / s->xfer_cnt,
+				   ASC_TENTHS((s->xfer_sect / 2), s->xfer_cnt));
 		ASC_PRT_NEXT();
 	}
 
-	/*
-	 * Display request queuing statistics.
-	 */
-	len = asc_prt_line(cp, leftlen,
-			   " Active and Waiting Request Queues (Time Unit: %d HZ):\n",
-			   HZ);
-	ASC_PRT_NEXT();
-
 	return totlen;
 }
-
-/*
- * asc_prt_target_stats()
- *
- * Note: no single line should be greater than ASC_PRTLINE_SIZE,
- * cf. asc_prt_line().
- *
- * This is separated from asc_prt_board_stats because a full set
- * of targets will overflow ASC_PRTBUF_SIZE.
- *
- * Return the number of characters copied into 'cp'. No more than
- * 'cplen' characters will be copied to 'cp'.
- */
-static int
-asc_prt_target_stats(struct Scsi_Host *shost, int tgt_id, char *cp, int cplen)
-{
-	int leftlen;
-	int totlen;
-	int len;
-	struct asc_stats *s;
-	ushort chip_scsi_id;
-	asc_board_t *boardp;
-	asc_queue_t *active;
-	asc_queue_t *waiting;
-
-	leftlen = cplen;
-	totlen = len = 0;
-
-	boardp = ASC_BOARDP(shost);
-	s = &boardp->asc_stats;
-
-	active = &ASC_BOARDP(shost)->active;
-	waiting = &ASC_BOARDP(shost)->waiting;
-
-	if (ASC_NARROW_BOARD(boardp)) {
-		chip_scsi_id = boardp->dvc_cfg.asc_dvc_cfg.chip_scsi_id;
-	} else {
-		chip_scsi_id = boardp->dvc_var.adv_dvc_var.chip_scsi_id;
-	}
-
-	if ((chip_scsi_id == tgt_id) ||
-	    ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(tgt_id)) == 0)) {
-		return 0;
-	}
-
-	do {
-		if (active->q_tot_cnt[tgt_id] > 0
-		    || waiting->q_tot_cnt[tgt_id] > 0) {
-			len = asc_prt_line(cp, leftlen, " target %d\n", tgt_id);
-			ASC_PRT_NEXT();
-
-			len = asc_prt_line(cp, leftlen,
-					   "   active: cnt [cur %d, max %d, tot %u], time [min %d, max %d, avg %lu.%01lu]\n",
-					   active->q_cur_cnt[tgt_id],
-					   active->q_max_cnt[tgt_id],
-					   active->q_tot_cnt[tgt_id],
-					   active->q_min_tim[tgt_id],
-					   active->q_max_tim[tgt_id],
-					   (active->q_tot_cnt[tgt_id] ==
-					    0) ? 0 : (active->
-						      q_tot_tim[tgt_id] /
-						      active->
-						      q_tot_cnt[tgt_id]),
-					   (active->q_tot_cnt[tgt_id] ==
-					    0) ? 0 : ASC_TENTHS(active->
-								q_tot_tim
-								[tgt_id],
-								active->
-								q_tot_cnt
-								[tgt_id]));
-			ASC_PRT_NEXT();
-
-			len = asc_prt_line(cp, leftlen,
-					   "   waiting: cnt [cur %d, max %d, tot %u], time [min %u, max %u, avg %lu.%01lu]\n",
-					   waiting->q_cur_cnt[tgt_id],
-					   waiting->q_max_cnt[tgt_id],
-					   waiting->q_tot_cnt[tgt_id],
-					   waiting->q_min_tim[tgt_id],
-					   waiting->q_max_tim[tgt_id],
-					   (waiting->q_tot_cnt[tgt_id] ==
-					    0) ? 0 : (waiting->
-						      q_tot_tim[tgt_id] /
-						      waiting->
-						      q_tot_cnt[tgt_id]),
-					   (waiting->q_tot_cnt[tgt_id] ==
-					    0) ? 0 : ASC_TENTHS(waiting->
-								q_tot_tim
-								[tgt_id],
-								waiting->
-								q_tot_cnt
-								[tgt_id]));
-			ASC_PRT_NEXT();
-		}
-	} while (0);
-
-	return totlen;
-}
-#endif /* CONFIG_PROC_FS */
 #endif /* ADVANSYS_STATS */
 
-#ifdef ADVANSYS_DEBUG
 /*
- * asc_prt_scsi_host()
+ * advansys_proc_info() - /proc/scsi/advansys/{0,1,2,3,...}
+ *
+ * *buffer: I/O buffer
+ * **start: if inout == FALSE pointer into buffer where user read should start
+ * offset: current offset into a /proc/scsi/advansys/[0...] file
+ * length: length of buffer
+ * hostno: Scsi_Host host_no
+ * inout: TRUE - user is writing; FALSE - user is reading
+ *
+ * Return the number of bytes read from or written to a
+ * /proc/scsi/advansys/[0...] file.
+ *
+ * Note: This function uses the per board buffer 'prtbuf' which is
+ * allocated when the board is initialized in advansys_detect(). The
+ * buffer is ASC_PRTBUF_SIZE bytes. The function asc_proc_copy() is
+ * used to write to the buffer. The way asc_proc_copy() is written
+ * if 'prtbuf' is too small it will not be overwritten. Instead the
+ * user just won't get all the available statistics.
  */
-static void asc_prt_scsi_host(struct Scsi_Host *s)
+static int
+advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
+		   off_t offset, int length, int inout)
 {
-	asc_board_t *boardp;
+	struct asc_board *boardp = shost_priv(shost);
+	char *cp;
+	int cplen;
+	int cnt;
+	int totcnt;
+	int leftlen;
+	char *curbuf;
+	off_t advoffset;
 
-	boardp = ASC_BOARDP(s);
+	ASC_DBG(1, "begin\n");
 
-	printk("Scsi_Host at addr 0x%lx\n", (ulong)s);
-	printk(" host_busy %u, host_no %d, last_reset %d,\n",
-	       s->host_busy, s->host_no, (unsigned)s->last_reset);
+	/*
+	 * User write not supported.
+	 */
+	if (inout == TRUE)
+		return -ENOSYS;
 
-	printk(" base 0x%lx, io_port 0x%lx, n_io_port %u, irq 0x%x,\n",
-	       (ulong)s->base, (ulong)s->io_port, s->n_io_port, s->irq);
+	/*
+	 * User read of /proc/scsi/advansys/[0...] file.
+	 */
 
-	printk(" dma_channel %d, this_id %d, can_queue %d,\n",
-	       s->dma_channel, s->this_id, s->can_queue);
+	/* Copy read data starting at the beginning of the buffer. */
+	*start = buffer;
+	curbuf = buffer;
+	advoffset = 0;
+	totcnt = 0;
+	leftlen = length;
 
-	printk(" cmd_per_lun %d, sg_tablesize %d, unchecked_isa_dma %d\n",
-	       s->cmd_per_lun, s->sg_tablesize, s->unchecked_isa_dma);
+	/*
+	 * Get board configuration information.
+	 *
+	 * advansys_info() returns the board string from its own static buffer.
+	 */
+	cp = (char *)advansys_info(shost);
+	strcat(cp, "\n");
+	cplen = strlen(cp);
+	/* Copy board information. */
+	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
+	totcnt += cnt;
+	leftlen -= cnt;
+	if (leftlen == 0) {
+		ASC_DBG(1, "totcnt %d\n", totcnt);
+		return totcnt;
+	}
+	advoffset += cplen;
+	curbuf += cnt;
 
+	/*
+	 * Display Wide Board BIOS Information.
+	 */
+	if (!ASC_NARROW_BOARD(boardp)) {
+		cp = boardp->prtbuf;
+		cplen = asc_prt_adv_bios(shost, cp, ASC_PRTBUF_SIZE);
+		BUG_ON(cplen >= ASC_PRTBUF_SIZE);
+		cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp,
+				  cplen);
+		totcnt += cnt;
+		leftlen -= cnt;
+		if (leftlen == 0) {
+			ASC_DBG(1, "totcnt %d\n", totcnt);
+			return totcnt;
+		}
+		advoffset += cplen;
+		curbuf += cnt;
+	}
+
+	/*
+	 * Display driver information for each device attached to the board.
+	 */
+	cp = boardp->prtbuf;
+	cplen = asc_prt_board_devices(shost, cp, ASC_PRTBUF_SIZE);
+	BUG_ON(cplen >= ASC_PRTBUF_SIZE);
+	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
+	totcnt += cnt;
+	leftlen -= cnt;
+	if (leftlen == 0) {
+		ASC_DBG(1, "totcnt %d\n", totcnt);
+		return totcnt;
+	}
+	advoffset += cplen;
+	curbuf += cnt;
+
+	/*
+	 * Display EEPROM configuration for the board.
+	 */
+	cp = boardp->prtbuf;
 	if (ASC_NARROW_BOARD(boardp)) {
-		asc_prt_asc_dvc_var(&ASC_BOARDP(s)->dvc_var.asc_dvc_var);
-		asc_prt_asc_dvc_cfg(&ASC_BOARDP(s)->dvc_cfg.asc_dvc_cfg);
+		cplen = asc_prt_asc_board_eeprom(shost, cp, ASC_PRTBUF_SIZE);
 	} else {
-		asc_prt_adv_dvc_var(&ASC_BOARDP(s)->dvc_var.adv_dvc_var);
-		asc_prt_adv_dvc_cfg(&ASC_BOARDP(s)->dvc_cfg.adv_dvc_cfg);
+		cplen = asc_prt_adv_board_eeprom(shost, cp, ASC_PRTBUF_SIZE);
 	}
-}
-
-/*
- * asc_prt_scsi_cmnd()
- */
-static void asc_prt_scsi_cmnd(struct scsi_cmnd *s)
-{
-	printk("struct scsi_cmnd at addr 0x%lx\n", (ulong)s);
-
-	printk(" host 0x%lx, device 0x%lx, target %u, lun %u, channel %u,\n",
-	       (ulong)s->device->host, (ulong)s->device, s->device->id,
-	       s->device->lun, s->device->channel);
-
-	asc_prt_hex(" CDB", s->cmnd, s->cmd_len);
-
-	printk("sc_data_direction %u, resid %d\n",
-	       s->sc_data_direction, s->resid);
-
-	printk(" use_sg %u, sglist_len %u\n", s->use_sg, s->sglist_len);
-
-	printk(" serial_number 0x%x, retries %d, allowed %d\n",
-	       (unsigned)s->serial_number, s->retries, s->allowed);
-
-	printk(" timeout_per_command %d\n", s->timeout_per_command);
-
-	printk
-	    (" scsi_done 0x%lx, done 0x%lx, host_scribble 0x%lx, result 0x%x\n",
-	     (ulong)s->scsi_done, (ulong)s->done, (ulong)s->host_scribble,
-	     s->result);
-
-	printk(" tag %u, pid %u\n", (unsigned)s->tag, (unsigned)s->pid);
-}
-
-/*
- * asc_prt_asc_dvc_var()
- */
-static void asc_prt_asc_dvc_var(ASC_DVC_VAR *h)
-{
-	printk("ASC_DVC_VAR at addr 0x%lx\n", (ulong)h);
-
-	printk
-	    (" iop_base 0x%x, err_code 0x%x, dvc_cntl 0x%x, bug_fix_cntl %d,\n",
-	     h->iop_base, h->err_code, h->dvc_cntl, h->bug_fix_cntl);
-
-	printk
-	    (" bus_type %d, isr_callback 0x%lx, exe_callback 0x%lx, init_sdtr 0x%x,\n",
-	     h->bus_type, (ulong)h->isr_callback, (ulong)h->exe_callback,
-	     (unsigned)h->init_sdtr);
-
-	printk
-	    (" sdtr_done 0x%x, use_tagged_qng 0x%x, unit_not_ready 0x%x, chip_no 0x%x,\n",
-	     (unsigned)h->sdtr_done, (unsigned)h->use_tagged_qng,
-	     (unsigned)h->unit_not_ready, (unsigned)h->chip_no);
-
-	printk
-	    (" queue_full_or_busy 0x%x, start_motor 0x%x, scsi_reset_wait %u,\n",
-	     (unsigned)h->queue_full_or_busy, (unsigned)h->start_motor,
-	     (unsigned)h->scsi_reset_wait);
-
-	printk
-	    (" is_in_int %u, max_total_qng %u, cur_total_qng %u, in_critical_cnt %u,\n",
-	     (unsigned)h->is_in_int, (unsigned)h->max_total_qng,
-	     (unsigned)h->cur_total_qng, (unsigned)h->in_critical_cnt);
-
-	printk
-	    (" last_q_shortage %u, init_state 0x%x, no_scam 0x%x, pci_fix_asyn_xfer 0x%x,\n",
-	     (unsigned)h->last_q_shortage, (unsigned)h->init_state,
-	     (unsigned)h->no_scam, (unsigned)h->pci_fix_asyn_xfer);
-
-	printk(" cfg 0x%lx, irq_no 0x%x\n", (ulong)h->cfg, (unsigned)h->irq_no);
-}
-
-/*
- * asc_prt_asc_dvc_cfg()
- */
-static void asc_prt_asc_dvc_cfg(ASC_DVC_CFG *h)
-{
-	printk("ASC_DVC_CFG at addr 0x%lx\n", (ulong)h);
-
-	printk(" can_tagged_qng 0x%x, cmd_qng_enabled 0x%x,\n",
-	       h->can_tagged_qng, h->cmd_qng_enabled);
-	printk(" disc_enable 0x%x, sdtr_enable 0x%x,\n",
-	       h->disc_enable, h->sdtr_enable);
-
-	printk
-	    (" chip_scsi_id %d, isa_dma_speed %d, isa_dma_channel %d, chip_version %d,\n",
-	     h->chip_scsi_id, h->isa_dma_speed, h->isa_dma_channel,
-	     h->chip_version);
-
-	printk
-	    (" pci_device_id %d, lib_serial_no %u, lib_version %u, mcode_date 0x%x,\n",
-	     to_pci_dev(h->dev)->device, h->lib_serial_no, h->lib_version,
-	     h->mcode_date);
-
-	printk(" mcode_version %d, overrun_buf 0x%lx\n",
-	       h->mcode_version, (ulong)h->overrun_buf);
-}
-
-/*
- * asc_prt_asc_scsi_q()
- */
-static void asc_prt_asc_scsi_q(ASC_SCSI_Q *q)
-{
-	ASC_SG_HEAD *sgp;
-	int i;
-
-	printk("ASC_SCSI_Q at addr 0x%lx\n", (ulong)q);
-
-	printk
-	    (" target_ix 0x%x, target_lun %u, srb_ptr 0x%lx, tag_code 0x%x,\n",
-	     q->q2.target_ix, q->q1.target_lun, (ulong)q->q2.srb_ptr,
-	     q->q2.tag_code);
-
-	printk
-	    (" data_addr 0x%lx, data_cnt %lu, sense_addr 0x%lx, sense_len %u,\n",
-	     (ulong)le32_to_cpu(q->q1.data_addr),
-	     (ulong)le32_to_cpu(q->q1.data_cnt),
-	     (ulong)le32_to_cpu(q->q1.sense_addr), q->q1.sense_len);
-
-	printk(" cdbptr 0x%lx, cdb_len %u, sg_head 0x%lx, sg_queue_cnt %u\n",
-	       (ulong)q->cdbptr, q->q2.cdb_len,
-	       (ulong)q->sg_head, q->q1.sg_queue_cnt);
-
-	if (q->sg_head) {
-		sgp = q->sg_head;
-		printk("ASC_SG_HEAD at addr 0x%lx\n", (ulong)sgp);
-		printk(" entry_cnt %u, queue_cnt %u\n", sgp->entry_cnt,
-		       sgp->queue_cnt);
-		for (i = 0; i < sgp->entry_cnt; i++) {
-			printk(" [%u]: addr 0x%lx, bytes %lu\n",
-			       i, (ulong)le32_to_cpu(sgp->sg_list[i].addr),
-			       (ulong)le32_to_cpu(sgp->sg_list[i].bytes));
-		}
-
+	BUG_ON(cplen >= ASC_PRTBUF_SIZE);
+	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
+	totcnt += cnt;
+	leftlen -= cnt;
+	if (leftlen == 0) {
+		ASC_DBG(1, "totcnt %d\n", totcnt);
+		return totcnt;
 	}
-}
+	advoffset += cplen;
+	curbuf += cnt;
 
-/*
- * asc_prt_asc_qdone_info()
- */
-static void asc_prt_asc_qdone_info(ASC_QDONE_INFO *q)
-{
-	printk("ASC_QDONE_INFO at addr 0x%lx\n", (ulong)q);
-	printk(" srb_ptr 0x%lx, target_ix %u, cdb_len %u, tag_code %u,\n",
-	       (ulong)q->d2.srb_ptr, q->d2.target_ix, q->d2.cdb_len,
-	       q->d2.tag_code);
-	printk
-	    (" done_stat 0x%x, host_stat 0x%x, scsi_stat 0x%x, scsi_msg 0x%x\n",
-	     q->d3.done_stat, q->d3.host_stat, q->d3.scsi_stat, q->d3.scsi_msg);
-}
-
-/*
- * asc_prt_adv_dvc_var()
- *
- * Display an ADV_DVC_VAR structure.
- */
-static void asc_prt_adv_dvc_var(ADV_DVC_VAR *h)
-{
-	printk(" ADV_DVC_VAR at addr 0x%lx\n", (ulong)h);
-
-	printk("  iop_base 0x%lx, err_code 0x%x, ultra_able 0x%x\n",
-	       (ulong)h->iop_base, h->err_code, (unsigned)h->ultra_able);
-
-	printk("  isr_callback 0x%lx, sdtr_able 0x%x, wdtr_able 0x%x\n",
-	       (ulong)h->isr_callback, (unsigned)h->sdtr_able,
-	       (unsigned)h->wdtr_able);
-
-	printk("  start_motor 0x%x, scsi_reset_wait 0x%x, irq_no 0x%x,\n",
-	       (unsigned)h->start_motor,
-	       (unsigned)h->scsi_reset_wait, (unsigned)h->irq_no);
-
-	printk("  max_host_qng %u, max_dvc_qng %u, carr_freelist 0x%lxn\n",
-	       (unsigned)h->max_host_qng, (unsigned)h->max_dvc_qng,
-	       (ulong)h->carr_freelist);
-
-	printk("  icq_sp 0x%lx, irq_sp 0x%lx\n",
-	       (ulong)h->icq_sp, (ulong)h->irq_sp);
-
-	printk("  no_scam 0x%x, tagqng_able 0x%x\n",
-	       (unsigned)h->no_scam, (unsigned)h->tagqng_able);
-
-	printk("  chip_scsi_id 0x%x, cfg 0x%lx\n",
-	       (unsigned)h->chip_scsi_id, (ulong)h->cfg);
-}
-
-/*
- * asc_prt_adv_dvc_cfg()
- *
- * Display an ADV_DVC_CFG structure.
- */
-static void asc_prt_adv_dvc_cfg(ADV_DVC_CFG *h)
-{
-	printk(" ADV_DVC_CFG at addr 0x%lx\n", (ulong)h);
-
-	printk("  disc_enable 0x%x, termination 0x%x\n",
-	       h->disc_enable, h->termination);
-
-	printk("  chip_version 0x%x, mcode_date 0x%x\n",
-	       h->chip_version, h->mcode_date);
-
-	printk("  mcode_version 0x%x, pci_device_id 0x%x, lib_version %u\n",
-	       h->mcode_version, to_pci_dev(h->dev)->device, h->lib_version);
-
-	printk("  control_flag 0x%x, pci_slot_info 0x%x\n",
-	       h->control_flag, h->pci_slot_info);
-}
-
-/*
- * asc_prt_adv_scsi_req_q()
- *
- * Display an ADV_SCSI_REQ_Q structure.
- */
-static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *q)
-{
-	int sg_blk_cnt;
-	struct asc_sg_block *sg_ptr;
-
-	printk("ADV_SCSI_REQ_Q at addr 0x%lx\n", (ulong)q);
-
-	printk("  target_id %u, target_lun %u, srb_ptr 0x%lx, a_flag 0x%x\n",
-	       q->target_id, q->target_lun, (ulong)q->srb_ptr, q->a_flag);
-
-	printk("  cntl 0x%x, data_addr 0x%lx, vdata_addr 0x%lx\n",
-	       q->cntl, (ulong)le32_to_cpu(q->data_addr), (ulong)q->vdata_addr);
-
-	printk("  data_cnt %lu, sense_addr 0x%lx, sense_len %u,\n",
-	       (ulong)le32_to_cpu(q->data_cnt),
-	       (ulong)le32_to_cpu(q->sense_addr), q->sense_len);
-
-	printk
-	    ("  cdb_len %u, done_status 0x%x, host_status 0x%x, scsi_status 0x%x\n",
-	     q->cdb_len, q->done_status, q->host_status, q->scsi_status);
-
-	printk("  sg_working_ix 0x%x, target_cmd %u\n",
-	       q->sg_working_ix, q->target_cmd);
-
-	printk("  scsiq_rptr 0x%lx, sg_real_addr 0x%lx, sg_list_ptr 0x%lx\n",
-	       (ulong)le32_to_cpu(q->scsiq_rptr),
-	       (ulong)le32_to_cpu(q->sg_real_addr), (ulong)q->sg_list_ptr);
-
-	/* Display the request's ADV_SG_BLOCK structures. */
-	if (q->sg_list_ptr != NULL) {
-		sg_blk_cnt = 0;
-		while (1) {
-			/*
-			 * 'sg_ptr' is a physical address. Convert it to a virtual
-			 * address by indexing 'sg_blk_cnt' into the virtual address
-			 * array 'sg_list_ptr'.
-			 *
-			 * XXX - Assumes all SG physical blocks are virtually contiguous.
-			 */
-			sg_ptr =
-			    &(((ADV_SG_BLOCK *)(q->sg_list_ptr))[sg_blk_cnt]);
-			asc_prt_adv_sgblock(sg_blk_cnt, sg_ptr);
-			if (sg_ptr->sg_ptr == 0) {
-				break;
-			}
-			sg_blk_cnt++;
-		}
+	/*
+	 * Display driver configuration and information for the board.
+	 */
+	cp = boardp->prtbuf;
+	cplen = asc_prt_driver_conf(shost, cp, ASC_PRTBUF_SIZE);
+	BUG_ON(cplen >= ASC_PRTBUF_SIZE);
+	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
+	totcnt += cnt;
+	leftlen -= cnt;
+	if (leftlen == 0) {
+		ASC_DBG(1, "totcnt %d\n", totcnt);
+		return totcnt;
 	}
-}
+	advoffset += cplen;
+	curbuf += cnt;
 
-/*
- * asc_prt_adv_sgblock()
- *
- * Display an ADV_SG_BLOCK structure.
- */
-static void asc_prt_adv_sgblock(int sgblockno, ADV_SG_BLOCK *b)
-{
-	int i;
-
-	printk(" ASC_SG_BLOCK at addr 0x%lx (sgblockno %d)\n",
-	       (ulong)b, sgblockno);
-	printk("  sg_cnt %u, sg_ptr 0x%lx\n",
-	       b->sg_cnt, (ulong)le32_to_cpu(b->sg_ptr));
-	ASC_ASSERT(b->sg_cnt <= NO_OF_SG_PER_BLOCK);
-	if (b->sg_ptr != 0) {
-		ASC_ASSERT(b->sg_cnt == NO_OF_SG_PER_BLOCK);
+#ifdef ADVANSYS_STATS
+	/*
+	 * Display driver statistics for the board.
+	 */
+	cp = boardp->prtbuf;
+	cplen = asc_prt_board_stats(shost, cp, ASC_PRTBUF_SIZE);
+	BUG_ON(cplen >= ASC_PRTBUF_SIZE);
+	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
+	totcnt += cnt;
+	leftlen -= cnt;
+	if (leftlen == 0) {
+		ASC_DBG(1, "totcnt %d\n", totcnt);
+		return totcnt;
 	}
-	for (i = 0; i < b->sg_cnt; i++) {
-		printk("  [%u]: sg_addr 0x%lx, sg_count 0x%lx\n",
-		       i, (ulong)b->sg_list[i].sg_addr,
-		       (ulong)b->sg_list[i].sg_count);
+	advoffset += cplen;
+	curbuf += cnt;
+#endif /* ADVANSYS_STATS */
+
+	/*
+	 * Display Asc Library dynamic configuration information
+	 * for the board.
+	 */
+	cp = boardp->prtbuf;
+	if (ASC_NARROW_BOARD(boardp)) {
+		cplen = asc_prt_asc_board_info(shost, cp, ASC_PRTBUF_SIZE);
+	} else {
+		cplen = asc_prt_adv_board_info(shost, cp, ASC_PRTBUF_SIZE);
 	}
-}
-
-/*
- * asc_prt_hex()
- *
- * Print hexadecimal output in 4 byte groupings 32 bytes
- * or 8 double-words per line.
- */
-static void asc_prt_hex(char *f, uchar *s, int l)
-{
-	int i;
-	int j;
-	int k;
-	int m;
-
-	printk("%s: (%d bytes)\n", f, l);
-
-	for (i = 0; i < l; i += 32) {
-
-		/* Display a maximum of 8 double-words per line. */
-		if ((k = (l - i) / 4) >= 8) {
-			k = 8;
-			m = 0;
-		} else {
-			m = (l - i) % 4;
-		}
-
-		for (j = 0; j < k; j++) {
-			printk(" %2.2X%2.2X%2.2X%2.2X",
-			       (unsigned)s[i + (j * 4)],
-			       (unsigned)s[i + (j * 4) + 1],
-			       (unsigned)s[i + (j * 4) + 2],
-			       (unsigned)s[i + (j * 4) + 3]);
-		}
-
-		switch (m) {
-		case 0:
-		default:
-			break;
-		case 1:
-			printk(" %2.2X", (unsigned)s[i + (j * 4)]);
-			break;
-		case 2:
-			printk(" %2.2X%2.2X",
-			       (unsigned)s[i + (j * 4)],
-			       (unsigned)s[i + (j * 4) + 1]);
-			break;
-		case 3:
-			printk(" %2.2X%2.2X%2.2X",
-			       (unsigned)s[i + (j * 4) + 1],
-			       (unsigned)s[i + (j * 4) + 2],
-			       (unsigned)s[i + (j * 4) + 3]);
-			break;
-		}
-
-		printk("\n");
+	BUG_ON(cplen >= ASC_PRTBUF_SIZE);
+	cnt = asc_proc_copy(advoffset, offset, curbuf, leftlen, cp, cplen);
+	totcnt += cnt;
+	leftlen -= cnt;
+	if (leftlen == 0) {
+		ASC_DBG(1, "totcnt %d\n", totcnt);
+		return totcnt;
 	}
+	advoffset += cplen;
+	curbuf += cnt;
+
+	ASC_DBG(1, "totcnt %d\n", totcnt);
+
+	return totcnt;
 }
-#endif /* ADVANSYS_DEBUG */
+#endif /* CONFIG_PROC_FS */
 
-/*
- * --- Asc Library Functions
- */
-
-static ushort __init AscGetEisaChipCfg(PortAddr iop_base)
+static void asc_scsi_done(struct scsi_cmnd *scp)
 {
-	PortAddr eisa_cfg_iop;
-
-	eisa_cfg_iop = (PortAddr) ASC_GET_EISA_SLOT(iop_base) |
-	    (PortAddr) (ASC_EISA_CFG_IOP_MASK);
-	return (inpw(eisa_cfg_iop));
+	scsi_dma_unmap(scp);
+	ASC_STATS(scp->device->host, done);
+	scp->scsi_done(scp);
 }
 
-static uchar __init AscSetChipScsiID(PortAddr iop_base, uchar new_host_id)
+static void AscSetBank(PortAddr iop_base, uchar bank)
 {
-	ushort cfg_lsw;
+	uchar val;
 
-	if (AscGetChipScsiID(iop_base) == new_host_id) {
-		return (new_host_id);
+	val = AscGetChipControl(iop_base) &
+	    (~
+	     (CC_SINGLE_STEP | CC_TEST | CC_DIAG | CC_SCSI_RESET |
+	      CC_CHIP_RESET));
+	if (bank == 1) {
+		val |= CC_BANK_ONE;
+	} else if (bank == 2) {
+		val |= CC_DIAG | CC_BANK_ONE;
+	} else {
+		val &= ~CC_BANK_ONE;
 	}
-	cfg_lsw = AscGetChipCfgLsw(iop_base);
-	cfg_lsw &= 0xF8FF;
-	cfg_lsw |= (ushort)((new_host_id & ASC_MAX_TID) << 8);
-	AscSetChipCfgLsw(iop_base, cfg_lsw);
-	return (AscGetChipScsiID(iop_base));
+	AscSetChipControl(iop_base, val);
 }
 
-static uchar __init AscGetChipScsiCtrl(PortAddr iop_base)
+static void AscSetChipIH(PortAddr iop_base, ushort ins_code)
 {
-	uchar sc;
-
 	AscSetBank(iop_base, 1);
-	sc = inp(iop_base + IOP_REG_SC);
+	AscWriteChipIH(iop_base, ins_code);
 	AscSetBank(iop_base, 0);
-	return (sc);
 }
-
-static uchar __init AscGetChipVersion(PortAddr iop_base, ushort bus_type)
-{
-	if ((bus_type & ASC_IS_EISA) != 0) {
-		PortAddr eisa_iop;
-		uchar revision;
-		eisa_iop = (PortAddr) ASC_GET_EISA_SLOT(iop_base) |
-		    (PortAddr) ASC_EISA_REV_IOP_MASK;
-		revision = inp(eisa_iop);
-		return ((uchar)((ASC_CHIP_MIN_VER_EISA - 1) + revision));
-	}
-	return (AscGetChipVerNo(iop_base));
-}
-
-static ushort __init AscGetChipBusType(PortAddr iop_base)
-{
-	ushort chip_ver;
-
-	chip_ver = AscGetChipVerNo(iop_base);
-	if ((chip_ver >= ASC_CHIP_MIN_VER_VL)
-	    && (chip_ver <= ASC_CHIP_MAX_VER_VL)
-	    ) {
-		if (((iop_base & 0x0C30) == 0x0C30)
-		    || ((iop_base & 0x0C50) == 0x0C50)
-		    ) {
-			return (ASC_IS_EISA);
-		}
-		return (ASC_IS_VL);
-	}
-	if ((chip_ver >= ASC_CHIP_MIN_VER_ISA) &&
-	    (chip_ver <= ASC_CHIP_MAX_VER_ISA)) {
-		if (chip_ver >= ASC_CHIP_MIN_VER_ISA_PNP) {
-			return (ASC_IS_ISAPNP);
-		}
-		return (ASC_IS_ISA);
-	} else if ((chip_ver >= ASC_CHIP_MIN_VER_PCI) &&
-		   (chip_ver <= ASC_CHIP_MAX_VER_PCI)) {
-		return (ASC_IS_PCI);
-	}
-	return (0);
-}
-
-static ASC_DCNT
-AscLoadMicroCode(PortAddr iop_base,
-		 ushort s_addr, uchar *mcode_buf, ushort mcode_size)
-{
-	ASC_DCNT chksum;
-	ushort mcode_word_size;
-	ushort mcode_chksum;
-
-	/* Write the microcode buffer starting at LRAM address 0. */
-	mcode_word_size = (ushort)(mcode_size >> 1);
-	AscMemWordSetLram(iop_base, s_addr, 0, mcode_word_size);
-	AscMemWordCopyPtrToLram(iop_base, s_addr, mcode_buf, mcode_word_size);
-
-	chksum = AscMemSumLramWord(iop_base, s_addr, mcode_word_size);
-	ASC_DBG1(1, "AscLoadMicroCode: chksum 0x%lx\n", (ulong)chksum);
-	mcode_chksum = (ushort)AscMemSumLramWord(iop_base,
-						 (ushort)ASC_CODE_SEC_BEG,
-						 (ushort)((mcode_size -
-							   s_addr - (ushort)
-							   ASC_CODE_SEC_BEG) /
-							  2));
-	ASC_DBG1(1, "AscLoadMicroCode: mcode_chksum 0x%lx\n",
-		 (ulong)mcode_chksum);
-	AscWriteLramWord(iop_base, ASCV_MCODE_CHKSUM_W, mcode_chksum);
-	AscWriteLramWord(iop_base, ASCV_MCODE_SIZE_W, mcode_size);
-	return (chksum);
-}
-
-static int AscFindSignature(PortAddr iop_base)
-{
-	ushort sig_word;
-
-	ASC_DBG2(1, "AscFindSignature: AscGetChipSignatureByte(0x%x) 0x%x\n",
-		 iop_base, AscGetChipSignatureByte(iop_base));
-	if (AscGetChipSignatureByte(iop_base) == (uchar)ASC_1000_ID1B) {
-		ASC_DBG2(1,
-			 "AscFindSignature: AscGetChipSignatureWord(0x%x) 0x%x\n",
-			 iop_base, AscGetChipSignatureWord(iop_base));
-		sig_word = AscGetChipSignatureWord(iop_base);
-		if ((sig_word == (ushort)ASC_1000_ID0W) ||
-		    (sig_word == (ushort)ASC_1000_ID0W_FIX)) {
-			return (1);
-		}
-	}
-	return (0);
-}
-
-static PortAddr _asc_def_iop_base[ASC_IOADR_TABLE_MAX_IX] __initdata = {
-	0x100, ASC_IOADR_1, 0x120, ASC_IOADR_2, 0x140, ASC_IOADR_3, ASC_IOADR_4,
-	ASC_IOADR_5, ASC_IOADR_6, ASC_IOADR_7, ASC_IOADR_8
-};
-
-#ifdef CONFIG_ISA
-static uchar _isa_pnp_inited __initdata = 0;
-
-static PortAddr __init AscSearchIOPortAddr(PortAddr iop_beg, ushort bus_type)
-{
-	if (bus_type & ASC_IS_VL) {
-		while ((iop_beg = AscSearchIOPortAddr11(iop_beg)) != 0) {
-			if (AscGetChipVersion(iop_beg, bus_type) <=
-			    ASC_CHIP_MAX_VER_VL) {
-				return (iop_beg);
-			}
-		}
-		return (0);
-	}
-	if (bus_type & ASC_IS_ISA) {
-		if (_isa_pnp_inited == 0) {
-			AscSetISAPNPWaitForKey();
-			_isa_pnp_inited++;
-		}
-		while ((iop_beg = AscSearchIOPortAddr11(iop_beg)) != 0) {
-			if ((AscGetChipVersion(iop_beg, bus_type) &
-			     ASC_CHIP_VER_ISA_BIT) != 0) {
-				return (iop_beg);
-			}
-		}
-		return (0);
-	}
-	if (bus_type & ASC_IS_EISA) {
-		if ((iop_beg = AscSearchIOPortAddrEISA(iop_beg)) != 0) {
-			return (iop_beg);
-		}
-		return (0);
-	}
-	return (0);
-}
-
-static PortAddr __init AscSearchIOPortAddr11(PortAddr s_addr)
-{
-	int i;
-	PortAddr iop_base;
-
-	for (i = 0; i < ASC_IOADR_TABLE_MAX_IX; i++) {
-		if (_asc_def_iop_base[i] > s_addr) {
-			break;
-		}
-	}
-	for (; i < ASC_IOADR_TABLE_MAX_IX; i++) {
-		iop_base = _asc_def_iop_base[i];
-		if (!request_region(iop_base, ASC_IOADR_GAP, "advansys")) {
-			ASC_DBG1(1,
-				 "AscSearchIOPortAddr11: check_region() failed I/O port 0x%x\n",
-				 iop_base);
-			continue;
-		}
-		ASC_DBG1(1, "AscSearchIOPortAddr11: probing I/O port 0x%x\n",
-			 iop_base);
-		release_region(iop_base, ASC_IOADR_GAP);
-		if (AscFindSignature(iop_base)) {
-			return (iop_base);
-		}
-	}
-	return (0);
-}
-
-static void __init AscSetISAPNPWaitForKey(void)
-{
-	outp(ASC_ISA_PNP_PORT_ADDR, 0x02);
-	outp(ASC_ISA_PNP_PORT_WRITE, 0x02);
-	return;
-}
-#endif /* CONFIG_ISA */
-
-static void __init AscToggleIRQAct(PortAddr iop_base)
-{
-	AscSetChipStatus(iop_base, CIW_IRQ_ACT);
-	AscSetChipStatus(iop_base, 0);
-	return;
-}
-
-static uchar __init AscGetChipIRQ(PortAddr iop_base, ushort bus_type)
-{
-	ushort cfg_lsw;
-	uchar chip_irq;
-
-	if ((bus_type & ASC_IS_EISA) != 0) {
-		cfg_lsw = AscGetEisaChipCfg(iop_base);
-		chip_irq = (uchar)(((cfg_lsw >> 8) & 0x07) + 10);
-		if ((chip_irq == 13) || (chip_irq > 15)) {
-			return (0);
-		}
-		return (chip_irq);
-	}
-	if ((bus_type & ASC_IS_VL) != 0) {
-		cfg_lsw = AscGetChipCfgLsw(iop_base);
-		chip_irq = (uchar)(((cfg_lsw >> 2) & 0x07));
-		if ((chip_irq == 0) || (chip_irq == 4) || (chip_irq == 7)) {
-			return (0);
-		}
-		return ((uchar)(chip_irq + (ASC_MIN_IRQ_NO - 1)));
-	}
-	cfg_lsw = AscGetChipCfgLsw(iop_base);
-	chip_irq = (uchar)(((cfg_lsw >> 2) & 0x03));
-	if (chip_irq == 3)
-		chip_irq += (uchar)2;
-	return ((uchar)(chip_irq + ASC_MIN_IRQ_NO));
-}
-
-static uchar __init
-AscSetChipIRQ(PortAddr iop_base, uchar irq_no, ushort bus_type)
-{
-	ushort cfg_lsw;
-
-	if ((bus_type & ASC_IS_VL) != 0) {
-		if (irq_no != 0) {
-			if ((irq_no < ASC_MIN_IRQ_NO)
-			    || (irq_no > ASC_MAX_IRQ_NO)) {
-				irq_no = 0;
-			} else {
-				irq_no -= (uchar)((ASC_MIN_IRQ_NO - 1));
-			}
-		}
-		cfg_lsw = (ushort)(AscGetChipCfgLsw(iop_base) & 0xFFE3);
-		cfg_lsw |= (ushort)0x0010;
-		AscSetChipCfgLsw(iop_base, cfg_lsw);
-		AscToggleIRQAct(iop_base);
-		cfg_lsw = (ushort)(AscGetChipCfgLsw(iop_base) & 0xFFE0);
-		cfg_lsw |= (ushort)((irq_no & 0x07) << 2);
-		AscSetChipCfgLsw(iop_base, cfg_lsw);
-		AscToggleIRQAct(iop_base);
-		return (AscGetChipIRQ(iop_base, bus_type));
-	}
-	if ((bus_type & (ASC_IS_ISA)) != 0) {
-		if (irq_no == 15)
-			irq_no -= (uchar)2;
-		irq_no -= (uchar)ASC_MIN_IRQ_NO;
-		cfg_lsw = (ushort)(AscGetChipCfgLsw(iop_base) & 0xFFF3);
-		cfg_lsw |= (ushort)((irq_no & 0x03) << 2);
-		AscSetChipCfgLsw(iop_base, cfg_lsw);
-		return (AscGetChipIRQ(iop_base, bus_type));
-	}
-	return (0);
-}
-
-#ifdef CONFIG_ISA
-static void __init AscEnableIsaDma(uchar dma_channel)
-{
-	if (dma_channel < 4) {
-		outp(0x000B, (ushort)(0xC0 | dma_channel));
-		outp(0x000A, dma_channel);
-	} else if (dma_channel < 8) {
-		outp(0x00D6, (ushort)(0xC0 | (dma_channel - 4)));
-		outp(0x00D4, (ushort)(dma_channel - 4));
-	}
-	return;
-}
-#endif /* CONFIG_ISA */
-
-static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
-{
-	EXT_MSG ext_msg;
-	EXT_MSG out_msg;
-	ushort halt_q_addr;
-	int sdtr_accept;
-	ushort int_halt_code;
-	ASC_SCSI_BIT_ID_TYPE scsi_busy;
-	ASC_SCSI_BIT_ID_TYPE target_id;
-	PortAddr iop_base;
-	uchar tag_code;
-	uchar q_status;
-	uchar halt_qp;
-	uchar sdtr_data;
-	uchar target_ix;
-	uchar q_cntl, tid_no;
-	uchar cur_dvc_qng;
-	uchar asyn_sdtr;
-	uchar scsi_status;
-	asc_board_t *boardp;
-
-	ASC_ASSERT(asc_dvc->drv_ptr != NULL);
-	boardp = asc_dvc->drv_ptr;
-
-	iop_base = asc_dvc->iop_base;
-	int_halt_code = AscReadLramWord(iop_base, ASCV_HALTCODE_W);
-
-	halt_qp = AscReadLramByte(iop_base, ASCV_CURCDB_B);
-	halt_q_addr = ASC_QNO_TO_QADDR(halt_qp);
-	target_ix = AscReadLramByte(iop_base,
-				    (ushort)(halt_q_addr +
-					     (ushort)ASC_SCSIQ_B_TARGET_IX));
-	q_cntl =
-	    AscReadLramByte(iop_base,
-			    (ushort)(halt_q_addr + (ushort)ASC_SCSIQ_B_CNTL));
-	tid_no = ASC_TIX_TO_TID(target_ix);
-	target_id = (uchar)ASC_TID_TO_TARGET_ID(tid_no);
-	if (asc_dvc->pci_fix_asyn_xfer & target_id) {
-		asyn_sdtr = ASYN_SDTR_DATA_FIX_PCI_REV_AB;
-	} else {
-		asyn_sdtr = 0;
-	}
-	if (int_halt_code == ASC_HALT_DISABLE_ASYN_USE_SYN_FIX) {
-		if (asc_dvc->pci_fix_asyn_xfer & target_id) {
-			AscSetChipSDTR(iop_base, 0, tid_no);
-			boardp->sdtr_data[tid_no] = 0;
-		}
-		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
-	} else if (int_halt_code == ASC_HALT_ENABLE_ASYN_USE_SYN_FIX) {
-		if (asc_dvc->pci_fix_asyn_xfer & target_id) {
-			AscSetChipSDTR(iop_base, asyn_sdtr, tid_no);
-			boardp->sdtr_data[tid_no] = asyn_sdtr;
-		}
-		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
-	} else if (int_halt_code == ASC_HALT_EXTMSG_IN) {
-
-		AscMemWordCopyPtrFromLram(iop_base,
-					  ASCV_MSGIN_BEG,
-					  (uchar *)&ext_msg,
-					  sizeof(EXT_MSG) >> 1);
-
-		if (ext_msg.msg_type == MS_EXTEND &&
-		    ext_msg.msg_req == MS_SDTR_CODE &&
-		    ext_msg.msg_len == MS_SDTR_LEN) {
-			sdtr_accept = TRUE;
-			if ((ext_msg.req_ack_offset > ASC_SYN_MAX_OFFSET)) {
-
-				sdtr_accept = FALSE;
-				ext_msg.req_ack_offset = ASC_SYN_MAX_OFFSET;
-			}
-			if ((ext_msg.xfer_period <
-			     asc_dvc->sdtr_period_tbl[asc_dvc->
-						      host_init_sdtr_index])
-			    || (ext_msg.xfer_period >
-				asc_dvc->sdtr_period_tbl[asc_dvc->
-							 max_sdtr_index])) {
-				sdtr_accept = FALSE;
-				ext_msg.xfer_period =
-				    asc_dvc->sdtr_period_tbl[asc_dvc->
-							     host_init_sdtr_index];
-			}
-			if (sdtr_accept) {
-				sdtr_data =
-				    AscCalSDTRData(asc_dvc, ext_msg.xfer_period,
-						   ext_msg.req_ack_offset);
-				if ((sdtr_data == 0xFF)) {
-
-					q_cntl |= QC_MSG_OUT;
-					asc_dvc->init_sdtr &= ~target_id;
-					asc_dvc->sdtr_done &= ~target_id;
-					AscSetChipSDTR(iop_base, asyn_sdtr,
-						       tid_no);
-					boardp->sdtr_data[tid_no] = asyn_sdtr;
-				}
-			}
-			if (ext_msg.req_ack_offset == 0) {
-
-				q_cntl &= ~QC_MSG_OUT;
-				asc_dvc->init_sdtr &= ~target_id;
-				asc_dvc->sdtr_done &= ~target_id;
-				AscSetChipSDTR(iop_base, asyn_sdtr, tid_no);
-			} else {
-				if (sdtr_accept && (q_cntl & QC_MSG_OUT)) {
-
-					q_cntl &= ~QC_MSG_OUT;
-					asc_dvc->sdtr_done |= target_id;
-					asc_dvc->init_sdtr |= target_id;
-					asc_dvc->pci_fix_asyn_xfer &=
-					    ~target_id;
-					sdtr_data =
-					    AscCalSDTRData(asc_dvc,
-							   ext_msg.xfer_period,
-							   ext_msg.
-							   req_ack_offset);
-					AscSetChipSDTR(iop_base, sdtr_data,
-						       tid_no);
-					boardp->sdtr_data[tid_no] = sdtr_data;
-				} else {
-
-					q_cntl |= QC_MSG_OUT;
-					AscMsgOutSDTR(asc_dvc,
-						      ext_msg.xfer_period,
-						      ext_msg.req_ack_offset);
-					asc_dvc->pci_fix_asyn_xfer &=
-					    ~target_id;
-					sdtr_data =
-					    AscCalSDTRData(asc_dvc,
-							   ext_msg.xfer_period,
-							   ext_msg.
-							   req_ack_offset);
-					AscSetChipSDTR(iop_base, sdtr_data,
-						       tid_no);
-					boardp->sdtr_data[tid_no] = sdtr_data;
-					asc_dvc->sdtr_done |= target_id;
-					asc_dvc->init_sdtr |= target_id;
-				}
-			}
-
-			AscWriteLramByte(iop_base,
-					 (ushort)(halt_q_addr +
-						  (ushort)ASC_SCSIQ_B_CNTL),
-					 q_cntl);
-			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-			return (0);
-		} else if (ext_msg.msg_type == MS_EXTEND &&
-			   ext_msg.msg_req == MS_WDTR_CODE &&
-			   ext_msg.msg_len == MS_WDTR_LEN) {
-
-			ext_msg.wdtr_width = 0;
-			AscMemWordCopyPtrToLram(iop_base,
-						ASCV_MSGOUT_BEG,
-						(uchar *)&ext_msg,
-						sizeof(EXT_MSG) >> 1);
-			q_cntl |= QC_MSG_OUT;
-			AscWriteLramByte(iop_base,
-					 (ushort)(halt_q_addr +
-						  (ushort)ASC_SCSIQ_B_CNTL),
-					 q_cntl);
-			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-			return (0);
-		} else {
-
-			ext_msg.msg_type = MESSAGE_REJECT;
-			AscMemWordCopyPtrToLram(iop_base,
-						ASCV_MSGOUT_BEG,
-						(uchar *)&ext_msg,
-						sizeof(EXT_MSG) >> 1);
-			q_cntl |= QC_MSG_OUT;
-			AscWriteLramByte(iop_base,
-					 (ushort)(halt_q_addr +
-						  (ushort)ASC_SCSIQ_B_CNTL),
-					 q_cntl);
-			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-			return (0);
-		}
-	} else if (int_halt_code == ASC_HALT_CHK_CONDITION) {
-
-		q_cntl |= QC_REQ_SENSE;
-
-		if ((asc_dvc->init_sdtr & target_id) != 0) {
-
-			asc_dvc->sdtr_done &= ~target_id;
-
-			sdtr_data = AscGetMCodeInitSDTRAtID(iop_base, tid_no);
-			q_cntl |= QC_MSG_OUT;
-			AscMsgOutSDTR(asc_dvc,
-				      asc_dvc->
-				      sdtr_period_tbl[(sdtr_data >> 4) &
-						      (uchar)(asc_dvc->
-							      max_sdtr_index -
-							      1)],
-				      (uchar)(sdtr_data & (uchar)
-					      ASC_SYN_MAX_OFFSET));
-		}
-
-		AscWriteLramByte(iop_base,
-				 (ushort)(halt_q_addr +
-					  (ushort)ASC_SCSIQ_B_CNTL), q_cntl);
-
-		tag_code = AscReadLramByte(iop_base,
-					   (ushort)(halt_q_addr + (ushort)
-						    ASC_SCSIQ_B_TAG_CODE));
-		tag_code &= 0xDC;
-		if ((asc_dvc->pci_fix_asyn_xfer & target_id)
-		    && !(asc_dvc->pci_fix_asyn_xfer_always & target_id)
-		    ) {
-
-			tag_code |= (ASC_TAG_FLAG_DISABLE_DISCONNECT
-				     | ASC_TAG_FLAG_DISABLE_ASYN_USE_SYN_FIX);
-
-		}
-		AscWriteLramByte(iop_base,
-				 (ushort)(halt_q_addr +
-					  (ushort)ASC_SCSIQ_B_TAG_CODE),
-				 tag_code);
-
-		q_status = AscReadLramByte(iop_base,
-					   (ushort)(halt_q_addr + (ushort)
-						    ASC_SCSIQ_B_STATUS));
-		q_status |= (QS_READY | QS_BUSY);
-		AscWriteLramByte(iop_base,
-				 (ushort)(halt_q_addr +
-					  (ushort)ASC_SCSIQ_B_STATUS),
-				 q_status);
-
-		scsi_busy = AscReadLramByte(iop_base, (ushort)ASCV_SCSIBUSY_B);
-		scsi_busy &= ~target_id;
-		AscWriteLramByte(iop_base, (ushort)ASCV_SCSIBUSY_B, scsi_busy);
-
-		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
-	} else if (int_halt_code == ASC_HALT_SDTR_REJECTED) {
-
-		AscMemWordCopyPtrFromLram(iop_base,
-					  ASCV_MSGOUT_BEG,
-					  (uchar *)&out_msg,
-					  sizeof(EXT_MSG) >> 1);
-
-		if ((out_msg.msg_type == MS_EXTEND) &&
-		    (out_msg.msg_len == MS_SDTR_LEN) &&
-		    (out_msg.msg_req == MS_SDTR_CODE)) {
-
-			asc_dvc->init_sdtr &= ~target_id;
-			asc_dvc->sdtr_done &= ~target_id;
-			AscSetChipSDTR(iop_base, asyn_sdtr, tid_no);
-			boardp->sdtr_data[tid_no] = asyn_sdtr;
-		}
-		q_cntl &= ~QC_MSG_OUT;
-		AscWriteLramByte(iop_base,
-				 (ushort)(halt_q_addr +
-					  (ushort)ASC_SCSIQ_B_CNTL), q_cntl);
-		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
-	} else if (int_halt_code == ASC_HALT_SS_QUEUE_FULL) {
-
-		scsi_status = AscReadLramByte(iop_base,
-					      (ushort)((ushort)halt_q_addr +
-						       (ushort)
-						       ASC_SCSIQ_SCSI_STATUS));
-		cur_dvc_qng =
-		    AscReadLramByte(iop_base,
-				    (ushort)((ushort)ASC_QADR_BEG +
-					     (ushort)target_ix));
-		if ((cur_dvc_qng > 0) && (asc_dvc->cur_dvc_qng[tid_no] > 0)) {
-
-			scsi_busy = AscReadLramByte(iop_base,
-						    (ushort)ASCV_SCSIBUSY_B);
-			scsi_busy |= target_id;
-			AscWriteLramByte(iop_base,
-					 (ushort)ASCV_SCSIBUSY_B, scsi_busy);
-			asc_dvc->queue_full_or_busy |= target_id;
-
-			if (scsi_status == SAM_STAT_TASK_SET_FULL) {
-				if (cur_dvc_qng > ASC_MIN_TAGGED_CMD) {
-					cur_dvc_qng -= 1;
-					asc_dvc->max_dvc_qng[tid_no] =
-					    cur_dvc_qng;
-
-					AscWriteLramByte(iop_base,
-							 (ushort)((ushort)
-								  ASCV_MAX_DVC_QNG_BEG
-								  + (ushort)
-								  tid_no),
-							 cur_dvc_qng);
-
-					/*
-					 * Set the device queue depth to the number of
-					 * active requests when the QUEUE FULL condition
-					 * was encountered.
-					 */
-					boardp->queue_full |= target_id;
-					boardp->queue_full_cnt[tid_no] =
-					    cur_dvc_qng;
-				}
-			}
-		}
-		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
-	}
-#if CC_VERY_LONG_SG_LIST
-	else if (int_halt_code == ASC_HALT_HOST_COPY_SG_LIST_TO_RISC) {
-		uchar q_no;
-		ushort q_addr;
-		uchar sg_wk_q_no;
-		uchar first_sg_wk_q_no;
-		ASC_SCSI_Q *scsiq;	/* Ptr to driver request. */
-		ASC_SG_HEAD *sg_head;	/* Ptr to driver SG request. */
-		ASC_SG_LIST_Q scsi_sg_q;	/* Structure written to queue. */
-		ushort sg_list_dwords;
-		ushort sg_entry_cnt;
-		uchar next_qp;
-		int i;
-
-		q_no = AscReadLramByte(iop_base, (ushort)ASCV_REQ_SG_LIST_QP);
-		if (q_no == ASC_QLINK_END) {
-			return (0);
-		}
-
-		q_addr = ASC_QNO_TO_QADDR(q_no);
-
-		/*
-		 * Convert the request's SRB pointer to a host ASC_SCSI_REQ
-		 * structure pointer using a macro provided by the driver.
-		 * The ASC_SCSI_REQ pointer provides a pointer to the
-		 * host ASC_SG_HEAD structure.
-		 */
-		/* Read request's SRB pointer. */
-		scsiq = (ASC_SCSI_Q *)
-		    ASC_SRB2SCSIQ(ASC_U32_TO_VADDR(AscReadLramDWord(iop_base,
-								    (ushort)
-								    (q_addr +
-								     ASC_SCSIQ_D_SRBPTR))));
-
-		/*
-		 * Get request's first and working SG queue.
-		 */
-		sg_wk_q_no = AscReadLramByte(iop_base,
-					     (ushort)(q_addr +
-						      ASC_SCSIQ_B_SG_WK_QP));
-
-		first_sg_wk_q_no = AscReadLramByte(iop_base,
-						   (ushort)(q_addr +
-							    ASC_SCSIQ_B_FIRST_SG_WK_QP));
-
-		/*
-		 * Reset request's working SG queue back to the
-		 * first SG queue.
-		 */
-		AscWriteLramByte(iop_base,
-				 (ushort)(q_addr +
-					  (ushort)ASC_SCSIQ_B_SG_WK_QP),
-				 first_sg_wk_q_no);
-
-		sg_head = scsiq->sg_head;
-
-		/*
-		 * Set sg_entry_cnt to the number of SG elements
-		 * that will be completed on this interrupt.
-		 *
-		 * Note: The allocated SG queues contain ASC_MAX_SG_LIST - 1
-		 * SG elements. The data_cnt and data_addr fields which
-		 * add 1 to the SG element capacity are not used when
-		 * restarting SG handling after a halt.
-		 */
-		if (scsiq->remain_sg_entry_cnt > (ASC_MAX_SG_LIST - 1)) {
-			sg_entry_cnt = ASC_MAX_SG_LIST - 1;
-
-			/*
-			 * Keep track of remaining number of SG elements that will
-			 * need to be handled on the next interrupt.
-			 */
-			scsiq->remain_sg_entry_cnt -= (ASC_MAX_SG_LIST - 1);
-		} else {
-			sg_entry_cnt = scsiq->remain_sg_entry_cnt;
-			scsiq->remain_sg_entry_cnt = 0;
-		}
-
-		/*
-		 * Copy SG elements into the list of allocated SG queues.
-		 *
-		 * Last index completed is saved in scsiq->next_sg_index.
-		 */
-		next_qp = first_sg_wk_q_no;
-		q_addr = ASC_QNO_TO_QADDR(next_qp);
-		scsi_sg_q.sg_head_qp = q_no;
-		scsi_sg_q.cntl = QCSG_SG_XFER_LIST;
-		for (i = 0; i < sg_head->queue_cnt; i++) {
-			scsi_sg_q.seq_no = i + 1;
-			if (sg_entry_cnt > ASC_SG_LIST_PER_Q) {
-				sg_list_dwords = (uchar)(ASC_SG_LIST_PER_Q * 2);
-				sg_entry_cnt -= ASC_SG_LIST_PER_Q;
-				/*
-				 * After very first SG queue RISC FW uses next
-				 * SG queue first element then checks sg_list_cnt
-				 * against zero and then decrements, so set
-				 * sg_list_cnt 1 less than number of SG elements
-				 * in each SG queue.
-				 */
-				scsi_sg_q.sg_list_cnt = ASC_SG_LIST_PER_Q - 1;
-				scsi_sg_q.sg_cur_list_cnt =
-				    ASC_SG_LIST_PER_Q - 1;
-			} else {
-				/*
-				 * This is the last SG queue in the list of
-				 * allocated SG queues. If there are more
-				 * SG elements than will fit in the allocated
-				 * queues, then set the QCSG_SG_XFER_MORE flag.
-				 */
-				if (scsiq->remain_sg_entry_cnt != 0) {
-					scsi_sg_q.cntl |= QCSG_SG_XFER_MORE;
-				} else {
-					scsi_sg_q.cntl |= QCSG_SG_XFER_END;
-				}
-				/* equals sg_entry_cnt * 2 */
-				sg_list_dwords = sg_entry_cnt << 1;
-				scsi_sg_q.sg_list_cnt = sg_entry_cnt - 1;
-				scsi_sg_q.sg_cur_list_cnt = sg_entry_cnt - 1;
-				sg_entry_cnt = 0;
-			}
-
-			scsi_sg_q.q_no = next_qp;
-			AscMemWordCopyPtrToLram(iop_base,
-						q_addr + ASC_SCSIQ_SGHD_CPY_BEG,
-						(uchar *)&scsi_sg_q,
-						sizeof(ASC_SG_LIST_Q) >> 1);
-
-			AscMemDWordCopyPtrToLram(iop_base,
-						 q_addr + ASC_SGQ_LIST_BEG,
-						 (uchar *)&sg_head->
-						 sg_list[scsiq->next_sg_index],
-						 sg_list_dwords);
-
-			scsiq->next_sg_index += ASC_SG_LIST_PER_Q;
-
-			/*
-			 * If the just completed SG queue contained the
-			 * last SG element, then no more SG queues need
-			 * to be written.
-			 */
-			if (scsi_sg_q.cntl & QCSG_SG_XFER_END) {
-				break;
-			}
-
-			next_qp = AscReadLramByte(iop_base,
-						  (ushort)(q_addr +
-							   ASC_SCSIQ_B_FWD));
-			q_addr = ASC_QNO_TO_QADDR(next_qp);
-		}
-
-		/*
-		 * Clear the halt condition so the RISC will be restarted
-		 * after the return.
-		 */
-		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-		return (0);
-	}
-#endif /* CC_VERY_LONG_SG_LIST */
-	return (0);
-}
-
-static uchar
-_AscCopyLramScsiDoneQ(PortAddr iop_base,
-		      ushort q_addr,
-		      ASC_QDONE_INFO *scsiq, ASC_DCNT max_dma_count)
-{
-	ushort _val;
-	uchar sg_queue_cnt;
-
-	DvcGetQinfo(iop_base,
-		    q_addr + ASC_SCSIQ_DONE_INFO_BEG,
-		    (uchar *)scsiq,
-		    (sizeof(ASC_SCSIQ_2) + sizeof(ASC_SCSIQ_3)) / 2);
-
-	_val = AscReadLramWord(iop_base,
-			       (ushort)(q_addr + (ushort)ASC_SCSIQ_B_STATUS));
-	scsiq->q_status = (uchar)_val;
-	scsiq->q_no = (uchar)(_val >> 8);
-	_val = AscReadLramWord(iop_base,
-			       (ushort)(q_addr + (ushort)ASC_SCSIQ_B_CNTL));
-	scsiq->cntl = (uchar)_val;
-	sg_queue_cnt = (uchar)(_val >> 8);
-	_val = AscReadLramWord(iop_base,
-			       (ushort)(q_addr +
-					(ushort)ASC_SCSIQ_B_SENSE_LEN));
-	scsiq->sense_len = (uchar)_val;
-	scsiq->extra_bytes = (uchar)(_val >> 8);
-
-	/*
-	 * Read high word of remain bytes from alternate location.
-	 */
-	scsiq->remain_bytes = (((ADV_DCNT)AscReadLramWord(iop_base,
-							  (ushort)(q_addr +
-								   (ushort)
-								   ASC_SCSIQ_W_ALT_DC1)))
-			       << 16);
-	/*
-	 * Read low word of remain bytes from original location.
-	 */
-	scsiq->remain_bytes += AscReadLramWord(iop_base,
-					       (ushort)(q_addr + (ushort)
-							ASC_SCSIQ_DW_REMAIN_XFER_CNT));
-
-	scsiq->remain_bytes &= max_dma_count;
-	return (sg_queue_cnt);
-}
-
-static int AscIsrQDone(ASC_DVC_VAR *asc_dvc)
-{
-	uchar next_qp;
-	uchar n_q_used;
-	uchar sg_list_qp;
-	uchar sg_queue_cnt;
-	uchar q_cnt;
-	uchar done_q_tail;
-	uchar tid_no;
-	ASC_SCSI_BIT_ID_TYPE scsi_busy;
-	ASC_SCSI_BIT_ID_TYPE target_id;
-	PortAddr iop_base;
-	ushort q_addr;
-	ushort sg_q_addr;
-	uchar cur_target_qng;
-	ASC_QDONE_INFO scsiq_buf;
-	ASC_QDONE_INFO *scsiq;
-	int false_overrun;
-	ASC_ISR_CALLBACK asc_isr_callback;
-
-	iop_base = asc_dvc->iop_base;
-	asc_isr_callback = asc_dvc->isr_callback;
-	n_q_used = 1;
-	scsiq = (ASC_QDONE_INFO *)&scsiq_buf;
-	done_q_tail = (uchar)AscGetVarDoneQTail(iop_base);
-	q_addr = ASC_QNO_TO_QADDR(done_q_tail);
-	next_qp = AscReadLramByte(iop_base,
-				  (ushort)(q_addr + (ushort)ASC_SCSIQ_B_FWD));
-	if (next_qp != ASC_QLINK_END) {
-		AscPutVarDoneQTail(iop_base, next_qp);
-		q_addr = ASC_QNO_TO_QADDR(next_qp);
-		sg_queue_cnt = _AscCopyLramScsiDoneQ(iop_base, q_addr, scsiq,
-						     asc_dvc->max_dma_count);
-		AscWriteLramByte(iop_base,
-				 (ushort)(q_addr +
-					  (ushort)ASC_SCSIQ_B_STATUS),
-				 (uchar)(scsiq->
-					 q_status & (uchar)~(QS_READY |
-							     QS_ABORTED)));
-		tid_no = ASC_TIX_TO_TID(scsiq->d2.target_ix);
-		target_id = ASC_TIX_TO_TARGET_ID(scsiq->d2.target_ix);
-		if ((scsiq->cntl & QC_SG_HEAD) != 0) {
-			sg_q_addr = q_addr;
-			sg_list_qp = next_qp;
-			for (q_cnt = 0; q_cnt < sg_queue_cnt; q_cnt++) {
-				sg_list_qp = AscReadLramByte(iop_base,
-							     (ushort)(sg_q_addr
-								      + (ushort)
-								      ASC_SCSIQ_B_FWD));
-				sg_q_addr = ASC_QNO_TO_QADDR(sg_list_qp);
-				if (sg_list_qp == ASC_QLINK_END) {
-					AscSetLibErrorCode(asc_dvc,
-							   ASCQ_ERR_SG_Q_LINKS);
-					scsiq->d3.done_stat = QD_WITH_ERROR;
-					scsiq->d3.host_stat =
-					    QHSTA_D_QDONE_SG_LIST_CORRUPTED;
-					goto FATAL_ERR_QDONE;
-				}
-				AscWriteLramByte(iop_base,
-						 (ushort)(sg_q_addr + (ushort)
-							  ASC_SCSIQ_B_STATUS),
-						 QS_FREE);
-			}
-			n_q_used = sg_queue_cnt + 1;
-			AscPutVarDoneQTail(iop_base, sg_list_qp);
-		}
-		if (asc_dvc->queue_full_or_busy & target_id) {
-			cur_target_qng = AscReadLramByte(iop_base,
-							 (ushort)((ushort)
-								  ASC_QADR_BEG
-								  + (ushort)
-								  scsiq->d2.
-								  target_ix));
-			if (cur_target_qng < asc_dvc->max_dvc_qng[tid_no]) {
-				scsi_busy = AscReadLramByte(iop_base, (ushort)
-							    ASCV_SCSIBUSY_B);
-				scsi_busy &= ~target_id;
-				AscWriteLramByte(iop_base,
-						 (ushort)ASCV_SCSIBUSY_B,
-						 scsi_busy);
-				asc_dvc->queue_full_or_busy &= ~target_id;
-			}
-		}
-		if (asc_dvc->cur_total_qng >= n_q_used) {
-			asc_dvc->cur_total_qng -= n_q_used;
-			if (asc_dvc->cur_dvc_qng[tid_no] != 0) {
-				asc_dvc->cur_dvc_qng[tid_no]--;
-			}
-		} else {
-			AscSetLibErrorCode(asc_dvc, ASCQ_ERR_CUR_QNG);
-			scsiq->d3.done_stat = QD_WITH_ERROR;
-			goto FATAL_ERR_QDONE;
-		}
-		if ((scsiq->d2.srb_ptr == 0UL) ||
-		    ((scsiq->q_status & QS_ABORTED) != 0)) {
-			return (0x11);
-		} else if (scsiq->q_status == QS_DONE) {
-			false_overrun = FALSE;
-			if (scsiq->extra_bytes != 0) {
-				scsiq->remain_bytes +=
-				    (ADV_DCNT)scsiq->extra_bytes;
-			}
-			if (scsiq->d3.done_stat == QD_WITH_ERROR) {
-				if (scsiq->d3.host_stat ==
-				    QHSTA_M_DATA_OVER_RUN) {
-					if ((scsiq->
-					     cntl & (QC_DATA_IN | QC_DATA_OUT))
-					    == 0) {
-						scsiq->d3.done_stat =
-						    QD_NO_ERROR;
-						scsiq->d3.host_stat =
-						    QHSTA_NO_ERROR;
-					} else if (false_overrun) {
-						scsiq->d3.done_stat =
-						    QD_NO_ERROR;
-						scsiq->d3.host_stat =
-						    QHSTA_NO_ERROR;
-					}
-				} else if (scsiq->d3.host_stat ==
-					   QHSTA_M_HUNG_REQ_SCSI_BUS_RESET) {
-					AscStopChip(iop_base);
-					AscSetChipControl(iop_base,
-							  (uchar)(CC_SCSI_RESET
-								  | CC_HALT));
-					DvcDelayNanoSecond(asc_dvc, 60000);
-					AscSetChipControl(iop_base, CC_HALT);
-					AscSetChipStatus(iop_base,
-							 CIW_CLR_SCSI_RESET_INT);
-					AscSetChipStatus(iop_base, 0);
-					AscSetChipControl(iop_base, 0);
-				}
-			}
-			if ((scsiq->cntl & QC_NO_CALLBACK) == 0) {
-				(*asc_isr_callback) (asc_dvc, scsiq);
-			} else {
-				if ((AscReadLramByte(iop_base,
-						     (ushort)(q_addr + (ushort)
-							      ASC_SCSIQ_CDB_BEG))
-				     == START_STOP)) {
-					asc_dvc->unit_not_ready &= ~target_id;
-					if (scsiq->d3.done_stat != QD_NO_ERROR) {
-						asc_dvc->start_motor &=
-						    ~target_id;
-					}
-				}
-			}
-			return (1);
-		} else {
-			AscSetLibErrorCode(asc_dvc, ASCQ_ERR_Q_STATUS);
- FATAL_ERR_QDONE:
-			if ((scsiq->cntl & QC_NO_CALLBACK) == 0) {
-				(*asc_isr_callback) (asc_dvc, scsiq);
-			}
-			return (0x80);
-		}
-	}
-	return (0);
-}
-
-static int AscISR(ASC_DVC_VAR *asc_dvc)
-{
-	ASC_CS_TYPE chipstat;
-	PortAddr iop_base;
-	ushort saved_ram_addr;
-	uchar ctrl_reg;
-	uchar saved_ctrl_reg;
-	int int_pending;
-	int status;
-	uchar host_flag;
-
-	iop_base = asc_dvc->iop_base;
-	int_pending = FALSE;
-
-	if (AscIsIntPending(iop_base) == 0) {
-		return int_pending;
-	}
-
-	if (((asc_dvc->init_state & ASC_INIT_STATE_END_LOAD_MC) == 0)
-	    || (asc_dvc->isr_callback == 0)
-	    ) {
-		return (ERR);
-	}
-	if (asc_dvc->in_critical_cnt != 0) {
-		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_ISR_ON_CRITICAL);
-		return (ERR);
-	}
-	if (asc_dvc->is_in_int) {
-		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_ISR_RE_ENTRY);
-		return (ERR);
-	}
-	asc_dvc->is_in_int = TRUE;
-	ctrl_reg = AscGetChipControl(iop_base);
-	saved_ctrl_reg = ctrl_reg & (~(CC_SCSI_RESET | CC_CHIP_RESET |
-				       CC_SINGLE_STEP | CC_DIAG | CC_TEST));
-	chipstat = AscGetChipStatus(iop_base);
-	if (chipstat & CSW_SCSI_RESET_LATCH) {
-		if (!(asc_dvc->bus_type & (ASC_IS_VL | ASC_IS_EISA))) {
-			int i = 10;
-			int_pending = TRUE;
-			asc_dvc->sdtr_done = 0;
-			saved_ctrl_reg &= (uchar)(~CC_HALT);
-			while ((AscGetChipStatus(iop_base) &
-				CSW_SCSI_RESET_ACTIVE) && (i-- > 0)) {
-				DvcSleepMilliSecond(100);
-			}
-			AscSetChipControl(iop_base, (CC_CHIP_RESET | CC_HALT));
-			AscSetChipControl(iop_base, CC_HALT);
-			AscSetChipStatus(iop_base, CIW_CLR_SCSI_RESET_INT);
-			AscSetChipStatus(iop_base, 0);
-			chipstat = AscGetChipStatus(iop_base);
-		}
-	}
-	saved_ram_addr = AscGetChipLramAddr(iop_base);
-	host_flag = AscReadLramByte(iop_base,
-				    ASCV_HOST_FLAG_B) &
-	    (uchar)(~ASC_HOST_FLAG_IN_ISR);
-	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B,
-			 (uchar)(host_flag | (uchar)ASC_HOST_FLAG_IN_ISR));
-	if ((chipstat & CSW_INT_PENDING)
-	    || (int_pending)
-	    ) {
-		AscAckInterrupt(iop_base);
-		int_pending = TRUE;
-		if ((chipstat & CSW_HALTED) && (ctrl_reg & CC_SINGLE_STEP)) {
-			if (AscIsrChipHalted(asc_dvc) == ERR) {
-				goto ISR_REPORT_QDONE_FATAL_ERROR;
-			} else {
-				saved_ctrl_reg &= (uchar)(~CC_HALT);
-			}
-		} else {
- ISR_REPORT_QDONE_FATAL_ERROR:
-			if ((asc_dvc->dvc_cntl & ASC_CNTL_INT_MULTI_Q) != 0) {
-				while (((status =
-					 AscIsrQDone(asc_dvc)) & 0x01) != 0) {
-				}
-			} else {
-				do {
-					if ((status =
-					     AscIsrQDone(asc_dvc)) == 1) {
-						break;
-					}
-				} while (status == 0x11);
-			}
-			if ((status & 0x80) != 0)
-				int_pending = ERR;
-		}
-	}
-	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B, host_flag);
-	AscSetChipLramAddr(iop_base, saved_ram_addr);
-	AscSetChipControl(iop_base, saved_ctrl_reg);
-	asc_dvc->is_in_int = FALSE;
-	return (int_pending);
-}
-
-/* Microcode buffer is kept after initialization for error recovery. */
-static uchar _asc_mcode_buf[] = {
-	0x01, 0x03, 0x01, 0x19, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,
-	0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0xC3, 0x12, 0x0D, 0x05, 0x01, 0x00, 0x00, 0x00,
-	0x00, 0xFF, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0xFF, 0x80, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0xFF,
-	0x00, 0x00, 0x00, 0x00,
-	0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE4, 0x88,
-	0x00, 0x00, 0x00, 0x00,
-	0x80, 0x73, 0x48, 0x04, 0x36, 0x00, 0x00, 0xA2, 0xC2, 0x00, 0x80, 0x73,
-	0x03, 0x23, 0x36, 0x40,
-	0xB6, 0x00, 0x36, 0x00, 0x05, 0xD6, 0x0C, 0xD2, 0x12, 0xDA, 0x00, 0xA2,
-	0xC2, 0x00, 0x92, 0x80,
-	0x1E, 0x98, 0x50, 0x00, 0xF5, 0x00, 0x48, 0x98, 0xDF, 0x23, 0x36, 0x60,
-	0xB6, 0x00, 0x92, 0x80,
-	0x4F, 0x00, 0xF5, 0x00, 0x48, 0x98, 0xEF, 0x23, 0x36, 0x60, 0xB6, 0x00,
-	0x92, 0x80, 0x80, 0x62,
-	0x92, 0x80, 0x00, 0x46, 0x15, 0xEE, 0x13, 0xEA, 0x02, 0x01, 0x09, 0xD8,
-	0xCD, 0x04, 0x4D, 0x00,
-	0x00, 0xA3, 0xD6, 0x00, 0xA6, 0x97, 0x7F, 0x23, 0x04, 0x61, 0x84, 0x01,
-	0xE6, 0x84, 0xD2, 0xC1,
-	0x80, 0x73, 0xCD, 0x04, 0x4D, 0x00, 0x00, 0xA3, 0xDA, 0x01, 0xA6, 0x97,
-	0xC6, 0x81, 0xC2, 0x88,
-	0x80, 0x73, 0x80, 0x77, 0x00, 0x01, 0x01, 0xA1, 0xFE, 0x00, 0x4F, 0x00,
-	0x84, 0x97, 0x07, 0xA6,
-	0x08, 0x01, 0x00, 0x33, 0x03, 0x00, 0xC2, 0x88, 0x03, 0x03, 0x01, 0xDE,
-	0xC2, 0x88, 0xCE, 0x00,
-	0x69, 0x60, 0xCE, 0x00, 0x02, 0x03, 0x4A, 0x60, 0x00, 0xA2, 0x78, 0x01,
-	0x80, 0x63, 0x07, 0xA6,
-	0x24, 0x01, 0x78, 0x81, 0x03, 0x03, 0x80, 0x63, 0xE2, 0x00, 0x07, 0xA6,
-	0x34, 0x01, 0x00, 0x33,
-	0x04, 0x00, 0xC2, 0x88, 0x03, 0x07, 0x02, 0x01, 0x04, 0xCA, 0x0D, 0x23,
-	0x68, 0x98, 0x4D, 0x04,
-	0x04, 0x85, 0x05, 0xD8, 0x0D, 0x23, 0x68, 0x98, 0xCD, 0x04, 0x15, 0x23,
-	0xF8, 0x88, 0xFB, 0x23,
-	0x02, 0x61, 0x82, 0x01, 0x80, 0x63, 0x02, 0x03, 0x06, 0xA3, 0x62, 0x01,
-	0x00, 0x33, 0x0A, 0x00,
-	0xC2, 0x88, 0x4E, 0x00, 0x07, 0xA3, 0x6E, 0x01, 0x00, 0x33, 0x0B, 0x00,
-	0xC2, 0x88, 0xCD, 0x04,
-	0x36, 0x2D, 0x00, 0x33, 0x1A, 0x00, 0xC2, 0x88, 0x50, 0x04, 0x88, 0x81,
-	0x06, 0xAB, 0x82, 0x01,
-	0x88, 0x81, 0x4E, 0x00, 0x07, 0xA3, 0x92, 0x01, 0x50, 0x00, 0x00, 0xA3,
-	0x3C, 0x01, 0x00, 0x05,
-	0x7C, 0x81, 0x46, 0x97, 0x02, 0x01, 0x05, 0xC6, 0x04, 0x23, 0xA0, 0x01,
-	0x15, 0x23, 0xA1, 0x01,
-	0xBE, 0x81, 0xFD, 0x23, 0x02, 0x61, 0x82, 0x01, 0x0A, 0xDA, 0x4A, 0x00,
-	0x06, 0x61, 0x00, 0xA0,
-	0xB4, 0x01, 0x80, 0x63, 0xCD, 0x04, 0x36, 0x2D, 0x00, 0x33, 0x1B, 0x00,
-	0xC2, 0x88, 0x06, 0x23,
-	0x68, 0x98, 0xCD, 0x04, 0xE6, 0x84, 0x06, 0x01, 0x00, 0xA2, 0xD4, 0x01,
-	0x57, 0x60, 0x00, 0xA0,
-	0xDA, 0x01, 0xE6, 0x84, 0x80, 0x23, 0xA0, 0x01, 0xE6, 0x84, 0x80, 0x73,
-	0x4B, 0x00, 0x06, 0x61,
-	0x00, 0xA2, 0x00, 0x02, 0x04, 0x01, 0x0C, 0xDE, 0x02, 0x01, 0x03, 0xCC,
-	0x4F, 0x00, 0x84, 0x97,
-	0xFC, 0x81, 0x08, 0x23, 0x02, 0x41, 0x82, 0x01, 0x4F, 0x00, 0x62, 0x97,
-	0x48, 0x04, 0x84, 0x80,
-	0xF0, 0x97, 0x00, 0x46, 0x56, 0x00, 0x03, 0xC0, 0x01, 0x23, 0xE8, 0x00,
-	0x81, 0x73, 0x06, 0x29,
-	0x03, 0x42, 0x06, 0xE2, 0x03, 0xEE, 0x6B, 0xEB, 0x11, 0x23, 0xF8, 0x88,
-	0x04, 0x98, 0xF0, 0x80,
-	0x80, 0x73, 0x80, 0x77, 0x07, 0xA4, 0x2A, 0x02, 0x7C, 0x95, 0x06, 0xA6,
-	0x34, 0x02, 0x03, 0xA6,
-	0x4C, 0x04, 0x46, 0x82, 0x04, 0x01, 0x03, 0xD8, 0xB4, 0x98, 0x6A, 0x96,
-	0x46, 0x82, 0xFE, 0x95,
-	0x80, 0x67, 0x83, 0x03, 0x80, 0x63, 0xB6, 0x2D, 0x02, 0xA6, 0x6C, 0x02,
-	0x07, 0xA6, 0x5A, 0x02,
-	0x06, 0xA6, 0x5E, 0x02, 0x03, 0xA6, 0x62, 0x02, 0xC2, 0x88, 0x7C, 0x95,
-	0x48, 0x82, 0x60, 0x96,
-	0x48, 0x82, 0x04, 0x23, 0xA0, 0x01, 0x14, 0x23, 0xA1, 0x01, 0x3C, 0x84,
-	0x04, 0x01, 0x0C, 0xDC,
-	0xE0, 0x23, 0x25, 0x61, 0xEF, 0x00, 0x14, 0x01, 0x4F, 0x04, 0xA8, 0x01,
-	0x6F, 0x00, 0xA5, 0x01,
-	0x03, 0x23, 0xA4, 0x01, 0x06, 0x23, 0x9C, 0x01, 0x24, 0x2B, 0x1C, 0x01,
-	0x02, 0xA6, 0xAA, 0x02,
-	0x07, 0xA6, 0x5A, 0x02, 0x06, 0xA6, 0x5E, 0x02, 0x03, 0xA6, 0x20, 0x04,
-	0x01, 0xA6, 0xB4, 0x02,
-	0x00, 0xA6, 0xB4, 0x02, 0x00, 0x33, 0x12, 0x00, 0xC2, 0x88, 0x00, 0x0E,
-	0x80, 0x63, 0x00, 0x43,
-	0x00, 0xA0, 0x8C, 0x02, 0x4D, 0x04, 0x04, 0x01, 0x0B, 0xDC, 0xE7, 0x23,
-	0x04, 0x61, 0x84, 0x01,
-	0x10, 0x31, 0x12, 0x35, 0x14, 0x01, 0xEC, 0x00, 0x6C, 0x38, 0x00, 0x3F,
-	0x00, 0x00, 0xEA, 0x82,
-	0x18, 0x23, 0x04, 0x61, 0x18, 0xA0, 0xE2, 0x02, 0x04, 0x01, 0xA2, 0xC8,
-	0x00, 0x33, 0x1F, 0x00,
-	0xC2, 0x88, 0x08, 0x31, 0x0A, 0x35, 0x0C, 0x39, 0x0E, 0x3D, 0x7E, 0x98,
-	0xB6, 0x2D, 0x01, 0xA6,
-	0x14, 0x03, 0x00, 0xA6, 0x14, 0x03, 0x07, 0xA6, 0x0C, 0x03, 0x06, 0xA6,
-	0x10, 0x03, 0x03, 0xA6,
-	0x20, 0x04, 0x02, 0xA6, 0x6C, 0x02, 0x00, 0x33, 0x33, 0x00, 0xC2, 0x88,
-	0x7C, 0x95, 0xEE, 0x82,
-	0x60, 0x96, 0xEE, 0x82, 0x82, 0x98, 0x80, 0x42, 0x7E, 0x98, 0x64, 0xE4,
-	0x04, 0x01, 0x2D, 0xC8,
-	0x31, 0x05, 0x07, 0x01, 0x00, 0xA2, 0x54, 0x03, 0x00, 0x43, 0x87, 0x01,
-	0x05, 0x05, 0x86, 0x98,
-	0x7E, 0x98, 0x00, 0xA6, 0x16, 0x03, 0x07, 0xA6, 0x4C, 0x03, 0x03, 0xA6,
-	0x3C, 0x04, 0x06, 0xA6,
-	0x50, 0x03, 0x01, 0xA6, 0x16, 0x03, 0x00, 0x33, 0x25, 0x00, 0xC2, 0x88,
-	0x7C, 0x95, 0x32, 0x83,
-	0x60, 0x96, 0x32, 0x83, 0x04, 0x01, 0x10, 0xCE, 0x07, 0xC8, 0x05, 0x05,
-	0xEB, 0x04, 0x00, 0x33,
-	0x00, 0x20, 0xC0, 0x20, 0x81, 0x62, 0x72, 0x83, 0x00, 0x01, 0x05, 0x05,
-	0xFF, 0xA2, 0x7A, 0x03,
-	0xB1, 0x01, 0x08, 0x23, 0xB2, 0x01, 0x2E, 0x83, 0x05, 0x05, 0x15, 0x01,
-	0x00, 0xA2, 0x9A, 0x03,
-	0xEC, 0x00, 0x6E, 0x00, 0x95, 0x01, 0x6C, 0x38, 0x00, 0x3F, 0x00, 0x00,
-	0x01, 0xA6, 0x96, 0x03,
-	0x00, 0xA6, 0x96, 0x03, 0x10, 0x84, 0x80, 0x42, 0x7E, 0x98, 0x01, 0xA6,
-	0xA4, 0x03, 0x00, 0xA6,
-	0xBC, 0x03, 0x10, 0x84, 0xA8, 0x98, 0x80, 0x42, 0x01, 0xA6, 0xA4, 0x03,
-	0x07, 0xA6, 0xB2, 0x03,
-	0xD4, 0x83, 0x7C, 0x95, 0xA8, 0x83, 0x00, 0x33, 0x2F, 0x00, 0xC2, 0x88,
-	0xA8, 0x98, 0x80, 0x42,
-	0x00, 0xA6, 0xBC, 0x03, 0x07, 0xA6, 0xCA, 0x03, 0xD4, 0x83, 0x7C, 0x95,
-	0xC0, 0x83, 0x00, 0x33,
-	0x26, 0x00, 0xC2, 0x88, 0x38, 0x2B, 0x80, 0x32, 0x80, 0x36, 0x04, 0x23,
-	0xA0, 0x01, 0x12, 0x23,
-	0xA1, 0x01, 0x10, 0x84, 0x07, 0xF0, 0x06, 0xA4, 0xF4, 0x03, 0x80, 0x6B,
-	0x80, 0x67, 0x05, 0x23,
-	0x83, 0x03, 0x80, 0x63, 0x03, 0xA6, 0x0E, 0x04, 0x07, 0xA6, 0x06, 0x04,
-	0x06, 0xA6, 0x0A, 0x04,
-	0x00, 0x33, 0x17, 0x00, 0xC2, 0x88, 0x7C, 0x95, 0xF4, 0x83, 0x60, 0x96,
-	0xF4, 0x83, 0x20, 0x84,
-	0x07, 0xF0, 0x06, 0xA4, 0x20, 0x04, 0x80, 0x6B, 0x80, 0x67, 0x05, 0x23,
-	0x83, 0x03, 0x80, 0x63,
-	0xB6, 0x2D, 0x03, 0xA6, 0x3C, 0x04, 0x07, 0xA6, 0x34, 0x04, 0x06, 0xA6,
-	0x38, 0x04, 0x00, 0x33,
-	0x30, 0x00, 0xC2, 0x88, 0x7C, 0x95, 0x20, 0x84, 0x60, 0x96, 0x20, 0x84,
-	0x1D, 0x01, 0x06, 0xCC,
-	0x00, 0x33, 0x00, 0x84, 0xC0, 0x20, 0x00, 0x23, 0xEA, 0x00, 0x81, 0x62,
-	0xA2, 0x0D, 0x80, 0x63,
-	0x07, 0xA6, 0x5A, 0x04, 0x00, 0x33, 0x18, 0x00, 0xC2, 0x88, 0x03, 0x03,
-	0x80, 0x63, 0xA3, 0x01,
-	0x07, 0xA4, 0x64, 0x04, 0x23, 0x01, 0x00, 0xA2, 0x86, 0x04, 0x0A, 0xA0,
-	0x76, 0x04, 0xE0, 0x00,
-	0x00, 0x33, 0x1D, 0x00, 0xC2, 0x88, 0x0B, 0xA0, 0x82, 0x04, 0xE0, 0x00,
-	0x00, 0x33, 0x1E, 0x00,
-	0xC2, 0x88, 0x42, 0x23, 0xF8, 0x88, 0x00, 0x23, 0x22, 0xA3, 0xE6, 0x04,
-	0x08, 0x23, 0x22, 0xA3,
-	0xA2, 0x04, 0x28, 0x23, 0x22, 0xA3, 0xAE, 0x04, 0x02, 0x23, 0x22, 0xA3,
-	0xC4, 0x04, 0x42, 0x23,
-	0xF8, 0x88, 0x4A, 0x00, 0x06, 0x61, 0x00, 0xA0, 0xAE, 0x04, 0x45, 0x23,
-	0xF8, 0x88, 0x04, 0x98,
-	0x00, 0xA2, 0xC0, 0x04, 0xB4, 0x98, 0x00, 0x33, 0x00, 0x82, 0xC0, 0x20,
-	0x81, 0x62, 0xE8, 0x81,
-	0x47, 0x23, 0xF8, 0x88, 0x04, 0x01, 0x0B, 0xDE, 0x04, 0x98, 0xB4, 0x98,
-	0x00, 0x33, 0x00, 0x81,
-	0xC0, 0x20, 0x81, 0x62, 0x14, 0x01, 0x00, 0xA0, 0x00, 0x02, 0x43, 0x23,
-	0xF8, 0x88, 0x04, 0x23,
-	0xA0, 0x01, 0x44, 0x23, 0xA1, 0x01, 0x80, 0x73, 0x4D, 0x00, 0x03, 0xA3,
-	0xF4, 0x04, 0x00, 0x33,
-	0x27, 0x00, 0xC2, 0x88, 0x04, 0x01, 0x04, 0xDC, 0x02, 0x23, 0xA2, 0x01,
-	0x04, 0x23, 0xA0, 0x01,
-	0x04, 0x98, 0x26, 0x95, 0x4B, 0x00, 0xF6, 0x00, 0x4F, 0x04, 0x4F, 0x00,
-	0x00, 0xA3, 0x22, 0x05,
-	0x00, 0x05, 0x76, 0x00, 0x06, 0x61, 0x00, 0xA2, 0x1C, 0x05, 0x0A, 0x85,
-	0x46, 0x97, 0xCD, 0x04,
-	0x24, 0x85, 0x48, 0x04, 0x84, 0x80, 0x02, 0x01, 0x03, 0xDA, 0x80, 0x23,
-	0x82, 0x01, 0x34, 0x85,
-	0x02, 0x23, 0xA0, 0x01, 0x4A, 0x00, 0x06, 0x61, 0x00, 0xA2, 0x40, 0x05,
-	0x1D, 0x01, 0x04, 0xD6,
-	0xFF, 0x23, 0x86, 0x41, 0x4B, 0x60, 0xCB, 0x00, 0xFF, 0x23, 0x80, 0x01,
-	0x49, 0x00, 0x81, 0x01,
-	0x04, 0x01, 0x02, 0xC8, 0x30, 0x01, 0x80, 0x01, 0xF7, 0x04, 0x03, 0x01,
-	0x49, 0x04, 0x80, 0x01,
-	0xC9, 0x00, 0x00, 0x05, 0x00, 0x01, 0xFF, 0xA0, 0x60, 0x05, 0x77, 0x04,
-	0x01, 0x23, 0xEA, 0x00,
-	0x5D, 0x00, 0xFE, 0xC7, 0x00, 0x62, 0x00, 0x23, 0xEA, 0x00, 0x00, 0x63,
-	0x07, 0xA4, 0xF8, 0x05,
-	0x03, 0x03, 0x02, 0xA0, 0x8E, 0x05, 0xF4, 0x85, 0x00, 0x33, 0x2D, 0x00,
-	0xC2, 0x88, 0x04, 0xA0,
-	0xB8, 0x05, 0x80, 0x63, 0x00, 0x23, 0xDF, 0x00, 0x4A, 0x00, 0x06, 0x61,
-	0x00, 0xA2, 0xA4, 0x05,
-	0x1D, 0x01, 0x06, 0xD6, 0x02, 0x23, 0x02, 0x41, 0x82, 0x01, 0x50, 0x00,
-	0x62, 0x97, 0x04, 0x85,
-	0x04, 0x23, 0x02, 0x41, 0x82, 0x01, 0x04, 0x85, 0x08, 0xA0, 0xBE, 0x05,
-	0xF4, 0x85, 0x03, 0xA0,
-	0xC4, 0x05, 0xF4, 0x85, 0x01, 0xA0, 0xCE, 0x05, 0x88, 0x00, 0x80, 0x63,
-	0xCC, 0x86, 0x07, 0xA0,
-	0xEE, 0x05, 0x5F, 0x00, 0x00, 0x2B, 0xDF, 0x08, 0x00, 0xA2, 0xE6, 0x05,
-	0x80, 0x67, 0x80, 0x63,
-	0x01, 0xA2, 0x7A, 0x06, 0x7C, 0x85, 0x06, 0x23, 0x68, 0x98, 0x48, 0x23,
-	0xF8, 0x88, 0x07, 0x23,
-	0x80, 0x00, 0x06, 0x87, 0x80, 0x63, 0x7C, 0x85, 0x00, 0x23, 0xDF, 0x00,
-	0x00, 0x63, 0x4A, 0x00,
-	0x06, 0x61, 0x00, 0xA2, 0x36, 0x06, 0x1D, 0x01, 0x16, 0xD4, 0xC0, 0x23,
-	0x07, 0x41, 0x83, 0x03,
-	0x80, 0x63, 0x06, 0xA6, 0x1C, 0x06, 0x00, 0x33, 0x37, 0x00, 0xC2, 0x88,
-	0x1D, 0x01, 0x01, 0xD6,
-	0x20, 0x23, 0x63, 0x60, 0x83, 0x03, 0x80, 0x63, 0x02, 0x23, 0xDF, 0x00,
-	0x07, 0xA6, 0x7C, 0x05,
-	0xEF, 0x04, 0x6F, 0x00, 0x00, 0x63, 0x4B, 0x00, 0x06, 0x41, 0xCB, 0x00,
-	0x52, 0x00, 0x06, 0x61,
-	0x00, 0xA2, 0x4E, 0x06, 0x1D, 0x01, 0x03, 0xCA, 0xC0, 0x23, 0x07, 0x41,
-	0x00, 0x63, 0x1D, 0x01,
-	0x04, 0xCC, 0x00, 0x33, 0x00, 0x83, 0xC0, 0x20, 0x81, 0x62, 0x80, 0x23,
-	0x07, 0x41, 0x00, 0x63,
-	0x80, 0x67, 0x08, 0x23, 0x83, 0x03, 0x80, 0x63, 0x00, 0x63, 0x01, 0x23,
-	0xDF, 0x00, 0x06, 0xA6,
-	0x84, 0x06, 0x07, 0xA6, 0x7C, 0x05, 0x80, 0x67, 0x80, 0x63, 0x00, 0x33,
-	0x00, 0x40, 0xC0, 0x20,
-	0x81, 0x62, 0x00, 0x63, 0x00, 0x00, 0xFE, 0x95, 0x83, 0x03, 0x80, 0x63,
-	0x06, 0xA6, 0x94, 0x06,
-	0x07, 0xA6, 0x7C, 0x05, 0x00, 0x00, 0x01, 0xA0, 0x14, 0x07, 0x00, 0x2B,
-	0x40, 0x0E, 0x80, 0x63,
-	0x01, 0x00, 0x06, 0xA6, 0xAA, 0x06, 0x07, 0xA6, 0x7C, 0x05, 0x40, 0x0E,
-	0x80, 0x63, 0x00, 0x43,
-	0x00, 0xA0, 0xA2, 0x06, 0x06, 0xA6, 0xBC, 0x06, 0x07, 0xA6, 0x7C, 0x05,
-	0x80, 0x67, 0x40, 0x0E,
-	0x80, 0x63, 0x07, 0xA6, 0x7C, 0x05, 0x00, 0x23, 0xDF, 0x00, 0x00, 0x63,
-	0x07, 0xA6, 0xD6, 0x06,
-	0x00, 0x33, 0x2A, 0x00, 0xC2, 0x88, 0x03, 0x03, 0x80, 0x63, 0x89, 0x00,
-	0x0A, 0x2B, 0x07, 0xA6,
-	0xE8, 0x06, 0x00, 0x33, 0x29, 0x00, 0xC2, 0x88, 0x00, 0x43, 0x00, 0xA2,
-	0xF4, 0x06, 0xC0, 0x0E,
-	0x80, 0x63, 0xDE, 0x86, 0xC0, 0x0E, 0x00, 0x33, 0x00, 0x80, 0xC0, 0x20,
-	0x81, 0x62, 0x04, 0x01,
-	0x02, 0xDA, 0x80, 0x63, 0x7C, 0x85, 0x80, 0x7B, 0x80, 0x63, 0x06, 0xA6,
-	0x8C, 0x06, 0x00, 0x33,
-	0x2C, 0x00, 0xC2, 0x88, 0x0C, 0xA2, 0x2E, 0x07, 0xFE, 0x95, 0x83, 0x03,
-	0x80, 0x63, 0x06, 0xA6,
-	0x2C, 0x07, 0x07, 0xA6, 0x7C, 0x05, 0x00, 0x33, 0x3D, 0x00, 0xC2, 0x88,
-	0x00, 0x00, 0x80, 0x67,
-	0x83, 0x03, 0x80, 0x63, 0x0C, 0xA0, 0x44, 0x07, 0x07, 0xA6, 0x7C, 0x05,
-	0xBF, 0x23, 0x04, 0x61,
-	0x84, 0x01, 0xE6, 0x84, 0x00, 0x63, 0xF0, 0x04, 0x01, 0x01, 0xF1, 0x00,
-	0x00, 0x01, 0xF2, 0x00,
-	0x01, 0x05, 0x80, 0x01, 0x72, 0x04, 0x71, 0x00, 0x81, 0x01, 0x70, 0x04,
-	0x80, 0x05, 0x81, 0x05,
-	0x00, 0x63, 0xF0, 0x04, 0xF2, 0x00, 0x72, 0x04, 0x01, 0x01, 0xF1, 0x00,
-	0x70, 0x00, 0x81, 0x01,
-	0x70, 0x04, 0x71, 0x00, 0x81, 0x01, 0x72, 0x00, 0x80, 0x01, 0x71, 0x04,
-	0x70, 0x00, 0x80, 0x01,
-	0x70, 0x04, 0x00, 0x63, 0xF0, 0x04, 0xF2, 0x00, 0x72, 0x04, 0x00, 0x01,
-	0xF1, 0x00, 0x70, 0x00,
-	0x80, 0x01, 0x70, 0x04, 0x71, 0x00, 0x80, 0x01, 0x72, 0x00, 0x81, 0x01,
-	0x71, 0x04, 0x70, 0x00,
-	0x81, 0x01, 0x70, 0x04, 0x00, 0x63, 0x00, 0x23, 0xB3, 0x01, 0x83, 0x05,
-	0xA3, 0x01, 0xA2, 0x01,
-	0xA1, 0x01, 0x01, 0x23, 0xA0, 0x01, 0x00, 0x01, 0xC8, 0x00, 0x03, 0xA1,
-	0xC4, 0x07, 0x00, 0x33,
-	0x07, 0x00, 0xC2, 0x88, 0x80, 0x05, 0x81, 0x05, 0x04, 0x01, 0x11, 0xC8,
-	0x48, 0x00, 0xB0, 0x01,
-	0xB1, 0x01, 0x08, 0x23, 0xB2, 0x01, 0x05, 0x01, 0x48, 0x04, 0x00, 0x43,
-	0x00, 0xA2, 0xE4, 0x07,
-	0x00, 0x05, 0xDA, 0x87, 0x00, 0x01, 0xC8, 0x00, 0xFF, 0x23, 0x80, 0x01,
-	0x05, 0x05, 0x00, 0x63,
-	0xF7, 0x04, 0x1A, 0x09, 0xF6, 0x08, 0x6E, 0x04, 0x00, 0x02, 0x80, 0x43,
-	0x76, 0x08, 0x80, 0x02,
-	0x77, 0x04, 0x00, 0x63, 0xF7, 0x04, 0x1A, 0x09, 0xF6, 0x08, 0x6E, 0x04,
-	0x00, 0x02, 0x00, 0xA0,
-	0x14, 0x08, 0x16, 0x88, 0x00, 0x43, 0x76, 0x08, 0x80, 0x02, 0x77, 0x04,
-	0x00, 0x63, 0xF3, 0x04,
-	0x00, 0x23, 0xF4, 0x00, 0x74, 0x00, 0x80, 0x43, 0xF4, 0x00, 0xCF, 0x40,
-	0x00, 0xA2, 0x44, 0x08,
-	0x74, 0x04, 0x02, 0x01, 0xF7, 0xC9, 0xF6, 0xD9, 0x00, 0x01, 0x01, 0xA1,
-	0x24, 0x08, 0x04, 0x98,
-	0x26, 0x95, 0x24, 0x88, 0x73, 0x04, 0x00, 0x63, 0xF3, 0x04, 0x75, 0x04,
-	0x5A, 0x88, 0x02, 0x01,
-	0x04, 0xD8, 0x46, 0x97, 0x04, 0x98, 0x26, 0x95, 0x4A, 0x88, 0x75, 0x00,
-	0x00, 0xA3, 0x64, 0x08,
-	0x00, 0x05, 0x4E, 0x88, 0x73, 0x04, 0x00, 0x63, 0x80, 0x7B, 0x80, 0x63,
-	0x06, 0xA6, 0x76, 0x08,
-	0x00, 0x33, 0x3E, 0x00, 0xC2, 0x88, 0x80, 0x67, 0x83, 0x03, 0x80, 0x63,
-	0x00, 0x63, 0x38, 0x2B,
-	0x9C, 0x88, 0x38, 0x2B, 0x92, 0x88, 0x32, 0x09, 0x31, 0x05, 0x92, 0x98,
-	0x05, 0x05, 0xB2, 0x09,
-	0x00, 0x63, 0x00, 0x32, 0x00, 0x36, 0x00, 0x3A, 0x00, 0x3E, 0x00, 0x63,
-	0x80, 0x32, 0x80, 0x36,
-	0x80, 0x3A, 0x80, 0x3E, 0xB4, 0x3D, 0x00, 0x63, 0x38, 0x2B, 0x40, 0x32,
-	0x40, 0x36, 0x40, 0x3A,
-	0x40, 0x3E, 0x00, 0x63, 0x5A, 0x20, 0xC9, 0x40, 0x00, 0xA0, 0xB4, 0x08,
-	0x5D, 0x00, 0xFE, 0xC3,
-	0x00, 0x63, 0x80, 0x73, 0xE6, 0x20, 0x02, 0x23, 0xE8, 0x00, 0x82, 0x73,
-	0xFF, 0xFD, 0x80, 0x73,
-	0x13, 0x23, 0xF8, 0x88, 0x66, 0x20, 0xC0, 0x20, 0x04, 0x23, 0xA0, 0x01,
-	0xA1, 0x23, 0xA1, 0x01,
-	0x81, 0x62, 0xE2, 0x88, 0x80, 0x73, 0x80, 0x77, 0x68, 0x00, 0x00, 0xA2,
-	0x80, 0x00, 0x03, 0xC2,
-	0xF1, 0xC7, 0x41, 0x23, 0xF8, 0x88, 0x11, 0x23, 0xA1, 0x01, 0x04, 0x23,
-	0xA0, 0x01, 0xE6, 0x84,
-};
-
-static ushort _asc_mcode_size = sizeof(_asc_mcode_buf);
-static ADV_DCNT _asc_mcode_chksum = 0x012C453FUL;
-
-#define ASC_SYN_OFFSET_ONE_DISABLE_LIST  16
-static uchar _syn_offset_one_disable_cmd[ASC_SYN_OFFSET_ONE_DISABLE_LIST] = {
-	INQUIRY,
-	REQUEST_SENSE,
-	READ_CAPACITY,
-	READ_TOC,
-	MODE_SELECT,
-	MODE_SENSE,
-	MODE_SELECT_10,
-	MODE_SENSE_10,
-	0xFF,
-	0xFF,
-	0xFF,
-	0xFF,
-	0xFF,
-	0xFF,
-	0xFF,
-	0xFF
-};
-
-static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
-{
-	PortAddr iop_base;
-	ulong last_int_level;
-	int sta;
-	int n_q_required;
-	int disable_syn_offset_one_fix;
-	int i;
-	ASC_PADDR addr;
-	ASC_EXE_CALLBACK asc_exe_callback;
-	ushort sg_entry_cnt = 0;
-	ushort sg_entry_cnt_minus_one = 0;
-	uchar target_ix;
-	uchar tid_no;
-	uchar sdtr_data;
-	uchar extra_bytes;
-	uchar scsi_cmd;
-	uchar disable_cmd;
-	ASC_SG_HEAD *sg_head;
-	ASC_DCNT data_cnt;
-
-	iop_base = asc_dvc->iop_base;
-	sg_head = scsiq->sg_head;
-	asc_exe_callback = asc_dvc->exe_callback;
-	if (asc_dvc->err_code != 0)
-		return (ERR);
-	if (scsiq == (ASC_SCSI_Q *)0L) {
-		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_SCSIQ_NULL_PTR);
-		return (ERR);
-	}
-	scsiq->q1.q_no = 0;
-	if ((scsiq->q2.tag_code & ASC_TAG_FLAG_EXTRA_BYTES) == 0) {
-		scsiq->q1.extra_bytes = 0;
-	}
-	sta = 0;
-	target_ix = scsiq->q2.target_ix;
-	tid_no = ASC_TIX_TO_TID(target_ix);
-	n_q_required = 1;
-	if (scsiq->cdbptr[0] == REQUEST_SENSE) {
-		if ((asc_dvc->init_sdtr & scsiq->q1.target_id) != 0) {
-			asc_dvc->sdtr_done &= ~scsiq->q1.target_id;
-			sdtr_data = AscGetMCodeInitSDTRAtID(iop_base, tid_no);
-			AscMsgOutSDTR(asc_dvc,
-				      asc_dvc->
-				      sdtr_period_tbl[(sdtr_data >> 4) &
-						      (uchar)(asc_dvc->
-							      max_sdtr_index -
-							      1)],
-				      (uchar)(sdtr_data & (uchar)
-					      ASC_SYN_MAX_OFFSET));
-			scsiq->q1.cntl |= (QC_MSG_OUT | QC_URGENT);
-		}
-	}
-	last_int_level = DvcEnterCritical();
-	if (asc_dvc->in_critical_cnt != 0) {
-		DvcLeaveCritical(last_int_level);
-		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_CRITICAL_RE_ENTRY);
-		return (ERR);
-	}
-	asc_dvc->in_critical_cnt++;
-	if ((scsiq->q1.cntl & QC_SG_HEAD) != 0) {
-		if ((sg_entry_cnt = sg_head->entry_cnt) == 0) {
-			asc_dvc->in_critical_cnt--;
-			DvcLeaveCritical(last_int_level);
-			return (ERR);
-		}
-#if !CC_VERY_LONG_SG_LIST
-		if (sg_entry_cnt > ASC_MAX_SG_LIST) {
-			asc_dvc->in_critical_cnt--;
-			DvcLeaveCritical(last_int_level);
-			return (ERR);
-		}
-#endif /* !CC_VERY_LONG_SG_LIST */
-		if (sg_entry_cnt == 1) {
-			scsiq->q1.data_addr =
-			    (ADV_PADDR)sg_head->sg_list[0].addr;
-			scsiq->q1.data_cnt =
-			    (ADV_DCNT)sg_head->sg_list[0].bytes;
-			scsiq->q1.cntl &= ~(QC_SG_HEAD | QC_SG_SWAP_QUEUE);
-		}
-		sg_entry_cnt_minus_one = sg_entry_cnt - 1;
-	}
-	scsi_cmd = scsiq->cdbptr[0];
-	disable_syn_offset_one_fix = FALSE;
-	if ((asc_dvc->pci_fix_asyn_xfer & scsiq->q1.target_id) &&
-	    !(asc_dvc->pci_fix_asyn_xfer_always & scsiq->q1.target_id)) {
-		if (scsiq->q1.cntl & QC_SG_HEAD) {
-			data_cnt = 0;
-			for (i = 0; i < sg_entry_cnt; i++) {
-				data_cnt +=
-				    (ADV_DCNT)le32_to_cpu(sg_head->sg_list[i].
-							  bytes);
-			}
-		} else {
-			data_cnt = le32_to_cpu(scsiq->q1.data_cnt);
-		}
-		if (data_cnt != 0UL) {
-			if (data_cnt < 512UL) {
-				disable_syn_offset_one_fix = TRUE;
-			} else {
-				for (i = 0; i < ASC_SYN_OFFSET_ONE_DISABLE_LIST;
-				     i++) {
-					disable_cmd =
-					    _syn_offset_one_disable_cmd[i];
-					if (disable_cmd == 0xFF) {
-						break;
-					}
-					if (scsi_cmd == disable_cmd) {
-						disable_syn_offset_one_fix =
-						    TRUE;
-						break;
-					}
-				}
-			}
-		}
-	}
-	if (disable_syn_offset_one_fix) {
-		scsiq->q2.tag_code &= ~MSG_SIMPLE_TAG;
-		scsiq->q2.tag_code |= (ASC_TAG_FLAG_DISABLE_ASYN_USE_SYN_FIX |
-				       ASC_TAG_FLAG_DISABLE_DISCONNECT);
-	} else {
-		scsiq->q2.tag_code &= 0x27;
-	}
-	if ((scsiq->q1.cntl & QC_SG_HEAD) != 0) {
-		if (asc_dvc->bug_fix_cntl) {
-			if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_IF_NOT_DWB) {
-				if ((scsi_cmd == READ_6) ||
-				    (scsi_cmd == READ_10)) {
-					addr =
-					    (ADV_PADDR)le32_to_cpu(sg_head->
-								   sg_list
-								   [sg_entry_cnt_minus_one].
-								   addr) +
-					    (ADV_DCNT)le32_to_cpu(sg_head->
-								  sg_list
-								  [sg_entry_cnt_minus_one].
-								  bytes);
-					extra_bytes =
-					    (uchar)((ushort)addr & 0x0003);
-					if ((extra_bytes != 0)
-					    &&
-					    ((scsiq->q2.
-					      tag_code &
-					      ASC_TAG_FLAG_EXTRA_BYTES)
-					     == 0)) {
-						scsiq->q2.tag_code |=
-						    ASC_TAG_FLAG_EXTRA_BYTES;
-						scsiq->q1.extra_bytes =
-						    extra_bytes;
-						data_cnt =
-						    le32_to_cpu(sg_head->
-								sg_list
-								[sg_entry_cnt_minus_one].
-								bytes);
-						data_cnt -=
-						    (ASC_DCNT) extra_bytes;
-						sg_head->
-						    sg_list
-						    [sg_entry_cnt_minus_one].
-						    bytes =
-						    cpu_to_le32(data_cnt);
-					}
-				}
-			}
-		}
-		sg_head->entry_to_copy = sg_head->entry_cnt;
-#if CC_VERY_LONG_SG_LIST
-		/*
-		 * Set the sg_entry_cnt to the maximum possible. The rest of
-		 * the SG elements will be copied when the RISC completes the
-		 * SG elements that fit and halts.
-		 */
-		if (sg_entry_cnt > ASC_MAX_SG_LIST) {
-			sg_entry_cnt = ASC_MAX_SG_LIST;
-		}
-#endif /* CC_VERY_LONG_SG_LIST */
-		n_q_required = AscSgListToQueue(sg_entry_cnt);
-		if ((AscGetNumOfFreeQueue(asc_dvc, target_ix, n_q_required) >=
-		     (uint) n_q_required)
-		    || ((scsiq->q1.cntl & QC_URGENT) != 0)) {
-			if ((sta =
-			     AscSendScsiQueue(asc_dvc, scsiq,
-					      n_q_required)) == 1) {
-				asc_dvc->in_critical_cnt--;
-				if (asc_exe_callback != 0) {
-					(*asc_exe_callback) (asc_dvc, scsiq);
-				}
-				DvcLeaveCritical(last_int_level);
-				return (sta);
-			}
-		}
-	} else {
-		if (asc_dvc->bug_fix_cntl) {
-			if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_IF_NOT_DWB) {
-				if ((scsi_cmd == READ_6) ||
-				    (scsi_cmd == READ_10)) {
-					addr =
-					    le32_to_cpu(scsiq->q1.data_addr) +
-					    le32_to_cpu(scsiq->q1.data_cnt);
-					extra_bytes =
-					    (uchar)((ushort)addr & 0x0003);
-					if ((extra_bytes != 0)
-					    &&
-					    ((scsiq->q2.
-					      tag_code &
-					      ASC_TAG_FLAG_EXTRA_BYTES)
-					     == 0)) {
-						data_cnt =
-						    le32_to_cpu(scsiq->q1.
-								data_cnt);
-						if (((ushort)data_cnt & 0x01FF)
-						    == 0) {
-							scsiq->q2.tag_code |=
-							    ASC_TAG_FLAG_EXTRA_BYTES;
-							data_cnt -= (ASC_DCNT)
-							    extra_bytes;
-							scsiq->q1.data_cnt =
-							    cpu_to_le32
-							    (data_cnt);
-							scsiq->q1.extra_bytes =
-							    extra_bytes;
-						}
-					}
-				}
-			}
-		}
-		n_q_required = 1;
-		if ((AscGetNumOfFreeQueue(asc_dvc, target_ix, 1) >= 1) ||
-		    ((scsiq->q1.cntl & QC_URGENT) != 0)) {
-			if ((sta = AscSendScsiQueue(asc_dvc, scsiq,
-						    n_q_required)) == 1) {
-				asc_dvc->in_critical_cnt--;
-				if (asc_exe_callback != 0) {
-					(*asc_exe_callback) (asc_dvc, scsiq);
-				}
-				DvcLeaveCritical(last_int_level);
-				return (sta);
-			}
-		}
-	}
-	asc_dvc->in_critical_cnt--;
-	DvcLeaveCritical(last_int_level);
-	return (sta);
-}
-
-static int
-AscSendScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar n_q_required)
-{
-	PortAddr iop_base;
-	uchar free_q_head;
-	uchar next_qp;
-	uchar tid_no;
-	uchar target_ix;
-	int sta;
-
-	iop_base = asc_dvc->iop_base;
-	target_ix = scsiq->q2.target_ix;
-	tid_no = ASC_TIX_TO_TID(target_ix);
-	sta = 0;
-	free_q_head = (uchar)AscGetVarFreeQHead(iop_base);
-	if (n_q_required > 1) {
-		if ((next_qp = AscAllocMultipleFreeQueue(iop_base,
-							 free_q_head, (uchar)
-							 (n_q_required)))
-		    != (uchar)ASC_QLINK_END) {
-			asc_dvc->last_q_shortage = 0;
-			scsiq->sg_head->queue_cnt = n_q_required - 1;
-			scsiq->q1.q_no = free_q_head;
-			if ((sta = AscPutReadySgListQueue(asc_dvc, scsiq,
-							  free_q_head)) == 1) {
-				AscPutVarFreeQHead(iop_base, next_qp);
-				asc_dvc->cur_total_qng += (uchar)(n_q_required);
-				asc_dvc->cur_dvc_qng[tid_no]++;
-			}
-			return (sta);
-		}
-	} else if (n_q_required == 1) {
-		if ((next_qp = AscAllocFreeQueue(iop_base,
-						 free_q_head)) !=
-		    ASC_QLINK_END) {
-			scsiq->q1.q_no = free_q_head;
-			if ((sta = AscPutReadyQueue(asc_dvc, scsiq,
-						    free_q_head)) == 1) {
-				AscPutVarFreeQHead(iop_base, next_qp);
-				asc_dvc->cur_total_qng++;
-				asc_dvc->cur_dvc_qng[tid_no]++;
-			}
-			return (sta);
-		}
-	}
-	return (sta);
-}
-
-static int AscSgListToQueue(int sg_list)
-{
-	int n_sg_list_qs;
-
-	n_sg_list_qs = ((sg_list - 1) / ASC_SG_LIST_PER_Q);
-	if (((sg_list - 1) % ASC_SG_LIST_PER_Q) != 0)
-		n_sg_list_qs++;
-	return (n_sg_list_qs + 1);
-}
-
-static uint
-AscGetNumOfFreeQueue(ASC_DVC_VAR *asc_dvc, uchar target_ix, uchar n_qs)
-{
-	uint cur_used_qs;
-	uint cur_free_qs;
-	ASC_SCSI_BIT_ID_TYPE target_id;
-	uchar tid_no;
-
-	target_id = ASC_TIX_TO_TARGET_ID(target_ix);
-	tid_no = ASC_TIX_TO_TID(target_ix);
-	if ((asc_dvc->unit_not_ready & target_id) ||
-	    (asc_dvc->queue_full_or_busy & target_id)) {
-		return (0);
-	}
-	if (n_qs == 1) {
-		cur_used_qs = (uint) asc_dvc->cur_total_qng +
-		    (uint) asc_dvc->last_q_shortage + (uint) ASC_MIN_FREE_Q;
-	} else {
-		cur_used_qs = (uint) asc_dvc->cur_total_qng +
-		    (uint) ASC_MIN_FREE_Q;
-	}
-	if ((uint) (cur_used_qs + n_qs) <= (uint) asc_dvc->max_total_qng) {
-		cur_free_qs = (uint) asc_dvc->max_total_qng - cur_used_qs;
-		if (asc_dvc->cur_dvc_qng[tid_no] >=
-		    asc_dvc->max_dvc_qng[tid_no]) {
-			return (0);
-		}
-		return (cur_free_qs);
-	}
-	if (n_qs > 1) {
-		if ((n_qs > asc_dvc->last_q_shortage)
-		    && (n_qs <= (asc_dvc->max_total_qng - ASC_MIN_FREE_Q))) {
-			asc_dvc->last_q_shortage = n_qs;
-		}
-	}
-	return (0);
-}
-
-static int AscPutReadyQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar q_no)
-{
-	ushort q_addr;
-	uchar tid_no;
-	uchar sdtr_data;
-	uchar syn_period_ix;
-	uchar syn_offset;
-	PortAddr iop_base;
-
-	iop_base = asc_dvc->iop_base;
-	if (((asc_dvc->init_sdtr & scsiq->q1.target_id) != 0) &&
-	    ((asc_dvc->sdtr_done & scsiq->q1.target_id) == 0)) {
-		tid_no = ASC_TIX_TO_TID(scsiq->q2.target_ix);
-		sdtr_data = AscGetMCodeInitSDTRAtID(iop_base, tid_no);
-		syn_period_ix =
-		    (sdtr_data >> 4) & (asc_dvc->max_sdtr_index - 1);
-		syn_offset = sdtr_data & ASC_SYN_MAX_OFFSET;
-		AscMsgOutSDTR(asc_dvc,
-			      asc_dvc->sdtr_period_tbl[syn_period_ix],
-			      syn_offset);
-		scsiq->q1.cntl |= QC_MSG_OUT;
-	}
-	q_addr = ASC_QNO_TO_QADDR(q_no);
-	if ((scsiq->q1.target_id & asc_dvc->use_tagged_qng) == 0) {
-		scsiq->q2.tag_code &= ~MSG_SIMPLE_TAG;
-	}
-	scsiq->q1.status = QS_FREE;
-	AscMemWordCopyPtrToLram(iop_base,
-				q_addr + ASC_SCSIQ_CDB_BEG,
-				(uchar *)scsiq->cdbptr, scsiq->q2.cdb_len >> 1);
-
-	DvcPutScsiQ(iop_base,
-		    q_addr + ASC_SCSIQ_CPY_BEG,
-		    (uchar *)&scsiq->q1.cntl,
-		    ((sizeof(ASC_SCSIQ_1) + sizeof(ASC_SCSIQ_2)) / 2) - 1);
-	AscWriteLramWord(iop_base,
-			 (ushort)(q_addr + (ushort)ASC_SCSIQ_B_STATUS),
-			 (ushort)(((ushort)scsiq->q1.
-				   q_no << 8) | (ushort)QS_READY));
-	return (1);
-}
-
-static int
-AscPutReadySgListQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar q_no)
-{
-	int sta;
-	int i;
-	ASC_SG_HEAD *sg_head;
-	ASC_SG_LIST_Q scsi_sg_q;
-	ASC_DCNT saved_data_addr;
-	ASC_DCNT saved_data_cnt;
-	PortAddr iop_base;
-	ushort sg_list_dwords;
-	ushort sg_index;
-	ushort sg_entry_cnt;
-	ushort q_addr;
-	uchar next_qp;
-
-	iop_base = asc_dvc->iop_base;
-	sg_head = scsiq->sg_head;
-	saved_data_addr = scsiq->q1.data_addr;
-	saved_data_cnt = scsiq->q1.data_cnt;
-	scsiq->q1.data_addr = (ASC_PADDR) sg_head->sg_list[0].addr;
-	scsiq->q1.data_cnt = (ASC_DCNT) sg_head->sg_list[0].bytes;
-#if CC_VERY_LONG_SG_LIST
-	/*
-	 * If sg_head->entry_cnt is greater than ASC_MAX_SG_LIST
-	 * then not all SG elements will fit in the allocated queues.
-	 * The rest of the SG elements will be copied when the RISC
-	 * completes the SG elements that fit and halts.
-	 */
-	if (sg_head->entry_cnt > ASC_MAX_SG_LIST) {
-		/*
-		 * Set sg_entry_cnt to be the number of SG elements that
-		 * will fit in the allocated SG queues. It is minus 1, because
-		 * the first SG element is handled above. ASC_MAX_SG_LIST is
-		 * already inflated by 1 to account for this. For example it
-		 * may be 50 which is 1 + 7 queues * 7 SG elements.
-		 */
-		sg_entry_cnt = ASC_MAX_SG_LIST - 1;
-
-		/*
-		 * Keep track of remaining number of SG elements that will
-		 * need to be handled from a_isr.c.
-		 */
-		scsiq->remain_sg_entry_cnt =
-		    sg_head->entry_cnt - ASC_MAX_SG_LIST;
-	} else {
-#endif /* CC_VERY_LONG_SG_LIST */
-		/*
-		 * Set sg_entry_cnt to be the number of SG elements that
-		 * will fit in the allocated SG queues. It is minus 1, because
-		 * the first SG element is handled above.
-		 */
-		sg_entry_cnt = sg_head->entry_cnt - 1;
-#if CC_VERY_LONG_SG_LIST
-	}
-#endif /* CC_VERY_LONG_SG_LIST */
-	if (sg_entry_cnt != 0) {
-		scsiq->q1.cntl |= QC_SG_HEAD;
-		q_addr = ASC_QNO_TO_QADDR(q_no);
-		sg_index = 1;
-		scsiq->q1.sg_queue_cnt = sg_head->queue_cnt;
-		scsi_sg_q.sg_head_qp = q_no;
-		scsi_sg_q.cntl = QCSG_SG_XFER_LIST;
-		for (i = 0; i < sg_head->queue_cnt; i++) {
-			scsi_sg_q.seq_no = i + 1;
-			if (sg_entry_cnt > ASC_SG_LIST_PER_Q) {
-				sg_list_dwords = (uchar)(ASC_SG_LIST_PER_Q * 2);
-				sg_entry_cnt -= ASC_SG_LIST_PER_Q;
-				if (i == 0) {
-					scsi_sg_q.sg_list_cnt =
-					    ASC_SG_LIST_PER_Q;
-					scsi_sg_q.sg_cur_list_cnt =
-					    ASC_SG_LIST_PER_Q;
-				} else {
-					scsi_sg_q.sg_list_cnt =
-					    ASC_SG_LIST_PER_Q - 1;
-					scsi_sg_q.sg_cur_list_cnt =
-					    ASC_SG_LIST_PER_Q - 1;
-				}
-			} else {
-#if CC_VERY_LONG_SG_LIST
-				/*
-				 * This is the last SG queue in the list of
-				 * allocated SG queues. If there are more
-				 * SG elements than will fit in the allocated
-				 * queues, then set the QCSG_SG_XFER_MORE flag.
-				 */
-				if (sg_head->entry_cnt > ASC_MAX_SG_LIST) {
-					scsi_sg_q.cntl |= QCSG_SG_XFER_MORE;
-				} else {
-#endif /* CC_VERY_LONG_SG_LIST */
-					scsi_sg_q.cntl |= QCSG_SG_XFER_END;
-#if CC_VERY_LONG_SG_LIST
-				}
-#endif /* CC_VERY_LONG_SG_LIST */
-				sg_list_dwords = sg_entry_cnt << 1;
-				if (i == 0) {
-					scsi_sg_q.sg_list_cnt = sg_entry_cnt;
-					scsi_sg_q.sg_cur_list_cnt =
-					    sg_entry_cnt;
-				} else {
-					scsi_sg_q.sg_list_cnt =
-					    sg_entry_cnt - 1;
-					scsi_sg_q.sg_cur_list_cnt =
-					    sg_entry_cnt - 1;
-				}
-				sg_entry_cnt = 0;
-			}
-			next_qp = AscReadLramByte(iop_base,
-						  (ushort)(q_addr +
-							   ASC_SCSIQ_B_FWD));
-			scsi_sg_q.q_no = next_qp;
-			q_addr = ASC_QNO_TO_QADDR(next_qp);
-			AscMemWordCopyPtrToLram(iop_base,
-						q_addr + ASC_SCSIQ_SGHD_CPY_BEG,
-						(uchar *)&scsi_sg_q,
-						sizeof(ASC_SG_LIST_Q) >> 1);
-			AscMemDWordCopyPtrToLram(iop_base,
-						 q_addr + ASC_SGQ_LIST_BEG,
-						 (uchar *)&sg_head->
-						 sg_list[sg_index],
-						 sg_list_dwords);
-			sg_index += ASC_SG_LIST_PER_Q;
-			scsiq->next_sg_index = sg_index;
-		}
-	} else {
-		scsiq->q1.cntl &= ~QC_SG_HEAD;
-	}
-	sta = AscPutReadyQueue(asc_dvc, scsiq, q_no);
-	scsiq->q1.data_addr = saved_data_addr;
-	scsiq->q1.data_cnt = saved_data_cnt;
-	return (sta);
-}
-
-static int
-AscSetRunChipSynRegAtID(PortAddr iop_base, uchar tid_no, uchar sdtr_data)
-{
-	int sta = FALSE;
-
-	if (AscHostReqRiscHalt(iop_base)) {
-		sta = AscSetChipSynRegAtID(iop_base, tid_no, sdtr_data);
-		AscStartChip(iop_base);
-		return (sta);
-	}
-	return (sta);
-}
-
-static int AscSetChipSynRegAtID(PortAddr iop_base, uchar id, uchar sdtr_data)
-{
-	ASC_SCSI_BIT_ID_TYPE org_id;
-	int i;
-	int sta = TRUE;
-
-	AscSetBank(iop_base, 1);
-	org_id = AscReadChipDvcID(iop_base);
-	for (i = 0; i <= ASC_MAX_TID; i++) {
-		if (org_id == (0x01 << i))
-			break;
-	}
-	org_id = (ASC_SCSI_BIT_ID_TYPE) i;
-	AscWriteChipDvcID(iop_base, id);
-	if (AscReadChipDvcID(iop_base) == (0x01 << id)) {
-		AscSetBank(iop_base, 0);
-		AscSetChipSyn(iop_base, sdtr_data);
-		if (AscGetChipSyn(iop_base) != sdtr_data) {
-			sta = FALSE;
-		}
-	} else {
-		sta = FALSE;
-	}
-	AscSetBank(iop_base, 1);
-	AscWriteChipDvcID(iop_base, org_id);
-	AscSetBank(iop_base, 0);
-	return (sta);
-}
-
-static ushort AscInitLram(ASC_DVC_VAR *asc_dvc)
-{
-	uchar i;
-	ushort s_addr;
-	PortAddr iop_base;
-	ushort warn_code;
-
-	iop_base = asc_dvc->iop_base;
-	warn_code = 0;
-	AscMemWordSetLram(iop_base, ASC_QADR_BEG, 0,
-			  (ushort)(((int)(asc_dvc->max_total_qng + 2 + 1) *
-				    64) >> 1)
-	    );
-	i = ASC_MIN_ACTIVE_QNO;
-	s_addr = ASC_QADR_BEG + ASC_QBLK_SIZE;
-	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_FWD),
-			 (uchar)(i + 1));
-	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_BWD),
-			 (uchar)(asc_dvc->max_total_qng));
-	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_QNO),
-			 (uchar)i);
-	i++;
-	s_addr += ASC_QBLK_SIZE;
-	for (; i < asc_dvc->max_total_qng; i++, s_addr += ASC_QBLK_SIZE) {
-		AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_FWD),
-				 (uchar)(i + 1));
-		AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_BWD),
-				 (uchar)(i - 1));
-		AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_QNO),
-				 (uchar)i);
-	}
-	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_FWD),
-			 (uchar)ASC_QLINK_END);
-	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_BWD),
-			 (uchar)(asc_dvc->max_total_qng - 1));
-	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_QNO),
-			 (uchar)asc_dvc->max_total_qng);
-	i++;
-	s_addr += ASC_QBLK_SIZE;
-	for (; i <= (uchar)(asc_dvc->max_total_qng + 3);
-	     i++, s_addr += ASC_QBLK_SIZE) {
-		AscWriteLramByte(iop_base,
-				 (ushort)(s_addr + (ushort)ASC_SCSIQ_B_FWD), i);
-		AscWriteLramByte(iop_base,
-				 (ushort)(s_addr + (ushort)ASC_SCSIQ_B_BWD), i);
-		AscWriteLramByte(iop_base,
-				 (ushort)(s_addr + (ushort)ASC_SCSIQ_B_QNO), i);
-	}
-	return (warn_code);
-}
-
-static ushort AscInitQLinkVar(ASC_DVC_VAR *asc_dvc)
-{
-	PortAddr iop_base;
-	int i;
-	ushort lram_addr;
-
-	iop_base = asc_dvc->iop_base;
-	AscPutRiscVarFreeQHead(iop_base, 1);
-	AscPutRiscVarDoneQTail(iop_base, asc_dvc->max_total_qng);
-	AscPutVarFreeQHead(iop_base, 1);
-	AscPutVarDoneQTail(iop_base, asc_dvc->max_total_qng);
-	AscWriteLramByte(iop_base, ASCV_BUSY_QHEAD_B,
-			 (uchar)((int)asc_dvc->max_total_qng + 1));
-	AscWriteLramByte(iop_base, ASCV_DISC1_QHEAD_B,
-			 (uchar)((int)asc_dvc->max_total_qng + 2));
-	AscWriteLramByte(iop_base, (ushort)ASCV_TOTAL_READY_Q_B,
-			 asc_dvc->max_total_qng);
-	AscWriteLramWord(iop_base, ASCV_ASCDVC_ERR_CODE_W, 0);
-	AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
-	AscWriteLramByte(iop_base, ASCV_STOP_CODE_B, 0);
-	AscWriteLramByte(iop_base, ASCV_SCSIBUSY_B, 0);
-	AscWriteLramByte(iop_base, ASCV_WTM_FLAG_B, 0);
-	AscPutQDoneInProgress(iop_base, 0);
-	lram_addr = ASC_QADR_BEG;
-	for (i = 0; i < 32; i++, lram_addr += 2) {
-		AscWriteLramWord(iop_base, lram_addr, 0);
-	}
-	return (0);
-}
-
-static int AscSetLibErrorCode(ASC_DVC_VAR *asc_dvc, ushort err_code)
-{
-	if (asc_dvc->err_code == 0) {
-		asc_dvc->err_code = err_code;
-		AscWriteLramWord(asc_dvc->iop_base, ASCV_ASCDVC_ERR_CODE_W,
-				 err_code);
-	}
-	return (err_code);
-}
-
-static uchar
-AscMsgOutSDTR(ASC_DVC_VAR *asc_dvc, uchar sdtr_period, uchar sdtr_offset)
-{
-	EXT_MSG sdtr_buf;
-	uchar sdtr_period_index;
-	PortAddr iop_base;
-
-	iop_base = asc_dvc->iop_base;
-	sdtr_buf.msg_type = MS_EXTEND;
-	sdtr_buf.msg_len = MS_SDTR_LEN;
-	sdtr_buf.msg_req = MS_SDTR_CODE;
-	sdtr_buf.xfer_period = sdtr_period;
-	sdtr_offset &= ASC_SYN_MAX_OFFSET;
-	sdtr_buf.req_ack_offset = sdtr_offset;
-	if ((sdtr_period_index =
-	     AscGetSynPeriodIndex(asc_dvc, sdtr_period)) <=
-	    asc_dvc->max_sdtr_index) {
-		AscMemWordCopyPtrToLram(iop_base,
-					ASCV_MSGOUT_BEG,
-					(uchar *)&sdtr_buf,
-					sizeof(EXT_MSG) >> 1);
-		return ((sdtr_period_index << 4) | sdtr_offset);
-	} else {
-
-		sdtr_buf.req_ack_offset = 0;
-		AscMemWordCopyPtrToLram(iop_base,
-					ASCV_MSGOUT_BEG,
-					(uchar *)&sdtr_buf,
-					sizeof(EXT_MSG) >> 1);
-		return (0);
-	}
-}
-
-static uchar
-AscCalSDTRData(ASC_DVC_VAR *asc_dvc, uchar sdtr_period, uchar syn_offset)
-{
-	uchar byte;
-	uchar sdtr_period_ix;
-
-	sdtr_period_ix = AscGetSynPeriodIndex(asc_dvc, sdtr_period);
-	if ((sdtr_period_ix > asc_dvc->max_sdtr_index)
-	    ) {
-		return (0xFF);
-	}
-	byte = (sdtr_period_ix << 4) | (syn_offset & ASC_SYN_MAX_OFFSET);
-	return (byte);
-}
-
-static void AscSetChipSDTR(PortAddr iop_base, uchar sdtr_data, uchar tid_no)
-{
-	AscSetChipSynRegAtID(iop_base, tid_no, sdtr_data);
-	AscPutMCodeSDTRDoneAtID(iop_base, tid_no, sdtr_data);
-	return;
-}
-
-static uchar AscGetSynPeriodIndex(ASC_DVC_VAR *asc_dvc, uchar syn_time)
-{
-	uchar *period_table;
-	int max_index;
-	int min_index;
-	int i;
-
-	period_table = asc_dvc->sdtr_period_tbl;
-	max_index = (int)asc_dvc->max_sdtr_index;
-	min_index = (int)asc_dvc->host_init_sdtr_index;
-	if ((syn_time <= period_table[max_index])) {
-		for (i = min_index; i < (max_index - 1); i++) {
-			if (syn_time <= period_table[i]) {
-				return ((uchar)i);
-			}
-		}
-		return ((uchar)max_index);
-	} else {
-		return ((uchar)(max_index + 1));
-	}
-}
-
-static uchar AscAllocFreeQueue(PortAddr iop_base, uchar free_q_head)
-{
-	ushort q_addr;
-	uchar next_qp;
-	uchar q_status;
-
-	q_addr = ASC_QNO_TO_QADDR(free_q_head);
-	q_status = (uchar)AscReadLramByte(iop_base,
-					  (ushort)(q_addr +
-						   ASC_SCSIQ_B_STATUS));
-	next_qp = AscReadLramByte(iop_base, (ushort)(q_addr + ASC_SCSIQ_B_FWD));
-	if (((q_status & QS_READY) == 0) && (next_qp != ASC_QLINK_END)) {
-		return (next_qp);
-	}
-	return (ASC_QLINK_END);
-}
-
-static uchar
-AscAllocMultipleFreeQueue(PortAddr iop_base, uchar free_q_head, uchar n_free_q)
-{
-	uchar i;
-
-	for (i = 0; i < n_free_q; i++) {
-		if ((free_q_head = AscAllocFreeQueue(iop_base, free_q_head))
-		    == ASC_QLINK_END) {
-			return (ASC_QLINK_END);
-		}
-	}
-	return (free_q_head);
-}
-
-static int AscHostReqRiscHalt(PortAddr iop_base)
-{
-	int count = 0;
-	int sta = 0;
-	uchar saved_stop_code;
-
-	if (AscIsChipHalted(iop_base))
-		return (1);
-	saved_stop_code = AscReadLramByte(iop_base, ASCV_STOP_CODE_B);
-	AscWriteLramByte(iop_base, ASCV_STOP_CODE_B,
-			 ASC_STOP_HOST_REQ_RISC_HALT | ASC_STOP_REQ_RISC_STOP);
-	do {
-		if (AscIsChipHalted(iop_base)) {
-			sta = 1;
-			break;
-		}
-		DvcSleepMilliSecond(100);
-	} while (count++ < 20);
-	AscWriteLramByte(iop_base, ASCV_STOP_CODE_B, saved_stop_code);
-	return (sta);
-}
-
-static int AscStopQueueExe(PortAddr iop_base)
-{
-	int count = 0;
-
-	if (AscReadLramByte(iop_base, ASCV_STOP_CODE_B) == 0) {
-		AscWriteLramByte(iop_base, ASCV_STOP_CODE_B,
-				 ASC_STOP_REQ_RISC_STOP);
-		do {
-			if (AscReadLramByte(iop_base, ASCV_STOP_CODE_B) &
-			    ASC_STOP_ACK_RISC_STOP) {
-				return (1);
-			}
-			DvcSleepMilliSecond(100);
-		} while (count++ < 20);
-	}
-	return (0);
-}
-
-static void DvcDelayMicroSecond(ADV_DVC_VAR *asc_dvc, ushort micro_sec)
-{
-	udelay(micro_sec);
-}
-
-static void DvcDelayNanoSecond(ASC_DVC_VAR *asc_dvc, ASC_DCNT nano_sec)
-{
-	udelay((nano_sec + 999) / 1000);
-}
-
-#ifdef CONFIG_ISA
-static ASC_DCNT __init AscGetEisaProductID(PortAddr iop_base)
-{
-	PortAddr eisa_iop;
-	ushort product_id_high, product_id_low;
-	ASC_DCNT product_id;
-
-	eisa_iop = ASC_GET_EISA_SLOT(iop_base) | ASC_EISA_PID_IOP_MASK;
-	product_id_low = inpw(eisa_iop);
-	product_id_high = inpw(eisa_iop + 2);
-	product_id = ((ASC_DCNT) product_id_high << 16) |
-	    (ASC_DCNT) product_id_low;
-	return (product_id);
-}
-
-static PortAddr __init AscSearchIOPortAddrEISA(PortAddr iop_base)
-{
-	ASC_DCNT eisa_product_id;
-
-	if (iop_base == 0) {
-		iop_base = ASC_EISA_MIN_IOP_ADDR;
-	} else {
-		if (iop_base == ASC_EISA_MAX_IOP_ADDR)
-			return (0);
-		if ((iop_base & 0x0050) == 0x0050) {
-			iop_base += ASC_EISA_BIG_IOP_GAP;
-		} else {
-			iop_base += ASC_EISA_SMALL_IOP_GAP;
-		}
-	}
-	while (iop_base <= ASC_EISA_MAX_IOP_ADDR) {
-		eisa_product_id = AscGetEisaProductID(iop_base);
-		if ((eisa_product_id == ASC_EISA_ID_740) ||
-		    (eisa_product_id == ASC_EISA_ID_750)) {
-			if (AscFindSignature(iop_base)) {
-				inpw(iop_base + 4);
-				return (iop_base);
-			}
-		}
-		if (iop_base == ASC_EISA_MAX_IOP_ADDR)
-			return (0);
-		if ((iop_base & 0x0050) == 0x0050) {
-			iop_base += ASC_EISA_BIG_IOP_GAP;
-		} else {
-			iop_base += ASC_EISA_SMALL_IOP_GAP;
-		}
-	}
-	return (0);
-}
-#endif /* CONFIG_ISA */
 
 static int AscStartChip(PortAddr iop_base)
 {
@@ -10480,81 +4381,6 @@ static int AscIsChipHalted(PortAddr iop_base)
 	return (0);
 }
 
-static void AscSetChipIH(PortAddr iop_base, ushort ins_code)
-{
-	AscSetBank(iop_base, 1);
-	AscWriteChipIH(iop_base, ins_code);
-	AscSetBank(iop_base, 0);
-	return;
-}
-
-static void AscAckInterrupt(PortAddr iop_base)
-{
-	uchar host_flag;
-	uchar risc_flag;
-	ushort loop;
-
-	loop = 0;
-	do {
-		risc_flag = AscReadLramByte(iop_base, ASCV_RISC_FLAG_B);
-		if (loop++ > 0x7FFF) {
-			break;
-		}
-	} while ((risc_flag & ASC_RISC_FLAG_GEN_INT) != 0);
-	host_flag =
-	    AscReadLramByte(iop_base,
-			    ASCV_HOST_FLAG_B) & (~ASC_HOST_FLAG_ACK_INT);
-	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B,
-			 (uchar)(host_flag | ASC_HOST_FLAG_ACK_INT));
-	AscSetChipStatus(iop_base, CIW_INT_ACK);
-	loop = 0;
-	while (AscGetChipStatus(iop_base) & CSW_INT_PENDING) {
-		AscSetChipStatus(iop_base, CIW_INT_ACK);
-		if (loop++ > 3) {
-			break;
-		}
-	}
-	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B, host_flag);
-	return;
-}
-
-static void AscDisableInterrupt(PortAddr iop_base)
-{
-	ushort cfg;
-
-	cfg = AscGetChipCfgLsw(iop_base);
-	AscSetChipCfgLsw(iop_base, cfg & (~ASC_CFG0_HOST_INT_ON));
-	return;
-}
-
-static void AscEnableInterrupt(PortAddr iop_base)
-{
-	ushort cfg;
-
-	cfg = AscGetChipCfgLsw(iop_base);
-	AscSetChipCfgLsw(iop_base, cfg | ASC_CFG0_HOST_INT_ON);
-	return;
-}
-
-static void AscSetBank(PortAddr iop_base, uchar bank)
-{
-	uchar val;
-
-	val = AscGetChipControl(iop_base) &
-	    (~
-	     (CC_SINGLE_STEP | CC_TEST | CC_DIAG | CC_SCSI_RESET |
-	      CC_CHIP_RESET));
-	if (bank == 1) {
-		val |= CC_BANK_ONE;
-	} else if (bank == 2) {
-		val |= CC_DIAG | CC_BANK_ONE;
-	} else {
-		val &= ~CC_BANK_ONE;
-	}
-	AscSetChipControl(iop_base, val);
-	return;
-}
-
 static int AscResetChipAndScsiBus(ASC_DVC_VAR *asc_dvc)
 {
 	PortAddr iop_base;
@@ -10563,1015 +4389,70 @@ static int AscResetChipAndScsiBus(ASC_DVC_VAR *asc_dvc)
 	iop_base = asc_dvc->iop_base;
 	while ((AscGetChipStatus(iop_base) & CSW_SCSI_RESET_ACTIVE)
 	       && (i-- > 0)) {
-		DvcSleepMilliSecond(100);
+		mdelay(100);
 	}
 	AscStopChip(iop_base);
 	AscSetChipControl(iop_base, CC_CHIP_RESET | CC_SCSI_RESET | CC_HALT);
-	DvcDelayNanoSecond(asc_dvc, 60000);
+	udelay(60);
 	AscSetChipIH(iop_base, INS_RFLAG_WTM);
 	AscSetChipIH(iop_base, INS_HALT);
 	AscSetChipControl(iop_base, CC_CHIP_RESET | CC_HALT);
 	AscSetChipControl(iop_base, CC_HALT);
-	DvcSleepMilliSecond(200);
+	mdelay(200);
 	AscSetChipStatus(iop_base, CIW_CLR_SCSI_RESET_INT);
 	AscSetChipStatus(iop_base, 0);
 	return (AscIsChipHalted(iop_base));
 }
 
-static ASC_DCNT __init AscGetMaxDmaCount(ushort bus_type)
+static int AscFindSignature(PortAddr iop_base)
 {
-	if (bus_type & ASC_IS_ISA)
-		return (ASC_MAX_ISA_DMA_COUNT);
-	else if (bus_type & (ASC_IS_EISA | ASC_IS_VL))
-		return (ASC_MAX_VL_DMA_COUNT);
-	return (ASC_MAX_PCI_DMA_COUNT);
-}
+	ushort sig_word;
 
-#ifdef CONFIG_ISA
-static ushort __init AscGetIsaDmaChannel(PortAddr iop_base)
-{
-	ushort channel;
-
-	channel = AscGetChipCfgLsw(iop_base) & 0x0003;
-	if (channel == 0x03)
-		return (0);
-	else if (channel == 0x00)
-		return (7);
-	return (channel + 4);
-}
-
-static ushort __init AscSetIsaDmaChannel(PortAddr iop_base, ushort dma_channel)
-{
-	ushort cfg_lsw;
-	uchar value;
-
-	if ((dma_channel >= 5) && (dma_channel <= 7)) {
-		if (dma_channel == 7)
-			value = 0x00;
-		else
-			value = dma_channel - 4;
-		cfg_lsw = AscGetChipCfgLsw(iop_base) & 0xFFFC;
-		cfg_lsw |= value;
-		AscSetChipCfgLsw(iop_base, cfg_lsw);
-		return (AscGetIsaDmaChannel(iop_base));
+	ASC_DBG(1, "AscGetChipSignatureByte(0x%x) 0x%x\n",
+		 iop_base, AscGetChipSignatureByte(iop_base));
+	if (AscGetChipSignatureByte(iop_base) == (uchar)ASC_1000_ID1B) {
+		ASC_DBG(1, "AscGetChipSignatureWord(0x%x) 0x%x\n",
+			 iop_base, AscGetChipSignatureWord(iop_base));
+		sig_word = AscGetChipSignatureWord(iop_base);
+		if ((sig_word == (ushort)ASC_1000_ID0W) ||
+		    (sig_word == (ushort)ASC_1000_ID0W_FIX)) {
+			return (1);
+		}
 	}
 	return (0);
 }
 
-static uchar __init AscSetIsaDmaSpeed(PortAddr iop_base, uchar speed_value)
+static void AscEnableInterrupt(PortAddr iop_base)
 {
-	speed_value &= 0x07;
-	AscSetBank(iop_base, 1);
-	AscWriteChipDmaSpeed(iop_base, speed_value);
-	AscSetBank(iop_base, 0);
-	return (AscGetIsaDmaSpeed(iop_base));
+	ushort cfg;
+
+	cfg = AscGetChipCfgLsw(iop_base);
+	AscSetChipCfgLsw(iop_base, cfg | ASC_CFG0_HOST_INT_ON);
 }
 
-static uchar __init AscGetIsaDmaSpeed(PortAddr iop_base)
+static void AscDisableInterrupt(PortAddr iop_base)
 {
-	uchar speed_value;
+	ushort cfg;
 
-	AscSetBank(iop_base, 1);
-	speed_value = AscReadChipDmaSpeed(iop_base);
-	speed_value &= 0x07;
-	AscSetBank(iop_base, 0);
-	return (speed_value);
-}
-#endif /* CONFIG_ISA */
-
-static ushort __init
-AscReadPCIConfigWord(ASC_DVC_VAR *asc_dvc, ushort pci_config_offset)
-{
-	uchar lsb, msb;
-
-	lsb = DvcReadPCIConfigByte(asc_dvc, pci_config_offset);
-	msb = DvcReadPCIConfigByte(asc_dvc, pci_config_offset + 1);
-	return ((ushort)((msb << 8) | lsb));
-}
-
-static ushort __init AscInitGetConfig(ASC_DVC_VAR *asc_dvc)
-{
-	ushort warn_code;
-	PortAddr iop_base;
-	ushort PCIDeviceID;
-	ushort PCIVendorID;
-	uchar PCIRevisionID;
-	uchar prevCmdRegBits;
-
-	warn_code = 0;
-	iop_base = asc_dvc->iop_base;
-	asc_dvc->init_state = ASC_INIT_STATE_BEG_GET_CFG;
-	if (asc_dvc->err_code != 0) {
-		return (UW_ERR);
-	}
-	if (asc_dvc->bus_type == ASC_IS_PCI) {
-		PCIVendorID = AscReadPCIConfigWord(asc_dvc,
-						   AscPCIConfigVendorIDRegister);
-
-		PCIDeviceID = AscReadPCIConfigWord(asc_dvc,
-						   AscPCIConfigDeviceIDRegister);
-
-		PCIRevisionID = DvcReadPCIConfigByte(asc_dvc,
-						     AscPCIConfigRevisionIDRegister);
-
-		if (PCIVendorID != PCI_VENDOR_ID_ASP) {
-			warn_code |= ASC_WARN_SET_PCI_CONFIG_SPACE;
-		}
-		prevCmdRegBits = DvcReadPCIConfigByte(asc_dvc,
-						      AscPCIConfigCommandRegister);
-
-		if ((prevCmdRegBits & AscPCICmdRegBits_IOMemBusMaster) !=
-		    AscPCICmdRegBits_IOMemBusMaster) {
-			DvcWritePCIConfigByte(asc_dvc,
-					      AscPCIConfigCommandRegister,
-					      (prevCmdRegBits |
-					       AscPCICmdRegBits_IOMemBusMaster));
-
-			if ((DvcReadPCIConfigByte(asc_dvc,
-						  AscPCIConfigCommandRegister)
-			     & AscPCICmdRegBits_IOMemBusMaster)
-			    != AscPCICmdRegBits_IOMemBusMaster) {
-				warn_code |= ASC_WARN_SET_PCI_CONFIG_SPACE;
-			}
-		}
-		if ((PCIDeviceID == PCI_DEVICE_ID_ASP_1200A) ||
-		    (PCIDeviceID == PCI_DEVICE_ID_ASP_ABP940)) {
-			DvcWritePCIConfigByte(asc_dvc,
-					      AscPCIConfigLatencyTimer, 0x00);
-			if (DvcReadPCIConfigByte
-			    (asc_dvc, AscPCIConfigLatencyTimer)
-			    != 0x00) {
-				warn_code |= ASC_WARN_SET_PCI_CONFIG_SPACE;
-			}
-		} else if (PCIDeviceID == PCI_DEVICE_ID_ASP_ABP940U) {
-			if (DvcReadPCIConfigByte(asc_dvc,
-						 AscPCIConfigLatencyTimer) <
-			    0x20) {
-				DvcWritePCIConfigByte(asc_dvc,
-						      AscPCIConfigLatencyTimer,
-						      0x20);
-
-				if (DvcReadPCIConfigByte(asc_dvc,
-							 AscPCIConfigLatencyTimer)
-				    < 0x20) {
-					warn_code |=
-					    ASC_WARN_SET_PCI_CONFIG_SPACE;
-				}
-			}
-		}
-	}
-
-	if (AscFindSignature(iop_base)) {
-		warn_code |= AscInitAscDvcVar(asc_dvc);
-		warn_code |= AscInitFromEEP(asc_dvc);
-		asc_dvc->init_state |= ASC_INIT_STATE_END_GET_CFG;
-		if (asc_dvc->scsi_reset_wait > ASC_MAX_SCSI_RESET_WAIT) {
-			asc_dvc->scsi_reset_wait = ASC_MAX_SCSI_RESET_WAIT;
-		}
-	} else {
-		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
-	}
-	return (warn_code);
-}
-
-static ushort __init AscInitSetConfig(ASC_DVC_VAR *asc_dvc)
-{
-	ushort warn_code = 0;
-
-	asc_dvc->init_state |= ASC_INIT_STATE_BEG_SET_CFG;
-	if (asc_dvc->err_code != 0)
-		return (UW_ERR);
-	if (AscFindSignature(asc_dvc->iop_base)) {
-		warn_code |= AscInitFromAscDvcVar(asc_dvc);
-		asc_dvc->init_state |= ASC_INIT_STATE_END_SET_CFG;
-	} else {
-		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
-	}
-	return (warn_code);
-}
-
-static ushort __init AscInitFromAscDvcVar(ASC_DVC_VAR *asc_dvc)
-{
-	PortAddr iop_base;
-	ushort cfg_msw;
-	ushort warn_code;
-	ushort pci_device_id = 0;
-
-	iop_base = asc_dvc->iop_base;
-#ifdef CONFIG_PCI
-	if (asc_dvc->cfg->dev)
-		pci_device_id = to_pci_dev(asc_dvc->cfg->dev)->device;
-#endif
-	warn_code = 0;
-	cfg_msw = AscGetChipCfgMsw(iop_base);
-	if ((cfg_msw & ASC_CFG_MSW_CLR_MASK) != 0) {
-		cfg_msw &= (~(ASC_CFG_MSW_CLR_MASK));
-		warn_code |= ASC_WARN_CFG_MSW_RECOVER;
-		AscSetChipCfgMsw(iop_base, cfg_msw);
-	}
-	if ((asc_dvc->cfg->cmd_qng_enabled & asc_dvc->cfg->disc_enable) !=
-	    asc_dvc->cfg->cmd_qng_enabled) {
-		asc_dvc->cfg->disc_enable = asc_dvc->cfg->cmd_qng_enabled;
-		warn_code |= ASC_WARN_CMD_QNG_CONFLICT;
-	}
-	if (AscGetChipStatus(iop_base) & CSW_AUTO_CONFIG) {
-		warn_code |= ASC_WARN_AUTO_CONFIG;
-	}
-	if ((asc_dvc->bus_type & (ASC_IS_ISA | ASC_IS_VL)) != 0) {
-		if (AscSetChipIRQ(iop_base, asc_dvc->irq_no, asc_dvc->bus_type)
-		    != asc_dvc->irq_no) {
-			asc_dvc->err_code |= ASC_IERR_SET_IRQ_NO;
-		}
-	}
-	if (asc_dvc->bus_type & ASC_IS_PCI) {
-		cfg_msw &= 0xFFC0;
-		AscSetChipCfgMsw(iop_base, cfg_msw);
-		if ((asc_dvc->bus_type & ASC_IS_PCI_ULTRA) == ASC_IS_PCI_ULTRA) {
-		} else {
-			if ((pci_device_id == PCI_DEVICE_ID_ASP_1200A) ||
-			    (pci_device_id == PCI_DEVICE_ID_ASP_ABP940)) {
-				asc_dvc->bug_fix_cntl |= ASC_BUG_FIX_IF_NOT_DWB;
-				asc_dvc->bug_fix_cntl |=
-				    ASC_BUG_FIX_ASYN_USE_SYN;
-			}
-		}
-	} else if (asc_dvc->bus_type == ASC_IS_ISAPNP) {
-		if (AscGetChipVersion(iop_base, asc_dvc->bus_type)
-		    == ASC_CHIP_VER_ASYN_BUG) {
-			asc_dvc->bug_fix_cntl |= ASC_BUG_FIX_ASYN_USE_SYN;
-		}
-	}
-	if (AscSetChipScsiID(iop_base, asc_dvc->cfg->chip_scsi_id) !=
-	    asc_dvc->cfg->chip_scsi_id) {
-		asc_dvc->err_code |= ASC_IERR_SET_SCSI_ID;
-	}
-#ifdef CONFIG_ISA
-	if (asc_dvc->bus_type & ASC_IS_ISA) {
-		AscSetIsaDmaChannel(iop_base, asc_dvc->cfg->isa_dma_channel);
-		AscSetIsaDmaSpeed(iop_base, asc_dvc->cfg->isa_dma_speed);
-	}
-#endif /* CONFIG_ISA */
-	return (warn_code);
-}
-
-static ushort AscInitAsc1000Driver(ASC_DVC_VAR *asc_dvc)
-{
-	ushort warn_code;
-	PortAddr iop_base;
-
-	iop_base = asc_dvc->iop_base;
-	warn_code = 0;
-	if ((asc_dvc->dvc_cntl & ASC_CNTL_RESET_SCSI) &&
-	    !(asc_dvc->init_state & ASC_INIT_RESET_SCSI_DONE)) {
-		AscResetChipAndScsiBus(asc_dvc);
-		DvcSleepMilliSecond((ASC_DCNT)
-				    ((ushort)asc_dvc->scsi_reset_wait * 1000));
-	}
-	asc_dvc->init_state |= ASC_INIT_STATE_BEG_LOAD_MC;
-	if (asc_dvc->err_code != 0)
-		return (UW_ERR);
-	if (!AscFindSignature(asc_dvc->iop_base)) {
-		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
-		return (warn_code);
-	}
-	AscDisableInterrupt(iop_base);
-	warn_code |= AscInitLram(asc_dvc);
-	if (asc_dvc->err_code != 0)
-		return (UW_ERR);
-	ASC_DBG1(1, "AscInitAsc1000Driver: _asc_mcode_chksum 0x%lx\n",
-		 (ulong)_asc_mcode_chksum);
-	if (AscLoadMicroCode(iop_base, 0, _asc_mcode_buf,
-			     _asc_mcode_size) != _asc_mcode_chksum) {
-		asc_dvc->err_code |= ASC_IERR_MCODE_CHKSUM;
-		return (warn_code);
-	}
-	warn_code |= AscInitMicroCodeVar(asc_dvc);
-	asc_dvc->init_state |= ASC_INIT_STATE_END_LOAD_MC;
-	AscEnableInterrupt(iop_base);
-	return (warn_code);
-}
-
-static ushort __init AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
-{
-	int i;
-	PortAddr iop_base;
-	ushort warn_code;
-	uchar chip_version;
-
-	iop_base = asc_dvc->iop_base;
-	warn_code = 0;
-	asc_dvc->err_code = 0;
-	if ((asc_dvc->bus_type &
-	     (ASC_IS_ISA | ASC_IS_PCI | ASC_IS_EISA | ASC_IS_VL)) == 0) {
-		asc_dvc->err_code |= ASC_IERR_NO_BUS_TYPE;
-	}
-	AscSetChipControl(iop_base, CC_HALT);
-	AscSetChipStatus(iop_base, 0);
-	asc_dvc->bug_fix_cntl = 0;
-	asc_dvc->pci_fix_asyn_xfer = 0;
-	asc_dvc->pci_fix_asyn_xfer_always = 0;
-	/* asc_dvc->init_state initalized in AscInitGetConfig(). */
-	asc_dvc->sdtr_done = 0;
-	asc_dvc->cur_total_qng = 0;
-	asc_dvc->is_in_int = 0;
-	asc_dvc->in_critical_cnt = 0;
-	asc_dvc->last_q_shortage = 0;
-	asc_dvc->use_tagged_qng = 0;
-	asc_dvc->no_scam = 0;
-	asc_dvc->unit_not_ready = 0;
-	asc_dvc->queue_full_or_busy = 0;
-	asc_dvc->redo_scam = 0;
-	asc_dvc->res2 = 0;
-	asc_dvc->host_init_sdtr_index = 0;
-	asc_dvc->cfg->can_tagged_qng = 0;
-	asc_dvc->cfg->cmd_qng_enabled = 0;
-	asc_dvc->dvc_cntl = ASC_DEF_DVC_CNTL;
-	asc_dvc->init_sdtr = 0;
-	asc_dvc->max_total_qng = ASC_DEF_MAX_TOTAL_QNG;
-	asc_dvc->scsi_reset_wait = 3;
-	asc_dvc->start_motor = ASC_SCSI_WIDTH_BIT_SET;
-	asc_dvc->max_dma_count = AscGetMaxDmaCount(asc_dvc->bus_type);
-	asc_dvc->cfg->sdtr_enable = ASC_SCSI_WIDTH_BIT_SET;
-	asc_dvc->cfg->disc_enable = ASC_SCSI_WIDTH_BIT_SET;
-	asc_dvc->cfg->chip_scsi_id = ASC_DEF_CHIP_SCSI_ID;
-	asc_dvc->cfg->lib_serial_no = ASC_LIB_SERIAL_NUMBER;
-	asc_dvc->cfg->lib_version = (ASC_LIB_VERSION_MAJOR << 8) |
-	    ASC_LIB_VERSION_MINOR;
-	chip_version = AscGetChipVersion(iop_base, asc_dvc->bus_type);
-	asc_dvc->cfg->chip_version = chip_version;
-	asc_dvc->sdtr_period_tbl[0] = SYN_XFER_NS_0;
-	asc_dvc->sdtr_period_tbl[1] = SYN_XFER_NS_1;
-	asc_dvc->sdtr_period_tbl[2] = SYN_XFER_NS_2;
-	asc_dvc->sdtr_period_tbl[3] = SYN_XFER_NS_3;
-	asc_dvc->sdtr_period_tbl[4] = SYN_XFER_NS_4;
-	asc_dvc->sdtr_period_tbl[5] = SYN_XFER_NS_5;
-	asc_dvc->sdtr_period_tbl[6] = SYN_XFER_NS_6;
-	asc_dvc->sdtr_period_tbl[7] = SYN_XFER_NS_7;
-	asc_dvc->max_sdtr_index = 7;
-	if ((asc_dvc->bus_type & ASC_IS_PCI) &&
-	    (chip_version >= ASC_CHIP_VER_PCI_ULTRA_3150)) {
-		asc_dvc->bus_type = ASC_IS_PCI_ULTRA;
-		asc_dvc->sdtr_period_tbl[0] = SYN_ULTRA_XFER_NS_0;
-		asc_dvc->sdtr_period_tbl[1] = SYN_ULTRA_XFER_NS_1;
-		asc_dvc->sdtr_period_tbl[2] = SYN_ULTRA_XFER_NS_2;
-		asc_dvc->sdtr_period_tbl[3] = SYN_ULTRA_XFER_NS_3;
-		asc_dvc->sdtr_period_tbl[4] = SYN_ULTRA_XFER_NS_4;
-		asc_dvc->sdtr_period_tbl[5] = SYN_ULTRA_XFER_NS_5;
-		asc_dvc->sdtr_period_tbl[6] = SYN_ULTRA_XFER_NS_6;
-		asc_dvc->sdtr_period_tbl[7] = SYN_ULTRA_XFER_NS_7;
-		asc_dvc->sdtr_period_tbl[8] = SYN_ULTRA_XFER_NS_8;
-		asc_dvc->sdtr_period_tbl[9] = SYN_ULTRA_XFER_NS_9;
-		asc_dvc->sdtr_period_tbl[10] = SYN_ULTRA_XFER_NS_10;
-		asc_dvc->sdtr_period_tbl[11] = SYN_ULTRA_XFER_NS_11;
-		asc_dvc->sdtr_period_tbl[12] = SYN_ULTRA_XFER_NS_12;
-		asc_dvc->sdtr_period_tbl[13] = SYN_ULTRA_XFER_NS_13;
-		asc_dvc->sdtr_period_tbl[14] = SYN_ULTRA_XFER_NS_14;
-		asc_dvc->sdtr_period_tbl[15] = SYN_ULTRA_XFER_NS_15;
-		asc_dvc->max_sdtr_index = 15;
-		if (chip_version == ASC_CHIP_VER_PCI_ULTRA_3150) {
-			AscSetExtraControl(iop_base,
-					   (SEC_ACTIVE_NEGATE | SEC_SLEW_RATE));
-		} else if (chip_version >= ASC_CHIP_VER_PCI_ULTRA_3050) {
-			AscSetExtraControl(iop_base,
-					   (SEC_ACTIVE_NEGATE |
-					    SEC_ENABLE_FILTER));
-		}
-	}
-	if (asc_dvc->bus_type == ASC_IS_PCI) {
-		AscSetExtraControl(iop_base,
-				   (SEC_ACTIVE_NEGATE | SEC_SLEW_RATE));
-	}
-
-	asc_dvc->cfg->isa_dma_speed = ASC_DEF_ISA_DMA_SPEED;
-	if (AscGetChipBusType(iop_base) == ASC_IS_ISAPNP) {
-		AscSetChipIFC(iop_base, IFC_INIT_DEFAULT);
-		asc_dvc->bus_type = ASC_IS_ISAPNP;
-	}
-#ifdef CONFIG_ISA
-	if ((asc_dvc->bus_type & ASC_IS_ISA) != 0) {
-		asc_dvc->cfg->isa_dma_channel =
-		    (uchar)AscGetIsaDmaChannel(iop_base);
-	}
-#endif /* CONFIG_ISA */
-	for (i = 0; i <= ASC_MAX_TID; i++) {
-		asc_dvc->cur_dvc_qng[i] = 0;
-		asc_dvc->max_dvc_qng[i] = ASC_MAX_SCSI1_QNG;
-		asc_dvc->scsiq_busy_head[i] = (ASC_SCSI_Q *)0L;
-		asc_dvc->scsiq_busy_tail[i] = (ASC_SCSI_Q *)0L;
-		asc_dvc->cfg->max_tag_qng[i] = ASC_MAX_INRAM_TAG_QNG;
-	}
-	return (warn_code);
-}
-
-static ushort __init AscInitFromEEP(ASC_DVC_VAR *asc_dvc)
-{
-	ASCEEP_CONFIG eep_config_buf;
-	ASCEEP_CONFIG *eep_config;
-	PortAddr iop_base;
-	ushort chksum;
-	ushort warn_code;
-	ushort cfg_msw, cfg_lsw;
-	int i;
-	int write_eep = 0;
-
-	iop_base = asc_dvc->iop_base;
-	warn_code = 0;
-	AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0x00FE);
-	AscStopQueueExe(iop_base);
-	if ((AscStopChip(iop_base) == FALSE) ||
-	    (AscGetChipScsiCtrl(iop_base) != 0)) {
-		asc_dvc->init_state |= ASC_INIT_RESET_SCSI_DONE;
-		AscResetChipAndScsiBus(asc_dvc);
-		DvcSleepMilliSecond((ASC_DCNT)
-				    ((ushort)asc_dvc->scsi_reset_wait * 1000));
-	}
-	if (AscIsChipHalted(iop_base) == FALSE) {
-		asc_dvc->err_code |= ASC_IERR_START_STOP_CHIP;
-		return (warn_code);
-	}
-	AscSetPCAddr(iop_base, ASC_MCODE_START_ADDR);
-	if (AscGetPCAddr(iop_base) != ASC_MCODE_START_ADDR) {
-		asc_dvc->err_code |= ASC_IERR_SET_PC_ADDR;
-		return (warn_code);
-	}
-	eep_config = (ASCEEP_CONFIG *)&eep_config_buf;
-	cfg_msw = AscGetChipCfgMsw(iop_base);
-	cfg_lsw = AscGetChipCfgLsw(iop_base);
-	if ((cfg_msw & ASC_CFG_MSW_CLR_MASK) != 0) {
-		cfg_msw &= (~(ASC_CFG_MSW_CLR_MASK));
-		warn_code |= ASC_WARN_CFG_MSW_RECOVER;
-		AscSetChipCfgMsw(iop_base, cfg_msw);
-	}
-	chksum = AscGetEEPConfig(iop_base, eep_config, asc_dvc->bus_type);
-	ASC_DBG1(1, "AscInitFromEEP: chksum 0x%x\n", chksum);
-	if (chksum == 0) {
-		chksum = 0xaa55;
-	}
-	if (AscGetChipStatus(iop_base) & CSW_AUTO_CONFIG) {
-		warn_code |= ASC_WARN_AUTO_CONFIG;
-		if (asc_dvc->cfg->chip_version == 3) {
-			if (eep_config->cfg_lsw != cfg_lsw) {
-				warn_code |= ASC_WARN_EEPROM_RECOVER;
-				eep_config->cfg_lsw =
-				    AscGetChipCfgLsw(iop_base);
-			}
-			if (eep_config->cfg_msw != cfg_msw) {
-				warn_code |= ASC_WARN_EEPROM_RECOVER;
-				eep_config->cfg_msw =
-				    AscGetChipCfgMsw(iop_base);
-			}
-		}
-	}
-	eep_config->cfg_msw &= ~ASC_CFG_MSW_CLR_MASK;
-	eep_config->cfg_lsw |= ASC_CFG0_HOST_INT_ON;
-	ASC_DBG1(1, "AscInitFromEEP: eep_config->chksum 0x%x\n",
-		 eep_config->chksum);
-	if (chksum != eep_config->chksum) {
-		if (AscGetChipVersion(iop_base, asc_dvc->bus_type) ==
-		    ASC_CHIP_VER_PCI_ULTRA_3050) {
-			ASC_DBG(1,
-				"AscInitFromEEP: chksum error ignored; EEPROM-less board\n");
-			eep_config->init_sdtr = 0xFF;
-			eep_config->disc_enable = 0xFF;
-			eep_config->start_motor = 0xFF;
-			eep_config->use_cmd_qng = 0;
-			eep_config->max_total_qng = 0xF0;
-			eep_config->max_tag_qng = 0x20;
-			eep_config->cntl = 0xBFFF;
-			ASC_EEP_SET_CHIP_ID(eep_config, 7);
-			eep_config->no_scam = 0;
-			eep_config->adapter_info[0] = 0;
-			eep_config->adapter_info[1] = 0;
-			eep_config->adapter_info[2] = 0;
-			eep_config->adapter_info[3] = 0;
-			eep_config->adapter_info[4] = 0;
-			/* Indicate EEPROM-less board. */
-			eep_config->adapter_info[5] = 0xBB;
-		} else {
-			ASC_PRINT
-			    ("AscInitFromEEP: EEPROM checksum error; Will try to re-write EEPROM.\n");
-			write_eep = 1;
-			warn_code |= ASC_WARN_EEPROM_CHKSUM;
-		}
-	}
-	asc_dvc->cfg->sdtr_enable = eep_config->init_sdtr;
-	asc_dvc->cfg->disc_enable = eep_config->disc_enable;
-	asc_dvc->cfg->cmd_qng_enabled = eep_config->use_cmd_qng;
-	asc_dvc->cfg->isa_dma_speed = ASC_EEP_GET_DMA_SPD(eep_config);
-	asc_dvc->start_motor = eep_config->start_motor;
-	asc_dvc->dvc_cntl = eep_config->cntl;
-	asc_dvc->no_scam = eep_config->no_scam;
-	asc_dvc->cfg->adapter_info[0] = eep_config->adapter_info[0];
-	asc_dvc->cfg->adapter_info[1] = eep_config->adapter_info[1];
-	asc_dvc->cfg->adapter_info[2] = eep_config->adapter_info[2];
-	asc_dvc->cfg->adapter_info[3] = eep_config->adapter_info[3];
-	asc_dvc->cfg->adapter_info[4] = eep_config->adapter_info[4];
-	asc_dvc->cfg->adapter_info[5] = eep_config->adapter_info[5];
-	if (!AscTestExternalLram(asc_dvc)) {
-		if (((asc_dvc->bus_type & ASC_IS_PCI_ULTRA) ==
-		     ASC_IS_PCI_ULTRA)) {
-			eep_config->max_total_qng =
-			    ASC_MAX_PCI_ULTRA_INRAM_TOTAL_QNG;
-			eep_config->max_tag_qng =
-			    ASC_MAX_PCI_ULTRA_INRAM_TAG_QNG;
-		} else {
-			eep_config->cfg_msw |= 0x0800;
-			cfg_msw |= 0x0800;
-			AscSetChipCfgMsw(iop_base, cfg_msw);
-			eep_config->max_total_qng = ASC_MAX_PCI_INRAM_TOTAL_QNG;
-			eep_config->max_tag_qng = ASC_MAX_INRAM_TAG_QNG;
-		}
-	} else {
-	}
-	if (eep_config->max_total_qng < ASC_MIN_TOTAL_QNG) {
-		eep_config->max_total_qng = ASC_MIN_TOTAL_QNG;
-	}
-	if (eep_config->max_total_qng > ASC_MAX_TOTAL_QNG) {
-		eep_config->max_total_qng = ASC_MAX_TOTAL_QNG;
-	}
-	if (eep_config->max_tag_qng > eep_config->max_total_qng) {
-		eep_config->max_tag_qng = eep_config->max_total_qng;
-	}
-	if (eep_config->max_tag_qng < ASC_MIN_TAG_Q_PER_DVC) {
-		eep_config->max_tag_qng = ASC_MIN_TAG_Q_PER_DVC;
-	}
-	asc_dvc->max_total_qng = eep_config->max_total_qng;
-	if ((eep_config->use_cmd_qng & eep_config->disc_enable) !=
-	    eep_config->use_cmd_qng) {
-		eep_config->disc_enable = eep_config->use_cmd_qng;
-		warn_code |= ASC_WARN_CMD_QNG_CONFLICT;
-	}
-	if (asc_dvc->bus_type & (ASC_IS_ISA | ASC_IS_VL | ASC_IS_EISA)) {
-		asc_dvc->irq_no = AscGetChipIRQ(iop_base, asc_dvc->bus_type);
-	}
-	ASC_EEP_SET_CHIP_ID(eep_config,
-			    ASC_EEP_GET_CHIP_ID(eep_config) & ASC_MAX_TID);
-	asc_dvc->cfg->chip_scsi_id = ASC_EEP_GET_CHIP_ID(eep_config);
-	if (((asc_dvc->bus_type & ASC_IS_PCI_ULTRA) == ASC_IS_PCI_ULTRA) &&
-	    !(asc_dvc->dvc_cntl & ASC_CNTL_SDTR_ENABLE_ULTRA)) {
-		asc_dvc->host_init_sdtr_index = ASC_SDTR_ULTRA_PCI_10MB_INDEX;
-	}
-
-	for (i = 0; i <= ASC_MAX_TID; i++) {
-		asc_dvc->dos_int13_table[i] = eep_config->dos_int13_table[i];
-		asc_dvc->cfg->max_tag_qng[i] = eep_config->max_tag_qng;
-		asc_dvc->cfg->sdtr_period_offset[i] =
-		    (uchar)(ASC_DEF_SDTR_OFFSET |
-			    (asc_dvc->host_init_sdtr_index << 4));
-	}
-	eep_config->cfg_msw = AscGetChipCfgMsw(iop_base);
-	if (write_eep) {
-		if ((i =
-		     AscSetEEPConfig(iop_base, eep_config,
-				     asc_dvc->bus_type)) != 0) {
-			ASC_PRINT1
-			    ("AscInitFromEEP: Failed to re-write EEPROM with %d errors.\n",
-			     i);
-		} else {
-			ASC_PRINT
-			    ("AscInitFromEEP: Successfully re-wrote EEPROM.\n");
-		}
-	}
-	return (warn_code);
-}
-
-static ushort AscInitMicroCodeVar(ASC_DVC_VAR *asc_dvc)
-{
-	int i;
-	ushort warn_code;
-	PortAddr iop_base;
-	ASC_PADDR phy_addr;
-	ASC_DCNT phy_size;
-
-	iop_base = asc_dvc->iop_base;
-	warn_code = 0;
-	for (i = 0; i <= ASC_MAX_TID; i++) {
-		AscPutMCodeInitSDTRAtID(iop_base, i,
-					asc_dvc->cfg->sdtr_period_offset[i]
-		    );
-	}
-
-	AscInitQLinkVar(asc_dvc);
-	AscWriteLramByte(iop_base, ASCV_DISC_ENABLE_B,
-			 asc_dvc->cfg->disc_enable);
-	AscWriteLramByte(iop_base, ASCV_HOSTSCSI_ID_B,
-			 ASC_TID_TO_TARGET_ID(asc_dvc->cfg->chip_scsi_id));
-
-	/* Align overrun buffer on an 8 byte boundary. */
-	phy_addr = virt_to_bus(asc_dvc->cfg->overrun_buf);
-	phy_addr = cpu_to_le32((phy_addr + 7) & ~0x7);
-	AscMemDWordCopyPtrToLram(iop_base, ASCV_OVERRUN_PADDR_D,
-				 (uchar *)&phy_addr, 1);
-	phy_size = cpu_to_le32(ASC_OVERRUN_BSIZE - 8);
-	AscMemDWordCopyPtrToLram(iop_base, ASCV_OVERRUN_BSIZE_D,
-				 (uchar *)&phy_size, 1);
-
-	asc_dvc->cfg->mcode_date =
-	    AscReadLramWord(iop_base, (ushort)ASCV_MC_DATE_W);
-	asc_dvc->cfg->mcode_version =
-	    AscReadLramWord(iop_base, (ushort)ASCV_MC_VER_W);
-
-	AscSetPCAddr(iop_base, ASC_MCODE_START_ADDR);
-	if (AscGetPCAddr(iop_base) != ASC_MCODE_START_ADDR) {
-		asc_dvc->err_code |= ASC_IERR_SET_PC_ADDR;
-		return (warn_code);
-	}
-	if (AscStartChip(iop_base) != 1) {
-		asc_dvc->err_code |= ASC_IERR_START_STOP_CHIP;
-		return (warn_code);
-	}
-
-	return (warn_code);
-}
-
-static int __init AscTestExternalLram(ASC_DVC_VAR *asc_dvc)
-{
-	PortAddr iop_base;
-	ushort q_addr;
-	ushort saved_word;
-	int sta;
-
-	iop_base = asc_dvc->iop_base;
-	sta = 0;
-	q_addr = ASC_QNO_TO_QADDR(241);
-	saved_word = AscReadLramWord(iop_base, q_addr);
-	AscSetChipLramAddr(iop_base, q_addr);
-	AscSetChipLramData(iop_base, 0x55AA);
-	DvcSleepMilliSecond(10);
-	AscSetChipLramAddr(iop_base, q_addr);
-	if (AscGetChipLramData(iop_base) == 0x55AA) {
-		sta = 1;
-		AscWriteLramWord(iop_base, q_addr, saved_word);
-	}
-	return (sta);
-}
-
-static int __init AscWriteEEPCmdReg(PortAddr iop_base, uchar cmd_reg)
-{
-	uchar read_back;
-	int retry;
-
-	retry = 0;
-	while (TRUE) {
-		AscSetChipEEPCmd(iop_base, cmd_reg);
-		DvcSleepMilliSecond(1);
-		read_back = AscGetChipEEPCmd(iop_base);
-		if (read_back == cmd_reg) {
-			return (1);
-		}
-		if (retry++ > ASC_EEP_MAX_RETRY) {
-			return (0);
-		}
-	}
-}
-
-static int __init AscWriteEEPDataReg(PortAddr iop_base, ushort data_reg)
-{
-	ushort read_back;
-	int retry;
-
-	retry = 0;
-	while (TRUE) {
-		AscSetChipEEPData(iop_base, data_reg);
-		DvcSleepMilliSecond(1);
-		read_back = AscGetChipEEPData(iop_base);
-		if (read_back == data_reg) {
-			return (1);
-		}
-		if (retry++ > ASC_EEP_MAX_RETRY) {
-			return (0);
-		}
-	}
-}
-
-static void __init AscWaitEEPRead(void)
-{
-	DvcSleepMilliSecond(1);
-	return;
-}
-
-static void __init AscWaitEEPWrite(void)
-{
-	DvcSleepMilliSecond(20);
-	return;
-}
-
-static ushort __init AscReadEEPWord(PortAddr iop_base, uchar addr)
-{
-	ushort read_wval;
-	uchar cmd_reg;
-
-	AscWriteEEPCmdReg(iop_base, ASC_EEP_CMD_WRITE_DISABLE);
-	AscWaitEEPRead();
-	cmd_reg = addr | ASC_EEP_CMD_READ;
-	AscWriteEEPCmdReg(iop_base, cmd_reg);
-	AscWaitEEPRead();
-	read_wval = AscGetChipEEPData(iop_base);
-	AscWaitEEPRead();
-	return (read_wval);
-}
-
-static ushort __init
-AscWriteEEPWord(PortAddr iop_base, uchar addr, ushort word_val)
-{
-	ushort read_wval;
-
-	read_wval = AscReadEEPWord(iop_base, addr);
-	if (read_wval != word_val) {
-		AscWriteEEPCmdReg(iop_base, ASC_EEP_CMD_WRITE_ABLE);
-		AscWaitEEPRead();
-		AscWriteEEPDataReg(iop_base, word_val);
-		AscWaitEEPRead();
-		AscWriteEEPCmdReg(iop_base,
-				  (uchar)((uchar)ASC_EEP_CMD_WRITE | addr));
-		AscWaitEEPWrite();
-		AscWriteEEPCmdReg(iop_base, ASC_EEP_CMD_WRITE_DISABLE);
-		AscWaitEEPRead();
-		return (AscReadEEPWord(iop_base, addr));
-	}
-	return (read_wval);
-}
-
-static ushort __init
-AscGetEEPConfig(PortAddr iop_base, ASCEEP_CONFIG *cfg_buf, ushort bus_type)
-{
-	ushort wval;
-	ushort sum;
-	ushort *wbuf;
-	int cfg_beg;
-	int cfg_end;
-	int uchar_end_in_config = ASC_EEP_MAX_DVC_ADDR - 2;
-	int s_addr;
-
-	wbuf = (ushort *)cfg_buf;
-	sum = 0;
-	/* Read two config words; Byte-swapping done by AscReadEEPWord(). */
-	for (s_addr = 0; s_addr < 2; s_addr++, wbuf++) {
-		*wbuf = AscReadEEPWord(iop_base, (uchar)s_addr);
-		sum += *wbuf;
-	}
-	if (bus_type & ASC_IS_VL) {
-		cfg_beg = ASC_EEP_DVC_CFG_BEG_VL;
-		cfg_end = ASC_EEP_MAX_DVC_ADDR_VL;
-	} else {
-		cfg_beg = ASC_EEP_DVC_CFG_BEG;
-		cfg_end = ASC_EEP_MAX_DVC_ADDR;
-	}
-	for (s_addr = cfg_beg; s_addr <= (cfg_end - 1); s_addr++, wbuf++) {
-		wval = AscReadEEPWord(iop_base, (uchar)s_addr);
-		if (s_addr <= uchar_end_in_config) {
-			/*
-			 * Swap all char fields - must unswap bytes already swapped
-			 * by AscReadEEPWord().
-			 */
-			*wbuf = le16_to_cpu(wval);
-		} else {
-			/* Don't swap word field at the end - cntl field. */
-			*wbuf = wval;
-		}
-		sum += wval;	/* Checksum treats all EEPROM data as words. */
-	}
-	/*
-	 * Read the checksum word which will be compared against 'sum'
-	 * by the caller. Word field already swapped.
-	 */
-	*wbuf = AscReadEEPWord(iop_base, (uchar)s_addr);
-	return (sum);
-}
-
-static int __init
-AscSetEEPConfigOnce(PortAddr iop_base, ASCEEP_CONFIG *cfg_buf, ushort bus_type)
-{
-	int n_error;
-	ushort *wbuf;
-	ushort word;
-	ushort sum;
-	int s_addr;
-	int cfg_beg;
-	int cfg_end;
-	int uchar_end_in_config = ASC_EEP_MAX_DVC_ADDR - 2;
-
-	wbuf = (ushort *)cfg_buf;
-	n_error = 0;
-	sum = 0;
-	/* Write two config words; AscWriteEEPWord() will swap bytes. */
-	for (s_addr = 0; s_addr < 2; s_addr++, wbuf++) {
-		sum += *wbuf;
-		if (*wbuf != AscWriteEEPWord(iop_base, (uchar)s_addr, *wbuf)) {
-			n_error++;
-		}
-	}
-	if (bus_type & ASC_IS_VL) {
-		cfg_beg = ASC_EEP_DVC_CFG_BEG_VL;
-		cfg_end = ASC_EEP_MAX_DVC_ADDR_VL;
-	} else {
-		cfg_beg = ASC_EEP_DVC_CFG_BEG;
-		cfg_end = ASC_EEP_MAX_DVC_ADDR;
-	}
-	for (s_addr = cfg_beg; s_addr <= (cfg_end - 1); s_addr++, wbuf++) {
-		if (s_addr <= uchar_end_in_config) {
-			/*
-			 * This is a char field. Swap char fields before they are
-			 * swapped again by AscWriteEEPWord().
-			 */
-			word = cpu_to_le16(*wbuf);
-			if (word !=
-			    AscWriteEEPWord(iop_base, (uchar)s_addr, word)) {
-				n_error++;
-			}
-		} else {
-			/* Don't swap word field at the end - cntl field. */
-			if (*wbuf !=
-			    AscWriteEEPWord(iop_base, (uchar)s_addr, *wbuf)) {
-				n_error++;
-			}
-		}
-		sum += *wbuf;	/* Checksum calculated from word values. */
-	}
-	/* Write checksum word. It will be swapped by AscWriteEEPWord(). */
-	*wbuf = sum;
-	if (sum != AscWriteEEPWord(iop_base, (uchar)s_addr, sum)) {
-		n_error++;
-	}
-
-	/* Read EEPROM back again. */
-	wbuf = (ushort *)cfg_buf;
-	/*
-	 * Read two config words; Byte-swapping done by AscReadEEPWord().
-	 */
-	for (s_addr = 0; s_addr < 2; s_addr++, wbuf++) {
-		if (*wbuf != AscReadEEPWord(iop_base, (uchar)s_addr)) {
-			n_error++;
-		}
-	}
-	if (bus_type & ASC_IS_VL) {
-		cfg_beg = ASC_EEP_DVC_CFG_BEG_VL;
-		cfg_end = ASC_EEP_MAX_DVC_ADDR_VL;
-	} else {
-		cfg_beg = ASC_EEP_DVC_CFG_BEG;
-		cfg_end = ASC_EEP_MAX_DVC_ADDR;
-	}
-	for (s_addr = cfg_beg; s_addr <= (cfg_end - 1); s_addr++, wbuf++) {
-		if (s_addr <= uchar_end_in_config) {
-			/*
-			 * Swap all char fields. Must unswap bytes already swapped
-			 * by AscReadEEPWord().
-			 */
-			word =
-			    le16_to_cpu(AscReadEEPWord
-					(iop_base, (uchar)s_addr));
-		} else {
-			/* Don't swap word field at the end - cntl field. */
-			word = AscReadEEPWord(iop_base, (uchar)s_addr);
-		}
-		if (*wbuf != word) {
-			n_error++;
-		}
-	}
-	/* Read checksum; Byte swapping not needed. */
-	if (AscReadEEPWord(iop_base, (uchar)s_addr) != sum) {
-		n_error++;
-	}
-	return (n_error);
-}
-
-static int __init
-AscSetEEPConfig(PortAddr iop_base, ASCEEP_CONFIG *cfg_buf, ushort bus_type)
-{
-	int retry;
-	int n_error;
-
-	retry = 0;
-	while (TRUE) {
-		if ((n_error = AscSetEEPConfigOnce(iop_base, cfg_buf,
-						   bus_type)) == 0) {
-			break;
-		}
-		if (++retry > ASC_EEP_MAX_RETRY) {
-			break;
-		}
-	}
-	return (n_error);
-}
-
-static void
-AscAsyncFix(ASC_DVC_VAR *asc_dvc, uchar tid_no, ASC_SCSI_INQUIRY *inq)
-{
-	uchar dvc_type;
-	ASC_SCSI_BIT_ID_TYPE tid_bits;
-
-	dvc_type = ASC_INQ_DVC_TYPE(inq);
-	tid_bits = ASC_TIX_TO_TARGET_ID(tid_no);
-
-	if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_ASYN_USE_SYN) {
-		if (!(asc_dvc->init_sdtr & tid_bits)) {
-			if ((dvc_type == TYPE_ROM) &&
-			    (AscCompareString((uchar *)inq->vendor_id,
-					      (uchar *)"HP ", 3) == 0)) {
-				asc_dvc->pci_fix_asyn_xfer_always |= tid_bits;
-			}
-			asc_dvc->pci_fix_asyn_xfer |= tid_bits;
-			if ((dvc_type == TYPE_PROCESSOR) ||
-			    (dvc_type == TYPE_SCANNER) ||
-			    (dvc_type == TYPE_ROM) || (dvc_type == TYPE_TAPE)) {
-				asc_dvc->pci_fix_asyn_xfer &= ~tid_bits;
-			}
-
-			if (asc_dvc->pci_fix_asyn_xfer & tid_bits) {
-				AscSetRunChipSynRegAtID(asc_dvc->iop_base,
-							tid_no,
-							ASYN_SDTR_DATA_FIX_PCI_REV_AB);
-			}
-		}
-	}
-	return;
-}
-
-static int AscTagQueuingSafe(ASC_SCSI_INQUIRY *inq)
-{
-	if ((inq->add_len >= 32) &&
-	    (AscCompareString((uchar *)inq->vendor_id,
-			      (uchar *)"QUANTUM XP34301", 15) == 0) &&
-	    (AscCompareString((uchar *)inq->product_rev_level,
-			      (uchar *)"1071", 4) == 0)) {
-		return 0;
-	}
-	return 1;
-}
-
-static void
-AscInquiryHandling(ASC_DVC_VAR *asc_dvc, uchar tid_no, ASC_SCSI_INQUIRY *inq)
-{
-	ASC_SCSI_BIT_ID_TYPE tid_bit = ASC_TIX_TO_TARGET_ID(tid_no);
-	ASC_SCSI_BIT_ID_TYPE orig_init_sdtr, orig_use_tagged_qng;
-
-	orig_init_sdtr = asc_dvc->init_sdtr;
-	orig_use_tagged_qng = asc_dvc->use_tagged_qng;
-
-	asc_dvc->init_sdtr &= ~tid_bit;
-	asc_dvc->cfg->can_tagged_qng &= ~tid_bit;
-	asc_dvc->use_tagged_qng &= ~tid_bit;
-
-	if (ASC_INQ_RESPONSE_FMT(inq) >= 2 || ASC_INQ_ANSI_VER(inq) >= 2) {
-		if ((asc_dvc->cfg->sdtr_enable & tid_bit) && ASC_INQ_SYNC(inq)) {
-			asc_dvc->init_sdtr |= tid_bit;
-		}
-		if ((asc_dvc->cfg->cmd_qng_enabled & tid_bit) &&
-		    ASC_INQ_CMD_QUEUE(inq)) {
-			if (AscTagQueuingSafe(inq)) {
-				asc_dvc->use_tagged_qng |= tid_bit;
-				asc_dvc->cfg->can_tagged_qng |= tid_bit;
-			}
-		}
-	}
-	if (orig_use_tagged_qng != asc_dvc->use_tagged_qng) {
-		AscWriteLramByte(asc_dvc->iop_base, ASCV_DISC_ENABLE_B,
-				 asc_dvc->cfg->disc_enable);
-		AscWriteLramByte(asc_dvc->iop_base, ASCV_USE_TAGGED_QNG_B,
-				 asc_dvc->use_tagged_qng);
-		AscWriteLramByte(asc_dvc->iop_base, ASCV_CAN_TAGGED_QNG_B,
-				 asc_dvc->cfg->can_tagged_qng);
-
-		asc_dvc->max_dvc_qng[tid_no] =
-		    asc_dvc->cfg->max_tag_qng[tid_no];
-		AscWriteLramByte(asc_dvc->iop_base,
-				 (ushort)(ASCV_MAX_DVC_QNG_BEG + tid_no),
-				 asc_dvc->max_dvc_qng[tid_no]);
-	}
-	if (orig_init_sdtr != asc_dvc->init_sdtr) {
-		AscAsyncFix(asc_dvc, tid_no, inq);
-	}
-	return;
-}
-
-static int AscCompareString(uchar *str1, uchar *str2, int len)
-{
-	int i;
-	int diff;
-
-	for (i = 0; i < len; i++) {
-		diff = (int)(str1[i] - str2[i]);
-		if (diff != 0)
-			return (diff);
-	}
-	return (0);
+	cfg = AscGetChipCfgLsw(iop_base);
+	AscSetChipCfgLsw(iop_base, cfg & (~ASC_CFG0_HOST_INT_ON));
 }
 
 static uchar AscReadLramByte(PortAddr iop_base, ushort addr)
 {
-	uchar byte_data;
-	ushort word_data;
+	unsigned char byte_data;
+	unsigned short word_data;
 
 	if (isodd_word(addr)) {
 		AscSetChipLramAddr(iop_base, addr - 1);
 		word_data = AscGetChipLramData(iop_base);
-		byte_data = (uchar)((word_data >> 8) & 0xFF);
+		byte_data = (word_data >> 8) & 0xFF;
 	} else {
 		AscSetChipLramAddr(iop_base, addr);
 		word_data = AscGetChipLramData(iop_base);
-		byte_data = (uchar)(word_data & 0xFF);
+		byte_data = word_data & 0xFF;
 	}
-	return (byte_data);
+	return byte_data;
 }
 
 static ushort AscReadLramWord(PortAddr iop_base, ushort addr)
@@ -11597,11 +4478,21 @@ static ASC_DCNT AscReadLramDWord(PortAddr iop_base, ushort addr)
 }
 #endif /* CC_VERY_LONG_SG_LIST */
 
+static void
+AscMemWordSetLram(PortAddr iop_base, ushort s_addr, ushort set_wval, int words)
+{
+	int i;
+
+	AscSetChipLramAddr(iop_base, s_addr);
+	for (i = 0; i < words; i++) {
+		AscSetChipLramData(iop_base, set_wval);
+	}
+}
+
 static void AscWriteLramWord(PortAddr iop_base, ushort addr, ushort word_val)
 {
 	AscSetChipLramAddr(iop_base, addr);
 	AscSetChipLramData(iop_base, word_val);
-	return;
 }
 
 static void AscWriteLramByte(PortAddr iop_base, ushort addr, uchar byte_val)
@@ -11619,7 +4510,6 @@ static void AscWriteLramByte(PortAddr iop_base, ushort addr, uchar byte_val)
 		word_data |= ((ushort)byte_val & 0x00FF);
 	}
 	AscWriteLramWord(iop_base, addr, word_data);
-	return;
 }
 
 /*
@@ -11647,7 +4537,6 @@ AscMemWordCopyPtrToLram(PortAddr iop_base,
 		outpw(iop_base + IOP_RAM_DATA,
 		      ((ushort)s_buffer[i + 1] << 8) | s_buffer[i]);
 	}
-	return;
 }
 
 /*
@@ -11667,7 +4556,6 @@ AscMemDWordCopyPtrToLram(PortAddr iop_base,
 		outpw(iop_base + IOP_RAM_DATA, ((ushort)s_buffer[i + 1] << 8) | s_buffer[i]);	/* LSW */
 		outpw(iop_base + IOP_RAM_DATA, ((ushort)s_buffer[i + 3] << 8) | s_buffer[i + 2]);	/* MSW */
 	}
-	return;
 }
 
 /*
@@ -11689,7 +4577,6 @@ AscMemWordCopyPtrFromLram(PortAddr iop_base,
 		d_buffer[i] = word & 0xff;
 		d_buffer[i + 1] = (word >> 8) & 0xff;
 	}
-	return;
 }
 
 static ASC_DCNT AscMemSumLramWord(PortAddr iop_base, ushort s_addr, int words)
@@ -11704,654 +4591,703 @@ static ASC_DCNT AscMemSumLramWord(PortAddr iop_base, ushort s_addr, int words)
 	return (sum);
 }
 
-static void
-AscMemWordSetLram(PortAddr iop_base, ushort s_addr, ushort set_wval, int words)
+static ushort AscInitLram(ASC_DVC_VAR *asc_dvc)
 {
-	int i;
+	uchar i;
+	ushort s_addr;
+	PortAddr iop_base;
+	ushort warn_code;
 
-	AscSetChipLramAddr(iop_base, s_addr);
-	for (i = 0; i < words; i++) {
-		AscSetChipLramData(iop_base, set_wval);
+	iop_base = asc_dvc->iop_base;
+	warn_code = 0;
+	AscMemWordSetLram(iop_base, ASC_QADR_BEG, 0,
+			  (ushort)(((int)(asc_dvc->max_total_qng + 2 + 1) *
+				    64) >> 1));
+	i = ASC_MIN_ACTIVE_QNO;
+	s_addr = ASC_QADR_BEG + ASC_QBLK_SIZE;
+	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_FWD),
+			 (uchar)(i + 1));
+	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_BWD),
+			 (uchar)(asc_dvc->max_total_qng));
+	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_QNO),
+			 (uchar)i);
+	i++;
+	s_addr += ASC_QBLK_SIZE;
+	for (; i < asc_dvc->max_total_qng; i++, s_addr += ASC_QBLK_SIZE) {
+		AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_FWD),
+				 (uchar)(i + 1));
+		AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_BWD),
+				 (uchar)(i - 1));
+		AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_QNO),
+				 (uchar)i);
 	}
-	return;
+	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_FWD),
+			 (uchar)ASC_QLINK_END);
+	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_BWD),
+			 (uchar)(asc_dvc->max_total_qng - 1));
+	AscWriteLramByte(iop_base, (ushort)(s_addr + ASC_SCSIQ_B_QNO),
+			 (uchar)asc_dvc->max_total_qng);
+	i++;
+	s_addr += ASC_QBLK_SIZE;
+	for (; i <= (uchar)(asc_dvc->max_total_qng + 3);
+	     i++, s_addr += ASC_QBLK_SIZE) {
+		AscWriteLramByte(iop_base,
+				 (ushort)(s_addr + (ushort)ASC_SCSIQ_B_FWD), i);
+		AscWriteLramByte(iop_base,
+				 (ushort)(s_addr + (ushort)ASC_SCSIQ_B_BWD), i);
+		AscWriteLramByte(iop_base,
+				 (ushort)(s_addr + (ushort)ASC_SCSIQ_B_QNO), i);
+	}
+	return warn_code;
 }
 
-/*
- * --- Adv Library Functions
- */
+static ASC_DCNT
+AscLoadMicroCode(PortAddr iop_base,
+		 ushort s_addr, uchar *mcode_buf, ushort mcode_size)
+{
+	ASC_DCNT chksum;
+	ushort mcode_word_size;
+	ushort mcode_chksum;
 
-/* a_mcode.h */
+	/* Write the microcode buffer starting at LRAM address 0. */
+	mcode_word_size = (ushort)(mcode_size >> 1);
+	AscMemWordSetLram(iop_base, s_addr, 0, mcode_word_size);
+	AscMemWordCopyPtrToLram(iop_base, s_addr, mcode_buf, mcode_word_size);
+
+	chksum = AscMemSumLramWord(iop_base, s_addr, mcode_word_size);
+	ASC_DBG(1, "chksum 0x%lx\n", (ulong)chksum);
+	mcode_chksum = (ushort)AscMemSumLramWord(iop_base,
+						 (ushort)ASC_CODE_SEC_BEG,
+						 (ushort)((mcode_size -
+							   s_addr - (ushort)
+							   ASC_CODE_SEC_BEG) /
+							  2));
+	ASC_DBG(1, "mcode_chksum 0x%lx\n", (ulong)mcode_chksum);
+	AscWriteLramWord(iop_base, ASCV_MCODE_CHKSUM_W, mcode_chksum);
+	AscWriteLramWord(iop_base, ASCV_MCODE_SIZE_W, mcode_size);
+	return chksum;
+}
+
+/* Microcode buffer is kept after initialization for error recovery. */
+static uchar _asc_mcode_buf[] = {
+	0x01, 0x03, 0x01, 0x19, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC3, 0x12, 0x0D, 0x05,
+	0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xFF, 0x80, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0xFF,
+	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0xE4, 0x88, 0x00, 0x00, 0x00, 0x00, 0x80, 0x73, 0x48, 0x04,
+	0x36, 0x00, 0x00, 0xA2, 0xC2, 0x00, 0x80, 0x73, 0x03, 0x23, 0x36, 0x40,
+	0xB6, 0x00, 0x36, 0x00, 0x05, 0xD6, 0x0C, 0xD2, 0x12, 0xDA, 0x00, 0xA2,
+	0xC2, 0x00, 0x92, 0x80, 0x1E, 0x98, 0x50, 0x00, 0xF5, 0x00, 0x48, 0x98,
+	0xDF, 0x23, 0x36, 0x60, 0xB6, 0x00, 0x92, 0x80, 0x4F, 0x00, 0xF5, 0x00,
+	0x48, 0x98, 0xEF, 0x23, 0x36, 0x60, 0xB6, 0x00, 0x92, 0x80, 0x80, 0x62,
+	0x92, 0x80, 0x00, 0x46, 0x15, 0xEE, 0x13, 0xEA, 0x02, 0x01, 0x09, 0xD8,
+	0xCD, 0x04, 0x4D, 0x00, 0x00, 0xA3, 0xD6, 0x00, 0xA6, 0x97, 0x7F, 0x23,
+	0x04, 0x61, 0x84, 0x01, 0xE6, 0x84, 0xD2, 0xC1, 0x80, 0x73, 0xCD, 0x04,
+	0x4D, 0x00, 0x00, 0xA3, 0xDA, 0x01, 0xA6, 0x97, 0xC6, 0x81, 0xC2, 0x88,
+	0x80, 0x73, 0x80, 0x77, 0x00, 0x01, 0x01, 0xA1, 0xFE, 0x00, 0x4F, 0x00,
+	0x84, 0x97, 0x07, 0xA6, 0x08, 0x01, 0x00, 0x33, 0x03, 0x00, 0xC2, 0x88,
+	0x03, 0x03, 0x01, 0xDE, 0xC2, 0x88, 0xCE, 0x00, 0x69, 0x60, 0xCE, 0x00,
+	0x02, 0x03, 0x4A, 0x60, 0x00, 0xA2, 0x78, 0x01, 0x80, 0x63, 0x07, 0xA6,
+	0x24, 0x01, 0x78, 0x81, 0x03, 0x03, 0x80, 0x63, 0xE2, 0x00, 0x07, 0xA6,
+	0x34, 0x01, 0x00, 0x33, 0x04, 0x00, 0xC2, 0x88, 0x03, 0x07, 0x02, 0x01,
+	0x04, 0xCA, 0x0D, 0x23, 0x68, 0x98, 0x4D, 0x04, 0x04, 0x85, 0x05, 0xD8,
+	0x0D, 0x23, 0x68, 0x98, 0xCD, 0x04, 0x15, 0x23, 0xF8, 0x88, 0xFB, 0x23,
+	0x02, 0x61, 0x82, 0x01, 0x80, 0x63, 0x02, 0x03, 0x06, 0xA3, 0x62, 0x01,
+	0x00, 0x33, 0x0A, 0x00, 0xC2, 0x88, 0x4E, 0x00, 0x07, 0xA3, 0x6E, 0x01,
+	0x00, 0x33, 0x0B, 0x00, 0xC2, 0x88, 0xCD, 0x04, 0x36, 0x2D, 0x00, 0x33,
+	0x1A, 0x00, 0xC2, 0x88, 0x50, 0x04, 0x88, 0x81, 0x06, 0xAB, 0x82, 0x01,
+	0x88, 0x81, 0x4E, 0x00, 0x07, 0xA3, 0x92, 0x01, 0x50, 0x00, 0x00, 0xA3,
+	0x3C, 0x01, 0x00, 0x05, 0x7C, 0x81, 0x46, 0x97, 0x02, 0x01, 0x05, 0xC6,
+	0x04, 0x23, 0xA0, 0x01, 0x15, 0x23, 0xA1, 0x01, 0xBE, 0x81, 0xFD, 0x23,
+	0x02, 0x61, 0x82, 0x01, 0x0A, 0xDA, 0x4A, 0x00, 0x06, 0x61, 0x00, 0xA0,
+	0xB4, 0x01, 0x80, 0x63, 0xCD, 0x04, 0x36, 0x2D, 0x00, 0x33, 0x1B, 0x00,
+	0xC2, 0x88, 0x06, 0x23, 0x68, 0x98, 0xCD, 0x04, 0xE6, 0x84, 0x06, 0x01,
+	0x00, 0xA2, 0xD4, 0x01, 0x57, 0x60, 0x00, 0xA0, 0xDA, 0x01, 0xE6, 0x84,
+	0x80, 0x23, 0xA0, 0x01, 0xE6, 0x84, 0x80, 0x73, 0x4B, 0x00, 0x06, 0x61,
+	0x00, 0xA2, 0x00, 0x02, 0x04, 0x01, 0x0C, 0xDE, 0x02, 0x01, 0x03, 0xCC,
+	0x4F, 0x00, 0x84, 0x97, 0xFC, 0x81, 0x08, 0x23, 0x02, 0x41, 0x82, 0x01,
+	0x4F, 0x00, 0x62, 0x97, 0x48, 0x04, 0x84, 0x80, 0xF0, 0x97, 0x00, 0x46,
+	0x56, 0x00, 0x03, 0xC0, 0x01, 0x23, 0xE8, 0x00, 0x81, 0x73, 0x06, 0x29,
+	0x03, 0x42, 0x06, 0xE2, 0x03, 0xEE, 0x6B, 0xEB, 0x11, 0x23, 0xF8, 0x88,
+	0x04, 0x98, 0xF0, 0x80, 0x80, 0x73, 0x80, 0x77, 0x07, 0xA4, 0x2A, 0x02,
+	0x7C, 0x95, 0x06, 0xA6, 0x34, 0x02, 0x03, 0xA6, 0x4C, 0x04, 0x46, 0x82,
+	0x04, 0x01, 0x03, 0xD8, 0xB4, 0x98, 0x6A, 0x96, 0x46, 0x82, 0xFE, 0x95,
+	0x80, 0x67, 0x83, 0x03, 0x80, 0x63, 0xB6, 0x2D, 0x02, 0xA6, 0x6C, 0x02,
+	0x07, 0xA6, 0x5A, 0x02, 0x06, 0xA6, 0x5E, 0x02, 0x03, 0xA6, 0x62, 0x02,
+	0xC2, 0x88, 0x7C, 0x95, 0x48, 0x82, 0x60, 0x96, 0x48, 0x82, 0x04, 0x23,
+	0xA0, 0x01, 0x14, 0x23, 0xA1, 0x01, 0x3C, 0x84, 0x04, 0x01, 0x0C, 0xDC,
+	0xE0, 0x23, 0x25, 0x61, 0xEF, 0x00, 0x14, 0x01, 0x4F, 0x04, 0xA8, 0x01,
+	0x6F, 0x00, 0xA5, 0x01, 0x03, 0x23, 0xA4, 0x01, 0x06, 0x23, 0x9C, 0x01,
+	0x24, 0x2B, 0x1C, 0x01, 0x02, 0xA6, 0xAA, 0x02, 0x07, 0xA6, 0x5A, 0x02,
+	0x06, 0xA6, 0x5E, 0x02, 0x03, 0xA6, 0x20, 0x04, 0x01, 0xA6, 0xB4, 0x02,
+	0x00, 0xA6, 0xB4, 0x02, 0x00, 0x33, 0x12, 0x00, 0xC2, 0x88, 0x00, 0x0E,
+	0x80, 0x63, 0x00, 0x43, 0x00, 0xA0, 0x8C, 0x02, 0x4D, 0x04, 0x04, 0x01,
+	0x0B, 0xDC, 0xE7, 0x23, 0x04, 0x61, 0x84, 0x01, 0x10, 0x31, 0x12, 0x35,
+	0x14, 0x01, 0xEC, 0x00, 0x6C, 0x38, 0x00, 0x3F, 0x00, 0x00, 0xEA, 0x82,
+	0x18, 0x23, 0x04, 0x61, 0x18, 0xA0, 0xE2, 0x02, 0x04, 0x01, 0xA2, 0xC8,
+	0x00, 0x33, 0x1F, 0x00, 0xC2, 0x88, 0x08, 0x31, 0x0A, 0x35, 0x0C, 0x39,
+	0x0E, 0x3D, 0x7E, 0x98, 0xB6, 0x2D, 0x01, 0xA6, 0x14, 0x03, 0x00, 0xA6,
+	0x14, 0x03, 0x07, 0xA6, 0x0C, 0x03, 0x06, 0xA6, 0x10, 0x03, 0x03, 0xA6,
+	0x20, 0x04, 0x02, 0xA6, 0x6C, 0x02, 0x00, 0x33, 0x33, 0x00, 0xC2, 0x88,
+	0x7C, 0x95, 0xEE, 0x82, 0x60, 0x96, 0xEE, 0x82, 0x82, 0x98, 0x80, 0x42,
+	0x7E, 0x98, 0x64, 0xE4, 0x04, 0x01, 0x2D, 0xC8, 0x31, 0x05, 0x07, 0x01,
+	0x00, 0xA2, 0x54, 0x03, 0x00, 0x43, 0x87, 0x01, 0x05, 0x05, 0x86, 0x98,
+	0x7E, 0x98, 0x00, 0xA6, 0x16, 0x03, 0x07, 0xA6, 0x4C, 0x03, 0x03, 0xA6,
+	0x3C, 0x04, 0x06, 0xA6, 0x50, 0x03, 0x01, 0xA6, 0x16, 0x03, 0x00, 0x33,
+	0x25, 0x00, 0xC2, 0x88, 0x7C, 0x95, 0x32, 0x83, 0x60, 0x96, 0x32, 0x83,
+	0x04, 0x01, 0x10, 0xCE, 0x07, 0xC8, 0x05, 0x05, 0xEB, 0x04, 0x00, 0x33,
+	0x00, 0x20, 0xC0, 0x20, 0x81, 0x62, 0x72, 0x83, 0x00, 0x01, 0x05, 0x05,
+	0xFF, 0xA2, 0x7A, 0x03, 0xB1, 0x01, 0x08, 0x23, 0xB2, 0x01, 0x2E, 0x83,
+	0x05, 0x05, 0x15, 0x01, 0x00, 0xA2, 0x9A, 0x03, 0xEC, 0x00, 0x6E, 0x00,
+	0x95, 0x01, 0x6C, 0x38, 0x00, 0x3F, 0x00, 0x00, 0x01, 0xA6, 0x96, 0x03,
+	0x00, 0xA6, 0x96, 0x03, 0x10, 0x84, 0x80, 0x42, 0x7E, 0x98, 0x01, 0xA6,
+	0xA4, 0x03, 0x00, 0xA6, 0xBC, 0x03, 0x10, 0x84, 0xA8, 0x98, 0x80, 0x42,
+	0x01, 0xA6, 0xA4, 0x03, 0x07, 0xA6, 0xB2, 0x03, 0xD4, 0x83, 0x7C, 0x95,
+	0xA8, 0x83, 0x00, 0x33, 0x2F, 0x00, 0xC2, 0x88, 0xA8, 0x98, 0x80, 0x42,
+	0x00, 0xA6, 0xBC, 0x03, 0x07, 0xA6, 0xCA, 0x03, 0xD4, 0x83, 0x7C, 0x95,
+	0xC0, 0x83, 0x00, 0x33, 0x26, 0x00, 0xC2, 0x88, 0x38, 0x2B, 0x80, 0x32,
+	0x80, 0x36, 0x04, 0x23, 0xA0, 0x01, 0x12, 0x23, 0xA1, 0x01, 0x10, 0x84,
+	0x07, 0xF0, 0x06, 0xA4, 0xF4, 0x03, 0x80, 0x6B, 0x80, 0x67, 0x05, 0x23,
+	0x83, 0x03, 0x80, 0x63, 0x03, 0xA6, 0x0E, 0x04, 0x07, 0xA6, 0x06, 0x04,
+	0x06, 0xA6, 0x0A, 0x04, 0x00, 0x33, 0x17, 0x00, 0xC2, 0x88, 0x7C, 0x95,
+	0xF4, 0x83, 0x60, 0x96, 0xF4, 0x83, 0x20, 0x84, 0x07, 0xF0, 0x06, 0xA4,
+	0x20, 0x04, 0x80, 0x6B, 0x80, 0x67, 0x05, 0x23, 0x83, 0x03, 0x80, 0x63,
+	0xB6, 0x2D, 0x03, 0xA6, 0x3C, 0x04, 0x07, 0xA6, 0x34, 0x04, 0x06, 0xA6,
+	0x38, 0x04, 0x00, 0x33, 0x30, 0x00, 0xC2, 0x88, 0x7C, 0x95, 0x20, 0x84,
+	0x60, 0x96, 0x20, 0x84, 0x1D, 0x01, 0x06, 0xCC, 0x00, 0x33, 0x00, 0x84,
+	0xC0, 0x20, 0x00, 0x23, 0xEA, 0x00, 0x81, 0x62, 0xA2, 0x0D, 0x80, 0x63,
+	0x07, 0xA6, 0x5A, 0x04, 0x00, 0x33, 0x18, 0x00, 0xC2, 0x88, 0x03, 0x03,
+	0x80, 0x63, 0xA3, 0x01, 0x07, 0xA4, 0x64, 0x04, 0x23, 0x01, 0x00, 0xA2,
+	0x86, 0x04, 0x0A, 0xA0, 0x76, 0x04, 0xE0, 0x00, 0x00, 0x33, 0x1D, 0x00,
+	0xC2, 0x88, 0x0B, 0xA0, 0x82, 0x04, 0xE0, 0x00, 0x00, 0x33, 0x1E, 0x00,
+	0xC2, 0x88, 0x42, 0x23, 0xF8, 0x88, 0x00, 0x23, 0x22, 0xA3, 0xE6, 0x04,
+	0x08, 0x23, 0x22, 0xA3, 0xA2, 0x04, 0x28, 0x23, 0x22, 0xA3, 0xAE, 0x04,
+	0x02, 0x23, 0x22, 0xA3, 0xC4, 0x04, 0x42, 0x23, 0xF8, 0x88, 0x4A, 0x00,
+	0x06, 0x61, 0x00, 0xA0, 0xAE, 0x04, 0x45, 0x23, 0xF8, 0x88, 0x04, 0x98,
+	0x00, 0xA2, 0xC0, 0x04, 0xB4, 0x98, 0x00, 0x33, 0x00, 0x82, 0xC0, 0x20,
+	0x81, 0x62, 0xE8, 0x81, 0x47, 0x23, 0xF8, 0x88, 0x04, 0x01, 0x0B, 0xDE,
+	0x04, 0x98, 0xB4, 0x98, 0x00, 0x33, 0x00, 0x81, 0xC0, 0x20, 0x81, 0x62,
+	0x14, 0x01, 0x00, 0xA0, 0x00, 0x02, 0x43, 0x23, 0xF8, 0x88, 0x04, 0x23,
+	0xA0, 0x01, 0x44, 0x23, 0xA1, 0x01, 0x80, 0x73, 0x4D, 0x00, 0x03, 0xA3,
+	0xF4, 0x04, 0x00, 0x33, 0x27, 0x00, 0xC2, 0x88, 0x04, 0x01, 0x04, 0xDC,
+	0x02, 0x23, 0xA2, 0x01, 0x04, 0x23, 0xA0, 0x01, 0x04, 0x98, 0x26, 0x95,
+	0x4B, 0x00, 0xF6, 0x00, 0x4F, 0x04, 0x4F, 0x00, 0x00, 0xA3, 0x22, 0x05,
+	0x00, 0x05, 0x76, 0x00, 0x06, 0x61, 0x00, 0xA2, 0x1C, 0x05, 0x0A, 0x85,
+	0x46, 0x97, 0xCD, 0x04, 0x24, 0x85, 0x48, 0x04, 0x84, 0x80, 0x02, 0x01,
+	0x03, 0xDA, 0x80, 0x23, 0x82, 0x01, 0x34, 0x85, 0x02, 0x23, 0xA0, 0x01,
+	0x4A, 0x00, 0x06, 0x61, 0x00, 0xA2, 0x40, 0x05, 0x1D, 0x01, 0x04, 0xD6,
+	0xFF, 0x23, 0x86, 0x41, 0x4B, 0x60, 0xCB, 0x00, 0xFF, 0x23, 0x80, 0x01,
+	0x49, 0x00, 0x81, 0x01, 0x04, 0x01, 0x02, 0xC8, 0x30, 0x01, 0x80, 0x01,
+	0xF7, 0x04, 0x03, 0x01, 0x49, 0x04, 0x80, 0x01, 0xC9, 0x00, 0x00, 0x05,
+	0x00, 0x01, 0xFF, 0xA0, 0x60, 0x05, 0x77, 0x04, 0x01, 0x23, 0xEA, 0x00,
+	0x5D, 0x00, 0xFE, 0xC7, 0x00, 0x62, 0x00, 0x23, 0xEA, 0x00, 0x00, 0x63,
+	0x07, 0xA4, 0xF8, 0x05, 0x03, 0x03, 0x02, 0xA0, 0x8E, 0x05, 0xF4, 0x85,
+	0x00, 0x33, 0x2D, 0x00, 0xC2, 0x88, 0x04, 0xA0, 0xB8, 0x05, 0x80, 0x63,
+	0x00, 0x23, 0xDF, 0x00, 0x4A, 0x00, 0x06, 0x61, 0x00, 0xA2, 0xA4, 0x05,
+	0x1D, 0x01, 0x06, 0xD6, 0x02, 0x23, 0x02, 0x41, 0x82, 0x01, 0x50, 0x00,
+	0x62, 0x97, 0x04, 0x85, 0x04, 0x23, 0x02, 0x41, 0x82, 0x01, 0x04, 0x85,
+	0x08, 0xA0, 0xBE, 0x05, 0xF4, 0x85, 0x03, 0xA0, 0xC4, 0x05, 0xF4, 0x85,
+	0x01, 0xA0, 0xCE, 0x05, 0x88, 0x00, 0x80, 0x63, 0xCC, 0x86, 0x07, 0xA0,
+	0xEE, 0x05, 0x5F, 0x00, 0x00, 0x2B, 0xDF, 0x08, 0x00, 0xA2, 0xE6, 0x05,
+	0x80, 0x67, 0x80, 0x63, 0x01, 0xA2, 0x7A, 0x06, 0x7C, 0x85, 0x06, 0x23,
+	0x68, 0x98, 0x48, 0x23, 0xF8, 0x88, 0x07, 0x23, 0x80, 0x00, 0x06, 0x87,
+	0x80, 0x63, 0x7C, 0x85, 0x00, 0x23, 0xDF, 0x00, 0x00, 0x63, 0x4A, 0x00,
+	0x06, 0x61, 0x00, 0xA2, 0x36, 0x06, 0x1D, 0x01, 0x16, 0xD4, 0xC0, 0x23,
+	0x07, 0x41, 0x83, 0x03, 0x80, 0x63, 0x06, 0xA6, 0x1C, 0x06, 0x00, 0x33,
+	0x37, 0x00, 0xC2, 0x88, 0x1D, 0x01, 0x01, 0xD6, 0x20, 0x23, 0x63, 0x60,
+	0x83, 0x03, 0x80, 0x63, 0x02, 0x23, 0xDF, 0x00, 0x07, 0xA6, 0x7C, 0x05,
+	0xEF, 0x04, 0x6F, 0x00, 0x00, 0x63, 0x4B, 0x00, 0x06, 0x41, 0xCB, 0x00,
+	0x52, 0x00, 0x06, 0x61, 0x00, 0xA2, 0x4E, 0x06, 0x1D, 0x01, 0x03, 0xCA,
+	0xC0, 0x23, 0x07, 0x41, 0x00, 0x63, 0x1D, 0x01, 0x04, 0xCC, 0x00, 0x33,
+	0x00, 0x83, 0xC0, 0x20, 0x81, 0x62, 0x80, 0x23, 0x07, 0x41, 0x00, 0x63,
+	0x80, 0x67, 0x08, 0x23, 0x83, 0x03, 0x80, 0x63, 0x00, 0x63, 0x01, 0x23,
+	0xDF, 0x00, 0x06, 0xA6, 0x84, 0x06, 0x07, 0xA6, 0x7C, 0x05, 0x80, 0x67,
+	0x80, 0x63, 0x00, 0x33, 0x00, 0x40, 0xC0, 0x20, 0x81, 0x62, 0x00, 0x63,
+	0x00, 0x00, 0xFE, 0x95, 0x83, 0x03, 0x80, 0x63, 0x06, 0xA6, 0x94, 0x06,
+	0x07, 0xA6, 0x7C, 0x05, 0x00, 0x00, 0x01, 0xA0, 0x14, 0x07, 0x00, 0x2B,
+	0x40, 0x0E, 0x80, 0x63, 0x01, 0x00, 0x06, 0xA6, 0xAA, 0x06, 0x07, 0xA6,
+	0x7C, 0x05, 0x40, 0x0E, 0x80, 0x63, 0x00, 0x43, 0x00, 0xA0, 0xA2, 0x06,
+	0x06, 0xA6, 0xBC, 0x06, 0x07, 0xA6, 0x7C, 0x05, 0x80, 0x67, 0x40, 0x0E,
+	0x80, 0x63, 0x07, 0xA6, 0x7C, 0x05, 0x00, 0x23, 0xDF, 0x00, 0x00, 0x63,
+	0x07, 0xA6, 0xD6, 0x06, 0x00, 0x33, 0x2A, 0x00, 0xC2, 0x88, 0x03, 0x03,
+	0x80, 0x63, 0x89, 0x00, 0x0A, 0x2B, 0x07, 0xA6, 0xE8, 0x06, 0x00, 0x33,
+	0x29, 0x00, 0xC2, 0x88, 0x00, 0x43, 0x00, 0xA2, 0xF4, 0x06, 0xC0, 0x0E,
+	0x80, 0x63, 0xDE, 0x86, 0xC0, 0x0E, 0x00, 0x33, 0x00, 0x80, 0xC0, 0x20,
+	0x81, 0x62, 0x04, 0x01, 0x02, 0xDA, 0x80, 0x63, 0x7C, 0x85, 0x80, 0x7B,
+	0x80, 0x63, 0x06, 0xA6, 0x8C, 0x06, 0x00, 0x33, 0x2C, 0x00, 0xC2, 0x88,
+	0x0C, 0xA2, 0x2E, 0x07, 0xFE, 0x95, 0x83, 0x03, 0x80, 0x63, 0x06, 0xA6,
+	0x2C, 0x07, 0x07, 0xA6, 0x7C, 0x05, 0x00, 0x33, 0x3D, 0x00, 0xC2, 0x88,
+	0x00, 0x00, 0x80, 0x67, 0x83, 0x03, 0x80, 0x63, 0x0C, 0xA0, 0x44, 0x07,
+	0x07, 0xA6, 0x7C, 0x05, 0xBF, 0x23, 0x04, 0x61, 0x84, 0x01, 0xE6, 0x84,
+	0x00, 0x63, 0xF0, 0x04, 0x01, 0x01, 0xF1, 0x00, 0x00, 0x01, 0xF2, 0x00,
+	0x01, 0x05, 0x80, 0x01, 0x72, 0x04, 0x71, 0x00, 0x81, 0x01, 0x70, 0x04,
+	0x80, 0x05, 0x81, 0x05, 0x00, 0x63, 0xF0, 0x04, 0xF2, 0x00, 0x72, 0x04,
+	0x01, 0x01, 0xF1, 0x00, 0x70, 0x00, 0x81, 0x01, 0x70, 0x04, 0x71, 0x00,
+	0x81, 0x01, 0x72, 0x00, 0x80, 0x01, 0x71, 0x04, 0x70, 0x00, 0x80, 0x01,
+	0x70, 0x04, 0x00, 0x63, 0xF0, 0x04, 0xF2, 0x00, 0x72, 0x04, 0x00, 0x01,
+	0xF1, 0x00, 0x70, 0x00, 0x80, 0x01, 0x70, 0x04, 0x71, 0x00, 0x80, 0x01,
+	0x72, 0x00, 0x81, 0x01, 0x71, 0x04, 0x70, 0x00, 0x81, 0x01, 0x70, 0x04,
+	0x00, 0x63, 0x00, 0x23, 0xB3, 0x01, 0x83, 0x05, 0xA3, 0x01, 0xA2, 0x01,
+	0xA1, 0x01, 0x01, 0x23, 0xA0, 0x01, 0x00, 0x01, 0xC8, 0x00, 0x03, 0xA1,
+	0xC4, 0x07, 0x00, 0x33, 0x07, 0x00, 0xC2, 0x88, 0x80, 0x05, 0x81, 0x05,
+	0x04, 0x01, 0x11, 0xC8, 0x48, 0x00, 0xB0, 0x01, 0xB1, 0x01, 0x08, 0x23,
+	0xB2, 0x01, 0x05, 0x01, 0x48, 0x04, 0x00, 0x43, 0x00, 0xA2, 0xE4, 0x07,
+	0x00, 0x05, 0xDA, 0x87, 0x00, 0x01, 0xC8, 0x00, 0xFF, 0x23, 0x80, 0x01,
+	0x05, 0x05, 0x00, 0x63, 0xF7, 0x04, 0x1A, 0x09, 0xF6, 0x08, 0x6E, 0x04,
+	0x00, 0x02, 0x80, 0x43, 0x76, 0x08, 0x80, 0x02, 0x77, 0x04, 0x00, 0x63,
+	0xF7, 0x04, 0x1A, 0x09, 0xF6, 0x08, 0x6E, 0x04, 0x00, 0x02, 0x00, 0xA0,
+	0x14, 0x08, 0x16, 0x88, 0x00, 0x43, 0x76, 0x08, 0x80, 0x02, 0x77, 0x04,
+	0x00, 0x63, 0xF3, 0x04, 0x00, 0x23, 0xF4, 0x00, 0x74, 0x00, 0x80, 0x43,
+	0xF4, 0x00, 0xCF, 0x40, 0x00, 0xA2, 0x44, 0x08, 0x74, 0x04, 0x02, 0x01,
+	0xF7, 0xC9, 0xF6, 0xD9, 0x00, 0x01, 0x01, 0xA1, 0x24, 0x08, 0x04, 0x98,
+	0x26, 0x95, 0x24, 0x88, 0x73, 0x04, 0x00, 0x63, 0xF3, 0x04, 0x75, 0x04,
+	0x5A, 0x88, 0x02, 0x01, 0x04, 0xD8, 0x46, 0x97, 0x04, 0x98, 0x26, 0x95,
+	0x4A, 0x88, 0x75, 0x00, 0x00, 0xA3, 0x64, 0x08, 0x00, 0x05, 0x4E, 0x88,
+	0x73, 0x04, 0x00, 0x63, 0x80, 0x7B, 0x80, 0x63, 0x06, 0xA6, 0x76, 0x08,
+	0x00, 0x33, 0x3E, 0x00, 0xC2, 0x88, 0x80, 0x67, 0x83, 0x03, 0x80, 0x63,
+	0x00, 0x63, 0x38, 0x2B, 0x9C, 0x88, 0x38, 0x2B, 0x92, 0x88, 0x32, 0x09,
+	0x31, 0x05, 0x92, 0x98, 0x05, 0x05, 0xB2, 0x09, 0x00, 0x63, 0x00, 0x32,
+	0x00, 0x36, 0x00, 0x3A, 0x00, 0x3E, 0x00, 0x63, 0x80, 0x32, 0x80, 0x36,
+	0x80, 0x3A, 0x80, 0x3E, 0xB4, 0x3D, 0x00, 0x63, 0x38, 0x2B, 0x40, 0x32,
+	0x40, 0x36, 0x40, 0x3A, 0x40, 0x3E, 0x00, 0x63, 0x5A, 0x20, 0xC9, 0x40,
+	0x00, 0xA0, 0xB4, 0x08, 0x5D, 0x00, 0xFE, 0xC3, 0x00, 0x63, 0x80, 0x73,
+	0xE6, 0x20, 0x02, 0x23, 0xE8, 0x00, 0x82, 0x73, 0xFF, 0xFD, 0x80, 0x73,
+	0x13, 0x23, 0xF8, 0x88, 0x66, 0x20, 0xC0, 0x20, 0x04, 0x23, 0xA0, 0x01,
+	0xA1, 0x23, 0xA1, 0x01, 0x81, 0x62, 0xE2, 0x88, 0x80, 0x73, 0x80, 0x77,
+	0x68, 0x00, 0x00, 0xA2, 0x80, 0x00, 0x03, 0xC2, 0xF1, 0xC7, 0x41, 0x23,
+	0xF8, 0x88, 0x11, 0x23, 0xA1, 0x01, 0x04, 0x23, 0xA0, 0x01, 0xE6, 0x84,
+};
+
+static unsigned short _asc_mcode_size = sizeof(_asc_mcode_buf);
+static ADV_DCNT _asc_mcode_chksum = 0x012C453FUL;
 
 /* Microcode buffer is kept after initialization for error recovery. */
 static unsigned char _adv_asc3550_buf[] = {
 	0x00, 0x00, 0x00, 0xf2, 0x00, 0xf0, 0x00, 0x16, 0x18, 0xe4, 0x00, 0xfc,
-	0x01, 0x00, 0x48, 0xe4,
-	0xbe, 0x18, 0x18, 0x80, 0x03, 0xf6, 0x02, 0x00, 0x00, 0xfa, 0xff, 0xff,
-	0x28, 0x0e, 0x9e, 0xe7,
-	0xff, 0x00, 0x82, 0xe7, 0x00, 0xea, 0x00, 0xf6, 0x01, 0xe6, 0x09, 0xe7,
-	0x55, 0xf0, 0x01, 0xf6,
+	0x01, 0x00, 0x48, 0xe4, 0xbe, 0x18, 0x18, 0x80, 0x03, 0xf6, 0x02, 0x00,
+	0x00, 0xfa, 0xff, 0xff, 0x28, 0x0e, 0x9e, 0xe7, 0xff, 0x00, 0x82, 0xe7,
+	0x00, 0xea, 0x00, 0xf6, 0x01, 0xe6, 0x09, 0xe7, 0x55, 0xf0, 0x01, 0xf6,
 	0x01, 0xfa, 0x08, 0x00, 0x03, 0x00, 0x04, 0x00, 0x18, 0xf4, 0x10, 0x00,
-	0x00, 0xec, 0x85, 0xf0,
-	0xbc, 0x00, 0xd5, 0xf0, 0x8e, 0x0c, 0x38, 0x54, 0x00, 0xe6, 0x1e, 0xf0,
-	0x86, 0xf0, 0xb4, 0x00,
-	0x98, 0x57, 0xd0, 0x01, 0x0c, 0x1c, 0x3e, 0x1c, 0x0c, 0x00, 0xbb, 0x00,
-	0xaa, 0x18, 0x02, 0x80,
+	0x00, 0xec, 0x85, 0xf0, 0xbc, 0x00, 0xd5, 0xf0, 0x8e, 0x0c, 0x38, 0x54,
+	0x00, 0xe6, 0x1e, 0xf0, 0x86, 0xf0, 0xb4, 0x00, 0x98, 0x57, 0xd0, 0x01,
+	0x0c, 0x1c, 0x3e, 0x1c, 0x0c, 0x00, 0xbb, 0x00, 0xaa, 0x18, 0x02, 0x80,
 	0x32, 0xf0, 0x01, 0xfc, 0x88, 0x0c, 0xc6, 0x12, 0x02, 0x13, 0x18, 0x40,
-	0x00, 0x57, 0x01, 0xea,
-	0x3c, 0x00, 0x6c, 0x01, 0x6e, 0x01, 0x04, 0x12, 0x3e, 0x57, 0x00, 0x80,
-	0x03, 0xe6, 0xb6, 0x00,
-	0xc0, 0x00, 0x01, 0x01, 0x3e, 0x01, 0xda, 0x0f, 0x22, 0x10, 0x08, 0x12,
-	0x02, 0x4a, 0xb9, 0x54,
+	0x00, 0x57, 0x01, 0xea, 0x3c, 0x00, 0x6c, 0x01, 0x6e, 0x01, 0x04, 0x12,
+	0x3e, 0x57, 0x00, 0x80, 0x03, 0xe6, 0xb6, 0x00, 0xc0, 0x00, 0x01, 0x01,
+	0x3e, 0x01, 0xda, 0x0f, 0x22, 0x10, 0x08, 0x12, 0x02, 0x4a, 0xb9, 0x54,
 	0x03, 0x58, 0x1b, 0x80, 0x30, 0xe4, 0x4b, 0xe4, 0x20, 0x00, 0x32, 0x00,
-	0x3e, 0x00, 0x80, 0x00,
-	0x24, 0x01, 0x3c, 0x01, 0x68, 0x01, 0x6a, 0x01, 0x70, 0x01, 0x72, 0x01,
-	0x74, 0x01, 0x76, 0x01,
-	0x78, 0x01, 0x62, 0x0a, 0x92, 0x0c, 0x2c, 0x10, 0x2e, 0x10, 0x06, 0x13,
-	0x4c, 0x1c, 0xbb, 0x55,
+	0x3e, 0x00, 0x80, 0x00, 0x24, 0x01, 0x3c, 0x01, 0x68, 0x01, 0x6a, 0x01,
+	0x70, 0x01, 0x72, 0x01, 0x74, 0x01, 0x76, 0x01, 0x78, 0x01, 0x62, 0x0a,
+	0x92, 0x0c, 0x2c, 0x10, 0x2e, 0x10, 0x06, 0x13, 0x4c, 0x1c, 0xbb, 0x55,
 	0x3c, 0x56, 0x04, 0x80, 0x4a, 0xe4, 0x02, 0xee, 0x5b, 0xf0, 0xb1, 0xf0,
-	0x03, 0xf7, 0x06, 0xf7,
-	0x03, 0xfc, 0x0f, 0x00, 0x40, 0x00, 0xbe, 0x00, 0x00, 0x01, 0xb0, 0x08,
-	0x30, 0x13, 0x64, 0x15,
-	0x32, 0x1c, 0x38, 0x1c, 0x4e, 0x1c, 0x10, 0x44, 0x02, 0x48, 0x00, 0x4c,
-	0x04, 0xea, 0x5d, 0xf0,
+	0x03, 0xf7, 0x06, 0xf7, 0x03, 0xfc, 0x0f, 0x00, 0x40, 0x00, 0xbe, 0x00,
+	0x00, 0x01, 0xb0, 0x08, 0x30, 0x13, 0x64, 0x15, 0x32, 0x1c, 0x38, 0x1c,
+	0x4e, 0x1c, 0x10, 0x44, 0x02, 0x48, 0x00, 0x4c, 0x04, 0xea, 0x5d, 0xf0,
 	0x04, 0xf6, 0x02, 0xfc, 0x05, 0x00, 0x34, 0x00, 0x36, 0x00, 0x98, 0x00,
-	0xcc, 0x00, 0x20, 0x01,
-	0x4e, 0x01, 0x4e, 0x0b, 0x1e, 0x0e, 0x0c, 0x10, 0x0a, 0x12, 0x04, 0x13,
-	0x40, 0x13, 0x30, 0x1c,
-	0x00, 0x4e, 0xbd, 0x56, 0x06, 0x83, 0x00, 0xdc, 0x05, 0xf0, 0x09, 0xf0,
-	0x59, 0xf0, 0xa7, 0xf0,
+	0xcc, 0x00, 0x20, 0x01, 0x4e, 0x01, 0x4e, 0x0b, 0x1e, 0x0e, 0x0c, 0x10,
+	0x0a, 0x12, 0x04, 0x13, 0x40, 0x13, 0x30, 0x1c, 0x00, 0x4e, 0xbd, 0x56,
+	0x06, 0x83, 0x00, 0xdc, 0x05, 0xf0, 0x09, 0xf0, 0x59, 0xf0, 0xa7, 0xf0,
 	0xb8, 0xf0, 0x0e, 0xf7, 0x06, 0x00, 0x19, 0x00, 0x33, 0x00, 0x9b, 0x00,
-	0xa4, 0x00, 0xb5, 0x00,
-	0xba, 0x00, 0xd0, 0x00, 0xe1, 0x00, 0xe7, 0x00, 0xde, 0x03, 0x56, 0x0a,
-	0x14, 0x0e, 0x02, 0x10,
-	0x04, 0x10, 0x0a, 0x10, 0x36, 0x10, 0x0a, 0x13, 0x12, 0x13, 0x52, 0x13,
-	0x10, 0x15, 0x14, 0x15,
+	0xa4, 0x00, 0xb5, 0x00, 0xba, 0x00, 0xd0, 0x00, 0xe1, 0x00, 0xe7, 0x00,
+	0xde, 0x03, 0x56, 0x0a, 0x14, 0x0e, 0x02, 0x10, 0x04, 0x10, 0x0a, 0x10,
+	0x36, 0x10, 0x0a, 0x13, 0x12, 0x13, 0x52, 0x13, 0x10, 0x15, 0x14, 0x15,
 	0xac, 0x16, 0x20, 0x1c, 0x34, 0x1c, 0x36, 0x1c, 0x08, 0x44, 0x38, 0x44,
-	0x91, 0x44, 0x0a, 0x45,
-	0x48, 0x46, 0x01, 0x48, 0x68, 0x54, 0x83, 0x55, 0xb0, 0x57, 0x01, 0x58,
-	0x83, 0x59, 0x05, 0xe6,
-	0x0b, 0xf0, 0x0c, 0xf0, 0x5c, 0xf0, 0x4b, 0xf4, 0x04, 0xf8, 0x05, 0xf8,
-	0x02, 0xfa, 0x03, 0xfa,
+	0x91, 0x44, 0x0a, 0x45, 0x48, 0x46, 0x01, 0x48, 0x68, 0x54, 0x83, 0x55,
+	0xb0, 0x57, 0x01, 0x58, 0x83, 0x59, 0x05, 0xe6, 0x0b, 0xf0, 0x0c, 0xf0,
+	0x5c, 0xf0, 0x4b, 0xf4, 0x04, 0xf8, 0x05, 0xf8, 0x02, 0xfa, 0x03, 0xfa,
 	0x04, 0xfc, 0x05, 0xfc, 0x07, 0x00, 0x0a, 0x00, 0x0d, 0x00, 0x1c, 0x00,
-	0x9e, 0x00, 0xa8, 0x00,
-	0xaa, 0x00, 0xb9, 0x00, 0xe0, 0x00, 0x22, 0x01, 0x26, 0x01, 0x79, 0x01,
-	0x7a, 0x01, 0xc0, 0x01,
-	0xc2, 0x01, 0x7c, 0x02, 0x5a, 0x03, 0xea, 0x04, 0xe8, 0x07, 0x68, 0x08,
-	0x69, 0x08, 0xba, 0x08,
+	0x9e, 0x00, 0xa8, 0x00, 0xaa, 0x00, 0xb9, 0x00, 0xe0, 0x00, 0x22, 0x01,
+	0x26, 0x01, 0x79, 0x01, 0x7a, 0x01, 0xc0, 0x01, 0xc2, 0x01, 0x7c, 0x02,
+	0x5a, 0x03, 0xea, 0x04, 0xe8, 0x07, 0x68, 0x08, 0x69, 0x08, 0xba, 0x08,
 	0xe9, 0x09, 0x06, 0x0b, 0x3a, 0x0e, 0x00, 0x10, 0x1a, 0x10, 0xed, 0x10,
-	0xf1, 0x10, 0x06, 0x12,
-	0x0c, 0x13, 0x16, 0x13, 0x1e, 0x13, 0x82, 0x13, 0x42, 0x14, 0xd6, 0x14,
-	0x8a, 0x15, 0xc6, 0x17,
-	0xd2, 0x17, 0x6b, 0x18, 0x12, 0x1c, 0x46, 0x1c, 0x9c, 0x32, 0x00, 0x40,
-	0x0e, 0x47, 0x48, 0x47,
+	0xf1, 0x10, 0x06, 0x12, 0x0c, 0x13, 0x16, 0x13, 0x1e, 0x13, 0x82, 0x13,
+	0x42, 0x14, 0xd6, 0x14, 0x8a, 0x15, 0xc6, 0x17, 0xd2, 0x17, 0x6b, 0x18,
+	0x12, 0x1c, 0x46, 0x1c, 0x9c, 0x32, 0x00, 0x40, 0x0e, 0x47, 0x48, 0x47,
 	0x41, 0x48, 0x89, 0x48, 0x80, 0x4c, 0x00, 0x54, 0x44, 0x55, 0xe5, 0x55,
-	0x14, 0x56, 0x77, 0x57,
-	0xbf, 0x57, 0x40, 0x5c, 0x06, 0x80, 0x08, 0x90, 0x03, 0xa1, 0xfe, 0x9c,
-	0xf0, 0x29, 0x02, 0xfe,
-	0xb8, 0x0c, 0xff, 0x10, 0x00, 0x00, 0xd0, 0xfe, 0xcc, 0x18, 0x00, 0xcf,
-	0xfe, 0x80, 0x01, 0xff,
+	0x14, 0x56, 0x77, 0x57, 0xbf, 0x57, 0x40, 0x5c, 0x06, 0x80, 0x08, 0x90,
+	0x03, 0xa1, 0xfe, 0x9c, 0xf0, 0x29, 0x02, 0xfe, 0xb8, 0x0c, 0xff, 0x10,
+	0x00, 0x00, 0xd0, 0xfe, 0xcc, 0x18, 0x00, 0xcf, 0xfe, 0x80, 0x01, 0xff,
 	0x03, 0x00, 0x00, 0xfe, 0x93, 0x15, 0xfe, 0x0f, 0x05, 0xff, 0x38, 0x00,
-	0x00, 0xfe, 0x57, 0x24,
-	0x00, 0xfe, 0x48, 0x00, 0x4f, 0xff, 0x04, 0x00, 0x00, 0x10, 0xff, 0x09,
-	0x00, 0x00, 0xff, 0x08,
-	0x01, 0x01, 0xff, 0x08, 0xff, 0xff, 0xff, 0x27, 0x00, 0x00, 0xff, 0x10,
-	0xff, 0xff, 0xff, 0x0f,
+	0x00, 0xfe, 0x57, 0x24, 0x00, 0xfe, 0x48, 0x00, 0x4f, 0xff, 0x04, 0x00,
+	0x00, 0x10, 0xff, 0x09, 0x00, 0x00, 0xff, 0x08, 0x01, 0x01, 0xff, 0x08,
+	0xff, 0xff, 0xff, 0x27, 0x00, 0x00, 0xff, 0x10, 0xff, 0xff, 0xff, 0x0f,
 	0x00, 0x00, 0xfe, 0x78, 0x56, 0xfe, 0x34, 0x12, 0xff, 0x21, 0x00, 0x00,
-	0xfe, 0x04, 0xf7, 0xcf,
-	0x2a, 0x67, 0x0b, 0x01, 0xfe, 0xce, 0x0e, 0xfe, 0x04, 0xf7, 0xcf, 0x67,
-	0x0b, 0x3c, 0x2a, 0xfe,
-	0x3d, 0xf0, 0xfe, 0x02, 0x02, 0xfe, 0x20, 0xf0, 0x9c, 0xfe, 0x91, 0xf0,
-	0xfe, 0xf0, 0x01, 0xfe,
+	0xfe, 0x04, 0xf7, 0xcf, 0x2a, 0x67, 0x0b, 0x01, 0xfe, 0xce, 0x0e, 0xfe,
+	0x04, 0xf7, 0xcf, 0x67, 0x0b, 0x3c, 0x2a, 0xfe, 0x3d, 0xf0, 0xfe, 0x02,
+	0x02, 0xfe, 0x20, 0xf0, 0x9c, 0xfe, 0x91, 0xf0, 0xfe, 0xf0, 0x01, 0xfe,
 	0x90, 0xf0, 0xfe, 0xf0, 0x01, 0xfe, 0x8f, 0xf0, 0x9c, 0x05, 0x51, 0x3b,
-	0x02, 0xfe, 0xd4, 0x0c,
-	0x01, 0xfe, 0x44, 0x0d, 0xfe, 0xdd, 0x12, 0xfe, 0xfc, 0x10, 0xfe, 0x28,
-	0x1c, 0x05, 0xfe, 0xa6,
-	0x00, 0xfe, 0xd3, 0x12, 0x47, 0x18, 0xfe, 0xa6, 0x00, 0xb5, 0xfe, 0x48,
-	0xf0, 0xfe, 0x86, 0x02,
+	0x02, 0xfe, 0xd4, 0x0c, 0x01, 0xfe, 0x44, 0x0d, 0xfe, 0xdd, 0x12, 0xfe,
+	0xfc, 0x10, 0xfe, 0x28, 0x1c, 0x05, 0xfe, 0xa6, 0x00, 0xfe, 0xd3, 0x12,
+	0x47, 0x18, 0xfe, 0xa6, 0x00, 0xb5, 0xfe, 0x48, 0xf0, 0xfe, 0x86, 0x02,
 	0xfe, 0x49, 0xf0, 0xfe, 0xa0, 0x02, 0xfe, 0x4a, 0xf0, 0xfe, 0xbe, 0x02,
-	0xfe, 0x46, 0xf0, 0xfe,
-	0x50, 0x02, 0xfe, 0x47, 0xf0, 0xfe, 0x56, 0x02, 0xfe, 0x43, 0xf0, 0xfe,
-	0x44, 0x02, 0xfe, 0x44,
-	0xf0, 0xfe, 0x48, 0x02, 0xfe, 0x45, 0xf0, 0xfe, 0x4c, 0x02, 0x17, 0x0b,
-	0xa0, 0x17, 0x06, 0x18,
+	0xfe, 0x46, 0xf0, 0xfe, 0x50, 0x02, 0xfe, 0x47, 0xf0, 0xfe, 0x56, 0x02,
+	0xfe, 0x43, 0xf0, 0xfe, 0x44, 0x02, 0xfe, 0x44, 0xf0, 0xfe, 0x48, 0x02,
+	0xfe, 0x45, 0xf0, 0xfe, 0x4c, 0x02, 0x17, 0x0b, 0xa0, 0x17, 0x06, 0x18,
 	0x96, 0x02, 0x29, 0xfe, 0x00, 0x1c, 0xde, 0xfe, 0x02, 0x1c, 0xdd, 0xfe,
-	0x1e, 0x1c, 0xfe, 0xe9,
-	0x10, 0x01, 0xfe, 0x20, 0x17, 0xfe, 0xe7, 0x10, 0xfe, 0x06, 0xfc, 0xc7,
-	0x0a, 0x6b, 0x01, 0x9e,
-	0x02, 0x29, 0x14, 0x4d, 0x37, 0x97, 0x01, 0xfe, 0x64, 0x0f, 0x0a, 0x6b,
-	0x01, 0x82, 0xfe, 0xbd,
+	0x1e, 0x1c, 0xfe, 0xe9, 0x10, 0x01, 0xfe, 0x20, 0x17, 0xfe, 0xe7, 0x10,
+	0xfe, 0x06, 0xfc, 0xc7, 0x0a, 0x6b, 0x01, 0x9e, 0x02, 0x29, 0x14, 0x4d,
+	0x37, 0x97, 0x01, 0xfe, 0x64, 0x0f, 0x0a, 0x6b, 0x01, 0x82, 0xfe, 0xbd,
 	0x10, 0x0a, 0x6b, 0x01, 0x82, 0xfe, 0xad, 0x10, 0xfe, 0x16, 0x1c, 0xfe,
-	0x58, 0x1c, 0x17, 0x06,
-	0x18, 0x96, 0x2a, 0x25, 0x29, 0xfe, 0x3d, 0xf0, 0xfe, 0x02, 0x02, 0x21,
-	0xfe, 0x94, 0x02, 0xfe,
-	0x5a, 0x1c, 0xea, 0xfe, 0x14, 0x1c, 0x14, 0xfe, 0x30, 0x00, 0x37, 0x97,
-	0x01, 0xfe, 0x54, 0x0f,
+	0x58, 0x1c, 0x17, 0x06, 0x18, 0x96, 0x2a, 0x25, 0x29, 0xfe, 0x3d, 0xf0,
+	0xfe, 0x02, 0x02, 0x21, 0xfe, 0x94, 0x02, 0xfe, 0x5a, 0x1c, 0xea, 0xfe,
+	0x14, 0x1c, 0x14, 0xfe, 0x30, 0x00, 0x37, 0x97, 0x01, 0xfe, 0x54, 0x0f,
 	0x17, 0x06, 0x18, 0x96, 0x02, 0xd0, 0x1e, 0x20, 0x07, 0x10, 0x34, 0xfe,
-	0x69, 0x10, 0x17, 0x06,
-	0x18, 0x96, 0xfe, 0x04, 0xec, 0x20, 0x46, 0x3d, 0x12, 0x20, 0xfe, 0x05,
-	0xf6, 0xc7, 0x01, 0xfe,
-	0x52, 0x16, 0x09, 0x4a, 0x4c, 0x35, 0x11, 0x2d, 0x3c, 0x8a, 0x01, 0xe6,
-	0x02, 0x29, 0x0a, 0x40,
+	0x69, 0x10, 0x17, 0x06, 0x18, 0x96, 0xfe, 0x04, 0xec, 0x20, 0x46, 0x3d,
+	0x12, 0x20, 0xfe, 0x05, 0xf6, 0xc7, 0x01, 0xfe, 0x52, 0x16, 0x09, 0x4a,
+	0x4c, 0x35, 0x11, 0x2d, 0x3c, 0x8a, 0x01, 0xe6, 0x02, 0x29, 0x0a, 0x40,
 	0x01, 0x0e, 0x07, 0x00, 0x5d, 0x01, 0x6f, 0xfe, 0x18, 0x10, 0xfe, 0x41,
-	0x58, 0x0a, 0x99, 0x01,
-	0x0e, 0xfe, 0xc8, 0x54, 0x64, 0xfe, 0x0c, 0x03, 0x01, 0xe6, 0x02, 0x29,
-	0x2a, 0x46, 0xfe, 0x02,
-	0xe8, 0x27, 0xf8, 0xfe, 0x9e, 0x43, 0xf7, 0xfe, 0x27, 0xf0, 0xfe, 0xdc,
-	0x01, 0xfe, 0x07, 0x4b,
+	0x58, 0x0a, 0x99, 0x01, 0x0e, 0xfe, 0xc8, 0x54, 0x64, 0xfe, 0x0c, 0x03,
+	0x01, 0xe6, 0x02, 0x29, 0x2a, 0x46, 0xfe, 0x02, 0xe8, 0x27, 0xf8, 0xfe,
+	0x9e, 0x43, 0xf7, 0xfe, 0x27, 0xf0, 0xfe, 0xdc, 0x01, 0xfe, 0x07, 0x4b,
 	0xfe, 0x20, 0xf0, 0x9c, 0xfe, 0x40, 0x1c, 0x25, 0xd2, 0xfe, 0x26, 0xf0,
-	0xfe, 0x56, 0x03, 0xfe,
-	0xa0, 0xf0, 0xfe, 0x44, 0x03, 0xfe, 0x11, 0xf0, 0x9c, 0xfe, 0xef, 0x10,
-	0xfe, 0x9f, 0xf0, 0xfe,
-	0x64, 0x03, 0xeb, 0x0f, 0xfe, 0x11, 0x00, 0x02, 0x5a, 0x2a, 0xfe, 0x48,
-	0x1c, 0xeb, 0x09, 0x04,
+	0xfe, 0x56, 0x03, 0xfe, 0xa0, 0xf0, 0xfe, 0x44, 0x03, 0xfe, 0x11, 0xf0,
+	0x9c, 0xfe, 0xef, 0x10, 0xfe, 0x9f, 0xf0, 0xfe, 0x64, 0x03, 0xeb, 0x0f,
+	0xfe, 0x11, 0x00, 0x02, 0x5a, 0x2a, 0xfe, 0x48, 0x1c, 0xeb, 0x09, 0x04,
 	0x1d, 0xfe, 0x18, 0x13, 0x23, 0x1e, 0x98, 0xac, 0x12, 0x98, 0x0a, 0x40,
-	0x01, 0x0e, 0xac, 0x75,
-	0x01, 0xfe, 0xbc, 0x15, 0x11, 0xca, 0x25, 0xd2, 0xfe, 0x01, 0xf0, 0xd2,
-	0xfe, 0x82, 0xf0, 0xfe,
-	0x92, 0x03, 0xec, 0x11, 0xfe, 0xe4, 0x00, 0x65, 0xfe, 0xa4, 0x03, 0x25,
-	0x32, 0x1f, 0xfe, 0xb4,
+	0x01, 0x0e, 0xac, 0x75, 0x01, 0xfe, 0xbc, 0x15, 0x11, 0xca, 0x25, 0xd2,
+	0xfe, 0x01, 0xf0, 0xd2, 0xfe, 0x82, 0xf0, 0xfe, 0x92, 0x03, 0xec, 0x11,
+	0xfe, 0xe4, 0x00, 0x65, 0xfe, 0xa4, 0x03, 0x25, 0x32, 0x1f, 0xfe, 0xb4,
 	0x03, 0x01, 0x43, 0xfe, 0x06, 0xf0, 0xfe, 0xc4, 0x03, 0x8d, 0x81, 0xfe,
-	0x0a, 0xf0, 0xfe, 0x7a,
-	0x06, 0x02, 0x22, 0x05, 0x6b, 0x28, 0x16, 0xfe, 0xf6, 0x04, 0x14, 0x2c,
-	0x01, 0x33, 0x8f, 0xfe,
-	0x66, 0x02, 0x02, 0xd1, 0xeb, 0x2a, 0x67, 0x1a, 0xfe, 0x67, 0x1b, 0xf8,
-	0xf7, 0xfe, 0x48, 0x1c,
+	0x0a, 0xf0, 0xfe, 0x7a, 0x06, 0x02, 0x22, 0x05, 0x6b, 0x28, 0x16, 0xfe,
+	0xf6, 0x04, 0x14, 0x2c, 0x01, 0x33, 0x8f, 0xfe, 0x66, 0x02, 0x02, 0xd1,
+	0xeb, 0x2a, 0x67, 0x1a, 0xfe, 0x67, 0x1b, 0xf8, 0xf7, 0xfe, 0x48, 0x1c,
 	0x70, 0x01, 0x6e, 0x87, 0x0a, 0x40, 0x01, 0x0e, 0x07, 0x00, 0x16, 0xd3,
-	0x0a, 0xca, 0x01, 0x0e,
-	0x74, 0x60, 0x59, 0x76, 0x27, 0x05, 0x6b, 0x28, 0xfe, 0x10, 0x12, 0x14,
-	0x2c, 0x01, 0x33, 0x8f,
-	0xfe, 0x66, 0x02, 0x02, 0xd1, 0xbc, 0x7d, 0xbd, 0x7f, 0x25, 0x22, 0x65,
-	0xfe, 0x3c, 0x04, 0x1f,
+	0x0a, 0xca, 0x01, 0x0e, 0x74, 0x60, 0x59, 0x76, 0x27, 0x05, 0x6b, 0x28,
+	0xfe, 0x10, 0x12, 0x14, 0x2c, 0x01, 0x33, 0x8f, 0xfe, 0x66, 0x02, 0x02,
+	0xd1, 0xbc, 0x7d, 0xbd, 0x7f, 0x25, 0x22, 0x65, 0xfe, 0x3c, 0x04, 0x1f,
 	0xfe, 0x38, 0x04, 0x68, 0xfe, 0xa0, 0x00, 0xfe, 0x9b, 0x57, 0xfe, 0x4e,
-	0x12, 0x2b, 0xff, 0x02,
-	0x00, 0x10, 0x01, 0x08, 0x1f, 0xfe, 0xe0, 0x04, 0x2b, 0x01, 0x08, 0x1f,
-	0x22, 0x30, 0x2e, 0xd5,
-	0xfe, 0x4c, 0x44, 0xfe, 0x4c, 0x12, 0x60, 0xfe, 0x44, 0x48, 0x13, 0x2c,
-	0xfe, 0x4c, 0x54, 0x64,
+	0x12, 0x2b, 0xff, 0x02, 0x00, 0x10, 0x01, 0x08, 0x1f, 0xfe, 0xe0, 0x04,
+	0x2b, 0x01, 0x08, 0x1f, 0x22, 0x30, 0x2e, 0xd5, 0xfe, 0x4c, 0x44, 0xfe,
+	0x4c, 0x12, 0x60, 0xfe, 0x44, 0x48, 0x13, 0x2c, 0xfe, 0x4c, 0x54, 0x64,
 	0xd3, 0x46, 0x76, 0x27, 0xfa, 0xef, 0xfe, 0x62, 0x13, 0x09, 0x04, 0x1d,
-	0xfe, 0x2a, 0x13, 0x2f,
-	0x07, 0x7e, 0xa5, 0xfe, 0x20, 0x10, 0x13, 0x2c, 0xfe, 0x4c, 0x54, 0x64,
-	0xd3, 0xfa, 0xef, 0x86,
-	0x09, 0x04, 0x1d, 0xfe, 0x08, 0x13, 0x2f, 0x07, 0x7e, 0x6e, 0x09, 0x04,
-	0x1d, 0xfe, 0x1c, 0x12,
+	0xfe, 0x2a, 0x13, 0x2f, 0x07, 0x7e, 0xa5, 0xfe, 0x20, 0x10, 0x13, 0x2c,
+	0xfe, 0x4c, 0x54, 0x64, 0xd3, 0xfa, 0xef, 0x86, 0x09, 0x04, 0x1d, 0xfe,
+	0x08, 0x13, 0x2f, 0x07, 0x7e, 0x6e, 0x09, 0x04, 0x1d, 0xfe, 0x1c, 0x12,
 	0x14, 0x92, 0x09, 0x04, 0x06, 0x3b, 0x14, 0xc4, 0x01, 0x33, 0x8f, 0xfe,
-	0x70, 0x0c, 0x02, 0x22,
-	0x2b, 0x11, 0xfe, 0xe6, 0x00, 0xfe, 0x1c, 0x90, 0xf9, 0x03, 0x14, 0x92,
-	0x01, 0x33, 0x02, 0x29,
-	0xfe, 0x42, 0x5b, 0x67, 0x1a, 0xfe, 0x46, 0x59, 0xf8, 0xf7, 0xfe, 0x87,
-	0x80, 0xfe, 0x31, 0xe4,
+	0x70, 0x0c, 0x02, 0x22, 0x2b, 0x11, 0xfe, 0xe6, 0x00, 0xfe, 0x1c, 0x90,
+	0xf9, 0x03, 0x14, 0x92, 0x01, 0x33, 0x02, 0x29, 0xfe, 0x42, 0x5b, 0x67,
+	0x1a, 0xfe, 0x46, 0x59, 0xf8, 0xf7, 0xfe, 0x87, 0x80, 0xfe, 0x31, 0xe4,
 	0x4f, 0x09, 0x04, 0x0b, 0xfe, 0x78, 0x13, 0xfe, 0x20, 0x80, 0x07, 0x1a,
-	0xfe, 0x70, 0x12, 0x49,
-	0x04, 0x06, 0xfe, 0x60, 0x13, 0x05, 0xfe, 0xa2, 0x00, 0x28, 0x16, 0xfe,
-	0x80, 0x05, 0xfe, 0x31,
-	0xe4, 0x6a, 0x49, 0x04, 0x0b, 0xfe, 0x4a, 0x13, 0x05, 0xfe, 0xa0, 0x00,
-	0x28, 0xfe, 0x42, 0x12,
+	0xfe, 0x70, 0x12, 0x49, 0x04, 0x06, 0xfe, 0x60, 0x13, 0x05, 0xfe, 0xa2,
+	0x00, 0x28, 0x16, 0xfe, 0x80, 0x05, 0xfe, 0x31, 0xe4, 0x6a, 0x49, 0x04,
+	0x0b, 0xfe, 0x4a, 0x13, 0x05, 0xfe, 0xa0, 0x00, 0x28, 0xfe, 0x42, 0x12,
 	0x5e, 0x01, 0x08, 0x25, 0x32, 0xf1, 0x01, 0x08, 0x26, 0xfe, 0x98, 0x05,
-	0x11, 0xfe, 0xe3, 0x00,
-	0x23, 0x49, 0xfe, 0x4a, 0xf0, 0xfe, 0x6a, 0x05, 0xfe, 0x49, 0xf0, 0xfe,
-	0x64, 0x05, 0x83, 0x24,
-	0xfe, 0x21, 0x00, 0xa1, 0x24, 0xfe, 0x22, 0x00, 0xa0, 0x24, 0x4c, 0xfe,
-	0x09, 0x48, 0x01, 0x08,
+	0x11, 0xfe, 0xe3, 0x00, 0x23, 0x49, 0xfe, 0x4a, 0xf0, 0xfe, 0x6a, 0x05,
+	0xfe, 0x49, 0xf0, 0xfe, 0x64, 0x05, 0x83, 0x24, 0xfe, 0x21, 0x00, 0xa1,
+	0x24, 0xfe, 0x22, 0x00, 0xa0, 0x24, 0x4c, 0xfe, 0x09, 0x48, 0x01, 0x08,
 	0x26, 0xfe, 0x98, 0x05, 0xfe, 0xe2, 0x08, 0x49, 0x04, 0xc5, 0x3b, 0x01,
-	0x86, 0x24, 0x06, 0x12,
-	0xcc, 0x37, 0xfe, 0x27, 0x01, 0x09, 0x04, 0x1d, 0xfe, 0x22, 0x12, 0x47,
-	0x01, 0xa7, 0x14, 0x92,
-	0x09, 0x04, 0x06, 0x3b, 0x14, 0xc4, 0x01, 0x33, 0x8f, 0xfe, 0x70, 0x0c,
-	0x02, 0x22, 0x05, 0xfe,
+	0x86, 0x24, 0x06, 0x12, 0xcc, 0x37, 0xfe, 0x27, 0x01, 0x09, 0x04, 0x1d,
+	0xfe, 0x22, 0x12, 0x47, 0x01, 0xa7, 0x14, 0x92, 0x09, 0x04, 0x06, 0x3b,
+	0x14, 0xc4, 0x01, 0x33, 0x8f, 0xfe, 0x70, 0x0c, 0x02, 0x22, 0x05, 0xfe,
 	0x9c, 0x00, 0x28, 0xfe, 0x3e, 0x12, 0x05, 0x50, 0x28, 0xfe, 0x36, 0x13,
-	0x47, 0x01, 0xa7, 0x26,
-	0xfe, 0x08, 0x06, 0x0a, 0x06, 0x49, 0x04, 0x19, 0xfe, 0x02, 0x12, 0x5f,
-	0x01, 0xfe, 0xaa, 0x14,
-	0x1f, 0xfe, 0xfe, 0x05, 0x11, 0x9a, 0x01, 0x43, 0x11, 0xfe, 0xe5, 0x00,
-	0x05, 0x50, 0xb4, 0x0c,
+	0x47, 0x01, 0xa7, 0x26, 0xfe, 0x08, 0x06, 0x0a, 0x06, 0x49, 0x04, 0x19,
+	0xfe, 0x02, 0x12, 0x5f, 0x01, 0xfe, 0xaa, 0x14, 0x1f, 0xfe, 0xfe, 0x05,
+	0x11, 0x9a, 0x01, 0x43, 0x11, 0xfe, 0xe5, 0x00, 0x05, 0x50, 0xb4, 0x0c,
 	0x50, 0x05, 0xc6, 0x28, 0xfe, 0x62, 0x12, 0x05, 0x3f, 0x28, 0xfe, 0x5a,
-	0x13, 0x01, 0xfe, 0x14,
-	0x18, 0x01, 0xfe, 0x66, 0x18, 0xfe, 0x43, 0x48, 0xb7, 0x19, 0x13, 0x6c,
-	0xff, 0x02, 0x00, 0x57,
-	0x48, 0x8b, 0x1c, 0x3d, 0x85, 0xb7, 0x69, 0x47, 0x01, 0xa7, 0x26, 0xfe,
-	0x72, 0x06, 0x49, 0x04,
+	0x13, 0x01, 0xfe, 0x14, 0x18, 0x01, 0xfe, 0x66, 0x18, 0xfe, 0x43, 0x48,
+	0xb7, 0x19, 0x13, 0x6c, 0xff, 0x02, 0x00, 0x57, 0x48, 0x8b, 0x1c, 0x3d,
+	0x85, 0xb7, 0x69, 0x47, 0x01, 0xa7, 0x26, 0xfe, 0x72, 0x06, 0x49, 0x04,
 	0x1b, 0xdf, 0x89, 0x0a, 0x4d, 0x01, 0xfe, 0xd8, 0x14, 0x1f, 0xfe, 0x68,
-	0x06, 0x11, 0x9a, 0x01,
-	0x43, 0x11, 0xfe, 0xe5, 0x00, 0x05, 0x3f, 0xb4, 0x0c, 0x3f, 0x17, 0x06,
-	0x01, 0xa7, 0xec, 0x72,
-	0x70, 0x01, 0x6e, 0x87, 0x11, 0xfe, 0xe2, 0x00, 0x01, 0x08, 0x25, 0x32,
-	0xfe, 0x0a, 0xf0, 0xfe,
+	0x06, 0x11, 0x9a, 0x01, 0x43, 0x11, 0xfe, 0xe5, 0x00, 0x05, 0x3f, 0xb4,
+	0x0c, 0x3f, 0x17, 0x06, 0x01, 0xa7, 0xec, 0x72, 0x70, 0x01, 0x6e, 0x87,
+	0x11, 0xfe, 0xe2, 0x00, 0x01, 0x08, 0x25, 0x32, 0xfe, 0x0a, 0xf0, 0xfe,
 	0xa6, 0x06, 0x8c, 0xfe, 0x5c, 0x07, 0xfe, 0x06, 0xf0, 0xfe, 0x64, 0x07,
-	0x8d, 0x81, 0x02, 0x22,
-	0x09, 0x04, 0x0b, 0xfe, 0x2e, 0x12, 0x15, 0x1a, 0x01, 0x08, 0x15, 0x00,
-	0x01, 0x08, 0x15, 0x00,
-	0x01, 0x08, 0x15, 0x00, 0x01, 0x08, 0xfe, 0x99, 0xa4, 0x01, 0x08, 0x15,
-	0x00, 0x02, 0xfe, 0x32,
+	0x8d, 0x81, 0x02, 0x22, 0x09, 0x04, 0x0b, 0xfe, 0x2e, 0x12, 0x15, 0x1a,
+	0x01, 0x08, 0x15, 0x00, 0x01, 0x08, 0x15, 0x00, 0x01, 0x08, 0x15, 0x00,
+	0x01, 0x08, 0xfe, 0x99, 0xa4, 0x01, 0x08, 0x15, 0x00, 0x02, 0xfe, 0x32,
 	0x08, 0x61, 0x04, 0x1b, 0xfe, 0x38, 0x12, 0x09, 0x04, 0x1b, 0x6e, 0x15,
-	0xfe, 0x1b, 0x00, 0x01,
-	0x08, 0x15, 0x00, 0x01, 0x08, 0x15, 0x00, 0x01, 0x08, 0x15, 0x00, 0x01,
-	0x08, 0x15, 0x06, 0x01,
-	0x08, 0x15, 0x00, 0x02, 0xd9, 0x66, 0x4c, 0xfe, 0x3a, 0x55, 0x5f, 0xfe,
-	0x9a, 0x81, 0x4b, 0x1d,
+	0xfe, 0x1b, 0x00, 0x01, 0x08, 0x15, 0x00, 0x01, 0x08, 0x15, 0x00, 0x01,
+	0x08, 0x15, 0x00, 0x01, 0x08, 0x15, 0x06, 0x01, 0x08, 0x15, 0x00, 0x02,
+	0xd9, 0x66, 0x4c, 0xfe, 0x3a, 0x55, 0x5f, 0xfe, 0x9a, 0x81, 0x4b, 0x1d,
 	0xba, 0xfe, 0x32, 0x07, 0x0a, 0x1d, 0xfe, 0x09, 0x6f, 0xaf, 0xfe, 0xca,
-	0x45, 0xfe, 0x32, 0x12,
-	0x62, 0x2c, 0x85, 0x66, 0x7b, 0x01, 0x08, 0x25, 0x32, 0xfe, 0x0a, 0xf0,
-	0xfe, 0x32, 0x07, 0x8d,
-	0x81, 0x8c, 0xfe, 0x5c, 0x07, 0x02, 0x22, 0x01, 0x43, 0x02, 0xfe, 0x8a,
-	0x06, 0x15, 0x19, 0x02,
+	0x45, 0xfe, 0x32, 0x12, 0x62, 0x2c, 0x85, 0x66, 0x7b, 0x01, 0x08, 0x25,
+	0x32, 0xfe, 0x0a, 0xf0, 0xfe, 0x32, 0x07, 0x8d, 0x81, 0x8c, 0xfe, 0x5c,
+	0x07, 0x02, 0x22, 0x01, 0x43, 0x02, 0xfe, 0x8a, 0x06, 0x15, 0x19, 0x02,
 	0xfe, 0x8a, 0x06, 0xfe, 0x9c, 0xf7, 0xd4, 0xfe, 0x2c, 0x90, 0xfe, 0xae,
-	0x90, 0x77, 0xfe, 0xca,
-	0x07, 0x0c, 0x54, 0x18, 0x55, 0x09, 0x4a, 0x6a, 0x35, 0x1e, 0x20, 0x07,
-	0x10, 0xfe, 0x0e, 0x12,
-	0x74, 0xfe, 0x80, 0x80, 0x37, 0x20, 0x63, 0x27, 0xfe, 0x06, 0x10, 0xfe,
-	0x83, 0xe7, 0xc4, 0xa1,
+	0x90, 0x77, 0xfe, 0xca, 0x07, 0x0c, 0x54, 0x18, 0x55, 0x09, 0x4a, 0x6a,
+	0x35, 0x1e, 0x20, 0x07, 0x10, 0xfe, 0x0e, 0x12, 0x74, 0xfe, 0x80, 0x80,
+	0x37, 0x20, 0x63, 0x27, 0xfe, 0x06, 0x10, 0xfe, 0x83, 0xe7, 0xc4, 0xa1,
 	0xfe, 0x03, 0x40, 0x09, 0x4a, 0x4f, 0x35, 0x01, 0xa8, 0xad, 0xfe, 0x1f,
-	0x40, 0x12, 0x58, 0x01,
-	0xa5, 0xfe, 0x08, 0x50, 0xfe, 0x8a, 0x50, 0xfe, 0x44, 0x51, 0xfe, 0xc6,
-	0x51, 0x83, 0xfb, 0xfe,
-	0x8a, 0x90, 0x0c, 0x52, 0x18, 0x53, 0xfe, 0x0c, 0x90, 0xfe, 0x8e, 0x90,
-	0xfe, 0x40, 0x50, 0xfe,
+	0x40, 0x12, 0x58, 0x01, 0xa5, 0xfe, 0x08, 0x50, 0xfe, 0x8a, 0x50, 0xfe,
+	0x44, 0x51, 0xfe, 0xc6, 0x51, 0x83, 0xfb, 0xfe, 0x8a, 0x90, 0x0c, 0x52,
+	0x18, 0x53, 0xfe, 0x0c, 0x90, 0xfe, 0x8e, 0x90, 0xfe, 0x40, 0x50, 0xfe,
 	0xc2, 0x50, 0x0c, 0x39, 0x18, 0x3a, 0xfe, 0x4a, 0x10, 0x09, 0x04, 0x6a,
-	0xfe, 0x2a, 0x12, 0xfe,
-	0x2c, 0x90, 0xfe, 0xae, 0x90, 0x0c, 0x54, 0x18, 0x55, 0x09, 0x04, 0x4f,
-	0x85, 0x01, 0xa8, 0xfe,
-	0x1f, 0x80, 0x12, 0x58, 0xfe, 0x44, 0x90, 0xfe, 0xc6, 0x90, 0x0c, 0x56,
-	0x18, 0x57, 0xfb, 0xfe,
+	0xfe, 0x2a, 0x12, 0xfe, 0x2c, 0x90, 0xfe, 0xae, 0x90, 0x0c, 0x54, 0x18,
+	0x55, 0x09, 0x04, 0x4f, 0x85, 0x01, 0xa8, 0xfe, 0x1f, 0x80, 0x12, 0x58,
+	0xfe, 0x44, 0x90, 0xfe, 0xc6, 0x90, 0x0c, 0x56, 0x18, 0x57, 0xfb, 0xfe,
 	0x8a, 0x90, 0x0c, 0x52, 0x18, 0x53, 0xfe, 0x40, 0x90, 0xfe, 0xc2, 0x90,
-	0x0c, 0x39, 0x18, 0x3a,
-	0x0c, 0x38, 0x18, 0x4e, 0x09, 0x4a, 0x19, 0x35, 0x2a, 0x13, 0xfe, 0x4e,
-	0x11, 0x65, 0xfe, 0x48,
-	0x08, 0xfe, 0x9e, 0xf0, 0xfe, 0x5c, 0x08, 0xb1, 0x16, 0x32, 0x2a, 0x73,
-	0xdd, 0xb8, 0xfe, 0x80,
+	0x0c, 0x39, 0x18, 0x3a, 0x0c, 0x38, 0x18, 0x4e, 0x09, 0x4a, 0x19, 0x35,
+	0x2a, 0x13, 0xfe, 0x4e, 0x11, 0x65, 0xfe, 0x48, 0x08, 0xfe, 0x9e, 0xf0,
+	0xfe, 0x5c, 0x08, 0xb1, 0x16, 0x32, 0x2a, 0x73, 0xdd, 0xb8, 0xfe, 0x80,
 	0x08, 0xb9, 0xfe, 0x9e, 0x08, 0x8c, 0xfe, 0x74, 0x08, 0xfe, 0x06, 0xf0,
-	0xfe, 0x7a, 0x08, 0x8d,
-	0x81, 0x02, 0x22, 0x01, 0x43, 0xfe, 0xc9, 0x10, 0x15, 0x19, 0xfe, 0xc9,
-	0x10, 0x61, 0x04, 0x06,
-	0xfe, 0x10, 0x12, 0x61, 0x04, 0x0b, 0x45, 0x09, 0x04, 0x0b, 0xfe, 0x68,
-	0x12, 0xfe, 0x2e, 0x1c,
+	0xfe, 0x7a, 0x08, 0x8d, 0x81, 0x02, 0x22, 0x01, 0x43, 0xfe, 0xc9, 0x10,
+	0x15, 0x19, 0xfe, 0xc9, 0x10, 0x61, 0x04, 0x06, 0xfe, 0x10, 0x12, 0x61,
+	0x04, 0x0b, 0x45, 0x09, 0x04, 0x0b, 0xfe, 0x68, 0x12, 0xfe, 0x2e, 0x1c,
 	0x02, 0xfe, 0x24, 0x0a, 0x61, 0x04, 0x06, 0x45, 0x61, 0x04, 0x0b, 0xfe,
-	0x52, 0x12, 0xfe, 0x2c,
-	0x1c, 0xfe, 0xaa, 0xf0, 0xfe, 0x1e, 0x09, 0xfe, 0xac, 0xf0, 0xfe, 0xbe,
-	0x08, 0xfe, 0x8a, 0x10,
-	0xaa, 0xfe, 0xf3, 0x10, 0xfe, 0xad, 0xf0, 0xfe, 0xca, 0x08, 0x02, 0xfe,
-	0x24, 0x0a, 0xab, 0xfe,
+	0x52, 0x12, 0xfe, 0x2c, 0x1c, 0xfe, 0xaa, 0xf0, 0xfe, 0x1e, 0x09, 0xfe,
+	0xac, 0xf0, 0xfe, 0xbe, 0x08, 0xfe, 0x8a, 0x10, 0xaa, 0xfe, 0xf3, 0x10,
+	0xfe, 0xad, 0xf0, 0xfe, 0xca, 0x08, 0x02, 0xfe, 0x24, 0x0a, 0xab, 0xfe,
 	0xe7, 0x10, 0xfe, 0x2b, 0xf0, 0x9d, 0xe9, 0x1c, 0xfe, 0x00, 0xfe, 0xfe,
-	0x1c, 0x12, 0xb5, 0xfe,
-	0xd2, 0xf0, 0x9d, 0xfe, 0x76, 0x18, 0x1c, 0x1a, 0x16, 0x9d, 0x05, 0xcb,
-	0x1c, 0x06, 0x16, 0x9d,
-	0xb8, 0x6d, 0xb9, 0x6d, 0xaa, 0xab, 0xfe, 0xb1, 0x10, 0x70, 0x5e, 0x2b,
-	0x14, 0x92, 0x01, 0x33,
+	0x1c, 0x12, 0xb5, 0xfe, 0xd2, 0xf0, 0x9d, 0xfe, 0x76, 0x18, 0x1c, 0x1a,
+	0x16, 0x9d, 0x05, 0xcb, 0x1c, 0x06, 0x16, 0x9d, 0xb8, 0x6d, 0xb9, 0x6d,
+	0xaa, 0xab, 0xfe, 0xb1, 0x10, 0x70, 0x5e, 0x2b, 0x14, 0x92, 0x01, 0x33,
 	0x0f, 0xfe, 0x35, 0x00, 0xfe, 0x01, 0xf0, 0x5a, 0x0f, 0x7c, 0x02, 0x5a,
-	0xfe, 0x74, 0x18, 0x1c,
-	0xfe, 0x00, 0xf8, 0x16, 0x6d, 0x67, 0x1b, 0x01, 0xfe, 0x44, 0x0d, 0x3b,
-	0x01, 0xe6, 0x1e, 0x27,
-	0x74, 0x67, 0x1a, 0x02, 0x6d, 0x09, 0x04, 0x0b, 0x21, 0xfe, 0x06, 0x0a,
-	0x09, 0x04, 0x6a, 0xfe,
+	0xfe, 0x74, 0x18, 0x1c, 0xfe, 0x00, 0xf8, 0x16, 0x6d, 0x67, 0x1b, 0x01,
+	0xfe, 0x44, 0x0d, 0x3b, 0x01, 0xe6, 0x1e, 0x27, 0x74, 0x67, 0x1a, 0x02,
+	0x6d, 0x09, 0x04, 0x0b, 0x21, 0xfe, 0x06, 0x0a, 0x09, 0x04, 0x6a, 0xfe,
 	0x82, 0x12, 0x09, 0x04, 0x19, 0xfe, 0x66, 0x13, 0x1e, 0x58, 0xac, 0xfc,
-	0xfe, 0x83, 0x80, 0xfe,
-	0xc8, 0x44, 0xfe, 0x2e, 0x13, 0xfe, 0x04, 0x91, 0xfe, 0x86, 0x91, 0x63,
-	0x27, 0xfe, 0x40, 0x59,
-	0xfe, 0xc1, 0x59, 0x77, 0xd7, 0x05, 0x54, 0x31, 0x55, 0x0c, 0x7b, 0x18,
-	0x7c, 0xbe, 0x54, 0xbf,
+	0xfe, 0x83, 0x80, 0xfe, 0xc8, 0x44, 0xfe, 0x2e, 0x13, 0xfe, 0x04, 0x91,
+	0xfe, 0x86, 0x91, 0x63, 0x27, 0xfe, 0x40, 0x59, 0xfe, 0xc1, 0x59, 0x77,
+	0xd7, 0x05, 0x54, 0x31, 0x55, 0x0c, 0x7b, 0x18, 0x7c, 0xbe, 0x54, 0xbf,
 	0x55, 0x01, 0xa8, 0xad, 0x63, 0x27, 0x12, 0x58, 0xc0, 0x38, 0xc1, 0x4e,
-	0x79, 0x56, 0x68, 0x57,
-	0xf4, 0xf5, 0xfe, 0x04, 0xfa, 0x38, 0xfe, 0x05, 0xfa, 0x4e, 0x01, 0xa5,
-	0xa2, 0x23, 0x0c, 0x7b,
-	0x0c, 0x7c, 0x79, 0x56, 0x68, 0x57, 0xfe, 0x12, 0x10, 0x09, 0x04, 0x19,
-	0x16, 0xd7, 0x79, 0x39,
+	0x79, 0x56, 0x68, 0x57, 0xf4, 0xf5, 0xfe, 0x04, 0xfa, 0x38, 0xfe, 0x05,
+	0xfa, 0x4e, 0x01, 0xa5, 0xa2, 0x23, 0x0c, 0x7b, 0x0c, 0x7c, 0x79, 0x56,
+	0x68, 0x57, 0xfe, 0x12, 0x10, 0x09, 0x04, 0x19, 0x16, 0xd7, 0x79, 0x39,
 	0x68, 0x3a, 0x09, 0x04, 0xfe, 0xf7, 0x00, 0x35, 0x05, 0x52, 0x31, 0x53,
-	0xfe, 0x10, 0x58, 0xfe,
-	0x91, 0x58, 0xfe, 0x14, 0x59, 0xfe, 0x95, 0x59, 0x02, 0x6d, 0x09, 0x04,
-	0x19, 0x16, 0xd7, 0x09,
-	0x04, 0xfe, 0xf7, 0x00, 0x35, 0xfe, 0x3a, 0x55, 0xfe, 0x19, 0x81, 0x5f,
-	0xfe, 0x10, 0x90, 0xfe,
+	0xfe, 0x10, 0x58, 0xfe, 0x91, 0x58, 0xfe, 0x14, 0x59, 0xfe, 0x95, 0x59,
+	0x02, 0x6d, 0x09, 0x04, 0x19, 0x16, 0xd7, 0x09, 0x04, 0xfe, 0xf7, 0x00,
+	0x35, 0xfe, 0x3a, 0x55, 0xfe, 0x19, 0x81, 0x5f, 0xfe, 0x10, 0x90, 0xfe,
 	0x92, 0x90, 0xfe, 0xd7, 0x10, 0x2f, 0x07, 0x9b, 0x16, 0xfe, 0xc6, 0x08,
-	0x11, 0x9b, 0x09, 0x04,
-	0x0b, 0xfe, 0x14, 0x13, 0x05, 0x39, 0x31, 0x3a, 0x77, 0xfe, 0xc6, 0x08,
-	0xfe, 0x0c, 0x58, 0xfe,
-	0x8d, 0x58, 0x02, 0x6d, 0x23, 0x47, 0xfe, 0x19, 0x80, 0xde, 0x09, 0x04,
-	0x0b, 0xfe, 0x1a, 0x12,
+	0x11, 0x9b, 0x09, 0x04, 0x0b, 0xfe, 0x14, 0x13, 0x05, 0x39, 0x31, 0x3a,
+	0x77, 0xfe, 0xc6, 0x08, 0xfe, 0x0c, 0x58, 0xfe, 0x8d, 0x58, 0x02, 0x6d,
+	0x23, 0x47, 0xfe, 0x19, 0x80, 0xde, 0x09, 0x04, 0x0b, 0xfe, 0x1a, 0x12,
 	0xfe, 0x6c, 0x19, 0xfe, 0x19, 0x41, 0xe9, 0xb5, 0xfe, 0xd1, 0xf0, 0xd9,
-	0x14, 0x7a, 0x01, 0x33,
-	0x0f, 0xfe, 0x44, 0x00, 0xfe, 0x8e, 0x10, 0xfe, 0x6c, 0x19, 0xbe, 0x39,
-	0xfe, 0xed, 0x19, 0xbf,
-	0x3a, 0xfe, 0x0c, 0x51, 0xfe, 0x8e, 0x51, 0xe9, 0x1c, 0xfe, 0x00, 0xff,
-	0x34, 0xfe, 0x74, 0x10,
+	0x14, 0x7a, 0x01, 0x33, 0x0f, 0xfe, 0x44, 0x00, 0xfe, 0x8e, 0x10, 0xfe,
+	0x6c, 0x19, 0xbe, 0x39, 0xfe, 0xed, 0x19, 0xbf, 0x3a, 0xfe, 0x0c, 0x51,
+	0xfe, 0x8e, 0x51, 0xe9, 0x1c, 0xfe, 0x00, 0xff, 0x34, 0xfe, 0x74, 0x10,
 	0xb5, 0xfe, 0xd2, 0xf0, 0xfe, 0xb2, 0x0a, 0xfe, 0x76, 0x18, 0x1c, 0x1a,
-	0x84, 0x05, 0xcb, 0x1c,
-	0x06, 0xfe, 0x08, 0x13, 0x0f, 0xfe, 0x16, 0x00, 0x02, 0x5a, 0xfe, 0xd1,
-	0xf0, 0xfe, 0xc4, 0x0a,
-	0x14, 0x7a, 0x01, 0x33, 0x0f, 0xfe, 0x17, 0x00, 0xfe, 0x42, 0x10, 0xfe,
-	0xce, 0xf0, 0xfe, 0xca,
+	0x84, 0x05, 0xcb, 0x1c, 0x06, 0xfe, 0x08, 0x13, 0x0f, 0xfe, 0x16, 0x00,
+	0x02, 0x5a, 0xfe, 0xd1, 0xf0, 0xfe, 0xc4, 0x0a, 0x14, 0x7a, 0x01, 0x33,
+	0x0f, 0xfe, 0x17, 0x00, 0xfe, 0x42, 0x10, 0xfe, 0xce, 0xf0, 0xfe, 0xca,
 	0x0a, 0xfe, 0x3c, 0x10, 0xfe, 0xcd, 0xf0, 0xfe, 0xd6, 0x0a, 0x0f, 0xfe,
-	0x22, 0x00, 0x02, 0x5a,
-	0xfe, 0xcb, 0xf0, 0xfe, 0xe2, 0x0a, 0x0f, 0xfe, 0x24, 0x00, 0x02, 0x5a,
-	0xfe, 0xd0, 0xf0, 0xfe,
-	0xec, 0x0a, 0x0f, 0x93, 0xdc, 0xfe, 0xcf, 0xf0, 0xfe, 0xf6, 0x0a, 0x0f,
-	0x4c, 0xfe, 0x10, 0x10,
+	0x22, 0x00, 0x02, 0x5a, 0xfe, 0xcb, 0xf0, 0xfe, 0xe2, 0x0a, 0x0f, 0xfe,
+	0x24, 0x00, 0x02, 0x5a, 0xfe, 0xd0, 0xf0, 0xfe, 0xec, 0x0a, 0x0f, 0x93,
+	0xdc, 0xfe, 0xcf, 0xf0, 0xfe, 0xf6, 0x0a, 0x0f, 0x4c, 0xfe, 0x10, 0x10,
 	0xfe, 0xcc, 0xf0, 0xd9, 0x61, 0x04, 0x19, 0x3b, 0x0f, 0xfe, 0x12, 0x00,
-	0x2a, 0x13, 0xfe, 0x4e,
-	0x11, 0x65, 0xfe, 0x0c, 0x0b, 0xfe, 0x9e, 0xf0, 0xfe, 0x20, 0x0b, 0xb1,
-	0x16, 0x32, 0x2a, 0x73,
-	0xdd, 0xb8, 0x22, 0xb9, 0x22, 0x2a, 0xec, 0x65, 0xfe, 0x2c, 0x0b, 0x25,
-	0x32, 0x8c, 0xfe, 0x48,
+	0x2a, 0x13, 0xfe, 0x4e, 0x11, 0x65, 0xfe, 0x0c, 0x0b, 0xfe, 0x9e, 0xf0,
+	0xfe, 0x20, 0x0b, 0xb1, 0x16, 0x32, 0x2a, 0x73, 0xdd, 0xb8, 0x22, 0xb9,
+	0x22, 0x2a, 0xec, 0x65, 0xfe, 0x2c, 0x0b, 0x25, 0x32, 0x8c, 0xfe, 0x48,
 	0x0b, 0x8d, 0x81, 0xb8, 0xd4, 0xb9, 0xd4, 0x02, 0x22, 0x01, 0x43, 0xfe,
-	0xdb, 0x10, 0x11, 0xfe,
-	0xe8, 0x00, 0xaa, 0xab, 0x70, 0xbc, 0x7d, 0xbd, 0x7f, 0xfe, 0x89, 0xf0,
-	0x22, 0x30, 0x2e, 0xd8,
-	0xbc, 0x7d, 0xbd, 0x7f, 0x01, 0x08, 0x1f, 0x22, 0x30, 0x2e, 0xd6, 0xb1,
-	0x45, 0x0f, 0xfe, 0x42,
+	0xdb, 0x10, 0x11, 0xfe, 0xe8, 0x00, 0xaa, 0xab, 0x70, 0xbc, 0x7d, 0xbd,
+	0x7f, 0xfe, 0x89, 0xf0, 0x22, 0x30, 0x2e, 0xd8, 0xbc, 0x7d, 0xbd, 0x7f,
+	0x01, 0x08, 0x1f, 0x22, 0x30, 0x2e, 0xd6, 0xb1, 0x45, 0x0f, 0xfe, 0x42,
 	0x00, 0x02, 0x5a, 0x78, 0x06, 0xfe, 0x81, 0x49, 0x16, 0xfe, 0x38, 0x0c,
-	0x09, 0x04, 0x0b, 0xfe,
-	0x44, 0x13, 0x0f, 0x00, 0x4b, 0x0b, 0xfe, 0x54, 0x12, 0x4b, 0xfe, 0x28,
-	0x00, 0x21, 0xfe, 0xa6,
-	0x0c, 0x0a, 0x40, 0x01, 0x0e, 0x07, 0x00, 0x5d, 0x3e, 0xfe, 0x28, 0x00,
-	0xfe, 0xe2, 0x10, 0x01,
+	0x09, 0x04, 0x0b, 0xfe, 0x44, 0x13, 0x0f, 0x00, 0x4b, 0x0b, 0xfe, 0x54,
+	0x12, 0x4b, 0xfe, 0x28, 0x00, 0x21, 0xfe, 0xa6, 0x0c, 0x0a, 0x40, 0x01,
+	0x0e, 0x07, 0x00, 0x5d, 0x3e, 0xfe, 0x28, 0x00, 0xfe, 0xe2, 0x10, 0x01,
 	0xe7, 0x01, 0xe8, 0x0a, 0x99, 0x01, 0xfe, 0x32, 0x0e, 0x59, 0x11, 0x2d,
-	0x01, 0x6f, 0x02, 0x29,
-	0x0f, 0xfe, 0x44, 0x00, 0x4b, 0x0b, 0xdf, 0x3e, 0x0b, 0xfe, 0xb4, 0x10,
-	0x01, 0x86, 0x3e, 0x0b,
-	0xfe, 0xaa, 0x10, 0x01, 0x86, 0xfe, 0x19, 0x82, 0xfe, 0x34, 0x46, 0xa3,
-	0x3e, 0x0b, 0x0f, 0xfe,
+	0x01, 0x6f, 0x02, 0x29, 0x0f, 0xfe, 0x44, 0x00, 0x4b, 0x0b, 0xdf, 0x3e,
+	0x0b, 0xfe, 0xb4, 0x10, 0x01, 0x86, 0x3e, 0x0b, 0xfe, 0xaa, 0x10, 0x01,
+	0x86, 0xfe, 0x19, 0x82, 0xfe, 0x34, 0x46, 0xa3, 0x3e, 0x0b, 0x0f, 0xfe,
 	0x43, 0x00, 0xfe, 0x96, 0x10, 0x09, 0x4a, 0x0b, 0x35, 0x01, 0xe7, 0x01,
-	0xe8, 0x59, 0x11, 0x2d,
-	0x01, 0x6f, 0x67, 0x0b, 0x59, 0x3c, 0x8a, 0x02, 0xfe, 0x2a, 0x03, 0x09,
-	0x04, 0x0b, 0x84, 0x3e,
-	0x0b, 0x0f, 0x00, 0xfe, 0x5c, 0x10, 0x61, 0x04, 0x1b, 0xfe, 0x58, 0x12,
-	0x09, 0x04, 0x1b, 0xfe,
+	0xe8, 0x59, 0x11, 0x2d, 0x01, 0x6f, 0x67, 0x0b, 0x59, 0x3c, 0x8a, 0x02,
+	0xfe, 0x2a, 0x03, 0x09, 0x04, 0x0b, 0x84, 0x3e, 0x0b, 0x0f, 0x00, 0xfe,
+	0x5c, 0x10, 0x61, 0x04, 0x1b, 0xfe, 0x58, 0x12, 0x09, 0x04, 0x1b, 0xfe,
 	0x50, 0x13, 0xfe, 0x1c, 0x1c, 0xfe, 0x9d, 0xf0, 0xfe, 0x5c, 0x0c, 0xfe,
-	0x1c, 0x1c, 0xfe, 0x9d,
-	0xf0, 0xfe, 0x62, 0x0c, 0x09, 0x4a, 0x1b, 0x35, 0xfe, 0xa9, 0x10, 0x0f,
-	0xfe, 0x15, 0x00, 0xfe,
-	0x04, 0xe6, 0x0b, 0x5f, 0x5c, 0x0f, 0xfe, 0x13, 0x00, 0xfe, 0x10, 0x10,
-	0x0f, 0xfe, 0x47, 0x00,
+	0x1c, 0x1c, 0xfe, 0x9d, 0xf0, 0xfe, 0x62, 0x0c, 0x09, 0x4a, 0x1b, 0x35,
+	0xfe, 0xa9, 0x10, 0x0f, 0xfe, 0x15, 0x00, 0xfe, 0x04, 0xe6, 0x0b, 0x5f,
+	0x5c, 0x0f, 0xfe, 0x13, 0x00, 0xfe, 0x10, 0x10, 0x0f, 0xfe, 0x47, 0x00,
 	0xa1, 0x0f, 0xfe, 0x41, 0x00, 0xa0, 0x0f, 0xfe, 0x24, 0x00, 0x87, 0xaa,
-	0xab, 0x70, 0x05, 0x6b,
-	0x28, 0x21, 0xd1, 0x5f, 0xfe, 0x04, 0xe6, 0x1b, 0xfe, 0x9d, 0x41, 0xfe,
-	0x1c, 0x42, 0x59, 0x01,
-	0xda, 0x02, 0x29, 0xea, 0x14, 0x0b, 0x37, 0x95, 0xa9, 0x14, 0xfe, 0x31,
-	0x00, 0x37, 0x97, 0x01,
+	0xab, 0x70, 0x05, 0x6b, 0x28, 0x21, 0xd1, 0x5f, 0xfe, 0x04, 0xe6, 0x1b,
+	0xfe, 0x9d, 0x41, 0xfe, 0x1c, 0x42, 0x59, 0x01, 0xda, 0x02, 0x29, 0xea,
+	0x14, 0x0b, 0x37, 0x95, 0xa9, 0x14, 0xfe, 0x31, 0x00, 0x37, 0x97, 0x01,
 	0xfe, 0x54, 0x0f, 0x02, 0xd0, 0x3c, 0xfe, 0x06, 0xec, 0xc9, 0xee, 0x3e,
-	0x1d, 0xfe, 0xce, 0x45,
-	0x34, 0x3c, 0xfe, 0x06, 0xea, 0xc9, 0xfe, 0x47, 0x4b, 0x89, 0xfe, 0x75,
-	0x57, 0x05, 0x51, 0xfe,
-	0x98, 0x56, 0xfe, 0x38, 0x12, 0x0a, 0x42, 0x01, 0x0e, 0xfe, 0x44, 0x48,
-	0x46, 0x09, 0x04, 0x1d,
+	0x1d, 0xfe, 0xce, 0x45, 0x34, 0x3c, 0xfe, 0x06, 0xea, 0xc9, 0xfe, 0x47,
+	0x4b, 0x89, 0xfe, 0x75, 0x57, 0x05, 0x51, 0xfe, 0x98, 0x56, 0xfe, 0x38,
+	0x12, 0x0a, 0x42, 0x01, 0x0e, 0xfe, 0x44, 0x48, 0x46, 0x09, 0x04, 0x1d,
 	0xfe, 0x1a, 0x13, 0x0a, 0x40, 0x01, 0x0e, 0x47, 0xfe, 0x41, 0x58, 0x0a,
-	0x99, 0x01, 0x0e, 0xfe,
-	0x49, 0x54, 0x8e, 0xfe, 0x2a, 0x0d, 0x02, 0xfe, 0x2a, 0x03, 0x0a, 0x51,
-	0xfe, 0xee, 0x14, 0xee,
-	0x3e, 0x1d, 0xfe, 0xce, 0x45, 0x34, 0x3c, 0xfe, 0xce, 0x47, 0xfe, 0xad,
-	0x13, 0x02, 0x29, 0x1e,
+	0x99, 0x01, 0x0e, 0xfe, 0x49, 0x54, 0x8e, 0xfe, 0x2a, 0x0d, 0x02, 0xfe,
+	0x2a, 0x03, 0x0a, 0x51, 0xfe, 0xee, 0x14, 0xee, 0x3e, 0x1d, 0xfe, 0xce,
+	0x45, 0x34, 0x3c, 0xfe, 0xce, 0x47, 0xfe, 0xad, 0x13, 0x02, 0x29, 0x1e,
 	0x20, 0x07, 0x10, 0xfe, 0x9e, 0x12, 0x23, 0x12, 0x4d, 0x12, 0x94, 0x12,
-	0xce, 0x1e, 0x2d, 0x47,
-	0x37, 0x2d, 0xb1, 0xe0, 0xfe, 0xbc, 0xf0, 0xfe, 0xec, 0x0d, 0x13, 0x06,
-	0x12, 0x4d, 0x01, 0xfe,
-	0xe2, 0x15, 0x05, 0xfe, 0x38, 0x01, 0x31, 0xfe, 0x3a, 0x01, 0x77, 0xfe,
-	0xf0, 0x0d, 0xfe, 0x02,
+	0xce, 0x1e, 0x2d, 0x47, 0x37, 0x2d, 0xb1, 0xe0, 0xfe, 0xbc, 0xf0, 0xfe,
+	0xec, 0x0d, 0x13, 0x06, 0x12, 0x4d, 0x01, 0xfe, 0xe2, 0x15, 0x05, 0xfe,
+	0x38, 0x01, 0x31, 0xfe, 0x3a, 0x01, 0x77, 0xfe, 0xf0, 0x0d, 0xfe, 0x02,
 	0xec, 0xce, 0x62, 0x00, 0x5d, 0xfe, 0x04, 0xec, 0x20, 0x46, 0xfe, 0x05,
-	0xf6, 0xfe, 0x34, 0x01,
-	0x01, 0xfe, 0x52, 0x16, 0xfb, 0xfe, 0x48, 0xf4, 0x0d, 0xfe, 0x18, 0x13,
-	0xaf, 0xfe, 0x02, 0xea,
-	0xce, 0x62, 0x7a, 0xfe, 0xc5, 0x13, 0x14, 0x1b, 0x37, 0x95, 0xa9, 0x5c,
-	0x05, 0xfe, 0x38, 0x01,
+	0xf6, 0xfe, 0x34, 0x01, 0x01, 0xfe, 0x52, 0x16, 0xfb, 0xfe, 0x48, 0xf4,
+	0x0d, 0xfe, 0x18, 0x13, 0xaf, 0xfe, 0x02, 0xea, 0xce, 0x62, 0x7a, 0xfe,
+	0xc5, 0x13, 0x14, 0x1b, 0x37, 0x95, 0xa9, 0x5c, 0x05, 0xfe, 0x38, 0x01,
 	0x1c, 0xfe, 0xf0, 0xff, 0x0c, 0xfe, 0x60, 0x01, 0x05, 0xfe, 0x3a, 0x01,
-	0x0c, 0xfe, 0x62, 0x01,
-	0x3d, 0x12, 0x20, 0x24, 0x06, 0x12, 0x2d, 0x11, 0x2d, 0x8a, 0x13, 0x06,
-	0x03, 0x23, 0x03, 0x1e,
-	0x4d, 0xfe, 0xf7, 0x12, 0x1e, 0x94, 0xac, 0x12, 0x94, 0x07, 0x7a, 0xfe,
-	0x71, 0x13, 0xfe, 0x24,
+	0x0c, 0xfe, 0x62, 0x01, 0x3d, 0x12, 0x20, 0x24, 0x06, 0x12, 0x2d, 0x11,
+	0x2d, 0x8a, 0x13, 0x06, 0x03, 0x23, 0x03, 0x1e, 0x4d, 0xfe, 0xf7, 0x12,
+	0x1e, 0x94, 0xac, 0x12, 0x94, 0x07, 0x7a, 0xfe, 0x71, 0x13, 0xfe, 0x24,
 	0x1c, 0x14, 0x1a, 0x37, 0x95, 0xa9, 0xfe, 0xd9, 0x10, 0xb6, 0xfe, 0x03,
-	0xdc, 0xfe, 0x73, 0x57,
-	0xfe, 0x80, 0x5d, 0x03, 0xb6, 0xfe, 0x03, 0xdc, 0xfe, 0x5b, 0x57, 0xfe,
-	0x80, 0x5d, 0x03, 0xfe,
-	0x03, 0x57, 0xb6, 0x23, 0xfe, 0x00, 0xcc, 0x03, 0xfe, 0x03, 0x57, 0xb6,
-	0x75, 0x03, 0x09, 0x04,
+	0xdc, 0xfe, 0x73, 0x57, 0xfe, 0x80, 0x5d, 0x03, 0xb6, 0xfe, 0x03, 0xdc,
+	0xfe, 0x5b, 0x57, 0xfe, 0x80, 0x5d, 0x03, 0xfe, 0x03, 0x57, 0xb6, 0x23,
+	0xfe, 0x00, 0xcc, 0x03, 0xfe, 0x03, 0x57, 0xb6, 0x75, 0x03, 0x09, 0x04,
 	0x4c, 0xfe, 0x22, 0x13, 0xfe, 0x1c, 0x80, 0x07, 0x06, 0xfe, 0x1a, 0x13,
-	0xfe, 0x1e, 0x80, 0xe1,
-	0xfe, 0x1d, 0x80, 0xa4, 0xfe, 0x0c, 0x90, 0xfe, 0x0e, 0x13, 0xfe, 0x0e,
-	0x90, 0xa3, 0xfe, 0x3c,
-	0x90, 0xfe, 0x30, 0xf4, 0x0b, 0xfe, 0x3c, 0x50, 0xa0, 0x01, 0xfe, 0x82,
-	0x16, 0x2f, 0x07, 0x2d,
+	0xfe, 0x1e, 0x80, 0xe1, 0xfe, 0x1d, 0x80, 0xa4, 0xfe, 0x0c, 0x90, 0xfe,
+	0x0e, 0x13, 0xfe, 0x0e, 0x90, 0xa3, 0xfe, 0x3c, 0x90, 0xfe, 0x30, 0xf4,
+	0x0b, 0xfe, 0x3c, 0x50, 0xa0, 0x01, 0xfe, 0x82, 0x16, 0x2f, 0x07, 0x2d,
 	0xe0, 0x01, 0xfe, 0xbc, 0x15, 0x09, 0x04, 0x1d, 0x45, 0x01, 0xe7, 0x01,
-	0xe8, 0x11, 0xfe, 0xe9,
-	0x00, 0x09, 0x04, 0x4c, 0xfe, 0x2c, 0x13, 0x01, 0xfe, 0x14, 0x16, 0xfe,
-	0x1e, 0x1c, 0xfe, 0x14,
-	0x90, 0xfe, 0x96, 0x90, 0x0c, 0xfe, 0x64, 0x01, 0x18, 0xfe, 0x66, 0x01,
-	0x09, 0x04, 0x4f, 0xfe,
+	0xe8, 0x11, 0xfe, 0xe9, 0x00, 0x09, 0x04, 0x4c, 0xfe, 0x2c, 0x13, 0x01,
+	0xfe, 0x14, 0x16, 0xfe, 0x1e, 0x1c, 0xfe, 0x14, 0x90, 0xfe, 0x96, 0x90,
+	0x0c, 0xfe, 0x64, 0x01, 0x18, 0xfe, 0x66, 0x01, 0x09, 0x04, 0x4f, 0xfe,
 	0x12, 0x12, 0xfe, 0x03, 0x80, 0x74, 0xfe, 0x01, 0xec, 0x20, 0xfe, 0x80,
-	0x40, 0x12, 0x20, 0x63,
-	0x27, 0x11, 0xc8, 0x59, 0x1e, 0x20, 0xed, 0x76, 0x20, 0x03, 0xfe, 0x08,
-	0x1c, 0x05, 0xfe, 0xac,
-	0x00, 0xfe, 0x06, 0x58, 0x05, 0xfe, 0xae, 0x00, 0xfe, 0x07, 0x58, 0x05,
-	0xfe, 0xb0, 0x00, 0xfe,
+	0x40, 0x12, 0x20, 0x63, 0x27, 0x11, 0xc8, 0x59, 0x1e, 0x20, 0xed, 0x76,
+	0x20, 0x03, 0xfe, 0x08, 0x1c, 0x05, 0xfe, 0xac, 0x00, 0xfe, 0x06, 0x58,
+	0x05, 0xfe, 0xae, 0x00, 0xfe, 0x07, 0x58, 0x05, 0xfe, 0xb0, 0x00, 0xfe,
 	0x08, 0x58, 0x05, 0xfe, 0xb2, 0x00, 0xfe, 0x09, 0x58, 0xfe, 0x0a, 0x1c,
-	0x24, 0x69, 0x12, 0xc9,
-	0x23, 0x0c, 0x50, 0x0c, 0x3f, 0x13, 0x40, 0x48, 0x5f, 0x17, 0x1d, 0xfe,
-	0x90, 0x4d, 0xfe, 0x91,
-	0x54, 0x21, 0xfe, 0x08, 0x0f, 0x3e, 0x10, 0x13, 0x42, 0x48, 0x17, 0x4c,
-	0xfe, 0x90, 0x4d, 0xfe,
+	0x24, 0x69, 0x12, 0xc9, 0x23, 0x0c, 0x50, 0x0c, 0x3f, 0x13, 0x40, 0x48,
+	0x5f, 0x17, 0x1d, 0xfe, 0x90, 0x4d, 0xfe, 0x91, 0x54, 0x21, 0xfe, 0x08,
+	0x0f, 0x3e, 0x10, 0x13, 0x42, 0x48, 0x17, 0x4c, 0xfe, 0x90, 0x4d, 0xfe,
 	0x91, 0x54, 0x21, 0xfe, 0x1e, 0x0f, 0x24, 0x10, 0x12, 0x20, 0x78, 0x2c,
-	0x46, 0x1e, 0x20, 0xed,
-	0x76, 0x20, 0x11, 0xc8, 0xf6, 0xfe, 0xd6, 0xf0, 0xfe, 0x32, 0x0f, 0xea,
-	0x70, 0xfe, 0x14, 0x1c,
-	0xfe, 0x10, 0x1c, 0xfe, 0x18, 0x1c, 0x03, 0x3c, 0xfe, 0x0c, 0x14, 0xee,
-	0xfe, 0x07, 0xe6, 0x1d,
+	0x46, 0x1e, 0x20, 0xed, 0x76, 0x20, 0x11, 0xc8, 0xf6, 0xfe, 0xd6, 0xf0,
+	0xfe, 0x32, 0x0f, 0xea, 0x70, 0xfe, 0x14, 0x1c, 0xfe, 0x10, 0x1c, 0xfe,
+	0x18, 0x1c, 0x03, 0x3c, 0xfe, 0x0c, 0x14, 0xee, 0xfe, 0x07, 0xe6, 0x1d,
 	0xfe, 0xce, 0x47, 0xfe, 0xf5, 0x13, 0x03, 0x01, 0x86, 0x78, 0x2c, 0x46,
-	0xfa, 0xef, 0xfe, 0x42,
-	0x13, 0x2f, 0x07, 0x2d, 0xfe, 0x34, 0x13, 0x0a, 0x42, 0x01, 0x0e, 0xb0,
-	0xfe, 0x36, 0x12, 0xf0,
-	0xfe, 0x45, 0x48, 0x01, 0xe3, 0xfe, 0x00, 0xcc, 0xb0, 0xfe, 0xf3, 0x13,
-	0x3d, 0x75, 0x07, 0x10,
+	0xfa, 0xef, 0xfe, 0x42, 0x13, 0x2f, 0x07, 0x2d, 0xfe, 0x34, 0x13, 0x0a,
+	0x42, 0x01, 0x0e, 0xb0, 0xfe, 0x36, 0x12, 0xf0, 0xfe, 0x45, 0x48, 0x01,
+	0xe3, 0xfe, 0x00, 0xcc, 0xb0, 0xfe, 0xf3, 0x13, 0x3d, 0x75, 0x07, 0x10,
 	0xa3, 0x0a, 0x80, 0x01, 0x0e, 0xfe, 0x80, 0x5c, 0x01, 0x6f, 0xfe, 0x0e,
-	0x10, 0x07, 0x7e, 0x45,
-	0xf6, 0xfe, 0xd6, 0xf0, 0xfe, 0x6c, 0x0f, 0x03, 0xfe, 0x44, 0x58, 0x74,
-	0xfe, 0x01, 0xec, 0x97,
-	0xfe, 0x9e, 0x40, 0xfe, 0x9d, 0xe7, 0x00, 0xfe, 0x9c, 0xe7, 0x1b, 0x76,
-	0x27, 0x01, 0xda, 0xfe,
+	0x10, 0x07, 0x7e, 0x45, 0xf6, 0xfe, 0xd6, 0xf0, 0xfe, 0x6c, 0x0f, 0x03,
+	0xfe, 0x44, 0x58, 0x74, 0xfe, 0x01, 0xec, 0x97, 0xfe, 0x9e, 0x40, 0xfe,
+	0x9d, 0xe7, 0x00, 0xfe, 0x9c, 0xe7, 0x1b, 0x76, 0x27, 0x01, 0xda, 0xfe,
 	0xdd, 0x10, 0x2a, 0xbc, 0x7d, 0xbd, 0x7f, 0x30, 0x2e, 0xd5, 0x07, 0x1b,
-	0xfe, 0x48, 0x12, 0x07,
-	0x0b, 0xfe, 0x56, 0x12, 0x07, 0x1a, 0xfe, 0x30, 0x12, 0x07, 0xc2, 0x16,
-	0xfe, 0x3e, 0x11, 0x07,
-	0xfe, 0x23, 0x00, 0x16, 0xfe, 0x4a, 0x11, 0x07, 0x06, 0x16, 0xfe, 0xa8,
-	0x11, 0x07, 0x19, 0xfe,
+	0xfe, 0x48, 0x12, 0x07, 0x0b, 0xfe, 0x56, 0x12, 0x07, 0x1a, 0xfe, 0x30,
+	0x12, 0x07, 0xc2, 0x16, 0xfe, 0x3e, 0x11, 0x07, 0xfe, 0x23, 0x00, 0x16,
+	0xfe, 0x4a, 0x11, 0x07, 0x06, 0x16, 0xfe, 0xa8, 0x11, 0x07, 0x19, 0xfe,
 	0x12, 0x12, 0x07, 0x00, 0x16, 0x22, 0x14, 0xc2, 0x01, 0x33, 0x9f, 0x2b,
-	0x01, 0x08, 0x8c, 0x43,
-	0x03, 0x2b, 0xfe, 0x62, 0x08, 0x0a, 0xca, 0x01, 0xfe, 0x32, 0x0e, 0x11,
-	0x7e, 0x02, 0x29, 0x2b,
-	0x2f, 0x07, 0x9b, 0xfe, 0xd9, 0x13, 0x79, 0x39, 0x68, 0x3a, 0x77, 0xfe,
-	0xfc, 0x10, 0x09, 0x04,
+	0x01, 0x08, 0x8c, 0x43, 0x03, 0x2b, 0xfe, 0x62, 0x08, 0x0a, 0xca, 0x01,
+	0xfe, 0x32, 0x0e, 0x11, 0x7e, 0x02, 0x29, 0x2b, 0x2f, 0x07, 0x9b, 0xfe,
+	0xd9, 0x13, 0x79, 0x39, 0x68, 0x3a, 0x77, 0xfe, 0xfc, 0x10, 0x09, 0x04,
 	0x6a, 0xfe, 0x72, 0x12, 0xc0, 0x38, 0xc1, 0x4e, 0xf4, 0xf5, 0x8e, 0xfe,
-	0xc6, 0x10, 0x1e, 0x58,
-	0xfe, 0x26, 0x13, 0x05, 0x7b, 0x31, 0x7c, 0x77, 0xfe, 0x82, 0x0c, 0x0c,
-	0x54, 0x18, 0x55, 0x23,
-	0x0c, 0x7b, 0x0c, 0x7c, 0x01, 0xa8, 0x24, 0x69, 0x73, 0x12, 0x58, 0x01,
-	0xa5, 0xc0, 0x38, 0xc1,
+	0xc6, 0x10, 0x1e, 0x58, 0xfe, 0x26, 0x13, 0x05, 0x7b, 0x31, 0x7c, 0x77,
+	0xfe, 0x82, 0x0c, 0x0c, 0x54, 0x18, 0x55, 0x23, 0x0c, 0x7b, 0x0c, 0x7c,
+	0x01, 0xa8, 0x24, 0x69, 0x73, 0x12, 0x58, 0x01, 0xa5, 0xc0, 0x38, 0xc1,
 	0x4e, 0xfe, 0x04, 0x55, 0xfe, 0xa5, 0x55, 0xfe, 0x04, 0xfa, 0x38, 0xfe,
-	0x05, 0xfa, 0x4e, 0xfe,
-	0x91, 0x10, 0x05, 0x56, 0x31, 0x57, 0xfe, 0x40, 0x56, 0xfe, 0xe1, 0x56,
-	0x0c, 0x56, 0x18, 0x57,
-	0x83, 0xc0, 0x38, 0xc1, 0x4e, 0xf4, 0xf5, 0x05, 0x52, 0x31, 0x53, 0xfe,
-	0x00, 0x56, 0xfe, 0xa1,
+	0x05, 0xfa, 0x4e, 0xfe, 0x91, 0x10, 0x05, 0x56, 0x31, 0x57, 0xfe, 0x40,
+	0x56, 0xfe, 0xe1, 0x56, 0x0c, 0x56, 0x18, 0x57, 0x83, 0xc0, 0x38, 0xc1,
+	0x4e, 0xf4, 0xf5, 0x05, 0x52, 0x31, 0x53, 0xfe, 0x00, 0x56, 0xfe, 0xa1,
 	0x56, 0x0c, 0x52, 0x18, 0x53, 0x09, 0x04, 0x6a, 0xfe, 0x1e, 0x12, 0x1e,
-	0x58, 0xfe, 0x1f, 0x40,
-	0x05, 0x54, 0x31, 0x55, 0xfe, 0x2c, 0x50, 0xfe, 0xae, 0x50, 0x05, 0x56,
-	0x31, 0x57, 0xfe, 0x44,
-	0x50, 0xfe, 0xc6, 0x50, 0x05, 0x52, 0x31, 0x53, 0xfe, 0x08, 0x50, 0xfe,
-	0x8a, 0x50, 0x05, 0x39,
+	0x58, 0xfe, 0x1f, 0x40, 0x05, 0x54, 0x31, 0x55, 0xfe, 0x2c, 0x50, 0xfe,
+	0xae, 0x50, 0x05, 0x56, 0x31, 0x57, 0xfe, 0x44, 0x50, 0xfe, 0xc6, 0x50,
+	0x05, 0x52, 0x31, 0x53, 0xfe, 0x08, 0x50, 0xfe, 0x8a, 0x50, 0x05, 0x39,
 	0x31, 0x3a, 0xfe, 0x40, 0x50, 0xfe, 0xc2, 0x50, 0x02, 0x5c, 0x24, 0x06,
-	0x12, 0xcd, 0x02, 0x5b,
-	0x2b, 0x01, 0x08, 0x1f, 0x44, 0x30, 0x2e, 0xd5, 0x07, 0x06, 0x21, 0x44,
-	0x2f, 0x07, 0x9b, 0x21,
-	0x5b, 0x01, 0x6e, 0x1c, 0x3d, 0x16, 0x44, 0x09, 0x04, 0x0b, 0xe2, 0x79,
-	0x39, 0x68, 0x3a, 0xfe,
+	0x12, 0xcd, 0x02, 0x5b, 0x2b, 0x01, 0x08, 0x1f, 0x44, 0x30, 0x2e, 0xd5,
+	0x07, 0x06, 0x21, 0x44, 0x2f, 0x07, 0x9b, 0x21, 0x5b, 0x01, 0x6e, 0x1c,
+	0x3d, 0x16, 0x44, 0x09, 0x04, 0x0b, 0xe2, 0x79, 0x39, 0x68, 0x3a, 0xfe,
 	0x0a, 0x55, 0x34, 0xfe, 0x8b, 0x55, 0xbe, 0x39, 0xbf, 0x3a, 0xfe, 0x0c,
-	0x51, 0xfe, 0x8e, 0x51,
-	0x02, 0x5b, 0xfe, 0x19, 0x81, 0xaf, 0xfe, 0x19, 0x41, 0x02, 0x5b, 0x2b,
-	0x01, 0x08, 0x25, 0x32,
-	0x1f, 0xa2, 0x30, 0x2e, 0xd8, 0x4b, 0x1a, 0xfe, 0xa6, 0x12, 0x4b, 0x0b,
-	0x3b, 0x02, 0x44, 0x01,
+	0x51, 0xfe, 0x8e, 0x51, 0x02, 0x5b, 0xfe, 0x19, 0x81, 0xaf, 0xfe, 0x19,
+	0x41, 0x02, 0x5b, 0x2b, 0x01, 0x08, 0x25, 0x32, 0x1f, 0xa2, 0x30, 0x2e,
+	0xd8, 0x4b, 0x1a, 0xfe, 0xa6, 0x12, 0x4b, 0x0b, 0x3b, 0x02, 0x44, 0x01,
 	0x08, 0x25, 0x32, 0x1f, 0xa2, 0x30, 0x2e, 0xd6, 0x07, 0x1a, 0x21, 0x44,
-	0x01, 0x08, 0x1f, 0xa2,
-	0x30, 0x2e, 0xfe, 0xe8, 0x09, 0xfe, 0xc2, 0x49, 0x60, 0x05, 0xfe, 0x9c,
-	0x00, 0x28, 0x84, 0x49,
-	0x04, 0x19, 0x34, 0x9f, 0xfe, 0xbb, 0x45, 0x4b, 0x00, 0x45, 0x3e, 0x06,
-	0x78, 0x3d, 0xfe, 0xda,
+	0x01, 0x08, 0x1f, 0xa2, 0x30, 0x2e, 0xfe, 0xe8, 0x09, 0xfe, 0xc2, 0x49,
+	0x60, 0x05, 0xfe, 0x9c, 0x00, 0x28, 0x84, 0x49, 0x04, 0x19, 0x34, 0x9f,
+	0xfe, 0xbb, 0x45, 0x4b, 0x00, 0x45, 0x3e, 0x06, 0x78, 0x3d, 0xfe, 0xda,
 	0x14, 0x01, 0x6e, 0x87, 0xfe, 0x4b, 0x45, 0xe2, 0x2f, 0x07, 0x9a, 0xe1,
-	0x05, 0xc6, 0x28, 0x84,
-	0x05, 0x3f, 0x28, 0x34, 0x5e, 0x02, 0x5b, 0xfe, 0xc0, 0x5d, 0xfe, 0xf8,
-	0x14, 0xfe, 0x03, 0x17,
-	0x05, 0x50, 0xb4, 0x0c, 0x50, 0x5e, 0x2b, 0x01, 0x08, 0x26, 0x5c, 0x01,
-	0xfe, 0xaa, 0x14, 0x02,
+	0x05, 0xc6, 0x28, 0x84, 0x05, 0x3f, 0x28, 0x34, 0x5e, 0x02, 0x5b, 0xfe,
+	0xc0, 0x5d, 0xfe, 0xf8, 0x14, 0xfe, 0x03, 0x17, 0x05, 0x50, 0xb4, 0x0c,
+	0x50, 0x5e, 0x2b, 0x01, 0x08, 0x26, 0x5c, 0x01, 0xfe, 0xaa, 0x14, 0x02,
 	0x5c, 0x01, 0x08, 0x25, 0x32, 0x1f, 0x44, 0x30, 0x2e, 0xd6, 0x07, 0x06,
-	0x21, 0x44, 0x01, 0xfe,
-	0x8e, 0x13, 0xfe, 0x42, 0x58, 0xfe, 0x82, 0x14, 0xfe, 0xa4, 0x14, 0x87,
-	0xfe, 0x4a, 0xf4, 0x0b,
-	0x16, 0x44, 0xfe, 0x4a, 0xf4, 0x06, 0xfe, 0x0c, 0x12, 0x2f, 0x07, 0x9a,
-	0x85, 0x02, 0x5b, 0x05,
+	0x21, 0x44, 0x01, 0xfe, 0x8e, 0x13, 0xfe, 0x42, 0x58, 0xfe, 0x82, 0x14,
+	0xfe, 0xa4, 0x14, 0x87, 0xfe, 0x4a, 0xf4, 0x0b, 0x16, 0x44, 0xfe, 0x4a,
+	0xf4, 0x06, 0xfe, 0x0c, 0x12, 0x2f, 0x07, 0x9a, 0x85, 0x02, 0x5b, 0x05,
 	0x3f, 0xb4, 0x0c, 0x3f, 0x5e, 0x2b, 0x01, 0x08, 0x26, 0x5c, 0x01, 0xfe,
-	0xd8, 0x14, 0x02, 0x5c,
-	0x13, 0x06, 0x65, 0xfe, 0xca, 0x12, 0x26, 0xfe, 0xe0, 0x12, 0x72, 0xf1,
-	0x01, 0x08, 0x23, 0x72,
-	0x03, 0x8f, 0xfe, 0xdc, 0x12, 0x25, 0xfe, 0xdc, 0x12, 0x1f, 0xfe, 0xca,
-	0x12, 0x5e, 0x2b, 0x01,
+	0xd8, 0x14, 0x02, 0x5c, 0x13, 0x06, 0x65, 0xfe, 0xca, 0x12, 0x26, 0xfe,
+	0xe0, 0x12, 0x72, 0xf1, 0x01, 0x08, 0x23, 0x72, 0x03, 0x8f, 0xfe, 0xdc,
+	0x12, 0x25, 0xfe, 0xdc, 0x12, 0x1f, 0xfe, 0xca, 0x12, 0x5e, 0x2b, 0x01,
 	0x08, 0xfe, 0xd5, 0x10, 0x13, 0x6c, 0xff, 0x02, 0x00, 0x57, 0x48, 0x8b,
-	0x1c, 0xfe, 0xff, 0x7f,
-	0xfe, 0x30, 0x56, 0xfe, 0x00, 0x5c, 0x03, 0x13, 0x6c, 0xff, 0x02, 0x00,
-	0x57, 0x48, 0x8b, 0x1c,
-	0x3d, 0xfe, 0x30, 0x56, 0xfe, 0x00, 0x5c, 0x03, 0x13, 0x6c, 0xff, 0x02,
-	0x00, 0x57, 0x48, 0x8b,
+	0x1c, 0xfe, 0xff, 0x7f, 0xfe, 0x30, 0x56, 0xfe, 0x00, 0x5c, 0x03, 0x13,
+	0x6c, 0xff, 0x02, 0x00, 0x57, 0x48, 0x8b, 0x1c, 0x3d, 0xfe, 0x30, 0x56,
+	0xfe, 0x00, 0x5c, 0x03, 0x13, 0x6c, 0xff, 0x02, 0x00, 0x57, 0x48, 0x8b,
 	0x03, 0x13, 0x6c, 0xff, 0x02, 0x00, 0x57, 0x48, 0x8b, 0xfe, 0x0b, 0x58,
-	0x03, 0x0a, 0x50, 0x01,
-	0x82, 0x0a, 0x3f, 0x01, 0x82, 0x03, 0xfc, 0x1c, 0x10, 0xff, 0x03, 0x00,
-	0x54, 0xfe, 0x00, 0xf4,
-	0x19, 0x48, 0xfe, 0x00, 0x7d, 0xfe, 0x01, 0x7d, 0xfe, 0x02, 0x7d, 0xfe,
-	0x03, 0x7c, 0x63, 0x27,
+	0x03, 0x0a, 0x50, 0x01, 0x82, 0x0a, 0x3f, 0x01, 0x82, 0x03, 0xfc, 0x1c,
+	0x10, 0xff, 0x03, 0x00, 0x54, 0xfe, 0x00, 0xf4, 0x19, 0x48, 0xfe, 0x00,
+	0x7d, 0xfe, 0x01, 0x7d, 0xfe, 0x02, 0x7d, 0xfe, 0x03, 0x7c, 0x63, 0x27,
 	0x0c, 0x52, 0x18, 0x53, 0xbe, 0x56, 0xbf, 0x57, 0x03, 0xfe, 0x62, 0x08,
-	0xfe, 0x82, 0x4a, 0xfe,
-	0xe1, 0x1a, 0xfe, 0x83, 0x5a, 0x74, 0x03, 0x01, 0xfe, 0x14, 0x18, 0xfe,
-	0x42, 0x48, 0x5f, 0x60,
-	0x89, 0x01, 0x08, 0x1f, 0xfe, 0xa2, 0x14, 0x30, 0x2e, 0xd8, 0x01, 0x08,
-	0x1f, 0xfe, 0xa2, 0x14,
+	0xfe, 0x82, 0x4a, 0xfe, 0xe1, 0x1a, 0xfe, 0x83, 0x5a, 0x74, 0x03, 0x01,
+	0xfe, 0x14, 0x18, 0xfe, 0x42, 0x48, 0x5f, 0x60, 0x89, 0x01, 0x08, 0x1f,
+	0xfe, 0xa2, 0x14, 0x30, 0x2e, 0xd8, 0x01, 0x08, 0x1f, 0xfe, 0xa2, 0x14,
 	0x30, 0x2e, 0xfe, 0xe8, 0x0a, 0xfe, 0xc1, 0x59, 0x05, 0xc6, 0x28, 0xfe,
-	0xcc, 0x12, 0x49, 0x04,
-	0x1b, 0xfe, 0xc4, 0x13, 0x23, 0x62, 0x1b, 0xe2, 0x4b, 0xc3, 0x64, 0xfe,
-	0xe8, 0x13, 0x3b, 0x13,
-	0x06, 0x17, 0xc3, 0x78, 0xdb, 0xfe, 0x78, 0x10, 0xff, 0x02, 0x83, 0x55,
-	0xa1, 0xff, 0x02, 0x83,
+	0xcc, 0x12, 0x49, 0x04, 0x1b, 0xfe, 0xc4, 0x13, 0x23, 0x62, 0x1b, 0xe2,
+	0x4b, 0xc3, 0x64, 0xfe, 0xe8, 0x13, 0x3b, 0x13, 0x06, 0x17, 0xc3, 0x78,
+	0xdb, 0xfe, 0x78, 0x10, 0xff, 0x02, 0x83, 0x55, 0xa1, 0xff, 0x02, 0x83,
 	0x55, 0x62, 0x1a, 0xa4, 0xbb, 0xfe, 0x30, 0x00, 0x8e, 0xe4, 0x17, 0x2c,
-	0x13, 0x06, 0xfe, 0x56,
-	0x10, 0x62, 0x0b, 0xe1, 0xbb, 0xfe, 0x64, 0x00, 0x8e, 0xe4, 0x0a, 0xfe,
-	0x64, 0x00, 0x17, 0x93,
-	0x13, 0x06, 0xfe, 0x28, 0x10, 0x62, 0x06, 0xfe, 0x60, 0x13, 0xbb, 0xfe,
-	0xc8, 0x00, 0x8e, 0xe4,
+	0x13, 0x06, 0xfe, 0x56, 0x10, 0x62, 0x0b, 0xe1, 0xbb, 0xfe, 0x64, 0x00,
+	0x8e, 0xe4, 0x0a, 0xfe, 0x64, 0x00, 0x17, 0x93, 0x13, 0x06, 0xfe, 0x28,
+	0x10, 0x62, 0x06, 0xfe, 0x60, 0x13, 0xbb, 0xfe, 0xc8, 0x00, 0x8e, 0xe4,
 	0x0a, 0xfe, 0xc8, 0x00, 0x17, 0x4d, 0x13, 0x06, 0x83, 0xbb, 0xfe, 0x90,
-	0x01, 0xba, 0xfe, 0x4e,
-	0x14, 0x89, 0xfe, 0x12, 0x10, 0xfe, 0x43, 0xf4, 0x94, 0xfe, 0x56, 0xf0,
-	0xfe, 0x60, 0x14, 0xfe,
-	0x04, 0xf4, 0x6c, 0xfe, 0x43, 0xf4, 0x93, 0xfe, 0xf3, 0x10, 0xf9, 0x01,
-	0xfe, 0x22, 0x13, 0x1c,
+	0x01, 0xba, 0xfe, 0x4e, 0x14, 0x89, 0xfe, 0x12, 0x10, 0xfe, 0x43, 0xf4,
+	0x94, 0xfe, 0x56, 0xf0, 0xfe, 0x60, 0x14, 0xfe, 0x04, 0xf4, 0x6c, 0xfe,
+	0x43, 0xf4, 0x93, 0xfe, 0xf3, 0x10, 0xf9, 0x01, 0xfe, 0x22, 0x13, 0x1c,
 	0x3d, 0xfe, 0x10, 0x13, 0xfe, 0x00, 0x17, 0xfe, 0x4d, 0xe4, 0x69, 0xba,
-	0xfe, 0x9c, 0x14, 0xb7,
-	0x69, 0xfe, 0x1c, 0x10, 0xfe, 0x00, 0x17, 0xfe, 0x4d, 0xe4, 0x19, 0xba,
-	0xfe, 0x9c, 0x14, 0xb7,
-	0x19, 0x83, 0x60, 0x23, 0xfe, 0x4d, 0xf4, 0x00, 0xdf, 0x89, 0x13, 0x06,
-	0xfe, 0xb4, 0x56, 0xfe,
+	0xfe, 0x9c, 0x14, 0xb7, 0x69, 0xfe, 0x1c, 0x10, 0xfe, 0x00, 0x17, 0xfe,
+	0x4d, 0xe4, 0x19, 0xba, 0xfe, 0x9c, 0x14, 0xb7, 0x19, 0x83, 0x60, 0x23,
+	0xfe, 0x4d, 0xf4, 0x00, 0xdf, 0x89, 0x13, 0x06, 0xfe, 0xb4, 0x56, 0xfe,
 	0xc3, 0x58, 0x03, 0x60, 0x13, 0x0b, 0x03, 0x15, 0x06, 0x01, 0x08, 0x26,
-	0xe5, 0x15, 0x0b, 0x01,
-	0x08, 0x26, 0xe5, 0x15, 0x1a, 0x01, 0x08, 0x26, 0xe5, 0x72, 0xfe, 0x89,
-	0x49, 0x01, 0x08, 0x03,
-	0x15, 0x06, 0x01, 0x08, 0x26, 0xa6, 0x15, 0x1a, 0x01, 0x08, 0x26, 0xa6,
-	0x15, 0x06, 0x01, 0x08,
+	0xe5, 0x15, 0x0b, 0x01, 0x08, 0x26, 0xe5, 0x15, 0x1a, 0x01, 0x08, 0x26,
+	0xe5, 0x72, 0xfe, 0x89, 0x49, 0x01, 0x08, 0x03, 0x15, 0x06, 0x01, 0x08,
+	0x26, 0xa6, 0x15, 0x1a, 0x01, 0x08, 0x26, 0xa6, 0x15, 0x06, 0x01, 0x08,
 	0x26, 0xa6, 0xfe, 0x89, 0x49, 0x01, 0x08, 0x26, 0xa6, 0x72, 0xfe, 0x89,
-	0x4a, 0x01, 0x08, 0x03,
-	0x60, 0x03, 0x1e, 0xcc, 0x07, 0x06, 0xfe, 0x44, 0x13, 0xad, 0x12, 0xcc,
-	0xfe, 0x49, 0xf4, 0x00,
-	0x3b, 0x72, 0x9f, 0x5e, 0xfe, 0x01, 0xec, 0xfe, 0x27, 0x01, 0xf1, 0x01,
-	0x08, 0x2f, 0x07, 0xfe,
+	0x4a, 0x01, 0x08, 0x03, 0x60, 0x03, 0x1e, 0xcc, 0x07, 0x06, 0xfe, 0x44,
+	0x13, 0xad, 0x12, 0xcc, 0xfe, 0x49, 0xf4, 0x00, 0x3b, 0x72, 0x9f, 0x5e,
+	0xfe, 0x01, 0xec, 0xfe, 0x27, 0x01, 0xf1, 0x01, 0x08, 0x2f, 0x07, 0xfe,
 	0xe3, 0x00, 0xfe, 0x20, 0x13, 0x1f, 0xfe, 0x5a, 0x15, 0x23, 0x12, 0xcd,
-	0x01, 0x43, 0x1e, 0xcd,
-	0x07, 0x06, 0x45, 0x09, 0x4a, 0x06, 0x35, 0x03, 0x0a, 0x42, 0x01, 0x0e,
-	0xed, 0x88, 0x07, 0x10,
-	0xa4, 0x0a, 0x80, 0x01, 0x0e, 0x88, 0x0a, 0x51, 0x01, 0x9e, 0x03, 0x0a,
-	0x80, 0x01, 0x0e, 0x88,
+	0x01, 0x43, 0x1e, 0xcd, 0x07, 0x06, 0x45, 0x09, 0x4a, 0x06, 0x35, 0x03,
+	0x0a, 0x42, 0x01, 0x0e, 0xed, 0x88, 0x07, 0x10, 0xa4, 0x0a, 0x80, 0x01,
+	0x0e, 0x88, 0x0a, 0x51, 0x01, 0x9e, 0x03, 0x0a, 0x80, 0x01, 0x0e, 0x88,
 	0xfe, 0x80, 0xe7, 0x10, 0x07, 0x10, 0x84, 0xfe, 0x45, 0x58, 0x01, 0xe3,
-	0x88, 0x03, 0x0a, 0x42,
-	0x01, 0x0e, 0x88, 0x0a, 0x51, 0x01, 0x9e, 0x03, 0x0a, 0x42, 0x01, 0x0e,
-	0xfe, 0x80, 0x80, 0xf2,
-	0xfe, 0x49, 0xe4, 0x10, 0xa4, 0x0a, 0x80, 0x01, 0x0e, 0xf2, 0x0a, 0x51,
-	0x01, 0x82, 0x03, 0x17,
+	0x88, 0x03, 0x0a, 0x42, 0x01, 0x0e, 0x88, 0x0a, 0x51, 0x01, 0x9e, 0x03,
+	0x0a, 0x42, 0x01, 0x0e, 0xfe, 0x80, 0x80, 0xf2, 0xfe, 0x49, 0xe4, 0x10,
+	0xa4, 0x0a, 0x80, 0x01, 0x0e, 0xf2, 0x0a, 0x51, 0x01, 0x82, 0x03, 0x17,
 	0x10, 0x71, 0x66, 0xfe, 0x60, 0x01, 0xfe, 0x18, 0xdf, 0xfe, 0x19, 0xde,
-	0xfe, 0x24, 0x1c, 0xfe,
-	0x1d, 0xf7, 0x1d, 0x90, 0xfe, 0xf6, 0x15, 0x01, 0xfe, 0xfc, 0x16, 0xe0,
-	0x91, 0x1d, 0x66, 0xfe,
-	0x2c, 0x01, 0xfe, 0x2f, 0x19, 0x03, 0xae, 0x21, 0xfe, 0xe6, 0x15, 0xfe,
-	0xda, 0x10, 0x17, 0x10,
+	0xfe, 0x24, 0x1c, 0xfe, 0x1d, 0xf7, 0x1d, 0x90, 0xfe, 0xf6, 0x15, 0x01,
+	0xfe, 0xfc, 0x16, 0xe0, 0x91, 0x1d, 0x66, 0xfe, 0x2c, 0x01, 0xfe, 0x2f,
+	0x19, 0x03, 0xae, 0x21, 0xfe, 0xe6, 0x15, 0xfe, 0xda, 0x10, 0x17, 0x10,
 	0x71, 0x05, 0xfe, 0x64, 0x01, 0xfe, 0x00, 0xf4, 0x19, 0xfe, 0x18, 0x58,
-	0x05, 0xfe, 0x66, 0x01,
-	0xfe, 0x19, 0x58, 0x91, 0x19, 0xfe, 0x3c, 0x90, 0xfe, 0x30, 0xf4, 0x06,
-	0xfe, 0x3c, 0x50, 0x66,
-	0xfe, 0x38, 0x00, 0xfe, 0x0f, 0x79, 0xfe, 0x1c, 0xf7, 0x19, 0x90, 0xfe,
-	0x40, 0x16, 0xfe, 0xb6,
+	0x05, 0xfe, 0x66, 0x01, 0xfe, 0x19, 0x58, 0x91, 0x19, 0xfe, 0x3c, 0x90,
+	0xfe, 0x30, 0xf4, 0x06, 0xfe, 0x3c, 0x50, 0x66, 0xfe, 0x38, 0x00, 0xfe,
+	0x0f, 0x79, 0xfe, 0x1c, 0xf7, 0x19, 0x90, 0xfe, 0x40, 0x16, 0xfe, 0xb6,
 	0x14, 0x34, 0x03, 0xae, 0x21, 0xfe, 0x18, 0x16, 0xfe, 0x9c, 0x10, 0x17,
-	0x10, 0x71, 0xfe, 0x83,
-	0x5a, 0xfe, 0x18, 0xdf, 0xfe, 0x19, 0xde, 0xfe, 0x1d, 0xf7, 0x38, 0x90,
-	0xfe, 0x62, 0x16, 0xfe,
-	0x94, 0x14, 0xfe, 0x10, 0x13, 0x91, 0x38, 0x66, 0x1b, 0xfe, 0xaf, 0x19,
-	0xfe, 0x98, 0xe7, 0x00,
+	0x10, 0x71, 0xfe, 0x83, 0x5a, 0xfe, 0x18, 0xdf, 0xfe, 0x19, 0xde, 0xfe,
+	0x1d, 0xf7, 0x38, 0x90, 0xfe, 0x62, 0x16, 0xfe, 0x94, 0x14, 0xfe, 0x10,
+	0x13, 0x91, 0x38, 0x66, 0x1b, 0xfe, 0xaf, 0x19, 0xfe, 0x98, 0xe7, 0x00,
 	0x03, 0xae, 0x21, 0xfe, 0x56, 0x16, 0xfe, 0x6c, 0x10, 0x17, 0x10, 0x71,
-	0xfe, 0x30, 0xbc, 0xfe,
-	0xb2, 0xbc, 0x91, 0xc5, 0x66, 0x1b, 0xfe, 0x0f, 0x79, 0xfe, 0x1c, 0xf7,
-	0xc5, 0x90, 0xfe, 0x9a,
-	0x16, 0xfe, 0x5c, 0x14, 0x34, 0x03, 0xae, 0x21, 0xfe, 0x86, 0x16, 0xfe,
-	0x42, 0x10, 0xfe, 0x02,
+	0xfe, 0x30, 0xbc, 0xfe, 0xb2, 0xbc, 0x91, 0xc5, 0x66, 0x1b, 0xfe, 0x0f,
+	0x79, 0xfe, 0x1c, 0xf7, 0xc5, 0x90, 0xfe, 0x9a, 0x16, 0xfe, 0x5c, 0x14,
+	0x34, 0x03, 0xae, 0x21, 0xfe, 0x86, 0x16, 0xfe, 0x42, 0x10, 0xfe, 0x02,
 	0xf6, 0x10, 0x71, 0xfe, 0x18, 0xfe, 0x54, 0xfe, 0x19, 0xfe, 0x55, 0xfc,
-	0xfe, 0x1d, 0xf7, 0x4f,
-	0x90, 0xfe, 0xc0, 0x16, 0xfe, 0x36, 0x14, 0xfe, 0x1c, 0x13, 0x91, 0x4f,
-	0x47, 0xfe, 0x83, 0x58,
-	0xfe, 0xaf, 0x19, 0xfe, 0x80, 0xe7, 0x10, 0xfe, 0x81, 0xe7, 0x10, 0x11,
-	0xfe, 0xdd, 0x00, 0x63,
+	0xfe, 0x1d, 0xf7, 0x4f, 0x90, 0xfe, 0xc0, 0x16, 0xfe, 0x36, 0x14, 0xfe,
+	0x1c, 0x13, 0x91, 0x4f, 0x47, 0xfe, 0x83, 0x58, 0xfe, 0xaf, 0x19, 0xfe,
+	0x80, 0xe7, 0x10, 0xfe, 0x81, 0xe7, 0x10, 0x11, 0xfe, 0xdd, 0x00, 0x63,
 	0x27, 0x03, 0x63, 0x27, 0xfe, 0x12, 0x45, 0x21, 0xfe, 0xb0, 0x16, 0x14,
-	0x06, 0x37, 0x95, 0xa9,
-	0x02, 0x29, 0xfe, 0x39, 0xf0, 0xfe, 0x04, 0x17, 0x23, 0x03, 0xfe, 0x7e,
-	0x18, 0x1c, 0x1a, 0x5d,
-	0x13, 0x0d, 0x03, 0x71, 0x05, 0xcb, 0x1c, 0x06, 0xfe, 0xef, 0x12, 0xfe,
-	0xe1, 0x10, 0x78, 0x2c,
+	0x06, 0x37, 0x95, 0xa9, 0x02, 0x29, 0xfe, 0x39, 0xf0, 0xfe, 0x04, 0x17,
+	0x23, 0x03, 0xfe, 0x7e, 0x18, 0x1c, 0x1a, 0x5d, 0x13, 0x0d, 0x03, 0x71,
+	0x05, 0xcb, 0x1c, 0x06, 0xfe, 0xef, 0x12, 0xfe, 0xe1, 0x10, 0x78, 0x2c,
 	0x46, 0x2f, 0x07, 0x2d, 0xfe, 0x3c, 0x13, 0xfe, 0x82, 0x14, 0xfe, 0x42,
-	0x13, 0x3c, 0x8a, 0x0a,
-	0x42, 0x01, 0x0e, 0xb0, 0xfe, 0x3e, 0x12, 0xf0, 0xfe, 0x45, 0x48, 0x01,
-	0xe3, 0xfe, 0x00, 0xcc,
-	0xb0, 0xfe, 0xf3, 0x13, 0x3d, 0x75, 0x07, 0x10, 0xa3, 0x0a, 0x80, 0x01,
-	0x0e, 0xf2, 0x01, 0x6f,
+	0x13, 0x3c, 0x8a, 0x0a, 0x42, 0x01, 0x0e, 0xb0, 0xfe, 0x3e, 0x12, 0xf0,
+	0xfe, 0x45, 0x48, 0x01, 0xe3, 0xfe, 0x00, 0xcc, 0xb0, 0xfe, 0xf3, 0x13,
+	0x3d, 0x75, 0x07, 0x10, 0xa3, 0x0a, 0x80, 0x01, 0x0e, 0xf2, 0x01, 0x6f,
 	0xfe, 0x16, 0x10, 0x07, 0x7e, 0x85, 0xfe, 0x40, 0x14, 0xfe, 0x24, 0x12,
-	0xf6, 0xfe, 0xd6, 0xf0,
-	0xfe, 0x24, 0x17, 0x17, 0x0b, 0x03, 0xfe, 0x9c, 0xe7, 0x0b, 0x0f, 0xfe,
-	0x15, 0x00, 0x59, 0x76,
-	0x27, 0x01, 0xda, 0x17, 0x06, 0x03, 0x3c, 0x8a, 0x09, 0x4a, 0x1d, 0x35,
-	0x11, 0x2d, 0x01, 0x6f,
+	0xf6, 0xfe, 0xd6, 0xf0, 0xfe, 0x24, 0x17, 0x17, 0x0b, 0x03, 0xfe, 0x9c,
+	0xe7, 0x0b, 0x0f, 0xfe, 0x15, 0x00, 0x59, 0x76, 0x27, 0x01, 0xda, 0x17,
+	0x06, 0x03, 0x3c, 0x8a, 0x09, 0x4a, 0x1d, 0x35, 0x11, 0x2d, 0x01, 0x6f,
 	0x17, 0x06, 0x03, 0xfe, 0x38, 0x90, 0xfe, 0xba, 0x90, 0x79, 0xc7, 0x68,
-	0xc8, 0xfe, 0x48, 0x55,
-	0x34, 0xfe, 0xc9, 0x55, 0x03, 0x1e, 0x98, 0x73, 0x12, 0x98, 0x03, 0x0a,
-	0x99, 0x01, 0x0e, 0xf0,
-	0x0a, 0x40, 0x01, 0x0e, 0xfe, 0x49, 0x44, 0x16, 0xfe, 0xf0, 0x17, 0x73,
-	0x75, 0x03, 0x0a, 0x42,
+	0xc8, 0xfe, 0x48, 0x55, 0x34, 0xfe, 0xc9, 0x55, 0x03, 0x1e, 0x98, 0x73,
+	0x12, 0x98, 0x03, 0x0a, 0x99, 0x01, 0x0e, 0xf0, 0x0a, 0x40, 0x01, 0x0e,
+	0xfe, 0x49, 0x44, 0x16, 0xfe, 0xf0, 0x17, 0x73, 0x75, 0x03, 0x0a, 0x42,
 	0x01, 0x0e, 0x07, 0x10, 0x45, 0x0a, 0x51, 0x01, 0x9e, 0x0a, 0x40, 0x01,
-	0x0e, 0x73, 0x75, 0x03,
-	0xfe, 0x4e, 0xe4, 0x1a, 0x64, 0xfe, 0x24, 0x18, 0x05, 0xfe, 0x90, 0x00,
-	0xfe, 0x3a, 0x45, 0x5b,
-	0xfe, 0x4e, 0xe4, 0xc2, 0x64, 0xfe, 0x36, 0x18, 0x05, 0xfe, 0x92, 0x00,
-	0xfe, 0x02, 0xe6, 0x1b,
+	0x0e, 0x73, 0x75, 0x03, 0xfe, 0x4e, 0xe4, 0x1a, 0x64, 0xfe, 0x24, 0x18,
+	0x05, 0xfe, 0x90, 0x00, 0xfe, 0x3a, 0x45, 0x5b, 0xfe, 0x4e, 0xe4, 0xc2,
+	0x64, 0xfe, 0x36, 0x18, 0x05, 0xfe, 0x92, 0x00, 0xfe, 0x02, 0xe6, 0x1b,
 	0xdc, 0xfe, 0x4e, 0xe4, 0xfe, 0x0b, 0x00, 0x64, 0xfe, 0x48, 0x18, 0x05,
-	0xfe, 0x94, 0x00, 0xfe,
-	0x02, 0xe6, 0x19, 0xfe, 0x08, 0x10, 0x05, 0xfe, 0x96, 0x00, 0xfe, 0x02,
-	0xe6, 0x2c, 0xfe, 0x4e,
-	0x45, 0xfe, 0x0c, 0x12, 0xaf, 0xff, 0x04, 0x68, 0x54, 0xde, 0x1c, 0x69,
-	0x03, 0x07, 0x7a, 0xfe,
+	0xfe, 0x94, 0x00, 0xfe, 0x02, 0xe6, 0x19, 0xfe, 0x08, 0x10, 0x05, 0xfe,
+	0x96, 0x00, 0xfe, 0x02, 0xe6, 0x2c, 0xfe, 0x4e, 0x45, 0xfe, 0x0c, 0x12,
+	0xaf, 0xff, 0x04, 0x68, 0x54, 0xde, 0x1c, 0x69, 0x03, 0x07, 0x7a, 0xfe,
 	0x5a, 0xf0, 0xfe, 0x74, 0x18, 0x24, 0xfe, 0x09, 0x00, 0xfe, 0x34, 0x10,
-	0x07, 0x1b, 0xfe, 0x5a,
-	0xf0, 0xfe, 0x82, 0x18, 0x24, 0xc3, 0xfe, 0x26, 0x10, 0x07, 0x1a, 0x5d,
-	0x24, 0x2c, 0xdc, 0x07,
-	0x0b, 0x5d, 0x24, 0x93, 0xfe, 0x0e, 0x10, 0x07, 0x06, 0x5d, 0x24, 0x4d,
-	0x9f, 0xad, 0x03, 0x14,
+	0x07, 0x1b, 0xfe, 0x5a, 0xf0, 0xfe, 0x82, 0x18, 0x24, 0xc3, 0xfe, 0x26,
+	0x10, 0x07, 0x1a, 0x5d, 0x24, 0x2c, 0xdc, 0x07, 0x0b, 0x5d, 0x24, 0x93,
+	0xfe, 0x0e, 0x10, 0x07, 0x06, 0x5d, 0x24, 0x4d, 0x9f, 0xad, 0x03, 0x14,
 	0xfe, 0x09, 0x00, 0x01, 0x33, 0xfe, 0x04, 0xfe, 0x7d, 0x05, 0x7f, 0xf9,
-	0x03, 0x25, 0xfe, 0xca,
-	0x18, 0xfe, 0x14, 0xf0, 0x08, 0x65, 0xfe, 0xc6, 0x18, 0x03, 0xff, 0x1a,
-	0x00, 0x00,
+	0x03, 0x25, 0xfe, 0xca, 0x18, 0xfe, 0x14, 0xf0, 0x08, 0x65, 0xfe, 0xc6,
+	0x18, 0x03, 0xff, 0x1a, 0x00, 0x00,
 };
 
 static unsigned short _adv_asc3550_size = sizeof(_adv_asc3550_buf);	/* 0x13AD */
@@ -12360,672 +5296,449 @@ static ADV_DCNT _adv_asc3550_chksum = 0x04D52DDDUL;	/* Expanded little-endian ch
 /* Microcode buffer is kept after initialization for error recovery. */
 static unsigned char _adv_asc38C0800_buf[] = {
 	0x00, 0x00, 0x00, 0xf2, 0x00, 0xf0, 0x00, 0xfc, 0x00, 0x16, 0x18, 0xe4,
-	0x01, 0x00, 0x48, 0xe4,
-	0x18, 0x80, 0x03, 0xf6, 0x02, 0x00, 0xce, 0x19, 0x00, 0xfa, 0xff, 0xff,
-	0x1c, 0x0f, 0x00, 0xf6,
-	0x9e, 0xe7, 0xff, 0x00, 0x82, 0xe7, 0x00, 0xea, 0x01, 0xfa, 0x01, 0xe6,
-	0x09, 0xe7, 0x55, 0xf0,
+	0x01, 0x00, 0x48, 0xe4, 0x18, 0x80, 0x03, 0xf6, 0x02, 0x00, 0xce, 0x19,
+	0x00, 0xfa, 0xff, 0xff, 0x1c, 0x0f, 0x00, 0xf6, 0x9e, 0xe7, 0xff, 0x00,
+	0x82, 0xe7, 0x00, 0xea, 0x01, 0xfa, 0x01, 0xe6, 0x09, 0xe7, 0x55, 0xf0,
 	0x01, 0xf6, 0x03, 0x00, 0x04, 0x00, 0x10, 0x00, 0x1e, 0xf0, 0x85, 0xf0,
-	0x18, 0xf4, 0x08, 0x00,
-	0xbc, 0x00, 0x38, 0x54, 0x00, 0xec, 0xd5, 0xf0, 0x82, 0x0d, 0x00, 0xe6,
-	0x86, 0xf0, 0xb1, 0xf0,
-	0x98, 0x57, 0x01, 0xfc, 0xb4, 0x00, 0xd4, 0x01, 0x0c, 0x1c, 0x3e, 0x1c,
-	0x3c, 0x00, 0xbb, 0x00,
+	0x18, 0xf4, 0x08, 0x00, 0xbc, 0x00, 0x38, 0x54, 0x00, 0xec, 0xd5, 0xf0,
+	0x82, 0x0d, 0x00, 0xe6, 0x86, 0xf0, 0xb1, 0xf0, 0x98, 0x57, 0x01, 0xfc,
+	0xb4, 0x00, 0xd4, 0x01, 0x0c, 0x1c, 0x3e, 0x1c, 0x3c, 0x00, 0xbb, 0x00,
 	0x00, 0x10, 0xba, 0x19, 0x02, 0x80, 0x32, 0xf0, 0x7c, 0x0d, 0x02, 0x13,
-	0xba, 0x13, 0x18, 0x40,
-	0x00, 0x57, 0x01, 0xea, 0x02, 0xfc, 0x03, 0xfc, 0x3e, 0x00, 0x6c, 0x01,
-	0x6e, 0x01, 0x74, 0x01,
-	0x76, 0x01, 0xb9, 0x54, 0x3e, 0x57, 0x00, 0x80, 0x03, 0xe6, 0xb6, 0x00,
-	0xc0, 0x00, 0x01, 0x01,
+	0xba, 0x13, 0x18, 0x40, 0x00, 0x57, 0x01, 0xea, 0x02, 0xfc, 0x03, 0xfc,
+	0x3e, 0x00, 0x6c, 0x01, 0x6e, 0x01, 0x74, 0x01, 0x76, 0x01, 0xb9, 0x54,
+	0x3e, 0x57, 0x00, 0x80, 0x03, 0xe6, 0xb6, 0x00, 0xc0, 0x00, 0x01, 0x01,
 	0x3e, 0x01, 0x7a, 0x01, 0xca, 0x08, 0xce, 0x10, 0x16, 0x11, 0x04, 0x12,
-	0x08, 0x12, 0x02, 0x4a,
-	0xbb, 0x55, 0x3c, 0x56, 0x03, 0x58, 0x1b, 0x80, 0x30, 0xe4, 0x4b, 0xe4,
-	0x5d, 0xf0, 0x02, 0xfa,
-	0x20, 0x00, 0x32, 0x00, 0x40, 0x00, 0x80, 0x00, 0x24, 0x01, 0x3c, 0x01,
-	0x68, 0x01, 0x6a, 0x01,
+	0x08, 0x12, 0x02, 0x4a, 0xbb, 0x55, 0x3c, 0x56, 0x03, 0x58, 0x1b, 0x80,
+	0x30, 0xe4, 0x4b, 0xe4, 0x5d, 0xf0, 0x02, 0xfa, 0x20, 0x00, 0x32, 0x00,
+	0x40, 0x00, 0x80, 0x00, 0x24, 0x01, 0x3c, 0x01, 0x68, 0x01, 0x6a, 0x01,
 	0x70, 0x01, 0x72, 0x01, 0x78, 0x01, 0x7c, 0x01, 0x62, 0x0a, 0x86, 0x0d,
-	0x06, 0x13, 0x4c, 0x1c,
-	0x04, 0x80, 0x4a, 0xe4, 0x02, 0xee, 0x5b, 0xf0, 0x03, 0xf7, 0x0c, 0x00,
-	0x0f, 0x00, 0x47, 0x00,
-	0xbe, 0x00, 0x00, 0x01, 0x20, 0x11, 0x5c, 0x16, 0x32, 0x1c, 0x38, 0x1c,
-	0x4e, 0x1c, 0x10, 0x44,
+	0x06, 0x13, 0x4c, 0x1c, 0x04, 0x80, 0x4a, 0xe4, 0x02, 0xee, 0x5b, 0xf0,
+	0x03, 0xf7, 0x0c, 0x00, 0x0f, 0x00, 0x47, 0x00, 0xbe, 0x00, 0x00, 0x01,
+	0x20, 0x11, 0x5c, 0x16, 0x32, 0x1c, 0x38, 0x1c, 0x4e, 0x1c, 0x10, 0x44,
 	0x00, 0x4c, 0x04, 0xea, 0x5c, 0xf0, 0xa7, 0xf0, 0x04, 0xf6, 0x03, 0xfa,
-	0x05, 0x00, 0x34, 0x00,
-	0x36, 0x00, 0x98, 0x00, 0xcc, 0x00, 0x20, 0x01, 0x4e, 0x01, 0x4a, 0x0b,
-	0x42, 0x0c, 0x12, 0x0f,
-	0x0c, 0x10, 0x22, 0x11, 0x0a, 0x12, 0x04, 0x13, 0x30, 0x1c, 0x02, 0x48,
-	0x00, 0x4e, 0x42, 0x54,
+	0x05, 0x00, 0x34, 0x00, 0x36, 0x00, 0x98, 0x00, 0xcc, 0x00, 0x20, 0x01,
+	0x4e, 0x01, 0x4a, 0x0b, 0x42, 0x0c, 0x12, 0x0f, 0x0c, 0x10, 0x22, 0x11,
+	0x0a, 0x12, 0x04, 0x13, 0x30, 0x1c, 0x02, 0x48, 0x00, 0x4e, 0x42, 0x54,
 	0x44, 0x55, 0xbd, 0x56, 0x06, 0x83, 0x00, 0xdc, 0x05, 0xf0, 0x09, 0xf0,
-	0x59, 0xf0, 0xb8, 0xf0,
-	0x4b, 0xf4, 0x06, 0xf7, 0x0e, 0xf7, 0x04, 0xfc, 0x05, 0xfc, 0x06, 0x00,
-	0x19, 0x00, 0x33, 0x00,
-	0x9b, 0x00, 0xa4, 0x00, 0xb5, 0x00, 0xba, 0x00, 0xd0, 0x00, 0xe1, 0x00,
-	0xe7, 0x00, 0xe2, 0x03,
+	0x59, 0xf0, 0xb8, 0xf0, 0x4b, 0xf4, 0x06, 0xf7, 0x0e, 0xf7, 0x04, 0xfc,
+	0x05, 0xfc, 0x06, 0x00, 0x19, 0x00, 0x33, 0x00, 0x9b, 0x00, 0xa4, 0x00,
+	0xb5, 0x00, 0xba, 0x00, 0xd0, 0x00, 0xe1, 0x00, 0xe7, 0x00, 0xe2, 0x03,
 	0x08, 0x0f, 0x02, 0x10, 0x04, 0x10, 0x0a, 0x10, 0x0a, 0x13, 0x0c, 0x13,
-	0x12, 0x13, 0x24, 0x14,
-	0x34, 0x14, 0x04, 0x16, 0x08, 0x16, 0xa4, 0x17, 0x20, 0x1c, 0x34, 0x1c,
-	0x36, 0x1c, 0x08, 0x44,
-	0x38, 0x44, 0x91, 0x44, 0x0a, 0x45, 0x48, 0x46, 0x01, 0x48, 0x68, 0x54,
-	0x3a, 0x55, 0x83, 0x55,
+	0x12, 0x13, 0x24, 0x14, 0x34, 0x14, 0x04, 0x16, 0x08, 0x16, 0xa4, 0x17,
+	0x20, 0x1c, 0x34, 0x1c, 0x36, 0x1c, 0x08, 0x44, 0x38, 0x44, 0x91, 0x44,
+	0x0a, 0x45, 0x48, 0x46, 0x01, 0x48, 0x68, 0x54, 0x3a, 0x55, 0x83, 0x55,
 	0xe5, 0x55, 0xb0, 0x57, 0x01, 0x58, 0x83, 0x59, 0x05, 0xe6, 0x0b, 0xf0,
-	0x0c, 0xf0, 0x04, 0xf8,
-	0x05, 0xf8, 0x07, 0x00, 0x0a, 0x00, 0x1c, 0x00, 0x1e, 0x00, 0x9e, 0x00,
-	0xa8, 0x00, 0xaa, 0x00,
-	0xb9, 0x00, 0xe0, 0x00, 0x22, 0x01, 0x26, 0x01, 0x79, 0x01, 0x7e, 0x01,
-	0xc4, 0x01, 0xc6, 0x01,
+	0x0c, 0xf0, 0x04, 0xf8, 0x05, 0xf8, 0x07, 0x00, 0x0a, 0x00, 0x1c, 0x00,
+	0x1e, 0x00, 0x9e, 0x00, 0xa8, 0x00, 0xaa, 0x00, 0xb9, 0x00, 0xe0, 0x00,
+	0x22, 0x01, 0x26, 0x01, 0x79, 0x01, 0x7e, 0x01, 0xc4, 0x01, 0xc6, 0x01,
 	0x80, 0x02, 0x5e, 0x03, 0xee, 0x04, 0x9a, 0x06, 0xf8, 0x07, 0x62, 0x08,
-	0x68, 0x08, 0x69, 0x08,
-	0xd6, 0x08, 0xe9, 0x09, 0xfa, 0x0b, 0x2e, 0x0f, 0x12, 0x10, 0x1a, 0x10,
-	0xed, 0x10, 0xf1, 0x10,
-	0x2a, 0x11, 0x06, 0x12, 0x0c, 0x12, 0x3e, 0x12, 0x10, 0x13, 0x16, 0x13,
-	0x1e, 0x13, 0x46, 0x14,
+	0x68, 0x08, 0x69, 0x08, 0xd6, 0x08, 0xe9, 0x09, 0xfa, 0x0b, 0x2e, 0x0f,
+	0x12, 0x10, 0x1a, 0x10, 0xed, 0x10, 0xf1, 0x10, 0x2a, 0x11, 0x06, 0x12,
+	0x0c, 0x12, 0x3e, 0x12, 0x10, 0x13, 0x16, 0x13, 0x1e, 0x13, 0x46, 0x14,
 	0x76, 0x14, 0x82, 0x14, 0x36, 0x15, 0xca, 0x15, 0x6b, 0x18, 0xbe, 0x18,
-	0xca, 0x18, 0xe6, 0x19,
-	0x12, 0x1c, 0x46, 0x1c, 0x9c, 0x32, 0x00, 0x40, 0x0e, 0x47, 0xfe, 0x9c,
-	0xf0, 0x2b, 0x02, 0xfe,
-	0xac, 0x0d, 0xff, 0x10, 0x00, 0x00, 0xd7, 0xfe, 0xe8, 0x19, 0x00, 0xd6,
-	0xfe, 0x84, 0x01, 0xff,
+	0xca, 0x18, 0xe6, 0x19, 0x12, 0x1c, 0x46, 0x1c, 0x9c, 0x32, 0x00, 0x40,
+	0x0e, 0x47, 0xfe, 0x9c, 0xf0, 0x2b, 0x02, 0xfe, 0xac, 0x0d, 0xff, 0x10,
+	0x00, 0x00, 0xd7, 0xfe, 0xe8, 0x19, 0x00, 0xd6, 0xfe, 0x84, 0x01, 0xff,
 	0x03, 0x00, 0x00, 0xfe, 0x93, 0x15, 0xfe, 0x0f, 0x05, 0xff, 0x38, 0x00,
-	0x00, 0xfe, 0x57, 0x24,
-	0x00, 0xfe, 0x4c, 0x00, 0x5b, 0xff, 0x04, 0x00, 0x00, 0x11, 0xff, 0x09,
-	0x00, 0x00, 0xff, 0x08,
-	0x01, 0x01, 0xff, 0x08, 0xff, 0xff, 0xff, 0x27, 0x00, 0x00, 0xff, 0x10,
-	0xff, 0xff, 0xff, 0x11,
+	0x00, 0xfe, 0x57, 0x24, 0x00, 0xfe, 0x4c, 0x00, 0x5b, 0xff, 0x04, 0x00,
+	0x00, 0x11, 0xff, 0x09, 0x00, 0x00, 0xff, 0x08, 0x01, 0x01, 0xff, 0x08,
+	0xff, 0xff, 0xff, 0x27, 0x00, 0x00, 0xff, 0x10, 0xff, 0xff, 0xff, 0x11,
 	0x00, 0x00, 0xfe, 0x78, 0x56, 0xfe, 0x34, 0x12, 0xff, 0x21, 0x00, 0x00,
-	0xfe, 0x04, 0xf7, 0xd6,
-	0x2c, 0x99, 0x0a, 0x01, 0xfe, 0xc2, 0x0f, 0xfe, 0x04, 0xf7, 0xd6, 0x99,
-	0x0a, 0x42, 0x2c, 0xfe,
-	0x3d, 0xf0, 0xfe, 0x06, 0x02, 0xfe, 0x20, 0xf0, 0xa7, 0xfe, 0x91, 0xf0,
-	0xfe, 0xf4, 0x01, 0xfe,
+	0xfe, 0x04, 0xf7, 0xd6, 0x2c, 0x99, 0x0a, 0x01, 0xfe, 0xc2, 0x0f, 0xfe,
+	0x04, 0xf7, 0xd6, 0x99, 0x0a, 0x42, 0x2c, 0xfe, 0x3d, 0xf0, 0xfe, 0x06,
+	0x02, 0xfe, 0x20, 0xf0, 0xa7, 0xfe, 0x91, 0xf0, 0xfe, 0xf4, 0x01, 0xfe,
 	0x90, 0xf0, 0xfe, 0xf4, 0x01, 0xfe, 0x8f, 0xf0, 0xa7, 0x03, 0x5d, 0x4d,
-	0x02, 0xfe, 0xc8, 0x0d,
-	0x01, 0xfe, 0x38, 0x0e, 0xfe, 0xdd, 0x12, 0xfe, 0xfc, 0x10, 0xfe, 0x28,
-	0x1c, 0x03, 0xfe, 0xa6,
-	0x00, 0xfe, 0xd3, 0x12, 0x41, 0x14, 0xfe, 0xa6, 0x00, 0xc2, 0xfe, 0x48,
-	0xf0, 0xfe, 0x8a, 0x02,
+	0x02, 0xfe, 0xc8, 0x0d, 0x01, 0xfe, 0x38, 0x0e, 0xfe, 0xdd, 0x12, 0xfe,
+	0xfc, 0x10, 0xfe, 0x28, 0x1c, 0x03, 0xfe, 0xa6, 0x00, 0xfe, 0xd3, 0x12,
+	0x41, 0x14, 0xfe, 0xa6, 0x00, 0xc2, 0xfe, 0x48, 0xf0, 0xfe, 0x8a, 0x02,
 	0xfe, 0x49, 0xf0, 0xfe, 0xa4, 0x02, 0xfe, 0x4a, 0xf0, 0xfe, 0xc2, 0x02,
-	0xfe, 0x46, 0xf0, 0xfe,
-	0x54, 0x02, 0xfe, 0x47, 0xf0, 0xfe, 0x5a, 0x02, 0xfe, 0x43, 0xf0, 0xfe,
-	0x48, 0x02, 0xfe, 0x44,
-	0xf0, 0xfe, 0x4c, 0x02, 0xfe, 0x45, 0xf0, 0xfe, 0x50, 0x02, 0x18, 0x0a,
-	0xaa, 0x18, 0x06, 0x14,
+	0xfe, 0x46, 0xf0, 0xfe, 0x54, 0x02, 0xfe, 0x47, 0xf0, 0xfe, 0x5a, 0x02,
+	0xfe, 0x43, 0xf0, 0xfe, 0x48, 0x02, 0xfe, 0x44, 0xf0, 0xfe, 0x4c, 0x02,
+	0xfe, 0x45, 0xf0, 0xfe, 0x50, 0x02, 0x18, 0x0a, 0xaa, 0x18, 0x06, 0x14,
 	0xa1, 0x02, 0x2b, 0xfe, 0x00, 0x1c, 0xe7, 0xfe, 0x02, 0x1c, 0xe6, 0xfe,
-	0x1e, 0x1c, 0xfe, 0xe9,
-	0x10, 0x01, 0xfe, 0x18, 0x18, 0xfe, 0xe7, 0x10, 0xfe, 0x06, 0xfc, 0xce,
-	0x09, 0x70, 0x01, 0xa8,
-	0x02, 0x2b, 0x15, 0x59, 0x39, 0xa2, 0x01, 0xfe, 0x58, 0x10, 0x09, 0x70,
-	0x01, 0x87, 0xfe, 0xbd,
+	0x1e, 0x1c, 0xfe, 0xe9, 0x10, 0x01, 0xfe, 0x18, 0x18, 0xfe, 0xe7, 0x10,
+	0xfe, 0x06, 0xfc, 0xce, 0x09, 0x70, 0x01, 0xa8, 0x02, 0x2b, 0x15, 0x59,
+	0x39, 0xa2, 0x01, 0xfe, 0x58, 0x10, 0x09, 0x70, 0x01, 0x87, 0xfe, 0xbd,
 	0x10, 0x09, 0x70, 0x01, 0x87, 0xfe, 0xad, 0x10, 0xfe, 0x16, 0x1c, 0xfe,
-	0x58, 0x1c, 0x18, 0x06,
-	0x14, 0xa1, 0x2c, 0x1c, 0x2b, 0xfe, 0x3d, 0xf0, 0xfe, 0x06, 0x02, 0x23,
-	0xfe, 0x98, 0x02, 0xfe,
-	0x5a, 0x1c, 0xf8, 0xfe, 0x14, 0x1c, 0x15, 0xfe, 0x30, 0x00, 0x39, 0xa2,
-	0x01, 0xfe, 0x48, 0x10,
+	0x58, 0x1c, 0x18, 0x06, 0x14, 0xa1, 0x2c, 0x1c, 0x2b, 0xfe, 0x3d, 0xf0,
+	0xfe, 0x06, 0x02, 0x23, 0xfe, 0x98, 0x02, 0xfe, 0x5a, 0x1c, 0xf8, 0xfe,
+	0x14, 0x1c, 0x15, 0xfe, 0x30, 0x00, 0x39, 0xa2, 0x01, 0xfe, 0x48, 0x10,
 	0x18, 0x06, 0x14, 0xa1, 0x02, 0xd7, 0x22, 0x20, 0x07, 0x11, 0x35, 0xfe,
-	0x69, 0x10, 0x18, 0x06,
-	0x14, 0xa1, 0xfe, 0x04, 0xec, 0x20, 0x4f, 0x43, 0x13, 0x20, 0xfe, 0x05,
-	0xf6, 0xce, 0x01, 0xfe,
-	0x4a, 0x17, 0x08, 0x54, 0x58, 0x37, 0x12, 0x2f, 0x42, 0x92, 0x01, 0xfe,
-	0x82, 0x16, 0x02, 0x2b,
+	0x69, 0x10, 0x18, 0x06, 0x14, 0xa1, 0xfe, 0x04, 0xec, 0x20, 0x4f, 0x43,
+	0x13, 0x20, 0xfe, 0x05, 0xf6, 0xce, 0x01, 0xfe, 0x4a, 0x17, 0x08, 0x54,
+	0x58, 0x37, 0x12, 0x2f, 0x42, 0x92, 0x01, 0xfe, 0x82, 0x16, 0x02, 0x2b,
 	0x09, 0x46, 0x01, 0x0e, 0x07, 0x00, 0x66, 0x01, 0x73, 0xfe, 0x18, 0x10,
-	0xfe, 0x41, 0x58, 0x09,
-	0xa4, 0x01, 0x0e, 0xfe, 0xc8, 0x54, 0x6b, 0xfe, 0x10, 0x03, 0x01, 0xfe,
-	0x82, 0x16, 0x02, 0x2b,
-	0x2c, 0x4f, 0xfe, 0x02, 0xe8, 0x2a, 0xfe, 0xbf, 0x57, 0xfe, 0x9e, 0x43,
-	0xfe, 0x77, 0x57, 0xfe,
+	0xfe, 0x41, 0x58, 0x09, 0xa4, 0x01, 0x0e, 0xfe, 0xc8, 0x54, 0x6b, 0xfe,
+	0x10, 0x03, 0x01, 0xfe, 0x82, 0x16, 0x02, 0x2b, 0x2c, 0x4f, 0xfe, 0x02,
+	0xe8, 0x2a, 0xfe, 0xbf, 0x57, 0xfe, 0x9e, 0x43, 0xfe, 0x77, 0x57, 0xfe,
 	0x27, 0xf0, 0xfe, 0xe0, 0x01, 0xfe, 0x07, 0x4b, 0xfe, 0x20, 0xf0, 0xa7,
-	0xfe, 0x40, 0x1c, 0x1c,
-	0xd9, 0xfe, 0x26, 0xf0, 0xfe, 0x5a, 0x03, 0xfe, 0xa0, 0xf0, 0xfe, 0x48,
-	0x03, 0xfe, 0x11, 0xf0,
-	0xa7, 0xfe, 0xef, 0x10, 0xfe, 0x9f, 0xf0, 0xfe, 0x68, 0x03, 0xf9, 0x10,
-	0xfe, 0x11, 0x00, 0x02,
+	0xfe, 0x40, 0x1c, 0x1c, 0xd9, 0xfe, 0x26, 0xf0, 0xfe, 0x5a, 0x03, 0xfe,
+	0xa0, 0xf0, 0xfe, 0x48, 0x03, 0xfe, 0x11, 0xf0, 0xa7, 0xfe, 0xef, 0x10,
+	0xfe, 0x9f, 0xf0, 0xfe, 0x68, 0x03, 0xf9, 0x10, 0xfe, 0x11, 0x00, 0x02,
 	0x65, 0x2c, 0xfe, 0x48, 0x1c, 0xf9, 0x08, 0x05, 0x1b, 0xfe, 0x18, 0x13,
-	0x21, 0x22, 0xa3, 0xb7,
-	0x13, 0xa3, 0x09, 0x46, 0x01, 0x0e, 0xb7, 0x78, 0x01, 0xfe, 0xb4, 0x16,
-	0x12, 0xd1, 0x1c, 0xd9,
-	0xfe, 0x01, 0xf0, 0xd9, 0xfe, 0x82, 0xf0, 0xfe, 0x96, 0x03, 0xfa, 0x12,
-	0xfe, 0xe4, 0x00, 0x27,
+	0x21, 0x22, 0xa3, 0xb7, 0x13, 0xa3, 0x09, 0x46, 0x01, 0x0e, 0xb7, 0x78,
+	0x01, 0xfe, 0xb4, 0x16, 0x12, 0xd1, 0x1c, 0xd9, 0xfe, 0x01, 0xf0, 0xd9,
+	0xfe, 0x82, 0xf0, 0xfe, 0x96, 0x03, 0xfa, 0x12, 0xfe, 0xe4, 0x00, 0x27,
 	0xfe, 0xa8, 0x03, 0x1c, 0x34, 0x1d, 0xfe, 0xb8, 0x03, 0x01, 0x4b, 0xfe,
-	0x06, 0xf0, 0xfe, 0xc8,
-	0x03, 0x95, 0x86, 0xfe, 0x0a, 0xf0, 0xfe, 0x8a, 0x06, 0x02, 0x24, 0x03,
-	0x70, 0x28, 0x17, 0xfe,
-	0xfa, 0x04, 0x15, 0x6d, 0x01, 0x36, 0x7b, 0xfe, 0x6a, 0x02, 0x02, 0xd8,
-	0xf9, 0x2c, 0x99, 0x19,
+	0x06, 0xf0, 0xfe, 0xc8, 0x03, 0x95, 0x86, 0xfe, 0x0a, 0xf0, 0xfe, 0x8a,
+	0x06, 0x02, 0x24, 0x03, 0x70, 0x28, 0x17, 0xfe, 0xfa, 0x04, 0x15, 0x6d,
+	0x01, 0x36, 0x7b, 0xfe, 0x6a, 0x02, 0x02, 0xd8, 0xf9, 0x2c, 0x99, 0x19,
 	0xfe, 0x67, 0x1b, 0xfe, 0xbf, 0x57, 0xfe, 0x77, 0x57, 0xfe, 0x48, 0x1c,
-	0x74, 0x01, 0xaf, 0x8c,
-	0x09, 0x46, 0x01, 0x0e, 0x07, 0x00, 0x17, 0xda, 0x09, 0xd1, 0x01, 0x0e,
-	0x8d, 0x51, 0x64, 0x79,
-	0x2a, 0x03, 0x70, 0x28, 0xfe, 0x10, 0x12, 0x15, 0x6d, 0x01, 0x36, 0x7b,
-	0xfe, 0x6a, 0x02, 0x02,
+	0x74, 0x01, 0xaf, 0x8c, 0x09, 0x46, 0x01, 0x0e, 0x07, 0x00, 0x17, 0xda,
+	0x09, 0xd1, 0x01, 0x0e, 0x8d, 0x51, 0x64, 0x79, 0x2a, 0x03, 0x70, 0x28,
+	0xfe, 0x10, 0x12, 0x15, 0x6d, 0x01, 0x36, 0x7b, 0xfe, 0x6a, 0x02, 0x02,
 	0xd8, 0xc7, 0x81, 0xc8, 0x83, 0x1c, 0x24, 0x27, 0xfe, 0x40, 0x04, 0x1d,
-	0xfe, 0x3c, 0x04, 0x3b,
-	0xfe, 0xa0, 0x00, 0xfe, 0x9b, 0x57, 0xfe, 0x4e, 0x12, 0x2d, 0xff, 0x02,
-	0x00, 0x10, 0x01, 0x0b,
-	0x1d, 0xfe, 0xe4, 0x04, 0x2d, 0x01, 0x0b, 0x1d, 0x24, 0x33, 0x31, 0xde,
-	0xfe, 0x4c, 0x44, 0xfe,
+	0xfe, 0x3c, 0x04, 0x3b, 0xfe, 0xa0, 0x00, 0xfe, 0x9b, 0x57, 0xfe, 0x4e,
+	0x12, 0x2d, 0xff, 0x02, 0x00, 0x10, 0x01, 0x0b, 0x1d, 0xfe, 0xe4, 0x04,
+	0x2d, 0x01, 0x0b, 0x1d, 0x24, 0x33, 0x31, 0xde, 0xfe, 0x4c, 0x44, 0xfe,
 	0x4c, 0x12, 0x51, 0xfe, 0x44, 0x48, 0x0f, 0x6f, 0xfe, 0x4c, 0x54, 0x6b,
-	0xda, 0x4f, 0x79, 0x2a,
-	0xfe, 0x06, 0x80, 0xfe, 0x48, 0x47, 0xfe, 0x62, 0x13, 0x08, 0x05, 0x1b,
-	0xfe, 0x2a, 0x13, 0x32,
-	0x07, 0x82, 0xfe, 0x52, 0x13, 0xfe, 0x20, 0x10, 0x0f, 0x6f, 0xfe, 0x4c,
-	0x54, 0x6b, 0xda, 0xfe,
+	0xda, 0x4f, 0x79, 0x2a, 0xfe, 0x06, 0x80, 0xfe, 0x48, 0x47, 0xfe, 0x62,
+	0x13, 0x08, 0x05, 0x1b, 0xfe, 0x2a, 0x13, 0x32, 0x07, 0x82, 0xfe, 0x52,
+	0x13, 0xfe, 0x20, 0x10, 0x0f, 0x6f, 0xfe, 0x4c, 0x54, 0x6b, 0xda, 0xfe,
 	0x06, 0x80, 0xfe, 0x48, 0x47, 0xfe, 0x40, 0x13, 0x08, 0x05, 0x1b, 0xfe,
-	0x08, 0x13, 0x32, 0x07,
-	0x82, 0xfe, 0x30, 0x13, 0x08, 0x05, 0x1b, 0xfe, 0x1c, 0x12, 0x15, 0x9d,
-	0x08, 0x05, 0x06, 0x4d,
-	0x15, 0xfe, 0x0d, 0x00, 0x01, 0x36, 0x7b, 0xfe, 0x64, 0x0d, 0x02, 0x24,
-	0x2d, 0x12, 0xfe, 0xe6,
+	0x08, 0x13, 0x32, 0x07, 0x82, 0xfe, 0x30, 0x13, 0x08, 0x05, 0x1b, 0xfe,
+	0x1c, 0x12, 0x15, 0x9d, 0x08, 0x05, 0x06, 0x4d, 0x15, 0xfe, 0x0d, 0x00,
+	0x01, 0x36, 0x7b, 0xfe, 0x64, 0x0d, 0x02, 0x24, 0x2d, 0x12, 0xfe, 0xe6,
 	0x00, 0xfe, 0x1c, 0x90, 0xfe, 0x40, 0x5c, 0x04, 0x15, 0x9d, 0x01, 0x36,
-	0x02, 0x2b, 0xfe, 0x42,
-	0x5b, 0x99, 0x19, 0xfe, 0x46, 0x59, 0xfe, 0xbf, 0x57, 0xfe, 0x77, 0x57,
-	0xfe, 0x87, 0x80, 0xfe,
-	0x31, 0xe4, 0x5b, 0x08, 0x05, 0x0a, 0xfe, 0x84, 0x13, 0xfe, 0x20, 0x80,
-	0x07, 0x19, 0xfe, 0x7c,
+	0x02, 0x2b, 0xfe, 0x42, 0x5b, 0x99, 0x19, 0xfe, 0x46, 0x59, 0xfe, 0xbf,
+	0x57, 0xfe, 0x77, 0x57, 0xfe, 0x87, 0x80, 0xfe, 0x31, 0xe4, 0x5b, 0x08,
+	0x05, 0x0a, 0xfe, 0x84, 0x13, 0xfe, 0x20, 0x80, 0x07, 0x19, 0xfe, 0x7c,
 	0x12, 0x53, 0x05, 0x06, 0xfe, 0x6c, 0x13, 0x03, 0xfe, 0xa2, 0x00, 0x28,
-	0x17, 0xfe, 0x90, 0x05,
-	0xfe, 0x31, 0xe4, 0x5a, 0x53, 0x05, 0x0a, 0xfe, 0x56, 0x13, 0x03, 0xfe,
-	0xa0, 0x00, 0x28, 0xfe,
-	0x4e, 0x12, 0x67, 0xff, 0x02, 0x00, 0x10, 0x27, 0xfe, 0x48, 0x05, 0x1c,
-	0x34, 0xfe, 0x89, 0x48,
+	0x17, 0xfe, 0x90, 0x05, 0xfe, 0x31, 0xe4, 0x5a, 0x53, 0x05, 0x0a, 0xfe,
+	0x56, 0x13, 0x03, 0xfe, 0xa0, 0x00, 0x28, 0xfe, 0x4e, 0x12, 0x67, 0xff,
+	0x02, 0x00, 0x10, 0x27, 0xfe, 0x48, 0x05, 0x1c, 0x34, 0xfe, 0x89, 0x48,
 	0xff, 0x02, 0x00, 0x10, 0x27, 0xfe, 0x56, 0x05, 0x26, 0xfe, 0xa8, 0x05,
-	0x12, 0xfe, 0xe3, 0x00,
-	0x21, 0x53, 0xfe, 0x4a, 0xf0, 0xfe, 0x76, 0x05, 0xfe, 0x49, 0xf0, 0xfe,
-	0x70, 0x05, 0x88, 0x25,
-	0xfe, 0x21, 0x00, 0xab, 0x25, 0xfe, 0x22, 0x00, 0xaa, 0x25, 0x58, 0xfe,
-	0x09, 0x48, 0xff, 0x02,
+	0x12, 0xfe, 0xe3, 0x00, 0x21, 0x53, 0xfe, 0x4a, 0xf0, 0xfe, 0x76, 0x05,
+	0xfe, 0x49, 0xf0, 0xfe, 0x70, 0x05, 0x88, 0x25, 0xfe, 0x21, 0x00, 0xab,
+	0x25, 0xfe, 0x22, 0x00, 0xaa, 0x25, 0x58, 0xfe, 0x09, 0x48, 0xff, 0x02,
 	0x00, 0x10, 0x27, 0xfe, 0x86, 0x05, 0x26, 0xfe, 0xa8, 0x05, 0xfe, 0xe2,
-	0x08, 0x53, 0x05, 0xcb,
-	0x4d, 0x01, 0xb0, 0x25, 0x06, 0x13, 0xd3, 0x39, 0xfe, 0x27, 0x01, 0x08,
-	0x05, 0x1b, 0xfe, 0x22,
-	0x12, 0x41, 0x01, 0xb2, 0x15, 0x9d, 0x08, 0x05, 0x06, 0x4d, 0x15, 0xfe,
-	0x0d, 0x00, 0x01, 0x36,
+	0x08, 0x53, 0x05, 0xcb, 0x4d, 0x01, 0xb0, 0x25, 0x06, 0x13, 0xd3, 0x39,
+	0xfe, 0x27, 0x01, 0x08, 0x05, 0x1b, 0xfe, 0x22, 0x12, 0x41, 0x01, 0xb2,
+	0x15, 0x9d, 0x08, 0x05, 0x06, 0x4d, 0x15, 0xfe, 0x0d, 0x00, 0x01, 0x36,
 	0x7b, 0xfe, 0x64, 0x0d, 0x02, 0x24, 0x03, 0xfe, 0x9c, 0x00, 0x28, 0xeb,
-	0x03, 0x5c, 0x28, 0xfe,
-	0x36, 0x13, 0x41, 0x01, 0xb2, 0x26, 0xfe, 0x18, 0x06, 0x09, 0x06, 0x53,
-	0x05, 0x1f, 0xfe, 0x02,
-	0x12, 0x50, 0x01, 0xfe, 0x9e, 0x15, 0x1d, 0xfe, 0x0e, 0x06, 0x12, 0xa5,
-	0x01, 0x4b, 0x12, 0xfe,
+	0x03, 0x5c, 0x28, 0xfe, 0x36, 0x13, 0x41, 0x01, 0xb2, 0x26, 0xfe, 0x18,
+	0x06, 0x09, 0x06, 0x53, 0x05, 0x1f, 0xfe, 0x02, 0x12, 0x50, 0x01, 0xfe,
+	0x9e, 0x15, 0x1d, 0xfe, 0x0e, 0x06, 0x12, 0xa5, 0x01, 0x4b, 0x12, 0xfe,
 	0xe5, 0x00, 0x03, 0x5c, 0xc1, 0x0c, 0x5c, 0x03, 0xcd, 0x28, 0xfe, 0x62,
-	0x12, 0x03, 0x45, 0x28,
-	0xfe, 0x5a, 0x13, 0x01, 0xfe, 0x0c, 0x19, 0x01, 0xfe, 0x76, 0x19, 0xfe,
-	0x43, 0x48, 0xc4, 0xcc,
-	0x0f, 0x71, 0xff, 0x02, 0x00, 0x57, 0x52, 0x93, 0x1e, 0x43, 0x8b, 0xc4,
-	0x6e, 0x41, 0x01, 0xb2,
+	0x12, 0x03, 0x45, 0x28, 0xfe, 0x5a, 0x13, 0x01, 0xfe, 0x0c, 0x19, 0x01,
+	0xfe, 0x76, 0x19, 0xfe, 0x43, 0x48, 0xc4, 0xcc, 0x0f, 0x71, 0xff, 0x02,
+	0x00, 0x57, 0x52, 0x93, 0x1e, 0x43, 0x8b, 0xc4, 0x6e, 0x41, 0x01, 0xb2,
 	0x26, 0xfe, 0x82, 0x06, 0x53, 0x05, 0x1a, 0xe9, 0x91, 0x09, 0x59, 0x01,
-	0xfe, 0xcc, 0x15, 0x1d,
-	0xfe, 0x78, 0x06, 0x12, 0xa5, 0x01, 0x4b, 0x12, 0xfe, 0xe5, 0x00, 0x03,
-	0x45, 0xc1, 0x0c, 0x45,
-	0x18, 0x06, 0x01, 0xb2, 0xfa, 0x76, 0x74, 0x01, 0xaf, 0x8c, 0x12, 0xfe,
-	0xe2, 0x00, 0x27, 0xdb,
+	0xfe, 0xcc, 0x15, 0x1d, 0xfe, 0x78, 0x06, 0x12, 0xa5, 0x01, 0x4b, 0x12,
+	0xfe, 0xe5, 0x00, 0x03, 0x45, 0xc1, 0x0c, 0x45, 0x18, 0x06, 0x01, 0xb2,
+	0xfa, 0x76, 0x74, 0x01, 0xaf, 0x8c, 0x12, 0xfe, 0xe2, 0x00, 0x27, 0xdb,
 	0x1c, 0x34, 0xfe, 0x0a, 0xf0, 0xfe, 0xb6, 0x06, 0x94, 0xfe, 0x6c, 0x07,
-	0xfe, 0x06, 0xf0, 0xfe,
-	0x74, 0x07, 0x95, 0x86, 0x02, 0x24, 0x08, 0x05, 0x0a, 0xfe, 0x2e, 0x12,
-	0x16, 0x19, 0x01, 0x0b,
-	0x16, 0x00, 0x01, 0x0b, 0x16, 0x00, 0x01, 0x0b, 0x16, 0x00, 0x01, 0x0b,
-	0xfe, 0x99, 0xa4, 0x01,
+	0xfe, 0x06, 0xf0, 0xfe, 0x74, 0x07, 0x95, 0x86, 0x02, 0x24, 0x08, 0x05,
+	0x0a, 0xfe, 0x2e, 0x12, 0x16, 0x19, 0x01, 0x0b, 0x16, 0x00, 0x01, 0x0b,
+	0x16, 0x00, 0x01, 0x0b, 0x16, 0x00, 0x01, 0x0b, 0xfe, 0x99, 0xa4, 0x01,
 	0x0b, 0x16, 0x00, 0x02, 0xfe, 0x42, 0x08, 0x68, 0x05, 0x1a, 0xfe, 0x38,
-	0x12, 0x08, 0x05, 0x1a,
-	0xfe, 0x30, 0x13, 0x16, 0xfe, 0x1b, 0x00, 0x01, 0x0b, 0x16, 0x00, 0x01,
-	0x0b, 0x16, 0x00, 0x01,
-	0x0b, 0x16, 0x00, 0x01, 0x0b, 0x16, 0x06, 0x01, 0x0b, 0x16, 0x00, 0x02,
-	0xe2, 0x6c, 0x58, 0xbe,
+	0x12, 0x08, 0x05, 0x1a, 0xfe, 0x30, 0x13, 0x16, 0xfe, 0x1b, 0x00, 0x01,
+	0x0b, 0x16, 0x00, 0x01, 0x0b, 0x16, 0x00, 0x01, 0x0b, 0x16, 0x00, 0x01,
+	0x0b, 0x16, 0x06, 0x01, 0x0b, 0x16, 0x00, 0x02, 0xe2, 0x6c, 0x58, 0xbe,
 	0x50, 0xfe, 0x9a, 0x81, 0x55, 0x1b, 0x7a, 0xfe, 0x42, 0x07, 0x09, 0x1b,
-	0xfe, 0x09, 0x6f, 0xba,
-	0xfe, 0xca, 0x45, 0xfe, 0x32, 0x12, 0x69, 0x6d, 0x8b, 0x6c, 0x7f, 0x27,
-	0xfe, 0x54, 0x07, 0x1c,
-	0x34, 0xfe, 0x0a, 0xf0, 0xfe, 0x42, 0x07, 0x95, 0x86, 0x94, 0xfe, 0x6c,
-	0x07, 0x02, 0x24, 0x01,
+	0xfe, 0x09, 0x6f, 0xba, 0xfe, 0xca, 0x45, 0xfe, 0x32, 0x12, 0x69, 0x6d,
+	0x8b, 0x6c, 0x7f, 0x27, 0xfe, 0x54, 0x07, 0x1c, 0x34, 0xfe, 0x0a, 0xf0,
+	0xfe, 0x42, 0x07, 0x95, 0x86, 0x94, 0xfe, 0x6c, 0x07, 0x02, 0x24, 0x01,
 	0x4b, 0x02, 0xdb, 0x16, 0x1f, 0x02, 0xdb, 0xfe, 0x9c, 0xf7, 0xdc, 0xfe,
-	0x2c, 0x90, 0xfe, 0xae,
-	0x90, 0x56, 0xfe, 0xda, 0x07, 0x0c, 0x60, 0x14, 0x61, 0x08, 0x54, 0x5a,
-	0x37, 0x22, 0x20, 0x07,
-	0x11, 0xfe, 0x0e, 0x12, 0x8d, 0xfe, 0x80, 0x80, 0x39, 0x20, 0x6a, 0x2a,
-	0xfe, 0x06, 0x10, 0xfe,
+	0x2c, 0x90, 0xfe, 0xae, 0x90, 0x56, 0xfe, 0xda, 0x07, 0x0c, 0x60, 0x14,
+	0x61, 0x08, 0x54, 0x5a, 0x37, 0x22, 0x20, 0x07, 0x11, 0xfe, 0x0e, 0x12,
+	0x8d, 0xfe, 0x80, 0x80, 0x39, 0x20, 0x6a, 0x2a, 0xfe, 0x06, 0x10, 0xfe,
 	0x83, 0xe7, 0xfe, 0x48, 0x00, 0xab, 0xfe, 0x03, 0x40, 0x08, 0x54, 0x5b,
-	0x37, 0x01, 0xb3, 0xb8,
-	0xfe, 0x1f, 0x40, 0x13, 0x62, 0x01, 0xef, 0xfe, 0x08, 0x50, 0xfe, 0x8a,
-	0x50, 0xfe, 0x44, 0x51,
-	0xfe, 0xc6, 0x51, 0x88, 0xfe, 0x08, 0x90, 0xfe, 0x8a, 0x90, 0x0c, 0x5e,
-	0x14, 0x5f, 0xfe, 0x0c,
+	0x37, 0x01, 0xb3, 0xb8, 0xfe, 0x1f, 0x40, 0x13, 0x62, 0x01, 0xef, 0xfe,
+	0x08, 0x50, 0xfe, 0x8a, 0x50, 0xfe, 0x44, 0x51, 0xfe, 0xc6, 0x51, 0x88,
+	0xfe, 0x08, 0x90, 0xfe, 0x8a, 0x90, 0x0c, 0x5e, 0x14, 0x5f, 0xfe, 0x0c,
 	0x90, 0xfe, 0x8e, 0x90, 0xfe, 0x40, 0x50, 0xfe, 0xc2, 0x50, 0x0c, 0x3d,
-	0x14, 0x3e, 0xfe, 0x4a,
-	0x10, 0x08, 0x05, 0x5a, 0xfe, 0x2a, 0x12, 0xfe, 0x2c, 0x90, 0xfe, 0xae,
-	0x90, 0x0c, 0x60, 0x14,
-	0x61, 0x08, 0x05, 0x5b, 0x8b, 0x01, 0xb3, 0xfe, 0x1f, 0x80, 0x13, 0x62,
-	0xfe, 0x44, 0x90, 0xfe,
+	0x14, 0x3e, 0xfe, 0x4a, 0x10, 0x08, 0x05, 0x5a, 0xfe, 0x2a, 0x12, 0xfe,
+	0x2c, 0x90, 0xfe, 0xae, 0x90, 0x0c, 0x60, 0x14, 0x61, 0x08, 0x05, 0x5b,
+	0x8b, 0x01, 0xb3, 0xfe, 0x1f, 0x80, 0x13, 0x62, 0xfe, 0x44, 0x90, 0xfe,
 	0xc6, 0x90, 0x0c, 0x3f, 0x14, 0x40, 0xfe, 0x08, 0x90, 0xfe, 0x8a, 0x90,
-	0x0c, 0x5e, 0x14, 0x5f,
-	0xfe, 0x40, 0x90, 0xfe, 0xc2, 0x90, 0x0c, 0x3d, 0x14, 0x3e, 0x0c, 0x2e,
-	0x14, 0x3c, 0x21, 0x0c,
-	0x49, 0x0c, 0x63, 0x08, 0x54, 0x1f, 0x37, 0x2c, 0x0f, 0xfe, 0x4e, 0x11,
-	0x27, 0xdd, 0xfe, 0x9e,
+	0x0c, 0x5e, 0x14, 0x5f, 0xfe, 0x40, 0x90, 0xfe, 0xc2, 0x90, 0x0c, 0x3d,
+	0x14, 0x3e, 0x0c, 0x2e, 0x14, 0x3c, 0x21, 0x0c, 0x49, 0x0c, 0x63, 0x08,
+	0x54, 0x1f, 0x37, 0x2c, 0x0f, 0xfe, 0x4e, 0x11, 0x27, 0xdd, 0xfe, 0x9e,
 	0xf0, 0xfe, 0x76, 0x08, 0xbc, 0x17, 0x34, 0x2c, 0x77, 0xe6, 0xc5, 0xfe,
-	0x9a, 0x08, 0xc6, 0xfe,
-	0xb8, 0x08, 0x94, 0xfe, 0x8e, 0x08, 0xfe, 0x06, 0xf0, 0xfe, 0x94, 0x08,
-	0x95, 0x86, 0x02, 0x24,
-	0x01, 0x4b, 0xfe, 0xc9, 0x10, 0x16, 0x1f, 0xfe, 0xc9, 0x10, 0x68, 0x05,
-	0x06, 0xfe, 0x10, 0x12,
+	0x9a, 0x08, 0xc6, 0xfe, 0xb8, 0x08, 0x94, 0xfe, 0x8e, 0x08, 0xfe, 0x06,
+	0xf0, 0xfe, 0x94, 0x08, 0x95, 0x86, 0x02, 0x24, 0x01, 0x4b, 0xfe, 0xc9,
+	0x10, 0x16, 0x1f, 0xfe, 0xc9, 0x10, 0x68, 0x05, 0x06, 0xfe, 0x10, 0x12,
 	0x68, 0x05, 0x0a, 0x4e, 0x08, 0x05, 0x0a, 0xfe, 0x90, 0x12, 0xfe, 0x2e,
-	0x1c, 0x02, 0xfe, 0x18,
-	0x0b, 0x68, 0x05, 0x06, 0x4e, 0x68, 0x05, 0x0a, 0xfe, 0x7a, 0x12, 0xfe,
-	0x2c, 0x1c, 0xfe, 0xaa,
-	0xf0, 0xfe, 0xd2, 0x09, 0xfe, 0xac, 0xf0, 0xfe, 0x00, 0x09, 0x02, 0xfe,
-	0xde, 0x09, 0xfe, 0xb7,
+	0x1c, 0x02, 0xfe, 0x18, 0x0b, 0x68, 0x05, 0x06, 0x4e, 0x68, 0x05, 0x0a,
+	0xfe, 0x7a, 0x12, 0xfe, 0x2c, 0x1c, 0xfe, 0xaa, 0xf0, 0xfe, 0xd2, 0x09,
+	0xfe, 0xac, 0xf0, 0xfe, 0x00, 0x09, 0x02, 0xfe, 0xde, 0x09, 0xfe, 0xb7,
 	0xf0, 0xfe, 0xfc, 0x08, 0xfe, 0x02, 0xf6, 0x1a, 0x50, 0xfe, 0x70, 0x18,
-	0xfe, 0xf1, 0x18, 0xfe,
-	0x40, 0x55, 0xfe, 0xe1, 0x55, 0xfe, 0x10, 0x58, 0xfe, 0x91, 0x58, 0xfe,
-	0x14, 0x59, 0xfe, 0x95,
-	0x59, 0x1c, 0x85, 0xfe, 0x8c, 0xf0, 0xfe, 0xfc, 0x08, 0xfe, 0xac, 0xf0,
-	0xfe, 0xf0, 0x08, 0xb5,
+	0xfe, 0xf1, 0x18, 0xfe, 0x40, 0x55, 0xfe, 0xe1, 0x55, 0xfe, 0x10, 0x58,
+	0xfe, 0x91, 0x58, 0xfe, 0x14, 0x59, 0xfe, 0x95, 0x59, 0x1c, 0x85, 0xfe,
+	0x8c, 0xf0, 0xfe, 0xfc, 0x08, 0xfe, 0xac, 0xf0, 0xfe, 0xf0, 0x08, 0xb5,
 	0xfe, 0xcb, 0x10, 0xfe, 0xad, 0xf0, 0xfe, 0x0c, 0x09, 0x02, 0xfe, 0x18,
-	0x0b, 0xb6, 0xfe, 0xbf,
-	0x10, 0xfe, 0x2b, 0xf0, 0x85, 0xf4, 0x1e, 0xfe, 0x00, 0xfe, 0xfe, 0x1c,
-	0x12, 0xc2, 0xfe, 0xd2,
-	0xf0, 0x85, 0xfe, 0x76, 0x18, 0x1e, 0x19, 0x17, 0x85, 0x03, 0xd2, 0x1e,
-	0x06, 0x17, 0x85, 0xc5,
+	0x0b, 0xb6, 0xfe, 0xbf, 0x10, 0xfe, 0x2b, 0xf0, 0x85, 0xf4, 0x1e, 0xfe,
+	0x00, 0xfe, 0xfe, 0x1c, 0x12, 0xc2, 0xfe, 0xd2, 0xf0, 0x85, 0xfe, 0x76,
+	0x18, 0x1e, 0x19, 0x17, 0x85, 0x03, 0xd2, 0x1e, 0x06, 0x17, 0x85, 0xc5,
 	0x4a, 0xc6, 0x4a, 0xb5, 0xb6, 0xfe, 0x89, 0x10, 0x74, 0x67, 0x2d, 0x15,
-	0x9d, 0x01, 0x36, 0x10,
-	0xfe, 0x35, 0x00, 0xfe, 0x01, 0xf0, 0x65, 0x10, 0x80, 0x02, 0x65, 0xfe,
-	0x98, 0x80, 0xfe, 0x19,
-	0xe4, 0x0a, 0xfe, 0x1a, 0x12, 0x51, 0xfe, 0x19, 0x82, 0xfe, 0x6c, 0x18,
-	0xfe, 0x44, 0x54, 0xbe,
+	0x9d, 0x01, 0x36, 0x10, 0xfe, 0x35, 0x00, 0xfe, 0x01, 0xf0, 0x65, 0x10,
+	0x80, 0x02, 0x65, 0xfe, 0x98, 0x80, 0xfe, 0x19, 0xe4, 0x0a, 0xfe, 0x1a,
+	0x12, 0x51, 0xfe, 0x19, 0x82, 0xfe, 0x6c, 0x18, 0xfe, 0x44, 0x54, 0xbe,
 	0xfe, 0x19, 0x81, 0xfe, 0x74, 0x18, 0x8f, 0x90, 0x17, 0xfe, 0xce, 0x08,
-	0x02, 0x4a, 0x08, 0x05,
-	0x5a, 0xec, 0x03, 0x2e, 0x29, 0x3c, 0x0c, 0x3f, 0x14, 0x40, 0x9b, 0x2e,
-	0x9c, 0x3c, 0xfe, 0x6c,
-	0x18, 0xfe, 0xed, 0x18, 0xfe, 0x44, 0x54, 0xfe, 0xe5, 0x54, 0x3a, 0x3f,
-	0x3b, 0x40, 0x03, 0x49,
+	0x02, 0x4a, 0x08, 0x05, 0x5a, 0xec, 0x03, 0x2e, 0x29, 0x3c, 0x0c, 0x3f,
+	0x14, 0x40, 0x9b, 0x2e, 0x9c, 0x3c, 0xfe, 0x6c, 0x18, 0xfe, 0xed, 0x18,
+	0xfe, 0x44, 0x54, 0xfe, 0xe5, 0x54, 0x3a, 0x3f, 0x3b, 0x40, 0x03, 0x49,
 	0x29, 0x63, 0x8f, 0xfe, 0xe3, 0x54, 0xfe, 0x74, 0x18, 0xfe, 0xf5, 0x18,
-	0x8f, 0xfe, 0xe3, 0x54,
-	0x90, 0xc0, 0x56, 0xfe, 0xce, 0x08, 0x02, 0x4a, 0xfe, 0x37, 0xf0, 0xfe,
-	0xda, 0x09, 0xfe, 0x8b,
-	0xf0, 0xfe, 0x60, 0x09, 0x02, 0x4a, 0x08, 0x05, 0x0a, 0x23, 0xfe, 0xfa,
-	0x0a, 0x3a, 0x49, 0x3b,
+	0x8f, 0xfe, 0xe3, 0x54, 0x90, 0xc0, 0x56, 0xfe, 0xce, 0x08, 0x02, 0x4a,
+	0xfe, 0x37, 0xf0, 0xfe, 0xda, 0x09, 0xfe, 0x8b, 0xf0, 0xfe, 0x60, 0x09,
+	0x02, 0x4a, 0x08, 0x05, 0x0a, 0x23, 0xfe, 0xfa, 0x0a, 0x3a, 0x49, 0x3b,
 	0x63, 0x56, 0xfe, 0x3e, 0x0a, 0x0f, 0xfe, 0xc0, 0x07, 0x41, 0x98, 0x00,
-	0xad, 0xfe, 0x01, 0x59,
-	0xfe, 0x52, 0xf0, 0xfe, 0x0c, 0x0a, 0x8f, 0x7a, 0xfe, 0x24, 0x0a, 0x3a,
-	0x49, 0x8f, 0xfe, 0xe3,
-	0x54, 0x57, 0x49, 0x7d, 0x63, 0xfe, 0x14, 0x58, 0xfe, 0x95, 0x58, 0x02,
-	0x4a, 0x3a, 0x49, 0x3b,
+	0xad, 0xfe, 0x01, 0x59, 0xfe, 0x52, 0xf0, 0xfe, 0x0c, 0x0a, 0x8f, 0x7a,
+	0xfe, 0x24, 0x0a, 0x3a, 0x49, 0x8f, 0xfe, 0xe3, 0x54, 0x57, 0x49, 0x7d,
+	0x63, 0xfe, 0x14, 0x58, 0xfe, 0x95, 0x58, 0x02, 0x4a, 0x3a, 0x49, 0x3b,
 	0x63, 0xfe, 0x14, 0x59, 0xfe, 0x95, 0x59, 0xbe, 0x57, 0x49, 0x57, 0x63,
-	0x02, 0x4a, 0x08, 0x05,
-	0x5a, 0xfe, 0x82, 0x12, 0x08, 0x05, 0x1f, 0xfe, 0x66, 0x13, 0x22, 0x62,
-	0xb7, 0xfe, 0x03, 0xa1,
-	0xfe, 0x83, 0x80, 0xfe, 0xc8, 0x44, 0xfe, 0x2e, 0x13, 0xfe, 0x04, 0x91,
-	0xfe, 0x86, 0x91, 0x6a,
+	0x02, 0x4a, 0x08, 0x05, 0x5a, 0xfe, 0x82, 0x12, 0x08, 0x05, 0x1f, 0xfe,
+	0x66, 0x13, 0x22, 0x62, 0xb7, 0xfe, 0x03, 0xa1, 0xfe, 0x83, 0x80, 0xfe,
+	0xc8, 0x44, 0xfe, 0x2e, 0x13, 0xfe, 0x04, 0x91, 0xfe, 0x86, 0x91, 0x6a,
 	0x2a, 0xfe, 0x40, 0x59, 0xfe, 0xc1, 0x59, 0x56, 0xe0, 0x03, 0x60, 0x29,
-	0x61, 0x0c, 0x7f, 0x14,
-	0x80, 0x57, 0x60, 0x7d, 0x61, 0x01, 0xb3, 0xb8, 0x6a, 0x2a, 0x13, 0x62,
-	0x9b, 0x2e, 0x9c, 0x3c,
-	0x3a, 0x3f, 0x3b, 0x40, 0x90, 0xc0, 0xfe, 0x04, 0xfa, 0x2e, 0xfe, 0x05,
-	0xfa, 0x3c, 0x01, 0xef,
+	0x61, 0x0c, 0x7f, 0x14, 0x80, 0x57, 0x60, 0x7d, 0x61, 0x01, 0xb3, 0xb8,
+	0x6a, 0x2a, 0x13, 0x62, 0x9b, 0x2e, 0x9c, 0x3c, 0x3a, 0x3f, 0x3b, 0x40,
+	0x90, 0xc0, 0xfe, 0x04, 0xfa, 0x2e, 0xfe, 0x05, 0xfa, 0x3c, 0x01, 0xef,
 	0xfe, 0x36, 0x10, 0x21, 0x0c, 0x7f, 0x0c, 0x80, 0x3a, 0x3f, 0x3b, 0x40,
-	0xe4, 0x08, 0x05, 0x1f,
-	0x17, 0xe0, 0x3a, 0x3d, 0x3b, 0x3e, 0x08, 0x05, 0xfe, 0xf7, 0x00, 0x37,
-	0x03, 0x5e, 0x29, 0x5f,
-	0xfe, 0x10, 0x58, 0xfe, 0x91, 0x58, 0x57, 0x49, 0x7d, 0x63, 0x02, 0xfe,
-	0xf4, 0x09, 0x08, 0x05,
+	0xe4, 0x08, 0x05, 0x1f, 0x17, 0xe0, 0x3a, 0x3d, 0x3b, 0x3e, 0x08, 0x05,
+	0xfe, 0xf7, 0x00, 0x37, 0x03, 0x5e, 0x29, 0x5f, 0xfe, 0x10, 0x58, 0xfe,
+	0x91, 0x58, 0x57, 0x49, 0x7d, 0x63, 0x02, 0xfe, 0xf4, 0x09, 0x08, 0x05,
 	0x1f, 0x17, 0xe0, 0x08, 0x05, 0xfe, 0xf7, 0x00, 0x37, 0xbe, 0xfe, 0x19,
-	0x81, 0x50, 0xfe, 0x10,
-	0x90, 0xfe, 0x92, 0x90, 0xfe, 0xd3, 0x10, 0x32, 0x07, 0xa6, 0x17, 0xfe,
-	0x08, 0x09, 0x12, 0xa6,
-	0x08, 0x05, 0x0a, 0xfe, 0x14, 0x13, 0x03, 0x3d, 0x29, 0x3e, 0x56, 0xfe,
-	0x08, 0x09, 0xfe, 0x0c,
+	0x81, 0x50, 0xfe, 0x10, 0x90, 0xfe, 0x92, 0x90, 0xfe, 0xd3, 0x10, 0x32,
+	0x07, 0xa6, 0x17, 0xfe, 0x08, 0x09, 0x12, 0xa6, 0x08, 0x05, 0x0a, 0xfe,
+	0x14, 0x13, 0x03, 0x3d, 0x29, 0x3e, 0x56, 0xfe, 0x08, 0x09, 0xfe, 0x0c,
 	0x58, 0xfe, 0x8d, 0x58, 0x02, 0x4a, 0x21, 0x41, 0xfe, 0x19, 0x80, 0xe7,
-	0x08, 0x05, 0x0a, 0xfe,
-	0x1a, 0x12, 0xfe, 0x6c, 0x19, 0xfe, 0x19, 0x41, 0xf4, 0xc2, 0xfe, 0xd1,
-	0xf0, 0xe2, 0x15, 0x7e,
-	0x01, 0x36, 0x10, 0xfe, 0x44, 0x00, 0xfe, 0x8e, 0x10, 0xfe, 0x6c, 0x19,
-	0x57, 0x3d, 0xfe, 0xed,
+	0x08, 0x05, 0x0a, 0xfe, 0x1a, 0x12, 0xfe, 0x6c, 0x19, 0xfe, 0x19, 0x41,
+	0xf4, 0xc2, 0xfe, 0xd1, 0xf0, 0xe2, 0x15, 0x7e, 0x01, 0x36, 0x10, 0xfe,
+	0x44, 0x00, 0xfe, 0x8e, 0x10, 0xfe, 0x6c, 0x19, 0x57, 0x3d, 0xfe, 0xed,
 	0x19, 0x7d, 0x3e, 0xfe, 0x0c, 0x51, 0xfe, 0x8e, 0x51, 0xf4, 0x1e, 0xfe,
-	0x00, 0xff, 0x35, 0xfe,
-	0x74, 0x10, 0xc2, 0xfe, 0xd2, 0xf0, 0xfe, 0xa6, 0x0b, 0xfe, 0x76, 0x18,
-	0x1e, 0x19, 0x8a, 0x03,
-	0xd2, 0x1e, 0x06, 0xfe, 0x08, 0x13, 0x10, 0xfe, 0x16, 0x00, 0x02, 0x65,
-	0xfe, 0xd1, 0xf0, 0xfe,
+	0x00, 0xff, 0x35, 0xfe, 0x74, 0x10, 0xc2, 0xfe, 0xd2, 0xf0, 0xfe, 0xa6,
+	0x0b, 0xfe, 0x76, 0x18, 0x1e, 0x19, 0x8a, 0x03, 0xd2, 0x1e, 0x06, 0xfe,
+	0x08, 0x13, 0x10, 0xfe, 0x16, 0x00, 0x02, 0x65, 0xfe, 0xd1, 0xf0, 0xfe,
 	0xb8, 0x0b, 0x15, 0x7e, 0x01, 0x36, 0x10, 0xfe, 0x17, 0x00, 0xfe, 0x42,
-	0x10, 0xfe, 0xce, 0xf0,
-	0xfe, 0xbe, 0x0b, 0xfe, 0x3c, 0x10, 0xfe, 0xcd, 0xf0, 0xfe, 0xca, 0x0b,
-	0x10, 0xfe, 0x22, 0x00,
-	0x02, 0x65, 0xfe, 0xcb, 0xf0, 0xfe, 0xd6, 0x0b, 0x10, 0xfe, 0x24, 0x00,
-	0x02, 0x65, 0xfe, 0xd0,
+	0x10, 0xfe, 0xce, 0xf0, 0xfe, 0xbe, 0x0b, 0xfe, 0x3c, 0x10, 0xfe, 0xcd,
+	0xf0, 0xfe, 0xca, 0x0b, 0x10, 0xfe, 0x22, 0x00, 0x02, 0x65, 0xfe, 0xcb,
+	0xf0, 0xfe, 0xd6, 0x0b, 0x10, 0xfe, 0x24, 0x00, 0x02, 0x65, 0xfe, 0xd0,
 	0xf0, 0xfe, 0xe0, 0x0b, 0x10, 0x9e, 0xe5, 0xfe, 0xcf, 0xf0, 0xfe, 0xea,
-	0x0b, 0x10, 0x58, 0xfe,
-	0x10, 0x10, 0xfe, 0xcc, 0xf0, 0xe2, 0x68, 0x05, 0x1f, 0x4d, 0x10, 0xfe,
-	0x12, 0x00, 0x2c, 0x0f,
-	0xfe, 0x4e, 0x11, 0x27, 0xfe, 0x00, 0x0c, 0xfe, 0x9e, 0xf0, 0xfe, 0x14,
-	0x0c, 0xbc, 0x17, 0x34,
+	0x0b, 0x10, 0x58, 0xfe, 0x10, 0x10, 0xfe, 0xcc, 0xf0, 0xe2, 0x68, 0x05,
+	0x1f, 0x4d, 0x10, 0xfe, 0x12, 0x00, 0x2c, 0x0f, 0xfe, 0x4e, 0x11, 0x27,
+	0xfe, 0x00, 0x0c, 0xfe, 0x9e, 0xf0, 0xfe, 0x14, 0x0c, 0xbc, 0x17, 0x34,
 	0x2c, 0x77, 0xe6, 0xc5, 0x24, 0xc6, 0x24, 0x2c, 0xfa, 0x27, 0xfe, 0x20,
-	0x0c, 0x1c, 0x34, 0x94,
-	0xfe, 0x3c, 0x0c, 0x95, 0x86, 0xc5, 0xdc, 0xc6, 0xdc, 0x02, 0x24, 0x01,
-	0x4b, 0xfe, 0xdb, 0x10,
-	0x12, 0xfe, 0xe8, 0x00, 0xb5, 0xb6, 0x74, 0xc7, 0x81, 0xc8, 0x83, 0xfe,
-	0x89, 0xf0, 0x24, 0x33,
+	0x0c, 0x1c, 0x34, 0x94, 0xfe, 0x3c, 0x0c, 0x95, 0x86, 0xc5, 0xdc, 0xc6,
+	0xdc, 0x02, 0x24, 0x01, 0x4b, 0xfe, 0xdb, 0x10, 0x12, 0xfe, 0xe8, 0x00,
+	0xb5, 0xb6, 0x74, 0xc7, 0x81, 0xc8, 0x83, 0xfe, 0x89, 0xf0, 0x24, 0x33,
 	0x31, 0xe1, 0xc7, 0x81, 0xc8, 0x83, 0x27, 0xfe, 0x66, 0x0c, 0x1d, 0x24,
-	0x33, 0x31, 0xdf, 0xbc,
-	0x4e, 0x10, 0xfe, 0x42, 0x00, 0x02, 0x65, 0x7c, 0x06, 0xfe, 0x81, 0x49,
-	0x17, 0xfe, 0x2c, 0x0d,
-	0x08, 0x05, 0x0a, 0xfe, 0x44, 0x13, 0x10, 0x00, 0x55, 0x0a, 0xfe, 0x54,
-	0x12, 0x55, 0xfe, 0x28,
+	0x33, 0x31, 0xdf, 0xbc, 0x4e, 0x10, 0xfe, 0x42, 0x00, 0x02, 0x65, 0x7c,
+	0x06, 0xfe, 0x81, 0x49, 0x17, 0xfe, 0x2c, 0x0d, 0x08, 0x05, 0x0a, 0xfe,
+	0x44, 0x13, 0x10, 0x00, 0x55, 0x0a, 0xfe, 0x54, 0x12, 0x55, 0xfe, 0x28,
 	0x00, 0x23, 0xfe, 0x9a, 0x0d, 0x09, 0x46, 0x01, 0x0e, 0x07, 0x00, 0x66,
-	0x44, 0xfe, 0x28, 0x00,
-	0xfe, 0xe2, 0x10, 0x01, 0xf5, 0x01, 0xf6, 0x09, 0xa4, 0x01, 0xfe, 0x26,
-	0x0f, 0x64, 0x12, 0x2f,
-	0x01, 0x73, 0x02, 0x2b, 0x10, 0xfe, 0x44, 0x00, 0x55, 0x0a, 0xe9, 0x44,
-	0x0a, 0xfe, 0xb4, 0x10,
+	0x44, 0xfe, 0x28, 0x00, 0xfe, 0xe2, 0x10, 0x01, 0xf5, 0x01, 0xf6, 0x09,
+	0xa4, 0x01, 0xfe, 0x26, 0x0f, 0x64, 0x12, 0x2f, 0x01, 0x73, 0x02, 0x2b,
+	0x10, 0xfe, 0x44, 0x00, 0x55, 0x0a, 0xe9, 0x44, 0x0a, 0xfe, 0xb4, 0x10,
 	0x01, 0xb0, 0x44, 0x0a, 0xfe, 0xaa, 0x10, 0x01, 0xb0, 0xfe, 0x19, 0x82,
-	0xfe, 0x34, 0x46, 0xac,
-	0x44, 0x0a, 0x10, 0xfe, 0x43, 0x00, 0xfe, 0x96, 0x10, 0x08, 0x54, 0x0a,
-	0x37, 0x01, 0xf5, 0x01,
-	0xf6, 0x64, 0x12, 0x2f, 0x01, 0x73, 0x99, 0x0a, 0x64, 0x42, 0x92, 0x02,
-	0xfe, 0x2e, 0x03, 0x08,
+	0xfe, 0x34, 0x46, 0xac, 0x44, 0x0a, 0x10, 0xfe, 0x43, 0x00, 0xfe, 0x96,
+	0x10, 0x08, 0x54, 0x0a, 0x37, 0x01, 0xf5, 0x01, 0xf6, 0x64, 0x12, 0x2f,
+	0x01, 0x73, 0x99, 0x0a, 0x64, 0x42, 0x92, 0x02, 0xfe, 0x2e, 0x03, 0x08,
 	0x05, 0x0a, 0x8a, 0x44, 0x0a, 0x10, 0x00, 0xfe, 0x5c, 0x10, 0x68, 0x05,
-	0x1a, 0xfe, 0x58, 0x12,
-	0x08, 0x05, 0x1a, 0xfe, 0x50, 0x13, 0xfe, 0x1c, 0x1c, 0xfe, 0x9d, 0xf0,
-	0xfe, 0x50, 0x0d, 0xfe,
-	0x1c, 0x1c, 0xfe, 0x9d, 0xf0, 0xfe, 0x56, 0x0d, 0x08, 0x54, 0x1a, 0x37,
-	0xfe, 0xa9, 0x10, 0x10,
+	0x1a, 0xfe, 0x58, 0x12, 0x08, 0x05, 0x1a, 0xfe, 0x50, 0x13, 0xfe, 0x1c,
+	0x1c, 0xfe, 0x9d, 0xf0, 0xfe, 0x50, 0x0d, 0xfe, 0x1c, 0x1c, 0xfe, 0x9d,
+	0xf0, 0xfe, 0x56, 0x0d, 0x08, 0x54, 0x1a, 0x37, 0xfe, 0xa9, 0x10, 0x10,
 	0xfe, 0x15, 0x00, 0xfe, 0x04, 0xe6, 0x0a, 0x50, 0xfe, 0x2e, 0x10, 0x10,
-	0xfe, 0x13, 0x00, 0xfe,
-	0x10, 0x10, 0x10, 0x6f, 0xab, 0x10, 0xfe, 0x41, 0x00, 0xaa, 0x10, 0xfe,
-	0x24, 0x00, 0x8c, 0xb5,
-	0xb6, 0x74, 0x03, 0x70, 0x28, 0x23, 0xd8, 0x50, 0xfe, 0x04, 0xe6, 0x1a,
-	0xfe, 0x9d, 0x41, 0xfe,
+	0xfe, 0x13, 0x00, 0xfe, 0x10, 0x10, 0x10, 0x6f, 0xab, 0x10, 0xfe, 0x41,
+	0x00, 0xaa, 0x10, 0xfe, 0x24, 0x00, 0x8c, 0xb5, 0xb6, 0x74, 0x03, 0x70,
+	0x28, 0x23, 0xd8, 0x50, 0xfe, 0x04, 0xe6, 0x1a, 0xfe, 0x9d, 0x41, 0xfe,
 	0x1c, 0x42, 0x64, 0x01, 0xe3, 0x02, 0x2b, 0xf8, 0x15, 0x0a, 0x39, 0xa0,
-	0xb4, 0x15, 0xfe, 0x31,
-	0x00, 0x39, 0xa2, 0x01, 0xfe, 0x48, 0x10, 0x02, 0xd7, 0x42, 0xfe, 0x06,
-	0xec, 0xd0, 0xfc, 0x44,
-	0x1b, 0xfe, 0xce, 0x45, 0x35, 0x42, 0xfe, 0x06, 0xea, 0xd0, 0xfe, 0x47,
-	0x4b, 0x91, 0xfe, 0x75,
+	0xb4, 0x15, 0xfe, 0x31, 0x00, 0x39, 0xa2, 0x01, 0xfe, 0x48, 0x10, 0x02,
+	0xd7, 0x42, 0xfe, 0x06, 0xec, 0xd0, 0xfc, 0x44, 0x1b, 0xfe, 0xce, 0x45,
+	0x35, 0x42, 0xfe, 0x06, 0xea, 0xd0, 0xfe, 0x47, 0x4b, 0x91, 0xfe, 0x75,
 	0x57, 0x03, 0x5d, 0xfe, 0x98, 0x56, 0xfe, 0x38, 0x12, 0x09, 0x48, 0x01,
-	0x0e, 0xfe, 0x44, 0x48,
-	0x4f, 0x08, 0x05, 0x1b, 0xfe, 0x1a, 0x13, 0x09, 0x46, 0x01, 0x0e, 0x41,
-	0xfe, 0x41, 0x58, 0x09,
-	0xa4, 0x01, 0x0e, 0xfe, 0x49, 0x54, 0x96, 0xfe, 0x1e, 0x0e, 0x02, 0xfe,
-	0x2e, 0x03, 0x09, 0x5d,
+	0x0e, 0xfe, 0x44, 0x48, 0x4f, 0x08, 0x05, 0x1b, 0xfe, 0x1a, 0x13, 0x09,
+	0x46, 0x01, 0x0e, 0x41, 0xfe, 0x41, 0x58, 0x09, 0xa4, 0x01, 0x0e, 0xfe,
+	0x49, 0x54, 0x96, 0xfe, 0x1e, 0x0e, 0x02, 0xfe, 0x2e, 0x03, 0x09, 0x5d,
 	0xfe, 0xee, 0x14, 0xfc, 0x44, 0x1b, 0xfe, 0xce, 0x45, 0x35, 0x42, 0xfe,
-	0xce, 0x47, 0xfe, 0xad,
-	0x13, 0x02, 0x2b, 0x22, 0x20, 0x07, 0x11, 0xfe, 0x9e, 0x12, 0x21, 0x13,
-	0x59, 0x13, 0x9f, 0x13,
-	0xd5, 0x22, 0x2f, 0x41, 0x39, 0x2f, 0xbc, 0xad, 0xfe, 0xbc, 0xf0, 0xfe,
-	0xe0, 0x0e, 0x0f, 0x06,
+	0xce, 0x47, 0xfe, 0xad, 0x13, 0x02, 0x2b, 0x22, 0x20, 0x07, 0x11, 0xfe,
+	0x9e, 0x12, 0x21, 0x13, 0x59, 0x13, 0x9f, 0x13, 0xd5, 0x22, 0x2f, 0x41,
+	0x39, 0x2f, 0xbc, 0xad, 0xfe, 0xbc, 0xf0, 0xfe, 0xe0, 0x0e, 0x0f, 0x06,
 	0x13, 0x59, 0x01, 0xfe, 0xda, 0x16, 0x03, 0xfe, 0x38, 0x01, 0x29, 0xfe,
-	0x3a, 0x01, 0x56, 0xfe,
-	0xe4, 0x0e, 0xfe, 0x02, 0xec, 0xd5, 0x69, 0x00, 0x66, 0xfe, 0x04, 0xec,
-	0x20, 0x4f, 0xfe, 0x05,
-	0xf6, 0xfe, 0x34, 0x01, 0x01, 0xfe, 0x4a, 0x17, 0xfe, 0x08, 0x90, 0xfe,
-	0x48, 0xf4, 0x0d, 0xfe,
+	0x3a, 0x01, 0x56, 0xfe, 0xe4, 0x0e, 0xfe, 0x02, 0xec, 0xd5, 0x69, 0x00,
+	0x66, 0xfe, 0x04, 0xec, 0x20, 0x4f, 0xfe, 0x05, 0xf6, 0xfe, 0x34, 0x01,
+	0x01, 0xfe, 0x4a, 0x17, 0xfe, 0x08, 0x90, 0xfe, 0x48, 0xf4, 0x0d, 0xfe,
 	0x18, 0x13, 0xba, 0xfe, 0x02, 0xea, 0xd5, 0x69, 0x7e, 0xfe, 0xc5, 0x13,
-	0x15, 0x1a, 0x39, 0xa0,
-	0xb4, 0xfe, 0x2e, 0x10, 0x03, 0xfe, 0x38, 0x01, 0x1e, 0xfe, 0xf0, 0xff,
-	0x0c, 0xfe, 0x60, 0x01,
-	0x03, 0xfe, 0x3a, 0x01, 0x0c, 0xfe, 0x62, 0x01, 0x43, 0x13, 0x20, 0x25,
-	0x06, 0x13, 0x2f, 0x12,
+	0x15, 0x1a, 0x39, 0xa0, 0xb4, 0xfe, 0x2e, 0x10, 0x03, 0xfe, 0x38, 0x01,
+	0x1e, 0xfe, 0xf0, 0xff, 0x0c, 0xfe, 0x60, 0x01, 0x03, 0xfe, 0x3a, 0x01,
+	0x0c, 0xfe, 0x62, 0x01, 0x43, 0x13, 0x20, 0x25, 0x06, 0x13, 0x2f, 0x12,
 	0x2f, 0x92, 0x0f, 0x06, 0x04, 0x21, 0x04, 0x22, 0x59, 0xfe, 0xf7, 0x12,
-	0x22, 0x9f, 0xb7, 0x13,
-	0x9f, 0x07, 0x7e, 0xfe, 0x71, 0x13, 0xfe, 0x24, 0x1c, 0x15, 0x19, 0x39,
-	0xa0, 0xb4, 0xfe, 0xd9,
-	0x10, 0xc3, 0xfe, 0x03, 0xdc, 0xfe, 0x73, 0x57, 0xfe, 0x80, 0x5d, 0x04,
-	0xc3, 0xfe, 0x03, 0xdc,
+	0x22, 0x9f, 0xb7, 0x13, 0x9f, 0x07, 0x7e, 0xfe, 0x71, 0x13, 0xfe, 0x24,
+	0x1c, 0x15, 0x19, 0x39, 0xa0, 0xb4, 0xfe, 0xd9, 0x10, 0xc3, 0xfe, 0x03,
+	0xdc, 0xfe, 0x73, 0x57, 0xfe, 0x80, 0x5d, 0x04, 0xc3, 0xfe, 0x03, 0xdc,
 	0xfe, 0x5b, 0x57, 0xfe, 0x80, 0x5d, 0x04, 0xfe, 0x03, 0x57, 0xc3, 0x21,
-	0xfe, 0x00, 0xcc, 0x04,
-	0xfe, 0x03, 0x57, 0xc3, 0x78, 0x04, 0x08, 0x05, 0x58, 0xfe, 0x22, 0x13,
-	0xfe, 0x1c, 0x80, 0x07,
-	0x06, 0xfe, 0x1a, 0x13, 0xfe, 0x1e, 0x80, 0xed, 0xfe, 0x1d, 0x80, 0xae,
-	0xfe, 0x0c, 0x90, 0xfe,
+	0xfe, 0x00, 0xcc, 0x04, 0xfe, 0x03, 0x57, 0xc3, 0x78, 0x04, 0x08, 0x05,
+	0x58, 0xfe, 0x22, 0x13, 0xfe, 0x1c, 0x80, 0x07, 0x06, 0xfe, 0x1a, 0x13,
+	0xfe, 0x1e, 0x80, 0xed, 0xfe, 0x1d, 0x80, 0xae, 0xfe, 0x0c, 0x90, 0xfe,
 	0x0e, 0x13, 0xfe, 0x0e, 0x90, 0xac, 0xfe, 0x3c, 0x90, 0xfe, 0x30, 0xf4,
-	0x0a, 0xfe, 0x3c, 0x50,
-	0xaa, 0x01, 0xfe, 0x7a, 0x17, 0x32, 0x07, 0x2f, 0xad, 0x01, 0xfe, 0xb4,
-	0x16, 0x08, 0x05, 0x1b,
-	0x4e, 0x01, 0xf5, 0x01, 0xf6, 0x12, 0xfe, 0xe9, 0x00, 0x08, 0x05, 0x58,
-	0xfe, 0x2c, 0x13, 0x01,
+	0x0a, 0xfe, 0x3c, 0x50, 0xaa, 0x01, 0xfe, 0x7a, 0x17, 0x32, 0x07, 0x2f,
+	0xad, 0x01, 0xfe, 0xb4, 0x16, 0x08, 0x05, 0x1b, 0x4e, 0x01, 0xf5, 0x01,
+	0xf6, 0x12, 0xfe, 0xe9, 0x00, 0x08, 0x05, 0x58, 0xfe, 0x2c, 0x13, 0x01,
 	0xfe, 0x0c, 0x17, 0xfe, 0x1e, 0x1c, 0xfe, 0x14, 0x90, 0xfe, 0x96, 0x90,
-	0x0c, 0xfe, 0x64, 0x01,
-	0x14, 0xfe, 0x66, 0x01, 0x08, 0x05, 0x5b, 0xfe, 0x12, 0x12, 0xfe, 0x03,
-	0x80, 0x8d, 0xfe, 0x01,
-	0xec, 0x20, 0xfe, 0x80, 0x40, 0x13, 0x20, 0x6a, 0x2a, 0x12, 0xcf, 0x64,
-	0x22, 0x20, 0xfb, 0x79,
+	0x0c, 0xfe, 0x64, 0x01, 0x14, 0xfe, 0x66, 0x01, 0x08, 0x05, 0x5b, 0xfe,
+	0x12, 0x12, 0xfe, 0x03, 0x80, 0x8d, 0xfe, 0x01, 0xec, 0x20, 0xfe, 0x80,
+	0x40, 0x13, 0x20, 0x6a, 0x2a, 0x12, 0xcf, 0x64, 0x22, 0x20, 0xfb, 0x79,
 	0x20, 0x04, 0xfe, 0x08, 0x1c, 0x03, 0xfe, 0xac, 0x00, 0xfe, 0x06, 0x58,
-	0x03, 0xfe, 0xae, 0x00,
-
-	0xfe, 0x07, 0x58, 0x03, 0xfe, 0xb0, 0x00, 0xfe, 0x08, 0x58, 0x03, 0xfe,
-	0xb2, 0x00, 0xfe, 0x09,
-	0x58, 0xfe, 0x0a, 0x1c, 0x25, 0x6e, 0x13, 0xd0, 0x21, 0x0c, 0x5c, 0x0c,
-	0x45, 0x0f, 0x46, 0x52,
+	0x03, 0xfe, 0xae, 0x00, 0xfe, 0x07, 0x58, 0x03, 0xfe, 0xb0, 0x00, 0xfe,
+	0x08, 0x58, 0x03, 0xfe, 0xb2, 0x00, 0xfe, 0x09, 0x58, 0xfe, 0x0a, 0x1c,
+	0x25, 0x6e, 0x13, 0xd0, 0x21, 0x0c, 0x5c, 0x0c, 0x45, 0x0f, 0x46, 0x52,
 	0x50, 0x18, 0x1b, 0xfe, 0x90, 0x4d, 0xfe, 0x91, 0x54, 0x23, 0xfe, 0xfc,
-	0x0f, 0x44, 0x11, 0x0f,
-	0x48, 0x52, 0x18, 0x58, 0xfe, 0x90, 0x4d, 0xfe, 0x91, 0x54, 0x23, 0xe4,
-	0x25, 0x11, 0x13, 0x20,
-	0x7c, 0x6f, 0x4f, 0x22, 0x20, 0xfb, 0x79, 0x20, 0x12, 0xcf, 0xfe, 0x14,
-	0x56, 0xfe, 0xd6, 0xf0,
+	0x0f, 0x44, 0x11, 0x0f, 0x48, 0x52, 0x18, 0x58, 0xfe, 0x90, 0x4d, 0xfe,
+	0x91, 0x54, 0x23, 0xe4, 0x25, 0x11, 0x13, 0x20, 0x7c, 0x6f, 0x4f, 0x22,
+	0x20, 0xfb, 0x79, 0x20, 0x12, 0xcf, 0xfe, 0x14, 0x56, 0xfe, 0xd6, 0xf0,
 	0xfe, 0x26, 0x10, 0xf8, 0x74, 0xfe, 0x14, 0x1c, 0xfe, 0x10, 0x1c, 0xfe,
-	0x18, 0x1c, 0x04, 0x42,
-	0xfe, 0x0c, 0x14, 0xfc, 0xfe, 0x07, 0xe6, 0x1b, 0xfe, 0xce, 0x47, 0xfe,
-	0xf5, 0x13, 0x04, 0x01,
-	0xb0, 0x7c, 0x6f, 0x4f, 0xfe, 0x06, 0x80, 0xfe, 0x48, 0x47, 0xfe, 0x42,
-	0x13, 0x32, 0x07, 0x2f,
+	0x18, 0x1c, 0x04, 0x42, 0xfe, 0x0c, 0x14, 0xfc, 0xfe, 0x07, 0xe6, 0x1b,
+	0xfe, 0xce, 0x47, 0xfe, 0xf5, 0x13, 0x04, 0x01, 0xb0, 0x7c, 0x6f, 0x4f,
+	0xfe, 0x06, 0x80, 0xfe, 0x48, 0x47, 0xfe, 0x42, 0x13, 0x32, 0x07, 0x2f,
 	0xfe, 0x34, 0x13, 0x09, 0x48, 0x01, 0x0e, 0xbb, 0xfe, 0x36, 0x12, 0xfe,
-	0x41, 0x48, 0xfe, 0x45,
-	0x48, 0x01, 0xf0, 0xfe, 0x00, 0xcc, 0xbb, 0xfe, 0xf3, 0x13, 0x43, 0x78,
-	0x07, 0x11, 0xac, 0x09,
-	0x84, 0x01, 0x0e, 0xfe, 0x80, 0x5c, 0x01, 0x73, 0xfe, 0x0e, 0x10, 0x07,
-	0x82, 0x4e, 0xfe, 0x14,
+	0x41, 0x48, 0xfe, 0x45, 0x48, 0x01, 0xf0, 0xfe, 0x00, 0xcc, 0xbb, 0xfe,
+	0xf3, 0x13, 0x43, 0x78, 0x07, 0x11, 0xac, 0x09, 0x84, 0x01, 0x0e, 0xfe,
+	0x80, 0x5c, 0x01, 0x73, 0xfe, 0x0e, 0x10, 0x07, 0x82, 0x4e, 0xfe, 0x14,
 	0x56, 0xfe, 0xd6, 0xf0, 0xfe, 0x60, 0x10, 0x04, 0xfe, 0x44, 0x58, 0x8d,
-	0xfe, 0x01, 0xec, 0xa2,
-	0xfe, 0x9e, 0x40, 0xfe, 0x9d, 0xe7, 0x00, 0xfe, 0x9c, 0xe7, 0x1a, 0x79,
-	0x2a, 0x01, 0xe3, 0xfe,
-	0xdd, 0x10, 0x2c, 0xc7, 0x81, 0xc8, 0x83, 0x33, 0x31, 0xde, 0x07, 0x1a,
-	0xfe, 0x48, 0x12, 0x07,
+	0xfe, 0x01, 0xec, 0xa2, 0xfe, 0x9e, 0x40, 0xfe, 0x9d, 0xe7, 0x00, 0xfe,
+	0x9c, 0xe7, 0x1a, 0x79, 0x2a, 0x01, 0xe3, 0xfe, 0xdd, 0x10, 0x2c, 0xc7,
+	0x81, 0xc8, 0x83, 0x33, 0x31, 0xde, 0x07, 0x1a, 0xfe, 0x48, 0x12, 0x07,
 	0x0a, 0xfe, 0x56, 0x12, 0x07, 0x19, 0xfe, 0x30, 0x12, 0x07, 0xc9, 0x17,
-	0xfe, 0x32, 0x12, 0x07,
-	0xfe, 0x23, 0x00, 0x17, 0xeb, 0x07, 0x06, 0x17, 0xfe, 0x9c, 0x12, 0x07,
-	0x1f, 0xfe, 0x12, 0x12,
-	0x07, 0x00, 0x17, 0x24, 0x15, 0xc9, 0x01, 0x36, 0xa9, 0x2d, 0x01, 0x0b,
-	0x94, 0x4b, 0x04, 0x2d,
+	0xfe, 0x32, 0x12, 0x07, 0xfe, 0x23, 0x00, 0x17, 0xeb, 0x07, 0x06, 0x17,
+	0xfe, 0x9c, 0x12, 0x07, 0x1f, 0xfe, 0x12, 0x12, 0x07, 0x00, 0x17, 0x24,
+	0x15, 0xc9, 0x01, 0x36, 0xa9, 0x2d, 0x01, 0x0b, 0x94, 0x4b, 0x04, 0x2d,
 	0xdd, 0x09, 0xd1, 0x01, 0xfe, 0x26, 0x0f, 0x12, 0x82, 0x02, 0x2b, 0x2d,
-	0x32, 0x07, 0xa6, 0xfe,
-	0xd9, 0x13, 0x3a, 0x3d, 0x3b, 0x3e, 0x56, 0xfe, 0xf0, 0x11, 0x08, 0x05,
-	0x5a, 0xfe, 0x72, 0x12,
-	0x9b, 0x2e, 0x9c, 0x3c, 0x90, 0xc0, 0x96, 0xfe, 0xba, 0x11, 0x22, 0x62,
-	0xfe, 0x26, 0x13, 0x03,
+	0x32, 0x07, 0xa6, 0xfe, 0xd9, 0x13, 0x3a, 0x3d, 0x3b, 0x3e, 0x56, 0xfe,
+	0xf0, 0x11, 0x08, 0x05, 0x5a, 0xfe, 0x72, 0x12, 0x9b, 0x2e, 0x9c, 0x3c,
+	0x90, 0xc0, 0x96, 0xfe, 0xba, 0x11, 0x22, 0x62, 0xfe, 0x26, 0x13, 0x03,
 	0x7f, 0x29, 0x80, 0x56, 0xfe, 0x76, 0x0d, 0x0c, 0x60, 0x14, 0x61, 0x21,
-	0x0c, 0x7f, 0x0c, 0x80,
-	0x01, 0xb3, 0x25, 0x6e, 0x77, 0x13, 0x62, 0x01, 0xef, 0x9b, 0x2e, 0x9c,
-	0x3c, 0xfe, 0x04, 0x55,
-	0xfe, 0xa5, 0x55, 0xfe, 0x04, 0xfa, 0x2e, 0xfe, 0x05, 0xfa, 0x3c, 0xfe,
-	0x91, 0x10, 0x03, 0x3f,
+	0x0c, 0x7f, 0x0c, 0x80, 0x01, 0xb3, 0x25, 0x6e, 0x77, 0x13, 0x62, 0x01,
+	0xef, 0x9b, 0x2e, 0x9c, 0x3c, 0xfe, 0x04, 0x55, 0xfe, 0xa5, 0x55, 0xfe,
+	0x04, 0xfa, 0x2e, 0xfe, 0x05, 0xfa, 0x3c, 0xfe, 0x91, 0x10, 0x03, 0x3f,
 	0x29, 0x40, 0xfe, 0x40, 0x56, 0xfe, 0xe1, 0x56, 0x0c, 0x3f, 0x14, 0x40,
-	0x88, 0x9b, 0x2e, 0x9c,
-	0x3c, 0x90, 0xc0, 0x03, 0x5e, 0x29, 0x5f, 0xfe, 0x00, 0x56, 0xfe, 0xa1,
-	0x56, 0x0c, 0x5e, 0x14,
-	0x5f, 0x08, 0x05, 0x5a, 0xfe, 0x1e, 0x12, 0x22, 0x62, 0xfe, 0x1f, 0x40,
-	0x03, 0x60, 0x29, 0x61,
+	0x88, 0x9b, 0x2e, 0x9c, 0x3c, 0x90, 0xc0, 0x03, 0x5e, 0x29, 0x5f, 0xfe,
+	0x00, 0x56, 0xfe, 0xa1, 0x56, 0x0c, 0x5e, 0x14, 0x5f, 0x08, 0x05, 0x5a,
+	0xfe, 0x1e, 0x12, 0x22, 0x62, 0xfe, 0x1f, 0x40, 0x03, 0x60, 0x29, 0x61,
 	0xfe, 0x2c, 0x50, 0xfe, 0xae, 0x50, 0x03, 0x3f, 0x29, 0x40, 0xfe, 0x44,
-	0x50, 0xfe, 0xc6, 0x50,
-	0x03, 0x5e, 0x29, 0x5f, 0xfe, 0x08, 0x50, 0xfe, 0x8a, 0x50, 0x03, 0x3d,
-	0x29, 0x3e, 0xfe, 0x40,
-	0x50, 0xfe, 0xc2, 0x50, 0x02, 0x89, 0x25, 0x06, 0x13, 0xd4, 0x02, 0x72,
-	0x2d, 0x01, 0x0b, 0x1d,
+	0x50, 0xfe, 0xc6, 0x50, 0x03, 0x5e, 0x29, 0x5f, 0xfe, 0x08, 0x50, 0xfe,
+	0x8a, 0x50, 0x03, 0x3d, 0x29, 0x3e, 0xfe, 0x40, 0x50, 0xfe, 0xc2, 0x50,
+	0x02, 0x89, 0x25, 0x06, 0x13, 0xd4, 0x02, 0x72, 0x2d, 0x01, 0x0b, 0x1d,
 	0x4c, 0x33, 0x31, 0xde, 0x07, 0x06, 0x23, 0x4c, 0x32, 0x07, 0xa6, 0x23,
-	0x72, 0x01, 0xaf, 0x1e,
-	0x43, 0x17, 0x4c, 0x08, 0x05, 0x0a, 0xee, 0x3a, 0x3d, 0x3b, 0x3e, 0xfe,
-	0x0a, 0x55, 0x35, 0xfe,
-	0x8b, 0x55, 0x57, 0x3d, 0x7d, 0x3e, 0xfe, 0x0c, 0x51, 0xfe, 0x8e, 0x51,
-	0x02, 0x72, 0xfe, 0x19,
+	0x72, 0x01, 0xaf, 0x1e, 0x43, 0x17, 0x4c, 0x08, 0x05, 0x0a, 0xee, 0x3a,
+	0x3d, 0x3b, 0x3e, 0xfe, 0x0a, 0x55, 0x35, 0xfe, 0x8b, 0x55, 0x57, 0x3d,
+	0x7d, 0x3e, 0xfe, 0x0c, 0x51, 0xfe, 0x8e, 0x51, 0x02, 0x72, 0xfe, 0x19,
 	0x81, 0xba, 0xfe, 0x19, 0x41, 0x02, 0x72, 0x2d, 0x01, 0x0b, 0x1c, 0x34,
-	0x1d, 0xe8, 0x33, 0x31,
-	0xe1, 0x55, 0x19, 0xfe, 0xa6, 0x12, 0x55, 0x0a, 0x4d, 0x02, 0x4c, 0x01,
-	0x0b, 0x1c, 0x34, 0x1d,
-	0xe8, 0x33, 0x31, 0xdf, 0x07, 0x19, 0x23, 0x4c, 0x01, 0x0b, 0x1d, 0xe8,
-	0x33, 0x31, 0xfe, 0xe8,
+	0x1d, 0xe8, 0x33, 0x31, 0xe1, 0x55, 0x19, 0xfe, 0xa6, 0x12, 0x55, 0x0a,
+	0x4d, 0x02, 0x4c, 0x01, 0x0b, 0x1c, 0x34, 0x1d, 0xe8, 0x33, 0x31, 0xdf,
+	0x07, 0x19, 0x23, 0x4c, 0x01, 0x0b, 0x1d, 0xe8, 0x33, 0x31, 0xfe, 0xe8,
 	0x09, 0xfe, 0xc2, 0x49, 0x51, 0x03, 0xfe, 0x9c, 0x00, 0x28, 0x8a, 0x53,
-	0x05, 0x1f, 0x35, 0xa9,
-	0xfe, 0xbb, 0x45, 0x55, 0x00, 0x4e, 0x44, 0x06, 0x7c, 0x43, 0xfe, 0xda,
-	0x14, 0x01, 0xaf, 0x8c,
-	0xfe, 0x4b, 0x45, 0xee, 0x32, 0x07, 0xa5, 0xed, 0x03, 0xcd, 0x28, 0x8a,
-	0x03, 0x45, 0x28, 0x35,
+	0x05, 0x1f, 0x35, 0xa9, 0xfe, 0xbb, 0x45, 0x55, 0x00, 0x4e, 0x44, 0x06,
+	0x7c, 0x43, 0xfe, 0xda, 0x14, 0x01, 0xaf, 0x8c, 0xfe, 0x4b, 0x45, 0xee,
+	0x32, 0x07, 0xa5, 0xed, 0x03, 0xcd, 0x28, 0x8a, 0x03, 0x45, 0x28, 0x35,
 	0x67, 0x02, 0x72, 0xfe, 0xc0, 0x5d, 0xfe, 0xf8, 0x14, 0xfe, 0x03, 0x17,
-	0x03, 0x5c, 0xc1, 0x0c,
-	0x5c, 0x67, 0x2d, 0x01, 0x0b, 0x26, 0x89, 0x01, 0xfe, 0x9e, 0x15, 0x02,
-	0x89, 0x01, 0x0b, 0x1c,
-	0x34, 0x1d, 0x4c, 0x33, 0x31, 0xdf, 0x07, 0x06, 0x23, 0x4c, 0x01, 0xf1,
-	0xfe, 0x42, 0x58, 0xf1,
+	0x03, 0x5c, 0xc1, 0x0c, 0x5c, 0x67, 0x2d, 0x01, 0x0b, 0x26, 0x89, 0x01,
+	0xfe, 0x9e, 0x15, 0x02, 0x89, 0x01, 0x0b, 0x1c, 0x34, 0x1d, 0x4c, 0x33,
+	0x31, 0xdf, 0x07, 0x06, 0x23, 0x4c, 0x01, 0xf1, 0xfe, 0x42, 0x58, 0xf1,
 	0xfe, 0xa4, 0x14, 0x8c, 0xfe, 0x4a, 0xf4, 0x0a, 0x17, 0x4c, 0xfe, 0x4a,
-	0xf4, 0x06, 0xea, 0x32,
-	0x07, 0xa5, 0x8b, 0x02, 0x72, 0x03, 0x45, 0xc1, 0x0c, 0x45, 0x67, 0x2d,
-	0x01, 0x0b, 0x26, 0x89,
-	0x01, 0xfe, 0xcc, 0x15, 0x02, 0x89, 0x0f, 0x06, 0x27, 0xfe, 0xbe, 0x13,
-	0x26, 0xfe, 0xd4, 0x13,
+	0xf4, 0x06, 0xea, 0x32, 0x07, 0xa5, 0x8b, 0x02, 0x72, 0x03, 0x45, 0xc1,
+	0x0c, 0x45, 0x67, 0x2d, 0x01, 0x0b, 0x26, 0x89, 0x01, 0xfe, 0xcc, 0x15,
+	0x02, 0x89, 0x0f, 0x06, 0x27, 0xfe, 0xbe, 0x13, 0x26, 0xfe, 0xd4, 0x13,
 	0x76, 0xfe, 0x89, 0x48, 0x01, 0x0b, 0x21, 0x76, 0x04, 0x7b, 0xfe, 0xd0,
-	0x13, 0x1c, 0xfe, 0xd0,
-	0x13, 0x1d, 0xfe, 0xbe, 0x13, 0x67, 0x2d, 0x01, 0x0b, 0xfe, 0xd5, 0x10,
-	0x0f, 0x71, 0xff, 0x02,
-	0x00, 0x57, 0x52, 0x93, 0x1e, 0xfe, 0xff, 0x7f, 0xfe, 0x30, 0x56, 0xfe,
-	0x00, 0x5c, 0x04, 0x0f,
+	0x13, 0x1c, 0xfe, 0xd0, 0x13, 0x1d, 0xfe, 0xbe, 0x13, 0x67, 0x2d, 0x01,
+	0x0b, 0xfe, 0xd5, 0x10, 0x0f, 0x71, 0xff, 0x02, 0x00, 0x57, 0x52, 0x93,
+	0x1e, 0xfe, 0xff, 0x7f, 0xfe, 0x30, 0x56, 0xfe, 0x00, 0x5c, 0x04, 0x0f,
 	0x71, 0xff, 0x02, 0x00, 0x57, 0x52, 0x93, 0x1e, 0x43, 0xfe, 0x30, 0x56,
-	0xfe, 0x00, 0x5c, 0x04,
-	0x0f, 0x71, 0xff, 0x02, 0x00, 0x57, 0x52, 0x93, 0x04, 0x0f, 0x71, 0xff,
-	0x02, 0x00, 0x57, 0x52,
-	0x93, 0xfe, 0x0b, 0x58, 0x04, 0x09, 0x5c, 0x01, 0x87, 0x09, 0x45, 0x01,
-	0x87, 0x04, 0xfe, 0x03,
+	0xfe, 0x00, 0x5c, 0x04, 0x0f, 0x71, 0xff, 0x02, 0x00, 0x57, 0x52, 0x93,
+	0x04, 0x0f, 0x71, 0xff, 0x02, 0x00, 0x57, 0x52, 0x93, 0xfe, 0x0b, 0x58,
+	0x04, 0x09, 0x5c, 0x01, 0x87, 0x09, 0x45, 0x01, 0x87, 0x04, 0xfe, 0x03,
 	0xa1, 0x1e, 0x11, 0xff, 0x03, 0x00, 0x54, 0xfe, 0x00, 0xf4, 0x1f, 0x52,
-	0xfe, 0x00, 0x7d, 0xfe,
-	0x01, 0x7d, 0xfe, 0x02, 0x7d, 0xfe, 0x03, 0x7c, 0x6a, 0x2a, 0x0c, 0x5e,
-	0x14, 0x5f, 0x57, 0x3f,
-	0x7d, 0x40, 0x04, 0xdd, 0xfe, 0x82, 0x4a, 0xfe, 0xe1, 0x1a, 0xfe, 0x83,
-	0x5a, 0x8d, 0x04, 0x01,
+	0xfe, 0x00, 0x7d, 0xfe, 0x01, 0x7d, 0xfe, 0x02, 0x7d, 0xfe, 0x03, 0x7c,
+	0x6a, 0x2a, 0x0c, 0x5e, 0x14, 0x5f, 0x57, 0x3f, 0x7d, 0x40, 0x04, 0xdd,
+	0xfe, 0x82, 0x4a, 0xfe, 0xe1, 0x1a, 0xfe, 0x83, 0x5a, 0x8d, 0x04, 0x01,
 	0xfe, 0x0c, 0x19, 0xfe, 0x42, 0x48, 0x50, 0x51, 0x91, 0x01, 0x0b, 0x1d,
-	0xfe, 0x96, 0x15, 0x33,
-	0x31, 0xe1, 0x01, 0x0b, 0x1d, 0xfe, 0x96, 0x15, 0x33, 0x31, 0xfe, 0xe8,
-	0x0a, 0xfe, 0xc1, 0x59,
-	0x03, 0xcd, 0x28, 0xfe, 0xcc, 0x12, 0x53, 0x05, 0x1a, 0xfe, 0xc4, 0x13,
-	0x21, 0x69, 0x1a, 0xee,
+	0xfe, 0x96, 0x15, 0x33, 0x31, 0xe1, 0x01, 0x0b, 0x1d, 0xfe, 0x96, 0x15,
+	0x33, 0x31, 0xfe, 0xe8, 0x0a, 0xfe, 0xc1, 0x59, 0x03, 0xcd, 0x28, 0xfe,
+	0xcc, 0x12, 0x53, 0x05, 0x1a, 0xfe, 0xc4, 0x13, 0x21, 0x69, 0x1a, 0xee,
 	0x55, 0xca, 0x6b, 0xfe, 0xdc, 0x14, 0x4d, 0x0f, 0x06, 0x18, 0xca, 0x7c,
-	0x30, 0xfe, 0x78, 0x10,
-	0xff, 0x02, 0x83, 0x55, 0xab, 0xff, 0x02, 0x83, 0x55, 0x69, 0x19, 0xae,
-	0x98, 0xfe, 0x30, 0x00,
-	0x96, 0xf2, 0x18, 0x6d, 0x0f, 0x06, 0xfe, 0x56, 0x10, 0x69, 0x0a, 0xed,
-	0x98, 0xfe, 0x64, 0x00,
+	0x30, 0xfe, 0x78, 0x10, 0xff, 0x02, 0x83, 0x55, 0xab, 0xff, 0x02, 0x83,
+	0x55, 0x69, 0x19, 0xae, 0x98, 0xfe, 0x30, 0x00, 0x96, 0xf2, 0x18, 0x6d,
+	0x0f, 0x06, 0xfe, 0x56, 0x10, 0x69, 0x0a, 0xed, 0x98, 0xfe, 0x64, 0x00,
 	0x96, 0xf2, 0x09, 0xfe, 0x64, 0x00, 0x18, 0x9e, 0x0f, 0x06, 0xfe, 0x28,
-	0x10, 0x69, 0x06, 0xfe,
-	0x60, 0x13, 0x98, 0xfe, 0xc8, 0x00, 0x96, 0xf2, 0x09, 0xfe, 0xc8, 0x00,
-	0x18, 0x59, 0x0f, 0x06,
-	0x88, 0x98, 0xfe, 0x90, 0x01, 0x7a, 0xfe, 0x42, 0x15, 0x91, 0xe4, 0xfe,
-	0x43, 0xf4, 0x9f, 0xfe,
+	0x10, 0x69, 0x06, 0xfe, 0x60, 0x13, 0x98, 0xfe, 0xc8, 0x00, 0x96, 0xf2,
+	0x09, 0xfe, 0xc8, 0x00, 0x18, 0x59, 0x0f, 0x06, 0x88, 0x98, 0xfe, 0x90,
+	0x01, 0x7a, 0xfe, 0x42, 0x15, 0x91, 0xe4, 0xfe, 0x43, 0xf4, 0x9f, 0xfe,
 	0x56, 0xf0, 0xfe, 0x54, 0x15, 0xfe, 0x04, 0xf4, 0x71, 0xfe, 0x43, 0xf4,
-	0x9e, 0xfe, 0xf3, 0x10,
-	0xfe, 0x40, 0x5c, 0x01, 0xfe, 0x16, 0x14, 0x1e, 0x43, 0xec, 0xfe, 0x00,
-	0x17, 0xfe, 0x4d, 0xe4,
-	0x6e, 0x7a, 0xfe, 0x90, 0x15, 0xc4, 0x6e, 0xfe, 0x1c, 0x10, 0xfe, 0x00,
-	0x17, 0xfe, 0x4d, 0xe4,
+	0x9e, 0xfe, 0xf3, 0x10, 0xfe, 0x40, 0x5c, 0x01, 0xfe, 0x16, 0x14, 0x1e,
+	0x43, 0xec, 0xfe, 0x00, 0x17, 0xfe, 0x4d, 0xe4, 0x6e, 0x7a, 0xfe, 0x90,
+	0x15, 0xc4, 0x6e, 0xfe, 0x1c, 0x10, 0xfe, 0x00, 0x17, 0xfe, 0x4d, 0xe4,
 	0xcc, 0x7a, 0xfe, 0x90, 0x15, 0xc4, 0xcc, 0x88, 0x51, 0x21, 0xfe, 0x4d,
-	0xf4, 0x00, 0xe9, 0x91,
-	0x0f, 0x06, 0xfe, 0xb4, 0x56, 0xfe, 0xc3, 0x58, 0x04, 0x51, 0x0f, 0x0a,
-	0x04, 0x16, 0x06, 0x01,
-	0x0b, 0x26, 0xf3, 0x16, 0x0a, 0x01, 0x0b, 0x26, 0xf3, 0x16, 0x19, 0x01,
-	0x0b, 0x26, 0xf3, 0x76,
+	0xf4, 0x00, 0xe9, 0x91, 0x0f, 0x06, 0xfe, 0xb4, 0x56, 0xfe, 0xc3, 0x58,
+	0x04, 0x51, 0x0f, 0x0a, 0x04, 0x16, 0x06, 0x01, 0x0b, 0x26, 0xf3, 0x16,
+	0x0a, 0x01, 0x0b, 0x26, 0xf3, 0x16, 0x19, 0x01, 0x0b, 0x26, 0xf3, 0x76,
 	0xfe, 0x89, 0x49, 0x01, 0x0b, 0x04, 0x16, 0x06, 0x01, 0x0b, 0x26, 0xb1,
-	0x16, 0x19, 0x01, 0x0b,
-	0x26, 0xb1, 0x16, 0x06, 0x01, 0x0b, 0x26, 0xb1, 0xfe, 0x89, 0x49, 0x01,
-	0x0b, 0x26, 0xb1, 0x76,
-	0xfe, 0x89, 0x4a, 0x01, 0x0b, 0x04, 0x51, 0x04, 0x22, 0xd3, 0x07, 0x06,
-	0xfe, 0x48, 0x13, 0xb8,
+	0x16, 0x19, 0x01, 0x0b, 0x26, 0xb1, 0x16, 0x06, 0x01, 0x0b, 0x26, 0xb1,
+	0xfe, 0x89, 0x49, 0x01, 0x0b, 0x26, 0xb1, 0x76, 0xfe, 0x89, 0x4a, 0x01,
+	0x0b, 0x04, 0x51, 0x04, 0x22, 0xd3, 0x07, 0x06, 0xfe, 0x48, 0x13, 0xb8,
 	0x13, 0xd3, 0xfe, 0x49, 0xf4, 0x00, 0x4d, 0x76, 0xa9, 0x67, 0xfe, 0x01,
-	0xec, 0xfe, 0x27, 0x01,
-	0xfe, 0x89, 0x48, 0xff, 0x02, 0x00, 0x10, 0x27, 0xfe, 0x2e, 0x16, 0x32,
-	0x07, 0xfe, 0xe3, 0x00,
-	0xfe, 0x20, 0x13, 0x1d, 0xfe, 0x52, 0x16, 0x21, 0x13, 0xd4, 0x01, 0x4b,
-	0x22, 0xd4, 0x07, 0x06,
+	0xec, 0xfe, 0x27, 0x01, 0xfe, 0x89, 0x48, 0xff, 0x02, 0x00, 0x10, 0x27,
+	0xfe, 0x2e, 0x16, 0x32, 0x07, 0xfe, 0xe3, 0x00, 0xfe, 0x20, 0x13, 0x1d,
+	0xfe, 0x52, 0x16, 0x21, 0x13, 0xd4, 0x01, 0x4b, 0x22, 0xd4, 0x07, 0x06,
 	0x4e, 0x08, 0x54, 0x06, 0x37, 0x04, 0x09, 0x48, 0x01, 0x0e, 0xfb, 0x8e,
-	0x07, 0x11, 0xae, 0x09,
-	0x84, 0x01, 0x0e, 0x8e, 0x09, 0x5d, 0x01, 0xa8, 0x04, 0x09, 0x84, 0x01,
-	0x0e, 0x8e, 0xfe, 0x80,
-	0xe7, 0x11, 0x07, 0x11, 0x8a, 0xfe, 0x45, 0x58, 0x01, 0xf0, 0x8e, 0x04,
-	0x09, 0x48, 0x01, 0x0e,
+	0x07, 0x11, 0xae, 0x09, 0x84, 0x01, 0x0e, 0x8e, 0x09, 0x5d, 0x01, 0xa8,
+	0x04, 0x09, 0x84, 0x01, 0x0e, 0x8e, 0xfe, 0x80, 0xe7, 0x11, 0x07, 0x11,
+	0x8a, 0xfe, 0x45, 0x58, 0x01, 0xf0, 0x8e, 0x04, 0x09, 0x48, 0x01, 0x0e,
 	0x8e, 0x09, 0x5d, 0x01, 0xa8, 0x04, 0x09, 0x48, 0x01, 0x0e, 0xfe, 0x80,
-	0x80, 0xfe, 0x80, 0x4c,
-	0xfe, 0x49, 0xe4, 0x11, 0xae, 0x09, 0x84, 0x01, 0x0e, 0xfe, 0x80, 0x4c,
-	0x09, 0x5d, 0x01, 0x87,
-	0x04, 0x18, 0x11, 0x75, 0x6c, 0xfe, 0x60, 0x01, 0xfe, 0x18, 0xdf, 0xfe,
-	0x19, 0xde, 0xfe, 0x24,
+	0x80, 0xfe, 0x80, 0x4c, 0xfe, 0x49, 0xe4, 0x11, 0xae, 0x09, 0x84, 0x01,
+	0x0e, 0xfe, 0x80, 0x4c, 0x09, 0x5d, 0x01, 0x87, 0x04, 0x18, 0x11, 0x75,
+	0x6c, 0xfe, 0x60, 0x01, 0xfe, 0x18, 0xdf, 0xfe, 0x19, 0xde, 0xfe, 0x24,
 	0x1c, 0xfe, 0x1d, 0xf7, 0x1b, 0x97, 0xfe, 0xee, 0x16, 0x01, 0xfe, 0xf4,
-	0x17, 0xad, 0x9a, 0x1b,
-	0x6c, 0xfe, 0x2c, 0x01, 0xfe, 0x2f, 0x19, 0x04, 0xb9, 0x23, 0xfe, 0xde,
-	0x16, 0xfe, 0xda, 0x10,
-	0x18, 0x11, 0x75, 0x03, 0xfe, 0x64, 0x01, 0xfe, 0x00, 0xf4, 0x1f, 0xfe,
-	0x18, 0x58, 0x03, 0xfe,
+	0x17, 0xad, 0x9a, 0x1b, 0x6c, 0xfe, 0x2c, 0x01, 0xfe, 0x2f, 0x19, 0x04,
+	0xb9, 0x23, 0xfe, 0xde, 0x16, 0xfe, 0xda, 0x10, 0x18, 0x11, 0x75, 0x03,
+	0xfe, 0x64, 0x01, 0xfe, 0x00, 0xf4, 0x1f, 0xfe, 0x18, 0x58, 0x03, 0xfe,
 	0x66, 0x01, 0xfe, 0x19, 0x58, 0x9a, 0x1f, 0xfe, 0x3c, 0x90, 0xfe, 0x30,
-	0xf4, 0x06, 0xfe, 0x3c,
-	0x50, 0x6c, 0xfe, 0x38, 0x00, 0xfe, 0x0f, 0x79, 0xfe, 0x1c, 0xf7, 0x1f,
-	0x97, 0xfe, 0x38, 0x17,
-	0xfe, 0xb6, 0x14, 0x35, 0x04, 0xb9, 0x23, 0xfe, 0x10, 0x17, 0xfe, 0x9c,
-	0x10, 0x18, 0x11, 0x75,
+	0xf4, 0x06, 0xfe, 0x3c, 0x50, 0x6c, 0xfe, 0x38, 0x00, 0xfe, 0x0f, 0x79,
+	0xfe, 0x1c, 0xf7, 0x1f, 0x97, 0xfe, 0x38, 0x17, 0xfe, 0xb6, 0x14, 0x35,
+	0x04, 0xb9, 0x23, 0xfe, 0x10, 0x17, 0xfe, 0x9c, 0x10, 0x18, 0x11, 0x75,
 	0xfe, 0x83, 0x5a, 0xfe, 0x18, 0xdf, 0xfe, 0x19, 0xde, 0xfe, 0x1d, 0xf7,
-	0x2e, 0x97, 0xfe, 0x5a,
-	0x17, 0xfe, 0x94, 0x14, 0xec, 0x9a, 0x2e, 0x6c, 0x1a, 0xfe, 0xaf, 0x19,
-	0xfe, 0x98, 0xe7, 0x00,
-	0x04, 0xb9, 0x23, 0xfe, 0x4e, 0x17, 0xfe, 0x6c, 0x10, 0x18, 0x11, 0x75,
-	0xfe, 0x30, 0xbc, 0xfe,
+	0x2e, 0x97, 0xfe, 0x5a, 0x17, 0xfe, 0x94, 0x14, 0xec, 0x9a, 0x2e, 0x6c,
+	0x1a, 0xfe, 0xaf, 0x19, 0xfe, 0x98, 0xe7, 0x00, 0x04, 0xb9, 0x23, 0xfe,
+	0x4e, 0x17, 0xfe, 0x6c, 0x10, 0x18, 0x11, 0x75, 0xfe, 0x30, 0xbc, 0xfe,
 	0xb2, 0xbc, 0x9a, 0xcb, 0x6c, 0x1a, 0xfe, 0x0f, 0x79, 0xfe, 0x1c, 0xf7,
-	0xcb, 0x97, 0xfe, 0x92,
-	0x17, 0xfe, 0x5c, 0x14, 0x35, 0x04, 0xb9, 0x23, 0xfe, 0x7e, 0x17, 0xfe,
-	0x42, 0x10, 0xfe, 0x02,
-	0xf6, 0x11, 0x75, 0xfe, 0x18, 0xfe, 0x60, 0xfe, 0x19, 0xfe, 0x61, 0xfe,
-	0x03, 0xa1, 0xfe, 0x1d,
+	0xcb, 0x97, 0xfe, 0x92, 0x17, 0xfe, 0x5c, 0x14, 0x35, 0x04, 0xb9, 0x23,
+	0xfe, 0x7e, 0x17, 0xfe, 0x42, 0x10, 0xfe, 0x02, 0xf6, 0x11, 0x75, 0xfe,
+	0x18, 0xfe, 0x60, 0xfe, 0x19, 0xfe, 0x61, 0xfe, 0x03, 0xa1, 0xfe, 0x1d,
 	0xf7, 0x5b, 0x97, 0xfe, 0xb8, 0x17, 0xfe, 0x36, 0x14, 0xfe, 0x1c, 0x13,
-	0x9a, 0x5b, 0x41, 0xfe,
-	0x83, 0x58, 0xfe, 0xaf, 0x19, 0xfe, 0x80, 0xe7, 0x11, 0xfe, 0x81, 0xe7,
-	0x11, 0x12, 0xfe, 0xdd,
-	0x00, 0x6a, 0x2a, 0x04, 0x6a, 0x2a, 0xfe, 0x12, 0x45, 0x23, 0xfe, 0xa8,
-	0x17, 0x15, 0x06, 0x39,
+	0x9a, 0x5b, 0x41, 0xfe, 0x83, 0x58, 0xfe, 0xaf, 0x19, 0xfe, 0x80, 0xe7,
+	0x11, 0xfe, 0x81, 0xe7, 0x11, 0x12, 0xfe, 0xdd, 0x00, 0x6a, 0x2a, 0x04,
+	0x6a, 0x2a, 0xfe, 0x12, 0x45, 0x23, 0xfe, 0xa8, 0x17, 0x15, 0x06, 0x39,
 	0xa0, 0xb4, 0x02, 0x2b, 0xfe, 0x39, 0xf0, 0xfe, 0xfc, 0x17, 0x21, 0x04,
-	0xfe, 0x7e, 0x18, 0x1e,
-	0x19, 0x66, 0x0f, 0x0d, 0x04, 0x75, 0x03, 0xd2, 0x1e, 0x06, 0xfe, 0xef,
-	0x12, 0xfe, 0xe1, 0x10,
-	0x7c, 0x6f, 0x4f, 0x32, 0x07, 0x2f, 0xfe, 0x3c, 0x13, 0xf1, 0xfe, 0x42,
-	0x13, 0x42, 0x92, 0x09,
+	0xfe, 0x7e, 0x18, 0x1e, 0x19, 0x66, 0x0f, 0x0d, 0x04, 0x75, 0x03, 0xd2,
+	0x1e, 0x06, 0xfe, 0xef, 0x12, 0xfe, 0xe1, 0x10, 0x7c, 0x6f, 0x4f, 0x32,
+	0x07, 0x2f, 0xfe, 0x3c, 0x13, 0xf1, 0xfe, 0x42, 0x13, 0x42, 0x92, 0x09,
 	0x48, 0x01, 0x0e, 0xbb, 0xeb, 0xfe, 0x41, 0x48, 0xfe, 0x45, 0x48, 0x01,
-	0xf0, 0xfe, 0x00, 0xcc,
-	0xbb, 0xfe, 0xf3, 0x13, 0x43, 0x78, 0x07, 0x11, 0xac, 0x09, 0x84, 0x01,
-	0x0e, 0xfe, 0x80, 0x4c,
-	0x01, 0x73, 0xfe, 0x16, 0x10, 0x07, 0x82, 0x8b, 0xfe, 0x40, 0x14, 0xfe,
-	0x24, 0x12, 0xfe, 0x14,
+	0xf0, 0xfe, 0x00, 0xcc, 0xbb, 0xfe, 0xf3, 0x13, 0x43, 0x78, 0x07, 0x11,
+	0xac, 0x09, 0x84, 0x01, 0x0e, 0xfe, 0x80, 0x4c, 0x01, 0x73, 0xfe, 0x16,
+	0x10, 0x07, 0x82, 0x8b, 0xfe, 0x40, 0x14, 0xfe, 0x24, 0x12, 0xfe, 0x14,
 	0x56, 0xfe, 0xd6, 0xf0, 0xfe, 0x1c, 0x18, 0x18, 0x0a, 0x04, 0xfe, 0x9c,
-	0xe7, 0x0a, 0x10, 0xfe,
-	0x15, 0x00, 0x64, 0x79, 0x2a, 0x01, 0xe3, 0x18, 0x06, 0x04, 0x42, 0x92,
-	0x08, 0x54, 0x1b, 0x37,
-	0x12, 0x2f, 0x01, 0x73, 0x18, 0x06, 0x04, 0xfe, 0x38, 0x90, 0xfe, 0xba,
-	0x90, 0x3a, 0xce, 0x3b,
+	0xe7, 0x0a, 0x10, 0xfe, 0x15, 0x00, 0x64, 0x79, 0x2a, 0x01, 0xe3, 0x18,
+	0x06, 0x04, 0x42, 0x92, 0x08, 0x54, 0x1b, 0x37, 0x12, 0x2f, 0x01, 0x73,
+	0x18, 0x06, 0x04, 0xfe, 0x38, 0x90, 0xfe, 0xba, 0x90, 0x3a, 0xce, 0x3b,
 	0xcf, 0xfe, 0x48, 0x55, 0x35, 0xfe, 0xc9, 0x55, 0x04, 0x22, 0xa3, 0x77,
-	0x13, 0xa3, 0x04, 0x09,
-	0xa4, 0x01, 0x0e, 0xfe, 0x41, 0x48, 0x09, 0x46, 0x01, 0x0e, 0xfe, 0x49,
-	0x44, 0x17, 0xfe, 0xe8,
-	0x18, 0x77, 0x78, 0x04, 0x09, 0x48, 0x01, 0x0e, 0x07, 0x11, 0x4e, 0x09,
-	0x5d, 0x01, 0xa8, 0x09,
+	0x13, 0xa3, 0x04, 0x09, 0xa4, 0x01, 0x0e, 0xfe, 0x41, 0x48, 0x09, 0x46,
+	0x01, 0x0e, 0xfe, 0x49, 0x44, 0x17, 0xfe, 0xe8, 0x18, 0x77, 0x78, 0x04,
+	0x09, 0x48, 0x01, 0x0e, 0x07, 0x11, 0x4e, 0x09, 0x5d, 0x01, 0xa8, 0x09,
 	0x46, 0x01, 0x0e, 0x77, 0x78, 0x04, 0xfe, 0x4e, 0xe4, 0x19, 0x6b, 0xfe,
-	0x1c, 0x19, 0x03, 0xfe,
-	0x90, 0x00, 0xfe, 0x3a, 0x45, 0xfe, 0x2c, 0x10, 0xfe, 0x4e, 0xe4, 0xc9,
-	0x6b, 0xfe, 0x2e, 0x19,
-	0x03, 0xfe, 0x92, 0x00, 0xfe, 0x02, 0xe6, 0x1a, 0xe5, 0xfe, 0x4e, 0xe4,
-	0xfe, 0x0b, 0x00, 0x6b,
+	0x1c, 0x19, 0x03, 0xfe, 0x90, 0x00, 0xfe, 0x3a, 0x45, 0xfe, 0x2c, 0x10,
+	0xfe, 0x4e, 0xe4, 0xc9, 0x6b, 0xfe, 0x2e, 0x19, 0x03, 0xfe, 0x92, 0x00,
+	0xfe, 0x02, 0xe6, 0x1a, 0xe5, 0xfe, 0x4e, 0xe4, 0xfe, 0x0b, 0x00, 0x6b,
 	0xfe, 0x40, 0x19, 0x03, 0xfe, 0x94, 0x00, 0xfe, 0x02, 0xe6, 0x1f, 0xfe,
-	0x08, 0x10, 0x03, 0xfe,
-	0x96, 0x00, 0xfe, 0x02, 0xe6, 0x6d, 0xfe, 0x4e, 0x45, 0xea, 0xba, 0xff,
-	0x04, 0x68, 0x54, 0xe7,
-	0x1e, 0x6e, 0xfe, 0x08, 0x1c, 0xfe, 0x67, 0x19, 0xfe, 0x0a, 0x1c, 0xfe,
-	0x1a, 0xf4, 0xfe, 0x00,
+	0x08, 0x10, 0x03, 0xfe, 0x96, 0x00, 0xfe, 0x02, 0xe6, 0x6d, 0xfe, 0x4e,
+	0x45, 0xea, 0xba, 0xff, 0x04, 0x68, 0x54, 0xe7, 0x1e, 0x6e, 0xfe, 0x08,
+	0x1c, 0xfe, 0x67, 0x19, 0xfe, 0x0a, 0x1c, 0xfe, 0x1a, 0xf4, 0xfe, 0x00,
 	0x04, 0xea, 0xfe, 0x48, 0xf4, 0x19, 0x7a, 0xfe, 0x74, 0x19, 0x0f, 0x19,
-	0x04, 0x07, 0x7e, 0xfe,
-	0x5a, 0xf0, 0xfe, 0x84, 0x19, 0x25, 0xfe, 0x09, 0x00, 0xfe, 0x34, 0x10,
-	0x07, 0x1a, 0xfe, 0x5a,
-	0xf0, 0xfe, 0x92, 0x19, 0x25, 0xca, 0xfe, 0x26, 0x10, 0x07, 0x19, 0x66,
-	0x25, 0x6d, 0xe5, 0x07,
+	0x04, 0x07, 0x7e, 0xfe, 0x5a, 0xf0, 0xfe, 0x84, 0x19, 0x25, 0xfe, 0x09,
+	0x00, 0xfe, 0x34, 0x10, 0x07, 0x1a, 0xfe, 0x5a, 0xf0, 0xfe, 0x92, 0x19,
+	0x25, 0xca, 0xfe, 0x26, 0x10, 0x07, 0x19, 0x66, 0x25, 0x6d, 0xe5, 0x07,
 	0x0a, 0x66, 0x25, 0x9e, 0xfe, 0x0e, 0x10, 0x07, 0x06, 0x66, 0x25, 0x59,
-	0xa9, 0xb8, 0x04, 0x15,
-	0xfe, 0x09, 0x00, 0x01, 0x36, 0xfe, 0x04, 0xfe, 0x81, 0x03, 0x83, 0xfe,
-	0x40, 0x5c, 0x04, 0x1c,
-	0xf7, 0xfe, 0x14, 0xf0, 0x0b, 0x27, 0xfe, 0xd6, 0x19, 0x1c, 0xf7, 0x7b,
-	0xf7, 0xfe, 0x82, 0xf0,
+	0xa9, 0xb8, 0x04, 0x15, 0xfe, 0x09, 0x00, 0x01, 0x36, 0xfe, 0x04, 0xfe,
+	0x81, 0x03, 0x83, 0xfe, 0x40, 0x5c, 0x04, 0x1c, 0xf7, 0xfe, 0x14, 0xf0,
+	0x0b, 0x27, 0xfe, 0xd6, 0x19, 0x1c, 0xf7, 0x7b, 0xf7, 0xfe, 0x82, 0xf0,
 	0xfe, 0xda, 0x19, 0x04, 0xff, 0xcc, 0x00, 0x00,
 };
 
@@ -13035,1284 +5748,871 @@ static ADV_DCNT _adv_asc38C0800_chksum = 0x050D3FD8UL;	/* Expanded little-endian
 /* Microcode buffer is kept after initialization for error recovery. */
 static unsigned char _adv_asc38C1600_buf[] = {
 	0x00, 0x00, 0x00, 0xf2, 0x00, 0x16, 0x00, 0xfc, 0x00, 0x10, 0x00, 0xf0,
-	0x18, 0xe4, 0x01, 0x00,
-	0x04, 0x1e, 0x48, 0xe4, 0x03, 0xf6, 0xf7, 0x13, 0x2e, 0x1e, 0x02, 0x00,
-	0x07, 0x17, 0xc0, 0x5f,
-	0x00, 0xfa, 0xff, 0xff, 0x04, 0x00, 0x00, 0xf6, 0x09, 0xe7, 0x82, 0xe7,
-	0x85, 0xf0, 0x86, 0xf0,
+	0x18, 0xe4, 0x01, 0x00, 0x04, 0x1e, 0x48, 0xe4, 0x03, 0xf6, 0xf7, 0x13,
+	0x2e, 0x1e, 0x02, 0x00, 0x07, 0x17, 0xc0, 0x5f, 0x00, 0xfa, 0xff, 0xff,
+	0x04, 0x00, 0x00, 0xf6, 0x09, 0xe7, 0x82, 0xe7, 0x85, 0xf0, 0x86, 0xf0,
 	0x4e, 0x10, 0x9e, 0xe7, 0xff, 0x00, 0x55, 0xf0, 0x01, 0xf6, 0x03, 0x00,
-	0x98, 0x57, 0x01, 0xe6,
-	0x00, 0xea, 0x00, 0xec, 0x01, 0xfa, 0x18, 0xf4, 0x08, 0x00, 0xf0, 0x1d,
-	0x38, 0x54, 0x32, 0xf0,
-	0x10, 0x00, 0xc2, 0x0e, 0x1e, 0xf0, 0xd5, 0xf0, 0xbc, 0x00, 0x4b, 0xe4,
-	0x00, 0xe6, 0xb1, 0xf0,
+	0x98, 0x57, 0x01, 0xe6, 0x00, 0xea, 0x00, 0xec, 0x01, 0xfa, 0x18, 0xf4,
+	0x08, 0x00, 0xf0, 0x1d, 0x38, 0x54, 0x32, 0xf0, 0x10, 0x00, 0xc2, 0x0e,
+	0x1e, 0xf0, 0xd5, 0xf0, 0xbc, 0x00, 0x4b, 0xe4, 0x00, 0xe6, 0xb1, 0xf0,
 	0xb4, 0x00, 0x02, 0x13, 0x3e, 0x1c, 0xc8, 0x47, 0x3e, 0x00, 0xd8, 0x01,
-	0x06, 0x13, 0x0c, 0x1c,
-	0x5e, 0x1e, 0x00, 0x57, 0xc8, 0x57, 0x01, 0xfc, 0xbc, 0x0e, 0xa2, 0x12,
-	0xb9, 0x54, 0x00, 0x80,
-	0x62, 0x0a, 0x5a, 0x12, 0xc8, 0x15, 0x3e, 0x1e, 0x18, 0x40, 0xbd, 0x56,
-	0x03, 0xe6, 0x01, 0xea,
+	0x06, 0x13, 0x0c, 0x1c, 0x5e, 0x1e, 0x00, 0x57, 0xc8, 0x57, 0x01, 0xfc,
+	0xbc, 0x0e, 0xa2, 0x12, 0xb9, 0x54, 0x00, 0x80, 0x62, 0x0a, 0x5a, 0x12,
+	0xc8, 0x15, 0x3e, 0x1e, 0x18, 0x40, 0xbd, 0x56, 0x03, 0xe6, 0x01, 0xea,
 	0x5c, 0xf0, 0x0f, 0x00, 0x20, 0x00, 0x6c, 0x01, 0x6e, 0x01, 0x04, 0x12,
-	0x04, 0x13, 0xbb, 0x55,
-	0x3c, 0x56, 0x3e, 0x57, 0x03, 0x58, 0x4a, 0xe4, 0x40, 0x00, 0xb6, 0x00,
-	0xbb, 0x00, 0xc0, 0x00,
-	0x00, 0x01, 0x01, 0x01, 0x3e, 0x01, 0x58, 0x0a, 0x44, 0x10, 0x0a, 0x12,
-	0x4c, 0x1c, 0x4e, 0x1c,
+	0x04, 0x13, 0xbb, 0x55, 0x3c, 0x56, 0x3e, 0x57, 0x03, 0x58, 0x4a, 0xe4,
+	0x40, 0x00, 0xb6, 0x00, 0xbb, 0x00, 0xc0, 0x00, 0x00, 0x01, 0x01, 0x01,
+	0x3e, 0x01, 0x58, 0x0a, 0x44, 0x10, 0x0a, 0x12, 0x4c, 0x1c, 0x4e, 0x1c,
 	0x02, 0x4a, 0x30, 0xe4, 0x05, 0xe6, 0x0c, 0x00, 0x3c, 0x00, 0x80, 0x00,
-	0x24, 0x01, 0x3c, 0x01,
-	0x68, 0x01, 0x6a, 0x01, 0x70, 0x01, 0x72, 0x01, 0x74, 0x01, 0x76, 0x01,
-	0x78, 0x01, 0x7c, 0x01,
-	0xc6, 0x0e, 0x0c, 0x10, 0xac, 0x12, 0xae, 0x12, 0x16, 0x1a, 0x32, 0x1c,
-	0x6e, 0x1e, 0x02, 0x48,
+	0x24, 0x01, 0x3c, 0x01, 0x68, 0x01, 0x6a, 0x01, 0x70, 0x01, 0x72, 0x01,
+	0x74, 0x01, 0x76, 0x01, 0x78, 0x01, 0x7c, 0x01, 0xc6, 0x0e, 0x0c, 0x10,
+	0xac, 0x12, 0xae, 0x12, 0x16, 0x1a, 0x32, 0x1c, 0x6e, 0x1e, 0x02, 0x48,
 	0x3a, 0x55, 0xc9, 0x57, 0x02, 0xee, 0x5b, 0xf0, 0x03, 0xf7, 0x06, 0xf7,
-	0x03, 0xfc, 0x06, 0x00,
-	0x1e, 0x00, 0xbe, 0x00, 0xe1, 0x00, 0x0c, 0x12, 0x18, 0x1a, 0x70, 0x1a,
-	0x30, 0x1c, 0x38, 0x1c,
-	0x10, 0x44, 0x00, 0x4c, 0xb0, 0x57, 0x40, 0x5c, 0x4d, 0xe4, 0x04, 0xea,
-	0x5d, 0xf0, 0xa7, 0xf0,
+	0x03, 0xfc, 0x06, 0x00, 0x1e, 0x00, 0xbe, 0x00, 0xe1, 0x00, 0x0c, 0x12,
+	0x18, 0x1a, 0x70, 0x1a, 0x30, 0x1c, 0x38, 0x1c, 0x10, 0x44, 0x00, 0x4c,
+	0xb0, 0x57, 0x40, 0x5c, 0x4d, 0xe4, 0x04, 0xea, 0x5d, 0xf0, 0xa7, 0xf0,
 	0x04, 0xf6, 0x02, 0xfc, 0x05, 0x00, 0x09, 0x00, 0x19, 0x00, 0x32, 0x00,
-	0x33, 0x00, 0x34, 0x00,
-	0x36, 0x00, 0x98, 0x00, 0x9e, 0x00, 0xcc, 0x00, 0x20, 0x01, 0x4e, 0x01,
-	0x79, 0x01, 0x3c, 0x09,
-	0x68, 0x0d, 0x02, 0x10, 0x04, 0x10, 0x3a, 0x10, 0x08, 0x12, 0x0a, 0x13,
-	0x40, 0x16, 0x50, 0x16,
+	0x33, 0x00, 0x34, 0x00, 0x36, 0x00, 0x98, 0x00, 0x9e, 0x00, 0xcc, 0x00,
+	0x20, 0x01, 0x4e, 0x01, 0x79, 0x01, 0x3c, 0x09, 0x68, 0x0d, 0x02, 0x10,
+	0x04, 0x10, 0x3a, 0x10, 0x08, 0x12, 0x0a, 0x13, 0x40, 0x16, 0x50, 0x16,
 	0x00, 0x17, 0x4a, 0x19, 0x00, 0x4e, 0x00, 0x54, 0x01, 0x58, 0x00, 0xdc,
-	0x05, 0xf0, 0x09, 0xf0,
-	0x59, 0xf0, 0xb8, 0xf0, 0x48, 0xf4, 0x0e, 0xf7, 0x0a, 0x00, 0x9b, 0x00,
-	0x9c, 0x00, 0xa4, 0x00,
-	0xb5, 0x00, 0xba, 0x00, 0xd0, 0x00, 0xe7, 0x00, 0xf0, 0x03, 0x69, 0x08,
-	0xe9, 0x09, 0x5c, 0x0c,
+	0x05, 0xf0, 0x09, 0xf0, 0x59, 0xf0, 0xb8, 0xf0, 0x48, 0xf4, 0x0e, 0xf7,
+	0x0a, 0x00, 0x9b, 0x00, 0x9c, 0x00, 0xa4, 0x00, 0xb5, 0x00, 0xba, 0x00,
+	0xd0, 0x00, 0xe7, 0x00, 0xf0, 0x03, 0x69, 0x08, 0xe9, 0x09, 0x5c, 0x0c,
 	0xb6, 0x12, 0xbc, 0x19, 0xd8, 0x1b, 0x20, 0x1c, 0x34, 0x1c, 0x36, 0x1c,
-	0x42, 0x1d, 0x08, 0x44,
-	0x38, 0x44, 0x91, 0x44, 0x0a, 0x45, 0x48, 0x46, 0x89, 0x48, 0x68, 0x54,
-	0x83, 0x55, 0x83, 0x59,
-	0x31, 0xe4, 0x02, 0xe6, 0x07, 0xf0, 0x08, 0xf0, 0x0b, 0xf0, 0x0c, 0xf0,
-	0x4b, 0xf4, 0x04, 0xf8,
+	0x42, 0x1d, 0x08, 0x44, 0x38, 0x44, 0x91, 0x44, 0x0a, 0x45, 0x48, 0x46,
+	0x89, 0x48, 0x68, 0x54, 0x83, 0x55, 0x83, 0x59, 0x31, 0xe4, 0x02, 0xe6,
+	0x07, 0xf0, 0x08, 0xf0, 0x0b, 0xf0, 0x0c, 0xf0, 0x4b, 0xf4, 0x04, 0xf8,
 	0x05, 0xf8, 0x02, 0xfa, 0x03, 0xfa, 0x04, 0xfc, 0x05, 0xfc, 0x07, 0x00,
-	0xa8, 0x00, 0xaa, 0x00,
-	0xb9, 0x00, 0xe0, 0x00, 0xe5, 0x00, 0x22, 0x01, 0x26, 0x01, 0x60, 0x01,
-	0x7a, 0x01, 0x82, 0x01,
-	0xc8, 0x01, 0xca, 0x01, 0x86, 0x02, 0x6a, 0x03, 0x18, 0x05, 0xb2, 0x07,
-	0x68, 0x08, 0x10, 0x0d,
+	0xa8, 0x00, 0xaa, 0x00, 0xb9, 0x00, 0xe0, 0x00, 0xe5, 0x00, 0x22, 0x01,
+	0x26, 0x01, 0x60, 0x01, 0x7a, 0x01, 0x82, 0x01, 0xc8, 0x01, 0xca, 0x01,
+	0x86, 0x02, 0x6a, 0x03, 0x18, 0x05, 0xb2, 0x07, 0x68, 0x08, 0x10, 0x0d,
 	0x06, 0x10, 0x0a, 0x10, 0x0e, 0x10, 0x12, 0x10, 0x60, 0x10, 0xed, 0x10,
-	0xf3, 0x10, 0x06, 0x12,
-	0x10, 0x12, 0x1e, 0x12, 0x0c, 0x13, 0x0e, 0x13, 0x10, 0x13, 0xfe, 0x9c,
-	0xf0, 0x35, 0x05, 0xfe,
-	0xec, 0x0e, 0xff, 0x10, 0x00, 0x00, 0xe9, 0xfe, 0x34, 0x1f, 0x00, 0xe8,
-	0xfe, 0x88, 0x01, 0xff,
+	0xf3, 0x10, 0x06, 0x12, 0x10, 0x12, 0x1e, 0x12, 0x0c, 0x13, 0x0e, 0x13,
+	0x10, 0x13, 0xfe, 0x9c, 0xf0, 0x35, 0x05, 0xfe, 0xec, 0x0e, 0xff, 0x10,
+	0x00, 0x00, 0xe9, 0xfe, 0x34, 0x1f, 0x00, 0xe8, 0xfe, 0x88, 0x01, 0xff,
 	0x03, 0x00, 0x00, 0xfe, 0x93, 0x15, 0xfe, 0x0f, 0x05, 0xff, 0x38, 0x00,
-	0x00, 0xfe, 0x57, 0x24,
-	0x00, 0xfe, 0x4c, 0x00, 0x65, 0xff, 0x04, 0x00, 0x00, 0x1a, 0xff, 0x09,
-	0x00, 0x00, 0xff, 0x08,
-	0x01, 0x01, 0xff, 0x08, 0xff, 0xff, 0xff, 0x27, 0x00, 0x00, 0xff, 0x10,
-	0xff, 0xff, 0xff, 0x13,
+	0x00, 0xfe, 0x57, 0x24, 0x00, 0xfe, 0x4c, 0x00, 0x65, 0xff, 0x04, 0x00,
+	0x00, 0x1a, 0xff, 0x09, 0x00, 0x00, 0xff, 0x08, 0x01, 0x01, 0xff, 0x08,
+	0xff, 0xff, 0xff, 0x27, 0x00, 0x00, 0xff, 0x10, 0xff, 0xff, 0xff, 0x13,
 	0x00, 0x00, 0xfe, 0x78, 0x56, 0xfe, 0x34, 0x12, 0xff, 0x21, 0x00, 0x00,
-	0xfe, 0x04, 0xf7, 0xe8,
-	0x37, 0x7d, 0x0d, 0x01, 0xfe, 0x4a, 0x11, 0xfe, 0x04, 0xf7, 0xe8, 0x7d,
-	0x0d, 0x51, 0x37, 0xfe,
-	0x3d, 0xf0, 0xfe, 0x0c, 0x02, 0xfe, 0x20, 0xf0, 0xbc, 0xfe, 0x91, 0xf0,
-	0xfe, 0xf8, 0x01, 0xfe,
+	0xfe, 0x04, 0xf7, 0xe8, 0x37, 0x7d, 0x0d, 0x01, 0xfe, 0x4a, 0x11, 0xfe,
+	0x04, 0xf7, 0xe8, 0x7d, 0x0d, 0x51, 0x37, 0xfe, 0x3d, 0xf0, 0xfe, 0x0c,
+	0x02, 0xfe, 0x20, 0xf0, 0xbc, 0xfe, 0x91, 0xf0, 0xfe, 0xf8, 0x01, 0xfe,
 	0x90, 0xf0, 0xfe, 0xf8, 0x01, 0xfe, 0x8f, 0xf0, 0xbc, 0x03, 0x67, 0x4d,
-	0x05, 0xfe, 0x08, 0x0f,
-	0x01, 0xfe, 0x78, 0x0f, 0xfe, 0xdd, 0x12, 0x05, 0xfe, 0x0e, 0x03, 0xfe,
-	0x28, 0x1c, 0x03, 0xfe,
-	0xa6, 0x00, 0xfe, 0xd1, 0x12, 0x3e, 0x22, 0xfe, 0xa6, 0x00, 0xac, 0xfe,
-	0x48, 0xf0, 0xfe, 0x90,
+	0x05, 0xfe, 0x08, 0x0f, 0x01, 0xfe, 0x78, 0x0f, 0xfe, 0xdd, 0x12, 0x05,
+	0xfe, 0x0e, 0x03, 0xfe, 0x28, 0x1c, 0x03, 0xfe, 0xa6, 0x00, 0xfe, 0xd1,
+	0x12, 0x3e, 0x22, 0xfe, 0xa6, 0x00, 0xac, 0xfe, 0x48, 0xf0, 0xfe, 0x90,
 	0x02, 0xfe, 0x49, 0xf0, 0xfe, 0xaa, 0x02, 0xfe, 0x4a, 0xf0, 0xfe, 0xc8,
-	0x02, 0xfe, 0x46, 0xf0,
-	0xfe, 0x5a, 0x02, 0xfe, 0x47, 0xf0, 0xfe, 0x60, 0x02, 0xfe, 0x43, 0xf0,
-	0xfe, 0x4e, 0x02, 0xfe,
-	0x44, 0xf0, 0xfe, 0x52, 0x02, 0xfe, 0x45, 0xf0, 0xfe, 0x56, 0x02, 0x1c,
-	0x0d, 0xa2, 0x1c, 0x07,
+	0x02, 0xfe, 0x46, 0xf0, 0xfe, 0x5a, 0x02, 0xfe, 0x47, 0xf0, 0xfe, 0x60,
+	0x02, 0xfe, 0x43, 0xf0, 0xfe, 0x4e, 0x02, 0xfe, 0x44, 0xf0, 0xfe, 0x52,
+	0x02, 0xfe, 0x45, 0xf0, 0xfe, 0x56, 0x02, 0x1c, 0x0d, 0xa2, 0x1c, 0x07,
 	0x22, 0xb7, 0x05, 0x35, 0xfe, 0x00, 0x1c, 0xfe, 0xf1, 0x10, 0xfe, 0x02,
-	0x1c, 0xf5, 0xfe, 0x1e,
-	0x1c, 0xfe, 0xe9, 0x10, 0x01, 0x5f, 0xfe, 0xe7, 0x10, 0xfe, 0x06, 0xfc,
-	0xde, 0x0a, 0x81, 0x01,
-	0xa3, 0x05, 0x35, 0x1f, 0x95, 0x47, 0xb8, 0x01, 0xfe, 0xe4, 0x11, 0x0a,
-	0x81, 0x01, 0x5c, 0xfe,
+	0x1c, 0xf5, 0xfe, 0x1e, 0x1c, 0xfe, 0xe9, 0x10, 0x01, 0x5f, 0xfe, 0xe7,
+	0x10, 0xfe, 0x06, 0xfc, 0xde, 0x0a, 0x81, 0x01, 0xa3, 0x05, 0x35, 0x1f,
+	0x95, 0x47, 0xb8, 0x01, 0xfe, 0xe4, 0x11, 0x0a, 0x81, 0x01, 0x5c, 0xfe,
 	0xbd, 0x10, 0x0a, 0x81, 0x01, 0x5c, 0xfe, 0xad, 0x10, 0xfe, 0x16, 0x1c,
-	0xfe, 0x58, 0x1c, 0x1c,
-	0x07, 0x22, 0xb7, 0x37, 0x2a, 0x35, 0xfe, 0x3d, 0xf0, 0xfe, 0x0c, 0x02,
-	0x2b, 0xfe, 0x9e, 0x02,
-	0xfe, 0x5a, 0x1c, 0xfe, 0x12, 0x1c, 0xfe, 0x14, 0x1c, 0x1f, 0xfe, 0x30,
-	0x00, 0x47, 0xb8, 0x01,
+	0xfe, 0x58, 0x1c, 0x1c, 0x07, 0x22, 0xb7, 0x37, 0x2a, 0x35, 0xfe, 0x3d,
+	0xf0, 0xfe, 0x0c, 0x02, 0x2b, 0xfe, 0x9e, 0x02, 0xfe, 0x5a, 0x1c, 0xfe,
+	0x12, 0x1c, 0xfe, 0x14, 0x1c, 0x1f, 0xfe, 0x30, 0x00, 0x47, 0xb8, 0x01,
 	0xfe, 0xd4, 0x11, 0x1c, 0x07, 0x22, 0xb7, 0x05, 0xe9, 0x21, 0x2c, 0x09,
-	0x1a, 0x31, 0xfe, 0x69,
-	0x10, 0x1c, 0x07, 0x22, 0xb7, 0xfe, 0x04, 0xec, 0x2c, 0x60, 0x01, 0xfe,
-	0x1e, 0x1e, 0x20, 0x2c,
-	0xfe, 0x05, 0xf6, 0xde, 0x01, 0xfe, 0x62, 0x1b, 0x01, 0x0c, 0x61, 0x4a,
-	0x44, 0x15, 0x56, 0x51,
+	0x1a, 0x31, 0xfe, 0x69, 0x10, 0x1c, 0x07, 0x22, 0xb7, 0xfe, 0x04, 0xec,
+	0x2c, 0x60, 0x01, 0xfe, 0x1e, 0x1e, 0x20, 0x2c, 0xfe, 0x05, 0xf6, 0xde,
+	0x01, 0xfe, 0x62, 0x1b, 0x01, 0x0c, 0x61, 0x4a, 0x44, 0x15, 0x56, 0x51,
 	0x01, 0xfe, 0x9e, 0x1e, 0x01, 0xfe, 0x96, 0x1a, 0x05, 0x35, 0x0a, 0x57,
-	0x01, 0x18, 0x09, 0x00,
-	0x36, 0x01, 0x85, 0xfe, 0x18, 0x10, 0xfe, 0x41, 0x58, 0x0a, 0xba, 0x01,
-	0x18, 0xfe, 0xc8, 0x54,
-	0x7b, 0xfe, 0x1c, 0x03, 0x01, 0xfe, 0x96, 0x1a, 0x05, 0x35, 0x37, 0x60,
-	0xfe, 0x02, 0xe8, 0x30,
+	0x01, 0x18, 0x09, 0x00, 0x36, 0x01, 0x85, 0xfe, 0x18, 0x10, 0xfe, 0x41,
+	0x58, 0x0a, 0xba, 0x01, 0x18, 0xfe, 0xc8, 0x54, 0x7b, 0xfe, 0x1c, 0x03,
+	0x01, 0xfe, 0x96, 0x1a, 0x05, 0x35, 0x37, 0x60, 0xfe, 0x02, 0xe8, 0x30,
 	0xfe, 0xbf, 0x57, 0xfe, 0x9e, 0x43, 0xfe, 0x77, 0x57, 0xfe, 0x27, 0xf0,
-	0xfe, 0xe4, 0x01, 0xfe,
-	0x07, 0x4b, 0xfe, 0x20, 0xf0, 0xbc, 0xfe, 0x40, 0x1c, 0x2a, 0xeb, 0xfe,
-	0x26, 0xf0, 0xfe, 0x66,
-	0x03, 0xfe, 0xa0, 0xf0, 0xfe, 0x54, 0x03, 0xfe, 0x11, 0xf0, 0xbc, 0xfe,
-	0xef, 0x10, 0xfe, 0x9f,
+	0xfe, 0xe4, 0x01, 0xfe, 0x07, 0x4b, 0xfe, 0x20, 0xf0, 0xbc, 0xfe, 0x40,
+	0x1c, 0x2a, 0xeb, 0xfe, 0x26, 0xf0, 0xfe, 0x66, 0x03, 0xfe, 0xa0, 0xf0,
+	0xfe, 0x54, 0x03, 0xfe, 0x11, 0xf0, 0xbc, 0xfe, 0xef, 0x10, 0xfe, 0x9f,
 	0xf0, 0xfe, 0x74, 0x03, 0xfe, 0x46, 0x1c, 0x19, 0xfe, 0x11, 0x00, 0x05,
-	0x70, 0x37, 0xfe, 0x48,
-	0x1c, 0xfe, 0x46, 0x1c, 0x01, 0x0c, 0x06, 0x28, 0xfe, 0x18, 0x13, 0x26,
-	0x21, 0xb9, 0xc7, 0x20,
-	0xb9, 0x0a, 0x57, 0x01, 0x18, 0xc7, 0x89, 0x01, 0xfe, 0xc8, 0x1a, 0x15,
-	0xe1, 0x2a, 0xeb, 0xfe,
+	0x70, 0x37, 0xfe, 0x48, 0x1c, 0xfe, 0x46, 0x1c, 0x01, 0x0c, 0x06, 0x28,
+	0xfe, 0x18, 0x13, 0x26, 0x21, 0xb9, 0xc7, 0x20, 0xb9, 0x0a, 0x57, 0x01,
+	0x18, 0xc7, 0x89, 0x01, 0xfe, 0xc8, 0x1a, 0x15, 0xe1, 0x2a, 0xeb, 0xfe,
 	0x01, 0xf0, 0xeb, 0xfe, 0x82, 0xf0, 0xfe, 0xa4, 0x03, 0xfe, 0x9c, 0x32,
-	0x15, 0xfe, 0xe4, 0x00,
-	0x2f, 0xfe, 0xb6, 0x03, 0x2a, 0x3c, 0x16, 0xfe, 0xc6, 0x03, 0x01, 0x41,
-	0xfe, 0x06, 0xf0, 0xfe,
-	0xd6, 0x03, 0xaf, 0xa0, 0xfe, 0x0a, 0xf0, 0xfe, 0xa2, 0x07, 0x05, 0x29,
-	0x03, 0x81, 0x1e, 0x1b,
+	0x15, 0xfe, 0xe4, 0x00, 0x2f, 0xfe, 0xb6, 0x03, 0x2a, 0x3c, 0x16, 0xfe,
+	0xc6, 0x03, 0x01, 0x41, 0xfe, 0x06, 0xf0, 0xfe, 0xd6, 0x03, 0xaf, 0xa0,
+	0xfe, 0x0a, 0xf0, 0xfe, 0xa2, 0x07, 0x05, 0x29, 0x03, 0x81, 0x1e, 0x1b,
 	0xfe, 0x24, 0x05, 0x1f, 0x63, 0x01, 0x42, 0x8f, 0xfe, 0x70, 0x02, 0x05,
-	0xea, 0xfe, 0x46, 0x1c,
-	0x37, 0x7d, 0x1d, 0xfe, 0x67, 0x1b, 0xfe, 0xbf, 0x57, 0xfe, 0x77, 0x57,
-	0xfe, 0x48, 0x1c, 0x75,
-	0x01, 0xa6, 0x86, 0x0a, 0x57, 0x01, 0x18, 0x09, 0x00, 0x1b, 0xec, 0x0a,
-	0xe1, 0x01, 0x18, 0x77,
+	0xea, 0xfe, 0x46, 0x1c, 0x37, 0x7d, 0x1d, 0xfe, 0x67, 0x1b, 0xfe, 0xbf,
+	0x57, 0xfe, 0x77, 0x57, 0xfe, 0x48, 0x1c, 0x75, 0x01, 0xa6, 0x86, 0x0a,
+	0x57, 0x01, 0x18, 0x09, 0x00, 0x1b, 0xec, 0x0a, 0xe1, 0x01, 0x18, 0x77,
 	0x50, 0x40, 0x8d, 0x30, 0x03, 0x81, 0x1e, 0xf8, 0x1f, 0x63, 0x01, 0x42,
-	0x8f, 0xfe, 0x70, 0x02,
-	0x05, 0xea, 0xd7, 0x99, 0xd8, 0x9c, 0x2a, 0x29, 0x2f, 0xfe, 0x4e, 0x04,
-	0x16, 0xfe, 0x4a, 0x04,
-	0x7e, 0xfe, 0xa0, 0x00, 0xfe, 0x9b, 0x57, 0xfe, 0x54, 0x12, 0x32, 0xff,
-	0x02, 0x00, 0x10, 0x01,
+	0x8f, 0xfe, 0x70, 0x02, 0x05, 0xea, 0xd7, 0x99, 0xd8, 0x9c, 0x2a, 0x29,
+	0x2f, 0xfe, 0x4e, 0x04, 0x16, 0xfe, 0x4a, 0x04, 0x7e, 0xfe, 0xa0, 0x00,
+	0xfe, 0x9b, 0x57, 0xfe, 0x54, 0x12, 0x32, 0xff, 0x02, 0x00, 0x10, 0x01,
 	0x08, 0x16, 0xfe, 0x02, 0x05, 0x32, 0x01, 0x08, 0x16, 0x29, 0x27, 0x25,
-	0xee, 0xfe, 0x4c, 0x44,
-	0xfe, 0x58, 0x12, 0x50, 0xfe, 0x44, 0x48, 0x13, 0x34, 0xfe, 0x4c, 0x54,
-	0x7b, 0xec, 0x60, 0x8d,
-	0x30, 0x01, 0xfe, 0x4e, 0x1e, 0xfe, 0x48, 0x47, 0xfe, 0x7c, 0x13, 0x01,
-	0x0c, 0x06, 0x28, 0xfe,
+	0xee, 0xfe, 0x4c, 0x44, 0xfe, 0x58, 0x12, 0x50, 0xfe, 0x44, 0x48, 0x13,
+	0x34, 0xfe, 0x4c, 0x54, 0x7b, 0xec, 0x60, 0x8d, 0x30, 0x01, 0xfe, 0x4e,
+	0x1e, 0xfe, 0x48, 0x47, 0xfe, 0x7c, 0x13, 0x01, 0x0c, 0x06, 0x28, 0xfe,
 	0x32, 0x13, 0x01, 0x43, 0x09, 0x9b, 0xfe, 0x68, 0x13, 0xfe, 0x26, 0x10,
-	0x13, 0x34, 0xfe, 0x4c,
-	0x54, 0x7b, 0xec, 0x01, 0xfe, 0x4e, 0x1e, 0xfe, 0x48, 0x47, 0xfe, 0x54,
-	0x13, 0x01, 0x0c, 0x06,
-	0x28, 0xa5, 0x01, 0x43, 0x09, 0x9b, 0xfe, 0x40, 0x13, 0x01, 0x0c, 0x06,
-	0x28, 0xf9, 0x1f, 0x7f,
+	0x13, 0x34, 0xfe, 0x4c, 0x54, 0x7b, 0xec, 0x01, 0xfe, 0x4e, 0x1e, 0xfe,
+	0x48, 0x47, 0xfe, 0x54, 0x13, 0x01, 0x0c, 0x06, 0x28, 0xa5, 0x01, 0x43,
+	0x09, 0x9b, 0xfe, 0x40, 0x13, 0x01, 0x0c, 0x06, 0x28, 0xf9, 0x1f, 0x7f,
 	0x01, 0x0c, 0x06, 0x07, 0x4d, 0x1f, 0xfe, 0x0d, 0x00, 0x01, 0x42, 0x8f,
-	0xfe, 0xa4, 0x0e, 0x05,
-	0x29, 0x32, 0x15, 0xfe, 0xe6, 0x00, 0x0f, 0xfe, 0x1c, 0x90, 0x04, 0xfe,
-	0x9c, 0x93, 0x3a, 0x0b,
-	0x0e, 0x8b, 0x02, 0x1f, 0x7f, 0x01, 0x42, 0x05, 0x35, 0xfe, 0x42, 0x5b,
-	0x7d, 0x1d, 0xfe, 0x46,
+	0xfe, 0xa4, 0x0e, 0x05, 0x29, 0x32, 0x15, 0xfe, 0xe6, 0x00, 0x0f, 0xfe,
+	0x1c, 0x90, 0x04, 0xfe, 0x9c, 0x93, 0x3a, 0x0b, 0x0e, 0x8b, 0x02, 0x1f,
+	0x7f, 0x01, 0x42, 0x05, 0x35, 0xfe, 0x42, 0x5b, 0x7d, 0x1d, 0xfe, 0x46,
 	0x59, 0xfe, 0xbf, 0x57, 0xfe, 0x77, 0x57, 0x0f, 0xfe, 0x87, 0x80, 0x04,
-	0xfe, 0x87, 0x83, 0xfe,
-	0xc9, 0x47, 0x0b, 0x0e, 0xd0, 0x65, 0x01, 0x0c, 0x06, 0x0d, 0xfe, 0x98,
-	0x13, 0x0f, 0xfe, 0x20,
-	0x80, 0x04, 0xfe, 0xa0, 0x83, 0x33, 0x0b, 0x0e, 0x09, 0x1d, 0xfe, 0x84,
-	0x12, 0x01, 0x38, 0x06,
+	0xfe, 0x87, 0x83, 0xfe, 0xc9, 0x47, 0x0b, 0x0e, 0xd0, 0x65, 0x01, 0x0c,
+	0x06, 0x0d, 0xfe, 0x98, 0x13, 0x0f, 0xfe, 0x20, 0x80, 0x04, 0xfe, 0xa0,
+	0x83, 0x33, 0x0b, 0x0e, 0x09, 0x1d, 0xfe, 0x84, 0x12, 0x01, 0x38, 0x06,
 	0x07, 0xfe, 0x70, 0x13, 0x03, 0xfe, 0xa2, 0x00, 0x1e, 0x1b, 0xfe, 0xda,
-	0x05, 0xd0, 0x54, 0x01,
-	0x38, 0x06, 0x0d, 0xfe, 0x58, 0x13, 0x03, 0xfe, 0xa0, 0x00, 0x1e, 0xfe,
-	0x50, 0x12, 0x5e, 0xff,
-	0x02, 0x00, 0x10, 0x2f, 0xfe, 0x90, 0x05, 0x2a, 0x3c, 0xcc, 0xff, 0x02,
-	0x00, 0x10, 0x2f, 0xfe,
+	0x05, 0xd0, 0x54, 0x01, 0x38, 0x06, 0x0d, 0xfe, 0x58, 0x13, 0x03, 0xfe,
+	0xa0, 0x00, 0x1e, 0xfe, 0x50, 0x12, 0x5e, 0xff, 0x02, 0x00, 0x10, 0x2f,
+	0xfe, 0x90, 0x05, 0x2a, 0x3c, 0xcc, 0xff, 0x02, 0x00, 0x10, 0x2f, 0xfe,
 	0x9e, 0x05, 0x17, 0xfe, 0xf4, 0x05, 0x15, 0xfe, 0xe3, 0x00, 0x26, 0x01,
-	0x38, 0xfe, 0x4a, 0xf0,
-	0xfe, 0xc0, 0x05, 0xfe, 0x49, 0xf0, 0xfe, 0xba, 0x05, 0x71, 0x2e, 0xfe,
-	0x21, 0x00, 0xf1, 0x2e,
-	0xfe, 0x22, 0x00, 0xa2, 0x2e, 0x4a, 0xfe, 0x09, 0x48, 0xff, 0x02, 0x00,
-	0x10, 0x2f, 0xfe, 0xd0,
+	0x38, 0xfe, 0x4a, 0xf0, 0xfe, 0xc0, 0x05, 0xfe, 0x49, 0xf0, 0xfe, 0xba,
+	0x05, 0x71, 0x2e, 0xfe, 0x21, 0x00, 0xf1, 0x2e, 0xfe, 0x22, 0x00, 0xa2,
+	0x2e, 0x4a, 0xfe, 0x09, 0x48, 0xff, 0x02, 0x00, 0x10, 0x2f, 0xfe, 0xd0,
 	0x05, 0x17, 0xfe, 0xf4, 0x05, 0xfe, 0xe2, 0x08, 0x01, 0x38, 0x06, 0xfe,
-	0x1c, 0x00, 0x4d, 0x01,
-	0xa7, 0x2e, 0x07, 0x20, 0xe4, 0x47, 0xfe, 0x27, 0x01, 0x01, 0x0c, 0x06,
-	0x28, 0xfe, 0x24, 0x12,
-	0x3e, 0x01, 0x84, 0x1f, 0x7f, 0x01, 0x0c, 0x06, 0x07, 0x4d, 0x1f, 0xfe,
-	0x0d, 0x00, 0x01, 0x42,
+	0x1c, 0x00, 0x4d, 0x01, 0xa7, 0x2e, 0x07, 0x20, 0xe4, 0x47, 0xfe, 0x27,
+	0x01, 0x01, 0x0c, 0x06, 0x28, 0xfe, 0x24, 0x12, 0x3e, 0x01, 0x84, 0x1f,
+	0x7f, 0x01, 0x0c, 0x06, 0x07, 0x4d, 0x1f, 0xfe, 0x0d, 0x00, 0x01, 0x42,
 	0x8f, 0xfe, 0xa4, 0x0e, 0x05, 0x29, 0x03, 0xe6, 0x1e, 0xfe, 0xca, 0x13,
-	0x03, 0xb6, 0x1e, 0xfe,
-	0x40, 0x12, 0x03, 0x66, 0x1e, 0xfe, 0x38, 0x13, 0x3e, 0x01, 0x84, 0x17,
-	0xfe, 0x72, 0x06, 0x0a,
-	0x07, 0x01, 0x38, 0x06, 0x24, 0xfe, 0x02, 0x12, 0x4f, 0x01, 0xfe, 0x56,
-	0x19, 0x16, 0xfe, 0x68,
+	0x03, 0xb6, 0x1e, 0xfe, 0x40, 0x12, 0x03, 0x66, 0x1e, 0xfe, 0x38, 0x13,
+	0x3e, 0x01, 0x84, 0x17, 0xfe, 0x72, 0x06, 0x0a, 0x07, 0x01, 0x38, 0x06,
+	0x24, 0xfe, 0x02, 0x12, 0x4f, 0x01, 0xfe, 0x56, 0x19, 0x16, 0xfe, 0x68,
 	0x06, 0x15, 0x82, 0x01, 0x41, 0x15, 0xe2, 0x03, 0x66, 0x8a, 0x10, 0x66,
-	0x03, 0x9a, 0x1e, 0xfe,
-	0x70, 0x12, 0x03, 0x55, 0x1e, 0xfe, 0x68, 0x13, 0x01, 0xc6, 0x09, 0x12,
-	0x48, 0xfe, 0x92, 0x06,
-	0x2e, 0x12, 0x01, 0xfe, 0xac, 0x1d, 0xfe, 0x43, 0x48, 0x62, 0x80, 0x13,
-	0x58, 0xff, 0x02, 0x00,
+	0x03, 0x9a, 0x1e, 0xfe, 0x70, 0x12, 0x03, 0x55, 0x1e, 0xfe, 0x68, 0x13,
+	0x01, 0xc6, 0x09, 0x12, 0x48, 0xfe, 0x92, 0x06, 0x2e, 0x12, 0x01, 0xfe,
+	0xac, 0x1d, 0xfe, 0x43, 0x48, 0x62, 0x80, 0x13, 0x58, 0xff, 0x02, 0x00,
 	0x57, 0x52, 0xad, 0x23, 0x3f, 0x4e, 0x62, 0x49, 0x3e, 0x01, 0x84, 0x17,
-	0xfe, 0xea, 0x06, 0x01,
-	0x38, 0x06, 0x12, 0xf7, 0x45, 0x0a, 0x95, 0x01, 0xfe, 0x84, 0x19, 0x16,
-	0xfe, 0xe0, 0x06, 0x15,
-	0x82, 0x01, 0x41, 0x15, 0xe2, 0x03, 0x55, 0x8a, 0x10, 0x55, 0x1c, 0x07,
-	0x01, 0x84, 0xfe, 0xae,
+	0xfe, 0xea, 0x06, 0x01, 0x38, 0x06, 0x12, 0xf7, 0x45, 0x0a, 0x95, 0x01,
+	0xfe, 0x84, 0x19, 0x16, 0xfe, 0xe0, 0x06, 0x15, 0x82, 0x01, 0x41, 0x15,
+	0xe2, 0x03, 0x55, 0x8a, 0x10, 0x55, 0x1c, 0x07, 0x01, 0x84, 0xfe, 0xae,
 	0x10, 0x03, 0x6f, 0x1e, 0xfe, 0x9e, 0x13, 0x3e, 0x01, 0x84, 0x03, 0x9a,
-	0x1e, 0xfe, 0x1a, 0x12,
-	0x01, 0x38, 0x06, 0x12, 0xfc, 0x01, 0xc6, 0x01, 0xfe, 0xac, 0x1d, 0xfe,
-	0x43, 0x48, 0x62, 0x80,
-	0xf0, 0x45, 0x0a, 0x95, 0x03, 0xb6, 0x1e, 0xf8, 0x01, 0x38, 0x06, 0x24,
-	0x36, 0xfe, 0x02, 0xf6,
+	0x1e, 0xfe, 0x1a, 0x12, 0x01, 0x38, 0x06, 0x12, 0xfc, 0x01, 0xc6, 0x01,
+	0xfe, 0xac, 0x1d, 0xfe, 0x43, 0x48, 0x62, 0x80, 0xf0, 0x45, 0x0a, 0x95,
+	0x03, 0xb6, 0x1e, 0xf8, 0x01, 0x38, 0x06, 0x24, 0x36, 0xfe, 0x02, 0xf6,
 	0x07, 0x71, 0x78, 0x8c, 0x00, 0x4d, 0x62, 0x49, 0x3e, 0x2d, 0x93, 0x4e,
-	0xd0, 0x0d, 0x17, 0xfe,
-	0x9a, 0x07, 0x01, 0xfe, 0xc0, 0x19, 0x16, 0xfe, 0x90, 0x07, 0x26, 0x20,
-	0x9e, 0x15, 0x82, 0x01,
-	0x41, 0x15, 0xe2, 0x21, 0x9e, 0x09, 0x07, 0xfb, 0x03, 0xe6, 0xfe, 0x58,
-	0x57, 0x10, 0xe6, 0x05,
+	0xd0, 0x0d, 0x17, 0xfe, 0x9a, 0x07, 0x01, 0xfe, 0xc0, 0x19, 0x16, 0xfe,
+	0x90, 0x07, 0x26, 0x20, 0x9e, 0x15, 0x82, 0x01, 0x41, 0x15, 0xe2, 0x21,
+	0x9e, 0x09, 0x07, 0xfb, 0x03, 0xe6, 0xfe, 0x58, 0x57, 0x10, 0xe6, 0x05,
 	0xfe, 0x2a, 0x06, 0x03, 0x6f, 0x8a, 0x10, 0x6f, 0x1c, 0x07, 0x01, 0x84,
-	0xfe, 0x9c, 0x32, 0x5f,
-	0x75, 0x01, 0xa6, 0x86, 0x15, 0xfe, 0xe2, 0x00, 0x2f, 0xed, 0x2a, 0x3c,
-	0xfe, 0x0a, 0xf0, 0xfe,
-	0xce, 0x07, 0xae, 0xfe, 0x96, 0x08, 0xfe, 0x06, 0xf0, 0xfe, 0x9e, 0x08,
-	0xaf, 0xa0, 0x05, 0x29,
+	0xfe, 0x9c, 0x32, 0x5f, 0x75, 0x01, 0xa6, 0x86, 0x15, 0xfe, 0xe2, 0x00,
+	0x2f, 0xed, 0x2a, 0x3c, 0xfe, 0x0a, 0xf0, 0xfe, 0xce, 0x07, 0xae, 0xfe,
+	0x96, 0x08, 0xfe, 0x06, 0xf0, 0xfe, 0x9e, 0x08, 0xaf, 0xa0, 0x05, 0x29,
 	0x01, 0x0c, 0x06, 0x0d, 0xfe, 0x2e, 0x12, 0x14, 0x1d, 0x01, 0x08, 0x14,
-	0x00, 0x01, 0x08, 0x14,
-	0x00, 0x01, 0x08, 0x14, 0x00, 0x01, 0x08, 0xfe, 0x99, 0xa4, 0x01, 0x08,
-	0x14, 0x00, 0x05, 0xfe,
-	0xc6, 0x09, 0x01, 0x76, 0x06, 0x12, 0xfe, 0x3a, 0x12, 0x01, 0x0c, 0x06,
-	0x12, 0xfe, 0x30, 0x13,
+	0x00, 0x01, 0x08, 0x14, 0x00, 0x01, 0x08, 0x14, 0x00, 0x01, 0x08, 0xfe,
+	0x99, 0xa4, 0x01, 0x08, 0x14, 0x00, 0x05, 0xfe, 0xc6, 0x09, 0x01, 0x76,
+	0x06, 0x12, 0xfe, 0x3a, 0x12, 0x01, 0x0c, 0x06, 0x12, 0xfe, 0x30, 0x13,
 	0x14, 0xfe, 0x1b, 0x00, 0x01, 0x08, 0x14, 0x00, 0x01, 0x08, 0x14, 0x00,
-	0x01, 0x08, 0x14, 0x00,
-	0x01, 0x08, 0x14, 0x07, 0x01, 0x08, 0x14, 0x00, 0x05, 0xef, 0x7c, 0x4a,
-	0x78, 0x4f, 0x0f, 0xfe,
-	0x9a, 0x81, 0x04, 0xfe, 0x9a, 0x83, 0xfe, 0xcb, 0x47, 0x0b, 0x0e, 0x2d,
-	0x28, 0x48, 0xfe, 0x6c,
+	0x01, 0x08, 0x14, 0x00, 0x01, 0x08, 0x14, 0x07, 0x01, 0x08, 0x14, 0x00,
+	0x05, 0xef, 0x7c, 0x4a, 0x78, 0x4f, 0x0f, 0xfe, 0x9a, 0x81, 0x04, 0xfe,
+	0x9a, 0x83, 0xfe, 0xcb, 0x47, 0x0b, 0x0e, 0x2d, 0x28, 0x48, 0xfe, 0x6c,
 	0x08, 0x0a, 0x28, 0xfe, 0x09, 0x6f, 0xca, 0xfe, 0xca, 0x45, 0xfe, 0x32,
-	0x12, 0x53, 0x63, 0x4e,
-	0x7c, 0x97, 0x2f, 0xfe, 0x7e, 0x08, 0x2a, 0x3c, 0xfe, 0x0a, 0xf0, 0xfe,
-	0x6c, 0x08, 0xaf, 0xa0,
-	0xae, 0xfe, 0x96, 0x08, 0x05, 0x29, 0x01, 0x41, 0x05, 0xed, 0x14, 0x24,
-	0x05, 0xed, 0xfe, 0x9c,
+	0x12, 0x53, 0x63, 0x4e, 0x7c, 0x97, 0x2f, 0xfe, 0x7e, 0x08, 0x2a, 0x3c,
+	0xfe, 0x0a, 0xf0, 0xfe, 0x6c, 0x08, 0xaf, 0xa0, 0xae, 0xfe, 0x96, 0x08,
+	0x05, 0x29, 0x01, 0x41, 0x05, 0xed, 0x14, 0x24, 0x05, 0xed, 0xfe, 0x9c,
 	0xf7, 0x9f, 0x01, 0xfe, 0xae, 0x1e, 0xfe, 0x18, 0x58, 0x01, 0xfe, 0xbe,
-	0x1e, 0xfe, 0x99, 0x58,
-	0xfe, 0x78, 0x18, 0xfe, 0xf9, 0x18, 0x8e, 0xfe, 0x16, 0x09, 0x10, 0x6a,
-	0x22, 0x6b, 0x01, 0x0c,
-	0x61, 0x54, 0x44, 0x21, 0x2c, 0x09, 0x1a, 0xf8, 0x77, 0x01, 0xfe, 0x7e,
-	0x1e, 0x47, 0x2c, 0x7a,
+	0x1e, 0xfe, 0x99, 0x58, 0xfe, 0x78, 0x18, 0xfe, 0xf9, 0x18, 0x8e, 0xfe,
+	0x16, 0x09, 0x10, 0x6a, 0x22, 0x6b, 0x01, 0x0c, 0x61, 0x54, 0x44, 0x21,
+	0x2c, 0x09, 0x1a, 0xf8, 0x77, 0x01, 0xfe, 0x7e, 0x1e, 0x47, 0x2c, 0x7a,
 	0x30, 0xf0, 0xfe, 0x83, 0xe7, 0xfe, 0x3f, 0x00, 0x71, 0xfe, 0x03, 0x40,
-	0x01, 0x0c, 0x61, 0x65,
-	0x44, 0x01, 0xc2, 0xc8, 0xfe, 0x1f, 0x40, 0x20, 0x6e, 0x01, 0xfe, 0x6a,
-	0x16, 0xfe, 0x08, 0x50,
-	0xfe, 0x8a, 0x50, 0xfe, 0x44, 0x51, 0xfe, 0xc6, 0x51, 0xfe, 0x10, 0x10,
-	0x01, 0xfe, 0xce, 0x1e,
+	0x01, 0x0c, 0x61, 0x65, 0x44, 0x01, 0xc2, 0xc8, 0xfe, 0x1f, 0x40, 0x20,
+	0x6e, 0x01, 0xfe, 0x6a, 0x16, 0xfe, 0x08, 0x50, 0xfe, 0x8a, 0x50, 0xfe,
+	0x44, 0x51, 0xfe, 0xc6, 0x51, 0xfe, 0x10, 0x10, 0x01, 0xfe, 0xce, 0x1e,
 	0x01, 0xfe, 0xde, 0x1e, 0x10, 0x68, 0x22, 0x69, 0x01, 0xfe, 0xee, 0x1e,
-	0x01, 0xfe, 0xfe, 0x1e,
-	0xfe, 0x40, 0x50, 0xfe, 0xc2, 0x50, 0x10, 0x4b, 0x22, 0x4c, 0xfe, 0x8a,
-	0x10, 0x01, 0x0c, 0x06,
-	0x54, 0xfe, 0x50, 0x12, 0x01, 0xfe, 0xae, 0x1e, 0x01, 0xfe, 0xbe, 0x1e,
-	0x10, 0x6a, 0x22, 0x6b,
+	0x01, 0xfe, 0xfe, 0x1e, 0xfe, 0x40, 0x50, 0xfe, 0xc2, 0x50, 0x10, 0x4b,
+	0x22, 0x4c, 0xfe, 0x8a, 0x10, 0x01, 0x0c, 0x06, 0x54, 0xfe, 0x50, 0x12,
+	0x01, 0xfe, 0xae, 0x1e, 0x01, 0xfe, 0xbe, 0x1e, 0x10, 0x6a, 0x22, 0x6b,
 	0x01, 0x0c, 0x06, 0x65, 0x4e, 0x01, 0xc2, 0x0f, 0xfe, 0x1f, 0x80, 0x04,
-	0xfe, 0x9f, 0x83, 0x33,
-	0x0b, 0x0e, 0x20, 0x6e, 0x0f, 0xfe, 0x44, 0x90, 0x04, 0xfe, 0xc4, 0x93,
-	0x3a, 0x0b, 0xfe, 0xc6,
-	0x90, 0x04, 0xfe, 0xc6, 0x93, 0x79, 0x0b, 0x0e, 0x10, 0x6c, 0x22, 0x6d,
-	0x01, 0xfe, 0xce, 0x1e,
+	0xfe, 0x9f, 0x83, 0x33, 0x0b, 0x0e, 0x20, 0x6e, 0x0f, 0xfe, 0x44, 0x90,
+	0x04, 0xfe, 0xc4, 0x93, 0x3a, 0x0b, 0xfe, 0xc6, 0x90, 0x04, 0xfe, 0xc6,
+	0x93, 0x79, 0x0b, 0x0e, 0x10, 0x6c, 0x22, 0x6d, 0x01, 0xfe, 0xce, 0x1e,
 	0x01, 0xfe, 0xde, 0x1e, 0x10, 0x68, 0x22, 0x69, 0x0f, 0xfe, 0x40, 0x90,
-	0x04, 0xfe, 0xc0, 0x93,
-	0x3a, 0x0b, 0xfe, 0xc2, 0x90, 0x04, 0xfe, 0xc2, 0x93, 0x79, 0x0b, 0x0e,
-	0x10, 0x4b, 0x22, 0x4c,
-	0x10, 0x64, 0x22, 0x34, 0x01, 0x0c, 0x61, 0x24, 0x44, 0x37, 0x13, 0xfe,
-	0x4e, 0x11, 0x2f, 0xfe,
+	0x04, 0xfe, 0xc0, 0x93, 0x3a, 0x0b, 0xfe, 0xc2, 0x90, 0x04, 0xfe, 0xc2,
+	0x93, 0x79, 0x0b, 0x0e, 0x10, 0x4b, 0x22, 0x4c, 0x10, 0x64, 0x22, 0x34,
+	0x01, 0x0c, 0x61, 0x24, 0x44, 0x37, 0x13, 0xfe, 0x4e, 0x11, 0x2f, 0xfe,
 	0xde, 0x09, 0xfe, 0x9e, 0xf0, 0xfe, 0xf2, 0x09, 0xfe, 0x01, 0x48, 0x1b,
-	0x3c, 0x37, 0x88, 0xf5,
-	0xd4, 0xfe, 0x1e, 0x0a, 0xd5, 0xfe, 0x42, 0x0a, 0xd2, 0xfe, 0x1e, 0x0a,
-	0xd3, 0xfe, 0x42, 0x0a,
-	0xae, 0xfe, 0x12, 0x0a, 0xfe, 0x06, 0xf0, 0xfe, 0x18, 0x0a, 0xaf, 0xa0,
-	0x05, 0x29, 0x01, 0x41,
+	0x3c, 0x37, 0x88, 0xf5, 0xd4, 0xfe, 0x1e, 0x0a, 0xd5, 0xfe, 0x42, 0x0a,
+	0xd2, 0xfe, 0x1e, 0x0a, 0xd3, 0xfe, 0x42, 0x0a, 0xae, 0xfe, 0x12, 0x0a,
+	0xfe, 0x06, 0xf0, 0xfe, 0x18, 0x0a, 0xaf, 0xa0, 0x05, 0x29, 0x01, 0x41,
 	0xfe, 0xc1, 0x10, 0x14, 0x24, 0xfe, 0xc1, 0x10, 0x01, 0x76, 0x06, 0x07,
-	0xfe, 0x14, 0x12, 0x01,
-	0x76, 0x06, 0x0d, 0x5d, 0x01, 0x0c, 0x06, 0x0d, 0xfe, 0x74, 0x12, 0xfe,
-	0x2e, 0x1c, 0x05, 0xfe,
-	0x1a, 0x0c, 0x01, 0x76, 0x06, 0x07, 0x5d, 0x01, 0x76, 0x06, 0x0d, 0x41,
-	0xfe, 0x2c, 0x1c, 0xfe,
+	0xfe, 0x14, 0x12, 0x01, 0x76, 0x06, 0x0d, 0x5d, 0x01, 0x0c, 0x06, 0x0d,
+	0xfe, 0x74, 0x12, 0xfe, 0x2e, 0x1c, 0x05, 0xfe, 0x1a, 0x0c, 0x01, 0x76,
+	0x06, 0x07, 0x5d, 0x01, 0x76, 0x06, 0x0d, 0x41, 0xfe, 0x2c, 0x1c, 0xfe,
 	0xaa, 0xf0, 0xfe, 0xce, 0x0a, 0xfe, 0xac, 0xf0, 0xfe, 0x66, 0x0a, 0xfe,
-	0x92, 0x10, 0xc4, 0xf6,
-	0xfe, 0xad, 0xf0, 0xfe, 0x72, 0x0a, 0x05, 0xfe, 0x1a, 0x0c, 0xc5, 0xfe,
-	0xe7, 0x10, 0xfe, 0x2b,
-	0xf0, 0xbf, 0xfe, 0x6b, 0x18, 0x23, 0xfe, 0x00, 0xfe, 0xfe, 0x1c, 0x12,
-	0xac, 0xfe, 0xd2, 0xf0,
+	0x92, 0x10, 0xc4, 0xf6, 0xfe, 0xad, 0xf0, 0xfe, 0x72, 0x0a, 0x05, 0xfe,
+	0x1a, 0x0c, 0xc5, 0xfe, 0xe7, 0x10, 0xfe, 0x2b, 0xf0, 0xbf, 0xfe, 0x6b,
+	0x18, 0x23, 0xfe, 0x00, 0xfe, 0xfe, 0x1c, 0x12, 0xac, 0xfe, 0xd2, 0xf0,
 	0xbf, 0xfe, 0x76, 0x18, 0x23, 0x1d, 0x1b, 0xbf, 0x03, 0xe3, 0x23, 0x07,
-	0x1b, 0xbf, 0xd4, 0x5b,
-	0xd5, 0x5b, 0xd2, 0x5b, 0xd3, 0x5b, 0xc4, 0xc5, 0xfe, 0xa9, 0x10, 0x75,
-	0x5e, 0x32, 0x1f, 0x7f,
-	0x01, 0x42, 0x19, 0xfe, 0x35, 0x00, 0xfe, 0x01, 0xf0, 0x70, 0x19, 0x98,
-	0x05, 0x70, 0xfe, 0x74,
+	0x1b, 0xbf, 0xd4, 0x5b, 0xd5, 0x5b, 0xd2, 0x5b, 0xd3, 0x5b, 0xc4, 0xc5,
+	0xfe, 0xa9, 0x10, 0x75, 0x5e, 0x32, 0x1f, 0x7f, 0x01, 0x42, 0x19, 0xfe,
+	0x35, 0x00, 0xfe, 0x01, 0xf0, 0x70, 0x19, 0x98, 0x05, 0x70, 0xfe, 0x74,
 	0x18, 0x23, 0xfe, 0x00, 0xf8, 0x1b, 0x5b, 0x7d, 0x12, 0x01, 0xfe, 0x78,
-	0x0f, 0x4d, 0x01, 0xfe,
-	0x96, 0x1a, 0x21, 0x30, 0x77, 0x7d, 0x1d, 0x05, 0x5b, 0x01, 0x0c, 0x06,
-	0x0d, 0x2b, 0xfe, 0xe2,
-	0x0b, 0x01, 0x0c, 0x06, 0x54, 0xfe, 0xa6, 0x12, 0x01, 0x0c, 0x06, 0x24,
-	0xfe, 0x88, 0x13, 0x21,
+	0x0f, 0x4d, 0x01, 0xfe, 0x96, 0x1a, 0x21, 0x30, 0x77, 0x7d, 0x1d, 0x05,
+	0x5b, 0x01, 0x0c, 0x06, 0x0d, 0x2b, 0xfe, 0xe2, 0x0b, 0x01, 0x0c, 0x06,
+	0x54, 0xfe, 0xa6, 0x12, 0x01, 0x0c, 0x06, 0x24, 0xfe, 0x88, 0x13, 0x21,
 	0x6e, 0xc7, 0x01, 0xfe, 0x1e, 0x1f, 0x0f, 0xfe, 0x83, 0x80, 0x04, 0xfe,
-	0x83, 0x83, 0xfe, 0xc9,
-	0x47, 0x0b, 0x0e, 0xfe, 0xc8, 0x44, 0xfe, 0x42, 0x13, 0x0f, 0xfe, 0x04,
-	0x91, 0x04, 0xfe, 0x84,
-	0x93, 0xfe, 0xca, 0x57, 0x0b, 0xfe, 0x86, 0x91, 0x04, 0xfe, 0x86, 0x93,
-	0xfe, 0xcb, 0x57, 0x0b,
+	0x83, 0x83, 0xfe, 0xc9, 0x47, 0x0b, 0x0e, 0xfe, 0xc8, 0x44, 0xfe, 0x42,
+	0x13, 0x0f, 0xfe, 0x04, 0x91, 0x04, 0xfe, 0x84, 0x93, 0xfe, 0xca, 0x57,
+	0x0b, 0xfe, 0x86, 0x91, 0x04, 0xfe, 0x86, 0x93, 0xfe, 0xcb, 0x57, 0x0b,
 	0x0e, 0x7a, 0x30, 0xfe, 0x40, 0x59, 0xfe, 0xc1, 0x59, 0x8e, 0x40, 0x03,
-	0x6a, 0x3b, 0x6b, 0x10,
-	0x97, 0x22, 0x98, 0xd9, 0x6a, 0xda, 0x6b, 0x01, 0xc2, 0xc8, 0x7a, 0x30,
-	0x20, 0x6e, 0xdb, 0x64,
-	0xdc, 0x34, 0x91, 0x6c, 0x7e, 0x6d, 0xfe, 0x44, 0x55, 0xfe, 0xe5, 0x55,
-	0xfe, 0x04, 0xfa, 0x64,
+	0x6a, 0x3b, 0x6b, 0x10, 0x97, 0x22, 0x98, 0xd9, 0x6a, 0xda, 0x6b, 0x01,
+	0xc2, 0xc8, 0x7a, 0x30, 0x20, 0x6e, 0xdb, 0x64, 0xdc, 0x34, 0x91, 0x6c,
+	0x7e, 0x6d, 0xfe, 0x44, 0x55, 0xfe, 0xe5, 0x55, 0xfe, 0x04, 0xfa, 0x64,
 	0xfe, 0x05, 0xfa, 0x34, 0x01, 0xfe, 0x6a, 0x16, 0xa3, 0x26, 0x10, 0x97,
-	0x10, 0x98, 0x91, 0x6c,
-	0x7e, 0x6d, 0xfe, 0x14, 0x10, 0x01, 0x0c, 0x06, 0x24, 0x1b, 0x40, 0x91,
-	0x4b, 0x7e, 0x4c, 0x01,
-	0x0c, 0x06, 0xfe, 0xf7, 0x00, 0x44, 0x03, 0x68, 0x3b, 0x69, 0xfe, 0x10,
-	0x58, 0xfe, 0x91, 0x58,
+	0x10, 0x98, 0x91, 0x6c, 0x7e, 0x6d, 0xfe, 0x14, 0x10, 0x01, 0x0c, 0x06,
+	0x24, 0x1b, 0x40, 0x91, 0x4b, 0x7e, 0x4c, 0x01, 0x0c, 0x06, 0xfe, 0xf7,
+	0x00, 0x44, 0x03, 0x68, 0x3b, 0x69, 0xfe, 0x10, 0x58, 0xfe, 0x91, 0x58,
 	0xfe, 0x14, 0x59, 0xfe, 0x95, 0x59, 0x05, 0x5b, 0x01, 0x0c, 0x06, 0x24,
-	0x1b, 0x40, 0x01, 0x0c,
-	0x06, 0xfe, 0xf7, 0x00, 0x44, 0x78, 0x01, 0xfe, 0x8e, 0x1e, 0x4f, 0x0f,
-	0xfe, 0x10, 0x90, 0x04,
-	0xfe, 0x90, 0x93, 0x3a, 0x0b, 0xfe, 0x92, 0x90, 0x04, 0xfe, 0x92, 0x93,
-	0x79, 0x0b, 0x0e, 0xfe,
+	0x1b, 0x40, 0x01, 0x0c, 0x06, 0xfe, 0xf7, 0x00, 0x44, 0x78, 0x01, 0xfe,
+	0x8e, 0x1e, 0x4f, 0x0f, 0xfe, 0x10, 0x90, 0x04, 0xfe, 0x90, 0x93, 0x3a,
+	0x0b, 0xfe, 0x92, 0x90, 0x04, 0xfe, 0x92, 0x93, 0x79, 0x0b, 0x0e, 0xfe,
 	0xbd, 0x10, 0x01, 0x43, 0x09, 0xbb, 0x1b, 0xfe, 0x6e, 0x0a, 0x15, 0xbb,
-	0x01, 0x0c, 0x06, 0x0d,
-	0xfe, 0x14, 0x13, 0x03, 0x4b, 0x3b, 0x4c, 0x8e, 0xfe, 0x6e, 0x0a, 0xfe,
-	0x0c, 0x58, 0xfe, 0x8d,
-	0x58, 0x05, 0x5b, 0x26, 0x3e, 0x0f, 0xfe, 0x19, 0x80, 0x04, 0xfe, 0x99,
-	0x83, 0x33, 0x0b, 0x0e,
+	0x01, 0x0c, 0x06, 0x0d, 0xfe, 0x14, 0x13, 0x03, 0x4b, 0x3b, 0x4c, 0x8e,
+	0xfe, 0x6e, 0x0a, 0xfe, 0x0c, 0x58, 0xfe, 0x8d, 0x58, 0x05, 0x5b, 0x26,
+	0x3e, 0x0f, 0xfe, 0x19, 0x80, 0x04, 0xfe, 0x99, 0x83, 0x33, 0x0b, 0x0e,
 	0xfe, 0xe5, 0x10, 0x01, 0x0c, 0x06, 0x0d, 0xfe, 0x1a, 0x12, 0xfe, 0x6c,
-	0x19, 0xfe, 0x19, 0x41,
-	0xfe, 0x6b, 0x18, 0xac, 0xfe, 0xd1, 0xf0, 0xef, 0x1f, 0x92, 0x01, 0x42,
-	0x19, 0xfe, 0x44, 0x00,
-	0xfe, 0x90, 0x10, 0xfe, 0x6c, 0x19, 0xd9, 0x4b, 0xfe, 0xed, 0x19, 0xda,
-	0x4c, 0xfe, 0x0c, 0x51,
+	0x19, 0xfe, 0x19, 0x41, 0xfe, 0x6b, 0x18, 0xac, 0xfe, 0xd1, 0xf0, 0xef,
+	0x1f, 0x92, 0x01, 0x42, 0x19, 0xfe, 0x44, 0x00, 0xfe, 0x90, 0x10, 0xfe,
+	0x6c, 0x19, 0xd9, 0x4b, 0xfe, 0xed, 0x19, 0xda, 0x4c, 0xfe, 0x0c, 0x51,
 	0xfe, 0x8e, 0x51, 0xfe, 0x6b, 0x18, 0x23, 0xfe, 0x00, 0xff, 0x31, 0xfe,
-	0x76, 0x10, 0xac, 0xfe,
-	0xd2, 0xf0, 0xfe, 0xba, 0x0c, 0xfe, 0x76, 0x18, 0x23, 0x1d, 0x5d, 0x03,
-	0xe3, 0x23, 0x07, 0xfe,
-	0x08, 0x13, 0x19, 0xfe, 0x16, 0x00, 0x05, 0x70, 0xfe, 0xd1, 0xf0, 0xfe,
-	0xcc, 0x0c, 0x1f, 0x92,
+	0x76, 0x10, 0xac, 0xfe, 0xd2, 0xf0, 0xfe, 0xba, 0x0c, 0xfe, 0x76, 0x18,
+	0x23, 0x1d, 0x5d, 0x03, 0xe3, 0x23, 0x07, 0xfe, 0x08, 0x13, 0x19, 0xfe,
+	0x16, 0x00, 0x05, 0x70, 0xfe, 0xd1, 0xf0, 0xfe, 0xcc, 0x0c, 0x1f, 0x92,
 	0x01, 0x42, 0x19, 0xfe, 0x17, 0x00, 0x5c, 0xfe, 0xce, 0xf0, 0xfe, 0xd2,
-	0x0c, 0xfe, 0x3e, 0x10,
-	0xfe, 0xcd, 0xf0, 0xfe, 0xde, 0x0c, 0x19, 0xfe, 0x22, 0x00, 0x05, 0x70,
-	0xfe, 0xcb, 0xf0, 0xfe,
-	0xea, 0x0c, 0x19, 0xfe, 0x24, 0x00, 0x05, 0x70, 0xfe, 0xd0, 0xf0, 0xfe,
-	0xf4, 0x0c, 0x19, 0x94,
+	0x0c, 0xfe, 0x3e, 0x10, 0xfe, 0xcd, 0xf0, 0xfe, 0xde, 0x0c, 0x19, 0xfe,
+	0x22, 0x00, 0x05, 0x70, 0xfe, 0xcb, 0xf0, 0xfe, 0xea, 0x0c, 0x19, 0xfe,
+	0x24, 0x00, 0x05, 0x70, 0xfe, 0xd0, 0xf0, 0xfe, 0xf4, 0x0c, 0x19, 0x94,
 	0xfe, 0x1c, 0x10, 0xfe, 0xcf, 0xf0, 0xfe, 0xfe, 0x0c, 0x19, 0x4a, 0xf3,
-	0xfe, 0xcc, 0xf0, 0xef,
-	0x01, 0x76, 0x06, 0x24, 0x4d, 0x19, 0xfe, 0x12, 0x00, 0x37, 0x13, 0xfe,
-	0x4e, 0x11, 0x2f, 0xfe,
-	0x16, 0x0d, 0xfe, 0x9e, 0xf0, 0xfe, 0x2a, 0x0d, 0xfe, 0x01, 0x48, 0x1b,
-	0x3c, 0x37, 0x88, 0xf5,
+	0xfe, 0xcc, 0xf0, 0xef, 0x01, 0x76, 0x06, 0x24, 0x4d, 0x19, 0xfe, 0x12,
+	0x00, 0x37, 0x13, 0xfe, 0x4e, 0x11, 0x2f, 0xfe, 0x16, 0x0d, 0xfe, 0x9e,
+	0xf0, 0xfe, 0x2a, 0x0d, 0xfe, 0x01, 0x48, 0x1b, 0x3c, 0x37, 0x88, 0xf5,
 	0xd4, 0x29, 0xd5, 0x29, 0xd2, 0x29, 0xd3, 0x29, 0x37, 0xfe, 0x9c, 0x32,
-	0x2f, 0xfe, 0x3e, 0x0d,
-	0x2a, 0x3c, 0xae, 0xfe, 0x62, 0x0d, 0xaf, 0xa0, 0xd4, 0x9f, 0xd5, 0x9f,
-	0xd2, 0x9f, 0xd3, 0x9f,
-	0x05, 0x29, 0x01, 0x41, 0xfe, 0xd3, 0x10, 0x15, 0xfe, 0xe8, 0x00, 0xc4,
-	0xc5, 0x75, 0xd7, 0x99,
+	0x2f, 0xfe, 0x3e, 0x0d, 0x2a, 0x3c, 0xae, 0xfe, 0x62, 0x0d, 0xaf, 0xa0,
+	0xd4, 0x9f, 0xd5, 0x9f, 0xd2, 0x9f, 0xd3, 0x9f, 0x05, 0x29, 0x01, 0x41,
+	0xfe, 0xd3, 0x10, 0x15, 0xfe, 0xe8, 0x00, 0xc4, 0xc5, 0x75, 0xd7, 0x99,
 	0xd8, 0x9c, 0xfe, 0x89, 0xf0, 0x29, 0x27, 0x25, 0xbe, 0xd7, 0x99, 0xd8,
-	0x9c, 0x2f, 0xfe, 0x8c,
-	0x0d, 0x16, 0x29, 0x27, 0x25, 0xbd, 0xfe, 0x01, 0x48, 0xa4, 0x19, 0xfe,
-	0x42, 0x00, 0x05, 0x70,
-	0x90, 0x07, 0xfe, 0x81, 0x49, 0x1b, 0xfe, 0x64, 0x0e, 0x01, 0x0c, 0x06,
-	0x0d, 0xfe, 0x44, 0x13,
+	0x9c, 0x2f, 0xfe, 0x8c, 0x0d, 0x16, 0x29, 0x27, 0x25, 0xbd, 0xfe, 0x01,
+	0x48, 0xa4, 0x19, 0xfe, 0x42, 0x00, 0x05, 0x70, 0x90, 0x07, 0xfe, 0x81,
+	0x49, 0x1b, 0xfe, 0x64, 0x0e, 0x01, 0x0c, 0x06, 0x0d, 0xfe, 0x44, 0x13,
 	0x19, 0x00, 0x2d, 0x0d, 0xfe, 0x54, 0x12, 0x2d, 0xfe, 0x28, 0x00, 0x2b,
-	0xfe, 0xda, 0x0e, 0x0a,
-	0x57, 0x01, 0x18, 0x09, 0x00, 0x36, 0x46, 0xfe, 0x28, 0x00, 0xfe, 0xfa,
-	0x10, 0x01, 0xfe, 0xf4,
-	0x1c, 0x01, 0xfe, 0x00, 0x1d, 0x0a, 0xba, 0x01, 0xfe, 0x58, 0x10, 0x40,
-	0x15, 0x56, 0x01, 0x85,
+	0xfe, 0xda, 0x0e, 0x0a, 0x57, 0x01, 0x18, 0x09, 0x00, 0x36, 0x46, 0xfe,
+	0x28, 0x00, 0xfe, 0xfa, 0x10, 0x01, 0xfe, 0xf4, 0x1c, 0x01, 0xfe, 0x00,
+	0x1d, 0x0a, 0xba, 0x01, 0xfe, 0x58, 0x10, 0x40, 0x15, 0x56, 0x01, 0x85,
 	0x05, 0x35, 0x19, 0xfe, 0x44, 0x00, 0x2d, 0x0d, 0xf7, 0x46, 0x0d, 0xfe,
-	0xcc, 0x10, 0x01, 0xa7,
-	0x46, 0x0d, 0xfe, 0xc2, 0x10, 0x01, 0xa7, 0x0f, 0xfe, 0x19, 0x82, 0x04,
-	0xfe, 0x99, 0x83, 0xfe,
-	0xcc, 0x47, 0x0b, 0x0e, 0xfe, 0x34, 0x46, 0xa5, 0x46, 0x0d, 0x19, 0xfe,
-	0x43, 0x00, 0xfe, 0xa2,
+	0xcc, 0x10, 0x01, 0xa7, 0x46, 0x0d, 0xfe, 0xc2, 0x10, 0x01, 0xa7, 0x0f,
+	0xfe, 0x19, 0x82, 0x04, 0xfe, 0x99, 0x83, 0xfe, 0xcc, 0x47, 0x0b, 0x0e,
+	0xfe, 0x34, 0x46, 0xa5, 0x46, 0x0d, 0x19, 0xfe, 0x43, 0x00, 0xfe, 0xa2,
 	0x10, 0x01, 0x0c, 0x61, 0x0d, 0x44, 0x01, 0xfe, 0xf4, 0x1c, 0x01, 0xfe,
-	0x00, 0x1d, 0x40, 0x15,
-	0x56, 0x01, 0x85, 0x7d, 0x0d, 0x40, 0x51, 0x01, 0xfe, 0x9e, 0x1e, 0x05,
-	0xfe, 0x3a, 0x03, 0x01,
-	0x0c, 0x06, 0x0d, 0x5d, 0x46, 0x0d, 0x19, 0x00, 0xfe, 0x62, 0x10, 0x01,
-	0x76, 0x06, 0x12, 0xfe,
+	0x00, 0x1d, 0x40, 0x15, 0x56, 0x01, 0x85, 0x7d, 0x0d, 0x40, 0x51, 0x01,
+	0xfe, 0x9e, 0x1e, 0x05, 0xfe, 0x3a, 0x03, 0x01, 0x0c, 0x06, 0x0d, 0x5d,
+	0x46, 0x0d, 0x19, 0x00, 0xfe, 0x62, 0x10, 0x01, 0x76, 0x06, 0x12, 0xfe,
 	0x5c, 0x12, 0x01, 0x0c, 0x06, 0x12, 0xfe, 0x52, 0x13, 0xfe, 0x1c, 0x1c,
-	0xfe, 0x9d, 0xf0, 0xfe,
-	0x8e, 0x0e, 0xfe, 0x1c, 0x1c, 0xfe, 0x9d, 0xf0, 0xfe, 0x94, 0x0e, 0x01,
-	0x0c, 0x61, 0x12, 0x44,
-	0xfe, 0x9f, 0x10, 0x19, 0xfe, 0x15, 0x00, 0xfe, 0x04, 0xe6, 0x0d, 0x4f,
-	0xfe, 0x2e, 0x10, 0x19,
+	0xfe, 0x9d, 0xf0, 0xfe, 0x8e, 0x0e, 0xfe, 0x1c, 0x1c, 0xfe, 0x9d, 0xf0,
+	0xfe, 0x94, 0x0e, 0x01, 0x0c, 0x61, 0x12, 0x44, 0xfe, 0x9f, 0x10, 0x19,
+	0xfe, 0x15, 0x00, 0xfe, 0x04, 0xe6, 0x0d, 0x4f, 0xfe, 0x2e, 0x10, 0x19,
 	0xfe, 0x13, 0x00, 0xfe, 0x10, 0x10, 0x19, 0xfe, 0x47, 0x00, 0xf1, 0x19,
-	0xfe, 0x41, 0x00, 0xa2,
-	0x19, 0xfe, 0x24, 0x00, 0x86, 0xc4, 0xc5, 0x75, 0x03, 0x81, 0x1e, 0x2b,
-	0xea, 0x4f, 0xfe, 0x04,
-	0xe6, 0x12, 0xfe, 0x9d, 0x41, 0xfe, 0x1c, 0x42, 0x40, 0x01, 0xf4, 0x05,
-	0x35, 0xfe, 0x12, 0x1c,
+	0xfe, 0x41, 0x00, 0xa2, 0x19, 0xfe, 0x24, 0x00, 0x86, 0xc4, 0xc5, 0x75,
+	0x03, 0x81, 0x1e, 0x2b, 0xea, 0x4f, 0xfe, 0x04, 0xe6, 0x12, 0xfe, 0x9d,
+	0x41, 0xfe, 0x1c, 0x42, 0x40, 0x01, 0xf4, 0x05, 0x35, 0xfe, 0x12, 0x1c,
 	0x1f, 0x0d, 0x47, 0xb5, 0xc3, 0x1f, 0xfe, 0x31, 0x00, 0x47, 0xb8, 0x01,
-	0xfe, 0xd4, 0x11, 0x05,
-	0xe9, 0x51, 0xfe, 0x06, 0xec, 0xe0, 0xfe, 0x0e, 0x47, 0x46, 0x28, 0xfe,
-	0xce, 0x45, 0x31, 0x51,
-	0xfe, 0x06, 0xea, 0xe0, 0xfe, 0x47, 0x4b, 0x45, 0xfe, 0x75, 0x57, 0x03,
-	0x67, 0xfe, 0x98, 0x56,
+	0xfe, 0xd4, 0x11, 0x05, 0xe9, 0x51, 0xfe, 0x06, 0xec, 0xe0, 0xfe, 0x0e,
+	0x47, 0x46, 0x28, 0xfe, 0xce, 0x45, 0x31, 0x51, 0xfe, 0x06, 0xea, 0xe0,
+	0xfe, 0x47, 0x4b, 0x45, 0xfe, 0x75, 0x57, 0x03, 0x67, 0xfe, 0x98, 0x56,
 	0xfe, 0x38, 0x12, 0x0a, 0x5a, 0x01, 0x18, 0xfe, 0x44, 0x48, 0x60, 0x01,
-	0x0c, 0x06, 0x28, 0xfe,
-	0x18, 0x13, 0x0a, 0x57, 0x01, 0x18, 0x3e, 0xfe, 0x41, 0x58, 0x0a, 0xba,
-	0xfe, 0xfa, 0x14, 0xfe,
-	0x49, 0x54, 0xb0, 0xfe, 0x5e, 0x0f, 0x05, 0xfe, 0x3a, 0x03, 0x0a, 0x67,
-	0xfe, 0xe0, 0x14, 0xfe,
+	0x0c, 0x06, 0x28, 0xfe, 0x18, 0x13, 0x0a, 0x57, 0x01, 0x18, 0x3e, 0xfe,
+	0x41, 0x58, 0x0a, 0xba, 0xfe, 0xfa, 0x14, 0xfe, 0x49, 0x54, 0xb0, 0xfe,
+	0x5e, 0x0f, 0x05, 0xfe, 0x3a, 0x03, 0x0a, 0x67, 0xfe, 0xe0, 0x14, 0xfe,
 	0x0e, 0x47, 0x46, 0x28, 0xfe, 0xce, 0x45, 0x31, 0x51, 0xfe, 0xce, 0x47,
-	0xfe, 0xad, 0x13, 0x05,
-	0x35, 0x21, 0x2c, 0x09, 0x1a, 0xfe, 0x98, 0x12, 0x26, 0x20, 0x96, 0x20,
-	0xe7, 0xfe, 0x08, 0x1c,
-	0xfe, 0x7c, 0x19, 0xfe, 0xfd, 0x19, 0xfe, 0x0a, 0x1c, 0x03, 0xe5, 0xfe,
-	0x48, 0x55, 0xa5, 0x3b,
+	0xfe, 0xad, 0x13, 0x05, 0x35, 0x21, 0x2c, 0x09, 0x1a, 0xfe, 0x98, 0x12,
+	0x26, 0x20, 0x96, 0x20, 0xe7, 0xfe, 0x08, 0x1c, 0xfe, 0x7c, 0x19, 0xfe,
+	0xfd, 0x19, 0xfe, 0x0a, 0x1c, 0x03, 0xe5, 0xfe, 0x48, 0x55, 0xa5, 0x3b,
 	0xfe, 0x62, 0x01, 0xfe, 0xc9, 0x55, 0x31, 0xfe, 0x74, 0x10, 0x01, 0xfe,
-	0xf0, 0x1a, 0x03, 0xfe,
-	0x38, 0x01, 0x3b, 0xfe, 0x3a, 0x01, 0x8e, 0xfe, 0x1e, 0x10, 0xfe, 0x02,
-	0xec, 0xe7, 0x53, 0x00,
-	0x36, 0xfe, 0x04, 0xec, 0x2c, 0x60, 0xfe, 0x05, 0xf6, 0xfe, 0x34, 0x01,
-	0x01, 0xfe, 0x62, 0x1b,
+	0xf0, 0x1a, 0x03, 0xfe, 0x38, 0x01, 0x3b, 0xfe, 0x3a, 0x01, 0x8e, 0xfe,
+	0x1e, 0x10, 0xfe, 0x02, 0xec, 0xe7, 0x53, 0x00, 0x36, 0xfe, 0x04, 0xec,
+	0x2c, 0x60, 0xfe, 0x05, 0xf6, 0xfe, 0x34, 0x01, 0x01, 0xfe, 0x62, 0x1b,
 	0x01, 0xfe, 0xce, 0x1e, 0xb2, 0x11, 0xfe, 0x18, 0x13, 0xca, 0xfe, 0x02,
-	0xea, 0xe7, 0x53, 0x92,
-	0xfe, 0xc3, 0x13, 0x1f, 0x12, 0x47, 0xb5, 0xc3, 0xfe, 0x2a, 0x10, 0x03,
-	0xfe, 0x38, 0x01, 0x23,
-	0xfe, 0xf0, 0xff, 0x10, 0xe5, 0x03, 0xfe, 0x3a, 0x01, 0x10, 0xfe, 0x62,
-	0x01, 0x01, 0xfe, 0x1e,
+	0xea, 0xe7, 0x53, 0x92, 0xfe, 0xc3, 0x13, 0x1f, 0x12, 0x47, 0xb5, 0xc3,
+	0xfe, 0x2a, 0x10, 0x03, 0xfe, 0x38, 0x01, 0x23, 0xfe, 0xf0, 0xff, 0x10,
+	0xe5, 0x03, 0xfe, 0x3a, 0x01, 0x10, 0xfe, 0x62, 0x01, 0x01, 0xfe, 0x1e,
 	0x1e, 0x20, 0x2c, 0x15, 0x56, 0x01, 0xfe, 0x9e, 0x1e, 0x13, 0x07, 0x02,
-	0x26, 0x02, 0x21, 0x96,
-	0xc7, 0x20, 0x96, 0x09, 0x92, 0xfe, 0x79, 0x13, 0x1f, 0x1d, 0x47, 0xb5,
-	0xc3, 0xfe, 0xe1, 0x10,
-	0xcf, 0xfe, 0x03, 0xdc, 0xfe, 0x73, 0x57, 0xfe, 0x80, 0x5d, 0x02, 0xcf,
-	0xfe, 0x03, 0xdc, 0xfe,
+	0x26, 0x02, 0x21, 0x96, 0xc7, 0x20, 0x96, 0x09, 0x92, 0xfe, 0x79, 0x13,
+	0x1f, 0x1d, 0x47, 0xb5, 0xc3, 0xfe, 0xe1, 0x10, 0xcf, 0xfe, 0x03, 0xdc,
+	0xfe, 0x73, 0x57, 0xfe, 0x80, 0x5d, 0x02, 0xcf, 0xfe, 0x03, 0xdc, 0xfe,
 	0x5b, 0x57, 0xfe, 0x80, 0x5d, 0x02, 0xfe, 0x03, 0x57, 0xcf, 0x26, 0xfe,
-	0x00, 0xcc, 0x02, 0xfe,
-	0x03, 0x57, 0xcf, 0x89, 0x02, 0x01, 0x0c, 0x06, 0x4a, 0xfe, 0x4e, 0x13,
-	0x0f, 0xfe, 0x1c, 0x80,
-	0x04, 0xfe, 0x9c, 0x83, 0x33, 0x0b, 0x0e, 0x09, 0x07, 0xfe, 0x3a, 0x13,
-	0x0f, 0xfe, 0x1e, 0x80,
+	0x00, 0xcc, 0x02, 0xfe, 0x03, 0x57, 0xcf, 0x89, 0x02, 0x01, 0x0c, 0x06,
+	0x4a, 0xfe, 0x4e, 0x13, 0x0f, 0xfe, 0x1c, 0x80, 0x04, 0xfe, 0x9c, 0x83,
+	0x33, 0x0b, 0x0e, 0x09, 0x07, 0xfe, 0x3a, 0x13, 0x0f, 0xfe, 0x1e, 0x80,
 	0x04, 0xfe, 0x9e, 0x83, 0x33, 0x0b, 0x0e, 0xfe, 0x2a, 0x13, 0x0f, 0xfe,
-	0x1d, 0x80, 0x04, 0xfe,
-	0x9d, 0x83, 0xfe, 0xf9, 0x13, 0x0e, 0xfe, 0x1c, 0x13, 0x01, 0xfe, 0xee,
-	0x1e, 0xac, 0xfe, 0x14,
-	0x13, 0x01, 0xfe, 0xfe, 0x1e, 0xfe, 0x81, 0x58, 0xfa, 0x01, 0xfe, 0x0e,
-	0x1f, 0xfe, 0x30, 0xf4,
+	0x1d, 0x80, 0x04, 0xfe, 0x9d, 0x83, 0xfe, 0xf9, 0x13, 0x0e, 0xfe, 0x1c,
+	0x13, 0x01, 0xfe, 0xee, 0x1e, 0xac, 0xfe, 0x14, 0x13, 0x01, 0xfe, 0xfe,
+	0x1e, 0xfe, 0x81, 0x58, 0xfa, 0x01, 0xfe, 0x0e, 0x1f, 0xfe, 0x30, 0xf4,
 	0x0d, 0xfe, 0x3c, 0x50, 0xa2, 0x01, 0xfe, 0x92, 0x1b, 0x01, 0x43, 0x09,
-	0x56, 0xfb, 0x01, 0xfe,
-	0xc8, 0x1a, 0x01, 0x0c, 0x06, 0x28, 0xa4, 0x01, 0xfe, 0xf4, 0x1c, 0x01,
-	0xfe, 0x00, 0x1d, 0x15,
-	0xfe, 0xe9, 0x00, 0x01, 0x0c, 0x06, 0x4a, 0xfe, 0x4e, 0x13, 0x01, 0xfe,
-	0x22, 0x1b, 0xfe, 0x1e,
+	0x56, 0xfb, 0x01, 0xfe, 0xc8, 0x1a, 0x01, 0x0c, 0x06, 0x28, 0xa4, 0x01,
+	0xfe, 0xf4, 0x1c, 0x01, 0xfe, 0x00, 0x1d, 0x15, 0xfe, 0xe9, 0x00, 0x01,
+	0x0c, 0x06, 0x4a, 0xfe, 0x4e, 0x13, 0x01, 0xfe, 0x22, 0x1b, 0xfe, 0x1e,
 	0x1c, 0x0f, 0xfe, 0x14, 0x90, 0x04, 0xfe, 0x94, 0x93, 0x3a, 0x0b, 0xfe,
-	0x96, 0x90, 0x04, 0xfe,
-	0x96, 0x93, 0x79, 0x0b, 0x0e, 0x10, 0xfe, 0x64, 0x01, 0x22, 0xfe, 0x66,
-	0x01, 0x01, 0x0c, 0x06,
-	0x65, 0xf9, 0x0f, 0xfe, 0x03, 0x80, 0x04, 0xfe, 0x83, 0x83, 0x33, 0x0b,
-	0x0e, 0x77, 0xfe, 0x01,
+	0x96, 0x90, 0x04, 0xfe, 0x96, 0x93, 0x79, 0x0b, 0x0e, 0x10, 0xfe, 0x64,
+	0x01, 0x22, 0xfe, 0x66, 0x01, 0x01, 0x0c, 0x06, 0x65, 0xf9, 0x0f, 0xfe,
+	0x03, 0x80, 0x04, 0xfe, 0x83, 0x83, 0x33, 0x0b, 0x0e, 0x77, 0xfe, 0x01,
 	0xec, 0x2c, 0xfe, 0x80, 0x40, 0x20, 0x2c, 0x7a, 0x30, 0x15, 0xdf, 0x40,
-	0x21, 0x2c, 0xfe, 0x00,
-	0x40, 0x8d, 0x2c, 0x02, 0xfe, 0x08, 0x1c, 0x03, 0xfe, 0xac, 0x00, 0xfe,
-	0x06, 0x58, 0x03, 0xfe,
-	0xae, 0x00, 0xfe, 0x07, 0x58, 0x03, 0xfe, 0xb0, 0x00, 0xfe, 0x08, 0x58,
-	0x03, 0xfe, 0xb2, 0x00,
+	0x21, 0x2c, 0xfe, 0x00, 0x40, 0x8d, 0x2c, 0x02, 0xfe, 0x08, 0x1c, 0x03,
+	0xfe, 0xac, 0x00, 0xfe, 0x06, 0x58, 0x03, 0xfe, 0xae, 0x00, 0xfe, 0x07,
+	0x58, 0x03, 0xfe, 0xb0, 0x00, 0xfe, 0x08, 0x58, 0x03, 0xfe, 0xb2, 0x00,
 	0xfe, 0x09, 0x58, 0xfe, 0x0a, 0x1c, 0x2e, 0x49, 0x20, 0xe0, 0x26, 0x10,
-	0x66, 0x10, 0x55, 0x10,
-	0x6f, 0x13, 0x57, 0x52, 0x4f, 0x1c, 0x28, 0xfe, 0x90, 0x4d, 0xfe, 0x91,
-	0x54, 0x2b, 0xfe, 0x88,
-	0x11, 0x46, 0x1a, 0x13, 0x5a, 0x52, 0x1c, 0x4a, 0xfe, 0x90, 0x4d, 0xfe,
-	0x91, 0x54, 0x2b, 0xfe,
+	0x66, 0x10, 0x55, 0x10, 0x6f, 0x13, 0x57, 0x52, 0x4f, 0x1c, 0x28, 0xfe,
+	0x90, 0x4d, 0xfe, 0x91, 0x54, 0x2b, 0xfe, 0x88, 0x11, 0x46, 0x1a, 0x13,
+	0x5a, 0x52, 0x1c, 0x4a, 0xfe, 0x90, 0x4d, 0xfe, 0x91, 0x54, 0x2b, 0xfe,
 	0x9e, 0x11, 0x2e, 0x1a, 0x20, 0x2c, 0x90, 0x34, 0x60, 0x21, 0x2c, 0xfe,
-	0x00, 0x40, 0x8d, 0x2c,
-	0x15, 0xdf, 0xfe, 0x14, 0x56, 0xfe, 0xd6, 0xf0, 0xfe, 0xb2, 0x11, 0xfe,
-	0x12, 0x1c, 0x75, 0xfe,
-	0x14, 0x1c, 0xfe, 0x10, 0x1c, 0xfe, 0x18, 0x1c, 0x02, 0x51, 0xfe, 0x0c,
-	0x14, 0xfe, 0x0e, 0x47,
+	0x00, 0x40, 0x8d, 0x2c, 0x15, 0xdf, 0xfe, 0x14, 0x56, 0xfe, 0xd6, 0xf0,
+	0xfe, 0xb2, 0x11, 0xfe, 0x12, 0x1c, 0x75, 0xfe, 0x14, 0x1c, 0xfe, 0x10,
+	0x1c, 0xfe, 0x18, 0x1c, 0x02, 0x51, 0xfe, 0x0c, 0x14, 0xfe, 0x0e, 0x47,
 	0xfe, 0x07, 0xe6, 0x28, 0xfe, 0xce, 0x47, 0xfe, 0xf5, 0x13, 0x02, 0x01,
-	0xa7, 0x90, 0x34, 0x60,
-	0xfe, 0x06, 0x80, 0xfe, 0x48, 0x47, 0xfe, 0x42, 0x13, 0xfe, 0x02, 0x80,
-	0x09, 0x56, 0xfe, 0x34,
-	0x13, 0x0a, 0x5a, 0x01, 0x18, 0xcb, 0xfe, 0x36, 0x12, 0xfe, 0x41, 0x48,
-	0xfe, 0x45, 0x48, 0x01,
+	0xa7, 0x90, 0x34, 0x60, 0xfe, 0x06, 0x80, 0xfe, 0x48, 0x47, 0xfe, 0x42,
+	0x13, 0xfe, 0x02, 0x80, 0x09, 0x56, 0xfe, 0x34, 0x13, 0x0a, 0x5a, 0x01,
+	0x18, 0xcb, 0xfe, 0x36, 0x12, 0xfe, 0x41, 0x48, 0xfe, 0x45, 0x48, 0x01,
 	0xfe, 0xb2, 0x16, 0xfe, 0x00, 0xcc, 0xcb, 0xfe, 0xf3, 0x13, 0x3f, 0x89,
-	0x09, 0x1a, 0xa5, 0x0a,
-	0x9d, 0x01, 0x18, 0xfe, 0x80, 0x5c, 0x01, 0x85, 0xf2, 0x09, 0x9b, 0xa4,
-	0xfe, 0x14, 0x56, 0xfe,
-	0xd6, 0xf0, 0xfe, 0xec, 0x11, 0x02, 0xfe, 0x44, 0x58, 0x77, 0xfe, 0x01,
-	0xec, 0xb8, 0xfe, 0x9e,
+	0x09, 0x1a, 0xa5, 0x0a, 0x9d, 0x01, 0x18, 0xfe, 0x80, 0x5c, 0x01, 0x85,
+	0xf2, 0x09, 0x9b, 0xa4, 0xfe, 0x14, 0x56, 0xfe, 0xd6, 0xf0, 0xfe, 0xec,
+	0x11, 0x02, 0xfe, 0x44, 0x58, 0x77, 0xfe, 0x01, 0xec, 0xb8, 0xfe, 0x9e,
 	0x40, 0xfe, 0x9d, 0xe7, 0x00, 0xfe, 0x9c, 0xe7, 0x12, 0x8d, 0x30, 0x01,
-	0xf4, 0xfe, 0xdd, 0x10,
-	0x37, 0xd7, 0x99, 0xd8, 0x9c, 0x27, 0x25, 0xee, 0x09, 0x12, 0xfe, 0x48,
-	0x12, 0x09, 0x0d, 0xfe,
-	0x56, 0x12, 0x09, 0x1d, 0xfe, 0x30, 0x12, 0x09, 0xdd, 0x1b, 0xfe, 0xc4,
-	0x13, 0x09, 0xfe, 0x23,
+	0xf4, 0xfe, 0xdd, 0x10, 0x37, 0xd7, 0x99, 0xd8, 0x9c, 0x27, 0x25, 0xee,
+	0x09, 0x12, 0xfe, 0x48, 0x12, 0x09, 0x0d, 0xfe, 0x56, 0x12, 0x09, 0x1d,
+	0xfe, 0x30, 0x12, 0x09, 0xdd, 0x1b, 0xfe, 0xc4, 0x13, 0x09, 0xfe, 0x23,
 	0x00, 0x1b, 0xfe, 0xd0, 0x13, 0x09, 0x07, 0x1b, 0xfe, 0x34, 0x14, 0x09,
-	0x24, 0xfe, 0x12, 0x12,
-	0x09, 0x00, 0x1b, 0x29, 0x1f, 0xdd, 0x01, 0x42, 0xa1, 0x32, 0x01, 0x08,
-	0xae, 0x41, 0x02, 0x32,
-	0xfe, 0x62, 0x08, 0x0a, 0xe1, 0x01, 0xfe, 0x58, 0x10, 0x15, 0x9b, 0x05,
-	0x35, 0x32, 0x01, 0x43,
+	0x24, 0xfe, 0x12, 0x12, 0x09, 0x00, 0x1b, 0x29, 0x1f, 0xdd, 0x01, 0x42,
+	0xa1, 0x32, 0x01, 0x08, 0xae, 0x41, 0x02, 0x32, 0xfe, 0x62, 0x08, 0x0a,
+	0xe1, 0x01, 0xfe, 0x58, 0x10, 0x15, 0x9b, 0x05, 0x35, 0x32, 0x01, 0x43,
 	0x09, 0xbb, 0xfe, 0xd7, 0x13, 0x91, 0x4b, 0x7e, 0x4c, 0x8e, 0xfe, 0x80,
-	0x13, 0x01, 0x0c, 0x06,
-	0x54, 0xfe, 0x72, 0x12, 0xdb, 0x64, 0xdc, 0x34, 0xfe, 0x44, 0x55, 0xfe,
-	0xe5, 0x55, 0xb0, 0xfe,
-	0x4a, 0x13, 0x21, 0x6e, 0xfe, 0x26, 0x13, 0x03, 0x97, 0x3b, 0x98, 0x8e,
-	0xfe, 0xb6, 0x0e, 0x10,
+	0x13, 0x01, 0x0c, 0x06, 0x54, 0xfe, 0x72, 0x12, 0xdb, 0x64, 0xdc, 0x34,
+	0xfe, 0x44, 0x55, 0xfe, 0xe5, 0x55, 0xb0, 0xfe, 0x4a, 0x13, 0x21, 0x6e,
+	0xfe, 0x26, 0x13, 0x03, 0x97, 0x3b, 0x98, 0x8e, 0xfe, 0xb6, 0x0e, 0x10,
 	0x6a, 0x22, 0x6b, 0x26, 0x10, 0x97, 0x10, 0x98, 0x01, 0xc2, 0x2e, 0x49,
-	0x88, 0x20, 0x6e, 0x01,
-	0xfe, 0x6a, 0x16, 0xdb, 0x64, 0xdc, 0x34, 0xfe, 0x04, 0x55, 0xfe, 0xa5,
-	0x55, 0xfe, 0x04, 0xfa,
-	0x64, 0xfe, 0x05, 0xfa, 0x34, 0xfe, 0x8f, 0x10, 0x03, 0x6c, 0x3b, 0x6d,
-	0xfe, 0x40, 0x56, 0xfe,
+	0x88, 0x20, 0x6e, 0x01, 0xfe, 0x6a, 0x16, 0xdb, 0x64, 0xdc, 0x34, 0xfe,
+	0x04, 0x55, 0xfe, 0xa5, 0x55, 0xfe, 0x04, 0xfa, 0x64, 0xfe, 0x05, 0xfa,
+	0x34, 0xfe, 0x8f, 0x10, 0x03, 0x6c, 0x3b, 0x6d, 0xfe, 0x40, 0x56, 0xfe,
 	0xe1, 0x56, 0x10, 0x6c, 0x22, 0x6d, 0x71, 0xdb, 0x64, 0xdc, 0x34, 0xfe,
-	0x44, 0x55, 0xfe, 0xe5,
-	0x55, 0x03, 0x68, 0x3b, 0x69, 0xfe, 0x00, 0x56, 0xfe, 0xa1, 0x56, 0x10,
-	0x68, 0x22, 0x69, 0x01,
-	0x0c, 0x06, 0x54, 0xf9, 0x21, 0x6e, 0xfe, 0x1f, 0x40, 0x03, 0x6a, 0x3b,
-	0x6b, 0xfe, 0x2c, 0x50,
+	0x44, 0x55, 0xfe, 0xe5, 0x55, 0x03, 0x68, 0x3b, 0x69, 0xfe, 0x00, 0x56,
+	0xfe, 0xa1, 0x56, 0x10, 0x68, 0x22, 0x69, 0x01, 0x0c, 0x06, 0x54, 0xf9,
+	0x21, 0x6e, 0xfe, 0x1f, 0x40, 0x03, 0x6a, 0x3b, 0x6b, 0xfe, 0x2c, 0x50,
 	0xfe, 0xae, 0x50, 0x03, 0x6c, 0x3b, 0x6d, 0xfe, 0x44, 0x50, 0xfe, 0xc6,
-	0x50, 0x03, 0x68, 0x3b,
-	0x69, 0xfe, 0x08, 0x50, 0xfe, 0x8a, 0x50, 0x03, 0x4b, 0x3b, 0x4c, 0xfe,
-	0x40, 0x50, 0xfe, 0xc2,
-	0x50, 0x05, 0x73, 0x2e, 0x07, 0x20, 0x9e, 0x05, 0x72, 0x32, 0x01, 0x08,
-	0x16, 0x3d, 0x27, 0x25,
+	0x50, 0x03, 0x68, 0x3b, 0x69, 0xfe, 0x08, 0x50, 0xfe, 0x8a, 0x50, 0x03,
+	0x4b, 0x3b, 0x4c, 0xfe, 0x40, 0x50, 0xfe, 0xc2, 0x50, 0x05, 0x73, 0x2e,
+	0x07, 0x20, 0x9e, 0x05, 0x72, 0x32, 0x01, 0x08, 0x16, 0x3d, 0x27, 0x25,
 	0xee, 0x09, 0x07, 0x2b, 0x3d, 0x01, 0x43, 0x09, 0xbb, 0x2b, 0x72, 0x01,
-	0xa6, 0x23, 0x3f, 0x1b,
-	0x3d, 0x01, 0x0c, 0x06, 0x0d, 0xfe, 0x1e, 0x13, 0x91, 0x4b, 0x7e, 0x4c,
-	0xfe, 0x0a, 0x55, 0x31,
-	0xfe, 0x8b, 0x55, 0xd9, 0x4b, 0xda, 0x4c, 0xfe, 0x0c, 0x51, 0xfe, 0x8e,
-	0x51, 0x05, 0x72, 0x01,
+	0xa6, 0x23, 0x3f, 0x1b, 0x3d, 0x01, 0x0c, 0x06, 0x0d, 0xfe, 0x1e, 0x13,
+	0x91, 0x4b, 0x7e, 0x4c, 0xfe, 0x0a, 0x55, 0x31, 0xfe, 0x8b, 0x55, 0xd9,
+	0x4b, 0xda, 0x4c, 0xfe, 0x0c, 0x51, 0xfe, 0x8e, 0x51, 0x05, 0x72, 0x01,
 	0xfe, 0x8e, 0x1e, 0xca, 0xfe, 0x19, 0x41, 0x05, 0x72, 0x32, 0x01, 0x08,
-	0x2a, 0x3c, 0x16, 0xc0,
-	0x27, 0x25, 0xbe, 0x2d, 0x1d, 0xc0, 0x2d, 0x0d, 0x83, 0x2d, 0x7f, 0x1b,
-	0xfe, 0x66, 0x15, 0x05,
-	0x3d, 0x01, 0x08, 0x2a, 0x3c, 0x16, 0xc0, 0x27, 0x25, 0xbd, 0x09, 0x1d,
-	0x2b, 0x3d, 0x01, 0x08,
+	0x2a, 0x3c, 0x16, 0xc0, 0x27, 0x25, 0xbe, 0x2d, 0x1d, 0xc0, 0x2d, 0x0d,
+	0x83, 0x2d, 0x7f, 0x1b, 0xfe, 0x66, 0x15, 0x05, 0x3d, 0x01, 0x08, 0x2a,
+	0x3c, 0x16, 0xc0, 0x27, 0x25, 0xbd, 0x09, 0x1d, 0x2b, 0x3d, 0x01, 0x08,
 	0x16, 0xc0, 0x27, 0x25, 0xfe, 0xe8, 0x09, 0xfe, 0xc2, 0x49, 0x50, 0x03,
-	0xb6, 0x1e, 0x83, 0x01,
-	0x38, 0x06, 0x24, 0x31, 0xa1, 0xfe, 0xbb, 0x45, 0x2d, 0x00, 0xa4, 0x46,
-	0x07, 0x90, 0x3f, 0x01,
-	0xfe, 0xf8, 0x15, 0x01, 0xa6, 0x86, 0xfe, 0x4b, 0x45, 0xfe, 0x20, 0x13,
-	0x01, 0x43, 0x09, 0x82,
+	0xb6, 0x1e, 0x83, 0x01, 0x38, 0x06, 0x24, 0x31, 0xa1, 0xfe, 0xbb, 0x45,
+	0x2d, 0x00, 0xa4, 0x46, 0x07, 0x90, 0x3f, 0x01, 0xfe, 0xf8, 0x15, 0x01,
+	0xa6, 0x86, 0xfe, 0x4b, 0x45, 0xfe, 0x20, 0x13, 0x01, 0x43, 0x09, 0x82,
 	0xfe, 0x16, 0x13, 0x03, 0x9a, 0x1e, 0x5d, 0x03, 0x55, 0x1e, 0x31, 0x5e,
-	0x05, 0x72, 0xfe, 0xc0,
-	0x5d, 0x01, 0xa7, 0xfe, 0x03, 0x17, 0x03, 0x66, 0x8a, 0x10, 0x66, 0x5e,
-	0x32, 0x01, 0x08, 0x17,
-	0x73, 0x01, 0xfe, 0x56, 0x19, 0x05, 0x73, 0x01, 0x08, 0x2a, 0x3c, 0x16,
-	0x3d, 0x27, 0x25, 0xbd,
+	0x05, 0x72, 0xfe, 0xc0, 0x5d, 0x01, 0xa7, 0xfe, 0x03, 0x17, 0x03, 0x66,
+	0x8a, 0x10, 0x66, 0x5e, 0x32, 0x01, 0x08, 0x17, 0x73, 0x01, 0xfe, 0x56,
+	0x19, 0x05, 0x73, 0x01, 0x08, 0x2a, 0x3c, 0x16, 0x3d, 0x27, 0x25, 0xbd,
 	0x09, 0x07, 0x2b, 0x3d, 0x01, 0xfe, 0xbe, 0x16, 0xfe, 0x42, 0x58, 0xfe,
-	0xe8, 0x14, 0x01, 0xa6,
-	0x86, 0xfe, 0x4a, 0xf4, 0x0d, 0x1b, 0x3d, 0xfe, 0x4a, 0xf4, 0x07, 0xfe,
-	0x0e, 0x12, 0x01, 0x43,
-	0x09, 0x82, 0x4e, 0x05, 0x72, 0x03, 0x55, 0x8a, 0x10, 0x55, 0x5e, 0x32,
-	0x01, 0x08, 0x17, 0x73,
+	0xe8, 0x14, 0x01, 0xa6, 0x86, 0xfe, 0x4a, 0xf4, 0x0d, 0x1b, 0x3d, 0xfe,
+	0x4a, 0xf4, 0x07, 0xfe, 0x0e, 0x12, 0x01, 0x43, 0x09, 0x82, 0x4e, 0x05,
+	0x72, 0x03, 0x55, 0x8a, 0x10, 0x55, 0x5e, 0x32, 0x01, 0x08, 0x17, 0x73,
 	0x01, 0xfe, 0x84, 0x19, 0x05, 0x73, 0x01, 0x08, 0x2a, 0x3c, 0x16, 0x3d,
-	0x27, 0x25, 0xbd, 0x09,
-	0x12, 0x2b, 0x3d, 0x01, 0xfe, 0xe8, 0x17, 0x8b, 0xfe, 0xaa, 0x14, 0xfe,
-	0xb6, 0x14, 0x86, 0xa8,
-	0xb2, 0x0d, 0x1b, 0x3d, 0xb2, 0x07, 0xfe, 0x0e, 0x12, 0x01, 0x43, 0x09,
-	0x82, 0x4e, 0x05, 0x72,
+	0x27, 0x25, 0xbd, 0x09, 0x12, 0x2b, 0x3d, 0x01, 0xfe, 0xe8, 0x17, 0x8b,
+	0xfe, 0xaa, 0x14, 0xfe, 0xb6, 0x14, 0x86, 0xa8, 0xb2, 0x0d, 0x1b, 0x3d,
+	0xb2, 0x07, 0xfe, 0x0e, 0x12, 0x01, 0x43, 0x09, 0x82, 0x4e, 0x05, 0x72,
 	0x03, 0x6f, 0x8a, 0x10, 0x6f, 0x5e, 0x32, 0x01, 0x08, 0x17, 0x73, 0x01,
-	0xfe, 0xc0, 0x19, 0x05,
-	0x73, 0x13, 0x07, 0x2f, 0xfe, 0xcc, 0x15, 0x17, 0xfe, 0xe2, 0x15, 0x5f,
-	0xcc, 0x01, 0x08, 0x26,
-	0x5f, 0x02, 0x8f, 0xfe, 0xde, 0x15, 0x2a, 0xfe, 0xde, 0x15, 0x16, 0xfe,
-	0xcc, 0x15, 0x5e, 0x32,
+	0xfe, 0xc0, 0x19, 0x05, 0x73, 0x13, 0x07, 0x2f, 0xfe, 0xcc, 0x15, 0x17,
+	0xfe, 0xe2, 0x15, 0x5f, 0xcc, 0x01, 0x08, 0x26, 0x5f, 0x02, 0x8f, 0xfe,
+	0xde, 0x15, 0x2a, 0xfe, 0xde, 0x15, 0x16, 0xfe, 0xcc, 0x15, 0x5e, 0x32,
 	0x01, 0x08, 0xfe, 0xd5, 0x10, 0x13, 0x58, 0xff, 0x02, 0x00, 0x57, 0x52,
-	0xad, 0x23, 0xfe, 0xff,
-	0x7f, 0xfe, 0x30, 0x56, 0xfe, 0x00, 0x5c, 0x02, 0x13, 0x58, 0xff, 0x02,
-	0x00, 0x57, 0x52, 0xad,
-	0x23, 0x3f, 0xfe, 0x30, 0x56, 0xfe, 0x00, 0x5c, 0x02, 0x13, 0x58, 0xff,
-	0x02, 0x00, 0x57, 0x52,
+	0xad, 0x23, 0xfe, 0xff, 0x7f, 0xfe, 0x30, 0x56, 0xfe, 0x00, 0x5c, 0x02,
+	0x13, 0x58, 0xff, 0x02, 0x00, 0x57, 0x52, 0xad, 0x23, 0x3f, 0xfe, 0x30,
+	0x56, 0xfe, 0x00, 0x5c, 0x02, 0x13, 0x58, 0xff, 0x02, 0x00, 0x57, 0x52,
 	0xad, 0x02, 0x13, 0x58, 0xff, 0x02, 0x00, 0x57, 0x52, 0xfe, 0x00, 0x5e,
-	0x02, 0x13, 0x58, 0xff,
-	0x02, 0x00, 0x57, 0x52, 0xad, 0xfe, 0x0b, 0x58, 0x02, 0x0a, 0x66, 0x01,
-	0x5c, 0x0a, 0x55, 0x01,
-	0x5c, 0x0a, 0x6f, 0x01, 0x5c, 0x02, 0x01, 0xfe, 0x1e, 0x1f, 0x23, 0x1a,
-	0xff, 0x03, 0x00, 0x54,
+	0x02, 0x13, 0x58, 0xff, 0x02, 0x00, 0x57, 0x52, 0xad, 0xfe, 0x0b, 0x58,
+	0x02, 0x0a, 0x66, 0x01, 0x5c, 0x0a, 0x55, 0x01, 0x5c, 0x0a, 0x6f, 0x01,
+	0x5c, 0x02, 0x01, 0xfe, 0x1e, 0x1f, 0x23, 0x1a, 0xff, 0x03, 0x00, 0x54,
 	0xfe, 0x00, 0xf4, 0x24, 0x52, 0x0f, 0xfe, 0x00, 0x7c, 0x04, 0xfe, 0x07,
-	0x7c, 0x3a, 0x0b, 0x0e,
-	0xfe, 0x00, 0x71, 0xfe, 0xf9, 0x18, 0xfe, 0x7a, 0x19, 0xfe, 0xfb, 0x19,
-	0xfe, 0x1a, 0xf7, 0x00,
-	0xfe, 0x1b, 0xf7, 0x00, 0x7a, 0x30, 0x10, 0x68, 0x22, 0x69, 0xd9, 0x6c,
-	0xda, 0x6d, 0x02, 0xfe,
+	0x7c, 0x3a, 0x0b, 0x0e, 0xfe, 0x00, 0x71, 0xfe, 0xf9, 0x18, 0xfe, 0x7a,
+	0x19, 0xfe, 0xfb, 0x19, 0xfe, 0x1a, 0xf7, 0x00, 0xfe, 0x1b, 0xf7, 0x00,
+	0x7a, 0x30, 0x10, 0x68, 0x22, 0x69, 0xd9, 0x6c, 0xda, 0x6d, 0x02, 0xfe,
 	0x62, 0x08, 0xfe, 0x82, 0x4a, 0xfe, 0xe1, 0x1a, 0xfe, 0x83, 0x5a, 0x77,
-	0x02, 0x01, 0xc6, 0xfe,
-	0x42, 0x48, 0x4f, 0x50, 0x45, 0x01, 0x08, 0x16, 0xfe, 0xe0, 0x17, 0x27,
-	0x25, 0xbe, 0x01, 0x08,
-	0x16, 0xfe, 0xe0, 0x17, 0x27, 0x25, 0xfe, 0xe8, 0x0a, 0xfe, 0xc1, 0x59,
-	0x03, 0x9a, 0x1e, 0xfe,
+	0x02, 0x01, 0xc6, 0xfe, 0x42, 0x48, 0x4f, 0x50, 0x45, 0x01, 0x08, 0x16,
+	0xfe, 0xe0, 0x17, 0x27, 0x25, 0xbe, 0x01, 0x08, 0x16, 0xfe, 0xe0, 0x17,
+	0x27, 0x25, 0xfe, 0xe8, 0x0a, 0xfe, 0xc1, 0x59, 0x03, 0x9a, 0x1e, 0xfe,
 	0xda, 0x12, 0x01, 0x38, 0x06, 0x12, 0xfe, 0xd0, 0x13, 0x26, 0x53, 0x12,
-	0x48, 0xfe, 0x08, 0x17,
-	0xd1, 0x12, 0x53, 0x12, 0xfe, 0x1e, 0x13, 0x2d, 0xb4, 0x7b, 0xfe, 0x26,
-	0x17, 0x4d, 0x13, 0x07,
-	0x1c, 0xb4, 0x90, 0x04, 0xfe, 0x78, 0x10, 0xff, 0x02, 0x83, 0x55, 0xf1,
-	0xff, 0x02, 0x83, 0x55,
+	0x48, 0xfe, 0x08, 0x17, 0xd1, 0x12, 0x53, 0x12, 0xfe, 0x1e, 0x13, 0x2d,
+	0xb4, 0x7b, 0xfe, 0x26, 0x17, 0x4d, 0x13, 0x07, 0x1c, 0xb4, 0x90, 0x04,
+	0xfe, 0x78, 0x10, 0xff, 0x02, 0x83, 0x55, 0xf1, 0xff, 0x02, 0x83, 0x55,
 	0x53, 0x1d, 0xfe, 0x12, 0x13, 0xd6, 0xfe, 0x30, 0x00, 0xb0, 0xfe, 0x80,
-	0x17, 0x1c, 0x63, 0x13,
-	0x07, 0xfe, 0x56, 0x10, 0x53, 0x0d, 0xfe, 0x16, 0x13, 0xd6, 0xfe, 0x64,
-	0x00, 0xb0, 0xfe, 0x80,
-	0x17, 0x0a, 0xfe, 0x64, 0x00, 0x1c, 0x94, 0x13, 0x07, 0xfe, 0x28, 0x10,
-	0x53, 0x07, 0xfe, 0x60,
+	0x17, 0x1c, 0x63, 0x13, 0x07, 0xfe, 0x56, 0x10, 0x53, 0x0d, 0xfe, 0x16,
+	0x13, 0xd6, 0xfe, 0x64, 0x00, 0xb0, 0xfe, 0x80, 0x17, 0x0a, 0xfe, 0x64,
+	0x00, 0x1c, 0x94, 0x13, 0x07, 0xfe, 0x28, 0x10, 0x53, 0x07, 0xfe, 0x60,
 	0x13, 0xd6, 0xfe, 0xc8, 0x00, 0xb0, 0xfe, 0x80, 0x17, 0x0a, 0xfe, 0xc8,
-	0x00, 0x1c, 0x95, 0x13,
-	0x07, 0x71, 0xd6, 0xfe, 0x90, 0x01, 0x48, 0xfe, 0x8c, 0x17, 0x45, 0xf3,
-	0xfe, 0x43, 0xf4, 0x96,
-	0xfe, 0x56, 0xf0, 0xfe, 0x9e, 0x17, 0xfe, 0x04, 0xf4, 0x58, 0xfe, 0x43,
-	0xf4, 0x94, 0xf6, 0x8b,
+	0x00, 0x1c, 0x95, 0x13, 0x07, 0x71, 0xd6, 0xfe, 0x90, 0x01, 0x48, 0xfe,
+	0x8c, 0x17, 0x45, 0xf3, 0xfe, 0x43, 0xf4, 0x96, 0xfe, 0x56, 0xf0, 0xfe,
+	0x9e, 0x17, 0xfe, 0x04, 0xf4, 0x58, 0xfe, 0x43, 0xf4, 0x94, 0xf6, 0x8b,
 	0x01, 0xfe, 0x24, 0x16, 0x23, 0x3f, 0xfc, 0xa8, 0x8c, 0x49, 0x48, 0xfe,
-	0xda, 0x17, 0x62, 0x49,
-	0xfe, 0x1c, 0x10, 0xa8, 0x8c, 0x80, 0x48, 0xfe, 0xda, 0x17, 0x62, 0x80,
-	0x71, 0x50, 0x26, 0xfe,
-	0x4d, 0xf4, 0x00, 0xf7, 0x45, 0x13, 0x07, 0xfe, 0xb4, 0x56, 0xfe, 0xc3,
-	0x58, 0x02, 0x50, 0x13,
+	0xda, 0x17, 0x62, 0x49, 0xfe, 0x1c, 0x10, 0xa8, 0x8c, 0x80, 0x48, 0xfe,
+	0xda, 0x17, 0x62, 0x80, 0x71, 0x50, 0x26, 0xfe, 0x4d, 0xf4, 0x00, 0xf7,
+	0x45, 0x13, 0x07, 0xfe, 0xb4, 0x56, 0xfe, 0xc3, 0x58, 0x02, 0x50, 0x13,
 	0x0d, 0x02, 0x50, 0x3e, 0x78, 0x4f, 0x45, 0x01, 0x08, 0x16, 0xa9, 0x27,
-	0x25, 0xbe, 0xfe, 0x03,
-	0xea, 0xfe, 0x7e, 0x01, 0x01, 0x08, 0x16, 0xa9, 0x27, 0x25, 0xfe, 0xe9,
-	0x0a, 0x01, 0x08, 0x16,
-	0xa9, 0x27, 0x25, 0xfe, 0xe9, 0x0a, 0xfe, 0x05, 0xea, 0xfe, 0x7f, 0x01,
-	0x01, 0x08, 0x16, 0xa9,
+	0x25, 0xbe, 0xfe, 0x03, 0xea, 0xfe, 0x7e, 0x01, 0x01, 0x08, 0x16, 0xa9,
+	0x27, 0x25, 0xfe, 0xe9, 0x0a, 0x01, 0x08, 0x16, 0xa9, 0x27, 0x25, 0xfe,
+	0xe9, 0x0a, 0xfe, 0x05, 0xea, 0xfe, 0x7f, 0x01, 0x01, 0x08, 0x16, 0xa9,
 	0x27, 0x25, 0xfe, 0x69, 0x09, 0xfe, 0x02, 0xea, 0xfe, 0x80, 0x01, 0x01,
-	0x08, 0x16, 0xa9, 0x27,
-	0x25, 0xfe, 0xe8, 0x08, 0x47, 0xfe, 0x81, 0x01, 0x03, 0xb6, 0x1e, 0x83,
-	0x01, 0x38, 0x06, 0x24,
-	0x31, 0xa2, 0x78, 0xf2, 0x53, 0x07, 0x36, 0xfe, 0x34, 0xf4, 0x3f, 0xa1,
-	0x78, 0x03, 0x9a, 0x1e,
+	0x08, 0x16, 0xa9, 0x27, 0x25, 0xfe, 0xe8, 0x08, 0x47, 0xfe, 0x81, 0x01,
+	0x03, 0xb6, 0x1e, 0x83, 0x01, 0x38, 0x06, 0x24, 0x31, 0xa2, 0x78, 0xf2,
+	0x53, 0x07, 0x36, 0xfe, 0x34, 0xf4, 0x3f, 0xa1, 0x78, 0x03, 0x9a, 0x1e,
 	0x83, 0x01, 0x38, 0x06, 0x12, 0x31, 0xf0, 0x4f, 0x45, 0xfe, 0x90, 0x10,
-	0xfe, 0x40, 0x5a, 0x23,
-	0x3f, 0xfb, 0x8c, 0x49, 0x48, 0xfe, 0xaa, 0x18, 0x62, 0x49, 0x71, 0x8c,
-	0x80, 0x48, 0xfe, 0xaa,
-	0x18, 0x62, 0x80, 0xfe, 0xb4, 0x56, 0xfe, 0x40, 0x5d, 0x01, 0xc6, 0x01,
-	0xfe, 0xac, 0x1d, 0xfe,
+	0xfe, 0x40, 0x5a, 0x23, 0x3f, 0xfb, 0x8c, 0x49, 0x48, 0xfe, 0xaa, 0x18,
+	0x62, 0x49, 0x71, 0x8c, 0x80, 0x48, 0xfe, 0xaa, 0x18, 0x62, 0x80, 0xfe,
+	0xb4, 0x56, 0xfe, 0x40, 0x5d, 0x01, 0xc6, 0x01, 0xfe, 0xac, 0x1d, 0xfe,
 	0x02, 0x17, 0xfe, 0xc8, 0x45, 0xfe, 0x5a, 0xf0, 0xfe, 0xc0, 0x18, 0xfe,
-	0x43, 0x48, 0x2d, 0x93,
-	0x36, 0xfe, 0x34, 0xf4, 0xfe, 0x00, 0x11, 0xfe, 0x40, 0x10, 0x2d, 0xb4,
-	0x36, 0xfe, 0x34, 0xf4,
-	0x04, 0xfe, 0x34, 0x10, 0x2d, 0xfe, 0x0b, 0x00, 0x36, 0x46, 0x63, 0xfe,
-	0x28, 0x10, 0xfe, 0xc0,
+	0x43, 0x48, 0x2d, 0x93, 0x36, 0xfe, 0x34, 0xf4, 0xfe, 0x00, 0x11, 0xfe,
+	0x40, 0x10, 0x2d, 0xb4, 0x36, 0xfe, 0x34, 0xf4, 0x04, 0xfe, 0x34, 0x10,
+	0x2d, 0xfe, 0x0b, 0x00, 0x36, 0x46, 0x63, 0xfe, 0x28, 0x10, 0xfe, 0xc0,
 	0x49, 0xff, 0x02, 0x00, 0x54, 0xb2, 0xfe, 0x90, 0x01, 0x48, 0xfe, 0xfa,
-	0x18, 0x45, 0xfe, 0x1c,
-	0xf4, 0x3f, 0xf3, 0xfe, 0x40, 0xf4, 0x96, 0xfe, 0x56, 0xf0, 0xfe, 0x0c,
-	0x19, 0xfe, 0x04, 0xf4,
-	0x58, 0xfe, 0x40, 0xf4, 0x94, 0xf6, 0x3e, 0x2d, 0x93, 0x4e, 0xd0, 0x0d,
-	0x21, 0xfe, 0x7f, 0x01,
+	0x18, 0x45, 0xfe, 0x1c, 0xf4, 0x3f, 0xf3, 0xfe, 0x40, 0xf4, 0x96, 0xfe,
+	0x56, 0xf0, 0xfe, 0x0c, 0x19, 0xfe, 0x04, 0xf4, 0x58, 0xfe, 0x40, 0xf4,
+	0x94, 0xf6, 0x3e, 0x2d, 0x93, 0x4e, 0xd0, 0x0d, 0x21, 0xfe, 0x7f, 0x01,
 	0xfe, 0xc8, 0x46, 0xfe, 0x24, 0x13, 0x8c, 0x00, 0x5d, 0x26, 0x21, 0xfe,
-	0x7e, 0x01, 0xfe, 0xc8,
-	0x45, 0xfe, 0x14, 0x13, 0x21, 0xfe, 0x80, 0x01, 0xfe, 0x48, 0x45, 0xfa,
-	0x21, 0xfe, 0x81, 0x01,
-	0xfe, 0xc8, 0x44, 0x4e, 0x26, 0x02, 0x13, 0x07, 0x02, 0x78, 0x45, 0x50,
-	0x13, 0x0d, 0x02, 0x14,
+	0x7e, 0x01, 0xfe, 0xc8, 0x45, 0xfe, 0x14, 0x13, 0x21, 0xfe, 0x80, 0x01,
+	0xfe, 0x48, 0x45, 0xfa, 0x21, 0xfe, 0x81, 0x01, 0xfe, 0xc8, 0x44, 0x4e,
+	0x26, 0x02, 0x13, 0x07, 0x02, 0x78, 0x45, 0x50, 0x13, 0x0d, 0x02, 0x14,
 	0x07, 0x01, 0x08, 0x17, 0xfe, 0x82, 0x19, 0x14, 0x0d, 0x01, 0x08, 0x17,
-	0xfe, 0x82, 0x19, 0x14,
-	0x1d, 0x01, 0x08, 0x17, 0xfe, 0x82, 0x19, 0x5f, 0xfe, 0x89, 0x49, 0x01,
-	0x08, 0x02, 0x14, 0x07,
-	0x01, 0x08, 0x17, 0xc1, 0x14, 0x1d, 0x01, 0x08, 0x17, 0xc1, 0x14, 0x07,
-	0x01, 0x08, 0x17, 0xc1,
+	0xfe, 0x82, 0x19, 0x14, 0x1d, 0x01, 0x08, 0x17, 0xfe, 0x82, 0x19, 0x5f,
+	0xfe, 0x89, 0x49, 0x01, 0x08, 0x02, 0x14, 0x07, 0x01, 0x08, 0x17, 0xc1,
+	0x14, 0x1d, 0x01, 0x08, 0x17, 0xc1, 0x14, 0x07, 0x01, 0x08, 0x17, 0xc1,
 	0xfe, 0x89, 0x49, 0x01, 0x08, 0x17, 0xc1, 0x5f, 0xfe, 0x89, 0x4a, 0x01,
-	0x08, 0x02, 0x50, 0x02,
-	0x14, 0x07, 0x01, 0x08, 0x17, 0x74, 0x14, 0x7f, 0x01, 0x08, 0x17, 0x74,
-	0x14, 0x12, 0x01, 0x08,
-	0x17, 0x74, 0xfe, 0x89, 0x49, 0x01, 0x08, 0x17, 0x74, 0x14, 0x00, 0x01,
-	0x08, 0x17, 0x74, 0xfe,
+	0x08, 0x02, 0x50, 0x02, 0x14, 0x07, 0x01, 0x08, 0x17, 0x74, 0x14, 0x7f,
+	0x01, 0x08, 0x17, 0x74, 0x14, 0x12, 0x01, 0x08, 0x17, 0x74, 0xfe, 0x89,
+	0x49, 0x01, 0x08, 0x17, 0x74, 0x14, 0x00, 0x01, 0x08, 0x17, 0x74, 0xfe,
 	0x89, 0x4a, 0x01, 0x08, 0x17, 0x74, 0xfe, 0x09, 0x49, 0x01, 0x08, 0x17,
-	0x74, 0x5f, 0xcc, 0x01,
-	0x08, 0x02, 0x21, 0xe4, 0x09, 0x07, 0xfe, 0x4c, 0x13, 0xc8, 0x20, 0xe4,
-	0xfe, 0x49, 0xf4, 0x00,
-	0x4d, 0x5f, 0xa1, 0x5e, 0xfe, 0x01, 0xec, 0xfe, 0x27, 0x01, 0xcc, 0xff,
-	0x02, 0x00, 0x10, 0x2f,
+	0x74, 0x5f, 0xcc, 0x01, 0x08, 0x02, 0x21, 0xe4, 0x09, 0x07, 0xfe, 0x4c,
+	0x13, 0xc8, 0x20, 0xe4, 0xfe, 0x49, 0xf4, 0x00, 0x4d, 0x5f, 0xa1, 0x5e,
+	0xfe, 0x01, 0xec, 0xfe, 0x27, 0x01, 0xcc, 0xff, 0x02, 0x00, 0x10, 0x2f,
 	0xfe, 0x3e, 0x1a, 0x01, 0x43, 0x09, 0xfe, 0xe3, 0x00, 0xfe, 0x22, 0x13,
-	0x16, 0xfe, 0x64, 0x1a,
-	0x26, 0x20, 0x9e, 0x01, 0x41, 0x21, 0x9e, 0x09, 0x07, 0x5d, 0x01, 0x0c,
-	0x61, 0x07, 0x44, 0x02,
-	0x0a, 0x5a, 0x01, 0x18, 0xfe, 0x00, 0x40, 0xaa, 0x09, 0x1a, 0xfe, 0x12,
-	0x13, 0x0a, 0x9d, 0x01,
+	0x16, 0xfe, 0x64, 0x1a, 0x26, 0x20, 0x9e, 0x01, 0x41, 0x21, 0x9e, 0x09,
+	0x07, 0x5d, 0x01, 0x0c, 0x61, 0x07, 0x44, 0x02, 0x0a, 0x5a, 0x01, 0x18,
+	0xfe, 0x00, 0x40, 0xaa, 0x09, 0x1a, 0xfe, 0x12, 0x13, 0x0a, 0x9d, 0x01,
 	0x18, 0xaa, 0x0a, 0x67, 0x01, 0xa3, 0x02, 0x0a, 0x9d, 0x01, 0x18, 0xaa,
-	0xfe, 0x80, 0xe7, 0x1a,
-	0x09, 0x1a, 0x5d, 0xfe, 0x45, 0x58, 0x01, 0xfe, 0xb2, 0x16, 0xaa, 0x02,
-	0x0a, 0x5a, 0x01, 0x18,
-	0xaa, 0x0a, 0x67, 0x01, 0xa3, 0x02, 0x0a, 0x5a, 0x01, 0x18, 0x01, 0xfe,
-	0x7e, 0x1e, 0xfe, 0x80,
+	0xfe, 0x80, 0xe7, 0x1a, 0x09, 0x1a, 0x5d, 0xfe, 0x45, 0x58, 0x01, 0xfe,
+	0xb2, 0x16, 0xaa, 0x02, 0x0a, 0x5a, 0x01, 0x18, 0xaa, 0x0a, 0x67, 0x01,
+	0xa3, 0x02, 0x0a, 0x5a, 0x01, 0x18, 0x01, 0xfe, 0x7e, 0x1e, 0xfe, 0x80,
 	0x4c, 0xfe, 0x49, 0xe4, 0x1a, 0xfe, 0x12, 0x13, 0x0a, 0x9d, 0x01, 0x18,
-	0xfe, 0x80, 0x4c, 0x0a,
-	0x67, 0x01, 0x5c, 0x02, 0x1c, 0x1a, 0x87, 0x7c, 0xe5, 0xfe, 0x18, 0xdf,
-	0xfe, 0x19, 0xde, 0xfe,
-	0x24, 0x1c, 0xfe, 0x1d, 0xf7, 0x28, 0xb1, 0xfe, 0x04, 0x1b, 0x01, 0xfe,
-	0x2a, 0x1c, 0xfa, 0xb3,
+	0xfe, 0x80, 0x4c, 0x0a, 0x67, 0x01, 0x5c, 0x02, 0x1c, 0x1a, 0x87, 0x7c,
+	0xe5, 0xfe, 0x18, 0xdf, 0xfe, 0x19, 0xde, 0xfe, 0x24, 0x1c, 0xfe, 0x1d,
+	0xf7, 0x28, 0xb1, 0xfe, 0x04, 0x1b, 0x01, 0xfe, 0x2a, 0x1c, 0xfa, 0xb3,
 	0x28, 0x7c, 0xfe, 0x2c, 0x01, 0xfe, 0x2f, 0x19, 0x02, 0xc9, 0x2b, 0xfe,
-	0xf4, 0x1a, 0xfe, 0xfa,
-	0x10, 0x1c, 0x1a, 0x87, 0x03, 0xfe, 0x64, 0x01, 0xfe, 0x00, 0xf4, 0x24,
-	0xfe, 0x18, 0x58, 0x03,
-	0xfe, 0x66, 0x01, 0xfe, 0x19, 0x58, 0xb3, 0x24, 0x01, 0xfe, 0x0e, 0x1f,
-	0xfe, 0x30, 0xf4, 0x07,
+	0xf4, 0x1a, 0xfe, 0xfa, 0x10, 0x1c, 0x1a, 0x87, 0x03, 0xfe, 0x64, 0x01,
+	0xfe, 0x00, 0xf4, 0x24, 0xfe, 0x18, 0x58, 0x03, 0xfe, 0x66, 0x01, 0xfe,
+	0x19, 0x58, 0xb3, 0x24, 0x01, 0xfe, 0x0e, 0x1f, 0xfe, 0x30, 0xf4, 0x07,
 	0xfe, 0x3c, 0x50, 0x7c, 0xfe, 0x38, 0x00, 0xfe, 0x0f, 0x79, 0xfe, 0x1c,
-	0xf7, 0x24, 0xb1, 0xfe,
-	0x50, 0x1b, 0xfe, 0xd4, 0x14, 0x31, 0x02, 0xc9, 0x2b, 0xfe, 0x26, 0x1b,
-	0xfe, 0xba, 0x10, 0x1c,
-	0x1a, 0x87, 0xfe, 0x83, 0x5a, 0xfe, 0x18, 0xdf, 0xfe, 0x19, 0xde, 0xfe,
-	0x1d, 0xf7, 0x54, 0xb1,
+	0xf7, 0x24, 0xb1, 0xfe, 0x50, 0x1b, 0xfe, 0xd4, 0x14, 0x31, 0x02, 0xc9,
+	0x2b, 0xfe, 0x26, 0x1b, 0xfe, 0xba, 0x10, 0x1c, 0x1a, 0x87, 0xfe, 0x83,
+	0x5a, 0xfe, 0x18, 0xdf, 0xfe, 0x19, 0xde, 0xfe, 0x1d, 0xf7, 0x54, 0xb1,
 	0xfe, 0x72, 0x1b, 0xfe, 0xb2, 0x14, 0xfc, 0xb3, 0x54, 0x7c, 0x12, 0xfe,
-	0xaf, 0x19, 0xfe, 0x98,
-	0xe7, 0x00, 0x02, 0xc9, 0x2b, 0xfe, 0x66, 0x1b, 0xfe, 0x8a, 0x10, 0x1c,
-	0x1a, 0x87, 0x8b, 0x0f,
-	0xfe, 0x30, 0x90, 0x04, 0xfe, 0xb0, 0x93, 0x3a, 0x0b, 0xfe, 0x18, 0x58,
-	0xfe, 0x32, 0x90, 0x04,
+	0xaf, 0x19, 0xfe, 0x98, 0xe7, 0x00, 0x02, 0xc9, 0x2b, 0xfe, 0x66, 0x1b,
+	0xfe, 0x8a, 0x10, 0x1c, 0x1a, 0x87, 0x8b, 0x0f, 0xfe, 0x30, 0x90, 0x04,
+	0xfe, 0xb0, 0x93, 0x3a, 0x0b, 0xfe, 0x18, 0x58, 0xfe, 0x32, 0x90, 0x04,
 	0xfe, 0xb2, 0x93, 0x3a, 0x0b, 0xfe, 0x19, 0x58, 0x0e, 0xa8, 0xb3, 0x4a,
-	0x7c, 0x12, 0xfe, 0x0f,
-	0x79, 0xfe, 0x1c, 0xf7, 0x4a, 0xb1, 0xfe, 0xc6, 0x1b, 0xfe, 0x5e, 0x14,
-	0x31, 0x02, 0xc9, 0x2b,
-	0xfe, 0x96, 0x1b, 0x5c, 0xfe, 0x02, 0xf6, 0x1a, 0x87, 0xfe, 0x18, 0xfe,
-	0x6a, 0xfe, 0x19, 0xfe,
+	0x7c, 0x12, 0xfe, 0x0f, 0x79, 0xfe, 0x1c, 0xf7, 0x4a, 0xb1, 0xfe, 0xc6,
+	0x1b, 0xfe, 0x5e, 0x14, 0x31, 0x02, 0xc9, 0x2b, 0xfe, 0x96, 0x1b, 0x5c,
+	0xfe, 0x02, 0xf6, 0x1a, 0x87, 0xfe, 0x18, 0xfe, 0x6a, 0xfe, 0x19, 0xfe,
 	0x6b, 0x01, 0xfe, 0x1e, 0x1f, 0xfe, 0x1d, 0xf7, 0x65, 0xb1, 0xfe, 0xee,
-	0x1b, 0xfe, 0x36, 0x14,
-	0xfe, 0x1c, 0x13, 0xb3, 0x65, 0x3e, 0xfe, 0x83, 0x58, 0xfe, 0xaf, 0x19,
-	0xfe, 0x80, 0xe7, 0x1a,
-	0xfe, 0x81, 0xe7, 0x1a, 0x15, 0xfe, 0xdd, 0x00, 0x7a, 0x30, 0x02, 0x7a,
-	0x30, 0xfe, 0x12, 0x45,
+	0x1b, 0xfe, 0x36, 0x14, 0xfe, 0x1c, 0x13, 0xb3, 0x65, 0x3e, 0xfe, 0x83,
+	0x58, 0xfe, 0xaf, 0x19, 0xfe, 0x80, 0xe7, 0x1a, 0xfe, 0x81, 0xe7, 0x1a,
+	0x15, 0xfe, 0xdd, 0x00, 0x7a, 0x30, 0x02, 0x7a, 0x30, 0xfe, 0x12, 0x45,
 	0x2b, 0xfe, 0xdc, 0x1b, 0x1f, 0x07, 0x47, 0xb5, 0xc3, 0x05, 0x35, 0xfe,
-	0x39, 0xf0, 0x75, 0x26,
-	0x02, 0xfe, 0x7e, 0x18, 0x23, 0x1d, 0x36, 0x13, 0x11, 0x02, 0x87, 0x03,
-	0xe3, 0x23, 0x07, 0xfe,
-	0xef, 0x12, 0xfe, 0xe1, 0x10, 0x90, 0x34, 0x60, 0xfe, 0x02, 0x80, 0x09,
-	0x56, 0xfe, 0x3c, 0x13,
+	0x39, 0xf0, 0x75, 0x26, 0x02, 0xfe, 0x7e, 0x18, 0x23, 0x1d, 0x36, 0x13,
+	0x11, 0x02, 0x87, 0x03, 0xe3, 0x23, 0x07, 0xfe, 0xef, 0x12, 0xfe, 0xe1,
+	0x10, 0x90, 0x34, 0x60, 0xfe, 0x02, 0x80, 0x09, 0x56, 0xfe, 0x3c, 0x13,
 	0xfe, 0x82, 0x14, 0xfe, 0x42, 0x13, 0x51, 0xfe, 0x06, 0x83, 0x0a, 0x5a,
-	0x01, 0x18, 0xcb, 0xfe,
-	0x3e, 0x12, 0xfe, 0x41, 0x48, 0xfe, 0x45, 0x48, 0x01, 0xfe, 0xb2, 0x16,
-	0xfe, 0x00, 0xcc, 0xcb,
-	0xfe, 0xf3, 0x13, 0x3f, 0x89, 0x09, 0x1a, 0xa5, 0x0a, 0x9d, 0x01, 0x18,
-	0xfe, 0x80, 0x4c, 0x01,
+	0x01, 0x18, 0xcb, 0xfe, 0x3e, 0x12, 0xfe, 0x41, 0x48, 0xfe, 0x45, 0x48,
+	0x01, 0xfe, 0xb2, 0x16, 0xfe, 0x00, 0xcc, 0xcb, 0xfe, 0xf3, 0x13, 0x3f,
+	0x89, 0x09, 0x1a, 0xa5, 0x0a, 0x9d, 0x01, 0x18, 0xfe, 0x80, 0x4c, 0x01,
 	0x85, 0xfe, 0x16, 0x10, 0x09, 0x9b, 0x4e, 0xfe, 0x40, 0x14, 0xfe, 0x24,
-	0x12, 0xfe, 0x14, 0x56,
-	0xfe, 0xd6, 0xf0, 0xfe, 0x52, 0x1c, 0x1c, 0x0d, 0x02, 0xfe, 0x9c, 0xe7,
-	0x0d, 0x19, 0xfe, 0x15,
-	0x00, 0x40, 0x8d, 0x30, 0x01, 0xf4, 0x1c, 0x07, 0x02, 0x51, 0xfe, 0x06,
-	0x83, 0xfe, 0x18, 0x80,
+	0x12, 0xfe, 0x14, 0x56, 0xfe, 0xd6, 0xf0, 0xfe, 0x52, 0x1c, 0x1c, 0x0d,
+	0x02, 0xfe, 0x9c, 0xe7, 0x0d, 0x19, 0xfe, 0x15, 0x00, 0x40, 0x8d, 0x30,
+	0x01, 0xf4, 0x1c, 0x07, 0x02, 0x51, 0xfe, 0x06, 0x83, 0xfe, 0x18, 0x80,
 	0x61, 0x28, 0x44, 0x15, 0x56, 0x01, 0x85, 0x1c, 0x07, 0x02, 0xfe, 0x38,
-	0x90, 0xfe, 0xba, 0x90,
-	0x91, 0xde, 0x7e, 0xdf, 0xfe, 0x48, 0x55, 0x31, 0xfe, 0xc9, 0x55, 0x02,
-	0x21, 0xb9, 0x88, 0x20,
-	0xb9, 0x02, 0x0a, 0xba, 0x01, 0x18, 0xfe, 0x41, 0x48, 0x0a, 0x57, 0x01,
-	0x18, 0xfe, 0x49, 0x44,
+	0x90, 0xfe, 0xba, 0x90, 0x91, 0xde, 0x7e, 0xdf, 0xfe, 0x48, 0x55, 0x31,
+	0xfe, 0xc9, 0x55, 0x02, 0x21, 0xb9, 0x88, 0x20, 0xb9, 0x02, 0x0a, 0xba,
+	0x01, 0x18, 0xfe, 0x41, 0x48, 0x0a, 0x57, 0x01, 0x18, 0xfe, 0x49, 0x44,
 	0x1b, 0xfe, 0x1e, 0x1d, 0x88, 0x89, 0x02, 0x0a, 0x5a, 0x01, 0x18, 0x09,
-	0x1a, 0xa4, 0x0a, 0x67,
-	0x01, 0xa3, 0x0a, 0x57, 0x01, 0x18, 0x88, 0x89, 0x02, 0xfe, 0x4e, 0xe4,
-	0x1d, 0x7b, 0xfe, 0x52,
-	0x1d, 0x03, 0xfe, 0x90, 0x00, 0xfe, 0x3a, 0x45, 0xfe, 0x2c, 0x10, 0xfe,
-	0x4e, 0xe4, 0xdd, 0x7b,
+	0x1a, 0xa4, 0x0a, 0x67, 0x01, 0xa3, 0x0a, 0x57, 0x01, 0x18, 0x88, 0x89,
+	0x02, 0xfe, 0x4e, 0xe4, 0x1d, 0x7b, 0xfe, 0x52, 0x1d, 0x03, 0xfe, 0x90,
+	0x00, 0xfe, 0x3a, 0x45, 0xfe, 0x2c, 0x10, 0xfe, 0x4e, 0xe4, 0xdd, 0x7b,
 	0xfe, 0x64, 0x1d, 0x03, 0xfe, 0x92, 0x00, 0xd1, 0x12, 0xfe, 0x1a, 0x10,
-	0xfe, 0x4e, 0xe4, 0xfe,
-	0x0b, 0x00, 0x7b, 0xfe, 0x76, 0x1d, 0x03, 0xfe, 0x94, 0x00, 0xd1, 0x24,
-	0xfe, 0x08, 0x10, 0x03,
-	0xfe, 0x96, 0x00, 0xd1, 0x63, 0xfe, 0x4e, 0x45, 0x83, 0xca, 0xff, 0x04,
-	0x68, 0x54, 0xfe, 0xf1,
+	0xfe, 0x4e, 0xe4, 0xfe, 0x0b, 0x00, 0x7b, 0xfe, 0x76, 0x1d, 0x03, 0xfe,
+	0x94, 0x00, 0xd1, 0x24, 0xfe, 0x08, 0x10, 0x03, 0xfe, 0x96, 0x00, 0xd1,
+	0x63, 0xfe, 0x4e, 0x45, 0x83, 0xca, 0xff, 0x04, 0x68, 0x54, 0xfe, 0xf1,
 	0x10, 0x23, 0x49, 0xfe, 0x08, 0x1c, 0xfe, 0x67, 0x19, 0xfe, 0x0a, 0x1c,
-	0xfe, 0x1a, 0xf4, 0xfe,
-	0x00, 0x04, 0x83, 0xb2, 0x1d, 0x48, 0xfe, 0xaa, 0x1d, 0x13, 0x1d, 0x02,
-	0x09, 0x92, 0xfe, 0x5a,
-	0xf0, 0xfe, 0xba, 0x1d, 0x2e, 0x93, 0xfe, 0x34, 0x10, 0x09, 0x12, 0xfe,
-	0x5a, 0xf0, 0xfe, 0xc8,
+	0xfe, 0x1a, 0xf4, 0xfe, 0x00, 0x04, 0x83, 0xb2, 0x1d, 0x48, 0xfe, 0xaa,
+	0x1d, 0x13, 0x1d, 0x02, 0x09, 0x92, 0xfe, 0x5a, 0xf0, 0xfe, 0xba, 0x1d,
+	0x2e, 0x93, 0xfe, 0x34, 0x10, 0x09, 0x12, 0xfe, 0x5a, 0xf0, 0xfe, 0xc8,
 	0x1d, 0x2e, 0xb4, 0xfe, 0x26, 0x10, 0x09, 0x1d, 0x36, 0x2e, 0x63, 0xfe,
-	0x1a, 0x10, 0x09, 0x0d,
-	0x36, 0x2e, 0x94, 0xf2, 0x09, 0x07, 0x36, 0x2e, 0x95, 0xa1, 0xc8, 0x02,
-	0x1f, 0x93, 0x01, 0x42,
-	0xfe, 0x04, 0xfe, 0x99, 0x03, 0x9c, 0x8b, 0x02, 0x2a, 0xfe, 0x1c, 0x1e,
-	0xfe, 0x14, 0xf0, 0x08,
+	0x1a, 0x10, 0x09, 0x0d, 0x36, 0x2e, 0x94, 0xf2, 0x09, 0x07, 0x36, 0x2e,
+	0x95, 0xa1, 0xc8, 0x02, 0x1f, 0x93, 0x01, 0x42, 0xfe, 0x04, 0xfe, 0x99,
+	0x03, 0x9c, 0x8b, 0x02, 0x2a, 0xfe, 0x1c, 0x1e, 0xfe, 0x14, 0xf0, 0x08,
 	0x2f, 0xfe, 0x0c, 0x1e, 0x2a, 0xfe, 0x1c, 0x1e, 0x8f, 0xfe, 0x1c, 0x1e,
-	0xfe, 0x82, 0xf0, 0xfe,
-	0x10, 0x1e, 0x02, 0x0f, 0x3f, 0x04, 0xfe, 0x80, 0x83, 0x33, 0x0b, 0x0e,
-	0x02, 0x0f, 0xfe, 0x18,
-	0x80, 0x04, 0xfe, 0x98, 0x83, 0x33, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x02,
-	0x80, 0x04, 0xfe, 0x82,
+	0xfe, 0x82, 0xf0, 0xfe, 0x10, 0x1e, 0x02, 0x0f, 0x3f, 0x04, 0xfe, 0x80,
+	0x83, 0x33, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x18, 0x80, 0x04, 0xfe, 0x98,
+	0x83, 0x33, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x02, 0x80, 0x04, 0xfe, 0x82,
 	0x83, 0x33, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x06, 0x80, 0x04, 0xfe, 0x86,
-	0x83, 0x33, 0x0b, 0x0e,
-	0x02, 0x0f, 0xfe, 0x1b, 0x80, 0x04, 0xfe, 0x9b, 0x83, 0x33, 0x0b, 0x0e,
-	0x02, 0x0f, 0xfe, 0x04,
-	0x80, 0x04, 0xfe, 0x84, 0x83, 0x33, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x80,
-	0x80, 0x04, 0xfe, 0x80,
+	0x83, 0x33, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x1b, 0x80, 0x04, 0xfe, 0x9b,
+	0x83, 0x33, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x04, 0x80, 0x04, 0xfe, 0x84,
+	0x83, 0x33, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x80, 0x80, 0x04, 0xfe, 0x80,
 	0x83, 0xfe, 0xc9, 0x47, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x19, 0x81, 0x04,
-	0xfe, 0x99, 0x83, 0xfe,
-	0xca, 0x47, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x06, 0x83, 0x04, 0xfe, 0x86,
-	0x83, 0xfe, 0xce, 0x47,
-	0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x2c, 0x90, 0x04, 0xfe, 0xac, 0x93, 0x3a,
-	0x0b, 0x0e, 0x02, 0x0f,
+	0xfe, 0x99, 0x83, 0xfe, 0xca, 0x47, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x06,
+	0x83, 0x04, 0xfe, 0x86, 0x83, 0xfe, 0xce, 0x47, 0x0b, 0x0e, 0x02, 0x0f,
+	0xfe, 0x2c, 0x90, 0x04, 0xfe, 0xac, 0x93, 0x3a, 0x0b, 0x0e, 0x02, 0x0f,
 	0xfe, 0xae, 0x90, 0x04, 0xfe, 0xae, 0x93, 0x79, 0x0b, 0x0e, 0x02, 0x0f,
-	0xfe, 0x08, 0x90, 0x04,
-	0xfe, 0x88, 0x93, 0x3a, 0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x8a, 0x90, 0x04,
-	0xfe, 0x8a, 0x93, 0x79,
-	0x0b, 0x0e, 0x02, 0x0f, 0xfe, 0x0c, 0x90, 0x04, 0xfe, 0x8c, 0x93, 0x3a,
-	0x0b, 0x0e, 0x02, 0x0f,
+	0xfe, 0x08, 0x90, 0x04, 0xfe, 0x88, 0x93, 0x3a, 0x0b, 0x0e, 0x02, 0x0f,
+	0xfe, 0x8a, 0x90, 0x04, 0xfe, 0x8a, 0x93, 0x79, 0x0b, 0x0e, 0x02, 0x0f,
+	0xfe, 0x0c, 0x90, 0x04, 0xfe, 0x8c, 0x93, 0x3a, 0x0b, 0x0e, 0x02, 0x0f,
 	0xfe, 0x8e, 0x90, 0x04, 0xfe, 0x8e, 0x93, 0x79, 0x0b, 0x0e, 0x02, 0x0f,
-	0xfe, 0x3c, 0x90, 0x04,
-	0xfe, 0xbc, 0x93, 0x3a, 0x0b, 0x0e, 0x02, 0x8b, 0x0f, 0xfe, 0x03, 0x80,
-	0x04, 0xfe, 0x83, 0x83,
-	0x33, 0x0b, 0x77, 0x0e, 0xa8, 0x02, 0xff, 0x66, 0x00, 0x00,
+	0xfe, 0x3c, 0x90, 0x04, 0xfe, 0xbc, 0x93, 0x3a, 0x0b, 0x0e, 0x02, 0x8b,
+	0x0f, 0xfe, 0x03, 0x80, 0x04, 0xfe, 0x83, 0x83, 0x33, 0x0b, 0x77, 0x0e,
+	0xa8, 0x02, 0xff, 0x66, 0x00, 0x00,
 };
 
 static unsigned short _adv_asc38C1600_size = sizeof(_adv_asc38C1600_buf);	/* 0x1673 */
 static ADV_DCNT _adv_asc38C1600_chksum = 0x0604EF77UL;	/* Expanded little-endian checksum. */
 
-/* a_init.c */
-/*
- * EEPROM Configuration.
- *
- * All drivers should use this structure to set the default EEPROM
- * configuration. The BIOS now uses this structure when it is built.
- * Additional structure information can be found in a_condor.h where
- * the structure is defined.
- *
- * The *_Field_IsChar structs are needed to correct for endianness.
- * These values are read from the board 16 bits at a time directly
- * into the structs. Because some fields are char, the values will be
- * in the wrong order. The *_Field_IsChar tells when to flip the
- * bytes. Data read and written to PCI memory is automatically swapped
- * on big-endian platforms so char fields read as words are actually being
- * unswapped on big-endian platforms.
- */
-static ADVEEP_3550_CONFIG Default_3550_EEPROM_Config __initdata = {
-	ADV_EEPROM_BIOS_ENABLE,	/* cfg_lsw */
-	0x0000,			/* cfg_msw */
-	0xFFFF,			/* disc_enable */
-	0xFFFF,			/* wdtr_able */
-	0xFFFF,			/* sdtr_able */
-	0xFFFF,			/* start_motor */
-	0xFFFF,			/* tagqng_able */
-	0xFFFF,			/* bios_scan */
-	0,			/* scam_tolerant */
-	7,			/* adapter_scsi_id */
-	0,			/* bios_boot_delay */
-	3,			/* scsi_reset_delay */
-	0,			/* bios_id_lun */
-	0,			/* termination */
-	0,			/* reserved1 */
-	0xFFE7,			/* bios_ctrl */
-	0xFFFF,			/* ultra_able */
-	0,			/* reserved2 */
-	ASC_DEF_MAX_HOST_QNG,	/* max_host_qng */
-	ASC_DEF_MAX_DVC_QNG,	/* max_dvc_qng */
-	0,			/* dvc_cntl */
-	0,			/* bug_fix */
-	0,			/* serial_number_word1 */
-	0,			/* serial_number_word2 */
-	0,			/* serial_number_word3 */
-	0,			/* check_sum */
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	,			/* oem_name[16] */
-	0,			/* dvc_err_code */
-	0,			/* adv_err_code */
-	0,			/* adv_err_addr */
-	0,			/* saved_dvc_err_code */
-	0,			/* saved_adv_err_code */
-	0,			/* saved_adv_err_addr */
-	0			/* num_of_err */
-};
-
-static ADVEEP_3550_CONFIG ADVEEP_3550_Config_Field_IsChar __initdata = {
-	0,			/* cfg_lsw */
-	0,			/* cfg_msw */
-	0,			/* -disc_enable */
-	0,			/* wdtr_able */
-	0,			/* sdtr_able */
-	0,			/* start_motor */
-	0,			/* tagqng_able */
-	0,			/* bios_scan */
-	0,			/* scam_tolerant */
-	1,			/* adapter_scsi_id */
-	1,			/* bios_boot_delay */
-	1,			/* scsi_reset_delay */
-	1,			/* bios_id_lun */
-	1,			/* termination */
-	1,			/* reserved1 */
-	0,			/* bios_ctrl */
-	0,			/* ultra_able */
-	0,			/* reserved2 */
-	1,			/* max_host_qng */
-	1,			/* max_dvc_qng */
-	0,			/* dvc_cntl */
-	0,			/* bug_fix */
-	0,			/* serial_number_word1 */
-	0,			/* serial_number_word2 */
-	0,			/* serial_number_word3 */
-	0,			/* check_sum */
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	,			/* oem_name[16] */
-	0,			/* dvc_err_code */
-	0,			/* adv_err_code */
-	0,			/* adv_err_addr */
-	0,			/* saved_dvc_err_code */
-	0,			/* saved_adv_err_code */
-	0,			/* saved_adv_err_addr */
-	0			/* num_of_err */
-};
-
-static ADVEEP_38C0800_CONFIG Default_38C0800_EEPROM_Config __initdata = {
-	ADV_EEPROM_BIOS_ENABLE,	/* 00 cfg_lsw */
-	0x0000,			/* 01 cfg_msw */
-	0xFFFF,			/* 02 disc_enable */
-	0xFFFF,			/* 03 wdtr_able */
-	0x4444,			/* 04 sdtr_speed1 */
-	0xFFFF,			/* 05 start_motor */
-	0xFFFF,			/* 06 tagqng_able */
-	0xFFFF,			/* 07 bios_scan */
-	0,			/* 08 scam_tolerant */
-	7,			/* 09 adapter_scsi_id */
-	0,			/*    bios_boot_delay */
-	3,			/* 10 scsi_reset_delay */
-	0,			/*    bios_id_lun */
-	0,			/* 11 termination_se */
-	0,			/*    termination_lvd */
-	0xFFE7,			/* 12 bios_ctrl */
-	0x4444,			/* 13 sdtr_speed2 */
-	0x4444,			/* 14 sdtr_speed3 */
-	ASC_DEF_MAX_HOST_QNG,	/* 15 max_host_qng */
-	ASC_DEF_MAX_DVC_QNG,	/*    max_dvc_qng */
-	0,			/* 16 dvc_cntl */
-	0x4444,			/* 17 sdtr_speed4 */
-	0,			/* 18 serial_number_word1 */
-	0,			/* 19 serial_number_word2 */
-	0,			/* 20 serial_number_word3 */
-	0,			/* 21 check_sum */
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	,			/* 22-29 oem_name[16] */
-	0,			/* 30 dvc_err_code */
-	0,			/* 31 adv_err_code */
-	0,			/* 32 adv_err_addr */
-	0,			/* 33 saved_dvc_err_code */
-	0,			/* 34 saved_adv_err_code */
-	0,			/* 35 saved_adv_err_addr */
-	0,			/* 36 reserved */
-	0,			/* 37 reserved */
-	0,			/* 38 reserved */
-	0,			/* 39 reserved */
-	0,			/* 40 reserved */
-	0,			/* 41 reserved */
-	0,			/* 42 reserved */
-	0,			/* 43 reserved */
-	0,			/* 44 reserved */
-	0,			/* 45 reserved */
-	0,			/* 46 reserved */
-	0,			/* 47 reserved */
-	0,			/* 48 reserved */
-	0,			/* 49 reserved */
-	0,			/* 50 reserved */
-	0,			/* 51 reserved */
-	0,			/* 52 reserved */
-	0,			/* 53 reserved */
-	0,			/* 54 reserved */
-	0,			/* 55 reserved */
-	0,			/* 56 cisptr_lsw */
-	0,			/* 57 cisprt_msw */
-	PCI_VENDOR_ID_ASP,	/* 58 subsysvid */
-	PCI_DEVICE_ID_38C0800_REV1,	/* 59 subsysid */
-	0,			/* 60 reserved */
-	0,			/* 61 reserved */
-	0,			/* 62 reserved */
-	0			/* 63 reserved */
-};
-
-static ADVEEP_38C0800_CONFIG ADVEEP_38C0800_Config_Field_IsChar __initdata = {
-	0,			/* 00 cfg_lsw */
-	0,			/* 01 cfg_msw */
-	0,			/* 02 disc_enable */
-	0,			/* 03 wdtr_able */
-	0,			/* 04 sdtr_speed1 */
-	0,			/* 05 start_motor */
-	0,			/* 06 tagqng_able */
-	0,			/* 07 bios_scan */
-	0,			/* 08 scam_tolerant */
-	1,			/* 09 adapter_scsi_id */
-	1,			/*    bios_boot_delay */
-	1,			/* 10 scsi_reset_delay */
-	1,			/*    bios_id_lun */
-	1,			/* 11 termination_se */
-	1,			/*    termination_lvd */
-	0,			/* 12 bios_ctrl */
-	0,			/* 13 sdtr_speed2 */
-	0,			/* 14 sdtr_speed3 */
-	1,			/* 15 max_host_qng */
-	1,			/*    max_dvc_qng */
-	0,			/* 16 dvc_cntl */
-	0,			/* 17 sdtr_speed4 */
-	0,			/* 18 serial_number_word1 */
-	0,			/* 19 serial_number_word2 */
-	0,			/* 20 serial_number_word3 */
-	0,			/* 21 check_sum */
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	,			/* 22-29 oem_name[16] */
-	0,			/* 30 dvc_err_code */
-	0,			/* 31 adv_err_code */
-	0,			/* 32 adv_err_addr */
-	0,			/* 33 saved_dvc_err_code */
-	0,			/* 34 saved_adv_err_code */
-	0,			/* 35 saved_adv_err_addr */
-	0,			/* 36 reserved */
-	0,			/* 37 reserved */
-	0,			/* 38 reserved */
-	0,			/* 39 reserved */
-	0,			/* 40 reserved */
-	0,			/* 41 reserved */
-	0,			/* 42 reserved */
-	0,			/* 43 reserved */
-	0,			/* 44 reserved */
-	0,			/* 45 reserved */
-	0,			/* 46 reserved */
-	0,			/* 47 reserved */
-	0,			/* 48 reserved */
-	0,			/* 49 reserved */
-	0,			/* 50 reserved */
-	0,			/* 51 reserved */
-	0,			/* 52 reserved */
-	0,			/* 53 reserved */
-	0,			/* 54 reserved */
-	0,			/* 55 reserved */
-	0,			/* 56 cisptr_lsw */
-	0,			/* 57 cisprt_msw */
-	0,			/* 58 subsysvid */
-	0,			/* 59 subsysid */
-	0,			/* 60 reserved */
-	0,			/* 61 reserved */
-	0,			/* 62 reserved */
-	0			/* 63 reserved */
-};
-
-static ADVEEP_38C1600_CONFIG Default_38C1600_EEPROM_Config __initdata = {
-	ADV_EEPROM_BIOS_ENABLE,	/* 00 cfg_lsw */
-	0x0000,			/* 01 cfg_msw */
-	0xFFFF,			/* 02 disc_enable */
-	0xFFFF,			/* 03 wdtr_able */
-	0x5555,			/* 04 sdtr_speed1 */
-	0xFFFF,			/* 05 start_motor */
-	0xFFFF,			/* 06 tagqng_able */
-	0xFFFF,			/* 07 bios_scan */
-	0,			/* 08 scam_tolerant */
-	7,			/* 09 adapter_scsi_id */
-	0,			/*    bios_boot_delay */
-	3,			/* 10 scsi_reset_delay */
-	0,			/*    bios_id_lun */
-	0,			/* 11 termination_se */
-	0,			/*    termination_lvd */
-	0xFFE7,			/* 12 bios_ctrl */
-	0x5555,			/* 13 sdtr_speed2 */
-	0x5555,			/* 14 sdtr_speed3 */
-	ASC_DEF_MAX_HOST_QNG,	/* 15 max_host_qng */
-	ASC_DEF_MAX_DVC_QNG,	/*    max_dvc_qng */
-	0,			/* 16 dvc_cntl */
-	0x5555,			/* 17 sdtr_speed4 */
-	0,			/* 18 serial_number_word1 */
-	0,			/* 19 serial_number_word2 */
-	0,			/* 20 serial_number_word3 */
-	0,			/* 21 check_sum */
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	,			/* 22-29 oem_name[16] */
-	0,			/* 30 dvc_err_code */
-	0,			/* 31 adv_err_code */
-	0,			/* 32 adv_err_addr */
-	0,			/* 33 saved_dvc_err_code */
-	0,			/* 34 saved_adv_err_code */
-	0,			/* 35 saved_adv_err_addr */
-	0,			/* 36 reserved */
-	0,			/* 37 reserved */
-	0,			/* 38 reserved */
-	0,			/* 39 reserved */
-	0,			/* 40 reserved */
-	0,			/* 41 reserved */
-	0,			/* 42 reserved */
-	0,			/* 43 reserved */
-	0,			/* 44 reserved */
-	0,			/* 45 reserved */
-	0,			/* 46 reserved */
-	0,			/* 47 reserved */
-	0,			/* 48 reserved */
-	0,			/* 49 reserved */
-	0,			/* 50 reserved */
-	0,			/* 51 reserved */
-	0,			/* 52 reserved */
-	0,			/* 53 reserved */
-	0,			/* 54 reserved */
-	0,			/* 55 reserved */
-	0,			/* 56 cisptr_lsw */
-	0,			/* 57 cisprt_msw */
-	PCI_VENDOR_ID_ASP,	/* 58 subsysvid */
-	PCI_DEVICE_ID_38C1600_REV1,	/* 59 subsysid */
-	0,			/* 60 reserved */
-	0,			/* 61 reserved */
-	0,			/* 62 reserved */
-	0			/* 63 reserved */
-};
-
-static ADVEEP_38C1600_CONFIG ADVEEP_38C1600_Config_Field_IsChar __initdata = {
-	0,			/* 00 cfg_lsw */
-	0,			/* 01 cfg_msw */
-	0,			/* 02 disc_enable */
-	0,			/* 03 wdtr_able */
-	0,			/* 04 sdtr_speed1 */
-	0,			/* 05 start_motor */
-	0,			/* 06 tagqng_able */
-	0,			/* 07 bios_scan */
-	0,			/* 08 scam_tolerant */
-	1,			/* 09 adapter_scsi_id */
-	1,			/*    bios_boot_delay */
-	1,			/* 10 scsi_reset_delay */
-	1,			/*    bios_id_lun */
-	1,			/* 11 termination_se */
-	1,			/*    termination_lvd */
-	0,			/* 12 bios_ctrl */
-	0,			/* 13 sdtr_speed2 */
-	0,			/* 14 sdtr_speed3 */
-	1,			/* 15 max_host_qng */
-	1,			/*    max_dvc_qng */
-	0,			/* 16 dvc_cntl */
-	0,			/* 17 sdtr_speed4 */
-	0,			/* 18 serial_number_word1 */
-	0,			/* 19 serial_number_word2 */
-	0,			/* 20 serial_number_word3 */
-	0,			/* 21 check_sum */
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	,			/* 22-29 oem_name[16] */
-	0,			/* 30 dvc_err_code */
-	0,			/* 31 adv_err_code */
-	0,			/* 32 adv_err_addr */
-	0,			/* 33 saved_dvc_err_code */
-	0,			/* 34 saved_adv_err_code */
-	0,			/* 35 saved_adv_err_addr */
-	0,			/* 36 reserved */
-	0,			/* 37 reserved */
-	0,			/* 38 reserved */
-	0,			/* 39 reserved */
-	0,			/* 40 reserved */
-	0,			/* 41 reserved */
-	0,			/* 42 reserved */
-	0,			/* 43 reserved */
-	0,			/* 44 reserved */
-	0,			/* 45 reserved */
-	0,			/* 46 reserved */
-	0,			/* 47 reserved */
-	0,			/* 48 reserved */
-	0,			/* 49 reserved */
-	0,			/* 50 reserved */
-	0,			/* 51 reserved */
-	0,			/* 52 reserved */
-	0,			/* 53 reserved */
-	0,			/* 54 reserved */
-	0,			/* 55 reserved */
-	0,			/* 56 cisptr_lsw */
-	0,			/* 57 cisprt_msw */
-	0,			/* 58 subsysvid */
-	0,			/* 59 subsysid */
-	0,			/* 60 reserved */
-	0,			/* 61 reserved */
-	0,			/* 62 reserved */
-	0			/* 63 reserved */
-};
-
-/*
- * Initialize the ADV_DVC_VAR structure.
- *
- * On failure set the ADV_DVC_VAR field 'err_code' and return ADV_ERROR.
- *
- * For a non-fatal error return a warning code. If there are no warnings
- * then 0 is returned.
- */
-static int __init AdvInitGetConfig(ADV_DVC_VAR *asc_dvc)
+static void AscInitQLinkVar(ASC_DVC_VAR *asc_dvc)
 {
-	ushort warn_code;
-	AdvPortAddr iop_base;
-	uchar pci_cmd_reg;
-	int status;
+	PortAddr iop_base;
+	int i;
+	ushort lram_addr;
 
-	warn_code = 0;
-	asc_dvc->err_code = 0;
 	iop_base = asc_dvc->iop_base;
+	AscPutRiscVarFreeQHead(iop_base, 1);
+	AscPutRiscVarDoneQTail(iop_base, asc_dvc->max_total_qng);
+	AscPutVarFreeQHead(iop_base, 1);
+	AscPutVarDoneQTail(iop_base, asc_dvc->max_total_qng);
+	AscWriteLramByte(iop_base, ASCV_BUSY_QHEAD_B,
+			 (uchar)((int)asc_dvc->max_total_qng + 1));
+	AscWriteLramByte(iop_base, ASCV_DISC1_QHEAD_B,
+			 (uchar)((int)asc_dvc->max_total_qng + 2));
+	AscWriteLramByte(iop_base, (ushort)ASCV_TOTAL_READY_Q_B,
+			 asc_dvc->max_total_qng);
+	AscWriteLramWord(iop_base, ASCV_ASCDVC_ERR_CODE_W, 0);
+	AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+	AscWriteLramByte(iop_base, ASCV_STOP_CODE_B, 0);
+	AscWriteLramByte(iop_base, ASCV_SCSIBUSY_B, 0);
+	AscWriteLramByte(iop_base, ASCV_WTM_FLAG_B, 0);
+	AscPutQDoneInProgress(iop_base, 0);
+	lram_addr = ASC_QADR_BEG;
+	for (i = 0; i < 32; i++, lram_addr += 2) {
+		AscWriteLramWord(iop_base, lram_addr, 0);
+	}
+}
 
-	/*
-	 * PCI Command Register
-	 *
-	 * Note: AscPCICmdRegBits_BusMastering definition (0x0007) includes
-	 * I/O Space Control, Memory Space Control and Bus Master Control bits.
-	 */
+static ushort AscInitMicroCodeVar(ASC_DVC_VAR *asc_dvc)
+{
+	int i;
+	ushort warn_code;
+	PortAddr iop_base;
+	ASC_PADDR phy_addr;
+	ASC_DCNT phy_size;
+	struct asc_board *board = asc_dvc_to_board(asc_dvc);
 
-	if (((pci_cmd_reg = DvcAdvReadPCIConfigByte(asc_dvc,
-						    AscPCIConfigCommandRegister))
-	     & AscPCICmdRegBits_BusMastering)
-	    != AscPCICmdRegBits_BusMastering) {
-		pci_cmd_reg |= AscPCICmdRegBits_BusMastering;
-
-		DvcAdvWritePCIConfigByte(asc_dvc,
-					 AscPCIConfigCommandRegister,
-					 pci_cmd_reg);
-
-		if (((DvcAdvReadPCIConfigByte
-		      (asc_dvc, AscPCIConfigCommandRegister))
-		     & AscPCICmdRegBits_BusMastering)
-		    != AscPCICmdRegBits_BusMastering) {
-			warn_code |= ASC_WARN_SET_PCI_CONFIG_SPACE;
-		}
+	iop_base = asc_dvc->iop_base;
+	warn_code = 0;
+	for (i = 0; i <= ASC_MAX_TID; i++) {
+		AscPutMCodeInitSDTRAtID(iop_base, i,
+					asc_dvc->cfg->sdtr_period_offset[i]);
 	}
 
-	/*
-	 * PCI Latency Timer
-	 *
-	 * If the "latency timer" register is 0x20 or above, then we don't need
-	 * to change it.  Otherwise, set it to 0x20 (i.e. set it to 0x20 if it
-	 * comes up less than 0x20).
-	 */
-	if (DvcAdvReadPCIConfigByte(asc_dvc, AscPCIConfigLatencyTimer) < 0x20) {
-		DvcAdvWritePCIConfigByte(asc_dvc, AscPCIConfigLatencyTimer,
-					 0x20);
-		if (DvcAdvReadPCIConfigByte(asc_dvc, AscPCIConfigLatencyTimer) <
-		    0x20) {
-			warn_code |= ASC_WARN_SET_PCI_CONFIG_SPACE;
-		}
+	AscInitQLinkVar(asc_dvc);
+	AscWriteLramByte(iop_base, ASCV_DISC_ENABLE_B,
+			 asc_dvc->cfg->disc_enable);
+	AscWriteLramByte(iop_base, ASCV_HOSTSCSI_ID_B,
+			 ASC_TID_TO_TARGET_ID(asc_dvc->cfg->chip_scsi_id));
+
+	/* Ensure overrun buffer is aligned on an 8 byte boundary. */
+	BUG_ON((unsigned long)asc_dvc->overrun_buf & 7);
+	asc_dvc->overrun_dma = dma_map_single(board->dev, asc_dvc->overrun_buf,
+					ASC_OVERRUN_BSIZE, DMA_FROM_DEVICE);
+	phy_addr = cpu_to_le32(asc_dvc->overrun_dma);
+	AscMemDWordCopyPtrToLram(iop_base, ASCV_OVERRUN_PADDR_D,
+				 (uchar *)&phy_addr, 1);
+	phy_size = cpu_to_le32(ASC_OVERRUN_BSIZE);
+	AscMemDWordCopyPtrToLram(iop_base, ASCV_OVERRUN_BSIZE_D,
+				 (uchar *)&phy_size, 1);
+
+	asc_dvc->cfg->mcode_date =
+	    AscReadLramWord(iop_base, (ushort)ASCV_MC_DATE_W);
+	asc_dvc->cfg->mcode_version =
+	    AscReadLramWord(iop_base, (ushort)ASCV_MC_VER_W);
+
+	AscSetPCAddr(iop_base, ASC_MCODE_START_ADDR);
+	if (AscGetPCAddr(iop_base) != ASC_MCODE_START_ADDR) {
+		asc_dvc->err_code |= ASC_IERR_SET_PC_ADDR;
+		return warn_code;
 	}
-
-	/*
-	 * Save the state of the PCI Configuration Command Register
-	 * "Parity Error Response Control" Bit. If the bit is clear (0),
-	 * in AdvInitAsc3550/38C0800Driver() tell the microcode to ignore
-	 * DMA parity errors.
-	 */
-	asc_dvc->cfg->control_flag = 0;
-	if (((DvcAdvReadPCIConfigByte(asc_dvc, AscPCIConfigCommandRegister)
-	      & AscPCICmdRegBits_ParErrRespCtrl)) == 0) {
-		asc_dvc->cfg->control_flag |= CONTROL_FLAG_IGNORE_PERR;
-	}
-
-	asc_dvc->cfg->lib_version = (ADV_LIB_VERSION_MAJOR << 8) |
-	    ADV_LIB_VERSION_MINOR;
-	asc_dvc->cfg->chip_version =
-	    AdvGetChipVersion(iop_base, asc_dvc->bus_type);
-
-	ASC_DBG2(1, "AdvInitGetConfig: iopb_chip_id_1: 0x%x 0x%x\n",
-		 (ushort)AdvReadByteRegister(iop_base, IOPB_CHIP_ID_1),
-		 (ushort)ADV_CHIP_ID_BYTE);
-
-	ASC_DBG2(1, "AdvInitGetConfig: iopw_chip_id_0: 0x%x 0x%x\n",
-		 (ushort)AdvReadWordRegister(iop_base, IOPW_CHIP_ID_0),
-		 (ushort)ADV_CHIP_ID_WORD);
-
-	/*
-	 * Reset the chip to start and allow register writes.
-	 */
-	if (AdvFindSignature(iop_base) == 0) {
-		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
-		return ADV_ERROR;
-	} else {
-		/*
-		 * The caller must set 'chip_type' to a valid setting.
-		 */
-		if (asc_dvc->chip_type != ADV_CHIP_ASC3550 &&
-		    asc_dvc->chip_type != ADV_CHIP_ASC38C0800 &&
-		    asc_dvc->chip_type != ADV_CHIP_ASC38C1600) {
-			asc_dvc->err_code |= ASC_IERR_BAD_CHIPTYPE;
-			return ADV_ERROR;
-		}
-
-		/*
-		 * Reset Chip.
-		 */
-		AdvWriteWordRegister(iop_base, IOPW_CTRL_REG,
-				     ADV_CTRL_REG_CMD_RESET);
-		DvcSleepMilliSecond(100);
-		AdvWriteWordRegister(iop_base, IOPW_CTRL_REG,
-				     ADV_CTRL_REG_CMD_WR_IO_REG);
-
-		if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
-			if ((status =
-			     AdvInitFrom38C1600EEP(asc_dvc)) == ADV_ERROR) {
-				return ADV_ERROR;
-			}
-		} else if (asc_dvc->chip_type == ADV_CHIP_ASC38C0800) {
-			if ((status =
-			     AdvInitFrom38C0800EEP(asc_dvc)) == ADV_ERROR) {
-				return ADV_ERROR;
-			}
-		} else {
-			if ((status = AdvInitFrom3550EEP(asc_dvc)) == ADV_ERROR) {
-				return ADV_ERROR;
-			}
-		}
-		warn_code |= status;
+	if (AscStartChip(iop_base) != 1) {
+		asc_dvc->err_code |= ASC_IERR_START_STOP_CHIP;
+		return warn_code;
 	}
 
 	return warn_code;
+}
+
+static ushort AscInitAsc1000Driver(ASC_DVC_VAR *asc_dvc)
+{
+	ushort warn_code;
+	PortAddr iop_base;
+
+	iop_base = asc_dvc->iop_base;
+	warn_code = 0;
+	if ((asc_dvc->dvc_cntl & ASC_CNTL_RESET_SCSI) &&
+	    !(asc_dvc->init_state & ASC_INIT_RESET_SCSI_DONE)) {
+		AscResetChipAndScsiBus(asc_dvc);
+		mdelay(asc_dvc->scsi_reset_wait * 1000); /* XXX: msleep? */
+	}
+	asc_dvc->init_state |= ASC_INIT_STATE_BEG_LOAD_MC;
+	if (asc_dvc->err_code != 0)
+		return UW_ERR;
+	if (!AscFindSignature(asc_dvc->iop_base)) {
+		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
+		return warn_code;
+	}
+	AscDisableInterrupt(iop_base);
+	warn_code |= AscInitLram(asc_dvc);
+	if (asc_dvc->err_code != 0)
+		return UW_ERR;
+	ASC_DBG(1, "_asc_mcode_chksum 0x%lx\n", (ulong)_asc_mcode_chksum);
+	if (AscLoadMicroCode(iop_base, 0, _asc_mcode_buf,
+			     _asc_mcode_size) != _asc_mcode_chksum) {
+		asc_dvc->err_code |= ASC_IERR_MCODE_CHKSUM;
+		return warn_code;
+	}
+	warn_code |= AscInitMicroCodeVar(asc_dvc);
+	asc_dvc->init_state |= ASC_INIT_STATE_END_LOAD_MC;
+	AscEnableInterrupt(iop_base);
+	return warn_code;
+}
+
+/*
+ * Load the Microcode
+ *
+ * Write the microcode image to RISC memory starting at address 0.
+ *
+ * The microcode is stored compressed in the following format:
+ *
+ *  254 word (508 byte) table indexed by byte code followed
+ *  by the following byte codes:
+ *
+ *    1-Byte Code:
+ *      00: Emit word 0 in table.
+ *      01: Emit word 1 in table.
+ *      .
+ *      FD: Emit word 253 in table.
+ *
+ *    Multi-Byte Code:
+ *      FE WW WW: (3 byte code) Word to emit is the next word WW WW.
+ *      FF BB WW WW: (4 byte code) Emit BB count times next word WW WW.
+ *
+ * Returns 0 or an error if the checksum doesn't match
+ */
+static int AdvLoadMicrocode(AdvPortAddr iop_base, unsigned char *buf, int size,
+			    int memsize, int chksum)
+{
+	int i, j, end, len = 0;
+	ADV_DCNT sum;
+
+	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
+
+	for (i = 253 * 2; i < size; i++) {
+		if (buf[i] == 0xff) {
+			unsigned short word = (buf[i + 3] << 8) | buf[i + 2];
+			for (j = 0; j < buf[i + 1]; j++) {
+				AdvWriteWordAutoIncLram(iop_base, word);
+				len += 2;
+			}
+			i += 3;
+		} else if (buf[i] == 0xfe) {
+			unsigned short word = (buf[i + 2] << 8) | buf[i + 1];
+			AdvWriteWordAutoIncLram(iop_base, word);
+			i += 2;
+			len += 2;
+		} else {
+			unsigned char off = buf[i] * 2;
+			unsigned short word = (buf[off + 1] << 8) | buf[off];
+			AdvWriteWordAutoIncLram(iop_base, word);
+			len += 2;
+		}
+	}
+
+	end = len;
+
+	while (len < memsize) {
+		AdvWriteWordAutoIncLram(iop_base, 0);
+		len += 2;
+	}
+
+	/* Verify the microcode checksum. */
+	sum = 0;
+	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
+
+	for (len = 0; len < end; len += 2) {
+		sum += AdvReadWordAutoIncLram(iop_base);
+	}
+
+	if (sum != chksum)
+		return ASC_IERR_MCODE_CHKSUM;
+
+	return 0;
+}
+
+static void AdvBuildCarrierFreelist(struct adv_dvc_var *asc_dvc)
+{
+	ADV_CARR_T *carrp;
+	ADV_SDCNT buf_size;
+	ADV_PADDR carr_paddr;
+
+	carrp = (ADV_CARR_T *) ADV_16BALIGN(asc_dvc->carrier_buf);
+	asc_dvc->carr_freelist = NULL;
+	if (carrp == asc_dvc->carrier_buf) {
+		buf_size = ADV_CARRIER_BUFSIZE;
+	} else {
+		buf_size = ADV_CARRIER_BUFSIZE - sizeof(ADV_CARR_T);
+	}
+
+	do {
+		/* Get physical address of the carrier 'carrp'. */
+		carr_paddr = cpu_to_le32(virt_to_bus(carrp));
+
+		buf_size -= sizeof(ADV_CARR_T);
+
+		carrp->carr_pa = carr_paddr;
+		carrp->carr_va = cpu_to_le32(ADV_VADDR_TO_U32(carrp));
+
+		/*
+		 * Insert the carrier at the beginning of the freelist.
+		 */
+		carrp->next_vpa =
+			cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->carr_freelist));
+		asc_dvc->carr_freelist = carrp;
+
+		carrp++;
+	} while (buf_size > 0);
+}
+
+/*
+ * Send an idle command to the chip and wait for completion.
+ *
+ * Command completion is polled for once per microsecond.
+ *
+ * The function can be called from anywhere including an interrupt handler.
+ * But the function is not re-entrant, so it uses the DvcEnter/LeaveCritical()
+ * functions to prevent reentrancy.
+ *
+ * Return Values:
+ *   ADV_TRUE - command completed successfully
+ *   ADV_FALSE - command failed
+ *   ADV_ERROR - command timed out
+ */
+static int
+AdvSendIdleCmd(ADV_DVC_VAR *asc_dvc,
+	       ushort idle_cmd, ADV_DCNT idle_cmd_parameter)
+{
+	int result;
+	ADV_DCNT i, j;
+	AdvPortAddr iop_base;
+
+	iop_base = asc_dvc->iop_base;
+
+	/*
+	 * Clear the idle command status which is set by the microcode
+	 * to a non-zero value to indicate when the command is completed.
+	 * The non-zero result is one of the IDLE_CMD_STATUS_* values
+	 */
+	AdvWriteWordLram(iop_base, ASC_MC_IDLE_CMD_STATUS, (ushort)0);
+
+	/*
+	 * Write the idle command value after the idle command parameter
+	 * has been written to avoid a race condition. If the order is not
+	 * followed, the microcode may process the idle command before the
+	 * parameters have been written to LRAM.
+	 */
+	AdvWriteDWordLramNoSwap(iop_base, ASC_MC_IDLE_CMD_PARAMETER,
+				cpu_to_le32(idle_cmd_parameter));
+	AdvWriteWordLram(iop_base, ASC_MC_IDLE_CMD, idle_cmd);
+
+	/*
+	 * Tickle the RISC to tell it to process the idle command.
+	 */
+	AdvWriteByteRegister(iop_base, IOPB_TICKLE, ADV_TICKLE_B);
+	if (asc_dvc->chip_type == ADV_CHIP_ASC3550) {
+		/*
+		 * Clear the tickle value. In the ASC-3550 the RISC flag
+		 * command 'clr_tickle_b' does not work unless the host
+		 * value is cleared.
+		 */
+		AdvWriteByteRegister(iop_base, IOPB_TICKLE, ADV_TICKLE_NOP);
+	}
+
+	/* Wait for up to 100 millisecond for the idle command to timeout. */
+	for (i = 0; i < SCSI_WAIT_100_MSEC; i++) {
+		/* Poll once each microsecond for command completion. */
+		for (j = 0; j < SCSI_US_PER_MSEC; j++) {
+			AdvReadWordLram(iop_base, ASC_MC_IDLE_CMD_STATUS,
+					result);
+			if (result != 0)
+				return result;
+			udelay(1);
+		}
+	}
+
+	BUG();		/* The idle command should never timeout. */
+	return ADV_ERROR;
+}
+
+/*
+ * Reset SCSI Bus and purge all outstanding requests.
+ *
+ * Return Value:
+ *      ADV_TRUE(1) -   All requests are purged and SCSI Bus is reset.
+ *      ADV_FALSE(0) -  Microcode command failed.
+ *      ADV_ERROR(-1) - Microcode command timed-out. Microcode or IC
+ *                      may be hung which requires driver recovery.
+ */
+static int AdvResetSB(ADV_DVC_VAR *asc_dvc)
+{
+	int status;
+
+	/*
+	 * Send the SCSI Bus Reset idle start idle command which asserts
+	 * the SCSI Bus Reset signal.
+	 */
+	status = AdvSendIdleCmd(asc_dvc, (ushort)IDLE_CMD_SCSI_RESET_START, 0L);
+	if (status != ADV_TRUE) {
+		return status;
+	}
+
+	/*
+	 * Delay for the specified SCSI Bus Reset hold time.
+	 *
+	 * The hold time delay is done on the host because the RISC has no
+	 * microsecond accurate timer.
+	 */
+	udelay(ASC_SCSI_RESET_HOLD_TIME_US);
+
+	/*
+	 * Send the SCSI Bus Reset end idle command which de-asserts
+	 * the SCSI Bus Reset signal and purges any pending requests.
+	 */
+	status = AdvSendIdleCmd(asc_dvc, (ushort)IDLE_CMD_SCSI_RESET_END, 0L);
+	if (status != ADV_TRUE) {
+		return status;
+	}
+
+	mdelay(asc_dvc->scsi_reset_wait * 1000);	/* XXX: msleep? */
+
+	return status;
 }
 
 /*
@@ -14329,17 +6629,10 @@ static int AdvInitAsc3550Driver(ADV_DVC_VAR *asc_dvc)
 {
 	AdvPortAddr iop_base;
 	ushort warn_code;
-	ADV_DCNT sum;
 	int begin_addr;
 	int end_addr;
 	ushort code_sum;
 	int word;
-	int j;
-	int adv_asc3550_expanded_size;
-	ADV_CARR_T *carrp;
-	ADV_DCNT contig_len;
-	ADV_SDCNT buf_size;
-	ADV_PADDR carr_paddr;
 	int i;
 	ushort scsi_cfg1;
 	uchar tid;
@@ -14348,15 +6641,14 @@ static int AdvInitAsc3550Driver(ADV_DVC_VAR *asc_dvc)
 	uchar max_cmd[ADV_MAX_TID + 1];
 
 	/* If there is already an error, don't continue. */
-	if (asc_dvc->err_code != 0) {
+	if (asc_dvc->err_code != 0)
 		return ADV_ERROR;
-	}
 
 	/*
 	 * The caller must set 'chip_type' to ADV_CHIP_ASC3550.
 	 */
 	if (asc_dvc->chip_type != ADV_CHIP_ASC3550) {
-		asc_dvc->err_code |= ASC_IERR_BAD_CHIPTYPE;
+		asc_dvc->err_code = ASC_IERR_BAD_CHIPTYPE;
 		return ADV_ERROR;
 	}
 
@@ -14400,84 +6692,11 @@ static int AdvInitAsc3550Driver(ADV_DVC_VAR *asc_dvc)
 				max_cmd[tid]);
 	}
 
-	/*
-	 * Load the Microcode
-	 *
-	 * Write the microcode image to RISC memory starting at address 0.
-	 */
-	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
-	/* Assume the following compressed format of the microcode buffer:
-	 *
-	 *  254 word (508 byte) table indexed by byte code followed
-	 *  by the following byte codes:
-	 *
-	 *    1-Byte Code:
-	 *      00: Emit word 0 in table.
-	 *      01: Emit word 1 in table.
-	 *      .
-	 *      FD: Emit word 253 in table.
-	 *
-	 *    Multi-Byte Code:
-	 *      FE WW WW: (3 byte code) Word to emit is the next word WW WW.
-	 *      FF BB WW WW: (4 byte code) Emit BB count times next word WW WW.
-	 */
-	word = 0;
-	for (i = 253 * 2; i < _adv_asc3550_size; i++) {
-		if (_adv_asc3550_buf[i] == 0xff) {
-			for (j = 0; j < _adv_asc3550_buf[i + 1]; j++) {
-				AdvWriteWordAutoIncLram(iop_base, (((ushort)
-								    _adv_asc3550_buf
-								    [i +
-								     3] << 8) |
-								   _adv_asc3550_buf
-								   [i + 2]));
-				word++;
-			}
-			i += 3;
-		} else if (_adv_asc3550_buf[i] == 0xfe) {
-			AdvWriteWordAutoIncLram(iop_base, (((ushort)
-							    _adv_asc3550_buf[i +
-									     2]
-							    << 8) |
-							   _adv_asc3550_buf[i +
-									    1]));
-			i += 2;
-			word++;
-		} else {
-			AdvWriteWordAutoIncLram(iop_base, (((ushort)
-							    _adv_asc3550_buf[(_adv_asc3550_buf[i] * 2) + 1] << 8) | _adv_asc3550_buf[_adv_asc3550_buf[i] * 2]));
-			word++;
-		}
-	}
-
-	/*
-	 * Set 'word' for later use to clear the rest of memory and save
-	 * the expanded mcode size.
-	 */
-	word *= 2;
-	adv_asc3550_expanded_size = word;
-
-	/*
-	 * Clear the rest of ASC-3550 Internal RAM (8KB).
-	 */
-	for (; word < ADV_3550_MEMSIZE; word += 2) {
-		AdvWriteWordAutoIncLram(iop_base, 0);
-	}
-
-	/*
-	 * Verify the microcode checksum.
-	 */
-	sum = 0;
-	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
-
-	for (word = 0; word < adv_asc3550_expanded_size; word += 2) {
-		sum += AdvReadWordAutoIncLram(iop_base);
-	}
-
-	if (sum != _adv_asc3550_chksum) {
-		asc_dvc->err_code |= ASC_IERR_MCODE_CHKSUM;
+	asc_dvc->err_code = AdvLoadMicrocode(iop_base, _adv_asc3550_buf,
+					_adv_asc3550_size, ADV_3550_MEMSIZE,
+					_adv_asc3550_chksum);
+	if (asc_dvc->err_code)
 		return ADV_ERROR;
-	}
 
 	/*
 	 * Restore the RISC memory BIOS region.
@@ -14534,7 +6753,7 @@ static int AdvInitAsc3550Driver(ADV_DVC_VAR *asc_dvc)
 
 	/*
 	 * Microcode operating variables for WDTR, SDTR, and command tag
-	 * queuing will be set in AdvInquiryHandling() based on what a
+	 * queuing will be set in slave_configure() based on what a
 	 * device reports it is capable of in Inquiry byte 7.
 	 *
 	 * If SCSI Bus Resets have been disabled, then directly set
@@ -14741,57 +6960,7 @@ static int AdvInitAsc3550Driver(ADV_DVC_VAR *asc_dvc)
 	AdvWriteWordLram(iop_base, ASC_MC_DEFAULT_SEL_MASK,
 			 ADV_TID_TO_TIDMASK(asc_dvc->chip_scsi_id));
 
-	/*
-	 * Build carrier freelist.
-	 *
-	 * Driver must have already allocated memory and set 'carrier_buf'.
-	 */
-	ASC_ASSERT(asc_dvc->carrier_buf != NULL);
-
-	carrp = (ADV_CARR_T *) ADV_16BALIGN(asc_dvc->carrier_buf);
-	asc_dvc->carr_freelist = NULL;
-	if (carrp == (ADV_CARR_T *) asc_dvc->carrier_buf) {
-		buf_size = ADV_CARRIER_BUFSIZE;
-	} else {
-		buf_size = ADV_CARRIER_BUFSIZE - sizeof(ADV_CARR_T);
-	}
-
-	do {
-		/*
-		 * Get physical address of the carrier 'carrp'.
-		 */
-		contig_len = sizeof(ADV_CARR_T);
-		carr_paddr =
-		    cpu_to_le32(DvcGetPhyAddr
-				(asc_dvc, NULL, (uchar *)carrp,
-				 (ADV_SDCNT *)&contig_len,
-				 ADV_IS_CARRIER_FLAG));
-
-		buf_size -= sizeof(ADV_CARR_T);
-
-		/*
-		 * If the current carrier is not physically contiguous, then
-		 * maybe there was a page crossing. Try the next carrier aligned
-		 * start address.
-		 */
-		if (contig_len < sizeof(ADV_CARR_T)) {
-			carrp++;
-			continue;
-		}
-
-		carrp->carr_pa = carr_paddr;
-		carrp->carr_va = cpu_to_le32(ADV_VADDR_TO_U32(carrp));
-
-		/*
-		 * Insert the carrier at the beginning of the freelist.
-		 */
-		carrp->next_vpa =
-		    cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->carr_freelist));
-		asc_dvc->carr_freelist = carrp;
-
-		carrp++;
-	}
-	while (buf_size > 0);
+	AdvBuildCarrierFreelist(asc_dvc);
 
 	/*
 	 * Set-up the Host->RISC Initiator Command Queue (ICQ).
@@ -14898,17 +7067,10 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 {
 	AdvPortAddr iop_base;
 	ushort warn_code;
-	ADV_DCNT sum;
 	int begin_addr;
 	int end_addr;
 	ushort code_sum;
 	int word;
-	int j;
-	int adv_asc38C0800_expanded_size;
-	ADV_CARR_T *carrp;
-	ADV_DCNT contig_len;
-	ADV_SDCNT buf_size;
-	ADV_PADDR carr_paddr;
 	int i;
 	ushort scsi_cfg1;
 	uchar byte;
@@ -14918,9 +7080,8 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	uchar max_cmd[ADV_MAX_TID + 1];
 
 	/* If there is already an error, don't continue. */
-	if (asc_dvc->err_code != 0) {
+	if (asc_dvc->err_code != 0)
 		return ADV_ERROR;
-	}
 
 	/*
 	 * The caller must set 'chip_type' to ADV_CHIP_ASC38C0800.
@@ -14988,19 +7149,19 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	 */
 	for (i = 0; i < 2; i++) {
 		AdvWriteByteRegister(iop_base, IOPB_RAM_BIST, PRE_TEST_MODE);
-		DvcSleepMilliSecond(10);	/* Wait for 10ms before reading back. */
+		mdelay(10);	/* Wait for 10ms before reading back. */
 		byte = AdvReadByteRegister(iop_base, IOPB_RAM_BIST);
 		if ((byte & RAM_TEST_DONE) == 0
 		    || (byte & 0x0F) != PRE_TEST_VALUE) {
-			asc_dvc->err_code |= ASC_IERR_BIST_PRE_TEST;
+			asc_dvc->err_code = ASC_IERR_BIST_PRE_TEST;
 			return ADV_ERROR;
 		}
 
 		AdvWriteByteRegister(iop_base, IOPB_RAM_BIST, NORMAL_MODE);
-		DvcSleepMilliSecond(10);	/* Wait for 10ms before reading back. */
+		mdelay(10);	/* Wait for 10ms before reading back. */
 		if (AdvReadByteRegister(iop_base, IOPB_RAM_BIST)
 		    != NORMAL_VALUE) {
-			asc_dvc->err_code |= ASC_IERR_BIST_PRE_TEST;
+			asc_dvc->err_code = ASC_IERR_BIST_PRE_TEST;
 			return ADV_ERROR;
 		}
 	}
@@ -15013,105 +7174,24 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	 * err_code, and return an error.
 	 */
 	AdvWriteByteRegister(iop_base, IOPB_RAM_BIST, RAM_TEST_MODE);
-	DvcSleepMilliSecond(10);	/* Wait for 10ms before checking status. */
+	mdelay(10);	/* Wait for 10ms before checking status. */
 
 	byte = AdvReadByteRegister(iop_base, IOPB_RAM_BIST);
 	if ((byte & RAM_TEST_DONE) == 0 || (byte & RAM_TEST_STATUS) != 0) {
 		/* Get here if Done bit not set or Status not 0. */
 		asc_dvc->bist_err_code = byte;	/* for BIOS display message */
-		asc_dvc->err_code |= ASC_IERR_BIST_RAM_TEST;
+		asc_dvc->err_code = ASC_IERR_BIST_RAM_TEST;
 		return ADV_ERROR;
 	}
 
 	/* We need to reset back to normal mode after LRAM test passes. */
 	AdvWriteByteRegister(iop_base, IOPB_RAM_BIST, NORMAL_MODE);
 
-	/*
-	 * Load the Microcode
-	 *
-	 * Write the microcode image to RISC memory starting at address 0.
-	 *
-	 */
-	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
-
-	/* Assume the following compressed format of the microcode buffer:
-	 *
-	 *  254 word (508 byte) table indexed by byte code followed
-	 *  by the following byte codes:
-	 *
-	 *    1-Byte Code:
-	 *      00: Emit word 0 in table.
-	 *      01: Emit word 1 in table.
-	 *      .
-	 *      FD: Emit word 253 in table.
-	 *
-	 *    Multi-Byte Code:
-	 *      FE WW WW: (3 byte code) Word to emit is the next word WW WW.
-	 *      FF BB WW WW: (4 byte code) Emit BB count times next word WW WW.
-	 */
-	word = 0;
-	for (i = 253 * 2; i < _adv_asc38C0800_size; i++) {
-		if (_adv_asc38C0800_buf[i] == 0xff) {
-			for (j = 0; j < _adv_asc38C0800_buf[i + 1]; j++) {
-				AdvWriteWordAutoIncLram(iop_base, (((ushort)
-								    _adv_asc38C0800_buf
-								    [i +
-								     3] << 8) |
-								   _adv_asc38C0800_buf
-								   [i + 2]));
-				word++;
-			}
-			i += 3;
-		} else if (_adv_asc38C0800_buf[i] == 0xfe) {
-			AdvWriteWordAutoIncLram(iop_base, (((ushort)
-							    _adv_asc38C0800_buf
-							    [i +
-							     2] << 8) |
-							   _adv_asc38C0800_buf[i
-									       +
-									       1]));
-			i += 2;
-			word++;
-		} else {
-			AdvWriteWordAutoIncLram(iop_base, (((ushort)
-							    _adv_asc38C0800_buf[(_adv_asc38C0800_buf[i] * 2) + 1] << 8) | _adv_asc38C0800_buf[_adv_asc38C0800_buf[i] * 2]));
-			word++;
-		}
-	}
-
-	/*
-	 * Set 'word' for later use to clear the rest of memory and save
-	 * the expanded mcode size.
-	 */
-	word *= 2;
-	adv_asc38C0800_expanded_size = word;
-
-	/*
-	 * Clear the rest of ASC-38C0800 Internal RAM (16KB).
-	 */
-	for (; word < ADV_38C0800_MEMSIZE; word += 2) {
-		AdvWriteWordAutoIncLram(iop_base, 0);
-	}
-
-	/*
-	 * Verify the microcode checksum.
-	 */
-	sum = 0;
-	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
-
-	for (word = 0; word < adv_asc38C0800_expanded_size; word += 2) {
-		sum += AdvReadWordAutoIncLram(iop_base);
-	}
-	ASC_DBG2(1, "AdvInitAsc38C0800Driver: word %d, i %d\n", word, i);
-
-	ASC_DBG2(1,
-		 "AdvInitAsc38C0800Driver: sum 0x%lx, _adv_asc38C0800_chksum 0x%lx\n",
-		 (ulong)sum, (ulong)_adv_asc38C0800_chksum);
-
-	if (sum != _adv_asc38C0800_chksum) {
-		asc_dvc->err_code |= ASC_IERR_MCODE_CHKSUM;
+	asc_dvc->err_code = AdvLoadMicrocode(iop_base, _adv_asc38C0800_buf,
+				 _adv_asc38C0800_size, ADV_38C0800_MEMSIZE,
+				 _adv_asc38C0800_chksum);
+	if (asc_dvc->err_code)
 		return ADV_ERROR;
-	}
 
 	/*
 	 * Restore the RISC memory BIOS region.
@@ -15185,7 +7265,7 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 
 	/*
 	 * Microcode operating variables for WDTR, SDTR, and command tag
-	 * queuing will be set in AdvInquiryHandling() based on what a
+	 * queuing will be set in slave_configure() based on what a
 	 * device reports it is capable of in Inquiry byte 7.
 	 *
 	 * If SCSI Bus Resets have been disabled, then directly set
@@ -15249,16 +7329,18 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	}
 
 	/*
-	 * All kind of combinations of devices attached to one of four connectors
-	 * are acceptable except HVD device attached. For example, LVD device can
-	 * be attached to SE connector while SE device attached to LVD connector.
-	 * If LVD device attached to SE connector, it only runs up to Ultra speed.
+	 * All kind of combinations of devices attached to one of four
+	 * connectors are acceptable except HVD device attached. For example,
+	 * LVD device can be attached to SE connector while SE device attached
+	 * to LVD connector.  If LVD device attached to SE connector, it only
+	 * runs up to Ultra speed.
 	 *
-	 * If an HVD device is attached to one of LVD connectors, return an error.
-	 * However, there is no way to detect HVD device attached to SE connectors.
+	 * If an HVD device is attached to one of LVD connectors, return an
+	 * error.  However, there is no way to detect HVD device attached to
+	 * SE connectors.
 	 */
 	if (scsi_cfg1 & HVD) {
-		asc_dvc->err_code |= ASC_IERR_HVD_DEVICE;
+		asc_dvc->err_code = ASC_IERR_HVD_DEVICE;
 		return ADV_ERROR;
 	}
 
@@ -15267,8 +7349,8 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	 * set the termination value based on a table listed in a_condor.h.
 	 *
 	 * If manual termination was specified with an EEPROM setting then
-	 * 'termination' was set-up in AdvInitFrom38C0800EEPROM() and is ready to
-	 * be 'ored' into SCSI_CFG1.
+	 * 'termination' was set-up in AdvInitFrom38C0800EEPROM() and is ready
+	 * to be 'ored' into SCSI_CFG1.
 	 */
 	if ((asc_dvc->cfg->termination & TERM_SE) == 0) {
 		/* SE automatic termination control is enabled. */
@@ -15314,9 +7396,9 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	scsi_cfg1 |= (~asc_dvc->cfg->termination & 0xF0);
 
 	/*
-	 * Clear BIG_ENDIAN, DIS_TERM_DRV, Terminator Polarity and HVD/LVD/SE bits
-	 * and set possibly modified termination control bits in the Microcode
-	 * SCSI_CFG1 Register Value.
+	 * Clear BIG_ENDIAN, DIS_TERM_DRV, Terminator Polarity and HVD/LVD/SE
+	 * bits and set possibly modified termination control bits in the
+	 * Microcode SCSI_CFG1 Register Value.
 	 */
 	scsi_cfg1 &= (~BIG_ENDIAN & ~DIS_TERM_DRV & ~TERM_POL & ~HVD_LVD_SE);
 
@@ -15354,57 +7436,7 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 	AdvWriteWordLram(iop_base, ASC_MC_DEFAULT_SEL_MASK,
 			 ADV_TID_TO_TIDMASK(asc_dvc->chip_scsi_id));
 
-	/*
-	 * Build the carrier freelist.
-	 *
-	 * Driver must have already allocated memory and set 'carrier_buf'.
-	 */
-	ASC_ASSERT(asc_dvc->carrier_buf != NULL);
-
-	carrp = (ADV_CARR_T *) ADV_16BALIGN(asc_dvc->carrier_buf);
-	asc_dvc->carr_freelist = NULL;
-	if (carrp == (ADV_CARR_T *) asc_dvc->carrier_buf) {
-		buf_size = ADV_CARRIER_BUFSIZE;
-	} else {
-		buf_size = ADV_CARRIER_BUFSIZE - sizeof(ADV_CARR_T);
-	}
-
-	do {
-		/*
-		 * Get physical address for the carrier 'carrp'.
-		 */
-		contig_len = sizeof(ADV_CARR_T);
-		carr_paddr =
-		    cpu_to_le32(DvcGetPhyAddr
-				(asc_dvc, NULL, (uchar *)carrp,
-				 (ADV_SDCNT *)&contig_len,
-				 ADV_IS_CARRIER_FLAG));
-
-		buf_size -= sizeof(ADV_CARR_T);
-
-		/*
-		 * If the current carrier is not physically contiguous, then
-		 * maybe there was a page crossing. Try the next carrier aligned
-		 * start address.
-		 */
-		if (contig_len < sizeof(ADV_CARR_T)) {
-			carrp++;
-			continue;
-		}
-
-		carrp->carr_pa = carr_paddr;
-		carrp->carr_va = cpu_to_le32(ADV_VADDR_TO_U32(carrp));
-
-		/*
-		 * Insert the carrier at the beginning of the freelist.
-		 */
-		carrp->next_vpa =
-		    cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->carr_freelist));
-		asc_dvc->carr_freelist = carrp;
-
-		carrp++;
-	}
-	while (buf_size > 0);
+	AdvBuildCarrierFreelist(asc_dvc);
 
 	/*
 	 * Set-up the Host->RISC Initiator Command Queue (ICQ).
@@ -15514,17 +7546,10 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 {
 	AdvPortAddr iop_base;
 	ushort warn_code;
-	ADV_DCNT sum;
 	int begin_addr;
 	int end_addr;
 	ushort code_sum;
 	long word;
-	int j;
-	int adv_asc38C1600_expanded_size;
-	ADV_CARR_T *carrp;
-	ADV_DCNT contig_len;
-	ADV_SDCNT buf_size;
-	ADV_PADDR carr_paddr;
 	int i;
 	ushort scsi_cfg1;
 	uchar byte;
@@ -15605,19 +7630,19 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 	 */
 	for (i = 0; i < 2; i++) {
 		AdvWriteByteRegister(iop_base, IOPB_RAM_BIST, PRE_TEST_MODE);
-		DvcSleepMilliSecond(10);	/* Wait for 10ms before reading back. */
+		mdelay(10);	/* Wait for 10ms before reading back. */
 		byte = AdvReadByteRegister(iop_base, IOPB_RAM_BIST);
 		if ((byte & RAM_TEST_DONE) == 0
 		    || (byte & 0x0F) != PRE_TEST_VALUE) {
-			asc_dvc->err_code |= ASC_IERR_BIST_PRE_TEST;
+			asc_dvc->err_code = ASC_IERR_BIST_PRE_TEST;
 			return ADV_ERROR;
 		}
 
 		AdvWriteByteRegister(iop_base, IOPB_RAM_BIST, NORMAL_MODE);
-		DvcSleepMilliSecond(10);	/* Wait for 10ms before reading back. */
+		mdelay(10);	/* Wait for 10ms before reading back. */
 		if (AdvReadByteRegister(iop_base, IOPB_RAM_BIST)
 		    != NORMAL_VALUE) {
-			asc_dvc->err_code |= ASC_IERR_BIST_PRE_TEST;
+			asc_dvc->err_code = ASC_IERR_BIST_PRE_TEST;
 			return ADV_ERROR;
 		}
 	}
@@ -15630,101 +7655,24 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 	 * err_code, and return an error.
 	 */
 	AdvWriteByteRegister(iop_base, IOPB_RAM_BIST, RAM_TEST_MODE);
-	DvcSleepMilliSecond(10);	/* Wait for 10ms before checking status. */
+	mdelay(10);	/* Wait for 10ms before checking status. */
 
 	byte = AdvReadByteRegister(iop_base, IOPB_RAM_BIST);
 	if ((byte & RAM_TEST_DONE) == 0 || (byte & RAM_TEST_STATUS) != 0) {
 		/* Get here if Done bit not set or Status not 0. */
 		asc_dvc->bist_err_code = byte;	/* for BIOS display message */
-		asc_dvc->err_code |= ASC_IERR_BIST_RAM_TEST;
+		asc_dvc->err_code = ASC_IERR_BIST_RAM_TEST;
 		return ADV_ERROR;
 	}
 
 	/* We need to reset back to normal mode after LRAM test passes. */
 	AdvWriteByteRegister(iop_base, IOPB_RAM_BIST, NORMAL_MODE);
 
-	/*
-	 * Load the Microcode
-	 *
-	 * Write the microcode image to RISC memory starting at address 0.
-	 *
-	 */
-	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
-
-	/*
-	 * Assume the following compressed format of the microcode buffer:
-	 *
-	 *  254 word (508 byte) table indexed by byte code followed
-	 *  by the following byte codes:
-	 *
-	 *    1-Byte Code:
-	 *      00: Emit word 0 in table.
-	 *      01: Emit word 1 in table.
-	 *      .
-	 *      FD: Emit word 253 in table.
-	 *
-	 *    Multi-Byte Code:
-	 *      FE WW WW: (3 byte code) Word to emit is the next word WW WW.
-	 *      FF BB WW WW: (4 byte code) Emit BB count times next word WW WW.
-	 */
-	word = 0;
-	for (i = 253 * 2; i < _adv_asc38C1600_size; i++) {
-		if (_adv_asc38C1600_buf[i] == 0xff) {
-			for (j = 0; j < _adv_asc38C1600_buf[i + 1]; j++) {
-				AdvWriteWordAutoIncLram(iop_base, (((ushort)
-								    _adv_asc38C1600_buf
-								    [i +
-								     3] << 8) |
-								   _adv_asc38C1600_buf
-								   [i + 2]));
-				word++;
-			}
-			i += 3;
-		} else if (_adv_asc38C1600_buf[i] == 0xfe) {
-			AdvWriteWordAutoIncLram(iop_base, (((ushort)
-							    _adv_asc38C1600_buf
-							    [i +
-							     2] << 8) |
-							   _adv_asc38C1600_buf[i
-									       +
-									       1]));
-			i += 2;
-			word++;
-		} else {
-			AdvWriteWordAutoIncLram(iop_base, (((ushort)
-							    _adv_asc38C1600_buf[(_adv_asc38C1600_buf[i] * 2) + 1] << 8) | _adv_asc38C1600_buf[_adv_asc38C1600_buf[i] * 2]));
-			word++;
-		}
-	}
-
-	/*
-	 * Set 'word' for later use to clear the rest of memory and save
-	 * the expanded mcode size.
-	 */
-	word *= 2;
-	adv_asc38C1600_expanded_size = word;
-
-	/*
-	 * Clear the rest of ASC-38C1600 Internal RAM (32KB).
-	 */
-	for (; word < ADV_38C1600_MEMSIZE; word += 2) {
-		AdvWriteWordAutoIncLram(iop_base, 0);
-	}
-
-	/*
-	 * Verify the microcode checksum.
-	 */
-	sum = 0;
-	AdvWriteWordRegister(iop_base, IOPW_RAM_ADDR, 0);
-
-	for (word = 0; word < adv_asc38C1600_expanded_size; word += 2) {
-		sum += AdvReadWordAutoIncLram(iop_base);
-	}
-
-	if (sum != _adv_asc38C1600_chksum) {
-		asc_dvc->err_code |= ASC_IERR_MCODE_CHKSUM;
+	asc_dvc->err_code = AdvLoadMicrocode(iop_base, _adv_asc38C1600_buf,
+				 _adv_asc38C1600_size, ADV_38C1600_MEMSIZE,
+				 _adv_asc38C1600_chksum);
+	if (asc_dvc->err_code)
 		return ADV_ERROR;
-	}
 
 	/*
 	 * Restore the RISC memory BIOS region.
@@ -15805,7 +7753,7 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 
 	/*
 	 * Microcode operating variables for WDTR, SDTR, and command tag
-	 * queuing will be set in AdvInquiryHandling() based on what a
+	 * queuing will be set in slave_configure() based on what a
 	 * device reports it is capable of in Inquiry byte 7.
 	 *
 	 * If SCSI Bus Resets have been disabled, then directly set
@@ -15896,6 +7844,7 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 	 * ready to be 'ored' into SCSI_CFG1.
 	 */
 	if ((asc_dvc->cfg->termination & TERM_SE) == 0) {
+		struct pci_dev *pdev = adv_dvc_to_pdev(asc_dvc);
 		/* SE automatic termination control is enabled. */
 		switch (scsi_cfg1 & C_DET_SE) {
 			/* TERM_SE_HI: on, TERM_SE_LO: on */
@@ -15906,7 +7855,7 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 			break;
 
 		case 0x0:
-			if (ASC_PCI_ID2FUNC(asc_dvc->cfg->pci_slot_info) == 0) {
+			if (PCI_FUNC(pdev->devfn) == 0) {
 				/* Function 0 - TERM_SE_HI: off, TERM_SE_LO: off */
 			} else {
 				/* Function 1 - TERM_SE_HI: on, TERM_SE_LO: off */
@@ -15977,58 +7926,7 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 	AdvWriteWordLram(iop_base, ASC_MC_DEFAULT_SEL_MASK,
 			 ADV_TID_TO_TIDMASK(asc_dvc->chip_scsi_id));
 
-	/*
-	 * Build the carrier freelist.
-	 *
-	 * Driver must have already allocated memory and set 'carrier_buf'.
-	 */
-
-	ASC_ASSERT(asc_dvc->carrier_buf != NULL);
-
-	carrp = (ADV_CARR_T *) ADV_16BALIGN(asc_dvc->carrier_buf);
-	asc_dvc->carr_freelist = NULL;
-	if (carrp == (ADV_CARR_T *) asc_dvc->carrier_buf) {
-		buf_size = ADV_CARRIER_BUFSIZE;
-	} else {
-		buf_size = ADV_CARRIER_BUFSIZE - sizeof(ADV_CARR_T);
-	}
-
-	do {
-		/*
-		 * Get physical address for the carrier 'carrp'.
-		 */
-		contig_len = sizeof(ADV_CARR_T);
-		carr_paddr =
-		    cpu_to_le32(DvcGetPhyAddr
-				(asc_dvc, NULL, (uchar *)carrp,
-				 (ADV_SDCNT *)&contig_len,
-				 ADV_IS_CARRIER_FLAG));
-
-		buf_size -= sizeof(ADV_CARR_T);
-
-		/*
-		 * If the current carrier is not physically contiguous, then
-		 * maybe there was a page crossing. Try the next carrier aligned
-		 * start address.
-		 */
-		if (contig_len < sizeof(ADV_CARR_T)) {
-			carrp++;
-			continue;
-		}
-
-		carrp->carr_pa = carr_paddr;
-		carrp->carr_va = cpu_to_le32(ADV_VADDR_TO_U32(carrp));
-
-		/*
-		 * Insert the carrier at the beginning of the freelist.
-		 */
-		carrp->next_vpa =
-		    cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->carr_freelist));
-		asc_dvc->carr_freelist = carrp;
-
-		carrp++;
-	}
-	while (buf_size > 0);
+	AdvBuildCarrierFreelist(asc_dvc);
 
 	/*
 	 * Set-up the Host->RISC Initiator Command Queue (ICQ).
@@ -16124,6 +8022,4573 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 }
 
 /*
+ * Reset chip and SCSI Bus.
+ *
+ * Return Value:
+ *      ADV_TRUE(1) -   Chip re-initialization and SCSI Bus Reset successful.
+ *      ADV_FALSE(0) -  Chip re-initialization and SCSI Bus Reset failure.
+ */
+static int AdvResetChipAndSB(ADV_DVC_VAR *asc_dvc)
+{
+	int status;
+	ushort wdtr_able, sdtr_able, tagqng_able;
+	ushort ppr_able = 0;
+	uchar tid, max_cmd[ADV_MAX_TID + 1];
+	AdvPortAddr iop_base;
+	ushort bios_sig;
+
+	iop_base = asc_dvc->iop_base;
+
+	/*
+	 * Save current per TID negotiated values.
+	 */
+	AdvReadWordLram(iop_base, ASC_MC_WDTR_ABLE, wdtr_able);
+	AdvReadWordLram(iop_base, ASC_MC_SDTR_ABLE, sdtr_able);
+	if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
+		AdvReadWordLram(iop_base, ASC_MC_PPR_ABLE, ppr_able);
+	}
+	AdvReadWordLram(iop_base, ASC_MC_TAGQNG_ABLE, tagqng_able);
+	for (tid = 0; tid <= ADV_MAX_TID; tid++) {
+		AdvReadByteLram(iop_base, ASC_MC_NUMBER_OF_MAX_CMD + tid,
+				max_cmd[tid]);
+	}
+
+	/*
+	 * Force the AdvInitAsc3550/38C0800Driver() function to
+	 * perform a SCSI Bus Reset by clearing the BIOS signature word.
+	 * The initialization functions assumes a SCSI Bus Reset is not
+	 * needed if the BIOS signature word is present.
+	 */
+	AdvReadWordLram(iop_base, ASC_MC_BIOS_SIGNATURE, bios_sig);
+	AdvWriteWordLram(iop_base, ASC_MC_BIOS_SIGNATURE, 0);
+
+	/*
+	 * Stop chip and reset it.
+	 */
+	AdvWriteWordRegister(iop_base, IOPW_RISC_CSR, ADV_RISC_CSR_STOP);
+	AdvWriteWordRegister(iop_base, IOPW_CTRL_REG, ADV_CTRL_REG_CMD_RESET);
+	mdelay(100);
+	AdvWriteWordRegister(iop_base, IOPW_CTRL_REG,
+			     ADV_CTRL_REG_CMD_WR_IO_REG);
+
+	/*
+	 * Reset Adv Library error code, if any, and try
+	 * re-initializing the chip.
+	 */
+	asc_dvc->err_code = 0;
+	if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
+		status = AdvInitAsc38C1600Driver(asc_dvc);
+	} else if (asc_dvc->chip_type == ADV_CHIP_ASC38C0800) {
+		status = AdvInitAsc38C0800Driver(asc_dvc);
+	} else {
+		status = AdvInitAsc3550Driver(asc_dvc);
+	}
+
+	/* Translate initialization return value to status value. */
+	if (status == 0) {
+		status = ADV_TRUE;
+	} else {
+		status = ADV_FALSE;
+	}
+
+	/*
+	 * Restore the BIOS signature word.
+	 */
+	AdvWriteWordLram(iop_base, ASC_MC_BIOS_SIGNATURE, bios_sig);
+
+	/*
+	 * Restore per TID negotiated values.
+	 */
+	AdvWriteWordLram(iop_base, ASC_MC_WDTR_ABLE, wdtr_able);
+	AdvWriteWordLram(iop_base, ASC_MC_SDTR_ABLE, sdtr_able);
+	if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
+		AdvWriteWordLram(iop_base, ASC_MC_PPR_ABLE, ppr_able);
+	}
+	AdvWriteWordLram(iop_base, ASC_MC_TAGQNG_ABLE, tagqng_able);
+	for (tid = 0; tid <= ADV_MAX_TID; tid++) {
+		AdvWriteByteLram(iop_base, ASC_MC_NUMBER_OF_MAX_CMD + tid,
+				 max_cmd[tid]);
+	}
+
+	return status;
+}
+
+/*
+ * adv_async_callback() - Adv Library asynchronous event callback function.
+ */
+static void adv_async_callback(ADV_DVC_VAR *adv_dvc_varp, uchar code)
+{
+	switch (code) {
+	case ADV_ASYNC_SCSI_BUS_RESET_DET:
+		/*
+		 * The firmware detected a SCSI Bus reset.
+		 */
+		ASC_DBG(0, "ADV_ASYNC_SCSI_BUS_RESET_DET\n");
+		break;
+
+	case ADV_ASYNC_RDMA_FAILURE:
+		/*
+		 * Handle RDMA failure by resetting the SCSI Bus and
+		 * possibly the chip if it is unresponsive. Log the error
+		 * with a unique code.
+		 */
+		ASC_DBG(0, "ADV_ASYNC_RDMA_FAILURE\n");
+		AdvResetChipAndSB(adv_dvc_varp);
+		break;
+
+	case ADV_HOST_SCSI_BUS_RESET:
+		/*
+		 * Host generated SCSI bus reset occurred.
+		 */
+		ASC_DBG(0, "ADV_HOST_SCSI_BUS_RESET\n");
+		break;
+
+	default:
+		ASC_DBG(0, "unknown code 0x%x\n", code);
+		break;
+	}
+}
+
+/*
+ * adv_isr_callback() - Second Level Interrupt Handler called by AdvISR().
+ *
+ * Callback function for the Wide SCSI Adv Library.
+ */
+static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
+{
+	struct asc_board *boardp;
+	adv_req_t *reqp;
+	adv_sgblk_t *sgblkp;
+	struct scsi_cmnd *scp;
+	struct Scsi_Host *shost;
+	ADV_DCNT resid_cnt;
+
+	ASC_DBG(1, "adv_dvc_varp 0x%lx, scsiqp 0x%lx\n",
+		 (ulong)adv_dvc_varp, (ulong)scsiqp);
+	ASC_DBG_PRT_ADV_SCSI_REQ_Q(2, scsiqp);
+
+	/*
+	 * Get the adv_req_t structure for the command that has been
+	 * completed. The adv_req_t structure actually contains the
+	 * completed ADV_SCSI_REQ_Q structure.
+	 */
+	reqp = (adv_req_t *)ADV_U32_TO_VADDR(scsiqp->srb_ptr);
+	ASC_DBG(1, "reqp 0x%lx\n", (ulong)reqp);
+	if (reqp == NULL) {
+		ASC_PRINT("adv_isr_callback: reqp is NULL\n");
+		return;
+	}
+
+	/*
+	 * Get the struct scsi_cmnd structure and Scsi_Host structure for the
+	 * command that has been completed.
+	 *
+	 * Note: The adv_req_t request structure and adv_sgblk_t structure,
+	 * if any, are dropped, because a board structure pointer can not be
+	 * determined.
+	 */
+	scp = reqp->cmndp;
+	ASC_DBG(1, "scp 0x%p\n", scp);
+	if (scp == NULL) {
+		ASC_PRINT
+		    ("adv_isr_callback: scp is NULL; adv_req_t dropped.\n");
+		return;
+	}
+	ASC_DBG_PRT_CDB(2, scp->cmnd, scp->cmd_len);
+
+	shost = scp->device->host;
+	ASC_STATS(shost, callback);
+	ASC_DBG(1, "shost 0x%p\n", shost);
+
+	boardp = shost_priv(shost);
+	BUG_ON(adv_dvc_varp != &boardp->dvc_var.adv_dvc_var);
+
+	/*
+	 * 'done_status' contains the command's ending status.
+	 */
+	switch (scsiqp->done_status) {
+	case QD_NO_ERROR:
+		ASC_DBG(2, "QD_NO_ERROR\n");
+		scp->result = 0;
+
+		/*
+		 * Check for an underrun condition.
+		 *
+		 * If there was no error and an underrun condition, then
+		 * then return the number of underrun bytes.
+		 */
+		resid_cnt = le32_to_cpu(scsiqp->data_cnt);
+		if (scsi_bufflen(scp) != 0 && resid_cnt != 0 &&
+		    resid_cnt <= scsi_bufflen(scp)) {
+			ASC_DBG(1, "underrun condition %lu bytes\n",
+				 (ulong)resid_cnt);
+			scsi_set_resid(scp, resid_cnt);
+		}
+		break;
+
+	case QD_WITH_ERROR:
+		ASC_DBG(2, "QD_WITH_ERROR\n");
+		switch (scsiqp->host_status) {
+		case QHSTA_NO_ERROR:
+			if (scsiqp->scsi_status == SAM_STAT_CHECK_CONDITION) {
+				ASC_DBG(2, "SAM_STAT_CHECK_CONDITION\n");
+				ASC_DBG_PRT_SENSE(2, scp->sense_buffer,
+						  sizeof(scp->sense_buffer));
+				/*
+				 * Note: The 'status_byte()' macro used by
+				 * target drivers defined in scsi.h shifts the
+				 * status byte returned by host drivers right
+				 * by 1 bit.  This is why target drivers also
+				 * use right shifted status byte definitions.
+				 * For instance target drivers use
+				 * CHECK_CONDITION, defined to 0x1, instead of
+				 * the SCSI defined check condition value of
+				 * 0x2. Host drivers are supposed to return
+				 * the status byte as it is defined by SCSI.
+				 */
+				scp->result = DRIVER_BYTE(DRIVER_SENSE) |
+				    STATUS_BYTE(scsiqp->scsi_status);
+			} else {
+				scp->result = STATUS_BYTE(scsiqp->scsi_status);
+			}
+			break;
+
+		default:
+			/* Some other QHSTA error occurred. */
+			ASC_DBG(1, "host_status 0x%x\n", scsiqp->host_status);
+			scp->result = HOST_BYTE(DID_BAD_TARGET);
+			break;
+		}
+		break;
+
+	case QD_ABORTED_BY_HOST:
+		ASC_DBG(1, "QD_ABORTED_BY_HOST\n");
+		scp->result =
+		    HOST_BYTE(DID_ABORT) | STATUS_BYTE(scsiqp->scsi_status);
+		break;
+
+	default:
+		ASC_DBG(1, "done_status 0x%x\n", scsiqp->done_status);
+		scp->result =
+		    HOST_BYTE(DID_ERROR) | STATUS_BYTE(scsiqp->scsi_status);
+		break;
+	}
+
+	/*
+	 * If the 'init_tidmask' bit isn't already set for the target and the
+	 * current request finished normally, then set the bit for the target
+	 * to indicate that a device is present.
+	 */
+	if ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(scp->device->id)) == 0 &&
+	    scsiqp->done_status == QD_NO_ERROR &&
+	    scsiqp->host_status == QHSTA_NO_ERROR) {
+		boardp->init_tidmask |= ADV_TID_TO_TIDMASK(scp->device->id);
+	}
+
+	asc_scsi_done(scp);
+
+	/*
+	 * Free all 'adv_sgblk_t' structures allocated for the request.
+	 */
+	while ((sgblkp = reqp->sgblkp) != NULL) {
+		/* Remove 'sgblkp' from the request list. */
+		reqp->sgblkp = sgblkp->next_sgblkp;
+
+		/* Add 'sgblkp' to the board free list. */
+		sgblkp->next_sgblkp = boardp->adv_sgblkp;
+		boardp->adv_sgblkp = sgblkp;
+	}
+
+	/*
+	 * Free the adv_req_t structure used with the command by adding
+	 * it back to the board free list.
+	 */
+	reqp->next_reqp = boardp->adv_reqp;
+	boardp->adv_reqp = reqp;
+
+	ASC_DBG(1, "done\n");
+}
+
+/*
+ * Adv Library Interrupt Service Routine
+ *
+ *  This function is called by a driver's interrupt service routine.
+ *  The function disables and re-enables interrupts.
+ *
+ *  When a microcode idle command is completed, the ADV_DVC_VAR
+ *  'idle_cmd_done' field is set to ADV_TRUE.
+ *
+ *  Note: AdvISR() can be called when interrupts are disabled or even
+ *  when there is no hardware interrupt condition present. It will
+ *  always check for completed idle commands and microcode requests.
+ *  This is an important feature that shouldn't be changed because it
+ *  allows commands to be completed from polling mode loops.
+ *
+ * Return:
+ *   ADV_TRUE(1) - interrupt was pending
+ *   ADV_FALSE(0) - no interrupt was pending
+ */
+static int AdvISR(ADV_DVC_VAR *asc_dvc)
+{
+	AdvPortAddr iop_base;
+	uchar int_stat;
+	ushort target_bit;
+	ADV_CARR_T *free_carrp;
+	ADV_VADDR irq_next_vpa;
+	ADV_SCSI_REQ_Q *scsiq;
+
+	iop_base = asc_dvc->iop_base;
+
+	/* Reading the register clears the interrupt. */
+	int_stat = AdvReadByteRegister(iop_base, IOPB_INTR_STATUS_REG);
+
+	if ((int_stat & (ADV_INTR_STATUS_INTRA | ADV_INTR_STATUS_INTRB |
+			 ADV_INTR_STATUS_INTRC)) == 0) {
+		return ADV_FALSE;
+	}
+
+	/*
+	 * Notify the driver of an asynchronous microcode condition by
+	 * calling the adv_async_callback function. The function
+	 * is passed the microcode ASC_MC_INTRB_CODE byte value.
+	 */
+	if (int_stat & ADV_INTR_STATUS_INTRB) {
+		uchar intrb_code;
+
+		AdvReadByteLram(iop_base, ASC_MC_INTRB_CODE, intrb_code);
+
+		if (asc_dvc->chip_type == ADV_CHIP_ASC3550 ||
+		    asc_dvc->chip_type == ADV_CHIP_ASC38C0800) {
+			if (intrb_code == ADV_ASYNC_CARRIER_READY_FAILURE &&
+			    asc_dvc->carr_pending_cnt != 0) {
+				AdvWriteByteRegister(iop_base, IOPB_TICKLE,
+						     ADV_TICKLE_A);
+				if (asc_dvc->chip_type == ADV_CHIP_ASC3550) {
+					AdvWriteByteRegister(iop_base,
+							     IOPB_TICKLE,
+							     ADV_TICKLE_NOP);
+				}
+			}
+		}
+
+		adv_async_callback(asc_dvc, intrb_code);
+	}
+
+	/*
+	 * Check if the IRQ stopper carrier contains a completed request.
+	 */
+	while (((irq_next_vpa =
+		 le32_to_cpu(asc_dvc->irq_sp->next_vpa)) & ASC_RQ_DONE) != 0) {
+		/*
+		 * Get a pointer to the newly completed ADV_SCSI_REQ_Q structure.
+		 * The RISC will have set 'areq_vpa' to a virtual address.
+		 *
+		 * The firmware will have copied the ASC_SCSI_REQ_Q.scsiq_ptr
+		 * field to the carrier ADV_CARR_T.areq_vpa field. The conversion
+		 * below complements the conversion of ASC_SCSI_REQ_Q.scsiq_ptr'
+		 * in AdvExeScsiQueue().
+		 */
+		scsiq = (ADV_SCSI_REQ_Q *)
+		    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->irq_sp->areq_vpa));
+
+		/*
+		 * Request finished with good status and the queue was not
+		 * DMAed to host memory by the firmware. Set all status fields
+		 * to indicate good status.
+		 */
+		if ((irq_next_vpa & ASC_RQ_GOOD) != 0) {
+			scsiq->done_status = QD_NO_ERROR;
+			scsiq->host_status = scsiq->scsi_status = 0;
+			scsiq->data_cnt = 0L;
+		}
+
+		/*
+		 * Advance the stopper pointer to the next carrier
+		 * ignoring the lower four bits. Free the previous
+		 * stopper carrier.
+		 */
+		free_carrp = asc_dvc->irq_sp;
+		asc_dvc->irq_sp = (ADV_CARR_T *)
+		    ADV_U32_TO_VADDR(ASC_GET_CARRP(irq_next_vpa));
+
+		free_carrp->next_vpa =
+		    cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->carr_freelist));
+		asc_dvc->carr_freelist = free_carrp;
+		asc_dvc->carr_pending_cnt--;
+
+		target_bit = ADV_TID_TO_TIDMASK(scsiq->target_id);
+
+		/*
+		 * Clear request microcode control flag.
+		 */
+		scsiq->cntl = 0;
+
+		/*
+		 * Notify the driver of the completed request by passing
+		 * the ADV_SCSI_REQ_Q pointer to its callback function.
+		 */
+		scsiq->a_flag |= ADV_SCSIQ_DONE;
+		adv_isr_callback(asc_dvc, scsiq);
+		/*
+		 * Note: After the driver callback function is called, 'scsiq'
+		 * can no longer be referenced.
+		 *
+		 * Fall through and continue processing other completed
+		 * requests...
+		 */
+	}
+	return ADV_TRUE;
+}
+
+static int AscSetLibErrorCode(ASC_DVC_VAR *asc_dvc, ushort err_code)
+{
+	if (asc_dvc->err_code == 0) {
+		asc_dvc->err_code = err_code;
+		AscWriteLramWord(asc_dvc->iop_base, ASCV_ASCDVC_ERR_CODE_W,
+				 err_code);
+	}
+	return err_code;
+}
+
+static void AscAckInterrupt(PortAddr iop_base)
+{
+	uchar host_flag;
+	uchar risc_flag;
+	ushort loop;
+
+	loop = 0;
+	do {
+		risc_flag = AscReadLramByte(iop_base, ASCV_RISC_FLAG_B);
+		if (loop++ > 0x7FFF) {
+			break;
+		}
+	} while ((risc_flag & ASC_RISC_FLAG_GEN_INT) != 0);
+	host_flag =
+	    AscReadLramByte(iop_base,
+			    ASCV_HOST_FLAG_B) & (~ASC_HOST_FLAG_ACK_INT);
+	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B,
+			 (uchar)(host_flag | ASC_HOST_FLAG_ACK_INT));
+	AscSetChipStatus(iop_base, CIW_INT_ACK);
+	loop = 0;
+	while (AscGetChipStatus(iop_base) & CSW_INT_PENDING) {
+		AscSetChipStatus(iop_base, CIW_INT_ACK);
+		if (loop++ > 3) {
+			break;
+		}
+	}
+	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B, host_flag);
+}
+
+static uchar AscGetSynPeriodIndex(ASC_DVC_VAR *asc_dvc, uchar syn_time)
+{
+	const uchar *period_table;
+	int max_index;
+	int min_index;
+	int i;
+
+	period_table = asc_dvc->sdtr_period_tbl;
+	max_index = (int)asc_dvc->max_sdtr_index;
+	min_index = (int)asc_dvc->min_sdtr_index;
+	if ((syn_time <= period_table[max_index])) {
+		for (i = min_index; i < (max_index - 1); i++) {
+			if (syn_time <= period_table[i]) {
+				return (uchar)i;
+			}
+		}
+		return (uchar)max_index;
+	} else {
+		return (uchar)(max_index + 1);
+	}
+}
+
+static uchar
+AscMsgOutSDTR(ASC_DVC_VAR *asc_dvc, uchar sdtr_period, uchar sdtr_offset)
+{
+	EXT_MSG sdtr_buf;
+	uchar sdtr_period_index;
+	PortAddr iop_base;
+
+	iop_base = asc_dvc->iop_base;
+	sdtr_buf.msg_type = EXTENDED_MESSAGE;
+	sdtr_buf.msg_len = MS_SDTR_LEN;
+	sdtr_buf.msg_req = EXTENDED_SDTR;
+	sdtr_buf.xfer_period = sdtr_period;
+	sdtr_offset &= ASC_SYN_MAX_OFFSET;
+	sdtr_buf.req_ack_offset = sdtr_offset;
+	sdtr_period_index = AscGetSynPeriodIndex(asc_dvc, sdtr_period);
+	if (sdtr_period_index <= asc_dvc->max_sdtr_index) {
+		AscMemWordCopyPtrToLram(iop_base, ASCV_MSGOUT_BEG,
+					(uchar *)&sdtr_buf,
+					sizeof(EXT_MSG) >> 1);
+		return ((sdtr_period_index << 4) | sdtr_offset);
+	} else {
+		sdtr_buf.req_ack_offset = 0;
+		AscMemWordCopyPtrToLram(iop_base, ASCV_MSGOUT_BEG,
+					(uchar *)&sdtr_buf,
+					sizeof(EXT_MSG) >> 1);
+		return 0;
+	}
+}
+
+static uchar
+AscCalSDTRData(ASC_DVC_VAR *asc_dvc, uchar sdtr_period, uchar syn_offset)
+{
+	uchar byte;
+	uchar sdtr_period_ix;
+
+	sdtr_period_ix = AscGetSynPeriodIndex(asc_dvc, sdtr_period);
+	if (sdtr_period_ix > asc_dvc->max_sdtr_index)
+		return 0xFF;
+	byte = (sdtr_period_ix << 4) | (syn_offset & ASC_SYN_MAX_OFFSET);
+	return byte;
+}
+
+static int AscSetChipSynRegAtID(PortAddr iop_base, uchar id, uchar sdtr_data)
+{
+	ASC_SCSI_BIT_ID_TYPE org_id;
+	int i;
+	int sta = TRUE;
+
+	AscSetBank(iop_base, 1);
+	org_id = AscReadChipDvcID(iop_base);
+	for (i = 0; i <= ASC_MAX_TID; i++) {
+		if (org_id == (0x01 << i))
+			break;
+	}
+	org_id = (ASC_SCSI_BIT_ID_TYPE) i;
+	AscWriteChipDvcID(iop_base, id);
+	if (AscReadChipDvcID(iop_base) == (0x01 << id)) {
+		AscSetBank(iop_base, 0);
+		AscSetChipSyn(iop_base, sdtr_data);
+		if (AscGetChipSyn(iop_base) != sdtr_data) {
+			sta = FALSE;
+		}
+	} else {
+		sta = FALSE;
+	}
+	AscSetBank(iop_base, 1);
+	AscWriteChipDvcID(iop_base, org_id);
+	AscSetBank(iop_base, 0);
+	return (sta);
+}
+
+static void AscSetChipSDTR(PortAddr iop_base, uchar sdtr_data, uchar tid_no)
+{
+	AscSetChipSynRegAtID(iop_base, tid_no, sdtr_data);
+	AscPutMCodeSDTRDoneAtID(iop_base, tid_no, sdtr_data);
+}
+
+static int AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
+{
+	EXT_MSG ext_msg;
+	EXT_MSG out_msg;
+	ushort halt_q_addr;
+	int sdtr_accept;
+	ushort int_halt_code;
+	ASC_SCSI_BIT_ID_TYPE scsi_busy;
+	ASC_SCSI_BIT_ID_TYPE target_id;
+	PortAddr iop_base;
+	uchar tag_code;
+	uchar q_status;
+	uchar halt_qp;
+	uchar sdtr_data;
+	uchar target_ix;
+	uchar q_cntl, tid_no;
+	uchar cur_dvc_qng;
+	uchar asyn_sdtr;
+	uchar scsi_status;
+	struct asc_board *boardp;
+
+	BUG_ON(!asc_dvc->drv_ptr);
+	boardp = asc_dvc->drv_ptr;
+
+	iop_base = asc_dvc->iop_base;
+	int_halt_code = AscReadLramWord(iop_base, ASCV_HALTCODE_W);
+
+	halt_qp = AscReadLramByte(iop_base, ASCV_CURCDB_B);
+	halt_q_addr = ASC_QNO_TO_QADDR(halt_qp);
+	target_ix = AscReadLramByte(iop_base,
+				    (ushort)(halt_q_addr +
+					     (ushort)ASC_SCSIQ_B_TARGET_IX));
+	q_cntl = AscReadLramByte(iop_base,
+			    (ushort)(halt_q_addr + (ushort)ASC_SCSIQ_B_CNTL));
+	tid_no = ASC_TIX_TO_TID(target_ix);
+	target_id = (uchar)ASC_TID_TO_TARGET_ID(tid_no);
+	if (asc_dvc->pci_fix_asyn_xfer & target_id) {
+		asyn_sdtr = ASYN_SDTR_DATA_FIX_PCI_REV_AB;
+	} else {
+		asyn_sdtr = 0;
+	}
+	if (int_halt_code == ASC_HALT_DISABLE_ASYN_USE_SYN_FIX) {
+		if (asc_dvc->pci_fix_asyn_xfer & target_id) {
+			AscSetChipSDTR(iop_base, 0, tid_no);
+			boardp->sdtr_data[tid_no] = 0;
+		}
+		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+		return (0);
+	} else if (int_halt_code == ASC_HALT_ENABLE_ASYN_USE_SYN_FIX) {
+		if (asc_dvc->pci_fix_asyn_xfer & target_id) {
+			AscSetChipSDTR(iop_base, asyn_sdtr, tid_no);
+			boardp->sdtr_data[tid_no] = asyn_sdtr;
+		}
+		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+		return (0);
+	} else if (int_halt_code == ASC_HALT_EXTMSG_IN) {
+		AscMemWordCopyPtrFromLram(iop_base,
+					  ASCV_MSGIN_BEG,
+					  (uchar *)&ext_msg,
+					  sizeof(EXT_MSG) >> 1);
+
+		if (ext_msg.msg_type == EXTENDED_MESSAGE &&
+		    ext_msg.msg_req == EXTENDED_SDTR &&
+		    ext_msg.msg_len == MS_SDTR_LEN) {
+			sdtr_accept = TRUE;
+			if ((ext_msg.req_ack_offset > ASC_SYN_MAX_OFFSET)) {
+
+				sdtr_accept = FALSE;
+				ext_msg.req_ack_offset = ASC_SYN_MAX_OFFSET;
+			}
+			if ((ext_msg.xfer_period <
+			     asc_dvc->sdtr_period_tbl[asc_dvc->min_sdtr_index])
+			    || (ext_msg.xfer_period >
+				asc_dvc->sdtr_period_tbl[asc_dvc->
+							 max_sdtr_index])) {
+				sdtr_accept = FALSE;
+				ext_msg.xfer_period =
+				    asc_dvc->sdtr_period_tbl[asc_dvc->
+							     min_sdtr_index];
+			}
+			if (sdtr_accept) {
+				sdtr_data =
+				    AscCalSDTRData(asc_dvc, ext_msg.xfer_period,
+						   ext_msg.req_ack_offset);
+				if ((sdtr_data == 0xFF)) {
+
+					q_cntl |= QC_MSG_OUT;
+					asc_dvc->init_sdtr &= ~target_id;
+					asc_dvc->sdtr_done &= ~target_id;
+					AscSetChipSDTR(iop_base, asyn_sdtr,
+						       tid_no);
+					boardp->sdtr_data[tid_no] = asyn_sdtr;
+				}
+			}
+			if (ext_msg.req_ack_offset == 0) {
+
+				q_cntl &= ~QC_MSG_OUT;
+				asc_dvc->init_sdtr &= ~target_id;
+				asc_dvc->sdtr_done &= ~target_id;
+				AscSetChipSDTR(iop_base, asyn_sdtr, tid_no);
+			} else {
+				if (sdtr_accept && (q_cntl & QC_MSG_OUT)) {
+					q_cntl &= ~QC_MSG_OUT;
+					asc_dvc->sdtr_done |= target_id;
+					asc_dvc->init_sdtr |= target_id;
+					asc_dvc->pci_fix_asyn_xfer &=
+					    ~target_id;
+					sdtr_data =
+					    AscCalSDTRData(asc_dvc,
+							   ext_msg.xfer_period,
+							   ext_msg.
+							   req_ack_offset);
+					AscSetChipSDTR(iop_base, sdtr_data,
+						       tid_no);
+					boardp->sdtr_data[tid_no] = sdtr_data;
+				} else {
+					q_cntl |= QC_MSG_OUT;
+					AscMsgOutSDTR(asc_dvc,
+						      ext_msg.xfer_period,
+						      ext_msg.req_ack_offset);
+					asc_dvc->pci_fix_asyn_xfer &=
+					    ~target_id;
+					sdtr_data =
+					    AscCalSDTRData(asc_dvc,
+							   ext_msg.xfer_period,
+							   ext_msg.
+							   req_ack_offset);
+					AscSetChipSDTR(iop_base, sdtr_data,
+						       tid_no);
+					boardp->sdtr_data[tid_no] = sdtr_data;
+					asc_dvc->sdtr_done |= target_id;
+					asc_dvc->init_sdtr |= target_id;
+				}
+			}
+
+			AscWriteLramByte(iop_base,
+					 (ushort)(halt_q_addr +
+						  (ushort)ASC_SCSIQ_B_CNTL),
+					 q_cntl);
+			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+			return (0);
+		} else if (ext_msg.msg_type == EXTENDED_MESSAGE &&
+			   ext_msg.msg_req == EXTENDED_WDTR &&
+			   ext_msg.msg_len == MS_WDTR_LEN) {
+
+			ext_msg.wdtr_width = 0;
+			AscMemWordCopyPtrToLram(iop_base,
+						ASCV_MSGOUT_BEG,
+						(uchar *)&ext_msg,
+						sizeof(EXT_MSG) >> 1);
+			q_cntl |= QC_MSG_OUT;
+			AscWriteLramByte(iop_base,
+					 (ushort)(halt_q_addr +
+						  (ushort)ASC_SCSIQ_B_CNTL),
+					 q_cntl);
+			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+			return (0);
+		} else {
+
+			ext_msg.msg_type = MESSAGE_REJECT;
+			AscMemWordCopyPtrToLram(iop_base,
+						ASCV_MSGOUT_BEG,
+						(uchar *)&ext_msg,
+						sizeof(EXT_MSG) >> 1);
+			q_cntl |= QC_MSG_OUT;
+			AscWriteLramByte(iop_base,
+					 (ushort)(halt_q_addr +
+						  (ushort)ASC_SCSIQ_B_CNTL),
+					 q_cntl);
+			AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+			return (0);
+		}
+	} else if (int_halt_code == ASC_HALT_CHK_CONDITION) {
+
+		q_cntl |= QC_REQ_SENSE;
+
+		if ((asc_dvc->init_sdtr & target_id) != 0) {
+
+			asc_dvc->sdtr_done &= ~target_id;
+
+			sdtr_data = AscGetMCodeInitSDTRAtID(iop_base, tid_no);
+			q_cntl |= QC_MSG_OUT;
+			AscMsgOutSDTR(asc_dvc,
+				      asc_dvc->
+				      sdtr_period_tbl[(sdtr_data >> 4) &
+						      (uchar)(asc_dvc->
+							      max_sdtr_index -
+							      1)],
+				      (uchar)(sdtr_data & (uchar)
+					      ASC_SYN_MAX_OFFSET));
+		}
+
+		AscWriteLramByte(iop_base,
+				 (ushort)(halt_q_addr +
+					  (ushort)ASC_SCSIQ_B_CNTL), q_cntl);
+
+		tag_code = AscReadLramByte(iop_base,
+					   (ushort)(halt_q_addr + (ushort)
+						    ASC_SCSIQ_B_TAG_CODE));
+		tag_code &= 0xDC;
+		if ((asc_dvc->pci_fix_asyn_xfer & target_id)
+		    && !(asc_dvc->pci_fix_asyn_xfer_always & target_id)
+		    ) {
+
+			tag_code |= (ASC_TAG_FLAG_DISABLE_DISCONNECT
+				     | ASC_TAG_FLAG_DISABLE_ASYN_USE_SYN_FIX);
+
+		}
+		AscWriteLramByte(iop_base,
+				 (ushort)(halt_q_addr +
+					  (ushort)ASC_SCSIQ_B_TAG_CODE),
+				 tag_code);
+
+		q_status = AscReadLramByte(iop_base,
+					   (ushort)(halt_q_addr + (ushort)
+						    ASC_SCSIQ_B_STATUS));
+		q_status |= (QS_READY | QS_BUSY);
+		AscWriteLramByte(iop_base,
+				 (ushort)(halt_q_addr +
+					  (ushort)ASC_SCSIQ_B_STATUS),
+				 q_status);
+
+		scsi_busy = AscReadLramByte(iop_base, (ushort)ASCV_SCSIBUSY_B);
+		scsi_busy &= ~target_id;
+		AscWriteLramByte(iop_base, (ushort)ASCV_SCSIBUSY_B, scsi_busy);
+
+		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+		return (0);
+	} else if (int_halt_code == ASC_HALT_SDTR_REJECTED) {
+
+		AscMemWordCopyPtrFromLram(iop_base,
+					  ASCV_MSGOUT_BEG,
+					  (uchar *)&out_msg,
+					  sizeof(EXT_MSG) >> 1);
+
+		if ((out_msg.msg_type == EXTENDED_MESSAGE) &&
+		    (out_msg.msg_len == MS_SDTR_LEN) &&
+		    (out_msg.msg_req == EXTENDED_SDTR)) {
+
+			asc_dvc->init_sdtr &= ~target_id;
+			asc_dvc->sdtr_done &= ~target_id;
+			AscSetChipSDTR(iop_base, asyn_sdtr, tid_no);
+			boardp->sdtr_data[tid_no] = asyn_sdtr;
+		}
+		q_cntl &= ~QC_MSG_OUT;
+		AscWriteLramByte(iop_base,
+				 (ushort)(halt_q_addr +
+					  (ushort)ASC_SCSIQ_B_CNTL), q_cntl);
+		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+		return (0);
+	} else if (int_halt_code == ASC_HALT_SS_QUEUE_FULL) {
+
+		scsi_status = AscReadLramByte(iop_base,
+					      (ushort)((ushort)halt_q_addr +
+						       (ushort)
+						       ASC_SCSIQ_SCSI_STATUS));
+		cur_dvc_qng =
+		    AscReadLramByte(iop_base,
+				    (ushort)((ushort)ASC_QADR_BEG +
+					     (ushort)target_ix));
+		if ((cur_dvc_qng > 0) && (asc_dvc->cur_dvc_qng[tid_no] > 0)) {
+
+			scsi_busy = AscReadLramByte(iop_base,
+						    (ushort)ASCV_SCSIBUSY_B);
+			scsi_busy |= target_id;
+			AscWriteLramByte(iop_base,
+					 (ushort)ASCV_SCSIBUSY_B, scsi_busy);
+			asc_dvc->queue_full_or_busy |= target_id;
+
+			if (scsi_status == SAM_STAT_TASK_SET_FULL) {
+				if (cur_dvc_qng > ASC_MIN_TAGGED_CMD) {
+					cur_dvc_qng -= 1;
+					asc_dvc->max_dvc_qng[tid_no] =
+					    cur_dvc_qng;
+
+					AscWriteLramByte(iop_base,
+							 (ushort)((ushort)
+								  ASCV_MAX_DVC_QNG_BEG
+								  + (ushort)
+								  tid_no),
+							 cur_dvc_qng);
+
+					/*
+					 * Set the device queue depth to the
+					 * number of active requests when the
+					 * QUEUE FULL condition was encountered.
+					 */
+					boardp->queue_full |= target_id;
+					boardp->queue_full_cnt[tid_no] =
+					    cur_dvc_qng;
+				}
+			}
+		}
+		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+		return (0);
+	}
+#if CC_VERY_LONG_SG_LIST
+	else if (int_halt_code == ASC_HALT_HOST_COPY_SG_LIST_TO_RISC) {
+		uchar q_no;
+		ushort q_addr;
+		uchar sg_wk_q_no;
+		uchar first_sg_wk_q_no;
+		ASC_SCSI_Q *scsiq;	/* Ptr to driver request. */
+		ASC_SG_HEAD *sg_head;	/* Ptr to driver SG request. */
+		ASC_SG_LIST_Q scsi_sg_q;	/* Structure written to queue. */
+		ushort sg_list_dwords;
+		ushort sg_entry_cnt;
+		uchar next_qp;
+		int i;
+
+		q_no = AscReadLramByte(iop_base, (ushort)ASCV_REQ_SG_LIST_QP);
+		if (q_no == ASC_QLINK_END)
+			return 0;
+
+		q_addr = ASC_QNO_TO_QADDR(q_no);
+
+		/*
+		 * Convert the request's SRB pointer to a host ASC_SCSI_REQ
+		 * structure pointer using a macro provided by the driver.
+		 * The ASC_SCSI_REQ pointer provides a pointer to the
+		 * host ASC_SG_HEAD structure.
+		 */
+		/* Read request's SRB pointer. */
+		scsiq = (ASC_SCSI_Q *)
+		    ASC_SRB2SCSIQ(ASC_U32_TO_VADDR(AscReadLramDWord(iop_base,
+								    (ushort)
+								    (q_addr +
+								     ASC_SCSIQ_D_SRBPTR))));
+
+		/*
+		 * Get request's first and working SG queue.
+		 */
+		sg_wk_q_no = AscReadLramByte(iop_base,
+					     (ushort)(q_addr +
+						      ASC_SCSIQ_B_SG_WK_QP));
+
+		first_sg_wk_q_no = AscReadLramByte(iop_base,
+						   (ushort)(q_addr +
+							    ASC_SCSIQ_B_FIRST_SG_WK_QP));
+
+		/*
+		 * Reset request's working SG queue back to the
+		 * first SG queue.
+		 */
+		AscWriteLramByte(iop_base,
+				 (ushort)(q_addr +
+					  (ushort)ASC_SCSIQ_B_SG_WK_QP),
+				 first_sg_wk_q_no);
+
+		sg_head = scsiq->sg_head;
+
+		/*
+		 * Set sg_entry_cnt to the number of SG elements
+		 * that will be completed on this interrupt.
+		 *
+		 * Note: The allocated SG queues contain ASC_MAX_SG_LIST - 1
+		 * SG elements. The data_cnt and data_addr fields which
+		 * add 1 to the SG element capacity are not used when
+		 * restarting SG handling after a halt.
+		 */
+		if (scsiq->remain_sg_entry_cnt > (ASC_MAX_SG_LIST - 1)) {
+			sg_entry_cnt = ASC_MAX_SG_LIST - 1;
+
+			/*
+			 * Keep track of remaining number of SG elements that
+			 * will need to be handled on the next interrupt.
+			 */
+			scsiq->remain_sg_entry_cnt -= (ASC_MAX_SG_LIST - 1);
+		} else {
+			sg_entry_cnt = scsiq->remain_sg_entry_cnt;
+			scsiq->remain_sg_entry_cnt = 0;
+		}
+
+		/*
+		 * Copy SG elements into the list of allocated SG queues.
+		 *
+		 * Last index completed is saved in scsiq->next_sg_index.
+		 */
+		next_qp = first_sg_wk_q_no;
+		q_addr = ASC_QNO_TO_QADDR(next_qp);
+		scsi_sg_q.sg_head_qp = q_no;
+		scsi_sg_q.cntl = QCSG_SG_XFER_LIST;
+		for (i = 0; i < sg_head->queue_cnt; i++) {
+			scsi_sg_q.seq_no = i + 1;
+			if (sg_entry_cnt > ASC_SG_LIST_PER_Q) {
+				sg_list_dwords = (uchar)(ASC_SG_LIST_PER_Q * 2);
+				sg_entry_cnt -= ASC_SG_LIST_PER_Q;
+				/*
+				 * After very first SG queue RISC FW uses next
+				 * SG queue first element then checks sg_list_cnt
+				 * against zero and then decrements, so set
+				 * sg_list_cnt 1 less than number of SG elements
+				 * in each SG queue.
+				 */
+				scsi_sg_q.sg_list_cnt = ASC_SG_LIST_PER_Q - 1;
+				scsi_sg_q.sg_cur_list_cnt =
+				    ASC_SG_LIST_PER_Q - 1;
+			} else {
+				/*
+				 * This is the last SG queue in the list of
+				 * allocated SG queues. If there are more
+				 * SG elements than will fit in the allocated
+				 * queues, then set the QCSG_SG_XFER_MORE flag.
+				 */
+				if (scsiq->remain_sg_entry_cnt != 0) {
+					scsi_sg_q.cntl |= QCSG_SG_XFER_MORE;
+				} else {
+					scsi_sg_q.cntl |= QCSG_SG_XFER_END;
+				}
+				/* equals sg_entry_cnt * 2 */
+				sg_list_dwords = sg_entry_cnt << 1;
+				scsi_sg_q.sg_list_cnt = sg_entry_cnt - 1;
+				scsi_sg_q.sg_cur_list_cnt = sg_entry_cnt - 1;
+				sg_entry_cnt = 0;
+			}
+
+			scsi_sg_q.q_no = next_qp;
+			AscMemWordCopyPtrToLram(iop_base,
+						q_addr + ASC_SCSIQ_SGHD_CPY_BEG,
+						(uchar *)&scsi_sg_q,
+						sizeof(ASC_SG_LIST_Q) >> 1);
+
+			AscMemDWordCopyPtrToLram(iop_base,
+						 q_addr + ASC_SGQ_LIST_BEG,
+						 (uchar *)&sg_head->
+						 sg_list[scsiq->next_sg_index],
+						 sg_list_dwords);
+
+			scsiq->next_sg_index += ASC_SG_LIST_PER_Q;
+
+			/*
+			 * If the just completed SG queue contained the
+			 * last SG element, then no more SG queues need
+			 * to be written.
+			 */
+			if (scsi_sg_q.cntl & QCSG_SG_XFER_END) {
+				break;
+			}
+
+			next_qp = AscReadLramByte(iop_base,
+						  (ushort)(q_addr +
+							   ASC_SCSIQ_B_FWD));
+			q_addr = ASC_QNO_TO_QADDR(next_qp);
+		}
+
+		/*
+		 * Clear the halt condition so the RISC will be restarted
+		 * after the return.
+		 */
+		AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0);
+		return (0);
+	}
+#endif /* CC_VERY_LONG_SG_LIST */
+	return (0);
+}
+
+/*
+ * void
+ * DvcGetQinfo(PortAddr iop_base, ushort s_addr, uchar *inbuf, int words)
+ *
+ * Calling/Exit State:
+ *    none
+ *
+ * Description:
+ *     Input an ASC_QDONE_INFO structure from the chip
+ */
+static void
+DvcGetQinfo(PortAddr iop_base, ushort s_addr, uchar *inbuf, int words)
+{
+	int i;
+	ushort word;
+
+	AscSetChipLramAddr(iop_base, s_addr);
+	for (i = 0; i < 2 * words; i += 2) {
+		if (i == 10) {
+			continue;
+		}
+		word = inpw(iop_base + IOP_RAM_DATA);
+		inbuf[i] = word & 0xff;
+		inbuf[i + 1] = (word >> 8) & 0xff;
+	}
+	ASC_DBG_PRT_HEX(2, "DvcGetQinfo", inbuf, 2 * words);
+}
+
+static uchar
+_AscCopyLramScsiDoneQ(PortAddr iop_base,
+		      ushort q_addr,
+		      ASC_QDONE_INFO *scsiq, ASC_DCNT max_dma_count)
+{
+	ushort _val;
+	uchar sg_queue_cnt;
+
+	DvcGetQinfo(iop_base,
+		    q_addr + ASC_SCSIQ_DONE_INFO_BEG,
+		    (uchar *)scsiq,
+		    (sizeof(ASC_SCSIQ_2) + sizeof(ASC_SCSIQ_3)) / 2);
+
+	_val = AscReadLramWord(iop_base,
+			       (ushort)(q_addr + (ushort)ASC_SCSIQ_B_STATUS));
+	scsiq->q_status = (uchar)_val;
+	scsiq->q_no = (uchar)(_val >> 8);
+	_val = AscReadLramWord(iop_base,
+			       (ushort)(q_addr + (ushort)ASC_SCSIQ_B_CNTL));
+	scsiq->cntl = (uchar)_val;
+	sg_queue_cnt = (uchar)(_val >> 8);
+	_val = AscReadLramWord(iop_base,
+			       (ushort)(q_addr +
+					(ushort)ASC_SCSIQ_B_SENSE_LEN));
+	scsiq->sense_len = (uchar)_val;
+	scsiq->extra_bytes = (uchar)(_val >> 8);
+
+	/*
+	 * Read high word of remain bytes from alternate location.
+	 */
+	scsiq->remain_bytes = (((ADV_DCNT)AscReadLramWord(iop_base,
+							  (ushort)(q_addr +
+								   (ushort)
+								   ASC_SCSIQ_W_ALT_DC1)))
+			       << 16);
+	/*
+	 * Read low word of remain bytes from original location.
+	 */
+	scsiq->remain_bytes += AscReadLramWord(iop_base,
+					       (ushort)(q_addr + (ushort)
+							ASC_SCSIQ_DW_REMAIN_XFER_CNT));
+
+	scsiq->remain_bytes &= max_dma_count;
+	return sg_queue_cnt;
+}
+
+/*
+ * asc_isr_callback() - Second Level Interrupt Handler called by AscISR().
+ *
+ * Interrupt callback function for the Narrow SCSI Asc Library.
+ */
+static void asc_isr_callback(ASC_DVC_VAR *asc_dvc_varp, ASC_QDONE_INFO *qdonep)
+{
+	struct asc_board *boardp;
+	struct scsi_cmnd *scp;
+	struct Scsi_Host *shost;
+
+	ASC_DBG(1, "asc_dvc_varp 0x%p, qdonep 0x%p\n", asc_dvc_varp, qdonep);
+	ASC_DBG_PRT_ASC_QDONE_INFO(2, qdonep);
+
+	scp = advansys_srb_to_ptr(asc_dvc_varp, qdonep->d2.srb_ptr);
+	if (!scp)
+		return;
+
+	ASC_DBG_PRT_CDB(2, scp->cmnd, scp->cmd_len);
+
+	shost = scp->device->host;
+	ASC_STATS(shost, callback);
+	ASC_DBG(1, "shost 0x%p\n", shost);
+
+	boardp = shost_priv(shost);
+	BUG_ON(asc_dvc_varp != &boardp->dvc_var.asc_dvc_var);
+
+	dma_unmap_single(boardp->dev, scp->SCp.dma_handle,
+			sizeof(scp->sense_buffer), DMA_FROM_DEVICE);
+	/*
+	 * 'qdonep' contains the command's ending status.
+	 */
+	switch (qdonep->d3.done_stat) {
+	case QD_NO_ERROR:
+		ASC_DBG(2, "QD_NO_ERROR\n");
+		scp->result = 0;
+
+		/*
+		 * Check for an underrun condition.
+		 *
+		 * If there was no error and an underrun condition, then
+		 * return the number of underrun bytes.
+		 */
+		if (scsi_bufflen(scp) != 0 && qdonep->remain_bytes != 0 &&
+		    qdonep->remain_bytes <= scsi_bufflen(scp)) {
+			ASC_DBG(1, "underrun condition %u bytes\n",
+				 (unsigned)qdonep->remain_bytes);
+			scsi_set_resid(scp, qdonep->remain_bytes);
+		}
+		break;
+
+	case QD_WITH_ERROR:
+		ASC_DBG(2, "QD_WITH_ERROR\n");
+		switch (qdonep->d3.host_stat) {
+		case QHSTA_NO_ERROR:
+			if (qdonep->d3.scsi_stat == SAM_STAT_CHECK_CONDITION) {
+				ASC_DBG(2, "SAM_STAT_CHECK_CONDITION\n");
+				ASC_DBG_PRT_SENSE(2, scp->sense_buffer,
+						  sizeof(scp->sense_buffer));
+				/*
+				 * Note: The 'status_byte()' macro used by
+				 * target drivers defined in scsi.h shifts the
+				 * status byte returned by host drivers right
+				 * by 1 bit.  This is why target drivers also
+				 * use right shifted status byte definitions.
+				 * For instance target drivers use
+				 * CHECK_CONDITION, defined to 0x1, instead of
+				 * the SCSI defined check condition value of
+				 * 0x2. Host drivers are supposed to return
+				 * the status byte as it is defined by SCSI.
+				 */
+				scp->result = DRIVER_BYTE(DRIVER_SENSE) |
+				    STATUS_BYTE(qdonep->d3.scsi_stat);
+			} else {
+				scp->result = STATUS_BYTE(qdonep->d3.scsi_stat);
+			}
+			break;
+
+		default:
+			/* QHSTA error occurred */
+			ASC_DBG(1, "host_stat 0x%x\n", qdonep->d3.host_stat);
+			scp->result = HOST_BYTE(DID_BAD_TARGET);
+			break;
+		}
+		break;
+
+	case QD_ABORTED_BY_HOST:
+		ASC_DBG(1, "QD_ABORTED_BY_HOST\n");
+		scp->result =
+		    HOST_BYTE(DID_ABORT) | MSG_BYTE(qdonep->d3.
+						    scsi_msg) |
+		    STATUS_BYTE(qdonep->d3.scsi_stat);
+		break;
+
+	default:
+		ASC_DBG(1, "done_stat 0x%x\n", qdonep->d3.done_stat);
+		scp->result =
+		    HOST_BYTE(DID_ERROR) | MSG_BYTE(qdonep->d3.
+						    scsi_msg) |
+		    STATUS_BYTE(qdonep->d3.scsi_stat);
+		break;
+	}
+
+	/*
+	 * If the 'init_tidmask' bit isn't already set for the target and the
+	 * current request finished normally, then set the bit for the target
+	 * to indicate that a device is present.
+	 */
+	if ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(scp->device->id)) == 0 &&
+	    qdonep->d3.done_stat == QD_NO_ERROR &&
+	    qdonep->d3.host_stat == QHSTA_NO_ERROR) {
+		boardp->init_tidmask |= ADV_TID_TO_TIDMASK(scp->device->id);
+	}
+
+	asc_scsi_done(scp);
+}
+
+static int AscIsrQDone(ASC_DVC_VAR *asc_dvc)
+{
+	uchar next_qp;
+	uchar n_q_used;
+	uchar sg_list_qp;
+	uchar sg_queue_cnt;
+	uchar q_cnt;
+	uchar done_q_tail;
+	uchar tid_no;
+	ASC_SCSI_BIT_ID_TYPE scsi_busy;
+	ASC_SCSI_BIT_ID_TYPE target_id;
+	PortAddr iop_base;
+	ushort q_addr;
+	ushort sg_q_addr;
+	uchar cur_target_qng;
+	ASC_QDONE_INFO scsiq_buf;
+	ASC_QDONE_INFO *scsiq;
+	int false_overrun;
+
+	iop_base = asc_dvc->iop_base;
+	n_q_used = 1;
+	scsiq = (ASC_QDONE_INFO *)&scsiq_buf;
+	done_q_tail = (uchar)AscGetVarDoneQTail(iop_base);
+	q_addr = ASC_QNO_TO_QADDR(done_q_tail);
+	next_qp = AscReadLramByte(iop_base,
+				  (ushort)(q_addr + (ushort)ASC_SCSIQ_B_FWD));
+	if (next_qp != ASC_QLINK_END) {
+		AscPutVarDoneQTail(iop_base, next_qp);
+		q_addr = ASC_QNO_TO_QADDR(next_qp);
+		sg_queue_cnt = _AscCopyLramScsiDoneQ(iop_base, q_addr, scsiq,
+						     asc_dvc->max_dma_count);
+		AscWriteLramByte(iop_base,
+				 (ushort)(q_addr +
+					  (ushort)ASC_SCSIQ_B_STATUS),
+				 (uchar)(scsiq->
+					 q_status & (uchar)~(QS_READY |
+							     QS_ABORTED)));
+		tid_no = ASC_TIX_TO_TID(scsiq->d2.target_ix);
+		target_id = ASC_TIX_TO_TARGET_ID(scsiq->d2.target_ix);
+		if ((scsiq->cntl & QC_SG_HEAD) != 0) {
+			sg_q_addr = q_addr;
+			sg_list_qp = next_qp;
+			for (q_cnt = 0; q_cnt < sg_queue_cnt; q_cnt++) {
+				sg_list_qp = AscReadLramByte(iop_base,
+							     (ushort)(sg_q_addr
+								      + (ushort)
+								      ASC_SCSIQ_B_FWD));
+				sg_q_addr = ASC_QNO_TO_QADDR(sg_list_qp);
+				if (sg_list_qp == ASC_QLINK_END) {
+					AscSetLibErrorCode(asc_dvc,
+							   ASCQ_ERR_SG_Q_LINKS);
+					scsiq->d3.done_stat = QD_WITH_ERROR;
+					scsiq->d3.host_stat =
+					    QHSTA_D_QDONE_SG_LIST_CORRUPTED;
+					goto FATAL_ERR_QDONE;
+				}
+				AscWriteLramByte(iop_base,
+						 (ushort)(sg_q_addr + (ushort)
+							  ASC_SCSIQ_B_STATUS),
+						 QS_FREE);
+			}
+			n_q_used = sg_queue_cnt + 1;
+			AscPutVarDoneQTail(iop_base, sg_list_qp);
+		}
+		if (asc_dvc->queue_full_or_busy & target_id) {
+			cur_target_qng = AscReadLramByte(iop_base,
+							 (ushort)((ushort)
+								  ASC_QADR_BEG
+								  + (ushort)
+								  scsiq->d2.
+								  target_ix));
+			if (cur_target_qng < asc_dvc->max_dvc_qng[tid_no]) {
+				scsi_busy = AscReadLramByte(iop_base, (ushort)
+							    ASCV_SCSIBUSY_B);
+				scsi_busy &= ~target_id;
+				AscWriteLramByte(iop_base,
+						 (ushort)ASCV_SCSIBUSY_B,
+						 scsi_busy);
+				asc_dvc->queue_full_or_busy &= ~target_id;
+			}
+		}
+		if (asc_dvc->cur_total_qng >= n_q_used) {
+			asc_dvc->cur_total_qng -= n_q_used;
+			if (asc_dvc->cur_dvc_qng[tid_no] != 0) {
+				asc_dvc->cur_dvc_qng[tid_no]--;
+			}
+		} else {
+			AscSetLibErrorCode(asc_dvc, ASCQ_ERR_CUR_QNG);
+			scsiq->d3.done_stat = QD_WITH_ERROR;
+			goto FATAL_ERR_QDONE;
+		}
+		if ((scsiq->d2.srb_ptr == 0UL) ||
+		    ((scsiq->q_status & QS_ABORTED) != 0)) {
+			return (0x11);
+		} else if (scsiq->q_status == QS_DONE) {
+			false_overrun = FALSE;
+			if (scsiq->extra_bytes != 0) {
+				scsiq->remain_bytes +=
+				    (ADV_DCNT)scsiq->extra_bytes;
+			}
+			if (scsiq->d3.done_stat == QD_WITH_ERROR) {
+				if (scsiq->d3.host_stat ==
+				    QHSTA_M_DATA_OVER_RUN) {
+					if ((scsiq->
+					     cntl & (QC_DATA_IN | QC_DATA_OUT))
+					    == 0) {
+						scsiq->d3.done_stat =
+						    QD_NO_ERROR;
+						scsiq->d3.host_stat =
+						    QHSTA_NO_ERROR;
+					} else if (false_overrun) {
+						scsiq->d3.done_stat =
+						    QD_NO_ERROR;
+						scsiq->d3.host_stat =
+						    QHSTA_NO_ERROR;
+					}
+				} else if (scsiq->d3.host_stat ==
+					   QHSTA_M_HUNG_REQ_SCSI_BUS_RESET) {
+					AscStopChip(iop_base);
+					AscSetChipControl(iop_base,
+							  (uchar)(CC_SCSI_RESET
+								  | CC_HALT));
+					udelay(60);
+					AscSetChipControl(iop_base, CC_HALT);
+					AscSetChipStatus(iop_base,
+							 CIW_CLR_SCSI_RESET_INT);
+					AscSetChipStatus(iop_base, 0);
+					AscSetChipControl(iop_base, 0);
+				}
+			}
+			if ((scsiq->cntl & QC_NO_CALLBACK) == 0) {
+				asc_isr_callback(asc_dvc, scsiq);
+			} else {
+				if ((AscReadLramByte(iop_base,
+						     (ushort)(q_addr + (ushort)
+							      ASC_SCSIQ_CDB_BEG))
+				     == START_STOP)) {
+					asc_dvc->unit_not_ready &= ~target_id;
+					if (scsiq->d3.done_stat != QD_NO_ERROR) {
+						asc_dvc->start_motor &=
+						    ~target_id;
+					}
+				}
+			}
+			return (1);
+		} else {
+			AscSetLibErrorCode(asc_dvc, ASCQ_ERR_Q_STATUS);
+ FATAL_ERR_QDONE:
+			if ((scsiq->cntl & QC_NO_CALLBACK) == 0) {
+				asc_isr_callback(asc_dvc, scsiq);
+			}
+			return (0x80);
+		}
+	}
+	return (0);
+}
+
+static int AscISR(ASC_DVC_VAR *asc_dvc)
+{
+	ASC_CS_TYPE chipstat;
+	PortAddr iop_base;
+	ushort saved_ram_addr;
+	uchar ctrl_reg;
+	uchar saved_ctrl_reg;
+	int int_pending;
+	int status;
+	uchar host_flag;
+
+	iop_base = asc_dvc->iop_base;
+	int_pending = FALSE;
+
+	if (AscIsIntPending(iop_base) == 0)
+		return int_pending;
+
+	if ((asc_dvc->init_state & ASC_INIT_STATE_END_LOAD_MC) == 0) {
+		return ERR;
+	}
+	if (asc_dvc->in_critical_cnt != 0) {
+		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_ISR_ON_CRITICAL);
+		return ERR;
+	}
+	if (asc_dvc->is_in_int) {
+		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_ISR_RE_ENTRY);
+		return ERR;
+	}
+	asc_dvc->is_in_int = TRUE;
+	ctrl_reg = AscGetChipControl(iop_base);
+	saved_ctrl_reg = ctrl_reg & (~(CC_SCSI_RESET | CC_CHIP_RESET |
+				       CC_SINGLE_STEP | CC_DIAG | CC_TEST));
+	chipstat = AscGetChipStatus(iop_base);
+	if (chipstat & CSW_SCSI_RESET_LATCH) {
+		if (!(asc_dvc->bus_type & (ASC_IS_VL | ASC_IS_EISA))) {
+			int i = 10;
+			int_pending = TRUE;
+			asc_dvc->sdtr_done = 0;
+			saved_ctrl_reg &= (uchar)(~CC_HALT);
+			while ((AscGetChipStatus(iop_base) &
+				CSW_SCSI_RESET_ACTIVE) && (i-- > 0)) {
+				mdelay(100);
+			}
+			AscSetChipControl(iop_base, (CC_CHIP_RESET | CC_HALT));
+			AscSetChipControl(iop_base, CC_HALT);
+			AscSetChipStatus(iop_base, CIW_CLR_SCSI_RESET_INT);
+			AscSetChipStatus(iop_base, 0);
+			chipstat = AscGetChipStatus(iop_base);
+		}
+	}
+	saved_ram_addr = AscGetChipLramAddr(iop_base);
+	host_flag = AscReadLramByte(iop_base,
+				    ASCV_HOST_FLAG_B) &
+	    (uchar)(~ASC_HOST_FLAG_IN_ISR);
+	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B,
+			 (uchar)(host_flag | (uchar)ASC_HOST_FLAG_IN_ISR));
+	if ((chipstat & CSW_INT_PENDING) || (int_pending)) {
+		AscAckInterrupt(iop_base);
+		int_pending = TRUE;
+		if ((chipstat & CSW_HALTED) && (ctrl_reg & CC_SINGLE_STEP)) {
+			if (AscIsrChipHalted(asc_dvc) == ERR) {
+				goto ISR_REPORT_QDONE_FATAL_ERROR;
+			} else {
+				saved_ctrl_reg &= (uchar)(~CC_HALT);
+			}
+		} else {
+ ISR_REPORT_QDONE_FATAL_ERROR:
+			if ((asc_dvc->dvc_cntl & ASC_CNTL_INT_MULTI_Q) != 0) {
+				while (((status =
+					 AscIsrQDone(asc_dvc)) & 0x01) != 0) {
+				}
+			} else {
+				do {
+					if ((status =
+					     AscIsrQDone(asc_dvc)) == 1) {
+						break;
+					}
+				} while (status == 0x11);
+			}
+			if ((status & 0x80) != 0)
+				int_pending = ERR;
+		}
+	}
+	AscWriteLramByte(iop_base, ASCV_HOST_FLAG_B, host_flag);
+	AscSetChipLramAddr(iop_base, saved_ram_addr);
+	AscSetChipControl(iop_base, saved_ctrl_reg);
+	asc_dvc->is_in_int = FALSE;
+	return int_pending;
+}
+
+/*
+ * advansys_reset()
+ *
+ * Reset the bus associated with the command 'scp'.
+ *
+ * This function runs its own thread. Interrupts must be blocked but
+ * sleeping is allowed and no locking other than for host structures is
+ * required. Returns SUCCESS or FAILED.
+ */
+static int advansys_reset(struct scsi_cmnd *scp)
+{
+	struct Scsi_Host *shost = scp->device->host;
+	struct asc_board *boardp = shost_priv(shost);
+	unsigned long flags;
+	int status;
+	int ret = SUCCESS;
+
+	ASC_DBG(1, "0x%p\n", scp);
+
+	ASC_STATS(shost, reset);
+
+	scmd_printk(KERN_INFO, scp, "SCSI bus reset started...\n");
+
+	if (ASC_NARROW_BOARD(boardp)) {
+		ASC_DVC_VAR *asc_dvc = &boardp->dvc_var.asc_dvc_var;
+
+		/* Reset the chip and SCSI bus. */
+		ASC_DBG(1, "before AscInitAsc1000Driver()\n");
+		status = AscInitAsc1000Driver(asc_dvc);
+
+		/* Refer to ASC_IERR_* defintions for meaning of 'err_code'. */
+		if (asc_dvc->err_code) {
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset error: "
+				    "0x%x\n", asc_dvc->err_code);
+			ret = FAILED;
+		} else if (status) {
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset warning: "
+				    "0x%x\n", status);
+		} else {
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset "
+				    "successful\n");
+		}
+
+		ASC_DBG(1, "after AscInitAsc1000Driver()\n");
+		spin_lock_irqsave(shost->host_lock, flags);
+	} else {
+		/*
+		 * If the suggest reset bus flags are set, then reset the bus.
+		 * Otherwise only reset the device.
+		 */
+		ADV_DVC_VAR *adv_dvc = &boardp->dvc_var.adv_dvc_var;
+
+		/*
+		 * Reset the target's SCSI bus.
+		 */
+		ASC_DBG(1, "before AdvResetChipAndSB()\n");
+		switch (AdvResetChipAndSB(adv_dvc)) {
+		case ASC_TRUE:
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset "
+				    "successful\n");
+			break;
+		case ASC_FALSE:
+		default:
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset error\n");
+			ret = FAILED;
+			break;
+		}
+		spin_lock_irqsave(shost->host_lock, flags);
+		AdvISR(adv_dvc);
+	}
+
+	/* Save the time of the most recently completed reset. */
+	boardp->last_reset = jiffies;
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	ASC_DBG(1, "ret %d\n", ret);
+
+	return ret;
+}
+
+/*
+ * advansys_biosparam()
+ *
+ * Translate disk drive geometry if the "BIOS greater than 1 GB"
+ * support is enabled for a drive.
+ *
+ * ip (information pointer) is an int array with the following definition:
+ * ip[0]: heads
+ * ip[1]: sectors
+ * ip[2]: cylinders
+ */
+static int
+advansys_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+		   sector_t capacity, int ip[])
+{
+	struct asc_board *boardp = shost_priv(sdev->host);
+
+	ASC_DBG(1, "begin\n");
+	ASC_STATS(sdev->host, biosparam);
+	if (ASC_NARROW_BOARD(boardp)) {
+		if ((boardp->dvc_var.asc_dvc_var.dvc_cntl &
+		     ASC_CNTL_BIOS_GT_1GB) && capacity > 0x200000) {
+			ip[0] = 255;
+			ip[1] = 63;
+		} else {
+			ip[0] = 64;
+			ip[1] = 32;
+		}
+	} else {
+		if ((boardp->dvc_var.adv_dvc_var.bios_ctrl &
+		     BIOS_CTRL_EXTENDED_XLAT) && capacity > 0x200000) {
+			ip[0] = 255;
+			ip[1] = 63;
+		} else {
+			ip[0] = 64;
+			ip[1] = 32;
+		}
+	}
+	ip[2] = (unsigned long)capacity / (ip[0] * ip[1]);
+	ASC_DBG(1, "end\n");
+	return 0;
+}
+
+/*
+ * First-level interrupt handler.
+ *
+ * 'dev_id' is a pointer to the interrupting adapter's Scsi_Host.
+ */
+static irqreturn_t advansys_interrupt(int irq, void *dev_id)
+{
+	struct Scsi_Host *shost = dev_id;
+	struct asc_board *boardp = shost_priv(shost);
+	irqreturn_t result = IRQ_NONE;
+
+	ASC_DBG(2, "boardp 0x%p\n", boardp);
+	spin_lock(shost->host_lock);
+	if (ASC_NARROW_BOARD(boardp)) {
+		if (AscIsIntPending(shost->io_port)) {
+			result = IRQ_HANDLED;
+			ASC_STATS(shost, interrupt);
+			ASC_DBG(1, "before AscISR()\n");
+			AscISR(&boardp->dvc_var.asc_dvc_var);
+		}
+	} else {
+		ASC_DBG(1, "before AdvISR()\n");
+		if (AdvISR(&boardp->dvc_var.adv_dvc_var)) {
+			result = IRQ_HANDLED;
+			ASC_STATS(shost, interrupt);
+		}
+	}
+	spin_unlock(shost->host_lock);
+
+	ASC_DBG(1, "end\n");
+	return result;
+}
+
+static int AscHostReqRiscHalt(PortAddr iop_base)
+{
+	int count = 0;
+	int sta = 0;
+	uchar saved_stop_code;
+
+	if (AscIsChipHalted(iop_base))
+		return (1);
+	saved_stop_code = AscReadLramByte(iop_base, ASCV_STOP_CODE_B);
+	AscWriteLramByte(iop_base, ASCV_STOP_CODE_B,
+			 ASC_STOP_HOST_REQ_RISC_HALT | ASC_STOP_REQ_RISC_STOP);
+	do {
+		if (AscIsChipHalted(iop_base)) {
+			sta = 1;
+			break;
+		}
+		mdelay(100);
+	} while (count++ < 20);
+	AscWriteLramByte(iop_base, ASCV_STOP_CODE_B, saved_stop_code);
+	return (sta);
+}
+
+static int
+AscSetRunChipSynRegAtID(PortAddr iop_base, uchar tid_no, uchar sdtr_data)
+{
+	int sta = FALSE;
+
+	if (AscHostReqRiscHalt(iop_base)) {
+		sta = AscSetChipSynRegAtID(iop_base, tid_no, sdtr_data);
+		AscStartChip(iop_base);
+	}
+	return sta;
+}
+
+static void AscAsyncFix(ASC_DVC_VAR *asc_dvc, struct scsi_device *sdev)
+{
+	char type = sdev->type;
+	ASC_SCSI_BIT_ID_TYPE tid_bits = 1 << sdev->id;
+
+	if (!(asc_dvc->bug_fix_cntl & ASC_BUG_FIX_ASYN_USE_SYN))
+		return;
+	if (asc_dvc->init_sdtr & tid_bits)
+		return;
+
+	if ((type == TYPE_ROM) && (strncmp(sdev->vendor, "HP ", 3) == 0))
+		asc_dvc->pci_fix_asyn_xfer_always |= tid_bits;
+
+	asc_dvc->pci_fix_asyn_xfer |= tid_bits;
+	if ((type == TYPE_PROCESSOR) || (type == TYPE_SCANNER) ||
+	    (type == TYPE_ROM) || (type == TYPE_TAPE))
+		asc_dvc->pci_fix_asyn_xfer &= ~tid_bits;
+
+	if (asc_dvc->pci_fix_asyn_xfer & tid_bits)
+		AscSetRunChipSynRegAtID(asc_dvc->iop_base, sdev->id,
+					ASYN_SDTR_DATA_FIX_PCI_REV_AB);
+}
+
+static void
+advansys_narrow_slave_configure(struct scsi_device *sdev, ASC_DVC_VAR *asc_dvc)
+{
+	ASC_SCSI_BIT_ID_TYPE tid_bit = 1 << sdev->id;
+	ASC_SCSI_BIT_ID_TYPE orig_use_tagged_qng = asc_dvc->use_tagged_qng;
+
+	if (sdev->lun == 0) {
+		ASC_SCSI_BIT_ID_TYPE orig_init_sdtr = asc_dvc->init_sdtr;
+		if ((asc_dvc->cfg->sdtr_enable & tid_bit) && sdev->sdtr) {
+			asc_dvc->init_sdtr |= tid_bit;
+		} else {
+			asc_dvc->init_sdtr &= ~tid_bit;
+		}
+
+		if (orig_init_sdtr != asc_dvc->init_sdtr)
+			AscAsyncFix(asc_dvc, sdev);
+	}
+
+	if (sdev->tagged_supported) {
+		if (asc_dvc->cfg->cmd_qng_enabled & tid_bit) {
+			if (sdev->lun == 0) {
+				asc_dvc->cfg->can_tagged_qng |= tid_bit;
+				asc_dvc->use_tagged_qng |= tid_bit;
+			}
+			scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG,
+						asc_dvc->max_dvc_qng[sdev->id]);
+		}
+	} else {
+		if (sdev->lun == 0) {
+			asc_dvc->cfg->can_tagged_qng &= ~tid_bit;
+			asc_dvc->use_tagged_qng &= ~tid_bit;
+		}
+		scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
+	}
+
+	if ((sdev->lun == 0) &&
+	    (orig_use_tagged_qng != asc_dvc->use_tagged_qng)) {
+		AscWriteLramByte(asc_dvc->iop_base, ASCV_DISC_ENABLE_B,
+				 asc_dvc->cfg->disc_enable);
+		AscWriteLramByte(asc_dvc->iop_base, ASCV_USE_TAGGED_QNG_B,
+				 asc_dvc->use_tagged_qng);
+		AscWriteLramByte(asc_dvc->iop_base, ASCV_CAN_TAGGED_QNG_B,
+				 asc_dvc->cfg->can_tagged_qng);
+
+		asc_dvc->max_dvc_qng[sdev->id] =
+					asc_dvc->cfg->max_tag_qng[sdev->id];
+		AscWriteLramByte(asc_dvc->iop_base,
+				 (ushort)(ASCV_MAX_DVC_QNG_BEG + sdev->id),
+				 asc_dvc->max_dvc_qng[sdev->id]);
+	}
+}
+
+/*
+ * Wide Transfers
+ *
+ * If the EEPROM enabled WDTR for the device and the device supports wide
+ * bus (16 bit) transfers, then turn on the device's 'wdtr_able' bit and
+ * write the new value to the microcode.
+ */
+static void
+advansys_wide_enable_wdtr(AdvPortAddr iop_base, unsigned short tidmask)
+{
+	unsigned short cfg_word;
+	AdvReadWordLram(iop_base, ASC_MC_WDTR_ABLE, cfg_word);
+	if ((cfg_word & tidmask) != 0)
+		return;
+
+	cfg_word |= tidmask;
+	AdvWriteWordLram(iop_base, ASC_MC_WDTR_ABLE, cfg_word);
+
+	/*
+	 * Clear the microcode SDTR and WDTR negotiation done indicators for
+	 * the target to cause it to negotiate with the new setting set above.
+	 * WDTR when accepted causes the target to enter asynchronous mode, so
+	 * SDTR must be negotiated.
+	 */
+	AdvReadWordLram(iop_base, ASC_MC_SDTR_DONE, cfg_word);
+	cfg_word &= ~tidmask;
+	AdvWriteWordLram(iop_base, ASC_MC_SDTR_DONE, cfg_word);
+	AdvReadWordLram(iop_base, ASC_MC_WDTR_DONE, cfg_word);
+	cfg_word &= ~tidmask;
+	AdvWriteWordLram(iop_base, ASC_MC_WDTR_DONE, cfg_word);
+}
+
+/*
+ * Synchronous Transfers
+ *
+ * If the EEPROM enabled SDTR for the device and the device
+ * supports synchronous transfers, then turn on the device's
+ * 'sdtr_able' bit. Write the new value to the microcode.
+ */
+static void
+advansys_wide_enable_sdtr(AdvPortAddr iop_base, unsigned short tidmask)
+{
+	unsigned short cfg_word;
+	AdvReadWordLram(iop_base, ASC_MC_SDTR_ABLE, cfg_word);
+	if ((cfg_word & tidmask) != 0)
+		return;
+
+	cfg_word |= tidmask;
+	AdvWriteWordLram(iop_base, ASC_MC_SDTR_ABLE, cfg_word);
+
+	/*
+	 * Clear the microcode "SDTR negotiation" done indicator for the
+	 * target to cause it to negotiate with the new setting set above.
+	 */
+	AdvReadWordLram(iop_base, ASC_MC_SDTR_DONE, cfg_word);
+	cfg_word &= ~tidmask;
+	AdvWriteWordLram(iop_base, ASC_MC_SDTR_DONE, cfg_word);
+}
+
+/*
+ * PPR (Parallel Protocol Request) Capable
+ *
+ * If the device supports DT mode, then it must be PPR capable.
+ * The PPR message will be used in place of the SDTR and WDTR
+ * messages to negotiate synchronous speed and offset, transfer
+ * width, and protocol options.
+ */
+static void advansys_wide_enable_ppr(ADV_DVC_VAR *adv_dvc,
+				AdvPortAddr iop_base, unsigned short tidmask)
+{
+	AdvReadWordLram(iop_base, ASC_MC_PPR_ABLE, adv_dvc->ppr_able);
+	adv_dvc->ppr_able |= tidmask;
+	AdvWriteWordLram(iop_base, ASC_MC_PPR_ABLE, adv_dvc->ppr_able);
+}
+
+static void
+advansys_wide_slave_configure(struct scsi_device *sdev, ADV_DVC_VAR *adv_dvc)
+{
+	AdvPortAddr iop_base = adv_dvc->iop_base;
+	unsigned short tidmask = 1 << sdev->id;
+
+	if (sdev->lun == 0) {
+		/*
+		 * Handle WDTR, SDTR, and Tag Queuing. If the feature
+		 * is enabled in the EEPROM and the device supports the
+		 * feature, then enable it in the microcode.
+		 */
+
+		if ((adv_dvc->wdtr_able & tidmask) && sdev->wdtr)
+			advansys_wide_enable_wdtr(iop_base, tidmask);
+		if ((adv_dvc->sdtr_able & tidmask) && sdev->sdtr)
+			advansys_wide_enable_sdtr(iop_base, tidmask);
+		if (adv_dvc->chip_type == ADV_CHIP_ASC38C1600 && sdev->ppr)
+			advansys_wide_enable_ppr(adv_dvc, iop_base, tidmask);
+
+		/*
+		 * Tag Queuing is disabled for the BIOS which runs in polled
+		 * mode and would see no benefit from Tag Queuing. Also by
+		 * disabling Tag Queuing in the BIOS devices with Tag Queuing
+		 * bugs will at least work with the BIOS.
+		 */
+		if ((adv_dvc->tagqng_able & tidmask) &&
+		    sdev->tagged_supported) {
+			unsigned short cfg_word;
+			AdvReadWordLram(iop_base, ASC_MC_TAGQNG_ABLE, cfg_word);
+			cfg_word |= tidmask;
+			AdvWriteWordLram(iop_base, ASC_MC_TAGQNG_ABLE,
+					 cfg_word);
+			AdvWriteByteLram(iop_base,
+					 ASC_MC_NUMBER_OF_MAX_CMD + sdev->id,
+					 adv_dvc->max_dvc_qng);
+		}
+	}
+
+	if ((adv_dvc->tagqng_able & tidmask) && sdev->tagged_supported) {
+		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG,
+					adv_dvc->max_dvc_qng);
+	} else {
+		scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
+	}
+}
+
+/*
+ * Set the number of commands to queue per device for the
+ * specified host adapter.
+ */
+static int advansys_slave_configure(struct scsi_device *sdev)
+{
+	struct asc_board *boardp = shost_priv(sdev->host);
+
+	if (ASC_NARROW_BOARD(boardp))
+		advansys_narrow_slave_configure(sdev,
+						&boardp->dvc_var.asc_dvc_var);
+	else
+		advansys_wide_slave_configure(sdev,
+						&boardp->dvc_var.adv_dvc_var);
+
+	return 0;
+}
+
+static __le32 advansys_get_sense_buffer_dma(struct scsi_cmnd *scp)
+{
+	struct asc_board *board = shost_priv(scp->device->host);
+	scp->SCp.dma_handle = dma_map_single(board->dev, scp->sense_buffer,
+				sizeof(scp->sense_buffer), DMA_FROM_DEVICE);
+	dma_cache_sync(board->dev, scp->sense_buffer,
+				sizeof(scp->sense_buffer), DMA_FROM_DEVICE);
+	return cpu_to_le32(scp->SCp.dma_handle);
+}
+
+static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
+			struct asc_scsi_q *asc_scsi_q)
+{
+	struct asc_dvc_var *asc_dvc = &boardp->dvc_var.asc_dvc_var;
+	int use_sg;
+
+	memset(asc_scsi_q, 0, sizeof(*asc_scsi_q));
+
+	/*
+	 * Point the ASC_SCSI_Q to the 'struct scsi_cmnd'.
+	 */
+	asc_scsi_q->q2.srb_ptr = advansys_ptr_to_srb(asc_dvc, scp);
+	if (asc_scsi_q->q2.srb_ptr == BAD_SRB) {
+		scp->result = HOST_BYTE(DID_SOFT_ERROR);
+		return ASC_ERROR;
+	}
+
+	/*
+	 * Build the ASC_SCSI_Q request.
+	 */
+	asc_scsi_q->cdbptr = &scp->cmnd[0];
+	asc_scsi_q->q2.cdb_len = scp->cmd_len;
+	asc_scsi_q->q1.target_id = ASC_TID_TO_TARGET_ID(scp->device->id);
+	asc_scsi_q->q1.target_lun = scp->device->lun;
+	asc_scsi_q->q2.target_ix =
+	    ASC_TIDLUN_TO_IX(scp->device->id, scp->device->lun);
+	asc_scsi_q->q1.sense_addr = advansys_get_sense_buffer_dma(scp);
+	asc_scsi_q->q1.sense_len = sizeof(scp->sense_buffer);
+
+	/*
+	 * If there are any outstanding requests for the current target,
+	 * then every 255th request send an ORDERED request. This heuristic
+	 * tries to retain the benefit of request sorting while preventing
+	 * request starvation. 255 is the max number of tags or pending commands
+	 * a device may have outstanding.
+	 *
+	 * The request count is incremented below for every successfully
+	 * started request.
+	 *
+	 */
+	if ((asc_dvc->cur_dvc_qng[scp->device->id] > 0) &&
+	    (boardp->reqcnt[scp->device->id] % 255) == 0) {
+		asc_scsi_q->q2.tag_code = MSG_ORDERED_TAG;
+	} else {
+		asc_scsi_q->q2.tag_code = MSG_SIMPLE_TAG;
+	}
+
+	/* Build ASC_SCSI_Q */
+	use_sg = scsi_dma_map(scp);
+	if (use_sg != 0) {
+		int sgcnt;
+		struct scatterlist *slp;
+		struct asc_sg_head *asc_sg_head;
+
+		if (use_sg > scp->device->host->sg_tablesize) {
+			scmd_printk(KERN_ERR, scp, "use_sg %d > "
+				"sg_tablesize %d\n", use_sg,
+				scp->device->host->sg_tablesize);
+			scsi_dma_unmap(scp);
+			scp->result = HOST_BYTE(DID_ERROR);
+			return ASC_ERROR;
+		}
+
+		asc_sg_head = kzalloc(sizeof(asc_scsi_q->sg_head) +
+			use_sg * sizeof(struct asc_sg_list), GFP_ATOMIC);
+		if (!asc_sg_head) {
+			scsi_dma_unmap(scp);
+			scp->result = HOST_BYTE(DID_SOFT_ERROR);
+			return ASC_ERROR;
+		}
+
+		asc_scsi_q->q1.cntl |= QC_SG_HEAD;
+		asc_scsi_q->sg_head = asc_sg_head;
+		asc_scsi_q->q1.data_cnt = 0;
+		asc_scsi_q->q1.data_addr = 0;
+		/* This is a byte value, otherwise it would need to be swapped. */
+		asc_sg_head->entry_cnt = asc_scsi_q->q1.sg_queue_cnt = use_sg;
+		ASC_STATS_ADD(scp->device->host, xfer_elem,
+			      asc_sg_head->entry_cnt);
+
+		/*
+		 * Convert scatter-gather list into ASC_SG_HEAD list.
+		 */
+		scsi_for_each_sg(scp, slp, use_sg, sgcnt) {
+			asc_sg_head->sg_list[sgcnt].addr =
+			    cpu_to_le32(sg_dma_address(slp));
+			asc_sg_head->sg_list[sgcnt].bytes =
+			    cpu_to_le32(sg_dma_len(slp));
+			ASC_STATS_ADD(scp->device->host, xfer_sect,
+				      DIV_ROUND_UP(sg_dma_len(slp), 512));
+		}
+	}
+
+	ASC_STATS(scp->device->host, xfer_cnt);
+
+	ASC_DBG_PRT_ASC_SCSI_Q(2, asc_scsi_q);
+	ASC_DBG_PRT_CDB(1, scp->cmnd, scp->cmd_len);
+
+	return ASC_NOERROR;
+}
+
+/*
+ * Build scatter-gather list for Adv Library (Wide Board).
+ *
+ * Additional ADV_SG_BLOCK structures will need to be allocated
+ * if the total number of scatter-gather elements exceeds
+ * NO_OF_SG_PER_BLOCK (15). The ADV_SG_BLOCK structures are
+ * assumed to be physically contiguous.
+ *
+ * Return:
+ *      ADV_SUCCESS(1) - SG List successfully created
+ *      ADV_ERROR(-1) - SG List creation failed
+ */
+static int
+adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp, struct scsi_cmnd *scp,
+	       int use_sg)
+{
+	adv_sgblk_t *sgblkp;
+	ADV_SCSI_REQ_Q *scsiqp;
+	struct scatterlist *slp;
+	int sg_elem_cnt;
+	ADV_SG_BLOCK *sg_block, *prev_sg_block;
+	ADV_PADDR sg_block_paddr;
+	int i;
+
+	scsiqp = (ADV_SCSI_REQ_Q *)ADV_32BALIGN(&reqp->scsi_req_q);
+	slp = scsi_sglist(scp);
+	sg_elem_cnt = use_sg;
+	prev_sg_block = NULL;
+	reqp->sgblkp = NULL;
+
+	for (;;) {
+		/*
+		 * Allocate a 'adv_sgblk_t' structure from the board free
+		 * list. One 'adv_sgblk_t' structure holds NO_OF_SG_PER_BLOCK
+		 * (15) scatter-gather elements.
+		 */
+		if ((sgblkp = boardp->adv_sgblkp) == NULL) {
+			ASC_DBG(1, "no free adv_sgblk_t\n");
+			ASC_STATS(scp->device->host, adv_build_nosg);
+
+			/*
+			 * Allocation failed. Free 'adv_sgblk_t' structures
+			 * already allocated for the request.
+			 */
+			while ((sgblkp = reqp->sgblkp) != NULL) {
+				/* Remove 'sgblkp' from the request list. */
+				reqp->sgblkp = sgblkp->next_sgblkp;
+
+				/* Add 'sgblkp' to the board free list. */
+				sgblkp->next_sgblkp = boardp->adv_sgblkp;
+				boardp->adv_sgblkp = sgblkp;
+			}
+			return ASC_BUSY;
+		}
+
+		/* Complete 'adv_sgblk_t' board allocation. */
+		boardp->adv_sgblkp = sgblkp->next_sgblkp;
+		sgblkp->next_sgblkp = NULL;
+
+		/*
+		 * Get 8 byte aligned virtual and physical addresses
+		 * for the allocated ADV_SG_BLOCK structure.
+		 */
+		sg_block = (ADV_SG_BLOCK *)ADV_8BALIGN(&sgblkp->sg_block);
+		sg_block_paddr = virt_to_bus(sg_block);
+
+		/*
+		 * Check if this is the first 'adv_sgblk_t' for the
+		 * request.
+		 */
+		if (reqp->sgblkp == NULL) {
+			/* Request's first scatter-gather block. */
+			reqp->sgblkp = sgblkp;
+
+			/*
+			 * Set ADV_SCSI_REQ_T ADV_SG_BLOCK virtual and physical
+			 * address pointers.
+			 */
+			scsiqp->sg_list_ptr = sg_block;
+			scsiqp->sg_real_addr = cpu_to_le32(sg_block_paddr);
+		} else {
+			/* Request's second or later scatter-gather block. */
+			sgblkp->next_sgblkp = reqp->sgblkp;
+			reqp->sgblkp = sgblkp;
+
+			/*
+			 * Point the previous ADV_SG_BLOCK structure to
+			 * the newly allocated ADV_SG_BLOCK structure.
+			 */
+			prev_sg_block->sg_ptr = cpu_to_le32(sg_block_paddr);
+		}
+
+		for (i = 0; i < NO_OF_SG_PER_BLOCK; i++) {
+			sg_block->sg_list[i].sg_addr =
+					cpu_to_le32(sg_dma_address(slp));
+			sg_block->sg_list[i].sg_count =
+					cpu_to_le32(sg_dma_len(slp));
+			ASC_STATS_ADD(scp->device->host, xfer_sect,
+				      DIV_ROUND_UP(sg_dma_len(slp), 512));
+
+			if (--sg_elem_cnt == 0) {	/* Last ADV_SG_BLOCK and scatter-gather entry. */
+				sg_block->sg_cnt = i + 1;
+				sg_block->sg_ptr = 0L;	/* Last ADV_SG_BLOCK in list. */
+				return ADV_SUCCESS;
+			}
+			slp++;
+		}
+		sg_block->sg_cnt = NO_OF_SG_PER_BLOCK;
+		prev_sg_block = sg_block;
+	}
+}
+
+/*
+ * Build a request structure for the Adv Library (Wide Board).
+ *
+ * If an adv_req_t can not be allocated to issue the request,
+ * then return ASC_BUSY. If an error occurs, then return ASC_ERROR.
+ *
+ * Multi-byte fields in the ASC_SCSI_REQ_Q that are used by the
+ * microcode for DMA addresses or math operations are byte swapped
+ * to little-endian order.
+ */
+static int
+adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
+	      ADV_SCSI_REQ_Q **adv_scsiqpp)
+{
+	adv_req_t *reqp;
+	ADV_SCSI_REQ_Q *scsiqp;
+	int i;
+	int ret;
+	int use_sg;
+
+	/*
+	 * Allocate an adv_req_t structure from the board to execute
+	 * the command.
+	 */
+	if (boardp->adv_reqp == NULL) {
+		ASC_DBG(1, "no free adv_req_t\n");
+		ASC_STATS(scp->device->host, adv_build_noreq);
+		return ASC_BUSY;
+	} else {
+		reqp = boardp->adv_reqp;
+		boardp->adv_reqp = reqp->next_reqp;
+		reqp->next_reqp = NULL;
+	}
+
+	/*
+	 * Get 32-byte aligned ADV_SCSI_REQ_Q and ADV_SG_BLOCK pointers.
+	 */
+	scsiqp = (ADV_SCSI_REQ_Q *)ADV_32BALIGN(&reqp->scsi_req_q);
+
+	/*
+	 * Initialize the structure.
+	 */
+	scsiqp->cntl = scsiqp->scsi_cntl = scsiqp->done_status = 0;
+
+	/*
+	 * Set the ADV_SCSI_REQ_Q 'srb_ptr' to point to the adv_req_t structure.
+	 */
+	scsiqp->srb_ptr = ADV_VADDR_TO_U32(reqp);
+
+	/*
+	 * Set the adv_req_t 'cmndp' to point to the struct scsi_cmnd structure.
+	 */
+	reqp->cmndp = scp;
+
+	/*
+	 * Build the ADV_SCSI_REQ_Q request.
+	 */
+
+	/* Set CDB length and copy it to the request structure.  */
+	scsiqp->cdb_len = scp->cmd_len;
+	/* Copy first 12 CDB bytes to cdb[]. */
+	for (i = 0; i < scp->cmd_len && i < 12; i++) {
+		scsiqp->cdb[i] = scp->cmnd[i];
+	}
+	/* Copy last 4 CDB bytes, if present, to cdb16[]. */
+	for (; i < scp->cmd_len; i++) {
+		scsiqp->cdb16[i - 12] = scp->cmnd[i];
+	}
+
+	scsiqp->target_id = scp->device->id;
+	scsiqp->target_lun = scp->device->lun;
+
+	scsiqp->sense_addr = cpu_to_le32(virt_to_bus(&scp->sense_buffer[0]));
+	scsiqp->sense_len = sizeof(scp->sense_buffer);
+
+	/* Build ADV_SCSI_REQ_Q */
+
+	use_sg = scsi_dma_map(scp);
+	if (use_sg == 0) {
+		/* Zero-length transfer */
+		reqp->sgblkp = NULL;
+		scsiqp->data_cnt = 0;
+		scsiqp->vdata_addr = NULL;
+
+		scsiqp->data_addr = 0;
+		scsiqp->sg_list_ptr = NULL;
+		scsiqp->sg_real_addr = 0;
+	} else {
+		if (use_sg > ADV_MAX_SG_LIST) {
+			scmd_printk(KERN_ERR, scp, "use_sg %d > "
+				   "ADV_MAX_SG_LIST %d\n", use_sg,
+				   scp->device->host->sg_tablesize);
+			scsi_dma_unmap(scp);
+			scp->result = HOST_BYTE(DID_ERROR);
+
+			/*
+			 * Free the 'adv_req_t' structure by adding it back
+			 * to the board free list.
+			 */
+			reqp->next_reqp = boardp->adv_reqp;
+			boardp->adv_reqp = reqp;
+
+			return ASC_ERROR;
+		}
+
+		scsiqp->data_cnt = cpu_to_le32(scsi_bufflen(scp));
+
+		ret = adv_get_sglist(boardp, reqp, scp, use_sg);
+		if (ret != ADV_SUCCESS) {
+			/*
+			 * Free the adv_req_t structure by adding it back to
+			 * the board free list.
+			 */
+			reqp->next_reqp = boardp->adv_reqp;
+			boardp->adv_reqp = reqp;
+
+			return ret;
+		}
+
+		ASC_STATS_ADD(scp->device->host, xfer_elem, use_sg);
+	}
+
+	ASC_STATS(scp->device->host, xfer_cnt);
+
+	ASC_DBG_PRT_ADV_SCSI_REQ_Q(2, scsiqp);
+	ASC_DBG_PRT_CDB(1, scp->cmnd, scp->cmd_len);
+
+	*adv_scsiqpp = scsiqp;
+
+	return ASC_NOERROR;
+}
+
+static int AscSgListToQueue(int sg_list)
+{
+	int n_sg_list_qs;
+
+	n_sg_list_qs = ((sg_list - 1) / ASC_SG_LIST_PER_Q);
+	if (((sg_list - 1) % ASC_SG_LIST_PER_Q) != 0)
+		n_sg_list_qs++;
+	return n_sg_list_qs + 1;
+}
+
+static uint
+AscGetNumOfFreeQueue(ASC_DVC_VAR *asc_dvc, uchar target_ix, uchar n_qs)
+{
+	uint cur_used_qs;
+	uint cur_free_qs;
+	ASC_SCSI_BIT_ID_TYPE target_id;
+	uchar tid_no;
+
+	target_id = ASC_TIX_TO_TARGET_ID(target_ix);
+	tid_no = ASC_TIX_TO_TID(target_ix);
+	if ((asc_dvc->unit_not_ready & target_id) ||
+	    (asc_dvc->queue_full_or_busy & target_id)) {
+		return 0;
+	}
+	if (n_qs == 1) {
+		cur_used_qs = (uint) asc_dvc->cur_total_qng +
+		    (uint) asc_dvc->last_q_shortage + (uint) ASC_MIN_FREE_Q;
+	} else {
+		cur_used_qs = (uint) asc_dvc->cur_total_qng +
+		    (uint) ASC_MIN_FREE_Q;
+	}
+	if ((uint) (cur_used_qs + n_qs) <= (uint) asc_dvc->max_total_qng) {
+		cur_free_qs = (uint) asc_dvc->max_total_qng - cur_used_qs;
+		if (asc_dvc->cur_dvc_qng[tid_no] >=
+		    asc_dvc->max_dvc_qng[tid_no]) {
+			return 0;
+		}
+		return cur_free_qs;
+	}
+	if (n_qs > 1) {
+		if ((n_qs > asc_dvc->last_q_shortage)
+		    && (n_qs <= (asc_dvc->max_total_qng - ASC_MIN_FREE_Q))) {
+			asc_dvc->last_q_shortage = n_qs;
+		}
+	}
+	return 0;
+}
+
+static uchar AscAllocFreeQueue(PortAddr iop_base, uchar free_q_head)
+{
+	ushort q_addr;
+	uchar next_qp;
+	uchar q_status;
+
+	q_addr = ASC_QNO_TO_QADDR(free_q_head);
+	q_status = (uchar)AscReadLramByte(iop_base,
+					  (ushort)(q_addr +
+						   ASC_SCSIQ_B_STATUS));
+	next_qp = AscReadLramByte(iop_base, (ushort)(q_addr + ASC_SCSIQ_B_FWD));
+	if (((q_status & QS_READY) == 0) && (next_qp != ASC_QLINK_END))
+		return next_qp;
+	return ASC_QLINK_END;
+}
+
+static uchar
+AscAllocMultipleFreeQueue(PortAddr iop_base, uchar free_q_head, uchar n_free_q)
+{
+	uchar i;
+
+	for (i = 0; i < n_free_q; i++) {
+		free_q_head = AscAllocFreeQueue(iop_base, free_q_head);
+		if (free_q_head == ASC_QLINK_END)
+			break;
+	}
+	return free_q_head;
+}
+
+/*
+ * void
+ * DvcPutScsiQ(PortAddr iop_base, ushort s_addr, uchar *outbuf, int words)
+ *
+ * Calling/Exit State:
+ *    none
+ *
+ * Description:
+ *     Output an ASC_SCSI_Q structure to the chip
+ */
+static void
+DvcPutScsiQ(PortAddr iop_base, ushort s_addr, uchar *outbuf, int words)
+{
+	int i;
+
+	ASC_DBG_PRT_HEX(2, "DvcPutScsiQ", outbuf, 2 * words);
+	AscSetChipLramAddr(iop_base, s_addr);
+	for (i = 0; i < 2 * words; i += 2) {
+		if (i == 4 || i == 20) {
+			continue;
+		}
+		outpw(iop_base + IOP_RAM_DATA,
+		      ((ushort)outbuf[i + 1] << 8) | outbuf[i]);
+	}
+}
+
+static int AscPutReadyQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar q_no)
+{
+	ushort q_addr;
+	uchar tid_no;
+	uchar sdtr_data;
+	uchar syn_period_ix;
+	uchar syn_offset;
+	PortAddr iop_base;
+
+	iop_base = asc_dvc->iop_base;
+	if (((asc_dvc->init_sdtr & scsiq->q1.target_id) != 0) &&
+	    ((asc_dvc->sdtr_done & scsiq->q1.target_id) == 0)) {
+		tid_no = ASC_TIX_TO_TID(scsiq->q2.target_ix);
+		sdtr_data = AscGetMCodeInitSDTRAtID(iop_base, tid_no);
+		syn_period_ix =
+		    (sdtr_data >> 4) & (asc_dvc->max_sdtr_index - 1);
+		syn_offset = sdtr_data & ASC_SYN_MAX_OFFSET;
+		AscMsgOutSDTR(asc_dvc,
+			      asc_dvc->sdtr_period_tbl[syn_period_ix],
+			      syn_offset);
+		scsiq->q1.cntl |= QC_MSG_OUT;
+	}
+	q_addr = ASC_QNO_TO_QADDR(q_no);
+	if ((scsiq->q1.target_id & asc_dvc->use_tagged_qng) == 0) {
+		scsiq->q2.tag_code &= ~MSG_SIMPLE_TAG;
+	}
+	scsiq->q1.status = QS_FREE;
+	AscMemWordCopyPtrToLram(iop_base,
+				q_addr + ASC_SCSIQ_CDB_BEG,
+				(uchar *)scsiq->cdbptr, scsiq->q2.cdb_len >> 1);
+
+	DvcPutScsiQ(iop_base,
+		    q_addr + ASC_SCSIQ_CPY_BEG,
+		    (uchar *)&scsiq->q1.cntl,
+		    ((sizeof(ASC_SCSIQ_1) + sizeof(ASC_SCSIQ_2)) / 2) - 1);
+	AscWriteLramWord(iop_base,
+			 (ushort)(q_addr + (ushort)ASC_SCSIQ_B_STATUS),
+			 (ushort)(((ushort)scsiq->q1.
+				   q_no << 8) | (ushort)QS_READY));
+	return 1;
+}
+
+static int
+AscPutReadySgListQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar q_no)
+{
+	int sta;
+	int i;
+	ASC_SG_HEAD *sg_head;
+	ASC_SG_LIST_Q scsi_sg_q;
+	ASC_DCNT saved_data_addr;
+	ASC_DCNT saved_data_cnt;
+	PortAddr iop_base;
+	ushort sg_list_dwords;
+	ushort sg_index;
+	ushort sg_entry_cnt;
+	ushort q_addr;
+	uchar next_qp;
+
+	iop_base = asc_dvc->iop_base;
+	sg_head = scsiq->sg_head;
+	saved_data_addr = scsiq->q1.data_addr;
+	saved_data_cnt = scsiq->q1.data_cnt;
+	scsiq->q1.data_addr = (ASC_PADDR) sg_head->sg_list[0].addr;
+	scsiq->q1.data_cnt = (ASC_DCNT) sg_head->sg_list[0].bytes;
+#if CC_VERY_LONG_SG_LIST
+	/*
+	 * If sg_head->entry_cnt is greater than ASC_MAX_SG_LIST
+	 * then not all SG elements will fit in the allocated queues.
+	 * The rest of the SG elements will be copied when the RISC
+	 * completes the SG elements that fit and halts.
+	 */
+	if (sg_head->entry_cnt > ASC_MAX_SG_LIST) {
+		/*
+		 * Set sg_entry_cnt to be the number of SG elements that
+		 * will fit in the allocated SG queues. It is minus 1, because
+		 * the first SG element is handled above. ASC_MAX_SG_LIST is
+		 * already inflated by 1 to account for this. For example it
+		 * may be 50 which is 1 + 7 queues * 7 SG elements.
+		 */
+		sg_entry_cnt = ASC_MAX_SG_LIST - 1;
+
+		/*
+		 * Keep track of remaining number of SG elements that will
+		 * need to be handled from a_isr.c.
+		 */
+		scsiq->remain_sg_entry_cnt =
+		    sg_head->entry_cnt - ASC_MAX_SG_LIST;
+	} else {
+#endif /* CC_VERY_LONG_SG_LIST */
+		/*
+		 * Set sg_entry_cnt to be the number of SG elements that
+		 * will fit in the allocated SG queues. It is minus 1, because
+		 * the first SG element is handled above.
+		 */
+		sg_entry_cnt = sg_head->entry_cnt - 1;
+#if CC_VERY_LONG_SG_LIST
+	}
+#endif /* CC_VERY_LONG_SG_LIST */
+	if (sg_entry_cnt != 0) {
+		scsiq->q1.cntl |= QC_SG_HEAD;
+		q_addr = ASC_QNO_TO_QADDR(q_no);
+		sg_index = 1;
+		scsiq->q1.sg_queue_cnt = sg_head->queue_cnt;
+		scsi_sg_q.sg_head_qp = q_no;
+		scsi_sg_q.cntl = QCSG_SG_XFER_LIST;
+		for (i = 0; i < sg_head->queue_cnt; i++) {
+			scsi_sg_q.seq_no = i + 1;
+			if (sg_entry_cnt > ASC_SG_LIST_PER_Q) {
+				sg_list_dwords = (uchar)(ASC_SG_LIST_PER_Q * 2);
+				sg_entry_cnt -= ASC_SG_LIST_PER_Q;
+				if (i == 0) {
+					scsi_sg_q.sg_list_cnt =
+					    ASC_SG_LIST_PER_Q;
+					scsi_sg_q.sg_cur_list_cnt =
+					    ASC_SG_LIST_PER_Q;
+				} else {
+					scsi_sg_q.sg_list_cnt =
+					    ASC_SG_LIST_PER_Q - 1;
+					scsi_sg_q.sg_cur_list_cnt =
+					    ASC_SG_LIST_PER_Q - 1;
+				}
+			} else {
+#if CC_VERY_LONG_SG_LIST
+				/*
+				 * This is the last SG queue in the list of
+				 * allocated SG queues. If there are more
+				 * SG elements than will fit in the allocated
+				 * queues, then set the QCSG_SG_XFER_MORE flag.
+				 */
+				if (sg_head->entry_cnt > ASC_MAX_SG_LIST) {
+					scsi_sg_q.cntl |= QCSG_SG_XFER_MORE;
+				} else {
+#endif /* CC_VERY_LONG_SG_LIST */
+					scsi_sg_q.cntl |= QCSG_SG_XFER_END;
+#if CC_VERY_LONG_SG_LIST
+				}
+#endif /* CC_VERY_LONG_SG_LIST */
+				sg_list_dwords = sg_entry_cnt << 1;
+				if (i == 0) {
+					scsi_sg_q.sg_list_cnt = sg_entry_cnt;
+					scsi_sg_q.sg_cur_list_cnt =
+					    sg_entry_cnt;
+				} else {
+					scsi_sg_q.sg_list_cnt =
+					    sg_entry_cnt - 1;
+					scsi_sg_q.sg_cur_list_cnt =
+					    sg_entry_cnt - 1;
+				}
+				sg_entry_cnt = 0;
+			}
+			next_qp = AscReadLramByte(iop_base,
+						  (ushort)(q_addr +
+							   ASC_SCSIQ_B_FWD));
+			scsi_sg_q.q_no = next_qp;
+			q_addr = ASC_QNO_TO_QADDR(next_qp);
+			AscMemWordCopyPtrToLram(iop_base,
+						q_addr + ASC_SCSIQ_SGHD_CPY_BEG,
+						(uchar *)&scsi_sg_q,
+						sizeof(ASC_SG_LIST_Q) >> 1);
+			AscMemDWordCopyPtrToLram(iop_base,
+						 q_addr + ASC_SGQ_LIST_BEG,
+						 (uchar *)&sg_head->
+						 sg_list[sg_index],
+						 sg_list_dwords);
+			sg_index += ASC_SG_LIST_PER_Q;
+			scsiq->next_sg_index = sg_index;
+		}
+	} else {
+		scsiq->q1.cntl &= ~QC_SG_HEAD;
+	}
+	sta = AscPutReadyQueue(asc_dvc, scsiq, q_no);
+	scsiq->q1.data_addr = saved_data_addr;
+	scsiq->q1.data_cnt = saved_data_cnt;
+	return (sta);
+}
+
+static int
+AscSendScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar n_q_required)
+{
+	PortAddr iop_base;
+	uchar free_q_head;
+	uchar next_qp;
+	uchar tid_no;
+	uchar target_ix;
+	int sta;
+
+	iop_base = asc_dvc->iop_base;
+	target_ix = scsiq->q2.target_ix;
+	tid_no = ASC_TIX_TO_TID(target_ix);
+	sta = 0;
+	free_q_head = (uchar)AscGetVarFreeQHead(iop_base);
+	if (n_q_required > 1) {
+		next_qp = AscAllocMultipleFreeQueue(iop_base, free_q_head,
+						    (uchar)n_q_required);
+		if (next_qp != ASC_QLINK_END) {
+			asc_dvc->last_q_shortage = 0;
+			scsiq->sg_head->queue_cnt = n_q_required - 1;
+			scsiq->q1.q_no = free_q_head;
+			sta = AscPutReadySgListQueue(asc_dvc, scsiq,
+						     free_q_head);
+		}
+	} else if (n_q_required == 1) {
+		next_qp = AscAllocFreeQueue(iop_base, free_q_head);
+		if (next_qp != ASC_QLINK_END) {
+			scsiq->q1.q_no = free_q_head;
+			sta = AscPutReadyQueue(asc_dvc, scsiq, free_q_head);
+		}
+	}
+	if (sta == 1) {
+		AscPutVarFreeQHead(iop_base, next_qp);
+		asc_dvc->cur_total_qng += n_q_required;
+		asc_dvc->cur_dvc_qng[tid_no]++;
+	}
+	return sta;
+}
+
+#define ASC_SYN_OFFSET_ONE_DISABLE_LIST  16
+static uchar _syn_offset_one_disable_cmd[ASC_SYN_OFFSET_ONE_DISABLE_LIST] = {
+	INQUIRY,
+	REQUEST_SENSE,
+	READ_CAPACITY,
+	READ_TOC,
+	MODE_SELECT,
+	MODE_SENSE,
+	MODE_SELECT_10,
+	MODE_SENSE_10,
+	0xFF,
+	0xFF,
+	0xFF,
+	0xFF,
+	0xFF,
+	0xFF,
+	0xFF,
+	0xFF
+};
+
+static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
+{
+	PortAddr iop_base;
+	int sta;
+	int n_q_required;
+	int disable_syn_offset_one_fix;
+	int i;
+	ASC_PADDR addr;
+	ushort sg_entry_cnt = 0;
+	ushort sg_entry_cnt_minus_one = 0;
+	uchar target_ix;
+	uchar tid_no;
+	uchar sdtr_data;
+	uchar extra_bytes;
+	uchar scsi_cmd;
+	uchar disable_cmd;
+	ASC_SG_HEAD *sg_head;
+	ASC_DCNT data_cnt;
+
+	iop_base = asc_dvc->iop_base;
+	sg_head = scsiq->sg_head;
+	if (asc_dvc->err_code != 0)
+		return (ERR);
+	scsiq->q1.q_no = 0;
+	if ((scsiq->q2.tag_code & ASC_TAG_FLAG_EXTRA_BYTES) == 0) {
+		scsiq->q1.extra_bytes = 0;
+	}
+	sta = 0;
+	target_ix = scsiq->q2.target_ix;
+	tid_no = ASC_TIX_TO_TID(target_ix);
+	n_q_required = 1;
+	if (scsiq->cdbptr[0] == REQUEST_SENSE) {
+		if ((asc_dvc->init_sdtr & scsiq->q1.target_id) != 0) {
+			asc_dvc->sdtr_done &= ~scsiq->q1.target_id;
+			sdtr_data = AscGetMCodeInitSDTRAtID(iop_base, tid_no);
+			AscMsgOutSDTR(asc_dvc,
+				      asc_dvc->
+				      sdtr_period_tbl[(sdtr_data >> 4) &
+						      (uchar)(asc_dvc->
+							      max_sdtr_index -
+							      1)],
+				      (uchar)(sdtr_data & (uchar)
+					      ASC_SYN_MAX_OFFSET));
+			scsiq->q1.cntl |= (QC_MSG_OUT | QC_URGENT);
+		}
+	}
+	if (asc_dvc->in_critical_cnt != 0) {
+		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_CRITICAL_RE_ENTRY);
+		return (ERR);
+	}
+	asc_dvc->in_critical_cnt++;
+	if ((scsiq->q1.cntl & QC_SG_HEAD) != 0) {
+		if ((sg_entry_cnt = sg_head->entry_cnt) == 0) {
+			asc_dvc->in_critical_cnt--;
+			return (ERR);
+		}
+#if !CC_VERY_LONG_SG_LIST
+		if (sg_entry_cnt > ASC_MAX_SG_LIST) {
+			asc_dvc->in_critical_cnt--;
+			return (ERR);
+		}
+#endif /* !CC_VERY_LONG_SG_LIST */
+		if (sg_entry_cnt == 1) {
+			scsiq->q1.data_addr =
+			    (ADV_PADDR)sg_head->sg_list[0].addr;
+			scsiq->q1.data_cnt =
+			    (ADV_DCNT)sg_head->sg_list[0].bytes;
+			scsiq->q1.cntl &= ~(QC_SG_HEAD | QC_SG_SWAP_QUEUE);
+		}
+		sg_entry_cnt_minus_one = sg_entry_cnt - 1;
+	}
+	scsi_cmd = scsiq->cdbptr[0];
+	disable_syn_offset_one_fix = FALSE;
+	if ((asc_dvc->pci_fix_asyn_xfer & scsiq->q1.target_id) &&
+	    !(asc_dvc->pci_fix_asyn_xfer_always & scsiq->q1.target_id)) {
+		if (scsiq->q1.cntl & QC_SG_HEAD) {
+			data_cnt = 0;
+			for (i = 0; i < sg_entry_cnt; i++) {
+				data_cnt +=
+				    (ADV_DCNT)le32_to_cpu(sg_head->sg_list[i].
+							  bytes);
+			}
+		} else {
+			data_cnt = le32_to_cpu(scsiq->q1.data_cnt);
+		}
+		if (data_cnt != 0UL) {
+			if (data_cnt < 512UL) {
+				disable_syn_offset_one_fix = TRUE;
+			} else {
+				for (i = 0; i < ASC_SYN_OFFSET_ONE_DISABLE_LIST;
+				     i++) {
+					disable_cmd =
+					    _syn_offset_one_disable_cmd[i];
+					if (disable_cmd == 0xFF) {
+						break;
+					}
+					if (scsi_cmd == disable_cmd) {
+						disable_syn_offset_one_fix =
+						    TRUE;
+						break;
+					}
+				}
+			}
+		}
+	}
+	if (disable_syn_offset_one_fix) {
+		scsiq->q2.tag_code &= ~MSG_SIMPLE_TAG;
+		scsiq->q2.tag_code |= (ASC_TAG_FLAG_DISABLE_ASYN_USE_SYN_FIX |
+				       ASC_TAG_FLAG_DISABLE_DISCONNECT);
+	} else {
+		scsiq->q2.tag_code &= 0x27;
+	}
+	if ((scsiq->q1.cntl & QC_SG_HEAD) != 0) {
+		if (asc_dvc->bug_fix_cntl) {
+			if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_IF_NOT_DWB) {
+				if ((scsi_cmd == READ_6) ||
+				    (scsi_cmd == READ_10)) {
+					addr =
+					    (ADV_PADDR)le32_to_cpu(sg_head->
+								   sg_list
+								   [sg_entry_cnt_minus_one].
+								   addr) +
+					    (ADV_DCNT)le32_to_cpu(sg_head->
+								  sg_list
+								  [sg_entry_cnt_minus_one].
+								  bytes);
+					extra_bytes =
+					    (uchar)((ushort)addr & 0x0003);
+					if ((extra_bytes != 0)
+					    &&
+					    ((scsiq->q2.
+					      tag_code &
+					      ASC_TAG_FLAG_EXTRA_BYTES)
+					     == 0)) {
+						scsiq->q2.tag_code |=
+						    ASC_TAG_FLAG_EXTRA_BYTES;
+						scsiq->q1.extra_bytes =
+						    extra_bytes;
+						data_cnt =
+						    le32_to_cpu(sg_head->
+								sg_list
+								[sg_entry_cnt_minus_one].
+								bytes);
+						data_cnt -=
+						    (ASC_DCNT) extra_bytes;
+						sg_head->
+						    sg_list
+						    [sg_entry_cnt_minus_one].
+						    bytes =
+						    cpu_to_le32(data_cnt);
+					}
+				}
+			}
+		}
+		sg_head->entry_to_copy = sg_head->entry_cnt;
+#if CC_VERY_LONG_SG_LIST
+		/*
+		 * Set the sg_entry_cnt to the maximum possible. The rest of
+		 * the SG elements will be copied when the RISC completes the
+		 * SG elements that fit and halts.
+		 */
+		if (sg_entry_cnt > ASC_MAX_SG_LIST) {
+			sg_entry_cnt = ASC_MAX_SG_LIST;
+		}
+#endif /* CC_VERY_LONG_SG_LIST */
+		n_q_required = AscSgListToQueue(sg_entry_cnt);
+		if ((AscGetNumOfFreeQueue(asc_dvc, target_ix, n_q_required) >=
+		     (uint) n_q_required)
+		    || ((scsiq->q1.cntl & QC_URGENT) != 0)) {
+			if ((sta =
+			     AscSendScsiQueue(asc_dvc, scsiq,
+					      n_q_required)) == 1) {
+				asc_dvc->in_critical_cnt--;
+				return (sta);
+			}
+		}
+	} else {
+		if (asc_dvc->bug_fix_cntl) {
+			if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_IF_NOT_DWB) {
+				if ((scsi_cmd == READ_6) ||
+				    (scsi_cmd == READ_10)) {
+					addr =
+					    le32_to_cpu(scsiq->q1.data_addr) +
+					    le32_to_cpu(scsiq->q1.data_cnt);
+					extra_bytes =
+					    (uchar)((ushort)addr & 0x0003);
+					if ((extra_bytes != 0)
+					    &&
+					    ((scsiq->q2.
+					      tag_code &
+					      ASC_TAG_FLAG_EXTRA_BYTES)
+					     == 0)) {
+						data_cnt =
+						    le32_to_cpu(scsiq->q1.
+								data_cnt);
+						if (((ushort)data_cnt & 0x01FF)
+						    == 0) {
+							scsiq->q2.tag_code |=
+							    ASC_TAG_FLAG_EXTRA_BYTES;
+							data_cnt -= (ASC_DCNT)
+							    extra_bytes;
+							scsiq->q1.data_cnt =
+							    cpu_to_le32
+							    (data_cnt);
+							scsiq->q1.extra_bytes =
+							    extra_bytes;
+						}
+					}
+				}
+			}
+		}
+		n_q_required = 1;
+		if ((AscGetNumOfFreeQueue(asc_dvc, target_ix, 1) >= 1) ||
+		    ((scsiq->q1.cntl & QC_URGENT) != 0)) {
+			if ((sta = AscSendScsiQueue(asc_dvc, scsiq,
+						    n_q_required)) == 1) {
+				asc_dvc->in_critical_cnt--;
+				return (sta);
+			}
+		}
+	}
+	asc_dvc->in_critical_cnt--;
+	return (sta);
+}
+
+/*
+ * AdvExeScsiQueue() - Send a request to the RISC microcode program.
+ *
+ *   Allocate a carrier structure, point the carrier to the ADV_SCSI_REQ_Q,
+ *   add the carrier to the ICQ (Initiator Command Queue), and tickle the
+ *   RISC to notify it a new command is ready to be executed.
+ *
+ * If 'done_status' is not set to QD_DO_RETRY, then 'error_retry' will be
+ * set to SCSI_MAX_RETRY.
+ *
+ * Multi-byte fields in the ASC_SCSI_REQ_Q that are used by the microcode
+ * for DMA addresses or math operations are byte swapped to little-endian
+ * order.
+ *
+ * Return:
+ *      ADV_SUCCESS(1) - The request was successfully queued.
+ *      ADV_BUSY(0) -    Resource unavailable; Retry again after pending
+ *                       request completes.
+ *      ADV_ERROR(-1) -  Invalid ADV_SCSI_REQ_Q request structure
+ *                       host IC error.
+ */
+static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, ADV_SCSI_REQ_Q *scsiq)
+{
+	AdvPortAddr iop_base;
+	ADV_PADDR req_paddr;
+	ADV_CARR_T *new_carrp;
+
+	/*
+	 * The ADV_SCSI_REQ_Q 'target_id' field should never exceed ADV_MAX_TID.
+	 */
+	if (scsiq->target_id > ADV_MAX_TID) {
+		scsiq->host_status = QHSTA_M_INVALID_DEVICE;
+		scsiq->done_status = QD_WITH_ERROR;
+		return ADV_ERROR;
+	}
+
+	iop_base = asc_dvc->iop_base;
+
+	/*
+	 * Allocate a carrier ensuring at least one carrier always
+	 * remains on the freelist and initialize fields.
+	 */
+	if ((new_carrp = asc_dvc->carr_freelist) == NULL) {
+		return ADV_BUSY;
+	}
+	asc_dvc->carr_freelist = (ADV_CARR_T *)
+	    ADV_U32_TO_VADDR(le32_to_cpu(new_carrp->next_vpa));
+	asc_dvc->carr_pending_cnt++;
+
+	/*
+	 * Set the carrier to be a stopper by setting 'next_vpa'
+	 * to the stopper value. The current stopper will be changed
+	 * below to point to the new stopper.
+	 */
+	new_carrp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
+
+	/*
+	 * Clear the ADV_SCSI_REQ_Q done flag.
+	 */
+	scsiq->a_flag &= ~ADV_SCSIQ_DONE;
+
+	req_paddr = virt_to_bus(scsiq);
+	BUG_ON(req_paddr & 31);
+	/* Wait for assertion before making little-endian */
+	req_paddr = cpu_to_le32(req_paddr);
+
+	/* Save virtual and physical address of ADV_SCSI_REQ_Q and carrier. */
+	scsiq->scsiq_ptr = cpu_to_le32(ADV_VADDR_TO_U32(scsiq));
+	scsiq->scsiq_rptr = req_paddr;
+
+	scsiq->carr_va = cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->icq_sp));
+	/*
+	 * Every ADV_CARR_T.carr_pa is byte swapped to little-endian
+	 * order during initialization.
+	 */
+	scsiq->carr_pa = asc_dvc->icq_sp->carr_pa;
+
+	/*
+	 * Use the current stopper to send the ADV_SCSI_REQ_Q command to
+	 * the microcode. The newly allocated stopper will become the new
+	 * stopper.
+	 */
+	asc_dvc->icq_sp->areq_vpa = req_paddr;
+
+	/*
+	 * Set the 'next_vpa' pointer for the old stopper to be the
+	 * physical address of the new stopper. The RISC can only
+	 * follow physical addresses.
+	 */
+	asc_dvc->icq_sp->next_vpa = new_carrp->carr_pa;
+
+	/*
+	 * Set the host adapter stopper pointer to point to the new carrier.
+	 */
+	asc_dvc->icq_sp = new_carrp;
+
+	if (asc_dvc->chip_type == ADV_CHIP_ASC3550 ||
+	    asc_dvc->chip_type == ADV_CHIP_ASC38C0800) {
+		/*
+		 * Tickle the RISC to tell it to read its Command Queue Head pointer.
+		 */
+		AdvWriteByteRegister(iop_base, IOPB_TICKLE, ADV_TICKLE_A);
+		if (asc_dvc->chip_type == ADV_CHIP_ASC3550) {
+			/*
+			 * Clear the tickle value. In the ASC-3550 the RISC flag
+			 * command 'clr_tickle_a' does not work unless the host
+			 * value is cleared.
+			 */
+			AdvWriteByteRegister(iop_base, IOPB_TICKLE,
+					     ADV_TICKLE_NOP);
+		}
+	} else if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
+		/*
+		 * Notify the RISC a carrier is ready by writing the physical
+		 * address of the new carrier stopper to the COMMA register.
+		 */
+		AdvWriteDWordRegister(iop_base, IOPDW_COMMA,
+				      le32_to_cpu(new_carrp->carr_pa));
+	}
+
+	return ADV_SUCCESS;
+}
+
+/*
+ * Execute a single 'Scsi_Cmnd'.
+ */
+static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
+{
+	int ret, err_code;
+	struct asc_board *boardp = shost_priv(scp->device->host);
+
+	ASC_DBG(1, "scp 0x%p\n", scp);
+
+	if (ASC_NARROW_BOARD(boardp)) {
+		ASC_DVC_VAR *asc_dvc = &boardp->dvc_var.asc_dvc_var;
+		struct asc_scsi_q asc_scsi_q;
+
+		/* asc_build_req() can not return ASC_BUSY. */
+		ret = asc_build_req(boardp, scp, &asc_scsi_q);
+		if (ret == ASC_ERROR) {
+			ASC_STATS(scp->device->host, build_error);
+			return ASC_ERROR;
+		}
+
+		ret = AscExeScsiQueue(asc_dvc, &asc_scsi_q);
+		kfree(asc_scsi_q.sg_head);
+		err_code = asc_dvc->err_code;
+	} else {
+		ADV_DVC_VAR *adv_dvc = &boardp->dvc_var.adv_dvc_var;
+		ADV_SCSI_REQ_Q *adv_scsiqp;
+
+		switch (adv_build_req(boardp, scp, &adv_scsiqp)) {
+		case ASC_NOERROR:
+			ASC_DBG(3, "adv_build_req ASC_NOERROR\n");
+			break;
+		case ASC_BUSY:
+			ASC_DBG(1, "adv_build_req ASC_BUSY\n");
+			/*
+			 * The asc_stats fields 'adv_build_noreq' and
+			 * 'adv_build_nosg' count wide board busy conditions.
+			 * They are updated in adv_build_req and
+			 * adv_get_sglist, respectively.
+			 */
+			return ASC_BUSY;
+		case ASC_ERROR:
+		default:
+			ASC_DBG(1, "adv_build_req ASC_ERROR\n");
+			ASC_STATS(scp->device->host, build_error);
+			return ASC_ERROR;
+		}
+
+		ret = AdvExeScsiQueue(adv_dvc, adv_scsiqp);
+		err_code = adv_dvc->err_code;
+	}
+
+	switch (ret) {
+	case ASC_NOERROR:
+		ASC_STATS(scp->device->host, exe_noerror);
+		/*
+		 * Increment monotonically increasing per device
+		 * successful request counter. Wrapping doesn't matter.
+		 */
+		boardp->reqcnt[scp->device->id]++;
+		ASC_DBG(1, "ExeScsiQueue() ASC_NOERROR\n");
+		break;
+	case ASC_BUSY:
+		ASC_STATS(scp->device->host, exe_busy);
+		break;
+	case ASC_ERROR:
+		scmd_printk(KERN_ERR, scp, "ExeScsiQueue() ASC_ERROR, "
+			"err_code 0x%x\n", err_code);
+		ASC_STATS(scp->device->host, exe_error);
+		scp->result = HOST_BYTE(DID_ERROR);
+		break;
+	default:
+		scmd_printk(KERN_ERR, scp, "ExeScsiQueue() unknown, "
+			"err_code 0x%x\n", err_code);
+		ASC_STATS(scp->device->host, exe_unknown);
+		scp->result = HOST_BYTE(DID_ERROR);
+		break;
+	}
+
+	ASC_DBG(1, "end\n");
+	return ret;
+}
+
+/*
+ * advansys_queuecommand() - interrupt-driven I/O entrypoint.
+ *
+ * This function always returns 0. Command return status is saved
+ * in the 'scp' result field.
+ */
+static int
+advansys_queuecommand(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd *))
+{
+	struct Scsi_Host *shost = scp->device->host;
+	int asc_res, result = 0;
+
+	ASC_STATS(shost, queuecommand);
+	scp->scsi_done = done;
+
+	asc_res = asc_execute_scsi_cmnd(scp);
+
+	switch (asc_res) {
+	case ASC_NOERROR:
+		break;
+	case ASC_BUSY:
+		result = SCSI_MLQUEUE_HOST_BUSY;
+		break;
+	case ASC_ERROR:
+	default:
+		asc_scsi_done(scp);
+		break;
+	}
+
+	return result;
+}
+
+static ushort __devinit AscGetEisaChipCfg(PortAddr iop_base)
+{
+	PortAddr eisa_cfg_iop = (PortAddr) ASC_GET_EISA_SLOT(iop_base) |
+	    (PortAddr) (ASC_EISA_CFG_IOP_MASK);
+	return inpw(eisa_cfg_iop);
+}
+
+/*
+ * Return the BIOS address of the adapter at the specified
+ * I/O port and with the specified bus type.
+ */
+static unsigned short __devinit
+AscGetChipBiosAddress(PortAddr iop_base, unsigned short bus_type)
+{
+	unsigned short cfg_lsw;
+	unsigned short bios_addr;
+
+	/*
+	 * The PCI BIOS is re-located by the motherboard BIOS. Because
+	 * of this the driver can not determine where a PCI BIOS is
+	 * loaded and executes.
+	 */
+	if (bus_type & ASC_IS_PCI)
+		return 0;
+
+	if ((bus_type & ASC_IS_EISA) != 0) {
+		cfg_lsw = AscGetEisaChipCfg(iop_base);
+		cfg_lsw &= 0x000F;
+		bios_addr = ASC_BIOS_MIN_ADDR + cfg_lsw * ASC_BIOS_BANK_SIZE;
+		return bios_addr;
+	}
+
+	cfg_lsw = AscGetChipCfgLsw(iop_base);
+
+	/*
+	 *  ISA PnP uses the top bit as the 32K BIOS flag
+	 */
+	if (bus_type == ASC_IS_ISAPNP)
+		cfg_lsw &= 0x7FFF;
+	bios_addr = ASC_BIOS_MIN_ADDR + (cfg_lsw >> 12) * ASC_BIOS_BANK_SIZE;
+	return bios_addr;
+}
+
+static uchar __devinit AscSetChipScsiID(PortAddr iop_base, uchar new_host_id)
+{
+	ushort cfg_lsw;
+
+	if (AscGetChipScsiID(iop_base) == new_host_id) {
+		return (new_host_id);
+	}
+	cfg_lsw = AscGetChipCfgLsw(iop_base);
+	cfg_lsw &= 0xF8FF;
+	cfg_lsw |= (ushort)((new_host_id & ASC_MAX_TID) << 8);
+	AscSetChipCfgLsw(iop_base, cfg_lsw);
+	return (AscGetChipScsiID(iop_base));
+}
+
+static unsigned char __devinit AscGetChipScsiCtrl(PortAddr iop_base)
+{
+	unsigned char sc;
+
+	AscSetBank(iop_base, 1);
+	sc = inp(iop_base + IOP_REG_SC);
+	AscSetBank(iop_base, 0);
+	return sc;
+}
+
+static unsigned char __devinit
+AscGetChipVersion(PortAddr iop_base, unsigned short bus_type)
+{
+	if (bus_type & ASC_IS_EISA) {
+		PortAddr eisa_iop;
+		unsigned char revision;
+		eisa_iop = (PortAddr) ASC_GET_EISA_SLOT(iop_base) |
+		    (PortAddr) ASC_EISA_REV_IOP_MASK;
+		revision = inp(eisa_iop);
+		return ASC_CHIP_MIN_VER_EISA - 1 + revision;
+	}
+	return AscGetChipVerNo(iop_base);
+}
+
+#ifdef CONFIG_ISA
+static void __devinit AscEnableIsaDma(uchar dma_channel)
+{
+	if (dma_channel < 4) {
+		outp(0x000B, (ushort)(0xC0 | dma_channel));
+		outp(0x000A, dma_channel);
+	} else if (dma_channel < 8) {
+		outp(0x00D6, (ushort)(0xC0 | (dma_channel - 4)));
+		outp(0x00D4, (ushort)(dma_channel - 4));
+	}
+}
+#endif /* CONFIG_ISA */
+
+static int AscStopQueueExe(PortAddr iop_base)
+{
+	int count = 0;
+
+	if (AscReadLramByte(iop_base, ASCV_STOP_CODE_B) == 0) {
+		AscWriteLramByte(iop_base, ASCV_STOP_CODE_B,
+				 ASC_STOP_REQ_RISC_STOP);
+		do {
+			if (AscReadLramByte(iop_base, ASCV_STOP_CODE_B) &
+			    ASC_STOP_ACK_RISC_STOP) {
+				return (1);
+			}
+			mdelay(100);
+		} while (count++ < 20);
+	}
+	return (0);
+}
+
+static ASC_DCNT __devinit AscGetMaxDmaCount(ushort bus_type)
+{
+	if (bus_type & ASC_IS_ISA)
+		return ASC_MAX_ISA_DMA_COUNT;
+	else if (bus_type & (ASC_IS_EISA | ASC_IS_VL))
+		return ASC_MAX_VL_DMA_COUNT;
+	return ASC_MAX_PCI_DMA_COUNT;
+}
+
+#ifdef CONFIG_ISA
+static ushort __devinit AscGetIsaDmaChannel(PortAddr iop_base)
+{
+	ushort channel;
+
+	channel = AscGetChipCfgLsw(iop_base) & 0x0003;
+	if (channel == 0x03)
+		return (0);
+	else if (channel == 0x00)
+		return (7);
+	return (channel + 4);
+}
+
+static ushort __devinit AscSetIsaDmaChannel(PortAddr iop_base, ushort dma_channel)
+{
+	ushort cfg_lsw;
+	uchar value;
+
+	if ((dma_channel >= 5) && (dma_channel <= 7)) {
+		if (dma_channel == 7)
+			value = 0x00;
+		else
+			value = dma_channel - 4;
+		cfg_lsw = AscGetChipCfgLsw(iop_base) & 0xFFFC;
+		cfg_lsw |= value;
+		AscSetChipCfgLsw(iop_base, cfg_lsw);
+		return (AscGetIsaDmaChannel(iop_base));
+	}
+	return 0;
+}
+
+static uchar __devinit AscGetIsaDmaSpeed(PortAddr iop_base)
+{
+	uchar speed_value;
+
+	AscSetBank(iop_base, 1);
+	speed_value = AscReadChipDmaSpeed(iop_base);
+	speed_value &= 0x07;
+	AscSetBank(iop_base, 0);
+	return speed_value;
+}
+
+static uchar __devinit AscSetIsaDmaSpeed(PortAddr iop_base, uchar speed_value)
+{
+	speed_value &= 0x07;
+	AscSetBank(iop_base, 1);
+	AscWriteChipDmaSpeed(iop_base, speed_value);
+	AscSetBank(iop_base, 0);
+	return AscGetIsaDmaSpeed(iop_base);
+}
+#endif /* CONFIG_ISA */
+
+static ushort __devinit AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
+{
+	int i;
+	PortAddr iop_base;
+	ushort warn_code;
+	uchar chip_version;
+
+	iop_base = asc_dvc->iop_base;
+	warn_code = 0;
+	asc_dvc->err_code = 0;
+	if ((asc_dvc->bus_type &
+	     (ASC_IS_ISA | ASC_IS_PCI | ASC_IS_EISA | ASC_IS_VL)) == 0) {
+		asc_dvc->err_code |= ASC_IERR_NO_BUS_TYPE;
+	}
+	AscSetChipControl(iop_base, CC_HALT);
+	AscSetChipStatus(iop_base, 0);
+	asc_dvc->bug_fix_cntl = 0;
+	asc_dvc->pci_fix_asyn_xfer = 0;
+	asc_dvc->pci_fix_asyn_xfer_always = 0;
+	/* asc_dvc->init_state initalized in AscInitGetConfig(). */
+	asc_dvc->sdtr_done = 0;
+	asc_dvc->cur_total_qng = 0;
+	asc_dvc->is_in_int = 0;
+	asc_dvc->in_critical_cnt = 0;
+	asc_dvc->last_q_shortage = 0;
+	asc_dvc->use_tagged_qng = 0;
+	asc_dvc->no_scam = 0;
+	asc_dvc->unit_not_ready = 0;
+	asc_dvc->queue_full_or_busy = 0;
+	asc_dvc->redo_scam = 0;
+	asc_dvc->res2 = 0;
+	asc_dvc->min_sdtr_index = 0;
+	asc_dvc->cfg->can_tagged_qng = 0;
+	asc_dvc->cfg->cmd_qng_enabled = 0;
+	asc_dvc->dvc_cntl = ASC_DEF_DVC_CNTL;
+	asc_dvc->init_sdtr = 0;
+	asc_dvc->max_total_qng = ASC_DEF_MAX_TOTAL_QNG;
+	asc_dvc->scsi_reset_wait = 3;
+	asc_dvc->start_motor = ASC_SCSI_WIDTH_BIT_SET;
+	asc_dvc->max_dma_count = AscGetMaxDmaCount(asc_dvc->bus_type);
+	asc_dvc->cfg->sdtr_enable = ASC_SCSI_WIDTH_BIT_SET;
+	asc_dvc->cfg->disc_enable = ASC_SCSI_WIDTH_BIT_SET;
+	asc_dvc->cfg->chip_scsi_id = ASC_DEF_CHIP_SCSI_ID;
+	chip_version = AscGetChipVersion(iop_base, asc_dvc->bus_type);
+	asc_dvc->cfg->chip_version = chip_version;
+	asc_dvc->sdtr_period_tbl = asc_syn_xfer_period;
+	asc_dvc->max_sdtr_index = 7;
+	if ((asc_dvc->bus_type & ASC_IS_PCI) &&
+	    (chip_version >= ASC_CHIP_VER_PCI_ULTRA_3150)) {
+		asc_dvc->bus_type = ASC_IS_PCI_ULTRA;
+		asc_dvc->sdtr_period_tbl = asc_syn_ultra_xfer_period;
+		asc_dvc->max_sdtr_index = 15;
+		if (chip_version == ASC_CHIP_VER_PCI_ULTRA_3150) {
+			AscSetExtraControl(iop_base,
+					   (SEC_ACTIVE_NEGATE | SEC_SLEW_RATE));
+		} else if (chip_version >= ASC_CHIP_VER_PCI_ULTRA_3050) {
+			AscSetExtraControl(iop_base,
+					   (SEC_ACTIVE_NEGATE |
+					    SEC_ENABLE_FILTER));
+		}
+	}
+	if (asc_dvc->bus_type == ASC_IS_PCI) {
+		AscSetExtraControl(iop_base,
+				   (SEC_ACTIVE_NEGATE | SEC_SLEW_RATE));
+	}
+
+	asc_dvc->cfg->isa_dma_speed = ASC_DEF_ISA_DMA_SPEED;
+#ifdef CONFIG_ISA
+	if ((asc_dvc->bus_type & ASC_IS_ISA) != 0) {
+		if (chip_version >= ASC_CHIP_MIN_VER_ISA_PNP) {
+			AscSetChipIFC(iop_base, IFC_INIT_DEFAULT);
+			asc_dvc->bus_type = ASC_IS_ISAPNP;
+		}
+		asc_dvc->cfg->isa_dma_channel =
+		    (uchar)AscGetIsaDmaChannel(iop_base);
+	}
+#endif /* CONFIG_ISA */
+	for (i = 0; i <= ASC_MAX_TID; i++) {
+		asc_dvc->cur_dvc_qng[i] = 0;
+		asc_dvc->max_dvc_qng[i] = ASC_MAX_SCSI1_QNG;
+		asc_dvc->scsiq_busy_head[i] = (ASC_SCSI_Q *)0L;
+		asc_dvc->scsiq_busy_tail[i] = (ASC_SCSI_Q *)0L;
+		asc_dvc->cfg->max_tag_qng[i] = ASC_MAX_INRAM_TAG_QNG;
+	}
+	return warn_code;
+}
+
+static int __devinit AscWriteEEPCmdReg(PortAddr iop_base, uchar cmd_reg)
+{
+	int retry;
+
+	for (retry = 0; retry < ASC_EEP_MAX_RETRY; retry++) {
+		unsigned char read_back;
+		AscSetChipEEPCmd(iop_base, cmd_reg);
+		mdelay(1);
+		read_back = AscGetChipEEPCmd(iop_base);
+		if (read_back == cmd_reg)
+			return 1;
+	}
+	return 0;
+}
+
+static void __devinit AscWaitEEPRead(void)
+{
+	mdelay(1);
+}
+
+static ushort __devinit AscReadEEPWord(PortAddr iop_base, uchar addr)
+{
+	ushort read_wval;
+	uchar cmd_reg;
+
+	AscWriteEEPCmdReg(iop_base, ASC_EEP_CMD_WRITE_DISABLE);
+	AscWaitEEPRead();
+	cmd_reg = addr | ASC_EEP_CMD_READ;
+	AscWriteEEPCmdReg(iop_base, cmd_reg);
+	AscWaitEEPRead();
+	read_wval = AscGetChipEEPData(iop_base);
+	AscWaitEEPRead();
+	return read_wval;
+}
+
+static ushort __devinit
+AscGetEEPConfig(PortAddr iop_base, ASCEEP_CONFIG *cfg_buf, ushort bus_type)
+{
+	ushort wval;
+	ushort sum;
+	ushort *wbuf;
+	int cfg_beg;
+	int cfg_end;
+	int uchar_end_in_config = ASC_EEP_MAX_DVC_ADDR - 2;
+	int s_addr;
+
+	wbuf = (ushort *)cfg_buf;
+	sum = 0;
+	/* Read two config words; Byte-swapping done by AscReadEEPWord(). */
+	for (s_addr = 0; s_addr < 2; s_addr++, wbuf++) {
+		*wbuf = AscReadEEPWord(iop_base, (uchar)s_addr);
+		sum += *wbuf;
+	}
+	if (bus_type & ASC_IS_VL) {
+		cfg_beg = ASC_EEP_DVC_CFG_BEG_VL;
+		cfg_end = ASC_EEP_MAX_DVC_ADDR_VL;
+	} else {
+		cfg_beg = ASC_EEP_DVC_CFG_BEG;
+		cfg_end = ASC_EEP_MAX_DVC_ADDR;
+	}
+	for (s_addr = cfg_beg; s_addr <= (cfg_end - 1); s_addr++, wbuf++) {
+		wval = AscReadEEPWord(iop_base, (uchar)s_addr);
+		if (s_addr <= uchar_end_in_config) {
+			/*
+			 * Swap all char fields - must unswap bytes already swapped
+			 * by AscReadEEPWord().
+			 */
+			*wbuf = le16_to_cpu(wval);
+		} else {
+			/* Don't swap word field at the end - cntl field. */
+			*wbuf = wval;
+		}
+		sum += wval;	/* Checksum treats all EEPROM data as words. */
+	}
+	/*
+	 * Read the checksum word which will be compared against 'sum'
+	 * by the caller. Word field already swapped.
+	 */
+	*wbuf = AscReadEEPWord(iop_base, (uchar)s_addr);
+	return sum;
+}
+
+static int __devinit AscTestExternalLram(ASC_DVC_VAR *asc_dvc)
+{
+	PortAddr iop_base;
+	ushort q_addr;
+	ushort saved_word;
+	int sta;
+
+	iop_base = asc_dvc->iop_base;
+	sta = 0;
+	q_addr = ASC_QNO_TO_QADDR(241);
+	saved_word = AscReadLramWord(iop_base, q_addr);
+	AscSetChipLramAddr(iop_base, q_addr);
+	AscSetChipLramData(iop_base, 0x55AA);
+	mdelay(10);
+	AscSetChipLramAddr(iop_base, q_addr);
+	if (AscGetChipLramData(iop_base) == 0x55AA) {
+		sta = 1;
+		AscWriteLramWord(iop_base, q_addr, saved_word);
+	}
+	return (sta);
+}
+
+static void __devinit AscWaitEEPWrite(void)
+{
+	mdelay(20);
+}
+
+static int __devinit AscWriteEEPDataReg(PortAddr iop_base, ushort data_reg)
+{
+	ushort read_back;
+	int retry;
+
+	retry = 0;
+	while (TRUE) {
+		AscSetChipEEPData(iop_base, data_reg);
+		mdelay(1);
+		read_back = AscGetChipEEPData(iop_base);
+		if (read_back == data_reg) {
+			return (1);
+		}
+		if (retry++ > ASC_EEP_MAX_RETRY) {
+			return (0);
+		}
+	}
+}
+
+static ushort __devinit
+AscWriteEEPWord(PortAddr iop_base, uchar addr, ushort word_val)
+{
+	ushort read_wval;
+
+	read_wval = AscReadEEPWord(iop_base, addr);
+	if (read_wval != word_val) {
+		AscWriteEEPCmdReg(iop_base, ASC_EEP_CMD_WRITE_ABLE);
+		AscWaitEEPRead();
+		AscWriteEEPDataReg(iop_base, word_val);
+		AscWaitEEPRead();
+		AscWriteEEPCmdReg(iop_base,
+				  (uchar)((uchar)ASC_EEP_CMD_WRITE | addr));
+		AscWaitEEPWrite();
+		AscWriteEEPCmdReg(iop_base, ASC_EEP_CMD_WRITE_DISABLE);
+		AscWaitEEPRead();
+		return (AscReadEEPWord(iop_base, addr));
+	}
+	return (read_wval);
+}
+
+static int __devinit
+AscSetEEPConfigOnce(PortAddr iop_base, ASCEEP_CONFIG *cfg_buf, ushort bus_type)
+{
+	int n_error;
+	ushort *wbuf;
+	ushort word;
+	ushort sum;
+	int s_addr;
+	int cfg_beg;
+	int cfg_end;
+	int uchar_end_in_config = ASC_EEP_MAX_DVC_ADDR - 2;
+
+	wbuf = (ushort *)cfg_buf;
+	n_error = 0;
+	sum = 0;
+	/* Write two config words; AscWriteEEPWord() will swap bytes. */
+	for (s_addr = 0; s_addr < 2; s_addr++, wbuf++) {
+		sum += *wbuf;
+		if (*wbuf != AscWriteEEPWord(iop_base, (uchar)s_addr, *wbuf)) {
+			n_error++;
+		}
+	}
+	if (bus_type & ASC_IS_VL) {
+		cfg_beg = ASC_EEP_DVC_CFG_BEG_VL;
+		cfg_end = ASC_EEP_MAX_DVC_ADDR_VL;
+	} else {
+		cfg_beg = ASC_EEP_DVC_CFG_BEG;
+		cfg_end = ASC_EEP_MAX_DVC_ADDR;
+	}
+	for (s_addr = cfg_beg; s_addr <= (cfg_end - 1); s_addr++, wbuf++) {
+		if (s_addr <= uchar_end_in_config) {
+			/*
+			 * This is a char field. Swap char fields before they are
+			 * swapped again by AscWriteEEPWord().
+			 */
+			word = cpu_to_le16(*wbuf);
+			if (word !=
+			    AscWriteEEPWord(iop_base, (uchar)s_addr, word)) {
+				n_error++;
+			}
+		} else {
+			/* Don't swap word field at the end - cntl field. */
+			if (*wbuf !=
+			    AscWriteEEPWord(iop_base, (uchar)s_addr, *wbuf)) {
+				n_error++;
+			}
+		}
+		sum += *wbuf;	/* Checksum calculated from word values. */
+	}
+	/* Write checksum word. It will be swapped by AscWriteEEPWord(). */
+	*wbuf = sum;
+	if (sum != AscWriteEEPWord(iop_base, (uchar)s_addr, sum)) {
+		n_error++;
+	}
+
+	/* Read EEPROM back again. */
+	wbuf = (ushort *)cfg_buf;
+	/*
+	 * Read two config words; Byte-swapping done by AscReadEEPWord().
+	 */
+	for (s_addr = 0; s_addr < 2; s_addr++, wbuf++) {
+		if (*wbuf != AscReadEEPWord(iop_base, (uchar)s_addr)) {
+			n_error++;
+		}
+	}
+	if (bus_type & ASC_IS_VL) {
+		cfg_beg = ASC_EEP_DVC_CFG_BEG_VL;
+		cfg_end = ASC_EEP_MAX_DVC_ADDR_VL;
+	} else {
+		cfg_beg = ASC_EEP_DVC_CFG_BEG;
+		cfg_end = ASC_EEP_MAX_DVC_ADDR;
+	}
+	for (s_addr = cfg_beg; s_addr <= (cfg_end - 1); s_addr++, wbuf++) {
+		if (s_addr <= uchar_end_in_config) {
+			/*
+			 * Swap all char fields. Must unswap bytes already swapped
+			 * by AscReadEEPWord().
+			 */
+			word =
+			    le16_to_cpu(AscReadEEPWord
+					(iop_base, (uchar)s_addr));
+		} else {
+			/* Don't swap word field at the end - cntl field. */
+			word = AscReadEEPWord(iop_base, (uchar)s_addr);
+		}
+		if (*wbuf != word) {
+			n_error++;
+		}
+	}
+	/* Read checksum; Byte swapping not needed. */
+	if (AscReadEEPWord(iop_base, (uchar)s_addr) != sum) {
+		n_error++;
+	}
+	return n_error;
+}
+
+static int __devinit
+AscSetEEPConfig(PortAddr iop_base, ASCEEP_CONFIG *cfg_buf, ushort bus_type)
+{
+	int retry;
+	int n_error;
+
+	retry = 0;
+	while (TRUE) {
+		if ((n_error = AscSetEEPConfigOnce(iop_base, cfg_buf,
+						   bus_type)) == 0) {
+			break;
+		}
+		if (++retry > ASC_EEP_MAX_RETRY) {
+			break;
+		}
+	}
+	return n_error;
+}
+
+static ushort __devinit AscInitFromEEP(ASC_DVC_VAR *asc_dvc)
+{
+	ASCEEP_CONFIG eep_config_buf;
+	ASCEEP_CONFIG *eep_config;
+	PortAddr iop_base;
+	ushort chksum;
+	ushort warn_code;
+	ushort cfg_msw, cfg_lsw;
+	int i;
+	int write_eep = 0;
+
+	iop_base = asc_dvc->iop_base;
+	warn_code = 0;
+	AscWriteLramWord(iop_base, ASCV_HALTCODE_W, 0x00FE);
+	AscStopQueueExe(iop_base);
+	if ((AscStopChip(iop_base) == FALSE) ||
+	    (AscGetChipScsiCtrl(iop_base) != 0)) {
+		asc_dvc->init_state |= ASC_INIT_RESET_SCSI_DONE;
+		AscResetChipAndScsiBus(asc_dvc);
+		mdelay(asc_dvc->scsi_reset_wait * 1000); /* XXX: msleep? */
+	}
+	if (AscIsChipHalted(iop_base) == FALSE) {
+		asc_dvc->err_code |= ASC_IERR_START_STOP_CHIP;
+		return (warn_code);
+	}
+	AscSetPCAddr(iop_base, ASC_MCODE_START_ADDR);
+	if (AscGetPCAddr(iop_base) != ASC_MCODE_START_ADDR) {
+		asc_dvc->err_code |= ASC_IERR_SET_PC_ADDR;
+		return (warn_code);
+	}
+	eep_config = (ASCEEP_CONFIG *)&eep_config_buf;
+	cfg_msw = AscGetChipCfgMsw(iop_base);
+	cfg_lsw = AscGetChipCfgLsw(iop_base);
+	if ((cfg_msw & ASC_CFG_MSW_CLR_MASK) != 0) {
+		cfg_msw &= ~ASC_CFG_MSW_CLR_MASK;
+		warn_code |= ASC_WARN_CFG_MSW_RECOVER;
+		AscSetChipCfgMsw(iop_base, cfg_msw);
+	}
+	chksum = AscGetEEPConfig(iop_base, eep_config, asc_dvc->bus_type);
+	ASC_DBG(1, "chksum 0x%x\n", chksum);
+	if (chksum == 0) {
+		chksum = 0xaa55;
+	}
+	if (AscGetChipStatus(iop_base) & CSW_AUTO_CONFIG) {
+		warn_code |= ASC_WARN_AUTO_CONFIG;
+		if (asc_dvc->cfg->chip_version == 3) {
+			if (eep_config->cfg_lsw != cfg_lsw) {
+				warn_code |= ASC_WARN_EEPROM_RECOVER;
+				eep_config->cfg_lsw =
+				    AscGetChipCfgLsw(iop_base);
+			}
+			if (eep_config->cfg_msw != cfg_msw) {
+				warn_code |= ASC_WARN_EEPROM_RECOVER;
+				eep_config->cfg_msw =
+				    AscGetChipCfgMsw(iop_base);
+			}
+		}
+	}
+	eep_config->cfg_msw &= ~ASC_CFG_MSW_CLR_MASK;
+	eep_config->cfg_lsw |= ASC_CFG0_HOST_INT_ON;
+	ASC_DBG(1, "eep_config->chksum 0x%x\n", eep_config->chksum);
+	if (chksum != eep_config->chksum) {
+		if (AscGetChipVersion(iop_base, asc_dvc->bus_type) ==
+		    ASC_CHIP_VER_PCI_ULTRA_3050) {
+			ASC_DBG(1, "chksum error ignored; EEPROM-less board\n");
+			eep_config->init_sdtr = 0xFF;
+			eep_config->disc_enable = 0xFF;
+			eep_config->start_motor = 0xFF;
+			eep_config->use_cmd_qng = 0;
+			eep_config->max_total_qng = 0xF0;
+			eep_config->max_tag_qng = 0x20;
+			eep_config->cntl = 0xBFFF;
+			ASC_EEP_SET_CHIP_ID(eep_config, 7);
+			eep_config->no_scam = 0;
+			eep_config->adapter_info[0] = 0;
+			eep_config->adapter_info[1] = 0;
+			eep_config->adapter_info[2] = 0;
+			eep_config->adapter_info[3] = 0;
+			eep_config->adapter_info[4] = 0;
+			/* Indicate EEPROM-less board. */
+			eep_config->adapter_info[5] = 0xBB;
+		} else {
+			ASC_PRINT
+			    ("AscInitFromEEP: EEPROM checksum error; Will try to re-write EEPROM.\n");
+			write_eep = 1;
+			warn_code |= ASC_WARN_EEPROM_CHKSUM;
+		}
+	}
+	asc_dvc->cfg->sdtr_enable = eep_config->init_sdtr;
+	asc_dvc->cfg->disc_enable = eep_config->disc_enable;
+	asc_dvc->cfg->cmd_qng_enabled = eep_config->use_cmd_qng;
+	asc_dvc->cfg->isa_dma_speed = ASC_EEP_GET_DMA_SPD(eep_config);
+	asc_dvc->start_motor = eep_config->start_motor;
+	asc_dvc->dvc_cntl = eep_config->cntl;
+	asc_dvc->no_scam = eep_config->no_scam;
+	asc_dvc->cfg->adapter_info[0] = eep_config->adapter_info[0];
+	asc_dvc->cfg->adapter_info[1] = eep_config->adapter_info[1];
+	asc_dvc->cfg->adapter_info[2] = eep_config->adapter_info[2];
+	asc_dvc->cfg->adapter_info[3] = eep_config->adapter_info[3];
+	asc_dvc->cfg->adapter_info[4] = eep_config->adapter_info[4];
+	asc_dvc->cfg->adapter_info[5] = eep_config->adapter_info[5];
+	if (!AscTestExternalLram(asc_dvc)) {
+		if (((asc_dvc->bus_type & ASC_IS_PCI_ULTRA) ==
+		     ASC_IS_PCI_ULTRA)) {
+			eep_config->max_total_qng =
+			    ASC_MAX_PCI_ULTRA_INRAM_TOTAL_QNG;
+			eep_config->max_tag_qng =
+			    ASC_MAX_PCI_ULTRA_INRAM_TAG_QNG;
+		} else {
+			eep_config->cfg_msw |= 0x0800;
+			cfg_msw |= 0x0800;
+			AscSetChipCfgMsw(iop_base, cfg_msw);
+			eep_config->max_total_qng = ASC_MAX_PCI_INRAM_TOTAL_QNG;
+			eep_config->max_tag_qng = ASC_MAX_INRAM_TAG_QNG;
+		}
+	} else {
+	}
+	if (eep_config->max_total_qng < ASC_MIN_TOTAL_QNG) {
+		eep_config->max_total_qng = ASC_MIN_TOTAL_QNG;
+	}
+	if (eep_config->max_total_qng > ASC_MAX_TOTAL_QNG) {
+		eep_config->max_total_qng = ASC_MAX_TOTAL_QNG;
+	}
+	if (eep_config->max_tag_qng > eep_config->max_total_qng) {
+		eep_config->max_tag_qng = eep_config->max_total_qng;
+	}
+	if (eep_config->max_tag_qng < ASC_MIN_TAG_Q_PER_DVC) {
+		eep_config->max_tag_qng = ASC_MIN_TAG_Q_PER_DVC;
+	}
+	asc_dvc->max_total_qng = eep_config->max_total_qng;
+	if ((eep_config->use_cmd_qng & eep_config->disc_enable) !=
+	    eep_config->use_cmd_qng) {
+		eep_config->disc_enable = eep_config->use_cmd_qng;
+		warn_code |= ASC_WARN_CMD_QNG_CONFLICT;
+	}
+	ASC_EEP_SET_CHIP_ID(eep_config,
+			    ASC_EEP_GET_CHIP_ID(eep_config) & ASC_MAX_TID);
+	asc_dvc->cfg->chip_scsi_id = ASC_EEP_GET_CHIP_ID(eep_config);
+	if (((asc_dvc->bus_type & ASC_IS_PCI_ULTRA) == ASC_IS_PCI_ULTRA) &&
+	    !(asc_dvc->dvc_cntl & ASC_CNTL_SDTR_ENABLE_ULTRA)) {
+		asc_dvc->min_sdtr_index = ASC_SDTR_ULTRA_PCI_10MB_INDEX;
+	}
+
+	for (i = 0; i <= ASC_MAX_TID; i++) {
+		asc_dvc->dos_int13_table[i] = eep_config->dos_int13_table[i];
+		asc_dvc->cfg->max_tag_qng[i] = eep_config->max_tag_qng;
+		asc_dvc->cfg->sdtr_period_offset[i] =
+		    (uchar)(ASC_DEF_SDTR_OFFSET |
+			    (asc_dvc->min_sdtr_index << 4));
+	}
+	eep_config->cfg_msw = AscGetChipCfgMsw(iop_base);
+	if (write_eep) {
+		if ((i = AscSetEEPConfig(iop_base, eep_config,
+				     asc_dvc->bus_type)) != 0) {
+			ASC_PRINT1
+			    ("AscInitFromEEP: Failed to re-write EEPROM with %d errors.\n",
+			     i);
+		} else {
+			ASC_PRINT
+			    ("AscInitFromEEP: Successfully re-wrote EEPROM.\n");
+		}
+	}
+	return (warn_code);
+}
+
+static int __devinit AscInitGetConfig(struct Scsi_Host *shost)
+{
+	struct asc_board *board = shost_priv(shost);
+	ASC_DVC_VAR *asc_dvc = &board->dvc_var.asc_dvc_var;
+	unsigned short warn_code = 0;
+
+	asc_dvc->init_state = ASC_INIT_STATE_BEG_GET_CFG;
+	if (asc_dvc->err_code != 0)
+		return asc_dvc->err_code;
+
+	if (AscFindSignature(asc_dvc->iop_base)) {
+		warn_code |= AscInitAscDvcVar(asc_dvc);
+		warn_code |= AscInitFromEEP(asc_dvc);
+		asc_dvc->init_state |= ASC_INIT_STATE_END_GET_CFG;
+		if (asc_dvc->scsi_reset_wait > ASC_MAX_SCSI_RESET_WAIT)
+			asc_dvc->scsi_reset_wait = ASC_MAX_SCSI_RESET_WAIT;
+	} else {
+		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
+	}
+
+	switch (warn_code) {
+	case 0:	/* No error */
+		break;
+	case ASC_WARN_IO_PORT_ROTATE:
+		shost_printk(KERN_WARNING, shost, "I/O port address "
+				"modified\n");
+		break;
+	case ASC_WARN_AUTO_CONFIG:
+		shost_printk(KERN_WARNING, shost, "I/O port increment switch "
+				"enabled\n");
+		break;
+	case ASC_WARN_EEPROM_CHKSUM:
+		shost_printk(KERN_WARNING, shost, "EEPROM checksum error\n");
+		break;
+	case ASC_WARN_IRQ_MODIFIED:
+		shost_printk(KERN_WARNING, shost, "IRQ modified\n");
+		break;
+	case ASC_WARN_CMD_QNG_CONFLICT:
+		shost_printk(KERN_WARNING, shost, "tag queuing enabled w/o "
+				"disconnects\n");
+		break;
+	default:
+		shost_printk(KERN_WARNING, shost, "unknown warning: 0x%x\n",
+				warn_code);
+		break;
+	}
+
+	if (asc_dvc->err_code != 0)
+		shost_printk(KERN_ERR, shost, "error 0x%x at init_state "
+			"0x%x\n", asc_dvc->err_code, asc_dvc->init_state);
+
+	return asc_dvc->err_code;
+}
+
+static int __devinit AscInitSetConfig(struct pci_dev *pdev, struct Scsi_Host *shost)
+{
+	struct asc_board *board = shost_priv(shost);
+	ASC_DVC_VAR *asc_dvc = &board->dvc_var.asc_dvc_var;
+	PortAddr iop_base = asc_dvc->iop_base;
+	unsigned short cfg_msw;
+	unsigned short warn_code = 0;
+
+	asc_dvc->init_state |= ASC_INIT_STATE_BEG_SET_CFG;
+	if (asc_dvc->err_code != 0)
+		return asc_dvc->err_code;
+	if (!AscFindSignature(asc_dvc->iop_base)) {
+		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
+		return asc_dvc->err_code;
+	}
+
+	cfg_msw = AscGetChipCfgMsw(iop_base);
+	if ((cfg_msw & ASC_CFG_MSW_CLR_MASK) != 0) {
+		cfg_msw &= ~ASC_CFG_MSW_CLR_MASK;
+		warn_code |= ASC_WARN_CFG_MSW_RECOVER;
+		AscSetChipCfgMsw(iop_base, cfg_msw);
+	}
+	if ((asc_dvc->cfg->cmd_qng_enabled & asc_dvc->cfg->disc_enable) !=
+	    asc_dvc->cfg->cmd_qng_enabled) {
+		asc_dvc->cfg->disc_enable = asc_dvc->cfg->cmd_qng_enabled;
+		warn_code |= ASC_WARN_CMD_QNG_CONFLICT;
+	}
+	if (AscGetChipStatus(iop_base) & CSW_AUTO_CONFIG) {
+		warn_code |= ASC_WARN_AUTO_CONFIG;
+	}
+#ifdef CONFIG_PCI
+	if (asc_dvc->bus_type & ASC_IS_PCI) {
+		cfg_msw &= 0xFFC0;
+		AscSetChipCfgMsw(iop_base, cfg_msw);
+		if ((asc_dvc->bus_type & ASC_IS_PCI_ULTRA) == ASC_IS_PCI_ULTRA) {
+		} else {
+			if ((pdev->device == PCI_DEVICE_ID_ASP_1200A) ||
+			    (pdev->device == PCI_DEVICE_ID_ASP_ABP940)) {
+				asc_dvc->bug_fix_cntl |= ASC_BUG_FIX_IF_NOT_DWB;
+				asc_dvc->bug_fix_cntl |=
+				    ASC_BUG_FIX_ASYN_USE_SYN;
+			}
+		}
+	} else
+#endif /* CONFIG_PCI */
+	if (asc_dvc->bus_type == ASC_IS_ISAPNP) {
+		if (AscGetChipVersion(iop_base, asc_dvc->bus_type)
+		    == ASC_CHIP_VER_ASYN_BUG) {
+			asc_dvc->bug_fix_cntl |= ASC_BUG_FIX_ASYN_USE_SYN;
+		}
+	}
+	if (AscSetChipScsiID(iop_base, asc_dvc->cfg->chip_scsi_id) !=
+	    asc_dvc->cfg->chip_scsi_id) {
+		asc_dvc->err_code |= ASC_IERR_SET_SCSI_ID;
+	}
+#ifdef CONFIG_ISA
+	if (asc_dvc->bus_type & ASC_IS_ISA) {
+		AscSetIsaDmaChannel(iop_base, asc_dvc->cfg->isa_dma_channel);
+		AscSetIsaDmaSpeed(iop_base, asc_dvc->cfg->isa_dma_speed);
+	}
+#endif /* CONFIG_ISA */
+
+	asc_dvc->init_state |= ASC_INIT_STATE_END_SET_CFG;
+
+	switch (warn_code) {
+	case 0:	/* No error. */
+		break;
+	case ASC_WARN_IO_PORT_ROTATE:
+		shost_printk(KERN_WARNING, shost, "I/O port address "
+				"modified\n");
+		break;
+	case ASC_WARN_AUTO_CONFIG:
+		shost_printk(KERN_WARNING, shost, "I/O port increment switch "
+				"enabled\n");
+		break;
+	case ASC_WARN_EEPROM_CHKSUM:
+		shost_printk(KERN_WARNING, shost, "EEPROM checksum error\n");
+		break;
+	case ASC_WARN_IRQ_MODIFIED:
+		shost_printk(KERN_WARNING, shost, "IRQ modified\n");
+		break;
+	case ASC_WARN_CMD_QNG_CONFLICT:
+		shost_printk(KERN_WARNING, shost, "tag queuing w/o "
+				"disconnects\n");
+		break;
+	default:
+		shost_printk(KERN_WARNING, shost, "unknown warning: 0x%x\n",
+				warn_code);
+		break;
+	}
+
+	if (asc_dvc->err_code != 0)
+		shost_printk(KERN_ERR, shost, "error 0x%x at init_state "
+			"0x%x\n", asc_dvc->err_code, asc_dvc->init_state);
+
+	return asc_dvc->err_code;
+}
+
+/*
+ * EEPROM Configuration.
+ *
+ * All drivers should use this structure to set the default EEPROM
+ * configuration. The BIOS now uses this structure when it is built.
+ * Additional structure information can be found in a_condor.h where
+ * the structure is defined.
+ *
+ * The *_Field_IsChar structs are needed to correct for endianness.
+ * These values are read from the board 16 bits at a time directly
+ * into the structs. Because some fields are char, the values will be
+ * in the wrong order. The *_Field_IsChar tells when to flip the
+ * bytes. Data read and written to PCI memory is automatically swapped
+ * on big-endian platforms so char fields read as words are actually being
+ * unswapped on big-endian platforms.
+ */
+static ADVEEP_3550_CONFIG Default_3550_EEPROM_Config __devinitdata = {
+	ADV_EEPROM_BIOS_ENABLE,	/* cfg_lsw */
+	0x0000,			/* cfg_msw */
+	0xFFFF,			/* disc_enable */
+	0xFFFF,			/* wdtr_able */
+	0xFFFF,			/* sdtr_able */
+	0xFFFF,			/* start_motor */
+	0xFFFF,			/* tagqng_able */
+	0xFFFF,			/* bios_scan */
+	0,			/* scam_tolerant */
+	7,			/* adapter_scsi_id */
+	0,			/* bios_boot_delay */
+	3,			/* scsi_reset_delay */
+	0,			/* bios_id_lun */
+	0,			/* termination */
+	0,			/* reserved1 */
+	0xFFE7,			/* bios_ctrl */
+	0xFFFF,			/* ultra_able */
+	0,			/* reserved2 */
+	ASC_DEF_MAX_HOST_QNG,	/* max_host_qng */
+	ASC_DEF_MAX_DVC_QNG,	/* max_dvc_qng */
+	0,			/* dvc_cntl */
+	0,			/* bug_fix */
+	0,			/* serial_number_word1 */
+	0,			/* serial_number_word2 */
+	0,			/* serial_number_word3 */
+	0,			/* check_sum */
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	,			/* oem_name[16] */
+	0,			/* dvc_err_code */
+	0,			/* adv_err_code */
+	0,			/* adv_err_addr */
+	0,			/* saved_dvc_err_code */
+	0,			/* saved_adv_err_code */
+	0,			/* saved_adv_err_addr */
+	0			/* num_of_err */
+};
+
+static ADVEEP_3550_CONFIG ADVEEP_3550_Config_Field_IsChar __devinitdata = {
+	0,			/* cfg_lsw */
+	0,			/* cfg_msw */
+	0,			/* -disc_enable */
+	0,			/* wdtr_able */
+	0,			/* sdtr_able */
+	0,			/* start_motor */
+	0,			/* tagqng_able */
+	0,			/* bios_scan */
+	0,			/* scam_tolerant */
+	1,			/* adapter_scsi_id */
+	1,			/* bios_boot_delay */
+	1,			/* scsi_reset_delay */
+	1,			/* bios_id_lun */
+	1,			/* termination */
+	1,			/* reserved1 */
+	0,			/* bios_ctrl */
+	0,			/* ultra_able */
+	0,			/* reserved2 */
+	1,			/* max_host_qng */
+	1,			/* max_dvc_qng */
+	0,			/* dvc_cntl */
+	0,			/* bug_fix */
+	0,			/* serial_number_word1 */
+	0,			/* serial_number_word2 */
+	0,			/* serial_number_word3 */
+	0,			/* check_sum */
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	,			/* oem_name[16] */
+	0,			/* dvc_err_code */
+	0,			/* adv_err_code */
+	0,			/* adv_err_addr */
+	0,			/* saved_dvc_err_code */
+	0,			/* saved_adv_err_code */
+	0,			/* saved_adv_err_addr */
+	0			/* num_of_err */
+};
+
+static ADVEEP_38C0800_CONFIG Default_38C0800_EEPROM_Config __devinitdata = {
+	ADV_EEPROM_BIOS_ENABLE,	/* 00 cfg_lsw */
+	0x0000,			/* 01 cfg_msw */
+	0xFFFF,			/* 02 disc_enable */
+	0xFFFF,			/* 03 wdtr_able */
+	0x4444,			/* 04 sdtr_speed1 */
+	0xFFFF,			/* 05 start_motor */
+	0xFFFF,			/* 06 tagqng_able */
+	0xFFFF,			/* 07 bios_scan */
+	0,			/* 08 scam_tolerant */
+	7,			/* 09 adapter_scsi_id */
+	0,			/*    bios_boot_delay */
+	3,			/* 10 scsi_reset_delay */
+	0,			/*    bios_id_lun */
+	0,			/* 11 termination_se */
+	0,			/*    termination_lvd */
+	0xFFE7,			/* 12 bios_ctrl */
+	0x4444,			/* 13 sdtr_speed2 */
+	0x4444,			/* 14 sdtr_speed3 */
+	ASC_DEF_MAX_HOST_QNG,	/* 15 max_host_qng */
+	ASC_DEF_MAX_DVC_QNG,	/*    max_dvc_qng */
+	0,			/* 16 dvc_cntl */
+	0x4444,			/* 17 sdtr_speed4 */
+	0,			/* 18 serial_number_word1 */
+	0,			/* 19 serial_number_word2 */
+	0,			/* 20 serial_number_word3 */
+	0,			/* 21 check_sum */
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	,			/* 22-29 oem_name[16] */
+	0,			/* 30 dvc_err_code */
+	0,			/* 31 adv_err_code */
+	0,			/* 32 adv_err_addr */
+	0,			/* 33 saved_dvc_err_code */
+	0,			/* 34 saved_adv_err_code */
+	0,			/* 35 saved_adv_err_addr */
+	0,			/* 36 reserved */
+	0,			/* 37 reserved */
+	0,			/* 38 reserved */
+	0,			/* 39 reserved */
+	0,			/* 40 reserved */
+	0,			/* 41 reserved */
+	0,			/* 42 reserved */
+	0,			/* 43 reserved */
+	0,			/* 44 reserved */
+	0,			/* 45 reserved */
+	0,			/* 46 reserved */
+	0,			/* 47 reserved */
+	0,			/* 48 reserved */
+	0,			/* 49 reserved */
+	0,			/* 50 reserved */
+	0,			/* 51 reserved */
+	0,			/* 52 reserved */
+	0,			/* 53 reserved */
+	0,			/* 54 reserved */
+	0,			/* 55 reserved */
+	0,			/* 56 cisptr_lsw */
+	0,			/* 57 cisprt_msw */
+	PCI_VENDOR_ID_ASP,	/* 58 subsysvid */
+	PCI_DEVICE_ID_38C0800_REV1,	/* 59 subsysid */
+	0,			/* 60 reserved */
+	0,			/* 61 reserved */
+	0,			/* 62 reserved */
+	0			/* 63 reserved */
+};
+
+static ADVEEP_38C0800_CONFIG ADVEEP_38C0800_Config_Field_IsChar __devinitdata = {
+	0,			/* 00 cfg_lsw */
+	0,			/* 01 cfg_msw */
+	0,			/* 02 disc_enable */
+	0,			/* 03 wdtr_able */
+	0,			/* 04 sdtr_speed1 */
+	0,			/* 05 start_motor */
+	0,			/* 06 tagqng_able */
+	0,			/* 07 bios_scan */
+	0,			/* 08 scam_tolerant */
+	1,			/* 09 adapter_scsi_id */
+	1,			/*    bios_boot_delay */
+	1,			/* 10 scsi_reset_delay */
+	1,			/*    bios_id_lun */
+	1,			/* 11 termination_se */
+	1,			/*    termination_lvd */
+	0,			/* 12 bios_ctrl */
+	0,			/* 13 sdtr_speed2 */
+	0,			/* 14 sdtr_speed3 */
+	1,			/* 15 max_host_qng */
+	1,			/*    max_dvc_qng */
+	0,			/* 16 dvc_cntl */
+	0,			/* 17 sdtr_speed4 */
+	0,			/* 18 serial_number_word1 */
+	0,			/* 19 serial_number_word2 */
+	0,			/* 20 serial_number_word3 */
+	0,			/* 21 check_sum */
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	,			/* 22-29 oem_name[16] */
+	0,			/* 30 dvc_err_code */
+	0,			/* 31 adv_err_code */
+	0,			/* 32 adv_err_addr */
+	0,			/* 33 saved_dvc_err_code */
+	0,			/* 34 saved_adv_err_code */
+	0,			/* 35 saved_adv_err_addr */
+	0,			/* 36 reserved */
+	0,			/* 37 reserved */
+	0,			/* 38 reserved */
+	0,			/* 39 reserved */
+	0,			/* 40 reserved */
+	0,			/* 41 reserved */
+	0,			/* 42 reserved */
+	0,			/* 43 reserved */
+	0,			/* 44 reserved */
+	0,			/* 45 reserved */
+	0,			/* 46 reserved */
+	0,			/* 47 reserved */
+	0,			/* 48 reserved */
+	0,			/* 49 reserved */
+	0,			/* 50 reserved */
+	0,			/* 51 reserved */
+	0,			/* 52 reserved */
+	0,			/* 53 reserved */
+	0,			/* 54 reserved */
+	0,			/* 55 reserved */
+	0,			/* 56 cisptr_lsw */
+	0,			/* 57 cisprt_msw */
+	0,			/* 58 subsysvid */
+	0,			/* 59 subsysid */
+	0,			/* 60 reserved */
+	0,			/* 61 reserved */
+	0,			/* 62 reserved */
+	0			/* 63 reserved */
+};
+
+static ADVEEP_38C1600_CONFIG Default_38C1600_EEPROM_Config __devinitdata = {
+	ADV_EEPROM_BIOS_ENABLE,	/* 00 cfg_lsw */
+	0x0000,			/* 01 cfg_msw */
+	0xFFFF,			/* 02 disc_enable */
+	0xFFFF,			/* 03 wdtr_able */
+	0x5555,			/* 04 sdtr_speed1 */
+	0xFFFF,			/* 05 start_motor */
+	0xFFFF,			/* 06 tagqng_able */
+	0xFFFF,			/* 07 bios_scan */
+	0,			/* 08 scam_tolerant */
+	7,			/* 09 adapter_scsi_id */
+	0,			/*    bios_boot_delay */
+	3,			/* 10 scsi_reset_delay */
+	0,			/*    bios_id_lun */
+	0,			/* 11 termination_se */
+	0,			/*    termination_lvd */
+	0xFFE7,			/* 12 bios_ctrl */
+	0x5555,			/* 13 sdtr_speed2 */
+	0x5555,			/* 14 sdtr_speed3 */
+	ASC_DEF_MAX_HOST_QNG,	/* 15 max_host_qng */
+	ASC_DEF_MAX_DVC_QNG,	/*    max_dvc_qng */
+	0,			/* 16 dvc_cntl */
+	0x5555,			/* 17 sdtr_speed4 */
+	0,			/* 18 serial_number_word1 */
+	0,			/* 19 serial_number_word2 */
+	0,			/* 20 serial_number_word3 */
+	0,			/* 21 check_sum */
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	,			/* 22-29 oem_name[16] */
+	0,			/* 30 dvc_err_code */
+	0,			/* 31 adv_err_code */
+	0,			/* 32 adv_err_addr */
+	0,			/* 33 saved_dvc_err_code */
+	0,			/* 34 saved_adv_err_code */
+	0,			/* 35 saved_adv_err_addr */
+	0,			/* 36 reserved */
+	0,			/* 37 reserved */
+	0,			/* 38 reserved */
+	0,			/* 39 reserved */
+	0,			/* 40 reserved */
+	0,			/* 41 reserved */
+	0,			/* 42 reserved */
+	0,			/* 43 reserved */
+	0,			/* 44 reserved */
+	0,			/* 45 reserved */
+	0,			/* 46 reserved */
+	0,			/* 47 reserved */
+	0,			/* 48 reserved */
+	0,			/* 49 reserved */
+	0,			/* 50 reserved */
+	0,			/* 51 reserved */
+	0,			/* 52 reserved */
+	0,			/* 53 reserved */
+	0,			/* 54 reserved */
+	0,			/* 55 reserved */
+	0,			/* 56 cisptr_lsw */
+	0,			/* 57 cisprt_msw */
+	PCI_VENDOR_ID_ASP,	/* 58 subsysvid */
+	PCI_DEVICE_ID_38C1600_REV1,	/* 59 subsysid */
+	0,			/* 60 reserved */
+	0,			/* 61 reserved */
+	0,			/* 62 reserved */
+	0			/* 63 reserved */
+};
+
+static ADVEEP_38C1600_CONFIG ADVEEP_38C1600_Config_Field_IsChar __devinitdata = {
+	0,			/* 00 cfg_lsw */
+	0,			/* 01 cfg_msw */
+	0,			/* 02 disc_enable */
+	0,			/* 03 wdtr_able */
+	0,			/* 04 sdtr_speed1 */
+	0,			/* 05 start_motor */
+	0,			/* 06 tagqng_able */
+	0,			/* 07 bios_scan */
+	0,			/* 08 scam_tolerant */
+	1,			/* 09 adapter_scsi_id */
+	1,			/*    bios_boot_delay */
+	1,			/* 10 scsi_reset_delay */
+	1,			/*    bios_id_lun */
+	1,			/* 11 termination_se */
+	1,			/*    termination_lvd */
+	0,			/* 12 bios_ctrl */
+	0,			/* 13 sdtr_speed2 */
+	0,			/* 14 sdtr_speed3 */
+	1,			/* 15 max_host_qng */
+	1,			/*    max_dvc_qng */
+	0,			/* 16 dvc_cntl */
+	0,			/* 17 sdtr_speed4 */
+	0,			/* 18 serial_number_word1 */
+	0,			/* 19 serial_number_word2 */
+	0,			/* 20 serial_number_word3 */
+	0,			/* 21 check_sum */
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	,			/* 22-29 oem_name[16] */
+	0,			/* 30 dvc_err_code */
+	0,			/* 31 adv_err_code */
+	0,			/* 32 adv_err_addr */
+	0,			/* 33 saved_dvc_err_code */
+	0,			/* 34 saved_adv_err_code */
+	0,			/* 35 saved_adv_err_addr */
+	0,			/* 36 reserved */
+	0,			/* 37 reserved */
+	0,			/* 38 reserved */
+	0,			/* 39 reserved */
+	0,			/* 40 reserved */
+	0,			/* 41 reserved */
+	0,			/* 42 reserved */
+	0,			/* 43 reserved */
+	0,			/* 44 reserved */
+	0,			/* 45 reserved */
+	0,			/* 46 reserved */
+	0,			/* 47 reserved */
+	0,			/* 48 reserved */
+	0,			/* 49 reserved */
+	0,			/* 50 reserved */
+	0,			/* 51 reserved */
+	0,			/* 52 reserved */
+	0,			/* 53 reserved */
+	0,			/* 54 reserved */
+	0,			/* 55 reserved */
+	0,			/* 56 cisptr_lsw */
+	0,			/* 57 cisprt_msw */
+	0,			/* 58 subsysvid */
+	0,			/* 59 subsysid */
+	0,			/* 60 reserved */
+	0,			/* 61 reserved */
+	0,			/* 62 reserved */
+	0			/* 63 reserved */
+};
+
+#ifdef CONFIG_PCI
+/*
+ * Wait for EEPROM command to complete
+ */
+static void __devinit AdvWaitEEPCmd(AdvPortAddr iop_base)
+{
+	int eep_delay_ms;
+
+	for (eep_delay_ms = 0; eep_delay_ms < ADV_EEP_DELAY_MS; eep_delay_ms++) {
+		if (AdvReadWordRegister(iop_base, IOPW_EE_CMD) &
+		    ASC_EEP_CMD_DONE) {
+			break;
+		}
+		mdelay(1);
+	}
+	if ((AdvReadWordRegister(iop_base, IOPW_EE_CMD) & ASC_EEP_CMD_DONE) ==
+	    0)
+		BUG();
+}
+
+/*
+ * Read the EEPROM from specified location
+ */
+static ushort __devinit AdvReadEEPWord(AdvPortAddr iop_base, int eep_word_addr)
+{
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
+			     ASC_EEP_CMD_READ | eep_word_addr);
+	AdvWaitEEPCmd(iop_base);
+	return AdvReadWordRegister(iop_base, IOPW_EE_DATA);
+}
+
+/*
+ * Write the EEPROM from 'cfg_buf'.
+ */
+void __devinit
+AdvSet3550EEPConfig(AdvPortAddr iop_base, ADVEEP_3550_CONFIG *cfg_buf)
+{
+	ushort *wbuf;
+	ushort addr, chksum;
+	ushort *charfields;
+
+	wbuf = (ushort *)cfg_buf;
+	charfields = (ushort *)&ADVEEP_3550_Config_Field_IsChar;
+	chksum = 0;
+
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_ABLE);
+	AdvWaitEEPCmd(iop_base);
+
+	/*
+	 * Write EEPROM from word 0 to word 20.
+	 */
+	for (addr = ADV_EEP_DVC_CFG_BEGIN;
+	     addr < ADV_EEP_DVC_CFG_END; addr++, wbuf++) {
+		ushort word;
+
+		if (*charfields++) {
+			word = cpu_to_le16(*wbuf);
+		} else {
+			word = *wbuf;
+		}
+		chksum += *wbuf;	/* Checksum is calculated from word values. */
+		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
+		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
+				     ASC_EEP_CMD_WRITE | addr);
+		AdvWaitEEPCmd(iop_base);
+		mdelay(ADV_EEP_DELAY_MS);
+	}
+
+	/*
+	 * Write EEPROM checksum at word 21.
+	 */
+	AdvWriteWordRegister(iop_base, IOPW_EE_DATA, chksum);
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE | addr);
+	AdvWaitEEPCmd(iop_base);
+	wbuf++;
+	charfields++;
+
+	/*
+	 * Write EEPROM OEM name at words 22 to 29.
+	 */
+	for (addr = ADV_EEP_DVC_CTL_BEGIN;
+	     addr < ADV_EEP_MAX_WORD_ADDR; addr++, wbuf++) {
+		ushort word;
+
+		if (*charfields++) {
+			word = cpu_to_le16(*wbuf);
+		} else {
+			word = *wbuf;
+		}
+		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
+		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
+				     ASC_EEP_CMD_WRITE | addr);
+		AdvWaitEEPCmd(iop_base);
+	}
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_DISABLE);
+	AdvWaitEEPCmd(iop_base);
+}
+
+/*
+ * Write the EEPROM from 'cfg_buf'.
+ */
+void __devinit
+AdvSet38C0800EEPConfig(AdvPortAddr iop_base, ADVEEP_38C0800_CONFIG *cfg_buf)
+{
+	ushort *wbuf;
+	ushort *charfields;
+	ushort addr, chksum;
+
+	wbuf = (ushort *)cfg_buf;
+	charfields = (ushort *)&ADVEEP_38C0800_Config_Field_IsChar;
+	chksum = 0;
+
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_ABLE);
+	AdvWaitEEPCmd(iop_base);
+
+	/*
+	 * Write EEPROM from word 0 to word 20.
+	 */
+	for (addr = ADV_EEP_DVC_CFG_BEGIN;
+	     addr < ADV_EEP_DVC_CFG_END; addr++, wbuf++) {
+		ushort word;
+
+		if (*charfields++) {
+			word = cpu_to_le16(*wbuf);
+		} else {
+			word = *wbuf;
+		}
+		chksum += *wbuf;	/* Checksum is calculated from word values. */
+		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
+		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
+				     ASC_EEP_CMD_WRITE | addr);
+		AdvWaitEEPCmd(iop_base);
+		mdelay(ADV_EEP_DELAY_MS);
+	}
+
+	/*
+	 * Write EEPROM checksum at word 21.
+	 */
+	AdvWriteWordRegister(iop_base, IOPW_EE_DATA, chksum);
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE | addr);
+	AdvWaitEEPCmd(iop_base);
+	wbuf++;
+	charfields++;
+
+	/*
+	 * Write EEPROM OEM name at words 22 to 29.
+	 */
+	for (addr = ADV_EEP_DVC_CTL_BEGIN;
+	     addr < ADV_EEP_MAX_WORD_ADDR; addr++, wbuf++) {
+		ushort word;
+
+		if (*charfields++) {
+			word = cpu_to_le16(*wbuf);
+		} else {
+			word = *wbuf;
+		}
+		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
+		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
+				     ASC_EEP_CMD_WRITE | addr);
+		AdvWaitEEPCmd(iop_base);
+	}
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_DISABLE);
+	AdvWaitEEPCmd(iop_base);
+}
+
+/*
+ * Write the EEPROM from 'cfg_buf'.
+ */
+void __devinit
+AdvSet38C1600EEPConfig(AdvPortAddr iop_base, ADVEEP_38C1600_CONFIG *cfg_buf)
+{
+	ushort *wbuf;
+	ushort *charfields;
+	ushort addr, chksum;
+
+	wbuf = (ushort *)cfg_buf;
+	charfields = (ushort *)&ADVEEP_38C1600_Config_Field_IsChar;
+	chksum = 0;
+
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_ABLE);
+	AdvWaitEEPCmd(iop_base);
+
+	/*
+	 * Write EEPROM from word 0 to word 20.
+	 */
+	for (addr = ADV_EEP_DVC_CFG_BEGIN;
+	     addr < ADV_EEP_DVC_CFG_END; addr++, wbuf++) {
+		ushort word;
+
+		if (*charfields++) {
+			word = cpu_to_le16(*wbuf);
+		} else {
+			word = *wbuf;
+		}
+		chksum += *wbuf;	/* Checksum is calculated from word values. */
+		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
+		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
+				     ASC_EEP_CMD_WRITE | addr);
+		AdvWaitEEPCmd(iop_base);
+		mdelay(ADV_EEP_DELAY_MS);
+	}
+
+	/*
+	 * Write EEPROM checksum at word 21.
+	 */
+	AdvWriteWordRegister(iop_base, IOPW_EE_DATA, chksum);
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE | addr);
+	AdvWaitEEPCmd(iop_base);
+	wbuf++;
+	charfields++;
+
+	/*
+	 * Write EEPROM OEM name at words 22 to 29.
+	 */
+	for (addr = ADV_EEP_DVC_CTL_BEGIN;
+	     addr < ADV_EEP_MAX_WORD_ADDR; addr++, wbuf++) {
+		ushort word;
+
+		if (*charfields++) {
+			word = cpu_to_le16(*wbuf);
+		} else {
+			word = *wbuf;
+		}
+		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
+		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
+				     ASC_EEP_CMD_WRITE | addr);
+		AdvWaitEEPCmd(iop_base);
+	}
+	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_DISABLE);
+	AdvWaitEEPCmd(iop_base);
+}
+
+/*
+ * Read EEPROM configuration into the specified buffer.
+ *
+ * Return a checksum based on the EEPROM configuration read.
+ */
+static ushort __devinit
+AdvGet3550EEPConfig(AdvPortAddr iop_base, ADVEEP_3550_CONFIG *cfg_buf)
+{
+	ushort wval, chksum;
+	ushort *wbuf;
+	int eep_addr;
+	ushort *charfields;
+
+	charfields = (ushort *)&ADVEEP_3550_Config_Field_IsChar;
+	wbuf = (ushort *)cfg_buf;
+	chksum = 0;
+
+	for (eep_addr = ADV_EEP_DVC_CFG_BEGIN;
+	     eep_addr < ADV_EEP_DVC_CFG_END; eep_addr++, wbuf++) {
+		wval = AdvReadEEPWord(iop_base, eep_addr);
+		chksum += wval;	/* Checksum is calculated from word values. */
+		if (*charfields++) {
+			*wbuf = le16_to_cpu(wval);
+		} else {
+			*wbuf = wval;
+		}
+	}
+	/* Read checksum word. */
+	*wbuf = AdvReadEEPWord(iop_base, eep_addr);
+	wbuf++;
+	charfields++;
+
+	/* Read rest of EEPROM not covered by the checksum. */
+	for (eep_addr = ADV_EEP_DVC_CTL_BEGIN;
+	     eep_addr < ADV_EEP_MAX_WORD_ADDR; eep_addr++, wbuf++) {
+		*wbuf = AdvReadEEPWord(iop_base, eep_addr);
+		if (*charfields++) {
+			*wbuf = le16_to_cpu(*wbuf);
+		}
+	}
+	return chksum;
+}
+
+/*
+ * Read EEPROM configuration into the specified buffer.
+ *
+ * Return a checksum based on the EEPROM configuration read.
+ */
+static ushort __devinit
+AdvGet38C0800EEPConfig(AdvPortAddr iop_base, ADVEEP_38C0800_CONFIG *cfg_buf)
+{
+	ushort wval, chksum;
+	ushort *wbuf;
+	int eep_addr;
+	ushort *charfields;
+
+	charfields = (ushort *)&ADVEEP_38C0800_Config_Field_IsChar;
+	wbuf = (ushort *)cfg_buf;
+	chksum = 0;
+
+	for (eep_addr = ADV_EEP_DVC_CFG_BEGIN;
+	     eep_addr < ADV_EEP_DVC_CFG_END; eep_addr++, wbuf++) {
+		wval = AdvReadEEPWord(iop_base, eep_addr);
+		chksum += wval;	/* Checksum is calculated from word values. */
+		if (*charfields++) {
+			*wbuf = le16_to_cpu(wval);
+		} else {
+			*wbuf = wval;
+		}
+	}
+	/* Read checksum word. */
+	*wbuf = AdvReadEEPWord(iop_base, eep_addr);
+	wbuf++;
+	charfields++;
+
+	/* Read rest of EEPROM not covered by the checksum. */
+	for (eep_addr = ADV_EEP_DVC_CTL_BEGIN;
+	     eep_addr < ADV_EEP_MAX_WORD_ADDR; eep_addr++, wbuf++) {
+		*wbuf = AdvReadEEPWord(iop_base, eep_addr);
+		if (*charfields++) {
+			*wbuf = le16_to_cpu(*wbuf);
+		}
+	}
+	return chksum;
+}
+
+/*
+ * Read EEPROM configuration into the specified buffer.
+ *
+ * Return a checksum based on the EEPROM configuration read.
+ */
+static ushort __devinit
+AdvGet38C1600EEPConfig(AdvPortAddr iop_base, ADVEEP_38C1600_CONFIG *cfg_buf)
+{
+	ushort wval, chksum;
+	ushort *wbuf;
+	int eep_addr;
+	ushort *charfields;
+
+	charfields = (ushort *)&ADVEEP_38C1600_Config_Field_IsChar;
+	wbuf = (ushort *)cfg_buf;
+	chksum = 0;
+
+	for (eep_addr = ADV_EEP_DVC_CFG_BEGIN;
+	     eep_addr < ADV_EEP_DVC_CFG_END; eep_addr++, wbuf++) {
+		wval = AdvReadEEPWord(iop_base, eep_addr);
+		chksum += wval;	/* Checksum is calculated from word values. */
+		if (*charfields++) {
+			*wbuf = le16_to_cpu(wval);
+		} else {
+			*wbuf = wval;
+		}
+	}
+	/* Read checksum word. */
+	*wbuf = AdvReadEEPWord(iop_base, eep_addr);
+	wbuf++;
+	charfields++;
+
+	/* Read rest of EEPROM not covered by the checksum. */
+	for (eep_addr = ADV_EEP_DVC_CTL_BEGIN;
+	     eep_addr < ADV_EEP_MAX_WORD_ADDR; eep_addr++, wbuf++) {
+		*wbuf = AdvReadEEPWord(iop_base, eep_addr);
+		if (*charfields++) {
+			*wbuf = le16_to_cpu(*wbuf);
+		}
+	}
+	return chksum;
+}
+
+/*
  * Read the board's EEPROM configuration. Set fields in ADV_DVC_VAR and
  * ADV_DVC_CFG based on the EEPROM settings. The chip is stopped while
  * all of this is done.
@@ -16135,12 +12600,11 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
  *
  * Note: Chip is stopped on entry.
  */
-static int __init AdvInitFrom3550EEP(ADV_DVC_VAR *asc_dvc)
+static int __devinit AdvInitFrom3550EEP(ADV_DVC_VAR *asc_dvc)
 {
 	AdvPortAddr iop_base;
 	ushort warn_code;
 	ADVEEP_3550_CONFIG eep_config;
-	int i;
 
 	iop_base = asc_dvc->iop_base;
 
@@ -16157,15 +12621,12 @@ static int __init AdvInitFrom3550EEP(ADV_DVC_VAR *asc_dvc)
 		/*
 		 * Set EEPROM default values.
 		 */
-		for (i = 0; i < sizeof(ADVEEP_3550_CONFIG); i++) {
-			*((uchar *)&eep_config + i) =
-			    *((uchar *)&Default_3550_EEPROM_Config + i);
-		}
+		memcpy(&eep_config, &Default_3550_EEPROM_Config,
+			sizeof(ADVEEP_3550_CONFIG));
 
 		/*
-		 * Assume the 6 byte board serial number that was read
-		 * from EEPROM is correct even if the EEPROM checksum
-		 * failed.
+		 * Assume the 6 byte board serial number that was read from
+		 * EEPROM is correct even if the EEPROM checksum failed.
 		 */
 		eep_config.serial_number_word3 =
 		    AdvReadEEPWord(iop_base, ADV_EEP_DVC_CFG_END - 1);
@@ -16289,12 +12750,11 @@ static int __init AdvInitFrom3550EEP(ADV_DVC_VAR *asc_dvc)
  *
  * Note: Chip is stopped on entry.
  */
-static int __init AdvInitFrom38C0800EEP(ADV_DVC_VAR *asc_dvc)
+static int __devinit AdvInitFrom38C0800EEP(ADV_DVC_VAR *asc_dvc)
 {
 	AdvPortAddr iop_base;
 	ushort warn_code;
 	ADVEEP_38C0800_CONFIG eep_config;
-	int i;
 	uchar tid, termination;
 	ushort sdtr_speed = 0;
 
@@ -16314,15 +12774,12 @@ static int __init AdvInitFrom38C0800EEP(ADV_DVC_VAR *asc_dvc)
 		/*
 		 * Set EEPROM default values.
 		 */
-		for (i = 0; i < sizeof(ADVEEP_38C0800_CONFIG); i++) {
-			*((uchar *)&eep_config + i) =
-			    *((uchar *)&Default_38C0800_EEPROM_Config + i);
-		}
+		memcpy(&eep_config, &Default_38C0800_EEPROM_Config,
+			sizeof(ADVEEP_38C0800_CONFIG));
 
 		/*
-		 * Assume the 6 byte board serial number that was read
-		 * from EEPROM is correct even if the EEPROM checksum
-		 * failed.
+		 * Assume the 6 byte board serial number that was read from
+		 * EEPROM is correct even if the EEPROM checksum failed.
 		 */
 		eep_config.serial_number_word3 =
 		    AdvReadEEPWord(iop_base, ADV_EEP_DVC_CFG_END - 1);
@@ -16492,12 +12949,11 @@ static int __init AdvInitFrom38C0800EEP(ADV_DVC_VAR *asc_dvc)
  *
  * Note: Chip is stopped on entry.
  */
-static int __init AdvInitFrom38C1600EEP(ADV_DVC_VAR *asc_dvc)
+static int __devinit AdvInitFrom38C1600EEP(ADV_DVC_VAR *asc_dvc)
 {
 	AdvPortAddr iop_base;
 	ushort warn_code;
 	ADVEEP_38C1600_CONFIG eep_config;
-	int i;
 	uchar tid, termination;
 	ushort sdtr_speed = 0;
 
@@ -16512,75 +12968,52 @@ static int __init AdvInitFrom38C1600EEP(ADV_DVC_VAR *asc_dvc)
 	 */
 	if (AdvGet38C1600EEPConfig(iop_base, &eep_config) !=
 	    eep_config.check_sum) {
+		struct pci_dev *pdev = adv_dvc_to_pdev(asc_dvc);
 		warn_code |= ASC_WARN_EEPROM_CHKSUM;
 
 		/*
 		 * Set EEPROM default values.
 		 */
-		for (i = 0; i < sizeof(ADVEEP_38C1600_CONFIG); i++) {
-			if (i == 1
-			    && ASC_PCI_ID2FUNC(asc_dvc->cfg->pci_slot_info) !=
-			    0) {
-				/*
-				 * Set Function 1 EEPROM Word 0 MSB
-				 *
-				 * Clear the BIOS_ENABLE (bit 14) and INTAB (bit 11)
-				 * EEPROM bits.
-				 *
-				 * Disable Bit 14 (BIOS_ENABLE) to fix SPARC Ultra 60 and
-				 * old Mac system booting problem. The Expansion ROM must
-				 * be disabled in Function 1 for these systems.
-				 *
-				 */
-				*((uchar *)&eep_config + i) =
-				    ((*
-				      ((uchar *)&Default_38C1600_EEPROM_Config
-				       +
-				       i)) &
-				     (~
-				      (((ADV_EEPROM_BIOS_ENABLE |
-					 ADV_EEPROM_INTAB) >> 8) & 0xFF)));
+		memcpy(&eep_config, &Default_38C1600_EEPROM_Config,
+			sizeof(ADVEEP_38C1600_CONFIG));
 
-				/*
-				 * Set the INTAB (bit 11) if the GPIO 0 input indicates
-				 * the Function 1 interrupt line is wired to INTA.
-				 *
-				 * Set/Clear Bit 11 (INTAB) from the GPIO bit 0 input:
-				 *   1 - Function 1 interrupt line wired to INT A.
-				 *   0 - Function 1 interrupt line wired to INT B.
-				 *
-				 * Note: Adapter boards always have Function 0 wired to INTA.
-				 * Put all 5 GPIO bits in input mode and then read
-				 * their input values.
-				 */
-				AdvWriteByteRegister(iop_base, IOPB_GPIO_CNTL,
-						     0);
-				if (AdvReadByteRegister
-				    (iop_base, IOPB_GPIO_DATA) & 0x01) {
-					/* Function 1 interrupt wired to INTA; Set EEPROM bit. */
-					*((uchar *)&eep_config + i) |=
-					    ((ADV_EEPROM_INTAB >> 8) & 0xFF);
-				}
-			} else {
-				*((uchar *)&eep_config + i) =
-				    *((uchar *)&Default_38C1600_EEPROM_Config
-				      + i);
-			}
+		if (PCI_FUNC(pdev->devfn) != 0) {
+			u8 ints;
+			/*
+			 * Disable Bit 14 (BIOS_ENABLE) to fix SPARC Ultra 60
+			 * and old Mac system booting problem. The Expansion
+			 * ROM must be disabled in Function 1 for these systems
+			 */
+			eep_config.cfg_lsw &= ~ADV_EEPROM_BIOS_ENABLE;
+			/*
+			 * Clear the INTAB (bit 11) if the GPIO 0 input
+			 * indicates the Function 1 interrupt line is wired
+			 * to INTB.
+			 *
+			 * Set/Clear Bit 11 (INTAB) from the GPIO bit 0 input:
+			 *   1 - Function 1 interrupt line wired to INT A.
+			 *   0 - Function 1 interrupt line wired to INT B.
+			 *
+			 * Note: Function 0 is always wired to INTA.
+			 * Put all 5 GPIO bits in input mode and then read
+			 * their input values.
+			 */
+			AdvWriteByteRegister(iop_base, IOPB_GPIO_CNTL, 0);
+			ints = AdvReadByteRegister(iop_base, IOPB_GPIO_DATA);
+			if ((ints & 0x01) == 0)
+				eep_config.cfg_lsw &= ~ADV_EEPROM_INTAB;
 		}
 
 		/*
-		 * Assume the 6 byte board serial number that was read
-		 * from EEPROM is correct even if the EEPROM checksum
-		 * failed.
+		 * Assume the 6 byte board serial number that was read from
+		 * EEPROM is correct even if the EEPROM checksum failed.
 		 */
 		eep_config.serial_number_word3 =
-		    AdvReadEEPWord(iop_base, ADV_EEP_DVC_CFG_END - 1);
-
+			AdvReadEEPWord(iop_base, ADV_EEP_DVC_CFG_END - 1);
 		eep_config.serial_number_word2 =
-		    AdvReadEEPWord(iop_base, ADV_EEP_DVC_CFG_END - 2);
-
+			AdvReadEEPWord(iop_base, ADV_EEP_DVC_CFG_END - 2);
 		eep_config.serial_number_word1 =
-		    AdvReadEEPWord(iop_base, ADV_EEP_DVC_CFG_END - 3);
+			AdvReadEEPWord(iop_base, ADV_EEP_DVC_CFG_END - 3);
 
 		AdvSet38C1600EEPConfig(iop_base, &eep_config);
 	}
@@ -16729,1176 +13162,281 @@ static int __init AdvInitFrom38C1600EEP(ADV_DVC_VAR *asc_dvc)
 }
 
 /*
- * Read EEPROM configuration into the specified buffer.
+ * Initialize the ADV_DVC_VAR structure.
  *
- * Return a checksum based on the EEPROM configuration read.
- */
-static ushort __init
-AdvGet3550EEPConfig(AdvPortAddr iop_base, ADVEEP_3550_CONFIG *cfg_buf)
-{
-	ushort wval, chksum;
-	ushort *wbuf;
-	int eep_addr;
-	ushort *charfields;
-
-	charfields = (ushort *)&ADVEEP_3550_Config_Field_IsChar;
-	wbuf = (ushort *)cfg_buf;
-	chksum = 0;
-
-	for (eep_addr = ADV_EEP_DVC_CFG_BEGIN;
-	     eep_addr < ADV_EEP_DVC_CFG_END; eep_addr++, wbuf++) {
-		wval = AdvReadEEPWord(iop_base, eep_addr);
-		chksum += wval;	/* Checksum is calculated from word values. */
-		if (*charfields++) {
-			*wbuf = le16_to_cpu(wval);
-		} else {
-			*wbuf = wval;
-		}
-	}
-	/* Read checksum word. */
-	*wbuf = AdvReadEEPWord(iop_base, eep_addr);
-	wbuf++;
-	charfields++;
-
-	/* Read rest of EEPROM not covered by the checksum. */
-	for (eep_addr = ADV_EEP_DVC_CTL_BEGIN;
-	     eep_addr < ADV_EEP_MAX_WORD_ADDR; eep_addr++, wbuf++) {
-		*wbuf = AdvReadEEPWord(iop_base, eep_addr);
-		if (*charfields++) {
-			*wbuf = le16_to_cpu(*wbuf);
-		}
-	}
-	return chksum;
-}
-
-/*
- * Read EEPROM configuration into the specified buffer.
+ * On failure set the ADV_DVC_VAR field 'err_code' and return ADV_ERROR.
  *
- * Return a checksum based on the EEPROM configuration read.
+ * For a non-fatal error return a warning code. If there are no warnings
+ * then 0 is returned.
  */
-static ushort __init
-AdvGet38C0800EEPConfig(AdvPortAddr iop_base, ADVEEP_38C0800_CONFIG *cfg_buf)
+static int __devinit
+AdvInitGetConfig(struct pci_dev *pdev, struct Scsi_Host *shost)
 {
-	ushort wval, chksum;
-	ushort *wbuf;
-	int eep_addr;
-	ushort *charfields;
-
-	charfields = (ushort *)&ADVEEP_38C0800_Config_Field_IsChar;
-	wbuf = (ushort *)cfg_buf;
-	chksum = 0;
-
-	for (eep_addr = ADV_EEP_DVC_CFG_BEGIN;
-	     eep_addr < ADV_EEP_DVC_CFG_END; eep_addr++, wbuf++) {
-		wval = AdvReadEEPWord(iop_base, eep_addr);
-		chksum += wval;	/* Checksum is calculated from word values. */
-		if (*charfields++) {
-			*wbuf = le16_to_cpu(wval);
-		} else {
-			*wbuf = wval;
-		}
-	}
-	/* Read checksum word. */
-	*wbuf = AdvReadEEPWord(iop_base, eep_addr);
-	wbuf++;
-	charfields++;
-
-	/* Read rest of EEPROM not covered by the checksum. */
-	for (eep_addr = ADV_EEP_DVC_CTL_BEGIN;
-	     eep_addr < ADV_EEP_MAX_WORD_ADDR; eep_addr++, wbuf++) {
-		*wbuf = AdvReadEEPWord(iop_base, eep_addr);
-		if (*charfields++) {
-			*wbuf = le16_to_cpu(*wbuf);
-		}
-	}
-	return chksum;
-}
-
-/*
- * Read EEPROM configuration into the specified buffer.
- *
- * Return a checksum based on the EEPROM configuration read.
- */
-static ushort __init
-AdvGet38C1600EEPConfig(AdvPortAddr iop_base, ADVEEP_38C1600_CONFIG *cfg_buf)
-{
-	ushort wval, chksum;
-	ushort *wbuf;
-	int eep_addr;
-	ushort *charfields;
-
-	charfields = (ushort *)&ADVEEP_38C1600_Config_Field_IsChar;
-	wbuf = (ushort *)cfg_buf;
-	chksum = 0;
-
-	for (eep_addr = ADV_EEP_DVC_CFG_BEGIN;
-	     eep_addr < ADV_EEP_DVC_CFG_END; eep_addr++, wbuf++) {
-		wval = AdvReadEEPWord(iop_base, eep_addr);
-		chksum += wval;	/* Checksum is calculated from word values. */
-		if (*charfields++) {
-			*wbuf = le16_to_cpu(wval);
-		} else {
-			*wbuf = wval;
-		}
-	}
-	/* Read checksum word. */
-	*wbuf = AdvReadEEPWord(iop_base, eep_addr);
-	wbuf++;
-	charfields++;
-
-	/* Read rest of EEPROM not covered by the checksum. */
-	for (eep_addr = ADV_EEP_DVC_CTL_BEGIN;
-	     eep_addr < ADV_EEP_MAX_WORD_ADDR; eep_addr++, wbuf++) {
-		*wbuf = AdvReadEEPWord(iop_base, eep_addr);
-		if (*charfields++) {
-			*wbuf = le16_to_cpu(*wbuf);
-		}
-	}
-	return chksum;
-}
-
-/*
- * Read the EEPROM from specified location
- */
-static ushort __init AdvReadEEPWord(AdvPortAddr iop_base, int eep_word_addr)
-{
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
-			     ASC_EEP_CMD_READ | eep_word_addr);
-	AdvWaitEEPCmd(iop_base);
-	return AdvReadWordRegister(iop_base, IOPW_EE_DATA);
-}
-
-/*
- * Wait for EEPROM command to complete
- */
-static void __init AdvWaitEEPCmd(AdvPortAddr iop_base)
-{
-	int eep_delay_ms;
-
-	for (eep_delay_ms = 0; eep_delay_ms < ADV_EEP_DELAY_MS; eep_delay_ms++) {
-		if (AdvReadWordRegister(iop_base, IOPW_EE_CMD) &
-		    ASC_EEP_CMD_DONE) {
-			break;
-		}
-		DvcSleepMilliSecond(1);
-	}
-	if ((AdvReadWordRegister(iop_base, IOPW_EE_CMD) & ASC_EEP_CMD_DONE) ==
-	    0) {
-		ASC_ASSERT(0);
-	}
-	return;
-}
-
-/*
- * Write the EEPROM from 'cfg_buf'.
- */
-void __init
-AdvSet3550EEPConfig(AdvPortAddr iop_base, ADVEEP_3550_CONFIG *cfg_buf)
-{
-	ushort *wbuf;
-	ushort addr, chksum;
-	ushort *charfields;
-
-	wbuf = (ushort *)cfg_buf;
-	charfields = (ushort *)&ADVEEP_3550_Config_Field_IsChar;
-	chksum = 0;
-
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_ABLE);
-	AdvWaitEEPCmd(iop_base);
-
-	/*
-	 * Write EEPROM from word 0 to word 20.
-	 */
-	for (addr = ADV_EEP_DVC_CFG_BEGIN;
-	     addr < ADV_EEP_DVC_CFG_END; addr++, wbuf++) {
-		ushort word;
-
-		if (*charfields++) {
-			word = cpu_to_le16(*wbuf);
-		} else {
-			word = *wbuf;
-		}
-		chksum += *wbuf;	/* Checksum is calculated from word values. */
-		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
-		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
-				     ASC_EEP_CMD_WRITE | addr);
-		AdvWaitEEPCmd(iop_base);
-		DvcSleepMilliSecond(ADV_EEP_DELAY_MS);
-	}
-
-	/*
-	 * Write EEPROM checksum at word 21.
-	 */
-	AdvWriteWordRegister(iop_base, IOPW_EE_DATA, chksum);
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE | addr);
-	AdvWaitEEPCmd(iop_base);
-	wbuf++;
-	charfields++;
-
-	/*
-	 * Write EEPROM OEM name at words 22 to 29.
-	 */
-	for (addr = ADV_EEP_DVC_CTL_BEGIN;
-	     addr < ADV_EEP_MAX_WORD_ADDR; addr++, wbuf++) {
-		ushort word;
-
-		if (*charfields++) {
-			word = cpu_to_le16(*wbuf);
-		} else {
-			word = *wbuf;
-		}
-		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
-		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
-				     ASC_EEP_CMD_WRITE | addr);
-		AdvWaitEEPCmd(iop_base);
-	}
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_DISABLE);
-	AdvWaitEEPCmd(iop_base);
-	return;
-}
-
-/*
- * Write the EEPROM from 'cfg_buf'.
- */
-void __init
-AdvSet38C0800EEPConfig(AdvPortAddr iop_base, ADVEEP_38C0800_CONFIG *cfg_buf)
-{
-	ushort *wbuf;
-	ushort *charfields;
-	ushort addr, chksum;
-
-	wbuf = (ushort *)cfg_buf;
-	charfields = (ushort *)&ADVEEP_38C0800_Config_Field_IsChar;
-	chksum = 0;
-
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_ABLE);
-	AdvWaitEEPCmd(iop_base);
-
-	/*
-	 * Write EEPROM from word 0 to word 20.
-	 */
-	for (addr = ADV_EEP_DVC_CFG_BEGIN;
-	     addr < ADV_EEP_DVC_CFG_END; addr++, wbuf++) {
-		ushort word;
-
-		if (*charfields++) {
-			word = cpu_to_le16(*wbuf);
-		} else {
-			word = *wbuf;
-		}
-		chksum += *wbuf;	/* Checksum is calculated from word values. */
-		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
-		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
-				     ASC_EEP_CMD_WRITE | addr);
-		AdvWaitEEPCmd(iop_base);
-		DvcSleepMilliSecond(ADV_EEP_DELAY_MS);
-	}
-
-	/*
-	 * Write EEPROM checksum at word 21.
-	 */
-	AdvWriteWordRegister(iop_base, IOPW_EE_DATA, chksum);
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE | addr);
-	AdvWaitEEPCmd(iop_base);
-	wbuf++;
-	charfields++;
-
-	/*
-	 * Write EEPROM OEM name at words 22 to 29.
-	 */
-	for (addr = ADV_EEP_DVC_CTL_BEGIN;
-	     addr < ADV_EEP_MAX_WORD_ADDR; addr++, wbuf++) {
-		ushort word;
-
-		if (*charfields++) {
-			word = cpu_to_le16(*wbuf);
-		} else {
-			word = *wbuf;
-		}
-		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
-		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
-				     ASC_EEP_CMD_WRITE | addr);
-		AdvWaitEEPCmd(iop_base);
-	}
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_DISABLE);
-	AdvWaitEEPCmd(iop_base);
-	return;
-}
-
-/*
- * Write the EEPROM from 'cfg_buf'.
- */
-void __init
-AdvSet38C1600EEPConfig(AdvPortAddr iop_base, ADVEEP_38C1600_CONFIG *cfg_buf)
-{
-	ushort *wbuf;
-	ushort *charfields;
-	ushort addr, chksum;
-
-	wbuf = (ushort *)cfg_buf;
-	charfields = (ushort *)&ADVEEP_38C1600_Config_Field_IsChar;
-	chksum = 0;
-
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_ABLE);
-	AdvWaitEEPCmd(iop_base);
-
-	/*
-	 * Write EEPROM from word 0 to word 20.
-	 */
-	for (addr = ADV_EEP_DVC_CFG_BEGIN;
-	     addr < ADV_EEP_DVC_CFG_END; addr++, wbuf++) {
-		ushort word;
-
-		if (*charfields++) {
-			word = cpu_to_le16(*wbuf);
-		} else {
-			word = *wbuf;
-		}
-		chksum += *wbuf;	/* Checksum is calculated from word values. */
-		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
-		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
-				     ASC_EEP_CMD_WRITE | addr);
-		AdvWaitEEPCmd(iop_base);
-		DvcSleepMilliSecond(ADV_EEP_DELAY_MS);
-	}
-
-	/*
-	 * Write EEPROM checksum at word 21.
-	 */
-	AdvWriteWordRegister(iop_base, IOPW_EE_DATA, chksum);
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE | addr);
-	AdvWaitEEPCmd(iop_base);
-	wbuf++;
-	charfields++;
-
-	/*
-	 * Write EEPROM OEM name at words 22 to 29.
-	 */
-	for (addr = ADV_EEP_DVC_CTL_BEGIN;
-	     addr < ADV_EEP_MAX_WORD_ADDR; addr++, wbuf++) {
-		ushort word;
-
-		if (*charfields++) {
-			word = cpu_to_le16(*wbuf);
-		} else {
-			word = *wbuf;
-		}
-		AdvWriteWordRegister(iop_base, IOPW_EE_DATA, word);
-		AdvWriteWordRegister(iop_base, IOPW_EE_CMD,
-				     ASC_EEP_CMD_WRITE | addr);
-		AdvWaitEEPCmd(iop_base);
-	}
-	AdvWriteWordRegister(iop_base, IOPW_EE_CMD, ASC_EEP_CMD_WRITE_DISABLE);
-	AdvWaitEEPCmd(iop_base);
-	return;
-}
-
-/* a_advlib.c */
-/*
- * AdvExeScsiQueue() - Send a request to the RISC microcode program.
- *
- *   Allocate a carrier structure, point the carrier to the ADV_SCSI_REQ_Q,
- *   add the carrier to the ICQ (Initiator Command Queue), and tickle the
- *   RISC to notify it a new command is ready to be executed.
- *
- * If 'done_status' is not set to QD_DO_RETRY, then 'error_retry' will be
- * set to SCSI_MAX_RETRY.
- *
- * Multi-byte fields in the ASC_SCSI_REQ_Q that are used by the microcode
- * for DMA addresses or math operations are byte swapped to little-endian
- * order.
- *
- * Return:
- *      ADV_SUCCESS(1) - The request was successfully queued.
- *      ADV_BUSY(0) -    Resource unavailable; Retry again after pending
- *                       request completes.
- *      ADV_ERROR(-1) -  Invalid ADV_SCSI_REQ_Q request structure
- *                       host IC error.
- */
-static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, ADV_SCSI_REQ_Q *scsiq)
-{
-	ulong last_int_level;
-	AdvPortAddr iop_base;
-	ADV_DCNT req_size;
-	ADV_PADDR req_paddr;
-	ADV_CARR_T *new_carrp;
-
-	ASC_ASSERT(scsiq != NULL);	/* 'scsiq' should never be NULL. */
-
-	/*
-	 * The ADV_SCSI_REQ_Q 'target_id' field should never exceed ADV_MAX_TID.
-	 */
-	if (scsiq->target_id > ADV_MAX_TID) {
-		scsiq->host_status = QHSTA_M_INVALID_DEVICE;
-		scsiq->done_status = QD_WITH_ERROR;
-		return ADV_ERROR;
-	}
-
-	iop_base = asc_dvc->iop_base;
-
-	last_int_level = DvcEnterCritical();
-
-	/*
-	 * Allocate a carrier ensuring at least one carrier always
-	 * remains on the freelist and initialize fields.
-	 */
-	if ((new_carrp = asc_dvc->carr_freelist) == NULL) {
-		DvcLeaveCritical(last_int_level);
-		return ADV_BUSY;
-	}
-	asc_dvc->carr_freelist = (ADV_CARR_T *)
-	    ADV_U32_TO_VADDR(le32_to_cpu(new_carrp->next_vpa));
-	asc_dvc->carr_pending_cnt++;
-
-	/*
-	 * Set the carrier to be a stopper by setting 'next_vpa'
-	 * to the stopper value. The current stopper will be changed
-	 * below to point to the new stopper.
-	 */
-	new_carrp->next_vpa = cpu_to_le32(ASC_CQ_STOPPER);
-
-	/*
-	 * Clear the ADV_SCSI_REQ_Q done flag.
-	 */
-	scsiq->a_flag &= ~ADV_SCSIQ_DONE;
-
-	req_size = sizeof(ADV_SCSI_REQ_Q);
-	req_paddr = DvcGetPhyAddr(asc_dvc, scsiq, (uchar *)scsiq,
-				  (ADV_SDCNT *)&req_size, ADV_IS_SCSIQ_FLAG);
-
-	ASC_ASSERT(ADV_32BALIGN(req_paddr) == req_paddr);
-	ASC_ASSERT(req_size >= sizeof(ADV_SCSI_REQ_Q));
-
-	/* Wait for assertion before making little-endian */
-	req_paddr = cpu_to_le32(req_paddr);
-
-	/* Save virtual and physical address of ADV_SCSI_REQ_Q and carrier. */
-	scsiq->scsiq_ptr = cpu_to_le32(ADV_VADDR_TO_U32(scsiq));
-	scsiq->scsiq_rptr = req_paddr;
-
-	scsiq->carr_va = cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->icq_sp));
-	/*
-	 * Every ADV_CARR_T.carr_pa is byte swapped to little-endian
-	 * order during initialization.
-	 */
-	scsiq->carr_pa = asc_dvc->icq_sp->carr_pa;
-
-	/*
-	 * Use the current stopper to send the ADV_SCSI_REQ_Q command to
-	 * the microcode. The newly allocated stopper will become the new
-	 * stopper.
-	 */
-	asc_dvc->icq_sp->areq_vpa = req_paddr;
-
-	/*
-	 * Set the 'next_vpa' pointer for the old stopper to be the
-	 * physical address of the new stopper. The RISC can only
-	 * follow physical addresses.
-	 */
-	asc_dvc->icq_sp->next_vpa = new_carrp->carr_pa;
-
-	/*
-	 * Set the host adapter stopper pointer to point to the new carrier.
-	 */
-	asc_dvc->icq_sp = new_carrp;
-
-	if (asc_dvc->chip_type == ADV_CHIP_ASC3550 ||
-	    asc_dvc->chip_type == ADV_CHIP_ASC38C0800) {
-		/*
-		 * Tickle the RISC to tell it to read its Command Queue Head pointer.
-		 */
-		AdvWriteByteRegister(iop_base, IOPB_TICKLE, ADV_TICKLE_A);
-		if (asc_dvc->chip_type == ADV_CHIP_ASC3550) {
-			/*
-			 * Clear the tickle value. In the ASC-3550 the RISC flag
-			 * command 'clr_tickle_a' does not work unless the host
-			 * value is cleared.
-			 */
-			AdvWriteByteRegister(iop_base, IOPB_TICKLE,
-					     ADV_TICKLE_NOP);
-		}
-	} else if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
-		/*
-		 * Notify the RISC a carrier is ready by writing the physical
-		 * address of the new carrier stopper to the COMMA register.
-		 */
-		AdvWriteDWordRegister(iop_base, IOPDW_COMMA,
-				      le32_to_cpu(new_carrp->carr_pa));
-	}
-
-	DvcLeaveCritical(last_int_level);
-
-	return ADV_SUCCESS;
-}
-
-/*
- * Reset SCSI Bus and purge all outstanding requests.
- *
- * Return Value:
- *      ADV_TRUE(1) -   All requests are purged and SCSI Bus is reset.
- *      ADV_FALSE(0) -  Microcode command failed.
- *      ADV_ERROR(-1) - Microcode command timed-out. Microcode or IC
- *                      may be hung which requires driver recovery.
- */
-static int AdvResetSB(ADV_DVC_VAR *asc_dvc)
-{
+	struct asc_board *board = shost_priv(shost);
+	ADV_DVC_VAR *asc_dvc = &board->dvc_var.adv_dvc_var;
+	unsigned short warn_code = 0;
+	AdvPortAddr iop_base = asc_dvc->iop_base;
+	u16 cmd;
 	int status;
 
-	/*
-	 * Send the SCSI Bus Reset idle start idle command which asserts
-	 * the SCSI Bus Reset signal.
-	 */
-	status = AdvSendIdleCmd(asc_dvc, (ushort)IDLE_CMD_SCSI_RESET_START, 0L);
-	if (status != ADV_TRUE) {
-		return status;
-	}
-
-	/*
-	 * Delay for the specified SCSI Bus Reset hold time.
-	 *
-	 * The hold time delay is done on the host because the RISC has no
-	 * microsecond accurate timer.
-	 */
-	DvcDelayMicroSecond(asc_dvc, (ushort)ASC_SCSI_RESET_HOLD_TIME_US);
-
-	/*
-	 * Send the SCSI Bus Reset end idle command which de-asserts
-	 * the SCSI Bus Reset signal and purges any pending requests.
-	 */
-	status = AdvSendIdleCmd(asc_dvc, (ushort)IDLE_CMD_SCSI_RESET_END, 0L);
-	if (status != ADV_TRUE) {
-		return status;
-	}
-
-	DvcSleepMilliSecond((ADV_DCNT)asc_dvc->scsi_reset_wait * 1000);
-
-	return status;
-}
-
-/*
- * Reset chip and SCSI Bus.
- *
- * Return Value:
- *      ADV_TRUE(1) -   Chip re-initialization and SCSI Bus Reset successful.
- *      ADV_FALSE(0) -  Chip re-initialization and SCSI Bus Reset failure.
- */
-static int AdvResetChipAndSB(ADV_DVC_VAR *asc_dvc)
-{
-	int status;
-	ushort wdtr_able, sdtr_able, tagqng_able;
-	ushort ppr_able = 0;
-	uchar tid, max_cmd[ADV_MAX_TID + 1];
-	AdvPortAddr iop_base;
-	ushort bios_sig;
-
-	iop_base = asc_dvc->iop_base;
-
-	/*
-	 * Save current per TID negotiated values.
-	 */
-	AdvReadWordLram(iop_base, ASC_MC_WDTR_ABLE, wdtr_able);
-	AdvReadWordLram(iop_base, ASC_MC_SDTR_ABLE, sdtr_able);
-	if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
-		AdvReadWordLram(iop_base, ASC_MC_PPR_ABLE, ppr_able);
-	}
-	AdvReadWordLram(iop_base, ASC_MC_TAGQNG_ABLE, tagqng_able);
-	for (tid = 0; tid <= ADV_MAX_TID; tid++) {
-		AdvReadByteLram(iop_base, ASC_MC_NUMBER_OF_MAX_CMD + tid,
-				max_cmd[tid]);
-	}
-
-	/*
-	 * Force the AdvInitAsc3550/38C0800Driver() function to
-	 * perform a SCSI Bus Reset by clearing the BIOS signature word.
-	 * The initialization functions assumes a SCSI Bus Reset is not
-	 * needed if the BIOS signature word is present.
-	 */
-	AdvReadWordLram(iop_base, ASC_MC_BIOS_SIGNATURE, bios_sig);
-	AdvWriteWordLram(iop_base, ASC_MC_BIOS_SIGNATURE, 0);
-
-	/*
-	 * Stop chip and reset it.
-	 */
-	AdvWriteWordRegister(iop_base, IOPW_RISC_CSR, ADV_RISC_CSR_STOP);
-	AdvWriteWordRegister(iop_base, IOPW_CTRL_REG, ADV_CTRL_REG_CMD_RESET);
-	DvcSleepMilliSecond(100);
-	AdvWriteWordRegister(iop_base, IOPW_CTRL_REG,
-			     ADV_CTRL_REG_CMD_WR_IO_REG);
-
-	/*
-	 * Reset Adv Library error code, if any, and try
-	 * re-initializing the chip.
-	 */
 	asc_dvc->err_code = 0;
-	if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
-		status = AdvInitAsc38C1600Driver(asc_dvc);
-	} else if (asc_dvc->chip_type == ADV_CHIP_ASC38C0800) {
-		status = AdvInitAsc38C0800Driver(asc_dvc);
-	} else {
-		status = AdvInitAsc3550Driver(asc_dvc);
-	}
-
-	/* Translate initialization return value to status value. */
-	if (status == 0) {
-		status = ADV_TRUE;
-	} else {
-		status = ADV_FALSE;
-	}
 
 	/*
-	 * Restore the BIOS signature word.
+	 * Save the state of the PCI Configuration Command Register
+	 * "Parity Error Response Control" Bit. If the bit is clear (0),
+	 * in AdvInitAsc3550/38C0800Driver() tell the microcode to ignore
+	 * DMA parity errors.
 	 */
-	AdvWriteWordLram(iop_base, ASC_MC_BIOS_SIGNATURE, bios_sig);
+	asc_dvc->cfg->control_flag = 0;
+	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+	if ((cmd & PCI_COMMAND_PARITY) == 0)
+		asc_dvc->cfg->control_flag |= CONTROL_FLAG_IGNORE_PERR;
+
+	asc_dvc->cfg->chip_version =
+	    AdvGetChipVersion(iop_base, asc_dvc->bus_type);
+
+	ASC_DBG(1, "iopb_chip_id_1: 0x%x 0x%x\n",
+		 (ushort)AdvReadByteRegister(iop_base, IOPB_CHIP_ID_1),
+		 (ushort)ADV_CHIP_ID_BYTE);
+
+	ASC_DBG(1, "iopw_chip_id_0: 0x%x 0x%x\n",
+		 (ushort)AdvReadWordRegister(iop_base, IOPW_CHIP_ID_0),
+		 (ushort)ADV_CHIP_ID_WORD);
 
 	/*
-	 * Restore per TID negotiated values.
+	 * Reset the chip to start and allow register writes.
 	 */
-	AdvWriteWordLram(iop_base, ASC_MC_WDTR_ABLE, wdtr_able);
-	AdvWriteWordLram(iop_base, ASC_MC_SDTR_ABLE, sdtr_able);
-	if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
-		AdvWriteWordLram(iop_base, ASC_MC_PPR_ABLE, ppr_able);
-	}
-	AdvWriteWordLram(iop_base, ASC_MC_TAGQNG_ABLE, tagqng_able);
-	for (tid = 0; tid <= ADV_MAX_TID; tid++) {
-		AdvWriteByteLram(iop_base, ASC_MC_NUMBER_OF_MAX_CMD + tid,
-				 max_cmd[tid]);
-	}
-
-	return status;
-}
-
-/*
- * Adv Library Interrupt Service Routine
- *
- *  This function is called by a driver's interrupt service routine.
- *  The function disables and re-enables interrupts.
- *
- *  When a microcode idle command is completed, the ADV_DVC_VAR
- *  'idle_cmd_done' field is set to ADV_TRUE.
- *
- *  Note: AdvISR() can be called when interrupts are disabled or even
- *  when there is no hardware interrupt condition present. It will
- *  always check for completed idle commands and microcode requests.
- *  This is an important feature that shouldn't be changed because it
- *  allows commands to be completed from polling mode loops.
- *
- * Return:
- *   ADV_TRUE(1) - interrupt was pending
- *   ADV_FALSE(0) - no interrupt was pending
- */
-static int AdvISR(ADV_DVC_VAR *asc_dvc)
-{
-	AdvPortAddr iop_base;
-	uchar int_stat;
-	ushort target_bit;
-	ADV_CARR_T *free_carrp;
-	ADV_VADDR irq_next_vpa;
-	int flags;
-	ADV_SCSI_REQ_Q *scsiq;
-
-	flags = DvcEnterCritical();
-
-	iop_base = asc_dvc->iop_base;
-
-	/* Reading the register clears the interrupt. */
-	int_stat = AdvReadByteRegister(iop_base, IOPB_INTR_STATUS_REG);
-
-	if ((int_stat & (ADV_INTR_STATUS_INTRA | ADV_INTR_STATUS_INTRB |
-			 ADV_INTR_STATUS_INTRC)) == 0) {
-		DvcLeaveCritical(flags);
-		return ADV_FALSE;
-	}
-
-	/*
-	 * Notify the driver of an asynchronous microcode condition by
-	 * calling the ADV_DVC_VAR.async_callback function. The function
-	 * is passed the microcode ASC_MC_INTRB_CODE byte value.
-	 */
-	if (int_stat & ADV_INTR_STATUS_INTRB) {
-		uchar intrb_code;
-
-		AdvReadByteLram(iop_base, ASC_MC_INTRB_CODE, intrb_code);
-
-		if (asc_dvc->chip_type == ADV_CHIP_ASC3550 ||
-		    asc_dvc->chip_type == ADV_CHIP_ASC38C0800) {
-			if (intrb_code == ADV_ASYNC_CARRIER_READY_FAILURE &&
-			    asc_dvc->carr_pending_cnt != 0) {
-				AdvWriteByteRegister(iop_base, IOPB_TICKLE,
-						     ADV_TICKLE_A);
-				if (asc_dvc->chip_type == ADV_CHIP_ASC3550) {
-					AdvWriteByteRegister(iop_base,
-							     IOPB_TICKLE,
-							     ADV_TICKLE_NOP);
-				}
-			}
-		}
-
-		if (asc_dvc->async_callback != 0) {
-			(*asc_dvc->async_callback) (asc_dvc, intrb_code);
-		}
-	}
-
-	/*
-	 * Check if the IRQ stopper carrier contains a completed request.
-	 */
-	while (((irq_next_vpa =
-		 le32_to_cpu(asc_dvc->irq_sp->next_vpa)) & ASC_RQ_DONE) != 0) {
-		/*
-		 * Get a pointer to the newly completed ADV_SCSI_REQ_Q structure.
-		 * The RISC will have set 'areq_vpa' to a virtual address.
-		 *
-		 * The firmware will have copied the ASC_SCSI_REQ_Q.scsiq_ptr
-		 * field to the carrier ADV_CARR_T.areq_vpa field. The conversion
-		 * below complements the conversion of ASC_SCSI_REQ_Q.scsiq_ptr'
-		 * in AdvExeScsiQueue().
-		 */
-		scsiq = (ADV_SCSI_REQ_Q *)
-		    ADV_U32_TO_VADDR(le32_to_cpu(asc_dvc->irq_sp->areq_vpa));
-
-		/*
-		 * Request finished with good status and the queue was not
-		 * DMAed to host memory by the firmware. Set all status fields
-		 * to indicate good status.
-		 */
-		if ((irq_next_vpa & ASC_RQ_GOOD) != 0) {
-			scsiq->done_status = QD_NO_ERROR;
-			scsiq->host_status = scsiq->scsi_status = 0;
-			scsiq->data_cnt = 0L;
-		}
-
-		/*
-		 * Advance the stopper pointer to the next carrier
-		 * ignoring the lower four bits. Free the previous
-		 * stopper carrier.
-		 */
-		free_carrp = asc_dvc->irq_sp;
-		asc_dvc->irq_sp = (ADV_CARR_T *)
-		    ADV_U32_TO_VADDR(ASC_GET_CARRP(irq_next_vpa));
-
-		free_carrp->next_vpa =
-		    cpu_to_le32(ADV_VADDR_TO_U32(asc_dvc->carr_freelist));
-		asc_dvc->carr_freelist = free_carrp;
-		asc_dvc->carr_pending_cnt--;
-
-		ASC_ASSERT(scsiq != NULL);
-		target_bit = ADV_TID_TO_TIDMASK(scsiq->target_id);
-
-		/*
-		 * Clear request microcode control flag.
-		 */
-		scsiq->cntl = 0;
-
-		/*
-		 * If the command that completed was a SCSI INQUIRY and
-		 * LUN 0 was sent the command, then process the INQUIRY
-		 * command information for the device.
-		 *
-		 * Note: If data returned were either VPD or CmdDt data,
-		 * don't process the INQUIRY command information for
-		 * the device, otherwise may erroneously set *_able bits.
-		 */
-		if (scsiq->done_status == QD_NO_ERROR &&
-		    scsiq->cdb[0] == INQUIRY &&
-		    scsiq->target_lun == 0 &&
-		    (scsiq->cdb[1] & ADV_INQ_RTN_VPD_AND_CMDDT)
-		    == ADV_INQ_RTN_STD_INQUIRY_DATA) {
-			AdvInquiryHandling(asc_dvc, scsiq);
-		}
-
-		/*
-		 * Notify the driver of the completed request by passing
-		 * the ADV_SCSI_REQ_Q pointer to its callback function.
-		 */
-		scsiq->a_flag |= ADV_SCSIQ_DONE;
-		(*asc_dvc->isr_callback) (asc_dvc, scsiq);
-		/*
-		 * Note: After the driver callback function is called, 'scsiq'
-		 * can no longer be referenced.
-		 *
-		 * Fall through and continue processing other completed
-		 * requests...
-		 */
-
-		/*
-		 * Disable interrupts again in case the driver inadvertently
-		 * enabled interrupts in its callback function.
-		 *
-		 * The DvcEnterCritical() return value is ignored, because
-		 * the 'flags' saved when AdvISR() was first entered will be
-		 * used to restore the interrupt flag on exit.
-		 */
-		(void)DvcEnterCritical();
-	}
-	DvcLeaveCritical(flags);
-	return ADV_TRUE;
-}
-
-/*
- * Send an idle command to the chip and wait for completion.
- *
- * Command completion is polled for once per microsecond.
- *
- * The function can be called from anywhere including an interrupt handler.
- * But the function is not re-entrant, so it uses the DvcEnter/LeaveCritical()
- * functions to prevent reentrancy.
- *
- * Return Values:
- *   ADV_TRUE - command completed successfully
- *   ADV_FALSE - command failed
- *   ADV_ERROR - command timed out
- */
-static int
-AdvSendIdleCmd(ADV_DVC_VAR *asc_dvc,
-	       ushort idle_cmd, ADV_DCNT idle_cmd_parameter)
-{
-	ulong last_int_level;
-	int result;
-	ADV_DCNT i, j;
-	AdvPortAddr iop_base;
-
-	last_int_level = DvcEnterCritical();
-
-	iop_base = asc_dvc->iop_base;
-
-	/*
-	 * Clear the idle command status which is set by the microcode
-	 * to a non-zero value to indicate when the command is completed.
-	 * The non-zero result is one of the IDLE_CMD_STATUS_* values
-	 * defined in a_advlib.h.
-	 */
-	AdvWriteWordLram(iop_base, ASC_MC_IDLE_CMD_STATUS, (ushort)0);
-
-	/*
-	 * Write the idle command value after the idle command parameter
-	 * has been written to avoid a race condition. If the order is not
-	 * followed, the microcode may process the idle command before the
-	 * parameters have been written to LRAM.
-	 */
-	AdvWriteDWordLramNoSwap(iop_base, ASC_MC_IDLE_CMD_PARAMETER,
-				cpu_to_le32(idle_cmd_parameter));
-	AdvWriteWordLram(iop_base, ASC_MC_IDLE_CMD, idle_cmd);
-
-	/*
-	 * Tickle the RISC to tell it to process the idle command.
-	 */
-	AdvWriteByteRegister(iop_base, IOPB_TICKLE, ADV_TICKLE_B);
-	if (asc_dvc->chip_type == ADV_CHIP_ASC3550) {
-		/*
-		 * Clear the tickle value. In the ASC-3550 the RISC flag
-		 * command 'clr_tickle_b' does not work unless the host
-		 * value is cleared.
-		 */
-		AdvWriteByteRegister(iop_base, IOPB_TICKLE, ADV_TICKLE_NOP);
-	}
-
-	/* Wait for up to 100 millisecond for the idle command to timeout. */
-	for (i = 0; i < SCSI_WAIT_100_MSEC; i++) {
-		/* Poll once each microsecond for command completion. */
-		for (j = 0; j < SCSI_US_PER_MSEC; j++) {
-			AdvReadWordLram(iop_base, ASC_MC_IDLE_CMD_STATUS,
-					result);
-			if (result != 0) {
-				DvcLeaveCritical(last_int_level);
-				return result;
-			}
-			DvcDelayMicroSecond(asc_dvc, (ushort)1);
-		}
-	}
-
-	ASC_ASSERT(0);		/* The idle command should never timeout. */
-	DvcLeaveCritical(last_int_level);
-	return ADV_ERROR;
-}
-
-/*
- * Inquiry Information Byte 7 Handling
- *
- * Handle SCSI Inquiry Command information for a device by setting
- * microcode operating variables that affect WDTR, SDTR, and Tag
- * Queuing.
- */
-static void AdvInquiryHandling(ADV_DVC_VAR *asc_dvc, ADV_SCSI_REQ_Q *scsiq)
-{
-	AdvPortAddr iop_base;
-	uchar tid;
-	ADV_SCSI_INQUIRY *inq;
-	ushort tidmask;
-	ushort cfg_word;
-
-	/*
-	 * AdvInquiryHandling() requires up to INQUIRY information Byte 7
-	 * to be available.
-	 *
-	 * If less than 8 bytes of INQUIRY information were requested or less
-	 * than 8 bytes were transferred, then return. cdb[4] is the request
-	 * length and the ADV_SCSI_REQ_Q 'data_cnt' field is set by the
-	 * microcode to the transfer residual count.
-	 */
-
-	if (scsiq->cdb[4] < 8 ||
-	    (scsiq->cdb[4] - le32_to_cpu(scsiq->data_cnt)) < 8) {
-		return;
-	}
-
-	iop_base = asc_dvc->iop_base;
-	tid = scsiq->target_id;
-
-	inq = (ADV_SCSI_INQUIRY *) scsiq->vdata_addr;
-
-	/*
-	 * WDTR, SDTR, and Tag Queuing cannot be enabled for old devices.
-	 */
-	if (ADV_INQ_RESPONSE_FMT(inq) < 2 && ADV_INQ_ANSI_VER(inq) < 2) {
-		return;
+	if (AdvFindSignature(iop_base) == 0) {
+		asc_dvc->err_code = ASC_IERR_BAD_SIGNATURE;
+		return ADV_ERROR;
 	} else {
 		/*
-		 * INQUIRY Byte 7 Handling
-		 *
-		 * Use a device's INQUIRY byte 7 to determine whether it
-		 * supports WDTR, SDTR, and Tag Queuing. If the feature
-		 * is enabled in the EEPROM and the device supports the
-		 * feature, then enable it in the microcode.
+		 * The caller must set 'chip_type' to a valid setting.
 		 */
-
-		tidmask = ADV_TID_TO_TIDMASK(tid);
-
-		/*
-		 * Wide Transfers
-		 *
-		 * If the EEPROM enabled WDTR for the device and the device
-		 * supports wide bus (16 bit) transfers, then turn on the
-		 * device's 'wdtr_able' bit and write the new value to the
-		 * microcode.
-		 */
-		if ((asc_dvc->wdtr_able & tidmask) && ADV_INQ_WIDE16(inq)) {
-			AdvReadWordLram(iop_base, ASC_MC_WDTR_ABLE, cfg_word);
-			if ((cfg_word & tidmask) == 0) {
-				cfg_word |= tidmask;
-				AdvWriteWordLram(iop_base, ASC_MC_WDTR_ABLE,
-						 cfg_word);
-
-				/*
-				 * Clear the microcode "SDTR negotiation" and "WDTR
-				 * negotiation" done indicators for the target to cause
-				 * it to negotiate with the new setting set above.
-				 * WDTR when accepted causes the target to enter
-				 * asynchronous mode, so SDTR must be negotiated.
-				 */
-				AdvReadWordLram(iop_base, ASC_MC_SDTR_DONE,
-						cfg_word);
-				cfg_word &= ~tidmask;
-				AdvWriteWordLram(iop_base, ASC_MC_SDTR_DONE,
-						 cfg_word);
-				AdvReadWordLram(iop_base, ASC_MC_WDTR_DONE,
-						cfg_word);
-				cfg_word &= ~tidmask;
-				AdvWriteWordLram(iop_base, ASC_MC_WDTR_DONE,
-						 cfg_word);
-			}
+		if (asc_dvc->chip_type != ADV_CHIP_ASC3550 &&
+		    asc_dvc->chip_type != ADV_CHIP_ASC38C0800 &&
+		    asc_dvc->chip_type != ADV_CHIP_ASC38C1600) {
+			asc_dvc->err_code |= ASC_IERR_BAD_CHIPTYPE;
+			return ADV_ERROR;
 		}
 
 		/*
-		 * Synchronous Transfers
-		 *
-		 * If the EEPROM enabled SDTR for the device and the device
-		 * supports synchronous transfers, then turn on the device's
-		 * 'sdtr_able' bit. Write the new value to the microcode.
+		 * Reset Chip.
 		 */
-		if ((asc_dvc->sdtr_able & tidmask) && ADV_INQ_SYNC(inq)) {
-			AdvReadWordLram(iop_base, ASC_MC_SDTR_ABLE, cfg_word);
-			if ((cfg_word & tidmask) == 0) {
-				cfg_word |= tidmask;
-				AdvWriteWordLram(iop_base, ASC_MC_SDTR_ABLE,
-						 cfg_word);
+		AdvWriteWordRegister(iop_base, IOPW_CTRL_REG,
+				     ADV_CTRL_REG_CMD_RESET);
+		mdelay(100);
+		AdvWriteWordRegister(iop_base, IOPW_CTRL_REG,
+				     ADV_CTRL_REG_CMD_WR_IO_REG);
 
-				/*
-				 * Clear the microcode "SDTR negotiation" done indicator
-				 * for the target to cause it to negotiate with the new
-				 * setting set above.
-				 */
-				AdvReadWordLram(iop_base, ASC_MC_SDTR_DONE,
-						cfg_word);
-				cfg_word &= ~tidmask;
-				AdvWriteWordLram(iop_base, ASC_MC_SDTR_DONE,
-						 cfg_word);
-			}
+		if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600) {
+			status = AdvInitFrom38C1600EEP(asc_dvc);
+		} else if (asc_dvc->chip_type == ADV_CHIP_ASC38C0800) {
+			status = AdvInitFrom38C0800EEP(asc_dvc);
+		} else {
+			status = AdvInitFrom3550EEP(asc_dvc);
 		}
-		/*
-		 * If the Inquiry data included enough space for the SPI-3
-		 * Clocking field, then check if DT mode is supported.
-		 */
-		if (asc_dvc->chip_type == ADV_CHIP_ASC38C1600 &&
-		    (scsiq->cdb[4] >= 57 ||
-		     (scsiq->cdb[4] - le32_to_cpu(scsiq->data_cnt)) >= 57)) {
-			/*
-			 * PPR (Parallel Protocol Request) Capable
-			 *
-			 * If the device supports DT mode, then it must be PPR capable.
-			 * The PPR message will be used in place of the SDTR and WDTR
-			 * messages to negotiate synchronous speed and offset, transfer
-			 * width, and protocol options.
-			 */
-			if (ADV_INQ_CLOCKING(inq) & ADV_INQ_CLOCKING_DT_ONLY) {
-				AdvReadWordLram(iop_base, ASC_MC_PPR_ABLE,
-						asc_dvc->ppr_able);
-				asc_dvc->ppr_able |= tidmask;
-				AdvWriteWordLram(iop_base, ASC_MC_PPR_ABLE,
-						 asc_dvc->ppr_able);
-			}
-		}
+		warn_code |= status;
+	}
 
-		/*
-		 * If the EEPROM enabled Tag Queuing for the device and the
-		 * device supports Tag Queueing, then turn on the device's
-		 * 'tagqng_enable' bit in the microcode and set the microcode
-		 * maximum command count to the ADV_DVC_VAR 'max_dvc_qng'
-		 * value.
-		 *
-		 * Tag Queuing is disabled for the BIOS which runs in polled
-		 * mode and would see no benefit from Tag Queuing. Also by
-		 * disabling Tag Queuing in the BIOS devices with Tag Queuing
-		 * bugs will at least work with the BIOS.
-		 */
-		if ((asc_dvc->tagqng_able & tidmask) && ADV_INQ_CMD_QUEUE(inq)) {
-			AdvReadWordLram(iop_base, ASC_MC_TAGQNG_ABLE, cfg_word);
-			cfg_word |= tidmask;
-			AdvWriteWordLram(iop_base, ASC_MC_TAGQNG_ABLE,
-					 cfg_word);
+	if (warn_code != 0)
+		shost_printk(KERN_WARNING, shost, "warning: 0x%x\n", warn_code);
 
-			AdvWriteByteLram(iop_base,
-					 ASC_MC_NUMBER_OF_MAX_CMD + tid,
-					 asc_dvc->max_dvc_qng);
-		}
+	if (asc_dvc->err_code)
+		shost_printk(KERN_ERR, shost, "error code 0x%x\n",
+				asc_dvc->err_code);
+
+	return asc_dvc->err_code;
+}
+#endif
+
+static struct scsi_host_template advansys_template = {
+	.proc_name = DRV_NAME,
+#ifdef CONFIG_PROC_FS
+	.proc_info = advansys_proc_info,
+#endif
+	.name = DRV_NAME,
+	.info = advansys_info,
+	.queuecommand = advansys_queuecommand,
+	.eh_bus_reset_handler = advansys_reset,
+	.bios_param = advansys_biosparam,
+	.slave_configure = advansys_slave_configure,
+	/*
+	 * Because the driver may control an ISA adapter 'unchecked_isa_dma'
+	 * must be set. The flag will be cleared in advansys_board_found
+	 * for non-ISA adapters.
+	 */
+	.unchecked_isa_dma = 1,
+	/*
+	 * All adapters controlled by this driver are capable of large
+	 * scatter-gather lists. According to the mid-level SCSI documentation
+	 * this obviates any performance gain provided by setting
+	 * 'use_clustering'. But empirically while CPU utilization is increased
+	 * by enabling clustering, I/O throughput increases as well.
+	 */
+	.use_clustering = ENABLE_CLUSTERING,
+};
+
+static int __devinit advansys_wide_init_chip(struct Scsi_Host *shost)
+{
+	struct asc_board *board = shost_priv(shost);
+	struct adv_dvc_var *adv_dvc = &board->dvc_var.adv_dvc_var;
+	int req_cnt = 0;
+	adv_req_t *reqp = NULL;
+	int sg_cnt = 0;
+	adv_sgblk_t *sgp;
+	int warn_code, err_code;
+
+	/*
+	 * Allocate buffer carrier structures. The total size
+	 * is about 4 KB, so allocate all at once.
+	 */
+	adv_dvc->carrier_buf = kmalloc(ADV_CARRIER_BUFSIZE, GFP_KERNEL);
+	ASC_DBG(1, "carrier_buf 0x%p\n", adv_dvc->carrier_buf);
+
+	if (!adv_dvc->carrier_buf)
+		goto kmalloc_failed;
+
+	/*
+	 * Allocate up to 'max_host_qng' request structures for the Wide
+	 * board. The total size is about 16 KB, so allocate all at once.
+	 * If the allocation fails decrement and try again.
+	 */
+	for (req_cnt = adv_dvc->max_host_qng; req_cnt > 0; req_cnt--) {
+		reqp = kmalloc(sizeof(adv_req_t) * req_cnt, GFP_KERNEL);
+
+		ASC_DBG(1, "reqp 0x%p, req_cnt %d, bytes %lu\n", reqp, req_cnt,
+			 (ulong)sizeof(adv_req_t) * req_cnt);
+
+		if (reqp)
+			break;
+	}
+
+	if (!reqp)
+		goto kmalloc_failed;
+
+	adv_dvc->orig_reqp = reqp;
+
+	/*
+	 * Allocate up to ADV_TOT_SG_BLOCK request structures for
+	 * the Wide board. Each structure is about 136 bytes.
+	 */
+	board->adv_sgblkp = NULL;
+	for (sg_cnt = 0; sg_cnt < ADV_TOT_SG_BLOCK; sg_cnt++) {
+		sgp = kmalloc(sizeof(adv_sgblk_t), GFP_KERNEL);
+
+		if (!sgp)
+			break;
+
+		sgp->next_sgblkp = board->adv_sgblkp;
+		board->adv_sgblkp = sgp;
+
+	}
+
+	ASC_DBG(1, "sg_cnt %d * %lu = %lu bytes\n", sg_cnt, sizeof(adv_sgblk_t),
+		 sizeof(adv_sgblk_t) * sg_cnt);
+
+	if (!board->adv_sgblkp)
+		goto kmalloc_failed;
+
+	/*
+	 * Point 'adv_reqp' to the request structures and
+	 * link them together.
+	 */
+	req_cnt--;
+	reqp[req_cnt].next_reqp = NULL;
+	for (; req_cnt > 0; req_cnt--) {
+		reqp[req_cnt - 1].next_reqp = &reqp[req_cnt];
+	}
+	board->adv_reqp = &reqp[0];
+
+	if (adv_dvc->chip_type == ADV_CHIP_ASC3550) {
+		ASC_DBG(2, "AdvInitAsc3550Driver()\n");
+		warn_code = AdvInitAsc3550Driver(adv_dvc);
+	} else if (adv_dvc->chip_type == ADV_CHIP_ASC38C0800) {
+		ASC_DBG(2, "AdvInitAsc38C0800Driver()\n");
+		warn_code = AdvInitAsc38C0800Driver(adv_dvc);
+	} else {
+		ASC_DBG(2, "AdvInitAsc38C1600Driver()\n");
+		warn_code = AdvInitAsc38C1600Driver(adv_dvc);
+	}
+	err_code = adv_dvc->err_code;
+
+	if (warn_code || err_code) {
+		shost_printk(KERN_WARNING, shost, "error: warn 0x%x, error "
+			"0x%x\n", warn_code, err_code);
+	}
+
+	goto exit;
+
+ kmalloc_failed:
+	shost_printk(KERN_ERR, shost, "error: kmalloc() failed\n");
+	err_code = ADV_ERROR;
+ exit:
+	return err_code;
+}
+
+static void advansys_wide_free_mem(struct asc_board *board)
+{
+	struct adv_dvc_var *adv_dvc = &board->dvc_var.adv_dvc_var;
+	kfree(adv_dvc->carrier_buf);
+	adv_dvc->carrier_buf = NULL;
+	kfree(adv_dvc->orig_reqp);
+	adv_dvc->orig_reqp = board->adv_reqp = NULL;
+	while (board->adv_sgblkp) {
+		adv_sgblk_t *sgp = board->adv_sgblkp;
+		board->adv_sgblkp = sgp->next_sgblkp;
+		kfree(sgp);
 	}
 }
 
-MODULE_LICENSE("Dual BSD/GPL");
-
-static struct Scsi_Host *__devinit
-advansys_board_found(int iop, struct device *dev, int bus_type)
+static int __devinit advansys_board_found(struct Scsi_Host *shost,
+					  unsigned int iop, int bus_type)
 {
-	struct Scsi_Host *shost;
-	struct pci_dev *pdev = bus_type == ASC_IS_PCI ? to_pci_dev(dev) : NULL;
-	asc_board_t *boardp;
+	struct pci_dev *pdev;
+	struct asc_board *boardp = shost_priv(shost);
 	ASC_DVC_VAR *asc_dvc_varp = NULL;
 	ADV_DVC_VAR *adv_dvc_varp = NULL;
-	adv_sgblk_t *sgp = NULL;
-	int share_irq = FALSE;
-	int iolen = 0;
-	ADV_PADDR pci_memory_address;
-	int warn_code, err_code;
-	int ret;
+	int share_irq, warn_code, ret;
 
-	/*
-	 * Adapter found.
-	 *
-	 * Register the adapter, get its configuration, and
-	 * initialize it.
-	 */
-	ASC_DBG(2, "advansys_board_found: scsi_register()\n");
-	shost = scsi_register(&driver_template, sizeof(asc_board_t));
-
-	if (!shost)
-		return NULL;
-
-	/* Save a pointer to the Scsi_Host of each board found. */
-	asc_host[asc_board_count++] = shost;
-
-	/* Initialize private per board data */
-	boardp = ASC_BOARDP(shost);
-	memset(boardp, 0, sizeof(asc_board_t));
-	boardp->id = asc_board_count - 1;
-
-	/* Initialize spinlock. */
-	spin_lock_init(&boardp->lock);
-
-	/*
-	 * Handle both narrow and wide boards.
-	 *
-	 * If a Wide board was detected, set the board structure
-	 * wide board flag. Set-up the board structure based on
-	 * the board type.
-	 */
-#ifdef CONFIG_PCI
-	if (bus_type == ASC_IS_PCI &&
-	    (pdev->device == PCI_DEVICE_ID_ASP_ABP940UW ||
-	     pdev->device == PCI_DEVICE_ID_38C0800_REV1 ||
-	     pdev->device == PCI_DEVICE_ID_38C1600_REV1)) {
-		boardp->flags |= ASC_IS_WIDE_BOARD;
-	}
-#endif /* CONFIG_PCI */
+	pdev = (bus_type == ASC_IS_PCI) ? to_pci_dev(boardp->dev) : NULL;
 
 	if (ASC_NARROW_BOARD(boardp)) {
-		ASC_DBG(1, "advansys_board_found: narrow board\n");
+		ASC_DBG(1, "narrow board\n");
 		asc_dvc_varp = &boardp->dvc_var.asc_dvc_var;
 		asc_dvc_varp->bus_type = bus_type;
 		asc_dvc_varp->drv_ptr = boardp;
 		asc_dvc_varp->cfg = &boardp->dvc_cfg.asc_dvc_cfg;
-		asc_dvc_varp->cfg->overrun_buf = &overrun_buf[0];
 		asc_dvc_varp->iop_base = iop;
-		asc_dvc_varp->isr_callback = asc_isr_callback;
 	} else {
-		ASC_DBG(1, "advansys_board_found: wide board\n");
+#ifdef CONFIG_PCI
 		adv_dvc_varp = &boardp->dvc_var.adv_dvc_var;
 		adv_dvc_varp->drv_ptr = boardp;
 		adv_dvc_varp->cfg = &boardp->dvc_cfg.adv_dvc_cfg;
-		adv_dvc_varp->isr_callback = adv_isr_callback;
-		adv_dvc_varp->async_callback = adv_async_callback;
-#ifdef CONFIG_PCI
 		if (pdev->device == PCI_DEVICE_ID_ASP_ABP940UW) {
-			ASC_DBG(1, "advansys_board_found: ASC-3550\n");
+			ASC_DBG(1, "wide board ASC-3550\n");
 			adv_dvc_varp->chip_type = ADV_CHIP_ASC3550;
 		} else if (pdev->device == PCI_DEVICE_ID_38C0800_REV1) {
-			ASC_DBG(1, "advansys_board_found: ASC-38C0800\n");
+			ASC_DBG(1, "wide board ASC-38C0800\n");
 			adv_dvc_varp->chip_type = ADV_CHIP_ASC38C0800;
 		} else {
-			ASC_DBG(1, "advansys_board_found: ASC-38C1600\n");
+			ASC_DBG(1, "wide board ASC-38C1600\n");
 			adv_dvc_varp->chip_type = ADV_CHIP_ASC38C1600;
 		}
-#endif /* CONFIG_PCI */
 
-		/*
-		 * Map the board's registers into virtual memory for
-		 * PCI slave access. Only memory accesses are used to
-		 * access the board's registers.
-		 *
-		 * Note: The PCI register base address is not always
-		 * page aligned, but the address passed to ioremap()
-		 * must be page aligned. It is guaranteed that the
-		 * PCI register base address will not cross a page
-		 * boundary.
-		 */
-		if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
-			iolen = ADV_3550_IOLEN;
-		} else if (adv_dvc_varp->chip_type == ADV_CHIP_ASC38C0800) {
-			iolen = ADV_38C0800_IOLEN;
-		} else {
-			iolen = ADV_38C1600_IOLEN;
+		boardp->asc_n_io_port = pci_resource_len(pdev, 1);
+		boardp->ioremap_addr = ioremap(pci_resource_start(pdev, 1),
+					       boardp->asc_n_io_port);
+		if (!boardp->ioremap_addr) {
+			shost_printk(KERN_ERR, shost, "ioremap(%lx, %d) "
+					"returned NULL\n",
+					(long)pci_resource_start(pdev, 1),
+					boardp->asc_n_io_port);
+			ret = -ENODEV;
+			goto err_shost;
 		}
-#ifdef CONFIG_PCI
-		pci_memory_address = pci_resource_start(pdev, 1);
-		ASC_DBG1(1,
-			 "advansys_board_found: pci_memory_address: 0x%lx\n",
-			 (ulong)pci_memory_address);
-		if ((boardp->ioremap_addr =
-		     ioremap(pci_memory_address & PAGE_MASK, PAGE_SIZE)) == 0) {
-			ASC_PRINT3
-			    ("advansys_board_found: board %d: ioremap(%x, %d) returned NULL\n",
-			     boardp->id, pci_memory_address, iolen);
-			scsi_unregister(shost);
-			asc_board_count--;
-			return NULL;
-		}
-		ASC_DBG1(1,
-			 "advansys_board_found: ioremap_addr: 0x%lx\n",
-			 (ulong)boardp->ioremap_addr);
-		adv_dvc_varp->iop_base = (AdvPortAddr)
-		    (boardp->ioremap_addr +
-		     (pci_memory_address - (pci_memory_address & PAGE_MASK)));
-		ASC_DBG1(1,
-			 "advansys_board_found: iop_base: 0x%lx\n",
-			 adv_dvc_varp->iop_base);
-#endif /* CONFIG_PCI */
+		adv_dvc_varp->iop_base = (AdvPortAddr)boardp->ioremap_addr;
+		ASC_DBG(1, "iop_base: 0x%p\n", adv_dvc_varp->iop_base);
 
 		/*
 		 * Even though it isn't used to access wide boards, other
@@ -17907,9 +13445,9 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 		 */
 		boardp->ioport = iop;
 
-		ASC_DBG2(1,
-			 "advansys_board_found: iopb_chip_id_1 0x%x, iopw_chip_id_0 0x%x\n",
-			 (ushort)inp(iop + 1), (ushort)inpw(iop));
+		ASC_DBG(1, "iopb_chip_id_1 0x%x, iopw_chip_id_0 0x%x\n",
+				(ushort)inp(iop + 1), (ushort)inpw(iop));
+#endif /* CONFIG_PCI */
 	}
 
 #ifdef CONFIG_PROC_FS
@@ -17917,18 +13455,16 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 	 * Allocate buffer for printing information from
 	 * /proc/scsi/advansys/[0...].
 	 */
-	if ((boardp->prtbuf = kmalloc(ASC_PRTBUF_SIZE, GFP_ATOMIC)) == NULL) {
-		ASC_PRINT3
-		    ("advansys_board_found: board %d: kmalloc(%d, %d) returned NULL\n",
-		     boardp->id, ASC_PRTBUF_SIZE, GFP_ATOMIC);
-		scsi_unregister(shost);
-		asc_board_count--;
-		return NULL;
+	boardp->prtbuf = kmalloc(ASC_PRTBUF_SIZE, GFP_KERNEL);
+	if (!boardp->prtbuf) {
+		shost_printk(KERN_ERR, shost, "kmalloc(%d) returned NULL\n",
+				ASC_PRTBUF_SIZE);
+		ret = -ENOMEM;
+		goto err_unmap;
 	}
 #endif /* CONFIG_PROC_FS */
 
 	if (ASC_NARROW_BOARD(boardp)) {
-		asc_dvc_varp->cfg->dev = dev;
 		/*
 		 * Set the board bus type and PCI IRQ before
 		 * calling AscInitGetConfig().
@@ -17937,126 +13473,55 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 #ifdef CONFIG_ISA
 		case ASC_IS_ISA:
 			shost->unchecked_isa_dma = TRUE;
-			share_irq = FALSE;
+			share_irq = 0;
 			break;
 		case ASC_IS_VL:
 			shost->unchecked_isa_dma = FALSE;
-			share_irq = FALSE;
+			share_irq = 0;
 			break;
 		case ASC_IS_EISA:
 			shost->unchecked_isa_dma = FALSE;
-			share_irq = TRUE;
+			share_irq = IRQF_SHARED;
 			break;
 #endif /* CONFIG_ISA */
 #ifdef CONFIG_PCI
 		case ASC_IS_PCI:
-			shost->irq = asc_dvc_varp->irq_no = pdev->irq;
-			asc_dvc_varp->cfg->pci_slot_info =
-			    ASC_PCI_MKID(pdev->bus->number,
-					 PCI_SLOT(pdev->devfn),
-					 PCI_FUNC(pdev->devfn));
 			shost->unchecked_isa_dma = FALSE;
-			share_irq = TRUE;
+			share_irq = IRQF_SHARED;
 			break;
 #endif /* CONFIG_PCI */
 		default:
-			ASC_PRINT2
-			    ("advansys_board_found: board %d: unknown adapter type: %d\n",
-			     boardp->id, asc_dvc_varp->bus_type);
+			shost_printk(KERN_ERR, shost, "unknown adapter type: "
+					"%d\n", asc_dvc_varp->bus_type);
 			shost->unchecked_isa_dma = TRUE;
-			share_irq = FALSE;
+			share_irq = 0;
 			break;
 		}
-	} else {
-		adv_dvc_varp->cfg->dev = dev;
-		/*
-		 * For Wide boards set PCI information before calling
-		 * AdvInitGetConfig().
-		 */
-#ifdef CONFIG_PCI
-		shost->irq = adv_dvc_varp->irq_no = pdev->irq;
-		adv_dvc_varp->cfg->pci_slot_info =
-		    ASC_PCI_MKID(pdev->bus->number,
-				 PCI_SLOT(pdev->devfn),
-				 PCI_FUNC(pdev->devfn));
-		shost->unchecked_isa_dma = FALSE;
-		share_irq = TRUE;
-#endif /* CONFIG_PCI */
-	}
 
-	/*
-	 * Read the board configuration.
-	 */
-	if (ASC_NARROW_BOARD(boardp)) {
 		/*
 		 * NOTE: AscInitGetConfig() may change the board's
 		 * bus_type value. The bus_type value should no
 		 * longer be used. If the bus_type field must be
 		 * referenced only use the bit-wise AND operator "&".
 		 */
-		ASC_DBG(2, "advansys_board_found: AscInitGetConfig()\n");
-		switch (ret = AscInitGetConfig(asc_dvc_varp)) {
-		case 0:	/* No error */
-			break;
-		case ASC_WARN_IO_PORT_ROTATE:
-			ASC_PRINT1
-			    ("AscInitGetConfig: board %d: I/O port address modified\n",
-			     boardp->id);
-			break;
-		case ASC_WARN_AUTO_CONFIG:
-			ASC_PRINT1
-			    ("AscInitGetConfig: board %d: I/O port increment switch enabled\n",
-			     boardp->id);
-			break;
-		case ASC_WARN_EEPROM_CHKSUM:
-			ASC_PRINT1
-			    ("AscInitGetConfig: board %d: EEPROM checksum error\n",
-			     boardp->id);
-			break;
-		case ASC_WARN_IRQ_MODIFIED:
-			ASC_PRINT1
-			    ("AscInitGetConfig: board %d: IRQ modified\n",
-			     boardp->id);
-			break;
-		case ASC_WARN_CMD_QNG_CONFLICT:
-			ASC_PRINT1
-			    ("AscInitGetConfig: board %d: tag queuing enabled w/o disconnects\n",
-			     boardp->id);
-			break;
-		default:
-			ASC_PRINT2
-			    ("AscInitGetConfig: board %d: unknown warning: 0x%x\n",
-			     boardp->id, ret);
-			break;
-		}
-		if ((err_code = asc_dvc_varp->err_code) != 0) {
-			ASC_PRINT3
-			    ("AscInitGetConfig: board %d error: init_state 0x%x, err_code 0x%x\n",
-			     boardp->id,
-			     asc_dvc_varp->init_state, asc_dvc_varp->err_code);
-		}
+		ASC_DBG(2, "AscInitGetConfig()\n");
+		ret = AscInitGetConfig(shost) ? -ENODEV : 0;
 	} else {
-		ASC_DBG(2, "advansys_board_found: AdvInitGetConfig()\n");
-		if ((ret = AdvInitGetConfig(adv_dvc_varp)) != 0) {
-			ASC_PRINT2
-			    ("AdvInitGetConfig: board %d: warning: 0x%x\n",
-			     boardp->id, ret);
-		}
-		if ((err_code = adv_dvc_varp->err_code) != 0) {
-			ASC_PRINT2
-			    ("AdvInitGetConfig: board %d error: err_code 0x%x\n",
-			     boardp->id, adv_dvc_varp->err_code);
-		}
+#ifdef CONFIG_PCI
+		/*
+		 * For Wide boards set PCI information before calling
+		 * AdvInitGetConfig().
+		 */
+		shost->unchecked_isa_dma = FALSE;
+		share_irq = IRQF_SHARED;
+		ASC_DBG(2, "AdvInitGetConfig()\n");
+
+		ret = AdvInitGetConfig(pdev, shost) ? -ENODEV : 0;
+#endif /* CONFIG_PCI */
 	}
 
-	if (err_code != 0) {
-#ifdef CONFIG_PROC_FS
-		kfree(boardp->prtbuf);
-#endif /* CONFIG_PROC_FS */
-		scsi_unregister(shost);
-		asc_board_count--;
-		return NULL;
-	}
+	if (ret)
+		goto err_free_proc;
 
 	/*
 	 * Save the EEPROM configuration so that it can be displayed
@@ -18098,61 +13563,10 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 		/*
 		 * Modify board configuration.
 		 */
-		ASC_DBG(2, "advansys_board_found: AscInitSetConfig()\n");
-		switch (ret = AscInitSetConfig(asc_dvc_varp)) {
-		case 0:	/* No error. */
-			break;
-		case ASC_WARN_IO_PORT_ROTATE:
-			ASC_PRINT1
-			    ("AscInitSetConfig: board %d: I/O port address modified\n",
-			     boardp->id);
-			break;
-		case ASC_WARN_AUTO_CONFIG:
-			ASC_PRINT1
-			    ("AscInitSetConfig: board %d: I/O port increment switch enabled\n",
-			     boardp->id);
-			break;
-		case ASC_WARN_EEPROM_CHKSUM:
-			ASC_PRINT1
-			    ("AscInitSetConfig: board %d: EEPROM checksum error\n",
-			     boardp->id);
-			break;
-		case ASC_WARN_IRQ_MODIFIED:
-			ASC_PRINT1
-			    ("AscInitSetConfig: board %d: IRQ modified\n",
-			     boardp->id);
-			break;
-		case ASC_WARN_CMD_QNG_CONFLICT:
-			ASC_PRINT1
-			    ("AscInitSetConfig: board %d: tag queuing w/o disconnects\n",
-			     boardp->id);
-			break;
-		default:
-			ASC_PRINT2
-			    ("AscInitSetConfig: board %d: unknown warning: 0x%x\n",
-			     boardp->id, ret);
-			break;
-		}
-		if (asc_dvc_varp->err_code != 0) {
-			ASC_PRINT3
-			    ("AscInitSetConfig: board %d error: init_state 0x%x, err_code 0x%x\n",
-			     boardp->id,
-			     asc_dvc_varp->init_state, asc_dvc_varp->err_code);
-#ifdef CONFIG_PROC_FS
-			kfree(boardp->prtbuf);
-#endif /* CONFIG_PROC_FS */
-			scsi_unregister(shost);
-			asc_board_count--;
-			return NULL;
-		}
-
-		/*
-		 * Finish initializing the 'Scsi_Host' structure.
-		 */
-		/* AscInitSetConfig() will set the IRQ for non-PCI boards. */
-		if ((asc_dvc_varp->bus_type & ASC_IS_PCI) == 0) {
-			shost->irq = asc_dvc_varp->irq_no;
-		}
+		ASC_DBG(2, "AscInitSetConfig()\n");
+		ret = AscInitSetConfig(pdev, shost) ? -ENODEV : 0;
+		if (ret)
+			goto err_free_proc;
 	} else {
 		ADVEEP_3550_CONFIG *ep_3550;
 		ADVEEP_38C0800_CONFIG *ep_38C0800;
@@ -18246,11 +13660,6 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 		 */
 		boardp->init_tidmask |=
 		    ADV_TID_TO_TIDMASK(adv_dvc_varp->chip_scsi_id);
-
-		/*
-		 * Finish initializing the 'Scsi_Host' structure.
-		 */
-		shost->irq = adv_dvc_varp->irq_no;
 	}
 
 	/*
@@ -18262,6 +13671,7 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 	if (ASC_NARROW_BOARD(boardp)) {
 		shost->max_id = ASC_MAX_TID + 1;
 		shost->max_lun = ASC_MAX_LUN + 1;
+		shost->max_cmd_len = ASC_MAX_CDB_LEN;
 
 		shost->io_port = asc_dvc_varp->iop_base;
 		boardp->asc_n_io_port = ASC_IOADR_GAP;
@@ -18272,6 +13682,7 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 	} else {
 		shost->max_id = ADV_MAX_TID + 1;
 		shost->max_lun = ADV_MAX_LUN + 1;
+		shost->max_cmd_len = ADV_MAX_CDB_LEN;
 
 		/*
 		 * Save the I/O Port address and length even though
@@ -18280,22 +13691,12 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 		 * PCI Memory Mapped I/O.
 		 */
 		shost->io_port = iop;
-		boardp->asc_n_io_port = iolen;
 
 		shost->this_id = adv_dvc_varp->chip_scsi_id;
 
 		/* Set maximum number of queues the adapter can handle. */
 		shost->can_queue = adv_dvc_varp->max_host_qng;
 	}
-
-	/*
-	 * 'n_io_port' currently is one byte.
-	 *
-	 * Set a value to 'n_io_port', but never referenced it because
-	 * it may be truncated.
-	 */
-	shost->n_io_port = boardp->asc_n_io_port <= 255 ?
-	    boardp->asc_n_io_port : 255;
 
 	/*
 	 * Following v1.3.89, 'cmd_per_lun' is no longer needed
@@ -18343,14 +13744,12 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 		shost->sg_tablesize = SG_ALL;
 	}
 
-	ASC_DBG1(1, "advansys_board_found: sg_tablesize: %d\n", shost->sg_tablesize);
+	ASC_DBG(1, "sg_tablesize: %d\n", shost->sg_tablesize);
 
 	/* BIOS start address. */
 	if (ASC_NARROW_BOARD(boardp)) {
-		shost->base = ((ulong)
-			     AscGetChipBiosAddress(asc_dvc_varp->
-						   iop_base,
-						   asc_dvc_varp->bus_type));
+		shost->base = AscGetChipBiosAddress(asc_dvc_varp->iop_base,
+						    asc_dvc_varp->bus_type);
 	} else {
 		/*
 		 * Fill-in BIOS board variables. The Wide BIOS saves
@@ -18365,12 +13764,10 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 		AdvReadWordLram(adv_dvc_varp->iop_base,
 				BIOS_CODELEN, boardp->bios_codelen);
 
-		ASC_DBG2(1,
-			 "advansys_board_found: bios_signature 0x%x, bios_version 0x%x\n",
+		ASC_DBG(1, "bios_signature 0x%x, bios_version 0x%x\n",
 			 boardp->bios_signature, boardp->bios_version);
 
-		ASC_DBG2(1,
-			 "advansys_board_found: bios_codeseg 0x%x, bios_codelen 0x%x\n",
+		ASC_DBG(1, "bios_codeseg 0x%x, bios_codelen 0x%x\n",
 			 boardp->bios_codeseg, boardp->bios_codelen);
 
 		/*
@@ -18392,30 +13789,6 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 	 * Register Board Resources - I/O Port, DMA, IRQ
 	 */
 
-	/*
-	 * Register I/O port range.
-	 *
-	 * For Wide boards the I/O ports are not used to access
-	 * the board, but request the region anyway.
-	 *
-	 * 'shost->n_io_port' is not referenced, because it may be truncated.
-	 */
-	ASC_DBG2(2,
-		 "advansys_board_found: request_region port 0x%lx, len 0x%x\n",
-		 (ulong)shost->io_port, boardp->asc_n_io_port);
-	if (request_region(shost->io_port, boardp->asc_n_io_port,
-			   "advansys") == NULL) {
-		ASC_PRINT3
-		    ("advansys_board_found: board %d: request_region() failed, port 0x%lx, len 0x%x\n",
-		     boardp->id, (ulong)shost->io_port, boardp->asc_n_io_port);
-#ifdef CONFIG_PROC_FS
-		kfree(boardp->prtbuf);
-#endif /* CONFIG_PROC_FS */
-		scsi_unregister(shost);
-		asc_board_count--;
-		return NULL;
-	}
-
 	/* Register DMA Channel for Narrow boards. */
 	shost->dma_channel = NO_ISA_DMA;	/* Default to no ISA DMA. */
 #ifdef CONFIG_ISA
@@ -18423,19 +13796,12 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 		/* Register DMA channel for ISA bus. */
 		if (asc_dvc_varp->bus_type & ASC_IS_ISA) {
 			shost->dma_channel = asc_dvc_varp->cfg->isa_dma_channel;
-			if ((ret =
-			     request_dma(shost->dma_channel, "advansys")) != 0) {
-				ASC_PRINT3
-				    ("advansys_board_found: board %d: request_dma() %d failed %d\n",
-				     boardp->id, shost->dma_channel, ret);
-				release_region(shost->io_port,
-					       boardp->asc_n_io_port);
-#ifdef CONFIG_PROC_FS
-				kfree(boardp->prtbuf);
-#endif /* CONFIG_PROC_FS */
-				scsi_unregister(shost);
-				asc_board_count--;
-				return NULL;
+			ret = request_dma(shost->dma_channel, DRV_NAME);
+			if (ret) {
+				shost_printk(KERN_ERR, shost, "request_dma() "
+						"%d failed %d\n",
+						shost->dma_channel, ret);
+				goto err_free_proc;
 			}
 			AscEnableIsaDma(shost->dma_channel);
 		}
@@ -18443,529 +13809,70 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 #endif /* CONFIG_ISA */
 
 	/* Register IRQ Number. */
-	ASC_DBG1(2, "advansys_board_found: request_irq() %d\n", shost->irq);
-	/*
-	 * If request_irq() fails with the IRQF_DISABLED flag set,
-	 * then try again without the IRQF_DISABLED flag set. This
-	 * allows IRQ sharing to work even with other drivers that
-	 * do not set the IRQF_DISABLED flag.
-	 *
-	 * If IRQF_DISABLED is not set, then interrupts are enabled
-	 * before the driver interrupt function is called.
-	 */
-	if (((ret = request_irq(shost->irq, advansys_interrupt,
-				IRQF_DISABLED | (share_irq ==
-						 TRUE ?
-						 IRQF_SHARED :
-						 0), "advansys", boardp)) != 0)
-	    &&
-	    ((ret =
-	      request_irq(shost->irq, advansys_interrupt,
-			  (share_irq == TRUE ? IRQF_SHARED : 0),
-			  "advansys", boardp)) != 0)) {
+	ASC_DBG(2, "request_irq(%d, %p)\n", boardp->irq, shost);
+
+	ret = request_irq(boardp->irq, advansys_interrupt, share_irq,
+			  DRV_NAME, shost);
+
+	if (ret) {
 		if (ret == -EBUSY) {
-			ASC_PRINT2
-			    ("advansys_board_found: board %d: request_irq(): IRQ 0x%x already in use.\n",
-			     boardp->id, shost->irq);
+			shost_printk(KERN_ERR, shost, "request_irq(): IRQ 0x%x "
+					"already in use\n", boardp->irq);
 		} else if (ret == -EINVAL) {
-			ASC_PRINT2
-			    ("advansys_board_found: board %d: request_irq(): IRQ 0x%x not valid.\n",
-			     boardp->id, shost->irq);
+			shost_printk(KERN_ERR, shost, "request_irq(): IRQ 0x%x "
+					"not valid\n", boardp->irq);
 		} else {
-			ASC_PRINT3
-			    ("advansys_board_found: board %d: request_irq(): IRQ 0x%x failed with %d\n",
-			     boardp->id, shost->irq, ret);
+			shost_printk(KERN_ERR, shost, "request_irq(): IRQ 0x%x "
+					"failed with %d\n", boardp->irq, ret);
 		}
-		release_region(shost->io_port, boardp->asc_n_io_port);
-		iounmap(boardp->ioremap_addr);
-		if (shost->dma_channel != NO_ISA_DMA) {
-			free_dma(shost->dma_channel);
-		}
-#ifdef CONFIG_PROC_FS
-		kfree(boardp->prtbuf);
-#endif /* CONFIG_PROC_FS */
-		scsi_unregister(shost);
-		asc_board_count--;
-		return NULL;
+		goto err_free_dma;
 	}
 
 	/*
 	 * Initialize board RISC chip and enable interrupts.
 	 */
 	if (ASC_NARROW_BOARD(boardp)) {
-		ASC_DBG(2, "advansys_board_found: AscInitAsc1000Driver()\n");
+		ASC_DBG(2, "AscInitAsc1000Driver()\n");
 		warn_code = AscInitAsc1000Driver(asc_dvc_varp);
-		err_code = asc_dvc_varp->err_code;
 
-		if (warn_code || err_code) {
-			ASC_PRINT4
-			    ("advansys_board_found: board %d error: init_state 0x%x, warn 0x%x, error 0x%x\n",
-			     boardp->id,
-			     asc_dvc_varp->init_state, warn_code, err_code);
+		if (warn_code || asc_dvc_varp->err_code) {
+			shost_printk(KERN_ERR, shost, "error: init_state 0x%x, "
+					"warn 0x%x, error 0x%x\n",
+					asc_dvc_varp->init_state, warn_code,
+					asc_dvc_varp->err_code);
+			if (asc_dvc_varp->err_code)
+				ret = -ENODEV;
 		}
 	} else {
-		ADV_CARR_T *carrp;
-		int req_cnt = 0;
-		adv_req_t *reqp = NULL;
-		int sg_cnt = 0;
-
-		/*
-		 * Allocate buffer carrier structures. The total size
-		 * is about 4 KB, so allocate all at once.
-		 */
-		carrp = (ADV_CARR_T *) kmalloc(ADV_CARRIER_BUFSIZE, GFP_ATOMIC);
-		ASC_DBG1(1, "advansys_board_found: carrp 0x%lx\n", (ulong)carrp);
-
-		if (carrp == NULL) {
-			goto kmalloc_error;
-		}
-
-		/*
-		 * Allocate up to 'max_host_qng' request structures for
-		 * the Wide board. The total size is about 16 KB, so
-		 * allocate all at once. If the allocation fails decrement
-		 * and try again.
-		 */
-		for (req_cnt = adv_dvc_varp->max_host_qng;
-		     req_cnt > 0; req_cnt--) {
-
-			reqp = (adv_req_t *)
-			    kmalloc(sizeof(adv_req_t) * req_cnt, GFP_ATOMIC);
-
-			ASC_DBG3(1,
-				 "advansys_board_found: reqp 0x%lx, req_cnt %d, bytes %lu\n",
-				 (ulong)reqp, req_cnt,
-				 (ulong)sizeof(adv_req_t) * req_cnt);
-
-			if (reqp != NULL) {
-				break;
-			}
-		}
-		if (reqp == NULL) {
-			goto kmalloc_error;
-		}
-
-		/*
-		 * Allocate up to ADV_TOT_SG_BLOCK request structures for
-		 * the Wide board. Each structure is about 136 bytes.
-		 */
-		boardp->adv_sgblkp = NULL;
-		for (sg_cnt = 0; sg_cnt < ADV_TOT_SG_BLOCK; sg_cnt++) {
-
-			sgp = (adv_sgblk_t *)
-			    kmalloc(sizeof(adv_sgblk_t), GFP_ATOMIC);
-
-			if (sgp == NULL) {
-				break;
-			}
-
-			sgp->next_sgblkp = boardp->adv_sgblkp;
-			boardp->adv_sgblkp = sgp;
-
-		}
-		ASC_DBG3(1,
-			 "advansys_board_found: sg_cnt %d * %u = %u bytes\n",
-			 sg_cnt, sizeof(adv_sgblk_t),
-			 (unsigned)(sizeof(adv_sgblk_t) * sg_cnt));
-
-		/*
-		 * If no request structures or scatter-gather structures could
-		 * be allocated, then return an error. Otherwise continue with
-		 * initialization.
-		 */
- kmalloc_error:
-		if (carrp == NULL) {
-			ASC_PRINT1
-			    ("advansys_board_found: board %d error: failed to kmalloc() carrier buffer.\n",
-			     boardp->id);
-			err_code = ADV_ERROR;
-		} else if (reqp == NULL) {
-			kfree(carrp);
-			ASC_PRINT1
-			    ("advansys_board_found: board %d error: failed to kmalloc() adv_req_t buffer.\n",
-			     boardp->id);
-			err_code = ADV_ERROR;
-		} else if (boardp->adv_sgblkp == NULL) {
-			kfree(carrp);
-			kfree(reqp);
-			ASC_PRINT1
-			    ("advansys_board_found: board %d error: failed to kmalloc() adv_sgblk_t buffers.\n",
-			     boardp->id);
-			err_code = ADV_ERROR;
-		} else {
-
-			/* Save carrier buffer pointer. */
-			boardp->orig_carrp = carrp;
-
-			/*
-			 * Save original pointer for kfree() in case the
-			 * driver is built as a module and can be unloaded.
-			 */
-			boardp->orig_reqp = reqp;
-
-			adv_dvc_varp->carrier_buf = carrp;
-
-			/*
-			 * Point 'adv_reqp' to the request structures and
-			 * link them together.
-			 */
-			req_cnt--;
-			reqp[req_cnt].next_reqp = NULL;
-			for (; req_cnt > 0; req_cnt--) {
-				reqp[req_cnt - 1].next_reqp = &reqp[req_cnt];
-			}
-			boardp->adv_reqp = &reqp[0];
-
-			if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
-				ASC_DBG(2,
-					"advansys_board_found: AdvInitAsc3550Driver()\n");
-				warn_code = AdvInitAsc3550Driver(adv_dvc_varp);
-			} else if (adv_dvc_varp->chip_type ==
-				   ADV_CHIP_ASC38C0800) {
-				ASC_DBG(2,
-					"advansys_board_found: AdvInitAsc38C0800Driver()\n");
-				warn_code =
-				    AdvInitAsc38C0800Driver(adv_dvc_varp);
-			} else {
-				ASC_DBG(2,
-					"advansys_board_found: AdvInitAsc38C1600Driver()\n");
-				warn_code =
-				    AdvInitAsc38C1600Driver(adv_dvc_varp);
-			}
-			err_code = adv_dvc_varp->err_code;
-
-			if (warn_code || err_code) {
-				ASC_PRINT3
-				    ("advansys_board_found: board %d error: warn 0x%x, error 0x%x\n",
-				     boardp->id, warn_code, err_code);
-			}
-		}
+		if (advansys_wide_init_chip(shost))
+			ret = -ENODEV;
 	}
 
-	if (err_code != 0) {
-		release_region(shost->io_port, boardp->asc_n_io_port);
-		if (ASC_WIDE_BOARD(boardp)) {
-			iounmap(boardp->ioremap_addr);
-			kfree(boardp->orig_carrp);
-			boardp->orig_carrp = NULL;
-			if (boardp->orig_reqp) {
-				kfree(boardp->orig_reqp);
-				boardp->orig_reqp = boardp->adv_reqp = NULL;
-			}
-			while ((sgp = boardp->adv_sgblkp) != NULL) {
-				boardp->adv_sgblkp = sgp->next_sgblkp;
-				kfree(sgp);
-			}
-		}
-		if (shost->dma_channel != NO_ISA_DMA) {
-			free_dma(shost->dma_channel);
-		}
-#ifdef CONFIG_PROC_FS
-		kfree(boardp->prtbuf);
-#endif /* CONFIG_PROC_FS */
-		free_irq(shost->irq, boardp);
-		scsi_unregister(shost);
-		asc_board_count--;
-		return NULL;
-	}
+	if (ret)
+		goto err_free_wide_mem;
+
 	ASC_DBG_PRT_SCSI_HOST(2, shost);
 
-	return shost;
-}
+	ret = scsi_add_host(shost, boardp->dev);
+	if (ret)
+		goto err_free_wide_mem;
 
-/*
- * advansys_detect()
- *
- * Detect function for AdvanSys adapters.
- *
- * Argument is a pointer to the host driver's scsi_hosts entry.
- *
- * Return number of adapters found.
- *
- * Note: Because this function is called during system initialization
- * it must not call SCSI mid-level functions including scsi_malloc()
- * and scsi_free().
- */
-static int __init advansys_detect(struct scsi_host_template *tpnt)
-{
-	static int detect_called = ASC_FALSE;
-	int iop;
-	int bus;
-	int ioport = 0;
-	struct device *dev = NULL;
-#ifdef CONFIG_PCI
-	int pci_init_search = 0;
-	struct pci_dev *pci_devicep[ASC_NUM_BOARD_SUPPORTED];
-	int pci_card_cnt_max = 0;
-	int pci_card_cnt = 0;
-	struct pci_dev *pdev = NULL;
-	int pci_device_id_cnt = 0;
-	unsigned int pci_device_id[ASC_PCI_DEVICE_ID_CNT] = {
-		PCI_DEVICE_ID_ASP_1200A,
-		PCI_DEVICE_ID_ASP_ABP940,
-		PCI_DEVICE_ID_ASP_ABP940U,
-		PCI_DEVICE_ID_ASP_ABP940UW,
-		PCI_DEVICE_ID_38C0800_REV1,
-		PCI_DEVICE_ID_38C1600_REV1
-	};
-#endif /* CONFIG_PCI */
+	scsi_scan_host(shost);
+	return 0;
 
-	if (detect_called == ASC_FALSE) {
-		detect_called = ASC_TRUE;
-	} else {
-		printk
-		    ("AdvanSys SCSI: advansys_detect() multiple calls ignored\n");
-		return 0;
-	}
-
-	ASC_DBG(1, "advansys_detect: begin\n");
-
-	asc_board_count = 0;
-
-	/*
-	 * If I/O port probing has been modified, then verify and
-	 * clean-up the 'asc_ioport' list.
-	 */
-	if (asc_iopflag == ASC_TRUE) {
-		for (ioport = 0; ioport < ASC_NUM_IOPORT_PROBE; ioport++) {
-			ASC_DBG2(1, "advansys_detect: asc_ioport[%d] 0x%x\n",
-				 ioport, asc_ioport[ioport]);
-			if (asc_ioport[ioport] != 0) {
-				for (iop = 0; iop < ASC_IOADR_TABLE_MAX_IX;
-				     iop++) {
-					if (_asc_def_iop_base[iop] ==
-					    asc_ioport[ioport]) {
-						break;
-					}
-				}
-				if (iop == ASC_IOADR_TABLE_MAX_IX) {
-					printk
-					    ("AdvanSys SCSI: specified I/O Port 0x%X is invalid\n",
-					     asc_ioport[ioport]);
-					asc_ioport[ioport] = 0;
-				}
-			}
-		}
-		ioport = 0;
-	}
-
-	for (bus = 0; bus < ASC_NUM_BUS; bus++) {
-
-		ASC_DBG2(1, "advansys_detect: bus search type %d (%s)\n",
-			 bus, asc_bus_name[bus]);
-		iop = 0;
-
-		while (asc_board_count < ASC_NUM_BOARD_SUPPORTED) {
-
-			ASC_DBG1(2, "advansys_detect: asc_board_count %d\n",
-				 asc_board_count);
-
-			switch (asc_bus[bus]) {
-			case ASC_IS_ISA:
-			case ASC_IS_VL:
-#ifdef CONFIG_ISA
-				if (asc_iopflag == ASC_FALSE) {
-					iop =
-					    AscSearchIOPortAddr(iop,
-								asc_bus[bus]);
-				} else {
-					/*
-					 * ISA and VL I/O port scanning has either been
-					 * eliminated or limited to selected ports on
-					 * the LILO command line, /etc/lilo.conf, or
-					 * by setting variables when the module was loaded.
-					 */
-					ASC_DBG(1,
-						"advansys_detect: I/O port scanning modified\n");
- ioport_try_again:
-					iop = 0;
-					for (; ioport < ASC_NUM_IOPORT_PROBE;
-					     ioport++) {
-						if ((iop =
-						     asc_ioport[ioport]) != 0) {
-							break;
-						}
-					}
-					if (iop) {
-						ASC_DBG1(1,
-							 "advansys_detect: probing I/O port 0x%x...\n",
-							 iop);
-						if (!request_region
-						    (iop, ASC_IOADR_GAP,
-						     "advansys")) {
-							printk
-							    ("AdvanSys SCSI: specified I/O Port 0x%X is busy\n",
-							     iop);
-							/* Don't try this I/O port twice. */
-							asc_ioport[ioport] = 0;
-							goto ioport_try_again;
-						} else if (AscFindSignature(iop)
-							   == ASC_FALSE) {
-							printk
-							    ("AdvanSys SCSI: specified I/O Port 0x%X has no adapter\n",
-							     iop);
-							/* Don't try this I/O port twice. */
-							release_region(iop,
-								       ASC_IOADR_GAP);
-							asc_ioport[ioport] = 0;
-							goto ioport_try_again;
-						} else {
-							/*
-							 * If this isn't an ISA board, then it must be
-							 * a VL board. If currently looking an ISA
-							 * board is being looked for then try for
-							 * another ISA board in 'asc_ioport'.
-							 */
-							if (asc_bus[bus] ==
-							    ASC_IS_ISA
-							    &&
-							    (AscGetChipVersion
-							     (iop,
-							      ASC_IS_ISA) &
-							     ASC_CHIP_VER_ISA_BIT)
-							    == 0) {
-								/*
-								 * Don't clear 'asc_ioport[ioport]'. Try
-								 * this board again for VL. Increment
-								 * 'ioport' past this board.
-								 */
-								ioport++;
-								release_region
-								    (iop,
-								     ASC_IOADR_GAP);
-								goto ioport_try_again;
-							}
-						}
-						/*
-						 * This board appears good, don't try the I/O port
-						 * again by clearing its value. Increment 'ioport'
-						 * for the next iteration.
-						 */
-						asc_ioport[ioport++] = 0;
-					}
-				}
-#endif /* CONFIG_ISA */
-				break;
-
-			case ASC_IS_EISA:
-#ifdef CONFIG_ISA
-				iop = AscSearchIOPortAddr(iop, asc_bus[bus]);
-#endif /* CONFIG_ISA */
-				break;
-
-			case ASC_IS_PCI:
-#ifdef CONFIG_PCI
-				if (pci_init_search == 0) {
-					int i, j;
-
-					pci_init_search = 1;
-
-					/* Find all PCI cards. */
-					while (pci_device_id_cnt <
-					       ASC_PCI_DEVICE_ID_CNT) {
-						if ((pdev =
-						     pci_find_device
-						     (PCI_VENDOR_ID_ASP,
-						      pci_device_id
-						      [pci_device_id_cnt],
-						      pdev)) == NULL) {
-							pci_device_id_cnt++;
-						} else {
-							if (pci_enable_device
-							    (pdev) == 0) {
-								pci_devicep
-								    [pci_card_cnt_max++]
-								    = pdev;
-							}
-						}
-					}
-
-					/*
-					 * Sort PCI cards in ascending order by PCI Bus, Slot,
-					 * and Device Number.
-					 */
-					for (i = 0; i < pci_card_cnt_max - 1;
-					     i++) {
-						for (j = i + 1;
-						     j < pci_card_cnt_max;
-						     j++) {
-							if ((pci_devicep[j]->
-							     bus->number <
-							     pci_devicep[i]->
-							     bus->number)
-							    ||
-							    ((pci_devicep[j]->
-							      bus->number ==
-							      pci_devicep[i]->
-							      bus->number)
-							     &&
-							     (pci_devicep[j]->
-							      devfn <
-							      pci_devicep[i]->
-							      devfn))) {
-								pdev =
-								    pci_devicep
-								    [i];
-								pci_devicep[i] =
-								    pci_devicep
-								    [j];
-								pci_devicep[j] =
-								    pdev;
-							}
-						}
-					}
-
-					pci_card_cnt = 0;
-				} else {
-					pci_card_cnt++;
-				}
-
-				if (pci_card_cnt == pci_card_cnt_max) {
-					iop = 0;
-				} else {
-					pdev = pci_devicep[pci_card_cnt];
-
-					ASC_DBG2(2,
-						 "advansys_detect: devfn %d, bus number %d\n",
-						 pdev->devfn,
-						 pdev->bus->number);
-					iop = pci_resource_start(pdev, 0);
-					ASC_DBG2(1,
-						 "advansys_detect: vendorID %X, deviceID %X\n",
-						 pdev->vendor,
-						 pdev->device);
-					ASC_DBG2(2,
-						 "advansys_detect: iop %X, irqLine %d\n",
-						 iop, pdev->irq);
-				}
-				if (pdev)
-					dev = &pdev->dev;
-
-#endif /* CONFIG_PCI */
-				break;
-
-			default:
-				ASC_PRINT1
-				    ("advansys_detect: unknown bus type: %d\n",
-				     asc_bus[bus]);
-				break;
-			}
-			ASC_DBG1(1, "advansys_detect: iop 0x%x\n", iop);
-
-			/*
-			 * Adapter not found, try next bus type.
-			 */
-			if (iop == 0) {
-				break;
-			}
-
-			advansys_board_found(iop, dev, asc_bus[bus]);
-		}
-	}
-
-	ASC_DBG1(1, "advansys_detect: done: asc_board_count %d\n",
-		 asc_board_count);
-	return asc_board_count;
+ err_free_wide_mem:
+	advansys_wide_free_mem(boardp);
+	free_irq(boardp->irq, shost);
+ err_free_dma:
+	if (shost->dma_channel != NO_ISA_DMA)
+		free_dma(shost->dma_channel);
+ err_free_proc:
+	kfree(boardp->prtbuf);
+ err_unmap:
+	if (boardp->ioremap_addr)
+		iounmap(boardp->ioremap_addr);
+ err_shost:
+	return ret;
 }
 
 /*
@@ -18975,41 +13882,319 @@ static int __init advansys_detect(struct scsi_host_template *tpnt)
  */
 static int advansys_release(struct Scsi_Host *shost)
 {
-	asc_board_t *boardp;
-
-	ASC_DBG(1, "advansys_release: begin\n");
-	boardp = ASC_BOARDP(shost);
-	free_irq(shost->irq, boardp);
+	struct asc_board *board = shost_priv(shost);
+	ASC_DBG(1, "begin\n");
+	scsi_remove_host(shost);
+	free_irq(board->irq, shost);
 	if (shost->dma_channel != NO_ISA_DMA) {
-		ASC_DBG(1, "advansys_release: free_dma()\n");
+		ASC_DBG(1, "free_dma()\n");
 		free_dma(shost->dma_channel);
 	}
-	release_region(shost->io_port, boardp->asc_n_io_port);
-	if (ASC_WIDE_BOARD(boardp)) {
-		adv_sgblk_t *sgp = NULL;
-
-		iounmap(boardp->ioremap_addr);
-		kfree(boardp->orig_carrp);
-		boardp->orig_carrp = NULL;
-		if (boardp->orig_reqp) {
-			kfree(boardp->orig_reqp);
-			boardp->orig_reqp = boardp->adv_reqp = NULL;
-		}
-		while ((sgp = boardp->adv_sgblkp) != NULL) {
-			boardp->adv_sgblkp = sgp->next_sgblkp;
-			kfree(sgp);
-		}
+	if (ASC_NARROW_BOARD(board)) {
+		dma_unmap_single(board->dev,
+					board->dvc_var.asc_dvc_var.overrun_dma,
+					ASC_OVERRUN_BSIZE, DMA_FROM_DEVICE);
+	} else {
+		iounmap(board->ioremap_addr);
+		advansys_wide_free_mem(board);
 	}
-#ifdef CONFIG_PROC_FS
-	ASC_ASSERT(boardp->prtbuf != NULL);
-	kfree(boardp->prtbuf);
-#endif /* CONFIG_PROC_FS */
-	scsi_unregister(shost);
-	ASC_DBG(1, "advansys_release: end\n");
+	kfree(board->prtbuf);
+	scsi_host_put(shost);
+	ASC_DBG(1, "end\n");
 	return 0;
 }
 
-#ifdef CONFIG_PCI
+#define ASC_IOADR_TABLE_MAX_IX  11
+
+static PortAddr _asc_def_iop_base[ASC_IOADR_TABLE_MAX_IX] __devinitdata = {
+	0x100, 0x0110, 0x120, 0x0130, 0x140, 0x0150, 0x0190,
+	0x0210, 0x0230, 0x0250, 0x0330
+};
+
+/*
+ * The ISA IRQ number is found in bits 2 and 3 of the CfgLsw.  It decodes as:
+ * 00: 10
+ * 01: 11
+ * 10: 12
+ * 11: 15
+ */
+static unsigned int __devinit advansys_isa_irq_no(PortAddr iop_base)
+{
+	unsigned short cfg_lsw = AscGetChipCfgLsw(iop_base);
+	unsigned int chip_irq = ((cfg_lsw >> 2) & 0x03) + 10;
+	if (chip_irq == 13)
+		chip_irq = 15;
+	return chip_irq;
+}
+
+static int __devinit advansys_isa_probe(struct device *dev, unsigned int id)
+{
+	int err = -ENODEV;
+	PortAddr iop_base = _asc_def_iop_base[id];
+	struct Scsi_Host *shost;
+	struct asc_board *board;
+
+	if (!request_region(iop_base, ASC_IOADR_GAP, DRV_NAME)) {
+		ASC_DBG(1, "I/O port 0x%x busy\n", iop_base);
+		return -ENODEV;
+	}
+	ASC_DBG(1, "probing I/O port 0x%x\n", iop_base);
+	if (!AscFindSignature(iop_base))
+		goto release_region;
+	if (!(AscGetChipVersion(iop_base, ASC_IS_ISA) & ASC_CHIP_VER_ISA_BIT))
+		goto release_region;
+
+	err = -ENOMEM;
+	shost = scsi_host_alloc(&advansys_template, sizeof(*board));
+	if (!shost)
+		goto release_region;
+
+	board = shost_priv(shost);
+	board->irq = advansys_isa_irq_no(iop_base);
+	board->dev = dev;
+
+	err = advansys_board_found(shost, iop_base, ASC_IS_ISA);
+	if (err)
+		goto free_host;
+
+	dev_set_drvdata(dev, shost);
+	return 0;
+
+ free_host:
+	scsi_host_put(shost);
+ release_region:
+	release_region(iop_base, ASC_IOADR_GAP);
+	return err;
+}
+
+static int __devexit advansys_isa_remove(struct device *dev, unsigned int id)
+{
+	int ioport = _asc_def_iop_base[id];
+	advansys_release(dev_get_drvdata(dev));
+	release_region(ioport, ASC_IOADR_GAP);
+	return 0;
+}
+
+static struct isa_driver advansys_isa_driver = {
+	.probe		= advansys_isa_probe,
+	.remove		= __devexit_p(advansys_isa_remove),
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= DRV_NAME,
+	},
+};
+
+/*
+ * The VLB IRQ number is found in bits 2 to 4 of the CfgLsw.  It decodes as:
+ * 000: invalid
+ * 001: 10
+ * 010: 11
+ * 011: 12
+ * 100: invalid
+ * 101: 14
+ * 110: 15
+ * 111: invalid
+ */
+static unsigned int __devinit advansys_vlb_irq_no(PortAddr iop_base)
+{
+	unsigned short cfg_lsw = AscGetChipCfgLsw(iop_base);
+	unsigned int chip_irq = ((cfg_lsw >> 2) & 0x07) + 9;
+	if ((chip_irq < 10) || (chip_irq == 13) || (chip_irq > 15))
+		return 0;
+	return chip_irq;
+}
+
+static int __devinit advansys_vlb_probe(struct device *dev, unsigned int id)
+{
+	int err = -ENODEV;
+	PortAddr iop_base = _asc_def_iop_base[id];
+	struct Scsi_Host *shost;
+	struct asc_board *board;
+
+	if (!request_region(iop_base, ASC_IOADR_GAP, DRV_NAME)) {
+		ASC_DBG(1, "I/O port 0x%x busy\n", iop_base);
+		return -ENODEV;
+	}
+	ASC_DBG(1, "probing I/O port 0x%x\n", iop_base);
+	if (!AscFindSignature(iop_base))
+		goto release_region;
+	/*
+	 * I don't think this condition can actually happen, but the old
+	 * driver did it, and the chances of finding a VLB setup in 2007
+	 * to do testing with is slight to none.
+	 */
+	if (AscGetChipVersion(iop_base, ASC_IS_VL) > ASC_CHIP_MAX_VER_VL)
+		goto release_region;
+
+	err = -ENOMEM;
+	shost = scsi_host_alloc(&advansys_template, sizeof(*board));
+	if (!shost)
+		goto release_region;
+
+	board = shost_priv(shost);
+	board->irq = advansys_vlb_irq_no(iop_base);
+	board->dev = dev;
+
+	err = advansys_board_found(shost, iop_base, ASC_IS_VL);
+	if (err)
+		goto free_host;
+
+	dev_set_drvdata(dev, shost);
+	return 0;
+
+ free_host:
+	scsi_host_put(shost);
+ release_region:
+	release_region(iop_base, ASC_IOADR_GAP);
+	return -ENODEV;
+}
+
+static struct isa_driver advansys_vlb_driver = {
+	.probe		= advansys_vlb_probe,
+	.remove		= __devexit_p(advansys_isa_remove),
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "advansys_vlb",
+	},
+};
+
+static struct eisa_device_id advansys_eisa_table[] __devinitdata = {
+	{ "ABP7401" },
+	{ "ABP7501" },
+	{ "" }
+};
+
+MODULE_DEVICE_TABLE(eisa, advansys_eisa_table);
+
+/*
+ * EISA is a little more tricky than PCI; each EISA device may have two
+ * channels, and this driver is written to make each channel its own Scsi_Host
+ */
+struct eisa_scsi_data {
+	struct Scsi_Host *host[2];
+};
+
+/*
+ * The EISA IRQ number is found in bits 8 to 10 of the CfgLsw.  It decodes as:
+ * 000: 10
+ * 001: 11
+ * 010: 12
+ * 011: invalid
+ * 100: 14
+ * 101: 15
+ * 110: invalid
+ * 111: invalid
+ */
+static unsigned int __devinit advansys_eisa_irq_no(struct eisa_device *edev)
+{
+	unsigned short cfg_lsw = inw(edev->base_addr + 0xc86);
+	unsigned int chip_irq = ((cfg_lsw >> 8) & 0x07) + 10;
+	if ((chip_irq == 13) || (chip_irq > 15))
+		return 0;
+	return chip_irq;
+}
+
+static int __devinit advansys_eisa_probe(struct device *dev)
+{
+	int i, ioport, irq = 0;
+	int err;
+	struct eisa_device *edev = to_eisa_device(dev);
+	struct eisa_scsi_data *data;
+
+	err = -ENOMEM;
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		goto fail;
+	ioport = edev->base_addr + 0xc30;
+
+	err = -ENODEV;
+	for (i = 0; i < 2; i++, ioport += 0x20) {
+		struct asc_board *board;
+		struct Scsi_Host *shost;
+		if (!request_region(ioport, ASC_IOADR_GAP, DRV_NAME)) {
+			printk(KERN_WARNING "Region %x-%x busy\n", ioport,
+			       ioport + ASC_IOADR_GAP - 1);
+			continue;
+		}
+		if (!AscFindSignature(ioport)) {
+			release_region(ioport, ASC_IOADR_GAP);
+			continue;
+		}
+
+		/*
+		 * I don't know why we need to do this for EISA chips, but
+		 * not for any others.  It looks to be equivalent to
+		 * AscGetChipCfgMsw, but I may have overlooked something,
+		 * so I'm not converting it until I get an EISA board to
+		 * test with.
+		 */
+		inw(ioport + 4);
+
+		if (!irq)
+			irq = advansys_eisa_irq_no(edev);
+
+		err = -ENOMEM;
+		shost = scsi_host_alloc(&advansys_template, sizeof(*board));
+		if (!shost)
+			goto release_region;
+
+		board = shost_priv(shost);
+		board->irq = irq;
+		board->dev = dev;
+
+		err = advansys_board_found(shost, ioport, ASC_IS_EISA);
+		if (!err) {
+			data->host[i] = shost;
+			continue;
+		}
+
+		scsi_host_put(shost);
+ release_region:
+		release_region(ioport, ASC_IOADR_GAP);
+		break;
+	}
+
+	if (err)
+		goto free_data;
+	dev_set_drvdata(dev, data);
+	return 0;
+
+ free_data:
+	kfree(data->host[0]);
+	kfree(data->host[1]);
+	kfree(data);
+ fail:
+	return err;
+}
+
+static __devexit int advansys_eisa_remove(struct device *dev)
+{
+	int i;
+	struct eisa_scsi_data *data = dev_get_drvdata(dev);
+
+	for (i = 0; i < 2; i++) {
+		int ioport;
+		struct Scsi_Host *shost = data->host[i];
+		if (!shost)
+			continue;
+		ioport = shost->io_port;
+		advansys_release(shost);
+		release_region(ioport, ASC_IOADR_GAP);
+	}
+
+	kfree(data);
+	return 0;
+}
+
+static struct eisa_driver advansys_eisa_driver = {
+	.id_table =		advansys_eisa_table,
+	.driver = {
+		.name =		DRV_NAME,
+		.probe =	advansys_eisa_probe,
+		.remove =	__devexit_p(advansys_eisa_remove),
+	}
+};
+
 /* PCI Devices supported by this driver */
 static struct pci_device_id advansys_pci_tbl[] __devinitdata = {
 	{PCI_VENDOR_ID_ASP, PCI_DEVICE_ID_ASP_1200A,
@@ -19028,4 +14213,131 @@ static struct pci_device_id advansys_pci_tbl[] __devinitdata = {
 };
 
 MODULE_DEVICE_TABLE(pci, advansys_pci_tbl);
-#endif /* CONFIG_PCI */
+
+static void __devinit advansys_set_latency(struct pci_dev *pdev)
+{
+	if ((pdev->device == PCI_DEVICE_ID_ASP_1200A) ||
+	    (pdev->device == PCI_DEVICE_ID_ASP_ABP940)) {
+		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0);
+	} else {
+		u8 latency;
+		pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &latency);
+		if (latency < 0x20)
+			pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x20);
+	}
+}
+
+static int __devinit
+advansys_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+	int err, ioport;
+	struct Scsi_Host *shost;
+	struct asc_board *board;
+
+	err = pci_enable_device(pdev);
+	if (err)
+		goto fail;
+	err = pci_request_regions(pdev, DRV_NAME);
+	if (err)
+		goto disable_device;
+	pci_set_master(pdev);
+	advansys_set_latency(pdev);
+
+	err = -ENODEV;
+	if (pci_resource_len(pdev, 0) == 0)
+		goto release_region;
+
+	ioport = pci_resource_start(pdev, 0);
+
+	err = -ENOMEM;
+	shost = scsi_host_alloc(&advansys_template, sizeof(*board));
+	if (!shost)
+		goto release_region;
+
+	board = shost_priv(shost);
+	board->irq = pdev->irq;
+	board->dev = &pdev->dev;
+
+	if (pdev->device == PCI_DEVICE_ID_ASP_ABP940UW ||
+	    pdev->device == PCI_DEVICE_ID_38C0800_REV1 ||
+	    pdev->device == PCI_DEVICE_ID_38C1600_REV1) {
+		board->flags |= ASC_IS_WIDE_BOARD;
+	}
+
+	err = advansys_board_found(shost, ioport, ASC_IS_PCI);
+	if (err)
+		goto free_host;
+
+	pci_set_drvdata(pdev, shost);
+	return 0;
+
+ free_host:
+	scsi_host_put(shost);
+ release_region:
+	pci_release_regions(pdev);
+ disable_device:
+	pci_disable_device(pdev);
+ fail:
+	return err;
+}
+
+static void __devexit advansys_pci_remove(struct pci_dev *pdev)
+{
+	advansys_release(pci_get_drvdata(pdev));
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+}
+
+static struct pci_driver advansys_pci_driver = {
+	.name =		DRV_NAME,
+	.id_table =	advansys_pci_tbl,
+	.probe =	advansys_pci_probe,
+	.remove =	__devexit_p(advansys_pci_remove),
+};
+
+static int __init advansys_init(void)
+{
+	int error;
+
+	error = isa_register_driver(&advansys_isa_driver,
+				    ASC_IOADR_TABLE_MAX_IX);
+	if (error)
+		goto fail;
+
+	error = isa_register_driver(&advansys_vlb_driver,
+				    ASC_IOADR_TABLE_MAX_IX);
+	if (error)
+		goto unregister_isa;
+
+	error = eisa_driver_register(&advansys_eisa_driver);
+	if (error)
+		goto unregister_vlb;
+
+	error = pci_register_driver(&advansys_pci_driver);
+	if (error)
+		goto unregister_eisa;
+
+	return 0;
+
+ unregister_eisa:
+	eisa_driver_unregister(&advansys_eisa_driver);
+ unregister_vlb:
+	isa_unregister_driver(&advansys_vlb_driver);
+ unregister_isa:
+	isa_unregister_driver(&advansys_isa_driver);
+ fail:
+	return error;
+}
+
+static void __exit advansys_exit(void)
+{
+	pci_unregister_driver(&advansys_pci_driver);
+	eisa_driver_unregister(&advansys_eisa_driver);
+	isa_unregister_driver(&advansys_vlb_driver);
+	isa_unregister_driver(&advansys_isa_driver);
+}
+
+module_init(advansys_init);
+module_exit(advansys_exit);
+
+MODULE_LICENSE("GPL");

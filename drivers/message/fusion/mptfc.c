@@ -1,9 +1,9 @@
 /*
  *  linux/drivers/message/fusion/mptfc.c
- *      For use with LSI Logic PCI chip/adapter(s)
- *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
+ *      For use with LSI PCI chip/adapter(s)
+ *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -90,9 +90,9 @@ static int max_lun = MPTFC_MAX_LUN;
 module_param(max_lun, int, 0);
 MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
 
-static int	mptfcDoneCtx = -1;
-static int	mptfcTaskCtx = -1;
-static int	mptfcInternalCtx = -1; /* Used only for internal commands */
+static u8	mptfcDoneCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptfcTaskCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptfcInternalCtx = MPT_MAX_PROTOCOL_DRIVERS;
 
 static int mptfc_target_alloc(struct scsi_target *starget);
 static int mptfc_slave_alloc(struct scsi_device *sdev);
@@ -194,37 +194,36 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	struct fc_rport		*rport = starget_to_rport(scsi_target(sdev));
 	unsigned long		flags;
 	int			ready;
+	MPT_ADAPTER 		*ioc;
 
-	hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata;
+	hd = shost_priv(SCpnt->device->host);
+	ioc = hd->ioc;
 	spin_lock_irqsave(shost->host_lock, flags);
 	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
-		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"mptfc_block_error_handler.%d: %d:%d, port status is "
 			"DID_IMM_RETRY, deferring %s recovery.\n",
-			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
-			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
-			SCpnt->device->id,SCpnt->device->lun,caller));
+			ioc->name, ioc->sh->host_no,
+			SCpnt->device->id, SCpnt->device->lun, caller));
 		msleep(1000);
 		spin_lock_irqsave(shost->host_lock, flags);
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata) {
-		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%d, failing recovery, "
-			"port state %d, vdev %p.\n", caller,
-			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
-			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
-			SCpnt->device->id,SCpnt->device->lun,ready,
+			"port state %d, vdevice %p.\n", caller,
+			ioc->name, ioc->sh->host_no,
+			SCpnt->device->id, SCpnt->device->lun, ready,
 			SCpnt->device->hostdata));
 		return FAILED;
 	}
-	dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+	dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 		"%s.%d: %d:%d, executing recovery.\n", caller,
-		((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
-		((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
-		SCpnt->device->id,SCpnt->device->lun));
+		ioc->name, ioc->sh->host_no,
+		SCpnt->device->id, SCpnt->device->lun));
 	return (*func)(SCpnt);
 }
 
@@ -470,7 +469,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 			/*
 			 * if already mapped, remap here.  If not mapped,
 			 * target_alloc will allocate vtarget and map,
-			 * slave_alloc will fill in vdev from vtarget.
+			 * slave_alloc will fill in vdevice from vtarget.
 			 */
 			if (ri->starget) {
 				vtarget = ri->starget->hostdata;
@@ -602,10 +601,10 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 {
 	MPT_SCSI_HOST		*hd;
 	VirtTarget		*vtarget;
-	VirtDevice		*vdev;
+	VirtDevice		*vdevice;
 	struct scsi_target	*starget;
 	struct fc_rport		*rport;
-
+	MPT_ADAPTER 		*ioc;
 
 	starget = scsi_target(sdev);
 	rport = starget_to_rport(starget);
@@ -613,31 +612,32 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	hd = (MPT_SCSI_HOST *)sdev->host->hostdata;
+	hd = shost_priv(sdev->host);
+	ioc = hd->ioc;
 
-	vdev = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
-	if (!vdev) {
+	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
+	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kmalloc(%zd) FAILED!\n",
-				hd->ioc->name, sizeof(VirtDevice));
+				ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
 
 
-	sdev->hostdata = vdev;
+	sdev->hostdata = vdevice;
 	vtarget = starget->hostdata;
 
 	if (vtarget->num_luns == 0) {
-		vtarget->ioc_id = hd->ioc->id;
+		vtarget->ioc_id = ioc->id;
 		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
 	}
 
-	vdev->vtarget = vtarget;
-	vdev->lun = sdev->lun;
+	vdevice->vtarget = vtarget;
+	vdevice->lun = sdev->lun;
 
 	vtarget->num_luns++;
 
 
-	mptfc_dump_lun_info(hd->ioc, rport, sdev, vtarget);
+	mptfc_dump_lun_info(ioc, rport, sdev, vtarget);
 
 	return 0;
 }
@@ -648,9 +648,9 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	struct mptfc_rport_info	*ri;
 	struct fc_rport	*rport = starget_to_rport(scsi_target(SCpnt->device));
 	int		err;
-	VirtDevice	*vdev = SCpnt->device->hostdata;
+	VirtDevice	*vdevice = SCpnt->device->hostdata;
 
-	if (!vdev || !vdev->vtarget) {
+	if (!vdevice || !vdevice->vtarget) {
 		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
 		return 0;
@@ -672,6 +672,50 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	}
 
 	return mptscsih_qcmd(SCpnt,done);
+}
+
+/*
+ *	mptfc_display_port_link_speed - displaying link speed
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@portnum: IOC Port number
+ *	@pp0dest: port page0 data payload
+ *
+ */
+static void
+mptfc_display_port_link_speed(MPT_ADAPTER *ioc, int portnum, FCPortPage0_t *pp0dest)
+{
+	u8	old_speed, new_speed, state;
+	char	*old, *new;
+
+	if (portnum >= 2)
+		return;
+
+	old_speed = ioc->fc_link_speed[portnum];
+	new_speed = pp0dest->CurrentSpeed;
+	state = pp0dest->PortState;
+
+	if (state != MPI_FCPORTPAGE0_PORTSTATE_OFFLINE &&
+	    new_speed != MPI_FCPORTPAGE0_CURRENT_SPEED_UKNOWN) {
+
+		old = old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT ? "1 Gbps" :
+		       old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT ? "2 Gbps" :
+			old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT ? "4 Gbps" :
+			 "Unknown";
+		new = new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT ? "1 Gbps" :
+		       new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT ? "2 Gbps" :
+			new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT ? "4 Gbps" :
+			 "Unknown";
+		if (old_speed == 0)
+			printk(MYIOC_s_NOTE_FMT
+				"FC Link Established, Speed = %s\n",
+				ioc->name, new);
+		else if (old_speed != new_speed)
+			printk(MYIOC_s_WARN_FMT
+				"FC Link Speed Change, Old Speed = %s, New Speed = %s\n",
+				ioc->name, old, new);
+
+		ioc->fc_link_speed[portnum] = new_speed;
+	}
 }
 
 /*
@@ -773,6 +817,7 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 							" complete.\n",
 						ioc->name);
 			}
+			mptfc_display_port_link_speed(ioc, portnum, pp0dest);
 		}
 
 		pci_free_consistent(ioc->pcidev, data_sz, (u8 *) ppage0_alloc, page0_dma);
@@ -1023,6 +1068,18 @@ mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 }
 
 static void
+mptfc_link_status_change(struct work_struct *work)
+{
+	MPT_ADAPTER             *ioc =
+		container_of(work, MPT_ADAPTER, fc_rescan_work);
+	int ii;
+
+	for (ii=0; ii < ioc->facts.NumberOfPorts; ii++)
+		(void) mptfc_GetFcPortPage0(ioc, ii);
+
+}
+
+static void
 mptfc_setup_reset(struct work_struct *work)
 {
 	MPT_ADAPTER		*ioc =
@@ -1163,6 +1220,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&ioc->fc_rescan_work_lock);
 	INIT_WORK(&ioc->fc_rescan_work, mptfc_rescan_devices);
 	INIT_WORK(&ioc->fc_setup_reset_work, mptfc_setup_reset);
+	INIT_WORK(&ioc->fc_lsc_work, mptfc_link_status_change);
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
 
@@ -1218,20 +1276,21 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	spin_unlock_irqrestore(&ioc->FreeQlock, flags);
 
-	hd = (MPT_SCSI_HOST *) sh->hostdata;
+	hd = shost_priv(sh);
 	hd->ioc = ioc;
 
 	/* SCSI needs scsi_cmnd lookup table!
 	 * (with size equal to req_depth*PtrSz!)
 	 */
-	hd->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
-	if (!hd->ScsiLookup) {
+	ioc->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
+	if (!ioc->ScsiLookup) {
 		error = -ENOMEM;
 		goto out_mptfc_probe;
 	}
+	spin_lock_init(&ioc->scsi_lookup_lock);
 
 	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "ScsiLookup @ %p\n",
-		 ioc->name, hd->ScsiLookup));
+		 ioc->name, ioc->ScsiLookup));
 
 	/* Clear the TM flags
 	 */
@@ -1262,8 +1321,8 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sh->transportt = mptfc_transport_template;
 	error = scsi_add_host (sh, &ioc->pcidev->dev);
 	if(error) {
-		dprintk(ioc, printk(KERN_ERR MYNAM
-		  "scsi_add_host failed\n"));
+		dprintk(ioc, printk(MYIOC_s_ERR_FMT
+		  "scsi_add_host failed\n", ioc->name));
 		goto out_mptfc_probe;
 	}
 
@@ -1325,7 +1384,7 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 			ioc->name, event));
 
 	if (ioc->sh == NULL ||
-		((hd = (MPT_SCSI_HOST *)ioc->sh->hostdata) == NULL))
+		((hd = shost_priv(ioc->sh)) == NULL))
 		return 1;
 
 	switch (event) {
@@ -1334,6 +1393,14 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 		if (ioc->fc_rescan_work_q) {
 			queue_work(ioc->fc_rescan_work_q,
 				   &ioc->fc_rescan_work);
+		}
+		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
+		break;
+	case MPI_EVENT_LINK_STATUS_CHANGE:
+		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
+		if (ioc->fc_rescan_work_q) {
+			queue_work(ioc->fc_rescan_work_q,
+				   &ioc->fc_lsc_work);
 		}
 		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
 		break;

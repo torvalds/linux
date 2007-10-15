@@ -9,7 +9,7 @@
 ** Copyright (C) 2002 - 2005, Areca Technology Corporation All rights reserved.
 **
 **     Web site: www.areca.com.tw
-**       E-mail: erich@areca.com.tw
+**       E-mail: support@areca.com.tw
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License version 2 as
@@ -45,19 +45,26 @@
 #include <linux/interrupt.h>
 
 struct class_device_attribute;
-
-#define ARCMSR_MAX_OUTSTANDING_CMD 						256
-#define ARCMSR_MAX_FREECCB_NUM							288
-#define ARCMSR_DRIVER_VERSION				"Driver Version 1.20.00.14"
+/*The limit of outstanding scsi command that firmware can handle*/
+#define ARCMSR_MAX_OUTSTANDING_CMD						256
+#define ARCMSR_MAX_FREECCB_NUM							320
+#define ARCMSR_DRIVER_VERSION		     "Driver Version 1.20.00.15 2007/08/30"
 #define ARCMSR_SCSI_INITIATOR_ID						255
 #define ARCMSR_MAX_XFER_SECTORS							512
-#define ARCMSR_MAX_XFER_SECTORS_B                                              4096
-#define ARCMSR_MAX_TARGETID							 17
-#define ARCMSR_MAX_TARGETLUN							  8
-#define ARCMSR_MAX_CMD_PERLUN				 ARCMSR_MAX_OUTSTANDING_CMD
-#define ARCMSR_MAX_QBUFFER						       4096
-#define ARCMSR_MAX_SG_ENTRIES							 38
-
+#define ARCMSR_MAX_XFER_SECTORS_B						4096
+#define ARCMSR_MAX_TARGETID							17
+#define ARCMSR_MAX_TARGETLUN							8
+#define ARCMSR_MAX_CMD_PERLUN		                 ARCMSR_MAX_OUTSTANDING_CMD
+#define ARCMSR_MAX_QBUFFER							4096
+#define ARCMSR_MAX_SG_ENTRIES							38
+#define ARCMSR_MAX_HBB_POSTQUEUE						264
+/*
+**********************************************************************************
+**
+**********************************************************************************
+*/
+#define ARC_SUCCESS                                                       0
+#define ARC_FAILURE                                                       1
 /*
 *******************************************************************************
 **        split 64bits dma addressing
@@ -90,7 +97,7 @@ struct CMD_MESSAGE_FIELD
     uint8_t				messagedatabuffer[1032];
 };
 /* IOP message transfer */
-#define ARCMSR_MESSAGE_FAIL             0x0001
+#define ARCMSR_MESSAGE_FAIL			0x0001
 /* DeviceType */
 #define ARECA_SATA_RAID				0x90000000
 /* FunctionCode */
@@ -163,27 +170,27 @@ struct QBUFFER
 };
 /*
 *******************************************************************************
-**      FIRMWARE INFO
+**      FIRMWARE INFO for Intel IOP R 80331 processor (Type A)
 *******************************************************************************
 */
 struct FIRMWARE_INFO
 {
-	uint32_t      signature;                /*0, 00-03*/
-	uint32_t      request_len;              /*1, 04-07*/
-	uint32_t      numbers_queue;            /*2, 08-11*/
+	uint32_t      signature;		/*0, 00-03*/
+	uint32_t      request_len;		/*1, 04-07*/
+	uint32_t      numbers_queue;		/*2, 08-11*/
 	uint32_t      sdram_size;               /*3, 12-15*/
-	uint32_t      ide_channels;             /*4, 16-19*/
-	char          vendor[40];               /*5, 20-59*/
-	char          model[8];                 /*15, 60-67*/
-	char          firmware_ver[16];         /*17, 68-83*/
-	char          device_map[16];           /*21, 84-99*/
+	uint32_t      ide_channels;		/*4, 16-19*/
+	char          vendor[40];		/*5, 20-59*/
+	char          model[8];			/*15, 60-67*/
+	char          firmware_ver[16];     	/*17, 68-83*/
+	char          device_map[16];		/*21, 84-99*/
 };
 /* signature of set and get firmware config */
-#define ARCMSR_SIGNATURE_GET_CONFIG                   0x87974060
-#define ARCMSR_SIGNATURE_SET_CONFIG                   0x87974063
+#define ARCMSR_SIGNATURE_GET_CONFIG		      0x87974060
+#define ARCMSR_SIGNATURE_SET_CONFIG		      0x87974063
 /* message code of inbound message register */
-#define ARCMSR_INBOUND_MESG0_NOP                      0x00000000
-#define ARCMSR_INBOUND_MESG0_GET_CONFIG               0x00000001
+#define ARCMSR_INBOUND_MESG0_NOP		      0x00000000
+#define ARCMSR_INBOUND_MESG0_GET_CONFIG		      0x00000001
 #define ARCMSR_INBOUND_MESG0_SET_CONFIG               0x00000002
 #define ARCMSR_INBOUND_MESG0_ABORT_CMD                0x00000003
 #define ARCMSR_INBOUND_MESG0_STOP_BGRB                0x00000004
@@ -203,6 +210,60 @@ struct FIRMWARE_INFO
 #define ARCMSR_CCBREPLY_FLAG_ERROR                    0x10000000
 /* outbound firmware ok */
 #define ARCMSR_OUTBOUND_MESG1_FIRMWARE_OK             0x80000000
+
+/*
+************************************************************************
+**                SPEC. for Areca Type B adapter
+************************************************************************
+*/
+/* ARECA HBB COMMAND for its FIRMWARE */
+/* window of "instruction flags" from driver to iop */
+#define ARCMSR_DRV2IOP_DOORBELL                       0x00020400
+#define ARCMSR_DRV2IOP_DOORBELL_MASK                  0x00020404
+/* window of "instruction flags" from iop to driver */
+#define ARCMSR_IOP2DRV_DOORBELL                       0x00020408
+#define ARCMSR_IOP2DRV_DOORBELL_MASK                  0x0002040C
+/* ARECA FLAG LANGUAGE */
+/* ioctl transfer */
+#define ARCMSR_IOP2DRV_DATA_WRITE_OK                  0x00000001
+/* ioctl transfer */
+#define ARCMSR_IOP2DRV_DATA_READ_OK                   0x00000002
+#define ARCMSR_IOP2DRV_CDB_DONE                       0x00000004
+#define ARCMSR_IOP2DRV_MESSAGE_CMD_DONE               0x00000008
+
+#define ARCMSR_DOORBELL_HANDLE_INT		      0x0000000F
+#define ARCMSR_DOORBELL_INT_CLEAR_PATTERN   	      0xFF00FFF0
+#define ARCMSR_MESSAGE_INT_CLEAR_PATTERN	      0xFF00FFF7
+/* (ARCMSR_INBOUND_MESG0_GET_CONFIG<<16)|ARCMSR_DRV2IOP_MESSAGE_CMD_POSTED) */
+#define ARCMSR_MESSAGE_GET_CONFIG		      0x00010008
+/* (ARCMSR_INBOUND_MESG0_SET_CONFIG<<16)|ARCMSR_DRV2IOP_MESSAGE_CMD_POSTED) */
+#define ARCMSR_MESSAGE_SET_CONFIG		      0x00020008
+/* (ARCMSR_INBOUND_MESG0_ABORT_CMD<<16)|ARCMSR_DRV2IOP_MESSAGE_CMD_POSTED) */
+#define ARCMSR_MESSAGE_ABORT_CMD		      0x00030008
+/* (ARCMSR_INBOUND_MESG0_STOP_BGRB<<16)|ARCMSR_DRV2IOP_MESSAGE_CMD_POSTED) */
+#define ARCMSR_MESSAGE_STOP_BGRB		      0x00040008
+/* (ARCMSR_INBOUND_MESG0_FLUSH_CACHE<<16)|ARCMSR_DRV2IOP_MESSAGE_CMD_POSTED) */
+#define ARCMSR_MESSAGE_FLUSH_CACHE                    0x00050008
+/* (ARCMSR_INBOUND_MESG0_START_BGRB<<16)|ARCMSR_DRV2IOP_MESSAGE_CMD_POSTED) */
+#define ARCMSR_MESSAGE_START_BGRB		      0x00060008
+#define ARCMSR_MESSAGE_START_DRIVER_MODE	      0x000E0008
+#define ARCMSR_MESSAGE_SET_POST_WINDOW		      0x000F0008
+/* ARCMSR_OUTBOUND_MESG1_FIRMWARE_OK */
+#define ARCMSR_MESSAGE_FIRMWARE_OK		      0x80000000
+/* ioctl transfer */
+#define ARCMSR_DRV2IOP_DATA_WRITE_OK                  0x00000001
+/* ioctl transfer */
+#define ARCMSR_DRV2IOP_DATA_READ_OK                   0x00000002
+#define ARCMSR_DRV2IOP_CDB_POSTED                     0x00000004
+#define ARCMSR_DRV2IOP_MESSAGE_CMD_POSTED             0x00000008
+
+/* data tunnel buffer between user space program and its firmware */
+/* user space data to iop 128bytes */
+#define ARCMSR_IOCTL_WBUFFER			      0x0000fe00
+/* iop data to user space 128bytes */
+#define ARCMSR_IOCTL_RBUFFER			      0x0000ff00
+/* iop message_rwbuffer for message command */
+#define ARCMSR_MSGCODE_RWBUFFER			      0x0000fa00
 /*
 *******************************************************************************
 **    ARECA SCSI COMMAND DESCRIPTOR BLOCK size 0x1F8 (504)
@@ -214,7 +275,6 @@ struct ARCMSR_CDB
 	uint8_t							TargetID;
 	uint8_t							LUN;
 	uint8_t							Function;
-
 	uint8_t							CdbLength;
 	uint8_t							sgcount;
 	uint8_t							Flags;
@@ -224,20 +284,18 @@ struct ARCMSR_CDB
 #define ARCMSR_CDB_FLAG_SIMPLEQ            0x00
 #define ARCMSR_CDB_FLAG_HEADQ              0x08
 #define ARCMSR_CDB_FLAG_ORDEREDQ           0x10
-	uint8_t							Reserved1;
 
+	uint8_t							Reserved1;
 	uint32_t						Context;
 	uint32_t						DataLength;
-
 	uint8_t							Cdb[16];
-
 	uint8_t							DeviceStatus;
-#define ARCMSR_DEV_CHECK_CONDITION          0x02
-#define ARCMSR_DEV_SELECT_TIMEOUT			0xF0
-#define ARCMSR_DEV_ABORTED				0xF1
-#define ARCMSR_DEV_INIT_FAIL				0xF2
-	uint8_t							SenseData[15];
+#define ARCMSR_DEV_CHECK_CONDITION	    0x02
+#define ARCMSR_DEV_SELECT_TIMEOUT	    0xF0
+#define ARCMSR_DEV_ABORTED		    0xF1
+#define ARCMSR_DEV_INIT_FAIL		    0xF2
 
+	uint8_t							SenseData[15];
 	union
 	{
 		struct SG32ENTRY                sg32entry[ARCMSR_MAX_SG_ENTRIES];
@@ -246,10 +304,10 @@ struct ARCMSR_CDB
 };
 /*
 *******************************************************************************
-**     Messaging Unit (MU) of the Intel R 80331 I/O processor (80331)
+**     Messaging Unit (MU) of the Intel R 80331 I/O processor(Type A) and Type B processor
 *******************************************************************************
 */
-struct MessageUnit
+struct MessageUnit_A
 {
 	uint32_t	resrved0[4];			/*0000 000F*/
 	uint32_t	inbound_msgaddr0;		/*0010 0013*/
@@ -274,6 +332,30 @@ struct MessageUnit
 	uint32_t	message_rbuffer[32];		/*0F00 0F7F  32*/
 	uint32_t	reserved6[32];			/*0F80 0FFF  32*/
 };
+
+struct MessageUnit_B
+{
+	uint32_t	post_qbuffer[ARCMSR_MAX_HBB_POSTQUEUE];
+	uint32_t	done_qbuffer[ARCMSR_MAX_HBB_POSTQUEUE];
+	uint32_t	postq_index;
+	uint32_t	doneq_index;
+	uint32_t	*drv2iop_doorbell_reg;
+	uint32_t	*drv2iop_doorbell_mask_reg;
+	uint32_t	*iop2drv_doorbell_reg;
+	uint32_t	*iop2drv_doorbell_mask_reg;
+	uint32_t	*msgcode_rwbuffer_reg;
+	uint32_t	*ioctl_wbuffer_reg;
+	uint32_t	*ioctl_rbuffer_reg;
+};
+
+struct MessageUnit
+{
+	union
+	{
+		struct MessageUnit_A	pmu_A;
+		struct MessageUnit_B	pmu_B;
+	} u;
+};
 /*
 *******************************************************************************
 **                 Adapter Control Block
@@ -281,37 +363,45 @@ struct MessageUnit
 */
 struct AdapterControlBlock
 {
+	uint32_t  adapter_type;                /* adapter A,B..... */
+	#define ACB_ADAPTER_TYPE_A            0x00000001	/* hba I IOP */
+	#define ACB_ADAPTER_TYPE_B            0x00000002	/* hbb M IOP */
+	#define ACB_ADAPTER_TYPE_C            0x00000004	/* hbc P IOP */
+	#define ACB_ADAPTER_TYPE_D            0x00000008	/* hbd A IOP */
 	struct pci_dev *		pdev;
 	struct Scsi_Host *		host;
 	unsigned long			vir2phy_offset;
 	/* Offset is used in making arc cdb physical to virtual calculations */
 	uint32_t			outbound_int_enable;
 
-	struct MessageUnit __iomem *		pmu;
+	struct MessageUnit *			pmu;
 	/* message unit ATU inbound base address0 */
 
 	uint32_t			acb_flags;
-#define ACB_F_SCSISTOPADAPTER         0x0001
-#define ACB_F_MSG_STOP_BGRB           0x0002
+	#define ACB_F_SCSISTOPADAPTER         	0x0001
+	#define ACB_F_MSG_STOP_BGRB     	0x0002
 	/* stop RAID background rebuild */
-#define ACB_F_MSG_START_BGRB          0x0004
+	#define ACB_F_MSG_START_BGRB          	0x0004
 	/* stop RAID background rebuild */
-#define ACB_F_IOPDATA_OVERFLOW        0x0008
+	#define ACB_F_IOPDATA_OVERFLOW        	0x0008
 	/* iop message data rqbuffer overflow */
-#define ACB_F_MESSAGE_WQBUFFER_CLEARED  0x0010
+	#define ACB_F_MESSAGE_WQBUFFER_CLEARED	0x0010
 	/* message clear wqbuffer */
-#define ACB_F_MESSAGE_RQBUFFER_CLEARED  0x0020
+	#define ACB_F_MESSAGE_RQBUFFER_CLEARED  0x0020
 	/* message clear rqbuffer */
-#define ACB_F_MESSAGE_WQBUFFER_READED   0x0040
-#define ACB_F_BUS_RESET               0x0080
-#define ACB_F_IOP_INITED              0x0100
+	#define ACB_F_MESSAGE_WQBUFFER_READED   0x0040
+	#define ACB_F_BUS_RESET               	0x0080
+	#define ACB_F_IOP_INITED              	0x0100
 	/* iop init */
 
 	struct CommandControlBlock *			pccb_pool[ARCMSR_MAX_FREECCB_NUM];
 	/* used for memory free */
 	struct list_head		ccb_free_list;
 	/* head of free ccb list */
+
 	atomic_t			ccboutstandingcount;
+	/*The present outstanding command number that in the IOP that
+					waiting for being handled by FW*/
 
 	void *				dma_coherent;
 	/* dma_coherent used for memory free */
@@ -353,7 +443,7 @@ struct CommandControlBlock
 {
 	struct ARCMSR_CDB		arcmsr_cdb;
 	/*
-	** 0-503 (size of CDB=504):
+	** 0-503 (size of CDB = 504):
 	** arcmsr messenger scsi command descriptor size 504 bytes
 	*/
 	uint32_t			cdb_shifted_phyaddr;
@@ -466,7 +556,9 @@ struct SENSE_DATA
 #define     ARCMSR_MU_OUTBOUND_MESSAGE0_INTMASKENABLE               0x01
 #define     ARCMSR_MU_OUTBOUND_ALL_INTMASKENABLE                    0x1F
 
-extern void arcmsr_post_Qbuffer(struct AdapterControlBlock *acb);
+extern void arcmsr_post_ioctldata2iop(struct AdapterControlBlock *);
+extern void arcmsr_iop_message_read(struct AdapterControlBlock *);
+extern struct QBUFFER *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *);
 extern struct class_device_attribute *arcmsr_host_attrs[];
-extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *acb);
+extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *);
 void arcmsr_free_sysfs_attr(struct AdapterControlBlock *acb);

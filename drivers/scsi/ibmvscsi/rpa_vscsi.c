@@ -42,14 +42,14 @@ static unsigned int partition_number = -1;
  * Routines for managing the command/response queue
  */
 /**
- * ibmvscsi_handle_event: - Interrupt handler for crq events
+ * rpavscsi_handle_event: - Interrupt handler for crq events
  * @irq:	number of irq to handle, not used
  * @dev_instance: ibmvscsi_host_data of host that received interrupt
  *
  * Disables interrupts and schedules srp_task
  * Always returns IRQ_HANDLED
  */
-static irqreturn_t ibmvscsi_handle_event(int irq, void *dev_instance)
+static irqreturn_t rpavscsi_handle_event(int irq, void *dev_instance)
 {
 	struct ibmvscsi_host_data *hostdata =
 	    (struct ibmvscsi_host_data *)dev_instance;
@@ -66,9 +66,9 @@ static irqreturn_t ibmvscsi_handle_event(int irq, void *dev_instance)
  * Frees irq, deallocates a page for messages, unmaps dma, and unregisters
  * the crq with the hypervisor.
  */
-void ibmvscsi_release_crq_queue(struct crq_queue *queue,
-				struct ibmvscsi_host_data *hostdata,
-				int max_requests)
+static void rpavscsi_release_crq_queue(struct crq_queue *queue,
+				       struct ibmvscsi_host_data *hostdata,
+				       int max_requests)
 {
 	long rc;
 	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
@@ -108,12 +108,13 @@ static struct viosrp_crq *crq_queue_next_crq(struct crq_queue *queue)
 }
 
 /**
- * ibmvscsi_send_crq: - Send a CRQ
+ * rpavscsi_send_crq: - Send a CRQ
  * @hostdata:	the adapter
  * @word1:	the first 64 bits of the data
  * @word2:	the second 64 bits of the data
  */
-int ibmvscsi_send_crq(struct ibmvscsi_host_data *hostdata, u64 word1, u64 word2)
+static int rpavscsi_send_crq(struct ibmvscsi_host_data *hostdata,
+			     u64 word1, u64 word2)
 {
 	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
 
@@ -121,10 +122,10 @@ int ibmvscsi_send_crq(struct ibmvscsi_host_data *hostdata, u64 word1, u64 word2)
 }
 
 /**
- * ibmvscsi_task: - Process srps asynchronously
+ * rpavscsi_task: - Process srps asynchronously
  * @data:	ibmvscsi_host_data of host
  */
-static void ibmvscsi_task(void *data)
+static void rpavscsi_task(void *data)
 {
 	struct ibmvscsi_host_data *hostdata = (struct ibmvscsi_host_data *)data;
 	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
@@ -190,121 +191,13 @@ static void set_adapter_info(struct ibmvscsi_host_data *hostdata)
 }
 
 /**
- * initialize_crq_queue: - Initializes and registers CRQ with hypervisor
- * @queue:	crq_queue to initialize and register
- * @hostdata:	ibmvscsi_host_data of host
- *
- * Allocates a page for messages, maps it for dma, and registers
- * the crq with the hypervisor.
- * Returns zero on success.
- */
-int ibmvscsi_init_crq_queue(struct crq_queue *queue,
-			    struct ibmvscsi_host_data *hostdata,
-			    int max_requests)
-{
-	int rc;
-	int retrc;
-	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
-
-	queue->msgs = (struct viosrp_crq *)get_zeroed_page(GFP_KERNEL);
-
-	if (!queue->msgs)
-		goto malloc_failed;
-	queue->size = PAGE_SIZE / sizeof(*queue->msgs);
-
-	queue->msg_token = dma_map_single(hostdata->dev, queue->msgs,
-					  queue->size * sizeof(*queue->msgs),
-					  DMA_BIDIRECTIONAL);
-
-	if (dma_mapping_error(queue->msg_token))
-		goto map_failed;
-
-	gather_partition_info();
-	set_adapter_info(hostdata);
-
-	retrc = rc = plpar_hcall_norets(H_REG_CRQ,
-				vdev->unit_address,
-				queue->msg_token, PAGE_SIZE);
-	if (rc == H_RESOURCE)
-		/* maybe kexecing and resource is busy. try a reset */
-		rc = ibmvscsi_reset_crq_queue(queue,
-					      hostdata);
-
-	if (rc == 2) {
-		/* Adapter is good, but other end is not ready */
-		dev_warn(hostdata->dev, "Partner adapter not ready\n");
-		retrc = 0;
-	} else if (rc != 0) {
-		dev_warn(hostdata->dev, "Error %d opening adapter\n", rc);
-		goto reg_crq_failed;
-	}
-
-	if (request_irq(vdev->irq,
-			ibmvscsi_handle_event,
-			0, "ibmvscsi", (void *)hostdata) != 0) {
-		dev_err(hostdata->dev, "couldn't register irq 0x%x\n",
-			vdev->irq);
-		goto req_irq_failed;
-	}
-
-	rc = vio_enable_interrupts(vdev);
-	if (rc != 0) {
-		dev_err(hostdata->dev, "Error %d enabling interrupts!!!\n", rc);
-		goto req_irq_failed;
-	}
-
-	queue->cur = 0;
-	spin_lock_init(&queue->lock);
-
-	tasklet_init(&hostdata->srp_task, (void *)ibmvscsi_task,
-		     (unsigned long)hostdata);
-
-	return retrc;
-
-      req_irq_failed:
-	do {
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
-	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
-      reg_crq_failed:
-	dma_unmap_single(hostdata->dev,
-			 queue->msg_token,
-			 queue->size * sizeof(*queue->msgs), DMA_BIDIRECTIONAL);
-      map_failed:
-	free_page((unsigned long)queue->msgs);
-      malloc_failed:
-	return -1;
-}
-
-/**
- * reenable_crq_queue: - reenables a crq after
- * @queue:	crq_queue to initialize and register
- * @hostdata:	ibmvscsi_host_data of host
- *
- */
-int ibmvscsi_reenable_crq_queue(struct crq_queue *queue,
-				 struct ibmvscsi_host_data *hostdata)
-{
-	int rc;
-	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
-
-	/* Re-enable the CRQ */
-	do {
-		rc = plpar_hcall_norets(H_ENABLE_CRQ, vdev->unit_address);
-	} while ((rc == H_IN_PROGRESS) || (rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
-
-	if (rc)
-		dev_err(hostdata->dev, "Error %d enabling adapter\n", rc);
-	return rc;
-}
-
-/**
  * reset_crq_queue: - resets a crq after a failure
  * @queue:	crq_queue to initialize and register
  * @hostdata:	ibmvscsi_host_data of host
  *
  */
-int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
-			      struct ibmvscsi_host_data *hostdata)
+static int rpavscsi_reset_crq_queue(struct crq_queue *queue,
+				    struct ibmvscsi_host_data *hostdata)
 {
 	int rc;
 	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
@@ -332,3 +225,119 @@ int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 	}
 	return rc;
 }
+
+/**
+ * initialize_crq_queue: - Initializes and registers CRQ with hypervisor
+ * @queue:	crq_queue to initialize and register
+ * @hostdata:	ibmvscsi_host_data of host
+ *
+ * Allocates a page for messages, maps it for dma, and registers
+ * the crq with the hypervisor.
+ * Returns zero on success.
+ */
+static int rpavscsi_init_crq_queue(struct crq_queue *queue,
+				   struct ibmvscsi_host_data *hostdata,
+				   int max_requests)
+{
+	int rc;
+	int retrc;
+	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
+
+	queue->msgs = (struct viosrp_crq *)get_zeroed_page(GFP_KERNEL);
+
+	if (!queue->msgs)
+		goto malloc_failed;
+	queue->size = PAGE_SIZE / sizeof(*queue->msgs);
+
+	queue->msg_token = dma_map_single(hostdata->dev, queue->msgs,
+					  queue->size * sizeof(*queue->msgs),
+					  DMA_BIDIRECTIONAL);
+
+	if (dma_mapping_error(queue->msg_token))
+		goto map_failed;
+
+	gather_partition_info();
+	set_adapter_info(hostdata);
+
+	retrc = rc = plpar_hcall_norets(H_REG_CRQ,
+				vdev->unit_address,
+				queue->msg_token, PAGE_SIZE);
+	if (rc == H_RESOURCE)
+		/* maybe kexecing and resource is busy. try a reset */
+		rc = rpavscsi_reset_crq_queue(queue,
+					      hostdata);
+
+	if (rc == 2) {
+		/* Adapter is good, but other end is not ready */
+		dev_warn(hostdata->dev, "Partner adapter not ready\n");
+		retrc = 0;
+	} else if (rc != 0) {
+		dev_warn(hostdata->dev, "Error %d opening adapter\n", rc);
+		goto reg_crq_failed;
+	}
+
+	if (request_irq(vdev->irq,
+			rpavscsi_handle_event,
+			0, "ibmvscsi", (void *)hostdata) != 0) {
+		dev_err(hostdata->dev, "couldn't register irq 0x%x\n",
+			vdev->irq);
+		goto req_irq_failed;
+	}
+
+	rc = vio_enable_interrupts(vdev);
+	if (rc != 0) {
+		dev_err(hostdata->dev, "Error %d enabling interrupts!!!\n", rc);
+		goto req_irq_failed;
+	}
+
+	queue->cur = 0;
+	spin_lock_init(&queue->lock);
+
+	tasklet_init(&hostdata->srp_task, (void *)rpavscsi_task,
+		     (unsigned long)hostdata);
+
+	return retrc;
+
+      req_irq_failed:
+	do {
+		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
+      reg_crq_failed:
+	dma_unmap_single(hostdata->dev,
+			 queue->msg_token,
+			 queue->size * sizeof(*queue->msgs), DMA_BIDIRECTIONAL);
+      map_failed:
+	free_page((unsigned long)queue->msgs);
+      malloc_failed:
+	return -1;
+}
+
+/**
+ * reenable_crq_queue: - reenables a crq after
+ * @queue:	crq_queue to initialize and register
+ * @hostdata:	ibmvscsi_host_data of host
+ *
+ */
+static int rpavscsi_reenable_crq_queue(struct crq_queue *queue,
+				       struct ibmvscsi_host_data *hostdata)
+{
+	int rc;
+	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
+
+	/* Re-enable the CRQ */
+	do {
+		rc = plpar_hcall_norets(H_ENABLE_CRQ, vdev->unit_address);
+	} while ((rc == H_IN_PROGRESS) || (rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
+
+	if (rc)
+		dev_err(hostdata->dev, "Error %d enabling adapter\n", rc);
+	return rc;
+}
+
+struct ibmvscsi_ops rpavscsi_ops = {
+	.init_crq_queue = rpavscsi_init_crq_queue,
+	.release_crq_queue = rpavscsi_release_crq_queue,
+	.reset_crq_queue = rpavscsi_reset_crq_queue,
+	.reenable_crq_queue = rpavscsi_reenable_crq_queue,
+	.send_crq = rpavscsi_send_crq,
+};

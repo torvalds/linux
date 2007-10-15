@@ -85,7 +85,7 @@ static unsigned int max_scsi_luns = MAX_SCSI_LUNS;
 static unsigned int max_scsi_luns = 1;
 #endif
 
-module_param_named(max_luns, max_scsi_luns, int, S_IRUGO|S_IWUSR);
+module_param_named(max_luns, max_scsi_luns, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(max_luns,
 		 "last scsi LUN (should be between 1 and 2^32-1)");
 
@@ -109,18 +109,19 @@ MODULE_PARM_DESC(scan, "sync, async or none");
  */
 static unsigned int max_scsi_report_luns = 511;
 
-module_param_named(max_report_luns, max_scsi_report_luns, int, S_IRUGO|S_IWUSR);
+module_param_named(max_report_luns, max_scsi_report_luns, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(max_report_luns,
 		 "REPORT LUNS maximum number of LUNS received (should be"
 		 " between 1 and 16384)");
 
 static unsigned int scsi_inq_timeout = SCSI_TIMEOUT/HZ+3;
 
-module_param_named(inq_timeout, scsi_inq_timeout, int, S_IRUGO|S_IWUSR);
+module_param_named(inq_timeout, scsi_inq_timeout, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(inq_timeout, 
 		 "Timeout (in seconds) waiting for devices to answer INQUIRY."
 		 " Default is 5. Some non-compliant devices need more.");
 
+/* This lock protects only this list */
 static DEFINE_SPINLOCK(async_scan_lock);
 static LIST_HEAD(scanning_hosts);
 
@@ -1466,14 +1467,14 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return ERR_PTR(-ENODEV);
 
-	if (!shost->async_scan)
-		scsi_complete_async_scans();
-
 	starget = scsi_alloc_target(parent, channel, id);
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_lock(&shost->scan_mutex);
+	if (!shost->async_scan)
+		scsi_complete_async_scans();
+
 	if (scsi_host_scan_allowed(shost))
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 	mutex_unlock(&shost->scan_mutex);
@@ -1586,10 +1587,10 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return;
 
+	mutex_lock(&shost->scan_mutex);
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
 
-	mutex_lock(&shost->scan_mutex);
 	if (scsi_host_scan_allowed(shost))
 		__scsi_scan_target(parent, channel, id, lun, rescan);
 	mutex_unlock(&shost->scan_mutex);
@@ -1634,15 +1635,15 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 		"%s: <%u:%u:%u>\n",
 		__FUNCTION__, channel, id, lun));
 
-	if (!shost->async_scan)
-		scsi_complete_async_scans();
-
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
 	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||
 	    ((lun != SCAN_WILD_CARD) && (lun > shost->max_lun)))
 		return -EINVAL;
 
 	mutex_lock(&shost->scan_mutex);
+	if (!shost->async_scan)
+		scsi_complete_async_scans();
+
 	if (scsi_host_scan_allowed(shost)) {
 		if (channel == SCAN_WILD_CARD)
 			for (channel = 0; channel <= shost->max_channel;
@@ -1661,7 +1662,8 @@ static void scsi_sysfs_add_devices(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev;
 	shost_for_each_device(sdev, shost) {
-		if (scsi_sysfs_add_sdev(sdev) != 0)
+		if (!scsi_host_scan_allowed(shost) ||
+		    scsi_sysfs_add_sdev(sdev) != 0)
 			scsi_destroy_sdev(sdev);
 	}
 }
@@ -1679,6 +1681,7 @@ static void scsi_sysfs_add_devices(struct Scsi_Host *shost)
 static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 {
 	struct async_scan_data *data;
+	unsigned long flags;
 
 	if (strncmp(scsi_scan_type, "sync", 4) == 0)
 		return NULL;
@@ -1698,8 +1701,13 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 		goto err;
 	init_completion(&data->prev_finished);
 
-	spin_lock(&async_scan_lock);
+	mutex_lock(&shost->scan_mutex);
+	spin_lock_irqsave(shost->host_lock, flags);
 	shost->async_scan = 1;
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	mutex_unlock(&shost->scan_mutex);
+
+	spin_lock(&async_scan_lock);
 	if (list_empty(&scanning_hosts))
 		complete(&data->prev_finished);
 	list_add_tail(&data->list, &scanning_hosts);
@@ -1723,11 +1731,15 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 static void scsi_finish_async_scan(struct async_scan_data *data)
 {
 	struct Scsi_Host *shost;
+	unsigned long flags;
 
 	if (!data)
 		return;
 
 	shost = data->shost;
+
+	mutex_lock(&shost->scan_mutex);
+
 	if (!shost->async_scan) {
 		printk("%s called twice for host %d", __FUNCTION__,
 				shost->host_no);
@@ -1739,8 +1751,13 @@ static void scsi_finish_async_scan(struct async_scan_data *data)
 
 	scsi_sysfs_add_devices(shost);
 
-	spin_lock(&async_scan_lock);
+	spin_lock_irqsave(shost->host_lock, flags);
 	shost->async_scan = 0;
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	mutex_unlock(&shost->scan_mutex);
+
+	spin_lock(&async_scan_lock);
 	list_del(&data->list);
 	if (!list_empty(&scanning_hosts)) {
 		struct async_scan_data *next = list_entry(scanning_hosts.next,
@@ -1782,6 +1799,7 @@ static int do_scan_async(void *_data)
  **/
 void scsi_scan_host(struct Scsi_Host *shost)
 {
+	struct task_struct *p;
 	struct async_scan_data *data;
 
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
@@ -1793,7 +1811,9 @@ void scsi_scan_host(struct Scsi_Host *shost)
 		return;
 	}
 
-	kthread_run(do_scan_async, data, "scsi_scan_%d", shost->host_no);
+	p = kthread_run(do_scan_async, data, "scsi_scan_%d", shost->host_no);
+	if (unlikely(IS_ERR(p)))
+		do_scan_async(data);
 }
 EXPORT_SYMBOL(scsi_scan_host);
 

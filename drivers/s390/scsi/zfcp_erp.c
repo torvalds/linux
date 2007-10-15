@@ -1,22 +1,22 @@
-/* 
+/*
  * This file is part of the zfcp device driver for
  * FCP adapters for IBM System z9 and zSeries.
  *
  * (C) Copyright IBM Corp. 2002, 2006
- * 
- * This program is free software; you can redistribute it and/or modify 
- * it under the terms of the GNU General Public License as published by 
- * the Free Software Foundation; either version 2, or (at your option) 
- * any later version. 
- * 
- * This program is distributed in the hope that it will be useful, 
- * but WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
- * GNU General Public License for more details. 
- * 
- * You should have received a copy of the GNU General Public License 
- * along with this program; if not, write to the Free Software 
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define ZFCP_LOG_AREA			ZFCP_LOG_AREA_ERP
@@ -191,7 +191,7 @@ void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req, unsigned long timeout)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	called if an adapter failed,
  *		initiates adapter recovery which is done
@@ -228,7 +228,7 @@ zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *adapter, int clear_mask)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	Wrappper for zfcp_erp_adapter_reopen_internal
  *              used to ensure the correct locking
@@ -476,7 +476,7 @@ zfcp_test_link(struct zfcp_port *port)
 
 
 /*
- * function:	
+ * function:
  *
  * purpose:	called if a port failed to be opened normally
  *		initiates Forced Reopen recovery which is done
@@ -517,7 +517,7 @@ zfcp_erp_port_forced_reopen_internal(struct zfcp_port *port, int clear_mask)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	Wrappper for zfcp_erp_port_forced_reopen_internal
  *              used to ensure the correct locking
@@ -543,7 +543,7 @@ zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear_mask)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	called if a port is to be opened
  *		initiates Reopen recovery which is done
@@ -612,7 +612,7 @@ zfcp_erp_port_reopen(struct zfcp_port *port, int clear_mask)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	called if a unit is to be opened
  *		initiates Reopen recovery which is done
@@ -704,7 +704,7 @@ static void zfcp_erp_adapter_unblock(struct zfcp_adapter *adapter)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	disable I/O,
  *		return any open requests and clean them up,
@@ -725,7 +725,7 @@ zfcp_erp_port_block(struct zfcp_port *port, int clear_mask)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	enable I/O
  *
@@ -742,7 +742,7 @@ zfcp_erp_port_unblock(struct zfcp_port *port)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	disable I/O,
  *		return any open requests and clean them up,
@@ -763,7 +763,7 @@ zfcp_erp_unit_block(struct zfcp_unit *unit, int clear_mask)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	enable I/O
  *
@@ -792,7 +792,7 @@ zfcp_erp_action_ready(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:
  *
@@ -967,7 +967,7 @@ static void zfcp_erp_timeout_handler(unsigned long data)
  * zfcp_erp_action_dismiss - dismiss an erp_action
  *
  * adapter->erp_lock must be held
- * 
+ *
  * Dismissal of an erp_action is usually required if an erp_action of
  * higher priority is generated.
  */
@@ -1005,9 +1005,9 @@ zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:
  *
@@ -1094,7 +1094,7 @@ zfcp_erp_thread(void *data)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	drives single error recovery action and schedules higher and
  *		subordinate actions, if necessary
@@ -1206,7 +1206,7 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 
 	/*
 	 * put this target through the erp mill again if someone has
-	 * requested to change the status of a target being online 
+	 * requested to change the status of a target being online
 	 * to offline or the other way around
 	 * (old retval is preserved if nothing has to be done here)
 	 */
@@ -1228,7 +1228,7 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
  unlock:
 	write_unlock(&adapter->erp_lock);
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
-	
+
 	if (retval != ZFCP_ERP_CONTINUES)
 		zfcp_erp_action_cleanup(action, adapter, port, unit, retval);
 
@@ -1250,9 +1250,9 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_DISMISSED	- if action has been dismissed
  *		retval			- otherwise
@@ -1322,7 +1322,7 @@ zfcp_erp_strategy_do_action(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	triggers retry of this action after a certain amount of time
  *		by means of timer provided by erp_action
@@ -1346,7 +1346,7 @@ zfcp_erp_strategy_memwait(struct zfcp_erp_action *erp_action)
 	return retval;
 }
 
-/* 
+/*
  * function:    zfcp_erp_adapter_failed
  *
  * purpose:     sets the adapter and all underlying devices to ERP_FAILED
@@ -1362,7 +1362,7 @@ zfcp_erp_adapter_failed(struct zfcp_adapter *adapter)
 	debug_text_event(adapter->erp_dbf, 2, "a_afail");
 }
 
-/* 
+/*
  * function:    zfcp_erp_port_failed
  *
  * purpose:     sets the port and all underlying devices to ERP_FAILED
@@ -1386,7 +1386,7 @@ zfcp_erp_port_failed(struct zfcp_port *port)
 	debug_event(port->adapter->erp_dbf, 2, &port->wwpn, sizeof (wwn_t));
 }
 
-/* 
+/*
  * function:    zfcp_erp_unit_failed
  *
  * purpose:     sets the unit to ERP_FAILED
@@ -1417,7 +1417,7 @@ zfcp_erp_unit_failed(struct zfcp_unit *unit)
  *              successfully is reset.
  *
  * returns:	ZFCP_ERP_CONTINUES	- action continues (not considered)
- *		ZFCP_ERP_SUCCEEDED	- action finished successfully 
+ *		ZFCP_ERP_SUCCEEDED	- action finished successfully
  *		ZFCP_ERP_EXIT		- action failed and will not continue
  */
 static int
@@ -1646,7 +1646,7 @@ zfcp_erp_schedule_work(struct zfcp_unit *unit)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	remaining things in good cases,
  *		escalation in bad cases
@@ -1687,8 +1687,8 @@ zfcp_erp_strategy_followup_actions(int action,
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		if (status == ZFCP_ERP_SUCCEEDED) ;	/* no further action */
-		else
+		/* Nothing to do if status == ZFCP_ERP_SUCCEEDED */
+		if (status != ZFCP_ERP_SUCCEEDED)
 			zfcp_erp_port_reopen_internal(unit->port, 0);
 		break;
 	}
@@ -1815,7 +1815,7 @@ zfcp_erp_modify_unit_status(struct zfcp_unit *unit, u32 mask, int set_or_clear)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	Wrappper for zfcp_erp_port_reopen_all_internal
  *              used to ensure the correct locking
@@ -1852,9 +1852,9 @@ zfcp_erp_port_reopen_all_internal(struct zfcp_adapter *adapter, int clear_mask)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	FIXME
  */
@@ -1871,7 +1871,7 @@ zfcp_erp_unit_reopen_all_internal(struct zfcp_port *port, int clear_mask)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	this routine executes the 'Reopen Adapter' action
  *		(the entire action is processed synchronously, since
@@ -1908,9 +1908,9 @@ zfcp_erp_adapter_strategy(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_SUCCEEDED      - action finished successfully
  *              ZFCP_ERP_FAILED         - action finished unsuccessfully
@@ -1930,9 +1930,9 @@ zfcp_erp_adapter_strategy_close(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_SUCCEEDED      - action finished successfully
  *              ZFCP_ERP_FAILED         - action finished unsuccessfully
@@ -1957,7 +1957,7 @@ zfcp_erp_adapter_strategy_open(struct zfcp_erp_action *erp_action)
  * purpose:	allocate the irq associated with this devno and register
  *		the FSF adapter with the SCSI stack
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *erp_action, int close)
@@ -2197,7 +2197,7 @@ zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 	zfcp_erp_action_to_running(erp_action);
 	write_unlock_irq(&adapter->erp_lock);
 
-	ret = zfcp_fsf_exchange_port_data(erp_action, adapter, NULL);
+	ret = zfcp_fsf_exchange_port_data(erp_action);
 	if (ret == -EOPNOTSUPP) {
 		debug_text_event(adapter->erp_dbf, 3, "a_xport_notsupp");
 		return ZFCP_ERP_SUCCEEDED;
@@ -2249,7 +2249,7 @@ zfcp_erp_adapter_strategy_open_fsf_statusread(struct zfcp_erp_action
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	this routine executes the 'Reopen Physical Port' action
  *
@@ -2308,7 +2308,7 @@ zfcp_erp_port_forced_strategy(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	this routine executes the 'Reopen Port' action
  *
@@ -2530,7 +2530,7 @@ zfcp_erp_port_strategy_open_nameserver(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	makes the erp thread continue with reopen (physical) port
  *		actions which have been paused until the name server port
@@ -2570,9 +2570,9 @@ zfcp_erp_port_strategy_open_nameserver_wakeup(struct zfcp_erp_action
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_CONTINUES	- action continues (asynchronously)
  *		ZFCP_ERP_FAILED		- action finished unsuccessfully
@@ -2626,9 +2626,9 @@ zfcp_erp_port_strategy_clearstati(struct zfcp_port *port)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_CONTINUES	- action continues (asynchronously)
  *		ZFCP_ERP_FAILED		- action finished unsuccessfully
@@ -2663,9 +2663,9 @@ zfcp_erp_port_strategy_close(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_CONTINUES	- action continues (asynchronously)
  *		ZFCP_ERP_FAILED		- action finished unsuccessfully
@@ -2700,9 +2700,9 @@ zfcp_erp_port_strategy_open_port(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_CONTINUES	- action continues (asynchronously)
  *		ZFCP_ERP_FAILED		- action finished unsuccessfully
@@ -2737,7 +2737,7 @@ zfcp_erp_port_strategy_open_common_lookup(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	this routine executes the 'Reopen Unit' action
  *		currently no retries
@@ -2825,9 +2825,9 @@ zfcp_erp_unit_strategy_clearstati(struct zfcp_unit *unit)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_CONTINUES	- action continues (asynchronously)
  *		ZFCP_ERP_FAILED		- action finished unsuccessfully
@@ -2865,9 +2865,9 @@ zfcp_erp_unit_strategy_close(struct zfcp_erp_action *erp_action)
 }
 
 /*
- * function:	
+ * function:
  *
- * purpose:	
+ * purpose:
  *
  * returns:	ZFCP_ERP_CONTINUES	- action continues (asynchronously)
  *		ZFCP_ERP_FAILED		- action finished unsuccessfully
@@ -2913,7 +2913,7 @@ void zfcp_erp_start_timer(struct zfcp_fsf_req *fsf_req)
 }
 
 /*
- * function:	
+ * function:
  *
  * purpose:	enqueue the specified error recovery action, if needed
  *
@@ -2992,7 +2992,7 @@ zfcp_erp_action_enqueue(int action,
 					      port->erp_action.action);
 				debug_text_event(adapter->erp_dbf, 4,
 						 "pf_actenq_drp");
-			} else 
+			} else
 				debug_text_event(adapter->erp_dbf, 4,
 						 "pf_actenq_drpcp");
 			debug_event(adapter->erp_dbf, 4, &port->wwpn,

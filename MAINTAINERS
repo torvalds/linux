@@ -297,6 +297,12 @@ P:	Colin Leroy
 M:	colin@colino.net
 S:	Maintained
 
+ADVANSYS SCSI DRIVER
+P:	Matthew Wilcox
+M:	matthew@wil.cx
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+
 AEDSP16 DRIVER
 P:	Riccardo Facchetti
 M:	fizban@tin.it
@@ -1889,6 +1895,11 @@ M:	Gadi Oxman <gadio@netvision.net.il>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+IDE-SCSI DRIVER
+L:	linux-ide@vger.kernel.org
+L:	linux-scsi@vger.kernel.org
+S:	Orphan
+
 IEEE 1394 SUBSYSTEM
 P:	Ben Collins
 M:	ben.collins@ubuntu.com
@@ -2404,7 +2415,7 @@ LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 P:	Eric Moore
 M:	Eric.Moore@lsi.com
 M:	support@lsi.com
-L:	mpt_linux_developer@lsi.com
+L:	DL-MPTFusionLinux@lsi.com
 L:	linux-scsi@vger.kernel.org
 W:	http://www.lsilogic.com/support
 S:	Supported

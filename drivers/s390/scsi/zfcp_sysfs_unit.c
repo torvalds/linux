@@ -139,7 +139,7 @@ static struct attribute_group zfcp_unit_attr_group = {
 	.attrs = zfcp_unit_attrs,
 };
 
-/** 
+/**
  * zfcp_sysfs_create_unit_files - create sysfs unit files
  * @dev: pointer to belonging device
  *
@@ -151,7 +151,7 @@ zfcp_sysfs_unit_create_files(struct device *dev)
 	return sysfs_create_group(&dev->kobj, &zfcp_unit_attr_group);
 }
 
-/** 
+/**
  * zfcp_sysfs_remove_unit_files - remove sysfs unit files
  * @dev: pointer to belonging device
  *

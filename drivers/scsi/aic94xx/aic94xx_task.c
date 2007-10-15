@@ -207,7 +207,7 @@ static void asd_get_response_tasklet(struct asd_ascb *ascb,
 					    "stat(0x%x) is not CHECK_CONDITION"
 					    "\n",
 					    SAS_ADDR(task->dev->sas_addr),
-					    ts->stat);
+					    iu->status);
 			}
 		}
 	}  else {

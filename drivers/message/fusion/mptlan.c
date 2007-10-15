@@ -1,10 +1,10 @@
 /*
  *  linux/drivers/message/fusion/mptlan.c
  *      IP Over Fibre Channel device driver.
- *      For use with LSI Logic Fibre Channel PCI chip/adapters
- *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
+ *      For use with LSI Fibre Channel PCI chip/adapters
+ *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 2000-2007 LSI Logic Corporation
+ *  Copyright (c) 2000-2007 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -154,7 +154,7 @@ static unsigned short mpt_lan_type_trans(struct sk_buff *skb,
 /*
  *  Fusion MPT LAN private data
  */
-static int LanCtx = -1;
+static u8 LanCtx = MPT_MAX_PROTOCOL_DRIVERS;
 
 static u32 max_buckets_out = 127;
 static u32 tx_max_out_p = 127 - 16;
@@ -163,12 +163,6 @@ static u32 tx_max_out_p = 127 - 16;
 static struct NAA_Hosed *mpt_bad_naa = NULL;
 DEFINE_RWLOCK(bad_naa_lock);
 #endif
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- * Fusion MPT LAN external data
- */
-extern int mpt_lan_index;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
@@ -1230,6 +1224,8 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 		}
 		pRecvReq = (LANReceivePostRequest_t *) mf;
 
+		i = le16_to_cpu(mf->u.frame.hwhdr.msgctxu.fld.req_idx);
+		mpt_dev->RequestNB[i] = 0;
 		count = buckets;
 		if (count > max)
 			count = max;
@@ -1351,10 +1347,11 @@ mpt_lan_post_receive_buckets_work(struct work_struct *work)
 static struct net_device *
 mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 {
-	struct net_device *dev = alloc_fcdev(sizeof(struct mpt_lan_priv));
-	struct mpt_lan_priv *priv = NULL;
+	struct net_device *dev;
+	struct mpt_lan_priv *priv;
 	u8 HWaddr[FC_ALEN], *a;
 
+	dev = alloc_fcdev(sizeof(struct mpt_lan_priv));
 	if (!dev)
 		return NULL;
 
@@ -1366,7 +1363,6 @@ mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 	priv->mpt_dev = mpt_dev;
 	priv->pnum = pnum;
 
-	memset(&priv->post_buckets_task, 0, sizeof(priv->post_buckets_task));
 	INIT_DELAYED_WORK(&priv->post_buckets_task,
 			  mpt_lan_post_receive_buckets_work);
 	priv->post_buckets_active = 0;
@@ -1390,8 +1386,6 @@ mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 	priv->bucketthresh = priv->max_buckets_out * 2 / 3;
 	spin_lock_init(&priv->txfidx_lock);
 	spin_lock_init(&priv->rxfidx_lock);
-
-	memset(&priv->stats, 0, sizeof(priv->stats));
 
 	/*  Grab pre-fetched LANPage1 stuff. :-) */
 	a = (u8 *) &mpt_dev->lan_cnfg_page1.HardwareAddressLow;
@@ -1508,9 +1502,6 @@ static int __init mpt_lan_init (void)
 		return -EBUSY;
 	}
 
-	/* Set the callback index to be used by driver core for turbo replies */
-	mpt_lan_index = LanCtx;
-
 	dlprintk((KERN_INFO MYNAM ": assigned context of %d\n", LanCtx));
 
 	if (mpt_reset_register(LanCtx, mpt_lan_ioc_reset)) {
@@ -1531,10 +1522,9 @@ static void __exit mpt_lan_exit(void)
 	mpt_device_driver_deregister(MPTLAN_DRIVER);
 	mpt_reset_deregister(LanCtx);
 
-	if (LanCtx >= 0) {
+	if (LanCtx) {
 		mpt_deregister(LanCtx);
-		LanCtx = -1;
-		mpt_lan_index = 0;
+		LanCtx = MPT_MAX_PROTOCOL_DRIVERS;
 	}
 }
 

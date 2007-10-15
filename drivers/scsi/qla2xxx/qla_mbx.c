@@ -391,7 +391,8 @@ qla2x00_execute_fw(scsi_qla_host_t *ha, uint32_t risc_addr)
 		mcp->mb[1] = MSW(risc_addr);
 		mcp->mb[2] = LSW(risc_addr);
 		mcp->mb[3] = 0;
-		mcp->out_mb |= MBX_3|MBX_2|MBX_1;
+		mcp->mb[4] = 0;
+		mcp->out_mb |= MBX_4|MBX_3|MBX_2|MBX_1;
 		mcp->in_mb |= MBX_1;
 	} else {
 		mcp->mb[1] = LSW(risc_addr);
@@ -1919,7 +1920,8 @@ qla2x00_get_id_list(scsi_qla_host_t *ha, void *id_list, dma_addr_t id_list_dma,
  */
 int
 qla2x00_get_resource_cnts(scsi_qla_host_t *ha, uint16_t *cur_xchg_cnt,
-    uint16_t *orig_xchg_cnt, uint16_t *cur_iocb_cnt, uint16_t *orig_iocb_cnt)
+    uint16_t *orig_xchg_cnt, uint16_t *cur_iocb_cnt,
+    uint16_t *orig_iocb_cnt, uint16_t *max_npiv_vports)
 {
 	int rval;
 	mbx_cmd_t mc;
@@ -1929,7 +1931,7 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *ha, uint16_t *cur_xchg_cnt,
 
 	mcp->mb[0] = MBC_GET_RESOURCE_COUNTS;
 	mcp->out_mb = MBX_0;
-	mcp->in_mb = MBX_10|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_11|MBX_10|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->tov = 30;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(ha, mcp);
@@ -1940,9 +1942,9 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *ha, uint16_t *cur_xchg_cnt,
 		    ha->host_no, mcp->mb[0]));
 	} else {
 		DEBUG11(printk("%s(%ld): done. mb1=%x mb2=%x mb3=%x mb6=%x "
-		    "mb7=%x mb10=%x.\n", __func__, ha->host_no,
+		    "mb7=%x mb10=%x mb11=%x.\n", __func__, ha->host_no,
 		    mcp->mb[1], mcp->mb[2], mcp->mb[3], mcp->mb[6], mcp->mb[7],
-		    mcp->mb[10]));
+		    mcp->mb[10], mcp->mb[11]));
 
 		if (cur_xchg_cnt)
 			*cur_xchg_cnt = mcp->mb[3];
@@ -1952,6 +1954,8 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *ha, uint16_t *cur_xchg_cnt,
 			*cur_iocb_cnt = mcp->mb[7];
 		if (orig_iocb_cnt)
 			*orig_iocb_cnt = mcp->mb[10];
+		if (max_npiv_vports)
+			*max_npiv_vports = mcp->mb[11];
 	}
 
 	return (rval);
@@ -2977,6 +2981,54 @@ qla2x00_send_change_request(scsi_qla_host_t *ha, uint16_t format,
 		}
 	} else
 		rval = BIT_1;
+
+	return rval;
+}
+
+int
+qla2x00_dump_ram(scsi_qla_host_t *ha, dma_addr_t req_dma, uint32_t addr,
+    uint32_t size)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
+
+	if (MSW(addr) || IS_FWI2_CAPABLE(ha)) {
+		mcp->mb[0] = MBC_DUMP_RISC_RAM_EXTENDED;
+		mcp->mb[8] = MSW(addr);
+		mcp->out_mb = MBX_8|MBX_0;
+	} else {
+		mcp->mb[0] = MBC_DUMP_RISC_RAM;
+		mcp->out_mb = MBX_0;
+	}
+	mcp->mb[1] = LSW(addr);
+	mcp->mb[2] = MSW(req_dma);
+	mcp->mb[3] = LSW(req_dma);
+	mcp->mb[6] = MSW(MSD(req_dma));
+	mcp->mb[7] = LSW(MSD(req_dma));
+	mcp->out_mb |= MBX_7|MBX_6|MBX_3|MBX_2|MBX_1;
+	if (IS_FWI2_CAPABLE(ha)) {
+		mcp->mb[4] = MSW(size);
+		mcp->mb[5] = LSW(size);
+		mcp->out_mb |= MBX_5|MBX_4;
+	} else {
+		mcp->mb[4] = LSW(size);
+		mcp->out_mb |= MBX_4;
+	}
+
+	mcp->in_mb = MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(ha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=%x.\n", __func__,
+		    ha->host_no, rval, mcp->mb[0]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+	}
 
 	return rval;
 }

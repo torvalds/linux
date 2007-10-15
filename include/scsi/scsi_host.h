@@ -32,6 +32,9 @@ struct blk_queue_tags;
 #define SG_NONE 0
 #define SG_ALL 0xff
 
+#define MODE_UNKNOWN 0x00
+#define MODE_INITIATOR 0x01
+#define MODE_TARGET 0x02
 
 #define DISABLE_CLUSTERING 0
 #define ENABLE_CLUSTERING 1
@@ -144,9 +147,6 @@ struct scsi_host_template {
 	/* TODO: rename */
 	int (* transfer_response)(struct scsi_cmnd *,
 				  void (*done)(struct scsi_cmnd *));
-
-	/* Used as callback for the completion of task management request. */
-	int (* tsk_mgmt_response)(u64 mid, int result);
 
 	/*
 	 * This is an error handling strategy routine.  You don't need to
@@ -408,6 +408,11 @@ struct scsi_host_template {
 	unsigned char present;
 
 	/*
+	 * This specifies the mode that a LLD supports.
+	 */
+	unsigned supported_mode:2;
+
+	/*
 	 * true if this host adapter uses unchecked DMA onto an ISA bus.
 	 */
 	unsigned unchecked_isa_dma:1;
@@ -575,8 +580,9 @@ struct Scsi_Host {
 	 * Used to assign serial numbers to the cmds.
 	 * Protected by the host lock.
 	 */
-	unsigned long cmd_serial_number, cmd_pid; 
+	unsigned long cmd_serial_number;
 	
+	unsigned active_mode:2;
 	unsigned unchecked_isa_dma:1;
 	unsigned use_clustering:1;
 	unsigned use_blk_tcq:1;

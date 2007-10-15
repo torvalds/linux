@@ -849,7 +849,8 @@ qla2x00_resize_request_q(scsi_qla_host_t *ha)
 		return;
 
 	/* Retrieve IOCB counts available to the firmware. */
-	rval = qla2x00_get_resource_cnts(ha, NULL, NULL, NULL, &fw_iocb_cnt);
+	rval = qla2x00_get_resource_cnts(ha, NULL, NULL, NULL, &fw_iocb_cnt,
+	    &ha->max_npiv_vports);
 	if (rval)
 		return;
 	/* No point in continuing if current settings are sufficient. */
@@ -916,9 +917,15 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 				    &ha->fw_attributes, &ha->fw_memory_size);
 				qla2x00_resize_request_q(ha);
 				ha->flags.npiv_supported = 0;
-				if (IS_QLA24XX(ha) &&
-				    (ha->fw_attributes & BIT_2))
+				if ((IS_QLA24XX(ha) || IS_QLA25XX(ha)) &&
+				    (ha->fw_attributes & BIT_2)) {
 					ha->flags.npiv_supported = 1;
+					if ((!ha->max_npiv_vports) ||
+					    ((ha->max_npiv_vports + 1) %
+					    MAX_MULTI_ID_FABRIC))
+						ha->max_npiv_vports =
+						    MAX_NUM_VPORT_FABRIC;
+				}
 
 				if (ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(ha);
@@ -1155,8 +1162,7 @@ qla2x00_init_rings(scsi_qla_host_t *ha)
 
 	DEBUG(printk("scsi(%ld): Issue init firmware.\n", ha->host_no));
 
-	mid_init_cb->count = MAX_NUM_VPORT_FABRIC;
-	ha->max_npiv_vports = MAX_NUM_VPORT_FABRIC;
+	mid_init_cb->count = ha->max_npiv_vports;
 
 	rval = qla2x00_init_firmware(ha, ha->init_cb_size);
 	if (rval) {
@@ -1786,12 +1792,11 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 {
 	fc_port_t *fcport;
 
-	fcport = kmalloc(sizeof(fc_port_t), flags);
-	if (fcport == NULL)
-		return (fcport);
+	fcport = kzalloc(sizeof(fc_port_t), flags);
+	if (!fcport)
+		return NULL;
 
 	/* Setup fcport template structure. */
-	memset(fcport, 0, sizeof (fc_port_t));
 	fcport->ha = ha;
 	fcport->vp_idx = ha->vp_idx;
 	fcport->port_type = FCT_UNKNOWN;
@@ -1801,7 +1806,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
 	spin_lock_init(&fcport->rport_lock);
 
-	return (fcport);
+	return fcport;
 }
 
 /*
@@ -2127,15 +2132,9 @@ qla2x00_iidma_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	if (!IS_IIDMA_CAPABLE(ha))
 		return;
 
-	if (fcport->fp_speed == PORT_SPEED_UNKNOWN) {
-		DEBUG2(printk("scsi(%ld): %02x%02x%02x%02x%02x%02x%02x%02x -- "
-		    "unsupported FM port operating speed.\n",
-		    ha->host_no, fcport->port_name[0], fcport->port_name[1],
-		    fcport->port_name[2], fcport->port_name[3],
-		    fcport->port_name[4], fcport->port_name[5],
-		    fcport->port_name[6], fcport->port_name[7]));
+	if (fcport->fp_speed == PORT_SPEED_UNKNOWN ||
+	    fcport->fp_speed > ha->link_data_rate)
 		return;
-	}
 
 	rval = qla2x00_set_idma_speed(ha, fcport->loop_id, fcport->fp_speed,
 	    mb);
@@ -2473,13 +2472,12 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 	rval = QLA_SUCCESS;
 
 	/* Try GID_PT to get device list, else GAN. */
-	swl = kmalloc(sizeof(sw_info_t) * MAX_FIBRE_DEVICES, GFP_ATOMIC);
-	if (swl == NULL) {
+	swl = kcalloc(MAX_FIBRE_DEVICES, sizeof(sw_info_t), GFP_ATOMIC);
+	if (!swl) {
 		/*EMPTY*/
 		DEBUG2(printk("scsi(%ld): GID_PT allocations failed, fallback "
 		    "on GA_NXT\n", ha->host_no));
 	} else {
-		memset(swl, 0, sizeof(sw_info_t) * MAX_FIBRE_DEVICES);
 		if (qla2x00_gid_pt(ha, swl) != QLA_SUCCESS) {
 			kfree(swl);
 			swl = NULL;

@@ -2055,7 +2055,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		sink = 1;
 		do_abort(instance);
 		cmd->result = DID_ERROR  << 16;
-		cmd->done(cmd);
+		cmd->scsi_done(cmd);
 		return;
 #endif
 	    case PHASE_DATAIN:
@@ -2115,7 +2115,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 			sink = 1;
 			do_abort(instance);
 			cmd->result = DID_ERROR  << 16;
-			cmd->done(cmd);
+			cmd->scsi_done(cmd);
 			/* XXX - need to source or sink data here, as appropriate */
 		    } else {
 #ifdef REAL_DMA
@@ -2254,25 +2254,21 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 			cmd->result = (cmd->result & 0x00ffff) | (DID_ERROR << 16);
 		    
 #ifdef AUTOSENSE
+		    if ((cmd->cmnd[0] == REQUEST_SENSE) &&
+			                        hostdata->ses.cmd_len) {
+			scsi_eh_restore_cmnd(cmd, &hostdata->ses);
+			hostdata->ses.cmd_len = 0 ;
+		    }
+
 		    if ((cmd->cmnd[0] != REQUEST_SENSE) && 
 			(status_byte(cmd->SCp.Status) == CHECK_CONDITION)) {
+			scsi_eh_prep_cmnd(cmd, &hostdata->ses, NULL, 0, ~0);
 			ASEN_PRINTK("scsi%d: performing request sense\n",
 				    HOSTNO);
-			cmd->cmnd[0] = REQUEST_SENSE;
-			cmd->cmnd[1] &= 0xe0;
-			cmd->cmnd[2] = 0;
-			cmd->cmnd[3] = 0;
-			cmd->cmnd[4] = sizeof(cmd->sense_buffer);
-			cmd->cmnd[5] = 0;
-			cmd->cmd_len = COMMAND_SIZE(cmd->cmnd[0]);
-
-			cmd->use_sg = 0;
 			/* this is initialized from initialize_SCp 
 			cmd->SCp.buffer = NULL;
 			cmd->SCp.buffers_residual = 0;
 			*/
-			cmd->request_buffer = (char *) cmd->sense_buffer;
-			cmd->request_bufflen = sizeof(cmd->sense_buffer);
 
 			local_irq_save(flags);
 			LIST(cmd,hostdata->issue_queue);

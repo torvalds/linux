@@ -1,15 +1,19 @@
 
-menu "Fusion MPT device support"
+menuconfig FUSION
+	bool "Fusion MPT device support"
 	depends on PCI
+	---help---
+	Say Y here to get to see options for Fusion Message
+	Passing Technology (MPT) drivers.
+	This option alone does not add any kernel code.
 
-config FUSION
-	bool
-	default n
+	If you say N, all options in this submenu will be skipped and disabled.
+
+if FUSION
 
 config FUSION_SPI
 	tristate "Fusion MPT ScsiHost drivers for SPI"
 	depends on PCI && SCSI
-	select FUSION
 	select SCSI_SPI_ATTRS
 	---help---
 	  SCSI HOST support for a parallel SCSI host adapters.
@@ -20,11 +24,11 @@ config FUSION_SPI
 	  LSI53C1020A
 	  LSI53C1030
 	  LSI53C1035
+	  ATTO UL4D
 
 config FUSION_FC
 	tristate "Fusion MPT ScsiHost drivers for FC"
 	depends on PCI && SCSI
-	select FUSION
 	select SCSI_FC_ATTRS
 	---help---
 	  SCSI HOST support for a Fiber Channel host adapters.
@@ -37,12 +41,13 @@ config FUSION_FC
 	  LSIFC929
 	  LSIFC929X
 	  LSIFC929XL
+	  LSIFC949X
+	  LSIFC949E
 	  Brocade FC 410/420
 
 config FUSION_SAS
 	tristate "Fusion MPT ScsiHost drivers for SAS"
 	depends on PCI && SCSI
- 	select FUSION
 	select SCSI_SAS_ATTRS
 	---help---
 	  SCSI HOST support for a SAS host adapters.
@@ -53,10 +58,10 @@ config FUSION_SAS
 	  LSISAS1068
 	  LSISAS1064E
 	  LSISAS1068E
+	  LSISAS1078
 
 config FUSION_MAX_SGE
 	int "Maximum number of scatter gather entries (16 - 128)"
-	depends on FUSION
 	default "128"
 	range 16 128
 	help
@@ -104,7 +109,6 @@ config FUSION_LAN
 
 config FUSION_LOGGING
 	bool "Fusion MPT logging facility"
-	depends on FUSION
 	---help---
 	  This turns on a logging facility that can be used to debug a number
 	  of Fusion MPT related problems.
@@ -113,7 +117,7 @@ config FUSION_LOGGING
 
 	  echo [level] > /sys/class/scsi_host/host#/debug_level
 
-	  There are various debug levels that an be found in the source:
+	  There are various debug levels that can be found in the source:
 	  file:drivers/message/fusion/mptdebug.h
 
-endmenu
+endif # FUSION

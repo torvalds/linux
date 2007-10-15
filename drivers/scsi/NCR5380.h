@@ -30,6 +30,10 @@
 
 #include <linux/interrupt.h>
 
+#ifdef AUTOSENSE
+#include <scsi/scsi_eh.h>
+#endif
+
 #define NCR5380_PUBLIC_RELEASE 7
 #define NCR53C400_PUBLIC_RELEASE 2
 
@@ -280,6 +284,9 @@ struct NCR5380_hostdata {
 	unsigned long bytes_write[8];		/* bytes written */
 	unsigned pendingr;
 	unsigned pendingw;
+#endif
+#ifdef AUTOSENSE
+	struct scsi_eh_save ses;
 #endif
 };
 

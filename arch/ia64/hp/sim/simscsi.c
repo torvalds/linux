@@ -372,8 +372,13 @@ simscsi_init(void)
 		return -ENOMEM;
 
 	error = scsi_add_host(host, NULL);
-	if (!error)
-		scsi_scan_host(host);
+	if (error)
+		goto free_host;
+	scsi_scan_host(host);
+	return 0;
+
+ free_host:
+	scsi_host_put(host);
 	return error;
 }
 

@@ -891,7 +891,7 @@ zfcp_unit_dequeue(struct zfcp_unit *unit)
 /*
  * Allocates a combined QTCB/fsf_req buffer for erp actions and fcp/SCSI
  * commands.
- * It also genrates fcp-nameserver request/response buffer and unsolicited 
+ * It also genrates fcp-nameserver request/response buffer and unsolicited
  * status read fsf_req buffers.
  *
  * locks:       must only be called with zfcp_data.config_sema taken
@@ -982,7 +982,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	struct zfcp_adapter *adapter;
 
 	/*
-	 * Note: It is safe to release the list_lock, as any list changes 
+	 * Note: It is safe to release the list_lock, as any list changes
 	 * are protected by the config_sema, which must be held to get here
 	 */
 
@@ -1038,6 +1038,10 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	spin_lock_init(&adapter->san_dbf_lock);
 	spin_lock_init(&adapter->scsi_dbf_lock);
 
+	retval = zfcp_adapter_debug_register(adapter);
+	if (retval)
+		goto debug_register_failed;
+
 	/* initialize error recovery stuff */
 
 	rwlock_init(&adapter->erp_lock);
@@ -1058,7 +1062,6 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 
-	adapter->ccw_device = ccw_device;
 	dev_set_drvdata(&ccw_device->dev, adapter);
 
 	if (zfcp_sysfs_adapter_create_files(&ccw_device->dev))
@@ -1085,6 +1088,8 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
  generic_services_failed:
 	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);
  sysfs_failed:
+	zfcp_adapter_debug_unregister(adapter);
+ debug_register_failed:
 	dev_set_drvdata(&ccw_device->dev, NULL);
 	zfcp_reqlist_free(adapter);
  failed_low_mem_buffers:
@@ -1129,6 +1134,8 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 		retval = -EBUSY;
 		goto out;
 	}
+
+	zfcp_adapter_debug_unregister(adapter);
 
 	/* remove specified adapter data structure from list */
 	write_lock_irq(&zfcp_data.config_lock);

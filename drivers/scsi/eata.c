@@ -1758,7 +1758,7 @@ static int eata2x_queuecommand(struct scsi_cmnd *SCpnt,
 
 	if (SCpnt->host_scribble)
 		panic("%s: qcomm, pid %ld, SCpnt %p already active.\n",
-		      ha->board_name, SCpnt->pid, SCpnt);
+		      ha->board_name, SCpnt->serial_number, SCpnt);
 
 	/* i is the mailbox number, look for the first free mailbox
 	   starting from last_cp_used */
@@ -1792,7 +1792,7 @@ static int eata2x_queuecommand(struct scsi_cmnd *SCpnt,
 
 	if (do_trace)
 		scmd_printk(KERN_INFO, SCpnt,
-			"qcomm, mbox %d, pid %ld.\n", i, SCpnt->pid);
+			"qcomm, mbox %d, pid %ld.\n", i, SCpnt->serial_number);
 
 	cpp->reqsen = 1;
 	cpp->dispri = 1;
@@ -1825,7 +1825,7 @@ static int eata2x_queuecommand(struct scsi_cmnd *SCpnt,
 		unmap_dma(i, ha);
 		SCpnt->host_scribble = NULL;
 		scmd_printk(KERN_INFO, SCpnt,
-			"qcomm, pid %ld, adapter busy.\n", SCpnt->pid);
+			"qcomm, pid %ld, adapter busy.\n", SCpnt->serial_number);
 		return 1;
 	}
 
@@ -1841,13 +1841,13 @@ static int eata2x_eh_abort(struct scsi_cmnd *SCarg)
 
 	if (SCarg->host_scribble == NULL) {
 		scmd_printk(KERN_INFO, SCarg,
-			"abort, pid %ld inactive.\n", SCarg->pid);
+			"abort, pid %ld inactive.\n", SCarg->serial_number);
 		return SUCCESS;
 	}
 
 	i = *(unsigned int *)SCarg->host_scribble;
 	scmd_printk(KERN_WARNING, SCarg,
-		"abort, mbox %d, pid %ld.\n", i, SCarg->pid);
+		"abort, mbox %d, pid %ld.\n", i, SCarg->serial_number);
 
 	if (i >= shost->can_queue)
 		panic("%s: abort, invalid SCarg->host_scribble.\n", ha->board_name);
@@ -1892,7 +1892,7 @@ static int eata2x_eh_abort(struct scsi_cmnd *SCarg)
 		SCarg->host_scribble = NULL;
 		ha->cp_stat[i] = FREE;
 		printk("%s, abort, mbox %d ready, DID_ABORT, pid %ld done.\n",
-		       ha->board_name, i, SCarg->pid);
+		       ha->board_name, i, SCarg->serial_number);
 		SCarg->scsi_done(SCarg);
 		return SUCCESS;
 	}
@@ -1909,12 +1909,12 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 	struct hostdata *ha = (struct hostdata *)shost->hostdata;
 
 	scmd_printk(KERN_INFO, SCarg,
-		"reset, enter, pid %ld.\n", SCarg->pid);
+		"reset, enter, pid %ld.\n", SCarg->serial_number);
 
 	spin_lock_irq(shost->host_lock);
 
 	if (SCarg->host_scribble == NULL)
-		printk("%s: reset, pid %ld inactive.\n", ha->board_name, SCarg->pid);
+		printk("%s: reset, pid %ld inactive.\n", ha->board_name, SCarg->serial_number);
 
 	if (ha->in_reset) {
 		printk("%s: reset, exit, already in reset.\n", ha->board_name);
@@ -1954,13 +1954,13 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 		if (ha->cp_stat[i] == READY || ha->cp_stat[i] == ABORTING) {
 			ha->cp_stat[i] = ABORTING;
 			printk("%s: reset, mbox %d aborting, pid %ld.\n",
-			       ha->board_name, i, SCpnt->pid);
+			       ha->board_name, i, SCpnt->serial_number);
 		}
 
 		else {
 			ha->cp_stat[i] = IN_RESET;
 			printk("%s: reset, mbox %d in reset, pid %ld.\n",
-			       ha->board_name, i, SCpnt->pid);
+			       ha->board_name, i, SCpnt->serial_number);
 		}
 
 		if (SCpnt->host_scribble == NULL)
@@ -2015,7 +2015,7 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 
 			printk
 			    ("%s, reset, mbox %d locked, DID_RESET, pid %ld done.\n",
-			     ha->board_name, i, SCpnt->pid);
+			     ha->board_name, i, SCpnt->serial_number);
 		}
 
 		else if (ha->cp_stat[i] == ABORTING) {
@@ -2029,7 +2029,7 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 
 			printk
 			    ("%s, reset, mbox %d aborting, DID_RESET, pid %ld done.\n",
-			     ha->board_name, i, SCpnt->pid);
+			     ha->board_name, i, SCpnt->serial_number);
 		}
 
 		else
@@ -2043,7 +2043,7 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 	do_trace = 0;
 
 	if (arg_done)
-		printk("%s: reset, exit, pid %ld done.\n", ha->board_name, SCarg->pid);
+		printk("%s: reset, exit, pid %ld done.\n", ha->board_name, SCarg->serial_number);
 	else
 		printk("%s: reset, exit.\n", ha->board_name);
 
@@ -2182,7 +2182,7 @@ static int reorder(struct hostdata *ha, unsigned long cursec,
 			cpp = &ha->cp[k];
 			SCpnt = cpp->SCpnt;
 			ll[n] = SCpnt->request->nr_sectors;
-			pl[n] = SCpnt->pid;
+			pl[n] = SCpnt->serial_number;
 
 			if (!n)
 				continue;
@@ -2230,7 +2230,7 @@ static int reorder(struct hostdata *ha, unsigned long cursec,
 			    "%s pid %ld mb %d fc %d nr %d sec %ld ns %ld"
 			     " cur %ld s:%c r:%c rev:%c in:%c ov:%c xd %d.\n",
 			     (ihdlr ? "ihdlr" : "qcomm"),
-			     SCpnt->pid, k, flushcount,
+			     SCpnt->serial_number, k, flushcount,
 			     n_ready, SCpnt->request->sector,
 			     SCpnt->request->nr_sectors, cursec, YESNO(s),
 			     YESNO(r), YESNO(rev), YESNO(input_only),
@@ -2277,7 +2277,7 @@ static void flush_dev(struct scsi_device *dev, unsigned long cursec,
 			    "%s, pid %ld, mbox %d, adapter"
 			     " busy, will abort.\n",
 			     (ihdlr ? "ihdlr" : "qcomm"),
-			     SCpnt->pid, k);
+			     SCpnt->serial_number, k);
 			ha->cp_stat[k] = ABORTING;
 			continue;
 		}
@@ -2391,11 +2391,11 @@ static irqreturn_t ihdlr(int irq, struct Scsi_Host *shost)
 
 	if (SCpnt->host_scribble == NULL)
 		panic("%s: ihdlr, mbox %d, pid %ld, SCpnt %p garbled.\n", ha->board_name,
-		      i, SCpnt->pid, SCpnt);
+		      i, SCpnt->serial_number, SCpnt);
 
 	if (*(unsigned int *)SCpnt->host_scribble != i)
 		panic("%s: ihdlr, mbox %d, pid %ld, index mismatch %d.\n",
-		      ha->board_name, i, SCpnt->pid,
+		      ha->board_name, i, SCpnt->serial_number,
 		      *(unsigned int *)SCpnt->host_scribble);
 
 	sync_dma(i, ha);
@@ -2445,12 +2445,12 @@ static irqreturn_t ihdlr(int irq, struct Scsi_Host *shost)
 			       "target_status 0x%x, sense key 0x%x.\n",
 			       ha->board_name,
 			       SCpnt->device->channel, SCpnt->device->id,
-			       SCpnt->device->lun, SCpnt->pid,
+			       SCpnt->device->lun, SCpnt->serial_number,
 			       spp->target_status, SCpnt->sense_buffer[2]);
 
 		ha->target_to[SCpnt->device->id][SCpnt->device->channel] = 0;
 
-		if (ha->last_retried_pid == SCpnt->pid)
+		if (ha->last_retried_pid == SCpnt->serial_number)
 			ha->retries = 0;
 
 		break;
@@ -2485,7 +2485,7 @@ static irqreturn_t ihdlr(int irq, struct Scsi_Host *shost)
 #endif
 
 			ha->retries++;
-			ha->last_retried_pid = SCpnt->pid;
+			ha->last_retried_pid = SCpnt->serial_number;
 		} else
 			status = DID_ERROR << 16;
 
@@ -2516,7 +2516,7 @@ static irqreturn_t ihdlr(int irq, struct Scsi_Host *shost)
 		scmd_printk(KERN_INFO, SCpnt, "ihdlr, mbox %2d, err 0x%x:%x,"
 		       " pid %ld, reg 0x%x, count %d.\n",
 		       i, spp->adapter_status, spp->target_status,
-		       SCpnt->pid, reg, ha->iocount);
+		       SCpnt->serial_number, reg, ha->iocount);
 
 	unmap_dma(i, ha);
 

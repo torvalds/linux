@@ -380,8 +380,7 @@ struct qlogicpti {
 	unsigned char             swsreg;
 	unsigned int	
 		gotirq	:	1,	/* this instance got an irq */
-		is_pti	: 	1,	/* Non-zero if this is a PTI board. */
-		sbits	:	16;	/* syncmode known bits */
+		is_pti	: 	1;	/* Non-zero if this is a PTI board. */
 };
 
 /* How to twiddle them bits... */

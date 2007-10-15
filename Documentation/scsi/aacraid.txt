@@ -38,10 +38,8 @@ Supported Cards/Chipsets
 	9005:0286:9005:02ac	Adaptec	1800 (Typhoon44)
 	9005:0285:9005:02b5	Adaptec	5445 (Voodoo44)
 	9005:0285:15d9:02b5	SMC	AOC-USAS-S4i
-	9005:0285:15d9:02c9	SMC	AOC-USAS-S4iR
 	9005:0285:9005:02b6	Adaptec	5805 (Voodoo80)
 	9005:0285:15d9:02b6	SMC	AOC-USAS-S8i
-	9005:0285:15d9:02ca	SMC	AOC-USAS-S8iR
 	9005:0285:9005:02b7	Adaptec	5085 (Voodoo08)
 	9005:0285:9005:02bb	Adaptec	3405 (Marauder40LP)
 	9005:0285:9005:02bc	Adaptec	3805 (Marauder80LP)
@@ -50,9 +48,14 @@ Supported Cards/Chipsets
 	9005:0285:9005:02be	Adaptec	31605 (Marauder160)
 	9005:0285:9005:02c3	Adaptec	51205 (Voodoo120)
 	9005:0285:9005:02c4	Adaptec	51605 (Voodoo160)
+	9005:0285:15d9:02c9	SMC	AOC-USAS-S4iR
+	9005:0285:15d9:02ca	SMC	AOC-USAS-S8iR
 	9005:0285:9005:02ce	Adaptec	51245 (Voodoo124)
 	9005:0285:9005:02cf	Adaptec	51645 (Voodoo164)
 	9005:0285:9005:02d0	Adaptec	52445 (Voodoo244)
+	9005:0285:9005:02d1	Adaptec	5405 (Voodoo40)
+	9005:0285:15d9:02d2	SMC	AOC-USAS-S8i-LP
+	9005:0285:15d9:02d3	SMC	AOC-USAS-S8iR-LP
 	1011:0046:9005:0364	Adaptec	5400S (Mustang)
 	9005:0287:9005:0800	Adaptec	Themisto (Jupiter)
 	9005:0200:9005:0200	Adaptec	Themisto (Jupiter)
@@ -103,6 +106,7 @@ Supported Cards/Chipsets
 	9005:0285:108e:7aac	SUN	STK RAID REM (Voodoo44 Coyote)
 	9005:0285:108e:0286	SUN	STK RAID INT (Cougar)
 	9005:0285:108e:0287	SUN	STK RAID EXT (Prometheus)
+	9005:0285:108e:7aae	SUN	STK RAID EM (Narvi)
 
 People
 -------------------------

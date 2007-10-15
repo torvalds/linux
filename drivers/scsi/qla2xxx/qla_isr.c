@@ -6,6 +6,7 @@
  */
 #include "qla_def.h"
 
+#include <linux/delay.h>
 #include <scsi/scsi_tcq.h>
 
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
@@ -34,6 +35,7 @@ qla2100_intr_handler(int irq, void *dev_id)
 	int		status;
 	unsigned long	flags;
 	unsigned long	iter;
+	uint16_t	hccr;
 	uint16_t	mb[4];
 
 	ha = (scsi_qla_host_t *) dev_id;
@@ -48,7 +50,23 @@ qla2100_intr_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (iter = 50; iter--; ) {
-		if ((RD_REG_WORD(&reg->istatus) & ISR_RISC_INT) == 0)
+		hccr = RD_REG_WORD(&reg->hccr);
+		if (hccr & HCCR_RISC_PAUSE) {
+			if (pci_channel_offline(ha->pdev))
+				break;
+
+			/*
+			 * Issue a "HARD" reset in order for the RISC interrupt
+			 * bit to be cleared.  Schedule a big hammmer to get
+			 * out of the RISC PAUSED state.
+			 */
+			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
+			RD_REG_WORD(&reg->hccr);
+
+			ha->isp_ops->fw_dump(ha, 1);
+			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+			break;
+		} else if ((RD_REG_WORD(&reg->istatus) & ISR_RISC_INT) == 0)
 			break;
 
 		if (RD_REG_WORD(&reg->semaphore) & BIT_0) {
@@ -127,6 +145,9 @@ qla2300_intr_handler(int irq, void *dev_id)
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
 		if (stat & HSR_RISC_PAUSED) {
+			if (pci_channel_offline(ha->pdev))
+				break;
+
 			hccr = RD_REG_WORD(&reg->hccr);
 			if (hccr & (BIT_15 | BIT_13 | BIT_11 | BIT_8))
 				qla_printk(KERN_INFO, ha, "Parity error -- "
@@ -1464,6 +1485,52 @@ qla24xx_process_response_queue(struct scsi_qla_host *ha)
 	WRT_REG_DWORD(&reg->rsp_q_out, ha->rsp_ring_index);
 }
 
+static void
+qla2xxx_check_risc_status(scsi_qla_host_t *ha)
+{
+	int rval;
+	uint32_t cnt;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	if (!IS_QLA25XX(ha))
+		return;
+
+	rval = QLA_SUCCESS;
+	WRT_REG_DWORD(&reg->iobase_addr, 0x7C00);
+	RD_REG_DWORD(&reg->iobase_addr);
+	WRT_REG_DWORD(&reg->iobase_window, 0x0001);
+	for (cnt = 10000; (RD_REG_DWORD(&reg->iobase_window) & BIT_0) == 0 &&
+	    rval == QLA_SUCCESS; cnt--) {
+		if (cnt) {
+			WRT_REG_DWORD(&reg->iobase_window, 0x0001);
+			udelay(10);
+		} else
+			rval = QLA_FUNCTION_TIMEOUT;
+	}
+	if (rval == QLA_SUCCESS)
+		goto next_test;
+
+	WRT_REG_DWORD(&reg->iobase_window, 0x0003);
+	for (cnt = 100; (RD_REG_DWORD(&reg->iobase_window) & BIT_0) == 0 &&
+	    rval == QLA_SUCCESS; cnt--) {
+		if (cnt) {
+			WRT_REG_DWORD(&reg->iobase_window, 0x0003);
+			udelay(10);
+		} else
+			rval = QLA_FUNCTION_TIMEOUT;
+	}
+	if (rval != QLA_SUCCESS)
+		goto done;
+
+next_test:
+	if (RD_REG_DWORD(&reg->iobase_c8) & BIT_3)
+		qla_printk(KERN_INFO, ha, "Additional code -- 0x55AA.\n");
+
+done:
+	WRT_REG_DWORD(&reg->iobase_window, 0x0000);
+	RD_REG_DWORD(&reg->iobase_window);
+}
+
 /**
  * qla24xx_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
  * @irq:
@@ -1499,10 +1566,16 @@ qla24xx_intr_handler(int irq, void *dev_id)
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
+			if (pci_channel_offline(ha->pdev))
+				break;
+
 			hccr = RD_REG_DWORD(&reg->hccr);
 
 			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "
 			    "Dumping firmware!\n", hccr);
+
+			qla2xxx_check_risc_status(ha);
+
 			ha->isp_ops->fw_dump(ha, 1);
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
 			break;
@@ -1606,7 +1679,6 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	qla24xx_process_response_queue(ha);
 
 	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-	RD_REG_DWORD_RELAXED(&reg->hccr);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -1620,7 +1692,6 @@ qla24xx_msix_default(int irq, void *dev_id)
 	struct device_reg_24xx __iomem *reg;
 	int		status;
 	unsigned long	flags;
-	unsigned long	iter;
 	uint32_t	stat;
 	uint32_t	hccr;
 	uint16_t	mb[4];
@@ -1630,13 +1701,19 @@ qla24xx_msix_default(int irq, void *dev_id)
 	status = 0;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (iter = 50; iter--; ) {
+	do {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
+			if (pci_channel_offline(ha->pdev))
+				break;
+
 			hccr = RD_REG_DWORD(&reg->hccr);
 
 			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "
 			    "Dumping firmware!\n", hccr);
+
+			qla2xxx_check_risc_status(ha);
+
 			ha->isp_ops->fw_dump(ha, 1);
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
 			break;
@@ -1669,8 +1746,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 			break;
 		}
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-		RD_REG_DWORD_RELAXED(&reg->hccr);
-	}
+	} while (0);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&

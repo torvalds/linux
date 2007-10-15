@@ -779,6 +779,8 @@ struct device_reg_24xx {
 #define FA_NVRAM_VPD_SIZE	0x200
 #define FA_NVRAM_VPD0_ADDR	0x00
 #define FA_NVRAM_VPD1_ADDR	0x100
+
+#define FA_BOOT_CODE_ADDR	0x00000
 					/*
 					 * RISC code begins at offset 512KB
 					 * within flash. Consisting of two
@@ -940,7 +942,9 @@ struct device_reg_24xx {
 	uint16_t mailbox31;
 
 	uint32_t iobase_window;
-	uint32_t unused_4[8];		/* Gap. */
+	uint32_t iobase_c4;
+	uint32_t iobase_c8;
+	uint32_t unused_4_1[6];		/* Gap. */
 	uint32_t iobase_q;
 	uint32_t unused_5[2];		/* Gap. */
 	uint32_t iobase_select;

@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
+#include <linux/aer.h>
 #include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
@@ -184,8 +185,6 @@
  * SCSI Request Block
  */
 typedef struct srb {
-	struct list_head list;
-
 	struct scsi_qla_host *ha;	/* HA the SP is queued on */
 	struct fc_port *fcport;
 
@@ -316,7 +315,9 @@ struct device_reg_2xxx {
 	} u;
 
 	uint16_t fpm_diag_config;
-	uint16_t unused_5[0x6];		/* Gap */
+	uint16_t unused_5[0x4];		/* Gap */
+	uint16_t risc_hw;
+	uint16_t unused_5_1;		/* Gap */
 	uint16_t pcr;			/* Processor Control Register. */
 	uint16_t unused_6[0x5];		/* Gap */
 	uint16_t mctr;			/* Memory Configuration and Timing. */
@@ -1702,7 +1703,7 @@ struct ct_fdmi_hba_attributes {
 /*
  * Port attribute types.
  */
-#define FDMI_PORT_ATTR_COUNT		5
+#define FDMI_PORT_ATTR_COUNT		6
 #define FDMI_PORT_FC4_TYPES		1
 #define FDMI_PORT_SUPPORT_SPEED		2
 #define FDMI_PORT_CURRENT_SPEED		3
@@ -2476,6 +2477,8 @@ typedef struct scsi_qla_host {
 #define QLA_SWAITING	0
 #define QLA_SREADING	1
 #define QLA_SWRITING	2
+	uint32_t	optrom_region_start;
+	uint32_t	optrom_region_size;
 
         /* PCI expansion ROM image information. */
 #define ROM_CODE_TYPE_BIOS	0
@@ -2529,7 +2532,7 @@ typedef struct scsi_qla_host {
 #define VP_ERR_FAB_NORESOURCES	3
 #define VP_ERR_FAB_LOGOUT	4
 #define VP_ERR_ADAP_NORESOURCES	5
-	int		max_npiv_vports;	/* 63 or 125 per topoloty */
+	uint16_t	max_npiv_vports;	/* 63 or 125 per topoloty */
 	int		cur_vport_count;
 } scsi_qla_host_t;
 
@@ -2541,8 +2544,6 @@ typedef struct scsi_qla_host {
 	(test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) || \
 	 test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) || \
 	 atomic_read(&ha->loop_state) == LOOP_DOWN)
-
-#define to_qla_host(x)		((scsi_qla_host_t *) (x)->hostdata)
 
 #define qla_printk(level, ha, format, arg...) \
 	dev_printk(level , &((ha)->pdev->dev) , format , ## arg)

@@ -40,18 +40,6 @@
 #define ASD_MAX_PHYS       8
 #define ASD_PCBA_SN_SIZE   12
 
-/* Those are to be further named properly, the "RAZORx" part, and
- * subsequently included in include/linux/pci_ids.h.
- */
-#define PCI_DEVICE_ID_ADAPTEC2_RAZOR10 0x410
-#define PCI_DEVICE_ID_ADAPTEC2_RAZOR12 0x412
-#define PCI_DEVICE_ID_ADAPTEC2_RAZOR1E 0x41E
-#define PCI_DEVICE_ID_ADAPTEC2_RAZOR1F 0x41F
-#define PCI_DEVICE_ID_ADAPTEC2_RAZOR30 0x430
-#define PCI_DEVICE_ID_ADAPTEC2_RAZOR32 0x432
-#define PCI_DEVICE_ID_ADAPTEC2_RAZOR3E 0x43E
-#define PCI_DEVICE_ID_ADAPTEC2_RAZOR3F 0x43F
-
 struct asd_ha_addrspace {
 	void __iomem  *addr;
 	unsigned long  start;       /* pci resource start */

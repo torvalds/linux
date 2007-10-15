@@ -288,7 +288,7 @@ static int scsi_req_map_sg(struct request *rq, struct scatterlist *sgl,
 {
 	struct request_queue *q = rq->q;
 	int nr_pages = (bufflen + sgl[0].offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	unsigned int data_len = 0, len, bytes, off;
+	unsigned int data_len = bufflen, len, bytes, off;
 	struct page *page;
 	struct bio *bio = NULL;
 	int i, err, nr_vecs = 0;
@@ -297,10 +297,15 @@ static int scsi_req_map_sg(struct request *rq, struct scatterlist *sgl,
 		page = sgl[i].page;
 		off = sgl[i].offset;
 		len = sgl[i].length;
-		data_len += len;
 
-		while (len > 0) {
+		while (len > 0 && data_len > 0) {
+			/*
+			 * sg sends a scatterlist that is larger than
+			 * the data_len it wants transferred for certain
+			 * IO sizes
+			 */
 			bytes = min_t(unsigned int, len, PAGE_SIZE - off);
+			bytes = min(bytes, data_len);
 
 			if (!bio) {
 				nr_vecs = min_t(int, BIO_MAX_PAGES, nr_pages);
@@ -332,12 +337,13 @@ static int scsi_req_map_sg(struct request *rq, struct scatterlist *sgl,
 
 			page++;
 			len -= bytes;
+			data_len -=bytes;
 			off = 0;
 		}
 	}
 
 	rq->buffer = rq->data = NULL;
-	rq->data_len = data_len;
+	rq->data_len = bufflen;
 	return 0;
 
 free_bios:
@@ -430,6 +436,7 @@ EXPORT_SYMBOL_GPL(scsi_execute_async);
 static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 {
 	cmd->serial_number = 0;
+	cmd->resid = 0;
 	memset(cmd->sense_buffer, 0, sizeof cmd->sense_buffer);
 	if (cmd->cmd_len == 0)
 		cmd->cmd_len = COMMAND_SIZE(cmd->cmnd[0]);
@@ -924,11 +931,11 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 					break;
 				}
 			}
-			if (!(req->cmd_flags & REQ_QUIET)) {
-				scmd_printk(KERN_INFO, cmd,
-					    "Device not ready: ");
-				scsi_print_sense_hdr("", &sshdr);
-			}
+			if (!(req->cmd_flags & REQ_QUIET))
+				scsi_cmd_print_sense_hdr(cmd,
+							 "Device not ready",
+							 &sshdr);
+
 			scsi_end_request(cmd, 0, this_count, 1);
 			return;
 		case VOLUME_OVERFLOW:
@@ -962,7 +969,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	}
 	scsi_end_request(cmd, 0, this_count, !result);
 }
-EXPORT_SYMBOL(scsi_io_completion);
 
 /*
  * Function:    scsi_init_io()
@@ -1019,9 +1025,6 @@ static int scsi_init_io(struct scsi_cmnd *cmd)
 	printk(KERN_ERR "req nr_sec %lu, cur_nr_sec %u\n", req->nr_sectors,
 			req->current_nr_sectors);
 
-	/* release the command and kill it */
-	scsi_release_buffers(cmd);
-	scsi_put_command(cmd);
 	return BLKPREP_KILL;
 }
 
@@ -1046,21 +1049,13 @@ static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
 	return cmd;
 }
 
-static void scsi_blk_pc_done(struct scsi_cmnd *cmd)
-{
-	BUG_ON(!blk_pc_request(cmd->request));
-	/*
-	 * This will complete the whole command with uptodate=1 so
-	 * as far as the block layer is concerned the command completed
-	 * successfully. Since this is a REQ_BLOCK_PC command the
-	 * caller should check the request's errors value
-	 */
-	scsi_io_completion(cmd, cmd->request_bufflen);
-}
-
-static int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
+int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 {
 	struct scsi_cmnd *cmd;
+	int ret = scsi_prep_state_check(sdev, req);
+
+	if (ret != BLKPREP_OK)
+		return ret;
 
 	cmd = scsi_get_cmd_from_req(sdev, req);
 	if (unlikely(!cmd))
@@ -1103,21 +1098,22 @@ static int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 	cmd->transfersize = req->data_len;
 	cmd->allowed = req->retries;
 	cmd->timeout_per_command = req->timeout;
-	cmd->done = scsi_blk_pc_done;
 	return BLKPREP_OK;
 }
+EXPORT_SYMBOL(scsi_setup_blk_pc_cmnd);
 
 /*
  * Setup a REQ_TYPE_FS command.  These are simple read/write request
  * from filesystems that still need to be translated to SCSI CDBs from
  * the ULD.
  */
-static int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
+int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 {
 	struct scsi_cmnd *cmd;
-	struct scsi_driver *drv;
-	int ret;
+	int ret = scsi_prep_state_check(sdev, req);
 
+	if (ret != BLKPREP_OK)
+		return ret;
 	/*
 	 * Filesystem requests must transfer data.
 	 */
@@ -1127,26 +1123,12 @@ static int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 	if (unlikely(!cmd))
 		return BLKPREP_DEFER;
 
-	ret = scsi_init_io(cmd);
-	if (unlikely(ret))
-		return ret;
-
-	/*
-	 * Initialize the actual SCSI command for this request.
-	 */
-	drv = *(struct scsi_driver **)req->rq_disk->private_data;
-	if (unlikely(!drv->init_command(cmd))) {
-		scsi_release_buffers(cmd);
-		scsi_put_command(cmd);
-		return BLKPREP_KILL;
-	}
-
-	return BLKPREP_OK;
+	return scsi_init_io(cmd);
 }
+EXPORT_SYMBOL(scsi_setup_fs_cmnd);
 
-static int scsi_prep_fn(struct request_queue *q, struct request *req)
+int scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 {
-	struct scsi_device *sdev = q->queuedata;
 	int ret = BLKPREP_OK;
 
 	/*
@@ -1192,35 +1174,25 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 				ret = BLKPREP_KILL;
 			break;
 		}
-
-		if (ret != BLKPREP_OK)
-			goto out;
 	}
+	return ret;
+}
+EXPORT_SYMBOL(scsi_prep_state_check);
 
-	switch (req->cmd_type) {
-	case REQ_TYPE_BLOCK_PC:
-		ret = scsi_setup_blk_pc_cmnd(sdev, req);
-		break;
-	case REQ_TYPE_FS:
-		ret = scsi_setup_fs_cmnd(sdev, req);
-		break;
-	default:
-		/*
-		 * All other command types are not supported.
-		 *
-		 * Note that these days the SCSI subsystem does not use
-		 * REQ_TYPE_SPECIAL requests anymore.  These are only used
-		 * (directly or via blk_insert_request) by non-SCSI drivers.
-		 */
-		blk_dump_rq_flags(req, "SCSI bad req");
-		ret = BLKPREP_KILL;
-		break;
-	}
+int scsi_prep_return(struct request_queue *q, struct request *req, int ret)
+{
+	struct scsi_device *sdev = q->queuedata;
 
- out:
 	switch (ret) {
 	case BLKPREP_KILL:
 		req->errors = DID_NO_CONNECT << 16;
+		/* release the command and kill it */
+		if (req->special) {
+			struct scsi_cmnd *cmd = req->special;
+			scsi_release_buffers(cmd);
+			scsi_put_command(cmd);
+			req->special = NULL;
+		}
 		break;
 	case BLKPREP_DEFER:
 		/*
@@ -1236,6 +1208,17 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(scsi_prep_return);
+
+static int scsi_prep_fn(struct request_queue *q, struct request *req)
+{
+	struct scsi_device *sdev = q->queuedata;
+	int ret = BLKPREP_KILL;
+
+	if (req->cmd_type == REQ_TYPE_BLOCK_PC)
+		ret = scsi_setup_blk_pc_cmnd(sdev, req);
+	return scsi_prep_return(q, req, ret);
 }
 
 /*
