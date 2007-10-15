@@ -1133,7 +1133,7 @@ repeat:
 	 * yield - it could be a while.
 	 */
 	if (unlikely(on_rq)) {
-		yield();
+		schedule_timeout_uninterruptible(1);
 		goto repeat;
 	}
 
