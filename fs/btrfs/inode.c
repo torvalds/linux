@@ -135,7 +135,7 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct btrfs_csum_item *item;
 	struct btrfs_path *path = NULL;
-	u64 private;
+	u32 csum;
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	path = btrfs_alloc_path();
@@ -145,11 +145,12 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 		/* a csum that isn't present is a preallocated region. */
 		if (ret == -ENOENT || ret == -EFBIG)
 			ret = 0;
-		private = 0;
+		csum = 0;
 		goto out;
 	}
-	memcpy((char *)&private, &item->csum, BTRFS_CRC32_SIZE);
-	set_state_private(em_tree, start, private);
+	read_extent_buffer(path->nodes[0], &csum, (unsigned long)item,
+			   BTRFS_CRC32_SIZE);
+	set_state_private(em_tree, start, csum);
 out:
 	if (path)
 		btrfs_free_path(path);
@@ -165,21 +166,19 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 	char *kaddr;
 	u64 private;
 	int ret;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	u32 csum = ~(u32)0;
 
 	ret = get_state_private(em_tree, start, &private);
 	kaddr = kmap_atomic(page, KM_IRQ0);
 	if (ret) {
 		goto zeroit;
 	}
-	/*
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	char csum[BTRFS_CRC32_SIZE];
-	ret = btrfs_csum_data(root, kaddr + offset, end - start + 1, csum);
-	BUG_ON(ret);
-	if (memcmp(csum, &private, BTRFS_CRC32_SIZE)) {
+	csum = btrfs_csum_data(root, kaddr + offset, csum,  end - start + 1);
+	btrfs_csum_final(csum, (char *)&csum);
+	if (csum != private) {
 		goto zeroit;
 	}
-	*/
 	kunmap_atomic(kaddr, KM_IRQ0);
 	return 0;
 

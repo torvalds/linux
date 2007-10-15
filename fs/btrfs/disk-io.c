@@ -594,6 +594,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	tree_root->nodesize = nodesize;
 	tree_root->leafsize = leafsize;
 	tree_root->sectorsize = sectorsize;
+	sb_set_blocksize(sb, sectorsize);
 
 	i_size_write(fs_info->btree_inode,
 		     btrfs_super_total_bytes(disk_super));

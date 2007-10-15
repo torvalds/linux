@@ -136,27 +136,27 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 			  u64 objectid, u64 offset,
 			  char *data, size_t len)
 {
-	return 0;
-#if 0
 	int ret;
 	struct btrfs_key file_key;
 	struct btrfs_key found_key;
 	struct btrfs_path *path;
 	struct btrfs_csum_item *item;
-	struct extent_buffer *leaf;
+	struct extent_buffer *leaf = NULL;
 	u64 csum_offset;
+	u32 csum_result = ~(u32)0;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
 	file_key.objectid = objectid;
 	file_key.offset = offset;
-	file_key.flags = 0;
 	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
 
 	item = btrfs_lookup_csum(trans, root, path, objectid, offset, 1);
-	if (!IS_ERR(item))
+	if (!IS_ERR(item)) {
+		leaf = path->nodes[0];
 		goto found;
+	}
 	ret = PTR_ERR(item);
 	if (ret == -EFBIG) {
 		u32 item_size;
@@ -226,14 +226,15 @@ csum:
 	item = (struct btrfs_csum_item *)((unsigned char *)item +
 					  csum_offset * BTRFS_CRC32_SIZE);
 found:
-	/* FIXME!!!!!!!!!!!! */
-	ret = btrfs_csum_data(root, data, len, &item->csum);
+	csum_result = btrfs_csum_data(root, data, csum_result, len);
+	btrfs_csum_final(csum_result, (char *)&csum_result);
+	write_extent_buffer(leaf, &csum_result, (unsigned long)item,
+			    BTRFS_CRC32_SIZE);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 fail:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	return ret;
-#endif
 }
 
 int btrfs_csum_truncate(struct btrfs_trans_handle *trans,

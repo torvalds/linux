@@ -2031,6 +2031,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 		i = 1;
 		index++;
 		page_cache_get(page0);
+		mark_page_accessed(page0);
 		set_page_extent_mapped(page0);
 		set_page_private(page0, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
 				 len << 2);
@@ -2049,6 +2050,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 			goto fail;
 		}
 		set_page_extent_mapped(p);
+		mark_page_accessed(p);
 		if (i == 0) {
 			eb->first_page = p;
 			set_page_private(p, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
@@ -2099,6 +2101,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 			goto fail;
 		}
 		set_page_extent_mapped(p);
+		mark_page_accessed(p);
 
 		if (i == 0) {
 			eb->first_page = p;
