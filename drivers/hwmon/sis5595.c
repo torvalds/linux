@@ -495,12 +495,19 @@ static const struct attribute_group sis5595_group = {
 	.attrs = sis5595_attributes,
 };
 
-static struct attribute *sis5595_attributes_opt[] = {
+static struct attribute *sis5595_attributes_in4[] = {
 	&sensor_dev_attr_in4_input.dev_attr.attr,
 	&sensor_dev_attr_in4_min.dev_attr.attr,
 	&sensor_dev_attr_in4_max.dev_attr.attr,
 	&sensor_dev_attr_in4_alarm.dev_attr.attr,
+	NULL
+};
 
+static const struct attribute_group sis5595_group_in4 = {
+	.attrs = sis5595_attributes_in4,
+};
+
+static struct attribute *sis5595_attributes_temp1[] = {
 	&dev_attr_temp1_input.attr,
 	&dev_attr_temp1_max.attr,
 	&dev_attr_temp1_max_hyst.attr,
@@ -508,8 +515,8 @@ static struct attribute *sis5595_attributes_opt[] = {
 	NULL
 };
 
-static const struct attribute_group sis5595_group_opt = {
-	.attrs = sis5595_attributes_opt,
+static const struct attribute_group sis5595_group_temp1 = {
+	.attrs = sis5595_attributes_temp1,
 };
  
 /* This is called when the module is loaded */
@@ -564,24 +571,12 @@ static int __devinit sis5595_probe(struct platform_device *pdev)
 	if ((err = sysfs_create_group(&pdev->dev.kobj, &sis5595_group)))
 		goto exit_free;
 	if (data->maxins == 4) {
-		if ((err = device_create_file(&pdev->dev,
-					&sensor_dev_attr_in4_input.dev_attr))
-		 || (err = device_create_file(&pdev->dev,
-					&sensor_dev_attr_in4_min.dev_attr))
-		 || (err = device_create_file(&pdev->dev,
-					&sensor_dev_attr_in4_max.dev_attr))
-		 || (err = device_create_file(&pdev->dev,
-					&sensor_dev_attr_in4_alarm.dev_attr)))
+		if ((err = sysfs_create_group(&pdev->dev.kobj,
+					      &sis5595_group_in4)))
 			goto exit_remove_files;
 	} else {
-		if ((err = device_create_file(&pdev->dev,
-					      &dev_attr_temp1_input))
-		 || (err = device_create_file(&pdev->dev,
-					      &dev_attr_temp1_max))
-		 || (err = device_create_file(&pdev->dev,
-					      &dev_attr_temp1_max_hyst))
-		 || (err = device_create_file(&pdev->dev,
-				&sensor_dev_attr_temp1_alarm.dev_attr)))
+		if ((err = sysfs_create_group(&pdev->dev.kobj,
+					      &sis5595_group_temp1)))
 			goto exit_remove_files;
 	}
 
@@ -595,7 +590,8 @@ static int __devinit sis5595_probe(struct platform_device *pdev)
 
 exit_remove_files:
 	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group);
-	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_opt);
+	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_in4);
+	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_temp1);
 exit_free:
 	kfree(data);
 exit_release:
@@ -610,7 +606,8 @@ static int __devexit sis5595_remove(struct platform_device *pdev)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group);
-	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_opt);
+	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_in4);
+	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_temp1);
 
 	release_region(data->addr, SIS5595_EXTENT);
 	platform_set_drvdata(pdev, NULL);
