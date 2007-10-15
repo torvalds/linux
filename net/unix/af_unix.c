@@ -334,7 +334,7 @@ static void unix_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 	if (unix_writable(sk)) {
 		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-			wake_up_interruptible(sk->sk_sleep);
+			wake_up_interruptible_sync(sk->sk_sleep);
 		sk_wake_async(sk, 2, POLL_OUT);
 	}
 	read_unlock(&sk->sk_callback_lock);
@@ -1639,7 +1639,7 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (!skb)
 		goto out_unlock;
 
-	wake_up_interruptible(&u->peer_wait);
+	wake_up_interruptible_sync(&u->peer_wait);
 
 	if (msg->msg_name)
 		unix_copy_addr(msg, skb->sk);

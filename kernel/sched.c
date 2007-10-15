@@ -1521,6 +1521,12 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 			unsigned long tl = this_load;
 			unsigned long tl_per_task;
 
+			/*
+			 * Attract cache-cold tasks on sync wakeups:
+			 */
+			if (sync && !task_hot(p, rq->clock, this_sd))
+				goto out_set_cpu;
+
 			schedstat_inc(p, se.nr_wakeups_affine_attempts);
 			tl_per_task = cpu_avg_load_per_task(this_cpu);
 
@@ -1598,7 +1604,7 @@ out_activate:
 	 * the waker guarantees that the freshly woken up task is going
 	 * to be considered on this CPU.)
 	 */
-	if (!sync || cpu != this_cpu)
+	if (!sync || rq->curr == rq->idle)
 		check_preempt_curr(rq, p);
 	success = 1;
 
