@@ -431,7 +431,7 @@ ip6t_log_packet(unsigned int pf,
 }
 
 static unsigned int
-ip6t_log_target(struct sk_buff **pskb,
+ip6t_log_target(struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
 		unsigned int hooknum,
@@ -445,8 +445,7 @@ ip6t_log_target(struct sk_buff **pskb,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	ip6t_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
-			loginfo->prefix);
+	ip6t_log_packet(PF_INET6, hooknum, skb, in, out, &li, loginfo->prefix);
 	return XT_CONTINUE;
 }
 

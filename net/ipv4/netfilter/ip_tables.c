@@ -169,7 +169,7 @@ ip_checkentry(const struct ipt_ip *ip)
 }
 
 static unsigned int
-ipt_error(struct sk_buff **pskb,
+ipt_error(struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
@@ -312,7 +312,7 @@ static void trace_packet(struct sk_buff *skb,
 
 /* Returns one of the generic firewall policies, like NF_ACCEPT. */
 unsigned int
-ipt_do_table(struct sk_buff **pskb,
+ipt_do_table(struct sk_buff *skb,
 	     unsigned int hook,
 	     const struct net_device *in,
 	     const struct net_device *out,
@@ -331,8 +331,8 @@ ipt_do_table(struct sk_buff **pskb,
 	struct xt_table_info *private;
 
 	/* Initialization */
-	ip = ip_hdr(*pskb);
-	datalen = (*pskb)->len - ip->ihl * 4;
+	ip = ip_hdr(skb);
+	datalen = skb->len - ip->ihl * 4;
 	indev = in ? in->name : nulldevname;
 	outdev = out ? out->name : nulldevname;
 	/* We handle fragments by dealing with the first fragment as
@@ -359,7 +359,7 @@ ipt_do_table(struct sk_buff **pskb,
 			struct ipt_entry_target *t;
 
 			if (IPT_MATCH_ITERATE(e, do_match,
-					      *pskb, in, out,
+					      skb, in, out,
 					      offset, &hotdrop) != 0)
 				goto no_match;
 
@@ -371,8 +371,8 @@ ipt_do_table(struct sk_buff **pskb,
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
     defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
 			/* The packet is traced: log it */
-			if (unlikely((*pskb)->nf_trace))
-				trace_packet(*pskb, hook, in, out,
+			if (unlikely(skb->nf_trace))
+				trace_packet(skb, hook, in, out,
 					     table->name, private, e);
 #endif
 			/* Standard target? */
@@ -410,7 +410,7 @@ ipt_do_table(struct sk_buff **pskb,
 				((struct ipt_entry *)table_base)->comefrom
 					= 0xeeeeeeec;
 #endif
-				verdict = t->u.kernel.target->target(pskb,
+				verdict = t->u.kernel.target->target(skb,
 								     in, out,
 								     hook,
 								     t->u.kernel.target,
@@ -428,8 +428,8 @@ ipt_do_table(struct sk_buff **pskb,
 					= 0x57acc001;
 #endif
 				/* Target might have changed stuff. */
-				ip = ip_hdr(*pskb);
-				datalen = (*pskb)->len - ip->ihl * 4;
+				ip = ip_hdr(skb);
+				datalen = skb->len - ip->ihl * 4;
 
 				if (verdict == IPT_CONTINUE)
 					e = (void *)e + e->next_offset;

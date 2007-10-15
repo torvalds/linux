@@ -75,17 +75,17 @@ static struct xt_table packet_mangler = {
 /* The work comes in here from netfilter.c. */
 static unsigned int
 ipt_route_hook(unsigned int hook,
-	 struct sk_buff **pskb,
+	 struct sk_buff *skb,
 	 const struct net_device *in,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(pskb, hook, in, out, &packet_mangler);
+	return ipt_do_table(skb, hook, in, out, &packet_mangler);
 }
 
 static unsigned int
 ipt_local_hook(unsigned int hook,
-		   struct sk_buff **pskb,
+		   struct sk_buff *skb,
 		   const struct net_device *in,
 		   const struct net_device *out,
 		   int (*okfn)(struct sk_buff *))
@@ -97,8 +97,8 @@ ipt_local_hook(unsigned int hook,
 	u_int32_t mark;
 
 	/* root is playing with raw sockets. */
-	if ((*pskb)->len < sizeof(struct iphdr)
-	    || ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
+	if (skb->len < sizeof(struct iphdr)
+	    || ip_hdrlen(skb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
 			printk("iptable_mangle: ignoring short SOCK_RAW "
 			       "packet.\n");
@@ -106,22 +106,22 @@ ipt_local_hook(unsigned int hook,
 	}
 
 	/* Save things which could affect route */
-	mark = (*pskb)->mark;
-	iph = ip_hdr(*pskb);
+	mark = skb->mark;
+	iph = ip_hdr(skb);
 	saddr = iph->saddr;
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = ipt_do_table(pskb, hook, in, out, &packet_mangler);
+	ret = ipt_do_table(skb, hook, in, out, &packet_mangler);
 	/* Reroute for ANY change. */
 	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE) {
-		iph = ip_hdr(*pskb);
+		iph = ip_hdr(skb);
 
 		if (iph->saddr != saddr ||
 		    iph->daddr != daddr ||
-		    (*pskb)->mark != mark ||
+		    skb->mark != mark ||
 		    iph->tos != tos)
-			if (ip_route_me_harder(pskb, RTN_UNSPEC))
+			if (ip_route_me_harder(skb, RTN_UNSPEC))
 				ret = NF_DROP;
 	}
 

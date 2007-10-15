@@ -46,12 +46,12 @@ static struct xt_table packet_raw = {
 /* The work comes in here from netfilter.c. */
 static unsigned int
 ip6t_hook(unsigned int hook,
-	 struct sk_buff **pskb,
+	 struct sk_buff *skb,
 	 const struct net_device *in,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(pskb, hook, in, out, &packet_raw);
+	return ip6t_do_table(skb, hook, in, out, &packet_raw);
 }
 
 static struct nf_hook_ops ip6t_ops[] = {

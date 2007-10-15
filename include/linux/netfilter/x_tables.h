@@ -191,7 +191,7 @@ struct xt_target
 	/* Returns verdict. Argument order changed since 2.6.9, as this
 	   must now handle non-linear skbs, using skb_copy_bits and
 	   skb_ip_make_writable. */
-	unsigned int (*target)(struct sk_buff **pskb,
+	unsigned int (*target)(struct sk_buff *skb,
 			       const struct net_device *in,
 			       const struct net_device *out,
 			       unsigned int hooknum,

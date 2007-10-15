@@ -36,7 +36,7 @@ MODULE_PARM_DESC(master_timeout, "timeout for the master connection");
 module_param(ts_algo, charp, 0400);
 MODULE_PARM_DESC(ts_algo, "textsearch algorithm to use (default kmp)");
 
-unsigned int (*nf_nat_amanda_hook)(struct sk_buff **pskb,
+unsigned int (*nf_nat_amanda_hook)(struct sk_buff *skb,
 				   enum ip_conntrack_info ctinfo,
 				   unsigned int matchoff,
 				   unsigned int matchlen,
@@ -79,7 +79,7 @@ static struct {
 	},
 };
 
-static int amanda_help(struct sk_buff **pskb,
+static int amanda_help(struct sk_buff *skb,
 		       unsigned int protoff,
 		       struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo)
@@ -101,25 +101,25 @@ static int amanda_help(struct sk_buff **pskb,
 
 	/* increase the UDP timeout of the master connection as replies from
 	 * Amanda clients to the server can be quite delayed */
-	nf_ct_refresh(ct, *pskb, master_timeout * HZ);
+	nf_ct_refresh(ct, skb, master_timeout * HZ);
 
 	/* No data? */
 	dataoff = protoff + sizeof(struct udphdr);
-	if (dataoff >= (*pskb)->len) {
+	if (dataoff >= skb->len) {
 		if (net_ratelimit())
-			printk("amanda_help: skblen = %u\n", (*pskb)->len);
+			printk("amanda_help: skblen = %u\n", skb->len);
 		return NF_ACCEPT;
 	}
 
 	memset(&ts, 0, sizeof(ts));
-	start = skb_find_text(*pskb, dataoff, (*pskb)->len,
+	start = skb_find_text(skb, dataoff, skb->len,
 			      search[SEARCH_CONNECT].ts, &ts);
 	if (start == UINT_MAX)
 		goto out;
 	start += dataoff + search[SEARCH_CONNECT].len;
 
 	memset(&ts, 0, sizeof(ts));
-	stop = skb_find_text(*pskb, start, (*pskb)->len,
+	stop = skb_find_text(skb, start, skb->len,
 			     search[SEARCH_NEWLINE].ts, &ts);
 	if (stop == UINT_MAX)
 		goto out;
@@ -127,13 +127,13 @@ static int amanda_help(struct sk_buff **pskb,
 
 	for (i = SEARCH_DATA; i <= SEARCH_INDEX; i++) {
 		memset(&ts, 0, sizeof(ts));
-		off = skb_find_text(*pskb, start, stop, search[i].ts, &ts);
+		off = skb_find_text(skb, start, stop, search[i].ts, &ts);
 		if (off == UINT_MAX)
 			continue;
 		off += start + search[i].len;
 
 		len = min_t(unsigned int, sizeof(pbuf) - 1, stop - off);
-		if (skb_copy_bits(*pskb, off, pbuf, len))
+		if (skb_copy_bits(skb, off, pbuf, len))
 			break;
 		pbuf[len] = '\0';
 
@@ -153,7 +153,7 @@ static int amanda_help(struct sk_buff **pskb,
 
 		nf_nat_amanda = rcu_dereference(nf_nat_amanda_hook);
 		if (nf_nat_amanda && ct->status & IPS_NAT_MASK)
-			ret = nf_nat_amanda(pskb, ctinfo, off - dataoff,
+			ret = nf_nat_amanda(skb, ctinfo, off - dataoff,
 					    len, exp);
 		else if (nf_ct_expect_related(exp) != 0)
 			ret = NF_DROP;

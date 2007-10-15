@@ -256,14 +256,14 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 
 	if (verdict == NF_ACCEPT) {
 		afinfo = nf_get_afinfo(info->pf);
-		if (!afinfo || afinfo->reroute(&skb, info) < 0)
+		if (!afinfo || afinfo->reroute(skb, info) < 0)
 			verdict = NF_DROP;
 	}
 
 	if (verdict == NF_ACCEPT) {
 	next_hook:
 		verdict = nf_iterate(&nf_hooks[info->pf][info->hook],
-				     &skb, info->hook,
+				     skb, info->hook,
 				     info->indev, info->outdev, &elem,
 				     info->okfn, INT_MIN);
 	}

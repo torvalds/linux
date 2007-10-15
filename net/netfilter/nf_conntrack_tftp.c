@@ -29,12 +29,12 @@ static int ports_c;
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "Port numbers of TFTP servers");
 
-unsigned int (*nf_nat_tftp_hook)(struct sk_buff **pskb,
+unsigned int (*nf_nat_tftp_hook)(struct sk_buff *skb,
 				 enum ip_conntrack_info ctinfo,
 				 struct nf_conntrack_expect *exp) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_tftp_hook);
 
-static int tftp_help(struct sk_buff **pskb,
+static int tftp_help(struct sk_buff *skb,
 		     unsigned int protoff,
 		     struct nf_conn *ct,
 		     enum ip_conntrack_info ctinfo)
@@ -46,7 +46,7 @@ static int tftp_help(struct sk_buff **pskb,
 	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	typeof(nf_nat_tftp_hook) nf_nat_tftp;
 
-	tfh = skb_header_pointer(*pskb, protoff + sizeof(struct udphdr),
+	tfh = skb_header_pointer(skb, protoff + sizeof(struct udphdr),
 				 sizeof(_tftph), &_tftph);
 	if (tfh == NULL)
 		return NF_ACCEPT;
@@ -70,7 +70,7 @@ static int tftp_help(struct sk_buff **pskb,
 
 		nf_nat_tftp = rcu_dereference(nf_nat_tftp_hook);
 		if (nf_nat_tftp && ct->status & IPS_NAT_MASK)
-			ret = nf_nat_tftp(pskb, ctinfo, exp);
+			ret = nf_nat_tftp(skb, ctinfo, exp);
 		else if (nf_ct_expect_related(exp) != 0)
 			ret = NF_DROP;
 		nf_ct_expect_put(exp);

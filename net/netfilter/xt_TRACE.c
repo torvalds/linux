@@ -10,14 +10,14 @@ MODULE_ALIAS("ipt_TRACE");
 MODULE_ALIAS("ip6t_TRACE");
 
 static unsigned int
-target(struct sk_buff **pskb,
+target(struct sk_buff *skb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
        const struct xt_target *target,
        const void *targinfo)
 {
-	(*pskb)->nf_trace = 1;
+	skb->nf_trace = 1;
 	return XT_CONTINUE;
 }
 

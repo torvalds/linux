@@ -6,7 +6,7 @@
 
 extern int nf_nat_rule_init(void) __init;
 extern void nf_nat_rule_cleanup(void);
-extern int nf_nat_rule_find(struct sk_buff **pskb,
+extern int nf_nat_rule_find(struct sk_buff *skb,
 			    unsigned int hooknum,
 			    const struct net_device *in,
 			    const struct net_device *out,

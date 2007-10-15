@@ -145,7 +145,7 @@ static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 }
 
 static unsigned int ipv6_confirm(unsigned int hooknum,
-				 struct sk_buff **pskb,
+				 struct sk_buff *skb,
 				 const struct net_device *in,
 				 const struct net_device *out,
 				 int (*okfn)(struct sk_buff *))
@@ -155,12 +155,12 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 	struct nf_conntrack_helper *helper;
 	enum ip_conntrack_info ctinfo;
 	unsigned int ret, protoff;
-	unsigned int extoff = (u8 *)(ipv6_hdr(*pskb) + 1) - (*pskb)->data;
-	unsigned char pnum = ipv6_hdr(*pskb)->nexthdr;
+	unsigned int extoff = (u8 *)(ipv6_hdr(skb) + 1) - skb->data;
+	unsigned char pnum = ipv6_hdr(skb)->nexthdr;
 
 
 	/* This is where we call the helper: as the packet goes out. */
-	ct = nf_ct_get(*pskb, &ctinfo);
+	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY)
 		goto out;
 
@@ -172,23 +172,23 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 	if (!helper)
 		goto out;
 
-	protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
-					 (*pskb)->len - extoff);
-	if (protoff > (*pskb)->len || pnum == NEXTHDR_FRAGMENT) {
+	protoff = nf_ct_ipv6_skip_exthdr(skb, extoff, &pnum,
+					 skb->len - extoff);
+	if (protoff > skb->len || pnum == NEXTHDR_FRAGMENT) {
 		pr_debug("proto header not found\n");
 		return NF_ACCEPT;
 	}
 
-	ret = helper->help(pskb, protoff, ct, ctinfo);
+	ret = helper->help(skb, protoff, ct, ctinfo);
 	if (ret != NF_ACCEPT)
 		return ret;
 out:
 	/* We've seen it coming out the other side: confirm it */
-	return nf_conntrack_confirm(pskb);
+	return nf_conntrack_confirm(skb);
 }
 
 static unsigned int ipv6_defrag(unsigned int hooknum,
-				struct sk_buff **pskb,
+				struct sk_buff *skb,
 				const struct net_device *in,
 				const struct net_device *out,
 				int (*okfn)(struct sk_buff *))
@@ -196,17 +196,17 @@ static unsigned int ipv6_defrag(unsigned int hooknum,
 	struct sk_buff *reasm;
 
 	/* Previously seen (loopback)?  */
-	if ((*pskb)->nfct)
+	if (skb->nfct)
 		return NF_ACCEPT;
 
-	reasm = nf_ct_frag6_gather(*pskb);
+	reasm = nf_ct_frag6_gather(skb);
 
 	/* queued */
 	if (reasm == NULL)
 		return NF_STOLEN;
 
 	/* error occured or not fragmented */
-	if (reasm == *pskb)
+	if (reasm == skb)
 		return NF_ACCEPT;
 
 	nf_ct_frag6_output(hooknum, reasm, (struct net_device *)in,
@@ -216,12 +216,12 @@ static unsigned int ipv6_defrag(unsigned int hooknum,
 }
 
 static unsigned int ipv6_conntrack_in(unsigned int hooknum,
-				      struct sk_buff **pskb,
+				      struct sk_buff *skb,
 				      const struct net_device *in,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
-	struct sk_buff *reasm = (*pskb)->nfct_reasm;
+	struct sk_buff *reasm = skb->nfct_reasm;
 
 	/* This packet is fragmented and has reassembled packet. */
 	if (reasm) {
@@ -229,32 +229,32 @@ static unsigned int ipv6_conntrack_in(unsigned int hooknum,
 		if (!reasm->nfct) {
 			unsigned int ret;
 
-			ret = nf_conntrack_in(PF_INET6, hooknum, &reasm);
+			ret = nf_conntrack_in(PF_INET6, hooknum, reasm);
 			if (ret != NF_ACCEPT)
 				return ret;
 		}
 		nf_conntrack_get(reasm->nfct);
-		(*pskb)->nfct = reasm->nfct;
-		(*pskb)->nfctinfo = reasm->nfctinfo;
+		skb->nfct = reasm->nfct;
+		skb->nfctinfo = reasm->nfctinfo;
 		return NF_ACCEPT;
 	}
 
-	return nf_conntrack_in(PF_INET6, hooknum, pskb);
+	return nf_conntrack_in(PF_INET6, hooknum, skb);
 }
 
 static unsigned int ipv6_conntrack_local(unsigned int hooknum,
-					 struct sk_buff **pskb,
+					 struct sk_buff *skb,
 					 const struct net_device *in,
 					 const struct net_device *out,
 					 int (*okfn)(struct sk_buff *))
 {
 	/* root is playing with raw sockets. */
-	if ((*pskb)->len < sizeof(struct ipv6hdr)) {
+	if (skb->len < sizeof(struct ipv6hdr)) {
 		if (net_ratelimit())
 			printk("ipv6_conntrack_local: packet too short\n");
 		return NF_ACCEPT;
 	}
-	return ipv6_conntrack_in(hooknum, pskb, in, out, okfn);
+	return ipv6_conntrack_in(hooknum, skb, in, out, okfn);
 }
 
 static struct nf_hook_ops ipv6_conntrack_ops[] = {

@@ -28,7 +28,7 @@ MODULE_ALIAS("ip6t_SECMARK");
 
 static u8 mode;
 
-static unsigned int target(struct sk_buff **pskb, const struct net_device *in,
+static unsigned int target(struct sk_buff *skb, const struct net_device *in,
 			   const struct net_device *out, unsigned int hooknum,
 			   const struct xt_target *target,
 			   const void *targinfo)
@@ -47,7 +47,7 @@ static unsigned int target(struct sk_buff **pskb, const struct net_device *in,
 		BUG();
 	}
 
-	(*pskb)->secmark = secmark;
+	skb->secmark = secmark;
 	return XT_CONTINUE;
 }
 

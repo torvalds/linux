@@ -28,7 +28,7 @@ MODULE_ALIAS("ip_nat_ftp");
 /* FIXME: Time out? --RR */
 
 static int
-mangle_rfc959_packet(struct sk_buff **pskb,
+mangle_rfc959_packet(struct sk_buff *skb,
 		     __be32 newip,
 		     u_int16_t port,
 		     unsigned int matchoff,
@@ -43,13 +43,13 @@ mangle_rfc959_packet(struct sk_buff **pskb,
 
 	pr_debug("calling nf_nat_mangle_tcp_packet\n");
 
-	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
+	return nf_nat_mangle_tcp_packet(skb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
 
 /* |1|132.235.1.2|6275| */
 static int
-mangle_eprt_packet(struct sk_buff **pskb,
+mangle_eprt_packet(struct sk_buff *skb,
 		   __be32 newip,
 		   u_int16_t port,
 		   unsigned int matchoff,
@@ -63,13 +63,13 @@ mangle_eprt_packet(struct sk_buff **pskb,
 
 	pr_debug("calling nf_nat_mangle_tcp_packet\n");
 
-	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
+	return nf_nat_mangle_tcp_packet(skb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
 
 /* |1|132.235.1.2|6275| */
 static int
-mangle_epsv_packet(struct sk_buff **pskb,
+mangle_epsv_packet(struct sk_buff *skb,
 		   __be32 newip,
 		   u_int16_t port,
 		   unsigned int matchoff,
@@ -83,11 +83,11 @@ mangle_epsv_packet(struct sk_buff **pskb,
 
 	pr_debug("calling nf_nat_mangle_tcp_packet\n");
 
-	return nf_nat_mangle_tcp_packet(pskb, ct, ctinfo, matchoff,
+	return nf_nat_mangle_tcp_packet(skb, ct, ctinfo, matchoff,
 					matchlen, buffer, strlen(buffer));
 }
 
-static int (*mangle[])(struct sk_buff **, __be32, u_int16_t,
+static int (*mangle[])(struct sk_buff *, __be32, u_int16_t,
 		       unsigned int, unsigned int, struct nf_conn *,
 		       enum ip_conntrack_info)
 = {
@@ -99,7 +99,7 @@ static int (*mangle[])(struct sk_buff **, __be32, u_int16_t,
 
 /* So, this packet has hit the connection tracking matching code.
    Mangle it, and change the expectation to match the new version. */
-static unsigned int nf_nat_ftp(struct sk_buff **pskb,
+static unsigned int nf_nat_ftp(struct sk_buff *skb,
 			       enum ip_conntrack_info ctinfo,
 			       enum nf_ct_ftp_type type,
 			       unsigned int matchoff,
@@ -132,7 +132,7 @@ static unsigned int nf_nat_ftp(struct sk_buff **pskb,
 	if (port == 0)
 		return NF_DROP;
 
-	if (!mangle[type](pskb, newip, port, matchoff, matchlen, ct, ctinfo)) {
+	if (!mangle[type](skb, newip, port, matchoff, matchlen, ct, ctinfo)) {
 		nf_ct_unexpect_related(exp);
 		return NF_DROP;
 	}

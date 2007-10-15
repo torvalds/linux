@@ -68,17 +68,17 @@ static struct xt_table packet_mangler = {
 /* The work comes in here from netfilter.c. */
 static unsigned int
 ip6t_route_hook(unsigned int hook,
-	 struct sk_buff **pskb,
+	 struct sk_buff *skb,
 	 const struct net_device *in,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(pskb, hook, in, out, &packet_mangler);
+	return ip6t_do_table(skb, hook, in, out, &packet_mangler);
 }
 
 static unsigned int
 ip6t_local_hook(unsigned int hook,
-		   struct sk_buff **pskb,
+		   struct sk_buff *skb,
 		   const struct net_device *in,
 		   const struct net_device *out,
 		   int (*okfn)(struct sk_buff *))
@@ -91,8 +91,8 @@ ip6t_local_hook(unsigned int hook,
 
 #if 0
 	/* root is playing with raw sockets. */
-	if ((*pskb)->len < sizeof(struct iphdr)
-	    || ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
+	if (skb->len < sizeof(struct iphdr)
+	    || ip_hdrlen(skb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
 			printk("ip6t_hook: happy cracking.\n");
 		return NF_ACCEPT;
@@ -100,22 +100,22 @@ ip6t_local_hook(unsigned int hook,
 #endif
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority,  */
-	memcpy(&saddr, &ipv6_hdr(*pskb)->saddr, sizeof(saddr));
-	memcpy(&daddr, &ipv6_hdr(*pskb)->daddr, sizeof(daddr));
-	mark = (*pskb)->mark;
-	hop_limit = ipv6_hdr(*pskb)->hop_limit;
+	memcpy(&saddr, &ipv6_hdr(skb)->saddr, sizeof(saddr));
+	memcpy(&daddr, &ipv6_hdr(skb)->daddr, sizeof(daddr));
+	mark = skb->mark;
+	hop_limit = ipv6_hdr(skb)->hop_limit;
 
 	/* flowlabel and prio (includes version, which shouldn't change either */
-	flowlabel = *((u_int32_t *)ipv6_hdr(*pskb));
+	flowlabel = *((u_int32_t *)ipv6_hdr(skb));
 
-	ret = ip6t_do_table(pskb, hook, in, out, &packet_mangler);
+	ret = ip6t_do_table(skb, hook, in, out, &packet_mangler);
 
 	if (ret != NF_DROP && ret != NF_STOLEN
-		&& (memcmp(&ipv6_hdr(*pskb)->saddr, &saddr, sizeof(saddr))
-		    || memcmp(&ipv6_hdr(*pskb)->daddr, &daddr, sizeof(daddr))
-		    || (*pskb)->mark != mark
-		    || ipv6_hdr(*pskb)->hop_limit != hop_limit))
-		return ip6_route_me_harder(*pskb) == 0 ? ret : NF_DROP;
+		&& (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr))
+		    || memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr))
+		    || skb->mark != mark
+		    || ipv6_hdr(skb)->hop_limit != hop_limit))
+		return ip6_route_me_harder(skb) == 0 ? ret : NF_DROP;
 
 	return ret;
 }

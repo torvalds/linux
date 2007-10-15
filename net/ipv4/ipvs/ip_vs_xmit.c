@@ -264,7 +264,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	skb->dst = &rt->u.dst;
 
 	/* mangle the packet */
-	if (pp->dnat_handler && !pp->dnat_handler(&skb, pp, cp))
+	if (pp->dnat_handler && !pp->dnat_handler(skb, pp, cp))
 		goto tx_error;
 	ip_hdr(skb)->daddr = cp->daddr;
 	ip_send_check(ip_hdr(skb));

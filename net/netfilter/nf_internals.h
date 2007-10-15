@@ -14,7 +14,7 @@
 
 /* core.c */
 extern unsigned int nf_iterate(struct list_head *head,
-				struct sk_buff **skb,
+				struct sk_buff *skb,
 				int hook,
 				const struct net_device *indev,
 				const struct net_device *outdev,

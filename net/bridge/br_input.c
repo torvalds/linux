@@ -149,7 +149,7 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 	case BR_STATE_FORWARDING:
 
 		if (br_should_route_hook) {
-			if (br_should_route_hook(&skb))
+			if (br_should_route_hook(skb))
 				return skb;
 			dest = eth_hdr(skb)->h_dest;
 		}

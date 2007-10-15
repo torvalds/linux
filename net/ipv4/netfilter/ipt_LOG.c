@@ -418,7 +418,7 @@ ipt_log_packet(unsigned int pf,
 }
 
 static unsigned int
-ipt_log_target(struct sk_buff **pskb,
+ipt_log_target(struct sk_buff *skb,
 	       const struct net_device *in,
 	       const struct net_device *out,
 	       unsigned int hooknum,
@@ -432,7 +432,7 @@ ipt_log_target(struct sk_buff **pskb,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	ipt_log_packet(PF_INET, hooknum, *pskb, in, out, &li,
+	ipt_log_packet(PF_INET, hooknum, skb, in, out, &li,
 		       loginfo->prefix);
 	return XT_CONTINUE;
 }

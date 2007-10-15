@@ -205,20 +205,19 @@ static unsigned int ingress_drop(struct Qdisc *sch)
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
 static unsigned int
-ing_hook(unsigned int hook, struct sk_buff **pskb,
+ing_hook(unsigned int hook, struct sk_buff *skb,
 			     const struct net_device *indev,
 			     const struct net_device *outdev,
 			     int (*okfn)(struct sk_buff *))
 {
 
 	struct Qdisc *q;
-	struct sk_buff *skb = *pskb;
 	struct net_device *dev = skb->dev;
 	int fwres=NF_ACCEPT;
 
 	DPRINTK("ing_hook: skb %s dev=%s len=%u\n",
 		skb->sk ? "(owned)" : "(unowned)",
-		skb->dev ? (*pskb)->dev->name : "(no dev)",
+		skb->dev ? skb->dev->name : "(no dev)",
 		skb->len);
 
 	if (dev->qdisc_ingress) {

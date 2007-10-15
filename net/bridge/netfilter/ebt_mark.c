@@ -17,7 +17,7 @@
 #include <linux/netfilter_bridge/ebt_mark_t.h>
 #include <linux/module.h>
 
-static int ebt_target_mark(struct sk_buff **pskb, unsigned int hooknr,
+static int ebt_target_mark(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
@@ -25,13 +25,13 @@ static int ebt_target_mark(struct sk_buff **pskb, unsigned int hooknr,
 	int action = info->target & -16;
 
 	if (action == MARK_SET_VALUE)
-		(*pskb)->mark = info->mark;
+		skb->mark = info->mark;
 	else if (action == MARK_OR_VALUE)
-		(*pskb)->mark |= info->mark;
+		skb->mark |= info->mark;
 	else if (action == MARK_AND_VALUE)
-		(*pskb)->mark &= info->mark;
+		skb->mark &= info->mark;
 	else
-		(*pskb)->mark ^= info->mark;
+		skb->mark ^= info->mark;
 
 	return info->target | ~EBT_VERDICT_BITS;
 }

@@ -21,11 +21,11 @@ enum sip_header_pos {
 	POS_SDP_HEADER,
 };
 
-extern unsigned int (*nf_nat_sip_hook)(struct sk_buff **pskb,
+extern unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
 				       enum ip_conntrack_info ctinfo,
 				       struct nf_conn *ct,
 				       const char **dptr);
-extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff **pskb,
+extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 				       enum ip_conntrack_info ctinfo,
 				       struct nf_conntrack_expect *exp,
 				       const char *dptr);
