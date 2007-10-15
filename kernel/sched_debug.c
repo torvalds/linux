@@ -231,45 +231,6 @@ static void sysrq_sched_debug_show(void)
 	sched_debug_show(NULL, NULL);
 }
 
-#ifdef CONFIG_FAIR_USER_SCHED
-
-static DEFINE_MUTEX(root_user_share_mutex);
-
-static int
-root_user_share_read_proc(char *page, char **start, off_t off, int count,
-				 int *eof, void *data)
-{
-	return sprintf(page, "%d\n", init_task_group_load);
-}
-
-static int
-root_user_share_write_proc(struct file *file, const char __user *buffer,
-				 unsigned long count, void *data)
-{
-	unsigned long shares;
-	char kbuf[sizeof(unsigned long)+1];
-	int rc = 0;
-
-	if (copy_from_user(kbuf, buffer, sizeof(kbuf)))
-		return -EFAULT;
-
-	shares = simple_strtoul(kbuf, NULL, 0);
-
-	if (!shares)
-		shares = NICE_0_LOAD;
-
-	mutex_lock(&root_user_share_mutex);
-
-	init_task_group_load = shares;
-	rc = sched_group_set_shares(&init_task_group, shares);
-
-	mutex_unlock(&root_user_share_mutex);
-
-	return (rc < 0 ? rc : count);
-}
-
-#endif	/* CONFIG_FAIR_USER_SCHED */
-
 static int sched_debug_open(struct inode *inode, struct file *filp)
 {
 	return single_open(filp, sched_debug_show, NULL);
@@ -291,15 +252,6 @@ static int __init init_sched_debug_procfs(void)
 		return -ENOMEM;
 
 	pe->proc_fops = &sched_debug_fops;
-
-#ifdef CONFIG_FAIR_USER_SCHED
-	pe = create_proc_entry("root_user_cpu_share", 0644, NULL);
-	if (!pe)
-		return -ENOMEM;
-
-	pe->read_proc = root_user_share_read_proc;
-	pe->write_proc = root_user_share_write_proc;
-#endif
 
 	return 0;
 }

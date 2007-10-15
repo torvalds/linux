@@ -162,6 +162,8 @@ struct task_group {
 	/* runqueue "owned" by this group on each cpu */
 	struct cfs_rq **cfs_rq;
 	unsigned long shares;
+	/* spinlock to serialize modification to shares */
+	spinlock_t lock;
 };
 
 /* Default task group's sched entity on each cpu */
@@ -6533,6 +6535,7 @@ void __init sched_init(void)
 			se->parent = NULL;
 		}
 		init_task_group.shares = init_task_group_load;
+		spin_lock_init(&init_task_group.lock);
 #endif
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
@@ -6777,6 +6780,7 @@ struct task_group *sched_create_group(void)
 	}
 
 	tg->shares = NICE_0_LOAD;
+	spin_lock_init(&tg->lock);
 
 	return tg;
 
@@ -6897,8 +6901,9 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
 
+	spin_lock(&tg->lock);
 	if (tg->shares == shares)
-		return 0;
+		goto done;
 
 	/* return -EINVAL if the new value is not sane */
 
@@ -6906,7 +6911,14 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	for_each_possible_cpu(i)
 		set_se_shares(tg->se[i], shares);
 
+done:
+	spin_unlock(&tg->lock);
 	return 0;
+}
+
+unsigned long sched_group_shares(struct task_group *tg)
+{
+	return tg->shares;
 }
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
