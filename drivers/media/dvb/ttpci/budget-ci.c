@@ -1780,11 +1780,11 @@ static void frontend_init(struct budget_ci *budget_ci)
 		 * connected to the SAA7146 GPIO, GPIO2, Pin 142
 		 */
 		/* Reset Demodulator */
-		saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
+		saa7146_setgpio(budget_ci->budget.dev, 2, SAA7146_GPIO_OUTLO);
 		/* Wait for everything to die */
 		msleep(50);
 		/* Pull it up out of Reset state */
-		saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
+		saa7146_setgpio(budget_ci->budget.dev, 2, SAA7146_GPIO_OUTHI);
 		/* Wait for PLL to stabilize */
 		msleep(250);
 		/*
