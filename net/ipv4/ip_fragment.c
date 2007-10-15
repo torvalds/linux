@@ -132,11 +132,13 @@ static __inline__ void frag_kfree_skb(struct sk_buff *skb, int *work)
 	kfree_skb(skb);
 }
 
-static __inline__ void frag_free_queue(struct ipq *qp, int *work)
+static __inline__ void ip4_frag_free(struct inet_frag_queue *q)
 {
-	if (work)
-		*work -= sizeof(struct ipq);
-	atomic_sub(sizeof(struct ipq), &ip4_frags.mem);
+	struct ipq *qp;
+
+	qp = container_of(q, struct ipq, q);
+	if (qp->peer)
+		inet_putpeer(qp->peer);
 	kfree(qp);
 }
 
@@ -153,34 +155,10 @@ static __inline__ struct ipq *frag_alloc_queue(void)
 
 /* Destruction primitives. */
 
-/* Complete destruction of ipq. */
-static void ip_frag_destroy(struct ipq *qp, int *work)
-{
-	struct sk_buff *fp;
-
-	BUG_TRAP(qp->q.last_in&COMPLETE);
-	BUG_TRAP(del_timer(&qp->q.timer) == 0);
-
-	if (qp->peer)
-		inet_putpeer(qp->peer);
-
-	/* Release all fragment data. */
-	fp = qp->q.fragments;
-	while (fp) {
-		struct sk_buff *xp = fp->next;
-
-		frag_kfree_skb(fp, work);
-		fp = xp;
-	}
-
-	/* Finally, release the queue descriptor itself. */
-	frag_free_queue(qp, work);
-}
-
 static __inline__ void ipq_put(struct ipq *ipq, int *work)
 {
 	if (atomic_dec_and_test(&ipq->q.refcnt))
-		ip_frag_destroy(ipq, work);
+		inet_frag_destroy(&ipq->q, &ip4_frags, work);
 }
 
 /* Kill ipq entry. It is not destroyed immediately,
@@ -721,6 +699,9 @@ void __init ipfrag_init(void)
 {
 	ip4_frags.ctl = &ip4_frags_ctl;
 	ip4_frags.hashfn = ip4_hashfn;
+	ip4_frags.destructor = ip4_frag_free;
+	ip4_frags.skb_free = NULL;
+	ip4_frags.qsize = sizeof(struct ipq);
 	inet_frags_init(&ip4_frags);
 }
 

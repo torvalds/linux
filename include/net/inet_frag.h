@@ -33,16 +33,21 @@ struct inet_frags {
 	rwlock_t		lock;
 	u32			rnd;
 	int			nqueues;
+	int			qsize;
 	atomic_t		mem;
 	struct timer_list	secret_timer;
 	struct inet_frags_ctl	*ctl;
 
 	unsigned int		(*hashfn)(struct inet_frag_queue *);
+	void			(*destructor)(struct inet_frag_queue *);
+	void			(*skb_free)(struct sk_buff *);
 };
 
 void inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
+void inet_frag_destroy(struct inet_frag_queue *q,
+				struct inet_frags *f, int *work);
 
 #endif

@@ -17,6 +17,8 @@
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/random.h>
+#include <linux/skbuff.h>
+#include <linux/rtnetlink.h>
 
 #include <net/inet_frag.h>
 
@@ -100,3 +102,41 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 }
 
 EXPORT_SYMBOL(inet_frag_kill);
+
+static inline void frag_kfree_skb(struct inet_frags *f, struct sk_buff *skb,
+						int *work)
+{
+	if (work)
+		*work -= skb->truesize;
+
+	atomic_sub(skb->truesize, &f->mem);
+	if (f->skb_free)
+		f->skb_free(skb);
+	kfree_skb(skb);
+}
+
+void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
+					int *work)
+{
+	struct sk_buff *fp;
+
+	BUG_TRAP(q->last_in & COMPLETE);
+	BUG_TRAP(del_timer(&q->timer) == 0);
+
+	/* Release all fragment data. */
+	fp = q->fragments;
+	while (fp) {
+		struct sk_buff *xp = fp->next;
+
+		frag_kfree_skb(f, fp, work);
+		fp = xp;
+	}
+
+	if (work)
+		*work -= f->qsize;
+	atomic_sub(f->qsize, &f->mem);
+
+	f->destructor(q);
+
+}
+EXPORT_SYMBOL(inet_frag_destroy);

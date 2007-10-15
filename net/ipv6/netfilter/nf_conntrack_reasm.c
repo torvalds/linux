@@ -114,25 +114,25 @@ static unsigned int nf_hashfn(struct inet_frag_queue *q)
 	return ip6qhashfn(nq->id, &nq->saddr, &nq->daddr);
 }
 
+static void nf_skb_free(struct sk_buff *skb)
+{
+	if (NFCT_FRAG6_CB(skb)->orig)
+		kfree_skb(NFCT_FRAG6_CB(skb)->orig);
+}
+
 /* Memory Tracking Functions. */
 static inline void frag_kfree_skb(struct sk_buff *skb, unsigned int *work)
 {
 	if (work)
 		*work -= skb->truesize;
 	atomic_sub(skb->truesize, &nf_frags.mem);
-	if (NFCT_FRAG6_CB(skb)->orig)
-		kfree_skb(NFCT_FRAG6_CB(skb)->orig);
-
+	nf_skb_free(skb);
 	kfree_skb(skb);
 }
 
-static inline void frag_free_queue(struct nf_ct_frag6_queue *fq,
-				   unsigned int *work)
+static void nf_frag_free(struct inet_frag_queue *q)
 {
-	if (work)
-		*work -= sizeof(struct nf_ct_frag6_queue);
-	atomic_sub(sizeof(struct nf_ct_frag6_queue), &nf_frags.mem);
-	kfree(fq);
+	kfree(container_of(q, struct nf_ct_frag6_queue, q));
 }
 
 static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
@@ -147,31 +147,10 @@ static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
 
 /* Destruction primitives. */
 
-/* Complete destruction of fq. */
-static void nf_ct_frag6_destroy(struct nf_ct_frag6_queue *fq,
-				unsigned int *work)
-{
-	struct sk_buff *fp;
-
-	BUG_TRAP(fq->q.last_in&COMPLETE);
-	BUG_TRAP(del_timer(&fq->q.timer) == 0);
-
-	/* Release all fragment data. */
-	fp = fq->q.fragments;
-	while (fp) {
-		struct sk_buff *xp = fp->next;
-
-		frag_kfree_skb(fp, work);
-		fp = xp;
-	}
-
-	frag_free_queue(fq, work);
-}
-
 static __inline__ void fq_put(struct nf_ct_frag6_queue *fq, unsigned int *work)
 {
 	if (atomic_dec_and_test(&fq->q.refcnt))
-		nf_ct_frag6_destroy(fq, work);
+		inet_frag_destroy(&fq->q, &nf_frags, work);
 }
 
 /* Kill fq entry. It is not destroyed immediately,
@@ -799,6 +778,9 @@ int nf_ct_frag6_init(void)
 {
 	nf_frags.ctl = &nf_frags_ctl;
 	nf_frags.hashfn = nf_hashfn;
+	nf_frags.destructor = nf_frag_free;
+	nf_frags.skb_free = nf_skb_free;
+	nf_frags.qsize = sizeof(struct nf_ct_frag6_queue);
 	inet_frags_init(&nf_frags);
 
 	return 0;

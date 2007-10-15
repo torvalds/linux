@@ -152,12 +152,9 @@ static inline void frag_kfree_skb(struct sk_buff *skb, int *work)
 	kfree_skb(skb);
 }
 
-static inline void frag_free_queue(struct frag_queue *fq, int *work)
+static void ip6_frag_free(struct inet_frag_queue *fq)
 {
-	if (work)
-		*work -= sizeof(struct frag_queue);
-	atomic_sub(sizeof(struct frag_queue), &ip6_frags.mem);
-	kfree(fq);
+	kfree(container_of(fq, struct frag_queue, q));
 }
 
 static inline struct frag_queue *frag_alloc_queue(void)
@@ -172,30 +169,10 @@ static inline struct frag_queue *frag_alloc_queue(void)
 
 /* Destruction primitives. */
 
-/* Complete destruction of fq. */
-static void ip6_frag_destroy(struct frag_queue *fq, int *work)
-{
-	struct sk_buff *fp;
-
-	BUG_TRAP(fq->q.last_in&COMPLETE);
-	BUG_TRAP(del_timer(&fq->q.timer) == 0);
-
-	/* Release all fragment data. */
-	fp = fq->q.fragments;
-	while (fp) {
-		struct sk_buff *xp = fp->next;
-
-		frag_kfree_skb(fp, work);
-		fp = xp;
-	}
-
-	frag_free_queue(fq, work);
-}
-
 static __inline__ void fq_put(struct frag_queue *fq, int *work)
 {
 	if (atomic_dec_and_test(&fq->q.refcnt))
-		ip6_frag_destroy(fq, work);
+		inet_frag_destroy(&fq->q, &ip6_frags, work);
 }
 
 /* Kill fq entry. It is not destroyed immediately,
@@ -744,5 +721,8 @@ void __init ipv6_frag_init(void)
 
 	ip6_frags.ctl = &ip6_frags_ctl;
 	ip6_frags.hashfn = ip6_hashfn;
+	ip6_frags.destructor = ip6_frag_free;
+	ip6_frags.skb_free = NULL;
+	ip6_frags.qsize = sizeof(struct frag_queue);
 	inet_frags_init(&ip6_frags);
 }
