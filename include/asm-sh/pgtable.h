@@ -399,7 +399,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 #define	pmd_bad(x)	(pmd_val(x) & ~PAGE_MASK)
 
 #define pages_to_mb(x)	((x) >> (20-PAGE_SHIFT))
-#define pte_page(x)	phys_to_page(pte_val(x)&PTE_PHYS_MASK)
+#define pte_page(x)	pfn_to_page(pte_pfn(x))
 
 /*
  * The following only work if pte_present() is true.
