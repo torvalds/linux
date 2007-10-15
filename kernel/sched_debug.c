@@ -260,6 +260,7 @@ __initcall(init_sched_debug_procfs);
 
 void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 {
+	unsigned long nr_switches;
 	unsigned long flags;
 	int num_threads = 1;
 
@@ -273,14 +274,20 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	SEQ_printf(m, "%s (%d, #threads: %d)\n", p->comm, p->pid, num_threads);
 	SEQ_printf(m,
 		"---------------------------------------------------------\n");
+#define __P(F) \
+	SEQ_printf(m, "%-35s:%21Ld\n", #F, (long long)F)
 #define P(F) \
 	SEQ_printf(m, "%-35s:%21Ld\n", #F, (long long)p->F)
+#define __PN(F) \
+	SEQ_printf(m, "%-35s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)F))
 #define PN(F) \
 	SEQ_printf(m, "%-35s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
 
 	PN(se.exec_start);
 	PN(se.vruntime);
 	PN(se.sum_exec_runtime);
+
+	nr_switches = p->nvcsw + p->nivcsw;
 
 #ifdef CONFIG_SCHEDSTATS
 	PN(se.wait_start);
@@ -292,14 +299,55 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	PN(se.slice_max);
 	PN(se.wait_max);
 	P(sched_info.bkl_count);
+	P(se.nr_migrations);
+	P(se.nr_migrations_cold);
+	P(se.nr_failed_migrations_affine);
+	P(se.nr_failed_migrations_running);
+	P(se.nr_failed_migrations_hot);
+	P(se.nr_forced_migrations);
+	P(se.nr_forced2_migrations);
+	P(se.nr_wakeups);
+	P(se.nr_wakeups_sync);
+	P(se.nr_wakeups_migrate);
+	P(se.nr_wakeups_local);
+	P(se.nr_wakeups_remote);
+	P(se.nr_wakeups_affine);
+	P(se.nr_wakeups_affine_attempts);
+	P(se.nr_wakeups_passive);
+	P(se.nr_wakeups_idle);
+
+	{
+		u64 avg_atom, avg_per_cpu;
+
+		avg_atom = p->se.sum_exec_runtime;
+		if (nr_switches)
+			do_div(avg_atom, nr_switches);
+		else
+			avg_atom = -1LL;
+
+		avg_per_cpu = p->se.sum_exec_runtime;
+		if (p->se.nr_migrations)
+			avg_per_cpu = div64_64(avg_per_cpu, p->se.nr_migrations);
+		else
+			avg_per_cpu = -1LL;
+
+		__PN(avg_atom);
+		__PN(avg_per_cpu);
+	}
 #endif
+	__P(nr_switches);
 	SEQ_printf(m, "%-35s:%21Ld\n",
-		   "nr_switches", (long long)(p->nvcsw + p->nivcsw));
+		   "nr_voluntary_switches", (long long)p->nvcsw);
+	SEQ_printf(m, "%-35s:%21Ld\n",
+		   "nr_involuntary_switches", (long long)p->nivcsw);
+
 	P(se.load.weight);
 	P(policy);
 	P(prio);
-#undef P
 #undef PN
+#undef __PN
+#undef P
+#undef __P
 
 	{
 		u64 t0, t1;
@@ -314,13 +362,32 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 void proc_sched_set_task(struct task_struct *p)
 {
 #ifdef CONFIG_SCHEDSTATS
-	p->se.sleep_max			= 0;
-	p->se.block_max			= 0;
-	p->se.exec_max			= 0;
-	p->se.slice_max			= 0;
-	p->se.wait_max			= 0;
-	p->sched_info.bkl_count		= 0;
+	p->se.wait_max				= 0;
+	p->se.sleep_max				= 0;
+	p->se.sum_sleep_runtime			= 0;
+	p->se.block_max				= 0;
+	p->se.exec_max				= 0;
+	p->se.slice_max				= 0;
+	p->se.nr_migrations			= 0;
+	p->se.nr_migrations_cold		= 0;
+	p->se.nr_failed_migrations_affine	= 0;
+	p->se.nr_failed_migrations_running	= 0;
+	p->se.nr_failed_migrations_hot		= 0;
+	p->se.nr_forced_migrations		= 0;
+	p->se.nr_forced2_migrations		= 0;
+	p->se.nr_wakeups			= 0;
+	p->se.nr_wakeups_sync			= 0;
+	p->se.nr_wakeups_migrate		= 0;
+	p->se.nr_wakeups_local			= 0;
+	p->se.nr_wakeups_remote			= 0;
+	p->se.nr_wakeups_affine			= 0;
+	p->se.nr_wakeups_affine_attempts	= 0;
+	p->se.nr_wakeups_passive		= 0;
+	p->se.nr_wakeups_idle			= 0;
+	p->sched_info.bkl_count			= 0;
 #endif
-	p->se.sum_exec_runtime		= 0;
-	p->se.prev_sum_exec_runtime	= 0;
+	p->se.sum_exec_runtime			= 0;
+	p->se.prev_sum_exec_runtime		= 0;
+	p->nvcsw				= 0;
+	p->nivcsw				= 0;
 }
