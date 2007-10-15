@@ -877,7 +877,7 @@ void __cpuinit sun4v_register_mondo_queues(int this_cpu)
 static void __init alloc_one_mondo(unsigned long *pa_ptr, unsigned long qmask)
 {
 	unsigned long size = PAGE_ALIGN(qmask + 1);
-	void *p = __alloc_bootmem_low(size, size, 0);
+	void *p = __alloc_bootmem(size, size, 0);
 	if (!p) {
 		prom_printf("SUN4V: Error, cannot allocate mondo queue.\n");
 		prom_halt();
@@ -889,7 +889,7 @@ static void __init alloc_one_mondo(unsigned long *pa_ptr, unsigned long qmask)
 static void __init alloc_one_kbuf(unsigned long *pa_ptr, unsigned long qmask)
 {
 	unsigned long size = PAGE_ALIGN(qmask + 1);
-	void *p = __alloc_bootmem_low(size, size, 0);
+	void *p = __alloc_bootmem(size, size, 0);
 
 	if (!p) {
 		prom_printf("SUN4V: Error, cannot allocate kbuf page.\n");
@@ -906,7 +906,7 @@ static void __init init_cpu_send_mondo_info(struct trap_per_cpu *tb)
 
 	BUILD_BUG_ON((NR_CPUS * sizeof(u16)) > (PAGE_SIZE - 64));
 
-	page = alloc_bootmem_low_pages(PAGE_SIZE);
+	page = alloc_bootmem_pages(PAGE_SIZE);
 	if (!page) {
 		prom_printf("SUN4V: Error, cannot allocate cpu mondo page.\n");
 		prom_halt();
@@ -953,7 +953,7 @@ void __init init_IRQ(void)
 	kill_prom_timer();
 
 	size = sizeof(struct ino_bucket) * NUM_IVECS;
-	ivector_table = alloc_bootmem_low(size);
+	ivector_table = alloc_bootmem(size);
 	if (!ivector_table) {
 		prom_printf("Fatal error, cannot allocate ivector_table\n");
 		prom_halt();
