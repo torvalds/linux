@@ -22,6 +22,10 @@ EXTRA_AFLAGS   :=
 EXTRA_CFLAGS   :=
 EXTRA_CPPFLAGS :=
 EXTRA_LDFLAGS  :=
+asflags-y  :=
+ccflags-y  :=
+cppflags-y :=
+ldflags-y  :=
 
 # Read .config if it exist, otherwise ignore
 -include include/config/auto.conf

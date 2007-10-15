@@ -3,8 +3,8 @@
 # with correct relocations from System.map
 # Requires the following lines in makefile:
 #%.lst: %.c
-#	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(CFLAGS_$@) -g -c -o $*.o $<
-#	$(srctree)/scripts/makelst $*.o $(objtree)/System.map $(OBJDUMP)
+#	$(CC) $(c_flags) -g -c -o $*.o $< &&
+#	$(srctree)/scripts/makelst $*.o System.map $(OBJDUMP) > $@
 #
 # Copyright (C) 2000 IBM Corporation
 # Author(s): DJ Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
