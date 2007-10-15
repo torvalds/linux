@@ -436,7 +436,8 @@ void ipoib_reap_ah(struct work_struct *work)
 	__ipoib_reap_ah(dev);
 
 	if (!test_bit(IPOIB_STOP_REAPER, &priv->flags))
-		queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task, HZ);
+		queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
+				   round_jiffies_relative(HZ));
 }
 
 int ipoib_ib_dev_open(struct net_device *dev)
@@ -472,7 +473,8 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	}
 
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
-	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task, HZ);
+	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
+			   round_jiffies_relative(HZ));
 
 	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
