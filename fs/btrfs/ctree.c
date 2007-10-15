@@ -280,7 +280,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		*last_ret = search_start;
 		if (parent_level == 1)
 			btrfs_clear_buffer_defrag(tmp);
-		btrfs_set_buffer_defrag_done(tmp);
 		free_extent_buffer(tmp);
 	}
 	return err;

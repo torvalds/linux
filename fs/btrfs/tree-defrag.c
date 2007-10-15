@@ -87,8 +87,8 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 		if (cache_only) {
 			next = btrfs_find_tree_block(root, bytenr,
 					   btrfs_level_size(root, *level - 1));
-			/* FIXME, test for defrag */
-			if (!next || !btrfs_buffer_uptodate(next)) {
+			if (!next || !btrfs_buffer_uptodate(next) ||
+			    !btrfs_buffer_defrag(next)) {
 				free_extent_buffer(next);
 				path->slots[*level]++;
 				continue;
@@ -147,7 +147,8 @@ static int defrag_walk_up(struct btrfs_trans_handle *trans,
 			root->defrag_level = i;
 			return 0;
 		} else {
-			if (*level > 1 && path->nodes[*level] != root->node) {
+			if (*level > 1 && path->nodes[*level] != root->node &&
+			    btrfs_buffer_defrag(path->nodes[*level])) {
 				struct extent_buffer *next;
 				u64 last;
 				int ret;
@@ -168,7 +169,6 @@ static int defrag_walk_up(struct btrfs_trans_handle *trans,
 			}
 
 			btrfs_clear_buffer_defrag(path->nodes[*level]);
-			btrfs_clear_buffer_defrag_done(path->nodes[*level]);
 			free_extent_buffer(path->nodes[*level]);
 			path->nodes[*level] = NULL;
 			*level = i + 1;
