@@ -1191,7 +1191,6 @@ static inline void complete_buffers(struct bio *bio, int status)
 {
 	while (bio) {
 		struct bio *xbh = bio->bi_next;
-		int nr_sectors = bio_sectors(bio);
 
 		bio->bi_next = NULL;
 		bio_endio(bio, status ? 0 : -EIO);

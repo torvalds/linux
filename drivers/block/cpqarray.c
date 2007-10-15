@@ -981,9 +981,8 @@ static void start_io(ctlr_info_t *h)
 static inline void complete_buffers(struct bio *bio, int ok)
 {
 	struct bio *xbh;
-	while(bio) {
-		int nr_sectors = bio_sectors(bio);
 
+	while (bio) {
 		xbh = bio->bi_next;
 		bio->bi_next = NULL;
 		
