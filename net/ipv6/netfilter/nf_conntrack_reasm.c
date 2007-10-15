@@ -137,9 +137,10 @@ static void nf_frag_free(struct inet_frag_queue *q)
 
 static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
 {
-	struct nf_ct_frag6_queue *fq = kmalloc(sizeof(struct nf_ct_frag6_queue), GFP_ATOMIC);
+	struct nf_ct_frag6_queue *fq;
 
-	if (!fq)
+	fq = kzalloc(sizeof(struct nf_ct_frag6_queue), GFP_ATOMIC);
+	if (fq == NULL)
 		return NULL;
 	atomic_add(sizeof(struct nf_ct_frag6_queue), &nf_frags.mem);
 	return fq;
@@ -229,8 +230,6 @@ nf_ct_frag6_create(unsigned int hash, __be32 id, struct in6_addr *src,				   str
 		pr_debug("Can't alloc new queue\n");
 		goto oom;
 	}
-
-	memset(fq, 0, sizeof(struct nf_ct_frag6_queue));
 
 	fq->id = id;
 	ipv6_addr_copy(&fq->saddr, src);

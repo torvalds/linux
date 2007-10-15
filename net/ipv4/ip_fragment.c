@@ -144,7 +144,7 @@ static __inline__ void ip4_frag_free(struct inet_frag_queue *q)
 
 static __inline__ struct ipq *frag_alloc_queue(void)
 {
-	struct ipq *qp = kmalloc(sizeof(struct ipq), GFP_ATOMIC);
+	struct ipq *qp = kzalloc(sizeof(struct ipq), GFP_ATOMIC);
 
 	if (!qp)
 		return NULL;
@@ -265,15 +265,10 @@ static struct ipq *ip_frag_create(struct iphdr *iph, u32 user)
 		goto out_nomem;
 
 	qp->protocol = iph->protocol;
-	qp->q.last_in = 0;
 	qp->id = iph->id;
 	qp->saddr = iph->saddr;
 	qp->daddr = iph->daddr;
 	qp->user = user;
-	qp->q.len = 0;
-	qp->q.meat = 0;
-	qp->q.fragments = NULL;
-	qp->iif = 0;
 	qp->peer = sysctl_ipfrag_max_dist ? inet_getpeer(iph->saddr, 1) : NULL;
 
 	/* Initialize a timer for this entry. */
