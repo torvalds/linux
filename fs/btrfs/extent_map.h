@@ -62,14 +62,13 @@ struct extent_state {
 	struct list_head list;
 };
 
-#define EXTENT_BUFFER_SIZE(nr) (sizeof(struct extent_buffer) + \
-			       (nr - 1) * sizeof(struct page *))
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
 	atomic_t refs;
 	int flags;
-	struct page *pages[];
+	struct list_head list;
+	struct page *first_page;
 };
 
 typedef struct extent_map *(get_extent_t)(struct inode *inode,
