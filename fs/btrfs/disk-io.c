@@ -678,3 +678,63 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	balance_dirty_pages_ratelimited_nr(
 			root->fs_info->btree_inode->i_mapping, nr);
 }
+
+void btrfs_set_buffer_defrag(struct extent_buffer *buf)
+{
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	set_extent_bits(&BTRFS_I(btree_inode)->extent_tree, buf->start,
+			buf->start + buf->len - 1, EXTENT_DEFRAG, GFP_NOFS);
+}
+
+void btrfs_set_buffer_defrag_done(struct extent_buffer *buf)
+{
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	set_extent_bits(&BTRFS_I(btree_inode)->extent_tree, buf->start,
+			buf->start + buf->len - 1, EXTENT_DEFRAG_DONE,
+			GFP_NOFS);
+}
+
+int btrfs_buffer_defrag(struct extent_buffer *buf)
+{
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	return test_range_bit(&BTRFS_I(btree_inode)->extent_tree,
+		     buf->start, buf->start + buf->len - 1, EXTENT_DEFRAG, 0);
+}
+
+int btrfs_buffer_defrag_done(struct extent_buffer *buf)
+{
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	return test_range_bit(&BTRFS_I(btree_inode)->extent_tree,
+		     buf->start, buf->start + buf->len - 1,
+		     EXTENT_DEFRAG_DONE, 0);
+}
+
+int btrfs_clear_buffer_defrag_done(struct extent_buffer *buf)
+{
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	return clear_extent_bits(&BTRFS_I(btree_inode)->extent_tree,
+		     buf->start, buf->start + buf->len - 1,
+		     EXTENT_DEFRAG_DONE, GFP_NOFS);
+}
+
+int btrfs_clear_buffer_defrag(struct extent_buffer *buf)
+{
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	return clear_extent_bits(&BTRFS_I(btree_inode)->extent_tree,
+		     buf->start, buf->start + buf->len - 1,
+		     EXTENT_DEFRAG, GFP_NOFS);
+}
+
+int btrfs_read_buffer(struct extent_buffer *buf)
+{
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	return read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
+					buf, 1);
+}

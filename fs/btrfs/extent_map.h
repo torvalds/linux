@@ -14,6 +14,8 @@
 #define EXTENT_LOCKED (1 << 3)
 #define EXTENT_NEW (1 << 4)
 #define EXTENT_DELALLOC (1 << 5)
+#define EXTENT_DEFRAG (1 << 6)
+#define EXTENT_DEFRAG_DONE (1 << 7)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
 

@@ -1173,13 +1173,7 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	buf->alloc_addr = (unsigned long)__builtin_return_address(0);
 	set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
-	/*
-	set_buffer_checked(buf);
-	set_buffer_defrag(buf);
-	*/
-	/* FIXME!!!!!!!!!!!!!!!!
-	set_radix_bit(&trans->transaction->dirty_pages, buf->pages[0]->index);
-	*/
+	btrfs_set_buffer_defrag(buf);
 	trans->blocks_used++;
 	return buf;
 }

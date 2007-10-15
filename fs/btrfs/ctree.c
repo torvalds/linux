@@ -155,55 +155,49 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-#if 0
-static int close_blocks(u64 blocknr, u64 other)
+static int close_blocks(u64 blocknr, u64 other, u32 blocksize)
 {
-	if (blocknr < other && other - blocknr < 8)
+	if (blocknr < other && other - (blocknr + blocksize) < 32768)
 		return 1;
-	if (blocknr > other && blocknr - other < 8)
+	if (blocknr > other && blocknr - (other + blocksize) < 32768)
 		return 1;
 	return 0;
 }
 
-static int should_defrag_leaf(struct extent_buffer *eb)
+static int should_defrag_leaf(struct extent_buffer *leaf)
 {
-	return 0;
-	struct btrfs_leaf *leaf = btrfs_buffer_leaf(eb);
-	struct btrfs_disk_key *key;
+	struct btrfs_key key;
 	u32 nritems;
 
-	if (buffer_defrag(bh))
+	if (btrfs_buffer_defrag(leaf))
 		return 1;
 
-	nritems = btrfs_header_nritems(&leaf->header);
+	nritems = btrfs_header_nritems(leaf);
 	if (nritems == 0)
 		return 0;
 
-	key = &leaf->items[0].key;
-	if (btrfs_disk_key_type(key) == BTRFS_DIR_ITEM_KEY)
+	btrfs_item_key_to_cpu(leaf, &key, 0);
+	if (key.type == BTRFS_DIR_ITEM_KEY)
 		return 1;
 
-	key = &leaf->items[nritems-1].key;
-	if (btrfs_disk_key_type(key) == BTRFS_DIR_ITEM_KEY)
+
+	btrfs_item_key_to_cpu(leaf, &key, nritems - 1);
+	if (key.type == BTRFS_DIR_ITEM_KEY)
 		return 1;
 	if (nritems > 4) {
-		key = &leaf->items[nritems/2].key;
-		if (btrfs_disk_key_type(key) == BTRFS_DIR_ITEM_KEY)
+		btrfs_item_key_to_cpu(leaf, &key, nritems / 2);
+		if (key.type == BTRFS_DIR_ITEM_KEY)
 			return 1;
 	}
 	return 0;
 }
-#endif
 
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct extent_buffer *parent,
 		       int cache_only, u64 *last_ret)
 {
-	return 0;
-#if 0
-	struct btrfs_node *parent_node;
-	struct extent_buffer *cur_eb;
-	struct extent_buffer *tmp_eb;
+	struct extent_buffer *cur;
+	struct extent_buffer *tmp;
 	u64 blocknr;
 	u64 search_start = *last_ret;
 	u64 last_block = 0;
@@ -214,6 +208,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	int i;
 	int err = 0;
 	int parent_level;
+	int uptodate;
+	u32 blocksize;
 
 	if (trans->transaction != root->fs_info->running_transaction) {
 		printk(KERN_CRIT "trans %Lu running %Lu\n", trans->transid,
@@ -225,12 +221,12 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       root->fs_info->generation);
 		WARN_ON(1);
 	}
-	if (buffer_defrag_done(parent))
+	if (btrfs_buffer_defrag_done(parent))
 		return 0;
 
-	parent_node = btrfs_buffer_node(parent);
-	parent_nritems = btrfs_header_nritems(&parent_node->header);
-	parent_level = btrfs_header_level(&parent_node->header);
+	parent_nritems = btrfs_header_nritems(parent);
+	parent_level = btrfs_header_level(parent);
+	blocksize = btrfs_level_size(root, parent_level - 1);
 
 	start_slot = 0;
 	end_slot = parent_nritems;
@@ -240,56 +236,60 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 	for (i = start_slot; i < end_slot; i++) {
 		int close = 1;
-		blocknr = btrfs_node_blockptr(parent_node, i);
+		blocknr = btrfs_node_blockptr(parent, i);
 		if (last_block == 0)
 			last_block = blocknr;
 		if (i > 0) {
-			other = btrfs_node_blockptr(parent_node, i - 1);
-			close = close_blocks(blocknr, other);
+			other = btrfs_node_blockptr(parent, i - 1);
+			close = close_blocks(blocknr, other, blocksize);
 		}
 		if (close && i < end_slot - 1) {
-			other = btrfs_node_blockptr(parent_node, i + 1);
-			close = close_blocks(blocknr, other);
+			other = btrfs_node_blockptr(parent, i + 1);
+			close = close_blocks(blocknr, other, blocksize);
 		}
 		if (close) {
 			last_block = blocknr;
 			continue;
 		}
 
-		cur_bh = btrfs_find_tree_block(root, blocknr);
-		if (!cur_bh || !buffer_uptodate(cur_bh) ||
-		    buffer_locked(cur_bh) ||
-		    (parent_level != 1 && !buffer_defrag(cur_bh)) ||
-		    (parent_level == 1 && !should_defrag_leaf(cur_bh))) {
+		cur = btrfs_find_tree_block(root, blocknr, blocksize);
+		if (cur)
+			uptodate = btrfs_buffer_uptodate(cur);
+		else
+			uptodate = 0;
+		if (!cur || !uptodate ||
+		    (parent_level != 1 && !btrfs_buffer_defrag(cur)) ||
+		    (parent_level == 1 && !should_defrag_leaf(cur))) {
 			if (cache_only) {
-				brelse(cur_bh);
+				free_extent_buffer(cur);
 				continue;
 			}
-			if (!cur_bh || !buffer_uptodate(cur_bh) ||
-			    buffer_locked(cur_bh)) {
-				brelse(cur_bh);
-				cur_bh = read_tree_block(root, blocknr);
+			if (!cur) {
+				cur = read_tree_block(root, blocknr,
+							 blocksize);
+			} else if (!uptodate) {
+				btrfs_read_buffer(cur);
 			}
 		}
 		if (search_start == 0)
-			search_start = last_block & ~((u64)65535);
+			search_start = last_block;
 
-		err = __btrfs_cow_block(trans, root, cur_bh, parent, i,
-					&tmp_bh, search_start,
-					min(8, end_slot - i));
+		err = __btrfs_cow_block(trans, root, cur, parent, i,
+					&tmp, search_start,
+					min(16 * blocksize,
+					    (end_slot - i) * blocksize));
 		if (err) {
-			brelse(cur_bh);
+			free_extent_buffer(cur);
 			break;
 		}
-		search_start = bh_blocknr(tmp_bh);
+		search_start = tmp->start;
 		*last_ret = search_start;
 		if (parent_level == 1)
-			clear_buffer_defrag(tmp_bh);
-		set_buffer_defrag_done(tmp_bh);
-		brelse(tmp_bh);
+			btrfs_clear_buffer_defrag(tmp);
+		btrfs_set_buffer_defrag_done(tmp);
+		free_extent_buffer(tmp);
 	}
 	return err;
-#endif
 }
 
 /*
@@ -892,22 +892,17 @@ static int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
 			     int level, int slot)
 {
-	return;
-#if 0
 	struct extent_buffer *node;
-	int i;
 	u32 nritems;
-	u64 bytenr;
 	u64 search;
-	u64 cluster_start;
-	int ret;
-	int nread = 0;
+	u64 lowest_read;
+	u64 highest_read;
+	u64 nread = 0;
 	int direction = path->reada;
-	int level;
-	struct radix_tree_root found;
-	unsigned long gang[8];
 	struct extent_buffer *eb;
-
+	u32 nr;
+	u32 blocksize;
+	u32 nscan = 0;
 
 	if (level == 0)
 		return;
@@ -917,42 +912,46 @@ static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
 
 	node = path->nodes[level];
 	search = btrfs_node_blockptr(node, slot);
-	eb = btrfs_find_tree_block(root, search);
+	blocksize = btrfs_level_size(root, level - 1);
+	eb = btrfs_find_tree_block(root, search, blocksize);
 	if (eb) {
 		free_extent_buffer(eb);
 		return;
 	}
 
-	init_bit_radix(&found);
+	highest_read = search;
+	lowest_read = search;
+
 	nritems = btrfs_header_nritems(node);
-	level = btrfs_header_level(node) - 1;
-	for (i = slot; i < nritems; i++) {
-		bytenr = btrfs_node_blockptr(node, i);
-		set_radix_bit(&found, blocknr);
-	}
-	if (direction > 0) {
-		cluster_start = search - 4;
-		if (cluster_start > search)
-			cluster_start = 0;
-	} else
-		cluster_start = search + 4;
+	nr = slot;
 	while(1) {
-		ret = find_first_radix_bit(&found, gang, 0, ARRAY_SIZE(gang));
-		if (!ret)
-			break;
-		for (i = 0; i < ret; i++) {
-			blocknr = gang[i];
-			clear_radix_bit(&found, blocknr);
-			if (path->reada == 1 && nread > 16)
-				continue;
-			if (close_blocks(cluster_start, blocknr)) {
-				readahead_tree_block(root, blocknr);
-				nread++;
-				cluster_start = blocknr;
-			}
+		if (direction < 0) {
+			if (nr == 0)
+				break;
+			nr--;
+		} else if (direction > 0) {
+			nr++;
+			if (nr >= nritems)
+				break;
 		}
+		search = btrfs_node_blockptr(node, nr);
+		if ((search >= lowest_read && search <= highest_read) ||
+		    (search < lowest_read && lowest_read - search <= 32768) ||
+		    (search > highest_read && search - highest_read <= 32768)) {
+			readahead_tree_block(root, search, blocksize);
+			nread += blocksize;
+		}
+		nscan++;
+		if (path->reada < 2 && (nread > (256 * 1024) || nscan > 32))
+			break;
+		if(nread > (1024 * 1024) || nscan > 128)
+			break;
+
+		if (search < lowest_read)
+			lowest_read = search;
+		if (search > highest_read)
+			highest_read = search;
 	}
-#endif
 }
 /*
  * look for key in the tree.  path is filled in with nodes along the way

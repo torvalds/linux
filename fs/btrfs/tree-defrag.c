@@ -116,10 +116,10 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 	}
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
-#if 0
-	clear_buffer_defrag(path->nodes[*level]);
-	clear_buffer_defrag_done(path->nodes[*level]);
-#endif
+
+	btrfs_clear_buffer_defrag(path->nodes[*level]);
+	btrfs_clear_buffer_defrag_done(path->nodes[*level]);
+
 	free_extent_buffer(path->nodes[*level]);
 	path->nodes[*level] = NULL;
 	*level += 1;
@@ -148,10 +148,8 @@ static int defrag_walk_up(struct btrfs_trans_handle *trans,
 			root->defrag_level = i;
 			return 0;
 		} else {
-			/*
-			clear_buffer_defrag(path->nodes[*level]);
-			clear_buffer_defrag_done(path->nodes[*level]);
-			*/
+			btrfs_clear_buffer_defrag(path->nodes[*level]);
+			btrfs_clear_buffer_defrag_done(path->nodes[*level]);
 			free_extent_buffer(path->nodes[*level]);
 			path->nodes[*level] = NULL;
 			*level = i + 1;

@@ -355,7 +355,7 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 		return 0;
 
 	trans = btrfs_start_transaction(root, 1);
-	while (0) {
+	while (1) {
 		root->defrag_running = 1;
 		ret = btrfs_defrag_leaves(trans, root, cacheonly);
 		nr = trans->blocks_used;
@@ -400,7 +400,7 @@ int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
 			btrfs_defrag_root(root, 1);
 		}
 	}
-	// btrfs_defrag_root(info->extent_root, 1);
+	btrfs_defrag_root(info->extent_root, 1);
 	return err;
 }
 
