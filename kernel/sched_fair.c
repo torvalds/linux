@@ -111,18 +111,6 @@ extern struct sched_class fair_sched_class;
  * CFS operations on generic schedulable entities:
  */
 
-/* currently running entity (if any) on this cfs_rq */
-static inline struct sched_entity *cfs_rq_curr(struct cfs_rq *cfs_rq)
-{
-	return cfs_rq->curr;
-}
-
-static inline void
-set_cfs_rq_curr(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	cfs_rq->curr = se;
-}
-
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
 /* cpu runqueue to which this cfs_rq is attached */
@@ -382,7 +370,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 
 static void update_curr(struct cfs_rq *cfs_rq)
 {
-	struct sched_entity *curr = cfs_rq_curr(cfs_rq);
+	struct sched_entity *curr = cfs_rq->curr;
 	u64 now = rq_of(cfs_rq)->clock;
 	unsigned long delta_exec;
 
@@ -440,7 +428,7 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * Are we enqueueing a waiting task? (for current tasks
 	 * a dequeue/enqueue event is a NOP)
 	 */
-	if (se != cfs_rq_curr(cfs_rq))
+	if (se != cfs_rq->curr)
 		update_stats_wait_start(cfs_rq, se);
 	/*
 	 * Update the key:
@@ -511,7 +499,7 @@ update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * Mark the end of the wait period if dequeueing a
 	 * waiting task:
 	 */
-	if (se != cfs_rq_curr(cfs_rq))
+	if (se != cfs_rq->curr)
 		update_stats_wait_end(cfs_rq, se);
 }
 
@@ -717,7 +705,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 */
 	update_stats_wait_end(cfs_rq, se);
 	update_stats_curr_start(cfs_rq, se);
-	set_cfs_rq_curr(cfs_rq, se);
+	cfs_rq->curr = se;
 #ifdef CONFIG_SCHEDSTATS
 	/*
 	 * Track our maximum slice length, if the CPU's load is at
@@ -754,7 +742,7 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 	if (prev->on_rq)
 		update_stats_wait_start(cfs_rq, prev);
-	set_cfs_rq_curr(cfs_rq, NULL);
+	cfs_rq->curr = NULL;
 }
 
 static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
@@ -1153,7 +1141,7 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr)
 static void task_new_fair(struct rq *rq, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
-	struct sched_entity *se = &p->se, *curr = cfs_rq_curr(cfs_rq);
+	struct sched_entity *se = &p->se, *curr = cfs_rq->curr;
 
 	sched_info_queued(p);
 
