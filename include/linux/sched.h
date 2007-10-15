@@ -912,6 +912,7 @@ struct sched_entity {
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
 	unsigned int		on_rq;
+	int			peer_preempt;
 
 	u64			exec_start;
 	u64			sum_exec_runtime;

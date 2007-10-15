@@ -445,6 +445,7 @@ enum {
 	SCHED_FEAT_TREE_AVG             = 4,
 	SCHED_FEAT_APPROX_AVG           = 8,
 	SCHED_FEAT_WAKEUP_PREEMPT	= 16,
+	SCHED_FEAT_PREEMPT_RESTRICT	= 32,
 };
 
 const_debug unsigned int sysctl_sched_features =
@@ -452,7 +453,8 @@ const_debug unsigned int sysctl_sched_features =
 		SCHED_FEAT_START_DEBIT		*1 |
 		SCHED_FEAT_TREE_AVG		*0 |
 		SCHED_FEAT_APPROX_AVG		*0 |
-		SCHED_FEAT_WAKEUP_PREEMPT	*1;
+		SCHED_FEAT_WAKEUP_PREEMPT	*1 |
+		SCHED_FEAT_PREEMPT_RESTRICT	*1;
 
 #define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
 
