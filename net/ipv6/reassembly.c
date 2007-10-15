@@ -104,20 +104,6 @@ int ip6_frag_mem(void)
 static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 			  struct net_device *dev);
 
-static __inline__ void __fq_unlink(struct frag_queue *fq)
-{
-	hlist_del(&fq->q.list);
-	list_del(&fq->q.lru_list);
-	ip6_frags.nqueues--;
-}
-
-static __inline__ void fq_unlink(struct frag_queue *fq)
-{
-	write_lock(&ip6_frags.lock);
-	__fq_unlink(fq);
-	write_unlock(&ip6_frags.lock);
-}
-
 /*
  * callers should be careful not to use the hash value outside the ipfrag_lock
  * as doing so could race with ipfrag_hash_rnd being recalculated.
@@ -240,14 +226,7 @@ static __inline__ void fq_put(struct frag_queue *fq, int *work)
  */
 static __inline__ void fq_kill(struct frag_queue *fq)
 {
-	if (del_timer(&fq->q.timer))
-		atomic_dec(&fq->q.refcnt);
-
-	if (!(fq->q.last_in & COMPLETE)) {
-		fq_unlink(fq);
-		atomic_dec(&fq->q.refcnt);
-		fq->q.last_in |= COMPLETE;
-	}
+	inet_frag_kill(&fq->q, &ip6_frags);
 }
 
 static void ip6_evictor(struct inet6_dev *idev)

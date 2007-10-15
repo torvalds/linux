@@ -41,4 +41,6 @@ struct inet_frags {
 void inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
+void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
+
 #endif

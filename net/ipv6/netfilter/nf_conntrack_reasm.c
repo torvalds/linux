@@ -79,20 +79,6 @@ struct inet_frags_ctl nf_frags_ctl __read_mostly = {
 
 static struct inet_frags nf_frags;
 
-static __inline__ void __fq_unlink(struct nf_ct_frag6_queue *fq)
-{
-	hlist_del(&fq->q.list);
-	list_del(&fq->q.lru_list);
-	nf_frags.nqueues--;
-}
-
-static __inline__ void fq_unlink(struct nf_ct_frag6_queue *fq)
-{
-	write_lock(&nf_frags.lock);
-	__fq_unlink(fq);
-	write_unlock(&nf_frags.lock);
-}
-
 static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 			       struct in6_addr *daddr)
 {
@@ -213,14 +199,7 @@ static __inline__ void fq_put(struct nf_ct_frag6_queue *fq, unsigned int *work)
  */
 static __inline__ void fq_kill(struct nf_ct_frag6_queue *fq)
 {
-	if (del_timer(&fq->q.timer))
-		atomic_dec(&fq->q.refcnt);
-
-	if (!(fq->q.last_in & COMPLETE)) {
-		fq_unlink(fq);
-		atomic_dec(&fq->q.refcnt);
-		fq->q.last_in |= COMPLETE;
-	}
+	inet_frag_kill(&fq->q, &nf_frags);
 }
 
 static void nf_ct_frag6_evictor(void)

@@ -108,20 +108,6 @@ int ip_frag_mem(void)
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 			 struct net_device *dev);
 
-static __inline__ void __ipq_unlink(struct ipq *qp)
-{
-	hlist_del(&qp->q.list);
-	list_del(&qp->q.lru_list);
-	ip4_frags.nqueues--;
-}
-
-static __inline__ void ipq_unlink(struct ipq *ipq)
-{
-	write_lock(&ip4_frags.lock);
-	__ipq_unlink(ipq);
-	write_unlock(&ip4_frags.lock);
-}
-
 static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
 {
 	return jhash_3words((__force u32)id << 16 | prot,
@@ -222,14 +208,7 @@ static __inline__ void ipq_put(struct ipq *ipq, int *work)
  */
 static void ipq_kill(struct ipq *ipq)
 {
-	if (del_timer(&ipq->q.timer))
-		atomic_dec(&ipq->q.refcnt);
-
-	if (!(ipq->q.last_in & COMPLETE)) {
-		ipq_unlink(ipq);
-		atomic_dec(&ipq->q.refcnt);
-		ipq->q.last_in |= COMPLETE;
-	}
+	inet_frag_kill(&ipq->q, &ip4_frags);
 }
 
 /* Memory limiting on fragments.  Evictor trashes the oldest

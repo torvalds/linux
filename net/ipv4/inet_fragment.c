@@ -42,3 +42,26 @@ void inet_frags_fini(struct inet_frags *f)
 {
 }
 EXPORT_SYMBOL(inet_frags_fini);
+
+static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
+{
+	write_lock(&f->lock);
+	hlist_del(&fq->list);
+	list_del(&fq->lru_list);
+	f->nqueues--;
+	write_unlock(&f->lock);
+}
+
+void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
+{
+	if (del_timer(&fq->timer))
+		atomic_dec(&fq->refcnt);
+
+	if (!(fq->last_in & COMPLETE)) {
+		fq_unlink(fq, f);
+		atomic_dec(&fq->refcnt);
+		fq->last_in |= COMPLETE;
+	}
+}
+
+EXPORT_SYMBOL(inet_frag_kill);
