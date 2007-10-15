@@ -91,13 +91,6 @@ static inline u32 au_readl(unsigned long reg)
 }
 
 
-static __inline__ int au_ffz(unsigned int x)
-{
-	if ((x = ~x) == 0)
-		return 32;
-	return __ilog2(x & -x);
-}
-
 /* arch/mips/au1000/common/clocks.c */
 extern void set_au1x00_speed(unsigned int new_freq);
 extern unsigned int get_au1x00_speed(void);
