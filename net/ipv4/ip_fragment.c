@@ -174,33 +174,11 @@ static void ipq_kill(struct ipq *ipq)
  */
 static void ip_evictor(void)
 {
-	struct ipq *qp;
-	struct list_head *tmp;
-	int work;
+	int evicted;
 
-	work = atomic_read(&ip4_frags.mem) - ip4_frags_ctl.low_thresh;
-	if (work <= 0)
-		return;
-
-	while (work > 0) {
-		read_lock(&ip4_frags.lock);
-		if (list_empty(&ip4_frags.lru_list)) {
-			read_unlock(&ip4_frags.lock);
-			return;
-		}
-		tmp = ip4_frags.lru_list.next;
-		qp = list_entry(tmp, struct ipq, q.lru_list);
-		atomic_inc(&qp->q.refcnt);
-		read_unlock(&ip4_frags.lock);
-
-		spin_lock(&qp->q.lock);
-		if (!(qp->q.last_in&COMPLETE))
-			ipq_kill(qp);
-		spin_unlock(&qp->q.lock);
-
-		ipq_put(qp, &work);
-		IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
-	}
+	evicted = inet_frag_evictor(&ip4_frags);
+	if (evicted)
+		IP_ADD_STATS_BH(IPSTATS_MIB_REASMFAILS, evicted);
 }
 
 /*

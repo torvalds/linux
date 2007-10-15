@@ -140,3 +140,35 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 
 }
 EXPORT_SYMBOL(inet_frag_destroy);
+
+int inet_frag_evictor(struct inet_frags *f)
+{
+	struct inet_frag_queue *q;
+	int work, evicted = 0;
+
+	work = atomic_read(&f->mem) - f->ctl->low_thresh;
+	while (work > 0) {
+		read_lock(&f->lock);
+		if (list_empty(&f->lru_list)) {
+			read_unlock(&f->lock);
+			break;
+		}
+
+		q = list_first_entry(&f->lru_list,
+				struct inet_frag_queue, lru_list);
+		atomic_inc(&q->refcnt);
+		read_unlock(&f->lock);
+
+		spin_lock(&q->lock);
+		if (!(q->last_in & COMPLETE))
+			inet_frag_kill(q, f);
+		spin_unlock(&q->lock);
+
+		if (atomic_dec_and_test(&q->refcnt))
+			inet_frag_destroy(q, f, &work);
+		evicted++;
+	}
+
+	return evicted;
+}
+EXPORT_SYMBOL(inet_frag_evictor);

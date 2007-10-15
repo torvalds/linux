@@ -185,33 +185,11 @@ static __inline__ void fq_kill(struct frag_queue *fq)
 
 static void ip6_evictor(struct inet6_dev *idev)
 {
-	struct frag_queue *fq;
-	struct list_head *tmp;
-	int work;
+	int evicted;
 
-	work = atomic_read(&ip6_frags.mem) - ip6_frags_ctl.low_thresh;
-	if (work <= 0)
-		return;
-
-	while(work > 0) {
-		read_lock(&ip6_frags.lock);
-		if (list_empty(&ip6_frags.lru_list)) {
-			read_unlock(&ip6_frags.lock);
-			return;
-		}
-		tmp = ip6_frags.lru_list.next;
-		fq = list_entry(tmp, struct frag_queue, q.lru_list);
-		atomic_inc(&fq->q.refcnt);
-		read_unlock(&ip6_frags.lock);
-
-		spin_lock(&fq->q.lock);
-		if (!(fq->q.last_in&COMPLETE))
-			fq_kill(fq);
-		spin_unlock(&fq->q.lock);
-
-		fq_put(fq, &work);
-		IP6_INC_STATS_BH(idev, IPSTATS_MIB_REASMFAILS);
-	}
+	evicted = inet_frag_evictor(&ip6_frags);
+	if (evicted)
+		IP6_ADD_STATS_BH(idev, IPSTATS_MIB_REASMFAILS, evicted);
 }
 
 static void ip6_frag_expire(unsigned long data)

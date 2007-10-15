@@ -163,34 +163,7 @@ static __inline__ void fq_kill(struct nf_ct_frag6_queue *fq)
 
 static void nf_ct_frag6_evictor(void)
 {
-	struct nf_ct_frag6_queue *fq;
-	struct list_head *tmp;
-	unsigned int work;
-
-	work = atomic_read(&nf_frags.mem);
-	if (work <= nf_frags_ctl.low_thresh)
-		return;
-
-	work -= nf_frags_ctl.low_thresh;
-	while (work > 0) {
-		read_lock(&nf_frags.lock);
-		if (list_empty(&nf_frags.lru_list)) {
-			read_unlock(&nf_frags.lock);
-			return;
-		}
-		tmp = nf_frags.lru_list.next;
-		BUG_ON(tmp == NULL);
-		fq = list_entry(tmp, struct nf_ct_frag6_queue, q.lru_list);
-		atomic_inc(&fq->q.refcnt);
-		read_unlock(&nf_frags.lock);
-
-		spin_lock(&fq->q.lock);
-		if (!(fq->q.last_in&COMPLETE))
-			fq_kill(fq);
-		spin_unlock(&fq->q.lock);
-
-		fq_put(fq, &work);
-	}
+	inet_frag_evictor(&nf_frags);
 }
 
 static void nf_ct_frag6_expire(unsigned long data)

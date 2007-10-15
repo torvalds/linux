@@ -49,5 +49,6 @@ void inet_frags_fini(struct inet_frags *);
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
 void inet_frag_destroy(struct inet_frag_queue *q,
 				struct inet_frags *f, int *work);
+int inet_frag_evictor(struct inet_frags *f);
 
 #endif
