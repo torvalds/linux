@@ -828,6 +828,12 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		resched_task(curr);
 		return;
 	}
+	/*
+	 * Batch tasks do not preempt (their preemption is driven by
+	 * the tick):
+	 */
+	if (unlikely(p->policy == SCHED_BATCH))
+		return;
 
 	if (sched_feat(WAKEUP_PREEMPT)) {
 		while (!is_same_group(se, pse)) {
