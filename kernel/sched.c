@@ -5243,10 +5243,9 @@ static struct ctl_table sd_ctl_root[] = {
 static struct ctl_table *sd_alloc_ctl_entry(int n)
 {
 	struct ctl_table *entry =
-		kmalloc(n * sizeof(struct ctl_table), GFP_KERNEL);
+		kcalloc(n, sizeof(struct ctl_table), GFP_KERNEL);
 
 	BUG_ON(!entry);
-	memset(entry, 0, n * sizeof(struct ctl_table));
 
 	return entry;
 }
@@ -6018,7 +6017,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 	/*
 	 * Allocate the per-node list of sched groups
 	 */
-	sched_group_nodes = kzalloc(sizeof(struct sched_group *)*MAX_NUMNODES,
+	sched_group_nodes = kcalloc(MAX_NUMNODES, sizeof(struct sched_group *),
 					   GFP_KERNEL);
 	if (!sched_group_nodes) {
 		printk(KERN_WARNING "Can not alloc sched group node list\n");
