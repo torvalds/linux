@@ -2404,6 +2404,15 @@ M:	khali@linux-fr.org
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
+LOCKDEP AND LOCKSTAT
+P:	Peter Zijlstra
+M:	peterz@infradead.org
+P:	Ingo Molnar
+M:	mingo@redhat.com
+L:	linux-kernel@vger.kernel.org
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/peterz/linux-2.6-lockdep.git
+S:	Maintained
+
 LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP/Vista Dynamic Disks)
 P:	Richard Russon (FlatCap)
 M:	ldm@flatcap.org

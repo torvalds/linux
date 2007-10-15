@@ -50,6 +50,10 @@
 	thunk trace_hardirqs_on_thunk,trace_hardirqs_on
 	thunk trace_hardirqs_off_thunk,trace_hardirqs_off
 #endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	thunk lockdep_sys_exit_thunk,lockdep_sys_exit
+#endif
 	
 	/* SAVE_ARGS below is used only for the .cfi directives it contains. */
 	CFI_STARTPROC

@@ -25,28 +25,38 @@
 
 static void *l_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct lock_class *class = v;
+	struct lock_class *class;
 
 	(*pos)++;
 
-	if (class->lock_entry.next != &all_lock_classes)
-		class = list_entry(class->lock_entry.next, struct lock_class,
-				  lock_entry);
-	else
-		class = NULL;
-	m->private = class;
+	if (v == SEQ_START_TOKEN)
+		class = m->private;
+	else {
+		class = v;
+
+		if (class->lock_entry.next != &all_lock_classes)
+			class = list_entry(class->lock_entry.next,
+					   struct lock_class, lock_entry);
+		else
+			class = NULL;
+	}
 
 	return class;
 }
 
 static void *l_start(struct seq_file *m, loff_t *pos)
 {
-	struct lock_class *class = m->private;
+	struct lock_class *class;
+	loff_t i = 0;
 
-	if (&class->lock_entry == all_lock_classes.next)
-		seq_printf(m, "all lock classes:\n");
+	if (*pos == 0)
+		return SEQ_START_TOKEN;
 
-	return class;
+	list_for_each_entry(class, &all_lock_classes, lock_entry) {
+		if (++i == *pos)
+		return class;
+	}
+	return NULL;
 }
 
 static void l_stop(struct seq_file *m, void *v)
@@ -101,9 +111,14 @@ static void print_name(struct seq_file *m, struct lock_class *class)
 static int l_show(struct seq_file *m, void *v)
 {
 	unsigned long nr_forward_deps, nr_backward_deps;
-	struct lock_class *class = m->private;
+	struct lock_class *class = v;
 	struct lock_list *entry;
 	char c1, c2, c3, c4;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_printf(m, "all lock classes:\n");
+		return 0;
+	}
 
 	seq_printf(m, "%p", class->key);
 #ifdef CONFIG_DEBUG_LOCKDEP
@@ -523,10 +538,11 @@ static void *ls_start(struct seq_file *m, loff_t *pos)
 {
 	struct lock_stat_seq *data = m->private;
 
-	if (data->iter == data->stats)
-		seq_header(m);
+	if (*pos == 0)
+		return SEQ_START_TOKEN;
 
-	if (data->iter == data->iter_end)
+	data->iter = data->stats + *pos;
+	if (data->iter >= data->iter_end)
 		data->iter = NULL;
 
 	return data->iter;
@@ -538,8 +554,13 @@ static void *ls_next(struct seq_file *m, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	data->iter = v;
-	data->iter++;
+	if (v == SEQ_START_TOKEN)
+		data->iter = data->stats;
+	else {
+		data->iter = v;
+		data->iter++;
+	}
+
 	if (data->iter == data->iter_end)
 		data->iter = NULL;
 
@@ -552,9 +573,11 @@ static void ls_stop(struct seq_file *m, void *v)
 
 static int ls_show(struct seq_file *m, void *v)
 {
-	struct lock_stat_seq *data = m->private;
+	if (v == SEQ_START_TOKEN)
+		seq_header(m);
+	else
+		seq_stats(m, v);
 
-	seq_stats(m, data->iter);
 	return 0;
 }
 

@@ -68,9 +68,15 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	l	%r1,BASED(.Ltrace_irq_off)
 	basr	%r14,%r1
 	.endm
+
+	.macro	LOCKDEP_SYS_EXIT
+	l	%r1,BASED(.Llockdep_sys_exit)
+	basr	%r14,%r1
+	.endm
 #else
 #define TRACE_IRQS_ON
 #define TRACE_IRQS_OFF
+#define LOCKDEP_SYS_EXIT
 #endif
 
 /*
@@ -260,6 +266,7 @@ sysc_return:
 	bno	BASED(sysc_leave)
 	tm	__TI_flags+3(%r9),_TIF_WORK_SVC
 	bnz	BASED(sysc_work)  # there is work to do (signals etc.)
+	LOCKDEP_SYS_EXIT
 sysc_leave:
 	RESTORE_ALL __LC_RETURN_PSW,1
 
@@ -283,6 +290,7 @@ sysc_work:
 	bo	BASED(sysc_restart)
 	tm	__TI_flags+3(%r9),_TIF_SINGLE_STEP
 	bo	BASED(sysc_singlestep)
+	LOCKDEP_SYS_EXIT
 	b	BASED(sysc_leave)
 
 #
@@ -572,6 +580,7 @@ io_return:
 #endif
 	tm	__TI_flags+3(%r9),_TIF_WORK_INT
 	bnz	BASED(io_work)		# there is work to do (signals etc.)
+	LOCKDEP_SYS_EXIT
 io_leave:
 	RESTORE_ALL __LC_RETURN_PSW,0
 io_done:
@@ -618,6 +627,7 @@ io_work_loop:
 	bo	BASED(io_reschedule)
 	tm	__TI_flags+3(%r9),(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK)
 	bnz	BASED(io_sigpending)
+	LOCKDEP_SYS_EXIT
 	b	BASED(io_leave)
 
 #
@@ -1040,6 +1050,8 @@ cleanup_io_leave_insn:
 .Ltrace_irq_on: .long	trace_hardirqs_on
 .Ltrace_irq_off:
 		.long	trace_hardirqs_off
+.Llockdep_sys_exit:
+		.long	lockdep_sys_exit
 #endif
 .Lcritical_start:
 		.long	__critical_start + 0x80000000

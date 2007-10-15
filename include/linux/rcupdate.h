@@ -41,6 +41,7 @@
 #include <linux/percpu.h>
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
+#include <linux/lockdep.h>
 
 /**
  * struct rcu_head - callback structure for use with RCU
@@ -133,6 +134,15 @@ static inline void rcu_bh_qsctr_inc(int cpu)
 extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+extern struct lockdep_map rcu_lock_map;
+# define rcu_read_acquire()	lock_acquire(&rcu_lock_map, 0, 0, 2, 1, _THIS_IP_)
+# define rcu_read_release()	lock_release(&rcu_lock_map, 1, _THIS_IP_)
+#else
+# define rcu_read_acquire()	do { } while (0)
+# define rcu_read_release()	do { } while (0)
+#endif
+
 /**
  * rcu_read_lock - mark the beginning of an RCU read-side critical section.
  *
@@ -166,6 +176,7 @@ extern int rcu_needs_cpu(int cpu);
 	do { \
 		preempt_disable(); \
 		__acquire(RCU); \
+		rcu_read_acquire(); \
 	} while(0)
 
 /**
@@ -175,6 +186,7 @@ extern int rcu_needs_cpu(int cpu);
  */
 #define rcu_read_unlock() \
 	do { \
+		rcu_read_release(); \
 		__release(RCU); \
 		preempt_enable(); \
 	} while(0)
@@ -204,6 +216,7 @@ extern int rcu_needs_cpu(int cpu);
 	do { \
 		local_bh_disable(); \
 		__acquire(RCU_BH); \
+		rcu_read_acquire(); \
 	} while(0)
 
 /*
@@ -213,6 +226,7 @@ extern int rcu_needs_cpu(int cpu);
  */
 #define rcu_read_unlock_bh() \
 	do { \
+		rcu_read_release(); \
 		__release(RCU_BH); \
 		local_bh_enable(); \
 	} while(0)
