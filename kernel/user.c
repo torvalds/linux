@@ -174,6 +174,8 @@ static int user_kobject_create(struct user_struct *up)
 	if (error)
 		kobject_del(kobj);
 
+	kobject_uevent(kobj, KOBJ_ADD);
+
 done:
 	return error;
 }
@@ -189,6 +191,7 @@ int __init uids_kobject_init(void)
 
 	/* create under /sys/kernel dir */
 	uids_kobject.parent = &kernel_subsys.kobj;
+	uids_kobject.kset = &kernel_subsys;
 	kobject_set_name(&uids_kobject, "uids");
 	kobject_init(&uids_kobject);
 
@@ -228,6 +231,7 @@ static void remove_user_sysfs_dir(struct work_struct *w)
 		goto done;
 
 	sysfs_remove_file(kobj, &up->user_attr.attr);
+	kobject_uevent(kobj, KOBJ_REMOVE);
 	kobject_del(kobj);
 
 	sched_destroy_user(up);
