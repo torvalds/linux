@@ -1362,22 +1362,21 @@ int skb_checksum_help(struct sk_buff *skb)
 		goto out_set_summed;
 	}
 
-	if (skb_cloned(skb)) {
+	offset = skb->csum_start - skb_headroom(skb);
+	BUG_ON(offset >= skb_headlen(skb));
+	csum = skb_checksum(skb, offset, skb->len - offset, 0);
+
+	offset += skb->csum_offset;
+	BUG_ON(offset + sizeof(__sum16) > skb_headlen(skb));
+
+	if (skb_cloned(skb) &&
+	    !skb_clone_writable(skb, offset + sizeof(__sum16))) {
 		ret = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 		if (ret)
 			goto out;
 	}
 
-	offset = skb->csum_start - skb_headroom(skb);
-	BUG_ON(offset > (int)skb->len);
-	csum = skb_checksum(skb, offset, skb->len-offset, 0);
-
-	offset = skb_headlen(skb) - offset;
-	BUG_ON(offset <= 0);
-	BUG_ON(skb->csum_offset + 2 > offset);
-
-	*(__sum16 *)(skb->head + skb->csum_start + skb->csum_offset) =
-		csum_fold(csum);
+	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
 out_set_summed:
 	skb->ip_summed = CHECKSUM_NONE;
 out:
