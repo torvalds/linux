@@ -59,9 +59,9 @@ static void requeue_task_rt(struct rq *rq, struct task_struct *p)
 }
 
 static void
-yield_task_rt(struct rq *rq, struct task_struct *p)
+yield_task_rt(struct rq *rq)
 {
-	requeue_task_rt(rq, p);
+	requeue_task_rt(rq, rq->curr);
 }
 
 /*

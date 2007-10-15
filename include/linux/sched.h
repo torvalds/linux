@@ -858,7 +858,7 @@ struct sched_class {
 
 	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int wakeup);
 	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int sleep);
-	void (*yield_task) (struct rq *rq, struct task_struct *p);
+	void (*yield_task) (struct rq *rq);
 
 	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
 

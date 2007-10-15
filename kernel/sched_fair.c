@@ -722,11 +722,11 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
  *
  * If compat_yield is turned on then we requeue to the end of the tree.
  */
-static void yield_task_fair(struct rq *rq, struct task_struct *p)
+static void yield_task_fair(struct rq *rq)
 {
-	struct cfs_rq *cfs_rq = task_cfs_rq(p);
+	struct cfs_rq *cfs_rq = &rq->cfs;
 	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
-	struct sched_entity *rightmost, *se = &p->se;
+	struct sched_entity *rightmost, *se = &rq->curr->se;
 	struct rb_node *parent;
 
 	/*
@@ -741,8 +741,8 @@ static void yield_task_fair(struct rq *rq, struct task_struct *p)
 		 * Dequeue and enqueue the task to update its
 		 * position within the tree:
 		 */
-		dequeue_entity(cfs_rq, &p->se, 0);
-		enqueue_entity(cfs_rq, &p->se, 0);
+		dequeue_entity(cfs_rq, se, 0);
+		enqueue_entity(cfs_rq, se, 0);
 
 		return;
 	}

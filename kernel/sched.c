@@ -4537,7 +4537,7 @@ asmlinkage long sys_sched_yield(void)
 	struct rq *rq = this_rq_lock();
 
 	schedstat_inc(rq, yld_cnt);
-	current->sched_class->yield_task(rq, current);
+	current->sched_class->yield_task(rq);
 
 	/*
 	 * Since we are going to call schedule() anyway, there's
