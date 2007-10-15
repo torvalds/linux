@@ -1,6 +1,4 @@
 /*
- * linux/arch/m68k/atari/atakeyb.c
- *
  * Atari Keyboard driver for 680x0 Linux
  *
  * This file is subject to the terms and conditions of the GNU General Public

@@ -217,7 +217,7 @@ static void atakbd_interrupt(unsigned char scancode, char down)
 
 static int __init atakbd_init(void)
 {
-	int i;
+	int i, error;
 
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(ST_MFP))
 		return -EIO;
@@ -247,9 +247,10 @@ static int __init atakbd_init(void)
 	}
 
 	/* error check */
-	if (input_register_device(atakbd_dev)) {
+	error = input_register_device(atakbd_dev);
+	if (error) {
 		input_free_device(atakbd_dev);
-		return -ENOMEM;
+		return error;
 	}
 
 	atari_input_keyboard_interrupt_hook = atakbd_interrupt;
