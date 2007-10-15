@@ -265,9 +265,7 @@ static int __gfs2_readpage(void *file, struct page *page)
  * @file: The file to read
  * @page: The page of the file
  *
- * This deals with the locking required. If the GFF_EXLOCK flags is set
- * then we already hold the glock (due to page fault) and thus we call
- * __gfs2_readpage() directly. Otherwise we use a trylock in order to
+ * This deals with the locking required. We use a trylock in order to
  * avoid the page lock / glock ordering problems returning AOP_TRUNCATED_PAGE
  * in the event that we are unable to get the lock.
  */
@@ -277,12 +275,6 @@ static int gfs2_readpage(struct file *file, struct page *page)
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
 	struct gfs2_holder gh;
 	int error;
-
-	if (file) {
-		struct gfs2_file *gf = file->private_data;
-		if (test_bit(GFF_EXLOCK, &gf->f_flags))
-			return __gfs2_readpage(file, page);
-	}
 
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
 	error = gfs2_glock_nq_atime(&gh);
@@ -354,9 +346,8 @@ int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
  * 2. We don't handle stuffed files here we let readpage do the honours.
  * 3. mpage_readpages() does most of the heavy lifting in the common case.
  * 4. gfs2_get_block() is relied upon to set BH_Boundary in the right places.
- * 5. We use LM_FLAG_TRY_1CB here, effectively we then have lock-ahead as
- *    well as read-ahead.
  */
+
 static int gfs2_readpages(struct file *file, struct address_space *mapping,
 			  struct list_head *pages, unsigned nr_pages)
 {
@@ -364,40 +355,20 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_holder gh;
-	int ret = 0;
-	int do_unlock = 0;
+	int ret;
 
-	if (file) {
-		struct gfs2_file *gf = file->private_data;
-		if (test_bit(GFF_EXLOCK, &gf->f_flags))
-			goto skip_lock;
-	}
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED,
-			 LM_FLAG_TRY_1CB|GL_ATIME, &gh);
-	do_unlock = 1;
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
 	ret = gfs2_glock_nq_atime(&gh);
-	if (ret == GLR_TRYFAILED)
-		goto out_noerror;
 	if (unlikely(ret))
-		goto out_unlock;
-skip_lock:
+		goto out_uninit;
 	if (!gfs2_is_stuffed(ip))
 		ret = mpage_readpages(mapping, pages, nr_pages, gfs2_get_block);
-
-	if (do_unlock) {
-		gfs2_glock_dq_m(1, &gh);
-		gfs2_holder_uninit(&gh);
-	}
-out:
+	gfs2_glock_dq(&gh);
+out_uninit:
+	gfs2_holder_uninit(&gh);
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		ret = -EIO;
 	return ret;
-out_noerror:
-	ret = 0;
-out_unlock:
-	if (do_unlock)
-		gfs2_holder_uninit(&gh);
-	goto out;
 }
 
 /**

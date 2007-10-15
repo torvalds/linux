@@ -33,7 +33,6 @@
 #include "lm.h"
 #include "log.h"
 #include "meta_io.h"
-#include "ops_vm.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
@@ -169,7 +168,7 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 	if (put_user(fsflags, ptr))
 		error = -EFAULT;
 
-	gfs2_glock_dq_m(1, &gh);
+	gfs2_glock_dq(&gh);
 	gfs2_holder_uninit(&gh);
 	return error;
 }
@@ -293,6 +292,125 @@ static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return -ENOTTY;
 }
 
+/**
+ * gfs2_allocate_page_backing - Use bmap to allocate blocks
+ * @page: The (locked) page to allocate backing for
+ *
+ * We try to allocate all the blocks required for the page in
+ * one go. This might fail for various reasons, so we keep
+ * trying until all the blocks to back this page are allocated.
+ * If some of the blocks are already allocated, thats ok too.
+ */
+
+static int gfs2_allocate_page_backing(struct page *page)
+{
+	struct inode *inode = page->mapping->host;
+	struct buffer_head bh;
+	unsigned long size = PAGE_CACHE_SIZE;
+	u64 lblock = page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+
+	do {
+		bh.b_state = 0;
+		bh.b_size = size;
+		gfs2_block_map(inode, lblock, 1, &bh);
+		if (!buffer_mapped(&bh))
+			return -EIO;
+		size -= bh.b_size;
+		lblock += (bh.b_size >> inode->i_blkbits);
+	} while(size > 0);
+	return 0;
+}
+
+/**
+ * gfs2_page_mkwrite - Make a shared, mmap()ed, page writable
+ * @vma: The virtual memory area
+ * @page: The page which is about to become writable
+ *
+ * When the page becomes writable, we need to ensure that we have
+ * blocks allocated on disk to back that page.
+ */
+
+static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+{
+	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	unsigned long last_index;
+	u64 pos = page->index << (PAGE_CACHE_SIZE - inode->i_blkbits);
+	unsigned int data_blocks, ind_blocks, rblocks;
+	int alloc_required = 0;
+	struct gfs2_holder gh;
+	struct gfs2_alloc *al;
+	int ret;
+
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME, &gh);
+	ret = gfs2_glock_nq_atime(&gh);
+	if (ret)
+		goto out;
+
+	set_bit(GIF_SW_PAGED, &ip->i_flags);
+	gfs2_write_calc_reserv(ip, PAGE_CACHE_SIZE, &data_blocks, &ind_blocks);
+	ret = gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE, &alloc_required);
+	if (ret || !alloc_required)
+		goto out_unlock;
+
+	ip->i_alloc.al_requested = 0;
+	al = gfs2_alloc_get(ip);
+	ret = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	if (ret)
+		goto out_alloc_put;
+	ret = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
+	if (ret)
+		goto out_quota_unlock;
+	al->al_requested = data_blocks + ind_blocks;
+	ret = gfs2_inplace_reserve(ip);
+	if (ret)
+		goto out_quota_unlock;
+
+	rblocks = RES_DINODE + ind_blocks;
+	if (gfs2_is_jdata(ip))
+		rblocks += data_blocks ? data_blocks : 1;
+	if (ind_blocks || data_blocks)
+		rblocks += RES_STATFS + RES_QUOTA;
+	ret = gfs2_trans_begin(sdp, rblocks, 0);
+	if (ret)
+		goto out_trans_fail;
+
+	lock_page(page);
+	ret = -EINVAL;
+	last_index = ip->i_inode.i_size >> PAGE_CACHE_SHIFT;
+	if (page->index > last_index)
+		goto out_unlock_page;
+	if (!PageUptodate(page) || page->mapping != ip->i_inode.i_mapping)
+		goto out_unlock_page;
+	if (gfs2_is_stuffed(ip)) {
+		ret = gfs2_unstuff_dinode(ip, page);
+		if (ret)
+			goto out_unlock_page;
+	}
+	ret = gfs2_allocate_page_backing(page);
+
+out_unlock_page:
+	unlock_page(page);
+	gfs2_trans_end(sdp);
+out_trans_fail:
+	gfs2_inplace_release(ip);
+out_quota_unlock:
+	gfs2_quota_unlock(ip);
+out_alloc_put:
+	gfs2_alloc_put(ip);
+out_unlock:
+	gfs2_glock_dq(&gh);
+out:
+	gfs2_holder_uninit(&gh);
+	return ret;
+}
+
+static struct vm_operations_struct gfs2_vm_ops = {
+	.fault = filemap_fault,
+	.page_mkwrite = gfs2_page_mkwrite,
+};
+
 
 /**
  * gfs2_mmap -
@@ -315,14 +433,7 @@ static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 		return error;
 	}
 
-	/* This is VM_MAYWRITE instead of VM_WRITE because a call
-	   to mprotect() can turn on VM_WRITE later. */
-
-	if ((vma->vm_flags & (VM_MAYSHARE | VM_MAYWRITE)) ==
-	    (VM_MAYSHARE | VM_MAYWRITE))
-		vma->vm_ops = &gfs2_vm_ops_sharewrite;
-	else
-		vma->vm_ops = &gfs2_vm_ops_private;
+	vma->vm_ops = &gfs2_vm_ops;
 
 	gfs2_glock_dq_uninit(&i_gh);
 

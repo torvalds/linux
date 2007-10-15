@@ -241,7 +241,6 @@ struct gfs2_alloc {
 enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
-	GIF_PAGED		= 2,
 	GIF_SW_PAGED		= 3,
 };
 
@@ -289,19 +288,12 @@ static inline struct gfs2_inode *GFS2_I(struct inode *inode)
 	return container_of(inode, struct gfs2_inode, i_inode);
 }
 
-/* To be removed? */
 static inline struct gfs2_sbd *GFS2_SB(struct inode *inode)
 {
 	return inode->i_sb->s_fs_info;
 }
 
-enum {
-	GFF_DID_DIRECT_ALLOC	= 0,
-	GFF_EXLOCK = 1,
-};
-
 struct gfs2_file {
-	unsigned long f_flags;		/* GFF_... */
 	struct mutex f_fl_mutex;
 	struct gfs2_holder f_fl_gh;
 };

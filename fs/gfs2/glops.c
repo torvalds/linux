@@ -86,15 +86,10 @@ static void gfs2_pte_inval(struct gfs2_glock *gl)
 	if (!ip || !S_ISREG(inode->i_mode))
 		return;
 
-	if (!test_bit(GIF_PAGED, &ip->i_flags))
-		return;
-
 	unmap_shared_mapping_range(inode->i_mapping, 0, 0);
-
 	if (test_bit(GIF_SW_PAGED, &ip->i_flags))
 		set_bit(GLF_DIRTY, &gl->gl_flags);
 
-	clear_bit(GIF_SW_PAGED, &ip->i_flags);
 }
 
 /**
@@ -234,10 +229,8 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 			set_bit(GIF_INVALID, &ip->i_flags);
 	}
 
-	if (ip && S_ISREG(ip->i_inode.i_mode)) {
+	if (ip && S_ISREG(ip->i_inode.i_mode))
 		truncate_inode_pages(ip->i_inode.i_mapping, 0);
-		clear_bit(GIF_PAGED, &ip->i_flags);
-	}
 }
 
 /**
