@@ -972,10 +972,11 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 
 	if (sysctl_sched_child_runs_first &&
 			curr->vruntime < se->vruntime) {
-
-		dequeue_entity(cfs_rq, curr, 0);
+		/*
+ 		 * Upon rescheduling, sched_class::put_prev_task() will place
+ 		 * 'current' within the tree based on its new key value.
+ 		 */
 		swap(curr->vruntime, se->vruntime);
-		enqueue_entity(cfs_rq, curr, 0);
 	}
 
 	update_stats_enqueue(cfs_rq, se);
