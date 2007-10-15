@@ -447,6 +447,19 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 #endif
 }
 
+static void check_spread(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+#ifdef CONFIG_SCHED_DEBUG
+	s64 d = se->vruntime - cfs_rq->min_vruntime;
+
+	if (d < 0)
+		d = -d;
+
+	if (d > 3*sysctl_sched_latency)
+		schedstat_inc(cfs_rq, nr_spread_over);
+#endif
+}
+
 static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
@@ -494,6 +507,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 	}
 
 	update_stats_enqueue(cfs_rq, se);
+	check_spread(cfs_rq, se);
 	if (se != cfs_rq->curr)
 		__enqueue_entity(cfs_rq, se);
 	account_entity_enqueue(cfs_rq, se);
@@ -587,6 +601,7 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 	update_stats_curr_end(cfs_rq, prev);
 
+	check_spread(cfs_rq, prev);
 	if (prev->on_rq) {
 		update_stats_wait_start(cfs_rq, prev);
 		/* Put 'current' back into the tree. */
@@ -996,6 +1011,8 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	}
 
 	update_stats_enqueue(cfs_rq, se);
+	check_spread(cfs_rq, se);
+	check_spread(cfs_rq, curr);
 	__enqueue_entity(cfs_rq, se);
 	account_entity_enqueue(cfs_rq, se);
 	resched_task(rq->curr);

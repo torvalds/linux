@@ -140,6 +140,8 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	SEQ_printf(m, "  .%-30s: %ld\n", "bkl_cnt",
 			rq->bkl_cnt);
 #endif
+	SEQ_printf(m, "  .%-30s: %ld\n", "nr_spread_over",
+			cfs_rq->nr_spread_over);
 }
 
 static void print_cpu(struct seq_file *m, int cpu)
