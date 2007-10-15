@@ -20,7 +20,7 @@
 #include <linux/sunrpc/auth.h>
 #include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
-
+#include <linux/sunrpc/xprtsock.h>
 
 /* RPC scheduler */
 EXPORT_SYMBOL(rpc_execute);

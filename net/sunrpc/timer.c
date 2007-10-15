@@ -17,6 +17,7 @@
 
 #include <linux/types.h>
 #include <linux/unistd.h>
+#include <linux/module.h>
 
 #include <linux/sunrpc/clnt.h>
 
@@ -40,6 +41,7 @@ rpc_init_rtt(struct rpc_rtt *rt, unsigned long timeo)
 		rt->ntimeouts[i] = 0;
 	}
 }
+EXPORT_SYMBOL_GPL(rpc_init_rtt);
 
 /*
  * NB: When computing the smoothed RTT and standard deviation,
@@ -75,6 +77,7 @@ rpc_update_rtt(struct rpc_rtt *rt, unsigned timer, long m)
 	if (*sdrtt < RPC_RTO_MIN)
 		*sdrtt = RPC_RTO_MIN;
 }
+EXPORT_SYMBOL_GPL(rpc_update_rtt);
 
 /*
  * Estimate rto for an nfs rpc sent via. an unreliable datagram.
@@ -103,3 +106,4 @@ rpc_calc_rto(struct rpc_rtt *rt, unsigned timer)
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(rpc_calc_rto);

@@ -49,6 +49,11 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
+#define NFS_64_BIT_INODE_NUMBERS_ENABLED	1
+
+/* Default is to see 64-bit inode numbers */
+static int enable_ino64 = NFS_64_BIT_INODE_NUMBERS_ENABLED;
+
 static void nfs_invalidate_inode(struct inode *);
 static int nfs_update_inode(struct inode *, struct nfs_fattr *);
 
@@ -60,6 +65,25 @@ static inline unsigned long
 nfs_fattr_to_ino_t(struct nfs_fattr *fattr)
 {
 	return nfs_fileid_to_ino_t(fattr->fileid);
+}
+
+/**
+ * nfs_compat_user_ino64 - returns the user-visible inode number
+ * @fileid: 64-bit fileid
+ *
+ * This function returns a 32-bit inode number if the boot parameter
+ * nfs.enable_ino64 is zero.
+ */
+u64 nfs_compat_user_ino64(u64 fileid)
+{
+	int ino;
+
+	if (enable_ino64)
+		return fileid;
+	ino = fileid;
+	if (sizeof(ino) < sizeof(fileid))
+		ino ^= fileid >> (sizeof(fileid)-sizeof(ino)) * 8;
+	return ino;
 }
 
 int nfs_write_inode(struct inode *inode, int sync)
@@ -85,7 +109,6 @@ void nfs_clear_inode(struct inode *inode)
 	 */
 	BUG_ON(nfs_have_writebacks(inode));
 	BUG_ON(!list_empty(&NFS_I(inode)->open_files));
-	BUG_ON(atomic_read(&NFS_I(inode)->data_updates) != 0);
 	nfs_zap_acl_cache(inode);
 	nfs_access_zap_cache(inode);
 }
@@ -118,8 +141,8 @@ static void nfs_zap_caches_locked(struct inode *inode)
 
 	nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 
-	NFS_ATTRTIMEO(inode) = NFS_MINATTRTIMEO(inode);
-	NFS_ATTRTIMEO_UPDATE(inode) = jiffies;
+	nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
+	nfsi->attrtimeo_timestamp = jiffies;
 
 	memset(NFS_COOKIEVERF(inode), 0, sizeof(NFS_COOKIEVERF(inode)));
 	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode))
@@ -153,6 +176,13 @@ static void nfs_zap_acl_cache(struct inode *inode)
 		clear_acl_cache(inode);
 	spin_lock(&inode->i_lock);
 	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_ACL;
+	spin_unlock(&inode->i_lock);
+}
+
+void nfs_invalidate_atime(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
 	spin_unlock(&inode->i_lock);
 }
 
@@ -338,7 +368,6 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 
 	lock_kernel();
-	nfs_begin_data_update(inode);
 	/* Write all dirty data */
 	if (S_ISREG(inode->i_mode)) {
 		filemap_write_and_wait(inode->i_mapping);
@@ -352,7 +381,6 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	error = NFS_PROTO(inode)->setattr(dentry, &fattr, attr);
 	if (error == 0)
 		nfs_refresh_inode(inode, &fattr);
-	nfs_end_data_update(inode);
 	unlock_kernel();
 	return error;
 }
@@ -431,7 +459,7 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 
 	/* Flush out writes to the server in order to update c/mtime */
 	if (S_ISREG(inode->i_mode))
-		nfs_sync_mapping_range(inode->i_mapping, 0, 0, FLUSH_NOCOMMIT);
+		nfs_wb_nocommit(inode);
 
 	/*
 	 * We may force a getattr if the user cares about atime.
@@ -450,8 +478,10 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 		err = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	else
 		err = nfs_revalidate_inode(NFS_SERVER(inode), inode);
-	if (!err)
+	if (!err) {
 		generic_fillattr(inode, stat);
+		stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
+	}
 	return err;
 }
 
@@ -536,7 +566,7 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_c
 static void nfs_file_clear_open_context(struct file *filp)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
-	struct nfs_open_context *ctx = (struct nfs_open_context *)filp->private_data;
+	struct nfs_open_context *ctx = nfs_file_open_context(filp);
 
 	if (ctx) {
 		filp->private_data = NULL;
@@ -598,16 +628,10 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	status = nfs_wait_on_inode(inode);
 	if (status < 0)
 		goto out;
-	if (NFS_STALE(inode)) {
-		status = -ESTALE;
-		/* Do we trust the cached ESTALE? */
-		if (NFS_ATTRTIMEO(inode) != 0) {
-			if (nfsi->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME)) {
-				/* no */
-			} else
-				goto out;
-		}
-	}
+
+	status = -ESTALE;
+	if (NFS_STALE(inode))
+		goto out;
 
 	status = NFS_PROTO(inode)->getattr(server, NFS_FH(inode), &fattr);
 	if (status != 0) {
@@ -654,7 +678,7 @@ int nfs_attribute_timeout(struct inode *inode)
 
 	if (nfs_have_delegation(inode, FMODE_READ))
 		return 0;
-	return time_after(jiffies, nfsi->read_cache_jiffies+nfsi->attrtimeo);
+	return !time_in_range(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
 }
 
 /**
@@ -683,11 +707,8 @@ static int nfs_invalidate_mapping_nolock(struct inode *inode, struct address_spa
 	}
 	spin_lock(&inode->i_lock);
 	nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(inode->i_mode))
 		memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
-		/* This ensures we revalidate child dentries */
-		nfsi->cache_change_attribute = jiffies;
-	}
 	spin_unlock(&inode->i_lock);
 	nfs_inc_stats(inode, NFSIOS_DATAINVALIDATE);
 	dfprintk(PAGECACHE, "NFS: (%s/%Ld) data cache invalidated\n",
@@ -756,56 +777,27 @@ out:
 	return ret;
 }
 
-/**
- * nfs_begin_data_update
- * @inode - pointer to inode
- * Declare that a set of operations will update file data on the server
- */
-void nfs_begin_data_update(struct inode *inode)
-{
-	atomic_inc(&NFS_I(inode)->data_updates);
-}
-
-/**
- * nfs_end_data_update
- * @inode - pointer to inode
- * Declare end of the operations that will update file data
- * This will mark the inode as immediately needing revalidation
- * of its attribute cache.
- */
-void nfs_end_data_update(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	/* Directories: invalidate page cache */
-	if (S_ISDIR(inode->i_mode)) {
-		spin_lock(&inode->i_lock);
-		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
-		spin_unlock(&inode->i_lock);
-	}
-	nfsi->cache_change_attribute = jiffies;
-	atomic_dec(&nfsi->data_updates);
-}
-
 static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
-	unsigned long now = jiffies;
 
+	if ((fattr->valid & NFS_ATTR_WCC_V4) != 0 &&
+			nfsi->change_attr == fattr->pre_change_attr) {
+		nfsi->change_attr = fattr->change_attr;
+		if (S_ISDIR(inode->i_mode))
+			nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+	}
 	/* If we have atomic WCC data, we may update some attributes */
 	if ((fattr->valid & NFS_ATTR_WCC) != 0) {
-		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime)) {
+		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime))
 			memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
-			nfsi->cache_change_attribute = now;
-		}
 		if (timespec_equal(&inode->i_mtime, &fattr->pre_mtime)) {
 			memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
-			nfsi->cache_change_attribute = now;
+			if (S_ISDIR(inode->i_mode))
+				nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 		}
-		if (inode->i_size == fattr->pre_size && nfsi->npages == 0) {
+		if (inode->i_size == fattr->pre_size && nfsi->npages == 0)
 			inode->i_size = fattr->size;
-			nfsi->cache_change_attribute = now;
-		}
 	}
 }
 
@@ -822,7 +814,7 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t cur_size, new_isize;
-	int data_unstable;
+	unsigned long invalid = 0;
 
 
 	/* Has the inode gone and changed behind our back? */
@@ -831,37 +823,41 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 		return -EIO;
 	}
 
-	/* Are we in the process of updating data on the server? */
-	data_unstable = nfs_caches_unstable(inode);
-
 	/* Do atomic weak cache consistency updates */
 	nfs_wcc_update_inode(inode, fattr);
 
 	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
 			nfsi->change_attr != fattr->change_attr)
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 
 	/* Verify a few of the more important attributes */
 	if (!timespec_equal(&inode->i_mtime, &fattr->mtime))
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 
 	cur_size = i_size_read(inode);
  	new_isize = nfs_size_to_loff_t(fattr->size);
 	if (cur_size != new_isize && nfsi->npages == 0)
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 
 	/* Have any file permissions changed? */
 	if ((inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO)
 			|| inode->i_uid != fattr->uid
 			|| inode->i_gid != fattr->gid)
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS | NFS_INO_INVALID_ACL;
+		invalid |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS | NFS_INO_INVALID_ACL;
 
 	/* Has the link count changed? */
 	if (inode->i_nlink != fattr->nlink)
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
+		invalid |= NFS_INO_INVALID_ATTR;
 
 	if (!timespec_equal(&inode->i_atime, &fattr->atime))
-		nfsi->cache_validity |= NFS_INO_INVALID_ATIME;
+		invalid |= NFS_INO_INVALID_ATIME;
+
+	if (invalid != 0)
+		nfsi->cache_validity |= invalid;
+	else
+		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR
+				| NFS_INO_INVALID_ATIME
+				| NFS_INO_REVAL_PAGECACHE);
 
 	nfsi->read_cache_jiffies = fattr->time_start;
 	return 0;
@@ -911,17 +907,41 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
-	int status = 0;
 
 	spin_lock(&inode->i_lock);
-	if (unlikely((fattr->valid & NFS_ATTR_FATTR) == 0)) {
-		nfsi->cache_validity |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
-		goto out;
-	}
-	status = nfs_update_inode(inode, fattr);
-out:
+	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+	if (S_ISDIR(inode->i_mode))
+		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 	spin_unlock(&inode->i_lock);
-	return status;
+	return nfs_refresh_inode(inode, fattr);
+}
+
+/**
+ * nfs_post_op_update_inode_force_wcc - try to update the inode attribute cache
+ * @inode - pointer to inode
+ * @fattr - updated attributes
+ *
+ * After an operation that has changed the inode metadata, mark the
+ * attribute cache as being invalid, then try to update it. Fake up
+ * weak cache consistency data, if none exist.
+ *
+ * This function is mainly designed to be used by the ->write_done() functions.
+ */
+int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr)
+{
+	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
+			(fattr->valid & NFS_ATTR_WCC_V4) == 0) {
+		fattr->pre_change_attr = NFS_I(inode)->change_attr;
+		fattr->valid |= NFS_ATTR_WCC_V4;
+	}
+	if ((fattr->valid & NFS_ATTR_FATTR) != 0 &&
+			(fattr->valid & NFS_ATTR_WCC) == 0) {
+		memcpy(&fattr->pre_ctime, &inode->i_ctime, sizeof(fattr->pre_ctime));
+		memcpy(&fattr->pre_mtime, &inode->i_mtime, sizeof(fattr->pre_mtime));
+		fattr->pre_size = inode->i_size;
+		fattr->valid |= NFS_ATTR_WCC;
+	}
+	return nfs_post_op_update_inode(inode, fattr);
 }
 
 /*
@@ -941,9 +961,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	struct nfs_server *server;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t cur_isize, new_isize;
-	unsigned int	invalid = 0;
+	unsigned long invalid = 0;
 	unsigned long now = jiffies;
-	int data_stable;
 
 	dfprintk(VFS, "NFS: %s(%s/%ld ct=%d info=0x%x)\n",
 			__FUNCTION__, inode->i_sb->s_id, inode->i_ino,
@@ -968,57 +987,51 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	 * Update the read time so we don't revalidate too often.
 	 */
 	nfsi->read_cache_jiffies = fattr->time_start;
-	nfsi->last_updated = now;
 
-	/* Fix a wraparound issue with nfsi->cache_change_attribute */
-	if (time_before(now, nfsi->cache_change_attribute))
-		nfsi->cache_change_attribute = now - 600*HZ;
-
-	/* Are we racing with known updates of the metadata on the server? */
-	data_stable = nfs_verify_change_attribute(inode, fattr->time_start);
-	if (data_stable)
-		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATIME);
+	nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ATIME
+			| NFS_INO_REVAL_PAGECACHE);
 
 	/* Do atomic weak cache consistency updates */
 	nfs_wcc_update_inode(inode, fattr);
+
+	/* More cache consistency checks */
+	if (!(fattr->valid & NFS_ATTR_FATTR_V4)) {
+		/* NFSv2/v3: Check if the mtime agrees */
+		if (!timespec_equal(&inode->i_mtime, &fattr->mtime)) {
+			dprintk("NFS: mtime change on server for file %s/%ld\n",
+					inode->i_sb->s_id, inode->i_ino);
+			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
+			nfsi->cache_change_attribute = now;
+		}
+		/* If ctime has changed we should definitely clear access+acl caches */
+		if (!timespec_equal(&inode->i_ctime, &fattr->ctime))
+			invalid |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
+	} else if (nfsi->change_attr != fattr->change_attr) {
+		dprintk("NFS: change_attr change on server for file %s/%ld\n",
+				inode->i_sb->s_id, inode->i_ino);
+		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
+		nfsi->cache_change_attribute = now;
+	}
 
 	/* Check if our cached file size is stale */
  	new_isize = nfs_size_to_loff_t(fattr->size);
 	cur_isize = i_size_read(inode);
 	if (new_isize != cur_isize) {
-		/* Do we perhaps have any outstanding writes? */
-		if (nfsi->npages == 0) {
-			/* No, but did we race with nfs_end_data_update()? */
-			if (data_stable) {
-				inode->i_size = new_isize;
-				invalid |= NFS_INO_INVALID_DATA;
-			}
-			invalid |= NFS_INO_INVALID_ATTR;
-		} else if (new_isize > cur_isize) {
+		/* Do we perhaps have any outstanding writes, or has
+		 * the file grown beyond our last write? */
+		if (nfsi->npages == 0 || new_isize > cur_isize) {
 			inode->i_size = new_isize;
 			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
 		}
-		nfsi->cache_change_attribute = now;
 		dprintk("NFS: isize change on server for file %s/%ld\n",
 				inode->i_sb->s_id, inode->i_ino);
 	}
 
-	/* Check if the mtime agrees */
-	if (!timespec_equal(&inode->i_mtime, &fattr->mtime)) {
-		memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
-		dprintk("NFS: mtime change on server for file %s/%ld\n",
-				inode->i_sb->s_id, inode->i_ino);
-		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
-		nfsi->cache_change_attribute = now;
-	}
 
-	/* If ctime has changed we should definitely clear access+acl caches */
-	if (!timespec_equal(&inode->i_ctime, &fattr->ctime)) {
-		invalid |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
-		memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
-		nfsi->cache_change_attribute = now;
-	}
+	memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
+	memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
 	memcpy(&inode->i_atime, &fattr->atime, sizeof(inode->i_atime));
+	nfsi->change_attr = fattr->change_attr;
 
 	if ((inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO) ||
 	    inode->i_uid != fattr->uid ||
@@ -1039,31 +1052,29 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  		inode->i_blocks = fattr->du.nfs2.blocks;
  	}
 
-	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
-			nfsi->change_attr != fattr->change_attr) {
-		dprintk("NFS: change_attr change on server for file %s/%ld\n",
-				inode->i_sb->s_id, inode->i_ino);
-		nfsi->change_attr = fattr->change_attr;
-		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
-		nfsi->cache_change_attribute = now;
-	}
-
 	/* Update attrtimeo value if we're out of the unstable period */
 	if (invalid & NFS_INO_INVALID_ATTR) {
 		nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;
-	} else if (time_after(now, nfsi->attrtimeo_timestamp+nfsi->attrtimeo)) {
-		if ((nfsi->attrtimeo <<= 1) > NFS_MAXATTRTIMEO(inode))
-			nfsi->attrtimeo = NFS_MAXATTRTIMEO(inode);
-		nfsi->attrtimeo_timestamp = now;
+		nfsi->last_updated = now;
+	} else {
+		if (!time_in_range(now, nfsi->attrtimeo_timestamp, nfsi->attrtimeo_timestamp + nfsi->attrtimeo)) {
+			if ((nfsi->attrtimeo <<= 1) > NFS_MAXATTRTIMEO(inode))
+				nfsi->attrtimeo = NFS_MAXATTRTIMEO(inode);
+			nfsi->attrtimeo_timestamp = now;
+		}
+		/*
+		 * Avoid jiffy wraparound issues with nfsi->last_updated
+		 */
+		if (!time_in_range(nfsi->last_updated, nfsi->read_cache_jiffies, now))
+			nfsi->last_updated = nfsi->read_cache_jiffies;
 	}
+	invalid &= ~NFS_INO_INVALID_ATTR;
 	/* Don't invalidate the data if we were to blame */
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
 				|| S_ISLNK(inode->i_mode)))
 		invalid &= ~NFS_INO_INVALID_DATA;
-	if (data_stable)
-		invalid &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME|NFS_INO_REVAL_PAGECACHE);
 	if (!nfs_have_delegation(inode, FMODE_READ) ||
 			(nfsi->cache_validity & NFS_INO_REVAL_FORCED))
 		nfsi->cache_validity |= invalid;
@@ -1152,7 +1163,6 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 	INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
 	INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
 	INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
-	atomic_set(&nfsi->data_updates, 0);
 	nfsi->ncommit = 0;
 	nfsi->npages = 0;
 	nfs4_init_once(nfsi);
@@ -1249,6 +1259,7 @@ static void __exit exit_nfs_fs(void)
 /* Not quite true; I just maintain it */
 MODULE_AUTHOR("Olaf Kirch <okir@monad.swb.de>");
 MODULE_LICENSE("GPL");
+module_param(enable_ino64, bool, 0644);
 
 module_init(init_nfs_fs)
 module_exit(exit_nfs_fs)

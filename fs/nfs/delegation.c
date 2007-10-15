@@ -52,7 +52,7 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 	for (fl = inode->i_flock; fl != 0; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
-		if ((struct nfs_open_context *)fl->fl_file->private_data != ctx)
+		if (nfs_file_open_context(fl->fl_file) != ctx)
 			continue;
 		status = nfs4_lock_delegation_recall(state, fl);
 		if (status >= 0)
@@ -109,6 +109,7 @@ again:
 void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res)
 {
 	struct nfs_delegation *delegation = NFS_I(inode)->delegation;
+	struct rpc_cred *oldcred;
 
 	if (delegation == NULL)
 		return;
@@ -116,11 +117,12 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, st
 			sizeof(delegation->stateid.data));
 	delegation->type = res->delegation_type;
 	delegation->maxsize = res->maxsize;
-	put_rpccred(cred);
+	oldcred = delegation->cred;
 	delegation->cred = get_rpccred(cred);
 	delegation->flags &= ~NFS_DELEGATION_NEED_RECLAIM;
 	NFS_I(inode)->delegation_state = delegation->type;
 	smp_wmb();
+	put_rpccred(oldcred);
 }
 
 /*

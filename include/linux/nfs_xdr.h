@@ -62,7 +62,8 @@ struct nfs_fattr {
 #define NFS_ATTR_FATTR		0x0002		/* post-op attributes */
 #define NFS_ATTR_FATTR_V3	0x0004		/* NFSv3 attributes */
 #define NFS_ATTR_FATTR_V4	0x0008		/* NFSv4 change attribute */
-#define NFS_ATTR_FATTR_V4_REFERRAL	0x0010		/* NFSv4 referral */
+#define NFS_ATTR_WCC_V4		0x0010		/* pre-op change attribute */
+#define NFS_ATTR_FATTR_V4_REFERRAL	0x0020		/* NFSv4 referral */
 
 /*
  * Info on the file system
@@ -538,10 +539,13 @@ typedef u64 clientid4;
 
 struct nfs4_accessargs {
 	const struct nfs_fh *		fh;
+	const u32 *			bitmask;
 	u32				access;
 };
 
 struct nfs4_accessres {
+	const struct nfs_server *	server;
+	struct nfs_fattr *		fattr;
 	u32				supported;
 	u32				access;
 };

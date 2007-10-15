@@ -368,7 +368,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 		return -ENOMEM;
 
 	dreq->inode = inode;
-	dreq->ctx = get_nfs_open_context((struct nfs_open_context *)iocb->ki_filp->private_data);
+	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
@@ -510,7 +510,6 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 			nfs_direct_write_reschedule(dreq);
 			break;
 		default:
-			nfs_end_data_update(inode);
 			if (dreq->commit_data != NULL)
 				nfs_commit_free(dreq->commit_data);
 			nfs_direct_free_writedata(dreq);
@@ -533,7 +532,6 @@ static inline void nfs_alloc_commit_data(struct nfs_direct_req *dreq)
 
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
 {
-	nfs_end_data_update(inode);
 	nfs_direct_free_writedata(dreq);
 	nfs_zap_mapping(inode, inode->i_mapping);
 	nfs_direct_complete(dreq);
@@ -718,13 +716,11 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 		sync = FLUSH_STABLE;
 
 	dreq->inode = inode;
-	dreq->ctx = get_nfs_open_context((struct nfs_open_context *)iocb->ki_filp->private_data);
+	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
 	nfs_add_stats(inode, NFSIOS_DIRECTWRITTENBYTES, count);
-
-	nfs_begin_data_update(inode);
 
 	rpc_clnt_sigmask(clnt, &oldset);
 	result = nfs_direct_write_schedule(dreq, user_addr, count, pos, sync);

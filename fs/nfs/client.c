@@ -23,6 +23,8 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/metrics.h>
+#include <linux/sunrpc/xprtsock.h>
+#include <linux/sunrpc/xprtrdma.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/nfs4_mount.h>
@@ -340,7 +342,8 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 		to->to_retries = 2;
 
 	switch (proto) {
-	case IPPROTO_TCP:
+	case XPRT_TRANSPORT_TCP:
+	case XPRT_TRANSPORT_RDMA:
 		if (!to->to_initval)
 			to->to_initval = 60 * HZ;
 		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
@@ -349,7 +352,7 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 		to->to_maxval = to->to_initval + (to->to_increment * to->to_retries);
 		to->to_exponential = 0;
 		break;
-	case IPPROTO_UDP:
+	case XPRT_TRANSPORT_UDP:
 	default:
 		if (!to->to_initval)
 			to->to_initval = 11 * HZ / 10;
@@ -501,9 +504,9 @@ static int nfs_init_server_rpcclient(struct nfs_server *server, rpc_authflavor_t
 /*
  * Initialise an NFS2 or NFS3 client
  */
-static int nfs_init_client(struct nfs_client *clp, const struct nfs_mount_data *data)
+static int nfs_init_client(struct nfs_client *clp,
+			   const struct nfs_parsed_mount_data *data)
 {
-	int proto = (data->flags & NFS_MOUNT_TCP) ? IPPROTO_TCP : IPPROTO_UDP;
 	int error;
 
 	if (clp->cl_cons_state == NFS_CS_READY) {
@@ -522,8 +525,8 @@ static int nfs_init_client(struct nfs_client *clp, const struct nfs_mount_data *
 	 * Create a client RPC handle for doing FSSTAT with UNIX auth only
 	 * - RFC 2623, sec 2.3.2
 	 */
-	error = nfs_create_rpc_client(clp, proto, data->timeo, data->retrans,
-					RPC_AUTH_UNIX, 0);
+	error = nfs_create_rpc_client(clp, data->nfs_server.protocol,
+				data->timeo, data->retrans, RPC_AUTH_UNIX, 0);
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
@@ -538,7 +541,8 @@ error:
 /*
  * Create a version 2 or 3 client
  */
-static int nfs_init_server(struct nfs_server *server, const struct nfs_mount_data *data)
+static int nfs_init_server(struct nfs_server *server,
+			   const struct nfs_parsed_mount_data *data)
 {
 	struct nfs_client *clp;
 	int error, nfsvers = 2;
@@ -551,7 +555,8 @@ static int nfs_init_server(struct nfs_server *server, const struct nfs_mount_dat
 #endif
 
 	/* Allocate or find a client reference we can use */
-	clp = nfs_get_client(data->hostname, &data->addr, nfsvers);
+	clp = nfs_get_client(data->nfs_server.hostname,
+				&data->nfs_server.address, nfsvers);
 	if (IS_ERR(clp)) {
 		dprintk("<-- nfs_init_server() = error %ld\n", PTR_ERR(clp));
 		return PTR_ERR(clp);
@@ -581,7 +586,7 @@ static int nfs_init_server(struct nfs_server *server, const struct nfs_mount_dat
 	if (error < 0)
 		goto error;
 
-	error = nfs_init_server_rpcclient(server, data->pseudoflavor);
+	error = nfs_init_server_rpcclient(server, data->auth_flavors[0]);
 	if (error < 0)
 		goto error;
 
@@ -760,7 +765,7 @@ void nfs_free_server(struct nfs_server *server)
  * Create a version 2 or 3 volume record
  * - keyed on server and FSID
  */
-struct nfs_server *nfs_create_server(const struct nfs_mount_data *data,
+struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 				     struct nfs_fh *mntfh)
 {
 	struct nfs_server *server;
@@ -906,7 +911,7 @@ error:
  * Create a version 4 volume record
  */
 static int nfs4_init_server(struct nfs_server *server,
-		const struct nfs4_mount_data *data, rpc_authflavor_t authflavour)
+		const struct nfs_parsed_mount_data *data)
 {
 	int error;
 
@@ -926,7 +931,7 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->acdirmin = data->acdirmin * HZ;
 	server->acdirmax = data->acdirmax * HZ;
 
-	error = nfs_init_server_rpcclient(server, authflavour);
+	error = nfs_init_server_rpcclient(server, data->auth_flavors[0]);
 
 	/* Done */
 	dprintk("<-- nfs4_init_server() = %d\n", error);
@@ -937,12 +942,7 @@ static int nfs4_init_server(struct nfs_server *server,
  * Create a version 4 volume record
  * - keyed on server and FSID
  */
-struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
-				      const char *hostname,
-				      const struct sockaddr_in *addr,
-				      const char *mntpath,
-				      const char *ip_addr,
-				      rpc_authflavor_t authflavour,
+struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 				      struct nfs_fh *mntfh)
 {
 	struct nfs_fattr fattr;
@@ -956,13 +956,18 @@ struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
 		return ERR_PTR(-ENOMEM);
 
 	/* Get a client record */
-	error = nfs4_set_client(server, hostname, addr, ip_addr, authflavour,
-			data->proto, data->timeo, data->retrans);
+	error = nfs4_set_client(server,
+			data->nfs_server.hostname,
+			&data->nfs_server.address,
+			data->client_address,
+			data->auth_flavors[0],
+			data->nfs_server.protocol,
+			data->timeo, data->retrans);
 	if (error < 0)
 		goto error;
 
 	/* set up the general RPC client */
-	error = nfs4_init_server(server, data, authflavour);
+	error = nfs4_init_server(server, data);
 	if (error < 0)
 		goto error;
 
@@ -971,7 +976,7 @@ struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	/* Probe the root fh to retrieve its FSID */
-	error = nfs4_path_walk(server, mntfh, mntpath);
+	error = nfs4_path_walk(server, mntfh, data->nfs_server.export_path);
 	if (error < 0)
 		goto error;
 

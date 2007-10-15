@@ -341,9 +341,6 @@ int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
 		set_bit(NFS_INO_STALE, &NFS_FLAGS(data->inode));
 		nfs_mark_for_revalidate(data->inode);
 	}
-	spin_lock(&data->inode->i_lock);
-	NFS_I(data->inode)->cache_validity |= NFS_INO_INVALID_ATIME;
-	spin_unlock(&data->inode->i_lock);
 	return 0;
 }
 
@@ -497,8 +494,7 @@ int nfs_readpage(struct file *file, struct page *page)
 		if (ctx == NULL)
 			goto out_unlock;
 	} else
-		ctx = get_nfs_open_context((struct nfs_open_context *)
-				file->private_data);
+		ctx = get_nfs_open_context(nfs_file_open_context(file));
 
 	error = nfs_readpage_async(ctx, inode, page);
 
@@ -576,8 +572,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 		if (desc.ctx == NULL)
 			return -EBADF;
 	} else
-		desc.ctx = get_nfs_open_context((struct nfs_open_context *)
-				filp->private_data);
+		desc.ctx = get_nfs_open_context(nfs_file_open_context(filp));
 	if (rsize < PAGE_CACHE_SIZE)
 		nfs_pageio_init(&pgio, inode, nfs_pagein_multi, rsize, 0);
 	else

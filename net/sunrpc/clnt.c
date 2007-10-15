@@ -127,7 +127,14 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_auth		*auth;
 	int err;
-	int len;
+	size_t len;
+
+	/* sanity check the name before trying to print it */
+	err = -EINVAL;
+	len = strlen(servname);
+	if (len > RPC_MAXNETNAMELEN)
+		goto out_no_rpciod;
+	len++;
 
 	dprintk("RPC:       creating %s client for %s (xprt %p)\n",
 			program->name, servname, xprt);
@@ -148,7 +155,6 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	clnt->cl_parent = clnt;
 
 	clnt->cl_server = clnt->cl_inline_name;
-	len = strlen(servname) + 1;
 	if (len > sizeof(clnt->cl_inline_name)) {
 		char *buf = kmalloc(len, GFP_KERNEL);
 		if (buf != 0)
@@ -234,8 +240,8 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 {
 	struct rpc_xprt *xprt;
 	struct rpc_clnt *clnt;
-	struct rpc_xprtsock_create xprtargs = {
-		.proto = args->protocol,
+	struct xprt_create xprtargs = {
+		.ident = args->protocol,
 		.srcaddr = args->saddress,
 		.dstaddr = args->address,
 		.addrlen = args->addrsize,
@@ -253,7 +259,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	 */
 	if (args->servername == NULL) {
 		struct sockaddr_in *addr =
-					(struct sockaddr_in *) &args->address;
+					(struct sockaddr_in *) args->address;
 		snprintf(servername, sizeof(servername), NIPQUAD_FMT,
 			NIPQUAD(addr->sin_addr.s_addr));
 		args->servername = servername;
@@ -268,9 +274,6 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	xprt->resvport = 1;
 	if (args->flags & RPC_CLNT_CREATE_NONPRIVPORT)
 		xprt->resvport = 0;
-
-	dprintk("RPC:       creating %s client for %s (xprt %p)\n",
-			args->program->name, args->servername, xprt);
 
 	clnt = rpc_new_client(xprt, args->servername, args->program,
 				args->version, args->authflavor);
@@ -439,7 +442,7 @@ rpc_release_client(struct rpc_clnt *clnt)
  */
 struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 				      struct rpc_program *program,
-				      int vers)
+				      u32 vers)
 {
 	struct rpc_clnt *clnt;
 	struct rpc_version *version;
@@ -843,8 +846,7 @@ call_allocate(struct rpc_task *task)
 	dprintk("RPC: %5u rpc_buffer allocation failed\n", task->tk_pid);
 
 	if (RPC_IS_ASYNC(task) || !signalled()) {
-		xprt_release(task);
-		task->tk_action = call_reserve;
+		task->tk_action = call_allocate;
 		rpc_delay(task, HZ>>4);
 		return;
 	}
@@ -871,6 +873,7 @@ rpc_xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 	buf->head[0].iov_len = len;
 	buf->tail[0].iov_len = 0;
 	buf->page_len = 0;
+	buf->flags = 0;
 	buf->len = 0;
 	buf->buflen = len;
 }
@@ -937,7 +940,7 @@ call_bind(struct rpc_task *task)
 static void
 call_bind_status(struct rpc_task *task)
 {
-	int status = -EACCES;
+	int status = -EIO;
 
 	if (task->tk_status >= 0) {
 		dprint_status(task);
@@ -947,9 +950,20 @@ call_bind_status(struct rpc_task *task)
 	}
 
 	switch (task->tk_status) {
+	case -EAGAIN:
+		dprintk("RPC: %5u rpcbind waiting for another request "
+				"to finish\n", task->tk_pid);
+		/* avoid busy-waiting here -- could be a network outage. */
+		rpc_delay(task, 5*HZ);
+		goto retry_timeout;
 	case -EACCES:
 		dprintk("RPC: %5u remote rpcbind: RPC program/version "
 				"unavailable\n", task->tk_pid);
+		/* fail immediately if this is an RPC ping */
+		if (task->tk_msg.rpc_proc->p_proc == 0) {
+			status = -EOPNOTSUPP;
+			break;
+		}
 		rpc_delay(task, 3*HZ);
 		goto retry_timeout;
 	case -ETIMEDOUT:
@@ -957,6 +971,7 @@ call_bind_status(struct rpc_task *task)
 				task->tk_pid);
 		goto retry_timeout;
 	case -EPFNOSUPPORT:
+		/* server doesn't support any rpcbind version we know of */
 		dprintk("RPC: %5u remote rpcbind service unavailable\n",
 				task->tk_pid);
 		break;
@@ -969,7 +984,6 @@ call_bind_status(struct rpc_task *task)
 	default:
 		dprintk("RPC: %5u unrecognized rpcbind error (%d)\n",
 				task->tk_pid, -task->tk_status);
-		status = -EIO;
 	}
 
 	rpc_exit(task, status);
@@ -1257,7 +1271,6 @@ call_refresh(struct rpc_task *task)
 {
 	dprint_status(task);
 
-	xprt_release(task);	/* Must do to obtain new XID */
 	task->tk_action = call_refreshresult;
 	task->tk_status = 0;
 	task->tk_client->cl_stats->rpcauthrefresh++;
@@ -1375,6 +1388,8 @@ call_verify(struct rpc_task *task)
 			dprintk("RPC: %5u %s: retry stale creds\n",
 					task->tk_pid, __FUNCTION__);
 			rpcauth_invalcred(task);
+			/* Ensure we obtain a new XID! */
+			xprt_release(task);
 			task->tk_action = call_refresh;
 			goto out_retry;
 		case RPC_AUTH_BADCRED:
@@ -1523,13 +1538,18 @@ void rpc_show_tasks(void)
 		spin_lock(&clnt->cl_lock);
 		list_for_each_entry(t, &clnt->cl_tasks, tk_task) {
 			const char *rpc_waitq = "none";
+			int proc;
+
+			if (t->tk_msg.rpc_proc)
+				proc = t->tk_msg.rpc_proc->p_proc;
+			else
+				proc = -1;
 
 			if (RPC_IS_QUEUED(t))
 				rpc_waitq = rpc_qname(t->u.tk_wait.rpc_waitq);
 
 			printk("%5u %04d %04x %6d %8p %6d %8p %8ld %8s %8p %8p\n",
-				t->tk_pid,
-				(t->tk_msg.rpc_proc ? t->tk_msg.rpc_proc->p_proc : -1),
+				t->tk_pid, proc,
 				t->tk_flags, t->tk_status,
 				t->tk_client,
 				(t->tk_client ? t->tk_client->cl_prog : 0),

@@ -70,7 +70,10 @@ struct xdr_buf {
 
 	struct page **	pages;		/* Array of contiguous pages */
 	unsigned int	page_base,	/* Start of page data */
-			page_len;	/* Length of page data */
+			page_len,	/* Length of page data */
+			flags;		/* Flags for data disposition */
+#define XDRBUF_READ		0x01		/* target of file read */
+#define XDRBUF_WRITE		0x02		/* source of file write */
 
 	unsigned int	buflen,		/* Total length of storage buffer */
 			len;		/* Length of XDR encoded message */

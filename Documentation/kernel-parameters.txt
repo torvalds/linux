@@ -1083,6 +1083,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			[NFS] set the maximum lifetime for idmapper cache
 			entries.
 
+	nfs.enable_ino64=
+			[NFS] enable 64-bit inode numbers.
+			If zero, the NFS client will fake up a 32-bit inode
+			number for the readdir() and stat() syscalls instead
+			of returning the full 64-bit number.
+			The default is to return 64-bit inode numbers.
+
 	nmi_watchdog=	[KNL,BUGS=X86-32] Debugging features for SMP kernels
 
 	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths

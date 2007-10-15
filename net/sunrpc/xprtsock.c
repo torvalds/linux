@@ -13,10 +13,14 @@
  *  (C) 1999 Trond Myklebust <trond.myklebust@fys.uio.no>
  *
  * IP socket transport implementation, (C) 2005 Chuck Lever <cel@netapp.com>
+ *
+ * IPv6 support contributed by Gilles Quillard, Bull Open Source, 2005.
+ *   <gilles.quillard@bull.net>
  */
 
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/pagemap.h>
 #include <linux/errno.h>
@@ -28,6 +32,7 @@
 #include <linux/tcp.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/sched.h>
+#include <linux/sunrpc/xprtsock.h>
 #include <linux/file.h>
 
 #include <net/sock.h>
@@ -260,14 +265,29 @@ struct sock_xprt {
 #define TCP_RCV_COPY_XID	(1UL << 2)
 #define TCP_RCV_COPY_DATA	(1UL << 3)
 
-static void xs_format_peer_addresses(struct rpc_xprt *xprt)
+static inline struct sockaddr *xs_addr(struct rpc_xprt *xprt)
 {
-	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
+	return (struct sockaddr *) &xprt->addr;
+}
+
+static inline struct sockaddr_in *xs_addr_in(struct rpc_xprt *xprt)
+{
+	return (struct sockaddr_in *) &xprt->addr;
+}
+
+static inline struct sockaddr_in6 *xs_addr_in6(struct rpc_xprt *xprt)
+{
+	return (struct sockaddr_in6 *) &xprt->addr;
+}
+
+static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
+{
+	struct sockaddr_in *addr = xs_addr_in(xprt);
 	char *buf;
 
 	buf = kzalloc(20, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 20, "%u.%u.%u.%u",
+		snprintf(buf, 20, NIPQUAD_FMT,
 				NIPQUAD(addr->sin_addr.s_addr));
 	}
 	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
@@ -279,26 +299,123 @@ static void xs_format_peer_addresses(struct rpc_xprt *xprt)
 	}
 	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
 
-	if (xprt->prot == IPPROTO_UDP)
-		xprt->address_strings[RPC_DISPLAY_PROTO] = "udp";
-	else
-		xprt->address_strings[RPC_DISPLAY_PROTO] = "tcp";
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		if (xprt->prot == IPPROTO_UDP)
+			snprintf(buf, 8, "udp");
+		else
+			snprintf(buf, 8, "tcp");
+	}
+	xprt->address_strings[RPC_DISPLAY_PROTO] = buf;
 
 	buf = kzalloc(48, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 48, "addr=%u.%u.%u.%u port=%u proto=%s",
+		snprintf(buf, 48, "addr="NIPQUAD_FMT" port=%u proto=%s",
 			NIPQUAD(addr->sin_addr.s_addr),
 			ntohs(addr->sin_port),
 			xprt->prot == IPPROTO_UDP ? "udp" : "tcp");
 	}
 	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
+
+	buf = kzalloc(10, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 10, "%02x%02x%02x%02x",
+				NIPQUAD(addr->sin_addr.s_addr));
+	}
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 8, "%4hx",
+				ntohs(addr->sin_port));
+	}
+	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
+
+	buf = kzalloc(30, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 30, NIPQUAD_FMT".%u.%u",
+				NIPQUAD(addr->sin_addr.s_addr),
+				ntohs(addr->sin_port) >> 8,
+				ntohs(addr->sin_port) & 0xff);
+	}
+	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
+
+	xprt->address_strings[RPC_DISPLAY_NETID] =
+		kstrdup(xprt->prot == IPPROTO_UDP ?
+			RPCBIND_NETID_UDP : RPCBIND_NETID_TCP, GFP_KERNEL);
+}
+
+static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt)
+{
+	struct sockaddr_in6 *addr = xs_addr_in6(xprt);
+	char *buf;
+
+	buf = kzalloc(40, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 40, NIP6_FMT,
+				NIP6(addr->sin6_addr));
+	}
+	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 8, "%u",
+				ntohs(addr->sin6_port));
+	}
+	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		if (xprt->prot == IPPROTO_UDP)
+			snprintf(buf, 8, "udp");
+		else
+			snprintf(buf, 8, "tcp");
+	}
+	xprt->address_strings[RPC_DISPLAY_PROTO] = buf;
+
+	buf = kzalloc(64, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 64, "addr="NIP6_FMT" port=%u proto=%s",
+				NIP6(addr->sin6_addr),
+				ntohs(addr->sin6_port),
+				xprt->prot == IPPROTO_UDP ? "udp" : "tcp");
+	}
+	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
+
+	buf = kzalloc(36, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 36, NIP6_SEQFMT,
+				NIP6(addr->sin6_addr));
+	}
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 8, "%4hx",
+				ntohs(addr->sin6_port));
+	}
+	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
+
+	buf = kzalloc(50, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 50, NIP6_FMT".%u.%u",
+				NIP6(addr->sin6_addr),
+				ntohs(addr->sin6_port) >> 8,
+				ntohs(addr->sin6_port) & 0xff);
+	}
+	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
+
+	xprt->address_strings[RPC_DISPLAY_NETID] =
+		kstrdup(xprt->prot == IPPROTO_UDP ?
+			RPCBIND_NETID_UDP6 : RPCBIND_NETID_TCP6, GFP_KERNEL);
 }
 
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)
 {
-	kfree(xprt->address_strings[RPC_DISPLAY_ADDR]);
-	kfree(xprt->address_strings[RPC_DISPLAY_PORT]);
-	kfree(xprt->address_strings[RPC_DISPLAY_ALL]);
+	int i;
+
+	for (i = 0; i < RPC_DISPLAY_MAX; i++)
+		kfree(xprt->address_strings[i]);
 }
 
 #define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
@@ -463,19 +580,20 @@ static int xs_udp_send_request(struct rpc_task *task)
 
 	req->rq_xtime = jiffies;
 	status = xs_sendpages(transport->sock,
-			      (struct sockaddr *) &xprt->addr,
+			      xs_addr(xprt),
 			      xprt->addrlen, xdr,
 			      req->rq_bytes_sent);
 
 	dprintk("RPC:       xs_udp_send_request(%u) = %d\n",
 			xdr->len - req->rq_bytes_sent, status);
 
-	if (likely(status >= (int) req->rq_slen))
-		return 0;
-
-	/* Still some bytes left; set up for a retry later. */
-	if (status > 0)
+	if (status >= 0) {
+		task->tk_bytes_sent += status;
+		if (status >= req->rq_slen)
+			return 0;
+		/* Still some bytes left; set up for a retry later. */
 		status = -EAGAIN;
+	}
 
 	switch (status) {
 	case -ENETUNREACH:
@@ -523,7 +641,8 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct xdr_buf *xdr = &req->rq_snd_buf;
-	int status, retry = 0;
+	int status;
+	unsigned int retry = 0;
 
 	xs_encode_tcp_record_marker(&req->rq_snd_buf);
 
@@ -661,6 +780,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 	xs_free_peer_addresses(xprt);
 	kfree(xprt->slot);
 	kfree(xprt);
+	module_put(THIS_MODULE);
 }
 
 static inline struct rpc_xprt *xprt_from_sock(struct sock *sk)
@@ -1139,14 +1259,23 @@ static unsigned short xs_get_random_port(void)
  */
 static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 {
-	struct sockaddr_in *sap = (struct sockaddr_in *) &xprt->addr;
+	struct sockaddr *addr = xs_addr(xprt);
 
 	dprintk("RPC:       setting port for xprt %p to %u\n", xprt, port);
 
-	sap->sin_port = htons(port);
+	switch (addr->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)addr)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)addr)->sin6_port = htons(port);
+		break;
+	default:
+		BUG();
+	}
 }
 
-static int xs_bind(struct sock_xprt *transport, struct socket *sock)
+static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
 		.sin_family = AF_INET,
@@ -1174,8 +1303,42 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 		else
 			port--;
 	} while (err == -EADDRINUSE && port != transport->port);
-	dprintk("RPC:       xs_bind "NIPQUAD_FMT":%u: %s (%d)\n",
-		NIPQUAD(myaddr.sin_addr), port, err ? "failed" : "ok", err);
+	dprintk("RPC:       %s "NIPQUAD_FMT":%u: %s (%d)\n",
+			__FUNCTION__, NIPQUAD(myaddr.sin_addr),
+			port, err ? "failed" : "ok", err);
+	return err;
+}
+
+static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
+{
+	struct sockaddr_in6 myaddr = {
+		.sin6_family = AF_INET6,
+	};
+	struct sockaddr_in6 *sa;
+	int err;
+	unsigned short port = transport->port;
+
+	if (!transport->xprt.resvport)
+		port = 0;
+	sa = (struct sockaddr_in6 *)&transport->addr;
+	myaddr.sin6_addr = sa->sin6_addr;
+	do {
+		myaddr.sin6_port = htons(port);
+		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
+						sizeof(myaddr));
+		if (!transport->xprt.resvport)
+			break;
+		if (err == 0) {
+			transport->port = port;
+			break;
+		}
+		if (port <= xprt_min_resvport)
+			port = xprt_max_resvport;
+		else
+			port--;
+	} while (err == -EADDRINUSE && port != transport->port);
+	dprintk("RPC:       xs_bind6 "NIP6_FMT":%u: %s (%d)\n",
+		NIP6(myaddr.sin6_addr), port, err ? "failed" : "ok", err);
 	return err;
 }
 
@@ -1183,64 +1346,36 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 static struct lock_class_key xs_key[2];
 static struct lock_class_key xs_slock_key[2];
 
-static inline void xs_reclassify_socket(struct socket *sock)
+static inline void xs_reclassify_socket4(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
+
 	BUG_ON(sock_owned_by_user(sk));
-	switch (sk->sk_family) {
-	case AF_INET:
-		sock_lock_init_class_and_name(sk, "slock-AF_INET-NFS",
-			&xs_slock_key[0], "sk_lock-AF_INET-NFS", &xs_key[0]);
-		break;
+	sock_lock_init_class_and_name(sk, "slock-AF_INET-RPC",
+		&xs_slock_key[0], "sk_lock-AF_INET-RPC", &xs_key[0]);
+}
 
-	case AF_INET6:
-		sock_lock_init_class_and_name(sk, "slock-AF_INET6-NFS",
-			&xs_slock_key[1], "sk_lock-AF_INET6-NFS", &xs_key[1]);
-		break;
+static inline void xs_reclassify_socket6(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
 
-	default:
-		BUG();
-	}
+	BUG_ON(sock_owned_by_user(sk));
+	sock_lock_init_class_and_name(sk, "slock-AF_INET6-RPC",
+		&xs_slock_key[1], "sk_lock-AF_INET6-RPC", &xs_key[1]);
 }
 #else
-static inline void xs_reclassify_socket(struct socket *sock)
+static inline void xs_reclassify_socket4(struct socket *sock)
+{
+}
+
+static inline void xs_reclassify_socket6(struct socket *sock)
 {
 }
 #endif
 
-/**
- * xs_udp_connect_worker - set up a UDP socket
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_udp_connect_worker(struct work_struct *work)
+static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 {
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-	struct rpc_xprt *xprt = &transport->xprt;
-	struct socket *sock = transport->sock;
-	int err, status = -EIO;
-
-	if (xprt->shutdown || !xprt_bound(xprt))
-		goto out;
-
-	/* Start by resetting any existing state */
-	xs_close(xprt);
-
-	if ((err = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock)) < 0) {
-		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
-		goto out;
-	}
-	xs_reclassify_socket(sock);
-
-	if (xs_bind(transport, sock)) {
-		sock_release(sock);
-		goto out;
-	}
-
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 
 	if (!transport->inet) {
 		struct sock *sk = sock->sk;
@@ -1265,6 +1400,84 @@ static void xs_udp_connect_worker(struct work_struct *work)
 		write_unlock_bh(&sk->sk_callback_lock);
 	}
 	xs_udp_do_set_buffer_size(xprt);
+}
+
+/**
+ * xs_udp_connect_worker4 - set up a UDP socket
+ * @work: RPC transport to connect
+ *
+ * Invoked by a work queue tasklet.
+ */
+static void xs_udp_connect_worker4(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
+	struct rpc_xprt *xprt = &transport->xprt;
+	struct socket *sock = transport->sock;
+	int err, status = -EIO;
+
+	if (xprt->shutdown || !xprt_bound(xprt))
+		goto out;
+
+	/* Start by resetting any existing state */
+	xs_close(xprt);
+
+	if ((err = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock)) < 0) {
+		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
+		goto out;
+	}
+	xs_reclassify_socket4(sock);
+
+	if (xs_bind4(transport, sock)) {
+		sock_release(sock);
+		goto out;
+	}
+
+	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+
+	xs_udp_finish_connecting(xprt, sock);
+	status = 0;
+out:
+	xprt_wake_pending_tasks(xprt, status);
+	xprt_clear_connecting(xprt);
+}
+
+/**
+ * xs_udp_connect_worker6 - set up a UDP socket
+ * @work: RPC transport to connect
+ *
+ * Invoked by a work queue tasklet.
+ */
+static void xs_udp_connect_worker6(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
+	struct rpc_xprt *xprt = &transport->xprt;
+	struct socket *sock = transport->sock;
+	int err, status = -EIO;
+
+	if (xprt->shutdown || !xprt_bound(xprt))
+		goto out;
+
+	/* Start by resetting any existing state */
+	xs_close(xprt);
+
+	if ((err = sock_create_kern(PF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock)) < 0) {
+		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
+		goto out;
+	}
+	xs_reclassify_socket6(sock);
+
+	if (xs_bind6(transport, sock) < 0) {
+		sock_release(sock);
+		goto out;
+	}
+
+	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+
+	xs_udp_finish_connecting(xprt, sock);
 	status = 0;
 out:
 	xprt_wake_pending_tasks(xprt, status);
@@ -1295,42 +1508,9 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
 				result);
 }
 
-/**
- * xs_tcp_connect_worker - connect a TCP socket to a remote endpoint
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_tcp_connect_worker(struct work_struct *work)
+static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 {
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-	struct rpc_xprt *xprt = &transport->xprt;
-	struct socket *sock = transport->sock;
-	int err, status = -EIO;
-
-	if (xprt->shutdown || !xprt_bound(xprt))
-		goto out;
-
-	if (!sock) {
-		/* start from scratch */
-		if ((err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
-			dprintk("RPC:       can't create TCP transport "
-					"socket (%d).\n", -err);
-			goto out;
-		}
-		xs_reclassify_socket(sock);
-
-		if (xs_bind(transport, sock)) {
-			sock_release(sock);
-			goto out;
-		}
-	} else
-		/* "close" the socket, preserving the local port */
-		xs_tcp_reuse_connection(xprt);
-
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 
 	if (!transport->inet) {
 		struct sock *sk = sock->sk;
@@ -1364,11 +1544,109 @@ static void xs_tcp_connect_worker(struct work_struct *work)
 	/* Tell the socket layer to start connecting... */
 	xprt->stat.connect_count++;
 	xprt->stat.connect_start = jiffies;
-	status = kernel_connect(sock, (struct sockaddr *) &xprt->addr,
-			xprt->addrlen, O_NONBLOCK);
+	return kernel_connect(sock, xs_addr(xprt), xprt->addrlen, O_NONBLOCK);
+}
+
+/**
+ * xs_tcp_connect_worker4 - connect a TCP socket to a remote endpoint
+ * @work: RPC transport to connect
+ *
+ * Invoked by a work queue tasklet.
+ */
+static void xs_tcp_connect_worker4(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
+	struct rpc_xprt *xprt = &transport->xprt;
+	struct socket *sock = transport->sock;
+	int err, status = -EIO;
+
+	if (xprt->shutdown || !xprt_bound(xprt))
+		goto out;
+
+	if (!sock) {
+		/* start from scratch */
+		if ((err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+			dprintk("RPC:       can't create TCP transport socket (%d).\n", -err);
+			goto out;
+		}
+		xs_reclassify_socket4(sock);
+
+		if (xs_bind4(transport, sock) < 0) {
+			sock_release(sock);
+			goto out;
+		}
+	} else
+		/* "close" the socket, preserving the local port */
+		xs_tcp_reuse_connection(xprt);
+
+	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+
+	status = xs_tcp_finish_connecting(xprt, sock);
 	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt),
 			sock->sk->sk_state);
+	if (status < 0) {
+		switch (status) {
+			case -EINPROGRESS:
+			case -EALREADY:
+				goto out_clear;
+			case -ECONNREFUSED:
+			case -ECONNRESET:
+				/* retry with existing socket, after a delay */
+				break;
+			default:
+				/* get rid of existing socket, and retry */
+				xs_close(xprt);
+				break;
+		}
+	}
+out:
+	xprt_wake_pending_tasks(xprt, status);
+out_clear:
+	xprt_clear_connecting(xprt);
+}
+
+/**
+ * xs_tcp_connect_worker6 - connect a TCP socket to a remote endpoint
+ * @work: RPC transport to connect
+ *
+ * Invoked by a work queue tasklet.
+ */
+static void xs_tcp_connect_worker6(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
+	struct rpc_xprt *xprt = &transport->xprt;
+	struct socket *sock = transport->sock;
+	int err, status = -EIO;
+
+	if (xprt->shutdown || !xprt_bound(xprt))
+		goto out;
+
+	if (!sock) {
+		/* start from scratch */
+		if ((err = sock_create_kern(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
+			dprintk("RPC:       can't create TCP transport socket (%d).\n", -err);
+			goto out;
+		}
+		xs_reclassify_socket6(sock);
+
+		if (xs_bind6(transport, sock) < 0) {
+			sock_release(sock);
+			goto out;
+		}
+	} else
+		/* "close" the socket, preserving the local port */
+		xs_tcp_reuse_connection(xprt);
+
+	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+
+	status = xs_tcp_finish_connecting(xprt, sock);
+	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
+			xprt, -status, xprt_connected(xprt), sock->sk->sk_state);
 	if (status < 0) {
 		switch (status) {
 			case -EINPROGRESS:
@@ -1508,7 +1786,8 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.print_stats		= xs_tcp_print_stats,
 };
 
-static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args, unsigned int slot_table_size)
+static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
+				      unsigned int slot_table_size)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *new;
@@ -1549,8 +1828,9 @@ static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args, unsigned
  * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
+struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 {
+	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
 
@@ -1559,15 +1839,11 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
-	if (ntohs(((struct sockaddr_in *)args->dstaddr)->sin_port) != 0)
-		xprt_set_bound(xprt);
-
 	xprt->prot = IPPROTO_UDP;
 	xprt->tsh_size = 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
-	INIT_DELAYED_WORK(&transport->connect_worker, xs_udp_connect_worker);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_UDP_CONN_TO;
 	xprt->reestablish_timeout = XS_UDP_REEST_TO;
@@ -1580,11 +1856,37 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 	else
 		xprt_set_timeout(&xprt->timeout, 5, 5 * HZ);
 
-	xs_format_peer_addresses(xprt);
+	switch (addr->sa_family) {
+	case AF_INET:
+		if (((struct sockaddr_in *)addr)->sin_port != htons(0))
+			xprt_set_bound(xprt);
+
+		INIT_DELAYED_WORK(&transport->connect_worker,
+					xs_udp_connect_worker4);
+		xs_format_ipv4_peer_addresses(xprt);
+		break;
+	case AF_INET6:
+		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
+			xprt_set_bound(xprt);
+
+		INIT_DELAYED_WORK(&transport->connect_worker,
+					xs_udp_connect_worker6);
+		xs_format_ipv6_peer_addresses(xprt);
+		break;
+	default:
+		kfree(xprt);
+		return ERR_PTR(-EAFNOSUPPORT);
+	}
+
 	dprintk("RPC:       set up transport to address %s\n",
 			xprt->address_strings[RPC_DISPLAY_ALL]);
 
-	return xprt;
+	if (try_module_get(THIS_MODULE))
+		return xprt;
+
+	kfree(xprt->slot);
+	kfree(xprt);
+	return ERR_PTR(-EINVAL);
 }
 
 /**
@@ -1592,8 +1894,9 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
  * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
+struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 {
+	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
 
@@ -1602,14 +1905,10 @@ struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
-	if (ntohs(((struct sockaddr_in *)args->dstaddr)->sin_port) != 0)
-		xprt_set_bound(xprt);
-
 	xprt->prot = IPPROTO_TCP;
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
-	INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker);
 	xprt->bind_timeout = XS_BIND_TO;
 	xprt->connect_timeout = XS_TCP_CONN_TO;
 	xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
@@ -1622,15 +1921,55 @@ struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 	else
 		xprt_set_timeout(&xprt->timeout, 2, 60 * HZ);
 
-	xs_format_peer_addresses(xprt);
+	switch (addr->sa_family) {
+	case AF_INET:
+		if (((struct sockaddr_in *)addr)->sin_port != htons(0))
+			xprt_set_bound(xprt);
+
+		INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker4);
+		xs_format_ipv4_peer_addresses(xprt);
+		break;
+	case AF_INET6:
+		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
+			xprt_set_bound(xprt);
+
+		INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker6);
+		xs_format_ipv6_peer_addresses(xprt);
+		break;
+	default:
+		kfree(xprt);
+		return ERR_PTR(-EAFNOSUPPORT);
+	}
+
 	dprintk("RPC:       set up transport to address %s\n",
 			xprt->address_strings[RPC_DISPLAY_ALL]);
 
-	return xprt;
+	if (try_module_get(THIS_MODULE))
+		return xprt;
+
+	kfree(xprt->slot);
+	kfree(xprt);
+	return ERR_PTR(-EINVAL);
 }
 
+static struct xprt_class	xs_udp_transport = {
+	.list		= LIST_HEAD_INIT(xs_udp_transport.list),
+	.name		= "udp",
+	.owner		= THIS_MODULE,
+	.ident		= IPPROTO_UDP,
+	.setup		= xs_setup_udp,
+};
+
+static struct xprt_class	xs_tcp_transport = {
+	.list		= LIST_HEAD_INIT(xs_tcp_transport.list),
+	.name		= "tcp",
+	.owner		= THIS_MODULE,
+	.ident		= IPPROTO_TCP,
+	.setup		= xs_setup_tcp,
+};
+
 /**
- * init_socket_xprt - set up xprtsock's sysctls
+ * init_socket_xprt - set up xprtsock's sysctls, register with RPC client
  *
  */
 int init_socket_xprt(void)
@@ -1640,11 +1979,14 @@ int init_socket_xprt(void)
 		sunrpc_table_header = register_sysctl_table(sunrpc_table);
 #endif
 
+	xprt_register_transport(&xs_udp_transport);
+	xprt_register_transport(&xs_tcp_transport);
+
 	return 0;
 }
 
 /**
- * cleanup_socket_xprt - remove xprtsock's sysctls
+ * cleanup_socket_xprt - remove xprtsock's sysctls, unregister
  *
  */
 void cleanup_socket_xprt(void)
@@ -1655,4 +1997,7 @@ void cleanup_socket_xprt(void)
 		sunrpc_table_header = NULL;
 	}
 #endif
+
+	xprt_unregister_transport(&xs_udp_transport);
+	xprt_unregister_transport(&xs_tcp_transport);
 }

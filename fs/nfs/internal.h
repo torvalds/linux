@@ -5,8 +5,6 @@
 #include <linux/mount.h>
 
 struct nfs_string;
-struct nfs_mount_data;
-struct nfs4_mount_data;
 
 /* Maximum number of readahead requests
  * FIXME: this should really be a sysctl so that users may tune it to suit
@@ -27,20 +25,50 @@ struct nfs_clone_mount {
 	rpc_authflavor_t authflavor;
 };
 
+/*
+ * In-kernel mount arguments
+ */
+struct nfs_parsed_mount_data {
+	int			flags;
+	int			rsize, wsize;
+	int			timeo, retrans;
+	int			acregmin, acregmax,
+				acdirmin, acdirmax;
+	int			namlen;
+	unsigned int		bsize;
+	unsigned int		auth_flavor_len;
+	rpc_authflavor_t	auth_flavors[1];
+	char			*client_address;
+
+	struct {
+		struct sockaddr_in	address;
+		char			*hostname;
+		unsigned int		program;
+		unsigned int		version;
+		unsigned short		port;
+		int			protocol;
+	} mount_server;
+
+	struct {
+		struct sockaddr_in	address;
+		char			*hostname;
+		char			*export_path;
+		unsigned int		program;
+		int			protocol;
+	} nfs_server;
+};
+
 /* client.c */
 extern struct rpc_program nfs_program;
 
 extern void nfs_put_client(struct nfs_client *);
 extern struct nfs_client *nfs_find_client(const struct sockaddr_in *, int);
-extern struct nfs_server *nfs_create_server(const struct nfs_mount_data *,
-					    struct nfs_fh *);
-extern struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *,
-					     const char *,
-					     const struct sockaddr_in *,
-					     const char *,
-					     const char *,
-					     rpc_authflavor_t,
-					     struct nfs_fh *);
+extern struct nfs_server *nfs_create_server(
+					const struct nfs_parsed_mount_data *,
+					struct nfs_fh *);
+extern struct nfs_server *nfs4_create_server(
+					const struct nfs_parsed_mount_data *,
+					struct nfs_fh *);
 extern struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *,
 						      struct nfs_fh *);
 extern void nfs_free_server(struct nfs_server *server);
