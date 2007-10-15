@@ -2848,10 +2848,11 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 
 	__be16	err_code;
 	int	length = 0;
-	int	chunk_len = asconf->skb->len;
+	int	chunk_len;
 	__u32	serial;
 	int	all_param_pass = 1;
 
+	chunk_len = ntohs(asconf->chunk_hdr->length) - sizeof(sctp_chunkhdr_t);
 	hdr = (sctp_addiphdr_t *)asconf->skb->data;
 	serial = ntohl(hdr->serial);
 
@@ -2990,13 +2991,16 @@ static __be16 sctp_get_asconf_response(struct sctp_chunk *asconf_ack,
 	sctp_addip_param_t	*asconf_ack_param;
 	sctp_errhdr_t		*err_param;
 	int			length;
-	int			asconf_ack_len = asconf_ack->skb->len;
+	int			asconf_ack_len;
 	__be16			err_code;
 
 	if (no_err)
 		err_code = SCTP_ERROR_NO_ERROR;
 	else
 		err_code = SCTP_ERROR_REQ_REFUSED;
+
+	asconf_ack_len = ntohs(asconf_ack->chunk_hdr->length) -
+			     sizeof(sctp_chunkhdr_t);
 
 	/* Skip the addiphdr from the asconf_ack chunk and store a pointer to
 	 * the first asconf_ack parameter.
