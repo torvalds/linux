@@ -16,6 +16,7 @@
 #define EXTENT_DELALLOC (1 << 5)
 #define EXTENT_DEFRAG (1 << 6)
 #define EXTENT_DEFRAG_DONE (1 << 7)
+#define EXTENT_BUFFER_FILLED (1 << 8)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
 
@@ -33,6 +34,9 @@ struct extent_map_tree {
 	struct address_space *mapping;
 	rwlock_t lock;
 	struct extent_map_ops *ops;
+	spinlock_t lru_lock;
+	struct list_head buffer_lru;
+	int lru_size;
 };
 
 /* note, this must start with the same fields as fs/extent_map.c:tree_entry */
@@ -64,20 +68,17 @@ struct extent_state {
 	struct list_head list;
 };
 
-#define EXTENT_INLINE_PAGES 32
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
-	atomic_t refs;
-	int flags;
-	struct list_head list;
-	struct list_head leak_list;
-	unsigned long alloc_addr;
 	char *map_token;
 	char *kaddr;
 	unsigned long map_start;
 	unsigned long map_len;
-	struct page *pages[EXTENT_INLINE_PAGES];
+	struct page *last_page;
+	struct list_head lru;
+	atomic_t refs;
+	int flags;
 };
 
 typedef struct extent_map *(get_extent_t)(struct inode *inode,
@@ -88,6 +89,7 @@ typedef struct extent_map *(get_extent_t)(struct inode *inode,
 
 void extent_map_tree_init(struct extent_map_tree *tree,
 			  struct address_space *mapping, gfp_t mask);
+void extent_map_tree_cleanup(struct extent_map_tree *tree);
 struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 					 u64 start, u64 end);
 int add_extent_mapping(struct extent_map_tree *tree,

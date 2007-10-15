@@ -1176,7 +1176,6 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 		return ERR_PTR(-ENOMEM);
 	}
 	btrfs_set_buffer_uptodate(buf);
-	buf->alloc_addr = (unsigned long)__builtin_return_address(0);
 	set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
 	btrfs_set_buffer_defrag(buf);

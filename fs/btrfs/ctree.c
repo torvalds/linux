@@ -88,8 +88,6 @@ static int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
-	cow->alloc_addr = (unsigned long)__builtin_return_address(0);
-
 	copy_extent_buffer(cow, buf, 0, 0, cow->len);
 	btrfs_set_header_bytenr(cow, cow->start);
 	btrfs_set_header_generation(cow, trans->transid);
@@ -151,7 +149,6 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 	search_start = buf->start & ~((u64)BTRFS_BLOCK_GROUP_SIZE - 1);
 	ret = __btrfs_cow_block(trans, root, buf, parent,
 				 parent_slot, cow_ret, search_start, 0);
-	(*cow_ret)->alloc_addr = (unsigned long)__builtin_return_address(0);
 	return ret;
 }
 

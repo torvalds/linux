@@ -443,8 +443,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 			BUG_ON(ret);
 			mutex_unlock(&tree_root->fs_info->fs_mutex);
 			btrfs_btree_balance_dirty(tree_root, nr);
-			schedule();
-
+			cond_resched();
 			mutex_lock(&tree_root->fs_info->fs_mutex);
 		}
 		BUG_ON(ret);
@@ -471,7 +470,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		mutex_unlock(&tree_root->fs_info->fs_mutex);
 
 		btrfs_btree_balance_dirty(tree_root, nr);
-		schedule();
+		cond_resched();
 	}
 	return ret;
 }
