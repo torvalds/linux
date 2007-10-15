@@ -208,7 +208,6 @@ static int __init jazz_sonic_probe(struct platform_device *pdev)
 	struct sonic_local *lp;
 	struct resource *res;
 	int err = 0;
-	int i;
 	DECLARE_MAC_BUF(mac);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
