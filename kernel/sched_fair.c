@@ -739,9 +739,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 static void yield_task_fair(struct rq *rq)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(rq->curr);
-	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
 	struct sched_entity *rightmost, *se = &rq->curr->se;
-	struct rb_node *parent;
 
 	/*
 	 * Are we the only task in the tree?
@@ -755,39 +753,26 @@ static void yield_task_fair(struct rq *rq)
 		 * Dequeue and enqueue the task to update its
 		 * position within the tree:
 		 */
-		dequeue_entity(cfs_rq, se, 0);
-		enqueue_entity(cfs_rq, se, 0);
+		update_curr(cfs_rq);
 
 		return;
 	}
 	/*
 	 * Find the rightmost entry in the rbtree:
 	 */
-	do {
-		parent = *link;
-		link = &parent->rb_right;
-	} while (*link);
-
-	rightmost = rb_entry(parent, struct sched_entity, run_node);
+	rightmost = __pick_last_entity(cfs_rq);
 	/*
 	 * Already in the rightmost position?
 	 */
-	if (unlikely(rightmost == se))
+	if (unlikely(rightmost->vruntime < se->vruntime))
 		return;
 
 	/*
 	 * Minimally necessary key value to be last in the tree:
+	 * Upon rescheduling, sched_class::put_prev_task() will place
+	 * 'current' within the tree based on its new key value.
 	 */
 	se->vruntime = rightmost->vruntime + 1;
-
-	if (cfs_rq->rb_leftmost == &se->run_node)
-		cfs_rq->rb_leftmost = rb_next(&se->run_node);
-	/*
-	 * Relink the task to the rightmost position:
-	 */
-	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
-	rb_link_node(&se->run_node, parent, link);
-	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
 }
 
 /*
