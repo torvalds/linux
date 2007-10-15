@@ -1064,13 +1064,6 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	place_entity(cfs_rq, se, 1);
 
 	/*
-	 * The first wait is dominated by the child-runs-first logic,
-	 * so do not credit it with that waiting time yet:
-	 */
-	if (sched_feat(SKIP_INITIAL))
-		se->wait_start_fair = 0;
-
-	/*
 	 * The statistical average of wait_runtime is about
 	 * -granularity/2, so initialize the task with that:
 	 */
