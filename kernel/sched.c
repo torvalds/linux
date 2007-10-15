@@ -6822,8 +6822,6 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	if (tg->shares == shares)
 		goto done;
 
-	/* return -EINVAL if the new value is not sane */
-
 	tg->shares = shares;
 	for_each_possible_cpu(i)
 		set_se_shares(tg->se[i], shares);
