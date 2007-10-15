@@ -200,7 +200,12 @@ struct task_grp init_task_grp =  {
 				.cfs_rq = init_cfs_rq_p,
 				 };
 
+#ifdef CONFIG_FAIR_USER_SCHED
+#define INIT_TASK_GRP_LOAD	2*NICE_0_LOAD
+#else
 #define INIT_TASK_GRP_LOAD	NICE_0_LOAD
+#endif
+
 static int init_task_grp_load = INIT_TASK_GRP_LOAD;
 
 /* return group to which a task belongs */
@@ -208,7 +213,11 @@ static inline struct task_grp *task_grp(struct task_struct *p)
 {
 	struct task_grp *tg;
 
+#ifdef CONFIG_FAIR_USER_SCHED
+	tg = p->user->tg;
+#else
 	tg  = &init_task_grp;
+#endif
 
 	return tg;
 }

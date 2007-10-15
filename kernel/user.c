@@ -50,7 +50,40 @@ struct user_struct root_user = {
 	.uid_keyring	= &root_user_keyring,
 	.session_keyring = &root_session_keyring,
 #endif
+#ifdef CONFIG_FAIR_USER_SCHED
+	.tg		= &init_task_grp,
+#endif
 };
+
+#ifdef CONFIG_FAIR_USER_SCHED
+static void sched_destroy_user(struct user_struct *up)
+{
+	sched_destroy_group(up->tg);
+}
+
+static int sched_create_user(struct user_struct *up)
+{
+	int rc = 0;
+
+	up->tg = sched_create_group();
+	if (IS_ERR(up->tg))
+		rc = -ENOMEM;
+
+	return rc;
+}
+
+static void sched_switch_user(struct task_struct *p)
+{
+	sched_move_task(p);
+}
+
+#else	/* CONFIG_FAIR_USER_SCHED */
+
+static void sched_destroy_user(struct user_struct *up) { }
+static int sched_create_user(struct user_struct *up) { return 0; }
+static void sched_switch_user(struct task_struct *p) { }
+
+#endif	/* CONFIG_FAIR_USER_SCHED */
 
 /*
  * These routines must be called with the uidhash spinlock held!
@@ -109,6 +142,7 @@ void free_uid(struct user_struct *up)
 	if (atomic_dec_and_lock(&up->__count, &uidhash_lock)) {
 		uid_hash_remove(up);
 		spin_unlock_irqrestore(&uidhash_lock, flags);
+		sched_destroy_user(up);
 		key_put(up->uid_keyring);
 		key_put(up->session_keyring);
 		kmem_cache_free(uid_cachep, up);
@@ -150,6 +184,13 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 			return NULL;
 		}
 
+		if (sched_create_user(new) < 0) {
+			key_put(new->uid_keyring);
+			key_put(new->session_keyring);
+			kmem_cache_free(uid_cachep, new);
+			return NULL;
+		}
+
 		/*
 		 * Before adding this, check whether we raced
 		 * on adding the same user already..
@@ -157,6 +198,7 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 		spin_lock_irq(&uidhash_lock);
 		up = uid_hash_find(uid, hashent);
 		if (up) {
+			sched_destroy_user(new);
 			key_put(new->uid_keyring);
 			key_put(new->session_keyring);
 			kmem_cache_free(uid_cachep, new);
@@ -184,6 +226,7 @@ void switch_uid(struct user_struct *new_user)
 	atomic_dec(&old_user->processes);
 	switch_uid_keyring(new_user);
 	current->user = new_user;
+	sched_switch_user(current);
 
 	/*
 	 * We need to synchronize with __sigqueue_alloc()

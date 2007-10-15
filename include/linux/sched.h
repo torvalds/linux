@@ -597,6 +597,10 @@ struct user_struct {
 	/* Hash table maintenance information */
 	struct hlist_node uidhash_node;
 	uid_t uid;
+
+#ifdef CONFIG_FAIR_USER_SCHED
+	struct task_grp *tg;
+#endif
 };
 
 extern struct user_struct *find_user(uid_t);
