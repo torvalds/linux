@@ -3834,7 +3834,10 @@ xlog_do_recover(
 	 */
 	bp = xfs_getsb(log->l_mp, 0);
 	XFS_BUF_UNDONE(bp);
+	ASSERT(!(XFS_BUF_ISWRITE(bp)));
+	ASSERT(!(XFS_BUF_ISDELAYWRITE(bp)));
 	XFS_BUF_READ(bp);
+	XFS_BUF_UNASYNC(bp);
 	xfsbdstrat(log->l_mp, bp);
 	if ((error = xfs_iowait(bp))) {
 		xfs_ioerror_alert("xlog_do_recover",
