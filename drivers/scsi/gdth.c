@@ -5213,6 +5213,10 @@ static int __init gdth_init(void)
 #endif /* CONFIG_PCI */
 
 	TRACE2(("gdth_detect() %d controller detected\n", gdth_ctr_count));
+
+	if (list_empty(&gdth_instances))
+		return -ENODEV;
+
 #ifdef GDTH_STATISTICS
 	TRACE2(("gdth_detect(): Initializing timer !\n"));
 	init_timer(&gdth_timer);
