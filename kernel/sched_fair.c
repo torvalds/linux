@@ -105,6 +105,8 @@ const_debug unsigned int sysctl_sched_features =
 		SCHED_FEAT_START_DEBIT		*1 |
 		SCHED_FEAT_SKIP_INITIAL		*0;
 
+#define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
+
 extern struct sched_class fair_sched_class;
 
 /**************************************************************
@@ -541,14 +543,14 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
 		return;
 
-	if (sysctl_sched_features & SCHED_FEAT_SLEEPER_LOAD_AVG)
+	if (sched_feat(SLEEPER_LOAD_AVG))
 		load = rq_of(cfs_rq)->cpu_load[2];
 
 	/*
 	 * Fix up delta_fair with the effect of us running
 	 * during the whole sleep period:
 	 */
-	if (sysctl_sched_features & SCHED_FEAT_SLEEPER_AVG)
+	if (sched_feat(SLEEPER_AVG))
 		delta_fair = div64_likely32((u64)delta_fair * load,
 						load + se->load.weight);
 
@@ -572,7 +574,7 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	unsigned long delta_fair;
 
 	if ((entity_is_task(se) && tsk->policy == SCHED_BATCH) ||
-			 !(sysctl_sched_features & SCHED_FEAT_FAIR_SLEEPERS))
+			 !sched_feat(FAIR_SLEEPERS))
 		return;
 
 	delta_fair = (unsigned long)min((u64)(2*sysctl_sched_runtime_limit),
@@ -1158,14 +1160,14 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * The first wait is dominated by the child-runs-first logic,
 	 * so do not credit it with that waiting time yet:
 	 */
-	if (sysctl_sched_features & SCHED_FEAT_SKIP_INITIAL)
+	if (sched_feat(SKIP_INITIAL))
 		se->wait_start_fair = 0;
 
 	/*
 	 * The statistical average of wait_runtime is about
 	 * -granularity/2, so initialize the task with that:
 	 */
-	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT)
+	if (sched_feat(START_DEBIT))
 		se->wait_runtime = -(sched_granularity(cfs_rq) / 2);
 
 	__enqueue_entity(cfs_rq, se);
