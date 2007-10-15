@@ -470,6 +470,7 @@ unsigned long long cpu_clock(int cpu)
 
 	return now;
 }
+EXPORT_SYMBOL_GPL(cpu_clock);
 
 #ifndef prepare_arch_switch
 # define prepare_arch_switch(next)	do { } while (0)
