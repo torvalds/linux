@@ -6784,17 +6784,14 @@ struct task_grp *sched_create_group(void)
 
 err:
 	for_each_possible_cpu(i) {
-		if (tg->cfs_rq && tg->cfs_rq[i])
+		if (tg->cfs_rq)
 			kfree(tg->cfs_rq[i]);
-		if (tg->se && tg->se[i])
+		if (tg->se)
 			kfree(tg->se[i]);
 	}
-	if (tg->cfs_rq)
-		kfree(tg->cfs_rq);
-	if (tg->se)
-		kfree(tg->se);
-	if (tg)
-		kfree(tg);
+	kfree(tg->cfs_rq);
+	kfree(tg->se);
+	kfree(tg);
 
 	return ERR_PTR(-ENOMEM);
 }
