@@ -370,6 +370,11 @@ static cputime_t task_stime(struct task_struct *p)
 }
 #endif
 
+static cputime_t task_gtime(struct task_struct *p)
+{
+	return p->gtime;
+}
+
 static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 {
 	unsigned long vsize, eip, esp, wchan = ~0UL;
@@ -385,6 +390,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 	unsigned long cmin_flt = 0, cmaj_flt = 0;
 	unsigned long  min_flt = 0,  maj_flt = 0;
 	cputime_t cutime, cstime, utime, stime;
+	cputime_t cgtime, gtime;
 	unsigned long rsslim = 0;
 	char tcomm[sizeof(task->comm)];
 	unsigned long flags;
@@ -403,6 +409,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 	sigemptyset(&sigign);
 	sigemptyset(&sigcatch);
 	cutime = cstime = utime = stime = cputime_zero;
+	cgtime = gtime = cputime_zero;
 
 	rcu_read_lock();
 	if (lock_task_sighand(task, &flags)) {
@@ -420,6 +427,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 		cmaj_flt = sig->cmaj_flt;
 		cutime = sig->cutime;
 		cstime = sig->cstime;
+		cgtime = sig->cgtime;
 		rsslim = sig->rlim[RLIMIT_RSS].rlim_cur;
 
 		/* add up live thread stats at the group level */
@@ -430,6 +438,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 				maj_flt += t->maj_flt;
 				utime = cputime_add(utime, task_utime(t));
 				stime = cputime_add(stime, task_stime(t));
+				gtime = cputime_add(gtime, task_gtime(t));
 				t = next_thread(t);
 			} while (t != task);
 
@@ -437,6 +446,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 			maj_flt += sig->maj_flt;
 			utime = cputime_add(utime, sig->utime);
 			stime = cputime_add(stime, sig->stime);
+			gtime += cputime_add(gtime, sig->gtime);
 		}
 
 		sid = signal_session(sig);
@@ -454,6 +464,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 		maj_flt = task->maj_flt;
 		utime = task_utime(task);
 		stime = task_stime(task);
+		gtime = task_gtime(task);
 	}
 
 	/* scale priority and nice values from timeslices to -20..20 */
@@ -471,7 +482,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 
 	res = sprintf(buffer, "%d (%s) %c %d %d %d %d %d %u %lu \
 %lu %lu %lu %lu %lu %ld %ld %ld %ld %d 0 %llu %lu %ld %lu %lu %lu %lu %lu \
-%lu %lu %lu %lu %lu %lu %lu %lu %d %d %u %u %llu\n",
+%lu %lu %lu %lu %lu %lu %lu %lu %d %d %u %u %llu %lu %ld\n",
 		task->pid,
 		tcomm,
 		state,
@@ -516,7 +527,9 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 		task_cpu(task),
 		task->rt_priority,
 		task->policy,
-		(unsigned long long)delayacct_blkio_ticks(task));
+		(unsigned long long)delayacct_blkio_ticks(task),
+		cputime_to_clock_t(gtime),
+		cputime_to_clock_t(cgtime));
 	if (mm)
 		mmput(mm);
 	return res;
