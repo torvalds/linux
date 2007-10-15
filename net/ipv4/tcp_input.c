@@ -1995,8 +1995,7 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp,
 }
 
 /* Mark head of queue up as lost. */
-static void tcp_mark_head_lost(struct sock *sk,
-			       int packets, u32 high_seq)
+static void tcp_mark_head_lost(struct sock *sk, int packets)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -2019,7 +2018,7 @@ static void tcp_mark_head_lost(struct sock *sk,
 		tp->lost_skb_hint = skb;
 		tp->lost_cnt_hint = cnt;
 		cnt += tcp_skb_pcount(skb);
-		if (cnt > packets || after(TCP_SKB_CB(skb)->end_seq, high_seq))
+		if (cnt > packets || after(TCP_SKB_CB(skb)->end_seq, tp->high_seq))
 			break;
 		if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_SACKED_ACKED|TCPCB_LOST))) {
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
@@ -2040,9 +2039,9 @@ static void tcp_update_scoreboard(struct sock *sk)
 		int lost = tp->fackets_out - tp->reordering;
 		if (lost <= 0)
 			lost = 1;
-		tcp_mark_head_lost(sk, lost, tp->high_seq);
+		tcp_mark_head_lost(sk, lost);
 	} else {
-		tcp_mark_head_lost(sk, 1, tp->high_seq);
+		tcp_mark_head_lost(sk, 1);
 	}
 
 	/* New heuristics: it is possible only after we switched
@@ -2381,7 +2380,7 @@ tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 	    before(tp->snd_una, tp->high_seq) &&
 	    icsk->icsk_ca_state != TCP_CA_Open &&
 	    tp->fackets_out > tp->reordering) {
-		tcp_mark_head_lost(sk, tp->fackets_out-tp->reordering, tp->high_seq);
+		tcp_mark_head_lost(sk, tp->fackets_out - tp->reordering);
 		NET_INC_STATS_BH(LINUX_MIB_TCPLOSS);
 	}
 
