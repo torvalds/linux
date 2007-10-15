@@ -176,11 +176,8 @@ struct cfs_rq {
 	struct load_weight load;
 	unsigned long nr_running;
 
-	s64 fair_clock;
 	u64 exec_clock;
 	u64 min_vruntime;
-	s64 wait_runtime;
-	unsigned long wait_runtime_overruns, wait_runtime_underruns;
 
 	struct rb_root tasks_timeline;
 	struct rb_node *rb_leftmost;
@@ -389,20 +386,14 @@ static void update_rq_clock(struct rq *rq)
  * Debugging: various feature bits
  */
 enum {
-	SCHED_FEAT_FAIR_SLEEPERS	= 1,
-	SCHED_FEAT_NEW_FAIR_SLEEPERS	= 2,
-	SCHED_FEAT_SLEEPER_AVG		= 4,
-	SCHED_FEAT_SLEEPER_LOAD_AVG	= 8,
-	SCHED_FEAT_START_DEBIT		= 16,
-	SCHED_FEAT_USE_TREE_AVG         = 32,
-	SCHED_FEAT_APPROX_AVG           = 64,
+	SCHED_FEAT_NEW_FAIR_SLEEPERS	= 1,
+	SCHED_FEAT_START_DEBIT		= 2,
+	SCHED_FEAT_USE_TREE_AVG         = 4,
+	SCHED_FEAT_APPROX_AVG           = 8,
 };
 
 const_debug unsigned int sysctl_sched_features =
-		SCHED_FEAT_FAIR_SLEEPERS	*0 |
 		SCHED_FEAT_NEW_FAIR_SLEEPERS	*1 |
-		SCHED_FEAT_SLEEPER_AVG		*0 |
-		SCHED_FEAT_SLEEPER_LOAD_AVG	*1 |
 		SCHED_FEAT_START_DEBIT		*1 |
 		SCHED_FEAT_USE_TREE_AVG		*0 |
 		SCHED_FEAT_APPROX_AVG		*0;
@@ -716,15 +707,11 @@ calc_delta_fair(unsigned long delta_exec, struct load_weight *lw)
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 {
 	lw->weight += inc;
-	if (sched_feat(FAIR_SLEEPERS))
-		lw->inv_weight = WMULT_CONST / lw->weight;
 }
 
 static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
 {
 	lw->weight -= dec;
-	if (sched_feat(FAIR_SLEEPERS) && likely(lw->weight))
-		lw->inv_weight = WMULT_CONST / lw->weight;
 }
 
 /*
@@ -848,8 +835,6 @@ static void dec_nr_running(struct task_struct *p, struct rq *rq)
 
 static void set_load_weight(struct task_struct *p)
 {
-	p->se.wait_runtime = 0;
-
 	if (task_has_rt_policy(p)) {
 		p->se.load.weight = prio_to_weight[0] * 2;
 		p->se.load.inv_weight = prio_to_wmult[0] >> 1;
@@ -995,13 +980,9 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 {
 	int old_cpu = task_cpu(p);
 	struct rq *old_rq = cpu_rq(old_cpu), *new_rq = cpu_rq(new_cpu);
-	u64 clock_offset, fair_clock_offset;
+	u64 clock_offset;
 
 	clock_offset = old_rq->clock - new_rq->clock;
-	fair_clock_offset = old_rq->cfs.fair_clock - new_rq->cfs.fair_clock;
-
-	if (p->se.wait_start_fair)
-		p->se.wait_start_fair -= fair_clock_offset;
 
 #ifdef CONFIG_SCHEDSTATS
 	if (p->se.wait_start)
@@ -1571,15 +1552,12 @@ int fastcall wake_up_state(struct task_struct *p, unsigned int state)
  */
 static void __sched_fork(struct task_struct *p)
 {
-	p->se.wait_start_fair		= 0;
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
 	p->se.prev_sum_exec_runtime	= 0;
-	p->se.wait_runtime		= 0;
 
 #ifdef CONFIG_SCHEDSTATS
 	p->se.wait_start		= 0;
-	p->se.sum_wait_runtime		= 0;
 	p->se.sum_sleep_runtime		= 0;
 	p->se.sleep_start		= 0;
 	p->se.block_start		= 0;
@@ -1588,8 +1566,6 @@ static void __sched_fork(struct task_struct *p)
 	p->se.exec_max			= 0;
 	p->se.slice_max			= 0;
 	p->se.wait_max			= 0;
-	p->se.wait_runtime_overruns	= 0;
-	p->se.wait_runtime_underruns	= 0;
 #endif
 
 	INIT_LIST_HEAD(&p->run_list);
@@ -6436,7 +6412,6 @@ int in_sched_functions(unsigned long addr)
 static inline void init_cfs_rq(struct cfs_rq *cfs_rq, struct rq *rq)
 {
 	cfs_rq->tasks_timeline = RB_ROOT;
-	cfs_rq->fair_clock = 1;
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	cfs_rq->rq = rq;
 #endif
@@ -6562,15 +6537,12 @@ void normalize_rt_tasks(void)
 	read_lock_irq(&tasklist_lock);
 	do_each_thread(g, p) {
 		p->se.fair_key			= 0;
-		p->se.wait_runtime		= 0;
 		p->se.exec_start		= 0;
-		p->se.wait_start_fair		= 0;
 #ifdef CONFIG_SCHEDSTATS
 		p->se.wait_start		= 0;
 		p->se.sleep_start		= 0;
 		p->se.block_start		= 0;
 #endif
-		task_rq(p)->cfs.fair_clock	= 0;
 		task_rq(p)->clock		= 0;
 
 		if (!rt_task(p)) {

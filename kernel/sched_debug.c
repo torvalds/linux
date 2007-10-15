@@ -36,21 +36,16 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 	else
 		SEQ_printf(m, " ");
 
-	SEQ_printf(m, "%15s %5d %15Ld %13Ld %13Ld %9Ld %5d ",
+	SEQ_printf(m, "%15s %5d %15Ld %13Ld %5d ",
 		p->comm, p->pid,
 		(long long)p->se.fair_key,
-		(long long)(p->se.fair_key - rq->cfs.fair_clock),
-		(long long)p->se.wait_runtime,
 		(long long)(p->nvcsw + p->nivcsw),
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS
-	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld %15Ld\n",
+	SEQ_printf(m, "%15Ld %15Ld %15Ld\n",
 		(long long)p->se.vruntime,
 		(long long)p->se.sum_exec_runtime,
-		(long long)p->se.sum_wait_runtime,
-		(long long)p->se.sum_sleep_runtime,
-		(long long)p->se.wait_runtime_overruns,
-		(long long)p->se.wait_runtime_underruns);
+		(long long)p->se.sum_sleep_runtime);
 #else
 	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
 		0LL, 0LL, 0LL, 0LL, 0LL);
@@ -63,10 +58,8 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 
 	SEQ_printf(m,
 	"\nrunnable tasks:\n"
-	"            task   PID        tree-key         delta       waiting"
-	"  switches  prio"
-	"    exec-runtime        sum-exec        sum-wait       sum-sleep"
-	"    wait-overrun   wait-underrun\n"
+	"            task   PID        tree-key  switches  prio"
+	"    exec-runtime        sum-exec       sum-sleep\n"
 	"------------------------------------------------------------------"
 	"--------------------------------"
 	"------------------------------------------------"
@@ -84,29 +77,6 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 	read_unlock_irq(&tasklist_lock);
 }
 
-static void
-print_cfs_rq_runtime_sum(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
-{
-	s64 wait_runtime_rq_sum = 0;
-	struct task_struct *p;
-	struct rb_node *curr;
-	unsigned long flags;
-	struct rq *rq = &per_cpu(runqueues, cpu);
-
-	spin_lock_irqsave(&rq->lock, flags);
-	curr = first_fair(cfs_rq);
-	while (curr) {
-		p = rb_entry(curr, struct task_struct, se.run_node);
-		wait_runtime_rq_sum += p->se.wait_runtime;
-
-		curr = rb_next(curr);
-	}
-	spin_unlock_irqrestore(&rq->lock, flags);
-
-	SEQ_printf(m, "  .%-30s: %Ld\n", "wait_runtime_rq_sum",
-		(long long)wait_runtime_rq_sum);
-}
-
 void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
 	s64 MIN_vruntime = -1, min_vruntime, max_vruntime = -1,
@@ -120,7 +90,6 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 #define P(x) \
 	SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(cfs_rq->x))
 
-	P(fair_clock);
 	P(exec_clock);
 
 	spin_lock_irqsave(&rq->lock, flags);
@@ -144,13 +113,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	spread0 = min_vruntime - rq0_min_vruntime;
 	SEQ_printf(m, "  .%-30s: %Ld\n", "spread0",
 			(long long)spread0);
-
-	P(wait_runtime);
-	P(wait_runtime_overruns);
-	P(wait_runtime_underruns);
 #undef P
-
-	print_cfs_rq_runtime_sum(m, cpu, cfs_rq);
 }
 
 static void print_cpu(struct seq_file *m, int cpu)
@@ -268,8 +231,6 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 #define P(F) \
 	SEQ_printf(m, "%-25s:%20Ld\n", #F, (long long)p->F)
 
-	P(se.wait_runtime);
-	P(se.wait_start_fair);
 	P(se.exec_start);
 	P(se.vruntime);
 	P(se.sum_exec_runtime);
@@ -283,9 +244,6 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	P(se.exec_max);
 	P(se.slice_max);
 	P(se.wait_max);
-	P(se.wait_runtime_overruns);
-	P(se.wait_runtime_underruns);
-	P(se.sum_wait_runtime);
 #endif
 	SEQ_printf(m, "%-25s:%20Ld\n",
 		   "nr_switches", (long long)(p->nvcsw + p->nivcsw));
@@ -312,8 +270,6 @@ void proc_sched_set_task(struct task_struct *p)
 	p->se.exec_max			= 0;
 	p->se.slice_max			= 0;
 	p->se.wait_max			= 0;
-	p->se.wait_runtime_overruns	= 0;
-	p->se.wait_runtime_underruns	= 0;
 #endif
 	p->se.sum_exec_runtime		= 0;
 	p->se.prev_sum_exec_runtime	= 0;

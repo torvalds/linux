@@ -178,8 +178,6 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_add(&cfs_rq->load, se->load.weight);
 	cfs_rq->nr_running++;
 	se->on_rq = 1;
-
-	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }
 
 static void
@@ -192,8 +190,6 @@ __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_sub(&cfs_rq->load, se->load.weight);
 	cfs_rq->nr_running--;
 	se->on_rq = 0;
-
-	schedstat_add(cfs_rq, wait_runtime, -se->wait_runtime);
 }
 
 static inline struct rb_node *first_fair(struct cfs_rq *cfs_rq)
@@ -249,13 +245,6 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	return period;
 }
 
-static void
-add_wait_runtime(struct cfs_rq *cfs_rq, struct sched_entity *se, long delta)
-{
-	se->wait_runtime += delta;
-	schedstat_add(cfs_rq, wait_runtime, delta);
-}
-
 /*
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
@@ -264,9 +253,7 @@ static inline void
 __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	      unsigned long delta_exec)
 {
-	unsigned long delta_fair, delta_mine, delta_exec_weighted;
-	struct load_weight *lw = &cfs_rq->load;
-	unsigned long load = lw->weight;
+	unsigned long delta_exec_weighted;
 
 	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
@@ -278,25 +265,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 							&curr->load);
 	}
 	curr->vruntime += delta_exec_weighted;
-
-	if (!sched_feat(FAIR_SLEEPERS))
-		return;
-
-	if (unlikely(!load))
-		return;
-
-	delta_fair = calc_delta_fair(delta_exec, lw);
-	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
-
-	cfs_rq->fair_clock += delta_fair;
-	/*
-	 * We executed delta_exec amount of time on the CPU,
-	 * but we were only entitled to delta_mine amount of
-	 * time during that period (if nr_running == 1 then
-	 * the two values are equal)
-	 * [Note: delta_mine - delta_exec is negative]:
-	 */
-	add_wait_runtime(cfs_rq, curr, delta_mine - delta_exec);
 }
 
 static void update_curr(struct cfs_rq *cfs_rq)
@@ -322,7 +290,6 @@ static void update_curr(struct cfs_rq *cfs_rq)
 static inline void
 update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	se->wait_start_fair = cfs_rq->fair_clock;
 	schedstat_set(se->wait_start, rq_of(cfs_rq)->clock);
 }
 
@@ -354,35 +321,11 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->fair_key = se->vruntime;
 }
 
-/*
- * Note: must be called with a freshly updated rq->fair_clock.
- */
-static inline void
-__update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se,
-			unsigned long delta_fair)
-{
-	schedstat_set(se->wait_max, max(se->wait_max,
-			rq_of(cfs_rq)->clock - se->wait_start));
-
-	delta_fair = calc_weighted(delta_fair, se);
-
-	add_wait_runtime(cfs_rq, se, delta_fair);
-}
-
 static void
 update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	unsigned long delta_fair;
-
-	if (unlikely(!se->wait_start_fair))
-		return;
-
-	delta_fair = (unsigned long)min((u64)(2*sysctl_sched_runtime_limit),
-			(u64)(cfs_rq->fair_clock - se->wait_start_fair));
-
-	__update_stats_wait_end(cfs_rq, se, delta_fair);
-
-	se->wait_start_fair = 0;
+	schedstat_set(se->wait_max, max(se->wait_max,
+			rq_of(cfs_rq)->clock - se->wait_start));
 	schedstat_set(se->wait_start, 0);
 }
 
@@ -552,9 +495,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	/*
 	 * Any task has to be enqueued before it get to execute on
 	 * a CPU. So account for the time it spent waiting on the
-	 * runqueue. (note, here we rely on pick_next_task() having
-	 * done a put_prev_task_fair() shortly before this, which
-	 * updated rq->fair_clock - used by update_stats_wait_end())
+	 * runqueue.
 	 */
 	update_stats_wait_end(cfs_rq, se);
 	update_stats_curr_start(cfs_rq, se);
@@ -988,13 +929,6 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 
 	update_curr(cfs_rq);
 	place_entity(cfs_rq, se, 1);
-
-	/*
-	 * The statistical average of wait_runtime is about
-	 * -granularity/2, so initialize the task with that:
-	 */
-	if (sched_feat(START_DEBIT))
-		se->wait_runtime = -(__sched_period(cfs_rq->nr_running+1) / 2);
 
 	if (sysctl_sched_child_runs_first &&
 			curr->vruntime < se->vruntime) {

@@ -888,13 +888,9 @@ struct load_weight {
  *     4 se->block_start
  *     4 se->run_node
  *     4 se->sleep_start
- *     4 se->sleep_start_fair
  *     6 se->load.weight
- *     7 se->delta_fair
- *    15 se->wait_runtime
  */
 struct sched_entity {
-	long			wait_runtime;
 	s64			fair_key;
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
@@ -904,12 +900,10 @@ struct sched_entity {
 	u64			sum_exec_runtime;
 	u64			vruntime;
 	u64			prev_sum_exec_runtime;
-	u64			wait_start_fair;
 
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
 	u64			wait_max;
-	s64			sum_wait_runtime;
 
 	u64			sleep_start;
 	u64			sleep_max;
@@ -919,9 +913,6 @@ struct sched_entity {
 	u64			block_max;
 	u64			exec_max;
 	u64			slice_max;
-
-	unsigned long		wait_runtime_overruns;
-	unsigned long		wait_runtime_underruns;
 #endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
