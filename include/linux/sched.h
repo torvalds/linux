@@ -891,7 +891,6 @@ struct load_weight {
  *     6 se->load.weight
  */
 struct sched_entity {
-	s64			fair_key;
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
 	unsigned int		on_rq;

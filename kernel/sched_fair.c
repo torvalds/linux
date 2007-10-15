@@ -139,7 +139,7 @@ set_leftmost(struct cfs_rq *cfs_rq, struct rb_node *leftmost)
 static inline s64
 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	return se->fair_key - cfs_rq->min_vruntime;
+	return se->vruntime - cfs_rq->min_vruntime;
 }
 
 /*
@@ -181,9 +181,6 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
-	update_load_add(&cfs_rq->load, se->load.weight);
-	cfs_rq->nr_running++;
-	se->on_rq = 1;
 }
 
 static void
@@ -193,9 +190,6 @@ __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		set_leftmost(cfs_rq, rb_next(&se->run_node));
 
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
-	update_load_sub(&cfs_rq->load, se->load.weight);
-	cfs_rq->nr_running--;
-	se->on_rq = 0;
 }
 
 static inline struct rb_node *first_fair(struct cfs_rq *cfs_rq)
@@ -341,10 +335,6 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 */
 	if (se != cfs_rq->curr)
 		update_stats_wait_start(cfs_rq, se);
-	/*
-	 * Update the key:
-	 */
-	se->fair_key = se->vruntime;
 }
 
 static void
@@ -391,6 +381,22 @@ update_stats_curr_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 /**************************************************
  * Scheduling class queueing methods:
  */
+
+static void
+account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	update_load_add(&cfs_rq->load, se->load.weight);
+	cfs_rq->nr_running++;
+	se->on_rq = 1;
+}
+
+static void
+account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	update_load_sub(&cfs_rq->load, se->load.weight);
+	cfs_rq->nr_running--;
+	se->on_rq = 0;
+}
 
 static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -479,7 +485,9 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 	}
 
 	update_stats_enqueue(cfs_rq, se);
-	__enqueue_entity(cfs_rq, se);
+	if (se != cfs_rq->curr)
+		__enqueue_entity(cfs_rq, se);
+	account_entity_enqueue(cfs_rq, se);
 }
 
 static void
@@ -498,7 +506,9 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 		}
 	}
 #endif
-	__dequeue_entity(cfs_rq, se);
+	if (se != cfs_rq->curr)
+		__dequeue_entity(cfs_rq, se);
+	account_entity_dequeue(cfs_rq, se);
 }
 
 /*
@@ -544,6 +554,10 @@ static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = __pick_next_entity(cfs_rq);
 
+	/* 'current' is not kept within the tree. */
+	if (se)
+		__dequeue_entity(cfs_rq, se);
+
 	set_next_entity(cfs_rq, se);
 
 	return se;
@@ -560,19 +574,20 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 	update_stats_curr_end(cfs_rq, prev);
 
-	if (prev->on_rq)
+	if (prev->on_rq) {
 		update_stats_wait_start(cfs_rq, prev);
+		/* Put 'current' back into the tree. */
+		__enqueue_entity(cfs_rq, prev);
+	}
 	cfs_rq->curr = NULL;
 }
 
 static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
 	/*
-	 * Dequeue and enqueue the task to update its
-	 * position within the tree:
+	 * Update run-time statistics of the 'current'.
 	 */
-	dequeue_entity(cfs_rq, curr, 0);
-	enqueue_entity(cfs_rq, curr, 0);
+	update_curr(cfs_rq);
 
 	if (cfs_rq->nr_running > 1)
 		check_preempt_tick(cfs_rq, curr);
@@ -749,7 +764,7 @@ static void yield_task_fair(struct rq *rq, struct task_struct *p)
 	/*
 	 * Minimally necessary key value to be last in the tree:
 	 */
-	se->fair_key = rightmost->fair_key + 1;
+	se->vruntime = rightmost->vruntime + 1;
 
 	if (cfs_rq->rb_leftmost == &se->run_node)
 		cfs_rq->rb_leftmost = rb_next(&se->run_node);
@@ -965,6 +980,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 
 	update_stats_enqueue(cfs_rq, se);
 	__enqueue_entity(cfs_rq, se);
+	account_entity_enqueue(cfs_rq, se);
 	resched_task(rq->curr);
 }
 

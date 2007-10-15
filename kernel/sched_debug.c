@@ -38,7 +38,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 
 	SEQ_printf(m, "%15s %5d %15Ld %13Ld %5d ",
 		p->comm, p->pid,
-		(long long)p->se.fair_key,
+		(long long)p->se.vruntime,
 		(long long)(p->nvcsw + p->nivcsw),
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS

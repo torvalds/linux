@@ -6610,7 +6610,6 @@ void normalize_rt_tasks(void)
 
 	read_lock_irq(&tasklist_lock);
 	do_each_thread(g, p) {
-		p->se.fair_key			= 0;
 		p->se.exec_start		= 0;
 #ifdef CONFIG_SCHEDSTATS
 		p->se.wait_start		= 0;
