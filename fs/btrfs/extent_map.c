@@ -26,16 +26,6 @@ struct tree_entry {
 	struct rb_node rb_node;
 };
 
-/* bits for the extent state */
-#define EXTENT_DIRTY 1
-#define EXTENT_WRITEBACK (1 << 1)
-#define EXTENT_UPTODATE (1 << 2)
-#define EXTENT_LOCKED (1 << 3)
-#define EXTENT_NEW (1 << 4)
-#define EXTENT_DELALLOC (1 << 5)
-
-#define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
-
 void __init extent_map_init(void)
 {
 	extent_map_cache = btrfs_cache_create("extent_map",
@@ -223,7 +213,8 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		if (rb)
 			prev = rb_entry(rb, struct extent_map, rb_node);
 		if (prev && prev->end + 1 == em->start &&
-		    ((em->block_start == 0 && prev->block_start == 0) ||
+		    ((em->block_start == EXTENT_MAP_HOLE &&
+		      prev->block_start == EXTENT_MAP_HOLE) ||
 			     (em->block_start == prev->block_end + 1))) {
 			em->start = prev->start;
 			em->block_start = prev->block_start;
@@ -926,6 +917,40 @@ int set_range_writeback(struct extent_map_tree *tree, u64 start, u64 end)
 }
 EXPORT_SYMBOL(set_range_writeback);
 
+int find_first_extent_bit(struct extent_map_tree *tree, u64 start,
+			  u64 *start_ret, u64 *end_ret, int bits)
+{
+	struct rb_node *node;
+	struct extent_state *state;
+	int ret = 1;
+
+	write_lock_irq(&tree->lock);
+	/*
+	 * this search will find all the extents that end after
+	 * our range starts.
+	 */
+	node = tree_search(&tree->state, start);
+	if (!node || IS_ERR(node)) {
+		goto out;
+	}
+
+	while(1) {
+		state = rb_entry(node, struct extent_state, rb_node);
+		if (state->state & bits) {
+			*start_ret = state->start;
+			*end_ret = state->end;
+			ret = 0;
+		}
+		node = rb_next(node);
+		if (!node)
+			break;
+	}
+out:
+	write_unlock_irq(&tree->lock);
+	return ret;
+}
+EXPORT_SYMBOL(find_first_extent_bit);
+
 u64 find_lock_delalloc_range(struct extent_map_tree *tree,
 			     u64 start, u64 lock_start, u64 *end, u64 max_bytes)
 {
@@ -1450,7 +1475,7 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 		em = NULL;
 
 		/* we've found a hole, just zero and go on */
-		if (block_start == 0) {
+		if (block_start == EXTENT_MAP_HOLE) {
 			zero_user_page(page, page_offset, iosize, KM_USER0);
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    GFP_NOFS);
@@ -1593,7 +1618,8 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 		free_extent_map(em);
 		em = NULL;
 
-		if (block_start == 0 || block_start == EXTENT_MAP_INLINE) {
+		if (block_start == EXTENT_MAP_HOLE ||
+		    block_start == EXTENT_MAP_INLINE) {
 			clear_extent_dirty(tree, cur,
 					   cur + iosize - 1, GFP_NOFS);
 			cur = cur + iosize;
@@ -1630,7 +1656,6 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 		nr++;
 	}
 done:
-	WARN_ON(test_range_bit(tree, start, page_end, EXTENT_DIRTY, 0));
 	unlock_extent(tree, start, page_end, GFP_NOFS);
 	unlock_page(page);
 	return 0;
@@ -1827,8 +1852,623 @@ sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 
 	// XXX(hch): block 0 is valid in some cases, e.g. XFS RT device
 	if (em->block_start == EXTENT_MAP_INLINE ||
-	    em->block_start == 0)
-	    	return 0;
+	    em->block_start == EXTENT_MAP_HOLE)
+		return 0;
 
 	return (em->block_start + start - em->start) >> inode->i_blkbits;
 }
+
+struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
+					  u64 start, unsigned long len,
+					  gfp_t mask)
+{
+	unsigned long num_pages = ((start + len - 1) >> PAGE_CACHE_SHIFT) -
+				  (start >> PAGE_CACHE_SHIFT) + 1;
+	unsigned long i;
+	unsigned long index = start >> PAGE_CACHE_SHIFT;
+	struct extent_buffer *eb;
+	struct page *p;
+	struct address_space *mapping = tree->mapping;
+	int uptodate = 0;
+
+	eb = kzalloc(EXTENT_BUFFER_SIZE(num_pages), mask);
+	if (!eb || IS_ERR(eb))
+		return NULL;
+
+	eb->start = start;
+	eb->len = len;
+	atomic_set(&eb->refs, 1);
+
+	for (i = 0; i < num_pages; i++, index++) {
+		p = find_or_create_page(mapping, index, mask | __GFP_HIGHMEM);
+		if (!p)
+			goto fail;
+		eb->pages[i] = p;
+		if (!PageUptodate(p))
+			uptodate = 0;
+		unlock_page(p);
+	}
+	if (uptodate)
+		eb->flags |= EXTENT_UPTODATE;
+	return eb;
+fail:
+	free_extent_buffer(eb);
+	return NULL;
+}
+EXPORT_SYMBOL(alloc_extent_buffer);
+
+struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
+					 u64 start, unsigned long len,
+					  gfp_t mask)
+{
+	unsigned long num_pages = ((start + len - 1) >> PAGE_CACHE_SHIFT) -
+				  (start >> PAGE_CACHE_SHIFT) + 1;
+	unsigned long i;
+	unsigned long index = start >> PAGE_CACHE_SHIFT;
+	struct extent_buffer *eb;
+	struct page *p;
+	struct address_space *mapping = tree->mapping;
+
+	eb = kzalloc(EXTENT_BUFFER_SIZE(num_pages), mask);
+	if (!eb || IS_ERR(eb))
+		return NULL;
+
+	eb->start = start;
+	eb->len = len;
+	atomic_set(&eb->refs, 1);
+
+	for (i = 0; i < num_pages; i++, index++) {
+		p = find_get_page(mapping, index);
+		if (!p)
+			goto fail;
+		eb->pages[i] = p;
+	}
+	return eb;
+fail:
+	free_extent_buffer(eb);
+	return NULL;
+}
+EXPORT_SYMBOL(find_extent_buffer);
+
+void free_extent_buffer(struct extent_buffer *eb)
+{
+	unsigned long i;
+	unsigned long num_pages;
+
+	if (!eb)
+		return;
+
+	if (!atomic_dec_and_test(&eb->refs))
+		return;
+
+	num_pages = ((eb->start + eb->len - 1) >> PAGE_CACHE_SHIFT) -
+		(eb->start >> PAGE_CACHE_SHIFT) + 1;
+
+	for (i = 0; i < num_pages; i++) {
+		if (eb->pages[i])
+			page_cache_release(eb->pages[i]);
+	}
+	kfree(eb);
+}
+EXPORT_SYMBOL(free_extent_buffer);
+
+int clear_extent_buffer_dirty(struct extent_map_tree *tree,
+			      struct extent_buffer *eb)
+{
+	int set;
+	unsigned long i;
+	unsigned long num_pages;
+	struct page *page;
+
+	u64 start = eb->start;
+	u64 end = start + eb->len - 1;
+
+	set = clear_extent_dirty(tree, start, end, GFP_NOFS);
+	num_pages = ((eb->start + eb->len - 1) >> PAGE_CACHE_SHIFT) -
+		(eb->start >> PAGE_CACHE_SHIFT) + 1;
+
+	for (i = 0; i < num_pages; i++) {
+		page = eb->pages[i];
+		lock_page(page);
+		/*
+		 * if we're on the last page or the first page and the
+		 * block isn't aligned on a page boundary, do extra checks
+		 * to make sure we don't clean page that is partially dirty
+		 */
+		if ((i == 0 && (eb->start & (PAGE_CACHE_SIZE - 1))) ||
+		    ((i == num_pages - 1) &&
+		     ((eb->start + eb->len - 1) & (PAGE_CACHE_SIZE - 1)))) {
+			start = page->index << PAGE_CACHE_SHIFT;
+			end  = start + PAGE_CACHE_SIZE - 1;
+			if (test_range_bit(tree, start, end,
+					   EXTENT_DIRTY, 0)) {
+				unlock_page(page);
+				continue;
+			}
+		}
+		clear_page_dirty_for_io(page);
+		unlock_page(page);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(clear_extent_buffer_dirty);
+
+int wait_on_extent_buffer_writeback(struct extent_map_tree *tree,
+				    struct extent_buffer *eb)
+{
+	return wait_on_extent_writeback(tree, eb->start,
+					eb->start + eb->len - 1);
+}
+EXPORT_SYMBOL(wait_on_extent_buffer_writeback);
+
+int set_extent_buffer_dirty(struct extent_map_tree *tree,
+			     struct extent_buffer *eb)
+{
+	return set_range_dirty(tree, eb->start, eb->start + eb->len - 1);
+}
+EXPORT_SYMBOL(set_extent_buffer_dirty);
+
+int set_extent_buffer_uptodate(struct extent_map_tree *tree,
+				struct extent_buffer *eb)
+{
+	unsigned long i;
+	struct page *page;
+	unsigned long num_pages;
+
+	num_pages = ((eb->start + eb->len - 1) >> PAGE_CACHE_SHIFT) -
+		(eb->start >> PAGE_CACHE_SHIFT) + 1;
+
+	set_extent_uptodate(tree, eb->start, eb->start + eb->len - 1,
+			    GFP_NOFS);
+	for (i = 0; i < num_pages; i++) {
+		page = eb->pages[i];
+		if ((i == 0 && (eb->start & (PAGE_CACHE_SIZE - 1))) ||
+		    ((i == num_pages - 1) &&
+		     ((eb->start + eb->len - 1) & (PAGE_CACHE_SIZE - 1)))) {
+			check_page_uptodate(tree, page);
+			continue;
+		}
+		SetPageUptodate(page);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(set_extent_buffer_uptodate);
+
+int extent_buffer_uptodate(struct extent_map_tree *tree,
+			     struct extent_buffer *eb)
+{
+	if (eb->flags & EXTENT_UPTODATE)
+		return 1;
+	return test_range_bit(tree, eb->start, eb->start + eb->len - 1,
+			   EXTENT_UPTODATE, 1);
+}
+EXPORT_SYMBOL(extent_buffer_uptodate);
+
+int read_extent_buffer_pages(struct extent_map_tree *tree,
+			     struct extent_buffer *eb, int wait)
+{
+	unsigned long i;
+	struct page *page;
+	int err;
+	int ret = 0;
+	unsigned long num_pages;
+
+	if (eb->flags & EXTENT_UPTODATE)
+		return 0;
+
+	if (test_range_bit(tree, eb->start, eb->start + eb->len - 1,
+			   EXTENT_UPTODATE, 1)) {
+		return 0;
+	}
+
+	num_pages = ((eb->start + eb->len - 1) >> PAGE_CACHE_SHIFT) -
+		(eb->start >> PAGE_CACHE_SHIFT) + 1;
+	for (i = 0; i < num_pages; i++) {
+		page = eb->pages[i];
+		if (PageUptodate(page)) {
+			continue;
+		}
+		if (!wait) {
+			if (TestSetPageLocked(page)) {
+				continue;
+			}
+		} else {
+			lock_page(page);
+		}
+		if (!PageUptodate(page)) {
+			err = page->mapping->a_ops->readpage(NULL, page);
+			if (err) {
+				ret = err;
+			}
+		} else {
+			unlock_page(page);
+		}
+	}
+
+	if (ret || !wait) {
+		return ret;
+	}
+
+	for (i = 0; i < num_pages; i++) {
+		page = eb->pages[i];
+		wait_on_page_locked(page);
+		if (!PageUptodate(page)) {
+			ret = -EIO;
+		}
+	}
+	eb->flags |= EXTENT_UPTODATE;
+	return ret;
+}
+EXPORT_SYMBOL(read_extent_buffer_pages);
+
+void read_extent_buffer(struct extent_buffer *eb, void *dstv,
+			unsigned long start,
+			unsigned long len)
+{
+	size_t cur;
+	size_t offset;
+	struct page *page;
+	char *kaddr;
+	char *dst = (char *)dstv;
+	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+
+	WARN_ON(start > eb->len);
+	WARN_ON(start + len > eb->start + eb->len);
+
+	page = eb->pages[i];
+	offset = start & ((unsigned long)PAGE_CACHE_SIZE - 1);
+	if (i == 0)
+		offset += start_offset;
+
+	while(len > 0) {
+		WARN_ON(!PageUptodate(page));
+
+		cur = min(len, (PAGE_CACHE_SIZE - offset));
+		// kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = page_address(page);
+		memcpy(dst, kaddr + offset, cur);
+		// kunmap_atomic(kaddr, KM_USER0);
+
+		dst += cur;
+		len -= cur;
+		offset = 0;
+		i++;
+		page = eb->pages[i];
+	}
+}
+EXPORT_SYMBOL(read_extent_buffer);
+
+int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
+		      char **token, char **map,
+		      unsigned long *map_start,
+		      unsigned long *map_len, int km)
+{
+	size_t offset;
+	char *kaddr;
+	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+
+	WARN_ON(start > eb->len);
+
+	if (i == 0) {
+		offset = start_offset;
+		*map_start = 0;
+	} else {
+		offset = 0;
+		*map_start = (i << PAGE_CACHE_SHIFT) - offset;
+	}
+
+	// kaddr = kmap_atomic(eb->pages[i], km);
+	kaddr = page_address(eb->pages[i]);
+	*token = kaddr;
+	*map = kaddr + offset;
+	*map_len = PAGE_CACHE_SIZE - offset;
+	return 0;
+}
+EXPORT_SYMBOL(map_extent_buffer);
+
+void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km)
+{
+	// kunmap_atomic(token, km);
+}
+EXPORT_SYMBOL(unmap_extent_buffer);
+
+int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
+			  unsigned long start,
+			  unsigned long len)
+{
+	size_t cur;
+	size_t offset;
+	struct page *page;
+	char *kaddr;
+	char *ptr = (char *)ptrv;
+	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+	int ret = 0;
+
+	WARN_ON(start > eb->len);
+	WARN_ON(start + len > eb->start + eb->len);
+
+	page = eb->pages[i];
+	offset = start & ((unsigned long)PAGE_CACHE_SIZE - 1);
+	if (i == 0)
+		offset += start_offset;
+
+	while(len > 0) {
+		WARN_ON(!PageUptodate(page));
+
+		cur = min(len, (PAGE_CACHE_SIZE - offset));
+
+		// kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = page_address(page);
+		ret = memcmp(ptr, kaddr + offset, cur);
+		// kunmap_atomic(kaddr, KM_USER0);
+		if (ret)
+			break;
+
+		ptr += cur;
+		len -= cur;
+		offset = 0;
+		i++;
+		page = eb->pages[i];
+	}
+	return ret;
+}
+EXPORT_SYMBOL(memcmp_extent_buffer);
+
+void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
+			 unsigned long start, unsigned long len)
+{
+	size_t cur;
+	size_t offset;
+	struct page *page;
+	char *kaddr;
+	char *src = (char *)srcv;
+	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+
+	WARN_ON(start > eb->len);
+	WARN_ON(start + len > eb->start + eb->len);
+
+	page = eb->pages[i];
+	offset = start & ((unsigned long)PAGE_CACHE_SIZE - 1);
+	if (i == 0)
+		offset += start_offset;
+
+	while(len > 0) {
+		WARN_ON(!PageUptodate(page));
+
+		cur = min(len, PAGE_CACHE_SIZE - offset);
+		// kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = page_address(page);
+		memcpy(kaddr + offset, src, cur);
+		// kunmap_atomic(kaddr, KM_USER0);
+
+		src += cur;
+		len -= cur;
+		offset = 0;
+		i++;
+		page = eb->pages[i];
+	}
+}
+EXPORT_SYMBOL(write_extent_buffer);
+
+void memset_extent_buffer(struct extent_buffer *eb, char c,
+			  unsigned long start, unsigned long len)
+{
+	size_t cur;
+	size_t offset;
+	struct page *page;
+	char *kaddr;
+	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+
+	WARN_ON(start > eb->len);
+	WARN_ON(start + len > eb->start + eb->len);
+
+	page = eb->pages[i];
+	offset = start & ((unsigned long)PAGE_CACHE_SIZE - 1);
+	if (i == 0)
+		offset += start_offset;
+
+	while(len > 0) {
+		WARN_ON(!PageUptodate(page));
+
+		cur = min(len, PAGE_CACHE_SIZE - offset);
+		// kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = page_address(page);
+		memset(kaddr + offset, c, cur);
+		// kunmap_atomic(kaddr, KM_USER0);
+
+		len -= cur;
+		offset = 0;
+		i++;
+		page = eb->pages[i];
+	}
+}
+EXPORT_SYMBOL(memset_extent_buffer);
+
+void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
+			unsigned long dst_offset, unsigned long src_offset,
+			unsigned long len)
+{
+	u64 dst_len = dst->len;
+	size_t cur;
+	size_t offset;
+	struct page *page;
+	char *kaddr;
+	size_t start_offset = dst->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long i = (start_offset + dst_offset) >> PAGE_CACHE_SHIFT;
+
+	WARN_ON(src->len != dst_len);
+
+	offset = dst_offset & ((unsigned long)PAGE_CACHE_SIZE - 1);
+	if (i == 0)
+		offset += start_offset;
+
+	while(len > 0) {
+		page = dst->pages[i];
+		WARN_ON(!PageUptodate(page));
+
+		cur = min(len, (unsigned long)(PAGE_CACHE_SIZE - offset));
+
+		// kaddr = kmap_atomic(page, KM_USER1);
+		kaddr = page_address(page);
+		read_extent_buffer(src, kaddr + offset, src_offset, cur);
+		// kunmap_atomic(kaddr, KM_USER1);
+
+		src_offset += cur;
+		len -= cur;
+		offset = 0;
+		i++;
+	}
+}
+EXPORT_SYMBOL(copy_extent_buffer);
+
+static void move_pages(struct page *dst_page, struct page *src_page,
+		       unsigned long dst_off, unsigned long src_off,
+		       unsigned long len)
+{
+	// char *dst_kaddr = kmap_atomic(dst_page, KM_USER0);
+	char *dst_kaddr = page_address(dst_page);
+	if (dst_page == src_page) {
+		memmove(dst_kaddr + dst_off, dst_kaddr + src_off, len);
+	} else {
+		// char *src_kaddr = kmap_atomic(src_page, KM_USER1);
+		char *src_kaddr = page_address(src_page);
+		char *p = dst_kaddr + dst_off + len;
+		char *s = src_kaddr + src_off + len;
+
+		while (len--)
+			*--p = *--s;
+
+		// kunmap_atomic(src_kaddr, KM_USER1);
+	}
+	// kunmap_atomic(dst_kaddr, KM_USER0);
+}
+
+static void copy_pages(struct page *dst_page, struct page *src_page,
+		       unsigned long dst_off, unsigned long src_off,
+		       unsigned long len)
+{
+	//kmap_atomic(dst_page, KM_USER0);
+	char *dst_kaddr = page_address(dst_page);
+	char *src_kaddr;
+
+	if (dst_page != src_page)
+		src_kaddr = page_address(src_page); // kmap_atomic(src_page, KM_USER1);
+	else
+		src_kaddr = dst_kaddr;
+
+	memcpy(dst_kaddr + dst_off, src_kaddr + src_off, len);
+	/*
+	kunmap_atomic(dst_kaddr, KM_USER0);
+	if (dst_page != src_page)
+		kunmap_atomic(src_kaddr, KM_USER1);
+	*/
+}
+
+void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
+			   unsigned long src_offset, unsigned long len)
+{
+	size_t cur;
+	size_t dst_off_in_page;
+	size_t src_off_in_page;
+	size_t start_offset = dst->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long dst_i;
+	unsigned long src_i;
+
+	if (src_offset + len > dst->len) {
+		printk("memmove bogus src_offset %lu move len %lu len %lu\n",
+		       src_offset, len, dst->len);
+		BUG_ON(1);
+	}
+	if (dst_offset + len > dst->len) {
+		printk("memmove bogus dst_offset %lu move len %lu len %lu\n",
+		       dst_offset, len, dst->len);
+		BUG_ON(1);
+	}
+
+	while(len > 0) {
+		dst_off_in_page = dst_offset &
+			((unsigned long)PAGE_CACHE_SIZE - 1);
+		src_off_in_page = src_offset &
+			((unsigned long)PAGE_CACHE_SIZE - 1);
+
+		dst_i = (start_offset + dst_offset) >> PAGE_CACHE_SHIFT;
+		src_i = (start_offset + src_offset) >> PAGE_CACHE_SHIFT;
+
+		if (src_i == 0)
+			src_off_in_page += start_offset;
+		if (dst_i == 0)
+			dst_off_in_page += start_offset;
+
+		cur = min(len, (unsigned long)(PAGE_CACHE_SIZE -
+					       src_off_in_page));
+		cur = min(cur, (unsigned long)(PAGE_CACHE_SIZE -
+					       dst_off_in_page));
+
+		copy_pages(dst->pages[dst_i], dst->pages[src_i],
+			   dst_off_in_page, src_off_in_page, cur);
+
+		src_offset += cur;
+		dst_offset += cur;
+		len -= cur;
+	}
+}
+EXPORT_SYMBOL(memcpy_extent_buffer);
+
+void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
+			   unsigned long src_offset, unsigned long len)
+{
+	size_t cur;
+	size_t dst_off_in_page;
+	size_t src_off_in_page;
+	unsigned long dst_end = dst_offset + len - 1;
+	unsigned long src_end = src_offset + len - 1;
+	size_t start_offset = dst->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long dst_i;
+	unsigned long src_i;
+
+	if (src_offset + len > dst->len) {
+		printk("memmove bogus src_offset %lu move len %lu len %lu\n",
+		       src_offset, len, dst->len);
+		BUG_ON(1);
+	}
+	if (dst_offset + len > dst->len) {
+		printk("memmove bogus dst_offset %lu move len %lu len %lu\n",
+		       dst_offset, len, dst->len);
+		BUG_ON(1);
+	}
+	if (dst_offset < src_offset) {
+		memcpy_extent_buffer(dst, dst_offset, src_offset, len);
+		return;
+	}
+	while(len > 0) {
+		dst_i = (start_offset + dst_end) >> PAGE_CACHE_SHIFT;
+		src_i = (start_offset + src_end) >> PAGE_CACHE_SHIFT;
+
+		dst_off_in_page = dst_end &
+			((unsigned long)PAGE_CACHE_SIZE - 1);
+		src_off_in_page = src_end &
+			((unsigned long)PAGE_CACHE_SIZE - 1);
+
+		if (src_i == 0)
+			src_off_in_page += start_offset;
+		if (dst_i == 0)
+			dst_off_in_page += start_offset;
+
+		cur = min(len, src_off_in_page + 1);
+		cur = min(cur, dst_off_in_page + 1);
+// printk("move pages orig dst %lu src %lu len %lu, this %lu %lu %lu\n", dst_offset, src_offset, len, dst_off_in_page - cur + 1, src_off_in_page - cur + 1, cur);
+		move_pages(dst->pages[dst_i], dst->pages[src_i],
+			   dst_off_in_page - cur + 1,
+			   src_off_in_page - cur + 1, cur);
+
+		dst_end -= cur - 1;
+		src_end -= cur - 1;
+		len -= cur;
+	}
+}
+EXPORT_SYMBOL(memmove_extent_buffer);

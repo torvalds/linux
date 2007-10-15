@@ -34,12 +34,12 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_file_extent_item *item;
 	struct btrfs_key file_key;
 	struct btrfs_path *path;
+	struct extent_buffer *leaf;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	file_key.objectid = objectid;
 	file_key.offset = pos;
-	file_key.flags = 0;
 	btrfs_set_key_type(&file_key, BTRFS_EXTENT_DATA_KEY);
 
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
@@ -47,15 +47,16 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret);
-	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
+	leaf = path->nodes[0];
+	item = btrfs_item_ptr(leaf, path->slots[0],
 			      struct btrfs_file_extent_item);
-	btrfs_set_file_extent_disk_blocknr(item, offset);
-	btrfs_set_file_extent_disk_num_blocks(item, disk_num_blocks);
-	btrfs_set_file_extent_offset(item, 0);
-	btrfs_set_file_extent_num_blocks(item, num_blocks);
-	btrfs_set_file_extent_generation(item, trans->transid);
-	btrfs_set_file_extent_type(item, BTRFS_FILE_EXTENT_REG);
-	btrfs_mark_buffer_dirty(path->nodes[0]);
+	btrfs_set_file_extent_disk_blocknr(leaf, item, offset);
+	btrfs_set_file_extent_disk_num_blocks(leaf, item, disk_num_blocks);
+	btrfs_set_file_extent_offset(leaf, item, 0);
+	btrfs_set_file_extent_num_blocks(leaf, item, num_blocks);
+	btrfs_set_file_extent_generation(leaf, item, trans->transid);
+	btrfs_set_file_extent_type(leaf, item, BTRFS_FILE_EXTENT_REG);
+	btrfs_mark_buffer_dirty(leaf);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -71,32 +72,30 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 	struct btrfs_key file_key;
 	struct btrfs_key found_key;
 	struct btrfs_csum_item *item;
-	struct btrfs_leaf *leaf;
+	struct extent_buffer *leaf;
 	u64 csum_offset = 0;
 	int csums_in_item;
 
 	file_key.objectid = objectid;
 	file_key.offset = offset;
-	file_key.flags = 0;
 	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
 	ret = btrfs_search_slot(trans, root, &file_key, path, 0, cow);
 	if (ret < 0)
 		goto fail;
-	leaf = btrfs_buffer_leaf(path->nodes[0]);
+	leaf = path->nodes[0];
 	if (ret > 0) {
 		ret = 1;
 		if (path->slots[0] == 0)
 			goto fail;
 		path->slots[0]--;
-		btrfs_disk_key_to_cpu(&found_key,
-				      &leaf->items[path->slots[0]].key);
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		if (btrfs_key_type(&found_key) != BTRFS_CSUM_ITEM_KEY ||
 		    found_key.objectid != objectid) {
 			goto fail;
 		}
 		csum_offset = (offset - found_key.offset) >>
 				root->fs_info->sb->s_blocksize_bits;
-		csums_in_item = btrfs_item_size(leaf->items + path->slots[0]);
+		csums_in_item = btrfs_item_size_nr(leaf, path->slots[0]);
 		csums_in_item /= BTRFS_CRC32_SIZE;
 
 		if (csum_offset >= csums_in_item) {
@@ -127,7 +126,6 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 
 	file_key.objectid = objectid;
 	file_key.offset = offset;
-	file_key.flags = 0;
 	btrfs_set_key_type(&file_key, BTRFS_EXTENT_DATA_KEY);
 	ret = btrfs_search_slot(trans, root, &file_key, path, ins_len, cow);
 	return ret;
@@ -138,12 +136,14 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 			  u64 objectid, u64 offset,
 			  char *data, size_t len)
 {
+	return 0;
+#if 0
 	int ret;
 	struct btrfs_key file_key;
 	struct btrfs_key found_key;
 	struct btrfs_path *path;
 	struct btrfs_csum_item *item;
-	struct btrfs_leaf *leaf;
+	struct extent_buffer *leaf;
 	u64 csum_offset;
 
 	path = btrfs_alloc_path();
@@ -161,8 +161,8 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 	if (ret == -EFBIG) {
 		u32 item_size;
 		/* we found one, but it isn't big enough yet */
-		leaf = btrfs_buffer_leaf(path->nodes[0]);
-		item_size = btrfs_item_size(leaf->items + path->slots[0]);
+		leaf = path->nodes[0];
+		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
 		if ((item_size / BTRFS_CRC32_SIZE) >= MAX_CSUM_ITEMS(root)) {
 			/* already at max size, make a new one */
 			goto insert;
@@ -188,8 +188,8 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 		goto insert;
 	}
 	path->slots[0]--;
-	leaf = btrfs_buffer_leaf(path->nodes[0]);
-	btrfs_disk_key_to_cpu(&found_key, &leaf->items[path->slots[0]].key);
+	leaf = path->nodes[0];
+	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 	csum_offset = (offset - found_key.offset) >>
 			root->fs_info->sb->s_blocksize_bits;
 	if (btrfs_key_type(&found_key) != BTRFS_CSUM_ITEM_KEY ||
@@ -197,10 +197,10 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 	    csum_offset >= MAX_CSUM_ITEMS(root)) {
 		goto insert;
 	}
-	if (csum_offset >= btrfs_item_size(leaf->items + path->slots[0]) /
+	if (csum_offset >= btrfs_item_size_nr(leaf, path->slots[0]) /
 	    BTRFS_CRC32_SIZE) {
 		u32 diff = (csum_offset + 1) * BTRFS_CRC32_SIZE;
-		diff = diff - btrfs_item_size(leaf->items + path->slots[0]);
+		diff = diff - btrfs_item_size_nr(leaf, path->slots[0]);
 		if (diff != BTRFS_CRC32_SIZE)
 			goto insert;
 		ret = btrfs_extend_item(trans, root, path, diff);
@@ -220,21 +220,20 @@ insert:
 		goto fail;
 	}
 csum:
-	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
-			      struct btrfs_csum_item);
+	leaf = path->nodes[0];
+	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
 	ret = 0;
 	item = (struct btrfs_csum_item *)((unsigned char *)item +
 					  csum_offset * BTRFS_CRC32_SIZE);
 found:
-	btrfs_check_bounds(&item->csum, BTRFS_CRC32_SIZE,
-			   path->nodes[0]->b_data,
-			   root->fs_info->sb->s_blocksize);
+	/* FIXME!!!!!!!!!!!! */
 	ret = btrfs_csum_data(root, data, len, &item->csum);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 fail:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	return ret;
+#endif
 }
 
 int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
@@ -242,21 +241,21 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			u64 isize)
 {
 	struct btrfs_key key;
-	struct btrfs_leaf *leaf = btrfs_buffer_leaf(path->nodes[0]);
+	struct extent_buffer *leaf = path->nodes[0];
 	int slot = path->slots[0];
 	int ret;
 	u32 new_item_size;
 	u64 new_item_span;
 	u64 blocks;
 
-	btrfs_disk_key_to_cpu(&key, &leaf->items[slot].key);
+	btrfs_item_key_to_cpu(leaf, &key, slot);
 	if (isize <= key.offset)
 		return 0;
 	new_item_span = isize - key.offset;
-	blocks = (new_item_span + root->blocksize - 1) >>
+	blocks = (new_item_span + root->sectorsize - 1) >>
 		root->fs_info->sb->s_blocksize_bits;
 	new_item_size = blocks * BTRFS_CRC32_SIZE;
-	if (new_item_size >= btrfs_item_size(leaf->items + slot))
+	if (new_item_size >= btrfs_item_size_nr(leaf, slot))
 		return 0;
 	ret = btrfs_truncate_item(trans, root, path, new_item_size);
 	BUG_ON(ret);

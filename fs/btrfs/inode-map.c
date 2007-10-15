@@ -24,8 +24,9 @@ int btrfs_find_highest_inode(struct btrfs_root *root, u64 *objectid)
 {
 	struct btrfs_path *path;
 	int ret;
-	struct btrfs_leaf *l;
+	struct extent_buffer *l;
 	struct btrfs_key search_key;
+	struct btrfs_key found_key;
 	int slot;
 
 	path = btrfs_alloc_path();
@@ -39,8 +40,9 @@ int btrfs_find_highest_inode(struct btrfs_root *root, u64 *objectid)
 	BUG_ON(ret == 0);
 	if (path->slots[0] > 0) {
 		slot = path->slots[0] - 1;
-		l = btrfs_buffer_leaf(path->nodes[0]);
-		*objectid = btrfs_disk_key_objectid(&l->items[slot].key);
+		l = path->nodes[0];
+		btrfs_item_key_to_cpu(l, &found_key, slot);
+		*objectid = found_key.objectid;
 	} else {
 		*objectid = BTRFS_FIRST_FREE_OBJECTID;
 	}
@@ -64,13 +66,12 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	int slot = 0;
 	u64 last_ino = 0;
 	int start_found;
-	struct btrfs_leaf *l;
+	struct extent_buffer *l;
 	struct btrfs_key search_key;
 	u64 search_start = dirid;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	search_key.flags = 0;
 	search_start = root->last_inode_alloc;
 	search_start = max(search_start, BTRFS_FIRST_FREE_OBJECTID);
 	search_key.objectid = search_start;
@@ -86,9 +87,9 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 		path->slots[0]--;
 
 	while (1) {
-		l = btrfs_buffer_leaf(path->nodes[0]);
+		l = path->nodes[0];
 		slot = path->slots[0];
-		if (slot >= btrfs_header_nritems(&l->header)) {
+		if (slot >= btrfs_header_nritems(l)) {
 			ret = btrfs_next_leaf(root, path);
 			if (ret == 0)
 				continue;
@@ -103,7 +104,7 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 				last_ino : search_start;
 			goto found;
 		}
-		btrfs_disk_key_to_cpu(&key, &l->items[slot].key);
+		btrfs_item_key_to_cpu(l, &key, slot);
 		if (key.objectid >= search_start) {
 			if (start_found) {
 				if (last_ino < search_start)

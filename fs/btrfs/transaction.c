@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
+#include <linux/pagemap.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -66,7 +67,9 @@ static int join_transaction(struct btrfs_root *root)
 		cur_trans->commit_done = 0;
 		cur_trans->start_time = get_seconds();
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
-		init_bit_radix(&cur_trans->dirty_pages);
+		extent_map_tree_init(&cur_trans->dirty_pages,
+				     root->fs_info->btree_inode->i_mapping,
+				     GFP_NOFS);
 	} else {
 		cur_trans->num_writers++;
 		cur_trans->num_joined++;
@@ -88,7 +91,7 @@ static int record_root_in_trans(struct btrfs_root *root)
 				   (unsigned long)root->root_key.objectid,
 				   BTRFS_ROOT_DEFRAG_TAG);
 			root->commit_root = root->node;
-			get_bh(root->node);
+			extent_buffer_get(root->node);
 		} else {
 			WARN_ON(1);
 		}
@@ -144,29 +147,30 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root)
 {
-	unsigned long gang[16];
 	int ret;
-	int i;
 	int err;
 	int werr = 0;
+	struct extent_map_tree *dirty_pages;
 	struct page *page;
-	struct radix_tree_root *dirty_pages;
 	struct inode *btree_inode = root->fs_info->btree_inode;
+	u64 start;
+	u64 end;
+	unsigned long index;
 
 	if (!trans || !trans->transaction) {
 		return filemap_write_and_wait(btree_inode->i_mapping);
 	}
 	dirty_pages = &trans->transaction->dirty_pages;
 	while(1) {
-		ret = find_first_radix_bit(dirty_pages, gang,
-					   0, ARRAY_SIZE(gang));
-		if (!ret)
+		ret = find_first_extent_bit(dirty_pages, 0, &start, &end,
+					    EXTENT_DIRTY);
+		if (ret)
 			break;
-		for (i = 0; i < ret; i++) {
-			/* FIXME EIO */
-			clear_radix_bit(dirty_pages, gang[i]);
-			page = find_lock_page(btree_inode->i_mapping,
-					      gang[i]);
+		clear_extent_dirty(dirty_pages, start, end, GFP_NOFS);
+		while(start <= end) {
+			index = start >> PAGE_CACHE_SHIFT;
+			start = (index + 1) << PAGE_CACHE_SHIFT;
+			page = find_lock_page(btree_inode->i_mapping, index);
 			if (!page)
 				continue;
 			if (PageWriteback(page)) {
@@ -202,10 +206,11 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 	btrfs_write_dirty_block_groups(trans, extent_root);
 	while(1) {
 		old_extent_block = btrfs_root_blocknr(&extent_root->root_item);
-		if (old_extent_block == bh_blocknr(extent_root->node))
+		if (old_extent_block ==
+		    extent_buffer_blocknr(extent_root->node))
 			break;
 		btrfs_set_root_blocknr(&extent_root->root_item,
-				       bh_blocknr(extent_root->node));
+			       extent_buffer_blocknr(extent_root->node));
 		ret = btrfs_update_root(trans, tree_root,
 					&extent_root->root_key,
 					&extent_root->root_item);
@@ -279,9 +284,9 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 				     (unsigned long)root->root_key.objectid,
 				     BTRFS_ROOT_TRANS_TAG);
 			if (root->commit_root == root->node) {
-				WARN_ON(bh_blocknr(root->node) !=
+				WARN_ON(extent_buffer_blocknr(root->node) !=
 					btrfs_root_blocknr(&root->root_item));
-				brelse(root->commit_root);
+				free_extent_buffer(root->commit_root);
 				root->commit_root = NULL;
 
 				/* make sure to update the root on disk
@@ -310,7 +315,7 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 
 			root->root_key.offset = root->fs_info->generation;
 			btrfs_set_root_blocknr(&root->root_item,
-					       bh_blocknr(root->node));
+				       extent_buffer_blocknr(root->node));
 			err = btrfs_insert_root(trans, root->fs_info->tree_root,
 						&root->root_key,
 						&root->root_item);
@@ -389,10 +394,10 @@ int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
 		for (i = 0; i < ret; i++) {
 			root = gang[i];
 			last = root->root_key.objectid + 1;
-			btrfs_defrag_root(root, 1);
+			// btrfs_defrag_root(root, 1);
 		}
 	}
-	btrfs_defrag_root(info->extent_root, 1);
+	// btrfs_defrag_root(info->extent_root, 1);
 	return err;
 }
 
@@ -414,7 +419,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		dirty = list_entry(list->next, struct dirty_root, list);
 		list_del_init(&dirty->list);
 
-		num_blocks = btrfs_root_blocks_used(&dirty->root->root_item);
+		num_blocks = btrfs_root_used(&dirty->root->root_item);
 		root = dirty->latest_root;
 
 		while(1) {
@@ -441,11 +446,11 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		}
 		BUG_ON(ret);
 
-		num_blocks -= btrfs_root_blocks_used(&dirty->root->root_item);
-		blocks_used = btrfs_root_blocks_used(&root->root_item);
+		num_blocks -= btrfs_root_used(&dirty->root->root_item);
+		blocks_used = btrfs_root_used(&root->root_item);
 		if (num_blocks) {
 			record_root_in_trans(root);
-			btrfs_set_root_blocks_used(&root->root_item,
+			btrfs_set_root_used(&root->root_item,
 						   blocks_used - num_blocks);
 		}
 		ret = btrfs_del_root(trans, tree_root, &dirty->root->root_key);
@@ -553,9 +558,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	btrfs_set_super_generation(&root->fs_info->super_copy,
 				   cur_trans->transid);
 	btrfs_set_super_root(&root->fs_info->super_copy,
-			     bh_blocknr(root->fs_info->tree_root->node));
-	memcpy(root->fs_info->disk_super, &root->fs_info->super_copy,
-	       sizeof(root->fs_info->super_copy));
+		     extent_buffer_blocknr(root->fs_info->tree_root->node));
+
+	write_extent_buffer(root->fs_info->sb_buffer,
+			    &root->fs_info->super_copy, 0,
+			    sizeof(root->fs_info->super_copy));
 
 	btrfs_copy_pinned(root, &pinned_copy);
 

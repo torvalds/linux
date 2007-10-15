@@ -28,7 +28,7 @@ struct btrfs_transaction {
 	int use_count;
 	int commit_done;
 	struct list_head list;
-	struct radix_tree_root dirty_pages;
+	struct extent_map_tree dirty_pages;
 	unsigned long start_time;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
@@ -83,5 +83,6 @@ int btrfs_add_dead_root(struct btrfs_root *root, struct btrfs_root *latest,
 int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info);
 int btrfs_defrag_root(struct btrfs_root *root, int cacheonly);
 int btrfs_clean_old_snapshots(struct btrfs_root *root);
-
+int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root);
 #endif

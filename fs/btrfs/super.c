@@ -41,7 +41,7 @@
 #include "ioctl.h"
 #include "print-tree.h"
 
-#define BTRFS_SUPER_MAGIC 0x9123682E
+#define BTRFS_SUPER_MAGIC 0x9123683E
 
 static struct super_operations btrfs_super_ops;
 
@@ -115,13 +115,12 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 		return -EIO;
 	}
 	sb->s_fs_info = tree_root;
-	disk_super = tree_root->fs_info->disk_super;
+	disk_super = &tree_root->fs_info->super_copy;
 	inode = btrfs_iget_locked(sb, btrfs_super_root_dir(disk_super),
 				  tree_root);
 	bi = BTRFS_I(inode);
 	bi->location.objectid = inode->i_ino;
 	bi->location.offset = 0;
-	bi->location.flags = 0;
 	bi->root = tree_root;
 
 	btrfs_set_key_type(&bi->location, BTRFS_INODE_ITEM_KEY);
@@ -281,6 +280,7 @@ error_s:
 error_bdev:
 	close_bdev_excl(bdev);
 error:
+printk("get_sb failed\n");
 	return error;
 }
 /* end copy & paste */
@@ -295,6 +295,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type,
 	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data,
 			btrfs_fill_super, mnt,
 			subvol_name ? subvol_name : "default");
+printk("btrfs_get_sb returns %d\n", ret);
 	return ret;
 }
 

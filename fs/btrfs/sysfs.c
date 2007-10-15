@@ -31,31 +31,31 @@
 static ssize_t root_blocks_used_show(struct btrfs_root *root, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long)btrfs_root_blocks_used(&root->root_item));
+		(unsigned long long)btrfs_root_used(&root->root_item));
 }
 
 static ssize_t root_block_limit_show(struct btrfs_root *root, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long)btrfs_root_block_limit(&root->root_item));
+		(unsigned long long)btrfs_root_limit(&root->root_item));
 }
 
 static ssize_t super_blocks_used_show(struct btrfs_fs_info *fs, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long)btrfs_super_blocks_used(fs->disk_super));
+		(unsigned long long)btrfs_super_blocks_used(&fs->super_copy));
 }
 
 static ssize_t super_total_blocks_show(struct btrfs_fs_info *fs, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long)btrfs_super_total_blocks(fs->disk_super));
+		(unsigned long long)btrfs_super_total_blocks(&fs->super_copy));
 }
 
 static ssize_t super_blocksize_show(struct btrfs_fs_info *fs, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long)btrfs_super_blocksize(fs->disk_super));
+		(unsigned long long)btrfs_super_sectorsize(&fs->super_copy));
 }
 
 /* this is for root attrs (subvols/snapshots) */

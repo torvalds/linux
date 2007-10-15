@@ -23,4 +23,6 @@ modules_install:
 clean:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` clean
 
+tester:
+	$(MAKE) -C $(KERNELDIR) M=`pwd` tree-defrag.o transaction.o sysfs.o super.o root-tree.o inode-map.o inode-item.o inode.o file-item.o file.o extent_map.o disk-io.o ctree.o dir-item.o extent-tree.o
 endif

@@ -26,12 +26,13 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 {
 	struct btrfs_path *path;
 	struct btrfs_key search_key;
-	struct btrfs_leaf *l;
+	struct btrfs_key found_key;
+	struct extent_buffer *l;
 	int ret;
 	int slot;
 
 	search_key.objectid = objectid;
-	search_key.flags = (u32)-1;
+	search_key.type = (u8)-1;
 	search_key.offset = (u64)-1;
 
 	path = btrfs_alloc_path();
@@ -39,17 +40,19 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		goto out;
+
 	BUG_ON(ret == 0);
-	l = btrfs_buffer_leaf(path->nodes[0]);
+	l = path->nodes[0];
 	BUG_ON(path->slots[0] == 0);
 	slot = path->slots[0] - 1;
-	if (btrfs_disk_key_objectid(&l->items[slot].key) != objectid) {
+	btrfs_item_key_to_cpu(l, &found_key, slot);
+	if (found_key.objectid != objectid) {
 		ret = 1;
 		goto out;
 	}
-	memcpy(item, btrfs_item_ptr(l, slot, struct btrfs_root_item),
-		sizeof(*item));
-	btrfs_disk_key_to_cpu(key, &l->items[slot].key);
+	read_extent_buffer(l, item, btrfs_item_ptr_offset(l, slot),
+			   sizeof(*item));
+	memcpy(key, &found_key, sizeof(found_key));
 	ret = 0;
 out:
 	btrfs_release_path(root, path);
@@ -62,10 +65,10 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *item)
 {
 	struct btrfs_path *path;
-	struct btrfs_leaf *l;
+	struct extent_buffer *l;
 	int ret;
 	int slot;
-	struct btrfs_root_item *update_item;
+	unsigned long ptr;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -73,10 +76,10 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret != 0);
-	l = btrfs_buffer_leaf(path->nodes[0]);
+	l = path->nodes[0];
 	slot = path->slots[0];
-	update_item = btrfs_item_ptr(l, slot, struct btrfs_root_item);
-	btrfs_memcpy(root, l, update_item, item, sizeof(*item));
+	ptr = btrfs_item_ptr_offset(l, slot);
+	write_extent_buffer(l, item, ptr, sizeof(*item));
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 out:
 	btrfs_release_path(root, path);
@@ -103,11 +106,10 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 	struct btrfs_path *path;
 	int ret;
 	u32 nritems;
-	struct btrfs_leaf *leaf;
+	struct extent_buffer *leaf;
 	int slot;
 
 	key.objectid = objectid;
-	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 	key.offset = 0;
 	path = btrfs_alloc_path();
@@ -117,19 +119,19 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 	if (ret < 0)
 		goto err;
 	while(1) {
-		leaf = btrfs_buffer_leaf(path->nodes[0]);
-		nritems = btrfs_header_nritems(&leaf->header);
+		leaf = path->nodes[0];
+		nritems = btrfs_header_nritems(leaf);
 		slot = path->slots[0];
 		if (slot >= nritems) {
 			ret = btrfs_next_leaf(root, path);
 			if (ret)
 				break;
-			leaf = btrfs_buffer_leaf(path->nodes[0]);
-			nritems = btrfs_header_nritems(&leaf->header);
+			leaf = path->nodes[0];
+			nritems = btrfs_header_nritems(leaf);
 			slot = path->slots[0];
 		}
-		item = leaf->items + slot;
-		btrfs_disk_key_to_cpu(&key, &item->key);
+		item = btrfs_item_nr(leaf, slot);
+		btrfs_item_key_to_cpu(leaf, &key, slot);
 		if (btrfs_key_type(&key) != BTRFS_ROOT_ITEM_KEY)
 			goto next;
 
@@ -140,7 +142,7 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 			break;
 
 		ri = btrfs_item_ptr(leaf, slot, struct btrfs_root_item);
-		if (btrfs_root_refs(ri) != 0)
+		if (btrfs_disk_root_refs(leaf, ri) != 0)
 			goto next;
 
 		dead_root = btrfs_read_fs_root_no_radix(root->fs_info, &key);
@@ -170,6 +172,7 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	int ret;
 	u32 refs;
 	struct btrfs_root_item *ri;
+	struct extent_buffer *leaf;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -177,10 +180,10 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret != 0);
-	ri = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
-			    path->slots[0], struct btrfs_root_item);
+	leaf = path->nodes[0];
+	ri = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_item);
 
-	refs = btrfs_root_refs(ri);
+	refs = btrfs_disk_root_refs(leaf, ri);
 	BUG_ON(refs != 0);
 	ret = btrfs_del_item(trans, root, path);
 out:

@@ -23,138 +23,132 @@
 #include <linux/swap.h>
 #include <linux/radix-tree.h>
 #include <linux/writeback.h>
+#include <linux/buffer_head.h> // for block_sync_page
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
 
-u64 bh_blocknr(struct buffer_head *bh)
+#if 0
+static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
 {
-	return bh->b_blocknr;
-}
-
-static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
-{
-	struct btrfs_node *node = btrfs_buffer_node(buf);
-	if (bh_blocknr(buf) != btrfs_header_blocknr(&node->header)) {
-		printk(KERN_CRIT "bh_blocknr(buf) is %llu, header is %llu\n",
-		       (unsigned long long)bh_blocknr(buf),
-		       (unsigned long long)btrfs_header_blocknr(&node->header));
+	if (extent_buffer_blocknr(buf) != btrfs_header_blocknr(buf)) {
+		printk(KERN_CRIT "buf blocknr(buf) is %llu, header is %llu\n",
+		       (unsigned long long)extent_buffer_blocknr(buf),
+		       (unsigned long long)btrfs_header_blocknr(buf));
 		return 1;
 	}
 	return 0;
 }
+#endif
 
-struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
+struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
+					    u64 blocknr)
 {
-	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
-	int blockbits = root->fs_info->sb->s_blocksize_bits;
-	unsigned long index = blocknr >> (PAGE_CACHE_SHIFT - blockbits);
-	struct page *page;
-	struct buffer_head *bh;
-	struct buffer_head *head;
-	struct buffer_head *ret = NULL;
-
-
-	page = find_lock_page(mapping, index);
-	if (!page)
-		return NULL;
-
-	if (!page_has_buffers(page))
-		goto out_unlock;
-
-	head = page_buffers(page);
-	bh = head;
-	do {
-		if (buffer_mapped(bh) && bh_blocknr(bh) == blocknr) {
-			ret = bh;
-			get_bh(bh);
-			goto out_unlock;
-		}
-		bh = bh->b_this_page;
-	} while (bh != head);
-out_unlock:
-	unlock_page(page);
-	page_cache_release(page);
-	return ret;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	return find_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
+				   blocknr * root->sectorsize,
+				   root->sectorsize, GFP_NOFS);
 }
 
-int btrfs_map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
-			     u64 logical)
-{
-	if (logical == 0) {
-		bh->b_bdev = NULL;
-		bh->b_blocknr = 0;
-		set_buffer_mapped(bh);
-	} else {
-		map_bh(bh, root->fs_info->sb, logical);
-	}
-	return 0;
-}
-
-struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
+struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 blocknr)
 {
-	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
-	int blockbits = root->fs_info->sb->s_blocksize_bits;
-	unsigned long index = blocknr >> (PAGE_CACHE_SHIFT - blockbits);
-	struct page *page;
-	struct buffer_head *bh;
-	struct buffer_head *head;
-	struct buffer_head *ret = NULL;
-	int err;
-	u64 first_block = index << (PAGE_CACHE_SHIFT - blockbits);
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	return alloc_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
+				   blocknr * root->sectorsize,
+				   root->sectorsize, GFP_NOFS);
+}
 
-	page = find_or_create_page(mapping, index, GFP_NOFS);
-	if (!page)
-		return NULL;
+struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
+				    size_t page_offset, u64 start, u64 end,
+				    int create)
+{
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_map *em;
+	int ret;
 
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, root->fs_info->sb->s_blocksize, 0);
-	head = page_buffers(page);
-	bh = head;
-	do {
-		if (!buffer_mapped(bh)) {
-			err = btrfs_map_bh_to_logical(root, bh, first_block);
-			BUG_ON(err);
-		}
-		if (bh_blocknr(bh) == blocknr) {
-			ret = bh;
-			get_bh(bh);
-			goto out_unlock;
-		}
-		bh = bh->b_this_page;
-		first_block++;
-	} while (bh != head);
-out_unlock:
-	unlock_page(page);
-	if (ret)
-		touch_buffer(ret);
-	page_cache_release(page);
+again:
+	em = lookup_extent_mapping(em_tree, start, end);
+	if (em) {
+		goto out;
+	}
+	em = alloc_extent_map(GFP_NOFS);
+	if (!em) {
+		em = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+	em->start = 0;
+	em->end = (i_size_read(inode) & ~((u64)PAGE_CACHE_SIZE -1)) - 1;
+	em->block_start = 0;
+	em->block_end = em->end;
+	em->bdev = inode->i_sb->s_bdev;
+	ret = add_extent_mapping(em_tree, em);
+	if (ret == -EEXIST) {
+		free_extent_map(em);
+		em = NULL;
+		goto again;
+	} else if (ret) {
+		em = ERR_PTR(ret);
+	}
+out:
+	return em;
+}
+
+static int btree_writepage(struct page *page, struct writeback_control *wbc)
+{
+	struct extent_map_tree *tree;
+	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	return extent_write_full_page(tree, page, btree_get_extent, wbc);
+}
+int btree_readpage(struct file *file, struct page *page)
+{
+	struct extent_map_tree *tree;
+	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	return extent_read_full_page(tree, page, btree_get_extent);
+}
+
+static int btree_releasepage(struct page *page, gfp_t unused_gfp_flags)
+{
+	struct extent_map_tree *tree;
+	int ret;
+
+	BUG_ON(page->private != 1);
+	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	ret = try_release_extent_mapping(tree, page);
+	if (ret == 1) {
+		ClearPagePrivate(page);
+		set_page_private(page, 0);
+		page_cache_release(page);
+	}
 	return ret;
 }
 
-static int btree_get_block(struct inode *inode, sector_t iblock,
-			   struct buffer_head *bh, int create)
+static void btree_invalidatepage(struct page *page, unsigned long offset)
 {
-	int err;
-	struct btrfs_root *root = BTRFS_I(bh->b_page->mapping->host)->root;
-	err = btrfs_map_bh_to_logical(root, bh, iblock);
-	return err;
+	struct extent_map_tree *tree;
+	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	extent_invalidatepage(tree, page, offset);
+	btree_releasepage(page, GFP_NOFS);
 }
 
 int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 		    char *result)
 {
+	return 0;
+#if 0
 	u32 crc;
 	crc = crc32c(0, data, len);
 	memcpy(result, &crc, BTRFS_CRC32_SIZE);
 	return 0;
+#endif
 }
 
-static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
+#if 0
+static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			   int verify)
 {
+	return 0;
 	char result[BTRFS_CRC32_SIZE];
 	int ret;
 	struct btrfs_node *node;
@@ -176,7 +170,9 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 	}
 	return 0;
 }
+#endif
 
+#if 0
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct buffer_head *bh;
@@ -195,87 +191,65 @@ static int btree_writepage(struct page *page, struct writeback_control *wbc)
 	} while (bh != head);
 	return block_write_full_page(page, btree_get_block, wbc);
 }
-
-static int btree_readpage(struct file * file, struct page * page)
-{
-	return block_read_full_page(page, btree_get_block);
-}
+#endif
 
 static struct address_space_operations btree_aops = {
 	.readpage	= btree_readpage,
 	.writepage	= btree_writepage,
+	.releasepage	= btree_releasepage,
+	.invalidatepage = btree_invalidatepage,
 	.sync_page	= block_sync_page,
 };
 
 int readahead_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	struct buffer_head *bh = NULL;
+	struct extent_buffer *buf = NULL;
+	struct inode *btree_inode = root->fs_info->btree_inode;
 	int ret = 0;
 
-	bh = btrfs_find_create_tree_block(root, blocknr);
-	if (!bh)
+	buf = btrfs_find_create_tree_block(root, blocknr);
+	if (!buf)
 		return 0;
-	if (buffer_uptodate(bh)) {
-		ret = 1;
-		goto done;
-	}
-	if (test_set_buffer_locked(bh)) {
-		ret = 1;
-		goto done;
-	}
-	if (!buffer_uptodate(bh)) {
-		get_bh(bh);
-		bh->b_end_io = end_buffer_read_sync;
-		submit_bh(READ, bh);
-	} else {
-		unlock_buffer(bh);
-		ret = 1;
-	}
-done:
-	brelse(bh);
+	read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
+				 buf, 0);
+	free_extent_buffer(buf);
 	return ret;
 }
 
-struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
+struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	struct buffer_head *bh = NULL;
+	struct extent_buffer *buf = NULL;
+	struct inode *btree_inode = root->fs_info->btree_inode;
 
-	bh = btrfs_find_create_tree_block(root, blocknr);
-	if (!bh)
-		return bh;
-	if (buffer_uptodate(bh))
-		goto uptodate;
-	lock_buffer(bh);
-	if (!buffer_uptodate(bh)) {
-		get_bh(bh);
-		bh->b_end_io = end_buffer_read_sync;
-		submit_bh(READ, bh);
-		wait_on_buffer(bh);
-		if (!buffer_uptodate(bh))
-			goto fail;
-	} else {
-		unlock_buffer(bh);
-	}
-uptodate:
-	if (!buffer_checked(bh)) {
-		csum_tree_block(root, bh, 1);
-		set_buffer_checked(bh);
-	}
-	if (check_tree_block(root, bh))
-		goto fail;
-	return bh;
-fail:
-	brelse(bh);
-	return NULL;
+	buf = btrfs_find_create_tree_block(root, blocknr);
+	if (!buf)
+		return NULL;
+	read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
+				 buf, 1);
+	return buf;
 }
 
 int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		     struct buffer_head *buf)
+		     struct extent_buffer *buf)
 {
-	WARN_ON(atomic_read(&buf->b_count) == 0);
-	lock_buffer(buf);
-	clear_buffer_dirty(buf);
-	unlock_buffer(buf);
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, buf);
+	return 0;
+}
+
+int wait_on_tree_block_writeback(struct btrfs_root *root,
+				 struct extent_buffer *buf)
+{
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	wait_on_extent_buffer_writeback(&BTRFS_I(btree_inode)->extent_tree,
+					buf);
+	return 0;
+}
+
+int set_tree_block_dirty(struct btrfs_root *root, struct extent_buffer *buf)
+{
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, buf);
 	return 0;
 }
 
@@ -287,7 +261,9 @@ static int __setup_root(int blocksize,
 	root->node = NULL;
 	root->inode = NULL;
 	root->commit_root = NULL;
-	root->blocksize = blocksize;
+	root->sectorsize = blocksize;
+	root->nodesize = blocksize;
+	root->leafsize = blocksize;
 	root->ref_cows = 0;
 	root->fs_info = fs_info;
 	root->objectid = objectid;
@@ -332,7 +308,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
 	struct btrfs_root *root;
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_path *path;
-	struct btrfs_leaf *l;
+	struct extent_buffer *l;
 	u64 highest_inode;
 	int ret = 0;
 
@@ -361,11 +337,10 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
 			ret = -ENOENT;
 		goto out;
 	}
-	l = btrfs_buffer_leaf(path->nodes[0]);
-	memcpy(&root->root_item,
-	       btrfs_item_ptr(l, path->slots[0], struct btrfs_root_item),
+	l = path->nodes[0];
+	read_extent_buffer(l, &root->root_item,
+	       btrfs_item_ptr_offset(l, path->slots[0]),
 	       sizeof(root->root_item));
-	memcpy(&root->root_key, location, sizeof(*location));
 	ret = 0;
 out:
 	btrfs_release_path(root, path);
@@ -406,21 +381,21 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 				(unsigned long)root->root_key.objectid,
 				root);
 	if (ret) {
-		brelse(root->node);
+		free_extent_buffer(root->node);
 		kfree(root);
 		return ERR_PTR(ret);
 	}
 
 	ret = btrfs_set_root_name(root, name, namelen);
 	if (ret) {
-		brelse(root->node);
+		free_extent_buffer(root->node);
 		kfree(root);
 		return ERR_PTR(ret);
 	}
 
 	ret = btrfs_sysfs_add_root(root);
 	if (ret) {
-		brelse(root->node);
+		free_extent_buffer(root->node);
 		kfree(root->name);
 		kfree(root);
 		return ERR_PTR(ret);
@@ -471,6 +446,9 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->btree_inode->i_nlink = 1;
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
+	extent_map_tree_init(&BTRFS_I(fs_info->btree_inode)->extent_tree,
+			     fs_info->btree_inode->i_mapping,
+			     GFP_NOFS);
 	fs_info->do_barriers = 1;
 	fs_info->closing = 0;
 
@@ -493,10 +471,14 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 
 	if (!fs_info->sb_buffer)
 		goto fail_iput;
-	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
-	fs_info->disk_super = disk_super;
-	memcpy(&fs_info->super_copy, disk_super, sizeof(fs_info->super_copy));
 
+	read_extent_buffer(fs_info->sb_buffer, &fs_info->super_copy, 0,
+			   sizeof(fs_info->super_copy));
+
+	read_extent_buffer(fs_info->sb_buffer, fs_info->fsid,
+			   (unsigned long)btrfs_super_fsid(fs_info->sb_buffer),
+			   BTRFS_FSID_SIZE);
+	disk_super = &fs_info->super_copy;
 	if (!btrfs_super_root(disk_super))
 		goto fail_sb_buffer;
 
@@ -530,9 +512,9 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	return tree_root;
 
 fail_tree_root:
-	btrfs_block_release(tree_root, tree_root->node);
+	free_extent_buffer(tree_root->node);
 fail_sb_buffer:
-	btrfs_block_release(tree_root, fs_info->sb_buffer);
+	free_extent_buffer(fs_info->sb_buffer);
 fail_iput:
 	iput(fs_info->btree_inode);
 fail:
@@ -546,31 +528,13 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root)
 {
 	int ret;
-	struct buffer_head *bh = root->fs_info->sb_buffer;
+	struct extent_buffer *super = root->fs_info->sb_buffer;
+	struct inode *btree_inode = root->fs_info->btree_inode;
 
-	lock_buffer(bh);
-	WARN_ON(atomic_read(&bh->b_count) < 1);
-	clear_buffer_dirty(bh);
-	csum_tree_block(root, bh, 0);
-	bh->b_end_io = end_buffer_write_sync;
-	get_bh(bh);
-	if (root->fs_info->do_barriers)
-		ret = submit_bh(WRITE_BARRIER, bh);
-	else
-		ret = submit_bh(WRITE, bh);
-	if (ret == -EOPNOTSUPP) {
-		get_bh(bh);
-		lock_buffer(bh);
-		set_buffer_uptodate(bh);
-		root->fs_info->do_barriers = 0;
-		ret = submit_bh(WRITE, bh);
-	}
-	wait_on_buffer(bh);
-	if (!buffer_uptodate(bh)) {
-		WARN_ON(1);
-		return -EIO;
-	}
-	return 0;
+	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, super);
+	ret = sync_page_range_nolock(btree_inode, btree_inode->i_mapping,
+				     super->start, super->len);
+	return ret;
 }
 
 int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
@@ -581,9 +545,9 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	if (root->inode)
 		iput(root->inode);
 	if (root->node)
-		brelse(root->node);
+		free_extent_buffer(root->node);
 	if (root->commit_root)
-		brelse(root->commit_root);
+		free_extent_buffer(root->commit_root);
 	if (root->name)
 		kfree(root->name);
 	kfree(root);
@@ -629,12 +593,10 @@ int close_ctree(struct btrfs_root *root)
 	mutex_unlock(&fs_info->fs_mutex);
 
 	if (fs_info->extent_root->node)
-		btrfs_block_release(fs_info->extent_root,
-				    fs_info->extent_root->node);
+		free_extent_buffer(fs_info->extent_root->node);
 	if (fs_info->tree_root->node)
-		btrfs_block_release(fs_info->tree_root,
-				    fs_info->tree_root->node);
-	btrfs_block_release(root, fs_info->sb_buffer);
+		free_extent_buffer(fs_info->tree_root->node);
+	free_extent_buffer(fs_info->sb_buffer);
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 	iput(fs_info->btree_inode);
 
@@ -645,25 +607,32 @@ int close_ctree(struct btrfs_root *root)
 	return 0;
 }
 
-void btrfs_mark_buffer_dirty(struct buffer_head *bh)
+int btrfs_buffer_uptodate(struct extent_buffer *buf)
 {
-	struct btrfs_root *root = BTRFS_I(bh->b_page->mapping->host)->root;
-	u64 transid = btrfs_header_generation(btrfs_buffer_header(bh));
+	struct inode *btree_inode = buf->pages[0]->mapping->host;
+	return extent_buffer_uptodate(&BTRFS_I(btree_inode)->extent_tree, buf);
+}
 
-	WARN_ON(!atomic_read(&bh->b_count));
+int btrfs_set_buffer_uptodate(struct extent_buffer *buf)
+{
+	struct inode *btree_inode = buf->pages[0]->mapping->host;
+	return set_extent_buffer_uptodate(&BTRFS_I(btree_inode)->extent_tree,
+					  buf);
+}
+
+void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
+{
+	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
+	u64 transid = btrfs_header_generation(buf);
+	struct inode *btree_inode = root->fs_info->btree_inode;
 
 	if (transid != root->fs_info->generation) {
 		printk(KERN_CRIT "transid mismatch buffer %llu, found %Lu running %Lu\n",
-			(unsigned long long)bh->b_blocknr,
+			(unsigned long long)extent_buffer_blocknr(buf),
 			transid, root->fs_info->generation);
 		WARN_ON(1);
 	}
-	mark_buffer_dirty(bh);
-}
-
-void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf)
-{
-	brelse(buf);
+	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, buf);
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)

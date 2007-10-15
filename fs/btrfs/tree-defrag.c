@@ -23,14 +23,14 @@
 #include "transaction.h"
 
 static void reada_defrag(struct btrfs_root *root,
-			 struct btrfs_node *node)
+			 struct extent_buffer *node)
 {
 	int i;
 	u32 nritems;
 	u64 blocknr;
 	int ret;
 
-	nritems = btrfs_header_nritems(&node->header);
+	nritems = btrfs_header_nritems(node);
 	for (i = 0; i < nritems; i++) {
 		blocknr = btrfs_node_blockptr(node, i);
 		ret = readahead_tree_block(root, blocknr);
@@ -44,8 +44,8 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 			    struct btrfs_path *path, int *level,
 			    int cache_only, u64 *last_ret)
 {
-	struct buffer_head *next;
-	struct buffer_head *cur;
+	struct extent_buffer *next;
+	struct extent_buffer *cur;
 	u64 blocknr;
 	int ret = 0;
 	int is_extent = 0;
@@ -62,13 +62,13 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 		cur = path->nodes[*level];
 
 		if (!cache_only && *level > 1 && path->slots[*level] == 0)
-			reada_defrag(root, btrfs_buffer_node(cur));
+			reada_defrag(root, cur);
 
-		if (btrfs_header_level(btrfs_buffer_header(cur)) != *level)
+		if (btrfs_header_level(cur) != *level)
 			WARN_ON(1);
 
 		if (path->slots[*level] >=
-		    btrfs_header_nritems(btrfs_buffer_header(cur)))
+		    btrfs_header_nritems(cur))
 			break;
 
 		if (*level == 1) {
@@ -80,14 +80,13 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 
 			break;
 		}
-		blocknr = btrfs_node_blockptr(btrfs_buffer_node(cur),
-					      path->slots[*level]);
+		blocknr = btrfs_node_blockptr(cur, path->slots[*level]);
 
 		if (cache_only) {
 			next = btrfs_find_tree_block(root, blocknr);
-			if (!next || !buffer_uptodate(next) ||
-			   buffer_locked(next) || !buffer_defrag(next)) {
-				brelse(next);
+			/* FIXME, test for defrag */
+			if (!next || !btrfs_buffer_uptodate(next)) {
+				free_extent_buffer(next);
 				path->slots[*level]++;
 				continue;
 			}
@@ -106,16 +105,18 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 
 		WARN_ON(*level <= 0);
 		if (path->nodes[*level-1])
-			btrfs_block_release(root, path->nodes[*level-1]);
+			free_extent_buffer(path->nodes[*level-1]);
 		path->nodes[*level-1] = next;
-		*level = btrfs_header_level(btrfs_buffer_header(next));
+		*level = btrfs_header_level(next);
 		path->slots[*level] = 0;
 	}
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
+#if 0
 	clear_buffer_defrag(path->nodes[*level]);
 	clear_buffer_defrag_done(path->nodes[*level]);
-	btrfs_block_release(root, path->nodes[*level]);
+#endif
+	free_extent_buffer(path->nodes[*level]);
 	path->nodes[*level] = NULL;
 	*level += 1;
 	WARN_ON(ret);
@@ -129,24 +130,25 @@ static int defrag_walk_up(struct btrfs_trans_handle *trans,
 {
 	int i;
 	int slot;
-	struct btrfs_node *node;
+	struct extent_buffer *node;
 
 	for(i = *level; i < BTRFS_MAX_LEVEL - 1 && path->nodes[i]; i++) {
 		slot = path->slots[i];
-		if (slot < btrfs_header_nritems(
-		    btrfs_buffer_header(path->nodes[i])) - 1) {
+		if (slot < btrfs_header_nritems(path->nodes[i]) - 1) {
 			path->slots[i]++;
 			*level = i;
-			node = btrfs_buffer_node(path->nodes[i]);
+			node = path->nodes[i];
 			WARN_ON(i == 0);
-			btrfs_disk_key_to_cpu(&root->defrag_progress,
-					      &node->ptrs[path->slots[i]].key);
+			btrfs_node_key_to_cpu(node, &root->defrag_progress,
+					      path->slots[i]);
 			root->defrag_level = i;
 			return 0;
 		} else {
+			/*
 			clear_buffer_defrag(path->nodes[*level]);
 			clear_buffer_defrag_done(path->nodes[*level]);
-			btrfs_block_release(root, path->nodes[*level]);
+			*/
+			free_extent_buffer(path->nodes[*level]);
 			path->nodes[*level] = NULL;
 			*level = i + 1;
 		}
@@ -158,7 +160,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, int cache_only)
 {
 	struct btrfs_path *path = NULL;
-	struct buffer_head *tmp;
+	struct extent_buffer *tmp;
 	int ret = 0;
 	int wret;
 	int level;
@@ -172,17 +174,18 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 
 	if (root->ref_cows == 0 && !is_extent)
 		goto out;
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
-	level = btrfs_header_level(btrfs_buffer_header(root->node));
+	level = btrfs_header_level(root->node);
 	orig_level = level;
 	if (level == 0) {
 		goto out;
 	}
 	if (root->defrag_progress.objectid == 0) {
-		get_bh(root->node);
+		extent_buffer_get(root->node);
 		ret = btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
 		BUG_ON(ret);
 		ret = btrfs_realloc_node(trans, root, root->node, cache_only,
@@ -200,12 +203,15 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 
 		if (is_extent)
 			btrfs_extent_post_op(trans, root);
+
 		if (wret < 0) {
 			ret = wret;
 			goto out;
 		}
+
 		while(level > 0 && !path->nodes[level])
 			level--;
+
 		if (!path->nodes[level]) {
 			ret = 0;
 			goto out;
@@ -230,7 +236,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {
-			btrfs_block_release(root, path->nodes[i]);
+			free_extent_buffer(path->nodes[i]);
 			path->nodes[i] = 0;
 		}
 	}
