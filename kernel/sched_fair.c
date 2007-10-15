@@ -111,6 +111,18 @@ extern struct sched_class fair_sched_class;
  * CFS operations on generic schedulable entities:
  */
 
+/* currently running entity (if any) on this cfs_rq */
+static inline struct sched_entity *cfs_rq_curr(struct cfs_rq *cfs_rq)
+{
+	return cfs_rq->curr;
+}
+
+static inline void
+set_cfs_rq_curr(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	cfs_rq->curr = se;
+}
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
 /* cpu runqueue to which this cfs_rq is attached */
@@ -119,20 +131,8 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 	return cfs_rq->rq;
 }
 
-/* currently running entity (if any) on this cfs_rq */
-static inline struct sched_entity *cfs_rq_curr(struct cfs_rq *cfs_rq)
-{
-	return cfs_rq->curr;
-}
-
 /* An entity is a task if it doesn't "own" a runqueue */
 #define entity_is_task(se)	(!se->my_q)
-
-static inline void
-set_cfs_rq_curr(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	cfs_rq->curr = se;
-}
 
 #else	/* CONFIG_FAIR_GROUP_SCHED */
 
@@ -141,20 +141,7 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 	return container_of(cfs_rq, struct rq, cfs);
 }
 
-static inline struct sched_entity *cfs_rq_curr(struct cfs_rq *cfs_rq)
-{
-	struct rq *rq = rq_of(cfs_rq);
-
-	if (unlikely(rq->curr->sched_class != &fair_sched_class))
-		return NULL;
-
-	return &rq->curr->se;
-}
-
 #define entity_is_task(se)	1
-
-static inline void
-set_cfs_rq_curr(struct cfs_rq *cfs_rq, struct sched_entity *se) { }
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
 

@@ -189,11 +189,11 @@ struct cfs_rq {
 	struct rb_root tasks_timeline;
 	struct rb_node *rb_leftmost;
 	struct rb_node *rb_load_balance_curr;
-#ifdef CONFIG_FAIR_GROUP_SCHED
 	/* 'curr' points to currently running entity on this cfs_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
 	 */
 	struct sched_entity *curr;
+#ifdef CONFIG_FAIR_GROUP_SCHED
 	struct rq *rq;	/* cpu runqueue to which this cfs_rq is attached */
 
 	/* leaf cfs_rqs are those that hold tasks (lowest schedulable entity in
