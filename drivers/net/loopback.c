@@ -265,17 +265,16 @@ static __net_init int loopback_net_init(struct net *net)
 	if (err)
 		goto out_free_netdev;
 
-	err = 0;
 	net->loopback_dev = dev;
+	return 0;
 
-out:
-	if (err)
-		panic("loopback: Failed to register netdevice: %d\n", err);
-	return err;
 
 out_free_netdev:
 	free_netdev(dev);
-	goto out;
+out:
+	if (net == &init_net)
+		panic("loopback: Failed to register netdevice: %d\n", err);
+	return err;
 }
 
 static __net_exit void loopback_net_exit(struct net *net)
