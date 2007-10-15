@@ -14,7 +14,7 @@ KBUILD_CFLAGS += $(_extra_flags_)
 CHECKFLAGS  += -m64
 KBUILD_AFLAGS += -m64
 LDFLAGS += -m elf_x86_64
-CPPFLAGS += -m64
+KBUILD_CPPFLAGS += -m64
 
 ELF_ARCH := i386:x86-64
 ELF_FORMAT := elf64-x86-64

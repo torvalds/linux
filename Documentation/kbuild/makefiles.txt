@@ -1099,7 +1099,7 @@ When kbuild executes, the following steps are followed (roughly):
 	specified options when building the target vmlinux.lds.
 
 	When building the *.lds target, kbuild uses the variables:
-	CPPFLAGS	: Set in top-level Makefile
+	KBUILD_CPPFLAGS	: Set in top-level Makefile
 	EXTRA_CPPFLAGS	: May be set in the kbuild makefile
 	CPPFLAGS_$(@F)  : Target specific flags.
 	                  Note that the full filename is used in this

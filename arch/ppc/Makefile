@@ -22,7 +22,7 @@ endif
 
 LDFLAGS_vmlinux	:= -Ttext $(KERNELLOAD) -Bstatic
 # The -Iarch/$(ARCH)/include is temporary while we are merging
-CPPFLAGS	+= -Iarch/$(ARCH) -Iarch/$(ARCH)/include
+KBUILD_CPPFLAGS	+= -Iarch/$(ARCH) -Iarch/$(ARCH)/include
 KBUILD_AFLAGS	+= -Iarch/$(ARCH)
 KBUILD_CFLAGS	+= -Iarch/$(ARCH) -msoft-float -pipe \
 		-ffixed-r2 -mmultiple
