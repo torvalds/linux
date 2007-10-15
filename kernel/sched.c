@@ -365,15 +365,6 @@ static inline int cpu_of(struct rq *rq)
 #endif
 }
 
-static inline int is_migration_thread(struct task_struct *p, struct rq *rq)
-{
-#ifdef CONFIG_SMP
-	return p == rq->migration_thread;
-#else
-	return 0;
-#endif
-}
-
 /*
  * Update the per-runqueue clock, as finegrained as the platform can give
  * us, but without assuming monotonicity, etc.:
@@ -6563,6 +6554,12 @@ void normalize_rt_tasks(void)
 
 	read_lock_irq(&tasklist_lock);
 	do_each_thread(g, p) {
+		/*
+		 * Only normalize user tasks:
+		 */
+		if (!p->mm)
+			continue;
+
 		p->se.exec_start		= 0;
 #ifdef CONFIG_SCHEDSTATS
 		p->se.wait_start		= 0;
@@ -6584,8 +6581,7 @@ void normalize_rt_tasks(void)
 		spin_lock_irqsave(&p->pi_lock, flags);
 		rq = __task_rq_lock(p);
 
-		if (!is_migration_thread(p, rq))
-			normalize_task(rq, p);
+		normalize_task(rq, p);
 
 		__task_rq_unlock(rq);
 		spin_unlock_irqrestore(&p->pi_lock, flags);
