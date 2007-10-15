@@ -5326,11 +5326,12 @@ static void init_sched_domain_sysctl(void)
 
 	sd_ctl_dir[0].child = entry;
 
-	for (i = 0; i < cpu_num; i++, entry++) {
+	for_each_online_cpu(i) {
 		snprintf(buf, 32, "cpu%d", i);
 		entry->procname = kstrdup(buf, GFP_KERNEL);
 		entry->mode = 0555;
 		entry->child = sd_alloc_ctl_cpu_table(i);
+		entry++;
 	}
 	sd_sysctl_header = register_sysctl_table(sd_ctl_root);
 }
