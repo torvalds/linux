@@ -1663,6 +1663,8 @@ void sched_fork(struct task_struct *p, int clone_flags)
 	 * Make sure we do not leak PI boosting priority to the child:
 	 */
 	p->prio = current->normal_prio;
+	if (!rt_prio(p->prio))
+		p->sched_class = &fair_sched_class;
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	if (likely(sched_info_on()))
@@ -1697,11 +1699,6 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	update_rq_clock(rq);
 
 	p->prio = effective_prio(p);
-
-	if (rt_prio(p->prio))
-		p->sched_class = &rt_sched_class;
-	else
-		p->sched_class = &fair_sched_class;
 
 	if (task_cpu(p) != this_cpu || !p->sched_class->task_new ||
 							!current->se.on_rq) {
