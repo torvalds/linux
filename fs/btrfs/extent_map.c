@@ -19,8 +19,13 @@ struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
 static struct kmem_cache *extent_map_cache;
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
+
 static LIST_HEAD(extent_buffers);
+static LIST_HEAD(buffers);
+static LIST_HEAD(states);
+
 static spinlock_t extent_buffers_lock;
+static spinlock_t state_lock = SPIN_LOCK_UNLOCKED;
 static int nr_extent_buffers;
 #define MAX_EXTENT_BUFFER_CACHE 128
 
@@ -48,6 +53,7 @@ void __init extent_map_init(void)
 void __exit extent_map_exit(void)
 {
 	struct extent_buffer *eb;
+	struct extent_state *state;
 
 	while (!list_empty(&extent_buffers)) {
 		eb = list_entry(extent_buffers.next,
@@ -55,6 +61,22 @@ void __exit extent_map_exit(void)
 		list_del(&eb->list);
 		kmem_cache_free(extent_buffer_cache, eb);
 	}
+	while (!list_empty(&states)) {
+		state = list_entry(states.next, struct extent_state, list);
+		printk("state leak: start %Lu end %Lu state %lu in tree %d refs %d\n", state->start, state->end, state->state, state->in_tree, atomic_read(&state->refs));
+		list_del(&state->list);
+		kmem_cache_free(extent_state_cache, state);
+
+	}
+	while (!list_empty(&buffers)) {
+		eb = list_entry(buffers.next,
+				struct extent_buffer, leak_list);
+		printk("buffer leak start %Lu len %lu return %lX\n", eb->start, eb->len, eb->alloc_addr);
+		list_del(&eb->leak_list);
+		kmem_cache_free(extent_buffer_cache, eb);
+	}
+
+
 	if (extent_map_cache)
 		kmem_cache_destroy(extent_map_cache);
 	if (extent_state_cache)
@@ -101,12 +123,19 @@ EXPORT_SYMBOL(free_extent_map);
 struct extent_state *alloc_extent_state(gfp_t mask)
 {
 	struct extent_state *state;
+	unsigned long flags;
+
 	state = kmem_cache_alloc(extent_state_cache, mask);
 	if (!state || IS_ERR(state))
 		return state;
 	state->state = 0;
 	state->in_tree = 0;
 	state->private = 0;
+
+	spin_lock_irqsave(&state_lock, flags);
+	list_add(&state->list, &states);
+	spin_unlock_irqrestore(&state_lock, flags);
+
 	atomic_set(&state->refs, 1);
 	init_waitqueue_head(&state->wq);
 	return state;
@@ -115,10 +144,14 @@ EXPORT_SYMBOL(alloc_extent_state);
 
 void free_extent_state(struct extent_state *state)
 {
+	unsigned long flags;
 	if (!state)
 		return;
 	if (atomic_dec_and_test(&state->refs)) {
 		WARN_ON(state->in_tree);
+		spin_lock_irqsave(&state_lock, flags);
+		list_del(&state->list);
+		spin_unlock_irqrestore(&state_lock, flags);
 		kmem_cache_free(extent_state_cache, state);
 	}
 }
@@ -361,10 +394,6 @@ static int insert_state(struct extent_map_tree *tree,
 	state->state |= bits;
 	state->start = start;
 	state->end = end;
-	if ((end & 4095) == 0) {
-		printk("insert state %Lu %Lu strange end\n", start, end);
-		WARN_ON(1);
-	}
 	node = tree_insert(&tree->state, end, &state->rb_node);
 	if (node) {
 		struct extent_state *found;
@@ -399,11 +428,7 @@ static int split_state(struct extent_map_tree *tree, struct extent_state *orig,
 	prealloc->end = split - 1;
 	prealloc->state = orig->state;
 	orig->start = split;
-	if ((prealloc->end & 4095) == 0) {
-		printk("insert state %Lu %Lu strange end\n", prealloc->start,
-		       prealloc->end);
-		WARN_ON(1);
-	}
+
 	node = tree_insert(&tree->state, prealloc->end, &prealloc->rb_node);
 	if (node) {
 		struct extent_state *found;
@@ -957,6 +982,7 @@ int find_first_extent_bit(struct extent_map_tree *tree, u64 start,
 			*start_ret = state->start;
 			*end_ret = state->end;
 			ret = 0;
+			break;
 		}
 		node = rb_next(node);
 		if (!node)
@@ -1877,6 +1903,7 @@ sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 static struct extent_buffer *__alloc_extent_buffer(gfp_t mask)
 {
 	struct extent_buffer *eb = NULL;
+
 	spin_lock(&extent_buffers_lock);
 	if (!list_empty(&extent_buffers)) {
 		eb = list_entry(extent_buffers.next, struct extent_buffer,
@@ -1886,15 +1913,26 @@ static struct extent_buffer *__alloc_extent_buffer(gfp_t mask)
 		nr_extent_buffers--;
 	}
 	spin_unlock(&extent_buffers_lock);
+
 	if (eb) {
 		memset(eb, 0, sizeof(*eb));
-		return eb;
+	} else {
+		eb = kmem_cache_zalloc(extent_buffer_cache, mask);
 	}
-	return kmem_cache_zalloc(extent_buffer_cache, mask);
+	spin_lock(&extent_buffers_lock);
+	list_add(&eb->leak_list, &buffers);
+	spin_unlock(&extent_buffers_lock);
+
+	return eb;
 }
 
 static void __free_extent_buffer(struct extent_buffer *eb)
 {
+
+	spin_lock(&extent_buffers_lock);
+	list_del_init(&eb->leak_list);
+	spin_unlock(&extent_buffers_lock);
+
 	if (nr_extent_buffers >= MAX_EXTENT_BUFFER_CACHE) {
 		kmem_cache_free(extent_buffer_cache, eb);
 	} else {
@@ -1933,6 +1971,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 	if (!eb || IS_ERR(eb))
 		return NULL;
 
+	eb->alloc_addr = __builtin_return_address(0);
 	eb->start = start;
 	eb->len = len;
 	atomic_set(&eb->refs, 1);
@@ -1947,6 +1986,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 			eb->start &= ~((u64)PAGE_CACHE_SIZE - 1);
 			goto fail;
 		}
+		set_page_extent_mapped(p);
 		if (i == 0)
 			eb->first_page = p;
 		if (!PageUptodate(p))
@@ -1978,6 +2018,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 	if (!eb || IS_ERR(eb))
 		return NULL;
 
+	eb->alloc_addr = __builtin_return_address(0);
 	eb->start = start;
 	eb->len = len;
 	atomic_set(&eb->refs, 1);
@@ -1992,6 +2033,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 			eb->start &= ~((u64)PAGE_CACHE_SIZE - 1);
 			goto fail;
 		}
+		set_page_extent_mapped(p);
 		if (i == 0)
 			eb->first_page = p;
 	}

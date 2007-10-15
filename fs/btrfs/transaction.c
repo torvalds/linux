@@ -352,7 +352,7 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 		return 0;
 
 	trans = btrfs_start_transaction(root, 1);
-	while (1) {
+	while (0) {
 		root->defrag_running = 1;
 		ret = btrfs_defrag_leaves(trans, root, cacheonly);
 		nr = trans->blocks_used;
@@ -394,7 +394,7 @@ int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
 		for (i = 0; i < ret; i++) {
 			root = gang[i];
 			last = root->root_key.objectid + 1;
-			// btrfs_defrag_root(root, 1);
+			btrfs_defrag_root(root, 1);
 		}
 	}
 	// btrfs_defrag_root(info->extent_root, 1);
@@ -462,6 +462,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
 
+		free_extent_buffer(dirty->root->node);
 		kfree(dirty->root);
 		kfree(dirty);
 		mutex_unlock(&tree_root->fs_info->fs_mutex);

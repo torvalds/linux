@@ -303,8 +303,8 @@ struct btrfs_fs_info {
 	struct radix_tree_root pinned_radix;
 	struct radix_tree_root block_group_radix;
 	struct radix_tree_root block_group_data_radix;
-	struct radix_tree_root extent_map_radix;
 	struct radix_tree_root extent_ins_radix;
+	struct extent_map_tree free_space_cache;
 	u64 generation;
 	u64 last_trans_committed;
 	struct btrfs_transaction *running_transaction;

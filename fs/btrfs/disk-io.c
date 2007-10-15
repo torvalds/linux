@@ -46,18 +46,25 @@ struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 					    u64 blocknr)
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	return find_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
+	struct extent_buffer *eb;
+	eb = find_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
 				   blocknr * root->sectorsize,
 				   root->sectorsize, GFP_NOFS);
+	if (eb)
+		eb->alloc_addr = (unsigned long)__builtin_return_address(0);
+	return eb;
 }
 
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 blocknr)
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	return alloc_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
+	struct extent_buffer *eb;
+	eb = alloc_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
 				   blocknr * root->sectorsize,
 				   root->sectorsize, GFP_NOFS);
+	eb->alloc_addr = (unsigned long)__builtin_return_address(0);
+	return eb;
 }
 
 struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
@@ -226,6 +233,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 blocknr)
 		return NULL;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
 				 buf, 1);
+	buf->alloc_addr = (unsigned long)__builtin_return_address(0);
 	return buf;
 }
 
@@ -426,7 +434,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	}
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
-	init_bit_radix(&fs_info->extent_map_radix);
 	init_bit_radix(&fs_info->extent_ins_radix);
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
 	INIT_RADIX_TREE(&fs_info->block_group_radix, GFP_KERNEL);
@@ -449,6 +456,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	extent_map_tree_init(&BTRFS_I(fs_info->btree_inode)->extent_tree,
 			     fs_info->btree_inode->i_mapping,
 			     GFP_NOFS);
+	extent_map_tree_init(&fs_info->free_space_cache,
+			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 	fs_info->closing = 0;
 
@@ -594,8 +603,10 @@ int close_ctree(struct btrfs_root *root)
 
 	if (fs_info->extent_root->node)
 		free_extent_buffer(fs_info->extent_root->node);
+
 	if (fs_info->tree_root->node)
 		free_extent_buffer(fs_info->tree_root->node);
+
 	free_extent_buffer(fs_info->sb_buffer);
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 	iput(fs_info->btree_inode);

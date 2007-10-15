@@ -87,6 +87,7 @@ static int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
+	cow->alloc_addr = (unsigned long)__builtin_return_address(0);
 	if (buf->len != root->sectorsize || cow->len != root->sectorsize)
 		WARN_ON(1);
 
@@ -132,6 +133,7 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct extent_buffer **cow_ret)
 {
 	u64 search_start;
+	int ret;
 	if (trans->transaction != root->fs_info->running_transaction) {
 		printk(KERN_CRIT "trans %Lu running %Lu\n", trans->transid,
 		       root->fs_info->running_transaction->transid);
@@ -148,8 +150,10 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 	}
 
 	search_start = extent_buffer_blocknr(buf) & ~((u64)65535);
-	return __btrfs_cow_block(trans, root, buf, parent,
+	ret = __btrfs_cow_block(trans, root, buf, parent,
 				 parent_slot, cow_ret, search_start, 0);
+	(*cow_ret)->alloc_addr = (unsigned long)__builtin_return_address(0);
+	return ret;
 }
 
 static int close_blocks(u64 blocknr, u64 other)
@@ -1013,8 +1017,10 @@ again:
 				if (sret)
 					return sret;
 				b = p->nodes[level];
-				if (!b)
+				if (!b) {
+					btrfs_release_path(NULL, p);
 					goto again;
+				}
 				slot = p->slots[level];
 				BUG_ON(btrfs_header_nritems(b) == 1);
 			}

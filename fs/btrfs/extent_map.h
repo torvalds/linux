@@ -68,7 +68,9 @@ struct extent_buffer {
 	atomic_t refs;
 	int flags;
 	struct list_head list;
+	struct list_head leak_list;
 	struct page *first_page;
+	unsigned long alloc_addr;
 };
 
 typedef struct extent_map *(get_extent_t)(struct inode *inode,
