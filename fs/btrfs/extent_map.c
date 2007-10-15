@@ -981,7 +981,7 @@ int find_first_extent_bit(struct extent_map_tree *tree, u64 start,
 	struct extent_state *state;
 	int ret = 1;
 
-	write_lock_irq(&tree->lock);
+	read_lock_irq(&tree->lock);
 	/*
 	 * this search will find all the extents that end after
 	 * our range starts.
@@ -993,7 +993,7 @@ int find_first_extent_bit(struct extent_map_tree *tree, u64 start,
 
 	while(1) {
 		state = rb_entry(node, struct extent_state, rb_node);
-		if (state->state & bits) {
+		if (state->end >= start && (state->state & bits)) {
 			*start_ret = state->start;
 			*end_ret = state->end;
 			ret = 0;
@@ -1004,7 +1004,7 @@ int find_first_extent_bit(struct extent_map_tree *tree, u64 start,
 			break;
 	}
 out:
-	write_unlock_irq(&tree->lock);
+	read_unlock_irq(&tree->lock);
 	return ret;
 }
 EXPORT_SYMBOL(find_first_extent_bit);

@@ -165,7 +165,7 @@ static u64 find_search_start(struct btrfs_root *root,
 {
 	int ret;
 	struct btrfs_block_group_cache *cache = *cache_ret;
-	u64 last = max(search_start, cache->key.objectid);
+	u64 last;
 	u64 start = 0;
 	u64 end = 0;
 
@@ -173,11 +173,14 @@ again:
 	ret = cache_block_group(root, cache);
 	if (ret)
 		goto out;
+	last = max(search_start, cache->key.objectid);
+
 	while(1) {
 		ret = find_first_extent_bit(&root->fs_info->free_space_cache,
 					    last, &start, &end, EXTENT_DIRTY);
-		if (ret)
-			goto out;
+		if (ret) {
+			goto new_group;
+		}
 
 		start = max(last, start);
 		last = end + 1;
@@ -191,15 +194,13 @@ out:
 	return search_start;
 
 new_group:
-	cache = btrfs_lookup_block_group(root->fs_info,
-					 last + cache->key.offset - 1);
+	last = cache->key.objectid + cache->key.offset;
+	cache = btrfs_lookup_block_group(root->fs_info, last);
 	if (!cache) {
 		return search_start;
 	}
-	cache = btrfs_find_block_group(root, cache,
-				       last + cache->key.offset - 1, data, 0);
+	cache = btrfs_find_block_group(root, cache, last, data, 0);
 	*cache_ret = cache;
-	last = min(cache->key.objectid, last);
 	goto again;
 }
 
@@ -257,12 +258,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 		if (used < div_factor(hint->key.offset, factor)) {
 			return hint;
 		}
-		last = hint->key.offset * 3;
-		if (hint->key.objectid >= last)
-			last = max(search_start + hint->key.offset - 1,
-				   hint->key.objectid - last);
-		else
-			last = hint->key.objectid + hint->key.offset;
+		last = hint->key.objectid + hint->key.offset;
 		hint_last = last;
 	} else {
 		if (hint)
@@ -913,7 +909,6 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 check_failed:
 	search_start = find_search_start(root, &block_group,
 					 search_start, total_needed, data);
-
 	btrfs_init_path(path);
 	ins->objectid = search_start;
 	ins->offset = 0;
@@ -958,6 +953,9 @@ check_failed:
 				continue;
 			if (ret < 0)
 				goto error;
+
+			search_start = max(search_start,
+					   block_group->key.objectid);
 			if (!start_found) {
 				ins->objectid = search_start;
 				ins->offset = search_end - search_start;
@@ -967,6 +965,7 @@ check_failed:
 			ins->objectid = last_byte > search_start ?
 					last_byte : search_start;
 			ins->offset = search_end - ins->objectid;
+			BUG_ON(ins->objectid >= search_end);
 			goto check_pending;
 		}
 		btrfs_item_key_to_cpu(l, &key, slot);
@@ -998,7 +997,7 @@ check_failed:
 		    block_group->key.offset) {
 			btrfs_release_path(root, path);
 			search_start = block_group->key.objectid +
-				block_group->key.offset * 2;
+				block_group->key.offset;
 			goto new_group;
 		}
 next:
@@ -1015,6 +1014,12 @@ check_pending:
 	if (ins->objectid + num_bytes >= search_end)
 		goto enospc;
 
+	if (!full_scan && ins->objectid + num_bytes >= block_group->
+	    key.objectid + block_group->key.offset) {
+		search_start = block_group->key.objectid +
+			block_group->key.offset;
+		goto new_group;
+	}
 	if (test_range_bit(&info->extent_ins, ins->objectid,
 			   ins->objectid + num_bytes -1, EXTENT_LOCKED, 0)) {
 		search_start = ins->objectid + num_bytes;
@@ -1114,6 +1119,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		set_extent_bits(&root->fs_info->extent_ins, ins->objectid,
 				ins->objectid + ins->offset - 1,
 				EXTENT_LOCKED, GFP_NOFS);
+		WARN_ON(data == 1);
 		goto update_block;
 	}
 
