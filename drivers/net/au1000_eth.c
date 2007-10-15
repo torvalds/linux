@@ -97,9 +97,7 @@ static void au1000_adjust_link(struct net_device *);
 static void enable_mac(struct net_device *, int);
 
 // externs
-extern int get_ethernet_addr(char *ethernet_addr);
-extern void str2eaddr(unsigned char *ea, unsigned char *str);
-extern char * prom_getcmdline(void);
+extern int prom_get_ethernet_addr(char *ethernet_addr);
 
 /*
  * Theory of operation
@@ -619,7 +617,6 @@ static struct net_device * au1000_probe(int port_num)
 	struct au1000_private *aup = NULL;
 	struct net_device *dev = NULL;
 	db_dest_t *pDB, *pDBfree;
-	char *pmac, *argptr;
 	char ethaddr[6];
 	int irq, i, err;
 	u32 base, macen;
@@ -677,21 +674,12 @@ static struct net_device * au1000_probe(int port_num)
 	au_macs[port_num] = aup;
 
 	if (port_num == 0) {
-		/* Check the environment variables first */
-		if (get_ethernet_addr(ethaddr) == 0)
+		if (prom_get_ethernet_addr(ethaddr) == 0)
 			memcpy(au1000_mac_addr, ethaddr, sizeof(au1000_mac_addr));
 		else {
-			/* Check command line */
-			argptr = prom_getcmdline();
-			if ((pmac = strstr(argptr, "ethaddr=")) == NULL)
-				printk(KERN_INFO "%s: No MAC address found\n",
-						 dev->name);
+			printk(KERN_INFO "%s: No MAC address found\n",
+					 dev->name);
 				/* Use the hard coded MAC addresses */
-			else {
-				str2eaddr(ethaddr, pmac + strlen("ethaddr="));
-				memcpy(au1000_mac_addr, ethaddr,
-				       sizeof(au1000_mac_addr));
-			}
 		}
 
 		setup_hw_rings(aup, MAC0_RX_DMA_ADDR, MAC0_TX_DMA_ADDR);

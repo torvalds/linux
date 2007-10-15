@@ -98,7 +98,7 @@ char *prom_getenv(char *envname)
 	return NULL;
 }
 
-inline unsigned char str2hexnum(unsigned char c)
+static inline unsigned char str2hexnum(unsigned char c)
 {
 	if(c >= '0' && c <= '9')
 		return c - '0';
@@ -109,7 +109,7 @@ inline unsigned char str2hexnum(unsigned char c)
 	return 0; /* foo */
 }
 
-inline void str2eaddr(unsigned char *ea, unsigned char *str)
+static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 {
 	int i;
 
@@ -124,35 +124,29 @@ inline void str2eaddr(unsigned char *ea, unsigned char *str)
 	}
 }
 
-int get_ethernet_addr(char *ethernet_addr)
+int prom_get_ethernet_addr(char *ethernet_addr)
 {
-        char *ethaddr_str;
+	char *ethaddr_str;
+	char *argptr;
 
-        ethaddr_str = prom_getenv("ethaddr");
+	/* Check the environment variables first */
+	ethaddr_str = prom_getenv("ethaddr");
 	if (!ethaddr_str) {
-	        printk("ethaddr not set in boot prom\n");
-		return -1;
+		/* Check command line */
+		argptr = prom_getcmdline();
+		ethaddr_str = strstr(argptr, "ethaddr=");
+		if (!ethaddr_str)
+			return -1;
+
+		ethaddr_str += strlen("ethaddr=");
 	}
+
 	str2eaddr(ethernet_addr, ethaddr_str);
-
-#if 0
-	{
-		int i;
-
-	printk("get_ethernet_addr: ");
-	for (i=0; i<5; i++)
-		printk("%02x:", (unsigned char)*(ethernet_addr+i));
-	printk("%02x\n", *(ethernet_addr+i));
-	}
-#endif
 
 	return 0;
 }
+EXPORT_SYMBOL(prom_get_ethernet_addr);
 
 void __init prom_free_prom_memory(void)
 {
 }
-
-EXPORT_SYMBOL(prom_getcmdline);
-EXPORT_SYMBOL(get_ethernet_addr);
-EXPORT_SYMBOL(str2eaddr);
