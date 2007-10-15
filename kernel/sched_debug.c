@@ -44,7 +44,8 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		(long long)(p->nvcsw + p->nivcsw),
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS
-	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld\n",
+	SEQ_printf(m, "%15Ld %15Ld %15Ld %15Ld %15Ld %15Ld\n",
+		(long long)p->se.vruntime,
 		(long long)p->se.sum_exec_runtime,
 		(long long)p->se.sum_wait_runtime,
 		(long long)p->se.sum_sleep_runtime,
@@ -64,10 +65,10 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 	"\nrunnable tasks:\n"
 	"            task   PID        tree-key         delta       waiting"
 	"  switches  prio"
-	"        sum-exec        sum-wait       sum-sleep"
+	"    exec-runtime        sum-exec        sum-wait       sum-sleep"
 	"    wait-overrun   wait-underrun\n"
 	"------------------------------------------------------------------"
-	"----------------"
+	"--------------------------------"
 	"------------------------------------------------"
 	"--------------------------------\n");
 
@@ -108,6 +109,11 @@ print_cfs_rq_runtime_sum(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
+	s64 MIN_vruntime = -1, max_vruntime = -1, spread;
+	struct rq *rq = &per_cpu(runqueues, cpu);
+	struct sched_entity *last;
+	unsigned long flags;
+
 	SEQ_printf(m, "\ncfs_rq\n");
 
 #define P(x) \
@@ -115,6 +121,23 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 	P(fair_clock);
 	P(exec_clock);
+	P(min_vruntime);
+
+	spin_lock_irqsave(&rq->lock, flags);
+	if (cfs_rq->rb_leftmost)
+		MIN_vruntime = (__pick_next_entity(cfs_rq))->vruntime;
+	last = __pick_last_entity(cfs_rq);
+	if (last)
+		max_vruntime = last->vruntime;
+	spin_unlock_irqrestore(&rq->lock, flags);
+	SEQ_printf(m, "  .%-30s: %Ld\n", "MIN_vruntime",
+			(long long)MIN_vruntime);
+	SEQ_printf(m, "  .%-30s: %Ld\n", "max_vruntime",
+			(long long)max_vruntime);
+	spread = max_vruntime - MIN_vruntime;
+	SEQ_printf(m, "  .%-30s: %Ld\n", "spread",
+			(long long)spread);
+
 	P(wait_runtime);
 	P(wait_runtime_overruns);
 	P(wait_runtime_underruns);
@@ -243,6 +266,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	P(se.wait_start_fair);
 	P(se.exec_start);
 	P(se.sleep_start_fair);
+	P(se.vruntime);
 	P(se.sum_exec_runtime);
 
 #ifdef CONFIG_SCHEDSTATS
