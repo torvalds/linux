@@ -157,7 +157,8 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	unsigned long stack = KSTK_ESP(tsk);
 	unsigned long unmapped_base;
 
-	if (offset <= SLB_CACHE_ENTRIES) {
+	if (!cpu_has_feature(CPU_FTR_NO_SLBIE_B) &&
+	    offset <= SLB_CACHE_ENTRIES) {
 		int i;
 		asm volatile("isync" : : : "memory");
 		for (i = 0; i < offset; i++) {

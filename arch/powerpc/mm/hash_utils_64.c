@@ -212,6 +212,7 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 			return 1;
 		}
 	}
+	cur_cpu_spec->cpu_features &= ~CPU_FTR_NO_SLBIE_B;
 	return 0;
 }
 
