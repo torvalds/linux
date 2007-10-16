@@ -167,8 +167,6 @@ struct banshee_reg {
 	unsigned long clip0max;
 	unsigned long clip1min;
 	unsigned long clip1max;
-	unsigned long srcbase;
-	unsigned long dstbase;
 	unsigned long miscinit0;
 };
 
@@ -177,7 +175,6 @@ struct tdfx_par {
 	u32 palette[16];
 	void __iomem *regbase_virt;
 	unsigned long iobase;
-	u32 baseline;
 
 	struct {
 		int w, u, d;
