@@ -141,7 +141,7 @@ ioat_tx_submit(struct dma_async_tx_descriptor *tx)
 	if (append)
 		writeb(IOAT_CHANCMD_APPEND,
 			ioat_chan->reg_base + IOAT_CHANCMD_OFFSET);
-	
+
 	return cookie;
 }
 
