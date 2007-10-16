@@ -28,6 +28,7 @@
 #include <linux/wait.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/console.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -1697,6 +1698,10 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 	/* blank the relevant interface to ensure unit power minimised */
 	(par->ops.fb_blank)(FB_BLANK_POWERDOWN, fbi);
 
+	acquire_console_sem();
+	fb_set_suspend(fbi, 1);
+	release_console_sem();
+
 	return 0;
 
  err_nocursor:
@@ -1731,6 +1736,10 @@ static void sm501fb_resume_fb(struct sm501fb_info *info,
 	if (par->store_cursor)
 		memcpy_toio(par->cursor.k_addr, par->store_cursor,
 			    par->cursor.size);
+
+	acquire_console_sem();
+	fb_set_suspend(fbi, 0);
+	release_console_sem();
 
 	vfree(par->store_fb);
 	vfree(par->store_cursor);
