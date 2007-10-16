@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.75	Aug 2 2007
+ * linux/drivers/ide/pci/cs5530.c		Version 0.76	Aug 3 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
@@ -117,7 +117,9 @@ static int cs5530_config_dma(ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	return 1;
+	ide_set_max_pio(drive);
+
+	return -1;
 }
 
 static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)

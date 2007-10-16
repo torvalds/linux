@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sc1200.c		Version 0.96	Aug 2 2007
+ * linux/drivers/ide/pci/sc1200.c		Version 0.97	Aug 3 2007
  *
  * Copyright (C) 2000-2002		Mark Lord <mlord@pobox.com>
  * Copyright (C)      2007		Bartlomiej Zolnierkiewicz
@@ -208,7 +208,9 @@ static int sc1200_config_dma (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	return 1;
+	ide_set_max_pio(drive);
+
+	return -1;
 }
 
 
