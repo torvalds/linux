@@ -341,8 +341,14 @@ static inline void __nodes_remap(nodemask_t *dstp, const nodemask_t *srcp,
  * Bitmasks that are kept for all the nodes.
  */
 enum node_states {
-	N_POSSIBLE,	/* The node could become online at some point */
-	N_ONLINE,	/* The node is online */
+	N_POSSIBLE,		/* The node could become online at some point */
+	N_ONLINE,		/* The node is online */
+	N_NORMAL_MEMORY,	/* The node has regular memory */
+#ifdef CONFIG_HIGHMEM
+	N_HIGH_MEMORY,		/* The node has regular or high memory */
+#else
+	N_HIGH_MEMORY = N_NORMAL_MEMORY,
+#endif
 	NR_NODE_STATES
 };
 
