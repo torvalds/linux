@@ -37,11 +37,13 @@
 #define MIGRATE_UNMOVABLE     0
 #define MIGRATE_RECLAIMABLE   1
 #define MIGRATE_MOVABLE       2
-#define MIGRATE_TYPES         3
+#define MIGRATE_HIGHATOMIC    3
+#define MIGRATE_TYPES         4
 #else
 #define MIGRATE_UNMOVABLE     0
 #define MIGRATE_UNRECLAIMABLE 0
 #define MIGRATE_MOVABLE       0
+#define MIGRATE_HIGHATOMIC    0
 #define MIGRATE_TYPES         1
 #endif
 
