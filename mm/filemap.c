@@ -1878,6 +1878,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		if (maxlen > bytes)
 			maxlen = bytes;
 
+#ifndef CONFIG_DEBUG_VM
 		/*
 		 * Bring in the user page that we will copy from _first_.
 		 * Otherwise there's a nasty deadlock on copying from the
@@ -1885,6 +1886,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		 * up-to-date.
 		 */
 		fault_in_pages_readable(buf, maxlen);
+#endif
 
 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
 		if (!page) {
