@@ -37,12 +37,14 @@
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
 #include <linux/log2.h>
+#include <linux/crc16.h>
 
 #include <asm/uaccess.h>
 
 #include "xattr.h"
 #include "acl.h"
 #include "namei.h"
+#include "group.h"
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
@@ -1308,6 +1310,43 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 	return res;
 }
 
+__le16 ext4_group_desc_csum(struct ext4_sb_info *sbi, __u32 block_group,
+			    struct ext4_group_desc *gdp)
+{
+	__u16 crc = 0;
+
+	if (sbi->s_es->s_feature_ro_compat &
+	    cpu_to_le32(EXT4_FEATURE_RO_COMPAT_GDT_CSUM)) {
+		int offset = offsetof(struct ext4_group_desc, bg_checksum);
+		__le32 le_group = cpu_to_le32(block_group);
+
+		crc = crc16(~0, sbi->s_es->s_uuid, sizeof(sbi->s_es->s_uuid));
+		crc = crc16(crc, (__u8 *)&le_group, sizeof(le_group));
+		crc = crc16(crc, (__u8 *)gdp, offset);
+		offset += sizeof(gdp->bg_checksum); /* skip checksum */
+		/* for checksum of struct ext4_group_desc do the rest...*/
+		if ((sbi->s_es->s_feature_incompat &
+		     cpu_to_le32(EXT4_FEATURE_INCOMPAT_64BIT)) &&
+		    offset < le16_to_cpu(sbi->s_es->s_desc_size))
+			crc = crc16(crc, (__u8 *)gdp + offset,
+				    le16_to_cpu(sbi->s_es->s_desc_size) -
+					offset);
+	}
+
+	return cpu_to_le16(crc);
+}
+
+int ext4_group_desc_csum_verify(struct ext4_sb_info *sbi, __u32 block_group,
+				struct ext4_group_desc *gdp)
+{
+	if ((sbi->s_es->s_feature_ro_compat &
+	     cpu_to_le32(EXT4_FEATURE_RO_COMPAT_GDT_CSUM)) &&
+	    (gdp->bg_checksum != ext4_group_desc_csum(sbi, block_group, gdp)))
+		return 0;
+
+	return 1;
+}
+
 /* Called at mount-time, super-block is locked */
 static int ext4_check_descriptors (struct super_block * sb)
 {
@@ -1360,6 +1399,14 @@ static int ext4_check_descriptors (struct super_block * sb)
 				    "Inode table for group %d"
 				    " not in group (block %llu)!",
 				    i, inode_table);
+			return 0;
+		}
+		if (!ext4_group_desc_csum_verify(sbi, i, gdp)) {
+			ext4_error(sb, __FUNCTION__,
+				   "Checksum for group %d failed (%u!=%u)\n", i,
+				   le16_to_cpu(ext4_group_desc_csum(sbi, i,
+								    gdp)),
+				   le16_to_cpu(gdp->bg_checksum));
 			return 0;
 		}
 		first_block += EXT4_BLOCKS_PER_GROUP(sb);

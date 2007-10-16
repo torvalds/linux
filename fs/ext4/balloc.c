@@ -20,6 +20,7 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 
+#include "group.h"
 /*
  * balloc.c contains the blocks allocation and deallocation routines
  */
@@ -41,6 +42,94 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
 		*blockgrpp = blocknr;
 
 }
+
+/* Initializes an uninitialized block bitmap if given, and returns the
+ * number of blocks free in the group. */
+unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
+				int block_group, struct ext4_group_desc *gdp)
+{
+	unsigned long start;
+	int bit, bit_max;
+	unsigned free_blocks, group_blocks;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
+	if (bh) {
+		J_ASSERT_BH(bh, buffer_locked(bh));
+
+		/* If checksum is bad mark all blocks used to prevent allocation
+		 * essentially implementing a per-group read-only flag. */
+		if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
+			ext4_error(sb, __FUNCTION__,
+				   "Checksum bad for group %u\n", block_group);
+			gdp->bg_free_blocks_count = 0;
+			gdp->bg_free_inodes_count = 0;
+			gdp->bg_itable_unused = 0;
+			memset(bh->b_data, 0xff, sb->s_blocksize);
+			return 0;
+		}
+		memset(bh->b_data, 0, sb->s_blocksize);
+	}
+
+	/* Check for superblock and gdt backups in this group */
+	bit_max = ext4_bg_has_super(sb, block_group);
+
+	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_META_BG) ||
+	    block_group < le32_to_cpu(sbi->s_es->s_first_meta_bg) *
+			  sbi->s_desc_per_block) {
+		if (bit_max) {
+			bit_max += ext4_bg_num_gdb(sb, block_group);
+			bit_max +=
+				le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks);
+		}
+	} else { /* For META_BG_BLOCK_GROUPS */
+		int group_rel = (block_group -
+				 le32_to_cpu(sbi->s_es->s_first_meta_bg)) %
+				EXT4_DESC_PER_BLOCK(sb);
+		if (group_rel == 0 || group_rel == 1 ||
+		    (group_rel == EXT4_DESC_PER_BLOCK(sb) - 1))
+			bit_max += 1;
+	}
+
+	if (block_group == sbi->s_groups_count - 1) {
+		/*
+		 * Even though mke2fs always initialize first and last group
+		 * if some other tool enabled the EXT4_BG_BLOCK_UNINIT we need
+		 * to make sure we calculate the right free blocks
+		 */
+		group_blocks = ext4_blocks_count(sbi->s_es) -
+			le32_to_cpu(sbi->s_es->s_first_data_block) -
+			(EXT4_BLOCKS_PER_GROUP(sb) * (sbi->s_groups_count -1));
+	} else {
+		group_blocks = EXT4_BLOCKS_PER_GROUP(sb);
+	}
+
+	free_blocks = group_blocks - bit_max;
+
+	if (bh) {
+		for (bit = 0; bit < bit_max; bit++)
+			ext4_set_bit(bit, bh->b_data);
+
+		start = block_group * EXT4_BLOCKS_PER_GROUP(sb) +
+			le32_to_cpu(sbi->s_es->s_first_data_block);
+
+		/* Set bits for block and inode bitmaps, and inode table */
+		ext4_set_bit(ext4_block_bitmap(sb, gdp) - start, bh->b_data);
+		ext4_set_bit(ext4_inode_bitmap(sb, gdp) - start, bh->b_data);
+		for (bit = le32_to_cpu(gdp->bg_inode_table) - start,
+		     bit_max = bit + sbi->s_itb_per_group; bit < bit_max; bit++)
+			ext4_set_bit(bit, bh->b_data);
+
+		/*
+		 * Also if the number of blocks within the group is
+		 * less than the blocksize * 8 ( which is the size
+		 * of bitmap ), set rest of the block bitmap to 1
+		 */
+		mark_bitmap_end(group_blocks, sb->s_blocksize * 8, bh->b_data);
+	}
+
+	return free_blocks - sbi->s_itb_per_group - 2;
+}
+
 
 /*
  * The free blocks are managed by bitmaps.  A file system contains several
@@ -119,7 +208,7 @@ block_in_use(ext4_fsblk_t block, struct super_block *sb, unsigned char *map)
  *
  * Return buffer_head on success or NULL in case of failure.
  */
-static struct buffer_head *
+struct buffer_head *
 read_block_bitmap(struct super_block *sb, unsigned int block_group)
 {
 	int i;
@@ -127,11 +216,24 @@ read_block_bitmap(struct super_block *sb, unsigned int block_group)
 	struct buffer_head * bh = NULL;
 	ext4_fsblk_t bitmap_blk;
 
-	desc = ext4_get_group_desc (sb, block_group, NULL);
+	desc = ext4_get_group_desc(sb, block_group, NULL);
 	if (!desc)
 		return NULL;
 	bitmap_blk = ext4_block_bitmap(sb, desc);
-	bh = sb_bread(sb, bitmap_blk);
+	if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
+		bh = sb_getblk(sb, bitmap_blk);
+		if (!buffer_uptodate(bh)) {
+			lock_buffer(bh);
+			if (!buffer_uptodate(bh)) {
+				ext4_init_block_bitmap(sb, bh, block_group,
+						       desc);
+				set_buffer_uptodate(bh);
+			}
+			unlock_buffer(bh);
+		}
+	} else {
+		bh = sb_bread(sb, bitmap_blk);
+	}
 	if (!bh)
 		ext4_error (sb, __FUNCTION__,
 			    "Cannot read block bitmap - "
@@ -627,6 +729,7 @@ do_more:
 	desc->bg_free_blocks_count =
 		cpu_to_le16(le16_to_cpu(desc->bg_free_blocks_count) +
 			group_freed);
+	desc->bg_checksum = ext4_group_desc_csum(sbi, block_group, desc);
 	spin_unlock(sb_bgl_lock(sbi, block_group));
 	percpu_counter_add(&sbi->s_freeblocks_counter, count);
 
@@ -1685,8 +1788,11 @@ allocated:
 			ret_block, goal_hits, goal_attempts);
 
 	spin_lock(sb_bgl_lock(sbi, group_no));
+	if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT))
+		gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
 	gdp->bg_free_blocks_count =
 			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count)-num);
+	gdp->bg_checksum = ext4_group_desc_csum(sbi, group_no, gdp);
 	spin_unlock(sb_bgl_lock(sbi, group_no));
 	percpu_counter_sub(&sbi->s_freeblocks_counter, num);
 

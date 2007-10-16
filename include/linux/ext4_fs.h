@@ -105,18 +105,24 @@
  */
 struct ext4_group_desc
 {
-	__le32	bg_block_bitmap;		/* Blocks bitmap block */
-	__le32	bg_inode_bitmap;		/* Inodes bitmap block */
+	__le32	bg_block_bitmap;	/* Blocks bitmap block */
+	__le32	bg_inode_bitmap;	/* Inodes bitmap block */
 	__le32	bg_inode_table;		/* Inodes table block */
 	__le16	bg_free_blocks_count;	/* Free blocks count */
 	__le16	bg_free_inodes_count;	/* Free inodes count */
 	__le16	bg_used_dirs_count;	/* Directories count */
-	__u16	bg_flags;
-	__u32	bg_reserved[3];
+	__le16	bg_flags;		/* EXT4_BG_flags (INODE_UNINIT, etc) */
+	__u32	bg_reserved[2];		/* Likely block/inode bitmap checksum */
+	__le16  bg_itable_unused;	/* Unused inodes count */
+	__le16  bg_checksum;		/* crc16(sb_uuid+group+desc) */
 	__le32	bg_block_bitmap_hi;	/* Blocks bitmap block MSB */
 	__le32	bg_inode_bitmap_hi;	/* Inodes bitmap block MSB */
 	__le32	bg_inode_table_hi;	/* Inodes table block MSB */
 };
+
+#define EXT4_BG_INODE_UNINIT	0x0001 /* Inode table/bitmap not in use */
+#define EXT4_BG_BLOCK_UNINIT	0x0002 /* Block bitmap not in use */
+#define EXT4_BG_INODE_ZEROED	0x0004 /* On-disk itable initialized to zero */
 
 #ifdef __KERNEL__
 #include <linux/ext4_fs_i.h>
@@ -665,6 +671,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER	0x0001
 #define EXT4_FEATURE_RO_COMPAT_LARGE_FILE	0x0002
 #define EXT4_FEATURE_RO_COMPAT_BTREE_DIR	0x0004
+#define EXT4_FEATURE_RO_COMPAT_GDT_CSUM		0x0010
 #define EXT4_FEATURE_RO_COMPAT_DIR_NLINK	0x0020
 #define EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE	0x0040
 
@@ -684,6 +691,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 					 EXT4_FEATURE_INCOMPAT_64BIT)
 #define EXT4_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
 					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
+					 EXT4_FEATURE_RO_COMPAT_GDT_CSUM| \
 					 EXT4_FEATURE_RO_COMPAT_DIR_NLINK | \
 					 EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE | \
 					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
