@@ -14,7 +14,7 @@
 
 int set_interval(void)
 {
-	int usec = 1000000/UM_HZ;
+	int usec = UM_USEC_PER_SEC / UM_HZ;
 	struct itimerval interval = ((struct itimerval) { { 0, usec },
 							  { 0, usec } });
 
@@ -26,11 +26,11 @@ int set_interval(void)
 
 int timer_one_shot(int ticks)
 {
-	unsigned long usec = ticks * 1000000 / UM_HZ;
-	unsigned long sec = usec / 1000000;
+	unsigned long usec = ticks * UM_USEC_PER_SEC / UM_HZ;
+	unsigned long sec = usec / UM_USEC_PER_SEC;
 	struct itimerval interval;
 
-	usec %= 1000000;
+	usec %= UM_USEC_PER_SEC;
 	interval = ((struct itimerval) { { 0, 0 }, { sec, usec } });
 
 	if (setitimer(ITIMER_VIRTUAL, &interval, NULL) == -1)
@@ -78,8 +78,8 @@ extern void alarm_handler(int sig, struct sigcontext *sc);
 
 void idle_sleep(unsigned long long nsecs)
 {
-	struct timespec ts = { .tv_sec	= nsecs / BILLION,
-			       .tv_nsec = nsecs % BILLION };
+	struct timespec ts = { .tv_sec	= nsecs / UM_NSEC_PER_SEC,
+			       .tv_nsec = nsecs % UM_NSEC_PER_SEC };
 
 	if (nanosleep(&ts, &ts) == 0)
 		alarm_handler(SIGVTALRM, NULL);

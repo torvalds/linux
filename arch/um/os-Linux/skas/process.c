@@ -294,8 +294,8 @@ void userspace(struct uml_pt_regs *regs)
 
 	if (getitimer(ITIMER_VIRTUAL, &timer))
 		printk("Failed to get itimer, errno = %d\n", errno);
-	nsecs = timer.it_value.tv_sec * BILLION +
-		timer.it_value.tv_usec * 1000;
+	nsecs = timer.it_value.tv_sec * UM_NSEC_PER_SEC +
+		timer.it_value.tv_usec * UM_NSEC_PER_USEC;
 	nsecs += os_nsecs();
 
 	while (1) {
@@ -347,8 +347,10 @@ void userspace(struct uml_pt_regs *regs)
 				block_signals();
 				(*sig_info[sig])(sig, regs);
 				unblock_signals();
-				nsecs = timer.it_value.tv_sec * BILLION +
-					timer.it_value.tv_usec * 1000;
+				nsecs = timer.it_value.tv_sec *
+					UM_NSEC_PER_SEC +
+					timer.it_value.tv_usec *
+					UM_NSEC_PER_USEC;
 				nsecs += os_nsecs();
 				break;
 			case SIGIO:
@@ -395,7 +397,7 @@ __initcall(init_thread_regs);
 
 int copy_context_skas0(unsigned long new_stack, int pid)
 {
-	struct timeval tv = { .tv_sec = 0, .tv_usec = 1000000 / UM_HZ };
+	struct timeval tv = { .tv_sec = 0, .tv_usec = UM_USEC_PER_SEC / UM_HZ };
 	int err;
 	unsigned long current_stack = current_stub_stack();
 	struct stub_data *data = (struct stub_data *) current_stack;

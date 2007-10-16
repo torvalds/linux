@@ -249,8 +249,6 @@ extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
 extern void os_dump_core(void);
 
 /* time.c */
-#define BILLION (1000 * 1000 * 1000)
-
 extern void idle_sleep(unsigned long long nsecs);
 extern int set_interval(void);
 extern int timer_one_shot(int ticks);

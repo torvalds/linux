@@ -17,7 +17,7 @@
  */
 unsigned long long sched_clock(void)
 {
-	return (unsigned long long)jiffies_64 * (1000000000 / HZ);
+	return (unsigned long long)jiffies_64 * (NSEC_PER_SEC / HZ);
 }
 
 void timer_handler(int sig, struct uml_pt_regs *regs)
@@ -118,8 +118,9 @@ void __init time_init(void)
 	timer_init();
 
 	nsecs = os_nsecs();
-	set_normalized_timespec(&wall_to_monotonic, -nsecs / BILLION,
-				-nsecs % BILLION);
-	set_normalized_timespec(&xtime, nsecs / BILLION, nsecs % BILLION);
+	set_normalized_timespec(&wall_to_monotonic, -nsecs / NSEC_PER_SEC,
+				-nsecs % NSEC_PER_SEC);
+	set_normalized_timespec(&xtime, nsecs / NSEC_PER_SEC,
+				nsecs % NSEC_PER_SEC);
 	late_time_init = setup_itimer;
 }
