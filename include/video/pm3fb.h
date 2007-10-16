@@ -849,7 +849,7 @@
 	#define PM3Render_FBSourceRead_Enable			(1<<27)
 #define PM3RasterizerMode					0x80a0
 #define PM3RasterizerModeAnd					0xaba0
-#define PM3RasterizerModeOr					0xabb8
+#define PM3RasterizerModeOr					0xaba8
 #define PM3RectangleHeight					0x94e0
 #define PM3Render						0x8038
 #define PM3RepeatLine						0x9328
@@ -1115,6 +1115,9 @@
 /* ***************************************** */
 /* ***** pm3fb useful define and macro ***** */
 /* ***************************************** */
+
+/* fifo size in chip */
+#define PM3_FIFO_SIZE 120
 
 /* max size of options */
 #define PM3_OPTIONS_SIZE 256
