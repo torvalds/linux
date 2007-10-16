@@ -131,19 +131,19 @@ void get_skas_faultinfo(int pid, struct faultinfo * fi)
 	}
 }
 
-static void handle_segv(int pid, union uml_pt_regs * regs)
+static void handle_segv(int pid, struct uml_pt_regs * regs)
 {
-	get_skas_faultinfo(pid, &regs->skas.faultinfo);
-	segv(regs->skas.faultinfo, 0, 1, NULL);
+	get_skas_faultinfo(pid, &regs->faultinfo);
+	segv(regs->faultinfo, 0, 1, NULL);
 }
 
 /*To use the same value of using_sysemu as the caller, ask it that value (in local_using_sysemu)*/
-static void handle_trap(int pid, union uml_pt_regs *regs, int local_using_sysemu)
+static void handle_trap(int pid, struct uml_pt_regs *regs, int local_using_sysemu)
 {
 	int err, status;
 
 	/* Mark this as a syscall */
-	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->skas.regs);
+	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->regs);
 
 	if (!local_using_sysemu)
 	{
@@ -286,7 +286,7 @@ int start_userspace(unsigned long stub_stack)
 	return(pid);
 }
 
-void userspace(union uml_pt_regs *regs)
+void userspace(struct uml_pt_regs *regs)
 {
 	int err, status, op, pid = userspace_pid[0];
 	/* To prevent races if using_sysemu changes under us.*/
@@ -312,7 +312,7 @@ void userspace(union uml_pt_regs *regs)
 			panic("userspace - waitpid failed, errno = %d\n",
 			      errno);
 
-		regs->skas.is_user = 1;
+		regs->is_user = 1;
 		save_registers(pid, regs);
 		UPT_SYSCALL_NR(regs) = -1; /* Assume: It's not a syscall */
 
@@ -321,7 +321,7 @@ void userspace(union uml_pt_regs *regs)
 		  	switch(sig){
 			case SIGSEGV:
 				if(PTRACE_FULL_FAULTINFO || !ptrace_faultinfo){
-					get_skas_faultinfo(pid, &regs->skas.faultinfo);
+					get_skas_faultinfo(pid, &regs->faultinfo);
 					(*sig_info[SIGSEGV])(SIGSEGV, regs);
 				}
 				else handle_segv(pid, regs);
@@ -351,7 +351,7 @@ void userspace(union uml_pt_regs *regs)
 
 			/* Avoid -ERESTARTSYS handling in host */
 			if(PT_SYSCALL_NR_OFFSET != PT_SYSCALL_RET_OFFSET)
-				PT_SYSCALL_NR(regs->skas.regs) = -1;
+				PT_SYSCALL_NR(regs->regs) = -1;
 		}
 	}
 }
@@ -578,16 +578,16 @@ void reboot_skas(void)
 	UML_LONGJMP(&initial_jmpbuf, INIT_JMP_REBOOT);
 }
 
-void switch_mm_skas(struct mm_id *mm_idp)
+void __switch_mm(struct mm_id *mm_idp)
 {
 	int err;
 
-	/* FIXME: need cpu pid in switch_mm_skas */
+	/* FIXME: need cpu pid in __switch_mm */
 	if(proc_mm){
 		err = ptrace(PTRACE_SWITCH_MM, userspace_pid[0], 0,
 			     mm_idp->u.mm_fd);
 		if(err)
-			panic("switch_mm_skas - PTRACE_SWITCH_MM failed, "
+			panic("__switch_mm - PTRACE_SWITCH_MM failed, "
 			      "errno = %d\n", errno);
 	}
 	else userspace_pid[0] = mm_idp->u.pid;

@@ -63,7 +63,7 @@ struct mc_request
 
 	struct mconsole_request request;
 	struct mconsole_command *cmd;
-	union uml_pt_regs regs;
+	struct uml_pt_regs regs;
 };
 
 extern char mconsole_socket_name[];

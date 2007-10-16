@@ -16,7 +16,6 @@
 #include "sysdep/sigcontext.h"
 #include "sysdep/barrier.h"
 #include "sigcontext.h"
-#include "mode.h"
 #include "os.h"
 
 /* These are the asynchronous signals.  SIGVTALRM and SIGARLM are handled
@@ -60,14 +59,14 @@ void sig_handler(int sig, struct sigcontext *sc)
 
 static void real_alarm_handler(int sig, struct sigcontext *sc)
 {
-	union uml_pt_regs regs;
+	struct uml_pt_regs regs;
 
 	if(sig == SIGALRM)
 		switch_timers(0);
 
 	if(sc != NULL)
 		copy_sc(&regs, sc);
-	regs.skas.is_user = 0;
+	regs.is_user = 0;
 	unblock_signals();
 	timer_handler(sig, &regs);
 

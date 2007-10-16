@@ -35,8 +35,6 @@
 #include "initrd.h"
 #include "init.h"
 #include "os.h"
-#include "mode_kern.h"
-#include "mode.h"
 #include "skas.h"
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
@@ -67,7 +65,8 @@ struct cpuinfo_um boot_cpu_data = {
 
 unsigned long thread_saved_pc(struct task_struct *task)
 {
-	return os_process_pc(thread_pid_skas(task));
+	/* FIXME: Need to look up userspace_pid by cpu */
+	return os_process_pc(userspace_pid[0]);
 }
 
 /* Changed in setup_arch, which is called in early boot */
@@ -253,6 +252,19 @@ EXPORT_SYMBOL(end_iomem);
 
 extern char __binary_start;
 
+static unsigned long set_task_sizes_skas(unsigned long *task_size_out)
+{
+	/* Round up to the nearest 4M */
+	unsigned long host_task_size = ROUND_4M((unsigned long)
+						&host_task_size);
+
+	if (!skas_needs_stub)
+		*task_size_out = host_task_size;
+	else *task_size_out = CONFIG_STUB_START & PGDIR_MASK;
+
+	return host_task_size;
+}
+
 int __init linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
@@ -289,7 +301,7 @@ int __init linux_main(int argc, char **argv)
 	os_fill_handlinfo(handlinfo_kern);
 
 	brk_start = (unsigned long) sbrk(0);
-	before_mem_skas(brk_start);
+
 	/* Increase physical memory size for exec-shield users
 	so they actually get what they asked for. This should
 	add zero for non-exec shield users */
@@ -354,7 +366,7 @@ int __init linux_main(int argc, char **argv)
 	stack_protections((unsigned long) &init_thread_info);
 	os_flush_stdout();
 
-	return start_uml_skas();
+	return start_uml();
 }
 
 extern int uml_exitcode;

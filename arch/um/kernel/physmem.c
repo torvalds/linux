@@ -10,7 +10,7 @@
 #include "as-layout.h"
 #include "init.h"
 #include "kern.h"
-#include "mode_kern.h"
+#include "mem_user.h"
 #include "os.h"
 
 static int physmem_fd = -1;
@@ -61,7 +61,7 @@ static unsigned long kmem_top = 0;
 unsigned long get_kmem_end(void)
 {
 	if (kmem_top == 0)
-		kmem_top = kmem_end_skas;
+		kmem_top = host_task_size - 1024 * 1024;
 	return kmem_top;
 }
 

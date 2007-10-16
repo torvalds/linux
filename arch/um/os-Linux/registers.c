@@ -13,26 +13,26 @@
 
 static unsigned long exec_regs[MAX_REG_NR];
 
-void init_thread_registers(union uml_pt_regs *to)
+void init_thread_registers(struct uml_pt_regs *to)
 {
-	memcpy(to->skas.regs, exec_regs, sizeof(to->skas.regs));
+	memcpy(to->regs, exec_regs, sizeof(to->regs));
 }
 
-void save_registers(int pid, union uml_pt_regs *regs)
+void save_registers(int pid, struct uml_pt_regs *regs)
 {
 	int err;
 
-	err = ptrace(PTRACE_GETREGS, pid, 0, regs->skas.regs);
+	err = ptrace(PTRACE_GETREGS, pid, 0, regs->regs);
 	if(err < 0)
 		panic("save_registers - saving registers failed, errno = %d\n",
 		      errno);
 }
 
-void restore_registers(int pid, union uml_pt_regs *regs)
+void restore_registers(int pid, struct uml_pt_regs *regs)
 {
 	int err;
 
-	err = ptrace(PTRACE_SETREGS, pid, 0, regs->skas.regs);
+	err = ptrace(PTRACE_SETREGS, pid, 0, regs->regs);
 	if(err < 0)
 		panic("restore_registers - saving registers failed, "
 		      "errno = %d\n", errno);

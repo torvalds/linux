@@ -91,7 +91,7 @@ static struct irq_fd **last_irq_ptr = &active_fds;
 
 extern void free_irqs(void);
 
-void sigio_handler(int sig, union uml_pt_regs *regs)
+void sigio_handler(int sig, struct uml_pt_regs *regs)
 {
 	struct irq_fd *irq_fd;
 	int n;
@@ -344,7 +344,7 @@ int deactivate_all_fds(void)
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
-unsigned int do_IRQ(int irq, union uml_pt_regs *regs)
+unsigned int do_IRQ(int irq, struct uml_pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs((struct pt_regs *)regs);
 	irq_enter();

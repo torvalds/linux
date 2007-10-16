@@ -29,7 +29,7 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	 * possible.
 	 */
 	if (old != new && (current->flags & PF_BORROWED_MM))
-		switch_mm_skas(&new->context.skas.id);
+		__switch_mm(&new->context.skas.id);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
@@ -41,7 +41,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		cpu_clear(cpu, prev->cpu_vm_mask);
 		cpu_set(cpu, next->cpu_vm_mask);
 		if(next != &init_mm)
-			switch_mm_skas(&next->context.skas.id);
+			__switch_mm(&next->context.skas.id);
 	}
 }
 
@@ -50,21 +50,9 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 {
 }
 
-extern int init_new_context_skas(struct task_struct *task, 
-				 struct mm_struct *mm);
+extern int init_new_context(struct task_struct *task, struct mm_struct *mm);
 
-static inline int init_new_context(struct task_struct *task, 
-				   struct mm_struct *mm)
-{
-	return(init_new_context_skas(task, mm));
-}
-
-extern void destroy_context_skas(struct mm_struct *mm);
-
-static inline void destroy_context(struct mm_struct *mm)
-{
-	destroy_context_skas(mm);
-}
+extern void destroy_context(struct mm_struct *mm);
 
 #endif
 

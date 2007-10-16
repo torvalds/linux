@@ -18,7 +18,6 @@
 #include "irq_user.h"
 #include "user.h"
 #include "init.h"
-#include "mode.h"
 #include "uml-config.h"
 #include "os.h"
 #include "um_malloc.h"

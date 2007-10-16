@@ -21,7 +21,7 @@ struct irq_fd {
 
 enum { IRQ_READ, IRQ_WRITE };
 
-extern void sigio_handler(int sig, union uml_pt_regs *regs);
+extern void sigio_handler(int sig, struct uml_pt_regs *regs);
 extern int activate_fd(int irq, int fd, int type, void *dev_id);
 extern void free_irq_by_irq_and_dev(unsigned int irq, void *dev_id);
 extern void free_irq_by_fd(int fd);

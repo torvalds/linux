@@ -13,7 +13,6 @@
 #include "asm/ldt.h"
 #include "asm/unistd.h"
 #include "kern.h"
-#include "mode_kern.h"
 #include "os.h"
 
 extern int modify_ldt(int func, void *ptr, unsigned long bytecount);
@@ -33,7 +32,7 @@ long write_ldt_entry(struct mm_id * mm_idp, int func, struct user_desc * desc,
 		 * modify isn't current->active_mm.
 		 * If this is called directly by modify_ldt,
 		 *     (current->active_mm->context.skas.u == mm_idp)
-		 * will be true. So no call to switch_mm_skas(mm_idp) is done.
+		 * will be true. So no call to __switch_mm(mm_idp) is done.
 		 * If this is called in case of init_new_ldt or PTRACE_LDT,
 		 * mm_idp won't belong to current->active_mm, but child->mm.
 		 * So we need to switch child's mm into our userspace, then
@@ -43,7 +42,7 @@ long write_ldt_entry(struct mm_id * mm_idp, int func, struct user_desc * desc,
 		 */
 		if(!current->active_mm || current->active_mm == &init_mm ||
 		   mm_idp != &current->active_mm->context.skas.id)
-			switch_mm_skas(mm_idp);
+			__switch_mm(mm_idp);
 	}
 
 	if(ptrace_ldt) {
@@ -88,7 +87,7 @@ long write_ldt_entry(struct mm_id * mm_idp, int func, struct user_desc * desc,
 		 */
 		if(current->active_mm && current->active_mm != &init_mm &&
 		   mm_idp != &current->active_mm->context.skas.id)
-			switch_mm_skas(&current->active_mm->context.skas.id);
+			__switch_mm(&current->active_mm->context.skas.id);
 	}
 
 	return res;

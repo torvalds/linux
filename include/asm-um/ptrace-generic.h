@@ -12,7 +12,7 @@
 #include "sysdep/ptrace.h"
 
 struct pt_regs {
-	union uml_pt_regs regs;
+	struct uml_pt_regs regs;
 };
 
 #define EMPTY_REGS { .regs = EMPTY_UML_PT_REGS }
@@ -44,7 +44,7 @@ extern int set_fpxregs(unsigned long buf, struct task_struct *tsk);
 
 extern void show_regs(struct pt_regs *regs);
 
-extern void send_sigtrap(struct task_struct *tsk, union uml_pt_regs *regs,
+extern void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
 			 int error_code);
 
 extern int arch_copy_tls(struct task_struct *new);

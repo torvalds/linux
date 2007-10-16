@@ -18,17 +18,31 @@
 #include "irq_user.h"
 #include "tlb.h"
 #include "os.h"
-#include "mode_kern.h"
+#include "skas/skas.h"
 
 void flush_thread(void)
 {
+	void *data = NULL;
+	unsigned long end = proc_mm ? task_size : CONFIG_STUB_START;
+	int ret;
+
 	arch_flush_thread(&current->thread.arch);
-	flush_thread_skas();
+
+	ret = unmap(&current->mm->context.skas.id, 0, end, 1, &data);
+	if(ret){
+		printk("flush_thread - clearing address space failed, "
+		       "err = %d\n", ret);
+		force_sig(SIGKILL, current);
+	}
+
+	__switch_mm(&current->mm->context.skas.id);
 }
 
 void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 {
-	start_thread_skas(regs, eip, esp);
+	set_fs(USER_DS);
+	PT_REGS_IP(regs) = eip;
+	PT_REGS_SP(regs) = esp;
 }
 
 #ifdef CONFIG_TTY_LOG

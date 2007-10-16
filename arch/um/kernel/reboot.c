@@ -9,13 +9,30 @@
 #include "kern_util.h"
 #include "kern.h"
 #include "os.h"
-#include "mode.h"
+#include "skas.h"
 
 void (*pm_power_off)(void);
 
 static void kill_off_processes(void)
 {
-	kill_off_processes_skas();
+	if(proc_mm)
+		/*
+		 * FIXME: need to loop over userspace_pids
+		 */
+		os_kill_ptraced_process(userspace_pid[0], 1);
+	else {
+		struct task_struct *p;
+		int pid, me;
+
+		me = os_getpid();
+		for_each_process(p){
+			if(p->mm == NULL)
+				continue;
+
+			pid = p->mm->context.skas.id.u.pid;
+			os_kill_ptraced_process(pid, 1);
+		}
+	}
 }
 
 void uml_cleanup(void)

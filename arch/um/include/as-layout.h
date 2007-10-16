@@ -29,6 +29,6 @@ extern unsigned long brk_start;
 
 extern int linux_main(int argc, char **argv);
 
-extern void (*sig_info[])(int, union uml_pt_regs *);
+extern void (*sig_info[])(int, struct uml_pt_regs *);
 
 #endif

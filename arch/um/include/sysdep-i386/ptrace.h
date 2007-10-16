@@ -52,37 +52,34 @@ extern int sysemu_supported;
 #define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
 
-union uml_pt_regs {
-	struct skas_regs {
-		unsigned long regs[MAX_REG_NR];
-		unsigned long fp[HOST_FP_SIZE];
-		unsigned long xfp[HOST_XFP_SIZE];
-                struct faultinfo faultinfo;
-		long syscall;
-		int is_user;
-	} skas;
+struct uml_pt_regs {
+	unsigned long regs[MAX_REG_NR];
+	unsigned long fp[HOST_FP_SIZE];
+	unsigned long xfp[HOST_XFP_SIZE];
+	struct faultinfo faultinfo;
+	long syscall;
+	int is_user;
 };
 
 #define EMPTY_UML_PT_REGS { }
 
-#define UPT_SC(r) ((r)->tt.sc)
-#define UPT_IP(r) REGS_IP((r)->skas.regs)
-#define UPT_SP(r) REGS_SP((r)->skas.regs)
-#define UPT_EFLAGS(r) REGS_EFLAGS((r)->skas.regs)
-#define UPT_EAX(r) REGS_EAX((r)->skas.regs)
-#define UPT_EBX(r) REGS_EBX((r)->skas.regs)
-#define UPT_ECX(r) REGS_ECX((r)->skas.regs)
-#define UPT_EDX(r) REGS_EDX((r)->skas.regs)
-#define UPT_ESI(r) REGS_ESI((r)->skas.regs)
-#define UPT_EDI(r) REGS_EDI((r)->skas.regs)
-#define UPT_EBP(r) REGS_EBP((r)->skas.regs)
-#define UPT_ORIG_EAX(r) ((r)->skas.syscall)
-#define UPT_CS(r) REGS_CS((r)->skas.regs)
-#define UPT_SS(r) REGS_SS((r)->skas.regs)
-#define UPT_DS(r) REGS_DS((r)->skas.regs)
-#define UPT_ES(r) REGS_ES((r)->skas.regs)
-#define UPT_FS(r) REGS_FS((r)->skas.regs)
-#define UPT_GS(r) REGS_GS((r)->skas.regs)
+#define UPT_IP(r) REGS_IP((r)->regs)
+#define UPT_SP(r) REGS_SP((r)->regs)
+#define UPT_EFLAGS(r) REGS_EFLAGS((r)->regs)
+#define UPT_EAX(r) REGS_EAX((r)->regs)
+#define UPT_EBX(r) REGS_EBX((r)->regs)
+#define UPT_ECX(r) REGS_ECX((r)->regs)
+#define UPT_EDX(r) REGS_EDX((r)->regs)
+#define UPT_ESI(r) REGS_ESI((r)->regs)
+#define UPT_EDI(r) REGS_EDI((r)->regs)
+#define UPT_EBP(r) REGS_EBP((r)->regs)
+#define UPT_ORIG_EAX(r) ((r)->syscall)
+#define UPT_CS(r) REGS_CS((r)->regs)
+#define UPT_SS(r) REGS_SS((r)->regs)
+#define UPT_DS(r) REGS_DS((r)->regs)
+#define UPT_ES(r) REGS_ES((r)->regs)
+#define UPT_FS(r) REGS_FS((r)->regs)
+#define UPT_GS(r) REGS_GS((r)->regs)
 
 #define UPT_SYSCALL_ARG1(r) UPT_EBX(r)
 #define UPT_SYSCALL_ARG2(r) UPT_ECX(r)
@@ -93,7 +90,7 @@ union uml_pt_regs {
 
 extern int user_context(unsigned long sp);
 
-#define UPT_IS_USER(r) ((r)->skas.is_user)
+#define UPT_IS_USER(r) ((r)->is_user)
 
 struct syscall_args {
 	unsigned long args[6];
@@ -162,14 +159,14 @@ struct syscall_args {
 	} while (0)
 
 #define UPT_SET_SYSCALL_RETURN(r, res) \
-	REGS_SET_SYSCALL_RETURN((r)->skas.regs, (res))
+	REGS_SET_SYSCALL_RETURN((r)->regs, (res))
 
-#define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->skas.regs)
+#define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->regs)
 
 #define UPT_ORIG_SYSCALL(r) UPT_EAX(r)
 #define UPT_SYSCALL_NR(r) UPT_ORIG_EAX(r)
 #define UPT_SYSCALL_RET(r) UPT_EAX(r)
 
-#define UPT_FAULTINFO(r) (&(r)->skas.faultinfo)
+#define UPT_FAULTINFO(r) (&(r)->faultinfo)
 
 #endif

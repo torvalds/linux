@@ -10,7 +10,7 @@
 #include "sysdep/faultinfo.h"
 #include "uml-config.h"
 
-typedef void (*kern_hndl)(int, union uml_pt_regs *);
+typedef void (*kern_hndl)(int, struct uml_pt_regs *);
 
 struct kern_handlers {
 	kern_hndl relay_signal;
@@ -41,7 +41,7 @@ extern unsigned long alloc_stack(int order, int atomic);
 extern int do_signal(void);
 extern int is_stack_fault(unsigned long sp);
 extern unsigned long segv(struct faultinfo fi, unsigned long ip,
-			  int is_user, union uml_pt_regs *regs);
+			  int is_user, struct uml_pt_regs *regs);
 extern int handle_page_fault(unsigned long address, unsigned long ip,
 			     int is_write, int is_user, int *code_out);
 extern void syscall_ready(void);
@@ -54,7 +54,7 @@ extern int need_finish_fork(void);
 extern void free_stack(unsigned long stack, int order);
 extern void add_input_request(int op, void (*proc)(int), void *arg);
 extern char *current_cmd(void);
-extern void timer_handler(int sig, union uml_pt_regs *regs);
+extern void timer_handler(int sig, struct uml_pt_regs *regs);
 extern int set_signals(int enable);
 extern int pid_to_processor_id(int pid);
 extern void deliver_signals(void *t);
@@ -64,9 +64,9 @@ extern void finish_fork(void);
 extern void paging_init(void);
 extern void init_flush_vm(void);
 extern void *syscall_sp(void *t);
-extern void syscall_trace(union uml_pt_regs *regs, int entryexit);
+extern void syscall_trace(struct uml_pt_regs *regs, int entryexit);
 extern int hz(void);
-extern unsigned int do_IRQ(int irq, union uml_pt_regs *regs);
+extern unsigned int do_IRQ(int irq, struct uml_pt_regs *regs);
 extern void interrupt_end(void);
 extern void initial_thread_cb(void (*proc)(void *), void *arg);
 extern int debugger_signal(int status, int pid);
@@ -76,9 +76,9 @@ extern int init_ptrace_proxy(int idle_pid, int startup, int stop);
 extern int init_parent_proxy(int pid);
 extern int singlestepping(void *t);
 extern void check_stack_overflow(void *ptr);
-extern void relay_signal(int sig, union uml_pt_regs *regs);
+extern void relay_signal(int sig, struct uml_pt_regs *regs);
 extern int user_context(unsigned long sp);
-extern void timer_irq(union uml_pt_regs *regs);
+extern void timer_irq(struct uml_pt_regs *regs);
 extern void do_uml_exitcalls(void);
 extern int attach_debugger(int idle_pid, int pid, int stop);
 extern int config_gdb(char *str);
@@ -109,11 +109,9 @@ extern void time_init_kern(void);
 
 /* Are we disallowed to sleep? Used to choose between GFP_KERNEL and GFP_ATOMIC. */
 extern int __cant_sleep(void);
-extern void sigio_handler(int sig, union uml_pt_regs *regs);
-
-extern void copy_sc(union uml_pt_regs *regs, void *from);
-
+extern void sigio_handler(int sig, struct uml_pt_regs *regs);
+extern void copy_sc(struct uml_pt_regs *regs, void *from);
 extern unsigned long to_irq_stack(unsigned long *mask_out);
 unsigned long from_irq_stack(int nested);
-
+extern int start_uml(void);
 #endif

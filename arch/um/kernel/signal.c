@@ -23,7 +23,6 @@
 #include "kern.h"
 #include "frame_kern.h"
 #include "sigcontext.h"
-#include "mode.h"
 
 EXPORT_SYMBOL(block_signals);
 EXPORT_SYMBOL(unblock_signals);

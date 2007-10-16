@@ -14,7 +14,7 @@ void arch_check_bugs(void)
 {
 }
 
-int arch_handle_signal(int sig, union uml_pt_regs *regs)
+int arch_handle_signal(int sig, struct uml_pt_regs *regs)
 {
 	return 0;
 }

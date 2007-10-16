@@ -9,7 +9,6 @@
 #include "user.h"
 #include "mconsole.h"
 #include "os.h"
-#include "mode.h"
 
 struct dog_data {
 	int stdin;

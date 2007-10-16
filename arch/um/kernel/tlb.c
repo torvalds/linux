@@ -8,12 +8,12 @@
 #include "asm/pgalloc.h"
 #include "asm/pgtable.h"
 #include "asm/tlbflush.h"
-#include "mode_kern.h"
 #include "as-layout.h"
 #include "tlb.h"
 #include "mem.h"
 #include "mem_user.h"
 #include "os.h"
+#include "skas.h"
 
 static int add_mmap(unsigned long virt, unsigned long phys, unsigned long len,
 		    unsigned int prot, struct host_vm_op *ops, int *index,
@@ -341,6 +341,71 @@ int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 	return(updated);
 }
 
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	struct mm_struct *mm = vma->vm_mm;
+	void *flush = NULL;
+	int r, w, x, prot, err = 0;
+	struct mm_id *mm_id;
+
+	address &= PAGE_MASK;
+	pgd = pgd_offset(mm, address);
+	if(!pgd_present(*pgd))
+		goto kill;
+
+	pud = pud_offset(pgd, address);
+	if(!pud_present(*pud))
+		goto kill;
+
+	pmd = pmd_offset(pud, address);
+	if(!pmd_present(*pmd))
+		goto kill;
+
+	pte = pte_offset_kernel(pmd, address);
+
+	r = pte_read(*pte);
+	w = pte_write(*pte);
+	x = pte_exec(*pte);
+	if (!pte_young(*pte)) {
+		r = 0;
+		w = 0;
+	} else if (!pte_dirty(*pte)) {
+		w = 0;
+	}
+
+	mm_id = &mm->context.skas.id;
+	prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
+		(x ? UM_PROT_EXEC : 0));
+	if(pte_newpage(*pte)){
+		if(pte_present(*pte)){
+			unsigned long long offset;
+			int fd;
+
+			fd = phys_mapping(pte_val(*pte) & PAGE_MASK, &offset);
+			err = map(mm_id, address, PAGE_SIZE, prot, fd, offset,
+				  1, &flush);
+		}
+		else err = unmap(mm_id, address, PAGE_SIZE, 1, &flush);
+	}
+	else if(pte_newprot(*pte))
+		err = protect(mm_id, address, PAGE_SIZE, prot, 1, &flush);
+
+	if(err)
+		goto kill;
+
+	*pte = pte_mkuptodate(*pte);
+
+	return;
+
+kill:
+	printk("Failed to flush page for address 0x%lx\n", address);
+	force_sig(SIGKILL, current);
+}
+
 pgd_t *pgd_offset_proc(struct mm_struct *mm, unsigned long address)
 {
 	return(pgd_offset(mm, address));
@@ -387,21 +452,80 @@ void flush_tlb_kernel_vm(void)
 
 void __flush_tlb_one(unsigned long addr)
 {
-	__flush_tlb_one_skas(addr);
+        flush_tlb_kernel_range_common(addr, addr + PAGE_SIZE);
+}
+
+static int do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
+		  int finished, void **flush)
+{
+	struct host_vm_op *op;
+        int i, ret = 0;
+
+        for(i = 0; i <= last && !ret; i++){
+		op = &ops[i];
+		switch(op->type){
+		case MMAP:
+			ret = map(&mmu->skas.id, op->u.mmap.addr,
+				  op->u.mmap.len, op->u.mmap.prot,
+				  op->u.mmap.fd, op->u.mmap.offset, finished,
+				  flush);
+			break;
+		case MUNMAP:
+			ret = unmap(&mmu->skas.id, op->u.munmap.addr,
+				    op->u.munmap.len, finished, flush);
+			break;
+		case MPROTECT:
+			ret = protect(&mmu->skas.id, op->u.mprotect.addr,
+				      op->u.mprotect.len, op->u.mprotect.prot,
+				      finished, flush);
+			break;
+		default:
+			printk("Unknown op type %d in do_ops\n", op->type);
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static void fix_range(struct mm_struct *mm, unsigned long start_addr,
+		      unsigned long end_addr, int force)
+{
+        if(!proc_mm && (end_addr > CONFIG_STUB_START))
+                end_addr = CONFIG_STUB_START;
+
+        fix_range_common(mm, start_addr, end_addr, force, do_ops);
 }
 
 void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		     unsigned long end)
 {
-	flush_tlb_range_skas(vma, start, end);
+        if(vma->vm_mm == NULL)
+                flush_tlb_kernel_range_common(start, end);
+        else fix_range(vma->vm_mm, start, end, 0);
 }
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
-	flush_tlb_mm_skas(mm);
+	unsigned long end;
+
+	/* Don't bother flushing if this address space is about to be
+         * destroyed.
+         */
+        if(atomic_read(&mm->mm_users) == 0)
+                return;
+
+	end = proc_mm ? task_size : CONFIG_STUB_START;
+        fix_range(mm, 0, end, 0);
 }
 
 void force_flush_all(void)
 {
-	force_flush_all_skas();
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma = mm->mmap;
+
+	while(vma != NULL) {
+		fix_range(mm, vma->vm_start, vma->vm_end, 1);
+		vma = vma->vm_next;
+	}
 }

@@ -18,6 +18,6 @@ struct mmu_context_skas {
 	uml_ldt_t ldt;
 };
 
-extern void switch_mm_skas(struct mm_id * mm_idp);
+extern void __switch_mm(struct mm_id * mm_idp);
 
 #endif

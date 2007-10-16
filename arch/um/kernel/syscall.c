@@ -20,7 +20,6 @@
 #include "asm/uaccess.h"
 #include "kern_util.h"
 #include "sysdep/syscalls.h"
-#include "mode_kern.h"
 
 /*  Unlocked, I don't care if this is a bit off */
 int nsyscalls = 0;

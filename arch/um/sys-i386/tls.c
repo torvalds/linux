@@ -14,9 +14,7 @@
 #include "asm/desc.h"
 #include "kern.h"
 #include "kern_util.h"
-#include "mode_kern.h"
 #include "os.h"
-#include "mode.h"
 #include "skas.h"
 
 /*
@@ -167,7 +165,7 @@ void clear_flushed_tls(struct task_struct *task)
  * And this will not need be used when (and if) we'll add support to the host
  * SKAS patch. */
 
-int arch_switch_tls_skas(struct task_struct *from, struct task_struct *to)
+int arch_switch_tls(struct task_struct *from, struct task_struct *to)
 {
 	if (!host_supports_tls)
 		return 0;

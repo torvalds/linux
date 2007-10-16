@@ -128,7 +128,7 @@ static void bad_segv(struct faultinfo fi, unsigned long ip)
 	force_sig_info(SIGSEGV, &si, current);
 }
 
-static void segv_handler(int sig, union uml_pt_regs *regs)
+static void segv_handler(int sig, struct uml_pt_regs *regs)
 {
 	struct faultinfo * fi = UPT_FAULTINFO(regs);
 
@@ -146,7 +146,7 @@ static void segv_handler(int sig, union uml_pt_regs *regs)
  * give us bad data!
  */
 unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
-		   union uml_pt_regs *regs)
+		   struct uml_pt_regs *regs)
 {
 	struct siginfo si;
 	void *catcher;
@@ -214,7 +214,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	return 0;
 }
 
-void relay_signal(int sig, union uml_pt_regs *regs)
+void relay_signal(int sig, struct uml_pt_regs *regs)
 {
 	if (arch_handle_signal(sig, regs))
 		return;
@@ -230,14 +230,14 @@ void relay_signal(int sig, union uml_pt_regs *regs)
 	force_sig(sig, current);
 }
 
-static void bus_handler(int sig, union uml_pt_regs *regs)
+static void bus_handler(int sig, struct uml_pt_regs *regs)
 {
 	if (current->thread.fault_catcher != NULL)
 		do_longjmp(current->thread.fault_catcher, 1);
 	else relay_signal(sig, regs);
 }
 
-static void winch(int sig, union uml_pt_regs *regs)
+static void winch(int sig, struct uml_pt_regs *regs)
 {
 	do_IRQ(WINCH_IRQ, regs);
 }

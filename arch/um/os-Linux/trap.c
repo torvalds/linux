@@ -7,15 +7,10 @@
 #include <signal.h>
 #include "kern_util.h"
 #include "os.h"
-#include "mode.h"
 #include "longjmp.h"
 
-void usr2_handler(int sig, union uml_pt_regs *regs)
-{
-}
-
 /* Initialized from linux_main() */
-void (*sig_info[NSIG])(int, union uml_pt_regs *);
+void (*sig_info[NSIG])(int, struct uml_pt_regs *);
 
 void os_fill_handlinfo(struct kern_handlers h)
 {
@@ -28,7 +23,6 @@ void os_fill_handlinfo(struct kern_handlers h)
 	sig_info[SIGIO] = h.sigio_handler;
 	sig_info[SIGVTALRM] = h.timer_handler;
 	sig_info[SIGALRM] = h.timer_handler;
-	sig_info[SIGUSR2] = usr2_handler;
 }
 
 void do_longjmp(void *b, int val)

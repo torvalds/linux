@@ -281,9 +281,9 @@ extern int protect(struct mm_id * mm_idp, unsigned long addr,
 extern int is_skas_winch(int pid, int fd, void *data);
 extern int start_userspace(unsigned long stub_stack);
 extern int copy_context_skas0(unsigned long stack, int pid);
-extern void save_registers(int pid, union uml_pt_regs *regs);
-extern void restore_registers(int pid, union uml_pt_regs *regs);
-extern void userspace(union uml_pt_regs *regs);
+extern void save_registers(int pid, struct uml_pt_regs *regs);
+extern void restore_registers(int pid, struct uml_pt_regs *regs);
+extern void userspace(struct uml_pt_regs *regs);
 extern void map_stub_pages(int fd, unsigned long code,
 			   unsigned long data, unsigned long stack);
 extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));

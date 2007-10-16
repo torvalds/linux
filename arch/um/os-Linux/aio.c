@@ -13,7 +13,6 @@
 #include "aio.h"
 #include "init.h"
 #include "user.h"
-#include "mode.h"
 #include "kern_constants.h"
 
 struct aio_thread_req {

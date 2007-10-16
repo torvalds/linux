@@ -15,13 +15,13 @@
 #include "sysdep/ptrace_user.h"
 #include "os.h"
 
-static union uml_pt_regs ksig_regs[UM_NR_CPUS];
+static struct uml_pt_regs ksig_regs[UM_NR_CPUS];
 
 void sig_handler_common_skas(int sig, void *sc_ptr)
 {
 	struct sigcontext *sc = sc_ptr;
-	union uml_pt_regs *r;
-	void (*handler)(int, union uml_pt_regs *);
+	struct uml_pt_regs *r;
+	void (*handler)(int, struct uml_pt_regs *);
 	int save_user, save_errno = errno;
 
 	/* This is done because to allow SIGSEGV to be delivered inside a SEGV
@@ -42,12 +42,12 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
 	}
 	else r = TASK_REGS(get_current());
 
-	save_user = r->skas.is_user;
-	r->skas.is_user = 0;
+	save_user = r->is_user;
+	r->is_user = 0;
 	if ( sig == SIGFPE || sig == SIGSEGV ||
 	     sig == SIGBUS || sig == SIGILL ||
 	     sig == SIGTRAP ) {
-		GET_FAULTINFO_FROM_SC(r->skas.faultinfo, sc);
+		GET_FAULTINFO_FROM_SC(r->faultinfo, sc);
 	}
 
 	change_sig(SIGUSR1, 1);
@@ -62,5 +62,5 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
 	handler(sig, r);
 
 	errno = save_errno;
-	r->skas.is_user = save_user;
+	r->is_user = save_user;
 }

@@ -15,7 +15,7 @@ struct exception_table_entry
 const struct exception_table_entry *search_exception_tables(unsigned long add);
 
 /* Compare this to arch/i386/mm/extable.c:fixup_exception() */
-int arch_fixup(unsigned long address, union uml_pt_regs *regs)
+int arch_fixup(unsigned long address, struct uml_pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
 

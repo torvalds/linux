@@ -294,7 +294,3 @@ int protect(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
 
 	return ret;
 }
-
-void before_mem_skas(unsigned long unused)
-{
-}

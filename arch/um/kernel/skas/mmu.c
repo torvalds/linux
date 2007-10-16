@@ -71,7 +71,7 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	return(-ENOMEM);
 }
 
-int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
+int init_new_context(struct task_struct *task, struct mm_struct *mm)
 {
  	struct mmu_context_skas *from_mm = NULL;
 	struct mmu_context_skas *to_mm = &mm->context.skas;
@@ -137,7 +137,7 @@ int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 	return ret;
 }
 
-void destroy_context_skas(struct mm_struct *mm)
+void destroy_context(struct mm_struct *mm)
 {
 	struct mmu_context_skas *mmu = &mm->context.skas;
 

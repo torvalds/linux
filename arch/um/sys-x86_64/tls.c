@@ -11,7 +11,7 @@ int arch_copy_tls(struct task_struct *t)
 	 * (which is argument 5, child_tid, of clone) so it can be set
 	 * during context switches.
 	 */
-	t->thread.arch.fs = t->thread.regs.regs.skas.regs[R8 / sizeof(long)];
+	t->thread.arch.fs = t->thread.regs.regs.regs[R8 / sizeof(long)];
 
         return 0;
 }

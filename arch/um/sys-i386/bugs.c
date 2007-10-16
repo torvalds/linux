@@ -162,7 +162,7 @@ void arch_check_bugs(void)
 		host_has_xmm = have_it;
 }
 
-int arch_handle_signal(int sig, union uml_pt_regs *regs)
+int arch_handle_signal(int sig, struct uml_pt_regs *regs)
 {
 	unsigned char tmp[2];
 

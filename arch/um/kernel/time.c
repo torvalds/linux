@@ -18,7 +18,6 @@
 #include "asm/param.h"
 #include "asm/current.h"
 #include "kern_util.h"
-#include "mode.h"
 #include "os.h"
 
 int hz(void)
@@ -39,7 +38,7 @@ static unsigned long long prev_nsecs[NR_CPUS];
 static long long delta[NR_CPUS];		/* Deviation per interval */
 #endif
 
-void timer_irq(union uml_pt_regs *regs)
+void timer_irq(struct uml_pt_regs *regs)
 {
 	unsigned long long ticks = 0;
 #ifdef CONFIG_UML_REAL_TIME_CLOCK
@@ -175,13 +174,13 @@ int do_settimeofday(struct timespec *tv)
 	return 0;
 }
 
-void timer_handler(int sig, union uml_pt_regs *regs)
+void timer_handler(int sig, struct uml_pt_regs *regs)
 {
 	if(current_thread->cpu == 0)
 		timer_irq(regs);
 	local_irq_disable();
 	irq_enter();
-	update_process_times((regs)->skas.is_user);
+	update_process_times(regs->is_user);
 	irq_exit();
 	local_irq_enable();
 }

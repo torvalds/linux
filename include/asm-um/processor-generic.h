@@ -32,12 +32,8 @@ struct thread_struct {
 	unsigned long temp_stack;
 	void *exec_buf;
 	struct arch_thread arch;
-	union {
-		struct {
-			jmp_buf switch_buf;
-			int mm_count;
-		} skas;
-	} mode;
+	jmp_buf switch_buf;
+	int mm_count;
 	struct {
 		int op;
 		union {
@@ -75,7 +71,10 @@ typedef struct {
 
 extern struct task_struct *alloc_task_struct(void);
 
-extern void release_thread(struct task_struct *);
+static inline void release_thread(struct task_struct *task)
+{
+}
+
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 static inline void prepare_to_copy(struct task_struct *tsk)
@@ -125,8 +124,7 @@ extern struct cpuinfo_um cpu_data[];
 #endif
 
 
-#define KSTK_REG(tsk, reg) \
-	get_thread_reg(reg, &tsk->thread.mode.skas.switch_buf)
+#define KSTK_REG(tsk, reg) get_thread_reg(reg, &tsk->thread.switch_buf)
 #define get_wchan(p) (0)
 
 #endif

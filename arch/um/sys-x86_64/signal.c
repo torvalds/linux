@@ -16,12 +16,12 @@
 #include "frame_kern.h"
 #include "skas.h"
 
-void copy_sc(union uml_pt_regs *regs, void *from)
+void copy_sc(struct uml_pt_regs *regs, void *from)
 {
 	struct sigcontext *sc = from;
 
 #define GETREG(regs, regno, sc, regname) \
-       (regs)->skas.regs[(regno) / sizeof(unsigned long)] = (sc)->regname
+       (regs)->regs[(regno) / sizeof(unsigned long)] = (sc)->regname
 
        GETREG(regs, R8, sc, r8);
        GETREG(regs, R9, sc, r9);
@@ -46,13 +46,13 @@ void copy_sc(union uml_pt_regs *regs, void *from)
 #undef GETREG
 }
 
-static int copy_sc_from_user_skas(struct pt_regs *regs,
-                                 struct sigcontext __user *from)
+static int copy_sc_from_user(struct pt_regs *regs,
+			     struct sigcontext __user *from)
 {
        int err = 0;
 
 #define GETREG(regs, regno, sc, regname) \
-       __get_user((regs)->regs.skas.regs[(regno) / sizeof(unsigned long)], \
+       __get_user((regs)->regs.regs[(regno) / sizeof(unsigned long)], \
                   &(sc)->regname)
 
        err |= GETREG(regs, R8, from, r8);
@@ -80,10 +80,9 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
        return err;
 }
 
-int copy_sc_to_user_skas(struct sigcontext __user *to,
-			 struct _fpstate __user *to_fp,
-			 struct pt_regs *regs, unsigned long mask,
-			 unsigned long sp)
+static int copy_sc_to_user(struct sigcontext __user *to,
+			   struct _fpstate __user *to_fp, struct pt_regs *regs,
+			   unsigned long mask, unsigned long sp)
 {
         struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err = 0;
@@ -92,7 +91,7 @@ int copy_sc_to_user_skas(struct sigcontext __user *to,
 	err |= __put_user(0, &to->fs);
 
 #define PUTREG(regs, regno, sc, regname) \
-       __put_user((regs)->regs.skas.regs[(regno) / sizeof(unsigned long)], \
+       __put_user((regs)->regs.regs[(regno) / sizeof(unsigned long)], \
                   &(sc)->regname)
 
 	err |= PUTREG(regs, RDI, to, rdi);
@@ -128,22 +127,6 @@ int copy_sc_to_user_skas(struct sigcontext __user *to,
 	err |= __put_user(mask, &to->oldmask);
 
 	return(err);
-}
-
-static int copy_sc_from_user(struct pt_regs *to, void __user *from)
-{
-       int ret;
-
-       ret = copy_sc_from_user_skas(to, from);
-       return(ret);
-}
-
-static int copy_sc_to_user(struct sigcontext __user *to,
-			   struct _fpstate __user *fp,
-			   struct pt_regs *from, unsigned long mask,
-			   unsigned long sp)
-{
-       return copy_sc_to_user_skas(to, fp, from, mask, sp);
 }
 
 struct rt_sigframe

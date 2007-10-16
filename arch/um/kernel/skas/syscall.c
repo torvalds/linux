@@ -13,7 +13,7 @@
 #include "kern_util.h"
 #include "syscall.h"
 
-void handle_syscall(union uml_pt_regs *r)
+void handle_syscall(struct uml_pt_regs *r)
 {
 	struct pt_regs *regs = container_of(r, struct pt_regs, regs);
 	long result;
@@ -37,7 +37,7 @@ void handle_syscall(union uml_pt_regs *r)
 		result = -ENOSYS;
 	else result = EXECUTE_SYSCALL(syscall, regs);
 
-	REGS_SET_SYSCALL_RETURN(r->skas.regs, result);
+	REGS_SET_SYSCALL_RETURN(r->regs, result);
 
 	syscall_trace(r, 1);
 }

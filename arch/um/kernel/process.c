@@ -43,8 +43,7 @@
 #include "frame_kern.h"
 #include "sigcontext.h"
 #include "os.h"
-#include "mode.h"
-#include "mode_kern.h"
+#include "skas.h"
 
 /* This is a per-cpu array.  A processor only modifies its entry and it only
  * cares about its entry, so it's OK if another processor is modifying its
@@ -54,7 +53,8 @@ struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { -1, NULL } };
 
 static inline int external_pid(struct task_struct *task)
 {
-	return external_pid_skas(task);
+	/* FIXME: Need to look up userspace_pid by cpu */
+	return(userspace_pid[0]);
 }
 
 int pid_to_processor_id(int pid)
@@ -104,6 +104,8 @@ static inline void set_current(struct task_struct *task)
 		{ external_pid(task), task });
 }
 
+extern void arch_switch_to(struct task_struct *from, struct task_struct *to);
+
 void *_switch_to(void *prev, void *next, void *last)
 {
 	struct task_struct *from = prev;
@@ -114,7 +116,19 @@ void *_switch_to(void *prev, void *next, void *last)
 
 	do {
 		current->thread.saved_task = NULL;
-		switch_to_skas(prev, next);
+
+		/* XXX need to check runqueues[cpu].idle */
+		if(current->pid == 0)
+			switch_timers(0);
+
+		switch_threads(&from->thread.switch_buf,
+			       &to->thread.switch_buf);
+
+		arch_switch_to(current->thread.prev_sched, current);
+
+		if(current->pid == 0)
+			switch_timers(1);
+
 		if(current->thread.saved_task)
 			show_regs(&(current->thread.regs));
 		next= current->thread.saved_task;
@@ -133,11 +147,6 @@ void interrupt_end(void)
 		do_signal();
 }
 
-void release_thread(struct task_struct *task)
-{
-	release_thread_skas(task);
-}
-
 void exit_thread(void)
 {
 }
@@ -147,27 +156,95 @@ void *get_current(void)
 	return current;
 }
 
+extern void schedule_tail(struct task_struct *prev);
+
+/* This is called magically, by its address being stuffed in a jmp_buf
+ * and being longjmp-d to.
+ */
+void new_thread_handler(void)
+{
+	int (*fn)(void *), n;
+	void *arg;
+
+	if(current->thread.prev_sched != NULL)
+		schedule_tail(current->thread.prev_sched);
+	current->thread.prev_sched = NULL;
+
+	fn = current->thread.request.u.thread.proc;
+	arg = current->thread.request.u.thread.arg;
+
+	/* The return value is 1 if the kernel thread execs a process,
+	 * 0 if it just exits
+	 */
+	n = run_kernel_thread(fn, arg, &current->thread.exec_buf);
+	if(n == 1){
+		/* Handle any immediate reschedules or signals */
+		interrupt_end();
+		userspace(&current->thread.regs.regs);
+	}
+	else do_exit(0);
+}
+
+/* Called magically, see new_thread_handler above */
+void fork_handler(void)
+{
+	force_flush_all();
+	if(current->thread.prev_sched == NULL)
+		panic("blech");
+
+	schedule_tail(current->thread.prev_sched);
+
+	/* XXX: if interrupt_end() calls schedule, this call to
+	 * arch_switch_to isn't needed. We could want to apply this to
+	 * improve performance. -bb */
+	arch_switch_to(current->thread.prev_sched, current);
+
+	current->thread.prev_sched = NULL;
+
+	/* Handle any immediate reschedules or signals */
+	interrupt_end();
+
+	userspace(&current->thread.regs.regs);
+}
+
 int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		unsigned long stack_top, struct task_struct * p,
 		struct pt_regs *regs)
 {
-	int ret;
+	void (*handler)(void);
+	int ret = 0;
 
 	p->thread = (struct thread_struct) INIT_THREAD;
-	ret = copy_thread_skas(nr, clone_flags, sp, stack_top, p, regs);
 
-	if (ret || !current->thread.forking)
-		goto out;
+	if(current->thread.forking){
+	  	memcpy(&p->thread.regs.regs, &regs->regs,
+		       sizeof(p->thread.regs.regs));
+		REGS_SET_SYSCALL_RETURN(p->thread.regs.regs.regs, 0);
+		if(sp != 0)
+			REGS_SP(p->thread.regs.regs.regs) = sp;
 
-	clear_flushed_tls(p);
+		handler = fork_handler;
 
-	/*
-	 * Set a new TLS for the child thread?
-	 */
-	if (clone_flags & CLONE_SETTLS)
-		ret = arch_copy_tls(p);
+		arch_copy_thread(&current->thread.arch, &p->thread.arch);
+	}
+	else {
+		init_thread_registers(&p->thread.regs.regs);
+		p->thread.request.u.thread = current->thread.request.u.thread;
+		handler = new_thread_handler;
+	}
 
-out:
+	new_thread(task_stack_page(p), &p->thread.switch_buf, handler);
+
+	if (current->thread.forking) {
+		clear_flushed_tls(p);
+
+		/*
+		 * Set a new TLS for the child thread?
+		 */
+		if (clone_flags & CLONE_SETTLS)
+			ret = arch_copy_tls(p);
+	}
+
 	return ret;
 }
 
@@ -198,7 +275,8 @@ void default_idle(void)
 
 void cpu_idle(void)
 {
-	init_idle_skas();
+	cpu_tasks[current_thread->cpu].pid = os_getpid();
+	default_idle();
 }
 
 void *um_virt_to_phys(struct task_struct *task, unsigned long addr,

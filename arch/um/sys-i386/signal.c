@@ -14,30 +14,30 @@
 #include "registers.h"
 #include "skas.h"
 
-void copy_sc(union uml_pt_regs *regs, void *from)
+void copy_sc(struct uml_pt_regs *regs, void *from)
 {
 	struct sigcontext *sc = from;
 
-	REGS_GS(regs->skas.regs) = sc->gs;
-	REGS_FS(regs->skas.regs) = sc->fs;
-	REGS_ES(regs->skas.regs) = sc->es;
-	REGS_DS(regs->skas.regs) = sc->ds;
-	REGS_EDI(regs->skas.regs) = sc->edi;
-	REGS_ESI(regs->skas.regs) = sc->esi;
-	REGS_EBP(regs->skas.regs) = sc->ebp;
-	REGS_SP(regs->skas.regs) = sc->esp;
-	REGS_EBX(regs->skas.regs) = sc->ebx;
-	REGS_EDX(regs->skas.regs) = sc->edx;
-	REGS_ECX(regs->skas.regs) = sc->ecx;
-	REGS_EAX(regs->skas.regs) = sc->eax;
-	REGS_IP(regs->skas.regs) = sc->eip;
-	REGS_CS(regs->skas.regs) = sc->cs;
-	REGS_EFLAGS(regs->skas.regs) = sc->eflags;
-	REGS_SS(regs->skas.regs) = sc->ss;
+	REGS_GS(regs->regs) = sc->gs;
+	REGS_FS(regs->regs) = sc->fs;
+	REGS_ES(regs->regs) = sc->es;
+	REGS_DS(regs->regs) = sc->ds;
+	REGS_EDI(regs->regs) = sc->edi;
+	REGS_ESI(regs->regs) = sc->esi;
+	REGS_EBP(regs->regs) = sc->ebp;
+	REGS_SP(regs->regs) = sc->esp;
+	REGS_EBX(regs->regs) = sc->ebx;
+	REGS_EDX(regs->regs) = sc->edx;
+	REGS_ECX(regs->regs) = sc->ecx;
+	REGS_EAX(regs->regs) = sc->eax;
+	REGS_IP(regs->regs) = sc->eip;
+	REGS_CS(regs->regs) = sc->cs;
+	REGS_EFLAGS(regs->regs) = sc->eflags;
+	REGS_SS(regs->regs) = sc->ss;
 }
 
-static int copy_sc_from_user_skas(struct pt_regs *regs,
-				  struct sigcontext __user *from)
+static int copy_sc_from_user(struct pt_regs *regs,
+			     struct sigcontext __user *from)
 {
   	struct sigcontext sc;
 	unsigned long fpregs[HOST_FP_SIZE];
@@ -60,31 +60,32 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 	return 0;
 }
 
-int copy_sc_to_user_skas(struct sigcontext __user *to, struct _fpstate __user *to_fp,
-                         struct pt_regs *regs, unsigned long sp)
+static int copy_sc_to_user(struct sigcontext __user *to,
+			   struct _fpstate __user *to_fp, struct pt_regs *regs,
+			   unsigned long sp)
 {
   	struct sigcontext sc;
 	unsigned long fpregs[HOST_FP_SIZE];
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err;
 
-	sc.gs = REGS_GS(regs->regs.skas.regs);
-	sc.fs = REGS_FS(regs->regs.skas.regs);
-	sc.es = REGS_ES(regs->regs.skas.regs);
-	sc.ds = REGS_DS(regs->regs.skas.regs);
-	sc.edi = REGS_EDI(regs->regs.skas.regs);
-	sc.esi = REGS_ESI(regs->regs.skas.regs);
-	sc.ebp = REGS_EBP(regs->regs.skas.regs);
+	sc.gs = REGS_GS(regs->regs.regs);
+	sc.fs = REGS_FS(regs->regs.regs);
+	sc.es = REGS_ES(regs->regs.regs);
+	sc.ds = REGS_DS(regs->regs.regs);
+	sc.edi = REGS_EDI(regs->regs.regs);
+	sc.esi = REGS_ESI(regs->regs.regs);
+	sc.ebp = REGS_EBP(regs->regs.regs);
 	sc.esp = sp;
-	sc.ebx = REGS_EBX(regs->regs.skas.regs);
-	sc.edx = REGS_EDX(regs->regs.skas.regs);
-	sc.ecx = REGS_ECX(regs->regs.skas.regs);
-	sc.eax = REGS_EAX(regs->regs.skas.regs);
-	sc.eip = REGS_IP(regs->regs.skas.regs);
-	sc.cs = REGS_CS(regs->regs.skas.regs);
-	sc.eflags = REGS_EFLAGS(regs->regs.skas.regs);
-	sc.esp_at_signal = regs->regs.skas.regs[UESP];
-	sc.ss = regs->regs.skas.regs[SS];
+	sc.ebx = REGS_EBX(regs->regs.regs);
+	sc.edx = REGS_EDX(regs->regs.regs);
+	sc.ecx = REGS_ECX(regs->regs.regs);
+	sc.eax = REGS_EAX(regs->regs.regs);
+	sc.eip = REGS_IP(regs->regs.regs);
+	sc.cs = REGS_CS(regs->regs.regs);
+	sc.eflags = REGS_EFLAGS(regs->regs.regs);
+	sc.esp_at_signal = regs->regs.regs[UESP];
+	sc.ss = regs->regs.regs[SS];
         sc.cr2 = fi->cr2;
         sc.err = fi->error_code;
         sc.trapno = fi->trap_no;
@@ -103,17 +104,6 @@ int copy_sc_to_user_skas(struct sigcontext __user *to, struct _fpstate __user *t
 
 	return copy_to_user(to, &sc, sizeof(sc)) ||
 	       copy_to_user(to_fp, fpregs, sizeof(fpregs));
-}
-
-static int copy_sc_from_user(struct pt_regs *to, void __user *from)
-{
-	return copy_sc_from_user_skas(to, from);
-}
-
-static int copy_sc_to_user(struct sigcontext __user *to, struct _fpstate __user *fp,
-			   struct pt_regs *from, unsigned long sp)
-{
-	return copy_sc_to_user_skas(to, fp, from, sp);
 }
 
 static int copy_ucontext_to_user(struct ucontext __user *uc, struct _fpstate __user *fp,

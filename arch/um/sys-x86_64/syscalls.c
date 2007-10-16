@@ -28,8 +28,7 @@ asmlinkage long sys_uname64(struct new_utsname __user * name)
 	return err ? -EFAULT : 0;
 }
 
-long arch_prctl_skas(struct task_struct *task, int code,
-                     unsigned long __user *addr)
+long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 {
         unsigned long *ptr = addr, tmp;
 	long ret;
@@ -91,7 +90,7 @@ long arch_prctl_skas(struct task_struct *task, int code,
 
 long sys_arch_prctl(int code, unsigned long addr)
 {
-	return arch_prctl_skas(current, code, (unsigned long __user *) addr);
+	return arch_prctl(current, code, (unsigned long __user *) addr);
 }
 
 long sys_clone(unsigned long clone_flags, unsigned long newsp,
@@ -108,10 +107,10 @@ long sys_clone(unsigned long clone_flags, unsigned long newsp,
 	return ret;
 }
 
-void arch_switch_to_skas(struct task_struct *from, struct task_struct *to)
+void arch_switch_to(struct task_struct *from, struct task_struct *to)
 {
         if((to->thread.arch.fs == 0) || (to->mm == NULL))
                 return;
 
-        arch_prctl_skas(to, ARCH_SET_FS, (void __user *) to->thread.arch.fs);
+        arch_prctl(to, ARCH_SET_FS, (void __user *) to->thread.arch.fs);
 }

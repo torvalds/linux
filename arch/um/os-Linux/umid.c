@@ -11,7 +11,6 @@
 #include "init.h"
 #include "os.h"
 #include "user.h"
-#include "mode.h"
 
 #define UML_DIR "~/.uml/"
 

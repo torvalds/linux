@@ -76,15 +76,6 @@ static inline int ptrace_set_thread_area(struct task_struct *child, int idx,
         return -ENOSYS;
 }
 
-static inline void arch_switch_to_tt(struct task_struct *from,
-                                     struct task_struct *to)
-{
-}
-
-extern void arch_switch_to_skas(struct task_struct *from,
-				struct task_struct *to);
-
-extern long arch_prctl_skas(struct task_struct *task, int code,
-			    unsigned long __user *addr);
-
+extern long arch_prctl(struct task_struct *task, int code,
+		       unsigned long __user *addr);
 #endif

@@ -228,7 +228,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #ifdef PTRACE_ARCH_PRCTL
         case PTRACE_ARCH_PRCTL:
                 /* XXX Calls ptrace on the host - needs some SMP thinking */
-                ret = arch_prctl_skas(child, data, (void *) addr);
+                ret = arch_prctl(child, data, (void *) addr);
                 break;
 #endif
 	default:
@@ -239,7 +239,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-void send_sigtrap(struct task_struct *tsk, union uml_pt_regs *regs,
+void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
 		  int error_code)
 {
 	struct siginfo info;
@@ -258,7 +258,7 @@ void send_sigtrap(struct task_struct *tsk, union uml_pt_regs *regs,
 /* XXX Check PT_DTRACE vs TIF_SINGLESTEP for singlestepping check and
  * PT_PTRACED vs TIF_SYSCALL_TRACE for syscall tracing check
  */
-void syscall_trace(union uml_pt_regs *regs, int entryexit)
+void syscall_trace(struct uml_pt_regs *regs, int entryexit)
 {
 	int is_singlestep = (current->ptrace & PT_DTRACE) && entryexit;
 	int tracesysgood;

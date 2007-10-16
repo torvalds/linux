@@ -84,58 +84,52 @@
 
 #define REGS_ERR(r) ((r)->fault_type)
 
-/* XXX */
-union uml_pt_regs {
-	struct skas_regs {
-		unsigned long regs[MAX_REG_NR];
-		unsigned long fp[HOST_FP_SIZE];
-                struct faultinfo faultinfo;
-		long syscall;
-		int is_user;
-	} skas;
+struct uml_pt_regs {
+	unsigned long regs[MAX_REG_NR];
+	unsigned long fp[HOST_FP_SIZE];
+	struct faultinfo faultinfo;
+	long syscall;
+	int is_user;
 };
 
 #define EMPTY_UML_PT_REGS { }
 
-#define UPT_RBX(r) REGS_RBX((r)->skas.regs)
-#define UPT_RCX(r) REGS_RCX((r)->skas.regs)
-#define UPT_RDX(r) REGS_RDX((r)->skas.regs)
-#define UPT_RSI(r) REGS_RSI((r)->skas.regs)
-#define UPT_RDI(r) REGS_RDI((r)->skas.regs)
-#define UPT_RBP(r) REGS_RBP((r)->skas.regs)
-#define UPT_RAX(r) REGS_RAX((r)->skas.regs)
-#define UPT_R8(r) REGS_R8((r)->skas.regs)
-#define UPT_R9(r) REGS_R9((r)->skas.regs)
-#define UPT_R10(r) REGS_R10((r)->skas.regs)
-#define UPT_R11(r) REGS_R11((r)->skas.regs)
-#define UPT_R12(r) REGS_R12((r)->skas.regs)
-#define UPT_R13(r) REGS_R13((r)->skas.regs)
-#define UPT_R14(r) REGS_R14((r)->skas.regs)
-#define UPT_R15(r) REGS_R15((r)->skas.regs)
-#define UPT_CS(r) REGS_CS((r)->skas.regs)
-#define UPT_FS_BASE(r) \
-	REGS_FS_BASE((r)->skas.regs)
-#define UPT_FS(r) REGS_FS((r)->skas.regs)
-#define UPT_GS_BASE(r) \
-	REGS_GS_BASE((r)->skas.regs)
-#define UPT_GS(r) REGS_GS((r)->skas.regs)
-#define UPT_DS(r) REGS_DS((r)->skas.regs)
-#define UPT_ES(r) REGS_ES((r)->skas.regs)
-#define UPT_CS(r) REGS_CS((r)->skas.regs)
-#define UPT_SS(r) REGS_SS((r)->skas.regs)
-#define UPT_ORIG_RAX(r) REGS_ORIG_RAX((r)->skas.regs)
+#define UPT_RBX(r) REGS_RBX((r)->regs)
+#define UPT_RCX(r) REGS_RCX((r)->regs)
+#define UPT_RDX(r) REGS_RDX((r)->regs)
+#define UPT_RSI(r) REGS_RSI((r)->regs)
+#define UPT_RDI(r) REGS_RDI((r)->regs)
+#define UPT_RBP(r) REGS_RBP((r)->regs)
+#define UPT_RAX(r) REGS_RAX((r)->regs)
+#define UPT_R8(r) REGS_R8((r)->regs)
+#define UPT_R9(r) REGS_R9((r)->regs)
+#define UPT_R10(r) REGS_R10((r)->regs)
+#define UPT_R11(r) REGS_R11((r)->regs)
+#define UPT_R12(r) REGS_R12((r)->regs)
+#define UPT_R13(r) REGS_R13((r)->regs)
+#define UPT_R14(r) REGS_R14((r)->regs)
+#define UPT_R15(r) REGS_R15((r)->regs)
+#define UPT_CS(r) REGS_CS((r)->regs)
+#define UPT_FS_BASE(r) REGS_FS_BASE((r)->regs)
+#define UPT_FS(r) REGS_FS((r)->regs)
+#define UPT_GS_BASE(r) REGS_GS_BASE((r)->regs)
+#define UPT_GS(r) REGS_GS((r)->regs)
+#define UPT_DS(r) REGS_DS((r)->regs)
+#define UPT_ES(r) REGS_ES((r)->regs)
+#define UPT_CS(r) REGS_CS((r)->regs)
+#define UPT_SS(r) REGS_SS((r)->regs)
+#define UPT_ORIG_RAX(r) REGS_ORIG_RAX((r)->regs)
 
-#define UPT_IP(r) REGS_IP((r)->skas.regs)
-#define UPT_SP(r) REGS_SP((r)->skas.regs)
+#define UPT_IP(r) REGS_IP((r)->regs)
+#define UPT_SP(r) REGS_SP((r)->regs)
 
-#define UPT_EFLAGS(r) REGS_EFLAGS((r)->skas.regs)
-#define UPT_SC(r) ((r)->tt.sc)
-#define UPT_SYSCALL_NR(r) ((r)->skas.syscall)
+#define UPT_EFLAGS(r) REGS_EFLAGS((r)->regs)
+#define UPT_SYSCALL_NR(r) ((r)->syscall)
 #define UPT_SYSCALL_RET(r) UPT_RAX(r)
 
 extern int user_context(unsigned long sp);
 
-#define UPT_IS_USER(r) ((r)->skas.is_user)
+#define UPT_IS_USER(r) ((r)->is_user)
 
 #define UPT_SYSCALL_ARG1(r) UPT_RDI(r)
 #define UPT_SYSCALL_ARG2(r) UPT_RSI(r)
@@ -232,12 +226,12 @@ struct syscall_args {
         })
 
 #define UPT_SET_SYSCALL_RETURN(r, res) \
-	REGS_SET_SYSCALL_RETURN((r)->skas.regs, (res))
+	REGS_SET_SYSCALL_RETURN((r)->regs, (res))
 
-#define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->skas.regs)
+#define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->regs)
 
 #define UPT_SEGV_IS_FIXABLE(r) REGS_SEGV_IS_FIXABLE(&r->skas)
 
-#define UPT_FAULTINFO(r) (&(r)->skas.faultinfo)
+#define UPT_FAULTINFO(r) (&(r)->faultinfo)
 
 #endif
