@@ -1025,6 +1025,8 @@ static int cris_dma_check(ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
+	ide_set_max_pio(drive);
+
 	return -1;
 }
 
