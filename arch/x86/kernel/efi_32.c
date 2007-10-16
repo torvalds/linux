@@ -331,11 +331,13 @@ void __init efi_init(void)
 	memset(&efi, 0, sizeof(efi) );
 	memset(&efi_phys, 0, sizeof(efi_phys));
 
-	efi_phys.systab = EFI_SYSTAB;
-	memmap.phys_map = EFI_MEMMAP;
-	memmap.nr_map = EFI_MEMMAP_SIZE/EFI_MEMDESC_SIZE;
-	memmap.desc_version = EFI_MEMDESC_VERSION;
-	memmap.desc_size = EFI_MEMDESC_SIZE;
+	efi_phys.systab =
+		(efi_system_table_t *)boot_params.efi_info.efi_systab;
+	memmap.phys_map = (void *)boot_params.efi_info.efi_memmap;
+	memmap.nr_map = boot_params.efi_info.efi_memmap_size/
+		boot_params.efi_info.efi_memdesc_size;
+	memmap.desc_version = boot_params.efi_info.efi_memdesc_version;
+	memmap.desc_size = boot_params.efi_info.efi_memdesc_size;
 
 	efi.systab = (efi_system_table_t *)
 		boot_ioremap((unsigned long) efi_phys.systab,
@@ -446,7 +448,8 @@ void __init efi_init(void)
 		printk(KERN_ERR PFX "Could not map the runtime service table!\n");
 
 	/* Map the EFI memory map for use until paging_init() */
-	memmap.map = boot_ioremap((unsigned long) EFI_MEMMAP, EFI_MEMMAP_SIZE);
+	memmap.map = boot_ioremap(boot_params.efi_info.efi_memmap,
+				  boot_params.efi_info.efi_memmap_size);
 	if (memmap.map == NULL)
 		printk(KERN_ERR PFX "Could not map the EFI memory map!\n");
 

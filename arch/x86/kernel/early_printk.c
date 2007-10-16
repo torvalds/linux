@@ -6,15 +6,10 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/fcntl.h>
+#include <asm/setup.h>
 #include <xen/hvc-console.h>
 
 /* Simple VGA output */
-
-#ifdef __i386__
-#include <asm/setup.h>
-#else
-#include <asm/bootsetup.h>
-#endif
 #define VGABASE		(__ISA_IO_base + 0xb8000)
 
 static int max_ypos = 25, max_xpos = 80;
@@ -234,10 +229,10 @@ static int __init setup_early_printk(char *buf)
 		early_serial_init(buf);
 		early_console = &early_serial_console;
 	} else if (!strncmp(buf, "vga", 3)
-	           && SCREEN_INFO.orig_video_isVGA == 1) {
-		max_xpos = SCREEN_INFO.orig_video_cols;
-		max_ypos = SCREEN_INFO.orig_video_lines;
-		current_ypos = SCREEN_INFO.orig_y;
+	           && boot_params.screen_info.orig_video_isVGA == 1) {
+		max_xpos = boot_params.screen_info.orig_video_cols;
+		max_ypos = boot_params.screen_info.orig_video_lines;
+		current_ypos = boot_params.screen_info.orig_y;
 		early_console = &early_vga_console;
  	} else if (!strncmp(buf, "simnow", 6)) {
  		simnow_init(buf + 6);

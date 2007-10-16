@@ -39,6 +39,7 @@ setup-y		+= printf.o string.o tty.o video.o version.o voyager.o
 setup-y		+= video-vga.o
 setup-y		+= video-vesa.o
 setup-y		+= video-bios.o
+
 targets		+= $(setup-y)
 hostprogs-y	:= tools/build
 

@@ -14,6 +14,9 @@ struct setup_header {
 	u16	root_flags;
 	u32	syssize;
 	u16	ram_size;
+#define RAMDISK_IMAGE_START_MASK	0x07FF
+#define RAMDISK_PROMPT_FLAG		0x8000
+#define RAMDISK_LOAD_FLAG		0x4000
 	u16	vid_mode;
 	u16	root_dev;
 	u16	boot_flag;

@@ -152,7 +152,7 @@ char * __init machine_specific_memory_setup(void)
 {
 	long long gfx_mem_size = 8 * MB;
 
-	mem_size = ALT_MEM_K;
+	mem_size = boot_params.alt_mem_k;
 
 	if (!mem_size) {
 		printk(KERN_WARNING "Bootloader didn't set memory size, upgrade it !\n");

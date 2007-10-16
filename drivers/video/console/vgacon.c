@@ -372,7 +372,7 @@ static const char *vgacon_startup(void)
 #endif
 	}
 
-	/* SCREEN_INFO initialized? */
+	/* boot_params.screen_info initialized? */
 	if ((ORIG_VIDEO_MODE  == 0) &&
 	    (ORIG_VIDEO_LINES == 0) &&
 	    (ORIG_VIDEO_COLS  == 0))

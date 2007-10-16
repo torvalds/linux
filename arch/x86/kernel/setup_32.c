@@ -137,10 +137,11 @@ EXPORT_SYMBOL(edd);
  */
 static inline void copy_edd(void)
 {
-     memcpy(edd.mbr_signature, EDD_MBR_SIGNATURE, sizeof(edd.mbr_signature));
-     memcpy(edd.edd_info, EDD_BUF, sizeof(edd.edd_info));
-     edd.mbr_signature_nr = EDD_MBR_SIG_NR;
-     edd.edd_info_nr = EDD_NR;
+     memcpy(edd.mbr_signature, boot_params.edd_mbr_sig_buffer,
+	    sizeof(edd.mbr_signature));
+     memcpy(edd.edd_info, boot_params.eddbuf, sizeof(edd.edd_info));
+     edd.mbr_signature_nr = boot_params.edd_mbr_sig_buf_entries;
+     edd.edd_info_nr = boot_params.eddbuf_entries;
 }
 #else
 static inline void copy_edd(void)
@@ -434,17 +435,20 @@ void __init setup_bootmem_allocator(void)
 #endif
 	numa_kva_reserve();
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (LOADER_TYPE && INITRD_START) {
-		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
-			reserve_bootmem(INITRD_START, INITRD_SIZE);
-			initrd_start = INITRD_START + PAGE_OFFSET;
-			initrd_end = initrd_start+INITRD_SIZE;
-		}
-		else {
+	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
+		unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
+		unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
+		unsigned long ramdisk_end   = ramdisk_image + ramdisk_size;
+		unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+
+		if (ramdisk_end <= end_of_lowmem) {
+			reserve_bootmem(ramdisk_image, ramdisk_size);
+			initrd_start = ramdisk_image + PAGE_OFFSET;
+			initrd_end = initrd_start+ramdisk_size;
+		} else {
 			printk(KERN_ERR "initrd extends beyond end of memory "
-			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-			    INITRD_START + INITRD_SIZE,
-			    max_low_pfn << PAGE_SHIFT);
+			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
+			       ramdisk_end, end_of_lowmem);
 			initrd_start = 0;
 		}
 	}
@@ -512,28 +516,29 @@ void __init setup_arch(char **cmdline_p)
 	 * the system table is valid.  If not, then initialize normally.
 	 */
 #ifdef CONFIG_EFI
-	if ((LOADER_TYPE == 0x50) && EFI_SYSTAB)
+	if ((boot_params.hdr.type_of_loader == 0x50) &&
+	    boot_params.efi_info.efi_systab)
 		efi_enabled = 1;
 #endif
 
- 	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
- 	screen_info = SCREEN_INFO;
-	edid_info = EDID_INFO;
-	apm_info.bios = APM_BIOS_INFO;
-	ist_info = IST_INFO;
-	saved_videomode = VIDEO_MODE;
-	if( SYS_DESC_TABLE.length != 0 ) {
-		set_mca_bus(SYS_DESC_TABLE.table[3] & 0x2);
-		machine_id = SYS_DESC_TABLE.table[0];
-		machine_submodel_id = SYS_DESC_TABLE.table[1];
-		BIOS_revision = SYS_DESC_TABLE.table[2];
+	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
+	screen_info = boot_params.screen_info;
+	edid_info = boot_params.edid_info;
+	apm_info.bios = boot_params.apm_bios_info;
+	ist_info = boot_params.ist_info;
+	saved_videomode = boot_params.hdr.vid_mode;
+	if( boot_params.sys_desc_table.length != 0 ) {
+		set_mca_bus(boot_params.sys_desc_table.table[3] & 0x2);
+		machine_id = boot_params.sys_desc_table.table[0];
+		machine_submodel_id = boot_params.sys_desc_table.table[1];
+		BIOS_revision = boot_params.sys_desc_table.table[2];
 	}
-	bootloader_type = LOADER_TYPE;
+	bootloader_type = boot_params.hdr.type_of_loader;
 
 #ifdef CONFIG_BLK_DEV_RAM
-	rd_image_start = RAMDISK_FLAGS & RAMDISK_IMAGE_START_MASK;
-	rd_prompt = ((RAMDISK_FLAGS & RAMDISK_PROMPT_FLAG) != 0);
-	rd_doload = ((RAMDISK_FLAGS & RAMDISK_LOAD_FLAG) != 0);
+	rd_image_start = boot_params.hdr.ram_size & RAMDISK_IMAGE_START_MASK;
+	rd_prompt = ((boot_params.hdr.ram_size & RAMDISK_PROMPT_FLAG) != 0);
+	rd_doload = ((boot_params.hdr.ram_size & RAMDISK_LOAD_FLAG) != 0);
 #endif
 	ARCH_SETUP
 	if (efi_enabled)
@@ -545,7 +550,7 @@ void __init setup_arch(char **cmdline_p)
 
 	copy_edd();
 
-	if (!MOUNT_ROOT_RDONLY)
+	if (!boot_params.hdr.root_flags)
 		root_mountflags &= ~MS_RDONLY;
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code = (unsigned long) _etext;

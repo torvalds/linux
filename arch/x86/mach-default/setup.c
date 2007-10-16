@@ -159,16 +159,18 @@ char * __init machine_specific_memory_setup(void)
 	 * Otherwise fake a memory map; one section from 0k->640k,
 	 * the next section from 1mb->appropriate_mem_k
 	 */
-	sanitize_e820_map(E820_MAP, &E820_MAP_NR);
-	if (copy_e820_map(E820_MAP, E820_MAP_NR) < 0) {
+	sanitize_e820_map(boot_params.e820_map, &boot_params.e820_entries);
+	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries)
+	    < 0) {
 		unsigned long mem_size;
 
 		/* compare results from other methods and take the greater */
-		if (ALT_MEM_K < EXT_MEM_K) {
-			mem_size = EXT_MEM_K;
+		if (boot_params.alt_mem_k
+		    < boot_params.screen_info.ext_mem_k) {
+			mem_size = boot_params.screen_info.ext_mem_k;
 			who = "BIOS-88";
 		} else {
-			mem_size = ALT_MEM_K;
+			mem_size = boot_params.alt_mem_k;
 			who = "BIOS-e801";
 		}
 

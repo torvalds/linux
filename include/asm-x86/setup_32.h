@@ -34,35 +34,6 @@
  */
 extern struct boot_params boot_params;
 
-#define PARAM	((char *)&boot_params)
-#define SCREEN_INFO (*(struct screen_info *) (PARAM+0))
-#define EXT_MEM_K (*(unsigned short *) (PARAM+2))
-#define ALT_MEM_K (*(unsigned long *) (PARAM+0x1e0))
-#define E820_MAP_NR (*(char*) (PARAM+E820NR))
-#define E820_MAP    ((struct e820entry *) (PARAM+E820MAP))
-#define APM_BIOS_INFO (*(struct apm_bios_info *) (PARAM+0x40))
-#define IST_INFO   (*(struct ist_info *) (PARAM+0x60))
-#define SYS_DESC_TABLE (*(struct sys_desc_table *)(PARAM+0xa0))
-#define EFI_SYSTAB ((efi_system_table_t *) *((unsigned long *)(PARAM+0x1c4)))
-#define EFI_MEMDESC_SIZE (*((unsigned long *) (PARAM+0x1c8)))
-#define EFI_MEMDESC_VERSION (*((unsigned long *) (PARAM+0x1cc)))
-#define EFI_MEMMAP ((void *) *((unsigned long *)(PARAM+0x1d0)))
-#define EFI_MEMMAP_SIZE (*((unsigned long *) (PARAM+0x1d4)))
-#define MOUNT_ROOT_RDONLY (*(unsigned short *) (PARAM+0x1F2))
-#define RAMDISK_FLAGS (*(unsigned short *) (PARAM+0x1F8))
-#define VIDEO_MODE (*(unsigned short *) (PARAM+0x1FA))
-#define ORIG_ROOT_DEV (*(unsigned short *) (PARAM+0x1FC))
-#define AUX_DEVICE_INFO (*(unsigned char *) (PARAM+0x1FF))
-#define LOADER_TYPE (*(unsigned char *) (PARAM+0x210))
-#define KERNEL_START (*(unsigned long *) (PARAM+0x214))
-#define INITRD_START (*(unsigned long *) (PARAM+0x218))
-#define INITRD_SIZE (*(unsigned long *) (PARAM+0x21c))
-#define EDID_INFO   (*(struct edid_info *) (PARAM+0x140))
-#define EDD_NR     (*(unsigned char *) (PARAM+EDDNR))
-#define EDD_MBR_SIG_NR (*(unsigned char *) (PARAM+EDD_MBR_SIG_NR_BUF))
-#define EDD_MBR_SIGNATURE ((unsigned int *) (PARAM+EDD_MBR_SIG_BUF))
-#define EDD_BUF     ((struct edd_info *) (PARAM+EDDBUF))
-
 /*
  * Do NOT EVER look at the BIOS memory size location.
  * It does not work on many machines.
