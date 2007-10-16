@@ -14,8 +14,8 @@
 
 static int add_mmap(unsigned long virt, unsigned long phys, unsigned long len,
 		    unsigned int prot, struct host_vm_op *ops, int *index,
-		    int last_filled, union mm_context *mmu, void **flush,
-		    int (*do_ops)(union mm_context *, struct host_vm_op *,
+		    int last_filled, struct mm_context *mmu, void **flush,
+		    int (*do_ops)(struct mm_context *, struct host_vm_op *,
 				  int, int, void **))
 {
 	__u64 offset;
@@ -52,8 +52,8 @@ static int add_mmap(unsigned long virt, unsigned long phys, unsigned long len,
 
 static int add_munmap(unsigned long addr, unsigned long len,
 		      struct host_vm_op *ops, int *index, int last_filled,
-		      union mm_context *mmu, void **flush,
-		      int (*do_ops)(union mm_context *, struct host_vm_op *,
+		      struct mm_context *mmu, void **flush,
+		      int (*do_ops)(struct mm_context *, struct host_vm_op *,
 				    int, int, void **))
 {
 	struct host_vm_op *last;
@@ -82,8 +82,8 @@ static int add_munmap(unsigned long addr, unsigned long len,
 
 static int add_mprotect(unsigned long addr, unsigned long len,
 			unsigned int prot, struct host_vm_op *ops, int *index,
-			int last_filled, union mm_context *mmu, void **flush,
-			int (*do_ops)(union mm_context *, struct host_vm_op *,
+			int last_filled, struct mm_context *mmu, void **flush,
+			int (*do_ops)(struct mm_context *, struct host_vm_op *,
 				      int, int, void **))
 {
 	struct host_vm_op *last;
@@ -117,8 +117,8 @@ static int add_mprotect(unsigned long addr, unsigned long len,
 static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 				   unsigned long end, struct host_vm_op *ops,
 				   int last_op, int *op_index, int force,
-				   union mm_context *mmu, void **flush,
-				   int (*do_ops)(union mm_context *,
+				   struct mm_context *mmu, void **flush,
+				   int (*do_ops)(struct mm_context *,
 						 struct host_vm_op *, int, int,
 						 void **))
 {
@@ -157,8 +157,8 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 static inline int update_pmd_range(pud_t *pud, unsigned long addr,
 				   unsigned long end, struct host_vm_op *ops,
 				   int last_op, int *op_index, int force,
-				   union mm_context *mmu, void **flush,
-				   int (*do_ops)(union mm_context *,
+				   struct mm_context *mmu, void **flush,
+				   int (*do_ops)(struct mm_context *,
 						 struct host_vm_op *, int, int,
 						 void **))
 {
@@ -187,8 +187,8 @@ static inline int update_pmd_range(pud_t *pud, unsigned long addr,
 static inline int update_pud_range(pgd_t *pgd, unsigned long addr,
 				   unsigned long end, struct host_vm_op *ops,
 				   int last_op, int *op_index, int force,
-				   union mm_context *mmu, void **flush,
-				   int (*do_ops)(union mm_context *,
+				   struct mm_context *mmu, void **flush,
+				   int (*do_ops)(struct mm_context *,
 						 struct host_vm_op *, int, int,
 						 void **))
 {
@@ -216,11 +216,11 @@ static inline int update_pud_range(pgd_t *pgd, unsigned long addr,
 
 void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 		      unsigned long end_addr, int force,
-		      int (*do_ops)(union mm_context *, struct host_vm_op *,
+		      int (*do_ops)(struct mm_context *, struct host_vm_op *,
 				    int, int, void **))
 {
 	pgd_t *pgd;
-	union mm_context *mmu = &mm->context;
+	struct mm_context *mmu = &mm->context;
 	struct host_vm_op ops[1];
 	unsigned long addr = start_addr, next;
 	int ret = 0, last_op = ARRAY_SIZE(ops) - 1, op_index = -1;
@@ -375,7 +375,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 		w = 0;
 	}
 
-	mm_id = &mm->context.skas.id;
+	mm_id = &mm->context.id;
 	prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
 		(x ? UM_PROT_EXEC : 0));
 	if (pte_newpage(*pte)) {
@@ -453,7 +453,7 @@ void __flush_tlb_one(unsigned long addr)
 	flush_tlb_kernel_range_common(addr, addr + PAGE_SIZE);
 }
 
-static int do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
+static int do_ops(struct mm_context *mmu, struct host_vm_op *ops, int last,
 		  int finished, void **flush)
 {
 	struct host_vm_op *op;
@@ -463,17 +463,16 @@ static int do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
 	op = &ops[i];
 		switch(op->type) {
 		case MMAP:
-			ret = map(&mmu->skas.id, op->u.mmap.addr,
-				  op->u.mmap.len, op->u.mmap.prot,
-				  op->u.mmap.fd, op->u.mmap.offset, finished,
-				  flush);
+			ret = map(&mmu->id, op->u.mmap.addr, op->u.mmap.len,
+				  op->u.mmap.prot, op->u.mmap.fd,
+				  op->u.mmap.offset, finished, flush);
 			break;
 		case MUNMAP:
-			ret = unmap(&mmu->skas.id, op->u.munmap.addr,
+			ret = unmap(&mmu->id, op->u.munmap.addr,
 				    op->u.munmap.len, finished, flush);
 			break;
 		case MPROTECT:
-			ret = protect(&mmu->skas.id, op->u.mprotect.addr,
+			ret = protect(&mmu->id, op->u.mprotect.addr,
 				      op->u.mprotect.len, op->u.mprotect.prot,
 				      finished, flush);
 			break;

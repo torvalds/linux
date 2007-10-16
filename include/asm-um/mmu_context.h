@@ -29,7 +29,7 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	 * possible.
 	 */
 	if (old != new && (current->flags & PF_BORROWED_MM))
-		__switch_mm(&new->context.skas.id);
+		__switch_mm(&new->context.id);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
@@ -41,7 +41,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		cpu_clear(cpu, prev->cpu_vm_mask);
 		cpu_set(cpu, next->cpu_vm_mask);
 		if(next != &init_mm)
-			__switch_mm(&next->context.skas.id);
+			__switch_mm(&next->context.id);
 	}
 }
 

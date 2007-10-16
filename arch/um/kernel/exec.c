@@ -23,14 +23,14 @@ void flush_thread(void)
 
 	arch_flush_thread(&current->thread.arch);
 
-	ret = unmap(&current->mm->context.skas.id, 0, end, 1, &data);
+	ret = unmap(&current->mm->context.id, 0, end, 1, &data);
 	if (ret) {
 		printk(KERN_ERR "flush_thread - clearing address space failed, "
 		       "err = %d\n", ret);
 		force_sig(SIGKILL, current);
 	}
 
-	__switch_mm(&current->mm->context.skas.id);
+	__switch_mm(&current->mm->context.id);
 }
 
 void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)

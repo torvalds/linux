@@ -11,11 +11,7 @@
 #include "asm/semaphore.h"
 #include "asm/host_ldt.h"
 
-struct mmu_context_skas;
 extern void ldt_host_info(void);
-extern long init_new_ldt(struct mmu_context_skas * to_mm,
-			 struct mmu_context_skas * from_mm);
-extern void free_ldt(struct mmu_context_skas * mm);
 
 #define LDT_PAGES_MAX \
 	((LDT_ENTRIES * LDT_ENTRY_SIZE)/PAGE_SIZE)

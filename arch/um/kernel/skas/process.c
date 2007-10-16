@@ -65,5 +65,5 @@ unsigned long current_stub_stack(void)
 	if (current->mm == NULL)
 		return 0;
 
-	return current->mm->context.skas.id.stack;
+	return current->mm->context.id.stack;
 }

@@ -25,7 +25,7 @@ static void kill_off_processes(void)
 			if(p->mm == NULL)
 				continue;
 
-			pid = p->mm->context.skas.id.u.pid;
+			pid = p->mm->context.id.u.pid;
 			os_kill_ptraced_process(pid, 1);
 		}
 	}

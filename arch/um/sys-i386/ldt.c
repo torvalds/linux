@@ -33,7 +33,7 @@ long write_ldt_entry(struct mm_id * mm_idp, int func, struct user_desc * desc,
 		 * Note: I'm unsure: should interrupts be disabled here?
 		 */
 		if (!current->active_mm || current->active_mm == &init_mm ||
-		    mm_idp != &current->active_mm->context.skas.id)
+		    mm_idp != &current->active_mm->context.id)
 			__switch_mm(mm_idp);
 	}
 
@@ -79,8 +79,8 @@ long write_ldt_entry(struct mm_id * mm_idp, int func, struct user_desc * desc,
 		 * PTRACE_LDT possible to implement.
 		 */
 		if (current->active_mm && current->active_mm != &init_mm &&
-		    mm_idp != &current->active_mm->context.skas.id)
-			__switch_mm(&current->active_mm->context.skas.id);
+		    mm_idp != &current->active_mm->context.id)
+			__switch_mm(&current->active_mm->context.id);
 	}
 
 	return res;
@@ -135,7 +135,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 {
 	int i, err = 0;
 	unsigned long size;
-	uml_ldt_t * ldt = &current->mm->context.skas.ldt;
+	uml_ldt_t * ldt = &current->mm->context.ldt;
 
 	if (!ldt->entry_count)
 		goto out;
@@ -203,8 +203,8 @@ static int read_default_ldt(void __user * ptr, unsigned long bytecount)
 
 static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 {
-	uml_ldt_t * ldt = &current->mm->context.skas.ldt;
-	struct mm_id * mm_idp = &current->mm->context.skas.id;
+	uml_ldt_t * ldt = &current->mm->context.ldt;
+	struct mm_id * mm_idp = &current->mm->context.id;
 	int i, err;
 	struct user_desc ldt_info;
 	struct ldt_entry entry0, *ldt_p;
@@ -384,8 +384,7 @@ out_free:
 	free_pages((unsigned long)ldt, order);
 }
 
-long init_new_ldt(struct mmu_context_skas * new_mm,
-		  struct mmu_context_skas * from_mm)
+long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 {
 	struct user_desc desc;
 	short * num_p;
@@ -483,7 +482,7 @@ long init_new_ldt(struct mmu_context_skas * new_mm,
 }
 
 
-void free_ldt(struct mmu_context_skas * mm)
+void free_ldt(struct mm_context *mm)
 {
 	int i;
 

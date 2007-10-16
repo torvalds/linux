@@ -47,9 +47,9 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	 * destroy_context_skas.
 	 */
 
-	mm->context.skas.last_page_table = pmd_page_vaddr(*pmd);
+	mm->context.last_page_table = pmd_page_vaddr(*pmd);
 #ifdef CONFIG_3_LEVEL_PGTABLES
-	mm->context.skas.last_pmd = (unsigned long) __va(pud_val(*pud));
+	mm->context.last_pmd = (unsigned long) __va(pud_val(*pud));
 #endif
 
 	*pte = mk_pte(virt_to_page(kernel), __pgprot(_PAGE_PRESENT));
@@ -66,8 +66,8 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 
 int init_new_context(struct task_struct *task, struct mm_struct *mm)
 {
-	struct mmu_context_skas *from_mm = NULL;
-	struct mmu_context_skas *to_mm = &mm->context.skas;
+ 	struct mm_context *from_mm = NULL;
+	struct mm_context *to_mm = &mm->context;
 	unsigned long stack = 0;
 	int ret = -ENOMEM;
 
@@ -97,7 +97,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 
 	to_mm->id.stack = stack;
 	if (current->mm != NULL && current->mm != &init_mm)
-		from_mm = &current->mm->context.skas;
+		from_mm = &current->mm->context;
 
 	if (proc_mm) {
 		ret = new_mm(stack);
@@ -133,7 +133,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 
 void destroy_context(struct mm_struct *mm)
 {
-	struct mmu_context_skas *mmu = &mm->context.skas;
+	struct mm_context *mmu = &mm->context;
 
 	if (proc_mm)
 		os_close_file(mmu->id.u.mm_fd);

@@ -33,7 +33,7 @@ struct host_vm_op {
 extern void force_flush_all(void);
 extern void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
                              unsigned long end_addr, int force,
-			     int (*do_ops)(union mm_context *,
+			     int (*do_ops)(struct mm_context *,
 					   struct host_vm_op *, int, int,
 					   void **));
 extern int flush_tlb_kernel_range_common(unsigned long start,
