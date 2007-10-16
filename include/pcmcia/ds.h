@@ -184,6 +184,7 @@ struct pcmcia_device {
 
 	char *			prod_id[4];
 
+	u64			dma_mask;
 	struct device		dev;
 
 #ifdef CONFIG_PCMCIA_IOCTL
