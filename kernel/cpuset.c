@@ -1463,7 +1463,7 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 	ssize_t retval = 0;
 	char *s;
 
-	if (!(page = (char *)__get_free_page(GFP_KERNEL)))
+	if (!(page = (char *)__get_free_page(GFP_TEMPORARY)))
 		return -ENOMEM;
 
 	s = page;

@@ -492,7 +492,7 @@ static ssize_t proc_info_read(struct file * file, char __user * buf,
 		count = PROC_BLOCK_SIZE;
 
 	length = -ENOMEM;
-	if (!(page = __get_free_page(GFP_KERNEL)))
+	if (!(page = __get_free_page(GFP_TEMPORARY)))
 		goto out;
 
 	length = PROC_I(inode)->op.proc_read(task, (char*)page);
@@ -532,7 +532,7 @@ static ssize_t mem_read(struct file * file, char __user * buf,
 		goto out;
 
 	ret = -ENOMEM;
-	page = (char *)__get_free_page(GFP_USER);
+	page = (char *)__get_free_page(GFP_TEMPORARY);
 	if (!page)
 		goto out;
 
@@ -602,7 +602,7 @@ static ssize_t mem_write(struct file * file, const char __user *buf,
 		goto out;
 
 	copied = -ENOMEM;
-	page = (char *)__get_free_page(GFP_USER);
+	page = (char *)__get_free_page(GFP_TEMPORARY);
 	if (!page)
 		goto out;
 
@@ -788,7 +788,7 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 		/* No partial writes. */
 		return -EINVAL;
 	}
-	page = (char*)__get_free_page(GFP_USER);
+	page = (char*)__get_free_page(GFP_TEMPORARY);
 	if (!page)
 		return -ENOMEM;
 	length = -EFAULT;
@@ -954,7 +954,8 @@ static int do_proc_readlink(struct dentry *dentry, struct vfsmount *mnt,
 			    char __user *buffer, int buflen)
 {
 	struct inode * inode;
-	char *tmp = (char*)__get_free_page(GFP_KERNEL), *path;
+	char *tmp = (char*)__get_free_page(GFP_TEMPORARY);
+	char *path;
 	int len;
 
 	if (!tmp)
@@ -1726,7 +1727,7 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 		goto out;
 
 	length = -ENOMEM;
-	page = (char*)__get_free_page(GFP_USER);
+	page = (char*)__get_free_page(GFP_TEMPORARY);
 	if (!page)
 		goto out;
 

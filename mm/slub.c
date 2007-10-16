@@ -1055,6 +1055,9 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	if (s->flags & SLAB_CACHE_DMA)
 		flags |= SLUB_DMA;
 
+	if (s->flags & SLAB_RECLAIM_ACCOUNT)
+		flags |= __GFP_RECLAIMABLE;
+
 	if (node == -1)
 		page = alloc_pages(flags, s->order);
 	else
