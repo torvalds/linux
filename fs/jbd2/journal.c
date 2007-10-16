@@ -670,7 +670,7 @@ static journal_t * journal_init_common (void)
 	spin_lock_init(&journal->j_list_lock);
 	spin_lock_init(&journal->j_state_lock);
 
-	journal->j_commit_interval = (HZ * JBD_DEFAULT_MAX_COMMIT_AGE);
+	journal->j_commit_interval = (HZ * JBD2_DEFAULT_MAX_COMMIT_AGE);
 
 	/* The journal is marked for error until we succeed with recovery! */
 	journal->j_flags = JBD2_ABORT;
@@ -1612,9 +1612,9 @@ int jbd2_journal_blocks_per_page(struct inode *inode)
 size_t journal_tag_bytes(journal_t *journal)
 {
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT))
-		return JBD_TAG_SIZE64;
+		return JBD2_TAG_SIZE64;
 	else
-		return JBD_TAG_SIZE32;
+		return JBD2_TAG_SIZE32;
 }
 
 /*
@@ -1681,7 +1681,7 @@ static void journal_free_journal_head(struct journal_head *jh)
 {
 #ifdef CONFIG_JBD2_DEBUG
 	atomic_dec(&nr_journal_heads);
-	memset(jh, JBD_POISON_FREE, sizeof(*jh));
+	memset(jh, JBD2_POISON_FREE, sizeof(*jh));
 #endif
 	kmem_cache_free(jbd2_journal_head_cache, jh);
 }

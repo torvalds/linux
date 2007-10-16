@@ -36,7 +36,8 @@
  */
 
 /********** fs/jbd/journal.c **********/
-#define JBD_POISON_FREE	0x5b
+#define JBD_POISON_FREE		0x5b
+#define JBD2_POISON_FREE	0x5c
 
 /********** drivers/base/dmapool.c **********/
 #define	POOL_POISON_FREED	0xa7	/* !inuse */

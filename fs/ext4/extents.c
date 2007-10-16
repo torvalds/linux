@@ -33,7 +33,7 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/ext4_jbd2.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>

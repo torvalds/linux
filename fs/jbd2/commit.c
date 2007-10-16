@@ -278,7 +278,7 @@ static inline void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
 				   unsigned long long block)
 {
 	tag->t_blocknr = cpu_to_be32(block & (u32)~0);
-	if (tag_bytes > JBD_TAG_SIZE32)
+	if (tag_bytes > JBD2_TAG_SIZE32)
 		tag->t_blocknr_high = cpu_to_be32((block >> 31) >> 1);
 }
 

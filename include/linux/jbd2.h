@@ -13,8 +13,8 @@
  * filesystem journaling support.
  */
 
-#ifndef _LINUX_JBD_H
-#define _LINUX_JBD_H
+#ifndef _LINUX_JBD2_H
+#define _LINUX_JBD2_H
 
 /* Allow this file to be included directly into e2fsprogs */
 #ifndef __KERNEL__
@@ -37,26 +37,26 @@
 #define journal_oom_retry 1
 
 /*
- * Define JBD_PARANIOD_IOFAIL to cause a kernel BUG() if ext3 finds
+ * Define JBD2_PARANIOD_IOFAIL to cause a kernel BUG() if ext4 finds
  * certain classes of error which can occur due to failed IOs.  Under
- * normal use we want ext3 to continue after such errors, because
+ * normal use we want ext4 to continue after such errors, because
  * hardware _can_ fail, but for debugging purposes when running tests on
  * known-good hardware we may want to trap these errors.
  */
-#undef JBD_PARANOID_IOFAIL
+#undef JBD2_PARANOID_IOFAIL
 
 /*
  * The default maximum commit age, in seconds.
  */
-#define JBD_DEFAULT_MAX_COMMIT_AGE 5
+#define JBD2_DEFAULT_MAX_COMMIT_AGE 5
 
 #ifdef CONFIG_JBD2_DEBUG
 /*
- * Define JBD_EXPENSIVE_CHECKING to enable more expensive internal
+ * Define JBD2_EXPENSIVE_CHECKING to enable more expensive internal
  * consistency checks.  By default we don't do this unless
  * CONFIG_JBD2_DEBUG is on.
  */
-#define JBD_EXPENSIVE_CHECKING
+#define JBD2_EXPENSIVE_CHECKING
 extern u8 jbd2_journal_enable_debug;
 
 #define jbd_debug(n, f, a...)						\
@@ -163,8 +163,8 @@ typedef struct journal_block_tag_s
 	__be32		t_blocknr_high; /* most-significant high 32bits. */
 } journal_block_tag_t;
 
-#define JBD_TAG_SIZE32 (offsetof(journal_block_tag_t, t_blocknr_high))
-#define JBD_TAG_SIZE64 (sizeof(journal_block_tag_t))
+#define JBD2_TAG_SIZE32 (offsetof(journal_block_tag_t, t_blocknr_high))
+#define JBD2_TAG_SIZE64 (sizeof(journal_block_tag_t))
 
 /*
  * The revoke descriptor: used on disk to describe a series of blocks to
@@ -256,8 +256,8 @@ typedef struct journal_superblock_s
 #include <linux/fs.h>
 #include <linux/sched.h>
 
-#define JBD_ASSERTIONS
-#ifdef JBD_ASSERTIONS
+#define JBD2_ASSERTIONS
+#ifdef JBD2_ASSERTIONS
 #define J_ASSERT(assert)						\
 do {									\
 	if (!(assert)) {						\
@@ -284,9 +284,9 @@ void buffer_assertion_failure(struct buffer_head *bh);
 
 #else
 #define J_ASSERT(assert)	do { } while (0)
-#endif		/* JBD_ASSERTIONS */
+#endif		/* JBD2_ASSERTIONS */
 
-#if defined(JBD_PARANOID_IOFAIL)
+#if defined(JBD2_PARANOID_IOFAIL)
 #define J_EXPECT(expr, why...)		J_ASSERT(expr)
 #define J_EXPECT_BH(bh, expr, why...)	J_ASSERT_BH(bh, expr)
 #define J_EXPECT_JH(jh, expr, why...)	J_ASSERT_JH(jh, expr)
@@ -1104,4 +1104,4 @@ extern int jbd_blocks_per_page(struct inode *inode);
 
 #endif	/* __KERNEL__ */
 
-#endif	/* _LINUX_JBD_H */
+#endif	/* _LINUX_JBD2_H */

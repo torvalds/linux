@@ -12,8 +12,8 @@
  * Ext4-specific journaling extensions.
  */
 
-#ifndef _LINUX_EXT4_JBD_H
-#define _LINUX_EXT4_JBD_H
+#ifndef _LINUX_EXT4_JBD2_H
+#define _LINUX_EXT4_JBD2_H
 
 #include <linux/fs.h>
 #include <linux/jbd2.h>
@@ -228,4 +228,4 @@ static inline int ext4_should_writeback_data(struct inode *inode)
 	return 0;
 }
 
-#endif	/* _LINUX_EXT4_JBD_H */
+#endif	/* _LINUX_EXT4_JBD2_H */

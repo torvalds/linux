@@ -311,7 +311,7 @@ int jbd2_journal_skip_recovery(journal_t *journal)
 static inline unsigned long long read_tag_block(int tag_bytes, journal_block_tag_t *tag)
 {
 	unsigned long long block = be32_to_cpu(tag->t_blocknr);
-	if (tag_bytes > JBD_TAG_SIZE32)
+	if (tag_bytes > JBD2_TAG_SIZE32)
 		block |= (u64)be32_to_cpu(tag->t_blocknr_high) << 32;
 	return block;
 }

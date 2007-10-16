@@ -352,7 +352,7 @@ int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
 		if (bh)
 			BUFFER_TRACE(bh, "found on hash");
 	}
-#ifdef JBD_EXPENSIVE_CHECKING
+#ifdef JBD2_EXPENSIVE_CHECKING
 	else {
 		struct buffer_head *bh2;
 
@@ -453,7 +453,7 @@ int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
 		}
 	}
 
-#ifdef JBD_EXPENSIVE_CHECKING
+#ifdef JBD2_EXPENSIVE_CHECKING
 	/* There better not be one left behind by now! */
 	record = find_revoke_record(journal, bh->b_blocknr);
 	J_ASSERT_JH(jh, record == NULL);
