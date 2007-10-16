@@ -917,15 +917,6 @@ sys_pipe:
 .end sys_pipe
 
 	.align	4
-	.globl	sys_ptrace
-	.ent	sys_ptrace
-sys_ptrace:
-	.prologue 0
-	mov	$sp, $20
-	jmp	$31, do_sys_ptrace
-.end sys_ptrace
-
-	.align	4
 	.globl	sys_execve
 	.ent	sys_execve
 sys_execve:
