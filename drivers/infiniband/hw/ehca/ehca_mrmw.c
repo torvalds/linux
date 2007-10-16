@@ -259,7 +259,7 @@ struct ib_mr *ehca_reg_phys_mr(struct ib_pd *pd,
 		pginfo.u.phy.num_phys_buf = num_phys_buf;
 		pginfo.u.phy.phys_buf_array = phys_buf_array;
 		pginfo.next_hwpage =
-			((u64)iova_start & ~(hw_pgsize - 1)) / hw_pgsize;
+			((u64)iova_start & ~PAGE_MASK) / hw_pgsize;
 
 		ret = ehca_reg_mr(shca, e_mr, iova_start, size, mr_access_flags,
 				  e_pd, &pginfo, &e_mr->ib.ib_mr.lkey,
@@ -547,7 +547,7 @@ int ehca_rereg_phys_mr(struct ib_mr *mr,
 		pginfo.u.phy.num_phys_buf = num_phys_buf;
 		pginfo.u.phy.phys_buf_array = phys_buf_array;
 		pginfo.next_hwpage =
-			((u64)iova_start & ~(hw_pgsize - 1)) / hw_pgsize;
+			((u64)iova_start & ~PAGE_MASK) / hw_pgsize;
 	}
 	if (mr_rereg_mask & IB_MR_REREG_ACCESS)
 		new_acl = mr_access_flags;
