@@ -148,6 +148,8 @@ static inline u64 get_jiffies_64(void)
  */
 #define MAX_JIFFY_OFFSET ((LONG_MAX >> 1)-1)
 
+extern unsigned long preset_lpj;
+
 /*
  * We want to do realistic conversions of time so we need to use the same
  * values the update wall clock code uses as the jiffies size.  This value
