@@ -544,6 +544,15 @@ config FB_VGA16
 	  To compile this driver as a module, choose M here: the
 	  module will be called vga16fb.
 
+config FB_BF54X_LQ043
+	tristate "SHARP LQ043 TFT LCD (BF548 EZKIT)"
+	depends on FB && (BF54x)
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	 This is the framebuffer device driver for a SHARP LQ043T1DG01 TFT LCD
+
 config FB_STI
 	tristate "HP STI frame buffer device support"
 	depends on FB && PARISC
