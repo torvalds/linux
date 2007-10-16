@@ -176,7 +176,7 @@ unsigned long __init node_memmap_size_bytes(int nid, unsigned long start_pfn,
 		if (nid != early_pfn_to_nid(pfn))
 			continue;
 
-		if (pfn_valid(pfn))
+		if (pfn_present(pfn))
 			nr_pages += PAGES_PER_SECTION;
 	}
 
@@ -206,11 +206,12 @@ struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pn
 static int __meminit sparse_init_one_section(struct mem_section *ms,
 		unsigned long pnum, struct page *mem_map)
 {
-	if (!valid_section(ms))
+	if (!present_section(ms))
 		return -EINVAL;
 
 	ms->section_mem_map &= ~SECTION_MAP_MASK;
-	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum);
+	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
+							SECTION_HAS_MEM_MAP;
 
 	return 1;
 }
@@ -256,7 +257,7 @@ void __init sparse_init(void)
 	struct page *map;
 
 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
-		if (!valid_section_nr(pnum))
+		if (!present_section_nr(pnum))
 			continue;
 
 		map = sparse_early_mem_map_alloc(pnum);

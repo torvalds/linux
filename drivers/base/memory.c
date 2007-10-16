@@ -238,7 +238,7 @@ store_mem_state(struct sys_device *dev, const char *buf, size_t count)
 	mem = container_of(dev, struct memory_block, sysdev);
 	phys_section_nr = mem->phys_index;
 
-	if (!valid_section_nr(phys_section_nr))
+	if (!present_section_nr(phys_section_nr))
 		goto out;
 
 	if (!strncmp(buf, "online", min((int)count, 6)))
@@ -418,7 +418,7 @@ int register_new_memory(struct mem_section *section)
 
 int unregister_memory_section(struct mem_section *section)
 {
-	if (!valid_section(section))
+	if (!present_section(section))
 		return -EINVAL;
 
 	return remove_memory_block(0, section, 0);
@@ -443,7 +443,7 @@ int __init memory_dev_init(void)
 	 * during boot and have been initialized
 	 */
 	for (i = 0; i < NR_MEM_SECTIONS; i++) {
-		if (!valid_section_nr(i))
+		if (!present_section_nr(i))
 			continue;
 		err = add_memory_block(0, __nr_to_section(i), MEM_ONLINE, 0);
 		if (!ret)
