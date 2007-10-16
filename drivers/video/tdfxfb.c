@@ -273,7 +273,8 @@ static inline void banshee_make_room(struct tdfx_par *par, int size)
 {
 	/* Note: The Voodoo3's onboard FIFO has 32 slots. This loop
 	 * won't quit if you ask for more. */
- 	while ((tdfx_inl(par, STATUS) & 0x1f) < size - 1) ;
+	while ((tdfx_inl(par, STATUS) & 0x1f) < size - 1)
+		cpu_relax();
 }
  
 static int banshee_wait_idle(struct fb_info *info)
