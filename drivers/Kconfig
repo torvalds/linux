@@ -84,6 +84,8 @@ source "drivers/rtc/Kconfig"
 
 source "drivers/dma/Kconfig"
 
+source "drivers/dca/Kconfig"
+
 source "drivers/auxdisplay/Kconfig"
 
 source "drivers/kvm/Kconfig"
