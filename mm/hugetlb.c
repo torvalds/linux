@@ -403,14 +403,14 @@ static void try_to_free_low(unsigned long count)
 	for (i = 0; i < MAX_NUMNODES; ++i) {
 		struct page *page, *next;
 		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
+			if (count >= nr_huge_pages)
+				return;
 			if (PageHighMem(page))
 				continue;
 			list_del(&page->lru);
 			update_and_free_page(page);
 			free_huge_pages--;
 			free_huge_pages_node[page_to_nid(page)]--;
-			if (count >= nr_huge_pages)
-				return;
 		}
 	}
 }
@@ -450,8 +450,6 @@ static unsigned long set_max_huge_pages(unsigned long count)
 			goto out;
 
 	}
-	if (count >= persistent_huge_pages)
-		goto out;
 
 	/*
 	 * Decrease the pool size
@@ -460,7 +458,8 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	 * pages into surplus state as needed so the pool will shrink
 	 * to the desired size as pages become free.
 	 */
-	min_count = max(count, resv_huge_pages);
+	min_count = resv_huge_pages + nr_huge_pages - free_huge_pages;
+	min_count = max(count, min_count);
 	try_to_free_low(min_count);
 	while (min_count < persistent_huge_pages) {
 		struct page *page = dequeue_huge_page(NULL, 0);
