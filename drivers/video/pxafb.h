@@ -71,6 +71,7 @@ struct pxafb_info {
 
 	u_int			lccr0;
 	u_int			lccr3;
+	u_int			lccr4;
 	u_int			cmap_inverse:1,
 				cmap_static:1,
 				unused:30;
@@ -79,6 +80,7 @@ struct pxafb_info {
 	u_int			reg_lccr1;
 	u_int			reg_lccr2;
 	u_int			reg_lccr3;
+	u_int			reg_lccr4;
 
 	unsigned long	hsync_time;
 

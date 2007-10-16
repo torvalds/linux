@@ -108,20 +108,38 @@ pxafb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
 		       u_int trans, struct fb_info *info)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
-	u_int val, ret = 1;
+	u_int val;
 
-	if (regno < fbi->palette_size) {
-		if (fbi->fb.var.grayscale) {
-			val = ((blue >> 8) & 0x00ff);
-		} else {
-			val  = ((red   >>  0) & 0xf800);
-			val |= ((green >>  5) & 0x07e0);
-			val |= ((blue  >> 11) & 0x001f);
-		}
-		fbi->palette_cpu[regno] = val;
-		ret = 0;
+	if (regno >= fbi->palette_size)
+		return 1;
+
+	if (fbi->fb.var.grayscale) {
+		fbi->palette_cpu[regno] = ((blue >> 8) & 0x00ff);
+		return 0;
 	}
-	return ret;
+
+	switch (fbi->lccr4 & LCCR4_PAL_FOR_MASK) {
+	case LCCR4_PAL_FOR_0:
+		val  = ((red   >>  0) & 0xf800);
+		val |= ((green >>  5) & 0x07e0);
+		val |= ((blue  >> 11) & 0x001f);
+		fbi->palette_cpu[regno] = val;
+		break;
+	case LCCR4_PAL_FOR_1:
+		val  = ((red   << 8) & 0x00f80000);
+		val |= ((green >> 0) & 0x0000fc00);
+		val |= ((blue  >> 8) & 0x000000f8);
+		((u32*)(fbi->palette_cpu))[regno] = val;
+		break;
+	case LCCR4_PAL_FOR_2:
+		val  = ((red   << 8) & 0x00fc0000);
+		val |= ((green >> 0) & 0x0000fc00);
+		val |= ((blue  >> 8) & 0x000000fc);
+		((u32*)(fbi->palette_cpu))[regno] = val;
+		break;
+	}
+
+	return 0;
 }
 
 static int
@@ -363,7 +381,10 @@ static int pxafb_set_par(struct fb_info *info)
 	else
 		fbi->palette_size = var->bits_per_pixel == 1 ? 4 : 1 << var->bits_per_pixel;
 
-	palette_mem_size = fbi->palette_size * sizeof(u16);
+	if ((fbi->lccr4 & LCCR4_PAL_FOR_MASK) == LCCR4_PAL_FOR_0)
+		palette_mem_size = fbi->palette_size * sizeof(u16);
+	else
+		palette_mem_size = fbi->palette_size * sizeof(u32);
 
 	pr_debug("pxafb: palette_mem_size = 0x%08lx\n", palette_mem_size);
 
@@ -680,7 +701,13 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 
 	fbi->dmadesc_palette_cpu->fsadr = fbi->palette_dma;
 	fbi->dmadesc_palette_cpu->fidr  = 0;
-	fbi->dmadesc_palette_cpu->ldcmd = (fbi->palette_size * 2) | LDCMD_PAL;
+	if ((fbi->lccr4 & LCCR4_PAL_FOR_MASK) == LCCR4_PAL_FOR_0)
+		fbi->dmadesc_palette_cpu->ldcmd = fbi->palette_size *
+							sizeof(u16);
+	else
+		fbi->dmadesc_palette_cpu->ldcmd = fbi->palette_size *
+							sizeof(u32);
+	fbi->dmadesc_palette_cpu->ldcmd |= LDCMD_PAL;
 
 	if (var->bits_per_pixel == 16) {
 		/* palette shouldn't be loaded in true-color mode */
@@ -719,6 +746,8 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 	fbi->reg_lccr1 = new_regs.lccr1;
 	fbi->reg_lccr2 = new_regs.lccr2;
 	fbi->reg_lccr3 = new_regs.lccr3;
+	fbi->reg_lccr4 = LCCR4 & (~LCCR4_PAL_FOR_MASK);
+	fbi->reg_lccr4 |= (fbi->lccr4 & LCCR4_PAL_FOR_MASK);
 	set_hsync_time(fbi, pcd);
 	local_irq_restore(flags);
 
@@ -825,6 +854,7 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	pr_debug("LCCR1 0x%08x\n", (unsigned int) LCCR1);
 	pr_debug("LCCR2 0x%08x\n", (unsigned int) LCCR2);
 	pr_debug("LCCR3 0x%08x\n", (unsigned int) LCCR3);
+	pr_debug("LCCR4 0x%08x\n", (unsigned int) LCCR4);
 }
 
 static void pxafb_disable_controller(struct pxafb_info *fbi)
@@ -1094,10 +1124,13 @@ static int __init pxafb_map_video_memory(struct pxafb_info *fbi)
 		 * dma_writecombine_mmap)
 		 */
 		fbi->fb.fix.smem_start = fbi->screen_dma;
-
 		fbi->palette_size = fbi->fb.var.bits_per_pixel == 8 ? 256 : 16;
 
-		palette_mem_size = fbi->palette_size * sizeof(u16);
+		if ((fbi->lccr4 & LCCR4_PAL_FOR_MASK) == LCCR4_PAL_FOR_0)
+			palette_mem_size = fbi->palette_size * sizeof(u16);
+		else
+			palette_mem_size = fbi->palette_size * sizeof(u32);
+
 		pr_debug("pxafb: palette_mem_size = 0x%08lx\n", palette_mem_size);
 
 		fbi->palette_cpu = (u16 *)(fbi->map_cpu + PAGE_SIZE - palette_mem_size);
@@ -1160,6 +1193,7 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 
 	fbi->lccr0			= inf->lccr0;
 	fbi->lccr3			= inf->lccr3;
+	fbi->lccr4			= inf->lccr4;
 	fbi->state			= C_STARTUP;
 	fbi->task_state			= (u_char)-1;
 

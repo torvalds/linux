@@ -70,7 +70,12 @@ struct pxafb_mach_info {
 	 *      LCCR3_HSP, LCCR3_VSP, LCCR0_Pcd(x), LCCR3_Bpp
 	 */
 	u_int		lccr3;
-
+	/* The following should be defined in LCCR4
+	 *	LCCR4_PAL_FOR_0 or LCCR4_PAL_FOR_1 or LCCR4_PAL_FOR_2
+	 *
+	 * All other bits in LCCR4 should be left alone.
+	 */
+	u_int		lccr4;
 	void (*pxafb_backlight_power)(int);
 	void (*pxafb_lcd_power)(int, struct fb_var_screeninfo *);
 
