@@ -110,7 +110,8 @@ static inline void PM3_WRITE_REG(struct pm3_par *par, s32 off, u32 v)
 
 static inline void PM3_WAIT(struct pm3_par *par, u32 n)
 {
-	while (PM3_READ_REG(par, PM3InFIFOSpace) < n);
+	while (PM3_READ_REG(par, PM3InFIFOSpace) < n)
+		cpu_relax();
 }
 
 static inline void PM3_WRITE_DAC_REG(struct pm3_par *par, unsigned r, u8 v)
@@ -209,8 +210,8 @@ static int pm3fb_sync(struct fb_info *info)
 	PM3_WRITE_REG(par, PM3Sync, 0);
 	mb();
 	do {
-		while ((PM3_READ_REG(par, PM3OutFIFOWords)) == 0);
-		rmb();
+		while ((PM3_READ_REG(par, PM3OutFIFOWords)) == 0)
+			cpu_relax();
 	} while ((PM3_READ_REG(par, PM3OutputFifo)) != PM3Sync_Tag);
 
 	return 0;
