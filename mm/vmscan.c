@@ -1694,9 +1694,11 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 {
 	pg_data_t *pgdat;
 	cpumask_t mask;
+	int nid;
 
 	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN) {
-		for_each_online_pgdat(pgdat) {
+		for_each_node_state(nid, N_HIGH_MEMORY) {
+			pgdat = NODE_DATA(nid);
 			mask = node_to_cpumask(pgdat->node_id);
 			if (any_online_cpu(mask) != NR_CPUS)
 				/* One of our CPUs online: restore mask */
