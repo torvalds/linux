@@ -878,7 +878,7 @@ void unlock_notify(void)
 
 __initcall(create_proc_mconsole);
 
-#define NOTIFY "=notify:"
+#define NOTIFY "notify:"
 
 static int mconsole_setup(char *str)
 {
@@ -890,7 +890,7 @@ static int mconsole_setup(char *str)
 	return 1;
 }
 
-__setup("mconsole", mconsole_setup);
+__setup("mconsole=", mconsole_setup);
 
 __uml_help(mconsole_setup,
 "mconsole=notify:<socket>\n"
