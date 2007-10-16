@@ -568,16 +568,16 @@ EXPORT_SYMBOL(new_inode);
 void unlock_new_inode(struct inode *inode)
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct file_system_type *type = inode->i_sb->s_type;
-	/*
-	 * ensure nobody is actually holding i_mutex
-	 */
-	mutex_destroy(&inode->i_mutex);
-	mutex_init(&inode->i_mutex);
-	if (inode->i_mode & S_IFDIR)
+	if (inode->i_mode & S_IFDIR) {
+		struct file_system_type *type = inode->i_sb->s_type;
+
+		/*
+		 * ensure nobody is actually holding i_mutex
+		 */
+		mutex_destroy(&inode->i_mutex);
+		mutex_init(&inode->i_mutex);
 		lockdep_set_class(&inode->i_mutex, &type->i_mutex_dir_key);
-	else
-		lockdep_set_class(&inode->i_mutex, &type->i_mutex_key);
+	}
 #endif
 	/*
 	 * This is special!  We do not need the spinlock
