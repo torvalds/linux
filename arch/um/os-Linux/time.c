@@ -34,10 +34,6 @@ void disable_timer(void)
 	    (setitimer(ITIMER_REAL, &disable, NULL) < 0))
 		printk(UM_KERN_ERR "disable_timer - setitimer failed, "
 		       "errno = %d\n", errno);
-
-	/* If there are signals already queued, after unblocking ignore them */
-	signal(SIGALRM, SIG_IGN);
-	signal(SIGVTALRM, SIG_IGN);
 }
 
 int switch_timers(int to_real)
