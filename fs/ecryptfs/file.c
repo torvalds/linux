@@ -338,21 +338,6 @@ static int ecryptfs_fasync(int fd, struct file *file, int flag)
 	return rc;
 }
 
-static ssize_t ecryptfs_splice_read(struct file *file, loff_t * ppos,
-				    struct pipe_inode_info *pipe, size_t count,
-				    unsigned int flags)
-{
-	struct file *lower_file = NULL;
-	int rc = -EINVAL;
-
-	lower_file = ecryptfs_file_to_lower(file);
-	if (lower_file->f_op && lower_file->f_op->splice_read)
-		rc = lower_file->f_op->splice_read(lower_file, ppos, pipe,
-						count, flags);
-
-	return rc;
-}
-
 static int ecryptfs_ioctl(struct inode *inode, struct file *file,
 			  unsigned int cmd, unsigned long arg);
 
@@ -365,7 +350,7 @@ const struct file_operations ecryptfs_dir_fops = {
 	.release = ecryptfs_release,
 	.fsync = ecryptfs_fsync,
 	.fasync = ecryptfs_fasync,
-	.splice_read = ecryptfs_splice_read,
+	.splice_read = generic_file_splice_read,
 };
 
 const struct file_operations ecryptfs_main_fops = {
@@ -382,7 +367,7 @@ const struct file_operations ecryptfs_main_fops = {
 	.release = ecryptfs_release,
 	.fsync = ecryptfs_fsync,
 	.fasync = ecryptfs_fasync,
-	.splice_read = ecryptfs_splice_read,
+	.splice_read = generic_file_splice_read,
 };
 
 static int
