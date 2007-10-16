@@ -2605,14 +2605,10 @@ mptscsih_set_scsi_lookup(MPT_ADAPTER *ioc, int i, struct scsi_cmnd *scmd)
 }
 
 /**
- * SCPNT_TO_LOOKUP_IDX
- *
- * search's for a given scmd in the ScsiLookup[] array list
- *
+ * SCPNT_TO_LOOKUP_IDX - searches for a given scmd in the ScsiLookup[] array list
  * @ioc: Pointer to MPT_ADAPTER structure
- * @scmd: scsi_cmnd pointer
- *
- **/
+ * @sc: scsi_cmnd pointer
+ */
 static int
 SCPNT_TO_LOOKUP_IDX(MPT_ADAPTER *ioc, struct scsi_cmnd *sc)
 {
