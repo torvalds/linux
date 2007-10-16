@@ -808,6 +808,8 @@ init_e100_ide (void)
 		hwif->dma_off_quietly = &cris_dma_off;
 		hwif->cbl = ATA_CBL_PATA40;
 		hwif->pio_mask = ATA_PIO4,
+		hwif->drives[0].autotune = 1;
+		hwif->drives[1].autotune = 1;
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
 		hwif->autodma = 1;
