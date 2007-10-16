@@ -32,6 +32,9 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#ifdef CONFIG_MTRR
+#include <asm/mtrr.h>
+#endif
 
 #include <video/pm3fb.h>
 
@@ -52,6 +55,12 @@
  * Driver data
  */
 static char *mode_option __devinitdata;
+static int noaccel   __devinitdata = 0;
+
+/* mtrr option */
+#ifdef CONFIG_MTRR
+static int nomtrr __devinitdata = 0;
+#endif
 
 /*
  * This structure defines the hardware state of the graphics card. Normally
@@ -65,6 +74,7 @@ struct pm3_par {
 	u32		video;		/* video flags before blanking */
 	u32		base;		/* screen base (xoffset+yoffset) in 128 bits unit */
 	u32		palette[16];
+	int		mtrr_handle;
 };
 
 /*
@@ -1244,6 +1254,13 @@ static int __devinit pm3fb_probe(struct pci_dev *dev,
 	}
 	info->screen_size = pm3fb_fix.smem_len;
 
+#ifdef CONFIG_MTRR
+	if (!nomtrr) {
+		par->mtrr_handle = mtrr_add(pm3fb_fix.smem_start,
+						pm3fb_fix.smem_len,
+						MTRR_TYPE_WRCOMB, 1);
+	}
+#endif
 	info->fbops = &pm3fb_ops;
 
 	par->video = PM3_READ_REG(par, PM3VideoControl);
@@ -1257,6 +1274,10 @@ static int __devinit pm3fb_probe(struct pci_dev *dev,
 			FBINFO_HWACCEL_IMAGEBLIT |
 			FBINFO_HWACCEL_FILLRECT;
 
+	if (noaccel) {
+	    	printk(KERN_DEBUG "disabling acceleration\n");
+  		info->flags |= FBINFO_HWACCEL_DISABLED;
+	}
 	info->pixmap.addr = kmalloc(PM3_PIXMAP_SIZE, GFP_KERNEL);
 	if (!info->pixmap.addr) {
 		retval = -ENOMEM;
@@ -1330,6 +1351,11 @@ static void __devexit pm3fb_remove(struct pci_dev *dev)
 		unregister_framebuffer(info);
 		fb_dealloc_cmap(&info->cmap);
 
+#ifdef CONFIG_MTRR
+	if (par->mtrr_handle >= 0)
+		mtrr_del(par->mtrr_handle, info->fix.smem_start,
+			 info->fix.smem_len);
+#endif /* CONFIG_MTRR */
 		iounmap(info->screen_base);
 		release_mem_region(fix->smem_start, fix->smem_len);
 		iounmap(par->v_regs);
@@ -1357,22 +1383,72 @@ static struct pci_driver pm3fb_driver = {
 
 MODULE_DEVICE_TABLE(pci, pm3fb_id_table);
 
+#ifndef MODULE
+	/*
+	 *  Setup
+	 */
+
+/*
+ * Only necessary if your driver takes special options,
+ * otherwise we fall back on the generic fb_setup().
+ */
+static int __init pm3fb_setup(char *options)
+{
+	char *this_opt;
+
+	/* Parse user speficied options (`video=pm3fb:') */
+	if (!options || !*options)
+		return 0;
+
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		if (!*this_opt)
+			continue;
+		else if (!strncmp(this_opt, "noaccel", 7)) {
+			noaccel = 1;
+#ifdef CONFIG_MTRR
+		} else if (!strncmp(this_opt, "nomtrr", 6)) {
+			nomtrr = 1;
+#endif
+		} else {
+			mode_option = this_opt;
+		}
+	}
+	return 0;
+}
+#endif /* MODULE */
+
 static int __init pm3fb_init(void)
 {
+	/*
+	 *  For kernel boot options (in 'video=pm3fb:<options>' format)
+	 */
 #ifndef MODULE
-	if (fb_get_options("pm3fb", NULL))
+	char *option = NULL;
+
+	if (fb_get_options("pm3fb", &option))
 		return -ENODEV;
+	pm3fb_setup(option);
 #endif
+
 	return pci_register_driver(&pm3fb_driver);
 }
 
+#ifdef MODULE
 static void __exit pm3fb_exit(void)
 {
 	pci_unregister_driver(&pm3fb_driver);
 }
 
-module_init(pm3fb_init);
 module_exit(pm3fb_exit);
+#endif
+module_init(pm3fb_init);
+
+module_param(noaccel, bool, 0);
+MODULE_PARM_DESC(noaccel, "Disable acceleration");
+#ifdef CONFIG_MTRR
+module_param(nomtrr, bool, 0);
+MODULE_PARM_DESC(nomtrr, "Disable MTRR support (0 or 1=disabled) (default=0)");
+#endif
 
 MODULE_DESCRIPTION("Permedia3 framebuffer device driver");
 MODULE_LICENSE("GPL");
