@@ -7,6 +7,7 @@ struct imxfb_mach_info {
 	u_short		xres;
 	u_short		yres;
 
+	u_int		nonstd;
 	u_char		bpp;
 	u_char		hsync_len;
 	u_char		left_margin;

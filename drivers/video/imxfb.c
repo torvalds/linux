@@ -466,7 +466,7 @@ static int __init imxfb_init_fbinfo(struct device *dev)
 	info->var.vmode	= FB_VMODE_NONINTERLACED;
 
 	info->fbops			= &imxfb_ops;
-	info->flags			= FBINFO_FLAG_DEFAULT;
+	info->flags			= FBINFO_FLAG_DEFAULT | FBINFO_READS_FAST;
 
 	fbi->rgb[RGB_16]		= &def_rgb_16;
 	fbi->rgb[RGB_8]			= &def_rgb_8;
@@ -479,6 +479,7 @@ static int __init imxfb_init_fbinfo(struct device *dev)
 	info->var.yres_virtual		= inf->yres;
 	fbi->max_bpp			= inf->bpp;
 	info->var.bits_per_pixel	= inf->bpp;
+	info->var.nonstd		= inf->nonstd;
 	info->var.pixclock		= inf->pixclock;
 	info->var.hsync_len		= inf->hsync_len;
 	info->var.left_margin		= inf->left_margin;
