@@ -46,9 +46,3 @@ struct old_serial_port {
 #define PROBE_ANY	(~0)
 
 #define HIGH_BITS_OFFSET ((sizeof(long)-sizeof(int))*8)
-
-#ifdef CONFIG_SERIAL_SIO_SHARE_IRQ
-#define M32R_SIO_SHARE_IRQS 1
-#else
-#define M32R_SIO_SHARE_IRQS 0
-#endif
