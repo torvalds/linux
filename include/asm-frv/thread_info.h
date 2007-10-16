@@ -88,9 +88,8 @@ register struct thread_info *__current_thread_info asm("gr15");
 	({							\
 		struct thread_info *ret;			\
 								\
-		ret = kmalloc(THREAD_SIZE, GFP_KERNEL);		\
-		if (ret)					\
-			memset(ret, 0, THREAD_SIZE);		\
+		ret = kzalloc(THREAD_SIZE, GFP_KERNEL);		\
+								\
 		ret;						\
 	})
 #else
