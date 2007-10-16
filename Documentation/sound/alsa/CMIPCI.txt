@@ -1,5 +1,5 @@
-              Brief Notes on C-Media 8738/8338 Driver
-              =======================================
+         Brief Notes on C-Media 8338/8738/8768/8770 Driver
+         =================================================
 
                    Takashi Iwai <tiwai@suse.de>
 
@@ -209,10 +209,13 @@ In addition to the standard SB mixer, CM8x38 provides more functions.
 MIDI CONTROLLER
 ---------------
 
-The MPU401-UART interface is disabled as default.  You need to set
-module option "mpu_port" with a valid I/O port address to enable the
-MIDI support.  The valid I/O ports are 0x300, 0x310, 0x320 and 0x330.
-Choose the value which doesn't conflict with other cards.
+With CMI8338 chips, the MPU401-UART interface is disabled as default.
+You need to set the module option "mpu_port" to a valid I/O port address
+to enable MIDI support.  Valid I/O ports are 0x300, 0x310, 0x320 and
+0x330.  Choose a value that doesn't conflict with other cards.
+
+With CMI8738 and newer chips, the MIDI interface is enabled by default
+and the driver automatically chooses a port address.
 
 There is _no_ hardware wavetable function on this chip (except for
 OPL3 synth below).
@@ -229,6 +232,8 @@ Set "fm_port" module option for more cards.
 
 The output quality of FM OPL/3 is, however, very weird.
 I don't know why..
+
+CMI8768 and newer chips do not have the FM synth.
 
 
 Joystick and Modem

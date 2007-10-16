@@ -45,10 +45,12 @@ MODULE_LICENSE("GPL");
 
 static int index[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_IDX;
 static char* id[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_STR;
-static long port[SNDRV_CARDS] __devinitdata = { [0 ... (SNDRV_CARDS-1)] = SNDRV_AUTO_PORT };
+static long port[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_PORT;
+static long wss_port[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_PORT;
 static int irq[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_IRQ;
 static int mpu_irq[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_IRQ;
 static int dma[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_DMA;
+static int dma2[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_DMA;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index number for SoundScape soundcard");
@@ -59,6 +61,9 @@ MODULE_PARM_DESC(id, "Description for SoundScape card");
 module_param_array(port, long, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for SoundScape driver.");
 
+module_param_array(wss_port, long, NULL, 0444);
+MODULE_PARM_DESC(wss_port, "WSS Port # for SoundScape driver.");
+
 module_param_array(irq, int, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for SoundScape driver.");
 
@@ -68,12 +73,16 @@ MODULE_PARM_DESC(mpu_irq, "MPU401 IRQ # for SoundScape driver.");
 module_param_array(dma, int, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
 
+module_param_array(dma2, int, NULL, 0444);
+MODULE_PARM_DESC(dma2, "DMA2 # for SoundScape driver.");
+
 #ifdef CONFIG_PNP
 static int isa_registered;
 static int pnp_registered;
 
 static struct pnp_card_device_id sscape_pnpids[] = {
-	{ .id = "ENS3081", .devs = { { "ENS0000" } } },
+	{ .id = "ENS3081", .devs = { { "ENS0000" } } }, /* Soundscape PnP */
+	{ .id = "ENS4081", .devs = { { "ENS1011" } } },	/* VIVO90 */
 	{ .id = "" }	/* end */
 };
 
@@ -124,12 +133,21 @@ enum GA_REG {
 #define AD1845_FREQ_SEL_MSB    0x16
 #define AD1845_FREQ_SEL_LSB    0x17
 
+enum card_type {
+	SSCAPE,
+	SSCAPE_PNP,
+	SSCAPE_VIVO,
+};
+
 struct soundscape {
 	spinlock_t lock;
 	unsigned io_base;
+	unsigned wss_base;
 	int codec_type;
 	int ic_type;
+	enum card_type type;
 	struct resource *io_res;
+	struct resource *wss_res;
 	struct snd_cs4231 *chip;
 	struct snd_mpu401 *mpu;
 	struct snd_hwdep *hw;
@@ -340,8 +358,9 @@ static inline void activate_ad1845_unsafe(unsigned io_base)
  */
 static void soundscape_free(struct snd_card *c)
 {
-	register struct soundscape *sscape = get_card_soundscape(c);
+	struct soundscape *sscape = get_card_soundscape(c);
 	release_and_free_resource(sscape->io_res);
+	release_and_free_resource(sscape->wss_res);
 	free_dma(sscape->chip->dma1);
 }
 
@@ -382,7 +401,7 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 		unsigned long flags;
 		unsigned char x;
 
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));
@@ -409,7 +428,7 @@ static int host_startup_ack(struct soundscape *s, unsigned timeout)
 		unsigned long flags;
 		unsigned char x;
 
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));
@@ -522,7 +541,7 @@ static int upload_dma_data(struct soundscape *s,
 		ret = -EAGAIN;
 	}
 
-	_release_dma:
+_release_dma:
 	/*
 	 * NOTE!!! We are NOT holding any spinlocks at this point !!!
 	 */
@@ -802,6 +821,7 @@ static int __devinit detect_sscape(struct soundscape *s)
 	unsigned long flags;
 	unsigned d;
 	int retval = 0;
+	int codec = s->wss_base;
 
 	spin_lock_irqsave(&s->lock, flags);
 
@@ -833,8 +853,26 @@ static int __devinit detect_sscape(struct soundscape *s)
 	outb(0xfe, ODIE_ADDR_IO(s->io_base));
 	if ((inb(ODIE_ADDR_IO(s->io_base)) & 0x9f) != 0x0e)
 		goto _done;
-	if ((inb(ODIE_DATA_IO(s->io_base)) & 0x9f) != 0x0e)
+
+	outb(0xfe, ODIE_ADDR_IO(s->io_base));
+	d = inb(ODIE_DATA_IO(s->io_base));
+	if (s->type != SSCAPE_VIVO && (d & 0x9f) != 0x0e)
 		goto _done;
+
+	d  = sscape_read_unsafe(s->io_base, GA_HMCTL_REG) & 0x3f;
+	sscape_write_unsafe(s->io_base, GA_HMCTL_REG, d | 0xc0);
+
+	if (s->type == SSCAPE_VIVO)
+		codec += 4;
+	/* wait for WSS codec */
+	for (d = 0; d < 500; d++) {
+		if ((inb(codec) & 0x80) == 0)
+			break;
+		spin_unlock_irqrestore(&s->lock, flags);
+		msleep(1);
+		spin_lock_irqsave(&s->lock, flags);
+	}
+	snd_printd(KERN_INFO "init delay = %d ms\n", d);
 
 	/*
 	 * SoundScape successfully detected!
@@ -995,21 +1033,23 @@ static void ad1845_capture_format(struct snd_cs4231 * chip, struct snd_pcm_hw_pa
  * try to support at least some of the extra bits by overriding
  * some of the CS4231 callback.
  */
-static int __devinit create_ad1845(struct snd_card *card, unsigned port, int irq, int dma1)
+static int __devinit create_ad1845(struct snd_card *card, unsigned port,
+				   int irq, int dma1, int dma2)
 {
 	register struct soundscape *sscape = get_card_soundscape(card);
 	struct snd_cs4231 *chip;
 	int err;
 
-#define CS4231_SHARE_HARDWARE  (CS4231_HWSHARE_DMA1 | CS4231_HWSHARE_DMA2)
-	/*
-	 * The AD1845 PCM device is only half-duplex, and so
-	 * we only give it one DMA channel ...
-	 */
-	if ((err = snd_cs4231_create(card,
-				     port, -1, irq, dma1, dma1,
-				     CS4231_HW_DETECT,
-				     CS4231_HWSHARE_DMA1, &chip)) == 0) {
+	if (sscape->type == SSCAPE_VIVO)
+		port += 4;
+
+	if (dma1 == dma2)
+		dma2 = -1;
+
+	err = snd_cs4231_create(card,
+				port, -1, irq, dma1, dma2,
+				CS4231_HW_DETECT, CS4231_HWSHARE_DMA1, &chip);
+	if (!err) {
 		unsigned long flags;
 		struct snd_pcm *pcm;
 
@@ -1031,49 +1071,72 @@ static int __devinit create_ad1845(struct snd_card *card, unsigned port, int irq
     snd_cs4231_mce_down(chip);
  */
 
-		/*
-		 * The input clock frequency on the SoundScape must
-		 * be 14.31818 MHz, because we must set this register
-		 * to get the playback to sound correct ...
-		 */
-		snd_cs4231_mce_up(chip);
-		spin_lock_irqsave(&chip->reg_lock, flags);
-		snd_cs4231_out(chip, AD1845_CRYS_CLOCK_SEL, 0x20);
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		snd_cs4231_mce_down(chip);
+		if (sscape->type != SSCAPE_VIVO) {
+			int val;
+			/*
+			 * The input clock frequency on the SoundScape must
+			 * be 14.31818 MHz, because we must set this register
+			 * to get the playback to sound correct ...
+			 */
+			snd_cs4231_mce_up(chip);
+			spin_lock_irqsave(&chip->reg_lock, flags);
+			snd_cs4231_out(chip, AD1845_CRYS_CLOCK_SEL, 0x20);
+			spin_unlock_irqrestore(&chip->reg_lock, flags);
+			snd_cs4231_mce_down(chip);
 
-		/*
-		 * More custom configuration:
-		 * a) select "mode 2", and provide a current drive of 8 mA
-		 * b) enable frequency selection (for capture/playback)
-		 */
-		spin_lock_irqsave(&chip->reg_lock, flags);
-		snd_cs4231_out(chip, CS4231_MISC_INFO, (CS4231_MODE2 | 0x10));
-		snd_cs4231_out(chip, AD1845_PWR_DOWN_CTRL, snd_cs4231_in(chip, AD1845_PWR_DOWN_CTRL) | AD1845_FREQ_SEL_ENABLE);
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
+			/*
+			 * More custom configuration:
+			 * a) select "mode 2" and provide a current drive of 8mA
+			 * b) enable frequency selection (for capture/playback)
+			 */
+			spin_lock_irqsave(&chip->reg_lock, flags);
+			snd_cs4231_out(chip, CS4231_MISC_INFO,
+					CS4231_MODE2 | 0x10);
+			val = snd_cs4231_in(chip, AD1845_PWR_DOWN_CTRL);
+			snd_cs4231_out(chip, AD1845_PWR_DOWN_CTRL,
+					val | AD1845_FREQ_SEL_ENABLE);
+			spin_unlock_irqrestore(&chip->reg_lock, flags);
+		}
 
-		if ((err = snd_cs4231_pcm(chip, 0, &pcm)) < 0) {
-			snd_printk(KERN_ERR "sscape: No PCM device for AD1845 chip\n");
+		err = snd_cs4231_pcm(chip, 0, &pcm);
+		if (err < 0) {
+			snd_printk(KERN_ERR "sscape: No PCM device "
+					    "for AD1845 chip\n");
 			goto _error;
 		}
 
-		if ((err = snd_cs4231_mixer(chip)) < 0) {
-			snd_printk(KERN_ERR "sscape: No mixer device for AD1845 chip\n");
+		err = snd_cs4231_mixer(chip);
+		if (err < 0) {
+			snd_printk(KERN_ERR "sscape: No mixer device "
+					    "for AD1845 chip\n");
+			goto _error;
+		}
+		err = snd_cs4231_timer(chip, 0, NULL);
+		if (err < 0) {
+			snd_printk(KERN_ERR "sscape: No timer device "
+					    "for AD1845 chip\n");
 			goto _error;
 		}
 
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&midi_mixer_ctl, chip))) < 0) {
-			snd_printk(KERN_ERR "sscape: Could not create MIDI mixer control\n");
-			goto _error;
+		if (sscape->type != SSCAPE_VIVO) {
+			err = snd_ctl_add(card,
+					  snd_ctl_new1(&midi_mixer_ctl, chip));
+			if (err < 0) {
+				snd_printk(KERN_ERR "sscape: Could not create "
+						    "MIDI mixer control\n");
+				goto _error;
+			}
+			chip->set_playback_format = ad1845_playback_format;
+			chip->set_capture_format = ad1845_capture_format;
 		}
 
 		strcpy(card->driver, "SoundScape");
 		strcpy(card->shortname, pcm->name);
 		snprintf(card->longname, sizeof(card->longname),
-		         "%s at 0x%lx, IRQ %d, DMA %d\n",
-		         pcm->name, chip->port, chip->irq, chip->dma1);
-		chip->set_playback_format = ad1845_playback_format;
-		chip->set_capture_format = ad1845_capture_format;
+			 "%s at 0x%lx, IRQ %d, DMA1 %d, DMA2 %d\n",
+			 pcm->name, chip->port, chip->irq,
+			 chip->dma1, chip->dma2);
+
 		sscape->chip = chip;
 	}
 
@@ -1086,15 +1149,15 @@ static int __devinit create_ad1845(struct snd_card *card, unsigned port, int irq
  * Create an ALSA soundcard entry for the SoundScape, using
  * the given list of port, IRQ and DMA resources.
  */
-static int __devinit create_sscape(int dev, struct snd_card **rcardp)
+static int __devinit create_sscape(int dev, struct snd_card *card)
 {
-	struct snd_card *card;
-	register struct soundscape *sscape;
-	register unsigned dma_cfg;
+	struct soundscape *sscape = get_card_soundscape(card);
+	unsigned dma_cfg;
 	unsigned irq_cfg;
 	unsigned mpu_irq_cfg;
 	unsigned xport;
 	struct resource *io_res;
+	struct resource *wss_res;
 	unsigned long flags;
 	int err;
 
@@ -1118,61 +1181,69 @@ static int __devinit create_sscape(int dev, struct snd_card **rcardp)
 	 * Grab IO ports that we will need to probe so that we
 	 * can detect and control this hardware ...
 	 */
-	if ((io_res = request_region(xport, 8, "SoundScape")) == NULL) {
+	io_res = request_region(xport, 8, "SoundScape");
+	if (!io_res) {
 		snd_printk(KERN_ERR "sscape: can't grab port 0x%x\n", xport);
 		return -EBUSY;
 	}
+	wss_res = NULL;
+	if (sscape->type == SSCAPE_VIVO) {
+		wss_res = request_region(wss_port[dev], 4, "SoundScape");
+		if (!wss_res) {
+			snd_printk(KERN_ERR "sscape: can't grab port 0x%lx\n",
+					    wss_port[dev]);
+			err = -EBUSY;
+			goto _release_region;
+		}
+	}
 
 	/*
-	 * Grab both DMA channels (OK, only one for now) ...
+	 * Grab one DMA channel ...
 	 */
-	if ((err = request_dma(dma[dev], "SoundScape")) < 0) {
+	err = request_dma(dma[dev], "SoundScape");
+	if (err < 0) {
 		snd_printk(KERN_ERR "sscape: can't grab DMA %d\n", dma[dev]);
 		goto _release_region;
 	}
 
-	/*
-	 * Create a new ALSA sound card entry, in anticipation
-	 * of detecting our hardware ...
-	 */
-	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-				 sizeof(struct soundscape))) == NULL) {
-		err = -ENOMEM;
-		goto _release_dma;
-	}
-
-	sscape = get_card_soundscape(card);
 	spin_lock_init(&sscape->lock);
 	spin_lock_init(&sscape->fwlock);
 	sscape->io_res = io_res;
+	sscape->wss_res = wss_res;
 	sscape->io_base = xport;
+	sscape->wss_base = wss_port[dev];
 
 	if (!detect_sscape(sscape)) {
 		printk(KERN_ERR "sscape: hardware not detected at 0x%x\n", sscape->io_base);
 		err = -ENODEV;
-		goto _release_card;
+		goto _release_dma;
 	}
 
 	printk(KERN_INFO "sscape: hardware detected at 0x%x, using IRQ %d, DMA %d\n",
-	                 sscape->io_base, irq[dev], dma[dev]);
+			 sscape->io_base, irq[dev], dma[dev]);
 
-	/*
-	 * Now create the hardware-specific device so that we can
-	 * load the microcode into the on-board processor.
-	 * We cannot use the MPU-401 MIDI system until this firmware
-	 * has been loaded into the card.
-	 */
-	if ((err = snd_hwdep_new(card, "MC68EC000", 0, &(sscape->hw))) < 0) {
-		printk(KERN_ERR "sscape: Failed to create firmware device\n");
-		goto _release_card;
+	if (sscape->type != SSCAPE_VIVO) {
+		/*
+		 * Now create the hardware-specific device so that we can
+		 * load the microcode into the on-board processor.
+		 * We cannot use the MPU-401 MIDI system until this firmware
+		 * has been loaded into the card.
+		 */
+		err = snd_hwdep_new(card, "MC68EC000", 0, &(sscape->hw));
+		if (err < 0) {
+			printk(KERN_ERR "sscape: Failed to create "
+					"firmware device\n");
+			goto _release_dma;
+		}
+		strlcpy(sscape->hw->name, "SoundScape M68K",
+			sizeof(sscape->hw->name));
+		sscape->hw->name[sizeof(sscape->hw->name) - 1] = '\0';
+		sscape->hw->iface = SNDRV_HWDEP_IFACE_SSCAPE;
+		sscape->hw->ops.open = sscape_hw_open;
+		sscape->hw->ops.release = sscape_hw_release;
+		sscape->hw->ops.ioctl = sscape_hw_ioctl;
+		sscape->hw->private_data = sscape;
 	}
-	strlcpy(sscape->hw->name, "SoundScape M68K", sizeof(sscape->hw->name));
-	sscape->hw->name[sizeof(sscape->hw->name) - 1] = '\0';
-	sscape->hw->iface = SNDRV_HWDEP_IFACE_SSCAPE;
-	sscape->hw->ops.open = sscape_hw_open;
-	sscape->hw->ops.release = sscape_hw_release;
-	sscape->hw->ops.ioctl = sscape_hw_ioctl;
-	sscape->hw->private_data = sscape;
 
 	/*
 	 * Tell the on-board devices where their resources are (I think -
@@ -1197,7 +1268,8 @@ static int __devinit create_sscape(int dev, struct snd_card **rcardp)
 	sscape_write_unsafe(sscape->io_base,
 	                    GA_INTCFG_REG, 0xf0 | (mpu_irq_cfg << 2) | mpu_irq_cfg);
 	sscape_write_unsafe(sscape->io_base,
-	                    GA_CDCFG_REG, 0x09 | DMA_8BIT | (dma[dev] << 4) | (irq_cfg << 1));
+			    GA_CDCFG_REG, 0x09 | DMA_8BIT
+			    | (dma[dev] << 4) | (irq_cfg << 1));
 
 	spin_unlock_irqrestore(&sscape->lock, flags);
 
@@ -1205,30 +1277,37 @@ static int __devinit create_sscape(int dev, struct snd_card **rcardp)
 	 * We have now enabled the codec chip, and so we should
 	 * detect the AD1845 device ...
 	 */
-	if ((err = create_ad1845(card, CODEC_IO(xport), irq[dev], dma[dev])) < 0) {
-		printk(KERN_ERR "sscape: No AD1845 device at 0x%x, IRQ %d\n",
-		                CODEC_IO(xport), irq[dev]);
-		goto _release_card;
+	err = create_ad1845(card, wss_port[dev], irq[dev],
+			    dma[dev], dma2[dev]);
+	if (err < 0) {
+		printk(KERN_ERR "sscape: No AD1845 device at 0x%lx, IRQ %d\n",
+		       wss_port[dev], irq[dev]);
+		goto _release_dma;
 	}
 #define MIDI_DEVNUM  0
-	if ((err = create_mpu401(card, MIDI_DEVNUM, MPU401_IO(xport), mpu_irq[dev])) < 0) {
-		printk(KERN_ERR "sscape: Failed to create MPU-401 device at 0x%x\n",
-		                MPU401_IO(xport));
-		goto _release_card;
+	if (sscape->type != SSCAPE_VIVO) {
+		err = create_mpu401(card, MIDI_DEVNUM,
+				    MPU401_IO(xport), mpu_irq[dev]);
+		if (err < 0) {
+			printk(KERN_ERR "sscape: Failed to create "
+					"MPU-401 device at 0x%x\n",
+					MPU401_IO(xport));
+			goto _release_dma;
+		}
+
+		/*
+		 * Enable the master IRQ ...
+		 */
+		sscape_write(sscape, GA_INTENA_REG, 0x80);
+
+		/*
+		 * Initialize mixer
+		 */
+		sscape->midi_vol = 0;
+		host_write_ctrl_unsafe(sscape->io_base, CMD_SET_MIDI_VOL, 100);
+		host_write_ctrl_unsafe(sscape->io_base, 0, 100);
+		host_write_ctrl_unsafe(sscape->io_base, CMD_XXX_MIDI_VOL, 100);
 	}
-
-	/*
-	 * Enable the master IRQ ...
-	 */
-	sscape_write(sscape, GA_INTENA_REG, 0x80);
-
-	/*
-	 * Initialize mixer
-	 */
-	sscape->midi_vol = 0;
-	host_write_ctrl_unsafe(sscape->io_base, CMD_SET_MIDI_VOL, 100);
-	host_write_ctrl_unsafe(sscape->io_base, 0, 100);
-	host_write_ctrl_unsafe(sscape->io_base, CMD_XXX_MIDI_VOL, 100);
 
 	/*
 	 * Now that we have successfully created this sound card,
@@ -1237,17 +1316,14 @@ static int __devinit create_sscape(int dev, struct snd_card **rcardp)
 	 *       function now that our "constructor" has completed.
 	 */
 	card->private_free = soundscape_free;
-	*rcardp = card;
 
 	return 0;
 
-	_release_card:
-	snd_card_free(card);
-
-	_release_dma:
+_release_dma:
 	free_dma(dma[dev]);
 
-	_release_region:
+_release_region:
+	release_and_free_resource(wss_res);
 	release_and_free_resource(io_res);
 
 	return err;
@@ -1276,19 +1352,33 @@ static int __devinit snd_sscape_match(struct device *pdev, unsigned int i)
 static int __devinit snd_sscape_probe(struct device *pdev, unsigned int dev)
 {
 	struct snd_card *card;
+	struct soundscape *sscape;
 	int ret;
 
+	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
+			    sizeof(struct soundscape));
+	if (!card)
+		return -ENOMEM;
+
+	sscape = get_card_soundscape(card);
+	sscape->type = SSCAPE;
+
 	dma[dev] &= 0x03;
-	ret = create_sscape(dev, &card);
+	ret = create_sscape(dev, card);
 	if (ret < 0)
-		return ret;
+		goto _release_card;
+
 	snd_card_set_dev(card, pdev);
 	if ((ret = snd_card_register(card)) < 0) {
 		printk(KERN_ERR "sscape: Failed to register sound card\n");
-		return ret;
+		goto _release_card;
 	}
 	dev_set_drvdata(pdev, card);
 	return 0;
+
+_release_card:
+	snd_card_free(card);
+	return ret;
 }
 
 static int __devexit snd_sscape_remove(struct device *devptr, unsigned int dev)
@@ -1325,6 +1415,7 @@ static int __devinit sscape_pnp_detect(struct pnp_card_link *pcard,
 	static int idx = 0;
 	struct pnp_dev *dev;
 	struct snd_card *card;
+	struct soundscape *sscape;
 	int ret;
 
 	/*
@@ -1366,26 +1457,55 @@ static int __devinit sscape_pnp_detect(struct pnp_card_link *pcard,
 	}
 
 	/*
+	 * Create a new ALSA sound card entry, in anticipation
+	 * of detecting our hardware ...
+	 */
+	card = snd_card_new(index[idx], id[idx], THIS_MODULE,
+			    sizeof(struct soundscape));
+	if (!card)
+		return -ENOMEM;
+
+	sscape = get_card_soundscape(card);
+
+	/*
+	 * Identify card model ...
+	 */
+	if (!strncmp("ENS4081", pid->id, 7))
+		sscape->type = SSCAPE_VIVO;
+	else
+		sscape->type = SSCAPE_PNP;
+
+	/*
 	 * Read the correct parameters off the ISA PnP bus ...
 	 */
 	port[idx] = pnp_port_start(dev, 0);
 	irq[idx] = pnp_irq(dev, 0);
 	mpu_irq[idx] = pnp_irq(dev, 1);
 	dma[idx] = pnp_dma(dev, 0) & 0x03;
+	if (sscape->type == SSCAPE_PNP) {
+		dma2[idx] = dma[idx];
+		wss_port[idx] = CODEC_IO(port[idx]);
+	} else {
+		wss_port[idx] = pnp_port_start(dev, 1);
+		dma2[idx] = pnp_dma(dev, 1);
+	}
 
-	ret = create_sscape(idx, &card);
+	ret = create_sscape(idx, card);
 	if (ret < 0)
-		return ret;
+		goto _release_card;
+
 	snd_card_set_dev(card, &pcard->card->dev);
 	if ((ret = snd_card_register(card)) < 0) {
 		printk(KERN_ERR "sscape: Failed to register sound card\n");
-		snd_card_free(card);
-		return ret;
+		goto _release_card;
 	}
 
 	pnp_set_card_drvdata(pcard, card);
 	++idx;
+	return 0;
 
+_release_card:
+	snd_card_free(card);
 	return ret;
 }
 

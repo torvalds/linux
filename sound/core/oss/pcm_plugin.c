@@ -1,6 +1,6 @@
 /*
  *  PCM Plug-In shared (kernel/library) code
- *  Copyright (c) 1999 by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
  *  Copyright (c) 2000 by Abramo Bagnara <abramo@alsa-project.org>
  *
  *
@@ -25,9 +25,6 @@
 #endif
 
 #include <sound/driver.h>
-
-#ifdef CONFIG_SND_PCM_OSS_PLUGINS
-
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/vmalloc.h>
@@ -267,6 +264,8 @@ static int snd_pcm_plug_formats(struct snd_mask *mask, int format)
 		       SNDRV_PCM_FMTBIT_U16_BE | SNDRV_PCM_FMTBIT_S16_BE |
 		       SNDRV_PCM_FMTBIT_U24_LE | SNDRV_PCM_FMTBIT_S24_LE |
 		       SNDRV_PCM_FMTBIT_U24_BE | SNDRV_PCM_FMTBIT_S24_BE |
+		       SNDRV_PCM_FMTBIT_U24_3LE | SNDRV_PCM_FMTBIT_S24_3LE |
+		       SNDRV_PCM_FMTBIT_U24_3BE | SNDRV_PCM_FMTBIT_S24_3BE |
 		       SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_S32_LE |
 		       SNDRV_PCM_FMTBIT_U32_BE | SNDRV_PCM_FMTBIT_S32_BE);
 	snd_mask_set(&formats, SNDRV_PCM_FORMAT_MU_LAW);
@@ -283,6 +282,10 @@ static int preferred_formats[] = {
 	SNDRV_PCM_FORMAT_S16_BE,
 	SNDRV_PCM_FORMAT_U16_LE,
 	SNDRV_PCM_FORMAT_U16_BE,
+	SNDRV_PCM_FORMAT_S24_3LE,
+	SNDRV_PCM_FORMAT_S24_3BE,
+	SNDRV_PCM_FORMAT_U24_3LE,
+	SNDRV_PCM_FORMAT_U24_3BE,
 	SNDRV_PCM_FORMAT_S24_LE,
 	SNDRV_PCM_FORMAT_S24_BE,
 	SNDRV_PCM_FORMAT_U24_LE,
@@ -297,41 +300,37 @@ static int preferred_formats[] = {
 
 int snd_pcm_plug_slave_format(int format, struct snd_mask *format_mask)
 {
+	int i;
+
 	if (snd_mask_test(format_mask, format))
 		return format;
 	if (! snd_pcm_plug_formats(format_mask, format))
 		return -EINVAL;
 	if (snd_pcm_format_linear(format)) {
-		int width = snd_pcm_format_width(format);
-		int unsignd = snd_pcm_format_unsigned(format);
-		int big = snd_pcm_format_big_endian(format);
-		int format1;
-		int wid, width1=width;
-		int dwidth1 = 8;
-		for (wid = 0; wid < 4; ++wid) {
-			int end, big1 = big;
-			for (end = 0; end < 2; ++end) {
-				int sgn, unsignd1 = unsignd;
-				for (sgn = 0; sgn < 2; ++sgn) {
-					format1 = snd_pcm_build_linear_format(width1, unsignd1, big1);
-					if (format1 >= 0 &&
-					    snd_mask_test(format_mask, format1))
-						goto _found;
-					unsignd1 = !unsignd1;
-				}
-				big1 = !big1;
+		unsigned int width = snd_pcm_format_width(format);
+		int unsignd = snd_pcm_format_unsigned(format) > 0;
+		int big = snd_pcm_format_big_endian(format) > 0;
+		unsigned int badness, best = -1;
+		int best_format = -1;
+		for (i = 0; i < ARRAY_SIZE(preferred_formats); i++) {
+			int f = preferred_formats[i];
+			unsigned int w;
+			if (!snd_mask_test(format_mask, f))
+				continue;
+			w = snd_pcm_format_width(f);
+			if (w >= width)
+				badness = w - width;
+			else
+				badness = width - w + 32;
+			badness += snd_pcm_format_unsigned(f) != unsignd;
+			badness += snd_pcm_format_big_endian(f) != big;
+			if (badness < best) {
+				best_format = f;
+				best = badness;
 			}
-			if (width1 == 32) {
-				dwidth1 = -dwidth1;
-				width1 = width;
-			}
-			width1 += dwidth1;
 		}
-		return -EINVAL;
-	_found:
-		return format1;
+		return best_format >= 0 ? best_format : -EINVAL;
 	} else {
-		unsigned int i;
 		switch (format) {
 		case SNDRV_PCM_FORMAT_MU_LAW:
 			for (i = 0; i < ARRAY_SIZE(preferred_formats); ++i) {
@@ -740,5 +739,3 @@ int snd_pcm_area_copy(const struct snd_pcm_channel_area *src_area, size_t src_of
 	}
 	return 0;
 }
-
-#endif

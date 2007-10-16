@@ -301,20 +301,6 @@ snd_rme96_capture_ptr(struct rme96 *rme96)
 }
 
 static int
-snd_rme96_ratecode(int rate)
-{
-    switch (rate) {
-    case 32000: return SNDRV_PCM_RATE_32000;
-    case 44100: return SNDRV_PCM_RATE_44100;
-    case 48000: return SNDRV_PCM_RATE_48000;
-    case 64000: return SNDRV_PCM_RATE_64000;
-    case 88200: return SNDRV_PCM_RATE_88200;
-    case 96000: return SNDRV_PCM_RATE_96000;
-    }
-    return 0;
-}
-
-static int
 snd_rme96_playback_silence(struct snd_pcm_substream *substream,
 			   int channel, /* not used (interleaved data) */
 			   snd_pcm_uframes_t pos,
@@ -1176,8 +1162,6 @@ snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	snd_pcm_set_sync(substream);
-
 	spin_lock_irq(&rme96->lock);	
         if (rme96->playback_substream != NULL) {
 		spin_unlock_irq(&rme96->lock);
@@ -1194,7 +1178,7 @@ snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
 	    (rate = snd_rme96_capture_getrate(rme96, &dummy)) > 0)
 	{
                 /* slave clock */
-                runtime->hw.rates = snd_rme96_ratecode(rate);
+                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
 	}        
@@ -1214,8 +1198,6 @@ snd_rme96_capture_spdif_open(struct snd_pcm_substream *substream)
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	snd_pcm_set_sync(substream);
-
 	runtime->hw = snd_rme96_capture_spdif_info;
         if (snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG &&
             (rate = snd_rme96_capture_getrate(rme96, &isadat)) > 0)
@@ -1223,7 +1205,7 @@ snd_rme96_capture_spdif_open(struct snd_pcm_substream *substream)
                 if (isadat) {
                         return -EIO;
                 }
-                runtime->hw.rates = snd_rme96_ratecode(rate);
+                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
         }
@@ -1247,8 +1229,6 @@ snd_rme96_playback_adat_open(struct snd_pcm_substream *substream)
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;        
 	
-	snd_pcm_set_sync(substream);
-
 	spin_lock_irq(&rme96->lock);	
         if (rme96->playback_substream != NULL) {
 		spin_unlock_irq(&rme96->lock);
@@ -1265,7 +1245,7 @@ snd_rme96_playback_adat_open(struct snd_pcm_substream *substream)
 	    (rate = snd_rme96_capture_getrate(rme96, &dummy)) > 0)
 	{
                 /* slave clock */
-                runtime->hw.rates = snd_rme96_ratecode(rate);
+                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
 	}        
@@ -1280,8 +1260,6 @@ snd_rme96_capture_adat_open(struct snd_pcm_substream *substream)
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	snd_pcm_set_sync(substream);
-
 	runtime->hw = snd_rme96_capture_adat_info;
         if (snd_rme96_getinputtype(rme96) == RME96_INPUT_ANALOG) {
                 /* makes no sense to use analog input. Note that analog
@@ -1292,7 +1270,7 @@ snd_rme96_capture_adat_open(struct snd_pcm_substream *substream)
                 if (!isadat) {
                         return -EIO;
                 }
-                runtime->hw.rates = snd_rme96_ratecode(rate);
+                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
         }
@@ -1826,15 +1804,8 @@ snd_rme96_proc_init(struct rme96 *rme96)
  * control interface
  */
 
-static int
-snd_rme96_info_loopback_control(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_rme96_info_loopback_control		snd_ctl_boolean_mono_info
+
 static int
 snd_rme96_get_loopback_control(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

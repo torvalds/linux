@@ -1,6 +1,6 @@
 /*
  *  Dummy soundcard
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include <sound/rawmidi.h>
 #include <sound/initval.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Dummy soundcard (/dev/null)");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ALSA,Dummy soundcard}}");
@@ -510,15 +510,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_dummy, -4500, 30, 0);
   .get = snd_dummy_capsrc_get, .put = snd_dummy_capsrc_put, \
   .private_value = addr }
 
-static int snd_dummy_capsrc_info(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_dummy_capsrc_info	snd_ctl_boolean_stereo_info
  
 static int snd_dummy_capsrc_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)

@@ -1,0 +1,31 @@
+#SPI drivers
+
+menu "SPI devices"
+	depends on SND != n
+
+config SND_AT73C213
+	tristate "Atmel AT73C213 DAC driver"
+	depends on ATMEL_SSC
+	select SND_PCM
+	help
+	  Say Y here if you want to use the Atmel AT73C213 external DAC. This
+	  DAC can be found on Atmel development boards.
+
+	  This driver requires the Atmel SSC driver for sound sink, a
+	  peripheral found on most AT91 and AVR32 microprocessors.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called snd-at73c213.
+
+config SND_AT73C213_TARGET_BITRATE
+	int "Target bitrate for AT73C213"
+	depends on SND_AT73C213
+	default "48000"
+	range 8000 50000
+	help
+	  Sets the target bitrate for the bitrate calculator in the driver.
+	  Limited by hardware to be between 8000 Hz and 50000 Hz.
+
+	  Set to 48000 Hz by default.
+
+endmenu

@@ -1,6 +1,6 @@
 /*
  *  Routines for Gravis UltraSound soundcards
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -31,7 +31,7 @@
 
 #include <asm/dma.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for Gravis UltraSound soundcards");
 MODULE_LICENSE("GPL");
 
@@ -154,6 +154,14 @@ int snd_gus_create(struct snd_card *card,
 	gus = kzalloc(sizeof(*gus), GFP_KERNEL);
 	if (gus == NULL)
 		return -ENOMEM;
+	spin_lock_init(&gus->reg_lock);
+	spin_lock_init(&gus->voice_alloc);
+	spin_lock_init(&gus->active_voice_lock);
+	spin_lock_init(&gus->event_lock);
+	spin_lock_init(&gus->dma_lock);
+	spin_lock_init(&gus->pcm_volume_level_lock);
+	spin_lock_init(&gus->uart_cmd_lock);
+	mutex_init(&gus->dma_mutex);
 	gus->gf1.irq = -1;
 	gus->gf1.dma1 = -1;
 	gus->gf1.dma2 = -1;
@@ -218,14 +226,6 @@ int snd_gus_create(struct snd_card *card,
 	gus->gf1.pcm_channels = pcm_channels;
 	gus->gf1.volume_ramp = 25;
 	gus->gf1.smooth_pan = 1;
-	spin_lock_init(&gus->reg_lock);
-	spin_lock_init(&gus->voice_alloc);
-	spin_lock_init(&gus->active_voice_lock);
-	spin_lock_init(&gus->event_lock);
-	spin_lock_init(&gus->dma_lock);
-	spin_lock_init(&gus->pcm_volume_level_lock);
-	spin_lock_init(&gus->uart_cmd_lock);
-	mutex_init(&gus->dma_mutex);
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, gus, &ops)) < 0) {
 		snd_gus_free(gus);
 		return err;
@@ -398,7 +398,7 @@ static int snd_gus_check_version(struct snd_gus_card * gus)
 				gus->ess_flag = 1;
 			} else {
 				snd_printk(KERN_ERR "unknown GF1 revision number at 0x%lx - 0x%x (0x%x)\n", gus->gf1.port, rev, val);
-				snd_printk(KERN_ERR "  please - report to <perex@suse.cz>\n");
+				snd_printk(KERN_ERR "  please - report to <perex@perex.cz>\n");
 			}
 		}
 	}

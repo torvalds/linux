@@ -1769,7 +1769,7 @@ S:	Maintained
 
 HP100:	Driver for HP 10/100 Mbit/s Voice Grade Network Adapter Series
 P:	Jaroslav Kysela
-M:	perex@suse.cz
+M:	perex@perex.cz
 S:	Maintained
 
 HPET:	High Precision Event Timers driver (hpet.c)
@@ -2132,7 +2132,7 @@ S:	Maintained
 
 ISAPNP
 P:	Jaroslav Kysela
-M:	perex@suse.cz
+M:	perex@perex.cz
 S:	Maintained
 
 ISDN SUBSYSTEM
@@ -3523,7 +3523,7 @@ S:	Maintained
 
 SOUND
 P:	Jaroslav Kysela
-M:	perex@suse.cz
+M:	perex@perex.cz
 L:	alsa-devel@alsa-project.org (subscribers-only)
 S:	Maintained
 

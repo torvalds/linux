@@ -3,7 +3,7 @@
 
 /*
  *  Header file for MPU-401 and compatible cards
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -50,7 +50,6 @@
 #define MPU401_INFO_INTEGRATED	(1 << 2)	/* integrated h/w port */
 #define MPU401_INFO_MMIO	(1 << 3)	/* MMIO access */
 #define MPU401_INFO_TX_IRQ	(1 << 4)	/* independent TX irq */
-#define MPU401_INFO_UART_ONLY	(1 << 5)	/* No ENTER_UART cmd needed */
 
 #define MPU401_MODE_BIT_INPUT		0
 #define MPU401_MODE_BIT_OUTPUT		1

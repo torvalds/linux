@@ -1,6 +1,6 @@
 /*
  *  The driver for the EMU10K1 (SB Live!) based soundcards
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
  *      Added support for Audigy 2 Value.
@@ -32,7 +32,7 @@
 #include <sound/emu10k1.h>
 #include <sound/initval.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("EMU10K1");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB Live!/PCI512/E-mu APS},"

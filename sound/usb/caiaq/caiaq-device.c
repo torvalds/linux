@@ -41,9 +41,10 @@
 #endif
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.1.0");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.2.0");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
+			 "{Native Instruments, RigKontrol3},"
 			 "{Native Instruments, Kore Controller},"
 			 "{Native Instruments, Audio Kontrol 1}"
 			 "{Native Instruments, Audio 8 DJ}}");
@@ -81,6 +82,11 @@ static struct usb_device_id snd_usb_id_table[] = {
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =	USB_VID_NATIVEINSTRUMENTS,
 		.idProduct =	USB_PID_RIGKONTROL2 
+	},
+	{
+		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =	USB_VID_NATIVEINSTRUMENTS,
+		.idProduct =	USB_PID_RIGKONTROL3
 	},
 	{
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
@@ -226,7 +232,7 @@ int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *dev,
 static void setup_card(struct snd_usb_caiaqdev *dev)
 {
 	int ret;
-	char val[3];
+	char val[4];
 	
 	/* device-specific startup specials */
 	switch (dev->chip.usb_id) {
@@ -236,6 +242,14 @@ static void setup_card(struct snd_usb_caiaqdev *dev)
 		val[1] = 0x00;
 		val[2] = 0x01;
 		send_command(dev, EP1_CMD_WRITE_IO, val, 3);
+		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL3):
+		/* RigKontrol2 - display two centered dashes ('--') */
+		val[0] = 0x00;
+		val[1] = 0x40;
+		val[2] = 0x40;
+		val[3] = 0x00;
+		send_command(dev, EP1_CMD_WRITE_IO, val, 4);
 		break;
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
 		/* Audio Kontrol 1 - make USB-LED stop blinking */

@@ -501,6 +501,16 @@ static int __devinit snd_opti9xx_configure(struct snd_opti9xx *chip)
 			(chip->hardware == OPTi9XX_HW_82C930 ? 0x00 : 0x04),
 			0x34);
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(5), 0x20, 0xbf);
+		/* 
+		 * The BTC 1817DW has QS1000 wavetable which is connected
+		 * to the serial digital input of the OPTI931.
+		 */
+		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(21), 0x82, 0xff);
+		/* 
+		 * This bit sets OPTI931 to automaticaly select FM
+		 * or digital input signal.
+		 */
+		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(26), 0x01, 0x01);
 		break;
 #endif	/* OPTi93X */
 
@@ -1732,11 +1742,11 @@ static int __devinit snd_card_opti9xx_pnp(struct snd_opti9xx *chip,
 
 #ifdef OPTi93X
 	port = pnp_port_start(pdev, 0) - 4;
-	fm_port = pnp_port_start(pdev, 1);
+	fm_port = pnp_port_start(pdev, 1) + 8;
 #else
 	if (pid->driver_data != 0x0924)
 		port = pnp_port_start(pdev, 1);
-	fm_port = pnp_port_start(pdev, 2);
+	fm_port = pnp_port_start(pdev, 2) + 8;
 #endif	/* OPTi93X */
 	irq = pnp_irq(pdev, 0);
 	dma1 = pnp_dma(pdev, 0);

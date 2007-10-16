@@ -3,7 +3,7 @@
  *
  *   VT82C686A/B/C, VT8233A/C, VT8235
  *
- *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *	                   Tjeerd.Mulder <Tjeerd.Mulder@fujitsu-siemens.com>
  *                    2002 Takashi Iwai <tiwai@suse.de>
  *
@@ -50,7 +50,7 @@
 #define POINTER_DEBUG
 #endif
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("VIA VT82xx modem");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{VIA,VT82C686A/B/C modem,pci}}");
@@ -983,7 +983,7 @@ static int snd_via82xx_chip_init(struct via82xx_modem *chip)
 		pci_read_config_byte(chip->pci, VIA_ACLINK_STAT, &pval);
 		if (pval & VIA_ACLINK_C00_READY) /* primary codec ready */
 			break;
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_before(jiffies, end_time));
 
 	if ((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY)
@@ -1001,7 +1001,7 @@ static int snd_via82xx_chip_init(struct via82xx_modem *chip)
 			chip->ac97_secondary = 1;
 			goto __ac97_ok2;
 		}
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_before(jiffies, end_time));
 	/* This is ok, the most of motherboards have only one codec */
 

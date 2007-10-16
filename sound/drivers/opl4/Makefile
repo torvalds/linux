@@ -1,6 +1,6 @@
 #
 # Makefile for ALSA
-# Copyright (c) 2001 by Jaroslav Kysela <perex@suse.cz>
+# Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
 snd-opl4-lib-objs := opl4_lib.o opl4_mixer.o opl4_proc.o

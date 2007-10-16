@@ -3,7 +3,7 @@
  *
  *   AK4524 / AK4528 / AK4529 / AK4355 / AK4381 interface
  *
- *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #include <sound/initval.h>
 #include "ice1712.h"
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("ICEnsemble ICE17xx <-> AK4xxx AD/DA chip interface");
 MODULE_LICENSE("GPL");
 

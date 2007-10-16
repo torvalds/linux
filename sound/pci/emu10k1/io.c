@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Creative Labs, Inc.
  *  Routines for control of EMU10K1 chips
  *
@@ -226,9 +226,9 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
     	return 0;
 }
 
-int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, int reg, int value)
+int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, u32 reg, u32 value)
 {
-	if (reg < 0 || reg > 0x3f)
+	if (reg > 0x3f)
 		return 1;
 	reg += 0x40; /* 0x40 upwards are registers. */
 	if (value < 0 || value > 0x3f) /* 0 to 0x3f are values */
@@ -244,9 +244,9 @@ int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, int reg, int value)
 	return 0;
 }
 
-int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, int reg, int *value)
+int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, u32 reg, u32 *value)
 {
-	if (reg < 0 || reg > 0x3f)
+	if (reg > 0x3f)
 		return 1;
 	reg += 0x40; /* 0x40 upwards are registers. */
 	outl(reg, emu->port + A_IOCFG);
@@ -261,7 +261,7 @@ int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, int reg, int *value)
 /* Each Destination has one and only one Source,
  * but one Source can feed any number of Destinations simultaneously.
  */
-int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, int dst, int src)
+int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, u32 dst, u32 src)
 {
 	snd_emu1010_fpga_write(emu, 0x00, ((dst >> 8) & 0x3f) );
 	snd_emu1010_fpga_write(emu, 0x01, (dst & 0x3f) );

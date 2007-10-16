@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of ICS 2101 chip and "mixer" in GF1 chip
  *
  *
@@ -36,14 +36,7 @@
   .get = snd_gf1_get_single, .put = snd_gf1_put_single, \
   .private_value = shift | (invert << 8) }
 
-static int snd_gf1_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_gf1_info_single	snd_ctl_boolean_mono_info
 
 static int snd_gf1_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

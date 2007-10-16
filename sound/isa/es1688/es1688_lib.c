@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of ESS ES1688/688/488 chip
  *
  *
@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("ESS ESx688 lowlevel module");
 MODULE_LICENSE("GPL");
 

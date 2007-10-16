@@ -3,7 +3,7 @@
 
 /*
  *  Global structures used for GUS part of ALSA driver
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify

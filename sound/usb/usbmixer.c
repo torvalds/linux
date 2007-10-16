@@ -1483,7 +1483,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 	struct snd_kcontrol *kctl;
 	char **namelist;
 
-	if (! num_ins || desc[0] < 6 + num_ins) {
+	if (! num_ins || desc[0] < 5 + num_ins) {
 		snd_printk(KERN_ERR "invalid SELECTOR UNIT descriptor %d\n", unitid);
 		return -EINVAL;
 	}
@@ -1888,14 +1888,7 @@ static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
-static int snd_audigy2nx_led_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_audigy2nx_led_info		snd_ctl_boolean_mono_info
 
 static int snd_audigy2nx_led_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

@@ -1,6 +1,6 @@
 /*
  *  Digital Audio (PCM) abstract layer / OSS compatible
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -48,7 +48,7 @@ static int dsp_map[SNDRV_CARDS];
 static int adsp_map[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
 static int nonblock_open = 1;
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Abramo Bagnara <abramo@alsa-project.org>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Abramo Bagnara <abramo@alsa-project.org>");
 MODULE_DESCRIPTION("PCM OSS emulation for ALSA.");
 MODULE_LICENSE("GPL");
 module_param_array(dsp_map, int, NULL, 0444);
@@ -633,6 +633,22 @@ static long snd_pcm_alsa_frames(struct snd_pcm_substream *substream, long bytes)
 	return bytes_to_frames(runtime, (buffer_size * bytes) / runtime->oss.buffer_bytes);
 }
 
+/* define extended formats in the recent OSS versions (if any) */
+/* linear formats */
+#define AFMT_S32_LE      0x00001000
+#define AFMT_S32_BE      0x00002000
+#define AFMT_S24_LE      0x00008000
+#define AFMT_S24_BE      0x00010000
+#define AFMT_S24_PACKED  0x00040000
+
+/* other supported formats */
+#define AFMT_FLOAT       0x00004000
+#define AFMT_SPDIF_RAW   0x00020000
+
+/* unsupported formats */
+#define AFMT_AC3         0x00000400
+#define AFMT_VORBIS      0x00000800
+
 static int snd_pcm_oss_format_from(int format)
 {
 	switch (format) {
@@ -646,6 +662,13 @@ static int snd_pcm_oss_format_from(int format)
 	case AFMT_U16_LE:	return SNDRV_PCM_FORMAT_U16_LE;
 	case AFMT_U16_BE:	return SNDRV_PCM_FORMAT_U16_BE;
 	case AFMT_MPEG:		return SNDRV_PCM_FORMAT_MPEG;
+	case AFMT_S32_LE:	return SNDRV_PCM_FORMAT_S32_LE;
+	case AFMT_S32_BE:	return SNDRV_PCM_FORMAT_S32_BE;
+	case AFMT_S24_LE:	return SNDRV_PCM_FORMAT_S24_LE;
+	case AFMT_S24_BE:	return SNDRV_PCM_FORMAT_S24_BE;
+	case AFMT_S24_PACKED:	return SNDRV_PCM_FORMAT_S24_3LE;
+	case AFMT_FLOAT:	return SNDRV_PCM_FORMAT_FLOAT;
+	case AFMT_SPDIF_RAW:	return SNDRV_PCM_FORMAT_IEC958_SUBFRAME;
 	default:		return SNDRV_PCM_FORMAT_U8;
 	}
 }
@@ -663,6 +686,13 @@ static int snd_pcm_oss_format_to(int format)
 	case SNDRV_PCM_FORMAT_U16_LE:	return AFMT_U16_LE;
 	case SNDRV_PCM_FORMAT_U16_BE:	return AFMT_U16_BE;
 	case SNDRV_PCM_FORMAT_MPEG:		return AFMT_MPEG;
+	case SNDRV_PCM_FORMAT_S32_LE:	return AFMT_S32_LE;
+	case SNDRV_PCM_FORMAT_S32_BE:	return AFMT_S32_BE;
+	case SNDRV_PCM_FORMAT_S24_LE:	return AFMT_S24_LE;
+	case SNDRV_PCM_FORMAT_S24_BE:	return AFMT_S24_BE;
+	case SNDRV_PCM_FORMAT_S24_3LE:	return AFMT_S24_PACKED;
+	case SNDRV_PCM_FORMAT_FLOAT:	return AFMT_FLOAT;
+	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME: return AFMT_SPDIF_RAW;
 	default:			return -EINVAL;
 	}
 }
@@ -1725,7 +1755,10 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 		return AFMT_MU_LAW | AFMT_U8 |
 		       AFMT_S16_LE | AFMT_S16_BE |
 		       AFMT_S8 | AFMT_U16_LE |
-		       AFMT_U16_BE;
+		       AFMT_U16_BE |
+			AFMT_S32_LE | AFMT_S32_BE |
+			AFMT_S24_LE | AFMT_S24_LE |
+			AFMT_S24_PACKED;
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;

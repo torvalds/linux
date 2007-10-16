@@ -2,7 +2,7 @@
 #define __SOUND_CS46XX_H
 
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Cirrus Logic, Inc.
  *  Definitions for Cirrus Logic CS46xx chips
  *

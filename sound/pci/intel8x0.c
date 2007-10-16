@@ -1,7 +1,7 @@
 /*
  *   ALSA driver for Intel ICH (i8x0) chipsets
  *
- *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This code also contains alpha support for SiS 735 chipsets provided
@@ -43,7 +43,7 @@
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Intel 82801AA,82901AB,i810,i820,i830,i840,i845,MX440; SiS 7012; Ali 5455");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"

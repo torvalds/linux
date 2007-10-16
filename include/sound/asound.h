@@ -1,6 +1,6 @@
 /*
  *  Advanced Linux Sound Architecture - ALSA - Driver
- *  Copyright (c) 1994-2003 by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) 1994-2003 by Jaroslav Kysela <perex@perex.cz>,
  *                             Abramo Bagnara <abramo@alsa-project.org>
  *
  *
@@ -92,6 +92,7 @@ enum {
 	SNDRV_HWDEP_IFACE_USX2Y_PCM,	/* Tascam US122, US224 & US428 rawusb pcm */
 	SNDRV_HWDEP_IFACE_PCXHR,	/* Digigram PCXHR */
 	SNDRV_HWDEP_IFACE_SB_RC,	/* SB Extigy/Audigy2NX remote control */
+	SNDRV_HWDEP_IFACE_HDA,		/* HD-audio */
 
 	/* Don't forget to change the following: */
 	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_SB_RC

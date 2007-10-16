@@ -1,7 +1,7 @@
 /*
  *   Generic MIDI synth driver for ALSA sequencer
  *   Copyright (c) 1998 by Frank van de Pol <fvdpol@coil.demon.nl>
- *                         Jaroslav Kysela <perex@suse.cz>
+ *                         Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ Possible options for midisynth module:
 #include <sound/seq_midi_event.h>
 #include <sound/initval.h>
 
-MODULE_AUTHOR("Frank van de Pol <fvdpol@coil.demon.nl>, Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Frank van de Pol <fvdpol@coil.demon.nl>, Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer MIDI synth.");
 MODULE_LICENSE("GPL");
 static int output_buffer_size = PAGE_SIZE;

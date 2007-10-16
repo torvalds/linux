@@ -1,6 +1,6 @@
 #
 # Makefile for ALSA
-# Copyright (c) 1999 by Jaroslav Kysela <perex@suse.cz>
+# Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
 #
 
 snd-seq-oss-objs  := seq_oss.o seq_oss_init.o seq_oss_timer.o seq_oss_ioctl.o \

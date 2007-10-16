@@ -647,14 +647,7 @@ static int vx_audio_monitor_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	return 0;
 }
 
-static int vx_audio_sw_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define vx_audio_sw_info	snd_ctl_boolean_stereo_info
 
 static int vx_audio_sw_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -865,14 +858,7 @@ static int vx_peak_meter_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	return 0;
 }
 
-static int vx_saturation_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define vx_saturation_info	snd_ctl_boolean_stereo_info
 
 static int vx_saturation_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

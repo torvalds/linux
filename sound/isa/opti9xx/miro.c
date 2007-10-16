@@ -242,14 +242,7 @@ static int aci_setvalue(struct snd_miro * miro, unsigned char index, int value)
  *  MIXER part
  */
 
-static int snd_miro_info_capture(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-
-	return 0;
-}
+#define snd_miro_info_capture	snd_ctl_boolean_mono_info
 
 static int snd_miro_get_capture(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -344,14 +337,7 @@ static int snd_miro_put_preamp(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static int snd_miro_info_amp(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-
-	return 0;
-}
+#define snd_miro_info_amp	snd_ctl_boolean_mono_info
 
 static int snd_miro_get_amp(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)

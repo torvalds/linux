@@ -451,15 +451,7 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 }
 
 /* Mixer controls */
-static int aica_pcmswitch_info(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define aica_pcmswitch_info		snd_ctl_boolean_mono_info
 
 static int aica_pcmswitch_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)

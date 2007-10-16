@@ -1071,14 +1071,7 @@ static int snd_es18xx_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	return (snd_es18xx_mixer_bits(chip, 0x1c, 0x07, val) != val) || retVal;
 }
 
-static int snd_es18xx_info_spatializer_enable(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_es18xx_info_spatializer_enable	snd_ctl_boolean_mono_info
 
 static int snd_es18xx_get_spatializer_enable(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1120,14 +1113,7 @@ static int snd_es18xx_get_hw_volume(struct snd_kcontrol *kcontrol, struct snd_ct
 	return 0;
 }
 
-static int snd_es18xx_info_hw_switch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_es18xx_info_hw_switch	snd_ctl_boolean_stereo_info
 
 static int snd_es18xx_get_hw_switch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -2042,6 +2028,7 @@ static int pnpc_registered;
 
 static struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
 	{ .id = "ESS1869" },
+	{ .id = "ESS1879" },
 	{ .id = "" }		/* end */
 };
 

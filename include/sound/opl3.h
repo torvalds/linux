@@ -4,7 +4,7 @@
 /*
  * Definitions of the OPL-3 registers.
  *
- * Copyright (c) by Jaroslav Kysela <perex@suse.cz>,
+ * Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *                  Hannu Savolainen 1993-1996
  *
  *

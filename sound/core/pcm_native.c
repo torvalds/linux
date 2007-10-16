@@ -1,6 +1,6 @@
 /*
  *  Digital Audio (PCM) abstract layer
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -1787,12 +1787,18 @@ static int snd_pcm_hw_rule_sample_bits(struct snd_pcm_hw_params *params,
 static unsigned int rates[] = { 5512, 8000, 11025, 16000, 22050, 32000, 44100,
                                  48000, 64000, 88200, 96000, 176400, 192000 };
 
+const struct snd_pcm_hw_constraint_list snd_pcm_known_rates = {
+	.count = ARRAY_SIZE(rates),
+	.list = rates,
+};
+
 static int snd_pcm_hw_rule_rate(struct snd_pcm_hw_params *params,
 				struct snd_pcm_hw_rule *rule)
 {
 	struct snd_pcm_hardware *hw = rule->private;
 	return snd_interval_list(hw_param_interval(params, rule->var),
-				 ARRAY_SIZE(rates), rates, hw->rates);
+				 snd_pcm_known_rates.count,
+				 snd_pcm_known_rates.list, hw->rates);
 }		
 
 static int snd_pcm_hw_rule_buffer_bytes_max(struct snd_pcm_hw_params *params,

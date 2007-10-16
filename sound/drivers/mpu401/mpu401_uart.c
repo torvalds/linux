@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of MPU-401 in UART mode
  *
  *  MPU-401 supports UART mode which is not capable generate transmit
@@ -39,7 +39,7 @@
 #include <sound/core.h>
 #include <sound/mpu401.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of MPU-401 in UART mode");
 MODULE_LICENSE("GPL");
 
@@ -270,8 +270,7 @@ static int snd_mpu401_do_reset(struct snd_mpu401 *mpu)
 {
 	if (snd_mpu401_uart_cmd(mpu, MPU401_RESET, 1))
 		return -EIO;
-	if (!(mpu->info_flags & MPU401_INFO_UART_ONLY) &&
-	    snd_mpu401_uart_cmd(mpu, MPU401_ENTER_UART, 1))
+	if (snd_mpu401_uart_cmd(mpu, MPU401_ENTER_UART, 0))
 		return -EIO;
 	return 0;
 }

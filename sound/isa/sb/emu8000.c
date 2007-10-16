@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *     and (c) 1999 Steve Ratcliffe <steve@parabola.demon.co.uk>
  *  Copyright (C) 1999-2000 Takashi Iwai <tiwai@suse.de>
  *

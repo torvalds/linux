@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Takashi Iwai <tiwai@suse.de>
  * 
  *  Generic memory allocators
@@ -38,7 +38,7 @@
 #endif
 
 
-MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>, Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>, Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Memory allocator for ALSA system.");
 MODULE_LICENSE("GPL");
 
@@ -206,6 +206,7 @@ void snd_free_pages(void *ptr, size_t size)
  *
  */
 
+#ifdef CONFIG_HAS_DMA
 /* allocate the coherent DMA pages */
 static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *dma)
 {
@@ -239,6 +240,7 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
 	dec_snd_pages(pg);
 	dma_free_coherent(dev, PAGE_SIZE << pg, ptr, dma);
 }
+#endif /* CONFIG_HAS_DMA */
 
 #ifdef CONFIG_SBUS
 
@@ -312,12 +314,14 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		dmab->area = snd_malloc_sbus_pages(device, size, &dmab->addr);
 		break;
 #endif
+#ifdef CONFIG_HAS_DMA
 	case SNDRV_DMA_TYPE_DEV:
 		dmab->area = snd_malloc_dev_pages(device, size, &dmab->addr);
 		break;
 	case SNDRV_DMA_TYPE_DEV_SG:
 		snd_malloc_sgbuf_pages(device, size, dmab, NULL);
 		break;
+#endif
 	default:
 		printk(KERN_ERR "snd-malloc: invalid device type %d\n", type);
 		dmab->area = NULL;
@@ -383,12 +387,14 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
 		snd_free_sbus_pages(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
 		break;
 #endif
+#ifdef CONFIG_HAS_DMA
 	case SNDRV_DMA_TYPE_DEV:
 		snd_free_dev_pages(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
 		break;
 	case SNDRV_DMA_TYPE_DEV_SG:
 		snd_free_sgbuf_pages(dmab);
 		break;
+#endif
 	default:
 		printk(KERN_ERR "snd-malloc: invalid device type %d\n", dmab->dev.type);
 	}

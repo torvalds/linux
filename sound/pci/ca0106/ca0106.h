@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
- *  Version: 0.0.21
+ *  Version: 0.0.22
  *
  *  FEATURES currently supported:
  *    See ca0106_main.c for features.
@@ -47,6 +47,8 @@
  *    Added GPIO info for SB Live 24bit.
  *  0.0.21
  *   Implement support for Line-in capture on SB Live 24bit.
+ *  0.0.22
+ *    Add support for mute control on SB Live 24bit (cards w/ SPI DAC)
  *
  *
  *  This code was initally based on code from ALSA's emu10k1x.c which is:
@@ -552,6 +554,95 @@
 #define CONTROL_CENTER_LFE_CHANNEL 1
 #define CONTROL_UNKNOWN_CHANNEL 2
 
+
+/* Based on WM8768 Datasheet Rev 4.2 page 32 */
+#define SPI_REG_MASK	0x1ff	/* 16-bit SPI writes have a 7-bit address */
+#define SPI_REG_SHIFT	9	/* followed by 9 bits of data */
+
+#define SPI_LDA1_REG		0	/* digital attenuation */
+#define SPI_RDA1_REG		1
+#define SPI_LDA2_REG		4
+#define SPI_RDA2_REG		5
+#define SPI_LDA3_REG		6
+#define SPI_RDA3_REG		7
+#define SPI_LDA4_REG		13
+#define SPI_RDA4_REG		14
+#define SPI_MASTDA_REG		8
+
+#define SPI_DA_BIT_UPDATE	(1<<8)	/* update attenuation values */
+#define SPI_DA_BIT_0dB		0xff	/* 0 dB */
+#define SPI_DA_BIT_infdB	0x00	/* inf dB attenuation (mute) */
+
+#define SPI_PL_REG		2
+#define SPI_PL_BIT_L_M		(0<<5)	/* left channel = mute */
+#define SPI_PL_BIT_L_L		(1<<5)	/* left channel = left */
+#define SPI_PL_BIT_L_R		(2<<5)	/* left channel = right */
+#define SPI_PL_BIT_L_C		(3<<5)	/* left channel = (L+R)/2 */
+#define SPI_PL_BIT_R_M		(0<<7)	/* right channel = mute */
+#define SPI_PL_BIT_R_L		(1<<7)	/* right channel = left */
+#define SPI_PL_BIT_R_R		(2<<7)	/* right channel = right */
+#define SPI_PL_BIT_R_C		(3<<7)	/* right channel = (L+R)/2 */
+#define SPI_IZD_REG		2
+#define SPI_IZD_BIT		(1<<4)	/* infinite zero detect */
+
+#define SPI_FMT_REG		3
+#define SPI_FMT_BIT_RJ		(0<<0)	/* right justified mode */
+#define SPI_FMT_BIT_LJ		(1<<0)	/* left justified mode */
+#define SPI_FMT_BIT_I2S		(2<<0)	/* I2S mode */
+#define SPI_FMT_BIT_DSP		(3<<0)	/* DSP Modes A or B */
+#define SPI_LRP_REG		3
+#define SPI_LRP_BIT		(1<<2)	/* invert LRCLK polarity */
+#define SPI_BCP_REG		3
+#define SPI_BCP_BIT		(1<<3)	/* invert BCLK polarity */
+#define SPI_IWL_REG		3
+#define SPI_IWL_BIT_16		(0<<4)	/* 16-bit world length */
+#define SPI_IWL_BIT_20		(1<<4)	/* 20-bit world length */
+#define SPI_IWL_BIT_24		(2<<4)	/* 24-bit world length */
+#define SPI_IWL_BIT_32		(3<<4)	/* 32-bit world length */
+
+#define SPI_MS_REG		10
+#define SPI_MS_BIT		(1<<5)	/* master mode */
+#define SPI_RATE_REG		10	/* only applies in master mode */
+#define SPI_RATE_BIT_128	(0<<6)	/* MCLK = LRCLK * 128 */
+#define SPI_RATE_BIT_192	(1<<6)
+#define SPI_RATE_BIT_256	(2<<6)
+#define SPI_RATE_BIT_384	(3<<6)
+#define SPI_RATE_BIT_512	(4<<6)
+#define SPI_RATE_BIT_768	(5<<6)
+
+/* They really do label the bit for the 4th channel "4" and not "3" */
+#define SPI_DMUTE0_REG		9
+#define SPI_DMUTE1_REG		9
+#define SPI_DMUTE2_REG		9
+#define SPI_DMUTE4_REG		15
+#define SPI_DMUTE0_BIT		(1<<3)
+#define SPI_DMUTE1_BIT		(1<<4)
+#define SPI_DMUTE2_BIT		(1<<5)
+#define SPI_DMUTE4_BIT		(1<<2)
+
+#define SPI_PHASE0_REG		3
+#define SPI_PHASE1_REG		3
+#define SPI_PHASE2_REG		3
+#define SPI_PHASE4_REG		15
+#define SPI_PHASE0_BIT		(1<<6)
+#define SPI_PHASE1_BIT		(1<<7)
+#define SPI_PHASE2_BIT		(1<<8)
+#define SPI_PHASE4_BIT		(1<<3)
+
+#define SPI_PDWN_REG		2	/* power down all DACs */
+#define SPI_PDWN_BIT		(1<<2)
+#define SPI_DACD0_REG		10	/* power down individual DACs */
+#define SPI_DACD1_REG		10
+#define SPI_DACD2_REG		10
+#define SPI_DACD4_REG		15
+#define SPI_DACD0_BIT		(1<<1)
+#define SPI_DACD1_BIT		(1<<2)
+#define SPI_DACD2_BIT		(1<<3)
+#define SPI_DACD4_BIT		(1<<0)	/* datasheet error says it's 1 */
+
+#define SPI_PWRDNALL_REG	10	/* power down everything */
+#define SPI_PWRDNALL_BIT	(1<<4)
+
 #include "ca_midi.h"
 
 struct snd_ca0106;
@@ -611,6 +702,8 @@ struct snd_ca0106 {
 
 	struct snd_ca_midi midi;
 	struct snd_ca_midi midi2;
+
+	u16 spi_dac_reg[16];
 };
 
 int snd_ca0106_mixer(struct snd_ca0106 *emu);
@@ -627,4 +720,5 @@ void snd_ca0106_ptr_write(struct snd_ca0106 *emu,
 
 int snd_ca0106_i2c_write(struct snd_ca0106 *emu, u32 reg, u32 value);
 
-
+int snd_ca0106_spi_write(struct snd_ca0106 * emu,
+				   unsigned int data);

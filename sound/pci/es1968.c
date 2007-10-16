@@ -843,10 +843,9 @@ static void snd_es1968_bob_dec(struct es1968 *chip)
 		snd_es1968_bob_stop(chip);
 	else if (chip->bob_freq > ESM_BOB_FREQ) {
 		/* check reduction of timer frequency */
-		struct list_head *p;
 		int max_freq = ESM_BOB_FREQ;
-		list_for_each(p, &chip->substream_list) {
-			struct esschan *es = list_entry(p, struct esschan, list);
+		struct esschan *es;
+		list_for_each_entry(es, &chip->substream_list, list) {
 			if (max_freq < es->bob_freq)
 				max_freq = es->bob_freq;
 		}
@@ -1316,12 +1315,11 @@ static struct snd_pcm_hardware snd_es1968_capture = {
 
 static int calc_available_memory_size(struct es1968 *chip)
 {
-	struct list_head *p;
 	int max_size = 0;
-	
+	struct esm_memory *buf;
+
 	mutex_lock(&chip->memory_mutex);
-	list_for_each(p, &chip->buf_list) {
-		struct esm_memory *buf = list_entry(p, struct esm_memory, list);
+	list_for_each_entry(buf, &chip->buf_list, list) {
 		if (buf->empty && buf->buf.bytes > max_size)
 			max_size = buf->buf.bytes;
 	}
@@ -1335,12 +1333,10 @@ static int calc_available_memory_size(struct es1968 *chip)
 static struct esm_memory *snd_es1968_new_memory(struct es1968 *chip, int size)
 {
 	struct esm_memory *buf;
-	struct list_head *p;
-	
+
 	size = ALIGN(size, ESM_MEM_ALIGN);
 	mutex_lock(&chip->memory_mutex);
-	list_for_each(p, &chip->buf_list) {
-		buf = list_entry(p, struct esm_memory, list);
+	list_for_each_entry(buf, &chip->buf_list, list) {
 		if (buf->empty && buf->buf.bytes >= size)
 			goto __found;
 	}
@@ -1938,10 +1934,9 @@ static irqreturn_t snd_es1968_interrupt(int irq, void *dev_id)
 	}
 
 	if (event & ESM_SOUND_IRQ) {
-		struct list_head *p;
+		struct esschan *es;
 		spin_lock(&chip->substream_lock);
-		list_for_each(p, &chip->substream_list) {
-			struct esschan *es = list_entry(p, struct esschan, list);
+		list_for_each_entry(es, &chip->substream_list, list) {
 			if (es->running)
 				snd_es1968_update_pcm(chip, es);
 		}
@@ -2345,7 +2340,7 @@ static int es1968_resume(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct es1968 *chip = card->private_data;
-	struct list_head *p;
+	struct esschan *es;
 
 	if (! chip->do_pm)
 		return 0;
@@ -2374,8 +2369,7 @@ static int es1968_resume(struct pci_dev *pci)
 	/* restore ac97 state */
 	snd_ac97_resume(chip->ac97);
 
-	list_for_each(p, &chip->substream_list) {
-		struct esschan *es = list_entry(p, struct esschan, list);
+	list_for_each_entry(es, &chip->substream_list, list) {
 		switch (es->mode) {
 		case ESM_MODE_PLAY:
 			snd_es1968_playback_setup(chip, es, es->substream->runtime);

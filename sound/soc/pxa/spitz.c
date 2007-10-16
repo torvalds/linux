@@ -34,7 +34,6 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/akita.h>
 #include <asm/arch/spitz.h>
-#include <asm/mach-types.h>
 #include "../codecs/wm8750.h"
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"

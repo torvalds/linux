@@ -1,7 +1,7 @@
 /*
  *  Routines for control of the CS8427 via i2c bus
  *  IEC958 (S/PDIF) receiver & transmitter by Cirrus Logic
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -32,7 +32,7 @@
 
 static void snd_cs8427_reset(struct snd_i2c_device *cs8427);
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("IEC958 (S/PDIF) receiver & transmitter by Cirrus Logic");
 MODULE_LICENSE("GPL");
 
@@ -228,6 +228,12 @@ int snd_cs8427_create(struct snd_i2c_bus *bus,
 	
 	snd_i2c_lock(bus);
 	err = snd_cs8427_reg_read(device, CS8427_REG_ID_AND_VER);
+	if (err != CS8427_VER8427A) {
+		/* give second chance */
+		snd_printk(KERN_WARNING "invalid CS8427 signature 0x%x: "
+			   "let me try again...\n", err);
+		err = snd_cs8427_reg_read(device, CS8427_REG_ID_AND_VER);
+	}
 	if (err != CS8427_VER8427A) {
 		snd_i2c_unlock(bus);
 		snd_printk(KERN_ERR "unable to find CS8427 signature "

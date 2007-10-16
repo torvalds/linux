@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of AD1848/AD1847/CS4248
  *
  *
@@ -35,7 +35,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of AD1848/AD1847/CS4248");
 MODULE_LICENSE("GPL");
 
@@ -70,7 +70,7 @@ static unsigned int rates[14] = {
 };
 
 static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
-	.count = 14,
+	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,
 };
@@ -99,24 +99,32 @@ static unsigned char snd_ad1848_original_image[16] =
  *  Basic I/O functions
  */
 
+static void snd_ad1848_wait(struct snd_ad1848 *chip)
+{
+	int timeout;
+
+	for (timeout = 250; timeout > 0; timeout--) {
+		if ((inb(AD1848P(chip, REGSEL)) & AD1848_INIT) == 0)
+			break;
+		udelay(100);
+	}
+}
+
 void snd_ad1848_out(struct snd_ad1848 *chip,
 			   unsigned char reg,
 			   unsigned char value)
 {
-	int timeout;
-
-	for (timeout = 250; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
-		udelay(100);
+	snd_ad1848_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
-		snd_printk(KERN_WARNING "auto calibration time out - reg = 0x%x, value = 0x%x\n", reg, value);
+		snd_printk(KERN_WARNING "auto calibration time out - "
+			   "reg = 0x%x, value = 0x%x\n", reg, value);
 #endif
 	outb(chip->mce_bit | reg, AD1848P(chip, REGSEL));
 	outb(chip->image[reg] = value, AD1848P(chip, REG));
 	mb();
-#if 0
-	printk("codec out - reg 0x%x = 0x%x\n", chip->mce_bit | reg, value);
-#endif
+	snd_printdd("codec out - reg 0x%x = 0x%x\n",
+			chip->mce_bit | reg, value);
 }
 
 EXPORT_SYMBOL(snd_ad1848_out);
@@ -124,10 +132,7 @@ EXPORT_SYMBOL(snd_ad1848_out);
 static void snd_ad1848_dout(struct snd_ad1848 *chip,
 			    unsigned char reg, unsigned char value)
 {
-	int timeout;
-
-	for (timeout = 250; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
-		udelay(100);
+	snd_ad1848_wait(chip);
 	outb(chip->mce_bit | reg, AD1848P(chip, REGSEL));
 	outb(value, AD1848P(chip, REG));
 	mb();
@@ -135,13 +140,11 @@ static void snd_ad1848_dout(struct snd_ad1848 *chip,
 
 static unsigned char snd_ad1848_in(struct snd_ad1848 *chip, unsigned char reg)
 {
-	int timeout;
-
-	for (timeout = 250; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
-		udelay(100);
+	snd_ad1848_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
-		snd_printk(KERN_WARNING "auto calibration time out - reg = 0x%x\n", reg);
+		snd_printk(KERN_WARNING "auto calibration time out - "
+			   "reg = 0x%x\n", reg);
 #endif
 	outb(chip->mce_bit | reg, AD1848P(chip, REGSEL));
 	mb();
@@ -183,8 +186,7 @@ static void snd_ad1848_mce_up(struct snd_ad1848 *chip)
 	unsigned long flags;
 	int timeout;
 
-	for (timeout = 250; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
-		udelay(100);
+	snd_ad1848_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
 		snd_printk(KERN_WARNING "mce_up - auto calibration time out (0)\n");
@@ -201,9 +203,8 @@ static void snd_ad1848_mce_up(struct snd_ad1848 *chip)
 
 static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 {
-	unsigned long flags;
-	int timeout;
-	signed long time;
+	unsigned long flags, timeout;
+	int reg;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (timeout = 5; timeout > 0; timeout--)
@@ -211,61 +212,48 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 	/* end of cleanup sequence */
 	for (timeout = 12000; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
 		udelay(100);
-#if 0
-	printk("(1) timeout = %i\n", timeout);
-#endif
+
+	snd_printdd("(1) timeout = %d\n", timeout);
+
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
 		snd_printk(KERN_WARNING "mce_down [0x%lx] - auto calibration time out (0)\n", AD1848P(chip, REGSEL));
 #endif
-	chip->mce_bit &= ~AD1848_MCE;
-	timeout = inb(AD1848P(chip, REGSEL));
-	outb(chip->mce_bit | (timeout & 0x1f), AD1848P(chip, REGSEL));
-	if (timeout == 0x80)
-		snd_printk(KERN_WARNING "mce_down [0x%lx]: serious init problem - codec still busy\n", chip->port);
-	if ((timeout & AD1848_MCE) == 0) {
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		return;
-	}
-	/* calibration process */
 
-	for (timeout = 500; timeout > 0 && (snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) == 0; timeout--);
-	if ((snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) == 0) {
-		snd_printd("mce_down - auto calibration time out (1)\n");
+	chip->mce_bit &= ~AD1848_MCE;
+	reg = inb(AD1848P(chip, REGSEL));
+	outb(chip->mce_bit | (reg & 0x1f), AD1848P(chip, REGSEL));
+	if (reg == 0x80)
+		snd_printk(KERN_WARNING "mce_down [0x%lx]: serious init problem - codec still busy\n", chip->port);
+	if ((reg & AD1848_MCE) == 0) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		return;
 	}
-#if 0
-	printk("(2) timeout = %i, jiffies = %li\n", timeout, jiffies);
-#endif
-	time = HZ / 4;
-	while (snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) {
+
+	/*
+	 * Wait for auto-calibration (AC) process to finish, i.e. ACI to go low.
+	 * It may take up to 5 sample periods (at most 907 us @ 5.5125 kHz) for
+	 * the process to _start_, so it is important to wait at least that long
+	 * before checking.  Otherwise we might think AC has finished when it
+	 * has in fact not begun.  It could take 128 (no AC) or 384 (AC) cycles
+	 * for ACI to drop.  This gives a wait of at most 70 ms with a more
+	 * typical value of 3-9 ms.
+	 */
+	timeout = jiffies + msecs_to_jiffies(250);
+	do {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		if (time <= 0) {
-			snd_printk(KERN_ERR "mce_down - auto calibration time out (2)\n");
-			return;
-		}
-		time = schedule_timeout(time);
+		msleep(1);
 		spin_lock_irqsave(&chip->reg_lock, flags);
-	}
-#if 0
-	printk("(3) jiffies = %li\n", jiffies);
-#endif
-	time = HZ / 10;
-	while (inb(AD1848P(chip, REGSEL)) & AD1848_INIT) {
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		if (time <= 0) {
-			snd_printk(KERN_ERR "mce_down - auto calibration time out (3)\n");
-			return;
-		}
-		time = schedule_timeout(time);
-		spin_lock_irqsave(&chip->reg_lock, flags);
-	}
+		reg = snd_ad1848_in(chip, AD1848_TEST_INIT) &
+		      AD1848_CALIB_IN_PROGRESS;
+	} while (reg && time_before(jiffies, timeout));
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
-#if 0
-	printk("(4) jiffies = %li\n", jiffies);
-	snd_printk("mce_down - exit = 0x%x\n", inb(AD1848P(chip, REGSEL)));
-#endif
+	if (reg)
+		snd_printk(KERN_ERR
+			   "mce_down - auto calibration time out (2)\n");
+
+	snd_printdd("(4) jiffies = %lu\n", jiffies);
+	snd_printd("mce_down - exit = 0x%x\n", inb(AD1848P(chip, REGSEL)));
 }
 
 static unsigned int snd_ad1848_get_count(unsigned char format,
@@ -319,11 +307,11 @@ static unsigned char snd_ad1848_get_rate(unsigned int rate)
 {
 	int i;
 
-	for (i = 0; i < 14; i++)
+	for (i = 0; i < ARRAY_SIZE(rates); i++)
 		if (rate == rates[i])
 			return freq_bits[i];
 	snd_BUG();
-	return freq_bits[13];
+	return freq_bits[ARRAY_SIZE(rates) - 1];
 }
 
 static int snd_ad1848_ioctl(struct snd_pcm_substream *substream,
@@ -390,11 +378,9 @@ static int snd_ad1848_open(struct snd_ad1848 *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->open_mutex);
-	if (chip->mode & AD1848_MODE_OPEN) {
-		mutex_unlock(&chip->open_mutex);
+	if (chip->mode & AD1848_MODE_OPEN)
 		return -EAGAIN;
-	}
+
 	snd_ad1848_mce_down(chip);
 
 #ifdef SNDRV_DEBUG_MCE
@@ -435,7 +421,6 @@ static int snd_ad1848_open(struct snd_ad1848 *chip, unsigned int mode)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	chip->mode = mode;
-	mutex_unlock(&chip->open_mutex);
 
 	return 0;
 }
@@ -444,11 +429,8 @@ static void snd_ad1848_close(struct snd_ad1848 *chip)
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->open_mutex);
-	if (!chip->mode) {
-		mutex_unlock(&chip->open_mutex);
+	if (!chip->mode)
 		return;
-	}
 	/* disable IRQ */
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	outb(0, AD1848P(chip, STATUS));	/* clear IRQ */
@@ -474,7 +456,6 @@ static void snd_ad1848_close(struct snd_ad1848 *chip)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	chip->mode = 0;
-	mutex_unlock(&chip->open_mutex);
 }
 
 /*
@@ -892,7 +873,6 @@ int snd_ad1848_create(struct snd_card *card,
 	if (chip == NULL)
 		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);
-	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->port = port;
 	chip->irq = -1;

@@ -2,7 +2,7 @@
  *   ALSA driver for AK4524 / AK4528 / AK4529 / AK4355 / AK4358 / AK4381
  *   AD and DA converters
  *
- *	Copyright (c) 2000-2004 Jaroslav Kysela <perex@suse.cz>,
+ *	Copyright (c) 2000-2004 Jaroslav Kysela <perex@perex.cz>,
  *				Takashi Iwai <tiwai@suse.de>
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -31,7 +31,7 @@
 #include <sound/tlv.h>
 #include <sound/ak4xxx-adda.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Takashi Iwai <tiwai@suse.de>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("Routines for control of AK452x / AK43xx  AD/DA converters");
 MODULE_LICENSE("GPL");
 
@@ -463,15 +463,7 @@ static int snd_akm4xxx_deemphasis_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static int ak4xxx_switch_info(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define ak4xxx_switch_info	snd_ctl_boolean_mono_info
 
 static int ak4xxx_switch_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)

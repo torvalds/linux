@@ -201,8 +201,7 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_info_volsw_ext(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
-int snd_soc_info_bool_ext(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo);
+#define snd_soc_info_bool_ext		snd_ctl_boolean_mono
 int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,

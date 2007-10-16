@@ -5,7 +5,7 @@
  *   ALSA driver for AK4524 / AK4528 / AK4529 / AK4355 / AK4381
  *   AD and DA converters
  *
- *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by

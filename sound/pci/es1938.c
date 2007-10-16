@@ -1,7 +1,7 @@
 /*
  *  Driver for ESS Solo-1 (ES1938, ES1946, ES1969) soundcard
  *  Copyright (c) by Jaromir Koutek <miri@punknet.cz>,
- *                   Jaroslav Kysela <perex@suse.cz>,
+ *                   Jaroslav Kysela <perex@perex.cz>,
  *                   Thomas Sailer <sailer@ife.ee.ethz.ch>,
  *                   Abramo Bagnara <abramo@alsa-project.org>,
  *                   Markus Gruber <gruber@eikon.tum.de>
@@ -1066,15 +1066,7 @@ static int snd_es1938_put_mux(struct snd_kcontrol *kcontrol,
 	return snd_es1938_mixer_bits(chip, 0x1c, 0x07, val) != val;
 }
 
-static int snd_es1938_info_spatializer_enable(struct snd_kcontrol *kcontrol,
-					      struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_es1938_info_spatializer_enable	snd_ctl_boolean_mono_info
 
 static int snd_es1938_get_spatializer_enable(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_value *ucontrol)
@@ -1120,15 +1112,7 @@ static int snd_es1938_get_hw_volume(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_es1938_info_hw_switch(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_es1938_info_hw_switch		snd_ctl_boolean_stereo_info
 
 static int snd_es1938_get_hw_switch(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)

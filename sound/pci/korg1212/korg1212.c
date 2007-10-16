@@ -1391,8 +1391,6 @@ static int snd_korg1212_playback_open(struct snd_pcm_substream *substream)
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_playback_open [%s]\n",
 			   stateName[korg1212->cardState]);
 
-        snd_pcm_set_sync(substream);    // ???
-
 	snd_korg1212_OpenCard(korg1212);
 
         runtime->hw = snd_korg1212_playback_info;
@@ -1421,8 +1419,6 @@ static int snd_korg1212_capture_open(struct snd_pcm_substream *substream)
 
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_capture_open [%s]\n",
 			   stateName[korg1212->cardState]);
-
-        snd_pcm_set_sync(substream);
 
 	snd_korg1212_OpenCard(korg1212);
 

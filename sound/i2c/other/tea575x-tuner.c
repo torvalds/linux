@@ -1,7 +1,7 @@
 /*
  *   ALSA driver for TEA5757/5759 Philips AM/FM radio tuner chips
  *
- *	Copyright (c) 2004 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2004 Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -28,7 +28,7 @@
 #include <sound/core.h>
 #include <sound/tea575x-tuner.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of TEA5757/5759 Philips AM/FM radio tuner chips");
 MODULE_LICENSE("GPL");
 

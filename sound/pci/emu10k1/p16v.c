@@ -124,11 +124,12 @@
 
  /* hardware definition */
 static struct snd_pcm_hardware snd_p16v_playback_hw = {
-	.info =			(SNDRV_PCM_INFO_MMAP | 
-				 SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_RESUME |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+	.info =			SNDRV_PCM_INFO_MMAP | 
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				SNDRV_PCM_INFO_RESUME |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_SYNC_START,
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE, /* Only supports 24-bit samples padded to 32 bits. */
 	.rates =		SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100, 
 	.rate_min =		44100,
@@ -206,6 +207,11 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
         channel->epcm=epcm;
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
                 return err;
+
+	runtime->sync.id32[0] = substream->pcm->card->number;
+	runtime->sync.id32[1] = 'P';
+	runtime->sync.id32[2] = 16;
+	runtime->sync.id32[3] = 'V';
 
 	return 0;
 }
@@ -448,6 +454,9 @@ static int snd_p16v_pcm_trigger_playback(struct snd_pcm_substream *substream,
 		break;
 	}
         snd_pcm_group_for_each_entry(s, substream) {
+		if (snd_pcm_substream_chip(s) != emu ||
+		    s->stream != SNDRV_PCM_STREAM_PLAYBACK)
+			continue;
 		runtime = s->runtime;
 		epcm = runtime->private_data;
 		channel = substream->pcm->device-emu->p16v_device_offset;

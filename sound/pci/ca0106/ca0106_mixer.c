@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
- *  Version: 0.0.17
+ *  Version: 0.0.18
  *
  *  FEATURES currently supported:
  *    See ca0106_main.c for features.
@@ -39,6 +39,8 @@
  *    Modified Copyright message.
  *  0.0.17
  *    Implement Mic and Line in Capture.
+ *  0.0.18
+ *    Add support for mute control on SB Live 24bit (cards w/ SPI DAC)
  *
  *  This code was initally based on code from ALSA's emu10k1x.c which is:
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
@@ -77,15 +79,7 @@
 static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale1, -5175, 25, 1);
 static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale2, -10350, 50, 1);
 
-static int snd_ca0106_shared_spdif_info(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ca0106_shared_spdif_info	snd_ctl_boolean_mono_info
 
 static int snd_ca0106_shared_spdif_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -470,6 +464,42 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+#define spi_mute_info	snd_ctl_boolean_mono_info
+
+static int spi_mute_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int reg = kcontrol->private_value >> SPI_REG_SHIFT;
+	unsigned int bit = kcontrol->private_value & SPI_REG_MASK;
+
+	ucontrol->value.integer.value[0] = !(emu->spi_dac_reg[reg] & bit);
+	return 0;
+}
+
+static int spi_mute_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int reg = kcontrol->private_value >> SPI_REG_SHIFT;
+	unsigned int bit = kcontrol->private_value & SPI_REG_MASK;
+	int ret;
+
+	ret = emu->spi_dac_reg[reg] & bit;
+	if (ucontrol->value.integer.value[0]) {
+		if (!ret)	/* bit already cleared, do nothing */
+			return 0;
+		emu->spi_dac_reg[reg] &= ~bit;
+	} else {
+		if (ret)	/* bit already set, do nothing */
+			return 0;
+		emu->spi_dac_reg[reg] |= bit;
+	}
+
+	ret = snd_ca0106_spi_write(emu, emu->spi_dac_reg[reg]);
+	return ret ? -1 : 1;
+}
+
 #define CA_VOLUME(xname,chid,reg) \
 {								\
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
@@ -562,6 +592,28 @@ static struct snd_kcontrol_new snd_ca0106_volume_i2c_adc_ctls[] __devinitdata = 
         I2C_VOLUME("Aux Capture Volume", 3),
 };
 
+#define SPI_SWITCH(xname,reg,bit) \
+{								\
+	.iface	= SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,		\
+	.info	= spi_mute_info,				\
+	.get	= spi_mute_get,					\
+	.put	= spi_mute_put,					\
+	.private_value = (reg<<SPI_REG_SHIFT) | (bit)		\
+}
+
+static struct snd_kcontrol_new snd_ca0106_volume_spi_dac_ctls[]
+__devinitdata = {
+	SPI_SWITCH("Analog Front Playback Switch",
+		   SPI_DMUTE4_REG, SPI_DMUTE4_BIT),
+	SPI_SWITCH("Analog Rear Playback Switch",
+		   SPI_DMUTE0_REG, SPI_DMUTE0_BIT),
+	SPI_SWITCH("Analog Center/LFE Playback Switch",
+		   SPI_DMUTE2_REG, SPI_DMUTE2_BIT),
+	SPI_SWITCH("Analog Side Playback Switch",
+		   SPI_DMUTE1_REG, SPI_DMUTE1_BIT),
+};
+
 static int __devinit remove_ctl(struct snd_card *card, const char *name)
 {
 	struct snd_ctl_elem_id id;
@@ -591,9 +643,19 @@ static int __devinit rename_ctl(struct snd_card *card, const char *src, const ch
 	return -ENOENT;
 }
 
+#define ADD_CTLS(emu, ctls)						\
+	do {								\
+		int i, err;						\
+		for (i = 0; i < ARRAY_SIZE(ctls); i++) {		\
+			err = snd_ctl_add(card, snd_ctl_new1(&ctls[i], emu)); \
+			if (err < 0)					\
+				return err;				\
+		}							\
+	} while (0)
+
 int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 {
-	int i, err;
+	int err;
         struct snd_card *card = emu->card;
 	char **c;
 	static char *ca0106_remove_ctls[] = {
@@ -640,17 +702,9 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 		rename_ctl(card, c[0], c[1]);
 #endif
 
-	for (i = 0; i < ARRAY_SIZE(snd_ca0106_volume_ctls); i++) {
-		err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_volume_ctls[i], emu));
-		if (err < 0)
-			return err;
-	}
+	ADD_CTLS(emu, snd_ca0106_volume_ctls);
 	if (emu->details->i2c_adc == 1) {
-		for (i = 0; i < ARRAY_SIZE(snd_ca0106_volume_i2c_adc_ctls); i++) {
-			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_volume_i2c_adc_ctls[i], emu));
-			if (err < 0)
-				return err;
-		}
+		ADD_CTLS(emu, snd_ca0106_volume_i2c_adc_ctls);
 		if (emu->details->gpio_type == 1)
 			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_capture_mic_line_in, emu));
 		else  /* gpio_type == 2 */
@@ -658,6 +712,8 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 		if (err < 0)
 			return err;
 	}
+	if (emu->details->spi_dac == 1)
+		ADD_CTLS(emu, snd_ca0106_volume_spi_dac_ctls);
         return 0;
 }
 

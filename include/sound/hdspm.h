@@ -1,4 +1,4 @@
-#ifndef __SOUND_HDSPM_H		/* -*- linux-c -*- */
+#ifndef __SOUND_HDSPM_H
 #define __SOUND_HDSPM_H
 /*
  *   Copyright (C) 2003 Winfried Ritsch (IEM)
@@ -61,7 +61,8 @@ struct hdspm_peak_rms_ioctl {
 };
 
 /* use indirect access due to the limit of ioctl bit size */
-#define SNDRV_HDSPM_IOCTL_GET_PEAK_RMS _IOR('H', 0x40, struct hdspm_peak_rms_ioctl)
+#define SNDRV_HDSPM_IOCTL_GET_PEAK_RMS \
+	_IOR('H', 0x40, struct hdspm_peak_rms_ioctl)
 
 /* ------------ CONFIG block IOCTL ---------------------- */
 
@@ -79,7 +80,8 @@ struct hdspm_config_info {
 	unsigned int analog_out;
 };
 
-#define SNDRV_HDSPM_IOCTL_GET_CONFIG_INFO _IOR('H', 0x41, struct hdspm_config_info)
+#define SNDRV_HDSPM_IOCTL_GET_CONFIG_INFO \
+	_IOR('H', 0x41, struct hdspm_config_info)
 
 
 /* get Soundcard Version */
@@ -93,10 +95,14 @@ struct hdspm_version {
 
 /* ------------- get Matrix Mixer IOCTL --------------- */
 
-/* MADI mixer: 64inputs+64playback in 64outputs = 8192 => *4Byte = 32768 Bytes */
+/* MADI mixer: 64inputs+64playback in 64outputs = 8192 => *4Byte =
+ * 32768 Bytes
+ */
 
 /* organisation is 64 channelfader in a continous memory block */
-/* equivalent to hardware definition, maybe for future feature of mmap of them */
+/* equivalent to hardware definition, maybe for future feature of mmap of
+ * them
+ */
 /* each of 64 outputs has 64 infader and 64 outfader: 
    Ins to Outs mixer[out].in[in], Outstreams to Outs mixer[out].pb[pb] */
 

@@ -1804,15 +1804,7 @@ static int __devinit snd_ali_build_pcms(struct snd_ali *codec)
 .info = snd_ali5451_spdif_info, .get = snd_ali5451_spdif_get, \
 .put = snd_ali5451_spdif_put, .private_value = value}
 
-static int snd_ali5451_spdif_info(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_info *uinfo)
-{
-        uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-        uinfo->count = 1;
-        uinfo->value.integer.min = 0;
-        uinfo->value.integer.max = 1;
-        return 0;
-}
+#define snd_ali5451_spdif_info		snd_ctl_boolean_mono_info
 
 static int snd_ali5451_spdif_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)

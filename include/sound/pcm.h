@@ -3,7 +3,7 @@
 
 /*
  *  Digital Audio (PCM) abstract layer
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Abramo Bagnara <abramo@alsa-project.org>
  *
  *
@@ -301,8 +301,8 @@ struct snd_pcm_runtime {
 	union snd_pcm_sync_id sync;	/* hardware synchronization ID */
 
 	/* -- mmap -- */
-	volatile struct snd_pcm_mmap_status *status;
-	volatile struct snd_pcm_mmap_control *control;
+	struct snd_pcm_mmap_status *status;
+	struct snd_pcm_mmap_control *control;
 
 	/* -- locking / scheduling -- */
 	wait_queue_head_t sleep;
@@ -791,13 +791,13 @@ static inline struct snd_interval *hw_param_interval(struct snd_pcm_hw_params *p
 static inline const struct snd_mask *hw_param_mask_c(const struct snd_pcm_hw_params *params,
 					     snd_pcm_hw_param_t var)
 {
-	return (const struct snd_mask *)hw_param_mask((struct snd_pcm_hw_params*) params, var);
+	return &params->masks[var - SNDRV_PCM_HW_PARAM_FIRST_MASK];
 }
 
 static inline const struct snd_interval *hw_param_interval_c(const struct snd_pcm_hw_params *params,
 						     snd_pcm_hw_param_t var)
 {
-	return (const struct snd_interval *)hw_param_interval((struct snd_pcm_hw_params*) params, var);
+	return &params->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
 }
 
 #define params_access(p) snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_ACCESS))
@@ -922,7 +922,10 @@ snd_pcm_sframes_t snd_pcm_lib_writev(struct snd_pcm_substream *substream,
 snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 				    void __user **bufs, snd_pcm_uframes_t frames);
 
+extern const struct snd_pcm_hw_constraint_list snd_pcm_known_rates;
+
 int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime);
+unsigned int snd_pcm_rate_to_rate_bit(unsigned int rate);
 
 static inline void snd_pcm_set_runtime_buffer(struct snd_pcm_substream *substream,
 					      struct snd_dma_buffer *bufp)

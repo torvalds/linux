@@ -170,14 +170,14 @@ config SND_CA0106
 	  will be called snd-ca0106.
 
 config SND_CMIPCI
-	tristate "C-Media 8738, 8338"
+	tristate "C-Media 8338, 8738, 8768, 8770"
 	depends on SND
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
 	help
-	  If you want to use soundcards based on C-Media CMI8338 or CMI8738
-	  chips, say Y here and read
+	  If you want to use soundcards based on C-Media CMI8338, CMI8738,
+	  CMI8768 or CMI8770 chips, say Y here and read
 	  <file:Documentation/sound/alsa/CMIPCI.txt>.
 
 	  To compile this driver as a module, choose M here: the module
@@ -500,6 +500,103 @@ config SND_HDA_INTEL
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hda-intel.
 
+config SND_HDA_HWDEP
+	bool "Build hwdep interface for HD-audio driver"
+	depends on SND_HDA_INTEL
+	select SND_HWDEP
+	help
+	  Say Y here to build a hwdep interface for HD-audio driver.
+	  This interface can be used for out-of-band communication
+	  with codecs for debugging purposes.
+
+config SND_HDA_CODEC_REALTEK
+	bool "Build Realtek HD-audio codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Realtek HD-audio codec support in
+	  snd-hda-intel driver, such as ALC880.
+
+config SND_HDA_CODEC_ANALOG
+	bool "Build Analog Device HD-audio codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Analog Device HD-audio codec support in
+	  snd-hda-intel driver, such as AD1986A.
+
+config SND_HDA_CODEC_SIGMATEL
+	bool "Build IDT/Sigmatel HD-audio codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include IDT (Sigmatel) HD-audio codec support in
+	  snd-hda-intel driver, such as STAC9200.
+
+config SND_HDA_CODEC_VIA
+	bool "Build VIA HD-audio codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include VIA HD-audio codec support in
+	  snd-hda-intel driver, such as VT1708.
+
+config SND_HDA_CODEC_ATIHDMI
+	bool "Build ATI HDMI HD-audio codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include ATI HDMI HD-audio codec support in
+	  snd-hda-intel driver, such as ATI RS600 HDMI.
+
+config SND_HDA_CODEC_CONEXANT
+	bool "Build Conexant HD-audio codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Conexant HD-audio codec support in
+	  snd-hda-intel driver, such as CX20549.
+
+config SND_HDA_CODEC_CMEDIA
+	bool "Build C-Media HD-audio codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include C-Media HD-audio codec support in
+	  snd-hda-intel driver, such as CMI9880.
+
+config SND_HDA_CODEC_SI3054
+	bool "Build Silicon Labs 3054 HD-modem codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Silicon Labs 3054 HD-modem codec
+	  (and compatibles) support in snd-hda-intel driver.
+
+config SND_HDA_GENERIC
+	bool "Enable generic HD-audio codec parser"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to enable the generic HD-audio codec parser
+	  in snd-hda-intel driver.
+
+config SND_HDA_POWER_SAVE
+	bool "Aggressive power-saving on HD-audio"
+	depends on SND_HDA_INTEL && EXPERIMENTAL
+	help
+	  Say Y here to enable more aggressive power-saving mode on
+	  HD-audio driver.  The power-saving timeout can be configured
+	  via power_save option or over sysfs on-the-fly.
+
+config SND_HDA_POWER_SAVE_DEFAULT
+	int "Default time-out for HD-audio power-save mode"
+	depends on SND_HDA_POWER_SAVE
+	default 0
+	help
+	  The default time-out value in seconds for HD-audio automatic
+	  power-save mode.  0 means to disable the power-save mode.
+
 config SND_HDSP
 	tristate "RME Hammerfall DSP Audio"
 	depends on SND
@@ -798,5 +895,13 @@ config SND_AC97_POWER_SAVE
 	  The mode is activated by passing power_save=1 option to
 	  snd-ac97-codec driver.  You can toggle it dynamically over
 	  sysfs, too.
+
+config SND_AC97_POWER_SAVE_DEFAULT
+	int "Default time-out for AC97 power-save mode"
+	depends on SND_AC97_POWER_SAVE
+	default 0
+	help
+	  The default time-out value in seconds for AC97 automatic
+	  power-save mode.  0 means to disable the power-save mode.
 
 endmenu

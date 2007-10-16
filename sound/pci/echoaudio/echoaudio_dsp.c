@@ -43,11 +43,11 @@ static int wait_handshake(struct echoaudio *chip)
 {
 	int i;
 
-	/* Wait up to 10ms for the handshake from the DSP */
+	/* Wait up to 20ms for the handshake from the DSP */
 	for (i = 0; i < HANDSHAKE_TIMEOUT; i++) {
 		/* Look for the handshake value */
+		barrier();
 		if (chip->comm_page->handshake) {
-			/*if (i)  DE_ACT(("Handshake time: %d\n", i));*/
 			return 0;
 		}
 		udelay(1);

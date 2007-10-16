@@ -3,7 +3,7 @@
 
 /*
  *  Header file for control interface
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -160,5 +160,13 @@ static inline struct snd_ctl_elem_id *snd_ctl_build_ioff(struct snd_ctl_elem_id 
 	dst_id->numid += offset;
 	return dst_id;
 }
+
+/*
+ * Frequently used control callbacks
+ */
+int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo);
+int snd_ctl_boolean_stereo_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo);
 
 #endif	/* __SOUND_CONTROL_H */

@@ -3,7 +3,7 @@
 
 /*
  *  Routines for Cirrus Logic CS8403/CS8404A IEC958 (S/PDIF) Transmitter
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Takashi Iwai <tiwai@suse.de>
  *
  *

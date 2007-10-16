@@ -1,7 +1,7 @@
 /*
  *  Routines for control of the AK4117 via 4-wire serial interface
  *  IEC958 (S/PDIF) receiver by Asahi Kasei
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 #include <sound/ak4117.h>
 #include <sound/asoundef.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("AK4117 IEC958 (S/PDIF) receiver by Asahi Kasei");
 MODULE_LICENSE("GPL");
 
@@ -181,15 +181,7 @@ static int snd_ak4117_in_error_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_ak4117_in_bit_info(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ak4117_in_bit_info		snd_ctl_boolean_mono_info
 
 static int snd_ak4117_in_bit_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)

@@ -1,6 +1,6 @@
 #
 # Makefile for ALSA
-# Copyright (c) 2001 by Jaroslav Kysela <perex@suse.cz>
+# Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
 snd-vx222-objs := vx222.o vx222_ops.o

@@ -652,7 +652,7 @@ static int snd_mixart_hw_free(struct snd_pcm_substream *subs)
 static struct snd_pcm_hardware snd_mixart_analog_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-			      SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_SYNC_START |
+			      SNDRV_PCM_INFO_MMAP_VALID |
 			      SNDRV_PCM_INFO_PAUSE),
 	.formats	  = ( SNDRV_PCM_FMTBIT_U8 |
 			      SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |
@@ -673,7 +673,7 @@ static struct snd_pcm_hardware snd_mixart_analog_caps =
 static struct snd_pcm_hardware snd_mixart_digital_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-			      SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_SYNC_START |
+			      SNDRV_PCM_INFO_MMAP_VALID |
 			      SNDRV_PCM_INFO_PAUSE),
 	.formats	  = ( SNDRV_PCM_FMTBIT_U8 |
 			      SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |
@@ -1317,6 +1317,12 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 		mgr->mem[i].phys = pci_resource_start(pci, i);
 		mgr->mem[i].virt = ioremap_nocache(mgr->mem[i].phys,
 						   pci_resource_len(pci, i));
+		if (!mgr->mem[i].virt) {
+		        printk(KERN_ERR "unable to remap resource 0x%lx\n",
+			       mgr->mem[i].phys);
+			snd_mixart_free(mgr);
+			return -EBUSY;
+		}
 	}
 
 	if (request_irq(pci->irq, snd_mixart_interrupt, IRQF_SHARED,

@@ -1,6 +1,6 @@
 /*
  *  ISA Plug & Play support
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -53,7 +53,7 @@ static int isapnp_rdp;		/* Read Data Port */
 static int isapnp_reset = 1;	/* reset all PnP cards (deactivate) */
 static int isapnp_verbose = 1;	/* verbose mode */
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Generic ISA Plug & Play support");
 module_param(isapnp_disable, int, 0);
 MODULE_PARM_DESC(isapnp_disable, "ISA Plug & Play disable");

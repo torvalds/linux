@@ -4,7 +4,7 @@
 /*
  *   ALSA driver for ICEnsemble ICE1712 (Envy24)
  *
- *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
+ *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -451,11 +451,10 @@ static inline void snd_ice1712_restore_gpio_status(struct snd_ice1712 *ice)
 
 /* for bit controls */
 #define ICE1712_GPIO(xiface, xname, xindex, mask, invert, xaccess) \
-{ .iface = xiface, .name = xname, .access = xaccess, .info = snd_ice1712_gpio_info, \
+{ .iface = xiface, .name = xname, .access = xaccess, .info = snd_ctl_boolean_mono_info, \
   .get = snd_ice1712_gpio_get, .put = snd_ice1712_gpio_put, \
   .private_value = mask | (invert << 24) }
 
-int snd_ice1712_gpio_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
 int snd_ice1712_gpio_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int snd_ice1712_gpio_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 

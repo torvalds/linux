@@ -24,6 +24,11 @@
 #include <sound/info.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
+#include <sound/hwdep.h>
+
+#if defined(CONFIG_PM) || defined(CONFIG_SND_HDA_POWER_SAVE)
+#define SND_HDA_NEEDS_RESUME	/* resume control code is required */
+#endif
 
 /*
  * nodes
@@ -199,7 +204,9 @@ enum {
 #define AC_AMPCAP_OFFSET_SHIFT		0
 #define AC_AMPCAP_NUM_STEPS		(0x7f<<8)  /* number of steps */
 #define AC_AMPCAP_NUM_STEPS_SHIFT	8
-#define AC_AMPCAP_STEP_SIZE		(0x7f<<16) /* step size 0-32dB in 0.25dB */
+#define AC_AMPCAP_STEP_SIZE		(0x7f<<16) /* step size 0-32dB
+						    * in 0.25dB
+						    */
 #define AC_AMPCAP_STEP_SIZE_SHIFT	16
 #define AC_AMPCAP_MUTE			(1<<31)    /* mute capable */
 #define AC_AMPCAP_MUTE_SHIFT		31
@@ -409,6 +416,10 @@ struct hda_bus_ops {
 	unsigned int (*get_response)(struct hda_codec *codec);
 	/* free the private data */
 	void (*private_free)(struct hda_bus *);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	/* notify power-up/down from codec to contoller */
+	void (*pm_notify)(struct hda_codec *codec);
+#endif
 };
 
 /* template to pass to the bus constructor */
@@ -436,7 +447,8 @@ struct hda_bus {
 
 	/* codec linked list */
 	struct list_head codec_list;
-	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1]; /* caddr -> codec */
+	/* link caddr -> codec */
+	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1];
 
 	struct mutex cmd_mutex;
 
@@ -469,19 +481,34 @@ struct hda_codec_ops {
 	int (*init)(struct hda_codec *codec);
 	void (*free)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
-#ifdef CONFIG_PM
+#ifdef SND_HDA_NEEDS_RESUME
 	int (*suspend)(struct hda_codec *codec, pm_message_t state);
 	int (*resume)(struct hda_codec *codec);
+#endif
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
 #endif
 };
 
 /* record for amp information cache */
-struct hda_amp_info {
+struct hda_cache_head {
 	u32 key;		/* hash key */
+	u16 val;		/* assigned value */
+	u16 next;		/* next link; -1 = terminal */
+};
+
+struct hda_amp_info {
+	struct hda_cache_head head;
 	u32 amp_caps;		/* amp capabilities */
 	u16 vol[2];		/* current volume & mute */
-	u16 status;		/* update flag */
-	u16 next;		/* next link */
+};
+
+struct hda_cache_rec {
+	u16 hash[64];			/* hash table for index */
+	unsigned int num_entries;	/* number of assigned entries */
+	unsigned int size;		/* allocated size */
+	unsigned int record_size;	/* record size (including header) */
+	void *buffer;			/* hash table entries */
 };
 
 /* PCM callbacks */
@@ -499,7 +526,7 @@ struct hda_pcm_ops {
 
 /* PCM information for each substream */
 struct hda_pcm_stream {
-	unsigned int substreams;	/* number of substreams, 0 = not exist */
+	unsigned int substreams;	/* number of substreams, 0 = not exist*/
 	unsigned int channels_min;	/* min. number of channels */
 	unsigned int channels_max;	/* max. number of channels */
 	hda_nid_t nid;	/* default NID to query rates/formats/bps, or set up */
@@ -536,11 +563,6 @@ struct hda_codec {
 	/* set by patch */
 	struct hda_codec_ops patch_ops;
 
-	/* resume phase - all controls should update even if
-	 * the values are not changed
-	 */
-	unsigned int in_resume;
-
 	/* PCM to create, set by patch_ops.build_pcms callback */
 	unsigned int num_pcms;
 	struct hda_pcm *pcm_info;
@@ -553,16 +575,22 @@ struct hda_codec {
 	hda_nid_t start_nid;
 	u32 *wcaps;
 
-	/* hash for amp access */
-	u16 amp_hash[32];
-	int num_amp_entries;
-	int amp_info_size;
-	struct hda_amp_info *amp_info;
+	struct hda_cache_rec amp_cache;	/* cache for amp access */
+	struct hda_cache_rec cmd_cache;	/* cache for other commands */
 
 	struct mutex spdif_mutex;
 	unsigned int spdif_status;	/* IEC958 status bits */
 	unsigned short spdif_ctls;	/* SPDIF control bits */
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
+
+	struct snd_hwdep *hwdep;	/* assigned hwdep device */
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	unsigned int power_on :1;	/* current (global) power-state */
+	unsigned int power_transition :1; /* power-state in transition */
+	int power_count;	/* current (global) power refcount */
+	struct delayed_work power_work; /* delayed task for powerdown */
+#endif
 };
 
 /* direction */
@@ -582,13 +610,17 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 /*
  * low level functions
  */
-unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid, int direct,
+unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
+				int direct,
 				unsigned int verb, unsigned int parm);
 int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int direct,
 			unsigned int verb, unsigned int parm);
-#define snd_hda_param_read(codec, nid, param) snd_hda_codec_read(codec, nid, 0, AC_VERB_PARAMETERS, param)
-int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid, hda_nid_t *start_id);
-int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid, hda_nid_t *conn_list, int max_conns);
+#define snd_hda_param_read(codec, nid, param) \
+	snd_hda_codec_read(codec, nid, 0, AC_VERB_PARAMETERS, param)
+int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid,
+			  hda_nid_t *start_id);
+int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
+			    hda_nid_t *conn_list, int max_conns);
 
 struct hda_verb {
 	hda_nid_t nid;
@@ -596,10 +628,23 @@ struct hda_verb {
 	u32 param;
 };
 
-void snd_hda_sequence_write(struct hda_codec *codec, const struct hda_verb *seq);
+void snd_hda_sequence_write(struct hda_codec *codec,
+			    const struct hda_verb *seq);
 
 /* unsolicited event */
 int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
+
+/* cached write */
+#ifdef SND_HDA_NEEDS_RESUME
+int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
+			      int direct, unsigned int verb, unsigned int parm);
+void snd_hda_sequence_write_cache(struct hda_codec *codec,
+				  const struct hda_verb *seq);
+void snd_hda_codec_resume_cache(struct hda_codec *codec);
+#else
+#define snd_hda_codec_write_cache	snd_hda_codec_write
+#define snd_hda_sequence_write_cache	snd_hda_sequence_write
+#endif
 
 /*
  * Mixer
@@ -610,10 +655,13 @@ int snd_hda_build_controls(struct hda_bus *bus);
  * PCM
  */
 int snd_hda_build_pcms(struct hda_bus *bus);
-void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid, u32 stream_tag,
+void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
+				u32 stream_tag,
 				int channel_id, int format);
-unsigned int snd_hda_calc_stream_format(unsigned int rate, unsigned int channels,
-					unsigned int format, unsigned int maxbps);
+unsigned int snd_hda_calc_stream_format(unsigned int rate,
+					unsigned int channels,
+					unsigned int format,
+					unsigned int maxbps);
 int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 				u32 *ratesp, u64 *formatsp, unsigned int *bpsp);
 int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
@@ -630,6 +678,21 @@ void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
 #ifdef CONFIG_PM
 int snd_hda_suspend(struct hda_bus *bus, pm_message_t state);
 int snd_hda_resume(struct hda_bus *bus);
+#endif
+
+/*
+ * power saving
+ */
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+void snd_hda_power_up(struct hda_codec *codec);
+void snd_hda_power_down(struct hda_codec *codec);
+#define snd_hda_codec_needs_resume(codec) codec->power_count
+int snd_hda_codecs_inuse(struct hda_bus *bus);
+#else
+static inline void snd_hda_power_up(struct hda_codec *codec) {}
+static inline void snd_hda_power_down(struct hda_codec *codec) {}
+#define snd_hda_codec_needs_resume(codec) 1
+#define snd_hda_codecs_inuse(bus) 1
 #endif
 
 #endif /* __SOUND_HDA_CODEC_H */

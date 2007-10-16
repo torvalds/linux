@@ -17,3 +17,23 @@ config SND_SOC_WM8753
 config SND_SOC_WM9712
 	tristate
 	depends on SND_SOC
+
+# Cirrus Logic CS4270 Codec
+config SND_SOC_CS4270
+	tristate
+	depends on SND_SOC
+
+# Cirrus Logic CS4270 Codec Hardware Mute Support
+# Select if you have external muting circuitry attached to your CS4270.
+config SND_SOC_CS4270_HWMUTE
+	bool
+	depends on SND_SOC_CS4270
+
+# Cirrus Logic CS4270 Codec VD = 3.3V Errata
+# Select if you are affected by the errata where the part will not function
+# if MCLK divide-by-1.5 is selected and VD is set to 3.3V.  The driver will
+# not select any sample rates that require MCLK to be divided by 1.5.
+config SND_SOC_CS4270_VD33_ERRATA
+	bool
+	depends on SND_SOC_CS4270
+

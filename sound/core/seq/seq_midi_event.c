@@ -2,7 +2,7 @@
  *  MIDI byte <-> sequencer event coder
  *
  *  Copyright (C) 1998,99 Takashi Iwai <tiwai@suse.de>,
- *                        Jaroslav Kysela <perex@suse.cz>
+ *                        Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -28,14 +28,13 @@
 #include <sound/seq_midi_event.h>
 #include <sound/asoundef.h>
 
-MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>, Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>, Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("MIDI byte <-> sequencer event coder");
 MODULE_LICENSE("GPL");
 
-/* queue type */
-/* from 0 to 7 are normal commands (note off, on, etc.) */
-#define ST_NOTEOFF	0
-#define ST_NOTEON	1
+/* event type, index into status_event[] */
+/* from 0 to 6 are normal commands (note off, on, etc.) for 0x9?-0xe? */
+#define ST_INVALID	7
 #define ST_SPECIAL	8
 #define ST_SYSEX	ST_SPECIAL
 /* from 8 to 15 are events for 0xf0-0xf7 */
@@ -65,32 +64,33 @@ static struct status_event_list {
 	void (*encode)(struct snd_midi_event *dev, struct snd_seq_event *ev);
 	void (*decode)(struct snd_seq_event *ev, unsigned char *buf);
 } status_event[] = {
-	/* 0x80 - 0xf0 */
-	{SNDRV_SEQ_EVENT_NOTEOFF,	2, note_event, note_decode},
-	{SNDRV_SEQ_EVENT_NOTEON,	2, note_event, note_decode},
-	{SNDRV_SEQ_EVENT_KEYPRESS,	2, note_event, note_decode},
-	{SNDRV_SEQ_EVENT_CONTROLLER,	2, two_param_ctrl_event, two_param_decode},
-	{SNDRV_SEQ_EVENT_PGMCHANGE,	1, one_param_ctrl_event, one_param_decode},
-	{SNDRV_SEQ_EVENT_CHANPRESS,	1, one_param_ctrl_event, one_param_decode},
-	{SNDRV_SEQ_EVENT_PITCHBEND,	2, pitchbend_ctrl_event, pitchbend_decode},
-	{SNDRV_SEQ_EVENT_NONE,		0, NULL, NULL}, /* 0xf0 */
+	/* 0x80 - 0xef */
+	{SNDRV_SEQ_EVENT_NOTEOFF,	 2, note_event, note_decode},
+	{SNDRV_SEQ_EVENT_NOTEON,	 2, note_event, note_decode},
+	{SNDRV_SEQ_EVENT_KEYPRESS,	 2, note_event, note_decode},
+	{SNDRV_SEQ_EVENT_CONTROLLER,	 2, two_param_ctrl_event, two_param_decode},
+	{SNDRV_SEQ_EVENT_PGMCHANGE,	 1, one_param_ctrl_event, one_param_decode},
+	{SNDRV_SEQ_EVENT_CHANPRESS,	 1, one_param_ctrl_event, one_param_decode},
+	{SNDRV_SEQ_EVENT_PITCHBEND,	 2, pitchbend_ctrl_event, pitchbend_decode},
+	/* invalid */
+	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL},
 	/* 0xf0 - 0xff */
-	{SNDRV_SEQ_EVENT_SYSEX,		1, NULL, NULL}, /* sysex: 0xf0 */
-	{SNDRV_SEQ_EVENT_QFRAME,	1, one_param_event, one_param_decode}, /* 0xf1 */
-	{SNDRV_SEQ_EVENT_SONGPOS,	2, songpos_event, songpos_decode}, /* 0xf2 */
-	{SNDRV_SEQ_EVENT_SONGSEL,	1, one_param_event, one_param_decode}, /* 0xf3 */
-	{SNDRV_SEQ_EVENT_NONE,		0, NULL, NULL}, /* 0xf4 */
-	{SNDRV_SEQ_EVENT_NONE,		0, NULL, NULL}, /* 0xf5 */
-	{SNDRV_SEQ_EVENT_TUNE_REQUEST,	0, NULL, NULL},	/* 0xf6 */
-	{SNDRV_SEQ_EVENT_NONE,		0, NULL, NULL}, /* 0xf7 */
-	{SNDRV_SEQ_EVENT_CLOCK,		0, NULL, NULL}, /* 0xf8 */
-	{SNDRV_SEQ_EVENT_NONE,		0, NULL, NULL}, /* 0xf9 */
-	{SNDRV_SEQ_EVENT_START,		0, NULL, NULL}, /* 0xfa */
-	{SNDRV_SEQ_EVENT_CONTINUE,	0, NULL, NULL}, /* 0xfb */
-	{SNDRV_SEQ_EVENT_STOP, 		0, NULL, NULL}, /* 0xfc */
-	{SNDRV_SEQ_EVENT_NONE, 		0, NULL, NULL}, /* 0xfd */
-	{SNDRV_SEQ_EVENT_SENSING, 	0, NULL, NULL}, /* 0xfe */
-	{SNDRV_SEQ_EVENT_RESET, 	0, NULL, NULL}, /* 0xff */
+	{SNDRV_SEQ_EVENT_SYSEX,		 1, NULL, NULL}, /* sysex: 0xf0 */
+	{SNDRV_SEQ_EVENT_QFRAME,	 1, one_param_event, one_param_decode}, /* 0xf1 */
+	{SNDRV_SEQ_EVENT_SONGPOS,	 2, songpos_event, songpos_decode}, /* 0xf2 */
+	{SNDRV_SEQ_EVENT_SONGSEL,	 1, one_param_event, one_param_decode}, /* 0xf3 */
+	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL}, /* 0xf4 */
+	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL}, /* 0xf5 */
+	{SNDRV_SEQ_EVENT_TUNE_REQUEST,	 0, NULL, NULL}, /* 0xf6 */
+	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL}, /* 0xf7 */
+	{SNDRV_SEQ_EVENT_CLOCK,		 0, NULL, NULL}, /* 0xf8 */
+	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL}, /* 0xf9 */
+	{SNDRV_SEQ_EVENT_START,		 0, NULL, NULL}, /* 0xfa */
+	{SNDRV_SEQ_EVENT_CONTINUE,	 0, NULL, NULL}, /* 0xfb */
+	{SNDRV_SEQ_EVENT_STOP, 		 0, NULL, NULL}, /* 0xfc */
+	{SNDRV_SEQ_EVENT_NONE, 		-1, NULL, NULL}, /* 0xfd */
+	{SNDRV_SEQ_EVENT_SENSING, 	 0, NULL, NULL}, /* 0xfe */
+	{SNDRV_SEQ_EVENT_RESET, 	 0, NULL, NULL}, /* 0xff */
 };
 
 static int extra_decode_ctrl14(struct snd_midi_event *dev, unsigned char *buf, int len,
@@ -129,6 +129,7 @@ int snd_midi_event_new(int bufsize, struct snd_midi_event **rdev)
 	}
 	dev->bufsize = bufsize;
 	dev->lastcmd = 0xff;
+	dev->type = ST_INVALID;
 	spin_lock_init(&dev->lock);
 	*rdev = dev;
 	return 0;
@@ -149,7 +150,7 @@ static inline void reset_encode(struct snd_midi_event *dev)
 {
 	dev->read = 0;
 	dev->qlen = 0;
-	dev->type = 0;
+	dev->type = ST_INVALID;
 }
 
 void snd_midi_event_reset_encode(struct snd_midi_event *dev)
@@ -251,29 +252,31 @@ int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
 		ev->type = status_event[ST_SPECIAL + c - 0xf0].event;
 		ev->flags &= ~SNDRV_SEQ_EVENT_LENGTH_MASK;
 		ev->flags |= SNDRV_SEQ_EVENT_LENGTH_FIXED;
-		return 1;
+		return ev->type != SNDRV_SEQ_EVENT_NONE;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
-	if (dev->qlen > 0) {
-		/* rest of command */
-		dev->buf[dev->read++] = c;
-		if (dev->type != ST_SYSEX)
-			dev->qlen--;
-	} else {
+	if ((c & 0x80) &&
+	    (c != MIDI_CMD_COMMON_SYSEX_END || dev->type != ST_SYSEX)) {
 		/* new command */
+		dev->buf[0] = c;
+		if ((c & 0xf0) == 0xf0) /* system messages */
+			dev->type = (c & 0x0f) + ST_SPECIAL;
+		else
+			dev->type = (c >> 4) & 0x07;
 		dev->read = 1;
-		if (c & 0x80) {
-			dev->buf[0] = c;
-			if ((c & 0xf0) == 0xf0) /* special events */
-				dev->type = (c & 0x0f) + ST_SPECIAL;
-			else
-				dev->type = (c >> 4) & 0x07;
-			dev->qlen = status_event[dev->type].qlen;
-		} else {
-			/* process this byte as argument */
+		dev->qlen = status_event[dev->type].qlen;
+	} else {
+		if (dev->qlen > 0) {
+			/* rest of command */
 			dev->buf[dev->read++] = c;
+			if (dev->type != ST_SYSEX)
+				dev->qlen--;
+		} else {
+			/* running status */
+			dev->buf[1] = c;
 			dev->qlen = status_event[dev->type].qlen - 1;
+			dev->read = 2;
 		}
 	}
 	if (dev->qlen == 0) {
@@ -282,6 +285,8 @@ int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
 		ev->flags |= SNDRV_SEQ_EVENT_LENGTH_FIXED;
 		if (status_event[dev->type].encode) /* set data values */
 			status_event[dev->type].encode(dev, ev);
+		if (dev->type >= ST_SPECIAL)
+			dev->type = ST_INVALID;
 		rc = 1;
 	} else 	if (dev->type == ST_SYSEX) {
 		if (c == MIDI_CMD_COMMON_SYSEX_END ||

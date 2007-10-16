@@ -1,6 +1,6 @@
 /*
  *   Generic Instrument routines for ALSA sequencer
- *   Copyright (c) 1999 by Jaroslav Kysela <perex@suse.cz>
+ *   Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <sound/seq_instr.h>
 #include <sound/initval.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer instrument library.");
 MODULE_LICENSE("GPL");
 
@@ -109,7 +109,7 @@ void snd_seq_instr_list_free(struct snd_seq_kinstr_list **list_ptr)
 			spin_lock_irqsave(&list->lock, flags);
 			while (instr->use) {
 				spin_unlock_irqrestore(&list->lock, flags);
-				schedule_timeout(1);
+				schedule_timeout_uninterruptible(1);
 				spin_lock_irqsave(&list->lock, flags);
 			}				
 			spin_unlock_irqrestore(&list->lock, flags);
@@ -198,8 +198,10 @@ int snd_seq_instr_list_free_cond(struct snd_seq_kinstr_list *list,
 		while (flist) {
 			instr = flist;
 			flist = instr->next;
-			while (instr->use)
-				schedule_timeout(1);
+			while (instr->use) {
+				schedule_timeout_uninterruptible(1);
+				barrier();
+			}
 			if (snd_seq_instr_free(instr, atomic)<0)
 				snd_printk(KERN_WARNING "instrument free problem\n");
 			instr = next;
@@ -555,7 +557,7 @@ static int instr_free(struct snd_seq_kinstr_ops *ops,
 					   SNDRV_SEQ_INSTR_NOTIFY_REMOVE);
 		while (instr->use) {
 			spin_unlock_irqrestore(&list->lock, flags);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 			spin_lock_irqsave(&list->lock, flags);
 		}				
 		spin_unlock_irqrestore(&list->lock, flags);

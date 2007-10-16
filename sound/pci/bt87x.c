@@ -147,14 +147,55 @@ MODULE_PARM_DESC(load_all, "Allow to load the non-whitelisted cards");
 /* SYNC, one WRITE per line, one extra WRITE per page boundary, SYNC, JUMP */
 #define MAX_RISC_SIZE ((1 + 255 + (PAGE_ALIGN(255 * 4092) / PAGE_SIZE - 1) + 1 + 1) * 8)
 
+/* Cards with configuration information */
+enum snd_bt87x_boardid {
+	SND_BT87X_BOARD_UNKNOWN,
+	SND_BT87X_BOARD_GENERIC,	/* both an & dig interfaces, 32kHz */
+	SND_BT87X_BOARD_ANALOG,		/* board with no external A/D */
+	SND_BT87X_BOARD_OSPREY2x0,
+	SND_BT87X_BOARD_OSPREY440,
+	SND_BT87X_BOARD_AVPHONE98,
+};
+
+/* Card configuration */
+struct snd_bt87x_board {
+	int dig_rate;		/* Digital input sampling rate */
+	u32 digital_fmt;	/* Register settings for digital input */
+	unsigned no_analog:1;	/* No analog input */
+	unsigned no_digital:1;	/* No digital input */
+};
+
+static const __devinitdata struct snd_bt87x_board snd_bt87x_boards[] = {
+	[SND_BT87X_BOARD_UNKNOWN] = {
+		.dig_rate = 32000, /* just a guess */
+	},
+	[SND_BT87X_BOARD_GENERIC] = {
+		.dig_rate = 32000,
+	},
+	[SND_BT87X_BOARD_ANALOG] = {
+		.no_digital = 1,
+	},
+	[SND_BT87X_BOARD_OSPREY2x0] = {
+		.dig_rate = 44100,
+		.digital_fmt = CTL_DA_LRI | (1 << CTL_DA_LRD_SHIFT),
+	},
+	[SND_BT87X_BOARD_OSPREY440] = {
+		.dig_rate = 32000,
+		.digital_fmt = CTL_DA_LRI | (1 << CTL_DA_LRD_SHIFT),
+		.no_analog = 1,
+	},
+	[SND_BT87X_BOARD_AVPHONE98] = {
+		.dig_rate = 48000,
+	},
+};
+
 struct snd_bt87x {
 	struct snd_card *card;
 	struct pci_dev *pci;
+	struct snd_bt87x_board board;
 
 	void __iomem *mmio;
 	int irq;
-
-	int dig_rate;
 
 	spinlock_t reg_lock;
 	unsigned long opened;
@@ -340,30 +381,11 @@ static struct snd_pcm_hardware snd_bt87x_analog_hw = {
 
 static int snd_bt87x_set_digital_hw(struct snd_bt87x *chip, struct snd_pcm_runtime *runtime)
 {
-	static struct {
-		int rate;
-		unsigned int bit;
-	} ratebits[] = {
-		{8000, SNDRV_PCM_RATE_8000},
-		{11025, SNDRV_PCM_RATE_11025},
-		{16000, SNDRV_PCM_RATE_16000},
-		{22050, SNDRV_PCM_RATE_22050},
-		{32000, SNDRV_PCM_RATE_32000},
-		{44100, SNDRV_PCM_RATE_44100},
-		{48000, SNDRV_PCM_RATE_48000}
-	};
-	int i;
-
-	chip->reg_control |= CTL_DA_IOM_DA;
+	chip->reg_control |= CTL_DA_IOM_DA | CTL_A_PWRDN;
 	runtime->hw = snd_bt87x_digital_hw;
-	runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
-	for (i = 0; i < ARRAY_SIZE(ratebits); ++i)
-		if (chip->dig_rate == ratebits[i].rate) {
-			runtime->hw.rates = ratebits[i].bit;
-			break;
-		}
-	runtime->hw.rate_min = chip->dig_rate;
-	runtime->hw.rate_max = chip->dig_rate;
+	runtime->hw.rates = snd_pcm_rate_to_rate_bit(chip->board.dig_rate);
+	runtime->hw.rate_min = chip->board.dig_rate;
+	runtime->hw.rate_max = chip->board.dig_rate;
 	return 0;
 }
 
@@ -380,7 +402,7 @@ static int snd_bt87x_set_analog_hw(struct snd_bt87x *chip, struct snd_pcm_runtim
 		.rats = &analog_clock
 	};
 
-	chip->reg_control &= ~CTL_DA_IOM_DA;
+	chip->reg_control &= ~(CTL_DA_IOM_DA | CTL_A_PWRDN);
 	runtime->hw = snd_bt87x_analog_hw;
 	return snd_pcm_hw_constraint_ratnums(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 					     &constraint_rates);
@@ -418,6 +440,11 @@ _error:
 static int snd_bt87x_close(struct snd_pcm_substream *substream)
 {
 	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
+
+	spin_lock_irq(&chip->reg_lock);
+	chip->reg_control |= CTL_A_PWRDN;
+	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
+	spin_unlock_irq(&chip->reg_lock);
 
 	chip->substream = NULL;
 	clear_bit(0, &chip->opened);
@@ -569,15 +596,7 @@ static struct snd_kcontrol_new snd_bt87x_capture_volume = {
 	.put = snd_bt87x_capture_volume_put,
 };
 
-static int snd_bt87x_capture_boost_info(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_info *info)
-{
-	info->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	info->count = 1;
-	info->value.integer.min = 0;
-	info->value.integer.max = 1;
-	return 0;
-}
+#define snd_bt87x_capture_boost_info	snd_ctl_boolean_mono_info
 
 static int snd_bt87x_capture_boost_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *value)
@@ -736,61 +755,69 @@ static int __devinit snd_bt87x_create(struct snd_card *card,
 	chip->mmio = ioremap_nocache(pci_resource_start(pci, 0),
 				     pci_resource_len(pci, 0));
 	if (!chip->mmio) {
-		snd_bt87x_free(chip);
 		snd_printk(KERN_ERR "cannot remap io memory\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto fail;
 	}
 
-	chip->reg_control = CTL_DA_ES2 | CTL_PKTP_16 | (15 << CTL_DA_SDR_SHIFT);
+	chip->reg_control = CTL_A_PWRDN | CTL_DA_ES2 |
+			    CTL_PKTP_16 | (15 << CTL_DA_SDR_SHIFT);
 	chip->interrupt_mask = MY_INTERRUPTS;
 	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
 	snd_bt87x_writel(chip, REG_INT_MASK, 0);
 	snd_bt87x_writel(chip, REG_INT_STAT, MY_INTERRUPTS);
 
-	if (request_irq(pci->irq, snd_bt87x_interrupt, IRQF_SHARED,
-			"Bt87x audio", chip)) {
-		snd_bt87x_free(chip);
-		snd_printk(KERN_ERR "cannot grab irq\n");
-		return -EBUSY;
+	err = request_irq(pci->irq, snd_bt87x_interrupt, IRQF_SHARED,
+			  "Bt87x audio", chip);
+	if (err < 0) {
+		snd_printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
+		goto fail;
 	}
 	chip->irq = pci->irq;
 	pci_set_master(pci);
 	synchronize_irq(chip->irq);
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		snd_bt87x_free(chip);
-		return err;
-	}
+	if (err < 0)
+		goto fail;
+
 	snd_card_set_dev(card, &pci->dev);
 	*rchip = chip;
 	return 0;
+
+fail:
+	snd_bt87x_free(chip);
+	return err;
 }
 
-#define BT_DEVICE(chip, subvend, subdev, rate) \
+#define BT_DEVICE(chip, subvend, subdev, id) \
 	{ .vendor = PCI_VENDOR_ID_BROOKTREE, \
 	  .device = chip, \
 	  .subvendor = subvend, .subdevice = subdev, \
-	  .driver_data = rate }
+	  .driver_data = SND_BT87X_BOARD_ ## id }
+/* driver_data is the card id for that device */
 
-/* driver_data is the default digital_rate value for that device */
 static struct pci_device_id snd_bt87x_ids[] = {
 	/* Hauppauge WinTV series */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0x13eb, 32000),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0x13eb, GENERIC),
 	/* Hauppauge WinTV series */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, 0x0070, 0x13eb, 32000),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, 0x0070, 0x13eb, GENERIC),
 	/* Viewcast Osprey 200 */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff01, 44100),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff01, OSPREY2x0),
 	/* Viewcast Osprey 440 (rate is configurable via gpio) */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff07, 32000),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff07, OSPREY440),
 	/* ATI TV-Wonder */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1002, 0x0001, 32000),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1002, 0x0001, GENERIC),
 	/* Leadtek Winfast tv 2000xp delux */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x107d, 0x6606, 32000),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x107d, 0x6606, GENERIC),
 	/* Voodoo TV 200 */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x121a, 0x3000, 32000),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x121a, 0x3000, GENERIC),
 	/* AVerMedia Studio No. 103, 203, ...? */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, 48000),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, AVPHONE98),
+	/* Prolink PixelView PV-M4900 */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1554, 0x4011, GENERIC),
+	/* Pinnacle  Studio PCTV rave */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0xbd11, 0x1200, GENERIC),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, snd_bt87x_ids);
@@ -815,7 +842,7 @@ static struct {
 
 static struct pci_driver driver;
 
-/* return the rate of the card, or a negative value if it's blacklisted */
+/* return the id of the card, or a negative value if it's blacklisted */
 static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 {
 	int i;
@@ -833,12 +860,12 @@ static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 			return -EBUSY;
 		}
 
-	snd_printk(KERN_INFO "unknown card %#04x-%#04x:%#04x, using default rate 32000\n",
-	           pci->device, pci->subsystem_vendor, pci->subsystem_device);
+	snd_printk(KERN_INFO "unknown card %#04x-%#04x:%#04x\n",
+		   pci->device, pci->subsystem_vendor, pci->subsystem_device);
 	snd_printk(KERN_DEBUG "please mail id, board name, and, "
 		   "if it works, the correct digital_rate option to "
 		   "<alsa-devel@alsa-project.org>\n");
-	return 32000; /* default rate */
+	return SND_BT87X_BOARD_UNKNOWN;
 }
 
 static int __devinit snd_bt87x_probe(struct pci_dev *pci,
@@ -847,12 +874,16 @@ static int __devinit snd_bt87x_probe(struct pci_dev *pci,
 	static int dev;
 	struct snd_card *card;
 	struct snd_bt87x *chip;
-	int err, rate;
+	int err;
+	enum snd_bt87x_boardid boardid;
 
-	rate = pci_id->driver_data;
-	if (! rate)
-		if ((rate = snd_bt87x_detect_card(pci)) <= 0)
+	if (!pci_id->driver_data) {
+		err = snd_bt87x_detect_card(pci);
+		if (err < 0)
 			return -ENODEV;
+		boardid = err;
+	} else
+		boardid = pci_id->driver_data;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
@@ -869,27 +900,39 @@ static int __devinit snd_bt87x_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto _error;
 
-	if (digital_rate[dev] > 0)
-		chip->dig_rate = digital_rate[dev];
-	else
-		chip->dig_rate = rate;
+	memcpy(&chip->board, &snd_bt87x_boards[boardid], sizeof(chip->board));
 
-	err = snd_bt87x_pcm(chip, DEVICE_DIGITAL, "Bt87x Digital");
-	if (err < 0)
-		goto _error;
-	err = snd_bt87x_pcm(chip, DEVICE_ANALOG, "Bt87x Analog");
-	if (err < 0)
-		goto _error;
+	if (!chip->board.no_digital) {
+		if (digital_rate[dev] > 0)
+			chip->board.dig_rate = digital_rate[dev];
 
-	err = snd_ctl_add(card, snd_ctl_new1(&snd_bt87x_capture_volume, chip));
-	if (err < 0)
-		goto _error;
-	err = snd_ctl_add(card, snd_ctl_new1(&snd_bt87x_capture_boost, chip));
-	if (err < 0)
-		goto _error;
-	err = snd_ctl_add(card, snd_ctl_new1(&snd_bt87x_capture_source, chip));
-	if (err < 0)
-		goto _error;
+		chip->reg_control |= chip->board.digital_fmt;
+
+		err = snd_bt87x_pcm(chip, DEVICE_DIGITAL, "Bt87x Digital");
+		if (err < 0)
+			goto _error;
+	}
+	if (!chip->board.no_analog) {
+		err = snd_bt87x_pcm(chip, DEVICE_ANALOG, "Bt87x Analog");
+		if (err < 0)
+			goto _error;
+		err = snd_ctl_add(card, snd_ctl_new1(
+				  &snd_bt87x_capture_volume, chip));
+		if (err < 0)
+			goto _error;
+		err = snd_ctl_add(card, snd_ctl_new1(
+				  &snd_bt87x_capture_boost, chip));
+		if (err < 0)
+			goto _error;
+		err = snd_ctl_add(card, snd_ctl_new1(
+				  &snd_bt87x_capture_source, chip));
+		if (err < 0)
+			goto _error;
+	}
+	snd_printk(KERN_INFO "bt87x%d: Using board %d, %sanalog, %sdigital "
+		   "(rate %d Hz)\n", dev, boardid,
+		   chip->board.no_analog ? "no " : "",
+		   chip->board.no_digital ? "no " : "", chip->board.dig_rate);
 
 	strcpy(card->driver, "Bt87x");
 	sprintf(card->shortname, "Brooktree Bt%x", pci->device);
@@ -920,8 +963,8 @@ static void __devexit snd_bt87x_remove(struct pci_dev *pci)
 /* default entries for all Bt87x cards - it's not exported */
 /* driver_data is set to 0 to call detection */
 static struct pci_device_id snd_bt87x_default_ids[] __devinitdata = {
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, PCI_ANY_ID, PCI_ANY_ID, 0),
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, PCI_ANY_ID, PCI_ANY_ID, 0),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, PCI_ANY_ID, PCI_ANY_ID, UNKNOWN),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, PCI_ANY_ID, PCI_ANY_ID, UNKNOWN),
 	{ }
 };
 

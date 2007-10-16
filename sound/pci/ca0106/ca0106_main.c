@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
- *  Version: 0.0.23
+ *  Version: 0.0.25
  *
  *  FEATURES currently supported:
  *    Front, Rear and Center/LFE.
@@ -79,6 +79,10 @@
  *    Add support for MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97. From kiksen, bug #901
  *  0.0.23
  *    Implement support for Line-in capture on SB Live 24bit.
+ *  0.0.24
+ *    Add support for mute control on SB Live 24bit (cards w/ SPI DAC)
+ *  0.0.25
+ *    Powerdown SPI DAC channels when not in use
  *
  *  BUGS:
  *    Some stability problems when unloading the snd-ca0106 kernel module.
@@ -168,6 +172,15 @@ MODULE_PARM_DESC(subsystem, "Force card subsystem model.");
 #include "ca0106.h"
 
 static struct snd_ca0106_details ca0106_chip_details[] = {
+	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
+	 /* It is really just a normal SB Live 24bit. */
+	 /* Tested:
+	  * See ALSA bug#3251
+	  */
+	 { .serial = 0x10131102,
+	   .name   = "X-Fi Extreme Audio [SBxxxx]",
+	   .gpio_type = 1,
+	   .i2c_adc = 1 } ,
 	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
 	 /* It is really just a normal SB Live 24bit. */
 	 /*
@@ -261,10 +274,11 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 
 /* hardware definition */
 static struct snd_pcm_hardware snd_ca0106_playback_hw = {
-	.info =			(SNDRV_PCM_INFO_MMAP | 
-				 SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+	.info =			SNDRV_PCM_INFO_MMAP | 
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_SYNC_START,
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	.rates =		(SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |
 				 SNDRV_PCM_RATE_192000),
@@ -447,6 +461,19 @@ static void snd_ca0106_pcm_free_substream(struct snd_pcm_runtime *runtime)
 	kfree(runtime->private_data);
 }
 
+static const int spi_dacd_reg[] = {
+	[PCM_FRONT_CHANNEL]	= SPI_DACD4_REG,
+	[PCM_REAR_CHANNEL]	= SPI_DACD0_REG,
+	[PCM_CENTER_LFE_CHANNEL]= SPI_DACD2_REG,
+	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_REG,
+};
+static const int spi_dacd_bit[] = {
+	[PCM_FRONT_CHANNEL]	= SPI_DACD4_BIT,
+	[PCM_REAR_CHANNEL]	= SPI_DACD0_BIT,
+	[PCM_CENTER_LFE_CHANNEL]= SPI_DACD2_BIT,
+	[PCM_UNKNOWN_CHANNEL]	= SPI_DACD1_BIT,
+};
+
 /* open_playback callback */
 static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substream,
 						int channel_id)
@@ -481,6 +508,17 @@ static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substr
                 return err;
 	if ((err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64)) < 0)
                 return err;
+	snd_pcm_set_sync(substream);
+
+	if (chip->details->spi_dac && channel_id != PCM_FRONT_CHANNEL) {
+		const int reg = spi_dacd_reg[channel_id];
+
+		/* Power up dac */
+		chip->spi_dac_reg[reg] &= ~spi_dacd_bit[channel_id];
+		err = snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+		if (err < 0)
+			return err;
+	}
 	return 0;
 }
 
@@ -491,6 +529,14 @@ static int snd_ca0106_pcm_close_playback(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
         struct snd_ca0106_pcm *epcm = runtime->private_data;
 	chip->playback_channels[epcm->channel_id].use = 0;
+
+	if (chip->details->spi_dac && epcm->channel_id != PCM_FRONT_CHANNEL) {
+		const int reg = spi_dacd_reg[epcm->channel_id];
+
+		/* Power down DAC */
+		chip->spi_dac_reg[reg] |= spi_dacd_bit[epcm->channel_id];
+		snd_ca0106_spi_write(chip, chip->spi_dac_reg[reg]);
+	}
 	/* FIXME: maybe zero others */
 	return 0;
 }
@@ -809,6 +855,9 @@ static int snd_ca0106_pcm_trigger_playback(struct snd_pcm_substream *substream,
 		break;
 	}
         snd_pcm_group_for_each_entry(s, substream) {
+		if (snd_pcm_substream_chip(s) != emu ||
+		    s->stream != SNDRV_PCM_STREAM_PLAYBACK)
+			continue;
 		runtime = s->runtime;
 		epcm = runtime->private_data;
 		channel = epcm->channel_id;
@@ -1214,28 +1263,23 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device, struct s
 	return 0;
 }
 
+#define SPI_REG(reg, value)	(((reg) << SPI_REG_SHIFT) | (value))
 static unsigned int spi_dac_init[] = {
-	0x00ff,
-	0x02ff,
-	0x0400,
-	0x0520,
-	0x0620, /* Set 24 bit. Was 0x0600 */
-	0x08ff,
-	0x0aff,
-	0x0cff,
-	0x0eff,
-	0x10ff,
-	0x1200,
-	0x1400,
-	0x1480,
-	0x1800,
-	0x1aff,
-	0x1cff,
-	0x1e00,
-	0x0530,
-	0x0602,
-	0x0622,
-	0x1400,
+	SPI_REG(SPI_LDA1_REG,	SPI_DA_BIT_0dB), /* 0dB dig. attenuation */
+	SPI_REG(SPI_RDA1_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_PL_REG,	SPI_PL_BIT_L_L | SPI_PL_BIT_R_R | SPI_IZD_BIT),
+	SPI_REG(SPI_FMT_REG,	SPI_FMT_BIT_I2S | SPI_IWL_BIT_24),
+	SPI_REG(SPI_LDA2_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_RDA2_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_LDA3_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_RDA3_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_MASTDA_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(9,		0x00),
+	SPI_REG(SPI_MS_REG,	SPI_DACD0_BIT | SPI_DACD1_BIT | SPI_DACD2_BIT),
+	SPI_REG(12,		0x00),
+	SPI_REG(SPI_LDA4_REG,	SPI_DA_BIT_0dB),
+	SPI_REG(SPI_RDA4_REG,	SPI_DA_BIT_0dB | SPI_DA_BIT_UPDATE),
+	SPI_REG(SPI_DACD4_REG,	0x00),
 };
 
 static unsigned int i2c_adc_init[][2] = {
@@ -1475,8 +1519,13 @@ static int __devinit snd_ca0106_create(int dev, struct snd_card *card,
 		int size, n;
 
 		size = ARRAY_SIZE(spi_dac_init);
-		for (n=0; n < size; n++)
+		for (n = 0; n < size; n++) {
+			int reg = spi_dac_init[n] >> SPI_REG_SHIFT;
+
 			snd_ca0106_spi_write(chip, spi_dac_init[n]);
+			if (reg < ARRAY_SIZE(chip->spi_dac_reg))
+				chip->spi_dac_reg[reg] = spi_dac_init[n];
+		}
 	}
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,

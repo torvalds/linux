@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Universal routines for AK4531 codec
  *
  *
@@ -29,7 +29,7 @@
 #include <sound/ak4531_codec.h>
 #include <sound/tlv.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Universal routines for AK4531 codec");
 MODULE_LICENSE("GPL");
 

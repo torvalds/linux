@@ -191,6 +191,19 @@ config SND_ES18XX
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-es18xx.
 
+config SND_SC6000
+	tristate "Gallant SC-6000, Audio Excel DSP 16"
+	depends on SND && HAS_IOPORT
+	select SND_AD1848_LIB
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	help
+	  Say Y here to include support for Gallant SC-6000 card and clones:
+	  Audio Excel DSP 16 and Zoltrix AV302.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-sc6000.
+
 config SND_GUS_SYNTH
 	tristate
 
@@ -414,7 +427,7 @@ config SND_SSCAPE
 config SND_WAVEFRONT
 	tristate "Turtle Beach Maui,Tropez,Tropez+ (Wavefront)"
 	depends on SND
-	select FW_LOADER if !SND_WAVEFRONT_FIRMWARE_IN_KERNEL
+	select FW_LOADER
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_CS4231_LIB
@@ -430,8 +443,9 @@ config SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 	depends on SND_WAVEFRONT
 	default y
 	help
-	  Say Y here to include the static firmware built in the kernel
-	  for the Wavefront driver.  If you choose N here, you need to
-	  install the firmware files from the alsa-firmware package.
+	  Say Y here to include the static firmware for FX DSP built in
+	  the kernel for the Wavefront driver.  If you choose N here,
+	  you need to install the firmware files from the
+	  alsa-firmware package.
 
 endmenu

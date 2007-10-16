@@ -95,30 +95,34 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_CHADC0		0x00000001	/* ch0, 0:playback, 1:record */
 
 #define CM_REG_FUNCTRL1		0x04
-#define CM_ASFC_MASK		0x0000E000	/* ADC sampling frequency */
-#define CM_ASFC_SHIFT		13
-#define CM_DSFC_MASK		0x00001C00	/* DAC sampling frequency */
-#define CM_DSFC_SHIFT		10
+#define CM_DSFC_MASK		0x0000E000	/* channel 1 (DAC?) sampling frequency */
+#define CM_DSFC_SHIFT		13
+#define CM_ASFC_MASK		0x00001C00	/* channel 0 (ADC?) sampling frequency */
+#define CM_ASFC_SHIFT		10
 #define CM_SPDF_1		0x00000200	/* SPDIF IN/OUT at channel B */
 #define CM_SPDF_0		0x00000100	/* SPDIF OUT only channel A */
-#define CM_SPDFLOOP		0x00000080	/* ext. SPDIIF/OUT -> IN loopback */
+#define CM_SPDFLOOP		0x00000080	/* ext. SPDIIF/IN -> OUT loopback */
 #define CM_SPDO2DAC		0x00000040	/* SPDIF/OUT can be heard from internal DAC */
 #define CM_INTRM		0x00000020	/* master control block (MCB) interrupt enabled */
 #define CM_BREQ			0x00000010	/* bus master enabled */
 #define CM_VOICE_EN		0x00000008	/* legacy voice (SB16,FM) */
-#define CM_UART_EN		0x00000004	/* UART */
-#define CM_JYSTK_EN		0x00000002	/* joy stick */
+#define CM_UART_EN		0x00000004	/* legacy UART */
+#define CM_JYSTK_EN		0x00000002	/* legacy joystick */
+#define CM_ZVPORT		0x00000001	/* ZVPORT */
 
 #define CM_REG_CHFORMAT		0x08
 
 #define CM_CHB3D5C		0x80000000	/* 5,6 channels */
+#define CM_FMOFFSET2		0x40000000	/* initial FM PCM offset 2 when Fmute=1 */
 #define CM_CHB3D		0x20000000	/* 4 channels */
 
 #define CM_CHIP_MASK1		0x1f000000
 #define CM_CHIP_037		0x01000000
-
-#define CM_SPDIF_SELECT1	0x00080000	/* for model <= 037 ? */
+#define CM_SETLAT48		0x00800000	/* set latency timer 48h */
+#define CM_EDGEIRQ		0x00400000	/* emulated edge trigger legacy IRQ */
+#define CM_SPD24SEL39		0x00200000	/* 24-bit spdif: model 039 */
 #define CM_AC3EN1		0x00100000	/* enable AC3: model 037 */
+#define CM_SPDIF_SELECT1	0x00080000	/* for model <= 037 ? */
 #define CM_SPD24SEL		0x00020000	/* 24bit spdif: model 037 */
 /* #define CM_SPDIF_INVERSE	0x00010000 */ /* ??? */
 
@@ -128,35 +132,45 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_ADCBITLEN_14		0x00008000
 #define CM_ADCBITLEN_13		0x0000C000
 
-#define CM_ADCDACLEN_MASK	0x00003000
+#define CM_ADCDACLEN_MASK	0x00003000	/* model 037 */
 #define CM_ADCDACLEN_060	0x00000000
 #define CM_ADCDACLEN_066	0x00001000
 #define CM_ADCDACLEN_130	0x00002000
 #define CM_ADCDACLEN_280	0x00003000
 
+#define CM_ADCDLEN_MASK		0x00003000	/* model 039 */
+#define CM_ADCDLEN_ORIGINAL	0x00000000
+#define CM_ADCDLEN_EXTRA	0x00001000
+#define CM_ADCDLEN_24K		0x00002000
+#define CM_ADCDLEN_WEIGHT	0x00003000
+
 #define CM_CH1_SRATE_176K	0x00000800
+#define CM_CH1_SRATE_96K	0x00000800	/* model 055? */
 #define CM_CH1_SRATE_88K	0x00000400
 #define CM_CH0_SRATE_176K	0x00000200
+#define CM_CH0_SRATE_96K	0x00000200	/* model 055? */
 #define CM_CH0_SRATE_88K	0x00000100
 
 #define CM_SPDIF_INVERSE2	0x00000080	/* model 055? */
+#define CM_DBLSPDS		0x00000040	/* double SPDIF sample rate 88.2/96 */
+#define CM_POLVALID		0x00000020	/* inverse SPDIF/IN valid bit */
+#define CM_SPDLOCKED		0x00000010
 
-#define CM_CH1FMT_MASK		0x0000000C
+#define CM_CH1FMT_MASK		0x0000000C	/* bit 3: 16 bits, bit 2: stereo */
 #define CM_CH1FMT_SHIFT		2
-#define CM_CH0FMT_MASK		0x00000003
+#define CM_CH0FMT_MASK		0x00000003	/* bit 1: 16 bits, bit 0: stereo */
 #define CM_CH0FMT_SHIFT		0
 
 #define CM_REG_INT_HLDCLR	0x0C
 #define CM_CHIP_MASK2		0xff000000
+#define CM_CHIP_8768		0x20000000
+#define CM_CHIP_055		0x08000000
 #define CM_CHIP_039		0x04000000
 #define CM_CHIP_039_6CH		0x01000000
-#define CM_CHIP_055		0x08000000
-#define CM_CHIP_8768		0x20000000
+#define CM_UNKNOWN_INT_EN	0x00080000	/* ? */
 #define CM_TDMA_INT_EN		0x00040000
 #define CM_CH1_INT_EN		0x00020000
 #define CM_CH0_INT_EN		0x00010000
-#define CM_INT_HOLD		0x00000002
-#define CM_INT_CLEAR		0x00000001
 
 #define CM_REG_INT_STATUS	0x10
 #define CM_INTR			0x80000000
@@ -175,12 +189,13 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_CHINT0		0x00000001
 
 #define CM_REG_LEGACY_CTRL	0x14
-#define CM_NXCHG		0x80000000	/* h/w multi channels? */
+#define CM_NXCHG		0x80000000	/* don't map base reg dword->sample */
 #define CM_VMPU_MASK		0x60000000	/* MPU401 i/o port address */
 #define CM_VMPU_330		0x00000000
 #define CM_VMPU_320		0x20000000
 #define CM_VMPU_310		0x40000000
 #define CM_VMPU_300		0x60000000
+#define CM_ENWR8237		0x10000000	/* enable bus master to write 8237 base reg */
 #define CM_VSBSEL_MASK		0x0C000000	/* SB16 base address */
 #define CM_VSBSEL_220		0x00000000
 #define CM_VSBSEL_240		0x04000000
@@ -191,44 +206,74 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_FMSEL_3C8		0x01000000
 #define CM_FMSEL_3E0		0x02000000
 #define CM_FMSEL_3E8		0x03000000
-#define CM_ENSPDOUT		0x00800000	/* enable XPDIF/OUT to I/O interface */
-#define CM_SPDCOPYRHT		0x00400000	/* set copyright spdif in/out */
+#define CM_ENSPDOUT		0x00800000	/* enable XSPDIF/OUT to I/O interface */
+#define CM_SPDCOPYRHT		0x00400000	/* spdif in/out copyright bit */
 #define CM_DAC2SPDO		0x00200000	/* enable wave+fm_midi -> SPDIF/OUT */
-#define CM_SETRETRY		0x00010000	/* 0: legacy i/o wait (default), 1: legacy i/o bus retry */
+#define CM_INVIDWEN		0x00100000	/* internal vendor ID write enable, model 039? */
+#define CM_SETRETRY		0x00100000	/* 0: legacy i/o wait (default), 1: legacy i/o bus retry */
+#define CM_C_EEACCESS		0x00080000	/* direct programming eeprom regs */
+#define CM_C_EECS		0x00040000
+#define CM_C_EEDI46		0x00020000
+#define CM_C_EECK46		0x00010000
 #define CM_CHB3D6C		0x00008000	/* 5.1 channels support */
-#define CM_LINE_AS_BASS		0x00006000	/* use line-in as bass */
+#define CM_CENTR2LIN		0x00004000	/* line-in as center out */
+#define CM_BASE2LIN		0x00002000	/* line-in as bass out */
+#define CM_EXBASEN		0x00001000	/* external bass input enable */
 
 #define CM_REG_MISC_CTRL	0x18
-#define CM_PWD			0x80000000
+#define CM_PWD			0x80000000	/* power down */
 #define CM_RESET		0x40000000
-#define CM_SFIL_MASK		0x30000000
-#define CM_TXVX			0x08000000
-#define CM_N4SPK3D		0x04000000	/* 4ch output */
+#define CM_SFIL_MASK		0x30000000	/* filter control at front end DAC, model 037? */
+#define CM_VMGAIN		0x10000000	/* analog master amp +6dB, model 039? */
+#define CM_TXVX			0x08000000	/* model 037? */
+#define CM_N4SPK3D		0x04000000	/* copy front to rear */
 #define CM_SPDO5V		0x02000000	/* 5V spdif output (1 = 0.5v (coax)) */
 #define CM_SPDIF48K		0x01000000	/* write */
 #define CM_SPATUS48K		0x01000000	/* read */
-#define CM_ENDBDAC		0x00800000	/* enable dual dac */
+#define CM_ENDBDAC		0x00800000	/* enable double dac */
 #define CM_XCHGDAC		0x00400000	/* 0: front=ch0, 1: front=ch1 */
 #define CM_SPD32SEL		0x00200000	/* 0: 16bit SPDIF, 1: 32bit */
-#define CM_SPDFLOOPI		0x00100000	/* int. SPDIF-IN -> int. OUT */
-#define CM_FM_EN		0x00080000	/* enalbe FM */
+#define CM_SPDFLOOPI		0x00100000	/* int. SPDIF-OUT -> int. IN */
+#define CM_FM_EN		0x00080000	/* enable legacy FM */
 #define CM_AC3EN2		0x00040000	/* enable AC3: model 039 */
-#define CM_VIDWPDSB		0x00010000 
+#define CM_ENWRASID		0x00010000	/* choose writable internal SUBID (audio) */
+#define CM_VIDWPDSB		0x00010000	/* model 037? */
 #define CM_SPDF_AC97		0x00008000	/* 0: SPDIF/OUT 44.1K, 1: 48K */
-#define CM_MASK_EN		0x00004000
-#define CM_VIDWPPRT		0x00002000
-#define CM_SFILENB		0x00001000
-#define CM_MMODE_MASK		0x00000E00
+#define CM_MASK_EN		0x00004000	/* activate channel mask on legacy DMA */
+#define CM_ENWRMSID		0x00002000	/* choose writable internal SUBID (modem) */
+#define CM_VIDWPPRT		0x00002000	/* model 037? */
+#define CM_SFILENB		0x00001000	/* filter stepping at front end DAC, model 037? */
+#define CM_MMODE_MASK		0x00000E00	/* model DAA interface mode */
 #define CM_SPDIF_SELECT2	0x00000100	/* for model > 039 ? */
 #define CM_ENCENTER		0x00000080
-#define CM_FLINKON		0x00000040
-#define CM_FLINKOFF		0x00000020
-#define CM_MIDSMP		0x00000010
-#define CM_UPDDMA_MASK		0x0000000C
-#define CM_TWAIT_MASK		0x00000003
+#define CM_FLINKON		0x00000080	/* force modem link detection on, model 037 */
+#define CM_MUTECH1		0x00000040	/* mute PCI ch1 to DAC */
+#define CM_FLINKOFF		0x00000040	/* force modem link detection off, model 037 */
+#define CM_UNKNOWN_18_5		0x00000020	/* ? */
+#define CM_MIDSMP		0x00000010	/* 1/2 interpolation at front end DAC */
+#define CM_UPDDMA_MASK		0x0000000C	/* TDMA position update notification */
+#define CM_UPDDMA_2048		0x00000000
+#define CM_UPDDMA_1024		0x00000004
+#define CM_UPDDMA_512		0x00000008
+#define CM_UPDDMA_256		0x0000000C		
+#define CM_TWAIT_MASK		0x00000003	/* model 037 */
+#define CM_TWAIT1		0x00000002	/* FM i/o cycle, 0: 48, 1: 64 PCICLKs */
+#define CM_TWAIT0		0x00000001	/* i/o cycle, 0: 4, 1: 6 PCICLKs */
+
+#define CM_REG_TDMA_POSITION	0x1C
+#define CM_TDMA_CNT_MASK	0xFFFF0000	/* current byte/word count */
+#define CM_TDMA_ADR_MASK	0x0000FFFF	/* current address */
 
 	/* byte */
 #define CM_REG_MIXER0		0x20
+#define CM_REG_SBVR		0x20		/* write: sb16 version */
+#define CM_REG_DEV		0x20		/* read: hardware device version */
+
+#define CM_REG_MIXER21		0x21
+#define CM_UNKNOWN_21_MASK	0x78		/* ? */
+#define CM_X_ADPCM		0x04		/* SB16 ADPCM enable */
+#define CM_PROINV		0x02		/* SBPro left/right channel switching */
+#define CM_X_SB16		0x01		/* SB16 compatible */
 
 #define CM_REG_SB16_DATA	0x22
 #define CM_REG_SB16_ADDR	0x23
@@ -243,8 +288,8 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_FMMUTE_SHIFT		7
 #define CM_WSMUTE		0x40	/* mute PCM */
 #define CM_WSMUTE_SHIFT		6
-#define CM_SPK4			0x20	/* lin-in -> rear line out */
-#define CM_SPK4_SHIFT		5
+#define CM_REAR2LIN		0x20	/* lin-in -> rear line out */
+#define CM_REAR2LIN_SHIFT	5
 #define CM_REAR2FRONT		0x10	/* exchange rear/front */
 #define CM_REAR2FRONT_SHIFT	4
 #define CM_WAVEINL		0x08	/* digital wave rec. left chan */
@@ -276,12 +321,13 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_VAUXR_MASK		0x0f
 
 #define CM_REG_MISC		0x27
+#define CM_UNKNOWN_27_MASK	0xd8	/* ? */
 #define CM_XGPO1		0x20
 // #define CM_XGPBIO		0x04
 #define CM_MIC_CENTER_LFE	0x04	/* mic as center/lfe out? (model 039 or later?) */
 #define CM_SPDIF_INVERSE	0x04	/* spdif input phase inverse (model 037) */
 #define CM_SPDVALID		0x02	/* spdif input valid check */
-#define CM_DMAUTO		0x01
+#define CM_DMAUTO		0x01	/* SB16 DMA auto detect */
 
 #define CM_REG_AC97		0x28	/* hmmm.. do we have ac97 link? */
 /*
@@ -322,18 +368,20 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 /*
  * extended registers
  */
-#define CM_REG_CH0_FRAME1	0x80	/* base address */
-#define CM_REG_CH0_FRAME2	0x84
+#define CM_REG_CH0_FRAME1	0x80	/* write: base address */
+#define CM_REG_CH0_FRAME2	0x84	/* read: current address */
 #define CM_REG_CH1_FRAME1	0x88	/* 0-15: count of samples at bus master; buffer size */
 #define CM_REG_CH1_FRAME2	0x8C	/* 16-31: count of samples at codec; fragment size */
+
 #define CM_REG_EXT_MISC		0x90
-#define CM_REG_MISC_CTRL_8768	0x92	/* reg. name the same as 0x18 */
-#define CM_CHB3D8C		0x20	/* 7.1 channels support */
-#define CM_SPD32FMT		0x10	/* SPDIF/IN 32k */
-#define CM_ADC2SPDIF		0x08	/* ADC output to SPDIF/OUT */
-#define CM_SHAREADC		0x04	/* DAC in ADC as Center/LFE */
-#define CM_REALTCMP		0x02	/* monitor the CMPL/CMPR of ADC */
-#define CM_INVLRCK		0x01	/* invert ZVPORT's LRCK */
+#define CM_ADC48K44K		0x10000000	/* ADC parameters group, 0: 44k, 1: 48k */
+#define CM_CHB3D8C		0x00200000	/* 7.1 channels support */
+#define CM_SPD32FMT		0x00100000	/* SPDIF/IN 32k sample rate */
+#define CM_ADC2SPDIF		0x00080000	/* ADC output to SPDIF/OUT */
+#define CM_SHAREADC		0x00040000	/* DAC in ADC as Center/LFE */
+#define CM_REALTCMP		0x00020000	/* monitor the CMPL/CMPR of ADC */
+#define CM_INVLRCK		0x00010000	/* invert ZVPORT's LRCK */
+#define CM_UNKNOWN_90_MASK	0x0000FFFF	/* ? */
 
 /*
  * size of i/o region
@@ -383,15 +431,14 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 
 struct cmipci_pcm {
 	struct snd_pcm_substream *substream;
-	int running;		/* dac/adc running? */
+	u8 running;		/* dac/adc running? */
+	u8 fmt;			/* format bits */
+	u8 is_dac;
+	u8 needs_silencing;
 	unsigned int dma_size;	/* in frames */
-	unsigned int period_size;	/* in frames */
+	unsigned int shift;
+	unsigned int ch;	/* channel (0/1) */
 	unsigned int offset;	/* physical address of the buffer */
-	unsigned int fmt;	/* format bits */
-	int ch;			/* channel (0/1) */
-	unsigned int is_dac;		/* is dac? */
-	int bytes_per_frame;
-	int shift;
 };
 
 /* mixer elements toggled/resumed during ac3 playback */
@@ -424,7 +471,6 @@ struct cmipci {
 
 	int chip_version;
 	int max_channels;
-	unsigned int has_dual_dac: 1;
 	unsigned int can_ac3_sw: 1;
 	unsigned int can_ac3_hw: 1;
 	unsigned int can_multi_ch: 1;
@@ -557,6 +603,9 @@ static unsigned int rates[] = { 5512, 11025, 22050, 44100, 8000, 16000, 32000, 4
 static unsigned int snd_cmipci_rate_freq(unsigned int rate)
 {
 	unsigned int i;
+
+	if (rate > 48000)
+		rate /= 2;
 	for (i = 0; i < ARRAY_SIZE(rates); i++) {
 		if (rates[i] == rate)
 			return i;
@@ -671,19 +720,19 @@ static int snd_cmipci_hw_free(struct snd_pcm_substream *substream)
 /*
  */
 
-static unsigned int hw_channels[] = {1, 2, 4, 5, 6, 8};
+static unsigned int hw_channels[] = {1, 2, 4, 6, 8};
 static struct snd_pcm_hw_constraint_list hw_constraints_channels_4 = {
 	.count = 3,
 	.list = hw_channels,
 	.mask = 0,
 };
 static struct snd_pcm_hw_constraint_list hw_constraints_channels_6 = {
-	.count = 5,
+	.count = 4,
 	.list = hw_channels,
 	.mask = 0,
 };
 static struct snd_pcm_hw_constraint_list hw_constraints_channels_8 = {
-	.count = 6,
+	.count = 5,
 	.list = hw_channels,
 	.mask = 0,
 };
@@ -691,48 +740,37 @@ static struct snd_pcm_hw_constraint_list hw_constraints_channels_8 = {
 static int set_dac_channels(struct cmipci *cm, struct cmipci_pcm *rec, int channels)
 {
 	if (channels > 2) {
-		if (! cm->can_multi_ch)
+		if (!cm->can_multi_ch || !rec->ch)
 			return -EINVAL;
 		if (rec->fmt != 0x03) /* stereo 16bit only */
 			return -EINVAL;
+	}
 
+	if (cm->can_multi_ch) {
 		spin_lock_irq(&cm->reg_lock);
-		snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_NXCHG);
-		snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
-		if (channels > 4) {
-			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
-			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_CHB3D5C);
+		if (channels > 2) {
+			snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_NXCHG);
+			snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
 		} else {
-			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D5C);
-			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
-		}
-		if (channels >= 6) {
-			snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_CHB3D6C);
-			snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_ENCENTER);
-		} else {
-			snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_CHB3D6C);
-			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_ENCENTER);
-		}
-		if (cm->chip_version == 68) {
-			if (channels == 8) {
-				snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL_8768, CM_CHB3D8C);
-			} else {
-				snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL_8768, CM_CHB3D8C);
-			}
-		}
-		spin_unlock_irq(&cm->reg_lock);
-
-	} else {
-		if (cm->can_multi_ch) {
-			spin_lock_irq(&cm->reg_lock);
 			snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_NXCHG);
-			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
+			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
+		}
+		if (channels == 8)
+			snd_cmipci_set_bit(cm, CM_REG_EXT_MISC, CM_CHB3D8C);
+		else
+			snd_cmipci_clear_bit(cm, CM_REG_EXT_MISC, CM_CHB3D8C);
+		if (channels == 6) {
+			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_CHB3D5C);
+			snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_CHB3D6C);
+		} else {
 			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D5C);
 			snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_CHB3D6C);
-			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_ENCENTER);
-			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
-			spin_unlock_irq(&cm->reg_lock);
 		}
+		if (channels == 4)
+			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
+		else
+			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
+		spin_unlock_irq(&cm->reg_lock);
 	}
 	return 0;
 }
@@ -746,6 +784,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 				 struct snd_pcm_substream *substream)
 {
 	unsigned int reg, freq, val;
+	unsigned int period_size;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	rec->fmt = 0;
@@ -765,11 +804,11 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	rec->offset = runtime->dma_addr;
 	/* buffer and period sizes in frame */
 	rec->dma_size = runtime->buffer_size << rec->shift;
-	rec->period_size = runtime->period_size << rec->shift;
+	period_size = runtime->period_size << rec->shift;
 	if (runtime->channels > 2) {
 		/* multi-channels */
 		rec->dma_size = (rec->dma_size * runtime->channels) / 2;
-		rec->period_size = (rec->period_size * runtime->channels) / 2;
+		period_size = (period_size * runtime->channels) / 2;
 	}
 
 	spin_lock_irq(&cm->reg_lock);
@@ -780,7 +819,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	/* program sample counts */
 	reg = rec->ch ? CM_REG_CH1_FRAME2 : CM_REG_CH0_FRAME2;
 	snd_cmipci_write_w(cm, reg, rec->dma_size - 1);
-	snd_cmipci_write_w(cm, reg + 2, rec->period_size - 1);
+	snd_cmipci_write_w(cm, reg + 2, period_size - 1);
 
 	/* set adc/dac flag */
 	val = rec->ch ? CM_CHADC1 : CM_CHADC0;
@@ -795,11 +834,11 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	freq = snd_cmipci_rate_freq(runtime->rate);
 	val = snd_cmipci_read(cm, CM_REG_FUNCTRL1);
 	if (rec->ch) {
-		val &= ~CM_ASFC_MASK;
-		val |= (freq << CM_ASFC_SHIFT) & CM_ASFC_MASK;
-	} else {
 		val &= ~CM_DSFC_MASK;
 		val |= (freq << CM_DSFC_SHIFT) & CM_DSFC_MASK;
+	} else {
+		val &= ~CM_ASFC_MASK;
+		val |= (freq << CM_ASFC_SHIFT) & CM_ASFC_MASK;
 	}
 	snd_cmipci_write(cm, CM_REG_FUNCTRL1, val);
 	//snd_printd("cmipci: functrl1 = %08x\n", val);
@@ -812,6 +851,16 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	} else {
 		val &= ~CM_CH0FMT_MASK;
 		val |= rec->fmt << CM_CH0FMT_SHIFT;
+	}
+	if (cm->chip_version == 68) {
+		if (runtime->rate == 88200)
+			val |= CM_CH0_SRATE_88K << (rec->ch * 2);
+		else
+			val &= ~(CM_CH0_SRATE_88K << (rec->ch * 2));
+		if (runtime->rate == 96000)
+			val |= CM_CH0_SRATE_96K << (rec->ch * 2);
+		else
+			val &= ~(CM_CH0_SRATE_96K << (rec->ch * 2));
 	}
 	snd_cmipci_write(cm, CM_REG_CHFORMAT, val);
 	//snd_printd("cmipci: chformat = %08x\n", val);
@@ -826,7 +875,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
  * PCM trigger/stop
  */
 static int snd_cmipci_pcm_trigger(struct cmipci *cm, struct cmipci_pcm *rec,
-				  struct snd_pcm_substream *substream, int cmd)
+				  int cmd)
 {
 	unsigned int inthld, chen, reset, pause;
 	int result = 0;
@@ -855,6 +904,7 @@ static int snd_cmipci_pcm_trigger(struct cmipci *cm, struct cmipci_pcm *rec,
 		cm->ctrl &= ~chen;
 		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl | reset);
 		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl & ~reset);
+		rec->needs_silencing = rec->is_dac;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -906,7 +956,7 @@ static int snd_cmipci_playback_trigger(struct snd_pcm_substream *substream,
 				       int cmd)
 {
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
-	return snd_cmipci_pcm_trigger(cm, &cm->channel[CM_CH_PLAY], substream, cmd);
+	return snd_cmipci_pcm_trigger(cm, &cm->channel[CM_CH_PLAY], cmd);
 }
 
 static snd_pcm_uframes_t snd_cmipci_playback_pointer(struct snd_pcm_substream *substream)
@@ -925,7 +975,7 @@ static int snd_cmipci_capture_trigger(struct snd_pcm_substream *substream,
 				     int cmd)
 {
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
-	return snd_cmipci_pcm_trigger(cm, &cm->channel[CM_CH_CAPT], substream, cmd);
+	return snd_cmipci_pcm_trigger(cm, &cm->channel[CM_CH_CAPT], cmd);
 }
 
 static snd_pcm_uframes_t snd_cmipci_capture_pointer(struct snd_pcm_substream *substream)
@@ -1199,15 +1249,19 @@ static int setup_spdif_playback(struct cmipci *cm, struct snd_pcm_substream *sub
 			snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_PLAYBACK_SPDF);
 		setup_ac3(cm, subs, do_ac3, rate);
 
-		if (rate == 48000)
+		if (rate == 48000 || rate == 96000)
 			snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_SPDIF48K | CM_SPDF_AC97);
 		else
 			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_SPDIF48K | CM_SPDF_AC97);
-
+		if (rate > 48000)
+			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_DBLSPDS);
+		else
+			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_DBLSPDS);
 	} else {
 		/* they are controlled via "IEC958 Output Switch" */
 		/* snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_ENSPDOUT); */
 		/* snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1, CM_SPDO2DAC); */
+		snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_DBLSPDS);
 		snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1, CM_PLAYBACK_SPDF);
 		setup_ac3(cm, subs, 0, 0);
 	}
@@ -1227,7 +1281,7 @@ static int snd_cmipci_playback_prepare(struct snd_pcm_substream *substream)
 	int rate = substream->runtime->rate;
 	int err, do_spdif, do_ac3 = 0;
 
-	do_spdif = ((rate == 44100 || rate == 48000) &&
+	do_spdif = (rate >= 44100 &&
 		    substream->runtime->format == SNDRV_PCM_FORMAT_S16_LE &&
 		    substream->runtime->channels == 2);
 	if (do_spdif && cm->can_ac3_hw) 
@@ -1252,11 +1306,75 @@ static int snd_cmipci_playback_spdif_prepare(struct snd_pcm_substream *substream
 	return snd_cmipci_pcm_prepare(cm, &cm->channel[CM_CH_PLAY], substream);
 }
 
+/*
+ * Apparently, the samples last played on channel A stay in some buffer, even
+ * after the channel is reset, and get added to the data for the rear DACs when
+ * playing a multichannel stream on channel B.  This is likely to generate
+ * wraparounds and thus distortions.
+ * To avoid this, we play at least one zero sample after the actual stream has
+ * stopped.
+ */
+static void snd_cmipci_silence_hack(struct cmipci *cm, struct cmipci_pcm *rec)
+{
+	struct snd_pcm_runtime *runtime = rec->substream->runtime;
+	unsigned int reg, val;
+
+	if (rec->needs_silencing && runtime && runtime->dma_area) {
+		/* set up a small silence buffer */
+		memset(runtime->dma_area, 0, PAGE_SIZE);
+		reg = rec->ch ? CM_REG_CH1_FRAME2 : CM_REG_CH0_FRAME2;
+		val = ((PAGE_SIZE / 4) - 1) | (((PAGE_SIZE / 4) / 2 - 1) << 16);
+		snd_cmipci_write(cm, reg, val);
+	
+		/* configure for 16 bits, 2 channels, 8 kHz */
+		if (runtime->channels > 2)
+			set_dac_channels(cm, rec, 2);
+		spin_lock_irq(&cm->reg_lock);
+		val = snd_cmipci_read(cm, CM_REG_FUNCTRL1);
+		val &= ~(CM_ASFC_MASK << (rec->ch * 3));
+		val |= (4 << CM_ASFC_SHIFT) << (rec->ch * 3);
+		snd_cmipci_write(cm, CM_REG_FUNCTRL1, val);
+		val = snd_cmipci_read(cm, CM_REG_CHFORMAT);
+		val &= ~(CM_CH0FMT_MASK << (rec->ch * 2));
+		val |= (3 << CM_CH0FMT_SHIFT) << (rec->ch * 2);
+		if (cm->chip_version == 68) {
+			val &= ~(CM_CH0_SRATE_88K << (rec->ch * 2));
+			val &= ~(CM_CH0_SRATE_96K << (rec->ch * 2));
+		}
+		snd_cmipci_write(cm, CM_REG_CHFORMAT, val);
+	
+		/* start stream (we don't need interrupts) */
+		cm->ctrl |= CM_CHEN0 << rec->ch;
+		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl);
+		spin_unlock_irq(&cm->reg_lock);
+
+		msleep(1);
+
+		/* stop and reset stream */
+		spin_lock_irq(&cm->reg_lock);
+		cm->ctrl &= ~(CM_CHEN0 << rec->ch);
+		val = CM_RST_CH0 << rec->ch;
+		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl | val);
+		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl & ~val);
+		spin_unlock_irq(&cm->reg_lock);
+
+		rec->needs_silencing = 0;
+	}
+}
+
 static int snd_cmipci_playback_hw_free(struct snd_pcm_substream *substream)
 {
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
 	setup_spdif_playback(cm, substream, 0, 0);
 	restore_mixer_state(cm);
+	snd_cmipci_silence_hack(cm, &cm->channel[0]);
+	return snd_cmipci_hw_free(substream);
+}
+
+static int snd_cmipci_playback2_hw_free(struct snd_pcm_substream *substream)
+{
+	struct cmipci *cm = snd_pcm_substream_chip(substream);
+	snd_cmipci_silence_hack(cm, &cm->channel[1]);
 	return snd_cmipci_hw_free(substream);
 }
 
@@ -1515,7 +1633,11 @@ static int snd_cmipci_playback_open(struct snd_pcm_substream *substream)
 	if ((err = open_device_check(cm, CM_OPEN_PLAYBACK, substream)) < 0)
 		return err;
 	runtime->hw = snd_cmipci_playback;
-	runtime->hw.channels_max = cm->max_channels;
+	if (cm->chip_version == 68) {
+		runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
+				     SNDRV_PCM_RATE_96000;
+		runtime->hw.rate_max = 96000;
+	}
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
 	cm->dig_pcm_status = cm->dig_status;
 	return 0;
@@ -1558,9 +1680,14 @@ static int snd_cmipci_playback2_open(struct snd_pcm_substream *substream)
 			else if (cm->max_channels == 8)
 				snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS, &hw_constraints_channels_8);
 		}
-		snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
 	}
 	mutex_unlock(&cm->open_mutex);
+	if (cm->chip_version == 68) {
+		runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
+				     SNDRV_PCM_RATE_96000;
+		runtime->hw.rate_max = 96000;
+	}
+	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
 	return 0;
 }
 
@@ -1574,8 +1701,15 @@ static int snd_cmipci_playback_spdif_open(struct snd_pcm_substream *substream)
 		return err;
 	if (cm->can_ac3_hw) {
 		runtime->hw = snd_cmipci_playback_spdif;
-		if (cm->chip_version >= 37)
+		if (cm->chip_version >= 37) {
 			runtime->hw.formats |= SNDRV_PCM_FMTBIT_S32_LE;
+			snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
+		}
+		if (cm->chip_version == 68) {
+			runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
+					     SNDRV_PCM_RATE_96000;
+			runtime->hw.rate_max = 96000;
+		}
 	} else {
 		runtime->hw = snd_cmipci_playback_iec958_subframe;
 	}
@@ -1668,7 +1802,7 @@ static struct snd_pcm_ops snd_cmipci_playback2_ops = {
 	.close =	snd_cmipci_playback2_close,
 	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_cmipci_playback2_hw_params,
-	.hw_free =	snd_cmipci_hw_free,
+	.hw_free =	snd_cmipci_playback2_hw_free,
 	.prepare =	snd_cmipci_capture_prepare,	/* channel B */
 	.trigger =	snd_cmipci_capture_trigger,	/* channel B */
 	.pointer =	snd_cmipci_capture_pointer,	/* channel B */
@@ -2139,15 +2273,7 @@ struct cmipci_switch_args {
 					 */
 };
 
-static int snd_cmipci_uswitch_info(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_cmipci_uswitch_info		snd_ctl_boolean_mono_info
 
 static int _snd_cmipci_uswitch_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol,
@@ -2260,8 +2386,8 @@ DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, 0, 0, 0); /* rever
 DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, CM_XCHGDAC, 0, 0);
 #endif
 DEFINE_BIT_SWITCH_ARG(fourch, CM_REG_MISC_CTRL, CM_N4SPK3D, 0, 0);
-// DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_SPK4, 1, 0);
-// DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS, 0, 0);
+// DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_REAR2LIN, 1, 0);
+// DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_CENTR2LIN|CM_BASE2LIN, 0, 0);
 // DEFINE_BIT_SWITCH_ARG(joystick, CM_REG_FUNCTRL1, CM_JYSTK_EN, 0, 0); /* now module option */
 DEFINE_SWITCH_ARG(modem, CM_REG_MISC_CTRL, CM_FLINKON|CM_FLINKOFF, CM_FLINKON, 0, 0);
 
@@ -2331,11 +2457,11 @@ static inline unsigned int get_line_in_mode(struct cmipci *cm)
 	unsigned int val;
 	if (cm->chip_version >= 39) {
 		val = snd_cmipci_read(cm, CM_REG_LEGACY_CTRL);
-		if (val & CM_LINE_AS_BASS)
+		if (val & (CM_CENTR2LIN | CM_BASE2LIN))
 			return 2;
 	}
 	val = snd_cmipci_read_b(cm, CM_REG_MIXER1);
-	if (val & CM_SPK4)
+	if (val & CM_REAR2LIN)
 		return 1;
 	return 0;
 }
@@ -2359,13 +2485,13 @@ static int snd_cmipci_line_in_mode_put(struct snd_kcontrol *kcontrol,
 
 	spin_lock_irq(&cm->reg_lock);
 	if (ucontrol->value.enumerated.item[0] == 2)
-		change = snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS);
+		change = snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_CENTR2LIN | CM_BASE2LIN);
 	else
-		change = snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS);
+		change = snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_CENTR2LIN | CM_BASE2LIN);
 	if (ucontrol->value.enumerated.item[0] == 1)
-		change |= snd_cmipci_set_bit_b(cm, CM_REG_MIXER1, CM_SPK4);
+		change |= snd_cmipci_set_bit_b(cm, CM_REG_MIXER1, CM_REAR2LIN);
 	else
-		change |= snd_cmipci_clear_bit_b(cm, CM_REG_MIXER1, CM_SPK4);
+		change |= snd_cmipci_clear_bit_b(cm, CM_REG_MIXER1, CM_REAR2LIN);
 	spin_unlock_irq(&cm->reg_lock);
 	return change;
 }
@@ -2583,19 +2709,18 @@ static void snd_cmipci_proc_read(struct snd_info_entry *entry,
 				 struct snd_info_buffer *buffer)
 {
 	struct cmipci *cm = entry->private_data;
-	int i;
+	int i, v;
 	
-	snd_iprintf(buffer, "%s\n\n", cm->card->longname);
-	for (i = 0; i < 0x40; i++) {
-		int v = inb(cm->iobase + i);
+	snd_iprintf(buffer, "%s\n", cm->card->longname);
+	for (i = 0; i < 0x94; i++) {
+		if (i == 0x28)
+			i = 0x90;
+		v = inb(cm->iobase + i);
 		if (i % 4 == 0)
-			snd_iprintf(buffer, "%02x: ", i);
-		snd_iprintf(buffer, "%02x", v);
-		if (i % 4 == 3)
-			snd_iprintf(buffer, "\n");
-		else
-			snd_iprintf(buffer, " ");
+			snd_iprintf(buffer, "\n%02x:", i);
+		snd_iprintf(buffer, " %02x", v);
 	}
+	snd_iprintf(buffer, "\n");
 }
 
 static void __devinit snd_cmipci_proc_init(struct cmipci *cm)
@@ -2633,46 +2758,40 @@ static void __devinit query_chip(struct cmipci *cm)
 	if (! detect) {
 		/* check reg 08h, bit 24-28 */
 		detect = snd_cmipci_read(cm, CM_REG_CHFORMAT) & CM_CHIP_MASK1;
-		if (! detect) {
+		switch (detect) {
+		case 0:
 			cm->chip_version = 33;
-			cm->max_channels = 2;
 			if (cm->do_soft_ac3)
 				cm->can_ac3_sw = 1;
 			else
 				cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
-		} else {
+			break;
+		case CM_CHIP_037:
 			cm->chip_version = 37;
-			cm->max_channels = 2;
 			cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
+			break;
+		default:
+			cm->chip_version = 39;
+			cm->can_ac3_hw = 1;
+			break;
 		}
+		cm->max_channels = 2;
 	} else {
-		/* check reg 0Ch, bit 26 */
-		if (detect & CM_CHIP_8768) {
-			cm->chip_version = 68;
-			cm->max_channels = 8;
-			cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
-			cm->can_multi_ch = 1;
-		} else if (detect & CM_CHIP_055) {
-			cm->chip_version = 55;
-			cm->max_channels = 6;
-			cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
-			cm->can_multi_ch = 1;
-		} else if (detect & CM_CHIP_039) {
+		if (detect & CM_CHIP_039) {
 			cm->chip_version = 39;
 			if (detect & CM_CHIP_039_6CH) /* 4 or 6 channels */
 				cm->max_channels = 6;
 			else
 				cm->max_channels = 4;
-			cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
-			cm->can_multi_ch = 1;
+		} else if (detect & CM_CHIP_8768) {
+			cm->chip_version = 68;
+			cm->max_channels = 8;
 		} else {
-			printk(KERN_ERR "chip %x version not supported\n", detect);
+			cm->chip_version = 55;
+			cm->max_channels = 6;
 		}
+		cm->can_ac3_hw = 1;
+		cm->can_multi_ch = 1;
 	}
 }
 
@@ -2782,10 +2901,14 @@ static int __devinit snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 	if (!fm_port)
 		goto disable_fm;
 
-	/* first try FM regs in PCI port range */
-	iosynth = cm->iobase + CM_REG_FM_PCI;
-	err = snd_opl3_create(cm->card, iosynth, iosynth + 2,
-			      OPL3_HW_OPL3, 1, &opl3);
+	if (cm->chip_version >= 39) {
+		/* first try FM regs in PCI port range */
+		iosynth = cm->iobase + CM_REG_FM_PCI;
+		err = snd_opl3_create(cm->card, iosynth, iosynth + 2,
+				      OPL3_HW_OPL3, 1, &opl3);
+	} else {
+		err = -EIO;
+	}
 	if (err < 0) {
 		/* then try legacy ports */
 		val = snd_cmipci_read(cm, CM_REG_LEGACY_CTRL) & ~CM_FMSEL_MASK;
@@ -2829,9 +2952,10 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_cmipci_dev_free,
 	};
-	unsigned int val = 0;
+	unsigned int val;
 	long iomidi;
-	int integrated_midi;
+	int integrated_midi = 0;
+	char modelstr[16];
 	int pcm_index, pcm_spdif_index;
 	static struct pci_device_id intel_82437vx[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82437VX) },
@@ -2904,6 +3028,8 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 #endif
 
 	/* initialize codec registers */
+	snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_RESET);
+	snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_RESET);
 	snd_cmipci_write(cm, CM_REG_INT_HLDCLR, 0);	/* disable ints */
 	snd_cmipci_ch_reset(cm, CM_CH_PLAY);
 	snd_cmipci_ch_reset(cm, CM_CH_CAPT);
@@ -2917,6 +3043,10 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 #else
 	snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
 #endif
+	if (cm->chip_version) {
+		snd_cmipci_write_b(cm, CM_REG_EXT_MISC, 0x20); /* magic */
+		snd_cmipci_write_b(cm, CM_REG_EXT_MISC + 1, 0x09); /* more magic */
+	}
 	/* Set Bus Master Request */
 	snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_BREQ);
 
@@ -2931,15 +3061,55 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		break;
 	}
 
+	if (cm->chip_version < 68) {
+		val = pci->device < 0x110 ? 8338 : 8738;
+	} else {
+		switch (snd_cmipci_read_b(cm, CM_REG_INT_HLDCLR + 3) & 0x03) {
+		case 0:
+			val = 8769;
+			break;
+		case 2:
+			val = 8762;
+			break;
+		default:
+			switch ((pci->subsystem_vendor << 16) |
+				pci->subsystem_device) {
+			case 0x13f69761:
+			case 0x584d3741:
+			case 0x584d3751:
+			case 0x584d3761:
+			case 0x584d3771:
+			case 0x72848384:
+				val = 8770;
+				break;
+			default:
+				val = 8768;
+				break;
+			}
+		}
+	}
+	sprintf(card->shortname, "C-Media CMI%d", val);
+	if (cm->chip_version < 68)
+		sprintf(modelstr, " (model %d)", cm->chip_version);
+	else
+		modelstr[0] = '\0';
+	sprintf(card->longname, "%s%s at %#lx, irq %i",
+		card->shortname, modelstr, cm->iobase, cm->irq);
+
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, cm, &ops)) < 0) {
 		snd_cmipci_free(cm);
 		return err;
 	}
 
-	integrated_midi = snd_cmipci_read_b(cm, CM_REG_MPU_PCI) != 0xff;
-	if (integrated_midi && mpu_port[dev] == 1)
-		iomidi = cm->iobase + CM_REG_MPU_PCI;
-	else {
+	if (cm->chip_version >= 39) {
+		val = snd_cmipci_read_b(cm, CM_REG_MPU_PCI + 1);
+		if (val != 0x00 && val != 0xff) {
+			iomidi = cm->iobase + CM_REG_MPU_PCI;
+			integrated_midi = 1;
+		}
+	}
+	if (!integrated_midi) {
+		val = 0;
 		iomidi = mpu_port[dev];
 		switch (iomidi) {
 		case 0x320: val = CM_VMPU_320; break;
@@ -2953,11 +3123,21 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 			snd_cmipci_write(cm, CM_REG_LEGACY_CTRL, val);
 			/* enable UART */
 			snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_UART_EN);
+			if (inb(iomidi + 1) == 0xff) {
+				snd_printk(KERN_ERR "cannot enable MPU-401 port"
+					   " at %#lx\n", iomidi);
+				snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1,
+						     CM_UART_EN);
+				iomidi = 0;
+			}
 		}
 	}
 
-	if ((err = snd_cmipci_create_fm(cm, fm_port[dev])) < 0)
-		return err;
+	if (cm->chip_version < 68) {
+		err = snd_cmipci_create_fm(cm, fm_port[dev]);
+		if (err < 0)
+			return err;
+	}
 
 	/* reset mixer */
 	snd_cmipci_mixer_write(cm, 0, 0);
@@ -2969,11 +3149,9 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	if ((err = snd_cmipci_pcm_new(cm, pcm_index)) < 0)
 		return err;
 	pcm_index++;
-	if (cm->has_dual_dac) {
-		if ((err = snd_cmipci_pcm2_new(cm, pcm_index)) < 0)
-			return err;
-		pcm_index++;
-	}
+	if ((err = snd_cmipci_pcm2_new(cm, pcm_index)) < 0)
+		return err;
+	pcm_index++;
 	if (cm->can_ac3_hw || cm->can_ac3_sw) {
 		pcm_spdif_index = pcm_index;
 		if ((err = snd_cmipci_pcm_spdif_new(cm, pcm_index)) < 0)
@@ -3056,15 +3234,6 @@ static int __devinit snd_cmipci_probe(struct pci_dev *pci,
 		return err;
 	}
 	card->private_data = cm;
-
-	sprintf(card->shortname, "C-Media PCI %s", card->driver);
-	sprintf(card->longname, "%s (model %d) at 0x%lx, irq %i",
-		card->shortname,
-		cm->chip_version,
-		cm->iobase,
-		cm->irq);
-
-	//snd_printd("%s is detected\n", card->longname);
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);

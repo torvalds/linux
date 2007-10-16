@@ -1,6 +1,6 @@
 /*
  *  Advanced Linux Sound Architecture
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -42,7 +42,7 @@ EXPORT_SYMBOL(snd_major);
 
 static int cards_limit = 1;
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Advanced Linux Sound Architecture driver for soundcards.");
 MODULE_LICENSE("GPL");
 module_param(major, int, 0444);
@@ -266,6 +266,14 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 	snd_minors[minor] = preg;
 	preg->dev = device_create(sound_class, device, MKDEV(major, minor),
 				  "%s", name);
+	if (IS_ERR(preg->dev)) {
+		snd_minors[minor] = NULL;
+		mutex_unlock(&sound_mutex);
+		minor = PTR_ERR(preg->dev);
+		kfree(preg);
+		return minor;
+	}
+
 	if (preg->dev)
 		dev_set_drvdata(preg->dev, private_data);
 

@@ -63,6 +63,10 @@ source "sound/aoa/Kconfig"
 
 source "sound/arm/Kconfig"
 
+if SPI
+source "sound/spi/Kconfig"
+endif
+
 source "sound/mips/Kconfig"
 
 source "sound/sh/Kconfig"

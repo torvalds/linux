@@ -1,6 +1,6 @@
 /*
  *  The driver for the ForteMedia FM801 based soundcards
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *  Support FM only card by Andy Shevchenko <andy@smile.org.ua>
  *
@@ -42,7 +42,7 @@
 #define TEA575X_RADIO 1
 #endif
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("ForteMedia FM801");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ForteMedia,FM801},"

@@ -370,8 +370,8 @@ static void vortex_wt_SetFrequency(vortex_t * vortex, int wt, unsigned int sr)
 			while ((edx & 0x80000000) == 0) {
 				edx <<= 1;
 				eax--;
-				if (eax == 0) ;
-				break;
+				if (eax == 0)
+					break;
 			}
 			if (eax)
 				edx <<= 1;

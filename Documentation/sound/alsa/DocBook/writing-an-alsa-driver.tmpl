@@ -18,8 +18,8 @@
       </affiliation>
      </author>
 
-     <date>November 17, 2005</date>
-     <edition>0.3.6</edition>
+     <date>September 10, 2007</date>
+     <edition>0.3.7</edition>
 
     <abstract>
       <para>
@@ -405,8 +405,9 @@
   /* definition of the chip-specific record */
   struct mychip {
           struct snd_card *card;
-          // rest of implementation will be in the section
-          // "PCI Resource Managements"
+          /* rest of implementation will be in the section
+           * "PCI Resource Managements"
+           */
   };
 
   /* chip-specific destructor
@@ -414,7 +415,7 @@
    */
   static int snd_mychip_free(struct mychip *chip)
   {
-          .... // will be implemented later...
+          .... /* will be implemented later... */
   }
 
   /* component-destructor
@@ -440,8 +441,9 @@
 
           *rchip = NULL;
 
-          // check PCI availability here
-          // (see "PCI Resource Managements")
+          /* check PCI availability here
+           * (see "PCI Resource Managements")
+           */
           ....
 
           /* allocate a chip-specific data with zero filled */
@@ -451,12 +453,13 @@
 
           chip->card = card;
 
-          // rest of initialization here; will be implemented
-          // later, see "PCI Resource Managements"
+          /* rest of initialization here; will be implemented
+           * later, see "PCI Resource Managements"
+           */
           ....
 
-          if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,
-                                    chip, &ops)) < 0) {
+          err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+          if (err < 0) {
                   snd_mychip_free(chip);
                   return err;
           }
@@ -490,7 +493,8 @@
                   return -ENOMEM;
 
           /* (3) */
-          if ((err = snd_mychip_create(card, pci, &chip)) < 0) {
+          err = snd_mychip_create(card, pci, &chip);
+          if (err < 0) {
                   snd_card_free(card);
                   return err;
           }
@@ -502,10 +506,11 @@
                   card->shortname, chip->ioport, chip->irq);
 
           /* (5) */
-          .... // implemented later
+          .... /* implemented later */
 
           /* (6) */
-          if ((err = snd_card_register(card)) < 0) {
+          err = snd_card_register(card);
+          if (err < 0) {
                   snd_card_free(card);
                   return err;
           }
@@ -605,7 +610,8 @@
 <![CDATA[
   struct mychip *chip;
   ....
-  if ((err = snd_mychip_create(card, pci, &chip)) < 0) {
+  err = snd_mychip_create(card, pci, &chip);
+  if (err < 0) {
           snd_card_free(card);
           return err;
   }
@@ -666,7 +672,8 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  if ((err = snd_card_register(card)) < 0) {
+  err = snd_card_register(card);
+  if (err < 0) {
           snd_card_free(card);
           return err;
   }
@@ -1091,7 +1098,7 @@
   static int snd_mychip_free(struct mychip *chip)
   {
           /* disable hardware here if any */
-          .... // (not implemented in this document)
+          .... /* (not implemented in this document) */
 
           /* release the irq */
           if (chip->irq >= 0)
@@ -1119,7 +1126,8 @@
           *rchip = NULL;
 
           /* initialize the PCI entry */
-          if ((err = pci_enable_device(pci)) < 0)
+          err = pci_enable_device(pci);
+          if (err < 0)
                   return err;
           /* check PCI availability (28bit DMA) */
           if (pci_set_dma_mask(pci, DMA_28BIT_MASK) < 0 ||
@@ -1141,7 +1149,8 @@
           chip->irq = -1;
 
           /* (1) PCI resource allocation */
-          if ((err = pci_request_regions(pci, "My Chip")) < 0) {
+          err = pci_request_regions(pci, "My Chip");
+          if (err < 0) {
                   kfree(chip);
                   pci_disable_device(pci);
                   return err;
@@ -1156,10 +1165,10 @@
           chip->irq = pci->irq;
 
           /* (2) initialization of the chip hardware */
-          .... //   (not implemented in this document)
+          .... /*   (not implemented in this document) */
 
-          if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,
-                                    chip, &ops)) < 0) {
+          err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+          if (err < 0) {
                   snd_mychip_free(chip);
                   return err;
           }
@@ -1233,7 +1242,8 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  if ((err = pci_enable_device(pci)) < 0)
+  err = pci_enable_device(pci);
+  if (err < 0)
           return err;
   if (pci_set_dma_mask(pci, DMA_28BIT_MASK) < 0 ||
       pci_set_consistent_dma_mask(pci, DMA_28BIT_MASK) < 0) {
@@ -1294,7 +1304,8 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  if ((err = pci_request_regions(pci, "My Chip")) < 0) { 
+  err = pci_request_regions(pci, "My Chip");
+  if (err < 0) { 
           kfree(chip);
           pci_disable_device(pci);
           return err;
@@ -1322,7 +1333,7 @@
           <programlisting>
 <![CDATA[
   if (request_irq(pci->irq, snd_mychip_interrupt,
-                  IRQF_DISABLED|IRQF_SHARED, "My Chip", chip)) {
+                  IRQF_SHARED, "My Chip", chip)) {
           printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
           snd_mychip_free(chip);
           return -EBUSY;
@@ -1773,7 +1784,8 @@
           struct snd_pcm_runtime *runtime = substream->runtime;
 
           runtime->hw = snd_mychip_playback_hw;
-          // more hardware-initialization will be done here
+          /* more hardware-initialization will be done here */
+          ....
           return 0;
   }
 
@@ -1781,7 +1793,8 @@
   static int snd_mychip_playback_close(struct snd_pcm_substream *substream)
   {
           struct mychip *chip = snd_pcm_substream_chip(substream);
-          // the hardware-specific codes will be here
+          /* the hardware-specific codes will be here */
+          ....
           return 0;
 
   }
@@ -1793,7 +1806,8 @@
           struct snd_pcm_runtime *runtime = substream->runtime;
 
           runtime->hw = snd_mychip_capture_hw;
-          // more hardware-initialization will be done here
+          /* more hardware-initialization will be done here */
+          ....
           return 0;
   }
 
@@ -1801,7 +1815,8 @@
   static int snd_mychip_capture_close(struct snd_pcm_substream *substream)
   {
           struct mychip *chip = snd_pcm_substream_chip(substream);
-          // the hardware-specific codes will be here
+          /* the hardware-specific codes will be here */
+          ....
           return 0;
 
   }
@@ -1844,10 +1859,12 @@
   {
           switch (cmd) {
           case SNDRV_PCM_TRIGGER_START:
-                  // do something to start the PCM engine
+                  /* do something to start the PCM engine */
+                  ....
                   break;
           case SNDRV_PCM_TRIGGER_STOP:
-                  // do something to stop the PCM engine
+                  /* do something to stop the PCM engine */
+                  ....
                   break;
           default:
                   return -EINVAL;
@@ -1900,8 +1917,8 @@
           struct snd_pcm *pcm;
           int err;
 
-          if ((err = snd_pcm_new(chip->card, "My Chip", 0, 1, 1,
-                                 &pcm)) < 0) 
+          err = snd_pcm_new(chip->card, "My Chip", 0, 1, 1, &pcm);
+          if (err < 0) 
                   return err;
           pcm->private_data = chip;
           strcpy(pcm->name, "My Chip");
@@ -1939,8 +1956,8 @@
           struct snd_pcm *pcm;
           int err;
 
-          if ((err = snd_pcm_new(chip->card, "My Chip", 0, 1, 1,
-                                 &pcm)) < 0) 
+          err = snd_pcm_new(chip->card, "My Chip", 0, 1, 1, &pcm);
+          if (err < 0) 
                   return err;
           pcm->private_data = chip;
           strcpy(pcm->name, "My Chip");
@@ -2097,7 +2114,7 @@
           struct mychip *chip = snd_pcm_chip(pcm);
           /* free your own data */
           kfree(chip->my_private_pcm_data);
-          // do what you like else
+          /* do what you like else */
           ....
   }
 
@@ -2884,10 +2901,10 @@ struct _snd_pcm_runtime {
 <![CDATA[
   switch (cmd) {
   case SNDRV_PCM_TRIGGER_START:
-          // do something to start the PCM engine
+          /* do something to start the PCM engine */
           break;
   case SNDRV_PCM_TRIGGER_STOP:
-          // do something to stop the PCM engine
+          /* do something to stop the PCM engine */
           break;
   default:
           return -EINVAL;
@@ -3071,7 +3088,7 @@ struct _snd_pcm_runtime {
                   spin_unlock(&chip->lock);
                   snd_pcm_period_elapsed(chip->substream);
                   spin_lock(&chip->lock);
-                  // acknowledge the interrupt if necessary
+                  /* acknowledge the interrupt if necessary */
           }
           ....
           spin_unlock(&chip->lock);
@@ -3134,7 +3151,7 @@ struct _snd_pcm_runtime {
                           snd_pcm_period_elapsed(substream);
                           spin_lock(&chip->lock);
                   }
-                  // acknowledge the interrupt if necessary
+                  /* acknowledge the interrupt if necessary */
           }
           ....
           spin_unlock(&chip->lock);
@@ -3456,6 +3473,13 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
+      The <structfield>tlv</structfield> field can be used to provide
+      metadata about the control; see the
+      <link linkend="control-interface-tlv">
+      <citetitle>Metadata</citetitle></link> subsection.
+      </para>
+
+      <para>
         The other three are
 	<link linkend="control-interface-callbacks"><citetitle>
 	callback functions</citetitle></link>.
@@ -3604,7 +3628,7 @@ struct _snd_pcm_runtime {
 	    <title>Example of info callback</title>
             <programlisting>
 <![CDATA[
-  static int snd_myctl_info(struct snd_kcontrol *kcontrol,
+  static int snd_myctl_mono_info(struct snd_kcontrol *kcontrol,
                           struct snd_ctl_elem_info *uinfo)
   {
           uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -3639,7 +3663,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_myctl_info(struct snd_kcontrol *kcontrol,
+  static int snd_myctl_enum_info(struct snd_kcontrol *kcontrol,
                           struct snd_ctl_elem_info *uinfo)
   {
           static char *texts[4] = {
@@ -3658,6 +3682,16 @@ struct _snd_pcm_runtime {
             </programlisting>
           </informalexample>
         </para>
+
+        <para>
+	  Some common info callbacks are prepared for easy use:
+	<function>snd_ctl_boolean_mono_info()</function> and
+	<function>snd_ctl_boolean_stereo_info()</function>.
+	Obviously, the former is an info callback for a mono channel
+	boolean item, just like <function>snd_myctl_mono_info</function>
+	above, and the latter is for a stereo channel boolean item.
+	</para>
+
       </section>
 
       <section id="control-interface-callbacks-get">
@@ -3794,7 +3828,8 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  if ((err = snd_ctl_add(card, snd_ctl_new1(&my_control, chip))) < 0)
+  err = snd_ctl_add(card, snd_ctl_new1(&my_control, chip));
+  if (err < 0)
           return err;
 ]]>
           </programlisting>
@@ -3843,6 +3878,56 @@ struct _snd_pcm_runtime {
       </para>
     </section>
 
+    <section id="control-interface-tlv">
+      <title>Metadata</title>
+      <para>
+      To provide information about the dB values of a mixer control, use
+      on of the <constant>DECLARE_TLV_xxx</constant> macros from
+      <filename>&lt;sound/tlv.h&gt;</filename> to define a variable
+      containing this information, set the<structfield>tlv.p
+      </structfield> field to point to this variable, and include the
+      <constant>SNDRV_CTL_ELEM_ACCESS_TLV_READ</constant> flag in the
+      <structfield>access</structfield> field; like this:
+      <informalexample>
+        <programlisting>
+<![CDATA[
+  static DECLARE_TLV_DB_SCALE(db_scale_my_control, -4050, 150, 0);
+
+  static struct snd_kcontrol_new my_control __devinitdata = {
+          ...
+          .access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+                    SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+          ...
+          .tlv.p = db_scale_my_control,
+  };
+]]>
+        </programlisting>
+      </informalexample>
+      </para>
+
+      <para>
+      The <function>DECLARE_TLV_DB_SCALE</function> macro defines
+      information about a mixer control where each step in the control's
+      value changes the dB value by a constant dB amount.
+      The first parameter is the name of the variable to be defined.
+      The second parameter is the minimum value, in units of 0.01 dB.
+      The third parameter is the step size, in units of 0.01 dB.
+      Set the fourth parameter to 1 if the minimum value actually mutes
+      the control.
+      </para>
+
+      <para>
+      The <function>DECLARE_TLV_DB_LINEAR</function> macro defines
+      information about a mixer control where the control's value affects
+      the output linearly.
+      The first parameter is the name of the variable to be defined.
+      The second parameter is the minimum value, in units of 0.01 dB.
+      The third parameter is the maximum value, in units of 0.01 dB.
+      If the minimum value mutes the control, set the second parameter to
+      <constant>TLV_DB_GAIN_MUTE</constant>.
+      </para>
+    </section>
+
   </chapter>
 
 
@@ -3880,7 +3965,7 @@ struct _snd_pcm_runtime {
   {
           struct mychip *chip = ac97->private_data;
           ....
-          // read a register value here from the codec
+          /* read a register value here from the codec */
           return the_register_value;
   }
 
@@ -3889,7 +3974,7 @@ struct _snd_pcm_runtime {
   {
           struct mychip *chip = ac97->private_data;
           ....
-          // write the given register value to the codec
+          /* write the given register value to the codec */
   }
 
   static int snd_mychip_ac97(struct mychip *chip)
@@ -3902,7 +3987,8 @@ struct _snd_pcm_runtime {
                   .read = snd_mychip_ac97_read,
           };
 
-          if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &bus)) < 0)
+          err = snd_ac97_bus(chip->card, 0, &ops, NULL, &bus);
+          if (err < 0)
                   return err;
           memset(&ac97, 0, sizeof(ac97));
           ac97.private_data = chip;
@@ -4447,10 +4533,10 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  struct list_head *list;
   struct snd_rawmidi_substream *substream;
-  list_for_each(list, &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams) {
-          substream = list_entry(list, struct snd_rawmidi_substream, list);
+  list_for_each_entry(substream,
+                      &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams,
+                      list {
           sprintf(substream->name, "My MIDI Port %d", substream->number + 1);
   }
   /* same for SNDRV_RAWMIDI_STREAM_INPUT */

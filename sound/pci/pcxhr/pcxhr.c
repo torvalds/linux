@@ -646,6 +646,8 @@ static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 		if (snd_pcm_stream_linked(subs)) {
 			struct snd_pcxhr *chip = snd_pcm_substream_chip(subs);
 			snd_pcm_group_for_each_entry(s, subs) {
+				if (snd_pcm_substream_chip(s) != chip)
+					continue;
 				stream = s->runtime->private_data;
 				stream->status =
 					PCXHR_STREAM_STATUS_SCHEDULE_RUN;
@@ -662,6 +664,7 @@ static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 			if (pcxhr_update_r_buffer(stream))
 				return -EINVAL;
 
+			stream->status = PCXHR_STREAM_STATUS_SCHEDULE_RUN;
 			if (pcxhr_set_stream_state(stream))
 				return -EINVAL;
 			stream->status = PCXHR_STREAM_STATUS_RUNNING;
@@ -901,6 +904,8 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 4);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 4);
+
+	snd_pcm_set_sync(subs);
 
 	mgr->ref_count_rate++;
 

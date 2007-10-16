@@ -1821,7 +1821,6 @@ snd_m3_playback_open(struct snd_pcm_substream *subs)
 		return err;
 
 	runtime->hw = snd_m3_playback;
-	snd_pcm_set_sync(subs);
 
 	return 0;
 }
@@ -1846,7 +1845,6 @@ snd_m3_capture_open(struct snd_pcm_substream *subs)
 		return err;
 
 	runtime->hw = snd_m3_capture;
-	snd_pcm_set_sync(subs);
 
 	return 0;
 }

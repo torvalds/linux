@@ -490,35 +490,14 @@ static int snd_pmac_pcm_open(struct snd_pmac *chip, struct pmac_stream *rec,
 			     struct snd_pcm_substream *subs)
 {
 	struct snd_pcm_runtime *runtime = subs->runtime;
-	int i, j, fflags;
-	static int typical_freqs[] = {
-		44100,
-		22050,
-		11025,
-		0,
-	};
-	static int typical_freq_flags[] = {
-		SNDRV_PCM_RATE_44100,
-		SNDRV_PCM_RATE_22050,
-		SNDRV_PCM_RATE_11025,
-		0,
-	};
+	int i;
 
 	/* look up frequency table and fill bit mask */
 	runtime->hw.rates = 0;
-	fflags = chip->freqs_ok;
-	for (i = 0; typical_freqs[i]; i++) {
-		for (j = 0; j < chip->num_freqs; j++) {
-			if ((chip->freqs_ok & (1 << j)) &&
-			    chip->freq_table[j] == typical_freqs[i]) {
-				runtime->hw.rates |= typical_freq_flags[i];
-				fflags &= ~(1 << j);
-				break;
-			}
-		}
-	}
-	if (fflags) /* rest */
-		runtime->hw.rates |= SNDRV_PCM_RATE_KNOT;
+	for (i = 0; i < chip->num_freqs; i++)
+		if (chip->freqs_ok & (1 << i))
+			runtime->hw.rates |=
+				snd_pcm_rate_to_rate_bit(chip->freq_table[i]);
 
 	/* check for minimum and maximum rates */
 	for (i = 0; i < chip->num_freqs; i++) {
@@ -550,9 +529,6 @@ static int snd_pmac_pcm_open(struct snd_pmac *chip, struct pmac_stream *rec,
 #endif
 
 	runtime->hw.periods_max = rec->cmd.size - 1;
-
-	if (chip->can_duplex)
-		snd_pcm_set_sync(subs);
 
 	/* constraints to fix choppy sound */
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
@@ -1032,29 +1008,6 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 	}
 
 	of_node_put(sound);
-	return 0;
-}
-
-/*
- * exported - boolean info callbacks for ease of programming
- */
-int snd_pmac_boolean_stereo_info(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
-
-int snd_pmac_boolean_mono_info(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
 	return 0;
 }
 

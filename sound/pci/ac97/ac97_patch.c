@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Universal interface for Audio Codec '97
  *
  *  For more details look to AC '97 component specification revision 2.2
@@ -204,9 +204,13 @@ static inline int is_shared_micin(struct snd_ac97 *ac97)
 
 
 /* The following snd_ac97_ymf753_... items added by David Shust (dshust@shustring.com) */
+/* Modified for YMF743 by Keita Maehara <maehara@debian.org> */
 
-/* It is possible to indicate to the Yamaha YMF753 the type of speakers being used. */
-static int snd_ac97_ymf753_info_speaker(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+/* It is possible to indicate to the Yamaha YMF7x3 the type of
+   speakers being used. */
+
+static int snd_ac97_ymf7x3_info_speaker(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[3] = {
 		"Standard", "Small", "Smaller"
@@ -221,12 +225,13 @@ static int snd_ac97_ymf753_info_speaker(struct snd_kcontrol *kcontrol, struct sn
 	return 0;
 }
 
-static int snd_ac97_ymf753_get_speaker(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_ac97_ymf7x3_get_speaker(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 
-	val = ac97->regs[AC97_YMF753_3D_MODE_SEL];
+	val = ac97->regs[AC97_YMF7X3_3D_MODE_SEL];
 	val = (val >> 10) & 3;
 	if (val > 0)    /* 0 = invalid */
 		val--;
@@ -234,7 +239,8 @@ static int snd_ac97_ymf753_get_speaker(struct snd_kcontrol *kcontrol, struct snd
 	return 0;
 }
 
-static int snd_ac97_ymf753_put_speaker(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_ac97_ymf7x3_put_speaker(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
@@ -242,20 +248,22 @@ static int snd_ac97_ymf753_put_speaker(struct snd_kcontrol *kcontrol, struct snd
 	if (ucontrol->value.enumerated.item[0] > 2)
 		return -EINVAL;
 	val = (ucontrol->value.enumerated.item[0] + 1) << 10;
-	return snd_ac97_update(ac97, AC97_YMF753_3D_MODE_SEL, val);
+	return snd_ac97_update(ac97, AC97_YMF7X3_3D_MODE_SEL, val);
 }
 
-static const struct snd_kcontrol_new snd_ac97_ymf753_controls_speaker =
+static const struct snd_kcontrol_new snd_ac97_ymf7x3_controls_speaker =
 {
 	.iface  = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name   = "3D Control - Speaker",
-	.info   = snd_ac97_ymf753_info_speaker,
-	.get    = snd_ac97_ymf753_get_speaker,
-	.put    = snd_ac97_ymf753_put_speaker,
+	.info   = snd_ac97_ymf7x3_info_speaker,
+	.get    = snd_ac97_ymf7x3_get_speaker,
+	.put    = snd_ac97_ymf7x3_put_speaker,
 };
 
-/* It is possible to indicate to the Yamaha YMF753 the source to direct to the S/PDIF output. */
-static int snd_ac97_ymf753_spdif_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+/* It is possible to indicate to the Yamaha YMF7x3 the source to
+   direct to the S/PDIF output. */
+static int snd_ac97_ymf7x3_spdif_source_info(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[2] = { "AC-Link", "A/D Converter" };
 
@@ -268,17 +276,19 @@ static int snd_ac97_ymf753_spdif_source_info(struct snd_kcontrol *kcontrol, stru
 	return 0;
 }
 
-static int snd_ac97_ymf753_spdif_source_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_ac97_ymf7x3_spdif_source_get(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 
-	val = ac97->regs[AC97_YMF753_DIT_CTRL2];
+	val = ac97->regs[AC97_YMF7X3_DIT_CTRL];
 	ucontrol->value.enumerated.item[0] = (val >> 1) & 1;
 	return 0;
 }
 
-static int snd_ac97_ymf753_spdif_source_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_ac97_ymf7x3_spdif_source_put(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
@@ -286,7 +296,75 @@ static int snd_ac97_ymf753_spdif_source_put(struct snd_kcontrol *kcontrol, struc
 	if (ucontrol->value.enumerated.item[0] > 1)
 		return -EINVAL;
 	val = ucontrol->value.enumerated.item[0] << 1;
-	return snd_ac97_update_bits(ac97, AC97_YMF753_DIT_CTRL2, 0x0002, val);
+	return snd_ac97_update_bits(ac97, AC97_YMF7X3_DIT_CTRL, 0x0002, val);
+}
+
+static int patch_yamaha_ymf7x3_3d(struct snd_ac97 *ac97)
+{
+	struct snd_kcontrol *kctl;
+	int err;
+
+	kctl = snd_ac97_cnew(&snd_ac97_controls_3d[0], ac97);
+	err = snd_ctl_add(ac97->bus->card, kctl);
+	if (err < 0)
+		return err;
+	strcpy(kctl->id.name, "3D Control - Wide");
+	kctl->private_value = AC97_SINGLE_VALUE(AC97_3D_CONTROL, 9, 7, 0);
+	snd_ac97_write_cache(ac97, AC97_3D_CONTROL, 0x0000);
+	err = snd_ctl_add(ac97->bus->card,
+			  snd_ac97_cnew(&snd_ac97_ymf7x3_controls_speaker,
+					ac97));
+	if (err < 0)
+		return err;
+	snd_ac97_write_cache(ac97, AC97_YMF7X3_3D_MODE_SEL, 0x0c00);
+	return 0;
+}
+
+static const struct snd_kcontrol_new snd_ac97_yamaha_ymf743_controls_spdif[3] =
+{
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", PLAYBACK, SWITCH),
+		    AC97_YMF7X3_DIT_CTRL, 0, 1, 0),
+	{
+		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name	= SNDRV_CTL_NAME_IEC958("", PLAYBACK, NONE) "Source",
+		.info	= snd_ac97_ymf7x3_spdif_source_info,
+		.get	= snd_ac97_ymf7x3_spdif_source_get,
+		.put	= snd_ac97_ymf7x3_spdif_source_put,
+	},
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", NONE, NONE) "Mute",
+		    AC97_YMF7X3_DIT_CTRL, 2, 1, 1)
+};
+
+static int patch_yamaha_ymf743_build_spdif(struct snd_ac97 *ac97)
+{
+	int err;
+
+	err = patch_build_controls(ac97, &snd_ac97_controls_spdif[0], 3);
+	if (err < 0)
+		return err;
+	err = patch_build_controls(ac97,
+				   snd_ac97_yamaha_ymf743_controls_spdif, 3);
+	if (err < 0)
+		return err;
+	/* set default PCM S/PDIF params */
+	/* PCM audio,no copyright,no preemphasis,PCM coder,original */
+	snd_ac97_write_cache(ac97, AC97_YMF7X3_DIT_CTRL, 0xa201);
+	return 0;
+}
+
+static struct snd_ac97_build_ops patch_yamaha_ymf743_ops = {
+	.build_spdif	= patch_yamaha_ymf743_build_spdif,
+	.build_3d	= patch_yamaha_ymf7x3_3d,
+};
+
+static int patch_yamaha_ymf743(struct snd_ac97 *ac97)
+{
+	ac97->build_ops = &patch_yamaha_ymf743_ops;
+	ac97->caps |= AC97_BC_BASS_TREBLE;
+	ac97->caps |= 0x04 << 10; /* Yamaha 3D enhancement */
+	ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_48000; /* 48k only */
+	ac97->ext_id |= AC97_EI_SPDIF; /* force the detection of spdif */
+	return 0;
 }
 
 /* The AC'97 spec states that the S/PDIF signal is to be output at pin 48.
@@ -311,7 +389,7 @@ static int snd_ac97_ymf753_spdif_output_pin_get(struct snd_kcontrol *kcontrol, s
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 
-	val = ac97->regs[AC97_YMF753_DIT_CTRL2];
+	val = ac97->regs[AC97_YMF7X3_DIT_CTRL];
 	ucontrol->value.enumerated.item[0] = (val & 0x0008) ? 2 : (val & 0x0020) ? 1 : 0;
 	return 0;
 }
@@ -325,7 +403,7 @@ static int snd_ac97_ymf753_spdif_output_pin_put(struct snd_kcontrol *kcontrol, s
 		return -EINVAL;
 	val = (ucontrol->value.enumerated.item[0] == 2) ? 0x0008 :
 	      (ucontrol->value.enumerated.item[0] == 1) ? 0x0020 : 0;
-	return snd_ac97_update_bits(ac97, AC97_YMF753_DIT_CTRL2, 0x0028, val);
+	return snd_ac97_update_bits(ac97, AC97_YMF7X3_DIT_CTRL, 0x0028, val);
 	/* The following can be used to direct S/PDIF output to pin 47 (EAPD).
 	   snd_ac97_write_cache(ac97, 0x62, snd_ac97_read(ac97, 0x62) | 0x0008); */
 }
@@ -334,9 +412,9 @@ static const struct snd_kcontrol_new snd_ac97_ymf753_controls_spdif[3] = {
 	{
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
-		.info	= snd_ac97_ymf753_spdif_source_info,
-		.get	= snd_ac97_ymf753_spdif_source_get,
-		.put	= snd_ac97_ymf753_spdif_source_put,
+		.info	= snd_ac97_ymf7x3_spdif_source_info,
+		.get	= snd_ac97_ymf7x3_spdif_source_get,
+		.put	= snd_ac97_ymf7x3_spdif_source_put,
 	},
 	{
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -345,24 +423,9 @@ static const struct snd_kcontrol_new snd_ac97_ymf753_controls_spdif[3] = {
 		.get	= snd_ac97_ymf753_spdif_output_pin_get,
 		.put	= snd_ac97_ymf753_spdif_output_pin_put,
 	},
-	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",NONE,NONE) "Mute", AC97_YMF753_DIT_CTRL2, 2, 1, 1)
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", NONE, NONE) "Mute",
+		    AC97_YMF7X3_DIT_CTRL, 2, 1, 1)
 };
-
-static int patch_yamaha_ymf753_3d(struct snd_ac97 * ac97)
-{
-	struct snd_kcontrol *kctl;
-	int err;
-
-	if ((err = snd_ctl_add(ac97->bus->card, kctl = snd_ac97_cnew(&snd_ac97_controls_3d[0], ac97))) < 0)
-		return err;
-	strcpy(kctl->id.name, "3D Control - Wide");
-	kctl->private_value = AC97_SINGLE_VALUE(AC97_3D_CONTROL, 9, 7, 0);
-	snd_ac97_write_cache(ac97, AC97_3D_CONTROL, 0x0000);
-	if ((err = snd_ctl_add(ac97->bus->card, snd_ac97_cnew(&snd_ac97_ymf753_controls_speaker, ac97))) < 0)
-		return err;
-	snd_ac97_write_cache(ac97, AC97_YMF753_3D_MODE_SEL, 0x0c00);
-	return 0;
-}
 
 static int patch_yamaha_ymf753_post_spdif(struct snd_ac97 * ac97)
 {
@@ -374,7 +437,7 @@ static int patch_yamaha_ymf753_post_spdif(struct snd_ac97 * ac97)
 }
 
 static struct snd_ac97_build_ops patch_yamaha_ymf753_ops = {
-	.build_3d	= patch_yamaha_ymf753_3d,
+	.build_3d	= patch_yamaha_ymf7x3_3d,
 	.build_post_spdif = patch_yamaha_ymf753_post_spdif
 };
 
@@ -1880,14 +1943,7 @@ static int patch_ad1981b(struct snd_ac97 *ac97)
 	return 0;
 }
 
-static int snd_ac97_ad1888_lohpsel_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ac97_ad1888_lohpsel_info	snd_ctl_boolean_mono_info
 
 static int snd_ac97_ad1888_lohpsel_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -2186,15 +2242,7 @@ static int patch_ad1985(struct snd_ac97 * ac97)
 	return 0;
 }
 
-static int snd_ac97_ad1986_bool_info(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ac97_ad1986_bool_info	snd_ctl_boolean_mono_info
 
 static int snd_ac97_ad1986_lososel_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)

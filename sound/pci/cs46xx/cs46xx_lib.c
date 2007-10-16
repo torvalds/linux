@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Abramo Bagnara <abramo@alsa-project.org>
  *                   Cirrus Logic, Inc.
  *  Routines for control of Cirrus Logic CS461x chips
@@ -1818,15 +1818,7 @@ static int snd_cs46xx_vol_iec958_put(struct snd_kcontrol *kcontrol, struct snd_c
 }
 #endif
 
-static int snd_mixer_boolean_info(struct snd_kcontrol *kcontrol, 
-				  struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_mixer_boolean_info		snd_ctl_boolean_mono_info
 
 static int snd_cs46xx_iec958_get(struct snd_kcontrol *kcontrol, 
                                  struct snd_ctl_elem_value *ucontrol)

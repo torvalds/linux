@@ -1,6 +1,6 @@
 /*
  *  Driver for Cirrus Logic CS4281 based PCI soundcard
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,7 @@
 #include <sound/initval.h>
 
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Cirrus Logic CS4281");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Cirrus Logic,CS4281}}");
@@ -842,12 +842,11 @@ static snd_pcm_uframes_t snd_cs4281_pointer(struct snd_pcm_substream *substream)
 
 static struct snd_pcm_hardware snd_cs4281_playback =
 {
-	.info =			(SNDRV_PCM_INFO_MMAP |
-				 SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_MMAP_VALID |
-				 SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_RESUME |
-				 SNDRV_PCM_INFO_SYNC_START),
+	.info =			SNDRV_PCM_INFO_MMAP |
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_PAUSE |
+				SNDRV_PCM_INFO_RESUME,
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_S16_LE |
 				SNDRV_PCM_FMTBIT_U16_BE | SNDRV_PCM_FMTBIT_S16_BE |
@@ -868,12 +867,11 @@ static struct snd_pcm_hardware snd_cs4281_playback =
 
 static struct snd_pcm_hardware snd_cs4281_capture =
 {
-	.info =			(SNDRV_PCM_INFO_MMAP |
-				 SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_MMAP_VALID |
-				 SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_RESUME |
-				 SNDRV_PCM_INFO_SYNC_START),
+	.info =			SNDRV_PCM_INFO_MMAP |
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_PAUSE |
+				SNDRV_PCM_INFO_RESUME,
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_S16_LE |
 				SNDRV_PCM_FMTBIT_U16_BE | SNDRV_PCM_FMTBIT_S16_BE |
@@ -904,7 +902,6 @@ static int snd_cs4281_playback_open(struct snd_pcm_substream *substream)
 	dma->right_slot = 1;
 	runtime->private_data = dma;
 	runtime->hw = snd_cs4281_playback;
-	snd_pcm_set_sync(substream);
 	/* should be detected from the AC'97 layer, but it seems
 	   that although CS4297A rev B reports 18-bit ADC resolution,
 	   samples are 20-bit */
@@ -924,7 +921,6 @@ static int snd_cs4281_capture_open(struct snd_pcm_substream *substream)
 	dma->right_slot = 11;
 	runtime->private_data = dma;
 	runtime->hw = snd_cs4281_capture;
-	snd_pcm_set_sync(substream);
 	/* should be detected from the AC'97 layer, but it seems
 	   that although CS4297A rev B reports 18-bit ADC resolution,
 	   samples are 20-bit */

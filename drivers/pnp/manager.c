@@ -1,7 +1,7 @@
 /*
  * manager.c - Resource Management, Conflict Resolution, Activation and Disabling of Devices
  *
- * based on isapnp.c resource management (c) Jaroslav Kysela <perex@suse.cz>
+ * based on isapnp.c resource management (c) Jaroslav Kysela <perex@perex.cz>
  * Copyright 2003 Adam Belay <ambx1@neo.rr.com>
  */
 

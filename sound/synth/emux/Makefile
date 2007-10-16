@@ -1,6 +1,6 @@
 #
 # Makefile for ALSA
-# Copyright (c) 2001 by Jaroslav Kysela <perex@suse.cz>
+# Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
 snd-emux-synth-objs := emux.o emux_synth.o emux_seq.o emux_nrpn.o \

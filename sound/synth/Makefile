@@ -1,6 +1,6 @@
 #
 # Makefile for ALSA
-# Copyright (c) 2001 by Jaroslav Kysela <perex@suse.cz>
+# Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
 snd-util-mem-objs := util_mem.o

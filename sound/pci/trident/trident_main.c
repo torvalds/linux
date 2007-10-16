@@ -1,5 +1,5 @@
 /*
- *  Maintained by Jaroslav Kysela <perex@suse.cz>
+ *  Maintained by Jaroslav Kysela <perex@perex.cz>
  *  Originated by audio@tridentmicro.com
  *  Fri Feb 19 15:55:28 MST 1999
  *  Routines for control of Trident 4DWave (DX and NX) chip
@@ -2317,15 +2317,7 @@ int __devinit snd_trident_spdif_pcm(struct snd_trident * trident,
     Description: enable/disable S/PDIF out from ac97 mixer
   ---------------------------------------------------------------------------*/
 
-static int snd_trident_spdif_control_info(struct snd_kcontrol *kcontrol,
-					  struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_trident_spdif_control_info	snd_ctl_boolean_mono_info
 
 static int snd_trident_spdif_control_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
@@ -2545,15 +2537,7 @@ static struct snd_kcontrol_new snd_trident_spdif_stream __devinitdata =
     Description: enable/disable rear path for ac97
   ---------------------------------------------------------------------------*/
 
-static int snd_trident_ac97_control_info(struct snd_kcontrol *kcontrol,
-					 struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_trident_ac97_control_info	snd_ctl_boolean_mono_info
 
 static int snd_trident_ac97_control_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)

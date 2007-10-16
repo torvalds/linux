@@ -1,6 +1,6 @@
 /*
  *  Routine for IRQ handling from GF1/InterWave chip
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -45,11 +45,13 @@ __again:
 	// snd_printk("IRQ: status = 0x%x\n", status);
 	if (status & 0x02) {
 		STAT_ADD(gus->gf1.interrupt_stat_midi_in);
-		gus->gf1.interrupt_handler_midi_in(gus);
+		if (gus->gf1.interrupt_handler_midi_in)
+			gus->gf1.interrupt_handler_midi_in(gus);
 	}
 	if (status & 0x01) {
 		STAT_ADD(gus->gf1.interrupt_stat_midi_out);
-		gus->gf1.interrupt_handler_midi_out(gus);
+		if (gus->gf1.interrupt_handler_midi_out)
+			gus->gf1.interrupt_handler_midi_out(gus);
 	}
 	if (status & (0x20 | 0x40)) {
 		unsigned int already, _current_;
@@ -85,20 +87,24 @@ __again:
 	}
 	if (status & 0x04) {
 		STAT_ADD(gus->gf1.interrupt_stat_timer1);
-		gus->gf1.interrupt_handler_timer1(gus);
+		if (gus->gf1.interrupt_handler_timer1)
+			gus->gf1.interrupt_handler_timer1(gus);
 	}
 	if (status & 0x08) {
 		STAT_ADD(gus->gf1.interrupt_stat_timer2);
-		gus->gf1.interrupt_handler_timer2(gus);
+		if (gus->gf1.interrupt_handler_timer2)
+			gus->gf1.interrupt_handler_timer2(gus);
 	}
 	if (status & 0x80) {
 		if (snd_gf1_i_look8(gus, SNDRV_GF1_GB_DRAM_DMA_CONTROL) & 0x40) {
 			STAT_ADD(gus->gf1.interrupt_stat_dma_write);
-			gus->gf1.interrupt_handler_dma_write(gus);
+			if (gus->gf1.interrupt_handler_dma_write)
+				gus->gf1.interrupt_handler_dma_write(gus);
 		}
 		if (snd_gf1_i_look8(gus, SNDRV_GF1_GB_REC_DMA_CONTROL) & 0x40) {
 			STAT_ADD(gus->gf1.interrupt_stat_dma_read);
-			gus->gf1.interrupt_handler_dma_read(gus);
+			if (gus->gf1.interrupt_handler_dma_read)
+				gus->gf1.interrupt_handler_dma_read(gus);
 		}
 	}
 	if (--loop > 0)

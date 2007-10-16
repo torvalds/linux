@@ -1,6 +1,6 @@
 /*
  *  Linear conversion Plug-In
- *  Copyright (c) 1999 by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>,
  *			  Abramo Bagnara <abramo@alsa-project.org>
  *
  *
@@ -21,9 +21,6 @@
  */
 
 #include <sound/driver.h>
-
-#ifdef CONFIG_SND_PCM_OSS_PLUGINS
-
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -34,19 +31,34 @@
  */
  
 struct linear_priv {
-	int conv;
+	int cvt_endian;		/* need endian conversion? */
+	unsigned int src_ofs;	/* byte offset in source format */
+	unsigned int dst_ofs;	/* byte soffset in destination format */
+	unsigned int copy_ofs;	/* byte offset in temporary u32 data */
+	unsigned int dst_bytes;		/* byte size of destination format */
+	unsigned int copy_bytes;	/* bytes to copy per conversion */
+	unsigned int flip; /* MSB flip for signeness, done after endian conv */
 };
+
+static inline void do_convert(struct linear_priv *data,
+			      unsigned char *dst, unsigned char *src)
+{
+	unsigned int tmp = 0;
+	unsigned char *p = (unsigned char *)&tmp;
+
+	memcpy(p + data->copy_ofs, src + data->src_ofs, data->copy_bytes);
+	if (data->cvt_endian)
+		tmp = swab32(tmp);
+	tmp ^= data->flip;
+	memcpy(dst, p + data->dst_ofs, data->dst_bytes);
+}
 
 static void convert(struct snd_pcm_plugin *plugin,
 		    const struct snd_pcm_plugin_channel *src_channels,
 		    struct snd_pcm_plugin_channel *dst_channels,
 		    snd_pcm_uframes_t frames)
 {
-#define CONV_LABELS
-#include "plugin_ops.h"
-#undef CONV_LABELS
 	struct linear_priv *data = (struct linear_priv *)plugin->extra_data;
-	void *conv = conv_labels[data->conv];
 	int channel;
 	int nchannels = plugin->src_format.channels;
 	for (channel = 0; channel < nchannels; ++channel) {
@@ -67,11 +79,7 @@ static void convert(struct snd_pcm_plugin *plugin,
 		dst_step = dst_channels[channel].area.step / 8;
 		frames1 = frames;
 		while (frames1-- > 0) {
-			goto *conv;
-#define CONV_END after
-#include "plugin_ops.h"
-#undef CONV_END
-		after:
+			do_convert(data, dst, src);
 			src += src_step;
 			dst += dst_step;
 		}
@@ -106,29 +114,36 @@ static snd_pcm_sframes_t linear_transfer(struct snd_pcm_plugin *plugin,
 	return frames;
 }
 
-static int conv_index(int src_format, int dst_format)
+static void init_data(struct linear_priv *data, int src_format, int dst_format)
 {
-	int src_endian, dst_endian, sign, src_width, dst_width;
+	int src_le, dst_le, src_bytes, dst_bytes;
 
-	sign = (snd_pcm_format_signed(src_format) !=
-		snd_pcm_format_signed(dst_format));
-#ifdef SNDRV_LITTLE_ENDIAN
-	src_endian = snd_pcm_format_big_endian(src_format);
-	dst_endian = snd_pcm_format_big_endian(dst_format);
-#else
-	src_endian = snd_pcm_format_little_endian(src_format);
-	dst_endian = snd_pcm_format_little_endian(dst_format);
-#endif
+	src_bytes = snd_pcm_format_width(src_format) / 8;
+	dst_bytes = snd_pcm_format_width(dst_format) / 8;
+	src_le = snd_pcm_format_little_endian(src_format) > 0;
+	dst_le = snd_pcm_format_little_endian(dst_format) > 0;
 
-	if (src_endian < 0)
-		src_endian = 0;
-	if (dst_endian < 0)
-		dst_endian = 0;
-
-	src_width = snd_pcm_format_width(src_format) / 8 - 1;
-	dst_width = snd_pcm_format_width(dst_format) / 8 - 1;
-
-	return src_width * 32 + src_endian * 16 + sign * 8 + dst_width * 2 + dst_endian;
+	data->dst_bytes = dst_bytes;
+	data->cvt_endian = src_le != dst_le;
+	data->copy_bytes = src_bytes < dst_bytes ? src_bytes : dst_bytes;
+	if (src_le) {
+		data->copy_ofs = 4 - data->copy_bytes;
+		data->src_ofs = src_bytes - data->copy_bytes;
+	} else
+		data->src_ofs = snd_pcm_format_physical_width(src_format) / 8 -
+			src_bytes;
+	if (dst_le)
+		data->dst_ofs = 4 - data->dst_bytes;
+	else
+		data->dst_ofs = snd_pcm_format_physical_width(dst_format) / 8 -
+			dst_bytes;
+	if (snd_pcm_format_signed(src_format) !=
+	    snd_pcm_format_signed(dst_format)) {
+		if (dst_le)
+			data->flip = cpu_to_le32(0x80000000);
+		else
+			data->flip = cpu_to_be32(0x80000000);
+	}
 }
 
 int snd_pcm_plugin_build_linear(struct snd_pcm_substream *plug,
@@ -154,10 +169,8 @@ int snd_pcm_plugin_build_linear(struct snd_pcm_substream *plug,
 	if (err < 0)
 		return err;
 	data = (struct linear_priv *)plugin->extra_data;
-	data->conv = conv_index(src_format->format, dst_format->format);
+	init_data(data, src_format->format, dst_format->format);
 	plugin->transfer = linear_transfer;
 	*r_plugin = plugin;
 	return 0;
 }
-
-#endif

@@ -2,7 +2,7 @@
 #define __SOUND_AD1848_H
 
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Definitions for AD1847/AD1848/CS4248 chips
  *
  *
@@ -27,7 +27,7 @@
 
 /* IO ports */
 
-#define AD1848P( codec, x ) ( (chip) -> port + c_d_c_AD1848##x )
+#define AD1848P( chip, x ) ( (chip) -> port + c_d_c_AD1848##x )
 
 #define c_d_c_AD1848REGSEL	0
 #define c_d_c_AD1848REG		1
@@ -154,7 +154,6 @@ struct snd_ad1848 {
 #endif
 
 	spinlock_t reg_lock;
-	struct mutex open_mutex;
 };
 
 /* exported functions */

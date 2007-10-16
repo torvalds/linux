@@ -303,10 +303,3 @@ ICE1712 supports only the unconventional format, interleaved
 the buffer as the conventional (mono or 2-channels, 8 or 16bit) format
 on OSS.
 
-USB devices
------------
-Some USB devices support only 24bit format packed in 3bytes.  This
-format is not supported by OSS and no conversion is provided by kernel
-OSS emulation.  You can use the user-space OSS emulation via libaoss
-instead.
-

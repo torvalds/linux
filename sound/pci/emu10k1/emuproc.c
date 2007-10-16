@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Creative Labs, Inc.
  *  Routines for control of EMU10K1 chips / proc interface routines
  *
@@ -240,8 +240,42 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 				  struct snd_info_buffer *buffer)
 {
 	struct snd_emu10k1 *emu = entry->private_data;
-	snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
-	snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
+	u32 value;
+	u32 value2;
+	unsigned long flags;
+	u32 rate;
+
+	if (emu->card_capabilities->emu1010) {
+		spin_lock_irqsave(&emu->emu_lock, flags);
+		snd_emu1010_fpga_read(emu, 0x38, &value);
+		spin_unlock_irqrestore(&emu->emu_lock, flags);
+		if ((value & 0x1) == 0) {
+			spin_lock_irqsave(&emu->emu_lock, flags);
+			snd_emu1010_fpga_read(emu, 0x2a, &value);
+			snd_emu1010_fpga_read(emu, 0x2b, &value2);
+			spin_unlock_irqrestore(&emu->emu_lock, flags);
+			rate = 0x1770000 / (((value << 5) | value2)+1);	
+			snd_iprintf(buffer, "ADAT Locked : %u\n", rate);
+		} else {
+			snd_iprintf(buffer, "ADAT Unlocked\n");
+		}
+		spin_lock_irqsave(&emu->emu_lock, flags);
+		snd_emu1010_fpga_read(emu, 0x20, &value);
+		spin_unlock_irqrestore(&emu->emu_lock, flags);
+		if ((value & 0x4) == 0) {
+			spin_lock_irqsave(&emu->emu_lock, flags);
+			snd_emu1010_fpga_read(emu, 0x28, &value);
+			snd_emu1010_fpga_read(emu, 0x29, &value2);
+			spin_unlock_irqrestore(&emu->emu_lock, flags);
+			rate = 0x1770000 / (((value << 5) | value2)+1);	
+			snd_iprintf(buffer, "SPDIF Locked : %d\n", rate);
+		} else {
+			snd_iprintf(buffer, "SPDIF Unlocked\n");
+		}
+	} else {
+		snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
+		snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
+	}
 #if 0
 	val = snd_emu10k1_ptr_read(emu, ZVSRCS, 0);
 	snd_iprintf(buffer, "\nZoomed Video\n");
@@ -379,20 +413,16 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 				     struct snd_info_buffer *buffer)
 {
 	struct snd_emu10k1 *emu = entry->private_data;
-	unsigned long value;
+	int value;
 	unsigned long flags;
-	unsigned long regs;
 	int i;
 	snd_iprintf(buffer, "EMU1010 Registers:\n\n");
 
-	for(i = 0; i < 0x30; i+=1) {
+	for(i = 0; i < 0x40; i+=1) {
 		spin_lock_irqsave(&emu->emu_lock, flags);
-		regs=i+0x40; /* 0x40 upwards are registers. */
-		outl(regs, emu->port + A_IOCFG);
-		outl(regs | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
-		value = inl(emu->port + A_IOCFG);
+		snd_emu1010_fpga_read(emu, i, &value);
 		spin_unlock_irqrestore(&emu->emu_lock, flags);
-		snd_iprintf(buffer, "%02X: %08lX, %02lX\n", i, value, (value >> 8) & 0x7f);
+		snd_iprintf(buffer, "%02X: %08X, %02X\n", i, value, (value >> 8) & 0x7f);
 	}
 }
 
@@ -555,9 +585,9 @@ int __devinit snd_emu10k1_proc_init(struct snd_emu10k1 * emu)
 {
 	struct snd_info_entry *entry;
 #ifdef CONFIG_SND_DEBUG
-	if ((emu->card_capabilities->emu1010) &&
-	     snd_card_proc_new(emu->card, "emu1010_regs", &entry)) {
-		snd_info_set_text_ops(entry, emu, snd_emu_proc_emu1010_reg_read);
+	if (emu->card_capabilities->emu1010) {
+		if (! snd_card_proc_new(emu->card, "emu1010_regs", &entry)) 
+			snd_info_set_text_ops(entry, emu, snd_emu_proc_emu1010_reg_read);
 	}
 	if (! snd_card_proc_new(emu->card, "io_regs", &entry)) {
 		snd_info_set_text_ops(entry, emu, snd_emu_proc_io_reg_read);

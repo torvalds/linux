@@ -22,9 +22,9 @@
  *
  */
 
-#include<linux/spinlock.h>
-#include<sound/rawmidi.h>
-#include<sound/mpu401.h>
+#include <linux/spinlock.h>
+#include <sound/rawmidi.h>
+#include <sound/mpu401.h>
 
 #define CA_MIDI_MODE_INPUT	MPU401_MODE_INPUT
 #define CA_MIDI_MODE_OUTPUT	MPU401_MODE_OUTPUT

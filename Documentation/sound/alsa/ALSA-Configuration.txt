@@ -365,13 +365,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-cmipci
   -----------------
 
-    Module for C-Media CMI8338 and 8738 PCI sound cards.
+    Module for C-Media CMI8338/8738/8768/8770 PCI sound cards.
 
-    mpu_port	- 0x300,0x310,0x320,0x330 = legacy port,
-		  1 = integrated PCI port,
+    mpu_port    - port address of MIDI interface (8338 only):
+		  0x300,0x310,0x320,0x330 = legacy port,
 		  0 = disable (default)
-    fm_port     - 0x388 = legacy port,
-		  1 = integrated PCI port (default),
+    fm_port     - port address of OPL-3 FM synthesizer (8x38 only):
+		  0x388 = legacy port,
+		  1 = integrated PCI port (default on 8738),
 		  0 = disable
     soft_ac3    - Software-conversion of raw SPDIF packets (model 033 only)
                   (default = 1)
@@ -768,6 +769,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     single_cmd  - Use single immediate commands to communicate with
 		codecs (for debugging only)
     enable_msi	- Enable Message Signaled Interrupt (MSI) (default = off)
+    power_save	- Automatic power-saving timtout (in second, 0 =
+		disable)
+    power_save_controller - Reset HD-audio controller in power-saving mode
+		(default = on)
 
     This module supports one card and autoprobe.
 
@@ -828,6 +833,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
 	ALC268
 	  3stack	3-stack model
+	  toshiba	Toshiba A205
+	  acer		Acer laptops
 	  auto		auto-config reading BIOS (default)
 
 	ALC662
@@ -842,7 +849,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stack-dig	6-jack digital with SPDIF I/O
 	  arima		Arima W820Di1
+	  targa		Targa T8, MSI-1049 T8
+	  asus-a7j	ASUS A7J
+	  asus-a7m	ASUS A7M
 	  macpro	MacPro support
+	  mbp3		Macbook Pro rev3
 	  imac24	iMac 24'' with jack detection
 	  w2jc		ASUS W2JC
 	  auto		auto-config reading BIOS (default)
@@ -854,6 +865,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-6ch-dig 3-jack 6-channel with SPDIF I/O
 	  6stack-dig-demo  6-jack digital for Intel demo board
 	  acer		Acer laptops (Travelmate 3012WTMi, Aspire 5600, etc)
+	  acer-aspire	Acer Aspire 9810
 	  medion	Medion Laptops
 	  medion-md2	Medion MD2
 	  targa-dig	Targa/MSI
@@ -862,6 +874,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  lenovo-101e	Lenovo 101E
 	  lenovo-nb0763	Lenovo NB0763
 	  lenovo-ms7195-dig Lenovo MS7195
+	  haier-w66	Haier W66
 	  6stack-hp	HP machines with 6stack (Nettle boards)
 	  3stack-hp	HP machines with 3stack (Lucknow, Samba boards)
 	  auto		auto-config reading BIOS (default)
@@ -885,6 +898,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-660-digout 3-jack with SPDIF OUT (for ALC660VD)
 	  lenovo	Lenovo 3000 C200
 	  dallas	Dallas laptops
+	  hp		HP TX1000
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
@@ -920,6 +934,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	3-stack, shared surrounds
 	  laptop	2-channel only (FSC V2060, Samsung M50)
 	  laptop-eapd	2-channel with EAPD (Samsung R65, ASUS A6J)
+	  laptop-automute 2-channel with EAPD and HP-automute (Lenovo N100)
 	  ultra		2-channel with EAPD (Samsung Ultra tablet PC)
 
 	AD1988
@@ -945,14 +960,30 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			can be adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
 
-	STAC9200/9205/9254
+	STAC9200
 	  ref		Reference board
+	  dell-d21	Dell (unknown)
+	  dell-d22	Dell (unknown)
+	  dell-d23	Dell (unknown)
+	  dell-m21	Dell Inspiron 630m, Dell Inspiron 640m
+	  dell-m22	Dell Latitude D620, Dell Latitude D820
+	  dell-m23	Dell XPS M1710, Dell Precision M90
+	  dell-m24	Dell Latitude 120L
+	  dell-m25	Dell Inspiron E1505n
+	  dell-m26	Dell Inspiron 1501
+	  dell-m27	Dell Inspiron E1705/9400
+	  gateway	Gateway laptops with EAPD control
+
+	STAC9205/9254
+	  ref		Reference board
+	  dell-m42	Dell (unknown)
+	  dell-m43	Dell Precision
+	  dell-m44	Dell Inspiron
 
 	STAC9220/9221
 	  ref		Reference board
 	  3stack	D945 3stack
 	  5stack	D945 5stack + SPDIF
-	  dell		Dell XPS M1210
 	  intel-mac-v1	Intel Mac Type 1
 	  intel-mac-v2	Intel Mac Type 2
 	  intel-mac-v3	Intel Mac Type 3
@@ -964,6 +995,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  macbook-pro	Intel Mac Book Pro 2nd generation (eq. type 3)
 	  imac-intel	Intel iMac (eq. type 2)
 	  imac-intel-20	Intel iMac (newer version) (eq. type 3)
+	  dell-d81	Dell (unknown)
+	  dell-d82	Dell (unknown)
+	  dell-m81	Dell (unknown)
+	  dell-m82	Dell XPS M1210
 
 	STAC9202/9250/9251
 	  ref		Reference board, base config
@@ -975,6 +1010,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  ref		Reference board
 	  3stack	D965 3stack
 	  5stack	D965 5stack + SPDIF
+	  dell-3stack	Dell Dimension E520
 
 	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110
@@ -988,6 +1024,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     matches with your device, report it together with the PCI
     subsystem ID (output of "lspci -nv") to ALSA BTS or alsa-devel
     ML (see the section "Links and Addresses").
+
+    power_save and power_save_controller options are for power-saving
+    mode.  See powersave.txt for details.
 
     Note 2: If you get click noises on output, try the module option
 	    position_fix=1 or 2.  position_fix=1 will use the SD_LPIB
@@ -1349,7 +1388,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     port	- port number or -1 (disable)
     irq		- IRQ number or -1 (disable)
     pnp		- PnP detection - 0 = disable, 1 = enable (default)
-    uart_enter	- Issue UART_ENTER command at open - bool, default = on
 
     This module supports multiple devices and PnP.
     
@@ -1630,6 +1668,21 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     The power-management is supported.
 
+  Module snd-sc6000
+  -----------------
+
+    Module for Gallant SC-6000 soundcard.
+
+    port	- Port # (0x220 or 0x240)
+    mss_port	- MSS Port # (0x530 or 0xe80)
+    irq		- IRQ # (5,7,9,10,11)
+    mpu_irq	- MPU-401 IRQ # (5,7,9,10) ,0 - no MPU-401 irq
+    dma		- DMA # (1,3,0)
+
+    This module supports multiple cards.
+
+    This card is also known as Audio Excel DSP 16 or Zoltrix AV302.
+
   Module snd-sgalaxy
   ------------------
 
@@ -1650,9 +1703,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for ENSONIQ SoundScape PnP cards.
 
     port	- Port # (PnP setup)
+    wss_port	- WSS Port # (PnP setup)
     irq		- IRQ # (PnP setup)
     mpu_irq	- MPU-401 IRQ # (PnP setup)
     dma		- DMA # (PnP setup)
+    dma2	- 2nd DMA # (PnP setup, -1 to disable)
 
     This module supports multiple cards.  ISA PnP must be enabled.
     You need sscape_ctl tool in alsa-tools package for loading
@@ -1697,7 +1752,51 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2            - DMA2 # for CS4232 PCM interface.
     isapnp          - ISA PnP detection - 0 = disable, 1 = enable (default)
 
+    The below are options for wavefront_synth features:
+    wf_raw	    - Assume that we need to boot the OS (default:no)
+	If yes, then during driver loading, the state of the board is
+	ignored, and we reset the board and load the firmware anyway.
+    fx_raw	    - Assume that the FX process needs help (default:yes)
+	If false, we'll leave the FX processor in whatever state it is
+	when the driver is loaded.  The default is to download the
+	microprogram and associated coefficients to set it up for
+	"default" operation, whatever that means.
+    debug_default   - Debug parameters for card initialization
+    wait_usecs	    - How long to wait without sleeping, usecs
+		      (default:150)
+	This magic number seems to give pretty optimal throughput
+	based on my limited experimentation. 
+	If you want to play around with it and find a better value, be
+	my guest. Remember, the idea is to get a number that causes us
+	to just busy wait for as many WaveFront commands as possible,
+	without coming up with a number so large that we hog the whole
+	CPU. 
+	Specifically, with this number, out of about 134,000 status
+	waits, only about 250 result in a sleep. 
+    sleep_interval  - How long to sleep when waiting for reply
+		      (default: 100)
+    sleep_tries	    - How many times to try sleeping during a wait
+		      (default: 50)
+    ospath	    - Pathname to processed ICS2115 OS firmware
+		      (default:wavefront.os)
+	The path name of the ISC2115 OS firmware.  In the recent
+	version, it's handled via firmware loader framework, so it
+	must be installed in the proper path, typically,
+	/lib/firmware.
+    reset_time	    - How long to wait for a reset to take effect
+		      (default:2)
+    ramcheck_time   - How many seconds to wait for the RAM test
+		      (default:20)
+    osrun_time	    - How many seconds to wait for the ICS2115 OS
+		      (default:10)
+
     This module supports multiple cards and ISA PnP.
+
+    Note: the firmware file "wavefront.os" was located in the earlier
+          version in /etc.  Now it's loaded via firmware loader, and
+	  must be in the proper firmware path, such as /lib/firmware.
+	  Copy (or symlink) the file appropriately if you get an error
+	  regarding firmware downloading after upgrading the kernel.
 
   Module snd-sonicvibes
   ---------------------

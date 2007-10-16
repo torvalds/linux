@@ -394,7 +394,7 @@ static int aureon_ac97_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 /*
  * AC'97 mute controls
  */
-#define aureon_ac97_mute_info	aureon_mono_bool_info
+#define aureon_ac97_mute_info	snd_ctl_boolean_mono_info
 
 static int aureon_ac97_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -430,7 +430,7 @@ static int aureon_ac97_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 /*
  * AC'97 mute controls
  */
-#define aureon_ac97_micboost_info	aureon_mono_bool_info
+#define aureon_ac97_micboost_info	snd_ctl_boolean_mono_info
 
 static int aureon_ac97_micboost_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -621,19 +621,12 @@ static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 
 /*
  */
-static int aureon_mono_bool_info(struct snd_kcontrol *k, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define aureon_mono_bool_info		snd_ctl_boolean_mono_info
 
 /*
  * AC'97 master playback mute controls (Mute on WM8770 chip)
  */
-#define aureon_ac97_mmute_info	aureon_mono_bool_info
+#define aureon_ac97_mmute_info		snd_ctl_boolean_mono_info
 
 static int aureon_ac97_mmute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -708,7 +701,7 @@ static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index, unsigned sho
 /*
  * DAC mute control
  */
-#define wm_pcm_mute_info	aureon_mono_bool_info
+#define wm_pcm_mute_info	snd_ctl_boolean_mono_info
 
 static int wm_pcm_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -879,13 +872,7 @@ static int wm_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value 
 /*
  * WM8770 master mute control
  */
-static int wm_master_mute_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo) {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define wm_master_mute_info		snd_ctl_boolean_stereo_info
 
 static int wm_master_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -969,14 +956,7 @@ static int wm_pcm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 /*
  * ADC mute control
  */
-static int wm_adc_mute_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define wm_adc_mute_info		snd_ctl_boolean_stereo_info
 
 static int wm_adc_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1210,12 +1190,7 @@ static int aureon_cs8415_rate_get (struct snd_kcontrol *kcontrol, struct snd_ctl
 /*
  * CS8415A Mute
  */
-static int aureon_cs8415_mute_info (struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	return 0;
-}
+#define aureon_cs8415_mute_info		snd_ctl_boolean_mono_info
 
 static int aureon_cs8415_mute_get (struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1316,7 +1291,7 @@ static int aureon_get_headphone_amp(struct snd_ice1712 *ice)
 	return ( tmp & AUREON_HP_SEL )!= 0;
 }
 
-#define aureon_hpamp_info	aureon_mono_bool_info
+#define aureon_hpamp_info	snd_ctl_boolean_mono_info
 
 static int aureon_hpamp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1338,7 +1313,7 @@ static int aureon_hpamp_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
  * Deemphasis
  */
 
-#define aureon_deemp_info	aureon_mono_bool_info
+#define aureon_deemp_info	snd_ctl_boolean_mono_info
 
 static int aureon_deemp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

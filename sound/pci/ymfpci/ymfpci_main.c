@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of YMF724/740/744/754 chips
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -84,7 +84,6 @@ static int snd_ymfpci_codec_ready(struct snd_ymfpci *chip, int secondary)
 	do {
 		if ((snd_ymfpci_readw(chip, reg) & 0x8000) == 0)
 			return 0;
-		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout_uninterruptible(1);
 	} while (time_before(jiffies, end_time));
 	snd_printk(KERN_ERR "codec_ready: codec %i is not ready [0x%x]\n", secondary, snd_ymfpci_readw(chip, reg));
@@ -169,17 +168,6 @@ static u32 snd_ymfpci_calc_lpfQ(u32 rate)
 		if (rate <= def_rate[i])
 			return val[i];
 	return val[0];
-}
-
-static void snd_ymfpci_pcm_441_volume_set(struct snd_ymfpci_pcm *ypcm)
-{
-	unsigned int value;
-	struct snd_ymfpci_pcm_mixer *mixer;
-	
-	mixer = &ypcm->chip->pcm_mixer[ypcm->substream->number];
-	value = min_t(unsigned int, mixer->left, 0x7fff) >> 1;
-	value |= (min_t(unsigned int, mixer->right, 0x7fff) >> 1) << 16;
-	snd_ymfpci_writel(ypcm->chip, YDSXGR_BUF441OUTVOL, value);
 }
 
 /*
@@ -389,6 +377,7 @@ static int snd_ymfpci_playback_trigger(struct snd_pcm_substream *substream,
 {
 	struct snd_ymfpci *chip = snd_pcm_substream_chip(substream);
 	struct snd_ymfpci_pcm *ypcm = substream->runtime->private_data;
+	struct snd_kcontrol *kctl = NULL;
 	int result = 0;
 
 	spin_lock(&chip->reg_lock);
@@ -406,6 +395,11 @@ static int snd_ymfpci_playback_trigger(struct snd_pcm_substream *substream,
 		ypcm->running = 1;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+		if (substream->pcm == chip->pcm && !ypcm->use_441_slot) {
+			kctl = chip->pcm_mixer[substream->number].ctl;
+			kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+		}
+		/* fall through */
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		chip->ctrl_playback[ypcm->voices[0]->number + 1] = 0;
@@ -419,6 +413,8 @@ static int snd_ymfpci_playback_trigger(struct snd_pcm_substream *substream,
 	}
       __unlock:
 	spin_unlock(&chip->reg_lock);
+	if (kctl)
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
 	return result;
 }
 static int snd_ymfpci_capture_trigger(struct snd_pcm_substream *substream,
@@ -526,7 +522,6 @@ static void snd_ymfpci_pcm_init_voice(struct snd_ymfpci_pcm *ypcm, unsigned int 
 		ypcm->chip->src441_used = voice->number;
 		ypcm->use_441_slot = 1;
 		format |= 0x10000000;
-		snd_ymfpci_pcm_441_volume_set(ypcm);
 	}
 	if (ypcm->chip->src441_used == voice->number &&
 	    (format & 0x10000000) == 0) {
@@ -667,6 +662,7 @@ static int snd_ymfpci_playback_prepare(struct snd_pcm_substream *substream)
 	struct snd_ymfpci *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ymfpci_pcm *ypcm = runtime->private_data;
+	struct snd_kcontrol *kctl;
 	unsigned int nvoice;
 
 	ypcm->period_size = runtime->period_size;
@@ -676,6 +672,12 @@ static int snd_ymfpci_playback_prepare(struct snd_pcm_substream *substream)
 	for (nvoice = 0; nvoice < runtime->channels; nvoice++)
 		snd_ymfpci_pcm_init_voice(ypcm, nvoice, runtime,
 					  substream->pcm == chip->pcm);
+
+	if (substream->pcm == chip->pcm && !ypcm->use_441_slot) {
+		kctl = chip->pcm_mixer[substream->number].ctl;
+		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
+	}
 	return 0;
 }
 
@@ -926,7 +928,6 @@ static int snd_ymfpci_playback_open(struct snd_pcm_substream *substream)
 	struct snd_ymfpci *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ymfpci_pcm *ypcm;
-	struct snd_kcontrol *kctl;
 	int err;
 	
 	if ((err = snd_ymfpci_playback_open_1(substream)) < 0)
@@ -941,10 +942,6 @@ static int snd_ymfpci_playback_open(struct snd_pcm_substream *substream)
 		chip->rear_opened++;
 	}
 	spin_unlock_irq(&chip->reg_lock);
-
-	kctl = chip->pcm_mixer[substream->number].ctl;
-	kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
 	return 0;
 }
 
@@ -1039,7 +1036,6 @@ static int snd_ymfpci_playback_close(struct snd_pcm_substream *substream)
 {
 	struct snd_ymfpci *chip = snd_pcm_substream_chip(substream);
 	struct snd_ymfpci_pcm *ypcm = substream->runtime->private_data;
-	struct snd_kcontrol *kctl;
 
 	spin_lock_irq(&chip->reg_lock);
 	if (ypcm->output_rear && chip->rear_opened > 0) {
@@ -1047,9 +1043,6 @@ static int snd_ymfpci_playback_close(struct snd_pcm_substream *substream)
 		ymfpci_close_extension(chip);
 	}
 	spin_unlock_irq(&chip->reg_lock);
-	kctl = chip->pcm_mixer[substream->number].ctl;
-	kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
 	return snd_ymfpci_playback_close_1(substream);
 }
 
@@ -1443,22 +1436,7 @@ static struct snd_kcontrol_new snd_ymfpci_drec_source __devinitdata = {
   .get = snd_ymfpci_get_single, .put = snd_ymfpci_put_single, \
   .private_value = ((reg) | ((shift) << 16)) }
 
-static int snd_ymfpci_info_single(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_info *uinfo)
-{
-	int reg = kcontrol->private_value & 0xffff;
-
-	switch (reg) {
-	case YDSXGR_SPDIFOUTCTRL: break;
-	case YDSXGR_SPDIFINCTRL: break;
-	default: return -EINVAL;
-	}
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ymfpci_info_single		snd_ctl_boolean_mono_info
 
 static int snd_ymfpci_get_single(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -1567,17 +1545,30 @@ static int snd_ymfpci_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
+static int snd_ymfpci_put_nativedacvol(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ymfpci *chip = snd_kcontrol_chip(kcontrol);
+	unsigned int reg = YDSXGR_NATIVEDACOUTVOL;
+	unsigned int reg2 = YDSXGR_BUF441OUTVOL;
+	int change;
+	unsigned int value, oval;
+	
+	value = ucontrol->value.integer.value[0] & 0x3fff;
+	value |= (ucontrol->value.integer.value[1] & 0x3fff) << 16;
+	spin_lock_irq(&chip->reg_lock);
+	oval = snd_ymfpci_readl(chip, reg);
+	change = value != oval;
+	snd_ymfpci_writel(chip, reg, value);
+	snd_ymfpci_writel(chip, reg2, value);
+	spin_unlock_irq(&chip->reg_lock);
+	return change;
+}
+
 /*
  * 4ch duplication
  */
-static int snd_ymfpci_info_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ymfpci_info_dup4ch		snd_ctl_boolean_mono_info
 
 static int snd_ymfpci_get_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1598,7 +1589,17 @@ static int snd_ymfpci_put_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 
 
 static struct snd_kcontrol_new snd_ymfpci_controls[] __devinitdata = {
-YMFPCI_DOUBLE("Wave Playback Volume", 0, YDSXGR_NATIVEDACOUTVOL),
+{
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Wave Playback Volume",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+	.info = snd_ymfpci_info_double,
+	.get = snd_ymfpci_get_double,
+	.put = snd_ymfpci_put_nativedacvol,
+	.private_value = YDSXGR_NATIVEDACOUTVOL,
+	.tlv = { .p = db_scale_native },
+},
 YMFPCI_DOUBLE("Wave Capture Volume", 0, YDSXGR_NATIVEDACLOOPVOL),
 YMFPCI_DOUBLE("Digital Capture Volume", 0, YDSXGR_NATIVEDACINVOL),
 YMFPCI_DOUBLE("Digital Capture Volume", 1, YDSXGR_NATIVEADCINVOL),
@@ -1665,14 +1666,7 @@ static int snd_ymfpci_set_gpio_out(struct snd_ymfpci *chip, int pin, int enable)
 	return 0;
 }
 
-static int snd_ymfpci_gpio_sw_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_ymfpci_gpio_sw_info		snd_ctl_boolean_mono_info
 
 static int snd_ymfpci_gpio_sw_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1748,8 +1742,6 @@ static int snd_ymfpci_pcm_vol_put(struct snd_kcontrol *kcontrol,
 			struct snd_ymfpci_pcm *ypcm = substream->runtime->private_data;
 			if (!ypcm->use_441_slot)
 				ypcm->update_pcm_vol = 2;
-			else
-				snd_ymfpci_pcm_441_volume_set(ypcm);
 		}
 		spin_unlock_irqrestore(&chip->voice_lock, flags);
 		return 1;

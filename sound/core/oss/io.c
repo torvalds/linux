@@ -1,6 +1,6 @@
 /*
  *  PCM I/O Plug-In Interface
- *  Copyright (c) 1999 by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -20,9 +20,6 @@
  */
   
 #include <sound/driver.h>
-
-#ifdef CONFIG_SND_PCM_OSS_PLUGINS
-
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -135,5 +132,3 @@ int snd_pcm_plugin_build_io(struct snd_pcm_substream *plug,
 	*r_plugin = plugin;
 	return 0;
 }
-
-#endif

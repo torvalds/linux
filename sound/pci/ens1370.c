@@ -1,6 +1,6 @@
 /*
  *  Driver for Ensoniq ES1370/ES1371 AudioPCI soundcard
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>,
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Thomas Sailer <sailer@ife.ee.ethz.ch>
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -61,7 +61,7 @@
 #endif
 
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Thomas Sailer <sailer@ife.ee.ethz.ch>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Thomas Sailer <sailer@ife.ee.ethz.ch>");
 MODULE_LICENSE("GPL");
 #ifdef CHIP1370
 MODULE_DESCRIPTION("Ensoniq AudioPCI ES1370");
@@ -1419,15 +1419,7 @@ static int snd_ens1373_spdif_stream_put(struct snd_kcontrol *kcontrol,
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .info = snd_es1371_spdif_info, \
   .get = snd_es1371_spdif_get, .put = snd_es1371_spdif_put }
 
-static int snd_es1371_spdif_info(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_info *uinfo)
-{
-        uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-        uinfo->count = 1;
-        uinfo->value.integer.min = 0;
-        uinfo->value.integer.max = 1;
-        return 0;
-}
+#define snd_es1371_spdif_info		snd_ctl_boolean_mono_info
 
 static int snd_es1371_spdif_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -1489,15 +1481,7 @@ static struct snd_kcontrol_new snd_es1371_mixer_spdif[] __devinitdata = {
 };
 
 
-static int snd_es1373_rear_info(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *uinfo)
-{
-        uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-        uinfo->count = 1;
-        uinfo->value.integer.min = 0;
-        uinfo->value.integer.max = 1;
-        return 0;
-}
+#define snd_es1373_rear_info		snd_ctl_boolean_mono_info
 
 static int snd_es1373_rear_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
@@ -1542,15 +1526,7 @@ static struct snd_kcontrol_new snd_ens1373_rear __devinitdata =
 	.put =		snd_es1373_rear_put,
 };
 
-static int snd_es1373_line_info(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_es1373_line_info		snd_ctl_boolean_mono_info
 
 static int snd_es1373_line_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
@@ -1707,15 +1683,7 @@ static int __devinit snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
   .get = snd_ensoniq_control_get, .put = snd_ensoniq_control_put, \
   .private_value = mask }
 
-static int snd_ensoniq_control_info(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_info *uinfo)
-{
-        uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-        uinfo->count = 1;
-        uinfo->value.integer.min = 0;
-        uinfo->value.integer.max = 1;
-        return 0;
-}
+#define snd_ensoniq_control_info	snd_ctl_boolean_mono_info
 
 static int snd_ensoniq_control_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)

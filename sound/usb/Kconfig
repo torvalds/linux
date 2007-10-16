@@ -40,6 +40,7 @@ config SND_USB_CAIAQ
 	   namely:
 
 	    * Native Instruments RigKontrol2
+	    * Native Instruments RigKontrol3
 	    * Native Instruments Kore Controller
 	    * Native Instruments Audio Kontrol 1
 	    * Native Instruments Audio 8 DJ
@@ -55,6 +56,7 @@ config SND_USB_CAIAQ_INPUT
 	  alpha dials and analog pedals on the following products:
 
 	   * Native Instruments RigKontrol2
+	   * Native Instruments RigKontrol3
 	   * Native Instruments Audio Kontrol 1
 
 endmenu

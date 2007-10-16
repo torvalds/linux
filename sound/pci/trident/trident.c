@@ -30,7 +30,7 @@
 #include <sound/trident.h>
 #include <sound/initval.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, <audio@tridentmicro.com>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, <audio@tridentmicro.com>");
 MODULE_DESCRIPTION("Trident 4D-WaveDX/NX & SiS SI7018");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Trident,4DWave DX},"

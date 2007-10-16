@@ -1,6 +1,6 @@
 /*
  *  OSS emulation layer for the mixer interface
- *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
+ *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,7 @@
 
 #define OSS_ALSAEMULVER         _SIOR ('M', 249, int)
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
+MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Mixer OSS emulation for ALSA.");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_MIXER);
