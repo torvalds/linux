@@ -620,9 +620,6 @@ static int ps3av_hdmi_get_id(struct ps3av_info_monitor *info)
 	u32 res_50, res_60;
 	int id;
 
-	if (info->monitor_type != PS3AV_MONITOR_TYPE_HDMI)
-		return 0;
-
 	/* check native resolution */
 	res_50 = info->res_50.native & PS3AV_RES_MASK_50;
 	res_60 = info->res_60.native & PS3AV_RES_MASK_60;
@@ -712,7 +709,7 @@ static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf,
 	struct ps3av_info_monitor *info;
 
 	/* get mode id for hdmi */
-	for (i = 0; i < av_hw_conf->num_of_hdmi; i++) {
+	for (i = 0; i < av_hw_conf->num_of_hdmi && !id; i++) {
 		res = ps3av_cmd_video_get_monitor_info(&monitor_info,
 						       PS3AV_CMD_AVPORT_HDMI_0 +
 						       i);
@@ -720,24 +717,19 @@ static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf,
 			return -1;
 
 		ps3av_monitor_info_dump(&monitor_info);
+
 		info = &monitor_info.info;
-		/* check DVI */
-		if (info->monitor_type == PS3AV_MONITOR_TYPE_DVI) {
+		switch (info->monitor_type) {
+		case PS3AV_MONITOR_TYPE_DVI:
 			dvi = PS3AV_MODE_DVI;
-			break;
-		}
-		/* check HDMI */
-		id = ps3av_hdmi_get_id(info);
-		if (id) {
-			/* got valid mode id */
+			/* fall through */
+		case PS3AV_MONITOR_TYPE_HDMI:
+			id = ps3av_hdmi_get_id(info);
 			break;
 		}
 	}
 
-	if (dvi) {
-		/* DVI mode */
-		id = PS3AV_DEFAULT_DVI_MODE_ID;
-	} else if (!id) {
+	if (!id) {
 		/* no HDMI interface or HDMI is off */
 		if (ps3av->region & PS3AV_REGION_60)
 			id = PS3AV_DEFAULT_AVMULTI_MODE_ID_REG_60;
