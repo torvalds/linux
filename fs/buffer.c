@@ -2189,25 +2189,6 @@ out:
 	return err;
 }
 
-int generic_cont_expand(struct inode *inode, loff_t size)
-{
-	unsigned int offset;
-
-	offset = (size & (PAGE_CACHE_SIZE - 1)); /* Within page */
-
-	/* ugh.  in prepare/commit_write, if from==to==start of block, we
-	 * skip the prepare.  make sure we never send an offset for the start
-	 * of a block.
-	 * XXX: actually, this should be handled in those filesystems by
-	 * checking for the AOP_FLAG_CONT_EXPAND flag.
-	 */
-	if ((offset & (inode->i_sb->s_blocksize - 1)) == 0) {
-		/* caller must handle this extra byte. */
-		size++;
-	}
-	return generic_cont_expand_simple(inode, size);
-}
-
 int cont_expand_zero(struct file *file, struct address_space *mapping,
 			loff_t pos, loff_t *bytes)
 {
@@ -3192,7 +3173,6 @@ EXPORT_SYMBOL(file_fsync);
 EXPORT_SYMBOL(fsync_bdev);
 EXPORT_SYMBOL(generic_block_bmap);
 EXPORT_SYMBOL(generic_commit_write);
-EXPORT_SYMBOL(generic_cont_expand);
 EXPORT_SYMBOL(generic_cont_expand_simple);
 EXPORT_SYMBOL(init_buffer);
 EXPORT_SYMBOL(invalidate_bdev);
