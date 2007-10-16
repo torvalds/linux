@@ -35,7 +35,8 @@ CONTENTS:
 ----------------------
 
 Cpusets provide a mechanism for assigning a set of CPUs and Memory
-Nodes to a set of tasks.
+Nodes to a set of tasks.   In this document "Memory Node" refers to
+an on-line node that contains memory.
 
 Cpusets constrain the CPU and Memory placement of tasks to only
 the resources within a tasks current cpuset.  They form a nested
@@ -220,8 +221,8 @@ and name space for cpusets, with a minimum of additional kernel code.
 The cpus and mems files in the root (top_cpuset) cpuset are
 read-only.  The cpus file automatically tracks the value of
 cpu_online_map using a CPU hotplug notifier, and the mems file
-automatically tracks the value of node_online_map using the
-cpuset_track_online_nodes() hook.
+automatically tracks the value of node_states[N_MEMORY]--i.e.,
+nodes with memory--using the cpuset_track_online_nodes() hook.
 
 
 1.4 What are exclusive cpusets ?
