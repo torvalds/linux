@@ -403,8 +403,13 @@ static int s3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	/* Find appropriate format */
 	rv = svga_match_format (s3fb_formats, var, NULL);
-	if ((rv < 0) || ((par->chip == CHIP_988_VIRGE_VX) ? (rv == 7) : (rv == 6)))
-	{		/* 24bpp on VIRGE VX, 32bpp on others */
+
+	/* 32bpp mode is not supported on VIRGE VX,
+	   24bpp is not supported on others */
+	if ((par->chip == CHIP_988_VIRGE_VX) ? (rv == 7) : (rv == 6))
+		rv = -EINVAL;
+
+	if (rv < 0) {
 		printk(KERN_ERR "fb%d: unsupported mode requested\n", info->node);
 		return rv;
 	}

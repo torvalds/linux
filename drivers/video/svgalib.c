@@ -598,9 +598,11 @@ void svga_set_timings(const struct svga_timing_regs *tm, struct fb_var_screeninf
 /* ------------------------------------------------------------------------- */
 
 
-int svga_match_format(const struct svga_fb_format *frm, struct fb_var_screeninfo *var, struct fb_fix_screeninfo *fix)
+static inline int match_format(const struct svga_fb_format *frm,
+			       struct fb_var_screeninfo *var)
 {
 	int i = 0;
+	int stored = -EINVAL;
 
 	while (frm->bits_per_pixel != SVGA_FORMAT_END_VAL)
 	{
@@ -609,25 +611,38 @@ int svga_match_format(const struct svga_fb_format *frm, struct fb_var_screeninfo
 		    (var->green.length   <= frm->green.length)   &&
 		    (var->blue.length    <= frm->blue.length)    &&
 		    (var->transp.length  <= frm->transp.length)  &&
-		    (var->nonstd	 == frm->nonstd)) {
-		    	var->bits_per_pixel = frm->bits_per_pixel;
-			var->red            = frm->red;
-			var->green          = frm->green;
-			var->blue           = frm->blue;
-			var->transp         = frm->transp;
-			var->nonstd         = frm->nonstd;
-			if (fix != NULL) {
-				fix->type      = frm->type;
-				fix->type_aux  = frm->type_aux;
-				fix->visual    = frm->visual;
-				fix->xpanstep  = frm->xpanstep;
-			}
+		    (var->nonstd	 == frm->nonstd))
 			return i;
-		}
+		if (var->bits_per_pixel == frm->bits_per_pixel)
+			stored = i;
 		i++;
 		frm++;
 	}
-	return -EINVAL;
+	return stored;
+}
+
+int svga_match_format(const struct svga_fb_format *frm,
+		      struct fb_var_screeninfo *var,
+		      struct fb_fix_screeninfo *fix)
+{
+	int i = match_format(frm, var);
+
+	if (i >= 0) {
+		var->bits_per_pixel = frm[i].bits_per_pixel;
+		var->red            = frm[i].red;
+		var->green          = frm[i].green;
+		var->blue           = frm[i].blue;
+		var->transp         = frm[i].transp;
+		var->nonstd         = frm[i].nonstd;
+		if (fix != NULL) {
+			fix->type      = frm[i].type;
+			fix->type_aux  = frm[i].type_aux;
+			fix->visual    = frm[i].visual;
+			fix->xpanstep  = frm[i].xpanstep;
+		}
+	}
+
+	return i;
 }
 
 
