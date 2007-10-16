@@ -1,4 +1,4 @@
-config AGP
+menuconfig AGP
 	tristate "/dev/agpgart (AGP Support)"
 	depends on ALPHA || IA64 || PARISC || PPC || X86
 	depends on PCI
