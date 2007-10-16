@@ -1,7 +1,10 @@
-/* 
- * Copyright (C) 2001 Jeff Dike (jdike@karaya.com)
+/*
+ * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
+
+#ifndef __DAEMON_H__
+#define __DAEMON_H__
 
 #include "net_user.h"
 
@@ -20,16 +23,7 @@ struct daemon_data {
 
 extern const struct net_user_info daemon_user_info;
 
-extern int daemon_user_write(int fd, void *buf, int len, 
+extern int daemon_user_write(int fd, void *buf, int len,
 			     struct daemon_data *pri);
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+#endif

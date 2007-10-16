@@ -1,16 +1,14 @@
 /*
- * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and 
+ * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
  * James Leu (jleu@mindspring.net).
+ * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright (C) 2001 by various other people who didn't put their name here.
  * Licensed under the GPL.
  */
 
-#include "linux/kernel.h"
 #include "linux/init.h"
-#include "linux/netdevice.h"
-#include "linux/etherdevice.h"
+#include <linux/netdevice.h>
 #include "net_kern.h"
-#include "net_user.h"
 #include "daemon.h"
 
 struct daemon_init {
@@ -36,25 +34,26 @@ static void daemon_init(struct net_device *dev, void *data)
 	dpri->data_addr = NULL;
 	dpri->local_addr = NULL;
 
-	printk("daemon backend (uml_switch version %d) - %s:%s", 
+	printk("daemon backend (uml_switch version %d) - %s:%s",
 	       SWITCH_VERSION, dpri->sock_type, dpri->ctl_sock);
 	printk("\n");
 }
 
-static int daemon_read(int fd, struct sk_buff **skb, 
+static int daemon_read(int fd, struct sk_buff **skb,
 		       struct uml_net_private *lp)
 {
 	*skb = ether_adjust_skb(*skb, ETH_HEADER_OTHER);
-	if(*skb == NULL) return(-ENOMEM);
-	return(net_recvfrom(fd, skb_mac_header(*skb),
-			    (*skb)->dev->mtu + ETH_HEADER_OTHER));
+	if (*skb == NULL)
+		return -ENOMEM;
+	return net_recvfrom(fd, skb_mac_header(*skb),
+			    (*skb)->dev->mtu + ETH_HEADER_OTHER);
 }
 
 static int daemon_write(int fd, struct sk_buff **skb,
 			struct uml_net_private *lp)
 {
-	return(daemon_user_write(fd, (*skb)->data, (*skb)->len, 
-				 (struct daemon_data *) &lp->user));
+	return daemon_user_write(fd, (*skb)->data, (*skb)->len,
+				 (struct daemon_data *) &lp->user);
 }
 
 static const struct net_kern_info daemon_kern_info = {
@@ -72,14 +71,14 @@ static int daemon_setup(char *str, char **mac_out, void *data)
 	*init = ((struct daemon_init)
 		{ .sock_type 		= "unix",
 		  .ctl_sock 		= "/tmp/uml.ctl" });
-	
+
 	remain = split_if_spec(str, mac_out, &init->sock_type, &init->ctl_sock,
 			       NULL);
-	if(remain != NULL)
+	if (remain != NULL)
 		printk(KERN_WARNING "daemon_setup : Ignoring data socket "
 		       "specification\n");
-	
-	return(1);
+
+	return 1;
 }
 
 static struct transport daemon_transport = {

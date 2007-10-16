@@ -1,13 +1,11 @@
 /*
- * Copyright (C) 2002 Jeff Dike <jdike@karaya.com>
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL.
  */
 
 #include "linux/init.h"
-#include "linux/netdevice.h"
-#include "linux/etherdevice.h"
+#include <linux/netdevice.h>
 #include "net_kern.h"
-#include "net_user.h"
 #include "pcap_user.h"
 
 struct pcap_init {
@@ -37,7 +35,7 @@ static int pcap_read(int fd, struct sk_buff **skb,
 		       struct uml_net_private *lp)
 {
 	*skb = ether_adjust_skb(*skb, ETH_HEADER_OTHER);
-	if(*skb == NULL)
+	if (*skb == NULL)
 		return -ENOMEM;
 
 	return pcap_user_read(fd, skb_mac_header(*skb),
@@ -71,28 +69,29 @@ int pcap_setup(char *str, char **mac_out, void *data)
 
 	remain = split_if_spec(str, &host_if, &init->filter,
 			       &options[0], &options[1], mac_out, NULL);
-	if(remain != NULL){
+	if (remain != NULL) {
 		printk(KERN_ERR "pcap_setup - Extra garbage on "
 		       "specification : '%s'\n", remain);
 		return 0;
 	}
 
-	if(host_if != NULL)
+	if (host_if != NULL)
 		init->host_if = host_if;
 
-	for(i = 0; i < ARRAY_SIZE(options); i++){
-		if(options[i] == NULL)
+	for (i = 0; i < ARRAY_SIZE(options); i++) {
+		if (options[i] == NULL)
 			continue;
-		if(!strcmp(options[i], "promisc"))
+		if (!strcmp(options[i], "promisc"))
 			init->promisc = 1;
-		else if(!strcmp(options[i], "nopromisc"))
+		else if (!strcmp(options[i], "nopromisc"))
 			init->promisc = 0;
-		else if(!strcmp(options[i], "optimize"))
+		else if (!strcmp(options[i], "optimize"))
 			init->optimize = 1;
-		else if(!strcmp(options[i], "nooptimize"))
+		else if (!strcmp(options[i], "nooptimize"))
 			init->optimize = 0;
 		else {
-			printk("pcap_setup : bad option - '%s'\n", options[i]);
+			printk(KERN_ERR "pcap_setup : bad option - '%s'\n",
+			       options[i]);
 			return 0;
 		}
 	}

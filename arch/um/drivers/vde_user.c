@@ -3,15 +3,13 @@
  * Licensed under the GPL.
  */
 
+#include <stddef.h>
 #include <errno.h>
-#include <unistd.h>
 #include <libvdeplug.h>
-#include "net_user.h"
-#include "kern_util.h"
 #include "kern_constants.h"
-#include "user.h"
-#include "os.h"
+#include "net_user.h"
 #include "um_malloc.h"
+#include "user.h"
 #include "vde.h"
 
 #define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)

@@ -7,10 +7,8 @@
  *
  */
 
-#include "linux/kernel.h"
 #include "linux/init.h"
-#include "linux/netdevice.h"
-#include "linux/etherdevice.h"
+#include <linux/netdevice.h>
 #include "net_kern.h"
 #include "net_user.h"
 #include "vde.h"
@@ -30,12 +28,12 @@ static void vde_init(struct net_device *dev, void *data)
 	vpri->conn = NULL;
 	vpri->dev = dev;
 
-	printk(KERN_INFO "vde backend - %s, ", vpri->vde_switch ?
+	printk("vde backend - %s, ", vpri->vde_switch ?
 	       vpri->vde_switch : "(default socket)");
 
 	vde_init_libstuff(vpri, init);
 
-	printk(KERN_INFO "\n");
+	printk("\n");
 }
 
 static int vde_read(int fd, struct sk_buff **skb, struct uml_net_private *lp)

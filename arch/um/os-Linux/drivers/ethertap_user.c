@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
  * James Leu (jleu@mindspring.net).
  * Copyright (C) 2001 by various other people who didn't put their name here.
@@ -7,20 +8,16 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <sys/errno.h>
+#include <errno.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <sys/un.h>
-#include <net/if.h>
-#include "user.h"
-#include "kern_util.h"
-#include "net_user.h"
 #include "etap.h"
-#include "os.h"
-#include "um_malloc.h"
 #include "kern_constants.h"
+#include "os.h"
+#include "net_user.h"
+#include "um_malloc.h"
+#include "user.h"
 
 #define MAX_PACKET ETH_MAX_PACKET
 
@@ -49,16 +46,18 @@ static void etap_change(int op, unsigned char *addr, unsigned char *netmask,
 	memcpy(change.addr, addr, sizeof(change.addr));
 	memcpy(change.netmask, netmask, sizeof(change.netmask));
 	CATCH_EINTR(n = write(fd, &change, sizeof(change)));
-	if(n != sizeof(change)){
-		printk("etap_change - request failed, err = %d\n", errno);
+	if (n != sizeof(change)) {
+		printk(UM_KERN_ERR "etap_change - request failed, err = %d\n",
+		       errno);
 		return;
 	}
 
 	output = kmalloc(UM_KERN_PAGE_SIZE, UM_GFP_KERNEL);
-	if(output == NULL)
-		printk("etap_change : Failed to allocate output buffer\n");
+	if (output == NULL)
+		printk(UM_KERN_ERR "etap_change : Failed to allocate output "
+		       "buffer\n");
 	read_output(fd, output, UM_KERN_PAGE_SIZE);
-	if(output != NULL){
+	if (output != NULL) {
 		printk("%s", output);
 		kfree(output);
 	}
@@ -107,7 +106,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 
 	sprintf(data_fd_buf, "%d", data_remote);
 	sprintf(version_buf, "%d", UML_NET_VERSION);
-	if(gate != NULL){
+	if (gate != NULL) {
 		strcpy(gate_buf, gate);
 		args = setup_args;
 	}
@@ -119,24 +118,26 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	pe_data.data_me = data_me;
 	pid = run_helper(etap_pre_exec, &pe_data, args);
 
-	if(pid < 0)
+	if (pid < 0)
 		err = pid;
 	close(data_remote);
 	close(control_remote);
 	CATCH_EINTR(n = read(control_me, &c, sizeof(c)));
-	if(n != sizeof(c)){
+	if (n != sizeof(c)) {
 		err = -errno;
-		printk("etap_tramp : read of status failed, err = %d\n", -err);
+		printk(UM_KERN_ERR "etap_tramp : read of status failed, "
+		       "err = %d\n", -err);
 		return err;
 	}
-	if(c != 1){
-		printk("etap_tramp : uml_net failed\n");
+	if (c != 1) {
+		printk(UM_KERN_ERR "etap_tramp : uml_net failed\n");
 		err = -EINVAL;
 		CATCH_EINTR(n = waitpid(pid, &status, 0));
-		if(n < 0)
+		if (n < 0)
 			err = -errno;
-		else if(!WIFEXITED(status) || (WEXITSTATUS(status) != 1))
-			printk("uml_net didn't exit with status 1\n");
+		else if (!WIFEXITED(status) || (WEXITSTATUS(status) != 1))
+			printk(UM_KERN_ERR "uml_net didn't exit with "
+			       "status 1\n");
 	}
 	return err;
 }
@@ -148,22 +149,22 @@ static int etap_open(void *data)
 	int data_fds[2], control_fds[2], err, output_len;
 
 	err = tap_open_common(pri->dev, pri->gate_addr);
-	if(err)
+	if (err)
 		return err;
 
 	err = socketpair(AF_UNIX, SOCK_DGRAM, 0, data_fds);
-	if(err){
+	if (err) {
 		err = -errno;
-		printk("etap_open - data socketpair failed - err = %d\n",
-		       errno);
+		printk(UM_KERN_ERR "etap_open - data socketpair failed - "
+		       "err = %d\n", errno);
 		return err;
 	}
 
 	err = socketpair(AF_UNIX, SOCK_STREAM, 0, control_fds);
-	if(err){
+	if (err) {
 		err = -errno;
-		printk("etap_open - control socketpair failed - err = %d\n",
-		       errno);
+		printk(UM_KERN_ERR "etap_open - control socketpair failed - "
+		       "err = %d\n", errno);
 		goto out_close_data;
 	}
 
@@ -173,15 +174,16 @@ static int etap_open(void *data)
 	output = kmalloc(output_len, UM_GFP_KERNEL);
 	read_output(control_fds[0], output, output_len);
 
-	if(output == NULL)
-		printk("etap_open : failed to allocate output buffer\n");
+	if (output == NULL)
+		printk(UM_KERN_ERR "etap_open : failed to allocate output "
+		       "buffer\n");
 	else {
 		printk("%s", output);
 		kfree(output);
 	}
 
-	if(err < 0){
-		printk("etap_tramp failed - err = %d\n", -err);
+	if (err < 0) {
+		printk(UM_KERN_ERR "etap_tramp failed - err = %d\n", -err);
 		goto out_close_control;
 	}
 
@@ -206,13 +208,13 @@ static void etap_close(int fd, void *data)
 	iter_addresses(pri->dev, etap_close_addr, &pri->control_fd);
 	close(fd);
 
-	if(shutdown(pri->data_fd, SHUT_RDWR) < 0)
-		printk("etap_close - shutdown data socket failed, errno = %d\n",
-		       errno);
-
-	if(shutdown(pri->control_fd, SHUT_RDWR) < 0)
-		printk("etap_close - shutdown control socket failed, "
+	if (shutdown(pri->data_fd, SHUT_RDWR) < 0)
+		printk(UM_KERN_ERR "etap_close - shutdown data socket failed, "
 		       "errno = %d\n", errno);
+
+	if (shutdown(pri->control_fd, SHUT_RDWR) < 0)
+		printk(UM_KERN_ERR "etap_close - shutdown control socket "
+		       "failed, errno = %d\n", errno);
 
 	close(pri->data_fd);
 	pri->data_fd = -1;
@@ -231,7 +233,7 @@ static void etap_add_addr(unsigned char *addr, unsigned char *netmask,
 	struct ethertap_data *pri = data;
 
 	tap_check_ips(pri->gate_addr, addr);
-	if(pri->control_fd == -1)
+	if (pri->control_fd == -1)
 		return;
 	etap_open_addr(addr, netmask, &pri->control_fd);
 }
@@ -241,7 +243,7 @@ static void etap_del_addr(unsigned char *addr, unsigned char *netmask,
 {
 	struct ethertap_data *pri = data;
 
-	if(pri->control_fd == -1)
+	if (pri->control_fd == -1)
 		return;
 
 	etap_close_addr(addr, netmask, &pri->control_fd);

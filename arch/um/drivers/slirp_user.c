@@ -1,18 +1,17 @@
-#include <stdio.h>
-#include <stdlib.h>
+/*
+ * Copyright (C) 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
+ * Licensed under the GPL.
+ */
+
 #include <unistd.h>
-#include <stddef.h>
-#include <sched.h>
-#include <string.h>
 #include <errno.h>
+#include <string.h>
 #include <sys/wait.h>
-#include <sys/signal.h>
-#include "kern_util.h"
-#include "user.h"
+#include "kern_constants.h"
 #include "net_user.h"
-#include "slirp.h"
-#include "slip_common.h"
 #include "os.h"
+#include "slirp.h"
+#include "user.h"
 
 static int slirp_user_init(void *data, void *dev)
 {
@@ -31,8 +30,10 @@ static void slirp_pre_exec(void *arg)
 {
 	struct slirp_pre_exec_data *data = arg;
 
-	if(data->stdin != -1) dup2(data->stdin, 0);
-	if(data->stdout != -1) dup2(data->stdout, 1);
+	if (data->stdin != -1)
+		dup2(data->stdin, 0);
+	if (data->stdout != -1)
+		dup2(data->stdout, 1);
 }
 
 static int slirp_tramp(char **argv, int fd)
@@ -44,7 +45,7 @@ static int slirp_tramp(char **argv, int fd)
 	pe_data.stdout = fd;
 	pid = run_helper(slirp_pre_exec, &pe_data, argv);
 
-	return(pid);
+	return pid;
 }
 
 static int slirp_open(void *data)
@@ -53,12 +54,12 @@ static int slirp_open(void *data)
 	int fds[2], pid, err;
 
 	err = os_pipe(fds, 1, 1);
-	if(err)
-		return(err);
+	if (err)
+		return err;
 
 	err = slirp_tramp(pri->argw.argv, fds[1]);
-	if(err < 0){
-		printk("slirp_tramp failed - errno = %d\n", -err);
+	if (err < 0) {
+		printk(UM_KERN_ERR "slirp_tramp failed - errno = %d\n", -err);
 		goto out;
 	}
 	pid = err;
@@ -68,10 +69,10 @@ static int slirp_open(void *data)
 	pri->slip.esc = 0;
 	pri->pid = err;
 
-	return(fds[0]);
+	return fds[0];
 out:
-	os_close_file(fds[0]);
-	os_close_file(fds[1]);
+	close(fds[0]);
+	close(fds[1]);
 	return err;
 }
 
@@ -80,31 +81,33 @@ static void slirp_close(int fd, void *data)
 	struct slirp_data *pri = data;
 	int status,err;
 
-	os_close_file(fd);
-	os_close_file(pri->slave);
+	close(fd);
+	close(pri->slave);
 
 	pri->slave = -1;
 
-	if(pri->pid<1) {
-		printk("slirp_close: no child process to shut down\n");
+	if (pri->pid<1) {
+		printk(UM_KERN_ERR "slirp_close: no child process to shut "
+		       "down\n");
 		return;
 	}
 
 #if 0
-	if(kill(pri->pid, SIGHUP)<0) {
-		printk("slirp_close: sending hangup to %d failed (%d)\n",
-			pri->pid, errno);
+	if (kill(pri->pid, SIGHUP)<0) {
+		printk(UM_KERN_ERR "slirp_close: sending hangup to %d failed "
+		       "(%d)\n", pri->pid, errno);
 	}
 #endif
 
 	CATCH_EINTR(err = waitpid(pri->pid, &status, WNOHANG));
-	if(err < 0) {
-		printk("slirp_close: waitpid returned %d\n", errno);
+	if (err < 0) {
+		printk(UM_KERN_ERR "slirp_close: waitpid returned %d\n", errno);
 		return;
 	}
 
-	if(err == 0) {
-		printk("slirp_close: process %d has not exited\n", pri->pid);
+	if (err == 0) {
+		printk(UM_KERN_ERR "slirp_close: process %d has not exited\n",
+		       pri->pid);
 		return;
 	}
 
@@ -123,7 +126,7 @@ int slirp_user_write(int fd, void *buf, int len, struct slirp_data *pri)
 
 static int slirp_set_mtu(int mtu, void *data)
 {
-	return(mtu);
+	return mtu;
 }
 
 const struct net_user_info slirp_user_info = {
