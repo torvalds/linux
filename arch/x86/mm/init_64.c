@@ -748,3 +748,48 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 		return "[vsyscall]";
 	return NULL;
 }
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+/*
+ * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
+ */
+int __meminit vmemmap_populate(struct page *start_page,
+						unsigned long size, int node)
+{
+	unsigned long addr = (unsigned long)start_page;
+	unsigned long end = (unsigned long)(start_page + size);
+	unsigned long next;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+
+	for (; addr < end; addr = next) {
+		next = pmd_addr_end(addr, end);
+
+		pgd = vmemmap_pgd_populate(addr, node);
+		if (!pgd)
+			return -ENOMEM;
+		pud = vmemmap_pud_populate(pgd, addr, node);
+		if (!pud)
+			return -ENOMEM;
+
+		pmd = pmd_offset(pud, addr);
+		if (pmd_none(*pmd)) {
+			pte_t entry;
+			void *p = vmemmap_alloc_block(PMD_SIZE, node);
+			if (!p)
+				return -ENOMEM;
+
+			entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL);
+			mk_pte_huge(entry);
+			set_pmd(pmd, __pmd(pte_val(entry)));
+
+			printk(KERN_DEBUG " [%lx-%lx] PMD ->%p on node %d\n",
+				addr, addr + PMD_SIZE - 1, p, node);
+		} else
+			vmemmap_verify((pte_t *)pmd, node, addr, next);
+	}
+
+	return 0;
+}
+#endif

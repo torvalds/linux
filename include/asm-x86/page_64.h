@@ -134,6 +134,7 @@ extern unsigned long __phys_addr(unsigned long);
 	 VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #define __HAVE_ARCH_GATE_AREA 1	
+#define vmemmap ((struct page *)VMEMMAP_START)
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
