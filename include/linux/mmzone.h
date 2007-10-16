@@ -748,7 +748,7 @@ extern struct zone *next_zone(struct zone *zone);
 #define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
 
 #define SECTION_BLOCKFLAGS_BITS \
-		((SECTION_SIZE_BITS - (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS)
+		((1 << (PFN_SECTION_SHIFT - (MAX_ORDER-1))) * NR_PAGEBLOCK_BITS)
 
 #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
 #error Allocator MAX_ORDER exceeds SECTION_SIZE
@@ -769,7 +769,9 @@ struct mem_section {
 	 * before using it wrong.
 	 */
 	unsigned long section_mem_map;
-	DECLARE_BITMAP(pageblock_flags, SECTION_BLOCKFLAGS_BITS);
+
+	/* See declaration of similar field in struct zone */
+	unsigned long *pageblock_flags;
 };
 
 #ifdef CONFIG_SPARSEMEM_EXTREME
