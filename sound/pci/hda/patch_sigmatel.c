@@ -183,8 +183,9 @@ static hda_nid_t stac925x_dac_nids[1] = {
         0x02,
 };
 
-static hda_nid_t stac925x_dmic_nids[1] = {
-	0x15, 
+#define STAC925X_NUM_DMICS	1
+static hda_nid_t stac925x_dmic_nids[STAC925X_NUM_DMICS + 1] = {
+	0x15, 0
 };
 
 static hda_nid_t stac922x_adc_nids[2] = {
@@ -211,8 +212,9 @@ static hda_nid_t stac9205_mux_nids[2] = {
         0x19, 0x1a
 };
 
-static hda_nid_t stac9205_dmic_nids[2] = {
-        0x17, 0x18,
+#define STAC9205_NUM_DMICS	2
+static hda_nid_t stac9205_dmic_nids[STAC9205_NUM_DMICS + 1] = {
+        0x17, 0x18, 0
 };
 
 static hda_nid_t stac9200_pin_nids[8] = {
@@ -2569,7 +2571,7 @@ static int patch_stac925x(struct hda_codec *codec)
 	case 0x83847633: /* STAC9202D */
 	case 0x83847636: /* STAC9251  */
 	case 0x83847637: /* STAC9251D */
-		spec->num_dmics = 1;
+		spec->num_dmics = STAC925X_NUM_DMICS;
 		spec->dmic_nids = stac925x_dmic_nids;
 		break;
 	default:
@@ -2819,7 +2821,7 @@ static int patch_stac9205(struct hda_codec *codec)
 	spec->mux_nids = stac9205_mux_nids;
 	spec->num_muxes = ARRAY_SIZE(stac9205_mux_nids);
 	spec->dmic_nids = stac9205_dmic_nids;
-	spec->num_dmics = ARRAY_SIZE(stac9205_dmic_nids);
+	spec->num_dmics = STAC9205_NUM_DMICS;
 	spec->dmux_nid = 0x1d;
 
 	spec->init = stac9205_core_init;
