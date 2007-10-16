@@ -72,17 +72,9 @@ enum ehca_mr_pgsize {
 
 static u32 ehca_encode_hwpage_size(u32 pgsize)
 {
-	u32 idx = 0;
-	pgsize >>= 12;
-	/*
-	 * map mr page size into hw code:
-	 * 0, 1, 2, 3 for 4K, 64K, 1M, 64M
-	 */
-	while (!(pgsize & 1)) {
-		idx++;
-		pgsize >>= 4;
-	}
-	return idx;
+	int log = ilog2(pgsize);
+	WARN_ON(log < 12 || log > 24 || log & 3);
+	return (log - 12) / 4;
 }
 
 static u64 ehca_get_max_hwpage_size(struct ehca_shca *shca)
@@ -826,6 +818,7 @@ struct ib_fmr *ehca_alloc_fmr(struct ib_pd *pd,
 
 	/* register MR on HCA */
 	memset(&pginfo, 0, sizeof(pginfo));
+	pginfo.hwpage_size = hw_pgsize;
 	/*
 	 * pginfo.num_hwpages==0, ie register_rpages() will not be called
 	 * but deferred to map_phys_fmr()
