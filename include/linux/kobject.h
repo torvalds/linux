@@ -202,24 +202,6 @@ extern struct kset kernel_subsys;
 /* The global /sys/hypervisor/ subsystem  */
 extern struct kset hypervisor_subsys;
 
-/*
- * Helpers for setting the kset of registered objects.
- * Often, a registered object belongs to a kset embedded in a 
- * subsystem. These do no magic, just make the resulting code
- * easier to follow. 
- */
-
-/**
- *	kobj_set_kset_s(obj,subsys) - set kset for embedded kobject.
- *	@obj:		ptr to some object type.
- *	@subsys:	a subsystem object (not a ptr).
- *
- *	Can be used for any object type with an embedded ->kobj.
- */
-
-#define kobj_set_kset_s(obj,subsys) \
-	(obj)->kobj.kset = &(subsys)
-
 extern int __must_check subsystem_register(struct kset *);
 extern void subsystem_unregister(struct kset *);
 
