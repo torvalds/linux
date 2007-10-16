@@ -847,14 +847,24 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 	case VT_RESIZE:
 	{
 		struct vt_sizes __user *vtsizes = up;
+		struct vc_data *vc;
+
 		ushort ll,cc;
 		if (!perm)
 			return -EPERM;
 		if (get_user(ll, &vtsizes->v_rows) ||
 		    get_user(cc, &vtsizes->v_cols))
 			return -EFAULT;
-		for (i = 0; i < MAX_NR_CONSOLES; i++)
-			vc_lock_resize(vc_cons[i].d, cc, ll);
+
+		for (i = 0; i < MAX_NR_CONSOLES; i++) {
+			vc = vc_cons[i].d;
+
+			if (vc) {
+				vc->vc_resize_user = 1;
+				vc_lock_resize(vc_cons[i].d, cc, ll);
+			}
+		}
+
 		return 0;
 	}
 
@@ -900,6 +910,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 				vc_cons[i].d->vc_scan_lines = vlin;
 			if (clin)
 				vc_cons[i].d->vc_font.height = clin;
+			vc_cons[i].d->vc_resize_user = 1;
 			vc_resize(vc_cons[i].d, cc, ll);
 			release_console_sem();
 		}

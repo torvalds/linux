@@ -2168,7 +2168,7 @@ static __inline__ void updatescrollmode(struct display *p,
 }
 
 static int fbcon_resize(struct vc_data *vc, unsigned int width, 
-			unsigned int height)
+			unsigned int height, unsigned int user)
 {
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct fbcon_ops *ops = info->fbcon_par;

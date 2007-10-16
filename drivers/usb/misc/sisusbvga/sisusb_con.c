@@ -1042,7 +1042,8 @@ sisusbcon_set_origin(struct vc_data *c)
 
 /* Interface routine */
 static int
-sisusbcon_resize(struct vc_data *c, unsigned int newcols, unsigned int newrows)
+sisusbcon_resize(struct vc_data *c, unsigned int newcols, unsigned int newrows,
+		 unsigned int user)
 {
 	struct sisusb_usb_data *sisusb;
 	int fh;

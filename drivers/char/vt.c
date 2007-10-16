@@ -750,13 +750,15 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	return 0;
 }
 
-static inline int resize_screen(struct vc_data *vc, int width, int height)
+static inline int resize_screen(struct vc_data *vc, int width, int height,
+				int user)
 {
 	/* Resizes the resolution of the display adapater */
 	int err = 0;
 
 	if (vc->vc_mode != KD_GRAPHICS && vc->vc_sw->con_resize)
-		err = vc->vc_sw->con_resize(vc, width, height);
+		err = vc->vc_sw->con_resize(vc, width, height, user);
+
 	return err;
 }
 
@@ -772,13 +774,16 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
 	unsigned int old_cols, old_rows, old_row_size, old_screen_size;
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
-	unsigned int end;
+	unsigned int end, user;
 	unsigned short *newscreen;
 
 	WARN_CONSOLE_UNLOCKED();
 
 	if (!vc)
 		return -ENXIO;
+
+	user = vc->vc_resize_user;
+	vc->vc_resize_user = 0;
 
 	if (cols > VC_RESIZE_MAXCOL || lines > VC_RESIZE_MAXROW)
 		return -EINVAL;
@@ -800,7 +805,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	old_row_size = vc->vc_size_row;
 	old_screen_size = vc->vc_screenbuf_size;
 
-	err = resize_screen(vc, new_cols, new_rows);
+	err = resize_screen(vc, new_cols, new_rows, user);
 	if (err) {
 		kfree(newscreen);
 		return err;

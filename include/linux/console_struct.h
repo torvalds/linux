@@ -100,6 +100,7 @@ struct vc_data {
 	unsigned char 	vc_G1_charset;
 	unsigned char 	vc_saved_G0;
 	unsigned char 	vc_saved_G1;
+	unsigned int    vc_resize_user;         /* resize request from user */
 	unsigned int	vc_bell_pitch;		/* Console bell pitch */
 	unsigned int	vc_bell_duration;	/* Console bell duration */
 	struct vc_data **vc_display_fg;		/* [!] Ptr to var holding fg console for this display */

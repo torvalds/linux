@@ -1278,13 +1278,14 @@ static int vgacon_font_get(struct vc_data *c, struct console_font *font)
 #endif
 
 static int vgacon_resize(struct vc_data *c, unsigned int width,
-				unsigned int height)
+			 unsigned int height, unsigned int user)
 {
 	if (width % 2 || width > ORIG_VIDEO_COLS ||
 	    height > (ORIG_VIDEO_LINES * vga_default_font_height)/
 	    c->vc_font.height)
-		/* let svgatextmode tinker with video timings */
-		return 0;
+		/* let svgatextmode tinker with video timings and
+		   return success */
+		return (user) ? 0 : -EINVAL;
 
 	if (CON_IS_VISIBLE(c) && !vga_is_gfx) /* who knows */
 		vgacon_doresize(c, width, height);

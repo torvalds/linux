@@ -45,7 +45,8 @@ struct consw {
 	int	(*con_font_get)(struct vc_data *, struct console_font *);
 	int	(*con_font_default)(struct vc_data *, struct console_font *, char *);
 	int	(*con_font_copy)(struct vc_data *, int);
-	int	(*con_resize)(struct vc_data *, unsigned int, unsigned int);
+	int     (*con_resize)(struct vc_data *, unsigned int, unsigned int,
+			       unsigned int);
 	int	(*con_set_palette)(struct vc_data *, unsigned char *);
 	int	(*con_scrolldelta)(struct vc_data *, int);
 	int	(*con_set_origin)(struct vc_data *);
