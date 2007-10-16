@@ -1,37 +1,19 @@
 /*
- * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  * Derived (i.e. mostly copied) from arch/i386/kernel/irq.c:
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  */
 
-#include "linux/kernel.h"
-#include "linux/module.h"
-#include "linux/smp.h"
-#include "linux/kernel_stat.h"
-#include "linux/interrupt.h"
-#include "linux/random.h"
-#include "linux/slab.h"
-#include "linux/file.h"
-#include "linux/proc_fs.h"
-#include "linux/init.h"
-#include "linux/seq_file.h"
-#include "linux/profile.h"
+#include "linux/cpumask.h"
 #include "linux/hardirq.h"
-#include "asm/irq.h"
-#include "asm/hw_irq.h"
-#include "asm/atomic.h"
-#include "asm/signal.h"
-#include "asm/system.h"
-#include "asm/errno.h"
-#include "asm/uaccess.h"
-#include "kern_util.h"
-#include "irq_user.h"
-#include "irq_kern.h"
-#include "os.h"
-#include "sigio.h"
-#include "misc_constants.h"
+#include "linux/interrupt.h"
+#include "linux/kernel_stat.h"
+#include "linux/module.h"
+#include "linux/seq_file.h"
 #include "as-layout.h"
+#include "kern_util.h"
+#include "os.h"
 
 /*
  * Generic, controller-independent functions:
@@ -71,9 +53,8 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 skip:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
+	} else if (i == NR_IRQS)
 		seq_putc(p, '\n');
-	}
 
 	return 0;
 }
@@ -102,11 +83,13 @@ void sigio_handler(int sig, struct uml_pt_regs *regs)
 	while (1) {
 		n = os_waiting_for_events(active_fds);
 		if (n <= 0) {
-			if(n == -EINTR) continue;
+			if (n == -EINTR)
+				continue;
 			else break;
 		}
 
-		for (irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next) {
+		for (irq_fd = active_fds; irq_fd != NULL;
+		     irq_fd = irq_fd->next) {
 			if (irq_fd->current_events != 0) {
 				irq_fd->current_events = 0;
 				do_IRQ(irq_fd->irq, regs);
@@ -138,8 +121,7 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 
 	if (type == IRQ_READ)
 		events = UM_POLLIN | UM_POLLPRI;
-	else
-		events = UM_POLLOUT;
+	else events = UM_POLLOUT;
 	*new_fd = ((struct irq_fd) { .next  		= NULL,
 				     .id 		= dev_id,
 				     .fd 		= fd,
@@ -153,9 +135,10 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 	spin_lock_irqsave(&irq_lock, flags);
 	for (irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next) {
 		if ((irq_fd->fd == fd) && (irq_fd->type == type)) {
-			printk("Registering fd %d twice\n", fd);
-			printk("Irqs : %d, %d\n", irq_fd->irq, irq);
-			printk("Ids : 0x%p, 0x%p\n", irq_fd->id, dev_id);
+			printk(KERN_ERR "Registering fd %d twice\n", fd);
+			printk(KERN_ERR "Irqs : %d, %d\n", irq_fd->irq, irq);
+			printk(KERN_ERR "Ids : 0x%p, 0x%p\n", irq_fd->id,
+			       dev_id);
 			goto out_unlock;
 		}
 	}
@@ -171,7 +154,8 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 		if (n == 0)
 			break;
 
-		/* n > 0
+		/*
+		 * n > 0
 		 * It means we couldn't put new pollfd to current pollfds
 		 * and tmp_fds is NULL or too small for new pollfds array.
 		 * Needed size is equal to n as minimum.
@@ -197,7 +181,8 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 
 	spin_unlock_irqrestore(&irq_lock, flags);
 
-	/* This calls activate_fd, so it has to be outside the critical
+	/*
+	 * This calls activate_fd, so it has to be outside the critical
 	 * section.
 	 */
 	maybe_sigio_broken(fd, (type == IRQ_READ));
@@ -264,13 +249,14 @@ static struct irq_fd *find_irq_by_fd(int fd, int irqnum, int *index_out)
 		i++;
 	}
 	if (irq == NULL) {
-		printk("find_irq_by_fd doesn't have descriptor %d\n", fd);
+		printk(KERN_ERR "find_irq_by_fd doesn't have descriptor %d\n",
+		       fd);
 		goto out;
 	}
 	fdi = os_get_pollfd(i);
 	if ((fdi != -1) && (fdi != fd)) {
-		printk("find_irq_by_fd - mismatch between active_fds and "
-		       "pollfds, fd %d vs %d, need %d\n", irq->fd,
+		printk(KERN_ERR "find_irq_by_fd - mismatch between active_fds "
+		       "and pollfds, fd %d vs %d, need %d\n", irq->fd,
 		       fdi, fd);
 		irq = NULL;
 		goto out;
@@ -306,7 +292,7 @@ void deactivate_fd(int fd, int irqnum)
 
 	spin_lock_irqsave(&irq_lock, flags);
 	irq = find_irq_by_fd(fd, irqnum, &i);
-	if(irq == NULL){
+	if (irq == NULL) {
 		spin_unlock_irqrestore(&irq_lock, flags);
 		return;
 	}
@@ -372,8 +358,10 @@ int um_request_irq(unsigned int irq, int fd, int type,
 EXPORT_SYMBOL(um_request_irq);
 EXPORT_SYMBOL(reactivate_fd);
 
-/* hw_interrupt_type must define (startup || enable) &&
- * (shutdown || disable) && end */
+/*
+ * hw_interrupt_type must define (startup || enable) &&
+ * (shutdown || disable) && end
+ */
 static void dummy(unsigned int irq)
 {
 }
@@ -422,7 +410,8 @@ int init_aio_irq(int irq, char *name, irq_handler_t handler)
 
 	err = os_pipe(fds, 1, 1);
 	if (err) {
-		printk("init_aio_irq - os_pipe failed, err = %d\n", -err);
+		printk(KERN_ERR "init_aio_irq - os_pipe failed, err = %d\n",
+		       -err);
 		goto out;
 	}
 
@@ -430,7 +419,8 @@ int init_aio_irq(int irq, char *name, irq_handler_t handler)
 			     IRQF_DISABLED | IRQF_SAMPLE_RANDOM, name,
 			     (void *) (long) fds[0]);
 	if (err) {
-		printk("init_aio_irq - : um_request_irq failed, err = %d\n",
+		printk(KERN_ERR "init_aio_irq - : um_request_irq failed, "
+		       "err = %d\n",
 		       err);
 		goto out_close;
 	}
@@ -501,8 +491,9 @@ unsigned long to_irq_stack(unsigned long *mask_out)
 	int nested;
 
 	mask = xchg(&pending_mask, *mask_out);
-	if(mask != 0){
-		/* If any interrupts come in at this point, we want to
+	if (mask != 0) {
+		/*
+		 * If any interrupts come in at this point, we want to
 		 * make sure that their bits aren't lost by our
 		 * putting our bit in.  So, this loop accumulates bits
 		 * until xchg returns the same value that we put in.
@@ -514,13 +505,13 @@ unsigned long to_irq_stack(unsigned long *mask_out)
 		do {
 			old |= mask;
 			mask = xchg(&pending_mask, old);
-		} while(mask != old);
+		} while (mask != old);
 		return 1;
 	}
 
 	ti = current_thread_info();
 	nested = (ti->real_thread != NULL);
-	if(!nested){
+	if (!nested) {
 		struct task_struct *task;
 		struct thread_info *tti;
 

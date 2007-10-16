@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -17,11 +17,14 @@ struct task_struct;
 struct mm_struct;
 
 struct thread_struct {
-	/* This flag is set to 1 before calling do_fork (and analyzed in
+	struct task_struct *saved_task;
+	/*
+	 * This flag is set to 1 before calling do_fork (and analyzed in
 	 * copy_thread) to mark that we are begin called from userspace (fork /
 	 * vfork / clone), and reset to 0 after. It is left to 0 when called
-	 * from kernelspace (i.e. kernel_thread() or fork_idle(), as of 2.6.11). */
-	struct task_struct *saved_task;
+	 * from kernelspace (i.e. kernel_thread() or fork_idle(),
+	 * as of 2.6.11).
+	 */
 	int forking;
 	int nsyscalls;
 	struct pt_regs regs;
@@ -56,7 +59,7 @@ struct thread_struct {
 { \
 	.forking		= 0, \
 	.nsyscalls		= 0, \
-        .regs		   	= EMPTY_REGS, \
+	.regs		   	= EMPTY_REGS,	\
 	.fault_addr		= NULL, \
 	.prev_sched		= NULL, \
 	.temp_stack		= 0, \

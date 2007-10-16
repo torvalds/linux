@@ -1,20 +1,18 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #ifndef __OS_H__
 #define __OS_H__
 
-#include "uml-config.h"
-#include "asm/types.h"
-#include "../os/include/file.h"
-#include "sysdep/ptrace.h"
-#include "kern_util.h"
-#include "skas/mm_id.h"
+#include <stdarg.h>
 #include "irq_user.h"
+#include "kern_util.h"
+#include "longjmp.h"
+#include "mm_id.h"
 #include "sysdep/tls.h"
-#include "sysdep/archsetjmp.h"
+#include "../os/include/file.h"
 
 #define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
 
@@ -140,7 +138,7 @@ extern int os_set_slip(int fd);
 extern int os_set_owner(int fd, int pid);
 extern int os_mode_fd(int fd, int mode);
 
-extern int os_seek_file(int fd, __u64 offset);
+extern int os_seek_file(int fd, unsigned long long offset);
 extern int os_open_file(char *file, struct openflags flags, int mode);
 extern int os_read_file(int fd, void *buf, int len);
 extern int os_write_file(int fd, const void *buf, int count);

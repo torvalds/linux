@@ -1,39 +1,22 @@
 /*
- * Copyright (C) 2000, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/kernel.h"
-#include "linux/sched.h"
-#include "linux/notifier.h"
-#include "linux/mm.h"
-#include "linux/types.h"
-#include "linux/tty.h"
-#include "linux/init.h"
-#include "linux/bootmem.h"
-#include "linux/spinlock.h"
-#include "linux/utsname.h"
-#include "linux/sysrq.h"
-#include "linux/seq_file.h"
 #include "linux/delay.h"
+#include "linux/mm.h"
 #include "linux/module.h"
+#include "linux/seq_file.h"
+#include "linux/string.h"
 #include "linux/utsname.h"
-#include "asm/page.h"
 #include "asm/pgtable.h"
-#include "asm/ptrace.h"
-#include "asm/elf.h"
-#include "asm/user.h"
+#include "asm/processor.h"
 #include "asm/setup.h"
-#include "ubd_user.h"
-#include "asm/current.h"
-#include "kern_util.h"
-#include "as-layout.h"
 #include "arch.h"
+#include "as-layout.h"
+#include "init.h"
 #include "kern.h"
 #include "mem_user.h"
-#include "mem.h"
-#include "initrd.h"
-#include "init.h"
 #include "os.h"
 #include "skas.h"
 
@@ -48,7 +31,7 @@ static void __init add_arg(char *arg)
 		printf("add_arg: Too many command line arguments!\n");
 		exit(1);
 	}
-	if(strlen(command_line) > 0)
+	if (strlen(command_line) > 0)
 		strcat(command_line, " ");
 	strcat(command_line, arg);
 }
@@ -133,7 +116,7 @@ static int have_root __initdata = 0;
 /* Set in uml_mem_setup and modified in linux_main */
 long long physmem_size = 32 * 1024 * 1024;
 
-static char *usage_string = 
+static char *usage_string =
 "User Mode Linux v%s\n"
 "	available at http://user-mode-linux.sourceforge.net/\n\n";
 
@@ -191,7 +174,7 @@ static int __init uml_ncpus_setup(char *line, int *add)
 
 __uml_setup("ncpus=", uml_ncpus_setup,
 "ncpus=<# of desired CPUs>\n"
-"    This tells an SMP kernel how many virtual processors to start.\n\n" 
+"    This tells an SMP kernel how many virtual processors to start.\n\n"
 );
 #endif
 
@@ -223,9 +206,8 @@ static int __init uml_checksetup(char *line, int *add)
 		int n;
 
 		n = strlen(p->str);
-		if(!strncmp(line, p->str, n)){
-			if (p->setup_func(line + n, add)) return 1;
-		}
+		if (!strncmp(line, p->str, n) && p->setup_func(line + n, add))
+			return 1;
 		p++;
 	}
 	return 0;
@@ -236,7 +218,7 @@ static void __init uml_postsetup(void)
 	initcall_t *p;
 
 	p = &__uml_postsetup_start;
-	while(p < &__uml_postsetup_end){
+	while(p < &__uml_postsetup_end) {
 		(*p)();
 		p++;
 	}
@@ -272,16 +254,18 @@ int __init linux_main(int argc, char **argv)
 	unsigned int i, add;
 	char * mode;
 
-	for (i = 1; i < argc; i++){
-		if((i == 1) && (argv[i][0] == ' ')) continue;
+	for (i = 1; i < argc; i++) {
+		if ((i == 1) && (argv[i][0] == ' '))
+			continue;
 		add = 1;
 		uml_checksetup(argv[i], &add);
 		if (add)
 			add_arg(argv[i]);
 	}
-	if(have_root == 0)
+	if (have_root == 0)
 		add_arg(DEFAULT_COMMAND_LINE);
 
+	/* OS sanity checks that need to happen before the kernel runs */
 	os_early_checks();
 
 	can_do_skas();
@@ -302,12 +286,14 @@ int __init linux_main(int argc, char **argv)
 
 	brk_start = (unsigned long) sbrk(0);
 
-	/* Increase physical memory size for exec-shield users
-	so they actually get what they asked for. This should
-	add zero for non-exec shield users */
+	/*
+	 * Increase physical memory size for exec-shield users
+	 * so they actually get what they asked for. This should
+	 * add zero for non-exec shield users
+	 */
 
 	diff = UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
-	if(diff > 1024 * 1024){
+	if (diff > 1024 * 1024) {
 		printf("Adding %ld bytes to physical memory to account for "
 		       "exec-shield gap\n", diff);
 		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
@@ -324,11 +310,12 @@ int __init linux_main(int argc, char **argv)
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
 	max_physmem = get_kmem_end() - uml_physmem - iomem_size - MIN_VMALLOC;
 
-	/* Zones have to begin on a 1 << MAX_ORDER page boundary,
+	/*
+	 * Zones have to begin on a 1 << MAX_ORDER page boundary,
 	 * so this makes sure that's true for highmem
 	 */
 	max_physmem &= ~((1 << (PAGE_SHIFT + MAX_ORDER)) - 1);
-	if(physmem_size + iomem_size > max_physmem){
+	if (physmem_size + iomem_size > max_physmem) {
 		highmem = physmem_size + iomem_size - max_physmem;
 		physmem_size -= highmem;
 #ifndef CONFIG_HIGHMEM
@@ -345,7 +332,7 @@ int __init linux_main(int argc, char **argv)
 	start_vm = VMALLOC_START;
 
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
-	if(init_maps(physmem_size, iomem_size, highmem)){
+	if (init_maps(physmem_size, iomem_size, highmem)) {
 		printf("Failed to allocate mem_map for %Lu bytes of physical "
 		       "memory and %Lu bytes of highmem\n", physmem_size,
 		       highmem);
@@ -354,10 +341,11 @@ int __init linux_main(int argc, char **argv)
 
 	virtmem_size = physmem_size;
 	avail = get_kmem_end() - start_vm;
-	if(physmem_size > avail) virtmem_size = avail;
+	if (physmem_size > avail)
+		virtmem_size = avail;
 	end_vm = start_vm + virtmem_size;
 
-	if(virtmem_size < physmem_size)
+	if (virtmem_size < physmem_size)
 		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
 

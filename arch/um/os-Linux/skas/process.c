@@ -1,48 +1,38 @@
 /*
- * Copyright (C) 2002- 2004 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2002- 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <signal.h>
 #include <sched.h>
-#include "ptrace_user.h"
-#include <sys/wait.h>
+#include <errno.h>
+#include <string.h>
 #include <sys/mman.h>
-#include <sys/user.h>
-#include <sys/time.h>
-#include <sys/syscall.h>
-#include <asm/types.h>
-#include "user.h"
-#include "sysdep/ptrace.h"
-#include "kern_util.h"
-#include "skas.h"
-#include "stub-data.h"
-#include "mm_id.h"
-#include "sysdep/sigcontext.h"
-#include "sysdep/stub.h"
-#include "os.h"
-#include "proc_mm.h"
-#include "skas_ptrace.h"
-#include "chan_user.h"
-#include "registers.h"
-#include "mem.h"
-#include "uml-config.h"
-#include "process.h"
-#include "longjmp.h"
-#include "kern_constants.h"
+#include <sys/ptrace.h>
+#include <sys/wait.h>
+#include <asm/unistd.h>
 #include "as-layout.h"
+#include "chan_user.h"
+#include "kern_constants.h"
+#include "mem.h"
+#include "os.h"
+#include "process.h"
+#include "proc_mm.h"
+#include "ptrace_user.h"
+#include "registers.h"
+#include "skas.h"
+#include "skas_ptrace.h"
+#include "user.h"
+#include "sysdep/stub.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {
-	if(pid != os_getpgrp())
-		return(0);
+	if (pid != os_getpgrp())
+		return 0;
 
 	register_winch_irq(-1, fd, -1, data, 0);
-	return(1);
+	return 1;
 }
 
 static int ptrace_dump_regs(int pid)
@@ -50,13 +40,12 @@ static int ptrace_dump_regs(int pid)
         unsigned long regs[MAX_REG_NR];
         int i;
 
-        if(ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
+        if (ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
                 return -errno;
-        else {
-                printk("Stub registers -\n");
-                for(i = 0; i < ARRAY_SIZE(regs); i++)
-                        printk("\t%d - %lx\n", i, regs[i]);
-        }
+
+	printk(UM_KERN_ERR "Stub registers -\n");
+	for (i = 0; i < ARRAY_SIZE(regs); i++)
+		printk(UM_KERN_ERR "\t%d - %lx\n", i, regs[i]);
 
         return 0;
 }
@@ -74,27 +63,28 @@ void wait_stub_done(int pid)
 {
 	int n, status, err;
 
-	while(1){
+	while (1) {
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
-		if((n < 0) || !WIFSTOPPED(status))
+		if ((n < 0) || !WIFSTOPPED(status))
 			goto bad_wait;
 
-		if(((1 << WSTOPSIG(status)) & STUB_SIG_MASK) == 0)
+		if (((1 << WSTOPSIG(status)) & STUB_SIG_MASK) == 0)
 			break;
 
 		err = ptrace(PTRACE_CONT, pid, 0, 0);
-		if(err)
+		if (err)
 			panic("wait_stub_done : continue failed, errno = %d\n",
 			      errno);
 	}
 
-	if(((1 << WSTOPSIG(status)) & STUB_DONE_MASK) != 0)
+	if (((1 << WSTOPSIG(status)) & STUB_DONE_MASK) != 0)
 		return;
 
 bad_wait:
 	err = ptrace_dump_regs(pid);
-	if(err)
-		printk("Failed to get registers from stub, errno = %d\n", -err);
+	if (err)
+		printk(UM_KERN_ERR "Failed to get registers from stub, "
+		       "errno = %d\n", -err);
 	panic("wait_stub_done : failed to wait for SIGUSR1/SIGTRAP, pid = %d, "
 	      "n = %d, errno = %d, status = 0x%x\n", pid, n, errno, status);
 }
@@ -105,9 +95,9 @@ void get_skas_faultinfo(int pid, struct faultinfo * fi)
 {
 	int err;
 
-	if(ptrace_faultinfo){
+	if (ptrace_faultinfo) {
 		err = ptrace(PTRACE_FAULTINFO, pid, 0, fi);
-		if(err)
+		if (err)
 			panic("get_skas_faultinfo - PTRACE_FAULTINFO failed, "
 			      "errno = %d\n", errno);
 
@@ -119,12 +109,13 @@ void get_skas_faultinfo(int pid, struct faultinfo * fi)
 	}
 	else {
 		err = ptrace(PTRACE_CONT, pid, 0, SIGSEGV);
-		if(err)
+		if (err)
 			panic("Failed to continue stub, pid = %d, errno = %d\n",
 			      pid, errno);
 		wait_stub_done(pid);
 
-		/* faultinfo is prepared by the stub-segv-handler at start of
+		/*
+		 * faultinfo is prepared by the stub-segv-handler at start of
 		 * the stub stack page. We just have to copy it.
 		 */
 		memcpy(fi, (void *)current_stub_stack(), sizeof(*fi));
@@ -137,8 +128,12 @@ static void handle_segv(int pid, struct uml_pt_regs * regs)
 	segv(regs->faultinfo, 0, 1, NULL);
 }
 
-/*To use the same value of using_sysemu as the caller, ask it that value (in local_using_sysemu)*/
-static void handle_trap(int pid, struct uml_pt_regs *regs, int local_using_sysemu)
+/*
+ * To use the same value of using_sysemu as the caller, ask it that value
+ * (in local_using_sysemu
+ */
+static void handle_trap(int pid, struct uml_pt_regs *regs,
+			int local_using_sysemu)
 {
 	int err, status;
 
@@ -149,22 +144,22 @@ static void handle_trap(int pid, struct uml_pt_regs *regs, int local_using_sysem
 	{
 		err = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_NR_OFFSET,
 			     __NR_getpid);
-		if(err < 0)
-			panic("handle_trap - nullifying syscall failed errno = %d\n",
-			      errno);
-
-		err = ptrace(PTRACE_SYSCALL, pid, 0, 0);
-		if(err < 0)
-			panic("handle_trap - continuing to end of syscall failed, "
+		if (err < 0)
+			panic("handle_trap - nullifying syscall failed, "
 			      "errno = %d\n", errno);
 
+		err = ptrace(PTRACE_SYSCALL, pid, 0, 0);
+		if (err < 0)
+			panic("handle_trap - continuing to end of syscall "
+			      "failed, errno = %d\n", errno);
+
 		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED));
-		if((err < 0) || !WIFSTOPPED(status) ||
-		   (WSTOPSIG(status) != SIGTRAP + 0x80)){
+		if ((err < 0) || !WIFSTOPPED(status) ||
+		   (WSTOPSIG(status) != SIGTRAP + 0x80)) {
                         err = ptrace_dump_regs(pid);
-                        if(err)
-                                printk("Failed to get registers from process, "
-                                       "errno = %d\n", -err);
+                        if (err)
+                                printk(UM_KERN_ERR "Failed to get registers "
+				       "from process, errno = %d\n", -err);
 			panic("handle_trap - failed to wait at end of syscall, "
 			      "errno = %d, status = %d\n", errno, status);
                 }
@@ -184,38 +179,39 @@ static int userspace_tramp(void *stack)
 
 	init_new_thread_signals();
 	err = set_interval(1);
-	if(err)
+	if (err)
 		panic("userspace_tramp - setting timer failed, errno = %d\n",
 		      err);
 
-	if(!proc_mm){
-		/* This has a pte, but it can't be mapped in with the usual
+	if (!proc_mm) {
+		/*
+		 * This has a pte, but it can't be mapped in with the usual
 		 * tlb_flush mechanism because this is part of that mechanism
 		 */
 		int fd;
-		__u64 offset;
+		unsigned long long offset;
 		fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
 		addr = mmap64((void *) UML_CONFIG_STUB_CODE, UM_KERN_PAGE_SIZE,
 			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
-		if(addr == MAP_FAILED){
-			printk("mapping mmap stub failed, errno = %d\n",
-			       errno);
+		if (addr == MAP_FAILED) {
+			printk(UM_KERN_ERR "mapping mmap stub failed, "
+			       "errno = %d\n", errno);
 			exit(1);
 		}
 
-		if(stack != NULL){
+		if (stack != NULL) {
 			fd = phys_mapping(to_phys(stack), &offset);
 			addr = mmap((void *) UML_CONFIG_STUB_DATA,
 				    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 				    MAP_FIXED | MAP_SHARED, fd, offset);
-			if(addr == MAP_FAILED){
-				printk("mapping segfault stack failed, "
-				       "errno = %d\n", errno);
+			if (addr == MAP_FAILED) {
+				printk(UM_KERN_ERR "mapping segfault stack "
+				       "failed, errno = %d\n", errno);
 				exit(1);
 			}
 		}
 	}
-	if(!ptrace_faultinfo && (stack != NULL)){
+	if (!ptrace_faultinfo && (stack != NULL)) {
 		struct sigaction sa;
 
 		unsigned long v = UML_CONFIG_STUB_CODE +
@@ -232,13 +228,13 @@ static int userspace_tramp(void *stack)
 		sa.sa_flags = SA_ONSTACK;
 		sa.sa_handler = (void *) v;
 		sa.sa_restorer = NULL;
-		if(sigaction(SIGSEGV, &sa, NULL) < 0)
+		if (sigaction(SIGSEGV, &sa, NULL) < 0)
 			panic("userspace_tramp - setting SIGSEGV handler "
 			      "failed - errno = %d\n", errno);
 	}
 
 	os_stop_process(os_getpid());
-	return(0);
+	return 0;
 }
 
 /* Each element set once, and only accessed by a single processor anyway */
@@ -255,35 +251,38 @@ int start_userspace(unsigned long stub_stack)
 	stack = mmap(NULL, UM_KERN_PAGE_SIZE,
 		     PROT_READ | PROT_WRITE | PROT_EXEC,
 		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if(stack == MAP_FAILED)
+	if (stack == MAP_FAILED)
 		panic("start_userspace : mmap failed, errno = %d", errno);
 	sp = (unsigned long) stack + UM_KERN_PAGE_SIZE - sizeof(void *);
 
 	flags = CLONE_FILES | SIGCHLD;
-	if(proc_mm) flags |= CLONE_VM;
+	if (proc_mm)
+		flags |= CLONE_VM;
+
 	pid = clone(userspace_tramp, (void *) sp, flags, (void *) stub_stack);
-	if(pid < 0)
+	if (pid < 0)
 		panic("start_userspace : clone failed, errno = %d", errno);
 
 	do {
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
-		if(n < 0)
+		if (n < 0)
 			panic("start_userspace : wait failed, errno = %d",
 			      errno);
-	} while(WIFSTOPPED(status) && (WSTOPSIG(status) == SIGVTALRM));
+	} while (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGVTALRM));
 
-	if(!WIFSTOPPED(status) || (WSTOPSIG(status) != SIGSTOP))
+	if (!WIFSTOPPED(status) || (WSTOPSIG(status) != SIGSTOP))
 		panic("start_userspace : expected SIGSTOP, got status = %d",
 		      status);
 
-	if (ptrace(PTRACE_OLDSETOPTIONS, pid, NULL, (void *)PTRACE_O_TRACESYSGOOD) < 0)
-		panic("start_userspace : PTRACE_OLDSETOPTIONS failed, errno=%d\n",
-		      errno);
+	if (ptrace(PTRACE_OLDSETOPTIONS, pid, NULL,
+		   (void *) PTRACE_O_TRACESYSGOOD) < 0)
+		panic("start_userspace : PTRACE_OLDSETOPTIONS failed, "
+		      "errno = %d\n", errno);
 
-	if(munmap(stack, UM_KERN_PAGE_SIZE) < 0)
+	if (munmap(stack, UM_KERN_PAGE_SIZE) < 0)
 		panic("start_userspace : munmap failed, errno = %d\n", errno);
 
-	return(pid);
+	return pid;
 }
 
 void userspace(struct uml_pt_regs *regs)
@@ -292,7 +291,7 @@ void userspace(struct uml_pt_regs *regs)
 	/* To prevent races if using_sysemu changes under us.*/
 	int local_using_sysemu;
 
-	while(1){
+	while (1) {
 		restore_registers(pid, regs);
 
 		/* Now we set local_using_sysemu to be used for one loop */
@@ -302,13 +301,13 @@ void userspace(struct uml_pt_regs *regs)
 					     singlestepping(NULL));
 
 		err = ptrace(op, pid, 0, 0);
-		if(err)
+		if (err)
 			panic("userspace - could not resume userspace process, "
 			      "pid=%d, ptrace operation = %d, errno = %d\n",
 			      pid, op, errno);
 
 		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED));
-		if(err < 0)
+		if (err < 0)
 			panic("userspace - waitpid failed, errno = %d\n",
 			      errno);
 
@@ -316,12 +315,14 @@ void userspace(struct uml_pt_regs *regs)
 		save_registers(pid, regs);
 		UPT_SYSCALL_NR(regs) = -1; /* Assume: It's not a syscall */
 
-		if(WIFSTOPPED(status)){
+		if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
-		  	switch(sig){
+		  	switch(sig) {
 			case SIGSEGV:
-				if(PTRACE_FULL_FAULTINFO || !ptrace_faultinfo){
-					get_skas_faultinfo(pid, &regs->faultinfo);
+				if (PTRACE_FULL_FAULTINFO ||
+				    !ptrace_faultinfo) {
+					get_skas_faultinfo(pid,
+							   &regs->faultinfo);
 					(*sig_info[SIGSEGV])(SIGSEGV, regs);
 				}
 				else handle_segv(pid, regs);
@@ -343,14 +344,14 @@ void userspace(struct uml_pt_regs *regs)
 				unblock_signals();
 				break;
 			default:
-			        printk("userspace - child stopped with signal "
-				       "%d\n", sig);
+			        printk(UM_KERN_ERR "userspace - child stopped "
+				       "with signal %d\n", sig);
 			}
 			pid = userspace_pid[0];
 			interrupt_end();
 
 			/* Avoid -ERESTARTSYS handling in host */
-			if(PT_SYSCALL_NR_OFFSET != PT_SYSCALL_RET_OFFSET)
+			if (PT_SYSCALL_NR_OFFSET != PT_SYSCALL_RET_OFFSET)
 				PT_SYSCALL_NR(regs->regs) = -1;
 		}
 	}
@@ -384,7 +385,8 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	__u64 new_offset;
 	int new_fd = phys_mapping(to_phys((void *)new_stack), &new_offset);
 
-	/* prepare offset and fd of child's stack as argument for parent's
+	/*
+	 * prepare offset and fd of child's stack as argument for parent's
 	 * and child's mmap2 calls
 	 */
 	*data = ((struct stub_data) { .offset	= MMAP_OFFSET(new_offset),
@@ -393,28 +395,30 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 					            { { 0, 1000000 / hz() },
 						      { 0, 1000000 / hz() }})});
 	err = ptrace_setregs(pid, thread_regs);
-	if(err < 0)
+	if (err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
 		      "pid = %d, errno = %d\n", pid, -err);
 
 	/* set a well known return code for detection of child write failure */
 	child_data->err = 12345678;
 
-	/* Wait, until parent has finished its work: read child's pid from
+	/*
+	 * Wait, until parent has finished its work: read child's pid from
 	 * parent's stack, and check, if bad result.
 	 */
 	err = ptrace(PTRACE_CONT, pid, 0, 0);
-	if(err)
+	if (err)
 		panic("Failed to continue new process, pid = %d, "
 		      "errno = %d\n", pid, errno);
 	wait_stub_done(pid);
 
 	pid = data->err;
-	if(pid < 0)
+	if (pid < 0)
 		panic("copy_context_skas0 - stub-parent reports error %d\n",
 		      -pid);
 
-	/* Wait, until child has finished too: read child's result from
+	/*
+	 * Wait, until child has finished too: read child's result from
 	 * child's stack and check it.
 	 */
 	wait_stub_done(pid);
@@ -455,15 +459,16 @@ void map_stub_pages(int fd, unsigned long code,
 					  .offset  = code_offset
 	} } });
 	CATCH_EINTR(n = write(fd, &mmop, sizeof(mmop)));
-	if(n != sizeof(mmop)){
+	if (n != sizeof(mmop)) {
 		n = errno;
-		printk("mmap args - addr = 0x%lx, fd = %d, offset = %llx\n",
-		       code, code_fd, (unsigned long long) code_offset);
+		printk(UM_KERN_ERR "mmap args - addr = 0x%lx, fd = %d, "
+		       "offset = %llx\n", code, code_fd,
+		       (unsigned long long) code_offset);
 		panic("map_stub_pages : /proc/mm map for code failed, "
 		      "err = %d\n", n);
 	}
 
-	if ( stack ) {
+	if (stack) {
 		__u64 map_offset;
 		int map_fd = phys_mapping(to_phys((void *)stack), &map_offset);
 		mmop = ((struct proc_mm_op)
@@ -478,7 +483,7 @@ void map_stub_pages(int fd, unsigned long code,
 				      .offset  = map_offset
 		} } });
 		CATCH_EINTR(n = write(fd, &mmop, sizeof(mmop)));
-		if(n != sizeof(mmop))
+		if (n != sizeof(mmop))
 			panic("map_stub_pages : /proc/mm map for data failed, "
 			      "err = %d\n", errno);
 	}
@@ -498,7 +503,7 @@ void new_thread(void *stack, jmp_buf *buf, void (*handler)(void))
 
 void switch_threads(jmp_buf *me, jmp_buf *you)
 {
-	if(UML_SETJMP(me) == 0)
+	if (UML_SETJMP(me) == 0)
 		UML_LONGJMP(you, 1);
 }
 
@@ -526,7 +531,7 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 	 * after returning to the jumper.
 	 */
 	n = setjmp(initial_jmpbuf);
-	switch(n){
+	switch(n) {
 	case INIT_JMP_NEW_THREAD:
 		(*switch_buf)[0].JB_IP = (unsigned long) new_thread_handler;
 		(*switch_buf)[0].JB_SP = (unsigned long) stack +
@@ -538,10 +543,10 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 		break;
 	case INIT_JMP_HALT:
 		kmalloc_ok = 0;
-		return(0);
+		return 0;
 	case INIT_JMP_REBOOT:
 		kmalloc_ok = 0;
-		return(1);
+		return 1;
 	default:
 		panic("Bad sigsetjmp return in start_idle_thread - %d\n", n);
 	}
@@ -557,7 +562,7 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 	cb_back = &here;
 
 	block_signals();
-	if(UML_SETJMP(&here) == 0)
+	if (UML_SETJMP(&here) == 0)
 		UML_LONGJMP(&initial_jmpbuf, INIT_JMP_CALLBACK);
 	unblock_signals();
 
@@ -583,10 +588,10 @@ void __switch_mm(struct mm_id *mm_idp)
 	int err;
 
 	/* FIXME: need cpu pid in __switch_mm */
-	if(proc_mm){
+	if (proc_mm) {
 		err = ptrace(PTRACE_SWITCH_MM, userspace_pid[0], 0,
 			     mm_idp->u.mm_fd);
-		if(err)
+		if (err)
 			panic("__switch_mm - PTRACE_SWITCH_MM failed, "
 			      "errno = %d\n", errno);
 	}

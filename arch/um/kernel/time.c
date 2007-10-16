@@ -1,28 +1,19 @@
 /*
- * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/kernel.h"
-#include "linux/module.h"
-#include "linux/unistd.h"
-#include "linux/stddef.h"
-#include "linux/spinlock.h"
-#include "linux/time.h"
-#include "linux/sched.h"
 #include "linux/interrupt.h"
-#include "linux/init.h"
-#include "linux/delay.h"
-#include "linux/hrtimer.h"
+#include "linux/jiffies.h"
+#include "linux/threads.h"
 #include "asm/irq.h"
 #include "asm/param.h"
-#include "asm/current.h"
 #include "kern_util.h"
 #include "os.h"
 
 int hz(void)
 {
-	return(HZ);
+	return HZ;
 }
 
 /*
@@ -43,7 +34,7 @@ void timer_irq(struct uml_pt_regs *regs)
 	unsigned long long ticks = 0;
 #ifdef CONFIG_UML_REAL_TIME_CLOCK
 	int c = cpu();
-	if(prev_nsecs[c]){
+	if (prev_nsecs[c]) {
 		/* We've had 1 tick */
 		unsigned long long nsecs = os_nsecs();
 
@@ -51,7 +42,7 @@ void timer_irq(struct uml_pt_regs *regs)
 		prev_nsecs[c] = nsecs;
 
 		/* Protect against the host clock being set backwards */
-		if(delta[c] < 0)
+		if (delta[c] < 0)
 			delta[c] = 0;
 
 		ticks += (delta[c] * HZ) / BILLION;
@@ -61,7 +52,7 @@ void timer_irq(struct uml_pt_regs *regs)
 #else
 	ticks = 1;
 #endif
-	while(ticks > 0){
+	while (ticks > 0) {
 		do_IRQ(TIMER_IRQ, regs);
 		ticks--;
 	}
@@ -112,12 +103,12 @@ static void register_timer(void)
 	int err;
 
 	err = request_irq(TIMER_IRQ, um_timer, IRQF_DISABLED, "timer", NULL);
-	if(err != 0)
+	if (err != 0)
 		printk(KERN_ERR "register_timer : request_irq failed - "
 		       "errno = %d\n", -err);
 
 	err = set_interval(1);
-	if(err != 0)
+	if (err != 0)
 		printk(KERN_ERR "register_timer : set_interval failed - "
 		       "errno = %d\n", -err);
 }
@@ -144,7 +135,8 @@ void do_gettimeofday(struct timeval *tv)
 		xtime.tv_nsec;
 #endif
 	tv->tv_sec = nsecs / NSEC_PER_SEC;
-	/* Careful about calculations here - this was originally done as
+	/*
+	 * Careful about calculations here - this was originally done as
 	 * (nsecs - tv->tv_sec * NSEC_PER_SEC) / NSEC_PER_USEC
 	 * which gave bogus (> 1000000) values.  Dunno why, suspect gcc
 	 * (4.0.0) miscompiled it, or there's a subtle 64/32-bit conversion
@@ -176,7 +168,7 @@ int do_settimeofday(struct timespec *tv)
 
 void timer_handler(int sig, struct uml_pt_regs *regs)
 {
-	if(current_thread->cpu == 0)
+	if (current_thread->cpu == 0)
 		timer_irq(regs);
 	local_irq_disable();
 	irq_enter();

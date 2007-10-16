@@ -1,12 +1,11 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #ifndef __SKAS_H
 #define __SKAS_H
 
-#include "mm_id.h"
 #include "sysdep/ptrace.h"
 
 extern int userspace_pid[];

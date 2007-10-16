@@ -1,13 +1,11 @@
 /*
- * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include <stdlib.h>
 #include <signal.h>
-#include "kern_util.h"
 #include "os.h"
-#include "longjmp.h"
+#include "sysdep/ptrace.h"
 
 /* Initialized from linux_main() */
 void (*sig_info[NSIG])(int, struct uml_pt_regs *);

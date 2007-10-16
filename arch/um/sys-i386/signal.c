@@ -1,17 +1,13 @@
 /*
- * Copyright (C) 2004 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2004 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/signal.h"
 #include "linux/ptrace.h"
-#include "asm/current.h"
-#include "asm/ucontext.h"
-#include "asm/uaccess.h"
 #include "asm/unistd.h"
+#include "asm/uaccess.h"
+#include "asm/ucontext.h"
 #include "frame_kern.h"
-#include "sigcontext.h"
-#include "registers.h"
 #include "skas.h"
 
 void copy_sc(struct uml_pt_regs *regs, void *from)
@@ -39,21 +35,21 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 static int copy_sc_from_user(struct pt_regs *regs,
 			     struct sigcontext __user *from)
 {
-  	struct sigcontext sc;
+ 	struct sigcontext sc;
 	unsigned long fpregs[HOST_FP_SIZE];
 	int err;
 
 	err = copy_from_user(&sc, from, sizeof(sc));
 	err |= copy_from_user(fpregs, sc.fpstate, sizeof(fpregs));
-	if(err)
+	if (err)
 		return err;
 
 	copy_sc(&regs->regs, &sc);
 
 	err = restore_fp_registers(userspace_pid[0], fpregs);
-	if(err < 0) {
-	  	printk("copy_sc_from_user_skas - PTRACE_SETFPREGS failed, "
-		       "errno = %d\n", -err);
+	if (err < 0) {
+	  	printk(KERN_ERR "copy_sc_from_user_skas - PTRACE_SETFPREGS "
+		       "failed, errno = %d\n", -err);
 		return err;
 	}
 
@@ -64,7 +60,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 			   struct _fpstate __user *to_fp, struct pt_regs *regs,
 			   unsigned long sp)
 {
-  	struct sigcontext sc;
+	struct sigcontext sc;
 	unsigned long fpregs[HOST_FP_SIZE];
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err;
@@ -86,28 +82,29 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	sc.eflags = REGS_EFLAGS(regs->regs.regs);
 	sc.esp_at_signal = regs->regs.regs[UESP];
 	sc.ss = regs->regs.regs[SS];
-        sc.cr2 = fi->cr2;
-        sc.err = fi->error_code;
-        sc.trapno = fi->trap_no;
+	sc.cr2 = fi->cr2;
+	sc.err = fi->error_code;
+	sc.trapno = fi->trap_no;
 
 	err = save_fp_registers(userspace_pid[0], fpregs);
-	if(err < 0){
-	  	printk("copy_sc_to_user_skas - PTRACE_GETFPREGS failed, "
-		       "errno = %d\n", err);
+	if (err < 0) {
+	  	printk(KERN_ERR "copy_sc_to_user_skas - PTRACE_GETFPREGS "
+		       "failed, errno = %d\n", err);
 		return 1;
 	}
 	to_fp = (to_fp ? to_fp : (struct _fpstate __user *) (to + 1));
 	sc.fpstate = to_fp;
 
-	if(err)
+	if (err)
 	  	return err;
 
 	return copy_to_user(to, &sc, sizeof(sc)) ||
 	       copy_to_user(to_fp, fpregs, sizeof(fpregs));
 }
 
-static int copy_ucontext_to_user(struct ucontext __user *uc, struct _fpstate __user *fp,
-				 sigset_t *set, unsigned long sp)
+static int copy_ucontext_to_user(struct ucontext __user *uc,
+				 struct _fpstate __user *fp, sigset_t *set,
+				 unsigned long sp)
 {
 	int err = 0;
 
@@ -157,7 +154,7 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 		return 1;
 
 	restorer = frame->retcode;
-	if(ka->sa.sa_flags & SA_RESTORER)
+	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
 
 	/* Update SP now because the page fault handler refuses to extend
@@ -189,7 +186,7 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 	err |= __put_user(__NR_sigreturn, (int __user *)(frame->retcode+2));
 	err |= __put_user(0x80cd, (short __user *)(frame->retcode+6));
 
-	if(err)
+	if (err)
 		goto err;
 
 	PT_REGS_SP(regs) = (unsigned long) frame;
@@ -222,7 +219,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 		return 1;
 
 	restorer = frame->retcode;
-	if(ka->sa.sa_flags & SA_RESTORER)
+	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
 
 	/* See comment above about why this is here */
@@ -247,7 +244,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	err |= __put_user(__NR_rt_sigreturn, (int __user *)(frame->retcode+1));
 	err |= __put_user(0x80cd, (short __user *)(frame->retcode+5));
 
-	if(err)
+	if (err)
 		goto err;
 
 	PT_REGS_IP(regs) = (unsigned long) ka->sa.sa_handler;
@@ -274,8 +271,8 @@ long sys_sigreturn(struct pt_regs regs)
 	unsigned long __user *extramask = frame->extramask;
 	int sig_size = (_NSIG_WORDS - 1) * sizeof(unsigned long);
 
-	if(copy_from_user(&set.sig[0], oldmask, sizeof(set.sig[0])) ||
-	   copy_from_user(&set.sig[1], extramask, sig_size))
+	if (copy_from_user(&set.sig[0], oldmask, sizeof(set.sig[0])) ||
+	    copy_from_user(&set.sig[1], extramask, sig_size))
 		goto segfault;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -285,7 +282,7 @@ long sys_sigreturn(struct pt_regs regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if(copy_sc_from_user(&current->thread.regs, sc))
+	if (copy_sc_from_user(&current->thread.regs, sc))
 		goto segfault;
 
 	/* Avoid ERESTART handling */
@@ -300,12 +297,13 @@ long sys_sigreturn(struct pt_regs regs)
 long sys_rt_sigreturn(struct pt_regs regs)
 {
 	unsigned long sp = PT_REGS_SP(&current->thread.regs);
-	struct rt_sigframe __user *frame = (struct rt_sigframe __user *) (sp - 4);
+	struct rt_sigframe __user *frame =
+		(struct rt_sigframe __user *) (sp - 4);
 	sigset_t set;
 	struct ucontext __user *uc = &frame->uc;
 	int sig_size = _NSIG_WORDS * sizeof(unsigned long);
 
-	if(copy_from_user(&set, &uc->uc_sigmask, sig_size))
+	if (copy_from_user(&set, &uc->uc_sigmask, sig_size))
 		goto segfault;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -315,7 +313,7 @@ long sys_rt_sigreturn(struct pt_regs regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if(copy_sc_from_user(&current->thread.regs, &uc->uc_mcontext))
+	if (copy_sc_from_user(&current->thread.regs, &uc->uc_mcontext))
 		goto segfault;
 
 	/* Avoid ERESTART handling */

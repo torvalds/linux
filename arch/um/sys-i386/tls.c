@@ -3,19 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/kernel.h"
+#include "linux/percpu.h"
 #include "linux/sched.h"
-#include "linux/slab.h"
-#include "linux/types.h"
 #include "asm/uaccess.h"
-#include "asm/ptrace.h"
-#include "asm/segment.h"
-#include "asm/smp.h"
-#include "asm/desc.h"
-#include "kern.h"
-#include "kern_util.h"
 #include "os.h"
 #include "skas.h"
+#include "sysdep/tls.h"
 
 /*
  * If needed we can detect when it's uninitialized.
@@ -74,7 +67,8 @@ static inline void clear_user_desc(struct user_desc* info)
 	/* Postcondition: LDT_empty(info) returns true. */
 	memset(info, 0, sizeof(*info));
 
-	/* Check the LDT_empty or the i386 sys_get_thread_area code - we obtain
+	/*
+	 * Check the LDT_empty or the i386 sys_get_thread_area code - we obtain
 	 * indeed an empty user_desc.
 	 */
 	info->read_exec_only = 1;
@@ -89,10 +83,13 @@ static int load_TLS(int flags, struct task_struct *to)
 	int idx;
 
 	for (idx = GDT_ENTRY_TLS_MIN; idx < GDT_ENTRY_TLS_MAX; idx++) {
-		struct uml_tls_struct* curr = &to->thread.arch.tls_array[idx - GDT_ENTRY_TLS_MIN];
+		struct uml_tls_struct* curr =
+			&to->thread.arch.tls_array[idx - GDT_ENTRY_TLS_MIN];
 
-		/* Actually, now if it wasn't flushed it gets cleared and
-		 * flushed to the host, which will clear it.*/
+		/*
+		 * Actually, now if it wasn't flushed it gets cleared and
+		 * flushed to the host, which will clear it.
+		 */
 		if (!curr->present) {
 			if (!curr->flushed) {
 				clear_user_desc(&curr->tls);
@@ -116,7 +113,8 @@ out:
 	return ret;
 }
 
-/* Verify if we need to do a flush for the new process, i.e. if there are any
+/*
+ * Verify if we need to do a flush for the new process, i.e. if there are any
  * present desc's, only if they haven't been flushed.
  */
 static inline int needs_TLS_update(struct task_struct *task)
@@ -125,10 +123,13 @@ static inline int needs_TLS_update(struct task_struct *task)
 	int ret = 0;
 
 	for (i = GDT_ENTRY_TLS_MIN; i < GDT_ENTRY_TLS_MAX; i++) {
-		struct uml_tls_struct* curr = &task->thread.arch.tls_array[i - GDT_ENTRY_TLS_MIN];
+		struct uml_tls_struct* curr =
+			&task->thread.arch.tls_array[i - GDT_ENTRY_TLS_MIN];
 
-		/* Can't test curr->present, we may need to clear a descriptor
-		 * which had a value. */
+		/*
+		 * Can't test curr->present, we may need to clear a descriptor
+		 * which had a value.
+		 */
 		if (curr->flushed)
 			continue;
 		ret = 1;
@@ -137,7 +138,8 @@ static inline int needs_TLS_update(struct task_struct *task)
 	return ret;
 }
 
-/* On a newly forked process, the TLS descriptors haven't yet been flushed. So
+/*
+ * On a newly forked process, the TLS descriptors haven't yet been flushed. So
  * we mark them as such and the first switch_to will do the job.
  */
 void clear_flushed_tls(struct task_struct *task)
@@ -145,10 +147,13 @@ void clear_flushed_tls(struct task_struct *task)
 	int i;
 
 	for (i = GDT_ENTRY_TLS_MIN; i < GDT_ENTRY_TLS_MAX; i++) {
-		struct uml_tls_struct* curr = &task->thread.arch.tls_array[i - GDT_ENTRY_TLS_MIN];
+		struct uml_tls_struct* curr =
+			&task->thread.arch.tls_array[i - GDT_ENTRY_TLS_MIN];
 
-		/* Still correct to do this, if it wasn't present on the host it
-		 * will remain as flushed as it was. */
+		/*
+		 * Still correct to do this, if it wasn't present on the host it
+		 * will remain as flushed as it was.
+		 */
 		if (!curr->present)
 			continue;
 
@@ -156,23 +161,27 @@ void clear_flushed_tls(struct task_struct *task)
 	}
 }
 
-/* In SKAS0 mode, currently, multiple guest threads sharing the same ->mm have a
+/*
+ * In SKAS0 mode, currently, multiple guest threads sharing the same ->mm have a
  * common host process. So this is needed in SKAS0 too.
  *
  * However, if each thread had a different host process (and this was discussed
  * for SMP support) this won't be needed.
  *
  * And this will not need be used when (and if) we'll add support to the host
- * SKAS patch. */
+ * SKAS patch.
+ */
 
 int arch_switch_tls(struct task_struct *from, struct task_struct *to)
 {
 	if (!host_supports_tls)
 		return 0;
 
-	/* We have no need whatsoever to switch TLS for kernel threads; beyond
+	/*
+	 * We have no need whatsoever to switch TLS for kernel threads; beyond
 	 * that, that would also result in us calling os_set_thread_area with
-	 * userspace_pid[cpu] == 0, which gives an error. */
+	 * userspace_pid[cpu] == 0, which gives an error.
+	 */
 	if (likely(to->mm))
 		return load_TLS(O_FORCE, to);
 
@@ -232,17 +241,20 @@ static int get_tls_entry(struct task_struct* task, struct user_desc *info, int i
 	*info = t->arch.tls_array[idx - GDT_ENTRY_TLS_MIN].tls;
 
 out:
-	/* Temporary debugging check, to make sure that things have been
+	/*
+	 * Temporary debugging check, to make sure that things have been
 	 * flushed. This could be triggered if load_TLS() failed.
 	 */
-	if (unlikely(task == current && !t->arch.tls_array[idx - GDT_ENTRY_TLS_MIN].flushed)) {
+	if (unlikely(task == current &&
+		     !t->arch.tls_array[idx - GDT_ENTRY_TLS_MIN].flushed)) {
 		printk(KERN_ERR "get_tls_entry: task with pid %d got here "
 				"without flushed TLS.", current->pid);
 	}
 
 	return 0;
 clear:
-	/* When the TLS entry has not been set, the values read to user in the
+	/*
+	 * When the TLS entry has not been set, the values read to user in the
 	 * tls_array are 0 (because it's cleared at boot, see
 	 * arch/i386/kernel/head.S:cpu_gdt_table). Emulate that.
 	 */
@@ -344,8 +356,10 @@ out:
 }
 
 
-/* XXX: This part is probably common to i386 and x86-64. Don't create a common
- * file for now, do that when implementing x86-64 support.*/
+/*
+ * XXX: This part is probably common to i386 and x86-64. Don't create a common
+ * file for now, do that when implementing x86-64 support.
+ */
 static int __init __setup_host_supports_tls(void)
 {
 	check_host_supports_tls(&host_supports_tls, &host_gdt_entry_tls_min);

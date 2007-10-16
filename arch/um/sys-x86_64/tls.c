@@ -13,5 +13,5 @@ int arch_copy_tls(struct task_struct *t)
 	 */
 	t->thread.arch.fs = t->thread.regs.regs.regs[R8 / sizeof(long)];
 
-        return 0;
+	return 0;
 }

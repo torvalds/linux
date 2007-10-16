@@ -1,18 +1,11 @@
-/* 
- * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+/*
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include <linux/compiler.h>
-#include "linux/sched.h"
 #include "linux/mm.h"
-#include "asm/elf.h"
-#include "asm/ptrace.h"
+#include "linux/sched.h"
 #include "asm/uaccess.h"
-#include "asm/unistd.h"
-#include "sysdep/ptrace.h"
-#include "sysdep/sigcontext.h"
-#include "sysdep/sc.h"
 
 extern int arch_switch_tls(struct task_struct *from, struct task_struct *to);
 
@@ -23,7 +16,8 @@ void arch_switch_to(struct task_struct *from, struct task_struct *to)
 		return;
 
 	if (err != -EINVAL)
-		printk(KERN_WARNING "arch_switch_tls failed, errno %d, not EINVAL\n", -err);
+		printk(KERN_WARNING "arch_switch_tls failed, errno %d, "
+		       "not EINVAL\n", -err);
 	else
 		printk(KERN_WARNING "arch_switch_tls failed, errno = EINVAL\n");
 }
@@ -34,21 +28,21 @@ int is_syscall(unsigned long addr)
 	int n;
 
 	n = copy_from_user(&instr, (void __user *) addr, sizeof(instr));
-	if(n){
+	if (n) {
 		/* access_process_vm() grants access to vsyscall and stub,
 		 * while copy_from_user doesn't. Maybe access_process_vm is
 		 * slow, but that doesn't matter, since it will be called only
 		 * in case of singlestepping, if copy_from_user failed.
 		 */
 		n = access_process_vm(current, addr, &instr, sizeof(instr), 0);
-		if(n != sizeof(instr)) {
-			printk("is_syscall : failed to read instruction from "
-			       "0x%lx\n", addr);
-			return(1);
+		if (n != sizeof(instr)) {
+			printk(KERN_ERR "is_syscall : failed to read "
+			       "instruction from 0x%lx\n", addr);
+			return 1;
 		}
 	}
 	/* int 0x80 or sysenter */
-	return((instr == 0x80cd) || (instr == 0x340f));
+	return (instr == 0x80cd) || (instr == 0x340f);
 }
 
 /* determines which flags the user has access to. */
@@ -92,21 +86,21 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 
 int poke_user(struct task_struct *child, long addr, long data)
 {
-        if ((addr & 3) || addr < 0)
-                return -EIO;
+	if ((addr & 3) || addr < 0)
+		return -EIO;
 
-        if (addr < MAX_REG_OFFSET)
-                return putreg(child, addr, data);
-
-        else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-                (addr <= offsetof(struct user, u_debugreg[7]))){
-                addr -= offsetof(struct user, u_debugreg[0]);
-                addr = addr >> 2;
-                if((addr == 4) || (addr == 5)) return -EIO;
-                child->thread.arch.debugregs[addr] = data;
-                return 0;
-        }
-        return -EIO;
+	if (addr < MAX_REG_OFFSET)
+		return putreg(child, addr, data);
+	else if ((addr >= offsetof(struct user, u_debugreg[0])) &&
+		 (addr <= offsetof(struct user, u_debugreg[7]))) {
+		addr -= offsetof(struct user, u_debugreg[0]);
+		addr = addr >> 2;
+		if ((addr == 4) || (addr == 5))
+			return -EIO;
+		child->thread.arch.debugregs[addr] = data;
+		return 0;
+	}
+	return -EIO;
 }
 
 unsigned long getreg(struct task_struct *child, int regno)
@@ -129,20 +123,20 @@ unsigned long getreg(struct task_struct *child, int regno)
 	return retval;
 }
 
+/* read the word at location addr in the USER area. */
 int peek_user(struct task_struct *child, long addr, long data)
 {
-/* read the word at location addr in the USER area. */
 	unsigned long tmp;
 
 	if ((addr & 3) || addr < 0)
 		return -EIO;
 
 	tmp = 0;  /* Default return condition */
-	if(addr < MAX_REG_OFFSET){
+	if (addr < MAX_REG_OFFSET) {
 		tmp = getreg(child, addr);
 	}
-	else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-		(addr <= offsetof(struct user, u_debugreg[7]))){
+	else if ((addr >= offsetof(struct user, u_debugreg[0])) &&
+		 (addr <= offsetof(struct user, u_debugreg[7]))) {
 		addr -= offsetof(struct user, u_debugreg[0]);
 		addr = addr >> 2;
 		tmp = child->thread.arch.debugregs[addr];
@@ -173,15 +167,15 @@ struct i387_fxsave_struct {
 static inline unsigned short twd_i387_to_fxsr( unsigned short twd )
 {
 	unsigned int tmp; /* to avoid 16 bit prefixes in the code */
- 
+
 	/* Transform each pair of bits into 01 (valid) or 00 (empty) */
-        tmp = ~twd;
-        tmp = (tmp | (tmp>>1)) & 0x5555; /* 0V0V0V0V0V0V0V0V */
-        /* and move the valid bits to the lower byte. */
-        tmp = (tmp | (tmp >> 1)) & 0x3333; /* 00VV00VV00VV00VV */
-        tmp = (tmp | (tmp >> 2)) & 0x0f0f; /* 0000VVVV0000VVVV */
-        tmp = (tmp | (tmp >> 4)) & 0x00ff; /* 00000000VVVVVVVV */
-        return tmp;
+	tmp = ~twd;
+	tmp = (tmp | (tmp>>1)) & 0x5555; /* 0V0V0V0V0V0V0V0V */
+	/* and move the valid bits to the lower byte. */
+	tmp = (tmp | (tmp >> 1)) & 0x3333; /* 00VV00VV00VV00VV */
+	tmp = (tmp | (tmp >> 2)) & 0x0f0f; /* 0000VVVV0000VVVV */
+	tmp = (tmp | (tmp >> 4)) & 0x00ff; /* 00000000VVVVVVVV */
+	return tmp;
 }
 
 static inline unsigned long twd_fxsr_to_i387( struct i387_fxsave_struct *fxsave )
@@ -235,7 +229,7 @@ static inline int convert_fxsr_to_user(struct _fpstate __user *buf,
 	return 0;
 }
 
-static inline int convert_fxsr_from_user(struct pt_regs *regs, 
+static inline int convert_fxsr_from_user(struct pt_regs *regs,
 					 struct _fpstate __user *buf)
 {
 	return 0;
@@ -247,18 +241,20 @@ int get_fpregs(unsigned long buf, struct task_struct *child)
 
 	err = convert_fxsr_to_user((struct _fpstate __user *) buf,
 				   &child->thread.regs);
-	if(err) return(-EFAULT);
-	else return(0);
+	if (err)
+		return -EFAULT;
+	return 0;
 }
 
 int set_fpregs(unsigned long buf, struct task_struct *child)
 {
 	int err;
 
-	err = convert_fxsr_from_user(&child->thread.regs, 
+	err = convert_fxsr_from_user(&child->thread.regs,
 				     (struct _fpstate __user *) buf);
-	if(err) return(-EFAULT);
-	else return(0);
+	if (err)
+		return -EFAULT;
+	return 0;
 }
 
 int get_fpxregs(unsigned long buf, struct task_struct *tsk)
@@ -284,7 +280,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 	fpu->fos = 0;
 	memcpy(fpu->st_space, (void *) SC_FP_ST(PT_REGS_SC(regs)),
 	       sizeof(fpu->st_space));
-	return(1);
+	return 1;
 }
 #endif
 
@@ -292,14 +288,3 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu )
 {
 	return 1;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

@@ -1,27 +1,23 @@
-/* 
- * Copyright (C) 2002 Jeff Dike (jdike@addtoit.com)
+/*
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include <unistd.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <errno.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <sys/ptrace.h>
 #include <sys/wait.h>
-#include <sys/mman.h>
-#include <sys/syscall.h>
-#include "ptrace_user.h"
-#include "os.h"
-#include "user.h"
-#include "process.h"
-#include "irq_user.h"
-#include "kern_util.h"
-#include "longjmp.h"
-#include "skas_ptrace.h"
-#include "kern_constants.h"
-#include "uml-config.h"
+#include <asm/unistd.h>
 #include "init.h"
+#include "kern_constants.h"
+#include "longjmp.h"
+#include "os.h"
+#include "process.h"
+#include "skas_ptrace.h"
+#include "user.h"
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -37,24 +33,25 @@ unsigned long os_process_pc(int pid)
 
 	sprintf(proc_stat, "/proc/%d/stat", pid);
 	fd = os_open_file(proc_stat, of_read(OPENFLAGS()), 0);
-	if(fd < 0){
-		printk("os_process_pc - couldn't open '%s', err = %d\n",
-		       proc_stat, -fd);
+	if (fd < 0) {
+		printk(UM_KERN_ERR "os_process_pc - couldn't open '%s', "
+		       "err = %d\n", proc_stat, -fd);
 		return ARBITRARY_ADDR;
 	}
 	CATCH_EINTR(err = read(fd, buf, sizeof(buf)));
-	if(err < 0){
-		printk("os_process_pc - couldn't read '%s', err = %d\n",
-		       proc_stat, errno);
+	if (err < 0) {
+		printk(UM_KERN_ERR "os_process_pc - couldn't read '%s', "
+		       "err = %d\n", proc_stat, errno);
 		os_close_file(fd);
 		return ARBITRARY_ADDR;
 	}
 	os_close_file(fd);
 	pc = ARBITRARY_ADDR;
-	if(sscanf(buf, "%*d " COMM_SCANF " %*c %*d %*d %*d %*d %*d %*d %*d "
+	if (sscanf(buf, "%*d " COMM_SCANF " %*c %*d %*d %*d %*d %*d %*d %*d "
 		  "%*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d "
-		  "%*d %*d %*d %*d %*d %lu", &pc) != 1){
-		printk("os_process_pc - couldn't find pc in '%s'\n", buf);
+		  "%*d %*d %*d %*d %*d %lu", &pc) != 1) {
+		printk(UM_KERN_ERR "os_process_pc - couldn't find pc in '%s'\n",
+		       buf);
 	}
 	return pc;
 }
@@ -65,28 +62,29 @@ int os_process_parent(int pid)
 	char data[256];
 	int parent, n, fd;
 
-	if(pid == -1)
+	if (pid == -1)
 		return -1;
 
 	snprintf(stat, sizeof(stat), "/proc/%d/stat", pid);
 	fd = os_open_file(stat, of_read(OPENFLAGS()), 0);
-	if(fd < 0){
-		printk("Couldn't open '%s', err = %d\n", stat, -fd);
+	if (fd < 0) {
+		printk(UM_KERN_ERR "Couldn't open '%s', err = %d\n", stat, -fd);
 		return FAILURE_PID;
 	}
 
 	CATCH_EINTR(n = read(fd, data, sizeof(data)));
 	os_close_file(fd);
 
-	if(n < 0){
-		printk("Couldn't read '%s', err = %d\n", stat, errno);
+	if (n < 0) {
+		printk(UM_KERN_ERR "Couldn't read '%s', err = %d\n", stat,
+		       errno);
 		return FAILURE_PID;
 	}
 
 	parent = FAILURE_PID;
 	n = sscanf(data, "%*d " COMM_SCANF " %*c %d", &parent);
-	if(n != 1)
-		printk("Failed to scan '%s'\n", data);
+	if (n != 1)
+		printk(UM_KERN_ERR "Failed to scan '%s'\n", data);
 
 	return parent;
 }
@@ -99,9 +97,8 @@ void os_stop_process(int pid)
 void os_kill_process(int pid, int reap_child)
 {
 	kill(pid, SIGKILL);
-	if(reap_child)
+	if (reap_child)
 		CATCH_EINTR(waitpid(pid, NULL, 0));
-		
 }
 
 /* This is here uniquely to have access to the userspace errno, i.e. the one
@@ -129,7 +126,7 @@ void os_kill_ptraced_process(int pid, int reap_child)
 	kill(pid, SIGKILL);
 	ptrace(PTRACE_KILL, pid);
 	ptrace(PTRACE_CONT, pid);
-	if(reap_child)
+	if (reap_child)
 		CATCH_EINTR(waitpid(pid, NULL, 0));
 }
 
@@ -153,34 +150,35 @@ int os_map_memory(void *virt, int fd, unsigned long long off, unsigned long len,
 	void *loc;
 	int prot;
 
-	prot = (r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) | 
+	prot = (r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) |
 		(x ? PROT_EXEC : 0);
 
 	loc = mmap64((void *) virt, len, prot, MAP_SHARED | MAP_FIXED,
 		     fd, off);
-	if(loc == MAP_FAILED)
+	if (loc == MAP_FAILED)
 		return -errno;
 	return 0;
 }
 
 int os_protect_memory(void *addr, unsigned long len, int r, int w, int x)
 {
-        int prot = ((r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) | 
+	int prot = ((r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) |
 		    (x ? PROT_EXEC : 0));
 
-        if(mprotect(addr, len, prot) < 0)
+	if (mprotect(addr, len, prot) < 0)
 		return -errno;
-        return 0;
+
+	return 0;
 }
 
 int os_unmap_memory(void *addr, int len)
 {
-        int err;
+	int err;
 
-        err = munmap(addr, len);
-	if(err < 0)
+	err = munmap(addr, len);
+	if (err < 0)
 		return -errno;
-        return 0;
+	return 0;
 }
 
 #ifndef MADV_REMOVE
@@ -192,7 +190,7 @@ int os_drop_memory(void *addr, int length)
 	int err;
 
 	err = madvise(addr, length, MADV_REMOVE);
-	if(err < 0)
+	if (err < 0)
 		err = -errno;
 	return err;
 }
@@ -202,22 +200,24 @@ int __init can_drop_memory(void)
 	void *addr;
 	int fd, ok = 0;
 
-	printk("Checking host MADV_REMOVE support...");
+	printk(UM_KERN_INFO "Checking host MADV_REMOVE support...");
 	fd = create_mem_file(UM_KERN_PAGE_SIZE);
-	if(fd < 0){
-		printk("Creating test memory file failed, err = %d\n", -fd);
+	if (fd < 0) {
+		printk(UM_KERN_ERR "Creating test memory file failed, "
+		       "err = %d\n", -fd);
 		goto out;
 	}
 
 	addr = mmap64(NULL, UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 		      MAP_SHARED, fd, 0);
-	if(addr == MAP_FAILED){
-		printk("Mapping test memory file failed, err = %d\n", -errno);
+	if (addr == MAP_FAILED) {
+		printk(UM_KERN_ERR "Mapping test memory file failed, "
+		       "err = %d\n", -errno);
 		goto out_close;
 	}
 
-	if(madvise(addr, UM_KERN_PAGE_SIZE, MADV_REMOVE) != 0){
-		printk("MADV_REMOVE failed, err = %d\n", -errno);
+	if (madvise(addr, UM_KERN_PAGE_SIZE, MADV_REMOVE) != 0) {
+		printk(UM_KERN_ERR "MADV_REMOVE failed, err = %d\n", -errno);
 		goto out_unmap;
 	}
 
@@ -256,7 +256,7 @@ int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr)
 
 	*jmp_ptr = &buf;
 	n = UML_SETJMP(&buf);
-	if(n != 0)
+	if (n != 0)
 		return n;
 	(*fn)(arg);
 	return 0;

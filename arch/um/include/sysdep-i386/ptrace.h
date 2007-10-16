@@ -97,12 +97,12 @@ struct syscall_args {
 };
 
 #define SYSCALL_ARGS(r) ((struct syscall_args) \
-                        { .args = { UPT_SYSCALL_ARG1(r), \
-                                    UPT_SYSCALL_ARG2(r), \
- 			            UPT_SYSCALL_ARG3(r), \
-                                    UPT_SYSCALL_ARG4(r), \
-		                    UPT_SYSCALL_ARG5(r), \
-                                    UPT_SYSCALL_ARG6(r) } } )
+			 { .args = { UPT_SYSCALL_ARG1(r),	\
+				     UPT_SYSCALL_ARG2(r),	\
+				     UPT_SYSCALL_ARG3(r),	\
+				     UPT_SYSCALL_ARG4(r),	\
+				     UPT_SYSCALL_ARG5(r),	\
+				     UPT_SYSCALL_ARG6(r) } } )
 
 #define UPT_REG(regs, reg) \
 	({	unsigned long val; \

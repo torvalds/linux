@@ -267,9 +267,9 @@ void os_close_file(int fd)
 	close(fd);
 }
 
-int os_seek_file(int fd, __u64 offset)
+int os_seek_file(int fd, unsigned long long offset)
 {
-	__u64 actual;
+	unsigned long long actual;
 
 	actual = lseek64(fd, offset, SEEK_SET);
 	if(actual != offset)

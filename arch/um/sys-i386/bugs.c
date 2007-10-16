@@ -1,18 +1,15 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 #include <string.h>
-#include <sys/signal.h>
-#include <asm/ldt.h>
-#include "kern_util.h"
-#include "user.h"
-#include "sysdep/ptrace.h"
-#include "task.h"
+#include "kern_constants.h"
 #include "os.h"
+#include "task.h"
+#include "user.h"
 
 #define MAXTOKEN 64
 
@@ -30,18 +27,20 @@ static char token(int fd, char *buf, int len, char stop)
 	do {
 		n = os_read_file(fd, ptr, sizeof(*ptr));
 		c = *ptr++;
-		if(n != sizeof(*ptr)){
-			if(n == 0)
+		if (n != sizeof(*ptr)) {
+			if (n == 0)
 				return 0;
-			printk("Reading /proc/cpuinfo failed, err = %d\n", -n);
-			if(n < 0)
+			printk(UM_KERN_ERR "Reading /proc/cpuinfo failed, "
+			       "err = %d\n", -n);
+			if (n < 0)
 				return n;
 			else return -EIO;
 		}
-	} while((c != '\n') && (c != stop) && (ptr < end));
+	} while ((c != '\n') && (c != stop) && (ptr < end));
 
-	if(ptr == end){
-		printk("Failed to find '%c' in /proc/cpuinfo\n", stop);
+	if (ptr == end) {
+		printk(UM_KERN_ERR "Failed to find '%c' in /proc/cpuinfo\n",
+		       stop);
 		return -1;
 	}
 	*(ptr - 1) = '\0';
@@ -54,26 +53,27 @@ static int find_cpuinfo_line(int fd, char *key, char *scratch, int len)
 	char c;
 
 	scratch[len - 1] = '\0';
-	while(1){
+	while (1) {
 		c = token(fd, scratch, len - 1, ':');
-		if(c <= 0)
+		if (c <= 0)
 			return 0;
-		else if(c != ':'){
-			printk("Failed to find ':' in /proc/cpuinfo\n");
+		else if (c != ':') {
+			printk(UM_KERN_ERR "Failed to find ':' in "
+			       "/proc/cpuinfo\n");
 			return 0;
 		}
 
-		if(!strncmp(scratch, key, strlen(key)))
+		if (!strncmp(scratch, key, strlen(key)))
 			return 1;
 
 		do {
 			n = os_read_file(fd, &c, sizeof(c));
-			if(n != sizeof(c)){
-				printk("Failed to find newline in "
+			if (n != sizeof(c)) {
+				printk(UM_KERN_ERR "Failed to find newline in "
 				       "/proc/cpuinfo, err = %d\n", -n);
 				return 0;
 			}
-		} while(c != '\n');
+		} while (c != '\n');
 	}
 	return 0;
 }
@@ -83,46 +83,50 @@ static int check_cpu_flag(char *feature, int *have_it)
 	char buf[MAXTOKEN], c;
 	int fd, len = ARRAY_SIZE(buf);
 
-	printk("Checking for host processor %s support...", feature);
+	printk(UM_KERN_INFO "Checking for host processor %s support...",
+	       feature);
 	fd = os_open_file("/proc/cpuinfo", of_read(OPENFLAGS()), 0);
-	if(fd < 0){
-		printk("Couldn't open /proc/cpuinfo, err = %d\n", -fd);
+	if (fd < 0) {
+		printk(UM_KERN_ERR "Couldn't open /proc/cpuinfo, err = %d\n",
+		       -fd);
 		return 0;
 	}
 
 	*have_it = 0;
-	if(!find_cpuinfo_line(fd, "flags", buf, ARRAY_SIZE(buf)))
+	if (!find_cpuinfo_line(fd, "flags", buf, ARRAY_SIZE(buf)))
 		goto out;
 
 	c = token(fd, buf, len - 1, ' ');
-	if(c < 0)
+	if (c < 0)
 		goto out;
-	else if(c != ' '){
-		printk("Failed to find ' ' in /proc/cpuinfo\n");
+	else if (c != ' ') {
+		printk(UM_KERN_ERR "Failed to find ' ' in /proc/cpuinfo\n");
 		goto out;
 	}
 
-	while(1){
+	while (1) {
 		c = token(fd, buf, len - 1, ' ');
-		if(c < 0)
+		if (c < 0)
 			goto out;
-		else if(c == '\n') break;
+		else if (c == '\n')
+			break;
 
-		if(!strcmp(buf, feature)){
+		if (!strcmp(buf, feature)) {
 			*have_it = 1;
 			goto out;
 		}
 	}
  out:
-	if(*have_it == 0)
+	if (*have_it == 0)
 		printk("No\n");
-	else if(*have_it == 1)
+	else if (*have_it == 1)
 		printk("Yes\n");
 	os_close_file(fd);
 	return 1;
 }
 
-#if 0 /* This doesn't work in tt mode, plus it's causing compilation problems
+#if 0 /*
+       * This doesn't work in tt mode, plus it's causing compilation problems
        * for some people.
        */
 static void disable_lcall(void)
@@ -135,8 +139,9 @@ static void disable_lcall(void)
 	ldt.base_addr = 0;
 	ldt.limit = 0;
 	err = modify_ldt(1, &ldt, sizeof(ldt));
-	if(err)
-		printk("Failed to disable lcall7 - errno = %d\n", errno);
+	if (err)
+		printk(UM_KERN_ERR "Failed to disable lcall7 - errno = %d\n",
+		       errno);
 }
 #endif
 
@@ -151,14 +156,14 @@ void arch_check_bugs(void)
 {
 	int have_it;
 
-	if(os_access("/proc/cpuinfo", OS_ACC_R_OK) < 0){
-		printk("/proc/cpuinfo not available - skipping CPU capability "
-		       "checks\n");
+	if (os_access("/proc/cpuinfo", OS_ACC_R_OK) < 0) {
+		printk(UM_KERN_ERR "/proc/cpuinfo not available - skipping CPU "
+		       "capability checks\n");
 		return;
 	}
-	if(check_cpu_flag("cmov", &have_it))
+	if (check_cpu_flag("cmov", &have_it))
 		host_has_cmov = have_it;
-	if(check_cpu_flag("xmm", &have_it))
+	if (check_cpu_flag("xmm", &have_it))
 		host_has_xmm = have_it;
 }
 
@@ -166,25 +171,26 @@ int arch_handle_signal(int sig, struct uml_pt_regs *regs)
 {
 	unsigned char tmp[2];
 
-	/* This is testing for a cmov (0x0f 0x4x) instruction causing a
+	/*
+	 * This is testing for a cmov (0x0f 0x4x) instruction causing a
 	 * SIGILL in init.
 	 */
-	if((sig != SIGILL) || (TASK_PID(get_current()) != 1))
+	if ((sig != SIGILL) || (TASK_PID(get_current()) != 1))
 		return 0;
 
 	if (copy_from_user_proc(tmp, (void *) UPT_IP(regs), 2))
 		panic("SIGILL in init, could not read instructions!\n");
-	if((tmp[0] != 0x0f) || ((tmp[1] & 0xf0) != 0x40))
+	if ((tmp[0] != 0x0f) || ((tmp[1] & 0xf0) != 0x40))
 		return 0;
 
-	if(host_has_cmov == 0)
+	if (host_has_cmov == 0)
 		panic("SIGILL caused by cmov, which this processor doesn't "
 		      "implement, boot a filesystem compiled for older "
 		      "processors");
-	else if(host_has_cmov == 1)
+	else if (host_has_cmov == 1)
 		panic("SIGILL caused by cmov, which this processor claims to "
 		      "implement");
-	else if(host_has_cmov == -1)
+	else if (host_has_cmov == -1)
 		panic("SIGILL caused by cmov, couldn't tell if this processor "
 		      "implements it, boot a filesystem compiled for older "
 		      "processors");

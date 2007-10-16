@@ -75,7 +75,7 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 	err = os_map_memory((void *) virt, fd, offset, len, r, w, x);
 	if (err) {
 		if (err == -ENOMEM)
-			printk("try increasing the host's "
+			printk(KERN_ERR "try increasing the host's "
 			       "/proc/sys/vm/max_map_count to <physical "
 			       "memory size>/4096\n");
 		panic("map_memory(0x%lx, %d, 0x%llx, %ld, %d, %d, %d) failed, "
@@ -103,7 +103,8 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 		exit(1);
 	}
 
-	/* Special kludge - This page will be mapped in to userspace processes
+	/*
+	 * Special kludge - This page will be mapped in to userspace processes
 	 * from physmem_fd, so it needs to be written out there.
 	 */
 	os_seek_file(physmem_fd, __pa(&__syscall_stub_start));
@@ -202,8 +203,8 @@ int setup_iomem(void)
 		err = os_map_memory((void *) iomem_start, region->fd, 0,
 				    region->size, 1, 1, 0);
 		if (err)
-			printk("Mapping iomem region for driver '%s' failed, "
-			       "errno = %d\n", region->driver, -err);
+			printk(KERN_ERR "Mapping iomem region for driver '%s' "
+			       "failed, errno = %d\n", region->driver, -err);
 		else {
 			region->virt = iomem_start;
 			region->phys = __pa(region->virt);

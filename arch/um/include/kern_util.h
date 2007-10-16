@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -8,7 +8,6 @@
 
 #include "sysdep/ptrace.h"
 #include "sysdep/faultinfo.h"
-#include "uml-config.h"
 
 typedef void (*kern_hndl)(int, struct uml_pt_regs *);
 

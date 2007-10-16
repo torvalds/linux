@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -9,9 +9,8 @@
 #define HOST_AUDIT_ARCH AUDIT_ARCH_I386
 
 #include "linux/compiler.h"
-#include "sysdep/ptrace.h"
 #include "asm/ptrace-generic.h"
-#include "asm/host_ldt.h"
+#include "sysdep/ptrace.h"
 
 #define PT_REGS_EAX(r) UPT_EAX(&(r)->regs)
 #define PT_REGS_EBX(r) UPT_EBX(&(r)->regs)
@@ -39,6 +38,12 @@
 #define profile_pc(regs) PT_REGS_IP(regs)
 
 #define user_mode(r) UPT_IS_USER(&(r)->regs)
+
+/*
+ * Forward declaration to avoid including sysdep/tls.h, which causes a
+ * circular include, and compilation failures.
+ */
+struct user_desc;
 
 extern int ptrace_get_thread_area(struct task_struct *child, int idx,
                                   struct user_desc __user *user_desc);

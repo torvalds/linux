@@ -1,36 +1,23 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/sched.h"
-#include "linux/slab.h"
-#include "linux/ptrace.h"
-#include "linux/proc_fs.h"
-#include "linux/file.h"
-#include "linux/errno.h"
 #include "linux/init.h"
-#include "asm/uaccess.h"
-#include "asm/atomic.h"
-#include "kern_util.h"
+#include "linux/sched.h"
 #include "as-layout.h"
-#include "skas.h"
 #include "os.h"
-#include "tlb.h"
-#include "kern.h"
-#include "registers.h"
-
-extern void schedule_tail(struct task_struct *prev);
+#include "skas.h"
 
 int new_mm(unsigned long stack)
 {
 	int fd;
 
 	fd = os_open_file("/proc/mm", of_cloexec(of_write(OPENFLAGS())), 0);
-	if(fd < 0)
+	if (fd < 0)
 		return fd;
 
-	if(skas_needs_stub)
+	if (skas_needs_stub)
 		map_stub_pages(fd, CONFIG_STUB_CODE, CONFIG_STUB_DATA, stack);
 
 	return fd;
@@ -62,7 +49,7 @@ int __init start_uml(void)
 {
 	stack_protections((unsigned long) &cpu0_irqstack);
 	set_sigstack(cpu0_irqstack, THREAD_SIZE);
-	if(proc_mm)
+	if (proc_mm)
 		userspace_pid[0] = start_userspace(0);
 
 	init_new_thread_signals();
@@ -75,7 +62,7 @@ int __init start_uml(void)
 
 unsigned long current_stub_stack(void)
 {
-	if(current->mm == NULL)
+	if (current->mm == NULL)
 		return 0;
 
 	return current->mm->context.skas.id.stack;

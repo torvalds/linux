@@ -1,19 +1,23 @@
 /*
- * Copyright (C) 2002 - 2003 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include <signal.h>
-#include <errno.h>
+#if 0
 #include "kern_util.h"
-#include "as-layout.h"
-#include "task.h"
-#include "sigcontext.h"
 #include "skas.h"
 #include "ptrace_user.h"
-#include "sysdep/ptrace.h"
 #include "sysdep/ptrace_user.h"
+#endif
+
+#include <errno.h>
+#include <signal.h>
+#include "sysdep/ptrace.h"
+#include "kern_constants.h"
+#include "as-layout.h"
 #include "os.h"
+#include "sigcontext.h"
+#include "task.h"
 
 static struct uml_pt_regs ksig_regs[UM_NR_CPUS];
 
@@ -24,14 +28,16 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
 	void (*handler)(int, struct uml_pt_regs *);
 	int save_user, save_errno = errno;
 
-	/* This is done because to allow SIGSEGV to be delivered inside a SEGV
+	/*
+	 * This is done because to allow SIGSEGV to be delivered inside a SEGV
 	 * handler.  This can happen in copy_user, and if SEGV is disabled,
 	 * the process will die.
 	 * XXX Figure out why this is better than SA_NODEFER
 	 */
-	if(sig == SIGSEGV) {
+	if (sig == SIGSEGV) {
 		change_sig(SIGSEGV, 1);
-		/* For segfaults, we want the data from the
+		/*
+		 * For segfaults, we want the data from the
 		 * sigcontext.  In this case, we don't want to mangle
 		 * the process registers, so use a static set of
 		 * registers.  For other signals, the process
@@ -44,11 +50,9 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
 
 	save_user = r->is_user;
 	r->is_user = 0;
-	if ( sig == SIGFPE || sig == SIGSEGV ||
-	     sig == SIGBUS || sig == SIGILL ||
-	     sig == SIGTRAP ) {
+	if ((sig == SIGFPE) || (sig == SIGSEGV) || (sig == SIGBUS) ||
+	    (sig == SIGILL) || (sig == SIGTRAP))
 		GET_FAULTINFO_FROM_SC(r->faultinfo, sc);
-	}
 
 	change_sig(SIGUSR1, 1);
 

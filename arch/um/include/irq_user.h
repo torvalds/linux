@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #ifndef __IRQ_USER_H__
 #define __IRQ_USER_H__
 
-#include "uml-config.h"
+#include "sysdep/ptrace.h"
 
 struct irq_fd {
 	struct irq_fd *next;

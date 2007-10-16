@@ -3,16 +3,11 @@
  * Licensed under the GPL
  */
 
-#include "linux/stddef.h"
-#include "linux/errno.h"
 #include "linux/personality.h"
 #include "linux/ptrace.h"
-#include "asm/current.h"
+#include "asm/unistd.h"
 #include "asm/uaccess.h"
-#include "asm/sigcontext.h"
-#include "asm/ptrace.h"
-#include "asm/arch/ucontext.h"
-#include "sysdep/ptrace.h"
+#include "asm/ucontext.h"
 #include "frame_kern.h"
 #include "skas.h"
 
@@ -20,28 +15,28 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 {
 	struct sigcontext *sc = from;
 
-#define GETREG(regs, regno, sc, regname) \
-       (regs)->regs[(regno) / sizeof(unsigned long)] = (sc)->regname
+#define GETREG(regs, regno, sc, regname)				\
+	(regs)->regs[(regno) / sizeof(unsigned long)] = (sc)->regname
 
-       GETREG(regs, R8, sc, r8);
-       GETREG(regs, R9, sc, r9);
-       GETREG(regs, R10, sc, r10);
-       GETREG(regs, R11, sc, r11);
-       GETREG(regs, R12, sc, r12);
-       GETREG(regs, R13, sc, r13);
-       GETREG(regs, R14, sc, r14);
-       GETREG(regs, R15, sc, r15);
-       GETREG(regs, RDI, sc, rdi);
-       GETREG(regs, RSI, sc, rsi);
-       GETREG(regs, RBP, sc, rbp);
-       GETREG(regs, RBX, sc, rbx);
-       GETREG(regs, RDX, sc, rdx);
-       GETREG(regs, RAX, sc, rax);
-       GETREG(regs, RCX, sc, rcx);
-       GETREG(regs, RSP, sc, rsp);
-       GETREG(regs, RIP, sc, rip);
-       GETREG(regs, EFLAGS, sc, eflags);
-       GETREG(regs, CS, sc, cs);
+	GETREG(regs, R8, sc, r8);
+	GETREG(regs, R9, sc, r9);
+	GETREG(regs, R10, sc, r10);
+	GETREG(regs, R11, sc, r11);
+	GETREG(regs, R12, sc, r12);
+	GETREG(regs, R13, sc, r13);
+	GETREG(regs, R14, sc, r14);
+	GETREG(regs, R15, sc, r15);
+	GETREG(regs, RDI, sc, rdi);
+	GETREG(regs, RSI, sc, rsi);
+	GETREG(regs, RBP, sc, rbp);
+	GETREG(regs, RBX, sc, rbx);
+	GETREG(regs, RDX, sc, rdx);
+	GETREG(regs, RAX, sc, rax);
+	GETREG(regs, RCX, sc, rcx);
+	GETREG(regs, RSP, sc, rsp);
+	GETREG(regs, RIP, sc, rip);
+	GETREG(regs, EFLAGS, sc, eflags);
+	GETREG(regs, CS, sc, cs);
 
 #undef GETREG
 }
@@ -49,58 +44,58 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 static int copy_sc_from_user(struct pt_regs *regs,
 			     struct sigcontext __user *from)
 {
-       int err = 0;
+	int err = 0;
 
-#define GETREG(regs, regno, sc, regname) \
-       __get_user((regs)->regs.regs[(regno) / sizeof(unsigned long)], \
-                  &(sc)->regname)
+#define GETREG(regs, regno, sc, regname)				\
+	__get_user((regs)->regs.regs[(regno) / sizeof(unsigned long)],	\
+		   &(sc)->regname)
 
-       err |= GETREG(regs, R8, from, r8);
-       err |= GETREG(regs, R9, from, r9);
-       err |= GETREG(regs, R10, from, r10);
-       err |= GETREG(regs, R11, from, r11);
-       err |= GETREG(regs, R12, from, r12);
-       err |= GETREG(regs, R13, from, r13);
-       err |= GETREG(regs, R14, from, r14);
-       err |= GETREG(regs, R15, from, r15);
-       err |= GETREG(regs, RDI, from, rdi);
-       err |= GETREG(regs, RSI, from, rsi);
-       err |= GETREG(regs, RBP, from, rbp);
-       err |= GETREG(regs, RBX, from, rbx);
-       err |= GETREG(regs, RDX, from, rdx);
-       err |= GETREG(regs, RAX, from, rax);
-       err |= GETREG(regs, RCX, from, rcx);
-       err |= GETREG(regs, RSP, from, rsp);
-       err |= GETREG(regs, RIP, from, rip);
-       err |= GETREG(regs, EFLAGS, from, eflags);
-       err |= GETREG(regs, CS, from, cs);
+	err |= GETREG(regs, R8, from, r8);
+	err |= GETREG(regs, R9, from, r9);
+	err |= GETREG(regs, R10, from, r10);
+	err |= GETREG(regs, R11, from, r11);
+	err |= GETREG(regs, R12, from, r12);
+	err |= GETREG(regs, R13, from, r13);
+	err |= GETREG(regs, R14, from, r14);
+	err |= GETREG(regs, R15, from, r15);
+	err |= GETREG(regs, RDI, from, rdi);
+	err |= GETREG(regs, RSI, from, rsi);
+	err |= GETREG(regs, RBP, from, rbp);
+	err |= GETREG(regs, RBX, from, rbx);
+	err |= GETREG(regs, RDX, from, rdx);
+	err |= GETREG(regs, RAX, from, rax);
+	err |= GETREG(regs, RCX, from, rcx);
+	err |= GETREG(regs, RSP, from, rsp);
+	err |= GETREG(regs, RIP, from, rip);
+	err |= GETREG(regs, EFLAGS, from, eflags);
+	err |= GETREG(regs, CS, from, cs);
 
 #undef GETREG
 
-       return err;
+	return err;
 }
 
 static int copy_sc_to_user(struct sigcontext __user *to,
 			   struct _fpstate __user *to_fp, struct pt_regs *regs,
 			   unsigned long mask, unsigned long sp)
 {
-        struct faultinfo * fi = &current->thread.arch.faultinfo;
+	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err = 0;
 
 	err |= __put_user(0, &to->gs);
 	err |= __put_user(0, &to->fs);
 
-#define PUTREG(regs, regno, sc, regname) \
-       __put_user((regs)->regs.regs[(regno) / sizeof(unsigned long)], \
-                  &(sc)->regname)
+#define PUTREG(regs, regno, sc, regname)				\
+	__put_user((regs)->regs.regs[(regno) / sizeof(unsigned long)],	\
+		   &(sc)->regname)
 
 	err |= PUTREG(regs, RDI, to, rdi);
 	err |= PUTREG(regs, RSI, to, rsi);
 	err |= PUTREG(regs, RBP, to, rbp);
-        /* Must use orignal RSP, which is passed in, rather than what's in
-         * the pt_regs, because that's already been updated to point at the
-         * signal frame.
-         */
+	/* Must use orignal RSP, which is passed in, rather than what's in
+	 * the pt_regs, because that's already been updated to point at the
+	 * signal frame.
+	 */
 	err |= __put_user(sp, &to->rsp);
 	err |= PUTREG(regs, RBX, to, rbx);
 	err |= PUTREG(regs, RDX, to, rdx);
@@ -116,9 +111,9 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	err |= PUTREG(regs, R15, to, r15);
 	err |= PUTREG(regs, CS, to, cs); /* XXX x86_64 doesn't do this */
 
-        err |= __put_user(fi->cr2, &to->cr2);
-        err |= __put_user(fi->error_code, &to->err);
-        err |= __put_user(fi->trap_no, &to->trapno);
+	err |= __put_user(fi->cr2, &to->cr2);
+	err |= __put_user(fi->error_code, &to->err);
+	err |= __put_user(fi->trap_no, &to->trapno);
 
 	err |= PUTREG(regs, RIP, to, rip);
 	err |= PUTREG(regs, EFLAGS, to, eflags);
@@ -131,9 +126,9 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 
 struct rt_sigframe
 {
-       char __user *pretcode;
-       struct ucontext uc;
-       struct siginfo info;
+	char __user *pretcode;
+	struct ucontext uc;
+	struct siginfo info;
 };
 
 #define round_down(m, n) (((m) / (n)) * (n))
@@ -151,7 +146,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	frame = (struct rt_sigframe __user *)
 		round_down(stack_top - sizeof(struct rt_sigframe), 16);
 	/* Subtract 128 for a red zone and 8 for proper alignment */
-        frame = (struct rt_sigframe __user *) ((unsigned long) frame - 128 - 8);
+	frame = (struct rt_sigframe __user *) ((unsigned long) frame - 128 - 8);
 
 	if (!access_ok(VERIFY_WRITE, fp, sizeof(struct _fpstate)))
 		goto out;
@@ -241,7 +236,7 @@ long sys_rt_sigreturn(struct pt_regs *regs)
 	struct ucontext __user *uc = &frame->uc;
 	sigset_t set;
 
-	if(copy_from_user(&set, &uc->uc_sigmask, sizeof(set)))
+	if (copy_from_user(&set, &uc->uc_sigmask, sizeof(set)))
 		goto segfault;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -251,7 +246,7 @@ long sys_rt_sigreturn(struct pt_regs *regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if(copy_sc_from_user(&current->thread.regs, &uc->uc_mcontext))
+	if (copy_sc_from_user(&current->thread.regs, &uc->uc_mcontext))
 		goto segfault;
 
 	/* Avoid ERESTART handling */
@@ -262,13 +257,3 @@ long sys_rt_sigreturn(struct pt_regs *regs)
 	force_sig(SIGSEGV, current);
 	return 0;
 }
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

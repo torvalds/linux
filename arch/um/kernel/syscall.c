@@ -1,25 +1,17 @@
 /*
- * Copyright (C) 2000 - 2003 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/sched.h"
 #include "linux/file.h"
-#include "linux/smp_lock.h"
-#include "linux/mm.h"
 #include "linux/fs.h"
+#include "linux/mm.h"
+#include "linux/sched.h"
 #include "linux/utsname.h"
-#include "linux/msg.h"
-#include "linux/shm.h"
-#include "linux/sys.h"
-#include "linux/syscalls.h"
-#include "linux/unistd.h"
-#include "linux/slab.h"
-#include "linux/utime.h"
+#include "asm/current.h"
 #include "asm/mman.h"
 #include "asm/uaccess.h"
-#include "kern_util.h"
-#include "sysdep/syscalls.h"
+#include "asm/unistd.h"
 
 /*  Unlocked, I don't care if this is a bit off */
 int nsyscalls = 0;
@@ -32,7 +24,7 @@ long sys_fork(void)
 	ret = do_fork(SIGCHLD, UPT_SP(&current->thread.regs.regs),
 		      &current->thread.regs, 0, NULL, NULL);
 	current->thread.forking = 0;
-	return(ret);
+	return ret;
 }
 
 long sys_vfork(void)
@@ -44,7 +36,7 @@ long sys_vfork(void)
 		      UPT_SP(&current->thread.regs.regs),
 		      &current->thread.regs, 0, NULL, NULL);
 	current->thread.forking = 0;
-	return(ret);
+	return ret;
 }
 
 /* common code for old and new mmaps */
@@ -90,15 +82,15 @@ long old_mmap(unsigned long addr, unsigned long len,
  */
 long sys_pipe(unsigned long __user * fildes)
 {
-        int fd[2];
-        long error;
+	int fd[2];
+	long error;
 
-        error = do_pipe(fd);
-        if (!error) {
+	error = do_pipe(fd);
+	if (!error) {
 		if (copy_to_user(fildes, fd, sizeof(fd)))
-                        error = -EFAULT;
-        }
-        return error;
+			error = -EFAULT;
+	}
+	return error;
 }
 
 
@@ -122,7 +114,7 @@ long sys_olduname(struct oldold_utsname __user * name)
 	if (!access_ok(VERIFY_WRITE,name,sizeof(struct oldold_utsname)))
 		return -EFAULT;
 
-  	down_read(&uts_sem);
+	down_read(&uts_sem);
 
 	error = __copy_to_user(&name->sysname, &utsname()->sysname,
 			       __OLD_UTS_LEN);
