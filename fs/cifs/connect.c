@@ -1468,7 +1468,7 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 	if (psin_server->sin_port) { /* user overrode default port */
 		rc = (*csocket)->ops->connect(*csocket,
 				(struct sockaddr *) psin_server,
-				sizeof (struct sockaddr_in), 0);
+				sizeof(struct sockaddr_in), 0);
 		if (rc >= 0)
 			connected = 1;
 	}
@@ -1484,7 +1484,7 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 
 			rc = (*csocket)->ops->connect(*csocket,
 					(struct sockaddr *) psin_server,
-					sizeof (struct sockaddr_in), 0);
+					sizeof(struct sockaddr_in), 0);
 			if (rc >= 0)
 				connected = 1;
 		}
@@ -1493,7 +1493,7 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 		psin_server->sin_port = htons(RFC1001_PORT);
 		rc = (*csocket)->ops->connect(*csocket, (struct sockaddr *)
 					      psin_server,
-					      sizeof (struct sockaddr_in), 0);
+					      sizeof(struct sockaddr_in), 0);
 		if (rc >= 0)
 			connected = 1;
 	}
@@ -1601,7 +1601,7 @@ ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket)
 	if (psin_server->sin6_port) { /* user overrode default port */
 		rc = (*csocket)->ops->connect(*csocket,
 				(struct sockaddr *) psin_server,
-				sizeof (struct sockaddr_in6), 0);
+				sizeof(struct sockaddr_in6), 0);
 		if (rc >= 0)
 			connected = 1;
 	}
@@ -1617,7 +1617,7 @@ ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket)
 
 			rc = (*csocket)->ops->connect(*csocket,
 					(struct sockaddr *) psin_server,
-					sizeof (struct sockaddr_in6), 0);
+					sizeof(struct sockaddr_in6), 0);
 			if (rc >= 0)
 				connected = 1;
 		}
@@ -1625,7 +1625,7 @@ ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket)
 	if (!connected) {
 		psin_server->sin6_port = htons(RFC1001_PORT);
 		rc = (*csocket)->ops->connect(*csocket, (struct sockaddr *)
-				 psin_server, sizeof (struct sockaddr_in6), 0);
+				 psin_server, sizeof(struct sockaddr_in6), 0);
 		if (rc >= 0)
 			connected = 1;
 	}
@@ -1920,7 +1920,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			return rc;
 		} else {
 			memcpy(&srvTcp->addr.sockAddr, &sin_server,
-				sizeof (struct sockaddr_in));
+				sizeof(struct sockaddr_in));
 			atomic_set(&srvTcp->inFlight, 0);
 			/* BB Add code for ipv6 case too */
 			srvTcp->ssocket = csocket;
@@ -2557,7 +2557,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	int remaining_words = 0;
 	int bytes_returned = 0;
 	int len;
-	int SecurityBlobLength = sizeof (NEGOTIATE_MESSAGE);
+	int SecurityBlobLength = sizeof(NEGOTIATE_MESSAGE);
 	PNEGOTIATE_MESSAGE SecurityBlob;
 	PCHALLENGE_MESSAGE SecurityBlob2;
 	__u32 negotiate_flags, capabilities;
@@ -2881,8 +2881,8 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 }
 static int
 CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
-		char *ntlm_session_key, int ntlmv2_flag,
-		const struct nls_table *nls_codepage)
+			char *ntlm_session_key, int ntlmv2_flag,
+			const struct nls_table *nls_codepage)
 {
 	struct smb_hdr *smb_buffer;
 	struct smb_hdr *smb_buffer_response;
@@ -2895,7 +2895,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	int remaining_words = 0;
 	int bytes_returned = 0;
 	int len;
-	int SecurityBlobLength = sizeof (AUTHENTICATE_MESSAGE);
+	int SecurityBlobLength = sizeof(AUTHENTICATE_MESSAGE);
 	PAUTHENTICATE_MESSAGE SecurityBlob;
 	__u32 negotiate_flags, capabilities;
 	__u16 count;
@@ -2910,8 +2910,8 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		return -ENOMEM;
 	}
 	smb_buffer_response = smb_buffer;
-	pSMB = (SESSION_SETUP_ANDX *) smb_buffer;
-	pSMBr = (SESSION_SETUP_ANDX *) smb_buffer_response;
+	pSMB = (SESSION_SETUP_ANDX *)smb_buffer;
+	pSMBr = (SESSION_SETUP_ANDX *)smb_buffer_response;
 
 	/* send SMBsessionSetup here */
 	header_assemble(smb_buffer, SMB_COM_SESSION_SETUP_ANDX,
@@ -2930,7 +2930,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	capabilities = CAP_LARGE_FILES | CAP_NT_SMBS | CAP_LEVEL_II_OPLOCKS |
-	    CAP_EXTENDED_SECURITY;
+			CAP_EXTENDED_SECURITY;
 	if (ses->capabilities & CAP_UNICODE) {
 		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
 		capabilities |= CAP_UNICODE;
@@ -2945,15 +2945,14 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	}
 	pSMB->req.Capabilities = cpu_to_le32(capabilities);
 
-	bcc_ptr = (char *) &pSMB->req.SecurityBlob;
-	SecurityBlob = (PAUTHENTICATE_MESSAGE) bcc_ptr;
+	bcc_ptr = (char *)&pSMB->req.SecurityBlob;
+	SecurityBlob = (PAUTHENTICATE_MESSAGE)bcc_ptr;
 	strncpy(SecurityBlob->Signature, NTLMSSP_SIGNATURE, 8);
 	SecurityBlob->MessageType = NtLmAuthenticate;
 	bcc_ptr += SecurityBlobLength;
-	negotiate_flags =
-	    NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_REQUEST_TARGET |
-	    NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_TARGET_INFO |
-	    0x80000000 | NTLMSSP_NEGOTIATE_128;
+	negotiate_flags = NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_REQUEST_TARGET |
+			NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_TARGET_INFO |
+			0x80000000 | NTLMSSP_NEGOTIATE_128;
 	if (sign_CIFS_PDUs)
 		negotiate_flags |= /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN |*/ NTLMSSP_NEGOTIATE_SIGN;
 	if (ntlmv2_flag)
@@ -3104,12 +3103,11 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response,
 			 &bytes_returned, 1);
 	if (rc) {
-/*    rc = map_smb_to_linux_error(smb_buffer_response);  *//* done in SendReceive now */
-	} else if ((smb_buffer_response->WordCount == 3)
-		   || (smb_buffer_response->WordCount == 4)) {
+/*   rc = map_smb_to_linux_error(smb_buffer_response) done in SendReceive now */
+	} else if ((smb_buffer_response->WordCount == 3) ||
+		   (smb_buffer_response->WordCount == 4)) {
 		__u16 action = le16_to_cpu(pSMBr->resp.Action);
-		__u16 blob_len =
-		    le16_to_cpu(pSMBr->resp.SecurityBlobLength);
+		__u16 blob_len = le16_to_cpu(pSMBr->resp.SecurityBlobLength);
 		if (action & GUEST_LOGIN)
 			cFYI(1, (" Guest login")); /* BB Should we set anything
 							 in SesInfo struct ? */
@@ -3263,22 +3261,19 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						bcc_ptr[0] = 0;
 						bcc_ptr++;
 					} else
-						cFYI(1,
-						     ("field of length %d "
+						cFYI(1, ("field of length %d "
 						   "extends beyond end of smb ",
 						      len));
 				}
 			} else {
-				cERROR(1,
-				       (" Security Blob extends beyond end "
+				cERROR(1, ("Security Blob extends beyond end "
 					"of SMB"));
 			}
 		} else {
 			cERROR(1, ("No session structure passed in."));
 		}
 	} else {
-		cERROR(1,
-		       (" Invalid Word count %d: ",
+		cERROR(1, ("Invalid Word count %d: ",
 			smb_buffer_response->WordCount));
 		rc = -EIO;
 	}
