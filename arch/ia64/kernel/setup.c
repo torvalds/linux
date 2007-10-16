@@ -869,6 +869,7 @@ cpu_init (void)
 	void *cpu_data;
 
 	cpu_data = per_cpu_init();
+#ifdef CONFIG_SMP
 	/*
 	 * insert boot cpu into sibling and core mapes
 	 * (must be done after per_cpu area is setup)
@@ -877,6 +878,7 @@ cpu_init (void)
 		cpu_set(0, per_cpu(cpu_sibling_map, 0));
 		cpu_set(0, cpu_core_map[0]);
 	}
+#endif
 
 	/*
 	 * We set ar.k3 so that assembly code in MCA handler can compute
