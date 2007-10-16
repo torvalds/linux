@@ -197,7 +197,7 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
 	       current->comm, current->pid);
 	if (!user_mode(regs))
 		goto no_context;
-	do_exit(SIGKILL);
+	do_group_exit(SIGKILL);
 
  do_sigbus:
 	/* Send a sigbus, regardless of whether we were in kernel

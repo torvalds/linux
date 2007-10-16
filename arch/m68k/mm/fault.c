@@ -188,7 +188,7 @@ out_of_memory:
 
 	printk("VM: killing process %s\n", current->comm);
 	if (user_mode(regs))
-		do_exit(SIGKILL);
+		do_group_exit(SIGKILL);
 
 no_context:
 	current->thread.signo = SIGBUS;

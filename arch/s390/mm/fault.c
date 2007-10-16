@@ -218,7 +218,7 @@ static int do_out_of_memory(struct pt_regs *regs, unsigned long error_code,
 	}
 	printk("VM: killing process %s\n", tsk->comm);
 	if (regs->psw.mask & PSW_MASK_PSTATE)
-		do_exit(SIGKILL);
+		do_group_exit(SIGKILL);
 	do_no_context(regs, error_code, address);
 	return 0;
 }

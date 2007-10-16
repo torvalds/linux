@@ -266,7 +266,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		 * the page fault gracefully.
 		 */
 		printk("VM: killing process %s\n", tsk->comm);
-		do_exit(SIGKILL);
+		do_group_exit(SIGKILL);
 		return 0;
 	}
 	if (fault & VM_FAULT_SIGBUS) {

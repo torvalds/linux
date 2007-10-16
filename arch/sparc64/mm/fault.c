@@ -463,7 +463,7 @@ out_of_memory:
 	up_read(&mm->mmap_sem);
 	printk("VM: killing process %s\n", current->comm);
 	if (!(regs->tstate & TSTATE_PRIV))
-		do_exit(SIGKILL);
+		do_group_exit(SIGKILL);
 	goto handle_kernel_fault;
 
 intr_or_no_mm:

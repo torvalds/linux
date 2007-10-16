@@ -259,7 +259,7 @@ asmlinkage void do_page_fault(int datammu, unsigned long esr0, unsigned long ear
 	up_read(&mm->mmap_sem);
 	printk("VM: killing process %s\n", current->comm);
 	if (user_mode(__frame))
-		do_exit(SIGKILL);
+		do_group_exit(SIGKILL);
 	goto no_context;
 
  do_sigbus:
