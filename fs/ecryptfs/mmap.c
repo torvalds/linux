@@ -286,7 +286,8 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 	int rc = 0;
 
 	while (extent_num_in_page < num_extents_per_page) {
-		loff_t view_extent_num = ((page->index * num_extents_per_page)
+		loff_t view_extent_num = ((((loff_t)page->index)
+					   * num_extents_per_page)
 					  + extent_num_in_page);
 
 		if (view_extent_num < crypt_stat->num_header_extents_at_front) {
@@ -706,7 +707,7 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 				"index [0x%.16x])\n", page->index);
 		goto out;
 	}
-	pos = (page->index << PAGE_CACHE_SHIFT) + to;
+	pos = (((loff_t)page->index) << PAGE_CACHE_SHIFT) + to;
 	if (pos > i_size_read(ecryptfs_inode)) {
 		i_size_write(ecryptfs_inode, pos);
 		ecryptfs_printk(KERN_DEBUG, "Expanded file size to "

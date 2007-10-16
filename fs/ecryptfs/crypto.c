@@ -149,7 +149,7 @@ out:
  * ecryptfs_derive_iv
  * @iv: destination for the derived iv vale
  * @crypt_stat: Pointer to crypt_stat struct for the current inode
- * @offset: Offset of the page whose's iv we are to derive
+ * @offset: Offset of the extent whose IV we are to derive
  *
  * Generate the initialization vector from the given root IV and page
  * offset.
@@ -157,7 +157,7 @@ out:
  * Returns zero on success; non-zero on error.
  */
 static int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
-			      pgoff_t offset)
+			      loff_t offset)
 {
 	int rc = 0;
 	char dst[MD5_DIGEST_SIZE];
@@ -173,7 +173,7 @@ static int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
 	 * hashing business. -Halcrow */
 	memcpy(src, crypt_stat->root_iv, crypt_stat->iv_bytes);
 	memset((src + crypt_stat->iv_bytes), 0, 16);
-	snprintf((src + crypt_stat->iv_bytes), 16, "%ld", offset);
+	snprintf((src + crypt_stat->iv_bytes), 16, "%lld", offset);
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(KERN_DEBUG, "source:\n");
 		ecryptfs_dump_hex(src, (crypt_stat->iv_bytes + 16));
@@ -497,11 +497,11 @@ static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
 				   struct page *page,
 				   unsigned long extent_offset)
 {
-	unsigned long extent_base;
+	loff_t extent_base;
 	char extent_iv[ECRYPTFS_MAX_IV_BYTES];
 	int rc;
 
-	extent_base = (page->index
+	extent_base = (((loff_t)page->index)
 		       * (PAGE_CACHE_SIZE / crypt_stat->extent_size));
 	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
 				(extent_base + extent_offset));
@@ -605,8 +605,9 @@ int ecryptfs_encrypt_page(struct page *page)
 			goto out;
 		}
 		ecryptfs_lower_offset_for_extent(
-			&offset, ((page->index * (PAGE_CACHE_SIZE
-						  / crypt_stat->extent_size))
+			&offset, ((((loff_t)page->index)
+				   * (PAGE_CACHE_SIZE
+				      / crypt_stat->extent_size))
 				  + extent_offset), crypt_stat);
 		rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt,
 					  offset, crypt_stat->extent_size);
@@ -628,11 +629,11 @@ static int ecryptfs_decrypt_extent(struct page *page,
 				   struct page *enc_extent_page,
 				   unsigned long extent_offset)
 {
-	unsigned long extent_base;
+	loff_t extent_base;
 	char extent_iv[ECRYPTFS_MAX_IV_BYTES];
 	int rc;
 
-	extent_base = (page->index
+	extent_base = (((loff_t)page->index)
 		       * (PAGE_CACHE_SIZE / crypt_stat->extent_size));
 	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
 				(extent_base + extent_offset));
@@ -1471,7 +1472,7 @@ ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
 	while (current_header_page < header_pages) {
 		loff_t offset;
 
-		offset = (current_header_page << PAGE_CACHE_SHIFT);
+		offset = (((loff_t)current_header_page) << PAGE_CACHE_SHIFT);
 		if ((rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode,
 					       page_virt, offset,
 					       PAGE_CACHE_SIZE))) {
