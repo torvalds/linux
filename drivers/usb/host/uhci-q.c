@@ -1271,7 +1271,8 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	} else if (qh->period != urb->interval) {
 		return -EINVAL;		/* Can't change the period */
 
-	} else {	/* Pick up where the last URB leaves off */
+	} else {
+		/* Find the next unused frame */
 		if (list_empty(&qh->queue)) {
 			frame = qh->iso_frame;
 		} else {
@@ -1283,10 +1284,18 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 					lurb->number_of_packets *
 					lurb->interval;
 		}
-		if (urb->transfer_flags & URB_ISO_ASAP)
-			urb->start_frame = frame;
-		else if (urb->start_frame != frame)
-			return -EINVAL;
+		if (urb->transfer_flags & URB_ISO_ASAP) {
+			/* Skip some frames if necessary to insure
+			 * the start frame is in the future.
+			 */
+			uhci_get_current_frame_number(uhci);
+			if (uhci_frame_before_eq(frame, uhci->frame_number)) {
+				frame = uhci->frame_number + 1;
+				frame += ((qh->phase - frame) &
+					(qh->period - 1));
+			}
+		}	/* Otherwise pick up where the last URB leaves off */
+		urb->start_frame = frame;
 	}
 
 	/* Make sure we won't have to go too far into the future */
