@@ -872,13 +872,6 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 	return inode_setattr(dentry->d_inode, attr);
 }
 
-int hostfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-	   struct kstat *stat)
-{
-	generic_fillattr(dentry->d_inode, stat);
-	return 0;
-}
-
 static const struct inode_operations hostfs_iops = {
 	.create		= hostfs_create,
 	.link		= hostfs_link,
@@ -890,7 +883,6 @@ static const struct inode_operations hostfs_iops = {
 	.rename		= hostfs_rename,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
-	.getattr	= hostfs_getattr,
 };
 
 static const struct inode_operations hostfs_dir_iops = {
@@ -905,7 +897,6 @@ static const struct inode_operations hostfs_dir_iops = {
 	.rename		= hostfs_rename,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
-	.getattr	= hostfs_getattr,
 };
 
 int hostfs_link_readpage(struct file *file, struct page *page)
