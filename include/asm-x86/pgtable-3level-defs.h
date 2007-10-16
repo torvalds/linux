@@ -2,7 +2,7 @@
 #define _I386_PGTABLE_3LEVEL_DEFS_H
 
 #ifdef CONFIG_PARAVIRT
-#define SHARED_KERNEL_PMD	(paravirt_ops.shared_kernel_pmd)
+#define SHARED_KERNEL_PMD	(pv_info.shared_kernel_pmd)
 #else
 #define SHARED_KERNEL_PMD	1
 #endif

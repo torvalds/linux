@@ -115,7 +115,7 @@ static struct hv_ops lguest_cons = {
  * (0), and the struct hv_ops containing the put_chars() function. */
 static int __init cons_init(void)
 {
-	if (strcmp(paravirt_ops.name, "lguest") != 0)
+	if (strcmp(pv_info.name, "lguest") != 0)
 		return 0;
 
 	return hvc_instantiate(0, 0, &lguest_cons);

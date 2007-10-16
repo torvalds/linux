@@ -201,7 +201,7 @@ static void scan_devices(void)
  * "struct lguest_device_desc" array. */
 static int __init lguest_bus_init(void)
 {
-	if (strcmp(paravirt_ops.name, "lguest") != 0)
+	if (strcmp(pv_info.name, "lguest") != 0)
 		return 0;
 
 	/* Devices are in a single page above top of "normal" mem */
