@@ -219,6 +219,9 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
 {
 	int ret;
 
+	if (unlikely(size == 0))
+		return 0;
+
 	/*
 	 * Writing zeroes into userspace here is OK, because we know that if
 	 * the zero gets there, we'll be overwriting it.
@@ -238,10 +241,13 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
 	return ret;
 }
 
-static inline void fault_in_pages_readable(const char __user *uaddr, int size)
+static inline int fault_in_pages_readable(const char __user *uaddr, int size)
 {
 	volatile char c;
 	int ret;
+
+	if (unlikely(size == 0))
+		return 0;
 
 	ret = __get_user(c, uaddr);
 	if (ret == 0) {
@@ -249,8 +255,9 @@ static inline void fault_in_pages_readable(const char __user *uaddr, int size)
 
 		if (((unsigned long)uaddr & PAGE_MASK) !=
 				((unsigned long)end & PAGE_MASK))
-		 	__get_user(c, end);
+		 	ret = __get_user(c, end);
 	}
+	return ret;
 }
 
 #endif /* _LINUX_PAGEMAP_H */
