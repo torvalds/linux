@@ -137,6 +137,8 @@ static struct s3c2410fb_display smdk2440_lcd_cfg __initdata = {
 	.xres		= 240,
 	.yres		= 320,
 	.bpp		= 16,
+	.left_margin	= 20,
+	.right_margin	= 8,
 };
 
 static struct s3c2410fb_mach_info smdk2440_fb_info __initdata = {

@@ -123,12 +123,15 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 				   S3C2410_LCDCON5_HWSWP,
 		},
 
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 640,
 		.yres		= 480,
 		.bpp		= 16,
+		.left_margin	= 44,
+		.right_margin	= 116,
 	},
 	{
 		/* Configuration for 480x640 toppoly TD028TTEC1 */
@@ -157,11 +160,14 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 				   S3C2410_LCDCON5_HWSWP,
 		},
 
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 480,
 		.height		= 640,
 		.xres		= 480,
 		.yres		= 640,
 		.bpp		= 16,
+		.left_margin	= 8,
+		.right_margin	= 24,
 	},
 	{
 		/* Config for 240x320 LCD */
@@ -190,11 +196,14 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 				   S3C2410_LCDCON5_HWSWP,
 		},
 
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 240,
 		.height		= 320,
 		.xres		= 240,
 		.yres		= 320,
 		.bpp		= 16,
+		.left_margin	= 13,
+		.right_margin	= 8,
 	},
 };
 

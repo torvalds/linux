@@ -133,12 +133,15 @@ static struct s3c2410fb_display rx3715_lcdcfg __initdata = {
 				S3C2410_LCDCON5_HWSWP,
 	},
 
-	.width  =	240,
-	.height =	320,
+	.type		= S3C2410_LCDCON1_TFT,
+	.width		= 240,
+	.height		= 320,
 
-	.xres	= 240,
-	.yres	= 320,
-	.bpp	= 16,
+	.xres		= 240,
+	.yres		= 320,
+	.bpp		= 16,
+	.left_margin	= 36,
+	.right_margin	= 36,
 };
 
 static struct s3c2410fb_mach_info rx3715_fb_info __initdata = {

@@ -469,10 +469,13 @@ static struct platform_device bast_device_axpp = {
 
 static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 		.xres		= 320,
 		.yres		= 240,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.bpp		= 4,
 
@@ -485,12 +488,15 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		}
 	},
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 640,
 		.yres		= 480,
 		.bpp		= 4,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.regs		= {
 			.lcdcon1	= 0x00000176,
@@ -501,12 +507,15 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		}
 	},
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 800,
 		.yres		= 600,
 		.bpp		= 4,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.regs		= {
 			.lcdcon1	= 0x00000176,
@@ -517,12 +526,15 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		}
 	},
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 320,
 		.yres		= 240,
 		.bpp		= 8,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.regs		= {
 			.lcdcon1	= 0x00000176,
@@ -533,12 +545,15 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		}
 	},
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 640,
 		.yres		= 480,
 		.bpp		= 8,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.regs		= {
 			.lcdcon1	= 0x00000176,
@@ -549,12 +564,15 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		}
 	},
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 800,
 		.yres		= 600,
 		.bpp		= 8,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.regs		= {
 			.lcdcon1	= 0x00000176,
@@ -565,12 +583,15 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		}
 	},
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 320,
 		.yres		= 240,
 		.bpp		= 16,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.regs		= {
 			.lcdcon1	= 0x00000176,
@@ -581,12 +602,15 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		}
 	},
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 640,
 		.yres		= 480,
 		.bpp		= 16,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.regs		= {
 			.lcdcon1	= 0x00000176,
@@ -597,12 +621,15 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		}
 	},
 	{
+		.type		= S3C2410_LCDCON1_TFT,
 		.width		= 640,
 		.height		= 480,
 
 		.xres		= 800,
 		.yres		= 600,
 		.bpp		= 16,
+		.left_margin	= 40,
+		.right_margin	= 20,
 
 		.regs		= {
 			.lcdcon1	= 0x00000176,

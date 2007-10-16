@@ -172,12 +172,13 @@ static struct s3c2410fb_display __initdata amlm5900_lcd_info = {
 	.width		= 160,
 	.height		= 160,
 
-/* commented out until stn patch is submitted
-*	.type		= S3C2410_LCDCON1_STN4,
-*/
+	.type		= S3C2410_LCDCON1_STN4,
+
 	.xres		= 160,
 	.yres		= 160,
 	.bpp		= 4,
+	.left_margin	= 1 << (4 + 3),
+	.right_margin	= 8 << 3,
 
 	.regs		= {
 		.lcdcon1	= 0x00008225,

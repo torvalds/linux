@@ -156,11 +156,14 @@ static struct s3c2410fb_display h1940_lcd __initdata = {
 				S3C2410_LCDCON5_HWSWP,
 	},
 
+	.type =		S3C2410_LCDCON1_TFT,
 	.width =	240,
 	.height =	320,
 	.xres =		240,
 	.yres =		320,
 	.bpp =		16,
+	.left_margin =	20,
+	.right_margin =	8,
 };
 
 static struct s3c2410fb_mach_info h1940_fb_info __initdata = {
