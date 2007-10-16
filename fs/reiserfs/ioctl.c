@@ -128,6 +128,10 @@ long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 }
 #endif
 
+int reiserfs_commit_write(struct file *f, struct page *page,
+			  unsigned from, unsigned to);
+int reiserfs_prepare_write(struct file *f, struct page *page,
+			   unsigned from, unsigned to);
 /*
 ** reiserfs_unpack
 ** Function try to convert tail from direct item into indirect.
@@ -175,15 +179,13 @@ static int reiserfs_unpack(struct inode *inode, struct file *filp)
 	if (!page) {
 		goto out;
 	}
-	retval =
-	    mapping->a_ops->prepare_write(NULL, page, write_from, write_from);
+	retval = reiserfs_prepare_write(NULL, page, write_from, write_from);
 	if (retval)
 		goto out_unlock;
 
 	/* conversion can change page contents, must flush */
 	flush_dcache_page(page);
-	retval =
-	    mapping->a_ops->commit_write(NULL, page, write_from, write_from);
+	retval = reiserfs_commit_write(NULL, page, write_from, write_from);
 	REISERFS_I(inode)->i_flags |= i_nopack_mask;
 
       out_unlock:
