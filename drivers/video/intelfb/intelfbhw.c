@@ -56,17 +56,16 @@ static struct pll_min_max plls[PLLS_MAX] = {
 	  6, 16, 3, 16,
 	  4, 128, 0, 31,
 	  930000, 1400000, 165000, 48000,
-	  4, 2 }, //I8xx
+	  4, 2 },		/* I8xx */
 
 	{ 75, 120, 10, 20,
 	  5, 9, 4, 7,
 	  5, 80, 1, 8,
 	  1400000, 2800000, 200000, 96000,
-	  10, 5 }  //I9xx
+	  10, 5 }		/* I9xx */
 };
 
-int
-intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo)
+int intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo)
 {
 	u32 tmp;
 	if (!pdev || !dinfo)
@@ -149,9 +148,8 @@ intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo)
 	}
 }
 
-int
-intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
-		     int *stolen_size)
+int intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
+			 int *stolen_size)
 {
 	struct pci_dev *bridge_dev;
 	u16 tmp;
@@ -254,8 +252,7 @@ intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 	}
 }
 
-int
-intelfbhw_check_non_crt(struct intelfb_info *dinfo)
+int intelfbhw_check_non_crt(struct intelfb_info *dinfo)
 {
 	int dvo = 0;
 
@@ -271,8 +268,7 @@ intelfbhw_check_non_crt(struct intelfb_info *dinfo)
 	return dvo;
 }
 
-const char *
-intelfbhw_dvo_to_string(int dvo)
+const char * intelfbhw_dvo_to_string(int dvo)
 {
 	if (dvo & DVOA_PORT)
 		return "DVO port A";
@@ -287,9 +283,8 @@ intelfbhw_dvo_to_string(int dvo)
 }
 
 
-int
-intelfbhw_validate_mode(struct intelfb_info *dinfo,
-			struct fb_var_screeninfo *var)
+int intelfbhw_validate_mode(struct intelfb_info *dinfo,
+			    struct fb_var_screeninfo *var)
 {
 	int bytes_per_pixel;
 	int tmp;
@@ -345,8 +340,7 @@ intelfbhw_validate_mode(struct intelfb_info *dinfo,
 	return 0;
 }
 
-int
-intelfbhw_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+int intelfbhw_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct intelfb_info *dinfo = GET_DINFO(info);
 	u32 offset, xoffset, yoffset;
@@ -368,9 +362,10 @@ intelfbhw_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	offset += dinfo->fb.offset << 12;
 
 	dinfo->vsync.pan_offset = offset;
-	if ((var->activate & FB_ACTIVATE_VBL) && !intelfbhw_enable_irq(dinfo, 0)) {
+	if ((var->activate & FB_ACTIVATE_VBL) &&
+	    !intelfbhw_enable_irq(dinfo, 0))
 		dinfo->vsync.pan_display = 1;
-	} else {
+	else {
 		dinfo->vsync.pan_display = 0;
 		OUTREG(DSPABASE, offset);
 	}
@@ -379,8 +374,7 @@ intelfbhw_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 }
 
 /* Blank the screen. */
-void
-intelfbhw_do_blank(int blank, struct fb_info *info)
+void intelfbhw_do_blank(int blank, struct fb_info *info)
 {
 	struct intelfb_info *dinfo = GET_DINFO(info);
 	u32 tmp;
@@ -405,11 +399,10 @@ intelfbhw_do_blank(int blank, struct fb_info *info)
 	DBG_MSG("cursor_on is %d\n", dinfo->cursor_on);
 #endif
 	if (dinfo->cursor_on) {
-		if (blank) {
+		if (blank)
 			intelfbhw_cursor_hide(dinfo);
-		} else {
+		else
 			intelfbhw_cursor_show(dinfo);
-		}
 		dinfo->cursor_on = 1;
 	}
 	dinfo->cursor_blanked = blank;
@@ -437,10 +430,9 @@ intelfbhw_do_blank(int blank, struct fb_info *info)
 }
 
 
-void
-intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regno,
-		    unsigned red, unsigned green, unsigned blue,
-		    unsigned transp)
+void intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regno,
+			 unsigned red, unsigned green, unsigned blue,
+			 unsigned transp)
 {
 #if VERBOSE > 0
 	DBG_MSG("intelfbhw_setcolreg: %d: (%d, %d, %d)\n",
@@ -457,9 +449,8 @@ intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regno,
 }
 
 
-int
-intelfbhw_read_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
-			int flag)
+int intelfbhw_read_hw_state(struct intelfb_info *dinfo,
+			    struct intelfb_hwstate *hw, int flag)
 {
 	int i;
 
@@ -606,7 +597,8 @@ static int calc_vclock3(int index, int m, int n, int p)
 	return plls[index].ref_clk * m / n / p;
 }
 
-static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2, int lvds)
+static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2,
+		       int lvds)
 {
 	struct pll_min_max *pll = &plls[index];
 	u32 m, vco, p;
@@ -615,17 +607,16 @@ static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2, int lvd
 	n += 2;
 	vco = pll->ref_clk * m / n;
 
-	if (index == PLLS_I8xx) {
+	if (index == PLLS_I8xx)
 		p = ((p1 + 2) * (1 << (p2 + 1)));
-	} else {
+	else
 		p = ((p1) * (p2 ? 5 : 10));
-	}
 	return vco / p;
 }
 
 #if REGDUMP
-static void
-intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll, int *o_p1, int *o_p2)
+static void intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll,
+			       int *o_p1, int *o_p2)
 {
 	int p1, p2;
 
@@ -634,7 +625,7 @@ intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll, int *o_p1, int *o_p2)
 			p1 = 1;
 		else
 			p1 = (dpll >> DPLL_P1_SHIFT) & 0xff;
-		
+
 		p1 = ffs(p1);
 
 		p2 = (dpll >> DPLL_I9XX_P2_SHIFT) & DPLL_P2_MASK;
@@ -652,8 +643,8 @@ intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll, int *o_p1, int *o_p2)
 #endif
 
 
-void
-intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
+void intelfbhw_print_hw_state(struct intelfb_info *dinfo,
+			      struct intelfb_hwstate *hw)
 {
 #if REGDUMP
 	int i, m1, m2, n, p1, p2;
@@ -666,7 +657,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	printk("hw state dump start\n");
 	printk("	VGA0_DIVISOR:		0x%08x\n", hw->vga0_divisor);
 	printk("	VGA1_DIVISOR:		0x%08x\n", hw->vga1_divisor);
-	printk("	VGAPD: 			0x%08x\n", hw->vga_pd);
+	printk("	VGAPD:			0x%08x\n", hw->vga_pd);
 	n = (hw->vga0_divisor >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->vga0_divisor >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->vga0_divisor >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
@@ -685,7 +676,8 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	intelfbhw_get_p1p2(dinfo, hw->vga_pd, &p1, &p2);
 	printk("	VGA1: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
-	printk("	VGA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2, 0));
+	printk("	VGA1: clock is %d\n",
+	       calc_vclock(index, m1, m2, n, p1, p2, 0));
 
 	printk("	DPLL_A:			0x%08x\n", hw->dpll_a);
 	printk("	DPLL_B:			0x%08x\n", hw->dpll_b);
@@ -702,7 +694,8 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 
 	printk("	PLLA0: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
-	printk("	PLLA0: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2, 0));
+	printk("	PLLA0: clock is %d\n",
+	       calc_vclock(index, m1, m2, n, p1, p2, 0));
 
 	n = (hw->fpa1 >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->fpa1 >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
@@ -712,7 +705,8 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 
 	printk("	PLLA1: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
-	printk("	PLLA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2, 0));
+	printk("	PLLA1: clock is %d\n",
+	       calc_vclock(index, m1, m2, n, p1, p2, 0));
 
 #if 0
 	printk("	PALETTE_A:\n");
@@ -817,8 +811,8 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 
 
 /* Split the M parameter into M1 and M2. */
-static int
-splitm(int index, unsigned int m, unsigned int *retm1, unsigned int *retm2)
+static int splitm(int index, unsigned int m, unsigned int *retm1,
+		  unsigned int *retm2)
 {
 	int m1, m2;
 	int testm;
@@ -839,8 +833,8 @@ splitm(int index, unsigned int m, unsigned int *retm1, unsigned int *retm2)
 }
 
 /* Split the P parameter into P1 and P2. */
-static int
-splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
+static int splitp(int index, unsigned int p, unsigned int *retp1,
+		  unsigned int *retp2)
 {
 	int p1, p2;
 	struct pll_min_max *pll = &plls[index];
@@ -874,9 +868,8 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 	}
 }
 
-static int
-calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *retp1,
-		u32 *retp2, u32 *retclock)
+static int calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2,
+			   u32 *retn, u32 *retp1, u32 *retp2, u32 *retclock)
 {
 	u32 m1, m2, n, p1, p2, n1, testm;
 	u32 f_vco, p, p_best = 0, m, f_out = 0;
@@ -971,8 +964,8 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 	return 0;
 }
 
-static __inline__ int
-check_overflow(u32 value, u32 limit, const char *description)
+static __inline__ int check_overflow(u32 value, u32 limit,
+				     const char *description)
 {
 	if (value > limit) {
 		WRN_MSG("%s value %d exceeds limit %d\n",
@@ -983,9 +976,9 @@ check_overflow(u32 value, u32 limit, const char *description)
 }
 
 /* It is assumed that hw is filled in with the initial state information. */
-int
-intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
-		     struct fb_var_screeninfo *var)
+int intelfbhw_mode_to_hw(struct intelfb_info *dinfo,
+			 struct intelfb_hwstate *hw,
+			 struct fb_var_screeninfo *var)
 {
 	int pipe = PIPE_A;
 	u32 *dpll, *fp0, *fp1;
@@ -1089,9 +1082,8 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	if (IS_I9XX(dinfo)) {
 		*dpll |= (p2 << DPLL_I9XX_P2_SHIFT);
 		*dpll |= (1 << (p1 - 1)) << DPLL_P1_SHIFT;
-	} else {
+	} else
 		*dpll |= (p2 << DPLL_P2_SHIFT) | (p1 << DPLL_P1_SHIFT);
-	}
 
 	*fp0 = (n << FP_N_DIVISOR_SHIFT) |
 	       (m1 << FP_M1_DIVISOR_SHIFT) |
@@ -1226,9 +1218,8 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 }
 
 /* Program a (non-VGA) video mode. */
-int
-intelfbhw_program_mode(struct intelfb_info *dinfo,
-		     const struct intelfb_hwstate *hw, int blank)
+int intelfbhw_program_mode(struct intelfb_info *dinfo,
+			   const struct intelfb_hwstate *hw, int blank)
 {
 	int pipe = PIPE_A;
 	u32 tmp;
@@ -1324,7 +1315,7 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 			tmp &= ~PIPECONF_ENABLE;
 			OUTREG(pipe_conf_reg, tmp);
 		}
-	} while(count < 2000);
+	} while (count < 2000);
 
 	OUTREG(ADPA, INREG(ADPA) & ~ADPA_DAC_ENABLE);
 
@@ -1448,8 +1439,7 @@ static  u32 get_ring_space(struct intelfb_info *dinfo)
 	return ring_space;
 }
 
-static int
-wait_ring(struct intelfb_info *dinfo, int n)
+static int wait_ring(struct intelfb_info *dinfo, int n)
 {
 	int i = 0;
 	unsigned long end;
@@ -1491,16 +1481,15 @@ wait_ring(struct intelfb_info *dinfo, int n)
 	return i;
 }
 
-static void
-do_flush(struct intelfb_info *dinfo) {
+static void do_flush(struct intelfb_info *dinfo)
+{
 	START_RING(2);
 	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE);
 	OUT_RING(MI_NOOP);
 	ADVANCE_RING();
 }
 
-void
-intelfbhw_do_sync(struct intelfb_info *dinfo)
+void intelfbhw_do_sync(struct intelfb_info *dinfo)
 {
 #if VERBOSE > 0
 	DBG_MSG("intelfbhw_do_sync\n");
@@ -1519,8 +1508,7 @@ intelfbhw_do_sync(struct intelfb_info *dinfo)
 	dinfo->ring_space = dinfo->ring.size - RING_MIN_FREE;
 }
 
-static void
-refresh_ring(struct intelfb_info *dinfo)
+static void refresh_ring(struct intelfb_info *dinfo)
 {
 #if VERBOSE > 0
 	DBG_MSG("refresh_ring\n");
@@ -1531,8 +1519,7 @@ refresh_ring(struct intelfb_info *dinfo)
 	dinfo->ring_space = get_ring_space(dinfo);
 }
 
-static void
-reset_state(struct intelfb_info *dinfo)
+static void reset_state(struct intelfb_info *dinfo)
 {
 	int i;
 	u32 tmp;
@@ -1562,12 +1549,11 @@ reset_state(struct intelfb_info *dinfo)
 }
 
 /* Stop the 2D engine, and turn off the ring buffer. */
-void
-intelfbhw_2d_stop(struct intelfb_info *dinfo)
+void intelfbhw_2d_stop(struct intelfb_info *dinfo)
 {
 #if VERBOSE > 0
-	DBG_MSG("intelfbhw_2d_stop: accel: %d, ring_active: %d\n", dinfo->accel,
-		dinfo->ring_active);
+	DBG_MSG("intelfbhw_2d_stop: accel: %d, ring_active: %d\n",
+		dinfo->accel, dinfo->ring_active);
 #endif
 
 	if (!dinfo->accel)
@@ -1582,8 +1568,7 @@ intelfbhw_2d_stop(struct intelfb_info *dinfo)
  * It is assumed that the graphics engine has been stopped by previously
  * calling intelfb_2d_stop().
  */
-void
-intelfbhw_2d_start(struct intelfb_info *dinfo)
+void intelfbhw_2d_start(struct intelfb_info *dinfo)
 {
 #if VERBOSE > 0
 	DBG_MSG("intelfbhw_2d_start: accel: %d, ring_active: %d\n",
@@ -1607,9 +1592,8 @@ intelfbhw_2d_start(struct intelfb_info *dinfo)
 }
 
 /* 2D fillrect (solid fill or invert) */
-void
-intelfbhw_do_fillrect(struct intelfb_info *dinfo, u32 x, u32 y, u32 w, u32 h,
-		      u32 color, u32 pitch, u32 bpp, u32 rop)
+void intelfbhw_do_fillrect(struct intelfb_info *dinfo, u32 x, u32 y, u32 w,
+			   u32 h, u32 color, u32 pitch, u32 bpp, u32 rop)
 {
 	u32 br00, br09, br13, br14, br16;
 
@@ -1698,9 +1682,9 @@ intelfbhw_do_bitblt(struct intelfb_info *dinfo, u32 curx, u32 cury,
 	ADVANCE_RING();
 }
 
-int
-intelfbhw_do_drawglyph(struct intelfb_info *dinfo, u32 fg, u32 bg, u32 w,
-		       u32 h, const u8* cdat, u32 x, u32 y, u32 pitch, u32 bpp)
+int intelfbhw_do_drawglyph(struct intelfb_info *dinfo, u32 fg, u32 bg, u32 w,
+			   u32 h, const u8* cdat, u32 x, u32 y, u32 pitch,
+			   u32 bpp)
 {
 	int nbytes, ndwords, pad, tmp;
 	u32 br00, br09, br13, br18, br19, br22, br23;
@@ -1787,8 +1771,7 @@ intelfbhw_do_drawglyph(struct intelfb_info *dinfo, u32 fg, u32 bg, u32 w,
 }
 
 /* HW cursor functions. */
-void
-intelfbhw_cursor_init(struct intelfb_info *dinfo)
+void intelfbhw_cursor_init(struct intelfb_info *dinfo)
 {
 	u32 tmp;
 
@@ -1819,8 +1802,7 @@ intelfbhw_cursor_init(struct intelfb_info *dinfo)
 	}
 }
 
-void
-intelfbhw_cursor_hide(struct intelfb_info *dinfo)
+void intelfbhw_cursor_hide(struct intelfb_info *dinfo)
 {
 	u32 tmp;
 
@@ -1845,8 +1827,7 @@ intelfbhw_cursor_hide(struct intelfb_info *dinfo)
 	}
 }
 
-void
-intelfbhw_cursor_show(struct intelfb_info *dinfo)
+void intelfbhw_cursor_show(struct intelfb_info *dinfo)
 {
 	u32 tmp;
 
@@ -1875,8 +1856,7 @@ intelfbhw_cursor_show(struct intelfb_info *dinfo)
 	}
 }
 
-void
-intelfbhw_cursor_setpos(struct intelfb_info *dinfo, int x, int y)
+void intelfbhw_cursor_setpos(struct intelfb_info *dinfo, int x, int y)
 {
 	u32 tmp;
 
@@ -1894,13 +1874,11 @@ intelfbhw_cursor_setpos(struct intelfb_info *dinfo, int x, int y)
 	      ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 	OUTREG(CURSOR_A_POSITION, tmp);
 
-	if (IS_I9XX(dinfo)) {
+	if (IS_I9XX(dinfo))
 		OUTREG(CURSOR_A_BASEADDR, dinfo->cursor.physical);
-	}
 }
 
-void
-intelfbhw_cursor_setcolor(struct intelfb_info *dinfo, u32 bg, u32 fg)
+void intelfbhw_cursor_setcolor(struct intelfb_info *dinfo, u32 bg, u32 fg)
 {
 #if VERBOSE > 0
 	DBG_MSG("intelfbhw_cursor_setcolor\n");
@@ -1912,9 +1890,8 @@ intelfbhw_cursor_setcolor(struct intelfb_info *dinfo, u32 bg, u32 fg)
 	OUTREG(CURSOR_A_PALETTE3, bg & CURSOR_PALETTE_MASK);
 }
 
-void
-intelfbhw_cursor_load(struct intelfb_info *dinfo, int width, int height,
-		      u8 *data)
+void intelfbhw_cursor_load(struct intelfb_info *dinfo, int width, int height,
+			   u8 *data)
 {
 	u8 __iomem *addr = (u8 __iomem *)dinfo->cursor.virtual;
 	int i, j, w = width / 8;
@@ -1942,8 +1919,8 @@ intelfbhw_cursor_load(struct intelfb_info *dinfo, int width, int height,
 	}
 }
 
-void
-intelfbhw_cursor_reset(struct intelfb_info *dinfo) {
+void intelfbhw_cursor_reset(struct intelfb_info *dinfo)
+{
 	u8 __iomem *addr = (u8 __iomem *)dinfo->cursor.virtual;
 	int i, j;
 
@@ -2047,8 +2024,8 @@ intelfbhw_disable_irq(struct intelfb_info *dinfo) {
 	}
 }
 
-int
-intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe) {
+int intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe)
+{
 	struct intelfb_vsync *vsync;
 	unsigned int count;
 	int ret;
@@ -2062,15 +2039,14 @@ intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe) {
 	}
 
 	ret = intelfbhw_enable_irq(dinfo, 0);
-	if (ret) {
+	if (ret)
 		return ret;
-	}
 
 	count = vsync->count;
-	ret = wait_event_interruptible_timeout(vsync->wait, count != vsync->count, HZ/10);
-	if (ret < 0) {
+	ret = wait_event_interruptible_timeout(vsync->wait,
+					       count != vsync->count, HZ / 10);
+	if (ret < 0)
 		return ret;
-	}
 	if (ret == 0) {
 		intelfbhw_enable_irq(dinfo, 1);
 		DBG_MSG("wait_for_vsync timed out!\n");

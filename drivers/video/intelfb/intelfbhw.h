@@ -83,7 +83,7 @@
  */
 #define RING_MIN_FREE			64
 
-#define IPEHR     		0x2088
+#define IPEHR			0x2088
 
 #define INSTDONE		0x2090
 #define PRI_RING_EMPTY			1
@@ -128,9 +128,9 @@
 
 #define GPIOA             0x5010
 #define GPIOB             0x5014
-#define GPIOC             0x5018 // this may be external DDC on i830
-#define GPIOD             0x501C // this is DVO DDC
-#define GPIOE             0x5020 // this is DVO i2C
+#define GPIOC             0x5018 /* this may be external DDC on i830 */
+#define GPIOD             0x501C /* this is DVO DDC */
+#define GPIOE             0x5020 /* this is DVO i2C */
 #define GPIOF             0x5024
 
 /* PLL registers */
@@ -269,8 +269,8 @@
 #define PORT_ENABLE		        (1 << 31)
 #define PORT_PIPE_SELECT_SHIFT	        30
 #define PORT_TV_FLAGS_MASK              0xFF
-#define PORT_TV_FLAGS                   0xC4  // ripped from my BIOS
-                                              // to understand and correct
+#define PORT_TV_FLAGS                   0xC4	/* ripped from my BIOS
+						   to understand and correct */
 
 #define DVOA_SRCDIM		0x61124
 #define DVOB_SRCDIM		0x61144
@@ -369,7 +369,7 @@
 #define DISPPLANE_8BPP			(0x2<<26)
 #define DISPPLANE_15_16BPP		(0x4<<26)
 #define DISPPLANE_16BPP			(0x5<<26)
-#define DISPPLANE_32BPP_NO_ALPHA 	(0x6<<26)
+#define DISPPLANE_32BPP_NO_ALPHA	(0x6<<26)
 #define DISPPLANE_32BPP			(0x7<<26)
 #define DISPPLANE_STEREO_ENABLE		(1<<25)
 #define DISPPLANE_STEREO_DISABLE	0

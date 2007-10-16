@@ -99,13 +99,6 @@
  *              Add vram option to reserve more memory than stolen by BIOS
  *              Fix intelfbhw_pan_display typo
  *              Add __initdata annotations
- *
- * TODO:
- *
- *
- * Wish List:
- *
- *
  */
 
 #include <linux/module.h>
@@ -222,8 +215,8 @@ static struct pci_driver intelfb_driver = {
 /* Module description/parameters */
 MODULE_AUTHOR("David Dawes <dawes@tungstengraphics.com>, "
 	      "Sylvain Meyer <sylvain.meyer@worldonline.fr>");
-MODULE_DESCRIPTION(
-	"Framebuffer driver for Intel(R) " SUPPORTED_CHIPSETS " chipsets");
+MODULE_DESCRIPTION("Framebuffer driver for Intel(R) " SUPPORTED_CHIPSETS
+		   " chipsets");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEVICE_TABLE(pci, intelfb_pci_table);
 
@@ -271,8 +264,7 @@ MODULE_PARM_DESC(mode,
 #define OPT_INTVAL(opt, name) simple_strtoul(opt + strlen(name) + 1, NULL, 0)
 #define OPT_STRVAL(opt, name) (opt + strlen(name))
 
-static __inline__ char *
-get_opt_string(const char *this_opt, const char *name)
+static __inline__ char * get_opt_string(const char *this_opt, const char *name)
 {
 	const char *p;
 	int i;
@@ -290,8 +282,8 @@ get_opt_string(const char *this_opt, const char *name)
 	return ret;
 }
 
-static __inline__ int
-get_opt_int(const char *this_opt, const char *name, int *ret)
+static __inline__ int get_opt_int(const char *this_opt, const char *name,
+				  int *ret)
 {
 	if (!ret)
 		return 0;
@@ -303,8 +295,8 @@ get_opt_int(const char *this_opt, const char *name, int *ret)
 	return 1;
 }
 
-static __inline__ int
-get_opt_bool(const char *this_opt, const char *name, int *ret)
+static __inline__ int get_opt_bool(const char *this_opt, const char *name,
+				   int *ret)
 {
 	if (!ret)
 		return 0;
@@ -324,8 +316,7 @@ get_opt_bool(const char *this_opt, const char *name, int *ret)
 	return 1;
 }
 
-static int __init
-intelfb_setup(char *options)
+static int __init intelfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -355,7 +346,7 @@ intelfb_setup(char *options)
 			continue;
 		if (get_opt_bool(this_opt, "accel", &accel))
 			;
- 		else if (get_opt_int(this_opt, "vram", &vram))
+		else if (get_opt_int(this_opt, "vram", &vram))
 			;
 		else if (get_opt_bool(this_opt, "hwcursor", &hwcursor))
 			;
@@ -376,8 +367,7 @@ intelfb_setup(char *options)
 
 #endif
 
-static int __init
-intelfb_init(void)
+static int __init intelfb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
@@ -401,8 +391,7 @@ intelfb_init(void)
 	return pci_register_driver(&intelfb_driver);
 }
 
-static void __exit
-intelfb_exit(void)
+static void __exit intelfb_exit(void)
 {
 	DBG_MSG("intelfb_exit\n");
 	pci_unregister_driver(&intelfb_driver);
@@ -428,8 +417,8 @@ static inline void __devinit set_mtrr(struct intelfb_info *dinfo)
 }
 static inline void unset_mtrr(struct intelfb_info *dinfo)
 {
-  	if (dinfo->has_mtrr)
-  		mtrr_del(dinfo->mtrr_reg, dinfo->aperture.physical,
+	if (dinfo->has_mtrr)
+		mtrr_del(dinfo->mtrr_reg, dinfo->aperture.physical,
 			 dinfo->aperture.size);
 }
 #else
@@ -442,8 +431,7 @@ static inline void unset_mtrr(struct intelfb_info *dinfo)
  *                        driver init / cleanup                *
  ***************************************************************/
 
-static void
-cleanup(struct intelfb_info *dinfo)
+static void cleanup(struct intelfb_info *dinfo)
 {
 	DBG_MSG("cleanup\n");
 
@@ -499,8 +487,8 @@ cleanup(struct intelfb_info *dinfo)
 } while (0)
 
 
-static int __devinit
-intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int __devinit intelfb_pci_register(struct pci_dev *pdev,
+					  const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct intelfb_info *dinfo;
@@ -510,8 +498,8 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int agp_memtype;
 	const char *s;
 	struct agp_bridge_data *bridge;
- 	int aperture_bar = 0;
- 	int mmio_bar = 1;
+	int aperture_bar = 0;
+	int mmio_bar = 1;
 	int offset;
 
 	DBG_MSG("intelfb_pci_register\n");
@@ -637,9 +625,8 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dinfo->ring.size = RINGBUFFER_SIZE;
 		dinfo->ring_tail_mask = dinfo->ring.size - 1;
 	}
-	if (dinfo->hwcursor) {
+	if (dinfo->hwcursor)
 		dinfo->cursor.size = HW_CURSOR_SIZE;
-	}
 
 	/* Use agpgart to manage the GATT */
 	if (!(bridge = agp_backend_acquire(pdev))) {
@@ -662,18 +649,15 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		offset = ROUND_UP_TO_PAGE(MB(voffset))/GTT_PAGE_SIZE;
 
 	/* set the mem offsets - set them after the already used pages */
-	if (dinfo->accel) {
+	if (dinfo->accel)
 		dinfo->ring.offset = offset + gtt_info.current_memory;
-	}
-	if (dinfo->hwcursor) {
+	if (dinfo->hwcursor)
 		dinfo->cursor.offset = offset +
 			+ gtt_info.current_memory + (dinfo->ring.size >> 12);
-	}
-	if (dinfo->fbmem_gart) {
+	if (dinfo->fbmem_gart)
 		dinfo->fb.offset = offset +
 			+ gtt_info.current_memory + (dinfo->ring.size >> 12)
 			+ (dinfo->cursor.size >> 12);
-	}
 
 	/* Allocate memories (which aren't stolen) */
 	/* Map the fb and MMIO regions */
@@ -689,7 +673,7 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dinfo->mmio_base =
 		(u8 __iomem *)ioremap_nocache(dinfo->mmio_base_phys,
-					       INTEL_REG_SIZE);
+					      INTEL_REG_SIZE);
 	if (!dinfo->mmio_base) {
 		ERR_MSG("Cannot remap MMIO region.\n");
 		cleanup(dinfo);
@@ -837,10 +821,8 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (bailearly == 3)
 		bailout(dinfo);
 
-	if (FIXED_MODE(dinfo)) {
-		/* remap fb address */
+	if (FIXED_MODE(dinfo))	/* remap fb address */
 		update_dinfo(dinfo, &dinfo->initial_var);
-	}
 
 	if (bailearly == 4)
 		bailout(dinfo);
@@ -939,8 +921,7 @@ intelfb_pci_unregister(struct pci_dev *pdev)
  *                       helper functions                      *
  ***************************************************************/
 
-int __inline__
-intelfb_var_to_depth(const struct fb_var_screeninfo *var)
+int __inline__ intelfb_var_to_depth(const struct fb_var_screeninfo *var)
 {
 	DBG_MSG("intelfb_var_to_depth: bpp: %d, green.length is %d\n",
 		var->bits_per_pixel, var->green.length);
@@ -956,8 +937,7 @@ intelfb_var_to_depth(const struct fb_var_screeninfo *var)
 }
 
 
-static __inline__ int
-var_to_refresh(const struct fb_var_screeninfo *var)
+static __inline__ int var_to_refresh(const struct fb_var_screeninfo *var)
 {
 	int xtot = var->xres + var->left_margin + var->right_margin +
 		   var->hsync_len;
@@ -971,8 +951,7 @@ var_to_refresh(const struct fb_var_screeninfo *var)
  *                Various intialisation functions              *
  ***************************************************************/
 
-static void __devinit
-get_initial_mode(struct intelfb_info *dinfo)
+static void __devinit get_initial_mode(struct intelfb_info *dinfo)
 {
 	struct fb_var_screeninfo *var;
 	int xtot, ytot;
@@ -1039,8 +1018,7 @@ get_initial_mode(struct intelfb_info *dinfo)
 	}
 }
 
-static int __devinit
-intelfb_init_var(struct intelfb_info *dinfo)
+static int __devinit intelfb_init_var(struct intelfb_info *dinfo)
 {
 	struct fb_var_screeninfo *var;
 	int msrc = 0;
@@ -1087,10 +1065,9 @@ intelfb_init_var(struct intelfb_info *dinfo)
 
 		}
 
-		if (!msrc) {
+		if (!msrc)
 			msrc = fb_find_mode(var, dinfo->info, PREFERRED_MODE,
 					    NULL, 0, NULL, 0);
-		}
 	}
 
 	if (!msrc) {
@@ -1122,8 +1099,7 @@ intelfb_init_var(struct intelfb_info *dinfo)
 	return 0;
 }
 
-static int __devinit
-intelfb_set_fbinfo(struct intelfb_info *dinfo)
+static int __devinit intelfb_set_fbinfo(struct intelfb_info *dinfo)
 {
 	struct fb_info *info = dinfo->info;
 
@@ -1159,8 +1135,8 @@ intelfb_set_fbinfo(struct intelfb_info *dinfo)
 }
 
 /* Update dinfo to match the active video mode. */
-static void
-update_dinfo(struct intelfb_info *dinfo, struct fb_var_screeninfo *var)
+static void update_dinfo(struct intelfb_info *dinfo,
+			 struct fb_var_screeninfo *var)
 {
 	DBG_MSG("update_dinfo\n");
 
@@ -1208,36 +1184,32 @@ update_dinfo(struct intelfb_info *dinfo, struct fb_var_screeninfo *var)
  *                       fbdev interface                       *
  ***************************************************************/
 
-static int
-intelfb_open(struct fb_info *info, int user)
+static int intelfb_open(struct fb_info *info, int user)
 {
 	struct intelfb_info *dinfo = GET_DINFO(info);
 
-	if (user) {
+	if (user)
 		dinfo->open++;
-	}
 
 	return 0;
 }
 
-static int
-intelfb_release(struct fb_info *info, int user)
+static int intelfb_release(struct fb_info *info, int user)
 {
 	struct intelfb_info *dinfo = GET_DINFO(info);
 
 	if (user) {
 		dinfo->open--;
 		msleep(1);
-		if (!dinfo->open) {
+		if (!dinfo->open)
 			intelfbhw_disable_irq(dinfo);
-		}
 	}
 
 	return 0;
 }
 
-static int
-intelfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+static int intelfb_check_var(struct fb_var_screeninfo *var,
+			     struct fb_info *info)
 {
 	int change_var = 0;
 	struct fb_var_screeninfo v;
@@ -1271,15 +1243,15 @@ intelfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 	/* Check for a supported bpp. */
-	if (v.bits_per_pixel <= 8) {
+	if (v.bits_per_pixel <= 8)
 		v.bits_per_pixel = 8;
-	} else if (v.bits_per_pixel <= 16) {
+	else if (v.bits_per_pixel <= 16) {
 		if (v.bits_per_pixel == 16)
 			v.green.length = 6;
 		v.bits_per_pixel = 16;
-	} else if (v.bits_per_pixel <= 32) {
+	} else if (v.bits_per_pixel <= 32)
 		v.bits_per_pixel = 32;
-	} else
+	else
 		return -EINVAL;
 
 	change_var = ((info->var.xres != var->xres) ||
@@ -1361,10 +1333,9 @@ intelfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-static int
-intelfb_set_par(struct fb_info *info)
+static int intelfb_set_par(struct fb_info *info)
 {
- 	struct intelfb_hwstate *hw;
+	struct intelfb_hwstate *hw;
         struct intelfb_info *dinfo = GET_DINFO(info);
 
 	if (FIXED_MODE(dinfo)) {
@@ -1372,9 +1343,9 @@ intelfb_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
- 	hw = kmalloc(sizeof(*hw), GFP_ATOMIC);
- 	if (!hw)
- 		return -ENOMEM;
+	hw = kmalloc(sizeof(*hw), GFP_ATOMIC);
+	if (!hw)
+		return -ENOMEM;
 
 	DBG_MSG("intelfb_set_par (%dx%d-%d)\n", info->var.xres,
 		info->var.yres, info->var.bits_per_pixel);
@@ -1384,15 +1355,15 @@ intelfb_set_par(struct fb_info *info)
 	if (ACCEL(dinfo, info))
 		intelfbhw_2d_stop(dinfo);
 
- 	memcpy(hw, &dinfo->save_state, sizeof(*hw));
- 	if (intelfbhw_mode_to_hw(dinfo, hw, &info->var))
- 		goto invalid_mode;
- 	if (intelfbhw_program_mode(dinfo, hw, 0))
- 		goto invalid_mode;
+	memcpy(hw, &dinfo->save_state, sizeof(*hw));
+	if (intelfbhw_mode_to_hw(dinfo, hw, &info->var))
+		goto invalid_mode;
+	if (intelfbhw_program_mode(dinfo, hw, 0))
+		goto invalid_mode;
 
 #if REGDUMP > 0
- 	intelfbhw_read_hw_state(dinfo, hw, 0);
- 	intelfbhw_print_hw_state(dinfo, hw);
+	intelfbhw_read_hw_state(dinfo, hw, 0);
+	intelfbhw_print_hw_state(dinfo, hw);
 #endif
 
 	update_dinfo(dinfo, &info->var);
@@ -1408,9 +1379,9 @@ intelfb_set_par(struct fb_info *info)
 		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN |
 		FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT |
 		FBINFO_HWACCEL_IMAGEBLIT;
-	} else {
+	} else
 		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
-	}
+
 	kfree(hw);
 	return 0;
 invalid_mode:
@@ -1418,9 +1389,9 @@ invalid_mode:
 	return -EINVAL;
 }
 
-static int
-intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
-		  unsigned blue, unsigned transp, struct fb_info *info)
+static int intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+			     unsigned blue, unsigned transp,
+			     struct fb_info *info)
 {
 	struct intelfb_info *dinfo = GET_DINFO(info);
 
@@ -1463,23 +1434,22 @@ intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-static int
-intelfb_blank(int blank, struct fb_info *info)
+static int intelfb_blank(int blank, struct fb_info *info)
 {
 	intelfbhw_do_blank(blank, info);
 	return 0;
 }
 
-static int
-intelfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+static int intelfb_pan_display(struct fb_var_screeninfo *var,
+			       struct fb_info *info)
 {
 	intelfbhw_pan_display(var, info);
 	return 0;
 }
 
 /* When/if we have our own ioctls. */
-static int
-intelfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+static int intelfb_ioctl(struct fb_info *info, unsigned int cmd,
+			 unsigned long arg)
 {
 	int retval = 0;
 	struct intelfb_info *dinfo = GET_DINFO(info);
@@ -1499,8 +1469,8 @@ intelfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-static void
-intelfb_fillrect (struct fb_info *info, const struct fb_fillrect *rect)
+static void intelfb_fillrect (struct fb_info *info,
+			      const struct fb_fillrect *rect)
 {
         struct intelfb_info *dinfo = GET_DINFO(info);
 	u32 rop, color;
@@ -1514,7 +1484,7 @@ intelfb_fillrect (struct fb_info *info, const struct fb_fillrect *rect)
 
 	if (rect->rop == ROP_COPY)
 		rop = PAT_ROP_GXCOPY;
-	else // ROP_XOR
+	else /* ROP_XOR */
 		rop = PAT_ROP_GXXOR;
 
 	if (dinfo->depth != 8)
@@ -1528,8 +1498,8 @@ intelfb_fillrect (struct fb_info *info, const struct fb_fillrect *rect)
 			      rop);
 }
 
-static void
-intelfb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
+static void intelfb_copyarea(struct fb_info *info,
+			     const struct fb_copyarea *region)
 {
         struct intelfb_info *dinfo = GET_DINFO(info);
 
@@ -1545,8 +1515,8 @@ intelfb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 			    dinfo->pitch, info->var.bits_per_pixel);
 }
 
-static void
-intelfb_imageblit(struct fb_info *info, const struct fb_image *image)
+static void intelfb_imageblit(struct fb_info *info,
+			      const struct fb_image *image)
 {
         struct intelfb_info *dinfo = GET_DINFO(info);
 	u32 fgcolor, bgcolor;
@@ -1574,8 +1544,7 @@ intelfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		return cfb_imageblit(info, image);
 }
 
-static int
-intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
+static int intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
         struct intelfb_info *dinfo = GET_DINFO(info);
 	u32 physical;
@@ -1689,8 +1658,7 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	return 0;
 }
 
-static int
-intelfb_sync(struct fb_info *info)
+static int intelfb_sync(struct fb_info *info)
 {
         struct intelfb_info *dinfo = GET_DINFO(info);
 

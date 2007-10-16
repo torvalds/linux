@@ -58,7 +58,8 @@ static void intelfb_gpio_setscl(void *data, int state)
 	struct intelfb_info *dinfo = chan->dinfo;
 	u32 val;
 
-	OUTREG(chan->reg, (state ? SCL_VAL_OUT : 0) | SCL_DIR | SCL_DIR_MASK | SCL_VAL_MASK);
+	OUTREG(chan->reg, (state ? SCL_VAL_OUT : 0) |
+	       SCL_DIR | SCL_DIR_MASK | SCL_VAL_MASK);
 	val = INREG(chan->reg);
 }
 
@@ -68,7 +69,8 @@ static void intelfb_gpio_setsda(void *data, int state)
 	struct intelfb_info *dinfo = chan->dinfo;
 	u32 val;
 
-	OUTREG(chan->reg, (state ? SDA_VAL_OUT : 0) | SDA_DIR | SDA_DIR_MASK | SDA_VAL_MASK);
+	OUTREG(chan->reg, (state ? SDA_VAL_OUT : 0) |
+	       SDA_DIR | SDA_DIR_MASK | SDA_VAL_MASK);
 	val = INREG(chan->reg);
 }
 
@@ -97,26 +99,26 @@ static int intelfb_gpio_getsda(void *data)
 }
 
 static int intelfb_setup_i2c_bus(struct intelfb_info *dinfo,
-								 struct intelfb_i2c_chan *chan,
-								 const u32 reg, const char *name)
+				 struct intelfb_i2c_chan *chan,
+				 const u32 reg, const char *name)
 {
 	int rc;
 
-	chan->dinfo					= dinfo;
-	chan->reg					= reg;
+	chan->dinfo			= dinfo;
+	chan->reg			= reg;
 	snprintf(chan->adapter.name, sizeof(chan->adapter.name),
 		 "intelfb %s", name);
-	chan->adapter.owner			= THIS_MODULE;
-	chan->adapter.id			= I2C_HW_B_INTELFB;
+	chan->adapter.owner		= THIS_MODULE;
+	chan->adapter.id		= I2C_HW_B_INTELFB;
 	chan->adapter.algo_data		= &chan->algo;
 	chan->adapter.dev.parent	= &chan->dinfo->pdev->dev;
-	chan->algo.setsda			= intelfb_gpio_setsda;
-	chan->algo.setscl			= intelfb_gpio_setscl;
-	chan->algo.getsda			= intelfb_gpio_getsda;
-	chan->algo.getscl			= intelfb_gpio_getscl;
-	chan->algo.udelay			= 40;
-	chan->algo.timeout			= 20;
-	chan->algo.data				= chan;
+	chan->algo.setsda		= intelfb_gpio_setsda;
+	chan->algo.setscl		= intelfb_gpio_setscl;
+	chan->algo.getsda		= intelfb_gpio_getsda;
+	chan->algo.getscl		= intelfb_gpio_getscl;
+	chan->algo.udelay		= 40;
+	chan->algo.timeout		= 20;
+	chan->algo.data			= chan;
 
 	i2c_set_adapdata(&chan->adapter, chan);
 
@@ -142,40 +144,44 @@ void intelfb_create_i2c_busses(struct intelfb_info *dinfo)
 	dinfo->output[i].type = INTELFB_OUTPUT_ANALOG;
 
 	/* setup the DDC bus for analog output */
-	intelfb_setup_i2c_bus(dinfo, &dinfo->output[i].ddc_bus, GPIOA, "CRTDDC_A");
+	intelfb_setup_i2c_bus(dinfo, &dinfo->output[i].ddc_bus, GPIOA,
+			      "CRTDDC_A");
 	i++;
 
-    /* need to add the output busses for each device
-       - this function is very incomplete
-       - i915GM has LVDS and TVOUT for example
-    */
-    switch(dinfo->chipset) {
+	/* need to add the output busses for each device
+	   - this function is very incomplete
+	   - i915GM has LVDS and TVOUT for example
+	*/
+	switch(dinfo->chipset) {
 	case INTEL_830M:
 	case INTEL_845G:
 	case INTEL_855GM:
 	case INTEL_865G:
 		dinfo->output[i].type = INTELFB_OUTPUT_DVO;
-		intelfb_setup_i2c_bus(dinfo, &dinfo->output[i].ddc_bus, GPIOD, "DVODDC_D");
-		intelfb_setup_i2c_bus(dinfo, &dinfo->output[i].i2c_bus, GPIOE, "DVOI2C_E");
+		intelfb_setup_i2c_bus(dinfo, &dinfo->output[i].ddc_bus,
+				      GPIOD, "DVODDC_D");
+		intelfb_setup_i2c_bus(dinfo, &dinfo->output[i].i2c_bus,
+				      GPIOE, "DVOI2C_E");
 		i++;
 		break;
 	case INTEL_915G:
 	case INTEL_915GM:
-		/* has  some LVDS + tv-out */
+		/* has some LVDS + tv-out */
 	case INTEL_945G:
 	case INTEL_945GM:
 		/* SDVO ports have a single control bus - 2 devices */
 		dinfo->output[i].type = INTELFB_OUTPUT_SDVO;
-		intelfb_setup_i2c_bus(dinfo, &dinfo->output[i].i2c_bus, GPIOE, "SDVOCTRL_E");
+		intelfb_setup_i2c_bus(dinfo, &dinfo->output[i].i2c_bus,
+				      GPIOE, "SDVOCTRL_E");
 		/* TODO: initialize the SDVO */
-//		I830SDVOInit(pScrn, i, DVOB);
+		/* I830SDVOInit(pScrn, i, DVOB); */
 		i++;
 
 		/* set up SDVOC */
 		dinfo->output[i].type = INTELFB_OUTPUT_SDVO;
 		dinfo->output[i].i2c_bus = dinfo->output[i - 1].i2c_bus;
 		/* TODO: initialize the SDVO */
-//		I830SDVOInit(pScrn, i, DVOC);
+		/* I830SDVOInit(pScrn, i, DVOC); */
 		i++;
 		break;
 	}
