@@ -56,11 +56,11 @@ static int pts_open(int input, int output, int primary, void *d,
 	if (data->raw) {
 		CATCH_EINTR(err = tcgetattr(fd, &data->tt));
 		if (err)
-			return err;
+			goto out_close;
 
 		err = raw(fd);
 		if (err)
-			return err;
+			goto out_close;
 	}
 
 	dev = ptsname(fd);
@@ -71,6 +71,10 @@ static int pts_open(int input, int output, int primary, void *d,
 		(*data->announce)(dev, data->dev);
 
 	return fd;
+
+out_close:
+	close(fd);
+	return err;
 }
 
 static int getmaster(char *line)
@@ -119,10 +123,12 @@ static int pty_open(int input, int output, int primary, void *d,
 	if (fd < 0)
 		return fd;
 
-	if(data->raw){
+	if (data->raw) {
 		err = raw(fd);
-		if (err)
+		if (err) {
+			close(fd);
 			return err;
+		}
 	}
 	
 	if (data->announce)

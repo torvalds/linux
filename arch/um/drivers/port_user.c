@@ -1,24 +1,20 @@
 /*
- * Copyright (C) 2001 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  * Licensed under the GPL
  */
 
 #include <stdio.h>
-#include <stddef.h>
 #include <stdlib.h>
-#include <string.h>
 #include <errno.h>
-#include <unistd.h>
 #include <termios.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+#include <unistd.h>
 #include <netinet/in.h>
-#include "kern_util.h"
-#include "user.h"
 #include "chan_user.h"
-#include "port.h"
+#include "kern_constants.h"
 #include "os.h"
+#include "port.h"
 #include "um_malloc.h"
+#include "user.h"
 
 struct port_chan {
 	int raw;
@@ -34,24 +30,25 @@ static void *port_init(char *str, int device, const struct chan_opts *opts)
 	char *end;
 	int port;
 
-	if(*str != ':'){
-		printk("port_init : channel type 'port' must specify a "
-		       "port number\n");
+	if (*str != ':') {
+		printk(UM_KERN_ERR "port_init : channel type 'port' must "
+		       "specify a port number\n");
 		return NULL;
 	}
 	str++;
 	port = strtoul(str, &end, 0);
-	if((*end != '\0') || (end == str)){
-		printk("port_init : couldn't parse port '%s'\n", str);
+	if ((*end != '\0') || (end == str)) {
+		printk(UM_KERN_ERR "port_init : couldn't parse port '%s'\n",
+		       str);
 		return NULL;
 	}
 
 	kern_data = port_data(port);
-	if(kern_data == NULL)
+	if (kern_data == NULL)
 		return NULL;
 
 	data = kmalloc(sizeof(*data), UM_GFP_KERNEL);
-	if(data == NULL)
+	if (data == NULL)
 		goto err;
 
 	*data = ((struct port_chan) { .raw  		= opts->raw,
@@ -79,13 +76,13 @@ static int port_open(int input, int output, int primary, void *d,
 	int fd, err;
 
 	fd = port_wait(data->kernel_data);
-	if((fd >= 0) && data->raw){
+	if ((fd >= 0) && data->raw) {
 		CATCH_EINTR(err = tcgetattr(fd, &data->tt));
-		if(err)
+		if (err)
 			return err;
 
 		err = raw(fd);
-		if(err)
+		if (err)
 			return err;
 	}
 	*dev_out = data->dev;
@@ -119,11 +116,11 @@ int port_listen_fd(int port)
 	int fd, err, arg;
 
 	fd = socket(PF_INET, SOCK_STREAM, 0);
-	if(fd == -1)
+	if (fd == -1)
 		return -errno;
 
 	arg = 1;
-	if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) < 0){
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) < 0) {
 		err = -errno;
 		goto out;
 	}
@@ -131,23 +128,23 @@ int port_listen_fd(int port)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	if(bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0){
+	if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
 		err = -errno;
 		goto out;
 	}
 
-	if(listen(fd, 1) < 0){
+	if (listen(fd, 1) < 0) {
 		err = -errno;
 		goto out;
 	}
 
 	err = os_set_fd_block(fd, 0);
-	if(err < 0)
+	if (err < 0)
 		goto out;
 
 	return fd;
  out:
-	os_close_file(fd);
+	close(fd);
 	return err;
 }
 
@@ -163,10 +160,10 @@ void port_pre_exec(void *arg)
 	dup2(data->sock_fd, 0);
 	dup2(data->sock_fd, 1);
 	dup2(data->sock_fd, 2);
-	os_close_file(data->sock_fd);
+	close(data->sock_fd);
 	dup2(data->pipe_fd, 3);
-	os_shutdown_socket(3, 1, 0);
-	os_close_file(data->pipe_fd);
+	shutdown(3, SHUT_RD);
+	close(data->pipe_fd);
 }
 
 int port_connection(int fd, int *socket, int *pid_out)
@@ -176,12 +173,12 @@ int port_connection(int fd, int *socket, int *pid_out)
 			 "/usr/lib/uml/port-helper", NULL };
 	struct port_pre_exec_data data;
 
-	new = os_accept_connection(fd);
-	if(new < 0)
-		return new;
+	new = accept(fd, NULL, 0);
+	if (new < 0)
+		return -errno;
 
 	err = os_pipe(socket, 0, 0);
-	if(err < 0)
+	if (err < 0)
 		goto out_close;
 
 	data = ((struct port_pre_exec_data)
@@ -189,18 +186,18 @@ int port_connection(int fd, int *socket, int *pid_out)
 		  .pipe_fd 		= socket[1] });
 
 	err = run_helper(port_pre_exec, &data, argv);
-	if(err < 0)
+	if (err < 0)
 		goto out_shutdown;
 
 	*pid_out = err;
 	return new;
 
  out_shutdown:
-	os_shutdown_socket(socket[0], 1, 1);
-	os_close_file(socket[0]);
-	os_shutdown_socket(socket[1], 1, 1);
-	os_close_file(socket[1]);
+	shutdown(socket[0], SHUT_RDWR);
+	close(socket[0]);
+	shutdown(socket[1], SHUT_RDWR);
+	close(socket[1]);
  out_close:
-	os_close_file(new);
+	close(new);
 	return err;
 }

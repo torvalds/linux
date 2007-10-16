@@ -1,31 +1,36 @@
 /* 
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  * Licensed under the GPL
  */
 
-#include <stdlib.h>
+#include <stddef.h>
 #include <errno.h>
-#include "chan_user.h"
+#include <fcntl.h>
 #include "os.h"
+#include "chan_user.h"
 
 /* This address is used only as a unique identifer */
 static int null_chan;
 
 static void *null_init(char *str, int device, const struct chan_opts *opts)
 {
-	return(&null_chan);
+	return &null_chan;
 }
 
 static int null_open(int input, int output, int primary, void *d,
 		     char **dev_out)
 {
+	int fd;
+
 	*dev_out = NULL;
-	return(os_open_file(DEV_NULL, of_rdwr(OPENFLAGS()), 0));
+
+	fd = open(DEV_NULL, O_RDWR);
+	return (fd < 0) ? -errno : fd;
 }
 
 static int null_read(int fd, char *c_out, void *unused)
 {
-	return(-ENODEV);
+	return -ENODEV;
 }
 
 static void null_free(void *data)
@@ -44,14 +49,3 @@ const struct chan_ops null_ops = {
 	.free		= null_free,
 	.winch		= 0,
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

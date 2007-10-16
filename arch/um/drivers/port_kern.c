@@ -1,24 +1,16 @@
 /*
- * Copyright (C) 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  * Licensed under the GPL
  */
 
-#include "linux/list.h"
-#include "linux/sched.h"
-#include "linux/slab.h"
+#include "linux/completion.h"
 #include "linux/interrupt.h"
-#include "linux/spinlock.h"
-#include "linux/errno.h"
+#include "linux/list.h"
 #include "asm/atomic.h"
-#include "asm/semaphore.h"
-#include "asm/errno.h"
-#include "kern_util.h"
-#include "kern.h"
-#include "irq_user.h"
-#include "irq_kern.h"
-#include "port.h"
 #include "init.h"
+#include "irq_kern.h"
 #include "os.h"
+#include "port.h"
 
 struct port_list {
 	struct list_head list;
@@ -53,8 +45,8 @@ static irqreturn_t pipe_interrupt(int irq, void *data)
 	int fd;
 
 	fd = os_rcv_fd(conn->socket[0], &conn->helper_pid);
-	if(fd < 0){
-		if(fd == -EAGAIN)
+	if (fd < 0) {
+		if (fd == -EAGAIN)
 			return IRQ_NONE;
 
 		printk(KERN_ERR "pipe_interrupt : os_rcv_fd returned %d\n",
@@ -81,18 +73,18 @@ static irqreturn_t pipe_interrupt(int irq, void *data)
 static int port_accept(struct port_list *port)
 {
 	struct connection *conn;
-	int fd, socket[2], pid, ret = 0;
+	int fd, socket[2], pid;
 
 	fd = port_connection(port->fd, socket, &pid);
-	if(fd < 0){
-		if(fd != -EAGAIN)
+	if (fd < 0) {
+		if (fd != -EAGAIN)
 			printk(KERN_ERR "port_accept : port_connection "
 			       "returned %d\n", -fd);
 		goto out;
 	}
 
 	conn = kmalloc(sizeof(*conn), GFP_ATOMIC);
-	if(conn == NULL){
+	if (conn == NULL) {
 		printk(KERN_ERR "port_accept : failed to allocate "
 		       "connection\n");
 		goto out_close;
@@ -104,17 +96,17 @@ static int port_accept(struct port_list *port)
 		  .telnetd_pid 	= pid,
 		  .port 	= port });
 
-	if(um_request_irq(TELNETD_IRQ, socket[0], IRQ_READ, pipe_interrupt,
+	if (um_request_irq(TELNETD_IRQ, socket[0], IRQ_READ, pipe_interrupt,
 			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			  "telnetd", conn)){
+			  "telnetd", conn)) {
 		printk(KERN_ERR "port_accept : failed to get IRQ for "
 		       "telnetd\n");
 		goto out_free;
 	}
 
-	if(atomic_read(&port->wait_count) == 0){
+	if (atomic_read(&port->wait_count) == 0) {
 		os_write_file(fd, NO_WAITER_MSG, sizeof(NO_WAITER_MSG));
-		printk("No one waiting for port\n");
+		printk(KERN_ERR "No one waiting for port\n");
 	}
 	list_add(&conn->list, &port->pending);
 	return 1;
@@ -123,28 +115,29 @@ static int port_accept(struct port_list *port)
 	kfree(conn);
  out_close:
 	os_close_file(fd);
-	if(pid != -1)
-		os_kill_process(pid, 1);
+	os_kill_process(pid, 1);
  out:
-	return ret;
+	return 0;
 }
 
 static DECLARE_MUTEX(ports_sem);
 static LIST_HEAD(ports);
 
-void port_work_proc(struct work_struct *unused)
+static void port_work_proc(struct work_struct *unused)
 {
 	struct port_list *port;
 	struct list_head *ele;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	list_for_each(ele, &ports){
+	list_for_each(ele, &ports) {
 		port = list_entry(ele, struct port_list, list);
-		if(!port->has_connection)
+		if (!port->has_connection)
 			continue;
+
 		reactivate_fd(port->fd, ACCEPT_IRQ);
-		while(port_accept(port)) ;
+		while (port_accept(port))
+			;
 		port->has_connection = 0;
 	}
 	local_irq_restore(flags);
@@ -169,25 +162,27 @@ void *port_data(int port_num)
 	int fd;
 
 	down(&ports_sem);
-	list_for_each(ele, &ports){
+	list_for_each(ele, &ports) {
 		port = list_entry(ele, struct port_list, list);
-		if(port->port == port_num) goto found;
+		if (port->port == port_num)
+			goto found;
 	}
 	port = kmalloc(sizeof(struct port_list), GFP_KERNEL);
-	if(port == NULL){
+	if (port == NULL) {
 		printk(KERN_ERR "Allocation of port list failed\n");
 		goto out;
 	}
 
 	fd = port_listen_fd(port_num);
-	if(fd < 0){
+	if (fd < 0) {
 		printk(KERN_ERR "binding to port %d failed, errno = %d\n",
 		       port_num, -fd);
 		goto out_free;
 	}
-	if(um_request_irq(ACCEPT_IRQ, fd, IRQ_READ, port_interrupt,
+
+	if (um_request_irq(ACCEPT_IRQ, fd, IRQ_READ, port_interrupt,
 			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			  "port", port)){
+			  "port", port)) {
 		printk(KERN_ERR "Failed to get IRQ for port %d\n", port_num);
 		goto out_close;
 	}
@@ -206,7 +201,7 @@ void *port_data(int port_num)
 
  found:
 	dev = kmalloc(sizeof(struct port_dev), GFP_KERNEL);
-	if(dev == NULL){
+	if (dev == NULL) {
 		printk(KERN_ERR "Allocation of port device entry failed\n");
 		goto out;
 	}
@@ -233,9 +228,9 @@ int port_wait(void *data)
 	int fd;
 
 	atomic_inc(&port->wait_count);
-	while(1){
+	while (1) {
 		fd = -ERESTARTSYS;
-		if(wait_for_completion_interruptible(&port->done))
+		if (wait_for_completion_interruptible(&port->done))
 			goto out;
 
 		spin_lock(&port->lock);
@@ -258,7 +253,8 @@ int port_wait(void *data)
 		 */
 		free_irq(TELNETD_IRQ, conn);
 
-		if(conn->fd >= 0) break;
+		if (conn->fd >= 0)
+			break;
 		os_close_file(conn->fd);
 		kfree(conn);
 	}
@@ -276,9 +272,9 @@ void port_remove_dev(void *d)
 {
 	struct port_dev *dev = d;
 
-	if(dev->helper_pid != -1)
+	if (dev->helper_pid != -1)
 		os_kill_process(dev->helper_pid, 0);
-	if(dev->telnetd_pid != -1)
+	if (dev->telnetd_pid != -1)
 		os_kill_process(dev->telnetd_pid, 1);
 	dev->helper_pid = -1;
 	dev->telnetd_pid = -1;
@@ -297,7 +293,7 @@ static void free_port(void)
 	struct list_head *ele;
 	struct port_list *port;
 
-	list_for_each(ele, &ports){
+	list_for_each(ele, &ports) {
 		port = list_entry(ele, struct port_list, list);
 		free_irq_by_fd(port->fd);
 		os_close_file(port->fd);
