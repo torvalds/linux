@@ -963,7 +963,7 @@ static int __init toshiba_rbtx4927_rtc_init(void)
 		.flags	= IORESOURCE_MEM,
 	};
 	struct platform_device *dev =
-		platform_device_register_simple("ds1742", -1, &res, 1);
+		platform_device_register_simple("rtc-ds1742", -1, &res, 1);
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
 device_initcall(toshiba_rbtx4927_rtc_init);

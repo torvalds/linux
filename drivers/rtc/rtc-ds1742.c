@@ -251,7 +251,7 @@ static struct platform_driver ds1742_rtc_driver = {
 	.probe		= ds1742_rtc_probe,
 	.remove		= __devexit_p(ds1742_rtc_remove),
 	.driver		= {
-		.name	= "ds1742",
+		.name	= "rtc-ds1742",
 		.owner	= THIS_MODULE,
 	},
 };
