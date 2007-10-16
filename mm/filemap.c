@@ -1874,27 +1874,21 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		/* Limit the size of the copy to the caller's write size */
 		bytes = min(bytes, count);
 
-		/* We only need to worry about prefaulting when writes are from
-		 * user-space.  NFSd uses vfs_writev with several non-aligned
-		 * segments in the vector, and limiting to one segment a time is
-		 * a noticeable performance for re-write
+		/*
+		 * Limit the size of the copy to that of the current segment,
+		 * because fault_in_pages_readable() doesn't know how to walk
+		 * segments.
 		 */
-		if (!segment_eq(get_fs(), KERNEL_DS)) {
-			/*
-			 * Limit the size of the copy to that of the current
-			 * segment, because fault_in_pages_readable() doesn't
-			 * know how to walk segments.
-			 */
-			bytes = min(bytes, cur_iov->iov_len - iov_base);
+		bytes = min(bytes, cur_iov->iov_len - iov_base);
 
-			/*
-			 * Bring in the user page that we will copy from
-			 * _first_.  Otherwise there's a nasty deadlock on
-			 * copying from the same page as we're writing to,
-			 * without it being marked up-to-date.
-			 */
-			fault_in_pages_readable(buf, bytes);
-		}
+		/*
+		 * Bring in the user page that we will copy from _first_.
+		 * Otherwise there's a nasty deadlock on copying from the
+		 * same page as we're writing to, without it being marked
+		 * up-to-date.
+		 */
+		fault_in_pages_readable(buf, bytes);
+
 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
 		if (!page) {
 			status = -ENOMEM;
