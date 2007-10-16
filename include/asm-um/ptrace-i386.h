@@ -10,6 +10,7 @@
 
 #include "linux/compiler.h"
 #include "asm/ptrace-generic.h"
+#include <asm/user.h>
 #include "sysdep/ptrace.h"
 
 #define PT_REGS_EAX(r) UPT_EAX(&(r)->regs)
@@ -44,6 +45,11 @@
  * circular include, and compilation failures.
  */
 struct user_desc;
+
+extern int get_fpxregs(struct user_fxsr_struct __user *buf,
+		       struct task_struct *child);
+extern int set_fpxregs(struct user_fxsr_struct __user *buf,
+		       struct task_struct *tsk);
 
 extern int ptrace_get_thread_area(struct task_struct *child, int idx,
                                   struct user_desc __user *user_desc);

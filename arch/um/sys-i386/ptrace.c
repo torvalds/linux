@@ -6,6 +6,7 @@
 #include "linux/mm.h"
 #include "linux/sched.h"
 #include "asm/uaccess.h"
+#include "skas.h"
 
 extern int arch_switch_tls(struct task_struct *from, struct task_struct *to);
 
@@ -144,48 +145,64 @@ int peek_user(struct task_struct *child, long addr, long data)
 	return put_user(tmp, (unsigned long __user *) data);
 }
 
-static inline int convert_fxsr_to_user(struct _fpstate __user *buf,
-				       struct pt_regs *regs)
+int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
-	return 0;
-}
+	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
+	long fpregs[HOST_FP_SIZE];
 
-static inline int convert_fxsr_from_user(struct pt_regs *regs,
-					 struct _fpstate __user *buf)
-{
-	return 0;
-}
-
-int get_fpregs(unsigned long buf, struct task_struct *child)
-{
-	int err;
-
-	err = convert_fxsr_to_user((struct _fpstate __user *) buf,
-				   &child->thread.regs);
+	BUG_ON(sizeof(*buf) != sizeof(fpregs));
+	err = save_fp_registers(userspace_pid[cpu], fpregs);
 	if (err)
+		return err;
+
+	n = copy_to_user((void *) buf, fpregs, sizeof(fpregs));
+	if(n > 0)
 		return -EFAULT;
-	return 0;
+
+	return n;
 }
 
-int set_fpregs(unsigned long buf, struct task_struct *child)
+int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
-	int err;
+	int n, cpu = ((struct thread_info *) child->stack)->cpu;
+	long fpregs[HOST_FP_SIZE];
 
-	err = convert_fxsr_from_user(&child->thread.regs,
-				     (struct _fpstate __user *) buf);
+	BUG_ON(sizeof(*buf) != sizeof(fpregs));
+	n = copy_from_user(fpregs, (void *) buf, sizeof(fpregs));
+	if (n > 0)
+		return -EFAULT;
+
+	return restore_fp_registers(userspace_pid[cpu], fpregs);
+}
+
+int get_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
+{
+	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
+	long fpregs[HOST_XFP_SIZE];
+
+	BUG_ON(sizeof(*buf) != sizeof(fpregs));
+	err = save_fpx_registers(userspace_pid[cpu], fpregs);
 	if (err)
+		return err;
+
+	n = copy_to_user((void *) buf, fpregs, sizeof(fpregs));
+	if(n > 0)
 		return -EFAULT;
-	return 0;
+
+	return n;
 }
 
-int get_fpxregs(unsigned long buf, struct task_struct *tsk)
+int set_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 {
-	return 0;
-}
+	int n, cpu = ((struct thread_info *) child->stack)->cpu;
+	long fpregs[HOST_XFP_SIZE];
 
-int set_fpxregs(unsigned long buf, struct task_struct *tsk)
-{
-	return 0;
+	BUG_ON(sizeof(*buf) != sizeof(fpregs));
+	n = copy_from_user(fpregs, (void *) buf, sizeof(fpregs));
+	if (n > 0)
+		return -EFAULT;
+
+	return restore_fpx_registers(userspace_pid[cpu], fpregs);
 }
 
 #ifdef notdef
@@ -208,4 +225,10 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu )
 {
 	return 1;
+}
+
+long subarch_ptrace(struct task_struct *child, long request, long addr,
+		    long data)
+{
+	return -EIO;
 }

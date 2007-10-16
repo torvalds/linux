@@ -156,28 +156,53 @@ int is_syscall(unsigned long addr)
 	return(instr == 0x050f);
 }
 
-int get_fpregs(unsigned long buf, struct task_struct *child)
+int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
-	panic("get_fpregs");
-	return(0);
+	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
+	long fpregs[HOST_FP_SIZE];
+
+	BUG_ON(sizeof(*buf) != sizeof(fpregs));
+	err = save_fp_registers(userspace_pid[cpu], fpregs);
+	if (err)
+		return err;
+
+	n = copy_to_user((void *) buf, fpregs, sizeof(fpregs));
+	if(n > 0)
+		return -EFAULT;
+
+	return n;
 }
 
-int set_fpregs(unsigned long buf, struct task_struct *child)
+int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
-	panic("set_fpregs");
-	return(0);
+	int n, cpu = ((struct thread_info *) child->stack)->cpu;
+	long fpregs[HOST_FP_SIZE];
+
+	BUG_ON(sizeof(*buf) != sizeof(fpregs));
+	n = copy_from_user(fpregs, (void *) buf, sizeof(fpregs));
+	if (n > 0)
+		return -EFAULT;
+
+	return restore_fp_registers(userspace_pid[cpu], fpregs);
 }
 
-int get_fpxregs(unsigned long buf, struct task_struct *tsk)
+long subarch_ptrace(struct task_struct *child, long request, long addr,
+		    long data)
 {
-	panic("get_fpxregs");
-	return(0);
-}
+	int ret = -EIO;
 
-int set_fpxregs(unsigned long buf, struct task_struct *tsk)
-{
-	panic("set_fxpregs");
-	return(0);
+	switch (request) {
+	case PTRACE_GETFPXREGS: /* Get the child FPU state. */
+		ret = get_fpregs((struct user_i387_struct __user *) data,
+				 child);
+		break;
+	case PTRACE_SETFPXREGS: /* Set the child FPU state. */
+		ret = set_fpregs((struct user_i387_struct __user *) data,
+				 child);
+		break;
+	}
+
+	return ret;
 }
 
 /*

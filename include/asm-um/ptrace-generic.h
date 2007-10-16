@@ -9,6 +9,7 @@
 #ifndef __ASSEMBLY__
 
 #include "asm/arch/ptrace-abi.h"
+#include <asm/user.h>
 #include "sysdep/ptrace.h"
 
 struct pt_regs {
@@ -35,12 +36,14 @@ struct pt_regs {
 
 struct task_struct;
 
+extern long subarch_ptrace(struct task_struct *child, long request, long addr,
+			   long data);
 extern unsigned long getreg(struct task_struct *child, int regno);
 extern int putreg(struct task_struct *child, int regno, unsigned long value);
-extern int get_fpregs(unsigned long buf, struct task_struct *child);
-extern int set_fpregs(unsigned long buf, struct task_struct *child);
-extern int get_fpxregs(unsigned long buf, struct task_struct *child);
-extern int set_fpxregs(unsigned long buf, struct task_struct *tsk);
+extern int get_fpregs(struct user_i387_struct __user *buf,
+		      struct task_struct *child);
+extern int set_fpregs(struct user_i387_struct __user *buf,
+		      struct task_struct *child);
 
 extern void show_regs(struct pt_regs *regs);
 

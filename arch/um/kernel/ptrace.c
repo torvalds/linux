@@ -143,22 +143,14 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #endif
 #ifdef PTRACE_GETFPREGS
 	case PTRACE_GETFPREGS: /* Get the child FPU state. */
-		ret = get_fpregs(data, child);
+		ret = get_fpregs((struct user_i387_struct __user *) data,
+				 child);
 		break;
 #endif
 #ifdef PTRACE_SETFPREGS
 	case PTRACE_SETFPREGS: /* Set the child FPU state. */
-	        ret = set_fpregs(data, child);
-		break;
-#endif
-#ifdef PTRACE_GETFPXREGS
-	case PTRACE_GETFPXREGS: /* Get the child FPU state. */
-		ret = get_fpxregs(data, child);
-		break;
-#endif
-#ifdef PTRACE_SETFPXREGS
-	case PTRACE_SETFPXREGS: /* Set the child FPU state. */
-		ret = set_fpxregs(data, child);
+	        ret = set_fpregs((struct user_i387_struct __user *) data,
+				 child);
 		break;
 #endif
 	case PTRACE_GET_THREAD_AREA:
@@ -227,6 +219,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #endif
 	default:
 		ret = ptrace_request(child, request, addr, data);
+		if (ret == -EIO)
+			ret = subarch_ptrace(child, request, addr, data);
 		break;
 	}
 
