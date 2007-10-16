@@ -7,6 +7,7 @@
 #include "linux/sched.h"
 #include "asm/pgalloc.h"
 #include "asm/pgtable.h"
+#include "as-layout.h"
 #include "os.h"
 #include "skas.h"
 
@@ -83,12 +84,12 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 		 */
 		mm->pgd[USER_PTRS_PER_PGD] = __pgd(0);
 
-		ret = init_stub_pte(mm, CONFIG_STUB_CODE,
+		ret = init_stub_pte(mm, STUB_CODE,
 				    (unsigned long) &__syscall_stub_start);
 		if (ret)
 			goto out_free;
 
-		ret = init_stub_pte(mm, CONFIG_STUB_DATA, stack);
+		ret = init_stub_pte(mm, STUB_DATA, stack);
 		if (ret)
 			goto out_free;
 

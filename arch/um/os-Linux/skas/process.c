@@ -191,22 +191,23 @@ static int userspace_tramp(void *stack)
 		int fd;
 		unsigned long long offset;
 		fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
-		addr = mmap64((void *) UML_CONFIG_STUB_CODE, UM_KERN_PAGE_SIZE,
+		addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
 			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
 		if (addr == MAP_FAILED) {
-			printk(UM_KERN_ERR "mapping mmap stub failed, "
-			       "errno = %d\n", errno);
+			printk(UM_KERN_ERR "mapping mmap stub at 0x%lx failed, "
+			       "errno = %d\n", STUB_CODE, errno);
 			exit(1);
 		}
 
 		if (stack != NULL) {
 			fd = phys_mapping(to_phys(stack), &offset);
-			addr = mmap((void *) UML_CONFIG_STUB_DATA,
+			addr = mmap((void *) STUB_DATA,
 				    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 				    MAP_FIXED | MAP_SHARED, fd, offset);
 			if (addr == MAP_FAILED) {
 				printk(UM_KERN_ERR "mapping segfault stack "
-				       "failed, errno = %d\n", errno);
+				       "at 0x%lx failed, errno = %d\n",
+				       STUB_DATA, errno);
 				exit(1);
 			}
 		}
@@ -214,11 +215,11 @@ static int userspace_tramp(void *stack)
 	if (!ptrace_faultinfo && (stack != NULL)) {
 		struct sigaction sa;
 
-		unsigned long v = UML_CONFIG_STUB_CODE +
+		unsigned long v = STUB_CODE +
 				  (unsigned long) stub_segv_handler -
 				  (unsigned long) &__syscall_stub_start;
 
-		set_sigstack((void *) UML_CONFIG_STUB_DATA, UM_KERN_PAGE_SIZE);
+		set_sigstack((void *) STUB_DATA, UM_KERN_PAGE_SIZE);
 		sigemptyset(&sa.sa_mask);
 		sigaddset(&sa.sa_mask, SIGIO);
 		sigaddset(&sa.sa_mask, SIGWINCH);
@@ -382,10 +383,10 @@ static int __init init_thread_regs(void)
 {
 	get_safe_registers(thread_regs);
 	/* Set parent's instruction pointer to start of clone-stub */
-	thread_regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
+	thread_regs[REGS_IP_INDEX] = STUB_CODE +
 				(unsigned long) stub_clone_handler -
 				(unsigned long) &__syscall_stub_start;
-	thread_regs[REGS_SP_INDEX] = UML_CONFIG_STUB_DATA + UM_KERN_PAGE_SIZE -
+	thread_regs[REGS_SP_INDEX] = STUB_DATA + UM_KERN_PAGE_SIZE -
 		sizeof(void *);
 #ifdef __SIGNAL_FRAMESIZE
 	thread_regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;
@@ -443,7 +444,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	 * child's stack and check it.
 	 */
 	wait_stub_done(pid);
-	if (child_data->err != UML_CONFIG_STUB_DATA)
+	if (child_data->err != STUB_DATA)
 		panic("copy_context_skas0 - stub-child reports error %ld\n",
 		      child_data->err);
 

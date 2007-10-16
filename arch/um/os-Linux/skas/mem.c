@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include "init.h"
 #include "kern_constants.h"
+#include "as-layout.h"
 #include "mm_id.h"
 #include "os.h"
 #include "proc_mm.h"
@@ -40,7 +41,7 @@ static unsigned long syscall_regs[MAX_REG_NR];
 static int __init init_syscall_regs(void)
 {
 	get_safe_registers(syscall_regs);
-	syscall_regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
+	syscall_regs[REGS_IP_INDEX] = STUB_CODE +
 		((unsigned long) &batch_syscall_stub -
 		 (unsigned long) &__syscall_stub_start);
 	return 0;
@@ -93,8 +94,7 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 	ret = *((unsigned long *) mm_idp->stack);
 	offset = *((unsigned long *) mm_idp->stack + 1);
 	if (offset) {
-		data = (unsigned long *)(mm_idp->stack +
-					 offset - UML_CONFIG_STUB_DATA);
+		data = (unsigned long *)(mm_idp->stack + offset - STUB_DATA);
 		printk(UM_KERN_ERR "do_syscall_stub : ret = %ld, offset = %ld, "
 		       "data = %p\n", ret, offset, data);
 		syscall = (unsigned long *)((unsigned long)data + data[0]);
@@ -182,7 +182,7 @@ long syscall_stub_data(struct mm_id * mm_idp,
 	memcpy(stack + 1, data, data_count * sizeof(long));
 
 	*stub_addr = (void *)(((unsigned long)(stack + 1) &
-			       ~UM_KERN_PAGE_MASK) + UML_CONFIG_STUB_DATA);
+			       ~UM_KERN_PAGE_MASK) + STUB_DATA);
 
 	return 0;
 }

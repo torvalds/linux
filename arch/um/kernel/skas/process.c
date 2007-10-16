@@ -18,7 +18,7 @@ int new_mm(unsigned long stack)
 		return fd;
 
 	if (skas_needs_stub)
-		map_stub_pages(fd, CONFIG_STUB_CODE, CONFIG_STUB_DATA, stack);
+		map_stub_pages(fd, STUB_CODE, STUB_DATA, stack);
 
 	return fd;
 }

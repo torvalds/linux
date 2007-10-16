@@ -11,6 +11,7 @@
 #include "asm/current.h"
 #include "asm/processor.h"
 #include "asm/uaccess.h"
+#include "as-layout.h"
 #include "mem_user.h"
 #include "skas.h"
 #include "os.h"
@@ -18,7 +19,7 @@
 void flush_thread(void)
 {
 	void *data = NULL;
-	unsigned long end = proc_mm ? task_size : CONFIG_STUB_START;
+	unsigned long end = proc_mm ? task_size : STUB_START;
 	int ret;
 
 	arch_flush_thread(&current->thread.arch);

@@ -242,7 +242,8 @@ static unsigned long set_task_sizes_skas(unsigned long *task_size_out)
 
 	if (!skas_needs_stub)
 		*task_size_out = host_task_size;
-	else *task_size_out = CONFIG_STUB_START & PGDIR_MASK;
+	else
+		*task_size_out = STUB_START & PGDIR_MASK;
 
 	return host_task_size;
 }

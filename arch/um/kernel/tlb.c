@@ -485,8 +485,8 @@ void __flush_tlb_one(unsigned long addr)
 static void fix_range(struct mm_struct *mm, unsigned long start_addr,
 		      unsigned long end_addr, int force)
 {
-	if (!proc_mm && (end_addr > CONFIG_STUB_START))
-		end_addr = CONFIG_STUB_START;
+	if (!proc_mm && (end_addr > STUB_START))
+		end_addr = STUB_START;
 
 	fix_range_common(mm, start_addr, end_addr, force);
 }
@@ -510,7 +510,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 	if (atomic_read(&mm->mm_users) == 0)
 		return;
 
-	end = proc_mm ? task_size : CONFIG_STUB_START;
+	end = proc_mm ? task_size : STUB_START;
 	fix_range(mm, 0, end, 0);
 }
 

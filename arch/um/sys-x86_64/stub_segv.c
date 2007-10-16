@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <signal.h>
 #include <asm/unistd.h>
+#include "as-layout.h"
 #include "uml-config.h"
 #include "sysdep/sigcontext.h"
 #include "sysdep/faultinfo.h"
@@ -33,7 +34,7 @@ stub_segv_handler(int sig)
         int pid;
 
 	__asm__ __volatile__("movq %%rdx, %0" : "=g" (uc) :);
-	GET_FAULTINFO_FROM_SC(*((struct faultinfo *) UML_CONFIG_STUB_DATA),
+	GET_FAULTINFO_FROM_SC(*((struct faultinfo *) STUB_DATA),
 			      &uc->uc_mcontext);
 
 	pid = stub_syscall0(__NR_getpid);

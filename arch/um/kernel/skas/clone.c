@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
+#include "as-layout.h"
 #include "ptrace_user.h"
 #include "skas.h"
 #include "stub-data.h"
@@ -21,12 +22,11 @@
 void __attribute__ ((__section__ (".__syscall_stub")))
 stub_clone_handler(void)
 {
-	struct stub_data *data = (struct stub_data *) UML_CONFIG_STUB_DATA;
+	struct stub_data *data = (struct stub_data *) STUB_DATA;
 	long err;
 
 	err = stub_syscall2(__NR_clone, CLONE_PARENT | CLONE_FILES | SIGCHLD,
-			    UML_CONFIG_STUB_DATA + UM_KERN_PAGE_SIZE / 2 -
-			    sizeof(void *));
+			    STUB_DATA + UM_KERN_PAGE_SIZE / 2 - sizeof(void *));
 	if(err != 0)
 		goto out;
 

@@ -65,20 +65,6 @@ config 3_LEVEL_PGTABLES
 	However, this it experimental on 32-bit architectures, so if unsure say
 	N (on x86-64 it's automatically enabled, instead, as it's safe there).
 
-config STUB_CODE
-	hex
-	default 0xbfffe000 if !HOST_VMSPLIT_2G
-	default 0x7fffe000 if HOST_VMSPLIT_2G
-
-config STUB_DATA
-	hex
-	default 0xbffff000 if !HOST_VMSPLIT_2G
-	default 0x7ffff000 if HOST_VMSPLIT_2G
-
-config STUB_START
-	hex
-	default STUB_CODE
-
 config ARCH_HAS_SC_SIGNALS
 	bool
 	default y

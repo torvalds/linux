@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include <asm/unistd.h>
 #include <sysdep/ptrace_user.h>
+#include "as-layout.h"
 #include "stub-data.h"
 #include "kern_constants.h"
 #include "uml-config.h"
@@ -94,13 +95,13 @@ static inline void remap_stack(long fd, unsigned long offset)
 {
 	__asm__ volatile ("movq %4,%%r10 ; movq %5,%%r8 ; "
 			  "movq %6, %%r9; " __syscall "; movq %7, %%rbx ; "
-			  "movq %%rax, (%%rbx)": 
-			  : "a" (STUB_MMAP_NR), "D" (UML_CONFIG_STUB_DATA), 
-			    "S" (UM_KERN_PAGE_SIZE), 
-			    "d" (PROT_READ | PROT_WRITE), 
-                            "g" (MAP_FIXED | MAP_SHARED), "g" (fd), 
+			  "movq %%rax, (%%rbx)":
+			  : "a" (STUB_MMAP_NR), "D" (STUB_DATA),
+			    "S" (UM_KERN_PAGE_SIZE),
+			    "d" (PROT_READ | PROT_WRITE),
+                            "g" (MAP_FIXED | MAP_SHARED), "g" (fd),
 			    "g" (offset),
-			    "i" (&((struct stub_data *) UML_CONFIG_STUB_DATA)->err)
+			    "i" (&((struct stub_data *) STUB_DATA)->err)
 			  : __syscall_clobber, "r10", "r8", "r9" );
 }
 

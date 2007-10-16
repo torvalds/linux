@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <sys/select.h> /* The only way I can see to get sigset_t */
 #include <asm/unistd.h>
+#include "as-layout.h"
 #include "uml-config.h"
 #include "sysdep/stub.h"
 #include "sysdep/sigcontext.h"
@@ -17,8 +18,7 @@ stub_segv_handler(int sig)
 	struct sigcontext *sc = (struct sigcontext *) (&sig + 1);
 	int pid;
 
-	GET_FAULTINFO_FROM_SC(*((struct faultinfo *) UML_CONFIG_STUB_DATA),
-			      sc);
+	GET_FAULTINFO_FROM_SC(*((struct faultinfo *) STUB_DATA), sc);
 
 	pid = stub_syscall0(__NR_getpid);
 	stub_syscall2(__NR_kill, pid, SIGUSR1);

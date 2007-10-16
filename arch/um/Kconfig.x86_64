@@ -17,23 +17,11 @@ config SEMAPHORE_SLEEPERS
 
 config TOP_ADDR
  	hex
-	default 0x80000000
+	default 0x7fc0000000
 
 config 3_LEVEL_PGTABLES
        bool
        default y
-
-config STUB_CODE
-	hex
-	default 0x7fbfffe000
-
-config STUB_DATA
-	hex
-	default 0x7fbffff000
-
-config STUB_START
-	hex
-	default STUB_CODE
 
 config ARCH_HAS_SC_SIGNALS
 	bool
