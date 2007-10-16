@@ -4,7 +4,7 @@
  *
  * Author: Hannu Mallat <hmallat@cc.hut.fi>
  *
- * Copyright © 1999 Hannu Mallat
+ * Copyright Â© 1999 Hannu Mallat
  * All rights reserved
  *
  * Created      : Thu Sep 23 18:17:43 1999, hmallat
@@ -42,18 +42,18 @@
  *
  * Version history:
  *
- * 0.1.4 (released 2002-05-28) ported over to new fbdev api by James Simmons
+ * 0.1.4 (released 2002-05-28)	ported over to new fbdev api by James Simmons
  *
- * 0.1.3 (released 1999-11-02) added Attila's panning support, code
- *			       reorg, hwcursor address page size alignment
- *                             (for mmaping both frame buffer and regs),
- *                             and my changes to get rid of hardcoded
- *                             VGA i/o register locations (uses PCI
- *                             configuration info now)
- * 0.1.2 (released 1999-10-19) added Attila Kesmarki's bug fixes and
- *                             improvements
- * 0.1.1 (released 1999-10-07) added Voodoo3 support by Harold Oga.
- * 0.1.0 (released 1999-10-06) initial version
+ * 0.1.3 (released 1999-11-02)	added Attila's panning support, code
+ *				reorg, hwcursor address page size alignment
+ *				(for mmaping both frame buffer and regs),
+ *				and my changes to get rid of hardcoded
+ *				VGA i/o register locations (uses PCI
+ *				configuration info now)
+ * 0.1.2 (released 1999-10-19)	added Attila Kesmarki's bug fixes and
+ *				improvements
+ * 0.1.1 (released 1999-10-07)	added Voodoo3 support by Harold Oga.
+ * 0.1.0 (released 1999-10-06)	initial version
  *
  */
 
@@ -70,12 +70,7 @@
 
 #include <video/tdfx.h>
 
-#undef TDFXFB_DEBUG
-#ifdef TDFXFB_DEBUG
-#define DPRINTK(a,b...) printk(KERN_DEBUG "fb: %s: " a, __FUNCTION__ , ## b)
-#else
-#define DPRINTK(a,b...)
-#endif
+#define DPRINTK(a, b...) pr_debug("fb: %s: " a, __FUNCTION__ , ## b)
 
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
@@ -172,7 +167,7 @@ static char *mode_option __devinitdata;
 static int nomtrr __devinitdata;
 
 /* -------------------------------------------------------------------------
- *                      Hardware-specific funcions
+ *			Hardware-specific funcions
  * ------------------------------------------------------------------------- */
 
 static inline u8 vga_inb(struct tdfx_par *par, u32 reg)
@@ -276,7 +271,7 @@ static inline void banshee_make_room(struct tdfx_par *par, int size)
 	while ((tdfx_inl(par, STATUS) & 0x1f) < size - 1)
 		cpu_relax();
 }
- 
+
 static int banshee_wait_idle(struct fb_info *info)
 {
 	struct tdfx_par *par = info->par;
@@ -286,8 +281,8 @@ static int banshee_wait_idle(struct fb_info *info)
 	tdfx_outl(par, COMMAND_3D, COMMAND_3D_NOP);
 
 	do {
- 		if ((tdfx_inl(par, STATUS) & STATUS_BUSY) == 0)
-		       i++;
+		if ((tdfx_inl(par, STATUS) & STATUS_BUSY) == 0)
+			i++;
 	} while (i < 3);
 
 	return 0;
@@ -297,7 +292,7 @@ static int banshee_wait_idle(struct fb_info *info)
  * Set the color of a palette entry in 8bpp mode
  */
 static inline void do_setpalentry(struct tdfx_par *par, unsigned regno, u32 c)
-{  
+{
 	banshee_make_room(par, 2);
 	tdfx_outl(par, DACADDR, regno);
 	/* read after write makes it working */
@@ -475,8 +470,12 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 	var->yoffset = 0;
 
-	/* Banshee doesn't support interlace, but Voodoo4/5 and probably Voodoo3 do. */
-	/* no direct information about device id now? use max_pixclock for this... */
+	/*
+	 * Banshee doesn't support interlace, but Voodoo4/5 and probably
+	 * Voodoo3 do.
+	 * no direct information about device id now?
+	 *  use max_pixclock for this...
+	 */
 	if (((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) &&
 	    (par->max_pixclock < VOODOO3_MAX_PIXCLOCK)) {
 		DPRINTK("interlace not supported\n");
@@ -516,7 +515,10 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->transp.length = 0;
 	switch (var->bits_per_pixel) {
 	case 8:
-		var->red.length = var->green.length = var->blue.length = 8;
+		var->red.length = 8;
+		var->red.offset = 0;
+		var->green = var->red;
+		var->blue = var->red;
 		break;
 	case 16:
 		var->red.offset   = 11;
@@ -536,7 +538,8 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->red.length = var->green.length = var->blue.length = 8;
 		break;
 	}
-	var->height = var->width = -1;
+	var->width = -1;
+	var->height = -1;
 
 	var->accel_flags = FB_ACCELF_TEXT;
 
@@ -581,7 +584,8 @@ static int tdfxfb_set_par(struct fb_info *info)
 		htotal   >>= 1;
 	}
 
-	hd  = wd = (hdispend >> 3) - 1;
+	wd = (hdispend >> 3) - 1;
+	hd  = wd;
 	hs  = (hsyncsta >> 3) - 1;
 	he  = (hsyncend >> 3) - 1;
 	ht  = (htotal >> 3) - 1;
@@ -589,21 +593,23 @@ static int tdfxfb_set_par(struct fb_info *info)
 	hbe = ht;
 
 	if ((info->var.vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE) {
-		vbs = vd = (info->var.yres << 1) - 1;
+		vd = (info->var.yres << 1) - 1;
 		vs  = vd + (info->var.lower_margin << 1);
 		ve  = vs + (info->var.vsync_len << 1);
-		vbe = vt = ve + (info->var.upper_margin << 1) - 1;
+		vt = ve + (info->var.upper_margin << 1) - 1;
 		reg.screensize = info->var.xres | (info->var.yres << 13);
 		reg.vidcfg |= VIDCFG_HALF_MODE;
 		reg.crt[0x09] = 0x80;
 	} else {
-		vbs = vd = info->var.yres - 1;
+		vd = info->var.yres - 1;
 		vs  = vd + info->var.lower_margin;
 		ve  = vs + info->var.vsync_len;
-		vbe = vt = ve + info->var.upper_margin - 1;
+		vt = ve + info->var.upper_margin - 1;
 		reg.screensize = info->var.xres | (info->var.yres << 12);
 		reg.vidcfg &= ~VIDCFG_HALF_MODE;
 	}
+	vbs = vd;
+	vbe = vt;
 
 	/* this is all pretty standard VGA register stuffing */
 	reg.misc[0x00] = 0x0f |
@@ -736,7 +742,7 @@ static int tdfxfb_set_par(struct fb_info *info)
 }
 
 /* A handy macro shamelessly pinched from matroxfb */
-#define CNVT_TOHW(val, width) ((((val)<<(width))+0x7FFF-(val))>>16)
+#define CNVT_TOHW(val, width) ((((val) << (width)) + 0x7FFF - (val)) >> 16)
 
 static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp,
@@ -751,14 +757,16 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	/* grayscale works only partially under directcolor */
 	if (info->var.grayscale) {
 		/* grayscale = 0.30*R + 0.59*G + 0.11*B */
-		red = green = blue = (red * 77 + green * 151 + blue * 28) >> 8;
+		blue = (red * 77 + green * 151 + blue * 28) >> 8;
+		green = blue;
+		red = blue;
 	}
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_PSEUDOCOLOR:
-		rgbcol =(((u32)red   & 0xff00) << 8) |
-			(((u32)green & 0xff00) << 0) |
-			(((u32)blue  & 0xff00) >> 8);
+		rgbcol = (((u32)red   & 0xff00) << 8) |
+			 (((u32)green & 0xff00) << 0) |
+			 (((u32)blue  & 0xff00) >> 8);
 		do_setpalentry(par, regno, rgbcol);
 		break;
 	/* Truecolor has no hardware color palettes. */
@@ -851,7 +859,7 @@ static void tdfxfb_fillrect(struct fb_info *info,
 	struct tdfx_par *par = info->par;
 	u32 bpp = info->var.bits_per_pixel;
 	u32 stride = info->fix.line_length;
-	u32 fmt= stride | ((bpp + ((bpp == 8) ? 0 : 8)) << 13);
+	u32 fmt = stride | ((bpp + ((bpp == 8) ? 0 : 8)) << 13);
 	int tdfx_rop;
 	u32 dx = rect->dx;
 	u32 dy = rect->dy;
@@ -922,13 +930,13 @@ static void tdfxfb_copyarea(struct fb_info *info,
 	}
 
 	if (area->sx <= area->dx) {
-		//-X
+		/* -X */
 		blitcmd |= BIT(14);
 		sx += area->width - 1;
 		dx += area->width - 1;
 	}
 	if (area->sy <= area->dy) {
-		//-Y
+		/* -Y */
 		blitcmd |= BIT(15);
 		sy += area->height - 1;
 		dy += area->height - 1;
@@ -961,9 +969,13 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 	u32 dstbase = 0;
 
 	if (image->depth != 1) {
-		//banshee_make_room(par, 6 + ((size + 3) >> 2));
-		//srcfmt = stride | ((bpp+((bpp==8) ? 0 : 8)) << 13) | 0x400000;
+#ifdef BROKEN_CODE
+		banshee_make_room(par, 6 + ((size + 3) >> 2));
+		srcfmt = stride | ((bpp + ((bpp == 8) ? 0 : 8)) << 13) |
+			0x400000;
+#else
 		cfb_imageblit(info, image);
+#endif
 		return;
 	}
 	banshee_make_room(par, 9);
@@ -998,7 +1010,8 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 	tdfx_outl(par, DSTBASE, dstbase);
 	tdfx_outl(par, SRCXY, 0);
 	tdfx_outl(par, DSTXY, dx | (dy << 16));
-	tdfx_outl(par, COMMAND_2D, COMMAND_2D_H2S_BITBLT | (TDFX_ROP_COPY << 24));
+	tdfx_outl(par, COMMAND_2D,
+		  COMMAND_2D_H2S_BITBLT | (TDFX_ROP_COPY << 24));
 	tdfx_outl(par, SRCFORMAT, srcfmt);
 	tdfx_outl(par, DSTFORMAT, dstfmt);
 	tdfx_outl(par, DSTSIZE, image->width | (image->height << 16));
@@ -1013,7 +1026,7 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 			fifo_free = 31;
 			banshee_make_room(par, fifo_free);
 		}
-		tdfx_outl(par, LAUNCH_2D, *(u32*)chardata);
+		tdfx_outl(par, LAUNCH_2D, *(u32 *)chardata);
 		chardata += 4;
 	}
 
@@ -1026,11 +1039,11 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		tdfx_outl(par, LAUNCH_2D, *chardata);
 		break;
 	case 2:
-		tdfx_outl(par, LAUNCH_2D, *(u16*)chardata);
+		tdfx_outl(par, LAUNCH_2D, *(u16 *)chardata);
 		break;
 	case 3:
 		tdfx_outl(par, LAUNCH_2D,
-			*(u16*)chardata | ((chardata[3]) << 24));
+			*(u16 *)chardata | (chardata[3] << 24));
 		break;
 	}
 }
@@ -1175,8 +1188,9 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 	struct fb_info *info;
 	int err, lpitch;
 
-	if ((err = pci_enable_device(pdev))) {
-		printk(KERN_WARNING "tdfxfb: Can't enable pdev: %d\n", err);
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR "tdfxfb: Can't enable pdev: %d\n", err);
 		return err;
 	}
 
@@ -1207,33 +1221,36 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 	tdfx_fix.mmio_len = pci_resource_len(pdev, 0);
 	if (!request_mem_region(tdfx_fix.mmio_start, tdfx_fix.mmio_len,
 				"tdfx regbase")) {
-		printk(KERN_WARNING "tdfxfb: Can't reserve regbase\n");
+		printk(KERN_ERR "tdfxfb: Can't reserve regbase\n");
 		goto out_err;
 	}
 
 	default_par->regbase_virt =
 		ioremap_nocache(tdfx_fix.mmio_start, tdfx_fix.mmio_len);
 	if (!default_par->regbase_virt) {
-		printk("fb: Can't remap %s register area.\n", tdfx_fix.id);
+		printk(KERN_ERR "fb: Can't remap %s register area.\n",
+				tdfx_fix.id);
 		goto out_err_regbase;
 	}
 
 	tdfx_fix.smem_start = pci_resource_start(pdev, 1);
-	if (!(tdfx_fix.smem_len = do_lfb_size(default_par, pdev->device))) {
-		printk("fb: Can't count %s memory.\n", tdfx_fix.id);
+	tdfx_fix.smem_len = do_lfb_size(default_par, pdev->device);
+	if (!tdfx_fix.smem_len) {
+		printk(KERN_ERR "fb: Can't count %s memory.\n", tdfx_fix.id);
 		goto out_err_regbase;
 	}
 
 	if (!request_mem_region(tdfx_fix.smem_start,
 				pci_resource_len(pdev, 1), "tdfx smem")) {
-		printk(KERN_WARNING "tdfxfb: Can't reserve smem\n");
+		printk(KERN_ERR "tdfxfb: Can't reserve smem\n");
 		goto out_err_regbase;
 	}
 
 	info->screen_base = ioremap_nocache(tdfx_fix.smem_start,
 					    tdfx_fix.smem_len);
 	if (!info->screen_base) {
-		printk("fb: Can't remap %s framebuffer.\n", tdfx_fix.id);
+		printk(KERN_ERR "fb: Can't remap %s framebuffer.\n",
+				tdfx_fix.id);
 		goto out_err_screenbase;
 	}
 
@@ -1241,11 +1258,12 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 
 	if (!request_region(pci_resource_start(pdev, 2),
 			    pci_resource_len(pdev, 2), "tdfx iobase")) {
-		printk(KERN_WARNING "tdfxfb: Can't reserve iobase\n");
+		printk(KERN_ERR "tdfxfb: Can't reserve iobase\n");
 		goto out_err_screenbase;
 	}
 
-	printk("fb: %s memory = %dK\n", tdfx_fix.id, tdfx_fix.smem_len >> 10);
+	printk(KERN_INFO "fb: %s memory = %dK\n", tdfx_fix.id,
+			tdfx_fix.smem_len >> 10);
 
 	default_par->mtrr_handle = -1;
 	if (!nomtrr)
@@ -1261,7 +1279,7 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 	info->pseudo_palette	= default_par->palette;
 	info->flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 #ifdef CONFIG_FB_3DFX_ACCEL
-	info->flags             |= FBINFO_HWACCEL_FILLRECT |
+	info->flags		|= FBINFO_HWACCEL_FILLRECT |
 				   FBINFO_HWACCEL_COPYAREA |
 				   FBINFO_HWACCEL_IMAGEBLIT |
 				   FBINFO_READS_FAST;
@@ -1286,12 +1304,12 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 		goto out_err_iobase;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		printk(KERN_WARNING "tdfxfb: Can't allocate color map\n");
+		printk(KERN_ERR "tdfxfb: Can't allocate color map\n");
 		goto out_err_iobase;
 	}
 
 	if (register_framebuffer(info) < 0) {
-		printk("tdfxfb: can't register framebuffer\n");
+		printk(KERN_ERR "tdfxfb: can't register framebuffer\n");
 		fb_dealloc_cmap(&info->cmap);
 		goto out_err_iobase;
 	}
