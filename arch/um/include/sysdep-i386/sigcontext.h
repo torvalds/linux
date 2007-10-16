@@ -7,7 +7,8 @@
 #define __SYS_SIGCONTEXT_I386_H
 
 #include "uml-config.h"
-#include <sysdep/sc.h>
+#include "skas.h"
+#include "sysdep/sc.h"
 
 #define IP_RESTART_SYSCALL(ip) ((ip) -= 2)
 

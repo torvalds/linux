@@ -11,7 +11,6 @@
 /* Grr, asm/user.h includes asm/ptrace.h, so has to follow ptrace_user.h */
 #include <asm/user.h>
 #include "kern_util.h"
-#include "sysdep/thread.h"
 #include "user.h"
 #include "os.h"
 #include "uml-config.h"

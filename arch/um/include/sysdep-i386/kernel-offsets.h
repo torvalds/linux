@@ -17,6 +17,5 @@
 
 void foo(void)
 {
-	OFFSET(HOST_TASK_DEBUGREGS, task_struct, thread.arch.debugregs);
 #include <common-offsets.h>
 }
