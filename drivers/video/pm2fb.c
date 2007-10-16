@@ -1257,18 +1257,8 @@ static const u8 cursor_bits_lookup[16] = {
 static int pm2vfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct pm2fb_par *par = info->par;
-	u8 mode;
+	u8 mode = PM2F_CURSORMODE_TYPE_X;
 
-	if (!hwcursor)
-		return -EINVAL;	/* just to force soft_cursor() call */
-
-	/* Too large of a cursor or wrong bpp :-( */
-	if (cursor->image.width > 64 ||
-	    cursor->image.height > 64 ||
-	    cursor->image.depth > 1)
-		return -EINVAL;
-
-	mode = PM2F_CURSORMODE_TYPE_X;
 	if (cursor->enable)
 		mode |= PM2F_CURSORMODE_CURSOR_ENABLE;
 
@@ -1369,11 +1359,122 @@ static int pm2vfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 static int pm2fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct pm2fb_par *par = info->par;
+	u8 mode;
+
+	if (!hwcursor)
+		return -EINVAL;	/* just to force soft_cursor() call */
+
+	/* Too large of a cursor or wrong bpp :-( */
+	if (cursor->image.width > 64 ||
+	    cursor->image.height > 64 ||
+	    cursor->image.depth > 1)
+		return -EINVAL;
 
 	if (par->type == PM2_TYPE_PERMEDIA2V)
 		return pm2vfb_cursor(info, cursor);
 
-	return -ENXIO;
+	mode = 0;
+	if (cursor->enable)
+		 mode = 0x43;
+
+	pm2_RDAC_WR(par, PM2I_RD_CURSOR_CONTROL, mode);
+
+	/*
+	 * If the cursor is not be changed this means either we want the
+	 * current cursor state (if enable is set) or we want to query what
+	 * we can do with the cursor (if enable is not set)
+	 */
+	if (!cursor->set)
+		return 0;
+
+	if (cursor->set & FB_CUR_SETPOS) {
+		int x, y;
+
+		x = cursor->image.dx + 63;
+		y = cursor->image.dy + 63;
+		WAIT_FIFO(par, 4);
+		pm2_WR(par, PM2R_RD_CURSOR_X_LSB, x & 0xff);
+		pm2_WR(par, PM2R_RD_CURSOR_X_MSB, (x >> 8) & 0x7);
+		pm2_WR(par, PM2R_RD_CURSOR_Y_LSB, y & 0xff);
+		pm2_WR(par, PM2R_RD_CURSOR_Y_MSB, (y >> 8) & 0x7);
+	}
+
+	if (cursor->set & FB_CUR_SETCMAP) {
+		u32 fg_idx = cursor->image.fg_color;
+		u32 bg_idx = cursor->image.bg_color;
+
+		WAIT_FIFO(par, 7);
+		pm2_WR(par, PM2R_RD_CURSOR_COLOR_ADDRESS, 1);
+		pm2_WR(par, PM2R_RD_CURSOR_COLOR_DATA,
+			info->cmap.red[bg_idx] >> 8);
+		pm2_WR(par, PM2R_RD_CURSOR_COLOR_DATA,
+			info->cmap.green[bg_idx] >> 8);
+		pm2_WR(par, PM2R_RD_CURSOR_COLOR_DATA,
+			info->cmap.blue[bg_idx] >> 8);
+
+		pm2_WR(par, PM2R_RD_CURSOR_COLOR_DATA,
+			info->cmap.red[fg_idx] >> 8);
+		pm2_WR(par, PM2R_RD_CURSOR_COLOR_DATA,
+			info->cmap.green[fg_idx] >> 8);
+		pm2_WR(par, PM2R_RD_CURSOR_COLOR_DATA,
+			info->cmap.blue[fg_idx] >> 8);
+	}
+
+	if (cursor->set & (FB_CUR_SETSHAPE | FB_CUR_SETIMAGE)) {
+		u8 *bitmap = (u8 *)cursor->image.data;
+		u8 *mask = (u8 *)cursor->mask;
+		int i;
+
+		WAIT_FIFO(par, 1);
+		pm2_WR(par, PM2R_RD_PALETTE_WRITE_ADDRESS, 0);
+
+		for (i = 0; i < cursor->image.height; i++) {
+			int j = (cursor->image.width + 7) >> 3;
+			int k = 8 - j;
+
+			WAIT_FIFO(par, 8);
+			for (; j > 0; j--) {
+				u8 data = *bitmap ^ *mask;
+
+				if (cursor->rop == ROP_COPY)
+					data = *mask & *bitmap;
+				/* bitmap data */
+				pm2_WR(par, PM2R_RD_CURSOR_DATA, data);
+				bitmap++;
+				mask++;
+			}
+			for (; k > 0; k--)
+				pm2_WR(par, PM2R_RD_CURSOR_DATA, 0);
+		}
+		for (; i < 64; i++) {
+			int j = 8;
+			WAIT_FIFO(par, 8);
+			while (j-- > 0)
+				pm2_WR(par, PM2R_RD_CURSOR_DATA, 0);
+		}
+
+		mask = (u8 *)cursor->mask;
+		for (i = 0; i < cursor->image.height; i++) {
+			int j = (cursor->image.width + 7) >> 3;
+			int k = 8 - j;
+
+			WAIT_FIFO(par, 8);
+			for (; j > 0; j--) {
+				/* mask */
+				pm2_WR(par, PM2R_RD_CURSOR_DATA, *mask);
+				mask++;
+			}
+			for (; k > 0; k--)
+				pm2_WR(par, PM2R_RD_CURSOR_DATA, 0);
+		}
+		for (; i < 64; i++) {
+			int j = 8;
+			WAIT_FIFO(par, 8);
+			while (j-- > 0)
+				pm2_WR(par, PM2R_RD_CURSOR_DATA, 0);
+		}
+	}
+	return 0;
 }
 
 /* ------------ Hardware Independent Functions ------------ */
