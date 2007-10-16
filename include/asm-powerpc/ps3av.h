@@ -283,7 +283,7 @@
 #define PS3AV_CMD_VIDEO_CS_YUV422			0x0002
 #define PS3AV_CMD_VIDEO_CS_YUV444			0x0003
 
-/* for automode */
+/* for broadcast automode */
 #define PS3AV_RESBIT_720x480P			0x0003	/* 0x0001 | 0x0002 */
 #define PS3AV_RESBIT_720x576P			0x0003	/* 0x0001 | 0x0002 */
 #define PS3AV_RESBIT_1280x720P			0x0004
@@ -297,6 +297,15 @@
 						| PS3AV_RESBIT_1280x720P \
 						| PS3AV_RESBIT_1920x1080I \
 						| PS3AV_RESBIT_1920x1080P)
+
+/* for VESA automode */
+#define PS3AV_RESBIT_VGA			0x0001
+#define PS3AV_RESBIT_WXGA			0x0002
+#define PS3AV_RESBIT_SXGA			0x0004
+#define PS3AV_RESBIT_WUXGA			0x0008
+#define PS3AV_RES_MASK_VESA			(PS3AV_RESBIT_WXGA |\
+						 PS3AV_RESBIT_SXGA |\
+						 PS3AV_RESBIT_WUXGA)
 
 #define PS3AV_MONITOR_TYPE_HDMI			1	/* HDMI */
 #define PS3AV_MONITOR_TYPE_DVI			2	/* DVI */
