@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  * Licensed under the GPL
  */
@@ -82,17 +82,21 @@ int generic_console_write(int fd, const char *buf, int n)
 		if (err)
 			goto error;
 		new = save;
-		/* The terminal becomes a bit less raw, to handle \n also as
+		/*
+		 * The terminal becomes a bit less raw, to handle \n also as
 		 * "Carriage Return", not only as "New Line". Otherwise, the new
-		 * line won't start at the first column.*/
+		 * line won't start at the first column.
+		 */
 		new.c_oflag |= OPOST;
 		CATCH_EINTR(err = tcsetattr(fd, TCSAFLUSH, &new));
 		if (err)
 			goto error;
 	}
 	err = generic_write(fd, buf, n, NULL);
-	/* Restore raw mode, in any case; we *must* ignore any error apart
-	 * EINTR, except for debug.*/
+	/*
+	 * Restore raw mode, in any case; we *must* ignore any error apart
+	 * EINTR, except for debug.
+	 */
 	if (isatty(fd))
 		CATCH_EINTR(tcsetattr(fd, TCSAFLUSH, &save));
 	return err;
@@ -167,13 +171,13 @@ static int winch_thread(void *arg)
 		exit(1);
 	}
 
-	if(ioctl(pty_fd, TIOCSCTTY, 0) < 0){
+	if (ioctl(pty_fd, TIOCSCTTY, 0) < 0) {
 		printk(UM_KERN_ERR "winch_thread : TIOCSCTTY failed on "
 		       "fd %d err = %d\n", pty_fd, errno);
 		exit(1);
 	}
 
-	if(tcsetpgrp(pty_fd, os_getpid()) < 0){
+	if (tcsetpgrp(pty_fd, os_getpid()) < 0) {
 		printk(UM_KERN_ERR "winch_thread : tcsetpgrp failed on "
 		       "fd %d err = %d\n", pty_fd, errno);
 		exit(1);

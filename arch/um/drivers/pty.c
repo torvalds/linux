@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
@@ -6,16 +6,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <string.h>
 #include <termios.h>
 #include <sys/stat.h>
 #include "chan_user.h"
-#include "os.h"
-#include "user.h"
 #include "kern_constants.h"
+#include "os.h"
 #include "um_malloc.h"
+#include "user.h"
 
 struct pty_chan {
 	void (*announce)(char *dev_name, int dev);
@@ -33,7 +33,7 @@ static void *pty_chan_init(char *str, int device, const struct chan_opts *opts)
 	if (data == NULL)
 		return NULL;
 
-	*data = ((struct pty_chan) { .announce  	= opts->announce, 
+	*data = ((struct pty_chan) { .announce  	= opts->announce,
 				     .dev  		= device,
 				     .raw  		= opts->raw });
 	return data;
@@ -101,7 +101,7 @@ static int getmaster(char *line)
 				*tp = 't';
 				err = access(line, R_OK | W_OK);
 				*tp = 'p';
-				if(!err)
+				if (!err)
 					return master;
 				close(master);
 			}
@@ -130,7 +130,7 @@ static int pty_open(int input, int output, int primary, void *d,
 			return err;
 		}
 	}
-	
+
 	if (data->announce)
 		(*data->announce)(dev, data->dev);
 

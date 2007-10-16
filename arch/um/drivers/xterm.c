@@ -1,11 +1,11 @@
-/* 
+/*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #include <stddef.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -96,8 +96,10 @@ static int xterm_open(int input, int output, int primary, void *d,
 	if (access(argv[4], X_OK) < 0)
 		argv[4] = "port-helper";
 
-	/* Check that DISPLAY is set, this doesn't guarantee the xterm
-	 * will work but w/o it we can be pretty sure it won't. */
+	/*
+	 * Check that DISPLAY is set, this doesn't guarantee the xterm
+	 * will work but w/o it we can be pretty sure it won't.
+	 */
 	if (getenv("DISPLAY") == NULL) {
 		printk(UM_KERN_ERR "xterm_open: $DISPLAY not set.\n");
 		return -ENODEV;
@@ -196,7 +198,7 @@ static int xterm_open(int input, int output, int primary, void *d,
 static void xterm_close(int fd, void *d)
 {
 	struct xterm_chan *data = d;
-	
+
 	if (data->pid != -1)
 		os_kill_process(data->pid, 1);
 	data->pid = -1;

@@ -1,19 +1,18 @@
-/* 
+/*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  * Licensed under the GPL
  */
 
-#include <stddef.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <termios.h>
-#include <unistd.h>
 #include "chan_user.h"
+#include "kern_constants.h"
+#include "os.h"
 #include "um_malloc.h"
 #include "user.h"
-#include "os.h"
-#include "kern_constants.h"
 
 struct fd_chan {
 	int fd;
@@ -42,7 +41,7 @@ static void *fd_init(char *str, int device, const struct chan_opts *opts)
 	}
 
 	data = kmalloc(sizeof(*data), UM_GFP_KERNEL);
-	if(data == NULL)
+	if (data == NULL)
 		return NULL;
 
 	*data = ((struct fd_chan) { .fd  	= n,

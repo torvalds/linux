@@ -9,27 +9,29 @@
  *
  */
 
-#include <linux/init.h> 
-#include <linux/module.h>
-#include <linux/mm.h> 
+#include <linux/stddef.h>
+#include <linux/types.h>
 #include <linux/fs.h>
+#include <linux/init.h>
 #include <linux/miscdevice.h>
+#include <linux/module.h>
+#include <linux/mm.h>
 #include <asm/uaccess.h>
 #include "mem_user.h"
- 
+
 /* These are set in mmapper_init, which is called at boot time */
 static unsigned long mmapper_size;
-static unsigned long p_buf = 0;
-static char *v_buf = NULL;
+static unsigned long p_buf;
+static char *v_buf;
 
-static ssize_t
-mmapper_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+static ssize_t mmapper_read(struct file *file, char __user *buf, size_t count,
+			    loff_t *ppos)
 {
 	return simple_read_from_buffer(buf, count, ppos, v_buf, mmapper_size);
 }
 
-static ssize_t
-mmapper_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+static ssize_t mmapper_write(struct file *file, const char __user *buf,
+			     size_t count, loff_t *ppos)
 {
 	if (*ppos > mmapper_size)
 		return -EINVAL;
@@ -39,48 +41,46 @@ mmapper_write(struct file *file, const char __user *buf, size_t count, loff_t *p
 
 	if (copy_from_user(&v_buf[*ppos], buf, count))
 		return -EFAULT;
-	
+
 	return count;
 }
 
-static int 
-mmapper_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	 unsigned long arg)
+static int mmapper_ioctl(struct inode *inode, struct file *file,
+			 unsigned int cmd, unsigned long arg)
 {
-	return(-ENOIOCTLCMD);
+	return -ENOIOCTLCMD;
 }
 
-static int 
-mmapper_mmap(struct file *file, struct vm_area_struct * vma)
+static int mmapper_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret = -EINVAL;
 	int size;
 
 	if (vma->vm_pgoff != 0)
 		goto out;
-	
-	size = vma->vm_end - vma->vm_start;
-	if(size > mmapper_size) return(-EFAULT);
 
-	/* XXX A comment above remap_pfn_range says it should only be
+	size = vma->vm_end - vma->vm_start;
+	if (size > mmapper_size)
+		return -EFAULT;
+
+	/*
+	 * XXX A comment above remap_pfn_range says it should only be
 	 * called when the mm semaphore is held
 	 */
 	if (remap_pfn_range(vma, vma->vm_start, p_buf >> PAGE_SHIFT, size,
-			     vma->vm_page_prot))
+			    vma->vm_page_prot))
 		goto out;
 	ret = 0;
 out:
 	return ret;
 }
 
-static int
-mmapper_open(struct inode *inode, struct file *file)
+static int mmapper_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-static int 
-mmapper_release(struct inode *inode, struct file *file)
+static int mmapper_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
@@ -95,7 +95,9 @@ static const struct file_operations mmapper_fops = {
 	.release	= mmapper_release,
 };
 
-/* No locking needed - only used (and modified) by below initcall and exitcall. */
+/*
+ * No locking needed - only used (and modified) by below initcall and exitcall.
+ */
 static struct miscdevice mmapper_dev = {
 	.minor		= MISC_DYNAMIC_MINOR,
 	.name		= "mmapper",
@@ -109,13 +111,13 @@ static int __init mmapper_init(void)
 	printk(KERN_INFO "Mapper v0.1\n");
 
 	v_buf = (char *) find_iomem("mmapper", &mmapper_size);
-	if(mmapper_size == 0){
+	if (mmapper_size == 0) {
 		printk(KERN_ERR "mmapper_init - find_iomem failed\n");
 		goto out;
 	}
 
 	err = misc_register(&mmapper_dev);
-	if(err){
+	if (err) {
 		printk(KERN_ERR "mmapper - misc_register failed, err = %d\n",
 		       err);
 		goto out;
@@ -136,9 +138,3 @@ module_exit(mmapper_exit);
 
 MODULE_AUTHOR("Greg Lonnon <glonnon@ridgerun.com>");
 MODULE_DESCRIPTION("DSPLinux simulator mmapper driver");
-/*
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

@@ -1,25 +1,22 @@
 /*
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org)
- * Copyright (C) 2001 - 2003 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <signal.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/un.h>
-#include <unistd.h>
-#include "user.h"
-#include "sysdep/ptrace.h"
+#include "kern_constants.h"
 #include "mconsole.h"
-#include "os.h"
+#include "user.h"
 
 static struct mconsole_command commands[] = {
-	/* With uts namespaces, uts information becomes process-specific, so
+	/*
+	 * With uts namespaces, uts information becomes process-specific, so
 	 * we need a process context.  If we try handling this in interrupt
 	 * context, we may hit an exiting process without a valid uts
 	 * namespace.
@@ -36,7 +33,7 @@ static struct mconsole_command commands[] = {
 	{ "go", mconsole_go, MCONSOLE_INTR },
 	{ "log", mconsole_log, MCONSOLE_INTR },
 	{ "proc", mconsole_proc, MCONSOLE_PROC },
-        { "stack", mconsole_stack, MCONSOLE_INTR },
+	{ "stack", mconsole_stack, MCONSOLE_INTR },
 };
 
 /* Initialized in mconsole_init, which is an initcall */
@@ -44,21 +41,21 @@ char mconsole_socket_name[256];
 
 int mconsole_reply_v0(struct mc_request *req, char *reply)
 {
-        struct iovec iov;
-        struct msghdr msg;
+	struct iovec iov;
+	struct msghdr msg;
 
-        iov.iov_base = reply;
-        iov.iov_len = strlen(reply);
+	iov.iov_base = reply;
+	iov.iov_len = strlen(reply);
 
-        msg.msg_name = &(req->origin);
-        msg.msg_namelen = req->originlen;
-        msg.msg_iov = &iov;
-        msg.msg_iovlen = 1;
-        msg.msg_control = NULL;
-        msg.msg_controllen = 0;
-        msg.msg_flags = 0;
+	msg.msg_name = &(req->origin);
+	msg.msg_namelen = req->originlen;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags = 0;
 
-        return sendmsg(req->originating_fd, &msg, 0);
+	return sendmsg(req->originating_fd, &msg, 0);
 }
 
 static struct mconsole_command *mconsole_parse(struct mc_request *req)
@@ -66,10 +63,10 @@ static struct mconsole_command *mconsole_parse(struct mc_request *req)
 	struct mconsole_command *cmd;
 	int i;
 
-	for(i = 0; i < ARRAY_SIZE(commands); i++){
+	for (i = 0; i < ARRAY_SIZE(commands); i++) {
 		cmd = &commands[i];
-		if(!strncmp(req->request.data, cmd->command, 
-			    strlen(cmd->command))){
+		if (!strncmp(req->request.data, cmd->command,
+			    strlen(cmd->command))) {
 			return cmd;
 		}
 	}
@@ -94,9 +91,9 @@ int mconsole_get_request(int fd, struct mc_request *req)
 
 	req->originating_fd = fd;
 
-	if(req->request.magic != MCONSOLE_MAGIC){
+	if (req->request.magic != MCONSOLE_MAGIC) {
 		/* Unversioned request */
-		len = MIN(sizeof(req->request.data) - 1, 
+		len = MIN(sizeof(req->request.data) - 1,
 			  strlen((char *) &req->request));
 		memmove(req->request.data, &req->request, len);
 		req->request.data[len] = '\0';
@@ -107,32 +104,33 @@ int mconsole_get_request(int fd, struct mc_request *req)
 
 		mconsole_reply_v0(req, "ERR Version 0 mconsole clients are "
 				  "not supported by this driver");
-		return(0);
+		return 0;
 	}
 
-	if(req->request.len >= MCONSOLE_MAX_DATA){
+	if (req->request.len >= MCONSOLE_MAX_DATA) {
 		mconsole_reply(req, "Request too large", 1, 0);
-		return(0);
+		return 0;
 	}
-	if(req->request.version != MCONSOLE_VERSION){
-		mconsole_reply(req, "This driver only supports version " 
-                               STRING(MCONSOLE_VERSION) " clients", 1, 0);
+	if (req->request.version != MCONSOLE_VERSION) {
+		mconsole_reply(req, "This driver only supports version "
+			       STRING(MCONSOLE_VERSION) " clients", 1, 0);
 	}
-	
+
 	req->request.data[req->request.len] = '\0';
 	req->cmd = mconsole_parse(req);
-	if(req->cmd == NULL){
+	if (req->cmd == NULL) {
 		mconsole_reply(req, "Unknown command", 1, 0);
-		return(0);
+		return 0;
 	}
 
-	return(1);
+	return 1;
 }
 
 int mconsole_reply_len(struct mc_request *req, const char *str, int total,
 		       int err, int more)
 {
-	/* XXX This is a stack consumption problem.  It'd be nice to
+	/*
+	 * XXX This is a stack consumption problem.  It'd be nice to
 	 * make it global and serialize access to it, but there are a
 	 * ton of callers to this function.
 	 */
@@ -147,7 +145,7 @@ int mconsole_reply_len(struct mc_request *req, const char *str, int total,
 
 		len = MIN(total, MCONSOLE_MAX_DATA - 1);
 
-		if(len == total) reply.more = more;
+		if (len == total) reply.more = more;
 		else reply.more = 1;
 
 		memcpy(reply.data, str, len);
@@ -161,9 +159,10 @@ int mconsole_reply_len(struct mc_request *req, const char *str, int total,
 		n = sendto(req->originating_fd, &reply, len, 0,
 			   (struct sockaddr *) req->origin, req->originlen);
 
-		if(n < 0) return(-errno);
-	} while(total > 0);
-	return(0);
+		if (n < 0)
+			return -errno;
+	} while (total > 0);
+	return 0;
 }
 
 int mconsole_reply(struct mc_request *req, const char *str, int err, int more)
@@ -187,18 +186,18 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 	int n, err = 0;
 
 	lock_notify();
-	if(notify_sock < 0){
+	if (notify_sock < 0) {
 		notify_sock = socket(PF_UNIX, SOCK_DGRAM, 0);
-		if(notify_sock < 0){
+		if (notify_sock < 0) {
 			err = -errno;
-			printk("mconsole_notify - socket failed, errno = %d\n",
-			       err);
+			printk(UM_KERN_ERR "mconsole_notify - socket failed, "
+			       "errno = %d\n", errno);
 		}
 	}
 	unlock_notify();
-	
-	if(err)
-		return(err);
+
+	if (err)
+		return err;
 
 	target.sun_family = AF_UNIX;
 	strcpy(target.sun_path, sock_name);
@@ -212,22 +211,12 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 
 	err = 0;
 	len = sizeof(packet) + packet.len - sizeof(packet.data);
-	n = sendto(notify_sock, &packet, len, 0, (struct sockaddr *) &target, 
+	n = sendto(notify_sock, &packet, len, 0, (struct sockaddr *) &target,
 		   sizeof(target));
-	if(n < 0){
+	if (n < 0) {
 		err = -errno;
-		printk("mconsole_notify - sendto failed, errno = %d\n", errno);
+		printk(UM_KERN_ERR "mconsole_notify - sendto failed, "
+		       "errno = %d\n", errno);
 	}
-	return(err);
+	return err;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

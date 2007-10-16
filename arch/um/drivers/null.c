@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  * Licensed under the GPL
  */
@@ -6,8 +6,8 @@
 #include <stddef.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "os.h"
 #include "chan_user.h"
+#include "os.h"
 
 /* This address is used only as a unique identifer */
 static int null_chan;
