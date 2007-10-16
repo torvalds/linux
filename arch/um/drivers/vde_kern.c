@@ -36,30 +36,25 @@ static void vde_init(struct net_device *dev, void *data)
 	printk("\n");
 }
 
-static int vde_read(int fd, struct sk_buff **skb, struct uml_net_private *lp)
+static int vde_read(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
 	struct vde_data *pri = (struct vde_data *) &lp->user;
 
-	if (pri->conn != NULL) {
-		*skb = ether_adjust_skb(*skb, ETH_HEADER_OTHER);
-		if (*skb == NULL)
-			return -ENOMEM;
-
-		return vde_user_read(pri->conn, skb_mac_header(*skb),
-				     (*skb)->dev->mtu + ETH_HEADER_OTHER);
-	}
+	if (pri->conn != NULL)
+		return vde_user_read(pri->conn, skb_mac_header(skb),
+				     skb->dev->mtu + ETH_HEADER_OTHER);
 
 	printk(KERN_ERR "vde_read - we have no VDECONN to read from");
 	return -EBADF;
 }
 
-static int vde_write(int fd, struct sk_buff **skb, struct uml_net_private *lp)
+static int vde_write(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
 	struct vde_data *pri = (struct vde_data *) &lp->user;
 
 	if (pri->conn != NULL)
-		return vde_user_write((void *)pri->conn, (*skb)->data,
-				      (*skb)->len);
+		return vde_user_write((void *)pri->conn, skb->data,
+				      skb->len);
 
 	printk(KERN_ERR "vde_write - we have no VDECONN to write to");
 	return -EBADF;

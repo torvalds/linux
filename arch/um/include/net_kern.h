@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -30,24 +30,24 @@ struct uml_net_private {
 	struct work_struct work;
 	int fd;
 	unsigned char mac[ETH_ALEN];
+	int max_packet;
 	unsigned short (*protocol)(struct sk_buff *);
 	int (*open)(void *);
 	void (*close)(int, void *);
 	void (*remove)(void *);
-	int (*read)(int, struct sk_buff **skb, struct uml_net_private *);
-	int (*write)(int, struct sk_buff **skb, struct uml_net_private *);
+	int (*read)(int, struct sk_buff *skb, struct uml_net_private *);
+	int (*write)(int, struct sk_buff *skb, struct uml_net_private *);
 
 	void (*add_address)(unsigned char *, unsigned char *, void *);
 	void (*delete_address)(unsigned char *, unsigned char *, void *);
-	int (*set_mtu)(int mtu, void *);
 	char user[0];
 };
 
 struct net_kern_info {
 	void (*init)(struct net_device *, void *);
 	unsigned short (*protocol)(struct sk_buff *);
-	int (*read)(int, struct sk_buff **skb, struct uml_net_private *);
-	int (*write)(int, struct sk_buff **skb, struct uml_net_private *);
+	int (*read)(int, struct sk_buff *skb, struct uml_net_private *);
+	int (*write)(int, struct sk_buff *skb, struct uml_net_private *);
 };
 
 struct transport {
@@ -62,7 +62,6 @@ struct transport {
 
 extern struct net_device *ether_init(int);
 extern unsigned short ether_protocol(struct sk_buff *);
-extern struct sk_buff *ether_adjust_skb(struct sk_buff *skb, int extra);
 extern int tap_setup_common(char *str, char *type, char **dev_name,
 			    char **mac_out, char **gate_addr);
 extern void register_transport(struct transport *new);

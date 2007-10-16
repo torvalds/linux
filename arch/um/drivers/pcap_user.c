@@ -13,8 +13,6 @@
 #include "um_malloc.h"
 #include "user.h"
 
-#define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
-
 #define PCAP_FD(p) (*(int *)(p))
 
 static int pcap_user_init(void *data, void *dev)
@@ -23,7 +21,8 @@ static int pcap_user_init(void *data, void *dev)
 	pcap_t *p;
 	char errors[PCAP_ERRBUF_SIZE];
 
-	p = pcap_open_live(pri->host_if, MAX_PACKET, pri->promisc, 0, errors);
+	p = pcap_open_live(pri->host_if, ETH_MAX_PACKET + ETH_HEADER_OTHER,
+			   pri->promisc, 0, errors);
 	if (p == NULL) {
 		printk(UM_KERN_ERR "pcap_user_init : pcap_open_live failed - "
 		       "'%s'\n", errors);
@@ -133,8 +132,8 @@ const struct net_user_info pcap_user_info = {
 	.open		= pcap_open,
 	.close	 	= NULL,
 	.remove	 	= pcap_remove,
-	.set_mtu	= NULL,
 	.add_address	= NULL,
 	.delete_address = NULL,
-	.max_packet	= MAX_PACKET - ETH_HEADER_OTHER
+	.mtu		= ETH_MAX_PACKET,
+	.max_packet	= ETH_MAX_PACKET + ETH_HEADER_OTHER,
 };

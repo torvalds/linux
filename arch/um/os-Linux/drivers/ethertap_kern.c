@@ -36,35 +36,24 @@ static void etap_init(struct net_device *dev, void *data)
 	printk("\n");
 }
 
-static int etap_read(int fd, struct sk_buff **skb, struct uml_net_private *lp)
+static int etap_read(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
 	int len;
 
-	*skb = ether_adjust_skb(*skb, ETH_HEADER_ETHERTAP);
-	if (*skb == NULL)
-		return -ENOMEM;
-	len = net_recvfrom(fd, skb_mac_header(*skb),
-			   (*skb)->dev->mtu + 2 * ETH_HEADER_ETHERTAP);
+	len = net_recvfrom(fd, skb_mac_header(skb),
+			   skb->dev->mtu + 2 + ETH_HEADER_ETHERTAP);
 	if (len <= 0)
-		return len;
-	skb_pull(*skb, 2);
+		return(len);
+
+	skb_pull(skb, 2);
 	len -= 2;
 	return len;
 }
 
-static int etap_write(int fd, struct sk_buff **skb, struct uml_net_private *lp)
+static int etap_write(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
-	if (skb_headroom(*skb) < 2) {
-	  	struct sk_buff *skb2;
-
-		skb2 = skb_realloc_headroom(*skb, 2);
-		dev_kfree_skb(*skb);
-		if (skb2 == NULL)
-			return -ENOMEM;
-		*skb = skb2;
-	}
-	skb_push(*skb, 2);
-	return net_send(fd, (*skb)->data, (*skb)->len);
+	skb_push(skb, 2);
+	return net_send(fd, skb->data, skb->len);
 }
 
 const struct net_kern_info ethertap_kern_info = {
@@ -99,6 +88,7 @@ static struct transport ethertap_transport = {
 	.user 		= &ethertap_user_info,
 	.kern 		= &ethertap_kern_info,
 	.private_size 	= sizeof(struct ethertap_data),
+	.setup_size 	= sizeof(struct ethertap_init),
 };
 
 static int register_ethertap(void)

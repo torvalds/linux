@@ -222,11 +222,6 @@ static void etap_close(int fd, void *data)
 	pri->control_fd = -1;
 }
 
-static int etap_set_mtu(int mtu, void *data)
-{
-	return mtu;
-}
-
 static void etap_add_addr(unsigned char *addr, unsigned char *netmask,
 			  void *data)
 {
@@ -254,8 +249,8 @@ const struct net_user_info ethertap_user_info = {
 	.open		= etap_open,
 	.close	 	= etap_close,
 	.remove	 	= NULL,
-	.set_mtu	= etap_set_mtu,
 	.add_address	= etap_add_addr,
 	.delete_address = etap_del_addr,
-	.max_packet	= MAX_PACKET - ETH_HEADER_ETHERTAP
+	.mtu		= ETH_MAX_PACKET,
+	.max_packet	= ETH_MAX_PACKET + ETH_HEADER_ETHERTAP,
 };

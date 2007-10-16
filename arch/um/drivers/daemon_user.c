@@ -19,8 +19,6 @@
 #include "um_malloc.h"
 #include "user.h"
 
-#define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
-
 enum request_type { REQ_NEW_CONTROL };
 
 #define SWITCH_MAGIC 0xfeedface
@@ -184,18 +182,13 @@ int daemon_user_write(int fd, void *buf, int len, struct daemon_data *pri)
 	return net_sendto(fd, buf, len, data_addr, sizeof(*data_addr));
 }
 
-static int daemon_set_mtu(int mtu, void *data)
-{
-	return mtu;
-}
-
 const struct net_user_info daemon_user_info = {
 	.init		= daemon_user_init,
 	.open		= daemon_open,
 	.close	 	= NULL,
 	.remove	 	= daemon_remove,
-	.set_mtu	= daemon_set_mtu,
 	.add_address	= NULL,
 	.delete_address = NULL,
-	.max_packet	= MAX_PACKET - ETH_HEADER_OTHER
+	.mtu		= ETH_MAX_PACKET,
+	.max_packet	= ETH_MAX_PACKET + ETH_HEADER_OTHER,
 };

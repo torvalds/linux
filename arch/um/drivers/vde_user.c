@@ -12,8 +12,6 @@
 #include "user.h"
 #include "vde.h"
 
-#define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
-
 static int vde_user_init(void *data, void *dev)
 {
 	struct vde_data *pri = data;
@@ -65,20 +63,15 @@ static void vde_remove(void *data)
 	printk(UM_KERN_WARNING "vde_remove - we have no VDECONN to remove");
 }
 
-static int vde_set_mtu(int mtu, void *data)
-{
-	return mtu;
-}
-
 const struct net_user_info vde_user_info = {
 	.init		= vde_user_init,
 	.open		= vde_user_open,
 	.close	 	= NULL,
 	.remove	 	= vde_remove,
-	.set_mtu	= vde_set_mtu,
 	.add_address	= NULL,
 	.delete_address = NULL,
-	.max_packet	= MAX_PACKET - ETH_HEADER_OTHER
+	.mtu		= ETH_MAX_PACKET,
+	.max_packet	= ETH_MAX_PACKET + ETH_HEADER_OTHER,
 };
 
 void vde_init_libstuff(struct vde_data *vpri, struct vde_init *init)

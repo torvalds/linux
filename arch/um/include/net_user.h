@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -18,10 +18,10 @@ struct net_user_info {
 	int (*open)(void *);
 	void (*close)(int, void *);
 	void (*remove)(void *);
-	int (*set_mtu)(int mtu, void *);
 	void (*add_address)(unsigned char *, unsigned char *, void *);
 	void (*delete_address)(unsigned char *, unsigned char *, void *);
 	int max_packet;
+	int mtu;
 };
 
 extern void ether_user_init(void *data, void *dev);

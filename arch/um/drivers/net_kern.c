@@ -41,16 +41,16 @@ static int uml_net_rx(struct net_device *dev)
 	struct sk_buff *skb;
 
 	/* If we can't allocate memory, try again next round. */
-	skb = dev_alloc_skb(dev->mtu);
+	skb = dev_alloc_skb(lp->max_packet);
 	if (skb == NULL) {
 		lp->stats.rx_dropped++;
 		return 0;
 	}
 
 	skb->dev = dev;
-	skb_put(skb, dev->mtu);
+	skb_put(skb, lp->max_packet);
 	skb_reset_mac_header(skb);
-	pkt_len = (*lp->read)(lp->fd, &skb, lp);
+	pkt_len = (*lp->read)(lp->fd, skb, lp);
 
 	if (pkt_len > 0) {
 		skb_trim(skb, pkt_len);
@@ -178,7 +178,7 @@ static int uml_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&lp->lock, flags);
 
-	len = (*lp->write)(lp->fd, &skb, lp);
+	len = (*lp->write)(lp->fd, skb, lp);
 
 	if (len == skb->len) {
 		lp->stats.tx_packets++;
@@ -240,22 +240,9 @@ static int uml_net_set_mac(struct net_device *dev, void *addr)
 
 static int uml_net_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct uml_net_private *lp = dev->priv;
-	int err = 0;
-
-	spin_lock_irq(&lp->lock);
-
-	new_mtu = (*lp->set_mtu)(new_mtu, &lp->user);
-	if (new_mtu < 0) {
-		err = new_mtu;
-		goto out;
-	}
-
 	dev->mtu = new_mtu;
 
- out:
-	spin_unlock_irq(&lp->lock);
-	return err;
+	return 0;
 }
 
 static void uml_net_get_drvinfo(struct net_device *dev,
@@ -427,6 +414,7 @@ static void eth_configure(int n, void *init, char *mac,
 		  .dev 			= dev,
 		  .fd 			= -1,
 		  .mac 			= { 0xfe, 0xfd, 0x0, 0x0, 0x0, 0x0},
+		  .max_packet		= transport->user->max_packet,
 		  .protocol 		= transport->kern->protocol,
 		  .open 		= transport->user->open,
 		  .close 		= transport->user->close,
@@ -434,8 +422,7 @@ static void eth_configure(int n, void *init, char *mac,
 		  .read 		= transport->kern->read,
 		  .write 		= transport->kern->write,
 		  .add_address 		= transport->user->add_address,
-		  .delete_address  	= transport->user->delete_address,
-		  .set_mtu 		= transport->user->set_mtu });
+		  .delete_address  	= transport->user->delete_address });
 
 	init_timer(&lp->tl);
 	spin_lock_init(&lp->lock);
@@ -447,7 +434,7 @@ static void eth_configure(int n, void *init, char *mac,
 		goto out_unregister;
 
 	set_ether_mac(dev, device->mac);
-	dev->mtu = transport->user->max_packet;
+	dev->mtu = transport->user->mtu;
 	dev->open = uml_net_open;
 	dev->hard_start_xmit = uml_net_start_xmit;
 	dev->stop = uml_net_close;
@@ -806,19 +793,6 @@ static void close_devices(void)
 }
 
 __uml_exitcall(close_devices);
-
-struct sk_buff *ether_adjust_skb(struct sk_buff *skb, int extra)
-{
-	if ((skb != NULL) && (skb_tailroom(skb) < extra)) {
-	  	struct sk_buff *skb2;
-
-		skb2 = skb_copy_expand(skb, 0, extra, GFP_ATOMIC);
-		dev_kfree_skb(skb);
-		skb = skb2;
-	}
-	if (skb != NULL) skb_put(skb, extra);
-	return skb;
-}
 
 void iter_addresses(void *d, void (*cb)(unsigned char *, unsigned char *,
 					void *),

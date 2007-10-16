@@ -18,8 +18,6 @@
 #include "tuntap.h"
 #include "user.h"
 
-#define MAX_PACKET ETH_MAX_PACKET
-
 static int tuntap_user_init(void *data, void *dev)
 {
 	struct tuntap_data *pri = data;
@@ -206,18 +204,13 @@ static void tuntap_close(int fd, void *data)
 	pri->fd = -1;
 }
 
-static int tuntap_set_mtu(int mtu, void *data)
-{
-	return mtu;
-}
-
 const struct net_user_info tuntap_user_info = {
 	.init		= tuntap_user_init,
 	.open		= tuntap_open,
 	.close	 	= tuntap_close,
 	.remove	 	= NULL,
-	.set_mtu	= tuntap_set_mtu,
 	.add_address	= tuntap_add_addr,
 	.delete_address = tuntap_del_addr,
-	.max_packet	= MAX_PACKET
+	.mtu		= ETH_MAX_PACKET,
+	.max_packet	= ETH_MAX_PACKET + ETH_HEADER_OTHER,
 };

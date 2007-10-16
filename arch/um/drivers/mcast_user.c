@@ -20,8 +20,6 @@
 #include "um_malloc.h"
 #include "user.h"
 
-#define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
-
 static struct sockaddr_in *new_addr(char *addr, unsigned short port)
 {
 	struct sockaddr_in *sin;
@@ -154,18 +152,13 @@ int mcast_user_write(int fd, void *buf, int len, struct mcast_data *pri)
 	return net_sendto(fd, buf, len, data_addr, sizeof(*data_addr));
 }
 
-static int mcast_set_mtu(int mtu, void *data)
-{
-	return mtu;
-}
-
 const struct net_user_info mcast_user_info = {
 	.init		= mcast_user_init,
 	.open		= mcast_open,
 	.close	 	= mcast_close,
 	.remove	 	= mcast_remove,
-	.set_mtu	= mcast_set_mtu,
 	.add_address	= NULL,
 	.delete_address = NULL,
-	.max_packet	= MAX_PACKET - ETH_HEADER_OTHER
+	.mtu		= ETH_MAX_PACKET,
+	.max_packet	= ETH_MAX_PACKET + ETH_HEADER_OTHER,
 };

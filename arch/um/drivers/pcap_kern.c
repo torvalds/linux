@@ -31,19 +31,14 @@ void pcap_init(struct net_device *dev, void *data)
 	printk("pcap backend, host interface %s\n", ppri->host_if);
 }
 
-static int pcap_read(int fd, struct sk_buff **skb,
-		       struct uml_net_private *lp)
+static int pcap_read(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
-	*skb = ether_adjust_skb(*skb, ETH_HEADER_OTHER);
-	if (*skb == NULL)
-		return -ENOMEM;
-
-	return pcap_user_read(fd, skb_mac_header(*skb),
-			      (*skb)->dev->mtu + ETH_HEADER_OTHER,
+	return pcap_user_read(fd, skb_mac_header(skb),
+			      skb->dev->mtu + ETH_HEADER_OTHER,
 			      (struct pcap_data *) &lp->user);
 }
 
-static int pcap_write(int fd, struct sk_buff **skb, struct uml_net_private *lp)
+static int pcap_write(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
 	return -EPERM;
 }

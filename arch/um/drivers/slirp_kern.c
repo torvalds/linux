@@ -52,18 +52,16 @@ static unsigned short slirp_protocol(struct sk_buff *skbuff)
 	return htons(ETH_P_IP);
 }
 
-static int slirp_read(int fd, struct sk_buff **skb,
-		       struct uml_net_private *lp)
+static int slirp_read(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
-	return slirp_user_read(fd, skb_mac_header(*skb), (*skb)->dev->mtu,
-			      (struct slirp_data *) &lp->user);
+	return slirp_user_read(fd, skb_mac_header(skb), skb->dev->mtu,
+			       (struct slirp_data *) &lp->user);
 }
 
-static int slirp_write(int fd, struct sk_buff **skb,
-		      struct uml_net_private *lp)
+static int slirp_write(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
-	return slirp_user_write(fd, (*skb)->data, (*skb)->len,
-			       (struct slirp_data *) &lp->user);
+	return slirp_user_write(fd, skb->data, skb->len,
+				(struct slirp_data *) &lp->user);
 }
 
 const struct net_kern_info slirp_kern_info = {

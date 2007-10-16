@@ -124,18 +124,13 @@ int slirp_user_write(int fd, void *buf, int len, struct slirp_data *pri)
 	return slip_proto_write(fd, buf, len, &pri->slip);
 }
 
-static int slirp_set_mtu(int mtu, void *data)
-{
-	return mtu;
-}
-
 const struct net_user_info slirp_user_info = {
 	.init		= slirp_user_init,
 	.open		= slirp_open,
 	.close	 	= slirp_close,
 	.remove	 	= NULL,
-	.set_mtu	= slirp_set_mtu,
 	.add_address	= NULL,
 	.delete_address = NULL,
-	.max_packet	= BUF_SIZE
+	.mtu		= BUF_SIZE,
+	.max_packet	= BUF_SIZE,
 };

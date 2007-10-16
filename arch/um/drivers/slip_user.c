@@ -230,11 +230,6 @@ int slip_user_write(int fd, void *buf, int len, struct slip_data *pri)
 	return slip_proto_write(fd, buf, len, &pri->slip);
 }
 
-static int slip_set_mtu(int mtu, void *data)
-{
-	return mtu;
-}
-
 static void slip_add_addr(unsigned char *addr, unsigned char *netmask,
 			  void *data)
 {
@@ -260,8 +255,8 @@ const struct net_user_info slip_user_info = {
 	.open		= slip_open,
 	.close	 	= slip_close,
 	.remove	 	= NULL,
-	.set_mtu	= slip_set_mtu,
 	.add_address	= slip_add_addr,
 	.delete_address = slip_del_addr,
-	.max_packet	= BUF_SIZE
+	.mtu		= BUF_SIZE,
+	.max_packet	= BUF_SIZE,
 };

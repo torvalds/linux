@@ -39,18 +39,15 @@ static void mcast_init(struct net_device *dev, void *data)
 	       dpri->addr, dpri->port, dpri->ttl);
 }
 
-static int mcast_read(int fd, struct sk_buff **skb, struct uml_net_private *lp)
+static int mcast_read(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
-	*skb = ether_adjust_skb(*skb, ETH_HEADER_OTHER);
-	if (*skb == NULL)
-		return -ENOMEM;
-	return net_recvfrom(fd, skb_mac_header(*skb),
-			    (*skb)->dev->mtu + ETH_HEADER_OTHER);
+	return net_recvfrom(fd, skb_mac_header(skb),
+			    skb->dev->mtu + ETH_HEADER_OTHER);
 }
 
-static int mcast_write(int fd, struct sk_buff **skb, struct uml_net_private *lp)
+static int mcast_write(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 {
-	return mcast_user_write(fd, (*skb)->data, (*skb)->len,
+	return mcast_user_write(fd, skb->data, skb->len,
 				(struct mcast_data *) &lp->user);
 }
 
