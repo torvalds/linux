@@ -14,22 +14,22 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 {
 	struct sigcontext *sc = from;
 
-	REGS_GS(regs->regs) = sc->gs;
-	REGS_FS(regs->regs) = sc->fs;
-	REGS_ES(regs->regs) = sc->es;
-	REGS_DS(regs->regs) = sc->ds;
-	REGS_EDI(regs->regs) = sc->edi;
-	REGS_ESI(regs->regs) = sc->esi;
-	REGS_EBP(regs->regs) = sc->ebp;
-	REGS_SP(regs->regs) = sc->esp;
-	REGS_EBX(regs->regs) = sc->ebx;
-	REGS_EDX(regs->regs) = sc->edx;
-	REGS_ECX(regs->regs) = sc->ecx;
-	REGS_EAX(regs->regs) = sc->eax;
-	REGS_IP(regs->regs) = sc->eip;
-	REGS_CS(regs->regs) = sc->cs;
-	REGS_EFLAGS(regs->regs) = sc->eflags;
-	REGS_SS(regs->regs) = sc->ss;
+	REGS_GS(regs->gp) = sc->gs;
+	REGS_FS(regs->gp) = sc->fs;
+	REGS_ES(regs->gp) = sc->es;
+	REGS_DS(regs->gp) = sc->ds;
+	REGS_EDI(regs->gp) = sc->edi;
+	REGS_ESI(regs->gp) = sc->esi;
+	REGS_EBP(regs->gp) = sc->ebp;
+	REGS_SP(regs->gp) = sc->esp;
+	REGS_EBX(regs->gp) = sc->ebx;
+	REGS_EDX(regs->gp) = sc->edx;
+	REGS_ECX(regs->gp) = sc->ecx;
+	REGS_EAX(regs->gp) = sc->eax;
+	REGS_IP(regs->gp) = sc->eip;
+	REGS_CS(regs->gp) = sc->cs;
+	REGS_EFLAGS(regs->gp) = sc->eflags;
+	REGS_SS(regs->gp) = sc->ss;
 }
 
 static int copy_sc_from_user(struct pt_regs *regs,
@@ -65,23 +65,23 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err;
 
-	sc.gs = REGS_GS(regs->regs.regs);
-	sc.fs = REGS_FS(regs->regs.regs);
-	sc.es = REGS_ES(regs->regs.regs);
-	sc.ds = REGS_DS(regs->regs.regs);
-	sc.edi = REGS_EDI(regs->regs.regs);
-	sc.esi = REGS_ESI(regs->regs.regs);
-	sc.ebp = REGS_EBP(regs->regs.regs);
+	sc.gs = REGS_GS(regs->regs.gp);
+	sc.fs = REGS_FS(regs->regs.gp);
+	sc.es = REGS_ES(regs->regs.gp);
+	sc.ds = REGS_DS(regs->regs.gp);
+	sc.edi = REGS_EDI(regs->regs.gp);
+	sc.esi = REGS_ESI(regs->regs.gp);
+	sc.ebp = REGS_EBP(regs->regs.gp);
 	sc.esp = sp;
-	sc.ebx = REGS_EBX(regs->regs.regs);
-	sc.edx = REGS_EDX(regs->regs.regs);
-	sc.ecx = REGS_ECX(regs->regs.regs);
-	sc.eax = REGS_EAX(regs->regs.regs);
-	sc.eip = REGS_IP(regs->regs.regs);
-	sc.cs = REGS_CS(regs->regs.regs);
-	sc.eflags = REGS_EFLAGS(regs->regs.regs);
-	sc.esp_at_signal = regs->regs.regs[UESP];
-	sc.ss = regs->regs.regs[SS];
+	sc.ebx = REGS_EBX(regs->regs.gp);
+	sc.edx = REGS_EDX(regs->regs.gp);
+	sc.ecx = REGS_ECX(regs->regs.gp);
+	sc.eax = REGS_EAX(regs->regs.gp);
+	sc.eip = REGS_IP(regs->regs.gp);
+	sc.cs = REGS_CS(regs->regs.gp);
+	sc.eflags = REGS_EFLAGS(regs->regs.gp);
+	sc.esp_at_signal = regs->regs.gp[UESP];
+	sc.ss = regs->regs.gp[SS];
 	sc.cr2 = fi->cr2;
 	sc.err = fi->error_code;
 	sc.trapno = fi->trap_no;

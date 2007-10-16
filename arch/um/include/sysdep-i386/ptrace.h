@@ -53,7 +53,7 @@ extern int sysemu_supported;
 #endif
 
 struct uml_pt_regs {
-	unsigned long regs[MAX_REG_NR];
+	unsigned long gp[MAX_REG_NR];
 	unsigned long fp[HOST_FP_SIZE];
 	unsigned long xfp[HOST_XFP_SIZE];
 	struct faultinfo faultinfo;
@@ -63,23 +63,23 @@ struct uml_pt_regs {
 
 #define EMPTY_UML_PT_REGS { }
 
-#define UPT_IP(r) REGS_IP((r)->regs)
-#define UPT_SP(r) REGS_SP((r)->regs)
-#define UPT_EFLAGS(r) REGS_EFLAGS((r)->regs)
-#define UPT_EAX(r) REGS_EAX((r)->regs)
-#define UPT_EBX(r) REGS_EBX((r)->regs)
-#define UPT_ECX(r) REGS_ECX((r)->regs)
-#define UPT_EDX(r) REGS_EDX((r)->regs)
-#define UPT_ESI(r) REGS_ESI((r)->regs)
-#define UPT_EDI(r) REGS_EDI((r)->regs)
-#define UPT_EBP(r) REGS_EBP((r)->regs)
+#define UPT_IP(r) REGS_IP((r)->gp)
+#define UPT_SP(r) REGS_SP((r)->gp)
+#define UPT_EFLAGS(r) REGS_EFLAGS((r)->gp)
+#define UPT_EAX(r) REGS_EAX((r)->gp)
+#define UPT_EBX(r) REGS_EBX((r)->gp)
+#define UPT_ECX(r) REGS_ECX((r)->gp)
+#define UPT_EDX(r) REGS_EDX((r)->gp)
+#define UPT_ESI(r) REGS_ESI((r)->gp)
+#define UPT_EDI(r) REGS_EDI((r)->gp)
+#define UPT_EBP(r) REGS_EBP((r)->gp)
 #define UPT_ORIG_EAX(r) ((r)->syscall)
-#define UPT_CS(r) REGS_CS((r)->regs)
-#define UPT_SS(r) REGS_SS((r)->regs)
-#define UPT_DS(r) REGS_DS((r)->regs)
-#define UPT_ES(r) REGS_ES((r)->regs)
-#define UPT_FS(r) REGS_FS((r)->regs)
-#define UPT_GS(r) REGS_GS((r)->regs)
+#define UPT_CS(r) REGS_CS((r)->gp)
+#define UPT_SS(r) REGS_SS((r)->gp)
+#define UPT_DS(r) REGS_DS((r)->gp)
+#define UPT_ES(r) REGS_ES((r)->gp)
+#define UPT_FS(r) REGS_FS((r)->gp)
+#define UPT_GS(r) REGS_GS((r)->gp)
 
 #define UPT_SYSCALL_ARG1(r) UPT_EBX(r)
 #define UPT_SYSCALL_ARG2(r) UPT_ECX(r)
@@ -161,7 +161,7 @@ struct syscall_args {
 #define UPT_SET_SYSCALL_RETURN(r, res) \
 	REGS_SET_SYSCALL_RETURN((r)->regs, (res))
 
-#define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->regs)
+#define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->gp)
 
 #define UPT_ORIG_SYSCALL(r) UPT_EAX(r)
 #define UPT_SYSCALL_NR(r) UPT_ORIG_EAX(r)

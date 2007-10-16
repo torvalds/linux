@@ -201,9 +201,9 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	if (current->thread.forking) {
 	  	memcpy(&p->thread.regs.regs, &regs->regs,
 		       sizeof(p->thread.regs.regs));
-		REGS_SET_SYSCALL_RETURN(p->thread.regs.regs.regs, 0);
+		REGS_SET_SYSCALL_RETURN(p->thread.regs.regs.gp, 0);
 		if (sp != 0)
-			REGS_SP(p->thread.regs.regs.regs) = sp;
+			REGS_SP(p->thread.regs.regs.gp) = sp;
 
 		handler = fork_handler;
 

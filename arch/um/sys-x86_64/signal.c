@@ -16,7 +16,7 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 	struct sigcontext *sc = from;
 
 #define GETREG(regs, regno, sc, regname)				\
-	(regs)->regs[(regno) / sizeof(unsigned long)] = (sc)->regname
+	(regs)->gp[(regno) / sizeof(unsigned long)] = (sc)->regname
 
 	GETREG(regs, R8, sc, r8);
 	GETREG(regs, R9, sc, r9);
@@ -47,7 +47,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 	int err = 0;
 
 #define GETREG(regs, regno, sc, regname)				\
-	__get_user((regs)->regs.regs[(regno) / sizeof(unsigned long)],	\
+	__get_user((regs)->regs.gp[(regno) / sizeof(unsigned long)],	\
 		   &(sc)->regname)
 
 	err |= GETREG(regs, R8, from, r8);
@@ -86,7 +86,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	err |= __put_user(0, &to->fs);
 
 #define PUTREG(regs, regno, sc, regname)				\
-	__put_user((regs)->regs.regs[(regno) / sizeof(unsigned long)],	\
+	__put_user((regs)->regs.gp[(regno) / sizeof(unsigned long)],	\
 		   &(sc)->regname)
 
 	err |= PUTREG(regs, RDI, to, rdi);

@@ -138,7 +138,7 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 	int err, status;
 
 	/* Mark this as a syscall */
-	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->regs);
+	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->gp);
 
 	if (!local_using_sysemu)
 	{
@@ -352,7 +352,7 @@ void userspace(struct uml_pt_regs *regs)
 
 			/* Avoid -ERESTARTSYS handling in host */
 			if (PT_SYSCALL_NR_OFFSET != PT_SYSCALL_RET_OFFSET)
-				PT_SYSCALL_NR(regs->regs) = -1;
+				PT_SYSCALL_NR(regs->gp) = -1;
 		}
 	}
 }
