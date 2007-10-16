@@ -196,7 +196,7 @@ unsigned long uncached_alloc_page(int starting_nid)
 	nid = starting_nid;
 
 	do {
-		if (!node_online(nid))
+		if (!node_state(nid, N_HIGH_MEMORY))
 			continue;
 		uc_pool = &uncached_pools[nid];
 		if (uc_pool->pool == NULL)
@@ -268,7 +268,7 @@ static int __init uncached_init(void)
 {
 	int nid;
 
-	for_each_online_node(nid) {
+	for_each_node_state(nid, N_ONLINE) {
 		uncached_pools[nid].pool = gen_pool_create(PAGE_SHIFT, nid);
 		mutex_init(&uncached_pools[nid].add_chunk_mutex);
 	}
