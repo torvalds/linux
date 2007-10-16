@@ -566,12 +566,7 @@ static int __init lxfb_setup(char *options)
 	if (!options || !*options)
 		return 0;
 
-	while (1) {
-		char *opt = strsep(&options, ",");
-
-		if (opt == NULL)
-			break;
-
+	while ((opt = strsep(&options, ",")) != NULL) {
 		if (!*opt)
 			continue;
 
