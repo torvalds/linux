@@ -323,11 +323,7 @@ intelfbhw_validate_mode(struct intelfb_info *dinfo,
 		return 1;
 	}
 
-	/* Check for interlaced/doublescan modes. */
-	if (var->vmode & FB_VMODE_INTERLACED) {
-		WRN_MSG("Mode is interlaced.\n");
-		return 1;
-	}
+	/* Check for doublescan modes. */
 	if (var->vmode & FB_VMODE_DOUBLE) {
 		WRN_MSG("Mode is double-scan.\n");
 		return 1;
@@ -1220,6 +1216,12 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 
 	/* Set the palette to 8-bit mode. */
 	*pipe_conf &= ~PIPECONF_GAMMA;
+
+	if (var->vmode & FB_VMODE_INTERLACED)
+		*pipe_conf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
+	else
+		*pipe_conf &= ~PIPECONF_INTERLACE_MASK;
+
 	return 0;
 }
 
