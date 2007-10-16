@@ -149,4 +149,6 @@ void destroy_context(struct mm_struct *mm)
 		pmd_free((pmd_t *) mmu->last_pmd);
 #endif
 	}
+
+	free_ldt(mmu);
 }
