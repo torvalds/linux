@@ -523,6 +523,8 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
+	if (vcpu->rmode.active)
+		rflags |= IOPL_MASK | X86_EFLAGS_VM;
 	vmcs_writel(GUEST_RFLAGS, rflags);
 }
 
