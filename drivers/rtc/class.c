@@ -153,6 +153,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	mutex_init(&rtc->ops_lock);
 	spin_lock_init(&rtc->irq_lock);
 	spin_lock_init(&rtc->irq_task_lock);
+	init_waitqueue_head(&rtc->irq_queue);
 
 	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
 	snprintf(rtc->dev.bus_id, BUS_ID_SIZE, "rtc%d", id);

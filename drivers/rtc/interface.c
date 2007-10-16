@@ -210,6 +210,10 @@ int rtc_irq_register(struct rtc_device *rtc, struct rtc_task *task)
 	if (task == NULL || task->func == NULL)
 		return -EINVAL;
 
+	/* Cannot register while the char dev is in use */
+	if (!(mutex_trylock(&rtc->char_lock)))
+		return -EBUSY;
+
 	spin_lock_irq(&rtc->irq_task_lock);
 	if (rtc->irq_task == NULL) {
 		rtc->irq_task = task;
@@ -217,13 +221,14 @@ int rtc_irq_register(struct rtc_device *rtc, struct rtc_task *task)
 	}
 	spin_unlock_irq(&rtc->irq_task_lock);
 
+	mutex_unlock(&rtc->char_lock);
+
 	return retval;
 }
 EXPORT_SYMBOL_GPL(rtc_irq_register);
 
 void rtc_irq_unregister(struct rtc_device *rtc, struct rtc_task *task)
 {
-
 	spin_lock_irq(&rtc->irq_task_lock);
 	if (rtc->irq_task == task)
 		rtc->irq_task = NULL;
@@ -240,8 +245,10 @@ int rtc_irq_set_state(struct rtc_device *rtc, struct rtc_task *task, int enabled
 		return -ENXIO;
 
 	spin_lock_irqsave(&rtc->irq_task_lock, flags);
+	if (rtc->irq_task != NULL && task == NULL)
+		err = -EBUSY;
 	if (rtc->irq_task != task)
-		err = -ENXIO;
+		err = -EACCES;
 	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
 
 	if (err == 0)
@@ -260,8 +267,10 @@ int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
 		return -ENXIO;
 
 	spin_lock_irqsave(&rtc->irq_task_lock, flags);
+	if (rtc->irq_task != NULL && task == NULL)
+		err = -EBUSY;
 	if (rtc->irq_task != task)
-		err = -ENXIO;
+		err = -EACCES;
 	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
 
 	if (err == 0) {

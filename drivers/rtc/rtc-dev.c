@@ -238,17 +238,6 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-	/* avoid conflicting IRQ users */
-	if (cmd == RTC_PIE_ON || cmd == RTC_PIE_OFF || cmd == RTC_IRQP_SET) {
-		spin_lock_irq(&rtc->irq_task_lock);
-		if (rtc->irq_task)
-			err = -EBUSY;
-		spin_unlock_irq(&rtc->irq_task_lock);
-
-		if (err < 0)
-			return err;
-	}
-
 	/* try the driver's ioctl interface */
 	if (ops->ioctl) {
 		err = ops->ioctl(rtc->dev.parent, cmd, arg);
@@ -338,18 +327,20 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		err = rtc_set_time(rtc, &tm);
 		break;
 
-	case RTC_IRQP_READ:
-		if (ops->irq_set_freq)
-			err = put_user(rtc->irq_freq, (unsigned long __user *)uarg);
-		else
-			err = -ENOTTY;
+	case RTC_PIE_ON:
+		err = rtc_irq_set_state(rtc, NULL, 1);
+		break;
+
+	case RTC_PIE_OFF:
+		err = rtc_irq_set_state(rtc, NULL, 0);
 		break;
 
 	case RTC_IRQP_SET:
-		if (ops->irq_set_freq)
-			err = rtc_irq_set_freq(rtc, rtc->irq_task, arg);
-		else
-			err = -ENOTTY;
+		err = rtc_irq_set_freq(rtc, NULL, arg);
+		break;
+
+	case RTC_IRQP_READ:
+		err = put_user(rtc->irq_freq, (unsigned long __user *)uarg);
 		break;
 
 #if 0
@@ -449,8 +440,6 @@ void rtc_dev_prepare(struct rtc_device *rtc)
 	rtc->dev.devt = MKDEV(MAJOR(rtc_devt), rtc->id);
 
 	mutex_init(&rtc->char_lock);
-	spin_lock_init(&rtc->irq_lock);
-	init_waitqueue_head(&rtc->irq_queue);
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	INIT_WORK(&rtc->uie_task, rtc_uie_task);
 	setup_timer(&rtc->uie_timer, rtc_uie_timer, (unsigned long)rtc);
