@@ -3,9 +3,5 @@
 #
 
 config DCA
-	tristate "DCA support for clients and providers"
-	default m
-	help
-	  This is a server to help modules that want to use Direct Cache
-	  Access to find DCA providers that will supply correct CPU tags.
+	tristate
 

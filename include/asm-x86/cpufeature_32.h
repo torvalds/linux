@@ -92,6 +92,7 @@
 #define X86_FEATURE_CID		(4*32+10) /* Context ID */
 #define X86_FEATURE_CX16        (4*32+13) /* CMPXCHG16B */
 #define X86_FEATURE_XTPR	(4*32+14) /* Send Task Priority Messages */
+#define X86_FEATURE_DCA		(4*32+18) /* Direct Cache Access */
 
 /* VIA/Cyrix/Centaur-defined CPU features, CPUID level 0xC0000001, word 5 */
 #define X86_FEATURE_XSTORE	(5*32+ 2) /* on-CPU RNG present (xstore insn) */

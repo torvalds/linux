@@ -132,9 +132,12 @@ struct ioat_desc_sw {
 struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 				      void __iomem *iobase);
 void ioat_dma_remove(struct ioatdma_device *device);
+struct dca_provider *ioat_dca_init(struct pci_dev *pdev,
+				   void __iomem *iobase);
 #else
 #define ioat_dma_probe(pdev, iobase)    NULL
 #define ioat_dma_remove(device)         do { } while (0)
+#define ioat_dca_init(pdev, iobase)	NULL
 #endif
 
 #endif /* IOATDMA_H */

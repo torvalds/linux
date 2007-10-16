@@ -2,42 +2,52 @@
 # DMA engine configuration
 #
 
-menu "DMA Engine support"
-	depends on HAS_DMA
+menuconfig DMADEVICES
+	bool "DMA Offload Engine support"
+	depends on (PCI && X86) || ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX
+	help
+	  Intel(R) offload engines enable offloading memory copies in the
+	  network stack and RAID operations in the MD driver.
 
-config DMA_ENGINE
-	bool "Support for DMA engines"
-	---help---
-          DMA engines offload bulk memory operations from the CPU to dedicated
-          hardware, allowing the operations to happen asynchronously.
-
-comment "DMA Clients"
-
-config NET_DMA
-	bool "Network: TCP receive copy offload"
-	depends on DMA_ENGINE && NET
-	default y
-	---help---
-	  This enables the use of DMA engines in the network stack to
-	  offload receive copy-to-user operations, freeing CPU cycles.
-	  Since this is the main user of the DMA engine, it should be enabled;
-	  say Y here.
+if DMADEVICES
 
 comment "DMA Devices"
 
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
-	depends on DMA_ENGINE && PCI
-	default m
-	---help---
-	  Enable support for the Intel(R) I/OAT DMA engine.
+	depends on PCI && X86
+	select DMA_ENGINE
+	select DCA
+	help
+	  Enable support for the Intel(R) I/OAT DMA engine present
+	  in recent Intel Xeon chipsets.
+
+	  Say Y here if you have such a chipset.
+
+	  If unsure, say N.
 
 config INTEL_IOP_ADMA
-        tristate "Intel IOP ADMA support"
-        depends on DMA_ENGINE && (ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX)
+	tristate "Intel IOP ADMA support"
+	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX
 	select ASYNC_CORE
-        default m
-        ---help---
-          Enable support for the Intel(R) IOP Series RAID engines.
+	select DMA_ENGINE
+	help
+	  Enable support for the Intel(R) IOP Series RAID engines.
 
-endmenu
+config DMA_ENGINE
+	bool
+
+comment "DMA Clients"
+	depends on DMA_ENGINE
+
+config NET_DMA
+	bool "Network: TCP receive copy offload"
+	depends on DMA_ENGINE && NET
+	default y
+	help
+	  This enables the use of DMA engines in the network stack to
+	  offload receive copy-to-user operations, freeing CPU cycles.
+	  Since this is the main user of the DMA engine, it should be enabled;
+	  say Y here.
+
+endif

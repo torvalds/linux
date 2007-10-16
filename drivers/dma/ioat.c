@@ -1,6 +1,6 @@
 /*
  * Intel I/OAT DMA Linux driver
- * Copyright(c) 2004 - 2007 Intel Corporation.
+ * Copyright(c) 2007 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/dca.h>
 #include "ioatdma.h"
 #include "ioatdma_registers.h"
 #include "ioatdma_hw.h"
@@ -49,6 +50,7 @@ struct ioat_device {
 	struct pci_dev		*pdev;
 	void __iomem		*iobase;
 	struct ioatdma_device	*dma;
+	struct dca_provider	*dca;
 };
 
 static int __devinit ioat_probe(struct pci_dev *pdev,
@@ -56,6 +58,10 @@ static int __devinit ioat_probe(struct pci_dev *pdev,
 #ifdef IOAT_DMA_REMOVE
 static void __devexit ioat_remove(struct pci_dev *pdev);
 #endif
+
+static int ioat_dca_enabled = 1;
+module_param(ioat_dca_enabled, int, 0644);
+MODULE_PARM_DESC(ioat_dca_enabled, "control support of dca service (default: 1)");
 
 static int ioat_setup_functionality(struct pci_dev *pdev, void __iomem *iobase)
 {
@@ -67,6 +73,8 @@ static int ioat_setup_functionality(struct pci_dev *pdev, void __iomem *iobase)
 	switch (version) {
 	case IOAT_VER_1_2:
 		device->dma = ioat_dma_probe(pdev, iobase);
+		if (ioat_dca_enabled)
+			device->dca = ioat_dca_init(pdev, iobase);
 		break;
 	default:
 		err = -ENODEV;
@@ -83,6 +91,13 @@ static void ioat_shutdown_functionality(struct pci_dev *pdev)
 		ioat_dma_remove(device->dma);
 		device->dma = NULL;
 	}
+
+	if (device->dca) {
+		unregister_dca_provider(device->dca);
+		free_dca_provider(device->dca);
+		device->dca = NULL;
+	}
+
 }
 
 static struct pci_driver ioat_pci_drv = {
