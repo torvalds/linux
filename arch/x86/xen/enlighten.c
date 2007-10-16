@@ -666,6 +666,15 @@ static __init void xen_alloc_pt_init(struct mm_struct *mm, u32 pfn)
 	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
 }
 
+static void pin_pagetable_pfn(unsigned level, unsigned long pfn)
+{
+	struct mmuext_op op;
+	op.cmd = level;
+	op.arg1.mfn = pfn_to_mfn(pfn);
+	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
+		BUG();
+}
+
 /* This needs to make sure the new pte page is pinned iff its being
    attached to a pinned pagetable. */
 static void xen_alloc_pt(struct mm_struct *mm, u32 pfn)
@@ -675,9 +684,10 @@ static void xen_alloc_pt(struct mm_struct *mm, u32 pfn)
 	if (PagePinned(virt_to_page(mm->pgd))) {
 		SetPagePinned(page);
 
-		if (!PageHighMem(page))
+		if (!PageHighMem(page)) {
 			make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
-		else
+			pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+		} else
 			/* make sure there are no stray mappings of
 			   this page */
 			kmap_flush_unused();
@@ -690,8 +700,10 @@ static void xen_release_pt(u32 pfn)
 	struct page *page = pfn_to_page(pfn);
 
 	if (PagePinned(page)) {
-		if (!PageHighMem(page))
+		if (!PageHighMem(page)) {
+			pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 			make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
+		}
 	}
 }
 
@@ -806,15 +818,15 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 	/* Actually pin the pagetable down, but we can't set PG_pinned
 	   yet because the page structures don't exist yet. */
 	{
-		struct mmuext_op op;
+		unsigned level;
+
 #ifdef CONFIG_X86_PAE
-		op.cmd = MMUEXT_PIN_L3_TABLE;
+		level = MMUEXT_PIN_L3_TABLE;
 #else
-		op.cmd = MMUEXT_PIN_L3_TABLE;
+		level = MMUEXT_PIN_L2_TABLE;
 #endif
-		op.arg1.mfn = pfn_to_mfn(PFN_DOWN(__pa(base)));
-		if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
-			BUG();
+
+		pin_pagetable_pfn(level, PFN_DOWN(__pa(base)));
 	}
 }
 
