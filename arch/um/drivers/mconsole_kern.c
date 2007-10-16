@@ -632,10 +632,9 @@ struct mconsole_output {
 static DEFINE_SPINLOCK(client_lock);
 static LIST_HEAD(clients);
 static char console_buf[MCONSOLE_MAX_DATA];
-static int console_index = 0;
 
 static void console_write(struct console *console, const char *string,
-			  unsigned len)
+			  unsigned int len)
 {
 	struct list_head *ele;
 	int n;
@@ -643,24 +642,18 @@ static void console_write(struct console *console, const char *string,
 	if (list_empty(&clients))
 		return;
 
-	while (1) {
-		n = min((size_t) len, ARRAY_SIZE(console_buf) - console_index);
-		strncpy(&console_buf[console_index], string, n);
-		console_index += n;
+	while (len > 0) {
+		n = min((size_t) len, ARRAY_SIZE(console_buf));
+		strncpy(console_buf, string, n);
 		string += n;
 		len -= n;
-		if (len == 0)
-			return;
 
 		list_for_each(ele, &clients) {
 			struct mconsole_output *entry;
 
 			entry = list_entry(ele, struct mconsole_output, list);
-			mconsole_reply_len(entry->req, console_buf,
-					   console_index, 0, 1);
+			mconsole_reply_len(entry->req, console_buf, n, 0, 1);
 		}
-
-		console_index = 0;
 	}
 }
 
@@ -690,8 +683,7 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 
 	(*proc)(arg);
 
-	mconsole_reply_len(req, console_buf, console_index, 0, 0);
-	console_index = 0;
+	mconsole_reply_len(req, "", 0, 0, 0);
 
 	spin_lock_irqsave(&client_lock, flags);
 	list_del(&entry.list);
@@ -699,6 +691,9 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
+
+#include <linux/sysrq.h>
+
 static void sysrq_proc(void *arg)
 {
 	char *op = arg;
