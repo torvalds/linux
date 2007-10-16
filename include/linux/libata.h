@@ -29,7 +29,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/io.h>
 #include <linux/ata.h>
 #include <linux/workqueue.h>
@@ -416,6 +416,7 @@ struct ata_queued_cmd {
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
 	unsigned int		tag;
 	unsigned int		n_elem;
+	unsigned int		n_iter;
 	unsigned int		orig_n_elem;
 
 	int			dma_dir;
@@ -426,7 +427,7 @@ struct ata_queued_cmd {
 	unsigned int		nbytes;
 	unsigned int		curbytes;
 
-	unsigned int		cursg;
+	struct scatterlist	*cursg;
 	unsigned int		cursg_ofs;
 
 	struct scatterlist	sgent;
@@ -1043,7 +1044,7 @@ ata_sg_is_last(struct scatterlist *sg, struct ata_queued_cmd *qc)
 		return 1;
 	if (qc->pad_len)
 		return 0;
-	if (((sg - qc->__sg) + 1) == qc->n_elem)
+	if (qc->n_iter == qc->n_elem)
 		return 1;
 	return 0;
 }
@@ -1051,6 +1052,7 @@ ata_sg_is_last(struct scatterlist *sg, struct ata_queued_cmd *qc)
 static inline struct scatterlist *
 ata_qc_first_sg(struct ata_queued_cmd *qc)
 {
+	qc->n_iter = 0;
 	if (qc->n_elem)
 		return qc->__sg;
 	if (qc->pad_len)
@@ -1063,8 +1065,8 @@ ata_qc_next_sg(struct scatterlist *sg, struct ata_queued_cmd *qc)
 {
 	if (sg == &qc->pad_sgent)
 		return NULL;
-	if (++sg - qc->__sg < qc->n_elem)
-		return sg;
+	if (++qc->n_iter < qc->n_elem)
+		return sg_next(sg);
 	if (qc->pad_len)
 		return &qc->pad_sgent;
 	return NULL;
@@ -1309,9 +1311,11 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->dma_dir = DMA_NONE;
 	qc->__sg = NULL;
 	qc->flags = 0;
-	qc->cursg = qc->cursg_ofs = 0;
+	qc->cursg = NULL;
+	qc->cursg_ofs = 0;
 	qc->nbytes = qc->curbytes = 0;
 	qc->n_elem = 0;
+	qc->n_iter = 0;
 	qc->err_mask = 0;
 	qc->pad_len = 0;
 	qc->sect_size = ATA_SECT_SIZE;
