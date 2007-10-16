@@ -376,7 +376,7 @@ int intelfbhw_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	dinfo->vsync.pan_offset = offset;
 	if ((var->activate & FB_ACTIVATE_VBL) &&
-	    !intelfbhw_enable_irq(dinfo, 0))
+	    !intelfbhw_enable_irq(dinfo))
 		dinfo->vsync.pan_display = 1;
 	else {
 		dinfo->vsync.pan_display = 0;
@@ -1240,7 +1240,7 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 	u32 tmp;
 	const u32 *dpll, *fp0, *fp1, *pipe_conf;
 	const u32 *hs, *ht, *hb, *vs, *vt, *vb, *ss;
-	u32 dpll_reg, fp0_reg, fp1_reg, pipe_conf_reg;
+	u32 dpll_reg, fp0_reg, fp1_reg, pipe_conf_reg, pipe_stat_reg;
 	u32 hsync_reg, htotal_reg, hblank_reg;
 	u32 vsync_reg, vtotal_reg, vblank_reg;
 	u32 src_size_reg;
@@ -1281,6 +1281,7 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 		fp0_reg = FPB0;
 		fp1_reg = FPB1;
 		pipe_conf_reg = PIPEBCONF;
+		pipe_stat_reg = PIPEBSTAT;
 		hsync_reg = HSYNC_B;
 		htotal_reg = HTOTAL_B;
 		hblank_reg = HBLANK_B;
@@ -1304,6 +1305,7 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 		fp0_reg = FPA0;
 		fp1_reg = FPA1;
 		pipe_conf_reg = PIPEACONF;
+		pipe_stat_reg = PIPEASTAT;
 		hsync_reg = HSYNC_A;
 		htotal_reg = HTOTAL_A;
 		hblank_reg = HBLANK_A;
@@ -1390,6 +1392,17 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 	OUTREG(vtotal_reg, *vt);
 	OUTREG(src_size_reg, *ss);
 
+	switch (dinfo->info->var.vmode & (FB_VMODE_INTERLACED |
+					  FB_VMODE_ODD_FLD_FIRST)) {
+	case FB_VMODE_INTERLACED | FB_VMODE_ODD_FLD_FIRST:
+		OUTREG(pipe_stat_reg, 0xFFFF | PIPESTAT_FLD_EVT_ODD_EN);
+		break;
+	case FB_VMODE_INTERLACED: /* even lines first */
+		OUTREG(pipe_stat_reg, 0xFFFF | PIPESTAT_FLD_EVT_EVEN_EN);
+		break;
+	default:		/* non-interlaced */
+		OUTREG(pipe_stat_reg, 0xFFFF); /* clear all status bits only */
+	}
 	/* Enable pipe */
 	OUTREG(pipe_conf_reg, *pipe_conf | PIPECONF_ENABLE);
 
@@ -1955,71 +1968,72 @@ void intelfbhw_cursor_reset(struct intelfb_info *dinfo)
 	}
 }
 
-static irqreturn_t
-intelfbhw_irq(int irq, void *dev_id) {
-	int handled = 0;
+static irqreturn_t intelfbhw_irq(int irq, void *dev_id)
+{
 	u16 tmp;
 	struct intelfb_info *dinfo = (struct intelfb_info *)dev_id;
 
 	spin_lock(&dinfo->int_lock);
 
 	tmp = INREG16(IIR);
-	tmp &= VSYNC_PIPE_A_INTERRUPT;
+	if (dinfo->info->var.vmode & FB_VMODE_INTERLACED)
+		tmp &= PIPE_A_EVENT_INTERRUPT;
+	else
+		tmp &= VSYNC_PIPE_A_INTERRUPT; /* non-interlaced */
 
 	if (tmp == 0) {
 		spin_unlock(&dinfo->int_lock);
-		return IRQ_RETVAL(handled);
+		return IRQ_RETVAL(0); /* not us */
 	}
+
+	/* clear status bits 0-15 ASAP and don't touch bits 16-31 */
+	OUTREG(PIPEASTAT, INREG(PIPEASTAT));
 
 	OUTREG16(IIR, tmp);
-
-	if (tmp & VSYNC_PIPE_A_INTERRUPT) {
-		dinfo->vsync.count++;
-		if (dinfo->vsync.pan_display) {
-			dinfo->vsync.pan_display = 0;
-			OUTREG(DSPABASE, dinfo->vsync.pan_offset);
-		}
-		wake_up_interruptible(&dinfo->vsync.wait);
-		handled = 1;
+	if (dinfo->vsync.pan_display) {
+		dinfo->vsync.pan_display = 0;
+		OUTREG(DSPABASE, dinfo->vsync.pan_offset);
 	}
+
+	dinfo->vsync.count++;
+	wake_up_interruptible(&dinfo->vsync.wait);
 
 	spin_unlock(&dinfo->int_lock);
 
-	return IRQ_RETVAL(handled);
+	return IRQ_RETVAL(1);
 }
 
-int
-intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable) {
-
+int intelfbhw_enable_irq(struct intelfb_info *dinfo)
+{
+	u16 tmp;
 	if (!test_and_set_bit(0, &dinfo->irq_flags)) {
 		if (request_irq(dinfo->pdev->irq, intelfbhw_irq, IRQF_SHARED,
-		     "intelfb", dinfo)) {
+				"intelfb", dinfo)) {
 			clear_bit(0, &dinfo->irq_flags);
 			return -EINVAL;
 		}
 
 		spin_lock_irq(&dinfo->int_lock);
-		OUTREG16(HWSTAM, 0xfffe);
-		OUTREG16(IMR, 0x0);
-		OUTREG16(IER, VSYNC_PIPE_A_INTERRUPT);
-		spin_unlock_irq(&dinfo->int_lock);
-	} else if (reenable) {
-		u16 ier;
-
+		OUTREG16(HWSTAM, 0xfffe); /* i830 DRM uses ffff */
+		OUTREG16(IMR, 0);
+	} else
 		spin_lock_irq(&dinfo->int_lock);
-		ier = INREG16(IER);
-		if ((ier & VSYNC_PIPE_A_INTERRUPT)) {
-			DBG_MSG("someone disabled the IRQ [%08X]\n", ier);
-			OUTREG(IER, VSYNC_PIPE_A_INTERRUPT);
-		}
-		spin_unlock_irq(&dinfo->int_lock);
+
+	if (dinfo->info->var.vmode & FB_VMODE_INTERLACED)
+		tmp = PIPE_A_EVENT_INTERRUPT;
+	else
+		tmp = VSYNC_PIPE_A_INTERRUPT; /* non-interlaced */
+	if (tmp != INREG16(IER)) {
+		DBG_MSG("changing IER to 0x%X\n", tmp);
+		OUTREG16(IER, tmp);
 	}
+
+	spin_unlock_irq(&dinfo->int_lock);
 	return 0;
 }
 
-void
-intelfbhw_disable_irq(struct intelfb_info *dinfo) {
-
+void intelfbhw_disable_irq(struct intelfb_info *dinfo)
+{
 	if (test_and_clear_bit(0, &dinfo->irq_flags)) {
 		if (dinfo->vsync.pan_display) {
 			dinfo->vsync.pan_display = 0;
@@ -2051,7 +2065,7 @@ int intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe)
 			return -ENODEV;
 	}
 
-	ret = intelfbhw_enable_irq(dinfo, 0);
+	ret = intelfbhw_enable_irq(dinfo);
 	if (ret)
 		return ret;
 
@@ -2061,7 +2075,6 @@ int intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe)
 	if (ret < 0)
 		return ret;
 	if (ret == 0) {
-		intelfbhw_enable_irq(dinfo, 1);
 		DBG_MSG("wait_for_vsync timed out!\n");
 		return -ETIMEDOUT;
 	}

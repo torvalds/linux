@@ -280,6 +280,9 @@
 #define PIPEB_DSL		0x71000
 #define PIPEACONF		0x70008
 #define PIPEBCONF		0x71008
+#define PIPEASTAT		0x70024 /* bits 0-15 are "write 1 to clear" */
+#define PIPEBSTAT		0x71024
+
 #define PIPECONF_ENABLE			(1 << 31)
 #define PIPECONF_DISABLE		0
 #define PIPECONF_DOUBLE_WIDE		(1 << 30)
@@ -292,6 +295,31 @@
 #define PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
 #define PIPECONF_INTERLACE_FIELD_0_ONLY		(7 << 21)
 #define PIPECONF_INTERLACE_MASK			(7 << 21)
+
+/* enable bits, write 1 to enable */
+#define PIPESTAT_FIFO_UNDERRUN		(1 << 31)
+#define PIPESTAT_CRC_ERROR_EN		(1 << 29)
+#define PIPESTAT_CRC_DONE_EN		(1 << 28)
+#define PIPESTAT_HOTPLUG_EN		(1 << 26)
+#define PIPESTAT_VERTICAL_SYNC_EN	(1 << 25)
+#define PIPESTAT_DISPLINE_COMP_EN	(1 << 24)
+#define PIPESTAT_FLD_EVT_ODD_EN		(1 << 21)
+#define PIPESTAT_FLD_EVT_EVEN_EN	(1 << 20)
+#define PIPESTAT_TV_HOTPLUG_EN		(1 << 18)
+#define PIPESTAT_VBLANK_EN		(1 << 17)
+#define PIPESTAT_OVL_UPDATE_EN		(1 << 16)
+/* status bits, write 1 to clear */
+#define PIPESTAT_HOTPLUG_STATE		(1 << 15)
+#define PIPESTAT_CRC_ERROR		(1 << 13)
+#define PIPESTAT_CRC_DONE		(1 << 12)
+#define PIPESTAT_HOTPLUG		(1 << 10)
+#define PIPESTAT_VSYNC			(1 << 9)
+#define PIPESTAT_DISPLINE_COMP		(1 << 8)
+#define PIPESTAT_FLD_EVT_ODD		(1 << 5)
+#define PIPESTAT_FLD_EVT_EVEN		(1 << 4)
+#define PIPESTAT_TV_HOTPLUG		(1 << 2)
+#define PIPESTAT_VBLANK			(1 << 1)
+#define PIPESTAT_OVL_UPDATE		(1 << 0)
 
 #define DISPARB			0x70030
 #define DISPARB_AEND_MASK		0x1ff
@@ -573,7 +601,7 @@ extern void intelfbhw_cursor_setcolor(struct intelfb_info *dinfo, u32 bg,
 extern void intelfbhw_cursor_load(struct intelfb_info *dinfo, int width,
 				  int height, u8 *data);
 extern void intelfbhw_cursor_reset(struct intelfb_info *dinfo);
-extern int intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable);
+extern int intelfbhw_enable_irq(struct intelfb_info *dinfo);
 extern void intelfbhw_disable_irq(struct intelfb_info *dinfo);
 extern int intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe);
 
