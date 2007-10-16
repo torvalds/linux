@@ -1,6 +1,8 @@
 #ifndef _SCSI_SCSI_EH_H
 #define _SCSI_SCSI_EH_H
 
+#include <linux/scatterlist.h>
+
 #include <scsi/scsi_cmnd.h>
 struct scsi_device;
 struct Scsi_Host;
