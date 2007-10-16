@@ -162,8 +162,7 @@ static int cs5535_dma_check(ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
+	ide_set_max_pio(drive);
 
 	return -1;
 }

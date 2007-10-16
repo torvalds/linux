@@ -1380,7 +1380,6 @@ static inline void ide_set_hwifdata (ide_hwif_t * hwif, void *data)
 extern char *ide_xfer_verbose(u8 xfer_rate);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
-int ide_use_fast_pio(ide_drive_t *);
 
 static inline int ide_dev_has_iordy(struct hd_driveid *id)
 {

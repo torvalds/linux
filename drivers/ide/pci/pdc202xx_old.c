@@ -184,8 +184,7 @@ static int pdc202xx_config_drive_xfer_rate (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
+	ide_set_max_pio(drive);
 
 	return -1;
 }

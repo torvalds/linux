@@ -335,8 +335,7 @@ static int cmd64x_config_drive_for_dma (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
+	ide_set_max_pio(drive);
 
 	return -1;
 }
