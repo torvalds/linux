@@ -2117,7 +2117,7 @@ xfs_showargs(
  * need to take care of themetadata. Once that's done write a dummy
  * record to dirty the log in case of a crash while frozen.
  */
-STATIC void
+void
 xfs_freeze(
 	xfs_mount_t	*mp)
 {
