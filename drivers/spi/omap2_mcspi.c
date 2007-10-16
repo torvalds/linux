@@ -645,7 +645,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 
 	clk_enable(mcspi->ick);
 	clk_enable(mcspi->fck);
-	ret =  omap2_mcspi_setup_transfer(spi, NULL);
+	ret = omap2_mcspi_setup_transfer(spi, NULL);
 	clk_disable(mcspi->fck);
 	clk_disable(mcspi->ick);
 
@@ -693,7 +693,6 @@ static void omap2_mcspi_work(struct work_struct *work)
 		struct spi_device		*spi;
 		struct spi_transfer		*t = NULL;
 		int				cs_active = 0;
-		struct omap2_mcspi_device_config *conf;
 		struct omap2_mcspi_cs		*cs;
 		int				par_override = 0;
 		int				status = 0;
@@ -706,7 +705,6 @@ static void omap2_mcspi_work(struct work_struct *work)
 		spin_unlock_irq(&mcspi->lock);
 
 		spi = m->spi;
-		conf = spi->controller_data;
 		cs = spi->controller_state;
 
 		omap2_mcspi_set_enable(spi, 1);
