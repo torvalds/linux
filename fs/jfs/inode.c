@@ -279,8 +279,7 @@ static int jfs_write_begin(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned flags,
 				struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+	return nobh_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
 				jfs_get_block);
 }
 
@@ -306,7 +305,7 @@ const struct address_space_operations jfs_aops = {
 	.writepages	= jfs_writepages,
 	.sync_page	= block_sync_page,
 	.write_begin	= jfs_write_begin,
-	.write_end	= generic_write_end,
+	.write_end	= nobh_write_end,
 	.bmap		= jfs_bmap,
 	.direct_IO	= jfs_direct_IO,
 };
@@ -359,7 +358,7 @@ void jfs_truncate(struct inode *ip)
 {
 	jfs_info("jfs_truncate: size = 0x%lx", (ulong) ip->i_size);
 
-	block_truncate_page(ip->i_mapping, ip->i_size, jfs_get_block);
+	nobh_truncate_page(ip->i_mapping, ip->i_size, jfs_get_block);
 
 	IWRITE_LOCK(ip, RDWRLOCK_NORMAL);
 	jfs_truncate_nolock(ip, ip->i_size);
