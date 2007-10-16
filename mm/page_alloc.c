@@ -2353,6 +2353,9 @@ static struct per_cpu_pageset boot_pageset[NR_CPUS];
 static int __cpuinit process_zones(int cpu)
 {
 	struct zone *zone, *dzone;
+	int node = cpu_to_node(cpu);
+
+	node_set_state(node, N_CPU);	/* this node has a cpu */
 
 	for_each_zone(zone) {
 
@@ -2360,7 +2363,7 @@ static int __cpuinit process_zones(int cpu)
 			continue;
 
 		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
-					 GFP_KERNEL, cpu_to_node(cpu));
+					 GFP_KERNEL, node);
 		if (!zone_pcp(zone, cpu))
 			goto bad;
 
