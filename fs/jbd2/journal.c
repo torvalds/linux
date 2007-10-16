@@ -654,7 +654,7 @@ static journal_t * journal_init_common (void)
 	journal_t *journal;
 	int err;
 
-	journal = jbd_kmalloc(sizeof(*journal), GFP_KERNEL);
+	journal = kmalloc(sizeof(*journal), GFP_KERNEL);
 	if (!journal)
 		goto fail;
 	memset(journal, 0, sizeof(*journal));
@@ -1616,15 +1616,6 @@ size_t journal_tag_bytes(journal_t *journal)
 		return JBD_TAG_SIZE64;
 	else
 		return JBD_TAG_SIZE32;
-}
-
-/*
- * Simple support for retrying memory allocations.  Introduced to help to
- * debug different VM deadlock avoidance strategies.
- */
-void * __jbd2_kmalloc (const char *where, size_t size, gfp_t flags, int retry)
-{
-	return kmalloc(size, flags | (retry ? __GFP_NOFAIL : 0));
 }
 
 /*

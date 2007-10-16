@@ -71,13 +71,6 @@ extern u8 jbd2_journal_enable_debug;
 #define jbd_debug(f, a...)	/**/
 #endif
 
-extern void * __jbd2_kmalloc (const char *where, size_t size, gfp_t flags, int retry);
-#define jbd_kmalloc(size, flags) \
-	__jbd2_kmalloc(__FUNCTION__, (size), (flags), journal_oom_retry)
-#define jbd_rep_kmalloc(size, flags) \
-	__jbd2_kmalloc(__FUNCTION__, (size), (flags), 1)
-
-
 static inline void *jbd2_alloc(size_t size, gfp_t flags)
 {
 	return (void *)__get_free_pages(flags, get_order(size));
