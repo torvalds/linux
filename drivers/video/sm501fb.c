@@ -777,6 +777,11 @@ static int sm501fb_set_par_pnl(struct fb_info *info)
 	writel(control, fbi->regs + SM501_DC_PANEL_CONTROL);
 	sm501fb_sync_regs(fbi);
 
+	/* ensure the panel interface is not tristated at this point */
+
+	sm501_modify_reg(fbi->dev->parent, SM501_SYSTEM_CONTROL,
+			 0, SM501_SYSCTRL_PANEL_TRISTATE);
+
 	/* power the panel up */
 	sm501fb_panel_power(fbi, 1);
 	return 0;
