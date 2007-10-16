@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
+#
+
 obj-y = bug.o bugs.o checksum.o delay.o fault.o ksyms.o ldt.o ptrace.o \
 	ptrace_user.o setjmp.o signal.o sigcontext.o stub.o stub_segv.o \
 	syscalls.o sysrq.o sys_call_table.o tls.o

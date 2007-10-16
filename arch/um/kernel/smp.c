@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000 - 2003 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -56,12 +56,12 @@ void smp_send_stop(void)
 	int i;
 
 	printk(KERN_INFO "Stopping all CPUs...");
-	for(i = 0; i < num_online_cpus(); i++){
-		if(i == current_thread->cpu)
+	for (i = 0; i < num_online_cpus(); i++) {
+		if (i == current_thread->cpu)
 			continue;
 		os_write_file(cpu_data[i].ipi_pipe[1], "S", 1);
 	}
-	printk("done\n");
+	printk(KERN_INFO "done\n");
 }
 
 static cpumask_t smp_commenced_mask = CPU_MASK_NONE;
@@ -72,7 +72,7 @@ static int idle_proc(void *cpup)
 	int cpu = (int) cpup, err;
 
 	err = os_pipe(cpu_data[cpu].ipi_pipe, 1, 1);
-	if(err < 0)
+	if (err < 0)
 		panic("CPU#%d failed to create IPI pipe, err = %d", cpu, -err);
 
 	os_set_fd_async(cpu_data[cpu].ipi_pipe[0],
@@ -80,7 +80,7 @@ static int idle_proc(void *cpup)
 
 	wmb();
 	if (cpu_test_and_set(cpu, cpu_callin_map)) {
-		printk("huh, CPU#%d already present??\n", cpu);
+		printk(KERN_ERR "huh, CPU#%d already present??\n", cpu);
 		BUG();
 	}
 
@@ -99,7 +99,7 @@ static struct task_struct *idle_thread(int cpu)
 	current->thread.request.u.thread.proc = idle_proc;
 	current->thread.request.u.thread.arg = (void *) cpu;
 	new_task = fork_idle(cpu);
-	if(IS_ERR(new_task))
+	if (IS_ERR(new_task))
 		panic("copy_process failed in idle_thread, error = %ld",
 		      PTR_ERR(new_task));
 
@@ -126,14 +126,14 @@ void smp_prepare_cpus(unsigned int maxcpus)
 	cpu_set(me, cpu_callin_map);
 
 	err = os_pipe(cpu_data[me].ipi_pipe, 1, 1);
-	if(err < 0)
+	if (err < 0)
 		panic("CPU#0 failed to create IPI pipe, errno = %d", -err);
 
 	os_set_fd_async(cpu_data[me].ipi_pipe[0],
 		     current->thread.mode.tt.extern_pid);
 
-	for(cpu = 1; cpu < ncpus; cpu++){
-		printk("Booting processor %d...\n", cpu);
+	for (cpu = 1; cpu < ncpus; cpu++) {
+		printk(KERN_INFO "Booting processor %d...\n", cpu);
 
 		idle = idle_thread(cpu);
 
@@ -144,8 +144,8 @@ void smp_prepare_cpus(unsigned int maxcpus)
 			cpu_relax();
 
 		if (cpu_isset(cpu, cpu_callin_map))
-			printk("done\n");
-		else printk("failed\n");
+			printk(KERN_INFO "done\n");
+		else printk(KERN_INFO "failed\n");
 	}
 }
 
@@ -187,13 +187,14 @@ void IPI_handler(int cpu)
 			break;
 
 		case 'S':
-			printk("CPU#%d stopping\n", cpu);
-			while(1)
+			printk(KERN_INFO "CPU#%d stopping\n", cpu);
+			while (1)
 				pause();
 			break;
 
 		default:
-			printk("CPU#%d received unknown IPI [%c]!\n", cpu, c);
+			printk(KERN_ERR "CPU#%d received unknown IPI [%c]!\n",
+			       cpu, c);
 			break;
 		}
 	}

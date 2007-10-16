@@ -3,16 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/mm.h"
-#include "linux/fs.h"
-#include "linux/module.h"
 #include "linux/sched.h"
 #include "linux/init_task.h"
+#include "linux/fs.h"
+#include "linux/module.h"
 #include "linux/mqueue.h"
 #include "asm/uaccess.h"
-#include "asm/pgtable.h"
-#include "mem_user.h"
-#include "os.h"
 
 static struct fs_struct init_fs = INIT_FS;
 struct mm_struct init_mm = INIT_MM(init_mm);

@@ -1,19 +1,10 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include <stdio.h>
-#include <stddef.h>
 #include <errno.h>
-#include <unistd.h>
-#include "ptrace_user.h"
-/* Grr, asm/user.h includes asm/ptrace.h, so has to follow ptrace_user.h */
-#include <asm/user.h>
-#include "kern_util.h"
-#include "user.h"
-#include "os.h"
-#include "uml-config.h"
+#include <sys/ptrace.h>
 
 int ptrace_getregs(long pid, unsigned long *regs_out)
 {

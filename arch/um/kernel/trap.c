@@ -1,38 +1,24 @@
 /*
- * Copyright (C) 2000, 2001 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/kernel.h"
-#include "asm/errno.h"
-#include "linux/sched.h"
-#include "linux/mm.h"
-#include "linux/spinlock.h"
-#include "linux/init.h"
-#include "linux/ptrace.h"
-#include "asm/semaphore.h"
-#include "asm/pgtable.h"
-#include "asm/pgalloc.h"
-#include "asm/tlbflush.h"
-#include "asm/a.out.h"
-#include "asm/current.h"
-#include "asm/irq.h"
-#include "sysdep/sigcontext.h"
-#include "kern_util.h"
-#include "as-layout.h"
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <linux/hardirq.h>
+#include <asm/current.h>
+#include <asm/pgtable.h>
+#include <asm/tlbflush.h>
 #include "arch.h"
-#include "kern.h"
-#include "chan_kern.h"
-#include "mconsole_kern.h"
-#include "mem.h"
-#include "mem_kern.h"
+#include "as-layout.h"
+#include "kern_util.h"
+#include "os.h"
 #include "sysdep/sigcontext.h"
-#include "sysdep/ptrace.h"
-#include "os.h"
-#include "skas.h"
-#include "os.h"
 
-/* Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by segv(). */
+/*
+ * Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by
+ * segv().
+ */
 int handle_page_fault(unsigned long address, unsigned long ip,
 		      int is_write, int is_user, int *code_out)
 {
@@ -46,31 +32,33 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 
 	*code_out = SEGV_MAPERR;
 
-	/* If the fault was during atomic operation, don't take the fault, just
-	 * fail. */
+	/*
+	 * If the fault was during atomic operation, don't take the fault, just
+	 * fail.
+	 */
 	if (in_atomic())
 		goto out_nosemaphore;
 
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
-	if(!vma)
+	if (!vma)
 		goto out;
-	else if(vma->vm_start <= address)
+	else if (vma->vm_start <= address)
 		goto good_area;
-	else if(!(vma->vm_flags & VM_GROWSDOWN))
+	else if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto out;
-	else if(is_user && !ARCH_IS_STACKGROW(address))
+	else if (is_user && !ARCH_IS_STACKGROW(address))
 		goto out;
-	else if(expand_stack(vma, address))
+	else if (expand_stack(vma, address))
 		goto out;
 
 good_area:
 	*code_out = SEGV_ACCERR;
-	if(is_write && !(vma->vm_flags & VM_WRITE))
+	if (is_write && !(vma->vm_flags & VM_WRITE))
 		goto out;
 
 	/* Don't require VM_READ|VM_EXEC for write faults! */
-	if(!is_write && !(vma->vm_flags & (VM_READ | VM_EXEC)))
+	if (!is_write && !(vma->vm_flags & (VM_READ | VM_EXEC)))
 		goto out;
 
 	do {
@@ -96,9 +84,10 @@ survive:
 		pud = pud_offset(pgd, address);
 		pmd = pmd_offset(pud, address);
 		pte = pte_offset_kernel(pmd, address);
-	} while(!pte_present(*pte));
+	} while (!pte_present(*pte));
 	err = 0;
-	/* The below warning was added in place of
+	/*
+	 * The below warning was added in place of
 	 *	pte_mkyoung(); if (is_write) pte_mkdirty();
 	 * If it's triggered, we'd see normally a hang here (a clean pte is
 	 * marked read-only to emulate the dirty bit).
@@ -112,7 +101,7 @@ survive:
 out:
 	up_read(&mm->mmap_sem);
 out_nosemaphore:
-	return(err);
+	return err;
 
 /*
  * We ran out of memory, or some other thing happened to us that made
@@ -143,7 +132,7 @@ static void segv_handler(int sig, union uml_pt_regs *regs)
 {
 	struct faultinfo * fi = UPT_FAULTINFO(regs);
 
-	if(UPT_IS_USER(regs) && !SEGV_IS_FIXABLE(fi)){
+	if (UPT_IS_USER(regs) && !SEGV_IS_FIXABLE(fi)) {
 		bad_segv(*fi, UPT_IP(regs));
 		return;
 	}
@@ -165,37 +154,41 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	int is_write = FAULT_WRITE(fi);
 	unsigned long address = FAULT_ADDRESS(fi);
 
-	if(!is_user && (address >= start_vm) && (address < end_vm)){
+	if (!is_user && (address >= start_vm) && (address < end_vm)) {
 		flush_tlb_kernel_vm();
 		return 0;
 	}
-	else if(current->mm == NULL) {
+	else if (current->mm == NULL) {
 		show_regs(container_of(regs, struct pt_regs, regs));
-  		panic("Segfault with no mm");
+		panic("Segfault with no mm");
 	}
 
 	if (SEGV_IS_FIXABLE(&fi) || SEGV_MAYBE_FIXABLE(&fi))
-		err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
+		err = handle_page_fault(address, ip, is_write, is_user,
+					&si.si_code);
 	else {
 		err = -EFAULT;
-		/* A thread accessed NULL, we get a fault, but CR2 is invalid.
-		 * This code is used in __do_copy_from_user() of TT mode. */
+		/*
+		 * A thread accessed NULL, we get a fault, but CR2 is invalid.
+		 * This code is used in __do_copy_from_user() of TT mode.
+		 * XXX tt mode is gone, so maybe this isn't needed any more
+		 */
 		address = 0;
 	}
 
 	catcher = current->thread.fault_catcher;
-	if(!err)
+	if (!err)
 		return 0;
-	else if(catcher != NULL){
+	else if (catcher != NULL) {
 		current->thread.fault_addr = (void *) address;
 		do_longjmp(catcher, 1);
 	}
-	else if(current->thread.fault_addr != NULL)
+	else if (current->thread.fault_addr != NULL)
 		panic("fault_addr set but no fault catcher");
-	else if(!is_user && arch_fixup(ip, regs))
+	else if (!is_user && arch_fixup(ip, regs))
 		return 0;
 
-	if(!is_user) {
+	if (!is_user) {
 		show_regs(container_of(regs, struct pt_regs, regs));
 		panic("Kernel mode fault at addr 0x%lx, ip 0x%lx",
 		      address, ip);
@@ -209,7 +202,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGBUS, &si, current);
 	} else if (err == -ENOMEM) {
-		printk("VM: killing process %s\n", current->comm);
+		printk(KERN_INFO "VM: killing process %s\n", current->comm);
 		do_exit(SIGKILL);
 	} else {
 		BUG_ON(err != -EFAULT);
@@ -223,13 +216,13 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 
 void relay_signal(int sig, union uml_pt_regs *regs)
 {
-	if(arch_handle_signal(sig, regs))
+	if (arch_handle_signal(sig, regs))
 		return;
 
-	if(!UPT_IS_USER(regs)){
-		if(sig == SIGBUS)
-			printk("Bus error - the host /dev/shm or /tmp mount "
-			       "likely just ran out of space\n");
+	if (!UPT_IS_USER(regs)) {
+		if (sig == SIGBUS)
+			printk(KERN_ERR "Bus error - the host /dev/shm or /tmp "
+			       "mount likely just ran out of space\n");
 		panic("Kernel mode signal %d", sig);
 	}
 
@@ -239,7 +232,7 @@ void relay_signal(int sig, union uml_pt_regs *regs)
 
 static void bus_handler(int sig, union uml_pt_regs *regs)
 {
-	if(current->thread.fault_catcher != NULL)
+	if (current->thread.fault_catcher != NULL)
 		do_longjmp(current->thread.fault_catcher, 1);
 	else relay_signal(sig, regs);
 }

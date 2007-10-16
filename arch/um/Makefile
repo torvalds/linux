@@ -2,7 +2,7 @@
 # This file is included by the global makefile so that you can add your own
 # architecture-specific flags and dependencies.
 #
-# Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+# Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
 # Licensed under the GPL
 #
 
@@ -124,7 +124,7 @@ endif
 CPPFLAGS_vmlinux.lds = -U$(SUBARCH) -DSTART=$(START) -DELF_ARCH=$(ELF_ARCH) \
 	-DELF_FORMAT="$(ELF_FORMAT)" -DKERNEL_STACK_SIZE=$(STACK_SIZE)
 
-#The wrappers will select whether using "malloc" or the kernel allocator.
+# The wrappers will select whether using "malloc" or the kernel allocator.
 LINK_WRAPS = -Wl,--wrap,malloc -Wl,--wrap,free -Wl,--wrap,calloc
 
 CFLAGS_vmlinux := $(LINK-y) $(LINK_WRAPS)
@@ -137,8 +137,8 @@ define cmd_vmlinux__
 	FORCE ,$^) ; rm -f linux
 endef
 
-#When cleaning we don't include .config, so we don't include
-#TT or skas makefiles and don't clean skas_ptregs.h.
+# When cleaning we don't include .config, so we don't include
+# TT or skas makefiles and don't clean skas_ptregs.h.
 CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/include/uml-config.h \
 	$(ARCH_DIR)/include/user_constants.h \
 	$(ARCH_DIR)/include/kern_constants.h $(ARCH_DIR)/Kconfig.arch

@@ -5,7 +5,7 @@ config STDERR_CONSOLE
 	bool "stderr console"
 	default y
 	help
-	console driver which dumps all printk messages to stderr.
+	  console driver which dumps all printk messages to stderr.
 
 config STDIO_CONSOLE
 	bool
@@ -14,58 +14,58 @@ config STDIO_CONSOLE
 config SSL
 	bool "Virtual serial line"
 	help
-        The User-Mode Linux environment allows you to create virtual serial
-        lines on the UML that are usually made to show up on the host as
-        ttys or ptys.
+          The User-Mode Linux environment allows you to create virtual serial
+          lines on the UML that are usually made to show up on the host as
+          ttys or ptys.
 
-        See <http://user-mode-linux.sourceforge.net/input.html> for more
-        information and command line examples of how to use this facility.
+          See <http://user-mode-linux.sourceforge.net/input.html> for more
+          information and command line examples of how to use this facility.
 
-        Unless you have a specific reason for disabling this, say Y.
+          Unless you have a specific reason for disabling this, say Y.
 
 config NULL_CHAN
 	bool "null channel support"
 	help
-        This option enables support for attaching UML consoles and serial
-        lines to a device similar to /dev/null.  Data written to it disappears
-        and there is never any data to be read.
+          This option enables support for attaching UML consoles and serial
+          lines to a device similar to /dev/null.  Data written to it disappears
+          and there is never any data to be read.
 
 config PORT_CHAN
 	bool "port channel support"
 	help
-        This option enables support for attaching UML consoles and serial
-        lines to host portals.  They may be accessed with 'telnet <host>
-        <port number>'.  Any number of consoles and serial lines may be
-        attached to a single portal, although what UML device you get when
-        you telnet to that portal will be unpredictable.
-        It is safe to say 'Y' here.
+          This option enables support for attaching UML consoles and serial
+          lines to host portals.  They may be accessed with 'telnet <host>
+          <port number>'.  Any number of consoles and serial lines may be
+          attached to a single portal, although what UML device you get when
+          you telnet to that portal will be unpredictable.
+          It is safe to say 'Y' here.
 
 config PTY_CHAN
 	bool "pty channel support"
 	help
-        This option enables support for attaching UML consoles and serial
-        lines to host pseudo-terminals.  Access to both traditional
-        pseudo-terminals (/dev/pty*) and pts pseudo-terminals are controlled
-        with this option.  The assignment of UML devices to host devices
-        will be announced in the kernel message log.
-        It is safe to say 'Y' here.
+          This option enables support for attaching UML consoles and serial
+          lines to host pseudo-terminals.  Access to both traditional
+          pseudo-terminals (/dev/pty*) and pts pseudo-terminals are controlled
+          with this option.  The assignment of UML devices to host devices
+          will be announced in the kernel message log.
+          It is safe to say 'Y' here.
 
 config TTY_CHAN
 	bool "tty channel support"
 	help
-        This option enables support for attaching UML consoles and serial
-        lines to host terminals.  Access to both virtual consoles
-        (/dev/tty*) and the slave side of pseudo-terminals (/dev/ttyp* and
-        /dev/pts/*) are controlled by this option.
-        It is safe to say 'Y' here.
+          This option enables support for attaching UML consoles and serial
+          lines to host terminals.  Access to both virtual consoles
+          (/dev/tty*) and the slave side of pseudo-terminals (/dev/ttyp* and
+          /dev/pts/*) are controlled by this option.
+          It is safe to say 'Y' here.
 
 config XTERM_CHAN
 	bool "xterm channel support"
 	help
-        This option enables support for attaching UML consoles and serial
-        lines to xterms.  Each UML device so assigned will be brought up in
-        its own xterm.
-        It is safe to say 'Y' here.
+          This option enables support for attaching UML consoles and serial
+          lines to xterms.  Each UML device so assigned will be brought up in
+          its own xterm.
+          It is safe to say 'Y' here.
 
 config NOCONFIG_CHAN
 	bool
@@ -75,39 +75,39 @@ config CON_ZERO_CHAN
 	string "Default main console channel initialization"
 	default "fd:0,fd:1"
 	help
-        This is the string describing the channel to which the main console
-        will be attached by default.  This value can be overridden from the
-        command line.  The default value is "fd:0,fd:1", which attaches the
-        main console to stdin and stdout.
-        It is safe to leave this unchanged.
+          This is the string describing the channel to which the main console
+          will be attached by default.  This value can be overridden from the
+          command line.  The default value is "fd:0,fd:1", which attaches the
+          main console to stdin and stdout.
+          It is safe to leave this unchanged.
 
 config CON_CHAN
 	string "Default console channel initialization"
 	default "xterm"
 	help
-        This is the string describing the channel to which all consoles
-        except the main console will be attached by default.  This value can
-        be overridden from the command line.  The default value is "xterm",
-        which brings them up in xterms.
-        It is safe to leave this unchanged, although you may wish to change
-        this if you expect the UML that you build to be run in environments
-        which don't have X or xterm available.
+          This is the string describing the channel to which all consoles
+          except the main console will be attached by default.  This value can
+          be overridden from the command line.  The default value is "xterm",
+          which brings them up in xterms.
+          It is safe to leave this unchanged, although you may wish to change
+          this if you expect the UML that you build to be run in environments
+          which don't have X or xterm available.
 
 config SSL_CHAN
 	string "Default serial line channel initialization"
 	default "pty"
 	help
-        This is the string describing the channel to which the serial lines
-        will be attached by default.  This value can be overridden from the
-        command line.  The default value is "pty", which attaches them to
-        traditional pseudo-terminals.
-        It is safe to leave this unchanged, although you may wish to change
-        this if you expect the UML that you build to be run in environments
-        which don't have a set of /dev/pty* devices.
+          This is the string describing the channel to which the serial lines
+          will be attached by default.  This value can be overridden from the
+          command line.  The default value is "pty", which attaches them to
+          traditional pseudo-terminals.
+          It is safe to leave this unchanged, although you may wish to change
+          this if you expect the UML that you build to be run in environments
+          which don't have a set of /dev/pty* devices.
 
 config UNIX98_PTYS
 	bool "Unix98 PTY support"
-	---help---
+	help
 	  A pseudo terminal (PTY) is a software device consisting of two
 	  halves: a master and a slave. The slave device behaves identical to
 	  a physical terminal; the master device is used by a process to
@@ -130,7 +130,7 @@ config UNIX98_PTYS
 config LEGACY_PTYS
 	bool "Legacy (BSD) PTY support"
 	default y
-	---help---
+	help
 	  A pseudo terminal (PTY) is a software device consisting of two
 	  halves: a master and a slave. The slave device behaves identical to
 	  a physical terminal; the master device is used by a process to
@@ -168,7 +168,7 @@ config LEGACY_PTY_COUNT
 	int "Maximum number of legacy PTY in use"
 	depends on LEGACY_PTYS
 	default "256"
-	---help---
+	help
 	  The maximum number of legacy PTYs that can be used at any one time.
 	  The default is 256, and should be more than enough.  Embedded
 	  systems may want to reduce this to save memory.
@@ -194,10 +194,10 @@ config UML_WATCHDOG
 config UML_SOUND
 	tristate "Sound support"
 	help
-        This option enables UML sound support.  If enabled, it will pull in
-        soundcore and the UML hostaudio relay, which acts as a intermediary
-        between the host's dsp and mixer devices and the UML sound system.
-        It is safe to say 'Y' here.
+          This option enables UML sound support.  If enabled, it will pull in
+          soundcore and the UML hostaudio relay, which acts as a intermediary
+          between the host's dsp and mixer devices and the UML sound system.
+          It is safe to say 'Y' here.
 
 config SOUND
 	tristate
@@ -215,22 +215,21 @@ config HW_RANDOM
 config UML_RANDOM
 	tristate "Hardware random number generator"
 	help
-	This option enables UML's "hardware" random number generator.  It
-	attaches itself to the host's /dev/random, supplying as much entropy
-	as the host has, rather than the small amount the UML gets from its
-	own drivers.  It registers itself as a standard hardware random number
-	generator, major 10, minor 183, and the canonical device name is
-	/dev/hwrng.
-	The way to make use of this is to install the rng-tools package
-	(check your distro, or download from
-	http://sourceforge.net/projects/gkernel/).  rngd periodically reads
-	/dev/hwrng and injects the entropy into /dev/random.
+	  This option enables UML's "hardware" random number generator.  It
+	  attaches itself to the host's /dev/random, supplying as much entropy
+	  as the host has, rather than the small amount the UML gets from its
+	  own drivers.  It registers itself as a standard hardware random number
+	  generator, major 10, minor 183, and the canonical device name is
+	  /dev/hwrng.
+	  The way to make use of this is to install the rng-tools package
+	  (check your distro, or download from
+	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
+	  /dev/hwrng and injects the entropy into /dev/random.
 
 config MMAPPER
 	tristate "iomem emulation driver"
 	help
-	This driver allows a host file to be used as emulated IO memory inside
-	UML.
+	  This driver allows a host file to be used as emulated IO memory inside
+	  UML.
 
 endmenu
-

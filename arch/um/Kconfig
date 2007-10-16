@@ -66,12 +66,12 @@ config STATIC_LINK
 	bool "Force a static link"
 	default n
 	help
-	This option gives you the ability to force a static link of UML.
-	Normally, UML is linked as a shared binary.  This is inconvenient for
-	use in a chroot jail.  So, if you intend to run UML inside a chroot,
-	you probably want to say Y here.
-	Additionally, this option enables using higher memory spaces (up to
-	2.75G) for UML.
+	  This option gives you the ability to force a static link of UML.
+	  Normally, UML is linked as a shared binary.  This is inconvenient for
+	  use in a chroot jail.  So, if you intend to run UML inside a chroot,
+	  you probably want to say Y here.
+	  Additionally, this option enables using higher memory spaces (up to
+	  2.75G) for UML.
 
 source "arch/um/Kconfig.arch"
 source "mm/Kconfig"
@@ -89,18 +89,18 @@ config LD_SCRIPT_DYN
 config NET
 	bool "Networking support"
 	help
-	Unless you really know what you are doing, you should say Y here.
-	The reason is that some programs need kernel networking support even
-	when running on a stand-alone machine that isn't connected to any
-	other computer. If you are upgrading from an older kernel, you
-	should consider updating your networking tools too because changes
-	in the kernel and the tools often go hand in hand. The tools are
-	contained in the package net-tools, the location and version number
-	of which are given in <file:Documentation/Changes>.
+	  Unless you really know what you are doing, you should say Y here.
+	  The reason is that some programs need kernel networking support even
+	  when running on a stand-alone machine that isn't connected to any
+	  other computer. If you are upgrading from an older kernel, you
+	  should consider updating your networking tools too because changes
+	  in the kernel and the tools often go hand in hand. The tools are
+	  contained in the package net-tools, the location and version number
+	  of which are given in <file:Documentation/Changes>.
 
-	For a general introduction to Linux networking, it is highly
-	recommended to read the NET-HOWTO, available from
-	<http://www.tldp.org/docs.html#howto>.
+	  For a general introduction to Linux networking, it is highly
+	  recommended to read the NET-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
 
 
 source "fs/Kconfig.binfmt"
@@ -108,74 +108,74 @@ source "fs/Kconfig.binfmt"
 config HOSTFS
 	tristate "Host filesystem"
 	help
-        While the User-Mode Linux port uses its own root file system for
-        booting and normal file access, this module lets the UML user
-        access files stored on the host.  It does not require any
-        network connection between the Host and UML.  An example use of
-        this might be:
+          While the User-Mode Linux port uses its own root file system for
+          booting and normal file access, this module lets the UML user
+          access files stored on the host.  It does not require any
+          network connection between the Host and UML.  An example use of
+          this might be:
 
-        mount none /tmp/fromhost -t hostfs -o /tmp/umlshare
+          mount none /tmp/fromhost -t hostfs -o /tmp/umlshare
 
-        where /tmp/fromhost is an empty directory inside UML and
-        /tmp/umlshare is a directory on the host with files the UML user
-        wishes to access.
+          where /tmp/fromhost is an empty directory inside UML and
+          /tmp/umlshare is a directory on the host with files the UML user
+          wishes to access.
 
-        For more information, see
-        <http://user-mode-linux.sourceforge.net/hostfs.html>.
+          For more information, see
+          <http://user-mode-linux.sourceforge.net/hostfs.html>.
 
-        If you'd like to be able to work with files stored on the host,
-        say Y or M here; otherwise say N.
+          If you'd like to be able to work with files stored on the host,
+          say Y or M here; otherwise say N.
 
 config HPPFS
 	tristate "HoneyPot ProcFS (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	help
-	hppfs (HoneyPot ProcFS) is a filesystem which allows UML /proc
-	entries to be overridden, removed, or fabricated from the host.
-	Its purpose is to allow a UML to appear to be a physical machine
-	by removing or changing anything in /proc which gives away the
-	identity of a UML.
+	  hppfs (HoneyPot ProcFS) is a filesystem which allows UML /proc
+	  entries to be overridden, removed, or fabricated from the host.
+	  Its purpose is to allow a UML to appear to be a physical machine
+	  by removing or changing anything in /proc which gives away the
+	  identity of a UML.
 
-	See <http://user-mode-linux.sf.net/hppfs.html> for more information.
+	  See <http://user-mode-linux.sf.net/hppfs.html> for more information.
 
-	You only need this if you are setting up a UML honeypot.  Otherwise,
-	it is safe to say 'N' here.
+	  You only need this if you are setting up a UML honeypot.  Otherwise,
+	  it is safe to say 'N' here.
 
 config MCONSOLE
 	bool "Management console"
 	default y
 	help
-        The user mode linux management console is a low-level interface to
-        the kernel, somewhat like the i386 SysRq interface.  Since there is
-        a full-blown operating system running under every user mode linux
-        instance, there is much greater flexibility possible than with the
-        SysRq mechanism.
+          The user mode linux management console is a low-level interface to
+          the kernel, somewhat like the i386 SysRq interface.  Since there is
+          a full-blown operating system running under every user mode linux
+          instance, there is much greater flexibility possible than with the
+          SysRq mechanism.
 
-        If you answer 'Y' to this option, to use this feature, you need the
-        mconsole client (called uml_mconsole) which is present in CVS in
-        2.4.5-9um and later (path /tools/mconsole), and is also in the
-        distribution RPM package in 2.4.6 and later.
+          If you answer 'Y' to this option, to use this feature, you need the
+          mconsole client (called uml_mconsole) which is present in CVS in
+          2.4.5-9um and later (path /tools/mconsole), and is also in the
+          distribution RPM package in 2.4.6 and later.
 
-        It is safe to say 'Y' here.
+          It is safe to say 'Y' here.
 
 config MAGIC_SYSRQ
 	bool "Magic SysRq key"
 	depends on MCONSOLE
-	---help---
-	If you say Y here, you will have some control over the system even
-	if the system crashes for example during kernel debugging (e.g., you
-	will be able to flush the buffer cache to disk, reboot the system
-	immediately or dump some status information). A key for each of the
-	possible requests is provided.
+	help
+	  If you say Y here, you will have some control over the system even
+	  if the system crashes for example during kernel debugging (e.g., you
+	  will be able to flush the buffer cache to disk, reboot the system
+	  immediately or dump some status information). A key for each of the
+	  possible requests is provided.
 
-	This is the feature normally accomplished by pressing a key
-	while holding SysRq (Alt+PrintScreen).
+	  This is the feature normally accomplished by pressing a key
+	  while holding SysRq (Alt+PrintScreen).
 
-	On UML, this is accomplished by sending a "sysrq" command with
-	mconsole, followed by the letter for the requested command.
+	  On UML, this is accomplished by sending a "sysrq" command with
+	  mconsole, followed by the letter for the requested command.
 
-	The keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	unless you really know what this hack does.
+	  The keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
+	  unless you really know what this hack does.
 
 config SMP
 	bool "Symmetric multi-processing support (EXPERIMENTAL)"
@@ -183,24 +183,24 @@ config SMP
 	#SMP_BROKEN is for x86_64.
 	depends on EXPERIMENTAL && (!SMP_BROKEN || (BROKEN && SMP_BROKEN))
 	help
-	This option enables UML SMP support.
-	It is NOT related to having a real SMP box. Not directly, at least.
+	  This option enables UML SMP support.
+	  It is NOT related to having a real SMP box. Not directly, at least.
 
-	UML implements virtual SMP by allowing as many processes to run
-	simultaneously on the host as there are virtual processors configured.
+	  UML implements virtual SMP by allowing as many processes to run
+	  simultaneously on the host as there are virtual processors configured.
 
-	Obviously, if the host is a uniprocessor, those processes will
-	timeshare, but, inside UML, will appear to be running simultaneously.
-	If the host is a multiprocessor, then UML processes may run
-	simultaneously, depending on the host scheduler.
+	  Obviously, if the host is a uniprocessor, those processes will
+	  timeshare, but, inside UML, will appear to be running simultaneously.
+	  If the host is a multiprocessor, then UML processes may run
+	  simultaneously, depending on the host scheduler.
 
-	This, however, is supported only in TT mode. So, if you use the SKAS
-	patch on your host, switching to TT mode and enabling SMP usually gives
-	you worse performances.
-	Also, since the support for SMP has been under-developed, there could
-	be some bugs being exposed by enabling SMP.
+	  This, however, is supported only in TT mode. So, if you use the SKAS
+	  patch on your host, switching to TT mode and enabling SMP usually
+	  gives	you worse performances.
+	  Also, since the support for SMP has been under-developed, there could
+	  be some bugs being exposed by enabling SMP.
 
-	If you don't know what to do, say N.
+	  If you don't know what to do, say N.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
@@ -212,24 +212,24 @@ config NEST_LEVEL
 	int "Nesting level"
 	default "0"
 	help
-        This is set to the number of layers of UMLs that this UML will be run
-        in.  Normally, this is zero, meaning that it will run directly on the
-        host.  Setting it to one will build a UML that can run inside a UML
-        that is running on the host.  Generally, if you intend this UML to run
-        inside another UML, set CONFIG_NEST_LEVEL to one more than the host
-        UML.
+          This is set to the number of layers of UMLs that this UML will be run
+          in.  Normally, this is zero, meaning that it will run directly on the
+          host.  Setting it to one will build a UML that can run inside a UML
+          that is running on the host.  Generally, if you intend this UML to run
+          inside another UML, set CONFIG_NEST_LEVEL to one more than the host
+          UML.
 
 config HIGHMEM
 	bool "Highmem support (EXPERIMENTAL)"
 	depends on !64BIT && EXPERIMENTAL
 	default n
 	help
-	This was used to allow UML to run with big amounts of memory.
-	Currently it is unstable, so if unsure say N.
+	  This was used to allow UML to run with big amounts of memory.
+	  Currently it is unstable, so if unsure say N.
 
-	To use big amounts of memory, it is recommended enable static
-	linking (i.e. CONFIG_STATIC_LINK) - this should allow the
-	guest to use up to 2.75G of memory.
+	  To use big amounts of memory, it is recommended enable static
+	  linking (i.e. CONFIG_STATIC_LINK) - this should allow the
+	  guest to use up to 2.75G of memory.
 
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"
@@ -237,20 +237,21 @@ config KERNEL_STACK_ORDER
 	range 1 10 if 64BIT
 	default 0 if !64BIT
 	help
-	This option determines the size of UML kernel stacks.  They will
-	be 1 << order pages.  The default is OK unless you're running Valgrind
-	on UML, in which case, set this to 3.
+	  This option determines the size of UML kernel stacks.  They will
+	  be 1 << order pages.  The default is OK unless you're running Valgrind
+	  on UML, in which case, set this to 3.
 
 config UML_REAL_TIME_CLOCK
 	bool "Real-time Clock"
 	default y
 	help
-	This option makes UML time deltas match wall clock deltas.  This should
-	normally be enabled.  The exception would be if you are debugging with
-	UML and spend long times with UML stopped at a breakpoint.  In this
-	case, when UML is restarted, it will call the timer enough times to make
-	up for the time spent at the breakpoint.  This could result in a
-	noticeable lag.  If this is a problem, then disable this option.
+	  This option makes UML time deltas match wall clock deltas.  This
+	  should normally be enabled.  The exception would be if you are
+	  debugging with UML and spend long times with UML stopped at a
+	  breakpoint.  In this case, when UML is restarted, it will call the
+	  timer enough times to make up for the time spent at the breakpoint.
+	  This could result in a noticeable lag.  If this is a problem, then
+	  disable this option.
 
 endmenu
 

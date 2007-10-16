@@ -6,27 +6,27 @@ config GPROF
 	bool "Enable gprof support"
 	depends on DEBUG_INFO
 	help
-        This allows profiling of a User-Mode Linux kernel with the gprof
-        utility.
+	  This allows profiling of a User-Mode Linux kernel with the gprof
+	  utility.
 
-        See <http://user-mode-linux.sourceforge.net/gprof.html> for more
-        details.
+	  See <http://user-mode-linux.sourceforge.net/gprof.html> for more
+	  details.
 
-        If you're involved in UML kernel development and want to use gprof,
-        say Y.  If you're unsure, say N.
+	  If you're involved in UML kernel development and want to use gprof,
+	  say Y.  If you're unsure, say N.
 
 config GCOV
 	bool "Enable gcov support"
 	depends on DEBUG_INFO
 	help
-        This option allows developers to retrieve coverage data from a UML
-        session.
+	  This option allows developers to retrieve coverage data from a UML
+	  session.
 
-        See <http://user-mode-linux.sourceforge.net/gprof.html> for more
-        details.
+	  See <http://user-mode-linux.sourceforge.net/gprof.html> for more
+	  details.
 
-        If you're involved in UML kernel development and want to use gcov,
-        say Y.  If you're unsure, say N.
+	  If you're involved in UML kernel development and want to use gcov,
+	  say Y.  If you're unsure, say N.
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
