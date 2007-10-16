@@ -226,11 +226,27 @@ kvmap_dtlb_load:
 	ba,pt		%xcc, sun4v_dtlb_load
 	 mov		%g5, %g3
 
+kvmap_vmemmap:
+	sub		%g4, %g5, %g5
+	srlx		%g5, 22, %g5
+	sethi		%hi(vmemmap_table), %g1
+	sllx		%g5, 3, %g5
+	or		%g1, %lo(vmemmap_table), %g1
+	ba,pt		%xcc, kvmap_dtlb_load
+	 ldx		[%g1 + %g5], %g5
+
 kvmap_dtlb_nonlinear:
 	/* Catch kernel NULL pointer derefs.  */
 	sethi		%hi(PAGE_SIZE), %g5
 	cmp		%g4, %g5
 	bleu,pn		%xcc, kvmap_dtlb_longpath
+	 nop
+
+	/* Do not use the TSB for vmemmap.  */
+	mov		(VMEMMAP_BASE >> 24), %g5
+	sllx		%g5, 24, %g5
+	cmp		%g4,%g5
+	bgeu,pn		%xcc, kvmap_vmemmap
 	 nop
 
 	KERN_TSB_LOOKUP_TL1(%g4, %g6, %g5, %g1, %g2, %g3, kvmap_dtlb_load)
