@@ -2405,7 +2405,7 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 			update_screen(vc);
 	}
 
-	if (fbcon_is_inactive(vc, info) ||
+	if (mode_switch || fbcon_is_inactive(vc, info) ||
 	    ops->blank_state != FB_BLANK_UNBLANK)
 		fbcon_del_cursor_timer(info);
 	else
