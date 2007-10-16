@@ -137,7 +137,7 @@ int __meminit vmemmap_populate_basepages(struct page *start_page,
 	return 0;
 }
 
-struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
+struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
 {
 	struct page *map = pfn_to_page(pnum * PAGES_PER_SECTION);
 	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);

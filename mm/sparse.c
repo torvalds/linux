@@ -259,7 +259,7 @@ static unsigned long *sparse_early_usemap_alloc(unsigned long pnum)
 }
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
-struct page __init *sparse_early_mem_map_populate(unsigned long pnum, int nid)
+struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
 {
 	struct page *map;
 
@@ -284,7 +284,7 @@ struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 	struct mem_section *ms = __nr_to_section(pnum);
 	int nid = sparse_early_nid(ms);
 
-	map = sparse_early_mem_map_populate(pnum, nid);
+	map = sparse_mem_map_populate(pnum, nid);
 	if (map)
 		return map;
 
@@ -322,6 +322,18 @@ void __init sparse_init(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+						 unsigned long nr_pages)
+{
+	/* This will make the necessary allocations eventually. */
+	return sparse_mem_map_populate(pnum, nid);
+}
+static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+{
+	return; /* XXX: Not implemented yet */
+}
+#else
 static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 {
 	struct page *page, *ret;
@@ -344,6 +356,12 @@ got_map_ptr:
 	return ret;
 }
 
+static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+						  unsigned long nr_pages)
+{
+	return __kmalloc_section_memmap(nr_pages);
+}
+
 static int vaddr_in_vmalloc_area(void *addr)
 {
 	if (addr >= (void *)VMALLOC_START &&
@@ -360,6 +378,7 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 		free_pages((unsigned long)memmap,
 			   get_order(sizeof(struct page) * nr_pages));
 }
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 /*
  * returns the number of sections whose mem_maps were properly
@@ -382,7 +401,7 @@ int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 	 * plus, it does a kmalloc
 	 */
 	sparse_index_init(section_nr, pgdat->node_id);
-	memmap = __kmalloc_section_memmap(nr_pages);
+	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, nr_pages);
 	usemap = __kmalloc_section_usemap();
 
 	pgdat_resize_lock(pgdat, &flags);
