@@ -704,8 +704,7 @@ struct file_ra_state {
 
 	unsigned int ra_pages;		/* Maximum readahead window */
 	int mmap_miss;			/* Cache miss stat for mmap accesses */
-	unsigned long prev_index;	/* Cache last read() position */
-	unsigned int prev_offset;	/* Offset where last read() ended in a page */
+	loff_t prev_pos;		/* Cache last read() position */
 };
 
 /*
