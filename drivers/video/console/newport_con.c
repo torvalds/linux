@@ -98,13 +98,18 @@ static inline void newport_init_cmap(void)
 	}
 }
 
-static void newport_show_logo(void)
+static struct linux_logo *newport_show_logo(void)
 {
 #ifdef CONFIG_LOGO_SGI_CLUT224
 	const struct linux_logo *logo = fb_find_logo(8);
-	const unsigned char *clut = logo->clut;
-	const unsigned char *data = logo->data;
+	const unsigned char *clut;
+	const unsigned char *data;
 	unsigned long i;
+
+	if (!logo)
+		return NULL;
+	*clut = logo->clut;
+	*data = logo->data;
 
 	for (i = 0; i < logo->clutsize; i++) {
 		newport_bfwait(npregs);
@@ -123,6 +128,8 @@ static void newport_show_logo(void)
 
 	for (i = 0; i < logo->width*logo->height; i++)
 		npregs->go.hostrw0 = *data++ << 24;
+
+	return logo;
 #endif /* CONFIG_LOGO_SGI_CLUT224 */
 }
 
@@ -465,9 +472,10 @@ static int newport_switch(struct vc_data *vc)
 	npregs->cset.topscan = 0x3ff;
 
 	if (!logo_drawn) {
-		newport_show_logo();
-		logo_drawn = 1;
-		logo_active = 1;
+		if (newport_show_logo()) {
+			logo_drawn = 1;
+			logo_active = 1;
+		}
 	}
 
 	return 1;

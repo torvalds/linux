@@ -911,6 +911,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			n must be a power of two.  The default size
 			is set in the kernel config file.
 
+	logo.nologo	[FB] Disables display of the built-in Linux logo.
+			This may be used to provide more screen space for
+			kernel log messages and is useful when debugging
+			kernel boot problems.
+
 	lp=0		[LP]	Specify parallel ports to use, e.g,
 	lp=port[,port...]	lp=none,parport0 (lp0 not configured, lp1 uses
 	lp=reset		first parallel port). 'lp=0' disables the
