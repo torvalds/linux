@@ -26,11 +26,16 @@
 
 #include "multicalls.h"
 
+#define MC_DEBUG	1
+
 #define MC_BATCH	32
 #define MC_ARGS		(MC_BATCH * 16 / sizeof(u64))
 
 struct mc_buffer {
 	struct multicall_entry entries[MC_BATCH];
+#if MC_DEBUG
+	struct multicall_entry debug[MC_BATCH];
+#endif
 	u64 args[MC_ARGS];
 	struct callback {
 		void (*fn)(void *);
@@ -56,11 +61,31 @@ void xen_mc_flush(void)
 	local_irq_save(flags);
 
 	if (b->mcidx) {
+#if MC_DEBUG
+		memcpy(b->debug, b->entries,
+		       b->mcidx * sizeof(struct multicall_entry));
+#endif
+
 		if (HYPERVISOR_multicall(b->entries, b->mcidx) != 0)
 			BUG();
 		for (i = 0; i < b->mcidx; i++)
 			if (b->entries[i].result < 0)
 				ret++;
+
+#if MC_DEBUG
+		if (ret) {
+			printk(KERN_ERR "%d multicall(s) failed: cpu %d\n",
+			       ret, smp_processor_id());
+			for(i = 0; i < b->mcidx; i++) {
+				printk("  call %2d/%d: op=%lu arg=[%lx] result=%ld\n",
+				       i+1, b->mcidx,
+				       b->debug[i].op,
+				       b->debug[i].args[0],
+				       b->entries[i].result);
+			}
+		}
+#endif
+
 		b->mcidx = 0;
 		b->argidx = 0;
 	} else
