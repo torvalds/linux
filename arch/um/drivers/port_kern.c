@@ -216,10 +216,10 @@ void *port_data(int port_num)
 				    .telnetd_pid  	= -1 });
 	goto out;
 
- out_free:
-	kfree(port);
  out_close:
 	os_close_file(fd);
+ out_free:
+	kfree(port);
  out:
 	up(&ports_sem);
 	return dev;
