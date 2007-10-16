@@ -302,31 +302,30 @@ MEMORY POLICIES AND CPUSETS
 
 Memory policies work within cpusets as described above.  For memory policies
 that require a node or set of nodes, the nodes are restricted to the set of
-nodes whose memories are allowed by the cpuset constraints.  If the
-intersection of the set of nodes specified for the policy and the set of nodes
-allowed by the cpuset is the empty set, the policy is considered invalid and
-cannot be installed.
+nodes whose memories are allowed by the cpuset constraints.  If the nodemask
+specified for the policy contains nodes that are not allowed by the cpuset, or
+the intersection of the set of nodes specified for the policy and the set of
+nodes with memory is the empty set, the policy is considered invalid
+and cannot be installed.
 
 The interaction of memory policies and cpusets can be problematic for a
 couple of reasons:
 
-1) the memory policy APIs take physical node id's as arguments.  However, the
-   memory policy APIs do not provide a way to determine what nodes are valid
-   in the context where the application is running.  An application MAY consult
-   the cpuset file system [directly or via an out of tree, and not generally
-   available, libcpuset API] to obtain this information, but then the
-   application must be aware that it is running in a cpuset and use what are
-   intended primarily as administrative APIs.
-
-   However, as long as the policy specifies at least one node that is valid
-   in the controlling cpuset, the policy can be used.
+1) the memory policy APIs take physical node id's as arguments.  As mentioned
+   above, it is illegal to specify nodes that are not allowed in the cpuset.
+   The application must query the allowed nodes using the get_mempolicy()
+   API with the MPOL_F_MEMS_ALLOWED flag to determine the allowed nodes and
+   restrict itself to those nodes.  However, the resources available to a
+   cpuset can be changed by the system administrator, or a workload manager
+   application, at any time.  So, a task may still get errors attempting to
+   specify policy nodes, and must query the allowed memories again.
 
 2) when tasks in two cpusets share access to a memory region, such as shared
    memory segments created by shmget() of mmap() with the MAP_ANONYMOUS and
    MAP_SHARED flags, and any of the tasks install shared policy on the region,
    only nodes whose memories are allowed in both cpusets may be used in the
-   policies.  Again, obtaining this information requires "stepping outside"
-   the memory policy APIs, as well as knowing in what cpusets other task might
-   be attaching to the shared region, to use the cpuset information.
+   policies.  Obtaining this information requires "stepping outside" the
+   memory policy APIs to use the cpuset information and requires that one
+   know in what cpusets other task might be attaching to the shared region.
    Furthermore, if the cpusets' allowed memory sets are disjoint, "local"
    allocation is the only valid policy.
