@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sc1200.c		Version 0.95	Jun 16 2007
+ * linux/drivers/ide/pci/sc1200.c		Version 0.96	Aug 2 2007
  *
  * Copyright (C) 2000-2002		Mark Lord <mlord@pobox.com>
  * Copyright (C)      2007		Bartlomiej Zolnierkiewicz
@@ -381,6 +381,9 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 
 	hwif->set_pio_mode = &sc1200_set_pio_mode;
 	hwif->set_dma_mode = &sc1200_set_dma_mode;
+
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
 
 	if (hwif->dma_base == 0)
 		return;
