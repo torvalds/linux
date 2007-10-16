@@ -666,27 +666,22 @@ EXPORT_SYMBOL(find_lock_page);
 struct page *find_or_create_page(struct address_space *mapping,
 		pgoff_t index, gfp_t gfp_mask)
 {
-	struct page *page, *cached_page = NULL;
+	struct page *page;
 	int err;
 repeat:
 	page = find_lock_page(mapping, index);
 	if (!page) {
-		if (!cached_page) {
-			cached_page =
-				__page_cache_alloc(gfp_mask);
-			if (!cached_page)
-				return NULL;
+		page = __page_cache_alloc(gfp_mask);
+		if (!page)
+			return NULL;
+		err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
+		if (unlikely(err)) {
+			page_cache_release(page);
+			page = NULL;
+			if (err == -EEXIST)
+				goto repeat;
 		}
-		err = add_to_page_cache_lru(cached_page, mapping,
-					index, gfp_mask);
-		if (!err) {
-			page = cached_page;
-			cached_page = NULL;
-		} else if (err == -EEXIST)
-			goto repeat;
 	}
-	if (cached_page)
-		page_cache_release(cached_page);
 	return page;
 }
 EXPORT_SYMBOL(find_or_create_page);
@@ -872,10 +867,8 @@ void do_generic_mapping_read(struct address_space *mapping,
 	pgoff_t prev_index;
 	unsigned long offset;      /* offset into pagecache page */
 	unsigned int prev_offset;
-	struct page *cached_page;
 	int error;
 
-	cached_page = NULL;
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	prev_index = ra->prev_pos >> PAGE_CACHE_SHIFT;
 	prev_offset = ra->prev_pos & (PAGE_CACHE_SIZE-1);
@@ -1031,23 +1024,20 @@ no_cached_page:
 		 * Ok, it wasn't cached, so we need to create a new
 		 * page..
 		 */
-		if (!cached_page) {
-			cached_page = page_cache_alloc_cold(mapping);
-			if (!cached_page) {
-				desc->error = -ENOMEM;
-				goto out;
-			}
+		page = page_cache_alloc_cold(mapping);
+		if (!page) {
+			desc->error = -ENOMEM;
+			goto out;
 		}
-		error = add_to_page_cache_lru(cached_page, mapping,
+		error = add_to_page_cache_lru(page, mapping,
 						index, GFP_KERNEL);
 		if (error) {
+			page_cache_release(page);
 			if (error == -EEXIST)
 				goto find_page;
 			desc->error = error;
 			goto out;
 		}
-		page = cached_page;
-		cached_page = NULL;
 		goto readpage;
 	}
 
@@ -1057,8 +1047,6 @@ out:
 	ra->prev_pos |= prev_offset;
 
 	*ppos = ((loff_t)index << PAGE_CACHE_SHIFT) + offset;
-	if (cached_page)
-		page_cache_release(cached_page);
 	if (filp)
 		file_accessed(filp);
 }
@@ -1502,35 +1490,28 @@ static struct page *__read_cache_page(struct address_space *mapping,
 				int (*filler)(void *,struct page*),
 				void *data)
 {
-	struct page *page, *cached_page = NULL;
+	struct page *page;
 	int err;
 repeat:
 	page = find_get_page(mapping, index);
 	if (!page) {
-		if (!cached_page) {
-			cached_page = page_cache_alloc_cold(mapping);
-			if (!cached_page)
-				return ERR_PTR(-ENOMEM);
-		}
-		err = add_to_page_cache_lru(cached_page, mapping,
-					index, GFP_KERNEL);
-		if (err == -EEXIST)
-			goto repeat;
-		if (err < 0) {
+		page = page_cache_alloc_cold(mapping);
+		if (!page)
+			return ERR_PTR(-ENOMEM);
+		err = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
+		if (unlikely(err)) {
+			page_cache_release(page);
+			if (err == -EEXIST)
+				goto repeat;
 			/* Presumably ENOMEM for radix tree node */
-			page_cache_release(cached_page);
 			return ERR_PTR(err);
 		}
-		page = cached_page;
-		cached_page = NULL;
 		err = filler(data, page);
 		if (err < 0) {
 			page_cache_release(page);
 			page = ERR_PTR(err);
 		}
 	}
-	if (cached_page)
-		page_cache_release(cached_page);
 	return page;
 }
 
@@ -1605,40 +1586,6 @@ struct page *read_cache_page(struct address_space *mapping,
 	return page;
 }
 EXPORT_SYMBOL(read_cache_page);
-
-/*
- * If the page was newly created, increment its refcount and add it to the
- * caller's lru-buffering pagevec.  This function is specifically for
- * generic_file_write().
- */
-static inline struct page *
-__grab_cache_page(struct address_space *mapping, unsigned long index,
-			struct page **cached_page, struct pagevec *lru_pvec)
-{
-	int err;
-	struct page *page;
-repeat:
-	page = find_lock_page(mapping, index);
-	if (!page) {
-		if (!*cached_page) {
-			*cached_page = page_cache_alloc(mapping);
-			if (!*cached_page)
-				return NULL;
-		}
-		err = add_to_page_cache(*cached_page, mapping,
-					index, GFP_KERNEL);
-		if (err == -EEXIST)
-			goto repeat;
-		if (err == 0) {
-			page = *cached_page;
-			page_cache_get(page);
-			if (!pagevec_add(lru_pvec, page))
-				__pagevec_lru_add(lru_pvec);
-			*cached_page = NULL;
-		}
-	}
-	return page;
-}
 
 /*
  * The logic we want is
@@ -1832,6 +1779,33 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 }
 EXPORT_SYMBOL(generic_file_direct_write);
 
+/*
+ * Find or create a page at the given pagecache position. Return the locked
+ * page. This function is specifically for buffered writes.
+ */
+static struct page *__grab_cache_page(struct address_space *mapping,
+							pgoff_t index)
+{
+	int status;
+	struct page *page;
+repeat:
+	page = find_lock_page(mapping, index);
+	if (likely(page))
+		return page;
+
+	page = page_cache_alloc(mapping);
+	if (!page)
+		return NULL;
+	status = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
+	if (unlikely(status)) {
+		page_cache_release(page);
+		if (status == -EEXIST)
+			goto repeat;
+		return NULL;
+	}
+	return page;
+}
+
 ssize_t
 generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos, loff_t *ppos,
@@ -1842,14 +1816,9 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 	const struct address_space_operations *a_ops = mapping->a_ops;
 	struct inode 	*inode = mapping->host;
 	long		status = 0;
-	struct page	*page;
-	struct page	*cached_page = NULL;
-	struct pagevec	lru_pvec;
 	const struct iovec *cur_iov = iov; /* current iovec */
 	size_t		iov_offset = 0;	   /* offset in the current iovec */
 	char __user	*buf;
-
-	pagevec_init(&lru_pvec, 0);
 
 	/*
 	 * handle partial DIO write.  Adjust cur_iov if needed.
@@ -1862,6 +1831,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 	}
 
 	do {
+		struct page *page;
 		pgoff_t index;		/* Pagecache index for current page */
 		unsigned long offset;	/* Offset into pagecache page */
 		unsigned long maxlen;	/* Bytes remaining in current iovec */
@@ -1888,7 +1858,8 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		fault_in_pages_readable(buf, maxlen);
 #endif
 
-		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
+
+		page = __grab_cache_page(mapping, index);
 		if (!page) {
 			status = -ENOMEM;
 			break;
@@ -1956,9 +1927,6 @@ fs_write_aop_error:
 	} while (count);
 	*ppos = pos;
 
-	if (cached_page)
-		page_cache_release(cached_page);
-
 	/*
 	 * For now, when the user asks for O_SYNC, we'll actually give O_DSYNC
 	 */
@@ -1978,7 +1946,6 @@ fs_write_aop_error:
 	if (unlikely(file->f_flags & O_DIRECT) && written)
 		status = filemap_write_and_wait(mapping);
 
-	pagevec_lru_add(&lru_pvec);
 	return written ? written : status;
 }
 EXPORT_SYMBOL(generic_file_buffered_write);
