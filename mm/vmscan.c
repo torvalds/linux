@@ -932,6 +932,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		long mapped_ratio;
 		long distress;
 		long swap_tendency;
+		long imbalance;
 
 		if (zone_is_near_oom(zone))
 			goto force_reclaim_mapped;
@@ -965,6 +966,46 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		 * altogether.
 		 */
 		swap_tendency = mapped_ratio / 2 + distress + sc->swappiness;
+
+		/*
+		 * If there's huge imbalance between active and inactive
+		 * (think active 100 times larger than inactive) we should
+		 * become more permissive, or the system will take too much
+		 * cpu before it start swapping during memory pressure.
+		 * Distress is about avoiding early-oom, this is about
+		 * making swappiness graceful despite setting it to low
+		 * values.
+		 *
+		 * Avoid div by zero with nr_inactive+1, and max resulting
+		 * value is vm_total_pages.
+		 */
+		imbalance  = zone_page_state(zone, NR_ACTIVE);
+		imbalance /= zone_page_state(zone, NR_INACTIVE) + 1;
+
+		/*
+		 * Reduce the effect of imbalance if swappiness is low,
+		 * this means for a swappiness very low, the imbalance
+		 * must be much higher than 100 for this logic to make
+		 * the difference.
+		 *
+		 * Max temporary value is vm_total_pages*100.
+		 */
+		imbalance *= (vm_swappiness + 1);
+		imbalance /= 100;
+
+		/*
+		 * If not much of the ram is mapped, makes the imbalance
+		 * less relevant, it's high priority we refill the inactive
+		 * list with mapped pages only in presence of high ratio of
+		 * mapped pages.
+		 *
+		 * Max temporary value is vm_total_pages*100.
+		 */
+		imbalance *= mapped_ratio;
+		imbalance /= 100;
+
+		/* apply imbalance feedback to swap_tendency */
+		swap_tendency += imbalance;
 
 		/*
 		 * Now use this metric to decide whether to start moving mapped
