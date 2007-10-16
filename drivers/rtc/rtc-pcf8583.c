@@ -332,6 +332,9 @@ static int pcf8583_probe(struct i2c_adapter *adap, int addr, int kind)
 		}
 	};
 
+	if (!i2c_check_functionality(adap, I2C_FUNC_I2C))
+		return 0;
+
 	pcf = kzalloc(sizeof(*pcf), GFP_KERNEL);
 	if (!pcf)
 		return -ENOMEM;
