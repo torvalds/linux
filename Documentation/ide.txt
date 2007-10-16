@@ -278,8 +278,6 @@ Summary of ide driver parameters for kernel command line
  "idex=four"		: four drives on idex and ide(x^1) share same ports
 			
  "idex=reset"		: reset interface after probe
- 
- "idex=dma"		: automatically configure/use DMA if possible.
 
  "idex=ata66"		: informs the interface that it has an 80c cable
 			  for chipsets that are ATA-66 capable, but the
