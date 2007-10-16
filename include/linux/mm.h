@@ -1218,5 +1218,11 @@ extern int randomize_va_space;
 
 const char * arch_vma_name(struct vm_area_struct *vma);
 
+struct page *sparse_early_mem_map_populate(unsigned long pnum, int nid);
+int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
+int vmemmap_populate_pmd(pud_t *, unsigned long, unsigned long, int);
+void *vmemmap_alloc_block(unsigned long size, int node);
+void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */
