@@ -105,7 +105,7 @@
  */
 struct ext4_group_desc
 {
-	__le32	bg_block_bitmap;	/* Blocks bitmap block */
+	__le32	bg_block_bitmap_lo;	/* Blocks bitmap block */
 	__le32	bg_inode_bitmap;	/* Inodes bitmap block */
 	__le32	bg_inode_table;		/* Inodes table block */
 	__le16	bg_free_blocks_count;	/* Free blocks count */
