@@ -25,6 +25,7 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -401,6 +402,15 @@ EXPORT_SYMBOL(pcmcia_replace_cis);
     
 ======================================================================*/
 
+static inline u16 cis_get_u16(void *ptr)
+{
+	return le16_to_cpu(get_unaligned((__le16 *) ptr));
+}
+static inline u32 cis_get_u32(void *ptr)
+{
+	return le32_to_cpu(get_unaligned((__le32 *) ptr));
+}
+
 typedef struct tuple_flags {
     u_int		link_space:4;
     u_int		has_link:1;
@@ -461,7 +471,7 @@ static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
 	/* Get indirect link from the MFC tuple */
 	read_cis_cache(s, LINK_SPACE(tuple->Flags),
 		       tuple->LinkOffset, 5, link);
-	ofs = le32_to_cpu(*(__le32 *)(link+1));
+	ofs = cis_get_u32(link + 1);
 	SPACE(tuple->Flags) = (link[0] == CISTPL_MFC_ATTR);
 	/* Move to the next indirect link */
 	tuple->LinkOffset += 5;
@@ -668,10 +678,10 @@ static int parse_checksum(tuple_t *tuple, cistpl_checksum_t *csum)
     u_char *p;
     if (tuple->TupleDataLen < 5)
 	return CS_BAD_TUPLE;
-    p = (u_char *)tuple->TupleData;
-    csum->addr = tuple->CISOffset+(short)le16_to_cpu(*(__le16 *)p)-2;
-    csum->len = le16_to_cpu(*(__le16 *)(p + 2));
-    csum->sum = *(p+4);
+    p = (u_char *) tuple->TupleData;
+    csum->addr = tuple->CISOffset + cis_get_u16(p) - 2;
+    csum->len = cis_get_u16(p + 2);
+    csum->sum = *(p + 4);
     return CS_SUCCESS;
 }
 
@@ -681,7 +691,7 @@ static int parse_longlink(tuple_t *tuple, cistpl_longlink_t *link)
 {
     if (tuple->TupleDataLen < 4)
 	return CS_BAD_TUPLE;
-    link->addr = le32_to_cpu(*(__le32 *)tuple->TupleData);
+    link->addr = cis_get_u32(tuple->TupleData);
     return CS_SUCCESS;
 }
 
@@ -700,7 +710,8 @@ static int parse_longlink_mfc(tuple_t *tuple,
 	return CS_BAD_TUPLE;
     for (i = 0; i < link->nfn; i++) {
 	link->fn[i].space = *p; p++;
-	link->fn[i].addr = le32_to_cpu(*(__le32 *)p); p += 4;
+	link->fn[i].addr = cis_get_u32(p);
+	p += 4;
     }
     return CS_SUCCESS;
 }
@@ -787,12 +798,10 @@ static int parse_jedec(tuple_t *tuple, cistpl_jedec_t *jedec)
 
 static int parse_manfid(tuple_t *tuple, cistpl_manfid_t *m)
 {
-    __le16 *p;
     if (tuple->TupleDataLen < 4)
 	return CS_BAD_TUPLE;
-    p = (__le16 *)tuple->TupleData;
-    m->manf = le16_to_cpu(p[0]);
-    m->card = le16_to_cpu(p[1]);
+    m->manf = cis_get_u16(tuple->TupleData);
+    m->card = cis_get_u16(tuple->TupleData + 2);
     return CS_SUCCESS;
 }
 
@@ -1091,7 +1100,7 @@ static int parse_cftable_entry(tuple_t *tuple,
 	break;
     case 0x20:
 	entry->mem.nwin = 1;
-	entry->mem.win[0].len = le16_to_cpu(*(__le16 *)p) << 8;
+	entry->mem.win[0].len = cis_get_u16(p) << 8;
 	entry->mem.win[0].card_addr = 0;
 	entry->mem.win[0].host_addr = 0;
 	p += 2;
@@ -1099,9 +1108,8 @@ static int parse_cftable_entry(tuple_t *tuple,
 	break;
     case 0x40:
 	entry->mem.nwin = 1;
-	entry->mem.win[0].len = le16_to_cpu(*(__le16 *)p) << 8;
-	entry->mem.win[0].card_addr =
-	    le16_to_cpu(*(__le16 *)(p+2)) << 8;
+	entry->mem.win[0].len = cis_get_u16(p) << 8;
+	entry->mem.win[0].card_addr = cis_get_u16(p + 2) << 8;
 	entry->mem.win[0].host_addr = 0;
 	p += 4;
 	if (p > q) return CS_BAD_TUPLE;
@@ -1138,7 +1146,7 @@ static int parse_bar(tuple_t *tuple, cistpl_bar_t *bar)
     p = (u_char *)tuple->TupleData;
     bar->attr = *p;
     p += 2;
-    bar->size = le32_to_cpu(*(__le32 *)p);
+    bar->size = cis_get_u32(p);
     return CS_SUCCESS;
 }
 
@@ -1151,7 +1159,7 @@ static int parse_config_cb(tuple_t *tuple, cistpl_config_t *config)
 	return CS_BAD_TUPLE;
     config->last_idx = *(++p);
     p++;
-    config->base = le32_to_cpu(*(__le32 *)p);
+    config->base = cis_get_u32(p);
     config->subtuples = tuple->TupleDataLen - 6;
     return CS_SUCCESS;
 }
@@ -1267,7 +1275,7 @@ static int parse_vers_2(tuple_t *tuple, cistpl_vers_2_t *v2)
 
     v2->vers = p[0];
     v2->comply = p[1];
-    v2->dindex = le16_to_cpu(*(__le16 *)(p+2));
+    v2->dindex = cis_get_u16(p +2 );
     v2->vspec8 = p[6];
     v2->vspec9 = p[7];
     v2->nhdr = p[8];
@@ -1308,8 +1316,8 @@ static int parse_format(tuple_t *tuple, cistpl_format_t *fmt)
 
     fmt->type = p[0];
     fmt->edc = p[1];
-    fmt->offset = le32_to_cpu(*(__le32 *)(p+2));
-    fmt->length = le32_to_cpu(*(__le32 *)(p+6));
+    fmt->offset = cis_get_u32(p + 2);
+    fmt->length = cis_get_u32(p + 6);
 
     return CS_SUCCESS;
 }
