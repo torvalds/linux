@@ -193,8 +193,8 @@ static inline void pm2v_RDAC_WR(struct pm2fb_par *p, s32 idx, u32 v)
 #else
 static inline void WAIT_FIFO(struct pm2fb_par *p, u32 a)
 {
-	while (pm2_RD(p, PM2R_IN_FIFO_SPACE) < a);
-	mb();
+	while (pm2_RD(p, PM2R_IN_FIFO_SPACE) < a)
+		cpu_relax();
 }
 #endif
 
@@ -328,7 +328,7 @@ static void reset_card(struct pm2fb_par *p)
 	pm2_WR(p, PM2R_RESET_STATUS, 0);
 	mb();
 	while (pm2_RD(p, PM2R_RESET_STATUS) & PM2F_BEING_RESET)
-		;
+		cpu_relax();
 	mb();
 #ifdef CONFIG_FB_PM2_FIFO_DISCONNECT
 	DPRINTK("FIFO disconnect enabled\n");
@@ -1041,8 +1041,7 @@ static int pm2fb_sync(struct fb_info *info)
 	mb();
 	do {
 		while (pm2_RD(par, PM2R_OUT_FIFO_WORDS) == 0)
-			udelay(10);
-		rmb();
+			cpu_relax();
 	} while (pm2_RD(par, PM2R_OUT_FIFO) != PM2TAG(PM2R_SYNC));
 
 	return 0;
