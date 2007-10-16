@@ -346,24 +346,39 @@ static int minix_writepage(struct page *page, struct writeback_control *wbc)
 {
 	return block_write_full_page(page, minix_get_block, wbc);
 }
+
 static int minix_readpage(struct file *file, struct page *page)
 {
 	return block_read_full_page(page,minix_get_block);
 }
-static int minix_prepare_write(struct file *file, struct page *page, unsigned from, unsigned to)
+
+int __minix_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
-	return block_prepare_write(page,from,to,minix_get_block);
+	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				minix_get_block);
 }
+
+static int minix_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
+{
+	*pagep = NULL;
+	return __minix_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+}
+
 static sector_t minix_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,minix_get_block);
 }
+
 static const struct address_space_operations minix_aops = {
 	.readpage = minix_readpage,
 	.writepage = minix_writepage,
 	.sync_page = block_sync_page,
-	.prepare_write = minix_prepare_write,
-	.commit_write = generic_commit_write,
+	.write_begin = minix_write_begin,
+	.write_end = generic_write_end,
 	.bmap = minix_bmap
 };
 
