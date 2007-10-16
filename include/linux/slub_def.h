@@ -15,6 +15,7 @@ struct kmem_cache_cpu {
 	void **freelist;
 	struct page *page;
 	int node;
+	unsigned int offset;
 	/* Lots of wasted space */
 } ____cacheline_aligned_in_smp;
 

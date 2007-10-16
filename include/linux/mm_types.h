@@ -37,10 +37,7 @@ struct page {
 					 * to show when page is mapped
 					 * & limit reverse map searches.
 					 */
-		struct {	/* SLUB uses */
-			short unsigned int inuse;
-			short unsigned int offset;
-		};
+		unsigned int inuse;	/* SLUB: Nr of objects */
 	};
 	union {
 	    struct {
