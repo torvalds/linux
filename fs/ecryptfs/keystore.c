@@ -469,25 +469,18 @@ out:
 
 static void wipe_auth_tok_list(struct list_head *auth_tok_list_head)
 {
-	struct list_head *walker;
 	struct ecryptfs_auth_tok_list_item *auth_tok_list_item;
+	struct ecryptfs_auth_tok_list_item *auth_tok_list_item_tmp;
 
-	walker = auth_tok_list_head->next;
-	while (walker != auth_tok_list_head) {
-		auth_tok_list_item =
-		    list_entry(walker, struct ecryptfs_auth_tok_list_item,
-			       list);
-		walker = auth_tok_list_item->list.next;
-		memset(auth_tok_list_item, 0,
-		       sizeof(struct ecryptfs_auth_tok_list_item));
+	list_for_each_entry_safe(auth_tok_list_item, auth_tok_list_item_tmp,
+				 auth_tok_list_head, list) {
+		list_del(&auth_tok_list_item->list);
 		kmem_cache_free(ecryptfs_auth_tok_list_item_cache,
 				auth_tok_list_item);
 	}
-	auth_tok_list_head->next = NULL;
 }
 
 struct kmem_cache *ecryptfs_auth_tok_list_item_cache;
-
 
 /**
  * parse_tag_1_packet
