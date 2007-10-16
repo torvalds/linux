@@ -1009,7 +1009,7 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 {
 	struct scatterlist dst_sg;
 	struct scatterlist src_sg;
-	struct mutex *tfm_mutex = NULL;
+	struct mutex *tfm_mutex;
 	struct blkcipher_desc desc = {
 		.flags = CRYPTO_TFM_REQ_MAY_SLEEP
 	};
@@ -1123,8 +1123,8 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 	size_t found_auth_tok;
 	size_t next_packet_is_auth_tok_packet;
 	struct list_head auth_tok_list;
-	struct ecryptfs_auth_tok *matching_auth_tok = NULL;
-	struct ecryptfs_auth_tok *candidate_auth_tok = NULL;
+	struct ecryptfs_auth_tok *matching_auth_tok;
+	struct ecryptfs_auth_tok *candidate_auth_tok;
 	char *candidate_auth_tok_sig;
 	size_t packet_size;
 	struct ecryptfs_auth_tok *new_auth_tok;
