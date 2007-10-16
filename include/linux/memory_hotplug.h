@@ -58,10 +58,9 @@ extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
 extern void online_page(struct page *page);
 /* VM interface that may be used by firmware interface */
 extern int online_pages(unsigned long, unsigned long);
-#ifdef CONFIG_MEMORY_HOTREMOVE
-extern int offline_pages(unsigned long, unsigned long, unsigned long);
 extern void __offline_isolated_pages(unsigned long, unsigned long);
-#endif
+extern int offline_pages(unsigned long, unsigned long, unsigned long);
+
 /* reasonably generic interface to expand the physical pages in a zone  */
 extern int __add_pages(struct zone *zone, unsigned long start_pfn,
 	unsigned long nr_pages);
@@ -171,13 +170,6 @@ static inline int mhp_notimplemented(const char *func)
 }
 
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
-static inline int __remove_pages(struct zone *zone, unsigned long start_pfn,
-	unsigned long nr_pages)
-{
-	printk(KERN_WARNING "%s() called, not yet supported\n", __FUNCTION__);
-	dump_stack();
-	return -ENOSYS;
-}
 
 extern int add_memory(int nid, u64 start, u64 size);
 extern int arch_add_memory(int nid, u64 start, u64 size);

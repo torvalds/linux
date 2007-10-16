@@ -294,12 +294,6 @@ int arch_add_memory(int nid, u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(arch_add_memory);
 
-int remove_memory(u64 start, u64 size)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(remove_memory);
-
 #ifdef CONFIG_NUMA
 int memory_add_physaddr_to_nid(u64 addr)
 {

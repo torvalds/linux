@@ -735,11 +735,6 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	return __add_pages(zone, start_pfn, nr_pages);
 }
 
-int remove_memory(u64 start, u64 size)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(remove_memory);
 #endif
 
 struct kmem_cache *pmd_cache;

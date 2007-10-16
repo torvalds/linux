@@ -718,7 +718,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	return ret;
 }
-
+#ifdef CONFIG_MEMORY_HOTREMOVE
 int remove_memory(u64 start, u64 size)
 {
 	unsigned long start_pfn, end_pfn;
@@ -734,4 +734,5 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(remove_memory);
+#endif /* CONFIG_MEMORY_HOTREMOVE */
 #endif

@@ -555,4 +555,10 @@ failed_removal:
 	undo_isolate_page_range(start_pfn, end_pfn);
 	return ret;
 }
+#else
+int remove_memory(u64 start, u64 size)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(remove_memory);
 #endif /* CONFIG_MEMORY_HOTREMOVE */

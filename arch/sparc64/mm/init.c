@@ -1961,9 +1961,4 @@ void online_page(struct page *page)
 	num_physpages++;
 }
 
-int remove_memory(u64 start, u64 size)
-{
-	return -EINVAL;
-}
-
 #endif /* CONFIG_MEMORY_HOTPLUG */

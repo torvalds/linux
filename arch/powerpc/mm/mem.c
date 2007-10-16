@@ -129,51 +129,6 @@ int __devinit arch_add_memory(int nid, u64 start, u64 size)
 	return __add_pages(zone, start_pfn, nr_pages);
 }
 
-/*
- * First pass at this code will check to determine if the remove
- * request is within the RMO.  Do not allow removal within the RMO.
- */
-int __devinit remove_memory(u64 start, u64 size)
-{
-	struct zone *zone;
-	unsigned long start_pfn, end_pfn, nr_pages;
-
-	start_pfn = start >> PAGE_SHIFT;
-	nr_pages = size >> PAGE_SHIFT;
-	end_pfn = start_pfn + nr_pages;
-
-	printk("%s(): Attempting to remove memoy in range "
-			"%lx to %lx\n", __func__, start, start+size);
-	/*
-	 * check for range within RMO
-	 */
-	zone = page_zone(pfn_to_page(start_pfn));
-
-	printk("%s(): memory will be removed from "
-			"the %s zone\n", __func__, zone->name);
-
-	/*
-	 * not handling removing memory ranges that
-	 * overlap multiple zones yet
-	 */
-	if (end_pfn > (zone->zone_start_pfn + zone->spanned_pages))
-		goto overlap;
-
-	/* make sure it is NOT in RMO */
-	if ((start < lmb.rmo_size) || ((start+size) < lmb.rmo_size)) {
-		printk("%s(): range to be removed must NOT be in RMO!\n",
-			__func__);
-		goto in_rmo;
-	}
-
-	return __remove_pages(zone, start_pfn, nr_pages);
-
-overlap:
-	printk("%s(): memory range to be removed overlaps "
-		"multiple zones!!!\n", __func__);
-in_rmo:
-	return -1;
-}
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 void show_mem(void)
