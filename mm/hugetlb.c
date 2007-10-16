@@ -302,8 +302,17 @@ free:
 		list_del(&page->lru);
 		if ((--needed) >= 0)
 			enqueue_huge_page(page);
-		else
-			update_and_free_page(page);
+		else {
+			/*
+			 * Decrement the refcount and free the page using its
+			 * destructor.  This must be done with hugetlb_lock
+			 * unlocked which is safe because free_huge_page takes
+			 * hugetlb_lock before deciding how to free the page.
+			 */
+			spin_unlock(&hugetlb_lock);
+			put_page(page);
+			spin_lock(&hugetlb_lock);
+		}
 	}
 
 	return ret;
