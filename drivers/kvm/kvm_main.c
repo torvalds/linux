@@ -212,7 +212,7 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 		vcpu = kvm->vcpus[i];
 		if (!vcpu)
 			continue;
-		if (test_and_set_bit(KVM_TLB_FLUSH, &vcpu->requests))
+		if (test_and_set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests))
 			continue;
 		cpu = vcpu->cpu;
 		if (cpu != -1 && cpu != raw_smp_processor_id())
@@ -2171,7 +2171,7 @@ again:
 	kvm_guest_enter();
 
 	if (vcpu->requests)
-		if (test_and_clear_bit(KVM_TLB_FLUSH, &vcpu->requests))
+		if (test_and_clear_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests))
 			kvm_x86_ops->tlb_flush(vcpu);
 
 	kvm_x86_ops->run(vcpu, kvm_run);
