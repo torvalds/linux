@@ -1355,7 +1355,6 @@ static void svm_intr_assist(struct kvm_vcpu *vcpu)
 	struct vmcb *vmcb = svm->vmcb;
 	int intr_vector = -1;
 
-	kvm_inject_pending_timer_irqs(vcpu);
 	if ((vmcb->control.exit_int_info & SVM_EVTINJ_VALID) &&
 	    ((vmcb->control.exit_int_info & SVM_EVTINJ_TYPE_MASK) == 0)) {
 		intr_vector = vmcb->control.exit_int_info &
