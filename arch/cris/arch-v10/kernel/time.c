@@ -254,8 +254,12 @@ timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  * it needs to be IRQF_DISABLED to make the jiffies update work properly
  */
 
-static struct irqaction irq2  = { timer_interrupt, IRQF_SHARED | IRQF_DISABLED,
-				  CPU_MASK_NONE, "timer", NULL, NULL};
+static struct irqaction irq2  = {
+	.handler = timer_interrupt,
+	.flags = IRQF_SHARED | IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "timer",
+};
 
 void __init
 time_init(void)
