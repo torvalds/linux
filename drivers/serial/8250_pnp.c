@@ -327,6 +327,8 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"WACF004",		0	},
 	{	"WACF005",		0	},
 	{       "WACF006",              0       },
+	{       "WACF007",              0       },
+	{       "WACF008",              0       },
 	/* Compaq touchscreen */
 	{       "FPI2002",              0 },
 	/* Fujitsu Stylistic touchscreens */
