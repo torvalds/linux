@@ -1508,13 +1508,18 @@ xfs_vm_direct_IO(
 }
 
 STATIC int
-xfs_vm_prepare_write(
+xfs_vm_write_begin(
 	struct file		*file,
-	struct page		*page,
-	unsigned int		from,
-	unsigned int		to)
+	struct address_space	*mapping,
+	loff_t			pos,
+	unsigned		len,
+	unsigned		flags,
+	struct page		**pagep,
+	void			**fsdata)
 {
-	return block_prepare_write(page, from, to, xfs_get_blocks);
+	*pagep = NULL;
+	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+								xfs_get_blocks);
 }
 
 STATIC sector_t
@@ -1568,8 +1573,8 @@ const struct address_space_operations xfs_address_space_operations = {
 	.sync_page		= block_sync_page,
 	.releasepage		= xfs_vm_releasepage,
 	.invalidatepage		= xfs_vm_invalidatepage,
-	.prepare_write		= xfs_vm_prepare_write,
-	.commit_write		= generic_commit_write,
+	.write_begin		= xfs_vm_write_begin,
+	.write_end		= generic_write_end,
 	.bmap			= xfs_vm_bmap,
 	.direct_IO		= xfs_vm_direct_IO,
 	.migratepage		= buffer_migrate_page,

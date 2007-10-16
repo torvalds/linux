@@ -134,45 +134,34 @@ xfs_iozero(
 	loff_t			pos,	/* offset in file		*/
 	size_t			count)	/* size of data to zero		*/
 {
-	unsigned		bytes;
 	struct page		*page;
 	struct address_space	*mapping;
 	int			status;
 
 	mapping = ip->i_mapping;
 	do {
-		unsigned long index, offset;
+		unsigned offset, bytes;
+		void *fsdata;
 
 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
-		index = pos >> PAGE_CACHE_SHIFT;
 		bytes = PAGE_CACHE_SIZE - offset;
 		if (bytes > count)
 			bytes = count;
 
-		status = -ENOMEM;
-		page = grab_cache_page(mapping, index);
-		if (!page)
-			break;
-
-		status = mapping->a_ops->prepare_write(NULL, page, offset,
-							offset + bytes);
+		status = pagecache_write_begin(NULL, mapping, pos, bytes,
+					AOP_FLAG_UNINTERRUPTIBLE,
+					&page, &fsdata);
 		if (status)
-			goto unlock;
+			break;
 
 		zero_user_page(page, offset, bytes, KM_USER0);
 
-		status = mapping->a_ops->commit_write(NULL, page, offset,
-							offset + bytes);
-		if (!status) {
-			pos += bytes;
-			count -= bytes;
-		}
-
-unlock:
-		unlock_page(page);
-		page_cache_release(page);
-		if (status)
-			break;
+		status = pagecache_write_end(NULL, mapping, pos, bytes, bytes,
+					page, fsdata);
+		WARN_ON(status <= 0); /* can't return less than zero! */
+		pos += bytes;
+		count -= bytes;
+		status = 0;
 	} while (count);
 
 	return (-status);
