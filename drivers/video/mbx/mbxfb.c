@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/mbx/mbxfb.c
  *
- *  Copyright (C) 2006 8D Technologies inc
+ *  Copyright (C) 2006-2007 8D Technologies inc
  *  Raphael Assenat <raph@8d.com>
  *  	- Added video overlay support
  *  	- Various improvements
@@ -334,8 +334,8 @@ static int mbxfb_blank(int blank, struct fb_info *info)
 
 static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 {
-	u32 vsctrl, vbbase, vscadr, vsadr;
-	u32 sssize, spoctrl, svctrl, shctrl;
+	u32 vsctrl, vscadr, vsadr;
+	u32 sssize, spoctrl, shctrl;
 	u32 vubase, vvbase;
 	u32 vovrclk;
 
@@ -349,12 +349,10 @@ static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 	vscadr = readl(VSCADR);
 	vubase = readl(VUBASE);
 	vvbase = readl(VVBASE);
+	shctrl = readl(SHCTRL);
 
 	spoctrl = readl(SPOCTRL);
 	sssize = readl(SSSIZE);
-
-
-	vbbase = Vbbase_Glalpha(set->alpha);
 
 	vsctrl &= ~(	FMsk(VSCTRL_VSWIDTH) |
 					FMsk(VSCTRL_VSHEIGHT) |
@@ -364,38 +362,41 @@ static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 	vsctrl |= Vsctrl_Width(set->width) | Vsctrl_Height(set->height) |
 				VSCTRL_CSC_EN;
 
-	vscadr &= ~(VSCADR_STR_EN | VSCADR_COLKEY_EN | VSCADR_COLKEYSRC |
-				FMsk(VSCADR_BLEND_M) | FMsk(VSCADR_BLEND_POS) |
-				FMsk(VSCADR_VBASE_ADR) );
+	vscadr &= ~(VSCADR_STR_EN | FMsk(VSCADR_VBASE_ADR) );
 	vubase &= ~(VUBASE_UVHALFSTR | FMsk(VUBASE_UBASE_ADR));
 	vvbase &= ~(FMsk(VVBASE_VBASE_ADR));
 
-	switch (set->fmt)
-	{
-		case MBXFB_FMT_YUV12:
-			vsctrl |= VSCTRL_VPIXFMT_YUV12;
+	switch (set->fmt) {
+	case MBXFB_FMT_YUV16:
+		vsctrl |= VSCTRL_VPIXFMT_YUV12;
 
-			set->Y_stride = ((set->width) + 0xf ) & ~0xf;
+		set->Y_stride = ((set->width) + 0xf ) & ~0xf;
+		break;
+	case MBXFB_FMT_YUV12:
+		vsctrl |= VSCTRL_VPIXFMT_YUV12;
 
+		set->Y_stride = ((set->width) + 0xf ) & ~0xf;
+		vubase |= VUBASE_UVHALFSTR;
+
+		break;
+	case MBXFB_FMT_UY0VY1:
+		vsctrl |= VSCTRL_VPIXFMT_UY0VY1;
+		set->Y_stride = (set->width*2 + 0xf ) & ~0xf;
+		break;
+	case MBXFB_FMT_VY0UY1:
+		vsctrl |= VSCTRL_VPIXFMT_VY0UY1;
+		set->Y_stride = (set->width*2 + 0xf ) & ~0xf;
+		break;
+	case MBXFB_FMT_Y0UY1V:
+		vsctrl |= VSCTRL_VPIXFMT_Y0UY1V;
+		set->Y_stride = (set->width*2 + 0xf ) & ~0xf;
+		break;
+	case MBXFB_FMT_Y0VY1U:
+		vsctrl |= VSCTRL_VPIXFMT_Y0VY1U;
+		set->Y_stride = (set->width*2 + 0xf ) & ~0xf;
 			break;
-		case MBXFB_FMT_UY0VY1:
-			vsctrl |= VSCTRL_VPIXFMT_UY0VY1;
-			set->Y_stride = (set->width*2 + 0xf ) & ~0xf;
-			break;
-		case MBXFB_FMT_VY0UY1:
-			vsctrl |= VSCTRL_VPIXFMT_VY0UY1;
-			set->Y_stride = (set->width*2 + 0xf ) & ~0xf;
-			break;
-		case MBXFB_FMT_Y0UY1V:
-			vsctrl |= VSCTRL_VPIXFMT_Y0UY1V;
-			set->Y_stride = (set->width*2 + 0xf ) & ~0xf;
-			break;
-		case MBXFB_FMT_Y0VY1U:
-			vsctrl |= VSCTRL_VPIXFMT_Y0VY1U;
-			set->Y_stride = (set->width*2 + 0xf ) & ~0xf;
-			break;
-		default:
-			return -EINVAL;
+	default:
+		return -EINVAL;
 	}
 
 	/* VSCTRL has the bits which sets the Video Pixel Format.
@@ -417,8 +418,7 @@ static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 			(0x60000 + set->mem_offset + set->V_offset)>>3);
 
 
-	vscadr |= VSCADR_BLEND_VID | VSCADR_BLEND_GLOB |
-		Vscadr_Vbase_Adr((0x60000 + set->mem_offset)>>4);
+	vscadr |= Vscadr_Vbase_Adr((0x60000 + set->mem_offset)>>4);
 
 	if (set->enable)
 		vscadr |= VSCADR_STR_EN;
@@ -433,9 +433,8 @@ static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 
 	spoctrl &= ~(SPOCTRL_H_SC_BP | SPOCTRL_V_SC_BP |
 			SPOCTRL_HV_SC_OR | SPOCTRL_VS_UR_C |
-			FMsk(SPOCTRL_VORDER) | FMsk(SPOCTRL_VPITCH));
-	spoctrl = Spoctrl_Vpitch((set->height<<11)/set->scaled_height)
-							| SPOCTRL_VORDER_2TAP;
+			FMsk(SPOCTRL_VPITCH));
+	spoctrl |= Spoctrl_Vpitch((set->height<<11)/set->scaled_height);
 
 	/* Bypass horiz/vert scaler when same size */
 	if (set->scaled_width == set->width)
@@ -443,14 +442,11 @@ static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 	if (set->scaled_height == set->height)
 		spoctrl |= SPOCTRL_V_SC_BP;
 
-	svctrl = Svctrl_Initial1(1<<10) | Svctrl_Initial2(1<<10);
-
-	shctrl = Shctrl_Hinitial(4<<11)
-			| Shctrl_Hpitch((set->width<<11)/set->scaled_width);
+	shctrl &= ~(FMsk(SHCTRL_HPITCH) | SHCTRL_HDECIM);
+	shctrl |= Shctrl_Hpitch((set->width<<11)/set->scaled_width);
 
 	/* Video plane registers */
 	write_reg(vsctrl, VSCTRL);
-	write_reg(vbbase, VBBASE);
 	write_reg(vscadr, VSCADR);
 	write_reg(vubase, VUBASE);
 	write_reg(vvbase, VVBASE);
@@ -459,27 +455,7 @@ static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 	/* Video scaler registers */
 	write_reg(sssize, SSSIZE);
 	write_reg(spoctrl, SPOCTRL);
-	write_reg(svctrl, SVCTRL);
 	write_reg(shctrl, SHCTRL);
-
-	/* RAPH: Using those coefficients, the scaled
-	 * image is quite blurry. I dont know how
-	 * to improve them ; The chip documentation
-	 * was not helpful.. */
-	write_reg(0x21212121, VSCOEFF0);
-	write_reg(0x21212121, VSCOEFF1);
-	write_reg(0x21212121, VSCOEFF2);
-	write_reg(0x21212121, VSCOEFF3);
-	write_reg(0x21212121, VSCOEFF4);
-	write_reg(0x00000000, HSCOEFF0);
-	write_reg(0x00000000, HSCOEFF1);
-	write_reg(0x00000000, HSCOEFF2);
-	write_reg(0x03020201, HSCOEFF3);
-	write_reg(0x09070604, HSCOEFF4);
-	write_reg(0x0f0e0c0a, HSCOEFF5);
-	write_reg(0x15141211, HSCOEFF6);
-	write_reg(0x19181716, HSCOEFF7);
-	write_reg(0x00000019, HSCOEFF8);
 
 	/* Clock */
 	if (set->enable)
@@ -492,27 +468,206 @@ static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 	return 0;
 }
 
+static int mbxfb_ioctl_planeorder(struct mbxfb_planeorder *porder)
+{
+	unsigned long gscadr, vscadr;
+
+	if (porder->bottom == porder->top)
+		return -EINVAL;
+
+	gscadr = readl(GSCADR);
+	vscadr = readl(VSCADR);
+
+	gscadr &= ~(FMsk(GSCADR_BLEND_POS));
+	vscadr &= ~(FMsk(VSCADR_BLEND_POS));
+
+	switch (porder->bottom) {
+	case MBXFB_PLANE_GRAPHICS:
+		gscadr |= GSCADR_BLEND_GFX;
+		break;
+	case MBXFB_PLANE_VIDEO:
+		vscadr |= VSCADR_BLEND_GFX;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (porder->top) {
+	case MBXFB_PLANE_GRAPHICS:
+		gscadr |= GSCADR_BLEND_VID;
+		break;
+	case MBXFB_PLANE_VIDEO:
+		vscadr |= GSCADR_BLEND_VID;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	write_reg_dly(vscadr, VSCADR);
+	write_reg_dly(gscadr, GSCADR);
+
+	return 0;
+
+}
+
+static int mbxfb_ioctl_alphactl(struct mbxfb_alphaCtl *alpha)
+{
+	unsigned long vscadr, vbbase, vcmsk;
+	unsigned long gscadr, gbbase, gdrctrl;
+
+	vbbase = Vbbase_Glalpha(alpha->overlay_global_alpha) |
+				Vbbase_Colkey(alpha->overlay_colorkey);
+
+	gbbase = Gbbase_Glalpha(alpha->graphics_global_alpha) |
+				Gbbase_Colkey(alpha->graphics_colorkey);
+
+	vcmsk = readl(VCMSK);
+	vcmsk &= ~(FMsk(VCMSK_COLKEY_M));
+	vcmsk |= Vcmsk_colkey_m(alpha->overlay_colorkey_mask);
+
+	gdrctrl = readl(GDRCTRL);
+	gdrctrl &= ~(FMsk(GDRCTRL_COLKEYM));
+	gdrctrl |= Gdrctrl_Colkeym(alpha->graphics_colorkey_mask);
+
+	vscadr = readl(VSCADR);
+	vscadr &= ~(FMsk(VSCADR_BLEND_M) | VSCADR_COLKEYSRC | VSCADR_COLKEY_EN);
+
+	gscadr = readl(GSCADR);
+	gscadr &= ~(FMsk(GSCADR_BLEND_M) | GSCADR_COLKEY_EN | GSCADR_COLKEYSRC);
+
+	switch (alpha->overlay_colorkey_mode) {
+	case MBXFB_COLORKEY_DISABLED:
+		break;
+	case MBXFB_COLORKEY_PREVIOUS:
+		vscadr |= VSCADR_COLKEY_EN;
+		break;
+	case MBXFB_COLORKEY_CURRENT:
+		vscadr |= VSCADR_COLKEY_EN | VSCADR_COLKEYSRC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (alpha->overlay_blend_mode) {
+	case MBXFB_ALPHABLEND_NONE:
+		vscadr |= VSCADR_BLEND_NONE;
+		break;
+	case MBXFB_ALPHABLEND_GLOBAL:
+		vscadr |= VSCADR_BLEND_GLOB;
+		break;
+	case MBXFB_ALPHABLEND_PIXEL:
+		vscadr |= VSCADR_BLEND_PIX;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (alpha->graphics_colorkey_mode) {
+	case MBXFB_COLORKEY_DISABLED:
+		break;
+	case MBXFB_COLORKEY_PREVIOUS:
+		gscadr |= GSCADR_COLKEY_EN;
+		break;
+	case MBXFB_COLORKEY_CURRENT:
+		gscadr |= GSCADR_COLKEY_EN | GSCADR_COLKEYSRC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (alpha->graphics_blend_mode) {
+	case MBXFB_ALPHABLEND_NONE:
+		gscadr |= GSCADR_BLEND_NONE;
+		break;
+	case MBXFB_ALPHABLEND_GLOBAL:
+		gscadr |= GSCADR_BLEND_GLOB;
+		break;
+	case MBXFB_ALPHABLEND_PIXEL:
+		gscadr |= GSCADR_BLEND_PIX;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	write_reg_dly(vbbase, VBBASE);
+	write_reg_dly(gbbase, GBBASE);
+	write_reg_dly(vcmsk, VCMSK);
+	write_reg_dly(gdrctrl, GDRCTRL);
+	write_reg_dly(gscadr, GSCADR);
+	write_reg_dly(vscadr, VSCADR);
+
+	return 0;
+}
+
 static int mbxfb_ioctl(struct fb_info *info, unsigned int cmd,
 				unsigned long arg)
 {
-	struct mbxfb_overlaySetup setup;
+	struct mbxfb_overlaySetup	setup;
+	struct mbxfb_planeorder 	porder;
+	struct mbxfb_alphaCtl 		alpha;
+	struct mbxfb_reg			reg;
 	int res;
+	__u32 tmp;
 
-	if (cmd == MBXFB_IOCX_OVERLAY)
+	switch (cmd)
 	{
-		if (copy_from_user(&setup, (void __user*)arg,
-					sizeof(struct mbxfb_overlaySetup)))
+		case MBXFB_IOCX_OVERLAY:
+			if (copy_from_user(&setup, (void __user*)arg,
+						sizeof(struct mbxfb_overlaySetup)))
+				return -EFAULT;
+
+			res = mbxfb_setupOverlay(&setup);
+			if (res)
+				return res;
+
+			if (copy_to_user((void __user*)arg, &setup,
+						sizeof(struct mbxfb_overlaySetup)))
+				return -EFAULT;
+
+			return 0;
+
+		case MBXFB_IOCS_PLANEORDER:
+			if (copy_from_user(&porder, (void __user*)arg,
+					sizeof(struct mbxfb_planeorder)))
 			return -EFAULT;
 
-		res = mbxfb_setupOverlay(&setup);
-		if (res)
-			return res;
+			return mbxfb_ioctl_planeorder(&porder);
 
-		if (copy_to_user((void __user*)arg, &setup,
-					sizeof(struct mbxfb_overlaySetup)))
+		case MBXFB_IOCS_ALPHA:
+			if (copy_from_user(&alpha, (void __user*)arg,
+					sizeof(struct mbxfb_alphaCtl)))
 			return -EFAULT;
 
-		return 0;
+			return mbxfb_ioctl_alphactl(&alpha);
+
+		case MBXFB_IOCS_REG:
+			if (copy_from_user(&reg, (void __user*)arg,
+						sizeof(struct mbxfb_reg)))
+				return -EFAULT;
+
+			if (reg.addr >= 0x10000) /* regs are from 0x3fe0000 to 0x3feffff */
+				return -EINVAL;
+
+			tmp = readl(virt_base_2700 + reg.addr);
+			tmp &= ~reg.mask;
+			tmp |= reg.val & reg.mask;
+			writel(tmp, virt_base_2700 + reg.addr);
+
+			return 0;
+		case MBXFB_IOCX_REG:
+			if (copy_from_user(&reg, (void __user*)arg,
+						sizeof(struct mbxfb_reg)))
+				return -EFAULT;
+
+			if (reg.addr >= 0x10000)	/* regs are from 0x3fe0000 to 0x3feffff */
+				return -EINVAL;
+			reg.val = readl(virt_base_2700 + reg.addr);
+
+			if (copy_to_user((void __user*)arg, &reg,
+						sizeof(struct mbxfb_reg)))
+				return -EFAULT;
+
+			return 0;
 	}
 	return -EINVAL;
 }
@@ -558,7 +713,6 @@ static void __devinit setup_memc(struct fb_info *fbi)
 	       LMTYPE);
 	/* enable memory controller */
 	write_reg_dly(LMPWR_MC_PWR_ACT, LMPWR);
-
 	/* perform dummy reads */
 	for ( i = 0; i < 16; i++ ) {
 		tmp = readl(fbi->screen_base);
@@ -588,8 +742,8 @@ static void enable_clocks(struct fb_info *fbi)
 	write_reg_dly(0x00000000, VOVRCLK);
 	write_reg_dly(PIXCLK_EN, PIXCLK);
 	write_reg_dly(MEMCLK_EN, MEMCLK);
-	write_reg_dly(0x00000006, M24CLK);
-	write_reg_dly(0x00000006, MBXCLK);
+	write_reg_dly(0x00000001, M24CLK);
+	write_reg_dly(0x00000001, MBXCLK);
 	write_reg_dly(SDCLK_EN, SDCLK);
 	write_reg_dly(0x00000001, PIXCLKDIV);
 }
@@ -597,6 +751,7 @@ static void enable_clocks(struct fb_info *fbi)
 static void __devinit setup_graphics(struct fb_info *fbi)
 {
 	unsigned long gsctrl;
+	unsigned long vscadr;
 
 	gsctrl = GSCTRL_GAMMA_EN | Gsctrl_Width(fbi->var.xres) |
 		Gsctrl_Height(fbi->var.yres);
@@ -620,6 +775,11 @@ static void __devinit setup_graphics(struct fb_info *fbi)
 	write_reg_dly(0x00ffffff, GDRCTRL);
 	write_reg_dly((GSCADR_STR_EN | Gscadr_Gbase_Adr(0x6000)), GSCADR);
 	write_reg_dly(0x00000000, GPLUT);
+
+	vscadr = readl(VSCADR);
+	vscadr &= ~(FMsk(VSCADR_BLEND_POS) | FMsk(VSCADR_BLEND_M));
+	vscadr |= VSCADR_BLEND_VID | VSCADR_BLEND_NONE;
+	write_reg_dly(vscadr, VSCADR);
 }
 
 static void __devinit setup_display(struct fb_info *fbi)
@@ -638,13 +798,47 @@ static void __devinit setup_display(struct fb_info *fbi)
 
 static void __devinit enable_controller(struct fb_info *fbi)
 {
+	u32 svctrl, shctrl;
+
 	write_reg_dly(SYSRST_RST, SYSRST);
 
+	/* setup a timeout, raise drive strength */
+	write_reg_dly(0xffffff0c, SYSCFG);
 
 	enable_clocks(fbi);
 	setup_memc(fbi);
 	setup_graphics(fbi);
 	setup_display(fbi);
+
+	shctrl = readl(SHCTRL);
+	shctrl &= ~(FMsk(SHCTRL_HINITIAL));
+	shctrl |= Shctrl_Hinitial(4<<11);
+	writel(shctrl, SHCTRL);
+
+	svctrl = Svctrl_Initial1(1<<10) | Svctrl_Initial2(1<<10);
+	writel(svctrl, SVCTRL);
+
+	writel(SPOCTRL_H_SC_BP | SPOCTRL_V_SC_BP | SPOCTRL_VORDER_4TAP
+			, SPOCTRL);
+
+	/* Those coefficients are good for scaling up. For scaling
+	 * down, the application has to calculate them. */
+	write_reg(0xff000100, VSCOEFF0);
+	write_reg(0xfdfcfdfe, VSCOEFF1);
+	write_reg(0x170d0500, VSCOEFF2);
+	write_reg(0x3d372d22, VSCOEFF3);
+	write_reg(0x00000040, VSCOEFF4);
+
+	write_reg(0xff010100, HSCOEFF0);
+	write_reg(0x00000000, HSCOEFF1);
+	write_reg(0x02010000, HSCOEFF2);
+	write_reg(0x01020302, HSCOEFF3);
+	write_reg(0xf9fbfe00, HSCOEFF4);
+	write_reg(0xfbf7f6f7, HSCOEFF5);
+	write_reg(0x1c110700, HSCOEFF6);
+	write_reg(0x3e393127, HSCOEFF7);
+	write_reg(0x00000040, HSCOEFF8);
+
 }
 
 #ifdef CONFIG_PM
