@@ -47,7 +47,7 @@ int ext4_sync_file(struct file * file, struct dentry *dentry, int datasync)
 	struct inode *inode = dentry->d_inode;
 	int ret = 0;
 
-	J_ASSERT(ext4_journal_current_handle() == 0);
+	J_ASSERT(ext4_journal_current_handle() == NULL);
 
 	/*
 	 * data=writeback:

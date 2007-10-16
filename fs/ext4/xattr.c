@@ -1120,7 +1120,7 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 	int total_ino, total_blk;
 	void *base, *start, *end;
 	int extra_isize = 0, error = 0, tried_min_extra_isize = 0;
-	int s_min_extra_isize = EXT4_SB(inode->i_sb)->s_es->s_min_extra_isize;
+	int s_min_extra_isize = le16_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_min_extra_isize);
 
 	down_write(&EXT4_I(inode)->xattr_sem);
 retry:
@@ -1292,7 +1292,7 @@ retry:
 
 		i.name = b_entry_name;
 		i.value = buffer;
-		i.value_len = cpu_to_le32(size);
+		i.value_len = size;
 		error = ext4_xattr_block_find(inode, &i, bs);
 		if (error)
 			goto cleanup;
