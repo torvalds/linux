@@ -74,6 +74,52 @@ static __u32 cifs_ssetup_hdr(struct cifsSesInfo *ses, SESSION_SETUP_ANDX *pSMB)
 	return capabilities;
 }
 
+static void
+unicode_oslm_strings(char **pbcc_area, const struct nls_table *nls_cp)
+{
+	char *bcc_ptr = *pbcc_area;
+	int bytes_ret = 0;
+
+	/* Copy OS version */
+	bytes_ret = cifs_strtoUCS((__le16 *)bcc_ptr, "Linux version ", 32,
+				  nls_cp);
+	bcc_ptr += 2 * bytes_ret;
+	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, init_utsname()->release,
+				  32, nls_cp);
+	bcc_ptr += 2 * bytes_ret;
+	bcc_ptr += 2; /* trailing null */
+
+	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
+				  32, nls_cp);
+	bcc_ptr += 2 * bytes_ret;
+	bcc_ptr += 2; /* trailing null */
+
+	*pbcc_area = bcc_ptr;
+}
+
+static void unicode_domain_string(char **pbcc_area, struct cifsSesInfo *ses,
+				   const struct nls_table *nls_cp)
+{
+	char *bcc_ptr = *pbcc_area;
+	int bytes_ret = 0;
+
+	/* copy domain */
+	if (ses->domainName == NULL) {
+		/* Sending null domain better than using a bogus domain name (as
+		we did briefly in 2.6.18) since server will use its default */
+		*bcc_ptr = 0;
+		*(bcc_ptr+1) = 0;
+		bytes_ret = 0;
+	} else
+		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->domainName,
+					  256, nls_cp);
+	bcc_ptr += 2 * bytes_ret;
+	bcc_ptr += 2;  /* account for null terminator */
+
+	*pbcc_area = bcc_ptr;
+}
+
+
 static void unicode_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 				   const struct nls_table *nls_cp)
 {
@@ -99,32 +145,9 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 	}
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* account for null termination */
-	/* copy domain */
-	if (ses->domainName == NULL) {
-		/* Sending null domain better than using a bogus domain name (as
-		we did briefly in 2.6.18) since server will use its default */
-		*bcc_ptr = 0;
-		*(bcc_ptr+1) = 0;
-		bytes_ret = 0;
-	} else
-		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->domainName,
-					  256, nls_cp);
-	bcc_ptr += 2 * bytes_ret;
-	bcc_ptr += 2;  /* account for null terminator */
 
-	/* Copy OS version */
-	bytes_ret = cifs_strtoUCS((__le16 *)bcc_ptr, "Linux version ", 32,
-				  nls_cp);
-	bcc_ptr += 2 * bytes_ret;
-	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, init_utsname()->release,
-				  32, nls_cp);
-	bcc_ptr += 2 * bytes_ret;
-	bcc_ptr += 2; /* trailing null */
-
-	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
-				  32, nls_cp);
-	bcc_ptr += 2 * bytes_ret;
-	bcc_ptr += 2; /* trailing null */
+	unicode_domain_string(&bcc_ptr, ses, nls_cp);
+	unicode_oslm_strings(&bcc_ptr, nls_cp);
 
 	*pbcc_area = bcc_ptr;
 }

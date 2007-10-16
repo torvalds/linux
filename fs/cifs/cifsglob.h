@@ -495,9 +495,15 @@ require use of the stronger protocol */
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 #define   CIFSSEC_MUST_LANMAN	0x10010
 #define   CIFSSEC_MUST_PLNTXT	0x20020
-#define   CIFSSEC_MASK          0x37037 /* current flags supported if weak */
+#ifdef CONFIG_CIFS_UPCALL
+#define   CIFSSEC_MASK          0x3F03F /* allows weak security but also krb5 */
 #else
-#define	  CIFSSEC_MASK          0x07007 /* flags supported if no weak config */
+#define   CIFSSEC_MASK          0x37037 /* current flags supported if weak */
+#else /* do not allow weak pw hash */
+#ifdef CONFIG_CIFS_UPCALL
+#define   CIFSSEC_MASK          0x0F00F /* flags supported if no weak allowed */
+#else
+#define	  CIFSSEC_MASK          0x07007 /* flags supported if no weak allowed */
 #endif /* WEAK_PW_HASH */
 #define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
 
