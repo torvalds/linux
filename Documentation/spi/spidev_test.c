@@ -29,7 +29,7 @@ static void pabort(const char *s)
 	abort();
 }
 
-static char *device = "/dev/spidev1.1";
+static const char *device = "/dev/spidev1.1";
 static uint8_t mode;
 static uint8_t bits = 8;
 static uint32_t speed = 500000;
@@ -69,7 +69,7 @@ static void transfer(int fd)
 	puts("");
 }
 
-void print_usage(char *prog)
+void print_usage(const char *prog)
 {
 	printf("Usage: %s [-DsbdlHOLC3]\n", prog);
 	puts("  -D --device   device to use (default /dev/spidev1.1)\n"
@@ -88,7 +88,7 @@ void print_usage(char *prog)
 void parse_opts(int argc, char *argv[])
 {
 	while (1) {
-		static struct option lopts[] = {
+		static const struct option lopts[] = {
 			{ "device",  1, 0, 'D' },
 			{ "speed",   1, 0, 's' },
 			{ "delay",   1, 0, 'd' },
