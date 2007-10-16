@@ -35,7 +35,6 @@
  * driver by Ilario Nardinocchi, which in turn is based on skeletonfb.
  *
  * TODO:
- * - support for 16/32 bpp needs fixing (funky bootup penguin)
  * - multihead support (basically need to support an array of fb_infos)
  * - support other architectures (PPC, Alpha); does the fact that the VGA
  *   core can be accessed only thru I/O (not memory mapped) complicate
@@ -184,30 +183,38 @@ static inline void vga_outb(struct tdfx_par *par, u32 reg, u8 val)
 static inline void gra_outb(struct tdfx_par *par, u32 idx, u8 val)
 {
 	vga_outb(par, GRA_I, idx);
+	wmb();
 	vga_outb(par, GRA_D, val);
+	wmb();
 }
 
 static inline void seq_outb(struct tdfx_par *par, u32 idx, u8 val)
 {
 	vga_outb(par, SEQ_I, idx);
+	wmb();
 	vga_outb(par, SEQ_D, val);
+	wmb();
 }
 
 static inline u8 seq_inb(struct tdfx_par *par, u32 idx)
 {
 	vga_outb(par, SEQ_I, idx);
+	mb();
 	return vga_inb(par, SEQ_D);
 }
 
 static inline void crt_outb(struct tdfx_par *par, u32 idx, u8 val)
 {
 	vga_outb(par, CRT_I, idx);
+	wmb();
 	vga_outb(par, CRT_D, val);
+	wmb();
 }
 
 static inline u8 crt_inb(struct tdfx_par *par, u32 idx)
 {
 	vga_outb(par, CRT_I, idx);
+	mb();
 	return vga_inb(par, CRT_D);
 }
 
@@ -243,6 +250,7 @@ static inline void vga_enable_video(struct tdfx_par *par)
 static inline void vga_enable_palette(struct tdfx_par *par)
 {
 	vga_inb(par, IS1_R);
+	mb();
 	vga_outb(par, ATT_IW, 0x20);
 }
 
@@ -286,6 +294,8 @@ static inline void do_setpalentry(struct tdfx_par *par, unsigned regno, u32 c)
 {  
 	banshee_make_room(par, 2);
 	tdfx_outl(par, DACADDR, regno);
+	/* read after write makes it working */
+	tdfx_inl(par, DACADDR);
 	tdfx_outl(par, DACDATA, c);
 }
 
@@ -770,6 +780,12 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	if (regno >= info->cmap.len || regno > 255)
 		return 1;
+
+	/* grayscale works only partially under directcolor */
+	if (info->var.grayscale) {
+		/* grayscale = 0.30*R + 0.59*G + 0.11*B */
+		red = green = blue = (red * 77 + green * 151 + blue * 28) >> 8;
+	}
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_PSEUDOCOLOR:
