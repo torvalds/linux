@@ -481,7 +481,7 @@ static void uwire_off(struct uwire_spi *uwire)
 	spi_master_put(uwire->bitbang.master);
 }
 
-static int uwire_probe(struct platform_device *pdev)
+static int __init uwire_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct uwire_spi	*uwire;
@@ -525,7 +525,7 @@ static int uwire_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int uwire_remove(struct platform_device *pdev)
+static int __exit uwire_remove(struct platform_device *pdev)
 {
 	struct uwire_spi	*uwire = dev_get_drvdata(&pdev->dev);
 	int			status;
@@ -543,8 +543,7 @@ static struct platform_driver uwire_driver = {
 		.bus		= &platform_bus_type,
 		.owner		= THIS_MODULE,
 	},
-	.probe		= uwire_probe,
-	.remove		= uwire_remove,
+	.remove		= __exit_p(uwire_remove),
 	// suspend ... unuse ck
 	// resume ... use ck
 };
@@ -566,7 +565,7 @@ static int __init omap_uwire_init(void)
 		omap_writel(val | 0x00AAA000, OMAP730_IO_CONF_9);
 	}
 
-	return platform_driver_register(&uwire_driver);
+	return platform_driver_probe(&uwire_driver, uwire_probe);
 }
 
 static void __exit omap_uwire_exit(void)

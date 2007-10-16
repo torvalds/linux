@@ -1361,7 +1361,7 @@ static void cleanup(struct spi_device *spi)
 	kfree(spi_get_ctldata(spi));
 }
 
-static int init_queue(struct driver_data *drv_data)
+static int __init init_queue(struct driver_data *drv_data)
 {
 	INIT_LIST_HEAD(&drv_data->queue);
 	spin_lock_init(&drv_data->lock);
@@ -1444,7 +1444,7 @@ static int destroy_queue(struct driver_data *drv_data)
 	return 0;
 }
 
-static int spi_imx_probe(struct platform_device *pdev)
+static int __init spi_imx_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct spi_imx_master *platform_info;
@@ -1622,7 +1622,7 @@ err_no_mem:
 	return status;
 }
 
-static int __devexit spi_imx_remove(struct platform_device *pdev)
+static int __exit spi_imx_remove(struct platform_device *pdev)
 {
 	struct driver_data *drv_data = platform_get_drvdata(pdev);
 	int irq;
@@ -1739,8 +1739,7 @@ static struct platform_driver driver = {
 		.bus = &platform_bus_type,
 		.owner = THIS_MODULE,
 	},
-	.probe = spi_imx_probe,
-	.remove = __devexit_p(spi_imx_remove),
+	.remove = __exit_p(spi_imx_remove),
 	.shutdown = spi_imx_shutdown,
 	.suspend = spi_imx_suspend,
 	.resume = spi_imx_resume,
@@ -1748,7 +1747,7 @@ static struct platform_driver driver = {
 
 static int __init spi_imx_init(void)
 {
-	return platform_driver_register(&driver);
+	return platform_driver_probe(&driver, spi_imx_probe);
 }
 module_init(spi_imx_init);
 
