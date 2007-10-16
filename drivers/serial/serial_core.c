@@ -1938,9 +1938,24 @@ static void uart_change_pm(struct uart_state *state, int pm_state)
 	}
 }
 
+struct uart_match {
+	struct uart_port *port;
+	struct uart_driver *driver;
+};
+
+static int serial_match_port(struct device *dev, void *data)
+{
+	struct uart_match *match = data;
+	dev_t devt = MKDEV(match->driver->major, match->driver->minor) + match->port->line;
+
+	return dev->devt == devt; /* Actually, only one tty per port */
+}
+
 int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 {
 	struct uart_state *state = drv->state + port->line;
+	struct device *tty_dev;
+	struct uart_match match = {port, drv};
 
 	mutex_lock(&state->mutex);
 
@@ -1950,6 +1965,15 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 		return 0;
 	}
 #endif
+
+	tty_dev = device_find_child(port->dev, &match, serial_match_port);
+	if (device_may_wakeup(tty_dev)) {
+		enable_irq_wake(port->irq);
+		put_device(tty_dev);
+		mutex_unlock(&state->mutex);
+		return 0;
+	}
+	port->suspended = 1;
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
 		const struct uart_ops *ops = port->ops;
@@ -1998,6 +2022,13 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		return 0;
 	}
 #endif
+
+	if (!port->suspended) {
+		disable_irq_wake(port->irq);
+		mutex_unlock(&state->mutex);
+		return 0;
+	}
+	port->suspended = 0;
 
 	uart_change_pm(state, 0);
 
@@ -2278,6 +2309,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 {
 	struct uart_state *state;
 	int ret = 0;
+	struct device *tty_dev;
 
 	BUG_ON(in_interrupt());
 
@@ -2314,7 +2346,13 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	 * Register the port whether it's detected or not.  This allows
 	 * setserial to be used to alter this ports parameters.
 	 */
-	tty_register_device(drv->tty_driver, port->line, port->dev);
+	tty_dev = tty_register_device(drv->tty_driver, port->line, port->dev);
+	if (likely(!IS_ERR(tty_dev))) {
+		device_can_wakeup(tty_dev) = 1;
+		device_set_wakeup_enable(tty_dev, 0);
+	} else
+		printk(KERN_ERR "Cannot register tty device on line %d\n",
+		       port->line);
 
 	/*
 	 * Ensure UPF_DEAD is not set.
