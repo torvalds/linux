@@ -11,6 +11,7 @@ void xen_copy_trap_info(struct trap_info *traps);
 
 DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DECLARE_PER_CPU(unsigned long, xen_cr3);
+DECLARE_PER_CPU(unsigned long, xen_current_cr3);
 
 extern struct start_info *xen_start_info;
 extern struct shared_info *HYPERVISOR_shared_info;

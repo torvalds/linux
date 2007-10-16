@@ -53,7 +53,23 @@ EXPORT_SYMBOL_GPL(hypercall_page);
 
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
-DEFINE_PER_CPU(unsigned long, xen_cr3);
+
+/*
+ * Note about cr3 (pagetable base) values:
+ *
+ * xen_cr3 contains the current logical cr3 value; it contains the
+ * last set cr3.  This may not be the current effective cr3, because
+ * its update may be being lazily deferred.  However, a vcpu looking
+ * at its own cr3 can use this value knowing that it everything will
+ * be self-consistent.
+ *
+ * xen_current_cr3 contains the actual vcpu cr3; it is set once the
+ * hypercall to set the vcpu cr3 is complete (so it may be a little
+ * out of date, but it will never be set early).  If one vcpu is
+ * looking at another vcpu's cr3 value, it should use this variable.
+ */
+DEFINE_PER_CPU(unsigned long, xen_cr3);	 /* cr3 stored as physaddr */
+DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
 
 struct start_info *xen_start_info;
 EXPORT_SYMBOL_GPL(xen_start_info);
@@ -610,32 +626,36 @@ static unsigned long xen_read_cr3(void)
 	return x86_read_percpu(xen_cr3);
 }
 
+static void set_current_cr3(void *v)
+{
+	x86_write_percpu(xen_current_cr3, (unsigned long)v);
+}
+
 static void xen_write_cr3(unsigned long cr3)
 {
+	struct mmuext_op *op;
+	struct multicall_space mcs;
+	unsigned long mfn = pfn_to_mfn(PFN_DOWN(cr3));
+
 	BUG_ON(preemptible());
 
-	if (cr3 == x86_read_percpu(xen_cr3)) {
-		/* just a simple tlb flush */
-		xen_flush_tlb();
-		return;
-	}
+	mcs = xen_mc_entry(sizeof(*op));  /* disables interrupts */
 
+	/* Update while interrupts are disabled, so its atomic with
+	   respect to ipis */
 	x86_write_percpu(xen_cr3, cr3);
 
+	op = mcs.args;
+	op->cmd = MMUEXT_NEW_BASEPTR;
+	op->arg1.mfn = mfn;
 
-	{
-		struct mmuext_op *op;
-		struct multicall_space mcs = xen_mc_entry(sizeof(*op));
-		unsigned long mfn = pfn_to_mfn(PFN_DOWN(cr3));
+	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
-		op = mcs.args;
-		op->cmd = MMUEXT_NEW_BASEPTR;
-		op->arg1.mfn = mfn;
+	/* Update xen_update_cr3 once the batch has actually
+	   been submitted. */
+	xen_mc_callback(set_current_cr3, (void *)cr3);
 
-		MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
-
-		xen_mc_issue(PARAVIRT_LAZY_CPU);
-	}
+	xen_mc_issue(PARAVIRT_LAZY_CPU);  /* interrupts restored */
 }
 
 /* Early in boot, while setting up the initial pagetable, assume
@@ -1120,6 +1140,7 @@ asmlinkage void __init xen_start_kernel(void)
 	/* keep using Xen gdt for now; no urgent need to change it */
 
 	x86_write_percpu(xen_cr3, __pa(pgd));
+	x86_write_percpu(xen_current_cr3, __pa(pgd));
 
 #ifdef CONFIG_SMP
 	/* Don't do the full vcpu_info placement stuff until we have a
