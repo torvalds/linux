@@ -621,22 +621,26 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC) &&
 		(server->capabilities & CAP_EXTENDED_SECURITY)) {
 		count = pSMBr->ByteCount;
-		if (count < 16)
+		if (count < 16) {
 			rc = -EIO;
-		else if (count == 16) {
-			server->secType = RawNTLMSSP;
-			if (server->socketUseCount.counter > 1) {
-				if (memcmp(server->server_GUID,
-					   pSMBr->u.extended_response.
-					   GUID, 16) != 0) {
-					cFYI(1, ("server UID changed"));
-					memcpy(server->server_GUID,
-						pSMBr->u.extended_response.GUID,
-						16);
-				}
-			} else
+			goto neg_err_exit;
+		}
+
+		if (server->socketUseCount.counter > 1) {
+			if (memcmp(server->server_GUID,
+				   pSMBr->u.extended_response.
+				   GUID, 16) != 0) {
+				cFYI(1, ("server UID changed"));
 				memcpy(server->server_GUID,
-				       pSMBr->u.extended_response.GUID, 16);
+					pSMBr->u.extended_response.GUID,
+					16);
+			}
+		} else
+			memcpy(server->server_GUID,
+			       pSMBr->u.extended_response.GUID, 16);
+
+		if (count == 16) {
+			server->secType = RawNTLMSSP;
 		} else {
 			rc = decode_negTokenInit(pSMBr->u.extended_response.
 						 SecurityBlob,
