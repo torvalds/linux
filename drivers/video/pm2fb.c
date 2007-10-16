@@ -1077,7 +1077,13 @@ static void pm2fb_fillrect (struct fb_info *info,
 		pm2_WR(par, PM2R_RENDER,
 				PM2F_RENDER_RECTANGLE | PM2F_RENDER_FASTFILL);
 	} else {
-		cfb_fillrect(info, region);
+		WAIT_FIFO(par, 4);
+		pm2_WR(par, PM2R_COLOR_DDA_MODE, 1);
+		pm2_WR(par, PM2R_CONSTANT_COLOR, color);
+		wmb();
+		pm2_WR(par, PM2R_RENDER,
+				PM2F_RENDER_RECTANGLE | PM2F_INCREASE_X | PM2F_INCREASE_Y );
+		pm2_WR(par, PM2R_COLOR_DDA_MODE, 0);
 	}
 }
 
