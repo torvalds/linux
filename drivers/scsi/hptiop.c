@@ -655,6 +655,7 @@ static struct scsi_host_template driver_template = {
 	.unchecked_isa_dma          = 0,
 	.emulated                   = 0,
 	.use_clustering             = ENABLE_CLUSTERING,
+	.use_sg_chaining            = ENABLE_SG_CHAINING,
 	.proc_name                  = driver_name,
 	.shost_attrs                = hptiop_attrs,
 	.this_id                    = -1,

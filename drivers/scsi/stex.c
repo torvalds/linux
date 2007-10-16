@@ -1123,6 +1123,7 @@ static struct scsi_host_template driver_template = {
 	.this_id			= -1,
 	.sg_tablesize			= ST_MAX_SG,
 	.cmd_per_lun			= ST_CMD_PER_LUN,
+	.use_sg_chaining		= ENABLE_SG_CHAINING,
 };
 
 static int stex_set_dma_mask(struct pci_dev * pdev)

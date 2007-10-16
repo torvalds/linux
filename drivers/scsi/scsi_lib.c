@@ -1645,7 +1645,10 @@ struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
 	 * converted, so better keep it safe.
 	 */
 #ifdef ARCH_HAS_SG_CHAIN
-	blk_queue_max_phys_segments(q, SCSI_MAX_SG_CHAIN_SEGMENTS);
+	if (shost->use_sg_chaining)
+		blk_queue_max_phys_segments(q, SCSI_MAX_SG_CHAIN_SEGMENTS);
+	else
+		blk_queue_max_phys_segments(q, SCSI_MAX_SG_SEGMENTS);
 #else
 	blk_queue_max_phys_segments(q, SCSI_MAX_SG_SEGMENTS);
 #endif

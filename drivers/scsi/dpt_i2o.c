@@ -3295,6 +3295,7 @@ static struct scsi_host_template adpt_template = {
 	.this_id		= 7,
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.use_sg_chaining	= ENABLE_SG_CHAINING,
 };
 
 static s32 adpt_scsi_register(adpt_hba* pHba)

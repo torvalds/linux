@@ -132,6 +132,7 @@ struct scsi_host_template qla2x00_driver_template = {
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.sg_tablesize		= SG_ALL,
 
 	/*
@@ -163,6 +164,7 @@ struct scsi_host_template qla24xx_driver_template = {
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.sg_tablesize		= SG_ALL,
 
 	.max_sectors		= 0xFFFF,
