@@ -2227,11 +2227,11 @@ EXPORT_SYMBOL(kmem_cache_destroy);
  *		Kmalloc subsystem
  *******************************************************************/
 
-struct kmem_cache kmalloc_caches[KMALLOC_SHIFT_HIGH + 1] __cacheline_aligned;
+struct kmem_cache kmalloc_caches[PAGE_SHIFT] __cacheline_aligned;
 EXPORT_SYMBOL(kmalloc_caches);
 
 #ifdef CONFIG_ZONE_DMA
-static struct kmem_cache *kmalloc_caches_dma[KMALLOC_SHIFT_HIGH + 1];
+static struct kmem_cache *kmalloc_caches_dma[PAGE_SHIFT];
 #endif
 
 static int __init setup_slub_min_order(char *str)
@@ -2397,12 +2397,8 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
 			return ZERO_SIZE_PTR;
 
 		index = size_index[(size - 1) / 8];
-	} else {
-		if (size > KMALLOC_MAX_SIZE)
-			return NULL;
-
+	} else
 		index = fls(size - 1);
-	}
 
 #ifdef CONFIG_ZONE_DMA
 	if (unlikely((flags & SLUB_DMA)))
@@ -2414,9 +2410,15 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
 
 void *__kmalloc(size_t size, gfp_t flags)
 {
-	struct kmem_cache *s = get_slab(size, flags);
+	struct kmem_cache *s;
 
-	if (ZERO_OR_NULL_PTR(s))
+	if (unlikely(size > PAGE_SIZE / 2))
+		return (void *)__get_free_pages(flags | __GFP_COMP,
+							get_order(size));
+
+	s = get_slab(size, flags);
+
+	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
 	return slab_alloc(s, flags, -1, __builtin_return_address(0));
@@ -2426,9 +2428,15 @@ EXPORT_SYMBOL(__kmalloc);
 #ifdef CONFIG_NUMA
 void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
-	struct kmem_cache *s = get_slab(size, flags);
+	struct kmem_cache *s;
 
-	if (ZERO_OR_NULL_PTR(s))
+	if (unlikely(size > PAGE_SIZE / 2))
+		return (void *)__get_free_pages(flags | __GFP_COMP,
+							get_order(size));
+
+	s = get_slab(size, flags);
+
+	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
 	return slab_alloc(s, flags, node, __builtin_return_address(0));
@@ -2473,22 +2481,17 @@ EXPORT_SYMBOL(ksize);
 
 void kfree(const void *x)
 {
-	struct kmem_cache *s;
 	struct page *page;
 
-	/*
-	 * This has to be an unsigned comparison. According to Linus
-	 * some gcc version treat a pointer as a signed entity. Then
-	 * this comparison would be true for all "negative" pointers
-	 * (which would cover the whole upper half of the address space).
-	 */
 	if (ZERO_OR_NULL_PTR(x))
 		return;
 
 	page = virt_to_head_page(x);
-	s = page->slab;
-
-	slab_free(s, page, (void *)x, __builtin_return_address(0));
+	if (unlikely(!PageSlab(page))) {
+		put_page(page);
+		return;
+	}
+	slab_free(page->slab, page, (void *)x, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(kfree);
 
@@ -2602,7 +2605,7 @@ void __init kmem_cache_init(void)
 		caches++;
 	}
 
-	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
+	for (i = KMALLOC_SHIFT_LOW; i < PAGE_SHIFT; i++) {
 		create_kmalloc_cache(&kmalloc_caches[i],
 			"kmalloc", 1 << i, GFP_KERNEL);
 		caches++;
@@ -2629,7 +2632,7 @@ void __init kmem_cache_init(void)
 	slab_state = UP;
 
 	/* Provide the correct kmalloc names now that the caches are up */
-	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
+	for (i = KMALLOC_SHIFT_LOW; i < PAGE_SHIFT; i++)
 		kmalloc_caches[i]. name =
 			kasprintf(GFP_KERNEL, "kmalloc-%d", 1 << i);
 
@@ -2790,7 +2793,12 @@ static struct notifier_block __cpuinitdata slab_notifier =
 
 void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
 {
-	struct kmem_cache *s = get_slab(size, gfpflags);
+	struct kmem_cache *s;
+
+	if (unlikely(size > PAGE_SIZE / 2))
+		return (void *)__get_free_pages(gfpflags | __GFP_COMP,
+							get_order(size));
+	s = get_slab(size, gfpflags);
 
 	if (ZERO_OR_NULL_PTR(s))
 		return s;
@@ -2801,7 +2809,12 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
 void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 					int node, void *caller)
 {
-	struct kmem_cache *s = get_slab(size, gfpflags);
+	struct kmem_cache *s;
+
+	if (unlikely(size > PAGE_SIZE / 2))
+		return (void *)__get_free_pages(gfpflags | __GFP_COMP,
+							get_order(size));
+	s = get_slab(size, gfpflags);
 
 	if (ZERO_OR_NULL_PTR(s))
 		return s;
