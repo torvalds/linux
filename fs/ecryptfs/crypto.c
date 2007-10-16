@@ -605,14 +605,14 @@ int ecryptfs_decrypt_page(struct page *page)
 			printk(KERN_ERR "%s: Error attempting to copy "
 			       "page at index [%ld]\n", __FUNCTION__,
 			       page->index);
-		goto out_clear_uptodate;
+		goto out;
 	}
 	enc_extent_virt = kmalloc(PAGE_CACHE_SIZE, GFP_USER);
 	if (!enc_extent_virt) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Error allocating memory for "
 				"encrypted extent\n");
-		goto out_clear_uptodate;
+		goto out;
 	}
 	enc_extent_page = virt_to_page(enc_extent_virt);
 	for (extent_offset = 0;
@@ -631,21 +631,17 @@ int ecryptfs_decrypt_page(struct page *page)
 			ecryptfs_printk(KERN_ERR, "Error attempting "
 					"to read lower page; rc = [%d]"
 					"\n", rc);
-			goto out_clear_uptodate;
+			goto out;
 		}
 		rc = ecryptfs_decrypt_extent(page, crypt_stat, enc_extent_page,
 					     extent_offset);
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting extent; "
 			       "rc = [%d]\n", __FUNCTION__, rc);
-			goto out_clear_uptodate;
+			goto out;
 		}
 		extent_offset++;
 	}
-	SetPageUptodate(page);
-	goto out;
-out_clear_uptodate:
-	ClearPageUptodate(page);
 out:
 	kfree(enc_extent_virt);
 	return rc;

@@ -142,8 +142,8 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 			if (num_bytes > total_remaining_zeros)
 				num_bytes = total_remaining_zeros;
 		}
-		ecryptfs_page = ecryptfs_get1page(ecryptfs_file,
-						  ecryptfs_page_idx);
+		ecryptfs_page = ecryptfs_get_locked_page(ecryptfs_file,
+							 ecryptfs_page_idx);
 		if (IS_ERR(ecryptfs_page)) {
 			rc = PTR_ERR(ecryptfs_page);
 			printk(KERN_ERR "%s: Error getting page at "
@@ -161,6 +161,7 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 				printk(KERN_ERR "%s: Error decrypting "
 				       "page; rc = [%d]\n",
 				       __FUNCTION__, rc);
+				ClearPageUptodate(ecryptfs_page);
 				page_cache_release(ecryptfs_page);
 				goto out;
 			}
@@ -180,14 +181,15 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 		}
 		kunmap_atomic(ecryptfs_page_virt, KM_USER0);
 		flush_dcache_page(ecryptfs_page);
+		SetPageUptodate(ecryptfs_page);
+		unlock_page(ecryptfs_page);
 		rc = ecryptfs_encrypt_page(ecryptfs_page);
+		page_cache_release(ecryptfs_page);
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting "
 			       "page; rc = [%d]\n", __FUNCTION__, rc);
-			page_cache_release(ecryptfs_page);
 			goto out;
 		}
-		page_cache_release(ecryptfs_page);
 		pos += num_bytes;
 	}
 	if ((offset + size) > ecryptfs_file_size) {
@@ -225,7 +227,6 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 		ecryptfs_inode_to_private(ecryptfs_inode);
 	ssize_t octets_read;
 	mm_segment_t fs_save;
-	size_t i;
 	int rc = 0;
 
 	mutex_lock(&inode_info->lower_file_mutex);
@@ -242,16 +243,6 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 		rc = -EINVAL;
 	}
 	mutex_unlock(&inode_info->lower_file_mutex);
-	for (i = 0; i < size; i += PAGE_CACHE_SIZE) {
-		struct page *data_page;
-
-		data_page = virt_to_page(data + i);
-		flush_dcache_page(data_page);
-		if (rc)
-			ClearPageUptodate(data_page);
-		else
-			SetPageUptodate(data_page);
-	}
 	return rc;
 }
 
@@ -283,6 +274,7 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 	virt = kmap(page_for_ecryptfs);
 	rc = ecryptfs_read_lower(virt, offset, size, ecryptfs_inode);
 	kunmap(page_for_ecryptfs);
+	flush_dcache_page(page_for_ecryptfs);
 	return rc;
 }
 
@@ -331,8 +323,8 @@ int ecryptfs_read(char *data, loff_t offset, size_t size,
 
 		if (num_bytes > total_remaining_bytes)
 			num_bytes = total_remaining_bytes;
-		ecryptfs_page = ecryptfs_get1page(ecryptfs_file,
-						  ecryptfs_page_idx);
+		ecryptfs_page = ecryptfs_get_locked_page(ecryptfs_file,
+							 ecryptfs_page_idx);
 		if (IS_ERR(ecryptfs_page)) {
 			rc = PTR_ERR(ecryptfs_page);
 			printk(KERN_ERR "%s: Error getting page at "
@@ -345,6 +337,7 @@ int ecryptfs_read(char *data, loff_t offset, size_t size,
 		if (rc) {
 			printk(KERN_ERR "%s: Error decrypting "
 			       "page; rc = [%d]\n", __FUNCTION__, rc);
+			ClearPageUptodate(ecryptfs_page);
 			page_cache_release(ecryptfs_page);
 			goto out;
 		}
@@ -353,6 +346,9 @@ int ecryptfs_read(char *data, loff_t offset, size_t size,
 		       ((char *)ecryptfs_page_virt + start_offset_in_page),
 		       num_bytes);
 		kunmap_atomic(ecryptfs_page_virt, KM_USER0);
+		flush_dcache_page(ecryptfs_page);
+		SetPageUptodate(ecryptfs_page);
+		unlock_page(ecryptfs_page);
 		page_cache_release(ecryptfs_page);
 		pos += num_bytes;
 		data_offset += num_bytes;

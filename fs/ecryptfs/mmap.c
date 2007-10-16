@@ -37,23 +37,27 @@
 struct kmem_cache *ecryptfs_lower_page_cache;
 
 /**
- * ecryptfs_get1page
+ * ecryptfs_get_locked_page
  *
  * Get one page from cache or lower f/s, return error otherwise.
  *
- * Returns unlocked and up-to-date page (if ok), with increased
+ * Returns locked and up-to-date page (if ok), with increased
  * refcnt.
  */
-struct page *ecryptfs_get1page(struct file *file, loff_t index)
+struct page *ecryptfs_get_locked_page(struct file *file, loff_t index)
 {
 	struct dentry *dentry;
 	struct inode *inode;
 	struct address_space *mapping;
+	struct page *page;
 
 	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	mapping = inode->i_mapping;
-	return read_mapping_page(mapping, index, (void *)file);
+	page = read_mapping_page(mapping, index, (void *)file);
+	if (!IS_ERR(page))
+		lock_page(page);
+	return page;
 }
 
 /**
@@ -146,12 +150,10 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			kunmap_atomic(page_virt, KM_USER0);
 			flush_dcache_page(page);
 			if (rc) {
-				ClearPageUptodate(page);
 				printk(KERN_ERR "%s: Error reading xattr "
 				       "region; rc = [%d]\n", __FUNCTION__, rc);
 				goto out;
 			}
-			SetPageUptodate(page);
 		} else {
 			/* This is an encrypted data extent */
 			loff_t lower_offset =
@@ -232,6 +234,10 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 		}
 	}
 out:
+	if (rc)
+		ClearPageUptodate(page);
+	else
+		SetPageUptodate(page);
 	ecryptfs_printk(KERN_DEBUG, "Unlocking page with index = [0x%.16x]\n",
 			page->index);
 	unlock_page(page);
@@ -265,10 +271,18 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 	if (from == 0 && to == PAGE_CACHE_SIZE)
 		goto out;	/* If we are writing a full page, it will be
 				   up to date. */
-	if (!PageUptodate(page))
+	if (!PageUptodate(page)) {
 		rc = ecryptfs_read_lower_page_segment(page, page->index, 0,
 						      PAGE_CACHE_SIZE,
 						      page->mapping->host);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attemping to read lower "
+			       "page segment; rc = [%d]\n", __FUNCTION__, rc);
+			ClearPageUptodate(page);
+			goto out;
+		} else
+			SetPageUptodate(page);
+	}
 	if (page->index != 0) {
 		loff_t end_of_prev_pg_pos =
 			(((loff_t)page->index << PAGE_CACHE_SHIFT) - 1);

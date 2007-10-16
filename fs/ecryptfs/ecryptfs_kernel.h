@@ -648,6 +648,6 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 				     struct inode *ecryptfs_inode);
 int ecryptfs_read(char *data, loff_t offset, size_t size,
 		  struct file *ecryptfs_file);
-struct page *ecryptfs_get1page(struct file *file, loff_t index);
+struct page *ecryptfs_get_locked_page(struct file *file, loff_t index);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */
