@@ -144,8 +144,8 @@ static int radeon_wait_irq(struct drm_device * dev, int swi_nr)
 	return ret;
 }
 
-int radeon_driver_vblank_do_wait(struct drm_device * dev, unsigned int *sequence,
-				 int crtc)
+static int radeon_driver_vblank_do_wait(struct drm_device * dev,
+					unsigned int *sequence, int crtc)
 {
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
