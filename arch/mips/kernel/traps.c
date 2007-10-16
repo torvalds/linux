@@ -9,9 +9,10 @@
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000, 01 MIPS Technologies, Inc.
- * Copyright (C) 2002, 2003, 2004, 2005  Maciej W. Rozycki
+ * Copyright (C) 2002, 2003, 2004, 2005, 2007  Maciej W. Rozycki
  */
 #include <linux/bug.h>
+#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -410,7 +411,7 @@ asmlinkage void do_be(struct pt_regs *regs)
 }
 
 /*
- * ll/sc emulation
+ * ll/sc, rdhwr, sync emulation
  */
 
 #define OPCODE 0xfc000000
@@ -419,9 +420,11 @@ asmlinkage void do_be(struct pt_regs *regs)
 #define OFFSET 0x0000ffff
 #define LL     0xc0000000
 #define SC     0xe0000000
+#define SPEC0  0x00000000
 #define SPEC3  0x7c000000
 #define RD     0x0000f800
 #define FUNC   0x0000003f
+#define SYNC   0x0000000f
 #define RDHWR  0x0000003b
 
 /*
@@ -432,11 +435,10 @@ unsigned long ll_bit;
 
 static struct task_struct *ll_task = NULL;
 
-static inline void simulate_ll(struct pt_regs *regs, unsigned int opcode)
+static inline int simulate_ll(struct pt_regs *regs, unsigned int opcode)
 {
 	unsigned long value, __user *vaddr;
 	long offset;
-	int signal = 0;
 
 	/*
 	 * analyse the ll instruction that just caused a ri exception
@@ -451,14 +453,10 @@ static inline void simulate_ll(struct pt_regs *regs, unsigned int opcode)
 	vaddr = (unsigned long __user *)
 	        ((unsigned long)(regs->regs[(opcode & BASE) >> 21]) + offset);
 
-	if ((unsigned long)vaddr & 3) {
-		signal = SIGBUS;
-		goto sig;
-	}
-	if (get_user(value, vaddr)) {
-		signal = SIGSEGV;
-		goto sig;
-	}
+	if ((unsigned long)vaddr & 3)
+		return SIGBUS;
+	if (get_user(value, vaddr))
+		return SIGSEGV;
 
 	preempt_disable();
 
@@ -471,22 +469,16 @@ static inline void simulate_ll(struct pt_regs *regs, unsigned int opcode)
 
 	preempt_enable();
 
-	compute_return_epc(regs);
-
 	regs->regs[(opcode & RT) >> 16] = value;
 
-	return;
-
-sig:
-	force_sig(signal, current);
+	return 0;
 }
 
-static inline void simulate_sc(struct pt_regs *regs, unsigned int opcode)
+static inline int simulate_sc(struct pt_regs *regs, unsigned int opcode)
 {
 	unsigned long __user *vaddr;
 	unsigned long reg;
 	long offset;
-	int signal = 0;
 
 	/*
 	 * analyse the sc instruction that just caused a ri exception
@@ -502,34 +494,25 @@ static inline void simulate_sc(struct pt_regs *regs, unsigned int opcode)
 	        ((unsigned long)(regs->regs[(opcode & BASE) >> 21]) + offset);
 	reg = (opcode & RT) >> 16;
 
-	if ((unsigned long)vaddr & 3) {
-		signal = SIGBUS;
-		goto sig;
-	}
+	if ((unsigned long)vaddr & 3)
+		return SIGBUS;
 
 	preempt_disable();
 
 	if (ll_bit == 0 || ll_task != current) {
-		compute_return_epc(regs);
 		regs->regs[reg] = 0;
 		preempt_enable();
-		return;
+		return 0;
 	}
 
 	preempt_enable();
 
-	if (put_user(regs->regs[reg], vaddr)) {
-		signal = SIGSEGV;
-		goto sig;
-	}
+	if (put_user(regs->regs[reg], vaddr))
+		return SIGSEGV;
 
-	compute_return_epc(regs);
 	regs->regs[reg] = 1;
 
-	return;
-
-sig:
-	force_sig(signal, current);
+	return 0;
 }
 
 /*
@@ -539,27 +522,14 @@ sig:
  * few processors such as NEC's VR4100 throw reserved instruction exceptions
  * instead, so we're doing the emulation thing in both exception handlers.
  */
-static inline int simulate_llsc(struct pt_regs *regs)
+static int simulate_llsc(struct pt_regs *regs, unsigned int opcode)
 {
-	unsigned int opcode;
+	if ((opcode & OPCODE) == LL)
+		return simulate_ll(regs, opcode);
+	if ((opcode & OPCODE) == SC)
+		return simulate_sc(regs, opcode);
 
-	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
-		goto out_sigsegv;
-
-	if ((opcode & OPCODE) == LL) {
-		simulate_ll(regs, opcode);
-		return 0;
-	}
-	if ((opcode & OPCODE) == SC) {
-		simulate_sc(regs, opcode);
-		return 0;
-	}
-
-	return -EFAULT;			/* Strange things going on ... */
-
-out_sigsegv:
-	force_sig(SIGSEGV, current);
-	return -EFAULT;
+	return -1;			/* Must be something else ... */
 }
 
 /*
@@ -567,16 +537,9 @@ out_sigsegv:
  * registers not implemented in hardware.  The only current use of this
  * is the thread area pointer.
  */
-static inline int simulate_rdhwr(struct pt_regs *regs)
+static int simulate_rdhwr(struct pt_regs *regs, unsigned int opcode)
 {
 	struct thread_info *ti = task_thread_info(current);
-	unsigned int opcode;
-
-	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
-		goto out_sigsegv;
-
-	if (unlikely(compute_return_epc(regs)))
-		return -EFAULT;
 
 	if ((opcode & OPCODE) == SPEC3 && (opcode & FUNC) == RDHWR) {
 		int rd = (opcode & RD) >> 11;
@@ -586,16 +549,20 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 				regs->regs[rt] = ti->tp_value;
 				return 0;
 			default:
-				return -EFAULT;
+				return -1;
 		}
 	}
 
 	/* Not ours.  */
-	return -EFAULT;
+	return -1;
+}
 
-out_sigsegv:
-	force_sig(SIGSEGV, current);
-	return -EFAULT;
+static int simulate_sync(struct pt_regs *regs, unsigned int opcode)
+{
+	if ((opcode & OPCODE) == SPEC0 && (opcode & FUNC) == SYNC)
+		return 0;
+
+	return -1;			/* Must be something else ... */
 }
 
 asmlinkage void do_ov(struct pt_regs *regs)
@@ -767,16 +734,35 @@ out_sigsegv:
 
 asmlinkage void do_ri(struct pt_regs *regs)
 {
+	unsigned int __user *epc = (unsigned int __user *)exception_epc(regs);
+	unsigned long old_epc = regs->cp0_epc;
+	unsigned int opcode = 0;
+	int status = -1;
+
 	die_if_kernel("Reserved instruction in kernel code", regs);
 
-	if (!cpu_has_llsc)
-		if (!simulate_llsc(regs))
-			return;
-
-	if (!simulate_rdhwr(regs))
+	if (unlikely(compute_return_epc(regs) < 0))
 		return;
 
-	force_sig(SIGILL, current);
+	if (unlikely(get_user(opcode, epc) < 0))
+		status = SIGSEGV;
+
+	if (!cpu_has_llsc && status < 0)
+		status = simulate_llsc(regs, opcode);
+
+	if (status < 0)
+		status = simulate_rdhwr(regs, opcode);
+
+	if (status < 0)
+		status = simulate_sync(regs, opcode);
+
+	if (status < 0)
+		status = SIGILL;
+
+	if (unlikely(status > 0)) {
+		regs->cp0_epc = old_epc;		/* Undo skip-over.  */
+		force_sig(status, current);
+	}
 }
 
 /*
@@ -808,7 +794,11 @@ static void mt_ase_fp_affinity(void)
 
 asmlinkage void do_cpu(struct pt_regs *regs)
 {
+	unsigned int __user *epc;
+	unsigned long old_epc;
+	unsigned int opcode;
 	unsigned int cpid;
+	int status;
 
 	die_if_kernel("do_cpu invoked from kernel context!", regs);
 
@@ -816,14 +806,32 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	switch (cpid) {
 	case 0:
-		if (!cpu_has_llsc)
-			if (!simulate_llsc(regs))
-				return;
+		epc = (unsigned int __user *)exception_epc(regs);
+		old_epc = regs->cp0_epc;
+		opcode = 0;
+		status = -1;
 
-		if (!simulate_rdhwr(regs))
+		if (unlikely(compute_return_epc(regs) < 0))
 			return;
 
-		break;
+		if (unlikely(get_user(opcode, epc) < 0))
+			status = SIGSEGV;
+
+		if (!cpu_has_llsc && status < 0)
+			status = simulate_llsc(regs, opcode);
+
+		if (status < 0)
+			status = simulate_rdhwr(regs, opcode);
+
+		if (status < 0)
+			status = SIGILL;
+
+		if (unlikely(status > 0)) {
+			regs->cp0_epc = old_epc;	/* Undo skip-over.  */
+			force_sig(status, current);
+		}
+
+		return;
 
 	case 1:
 		if (used_math())	/* Using the FPU again.  */
