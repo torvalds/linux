@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2004 - 2006 Intel Corporation. All rights reserved.
+ * Copyright(c) 2004 - 2007 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -21,6 +21,9 @@
 #ifndef _IOAT_REGISTERS_H_
 #define _IOAT_REGISTERS_H_
 
+#define IOAT_PCI_DMACTRL_OFFSET			0x48
+#define IOAT_PCI_DMACTRL_DMA_EN			0x00000001
+#define IOAT_PCI_DMACTRL_MSI_EN			0x00000002
 
 /* MMIO Device Registers */
 #define IOAT_CHANCNT_OFFSET			0x00	/*  8-bit */
@@ -39,6 +42,7 @@
 #define IOAT_INTRCTRL_MASTER_INT_EN		0x01	/* Master Interrupt Enable */
 #define IOAT_INTRCTRL_INT_STATUS		0x02	/* ATTNSTATUS -or- Channel Int */
 #define IOAT_INTRCTRL_INT			0x04	/* INT_STATUS -and- MASTER_INT_EN */
+#define IOAT_INTRCTRL_MSIX_VECTOR_CONTROL	0x08    /* Enable all MSI-X vectors */
 
 #define IOAT_ATTNSTATUS_OFFSET			0x04	/* Each bit is a channel */
 
