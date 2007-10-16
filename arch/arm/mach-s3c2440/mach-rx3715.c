@@ -123,6 +123,7 @@ static struct s3c2410fb_display rx3715_lcdcfg __initdata = {
 	.width		= 240,
 	.height		= 320,
 
+	.pixclock	= 260000,
 	.xres		= 240,
 	.yres		= 320,
 	.bpp		= 16,

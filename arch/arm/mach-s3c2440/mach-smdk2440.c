@@ -115,11 +115,12 @@ static struct s3c2410fb_display smdk2440_lcd_cfg __initdata = {
 			  S3C2410_LCDCON5_PWREN |
 			  S3C2410_LCDCON5_HWSWP,
 
-	.type		= S3C2410_LCDCON1_TFT16BPP,
+	.type		= S3C2410_LCDCON1_TFT,
 
 	.width		= 240,
 	.height		= 320,
 
+	.pixclock	= 166667, /* HCLK 60 MHz, divisor 10 */
 	.xres		= 240,
 	.yres		= 320,
 	.bpp		= 16,

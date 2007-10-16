@@ -199,6 +199,7 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 	var->width = display->width;
 
 	/* copy lcd settings */
+	var->pixclock = display->pixclock;
 	var->left_margin = display->left_margin;
 	var->right_margin = display->right_margin;
 	var->upper_margin = display->upper_margin;
@@ -297,10 +298,6 @@ static void s3c2410fb_calculate_stn_lcd_regs(const struct fb_info *info,
 	unsigned wdly = (var->left_margin >> 4) - 1;
 	unsigned wlh = (var->hsync_len >> 4) - 1;
 
-	dprintk("%s: var->xres  = %d\n", __FUNCTION__, var->xres);
-	dprintk("%s: var->yres  = %d\n", __FUNCTION__, var->yres);
-	dprintk("%s: var->bpp   = %d\n", __FUNCTION__, var->bits_per_pixel);
-
 	if (type != S3C2410_LCDCON1_STN4)
 		hs >>= 1;
 
@@ -358,10 +355,6 @@ static void s3c2410fb_calculate_tft_lcd_regs(const struct fb_info *info,
 {
 	const struct s3c2410fb_info *fbi = info->par;
 	const struct fb_var_screeninfo *var = &info->var;
-
-	dprintk("%s: var->xres  = %d\n", __FUNCTION__, var->xres);
-	dprintk("%s: var->yres  = %d\n", __FUNCTION__, var->yres);
-	dprintk("%s: var->bpp   = %d\n", __FUNCTION__, var->bits_per_pixel);
 
 	regs->lcdcon1 &= ~S3C2410_LCDCON1_MODEMASK;
 
@@ -427,28 +420,25 @@ static void s3c2410fb_activate_var(struct fb_info *info)
 	void __iomem *regs = fbi->io;
 	int type = fbi->regs.lcdcon1 & S3C2410_LCDCON1_TFT;
 	struct fb_var_screeninfo *var = &info->var;
+	int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock) / 2;
 
-	if (var->pixclock > 0) {
-		int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock);
+	dprintk("%s: var->xres  = %d\n", __FUNCTION__, var->xres);
+	dprintk("%s: var->yres  = %d\n", __FUNCTION__, var->yres);
+	dprintk("%s: var->bpp   = %d\n", __FUNCTION__, var->bits_per_pixel);
 
-		if (type == S3C2410_LCDCON1_TFT) {
-			clkdiv = (clkdiv / 2) - 1;
-			if (clkdiv < 0)
-				clkdiv = 0;
-		} else {
-			clkdiv = (clkdiv / 2);
-			if (clkdiv < 2)
-				clkdiv = 2;
-		}
-
-		fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_CLKVAL(0x3ff);
-		fbi->regs.lcdcon1 |=  S3C2410_LCDCON1_CLKVAL(clkdiv);
+	if (type == S3C2410_LCDCON1_TFT) {
+		s3c2410fb_calculate_tft_lcd_regs(info, &fbi->regs);
+		--clkdiv;
+		if (clkdiv < 0)
+			clkdiv = 0;
+	} else {
+		s3c2410fb_calculate_stn_lcd_regs(info, &fbi->regs);
+		if (clkdiv < 2)
+			clkdiv = 2;
 	}
 
-	if (type == S3C2410_LCDCON1_TFT)
-		s3c2410fb_calculate_tft_lcd_regs(info, &fbi->regs);
-	else
-		s3c2410fb_calculate_stn_lcd_regs(info, &fbi->regs);
+	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_CLKVAL(0x3ff);
+	fbi->regs.lcdcon1 |=  S3C2410_LCDCON1_CLKVAL(clkdiv);
 
 	/* write new registers */
 

@@ -174,6 +174,7 @@ static struct s3c2410fb_display __initdata amlm5900_lcd_info = {
 
 	.type		= S3C2410_LCDCON1_STN4,
 
+	.pixclock	= 680000, /* HCLK = 100MHz */
 	.xres		= 160,
 	.yres		= 160,
 	.bpp		= 4,

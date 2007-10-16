@@ -145,6 +145,7 @@ static struct s3c2410fb_display h1940_lcd __initdata = {
 	.type =		S3C2410_LCDCON1_TFT,
 	.width =	240,
 	.height =	320,
+	.pixclock =	260000,
 	.xres =		240,
 	.yres =		320,
 	.bpp =		16,
