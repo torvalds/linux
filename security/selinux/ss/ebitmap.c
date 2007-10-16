@@ -10,6 +10,10 @@
  *
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
  */
+/*
+ * Updated: KaiGai Kohei <kaigai@ak.jp.nec.com>
+ *      Applied standard bit operations to improve bitmap scanning.
+ */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -29,7 +33,7 @@ int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2)
 	n2 = e2->node;
 	while (n1 && n2 &&
 	       (n1->startbit == n2->startbit) &&
-	       (n1->map == n2->map)) {
+	       !memcmp(n1->maps, n2->maps, EBITMAP_SIZE / 8)) {
 		n1 = n1->next;
 		n2 = n2->next;
 	}
@@ -54,7 +58,7 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
 			return -ENOMEM;
 		}
 		new->startbit = n->startbit;
-		new->map = n->map;
+		memcpy(new->maps, n->maps, EBITMAP_SIZE / 8);
 		new->next = NULL;
 		if (prev)
 			prev->next = new;
@@ -84,13 +88,15 @@ int ebitmap_netlbl_export(struct ebitmap *ebmap,
 {
 	struct ebitmap_node *e_iter = ebmap->node;
 	struct netlbl_lsm_secattr_catmap *c_iter;
-	u32 cmap_idx;
+	u32 cmap_idx, cmap_sft;
+	int i;
 
-	/* This function is a much simpler because SELinux's MAPTYPE happens
-	 * to be the same as NetLabel's NETLBL_CATMAP_MAPTYPE, if MAPTYPE is
-	 * changed from a u64 this function will most likely need to be changed
-	 * as well.  It's not ideal but I think the tradeoff in terms of
-	 * neatness and speed is worth it. */
+	/* NetLabel's NETLBL_CATMAP_MAPTYPE is defined as an array of u64,
+	 * however, it is not always compatible with an array of unsigned long
+	 * in ebitmap_node.
+	 * In addition, you should pay attention the following implementation
+	 * assumes unsigned long has a width equal with or less than 64-bit.
+	 */
 
 	if (e_iter == NULL) {
 		*catmap = NULL;
@@ -104,19 +110,27 @@ int ebitmap_netlbl_export(struct ebitmap *ebmap,
 	c_iter->startbit = e_iter->startbit & ~(NETLBL_CATMAP_SIZE - 1);
 
 	while (e_iter != NULL) {
-		if (e_iter->startbit >=
-		    (c_iter->startbit + NETLBL_CATMAP_SIZE)) {
-			c_iter->next = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
-			if (c_iter->next == NULL)
-				goto netlbl_export_failure;
-			c_iter = c_iter->next;
-			c_iter->startbit = e_iter->startbit &
-				           ~(NETLBL_CATMAP_SIZE - 1);
+		for (i = 0; i < EBITMAP_UNIT_NUMS; i++) {
+			unsigned int delta, e_startbit, c_endbit;
+
+			e_startbit = e_iter->startbit + i * EBITMAP_UNIT_SIZE;
+			c_endbit = c_iter->startbit + NETLBL_CATMAP_SIZE;
+			if (e_startbit >= c_endbit) {
+				c_iter->next
+				  = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+				if (c_iter->next == NULL)
+					goto netlbl_export_failure;
+				c_iter = c_iter->next;
+				c_iter->startbit
+				  = e_startbit & ~(NETLBL_CATMAP_SIZE - 1);
+			}
+			delta = e_startbit - c_iter->startbit;
+			cmap_idx = delta / NETLBL_CATMAP_MAPSIZE;
+			cmap_sft = delta % NETLBL_CATMAP_MAPSIZE;
+			c_iter->bitmap[cmap_idx]
+				|= e_iter->maps[cmap_idx] << cmap_sft;
+			e_iter = e_iter->next;
 		}
-		cmap_idx = (e_iter->startbit - c_iter->startbit) /
-			   NETLBL_CATMAP_MAPSIZE;
-		c_iter->bitmap[cmap_idx] = e_iter->map;
-		e_iter = e_iter->next;
 	}
 
 	return 0;
@@ -128,7 +142,7 @@ netlbl_export_failure:
 
 /**
  * ebitmap_netlbl_import - Import a NetLabel category bitmap into an ebitmap
- * @ebmap: the ebitmap to export
+ * @ebmap: the ebitmap to import
  * @catmap: the NetLabel category bitmap
  *
  * Description:
@@ -142,36 +156,50 @@ int ebitmap_netlbl_import(struct ebitmap *ebmap,
 	struct ebitmap_node *e_iter = NULL;
 	struct ebitmap_node *emap_prev = NULL;
 	struct netlbl_lsm_secattr_catmap *c_iter = catmap;
-	u32 c_idx;
+	u32 c_idx, c_pos, e_idx, e_sft;
 
-	/* This function is a much simpler because SELinux's MAPTYPE happens
-	 * to be the same as NetLabel's NETLBL_CATMAP_MAPTYPE, if MAPTYPE is
-	 * changed from a u64 this function will most likely need to be changed
-	 * as well.  It's not ideal but I think the tradeoff in terms of
-	 * neatness and speed is worth it. */
+	/* NetLabel's NETLBL_CATMAP_MAPTYPE is defined as an array of u64,
+	 * however, it is not always compatible with an array of unsigned long
+	 * in ebitmap_node.
+	 * In addition, you should pay attention the following implementation
+	 * assumes unsigned long has a width equal with or less than 64-bit.
+	 */
 
 	do {
 		for (c_idx = 0; c_idx < NETLBL_CATMAP_MAPCNT; c_idx++) {
-			if (c_iter->bitmap[c_idx] == 0)
+			unsigned int delta;
+			u64 map = c_iter->bitmap[c_idx];
+
+			if (!map)
 				continue;
 
-			e_iter = kzalloc(sizeof(*e_iter), GFP_ATOMIC);
-			if (e_iter == NULL)
-				goto netlbl_import_failure;
-			if (emap_prev == NULL)
-				ebmap->node = e_iter;
-			else
-				emap_prev->next = e_iter;
-			emap_prev = e_iter;
-
-			e_iter->startbit = c_iter->startbit +
-				           NETLBL_CATMAP_MAPSIZE * c_idx;
-			e_iter->map = c_iter->bitmap[c_idx];
+			c_pos = c_iter->startbit
+				+ c_idx * NETLBL_CATMAP_MAPSIZE;
+			if (!e_iter
+			    || c_pos >= e_iter->startbit + EBITMAP_SIZE) {
+				e_iter = kzalloc(sizeof(*e_iter), GFP_ATOMIC);
+				if (!e_iter)
+					goto netlbl_import_failure;
+				e_iter->startbit
+					= c_pos - (c_pos % EBITMAP_SIZE);
+				if (emap_prev == NULL)
+					ebmap->node = e_iter;
+				else
+					emap_prev->next = e_iter;
+				emap_prev = e_iter;
+			}
+			delta = c_pos - e_iter->startbit;
+			e_idx = delta / EBITMAP_UNIT_SIZE;
+			e_sft = delta % EBITMAP_UNIT_SIZE;
+			while (map) {
+				e_iter->maps[e_idx++] |= map & (-1UL);
+				map = EBITMAP_SHIFT_UNIT_SIZE(map);
+			}
 		}
 		c_iter = c_iter->next;
 	} while (c_iter != NULL);
 	if (e_iter != NULL)
-		ebmap->highbit = e_iter->startbit + MAPSIZE;
+		ebmap->highbit = e_iter->startbit + EBITMAP_SIZE;
 	else
 		ebitmap_destroy(ebmap);
 
@@ -186,6 +214,7 @@ netlbl_import_failure:
 int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2)
 {
 	struct ebitmap_node *n1, *n2;
+	int i;
 
 	if (e1->highbit < e2->highbit)
 		return 0;
@@ -197,8 +226,10 @@ int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2)
 			n1 = n1->next;
 			continue;
 		}
-		if ((n1->map & n2->map) != n2->map)
-			return 0;
+		for (i = 0; i < EBITMAP_UNIT_NUMS; i++) {
+			if ((n1->maps[i] & n2->maps[i]) != n2->maps[i])
+				return 0;
+		}
 
 		n1 = n1->next;
 		n2 = n2->next;
@@ -219,12 +250,8 @@ int ebitmap_get_bit(struct ebitmap *e, unsigned long bit)
 
 	n = e->node;
 	while (n && (n->startbit <= bit)) {
-		if ((n->startbit + MAPSIZE) > bit) {
-			if (n->map & (MAPBIT << (bit - n->startbit)))
-				return 1;
-			else
-				return 0;
-		}
+		if ((n->startbit + EBITMAP_SIZE) > bit)
+			return ebitmap_node_get_bit(n, bit);
 		n = n->next;
 	}
 
@@ -238,31 +265,35 @@ int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value)
 	prev = NULL;
 	n = e->node;
 	while (n && n->startbit <= bit) {
-		if ((n->startbit + MAPSIZE) > bit) {
+		if ((n->startbit + EBITMAP_SIZE) > bit) {
 			if (value) {
-				n->map |= (MAPBIT << (bit - n->startbit));
+				ebitmap_node_set_bit(n, bit);
 			} else {
-				n->map &= ~(MAPBIT << (bit - n->startbit));
-				if (!n->map) {
-					/* drop this node from the bitmap */
+				unsigned int s;
 
-					if (!n->next) {
-						/*
-						 * this was the highest map
-						 * within the bitmap
-						 */
-						if (prev)
-							e->highbit = prev->startbit + MAPSIZE;
-						else
-							e->highbit = 0;
-					}
+				ebitmap_node_clr_bit(n, bit);
+
+				s = find_first_bit(n->maps, EBITMAP_SIZE);
+				if (s < EBITMAP_SIZE)
+					return 0;
+
+				/* drop this node from the bitmap */
+				if (!n->next) {
+					/*
+					 * this was the highest map
+					 * within the bitmap
+					 */
 					if (prev)
-						prev->next = n->next;
+						e->highbit = prev->startbit
+							     + EBITMAP_SIZE;
 					else
-						e->node = n->next;
-
-					kfree(n);
+						e->highbit = 0;
 				}
+				if (prev)
+					prev->next = n->next;
+				else
+					e->node = n->next;
+				kfree(n);
 			}
 			return 0;
 		}
@@ -277,12 +308,12 @@ int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value)
 	if (!new)
 		return -ENOMEM;
 
-	new->startbit = bit & ~(MAPSIZE - 1);
-	new->map = (MAPBIT << (bit - new->startbit));
+	new->startbit = bit - (bit % EBITMAP_SIZE);
+	ebitmap_node_set_bit(new, bit);
 
 	if (!n)
 		/* this node will be the highest map within the bitmap */
-		e->highbit = new->startbit + MAPSIZE;
+		e->highbit = new->startbit + EBITMAP_SIZE;
 
 	if (prev) {
 		new->next = prev->next;
@@ -316,11 +347,11 @@ void ebitmap_destroy(struct ebitmap *e)
 
 int ebitmap_read(struct ebitmap *e, void *fp)
 {
-	int rc;
-	struct ebitmap_node *n, *l;
+	struct ebitmap_node *n = NULL;
+	u32 mapunit, count, startbit, index;
+	u64 map;
 	__le32 buf[3];
-	u32 mapsize, count, i;
-	__le64 map;
+	int rc, i;
 
 	ebitmap_init(e);
 
@@ -328,85 +359,88 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 	if (rc < 0)
 		goto out;
 
-	mapsize = le32_to_cpu(buf[0]);
+	mapunit = le32_to_cpu(buf[0]);
 	e->highbit = le32_to_cpu(buf[1]);
 	count = le32_to_cpu(buf[2]);
 
-	if (mapsize != MAPSIZE) {
+	if (mapunit != sizeof(u64) * 8) {
 		printk(KERN_ERR "security: ebitmap: map size %u does not "
-		       "match my size %Zd (high bit was %d)\n", mapsize,
-		       MAPSIZE, e->highbit);
+		       "match my size %Zd (high bit was %d)\n",
+		       mapunit, sizeof(u64) * 8, e->highbit);
 		goto bad;
 	}
+
+	/* round up e->highbit */
+	e->highbit += EBITMAP_SIZE - 1;
+	e->highbit -= (e->highbit % EBITMAP_SIZE);
+
 	if (!e->highbit) {
 		e->node = NULL;
 		goto ok;
 	}
-	if (e->highbit & (MAPSIZE - 1)) {
-		printk(KERN_ERR "security: ebitmap: high bit (%d) is not a "
-		       "multiple of the map size (%Zd)\n", e->highbit, MAPSIZE);
-		goto bad;
-	}
-	l = NULL;
+
 	for (i = 0; i < count; i++) {
-		rc = next_entry(buf, fp, sizeof(u32));
+		rc = next_entry(&startbit, fp, sizeof(u32));
 		if (rc < 0) {
 			printk(KERN_ERR "security: ebitmap: truncated map\n");
 			goto bad;
 		}
-		n = kzalloc(sizeof(*n), GFP_KERNEL);
-		if (!n) {
-			printk(KERN_ERR "security: ebitmap: out of memory\n");
-			rc = -ENOMEM;
+		startbit = le32_to_cpu(startbit);
+
+		if (startbit & (mapunit - 1)) {
+			printk(KERN_ERR "security: ebitmap start bit (%d) is "
+			       "not a multiple of the map unit size (%u)\n",
+			       startbit, mapunit);
+			goto bad;
+		}
+		if (startbit > e->highbit - mapunit) {
+			printk(KERN_ERR "security: ebitmap start bit (%d) is "
+			       "beyond the end of the bitmap (%u)\n",
+			       startbit, (e->highbit - mapunit));
 			goto bad;
 		}
 
-		n->startbit = le32_to_cpu(buf[0]);
+		if (!n || startbit >= n->startbit + EBITMAP_SIZE) {
+			struct ebitmap_node *tmp;
+			tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+			if (!tmp) {
+				printk(KERN_ERR
+				       "security: ebitmap: out of memory\n");
+				rc = -ENOMEM;
+				goto bad;
+			}
+			/* round down */
+			tmp->startbit = startbit - (startbit % EBITMAP_SIZE);
+			if (n) {
+				n->next = tmp;
+			} else {
+				e->node = tmp;
+			}
+			n = tmp;
+		} else if (startbit <= n->startbit) {
+			printk(KERN_ERR "security: ebitmap: start bit %d"
+			       " comes after start bit %d\n",
+			       startbit, n->startbit);
+			goto bad;
+		}
 
-		if (n->startbit & (MAPSIZE - 1)) {
-			printk(KERN_ERR "security: ebitmap start bit (%d) is "
-			       "not a multiple of the map size (%Zd)\n",
-			       n->startbit, MAPSIZE);
-			goto bad_free;
-		}
-		if (n->startbit > (e->highbit - MAPSIZE)) {
-			printk(KERN_ERR "security: ebitmap start bit (%d) is "
-			       "beyond the end of the bitmap (%Zd)\n",
-			       n->startbit, (e->highbit - MAPSIZE));
-			goto bad_free;
-		}
 		rc = next_entry(&map, fp, sizeof(u64));
 		if (rc < 0) {
 			printk(KERN_ERR "security: ebitmap: truncated map\n");
-			goto bad_free;
+			goto bad;
 		}
-		n->map = le64_to_cpu(map);
+		map = le64_to_cpu(map);
 
-		if (!n->map) {
-			printk(KERN_ERR "security: ebitmap: null map in "
-			       "ebitmap (startbit %d)\n", n->startbit);
-			goto bad_free;
+		index = (startbit - n->startbit) / EBITMAP_UNIT_SIZE;
+		while (map) {
+			n->maps[index++] = map & (-1UL);
+			map = EBITMAP_SHIFT_UNIT_SIZE(map);
 		}
-		if (l) {
-			if (n->startbit <= l->startbit) {
-				printk(KERN_ERR "security: ebitmap: start "
-				       "bit %d comes after start bit %d\n",
-				       n->startbit, l->startbit);
-				goto bad_free;
-			}
-			l->next = n;
-		} else
-			e->node = n;
-
-		l = n;
 	}
-
 ok:
 	rc = 0;
 out:
 	return rc;
-bad_free:
-	kfree(n);
 bad:
 	if (!rc)
 		rc = -EINVAL;

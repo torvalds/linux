@@ -16,14 +16,18 @@
 
 #include <net/netlabel.h>
 
-#define MAPTYPE u64			/* portion of bitmap in each node */
-#define MAPSIZE (sizeof(MAPTYPE) * 8)	/* number of bits in node bitmap */
-#define MAPBIT  1ULL			/* a bit in the node bitmap */
+#define EBITMAP_UNIT_NUMS	((32 - sizeof(void *) - sizeof(u32))	\
+					/ sizeof(unsigned long))
+#define EBITMAP_UNIT_SIZE	BITS_PER_LONG
+#define EBITMAP_SIZE		(EBITMAP_UNIT_NUMS * EBITMAP_UNIT_SIZE)
+#define EBITMAP_BIT		1ULL
+#define EBITMAP_SHIFT_UNIT_SIZE(x)					\
+	(((x) >> EBITMAP_UNIT_SIZE / 2) >> EBITMAP_UNIT_SIZE / 2)
 
 struct ebitmap_node {
-	u32 startbit;		/* starting position in the total bitmap */
-	MAPTYPE map;		/* this node's portion of the bitmap */
 	struct ebitmap_node *next;
+	unsigned long maps[EBITMAP_UNIT_NUMS];
+	u32 startbit;
 };
 
 struct ebitmap {
@@ -34,11 +38,17 @@ struct ebitmap {
 #define ebitmap_length(e) ((e)->highbit)
 #define ebitmap_startbit(e) ((e)->node ? (e)->node->startbit : 0)
 
-static inline unsigned int ebitmap_start(struct ebitmap *e,
-					 struct ebitmap_node **n)
+static inline unsigned int ebitmap_start_positive(struct ebitmap *e,
+						  struct ebitmap_node **n)
 {
-	*n = e->node;
-	return ebitmap_startbit(e);
+	unsigned int ofs;
+
+	for (*n = e->node; *n; *n = (*n)->next) {
+		ofs = find_first_bit((*n)->maps, EBITMAP_SIZE);
+		if (ofs < EBITMAP_SIZE)
+			return (*n)->startbit + ofs;
+	}
+	return ebitmap_length(e);
 }
 
 static inline void ebitmap_init(struct ebitmap *e)
@@ -46,28 +56,65 @@ static inline void ebitmap_init(struct ebitmap *e)
 	memset(e, 0, sizeof(*e));
 }
 
-static inline unsigned int ebitmap_next(struct ebitmap_node **n,
-					unsigned int bit)
+static inline unsigned int ebitmap_next_positive(struct ebitmap *e,
+						 struct ebitmap_node **n,
+						 unsigned int bit)
 {
-	if ((bit == ((*n)->startbit + MAPSIZE - 1)) &&
-	    (*n)->next) {
-		*n = (*n)->next;
-		return (*n)->startbit;
-	}
+	unsigned int ofs;
 
-	return (bit+1);
+	ofs = find_next_bit((*n)->maps, EBITMAP_SIZE, bit - (*n)->startbit + 1);
+	if (ofs < EBITMAP_SIZE)
+		return ofs + (*n)->startbit;
+
+	for (*n = (*n)->next; *n; *n = (*n)->next) {
+		ofs = find_first_bit((*n)->maps, EBITMAP_SIZE);
+		if (ofs < EBITMAP_SIZE)
+			return ofs + (*n)->startbit;
+	}
+	return ebitmap_length(e);
 }
 
-static inline int ebitmap_node_get_bit(struct ebitmap_node * n,
+#define EBITMAP_NODE_INDEX(node, bit)	\
+	(((bit) - (node)->startbit) / EBITMAP_UNIT_SIZE)
+#define EBITMAP_NODE_OFFSET(node, bit)	\
+	(((bit) - (node)->startbit) % EBITMAP_UNIT_SIZE)
+
+static inline int ebitmap_node_get_bit(struct ebitmap_node *n,
 				       unsigned int bit)
 {
-	if (n->map & (MAPBIT << (bit - n->startbit)))
+	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
+	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
+
+	BUG_ON(index >= EBITMAP_UNIT_NUMS);
+	if ((n->maps[index] & (EBITMAP_BIT << ofs)))
 		return 1;
 	return 0;
 }
 
-#define ebitmap_for_each_bit(e, n, bit) \
-	for (bit = ebitmap_start(e, &n); bit < ebitmap_length(e); bit = ebitmap_next(&n, bit)) \
+static inline void ebitmap_node_set_bit(struct ebitmap_node *n,
+					unsigned int bit)
+{
+	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
+	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
+
+	BUG_ON(index >= EBITMAP_UNIT_NUMS);
+	n->maps[index] |= (EBITMAP_BIT << ofs);
+}
+
+static inline void ebitmap_node_clr_bit(struct ebitmap_node *n,
+					unsigned int bit)
+{
+	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
+	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
+
+	BUG_ON(index >= EBITMAP_UNIT_NUMS);
+	n->maps[index] &= ~(EBITMAP_BIT << ofs);
+}
+
+#define ebitmap_for_each_positive_bit(e, n, bit)	\
+	for (bit = ebitmap_start_positive(e, &n);	\
+	     bit < ebitmap_length(e);			\
+	     bit = ebitmap_next_positive(e, &n, bit))	\
 
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2);
 int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src);

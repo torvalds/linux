@@ -177,17 +177,14 @@ static int policydb_init(struct policydb *p)
 
 	rc = roles_init(p);
 	if (rc)
-		goto out_free_avtab;
+		goto out_free_symtab;
 
 	rc = cond_policydb_init(p);
 	if (rc)
-		goto out_free_avtab;
+		goto out_free_symtab;
 
 out:
 	return rc;
-
-out_free_avtab:
-	avtab_destroy(&p->te_avtab);
 
 out_free_symtab:
 	for (i = 0; i < SYM_NUM; i++)
@@ -676,6 +673,8 @@ void policydb_destroy(struct policydb *p)
 			ebitmap_destroy(&p->type_attr_map[i]);
 	}
 	kfree(p->type_attr_map);
+
+	kfree(p->undefined_perms);
 
 	return;
 }
@@ -1530,6 +1529,8 @@ int policydb_read(struct policydb *p, void *fp)
 			goto bad;
 		}
 	}
+	p->reject_unknown = !!(le32_to_cpu(buf[1]) & REJECT_UNKNOWN);
+	p->allow_unknown = !!(le32_to_cpu(buf[1]) & ALLOW_UNKNOWN);
 
 	info = policydb_lookup_compat(p->policyvers);
 	if (!info) {

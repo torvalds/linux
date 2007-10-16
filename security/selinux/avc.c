@@ -916,3 +916,8 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
 	avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata);
 	return rc;
 }
+
+u32 avc_policy_seqno(void)
+{
+	return avc_cache.latest_notif;
+}

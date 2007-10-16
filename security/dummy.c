@@ -463,6 +463,11 @@ static int dummy_file_receive (struct file *file)
 	return 0;
 }
 
+static int dummy_dentry_open (struct file *file)
+{
+	return 0;
+}
+
 static int dummy_task_create (unsigned long clone_flags)
 {
 	return 0;
@@ -1033,6 +1038,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, file_set_fowner);
 	set_to_dummy_if_null(ops, file_send_sigiotask);
 	set_to_dummy_if_null(ops, file_receive);
+	set_to_dummy_if_null(ops, dentry_open);
 	set_to_dummy_if_null(ops, task_create);
 	set_to_dummy_if_null(ops, task_alloc_security);
 	set_to_dummy_if_null(ops, task_free_security);

@@ -242,6 +242,10 @@ struct policydb {
 	struct ebitmap *type_attr_map;
 
 	unsigned int policyvers;
+
+	unsigned int reject_unknown : 1;
+	unsigned int allow_unknown : 1;
+	u32 *undefined_perms;
 };
 
 extern void policydb_destroy(struct policydb *p);
@@ -252,6 +256,10 @@ extern int policydb_read(struct policydb *p, void *fp);
 #define PERM_SYMTAB_SIZE 32
 
 #define POLICYDB_CONFIG_MLS    1
+
+/* the config flags related to unknown classes/perms are bits 2 and 3 */
+#define REJECT_UNKNOWN	0x00000002
+#define ALLOW_UNKNOWN	0x00000004
 
 #define OBJECT_R "object_r"
 #define OBJECT_R_VAL 1
