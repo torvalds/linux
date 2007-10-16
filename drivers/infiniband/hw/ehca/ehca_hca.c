@@ -77,6 +77,7 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 	}
 
 	memset(props, 0, sizeof(struct ib_device_attr));
+	props->page_size_cap   = shca->hca_cap_mr_pgsize;
 	props->fw_ver          = rblock->hw_ver;
 	props->max_mr_size     = rblock->max_mr_size;
 	props->vendor_id       = rblock->vendor_id >> 8;

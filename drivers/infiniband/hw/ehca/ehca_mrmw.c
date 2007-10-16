@@ -79,9 +79,7 @@ static u32 ehca_encode_hwpage_size(u32 pgsize)
 
 static u64 ehca_get_max_hwpage_size(struct ehca_shca *shca)
 {
-	if (shca->hca_cap_mr_pgsize & HCA_CAP_MR_PGSIZE_16M)
-		return EHCA_MR_PGSIZE16M;
-	return EHCA_MR_PGSIZE4K;
+	return 1UL << ilog2(shca->hca_cap_mr_pgsize);
 }
 
 static struct ehca_mr *ehca_mr_new(void)
@@ -288,7 +286,7 @@ struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		container_of(pd->device, struct ehca_shca, ib_device);
 	struct ehca_pd *e_pd = container_of(pd, struct ehca_pd, ib_pd);
 	struct ehca_mr_pginfo pginfo;
-	int ret;
+	int ret, page_shift;
 	u32 num_kpages;
 	u32 num_hwpages;
 	u64 hwpage_size;
@@ -343,19 +341,20 @@ struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	/* determine number of MR pages */
 	num_kpages = NUM_CHUNKS((virt % PAGE_SIZE) + length, PAGE_SIZE);
 	/* select proper hw_pgsize */
-	if (ehca_mr_largepage &&
-	    (shca->hca_cap_mr_pgsize & HCA_CAP_MR_PGSIZE_16M)) {
-		int page_shift = PAGE_SHIFT;
-		if (e_mr->umem->hugetlb) {
-			/* determine page_shift, clamp between 4K and 16M */
-			page_shift = (fls64(length - 1) + 3) & ~3;
-			page_shift = min(max(page_shift, EHCA_MR_PGSHIFT4K),
-					 EHCA_MR_PGSHIFT16M);
-		}
-		hwpage_size = 1UL << page_shift;
-	} else
-		hwpage_size = EHCA_MR_PGSIZE4K; /* ehca1 only supports 4k */
-	ehca_dbg(pd->device, "hwpage_size=%lx", hwpage_size);
+	page_shift = PAGE_SHIFT;
+	if (e_mr->umem->hugetlb) {
+		/* determine page_shift, clamp between 4K and 16M */
+		page_shift = (fls64(length - 1) + 3) & ~3;
+		page_shift = min(max(page_shift, EHCA_MR_PGSHIFT4K),
+				 EHCA_MR_PGSHIFT16M);
+	}
+	hwpage_size = 1UL << page_shift;
+
+	/* now that we have the desired page size, shift until it's
+	 * supported, too. 4K is always supported, so this terminates.
+	 */
+	while (!(hwpage_size & shca->hca_cap_mr_pgsize))
+		hwpage_size >>= 4;
 
 reg_user_mr_fallback:
 	num_hwpages = NUM_CHUNKS((virt % hwpage_size) + length, hwpage_size);
@@ -801,8 +800,9 @@ struct ib_fmr *ehca_alloc_fmr(struct ib_pd *pd,
 		ib_fmr = ERR_PTR(-EINVAL);
 		goto alloc_fmr_exit0;
 	}
-	hw_pgsize = ehca_get_max_hwpage_size(shca);
-	if ((1 << fmr_attr->page_shift) != hw_pgsize) {
+
+	hw_pgsize = 1 << fmr_attr->page_shift;
+	if (!(hw_pgsize & shca->hca_cap_mr_pgsize)) {
 		ehca_err(pd->device, "unsupported fmr_attr->page_shift=%x",
 			 fmr_attr->page_shift);
 		ib_fmr = ERR_PTR(-EINVAL);
