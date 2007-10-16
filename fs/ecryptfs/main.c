@@ -240,14 +240,11 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 	int cipher_name_set = 0;
 	int cipher_key_bytes;
 	int cipher_key_bytes_set = 0;
-	struct key *auth_tok_key = NULL;
-	struct ecryptfs_auth_tok *auth_tok = NULL;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 		&ecryptfs_superblock_to_private(sb)->mount_crypt_stat;
 	substring_t args[MAX_OPT_ARGS];
 	int token;
 	char *sig_src;
-	char *sig_dst;
 	char *debug_src;
 	char *cipher_name_dst;
 	char *cipher_name_src;
@@ -258,6 +255,7 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		rc = -EINVAL;
 		goto out;
 	}
+	ecryptfs_init_mount_crypt_stat(mount_crypt_stat);
 	while ((p = strsep(&options, ",")) != NULL) {
 		if (!*p)
 			continue;
@@ -334,12 +332,10 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 					p);
 		}
 	}
-	/* Do not support lack of mount-wide signature in 0.1
-	 * release */
 	if (!sig_set) {
 		rc = -EINVAL;
-		ecryptfs_printk(KERN_ERR, "You must supply a valid "
-				"passphrase auth tok signature as a mount "
+		ecryptfs_printk(KERN_ERR, "You must supply at least one valid "
+				"auth tok signature as a mount "
 				"parameter; see the eCryptfs README\n");
 		goto out;
 	}
@@ -615,6 +611,21 @@ static struct ecryptfs_cache_info {
 		.name = "ecryptfs_key_record_cache",
 		.size = sizeof(struct ecryptfs_key_record),
 	},
+	{
+		.cache = &ecryptfs_key_sig_cache,
+		.name = "ecryptfs_key_sig_cache",
+		.size = sizeof(struct ecryptfs_key_sig),
+	},
+	{
+		.cache = &ecryptfs_global_auth_tok_cache,
+		.name = "ecryptfs_global_auth_tok_cache",
+		.size = sizeof(struct ecryptfs_global_auth_tok),
+	},
+	{
+		.cache = &ecryptfs_key_tfm_cache,
+		.name = "ecryptfs_key_tfm_cache",
+		.size = sizeof(struct ecryptfs_key_tfm),
+	},
 };
 
 static void ecryptfs_free_kmem_caches(void)
@@ -717,7 +728,8 @@ static struct ecryptfs_version_str_map_elem {
 	{ECRYPTFS_VERSIONING_PUBKEY, "pubkey"},
 	{ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH, "plaintext passthrough"},
 	{ECRYPTFS_VERSIONING_POLICY, "policy"},
-	{ECRYPTFS_VERSIONING_XATTR, "metadata in extended attribute"}
+	{ECRYPTFS_VERSIONING_XATTR, "metadata in extended attribute"},
+	{ECRYPTFS_VERSIONING_MULTKEY, "multiple keys per file"}
 };
 
 static ssize_t version_str_show(struct ecryptfs_obj *obj, char *buff)
@@ -782,6 +794,12 @@ out:
 
 static void do_sysfs_unregistration(void)
 {
+	int rc;
+
+	if ((rc = ecryptfs_destruct_crypto())) {
+		printk(KERN_ERR "Failure whilst attempting to destruct crypto; "
+		       "rc = [%d]\n", rc);
+	}
 	sysfs_remove_file(&ecryptfs_subsys.kobj,
 			  &sysfs_attr_version.attr);
 	sysfs_remove_file(&ecryptfs_subsys.kobj,
@@ -830,6 +848,16 @@ static int __init ecryptfs_init(void)
 		do_sysfs_unregistration();
 		unregister_filesystem(&ecryptfs_fs_type);
 		ecryptfs_free_kmem_caches();
+		goto out;
+	}
+	rc = ecryptfs_init_crypto();
+	if (rc) {
+		printk(KERN_ERR "Failure whilst attempting to init crypto; "
+		       "rc = [%d]\n", rc);
+		do_sysfs_unregistration();
+		unregister_filesystem(&ecryptfs_fs_type);
+		ecryptfs_free_kmem_caches();
+		goto out;
 	}
 out:
 	return rc;
