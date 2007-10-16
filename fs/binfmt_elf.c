@@ -1725,7 +1725,7 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 						&page, &vma) <= 0) {
 				DUMP_SEEK(PAGE_SIZE);
 			} else {
-				if (page == ZERO_PAGE(addr)) {
+				if (page == ZERO_PAGE(0)) {
 					if (!dump_seek(file, PAGE_SIZE)) {
 						page_cache_release(page);
 						goto end_coredump;
