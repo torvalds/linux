@@ -36,15 +36,16 @@
      */
 
 static void
-bitfill_aligned(unsigned long __iomem *dst, int dst_idx, unsigned long pat, unsigned n, int bits)
+bitfill_aligned(unsigned long __iomem *dst, int dst_idx, unsigned long pat,
+		unsigned n, int bits, u32 bswapmask)
 {
 	unsigned long first, last;
 
 	if (!n)
 		return;
 
-	first = FB_SHIFT_HIGH(~0UL, dst_idx);
-	last = ~(FB_SHIFT_HIGH(~0UL, (dst_idx+n) % bits));
+	first = fb_shifted_pixels_mask_long(dst_idx, bswapmask);
+	last = ~fb_shifted_pixels_mask_long((dst_idx+n) % bits, bswapmask);
 
 	if (dst_idx+n <= bits) {
 		// Single word
@@ -146,7 +147,8 @@ bitfill_unaligned(unsigned long __iomem *dst, int dst_idx, unsigned long pat,
      *  Aligned pattern invert using 32/64-bit memory accesses
      */
 static void
-bitfill_aligned_rev(unsigned long __iomem *dst, int dst_idx, unsigned long pat, unsigned n, int bits)
+bitfill_aligned_rev(unsigned long __iomem *dst, int dst_idx, unsigned long pat,
+		unsigned n, int bits, u32 bswapmask)
 {
 	unsigned long val = pat, dat;
 	unsigned long first, last;
@@ -154,8 +156,8 @@ bitfill_aligned_rev(unsigned long __iomem *dst, int dst_idx, unsigned long pat, 
 	if (!n)
 		return;
 
-	first = FB_SHIFT_HIGH(~0UL, dst_idx);
-	last = ~(FB_SHIFT_HIGH(~0UL, (dst_idx+n) % bits));
+	first = fb_shifted_pixels_mask_long(dst_idx, bswapmask);
+	last = ~fb_shifted_pixels_mask_long((dst_idx+n) % bits, bswapmask);
 
 	if (dst_idx+n <= bits) {
 		// Single word
@@ -303,8 +305,10 @@ void cfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 	if (p->fbops->fb_sync)
 		p->fbops->fb_sync(p);
 	if (!left) {
+		u32 bswapmask = fb_compute_bswapmask(p);
 		void (*fill_op32)(unsigned long __iomem *dst, int dst_idx,
-		                  unsigned long pat, unsigned n, int bits) = NULL;
+		                  unsigned long pat, unsigned n, int bits,
+				  u32 bswapmask) = NULL;
 
 		switch (rect->rop) {
 		case ROP_XOR:
@@ -321,7 +325,7 @@ void cfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 		while (height--) {
 			dst += dst_idx >> (ffs(bits) - 1);
 			dst_idx &= (bits - 1);
-			fill_op32(dst, dst_idx, pat, width*bpp, bits);
+			fill_op32(dst, dst_idx, pat, width*bpp, bits, bswapmask);
 			dst_idx += p->fix.line_length*8;
 		}
 	} else {

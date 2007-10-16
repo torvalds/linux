@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <linux/fb.h>
 #include <asm/types.h>
+#include "fb_draw.h"
 
 #define DEBUG
 
@@ -87,6 +88,7 @@ static inline void color_imageblit(const struct fb_image *image,
 	u32 null_bits = 32 - bpp;
 	u32 *palette = (u32 *) p->pseudo_palette;
 	const u8 *src = image->data;
+	u32 bswapmask = fb_compute_bswapmask(p);
 
 	dst2 = (u32 __iomem *) dst1;
 	for (i = image->height; i--; ) {
@@ -96,7 +98,7 @@ static inline void color_imageblit(const struct fb_image *image,
 		val = 0;
 		
 		if (start_index) {
-			u32 start_mask = ~(FB_SHIFT_HIGH(~(u32)0, start_index));
+			u32 start_mask = ~fb_shifted_pixels_mask_u32(start_index, bswapmask);
 			val = FB_READL(dst) & start_mask;
 			shift = start_index;
 		}
@@ -107,7 +109,7 @@ static inline void color_imageblit(const struct fb_image *image,
 			else
 				color = *src;
 			color <<= FB_LEFT_POS(bpp);
-			val |= FB_SHIFT_HIGH(color, shift);
+			val |= FB_SHIFT_HIGH(color, shift ^ bswapmask);
 			if (shift >= null_bits) {
 				FB_WRITEL(val, dst++);
 	
@@ -119,7 +121,7 @@ static inline void color_imageblit(const struct fb_image *image,
 			src++;
 		}
 		if (shift) {
-			u32 end_mask = FB_SHIFT_HIGH(~(u32)0, shift);
+			u32 end_mask = fb_shifted_pixels_mask_u32(shift, bswapmask);
 
 			FB_WRITEL((FB_READL(dst) & end_mask) | val, dst);
 		}
@@ -147,7 +149,8 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 	u32 spitch = (image->width+7)/8;
 	const u8 *src = image->data, *s;
 	u32 i, j, l;
-	
+	u32 bswapmask = fb_compute_bswapmask(p);
+
 	dst2 = (u32 __iomem *) dst1;
 	fgcolor <<= FB_LEFT_POS(bpp);
 	bgcolor <<= FB_LEFT_POS(bpp);
@@ -161,7 +164,7 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 
 		/* write leading bits */
 		if (start_index) {
-			u32 start_mask = ~(FB_SHIFT_HIGH(~(u32)0,start_index));
+			u32 start_mask = ~fb_shifted_pixels_mask_u32(start_index, bswapmask);
 			val = FB_READL(dst) & start_mask;
 			shift = start_index;
 		}
@@ -169,7 +172,7 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 		while (j--) {
 			l--;
 			color = (*s & (1 << l)) ? fgcolor : bgcolor;
-			val |= FB_SHIFT_HIGH(color, shift);
+			val |= FB_SHIFT_HIGH(color, shift ^ bswapmask);
 			
 			/* Did the bitshift spill bits to the next long? */
 			if (shift >= null_bits) {
@@ -184,7 +187,7 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 
 		/* write trailing bits */
  		if (shift) {
-			u32 end_mask = FB_SHIFT_HIGH(~(u32)0, shift);
+			u32 end_mask = fb_shifted_pixels_mask_u32(shift, bswapmask);
 
 			FB_WRITEL((FB_READL(dst) & end_mask) | val, dst);
 		}

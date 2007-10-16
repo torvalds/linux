@@ -103,6 +103,15 @@ config FB_CFB_IMAGEBLIT
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version.
 
+config FB_CFB_REV_PIXELS_IN_BYTE
+	bool
+	depends on FB
+	default n
+	---help---
+	  Allow generic frame-buffer functions to work on displays with 1, 2
+	  and 4 bits per pixel depths which has opposite order of pixels in
+	  byte order to bytes in long order.
+
 config FB_SYS_FILLRECT
 	tristate
 	depends on FB
