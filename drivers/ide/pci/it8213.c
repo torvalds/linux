@@ -232,9 +232,8 @@ static int __devinit it8213_init_one(struct pci_dev *dev, const struct pci_devic
 	return 0;
 }
 
-
-static struct pci_device_id it8213_pci_tbl[] = {
-	{ PCI_VENDOR_ID_ITE, 0x8213, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+static const struct pci_device_id it8213_pci_tbl[] = {
+	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8213), 0 },
 	{ 0, },
 };
 

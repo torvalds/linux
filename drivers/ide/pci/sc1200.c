@@ -403,8 +403,8 @@ static int __devinit sc1200_init_one(struct pci_dev *dev, const struct pci_devic
 	return ide_setup_pci_device(dev, &sc1200_chipset);
 }
 
-static struct pci_device_id sc1200_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_IDE), 0},
+static const struct pci_device_id sc1200_pci_tbl[] = {
+	{ PCI_VDEVICE(NS, PCI_DEVICE_ID_NS_SCx200_IDE), 0},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, sc1200_pci_tbl);

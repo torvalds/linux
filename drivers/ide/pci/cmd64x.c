@@ -641,11 +641,11 @@ static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_devic
 	return d.init_setup(dev, &d);
 }
 
-static struct pci_device_id cmd64x_pci_tbl[] = {
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_643, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_646, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_648, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_649, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
+static const struct pci_device_id cmd64x_pci_tbl[] = {
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_643), 0 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_646), 1 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_648), 2 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_649), 3 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, cmd64x_pci_tbl);

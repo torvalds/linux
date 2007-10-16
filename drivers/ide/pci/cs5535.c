@@ -214,10 +214,8 @@ static int __devinit cs5535_init_one(struct pci_dev *dev,
 	return ide_setup_pci_device(dev, &cs5535_chipset);
 }
 
-static struct pci_device_id cs5535_pci_tbl[] =
-{
-	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_IDE, PCI_ANY_ID,
-		PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id cs5535_pci_tbl[] = {
+	{ PCI_VDEVICE(NS, PCI_DEVICE_ID_NS_CS5535_IDE), 0 },
 	{ 0, },
 };
 

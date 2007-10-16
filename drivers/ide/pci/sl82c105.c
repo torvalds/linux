@@ -420,8 +420,8 @@ static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_dev
 	return ide_setup_pci_device(dev, &sl82c105_chipset);
 }
 
-static struct pci_device_id sl82c105_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105), 0},
+static const struct pci_device_id sl82c105_pci_tbl[] = {
+	{ PCI_VDEVICE(WINBOND, PCI_DEVICE_ID_WINBOND_82C105), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, sl82c105_pci_tbl);

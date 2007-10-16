@@ -770,8 +770,8 @@ static void __devexit scc_remove(struct pci_dev *dev)
 	memset(ports, 0, sizeof(*ports));
 }
 
-static struct pci_device_id scc_pci_tbl[] = {
-	{ PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_SCC_ATA,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id scc_pci_tbl[] = {
+	{ PCI_VDEVICE(TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_SCC_ATA), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, scc_pci_tbl);

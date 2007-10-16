@@ -244,9 +244,8 @@ static int __devinit tc86c001_init_one(struct pci_dev *dev,
 	return ide_setup_pci_device(dev, &tc86c001_chipset);
 }
 
-static struct pci_device_id tc86c001_pci_tbl[] = {
-	{ PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id tc86c001_pci_tbl[] = {
+	{ PCI_VDEVICE(TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE), 0 },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, tc86c001_pci_tbl);

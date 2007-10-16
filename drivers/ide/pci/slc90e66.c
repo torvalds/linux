@@ -178,8 +178,8 @@ static int __devinit slc90e66_init_one(struct pci_dev *dev, const struct pci_dev
 	return ide_setup_pci_device(dev, &slc90e66_chipset);
 }
 
-static struct pci_device_id slc90e66_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_1), 0},
+static const struct pci_device_id slc90e66_pci_tbl[] = {
+	{ PCI_VDEVICE(EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_1), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, slc90e66_pci_tbl);

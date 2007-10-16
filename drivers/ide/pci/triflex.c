@@ -129,9 +129,8 @@ static int __devinit triflex_init_one(struct pci_dev *dev,
 	return ide_setup_pci_device(dev, &triflex_device);
 }
 
-static struct pci_device_id triflex_pci_tbl[] = {
-	{ PCI_VENDOR_ID_COMPAQ, PCI_DEVICE_ID_COMPAQ_TRIFLEX_IDE,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+static const struct pci_device_id triflex_pci_tbl[] = {
+	{ PCI_VDEVICE(COMPAQ, PCI_DEVICE_ID_COMPAQ_TRIFLEX_IDE), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, triflex_pci_tbl);

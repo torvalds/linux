@@ -337,8 +337,8 @@ static int __devinit trm290_init_one(struct pci_dev *dev, const struct pci_devic
 	return ide_setup_pci_device(dev, &trm290_chipset);
 }
 
-static struct pci_device_id trm290_pci_tbl[] = {
-	{ PCI_VENDOR_ID_TEKRAM, PCI_DEVICE_ID_TEKRAM_DC290, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id trm290_pci_tbl[] = {
+	{ PCI_VDEVICE(TEKRAM, PCI_DEVICE_ID_TEKRAM_DC290), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, trm290_pci_tbl);

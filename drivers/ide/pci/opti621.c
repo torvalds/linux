@@ -372,9 +372,9 @@ static int __devinit opti621_init_one(struct pci_dev *dev, const struct pci_devi
 	return ide_setup_pci_device(dev, &opti621_chipsets[id->driver_data]);
 }
 
-static struct pci_device_id opti621_pci_tbl[] = {
-	{ PCI_VENDOR_ID_OPTI, PCI_DEVICE_ID_OPTI_82C621, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_OPTI, PCI_DEVICE_ID_OPTI_82C825, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
+static const struct pci_device_id opti621_pci_tbl[] = {
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C621), 0 },
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), 1 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, opti621_pci_tbl);
