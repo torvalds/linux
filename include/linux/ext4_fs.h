@@ -502,8 +502,8 @@ do {									       \
 struct ext4_super_block {
 /*00*/	__le32	s_inodes_count;		/* Inodes count */
 	__le32	s_blocks_count_lo;	/* Blocks count */
-	__le32	s_r_blocks_count;	/* Reserved blocks count */
-	__le32	s_free_blocks_count;	/* Free blocks count */
+	__le32	s_r_blocks_count_lo;	/* Reserved blocks count */
+	__le32	s_free_blocks_count_lo;	/* Free blocks count */
 /*10*/	__le32	s_free_inodes_count;	/* Free inodes count */
 	__le32	s_first_data_block;	/* First Data Block */
 	__le32	s_log_block_size;	/* Block size */
@@ -987,13 +987,13 @@ static inline ext4_fsblk_t ext4_blocks_count(struct ext4_super_block *es)
 static inline ext4_fsblk_t ext4_r_blocks_count(struct ext4_super_block *es)
 {
 	return ((ext4_fsblk_t)le32_to_cpu(es->s_r_blocks_count_hi) << 32) |
-		le32_to_cpu(es->s_r_blocks_count);
+		le32_to_cpu(es->s_r_blocks_count_lo);
 }
 
 static inline ext4_fsblk_t ext4_free_blocks_count(struct ext4_super_block *es)
 {
 	return ((ext4_fsblk_t)le32_to_cpu(es->s_free_blocks_count_hi) << 32) |
-		le32_to_cpu(es->s_free_blocks_count);
+		le32_to_cpu(es->s_free_blocks_count_lo);
 }
 
 static inline void ext4_blocks_count_set(struct ext4_super_block *es,
@@ -1006,14 +1006,14 @@ static inline void ext4_blocks_count_set(struct ext4_super_block *es,
 static inline void ext4_free_blocks_count_set(struct ext4_super_block *es,
 					      ext4_fsblk_t blk)
 {
-	es->s_free_blocks_count = cpu_to_le32((u32)blk);
+	es->s_free_blocks_count_lo = cpu_to_le32((u32)blk);
 	es->s_free_blocks_count_hi = cpu_to_le32(blk >> 32);
 }
 
 static inline void ext4_r_blocks_count_set(struct ext4_super_block *es,
 					   ext4_fsblk_t blk)
 {
-	es->s_r_blocks_count = cpu_to_le32((u32)blk);
+	es->s_r_blocks_count_lo = cpu_to_le32((u32)blk);
 	es->s_r_blocks_count_hi = cpu_to_le32(blk >> 32);
 }
 
