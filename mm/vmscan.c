@@ -1371,7 +1371,13 @@ loop_again:
 			temp_priority[i] = priority;
 			sc.nr_scanned = 0;
 			note_zone_scanning_priority(zone, priority);
-			nr_reclaimed += shrink_zone(priority, zone, &sc);
+			/*
+			 * We put equal pressure on every zone, unless one
+			 * zone has way too many pages free already.
+			 */
+			if (!zone_watermark_ok(zone, order, 8*zone->pages_high,
+						end_zone, 0))
+				nr_reclaimed += shrink_zone(priority, zone, &sc);
 			reclaim_state->reclaimed_slab = 0;
 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
 						lru_pages);
