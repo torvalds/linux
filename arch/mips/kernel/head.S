@@ -140,7 +140,7 @@
 
 EXPORT(_stext)
 
-#ifndef CONFIG_BOOT_RAW
+#ifdef CONFIG_BOOT_RAW
 	/*
 	 * Give us a fighting chance of running if execution beings at the
 	 * kernel load address.  This is needed because this platform does
@@ -148,6 +148,8 @@ EXPORT(_stext)
 	 */
 	__INIT
 #endif
+
+	__INIT_REFOK
 
 NESTED(kernel_entry, 16, sp)			# kernel entry point
 
