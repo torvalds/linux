@@ -359,7 +359,7 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		     NULL, mount_crypt_stat->global_default_cipher_name,
 		     mount_crypt_stat->global_default_cipher_key_size))) {
 		printk(KERN_ERR "Error attempting to initialize cipher with "
-		       "name = [%s] and key size = [%d]; rc = [%d]\n",
+		       "name = [%s] and key size = [%td]; rc = [%d]\n",
 		       mount_crypt_stat->global_default_cipher_name,
 		       mount_crypt_stat->global_default_cipher_key_size, rc);
 		rc = -EINVAL;

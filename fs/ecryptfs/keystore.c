@@ -554,7 +554,7 @@ parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out_free;
 	}
 	if (unlikely(body_size < (ECRYPTFS_SIG_SIZE + 2))) {
-		printk(KERN_WARNING "Invalid body size ([%d])\n", body_size);
+		printk(KERN_WARNING "Invalid body size ([%td])\n", body_size);
 		rc = -EINVAL;
 		goto out_free;
 	}
@@ -687,7 +687,7 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out_free;
 	}
 	if (unlikely(body_size < (ECRYPTFS_SALT_SIZE + 5))) {
-		printk(KERN_WARNING "Invalid body size ([%d])\n", body_size);
+		printk(KERN_WARNING "Invalid body size ([%td])\n", body_size);
 		rc = -EINVAL;
 		goto out_free;
 	}
@@ -833,7 +833,7 @@ parse_tag_11_packet(unsigned char *data, unsigned char *contents,
 		goto out;
 	}
 	if (body_size < 14) {
-		printk(KERN_WARNING "Invalid body size ([%d])\n", body_size);
+		printk(KERN_WARNING "Invalid body size ([%td])\n", body_size);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -1409,7 +1409,7 @@ encrypted_session_key_set:
 			   + key_rec->enc_key_size); /* Encrypted key size */
 	if (max_packet_size > (*remaining_bytes)) {
 		printk(KERN_ERR "Packet length larger than maximum allowable; "
-		       "need up to [%d] bytes, but there are only [%d] "
+		       "need up to [%td] bytes, but there are only [%td] "
 		       "available\n", max_packet_size, (*remaining_bytes));
 		rc = -EINVAL;
 		goto out;
@@ -1449,7 +1449,7 @@ out:
  * Returns zero on success; non-zero on error.
  */
 static int
-write_tag_11_packet(char *dest, int *remaining_bytes, char *contents,
+write_tag_11_packet(char *dest, size_t *remaining_bytes, char *contents,
 		    size_t contents_length, size_t *packet_length)
 {
 	size_t packet_size_length;
@@ -1468,7 +1468,7 @@ write_tag_11_packet(char *dest, int *remaining_bytes, char *contents,
 			   + contents_length); /* Literal data */
 	if (max_packet_size > (*remaining_bytes)) {
 		printk(KERN_ERR "Packet length larger than maximum allowable; "
-		       "need up to [%d] bytes, but there are only [%d] "
+		       "need up to [%td] bytes, but there are only [%td] "
 		       "available\n", max_packet_size, (*remaining_bytes));
 		rc = -EINVAL;
 		goto out;
@@ -1658,8 +1658,8 @@ encrypted_session_key_set:
 			   + 1                       /* Hash iterations */
 			   + key_rec->enc_key_size); /* Encrypted key size */
 	if (max_packet_size > (*remaining_bytes)) {
-		printk(KERN_ERR "Packet too large; need up to [%d] bytes, but "
-		       "there are only [%d] available\n", max_packet_size,
+		printk(KERN_ERR "Packet too large; need up to [%td] bytes, but "
+		       "there are only [%td] available\n", max_packet_size,
 		       (*remaining_bytes));
 		rc = -EINVAL;
 		goto out;
