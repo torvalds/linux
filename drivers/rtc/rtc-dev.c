@@ -142,7 +142,7 @@ static int set_uie(struct rtc_device *rtc)
 static ssize_t
 rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct rtc_device *rtc = to_rtc_device(file->private_data);
+	struct rtc_device *rtc = file->private_data;
 
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long data;
@@ -196,7 +196,7 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 static unsigned int rtc_dev_poll(struct file *file, poll_table *wait)
 {
-	struct rtc_device *rtc = to_rtc_device(file->private_data);
+	struct rtc_device *rtc = file->private_data;
 	unsigned long data;
 
 	poll_wait(file, &rtc->irq_queue, wait);
@@ -396,7 +396,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 
 static int rtc_dev_release(struct inode *inode, struct file *file)
 {
-	struct rtc_device *rtc = to_rtc_device(file->private_data);
+	struct rtc_device *rtc = file->private_data;
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	clear_uie(rtc);
@@ -410,7 +410,7 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 
 static int rtc_dev_fasync(int fd, struct file *file, int on)
 {
-	struct rtc_device *rtc = to_rtc_device(file->private_data);
+	struct rtc_device *rtc = file->private_data;
 	return fasync_helper(fd, file, on, &rtc->async_queue);
 }
 
