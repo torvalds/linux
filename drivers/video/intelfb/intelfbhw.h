@@ -93,7 +93,7 @@
 #define IIR			0x20A4
 #define IMR			0x20A8
 #define VSYNC_PIPE_A_INTERRUPT		(1 << 7)
-#define PIPE_A_EVENT_INTERRUPT		(1 << 4)
+#define PIPE_A_EVENT_INTERRUPT		(1 << 6)
 #define VSYNC_PIPE_B_INTERRUPT		(1 << 5)
 #define PIPE_B_EVENT_INTERRUPT		(1 << 4)
 #define HOST_PORT_EVENT_INTERRUPT	(1 << 3)
@@ -276,6 +276,8 @@
 #define DVOB_SRCDIM		0x61144
 #define DVOC_SRCDIM		0x61164
 
+#define PIPEA_DSL		0x70000
+#define PIPEB_DSL		0x71000
 #define PIPEACONF		0x70008
 #define PIPEBCONF		0x71008
 #define PIPECONF_ENABLE			(1 << 31)

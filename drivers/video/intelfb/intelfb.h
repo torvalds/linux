@@ -355,7 +355,10 @@ struct intelfb_info {
 	struct intelfb_output_rec output[MAX_OUTPUTS];
 };
 
-#define IS_I9XX(dinfo) (((dinfo)->chipset == INTEL_915G)||(dinfo->chipset == INTEL_915GM)||((dinfo)->chipset == INTEL_945G)||(dinfo->chipset==INTEL_945GM))
+#define IS_I9XX(dinfo) (((dinfo)->chipset == INTEL_915G) ||	\
+			((dinfo)->chipset == INTEL_915GM) ||	\
+			((dinfo)->chipset == INTEL_945G) ||	\
+			((dinfo)->chipset==INTEL_945GM))
 
 #ifndef FBIO_WAITFORVSYNC
 #define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)

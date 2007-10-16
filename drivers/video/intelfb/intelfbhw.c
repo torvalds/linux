@@ -434,13 +434,13 @@ void intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regno,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp)
 {
+	u32 palette_reg = (dinfo->pipe == PIPE_A) ?
+			  PALETTE_A : PALETTE_B;
+
 #if VERBOSE > 0
 	DBG_MSG("intelfbhw_setcolreg: %d: (%d, %d, %d)\n",
 		regno, red, green, blue);
 #endif
-
-	u32 palette_reg = (dinfo->pipe == PIPE_A) ?
-			  PALETTE_A : PALETTE_B;
 
 	OUTREG(palette_reg + (regno << 2),
 	       (red << PALETTE_8_RED_SHIFT) |
@@ -1305,8 +1305,8 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 
 	count = 0;
 	do {
-		tmp_val[count%3] = INREG(0x70000);
-		if ((tmp_val[0] == tmp_val[1]) && (tmp_val[1]==tmp_val[2]))
+		tmp_val[count % 3] = INREG(PIPEA_DSL);
+		if ((tmp_val[0] == tmp_val[1]) && (tmp_val[1] == tmp_val[2]))
 			break;
 		count++;
 		udelay(1);
@@ -2004,7 +2004,6 @@ intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable) {
 
 void
 intelfbhw_disable_irq(struct intelfb_info *dinfo) {
-	u16 tmp;
 
 	if (test_and_clear_bit(0, &dinfo->irq_flags)) {
 		if (dinfo->vsync.pan_display) {
@@ -2016,8 +2015,7 @@ intelfbhw_disable_irq(struct intelfb_info *dinfo) {
 		OUTREG16(IMR, 0xffff);
 		OUTREG16(IER, 0x0);
 
-		tmp = INREG16(IIR);
-		OUTREG16(IIR, tmp);
+		OUTREG16(IIR, INREG16(IIR)); /* clear IRQ requests */
 		spin_unlock_irq(&dinfo->int_lock);
 
 		free_irq(dinfo->pdev->irq, dinfo);
