@@ -312,4 +312,13 @@ config MTD_ALAUDA
 	  These two (and possibly other) Alauda-based cardreaders for
 	  SmartMedia and xD allow raw flash access.
 
+config MTD_NAND_ORION
+	tristate "NAND Flash support for Marvell Orion SoC"
+	depends on ARCH_ORION && MTD_NAND
+	help
+	  This enables the NAND flash controller on Orion machines.
+
+	  No board specific support is done by this driver, each board
+	  must advertise a platform_device for the driver to attach.
+
 endif # MTD_NAND
