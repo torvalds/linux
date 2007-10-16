@@ -95,8 +95,8 @@ cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_sibling_map);
 
 /* representing HT and core siblings of each logical CPU */
-cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
-EXPORT_SYMBOL(cpu_core_map);
+DEFINE_PER_CPU(cpumask_t, cpu_core_map);
+EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 
 /*
  * Trampoline 80x86 program as an array.
@@ -243,7 +243,7 @@ cpumask_t cpu_coregroup_map(int cpu)
 	 * And for power savings, we return cpu_core_map
 	 */
 	if (sched_mc_power_savings || sched_smt_power_savings)
-		return cpu_core_map[cpu];
+		return per_cpu(cpu_core_map, cpu);
 	else
 		return c->llc_shared_map;
 }
@@ -264,8 +264,8 @@ static inline void set_cpu_sibling_map(int cpu)
 			    c[cpu].cpu_core_id == c[i].cpu_core_id) {
 				cpu_set(i, cpu_sibling_map[cpu]);
 				cpu_set(cpu, cpu_sibling_map[i]);
-				cpu_set(i, cpu_core_map[cpu]);
-				cpu_set(cpu, cpu_core_map[i]);
+				cpu_set(i, per_cpu(cpu_core_map, cpu));
+				cpu_set(cpu, per_cpu(cpu_core_map, i));
 				cpu_set(i, c[cpu].llc_shared_map);
 				cpu_set(cpu, c[i].llc_shared_map);
 			}
@@ -277,7 +277,7 @@ static inline void set_cpu_sibling_map(int cpu)
 	cpu_set(cpu, c[cpu].llc_shared_map);
 
 	if (current_cpu_data.x86_max_cores == 1) {
-		cpu_core_map[cpu] = cpu_sibling_map[cpu];
+		per_cpu(cpu_core_map, cpu) = cpu_sibling_map[cpu];
 		c[cpu].booted_cores = 1;
 		return;
 	}
@@ -289,8 +289,8 @@ static inline void set_cpu_sibling_map(int cpu)
 			cpu_set(cpu, c[i].llc_shared_map);
 		}
 		if (c[cpu].phys_proc_id == c[i].phys_proc_id) {
-			cpu_set(i, cpu_core_map[cpu]);
-			cpu_set(cpu, cpu_core_map[i]);
+			cpu_set(i, per_cpu(cpu_core_map, cpu));
+			cpu_set(cpu, per_cpu(cpu_core_map, i));
 			/*
 			 *  Does this new cpu bringup a new core?
 			 */
@@ -736,7 +736,7 @@ static __init void disable_smp(void)
 	else
 		phys_cpu_present_map = physid_mask_of_physid(0);
 	cpu_set(0, cpu_sibling_map[0]);
-	cpu_set(0, cpu_core_map[0]);
+	cpu_set(0, per_cpu(cpu_core_map, 0));
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -971,8 +971,8 @@ static void remove_siblinginfo(int cpu)
 	int sibling;
 	struct cpuinfo_x86 *c = cpu_data;
 
-	for_each_cpu_mask(sibling, cpu_core_map[cpu]) {
-		cpu_clear(cpu, cpu_core_map[sibling]);
+	for_each_cpu_mask(sibling, per_cpu(cpu_core_map, cpu)) {
+		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
 		/*
 		 * last thread sibling in this cpu core going down
 		 */
@@ -983,7 +983,7 @@ static void remove_siblinginfo(int cpu)
 	for_each_cpu_mask(sibling, cpu_sibling_map[cpu])
 		cpu_clear(cpu, cpu_sibling_map[sibling]);
 	cpus_clear(cpu_sibling_map[cpu]);
-	cpus_clear(cpu_core_map[cpu]);
+	cpus_clear(per_cpu(cpu_core_map, cpu));
 	c[cpu].phys_proc_id = 0;
 	c[cpu].cpu_core_id = 0;
 	cpu_clear(cpu, cpu_sibling_setup_map);

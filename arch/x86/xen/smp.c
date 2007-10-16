@@ -148,7 +148,12 @@ void __init xen_smp_prepare_boot_cpu(void)
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		cpus_clear(cpu_sibling_map[cpu]);
-		cpus_clear(cpu_core_map[cpu]);
+		/*
+		 * cpu_core_map lives in a per cpu area that is cleared
+		 * when the per cpu array is allocated.
+		 *
+		 * cpus_clear(per_cpu(cpu_core_map, cpu));
+		 */
 	}
 
 	xen_setup_vcpu_info_placement();
@@ -160,7 +165,12 @@ void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		cpus_clear(cpu_sibling_map[cpu]);
-		cpus_clear(cpu_core_map[cpu]);
+		/*
+		 * cpu_core_ map will be zeroed when the per
+		 * cpu area is allocated.
+		 *
+		 * cpus_clear(per_cpu(cpu_core_map, cpu));
+		 */
 	}
 
 	smp_store_cpu_info(0);

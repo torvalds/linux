@@ -595,7 +595,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	dmi_check_system(sw_any_bug_dmi_table);
 	if (bios_with_sw_any_bug && cpus_weight(policy->cpus) == 1) {
 		policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
-		policy->cpus = cpu_core_map[cpu];
+		policy->cpus = per_cpu(cpu_core_map, cpu);
 	}
 #endif
 

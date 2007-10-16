@@ -472,7 +472,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 #ifdef CONFIG_SMP
 	if (cpu_data[cpu].cpu_core_id && shared_bank[bank]) {	/* symlink */
-		i = first_cpu(cpu_core_map[cpu]);
+		i = first_cpu(per_cpu(cpu_core_map, cpu));
 
 		/* first core not up yet */
 		if (cpu_data[i].cpu_core_id)
@@ -492,7 +492,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		if (err)
 			goto out;
 
-		b->cpus = cpu_core_map[cpu];
+		b->cpus = per_cpu(cpu_core_map, cpu);
 		per_cpu(threshold_banks, cpu)[bank] = b;
 		goto out;
 	}
@@ -509,7 +509,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 #ifndef CONFIG_SMP
 	b->cpus = CPU_MASK_ALL;
 #else
-	b->cpus = cpu_core_map[cpu];
+	b->cpus = per_cpu(cpu_core_map, cpu);
 #endif
 	err = kobject_register(&b->kobj);
 	if (err)

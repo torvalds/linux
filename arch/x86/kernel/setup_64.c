@@ -1070,7 +1070,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (smp_num_siblings * c->x86_max_cores > 1) {
 		int cpu = c - cpu_data;
 		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
-		seq_printf(m, "siblings\t: %d\n", cpus_weight(cpu_core_map[cpu]));
+		seq_printf(m, "siblings\t: %d\n",
+			       cpus_weight(per_cpu(cpu_core_map, cpu)));
 		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
 		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
 	}
