@@ -859,7 +859,7 @@ static void shrink_readahead_size_eio(struct file *filp,
  * It may be NULL.
  */
 void do_generic_mapping_read(struct address_space *mapping,
-			     struct file_ra_state *_ra,
+			     struct file_ra_state *ra,
 			     struct file *filp,
 			     loff_t *ppos,
 			     read_descriptor_t *desc,
@@ -874,13 +874,12 @@ void do_generic_mapping_read(struct address_space *mapping,
 	unsigned int prev_offset;
 	struct page *cached_page;
 	int error;
-	struct file_ra_state ra = *_ra;
 
 	cached_page = NULL;
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	next_index = index;
-	prev_index = ra.prev_pos >> PAGE_CACHE_SHIFT;
-	prev_offset = ra.prev_pos & (PAGE_CACHE_SIZE-1);
+	prev_index = ra->prev_pos >> PAGE_CACHE_SHIFT;
+	prev_offset = ra->prev_pos & (PAGE_CACHE_SIZE-1);
 	last_index = (*ppos + desc->count + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
 	offset = *ppos & ~PAGE_CACHE_MASK;
 
@@ -895,7 +894,7 @@ find_page:
 		page = find_get_page(mapping, index);
 		if (!page) {
 			page_cache_sync_readahead(mapping,
-					&ra, filp,
+					ra, filp,
 					index, last_index - index);
 			page = find_get_page(mapping, index);
 			if (unlikely(page == NULL))
@@ -903,7 +902,7 @@ find_page:
 		}
 		if (PageReadahead(page)) {
 			page_cache_async_readahead(mapping,
-					&ra, filp, page,
+					ra, filp, page,
 					index, last_index - index);
 		}
 		if (!PageUptodate(page))
@@ -1014,7 +1013,7 @@ readpage:
 				}
 				unlock_page(page);
 				error = -EIO;
-				shrink_readahead_size_eio(filp, &ra);
+				shrink_readahead_size_eio(filp, ra);
 				goto readpage_error;
 			}
 			unlock_page(page);
@@ -1054,10 +1053,9 @@ no_cached_page:
 	}
 
 out:
-	*_ra = ra;
-	_ra->prev_pos = prev_index;
-	_ra->prev_pos <<= PAGE_CACHE_SHIFT;
-	_ra->prev_pos |= prev_offset;
+	ra->prev_pos = prev_index;
+	ra->prev_pos <<= PAGE_CACHE_SHIFT;
+	ra->prev_pos |= prev_offset;
 
 	*ppos = ((loff_t)index << PAGE_CACHE_SHIFT) + offset;
 	if (cached_page)
