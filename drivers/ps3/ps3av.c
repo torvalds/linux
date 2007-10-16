@@ -760,8 +760,7 @@ static void ps3av_fixup_monitor_info(struct ps3av_info_monitor *info)
 	}
 }
 
-static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf,
-				int boot)
+static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf)
 {
 	int i, res, id = 0, dvi = 0, rgb = 0;
 	struct ps3av_pkt_av_get_monitor_info monitor_info;
@@ -799,28 +798,6 @@ static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf,
 		if (ps3av->region & PS3AV_REGION_RGB)
 			rgb = PS3AV_MODE_RGB;
 		pr_debug("%s: Using avmulti mode %d\n", __func__, id);
-	} else if (boot) {
-		/* HDMI: using DEFAULT HDMI_MODE_ID while booting up */
-		info = &monitor_info.info;
-		if (ps3av->region & PS3AV_REGION_60) {
-			if (info->res_60.res_bits & PS3AV_RESBIT_720x480P)
-				id = PS3AV_DEFAULT_HDMI_MODE_ID_REG_60;
-			else if (info->res_50.res_bits & PS3AV_RESBIT_720x576P)
-				id = PS3AV_DEFAULT_HDMI_MODE_ID_REG_50;
-			else {
-				/* default */
-				id = PS3AV_DEFAULT_HDMI_MODE_ID_REG_60;
-			}
-		} else {
-			if (info->res_50.res_bits & PS3AV_RESBIT_720x576P)
-				id = PS3AV_DEFAULT_HDMI_MODE_ID_REG_50;
-			else if (info->res_60.res_bits & PS3AV_RESBIT_720x480P)
-				id = PS3AV_DEFAULT_HDMI_MODE_ID_REG_60;
-			else {
-				/* default */
-				id = PS3AV_DEFAULT_HDMI_MODE_ID_REG_50;
-			}
-		}
 	}
 
 	return id | dvi | rgb;
@@ -862,7 +839,7 @@ static int ps3av_get_hw_conf(struct ps3av *ps3av)
 }
 
 /* set mode using id */
-int ps3av_set_video_mode(u32 id, int boot)
+int ps3av_set_video_mode(u32 id)
 {
 	int size;
 	u32 option;
@@ -876,7 +853,7 @@ int ps3av_set_video_mode(u32 id, int boot)
 	/* auto mode */
 	option = id & ~PS3AV_MODE_MASK;
 	if ((id & PS3AV_MODE_MASK) == 0) {
-		id = ps3av_auto_videomode(&ps3av->av_hw_conf, boot);
+		id = ps3av_auto_videomode(&ps3av->av_hw_conf);
 		if (id < 1) {
 			printk(KERN_ERR "%s: invalid id :%d\n", __func__, id);
 			return -EINVAL;
@@ -896,9 +873,9 @@ int ps3av_set_video_mode(u32 id, int boot)
 
 EXPORT_SYMBOL_GPL(ps3av_set_video_mode);
 
-int ps3av_get_auto_mode(int boot)
+int ps3av_get_auto_mode(void)
 {
-	return ps3av_auto_videomode(&ps3av->av_hw_conf, boot);
+	return ps3av_auto_videomode(&ps3av->av_hw_conf);
 }
 
 EXPORT_SYMBOL_GPL(ps3av_get_auto_mode);
@@ -1044,7 +1021,7 @@ static int ps3av_probe(struct ps3_system_bus_device *dev)
 		       res);
 
 	ps3av_get_hw_conf(ps3av);
-	id = ps3av_auto_videomode(&ps3av->av_hw_conf, 1);
+	id = ps3av_auto_videomode(&ps3av->av_hw_conf);
 	mutex_lock(&ps3av->mutex);
 	ps3av->ps3av_mode = id;
 	mutex_unlock(&ps3av->mutex);

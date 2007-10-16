@@ -548,7 +548,6 @@ static int ps3fb_set_par(struct fb_info *info)
 	unsigned int mode;
 	int i;
 	unsigned long offset;
-	static int first = 1;
 
 	DPRINTK("xres:%d xv:%d yres:%d yv:%d clock:%d\n",
 		info->var.xres, info->var.xres_virtual,
@@ -572,10 +571,9 @@ static int ps3fb_set_par(struct fb_info *info)
 	/* Keep the special bits we cannot set using fb_var_screeninfo */
 	ps3fb_mode = (ps3fb_mode & ~PS3AV_MODE_MASK) | mode;
 
-	if (ps3av_set_video_mode(ps3fb_mode, first))
+	if (ps3av_set_video_mode(ps3fb_mode))
 		return -EINVAL;
 
-	first = 0;
 	return 0;
 }
 
@@ -737,7 +735,7 @@ static int ps3fb_ioctl(struct fb_info *info, unsigned int cmd,
 				break;
 
 			if (!(val & PS3AV_MODE_MASK)) {
-				u32 id = ps3av_get_auto_mode(0);
+				u32 id = ps3av_get_auto_mode();
 				if (id > 0)
 					val = (val & ~PS3AV_MODE_MASK) | id;
 			}
