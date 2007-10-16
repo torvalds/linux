@@ -274,7 +274,6 @@ struct gfs2_inode {
 
 	spinlock_t i_spin;
 	struct rw_semaphore i_rw_mutex;
-	unsigned long i_last_pfault;
 };
 
 /*
