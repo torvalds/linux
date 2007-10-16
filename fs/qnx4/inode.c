@@ -433,16 +433,21 @@ static int qnx4_writepage(struct page *page, struct writeback_control *wbc)
 {
 	return block_write_full_page(page,qnx4_get_block, wbc);
 }
+
 static int qnx4_readpage(struct file *file, struct page *page)
 {
 	return block_read_full_page(page,qnx4_get_block);
 }
-static int qnx4_prepare_write(struct file *file, struct page *page,
-			      unsigned from, unsigned to)
+
+static int qnx4_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
-	struct qnx4_inode_info *qnx4_inode = qnx4_i(page->mapping->host);
-	return cont_prepare_write(page, from, to, qnx4_get_block,
-				  &qnx4_inode->mmu_private);
+	struct qnx4_inode_info *qnx4_inode = qnx4_i(mapping->host);
+	*pagep = NULL;
+	return cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				qnx4_get_block,
+				&qnx4_inode->mmu_private);
 }
 static sector_t qnx4_bmap(struct address_space *mapping, sector_t block)
 {
@@ -452,8 +457,8 @@ static const struct address_space_operations qnx4_aops = {
 	.readpage	= qnx4_readpage,
 	.writepage	= qnx4_writepage,
 	.sync_page	= block_sync_page,
-	.prepare_write	= qnx4_prepare_write,
-	.commit_write	= generic_commit_write,
+	.write_begin	= qnx4_write_begin,
+	.write_end	= generic_write_end,
 	.bmap		= qnx4_bmap
 };
 
