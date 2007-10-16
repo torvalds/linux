@@ -43,7 +43,10 @@ unsigned long __delay_loops_MHz;
 static irqreturn_t timer_interrupt(int irq, void *dummy);
 
 static struct irqaction timer_irq  = {
-	timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "timer",
 };
 
 static inline int set_rtc_mmss(unsigned long nowtime)
