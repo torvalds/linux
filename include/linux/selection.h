@@ -13,6 +13,7 @@
 struct tty_struct;
 
 extern struct vc_data *sel_cons;
+struct tty_struct;
 
 extern void clear_selection(void);
 extern int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty);
