@@ -136,6 +136,8 @@ static struct s3c2410fb_display rx3715_lcdcfg __initdata = {
 	.bpp		= 16,
 	.left_margin	= 36,
 	.right_margin	= 36,
+	.upper_margin	= 6,
+	.lower_margin	= 7,
 };
 
 static struct s3c2410fb_mach_info rx3715_fb_info __initdata = {

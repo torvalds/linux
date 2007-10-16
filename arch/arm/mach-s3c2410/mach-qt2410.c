@@ -125,6 +125,8 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 		.bpp		= 16,
 		.left_margin	= 44,
 		.right_margin	= 116,
+		.upper_margin	= 19,
+		.lower_margin	= 11,
 	},
 	{
 		/* Configuration for 480x640 toppoly TD028TTEC1 */
@@ -154,6 +156,8 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 		.bpp		= 16,
 		.left_margin	= 8,
 		.right_margin	= 24,
+		.upper_margin	= 2,
+		.lower_margin	= 4,
 	},
 	{
 		/* Config for 240x320 LCD */
@@ -183,6 +187,8 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 		.bpp		= 16,
 		.left_margin	= 13,
 		.right_margin	= 8,
+		.upper_margin	= 2,
+		.lower_margin	= 7,
 	},
 };
 
