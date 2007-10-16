@@ -73,11 +73,35 @@ rtc_sysfs_show_since_epoch(struct device *dev, struct device_attribute *attr,
 	return retval;
 }
 
+static ssize_t
+rtc_sysfs_show_max_user_freq(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%d\n", to_rtc_device(dev)->max_user_freq);
+}
+
+static ssize_t
+rtc_sysfs_set_max_user_freq(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t n)
+{
+	struct rtc_device *rtc = to_rtc_device(dev);
+	unsigned long val = simple_strtoul(buf, NULL, 0);
+
+	if (val >= 4096 || val == 0)
+		return -EINVAL;
+
+	rtc->max_user_freq = (int)val;
+
+	return n;
+}
+
 static struct device_attribute rtc_attrs[] = {
 	__ATTR(name, S_IRUGO, rtc_sysfs_show_name, NULL),
 	__ATTR(date, S_IRUGO, rtc_sysfs_show_date, NULL),
 	__ATTR(time, S_IRUGO, rtc_sysfs_show_time, NULL),
 	__ATTR(since_epoch, S_IRUGO, rtc_sysfs_show_since_epoch, NULL),
+	__ATTR(max_user_freq, S_IRUGO | S_IWUSR, rtc_sysfs_show_max_user_freq,
+			rtc_sysfs_set_max_user_freq),
 	{ },
 };
 
