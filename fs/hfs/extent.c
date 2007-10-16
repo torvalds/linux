@@ -464,23 +464,20 @@ void hfs_file_truncate(struct inode *inode)
 	       (long long)HFS_I(inode)->phys_size, inode->i_size);
 	if (inode->i_size > HFS_I(inode)->phys_size) {
 		struct address_space *mapping = inode->i_mapping;
+		void *fsdata;
 		struct page *page;
 		int res;
 
+		/* XXX: Can use generic_cont_expand? */
 		size = inode->i_size - 1;
-		page = grab_cache_page(mapping, size >> PAGE_CACHE_SHIFT);
-		if (!page)
-			return;
-		size &= PAGE_CACHE_SIZE - 1;
-		size++;
-		res = mapping->a_ops->prepare_write(NULL, page, size, size);
-		if (!res)
-			res = mapping->a_ops->commit_write(NULL, page, size, size);
+		res = pagecache_write_begin(NULL, mapping, size+1, 0,
+				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
+		if (!res) {
+			res = pagecache_write_end(NULL, mapping, size+1, 0, 0,
+					page, fsdata);
+		}
 		if (res)
 			inode->i_size = HFS_I(inode)->phys_size;
-		unlock_page(page);
-		page_cache_release(page);
-		mark_inode_dirty(inode);
 		return;
 	} else if (inode->i_size == HFS_I(inode)->phys_size)
 		return;
