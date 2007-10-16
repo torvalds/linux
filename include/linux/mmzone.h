@@ -33,9 +33,15 @@
  */
 #define PAGE_ALLOC_COSTLY_ORDER 3
 
+#ifdef CONFIG_PAGE_GROUP_BY_MOBILITY
 #define MIGRATE_UNMOVABLE     0
 #define MIGRATE_MOVABLE       1
 #define MIGRATE_TYPES         2
+#else
+#define MIGRATE_UNMOVABLE     0
+#define MIGRATE_MOVABLE       0
+#define MIGRATE_TYPES         1
+#endif
 
 #define for_each_migratetype_order(order, type) \
 	for (order = 0; order < MAX_ORDER; order++) \

@@ -158,6 +158,7 @@ int nr_node_ids __read_mostly = MAX_NUMNODES;
 EXPORT_SYMBOL(nr_node_ids);
 #endif
 
+#ifdef CONFIG_PAGE_GROUP_BY_MOBILITY
 static inline int get_pageblock_migratetype(struct page *page)
 {
 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
@@ -173,6 +174,22 @@ static inline int gfpflags_to_migratetype(gfp_t gfp_flags)
 {
 	return ((gfp_flags & __GFP_MOVABLE) != 0);
 }
+
+#else
+static inline int get_pageblock_migratetype(struct page *page)
+{
+	return MIGRATE_UNMOVABLE;
+}
+
+static void set_pageblock_migratetype(struct page *page, int migratetype)
+{
+}
+
+static inline int gfpflags_to_migratetype(gfp_t gfp_flags)
+{
+	return MIGRATE_UNMOVABLE;
+}
+#endif /* CONFIG_PAGE_GROUP_BY_MOBILITY */
 
 #ifdef CONFIG_DEBUG_VM
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
@@ -653,6 +670,7 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 	return 0;
 }
 
+#ifdef CONFIG_PAGE_GROUP_BY_MOBILITY
 /*
  * This array describes the order lists are fallen back to when
  * the free lists for the desirable migrate type are depleted
@@ -709,6 +727,13 @@ static struct page *__rmqueue_fallback(struct zone *zone, int order,
 
 	return NULL;
 }
+#else
+static struct page *__rmqueue_fallback(struct zone *zone, int order,
+						int start_migratetype)
+{
+	return NULL;
+}
+#endif /* CONFIG_PAGE_GROUP_BY_MOBILITY */
 
 /* 
  * Do the hard work of removing an element from the buddy allocator.
@@ -953,27 +978,25 @@ again:
 			if (unlikely(!pcp->count))
 				goto failed;
 		}
-		/* Find a page of the appropriate migrate type */
-		list_for_each_entry(page, &pcp->list, lru) {
-			if (page_private(page) == migratetype) {
-				list_del(&page->lru);
-				pcp->count--;
-				break;
-			}
-		}
 
-		/*
-		 * Check if a page of the appropriate migrate type
-		 * was found. If not, allocate more to the pcp list
-		 */
-		if (&page->lru == &pcp->list) {
+#ifdef CONFIG_PAGE_GROUP_BY_MOBILITY
+		/* Find a page of the appropriate migrate type */
+		list_for_each_entry(page, &pcp->list, lru)
+			if (page_private(page) == migratetype)
+				break;
+
+		/* Allocate more to the pcp list if necessary */
+		if (unlikely(&page->lru == &pcp->list)) {
 			pcp->count += rmqueue_bulk(zone, 0,
 					pcp->batch, &pcp->list, migratetype);
 			page = list_entry(pcp->list.next, struct page, lru);
-			VM_BUG_ON(page_private(page) != migratetype);
-			list_del(&page->lru);
-			pcp->count--;
 		}
+#else
+		page = list_entry(pcp->list.next, struct page, lru);
+#endif /* CONFIG_PAGE_GROUP_BY_MOBILITY */
+
+		list_del(&page->lru);
+		pcp->count--;
 	} else {
 		spin_lock_irqsave(&zone->lock, flags);
 		page = __rmqueue(zone, order, migratetype);

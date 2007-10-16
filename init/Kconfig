@@ -607,6 +607,19 @@ config BASE_SMALL
 	default 0 if BASE_FULL
 	default 1 if !BASE_FULL
 
+config PAGE_GROUP_BY_MOBILITY
+	bool "Group pages based on their mobility in the page allocator"
+	def_bool y
+	help
+	  The standard allocator will fragment memory over time which means
+	  that high order allocations will fail even if kswapd is running. If
+	  this option is set, the allocator will try and group page types
+	  based on their ability to migrate or reclaim. This is a best effort
+	  attempt at lowering fragmentation which a few workloads care about.
+	  The loss is a more complex allocator that may perform slower. If
+	  you are interested in working with large pages, say Y and set
+	  /proc/sys/vm/min_free_bytes to 16374. Otherwise say N
+
 menuconfig MODULES
 	bool "Enable loadable module support"
 	help
