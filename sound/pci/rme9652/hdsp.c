@@ -3059,6 +3059,9 @@ static int hdsp_dds_offset(struct hdsp *hdsp)
 	unsigned int dds_value = hdsp->dds_value;
 	int system_sample_rate = hdsp->system_sample_rate;
 
+	if (!dds_value)
+		return 0;
+
 	n = DDS_NUMERATOR;
 	/*
 	 * dds_value = n / rate
