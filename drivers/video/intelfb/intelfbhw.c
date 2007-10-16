@@ -317,10 +317,23 @@ int intelfbhw_validate_mode(struct intelfb_info *dinfo,
 			var->yres, VACTIVE_MASK + 1);
 		return 1;
 	}
+	if (var->xres < 4) {
+		WRN_MSG("X resolution too small (%d vs 4).\n", var->xres);
+		return 1;
+	}
+	if (var->yres < 4) {
+		WRN_MSG("Y resolution too small (%d vs 4).\n", var->yres);
+		return 1;
+	}
 
 	/* Check for doublescan modes. */
 	if (var->vmode & FB_VMODE_DOUBLE) {
 		WRN_MSG("Mode is double-scan.\n");
+		return 1;
+	}
+
+	if ((var->vmode & FB_VMODE_INTERLACED) && (var->yres & 1)) {
+		WRN_MSG("Odd number of lines in interlaced mode\n");
 		return 1;
 	}
 
@@ -1127,6 +1140,8 @@ int intelfbhw_mode_to_hw(struct intelfb_info *dinfo,
 		hblank_end);
 
 	vactive = var->yres;
+	if (var->vmode & FB_VMODE_INTERLACED)
+		vactive--; /* the chip adds 2 halflines automatically */
 	vsync_start = vactive + var->lower_margin;
 	vsync_end = vsync_start + var->vsync_len;
 	vtotal = vsync_end + var->upper_margin;
