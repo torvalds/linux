@@ -108,6 +108,28 @@ config UML_NET_DAEMON
         more than one without conflict.  If you don't need UML networking,
         say N.
 
+config UML_NET_VDE
+	bool "VDE transport"
+	depends on UML_NET
+	help
+	This User-Mode Linux network transport allows one or more running
+	UMLs on a single host to communicate with each other and also
+	with the rest of the world using Virtual Distributed Ethernet,
+	an improved fork of uml_switch.
+
+	You must have libvdeplug installed in order to build the vde
+	transport into UML.
+
+	To use this form of networking, you will need to run vde_switch
+	on the host.
+
+	For more information, see <http://wiki.virtualsquare.org/>
+	That site has a good overview of what VDE is and also examples
+	of the UML command line to use to enable VDE networking.
+
+	If you need UML networking with VDE,
+	say Y.
+
 config UML_NET_MCAST
 	bool "Multicast transport"
 	depends on UML_NET
