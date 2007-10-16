@@ -783,8 +783,6 @@ static int ide_tune_dma(ide_drive_t *drive)
 	return 1;
 }
 
-EXPORT_SYMBOL_GPL(ide_tune_dma);
-
 static int ide_dma_check(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
