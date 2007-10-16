@@ -414,26 +414,6 @@ static void ps3disk_prepare_flush(struct request_queue *q, struct request *req)
 	req->cmd_type = REQ_TYPE_FLUSH;
 }
 
-static int ps3disk_issue_flush(struct request_queue *q, struct gendisk *gendisk,
-			       sector_t *sector)
-{
-	struct ps3_storage_device *dev = q->queuedata;
-	struct request *req;
-	int res;
-
-	dev_dbg(&dev->sbd.core, "%s:%u\n", __func__, __LINE__);
-
-	req = blk_get_request(q, WRITE, __GFP_WAIT);
-	ps3disk_prepare_flush(q, req);
-	res = blk_execute_rq(q, gendisk, req, 0);
-	if (res)
-		dev_err(&dev->sbd.core, "%s:%u: flush request failed %d\n",
-			__func__, __LINE__, res);
-	blk_put_request(req);
-	return res;
-}
-
-
 static unsigned long ps3disk_mask;
 
 static DEFINE_MUTEX(ps3disk_mask_mutex);
@@ -506,7 +486,6 @@ static int __devinit ps3disk_probe(struct ps3_system_bus_device *_dev)
 	blk_queue_dma_alignment(queue, dev->blk_size-1);
 	blk_queue_hardsect_size(queue, dev->blk_size);
 
-	blk_queue_issue_flush_fn(queue, ps3disk_issue_flush);
 	blk_queue_ordered(queue, QUEUE_ORDERED_DRAIN_FLUSH,
 			  ps3disk_prepare_flush);
 

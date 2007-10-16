@@ -840,21 +840,6 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	return 0;
 }
 
-static int dm_flush_all(struct request_queue *q, struct gendisk *disk,
-			sector_t *error_sector)
-{
-	struct mapped_device *md = q->queuedata;
-	struct dm_table *map = dm_get_table(md);
-	int ret = -ENXIO;
-
-	if (map) {
-		ret = dm_table_flush_all(map);
-		dm_table_put(map);
-	}
-
-	return ret;
-}
-
 static void dm_unplug_all(struct request_queue *q)
 {
 	struct mapped_device *md = q->queuedata;
@@ -1003,7 +988,6 @@ static struct mapped_device *alloc_dev(int minor)
 	blk_queue_make_request(md->queue, dm_request);
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
-	md->queue->issue_flush_fn = dm_flush_all;
 
 	md->io_pool = mempool_create_slab_pool(MIN_IOS, _io_cache);
 	if (!md->io_pool)

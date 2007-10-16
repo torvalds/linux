@@ -330,7 +330,6 @@ typedef void (unplug_fn) (struct request_queue *);
 
 struct bio_vec;
 typedef int (merge_bvec_fn) (struct request_queue *, struct bio *, struct bio_vec *);
-typedef int (issue_flush_fn) (struct request_queue *, struct gendisk *, sector_t *);
 typedef void (prepare_flush_fn) (struct request_queue *, struct request *);
 typedef void (softirq_done_fn)(struct request *);
 
@@ -368,7 +367,6 @@ struct request_queue
 	prep_rq_fn		*prep_rq_fn;
 	unplug_fn		*unplug_fn;
 	merge_bvec_fn		*merge_bvec_fn;
-	issue_flush_fn		*issue_flush_fn;
 	prepare_flush_fn	*prepare_flush_fn;
 	softirq_done_fn		*softirq_done_fn;
 
@@ -540,6 +538,7 @@ enum {
 #define blk_barrier_rq(rq)	((rq)->cmd_flags & REQ_HARDBARRIER)
 #define blk_fua_rq(rq)		((rq)->cmd_flags & REQ_FUA)
 #define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
+#define blk_empty_barrier(rq)	(blk_barrier_rq(rq) && blk_fs_request(rq) && !(rq)->hard_nr_sectors)
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
@@ -729,7 +728,9 @@ static inline void blk_run_address_space(struct address_space *mapping)
 extern int end_that_request_first(struct request *, int, int);
 extern int end_that_request_chunk(struct request *, int, int);
 extern void end_that_request_last(struct request *, int);
-extern void end_request(struct request *req, int uptodate);
+extern void end_request(struct request *, int);
+extern void end_queued_request(struct request *, int);
+extern void end_dequeued_request(struct request *, int);
 extern void blk_complete_request(struct request *);
 
 /*
@@ -767,7 +768,6 @@ extern void blk_queue_dma_alignment(struct request_queue *, int);
 extern void blk_queue_softirq_done(struct request_queue *, softirq_done_fn *);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 extern int blk_queue_ordered(struct request_queue *, unsigned, prepare_flush_fn *);
-extern void blk_queue_issue_flush_fn(struct request_queue *, issue_flush_fn *);
 extern int blk_do_ordered(struct request_queue *, struct request **);
 extern unsigned blk_ordered_cur_seq(struct request_queue *);
 extern unsigned blk_ordered_req_seq(struct request *);

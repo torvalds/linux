@@ -1093,11 +1093,6 @@ extern ide_startstop_t ide_do_reset (ide_drive_t *);
 extern void ide_init_drive_cmd (struct request *rq);
 
 /*
- * this function returns error location sector offset in case of a write error
- */
-extern u64 ide_get_error_location(ide_drive_t *, char *);
-
-/*
  * "action" parameter type for ide_do_drive_cmd() below.
  */
 typedef enum {

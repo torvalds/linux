@@ -176,13 +176,28 @@ struct bio {
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_cur_sectors(bio)	(bio_iovec(bio)->bv_len >> 9)
-#define bio_data(bio)		(page_address(bio_page((bio))) + bio_offset((bio)))
 #define bio_barrier(bio)	((bio)->bi_rw & (1 << BIO_RW_BARRIER))
 #define bio_sync(bio)		((bio)->bi_rw & (1 << BIO_RW_SYNC))
 #define bio_failfast(bio)	((bio)->bi_rw & (1 << BIO_RW_FAILFAST))
 #define bio_rw_ahead(bio)	((bio)->bi_rw & (1 << BIO_RW_AHEAD))
 #define bio_rw_meta(bio)	((bio)->bi_rw & (1 << BIO_RW_META))
+#define bio_empty_barrier(bio)	(bio_barrier(bio) && !(bio)->bi_size)
+
+static inline unsigned int bio_cur_sectors(struct bio *bio)
+{
+	if (bio->bi_vcnt)
+		return bio_iovec(bio)->bv_len >> 9;
+
+	return 0;
+}
+
+static inline void *bio_data(struct bio *bio)
+{
+	if (bio->bi_vcnt)
+		return page_address(bio_page(bio)) + bio_offset(bio);
+
+	return NULL;
+}
 
 /*
  * will die

@@ -3463,7 +3463,6 @@ static int do_md_stop(mddev_t * mddev, int mode)
 			mddev->pers->stop(mddev);
 			mddev->queue->merge_bvec_fn = NULL;
 			mddev->queue->unplug_fn = NULL;
-			mddev->queue->issue_flush_fn = NULL;
 			mddev->queue->backing_dev_info.congested_fn = NULL;
 			if (mddev->pers->sync_request)
 				sysfs_remove_group(&mddev->kobj, &md_redundancy_group);
