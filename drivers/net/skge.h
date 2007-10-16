@@ -2191,11 +2191,9 @@ enum {
 	XM_IS_TXF_UR	= 1<<2,	/* Bit  2:	Transmit FIFO Underrun */
 	XM_IS_TX_COMP	= 1<<1,	/* Bit  1:	Frame Tx Complete */
 	XM_IS_RX_COMP	= 1<<0,	/* Bit  0:	Frame Rx Complete */
+
+	XM_IMSK_DISABLE	= 0xffff,
 };
-
-#define XM_DEF_MSK	(~(XM_IS_INP_ASS | XM_IS_LIPA_RC | \
-			   XM_IS_RXF_OV | XM_IS_TXF_UR))
-
 
 /*	XM_HW_CFG	16 bit r/w	Hardware Config Register */
 enum {
