@@ -100,9 +100,8 @@ static inline struct thread_info *current_thread_info(void)
 	({							\
 		struct thread_info *ret;			\
 	 							\
-	 	ret = kmalloc(THREAD_SIZE, GFP_KERNEL);		\
-	 	if (ret)					\
-	 		memset(ret, 0, THREAD_SIZE);		\
+	 	ret = kzalloc(THREAD_SIZE, GFP_KERNEL);		\
+								\
 	 	ret;						\
 	 })
 #else
