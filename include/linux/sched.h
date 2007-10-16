@@ -729,9 +729,6 @@ struct sched_domain {
 #endif
 };
 
-extern int partition_sched_domains(cpumask_t *partition1,
-				    cpumask_t *partition2);
-
 #endif	/* CONFIG_SMP */
 
 /*

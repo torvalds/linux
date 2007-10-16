@@ -6348,35 +6348,6 @@ static void detach_destroy_domains(const cpumask_t *cpu_map)
 	arch_destroy_sched_domains(cpu_map);
 }
 
-/*
- * Partition sched domains as specified by the cpumasks below.
- * This attaches all cpus from the cpumasks to the NULL domain,
- * waits for a RCU quiescent period, recalculates sched
- * domain information and then attaches them back to the
- * correct sched domains
- * Call with hotplug lock held
- */
-int partition_sched_domains(cpumask_t *partition1, cpumask_t *partition2)
-{
-	cpumask_t change_map;
-	int err = 0;
-
-	cpus_and(*partition1, *partition1, cpu_online_map);
-	cpus_and(*partition2, *partition2, cpu_online_map);
-	cpus_or(change_map, *partition1, *partition2);
-
-	/* Detach sched domains from all of the affected cpus */
-	detach_destroy_domains(&change_map);
-	if (!cpus_empty(*partition1))
-		err = build_sched_domains(partition1);
-	if (!err && !cpus_empty(*partition2))
-		err = build_sched_domains(partition2);
-
-	register_sched_domain_sysctl();
-
-	return err;
-}
-
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
 static int arch_reinit_sched_domains(void)
 {

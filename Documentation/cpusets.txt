@@ -87,9 +87,6 @@ This can be especially valuable on:
       and a database), or
     * NUMA systems running large HPC applications with demanding
       performance characteristics.
-    * Also cpu_exclusive cpusets are useful for servers running orthogonal
-      workloads such as RT applications requiring low latency and HPC
-      applications that are throughput sensitive
 
 These subsets, or "soft partitions" must be able to be dynamically
 adjusted, as the job mix changes, without impacting other concurrently
@@ -132,8 +129,6 @@ Cpusets extends these two mechanisms as follows:
  - A cpuset may be marked exclusive, which ensures that no other
    cpuset (except direct ancestors and descendents) may contain
    any overlapping CPUs or Memory Nodes.
-   Also a cpu_exclusive cpuset would be associated with a sched
-   domain.
  - You can list all the tasks (by pid) attached to any cpuset.
 
 The implementation of cpusets requires a few, simple hooks
@@ -145,9 +140,6 @@ into the rest of the kernel, none in performance critical paths:
    allowed in that tasks cpuset.
  - in sched.c migrate_all_tasks(), to keep migrating tasks within
    the CPUs allowed by their cpuset, if possible.
- - in sched.c, a new API partition_sched_domains for handling
-   sched domain changes associated with cpu_exclusive cpusets
-   and related changes in both sched.c and arch/ia64/kernel/domain.c
  - in the mbind and set_mempolicy system calls, to mask the requested
    Memory Nodes by what's allowed in that tasks cpuset.
  - in page_alloc.c, to restrict memory to allowed nodes.
@@ -231,15 +223,6 @@ nodes with memory--using the cpuset_track_online_nodes() hook.
 If a cpuset is cpu or mem exclusive, no other cpuset, other than
 a direct ancestor or descendent, may share any of the same CPUs or
 Memory Nodes.
-
-A cpuset that is cpu_exclusive has a scheduler (sched) domain
-associated with it.  The sched domain consists of all CPUs in the
-current cpuset that are not part of any exclusive child cpusets.
-This ensures that the scheduler load balancing code only balances
-against the CPUs that are in the sched domain as defined above and
-not all of the CPUs in the system. This removes any overhead due to
-load balancing code trying to pull tasks outside of the cpu_exclusive
-cpuset only to be prevented by the tasks' cpus_allowed mask.
 
 A cpuset that is mem_exclusive restricts kernel allocations for
 page, buffer and other data commonly shared by the kernel across
