@@ -102,7 +102,6 @@
 	.bInterfaceClass = USB_CLASS_AUDIO,
 },
 /*
-/*
  * Yamaha devices
  */
 
