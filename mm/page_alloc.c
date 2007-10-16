@@ -149,7 +149,7 @@ static unsigned long __meminitdata dma_reserve;
   static unsigned long __meminitdata node_boundary_end_pfn[MAX_NUMNODES];
 #endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
   unsigned long __initdata required_kernelcore;
-  unsigned long __initdata required_movablecore;
+  static unsigned long __initdata required_movablecore;
   unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
 
   /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
@@ -3644,7 +3644,7 @@ unsigned long __init find_max_pfn_with_active_regions(void)
  * Sum pages in active regions for movable zone.
  * Populate N_HIGH_MEMORY for calculating usable_nodes.
  */
-unsigned long __init early_calculate_totalpages(void)
+static unsigned long __init early_calculate_totalpages(void)
 {
 	int i;
 	unsigned long totalpages = 0;
