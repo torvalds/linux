@@ -570,13 +570,11 @@ int ecryptfs_writepage_and_release_lower_page(struct page *lower_page,
 					      struct writeback_control *wbc);
 int ecryptfs_encrypt_page(struct page *page);
 int ecryptfs_decrypt_page(struct page *page);
-int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
-			    struct file *lower_file);
-int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry,
-			   struct file *lower_file);
+int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry);
+int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry);
 int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry);
-int ecryptfs_read_and_validate_header_region(char *data, struct dentry *dentry,
-					     struct vfsmount *mnt);
+int ecryptfs_read_and_validate_header_region(char *data,
+					     struct inode *ecryptfs_inode);
 int ecryptfs_read_and_validate_xattr_region(char *page_virt,
 					    struct dentry *ecryptfs_dentry);
 u16 ecryptfs_code_for_cipher_string(struct ecryptfs_crypt_stat *crypt_stat);
@@ -599,10 +597,13 @@ int ecryptfs_open_lower_file(struct file **lower_file,
 int ecryptfs_close_lower_file(struct file *lower_file);
 ssize_t ecryptfs_getxattr(struct dentry *dentry, const char *name, void *value,
 			  size_t size);
+ssize_t
+ecryptfs_getxattr_lower(struct dentry *lower_dentry, const char *name,
+			void *value, size_t size);
 int
 ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
-int ecryptfs_read_xattr_region(char *page_virt, struct dentry *ecryptfs_dentry);
+int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode);
 int ecryptfs_process_helo(unsigned int transport, uid_t uid, pid_t pid);
 int ecryptfs_process_quit(uid_t uid, pid_t pid);
 int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t uid,

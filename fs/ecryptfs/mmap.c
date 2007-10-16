@@ -307,7 +307,7 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 				memset(page_virt, 0, PAGE_CACHE_SIZE);
 				if (page->index == 0) {
 					rc = ecryptfs_read_xattr_region(
-						page_virt, file->f_path.dentry);
+						page_virt, page->mapping->host);
 					set_header_info(page_virt, crypt_stat);
 				}
 				kunmap_atomic(page_virt, KM_USER0);

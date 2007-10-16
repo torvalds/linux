@@ -1342,20 +1342,27 @@ out:
 	return rc;
 }
 
-int ecryptfs_read_and_validate_header_region(char *data, struct dentry *dentry,
-					     struct vfsmount *mnt)
+int ecryptfs_read_and_validate_header_region(char *data,
+					     struct inode *ecryptfs_inode)
 {
+	struct ecryptfs_crypt_stat *crypt_stat =
+		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	int rc;
 
-	rc = ecryptfs_read_header_region(data, dentry, mnt);
-	if (rc)
+	rc = ecryptfs_read_lower(data, 0, crypt_stat->extent_size,
+				 ecryptfs_inode);
+	if (rc) {
+		printk(KERN_ERR "%s: Error reading header region; rc = [%d]\n",
+		       __FUNCTION__, rc);
 		goto out;
-	if (!contains_ecryptfs_marker(data + ECRYPTFS_FILE_SIZE_BYTES))
+	}
+	if (!contains_ecryptfs_marker(data + ECRYPTFS_FILE_SIZE_BYTES)) {
 		rc = -EINVAL;
+		ecryptfs_printk(KERN_DEBUG, "Valid marker not found\n");
+	}
 out:
 	return rc;
 }
-
 
 void
 ecryptfs_write_header_metadata(char *virt,
@@ -1441,24 +1448,19 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t *size,
 
 static int
 ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
-				    struct file *lower_file, char *page_virt)
+				    struct dentry *ecryptfs_dentry,
+				    char *page_virt)
 {
-	mm_segment_t oldfs;
 	int current_header_page;
 	int header_pages;
-	ssize_t size;
-	int rc = 0;
+	int rc;
 
-	lower_file->f_pos = 0;
-	oldfs = get_fs();
-	set_fs(get_ds());
-	size = vfs_write(lower_file, (char __user *)page_virt, PAGE_CACHE_SIZE,
-			 &lower_file->f_pos);
-	if (size < 0) {
-		rc = (int)size;
-		printk(KERN_ERR "Error attempting to write lower page; "
-		       "rc = [%d]\n", rc);
-		set_fs(oldfs);
+	rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode, page_virt,
+				  0, PAGE_CACHE_SIZE);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to write header "
+		       "information to lower file; rc = [%d]\n", __FUNCTION__,
+		       rc);
 		goto out;
 	}
 	header_pages = ((crypt_stat->extent_size
@@ -1467,18 +1469,19 @@ ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
 	memset(page_virt, 0, PAGE_CACHE_SIZE);
 	current_header_page = 1;
 	while (current_header_page < header_pages) {
-		size = vfs_write(lower_file, (char __user *)page_virt,
-				 PAGE_CACHE_SIZE, &lower_file->f_pos);
-		if (size < 0) {
-			rc = (int)size;
-			printk(KERN_ERR "Error attempting to write lower page; "
-			       "rc = [%d]\n", rc);
-			set_fs(oldfs);
+		loff_t offset;
+
+		offset = (current_header_page << PAGE_CACHE_SHIFT);
+		if ((rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode,
+					       page_virt, offset,
+					       PAGE_CACHE_SIZE))) {
+			printk(KERN_ERR "%s: Error attempting to write header "
+			       "information to lower file; rc = [%d]\n",
+			       __FUNCTION__, rc);
 			goto out;
 		}
 		current_header_page++;
 	}
-	set_fs(oldfs);
 out:
 	return rc;
 }
@@ -1498,7 +1501,6 @@ ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
 /**
  * ecryptfs_write_metadata
  * @ecryptfs_dentry: The eCryptfs dentry
- * @lower_file: The lower file struct, which was returned from dentry_open
  *
  * Write the file headers out.  This will likely involve a userspace
  * callout, in which the session key is encrypted with one or more
@@ -1506,22 +1508,21 @@ ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
  * retrieved via a prompt.  Exactly what happens at this point should
  * be policy-dependent.
  *
+ * TODO: Support header information spanning multiple pages
+ *
  * Returns zero on success; non-zero on error
  */
-int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
-			    struct file *lower_file)
+int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 {
-	struct ecryptfs_crypt_stat *crypt_stat;
+	struct ecryptfs_crypt_stat *crypt_stat =
+		&ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
 	char *page_virt;
-	size_t size;
+	size_t size = 0;
 	int rc = 0;
 
-	crypt_stat = &ecryptfs_inode_to_private(
-		ecryptfs_dentry->d_inode)->crypt_stat;
 	if (likely(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 		if (!(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
-			ecryptfs_printk(KERN_DEBUG, "Key is "
-					"invalid; bailing out\n");
+			printk(KERN_ERR "Key is invalid; bailing out\n");
 			rc = -EINVAL;
 			goto out;
 		}
@@ -1550,7 +1551,8 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
 						      crypt_stat, page_virt,
 						      size);
 	else
-		rc = ecryptfs_write_metadata_to_contents(crypt_stat, lower_file,
+		rc = ecryptfs_write_metadata_to_contents(crypt_stat,
+							 ecryptfs_dentry,
 							 page_virt);
 	if (rc) {
 		printk(KERN_ERR "Error writing metadata out to lower file; "
@@ -1678,15 +1680,17 @@ out:
  *
  * Returns zero on success; non-zero on error
  */
-int ecryptfs_read_xattr_region(char *page_virt, struct dentry *ecryptfs_dentry)
+int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode)
 {
+	struct dentry *lower_dentry =
+		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
 	ssize_t size;
 	int rc = 0;
 
-	size = ecryptfs_getxattr(ecryptfs_dentry, ECRYPTFS_XATTR_NAME,
-				 page_virt, ECRYPTFS_DEFAULT_EXTENT_SIZE);
+	size = ecryptfs_getxattr_lower(lower_dentry, ECRYPTFS_XATTR_NAME,
+				       page_virt, ECRYPTFS_DEFAULT_EXTENT_SIZE);
 	if (size < 0) {
-		printk(KERN_DEBUG "Error attempting to read the [%s] "
+		printk(KERN_ERR "Error attempting to read the [%s] "
 		       "xattr from the lower file; return value = [%zd]\n",
 		       ECRYPTFS_XATTR_NAME, size);
 		rc = -EINVAL;
@@ -1701,7 +1705,7 @@ int ecryptfs_read_and_validate_xattr_region(char *page_virt,
 {
 	int rc;
 
-	rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_dentry);
+	rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_dentry->d_inode);
 	if (rc)
 		goto out;
 	if (!contains_ecryptfs_marker(page_virt	+ ECRYPTFS_FILE_SIZE_BYTES)) {
@@ -1715,8 +1719,6 @@ out:
 
 /**
  * ecryptfs_read_metadata
- * @ecryptfs_dentry: The eCryptfs dentry
- * @lower_file: The lower file from which to read the metadata
  *
  * Common entry point for reading file metadata. From here, we could
  * retrieve the header information from the header region of the file,
@@ -1727,15 +1729,13 @@ out:
  *
  * Returns zero if valid headers found and parsed; non-zero otherwise
  */
-int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry,
-			   struct file *lower_file)
+int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 {
 	int rc = 0;
 	char *page_virt = NULL;
-	mm_segment_t oldfs;
-	ssize_t bytes_read;
+	struct inode *ecryptfs_inode = ecryptfs_dentry->d_inode;
 	struct ecryptfs_crypt_stat *crypt_stat =
-	    &ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
+	    &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 		&ecryptfs_superblock_to_private(
 			ecryptfs_dentry->d_sb)->mount_crypt_stat;
@@ -1746,27 +1746,18 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry,
 	page_virt = kmem_cache_alloc(ecryptfs_header_cache_1, GFP_USER);
 	if (!page_virt) {
 		rc = -ENOMEM;
-		ecryptfs_printk(KERN_ERR, "Unable to allocate page_virt\n");
+		printk(KERN_ERR "%s: Unable to allocate page_virt\n",
+		       __FUNCTION__);
 		goto out;
 	}
-	lower_file->f_pos = 0;
-	oldfs = get_fs();
-	set_fs(get_ds());
-	bytes_read = lower_file->f_op->read(lower_file,
-					    (char __user *)page_virt,
-					    ECRYPTFS_DEFAULT_EXTENT_SIZE,
-					    &lower_file->f_pos);
-	set_fs(oldfs);
-	if (bytes_read != ECRYPTFS_DEFAULT_EXTENT_SIZE) {
-		rc = -EINVAL;
-		goto out;
-	}
-	rc = ecryptfs_read_headers_virt(page_virt, crypt_stat,
-					ecryptfs_dentry,
-					ECRYPTFS_VALIDATE_HEADER_SIZE);
+	rc = ecryptfs_read_lower(page_virt, 0, crypt_stat->extent_size,
+				 ecryptfs_inode);
+	if (!rc)
+		rc = ecryptfs_read_headers_virt(page_virt, crypt_stat,
+						ecryptfs_dentry,
+						ECRYPTFS_VALIDATE_HEADER_SIZE);
 	if (rc) {
-		rc = ecryptfs_read_xattr_region(page_virt,
-						ecryptfs_dentry);
+		rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_inode);
 		if (rc) {
 			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
 			       "file header region or xattr region\n");
