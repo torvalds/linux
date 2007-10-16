@@ -218,7 +218,7 @@ int __init create_tmp_file(unsigned long long len)
 
 	err = fchmod(fd, 0777);
 	if(err < 0){
-		perror("os_mode_fd");
+		perror("fchmod");
 		exit(1);
 	}
 
@@ -226,7 +226,7 @@ int __init create_tmp_file(unsigned long long len)
 	 * increase the file size by one byte, to the desired length.
 	 */
 	if (lseek64(fd, len - 1, SEEK_SET) < 0) {
-		perror("os_seek_file");
+		perror("lseek64");
 		exit(1);
 	}
 
@@ -247,7 +247,7 @@ int __init create_mem_file(unsigned long long len)
 
 	fd = create_tmp_file(len);
 
-	err = os_set_exec_close(fd, 1);
+	err = os_set_exec_close(fd);
 	if(err < 0){
 		errno = -err;
 		perror("exec_close");

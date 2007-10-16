@@ -11,6 +11,7 @@
 #include <limits.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
 #include "user.h"
 #include "kern_util.h"
 #include "os.h"
@@ -54,13 +55,14 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 	if (stack == 0)
 		return -ENOMEM;
 
-	ret = os_pipe(fds, 1, 0);
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
 	if (ret < 0) {
-		printk("run_helper : pipe failed, ret = %d\n", -ret);
+		ret = -errno;
+		printk("run_helper : pipe failed, errno = %d\n", errno);
 		goto out_free;
 	}
 
-	ret = os_set_exec_close(fds[1], 1);
+	ret = os_set_exec_close(fds[1]);
 	if (ret < 0) {
 		printk("run_helper : setting FD_CLOEXEC failed, ret = %d\n",
 		       -ret);

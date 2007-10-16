@@ -99,7 +99,9 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 	err = os_map_memory((void *) uml_reserved, physmem_fd, offset,
 			    len - offset, 1, 1, 1);
 	if (err < 0) {
-		os_print_error(err, "Mapping memory");
+		printf("setup_physmem - mapping %ld bytes of memory at 0x%p "
+		       "failed - errno = %d\n", len - offset,
+		       (void *) uml_reserved, err);
 		exit(1);
 	}
 

@@ -226,8 +226,8 @@ static int init_aio_24(void)
 	goto out;
 
 out_close_pipe:
-	os_close_file(fds[0]);
-	os_close_file(fds[1]);
+	close(fds[0]);
+	close(fds[1]);
 	aio_req_fd_w = -1;
 	aio_req_fd_r = -1;
 out:

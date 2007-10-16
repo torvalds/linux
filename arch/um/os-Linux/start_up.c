@@ -28,13 +28,14 @@
 static int ptrace_child(void)
 {
 	int ret;
+	/* Calling os_getpid because some libcs cached getpid incorrectly */
 	int pid = os_getpid(), ppid = getppid();
 	int sc_result;
 
 	change_sig(SIGWINCH, 0);
 	if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) {
 		perror("ptrace");
-		os_kill_process(pid, 0);
+		kill(pid, SIGKILL);
 	}
 	kill(pid, SIGSTOP);
 
@@ -496,7 +497,7 @@ int __init parse_iomem(char *str, int *add)
 	file++;
 	fd = open(file, O_RDWR, 0);
 	if (fd < 0) {
-		os_print_error(fd, "parse_iomem - Couldn't open io file");
+		perror("parse_iomem - Couldn't open io file");
 		goto out;
 	}
 

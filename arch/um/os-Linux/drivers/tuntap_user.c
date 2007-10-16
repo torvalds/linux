@@ -62,7 +62,7 @@ static void tuntap_pre_exec(void *arg)
 	struct tuntap_pre_exec_data *data = arg;
 
 	dup2(data->stdout, 1);
-	os_close_file(data->close_me);
+	close(data->close_me);
 }
 
 static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
@@ -88,7 +88,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 	if(pid < 0)
 		return -pid;
 
-	os_close_file(remote);
+	close(remote);
 
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
@@ -125,7 +125,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 		return -EINVAL;
 	}
 	*fd_out = ((int *) CMSG_DATA(cmsg))[0];
-	os_set_exec_close(*fd_out, 1);
+	os_set_exec_close(*fd_out);
 	return 0;
 }
 
@@ -154,20 +154,22 @@ static int tuntap_open(void *data)
 		if(ioctl(pri->fd, TUNSETIFF, (void *) &ifr) < 0){
 			err = -errno;
 			printk("TUNSETIFF failed, errno = %d\n", errno);
-			os_close_file(pri->fd);
+			close(pri->fd);
 			return err;
 		}
 	}
 	else {
-		err = os_pipe(fds, 0, 0);
-		if(err < 0){
-			printk("tuntap_open : os_pipe failed - err = %d\n",
-			       -err);
+		err = socketpair(AF_UNIX, SOCK_DGRAM, 0, fds);
+		if(err){
+			err = -errno;
+			printk("tuntap_open : socketpair failed - errno = %d\n",
+			       errno);
 			return err;
 		}
 
 		buffer = get_output_buffer(&len);
-		if(buffer != NULL) len--;
+		if(buffer != NULL)
+			len--;
 		used = 0;
 
 		err = tuntap_open_tramp(pri->gate_addr, &pri->fd, fds[0],
@@ -186,7 +188,7 @@ static int tuntap_open(void *data)
 		printk("%s", output);
 		free_output_buffer(buffer);
 
-		os_close_file(fds[0]);
+		close(fds[0]);
 		iter_addresses(pri->dev, open_addr, pri->dev_name);
 	}
 
@@ -199,7 +201,7 @@ static void tuntap_close(int fd, void *data)
 
 	if(!pri->fixed_config) 
 		iter_addresses(pri->dev, close_addr, pri->dev_name);
-	os_close_file(fd);
+	close(fd);
 	pri->fd = -1;
 }
 

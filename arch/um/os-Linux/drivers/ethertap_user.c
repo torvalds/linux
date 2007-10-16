@@ -87,11 +87,11 @@ static void etap_pre_exec(void *arg)
 	struct etap_pre_exec_data *data = arg;
 
 	dup2(data->control_remote, 1);
-	os_close_file(data->data_me);
-	os_close_file(data->control_me);
+	close(data->data_me);
+	close(data->control_me);
 }
 
-static int etap_tramp(char *dev, char *gate, int control_me, 
+static int etap_tramp(char *dev, char *gate, int control_me,
 		      int control_remote, int data_me, int data_remote)
 {
 	struct etap_pre_exec_data pe_data;
@@ -101,7 +101,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	char gate_buf[sizeof("nnn.nnn.nnn.nnn\0")];
 	char *setup_args[] = { "uml_net", version_buf, "ethertap", dev,
 			       data_fd_buf, gate_buf, NULL };
-	char *nosetup_args[] = { "uml_net", version_buf, "ethertap", 
+	char *nosetup_args[] = { "uml_net", version_buf, "ethertap",
 				 dev, data_fd_buf, NULL };
 	char **args, c;
 
@@ -121,8 +121,8 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 
 	if(pid < 0)
 		err = pid;
-	os_close_file(data_remote);
-	os_close_file(control_remote);
+	close(data_remote);
+	close(control_remote);
 	CATCH_EINTR(n = read(control_me, &c, sizeof(c)));
 	if(n != sizeof(c)){
 		err = -errno;
@@ -151,19 +151,23 @@ static int etap_open(void *data)
 	if(err)
 		return err;
 
-	err = os_pipe(data_fds, 0, 0);
-	if(err < 0){
-		printk("data os_pipe failed - err = %d\n", -err);
+	err = socketpair(AF_UNIX, SOCK_DGRAM, 0, data_fds);
+	if(err){
+		err = -errno;
+		printk("etap_open - data socketpair failed - err = %d\n",
+		       errno);
 		return err;
 	}
 
-	err = os_pipe(control_fds, 1, 0);
-	if(err < 0){
-		printk("control os_pipe failed - err = %d\n", -err);
-		return err;
+	err = socketpair(AF_UNIX, SOCK_STREAM, 0, control_fds);
+	if(err){
+		err = -errno;
+		printk("etap_open - control socketpair failed - err = %d\n",
+		       errno);
+		goto out_close_data;
 	}
 
-	err = etap_tramp(pri->dev_name, pri->gate_addr, control_fds[0], 
+	err = etap_tramp(pri->dev_name, pri->gate_addr, control_fds[0],
 			 control_fds[1], data_fds[0], data_fds[1]);
 	output_len = UM_KERN_PAGE_SIZE;
 	output = kmalloc(output_len, UM_GFP_KERNEL);
@@ -178,13 +182,21 @@ static int etap_open(void *data)
 
 	if(err < 0){
 		printk("etap_tramp failed - err = %d\n", -err);
-		return err;
+		goto out_close_control;
 	}
 
 	pri->data_fd = data_fds[0];
 	pri->control_fd = control_fds[0];
 	iter_addresses(pri->dev, etap_open_addr, &pri->control_fd);
 	return data_fds[0];
+
+out_close_control:
+	close(control_fds[0]);
+	close(control_fds[1]);
+out_close_data:
+	close(data_fds[0]);
+	close(data_fds[1]);
+	return err;
 }
 
 static void etap_close(int fd, void *data)
@@ -192,11 +204,19 @@ static void etap_close(int fd, void *data)
 	struct ethertap_data *pri = data;
 
 	iter_addresses(pri->dev, etap_close_addr, &pri->control_fd);
-	os_close_file(fd);
-	os_shutdown_socket(pri->data_fd, 1, 1);
-	os_close_file(pri->data_fd);
+	close(fd);
+
+	if(shutdown(pri->data_fd, SHUT_RDWR) < 0)
+		printk("etap_close - shutdown data socket failed, errno = %d\n",
+		       errno);
+
+	if(shutdown(pri->control_fd, SHUT_RDWR) < 0)
+		printk("etap_close - shutdown control socket failed, "
+		       "errno = %d\n", errno);
+
+	close(pri->data_fd);
 	pri->data_fd = -1;
-	os_close_file(pri->control_fd);
+	close(pri->control_fd);
 	pri->control_fd = -1;
 }
 
@@ -216,13 +236,14 @@ static void etap_add_addr(unsigned char *addr, unsigned char *netmask,
 	etap_open_addr(addr, netmask, &pri->control_fd);
 }
 
-static void etap_del_addr(unsigned char *addr, unsigned char *netmask, 
+static void etap_del_addr(unsigned char *addr, unsigned char *netmask,
 			  void *data)
 {
 	struct ethertap_data *pri = data;
 
 	if(pri->control_fd == -1)
 		return;
+
 	etap_close_addr(addr, netmask, &pri->control_fd);
 }
 

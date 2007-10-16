@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
@@ -28,31 +29,32 @@
 unsigned long os_process_pc(int pid)
 {
 	char proc_stat[STAT_PATH_LEN], buf[256];
-	unsigned long pc;
+	unsigned long pc = ARBITRARY_ADDR;
 	int fd, err;
 
 	sprintf(proc_stat, "/proc/%d/stat", pid);
-	fd = os_open_file(proc_stat, of_read(OPENFLAGS()), 0);
+	fd = open(proc_stat, O_RDONLY, 0);
 	if (fd < 0) {
 		printk(UM_KERN_ERR "os_process_pc - couldn't open '%s', "
-		       "err = %d\n", proc_stat, -fd);
-		return ARBITRARY_ADDR;
+		       "errno = %d\n", proc_stat, errno);
+		goto out;
 	}
 	CATCH_EINTR(err = read(fd, buf, sizeof(buf)));
 	if (err < 0) {
 		printk(UM_KERN_ERR "os_process_pc - couldn't read '%s', "
 		       "err = %d\n", proc_stat, errno);
-		os_close_file(fd);
-		return ARBITRARY_ADDR;
+		goto out_close;
 	}
 	os_close_file(fd);
 	pc = ARBITRARY_ADDR;
 	if (sscanf(buf, "%*d " COMM_SCANF " %*c %*d %*d %*d %*d %*d %*d %*d "
-		  "%*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d "
-		  "%*d %*d %*d %*d %*d %lu", &pc) != 1) {
+		   "%*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d "
+		   "%*d %*d %*d %*d %*d %lu", &pc) != 1)
 		printk(UM_KERN_ERR "os_process_pc - couldn't find pc in '%s'\n",
 		       buf);
-	}
+ out_close:
+	close(fd);
+ out:
 	return pc;
 }
 
@@ -60,25 +62,26 @@ int os_process_parent(int pid)
 {
 	char stat[STAT_PATH_LEN];
 	char data[256];
-	int parent, n, fd;
+	int parent = FAILURE_PID, n, fd;
 
 	if (pid == -1)
-		return -1;
+		return parent;
 
 	snprintf(stat, sizeof(stat), "/proc/%d/stat", pid);
-	fd = os_open_file(stat, of_read(OPENFLAGS()), 0);
+	fd = open(stat, O_RDONLY, 0);
 	if (fd < 0) {
-		printk(UM_KERN_ERR "Couldn't open '%s', err = %d\n", stat, -fd);
-		return FAILURE_PID;
+		printk(UM_KERN_ERR "Couldn't open '%s', errno = %d\n", stat,
+		       errno);
+		return parent;
 	}
 
 	CATCH_EINTR(n = read(fd, data, sizeof(data)));
-	os_close_file(fd);
+	close(fd);
 
 	if (n < 0) {
-		printk(UM_KERN_ERR "Couldn't read '%s', err = %d\n", stat,
+		printk(UM_KERN_ERR "Couldn't read '%s', errno = %d\n", stat,
 		       errno);
-		return FAILURE_PID;
+		return parent;
 	}
 
 	parent = FAILURE_PID;

@@ -82,13 +82,6 @@ int os_access(const char* file, int mode)
 	return 0;
 }
 
-void os_print_error(int error, const char* str)
-{
-	errno = error < 0 ? -error : error;
-
-	perror(str);
-}
-
 /* FIXME? required only by hostaudio (because it passes ioctls verbatim) */
 int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg)
 {
@@ -181,19 +174,19 @@ int os_file_mode(char *file, struct openflags *mode_out)
 
 	*mode_out = OPENFLAGS();
 
-	err = os_access(file, OS_ACC_W_OK);
-	if((err < 0) && (err != -EACCES))
-		return(err);
+	err = access(file, W_OK);
+	if(err && (errno != EACCES))
+		return -errno;
+	else if(!err)
+		*mode_out = of_write(*mode_out);
 
-	*mode_out = of_write(*mode_out);
+	err = access(file, R_OK);
+	if(err && (errno != EACCES))
+		return -errno;
+	else if(!err)
+		*mode_out = of_read(*mode_out);
 
-	err = os_access(file, OS_ACC_R_OK);
-	if((err < 0) && (err != -EACCES))
-		return(err);
-
-	*mode_out = of_read(*mode_out);
-
-	return(0);
+	return err;
 }
 
 int os_open_file(char *file, struct openflags flags, int mode)
@@ -212,15 +205,15 @@ int os_open_file(char *file, struct openflags flags, int mode)
 
 	fd = open64(file, f, mode);
 	if(fd < 0)
-		return(-errno);
+		return -errno;
 
 	if(flags.cl && fcntl(fd, F_SETFD, 1)){
 		err = -errno;
-		os_close_file(fd);
+		close(fd);
 		return err;
 	}
 
-	return(fd);
+	return fd;
 }
 
 int os_connect_socket(char *name)
@@ -292,31 +285,33 @@ int os_file_size(char *file, unsigned long long *size_out)
 	err = os_stat_file(file, &buf);
 	if(err < 0){
 		printk("Couldn't stat \"%s\" : err = %d\n", file, -err);
-		return(err);
+		return err;
 	}
 
 	if(S_ISBLK(buf.ust_mode)){
 		int fd;
 		long blocks;
 
-		fd = os_open_file(file, of_read(OPENFLAGS()), 0);
-		if(fd < 0){
-			printk("Couldn't open \"%s\", errno = %d\n", file, -fd);
-			return(fd);
+		fd = open(file, O_RDONLY, 0);
+		if(fd < 0) {
+			err = -errno;
+			printk("Couldn't open \"%s\", errno = %d\n", file,
+			       errno);
+			return err;
 		}
 		if(ioctl(fd, BLKGETSIZE, &blocks) < 0){
 			err = -errno;
 			printk("Couldn't get the block size of \"%s\", "
 			       "errno = %d\n", file, errno);
-			os_close_file(fd);
-			return(err);
+			close(fd);
+			return err;
 		}
 		*size_out = ((long long) blocks) * 512;
-		os_close_file(fd);
-		return(0);
+		close(fd);
 	}
-	*size_out = buf.ust_size;
-	return(0);
+	else *size_out = buf.ust_size;
+
+	return 0;
 }
 
 int os_file_modtime(char *file, unsigned long *modtime)
@@ -334,35 +329,28 @@ int os_file_modtime(char *file, unsigned long *modtime)
 	return 0;
 }
 
-int os_get_exec_close(int fd, int* close_on_exec)
+int os_get_exec_close(int fd, int *close_on_exec)
 {
 	int ret;
 
-	do {
-		ret = fcntl(fd, F_GETFD);
-	} while((ret < 0) && (errno == EINTR)) ;
+	CATCH_EINTR(ret = fcntl(fd, F_GETFD));
 
 	if(ret < 0)
-		return(-errno);
+		return -errno;
 
-	*close_on_exec = (ret&FD_CLOEXEC) ? 1 : 0;
-	return(ret);
+	*close_on_exec = (ret & FD_CLOEXEC) ? 1 : 0;
+	return ret;
 }
 
-int os_set_exec_close(int fd, int close_on_exec)
+int os_set_exec_close(int fd)
 {
-	int flag, err;
+	int err;
 
-	if(close_on_exec) flag = FD_CLOEXEC;
-	else flag = 0;
-
-	do {
-		err = fcntl(fd, F_SETFD, flag);
-	} while((err < 0) && (errno == EINTR)) ;
+	CATCH_EINTR(err = fcntl(fd, F_SETFD, FD_CLOEXEC));
 
 	if(err < 0)
-		return(-errno);
-	return(err);
+		return -errno;
+	return err;
 }
 
 int os_pipe(int *fds, int stream, int close_on_exec)
@@ -371,16 +359,16 @@ int os_pipe(int *fds, int stream, int close_on_exec)
 
 	err = socketpair(AF_UNIX, type, 0, fds);
 	if(err < 0)
-		return(-errno);
+		return -errno;
 
 	if(!close_on_exec)
-		return(0);
+		return 0;
 
-	err = os_set_exec_close(fds[0], 1);
+	err = os_set_exec_close(fds[0]);
 	if(err < 0)
 		goto error;
 
-	err = os_set_exec_close(fds[1], 1);
+	err = os_set_exec_close(fds[1]);
 	if(err < 0)
 		goto error;
 
@@ -388,9 +376,9 @@ int os_pipe(int *fds, int stream, int close_on_exec)
 
  error:
 	printk("os_pipe : Setting FD_CLOEXEC failed, err = %d\n", -err);
-	os_close_file(fds[1]);
-	os_close_file(fds[0]);
-	return(err);
+	close(fds[1]);
+	close(fds[0]);
+	return err;
 }
 
 int os_set_fd_async(int fd, int owner)
@@ -537,7 +525,7 @@ int os_create_unix_socket(char *file, int len, int close_on_exec)
 		return -errno;
 
 	if(close_on_exec) {
-		err = os_set_exec_close(sock, 1);
+		err = os_set_exec_close(sock);
 		if(err < 0)
 			printk("create_unix_socket : close_on_exec failed, "
 		       "err = %d", -err);
