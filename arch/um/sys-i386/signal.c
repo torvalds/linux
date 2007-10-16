@@ -12,7 +12,6 @@
 #include "frame_kern.h"
 #include "sigcontext.h"
 #include "registers.h"
-#include "mode.h"
 #include "skas.h"
 
 void copy_sc(union uml_pt_regs *regs, void *from)
@@ -108,20 +107,13 @@ int copy_sc_to_user_skas(struct sigcontext __user *to, struct _fpstate __user *t
 
 static int copy_sc_from_user(struct pt_regs *to, void __user *from)
 {
-	int ret;
-
-	ret = CHOOSE_MODE(copy_sc_from_user_tt(UPT_SC(&to->regs), from,
-					       sizeof(struct _fpstate)),
-			  copy_sc_from_user_skas(to, from));
-	return ret;
+	return copy_sc_from_user_skas(to, from);
 }
 
 static int copy_sc_to_user(struct sigcontext __user *to, struct _fpstate __user *fp,
 			   struct pt_regs *from, unsigned long sp)
 {
-	return CHOOSE_MODE(copy_sc_to_user_tt(to, fp, UPT_SC(&from->regs),
-					      sizeof(*fp), sp),
-                           copy_sc_to_user_skas(to, fp, from, sp));
+	return copy_sc_to_user_skas(to, fp, from, sp);
 }
 
 static int copy_ucontext_to_user(struct ucontext __user *uc, struct _fpstate __user *fp,

@@ -14,7 +14,6 @@
 #include "asm/ptrace.h"
 #include "asm/unistd.h"
 #include "asm/prctl.h" /* XXX This should get the constants from libc */
-#include "choose-mode.h"
 #include "kern.h"
 #include "os.h"
 
@@ -92,8 +91,7 @@ long arch_prctl_skas(struct task_struct *task, int code,
 
 long sys_arch_prctl(int code, unsigned long addr)
 {
-	return CHOOSE_MODE_PROC(arch_prctl_tt, arch_prctl_skas, current, code,
-                                (unsigned long __user *) addr);
+	return arch_prctl_skas(current, code, (unsigned long __user *) addr);
 }
 
 long sys_clone(unsigned long clone_flags, unsigned long newsp,

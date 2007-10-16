@@ -12,7 +12,6 @@
 #include "asm/sigcontext.h"
 #include "asm/ptrace.h"
 #include "asm/arch/ucontext.h"
-#include "choose-mode.h"
 #include "sysdep/ptrace.h"
 #include "frame_kern.h"
 #include "skas.h"
@@ -135,9 +134,7 @@ static int copy_sc_from_user(struct pt_regs *to, void __user *from)
 {
        int ret;
 
-       ret = CHOOSE_MODE(copy_sc_from_user_tt(UPT_SC(&to->regs), from,
-                                              sizeof(struct _fpstate)),
-                         copy_sc_from_user_skas(to, from));
+       ret = copy_sc_from_user_skas(to, from);
        return(ret);
 }
 
@@ -146,9 +143,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 			   struct pt_regs *from, unsigned long mask,
 			   unsigned long sp)
 {
-       return(CHOOSE_MODE(copy_sc_to_user_tt(to, fp, UPT_SC(&from->regs),
-                                             sizeof(*fp), sp),
-                          copy_sc_to_user_skas(to, fp, from, mask, sp)));
+       return copy_sc_to_user_skas(to, fp, from, mask, sp);
 }
 
 struct rt_sigframe

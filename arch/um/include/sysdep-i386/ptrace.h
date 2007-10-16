@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -9,7 +9,6 @@
 #include "uml-config.h"
 #include "user_constants.h"
 #include "sysdep/faultinfo.h"
-#include "choose-mode.h"
 
 #define MAX_REG_NR (UM_FRAME_SIZE / sizeof(unsigned long))
 #define MAX_REG_OFFSET (UM_FRAME_SIZE)
@@ -67,40 +66,23 @@ union uml_pt_regs {
 #define EMPTY_UML_PT_REGS { }
 
 #define UPT_SC(r) ((r)->tt.sc)
-#define UPT_IP(r) \
-	__CHOOSE_MODE(SC_IP(UPT_SC(r)), REGS_IP((r)->skas.regs))
-#define UPT_SP(r) \
-	__CHOOSE_MODE(SC_SP(UPT_SC(r)), REGS_SP((r)->skas.regs))
-#define UPT_EFLAGS(r) \
-	__CHOOSE_MODE(SC_EFLAGS(UPT_SC(r)), REGS_EFLAGS((r)->skas.regs))
-#define UPT_EAX(r) \
-	__CHOOSE_MODE(SC_EAX(UPT_SC(r)), REGS_EAX((r)->skas.regs))
-#define UPT_EBX(r) \
-	__CHOOSE_MODE(SC_EBX(UPT_SC(r)), REGS_EBX((r)->skas.regs))
-#define UPT_ECX(r) \
-	__CHOOSE_MODE(SC_ECX(UPT_SC(r)), REGS_ECX((r)->skas.regs))
-#define UPT_EDX(r) \
-	__CHOOSE_MODE(SC_EDX(UPT_SC(r)), REGS_EDX((r)->skas.regs))
-#define UPT_ESI(r) \
-	__CHOOSE_MODE(SC_ESI(UPT_SC(r)), REGS_ESI((r)->skas.regs))
-#define UPT_EDI(r) \
-	__CHOOSE_MODE(SC_EDI(UPT_SC(r)), REGS_EDI((r)->skas.regs))
-#define UPT_EBP(r) \
-	__CHOOSE_MODE(SC_EBP(UPT_SC(r)), REGS_EBP((r)->skas.regs))
-#define UPT_ORIG_EAX(r) \
-	__CHOOSE_MODE((r)->tt.syscall, (r)->skas.syscall)
-#define UPT_CS(r) \
-	__CHOOSE_MODE(SC_CS(UPT_SC(r)), REGS_CS((r)->skas.regs))
-#define UPT_SS(r) \
-	__CHOOSE_MODE(SC_SS(UPT_SC(r)), REGS_SS((r)->skas.regs))
-#define UPT_DS(r) \
-	__CHOOSE_MODE(SC_DS(UPT_SC(r)), REGS_DS((r)->skas.regs))
-#define UPT_ES(r) \
-	__CHOOSE_MODE(SC_ES(UPT_SC(r)), REGS_ES((r)->skas.regs))
-#define UPT_FS(r) \
-	__CHOOSE_MODE(SC_FS(UPT_SC(r)), REGS_FS((r)->skas.regs))
-#define UPT_GS(r) \
-	__CHOOSE_MODE(SC_GS(UPT_SC(r)), REGS_GS((r)->skas.regs))
+#define UPT_IP(r) REGS_IP((r)->skas.regs)
+#define UPT_SP(r) REGS_SP((r)->skas.regs)
+#define UPT_EFLAGS(r) REGS_EFLAGS((r)->skas.regs)
+#define UPT_EAX(r) REGS_EAX((r)->skas.regs)
+#define UPT_EBX(r) REGS_EBX((r)->skas.regs)
+#define UPT_ECX(r) REGS_ECX((r)->skas.regs)
+#define UPT_EDX(r) REGS_EDX((r)->skas.regs)
+#define UPT_ESI(r) REGS_ESI((r)->skas.regs)
+#define UPT_EDI(r) REGS_EDI((r)->skas.regs)
+#define UPT_EBP(r) REGS_EBP((r)->skas.regs)
+#define UPT_ORIG_EAX(r) ((r)->skas.syscall)
+#define UPT_CS(r) REGS_CS((r)->skas.regs)
+#define UPT_SS(r) REGS_SS((r)->skas.regs)
+#define UPT_DS(r) REGS_DS((r)->skas.regs)
+#define UPT_ES(r) REGS_ES((r)->skas.regs)
+#define UPT_FS(r) REGS_FS((r)->skas.regs)
+#define UPT_GS(r) REGS_GS((r)->skas.regs)
 
 #define UPT_SYSCALL_ARG1(r) UPT_EBX(r)
 #define UPT_SYSCALL_ARG2(r) UPT_ECX(r)
@@ -111,8 +93,7 @@ union uml_pt_regs {
 
 extern int user_context(unsigned long sp);
 
-#define UPT_IS_USER(r) \
-	CHOOSE_MODE(user_context(UPT_SP(r)), (r)->skas.is_user)
+#define UPT_IS_USER(r) ((r)->skas.is_user)
 
 struct syscall_args {
 	unsigned long args[6];
@@ -181,18 +162,14 @@ struct syscall_args {
 	} while (0)
 
 #define UPT_SET_SYSCALL_RETURN(r, res) \
-	CHOOSE_MODE(SC_SET_SYSCALL_RETURN(UPT_SC(r), (res)), \
-                    REGS_SET_SYSCALL_RETURN((r)->skas.regs, (res)))
+	REGS_SET_SYSCALL_RETURN((r)->skas.regs, (res))
 
-#define UPT_RESTART_SYSCALL(r) \
-	CHOOSE_MODE(SC_RESTART_SYSCALL(UPT_SC(r)), \
-		    REGS_RESTART_SYSCALL((r)->skas.regs))
+#define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->skas.regs)
 
 #define UPT_ORIG_SYSCALL(r) UPT_EAX(r)
 #define UPT_SYSCALL_NR(r) UPT_ORIG_EAX(r)
 #define UPT_SYSCALL_RET(r) UPT_EAX(r)
 
-#define UPT_FAULTINFO(r) \
-        CHOOSE_MODE((&(r)->tt.faultinfo), (&(r)->skas.faultinfo))
+#define UPT_FAULTINFO(r) (&(r)->skas.faultinfo)
 
 #endif

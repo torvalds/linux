@@ -9,7 +9,6 @@
 #include <asm-generic/mm_hooks.h>
 
 #include "linux/sched.h"
-#include "choose-mode.h"
 #include "um_mmu.h"
 
 #define get_mmu_context(task) do ; while(0)
@@ -30,8 +29,7 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	 * possible.
 	 */
 	if (old != new && (current->flags & PF_BORROWED_MM))
-		CHOOSE_MODE(force_flush_all(),
-			    switch_mm_skas(&new->context.skas.id));
+		switch_mm_skas(&new->context.skas.id);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
@@ -43,8 +41,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		cpu_clear(cpu, prev->cpu_vm_mask);
 		cpu_set(cpu, next->cpu_vm_mask);
 		if(next != &init_mm)
-			CHOOSE_MODE((void) 0, 
-				    switch_mm_skas(&next->context.skas.id));
+			switch_mm_skas(&next->context.skas.id);
 	}
 }
 
@@ -59,15 +56,14 @@ extern int init_new_context_skas(struct task_struct *task,
 static inline int init_new_context(struct task_struct *task, 
 				   struct mm_struct *mm)
 {
-	return(CHOOSE_MODE_PROC(init_new_context_tt, init_new_context_skas, 
-				task, mm));
+	return(init_new_context_skas(task, mm));
 }
 
 extern void destroy_context_skas(struct mm_struct *mm);
 
 static inline void destroy_context(struct mm_struct *mm)
 {
-	CHOOSE_MODE((void) 0, destroy_context_skas(mm));
+	destroy_context_skas(mm);
 }
 
 #endif

@@ -10,13 +10,12 @@
 #include "kern.h"
 #include "os.h"
 #include "mode.h"
-#include "choose-mode.h"
 
 void (*pm_power_off)(void);
 
 static void kill_off_processes(void)
 {
-	CHOOSE_MODE(kill_off_processes_tt(), kill_off_processes_skas());
+	kill_off_processes_skas();
 }
 
 void uml_cleanup(void)
@@ -29,13 +28,13 @@ void uml_cleanup(void)
 void machine_restart(char * __unused)
 {
         uml_cleanup();
-	CHOOSE_MODE(reboot_tt(), reboot_skas());
+	reboot_skas();
 }
 
 void machine_power_off(void)
 {
         uml_cleanup();
-	CHOOSE_MODE(halt_tt(), halt_skas());
+	halt_skas();
 }
 
 void machine_halt(void)

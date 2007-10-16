@@ -12,7 +12,6 @@
 #include "asm/smp.h"
 #include "asm/ldt.h"
 #include "asm/unistd.h"
-#include "choose-mode.h"
 #include "kern.h"
 #include "mode_kern.h"
 #include "os.h"
@@ -506,6 +505,5 @@ void free_ldt(struct mmu_context_skas * mm)
 
 int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
 {
-	return CHOOSE_MODE_PROC(do_modify_ldt_tt, do_modify_ldt_skas, func,
-	                        ptr, bytecount);
+	return do_modify_ldt_skas(func, ptr, bytecount);
 }

@@ -11,7 +11,6 @@ struct pt_regs;
 struct task_struct;
 
 #include "asm/ptrace.h"
-#include "choose-mode.h"
 #include "registers.h"
 #include "sysdep/archsetjmp.h"
 

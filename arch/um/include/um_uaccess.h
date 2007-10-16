@@ -6,8 +6,6 @@
 #ifndef __ARCH_UM_UACCESS_H
 #define __ARCH_UM_UACCESS_H
 
-#include "choose-mode.h"
-#include "uaccess-skas.h"
 #include "asm/fixmap.h"
 
 #define __under_task_size(addr, size) \
@@ -27,20 +25,10 @@
 	(__addr_range_nowrap(addr, size) && \
 	 (__under_task_size(addr, size) || \
 	  __access_ok_vsyscall(type, addr, size) || \
-	  segment_eq(get_fs(), KERNEL_DS) || \
-	  CHOOSE_MODE_PROC(access_ok_tt, access_ok_skas, type, addr, size)))
+	  segment_eq(get_fs(), KERNEL_DS)))
 
-static inline int copy_from_user(void *to, const void __user *from, int n)
-{
-	return(CHOOSE_MODE_PROC(copy_from_user_tt, copy_from_user_skas, to,
-				from, n));
-}
-
-static inline int copy_to_user(void __user *to, const void *from, int n)
-{
-	return(CHOOSE_MODE_PROC(copy_to_user_tt, copy_to_user_skas, to, 
-				from, n));
-}
+extern int copy_from_user(void *to, const void __user *from, int n);
+extern int copy_to_user(void __user *to, const void *from, int n);
 
 /*
  * strncpy_from_user: - Copy a NUL terminated string from userspace.
@@ -61,11 +49,7 @@ static inline int copy_to_user(void __user *to, const void *from, int n)
  * and returns @count.
  */
 
-static inline int strncpy_from_user(char *dst, const char __user *src, int count)
-{
-	return(CHOOSE_MODE_PROC(strncpy_from_user_tt, strncpy_from_user_skas,
-				dst, src, count));
-}
+extern int strncpy_from_user(char *dst, const char __user *src, int count);
 
 /*
  * __clear_user: - Zero a block of memory in user space, with less checking.
@@ -78,10 +62,7 @@ static inline int strncpy_from_user(char *dst, const char __user *src, int count
  * Returns number of bytes that could not be cleared.
  * On success, this will be zero.
  */
-static inline int __clear_user(void *mem, int len)
-{
-	return(CHOOSE_MODE_PROC(__clear_user_tt, __clear_user_skas, mem, len));
-}
+extern int __clear_user(void __user *mem, int len);
 
 /*
  * clear_user: - Zero a block of memory in user space.
@@ -93,10 +74,7 @@ static inline int __clear_user(void *mem, int len)
  * Returns number of bytes that could not be cleared.
  * On success, this will be zero.
  */
-static inline int clear_user(void __user *mem, int len)
-{
-	return(CHOOSE_MODE_PROC(clear_user_tt, clear_user_skas, mem, len));
-}
+extern int clear_user(void __user *mem, int len);
 
 /*
  * strlen_user: - Get the size of a string in user space.
@@ -109,10 +87,7 @@ static inline int clear_user(void __user *mem, int len)
  * On exception, returns 0.
  * If the string is too long, returns a value greater than @n.
  */
-static inline int strnlen_user(const void __user *str, long len)
-{
-	return(CHOOSE_MODE_PROC(strnlen_user_tt, strnlen_user_skas, str, len));
-}
+extern int strnlen_user(const void __user *str, int len);
 
 #endif
 

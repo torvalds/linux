@@ -45,7 +45,6 @@
 #include "os.h"
 #include "mode.h"
 #include "mode_kern.h"
-#include "choose-mode.h"
 
 /* This is a per-cpu array.  A processor only modifies its entry and it only
  * cares about its entry, so it's OK if another processor is modifying its
@@ -55,7 +54,7 @@ struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { -1, NULL } };
 
 static inline int external_pid(struct task_struct *task)
 {
-	return CHOOSE_MODE_PROC(external_pid_tt, external_pid_skas, task);
+	return external_pid_skas(task);
 }
 
 int pid_to_processor_id(int pid)
@@ -114,8 +113,8 @@ void *_switch_to(void *prev, void *next, void *last)
 	set_current(to);
 
 	do {
-		current->thread.saved_task = NULL ;
-		CHOOSE_MODE_PROC(switch_to_tt, switch_to_skas, prev, next);
+		current->thread.saved_task = NULL;
+		switch_to_skas(prev, next);
 		if(current->thread.saved_task)
 			show_regs(&(current->thread.regs));
 		next= current->thread.saved_task;
@@ -136,7 +135,7 @@ void interrupt_end(void)
 
 void release_thread(struct task_struct *task)
 {
-	CHOOSE_MODE(release_thread_tt(task), release_thread_skas(task));
+	release_thread_skas(task);
 }
 
 void exit_thread(void)
@@ -155,8 +154,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	int ret;
 
 	p->thread = (struct thread_struct) INIT_THREAD;
-	ret = CHOOSE_MODE_PROC(copy_thread_tt, copy_thread_skas, nr,
-				clone_flags, sp, stack_top, p, regs);
+	ret = copy_thread_skas(nr, clone_flags, sp, stack_top, p, regs);
 
 	if (ret || !current->thread.forking)
 		goto out;
@@ -178,15 +176,12 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	int save_kmalloc_ok = kmalloc_ok;
 
 	kmalloc_ok = 0;
-	CHOOSE_MODE_PROC(initial_thread_cb_tt, initial_thread_cb_skas, proc,
-			 arg);
+	initial_thread_cb_skas(proc, arg);
 	kmalloc_ok = save_kmalloc_ok;
 }
 
 void default_idle(void)
 {
-	CHOOSE_MODE(uml_idle_timer(), (void) 0);
-
 	while(1){
 		/* endless idle loop with no priority at all */
 
@@ -203,7 +198,7 @@ void default_idle(void)
 
 void cpu_idle(void)
 {
-	CHOOSE_MODE(init_idle_tt(), init_idle_skas());
+	init_idle_skas();
 }
 
 void *um_virt_to_phys(struct task_struct *task, unsigned long addr,

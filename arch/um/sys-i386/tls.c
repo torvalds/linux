@@ -12,7 +12,6 @@
 #include "asm/segment.h"
 #include "asm/smp.h"
 #include "asm/desc.h"
-#include "choose-mode.h"
 #include "kern.h"
 #include "kern_util.h"
 #include "mode_kern.h"
@@ -28,7 +27,7 @@
 static int host_supports_tls = -1;
 int host_gdt_entry_tls_min;
 
-int do_set_thread_area_skas(struct user_desc *info)
+int do_set_thread_area(struct user_desc *info)
 {
 	int ret;
 	u32 cpu;
@@ -39,7 +38,7 @@ int do_set_thread_area_skas(struct user_desc *info)
 	return ret;
 }
 
-int do_get_thread_area_skas(struct user_desc *info)
+int do_get_thread_area(struct user_desc *info)
 {
 	int ret;
 	u32 cpu;
@@ -277,7 +276,7 @@ asmlinkage int sys_set_thread_area(struct user_desc __user *user_desc)
 			return -EFAULT;
 	}
 
-	ret = CHOOSE_MODE_PROC(do_set_thread_area_tt, do_set_thread_area_skas, &info);
+	ret = do_set_thread_area(&info);
 	if (ret)
 		return ret;
 	return set_tls_entry(current, &info, idx, 1);

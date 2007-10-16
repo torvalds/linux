@@ -264,8 +264,7 @@ void register_winch(int fd, struct tty_struct *tty)
 		return;
 
 	pid = tcgetpgrp(fd);
-	if (!CHOOSE_MODE_PROC(is_tracer_winch, is_skas_winch, pid, fd, tty) &&
-	    (pid == -1)) {
+	if (!is_skas_winch(pid, fd, tty) && (pid == -1)) {
 		thread = winch_tramp(fd, tty, &thread_fd, &stack);
 		if (thread < 0)
 			return;

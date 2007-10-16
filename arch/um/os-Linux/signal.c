@@ -53,8 +53,7 @@ void sig_handler(int sig, struct sigcontext *sc)
 
 	block_signals();
 
-	CHOOSE_MODE_PROC(sig_handler_common_tt, sig_handler_common_skas,
-			 sig, sc);
+	sig_handler_common_skas(sig, sc);
 
 	set_signals(enabled);
 }
@@ -257,8 +256,7 @@ void unblock_signals(void)
 		 * back here.
 		 */
 		if(save_pending & SIGIO_MASK)
-			CHOOSE_MODE_PROC(sig_handler_common_tt,
-					 sig_handler_common_skas, SIGIO, NULL);
+			sig_handler_common_skas(SIGIO, NULL);
 
 		if(save_pending & SIGALRM_MASK)
 			real_alarm_handler(SIGALRM, NULL);

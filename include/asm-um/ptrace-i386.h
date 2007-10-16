@@ -12,7 +12,6 @@
 #include "sysdep/ptrace.h"
 #include "asm/ptrace-generic.h"
 #include "asm/host_ldt.h"
-#include "choose-mode.h"
 
 #define PT_REGS_EAX(r) UPT_EAX(&(r)->regs)
 #define PT_REGS_EBX(r) UPT_EBX(&(r)->regs)
@@ -59,15 +58,8 @@ extern int arch_switch_tls_tt(struct task_struct *from, struct task_struct *to);
 extern void arch_switch_to_tt(struct task_struct *from, struct task_struct *to);
 extern void arch_switch_to_skas(struct task_struct *from, struct task_struct *to);
 
-static inline int do_get_thread_area(struct user_desc *info)
-{
-	return CHOOSE_MODE_PROC(do_get_thread_area_tt, do_get_thread_area_skas, info);
-}
-
-static inline int do_set_thread_area(struct user_desc *info)
-{
-	return CHOOSE_MODE_PROC(do_set_thread_area_tt, do_set_thread_area_skas, info);
-}
+extern int do_get_thread_area_skas(struct user_desc *info);
+extern int do_set_thread_area_skas(struct user_desc *info);
 
 struct task_struct;
 

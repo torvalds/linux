@@ -7,7 +7,6 @@
 #define __ARCH_UM_MMU_H
 
 #include "uml-config.h"
-#include "choose-mode.h"
 #include "mmu-skas.h"
 
 typedef union mm_context {

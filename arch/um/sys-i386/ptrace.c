@@ -230,13 +230,13 @@ static inline unsigned long twd_fxsr_to_i387( struct i387_fxsave_struct *fxsave 
 static inline int convert_fxsr_to_user(struct _fpstate __user *buf,
 				       struct pt_regs *regs)
 {
-	return(CHOOSE_MODE(convert_fxsr_to_user_tt(buf, regs), 0));
+	return 0;
 }
 
 static inline int convert_fxsr_from_user(struct pt_regs *regs, 
 					 struct _fpstate __user *buf)
 {
-	return(CHOOSE_MODE(convert_fxsr_from_user_tt(regs, buf), 0));
+	return 0;
 }
 
 int get_fpregs(unsigned long buf, struct task_struct *child)
@@ -261,12 +261,12 @@ int set_fpregs(unsigned long buf, struct task_struct *child)
 
 int get_fpxregs(unsigned long buf, struct task_struct *tsk)
 {
-	return(CHOOSE_MODE(get_fpxregs_tt(buf, tsk), 0));
+	return 0;
 }
 
 int set_fpxregs(unsigned long buf, struct task_struct *tsk)
 {
-	return(CHOOSE_MODE(set_fpxregs_tt(buf, tsk), 0));
+	return 0;
 }
 
 #ifdef notdef
@@ -286,16 +286,9 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 }
 #endif
 
-static inline void copy_fpu_fxsave(struct pt_regs *regs,
-				   struct user_i387_struct *buf)
-{
-	(void) CHOOSE_MODE(copy_fpu_fxsave_tt(regs, buf), 0);
-}
-
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu )
 {
-	copy_fpu_fxsave(regs, (struct user_i387_struct *) fpu);
-	return(1);
+	return 1;
 }
 
 /*

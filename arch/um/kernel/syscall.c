@@ -21,7 +21,6 @@
 #include "kern_util.h"
 #include "sysdep/syscalls.h"
 #include "mode_kern.h"
-#include "choose-mode.h"
 
 /*  Unlocked, I don't care if this is a bit off */
 int nsyscalls = 0;

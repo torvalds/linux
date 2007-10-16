@@ -8,7 +8,6 @@
 #include "asm/pgalloc.h"
 #include "asm/pgtable.h"
 #include "asm/tlbflush.h"
-#include "choose-mode.h"
 #include "mode_kern.h"
 #include "as-layout.h"
 #include "tlb.h"
@@ -378,35 +377,31 @@ void flush_tlb_all(void)
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	CHOOSE_MODE_PROC(flush_tlb_kernel_range_tt,
-			 flush_tlb_kernel_range_common, start, end);
+	flush_tlb_kernel_range_common(start, end);
 }
 
 void flush_tlb_kernel_vm(void)
 {
-	CHOOSE_MODE(flush_tlb_kernel_vm_tt(),
-		    flush_tlb_kernel_range_common(start_vm, end_vm));
+	flush_tlb_kernel_range_common(start_vm, end_vm);
 }
 
 void __flush_tlb_one(unsigned long addr)
 {
-	CHOOSE_MODE_PROC(__flush_tlb_one_tt, __flush_tlb_one_skas, addr);
+	__flush_tlb_one_skas(addr);
 }
 
 void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		     unsigned long end)
 {
-	CHOOSE_MODE_PROC(flush_tlb_range_tt, flush_tlb_range_skas, vma, start,
-			 end);
+	flush_tlb_range_skas(vma, start, end);
 }
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
-	CHOOSE_MODE_PROC(flush_tlb_mm_tt, flush_tlb_mm_skas, mm);
+	flush_tlb_mm_skas(mm);
 }
 
 void force_flush_all(void)
 {
-	CHOOSE_MODE(force_flush_all_tt(), force_flush_all_skas());
+	force_flush_all_skas();
 }
-

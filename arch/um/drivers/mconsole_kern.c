@@ -33,7 +33,6 @@
 #include "init.h"
 #include "os.h"
 #include "irq_kern.h"
-#include "choose-mode.h"
 
 static int do_unlink_socket(struct notifier_block *notifier,
 			    unsigned long what, void *data)

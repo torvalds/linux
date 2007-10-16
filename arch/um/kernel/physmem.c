@@ -61,7 +61,7 @@ static unsigned long kmem_top = 0;
 unsigned long get_kmem_end(void)
 {
 	if (kmem_top == 0)
-		kmem_top = CHOOSE_MODE(kmem_end_tt, kmem_end_skas);
+		kmem_top = kmem_end_skas;
 	return kmem_top;
 }
 

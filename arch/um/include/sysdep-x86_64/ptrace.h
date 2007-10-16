@@ -84,8 +84,6 @@
 
 #define REGS_ERR(r) ((r)->fault_type)
 
-#include "choose-mode.h"
-
 /* XXX */
 union uml_pt_regs {
 	struct skas_regs {
@@ -99,48 +97,45 @@ union uml_pt_regs {
 
 #define EMPTY_UML_PT_REGS { }
 
-#define UPT_RBX(r) __CHOOSE_MODE(SC_RBX(UPT_SC(r)), REGS_RBX((r)->skas.regs))
-#define UPT_RCX(r) __CHOOSE_MODE(SC_RCX(UPT_SC(r)), REGS_RCX((r)->skas.regs))
-#define UPT_RDX(r) __CHOOSE_MODE(SC_RDX(UPT_SC(r)), REGS_RDX((r)->skas.regs))
-#define UPT_RSI(r) __CHOOSE_MODE(SC_RSI(UPT_SC(r)), REGS_RSI((r)->skas.regs))
-#define UPT_RDI(r) __CHOOSE_MODE(SC_RDI(UPT_SC(r)), REGS_RDI((r)->skas.regs))
-#define UPT_RBP(r) __CHOOSE_MODE(SC_RBP(UPT_SC(r)), REGS_RBP((r)->skas.regs))
-#define UPT_RAX(r) __CHOOSE_MODE(SC_RAX(UPT_SC(r)), REGS_RAX((r)->skas.regs))
-#define UPT_R8(r) __CHOOSE_MODE(SC_R8(UPT_SC(r)), REGS_R8((r)->skas.regs))
-#define UPT_R9(r) __CHOOSE_MODE(SC_R9(UPT_SC(r)), REGS_R9((r)->skas.regs))
-#define UPT_R10(r) __CHOOSE_MODE(SC_R10(UPT_SC(r)), REGS_R10((r)->skas.regs))
-#define UPT_R11(r) __CHOOSE_MODE(SC_R11(UPT_SC(r)), REGS_R11((r)->skas.regs))
-#define UPT_R12(r) __CHOOSE_MODE(SC_R12(UPT_SC(r)), REGS_R12((r)->skas.regs))
-#define UPT_R13(r) __CHOOSE_MODE(SC_R13(UPT_SC(r)), REGS_R13((r)->skas.regs))
-#define UPT_R14(r) __CHOOSE_MODE(SC_R14(UPT_SC(r)), REGS_R14((r)->skas.regs))
-#define UPT_R15(r) __CHOOSE_MODE(SC_R15(UPT_SC(r)), REGS_R15((r)->skas.regs))
-#define UPT_CS(r) __CHOOSE_MODE(SC_CS(UPT_SC(r)), REGS_CS((r)->skas.regs))
+#define UPT_RBX(r) REGS_RBX((r)->skas.regs)
+#define UPT_RCX(r) REGS_RCX((r)->skas.regs)
+#define UPT_RDX(r) REGS_RDX((r)->skas.regs)
+#define UPT_RSI(r) REGS_RSI((r)->skas.regs)
+#define UPT_RDI(r) REGS_RDI((r)->skas.regs)
+#define UPT_RBP(r) REGS_RBP((r)->skas.regs)
+#define UPT_RAX(r) REGS_RAX((r)->skas.regs)
+#define UPT_R8(r) REGS_R8((r)->skas.regs)
+#define UPT_R9(r) REGS_R9((r)->skas.regs)
+#define UPT_R10(r) REGS_R10((r)->skas.regs)
+#define UPT_R11(r) REGS_R11((r)->skas.regs)
+#define UPT_R12(r) REGS_R12((r)->skas.regs)
+#define UPT_R13(r) REGS_R13((r)->skas.regs)
+#define UPT_R14(r) REGS_R14((r)->skas.regs)
+#define UPT_R15(r) REGS_R15((r)->skas.regs)
+#define UPT_CS(r) REGS_CS((r)->skas.regs)
 #define UPT_FS_BASE(r) \
-	__CHOOSE_MODE(SC_FS_BASE(UPT_SC(r)), REGS_FS_BASE((r)->skas.regs))
-#define UPT_FS(r) __CHOOSE_MODE(SC_FS(UPT_SC(r)), REGS_FS((r)->skas.regs))
+	REGS_FS_BASE((r)->skas.regs)
+#define UPT_FS(r) REGS_FS((r)->skas.regs)
 #define UPT_GS_BASE(r) \
-	__CHOOSE_MODE(SC_GS_BASE(UPT_SC(r)), REGS_GS_BASE((r)->skas.regs))
-#define UPT_GS(r) __CHOOSE_MODE(SC_GS(UPT_SC(r)), REGS_GS((r)->skas.regs))
-#define UPT_DS(r) __CHOOSE_MODE(SC_DS(UPT_SC(r)), REGS_DS((r)->skas.regs))
-#define UPT_ES(r) __CHOOSE_MODE(SC_ES(UPT_SC(r)), REGS_ES((r)->skas.regs))
-#define UPT_CS(r) __CHOOSE_MODE(SC_CS(UPT_SC(r)), REGS_CS((r)->skas.regs))
-#define UPT_SS(r) __CHOOSE_MODE(SC_SS(UPT_SC(r)), REGS_SS((r)->skas.regs))
-#define UPT_ORIG_RAX(r) \
-	__CHOOSE_MODE((r)->tt.orig_rax, REGS_ORIG_RAX((r)->skas.regs))
+	REGS_GS_BASE((r)->skas.regs)
+#define UPT_GS(r) REGS_GS((r)->skas.regs)
+#define UPT_DS(r) REGS_DS((r)->skas.regs)
+#define UPT_ES(r) REGS_ES((r)->skas.regs)
+#define UPT_CS(r) REGS_CS((r)->skas.regs)
+#define UPT_SS(r) REGS_SS((r)->skas.regs)
+#define UPT_ORIG_RAX(r) REGS_ORIG_RAX((r)->skas.regs)
 
-#define UPT_IP(r) __CHOOSE_MODE(SC_IP(UPT_SC(r)), REGS_IP((r)->skas.regs))
-#define UPT_SP(r) __CHOOSE_MODE(SC_SP(UPT_SC(r)), REGS_SP((r)->skas.regs))
+#define UPT_IP(r) REGS_IP((r)->skas.regs)
+#define UPT_SP(r) REGS_SP((r)->skas.regs)
 
-#define UPT_EFLAGS(r) \
-	__CHOOSE_MODE(SC_EFLAGS(UPT_SC(r)), REGS_EFLAGS((r)->skas.regs))
+#define UPT_EFLAGS(r) REGS_EFLAGS((r)->skas.regs)
 #define UPT_SC(r) ((r)->tt.sc)
-#define UPT_SYSCALL_NR(r) __CHOOSE_MODE((r)->tt.syscall, (r)->skas.syscall)
+#define UPT_SYSCALL_NR(r) ((r)->skas.syscall)
 #define UPT_SYSCALL_RET(r) UPT_RAX(r)
 
 extern int user_context(unsigned long sp);
 
-#define UPT_IS_USER(r) \
-	CHOOSE_MODE(user_context(UPT_SP(r)), (r)->skas.is_user)
+#define UPT_IS_USER(r) ((r)->skas.is_user)
 
 #define UPT_SYSCALL_ARG1(r) UPT_RDI(r)
 #define UPT_SYSCALL_ARG2(r) UPT_RSI(r)
@@ -237,18 +232,12 @@ struct syscall_args {
         })
 
 #define UPT_SET_SYSCALL_RETURN(r, res) \
-	CHOOSE_MODE(SC_SET_SYSCALL_RETURN(UPT_SC(r), (res)), \
-                    REGS_SET_SYSCALL_RETURN((r)->skas.regs, (res)))
+	REGS_SET_SYSCALL_RETURN((r)->skas.regs, (res))
 
-#define UPT_RESTART_SYSCALL(r) \
-	CHOOSE_MODE(SC_RESTART_SYSCALL(UPT_SC(r)), \
-		    REGS_RESTART_SYSCALL((r)->skas.regs))
+#define UPT_RESTART_SYSCALL(r) REGS_RESTART_SYSCALL((r)->skas.regs)
 
-#define UPT_SEGV_IS_FIXABLE(r) \
-	CHOOSE_MODE(SC_SEGV_IS_FIXABLE(UPT_SC(r)), \
-                    REGS_SEGV_IS_FIXABLE(&r->skas))
+#define UPT_SEGV_IS_FIXABLE(r) REGS_SEGV_IS_FIXABLE(&r->skas)
 
-#define UPT_FAULTINFO(r) \
-        CHOOSE_MODE((&(r)->tt.faultinfo), (&(r)->skas.faultinfo))
+#define UPT_FAULTINFO(r) (&(r)->skas.faultinfo)
 
 #endif

@@ -139,7 +139,7 @@ static int copy_chunk_from_user(unsigned long from, int len, void *arg)
 	return(0);
 }
 
-int copy_from_user_skas(void *to, const void __user *from, int n)
+int copy_from_user(void *to, const void __user *from, int n)
 {
 	if(segment_eq(get_fs(), KERNEL_DS)){
 		memcpy(to, (__force void*)from, n);
@@ -160,7 +160,7 @@ static int copy_chunk_to_user(unsigned long to, int len, void *arg)
 	return(0);
 }
 
-int copy_to_user_skas(void __user *to, const void *from, int n)
+int copy_to_user(void __user *to, const void *from, int n)
 {
 	if(segment_eq(get_fs(), KERNEL_DS)){
 		memcpy((__force void*)to, from, n);
@@ -186,7 +186,7 @@ static int strncpy_chunk_from_user(unsigned long from, int len, void *arg)
 	return(0);
 }
 
-int strncpy_from_user_skas(char *dst, const char __user *src, int count)
+int strncpy_from_user(char *dst, const char __user *src, int count)
 {
 	int n;
 	char *ptr = dst;
@@ -212,12 +212,12 @@ static int clear_chunk(unsigned long addr, int len, void *unused)
 	return(0);
 }
 
-int __clear_user_skas(void __user *mem, int len)
+int __clear_user(void __user *mem, int len)
 {
 	return(buffer_op((unsigned long) mem, len, 1, clear_chunk, NULL));
 }
 
-int clear_user_skas(void __user *mem, int len)
+int clear_user(void __user *mem, int len)
 {
 	if(segment_eq(get_fs(), KERNEL_DS)){
 		memset((__force void*)mem, 0, len);
@@ -240,7 +240,7 @@ static int strnlen_chunk(unsigned long str, int len, void *arg)
 	return(0);
 }
 
-int strnlen_user_skas(const void __user *str, int len)
+int strnlen_user(const void __user *str, int len)
 {
 	int count = 0, n;
 

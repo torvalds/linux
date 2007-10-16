@@ -19,7 +19,6 @@
 #include "user.h"
 #include "init.h"
 #include "mode.h"
-#include "choose-mode.h"
 #include "uml-config.h"
 #include "os.h"
 #include "um_malloc.h"
@@ -189,16 +188,13 @@ int __init main(int argc, char **argv, char **envp)
 	return uml_exitcode;
 }
 
-#define CAN_KMALLOC() \
-	(kmalloc_ok && CHOOSE_MODE((os_getpid() != tracing_pid), 1))
-
 extern void *__real_malloc(int);
 
 void *__wrap_malloc(int size)
 {
 	void *ret;
 
-	if(!CAN_KMALLOC())
+	if(!kmalloc_ok)
 		return __real_malloc(size);
 	else if(size <= UM_KERN_PAGE_SIZE)
 		/* finding contiguous pages can be hard*/
@@ -251,11 +247,11 @@ void __wrap_free(void *ptr)
 	 */
 
 	if((addr >= uml_physmem) && (addr < high_physmem)){
-		if(CAN_KMALLOC())
+		if(kmalloc_ok)
 			kfree(ptr);
 	}
 	else if((addr >= start_vm) && (addr < end_vm)){
-		if(CAN_KMALLOC())
+		if(kmalloc_ok)
 			vfree(ptr);
 	}
 	else __real_free(ptr);

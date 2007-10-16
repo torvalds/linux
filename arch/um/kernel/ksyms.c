@@ -37,11 +37,11 @@ EXPORT_SYMBOL(um_virt_to_phys);
 EXPORT_SYMBOL(handle_page_fault);
 EXPORT_SYMBOL(find_iomem);
 
-EXPORT_SYMBOL(strnlen_user_skas);
-EXPORT_SYMBOL(strncpy_from_user_skas);
-EXPORT_SYMBOL(copy_to_user_skas);
-EXPORT_SYMBOL(copy_from_user_skas);
-EXPORT_SYMBOL(clear_user_skas);
+EXPORT_SYMBOL(strnlen_user);
+EXPORT_SYMBOL(strncpy_from_user);
+EXPORT_SYMBOL(copy_to_user);
+EXPORT_SYMBOL(copy_from_user);
+EXPORT_SYMBOL(clear_user);
 EXPORT_SYMBOL(uml_strdup);
 
 EXPORT_SYMBOL(os_stat_fd);

@@ -7,7 +7,6 @@
 #define __UM_TLBFLUSH_H
 
 #include <linux/mm.h>
-#include "choose-mode.h"
 
 /*
  * TLB flushing:
@@ -31,10 +30,7 @@ extern void flush_tlb_page_skas(struct vm_area_struct *vma,
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long address)
 {
-	address &= PAGE_MASK;
-
-	CHOOSE_MODE(flush_tlb_range(vma, address, address + PAGE_SIZE),
-		    flush_tlb_page_skas(vma, address));
+	flush_tlb_page_skas(vma, address & PAGE_MASK);
 }
 
 extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);

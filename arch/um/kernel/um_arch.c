@@ -35,7 +35,6 @@
 #include "initrd.h"
 #include "init.h"
 #include "os.h"
-#include "choose-mode.h"
 #include "mode_kern.h"
 #include "mode.h"
 #include "skas.h"
@@ -68,8 +67,7 @@ struct cpuinfo_um boot_cpu_data = {
 
 unsigned long thread_saved_pc(struct task_struct *task)
 {
-	return os_process_pc(CHOOSE_MODE_PROC(thread_pid_tt, thread_pid_skas,
-					      task));
+	return os_process_pc(thread_pid_skas(task));
 }
 
 /* Changed in setup_arch, which is called in early boot */
@@ -88,7 +86,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "processor\t: %d\n", index);
 	seq_printf(m, "vendor_id\t: User Mode Linux\n");
 	seq_printf(m, "model name\t: UML\n");
-	seq_printf(m, "mode\t\t: %s\n", CHOOSE_MODE("tt", "skas"));
+	seq_printf(m, "mode\t\t: skas\n");
 	seq_printf(m, "host\t\t: %s\n", host_info);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n\n",
 		   loops_per_jiffy/(500000/HZ),
@@ -283,8 +281,7 @@ int __init linux_main(int argc, char **argv)
 
 	printf("UML running in %s mode\n", mode);
 
-	host_task_size = CHOOSE_MODE_PROC(set_task_sizes_tt,
-					  set_task_sizes_skas, &task_size);
+	host_task_size = set_task_sizes_skas(&task_size);
 
 	/*
 	 * Setting up handlers to 'sig_info' struct
@@ -292,7 +289,7 @@ int __init linux_main(int argc, char **argv)
 	os_fill_handlinfo(handlinfo_kern);
 
 	brk_start = (unsigned long) sbrk(0);
-	CHOOSE_MODE_PROC(before_mem_tt, before_mem_skas, brk_start);
+	before_mem_skas(brk_start);
 	/* Increase physical memory size for exec-shield users
 	so they actually get what they asked for. This should
 	add zero for non-exec shield users */
@@ -357,7 +354,7 @@ int __init linux_main(int argc, char **argv)
 	stack_protections((unsigned long) &init_thread_info);
 	os_flush_stdout();
 
-	return CHOOSE_MODE(start_uml_tt(), start_uml_skas());
+	return start_uml_skas();
 }
 
 extern int uml_exitcode;

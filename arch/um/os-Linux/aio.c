@@ -320,11 +320,6 @@ static int init_aio(void)
 {
 	int err;
 
-	CHOOSE_MODE(({ if(!aio_24){
-			    printk("Disabling 2.6 AIO in tt mode\n");
-			    aio_24 = 1;
-		    } }), (void) 0);
-
 	if(!aio_24){
 		err = init_aio_26();
 		if(err && (errno == ENOSYS)){

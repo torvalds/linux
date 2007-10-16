@@ -9,7 +9,6 @@
 #include "user.h"
 #include "mconsole.h"
 #include "os.h"
-#include "choose-mode.h"
 #include "mode.h"
 
 struct dog_data {
@@ -64,7 +63,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 	}
 	else {
 		/* XXX The os_getpid() is not SMP correct */
-		sprintf(pid_buf, "%d", CHOOSE_MODE(tracing_pid, os_getpid()));
+		sprintf(pid_buf, "%d", os_getpid());
 		args = pid_args;
 	}
 

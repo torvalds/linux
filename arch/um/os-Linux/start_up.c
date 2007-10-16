@@ -31,7 +31,6 @@
 #include "init.h"
 #include "os.h"
 #include "uml-config.h"
-#include "choose-mode.h"
 #include "mode.h"
 #include "tempfile.h"
 #include "kern_constants.h"

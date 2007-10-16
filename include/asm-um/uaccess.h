@@ -80,7 +80,7 @@
 	 __put_user(x, private_ptr) : -EFAULT); \
 })
 
-#define strlen_user(str) strnlen_user(str, ~0UL >> 1)
+#define strlen_user(str) strnlen_user(str, ~0U >> 1)
 
 struct exception_table_entry
 {
