@@ -233,7 +233,8 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case RTC_PIE_ON:
-		if (!capable(CAP_SYS_RESOURCE))
+		if (rtc->irq_freq > rtc->max_user_freq &&
+				!capable(CAP_SYS_RESOURCE))
 			return -EACCES;
 		break;
 	}
