@@ -23,43 +23,43 @@
 
 void generic_close(int fd, void *unused)
 {
-	os_close_file(fd);
+	close(fd);
 }
 
 int generic_read(int fd, char *c_out, void *unused)
 {
 	int n;
 
-	n = os_read_file(fd, c_out, sizeof(*c_out));
-
-	if(n == -EAGAIN)
+	n = read(fd, c_out, sizeof(*c_out));
+	if (n > 0)
+		return n;
+	else if (errno == EAGAIN)
 		return 0;
-	else if(n == 0)
+	else if (n == 0)
 		return -EIO;
-	return n;
+	return -errno;
 }
 
-/* XXX Trivial wrapper around os_write_file */
+/* XXX Trivial wrapper around write */
 
 int generic_write(int fd, const char *buf, int n, void *unused)
 {
-	return os_write_file(fd, buf, n);
+	return write(fd, buf, n);
 }
 
 int generic_window_size(int fd, void *unused, unsigned short *rows_out,
 			unsigned short *cols_out)
 {
-	int rows, cols;
+	struct winsize size;
 	int ret;
 
-	ret = os_window_size(fd, &rows, &cols);
-	if(ret < 0)
-		return ret;
+	if(ioctl(fd, TIOCGWINSZ, &size) < 0)
+		return -errno;
 
-	ret = ((*rows_out != rows) || (*cols_out != cols));
+	ret = ((*rows_out != size.ws_row) || (*cols_out != size.ws_col));
 
-	*rows_out = rows;
-	*cols_out = cols;
+	*rows_out = size.ws_row;
+	*cols_out = size.ws_col;
 
 	return ret;
 }

@@ -101,19 +101,6 @@ int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-int os_window_size(int fd, int *rows, int *cols)
-{
-	struct winsize size;
-
-	if(ioctl(fd, TIOCGWINSZ, &size) < 0)
-		return -errno;
-
-	*rows = size.ws_row;
-	*cols = size.ws_col;
-
-	return 0;
-}
-
 int os_new_tty_pgrp(int fd, int pid)
 {
 	if(ioctl(fd, TIOCSCTTY, 0) < 0)
