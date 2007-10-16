@@ -325,14 +325,10 @@ static void s3c2410fb_calculate_stn_lcd_regs(const struct fb_info *info,
 			var->bits_per_pixel);
 	}
 	/* update X/Y info */
-	dprintk("setting vert: up=%d, low=%d, sync=%d\n",
-		var->upper_margin, var->lower_margin, var->vsync_len);
-
 	dprintk("setting horz: lft=%d, rt=%d, sync=%d\n",
 		var->left_margin, var->right_margin, var->hsync_len);
 
-	regs->lcdcon2 &= ~S3C2410_LCDCON2_LINEVAL(0x3ff);
-	regs->lcdcon2 |=  S3C2410_LCDCON2_LINEVAL(var->yres - 1);
+	regs->lcdcon2 = S3C2410_LCDCON2_LINEVAL(var->yres - 1);
 
 	if (wdly > 3)
 		wdly = 3;
@@ -387,8 +383,10 @@ static void s3c2410fb_calculate_tft_lcd_regs(const struct fb_info *info,
 	dprintk("setting horz: lft=%d, rt=%d, sync=%d\n",
 		var->left_margin, var->right_margin, var->hsync_len);
 
-	regs->lcdcon2 &= ~S3C2410_LCDCON2_LINEVAL(0x3ff);
-	regs->lcdcon2 |=  S3C2410_LCDCON2_LINEVAL(var->yres - 1);
+	regs->lcdcon2 &= S3C2410_LCDCON2_VSPW(0x3f);
+	regs->lcdcon2 |= S3C2410_LCDCON2_LINEVAL(var->yres - 1);
+	regs->lcdcon2 |= S3C2410_LCDCON2_VBPD(var->upper_margin - 1);
+	regs->lcdcon2 |= S3C2410_LCDCON2_VFPD(var->lower_margin - 1);
 
 	regs->lcdcon3 = S3C2410_LCDCON3_HBPD(var->right_margin - 1) |
 			S3C2410_LCDCON3_HFPD(var->left_margin - 1) |
@@ -416,8 +414,6 @@ static void s3c2410fb_activate_var(struct fb_info *info)
 
 	if (!mach_info->fixed_syncs) {
 		fbi->regs.lcdcon2 =
-			S3C2410_LCDCON2_VBPD(var->upper_margin - 1) |
-			S3C2410_LCDCON2_VFPD(var->lower_margin - 1) |
 			S3C2410_LCDCON2_VSPW(var->vsync_len - 1);
 
 		fbi->regs.lcdcon4 &= ~S3C2410_LCDCON4_HSPW(0xff);
@@ -892,13 +888,10 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	fbinfo->var.left_margin	    = display->left_margin;
 	fbinfo->var.right_margin    = display->right_margin;
 
-	fbinfo->var.upper_margin    =
-				S3C2410_LCDCON2_GET_VBPD(display->lcdcon2) + 1;
-	fbinfo->var.lower_margin    =
-				S3C2410_LCDCON2_GET_VFPD(display->lcdcon2) + 1;
+	fbinfo->var.upper_margin    = display->upper_margin;
+	fbinfo->var.lower_margin    = display->lower_margin;
 	fbinfo->var.vsync_len	    =
 				S3C2410_LCDCON2_GET_VSPW(display->lcdcon2) + 1;
-
 	fbinfo->var.hsync_len	    =
 				S3C2410_LCDCON4_GET_HSPW(display->lcdcon4) + 1;
 
