@@ -1684,6 +1684,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 
 	return copied;
 }
+EXPORT_SYMBOL(iov_iter_copy_from_user_atomic);
 
 /*
  * This has the same sideeffects and return value as
@@ -1710,6 +1711,7 @@ size_t iov_iter_copy_from_user(struct page *page,
 	kunmap(page);
 	return copied;
 }
+EXPORT_SYMBOL(iov_iter_copy_from_user);
 
 static void __iov_iter_advance_iov(struct iov_iter *i, size_t bytes)
 {
@@ -1741,6 +1743,7 @@ void iov_iter_advance(struct iov_iter *i, size_t bytes)
 	__iov_iter_advance_iov(i, bytes);
 	i->count -= bytes;
 }
+EXPORT_SYMBOL(iov_iter_advance);
 
 /*
  * Fault in the first iovec of the given iov_iter, to a maximum length
@@ -1757,6 +1760,7 @@ int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
 	bytes = min(bytes, i->iov->iov_len - i->iov_offset);
 	return fault_in_pages_readable(buf, bytes);
 }
+EXPORT_SYMBOL(iov_iter_fault_in_readable);
 
 /*
  * Return the count of just the current iov_iter segment.
@@ -1769,6 +1773,7 @@ size_t iov_iter_single_seg_count(struct iov_iter *i)
 	else
 		return min(i->count, iov->iov_len - i->iov_offset);
 }
+EXPORT_SYMBOL(iov_iter_single_seg_count);
 
 /*
  * Performs necessary checks before doing a write

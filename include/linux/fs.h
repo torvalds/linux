@@ -395,6 +395,7 @@ enum positive_aop_returns {
 };
 
 #define AOP_FLAG_UNINTERRUPTIBLE	0x0001 /* will not do a short write */
+#define AOP_FLAG_CONT_EXPAND		0x0002 /* called from cont_expand */
 
 /*
  * oh the beauties of C type declarations.

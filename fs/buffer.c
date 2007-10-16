@@ -2156,14 +2156,14 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 }
 
 /* utility function for filesystems that need to do work on expanding
- * truncates.  Uses prepare/commit_write to allow the filesystem to
+ * truncates.  Uses filesystem pagecache writes to allow the filesystem to
  * deal with the hole.  
  */
-static int __generic_cont_expand(struct inode *inode, loff_t size,
-				 pgoff_t index, unsigned int offset)
+int generic_cont_expand_simple(struct inode *inode, loff_t size)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
+	void *fsdata;
 	unsigned long limit;
 	int err;
 
@@ -2176,140 +2176,134 @@ static int __generic_cont_expand(struct inode *inode, loff_t size,
 	if (size > inode->i_sb->s_maxbytes)
 		goto out;
 
-	err = -ENOMEM;
-	page = grab_cache_page(mapping, index);
-	if (!page)
+	err = pagecache_write_begin(NULL, mapping, size, 0,
+				AOP_FLAG_UNINTERRUPTIBLE|AOP_FLAG_CONT_EXPAND,
+				&page, &fsdata);
+	if (err)
 		goto out;
-	err = mapping->a_ops->prepare_write(NULL, page, offset, offset);
-	if (err) {
-		/*
-		 * ->prepare_write() may have instantiated a few blocks
-		 * outside i_size.  Trim these off again.
-		 */
-		unlock_page(page);
-		page_cache_release(page);
-		vmtruncate(inode, inode->i_size);
-		goto out;
-	}
 
-	err = mapping->a_ops->commit_write(NULL, page, offset, offset);
+	err = pagecache_write_end(NULL, mapping, size, 0, 0, page, fsdata);
+	BUG_ON(err > 0);
 
-	unlock_page(page);
-	page_cache_release(page);
-	if (err > 0)
-		err = 0;
 out:
 	return err;
 }
 
 int generic_cont_expand(struct inode *inode, loff_t size)
 {
-	pgoff_t index;
 	unsigned int offset;
 
 	offset = (size & (PAGE_CACHE_SIZE - 1)); /* Within page */
 
 	/* ugh.  in prepare/commit_write, if from==to==start of block, we
-	** skip the prepare.  make sure we never send an offset for the start
-	** of a block
-	*/
+	 * skip the prepare.  make sure we never send an offset for the start
+	 * of a block.
+	 * XXX: actually, this should be handled in those filesystems by
+	 * checking for the AOP_FLAG_CONT_EXPAND flag.
+	 */
 	if ((offset & (inode->i_sb->s_blocksize - 1)) == 0) {
 		/* caller must handle this extra byte. */
-		offset++;
+		size++;
 	}
-	index = size >> PAGE_CACHE_SHIFT;
-
-	return __generic_cont_expand(inode, size, index, offset);
+	return generic_cont_expand_simple(inode, size);
 }
 
-int generic_cont_expand_simple(struct inode *inode, loff_t size)
+int cont_expand_zero(struct file *file, struct address_space *mapping,
+			loff_t pos, loff_t *bytes)
 {
-	loff_t pos = size - 1;
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	unsigned int offset = (pos & (PAGE_CACHE_SIZE - 1)) + 1;
+	struct inode *inode = mapping->host;
+	unsigned blocksize = 1 << inode->i_blkbits;
+	struct page *page;
+	void *fsdata;
+	pgoff_t index, curidx;
+	loff_t curpos;
+	unsigned zerofrom, offset, len;
+	int err = 0;
 
-	/* prepare/commit_write can handle even if from==to==start of block. */
-	return __generic_cont_expand(inode, size, index, offset);
+	index = pos >> PAGE_CACHE_SHIFT;
+	offset = pos & ~PAGE_CACHE_MASK;
+
+	while (index > (curidx = (curpos = *bytes)>>PAGE_CACHE_SHIFT)) {
+		zerofrom = curpos & ~PAGE_CACHE_MASK;
+		if (zerofrom & (blocksize-1)) {
+			*bytes |= (blocksize-1);
+			(*bytes)++;
+		}
+		len = PAGE_CACHE_SIZE - zerofrom;
+
+		err = pagecache_write_begin(file, mapping, curpos, len,
+						AOP_FLAG_UNINTERRUPTIBLE,
+						&page, &fsdata);
+		if (err)
+			goto out;
+		zero_user_page(page, zerofrom, len, KM_USER0);
+		err = pagecache_write_end(file, mapping, curpos, len, len,
+						page, fsdata);
+		if (err < 0)
+			goto out;
+		BUG_ON(err != len);
+		err = 0;
+	}
+
+	/* page covers the boundary, find the boundary offset */
+	if (index == curidx) {
+		zerofrom = curpos & ~PAGE_CACHE_MASK;
+		/* if we will expand the thing last block will be filled */
+		if (offset <= zerofrom) {
+			goto out;
+		}
+		if (zerofrom & (blocksize-1)) {
+			*bytes |= (blocksize-1);
+			(*bytes)++;
+		}
+		len = offset - zerofrom;
+
+		err = pagecache_write_begin(file, mapping, curpos, len,
+						AOP_FLAG_UNINTERRUPTIBLE,
+						&page, &fsdata);
+		if (err)
+			goto out;
+		zero_user_page(page, zerofrom, len, KM_USER0);
+		err = pagecache_write_end(file, mapping, curpos, len, len,
+						page, fsdata);
+		if (err < 0)
+			goto out;
+		BUG_ON(err != len);
+		err = 0;
+	}
+out:
+	return err;
 }
 
 /*
  * For moronic filesystems that do not allow holes in file.
  * We may have to extend the file.
  */
-
-int cont_prepare_write(struct page *page, unsigned offset,
-		unsigned to, get_block_t *get_block, loff_t *bytes)
+int cont_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata,
+			get_block_t *get_block, loff_t *bytes)
 {
-	struct address_space *mapping = page->mapping;
 	struct inode *inode = mapping->host;
-	struct page *new_page;
-	pgoff_t pgpos;
-	long status;
-	unsigned zerofrom;
 	unsigned blocksize = 1 << inode->i_blkbits;
+	unsigned zerofrom;
+	int err;
 
-	while(page->index > (pgpos = *bytes>>PAGE_CACHE_SHIFT)) {
-		status = -ENOMEM;
-		new_page = grab_cache_page(mapping, pgpos);
-		if (!new_page)
-			goto out;
-		/* we might sleep */
-		if (*bytes>>PAGE_CACHE_SHIFT != pgpos) {
-			unlock_page(new_page);
-			page_cache_release(new_page);
-			continue;
-		}
-		zerofrom = *bytes & ~PAGE_CACHE_MASK;
-		if (zerofrom & (blocksize-1)) {
-			*bytes |= (blocksize-1);
-			(*bytes)++;
-		}
-		status = __block_prepare_write(inode, new_page, zerofrom,
-						PAGE_CACHE_SIZE, get_block);
-		if (status)
-			goto out_unmap;
-		zero_user_page(new_page, zerofrom, PAGE_CACHE_SIZE - zerofrom,
-				KM_USER0);
-		generic_commit_write(NULL, new_page, zerofrom, PAGE_CACHE_SIZE);
-		unlock_page(new_page);
-		page_cache_release(new_page);
+	err = cont_expand_zero(file, mapping, pos, bytes);
+	if (err)
+		goto out;
+
+	zerofrom = *bytes & ~PAGE_CACHE_MASK;
+	if (pos+len > *bytes && zerofrom & (blocksize-1)) {
+		*bytes |= (blocksize-1);
+		(*bytes)++;
 	}
 
-	if (page->index < pgpos) {
-		/* completely inside the area */
-		zerofrom = offset;
-	} else {
-		/* page covers the boundary, find the boundary offset */
-		zerofrom = *bytes & ~PAGE_CACHE_MASK;
-
-		/* if we will expand the thing last block will be filled */
-		if (to > zerofrom && (zerofrom & (blocksize-1))) {
-			*bytes |= (blocksize-1);
-			(*bytes)++;
-		}
-
-		/* starting below the boundary? Nothing to zero out */
-		if (offset <= zerofrom)
-			zerofrom = offset;
-	}
-	status = __block_prepare_write(inode, page, zerofrom, to, get_block);
-	if (status)
-		goto out1;
-	if (zerofrom < offset) {
-		zero_user_page(page, zerofrom, offset - zerofrom, KM_USER0);
-		__block_commit_write(inode, page, zerofrom, offset);
-	}
-	return 0;
-out1:
-	ClearPageUptodate(page);
-	return status;
-
-out_unmap:
-	ClearPageUptodate(new_page);
-	unlock_page(new_page);
-	page_cache_release(new_page);
+	*pagep = NULL;
+	err = block_write_begin(file, mapping, pos, len,
+				flags, pagep, fsdata, get_block);
 out:
-	return status;
+	return err;
 }
 
 int block_prepare_write(struct page *page, unsigned from, unsigned to,
@@ -3191,7 +3185,7 @@ EXPORT_SYMBOL(block_read_full_page);
 EXPORT_SYMBOL(block_sync_page);
 EXPORT_SYMBOL(block_truncate_page);
 EXPORT_SYMBOL(block_write_full_page);
-EXPORT_SYMBOL(cont_prepare_write);
+EXPORT_SYMBOL(cont_write_begin);
 EXPORT_SYMBOL(end_buffer_read_sync);
 EXPORT_SYMBOL(end_buffer_write_sync);
 EXPORT_SYMBOL(file_fsync);
