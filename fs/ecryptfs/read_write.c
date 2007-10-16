@@ -154,8 +154,8 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 			/* Read in the page from the lower
 			 * into the eCryptfs inode page cache,
 			 * decrypting */
-			if ((rc = ecryptfs_decrypt_page(NULL, /* placeholder for git-bisect */
-							ecryptfs_page))) {
+			rc = ecryptfs_decrypt_page(ecryptfs_page);
+			if (rc) {
 				printk(KERN_ERR "%s: Error decrypting "
 				       "page; rc = [%d]\n",
 				       __FUNCTION__, rc);
@@ -178,7 +178,7 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 		}
 		kunmap_atomic(ecryptfs_page_virt, KM_USER0);
 		flush_dcache_page(ecryptfs_page);
-		rc = ecryptfs_encrypt_page(NULL /* placeholder for git-bisect */);
+		rc = ecryptfs_encrypt_page(ecryptfs_page);
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting "
 			       "page; rc = [%d]\n", __FUNCTION__, rc);
@@ -190,8 +190,8 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 	}
 	if ((offset + size) > ecryptfs_file_size) {
 		i_size_write(ecryptfs_file->f_dentry->d_inode, (offset + size));
-		rc = ecryptfs_write_inode_size_to_metadata(NULL, NULL, NULL,
-							   NULL, 0); /* placeholders for git-bisect */
+		rc = ecryptfs_write_inode_size_to_metadata(
+			ecryptfs_file->f_dentry->d_inode);
 		if (rc) {
 			printk(KERN_ERR	"Problem with "
 			       "ecryptfs_write_inode_size_to_metadata; "
@@ -338,7 +338,7 @@ int ecryptfs_read(char *data, loff_t offset, size_t size,
 			       ecryptfs_page_idx, rc);
 			goto out;
 		}
-		rc = ecryptfs_decrypt_page(NULL /* placeholder for git-bisect */, ecryptfs_page);
+		rc = ecryptfs_decrypt_page(ecryptfs_page);
 		if (rc) {
 			printk(KERN_ERR "%s: Error decrypting "
 			       "page; rc = [%d]\n", __FUNCTION__, rc);

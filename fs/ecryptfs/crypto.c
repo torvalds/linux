@@ -467,8 +467,91 @@ out:
 }
 
 /**
+ * ecryptfs_lower_offset_for_extent
+ *
+ * Convert an eCryptfs page index into a lower byte offset
+ */
+void ecryptfs_lower_offset_for_extent(loff_t *offset, loff_t extent_num,
+				      struct ecryptfs_crypt_stat *crypt_stat)
+{
+	(*offset) = ((crypt_stat->extent_size
+		      * crypt_stat->num_header_extents_at_front)
+		     + (crypt_stat->extent_size * extent_num));
+}
+
+/**
+ * ecryptfs_encrypt_extent
+ * @enc_extent_page: Allocated page into which to encrypt the data in
+ *                   @page
+ * @crypt_stat: crypt_stat containing cryptographic context for the
+ *              encryption operation
+ * @page: Page containing plaintext data extent to encrypt
+ * @extent_offset: Page extent offset for use in generating IV
+ *
+ * Encrypts one extent of data.
+ *
+ * Return zero on success; non-zero otherwise
+ */
+static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
+				   struct ecryptfs_crypt_stat *crypt_stat,
+				   struct page *page,
+				   unsigned long extent_offset)
+{
+	unsigned long extent_base;
+	char extent_iv[ECRYPTFS_MAX_IV_BYTES];
+	int rc;
+
+	extent_base = (page->index
+		       * (PAGE_CACHE_SIZE / crypt_stat->extent_size));
+	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
+				(extent_base + extent_offset));
+	if (rc) {
+		ecryptfs_printk(KERN_ERR, "Error attempting to "
+				"derive IV for extent [0x%.16x]; "
+				"rc = [%d]\n", (extent_base + extent_offset),
+				rc);
+		goto out;
+	}
+	if (unlikely(ecryptfs_verbosity > 0)) {
+		ecryptfs_printk(KERN_DEBUG, "Encrypting extent "
+				"with iv:\n");
+		ecryptfs_dump_hex(extent_iv, crypt_stat->iv_bytes);
+		ecryptfs_printk(KERN_DEBUG, "First 8 bytes before "
+				"encryption:\n");
+		ecryptfs_dump_hex((char *)
+				  (page_address(page)
+				   + (extent_offset * crypt_stat->extent_size)),
+				  8);
+	}
+	rc = ecryptfs_encrypt_page_offset(crypt_stat, enc_extent_page, 0,
+					  page, (extent_offset
+						 * crypt_stat->extent_size),
+					  crypt_stat->extent_size, extent_iv);
+	if (rc < 0) {
+		printk(KERN_ERR "%s: Error attempting to encrypt page with "
+		       "page->index = [%ld], extent_offset = [%ld]; "
+		       "rc = [%d]\n", __FUNCTION__, page->index, extent_offset,
+		       rc);
+		goto out;
+	}
+	rc = 0;
+	if (unlikely(ecryptfs_verbosity > 0)) {
+		ecryptfs_printk(KERN_DEBUG, "Encrypt extent [0x%.16x]; "
+				"rc = [%d]\n", (extent_base + extent_offset),
+				rc);
+		ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
+				"encryption:\n");
+		ecryptfs_dump_hex((char *)(page_address(enc_extent_page)), 8);
+	}
+out:
+	return rc;
+}
+
+/**
  * ecryptfs_encrypt_page
- * @ctx: The context of the page
+ * @page: Page mapped from the eCryptfs inode for the file; contains
+ *        decrypted content that needs to be encrypted (to a temporary
+ *        page; not in place) and written out to the lower file
  *
  * Encrypt an eCryptfs page. This is done on a per-extent basis. Note
  * that eCryptfs pages may straddle the lower pages -- for instance,
@@ -478,128 +561,121 @@ out:
  * file, 24K of page 0 of the lower file will be read and decrypted,
  * and then 8K of page 1 of the lower file will be read and decrypted.
  *
- * The actual operations performed on each page depends on the
- * contents of the ecryptfs_page_crypt_context struct.
- *
  * Returns zero on success; negative on error
  */
-int ecryptfs_encrypt_page(struct ecryptfs_page_crypt_context *ctx)
+int ecryptfs_encrypt_page(struct page *page)
 {
-	char extent_iv[ECRYPTFS_MAX_IV_BYTES];
-	unsigned long base_extent;
-	unsigned long extent_offset = 0;
-	unsigned long lower_page_idx = 0;
-	unsigned long prior_lower_page_idx = 0;
-	struct page *lower_page;
-	struct inode *lower_inode;
-	struct ecryptfs_inode_info *inode_info;
+	struct inode *ecryptfs_inode;
 	struct ecryptfs_crypt_stat *crypt_stat;
+	char *enc_extent_virt = NULL;
+	struct page *enc_extent_page;
+	loff_t extent_offset;
 	int rc = 0;
-	int lower_byte_offset = 0;
-	int orig_byte_offset = 0;
-	int num_extents_per_page;
-#define ECRYPTFS_PAGE_STATE_UNREAD    0
-#define ECRYPTFS_PAGE_STATE_READ      1
-#define ECRYPTFS_PAGE_STATE_MODIFIED  2
-#define ECRYPTFS_PAGE_STATE_WRITTEN   3
-	int page_state;
 
-	lower_inode = ecryptfs_inode_to_lower(ctx->page->mapping->host);
-	inode_info = ecryptfs_inode_to_private(ctx->page->mapping->host);
-	crypt_stat = &inode_info->crypt_stat;
+	ecryptfs_inode = page->mapping->host;
+	crypt_stat =
+		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		rc = ecryptfs_copy_page_to_lower(ctx->page, lower_inode,
-						 ctx->param.lower_file);
+		rc = ecryptfs_write_lower_page_segment(ecryptfs_inode, page,
+						       0, PAGE_CACHE_SIZE);
 		if (rc)
-			ecryptfs_printk(KERN_ERR, "Error attempting to copy "
-					"page at index [0x%.16x]\n",
-					ctx->page->index);
+			printk(KERN_ERR "%s: Error attempting to copy "
+			       "page at index [%ld]\n", __FUNCTION__,
+			       page->index);
 		goto out;
 	}
-	num_extents_per_page = PAGE_CACHE_SIZE / crypt_stat->extent_size;
-	base_extent = (ctx->page->index * num_extents_per_page);
-	page_state = ECRYPTFS_PAGE_STATE_UNREAD;
-	while (extent_offset < num_extents_per_page) {
-		ecryptfs_extent_to_lwr_pg_idx_and_offset(
-			&lower_page_idx, &lower_byte_offset, crypt_stat,
-			(base_extent + extent_offset));
-		if (prior_lower_page_idx != lower_page_idx
-		    && page_state == ECRYPTFS_PAGE_STATE_MODIFIED) {
-			rc = ecryptfs_write_out_page(ctx, lower_page,
-						     lower_inode,
-						     orig_byte_offset,
-						     (PAGE_CACHE_SIZE
-						      - orig_byte_offset));
-			if (rc) {
-				ecryptfs_printk(KERN_ERR, "Error attempting "
-						"to write out page; rc = [%d]"
-						"\n", rc);
-				goto out;
-			}
-			page_state = ECRYPTFS_PAGE_STATE_WRITTEN;
-		}
-		if (page_state == ECRYPTFS_PAGE_STATE_UNREAD
-		    || page_state == ECRYPTFS_PAGE_STATE_WRITTEN) {
-			rc = ecryptfs_read_in_page(ctx, &lower_page,
-						   lower_inode, lower_page_idx,
-						   lower_byte_offset);
-			if (rc) {
-				ecryptfs_printk(KERN_ERR, "Error attempting "
-						"to read in lower page with "
-						"index [0x%.16x]; rc = [%d]\n",
-						lower_page_idx, rc);
-				goto out;
-			}
-			orig_byte_offset = lower_byte_offset;
-			prior_lower_page_idx = lower_page_idx;
-			page_state = ECRYPTFS_PAGE_STATE_READ;
-		}
-		BUG_ON(!(page_state == ECRYPTFS_PAGE_STATE_MODIFIED
-			 || page_state == ECRYPTFS_PAGE_STATE_READ));
-		rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
-					(base_extent + extent_offset));
+	enc_extent_virt = kmalloc(PAGE_CACHE_SIZE, GFP_USER);
+	if (!enc_extent_virt) {
+		rc = -ENOMEM;
+		ecryptfs_printk(KERN_ERR, "Error allocating memory for "
+				"encrypted extent\n");
+		goto out;
+	}
+	enc_extent_page = virt_to_page(enc_extent_virt);
+	for (extent_offset = 0;
+	     extent_offset < (PAGE_CACHE_SIZE / crypt_stat->extent_size);
+	     extent_offset++) {
+		loff_t offset;
+
+		rc = ecryptfs_encrypt_extent(enc_extent_page, crypt_stat, page,
+					     extent_offset);
 		if (rc) {
-			ecryptfs_printk(KERN_ERR, "Error attempting to "
-					"derive IV for extent [0x%.16x]; "
-					"rc = [%d]\n",
-					(base_extent + extent_offset), rc);
+			printk(KERN_ERR "%s: Error encrypting extent; "
+			       "rc = [%d]\n", __FUNCTION__, rc);
 			goto out;
 		}
-		if (unlikely(ecryptfs_verbosity > 0)) {
-			ecryptfs_printk(KERN_DEBUG, "Encrypting extent "
-					"with iv:\n");
-			ecryptfs_dump_hex(extent_iv, crypt_stat->iv_bytes);
-			ecryptfs_printk(KERN_DEBUG, "First 8 bytes before "
-					"encryption:\n");
-			ecryptfs_dump_hex((char *)
-					  (page_address(ctx->page)
-					   + (extent_offset
-					      * crypt_stat->extent_size)), 8);
+		ecryptfs_lower_offset_for_extent(
+			&offset, ((page->index * (PAGE_CACHE_SIZE
+						  / crypt_stat->extent_size))
+				  + extent_offset), crypt_stat);
+		rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt,
+					  offset, crypt_stat->extent_size);
+		if (rc) {
+			ecryptfs_printk(KERN_ERR, "Error attempting "
+					"to write lower page; rc = [%d]"
+					"\n", rc);
+			goto out;
 		}
-		rc = ecryptfs_encrypt_page_offset(
-			crypt_stat, lower_page, lower_byte_offset, ctx->page,
-			(extent_offset * crypt_stat->extent_size),
-			crypt_stat->extent_size, extent_iv);
-		ecryptfs_printk(KERN_DEBUG, "Encrypt extent [0x%.16x]; "
-				"rc = [%d]\n",
-				(base_extent + extent_offset), rc);
-		if (unlikely(ecryptfs_verbosity > 0)) {
-			ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
-					"encryption:\n");
-			ecryptfs_dump_hex((char *)(page_address(lower_page)
-						   + lower_byte_offset), 8);
-		}
-		page_state = ECRYPTFS_PAGE_STATE_MODIFIED;
 		extent_offset++;
 	}
-	BUG_ON(orig_byte_offset != 0);
-	rc = ecryptfs_write_out_page(ctx, lower_page, lower_inode, 0,
-				     (lower_byte_offset
-				      + crypt_stat->extent_size));
+out:
+	kfree(enc_extent_virt);
+	return rc;
+}
+
+static int ecryptfs_decrypt_extent(struct page *page,
+				   struct ecryptfs_crypt_stat *crypt_stat,
+				   struct page *enc_extent_page,
+				   unsigned long extent_offset)
+{
+	unsigned long extent_base;
+	char extent_iv[ECRYPTFS_MAX_IV_BYTES];
+	int rc;
+
+	extent_base = (page->index
+		       * (PAGE_CACHE_SIZE / crypt_stat->extent_size));
+	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
+				(extent_base + extent_offset));
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error attempting to write out "
-				"page; rc = [%d]\n", rc);
-				goto out;
+		ecryptfs_printk(KERN_ERR, "Error attempting to "
+				"derive IV for extent [0x%.16x]; "
+				"rc = [%d]\n", (extent_base + extent_offset),
+				rc);
+		goto out;
+	}
+	if (unlikely(ecryptfs_verbosity > 0)) {
+		ecryptfs_printk(KERN_DEBUG, "Decrypting extent "
+				"with iv:\n");
+		ecryptfs_dump_hex(extent_iv, crypt_stat->iv_bytes);
+		ecryptfs_printk(KERN_DEBUG, "First 8 bytes before "
+				"decryption:\n");
+		ecryptfs_dump_hex((char *)
+				  (page_address(enc_extent_page)
+				   + (extent_offset * crypt_stat->extent_size)),
+				  8);
+	}
+	rc = ecryptfs_decrypt_page_offset(crypt_stat, page,
+					  (extent_offset
+					   * crypt_stat->extent_size),
+					  enc_extent_page, 0,
+					  crypt_stat->extent_size, extent_iv);
+	if (rc < 0) {
+		printk(KERN_ERR "%s: Error attempting to decrypt to page with "
+		       "page->index = [%ld], extent_offset = [%ld]; "
+		       "rc = [%d]\n", __FUNCTION__, page->index, extent_offset,
+		       rc);
+		goto out;
+	}
+	rc = 0;
+	if (unlikely(ecryptfs_verbosity > 0)) {
+		ecryptfs_printk(KERN_DEBUG, "Decrypt extent [0x%.16x]; "
+				"rc = [%d]\n", (extent_base + extent_offset),
+				rc);
+		ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
+				"decryption:\n");
+		ecryptfs_dump_hex((char *)(page_address(page)
+					   + (extent_offset
+					      * crypt_stat->extent_size)), 8);
 	}
 out:
 	return rc;
@@ -607,8 +683,9 @@ out:
 
 /**
  * ecryptfs_decrypt_page
- * @file: The ecryptfs file
- * @page: The page in ecryptfs to decrypt
+ * @page: Page mapped from the eCryptfs inode for the file; data read
+ *        and decrypted from the lower file will be written into this
+ *        page
  *
  * Decrypt an eCryptfs page. This is done on a per-extent basis. Note
  * that eCryptfs pages may straddle the lower pages -- for instance,
@@ -620,103 +697,69 @@ out:
  *
  * Returns zero on success; negative on error
  */
-int ecryptfs_decrypt_page(struct file *file, struct page *page)
+int ecryptfs_decrypt_page(struct page *page)
 {
-	char extent_iv[ECRYPTFS_MAX_IV_BYTES];
-	unsigned long base_extent;
-	unsigned long extent_offset = 0;
-	unsigned long lower_page_idx = 0;
-	unsigned long prior_lower_page_idx = 0;
-	struct page *lower_page;
-	char *lower_page_virt = NULL;
-	struct inode *lower_inode;
+	struct inode *ecryptfs_inode;
 	struct ecryptfs_crypt_stat *crypt_stat;
+	char *enc_extent_virt = NULL;
+	struct page *enc_extent_page;
+	unsigned long extent_offset;
 	int rc = 0;
-	int byte_offset;
-	int num_extents_per_page;
-	int page_state;
 
-	crypt_stat = &(ecryptfs_inode_to_private(
-			       page->mapping->host)->crypt_stat);
-	lower_inode = ecryptfs_inode_to_lower(page->mapping->host);
+	ecryptfs_inode = page->mapping->host;
+	crypt_stat =
+		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		rc = ecryptfs_do_readpage(file, page, page->index);
+		rc = ecryptfs_read_lower_page_segment(page, page->index, 0,
+						      PAGE_CACHE_SIZE,
+						      ecryptfs_inode);
 		if (rc)
-			ecryptfs_printk(KERN_ERR, "Error attempting to copy "
-					"page at index [0x%.16x]\n",
-					page->index);
-		goto out;
+			printk(KERN_ERR "%s: Error attempting to copy "
+			       "page at index [%ld]\n", __FUNCTION__,
+			       page->index);
+		goto out_clear_uptodate;
 	}
-	num_extents_per_page = PAGE_CACHE_SIZE / crypt_stat->extent_size;
-	base_extent = (page->index * num_extents_per_page);
-	lower_page_virt = kmem_cache_alloc(ecryptfs_lower_page_cache,
-					   GFP_KERNEL);
-	if (!lower_page_virt) {
+	enc_extent_virt = kmalloc(PAGE_CACHE_SIZE, GFP_USER);
+	if (!enc_extent_virt) {
 		rc = -ENOMEM;
-		ecryptfs_printk(KERN_ERR, "Error getting page for encrypted "
-				"lower page(s)\n");
-		goto out;
+		ecryptfs_printk(KERN_ERR, "Error allocating memory for "
+				"encrypted extent\n");
+		goto out_clear_uptodate;
 	}
-	lower_page = virt_to_page(lower_page_virt);
-	page_state = ECRYPTFS_PAGE_STATE_UNREAD;
-	while (extent_offset < num_extents_per_page) {
-		ecryptfs_extent_to_lwr_pg_idx_and_offset(
-			&lower_page_idx, &byte_offset, crypt_stat,
-			(base_extent + extent_offset));
-		if (prior_lower_page_idx != lower_page_idx
-		    || page_state == ECRYPTFS_PAGE_STATE_UNREAD) {
-			rc = ecryptfs_do_readpage(file, lower_page,
-						  lower_page_idx);
-			if (rc) {
-				ecryptfs_printk(KERN_ERR, "Error reading "
-						"lower encrypted page; rc = "
-						"[%d]\n", rc);
-				goto out;
-			}
-			prior_lower_page_idx = lower_page_idx;
-			page_state = ECRYPTFS_PAGE_STATE_READ;
-		}
-		rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
-					(base_extent + extent_offset));
+	enc_extent_page = virt_to_page(enc_extent_virt);
+	for (extent_offset = 0;
+	     extent_offset < (PAGE_CACHE_SIZE / crypt_stat->extent_size);
+	     extent_offset++) {
+		loff_t offset;
+
+		ecryptfs_lower_offset_for_extent(
+			&offset, ((page->index * (PAGE_CACHE_SIZE
+						  / crypt_stat->extent_size))
+				  + extent_offset), crypt_stat);
+		rc = ecryptfs_read_lower(enc_extent_virt, offset,
+					 crypt_stat->extent_size,
+					 ecryptfs_inode);
 		if (rc) {
-			ecryptfs_printk(KERN_ERR, "Error attempting to "
-					"derive IV for extent [0x%.16x]; rc = "
-					"[%d]\n",
-					(base_extent + extent_offset), rc);
-			goto out;
+			ecryptfs_printk(KERN_ERR, "Error attempting "
+					"to read lower page; rc = [%d]"
+					"\n", rc);
+			goto out_clear_uptodate;
 		}
-		if (unlikely(ecryptfs_verbosity > 0)) {
-			ecryptfs_printk(KERN_DEBUG, "Decrypting extent "
-					"with iv:\n");
-			ecryptfs_dump_hex(extent_iv, crypt_stat->iv_bytes);
-			ecryptfs_printk(KERN_DEBUG, "First 8 bytes before "
-					"decryption:\n");
-			ecryptfs_dump_hex((lower_page_virt + byte_offset), 8);
-		}
-		rc = ecryptfs_decrypt_page_offset(crypt_stat, page,
-						  (extent_offset
-						   * crypt_stat->extent_size),
-						  lower_page, byte_offset,
-						  crypt_stat->extent_size,
-						  extent_iv);
-		if (rc != crypt_stat->extent_size) {
-			ecryptfs_printk(KERN_ERR, "Error attempting to "
-					"decrypt extent [0x%.16x]\n",
-					(base_extent + extent_offset));
-			goto out;
-		}
-		rc = 0;
-		if (unlikely(ecryptfs_verbosity > 0)) {
-			ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
-					"decryption:\n");
-			ecryptfs_dump_hex((char *)(page_address(page)
-						   + byte_offset), 8);
+		rc = ecryptfs_decrypt_extent(page, crypt_stat, enc_extent_page,
+					     extent_offset);
+		if (rc) {
+			printk(KERN_ERR "%s: Error encrypting extent; "
+			       "rc = [%d]\n", __FUNCTION__, rc);
+			goto out_clear_uptodate;
 		}
 		extent_offset++;
 	}
+	SetPageUptodate(page);
+	goto out;
+out_clear_uptodate:
+	ClearPageUptodate(page);
 out:
-	if (lower_page_virt)
-		kmem_cache_free(ecryptfs_lower_page_cache, lower_page_virt);
+	kfree(enc_extent_virt);
 	return rc;
 }
 

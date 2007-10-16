@@ -171,13 +171,9 @@ out:
  */
 static int ecryptfs_writepage(struct page *page, struct writeback_control *wbc)
 {
-	struct ecryptfs_page_crypt_context ctx;
 	int rc;
 
-	ctx.page = page;
-	ctx.mode = ECRYPTFS_WRITEPAGE_MODE;
-	ctx.param.wbc = wbc;
-	rc = ecryptfs_encrypt_page(&ctx);
+	rc = ecryptfs_encrypt_page(page);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error encrypting "
 				"page (upper index [0x%.16x])\n", page->index);
@@ -341,7 +337,7 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 			}
 		}
 	} else {
-		rc = ecryptfs_decrypt_page(file, page);
+		rc = ecryptfs_decrypt_page(page);
 		if (rc) {
 			ecryptfs_printk(KERN_ERR, "Error decrypting page; "
 					"rc = [%d]\n", rc);
@@ -459,58 +455,48 @@ static void ecryptfs_release_lower_page(struct page *lower_page)
  *
  * Returns zero on success; non-zero on error.
  */
-static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
-					       struct inode *lower_inode,
-					       struct inode *inode)
+static int ecryptfs_write_inode_size_to_header(struct inode *ecryptfs_inode)
 {
-	int rc = 0;
-	struct page *header_page;
-	char *header_virt;
-	const struct address_space_operations *lower_a_ops;
 	u64 file_size;
+	char *file_size_virt;
+	int rc;
 
-	header_page = grab_cache_page(lower_inode->i_mapping, 0);
-	if (!header_page) {
-		ecryptfs_printk(KERN_ERR, "grab_cache_page for "
-				"lower_page_index 0 failed\n");
-		rc = -EINVAL;
+	file_size_virt = kmalloc(sizeof(u64), GFP_KERNEL);
+	if (!file_size_virt) {
+		rc = -ENOMEM;
 		goto out;
 	}
-	lower_a_ops = lower_inode->i_mapping->a_ops;
-	rc = lower_a_ops->prepare_write(lower_file, header_page, 0, 8);
-	if (rc) {
-		ecryptfs_release_lower_page(header_page);
-		goto out;
-	}
-	file_size = (u64)i_size_read(inode);
-	ecryptfs_printk(KERN_DEBUG, "Writing size: [0x%.16x]\n", file_size);
+	file_size = (u64)i_size_read(ecryptfs_inode);
 	file_size = cpu_to_be64(file_size);
-	header_virt = kmap_atomic(header_page, KM_USER0);
-	memcpy(header_virt, &file_size, sizeof(u64));
-	kunmap_atomic(header_virt, KM_USER0);
-	flush_dcache_page(header_page);
-	rc = lower_a_ops->commit_write(lower_file, header_page, 0, 8);
-	if (rc < 0)
-		ecryptfs_printk(KERN_ERR, "Error commiting header page "
-				"write\n");
-	ecryptfs_release_lower_page(header_page);
-	lower_inode->i_mtime = lower_inode->i_ctime = CURRENT_TIME;
-	mark_inode_dirty_sync(inode);
+	memcpy(file_size_virt, &file_size, sizeof(u64));
+	rc = ecryptfs_write_lower(ecryptfs_inode, file_size_virt, 0,
+				  sizeof(u64));
+	kfree(file_size_virt);
+	if (rc)
+		printk(KERN_ERR "%s: Error writing file size to header; "
+		       "rc = [%d]\n", __FUNCTION__, rc);
 out:
 	return rc;
 }
 
-static int ecryptfs_write_inode_size_to_xattr(struct inode *lower_inode,
-					      struct inode *inode,
-					      struct dentry *ecryptfs_dentry,
-					      int lower_i_mutex_held)
+struct kmem_cache *ecryptfs_xattr_cache;
+
+static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 {
 	ssize_t size;
 	void *xattr_virt;
-	struct dentry *lower_dentry;
+	struct dentry *lower_dentry =
+		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
+	struct inode *lower_inode = lower_dentry->d_inode;
 	u64 file_size;
 	int rc;
 
+	if (!lower_inode->i_op->getxattr || !lower_inode->i_op->setxattr) {
+		printk(KERN_WARNING
+		       "No support for setting xattr in lower filesystem\n");
+		rc = -ENOSYS;
+		goto out;
+	}
 	xattr_virt = kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
 	if (!xattr_virt) {
 		printk(KERN_ERR "Out of memory whilst attempting to write "
@@ -518,35 +504,17 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *lower_inode,
 		rc = -ENOMEM;
 		goto out;
 	}
-	lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
-	if (!lower_dentry->d_inode->i_op->getxattr ||
-			!lower_dentry->d_inode->i_op->setxattr) {
-		printk(KERN_WARNING
-		       "No support for setting xattr in lower filesystem\n");
-		rc = -ENOSYS;
-		kmem_cache_free(ecryptfs_xattr_cache, xattr_virt);
-		goto out;
-	}
-	if (!lower_i_mutex_held)
-		mutex_lock(&lower_dentry->d_inode->i_mutex);
-	size = lower_dentry->d_inode->i_op->getxattr(lower_dentry,
-						     ECRYPTFS_XATTR_NAME,
-						     xattr_virt,
-						     PAGE_CACHE_SIZE);
-	if (!lower_i_mutex_held)
-		mutex_unlock(&lower_dentry->d_inode->i_mutex);
+	mutex_lock(&lower_inode->i_mutex);
+	size = lower_inode->i_op->getxattr(lower_dentry, ECRYPTFS_XATTR_NAME,
+					   xattr_virt, PAGE_CACHE_SIZE);
 	if (size < 0)
 		size = 8;
-	file_size = (u64)i_size_read(inode);
+	file_size = (u64)i_size_read(ecryptfs_inode);
 	file_size = cpu_to_be64(file_size);
 	memcpy(xattr_virt, &file_size, sizeof(u64));
-	if (!lower_i_mutex_held)
-		mutex_lock(&lower_dentry->d_inode->i_mutex);
-	rc = lower_dentry->d_inode->i_op->setxattr(lower_dentry,
-						   ECRYPTFS_XATTR_NAME,
-						   xattr_virt, size, 0);
-	if (!lower_i_mutex_held)
-		mutex_unlock(&lower_dentry->d_inode->i_mutex);
+	rc = lower_inode->i_op->setxattr(lower_dentry, ECRYPTFS_XATTR_NAME,
+					 xattr_virt, size, 0);
+	mutex_unlock(&lower_inode->i_mutex);
 	if (rc)
 		printk(KERN_ERR "Error whilst attempting to write inode size "
 		       "to lower file xattr; rc = [%d]\n", rc);
@@ -555,24 +523,15 @@ out:
 	return rc;
 }
 
-int
-ecryptfs_write_inode_size_to_metadata(struct file *lower_file,
-				      struct inode *lower_inode,
-				      struct inode *inode,
-				      struct dentry *ecryptfs_dentry,
-				      int lower_i_mutex_held)
+int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
 {
 	struct ecryptfs_crypt_stat *crypt_stat;
 
-	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
+	crypt_stat = &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-		return ecryptfs_write_inode_size_to_xattr(lower_inode, inode,
-							  ecryptfs_dentry,
-							  lower_i_mutex_held);
+		return ecryptfs_write_inode_size_to_xattr(ecryptfs_inode);
 	else
-		return ecryptfs_write_inode_size_to_header(lower_file,
-							   lower_inode,
-							   inode);
+		return ecryptfs_write_inode_size_to_header(ecryptfs_inode);
 }
 
 int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
@@ -659,8 +618,6 @@ out:
 	return rc;
 }
 
-struct kmem_cache *ecryptfs_xattr_cache;
-
 /**
  * ecryptfs_commit_write
  * @file: The eCryptfs file object
@@ -675,7 +632,6 @@ struct kmem_cache *ecryptfs_xattr_cache;
 static int ecryptfs_commit_write(struct file *file, struct page *page,
 				 unsigned from, unsigned to)
 {
-	struct ecryptfs_page_crypt_context ctx;
 	loff_t pos;
 	struct inode *inode;
 	struct inode *lower_inode;
@@ -705,10 +661,7 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 				page->index);
 		goto out;
 	}
-	ctx.page = page;
-	ctx.mode = ECRYPTFS_PREPARE_COMMIT_MODE;
-	ctx.param.lower_file = lower_file;
-	rc = ecryptfs_encrypt_page(&ctx);
+	rc = ecryptfs_encrypt_page(page);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error encrypting page (upper "
 				"index [0x%.16x])\n", page->index);
@@ -721,9 +674,7 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 		ecryptfs_printk(KERN_DEBUG, "Expanded file size to "
 				"[0x%.16x]\n", i_size_read(inode));
 	}
-	rc = ecryptfs_write_inode_size_to_metadata(lower_file, lower_inode,
-						   inode, file->f_dentry,
-						   ECRYPTFS_LOWER_I_MUTEX_HELD);
+	rc = ecryptfs_write_inode_size_to_metadata(inode);
 	if (rc)
 		printk(KERN_ERR "Error writing inode size to metadata; "
 		       "rc = [%d]\n", rc);

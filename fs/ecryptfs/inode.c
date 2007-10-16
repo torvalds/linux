@@ -168,9 +168,7 @@ static int grow_file(struct dentry *ecryptfs_dentry, struct file *lower_file,
 		goto out;
 	}
 	i_size_write(inode, 0);
-	rc = ecryptfs_write_inode_size_to_metadata(lower_file, lower_inode,
-			inode, ecryptfs_dentry,
-			ECRYPTFS_LOWER_I_MUTEX_NOT_HELD);
+	rc = ecryptfs_write_inode_size_to_metadata(inode);
 	ecryptfs_inode_to_private(inode)->crypt_stat.flags |= ECRYPTFS_NEW_FILE;
 out:
 	return rc;
@@ -798,9 +796,7 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 			goto out_fput;
 		}
 		i_size_write(inode, new_length);
-		rc = ecryptfs_write_inode_size_to_metadata(
-			lower_file, lower_dentry->d_inode, inode, dentry,
-			ECRYPTFS_LOWER_I_MUTEX_NOT_HELD);
+		rc = ecryptfs_write_inode_size_to_metadata(inode);
 		if (rc) {
 			printk(KERN_ERR	"Problem with "
 			       "ecryptfs_write_inode_size_to_metadata; "
@@ -829,9 +825,7 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 			}
 		}
 		vmtruncate(inode, new_length);
-		rc = ecryptfs_write_inode_size_to_metadata(
-			lower_file, lower_dentry->d_inode, inode, dentry,
-			ECRYPTFS_LOWER_I_MUTEX_NOT_HELD);
+		rc = ecryptfs_write_inode_size_to_metadata(inode);
 		if (rc) {
 			printk(KERN_ERR	"Problem with "
 			       "ecryptfs_write_inode_size_to_metadata; "

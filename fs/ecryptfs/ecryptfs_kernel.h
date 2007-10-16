@@ -552,13 +552,7 @@ void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destroy_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
 int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat);
-#define ECRYPTFS_LOWER_I_MUTEX_NOT_HELD 0
-#define ECRYPTFS_LOWER_I_MUTEX_HELD 1
-int ecryptfs_write_inode_size_to_metadata(struct file *lower_file,
-					  struct inode *lower_inode,
-					  struct inode *inode,
-					  struct dentry *ecryptfs_dentry,
-					  int lower_i_mutex_held);
+int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptefs_inode);
 int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
 			    struct file *lower_file,
 			    unsigned long lower_page_index, int byte_offset,
@@ -574,8 +568,8 @@ int ecryptfs_do_readpage(struct file *file, struct page *page,
 int ecryptfs_writepage_and_release_lower_page(struct page *lower_page,
 					      struct inode *lower_inode,
 					      struct writeback_control *wbc);
-int ecryptfs_encrypt_page(struct ecryptfs_page_crypt_context *ctx);
-int ecryptfs_decrypt_page(struct file *file, struct page *page);
+int ecryptfs_encrypt_page(struct page *page);
+int ecryptfs_decrypt_page(struct page *page);
 int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
 			    struct file *lower_file);
 int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry,
@@ -655,6 +649,8 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 				      char *sig);
 int ecryptfs_write_zeros(struct file *file, pgoff_t index, int start,
 			 int num_zeros);
+void ecryptfs_lower_offset_for_extent(loff_t *offset, loff_t extent_num,
+				      struct ecryptfs_crypt_stat *crypt_stat);
 int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
 			 loff_t offset, size_t size);
 int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
