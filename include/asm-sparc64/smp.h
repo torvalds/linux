@@ -28,8 +28,9 @@
  
 #include <asm/bitops.h>
 #include <asm/atomic.h>
+#include <asm/percpu.h>
 
-extern cpumask_t cpu_sibling_map[NR_CPUS];
+DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 extern cpumask_t cpu_core_map[NR_CPUS];
 extern int sparc64_multi_core;
 

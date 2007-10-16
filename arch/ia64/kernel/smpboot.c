@@ -138,7 +138,9 @@ cpumask_t cpu_possible_map = CPU_MASK_NONE;
 EXPORT_SYMBOL(cpu_possible_map);
 
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
-cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
+DEFINE_PER_CPU_SHARED_ALIGNED(cpumask_t, cpu_sibling_map);
+EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
+
 int smp_num_siblings = 1;
 int smp_num_cpucores = 1;
 
@@ -650,12 +652,12 @@ clear_cpu_sibling_map(int cpu)
 {
 	int i;
 
-	for_each_cpu_mask(i, cpu_sibling_map[cpu])
-		cpu_clear(cpu, cpu_sibling_map[i]);
+	for_each_cpu_mask(i, per_cpu(cpu_sibling_map, cpu))
+		cpu_clear(cpu, per_cpu(cpu_sibling_map, i));
 	for_each_cpu_mask(i, cpu_core_map[cpu])
 		cpu_clear(cpu, cpu_core_map[i]);
 
-	cpu_sibling_map[cpu] = cpu_core_map[cpu] = CPU_MASK_NONE;
+	per_cpu(cpu_sibling_map, cpu) = cpu_core_map[cpu] = CPU_MASK_NONE;
 }
 
 static void
@@ -666,7 +668,7 @@ remove_siblinginfo(int cpu)
 	if (cpu_data(cpu)->threads_per_core == 1 &&
 	    cpu_data(cpu)->cores_per_socket == 1) {
 		cpu_clear(cpu, cpu_core_map[cpu]);
-		cpu_clear(cpu, cpu_sibling_map[cpu]);
+		cpu_clear(cpu, per_cpu(cpu_sibling_map, cpu));
 		return;
 	}
 
@@ -807,8 +809,8 @@ set_cpu_sibling_map(int cpu)
 			cpu_set(i, cpu_core_map[cpu]);
 			cpu_set(cpu, cpu_core_map[i]);
 			if (cpu_data(cpu)->core_id == cpu_data(i)->core_id) {
-				cpu_set(i, cpu_sibling_map[cpu]);
-				cpu_set(cpu, cpu_sibling_map[i]);
+				cpu_set(i, per_cpu(cpu_sibling_map, cpu));
+				cpu_set(cpu, per_cpu(cpu_sibling_map, i));
 			}
 		}
 	}
@@ -839,7 +841,7 @@ __cpu_up (unsigned int cpu)
 
 	if (cpu_data(cpu)->threads_per_core == 1 &&
 	    cpu_data(cpu)->cores_per_socket == 1) {
-		cpu_set(cpu, cpu_sibling_map[cpu]);
+		cpu_set(cpu, per_cpu(cpu_sibling_map, cpu));
 		cpu_set(cpu, cpu_core_map[cpu]);
 		return 0;
 	}

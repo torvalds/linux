@@ -5869,7 +5869,7 @@ static int cpu_to_core_group(int cpu, const cpumask_t *cpu_map,
 			     struct sched_group **sg)
 {
 	int group;
-	cpumask_t mask = cpu_sibling_map[cpu];
+	cpumask_t mask = per_cpu(cpu_sibling_map, cpu);
 	cpus_and(mask, mask, *cpu_map);
 	group = first_cpu(mask);
 	if (sg)
@@ -5898,7 +5898,7 @@ static int cpu_to_phys_group(int cpu, const cpumask_t *cpu_map,
 	cpus_and(mask, mask, *cpu_map);
 	group = first_cpu(mask);
 #elif defined(CONFIG_SCHED_SMT)
-	cpumask_t mask = cpu_sibling_map[cpu];
+	cpumask_t mask = per_cpu(cpu_sibling_map, cpu);
 	cpus_and(mask, mask, *cpu_map);
 	group = first_cpu(mask);
 #else
@@ -6132,7 +6132,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		p = sd;
 		sd = &per_cpu(cpu_domains, i);
 		*sd = SD_SIBLING_INIT;
-		sd->span = cpu_sibling_map[i];
+		sd->span = per_cpu(cpu_sibling_map, i);
 		cpus_and(sd->span, sd->span, *cpu_map);
 		sd->parent = p;
 		p->child = sd;
@@ -6143,7 +6143,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 #ifdef CONFIG_SCHED_SMT
 	/* Set up CPU (sibling) groups */
 	for_each_cpu_mask(i, *cpu_map) {
-		cpumask_t this_sibling_map = cpu_sibling_map[i];
+		cpumask_t this_sibling_map = per_cpu(cpu_sibling_map, i);
 		cpus_and(this_sibling_map, this_sibling_map, *cpu_map);
 		if (i != first_cpu(this_sibling_map))
 			continue;

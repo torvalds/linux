@@ -322,7 +322,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	/* only run on CPU to be set, or on its sibling */
 #ifdef CONFIG_SMP
-	policy->cpus = cpu_sibling_map[policy->cpu];
+	policy->cpus = per_cpu(cpu_sibling_map, policy->cpu);
 #endif
 
 	cpus_allowed = current->cpus_allowed;

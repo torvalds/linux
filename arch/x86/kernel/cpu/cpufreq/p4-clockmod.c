@@ -200,7 +200,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	unsigned int i;
 
 #ifdef CONFIG_SMP
-	policy->cpus = cpu_sibling_map[policy->cpu];
+	policy->cpus = per_cpu(cpu_sibling_map, policy->cpu);
 #endif
 
 	/* Errata workaround */

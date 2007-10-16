@@ -38,12 +38,14 @@ extern void unlock_ipi_call_lock(void);
 extern int smp_num_siblings;
 extern void smp_send_reschedule(int cpu);
 
-extern cpumask_t cpu_sibling_map[NR_CPUS];
 /*
- * cpu_core_map lives in a per cpu area
+ * cpu_sibling_map and cpu_core_map now live
+ * in the per cpu area
  *
+ * extern cpumask_t cpu_sibling_map[NR_CPUS];
  * extern cpumask_t cpu_core_map[NR_CPUS];
  */
+DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
 extern u8 cpu_llc_id[NR_CPUS];
 

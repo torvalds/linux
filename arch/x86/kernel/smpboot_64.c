@@ -91,8 +91,8 @@ EXPORT_SYMBOL(cpu_data);
 int smp_threads_ready;
 
 /* representing HT siblings of each logical CPU */
-cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
-EXPORT_SYMBOL(cpu_sibling_map);
+DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
+EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 
 /* representing HT and core siblings of each logical CPU */
 DEFINE_PER_CPU(cpumask_t, cpu_core_map);
@@ -262,8 +262,8 @@ static inline void set_cpu_sibling_map(int cpu)
 		for_each_cpu_mask(i, cpu_sibling_setup_map) {
 			if (c[cpu].phys_proc_id == c[i].phys_proc_id &&
 			    c[cpu].cpu_core_id == c[i].cpu_core_id) {
-				cpu_set(i, cpu_sibling_map[cpu]);
-				cpu_set(cpu, cpu_sibling_map[i]);
+				cpu_set(i, per_cpu(cpu_sibling_map, cpu));
+				cpu_set(cpu, per_cpu(cpu_sibling_map, i));
 				cpu_set(i, per_cpu(cpu_core_map, cpu));
 				cpu_set(cpu, per_cpu(cpu_core_map, i));
 				cpu_set(i, c[cpu].llc_shared_map);
@@ -271,13 +271,13 @@ static inline void set_cpu_sibling_map(int cpu)
 			}
 		}
 	} else {
-		cpu_set(cpu, cpu_sibling_map[cpu]);
+		cpu_set(cpu, per_cpu(cpu_sibling_map, cpu));
 	}
 
 	cpu_set(cpu, c[cpu].llc_shared_map);
 
 	if (current_cpu_data.x86_max_cores == 1) {
-		per_cpu(cpu_core_map, cpu) = cpu_sibling_map[cpu];
+		per_cpu(cpu_core_map, cpu) = per_cpu(cpu_sibling_map, cpu);
 		c[cpu].booted_cores = 1;
 		return;
 	}
@@ -294,12 +294,12 @@ static inline void set_cpu_sibling_map(int cpu)
 			/*
 			 *  Does this new cpu bringup a new core?
 			 */
-			if (cpus_weight(cpu_sibling_map[cpu]) == 1) {
+			if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1) {
 				/*
 				 * for each core in package, increment
 				 * the booted_cores for this new cpu
 				 */
-				if (first_cpu(cpu_sibling_map[i]) == i)
+				if (first_cpu(per_cpu(cpu_sibling_map, i)) == i)
 					c[cpu].booted_cores++;
 				/*
 				 * increment the core count for all
@@ -735,7 +735,7 @@ static __init void disable_smp(void)
 		phys_cpu_present_map = physid_mask_of_physid(boot_cpu_id);
 	else
 		phys_cpu_present_map = physid_mask_of_physid(0);
-	cpu_set(0, cpu_sibling_map[0]);
+	cpu_set(0, per_cpu(cpu_sibling_map, 0));
 	cpu_set(0, per_cpu(cpu_core_map, 0));
 }
 
@@ -976,13 +976,13 @@ static void remove_siblinginfo(int cpu)
 		/*
 		 * last thread sibling in this cpu core going down
 		 */
-		if (cpus_weight(cpu_sibling_map[cpu]) == 1)
+		if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1)
 			c[sibling].booted_cores--;
 	}
 			
-	for_each_cpu_mask(sibling, cpu_sibling_map[cpu])
-		cpu_clear(cpu, cpu_sibling_map[sibling]);
-	cpus_clear(cpu_sibling_map[cpu]);
+	for_each_cpu_mask(sibling, per_cpu(cpu_sibling_map, cpu))
+		cpu_clear(cpu, per_cpu(cpu_sibling_map, sibling));
+	cpus_clear(per_cpu(cpu_sibling_map, cpu));
 	cpus_clear(per_cpu(cpu_core_map, cpu));
 	c[cpu].phys_proc_id = 0;
 	c[cpu].cpu_core_id = 0;
