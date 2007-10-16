@@ -34,11 +34,11 @@
 static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 	{{1, 0, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0} }, "null user"},
 	{{1, 1, {0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0} }, "nobody"},
-	{{1, 1, {0, 0, 0, 0, 0, 5}, {11, 0, 0, 0, 0} }, "net-users"},
-	{{1, 1, {0, 0, 0, 0, 0, 5}, {18, 0, 0, 0, 0} }, "sys"},
-	{{1, 2, {0, 0, 0, 0, 0, 5}, {32, 544, 0, 0, 0} }, "root"},
-	{{1, 2, {0, 0, 0, 0, 0, 5}, {32, 545, 0, 0, 0} }, "users"},
-	{{1, 2, {0, 0, 0, 0, 0, 5}, {32, 546, 0, 0, 0} }, "guest"}
+	{{1, 1, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(11), 0, 0, 0, 0} }, "net-users"},
+	{{1, 1, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(18), 0, 0, 0, 0} }, "sys"},
+	{{1, 2, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(32), cpu_to_le32(544), 0, 0, 0} }, "root"},
+	{{1, 2, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(32), cpu_to_le32(545), 0, 0, 0} }, "users"},
+	{{1, 2, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(32), cpu_to_le32(546), 0, 0, 0} }, "guest"}
 };
 
 
@@ -75,8 +75,8 @@ int match_sid(struct cifs_sid *ctsid)
 			continue; /* all of the auth values did not match */
 
 		/* compare all of the subauth values if any */
-		num_sat = cpu_to_le32(ctsid->num_subauth);
-		num_saw = cpu_to_le32(cwsid->num_subauth);
+		num_sat = ctsid->num_subauth;
+		num_saw = cwsid->num_subauth;
 		num_subauth = num_sat < num_saw ? num_sat : num_saw;
 		if (num_subauth) {
 			for (j = 0; j < num_subauth; ++j) {
@@ -141,7 +141,7 @@ static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 		return;
 	} */
 
-	num_subauth = cpu_to_le32(pace->num_subauth);
+	num_subauth = pace->num_subauth;
 	if (num_subauth) {
 #ifdef CONFIG_CIFS_DEBUG2
 		int i;
@@ -228,7 +228,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 
 			parse_ntace(ppntace[i], end_of_acl);
 			if (end_of_acl < ((char *)ppace[i] +
-					(ppntace[i]->size -
+					(le16_to_cpu(ppntace[i]->size) -
 					sizeof(struct cifs_ntace)))) {
 				cERROR(1, ("ACL too small to parse ACE"));
 				break;
@@ -243,7 +243,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 				sizeof(struct cifs_ace)); */
 
 			acl_base = (char *)ppntace[i];
-			acl_size = cpu_to_le32(ppntace[i]->size);
+			acl_size = le16_to_cpu(ppntace[i]->size);
 		}
 
 		kfree(ppace);
@@ -307,7 +307,7 @@ int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len)
 		 pntsd->revision, pntsd->type, le32_to_cpu(pntsd->osidoffset),
 		 le32_to_cpu(pntsd->gsidoffset),
 		 le32_to_cpu(pntsd->sacloffset),
-		 le32_to_cpu(pntsd->dacloffset));
+		 le32_to_cpu(pntsd->dacloffset)));
 #endif
 	rc = parse_sid(owner_sid_ptr, end_of_acl);
 	if (rc)
