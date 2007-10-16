@@ -126,7 +126,7 @@ static int mpol_check_policy(int mode, nodemask_t *nodes)
 			return -EINVAL;
 		break;
 	}
-	return nodes_subset(*nodes, node_online_map) ? 0 : -EINVAL;
+ 	return nodes_subset(*nodes, node_states[N_HIGH_MEMORY]) ? 0 : -EINVAL;
 }
 
 /* Generate a custom zonelist for the BIND policy. */
@@ -965,7 +965,7 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 		goto out;
 	}
 
-	if (!nodes_subset(new, node_online_map)) {
+	if (!nodes_subset(new, node_states[N_HIGH_MEMORY])) {
 		err = -EINVAL;
 		goto out;
 	}
