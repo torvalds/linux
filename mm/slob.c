@@ -360,7 +360,7 @@ static void slob_free(void *block, int size)
 	slobidx_t units;
 	unsigned long flags;
 
-	if (ZERO_OR_NULL_PTR(block))
+	if (unlikely(ZERO_OR_NULL_PTR(block)))
 		return;
 	BUG_ON(!size);
 
@@ -466,7 +466,7 @@ void kfree(const void *block)
 {
 	struct slob_page *sp;
 
-	if (ZERO_OR_NULL_PTR(block))
+	if (unlikely(ZERO_OR_NULL_PTR(block)))
 		return;
 
 	sp = (struct slob_page *)virt_to_page(block);
@@ -484,7 +484,7 @@ size_t ksize(const void *block)
 {
 	struct slob_page *sp;
 
-	if (ZERO_OR_NULL_PTR(block))
+	if (unlikely(ZERO_OR_NULL_PTR(block)))
 		return 0;
 
 	sp = (struct slob_page *)virt_to_page(block);

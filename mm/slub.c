@@ -2449,7 +2449,7 @@ size_t ksize(const void *object)
 	struct page *page;
 	struct kmem_cache *s;
 
-	if (ZERO_OR_NULL_PTR(object))
+	if (unlikely(ZERO_OR_NULL_PTR(object)))
 		return 0;
 
 	page = get_object_page(object);
@@ -2483,7 +2483,7 @@ void kfree(const void *x)
 {
 	struct page *page;
 
-	if (ZERO_OR_NULL_PTR(x))
+	if (unlikely(ZERO_OR_NULL_PTR(x)))
 		return;
 
 	page = virt_to_head_page(x);
@@ -2800,7 +2800,7 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
 							get_order(size));
 	s = get_slab(size, gfpflags);
 
-	if (ZERO_OR_NULL_PTR(s))
+	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
 	return slab_alloc(s, gfpflags, -1, caller);
@@ -2816,7 +2816,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 							get_order(size));
 	s = get_slab(size, gfpflags);
 
-	if (ZERO_OR_NULL_PTR(s))
+	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
 	return slab_alloc(s, gfpflags, node, caller);
