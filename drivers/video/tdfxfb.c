@@ -67,7 +67,6 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <linux/spinlock.h>
 
 #include <video/tdfx.h>
 
@@ -76,6 +75,24 @@
 #define DPRINTK(a,b...) printk(KERN_DEBUG "fb: %s: " a, __FUNCTION__ , ## b)
 #else
 #define DPRINTK(a,b...)
+#endif
+
+#ifdef CONFIG_MTRR
+#include <asm/mtrr.h>
+#else
+/* duplicate asm/mtrr.h defines to work on archs without mtrr */
+#define MTRR_TYPE_WRCOMB     1
+
+static inline int mtrr_add(unsigned long base, unsigned long size,
+				unsigned int type, char increment)
+{
+    return -ENODEV;
+}
+static inline int mtrr_del(int reg, unsigned long base,
+				unsigned long size)
+{
+    return -ENODEV;
+}
 #endif
 
 #define BANSHEE_MAX_PIXCLOCK 270000
@@ -150,7 +167,9 @@ MODULE_DEVICE_TABLE(pci, tdfxfb_id_table);
 static int nopan;
 static int nowrap = 1;      /* not implemented (yet) */
 static int hwcursor = 1;
-static char *mode_option __devinitdata = NULL;
+static char *mode_option __devinitdata;
+/* mtrr option */
+static int nomtrr __devinitdata;
 
 /* -------------------------------------------------------------------------
  *                      Hardware-specific funcions
@@ -1227,6 +1246,12 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 
 	printk("fb: %s memory = %dK\n", tdfx_fix.id, tdfx_fix.smem_len >> 10);
 
+	default_par->mtrr_handle = -1;
+	if (!nomtrr)
+		default_par->mtrr_handle =
+			mtrr_add(tdfx_fix.smem_start, tdfx_fix.smem_len,
+				 MTRR_TYPE_WRCOMB, 1);
+
 	tdfx_fix.ypanstep	= nopan ? 0 : 1;
 	tdfx_fix.ywrapstep	= nowrap ? 0 : 1;
 
@@ -1276,6 +1301,9 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 	return 0;
 
 out_err_iobase:
+	if (default_par->mtrr_handle >= 0)
+		mtrr_del(default_par->mtrr_handle, info->fix.smem_start,
+			 info->fix.smem_len);
 	release_mem_region(pci_resource_start(pdev, 2),
 			   pci_resource_len(pdev, 2));
 out_err_screenbase:
@@ -1309,8 +1337,12 @@ static void tdfxfb_setup(char *options)
 			nopan = 1;
 		} else if (!strcmp(this_opt, "nowrap")) {
 			nowrap = 1;
-		} else if (!strcmp(this_opt, "hwcursor")) {
-			hwcursor = simple_strtoul(opt + 9, NULL, 0);
+		} else if (!strncmp(this_opt, "hwcursor=", 9)) {
+			hwcursor = simple_strtoul(this_opt + 9, NULL, 0);
+#ifdef CONFIG_MTRR
+		} else if (!strncmp(this_opt, "nomtrr", 6)) {
+			nomtrr = 1;
+#endif
 		} else {
 			mode_option = this_opt;
 		}
@@ -1333,6 +1365,9 @@ static void __devexit tdfxfb_remove(struct pci_dev *pdev)
 	struct tdfx_par *par = info->par;
 
 	unregister_framebuffer(info);
+	if (par->mtrr_handle >= 0)
+		mtrr_del(par->mtrr_handle, info->fix.smem_start,
+			 info->fix.smem_len);
 	iounmap(par->regbase_virt);
 	iounmap(info->screen_base);
 
@@ -1372,6 +1407,10 @@ MODULE_LICENSE("GPL");
 module_param(hwcursor, int, 0644);
 MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
 			"(1=enable, 0=disable, default=1)");
+#ifdef CONFIG_MTRR
+module_param(nomtrr, bool, 0);
+MODULE_PARM_DESC(nomtrr, "Disable MTRR support (default: enabled)");
+#endif
 
 module_init(tdfxfb_init);
 module_exit(tdfxfb_exit);

@@ -175,6 +175,7 @@ struct tdfx_par {
 	u32 palette[16];
 	void __iomem *regbase_virt;
 	unsigned long iobase;
+	int mtrr_handle;
 };
 
 #endif	/* __KERNEL__ */
