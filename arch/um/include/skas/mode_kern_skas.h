@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  * Licensed under the GPL
  */
 
@@ -9,6 +9,7 @@
 #include "linux/sched.h"
 #include "asm/page.h"
 #include "asm/ptrace.h"
+#include "mem_user.h"
 
 extern void flush_thread_skas(void);
 extern void switch_to_skas(void *prev, void *next);

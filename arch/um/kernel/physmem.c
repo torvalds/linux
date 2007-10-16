@@ -1,25 +1,17 @@
 /*
- * Copyright (C) 2000 - 2003 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/mm.h"
-#include "linux/rbtree.h"
-#include "linux/slab.h"
-#include "linux/vmalloc.h"
 #include "linux/bootmem.h"
-#include "linux/module.h"
+#include "linux/mm.h"
 #include "linux/pfn.h"
-#include "asm/types.h"
-#include "asm/pgtable.h"
-#include "kern_util.h"
+#include "asm/page.h"
 #include "as-layout.h"
-#include "mode_kern.h"
-#include "mem.h"
-#include "mem_user.h"
-#include "os.h"
-#include "kern.h"
 #include "init.h"
+#include "kern.h"
+#include "mode_kern.h"
+#include "os.h"
 
 static int physmem_fd = -1;
 
@@ -49,10 +41,10 @@ int __init init_maps(unsigned long physmem, unsigned long iomem,
 	total_len = phys_len + iomem_len + highmem_len;
 
 	map = alloc_bootmem_low_pages(total_len);
-	if(map == NULL)
+	if (map == NULL)
 		return -ENOMEM;
 
-	for(i = 0; i < total_pages; i++){
+	for (i = 0; i < total_pages; i++) {
 		p = &map[i];
 		memset(p, 0, sizeof(struct page));
 		SetPageReserved(p);
@@ -68,7 +60,7 @@ static unsigned long kmem_top = 0;
 
 unsigned long get_kmem_end(void)
 {
-	if(kmem_top == 0)
+	if (kmem_top == 0)
 		kmem_top = CHOOSE_MODE(kmem_end_tt, kmem_end_skas);
 	return kmem_top;
 }
@@ -81,8 +73,8 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 
 	fd = phys_mapping(phys, &offset);
 	err = os_map_memory((void *) virt, fd, offset, len, r, w, x);
-	if(err) {
-		if(err == -ENOMEM)
+	if (err) {
+		if (err == -ENOMEM)
 			printk("try increasing the host's "
 			       "/proc/sys/vm/max_map_count to <physical "
 			       "memory size>/4096\n");
@@ -106,7 +98,7 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 	offset = uml_reserved - uml_physmem;
 	err = os_map_memory((void *) uml_reserved, physmem_fd, offset,
 			    len - offset, 1, 1, 1);
-	if(err < 0){
+	if (err < 0) {
 		os_print_error(err, "Mapping memory");
 		exit(1);
 	}
@@ -126,16 +118,16 @@ int phys_mapping(unsigned long phys, __u64 *offset_out)
 {
 	int fd = -1;
 
-	if(phys < physmem_size){
+	if (phys < physmem_size) {
 		fd = physmem_fd;
 		*offset_out = phys;
 	}
-	else if(phys < __pa(end_iomem)){
+	else if (phys < __pa(end_iomem)) {
 		struct iomem_region *region = iomem_regions;
 
-		while(region != NULL){
-			if((phys >= region->phys) &&
-			   (phys < region->phys + region->size)){
+		while (region != NULL) {
+			if ((phys >= region->phys) &&
+			    (phys < region->phys + region->size)) {
 				fd = region->fd;
 				*offset_out = phys - region->phys;
 				break;
@@ -143,7 +135,7 @@ int phys_mapping(unsigned long phys, __u64 *offset_out)
 			region = region->next;
 		}
 	}
-	else if(phys < __pa(end_iomem) + highmem){
+	else if (phys < __pa(end_iomem) + highmem) {
 		fd = physmem_fd;
 		*offset_out = phys - iomem_size;
 	}
@@ -188,8 +180,8 @@ unsigned long find_iomem(char *driver, unsigned long *len_out)
 {
 	struct iomem_region *region = iomem_regions;
 
-	while(region != NULL){
-		if(!strcmp(region->driver, driver)){
+	while (region != NULL) {
+		if (!strcmp(region->driver, driver)) {
 			*len_out = region->size;
 			return region->virt;
 		}
@@ -206,10 +198,10 @@ int setup_iomem(void)
 	unsigned long iomem_start = high_physmem + PAGE_SIZE;
 	int err;
 
-	while(region != NULL){
+	while (region != NULL) {
 		err = os_map_memory((void *) iomem_start, region->fd, 0,
 				    region->size, 1, 1, 0);
-		if(err)
+		if (err)
 			printk("Mapping iomem region for driver '%s' failed, "
 			       "errno = %d\n", region->driver, -err);
 		else {
