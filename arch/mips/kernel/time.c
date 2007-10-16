@@ -421,7 +421,7 @@ void __cpuinit mips_clockevent_init(void)
 	cd->mult	= div_sc((unsigned long) mips_freq, NSEC_PER_SEC, 32);
 	cd->shift		= 32;
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
-	cd->min_delta_ns	= clockevent_delta2ns(0x30, cd);
+	cd->min_delta_ns	= clockevent_delta2ns(0x300, cd);
 
 	cd->rating		= 300;
 	cd->irq			= irq;
