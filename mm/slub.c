@@ -90,7 +90,7 @@
  * 			One use of this flag is to mark slabs that are
  * 			used for allocations. Then such a slab becomes a cpu
  * 			slab. The cpu slab may be equipped with an additional
- * 			lockless_freelist that allows lockless access to
+ * 			freelist that allows lockless access to
  * 			free objects in addition to the regular freelist
  * 			that requires the slab lock.
  *
@@ -139,11 +139,6 @@ static inline void ClearSlabDebug(struct page *page)
 
 /*
  * Issues still to be resolved:
- *
- * - The per cpu array is updated for each new slab and and is a remote
- *   cacheline for most nodes. This could become a bouncing cacheline given
- *   enough frequent updates. There are 16 pointers in a cacheline, so at
- *   max 16 cpus could compete for the cacheline which may be okay.
  *
  * - Support PAGE_ALLOC_DEBUG. Should be easy to do.
  *
@@ -275,6 +270,11 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 #else
 	return &s->local_node;
 #endif
+}
+
+static inline struct kmem_cache_cpu *get_cpu_slab(struct kmem_cache *s, int cpu)
+{
+	return &s->cpu_slab[cpu];
 }
 
 static inline int check_valid_pointer(struct kmem_cache *s,
@@ -1387,33 +1387,34 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page)
 /*
  * Remove the cpu slab
  */
-static void deactivate_slab(struct kmem_cache *s, struct page *page, int cpu)
+static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 {
+	struct page *page = c->page;
 	/*
 	 * Merge cpu freelist into freelist. Typically we get here
 	 * because both freelists are empty. So this is unlikely
 	 * to occur.
 	 */
-	while (unlikely(page->lockless_freelist)) {
+	while (unlikely(c->freelist)) {
 		void **object;
 
 		/* Retrieve object from cpu_freelist */
-		object = page->lockless_freelist;
-		page->lockless_freelist = page->lockless_freelist[page->offset];
+		object = c->freelist;
+		c->freelist = c->freelist[page->offset];
 
 		/* And put onto the regular freelist */
 		object[page->offset] = page->freelist;
 		page->freelist = object;
 		page->inuse--;
 	}
-	s->cpu_slab[cpu] = NULL;
+	c->page = NULL;
 	unfreeze_slab(s, page);
 }
 
-static inline void flush_slab(struct kmem_cache *s, struct page *page, int cpu)
+static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 {
-	slab_lock(page);
-	deactivate_slab(s, page, cpu);
+	slab_lock(c->page);
+	deactivate_slab(s, c);
 }
 
 /*
@@ -1422,18 +1423,17 @@ static inline void flush_slab(struct kmem_cache *s, struct page *page, int cpu)
  */
 static inline void __flush_cpu_slab(struct kmem_cache *s, int cpu)
 {
-	struct page *page = s->cpu_slab[cpu];
+	struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
 
-	if (likely(page))
-		flush_slab(s, page, cpu);
+	if (likely(c && c->page))
+		flush_slab(s, c);
 }
 
 static void flush_cpu_slab(void *d)
 {
 	struct kmem_cache *s = d;
-	int cpu = smp_processor_id();
 
-	__flush_cpu_slab(s, cpu);
+	__flush_cpu_slab(s, smp_processor_id());
 }
 
 static void flush_all(struct kmem_cache *s)
@@ -1447,6 +1447,19 @@ static void flush_all(struct kmem_cache *s)
 	flush_cpu_slab(s);
 	local_irq_restore(flags);
 #endif
+}
+
+/*
+ * Check if the objects in a per cpu structure fit numa
+ * locality expectations.
+ */
+static inline int node_match(struct kmem_cache_cpu *c, int node)
+{
+#ifdef CONFIG_NUMA
+	if (node != -1 && c->node != node)
+		return 0;
+#endif
+	return 1;
 }
 
 /*
@@ -1467,45 +1480,46 @@ static void flush_all(struct kmem_cache *s)
  * we need to allocate a new slab. This is slowest path since we may sleep.
  */
 static void *__slab_alloc(struct kmem_cache *s,
-		gfp_t gfpflags, int node, void *addr, struct page *page)
+		gfp_t gfpflags, int node, void *addr, struct kmem_cache_cpu *c)
 {
 	void **object;
-	int cpu = smp_processor_id();
+	struct page *new;
 
-	if (!page)
+	if (!c->page)
 		goto new_slab;
 
-	slab_lock(page);
-	if (unlikely(node != -1 && page_to_nid(page) != node))
+	slab_lock(c->page);
+	if (unlikely(!node_match(c, node)))
 		goto another_slab;
 load_freelist:
-	object = page->freelist;
+	object = c->page->freelist;
 	if (unlikely(!object))
 		goto another_slab;
-	if (unlikely(SlabDebug(page)))
+	if (unlikely(SlabDebug(c->page)))
 		goto debug;
 
-	object = page->freelist;
-	page->lockless_freelist = object[page->offset];
-	page->inuse = s->objects;
-	page->freelist = NULL;
-	slab_unlock(page);
+	object = c->page->freelist;
+	c->freelist = object[c->page->offset];
+	c->page->inuse = s->objects;
+	c->page->freelist = NULL;
+	c->node = page_to_nid(c->page);
+	slab_unlock(c->page);
 	return object;
 
 another_slab:
-	deactivate_slab(s, page, cpu);
+	deactivate_slab(s, c);
 
 new_slab:
-	page = get_partial(s, gfpflags, node);
-	if (page) {
-		s->cpu_slab[cpu] = page;
+	new = get_partial(s, gfpflags, node);
+	if (new) {
+		c->page = new;
 		goto load_freelist;
 	}
 
-	page = new_slab(s, gfpflags, node);
-	if (page) {
-		cpu = smp_processor_id();
-		if (s->cpu_slab[cpu]) {
+	new = new_slab(s, gfpflags, node);
+	if (new) {
+		c = get_cpu_slab(s, smp_processor_id());
+		if (c->page) {
 			/*
 			 * Someone else populated the cpu_slab while we
 			 * enabled interrupts, or we have gotten scheduled
@@ -1513,34 +1527,32 @@ new_slab:
 			 * requested node even if __GFP_THISNODE was
 			 * specified. So we need to recheck.
 			 */
-			if (node == -1 ||
-				page_to_nid(s->cpu_slab[cpu]) == node) {
+			if (node_match(c, node)) {
 				/*
 				 * Current cpuslab is acceptable and we
 				 * want the current one since its cache hot
 				 */
-				discard_slab(s, page);
-				page = s->cpu_slab[cpu];
-				slab_lock(page);
+				discard_slab(s, new);
+				slab_lock(c->page);
 				goto load_freelist;
 			}
 			/* New slab does not fit our expectations */
-			flush_slab(s, s->cpu_slab[cpu], cpu);
+			flush_slab(s, c);
 		}
-		slab_lock(page);
-		SetSlabFrozen(page);
-		s->cpu_slab[cpu] = page;
+		slab_lock(new);
+		SetSlabFrozen(new);
+		c->page = new;
 		goto load_freelist;
 	}
 	return NULL;
 debug:
-	object = page->freelist;
-	if (!alloc_debug_processing(s, page, object, addr))
+	object = c->page->freelist;
+	if (!alloc_debug_processing(s, c->page, object, addr))
 		goto another_slab;
 
-	page->inuse++;
-	page->freelist = object[page->offset];
-	slab_unlock(page);
+	c->page->inuse++;
+	c->page->freelist = object[c->page->offset];
+	slab_unlock(c->page);
 	return object;
 }
 
@@ -1557,20 +1569,20 @@ debug:
 static void __always_inline *slab_alloc(struct kmem_cache *s,
 		gfp_t gfpflags, int node, void *addr)
 {
-	struct page *page;
 	void **object;
 	unsigned long flags;
+	struct kmem_cache_cpu *c;
 
 	local_irq_save(flags);
-	page = s->cpu_slab[smp_processor_id()];
-	if (unlikely(!page || !page->lockless_freelist ||
-			(node != -1 && page_to_nid(page) != node)))
+	c = get_cpu_slab(s, smp_processor_id());
+	if (unlikely(!c->page || !c->freelist ||
+					!node_match(c, node)))
 
-		object = __slab_alloc(s, gfpflags, node, addr, page);
+		object = __slab_alloc(s, gfpflags, node, addr, c);
 
 	else {
-		object = page->lockless_freelist;
-		page->lockless_freelist = object[page->offset];
+		object = c->freelist;
+		c->freelist = object[c->page->offset];
 	}
 	local_irq_restore(flags);
 
@@ -1668,13 +1680,14 @@ static void __always_inline slab_free(struct kmem_cache *s,
 {
 	void **object = (void *)x;
 	unsigned long flags;
+	struct kmem_cache_cpu *c;
 
 	local_irq_save(flags);
 	debug_check_no_locks_freed(object, s->objsize);
-	if (likely(page == s->cpu_slab[smp_processor_id()] &&
-						!SlabDebug(page))) {
-		object[page->offset] = page->lockless_freelist;
-		page->lockless_freelist = object;
+	c = get_cpu_slab(s, smp_processor_id());
+	if (likely(page == c->page && !SlabDebug(page))) {
+		object[page->offset] = c->freelist;
+		c->freelist = object;
 	} else
 		__slab_free(s, page, x, addr);
 
@@ -1860,6 +1873,24 @@ static unsigned long calculate_alignment(unsigned long flags,
 		return ARCH_SLAB_MINALIGN;
 
 	return ALIGN(align, sizeof(void *));
+}
+
+static void init_kmem_cache_cpu(struct kmem_cache *s,
+			struct kmem_cache_cpu *c)
+{
+	c->page = NULL;
+	c->freelist = NULL;
+	c->node = 0;
+}
+
+static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		init_kmem_cache_cpu(s, get_cpu_slab(s, cpu));
+
+	return 1;
 }
 
 static void init_kmem_cache_node(struct kmem_cache_node *n)
@@ -2111,8 +2142,10 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 #ifdef CONFIG_NUMA
 	s->defrag_ratio = 100;
 #endif
+	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
+		goto error;
 
-	if (init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
+	if (alloc_kmem_cache_cpus(s, gfpflags & ~SLUB_DMA))
 		return 1;
 error:
 	if (flags & SLAB_PANIC)
@@ -2646,7 +2679,7 @@ void __init kmem_cache_init(void)
 #endif
 
 	kmem_size = offsetof(struct kmem_cache, cpu_slab) +
-				nr_cpu_ids * sizeof(struct page *);
+				nr_cpu_ids * sizeof(struct kmem_cache_cpu);
 
 	printk(KERN_INFO "SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
 		" CPUs=%d, Nodes=%d\n",
@@ -3248,11 +3281,14 @@ static unsigned long slab_objects(struct kmem_cache *s,
 	per_cpu = nodes + nr_node_ids;
 
 	for_each_possible_cpu(cpu) {
-		struct page *page = s->cpu_slab[cpu];
-		int node;
+		struct page *page;
+		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
 
+		if (!c)
+			continue;
+
+		page = c->page;
 		if (page) {
-			node = page_to_nid(page);
 			if (flags & SO_CPU) {
 				int x = 0;
 
@@ -3261,9 +3297,9 @@ static unsigned long slab_objects(struct kmem_cache *s,
 				else
 					x = 1;
 				total += x;
-				nodes[node] += x;
+				nodes[c->node] += x;
 			}
-			per_cpu[node]++;
+			per_cpu[c->node]++;
 		}
 	}
 
@@ -3309,12 +3345,18 @@ static int any_slab_objects(struct kmem_cache *s)
 	int node;
 	int cpu;
 
-	for_each_possible_cpu(cpu)
-		if (s->cpu_slab[cpu])
-			return 1;
+	for_each_possible_cpu(cpu) {
+		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
 
-	for_each_node(node) {
+		if (c && c->page)
+			return 1;
+	}
+
+	for_each_online_node(node) {
 		struct kmem_cache_node *n = get_node(s, node);
+
+		if (!n)
+			continue;
 
 		if (n->nr_partial || atomic_long_read(&n->nr_slabs))
 			return 1;
