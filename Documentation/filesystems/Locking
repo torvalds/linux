@@ -178,15 +178,18 @@ prototypes:
 locking rules:
 	All except set_page_dirty may block
 
-			BKL	PageLocked(page)
+			BKL	PageLocked(page)	i_sem
 writepage:		no	yes, unlocks (see below)
 readpage:		no	yes, unlocks
 sync_page:		no	maybe
 writepages:		no
 set_page_dirty		no	no
 readpages:		no
-prepare_write:		no	yes
-commit_write:		no	yes
+prepare_write:		no	yes			yes
+commit_write:		no	yes			yes
+write_begin:		no	locks the page		yes
+write_end:		no	yes, unlocks		yes
+perform_write:		no	n/a			yes
 bmap:			yes
 invalidatepage:		no	yes
 releasepage:		no	yes

@@ -563,7 +563,7 @@ static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	struct address_space *mapping = file->f_mapping;
 	unsigned int offset, this_len;
 	struct page *page;
-	pgoff_t index;
+	void *fsdata;
 	int ret;
 
 	/*
@@ -573,49 +573,16 @@ static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	if (unlikely(ret))
 		return ret;
 
-	index = sd->pos >> PAGE_CACHE_SHIFT;
 	offset = sd->pos & ~PAGE_CACHE_MASK;
 
 	this_len = sd->len;
 	if (this_len + offset > PAGE_CACHE_SIZE)
 		this_len = PAGE_CACHE_SIZE - offset;
 
-find_page:
-	page = find_lock_page(mapping, index);
-	if (!page) {
-		ret = -ENOMEM;
-		page = page_cache_alloc_cold(mapping);
-		if (unlikely(!page))
-			goto out_ret;
-
-		/*
-		 * This will also lock the page
-		 */
-		ret = add_to_page_cache_lru(page, mapping, index,
-					    GFP_KERNEL);
-		if (unlikely(ret))
-			goto out_release;
-	}
-
-	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
-	if (unlikely(ret)) {
-		loff_t isize = i_size_read(mapping->host);
-
-		if (ret != AOP_TRUNCATED_PAGE)
-			unlock_page(page);
-		page_cache_release(page);
-		if (ret == AOP_TRUNCATED_PAGE)
-			goto find_page;
-
-		/*
-		 * prepare_write() may have instantiated a few blocks
-		 * outside i_size.  Trim these off again.
-		 */
-		if (sd->pos + this_len > isize)
-			vmtruncate(mapping->host, isize);
-
-		goto out_ret;
-	}
+	ret = pagecache_write_begin(file, mapping, sd->pos, this_len,
+				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
+	if (unlikely(ret))
+		goto out;
 
 	if (buf->page != page) {
 		/*
@@ -629,31 +596,9 @@ find_page:
 		kunmap_atomic(dst, KM_USER1);
 		buf->ops->unmap(pipe, buf, src);
 	}
-
-	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);
-	if (ret) {
-		if (ret == AOP_TRUNCATED_PAGE) {
-			page_cache_release(page);
-			goto find_page;
-		}
-		if (ret < 0)
-			goto out;
-		/*
-		 * Partial write has happened, so 'ret' already initialized by
-		 * number of bytes written, Where is nothing we have to do here.
-		 */
-	} else
-		ret = this_len;
-	/*
-	 * Return the number of bytes written and mark page as
-	 * accessed, we are now done!
-	 */
-	mark_page_accessed(page);
+	ret = pagecache_write_end(file, mapping, sd->pos, this_len, this_len,
+				page, fsdata);
 out:
-	unlock_page(page);
-out_release:
-	page_cache_release(page);
-out_ret:
 	return ret;
 }
 

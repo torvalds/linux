@@ -394,6 +394,8 @@ enum positive_aop_returns {
 	AOP_TRUNCATED_PAGE	= 0x80001,
 };
 
+#define AOP_FLAG_UNINTERRUPTIBLE	0x0001 /* will not do a short write */
+
 /*
  * oh the beauties of C type declarations.
  */
@@ -413,7 +415,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 size_t iov_iter_copy_from_user(struct page *page,
 		struct iov_iter *i, unsigned long offset, size_t bytes);
 void iov_iter_advance(struct iov_iter *i, size_t bytes);
-int iov_iter_fault_in_readable(struct iov_iter *i);
+int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes);
 size_t iov_iter_single_seg_count(struct iov_iter *i);
 
 static inline void iov_iter_init(struct iov_iter *i,
@@ -454,6 +456,14 @@ struct address_space_operations {
 	 */
 	int (*prepare_write)(struct file *, struct page *, unsigned, unsigned);
 	int (*commit_write)(struct file *, struct page *, unsigned, unsigned);
+
+	int (*write_begin)(struct file *, struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned flags,
+				struct page **pagep, void **fsdata);
+	int (*write_end)(struct file *, struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned copied,
+				struct page *page, void *fsdata);
+
 	/* Unfortunately this kludge is needed for FIBMAP. Don't use it */
 	sector_t (*bmap)(struct address_space *, sector_t);
 	void (*invalidatepage) (struct page *, unsigned long);
@@ -467,6 +477,18 @@ struct address_space_operations {
 			struct page *, struct page *);
 	int (*launder_page) (struct page *);
 };
+
+/*
+ * pagecache_write_begin/pagecache_write_end must be used by general code
+ * to write into the pagecache.
+ */
+int pagecache_write_begin(struct file *, struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned flags,
+				struct page **pagep, void **fsdata);
+
+int pagecache_write_end(struct file *, struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned copied,
+				struct page *page, void *fsdata);
 
 struct backing_dev_info;
 struct address_space {
@@ -1866,6 +1888,12 @@ extern int simple_prepare_write(struct file *file, struct page *page,
 			unsigned offset, unsigned to);
 extern int simple_commit_write(struct file *file, struct page *page,
 				unsigned offset, unsigned to);
+extern int simple_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata);
+extern int simple_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata);
 
 extern struct dentry *simple_lookup(struct inode *, struct dentry *, struct nameidata *);
 extern ssize_t generic_read_dir(struct file *, char __user *, size_t, loff_t *);

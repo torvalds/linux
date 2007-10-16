@@ -1770,6 +1770,48 @@ recover:
 	goto done;
 }
 
+/*
+ * If a page has any new buffers, zero them out here, and mark them uptodate
+ * and dirty so they'll be written out (in order to prevent uninitialised
+ * block data from leaking). And clear the new bit.
+ */
+void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
+{
+	unsigned int block_start, block_end;
+	struct buffer_head *head, *bh;
+
+	BUG_ON(!PageLocked(page));
+	if (!page_has_buffers(page))
+		return;
+
+	bh = head = page_buffers(page);
+	block_start = 0;
+	do {
+		block_end = block_start + bh->b_size;
+
+		if (buffer_new(bh)) {
+			if (block_end > from && block_start < to) {
+				if (!PageUptodate(page)) {
+					unsigned start, size;
+
+					start = max(from, block_start);
+					size = min(to, block_end) - start;
+
+					zero_user_page(page, start, size, KM_USER0);
+					set_buffer_uptodate(bh);
+				}
+
+				clear_buffer_new(bh);
+				mark_buffer_dirty(bh);
+			}
+		}
+
+		block_start = block_end;
+		bh = bh->b_this_page;
+	} while (bh != head);
+}
+EXPORT_SYMBOL(page_zero_new_buffers);
+
 static int __block_prepare_write(struct inode *inode, struct page *page,
 		unsigned from, unsigned to, get_block_t *get_block)
 {
@@ -1854,38 +1896,8 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 		if (!buffer_uptodate(*wait_bh))
 			err = -EIO;
 	}
-	if (!err) {
-		bh = head;
-		do {
-			if (buffer_new(bh))
-				clear_buffer_new(bh);
-		} while ((bh = bh->b_this_page) != head);
-		return 0;
-	}
-	/* Error case: */
-	/*
-	 * Zero out any newly allocated blocks to avoid exposing stale
-	 * data.  If BH_New is set, we know that the block was newly
-	 * allocated in the above loop.
-	 */
-	bh = head;
-	block_start = 0;
-	do {
-		block_end = block_start+blocksize;
-		if (block_end <= from)
-			goto next_bh;
-		if (block_start >= to)
-			break;
-		if (buffer_new(bh)) {
-			clear_buffer_new(bh);
-			zero_user_page(page, block_start, bh->b_size, KM_USER0);
-			set_buffer_uptodate(bh);
-			mark_buffer_dirty(bh);
-		}
-next_bh:
-		block_start = block_end;
-		bh = bh->b_this_page;
-	} while (bh != head);
+	if (unlikely(err))
+		page_zero_new_buffers(page, from, to);
 	return err;
 }
 
@@ -1910,6 +1922,7 @@ static int __block_commit_write(struct inode *inode, struct page *page,
 			set_buffer_uptodate(bh);
 			mark_buffer_dirty(bh);
 		}
+		clear_buffer_new(bh);
 	}
 
 	/*
@@ -1922,6 +1935,130 @@ static int __block_commit_write(struct inode *inode, struct page *page,
 		SetPageUptodate(page);
 	return 0;
 }
+
+/*
+ * block_write_begin takes care of the basic task of block allocation and
+ * bringing partial write blocks uptodate first.
+ *
+ * If *pagep is not NULL, then block_write_begin uses the locked page
+ * at *pagep rather than allocating its own. In this case, the page will
+ * not be unlocked or deallocated on failure.
+ */
+int block_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata,
+			get_block_t *get_block)
+{
+	struct inode *inode = mapping->host;
+	int status = 0;
+	struct page *page;
+	pgoff_t index;
+	unsigned start, end;
+	int ownpage = 0;
+
+	index = pos >> PAGE_CACHE_SHIFT;
+	start = pos & (PAGE_CACHE_SIZE - 1);
+	end = start + len;
+
+	page = *pagep;
+	if (page == NULL) {
+		ownpage = 1;
+		page = __grab_cache_page(mapping, index);
+		if (!page) {
+			status = -ENOMEM;
+			goto out;
+		}
+		*pagep = page;
+	} else
+		BUG_ON(!PageLocked(page));
+
+	status = __block_prepare_write(inode, page, start, end, get_block);
+	if (unlikely(status)) {
+		ClearPageUptodate(page);
+
+		if (ownpage) {
+			unlock_page(page);
+			page_cache_release(page);
+			*pagep = NULL;
+
+			/*
+			 * prepare_write() may have instantiated a few blocks
+			 * outside i_size.  Trim these off again. Don't need
+			 * i_size_read because we hold i_mutex.
+			 */
+			if (pos + len > inode->i_size)
+				vmtruncate(inode, inode->i_size);
+		}
+		goto out;
+	}
+
+out:
+	return status;
+}
+EXPORT_SYMBOL(block_write_begin);
+
+int block_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
+{
+	struct inode *inode = mapping->host;
+	unsigned start;
+
+	start = pos & (PAGE_CACHE_SIZE - 1);
+
+	if (unlikely(copied < len)) {
+		/*
+		 * The buffers that were written will now be uptodate, so we
+		 * don't have to worry about a readpage reading them and
+		 * overwriting a partial write. However if we have encountered
+		 * a short write and only partially written into a buffer, it
+		 * will not be marked uptodate, so a readpage might come in and
+		 * destroy our partial write.
+		 *
+		 * Do the simplest thing, and just treat any short write to a
+		 * non uptodate page as a zero-length write, and force the
+		 * caller to redo the whole thing.
+		 */
+		if (!PageUptodate(page))
+			copied = 0;
+
+		page_zero_new_buffers(page, start+copied, start+len);
+	}
+	flush_dcache_page(page);
+
+	/* This could be a short (even 0-length) commit */
+	__block_commit_write(inode, page, start, start+copied);
+
+	return copied;
+}
+EXPORT_SYMBOL(block_write_end);
+
+int generic_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
+{
+	struct inode *inode = mapping->host;
+
+	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+
+	/*
+	 * No need to use i_size_read() here, the i_size
+	 * cannot change under us because we hold i_mutex.
+	 *
+	 * But it's important to update i_size while still holding page lock:
+	 * page writeout could otherwise come in and zero beyond i_size.
+	 */
+	if (pos+copied > inode->i_size) {
+		i_size_write(inode, pos+copied);
+		mark_inode_dirty(inode);
+	}
+
+	unlock_page(page);
+	page_cache_release(page);
+
+	return copied;
+}
+EXPORT_SYMBOL(generic_write_end);
 
 /*
  * Generic "read page" function for block devices that have the normal

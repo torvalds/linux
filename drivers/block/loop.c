@@ -204,14 +204,13 @@ lo_do_transfer(struct loop_device *lo, int cmd,
  * do_lo_send_aops - helper for writing data to a loop device
  *
  * This is the fast version for backing filesystems which implement the address
- * space operations prepare_write and commit_write.
+ * space operations write_begin and write_end.
  */
 static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
-		int bsize, loff_t pos, struct page *page)
+		int bsize, loff_t pos, struct page *unused)
 {
 	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
 	struct address_space *mapping = file->f_mapping;
-	const struct address_space_operations *aops = mapping->a_ops;
 	pgoff_t index;
 	unsigned offset, bv_offs;
 	int len, ret;
@@ -223,63 +222,47 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 	len = bvec->bv_len;
 	while (len > 0) {
 		sector_t IV;
-		unsigned size;
+		unsigned size, copied;
 		int transfer_result;
+		struct page *page;
+		void *fsdata;
 
 		IV = ((sector_t)index << (PAGE_CACHE_SHIFT - 9))+(offset >> 9);
 		size = PAGE_CACHE_SIZE - offset;
 		if (size > len)
 			size = len;
-		page = grab_cache_page(mapping, index);
-		if (unlikely(!page))
+
+		ret = pagecache_write_begin(file, mapping, pos, size, 0,
+							&page, &fsdata);
+		if (ret)
 			goto fail;
-		ret = aops->prepare_write(file, page, offset,
-					  offset + size);
-		if (unlikely(ret)) {
-			if (ret == AOP_TRUNCATED_PAGE) {
-				page_cache_release(page);
-				continue;
-			}
-			goto unlock;
-		}
+
 		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
 				bvec->bv_page, bv_offs, size, IV);
-		if (unlikely(transfer_result)) {
-			/*
-			 * The transfer failed, but we still write the data to
-			 * keep prepare/commit calls balanced.
-			 */
-			printk(KERN_ERR "loop: transfer error block %llu\n",
-			       (unsigned long long)index);
-			zero_user_page(page, offset, size, KM_USER0);
-		}
-		flush_dcache_page(page);
-		ret = aops->commit_write(file, page, offset,
-					 offset + size);
-		if (unlikely(ret)) {
-			if (ret == AOP_TRUNCATED_PAGE) {
-				page_cache_release(page);
-				continue;
-			}
-			goto unlock;
-		}
+		copied = size;
 		if (unlikely(transfer_result))
-			goto unlock;
-		bv_offs += size;
-		len -= size;
+			copied = 0;
+
+		ret = pagecache_write_end(file, mapping, pos, size, copied,
+							page, fsdata);
+		if (ret < 0)
+			goto fail;
+		if (ret < copied)
+			copied = ret;
+
+		if (unlikely(transfer_result))
+			goto fail;
+
+		bv_offs += copied;
+		len -= copied;
 		offset = 0;
 		index++;
-		pos += size;
-		unlock_page(page);
-		page_cache_release(page);
+		pos += copied;
 	}
 	ret = 0;
 out:
 	mutex_unlock(&mapping->host->i_mutex);
 	return ret;
-unlock:
-	unlock_page(page);
-	page_cache_release(page);
 fail:
 	ret = -1;
 	goto out;
@@ -313,7 +296,7 @@ static int __do_lo_send_write(struct file *file,
  * do_lo_send_direct_write - helper for writing data to a loop device
  *
  * This is the fast, non-transforming version for backing filesystems which do
- * not implement the address space operations prepare_write and commit_write.
+ * not implement the address space operations write_begin and write_end.
  * It uses the write file operation which should be present on all writeable
  * filesystems.
  */
@@ -332,7 +315,7 @@ static int do_lo_send_direct_write(struct loop_device *lo,
  * do_lo_send_write - helper for writing data to a loop device
  *
  * This is the slow, transforming version for filesystems which do not
- * implement the address space operations prepare_write and commit_write.  It
+ * implement the address space operations write_begin and write_end.  It
  * uses the write file operation which should be present on all writeable
  * filesystems.
  *
@@ -780,7 +763,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 		 */
 		if (!file->f_op->splice_read)
 			goto out_putf;
-		if (aops->prepare_write && aops->commit_write)
+		if (aops->prepare_write || aops->write_begin)
 			lo_flags |= LO_FLAGS_USE_AOPS;
 		if (!(lo_flags & LO_FLAGS_USE_AOPS) && !file->f_op->write)
 			lo_flags |= LO_FLAGS_READ_ONLY;

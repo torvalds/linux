@@ -96,6 +96,8 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
 unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
 			int tag, unsigned int nr_pages, struct page **pages);
 
+struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index);
+
 /*
  * Returns locked page at given index in given cache, creating it if needed.
  */

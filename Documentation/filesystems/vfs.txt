@@ -537,6 +537,12 @@ struct address_space_operations {
 			struct list_head *pages, unsigned nr_pages);
 	int (*prepare_write)(struct file *, struct page *, unsigned, unsigned);
 	int (*commit_write)(struct file *, struct page *, unsigned, unsigned);
+	int (*write_begin)(struct file *, struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned flags,
+				struct page **pagep, void **fsdata);
+	int (*write_end)(struct file *, struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned copied,
+				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
 	int (*invalidatepage) (struct page *, unsigned long);
 	int (*releasepage) (struct page *, int);
@@ -632,6 +638,45 @@ struct address_space_operations {
         mark the inode as dirty, and do any other related housekeeping
         operations.  It should avoid returning an error if possible -
         errors should have been handled by prepare_write.
+
+  write_begin: This is intended as a replacement for prepare_write. The
+	key differences being that:
+		- it returns a locked page (in *pagep) rather than being
+		  given a pre locked page;
+		- it must be able to cope with short writes (where the
+		  length passed to write_begin is greater than the number
+		  of bytes copied into the page).
+
+	Called by the generic buffered write code to ask the filesystem to
+	prepare to write len bytes at the given offset in the file. The
+	address_space should check that the write will be able to complete,
+	by allocating space if necessary and doing any other internal
+	housekeeping.  If the write will update parts of any basic-blocks on
+	storage, then those blocks should be pre-read (if they haven't been
+	read already) so that the updated blocks can be written out properly.
+
+        The filesystem must return the locked pagecache page for the specified
+	offset, in *pagep, for the caller to write into.
+
+	flags is a field for AOP_FLAG_xxx flags, described in
+	include/linux/fs.h.
+
+        A void * may be returned in fsdata, which then gets passed into
+        write_end.
+
+        Returns 0 on success; < 0 on failure (which is the error code), in
+	which case write_end is not called.
+
+  write_end: After a successful write_begin, and data copy, write_end must
+        be called. len is the original len passed to write_begin, and copied
+        is the amount that was able to be copied (copied == len is always true
+	if write_begin was called with the AOP_FLAG_UNINTERRUPTIBLE flag).
+
+        The filesystem must take care of unlocking the page and releasing it
+        refcount, and updating i_size.
+
+        Returns < 0 on failure, otherwise the number of bytes (<= 'copied')
+        that were able to be copied into pagecache.
 
   bmap: called by the VFS to map a logical block offset within object to
   	physical block number. This method is used by the FIBMAP
