@@ -599,6 +599,42 @@ int radix_tree_tag_get(struct radix_tree_root *root,
 EXPORT_SYMBOL(radix_tree_tag_get);
 #endif
 
+/**
+ *	radix_tree_next_hole    -    find the next hole (not-present entry)
+ *	@root:		tree root
+ *	@index:		index key
+ *	@max_scan:	maximum range to search
+ *
+ *	Search the set [index, min(index+max_scan-1, MAX_INDEX)] for the lowest
+ *	indexed hole.
+ *
+ *	Returns: the index of the hole if found, otherwise returns an index
+ *	outside of the set specified (in which case 'return - index >= max_scan'
+ *	will be true).
+ *
+ *	radix_tree_next_hole may be called under rcu_read_lock. However, like
+ *	radix_tree_gang_lookup, this will not atomically search a snapshot of the
+ *	tree at a single point in time. For example, if a hole is created at index
+ *	5, then subsequently a hole is created at index 10, radix_tree_next_hole
+ *	covering both indexes may return 10 if called under rcu_read_lock.
+ */
+unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+				unsigned long index, unsigned long max_scan)
+{
+	unsigned long i;
+
+	for (i = 0; i < max_scan; i++) {
+		if (!radix_tree_lookup(root, index))
+			break;
+		index++;
+		if (index == 0)
+			break;
+	}
+
+	return index;
+}
+EXPORT_SYMBOL(radix_tree_next_hole);
+
 static unsigned int
 __lookup(struct radix_tree_node *slot, void **results, unsigned long index,
 	unsigned int max_items, unsigned long *next_index)
