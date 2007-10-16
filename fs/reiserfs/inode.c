@@ -2562,13 +2562,20 @@ static int reiserfs_write_begin(struct file *file,
 	int ret;
 	int old_ref = 0;
 
+ 	inode = mapping->host;
+	*fsdata = 0;
+ 	if (flags & AOP_FLAG_CONT_EXPAND &&
+ 	    (pos & (inode->i_sb->s_blocksize - 1)) == 0) {
+ 		pos ++;
+		*fsdata = (void *)(unsigned long)flags;
+	}
+
 	index = pos >> PAGE_CACHE_SHIFT;
 	page = __grab_cache_page(mapping, index);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
 
-	inode = mapping->host;
 	reiserfs_wait_on_write_block(inode->i_sb);
 	fix_tail_page_for_writing(page);
 	if (reiserfs_transaction_running(inode->i_sb)) {
@@ -2678,6 +2685,8 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 	struct reiserfs_transaction_handle *th;
 	unsigned start;
 
+	if ((unsigned long)fsdata & AOP_FLAG_CONT_EXPAND)
+		pos ++;
 
 	reiserfs_wait_on_write_block(inode->i_sb);
 	if (reiserfs_transaction_running(inode->i_sb))
@@ -3065,7 +3074,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 		/* fill in hole pointers in the expanding truncate case. */
 		if (attr->ia_size > inode->i_size) {
-			error = generic_cont_expand(inode, attr->ia_size);
+			error = generic_cont_expand_simple(inode, attr->ia_size);
 			if (REISERFS_I(inode)->i_prealloc_count > 0) {
 				int err;
 				struct reiserfs_transaction_handle th;
