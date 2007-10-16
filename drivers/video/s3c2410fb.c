@@ -290,6 +290,7 @@ static void s3c2410fb_calculate_stn_lcd_regs(const struct fb_info *info,
 	int type = regs->lcdcon1 & ~S3C2410_LCDCON1_TFT;
 	int hs = var->xres >> 2;
 	unsigned wdly = (var->left_margin >> 4) - 1;
+	unsigned wlh = (var->hsync_len >> 4) - 1;
 
 	dprintk("%s: var->xres  = %d\n", __FUNCTION__, var->xres);
 	dprintk("%s: var->yres  = %d\n", __FUNCTION__, var->yres);
@@ -333,9 +334,15 @@ static void s3c2410fb_calculate_stn_lcd_regs(const struct fb_info *info,
 	if (wdly > 3)
 		wdly = 3;
 
+	if (wlh > 3)
+		wlh = 3;
+
 	regs->lcdcon3 =	S3C2410_LCDCON3_WDLY(wdly) |
 			S3C2410_LCDCON3_LINEBLANK(var->right_margin / 8) |
 			S3C2410_LCDCON3_HOZVAL(hs - 1);
+
+	regs->lcdcon4 &= ~S3C2410_LCDCON4_HSPW(0xff);
+	regs->lcdcon4 |=  S3C2410_LCDCON4_HSPW(wlh);
 }
 
 /* s3c2410fb_calculate_tft_lcd_regs
@@ -383,14 +390,17 @@ static void s3c2410fb_calculate_tft_lcd_regs(const struct fb_info *info,
 	dprintk("setting horz: lft=%d, rt=%d, sync=%d\n",
 		var->left_margin, var->right_margin, var->hsync_len);
 
-	regs->lcdcon2 &= S3C2410_LCDCON2_VSPW(0x3f);
-	regs->lcdcon2 |= S3C2410_LCDCON2_LINEVAL(var->yres - 1);
-	regs->lcdcon2 |= S3C2410_LCDCON2_VBPD(var->upper_margin - 1);
-	regs->lcdcon2 |= S3C2410_LCDCON2_VFPD(var->lower_margin - 1);
+	regs->lcdcon2 = S3C2410_LCDCON2_LINEVAL(var->yres - 1) |
+			S3C2410_LCDCON2_VBPD(var->upper_margin - 1) |
+			S3C2410_LCDCON2_VFPD(var->lower_margin - 1) |
+			S3C2410_LCDCON2_VSPW(var->vsync_len - 1);
 
 	regs->lcdcon3 = S3C2410_LCDCON3_HBPD(var->right_margin - 1) |
 			S3C2410_LCDCON3_HFPD(var->left_margin - 1) |
 			S3C2410_LCDCON3_HOZVAL(var->xres - 1);
+
+	regs->lcdcon4 &= ~S3C2410_LCDCON4_HSPW(0xff);
+	regs->lcdcon4 |=  S3C2410_LCDCON4_HSPW(var->hsync_len - 1);
 }
 
 /* s3c2410fb_activate_var
@@ -409,16 +419,6 @@ static void s3c2410fb_activate_var(struct fb_info *info)
 	/* set display type */
 	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_TFT;
 	fbi->regs.lcdcon1 |= display->type;
-
-	/* check to see if we need to update sync/borders */
-
-	if (!mach_info->fixed_syncs) {
-		fbi->regs.lcdcon2 =
-			S3C2410_LCDCON2_VSPW(var->vsync_len - 1);
-
-		fbi->regs.lcdcon4 &= ~S3C2410_LCDCON4_HSPW(0xff);
-		fbi->regs.lcdcon4 |=  S3C2410_LCDCON4_HSPW(var->hsync_len - 1);
-	}
 
 	if (var->pixclock > 0) {
 		int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock);
@@ -890,10 +890,8 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 
 	fbinfo->var.upper_margin    = display->upper_margin;
 	fbinfo->var.lower_margin    = display->lower_margin;
-	fbinfo->var.vsync_len	    =
-				S3C2410_LCDCON2_GET_VSPW(display->lcdcon2) + 1;
-	fbinfo->var.hsync_len	    =
-				S3C2410_LCDCON4_GET_HSPW(display->lcdcon4) + 1;
+	fbinfo->var.vsync_len	    = display->vsync_len;
+	fbinfo->var.hsync_len	    = display->hsync_len;
 
 	fbinfo->var.red.offset      = 11;
 	fbinfo->var.green.offset    = 5;

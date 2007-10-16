@@ -158,8 +158,10 @@ static struct s3c2410fb_display h1940_lcd __initdata = {
 	.bpp =		16,
 	.left_margin =	20,
 	.right_margin =	8,
+	.hsync_len =	4,
 	.upper_margin =	8,
 	.lower_margin = 7,
+	.vsync_len =	1,
 };
 
 static struct s3c2410fb_mach_info h1940_fb_info __initdata = {

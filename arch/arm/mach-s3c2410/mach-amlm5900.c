@@ -179,6 +179,7 @@ static struct s3c2410fb_display __initdata amlm5900_lcd_info = {
 	.bpp		= 4,
 	.left_margin	= 1 << (4 + 3),
 	.right_margin	= 8 << 3,
+	.hsync_len	= 48,
 	.upper_margin	= 0,
 	.lower_margin	= 0,
 
