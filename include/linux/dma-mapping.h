@@ -24,11 +24,18 @@ enum dma_data_direction {
 #define DMA_28BIT_MASK	0x000000000fffffffULL
 #define DMA_24BIT_MASK	0x0000000000ffffffULL
 
+#define DMA_MASK_NONE	0x0ULL
+
 static inline int valid_dma_direction(int dma_direction)
 {
 	return ((dma_direction == DMA_BIDIRECTIONAL) ||
 		(dma_direction == DMA_TO_DEVICE) ||
 		(dma_direction == DMA_FROM_DEVICE));
+}
+
+static inline int is_device_dma_capable(struct device *dev)
+{
+	return dev->dma_mask != NULL && *dev->dma_mask != DMA_MASK_NONE;
 }
 
 #ifdef CONFIG_HAS_DMA
