@@ -869,7 +869,6 @@ void do_generic_mapping_read(struct address_space *mapping,
 	unsigned long index;
 	unsigned long offset;
 	unsigned long last_index;
-	unsigned long next_index;
 	unsigned long prev_index;
 	unsigned int prev_offset;
 	struct page *cached_page;
@@ -877,7 +876,6 @@ void do_generic_mapping_read(struct address_space *mapping,
 
 	cached_page = NULL;
 	index = *ppos >> PAGE_CACHE_SHIFT;
-	next_index = index;
 	prev_index = ra->prev_pos >> PAGE_CACHE_SHIFT;
 	prev_offset = ra->prev_pos & (PAGE_CACHE_SIZE-1);
 	last_index = (*ppos + desc->count + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
@@ -1250,7 +1248,6 @@ asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
 }
 
 #ifdef CONFIG_MMU
-static int FASTCALL(page_cache_read(struct file * file, unsigned long offset));
 /**
  * page_cache_read - adds requested page to the page cache if not already there
  * @file:	file to read
