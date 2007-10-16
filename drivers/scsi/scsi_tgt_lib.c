@@ -332,7 +332,7 @@ static void scsi_tgt_cmd_done(struct scsi_cmnd *cmd)
 	scsi_tgt_uspace_send_status(cmd, tcmd->itn_id, tcmd->tag);
 
 	if (cmd->request_buffer)
-		scsi_free_sgtable(cmd->request_buffer, cmd->sglist_len);
+		scsi_free_sgtable(cmd);
 
 	queue_work(scsi_tgtd, &tcmd->work);
 }
@@ -373,7 +373,7 @@ static int scsi_tgt_init_cmd(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 	}
 
 	eprintk("cmd %p cnt %d\n", cmd, cmd->use_sg);
-	scsi_free_sgtable(cmd->request_buffer, cmd->sglist_len);
+	scsi_free_sgtable(cmd);
 	return -EINVAL;
 }
 
