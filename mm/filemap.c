@@ -2061,7 +2061,7 @@ static ssize_t generic_perform_write_2copy(struct file *file,
 		 * cannot take a pagefault with the destination page locked.
 		 * So pin the source page to copy it.
 		 */
-		if (!PageUptodate(page)) {
+		if (!PageUptodate(page) && !segment_eq(get_fs(), KERNEL_DS)) {
 			unlock_page(page);
 
 			src_page = alloc_page(GFP_KERNEL);
@@ -2186,6 +2186,13 @@ static ssize_t generic_perform_write(struct file *file,
 	const struct address_space_operations *a_ops = mapping->a_ops;
 	long status = 0;
 	ssize_t written = 0;
+	unsigned int flags = 0;
+
+	/*
+	 * Copies from kernel address space cannot fail (NFSD is a big user).
+	 */
+	if (segment_eq(get_fs(), KERNEL_DS))
+		flags |= AOP_FLAG_UNINTERRUPTIBLE;
 
 	do {
 		struct page *page;
@@ -2217,7 +2224,7 @@ again:
 			break;
 		}
 
-		status = a_ops->write_begin(file, mapping, pos, bytes, 0,
+		status = a_ops->write_begin(file, mapping, pos, bytes, flags,
 						&page, &fsdata);
 		if (unlikely(status))
 			break;
