@@ -82,7 +82,7 @@ struct spi_lm70llp {
 	struct pardevice	*pd;
 	struct spi_device	*spidev_lm70;
 	struct spi_board_info	info;
-	struct class_device	*cdev;
+	//struct device		*dev;
 };
 
 /* REVISIT : ugly global ; provides "exclusive open" facility */

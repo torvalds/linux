@@ -400,7 +400,7 @@ static int __init txx9spi_probe(struct platform_device *dev)
 		goto exit;
 	}
 
-	c->workqueue = create_singlethread_workqueue(master->cdev.dev->bus_id);
+	c->workqueue = create_singlethread_workqueue(master->dev.parent->bus_id);
 	if (!c->workqueue)
 		goto exit;
 	c->last_chipselect = -1;

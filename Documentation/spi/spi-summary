@@ -156,20 +156,28 @@ using the driver model to connect controller and protocol drivers using
 device tables provided by board specific initialization code.  SPI
 shows up in sysfs in several locations:
 
+   /sys/devices/.../CTLR ... physical node for a given SPI controller
+
    /sys/devices/.../CTLR/spiB.C ... spi_device on bus "B",
 	chipselect C, accessed through CTLR.
+
+   /sys/bus/spi/devices/spiB.C ... symlink to that physical
+   	.../CTLR/spiB.C device
 
    /sys/devices/.../CTLR/spiB.C/modalias ... identifies the driver
 	that should be used with this device (for hotplug/coldplug)
 
-   /sys/bus/spi/devices/spiB.C ... symlink to the physical
-   	spiB.C device
-
    /sys/bus/spi/drivers/D ... driver for one or more spi*.* devices
 
-   /sys/class/spi_master/spiB ... class device for the controller
-	managing bus "B".  All the spiB.* devices share the same
+   /sys/class/spi_master/spiB ... symlink (or actual device node) to
+	a logical node which could hold class related state for the
+	controller managing bus "B".  All spiB.* devices share one
 	physical SPI bus segment, with SCLK, MOSI, and MISO.
+
+Note that the actual location of the controller's class state depends
+on whether you enabled CONFIG_SYSFS_DEPRECATED or not.  At this time,
+the only class-specific state is the bus number ("B" in "spiB"), so
+those /sys/class entries are only useful to quickly identify busses.
 
 
 How does board-specific init code declare SPI devices?
@@ -337,7 +345,8 @@ SPI protocol drivers somewhat resemble platform device drivers:
 
 The driver core will autmatically attempt to bind this driver to any SPI
 device whose board_info gave a modalias of "CHIP".  Your probe() code
-might look like this unless you're creating a class_device:
+might look like this unless you're creating a device which is managing
+a bus (appearing under /sys/class/spi_master).
 
 	static int __devinit CHIP_probe(struct spi_device *spi)
 	{
@@ -442,7 +451,7 @@ An SPI controller will probably be registered on the platform_bus; write
 a driver to bind to the device, whichever bus is involved.
 
 The main task of this type of driver is to provide an "spi_master".
-Use spi_alloc_master() to allocate the master, and class_get_devdata()
+Use spi_alloc_master() to allocate the master, and spi_master_get_devdata()
 to get the driver-private data allocated for that device.
 
 	struct spi_master	*master;
@@ -452,7 +461,7 @@ to get the driver-private data allocated for that device.
 	if (!master)
 		return -ENODEV;
 
-	c = class_get_devdata(&master->cdev);
+	c = spi_master_get_devdata(master);
 
 The driver will initialize the fields of that spi_master, including the
 bus number (maybe the same as the platform device ID) and three methods

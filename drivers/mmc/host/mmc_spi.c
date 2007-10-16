@@ -1280,8 +1280,8 @@ static int mmc_spi_probe(struct spi_device *spi)
 	if (!host->data)
 		goto fail_nobuf1;
 
-	if (spi->master->cdev.dev->dma_mask) {
-		struct device	*dev = spi->master->cdev.dev;
+	if (spi->master->dev.parent->dma_mask) {
+		struct device	*dev = spi->master->dev.parent;
 
 		host->dma_dev = dev;
 		host->ones_dma = dma_map_single(dev, ones,
