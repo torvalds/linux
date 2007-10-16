@@ -2225,8 +2225,9 @@ static void cirrusfb_pci_unmap(struct fb_info *info)
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ZORRO
-static void __devexit cirrusfb_zorro_unmap(struct cirrusfb_info *cinfo)
+static void __devexit cirrusfb_zorro_unmap(struct fb_info *info)
 {
+	struct cirrusfb_info *cinfo = info->par;
 	zorro_release_device(cinfo->zdev);
 
 	if (cinfo->btype == BT_PICASSO4) {
@@ -2573,7 +2574,7 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	printk(KERN_INFO "Cirrus Logic chipset on Zorro bus\n");
 	zorro_set_drvdata(z, info);
 
-	ret = cirrusfb_register(cinfo);
+	ret = cirrusfb_register(info);
 	if (ret) {
 		if (btype == BT_PICASSO4) {
 			iounmap(info->screen_base);
