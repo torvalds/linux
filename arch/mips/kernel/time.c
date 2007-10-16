@@ -391,6 +391,50 @@ static void mips_event_handler(struct clock_event_device *dev)
 {
 }
 
+/*
+ * FIXME: This doesn't hold for the relocated E9000 compare interrupt.
+ */
+static int c0_compare_int_pending(void)
+{
+	return (read_c0_cause() >> cp0_compare_irq) & 0x100;
+}
+
+static int c0_compare_int_usable(void)
+{
+	const unsigned int delta = 0x300000;
+	unsigned int cnt;
+
+	/*
+	 * IP7 already pending?  Try to clear it by acking the timer.
+	 */
+	if (c0_compare_int_pending()) {
+		write_c0_compare(read_c0_compare());
+		irq_disable_hazard();
+		if (c0_compare_int_pending())
+			return 0;
+	}
+
+	cnt = read_c0_count();
+	cnt += delta;
+	write_c0_compare(cnt);
+
+	while ((long)(read_c0_count() - cnt) <= 0)
+		;	/* Wait for expiry  */
+
+	if (!c0_compare_int_pending())
+		return 0;
+
+	write_c0_compare(read_c0_compare());
+	irq_disable_hazard();
+	if (c0_compare_int_pending())
+		return 0;
+
+	/*
+	 * Feels like a real count / compare timer.
+	 */
+	return 1;
+}
+
 void __cpuinit mips_clockevent_init(void)
 {
 	uint64_t mips_freq = mips_hpt_frequency;
@@ -411,6 +455,9 @@ void __cpuinit mips_clockevent_init(void)
 	if (cpu)
 		return;
 #endif
+
+	if (!c0_compare_int_usable())
+		return;
 
 	cd = &per_cpu(mips_clockevent_device, cpu);
 
