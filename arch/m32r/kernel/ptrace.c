@@ -570,7 +570,7 @@ withdraw_debug_trap(struct pt_regs *regs)
 	}
 }
 
-static void
+void
 init_debug_traps(struct task_struct *child)
 {
 	struct debug_trap *p = &child->thread.debug_trap;
@@ -593,8 +593,8 @@ void ptrace_disable(struct task_struct *child)
 	/* nothing to do.. */
 }
 
-static int
-do_ptrace(long request, struct task_struct *child, long addr, long data)
+long
+arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
 
@@ -716,42 +716,6 @@ do_ptrace(long request, struct task_struct *child, long addr, long data)
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
-
-	return ret;
-}
-
-asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
-{
-	struct task_struct *child;
-	int ret;
-
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		ret = ptrace_traceme();
-		goto out;
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		goto out;
-	}
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		if (ret == 0)
-			init_debug_traps(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret == 0)
-		ret = do_ptrace(request, child, addr, data);
-
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
 
 	return ret;
 }

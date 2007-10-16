@@ -120,7 +120,10 @@ struct pt_regs {
 
 #include <asm/m32r.h>		/* M32R_PSW_BSM, M32R_PSW_BPM */
 
-#define __ARCH_SYS_PTRACE	1
+struct task_struct;
+extern void init_debug_traps(struct task_struct *);
+#define arch_ptrace_attach(child) \
+	init_debug_traps(child)
 
 #if defined(CONFIG_ISA_M32R2) || defined(CONFIG_CHIP_VDEC2)
 #define user_mode(regs) ((M32R_PSW_BPM & (regs)->psw) != 0)

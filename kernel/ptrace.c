@@ -453,6 +453,10 @@ struct task_struct *ptrace_get_task_struct(pid_t pid)
 	return child;
 }
 
+#ifndef arch_ptrace_attach
+#define arch_ptrace_attach(child)	do { } while (0)
+#endif
+
 #ifndef __ARCH_SYS_PTRACE
 asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
@@ -476,6 +480,12 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 
 	if (request == PTRACE_ATTACH) {
 		ret = ptrace_attach(child);
+		/*
+		 * Some architectures need to do book-keeping after
+		 * a ptrace attach.
+		 */
+		if (!ret)
+			arch_ptrace_attach(child);
 		goto out_put_task_struct;
 	}
 
