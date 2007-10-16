@@ -1426,10 +1426,10 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
 	u32 header_extent_size;
 	u16 num_header_extents_at_front;
 
-	memcpy(&header_extent_size, virt, 4);
+	memcpy(&header_extent_size, virt, sizeof(u32));
 	header_extent_size = be32_to_cpu(header_extent_size);
-	virt += 4;
-	memcpy(&num_header_extents_at_front, virt, 2);
+	virt += sizeof(u32);
+	memcpy(&num_header_extents_at_front, virt, sizeof(u16));
 	num_header_extents_at_front = be16_to_cpu(num_header_extents_at_front);
 	crypt_stat->num_header_extents_at_front =
 		(int)num_header_extents_at_front;
