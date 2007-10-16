@@ -20,5 +20,4 @@ void os_fill_handlinfo(struct kern_handlers h)
 	sig_info[SIGSEGV] = h.page_fault;
 	sig_info[SIGIO] = h.sigio_handler;
 	sig_info[SIGVTALRM] = h.timer_handler;
-	sig_info[SIGALRM] = h.timer_handler;
 }

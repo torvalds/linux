@@ -222,7 +222,6 @@ static int userspace_tramp(void *stack)
 		sigemptyset(&sa.sa_mask);
 		sigaddset(&sa.sa_mask, SIGIO);
 		sigaddset(&sa.sa_mask, SIGWINCH);
-		sigaddset(&sa.sa_mask, SIGALRM);
 		sigaddset(&sa.sa_mask, SIGVTALRM);
 		sigaddset(&sa.sa_mask, SIGUSR1);
 		sa.sa_flags = SA_ONSTACK;
@@ -539,8 +538,7 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 	int n;
 
 	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGALRM,
-		    SIGVTALRM, -1);
+		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGVTALRM, -1);
 
 	/*
 	 * Can't use UML_SETJMP or UML_LONGJMP here because they save

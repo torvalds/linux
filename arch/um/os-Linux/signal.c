@@ -15,8 +15,7 @@
 #include "user.h"
 
 /*
- * These are the asynchronous signals.  SIGVTALRM and SIGARLM are handled
- * together under SIGVTALRM_BIT.  SIGPROF is excluded because we want to
+ * These are the asynchronous signals.  SIGPROF is excluded because we want to
  * be able to profile all of UML, not just the non-critical sections.  If
  * profiling is not thread-safe, then that is not my problem.  We can disable
  * profiling when SMP is enabled in that case.
@@ -26,9 +25,6 @@
 
 #define SIGVTALRM_BIT 1
 #define SIGVTALRM_MASK (1 << SIGVTALRM_BIT)
-
-#define SIGALRM_BIT 2
-#define SIGALRM_MASK (1 << SIGALRM_BIT)
 
 /*
  * These are used by both the signal handlers and
@@ -55,7 +51,7 @@ void sig_handler(int sig, struct sigcontext *sc)
 	set_signals(enabled);
 }
 
-static void real_alarm_handler(int sig, struct sigcontext *sc)
+static void real_alarm_handler(struct sigcontext *sc)
 {
 	struct uml_pt_regs regs;
 
@@ -63,7 +59,7 @@ static void real_alarm_handler(int sig, struct sigcontext *sc)
 		copy_sc(&regs, sc);
 	regs.is_user = 0;
 	unblock_signals();
-	timer_handler(sig, &regs);
+	timer_handler(SIGVTALRM, &regs);
 }
 
 void alarm_handler(int sig, struct sigcontext *sc)
@@ -72,27 +68,20 @@ void alarm_handler(int sig, struct sigcontext *sc)
 
 	enabled = signals_enabled;
 	if (!signals_enabled) {
-		if (sig == SIGVTALRM)
-			pending |= SIGVTALRM_MASK;
-		else pending |= SIGALRM_MASK;
-
+		pending |= SIGVTALRM_MASK;
 		return;
 	}
 
 	block_signals();
 
-	real_alarm_handler(sig, sc);
+	real_alarm_handler(sc);
 	set_signals(enabled);
 }
 
 void timer_init(void)
 {
 	set_handler(SIGVTALRM, (__sighandler_t) alarm_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
-		    SIGALRM, -1);
-	set_handler(SIGALRM, (__sighandler_t) alarm_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH,
-		    SIGALRM, -1);
+		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH, -1);
 }
 
 void set_sigstack(void *sig_stack, int size)
@@ -267,11 +256,8 @@ void unblock_signals(void)
 		if (save_pending & SIGIO_MASK)
 			sig_handler_common_skas(SIGIO, NULL);
 
-		if (save_pending & SIGALRM_MASK)
-			real_alarm_handler(SIGALRM, NULL);
-
 		if (save_pending & SIGVTALRM_MASK)
-			real_alarm_handler(SIGVTALRM, NULL);
+			real_alarm_handler(NULL);
 	}
 }
 

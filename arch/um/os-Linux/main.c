@@ -161,7 +161,7 @@ int __init main(int argc, char **argv, char **envp)
 	 * some time) and cause a segfault.
 	 */
 
-	/* stop timers and set SIG*ALRM to be ignored */
+	/* stop timers and set SIGVTALRM to be ignored */
 	disable_timer();
 
 	/* disable SIGIO for the fds and set SIGIO to be ignored */
