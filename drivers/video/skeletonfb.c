@@ -780,7 +780,7 @@ static int __devinit xxxfb_probe(struct pci_dev *dev,
      *
      * NOTE: This field is currently unused.
      */
-    info->pixmap.scan_align = 32;
+    info->pixmap.access_align = 32;
 /***************************** End optional stage ***************************/
 
     /*
