@@ -16,6 +16,7 @@ struct kmem_cache_cpu {
 	struct page *page;
 	int node;
 	unsigned int offset;
+	unsigned int objsize;
 };
 
 struct kmem_cache_node {

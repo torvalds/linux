@@ -1576,7 +1576,7 @@ static void __always_inline *slab_alloc(struct kmem_cache *s,
 	local_irq_restore(flags);
 
 	if (unlikely((gfpflags & __GFP_ZERO) && object))
-		memset(object, 0, s->objsize);
+		memset(object, 0, c->objsize);
 
 	return object;
 }
@@ -1858,8 +1858,9 @@ static void init_kmem_cache_cpu(struct kmem_cache *s,
 {
 	c->page = NULL;
 	c->freelist = NULL;
-	c->offset = s->offset / sizeof(void *);
 	c->node = 0;
+	c->offset = s->offset / sizeof(void *);
+	c->objsize = s->objsize;
 }
 
 static void init_kmem_cache_node(struct kmem_cache_node *n)
@@ -2852,12 +2853,21 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 	down_write(&slub_lock);
 	s = find_mergeable(size, align, flags, name, ctor);
 	if (s) {
+		int cpu;
+
 		s->refcount++;
 		/*
 		 * Adjust the object sizes so that we clear
 		 * the complete object on kzalloc.
 		 */
 		s->objsize = max(s->objsize, (int)size);
+
+		/*
+		 * And then we need to update the object size in the
+		 * per cpu structures
+		 */
+		for_each_online_cpu(cpu)
+			get_cpu_slab(s, cpu)->objsize = s->objsize;
 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
 		up_write(&slub_lock);
 		if (sysfs_slab_alias(s, name))
