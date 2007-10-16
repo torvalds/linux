@@ -230,8 +230,9 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		lower_flags &= ~O_APPEND;
 	lower_mnt = ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
 	/* Corresponding fput() in ecryptfs_release() */
-	if ((rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
-					   lower_flags))) {
+	rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
+				      lower_flags);
+	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error opening lower file\n");
 		goto out_puts;
 	}
@@ -300,7 +301,8 @@ static int ecryptfs_release(struct inode *inode, struct file *file)
 	struct inode *lower_inode = ecryptfs_inode_to_lower(inode);
 	int rc;
 
-	if ((rc = ecryptfs_close_lower_file(lower_file))) {
+	rc = ecryptfs_close_lower_file(lower_file);
+	if (rc) {
 		printk(KERN_ERR "Error closing lower_file\n");
 		goto out;
 	}

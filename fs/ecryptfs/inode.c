@@ -202,8 +202,9 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 	lower_flags = ((O_CREAT | O_TRUNC) & O_ACCMODE) | O_RDWR;
 	lower_mnt = ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
 	/* Corresponding fput() at end of this function */
-	if ((rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
-					   lower_flags))) {
+	rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
+				      lower_flags);
+	if (rc) {
 		ecryptfs_printk(KERN_ERR,
 				"Error opening dentry; rc = [%i]\n", rc);
 		goto out;
@@ -229,7 +230,8 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 	}
 	rc = grow_file(ecryptfs_dentry, lower_file, inode, lower_inode);
 out_fput:
-	if ((rc = ecryptfs_close_lower_file(lower_file)))
+	rc = ecryptfs_close_lower_file(lower_file);
+	if (rc)
 		printk(KERN_ERR "Error closing lower_file\n");
 out:
 	return rc;
@@ -779,8 +781,9 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	/* This dget & mntget is released through fput at out_fput: */
 	lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
-	if ((rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
-					   O_RDWR))) {
+	rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
+				      O_RDWR);
+	if (rc) {
 		ecryptfs_printk(KERN_ERR,
 				"Error opening dentry; rc = [%i]\n", rc);
 		goto out_free;
@@ -813,11 +816,12 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 			end_pos_in_page = ((new_length - 1) & ~PAGE_CACHE_MASK);
 		}
 		if (end_pos_in_page != (PAGE_CACHE_SIZE - 1)) {
-			if ((rc = ecryptfs_write_zeros(&fake_ecryptfs_file,
-						       index,
-						       (end_pos_in_page + 1),
-						       ((PAGE_CACHE_SIZE - 1)
-							- end_pos_in_page)))) {
+			rc = ecryptfs_write_zeros(&fake_ecryptfs_file,
+						  index,
+						  (end_pos_in_page + 1),
+						  ((PAGE_CACHE_SIZE - 1)
+						   - end_pos_in_page));
+			if (rc) {
 				printk(KERN_ERR "Error attempting to zero out "
 				       "the remainder of the end page on "
 				       "reducing truncate; rc = [%d]\n", rc);
@@ -849,7 +853,8 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 		= CURRENT_TIME;
 	mark_inode_dirty_sync(inode);
 out_fput:
-	if ((rc = ecryptfs_close_lower_file(lower_file)))
+	rc = ecryptfs_close_lower_file(lower_file);
+	if (rc)
 		printk(KERN_ERR "Error closing lower_file\n");
 out_free:
 	if (ecryptfs_file_to_private(&fake_ecryptfs_file))
@@ -917,8 +922,9 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 
 		lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
 		lower_flags = O_RDONLY;
-		if ((rc = ecryptfs_open_lower_file(&lower_file, lower_dentry,
-						   lower_mnt, lower_flags))) {
+		rc = ecryptfs_open_lower_file(&lower_file, lower_dentry,
+					      lower_mnt, lower_flags);
+		if (rc) {
 			printk(KERN_ERR
 			       "Error opening lower file; rc = [%d]\n", rc);
 			mutex_unlock(&crypt_stat->cs_mutex);
@@ -926,7 +932,8 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 		}
 		mount_crypt_stat = &ecryptfs_superblock_to_private(
 			dentry->d_sb)->mount_crypt_stat;
-		if ((rc = ecryptfs_read_metadata(dentry, lower_file))) {
+		rc = ecryptfs_read_metadata(dentry, lower_file);
+		if (rc) {
 			if (!(mount_crypt_stat->flags
 			      & ECRYPTFS_PLAINTEXT_PASSTHROUGH_ENABLED)) {
 				rc = -EIO;

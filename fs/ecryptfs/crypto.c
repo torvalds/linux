@@ -1277,8 +1277,8 @@ static int ecryptfs_read_header_region(char *data, struct dentry *dentry,
 	mm_segment_t oldfs;
 	int rc;
 
-	if ((rc = ecryptfs_open_lower_file(&lower_file, dentry, mnt,
-					   O_RDONLY))) {
+	rc = ecryptfs_open_lower_file(&lower_file, dentry, mnt, O_RDONLY);
+	if (rc) {
 		printk(KERN_ERR
 		       "Error opening lower_file to read header region\n");
 		goto out;
@@ -1289,7 +1289,8 @@ static int ecryptfs_read_header_region(char *data, struct dentry *dentry,
 	rc = lower_file->f_op->read(lower_file, (char __user *)data,
 			      ECRYPTFS_DEFAULT_EXTENT_SIZE, &lower_file->f_pos);
 	set_fs(oldfs);
-	if ((rc = ecryptfs_close_lower_file(lower_file))) {
+	rc = ecryptfs_close_lower_file(lower_file);
+	if (rc) {
 		printk(KERN_ERR "Error closing lower_file\n");
 		goto out;
 	}
@@ -1951,9 +1952,10 @@ ecryptfs_add_new_key_tfm(struct ecryptfs_key_tfm **key_tfm, char *cipher_name,
 	strncpy(tmp_tfm->cipher_name, cipher_name,
 		ECRYPTFS_MAX_CIPHER_NAME_SIZE);
 	tmp_tfm->key_size = key_size;
-	if ((rc = ecryptfs_process_key_cipher(&tmp_tfm->key_tfm,
-					      tmp_tfm->cipher_name,
-					      &tmp_tfm->key_size))) {
+	rc = ecryptfs_process_key_cipher(&tmp_tfm->key_tfm,
+					 tmp_tfm->cipher_name,
+					 &tmp_tfm->key_size);
+	if (rc) {
 		printk(KERN_ERR "Error attempting to initialize key TFM "
 		       "cipher with name = [%s]; rc = [%d]\n",
 		       tmp_tfm->cipher_name, rc);
@@ -1988,7 +1990,8 @@ int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_blkcipher **tfm,
 		}
 	}
 	mutex_unlock(&key_tfm_list_mutex);
-	if ((rc = ecryptfs_add_new_key_tfm(&key_tfm, cipher_name, 0))) {
+	rc = ecryptfs_add_new_key_tfm(&key_tfm, cipher_name, 0);
+	if (rc) {
 		printk(KERN_ERR "Error adding new key_tfm to list; rc = [%d]\n",
 		       rc);
 		goto out;

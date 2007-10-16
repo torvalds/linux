@@ -188,10 +188,11 @@ static int ecryptfs_init_global_auth_toks(
 	list_for_each_entry(global_auth_tok,
 			    &mount_crypt_stat->global_auth_tok_list,
 			    mount_crypt_stat_list) {
-		if ((rc = ecryptfs_keyring_auth_tok_for_sig(
-			     &global_auth_tok->global_auth_tok_key,
-			     &global_auth_tok->global_auth_tok,
-			     global_auth_tok->sig))) {
+		rc = ecryptfs_keyring_auth_tok_for_sig(
+			&global_auth_tok->global_auth_tok_key,
+			&global_auth_tok->global_auth_tok,
+			global_auth_tok->sig);
+		if (rc) {
 			printk(KERN_ERR "Could not find valid key in user "
 			       "session keyring for sig specified in mount "
 			       "option: [%s]\n", global_auth_tok->sig);
@@ -355,9 +356,10 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 	if (!cipher_key_bytes_set) {
 		mount_crypt_stat->global_default_cipher_key_size = 0;
 	}
-	if ((rc = ecryptfs_add_new_key_tfm(
-		     NULL, mount_crypt_stat->global_default_cipher_name,
-		     mount_crypt_stat->global_default_cipher_key_size))) {
+	rc = ecryptfs_add_new_key_tfm(
+		NULL, mount_crypt_stat->global_default_cipher_name,
+		mount_crypt_stat->global_default_cipher_key_size);
+	if (rc) {
 		printk(KERN_ERR "Error attempting to initialize cipher with "
 		       "name = [%s] and key size = [%td]; rc = [%d]\n",
 		       mount_crypt_stat->global_default_cipher_name,
@@ -365,7 +367,8 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		rc = -EINVAL;
 		goto out;
 	}
-	if ((rc = ecryptfs_init_global_auth_toks(mount_crypt_stat))) {
+	rc = ecryptfs_init_global_auth_toks(mount_crypt_stat);
+	if (rc) {
 		printk(KERN_WARNING "One or more global auth toks could not "
 		       "properly register; rc = [%d]\n", rc);
 	}
@@ -458,7 +461,8 @@ static int ecryptfs_read_super(struct super_block *sb, const char *dev_name)
 	sb->s_maxbytes = lower_root->d_sb->s_maxbytes;
 	ecryptfs_set_dentry_lower(sb->s_root, lower_root);
 	ecryptfs_set_dentry_lower_mnt(sb->s_root, lower_mnt);
-	if ((rc = ecryptfs_interpose(lower_root, sb->s_root, sb, 0)))
+	rc = ecryptfs_interpose(lower_root, sb->s_root, sb, 0);
+	if (rc)
 		goto out_free;
 	rc = 0;
 	goto out;
@@ -765,7 +769,8 @@ static int do_sysfs_registration(void)
 {
 	int rc;
 
-	if ((rc = subsystem_register(&ecryptfs_subsys))) {
+	rc = subsystem_register(&ecryptfs_subsys);
+	if (rc) {
 		printk(KERN_ERR
 		       "Unable to register ecryptfs sysfs subsystem\n");
 		goto out;
@@ -796,7 +801,8 @@ static void do_sysfs_unregistration(void)
 {
 	int rc;
 
-	if ((rc = ecryptfs_destroy_crypto())) {
+	rc = ecryptfs_destroy_crypto();
+	if (rc) {
 		printk(KERN_ERR "Failure whilst attempting to destroy crypto; "
 		       "rc = [%d]\n", rc);
 	}

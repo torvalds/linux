@@ -762,8 +762,9 @@ ecryptfs_write_zeros(struct file *file, pgoff_t index, int start, int num_zeros)
 		rc = PTR_ERR(tmp_page);
 		goto out;
 	}
-	if ((rc = ecryptfs_prepare_write_no_truncate(file, tmp_page, start,
-						     (start + num_zeros)))) {
+	rc = ecryptfs_prepare_write_no_truncate(file, tmp_page, start,
+						(start + num_zeros));
+	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error preparing to write zero's "
 				"to page at index [0x%.16x]\n",
 				index);

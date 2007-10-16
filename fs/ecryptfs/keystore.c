@@ -436,7 +436,8 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	size_t netlink_message_length;
 	int rc;
 
-	if ((rc = ecryptfs_get_auth_tok_sig(&auth_tok_sig, auth_tok))) {
+	rc = ecryptfs_get_auth_tok_sig(&auth_tok_sig, auth_tok);
+	if (rc) {
 		printk(KERN_ERR "Unrecognized auth tok type: [%d]\n",
 		       auth_tok->token_type);
 		goto out;
@@ -569,8 +570,9 @@ parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out;
 	}
 	(*new_auth_tok) = &auth_tok_list_item->auth_tok;
-	if ((rc = parse_packet_length(&data[(*packet_size)], &body_size,
-				      &length_size))) {
+	rc = parse_packet_length(&data[(*packet_size)], &body_size,
+				 &length_size);
+	if (rc) {
 		printk(KERN_WARNING "Error parsing packet length; "
 		       "rc = [%d]\n", rc);
 		goto out_free;
@@ -702,8 +704,9 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out;
 	}
 	(*new_auth_tok) = &auth_tok_list_item->auth_tok;
-	if ((rc = parse_packet_length(&data[(*packet_size)], &body_size,
-				      &length_size))) {
+	rc = parse_packet_length(&data[(*packet_size)], &body_size,
+				 &length_size);
+	if (rc) {
 		printk(KERN_WARNING "Error parsing packet length; rc = [%d]\n",
 		       rc);
 		goto out_free;
@@ -849,8 +852,9 @@ parse_tag_11_packet(unsigned char *data, unsigned char *contents,
 		rc = -EINVAL;
 		goto out;
 	}
-	if ((rc = parse_packet_length(&data[(*packet_size)], &body_size,
-				      &length_size))) {
+	rc = parse_packet_length(&data[(*packet_size)], &body_size,
+				 &length_size);
+	if (rc) {
 		printk(KERN_WARNING "Invalid tag 11 packet format\n");
 		goto out;
 	}
@@ -1052,9 +1056,10 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 		       crypt_stat->cipher, rc);
 		goto out;
 	}
-	if ((rc = virt_to_scatterlist(auth_tok->session_key.encrypted_key,
-				      auth_tok->session_key.encrypted_key_size,
-				      &src_sg, 1)) != 1) {
+	rc = virt_to_scatterlist(auth_tok->session_key.encrypted_key,
+				 auth_tok->session_key.encrypted_key_size,
+				 &src_sg, 1);
+	if (rc != 1) {
 		printk(KERN_ERR "Internal error whilst attempting to convert "
 			"auth_tok->session_key.encrypted_key to scatterlist; "
 			"expected rc = 1; got rc = [%d]. "
@@ -1064,9 +1069,10 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	}
 	auth_tok->session_key.decrypted_key_size =
 		auth_tok->session_key.encrypted_key_size;
-	if ((rc = virt_to_scatterlist(auth_tok->session_key.decrypted_key,
-				      auth_tok->session_key.decrypted_key_size,
-				      &dst_sg, 1)) != 1) {
+	rc = virt_to_scatterlist(auth_tok->session_key.decrypted_key,
+				 auth_tok->session_key.decrypted_key_size,
+				 &dst_sg, 1);
+	if (rc != 1) {
 		printk(KERN_ERR "Internal error whilst attempting to convert "
 			"auth_tok->session_key.decrypted_key to scatterlist; "
 			"expected rc = 1; got rc = [%d]\n", rc);
@@ -1236,18 +1242,17 @@ find_next_matching_auth_tok:
 					"Considering cadidate auth tok:\n");
 			ecryptfs_dump_auth_tok(candidate_auth_tok);
 		}
-		if ((rc = ecryptfs_get_auth_tok_sig(&candidate_auth_tok_sig,
-						    candidate_auth_tok))) {
+		rc = ecryptfs_get_auth_tok_sig(&candidate_auth_tok_sig,
+					       candidate_auth_tok);
+		if (rc) {
 			printk(KERN_ERR
 			       "Unrecognized candidate auth tok type: [%d]\n",
 			       candidate_auth_tok->token_type);
 			rc = -EINVAL;
 			goto out_wipe_list;
 		}
-		if ((rc = ecryptfs_find_auth_tok_for_sig(
-			     &matching_auth_tok, crypt_stat,
-			     candidate_auth_tok_sig)))
-			rc = 0;
+		ecryptfs_find_auth_tok_for_sig(&matching_auth_tok, crypt_stat,
+					       candidate_auth_tok_sig);
 		if (matching_auth_tok) {
 			found_auth_tok = 1;
 			goto found_matching_auth_tok;
@@ -1605,9 +1610,9 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		ecryptfs_printk(KERN_DEBUG, "Session key encryption key:\n");
 		ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}
-	if ((rc = virt_to_scatterlist(crypt_stat->key,
-				      key_rec->enc_key_size, &src_sg, 1))
-	    != 1) {
+	rc = virt_to_scatterlist(crypt_stat->key, key_rec->enc_key_size,
+				 &src_sg, 1);
+	if (rc != 1) {
 		ecryptfs_printk(KERN_ERR, "Error generating scatterlist "
 				"for crypt_stat session key; expected rc = 1; "
 				"got rc = [%d]. key_rec->enc_key_size = [%d]\n",
@@ -1615,9 +1620,9 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		rc = -ENOMEM;
 		goto out;
 	}
-	if ((rc = virt_to_scatterlist(key_rec->enc_key,
-				      key_rec->enc_key_size, &dst_sg, 1))
-	    != 1) {
+	rc = virt_to_scatterlist(key_rec->enc_key, key_rec->enc_key_size,
+				 &dst_sg, 1);
+	if (rc != 1) {
 		ecryptfs_printk(KERN_ERR, "Error generating scatterlist "
 				"for crypt_stat encrypted session key; "
 				"expected rc = 1; got rc = [%d]. "
