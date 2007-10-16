@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sis5513.c	Version 0.28	Aug 1, 2007
+ * linux/drivers/ide/pci/sis5513.c	Version 0.29	Aug 1, 2007
  *
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
@@ -603,11 +603,6 @@ static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 static int sis5513_config_xfer_rate(ide_drive_t *drive)
 {
-	/*
-	 * TODO: always set PIO mode and remove this
-	 */
-	ide_set_max_pio(drive);
-
 	drive->init_speed = 0;
 
 	if (ide_tune_dma(drive))
@@ -841,11 +836,11 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (chipset_family >= ATA_133)
 		hwif->udma_filter = sis5513_ata133_udma_filter;
 
-	if (!(hwif->dma_base)) {
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
+
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	hwif->atapi_dma = 1;
 
