@@ -245,10 +245,8 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 
 		ret = pagecache_write_end(file, mapping, pos, size, copied,
 							page, fsdata);
-		if (ret < 0)
+		if (ret < 0 || ret != copied)
 			goto fail;
-		if (ret < copied)
-			copied = ret;
 
 		if (unlikely(transfer_result))
 			goto fail;
