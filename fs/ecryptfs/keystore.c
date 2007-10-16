@@ -71,7 +71,7 @@ int process_request_key_err(long err_code)
  *        address; zero on error
  * @length_size: The number of bytes occupied by the encoded length
  *
- * Returns Zero on success
+ * Returns zero on success; non-zero on error
  */
 static int parse_packet_length(unsigned char *data, size_t *size,
 			       size_t *length_size)
@@ -106,11 +106,11 @@ out:
 
 /**
  * write_packet_length
- * @dest: The byte array target into which to write the
- *       length. Must have at least 5 bytes allocated.
+ * @dest: The byte array target into which to write the length. Must
+ *        have at least 5 bytes allocated.
  * @size: The length to write.
- * @packet_size_length: The number of bytes used to encode the
- *                      packet length is written to this address.
+ * @packet_size_length: The number of bytes used to encode the packet
+ *                      length is written to this address.
  *
  * Returns zero on success; non-zero on error.
  */
@@ -397,10 +397,11 @@ out:
 }
 
 /**
- * decrypt_pki_encrypted_session_key - Decrypt the session key with
- * the given auth_tok.
+ * decrypt_pki_encrypted_session_key - Decrypt the session key with the given auth_tok.
+ * @auth_tok: The key authentication token used to decrypt the session key
+ * @crypt_stat: The cryptographic context
  *
- * Returns Zero on success; non-zero error otherwise.
+ * Returns zero on success; non-zero error otherwise.
  */
 static int
 decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
@@ -484,18 +485,18 @@ struct kmem_cache *ecryptfs_auth_tok_list_item_cache;
 
 /**
  * parse_tag_1_packet
- * @crypt_stat: The cryptographic context to modify based on packet
- *              contents.
+ * @crypt_stat: The cryptographic context to modify based on packet contents
  * @data: The raw bytes of the packet.
  * @auth_tok_list: eCryptfs parses packets into authentication tokens;
- *                 a new authentication token will be placed at the end
- *                 of this list for this packet.
+ *                 a new authentication token will be placed at the
+ *                 end of this list for this packet.
  * @new_auth_tok: Pointer to a pointer to memory that this function
  *                allocates; sets the memory address of the pointer to
  *                NULL on error. This object is added to the
  *                auth_tok_list.
  * @packet_size: This function writes the size of the parsed packet
  *               into this memory location; zero on error.
+ * @max_packet_size: The maximum allowable packet size
  *
  * Returns zero on success; non-zero on error.
  */
@@ -996,10 +997,11 @@ ecryptfs_find_auth_tok_for_sig(
 }
 
 /**
- * decrypt_passphrase_encrypted_session_key - Decrypt the session key
- * with the given auth_tok.
+ * decrypt_passphrase_encrypted_session_key - Decrypt the session key with the given auth_tok.
+ * @auth_tok: The passphrase authentication token to use to encrypt the FEK
+ * @crypt_stat: The cryptographic context
  *
- * Returns Zero on success; non-zero error otherwise.
+ * Returns zero on success; non-zero error otherwise
  */
 static int
 decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
@@ -1102,8 +1104,9 @@ int ecryptfs_get_auth_tok_sig(char **sig, struct ecryptfs_auth_tok *auth_tok)
 
 /**
  * ecryptfs_parse_packet_set
- * @dest: The header page in memory
- * @version: Version of file format, to guide parsing behavior
+ * @crypt_stat: The cryptographic context
+ * @src: Virtual address of region of memory containing the packets
+ * @ecryptfs_dentry: The eCryptfs dentry associated with the packet set
  *
  * Get crypt_stat to have the file's session key if the requisite key
  * is available to decrypt the session key.
@@ -1354,7 +1357,10 @@ out:
 /**
  * write_tag_1_packet - Write an RFC2440-compatible tag 1 (public key) packet
  * @dest: Buffer into which to write the packet
- * @max: Maximum number of bytes that can be writtn
+ * @remaining_bytes: Maximum number of bytes that can be writtn
+ * @auth_tok: The authentication token used for generating the tag 1 packet
+ * @crypt_stat: The cryptographic context
+ * @key_rec: The key record struct for the tag 1 packet
  * @packet_size: This function will write the number of bytes that end
  *               up constituting the packet; set to zero on error
  *
@@ -1441,7 +1447,7 @@ out:
 /**
  * write_tag_11_packet
  * @dest: Target into which Tag 11 packet is to be written
- * @max: Maximum packet length
+ * @remaining_bytes: Maximum packet length
  * @contents: Byte array of contents to copy in
  * @contents_length: Number of bytes in contents
  * @packet_length: Length of the Tag 11 packet written; zero on error
@@ -1501,7 +1507,7 @@ write_tag_11_packet(char *dest, size_t *remaining_bytes, char *contents,
 /**
  * write_tag_3_packet
  * @dest: Buffer into which to write the packet
- * @max: Maximum number of bytes that can be written
+ * @remaining_bytes: Maximum number of bytes that can be written
  * @auth_tok: Authentication token
  * @crypt_stat: The cryptographic context
  * @key_rec: encrypted key
@@ -1707,7 +1713,7 @@ struct kmem_cache *ecryptfs_key_record_cache;
 
 /**
  * ecryptfs_generate_key_packet_set
- * @dest: Virtual address from which to write the key record set
+ * @dest_base: Virtual address from which to write the key record set
  * @crypt_stat: The cryptographic context from which the
  *              authentication tokens will be retrieved
  * @ecryptfs_dentry: The dentry, used to retrieve the mount crypt stat

@@ -722,6 +722,11 @@ out:
 
 /**
  * decrypt_scatterlist
+ * @crypt_stat: Cryptographic context
+ * @dest_sg: The destination scatterlist to decrypt into
+ * @src_sg: The source scatterlist to decrypt from
+ * @size: The number of bytes to decrypt
+ * @iv: The initialization vector to use for the decryption
  *
  * Returns the number of bytes decrypted; negative value on error
  */
@@ -763,6 +768,13 @@ out:
 
 /**
  * ecryptfs_encrypt_page_offset
+ * @crypt_stat: The cryptographic context
+ * @dst_page: The page to encrypt into
+ * @dst_offset: The offset in the page to encrypt into
+ * @src_page: The page to encrypt from
+ * @src_offset: The offset in the page to encrypt from
+ * @size: The number of bytes to encrypt
+ * @iv: The initialization vector to use for the encryption
  *
  * Returns the number of bytes encrypted
  */
@@ -785,6 +797,13 @@ ecryptfs_encrypt_page_offset(struct ecryptfs_crypt_stat *crypt_stat,
 
 /**
  * ecryptfs_decrypt_page_offset
+ * @crypt_stat: The cryptographic context
+ * @dst_page: The page to decrypt into
+ * @dst_offset: The offset in the page to decrypt into
+ * @src_page: The page to decrypt from
+ * @src_offset: The offset in the page to decrypt from
+ * @size: The number of bytes to decrypt
+ * @iv: The initialization vector to use for the decryption
  *
  * Returns the number of bytes decrypted
  */
@@ -940,6 +959,8 @@ static void ecryptfs_generate_new_key(struct ecryptfs_crypt_stat *crypt_stat)
 
 /**
  * ecryptfs_copy_mount_wide_flags_to_inode_flags
+ * @crypt_stat: The inode's cryptographic context
+ * @mount_crypt_stat: The mount point's cryptographic context
  *
  * This function propagates the mount-wide flags to individual inode
  * flags.
@@ -980,7 +1001,8 @@ out:
 
 /**
  * ecryptfs_set_default_crypt_stat_vals
- * @crypt_stat
+ * @crypt_stat: The inode's cryptographic context
+ * @mount_crypt_stat: The mount point's cryptographic context
  *
  * Default values in the event that policy does not override them.
  */
@@ -1000,7 +1022,7 @@ static void ecryptfs_set_default_crypt_stat_vals(
 
 /**
  * ecryptfs_new_file_context
- * @ecryptfs_dentry
+ * @ecryptfs_dentry: The eCryptfs dentry
  *
  * If the crypto context for the file has not yet been established,
  * this is where we do that.  Establishing a new crypto context
@@ -1017,7 +1039,6 @@ static void ecryptfs_set_default_crypt_stat_vals(
  *
  * Returns zero on success; non-zero otherwise
  */
-/* Associate an authentication token(s) with the file */
 int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
@@ -1095,7 +1116,7 @@ static struct ecryptfs_flag_map_elem ecryptfs_flag_map[] = {
 
 /**
  * ecryptfs_process_flags
- * @crypt_stat
+ * @crypt_stat: The cryptographic context
  * @page_virt: Source data to be parsed
  * @bytes_read: Updated with the number of bytes read
  *
@@ -1183,7 +1204,7 @@ ecryptfs_cipher_code_str_map[] = {
 
 /**
  * ecryptfs_code_for_cipher_string
- * @str: The string representing the cipher name
+ * @crypt_stat: The cryptographic context
  *
  * Returns zero on no match, or the cipher code on match
  */
@@ -1241,9 +1262,9 @@ int ecryptfs_cipher_code_to_string(char *str, u16 cipher_code)
 
 /**
  * ecryptfs_read_header_region
- * @data
- * @dentry
- * @nd
+ * @data: The virtual address to write header region data into
+ * @dentry: The lower dentry
+ * @mnt: The lower VFS mount
  *
  * Returns zero on success; non-zero otherwise
  */
@@ -1315,9 +1336,10 @@ struct kmem_cache *ecryptfs_header_cache_2;
 
 /**
  * ecryptfs_write_headers_virt
- * @page_virt
- * @crypt_stat
- * @ecryptfs_dentry
+ * @page_virt: The virtual address to write the headers to
+ * @size: Set to the number of bytes written by this function
+ * @crypt_stat: The cryptographic context
+ * @ecryptfs_dentry: The eCryptfs dentry
  *
  * Format version: 1
  *
@@ -1371,9 +1393,9 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t *size,
 	return rc;
 }
 
-static int ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
-					       struct file *lower_file,
-					       char *page_virt)
+static int
+ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
+				    struct file *lower_file, char *page_virt)
 {
 	mm_segment_t oldfs;
 	int current_header_page;
@@ -1415,9 +1437,10 @@ out:
 	return rc;
 }
 
-static int ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
-					    struct ecryptfs_crypt_stat *crypt_stat,
-					    char *page_virt, size_t size)
+static int
+ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
+				 struct ecryptfs_crypt_stat *crypt_stat,
+				 char *page_virt, size_t size)
 {
 	int rc;
 
@@ -1428,6 +1451,7 @@ static int ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
 
 /**
  * ecryptfs_write_metadata
+ * @ecryptfs_dentry: The eCryptfs dentry
  * @lower_file: The lower file struct, which was returned from dentry_open
  *
  * Write the file headers out.  This will likely involve a userspace
@@ -1525,6 +1549,7 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
 
 /**
  * set_default_header_data
+ * @crypt_stat: The cryptographic context
  *
  * For version 0 file format; this function is only for backwards
  * compatibility for files created with the prior versions of
@@ -1538,6 +1563,10 @@ static void set_default_header_data(struct ecryptfs_crypt_stat *crypt_stat)
 
 /**
  * ecryptfs_read_headers_virt
+ * @page_virt: The virtual address into which to read the headers
+ * @crypt_stat: The cryptographic context
+ * @ecryptfs_dentry: The eCryptfs dentry
+ * @validate_header_size: Whether to validate the header size while reading
  *
  * Read/parse the header data. The header format is detailed in the
  * comment block for the ecryptfs_write_headers_virt() function.
@@ -1597,9 +1626,13 @@ out:
 
 /**
  * ecryptfs_read_xattr_region
+ * @page_virt: The vitual address into which to read the xattr data
+ * @ecryptfs_dentry: The eCryptfs dentry
  *
  * Attempts to read the crypto metadata from the extended attribute
  * region of the lower file.
+ *
+ * Returns zero on success; non-zero on error
  */
 int ecryptfs_read_xattr_region(char *page_virt, struct dentry *ecryptfs_dentry)
 {
@@ -1638,6 +1671,8 @@ out:
 
 /**
  * ecryptfs_read_metadata
+ * @ecryptfs_dentry: The eCryptfs dentry
+ * @lower_file: The lower file from which to read the metadata
  *
  * Common entry point for reading file metadata. From here, we could
  * retrieve the header information from the header region of the file,
