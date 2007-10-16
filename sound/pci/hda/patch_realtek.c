@@ -143,6 +143,7 @@ enum {
 	ALC662_3ST_6ch,
 	ALC662_5ST_DIG,
 	ALC662_LENOVO_101E,
+	ALC662_ASUS_EEEPC_P701,
 	ALC662_AUTO,
 	ALC662_MODEL_LAST,
 };
@@ -11432,6 +11433,15 @@ static struct hda_input_mux alc662_lenovo_101e_capture_source = {
 		{ "Line", 0x2 },
 	},
 };
+
+static struct hda_input_mux alc662_eeepc_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "i-Mic", 0x1 },
+		{ "e-Mic", 0x0 },
+	},
+};
+
 #define alc662_mux_enum_info alc_mux_enum_info
 #define alc662_mux_enum_get alc_mux_enum_get
 
@@ -11648,6 +11658,22 @@ static struct snd_kcontrol_new alc662_lenovo_101e_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc662_eeepc_p701_mixer[] = {
+	HDA_CODEC_MUTE("iSpeaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_VOLUME("LineOut Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("LineOut Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_VOLUME("e-Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("e-Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("e-Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+
+	HDA_CODEC_VOLUME("i-Mic Boost", 0x19, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("i-Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("i-Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	{ } /* end */
+};
+
 static struct snd_kcontrol_new alc662_chmode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -11713,13 +11739,24 @@ static struct hda_verb alc662_init_verbs[] = {
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
+
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 	{ }
 };
 
 static struct hda_verb alc662_sue_init_verbs[] = {
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|ALC880_FRONT_EVENT},
 	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|ALC880_HP_EVENT},
-        {}
+	{}
+};
+
+static struct hda_verb alc662_eeepc_sue_init_verbs[] = {
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_MIC_EVENT},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{}
 };
 
 /*
@@ -11825,6 +11862,39 @@ static void alc662_lenovo_101e_unsol_event(struct hda_codec *codec,
 		alc662_lenovo_101e_ispeaker_automute(codec);
 }
 
+static void alc662_eeepc_mic_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x18, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_write(codec, 0x22, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    0x7000 | (0x00 << 8) | (present ? 0 : 0x80));
+	snd_hda_codec_write(codec, 0x23, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    0x7000 | (0x00 << 8) | (present ? 0 : 0x80));
+	snd_hda_codec_write(codec, 0x22, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    0x7000 | (0x01 << 8) | (present ? 0x80 : 0));
+	snd_hda_codec_write(codec, 0x23, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    0x7000 | (0x01 << 8) | (present ? 0x80 : 0));
+}
+
+/* unsolicited event for HP jack sensing */
+static void alc662_eeepc_unsol_event(struct hda_codec *codec,
+				     unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc262_hippo1_automute( codec );
+
+	if ((res >> 26) == ALC880_MIC_EVENT)
+		alc662_eeepc_mic_automute(codec);
+}
+
+static void alc662_eeepc_inithook(struct hda_codec *codec)
+{
+	alc262_hippo1_automute( codec );
+	alc662_eeepc_mic_automute(codec);
+}
+
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc662_loopbacks	alc880_loopbacks
 #endif
@@ -11850,12 +11920,13 @@ static const char *alc662_models[ALC662_MODEL_LAST] = {
 
 static struct snd_pci_quirk alc662_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x101e, "Lenovo", ALC662_LENOVO_101E),
+	SND_PCI_QUIRK(0x1043, 0x82a1, "ASUS Eeepc", ALC662_ASUS_EEEPC_P701),
 	{}
 };
 
 static struct alc_config_preset alc662_presets[] = {
 	[ALC662_3ST_2ch_DIG] = {
-		.mixers = { alc662_3ST_2ch_mixer },
+		.mixers = { alc662_3ST_2ch_mixer, alc662_capture_mixer },
 		.init_verbs = { alc662_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -11868,7 +11939,8 @@ static struct alc_config_preset alc662_presets[] = {
 		.input_mux = &alc662_capture_source,
 	},
 	[ALC662_3ST_6ch_DIG] = {
-		.mixers = { alc662_3ST_6ch_mixer, alc662_chmode_mixer },
+		.mixers = { alc662_3ST_6ch_mixer, alc662_chmode_mixer,
+			    alc662_capture_mixer },
 		.init_verbs = { alc662_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -11882,7 +11954,8 @@ static struct alc_config_preset alc662_presets[] = {
 		.input_mux = &alc662_capture_source,
 	},
 	[ALC662_3ST_6ch] = {
-		.mixers = { alc662_3ST_6ch_mixer, alc662_chmode_mixer },
+		.mixers = { alc662_3ST_6ch_mixer, alc662_chmode_mixer,
+			    alc662_capture_mixer },
 		.init_verbs = { alc662_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -11894,7 +11967,8 @@ static struct alc_config_preset alc662_presets[] = {
 		.input_mux = &alc662_capture_source,
 	},
 	[ALC662_5ST_DIG] = {
-		.mixers = { alc662_base_mixer, alc662_chmode_mixer },
+		.mixers = { alc662_base_mixer, alc662_chmode_mixer,
+			    alc662_capture_mixer },
 		.init_verbs = { alc662_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -11907,7 +11981,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.input_mux = &alc662_capture_source,
 	},
 	[ALC662_LENOVO_101E] = {
-		.mixers = { alc662_lenovo_101e_mixer },
+		.mixers = { alc662_lenovo_101e_mixer, alc662_capture_mixer },
 		.init_verbs = { alc662_init_verbs, alc662_sue_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
 		.dac_nids = alc662_dac_nids,
@@ -11918,6 +11992,20 @@ static struct alc_config_preset alc662_presets[] = {
 		.input_mux = &alc662_lenovo_101e_capture_source,
 		.unsol_event = alc662_lenovo_101e_unsol_event,
 		.init_hook = alc662_lenovo_101e_all_automute,
+	},
+	[ALC662_ASUS_EEEPC_P701] = {
+		.mixers = { alc662_eeepc_p701_mixer, alc662_capture_mixer },
+		.init_verbs = { alc662_init_verbs,
+				alc662_eeepc_sue_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc662_dac_nids),
+		.dac_nids = alc662_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids),
+		.adc_nids = alc662_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
+		.channel_mode = alc662_3ST_2ch_modes,
+		.input_mux = &alc662_eeepc_capture_source,
+		.unsol_event = alc662_eeepc_unsol_event,
+		.init_hook = alc662_eeepc_inithook,
 	},
 
 };
