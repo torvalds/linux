@@ -1,12 +1,9 @@
 #ifndef _X86_64_KDEBUG_H
 #define _X86_64_KDEBUG_H 1
 
-#include <linux/notifier.h>
+#include <linux/compiler.h>
 
 struct pt_regs;
-
-extern int register_page_fault_notifier(struct notifier_block *);
-extern int unregister_page_fault_notifier(struct notifier_block *);
 
 /* Grossly misnamed. */
 enum die_val {
@@ -22,7 +19,6 @@ enum die_val {
 	DIE_GPF,
 	DIE_CALL,
 	DIE_NMI_IPI,
-	DIE_PAGE_FAULT,
 };
 
 extern void printk_address(unsigned long address);

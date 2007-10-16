@@ -1,25 +1,7 @@
 #ifndef _SPARC64_KDEBUG_H
 #define _SPARC64_KDEBUG_H
 
-/* Nearly identical to x86_64/i386 code. */
-
-#include <linux/notifier.h>
-
 struct pt_regs;
-
-/*
- * These are only here because kprobes.c wants them to implement a
- * blatant layering violation.  Will hopefully go away soon once all
- * architectures are updated.
- */
-static inline int register_page_fault_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-static inline int unregister_page_fault_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
 
 extern void bad_trap(struct pt_regs *, long);
 

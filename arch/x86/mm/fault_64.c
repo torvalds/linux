@@ -25,6 +25,7 @@
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/pgalloc.h>
@@ -40,34 +41,27 @@
 #define PF_RSVD	(1<<3)
 #define PF_INSTR	(1<<4)
 
-static ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
-
-/* Hook to register for page fault notifications */
-int register_page_fault_notifier(struct notifier_block *nb)
+#ifdef CONFIG_KPROBES
+static inline int notify_page_fault(struct pt_regs *regs)
 {
-	vmalloc_sync_all();
-	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
-}
-EXPORT_SYMBOL_GPL(register_page_fault_notifier);
+	int ret = 0;
 
-int unregister_page_fault_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_page_fault_notifier);
+	/* kprobe_running() needs smp_processor_id() */
+	if (!user_mode(regs)) {
+		preempt_disable();
+		if (kprobe_running() && kprobe_fault_handler(regs, 14))
+			ret = 1;
+		preempt_enable();
+	}
 
-static inline int notify_page_fault(struct pt_regs *regs, long err)
-{
-	struct die_args args = {
-		.regs = regs,
-		.str = "page fault",
-		.err = err,
-		.trapnr = 14,
-		.signr = SIGSEGV
-	};
-	return atomic_notifier_call_chain(&notify_page_fault_chain,
-	                                  DIE_PAGE_FAULT, &args);
+	return ret;
 }
+#else
+static inline int notify_page_fault(struct pt_regs *regs)
+{
+	return 0;
+}
+#endif
 
 /* Sometimes the CPU reports invalid exceptions on prefetch.
    Check that here and ignore.
@@ -345,7 +339,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 			if (vmalloc_fault(address) >= 0)
 				return;
 		}
-		if (notify_page_fault(regs, error_code) == NOTIFY_STOP)
+		if (notify_page_fault(regs))
 			return;
 		/*
 		 * Don't take the mm semaphore here. If we fixup a prefetch
@@ -354,7 +348,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		goto bad_area_nosemaphore;
 	}
 
-	if (notify_page_fault(regs, error_code) == NOTIFY_STOP)
+	if (notify_page_fault(regs))
 		return;
 
 	if (likely(regs->eflags & X86_EFLAGS_IF))

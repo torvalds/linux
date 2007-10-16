@@ -5,13 +5,8 @@
  * Aug-05 2004 Ported by Prasanna S Panchamukhi <prasanna@in.ibm.com>
  * from x86_64 architecture.
  */
-#include <linux/notifier.h>
 
 struct pt_regs;
-
-extern int register_page_fault_notifier(struct notifier_block *);
-extern int unregister_page_fault_notifier(struct notifier_block *);
-
 
 /* Grossly misnamed. */
 enum die_val {
@@ -27,7 +22,6 @@ enum die_val {
 	DIE_GPF,
 	DIE_CALL,
 	DIE_NMI_IPI,
-	DIE_PAGE_FAULT,
 };
 
 #endif

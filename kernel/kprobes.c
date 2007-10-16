@@ -64,7 +64,6 @@
 
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
-static atomic_t kprobe_count;
 
 /* NOTE: change this value only with kprobe_mutex held */
 static bool kprobe_enabled;
@@ -72,11 +71,6 @@ static bool kprobe_enabled;
 DEFINE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
 DEFINE_SPINLOCK(kretprobe_lock);	/* Protects kretprobe_inst_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
-
-static struct notifier_block kprobe_page_fault_nb = {
-	.notifier_call = kprobe_exceptions_notify,
-	.priority = 0x7fffffff /* we need to notified first */
-};
 
 #ifdef __ARCH_WANT_KPROBES_INSN_SLOT
 /*
@@ -556,8 +550,6 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 	old_p = get_kprobe(p->addr);
 	if (old_p) {
 		ret = register_aggr_kprobe(old_p, p);
-		if (!ret)
-			atomic_inc(&kprobe_count);
 		goto out;
 	}
 
@@ -569,13 +561,9 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 	hlist_add_head_rcu(&p->hlist,
 		       &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
 
-	if (kprobe_enabled) {
-		if (atomic_add_return(1, &kprobe_count) == \
-				(ARCH_INACTIVE_KPROBE_COUNT + 1))
-			register_page_fault_notifier(&kprobe_page_fault_nb);
-
+	if (kprobe_enabled)
 		arch_arm_kprobe(p);
-	}
+
 out:
 	mutex_unlock(&kprobe_mutex);
 
@@ -658,16 +646,6 @@ valid_p:
 		}
 		mutex_unlock(&kprobe_mutex);
 	}
-
-	/* Call unregister_page_fault_notifier()
-	 * if no probes are active
-	 */
-	mutex_lock(&kprobe_mutex);
-	if (atomic_add_return(-1, &kprobe_count) == \
-				ARCH_INACTIVE_KPROBE_COUNT)
-		unregister_page_fault_notifier(&kprobe_page_fault_nb);
-	mutex_unlock(&kprobe_mutex);
-	return;
 }
 
 static struct notifier_block kprobe_exceptions_nb = {
@@ -815,7 +793,6 @@ static int __init init_kprobes(void)
 		INIT_HLIST_HEAD(&kprobe_table[i]);
 		INIT_HLIST_HEAD(&kretprobe_inst_table[i]);
 	}
-	atomic_set(&kprobe_count, 0);
 
 	/* By default, kprobes are enabled */
 	kprobe_enabled = true;
@@ -921,13 +898,6 @@ static void __kprobes enable_all_kprobes(void)
 	if (kprobe_enabled)
 		goto already_enabled;
 
-	/*
-	 * Re-register the page fault notifier only if there are any
-	 * active probes at the time of enabling kprobes globally
-	 */
-	if (atomic_read(&kprobe_count) > ARCH_INACTIVE_KPROBE_COUNT)
-		register_page_fault_notifier(&kprobe_page_fault_nb);
-
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
 		hlist_for_each_entry_rcu(p, node, head, hlist)
@@ -968,10 +938,7 @@ static void __kprobes disable_all_kprobes(void)
 	mutex_unlock(&kprobe_mutex);
 	/* Allow all currently running kprobes to complete */
 	synchronize_sched();
-
-	mutex_lock(&kprobe_mutex);
-	/* Unconditionally unregister the page_fault notifier */
-	unregister_page_fault_notifier(&kprobe_page_fault_nb);
+	return;
 
 already_disabled:
 	mutex_unlock(&kprobe_mutex);

@@ -11,7 +11,6 @@ typedef u32 kprobe_opcode_t;
 #define MAX_INSN_SIZE 2
 
 #define arch_remove_kprobe(p)	do {} while (0)
-#define  ARCH_INACTIVE_KPROBE_COUNT 0
 
 #define flush_insn_slot(p)		\
 do { 	flushi(&(p)->ainsn.insn[0]);	\
