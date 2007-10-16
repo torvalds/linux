@@ -438,7 +438,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 		hwif->drives[i].io_32bit = 1;
 		hwif->drives[i].unmask = (vdev->via_config->flags & VIA_NO_UNMASK) ? 0 : 1;
 		hwif->drives[i].autotune = 1;
-		hwif->drives[i].dn = hwif->channel * 2 + i;
 	}
 
 	if (!hwif->dma_base)
