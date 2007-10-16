@@ -273,20 +273,36 @@ struct ecryptfs_dentry_info {
 	struct ecryptfs_crypt_stat *crypt_stat;
 };
 
+/**
+ * ecryptfs_global_auth_tok structs refer to authentication token keys
+ * in the user keyring that apply to newly created files. A list of
+ * these objects hangs off of the mount_crypt_stat struct for any
+ * given eCryptfs mount. This struct maintains a reference to both the
+ * key contents and the key itself so that the key can be put on
+ * unmount.
+ */
 struct ecryptfs_global_auth_tok {
 #define ECRYPTFS_AUTH_TOK_INVALID 0x00000001
 	u32 flags;
-	struct list_head mount_crypt_stat_list;
-	struct key *global_auth_tok_key;
-	struct ecryptfs_auth_tok *global_auth_tok;
-	unsigned char sig[ECRYPTFS_SIG_SIZE_HEX + 1];
+	struct list_head mount_crypt_stat_list; /* Default auth_tok list for
+						 * the mount_crypt_stat */
+	struct key *global_auth_tok_key; /* The key from the user's keyring for
+					  * the sig */
+	struct ecryptfs_auth_tok *global_auth_tok; /* The key contents */
+	unsigned char sig[ECRYPTFS_SIG_SIZE_HEX + 1]; /* The key identifier */
 };
 
+/**
+ * Typically, eCryptfs will use the same ciphers repeatedly throughout
+ * the course of its operations. In order to avoid unnecessarily
+ * destroying and initializing the same cipher repeatedly, eCryptfs
+ * keeps a list of crypto API contexts around to use when needed.
+ */
 struct ecryptfs_key_tfm {
 	struct crypto_blkcipher *key_tfm;
 	size_t key_size;
 	struct mutex key_tfm_mutex;
-	struct list_head key_tfm_list;
+	struct list_head key_tfm_list; /* The module's tfm list */
 	unsigned char cipher_name[ECRYPTFS_MAX_CIPHER_NAME_SIZE + 1];
 };
 
