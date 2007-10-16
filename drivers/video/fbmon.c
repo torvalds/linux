@@ -591,7 +591,7 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
 {
 	struct fb_videomode *mode, *m;
 	unsigned char *block;
-	int num = 0, i;
+	int num = 0, i, first = 1;
 
 	mode = kzalloc(50 * sizeof(struct fb_videomode), GFP_KERNEL);
 	if (mode == NULL)
@@ -608,8 +608,6 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
 	DPRINTK("   Detailed Timings\n");
 	block = edid + DETAILED_TIMING_DESCRIPTIONS_START;
 	for (i = 0; i < 4; i++, block+= DETAILED_TIMING_DESCRIPTION_SIZE) {
-	        int first = 1;
-
 		if (!(block[0] == 0x00 && block[1] == 0x00)) {
 			get_detailed_timing(block, &mode[num]);
 			if (first) {
