@@ -33,8 +33,16 @@
  */
 #define PAGE_ALLOC_COSTLY_ORDER 3
 
+#define MIGRATE_UNMOVABLE     0
+#define MIGRATE_MOVABLE       1
+#define MIGRATE_TYPES         2
+
+#define for_each_migratetype_order(order, type) \
+	for (order = 0; order < MAX_ORDER; order++) \
+		for (type = 0; type < MIGRATE_TYPES; type++)
+
 struct free_area {
-	struct list_head	free_list;
+	struct list_head	free_list[MIGRATE_TYPES];
 	unsigned long		nr_free;
 };
 
