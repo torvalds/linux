@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sis5513.c	Version 0.29	Aug 1, 2007
+ * linux/drivers/ide/pci/sis5513.c	Version 0.30	Aug 9, 2007
  *
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
@@ -522,20 +522,19 @@ static void sis_program_timings(ide_drive_t *drive, const u8 mode)
 		sis_ata133_program_timings(drive, mode);
 }
 
-/* Enables per-drive prefetch and postwrite */
 static void config_drive_art_rwp (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-
 	u8 reg4bh		= 0;
-	u8 rw_prefetch		= (0x11 << drive->dn);
+	u8 rw_prefetch		= 0;
 
-	if (drive->media != ide_disk)
-		return;
 	pci_read_config_byte(dev, 0x4b, &reg4bh);
 
-	if ((reg4bh & rw_prefetch) != rw_prefetch)
+	if (drive->media == ide_disk)
+		rw_prefetch = 0x11 << drive->dn;
+
+	if ((reg4bh & (0x11 << drive->dn)) != rw_prefetch)
 		pci_write_config_byte(dev, 0x4b, reg4bh|rw_prefetch);
 }
 
