@@ -351,11 +351,18 @@ static int auide_dma_setup(ide_drive_t *drive)
 	return 0;
 }
 
-static int auide_dma_check(ide_drive_t *drive)
+static u8 auide_mdma_filter(ide_drive_t *drive)
 {
-	u8 speed = ide_max_dma_mode(drive);
+	/*
+	 * FIXME: ->white_list and ->black_list are based on completely bogus
+	 * ->ide_dma_check implementation which didn't set neither the host
+	 * controller timings nor the device for the desired transfer mode.
+	 *
+	 * They should be either removed or 0x00 MWDMA mask should be
+	 * returned for devices on the ->black_list.
+	 */
 
-	if( dbdma_init_done == 0 ){
+	if (dbdma_init_done == 0) {
 		auide_hwif.white_list = ide_in_drive_list(drive->id,
 							  dma_white_list);
 		auide_hwif.black_list = ide_in_drive_list(drive->id,
@@ -366,20 +373,19 @@ static int auide_dma_check(ide_drive_t *drive)
 	}
 
 	/* Is the drive in our DMA black list? */
-
-	if ( auide_hwif.black_list ) {
-		drive->using_dma = 0;
-
-		/* Borrowed the warning message from ide-dma.c */
-
+	if (auide_hwif.black_list)
 		printk(KERN_WARNING "%s: Disabling DMA for %s (blacklisted)\n",
-		       drive->name, drive->id->model);	       
-	}
-	else
-		drive->using_dma = 1;
+				    drive->name, drive->id->model);
 
-	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
+	return drive->hwif->mwdma_mask;
+}
+
+static int auide_dma_check(ide_drive_t *drive)
+{
+	if (ide_tune_dma(drive))
 		return 0;
+
+	ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -691,6 +697,8 @@ static int au_ide_probe(struct device *dev)
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	hwif->dma_off_quietly		= &auide_dma_off_quietly;
 	hwif->dma_timeout		= &auide_dma_timeout;
+
+	hwif->mdma_filter		= &auide_mdma_filter;
 
 	hwif->ide_dma_check             = &auide_dma_check;
 	hwif->dma_exec_cmd              = &auide_dma_exec_cmd;
