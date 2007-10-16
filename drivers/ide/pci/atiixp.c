@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/atiixp.c	Version 0.02	Jun 16 2007
+ *  linux/drivers/ide/pci/atiixp.c	Version 0.03	Aug 3 2007
  *
  *  Copyright (C) 2003 ATI Inc. <hyu@ati.com>
  *  Copyright (C) 2004,2007 Bartlomiej Zolnierkiewicz
@@ -46,43 +46,6 @@ static atiixp_ide_timing mdma_timing[] = {
 static int save_mdma_mode[4];
 
 static DEFINE_SPINLOCK(atiixp_lock);
-
-/**
- *	atiixp_dma_2_pio		-	return the PIO mode matching DMA
- *	@xfer_rate: transfer speed
- *
- *	Returns the nearest equivalent PIO timing for the PIO or DMA
- *	mode requested by the controller.
- */
-
-static u8 atiixp_dma_2_pio(u8 xfer_rate) {
-	switch(xfer_rate) {
-		case XFER_UDMA_6:
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-		case XFER_MW_DMA_2:
-		case XFER_PIO_4:
-			return 4;
-		case XFER_MW_DMA_1:
-		case XFER_PIO_3:
-			return 3;
-		case XFER_SW_DMA_2:
-		case XFER_PIO_2:
-			return 2;
-		case XFER_MW_DMA_0:
-		case XFER_SW_DMA_1:
-		case XFER_SW_DMA_0:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-		case XFER_PIO_SLOW:
-		default:
-			return 0;
-	}
-}
 
 static void atiixp_dma_host_on(ide_drive_t *drive)
 {
@@ -169,7 +132,9 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int timing_shift = (drive->dn & 2) ? 16 : 0 + (drive->dn & 1) ? 0 : 8;
 	u32 tmp32;
 	u16 tmp16;
-	u8 pio;
+
+	if (speed < XFER_MW_DMA_0)
+		return;
 
 	spin_lock_irqsave(&atiixp_lock, flags);
 
@@ -191,13 +156,6 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 
 	spin_unlock_irqrestore(&atiixp_lock, flags);
-
-	if (speed >= XFER_SW_DMA_0)
-		pio = atiixp_dma_2_pio(speed);
-	else
-		pio = speed - XFER_PIO_0;
-
-	atiixp_set_pio_mode(drive, pio);
 }
 
 /**
@@ -249,8 +207,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x3f;
-	hwif->mwdma_mask = 0x06;
-	hwif->swdma_mask = 0x04;
+	hwif->mwdma_mask = 0x07;
 
 	pci_read_config_byte(pdev, ATIIXP_IDE_UDMA_MODE + ch, &udma_mode);
 
