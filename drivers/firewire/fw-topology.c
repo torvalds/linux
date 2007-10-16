@@ -152,6 +152,10 @@ static void update_hop_count(struct fw_node *node)
 	node->max_hops = max(max_child_hops, depths[0] + depths[1] + 2);
 }
 
+static inline struct fw_node *fw_node(struct list_head *l)
+{
+	return list_entry(l, struct fw_node, link);
+}
 
 /**
  * build_tree - Build the tree representation of the topology
@@ -162,7 +166,7 @@ static void update_hop_count(struct fw_node *node)
  * This function builds the tree representation of the topology given
  * by the self IDs from the latest bus reset.  During the construction
  * of the tree, the function checks that the self IDs are valid and
- * internally consistent.  On succcess this funtions returns the
+ * internally consistent.  On succcess this function returns the
  * fw_node corresponding to the local card otherwise NULL.
  */
 static struct fw_node *build_tree(struct fw_card *card,
@@ -211,6 +215,10 @@ static struct fw_node *build_tree(struct fw_card *card,
 		 */
 		for (i = 0, h = &stack; i < child_port_count; i++)
 			h = h->prev;
+		/*
+		 * When the stack is empty, this yields an invalid value,
+		 * but that pointer will never be dereferenced.
+		 */
 		child = fw_node(h);
 
 		node = fw_node_create(q, port_count, card->color);

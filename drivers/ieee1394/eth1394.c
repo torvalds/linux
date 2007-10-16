@@ -1153,8 +1153,6 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 			pdg->sz++;
 			lh = find_partial_datagram(pdgl, dgl);
 		} else {
-			struct partial_datagram *pd;
-
 			pd = list_entry(lh, struct partial_datagram, list);
 
 			if (fragment_overlap(&pd->frag_info, fg_off, fg_len)) {
@@ -1222,23 +1220,19 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 		priv->stats.rx_errors++;
 		priv->stats.rx_dropped++;
 		dev_kfree_skb_any(skb);
-		goto bad_proto;
-	}
-
-	if (netif_rx(skb) == NET_RX_DROP) {
+	} else if (netif_rx(skb) == NET_RX_DROP) {
 		priv->stats.rx_errors++;
 		priv->stats.rx_dropped++;
-		goto bad_proto;
+	} else {
+		priv->stats.rx_packets++;
+		priv->stats.rx_bytes += skb->len;
 	}
 
-	/* Statistics */
-	priv->stats.rx_packets++;
-	priv->stats.rx_bytes += skb->len;
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 bad_proto:
 	if (netif_queue_stopped(dev))
 		netif_wake_queue(dev);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	dev->last_rx = jiffies;
 

@@ -25,11 +25,14 @@
 #include <linux/device.h>
 #include <linux/vmalloc.h>
 #include <linux/poll.h>
+#include <linux/preempt.h>
+#include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/idr.h>
 #include <linux/compat.h>
 #include <linux/firewire-cdev.h>
+#include <asm/system.h>
 #include <asm/uaccess.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
@@ -140,11 +143,10 @@ static void queue_event(struct client *client, struct event *event,
 	event->v[1].size = size1;
 
 	spin_lock_irqsave(&client->lock, flags);
-
 	list_add_tail(&event->link, &client->event_list);
-	wake_up_interruptible(&client->wait);
-
 	spin_unlock_irqrestore(&client->lock, flags);
+
+	wake_up_interruptible(&client->wait);
 }
 
 static int
@@ -621,20 +623,19 @@ iso_callback(struct fw_iso_context *context, u32 cycle,
 	     size_t header_length, void *header, void *data)
 {
 	struct client *client = data;
-	struct iso_interrupt *interrupt;
+	struct iso_interrupt *irq;
 
-	interrupt = kzalloc(sizeof(*interrupt) + header_length, GFP_ATOMIC);
-	if (interrupt == NULL)
+	irq = kzalloc(sizeof(*irq) + header_length, GFP_ATOMIC);
+	if (irq == NULL)
 		return;
 
-	interrupt->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
-	interrupt->interrupt.closure   = client->iso_closure;
-	interrupt->interrupt.cycle     = cycle;
-	interrupt->interrupt.header_length = header_length;
-	memcpy(interrupt->interrupt.header, header, header_length);
-	queue_event(client, &interrupt->event,
-		    &interrupt->interrupt,
-		    sizeof(interrupt->interrupt) + header_length, NULL, 0);
+	irq->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
+	irq->interrupt.closure   = client->iso_closure;
+	irq->interrupt.cycle     = cycle;
+	irq->interrupt.header_length = header_length;
+	memcpy(irq->interrupt.header, header, header_length);
+	queue_event(client, &irq->event, &irq->interrupt,
+		    sizeof(irq->interrupt) + header_length, NULL, 0);
 }
 
 static int ioctl_create_iso_context(struct client *client, void *buffer)
@@ -812,6 +813,28 @@ static int ioctl_stop_iso(struct client *client, void *buffer)
 	return fw_iso_context_stop(client->iso_context);
 }
 
+static int ioctl_get_cycle_timer(struct client *client, void *buffer)
+{
+	struct fw_cdev_get_cycle_timer *request = buffer;
+	struct fw_card *card = client->device->card;
+	unsigned long long bus_time;
+	struct timeval tv;
+	unsigned long flags;
+
+	preempt_disable();
+	local_irq_save(flags);
+
+	bus_time = card->driver->get_bus_time(card);
+	do_gettimeofday(&tv);
+
+	local_irq_restore(flags);
+	preempt_enable();
+
+	request->local_time = tv.tv_sec * 1000000ULL + tv.tv_usec;
+	request->cycle_timer = bus_time & 0xffffffff;
+	return 0;
+}
+
 static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_get_info,
 	ioctl_send_request,
@@ -825,6 +848,7 @@ static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_queue_iso,
 	ioctl_start_iso,
 	ioctl_stop_iso,
+	ioctl_get_cycle_timer,
 };
 
 static int

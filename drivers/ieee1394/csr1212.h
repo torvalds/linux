@@ -32,6 +32,7 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <asm/atomic.h>
 
 #define CSR1212_MALLOC(size)	kmalloc((size), GFP_KERNEL)
 #define CSR1212_FREE(ptr)	kfree(ptr)
@@ -149,7 +150,7 @@ struct csr1212_keyval {
 		struct csr1212_directory directory;
 	} value;
 	struct csr1212_keyval *associate;
-	int refcnt;
+	atomic_t refcnt;
 
 	/* used in generating and/or parsing CSR image */
 	struct csr1212_keyval *next, *prev;	/* flat list of CSR elements */
@@ -350,7 +351,8 @@ csr1212_get_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv);
  * need for code to retain a keyval that has been parsed. */
 static inline void csr1212_keep_keyval(struct csr1212_keyval *kv)
 {
-	kv->refcnt++;
+	atomic_inc(&kv->refcnt);
+	smp_mb__after_atomic_inc();
 }
 
 

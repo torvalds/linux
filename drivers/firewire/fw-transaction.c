@@ -410,7 +410,12 @@ EXPORT_SYMBOL(fw_unit_space_region);
  * controller.  When a request is received that falls within the
  * specified address range, the specified callback is invoked.  The
  * parameters passed to the callback give the details of the
- * particular request
+ * particular request.
+ *
+ * Return value:  0 on success, non-zero otherwise.
+ * The start offset of the handler's address region is determined by
+ * fw_core_add_address_handler() and is returned in handler->offset.
+ * The offset is quadlet-aligned.
  */
 int
 fw_core_add_address_handler(struct fw_address_handler *handler,
@@ -422,14 +427,15 @@ fw_core_add_address_handler(struct fw_address_handler *handler,
 
 	spin_lock_irqsave(&address_handler_lock, flags);
 
-	handler->offset = region->start;
+	handler->offset = roundup(region->start, 4);
 	while (handler->offset + handler->length <= region->end) {
 		other =
 		    lookup_overlapping_address_handler(&address_handler_list,
 						       handler->offset,
 						       handler->length);
 		if (other != NULL) {
-			handler->offset += other->length;
+			handler->offset =
+			    roundup(other->offset + other->length, 4);
 		} else {
 			list_add_tail(&handler->link, &address_handler_list);
 			ret = 0;

@@ -18,21 +18,23 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/compiler.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/delay.h>
-#include <linux/poll.h>
-#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/spinlock.h>
 
-#include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <asm/page.h>
+#include <asm/system.h>
 
-#include "fw-transaction.h"
 #include "fw-ohci.h"
+#include "fw-transaction.h"
 
 #define DESCRIPTOR_OUTPUT_MORE		0
 #define DESCRIPTOR_OUTPUT_LAST		(1 << 12)
@@ -678,6 +680,9 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 
 	/* FIXME: Document how the locking works. */
 	if (ohci->generation != packet->generation) {
+		if (packet->payload_length > 0)
+			dma_unmap_single(ohci->card.device, payload_bus,
+					 packet->payload_length, DMA_TO_DEVICE);
 		packet->ack = RCODE_GENERATION;
 		return -1;
 	}
@@ -912,10 +917,15 @@ static void bus_reset_tasklet(unsigned long data)
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
-		fw_error("node ID not valid, new bus reset in progress\n");
+		fw_notify("node ID not valid, new bus reset in progress\n");
 		return;
 	}
-	ohci->node_id = reg & 0xffff;
+	if ((reg & OHCI1394_NodeID_nodeNumber) == 63) {
+		fw_notify("malconfigured bus\n");
+		return;
+	}
+	ohci->node_id = reg & (OHCI1394_NodeID_busNumber |
+			       OHCI1394_NodeID_nodeNumber);
 
 	/*
 	 * The count in the SelfIDCount register is the number of
@@ -926,12 +936,14 @@ static void bus_reset_tasklet(unsigned long data)
 
 	self_id_count = (reg_read(ohci, OHCI1394_SelfIDCount) >> 3) & 0x3ff;
 	generation = (le32_to_cpu(ohci->self_id_cpu[0]) >> 16) & 0xff;
+	rmb();
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
 		if (ohci->self_id_cpu[i] != ~ohci->self_id_cpu[i + 1])
 			fw_error("inconsistent self IDs\n");
 		ohci->self_id_buffer[j] = le32_to_cpu(ohci->self_id_cpu[i]);
 	}
+	rmb();
 
 	/*
 	 * Check the consistency of the self IDs we just read.  The
@@ -1046,6 +1058,9 @@ static irqreturn_t irq_handler(int irq, void *data)
 		iso_event &= ~(1 << i);
 	}
 
+	if (unlikely(event & OHCI1394_postedWriteErr))
+		fw_error("PCI posted write error\n");
+
 	if (event & OHCI1394_cycle64Seconds) {
 		cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
 		if ((cycle_time & 0x80000000) == 0)
@@ -1119,8 +1134,8 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 		  OHCI1394_RQPkt | OHCI1394_RSPkt |
 		  OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		  OHCI1394_isochRx | OHCI1394_isochTx |
-		  OHCI1394_masterIntEnable |
-		  OHCI1394_cycle64Seconds);
+		  OHCI1394_postedWriteErr | OHCI1394_cycle64Seconds |
+		  OHCI1394_masterIntEnable);
 
 	/* Activate link_on bit and contender bit in our self ID packets.*/
 	if (ohci_update_phy_reg(card, 4, 0,
