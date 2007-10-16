@@ -106,37 +106,6 @@
 static int no_piix_dma;
 
 /**
- *	piix_dma_2_pio		-	return the PIO mode matching DMA
- *	@xfer_rate: transfer speed
- *
- *	Returns the nearest equivalent PIO timing for the DMA
- *	mode requested by the controller.
- */
- 
-static u8 piix_dma_2_pio (u8 xfer_rate) {
-	switch(xfer_rate) {
-		case XFER_UDMA_6:
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-		case XFER_MW_DMA_2:
-			return 4;
-		case XFER_MW_DMA_1:
-			return 3;
-		case XFER_SW_DMA_2:
-			return 2;
-		case XFER_MW_DMA_0:
-		case XFER_SW_DMA_1:
-		case XFER_SW_DMA_0:
-		default:
-			return 0;
-	}
-}
-
-/**
  *	piix_set_pio_mode	-	set host controller for PIO mode
  *	@drive: drive
  *	@pio: PIO mode number
@@ -225,7 +194,7 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int u_speed		= 0;
 	int			sitre;
 	u16			reg4042, reg4a;
-	u8			reg48, reg54, reg55;
+	u8			reg48, reg54, reg55, pio;
 
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;
@@ -262,7 +231,11 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 				pci_write_config_byte(dev, 0x54, reg54 | v_flag);
 		} else
 			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
+
+		pio = 4;
 	} else {
+		const u8 mwdma_to_pio[] = { 0, 3, 4 };
+
 		if (reg48 & u_flag)
 			pci_write_config_byte(dev, 0x48, reg48 & ~u_flag);
 		if (reg4a & a_speed)
@@ -271,9 +244,14 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
 		if (reg55 & w_flag)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
+
+		if (speed >= XFER_MW_DMA_0)
+			pio = mwdma_to_pio[speed - XFER_MW_DMA_0];
+		else
+			pio = 2; /* only SWDMA2 is allowed */
 	}
 
-	piix_set_pio_mode(drive, piix_dma_2_pio(speed));
+	piix_set_pio_mode(drive, pio);
 }
 
 /**

@@ -21,27 +21,6 @@
 
 #include <asm/io.h>
 
-static u8 slc90e66_dma_2_pio (u8 xfer_rate) {
-	switch(xfer_rate) {
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-		case XFER_MW_DMA_2:
-			return 4;
-		case XFER_MW_DMA_1:
-			return 3;
-		case XFER_SW_DMA_2:
-			return 2;
-		case XFER_MW_DMA_0:
-		case XFER_SW_DMA_1:
-		case XFER_SW_DMA_0:
-		default:
-			return 0;
-	}
-}
-
 static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
@@ -103,6 +82,7 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int sitre = 0, a_speed	= 7 << (drive->dn * 4);
 	int u_speed = 0, u_flag = 1 << drive->dn;
 	u16			reg4042, reg44, reg48, reg4a;
+	u8			pio;
 
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;
@@ -131,14 +111,23 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pci_read_config_word(dev, 0x4a, &reg4a);
 			pci_write_config_word(dev, 0x4a, reg4a|u_speed);
 		}
+
+		pio = 4;
 	} else {
+		const u8 mwdma_to_pio[] = { 0, 3, 4 };
+
 		if (reg48 & u_flag)
 			pci_write_config_word(dev, 0x48, reg48 & ~u_flag);
 		if (reg4a & a_speed)
 			pci_write_config_word(dev, 0x4a, reg4a & ~a_speed);
+
+		if (speed >= XFER_MW_DMA_0)
+			pio = mwdma_to_pio[speed - XFER_MW_DMA_0];
+		else
+			pio = 2; /* only SWDMA2 is allowed */
 	}
 
-	slc90e66_set_pio_mode(drive, slc90e66_dma_2_pio(speed));
+	slc90e66_set_pio_mode(drive, pio);
 }
 
 static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
