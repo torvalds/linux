@@ -34,6 +34,46 @@ static inline void set_ether_mac(struct net_device *dev, unsigned char *addr)
 static DEFINE_SPINLOCK(opened_lock);
 static LIST_HEAD(opened);
 
+/*
+ * The drop_skb is used when we can't allocate an skb.  The
+ * packet is read into drop_skb in order to get the data off the
+ * connection to the host.
+ * It is reallocated whenever a maximum packet size is seen which is
+ * larger than any seen before.  update_drop_skb is called from
+ * eth_configure when a new interface is added.
+ */
+static DEFINE_SPINLOCK(drop_lock);
+static struct sk_buff *drop_skb;
+static int drop_max;
+
+static int update_drop_skb(int max)
+{
+	struct sk_buff *new;
+	unsigned long flags;
+	int err = 0;
+
+	spin_lock_irqsave(&drop_lock, flags);
+
+	if (max <= drop_max)
+		goto out;
+
+	err = -ENOMEM;
+	new = dev_alloc_skb(max);
+	if (new == NULL)
+		goto out;
+
+	skb_put(new, max);
+
+	kfree_skb(drop_skb);
+	drop_skb = new;
+	drop_max = max;
+	err = 0;
+out:
+	spin_unlock_irqrestore(&drop_lock, flags);
+
+	return err;
+}
+
 static int uml_net_rx(struct net_device *dev)
 {
 	struct uml_net_private *lp = dev->priv;
@@ -43,6 +83,9 @@ static int uml_net_rx(struct net_device *dev)
 	/* If we can't allocate memory, try again next round. */
 	skb = dev_alloc_skb(lp->max_packet);
 	if (skb == NULL) {
+		drop_skb->dev = dev;
+		/* Read a packet into drop_skb and don't do anything with it. */
+		(*lp->read)(lp->fd, drop_skb, lp);
 		lp->stats.rx_dropped++;
 		return 0;
 	}
@@ -446,6 +489,10 @@ static void eth_configure(int n, void *init, char *mac,
 	dev->ethtool_ops = &uml_net_ethtool_ops;
 	dev->watchdog_timeo = (HZ >> 1);
 	dev->irq = UM_ETH_IRQ;
+
+	err = update_drop_skb(lp->max_packet);
+	if (err)
+		goto out_undo_user_init;
 
 	rtnl_lock();
 	err = register_netdevice(dev);
