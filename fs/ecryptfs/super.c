@@ -47,15 +47,16 @@ struct kmem_cache *ecryptfs_inode_info_cache;
  */
 static struct inode *ecryptfs_alloc_inode(struct super_block *sb)
 {
-	struct ecryptfs_inode_info *ecryptfs_inode;
+	struct ecryptfs_inode_info *inode_info;
 	struct inode *inode = NULL;
 
-	ecryptfs_inode = kmem_cache_alloc(ecryptfs_inode_info_cache,
-					  GFP_KERNEL);
-	if (unlikely(!ecryptfs_inode))
+	inode_info = kmem_cache_alloc(ecryptfs_inode_info_cache, GFP_KERNEL);
+	if (unlikely(!inode_info))
 		goto out;
-	ecryptfs_init_crypt_stat(&ecryptfs_inode->crypt_stat);
-	inode = &ecryptfs_inode->vfs_inode;
+	ecryptfs_init_crypt_stat(&inode_info->crypt_stat);
+	mutex_init(&inode_info->lower_file_mutex);
+	inode_info->lower_file = NULL;
+	inode = &inode_info->vfs_inode;
 out:
 	return inode;
 }
