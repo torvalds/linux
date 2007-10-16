@@ -50,7 +50,10 @@
 
 #include <asm/au1000.h>
 #include <asm/au1000_pcmcia.h>
-#include <asm/xxs1500.h>
+
+#define PCMCIA_MAX_SOCK		0
+#define PCMCIA_NUM_SOCKS	(PCMCIA_MAX_SOCK + 1)
+#define PCMCIA_IRQ		AU1000_GPIO_4
 
 #if 0
 #define DEBUG(x,args...)	printk(__FUNCTION__ ": " x,##args)
