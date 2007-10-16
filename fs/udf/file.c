@@ -76,36 +76,29 @@ static int udf_adinicb_writepage(struct page *page, struct writeback_control *wb
 	return 0;
 }
 
-static int udf_adinicb_prepare_write(struct file *file, struct page *page,
-				     unsigned offset, unsigned to)
+static int udf_adinicb_write_end(struct file *file,
+			struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
 {
-	kmap(page);
-	return 0;
-}
+	struct inode *inode = mapping->host;
+	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
+	char *kaddr;
 
-static int udf_adinicb_commit_write(struct file *file, struct page *page,
-				    unsigned offset, unsigned to)
-{
-	struct inode *inode = page->mapping->host;
-	char *kaddr = page_address(page);
-
+	kaddr = kmap_atomic(page, KM_USER0);
 	memcpy(UDF_I_DATA(inode) + UDF_I_LENEATTR(inode) + offset,
-	       kaddr + offset, to - offset);
-	mark_inode_dirty(inode);
-	SetPageUptodate(page);
-	kunmap(page);
-	/* only one page here */
-	if (to > inode->i_size)
-		inode->i_size = to;
-	return 0;
+		kaddr + offset, copied);
+	kunmap_atomic(kaddr, KM_USER0);
+
+	return simple_write_end(file, mapping, pos, len, copied, page, fsdata);
 }
 
 const struct address_space_operations udf_adinicb_aops = {
 	.readpage	= udf_adinicb_readpage,
 	.writepage	= udf_adinicb_writepage,
 	.sync_page	= block_sync_page,
-	.prepare_write	= udf_adinicb_prepare_write,
-	.commit_write	= udf_adinicb_commit_write,
+	.write_begin = simple_write_begin,
+	.write_end = udf_adinicb_write_end,
 };
 
 static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,

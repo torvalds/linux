@@ -133,10 +133,13 @@ static int udf_readpage(struct file *file, struct page *page)
 	return block_read_full_page(page, udf_get_block);
 }
 
-static int udf_prepare_write(struct file *file, struct page *page,
-			     unsigned from, unsigned to)
+static int udf_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
-	return block_prepare_write(page, from, to, udf_get_block);
+	*pagep = NULL;
+	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				udf_get_block);
 }
 
 static sector_t udf_bmap(struct address_space *mapping, sector_t block)
@@ -148,8 +151,8 @@ const struct address_space_operations udf_aops = {
 	.readpage	= udf_readpage,
 	.writepage	= udf_writepage,
 	.sync_page	= block_sync_page,
-	.prepare_write	= udf_prepare_write,
-	.commit_write	= generic_commit_write,
+	.write_begin		= udf_write_begin,
+	.write_end		= generic_write_end,
 	.bmap		= udf_bmap,
 };
 
