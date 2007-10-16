@@ -194,35 +194,6 @@ static void multipath_status (struct seq_file *seq, mddev_t *mddev)
 	seq_printf (seq, "]");
 }
 
-static int multipath_issue_flush(struct request_queue *q, struct gendisk *disk,
-				 sector_t *error_sector)
-{
-	mddev_t *mddev = q->queuedata;
-	multipath_conf_t *conf = mddev_to_conf(mddev);
-	int i, ret = 0;
-
-	rcu_read_lock();
-	for (i=0; i<mddev->raid_disks && ret == 0; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
-			struct block_device *bdev = rdev->bdev;
-			struct request_queue *r_queue = bdev_get_queue(bdev);
-
-			if (!r_queue->issue_flush_fn)
-				ret = -EOPNOTSUPP;
-			else {
-				atomic_inc(&rdev->nr_pending);
-				rcu_read_unlock();
-				ret = r_queue->issue_flush_fn(r_queue, bdev->bd_disk,
-							      error_sector);
-				rdev_dec_pending(rdev, mddev);
-				rcu_read_lock();
-			}
-		}
-	}
-	rcu_read_unlock();
-	return ret;
-}
 static int multipath_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
@@ -527,7 +498,6 @@ static int multipath_run (mddev_t *mddev)
 	mddev->array_size = mddev->size;
 
 	mddev->queue->unplug_fn = multipath_unplug;
-	mddev->queue->issue_flush_fn = multipath_issue_flush;
 	mddev->queue->backing_dev_info.congested_fn = multipath_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
 

@@ -92,25 +92,6 @@ static void linear_unplug(struct request_queue *q)
 	}
 }
 
-static int linear_issue_flush(struct request_queue *q, struct gendisk *disk,
-			      sector_t *error_sector)
-{
-	mddev_t *mddev = q->queuedata;
-	linear_conf_t *conf = mddev_to_conf(mddev);
-	int i, ret = 0;
-
-	for (i=0; i < mddev->raid_disks && ret == 0; i++) {
-		struct block_device *bdev = conf->disks[i].rdev->bdev;
-		struct request_queue *r_queue = bdev_get_queue(bdev);
-
-		if (!r_queue->issue_flush_fn)
-			ret = -EOPNOTSUPP;
-		else
-			ret = r_queue->issue_flush_fn(r_queue, bdev->bd_disk, error_sector);
-	}
-	return ret;
-}
-
 static int linear_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
@@ -279,7 +260,6 @@ static int linear_run (mddev_t *mddev)
 
 	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
 	mddev->queue->unplug_fn = linear_unplug;
-	mddev->queue->issue_flush_fn = linear_issue_flush;
 	mddev->queue->backing_dev_info.congested_fn = linear_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
 	return 0;

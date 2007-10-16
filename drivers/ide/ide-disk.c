@@ -716,32 +716,6 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 	rq->buffer = rq->cmd;
 }
 
-static int idedisk_issue_flush(struct request_queue *q, struct gendisk *disk,
-			       sector_t *error_sector)
-{
-	ide_drive_t *drive = q->queuedata;
-	struct request *rq;
-	int ret;
-
-	if (!drive->wcache)
-		return 0;
-
-	rq = blk_get_request(q, WRITE, __GFP_WAIT);
-
-	idedisk_prepare_flush(q, rq);
-
-	ret = blk_execute_rq(q, disk, rq, 0);
-
-	/*
-	 * if we failed and caller wants error offset, get it
-	 */
-	if (ret && error_sector)
-		*error_sector = ide_get_error_location(drive, rq->cmd);
-
-	blk_put_request(rq);
-	return ret;
-}
-
 /*
  * This is tightly woven into the driver->do_special can not touch.
  * DON'T do it again until a total personality rewrite is committed.
@@ -781,7 +755,6 @@ static void update_ordered(ide_drive_t *drive)
 	struct hd_driveid *id = drive->id;
 	unsigned ordered = QUEUE_ORDERED_NONE;
 	prepare_flush_fn *prep_fn = NULL;
-	issue_flush_fn *issue_fn = NULL;
 
 	if (drive->wcache) {
 		unsigned long long capacity;
@@ -805,13 +778,11 @@ static void update_ordered(ide_drive_t *drive)
 		if (barrier) {
 			ordered = QUEUE_ORDERED_DRAIN_FLUSH;
 			prep_fn = idedisk_prepare_flush;
-			issue_fn = idedisk_issue_flush;
 		}
 	} else
 		ordered = QUEUE_ORDERED_DRAIN;
 
 	blk_queue_ordered(drive->queue, ordered, prep_fn);
-	blk_queue_issue_flush_fn(drive->queue, issue_fn);
 }
 
 static int write_cache(ide_drive_t *drive, int arg)

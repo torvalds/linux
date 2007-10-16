@@ -304,23 +304,6 @@ int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 
 EXPORT_SYMBOL(blk_queue_ordered);
 
-/**
- * blk_queue_issue_flush_fn - set function for issuing a flush
- * @q:     the request queue
- * @iff:   the function to be called issuing the flush
- *
- * Description:
- *   If a driver supports issuing a flush command, the support is notified
- *   to the block layer by defining it through this call.
- *
- **/
-void blk_queue_issue_flush_fn(struct request_queue *q, issue_flush_fn *iff)
-{
-	q->issue_flush_fn = iff;
-}
-
-EXPORT_SYMBOL(blk_queue_issue_flush_fn);
-
 /*
  * Cache flushing for ordered writes handling
  */
@@ -2666,6 +2649,14 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 
 EXPORT_SYMBOL(blk_execute_rq);
 
+static void bio_end_empty_barrier(struct bio *bio, int err)
+{
+	if (err)
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+
+	complete(bio->bi_private);
+}
+
 /**
  * blkdev_issue_flush - queue a flush
  * @bdev:	blockdev to issue flush for
@@ -2678,7 +2669,10 @@ EXPORT_SYMBOL(blk_execute_rq);
  */
 int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 {
+	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q;
+	struct bio *bio;
+	int ret;
 
 	if (bdev->bd_disk == NULL)
 		return -ENXIO;
@@ -2686,10 +2680,32 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	q = bdev_get_queue(bdev);
 	if (!q)
 		return -ENXIO;
-	if (!q->issue_flush_fn)
-		return -EOPNOTSUPP;
 
-	return q->issue_flush_fn(q, bdev->bd_disk, error_sector);
+	bio = bio_alloc(GFP_KERNEL, 0);
+	if (!bio)
+		return -ENOMEM;
+
+	bio->bi_end_io = bio_end_empty_barrier;
+	bio->bi_private = &wait;
+	bio->bi_bdev = bdev;
+	submit_bio(1 << BIO_RW_BARRIER, bio);
+
+	wait_for_completion(&wait);
+
+	/*
+	 * The driver must store the error location in ->bi_sector, if
+	 * it supports it. For non-stacked drivers, this should be copied
+	 * from rq->sector.
+	 */
+	if (error_sector)
+		*error_sector = bio->bi_sector;
+
+	ret = 0;
+	if (!bio_flagged(bio, BIO_UPTODATE))
+		ret = -EIO;
+
+	bio_put(bio);
+	return ret;
 }
 
 EXPORT_SYMBOL(blkdev_issue_flush);
