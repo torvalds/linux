@@ -168,13 +168,32 @@ static void __init amlm5900_map_io(void)
 }
 
 #ifdef CONFIG_FB_S3C2410
-static struct s3c2410fb_mach_info __initdata amlm5900_lcd_info = {
+static struct s3c2410fb_display __initdata amlm5900_lcd_info = {
 	.width		= 160,
 	.height		= 160,
 
 /* commented out until stn patch is submitted
 *	.type		= S3C2410_LCDCON1_STN4,
 */
+	.xres		= 160,
+	.yres		= 160,
+	.bpp		= 4,
+
+	.regs		= {
+		.lcdcon1	= 0x00008225,
+		.lcdcon2	= 0x0027c000,
+		.lcdcon3	= 0x00182708,
+		.lcdcon4	= 0x00000002,
+		.lcdcon5	= 0x00000001,
+	}
+};
+
+static struct s3c2410fb_mach_info __initdata amlm5900_fb_info = {
+
+	.displays = &amlm5900_lcd_info,
+	.num_displays = 1,
+	.default_display = 0,
+
 	.gpccon =	0xaaaaaaaa,
 	.gpccon_mask =	0xffffffff,
 	.gpcup =	0x0000ffff,
@@ -184,32 +203,6 @@ static struct s3c2410fb_mach_info __initdata amlm5900_lcd_info = {
 	.gpdcon_mask =	0xffffffff,
 	.gpdup =	0x0000ffff,
 	.gpdup_mask =	0xffffffff,
-
-	.xres		= {
-		.min		= 160,
-		.max		= 160,
-		.defval		= 160,
-	},
-
-	.yres		= {
-		.min		= 160,
-		.max	        = 160,
-		.defval		= 160,
-	},
-
-	.bpp		= {
-		.min		= 4,
-		.max		= 4,
-		.defval		= 4,
-	},
-
-	.regs		= {
-		.lcdcon1	= 0x00008225,
-		.lcdcon2	= 0x0027c000,
-		.lcdcon3	= 0x00182708,
-		.lcdcon4	= 0x00000002,
-		.lcdcon5	= 0x00000001,
-	}
 };
 #endif
 
@@ -239,7 +232,7 @@ static void __init amlm5900_init(void)
 {
 	amlm5900_init_pm();
 #ifdef CONFIG_FB_S3C2410
-	s3c24xx_fb_set_platdata(&amlm5900_lcd_info);
+	s3c24xx_fb_set_platdata(&amlm5900_fb_info);
 #endif
 	platform_add_devices(amlm5900_devices, ARRAY_SIZE(amlm5900_devices));
 }

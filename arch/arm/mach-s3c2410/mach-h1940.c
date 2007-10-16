@@ -133,8 +133,7 @@ static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
 /**
  * Set lcd on or off
  **/
-static struct s3c2410fb_mach_info h1940_lcdcfg __initdata = {
-	.fixed_syncs=		1,
+static struct s3c2410fb_display h1940_lcd __initdata = {
 	.regs={
 		.lcdcon1=	S3C2410_LCDCON1_TFT16BPP | \
 				S3C2410_LCDCON1_TFT | \
@@ -156,6 +155,21 @@ static struct s3c2410fb_mach_info h1940_lcdcfg __initdata = {
 				S3C2410_LCDCON5_INVVLINE | \
 				S3C2410_LCDCON5_HWSWP,
 	},
+
+	.width =	240,
+	.height =	320,
+	.xres =		240,
+	.yres =		320,
+	.bpp =		16,
+};
+
+static struct s3c2410fb_mach_info h1940_fb_info __initdata = {
+	.fixed_syncs =		1,
+
+	.displays = &h1940_lcd,
+	.num_displays = 1,
+	.default_display = 0,
+
 	.lpcsel=	0x02,
 	.gpccon=	0xaa940659,
 	.gpccon_mask=	0xffffffff,
@@ -165,12 +179,6 @@ static struct s3c2410fb_mach_info h1940_lcdcfg __initdata = {
 	.gpdcon_mask=	0xffffffff,
 	.gpdup=		0x0000faff,
 	.gpdup_mask=	0xffffffff,
-
-	.width=		240,
-	.height=	320,
-	.xres=		{240,240,240},
-	.yres=		{320,320,320},
-	.bpp=		{16,16,16},
 };
 
 static struct platform_device s3c_device_leds = {
@@ -217,7 +225,7 @@ static void __init h1940_init(void)
 {
 	u32 tmp;
 
-	s3c24xx_fb_set_platdata(&h1940_lcdcfg);
+	s3c24xx_fb_set_platdata(&h1940_fb_info);
  	s3c24xx_udc_set_platdata(&h1940_udc_cfg);
 
 	/* Turn off suspend on both USB ports, and switch the

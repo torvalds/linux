@@ -110,7 +110,7 @@ static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 
 /* framebuffer lcd controller information */
 
-static struct s3c2410fb_mach_info rx3715_lcdcfg __initdata = {
+static struct s3c2410fb_display rx3715_lcdcfg __initdata = {
 	.regs	= {
 		.lcdcon1 =	S3C2410_LCDCON1_TFT16BPP | \
 				S3C2410_LCDCON1_TFT | \
@@ -133,6 +133,20 @@ static struct s3c2410fb_mach_info rx3715_lcdcfg __initdata = {
 				S3C2410_LCDCON5_HWSWP,
 	},
 
+	.width  =	240,
+	.height =	320,
+
+	.xres	= 240,
+	.yres	= 320,
+	.bpp	= 16,
+};
+
+static struct s3c2410fb_mach_info rx3715_fb_info __initdata = {
+
+	.displays =	&rx3715_lcdcfg,
+	.num_displays =	1,
+	.default_display = 0,
+
 	.lpcsel =	0xf82,
 
 	.gpccon =	0xaa955699,
@@ -146,26 +160,6 @@ static struct s3c2410fb_mach_info rx3715_lcdcfg __initdata = {
 	.gpdup_mask =	0xffffffff,
 
 	.fixed_syncs =	1,
-	.width  =	240,
-	.height =	320,
-
-	.xres	= {
-		.min =		240,
-		.max =		240,
-		.defval =	240,
-	},
-
-	.yres	= {
-		.max =		320,
-		.min =		320,
-		.defval	=	320,
-	},
-
-	.bpp	= {
-		.min =		16,
-		.max =		16,
-		.defval =	16,
-	},
 };
 
 static struct mtd_partition rx3715_nand_part[] = {
@@ -224,7 +218,7 @@ static void __init rx3715_init_machine(void)
 #endif
 	s3c2410_pm_init();
 
-	s3c24xx_fb_set_platdata(&rx3715_lcdcfg);
+	s3c24xx_fb_set_platdata(&rx3715_fb_info);
 	platform_add_devices(rx3715_devices, ARRAY_SIZE(rx3715_devices));
 }
 

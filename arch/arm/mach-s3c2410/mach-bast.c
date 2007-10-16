@@ -467,35 +467,160 @@ static struct platform_device bast_device_axpp = {
 
 /* LCD/VGA controller */
 
-static struct s3c2410fb_mach_info __initdata bast_lcd_info = {
-	.width		= 640,
-	.height		= 480,
+static struct s3c2410fb_display __initdata bast_lcd_info[] = {
+	{
+		.width		= 640,
+		.height		= 480,
+		.xres		= 320,
+		.yres		= 240,
 
-	.xres		= {
-		.min		= 320,
-		.max		= 1024,
-		.defval		= 640,
+		.bpp		= 4,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
 	},
+	{
+		.width		= 640,
+		.height		= 480,
 
-	.yres		= {
-		.min		= 240,
-		.max	        = 600,
-		.defval		= 480,
+		.xres		= 640,
+		.yres		= 480,
+		.bpp		= 4,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
 	},
+	{
+		.width		= 640,
+		.height		= 480,
 
-	.bpp		= {
-		.min		= 4,
-		.max		= 16,
-		.defval		= 8,
+		.xres		= 800,
+		.yres		= 600,
+		.bpp		= 4,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
 	},
+	{
+		.width		= 640,
+		.height		= 480,
 
-	.regs		= {
-		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon3	= 0x013a7f13,
-		.lcdcon4	= 0x00000057,
-		.lcdcon5	= 0x00014b02,
-	}
+		.xres		= 320,
+		.yres		= 240,
+		.bpp		= 8,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
+	},
+	{
+		.width		= 640,
+		.height		= 480,
+
+		.xres		= 640,
+		.yres		= 480,
+		.bpp		= 8,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
+	},
+	{
+		.width		= 640,
+		.height		= 480,
+
+		.xres		= 800,
+		.yres		= 600,
+		.bpp		= 8,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
+	},
+	{
+		.width		= 640,
+		.height		= 480,
+
+		.xres		= 320,
+		.yres		= 240,
+		.bpp		= 16,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
+	},
+	{
+		.width		= 640,
+		.height		= 480,
+
+		.xres		= 640,
+		.yres		= 480,
+		.bpp		= 16,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
+	},
+	{
+		.width		= 640,
+		.height		= 480,
+
+		.xres		= 800,
+		.yres		= 600,
+		.bpp		= 16,
+
+		.regs		= {
+			.lcdcon1	= 0x00000176,
+			.lcdcon2	= 0x1d77c7c2,
+			.lcdcon3	= 0x013a7f13,
+			.lcdcon4	= 0x00000057,
+			.lcdcon5	= 0x00014b02,
+		}
+	},
+};
+
+/* LCD/VGA controller */
+
+static struct s3c2410fb_mach_info __initdata bast_fb_info = {
+
+	.displays = bast_lcd_info,
+	.num_displays = ARRAY_SIZE(bast_lcd_info),
+	.default_display = 4,
 };
 
 /* Standard BAST devices */
@@ -552,7 +677,7 @@ static void __init bast_map_io(void)
 
 static void __init bast_init(void)
 {
-	s3c24xx_fb_set_platdata(&bast_lcd_info);
+	s3c24xx_fb_set_platdata(&bast_fb_info);
 	platform_add_devices(bast_devices, ARRAY_SIZE(bast_devices));
 }
 

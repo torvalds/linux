@@ -14,12 +14,6 @@
 
 #include <asm/arch/regs-lcd.h>
 
-struct s3c2410fb_val {
-	unsigned int	defval;
-	unsigned int	min;
-	unsigned int	max;
-};
-
 struct s3c2410fb_hw {
 	unsigned long	lcdcon1;
 	unsigned long	lcdcon2;
@@ -28,23 +22,30 @@ struct s3c2410fb_hw {
 	unsigned long	lcdcon5;
 };
 
-struct s3c2410fb_mach_info {
-	unsigned char	fixed_syncs;	/* do not update sync/border */
-
-	/* LCD types */
-	int		type;
+/* LCD description */
+struct s3c2410fb_display {
+	/* LCD type */
+	unsigned type;
 
 	/* Screen size */
-	int		width;
-	int		height;
+	unsigned short width;
+	unsigned short height;
 
 	/* Screen info */
-	struct s3c2410fb_val xres;
-	struct s3c2410fb_val yres;
-	struct s3c2410fb_val bpp;
+	unsigned short xres;
+	unsigned short yres;
+	unsigned short bpp;
 
 	/* lcd configuration registers */
 	struct s3c2410fb_hw  regs;
+};
+
+struct s3c2410fb_mach_info {
+	unsigned char	fixed_syncs;	/* do not update sync/border */
+
+	struct s3c2410fb_display *displays;	/* attached diplays info */
+	unsigned num_displays;			/* number of defined displays */
+	unsigned default_display;
 
 	/* GPIOs */
 

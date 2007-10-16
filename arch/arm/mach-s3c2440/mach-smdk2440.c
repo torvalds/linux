@@ -103,7 +103,7 @@ static struct s3c2410_uartcfg smdk2440_uartcfgs[] __initdata = {
 
 /* LCD driver info */
 
-static struct s3c2410fb_mach_info smdk2440_lcd_cfg __initdata = {
+static struct s3c2410fb_display smdk2440_lcd_cfg __initdata = {
 	.regs	= {
 
 		.lcdcon1	= S3C2410_LCDCON1_TFT16BPP |
@@ -129,6 +129,21 @@ static struct s3c2410fb_mach_info smdk2440_lcd_cfg __initdata = {
 				  S3C2410_LCDCON5_HWSWP,
 	},
 
+	.type		= S3C2410_LCDCON1_TFT16BPP,
+
+	.width		= 240,
+	.height		= 320,
+
+	.xres		= 240,
+	.yres		= 320,
+	.bpp		= 16,
+};
+
+static struct s3c2410fb_mach_info smdk2440_fb_info __initdata = {
+	.displays	= &smdk2440_lcd_cfg,
+	.num_displays	= 1,
+	.default_display = 0,
+
 #if 0
 	/* currently setup by downloader */
 	.gpccon		= 0xaa940659,
@@ -142,28 +157,6 @@ static struct s3c2410fb_mach_info smdk2440_lcd_cfg __initdata = {
 #endif
 
 	.lpcsel		= ((0xCE6) & ~7) | 1<<4,
-	.type		= S3C2410_LCDCON1_TFT16BPP,
-
-	.width		= 240,
-	.height		= 320,
-
-	.xres		= {
-		.min	= 240,
-		.max	= 240,
-		.defval	= 240,
-	},
-
-	.yres		= {
-		.min	= 320,
-		.max	= 320,
-		.defval = 320,
-	},
-
-	.bpp		= {
-		.min	= 16,
-		.max	= 16,
-		.defval = 16,
-	},
 };
 
 static struct platform_device *smdk2440_devices[] __initdata = {
@@ -183,7 +176,7 @@ static void __init smdk2440_map_io(void)
 
 static void __init smdk2440_machine_init(void)
 {
-	s3c24xx_fb_set_platdata(&smdk2440_lcd_cfg);
+	s3c24xx_fb_set_platdata(&smdk2440_fb_info);
 
 	platform_add_devices(smdk2440_devices, ARRAY_SIZE(smdk2440_devices));
 	smdk_machine_init();

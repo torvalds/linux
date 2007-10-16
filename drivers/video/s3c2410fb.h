@@ -34,6 +34,8 @@ struct s3c2410fb_info {
 
 	struct s3c2410fb_mach_info *mach_info;
 
+	unsigned current_display;
+
 	/* raw memory addresses */
 	dma_addr_t		map_dma;	/* physical */
 	u_char *		map_cpu;	/* virtual */

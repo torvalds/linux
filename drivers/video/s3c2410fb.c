@@ -174,27 +174,28 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 			       struct fb_info *info)
 {
 	struct s3c2410fb_info *fbi = info->par;
+	struct s3c2410fb_mach_info *mach_info = fbi->mach_info;
+	struct s3c2410fb_display *display = NULL;
+	unsigned i;
 
 	dprintk("check_var(var=%p, info=%p)\n", var, info);
 
 	/* validate x/y resolution */
 
-	if (var->yres > fbi->mach_info->yres.max)
-		var->yres = fbi->mach_info->yres.max;
-	else if (var->yres < fbi->mach_info->yres.min)
-		var->yres = fbi->mach_info->yres.min;
+	for (i = 0; i < mach_info->num_displays; i++)
+		if (var->yres == mach_info->displays[i].yres &&
+		    var->xres == mach_info->displays[i].xres &&
+		    var->bits_per_pixel == mach_info->displays[i].bpp) {
+			display = mach_info->displays + i;
+			fbi->current_display = i;
+			break;
+		}
 
-	if (var->xres > fbi->mach_info->xres.max)
-		var->yres = fbi->mach_info->xres.max;
-	else if (var->xres < fbi->mach_info->xres.min)
-		var->xres = fbi->mach_info->xres.min;
-
-	/* validate bpp */
-
-	if (var->bits_per_pixel > fbi->mach_info->bpp.max)
-		var->bits_per_pixel = fbi->mach_info->bpp.max;
-	else if (var->bits_per_pixel < fbi->mach_info->bpp.min)
-		var->bits_per_pixel = fbi->mach_info->bpp.min;
+	if (!display) {
+		dprintk("wrong resolution or depth %dx%d at %d bpp\n",
+			var->xres, var->yres, var->bits_per_pixel);
+		return -EINVAL;
+	}
 
 	var->transp.offset = 0;
 	var->transp.length = 0;
@@ -209,7 +210,7 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 		var->blue	= var->red;
 		break;
 	case 8:
-		if (fbi->mach_info->type != S3C2410_LCDCON1_TFT) {
+		if (display->type != S3C2410_LCDCON1_TFT) {
 			/* 8 bpp 332 */
 			var->red.length		= 3;
 			var->red.offset		= 5;
@@ -236,7 +237,7 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 
 	default:
 	case 16:
-		if (fbi->regs.lcdcon5 & S3C2410_LCDCON5_FRM565) {
+		if (display->regs.lcdcon5 & S3C2410_LCDCON5_FRM565) {
 			/* 16 bpp, 565 format */
 			var->red.offset		= 11;
 			var->green.offset	= 5;
@@ -278,6 +279,9 @@ static void s3c2410fb_activate_var(struct fb_info *info,
 				   struct fb_var_screeninfo *var)
 {
 	struct s3c2410fb_info *fbi = info->par;
+	struct s3c2410fb_mach_info *mach_info = fbi->mach_info;
+	struct s3c2410fb_display *display = mach_info->displays +
+					    fbi->current_display;
 	int hs;
 
 	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_MODEMASK;
@@ -287,9 +291,9 @@ static void s3c2410fb_activate_var(struct fb_info *info,
 	dprintk("%s: var->yres  = %d\n", __FUNCTION__, var->yres);
 	dprintk("%s: var->bpp   = %d\n", __FUNCTION__, var->bits_per_pixel);
 
-	fbi->regs.lcdcon1 |= fbi->mach_info->type;
+	fbi->regs.lcdcon1 |= display->type;
 
-	if (fbi->mach_info->type == S3C2410_LCDCON1_TFT)
+	if (display->type == S3C2410_LCDCON1_TFT)
 		switch (var->bits_per_pixel) {
 		case 1:
 			fbi->regs.lcdcon1 |= S3C2410_LCDCON1_TFT1BPP;
@@ -338,7 +342,7 @@ static void s3c2410fb_activate_var(struct fb_info *info,
 
 	/* check to see if we need to update sync/borders */
 
-	if (!fbi->mach_info->fixed_syncs) {
+	if (!mach_info->fixed_syncs) {
 		dprintk("setting vert: up=%d, low=%d, sync=%d\n",
 			var->upper_margin, var->lower_margin, var->vsync_len);
 
@@ -363,7 +367,7 @@ static void s3c2410fb_activate_var(struct fb_info *info,
 	fbi->regs.lcdcon2 &= ~S3C2410_LCDCON2_LINEVAL(0x3ff);
 	fbi->regs.lcdcon2 |=  S3C2410_LCDCON2_LINEVAL(var->yres - 1);
 
-	switch (fbi->mach_info->type) {
+	switch (display->type) {
 	case S3C2410_LCDCON1_DSCAN4:
 	case S3C2410_LCDCON1_STN8:
 		hs = var->xres / 8;
@@ -388,7 +392,7 @@ static void s3c2410fb_activate_var(struct fb_info *info,
 	if (var->pixclock > 0) {
 		int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock);
 
-		if (fbi->mach_info->type == S3C2410_LCDCON1_TFT) {
+		if (display->type == S3C2410_LCDCON1_TFT) {
 			clkdiv = (clkdiv / 2) - 1;
 			if (clkdiv < 0)
 				clkdiv = 0;
@@ -750,6 +754,7 @@ static char driver_name[] = "s3c2410fb";
 static int __init s3c2410fb_probe(struct platform_device *pdev)
 {
 	struct s3c2410fb_info *info;
+	struct s3c2410fb_display *display;
 	struct fb_info *fbinfo;
 	struct s3c2410fb_hw *mregs;
 	struct resource *res;
@@ -766,7 +771,8 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	mregs = &mach_info->regs;
+	display = mach_info->displays + mach_info->default_display;
+	mregs = &display->regs;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -809,7 +815,7 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 
 	strcpy(fbinfo->fix.id, driver_name);
 
-	memcpy(&info->regs, &mach_info->regs, sizeof(info->regs));
+	memcpy(&info->regs, &display->regs, sizeof(info->regs));
 
 	/* Stop the video and unset ENVID if set */
 	info->regs.lcdcon1 &= ~S3C2410_LCDCON1_ENVID;
@@ -817,6 +823,7 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	writel(lcdcon1 & ~S3C2410_LCDCON1_ENVID, info->io + S3C2410_LCDCON1);
 
 	info->mach_info		    = pdev->dev.platform_data;
+	info->current_display	    = mach_info->default_display;
 
 	fbinfo->fix.type	    = FB_TYPE_PACKED_PIXELS;
 	fbinfo->fix.type_aux	    = 0;
@@ -827,8 +834,8 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 
 	fbinfo->var.nonstd	    = 0;
 	fbinfo->var.activate	    = FB_ACTIVATE_NOW;
-	fbinfo->var.height	    = mach_info->height;
-	fbinfo->var.width	    = mach_info->width;
+	fbinfo->var.height	    = display->height;
+	fbinfo->var.width	    = display->width;
 	fbinfo->var.accel_flags     = 0;
 	fbinfo->var.vmode	    = FB_VMODE_NONINTERLACED;
 
@@ -836,11 +843,11 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	fbinfo->flags		    = FBINFO_FLAG_DEFAULT;
 	fbinfo->pseudo_palette      = &info->pseudo_pal;
 
-	fbinfo->var.xres	    = mach_info->xres.defval;
-	fbinfo->var.xres_virtual    = mach_info->xres.defval;
-	fbinfo->var.yres	    = mach_info->yres.defval;
-	fbinfo->var.yres_virtual    = mach_info->yres.defval;
-	fbinfo->var.bits_per_pixel  = mach_info->bpp.defval;
+	fbinfo->var.xres	    = display->xres;
+	fbinfo->var.xres_virtual    = display->xres;
+	fbinfo->var.yres	    = display->yres;
+	fbinfo->var.yres_virtual    = display->yres;
+	fbinfo->var.bits_per_pixel  = display->bpp;
 
 	fbinfo->var.upper_margin    =
 				S3C2410_LCDCON2_GET_VBPD(mregs->lcdcon2) + 1;
@@ -864,9 +871,17 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	fbinfo->var.green.length    = 6;
 	fbinfo->var.blue.length     = 5;
 	fbinfo->var.transp.length   = 0;
-	fbinfo->fix.smem_len	    =	mach_info->xres.max *
-					mach_info->yres.max *
-					mach_info->bpp.max / 8;
+
+	/* find maximum required memory size for display */
+	for (i = 0; i < mach_info->num_displays; i++) {
+		unsigned long smem_len = mach_info->displays[i].xres;
+
+		smem_len *= mach_info->displays[i].yres;
+		smem_len *= mach_info->displays[i].bpp;
+		smem_len >>= 3;
+		if (fbinfo->fix.smem_len < smem_len)
+			fbinfo->fix.smem_len = smem_len;
+	}
 
 	for (i = 0; i < 256; i++)
 		info->palette_buffer[i] = PALETTE_BUFF_CLEAR;
