@@ -31,22 +31,21 @@
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 
 /**
- * struct ioat_device - internal representation of a IOAT device
+ * struct ioatdma_device - internal representation of a IOAT device
  * @pdev: PCI-Express device
  * @reg_base: MMIO register space base address
  * @dma_pool: for allocating DMA descriptors
  * @common: embedded struct dma_device
- * @msi: Message Signaled Interrupt number
+ * @version: version of ioatdma device
  */
 
-struct ioat_device {
+struct ioatdma_device {
 	struct pci_dev *pdev;
 	void __iomem *reg_base;
 	struct pci_pool *dma_pool;
 	struct pci_pool *completion_pool;
-
 	struct dma_device common;
-	u8 msi;
+	u8 version;
 };
 
 /**
@@ -84,7 +83,7 @@ struct ioat_dma_chan {
 
 	int pending;
 
-	struct ioat_device *device;
+	struct ioatdma_device *device;
 	struct dma_chan common;
 
 	dma_addr_t completion_addr;
@@ -116,5 +115,14 @@ struct ioat_desc_sw {
 	DECLARE_PCI_UNMAP_ADDR(dst)
 	struct dma_async_tx_descriptor async_tx;
 };
+
+#if defined(CONFIG_INTEL_IOATDMA) || defined(CONFIG_INTEL_IOATDMA_MODULE)
+struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
+				      void __iomem *iobase);
+void ioat_dma_remove(struct ioatdma_device *device);
+#else
+#define ioat_dma_probe(pdev, iobase)    NULL
+#define ioat_dma_remove(device)         do { } while (0)
+#endif
 
 #endif /* IOATDMA_H */
