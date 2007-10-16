@@ -72,7 +72,7 @@ static const struct fb_videomode modedb[] = {
 	0, FB_VMODE_NONINTERLACED
     }, {
 	/* 1152x864 @ 89 Hz interlaced, 44 kHz hsync */
-	NULL, 69, 1152, 864, 15384, 96, 16, 110, 1, 216, 10,
+	NULL, 89, 1152, 864, 15384, 96, 16, 110, 1, 216, 10,
 	0, FB_VMODE_INTERLACED
     }, {
 	/* 800x600 @ 72 Hz, 48.0 kHz hsync */
@@ -120,11 +120,11 @@ static const struct fb_videomode modedb[] = {
 	0, FB_VMODE_NONINTERLACED
     }, {
 	/* 1400x1050 @ 60Hz, 63.9 kHz hsync */
-	NULL, 68, 1400, 1050, 9259, 136, 40, 13, 1, 112, 3,
+	NULL, 60, 1400, 1050, 9259, 136, 40, 13, 1, 112, 3,
 	0, FB_VMODE_NONINTERLACED   	
     }, {
 	/* 1400x1050 @ 75,107 Hz, 82,392 kHz +hsync +vsync*/
-	NULL, 75, 1400, 1050, 9271, 120, 56, 13, 0, 112, 3,
+	NULL, 75, 1400, 1050, 7190, 120, 56, 23, 10, 112, 13,
 	FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
     }, {
 	/* 1400x1050 @ 60 Hz, ? kHz +hsync +vsync*/
@@ -253,7 +253,7 @@ static const struct fb_videomode modedb[] = {
 	FB_VMODE_NONINTERLACED
     }, {
 	/* 1152x768, 60 Hz, PowerBook G4 Titanium I and II */
-	NULL, 60, 1152, 768, 15386, 158, 26, 29, 3, 136, 6,
+	NULL, 60, 1152, 768, 14047, 158, 26, 29, 3, 136, 6,
 	FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
     }, {
 	/* 1366x768, 60 Hz, 47.403 kHz hsync, WXGA 16:9 aspect ratio */
@@ -306,7 +306,7 @@ const struct fb_videomode vesa_modes[] = {
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
         /* 12 1024x768i-43 VESA */
-	{ NULL, 53, 1024, 768, 22271, 56, 8, 41, 0, 176, 8,
+	{ NULL, 43, 1024, 768, 22271, 56, 8, 41, 0, 176, 8,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	  FB_VMODE_INTERLACED, FB_MODE_IS_VESA },
 	/* 13 1024x768-60 VESA */
@@ -383,7 +383,7 @@ const struct fb_videomode vesa_modes[] = {
 	{ NULL, 60, 1920, 1440, 4273, 344, 128, 56, 1, 200, 3,
 	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
 	/* 33 1920x1440-75 VESA */
-	{ NULL, 60, 1920, 1440, 3367, 352, 144, 56, 1, 224, 3,
+	{ NULL, 75, 1920, 1440, 3367, 352, 144, 56, 1, 224, 3,
 	  FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
 };
 EXPORT_SYMBOL(vesa_modes);
