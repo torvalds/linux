@@ -105,20 +105,6 @@
 #define EXT4_BLOCK_ALIGN(size, blkbits)		ALIGN((size), (1 << (blkbits)))
 
 /*
- * Macro-instructions used to manage fragments
- */
-#define EXT4_MIN_FRAG_SIZE		1024
-#define	EXT4_MAX_FRAG_SIZE		4096
-#define EXT4_MIN_FRAG_LOG_SIZE		  10
-#ifdef __KERNEL__
-# define EXT4_FRAG_SIZE(s)		(EXT4_SB(s)->s_frag_size)
-# define EXT4_FRAGS_PER_BLOCK(s)	(EXT4_SB(s)->s_frags_per_block)
-#else
-# define EXT4_FRAG_SIZE(s)		(EXT4_MIN_FRAG_SIZE << (s)->s_log_frag_size)
-# define EXT4_FRAGS_PER_BLOCK(s)	(EXT4_BLOCK_SIZE(s) / EXT4_FRAG_SIZE(s))
-#endif
-
-/*
  * Structure of a blocks group descriptor
  */
 struct ext4_group_desc
@@ -311,27 +297,24 @@ struct ext4_inode {
 	__le32	i_generation;	/* File version (for NFS) */
 	__le32	i_file_acl;	/* File ACL */
 	__le32	i_dir_acl;	/* Directory ACL */
-	__le32	i_faddr;	/* Fragment address */
+	__le32	i_obso_faddr;	/* Obsoleted fragment address */
 	union {
 		struct {
-			__u8	l_i_frag;	/* Fragment number */
-			__u8	l_i_fsize;	/* Fragment size */
+			__le16	l_i_reserved1;	/* Obsoleted fragment number/size which are removed in ext4 */
 			__le16	l_i_file_acl_high;
 			__le16	l_i_uid_high;	/* these 2 fields */
 			__le16	l_i_gid_high;	/* were reserved2[0] */
 			__u32	l_i_reserved2;
 		} linux2;
 		struct {
-			__u8	h_i_frag;	/* Fragment number */
-			__u8	h_i_fsize;	/* Fragment size */
+			__le16	h_i_reserved1;	/* Obsoleted fragment number/size which are removed in ext4 */
 			__u16	h_i_mode_high;
 			__u16	h_i_uid_high;
 			__u16	h_i_gid_high;
 			__u32	h_i_author;
 		} hurd2;
 		struct {
-			__u8	m_i_frag;	/* Fragment number */
-			__u8	m_i_fsize;	/* Fragment size */
+			__le16	h_i_reserved1;	/* Obsoleted fragment number/size which are removed in ext4 */
 			__le16	m_i_file_acl_high;
 			__u32	m_i_reserved2[2];
 		} masix2;
@@ -419,8 +402,6 @@ do {									       \
 
 #if defined(__KERNEL__) || defined(__linux__)
 #define i_reserved1	osd1.linux1.l_i_reserved1
-#define i_frag		osd2.linux2.l_i_frag
-#define i_fsize		osd2.linux2.l_i_fsize
 #define i_file_acl_high	osd2.linux2.l_i_file_acl_high
 #define i_uid_low	i_uid
 #define i_gid_low	i_gid
@@ -431,8 +412,6 @@ do {									       \
 #elif defined(__GNU__)
 
 #define i_translator	osd1.hurd1.h_i_translator
-#define i_frag		osd2.hurd2.h_i_frag;
-#define i_fsize		osd2.hurd2.h_i_fsize;
 #define i_uid_high	osd2.hurd2.h_i_uid_high
 #define i_gid_high	osd2.hurd2.h_i_gid_high
 #define i_author	osd2.hurd2.h_i_author
@@ -440,8 +419,6 @@ do {									       \
 #elif defined(__masix__)
 
 #define i_reserved1	osd1.masix1.m_i_reserved1
-#define i_frag		osd2.masix2.m_i_frag
-#define i_fsize		osd2.masix2.m_i_fsize
 #define i_file_acl_high	osd2.masix2.m_i_file_acl_high
 #define i_reserved2	osd2.masix2.m_i_reserved2
 
@@ -528,9 +505,9 @@ struct ext4_super_block {
 /*10*/	__le32	s_free_inodes_count;	/* Free inodes count */
 	__le32	s_first_data_block;	/* First Data Block */
 	__le32	s_log_block_size;	/* Block size */
-	__le32	s_log_frag_size;	/* Fragment size */
+	__le32	s_obso_log_frag_size;	/* Obsoleted fragment size */
 /*20*/	__le32	s_blocks_per_group;	/* # Blocks per group */
-	__le32	s_frags_per_group;	/* # Fragments per group */
+	__le32	s_obso_frags_per_group;	/* Obsoleted fragments per group */
 	__le32	s_inodes_per_group;	/* # Inodes per group */
 	__le32	s_mtime;		/* Mount time */
 /*30*/	__le32	s_wtime;		/* Write time */

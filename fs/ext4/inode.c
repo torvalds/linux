@@ -2711,11 +2711,6 @@ void ext4_read_inode(struct inode * inode)
 	}
 	inode->i_blocks = le32_to_cpu(raw_inode->i_blocks);
 	ei->i_flags = le32_to_cpu(raw_inode->i_flags);
-#ifdef EXT4_FRAGMENTS
-	ei->i_faddr = le32_to_cpu(raw_inode->i_faddr);
-	ei->i_frag_no = raw_inode->i_frag;
-	ei->i_frag_size = raw_inode->i_fsize;
-#endif
 	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl);
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
 	    cpu_to_le32(EXT4_OS_HURD))
@@ -2860,11 +2855,6 @@ static int ext4_do_update_inode(handle_t *handle,
 	raw_inode->i_blocks = cpu_to_le32(inode->i_blocks);
 	raw_inode->i_dtime = cpu_to_le32(ei->i_dtime);
 	raw_inode->i_flags = cpu_to_le32(ei->i_flags);
-#ifdef EXT4_FRAGMENTS
-	raw_inode->i_faddr = cpu_to_le32(ei->i_faddr);
-	raw_inode->i_frag = ei->i_frag_no;
-	raw_inode->i_fsize = ei->i_frag_size;
-#endif
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
 	    cpu_to_le32(EXT4_OS_HURD))
 		raw_inode->i_file_acl_high =

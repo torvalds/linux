@@ -573,11 +573,6 @@ got:
 	/* dirsync only applies to directories */
 	if (!S_ISDIR(mode))
 		ei->i_flags &= ~EXT4_DIRSYNC_FL;
-#ifdef EXT4_FRAGMENTS
-	ei->i_faddr = 0;
-	ei->i_frag_no = 0;
-	ei->i_frag_size = 0;
-#endif
 	ei->i_file_acl = 0;
 	ei->i_dir_acl = 0;
 	ei->i_dtime = 0;

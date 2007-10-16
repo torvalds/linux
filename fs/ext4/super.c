@@ -1726,14 +1726,6 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		if (sbi->s_inode_size > EXT4_GOOD_OLD_INODE_SIZE)
 			sb->s_time_gran = 1 << (EXT4_EPOCH_BITS - 2);
 	}
-	sbi->s_frag_size = EXT4_MIN_FRAG_SIZE <<
-				   le32_to_cpu(es->s_log_frag_size);
-	if (blocksize != sbi->s_frag_size) {
-		printk(KERN_ERR
-		       "EXT4-fs: fragsize %lu != blocksize %u (unsupported)\n",
-		       sbi->s_frag_size, blocksize);
-		goto failed_mount;
-	}
 	sbi->s_desc_size = le16_to_cpu(es->s_desc_size);
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_64BIT)) {
 		if (sbi->s_desc_size < EXT4_MIN_DESC_SIZE_64BIT ||
@@ -1747,7 +1739,6 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	} else
 		sbi->s_desc_size = EXT4_MIN_DESC_SIZE;
 	sbi->s_blocks_per_group = le32_to_cpu(es->s_blocks_per_group);
-	sbi->s_frags_per_group = le32_to_cpu(es->s_frags_per_group);
 	sbi->s_inodes_per_group = le32_to_cpu(es->s_inodes_per_group);
 	if (EXT4_INODE_SIZE(sb) == 0)
 		goto cantfind_ext4;
@@ -1769,12 +1760,6 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		printk (KERN_ERR
 			"EXT4-fs: #blocks per group too big: %lu\n",
 			sbi->s_blocks_per_group);
-		goto failed_mount;
-	}
-	if (sbi->s_frags_per_group > blocksize * 8) {
-		printk (KERN_ERR
-			"EXT4-fs: #fragments per group too big: %lu\n",
-			sbi->s_frags_per_group);
 		goto failed_mount;
 	}
 	if (sbi->s_inodes_per_group > blocksize * 8) {
