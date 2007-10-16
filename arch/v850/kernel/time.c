@@ -92,12 +92,11 @@ static irqreturn_t timer_interrupt (int irq, void *dummy, struct pt_regs *regs)
 
 static int timer_dev_id;
 static struct irqaction timer_irqaction = {
-	timer_interrupt,
-	IRQF_DISABLED,
-	CPU_MASK_NONE,
-	"timer",
-	&timer_dev_id,
-	NULL
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "timer",
+	.dev_id = &timer_dev_id,
 };
 
 void time_init (void)
