@@ -75,7 +75,7 @@ long um_execve(char *file, char __user *__user *argv, char __user *__user *env)
 
 	err = execve1(file, argv, env);
 	if (!err)
-		do_longjmp(current->thread.exec_buf, 1);
+		UML_LONGJMP(current->thread.exec_buf, 1);
 	return err;
 }
 

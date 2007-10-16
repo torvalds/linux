@@ -149,7 +149,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		   struct uml_pt_regs *regs)
 {
 	struct siginfo si;
-	void *catcher;
+	jmp_buf *catcher;
 	int err;
 	int is_write = FAULT_WRITE(fi);
 	unsigned long address = FAULT_ADDRESS(fi);
@@ -181,7 +181,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		return 0;
 	else if (catcher != NULL) {
 		current->thread.fault_addr = (void *) address;
-		do_longjmp(catcher, 1);
+		UML_LONGJMP(catcher, 1);
 	}
 	else if (current->thread.fault_addr != NULL)
 		panic("fault_addr set but no fault catcher");
@@ -233,7 +233,7 @@ void relay_signal(int sig, struct uml_pt_regs *regs)
 static void bus_handler(int sig, struct uml_pt_regs *regs)
 {
 	if (current->thread.fault_catcher != NULL)
-		do_longjmp(current->thread.fault_catcher, 1);
+		UML_LONGJMP(current->thread.fault_catcher, 1);
 	else relay_signal(sig, regs);
 }
 

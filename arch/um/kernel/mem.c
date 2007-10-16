@@ -17,7 +17,7 @@
 #include "as-layout.h"
 #include "kern.h"
 #include "mem_user.h"
-#include "uml_uaccess.h"
+#include "um_uaccess.h"
 #include "os.h"
 #include "linux/types.h"
 #include "linux/string.h"

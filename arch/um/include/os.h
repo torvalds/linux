@@ -193,7 +193,7 @@ extern int os_getpid(void);
 extern int os_getpgrp(void);
 
 extern void init_new_thread_signals(void);
-extern int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr);
+extern int run_kernel_thread(int (*fn)(void *), void *arg, jmp_buf **jmp_ptr);
 
 extern int os_map_memory(void *virt, int fd, unsigned long long off,
 			 unsigned long len, int r, int w, int x);
@@ -206,7 +206,7 @@ extern void os_flush_stdout(void);
 
 /* uaccess.c */
 extern unsigned long __do_user_copy(void *to, const void *from, int n,
-				    void **fault_addr, void **fault_catcher,
+				    void **fault_addr, jmp_buf **fault_catcher,
 				    void (*op)(void *to, const void *from,
 					       int n), int *faulted_out);
 
@@ -240,7 +240,6 @@ extern int set_signals(int enable);
 
 /* trap.c */
 extern void os_fill_handlinfo(struct kern_handlers h);
-extern void do_longjmp(void *p, int val);
 
 /* util.c */
 extern void stack_protections(unsigned long address);

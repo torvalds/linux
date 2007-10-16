@@ -22,10 +22,3 @@ void os_fill_handlinfo(struct kern_handlers h)
 	sig_info[SIGVTALRM] = h.timer_handler;
 	sig_info[SIGALRM] = h.timer_handler;
 }
-
-void do_longjmp(void *b, int val)
-{
-	jmp_buf *buf = b;
-
-	UML_LONGJMP(buf, val);
-}

@@ -30,10 +30,10 @@ struct thread_struct {
 	struct pt_regs regs;
 	int singlestep_syscall;
 	void *fault_addr;
-	void *fault_catcher;
+	jmp_buf *fault_catcher;
 	struct task_struct *prev_sched;
 	unsigned long temp_stack;
-	void *exec_buf;
+	jmp_buf *exec_buf;
 	struct arch_thread arch;
 	jmp_buf switch_buf;
 	int mm_count;

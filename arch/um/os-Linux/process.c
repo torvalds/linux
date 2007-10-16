@@ -249,7 +249,7 @@ void init_new_thread_signals(void)
 	init_irq_signals(1);
 }
 
-int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr)
+int run_kernel_thread(int (*fn)(void *), void *arg, jmp_buf **jmp_ptr)
 {
 	jmp_buf buf;
 	int n;
