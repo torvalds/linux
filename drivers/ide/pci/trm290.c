@@ -329,6 +329,7 @@ static ide_pci_device_t trm290_chipset __devinitdata = {
 	.init_hwif	= init_hwif_trm290,
 	.autodma	= NOAUTODMA,
 	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 };
 
 static int __devinit trm290_init_one(struct pci_dev *dev, const struct pci_device_id *id)

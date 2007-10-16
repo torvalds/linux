@@ -162,16 +162,6 @@ static int tc86c001_busproc(ide_drive_t *drive, int state)
 	return 0;
 }
 
-static int tc86c001_config_drive_xfer_rate(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 {
 	unsigned long sc_base	= pci_resource_start(hwif->pci_dev, 5);
@@ -212,7 +202,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	hwif->ultra_mask = 0x1f;
 	hwif->mwdma_mask = 0x07;
 
-	hwif->ide_dma_check	= &tc86c001_config_drive_xfer_rate;
 	hwif->dma_start 	= &tc86c001_dma_start;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {

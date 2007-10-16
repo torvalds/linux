@@ -264,16 +264,6 @@ static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	amd_set_drive(drive, XFER_PIO_0 + pio);
 }
 
-static int amd74xx_ide_dma_check(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 /*
  * The initialization callback. Here we determine the IDE chip type
  * and initialize its drive independent registers.
@@ -415,7 +405,6 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 			hwif->cbl = ATA_CBL_PATA40;
 	}
 
-        hwif->ide_dma_check = &amd74xx_ide_dma_check;
         if (!noautodma)
                 hwif->autodma = 1;
         hwif->drives[0].autodma = hwif->autodma;

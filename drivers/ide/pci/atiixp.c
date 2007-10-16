@@ -159,24 +159,6 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	atiixp_dma_check	-	set up an IDE device
- *	@drive: IDE drive to configure
- *
- *	Set up the ATIIXP interface for the best available speed on this
- *	interface, preferring DMA to PIO.
- */
-
-static int atiixp_dma_check(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-/**
  *	init_hwif_atiixp		-	fill in the hwif for the ATIIXP
  *	@hwif: IDE interface
  *
@@ -215,7 +197,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 
 	hwif->dma_host_on = &atiixp_dma_host_on;
 	hwif->dma_host_off = &atiixp_dma_host_off;
-	hwif->ide_dma_check = &atiixp_dma_check;
+
 	if (!noautodma)
 		hwif->autodma = 1;
 

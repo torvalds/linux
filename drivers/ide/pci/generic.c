@@ -97,77 +97,92 @@ static ide_pci_device_t generic_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_generic,
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 1 */
 		.name		= "NS87410",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x43,0x08,0x08}, {0x47,0x08,0x08}},
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
         },{	/* 2 */
 		.name		= "SAMURAI",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 3 */
 		.name		= "HT6565",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 4 */
 		.name		= "UM8673F",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= NODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 5 */
 		.name		= "UM8886A",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= NODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 6 */
 		.name		= "UM8886BF",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= NODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 7 */
 		.name		= "HINT_IDE",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= AUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 8 */
 		.name		= "VIA_IDE",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= NOAUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 9 */
 		.name		= "OPTI621V",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= NOAUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 10 */
 		.name		= "VIA8237SATA",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 11 */
 		.name 		= "Piccolo0102",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= NOAUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 12 */
 		.name 		= "Piccolo0103",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= NOAUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 13 */
 		.name 		= "Piccolo0105",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= NOAUTODMA,
 		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 14 */
 		.name		= "Revolution",
 		.init_hwif	= init_hwif_generic,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	}
 };
 

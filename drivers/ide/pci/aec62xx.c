@@ -141,16 +141,6 @@ static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	drive->hwif->set_dma_mode(drive, pio + XFER_PIO_0);
 }
 
-static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static void aec62xx_dma_lost_irq (ide_drive_t *drive)
 {
 	switch (HWIF(drive)->pci_dev->device) {
@@ -214,7 +204,6 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	hwif->ultra_mask = hwif->cds->udma_mask;
 	hwif->mwdma_mask = 0x07;
 
-	hwif->ide_dma_check	= &aec62xx_config_drive_xfer_rate;
 	hwif->dma_lost_irq	= &aec62xx_dma_lost_irq;
 
 	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {

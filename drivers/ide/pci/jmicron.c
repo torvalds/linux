@@ -100,24 +100,6 @@ static void jmicron_set_dma_mode(ide_drive_t *drive, const u8 mode)
 }
 
 /**
- *	jmicron_configure_drive_for_dma	-	set up for DMA transfers
- *	@drive: drive we are going to set up
- *
- *	As the JMicron snoops for timings all we actually need to do is
- *	make sure we don't set an invalid mode.
- */
-
-static int jmicron_config_drive_for_dma (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-/**
  *	init_hwif_jmicron	-	set up hwif structs
  *	@hwif: interface to set up
  *
@@ -138,8 +120,6 @@ static void __devinit init_hwif_jmicron(ide_hwif_t *hwif)
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
-
-	hwif->ide_dma_check = &jmicron_config_drive_for_dma;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_jmicron(hwif);

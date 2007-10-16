@@ -105,15 +105,6 @@ static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	cs5520_set_pio_mode(drive, 0);
 }
 
-static int cs5520_config_drive_xfer_rate(ide_drive_t *drive)
-{
-	/* Tune the drive for PIO modes up to PIO 4 */	
-	ide_set_max_pio(drive);
-
-	/* Then tell the core to use DMA operations */
-	return 0;
-}
-
 /*
  *	We provide a callback for our nonstandard DMA location
  */
@@ -148,7 +139,6 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->ide_dma_check = &cs5520_config_drive_xfer_rate;
 	hwif->ide_dma_on = &cs5520_dma_on;
 
 	/* ATAPI is harder so leave it for now */
@@ -171,7 +161,8 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		.init_hwif	= init_hwif_cs5520,		\
 		.autodma	= AUTODMA,			\
 		.bootable	= ON_BOARD,			\
-		.host_flags	= IDE_HFLAG_ISA_PORTS,		\
+		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
+				  IDE_HFLAG_VDMA,		\
 		.pio_mask	= ATA_PIO4,			\
 	}
 

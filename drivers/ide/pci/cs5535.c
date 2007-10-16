@@ -157,16 +157,6 @@ static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	cs5535_set_speed(drive, XFER_PIO_0 + pio);
 }
 
-static int cs5535_dma_check(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)
 {
 	u8 bit;
@@ -196,8 +186,6 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 
 	if (hwif->dma_base == 0)
 		return;
-
-	hwif->ide_dma_check = &cs5535_dma_check;
 
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x1F;

@@ -311,26 +311,6 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-/**
- *	siimage_configure_drive_for_dma	-	set up for DMA transfers
- *	@drive: drive we are going to set up
- *
- *	Set up the drive for DMA, tune the controller and drive as 
- *	required. If the drive isn't suitable for DMA or we hit
- *	other problems then we will drop down to PIO and set up
- *	PIO appropriately
- */
- 
-static int siimage_config_drive_for_dma (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 /* returns 1 if dma irq issued, 0 otherwise */
 static int siimage_io_ide_dma_test_irq (ide_drive_t *drive)
 {
@@ -923,8 +903,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 
 	if (!is_sata(hwif))
 		hwif->atapi_dma = 1;
-
-	hwif->ide_dma_check = &siimage_config_drive_for_dma;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_siimage(hwif);

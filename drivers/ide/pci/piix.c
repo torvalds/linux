@@ -255,24 +255,6 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	piix_config_drive_xfer_rate	-	set up an IDE device
- *	@drive: IDE drive to configure
- *
- *	Set up the PIIX interface for the best available speed on this
- *	interface, preferring DMA to PIO.
- */
- 
-static int piix_config_drive_xfer_rate (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-/**
  *	piix_is_ichx	-	check if ICHx
  *	@dev: PCI device to check
  *
@@ -432,7 +414,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	if (no_piix_dma)
 		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;
 
-	hwif->ide_dma_check = &piix_config_drive_xfer_rate;
 	if (!noautodma)
 		hwif->autodma = 1;
 

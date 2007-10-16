@@ -96,16 +96,6 @@ static void triflex_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	triflex_set_mode(drive, XFER_PIO_0 + pio);
 }
 
-static int triflex_config_drive_xfer_rate(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static void __devinit init_hwif_triflex(ide_hwif_t *hwif)
 {
 	hwif->set_pio_mode = &triflex_set_pio_mode;
@@ -117,7 +107,6 @@ static void __devinit init_hwif_triflex(ide_hwif_t *hwif)
 	hwif->atapi_dma  = 1;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
-	hwif->ide_dma_check = &triflex_config_drive_xfer_rate;
 	
 	if (!noautodma)
 		hwif->autodma = 1;

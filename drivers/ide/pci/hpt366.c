@@ -713,16 +713,6 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 			   IDE_CONTROL_REG);
 }
 
-static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 /*
  * This is specific to the HPT366 UDMA chipset
  * by HighPoint|Triones Technologies, Inc.
@@ -1345,8 +1335,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = (scr1 & ata66) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
-
-	hwif->ide_dma_check		= &hpt366_config_drive_xfer_rate;
 
 	if (chip_type >= HPT374) {
 		hwif->ide_dma_test_irq	= &hpt374_ide_dma_test_irq;

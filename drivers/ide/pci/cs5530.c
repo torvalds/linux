@@ -104,24 +104,6 @@ out:
 	return mask;
 }
 
-/**
- *	cs5530_config_dma	-	set DMA/UDMA mode
- *	@drive: drive to tune
- *
- *	cs5530_config_dma() handles setting of DMA/UDMA mode
- *	for both the chipset and drive.
- */
-
-static int cs5530_config_dma(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
 {
 	unsigned long basereg;
@@ -288,7 +270,7 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 
 	hwif->udma_filter = cs5530_udma_filter;
-	hwif->ide_dma_check = &cs5530_config_dma;
+
 	if (!noautodma)
 		hwif->autodma = 1;
 	hwif->drives[0].autodma = hwif->autodma;

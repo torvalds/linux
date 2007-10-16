@@ -437,24 +437,6 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	ali15x3_config_drive_for_dma	-	configure for DMA
- *	@drive: drive to configure
- *
- *	Configure a drive for DMA operation. If DMA is not possible we
- *	drop the drive into PIO mode instead.
- */
-
-static int ali15x3_config_drive_for_dma(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-/**
  *	ali15x3_dma_setup	-	begin a DMA phase
  *	@drive:	target device
  *
@@ -713,7 +695,6 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 
-	hwif->ide_dma_check = &ali15x3_config_drive_for_dma;
 	hwif->dma_setup = &ali15x3_dma_setup;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)

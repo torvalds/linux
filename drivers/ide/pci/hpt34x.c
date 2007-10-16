@@ -80,16 +80,6 @@ static void hpt34x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	hpt34x_set_mode(drive, XFER_PIO_0 + pio);
 }
 
-static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return -1;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 /*
  * If the BIOS does not set the IO base addaress to XX00, 343 will fail.
  */
@@ -156,7 +146,6 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x07;
 #endif
 
-	hwif->ide_dma_check = &hpt34x_config_drive_xfer_rate;
 	if (!noautodma)
 		hwif->autodma = (pcicmd & PCI_COMMAND_MEMORY) ? 1 : 0;
 	hwif->drives[0].autodma = hwif->autodma;

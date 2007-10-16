@@ -601,16 +601,6 @@ static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-static int sis5513_config_xfer_rate(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static u8 sis5513_ata133_udma_filter(ide_drive_t *drive)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
@@ -846,8 +836,6 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_sis5513(hwif);
-
-	hwif->ide_dma_check = &sis5513_config_xfer_rate;
 
 	if (!noautodma)
 		hwif->autodma = 1;

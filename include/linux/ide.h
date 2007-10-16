@@ -736,7 +736,6 @@ typedef struct hwif_s {
 	void (*dma_exec_cmd)(ide_drive_t *, u8);
 	void (*dma_start)(ide_drive_t *);
 	int (*ide_dma_end)(ide_drive_t *drive);
-	int (*ide_dma_check)(ide_drive_t *drive);
 	int (*ide_dma_on)(ide_drive_t *drive);
 	void (*dma_off_quietly)(ide_drive_t *drive);
 	int (*ide_dma_test_irq)(ide_drive_t *drive);
@@ -1256,6 +1255,10 @@ enum {
 	IDE_HFLAG_POST_SET_MODE		= (1 << 8),
 	/* don't program host/device for the transfer mode ("smart" hosts) */
 	IDE_HFLAG_NO_SET_MODE		= (1 << 9),
+	/* trust BIOS for programming chipset/device for DMA */
+	IDE_HFLAG_TRUST_BIOS_FOR_DMA	= (1 << 10),
+	/* host uses VDMA */
+	IDE_HFLAG_VDMA			= (1 << 11),
 };
 
 typedef struct ide_pci_device_s {
@@ -1303,7 +1306,6 @@ static inline u8 ide_max_dma_mode(ide_drive_t *drive)
 	return ide_find_dma_mode(drive, XFER_UDMA_6);
 }
 
-int ide_tune_dma(ide_drive_t *);
 void ide_dma_off(ide_drive_t *);
 void ide_dma_verbose(ide_drive_t *);
 int ide_set_dma(ide_drive_t *);
@@ -1330,7 +1332,6 @@ extern void ide_dma_timeout(ide_drive_t *);
 #else
 static inline u8 ide_find_dma_mode(ide_drive_t *drive, u8 speed) { return 0; }
 static inline u8 ide_max_dma_mode(ide_drive_t *drive) { return 0; }
-static inline int ide_tune_dma(ide_drive_t *drive) { return 0; }
 static inline void ide_dma_off(ide_drive_t *drive) { ; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
 static inline int ide_set_dma(ide_drive_t *drive) { return 1; }

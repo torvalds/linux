@@ -284,27 +284,6 @@ static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	scc_configure_drive_for_dma	-	set up for DMA transfers
- *	@drive: drive we are going to set up
- *
- *	Set up the drive for DMA, tune the controller and drive as
- *	required.
- *      If the drive isn't suitable for DMA or we hit other problems
- *      then we will drop down to PIO and set up PIO appropriately.
- *      (return -1)
- */
-
-static int scc_config_drive_for_dma(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-/**
  *	scc_ide_dma_setup	-	begin a DMA phase
  *	@drive: target device
  *
@@ -701,7 +680,6 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	hwif->ide_dma_end = scc_ide_dma_end;
 	hwif->set_pio_mode = scc_set_pio_mode;
 	hwif->set_dma_mode = scc_set_dma_mode;
-	hwif->ide_dma_check = scc_config_drive_for_dma;
 	hwif->ide_dma_test_irq = scc_dma_test_irq;
 	hwif->udma_filter = scc_udma_filter;
 

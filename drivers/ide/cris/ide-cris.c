@@ -664,7 +664,6 @@ cris_ide_inb(unsigned long reg)
 	return (unsigned char)cris_ide_inw(reg);
 }
 
-static int cris_dma_check (ide_drive_t *drive);
 static int cris_dma_end (ide_drive_t *drive);
 static int cris_dma_setup (ide_drive_t *drive);
 static void cris_dma_exec_cmd (ide_drive_t *drive, u8 command);
@@ -792,7 +791,6 @@ init_e100_ide (void)
 		hwif->ata_output_data = &cris_ide_output_data;
 		hwif->atapi_input_bytes = &cris_atapi_input_bytes;
 		hwif->atapi_output_bytes = &cris_atapi_output_bytes;
-		hwif->ide_dma_check = &cris_dma_check;
 		hwif->ide_dma_end = &cris_dma_end;
 		hwif->dma_setup = &cris_dma_setup;
 		hwif->dma_exec_cmd = &cris_dma_exec_cmd;
@@ -1019,16 +1017,6 @@ static ide_startstop_t cris_dma_intr (ide_drive_t *drive)
  * Returns 1 if DMA read/write could not be started, in which case
  * the caller should revert to PIO for the current request.
  */
-
-static int cris_dma_check(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
 
 static int cris_dma_end(ide_drive_t *drive)
 {

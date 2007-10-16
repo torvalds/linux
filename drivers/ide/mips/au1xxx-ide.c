@@ -380,16 +380,6 @@ static u8 auide_mdma_filter(ide_drive_t *drive)
 	return drive->hwif->mwdma_mask;
 }
 
-static int auide_dma_check(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static int auide_dma_test_irq(ide_drive_t *drive)
 {	
 	if (drive->waiting_for_dma == 0)
@@ -700,7 +690,6 @@ static int au_ide_probe(struct device *dev)
 
 	hwif->mdma_filter		= &auide_mdma_filter;
 
-	hwif->ide_dma_check             = &auide_dma_check;
 	hwif->dma_exec_cmd              = &auide_dma_exec_cmd;
 	hwif->dma_start                 = &auide_dma_start;
 	hwif->ide_dma_end               = &auide_dma_end;

@@ -355,6 +355,7 @@ static ide_pci_device_t opti621_chipsets[] __devinitdata = {
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
 		.bootable	= ON_BOARD,
 		.pio_mask	= ATA_PIO3,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 1 */
 		.name		= "OPTI621X",
 		.init_hwif	= init_hwif_opti621,
@@ -362,6 +363,7 @@ static ide_pci_device_t opti621_chipsets[] __devinitdata = {
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
 		.bootable	= ON_BOARD,
 		.pio_mask	= ATA_PIO3,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	}
 };
 

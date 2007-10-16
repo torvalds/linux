@@ -145,21 +145,6 @@ static void sl82c105_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /*
- * Check to see if the drive and chipset are capable of DMA mode.
- */
-static int sl82c105_ide_dma_check(ide_drive_t *drive)
-{
-	DBG(("sl82c105_ide_dma_check(drive:%s)\n", drive->name));
-
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-/*
  * The SL82C105 holds off all IDE interrupts while in DMA mode until
  * all DMA activity is completed.  Sometimes this causes problems (eg,
  * when the drive wants to report an error condition).
@@ -406,7 +391,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	hwif->atapi_dma  = 1;
 	hwif->mwdma_mask = 0x07;
 
-	hwif->ide_dma_check		= &sl82c105_ide_dma_check;
 	hwif->ide_dma_on		= &sl82c105_ide_dma_on;
 	hwif->dma_off_quietly		= &sl82c105_dma_off_quietly;
 	hwif->dma_lost_irq		= &sl82c105_dma_lost_irq;

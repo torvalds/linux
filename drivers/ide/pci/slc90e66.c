@@ -130,16 +130,6 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	slc90e66_set_pio_mode(drive, pio);
 }
 
-static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 {
 	u8 reg47 = 0;
@@ -169,8 +159,6 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		/* bit[0(1)]: 0:80, 1:40 */
 		hwif->cbl = (reg47 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
-
-	hwif->ide_dma_check = &slc90e66_config_drive_xfer_rate;
 
 	if (!noautodma)
 		hwif->autodma = 1;

@@ -309,14 +309,6 @@ static int icside_dma_on(ide_drive_t *drive)
 	return 0;
 }
 
-static int icside_dma_check(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	return -1;
-}
-
 static int icside_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -434,7 +426,6 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->set_dma_mode	= icside_set_dma_mode;
 	hwif->autodma		= 1;
 
-	hwif->ide_dma_check	= icside_dma_check;
 	hwif->dma_host_off	= icside_dma_host_off;
 	hwif->dma_off_quietly	= icside_dma_off_quietly;
 	hwif->dma_host_on	= icside_dma_host_on;

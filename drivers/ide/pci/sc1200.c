@@ -199,21 +199,6 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	}
 }
 
-/*
- * sc1200_config_dma() handles selection/setting of DMA/UDMA modes
- * for both the chipset and drive.
- */
-static int sc1200_config_dma (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-
 /*  Replacement for the standard ide_dma_end action in
  *  dma_proc.
  *
@@ -391,7 +376,6 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 		return;
 
 	hwif->udma_filter = sc1200_udma_filter;
-	hwif->ide_dma_check = &sc1200_config_dma;
 	hwif->ide_dma_end   = &sc1200_ide_dma_end;
 
 	if (!noautodma)

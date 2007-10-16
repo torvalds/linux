@@ -158,32 +158,10 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	it8213_configure_drive_for_dma	-	set up for DMA transfers
- *	@drive: drive we are going to set up
- *
- *	Set up the drive for DMA, tune the controller and drive as
- *	required. If the drive isn't suitable for DMA or we hit
- *	other problems then we will drop down to PIO and set up
- *	PIO appropriately
- */
-
-static int it8213_config_drive_for_dma (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-/**
  *	init_hwif_it8213	-	set up hwif structs
  *	@hwif: interface to set up
  *
- *	We do the basic set up of the interface structure. The IT8212
- *	requires several custom handlers so we override the default
- *	ide DMA handlers appropriately
+ *	We do the basic set up of the interface structure.
  */
 
 static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
@@ -207,8 +185,6 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x04;
 
 	pci_read_config_byte(hwif->pci_dev, 0x42, &reg42h);
-
-	hwif->ide_dma_check = &it8213_config_drive_for_dma;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = (reg42h & 0x02) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
