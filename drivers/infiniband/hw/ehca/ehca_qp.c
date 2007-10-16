@@ -451,7 +451,6 @@ static struct ehca_qp *internal_create_qp(
 		has_srq = 1;
 		parms.ext_type = EQPT_SRQBASE;
 		parms.srq_qpn = my_srq->real_qp_num;
-		parms.srq_token = my_srq->token;
 	}
 
 	if (is_llqp && has_srq) {
@@ -582,6 +581,9 @@ static struct ehca_qp *internal_create_qp(
 		ehca_err(pd->device, "Invalid number of qp");
 		goto create_qp_exit1;
 	}
+
+	if (has_srq)
+		parms.srq_token = my_qp->token;
 
 	parms.servicetype = ibqptype2servicetype(qp_type);
 	if (parms.servicetype < 0) {
