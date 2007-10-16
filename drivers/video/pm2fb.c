@@ -60,6 +60,8 @@
 #define DPRINTK(a,b...)
 #endif
 
+#define PM2_PIXMAP_SIZE	(1600 * 4)
+
 /*
  * Driver data
  */
@@ -1166,6 +1168,104 @@ static void pm2fb_copyarea(struct fb_info *info,
 			modded.width, modded.height, 0);
 }
 
+static void pm2fb_imageblit(struct fb_info *info, const struct fb_image *image)
+{
+	struct pm2fb_par *par = info->par;
+	u32 height = image->height;
+	u32 fgx, bgx;
+	const u32 *src = (const u32*)image->data;
+	u32 xres = (info->var.xres + 31) & ~31;
+
+	if (info->state != FBINFO_STATE_RUNNING)
+		return;
+	if (info->flags & FBINFO_HWACCEL_DISABLED || image->depth != 1) {
+		cfb_imageblit(info, image);
+		return;
+	}
+	switch (info->fix.visual) {
+		case FB_VISUAL_PSEUDOCOLOR:
+			fgx = image->fg_color;
+			bgx = image->bg_color;
+			break;
+		case FB_VISUAL_TRUECOLOR:
+		default:
+			fgx = par->palette[image->fg_color];
+			bgx = par->palette[image->bg_color];
+			break;
+	}
+	if (info->var.bits_per_pixel == 8) {
+		fgx |= fgx << 8;
+		bgx |= bgx << 8;
+	}
+	if (info->var.bits_per_pixel <= 16) {
+		fgx |= fgx << 16;
+		bgx |= bgx << 16;
+	}
+
+	WAIT_FIFO(par, 13);
+	pm2_WR(par, PM2R_FB_READ_MODE, partprod(xres));
+	pm2_WR(par, PM2R_SCISSOR_MIN_XY,
+			((image->dy & 0xfff) << 16) | (image->dx & 0x0fff));
+	pm2_WR(par, PM2R_SCISSOR_MAX_XY,
+			(((image->dy + image->height) & 0x0fff) << 16) |
+			((image->dx + image->width) & 0x0fff));
+	pm2_WR(par, PM2R_SCISSOR_MODE, 1);
+	/* GXcopy & UNIT_ENABLE */
+	pm2_WR(par, PM2R_LOGICAL_OP_MODE, (0x3 << 1) | 1 );
+	pm2_WR(par, PM2R_RECTANGLE_ORIGIN,
+			((image->dy & 0xfff) << 16) | (image->dx & 0x0fff));
+	pm2_WR(par, PM2R_RECTANGLE_SIZE,
+			((image->height & 0x0fff) << 16) |
+			((image->width) & 0x0fff));
+	if (info->var.bits_per_pixel == 24) {
+		pm2_WR(par, PM2R_COLOR_DDA_MODE, 1);
+		/* clear area */
+		pm2_WR(par, PM2R_CONSTANT_COLOR, bgx);
+		pm2_WR(par, PM2R_RENDER,
+			PM2F_RENDER_RECTANGLE |
+			PM2F_INCREASE_X | PM2F_INCREASE_Y );
+		/* BitMapPackEachScanline & invert bits and byte order*/
+		/* force background */
+		pm2_WR(par, PM2R_RASTERIZER_MODE,  (1<<9) | 1 | (3<<7));
+		pm2_WR(par, PM2R_CONSTANT_COLOR, fgx);
+		pm2_WR(par, PM2R_RENDER,
+			PM2F_RENDER_RECTANGLE |
+			PM2F_INCREASE_X | PM2F_INCREASE_Y |
+			PM2F_RENDER_SYNC_ON_BIT_MASK);
+	} else {
+		pm2_WR(par, PM2R_COLOR_DDA_MODE, 0);
+		/* clear area */
+		pm2_WR(par, PM2R_FB_BLOCK_COLOR, bgx);
+		pm2_WR(par, PM2R_RENDER,
+			PM2F_RENDER_RECTANGLE |
+			PM2F_RENDER_FASTFILL |
+			PM2F_INCREASE_X | PM2F_INCREASE_Y );
+		/* invert bits and byte order*/
+		pm2_WR(par, PM2R_RASTERIZER_MODE,  1 | (3<<7) );
+		pm2_WR(par, PM2R_FB_BLOCK_COLOR, fgx);
+		pm2_WR(par, PM2R_RENDER,
+			PM2F_RENDER_RECTANGLE |
+			PM2F_INCREASE_X | PM2F_INCREASE_Y |
+			PM2F_RENDER_FASTFILL |
+			PM2F_RENDER_SYNC_ON_BIT_MASK);
+	}
+
+	while (height--) {
+		int width = ((image->width + 7) >> 3)
+				+ info->pixmap.scan_align - 1;
+		width >>= 2;
+		WAIT_FIFO(par, width);
+		while (width--) {
+			pm2_WR(par, PM2R_BIT_MASK_PATTERN, *src);
+			src++;
+		}
+	}
+	WAIT_FIFO(par, 3);
+	pm2_WR(par, PM2R_RASTERIZER_MODE, 0);
+	pm2_WR(par, PM2R_COLOR_DDA_MODE, 0);
+	pm2_WR(par, PM2R_SCISSOR_MODE, 0);
+}
+
 /* ------------ Hardware Independent Functions ------------ */
 
 /*
@@ -1181,7 +1281,7 @@ static struct fb_ops pm2fb_ops = {
 	.fb_pan_display	= pm2fb_pan_display,
 	.fb_fillrect	= pm2fb_fillrect,
 	.fb_copyarea	= pm2fb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	.fb_imageblit	= pm2fb_imageblit,
 	.fb_sync	= pm2fb_sync,
 };
 
@@ -1340,11 +1440,24 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 	info->flags		= FBINFO_DEFAULT |
 				  FBINFO_HWACCEL_YPAN |
 				  FBINFO_HWACCEL_COPYAREA |
+				  FBINFO_HWACCEL_IMAGEBLIT |
 				  FBINFO_HWACCEL_FILLRECT;
 
+	info->pixmap.addr = kmalloc(PM2_PIXMAP_SIZE, GFP_KERNEL);
+	if (!info->pixmap.addr) {
+		err_retval = -ENOMEM;
+		goto err_exit_pixmap;
+	}
+	info->pixmap.size = PM2_PIXMAP_SIZE;
+	info->pixmap.buf_align = 4;
+	info->pixmap.scan_align = 4;
+	info->pixmap.access_align = 32;
+	info->pixmap.flags = FB_PIXMAP_SYSTEM;
+
 	if (noaccel) {
-	    	printk(KERN_DEBUG "disabling acceleration\n");
-  		info->flags |= FBINFO_HWACCEL_DISABLED;
+		printk(KERN_DEBUG "disabling acceleration\n");
+		info->flags |= FBINFO_HWACCEL_DISABLED;
+		info->pixmap.scan_align = 1;
 	}
 
 	if (!mode)
@@ -1373,6 +1486,8 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
  err_exit_all:
 	fb_dealloc_cmap(&info->cmap);
  err_exit_both:
+	kfree(info->pixmap.addr);
+ err_exit_pixmap:
 	iounmap(info->screen_base);
 	release_mem_region(pm2fb_fix.smem_start, pm2fb_fix.smem_len);
  err_exit_mmio:
@@ -1409,6 +1524,8 @@ static void __devexit pm2fb_remove(struct pci_dev *pdev)
 	release_mem_region(fix->mmio_start, fix->mmio_len);
 
 	pci_set_drvdata(pdev, NULL);
+	if (info->pixmap.addr)
+		kfree(info->pixmap.addr);
 	kfree(info);
 }
 
