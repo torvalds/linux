@@ -57,7 +57,7 @@ static struct subsys_attribute auto_poweron_attr = {
 };
 
 #ifndef CONFIG_PM
-decl_subsys(power,NULL,NULL);
+decl_subsys(power, NULL);
 
 static struct attribute *g[] = {
         &auto_poweron_attr.attr,

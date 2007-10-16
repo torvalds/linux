@@ -11,7 +11,7 @@
 
 #include "base.h"
 
-decl_subsys(hypervisor, NULL, NULL);
+decl_subsys(hypervisor, NULL);
 EXPORT_SYMBOL_GPL(hypervisor_subsys);
 
 int __init hypervisor_init(void)

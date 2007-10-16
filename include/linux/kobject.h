@@ -135,7 +135,6 @@ struct kset_uevent_ops {
  * define the attribute callbacks and other common events that happen to
  * a kobject.
  *
- * @ktype: the struct kobj_type for this specific kset
  * @list: the list of all kobjects for this kset
  * @list_lock: a lock for iterating over the kobjects
  * @kobj: the embedded kobject for this kset (recursion, isn't it fun...)
@@ -145,7 +144,6 @@ struct kset_uevent_ops {
  * desired.
  */
 struct kset {
-	struct kobj_type	*ktype;
 	struct list_head	list;
 	spinlock_t		list_lock;
 	struct kobject		kobj;
@@ -173,12 +171,9 @@ static inline void kset_put(struct kset * k)
 	kobject_put(&k->kobj);
 }
 
-static inline struct kobj_type * get_ktype(struct kobject * k)
+static inline struct kobj_type *get_ktype(struct kobject *kobj)
 {
-	if (k->kset && k->kset->ktype)
-		return k->kset->ktype;
-	else 
-		return k->ktype;
+	return kobj->ktype;
 }
 
 extern struct kobject * kset_find_obj(struct kset *, const char *);
@@ -191,16 +186,14 @@ extern struct kobject * kset_find_obj(struct kset *, const char *);
 #define set_kset_name(str)	.kset = { .kobj = { .k_name = str } }
 
 
-#define decl_subsys(_name,_type,_uevent_ops) \
+#define decl_subsys(_name,_uevent_ops) \
 struct kset _name##_subsys = { \
 	.kobj = { .k_name = __stringify(_name) }, \
-	.ktype = _type, \
 	.uevent_ops =_uevent_ops, \
 }
-#define decl_subsys_name(_varname,_name,_type,_uevent_ops) \
+#define decl_subsys_name(_varname,_name,_uevent_ops) \
 struct kset _varname##_subsys = { \
 	.kobj = { .k_name = __stringify(_name) }, \
-	.ktype = _type, \
 	.uevent_ops =_uevent_ops, \
 }
 

@@ -72,7 +72,7 @@ static struct kobj_type o2cb_subsys_type = {
 };
 
 /* gives us o2cb_subsys */
-static decl_subsys(o2cb, NULL, NULL);
+static decl_subsys(o2cb, NULL);
 
 static ssize_t
 o2cb_show(struct kobject * kobj, struct attribute * attr, char * buffer)

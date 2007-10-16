@@ -189,9 +189,7 @@ static struct kobj_type gdlm_ktype = {
 	.sysfs_ops     = &gdlm_attr_ops,
 };
 
-static struct kset gdlm_kset = {
-	.ktype  = &gdlm_ktype,
-};
+static struct kset gdlm_kset;
 
 int gdlm_kobject_setup(struct gdlm_ls *ls, struct kobject *fskobj)
 {
@@ -224,7 +222,7 @@ int gdlm_sysfs_init(void)
 	int error;
 
 	kobject_set_name(&gdlm_kset.kobj, "lock_dlm");
-	kobj_set_kset_s(&gdlm_kset, kernel_subsys);
+	gdlm_kset.kobj.kset = &kernel_subsys;
 	error = kset_register(&gdlm_kset);
 	if (error)
 		printk("lock_dlm: cannot register kset %d\n", error);

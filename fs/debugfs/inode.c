@@ -426,13 +426,13 @@ exit:
 }
 EXPORT_SYMBOL_GPL(debugfs_rename);
 
-static decl_subsys(debug, NULL, NULL);
+static decl_subsys(debug, NULL);
 
 static int __init debugfs_init(void)
 {
 	int retval;
 
-	kobj_set_kset_s(&debug_subsys, kernel_subsys);
+	debug_subsys.kobj.kset = &kernel_subsys;
 	retval = subsystem_register(&debug_subsys);
 	if (retval)
 		return retval;

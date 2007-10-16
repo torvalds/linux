@@ -30,6 +30,8 @@
 #define DEBUGP(fmt, a...)
 #endif
 
+static struct kobj_type module_ktype;
+
 static inline char dash2underscore(char c)
 {
 	if (c == '-')
@@ -560,7 +562,8 @@ static void __init kernel_param_sysfs_setup(const char *name,
 	BUG_ON(!mk);
 
 	mk->mod = THIS_MODULE;
-	kobj_set_kset_s(mk, module_subsys);
+	mk->kobj.kset = &module_subsys;
+	mk->kobj.ktype = &module_ktype;
 	kobject_set_name(&mk->kobj, name);
 	kobject_init(&mk->kobj);
 	ret = kobject_add(&mk->kobj);
@@ -679,8 +682,6 @@ static struct sysfs_ops module_sysfs_ops = {
 	.store = module_attr_store,
 };
 
-static struct kobj_type module_ktype;
-
 static int uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
@@ -694,7 +695,7 @@ static struct kset_uevent_ops module_uevent_ops = {
 	.filter = uevent_filter,
 };
 
-decl_subsys(module, &module_ktype, &module_uevent_ops);
+decl_subsys(module, &module_uevent_ops);
 int module_sysfs_initialized;
 
 static void module_release(struct kobject *kobj)

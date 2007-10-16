@@ -94,7 +94,7 @@ static struct bin_attribute notes_attr = {
 	.read = &notes_read,
 };
 
-decl_subsys(kernel, NULL, NULL);
+decl_subsys(kernel, NULL);
 EXPORT_SYMBOL_GPL(kernel_subsys);
 
 static struct attribute * kernel_attrs[] = {

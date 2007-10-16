@@ -365,9 +365,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	/* if the kobject has no ktype, then we assume that it is a subsystem
 	 * itself, and use ops for it.
 	 */
-	if (kobj->kset && kobj->kset->ktype)
-		ops = kobj->kset->ktype->sysfs_ops;
-	else if (kobj->ktype)
+	if (kobj->ktype)
 		ops = kobj->ktype->sysfs_ops;
 	else
 		ops = &subsys_sysfs_ops;

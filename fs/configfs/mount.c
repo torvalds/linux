@@ -128,7 +128,7 @@ void configfs_release_fs(void)
 }
 
 
-static decl_subsys(config, NULL, NULL);
+static decl_subsys(config, NULL);
 
 static int __init configfs_init(void)
 {
@@ -140,7 +140,7 @@ static int __init configfs_init(void)
 	if (!configfs_dir_cachep)
 		goto out;
 
-	kobj_set_kset_s(&config_subsys, kernel_subsys);
+	config_subsys.kobj.kset = &kernel_subsys;
 	err = subsystem_register(&config_subsys);
 	if (err) {
 		kmem_cache_destroy(configfs_dir_cachep);

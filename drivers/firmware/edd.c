@@ -631,7 +631,7 @@ static struct kobj_type edd_ktype = {
 	.default_attrs	= def_attrs,
 };
 
-static decl_subsys(edd, &edd_ktype, NULL);
+static decl_subsys(edd, NULL);
 
 
 /**
@@ -723,7 +723,8 @@ edd_device_register(struct edd_device *edev, int i)
 	edd_dev_set_info(edev, i);
 	kobject_set_name(&edev->kobj, "int13_dev%02x",
 			 0x80 + i);
-	kobj_set_kset_s(edev,edd_subsys);
+	edev->kobj.kset = &edd_subsys;
+	edev->kobj.ktype = &edd_ktype;
 	error = kobject_register(&edev->kobj);
 	if (!error)
 		edd_populate_dir(edev);

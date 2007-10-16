@@ -964,8 +964,8 @@ static struct subsys_attribute *pdcs_subsys_attrs[] = {
 	NULL,
 };
 
-static decl_subsys(paths, &ktype_pdcspath, NULL);
-static decl_subsys(stable, NULL, NULL);
+static decl_subsys(paths, NULL);
+static decl_subsys(stable, NULL);
 
 /**
  * pdcs_register_pathentries - Prepares path entries kobjects for sysfs usage.
@@ -997,7 +997,8 @@ pdcs_register_pathentries(void)
 
 		if ((err = kobject_set_name(&entry->kobj, "%s", entry->name)))
 			return err;
-		kobj_set_kset_s(entry, paths_subsys);
+		entry->kobj.kset = &paths_subsys;
+		entry->kobj.ktype = &ktype_pdcspath;
 		if ((err = kobject_register(&entry->kobj)))
 			return err;
 		
@@ -1072,7 +1073,7 @@ pdc_stable_init(void)
 			error = subsys_create_file(&stable_subsys, attr);
 	
 	/* register the paths subsys as a subsystem of stable subsys */
-	kobj_set_kset_s(&paths_subsys, stable_subsys);
+	paths_subsys.kobj.kset = &stable_subsys;
 	if ((rc = subsystem_register(&paths_subsys)))
 		goto fail_subsysreg;
 

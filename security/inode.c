@@ -315,13 +315,13 @@ void securityfs_remove(struct dentry *dentry)
 }
 EXPORT_SYMBOL_GPL(securityfs_remove);
 
-static decl_subsys(security, NULL, NULL);
+static decl_subsys(security, NULL);
 
 static int __init securityfs_init(void)
 {
 	int retval;
 
-	kobj_set_kset_s(&security_subsys, kernel_subsys);
+	security_subsys.kobj.kset = &kernel_subsys;
 	retval = subsystem_register(&security_subsys);
 	if (retval)
 		return retval;

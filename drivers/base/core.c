@@ -405,7 +405,7 @@ static struct device_attribute devt_attr =
  *	devices_subsys - structure to be registered with kobject core.
  */
 
-decl_subsys(devices, &device_ktype, &device_uevent_ops);
+decl_subsys(devices, &device_uevent_ops);
 
 
 /**
@@ -525,7 +525,8 @@ static void klist_children_put(struct klist_node *n)
 
 void device_initialize(struct device *dev)
 {
-	kobj_set_kset_s(dev, devices_subsys);
+	dev->kobj.kset = &devices_subsys;
+	dev->kobj.ktype = &device_ktype;
 	kobject_init(&dev->kobj);
 	klist_init(&dev->klist_children, klist_children_get,
 		   klist_children_put);

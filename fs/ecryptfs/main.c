@@ -734,7 +734,7 @@ static int ecryptfs_init_kmem_caches(void)
 	return 0;
 }
 
-static decl_subsys(ecryptfs, NULL, NULL);
+static decl_subsys(ecryptfs, NULL);
 
 static ssize_t version_show(struct kset *kset, char *buff)
 {
@@ -798,6 +798,7 @@ static int do_sysfs_registration(void)
 {
 	int rc;
 
+	ecryptfs_subsys.kobj.kset = &fs_subsys;
 	rc = subsystem_register(&ecryptfs_subsys);
 	if (rc) {
 		printk(KERN_ERR
@@ -845,7 +846,6 @@ static int __init ecryptfs_init(void)
 		printk(KERN_ERR "Failed to register filesystem\n");
 		goto out_free_kmem_caches;
 	}
-	kobj_set_kset_s(&ecryptfs_subsys, fs_subsys);
 	rc = do_sysfs_registration();
 	if (rc) {
 		printk(KERN_ERR "sysfs registration failed\n");

@@ -743,7 +743,7 @@ static int __init acpi_bus_init(void)
 	return -ENODEV;
 }
 
-decl_subsys(acpi, NULL, NULL);
+decl_subsys(acpi, NULL);
 
 static int __init acpi_init(void)
 {

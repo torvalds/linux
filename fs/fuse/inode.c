@@ -744,8 +744,8 @@ static inline void unregister_fuseblk(void)
 }
 #endif
 
-static decl_subsys(fuse, NULL, NULL);
-static decl_subsys(connections, NULL, NULL);
+static decl_subsys(fuse, NULL);
+static decl_subsys(connections, NULL);
 
 static void fuse_inode_init_once(struct kmem_cache *cachep, void *foo)
 {
@@ -795,12 +795,12 @@ static int fuse_sysfs_init(void)
 {
 	int err;
 
-	kobj_set_kset_s(&fuse_subsys, fs_subsys);
+	fuse_subsys.kobj.kset = &fs_subsys;
 	err = subsystem_register(&fuse_subsys);
 	if (err)
 		goto out_err;
 
-	kobj_set_kset_s(&connections_subsys, fuse_subsys);
+	connections_subsys.kobj.kset = &fuse_subsys;
 	err = subsystem_register(&connections_subsys);
 	if (err)
 		goto out_fuse_unregister;

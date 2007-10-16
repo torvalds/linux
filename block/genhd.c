@@ -584,7 +584,7 @@ static struct kset_uevent_ops block_uevent_ops = {
 	.uevent		= block_uevent,
 };
 
-decl_subsys(block, &ktype_block, &block_uevent_ops);
+decl_subsys(block, &block_uevent_ops);
 
 /*
  * aggregate disk stat collector.  Uses the same stats that the sysfs
@@ -721,7 +721,8 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 			}
 		}
 		disk->minors = minors;
-		kobj_set_kset_s(disk,block_subsys);
+		disk->kobj.kset = &block_subsys;
+		disk->kobj.ktype = &ktype_block;
 		kobject_init(&disk->kobj);
 		rand_initialize_disk(disk);
 		INIT_WORK(&disk->async_notify,

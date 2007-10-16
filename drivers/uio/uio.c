@@ -160,7 +160,7 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 		if (!map_found) {
 			map_found = 1;
 			kobject_set_name(&idev->map_attr_kset.kobj,"maps");
-			idev->map_attr_kset.ktype = &map_attr_type;
+			idev->map_attr_kset.kobj.ktype = &map_attr_type;
 			idev->map_attr_kset.kobj.parent = &idev->dev->kobj;
 			ret = kset_register(&idev->map_attr_kset);
 			if (ret)

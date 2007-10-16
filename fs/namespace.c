@@ -41,7 +41,7 @@ static struct kmem_cache *mnt_cache __read_mostly;
 static struct rw_semaphore namespace_sem;
 
 /* /sys/fs */
-decl_subsys(fs, NULL, NULL);
+decl_subsys(fs, NULL);
 EXPORT_SYMBOL_GPL(fs_subsys);
 
 static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)

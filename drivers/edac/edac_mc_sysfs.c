@@ -744,7 +744,6 @@ static struct kobj_type ktype_mc_set_attribs = {
  */
 static struct kset mc_kset = {
 	.kobj = {.ktype = &ktype_mc_set_attribs },
-	.ktype = &ktype_mci,
 };
 
 
@@ -767,6 +766,7 @@ int edac_mc_register_sysfs_main_kobj(struct mem_ctl_info *mci)
 
 	/* this instance become part of the mc_kset */
 	kobj_mci->kset = &mc_kset;
+	kobj_mci->ktype = &ktype_mci;
 
 	/* set the name of the mc<id> object */
 	err = kobject_set_name(kobj_mci, "mc%d", mci->mc_idx);

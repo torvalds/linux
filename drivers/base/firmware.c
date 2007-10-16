@@ -15,11 +15,12 @@
 
 #include "base.h"
 
-static decl_subsys(firmware, NULL, NULL);
+static decl_subsys(firmware, NULL);
 
 int firmware_register(struct kset *s)
 {
-	kobj_set_kset_s(s, firmware_subsys);
+	s->kobj.kset = &firmware_subsys;
+	s->kobj.ktype = NULL;
 	return subsystem_register(s);
 }
 

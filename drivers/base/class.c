@@ -71,7 +71,7 @@ static struct kobj_type class_ktype = {
 };
 
 /* Hotplug events for classes go to the class_obj subsys */
-static decl_subsys(class, &class_ktype, NULL);
+static decl_subsys(class, NULL);
 
 
 int class_create_file(struct class * cls, const struct class_attribute * attr)
@@ -150,6 +150,7 @@ int class_register(struct class * cls)
 		return error;
 
 	cls->subsys.kobj.kset = &class_subsys;
+	cls->subsys.kobj.ktype = &class_ktype;
 
 	error = subsystem_register(&cls->subsys);
 	if (!error) {
@@ -452,7 +453,7 @@ static struct kset_uevent_ops class_uevent_ops = {
 	.uevent =	class_uevent,
 };
 
-static decl_subsys(class_obj, &class_device_ktype, &class_uevent_ops);
+static decl_subsys(class_obj, &class_uevent_ops);
 
 
 static int class_device_add_attrs(struct class_device * cd)
@@ -537,7 +538,8 @@ static struct class_device_attribute class_uevent_attr =
 
 void class_device_initialize(struct class_device *class_dev)
 {
-	kobj_set_kset_s(class_dev, class_obj_subsys);
+	class_dev->kobj.kset = &class_obj_subsys;
+	class_dev->kobj.ktype = &class_device_ktype;
 	kobject_init(&class_dev->kobj);
 	INIT_LIST_HEAD(&class_dev->node);
 }

@@ -3962,7 +3962,7 @@ static struct kset_uevent_ops slab_uevent_ops = {
 	.filter = uevent_filter,
 };
 
-static decl_subsys(slab, &slab_ktype, &slab_uevent_ops);
+static decl_subsys(slab, &slab_uevent_ops);
 
 #define ID_STR_LENGTH 64
 
@@ -4025,8 +4025,9 @@ static int sysfs_slab_add(struct kmem_cache *s)
 		name = create_unique_id(s);
 	}
 
-	kobj_set_kset_s(s, slab_subsys);
 	kobject_set_name(&s->kobj, name);
+	s->kobj.kset = &slab_subsys;
+	s->kobj.ktype = &slab_ktype;
 	kobject_init(&s->kobj);
 	err = kobject_add(&s->kobj);
 	if (err)

@@ -166,7 +166,7 @@ static struct kset_uevent_ops bus_uevent_ops = {
 	.filter = bus_uevent_filter,
 };
 
-static decl_subsys(bus, &bus_ktype, &bus_uevent_ops);
+static decl_subsys(bus, &bus_uevent_ops);
 
 
 #ifdef CONFIG_HOTPLUG
@@ -639,6 +639,7 @@ int bus_add_driver(struct device_driver *drv)
 	if (error)
 		goto out_put_bus;
 	drv->kobj.kset = &bus->drivers;
+	drv->kobj.ktype = &driver_ktype;
 	error = kobject_register(&drv->kobj);
 	if (error)
 		goto out_put_bus;
@@ -851,6 +852,7 @@ int bus_register(struct bus_type * bus)
 		goto out;
 
 	bus->subsys.kobj.kset = &bus_subsys;
+	bus->subsys.kobj.ktype = &bus_ktype;
 
 	retval = subsystem_register(&bus->subsys);
 	if (retval)
@@ -868,7 +870,6 @@ int bus_register(struct bus_type * bus)
 
 	kobject_set_name(&bus->drivers.kobj, "drivers");
 	bus->drivers.kobj.parent = &bus->subsys.kobj;
-	bus->drivers.ktype = &driver_ktype;
 	retval = kset_register(&bus->drivers);
 	if (retval)
 		goto bus_drivers_fail;

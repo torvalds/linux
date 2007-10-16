@@ -276,7 +276,7 @@ EXPORT_SYMBOL(pm_suspend);
 
 #endif /* CONFIG_SUSPEND */
 
-decl_subsys(power,NULL,NULL);
+decl_subsys(power, NULL);
 
 
 /**

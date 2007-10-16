@@ -96,7 +96,7 @@ static struct kobj_type hotplug_slot_ktype = {
 	.release = &hotplug_slot_release,
 };
 
-decl_subsys_name(pci_hotplug_slots, slots, &hotplug_slot_ktype, NULL);
+decl_subsys_name(pci_hotplug_slots, slots, NULL);
 
 /* these strings match up with the values in pci_bus_speed */
 static char *pci_bus_speed_strings[] = {
@@ -633,7 +633,8 @@ int pci_hp_register (struct hotplug_slot *slot)
 	}
 
 	kobject_set_name(&slot->kobj, "%s", slot->name);
-	kobj_set_kset_s(slot, pci_hotplug_slots_subsys);
+	slot->kobj.kset = &pci_hotplug_slots_subsys;
+	slot->kobj.ktype = &hotplug_slot_ktype;
 
 	/* this can fail if we have already registered a slot with the same name */
 	if (kobject_register(&slot->kobj)) {
@@ -701,7 +702,7 @@ static int __init pci_hotplug_init (void)
 {
 	int result;
 
-	kobj_set_kset_s(&pci_hotplug_slots_subsys, pci_bus_type.subsys);
+	pci_hotplug_slots_subsys.kobj.kset = &pci_bus_type.subsys;
 	result = subsystem_register(&pci_hotplug_slots_subsys);
 	if (result) {
 		err("Register subsys with error %d\n", result);

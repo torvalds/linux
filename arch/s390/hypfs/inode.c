@@ -490,7 +490,7 @@ static struct super_operations hypfs_s_ops = {
 	.show_options	= hypfs_show_options,
 };
 
-static decl_subsys(s390, NULL, NULL);
+static decl_subsys(s390, NULL);
 
 static int __init hypfs_init(void)
 {
@@ -506,7 +506,7 @@ static int __init hypfs_init(void)
 			goto fail_diag;
 		}
 	}
-	kobj_set_kset_s(&s390_subsys, hypervisor_subsys);
+	s390_subsys.kobj.kset = &hypervisor_subsys;
 	rc = subsystem_register(&s390_subsys);
 	if (rc)
 		goto fail_sysfs;

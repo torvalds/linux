@@ -418,7 +418,7 @@ static struct attribute_group ipl_unknown_attr_group = {
 	.attrs = ipl_unknown_attrs,
 };
 
-static decl_subsys(ipl, NULL, NULL);
+static decl_subsys(ipl, NULL);
 
 /*
  * reipl section
@@ -590,7 +590,7 @@ static ssize_t reipl_type_store(struct kset *kset, const char *buf,
 static struct subsys_attribute reipl_type_attr =
 		__ATTR(reipl_type, 0644, reipl_type_show, reipl_type_store);
 
-static decl_subsys(reipl, NULL, NULL);
+static decl_subsys(reipl, NULL);
 
 /*
  * dump section
@@ -685,13 +685,13 @@ static ssize_t dump_type_store(struct kset *kset, const char *buf,
 static struct subsys_attribute dump_type_attr =
 		__ATTR(dump_type, 0644, dump_type_show, dump_type_store);
 
-static decl_subsys(dump, NULL, NULL);
+static decl_subsys(dump, NULL);
 
 /*
  * Shutdown actions section
  */
 
-static decl_subsys(shutdown_actions, NULL, NULL);
+static decl_subsys(shutdown_actions, NULL);
 
 /* on panic */
 

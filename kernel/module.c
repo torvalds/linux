@@ -1223,7 +1223,7 @@ int mod_sysfs_init(struct module *mod)
 	err = kobject_set_name(&mod->mkobj.kobj, "%s", mod->name);
 	if (err)
 		goto out;
-	kobj_set_kset_s(&mod->mkobj, module_subsys);
+	mod->mkobj.kobj.kset = &module_subsys;
 	mod->mkobj.mod = mod;
 
 	kobject_init(&mod->mkobj.kobj);

@@ -131,7 +131,7 @@ EXPORT_SYMBOL_GPL(sysdev_class_remove_file);
 /*
  * declare system_subsys
  */
-static decl_subsys(system, &ktype_sysdev_class, NULL);
+static decl_subsys(system, NULL);
 
 int sysdev_class_register(struct sysdev_class * cls)
 {
@@ -139,6 +139,7 @@ int sysdev_class_register(struct sysdev_class * cls)
 		 kobject_name(&cls->kset.kobj));
 	INIT_LIST_HEAD(&cls->drivers);
 	cls->kset.kobj.parent = &system_subsys.kobj;
+	cls->kset.kobj.ktype = &ktype_sysdev_class;
 	cls->kset.kobj.kset = &system_subsys;
 	return kset_register(&cls->kset);
 }
