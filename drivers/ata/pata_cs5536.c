@@ -40,7 +40,7 @@
 #include <asm/msr.h>
 
 #define DRV_NAME	"pata_cs5536"
-#define DRV_VERSION	"0.0.5"
+#define DRV_VERSION	"0.0.6"
 
 enum {
 	CFG			= 0,
@@ -214,7 +214,7 @@ static void cs5536_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		cs5536_read(pdev, DTC, &dtc);
 
 		dtc &= ~(IDE_DRV_MASK << dshift);
-		dtc |= mwdma_timings[mode] << dshift;
+		dtc |= mwdma_timings[mode - XFER_MW_DMA_0] << dshift;
 
 		cs5536_write(pdev, DTC, dtc);
 	}
