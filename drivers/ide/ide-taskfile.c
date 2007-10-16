@@ -45,6 +45,7 @@
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/bitops.h>
+#include <linux/scatterlist.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -263,6 +264,7 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
+	struct scatterlist *cursg = hwif->cursg;
 	struct page *page;
 #ifdef CONFIG_HIGHMEM
 	unsigned long flags;
@@ -270,8 +272,14 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 	unsigned int offset;
 	u8 *buf;
 
-	page = sg[hwif->cursg].page;
-	offset = sg[hwif->cursg].offset + hwif->cursg_ofs * SECTOR_SIZE;
+	cursg = hwif->cursg;
+	if (!cursg) {
+		cursg = sg;
+		hwif->cursg = sg;
+	}
+
+	page = cursg->page;
+	offset = cursg->offset + hwif->cursg_ofs * SECTOR_SIZE;
 
 	/* get the current page and offset */
 	page = nth_page(page, (offset >> PAGE_SHIFT));
@@ -285,8 +293,8 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 	hwif->nleft--;
 	hwif->cursg_ofs++;
 
-	if ((hwif->cursg_ofs * SECTOR_SIZE) == sg[hwif->cursg].length) {
-		hwif->cursg++;
+	if ((hwif->cursg_ofs * SECTOR_SIZE) == cursg->length) {
+		hwif->cursg = sg_next(hwif->cursg);
 		hwif->cursg_ofs = 0;
 	}
 
@@ -367,6 +375,8 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 
 static void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
+	HWIF(drive)->cursg = NULL;
+
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *task = rq->special;
 

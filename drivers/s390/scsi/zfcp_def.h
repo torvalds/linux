@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/mempool.h>
 #include <linux/syscalls.h>
+#include <linux/scatterlist.h>
 #include <linux/ioctl.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_tcq.h>

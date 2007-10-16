@@ -590,7 +590,7 @@ zfcp_qdio_sbals_from_segment(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
  */
 int
 zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
-                        struct scatterlist *sg,	int sg_count, int max_sbals)
+                        struct scatterlist *sgl, int sg_count, int max_sbals)
 {
 	int sg_index;
 	struct scatterlist *sg_segment;
@@ -606,9 +606,7 @@ zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
 	sbale->flags |= sbtype;
 
 	/* process all segements of scatter-gather list */
-	for (sg_index = 0, sg_segment = sg, bytes = 0;
-	     sg_index < sg_count;
-	     sg_index++, sg_segment++) {
+	for_each_sg(sgl, sg_segment, sg_count, sg_index) {
 		retval = zfcp_qdio_sbals_from_segment(
 				fsf_req,
 				sbtype,

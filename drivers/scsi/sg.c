@@ -1165,7 +1165,7 @@ sg_vma_nopage(struct vm_area_struct *vma, unsigned long addr, int *type)
 	sg = rsv_schp->buffer;
 	sa = vma->vm_start;
 	for (k = 0; (k < rsv_schp->k_use_sg) && (sa < vma->vm_end);
-	     ++k, ++sg) {
+	     ++k, sg = sg_next(sg)) {
 		len = vma->vm_end - sa;
 		len = (len < sg->length) ? len : sg->length;
 		if (offset < len) {
@@ -1209,7 +1209,7 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
 	sa = vma->vm_start;
 	sg = rsv_schp->buffer;
 	for (k = 0; (k < rsv_schp->k_use_sg) && (sa < vma->vm_end);
-	     ++k, ++sg) {
+	     ++k, sg = sg_next(sg)) {
 		len = vma->vm_end - sa;
 		len = (len < sg->length) ? len : sg->length;
 		sa += len;
@@ -1840,7 +1840,7 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 	}
 	for (k = 0, sg = schp->buffer, rem_sz = blk_size;
 	     (rem_sz > 0) && (k < mx_sc_elems);
-	     ++k, rem_sz -= ret_sz, ++sg) {
+	     ++k, rem_sz -= ret_sz, sg = sg_next(sg)) {
 		
 		num = (rem_sz > scatter_elem_sz_prev) ?
 		      scatter_elem_sz_prev : rem_sz;
@@ -1913,7 +1913,7 @@ sg_write_xfer(Sg_request * srp)
 		if (res)
 			return res;
 
-		for (; p; ++sg, ksglen = sg->length,
+		for (; p; sg = sg_next(sg), ksglen = sg->length,
 		     p = page_address(sg->page)) {
 			if (usglen <= 0)
 				break;
@@ -1992,7 +1992,7 @@ sg_remove_scat(Sg_scatter_hold * schp)
 			int k;
 
 			for (k = 0; (k < schp->k_use_sg) && sg->page;
-			     ++k, ++sg) {
+			     ++k, sg = sg_next(sg)) {
 				SCSI_LOG_TIMEOUT(5, printk(
 				    "sg_remove_scat: k=%d, pg=0x%p, len=%d\n",
 				    k, sg->page, sg->length));
@@ -2045,7 +2045,7 @@ sg_read_xfer(Sg_request * srp)
 		if (res)
 			return res;
 
-		for (; p; ++sg, ksglen = sg->length,
+		for (; p; sg = sg_next(sg), ksglen = sg->length,
 		     p = page_address(sg->page)) {
 			if (usglen <= 0)
 				break;
@@ -2092,7 +2092,7 @@ sg_read_oxfer(Sg_request * srp, char __user *outp, int num_read_xfer)
 	if ((!outp) || (num_read_xfer <= 0))
 		return 0;
 
-	for (k = 0; (k < schp->k_use_sg) && sg->page; ++k, ++sg) {
+	for (k = 0; (k < schp->k_use_sg) && sg->page; ++k, sg = sg_next(sg)) {
 		num = sg->length;
 		if (num > num_read_xfer) {
 			if (__copy_to_user(outp, page_address(sg->page),
@@ -2142,7 +2142,7 @@ sg_link_reserve(Sg_fd * sfp, Sg_request * srp, int size)
 	SCSI_LOG_TIMEOUT(4, printk("sg_link_reserve: size=%d\n", size));
 	rem = size;
 
-	for (k = 0; k < rsv_schp->k_use_sg; ++k, ++sg) {
+	for (k = 0; k < rsv_schp->k_use_sg; ++k, sg = sg_next(sg)) {
 		num = sg->length;
 		if (rem <= num) {
 			sfp->save_scat_len = num;

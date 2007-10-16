@@ -694,6 +694,7 @@ static struct scsi_host_template sym53c500_driver_template = {
      .sg_tablesize		= 32,
      .cmd_per_lun		= 1,
      .use_clustering		= ENABLE_CLUSTERING,
+     .use_sg_chaining		= ENABLE_SG_CHAINING,
      .shost_attrs		= SYM53C500_shost_attrs
 };
 

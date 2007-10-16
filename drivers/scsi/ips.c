@@ -3252,7 +3252,7 @@ ips_done(ips_ha_t * ha, ips_scb_t * scb)
 		 */
 		if ((scb->breakup) || (scb->sg_break)) {
                         struct scatterlist *sg;
-                        int sg_dma_index, ips_sg_index = 0;
+                        int i, sg_dma_index, ips_sg_index = 0;
 
 			/* we had a data breakup */
 			scb->data_len = 0;
@@ -3261,20 +3261,22 @@ ips_done(ips_ha_t * ha, ips_scb_t * scb)
 
                         /* Spin forward to last dma chunk */
                         sg_dma_index = scb->breakup;
+                        for (i = 0; i < scb->breakup; i++)
+                                sg = sg_next(sg);
 
 			/* Take care of possible partial on last chunk */
                         ips_fill_scb_sg_single(ha,
-                                               sg_dma_address(&sg[sg_dma_index]),
+                                               sg_dma_address(sg),
                                                scb, ips_sg_index++,
-                                               sg_dma_len(&sg[sg_dma_index]));
+                                               sg_dma_len(sg));
 
                         for (; sg_dma_index < scsi_sg_count(scb->scsi_cmd);
-                             sg_dma_index++) {
+                             sg_dma_index++, sg = sg_next(sg)) {
                                 if (ips_fill_scb_sg_single
                                     (ha,
-                                     sg_dma_address(&sg[sg_dma_index]),
+                                     sg_dma_address(sg),
                                      scb, ips_sg_index++,
-                                     sg_dma_len(&sg[sg_dma_index])) < 0)
+                                     sg_dma_len(sg)) < 0)
                                         break;
                         }
 

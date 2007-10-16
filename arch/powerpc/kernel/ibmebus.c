@@ -87,15 +87,16 @@ static void ibmebus_unmap_single(struct device *dev,
 }
 
 static int ibmebus_map_sg(struct device *dev,
-			  struct scatterlist *sg,
+			  struct scatterlist *sgl,
 			  int nents, enum dma_data_direction direction)
 {
+	struct scatterlist *sg;
 	int i;
 
-	for (i = 0; i < nents; i++) {
-		sg[i].dma_address = (dma_addr_t)page_address(sg[i].page)
-			+ sg[i].offset;
-		sg[i].dma_length = sg[i].length;
+	for_each_sg(sgl, sg, nents, i) {
+		sg->dma_address = (dma_addr_t)page_address(sg->page)
+			+ sg->offset;
+		sg->dma_length = sg->length;
 	}
 
 	return nents;

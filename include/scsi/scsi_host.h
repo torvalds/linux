@@ -39,6 +39,9 @@ struct blk_queue_tags;
 #define DISABLE_CLUSTERING 0
 #define ENABLE_CLUSTERING 1
 
+#define DISABLE_SG_CHAINING 0
+#define ENABLE_SG_CHAINING 1
+
 enum scsi_eh_timer_return {
 	EH_NOT_HANDLED,
 	EH_HANDLED,
@@ -443,6 +446,15 @@ struct scsi_host_template {
 	unsigned ordered_tag:1;
 
 	/*
+	 * true if the low-level driver can support sg chaining. this
+	 * will be removed eventually when all the drivers are
+	 * converted to support sg chaining.
+	 *
+	 * Status: OBSOLETE
+	 */
+	unsigned use_sg_chaining:1;
+
+	/*
 	 * Countdown for host blocking with no commands outstanding
 	 */
 	unsigned int max_host_blocked;
@@ -586,6 +598,7 @@ struct Scsi_Host {
 	unsigned unchecked_isa_dma:1;
 	unsigned use_clustering:1;
 	unsigned use_blk_tcq:1;
+	unsigned use_sg_chaining:1;
 
 	/*
 	 * Host has requested that no further requests come through for the

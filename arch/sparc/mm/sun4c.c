@@ -17,8 +17,8 @@
 #include <linux/highmem.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
+#include <linux/scatterlist.h>
 
-#include <asm/scatterlist.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -1228,8 +1228,9 @@ static void sun4c_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus *
 {
 	while (sz != 0) {
 		--sz;
-		sg[sz].dvma_address = (__u32)sun4c_lockarea(page_address(sg[sz].page) + sg[sz].offset, sg[sz].length);
-		sg[sz].dvma_length = sg[sz].length;
+		sg->dvma_address = (__u32)sun4c_lockarea(page_address(sg->page) + sg->offset, sg->length);
+		sg->dvma_length = sg->length;
+		sg = sg_next(sg);
 	}
 }
 
@@ -1244,7 +1245,8 @@ static void sun4c_release_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_b
 {
 	while (sz != 0) {
 		--sz;
-		sun4c_unlockarea((char *)sg[sz].dvma_address, sg[sz].length);
+		sun4c_unlockarea((char *)sg->dvma_address, sg->length);
+		sg = sg_next(sg);
 	}
 }
 

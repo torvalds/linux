@@ -5,6 +5,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
+#include <linux/scatterlist.h>
 
 #include <asm/iommu.h>
 #include <asm/processor.h>
@@ -57,10 +58,10 @@ static void nommu_unmap_single(struct device *dev, dma_addr_t addr,size_t size,
 static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 	       int nents, int direction)
 {
+	struct scatterlist *s;
 	int i;
 
- 	for (i = 0; i < nents; i++ ) {
-		struct scatterlist *s = &sg[i];
+	for_each_sg(sg, s, nents, i) {
 		BUG_ON(!s->page);
 		s->dma_address = virt_to_bus(page_address(s->page) +s->offset);
 		if (!check_addr("map_sg", hwdev, s->dma_address, s->length))

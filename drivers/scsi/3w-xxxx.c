@@ -2261,6 +2261,7 @@ static struct scsi_host_template driver_template = {
 	.max_sectors		= TW_MAX_SECTORS,
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,	
 	.use_clustering		= ENABLE_CLUSTERING,
+	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.shost_attrs		= tw_host_attrs,
 	.emulated		= 1
 };

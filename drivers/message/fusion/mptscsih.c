@@ -293,7 +293,7 @@ nextSGEset:
 	for (ii=0; ii < (numSgeThisFrame-1); ii++) {
 		thisxfer = sg_dma_len(sg);
 		if (thisxfer == 0) {
-			sg ++; /* Get next SG element from the OS */
+			sg = sg_next(sg); /* Get next SG element from the OS */
 			sg_done++;
 			continue;
 		}
@@ -301,7 +301,7 @@ nextSGEset:
 		v2 = sg_dma_address(sg);
 		mptscsih_add_sge(psge, sgflags | thisxfer, v2);
 
-		sg++;		/* Get next SG element from the OS */
+		sg = sg_next(sg);	/* Get next SG element from the OS */
 		psge += (sizeof(u32) + sizeof(dma_addr_t));
 		sgeOffset += (sizeof(u32) + sizeof(dma_addr_t));
 		sg_done++;
@@ -322,7 +322,7 @@ nextSGEset:
 		v2 = sg_dma_address(sg);
 		mptscsih_add_sge(psge, sgflags | thisxfer, v2);
 		/*
-		sg++;
+		sg = sg_next(sg);
 		psge += (sizeof(u32) + sizeof(dma_addr_t));
 		*/
 		sgeOffset += (sizeof(u32) + sizeof(dma_addr_t));

@@ -157,7 +157,7 @@ void usb_stor_transparent_scsi_command(struct scsi_cmnd *srb,
  * pick up from where this one left off. */
 
 unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
-	unsigned int buflen, struct scsi_cmnd *srb, unsigned int *index,
+	unsigned int buflen, struct scsi_cmnd *srb, struct scatterlist **sgptr,
 	unsigned int *offset, enum xfer_buf_dir dir)
 {
 	unsigned int cnt;
@@ -184,16 +184,17 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 	 * located in high memory -- then kmap() will map it to a temporary
 	 * position in the kernel's virtual address space. */
 	} else {
-		struct scatterlist *sg =
-				(struct scatterlist *) srb->request_buffer
-				+ *index;
+		struct scatterlist *sg = *sgptr;
+
+		if (!sg)
+			sg = (struct scatterlist *) srb->request_buffer;
 
 		/* This loop handles a single s-g list entry, which may
 		 * include multiple pages.  Find the initial page structure
 		 * and the starting offset within the page, and update
 		 * the *offset and *index values for the next loop. */
 		cnt = 0;
-		while (cnt < buflen && *index < srb->use_sg) {
+		while (cnt < buflen) {
 			struct page *page = sg->page +
 					((sg->offset + *offset) >> PAGE_SHIFT);
 			unsigned int poff =
@@ -209,8 +210,7 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 
 				/* Transfer continues to next s-g entry */
 				*offset = 0;
-				++*index;
-				++sg;
+				sg = sg_next(sg);
 			}
 
 			/* Transfer the data for all the pages in this
@@ -234,6 +234,7 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 				sglen -= plen;
 			}
 		}
+		*sgptr = sg;
 	}
 
 	/* Return the amount actually transferred */
@@ -245,9 +246,10 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 void usb_stor_set_xfer_buf(unsigned char *buffer,
 	unsigned int buflen, struct scsi_cmnd *srb)
 {
-	unsigned int index = 0, offset = 0;
+	unsigned int offset = 0;
+	struct scatterlist *sg = NULL;
 
-	usb_stor_access_xfer_buf(buffer, buflen, srb, &index, &offset,
+	usb_stor_access_xfer_buf(buffer, buflen, srb, &sg, &offset,
 			TO_XFER_BUF);
 	if (buflen < srb->request_bufflen)
 		srb->resid = srb->request_bufflen - buflen;

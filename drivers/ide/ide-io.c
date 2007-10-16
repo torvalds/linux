@@ -846,7 +846,8 @@ void ide_init_sg_cmd(ide_drive_t *drive, struct request *rq)
 	ide_hwif_t *hwif = drive->hwif;
 
 	hwif->nsect = hwif->nleft = rq->nr_sectors;
-	hwif->cursg = hwif->cursg_ofs = 0;
+	hwif->cursg_ofs = 0;
+	hwif->cursg = NULL;
 }
 
 EXPORT_SYMBOL_GPL(ide_init_sg_cmd);

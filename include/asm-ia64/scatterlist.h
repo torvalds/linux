@@ -30,4 +30,6 @@ struct scatterlist {
 #define sg_dma_len(sg)		((sg)->dma_length)
 #define sg_dma_address(sg)	((sg)->dma_address)
 
+#define	ARCH_HAS_SG_CHAIN
+
 #endif /* _ASM_IA64_SCATTERLIST_H */

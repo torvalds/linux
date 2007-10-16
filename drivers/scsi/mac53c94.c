@@ -402,6 +402,7 @@ static struct scsi_host_template mac53c94_template = {
 	.sg_tablesize	= SG_ALL,
 	.cmd_per_lun	= 1,
 	.use_clustering	= DISABLE_CLUSTERING,
+	.use_sg_chaining = ENABLE_SG_CHAINING,
 };
 
 static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *match)

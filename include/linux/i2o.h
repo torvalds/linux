@@ -32,6 +32,7 @@
 #include <linux/workqueue.h>	/* work_struct */
 #include <linux/mempool.h>
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>	/* Needed for MUTEX init macros */
@@ -837,7 +838,7 @@ static inline int i2o_dma_map_sg(struct i2o_controller *c,
 		if ((sizeof(dma_addr_t) > 4) && c->pae_support)
 			*mptr++ = cpu_to_le32(i2o_dma_high(sg_dma_address(sg)));
 #endif
-		sg++;
+		sg = sg_next(sg);
 	}
 	*sg_ptr = mptr;
 

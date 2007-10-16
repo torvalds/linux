@@ -939,7 +939,8 @@ static int cris_ide_build_dmatable (ide_drive_t *drive)
 		/* group sequential buffers into one large buffer */
 		addr = page_to_phys(sg->page) + sg->offset;
 		size = sg_dma_len(sg);
-		while (sg++, --i) {
+		while (--i) {
+			sg = sg_next(sg);
 			if ((addr + size) != page_to_phys(sg->page) + sg->offset)
 				break;
 			size += sg_dma_len(sg);

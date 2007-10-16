@@ -30,6 +30,7 @@
 #include <linux/cpu.h>
 #include <linux/blktrace_api.h>
 #include <linux/fault-inject.h>
+#include <linux/scatterlist.h>
 
 /*
  * for max sense size
@@ -1318,9 +1319,10 @@ static int blk_hw_contig_segment(struct request_queue *q, struct bio *bio,
  * must make sure sg can hold rq->nr_phys_segments entries
  */
 int blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		  struct scatterlist *sg)
+		  struct scatterlist *sglist)
 {
 	struct bio_vec *bvec, *bvprv;
+	struct scatterlist *next_sg, *sg;
 	struct req_iterator iter;
 	int nsegs, cluster;
 
@@ -1331,11 +1333,12 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * for each bio in rq
 	 */
 	bvprv = NULL;
+	sg = next_sg = &sglist[0];
 	rq_for_each_segment(bvec, rq, iter) {
 		int nbytes = bvec->bv_len;
 
 		if (bvprv && cluster) {
-			if (sg[nsegs - 1].length + nbytes > q->max_segment_size)
+			if (sg->length + nbytes > q->max_segment_size)
 				goto new_segment;
 
 			if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
@@ -1343,14 +1346,15 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 			if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
 				goto new_segment;
 
-			sg[nsegs - 1].length += nbytes;
+			sg->length += nbytes;
 		} else {
 new_segment:
-			memset(&sg[nsegs],0,sizeof(struct scatterlist));
-			sg[nsegs].page = bvec->bv_page;
-			sg[nsegs].length = nbytes;
-			sg[nsegs].offset = bvec->bv_offset;
+			sg = next_sg;
+			next_sg = sg_next(sg);
 
+			sg->page = bvec->bv_page;
+			sg->length = nbytes;
+			sg->offset = bvec->bv_offset;
 			nsegs++;
 		}
 		bvprv = bvec;
@@ -4068,7 +4072,23 @@ static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_hw_sectors_kb, (page));
 }
 
+static ssize_t queue_max_segments_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(q->max_phys_segments, page);
+}
 
+static ssize_t queue_max_segments_store(struct request_queue *q,
+					const char *page, size_t count)
+{
+	unsigned long segments;
+	ssize_t ret = queue_var_store(&segments, page, count);
+
+	spin_lock_irq(q->queue_lock);
+	q->max_phys_segments = segments;
+	spin_unlock_irq(q->queue_lock);
+
+	return ret;
+}
 static struct queue_sysfs_entry queue_requests_entry = {
 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_requests_show,
@@ -4092,6 +4112,12 @@ static struct queue_sysfs_entry queue_max_hw_sectors_entry = {
 	.show = queue_max_hw_sectors_show,
 };
 
+static struct queue_sysfs_entry queue_max_segments_entry = {
+	.attr = {.name = "max_segments", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_max_segments_show,
+	.store = queue_max_segments_store,
+};
+
 static struct queue_sysfs_entry queue_iosched_entry = {
 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
 	.show = elv_iosched_show,
@@ -4103,6 +4129,7 @@ static struct attribute *default_attrs[] = {
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
 	&queue_max_sectors_entry.attr,
+	&queue_max_segments_entry.attr,
 	&queue_iosched_entry.attr,
 	NULL,
 };

@@ -12,8 +12,8 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>	/* pte_offset_map => kmap_atomic */
+#include <linux/scatterlist.h>
 
-#include <asm/scatterlist.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/sbus.h>
@@ -240,7 +240,7 @@ static void iommu_get_scsi_sgl_noflush(struct scatterlist *sg, int sz, struct sb
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 		sg->dvma_address = iommu_get_one(sg->page, n, sbus) + sg->offset;
 		sg->dvma_length = (__u32) sg->length;
-		sg++;
+		sg = sg_next(sg);
 	}
 }
 
@@ -254,7 +254,7 @@ static void iommu_get_scsi_sgl_gflush(struct scatterlist *sg, int sz, struct sbu
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 		sg->dvma_address = iommu_get_one(sg->page, n, sbus) + sg->offset;
 		sg->dvma_length = (__u32) sg->length;
-		sg++;
+		sg = sg_next(sg);
 	}
 }
 
@@ -285,7 +285,7 @@ static void iommu_get_scsi_sgl_pflush(struct scatterlist *sg, int sz, struct sbu
 
 		sg->dvma_address = iommu_get_one(sg->page, n, sbus) + sg->offset;
 		sg->dvma_length = (__u32) sg->length;
-		sg++;
+		sg = sg_next(sg);
 	}
 }
 
@@ -325,7 +325,7 @@ static void iommu_release_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_b
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 		iommu_release_one(sg->dvma_address & PAGE_MASK, n, sbus);
 		sg->dvma_address = 0x21212121;
-		sg++;
+		sg = sg_next(sg);
 	}
 }
 

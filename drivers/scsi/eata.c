@@ -523,7 +523,8 @@ static struct scsi_host_template driver_template = {
 	.slave_configure = eata2x_slave_configure,
 	.this_id = 7,
 	.unchecked_isa_dma = 1,
-	.use_clustering = ENABLE_CLUSTERING
+	.use_clustering = ENABLE_CLUSTERING,
+	.use_sg_chaining = ENABLE_SG_CHAINING,
 };
 
 #if !defined(__BIG_ENDIAN_BITFIELD) && !defined(__LITTLE_ENDIAN_BITFIELD)
