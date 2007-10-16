@@ -552,22 +552,7 @@ void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destroy_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
 int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat);
-int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptefs_inode);
-int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
-			    struct file *lower_file,
-			    unsigned long lower_page_index, int byte_offset,
-			    int region_bytes);
-int
-ecryptfs_commit_lower_page(struct page *lower_page, struct inode *lower_inode,
-			   struct file *lower_file, int byte_offset,
-			   int region_size);
-int ecryptfs_copy_page_to_lower(struct page *page, struct inode *lower_inode,
-				struct file *lower_file);
-int ecryptfs_do_readpage(struct file *file, struct page *page,
-			 pgoff_t lower_page_index);
-int ecryptfs_writepage_and_release_lower_page(struct page *lower_page,
-					      struct inode *lower_inode,
-					      struct writeback_control *wbc);
+int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode);
 int ecryptfs_encrypt_page(struct page *page);
 int ecryptfs_decrypt_page(struct page *page);
 int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry);
@@ -591,10 +576,6 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
 int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode);
 int ecryptfs_inode_set(struct inode *inode, void *lower_inode);
 void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode);
-int ecryptfs_open_lower_file(struct file **lower_file,
-			     struct dentry *lower_dentry,
-			     struct vfsmount *lower_mnt, int flags);
-int ecryptfs_close_lower_file(struct file *lower_file);
 ssize_t ecryptfs_getxattr(struct dentry *dentry, const char *name, void *value,
 			  size_t size);
 ssize_t

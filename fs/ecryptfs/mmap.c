@@ -57,113 +57,6 @@ struct page *ecryptfs_get1page(struct file *file, loff_t index)
 }
 
 /**
- * ecryptfs_fill_zeros
- * @file: The ecryptfs file
- * @new_length: The new length of the data in the underlying file;
- *              everything between the prior end of the file and the
- *              new end of the file will be filled with zero's.
- *              new_length must be greater than  current length
- *
- * Function for handling lseek-ing past the end of the file.
- *
- * This function does not support shrinking, only growing a file.
- *
- * Returns zero on success; non-zero otherwise.
- */
-int ecryptfs_fill_zeros(struct file *file, loff_t new_length)
-{
-	int rc = 0;
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
-	pgoff_t old_end_page_index = 0;
-	pgoff_t index = old_end_page_index;
-	int old_end_pos_in_page = -1;
-	pgoff_t new_end_page_index;
-	int new_end_pos_in_page;
-	loff_t cur_length = i_size_read(inode);
-
-	if (cur_length != 0) {
-		index = old_end_page_index =
-		    ((cur_length - 1) >> PAGE_CACHE_SHIFT);
-		old_end_pos_in_page = ((cur_length - 1) & ~PAGE_CACHE_MASK);
-	}
-	new_end_page_index = ((new_length - 1) >> PAGE_CACHE_SHIFT);
-	new_end_pos_in_page = ((new_length - 1) & ~PAGE_CACHE_MASK);
-	ecryptfs_printk(KERN_DEBUG, "old_end_page_index = [0x%.16x]; "
-			"old_end_pos_in_page = [%d]; "
-			"new_end_page_index = [0x%.16x]; "
-			"new_end_pos_in_page = [%d]\n",
-			old_end_page_index, old_end_pos_in_page,
-			new_end_page_index, new_end_pos_in_page);
-	if (old_end_page_index == new_end_page_index) {
-		/* Start and end are in the same page; we just need to
-		 * set a portion of the existing page to zero's */
-		rc = ecryptfs_write_zeros(file, index,
-					  (old_end_pos_in_page + 1),
-					  (new_end_pos_in_page
-					   - old_end_pos_in_page));
-		if (rc)
-			ecryptfs_printk(KERN_ERR, "ecryptfs_write_zeros("
-					"file=[%p], "
-					"index=[0x%.16x], "
-					"old_end_pos_in_page=[d], "
-					"(PAGE_CACHE_SIZE - new_end_pos_in_page"
-					"=[%d]"
-					")=[d]) returned [%d]\n", file, index,
-					old_end_pos_in_page,
-					new_end_pos_in_page,
-					(PAGE_CACHE_SIZE - new_end_pos_in_page),
-					rc);
-		goto out;
-	}
-	/* Fill the remainder of the previous last page with zeros */
-	rc = ecryptfs_write_zeros(file, index, (old_end_pos_in_page + 1),
-			 ((PAGE_CACHE_SIZE - 1) - old_end_pos_in_page));
-	if (rc) {
-		ecryptfs_printk(KERN_ERR, "ecryptfs_write_zeros(file=[%p], "
-				"index=[0x%.16x], old_end_pos_in_page=[d], "
-				"(PAGE_CACHE_SIZE - old_end_pos_in_page)=[d]) "
-				"returned [%d]\n", file, index,
-				old_end_pos_in_page,
-				(PAGE_CACHE_SIZE - old_end_pos_in_page), rc);
-		goto out;
-	}
-	index++;
-	while (index < new_end_page_index) {
-		/* Fill all intermediate pages with zeros */
-		rc = ecryptfs_write_zeros(file, index, 0, PAGE_CACHE_SIZE);
-		if (rc) {
-			ecryptfs_printk(KERN_ERR, "ecryptfs_write_zeros("
-					"file=[%p], "
-					"index=[0x%.16x], "
-					"old_end_pos_in_page=[d], "
-					"(PAGE_CACHE_SIZE - new_end_pos_in_page"
-					"=[%d]"
-					")=[d]) returned [%d]\n", file, index,
-					old_end_pos_in_page,
-					new_end_pos_in_page,
-					(PAGE_CACHE_SIZE - new_end_pos_in_page),
-					rc);
-			goto out;
-		}
-		index++;
-	}
-	/* Fill the portion at the beginning of the last new page with
-	 * zero's */
-	rc = ecryptfs_write_zeros(file, index, 0, (new_end_pos_in_page + 1));
-	if (rc) {
-		ecryptfs_printk(KERN_ERR, "ecryptfs_write_zeros(file="
-				"[%p], index=[0x%.16x], 0, "
-				"new_end_pos_in_page=[%d]"
-				"returned [%d]\n", file, index,
-				new_end_pos_in_page, rc);
-		goto out;
-	}
-out:
-	return rc;
-}
-
-/**
  * ecryptfs_writepage
  * @page: Page that is locked before this call is made
  *
@@ -186,58 +79,6 @@ out:
 	return rc;
 }
 
-/**
- * Reads the data from the lower file file at index lower_page_index
- * and copies that data into page.
- *
- * @param page	Page to fill
- * @param lower_page_index Index of the page in the lower file to get
- */
-int ecryptfs_do_readpage(struct file *file, struct page *page,
-			 pgoff_t lower_page_index)
-{
-	int rc;
-	struct dentry *dentry;
-	struct file *lower_file;
-	struct dentry *lower_dentry;
-	struct inode *inode;
-	struct inode *lower_inode;
-	char *page_data;
-	struct page *lower_page = NULL;
-	char *lower_page_data;
-	const struct address_space_operations *lower_a_ops;
-
-	dentry = file->f_path.dentry;
-	lower_file = ecryptfs_file_to_lower(file);
-	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	inode = dentry->d_inode;
-	lower_inode = ecryptfs_inode_to_lower(inode);
-	lower_a_ops = lower_inode->i_mapping->a_ops;
-	lower_page = read_cache_page(lower_inode->i_mapping, lower_page_index,
-				     (filler_t *)lower_a_ops->readpage,
-				     (void *)lower_file);
-	if (IS_ERR(lower_page)) {
-		rc = PTR_ERR(lower_page);
-		lower_page = NULL;
-		ecryptfs_printk(KERN_ERR, "Error reading from page cache\n");
-		goto out;
-	}
-	page_data = kmap_atomic(page, KM_USER0);
-	lower_page_data = kmap_atomic(lower_page, KM_USER1);
-	memcpy(page_data, lower_page_data, PAGE_CACHE_SIZE);
-	kunmap_atomic(lower_page_data, KM_USER1);
-	kunmap_atomic(page_data, KM_USER0);
-	flush_dcache_page(page);
-	rc = 0;
-out:
-	if (likely(lower_page))
-		page_cache_release(lower_page);
-	if (rc == 0)
-		SetPageUptodate(page);
-	else
-		ClearPageUptodate(page);
-	return rc;
-}
 /**
  *   Header Extent:
  *     Octets 0-7:        Unencrypted file size (big-endian)
@@ -416,27 +257,6 @@ out:
 	return 0;
 }
 
-/**
- * eCryptfs does not currently support holes. When writing after a
- * seek past the end of the file, eCryptfs fills in 0's through to the
- * current location. The code to fill in the 0's to all the
- * intermediate pages calls ecryptfs_prepare_write_no_truncate().
- */
-static int
-ecryptfs_prepare_write_no_truncate(struct file *file, struct page *page,
-				   unsigned from, unsigned to)
-{
-	int rc = 0;
-
-	if (from == 0 && to == PAGE_CACHE_SIZE)
-		goto out;	/* If we are writing a full page, it will be
-				   up to date. */
-	if (!PageUptodate(page))
-		rc = ecryptfs_do_readpage(file, page, page->index);
-out:
-	return rc;
-}
-
 static int ecryptfs_prepare_write(struct file *file, struct page *page,
 				  unsigned from, unsigned to)
 {
@@ -468,30 +288,6 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 	}
 out:
 	return rc;
-}
-
-int ecryptfs_writepage_and_release_lower_page(struct page *lower_page,
-					      struct inode *lower_inode,
-					      struct writeback_control *wbc)
-{
-	int rc = 0;
-
-	rc = lower_inode->i_mapping->a_ops->writepage(lower_page, wbc);
-	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error calling lower writepage(); "
-				"rc = [%d]\n", rc);
-		goto out;
-	}
-	lower_inode->i_mtime = lower_inode->i_ctime = CURRENT_TIME;
-	page_cache_release(lower_page);
-out:
-	return rc;
-}
-
-static void ecryptfs_release_lower_page(struct page *lower_page)
-{
-	unlock_page(lower_page);
-	page_cache_release(lower_page);
 }
 
 /**
@@ -580,90 +376,6 @@ int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
 		return ecryptfs_write_inode_size_to_header(ecryptfs_inode);
 }
 
-int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
-			    struct file *lower_file,
-			    unsigned long lower_page_index, int byte_offset,
-			    int region_bytes)
-{
-	int rc = 0;
-
-	*lower_page = grab_cache_page(lower_inode->i_mapping, lower_page_index);
-	if (!(*lower_page)) {
-		rc = -EINVAL;
-		ecryptfs_printk(KERN_ERR, "Error attempting to grab "
-				"lower page with index [0x%.16x]\n",
-				lower_page_index);
-		goto out;
-	}
-	rc = lower_inode->i_mapping->a_ops->prepare_write(lower_file,
-							  (*lower_page),
-							  byte_offset,
-							  region_bytes);
-	if (rc) {
-		ecryptfs_printk(KERN_ERR, "prepare_write for "
-			"lower_page_index = [0x%.16x] failed; rc = "
-			"[%d]\n", lower_page_index, rc);
-		ecryptfs_release_lower_page(*lower_page);
-		(*lower_page) = NULL;
-	}
-out:
-	return rc;
-}
-
-/**
- * ecryptfs_commit_lower_page
- *
- * Returns zero on success; non-zero on error
- */
-int
-ecryptfs_commit_lower_page(struct page *lower_page, struct inode *lower_inode,
-			   struct file *lower_file, int byte_offset,
-			   int region_size)
-{
-	int rc = 0;
-
-	rc = lower_inode->i_mapping->a_ops->commit_write(
-		lower_file, lower_page, byte_offset, region_size);
-	if (rc < 0) {
-		ecryptfs_printk(KERN_ERR,
-				"Error committing write; rc = [%d]\n", rc);
-	} else
-		rc = 0;
-	ecryptfs_release_lower_page(lower_page);
-	return rc;
-}
-
-/**
- * ecryptfs_copy_page_to_lower
- *
- * Used for plaintext pass-through; no page index interpolation
- * required.
- */
-int ecryptfs_copy_page_to_lower(struct page *page, struct inode *lower_inode,
-				struct file *lower_file)
-{
-	int rc = 0;
-	struct page *lower_page;
-
-	rc = ecryptfs_get_lower_page(&lower_page, lower_inode, lower_file,
-				     page->index, 0, PAGE_CACHE_SIZE);
-	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error attempting to get page "
-				"at index [0x%.16x]\n", page->index);
-		goto out;
-	}
-	/* TODO: aops */
-	memcpy((char *)page_address(lower_page), page_address(page),
-	       PAGE_CACHE_SIZE);
-	rc = ecryptfs_commit_lower_page(lower_page, lower_inode, lower_file,
-					0, PAGE_CACHE_SIZE);
-	if (rc)
-		ecryptfs_printk(KERN_ERR, "Error attempting to commit page "
-				"at index [0x%.16x]\n", page->index);
-out:
-	return rc;
-}
-
 /**
  * ecryptfs_commit_write
  * @file: The eCryptfs file object
@@ -717,54 +429,6 @@ static int ecryptfs_commit_write(struct file *file, struct page *page,
 	if (rc)
 		printk(KERN_ERR "Error writing inode size to metadata; "
 		       "rc = [%d]\n", rc);
-out:
-	return rc;
-}
-
-/**
- * ecryptfs_write_zeros
- * @file: The ecryptfs file
- * @index: The index in which we are writing
- * @start: The position after the last block of data
- * @num_zeros: The number of zeros to write
- *
- * Write a specified number of zero's to a page.
- *
- * (start + num_zeros) must be less than or equal to PAGE_CACHE_SIZE
- */
-int
-ecryptfs_write_zeros(struct file *file, pgoff_t index, int start, int num_zeros)
-{
-	int rc = 0;
-	struct page *tmp_page;
-
-	tmp_page = ecryptfs_get1page(file, index);
-	if (IS_ERR(tmp_page)) {
-		ecryptfs_printk(KERN_ERR, "Error getting page at index "
-				"[0x%.16x]\n", index);
-		rc = PTR_ERR(tmp_page);
-		goto out;
-	}
-	rc = ecryptfs_prepare_write_no_truncate(file, tmp_page, start,
-						(start + num_zeros));
-	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error preparing to write zero's "
-				"to page at index [0x%.16x]\n",
-				index);
-		page_cache_release(tmp_page);
-		goto out;
-	}
-	zero_user_page(tmp_page, start, num_zeros, KM_USER0);
-	rc = ecryptfs_commit_write(file, tmp_page, start, start + num_zeros);
-	if (rc < 0) {
-		ecryptfs_printk(KERN_ERR, "Error attempting to write zero's "
-				"to remainder of page at index [0x%.16x]\n",
-				index);
-		page_cache_release(tmp_page);
-		goto out;
-	}
-	rc = 0;
-	page_cache_release(tmp_page);
 out:
 	return rc;
 }

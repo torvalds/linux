@@ -141,34 +141,6 @@ retry:
 
 struct kmem_cache *ecryptfs_file_info_cache;
 
-int ecryptfs_open_lower_file(struct file **lower_file,
-			     struct dentry *lower_dentry,
-			     struct vfsmount *lower_mnt, int flags)
-{
-	int rc = 0;
-
-	flags |= O_LARGEFILE;
-	dget(lower_dentry);
-	mntget(lower_mnt);
-	*lower_file = dentry_open(lower_dentry, lower_mnt, flags);
-	if (IS_ERR(*lower_file)) {
-		printk(KERN_ERR "Error opening lower file for lower_dentry "
-		       "[0x%p], lower_mnt [0x%p], and flags [0x%x]\n",
-		       lower_dentry, lower_mnt, flags);
-		rc = PTR_ERR(*lower_file);
-		*lower_file = NULL;
-		goto out;
-	}
-out:
-	return rc;
-}
-
-int ecryptfs_close_lower_file(struct file *lower_file)
-{
-	fput(lower_file);
-	return 0;
-}
-
 /**
  * ecryptfs_open
  * @inode: inode speciying file to open
