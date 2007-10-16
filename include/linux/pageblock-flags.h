@@ -1,6 +1,6 @@
 /*
  * Macros for manipulating and testing flags related to a
- * MAX_ORDER_NR_PAGES block of pages.
+ * pageblock_nr_pages number of pages.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,6 +34,29 @@ enum pageblock_bits {
 	PB_range(PB_migrate, 2), /* 2 bits required for migrate types */
 	NR_PAGEBLOCK_BITS
 };
+
+#ifdef CONFIG_HUGETLB_PAGE
+
+#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+
+/* Huge page sizes are variable */
+extern int pageblock_order;
+
+#else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
+
+/* Huge pages are a constant size */
+#define pageblock_order		HUGETLB_PAGE_ORDER
+
+#endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
+
+#else /* CONFIG_HUGETLB_PAGE */
+
+/* If huge pages are not used, group by MAX_ORDER_NR_PAGES */
+#define pageblock_order		(MAX_ORDER-1)
+
+#endif /* CONFIG_HUGETLB_PAGE */
+
+#define pageblock_nr_pages	(1UL << pageblock_order)
 
 /* Forward declaration */
 struct page;

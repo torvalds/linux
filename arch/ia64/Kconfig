@@ -54,6 +54,11 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
+config HUGETLB_PAGE_SIZE_VARIABLE
+	bool
+	depends on HUGETLB_PAGE
+	default y
+
 config GENERIC_FIND_NEXT_BIT
 	bool
 	default y

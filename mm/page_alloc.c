@@ -67,6 +67,10 @@ unsigned long totalreserve_pages __read_mostly;
 long nr_swap_pages;
 int percpu_pagelist_fraction;
 
+#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+int pageblock_order __read_mostly;
+#endif
+
 static void __free_pages_ok(struct page *page, unsigned int order);
 
 /*
@@ -709,7 +713,7 @@ static int fallbacks[MIGRATE_TYPES][MIGRATE_TYPES-1] = {
 
 /*
  * Move the free pages in a range to the free lists of the requested type.
- * Note that start_page and end_pages are not aligned in a MAX_ORDER_NR_PAGES
+ * Note that start_page and end_pages are not aligned on a pageblock
  * boundary. If alignment is required, use move_freepages_block()
  */
 int move_freepages(struct zone *zone,
@@ -759,10 +763,10 @@ int move_freepages_block(struct zone *zone, struct page *page, int migratetype)
 	struct page *start_page, *end_page;
 
 	start_pfn = page_to_pfn(page);
-	start_pfn = start_pfn & ~(MAX_ORDER_NR_PAGES-1);
+	start_pfn = start_pfn & ~(pageblock_nr_pages-1);
 	start_page = pfn_to_page(start_pfn);
-	end_page = start_page + MAX_ORDER_NR_PAGES - 1;
-	end_pfn = start_pfn + MAX_ORDER_NR_PAGES - 1;
+	end_page = start_page + pageblock_nr_pages - 1;
+	end_pfn = start_pfn + pageblock_nr_pages - 1;
 
 	/* Do not cross zone boundaries */
 	if (start_pfn < zone->zone_start_pfn)
@@ -826,14 +830,14 @@ static struct page *__rmqueue_fallback(struct zone *zone, int order,
 			 * back for a reclaimable kernel allocation, be more
 			 * agressive about taking ownership of free pages
 			 */
-			if (unlikely(current_order >= MAX_ORDER / 2) ||
+			if (unlikely(current_order >= (pageblock_order >> 1)) ||
 					start_migratetype == MIGRATE_RECLAIMABLE) {
 				unsigned long pages;
 				pages = move_freepages_block(zone, page,
 								start_migratetype);
 
 				/* Claim the whole block if over half of it is free */
-				if (pages >= (1 << (MAX_ORDER-2)))
+				if (pages >= (1 << (pageblock_order-1)))
 					set_pageblock_migratetype(page,
 								start_migratetype);
 
@@ -846,7 +850,7 @@ static struct page *__rmqueue_fallback(struct zone *zone, int order,
 			__mod_zone_page_state(zone, NR_FREE_PAGES,
 							-(1UL << order));
 
-			if (current_order == MAX_ORDER - 1)
+			if (current_order == pageblock_order)
 				set_pageblock_migratetype(page,
 							start_migratetype);
 
@@ -2385,7 +2389,7 @@ void build_all_zonelists(void)
 	 * made on memory-hotadd so a system can start with mobility
 	 * disabled and enable it later
 	 */
-	if (vm_total_pages < (MAX_ORDER_NR_PAGES * MIGRATE_TYPES))
+	if (vm_total_pages < (pageblock_nr_pages * MIGRATE_TYPES))
 		page_group_by_mobility_disabled = 1;
 	else
 		page_group_by_mobility_disabled = 0;
@@ -2470,7 +2474,7 @@ static inline unsigned long wait_table_bits(unsigned long size)
 #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
 
 /*
- * Mark a number of MAX_ORDER_NR_PAGES blocks as MIGRATE_RESERVE. The number
+ * Mark a number of pageblocks as MIGRATE_RESERVE. The number
  * of blocks reserved is based on zone->pages_min. The memory within the
  * reserve will tend to store contiguous free pages. Setting min_free_kbytes
  * higher will lead to a bigger reserve which will get freed as contiguous
@@ -2485,9 +2489,10 @@ static void setup_zone_migrate_reserve(struct zone *zone)
 	/* Get the start pfn, end pfn and the number of blocks to reserve */
 	start_pfn = zone->zone_start_pfn;
 	end_pfn = start_pfn + zone->spanned_pages;
-	reserve = roundup(zone->pages_min, MAX_ORDER_NR_PAGES) >> (MAX_ORDER-1);
+	reserve = roundup(zone->pages_min, pageblock_nr_pages) >>
+							pageblock_order;
 
-	for (pfn = start_pfn; pfn < end_pfn; pfn += MAX_ORDER_NR_PAGES) {
+	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
 		if (!pfn_valid(pfn))
 			continue;
 		page = pfn_to_page(pfn);
@@ -2562,7 +2567,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		 * the start are marked MIGRATE_RESERVE by
 		 * setup_zone_migrate_reserve()
 		 */
-		if ((pfn & (MAX_ORDER_NR_PAGES-1)))
+		if ((pfn & (pageblock_nr_pages-1)))
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
 
 		INIT_LIST_HEAD(&page->lru);
@@ -3266,8 +3271,8 @@ static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
 #ifndef CONFIG_SPARSEMEM
 /*
  * Calculate the size of the zone->blockflags rounded to an unsigned long
- * Start by making sure zonesize is a multiple of MAX_ORDER-1 by rounding up
- * Then figure 1 NR_PAGEBLOCK_BITS worth of bits per MAX_ORDER-1, finally
+ * Start by making sure zonesize is a multiple of pageblock_order by rounding
+ * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
  * round what is now in bits to nearest long in bits, then return it in
  * bytes.
  */
@@ -3275,8 +3280,8 @@ static unsigned long __init usemap_size(unsigned long zonesize)
 {
 	unsigned long usemapsize;
 
-	usemapsize = roundup(zonesize, MAX_ORDER_NR_PAGES);
-	usemapsize = usemapsize >> (MAX_ORDER-1);
+	usemapsize = roundup(zonesize, pageblock_nr_pages);
+	usemapsize = usemapsize >> pageblock_order;
 	usemapsize *= NR_PAGEBLOCK_BITS;
 	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
 
@@ -3297,6 +3302,27 @@ static void __init setup_usemap(struct pglist_data *pgdat,
 static void inline setup_usemap(struct pglist_data *pgdat,
 				struct zone *zone, unsigned long zonesize) {}
 #endif /* CONFIG_SPARSEMEM */
+
+#ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+/* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
+static inline void __init set_pageblock_order(unsigned int order)
+{
+	/* Check that pageblock_nr_pages has not already been setup */
+	if (pageblock_order)
+		return;
+
+	/*
+	 * Assume the largest contiguous order of interest is a huge page.
+	 * This value may be variable depending on boot parameters on IA64
+	 */
+	pageblock_order = order;
+}
+#else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
+
+/* Defined this way to avoid accidently referencing HUGETLB_PAGE_ORDER */
+#define set_pageblock_order(x)	do {} while (0)
+
+#endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
 
 /*
  * Set up the zone data structures:
@@ -3378,6 +3404,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		if (!size)
 			continue;
 
+		set_pageblock_order(HUGETLB_PAGE_ORDER);
 		setup_usemap(pgdat, zone, size);
 		ret = init_currently_empty_zone(zone, zone_start_pfn,
 						size, MEMMAP_EARLY);
@@ -4375,15 +4402,15 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
 {
 #ifdef CONFIG_SPARSEMEM
 	pfn &= (PAGES_PER_SECTION-1);
-	return (pfn >> (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS;
+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
 #else
 	pfn = pfn - zone->zone_start_pfn;
-	return (pfn >> (MAX_ORDER-1)) * NR_PAGEBLOCK_BITS;
+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
 #endif /* CONFIG_SPARSEMEM */
 }
 
 /**
- * get_pageblock_flags_group - Return the requested group of flags for the MAX_ORDER_NR_PAGES block of pages
+ * get_pageblock_flags_group - Return the requested group of flags for the pageblock_nr_pages block of pages
  * @page: The page within the block of interest
  * @start_bitidx: The first bit of interest to retrieve
  * @end_bitidx: The last bit of interest
@@ -4411,7 +4438,7 @@ unsigned long get_pageblock_flags_group(struct page *page,
 }
 
 /**
- * set_pageblock_flags_group - Set the requested group of flags for a MAX_ORDER_NR_PAGES block of pages
+ * set_pageblock_flags_group - Set the requested group of flags for a pageblock_nr_pages block of pages
  * @page: The page within the block of interest
  * @start_bitidx: The first bit of interest
  * @end_bitidx: The last bit of interest

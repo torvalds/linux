@@ -235,7 +235,7 @@ struct zone {
 
 #ifndef CONFIG_SPARSEMEM
 	/*
-	 * Flags for a MAX_ORDER_NR_PAGES block. See pageblock-flags.h.
+	 * Flags for a pageblock_nr_pages block. See pageblock-flags.h.
 	 * In SPARSEMEM, this map is stored in struct mem_section
 	 */
 	unsigned long		*pageblock_flags;
@@ -740,7 +740,7 @@ extern struct zone *next_zone(struct zone *zone);
 #define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
 
 #define SECTION_BLOCKFLAGS_BITS \
-		((1 << (PFN_SECTION_SHIFT - (MAX_ORDER-1))) * NR_PAGEBLOCK_BITS)
+	((1UL << (PFN_SECTION_SHIFT - pageblock_order)) * NR_PAGEBLOCK_BITS)
 
 #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
 #error Allocator MAX_ORDER exceeds SECTION_SIZE

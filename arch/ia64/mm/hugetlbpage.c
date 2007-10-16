@@ -194,6 +194,6 @@ static int __init hugetlb_setup_sz(char *str)
 	 * override here with new page shift.
 	 */
 	ia64_set_rr(HPAGE_REGION_BASE, hpage_shift << 2);
-	return 1;
+	return 0;
 }
-__setup("hugepagesz=", hugetlb_setup_sz);
+early_param("hugepagesz", hugetlb_setup_sz);
