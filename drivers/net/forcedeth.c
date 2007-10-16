@@ -3729,7 +3729,7 @@ static void nv_do_stats_poll(unsigned long data)
 static void nv_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct fe_priv *np = netdev_priv(dev);
-	strcpy(info->driver, "forcedeth");
+	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, FORCEDETH_VERSION);
 	strcpy(info->bus_info, pci_name(np->pci_dev));
 }
@@ -4993,6 +4993,11 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	u32 phystate_orig = 0, phystate;
 	int phyinitialized = 0;
 	DECLARE_MAC_BUF(mac);
+	static int printed_version;
+
+	if (!printed_version++)
+		printk(KERN_INFO "%s: Reverse Engineered nForce ethernet"
+		       " driver. Version %s.\n", DRV_NAME, FORCEDETH_VERSION);
 
 	dev = alloc_etherdev(sizeof(struct fe_priv));
 	err = -ENOMEM;
@@ -5016,11 +5021,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	np->stats_poll.function = &nv_do_stats_poll;	/* timer handler */
 
 	err = pci_enable_device(pci_dev);
-	if (err) {
-		printk(KERN_INFO "forcedeth: pci_enable_dev failed (%d) for device %s\n",
-				err, pci_name(pci_dev));
+	if (err)
 		goto out_free;
-	}
 
 	pci_set_master(pci_dev);
 
@@ -5049,8 +5051,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		}
 	}
 	if (i == DEVICE_COUNT_RESOURCE) {
-		printk(KERN_INFO "forcedeth: Couldn't find register window for device %s.\n",
-					pci_name(pci_dev));
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			   "Couldn't find register window\n");
 		goto out_relreg;
 	}
 
@@ -5063,16 +5065,14 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->desc_ver = DESC_VER_3;
 		np->txrxctl_bits = NVREG_TXRXCTL_DESC_3;
 		if (dma_64bit) {
-			if (pci_set_dma_mask(pci_dev, DMA_39BIT_MASK)) {
-				printk(KERN_INFO "forcedeth: 64-bit DMA failed, using 32-bit addressing for device %s.\n",
-				       pci_name(pci_dev));
-			} else {
+			if (pci_set_dma_mask(pci_dev, DMA_39BIT_MASK))
+				dev_printk(KERN_INFO, &pci_dev->dev,
+					"64-bit DMA failed, using 32-bit addressing\n");
+			else
 				dev->features |= NETIF_F_HIGHDMA;
-				printk(KERN_INFO "forcedeth: using HIGHDMA\n");
-			}
 			if (pci_set_consistent_dma_mask(pci_dev, DMA_39BIT_MASK)) {
-				printk(KERN_INFO "forcedeth: 64-bit DMA (consistent) failed, using 32-bit ring buffers for device %s.\n",
-				       pci_name(pci_dev));
+				dev_printk(KERN_INFO, &pci_dev->dev,
+					"64-bit DMA (consistent) failed, using 32-bit ring buffers\n");
 			}
 		}
 	} else if (id->driver_data & DEV_HAS_LARGEDESC) {
@@ -5207,9 +5207,11 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		 * Bad mac address. At least one bios sets the mac address
 		 * to 01:23:45:67:89:ab
 		 */
-		printk(KERN_ERR "%s: Invalid Mac address detected: %s\n",
-		       pci_name(pci_dev), print_mac(mac, dev->dev_addr));
-		printk(KERN_ERR "Please complain to your hardware vendor. Switching to a random MAC.\n");
+		dev_printk(KERN_ERR, &pci_dev->dev,
+			"Invalid Mac address detected: %s\n",
+		        print_mac(mac, dev->dev_addr));
+		dev_printk(KERN_ERR, &pci_dev->dev,
+			"Please complain to your hardware vendor. Switching to a random MAC.\n");
 		dev->dev_addr[0] = 0x00;
 		dev->dev_addr[1] = 0x00;
 		dev->dev_addr[2] = 0x6c;
@@ -5323,8 +5325,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		break;
 	}
 	if (i == 33) {
-		printk(KERN_INFO "%s: open: Could not find a valid PHY.\n",
-		       pci_name(pci_dev));
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			"open: Could not find a valid PHY.\n");
 		goto out_error;
 	}
 
@@ -5346,12 +5348,37 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_INFO "forcedeth: unable to register netdev: %d\n", err);
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			   "unable to register netdev: %d\n", err);
 		goto out_error;
 	}
-	printk(KERN_INFO "%s: forcedeth.c: subsystem: %05x:%04x bound to %s\n",
-			dev->name, pci_dev->subsystem_vendor, pci_dev->subsystem_device,
-			pci_name(pci_dev));
+
+	dev_printk(KERN_INFO, &pci_dev->dev, "ifname %s, PHY OUI 0x%x @ %d, "
+		   "addr %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
+		   dev->name,
+		   np->phy_oui,
+		   np->phyaddr,
+		   dev->dev_addr[0],
+		   dev->dev_addr[1],
+		   dev->dev_addr[2],
+		   dev->dev_addr[3],
+		   dev->dev_addr[4],
+		   dev->dev_addr[5]);
+
+	dev_printk(KERN_INFO, &pci_dev->dev, "%s%s%s%s%s%s%s%s%s%sdesc-v%u\n",
+		   dev->features & NETIF_F_HIGHDMA ? "highdma " : "",
+		   dev->features & (NETIF_F_HW_CSUM | NETIF_F_SG) ?
+		   	"csum " : "",
+		   dev->features & (NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX) ?
+		   	"vlan " : "",
+		   id->driver_data & DEV_HAS_POWER_CNTRL ? "pwrctl " : "",
+		   id->driver_data & DEV_HAS_MGMT_UNIT ? "mgmt " : "",
+		   id->driver_data & DEV_NEED_TIMERIRQ ? "timirq " : "",
+		   np->gigabit == PHY_GIGABIT ? "gbit " : "",
+		   np->need_linktimer ? "lnktim " : "",
+		   np->msi_flags & NV_MSI_CAPABLE ? "msi " : "",
+		   np->msi_flags & NV_MSI_X_CAPABLE ? "msi-x " : "",
+		   np->desc_ver);
 
 	return 0;
 
@@ -5569,17 +5596,16 @@ static struct pci_device_id pci_tbl[] = {
 };
 
 static struct pci_driver driver = {
-	.name = "forcedeth",
-	.id_table = pci_tbl,
-	.probe = nv_probe,
-	.remove = __devexit_p(nv_remove),
-	.suspend = nv_suspend,
-	.resume	= nv_resume,
+	.name		= DRV_NAME,
+	.id_table	= pci_tbl,
+	.probe		= nv_probe,
+	.remove		= __devexit_p(nv_remove),
+	.suspend	= nv_suspend,
+	.resume		= nv_resume,
 };
 
 static int __init init_nic(void)
 {
-	printk(KERN_INFO "forcedeth.c: Reverse Engineered nForce ethernet driver. Version %s.\n", FORCEDETH_VERSION);
 	return pci_register_driver(&driver);
 }
 
