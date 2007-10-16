@@ -144,7 +144,6 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
-extern void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *new);
 extern void mpol_rebind_task(struct task_struct *tsk,
 					const nodemask_t *new);
 extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
@@ -233,11 +232,6 @@ static inline void numa_policy_init(void)
 }
 
 static inline void numa_default_policy(void)
-{
-}
-
-static inline void mpol_rebind_policy(struct mempolicy *pol,
-					const nodemask_t *new)
 {
 }
 

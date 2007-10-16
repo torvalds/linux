@@ -87,6 +87,7 @@
 #include <linux/migrate.h>
 #include <linux/rmap.h>
 #include <linux/security.h>
+#include <linux/syscalls.h>
 
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -107,6 +108,9 @@ struct mempolicy default_policy = {
 	.refcnt = ATOMIC_INIT(1), /* never free it */
 	.policy = MPOL_DEFAULT,
 };
+
+static void mpol_rebind_policy(struct mempolicy *pol,
+                               const nodemask_t *newmask);
 
 /* Do sanity checking on a policy */
 static int mpol_check_policy(int mode, nodemask_t *nodes)
@@ -459,7 +463,7 @@ static void mpol_set_task_struct_flag(void)
 }
 
 /* Set the process memory policy */
-long do_set_mempolicy(int mode, nodemask_t *nodes)
+static long do_set_mempolicy(int mode, nodemask_t *nodes)
 {
 	struct mempolicy *new;
 
@@ -519,8 +523,8 @@ static int lookup_node(struct mm_struct *mm, unsigned long addr)
 }
 
 /* Retrieve NUMA policy */
-long do_get_mempolicy(int *policy, nodemask_t *nmask,
-			unsigned long addr, unsigned long flags)
+static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+			     unsigned long addr, unsigned long flags)
 {
 	int err;
 	struct mm_struct *mm = current->mm;
@@ -611,7 +615,8 @@ static struct page *new_node_page(struct page *page, unsigned long node, int **x
  * Migrate pages from one node to a target node.
  * Returns error or the number of pages not migrated.
  */
-int migrate_to_node(struct mm_struct *mm, int source, int dest, int flags)
+static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+			   int flags)
 {
 	nodemask_t nmask;
 	LIST_HEAD(pagelist);
@@ -742,8 +747,9 @@ static struct page *new_vma_page(struct page *page, unsigned long private, int *
 }
 #endif
 
-long do_mbind(unsigned long start, unsigned long len,
-		unsigned long mode, nodemask_t *nmask, unsigned long flags)
+static long do_mbind(unsigned long start, unsigned long len,
+		     unsigned long mode, nodemask_t *nmask,
+		     unsigned long flags)
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
@@ -988,7 +994,8 @@ asmlinkage long sys_get_mempolicy(int __user *policy,
 				unsigned long maxnode,
 				unsigned long addr, unsigned long flags)
 {
-	int err, pval;
+	int err;
+	int uninitialized_var(pval);
 	nodemask_t nodes;
 
 	if (nmask != NULL && maxnode < MAX_NUMNODES)
@@ -1537,8 +1544,8 @@ static void sp_delete(struct shared_policy *sp, struct sp_node *n)
 	kmem_cache_free(sn_cache, n);
 }
 
-struct sp_node *
-sp_alloc(unsigned long start, unsigned long end, struct mempolicy *pol)
+static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
+				struct mempolicy *pol)
 {
 	struct sp_node *n = kmem_cache_alloc(sn_cache, GFP_KERNEL);
 
@@ -1716,7 +1723,8 @@ void numa_default_policy(void)
 }
 
 /* Migrate a policy to a different set of nodes */
-void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
+static void mpol_rebind_policy(struct mempolicy *pol,
+			       const nodemask_t *newmask)
 {
 	nodemask_t *mpolmask;
 	nodemask_t tmp;
