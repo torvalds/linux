@@ -242,6 +242,8 @@ Summary of ide driver parameters for kernel command line
 			  and quite likely to cause trouble with
 			  older/odd IDE drives.
 
+ "hdx=nodma"		: disallow DMA
+
  "hdx=swapdata"		: when the drive is a disk, byte swap all data
 
  "hdx=bswap"		: same as above..........
@@ -285,8 +287,6 @@ Summary of ide driver parameters for kernel command line
 			  unknown.
 
  "ide=reverse"		: formerly called to pci sub-system, but now local.
-
- "ide=nodma"		: disable DMA globally for the IDE subsystem.
 
 The following are valid ONLY on ide0, which usually corresponds
 to the first ATA interface found on the particular host, and the defaults for

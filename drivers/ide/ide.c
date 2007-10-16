@@ -1272,7 +1272,7 @@ static int __init ide_setup(char *s)
 	if (!strcmp(s, "ide=nodma")) {
 		printk(" : Prevented DMA\n");
 		noautodma = 1;
-		return 1;
+		goto obsolete_option;
 	}
 
 #ifdef CONFIG_IDEPCI_PCIBUS_ORDER
@@ -1306,7 +1306,7 @@ static int __init ide_setup(char *s)
 	 */
 	if (s[0] == 'h' && s[1] == 'd' && s[2] >= 'a' && s[2] <= max_drive) {
 		const char *hd_words[] = {
-			"none", "noprobe", "nowerr", "cdrom", "minus5",
+			"none", "noprobe", "nowerr", "cdrom", "nodma",
 			"autotune", "noautotune", "minus8", "swapdata", "bswap",
 			"noflush", "remap", "remap63", "scsi", NULL };
 		unit = s[2] - 'a';
@@ -1333,6 +1333,9 @@ static int __init ide_setup(char *s)
 				/* an ATAPI device ignores DRDY */
 				drive->ready_stat = 0;
 				hwif->noprobe = 0;
+				goto done;
+			case -5: /* nodma */
+				drive->nodma = 1;
 				goto done;
 			case -6: /* "autotune" */
 				drive->autotune = IDE_TUNE_AUTO;

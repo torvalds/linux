@@ -759,7 +759,7 @@ static int ide_tune_dma(ide_drive_t *drive)
 {
 	u8 speed;
 
-	if (noautodma || (drive->id->capability & 1) == 0)
+	if (noautodma || drive->nodma || (drive->id->capability & 1) == 0)
 		return 0;
 
 	/* consult the list of known "bad" drives */
