@@ -366,8 +366,8 @@ ecryptfs_extent_to_lwr_pg_idx_and_offset(unsigned long *lower_page_idx,
 	int extents_per_page;
 
 	bytes_occupied_by_headers_at_front =
-		( crypt_stat->header_extent_size
-		  * crypt_stat->num_header_extents_at_front );
+		(crypt_stat->extent_size
+		 * crypt_stat->num_header_extents_at_front);
 	extents_occupied_by_headers_at_front =
 		( bytes_occupied_by_headers_at_front
 		  / crypt_stat->extent_size );
@@ -376,8 +376,8 @@ ecryptfs_extent_to_lwr_pg_idx_and_offset(unsigned long *lower_page_idx,
 	(*lower_page_idx) = lower_extent_num / extents_per_page;
 	extent_offset = lower_extent_num % extents_per_page;
 	(*byte_offset) = extent_offset * crypt_stat->extent_size;
-	ecryptfs_printk(KERN_DEBUG, " * crypt_stat->header_extent_size = "
-			"[%d]\n", crypt_stat->header_extent_size);
+	ecryptfs_printk(KERN_DEBUG, " * crypt_stat->extent_size = "
+			"[%d]\n", crypt_stat->extent_size);
 	ecryptfs_printk(KERN_DEBUG, " * crypt_stat->"
 			"num_header_extents_at_front = [%d]\n",
 			crypt_stat->num_header_extents_at_front);
@@ -899,15 +899,17 @@ void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat)
 	crypt_stat->extent_size = ECRYPTFS_DEFAULT_EXTENT_SIZE;
 	set_extent_mask_and_shift(crypt_stat);
 	crypt_stat->iv_bytes = ECRYPTFS_DEFAULT_IV_BYTES;
-	if (PAGE_CACHE_SIZE <= ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE) {
-		crypt_stat->header_extent_size =
-			ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
-	} else
-		crypt_stat->header_extent_size = PAGE_CACHE_SIZE;
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
 		crypt_stat->num_header_extents_at_front = 0;
-	else
-		crypt_stat->num_header_extents_at_front = 1;
+	else {
+		if (PAGE_CACHE_SIZE <= ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)
+			crypt_stat->num_header_extents_at_front =
+				(ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE
+				 / crypt_stat->extent_size);
+		else
+			crypt_stat->num_header_extents_at_front =
+				(PAGE_CACHE_SIZE / crypt_stat->extent_size);
+	}
 }
 
 /**
@@ -1319,7 +1321,7 @@ ecryptfs_write_header_metadata(char *virt,
 	u32 header_extent_size;
 	u16 num_header_extents_at_front;
 
-	header_extent_size = (u32)crypt_stat->header_extent_size;
+	header_extent_size = (u32)crypt_stat->extent_size;
 	num_header_extents_at_front =
 		(u16)crypt_stat->num_header_extents_at_front;
 	header_extent_size = cpu_to_be32(header_extent_size);
@@ -1415,7 +1417,7 @@ ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
 		set_fs(oldfs);
 		goto out;
 	}
-	header_pages = ((crypt_stat->header_extent_size
+	header_pages = ((crypt_stat->extent_size
 			 * crypt_stat->num_header_extents_at_front)
 			/ PAGE_CACHE_SIZE);
 	memset(page_virt, 0, PAGE_CACHE_SIZE);
@@ -1532,17 +1534,16 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
 	virt += 4;
 	memcpy(&num_header_extents_at_front, virt, 2);
 	num_header_extents_at_front = be16_to_cpu(num_header_extents_at_front);
-	crypt_stat->header_extent_size = (int)header_extent_size;
 	crypt_stat->num_header_extents_at_front =
 		(int)num_header_extents_at_front;
-	(*bytes_read) = 6;
+	(*bytes_read) = (sizeof(u32) + sizeof(u16));
 	if ((validate_header_size == ECRYPTFS_VALIDATE_HEADER_SIZE)
-	    && ((crypt_stat->header_extent_size
+	    && ((crypt_stat->extent_size
 		 * crypt_stat->num_header_extents_at_front)
 		< ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)) {
 		rc = -EINVAL;
-		ecryptfs_printk(KERN_WARNING, "Invalid header extent size: "
-				"[%d]\n", crypt_stat->header_extent_size);
+		printk(KERN_WARNING "Invalid number of header extents: [%zd]\n",
+		       crypt_stat->num_header_extents_at_front);
 	}
 	return rc;
 }
@@ -1557,8 +1558,7 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
  */
 static void set_default_header_data(struct ecryptfs_crypt_stat *crypt_stat)
 {
-	crypt_stat->header_extent_size = 4096;
-	crypt_stat->num_header_extents_at_front = 1;
+	crypt_stat->num_header_extents_at_front = 2;
 }
 
 /**

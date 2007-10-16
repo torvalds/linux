@@ -392,7 +392,8 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		dentry->d_sb)->mount_crypt_stat;
 	if (mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED) {
 		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-			file_size = (crypt_stat->header_extent_size
+			file_size = ((crypt_stat->extent_size
+				      * crypt_stat->num_header_extents_at_front)
 				     + i_size_read(lower_dentry->d_inode));
 		else
 			file_size = i_size_read(lower_dentry->d_inode);
@@ -722,8 +723,8 @@ upper_size_to_lower_size(struct ecryptfs_crypt_stat *crypt_stat,
 {
 	loff_t lower_size;
 
-	lower_size = ( crypt_stat->header_extent_size
-		       * crypt_stat->num_header_extents_at_front );
+	lower_size = (crypt_stat->extent_size
+		      * crypt_stat->num_header_extents_at_front);
 	if (upper_size != 0) {
 		loff_t num_extents;
 

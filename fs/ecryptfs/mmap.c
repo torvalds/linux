@@ -301,7 +301,7 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 	} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
 		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
 			int num_pages_in_header_region =
-				(crypt_stat->header_extent_size
+				(crypt_stat->extent_size
 				 / PAGE_CACHE_SIZE);
 
 			if (page->index < num_pages_in_header_region) {

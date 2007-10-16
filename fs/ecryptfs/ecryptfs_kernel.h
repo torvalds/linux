@@ -38,7 +38,7 @@
 /* Version verification for shared data structures w/ userspace */
 #define ECRYPTFS_VERSION_MAJOR 0x00
 #define ECRYPTFS_VERSION_MINOR 0x04
-#define ECRYPTFS_SUPPORTED_FILE_VERSION 0x02
+#define ECRYPTFS_SUPPORTED_FILE_VERSION 0x03
 /* These flags indicate which features are supported by the kernel
  * module; userspace tools such as the mount helper read
  * ECRYPTFS_VERSIONING_MASK from a sysfs handle in order to determine
@@ -67,8 +67,7 @@
 #define ECRYPTFS_MAX_KEY_BYTES 64
 #define ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES 512
 #define ECRYPTFS_DEFAULT_IV_BYTES 16
-#define ECRYPTFS_FILE_VERSION 0x02
-#define ECRYPTFS_DEFAULT_HEADER_EXTENT_SIZE 8192
+#define ECRYPTFS_FILE_VERSION 0x03
 #define ECRYPTFS_DEFAULT_EXTENT_SIZE 4096
 #define ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE 8192
 #define ECRYPTFS_DEFAULT_MSG_CTX_ELEMS 32
@@ -201,7 +200,7 @@ ecryptfs_get_key_payload_data(struct key *key)
 #define ECRYPTFS_SALT_BYTES 2
 #define MAGIC_ECRYPTFS_MARKER 0x3c81b7f5
 #define MAGIC_ECRYPTFS_MARKER_SIZE_BYTES 8	/* 4*2 */
-#define ECRYPTFS_FILE_SIZE_BYTES 8
+#define ECRYPTFS_FILE_SIZE_BYTES (sizeof(u64))
 #define ECRYPTFS_DEFAULT_CIPHER "aes"
 #define ECRYPTFS_DEFAULT_KEY_BYTES 16
 #define ECRYPTFS_DEFAULT_HASH "md5"
@@ -238,7 +237,6 @@ struct ecryptfs_crypt_stat {
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
-	size_t header_extent_size;
 	size_t num_header_extents_at_front;
 	size_t extent_size; /* Data extent size; default is 4096 */
 	size_t key_size;
@@ -273,6 +271,17 @@ struct ecryptfs_dentry_info {
 };
 
 /**
+ * ecryptfs_global_auth_tok - A key used to encrypt all new files under the mountpoint
+ * @flags: Status flags
+ * @mount_crypt_stat_list: These auth_toks hang off the mount-wide
+ *                         cryptographic context. Every time a new
+ *                         inode comes into existence, eCryptfs copies
+ *                         the auth_toks on that list to the set of
+ *                         auth_toks on the inode's crypt_stat
+ * @global_auth_tok_key: The key from the user's keyring for the sig
+ * @global_auth_tok: The key contents
+ * @sig: The key identifier
+ *
  * ecryptfs_global_auth_tok structs refer to authentication token keys
  * in the user keyring that apply to newly created files. A list of
  * these objects hangs off of the mount_crypt_stat struct for any
@@ -283,15 +292,21 @@ struct ecryptfs_dentry_info {
 struct ecryptfs_global_auth_tok {
 #define ECRYPTFS_AUTH_TOK_INVALID 0x00000001
 	u32 flags;
-	struct list_head mount_crypt_stat_list; /* Default auth_tok list for
-						 * the mount_crypt_stat */
-	struct key *global_auth_tok_key; /* The key from the user's keyring for
-					  * the sig */
-	struct ecryptfs_auth_tok *global_auth_tok; /* The key contents */
-	unsigned char sig[ECRYPTFS_SIG_SIZE_HEX + 1]; /* The key identifier */
+	struct list_head mount_crypt_stat_list;
+	struct key *global_auth_tok_key;
+	struct ecryptfs_auth_tok *global_auth_tok;
+	unsigned char sig[ECRYPTFS_SIG_SIZE_HEX + 1];
 };
 
 /**
+ * ecryptfs_key_tfm - Persistent key tfm
+ * @key_tfm: crypto API handle to the key
+ * @key_size: Key size in bytes
+ * @key_tfm_mutex: Mutex to ensure only one operation in eCryptfs is
+ *                 using the persistent TFM at any point in time
+ * @key_tfm_list: Handle to hang this off the module-wide TFM list
+ * @cipher_name: String name for the cipher for this TFM
+ *
  * Typically, eCryptfs will use the same ciphers repeatedly throughout
  * the course of its operations. In order to avoid unnecessarily
  * destroying and initializing the same cipher repeatedly, eCryptfs
@@ -301,7 +316,7 @@ struct ecryptfs_key_tfm {
 	struct crypto_blkcipher *key_tfm;
 	size_t key_size;
 	struct mutex key_tfm_mutex;
-	struct list_head key_tfm_list; /* The module's tfm list */
+	struct list_head key_tfm_list;
 	unsigned char cipher_name[ECRYPTFS_MAX_CIPHER_NAME_SIZE + 1];
 };
 
