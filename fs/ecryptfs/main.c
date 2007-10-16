@@ -799,13 +799,6 @@ out:
 
 static void do_sysfs_unregistration(void)
 {
-	int rc;
-
-	rc = ecryptfs_destroy_crypto();
-	if (rc) {
-		printk(KERN_ERR "Failure whilst attempting to destroy crypto; "
-		       "rc = [%d]\n", rc);
-	}
 	sysfs_remove_file(&ecryptfs_subsys.kobj,
 			  &sysfs_attr_version.attr);
 	sysfs_remove_file(&ecryptfs_subsys.kobj,
@@ -836,43 +829,49 @@ static int __init ecryptfs_init(void)
 	rc = register_filesystem(&ecryptfs_fs_type);
 	if (rc) {
 		printk(KERN_ERR "Failed to register filesystem\n");
-		ecryptfs_free_kmem_caches();
-		goto out;
+		goto out_free_kmem_caches;
 	}
 	kobj_set_kset_s(&ecryptfs_subsys, fs_subsys);
 	rc = do_sysfs_registration();
 	if (rc) {
 		printk(KERN_ERR "sysfs registration failed\n");
-		unregister_filesystem(&ecryptfs_fs_type);
-		ecryptfs_free_kmem_caches();
-		goto out;
+		goto out_unregister_filesystem;
 	}
 	rc = ecryptfs_init_messaging(ecryptfs_transport);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Failure occured while attempting to "
 				"initialize the eCryptfs netlink socket\n");
-		do_sysfs_unregistration();
-		unregister_filesystem(&ecryptfs_fs_type);
-		ecryptfs_free_kmem_caches();
-		goto out;
+		goto out_do_sysfs_unregistration;
 	}
 	rc = ecryptfs_init_crypto();
 	if (rc) {
 		printk(KERN_ERR "Failure whilst attempting to init crypto; "
 		       "rc = [%d]\n", rc);
-		do_sysfs_unregistration();
-		unregister_filesystem(&ecryptfs_fs_type);
-		ecryptfs_free_kmem_caches();
-		goto out;
+		goto out_release_messaging;
 	}
+	goto out;
+out_release_messaging:
+	ecryptfs_release_messaging(ecryptfs_transport);
+out_do_sysfs_unregistration:
+	do_sysfs_unregistration();
+out_unregister_filesystem:
+	unregister_filesystem(&ecryptfs_fs_type);
+out_free_kmem_caches:
+	ecryptfs_free_kmem_caches();
 out:
 	return rc;
 }
 
 static void __exit ecryptfs_exit(void)
 {
-	do_sysfs_unregistration();
+	int rc;
+
+	rc = ecryptfs_destroy_crypto();
+	if (rc)
+		printk(KERN_ERR "Failure whilst attempting to destroy crypto; "
+		       "rc = [%d]\n", rc);
 	ecryptfs_release_messaging(ecryptfs_transport);
+	do_sysfs_unregistration();
 	unregister_filesystem(&ecryptfs_fs_type);
 	ecryptfs_free_kmem_caches();
 }
