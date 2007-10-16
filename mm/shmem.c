@@ -1108,7 +1108,7 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
 	 * Normally, filepage is NULL on entry, and either found
 	 * uptodate immediately, or allocated and zeroed, or read
 	 * in under swappage, which is then assigned to filepage.
-	 * But shmem_readpage and shmem_prepare_write pass in a locked
+	 * But shmem_readpage and shmem_write_begin pass in a locked
 	 * filepage, which may be found not uptodate by other callers
 	 * too, and may need to be copied from the swappage read in.
 	 */
@@ -1445,7 +1445,7 @@ static const struct inode_operations shmem_symlink_inode_operations;
 static const struct inode_operations shmem_symlink_inline_operations;
 
 /*
- * Normally tmpfs avoids the use of shmem_readpage and shmem_prepare_write;
+ * Normally tmpfs avoids the use of shmem_readpage and shmem_write_begin;
  * but providing them allows a tmpfs file to be used for splice, sendfile, and
  * below the loop driver, in the generic fashion that many filesystems support.
  */
@@ -1458,10 +1458,30 @@ static int shmem_readpage(struct file *file, struct page *page)
 }
 
 static int
-shmem_prepare_write(struct file *file, struct page *page, unsigned offset, unsigned to)
+shmem_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
-	struct inode *inode = page->mapping->host;
-	return shmem_getpage(inode, page->index, &page, SGP_WRITE, NULL);
+	struct inode *inode = mapping->host;
+	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	*pagep = NULL;
+	return shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+}
+
+static int
+shmem_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
+{
+	struct inode *inode = mapping->host;
+
+	set_page_dirty(page);
+	page_cache_release(page);
+
+	if (pos+copied > inode->i_size)
+		i_size_write(inode, pos+copied);
+
+	return copied;
 }
 
 static ssize_t
@@ -2337,8 +2357,8 @@ static const struct address_space_operations shmem_aops = {
 	.set_page_dirty	= __set_page_dirty_no_writeback,
 #ifdef CONFIG_TMPFS
 	.readpage	= shmem_readpage,
-	.prepare_write	= shmem_prepare_write,
-	.commit_write	= simple_commit_write,
+	.write_begin	= shmem_write_begin,
+	.write_end	= shmem_write_end,
 #endif
 	.migratepage	= migrate_page,
 };

@@ -189,15 +189,19 @@ static int hugetlbfs_readpage(struct file *file, struct page * page)
 	return -EINVAL;
 }
 
-static int hugetlbfs_prepare_write(struct file *file,
-			struct page *page, unsigned offset, unsigned to)
+static int hugetlbfs_write_begin(struct file *file,
+			struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
 	return -EINVAL;
 }
 
-static int hugetlbfs_commit_write(struct file *file,
-			struct page *page, unsigned offset, unsigned to)
+static int hugetlbfs_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
 {
+	BUG();
 	return -EINVAL;
 }
 
@@ -569,8 +573,8 @@ static void hugetlbfs_destroy_inode(struct inode *inode)
 
 static const struct address_space_operations hugetlbfs_aops = {
 	.readpage	= hugetlbfs_readpage,
-	.prepare_write	= hugetlbfs_prepare_write,
-	.commit_write	= hugetlbfs_commit_write,
+	.write_begin	= hugetlbfs_write_begin,
+	.write_end	= hugetlbfs_write_end,
 	.set_page_dirty	= hugetlbfs_set_page_dirty,
 };
 

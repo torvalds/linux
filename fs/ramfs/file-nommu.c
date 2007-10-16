@@ -29,8 +29,8 @@ static int ramfs_nommu_setattr(struct dentry *, struct iattr *);
 
 const struct address_space_operations ramfs_aops = {
 	.readpage		= simple_readpage,
-	.prepare_write		= simple_prepare_write,
-	.commit_write		= simple_commit_write,
+	.write_begin		= simple_write_begin,
+	.write_end		= simple_write_end,
 	.set_page_dirty		= __set_page_dirty_no_writeback,
 };
 
