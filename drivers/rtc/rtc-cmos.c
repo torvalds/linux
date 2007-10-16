@@ -246,11 +246,9 @@ static int cmos_irq_set_freq(struct device *dev, int freq)
 
 	/* 0 = no irqs; 1 = 2^15 Hz ... 15 = 2^0 Hz */
 	f = ffs(freq);
-	if (f != 0) {
-		if (f-- > 16 || freq != (1 << f))
-			return -EINVAL;
-		f = 16 - f;
-	}
+	if (f-- > 16)
+		return -EINVAL;
+	f = 16 - f;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 	CMOS_WRITE(RTC_REF_CLCK_32KHZ | f, RTC_FREQ_SELECT);

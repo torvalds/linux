@@ -12,6 +12,7 @@
 */
 
 #include <linux/rtc.h>
+#include <linux/log2.h>
 
 int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm)
 {
@@ -236,6 +237,16 @@ void rtc_irq_unregister(struct rtc_device *rtc, struct rtc_task *task)
 }
 EXPORT_SYMBOL_GPL(rtc_irq_unregister);
 
+/**
+ * rtc_irq_set_state - enable/disable 2^N Hz periodic IRQs
+ * @rtc: the rtc device
+ * @task: currently registered with rtc_irq_register()
+ * @enabled: true to enable periodic IRQs
+ * Context: any
+ *
+ * Note that rtc_irq_set_freq() should previously have been used to
+ * specify the desired frequency of periodic IRQ task->func() callbacks.
+ */
 int rtc_irq_set_state(struct rtc_device *rtc, struct rtc_task *task, int enabled)
 {
 	int err = 0;
@@ -258,6 +269,16 @@ int rtc_irq_set_state(struct rtc_device *rtc, struct rtc_task *task, int enabled
 }
 EXPORT_SYMBOL_GPL(rtc_irq_set_state);
 
+/**
+ * rtc_irq_set_freq - set 2^N Hz periodic IRQ frequency for IRQ
+ * @rtc: the rtc device
+ * @task: currently registered with rtc_irq_register()
+ * @freq: positive frequency with which task->func() will be called
+ * Context: any
+ *
+ * Note that rtc_irq_set_state() is used to enable or disable the
+ * periodic IRQs.
+ */
 int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
 {
 	int err = 0;
@@ -265,6 +286,9 @@ int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
 
 	if (rtc->ops->irq_set_freq == NULL)
 		return -ENXIO;
+
+	if (!is_power_of_2(freq))
+		return -EINVAL;
 
 	spin_lock_irqsave(&rtc->irq_task_lock, flags);
 	if (rtc->irq_task != NULL && task == NULL)
