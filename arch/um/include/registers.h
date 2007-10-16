@@ -12,6 +12,8 @@
 extern void init_thread_registers(struct uml_pt_regs *to);
 extern int save_fp_registers(int pid, unsigned long *fp_regs);
 extern int restore_fp_registers(int pid, unsigned long *fp_regs);
+extern int save_fpx_registers(int pid, unsigned long *fp_regs);
+extern int restore_fpx_registers(int pid, unsigned long *fp_regs);
 extern void save_registers(int pid, struct uml_pt_regs *regs);
 extern void restore_registers(int pid, struct uml_pt_regs *regs);
 extern void init_registers(int pid);

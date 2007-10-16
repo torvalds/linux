@@ -32,25 +32,186 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 	REGS_SS(regs->gp) = sc->ss;
 }
 
+/*
+ * FPU tag word conversions.
+ */
+
+static inline unsigned short twd_i387_to_fxsr(unsigned short twd)
+{
+	unsigned int tmp; /* to avoid 16 bit prefixes in the code */
+
+	/* Transform each pair of bits into 01 (valid) or 00 (empty) */
+	tmp = ~twd;
+	tmp = (tmp | (tmp>>1)) & 0x5555; /* 0V0V0V0V0V0V0V0V */
+	/* and move the valid bits to the lower byte. */
+	tmp = (tmp | (tmp >> 1)) & 0x3333; /* 00VV00VV00VV00VV */
+	tmp = (tmp | (tmp >> 2)) & 0x0f0f; /* 0000VVVV0000VVVV */
+	tmp = (tmp | (tmp >> 4)) & 0x00ff; /* 00000000VVVVVVVV */
+	return tmp;
+}
+
+static inline unsigned long twd_fxsr_to_i387(struct user_fxsr_struct *fxsave)
+{
+	struct _fpxreg *st = NULL;
+	unsigned long twd = (unsigned long) fxsave->twd;
+	unsigned long tag;
+	unsigned long ret = 0xffff0000;
+	int i;
+
+#define FPREG_ADDR(f, n)	((char *)&(f)->st_space + (n) * 16);
+
+	for (i = 0; i < 8; i++) {
+		if (twd & 0x1) {
+			st = (struct _fpxreg *) FPREG_ADDR(fxsave, i);
+
+			switch (st->exponent & 0x7fff) {
+			case 0x7fff:
+				tag = 2;		/* Special */
+				break;
+			case 0x0000:
+				if ( !st->significand[0] &&
+				     !st->significand[1] &&
+				     !st->significand[2] &&
+				     !st->significand[3] ) {
+					tag = 1;	/* Zero */
+				} else {
+					tag = 2;	/* Special */
+				}
+				break;
+			default:
+				if (st->significand[3] & 0x8000) {
+					tag = 0;	/* Valid */
+				} else {
+					tag = 2;	/* Special */
+				}
+				break;
+			}
+		} else {
+			tag = 3;			/* Empty */
+		}
+		ret |= (tag << (2 * i));
+		twd = twd >> 1;
+	}
+	return ret;
+}
+
+static int convert_fxsr_to_user(struct _fpstate __user *buf,
+				struct user_fxsr_struct *fxsave)
+{
+	unsigned long env[7];
+	struct _fpreg __user *to;
+	struct _fpxreg *from;
+	int i;
+
+	env[0] = (unsigned long)fxsave->cwd | 0xffff0000ul;
+	env[1] = (unsigned long)fxsave->swd | 0xffff0000ul;
+	env[2] = twd_fxsr_to_i387(fxsave);
+	env[3] = fxsave->fip;
+	env[4] = fxsave->fcs | ((unsigned long)fxsave->fop << 16);
+	env[5] = fxsave->foo;
+	env[6] = fxsave->fos;
+
+	if (__copy_to_user(buf, env, 7 * sizeof(unsigned long)))
+		return 1;
+
+	to = &buf->_st[0];
+	from = (struct _fpxreg *) &fxsave->st_space[0];
+	for (i = 0; i < 8; i++, to++, from++) {
+		unsigned long __user *t = (unsigned long __user *)to;
+		unsigned long *f = (unsigned long *)from;
+
+		if (__put_user(*f, t) ||
+				__put_user(*(f + 1), t + 1) ||
+				__put_user(from->exponent, &to->exponent))
+			return 1;
+	}
+	return 0;
+}
+
+static int convert_fxsr_from_user(struct user_fxsr_struct *fxsave,
+				  struct _fpstate __user *buf)
+{
+	unsigned long env[7];
+	struct _fpxreg *to;
+	struct _fpreg __user *from;
+	int i;
+
+	if (copy_from_user( env, buf, 7 * sizeof(long)))
+		return 1;
+
+	fxsave->cwd = (unsigned short)(env[0] & 0xffff);
+	fxsave->swd = (unsigned short)(env[1] & 0xffff);
+	fxsave->twd = twd_i387_to_fxsr((unsigned short)(env[2] & 0xffff));
+	fxsave->fip = env[3];
+	fxsave->fop = (unsigned short)((env[4] & 0xffff0000ul) >> 16);
+	fxsave->fcs = (env[4] & 0xffff);
+	fxsave->foo = env[5];
+	fxsave->fos = env[6];
+
+	to = (struct _fpxreg *) &fxsave->st_space[0];
+	from = &buf->_st[0];
+	for (i = 0; i < 8; i++, to++, from++) {
+		unsigned long *t = (unsigned long *)to;
+		unsigned long __user *f = (unsigned long __user *)from;
+
+		if (__get_user(*t, f) ||
+		    __get_user(*(t + 1), f + 1) ||
+		    __get_user(to->exponent, &from->exponent))
+			return 1;
+	}
+	return 0;
+}
+
+extern int have_fpx_regs;
+
 static int copy_sc_from_user(struct pt_regs *regs,
 			     struct sigcontext __user *from)
 {
- 	struct sigcontext sc;
-	unsigned long fpregs[HOST_FP_SIZE];
+	struct sigcontext sc;
 	int err;
 
 	err = copy_from_user(&sc, from, sizeof(sc));
-	err |= copy_from_user(fpregs, sc.fpstate, sizeof(fpregs));
 	if (err)
 		return err;
 
 	copy_sc(&regs->regs, &sc);
+	if (have_fpx_regs) {
+		struct user_fxsr_struct fpx;
 
-	err = restore_fp_registers(userspace_pid[0], fpregs);
-	if (err < 0) {
-	  	printk(KERN_ERR "copy_sc_from_user_skas - PTRACE_SETFPREGS "
-		       "failed, errno = %d\n", -err);
-		return err;
+		err = copy_from_user(&fpx, &sc.fpstate->_fxsr_env[0],
+				     sizeof(struct user_fxsr_struct));
+		if (err)
+			return 1;
+
+		err = convert_fxsr_from_user(&fpx, sc.fpstate);
+		if (err)
+			return 1;
+
+		err = restore_fpx_registers(userspace_pid[current_thread->cpu],
+					    (unsigned long *) &fpx);
+		if (err < 0) {
+			printk(KERN_ERR "copy_sc_from_user - "
+			       "restore_fpx_registers failed, errno = %d\n",
+			       -err);
+			return 1;
+		}
+	}
+	else {
+		struct user_i387_struct fp;
+
+		err = copy_from_user(&fp, sc.fpstate,
+				     sizeof(struct user_i387_struct));
+		if (err)
+			return 1;
+
+		err = restore_fp_registers(userspace_pid[current_thread->cpu],
+					   (unsigned long *) &fp);
+		if (err < 0) {
+			printk(KERN_ERR "copy_sc_from_user - "
+			       "restore_fp_registers failed, errno = %d\n",
+			       -err);
+			return 1;
+		}
 	}
 
 	return 0;
@@ -61,7 +222,6 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 			   unsigned long sp)
 {
 	struct sigcontext sc;
-	unsigned long fpregs[HOST_FP_SIZE];
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err;
 
@@ -86,20 +246,43 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	sc.err = fi->error_code;
 	sc.trapno = fi->trap_no;
 
-	err = save_fp_registers(userspace_pid[0], fpregs);
-	if (err < 0) {
-	  	printk(KERN_ERR "copy_sc_to_user_skas - PTRACE_GETFPREGS "
-		       "failed, errno = %d\n", err);
-		return 1;
-	}
 	to_fp = (to_fp ? to_fp : (struct _fpstate __user *) (to + 1));
 	sc.fpstate = to_fp;
 
-	if (err)
-	  	return err;
+	if (have_fpx_regs) {
+		struct user_fxsr_struct fpx;
 
-	return copy_to_user(to, &sc, sizeof(sc)) ||
-	       copy_to_user(to_fp, fpregs, sizeof(fpregs));
+		err = save_fpx_registers(userspace_pid[current_thread->cpu],
+					 (unsigned long *) &fpx);
+		if (err < 0){
+			printk(KERN_ERR "copy_sc_to_user - save_fpx_registers "
+			       "failed, errno = %d\n", err);
+			return 1;
+		}
+
+		err = convert_fxsr_to_user(to_fp, &fpx);
+		if (err)
+			return 1;
+
+		err |= __put_user(fpx.swd, &to_fp->status);
+		err |= __put_user(X86_FXSR_MAGIC, &to_fp->magic);
+		if (err)
+			return 1;
+
+		if (copy_to_user(&to_fp->_fxsr_env[0], &fpx,
+				 sizeof(struct user_fxsr_struct)))
+			return 1;
+	}
+	else {
+		struct user_i387_struct fp;
+
+		err = save_fp_registers(userspace_pid[current_thread->cpu],
+					(unsigned long *) &fp);
+		if (copy_to_user(to_fp, &fp, sizeof(struct user_i387_struct)))
+			return 1;
+	}
+
+	return copy_to_user(to, &sc, sizeof(sc));
 }
 
 static int copy_ucontext_to_user(struct ucontext __user *uc,

@@ -42,8 +42,10 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 }
 
 static int copy_sc_from_user(struct pt_regs *regs,
-			     struct sigcontext __user *from)
+			     struct sigcontext __user *from,
+			     struct _fpstate __user *fpp)
 {
+	struct user_i387_struct fp;
 	int err = 0;
 
 #define GETREG(regs, regno, sc, regname)				\
@@ -69,10 +71,25 @@ static int copy_sc_from_user(struct pt_regs *regs,
 	err |= GETREG(regs, RIP, from, rip);
 	err |= GETREG(regs, EFLAGS, from, eflags);
 	err |= GETREG(regs, CS, from, cs);
+	if (err)
+		return 1;
 
 #undef GETREG
 
-	return err;
+	err = copy_from_user(&fp, fpp, sizeof(struct user_i387_struct));
+	if (err)
+		return 1;
+
+	err = restore_fp_registers(userspace_pid[current_thread->cpu],
+				   (unsigned long *) &fp);
+	if (err < 0) {
+		printk(KERN_ERR "copy_sc_from_user - "
+		       "restore_fp_registers failed, errno = %d\n",
+		       -err);
+		return 1;
+	}
+
+	return 0;
 }
 
 static int copy_sc_to_user(struct sigcontext __user *to,
@@ -80,6 +97,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 			   unsigned long mask, unsigned long sp)
 {
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
+	struct user_i387_struct fp;
 	int err = 0;
 
 	err |= __put_user(0, &to->gs);
@@ -120,6 +138,19 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 #undef PUTREG
 
 	err |= __put_user(mask, &to->oldmask);
+	if (err)
+		return 1;
+
+	err = save_fp_registers(userspace_pid[current_thread->cpu],
+				(unsigned long *) &fp);
+	if (err < 0) {
+		printk(KERN_ERR "copy_sc_from_user - restore_fp_registers "
+		       "failed, errno = %d\n", -err);
+		return 1;
+	}
+
+	if (copy_to_user(to_fp, &fp, sizeof(struct user_i387_struct)))
+		return 1;
 
 	return(err);
 }
@@ -129,6 +160,7 @@ struct rt_sigframe
 	char __user *pretcode;
 	struct ucontext uc;
 	struct siginfo info;
+	struct _fpstate fpstate;
 };
 
 #define round_down(m, n) (((m) / (n)) * (n))
@@ -138,7 +170,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 			  siginfo_t *info, sigset_t *set)
 {
 	struct rt_sigframe __user *frame;
-	struct _fpstate __user *fp = NULL;
 	unsigned long save_sp = PT_REGS_RSP(regs);
 	int err = 0;
 	struct task_struct *me = current;
@@ -148,13 +179,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	/* Subtract 128 for a red zone and 8 for proper alignment */
 	frame = (struct rt_sigframe __user *) ((unsigned long) frame - 128 - 8);
 
-	if (!access_ok(VERIFY_WRITE, fp, sizeof(struct _fpstate)))
-		goto out;
-
-#if 0 /* XXX */
-	if (save_i387(fp) < 0)
-		err |= -1;
-#endif
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		goto out;
 
@@ -181,9 +205,9 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	err |= __put_user(sas_ss_flags(save_sp),
 			  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(me->sas_ss_size, &frame->uc.uc_stack.ss_size);
-	err |= copy_sc_to_user(&frame->uc.uc_mcontext, fp, regs, set->sig[0],
-		save_sp);
-	err |= __put_user(fp, &frame->uc.uc_mcontext.fpstate);
+	err |= copy_sc_to_user(&frame->uc.uc_mcontext, &frame->fpstate, regs,
+			       set->sig[0], save_sp);
+	err |= __put_user(&frame->fpstate, &frame->uc.uc_mcontext.fpstate);
 	if (sizeof(*set) == 16) {
 		__put_user(set->sig[0], &frame->uc.uc_sigmask.sig[0]);
 		__put_user(set->sig[1], &frame->uc.uc_sigmask.sig[1]);
@@ -246,7 +270,8 @@ long sys_rt_sigreturn(struct pt_regs *regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (copy_sc_from_user(&current->thread.regs, &uc->uc_mcontext))
+	if (copy_sc_from_user(&current->thread.regs, &uc->uc_mcontext,
+			      &frame->fpstate))
 		goto segfault;
 
 	/* Avoid ERESTART handling */

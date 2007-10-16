@@ -168,4 +168,6 @@ struct syscall_args {
 
 #define UPT_FAULTINFO(r) (&(r)->faultinfo)
 
+extern void arch_init_registers(int pid);
+
 #endif

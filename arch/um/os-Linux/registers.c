@@ -47,6 +47,8 @@ void init_registers(int pid)
 	if (err)
 		panic("check_ptrace : PTRACE_GETREGS failed, errno = %d",
 		      errno);
+
+	arch_init_registers(pid);
 }
 
 void get_safe_registers(unsigned long *regs)

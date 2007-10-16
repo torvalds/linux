@@ -234,4 +234,8 @@ struct syscall_args {
 
 #define UPT_FAULTINFO(r) (&(r)->faultinfo)
 
+static inline void arch_init_registers(int pid)
+{
+}
+
 #endif

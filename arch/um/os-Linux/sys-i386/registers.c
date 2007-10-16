@@ -8,9 +8,6 @@
 #include "longjmp.h"
 #include "user.h"
 
-/* XXX These need to use [GS]ETFPXREGS and copy_sc_{to,from}_user_skas needs
- * to pass in a sufficiently large buffer
- */
 int save_fp_registers(int pid, unsigned long *fp_regs)
 {
 	if(ptrace(PTRACE_GETFPREGS, pid, 0, fp_regs) < 0)
@@ -25,6 +22,20 @@ int restore_fp_registers(int pid, unsigned long *fp_regs)
 	return 0;
 }
 
+int save_fpx_registers(int pid, unsigned long *fp_regs)
+{
+	if(ptrace(PTRACE_GETFPXREGS, pid, 0, fp_regs) < 0)
+		return -errno;
+	return 0;
+}
+
+int restore_fpx_registers(int pid, unsigned long *fp_regs)
+{
+	if(ptrace(PTRACE_SETFPXREGS, pid, 0, fp_regs) < 0)
+		return -errno;
+	return 0;
+}
+
 unsigned long get_thread_reg(int reg, jmp_buf *buf)
 {
 	switch(reg){
@@ -35,4 +46,22 @@ unsigned long get_thread_reg(int reg, jmp_buf *buf)
 		printk("get_thread_regs - unknown register %d\n", reg);
 		return 0;
 	}
+}
+
+int have_fpx_regs = 1;
+
+void arch_init_registers(int pid)
+{
+	unsigned long fpx_regs[HOST_XFP_SIZE];
+	int err;
+
+	err = ptrace(PTRACE_GETFPXREGS, pid, 0, fpx_regs);
+	if(!err)
+		return;
+
+	if(errno != EIO)
+		panic("check_ptrace : PTRACE_GETFPXREGS failed, errno = %d",
+		      errno);
+
+	have_fpx_regs = 0;
 }
