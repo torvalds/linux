@@ -970,7 +970,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 				const struct pci_device_id *pci_id)
 {
 	int retval = 0;
-	int yuv_buf_size;
 	int vbi_buf_size;
 	struct ivtv *itv;
 
@@ -1122,11 +1121,8 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_MPG] = 0x08000;
 	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_PCM] = 0x01200;
 	itv->stream_buf_size[IVTV_DEC_STREAM_TYPE_MPG] = 0x10000;
-
-	/* 0x15180 == 720 * 480 / 4, 0x19500 == 720 * 576 / 4 */
-	yuv_buf_size = itv->is_60hz ? 0x15180 : 0x19500;
-	itv->stream_buf_size[IVTV_DEC_STREAM_TYPE_YUV] = yuv_buf_size / 2;
-	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_YUV] = yuv_buf_size / 8;
+	itv->stream_buf_size[IVTV_DEC_STREAM_TYPE_YUV] = 0x10000;
+	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_YUV] = 0x08000;
 
 	/* Setup VBI Raw Size. Should be big enough to hold PAL.
 	   It is possible to switch between PAL and NTSC, so we need to

@@ -542,6 +542,7 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	struct ivtv_open_id *id = filp->private_data;
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
+	struct yuv_playback_info *yi = &itv->yuv_info;
 	struct ivtv_buffer *buf;
 	struct ivtv_queue q;
 	int bytes_written = 0;
@@ -604,9 +605,16 @@ retry:
 
 	/* copy user data into buffers */
 	while ((buf = ivtv_dequeue(s, &q))) {
-		/* Make sure we really got all the user data */
-		rc = ivtv_buf_copy_from_user(s, buf, user_buf, count);
+		/* yuv is a pain. Don't copy more data than needed for a single
+		   frame, otherwise we lose sync with the incoming stream */
+		if (s->type == IVTV_DEC_STREAM_TYPE_YUV &&
+		    yi->stream_size + count > itv->dma_data_req_size)
+			rc  = ivtv_buf_copy_from_user(s, buf, user_buf,
+				itv->dma_data_req_size - yi->stream_size);
+		else
+			rc = ivtv_buf_copy_from_user(s, buf, user_buf, count);
 
+		/* Make sure we really got all the user data */
 		if (rc < 0) {
 			ivtv_queue_move(s, &q, NULL, &s->q_free, 0);
 			return rc;
@@ -614,6 +622,16 @@ retry:
 		user_buf += rc;
 		count -= rc;
 		bytes_written += rc;
+
+		if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
+			yi->stream_size += rc;
+			/* If we have a complete yuv frame, break loop now */
+			if (yi->stream_size == itv->dma_data_req_size) {
+				ivtv_enqueue(s, buf, &s->q_full);
+				yi->stream_size = 0;
+				break;
+			}
+		}
 
 		if (buf->bytesused != s->buf_size) {
 			/* incomplete, leave in q_io for next time */
@@ -922,10 +940,15 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 	}
 
 	/* YUV or MPG Decoding Mode? */
-	if (s->type == IVTV_DEC_STREAM_TYPE_MPG)
+	if (s->type == IVTV_DEC_STREAM_TYPE_MPG) {
 		clear_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
-	else if (s->type == IVTV_DEC_STREAM_TYPE_YUV)
+	} else if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
 		set_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
+		/* For yuv, we need to know the dma size before we start */
+		itv->dma_data_req_size =
+				itv->params.width * itv->params.height * 3 / 2;
+		itv->yuv_info.stream_size = 0;
+	}
 	return 0;
 }
 

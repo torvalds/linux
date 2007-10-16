@@ -313,15 +313,28 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 	IVTV_DEBUG_HI_DMA("DEC PREPARE DMA %s: %08x %08x\n", s->name, s->q_predma.bytesused, offset);
 	list_for_each_entry(buf, &s->q_predma.list, list) {
 		/* YUV UV Offset from Y Buffer */
-		if (s->type == IVTV_DEC_STREAM_TYPE_YUV && !y_done && bytes_written >= y_size) {
+		if (s->type == IVTV_DEC_STREAM_TYPE_YUV && !y_done &&
+				(bytes_written + buf->bytesused) >= y_size) {
+			s->sg_pending[idx].src = buf->dma_handle;
+			s->sg_pending[idx].dst = offset;
+			s->sg_pending[idx].size = y_size - bytes_written;
 			offset = uv_offset;
+			if (s->sg_pending[idx].size != buf->bytesused) {
+				idx++;
+				s->sg_pending[idx].src =
+				  buf->dma_handle + s->sg_pending[idx - 1].size;
+				s->sg_pending[idx].dst = offset;
+				s->sg_pending[idx].size =
+				   buf->bytesused - s->sg_pending[idx - 1].size;
+				offset += s->sg_pending[idx].size;
+			}
 			y_done = 1;
+		} else {
+			s->sg_pending[idx].src = buf->dma_handle;
+			s->sg_pending[idx].dst = offset;
+			s->sg_pending[idx].size = buf->bytesused;
+			offset += buf->bytesused;
 		}
-		s->sg_pending[idx].src = buf->dma_handle;
-		s->sg_pending[idx].dst = offset;
-		s->sg_pending[idx].size = buf->bytesused;
-
-		offset += buf->bytesused;
 		bytes_written += buf->bytesused;
 
 		/* Sync SG buffers */

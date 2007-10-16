@@ -485,6 +485,8 @@ struct yuv_playback_info
 
 	void *blanking_ptr;
 	dma_addr_t blanking_dmaptr;
+
+	int stream_size;
 };
 
 #define IVTV_VBI_FRAMES 32
