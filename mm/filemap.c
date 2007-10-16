@@ -1898,13 +1898,10 @@ again:
 
 		ret = aops->prepare_write(file, page, offset, offset+len);
 		if (ret) {
-			if (ret != AOP_TRUNCATED_PAGE)
-				unlock_page(page);
+			unlock_page(page);
 			page_cache_release(page);
 			if (pos + len > inode->i_size)
 				vmtruncate(inode, inode->i_size);
-			if (ret == AOP_TRUNCATED_PAGE)
-				goto again;
 		}
 		return ret;
 	}
@@ -1931,7 +1928,6 @@ int pagecache_write_end(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		mark_page_accessed(page);
 		page_cache_release(page);
-		BUG_ON(ret == AOP_TRUNCATED_PAGE); /* can't deal with */
 
 		if (ret < 0) {
 			if (pos + len > inode->i_size)
@@ -2142,7 +2138,7 @@ static ssize_t generic_perform_write_2copy(struct file *file,
 		flush_dcache_page(page);
 
 		status = a_ops->commit_write(file, page, offset, offset+bytes);
-		if (unlikely(status < 0 || status == AOP_TRUNCATED_PAGE))
+		if (unlikely(status < 0))
 			goto fs_write_aop_error;
 		if (unlikely(status > 0)) /* filesystem did partial write */
 			copied = min_t(size_t, copied, status);
@@ -2162,8 +2158,7 @@ static ssize_t generic_perform_write_2copy(struct file *file,
 		continue;
 
 fs_write_aop_error:
-		if (status != AOP_TRUNCATED_PAGE)
-			unlock_page(page);
+		unlock_page(page);
 		page_cache_release(page);
 		if (src_page)
 			page_cache_release(src_page);
@@ -2175,10 +2170,7 @@ fs_write_aop_error:
 		 */
 		if (pos + bytes > inode->i_size)
 			vmtruncate(inode, inode->i_size);
-		if (status == AOP_TRUNCATED_PAGE)
-			continue;
-		else
-			break;
+		break;
 	} while (iov_iter_count(i));
 
 	return written ? written : status;

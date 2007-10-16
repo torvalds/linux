@@ -621,11 +621,7 @@ struct address_space_operations {
   	any basic-blocks on storage, then those blocks should be
   	pre-read (if they haven't been read already) so that the
   	updated blocks can be written out properly.
-	The page will be locked.  If prepare_write wants to unlock the
-  	page it, like readpage, may do so and return
-  	AOP_TRUNCATED_PAGE.
-	In this case the prepare_write will be retried one the lock is
-  	regained.
+	The page will be locked.
 
 	Note: the page _must not_ be marked uptodate in this function
 	(or anywhere else) unless it actually is uptodate right now. As
