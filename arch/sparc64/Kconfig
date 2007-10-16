@@ -456,8 +456,6 @@ source "drivers/Kconfig"
 
 source "drivers/sbus/char/Kconfig"
 
-source "drivers/fc4/Kconfig"
-
 source "fs/Kconfig"
 
 menu "Instrumentation Support"
