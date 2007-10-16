@@ -1,5 +1,5 @@
 /*
- * Definitions for the new Marvell Yukon / SysKonenct driver.
+ * Definitions for the new Marvell Yukon / SysKonnect driver.
  */
 #ifndef _SKGE_H
 #define _SKGE_H
@@ -8,8 +8,10 @@
 #define PCI_DEV_REG1	0x40
 #define  PCI_PHY_COMA	0x8000000
 #define  PCI_VIO	0x2000000
+
 #define PCI_DEV_REG2	0x44
-#define  PCI_REV_DESC	 0x4
+#define  PCI_VPD_ROM_SZ	7L<<14	/* VPD ROM size 0=256, 1=512, ... */
+#define  PCI_REV_DESC	1<<2	/* Reverse Descriptor bytes */
 
 #define PCI_STATUS_ERROR_BITS (PCI_STATUS_DETECTED_PARITY | \
 			       PCI_STATUS_SIG_SYSTEM_ERROR | \
