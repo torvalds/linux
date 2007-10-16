@@ -68,7 +68,7 @@
 #include <linux/backlight.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <video/mach64.h>
 #include "atyfb.h"

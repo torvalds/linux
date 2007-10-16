@@ -18,7 +18,6 @@
 #include <linux/i2c.h>
 #include <linux/matroxfb.h>
 #include <asm/div64.h>
-#include <asm/uaccess.h>
 
 #define MAVEN_I2CID	(0x1B)
 

@@ -19,7 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/fb.h>
 #include <linux/list.h>
-#include <asm/uaccess.h>
 
 /* to support deferred IO */
 #include <linux/rmap.h>

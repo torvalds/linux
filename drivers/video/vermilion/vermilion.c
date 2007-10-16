@@ -39,7 +39,6 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <linux/mmzone.h>
-#include <asm/uaccess.h>
 
 /* #define VERMILION_DEBUG */
 

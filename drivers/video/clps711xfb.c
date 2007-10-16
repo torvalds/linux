@@ -29,7 +29,7 @@
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/hardware/clps7111.h>
 #include <asm/arch/syspld.h>

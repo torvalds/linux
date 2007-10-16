@@ -178,7 +178,6 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/uaccess.h>
 #include <asm/arch/assabet.h>
 #include <asm/arch/shannon.h>
 

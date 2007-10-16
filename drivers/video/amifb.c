@@ -52,7 +52,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/amigahw.h>

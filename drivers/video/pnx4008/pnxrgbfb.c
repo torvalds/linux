@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <asm/uaccess.h>
 #include "sdum.h"
 #include "fbcommon.h"
 

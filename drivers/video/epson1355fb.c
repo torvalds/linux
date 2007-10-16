@@ -57,7 +57,7 @@
 
 #include <asm/types.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <video/epson1355.h>
 

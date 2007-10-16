@@ -34,7 +34,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <asm/time.h>

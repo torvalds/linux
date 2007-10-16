@@ -23,7 +23,6 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/pci.h>
-#include <asm/uaccess.h>
 
 #define PMU_LPCR               0xB0
 #define SB_MPS1                0x61

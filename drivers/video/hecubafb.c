@@ -45,7 +45,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/list.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Apollo controller specific defines */
 #define APOLLO_START_NEW_IMG	0xA0

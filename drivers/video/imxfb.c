@@ -34,7 +34,6 @@
 
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
 #include <asm/arch/imxfb.h>
 
 /*

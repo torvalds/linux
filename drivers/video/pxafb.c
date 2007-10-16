@@ -43,7 +43,6 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
 #include <asm/div64.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/bitfield.h>

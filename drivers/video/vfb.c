@@ -21,7 +21,6 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
-#include <asm/uaccess.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 

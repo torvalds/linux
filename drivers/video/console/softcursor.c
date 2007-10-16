@@ -15,7 +15,6 @@
 #include <linux/fb.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
 #include <asm/io.h>
 
 #include "fbcon.h"

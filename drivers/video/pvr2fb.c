@@ -72,7 +72,7 @@
 #endif
 
 #ifdef CONFIG_SH_STORE_QUEUES
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cpu/sq.h>
 #endif
 

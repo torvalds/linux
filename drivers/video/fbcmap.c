@@ -15,8 +15,7 @@
 #include <linux/module.h>
 #include <linux/fb.h>
 #include <linux/slab.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static u16 red2[] __read_mostly = {
     0x0000, 0xaaaa
