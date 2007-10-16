@@ -231,6 +231,9 @@ ufs_set_inode_gid(struct super_block *sb, struct ufs_inode *inode, u32 value)
 
 extern dev_t ufs_get_inode_dev(struct super_block *, struct ufs_inode_info *);
 extern void ufs_set_inode_dev(struct super_block *, struct ufs_inode_info *, dev_t);
+extern int __ufs_write_begin(struct file *file, struct address_space *mapping,
+		loff_t pos, unsigned len, unsigned flags,
+		struct page **pagep, void **fsdata);
 
 /*
  * These functions manipulate ufs buffers

@@ -558,24 +558,39 @@ static int ufs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	return block_write_full_page(page,ufs_getfrag_block,wbc);
 }
+
 static int ufs_readpage(struct file *file, struct page *page)
 {
 	return block_read_full_page(page,ufs_getfrag_block);
 }
-static int ufs_prepare_write(struct file *file, struct page *page, unsigned from, unsigned to)
+
+int __ufs_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
-	return block_prepare_write(page,from,to,ufs_getfrag_block);
+	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				ufs_getfrag_block);
 }
+
+static int ufs_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
+{
+	*pagep = NULL;
+	return __ufs_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+}
+
 static sector_t ufs_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,ufs_getfrag_block);
 }
+
 const struct address_space_operations ufs_aops = {
 	.readpage = ufs_readpage,
 	.writepage = ufs_writepage,
 	.sync_page = block_sync_page,
-	.prepare_write = ufs_prepare_write,
-	.commit_write = generic_commit_write,
+	.write_begin = ufs_write_begin,
+	.write_end = generic_write_end,
 	.bmap = ufs_bmap
 };
 
