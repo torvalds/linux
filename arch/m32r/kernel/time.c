@@ -228,8 +228,12 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct irqaction irq0 = { timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE,
-			  "MFT2", NULL, NULL };
+struct irqaction irq0 = {
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "MFT2",
+};
 
 void __init time_init(void)
 {
