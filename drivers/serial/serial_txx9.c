@@ -33,7 +33,7 @@
 
 #include <asm/io.h>
 
-static char *serial_version = "1.10";
+static char *serial_version = "1.11";
 static char *serial_name = "TX39/49 Serial driver";
 
 #define PASS_LIMIT	256
@@ -63,8 +63,6 @@ static char *serial_name = "TX39/49 Serial driver";
  * Number of serial ports
  */
 #define UART_NR  CONFIG_SERIAL_TXX9_NR_UARTS
-
-#define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
 
 struct uart_txx9_port {
 	struct uart_port	port;
@@ -752,21 +750,6 @@ static void serial_txx9_config_port(struct uart_port *port, int uflags)
 	serial_txx9_initialize(port);
 }
 
-static int
-serial_txx9_verify_port(struct uart_port *port, struct serial_struct *ser)
-{
-	unsigned long new_port = ser->port;
-	if (HIGH_BITS_OFFSET)
-		new_port += (unsigned long)ser->port_high << HIGH_BITS_OFFSET;
-	if (ser->type != port->type ||
-	    ser->irq != port->irq ||
-	    ser->io_type != port->iotype ||
-	    new_port != port->iobase ||
-	    (unsigned long)ser->iomem_base != port->mapbase)
-		return -EINVAL;
-	return 0;
-}
-
 static const char *
 serial_txx9_type(struct uart_port *port)
 {
@@ -790,7 +773,6 @@ static struct uart_ops serial_txx9_pops = {
 	.release_port	= serial_txx9_release_port,
 	.request_port	= serial_txx9_request_port,
 	.config_port	= serial_txx9_config_port,
-	.verify_port	= serial_txx9_verify_port,
 };
 
 static struct uart_txx9_port serial_txx9_ports[UART_NR];
@@ -946,7 +928,8 @@ int __init early_serial_txx9_setup(struct uart_port *port)
 
 	serial_txx9_ports[port->line].port = *port;
 	serial_txx9_ports[port->line].port.ops = &serial_txx9_pops;
-	serial_txx9_ports[port->line].port.flags |= UPF_BOOT_AUTOCONF;
+	serial_txx9_ports[port->line].port.flags |=
+		UPF_BOOT_AUTOCONF | UPF_FIXED_PORT;
 	return 0;
 }
 
@@ -991,7 +974,8 @@ static int __devinit serial_txx9_register_port(struct uart_port *port)
 		uart->port.irq      = port->irq;
 		uart->port.uartclk  = port->uartclk;
 		uart->port.iotype   = port->iotype;
-		uart->port.flags    = port->flags | UPF_BOOT_AUTOCONF;
+		uart->port.flags    = port->flags
+			| UPF_BOOT_AUTOCONF | UPF_FIXED_PORT;
 		uart->port.mapbase  = port->mapbase;
 		if (port->dev)
 			uart->port.dev = port->dev;
