@@ -704,14 +704,6 @@ do_ptrace(long request, struct task_struct *child, long addr, long data)
 		break;
 	}
 
-	/*
-	 * detach a process that was attached.
-	 */
-	case PTRACE_DETACH:
-		ret = 0;
-		ret = ptrace_detach(child, data);
-		break;
-
 	case PTRACE_GETREGS:
 		ret = ptrace_getregs(child, (void __user *)data);
 		break;

@@ -368,10 +368,6 @@ do_sys_ptrace(long request, long pid, long addr, long data,
 		ret = 0;
 		goto out;
 
-	case PTRACE_DETACH:	 /* detach a process that was attached. */
-		ret = ptrace_detach(child, data);
-		goto out;
-
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		goto out;

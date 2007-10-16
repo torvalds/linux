@@ -304,10 +304,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = put_user(sizeof(elf_fpregset_t), (unsigned long *) data);
 		break;
 
-	case PTRACE_DETACH: /* detach a process that was attached. */
-		ret = ptrace_detach(child, data);
-		break;
-
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		goto out;

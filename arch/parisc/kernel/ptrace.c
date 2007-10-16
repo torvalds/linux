@@ -329,10 +329,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		/* give it a chance to run. */
 		goto out_wake;
 
-	case PTRACE_DETACH:
-		ret = ptrace_detach(child, data);
-		goto out_tsk;
-
 	case PTRACE_GETEVENTMSG:
                 ret = put_user(child->ptrace_message, (unsigned int __user *) data);
 		goto out_tsk;

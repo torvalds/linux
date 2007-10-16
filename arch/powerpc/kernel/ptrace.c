@@ -505,10 +505,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = ptrace_set_debugreg(child, addr, data);
 		break;
 
-	case PTRACE_DETACH:
-		ret = ptrace_detach(child, data);
-		break;
-
 #ifdef CONFIG_PPC64
 	case PTRACE_GETREGS64:
 #endif

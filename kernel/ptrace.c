@@ -386,6 +386,9 @@ int ptrace_request(struct task_struct *child, long request,
 	case PTRACE_SETSIGINFO:
 		ret = ptrace_setsiginfo(child, (siginfo_t __user *) data);
 		break;
+	case PTRACE_DETACH:	 /* detach a process that was attached. */
+		ret = ptrace_detach(child, data);
+		break;
 	default:
 		break;
 	}

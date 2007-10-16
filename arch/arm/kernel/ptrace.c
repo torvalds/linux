@@ -731,10 +731,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = 0;
 			break;
 
-		case PTRACE_DETACH:
-			ret = ptrace_detach(child, data);
-			break;
-
 		case PTRACE_GETREGS:
 			ret = ptrace_getregs(child, (void __user *)data);
 			break;

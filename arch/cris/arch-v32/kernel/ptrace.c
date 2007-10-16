@@ -245,10 +245,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 
 		}
-		case PTRACE_DETACH:
-			ret = ptrace_detach(child, data);
-			break;
-
 		/* Get all GP registers from the child. */
 		case PTRACE_GETREGS: {
 		  	int i;

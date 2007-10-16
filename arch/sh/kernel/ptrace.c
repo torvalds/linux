@@ -211,10 +211,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
-	case PTRACE_DETACH: /* detach a process that was attached. */
-		ret = ptrace_detach(child, data);
-		break;
-
 #ifdef CONFIG_SH_DSP
 	case PTRACE_GETDSPREGS: {
 		unsigned long dp;

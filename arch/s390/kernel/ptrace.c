@@ -683,11 +683,6 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 		wake_up_process(child);
 		return 0;
 
-	case PTRACE_DETACH:
-		/* detach a process that was attached. */
-		return ptrace_detach(child, data);
-
-
 	/* Do requests that differ for 31/64 bit */
 	default:
 #ifdef CONFIG_COMPAT
