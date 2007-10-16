@@ -254,9 +254,9 @@ extern void os_dump_core(void);
 extern void idle_sleep(unsigned long long nsecs);
 extern int set_interval(void);
 extern int timer_one_shot(int ticks);
-extern unsigned long long disable_timer(void);
+extern long long disable_timer(void);
 extern void uml_idle_timer(void);
-extern unsigned long long os_nsecs(void);
+extern long long os_nsecs(void);
 
 /* skas/mem.c */
 extern long run_syscall_stub(struct mm_id * mm_idp,

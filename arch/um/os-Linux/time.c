@@ -39,7 +39,23 @@ int timer_one_shot(int ticks)
 	return 0;
 }
 
-unsigned long long disable_timer(void)
+/**
+ * timeval_to_ns - Convert timeval to nanoseconds
+ * @ts:		pointer to the timeval variable to be converted
+ *
+ * Returns the scalar nanosecond representation of the timeval
+ * parameter.
+ *
+ * Ripped from linux/time.h because it's a kernel header, and thus
+ * unusable from here.
+ */
+static inline long long timeval_to_ns(const struct timeval *tv)
+{
+	return ((long long) tv->tv_sec * UM_NSEC_PER_SEC) +
+		tv->tv_usec * UM_NSEC_PER_USEC;
+}
+
+long long disable_timer(void)
 {
 	struct itimerval time = ((struct itimerval) { { 0, 0 }, { 0, 0 } });
 
@@ -47,10 +63,10 @@ unsigned long long disable_timer(void)
 		printk(UM_KERN_ERR "disable_timer - setitimer failed, "
 		       "errno = %d\n", errno);
 
-	return tv_to_nsec(&time.it_value);
+	return timeval_to_ns(&time.it_value);
 }
 
-unsigned long long os_nsecs(void)
+long long os_nsecs(void)
 {
 	struct timeval tv;
 
