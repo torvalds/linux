@@ -1,5 +1,5 @@
-/* 
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+/*
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -30,7 +30,9 @@ extern void flush_tlb_page_skas(struct vm_area_struct *vma,
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long address)
 {
-	flush_tlb_page_skas(vma, address & PAGE_MASK);
+	address &= PAGE_MASK;
+
+	flush_tlb_page_skas(vma, address);
 }
 
 extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);

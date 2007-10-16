@@ -1,22 +1,15 @@
 /* 
- * Copyright (C) 2001 - 2004 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #include "linux/module.h"
-#include "linux/string.h"
-#include "linux/smp_lock.h"
-#include "linux/spinlock.h"
-#include "linux/highmem.h"
-#include "asm/current.h"
-#include "asm/processor.h"
-#include "asm/unistd.h"
-#include "asm/pgalloc.h"
-#include "asm/pgtable.h"
-#include "asm/page.h"
+#include "linux/syscalls.h"
+#include "asm/a.out.h"
 #include "asm/tlbflush.h"
-#include "kern_util.h"
+#include "asm/uaccess.h"
 #include "as-layout.h"
+#include "kern_util.h"
 #include "mem_user.h"
 #include "os.h"
 
