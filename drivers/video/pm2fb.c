@@ -66,7 +66,7 @@
 /*
  * Driver data
  */
-static int hwcursor;
+static int hwcursor = 1;
 static char *mode __devinitdata;
 
 /*
@@ -585,6 +585,11 @@ static int pm2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		DPRINTK("virtual y resolution < "
 			"physical y resolution not possible\n");
 		return -EINVAL;
+	}
+
+	/* permedia cannot blit over 2048 */
+	if (var->yres_virtual > 2047) {
+		var->yres_virtual = 2047;
 	}
 
 	if (var->xoffset) {
@@ -1258,11 +1263,20 @@ static int pm2vfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct pm2fb_par *par = info->par;
 	u8 mode = PM2F_CURSORMODE_TYPE_X;
+	int x = cursor->image.dx - info->var.xoffset;
+	int y = cursor->image.dy - info->var.yoffset;
 
 	if (cursor->enable)
 		mode |= PM2F_CURSORMODE_CURSOR_ENABLE;
 
 	pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_MODE, mode);
+
+	if (!cursor->enable)
+		x = 2047;	/* push it outside display */
+	pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_X_LOW, x & 0xff);
+	pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_X_HIGH, (x >> 8) & 0xf);
+	pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_Y_LOW, y & 0xff);
+	pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_Y_HIGH, (y >> 8) & 0xf);
 
 	/*
 	 * If the cursor is not be changed this means either we want the
@@ -1271,16 +1285,6 @@ static int pm2vfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	 */
 	if (!cursor->set)
 		return 0;
-
-	if (cursor->set & FB_CUR_SETPOS) {
-		int x = cursor->image.dx - info->var.xoffset;
-		int y = cursor->image.dy - info->var.yoffset;
-
-		pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_X_LOW, x & 0xff);
-		pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_X_HIGH, (x >> 8) & 0xf);
-		pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_Y_LOW, y & 0xff);
-		pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_Y_HIGH, (y >> 8) & 0xf);
-	}
 
 	if (cursor->set & FB_CUR_SETHOT) {
 		pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_X_HOT,
@@ -1373,7 +1377,7 @@ static int pm2fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	if (par->type == PM2_TYPE_PERMEDIA2V)
 		return pm2vfb_cursor(info, cursor);
 
-	mode = 0;
+	mode = 0x40;
 	if (cursor->enable)
 		 mode = 0x43;
 
@@ -1388,10 +1392,9 @@ static int pm2fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		return 0;
 
 	if (cursor->set & FB_CUR_SETPOS) {
-		int x, y;
+		int x = cursor->image.dx - info->var.xoffset + 63;
+		int y = cursor->image.dy - info->var.yoffset + 63;
 
-		x = cursor->image.dx + 63;
-		y = cursor->image.dy + 63;
 		WAIT_FIFO(par, 4);
 		pm2_WR(par, PM2R_RD_CURSOR_X_LSB, x & 0xff);
 		pm2_WR(par, PM2R_RD_CURSOR_X_MSB, (x >> 8) & 0x7);
@@ -1838,7 +1841,7 @@ module_param(noaccel, bool, 0);
 MODULE_PARM_DESC(noaccel, "Disable acceleration");
 module_param(hwcursor, int, 0644);
 MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
-			"(1=enable, 0=disable, default=0)");
+			"(1=enable, 0=disable, default=1)");
 #ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disable MTRR support (0 or 1=disabled) (default=0)");
