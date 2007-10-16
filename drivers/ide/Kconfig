@@ -435,16 +435,6 @@ config BLK_DEV_IDEDMA_PCI
 	bool
 	select BLK_DEV_IDEPCI
 
-# TODO: remove it
-config IDEDMA_ONLYDISK
-	bool "Enable DMA only for disks "
-	depends on BLK_DEV_IDEDMA_PCI
-	help
-	  This is used if you know your ATAPI Devices are going to fail DMA
-	  Transfers.
-
-	  Generally say N here.
-
 config BLK_DEV_AEC62XX
 	tristate "AEC62XX chipset support"
 	select BLK_DEV_IDEDMA_PCI
