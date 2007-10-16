@@ -59,17 +59,11 @@ static void real_alarm_handler(int sig, struct sigcontext *sc)
 {
 	struct uml_pt_regs regs;
 
-	if (sig == SIGALRM)
-		switch_timers(0);
-
 	if (sc != NULL)
 		copy_sc(&regs, sc);
 	regs.is_user = 0;
 	unblock_signals();
 	timer_handler(sig, &regs);
-
-	if (sig == SIGALRM)
-		switch_timers(1);
 }
 
 void alarm_handler(int sig, struct sigcontext *sc)
@@ -116,6 +110,7 @@ void (*handlers[_NSIG])(int sig, struct sigcontext *sc);
 void handle_signal(int sig, struct sigcontext *sc)
 {
 	unsigned long pending = 1UL << sig;
+	int timer = switch_timers(0);
 
 	do {
 		int nested, bail;
@@ -152,6 +147,8 @@ void handle_signal(int sig, struct sigcontext *sc)
 		if (!nested)
 			pending = from_irq_stack(nested);
 	} while (pending);
+
+	switch_timers(timer);
 }
 
 extern void hard_handler(int sig);

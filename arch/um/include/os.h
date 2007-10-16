@@ -250,7 +250,7 @@ extern void os_dump_core(void);
 /* time.c */
 #define BILLION (1000 * 1000 * 1000)
 
-extern void switch_timers(int to_real);
+extern int switch_timers(int to_real);
 extern void idle_sleep(int secs);
 extern int set_interval(int is_virtual);
 extern void disable_timer(void);

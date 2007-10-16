@@ -12,6 +12,8 @@
 #include "os.h"
 #include "user.h"
 
+static int is_real_timer = 0;
+
 int set_interval(int is_virtual)
 {
 	int usec = 1000000/UM_HZ;
@@ -39,12 +41,14 @@ void disable_timer(void)
 	signal(SIGVTALRM, SIG_IGN);
 }
 
-void switch_timers(int to_real)
+int switch_timers(int to_real)
 {
 	struct itimerval disable = ((struct itimerval) { { 0, 0 }, { 0, 0 }});
-	struct itimerval enable = ((struct itimerval) { { 0, 1000000/UM_HZ },
-							{ 0, 1000000/UM_HZ }});
-	int old, new;
+	struct itimerval enable;
+	int old, new, old_type = is_real_timer;
+
+	if(to_real == old_type)
+		return to_real;
 
 	if (to_real) {
 		old = ITIMER_VIRTUAL;
@@ -55,10 +59,19 @@ void switch_timers(int to_real)
 		new = ITIMER_VIRTUAL;
 	}
 
-	if ((setitimer(old, &disable, NULL) < 0) ||
-	    (setitimer(new, &enable, NULL)))
-		printk(UM_KERN_ERR "switch_timers - setitimer failed, "
+	if (setitimer(old, &disable, &enable) < 0)
+		printk(UM_KERN_ERR "switch_timers - setitimer disable failed, "
 		       "errno = %d\n", errno);
+
+	if((enable.it_value.tv_sec == 0) && (enable.it_value.tv_usec == 0))
+		enable.it_value = enable.it_interval;
+
+	if (setitimer(new, &enable, NULL))
+		printk(UM_KERN_ERR "switch_timers - setitimer enable failed, "
+		       "errno = %d\n", errno);
+
+	is_real_timer = to_real;
+	return old_type;
 }
 
 unsigned long long os_nsecs(void)

@@ -95,17 +95,10 @@ void *_switch_to(void *prev, void *next, void *last)
 	do {
 		current->thread.saved_task = NULL;
 
-		/* XXX need to check runqueues[cpu].idle */
-		if (current->pid == 0)
-			switch_timers(0);
-
 		switch_threads(&from->thread.switch_buf,
 			       &to->thread.switch_buf);
 
 		arch_switch_to(current->thread.prev_sched, current);
-
-		if (current->pid == 0)
-			switch_timers(1);
 
 		if (current->thread.saved_task)
 			show_regs(&(current->thread.regs));
@@ -251,7 +244,9 @@ void default_idle(void)
 		if (need_resched())
 			schedule();
 
+		switch_timers(1);
 		idle_sleep(10);
+		switch_timers(0);
 	}
 }
 
