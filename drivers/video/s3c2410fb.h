@@ -26,7 +26,6 @@
 #define __S3C2410FB_H
 
 struct s3c2410fb_info {
-	struct fb_info		*fb;
 	struct device		*dev;
 	struct clk		*clk;
 

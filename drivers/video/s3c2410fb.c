@@ -119,15 +119,14 @@ static int debug	= 0;
  *
  * initialise lcd controller address pointers
  */
-static void s3c2410fb_set_lcdaddr(struct s3c2410fb_info *fbi)
+static void s3c2410fb_set_lcdaddr(struct fb_info *info)
 {
-	struct fb_var_screeninfo *var = &fbi->fb->var;
 	unsigned long saddr1, saddr2, saddr3;
-	int line_length = var->xres * var->bits_per_pixel;
+	int line_length = info->var.xres * info->var.bits_per_pixel;
 
-	saddr1  = fbi->fb->fix.smem_start >> 1;
-	saddr2  = fbi->fb->fix.smem_start;
-	saddr2 += (line_length * var->yres) / 8;
+	saddr1  = info->fix.smem_start >> 1;
+	saddr2  = info->fix.smem_start;
+	saddr2 += (line_length * info->var.yres) / 8;
 	saddr2 >>= 1;
 
 	saddr3 = S3C2410_OFFSIZE(0) |
@@ -275,9 +274,10 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
  * activate (set) the controller from the given framebuffer
  * information
  */
-static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
+static void s3c2410fb_activate_var(struct fb_info *info,
 				   struct fb_var_screeninfo *var)
 {
+	struct s3c2410fb_info *fbi = info->par;
 	int hs;
 
 	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_MODEMASK;
@@ -418,7 +418,7 @@ static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
 	writel(fbi->regs.lcdcon5, S3C2410_LCDCON5);
 
 	/* set lcd address pointers */
-	s3c2410fb_set_lcdaddr(fbi);
+	s3c2410fb_set_lcdaddr(info);
 
 	writel(fbi->regs.lcdcon1, S3C2410_LCDCON1);
 }
@@ -430,7 +430,6 @@ static void s3c2410fb_activate_var(struct s3c2410fb_info *fbi,
  */
 static int s3c2410fb_set_par(struct fb_info *info)
 {
-	struct s3c2410fb_info *fbi = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 
 	switch (var->bits_per_pixel) {
@@ -449,7 +448,7 @@ static int s3c2410fb_set_par(struct fb_info *info)
 
 	/* activate this new configuration */
 
-	s3c2410fb_activate_var(fbi, var);
+	s3c2410fb_activate_var(info, var);
 	return 0;
 }
 
@@ -615,15 +614,17 @@ static struct fb_ops s3c2410fb_ops = {
  *	cache.  Once this area is remapped, all virtual memory
  *	access to the video memory should occur at the new region.
  */
-static int __init s3c2410fb_map_video_memory(struct s3c2410fb_info *fbi)
+static int __init s3c2410fb_map_video_memory(struct fb_info *info)
 {
+	struct s3c2410fb_info *fbi = info->par;
+
 	dprintk("map_video_memory(fbi=%p)\n", fbi);
 
-	fbi->map_size = PAGE_ALIGN(fbi->fb->fix.smem_len + PAGE_SIZE);
+	fbi->map_size = PAGE_ALIGN(info->fix.smem_len + PAGE_SIZE);
 	fbi->map_cpu  = dma_alloc_writecombine(fbi->dev, fbi->map_size,
 					       &fbi->map_dma, GFP_KERNEL);
 
-	fbi->map_size = fbi->fb->fix.smem_len;
+	fbi->map_size = info->fix.smem_len;
 
 	if (fbi->map_cpu) {
 		/* prevent initial garbage on screen */
@@ -632,11 +633,11 @@ static int __init s3c2410fb_map_video_memory(struct s3c2410fb_info *fbi)
 		memset(fbi->map_cpu, 0xf0, fbi->map_size);
 
 		fbi->screen_dma		= fbi->map_dma;
-		fbi->fb->screen_base	= fbi->map_cpu;
-		fbi->fb->fix.smem_start  = fbi->screen_dma;
+		info->screen_base	= fbi->map_cpu;
+		info->fix.smem_start	= fbi->screen_dma;
 
 		dprintk("map_video_memory: dma=%08x cpu=%p size=%08x\n",
-			fbi->map_dma, fbi->map_cpu, fbi->fb->fix.smem_len);
+			fbi->map_dma, fbi->map_cpu, info->fix.smem_len);
 	}
 
 	return fbi->map_cpu ? 0 : -ENOMEM;
@@ -660,8 +661,9 @@ static inline void modify_gpio(void __iomem *reg,
 /*
  * s3c2410fb_init_registers - Initialise all LCD-related registers
  */
-static int s3c2410fb_init_registers(struct s3c2410fb_info *fbi)
+static int s3c2410fb_init_registers(struct fb_info *info)
 {
+	struct s3c2410fb_info *fbi = info->par;
 	unsigned long flags;
 	void __iomem *regs = fbi->io;
 
@@ -684,7 +686,7 @@ static int s3c2410fb_init_registers(struct s3c2410fb_info *fbi)
 	writel(fbi->regs.lcdcon4, regs + S3C2410_LCDCON4);
 	writel(fbi->regs.lcdcon5, regs + S3C2410_LCDCON5);
 
-	s3c2410fb_set_lcdaddr(fbi);
+	s3c2410fb_set_lcdaddr(info);
 
 	dprintk("LPCSEL    = 0x%08lx\n", mach_info->lpcsel);
 	writel(mach_info->lpcsel, regs + S3C2410_LPCSEL);
@@ -777,7 +779,6 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info = fbinfo->par;
-	info->fb = fbinfo;
 	info->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -890,7 +891,7 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	msleep(1);
 
 	/* Initialize video memory */
-	ret = s3c2410fb_map_video_memory(info);
+	ret = s3c2410fb_map_video_memory(fbinfo);
 	if (ret) {
 		printk(KERN_ERR "Failed to allocate video RAM: %d\n", ret);
 		ret = -ENOMEM;
@@ -899,7 +900,7 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 
 	dprintk("got video memory\n");
 
-	s3c2410fb_init_registers(info);
+	s3c2410fb_init_registers(fbinfo);
 
 	s3c2410fb_check_var(&fbinfo->var, fbinfo);
 
