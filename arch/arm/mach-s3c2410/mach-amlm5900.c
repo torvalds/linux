@@ -180,13 +180,10 @@ static struct s3c2410fb_display __initdata amlm5900_lcd_info = {
 	.left_margin	= 1 << (4 + 3),
 	.right_margin	= 8 << 3,
 
-	.regs		= {
-		.lcdcon1	= 0x00008225,
-		.lcdcon2	= 0x0027c000,
-		.lcdcon3	= 0x00182708,
-		.lcdcon4	= 0x00000002,
-		.lcdcon5	= 0x00000001,
-	}
+	.lcdcon1	= 0x00008225,
+	.lcdcon2	= 0x0027c000,
+	.lcdcon4	= 0x00000002,
+	.lcdcon5	= 0x00000001,
 };
 
 static struct s3c2410fb_mach_info __initdata amlm5900_fb_info = {

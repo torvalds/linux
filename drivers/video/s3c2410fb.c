@@ -245,7 +245,7 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 
 	default:
 	case 16:
-		if (display->regs.lcdcon5 & S3C2410_LCDCON5_FRM565) {
+		if (display->lcdcon5 & S3C2410_LCDCON5_FRM565) {
 			/* 16 bpp, 565 format */
 			var->red.offset		= 11;
 			var->green.offset	= 5;
@@ -796,7 +796,6 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	struct s3c2410fb_info *info;
 	struct s3c2410fb_display *display;
 	struct fb_info *fbinfo;
-	struct s3c2410fb_hw *mregs;
 	struct resource *res;
 	int ret;
 	int irq;
@@ -812,7 +811,6 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	}
 
 	display = mach_info->displays + mach_info->default_display;
-	mregs = &display->regs;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -855,7 +853,10 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 
 	strcpy(fbinfo->fix.id, driver_name);
 
-	memcpy(&info->regs, &display->regs, sizeof(info->regs));
+	info->regs.lcdcon1 = display->lcdcon1;
+	info->regs.lcdcon2 = display->lcdcon2;
+	info->regs.lcdcon4 = display->lcdcon4;
+	info->regs.lcdcon5 = display->lcdcon5;
 
 	/* Stop the video and unset ENVID if set */
 	info->regs.lcdcon1 &= ~S3C2410_LCDCON1_ENVID;
@@ -892,14 +893,14 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	fbinfo->var.right_margin    = display->right_margin;
 
 	fbinfo->var.upper_margin    =
-				S3C2410_LCDCON2_GET_VBPD(mregs->lcdcon2) + 1;
+				S3C2410_LCDCON2_GET_VBPD(display->lcdcon2) + 1;
 	fbinfo->var.lower_margin    =
-				S3C2410_LCDCON2_GET_VFPD(mregs->lcdcon2) + 1;
+				S3C2410_LCDCON2_GET_VFPD(display->lcdcon2) + 1;
 	fbinfo->var.vsync_len	    =
-				S3C2410_LCDCON2_GET_VSPW(mregs->lcdcon2) + 1;
+				S3C2410_LCDCON2_GET_VSPW(display->lcdcon2) + 1;
 
 	fbinfo->var.hsync_len	    =
-				S3C2410_LCDCON4_GET_HSPW(mregs->lcdcon4) + 1;
+				S3C2410_LCDCON4_GET_HSPW(display->lcdcon4) + 1;
 
 	fbinfo->var.red.offset      = 11;
 	fbinfo->var.green.offset    = 5;

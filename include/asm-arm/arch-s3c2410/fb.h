@@ -44,7 +44,10 @@ struct s3c2410fb_display {
 	unsigned short vsync_len;	/* value in lines (TFT) or 0 (STN) */
 
 	/* lcd configuration registers */
-	struct s3c2410fb_hw  regs;
+	unsigned long	lcdcon1;
+	unsigned long	lcdcon2;
+	unsigned long	lcdcon4;
+	unsigned long	lcdcon5;
 };
 
 struct s3c2410fb_mach_info {

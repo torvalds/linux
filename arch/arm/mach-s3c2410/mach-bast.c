@@ -479,13 +479,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 
 		.bpp		= 4,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 	{
 		.type		= S3C2410_LCDCON1_TFT,
@@ -498,13 +495,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.left_margin	= 40,
 		.right_margin	= 20,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 	{
 		.type		= S3C2410_LCDCON1_TFT,
@@ -517,13 +511,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.left_margin	= 40,
 		.right_margin	= 20,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 	{
 		.type		= S3C2410_LCDCON1_TFT,
@@ -536,13 +527,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.left_margin	= 40,
 		.right_margin	= 20,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 	{
 		.type		= S3C2410_LCDCON1_TFT,
@@ -555,13 +543,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.left_margin	= 40,
 		.right_margin	= 20,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 	{
 		.type		= S3C2410_LCDCON1_TFT,
@@ -574,13 +559,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.left_margin	= 40,
 		.right_margin	= 20,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 	{
 		.type		= S3C2410_LCDCON1_TFT,
@@ -593,13 +575,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.left_margin	= 40,
 		.right_margin	= 20,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 	{
 		.type		= S3C2410_LCDCON1_TFT,
@@ -612,13 +591,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.left_margin	= 40,
 		.right_margin	= 20,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 	{
 		.type		= S3C2410_LCDCON1_TFT,
@@ -631,13 +607,10 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.left_margin	= 40,
 		.right_margin	= 20,
 
-		.regs		= {
-			.lcdcon1	= 0x00000176,
-			.lcdcon2	= 0x1d77c7c2,
-			.lcdcon3	= 0x013a7f13,
-			.lcdcon4	= 0x00000057,
-			.lcdcon5	= 0x00014b02,
-		}
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
 	},
 };
 
