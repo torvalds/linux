@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 #include <linux/types.h>
 #include <asm/bootinfo.h>
+#include <asm/lasat/lasatint.h>
 
 extern struct pci_ops nile4_pci_ops;
 extern struct pci_ops gt64xxx_pci0_ops;
@@ -54,15 +55,15 @@ static int __init lasat_pci_setup(void)
 
 arch_initcall(lasat_pci_setup);
 
-#define LASATINT_ETH1   0
-#define LASATINT_ETH0   1
-#define LASATINT_HDC    2
-#define LASATINT_COMP   3
-#define LASATINT_HDLC   4
-#define LASATINT_PCIA   5
-#define LASATINT_PCIB   6
-#define LASATINT_PCIC   7
-#define LASATINT_PCID   8
+#define LASATINT_ETH1   (LASATINT_BASE + 0)
+#define LASATINT_ETH0   (LASATINT_BASE + 1)
+#define LASATINT_HDC    (LASATINT_BASE + 2)
+#define LASATINT_COMP   (LASATINT_BASE + 3)
+#define LASATINT_HDLC   (LASATINT_BASE + 4)
+#define LASATINT_PCIA   (LASATINT_BASE + 5)
+#define LASATINT_PCIB   (LASATINT_BASE + 6)
+#define LASATINT_PCIC   (LASATINT_BASE + 7)
+#define LASATINT_PCID   (LASATINT_BASE + 8)
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {

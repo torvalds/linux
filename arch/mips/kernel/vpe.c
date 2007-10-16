@@ -1317,7 +1317,8 @@ static void kspd_sp_exit( int sp_id)
 }
 #endif
 
-static ssize_t store_kill(struct class_device *dev, const char *buf, size_t len)
+static ssize_t store_kill(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t len)
 {
 	struct vpe *vpe = get_vpe(tclimit);
 	struct vpe_notifications *not;
@@ -1334,14 +1335,16 @@ static ssize_t store_kill(struct class_device *dev, const char *buf, size_t len)
 	return len;
 }
 
-static ssize_t show_ntcs(struct class_device *cd, char *buf)
+static ssize_t show_ntcs(struct device *cd, struct device_attribute *attr,
+			 char *buf)
 {
 	struct vpe *vpe = get_vpe(tclimit);
 
 	return sprintf(buf, "%d\n", vpe->ntcs);
 }
 
-static ssize_t store_ntcs(struct class_device *dev, const char *buf, size_t len)
+static ssize_t store_ntcs(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t len)
 {
 	struct vpe *vpe = get_vpe(tclimit);
 	unsigned long new;
@@ -1362,13 +1365,13 @@ out_einval:
 	return -EINVAL;;
 }
 
-static struct class_device_attribute vpe_class_attributes[] = {
+static struct device_attribute vpe_class_attributes[] = {
 	__ATTR(kill, S_IWUSR, NULL, store_kill),
 	__ATTR(ntcs, S_IRUGO | S_IWUSR, show_ntcs, store_ntcs),
 	{}
 };
 
-static void vpe_class_device_release(struct class_device *cd)
+static void vpe_device_release(struct device *cd)
 {
 	kfree(cd);
 }
@@ -1376,11 +1379,11 @@ static void vpe_class_device_release(struct class_device *cd)
 struct class vpe_class = {
 	.name = "vpe",
 	.owner = THIS_MODULE,
-	.release = vpe_class_device_release,
-	.class_dev_attrs = vpe_class_attributes,
+	.dev_release = vpe_device_release,
+	.dev_attrs = vpe_class_attributes,
 };
 
-struct class_device vpe_device;
+struct device vpe_device;
 
 static int __init vpe_module_init(void)
 {
@@ -1423,12 +1426,12 @@ static int __init vpe_module_init(void)
 		goto out_chrdev;
 	}
 
-	class_device_initialize(&vpe_device);
+	device_initialize(&vpe_device);
 	vpe_device.class	= &vpe_class,
 	vpe_device.parent	= NULL,
-	strlcpy(vpe_device.class_id, "vpe1", BUS_ID_SIZE);
+	strlcpy(vpe_device.bus_id, "vpe1", BUS_ID_SIZE);
 	vpe_device.devt = MKDEV(major, minor);
-	err = class_device_add(&vpe_device);
+	err = device_add(&vpe_device);
 	if (err) {
 		printk(KERN_ERR "Adding vpe_device failed\n");
 		goto out_class;
@@ -1573,7 +1576,7 @@ static void __exit vpe_module_exit(void)
 		}
 	}
 
-	class_device_del(&vpe_device);
+	device_del(&vpe_device);
 	unregister_chrdev(major, module_name);
 }
 

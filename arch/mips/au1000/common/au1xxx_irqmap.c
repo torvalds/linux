@@ -54,7 +54,7 @@
  * Careful if you change match 2 request!
  * The interrupt handler is called directly from the low level dispatch code.
  */
-au1xxx_irq_map_t __initdata au1xxx_ic0_map[] = {
+struct au1xxx_irqmap __initdata au1xxx_ic0_map[] = {
 
 #if defined(CONFIG_SOC_AU1000)
 	{ AU1000_UART0_INT, INTC_INT_HIGH_LEVEL, 0},

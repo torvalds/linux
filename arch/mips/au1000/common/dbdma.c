@@ -859,7 +859,7 @@ dbdma_interrupt(int irq, void *dev_id)
 
 	intstat = dbdma_gptr->ddma_intstat;
 	au_sync();
-	chan_index = au_ffs(intstat) - 1;
+	chan_index = ffs(intstat);
 
 	ctp = chan_tab_ptr[chan_index];
 	cp = ctp->chan_ptr;

@@ -232,11 +232,18 @@ static struct notifier_block panic_block = {
 
 static int __init reboot_setup(void)
 {
+	int res;
+
 	_machine_restart = sgi_machine_restart;
 	_machine_halt = sgi_machine_halt;
 	pm_power_off = sgi_machine_power_off;
 
-	request_irq(SGI_PANEL_IRQ, panel_int, 0, "Front Panel", NULL);
+	res = request_irq(SGI_PANEL_IRQ, panel_int, 0, "Front Panel", NULL);
+	if (res) {
+		printk(KERN_ERR "Allocation of front panel IRQ failed\n");
+		return res;
+	}
+
 	init_timer(&blink_timer);
 	blink_timer.function = blink_timeout;
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);

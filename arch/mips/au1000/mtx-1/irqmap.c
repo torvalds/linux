@@ -58,7 +58,7 @@ char irq_tab_alchemy[][5] __initdata = {
  [7] = { -1, INTD, INTC, INTX, INTX},   /* IDSEL 07 - AdapterD-Slot1 (bottom) */
 };
 
-au1xxx_irq_map_t __initdata au1xxx_irq_map[] = {
+struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
        { AU1500_GPIO_204, INTC_INT_HIGH_LEVEL, 0},
        { AU1500_GPIO_201, INTC_INT_LOW_LEVEL, 0 },
        { AU1500_GPIO_202, INTC_INT_LOW_LEVEL, 0 },

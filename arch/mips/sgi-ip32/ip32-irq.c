@@ -20,6 +20,7 @@
 #include <linux/random.h>
 #include <linux/sched.h>
 
+#include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/signal.h>
 #include <asm/system.h>
@@ -46,7 +47,8 @@ static void inline flush_mace_bus(void)
 #define DBG(x...)
 #endif
 
-/* O2 irq map
+/*
+ * O2 irq map
  *
  * IP0 -> software (ignored)
  * IP1 -> software (ignored)
@@ -55,60 +57,60 @@ static void inline flush_mace_bus(void)
  * IP4 -> (irq2) X unknown
  * IP5 -> (irq3) X unknown
  * IP6 -> (irq4) X unknown
- * IP7 -> (irq5) 0 CPU count/compare timer (system timer)
+ * IP7 -> (irq5) 7 CPU count/compare timer (system timer)
  *
  * crime: (C)
  *
  * CRIME_INT_STAT 31:0:
  *
- * 0  -> 1  Video in 1
- * 1  -> 2  Video in 2
- * 2  -> 3  Video out
- * 3  -> 4  Mace ethernet
+ * 0  ->  8  Video in 1
+ * 1  ->  9 Video in 2
+ * 2  -> 10  Video out
+ * 3  -> 11  Mace ethernet
  * 4  -> S  SuperIO sub-interrupt
  * 5  -> M  Miscellaneous sub-interrupt
  * 6  -> A  Audio sub-interrupt
- * 7  -> 8  PCI bridge errors
- * 8  -> 9  PCI SCSI aic7xxx 0
- * 9  -> 10 PCI SCSI aic7xxx 1
- * 10 -> 11 PCI slot 0
- * 11 -> 12 unused (PCI slot 1)
- * 12 -> 13 unused (PCI slot 2)
- * 13 -> 14 unused (PCI shared 0)
- * 14 -> 15 unused (PCI shared 1)
- * 15 -> 16 unused (PCI shared 2)
- * 16 -> 17 GBE0 (E)
- * 17 -> 18 GBE1 (E)
- * 18 -> 19 GBE2 (E)
- * 19 -> 20 GBE3 (E)
- * 20 -> 21 CPU errors
- * 21 -> 22 Memory errors
- * 22 -> 23 RE empty edge (E)
- * 23 -> 24 RE full edge (E)
- * 24 -> 25 RE idle edge (E)
- * 25 -> 26 RE empty level
- * 26 -> 27 RE full level
- * 27 -> 28 RE idle level
- * 28 -> 29 unused (software 0) (E)
- * 29 -> 30 unused (software 1) (E)
- * 30 -> 31 unused (software 2) - crime 1.5 CPU SysCorError (E)
- * 31 -> 32 VICE
+ * 7  -> 15  PCI bridge errors
+ * 8  -> 16  PCI SCSI aic7xxx 0
+ * 9  -> 17 PCI SCSI aic7xxx 1
+ * 10 -> 18 PCI slot 0
+ * 11 -> 19 unused (PCI slot 1)
+ * 12 -> 20 unused (PCI slot 2)
+ * 13 -> 21 unused (PCI shared 0)
+ * 14 -> 22 unused (PCI shared 1)
+ * 15 -> 23 unused (PCI shared 2)
+ * 16 -> 24 GBE0 (E)
+ * 17 -> 25 GBE1 (E)
+ * 18 -> 26 GBE2 (E)
+ * 19 -> 27 GBE3 (E)
+ * 20 -> 28 CPU errors
+ * 21 -> 29 Memory errors
+ * 22 -> 30 RE empty edge (E)
+ * 23 -> 31 RE full edge (E)
+ * 24 -> 32 RE idle edge (E)
+ * 25 -> 33 RE empty level
+ * 26 -> 34 RE full level
+ * 27 -> 35 RE idle level
+ * 28 -> 36 unused (software 0) (E)
+ * 29 -> 37 unused (software 1) (E)
+ * 30 -> 38 unused (software 2) - crime 1.5 CPU SysCorError (E)
+ * 31 -> 39 VICE
  *
  * S, M, A: Use the MACE ISA interrupt register
  * MACE_ISA_INT_STAT 31:0
  *
- * 0-7 -> 33-40 Audio
- * 8 -> 41 RTC
- * 9 -> 42 Keyboard
+ * 0-7 -> 40-47 Audio
+ * 8 -> 48 RTC
+ * 9 -> 49 Keyboard
  * 10 -> X Keyboard polled
- * 11 -> 44 Mouse
+ * 11 -> 51 Mouse
  * 12 -> X Mouse polled
- * 13-15 -> 46-48 Count/compare timers
- * 16-19 -> 49-52 Parallel (16 E)
- * 20-25 -> 53-58 Serial 1 (22 E)
- * 26-31 -> 59-64 Serial 2 (28 E)
+ * 13-15 -> 53-55 Count/compare timers
+ * 16-19 -> 56-59 Parallel (16 E)
+ * 20-25 -> 60-62 Serial 1 (22 E)
+ * 26-31 -> 66-71 Serial 2 (28 E)
  *
- * Note that this means IRQs 5-7, 43, and 45 do not exist.  This is a
+ * Note that this means IRQs 12-14, 50, and 52 do not exist.  This is a
  * different IRQ map than IRIX uses, but that's OK as Linux irq handling
  * is quite different anyway.
  */
@@ -128,36 +130,6 @@ struct irqaction cpuerr_irq = {
 	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 	.name = "CRIME CPU error",
-};
-
-/*
- * For interrupts wired from a single device to the CPU.  Only the clock
- * uses this it seems, which is IRQ 0 and IP7.
- */
-
-static void enable_cpu_irq(unsigned int irq)
-{
-	set_c0_status(STATUSF_IP7);
-}
-
-static void disable_cpu_irq(unsigned int irq)
-{
-	clear_c0_status(STATUSF_IP7);
-}
-
-static void end_cpu_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		enable_cpu_irq(irq);
-}
-
-static struct irq_chip ip32_cpu_interrupt = {
-	.name = "IP32 CPU",
-	.ack = disable_cpu_irq,
-	.mask = disable_cpu_irq,
-	.mask_ack = disable_cpu_irq,
-	.unmask = enable_cpu_irq,
-	.end = end_cpu_irq,
 };
 
 /*
@@ -422,15 +394,23 @@ static void ip32_irq0(void)
 	uint64_t crime_int;
 	int irq = 0;
 
+	/*
+	 * Sanity check interrupt numbering enum.
+	 * MACE got 32 interrupts and there are 32 MACE ISA interrupts daisy
+	 * chained.
+	 */
+	BUILD_BUG_ON(CRIME_VICE_IRQ - MACE_VID_IN1_IRQ != 31);
+	BUILD_BUG_ON(MACEISA_SERIAL2_RDMAOR_IRQ - MACEISA_AUDIO_SW_IRQ != 31);
+
 	crime_int = crime->istat & crime_mask;
-	irq = __ffs(crime_int);
+	irq = MACE_VID_IN1_IRQ + __ffs(crime_int);
 	crime_int = 1 << irq;
 
 	if (crime_int & CRIME_MACEISA_INT_MASK) {
 		unsigned long mace_int = mace->perif.ctrl.istat;
-		irq = __ffs(mace_int & maceisa_mask) + 32;
+		irq = __ffs(mace_int & maceisa_mask) + MACEISA_AUDIO_SW_IRQ;
 	}
-	irq++;
+
 	DBG("*irq %u*\n", irq);
 	do_IRQ(irq);
 }
@@ -457,7 +437,7 @@ static void ip32_irq4(void)
 
 static void ip32_irq5(void)
 {
-	do_IRQ(IP32_R4K_TIMER_IRQ);
+	do_IRQ(MIPS_CPU_IRQ_BASE + 7);
 }
 
 asmlinkage void plat_irq_dispatch(void)
@@ -490,21 +470,25 @@ void __init arch_init_irq(void)
 	mace->perif.ctrl.istat = 0;
 	mace->perif.ctrl.imask = 0;
 
-	for (irq = 0; irq <= IP32_IRQ_MAX; irq++) {
-		struct irq_chip *controller;
+	mips_cpu_irq_init();
+	for (irq = MIPS_CPU_IRQ_BASE + 8; irq <= IP32_IRQ_MAX; irq++) {
+		struct irq_chip *chip;
 
-		if (irq == IP32_R4K_TIMER_IRQ)
-			controller = &ip32_cpu_interrupt;
-		else if (irq <= MACE_PCI_BRIDGE_IRQ && irq >= MACE_VID_IN1_IRQ)
-			controller = &ip32_mace_interrupt;
-		else if (irq <= MACEPCI_SHARED2_IRQ && irq >= MACEPCI_SCSI0_IRQ)
-			controller = &ip32_macepci_interrupt;
-		else if (irq <= CRIME_VICE_IRQ && irq >= CRIME_GBE0_IRQ)
-			controller = &ip32_crime_interrupt;
-		else
-			controller = &ip32_maceisa_interrupt;
+		switch (irq) {
+		case MACE_VID_IN1_IRQ ... MACE_PCI_BRIDGE_IRQ:
+			chip = &ip32_mace_interrupt;
+			break;
+		case MACEPCI_SCSI0_IRQ ...  MACEPCI_SHARED2_IRQ:
+			chip = &ip32_macepci_interrupt;
+			break;
+		case CRIME_GBE0_IRQ ... CRIME_VICE_IRQ:
+			chip = &ip32_crime_interrupt;
+			break;
+		default:
+			chip = &ip32_maceisa_interrupt;
+		}
 
-		set_irq_chip(irq, controller);
+		set_irq_chip(irq, chip);
 	}
 	setup_irq(CRIME_MEMERR_IRQ, &memerr_irq);
 	setup_irq(CRIME_CPUERR_IRQ, &cpuerr_irq);

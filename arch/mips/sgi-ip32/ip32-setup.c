@@ -83,7 +83,7 @@ void __init plat_time_init(void)
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	irq->handler = no_action;
-	setup_irq(IP32_R4K_TIMER_IRQ, irq);
+	setup_irq(MIPS_CPU_IRQ_BASE + 7, irq);
 }
 
 void __init plat_mem_setup(void)
