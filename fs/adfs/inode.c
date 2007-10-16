@@ -61,10 +61,14 @@ static int adfs_readpage(struct file *file, struct page *page)
 	return block_read_full_page(page, adfs_get_block);
 }
 
-static int adfs_prepare_write(struct file *file, struct page *page, unsigned int from, unsigned int to)
+static int adfs_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
-	return cont_prepare_write(page, from, to, adfs_get_block,
-		&ADFS_I(page->mapping->host)->mmu_private);
+	*pagep = NULL;
+	return cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				adfs_get_block,
+				&ADFS_I(mapping->host)->mmu_private);
 }
 
 static sector_t _adfs_bmap(struct address_space *mapping, sector_t block)
@@ -76,8 +80,8 @@ static const struct address_space_operations adfs_aops = {
 	.readpage	= adfs_readpage,
 	.writepage	= adfs_writepage,
 	.sync_page	= block_sync_page,
-	.prepare_write	= adfs_prepare_write,
-	.commit_write	= generic_commit_write,
+	.write_begin	= adfs_write_begin,
+	.write_end	= generic_write_end,
 	.bmap		= _adfs_bmap
 };
 
