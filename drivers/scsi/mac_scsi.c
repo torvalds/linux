@@ -53,6 +53,11 @@
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "mac_scsi.h"
+
+/* These control the behaviour of the generic 5380 core */
+#define AUTOSENSE
+#define PSEUDO_DMA
+
 #include "NCR5380.h"
 
 #if 0
@@ -570,10 +575,6 @@ static int macscsi_pwrite (struct Scsi_Host *instance,
    return 0;
 }
 
-
-/* These control the behaviour of the generic 5380 core */
-#define AUTOSENSE
-#define PSEUDO_DMA
 
 #include "NCR5380.c"
 
