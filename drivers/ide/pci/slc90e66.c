@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.16	Jul 14, 2007
+ *  linux/drivers/ide/pci/slc90e66.c	Version 0.17	Aug 2, 2007
  *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
@@ -169,11 +169,11 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 
 	pci_read_config_byte(hwif->pci_dev, 0x47, &reg47);
 
-	if (!hwif->dma_base) {
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
+
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x1f;
