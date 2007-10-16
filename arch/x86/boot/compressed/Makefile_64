@@ -6,11 +6,11 @@
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head_64.o misc_64.o piggy.o
 
-CFLAGS := -m64 -D__KERNEL__ $(LINUXINCLUDE) -O2  \
+KBUILD_CFLAGS := -m64 -D__KERNEL__ $(LINUXINCLUDE) -O2  \
 	  -fno-strict-aliasing -fPIC -mcmodel=small \
 	   $(call cc-option, -ffreestanding) \
 	   $(call cc-option, -fno-stack-protector)
-AFLAGS  := $(CFLAGS) -D__ASSEMBLY__
+KBUILD_AFLAGS  := $(KBUILD_CFLAGS) -D__ASSEMBLY__
 LDFLAGS := -m elf_x86_64
 
 LDFLAGS_vmlinux := -T

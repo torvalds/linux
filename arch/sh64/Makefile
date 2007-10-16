@@ -26,7 +26,7 @@ LDFLAGS			+= -EB  -mshelf32_linux
 endif
 
 # No requirements for endianess support from AFLAGS, 'as' always run through gcc
-CFLAGS		+= $(cpu-y)
+KBUILD_CFLAGS		+= $(cpu-y)
 
 LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_CACHED_MEMORY_OFFSET) \
 		  --defsym phys_stext_shmedia=phys_stext+1 \
@@ -58,7 +58,7 @@ ifneq ($(machine-y),)
 core-y	+= arch/sh64/mach-$(machine-y)/
 endif
 
-LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 libs-y	+= arch/$(ARCH)/lib/ $(LIBGCC)
 
 drivers-$(CONFIG_OPROFILE)	+= arch/sh64/oprofile/

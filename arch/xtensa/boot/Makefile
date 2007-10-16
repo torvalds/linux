@@ -8,13 +8,12 @@
 #
 
 
-CFLAGS 		+= -fno-builtin -Iarch/$(ARCH)/boot/include
+EXTRA_CFLAGS	+= -fno-builtin -Iarch/$(ARCH)/boot/include
 HOSTFLAGS	+= -Iarch/$(ARCH)/boot/include
 
 BIG_ENDIAN	:= $(shell echo -e __XTENSA_EB__ | $(CC) -E - | grep -v "\#")
 
-export CFLAGS
-export AFLAGS
+export EXTRA_CFLAGS
 export BIG_ENDIAN
 
 subdir-y	:= lib

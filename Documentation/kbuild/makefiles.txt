@@ -276,41 +276,39 @@ more details, with real examples.
 
 --- 3.7 Compilation flags
 
-    EXTRA_CFLAGS, EXTRA_AFLAGS, EXTRA_LDFLAGS, EXTRA_ARFLAGS
+    ccflags-y, asflags-y and ldflags-y
+	The three flags listed above applies only to the kbuild makefile
+	where they are assigned. They are used for all the normal
+	cc, as and ld invocation happenign during a recursive build.
+	Note: Flags with the same behaviour were previously named:
+	EXTRA_CFLAGS, EXTRA_AFLAGS and EXTRA_LDFLAGS.
+	They are yet supported but their use are deprecated.
 
-	All the EXTRA_ variables apply only to the kbuild makefile
-	where they are assigned. The EXTRA_ variables apply to all
-	commands executed in the kbuild makefile.
-
-	$(EXTRA_CFLAGS) specifies options for compiling C files with
-	$(CC).
+	ccflags-y specifies options for compiling C files with $(CC).
 
 	Example:
 		# drivers/sound/emu10k1/Makefile
-		EXTRA_CFLAGS += -I$(obj)
-		ifdef DEBUG
-		    EXTRA_CFLAGS += -DEMU10K1_DEBUG
-		endif
+		ccflags-y += -I$(obj)
+		ccflags-$(DEBUG) += -DEMU10K1_DEBUG
 
 
 	This variable is necessary because the top Makefile owns the
-	variable $(CFLAGS) and uses it for compilation flags for the
+	variable $(KBUILD_CFLAGS) and uses it for compilation flags for the
 	entire tree.
 
-	$(EXTRA_AFLAGS) is a similar string for per-directory options
+	asflags-y is a similar string for per-directory options
 	when compiling assembly language source.
 
 	Example:
 		#arch/x86_64/kernel/Makefile
-		EXTRA_AFLAGS := -traditional
+		asflags-y := -traditional
 
 
-	$(EXTRA_LDFLAGS) and $(EXTRA_ARFLAGS) are similar strings for
-	per-directory options to $(LD) and $(AR).
+	ldflags-y is a string for per-directory options to $(LD).
 
 	Example:
 		#arch/m68k/fpsp040/Makefile
-		EXTRA_LDFLAGS := -x
+		ldflags-y := -x
 
     CFLAGS_$@, AFLAGS_$@
 
@@ -425,6 +423,7 @@ more details, with real examples.
 	as-instr checks if the assembler reports a specific instruction
 	and then outputs either option1 or option2
 	C escapes are supported in the test instruction
+	Note: as-instr-option uses KBUILD_AFLAGS for $(AS) options
 
     cc-option
 	cc-option is used to check if $(CC) supports a given option, and not
@@ -438,6 +437,7 @@ more details, with real examples.
 	-march=pentium-mmx if supported by $(CC), otherwise -march=i586.
 	The second argument to cc-option is optional, and if omitted,
 	cflags-y will be assigned no value if first option is not supported.
+	Note: cc-option uses KBUILD_CFLAGS for $(CC) options
 
    cc-option-yn
 	cc-option-yn is used to check if gcc supports a given option
@@ -453,6 +453,7 @@ more details, with real examples.
 	option. When $(biarch) equals 'y', the expanded variables $(aflags-y)
 	and $(cflags-y) will be assigned the values -a32 and -m32,
 	respectively.
+	Note: cc-option-yn uses KBUILD_CFLAGS for $(CC) options
 
     cc-option-align
 	gcc versions >= 3.0 changed the type of options used to specify
@@ -464,10 +465,11 @@ more details, with real examples.
 		cc-option-align = -falign
 
 	Example:
-		CFLAGS += $(cc-option-align)-functions=4
+		KBUILD_CFLAGS += $(cc-option-align)-functions=4
 
 	In the above example, the option -falign-functions=4 is used for
 	gcc >= 3.00. For gcc < 3.00, -malign-functions=4 is used.
+	Note: cc-option-align uses KBUILD_CFLAGS for $(CC) options
 
     cc-version
 	cc-version returns a numerical version of the $(CC) compiler version.
@@ -492,9 +494,9 @@ more details, with real examples.
 
 	Example:
 		#fs/reiserfs/Makefile
-		EXTRA_CFLAGS := $(call cc-ifversion, -lt, 0402, -O1)
+		ccflags-y := $(call cc-ifversion, -lt, 0402, -O1)
 
-	In this example, EXTRA_CFLAGS will be assigned the value -O1 if the
+	In this example, ccflags-y will be assigned the value -O1 if the
 	$(CC) version is less than 4.2.
 	cc-ifversion takes all the shell operators:
 	-eq, -ne, -lt, -le, -gt, and -ge
@@ -780,8 +782,8 @@ When kbuild executes, the following steps are followed (roughly):
 	Example:
 		#arch/s390/Makefile
 		LDFLAGS         := -m elf_s390
-	Note: EXTRA_LDFLAGS and LDFLAGS_$@ can be used to further customise
-	the flags used. See chapter 7.
+	Note: ldflags-y can be used to further customise
+	the flags used. See chapter 3.7.
 
     LDFLAGS_MODULE	Options for $(LD) when linking modules
 
@@ -817,26 +819,26 @@ When kbuild executes, the following steps are followed (roughly):
 	In this example, the binary $(obj)/image is a binary version of
 	vmlinux. The usage of $(call if_changed,xxx) will be described later.
 
-    AFLAGS		$(AS) assembler flags
+    KBUILD_AFLAGS		$(AS) assembler flags
 
 	Default value - see top level Makefile
 	Append or modify as required per architecture.
 
 	Example:
 		#arch/sparc64/Makefile
-		AFLAGS += -m64 -mcpu=ultrasparc
+		KBUILD_AFLAGS += -m64 -mcpu=ultrasparc
 
-    CFLAGS		$(CC) compiler flags
+    KBUILD_CFLAGS		$(CC) compiler flags
 
 	Default value - see top level Makefile
 	Append or modify as required per architecture.
 
-	Often, the CFLAGS variable depends on the configuration.
+	Often, the KBUILD_CFLAGS variable depends on the configuration.
 
 	Example:
 		#arch/i386/Makefile
 		cflags-$(CONFIG_M386) += -march=i386
-		CFLAGS += $(cflags-y)
+		KBUILD_CFLAGS += $(cflags-y)
 
 	Many arch Makefiles dynamically run the target C compiler to
 	probe supported options:
@@ -848,7 +850,7 @@ When kbuild executes, the following steps are followed (roughly):
 						-march=pentium2,-march=i686)
 		...
 		# Disable unit-at-a-time mode ...
-		CFLAGS += $(call cc-option,-fno-unit-at-a-time)
+		KBUILD_CFLAGS += $(call cc-option,-fno-unit-at-a-time)
 		...
 
 
@@ -1096,8 +1098,8 @@ When kbuild executes, the following steps are followed (roughly):
 	specified options when building the target vmlinux.lds.
 
 	When building the *.lds target, kbuild uses the variables:
-	CPPFLAGS	: Set in top-level Makefile
-	EXTRA_CPPFLAGS	: May be set in the kbuild makefile
+	KBUILD_CPPFLAGS	: Set in top-level Makefile
+	cppflags-y	: May be set in the kbuild makefile
 	CPPFLAGS_$(@F)  : Target specific flags.
 	                  Note that the full filename is used in this
 	                  assignment.

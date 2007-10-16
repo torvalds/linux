@@ -9,12 +9,12 @@ _extra_flags_ = -fno-builtin -m64
 #We #undef __x86_64__ for kernelspace, not for userspace where
 #it's needed for headers to work!
 ARCH_KERNEL_DEFINES = -U__$(SUBARCH)__
-CFLAGS += $(_extra_flags_)
+KBUILD_CFLAGS += $(_extra_flags_)
 
 CHECKFLAGS  += -m64
-AFLAGS += -m64
+KBUILD_AFLAGS += -m64
 LDFLAGS += -m elf_x86_64
-CPPFLAGS += -m64
+KBUILD_CPPFLAGS += -m64
 
 ELF_ARCH := i386:x86-64
 ELF_FORMAT := elf64-x86-64

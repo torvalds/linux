@@ -144,7 +144,7 @@ config BDI_SWITCH
 
 config BOOTX_TEXT
 	bool "Support for early boot text console (BootX or OpenFirmware only)"
-	depends PPC_OF && PPC_MULTIPLATFORM
+	depends on PPC_OF && PPC_MULTIPLATFORM
 	help
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires either BootX or Open Firmware.
@@ -234,12 +234,12 @@ endchoice
 
 config PPC_EARLY_DEBUG_44x_PHYSLOW
 	hex "Low 32 bits of early debug UART physical address"
-	depends PPC_EARLY_DEBUG_44x
+	depends on PPC_EARLY_DEBUG_44x
 	default "0x40000200"
 
 config PPC_EARLY_DEBUG_44x_PHYSHIGH
 	hex "EPRN of early debug UART physical address"
-	depends PPC_EARLY_DEBUG_44x
+	depends on PPC_EARLY_DEBUG_44x
 	default "0x1"
 
 config PPC_EARLY_DEBUG_CPM_ADDR

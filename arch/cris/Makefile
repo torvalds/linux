@@ -29,18 +29,18 @@ LD = $(CROSS_COMPILE)ld -mcrislinux
 OBJCOPYFLAGS := -O binary -R .note -R .comment -S
 
 CPPFLAGS_vmlinux.lds = -DDRAM_VIRTUAL_BASE=0x$(CONFIG_ETRAX_DRAM_VIRTUAL_BASE)
-AFLAGS += -mlinux
+KBUILD_AFLAGS += -mlinux
 
-CFLAGS := $(CFLAGS) -mlinux -march=$(arch-y) -pipe
+KBUILD_CFLAGS += -mlinux -march=$(arch-y) -pipe
 
 ifdef CONFIG_FRAME_POINTER
-CFLAGS := $(subst -fomit-frame-pointer,,$(CFLAGS)) -g
-CFLAGS += -fno-omit-frame-pointer
+KBUILD_CFLAGS := $(subst -fomit-frame-pointer,,$(KBUILD_CFLAGS)) -g
+KBUILD_CFLAGS += -fno-omit-frame-pointer
 endif
 
 head-y := arch/$(ARCH)/$(SARCH)/kernel/head.o
 
-LIBGCC = $(shell $(CC) $(CFLAGS) -print-file-name=libgcc.a)
+LIBGCC = $(shell $(CC) $(KBUILD_CFLAGS) -print-file-name=libgcc.a)
 
 core-y		+= arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/
 core-y		+= arch/$(ARCH)/$(SARCH)/kernel/ arch/$(ARCH)/$(SARCH)/mm/

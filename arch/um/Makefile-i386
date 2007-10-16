@@ -12,8 +12,8 @@ HEADER_ARCH		:= x86
 
 ifeq ("$(origin SUBARCH)", "command line")
 ifneq ("$(shell uname -m | sed -e s/i.86/i386/)", "$(SUBARCH)")
-CFLAGS			+= $(call cc-option,-m32)
-AFLAGS			+= $(call cc-option,-m32)
+KBUILD_CFLAGS		+= $(call cc-option,-m32)
+KBUILD_AFLAGS		+= $(call cc-option,-m32)
 LINK-y			+= $(call cc-option,-m32)
 UML_OBJCOPYFLAGS	+= -F $(ELF_FORMAT)
 
@@ -38,4 +38,4 @@ cflags-y += $(call cc-option,-mpreferred-stack-boundary=2)
 # an unresolved reference.
 cflags-y += -ffreestanding
 
-CFLAGS += $(cflags-y)
+KBUILD_CFLAGS += $(cflags-y)

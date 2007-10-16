@@ -11,7 +11,7 @@ EXTRA_AFLAGS	:= -traditional
 LDFLAGS_vmlinux := -T
 hostprogs-y	:= relocs
 
-CFLAGS  := -m32 -D__KERNEL__ $(LINUX_INCLUDE) -O2 \
+KBUILD_CFLAGS  := -m32 -D__KERNEL__ $(LINUX_INCLUDE) -O2 \
 	   -fno-strict-aliasing -fPIC \
 	   $(call cc-option,-ffreestanding) \
 	   $(call cc-option,-fno-stack-protector)

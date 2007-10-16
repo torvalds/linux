@@ -50,7 +50,7 @@ HOSTCFLAGS_build.o := $(LINUXINCLUDE)
 # that way we can complain to the user if the CPU is insufficient.
 cflags-i386   := 
 cflags-x86_64 := -m32
-CFLAGS		:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
+KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
 		   $(cflags-$(ARCH)) \
 		   -Wall -Wstrict-prototypes \
 		   -march=i386 -mregparm=3 \
@@ -61,7 +61,7 @@ CFLAGS		:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
 			$(call cc-option, -fno-unit-at-a-time)) \
 		   $(call cc-option, -fno-stack-protector) \
 		   $(call cc-option, -mpreferred-stack-boundary=2)
-AFLAGS		:= $(CFLAGS) -D__ASSEMBLY__
+KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
 
 $(obj)/zImage:  IMAGE_OFFSET := 0x1000
 $(obj)/zImage:  EXTRA_AFLAGS := $(SVGA_MODE) $(RAMDISK)

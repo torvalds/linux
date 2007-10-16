@@ -11,15 +11,15 @@ all: uImage vmlinux.elf
 
 KBUILD_DEFCONFIG	:= atstk1002_defconfig
 
-CFLAGS		+= -pipe -fno-builtin -mno-pic
-AFLAGS		+= -mrelax -mno-pic
+KBUILD_CFLAGS	+= -pipe -fno-builtin -mno-pic
+KBUILD_AFLAGS	+= -mrelax -mno-pic
 CFLAGS_MODULE	+= -mno-relax
 LDFLAGS_vmlinux	+= --relax
 
 cpuflags-$(CONFIG_CPU_AT32AP7000)	+= -mcpu=ap7000
 
-CFLAGS		+= $(cpuflags-y)
-AFLAGS		+= $(cpuflags-y)
+KBUILD_CFLAGS	+= $(cpuflags-y)
+KBUILD_AFLAGS	+= $(cpuflags-y)
 
 CHECKFLAGS	+= -D__avr32__ -D__BIG_ENDIAN
 

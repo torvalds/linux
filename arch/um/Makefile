@@ -49,15 +49,15 @@ SYS_DIR		:= $(ARCH_DIR)/include/sysdep-$(SUBARCH)
 #
 # These apply to USER_CFLAGS to.
 
-CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\"	\
+KBUILD_CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\"	\
 	$(ARCH_INCLUDE) $(MODE_INCLUDE) -Dvmap=kernel_vmap	\
 	-Din6addr_loopback=kernel_in6addr_loopback \
 	-Din6addr_any=kernel_in6addr_any
 
-AFLAGS += $(ARCH_INCLUDE)
+KBUILD_AFLAGS += $(ARCH_INCLUDE)
 
 USER_CFLAGS = $(patsubst $(KERNEL_DEFINES),,$(patsubst -D__KERNEL__,,\
-	$(patsubst -I%,,$(CFLAGS)))) $(ARCH_INCLUDE) $(MODE_INCLUDE) \
+	$(patsubst -I%,,$(KBUILD_CFLAGS)))) $(ARCH_INCLUDE) $(MODE_INCLUDE) \
 	-D_FILE_OFFSET_BITS=64
 
 include $(srctree)/$(ARCH_DIR)/Makefile-$(SUBARCH)
@@ -67,14 +67,14 @@ include $(srctree)/$(ARCH_DIR)/Makefile-os-$(OS)
 
 # -Derrno=kernel_errno - This turns all kernel references to errno into
 # kernel_errno to separate them from the libc errno.  This allows -fno-common
-# in CFLAGS.  Otherwise, it would cause ld to complain about the two different
+# in KBUILD_CFLAGS.  Otherwise, it would cause ld to complain about the two different
 # errnos.
 # These apply to kernelspace only.
 
 KERNEL_DEFINES = -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask \
 	-Dmktime=kernel_mktime $(ARCH_KERNEL_DEFINES)
-CFLAGS += $(KERNEL_DEFINES)
-CFLAGS += $(call cc-option,-fno-unit-at-a-time,)
+KBUILD_CFLAGS += $(KERNEL_DEFINES)
+KBUILD_CFLAGS += $(call cc-option,-fno-unit-at-a-time,)
 
 # These are needed for clean and mrproper, since in that case .config is not
 # included; the values here are meaningless

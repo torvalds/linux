@@ -75,10 +75,10 @@ CPPFLAGS-$(CONFIG_PPC32) := -Iarch/$(ARCH)
 AFLAGS-$(CONFIG_PPC32)	:= -Iarch/$(ARCH)
 CFLAGS-$(CONFIG_PPC64)	:= -mminimal-toc -mtraceback=none  -mcall-aixdesc
 CFLAGS-$(CONFIG_PPC32)	:= -Iarch/$(ARCH) -ffixed-r2 -mmultiple
-CPPFLAGS	+= $(CPPFLAGS-y)
-AFLAGS		+= $(AFLAGS-y)
-CFLAGS		+= -msoft-float -pipe $(CFLAGS-y)
-CPP		= $(CC) -E $(CFLAGS)
+KBUILD_CPPFLAGS	+= $(CPPFLAGS-y)
+KBUILD_AFLAGS	+= $(AFLAGS-y)
+KBUILD_CFLAGS	+= -msoft-float -pipe $(CFLAGS-y)
+CPP		= $(CC) -E $(KBUILD_CFLAGS)
 
 CHECKFLAGS	+= -m$(CONFIG_WORD_SIZE) -D__powerpc__ -D__powerpc$(CONFIG_WORD_SIZE)__
 
@@ -88,35 +88,35 @@ GCC_BROKEN_VEC	:= $(shell if [ $(call cc-version) -lt 0400 ] ; then echo "y"; fi
 ifeq ($(CONFIG_POWER4_ONLY),y)
 ifeq ($(CONFIG_ALTIVEC),y)
 ifeq ($(GCC_BROKEN_VEC),y)
-	CFLAGS += $(call cc-option,-mcpu=970)
+	KBUILD_CFLAGS += $(call cc-option,-mcpu=970)
 else
-	CFLAGS += $(call cc-option,-mcpu=power4)
+	KBUILD_CFLAGS += $(call cc-option,-mcpu=power4)
 endif
 else
-	CFLAGS += $(call cc-option,-mcpu=power4)
+	KBUILD_CFLAGS += $(call cc-option,-mcpu=power4)
 endif
 else
-	CFLAGS += $(call cc-option,-mtune=power4)
+	KBUILD_CFLAGS += $(call cc-option,-mtune=power4)
 endif
 endif
 
 ifeq ($(CONFIG_TUNE_CELL),y)
-	CFLAGS += $(call cc-option,-mtune=cell)
+	KBUILD_CFLAGS += $(call cc-option,-mtune=cell)
 endif
 
 # No AltiVec instruction when building kernel
-CFLAGS += $(call cc-option,-mno-altivec)
+KBUILD_CFLAGS += $(call cc-option,-mno-altivec)
 
 # Enable unit-at-a-time mode when possible. It shrinks the
 # kernel considerably.
-CFLAGS += $(call cc-option,-funit-at-a-time)
+KBUILD_CFLAGS += $(call cc-option,-funit-at-a-time)
 
 # Never use string load/store instructions as they are
 # often slow when they are implemented at all
-CFLAGS		+= -mno-string
+KBUILD_CFLAGS		+= -mno-string
 
 ifeq ($(CONFIG_6xx),y)
-CFLAGS		+= -mcpu=powerpc
+KBUILD_CFLAGS		+= -mcpu=powerpc
 endif
 
 cpu-as-$(CONFIG_4xx)		+= -Wa,-m405
@@ -125,8 +125,8 @@ cpu-as-$(CONFIG_POWER4)		+= -Wa,-maltivec
 cpu-as-$(CONFIG_E500)		+= -Wa,-me500
 cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 
-AFLAGS += $(cpu-as-y)
-CFLAGS += $(cpu-as-y)
+KBUILD_AFLAGS += $(cpu-as-y)
+KBUILD_CFLAGS += $(cpu-as-y)
 
 head-y				:= arch/powerpc/kernel/head_$(CONFIG_WORD_SIZE).o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o

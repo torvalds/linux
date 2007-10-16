@@ -84,12 +84,15 @@ void str_free(struct gstr *gs)
 /* Append to growable string */
 void str_append(struct gstr *gs, const char *s)
 {
-	size_t l = strlen(gs->s) + strlen(s) + 1;
-	if (l > gs->len) {
-		gs->s   = realloc(gs->s, l);
-		gs->len = l;
+	size_t l;
+	if (s) {
+		l = strlen(gs->s) + strlen(s) + 1;
+		if (l > gs->len) {
+			gs->s   = realloc(gs->s, l);
+			gs->len = l;
+		}
+		strcat(gs->s, s);
 	}
-	strcat(gs->s, s);
 }
 
 /* Append printf formatted string to growable string */

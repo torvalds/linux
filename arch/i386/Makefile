@@ -34,10 +34,10 @@ LDFLAGS_vmlinux := --emit-relocs
 endif
 CHECKFLAGS	+= -D__i386__
 
-CFLAGS += -pipe -msoft-float -mregparm=3 -freg-struct-return
+KBUILD_CFLAGS += -pipe -msoft-float -mregparm=3 -freg-struct-return
 
 # prevent gcc from keeping the stack 16 byte aligned
-CFLAGS += $(call cc-option,-mpreferred-stack-boundary=2)
+KBUILD_CFLAGS += $(call cc-option,-mpreferred-stack-boundary=2)
 
 # CPU-specific tuning. Anything which can be shared with UML should go here.
 include $(srctree)/arch/i386/Makefile.cpu
@@ -51,17 +51,17 @@ cflags-y += -maccumulate-outgoing-args
 
 # Disable unit-at-a-time mode on pre-gcc-4.0 compilers, it makes gcc use
 # a lot more stack due to the lack of sharing of stacklots:
-CFLAGS				+= $(shell if [ $(call cc-version) -lt 0400 ] ; then echo $(call cc-option,-fno-unit-at-a-time); fi ;)
+KBUILD_CFLAGS += $(shell if [ $(call cc-version) -lt 0400 ] ; then echo $(call cc-option,-fno-unit-at-a-time); fi ;)
 
 # do binutils support CFI?
 cflags-y += $(call as-instr,.cfi_startproc\n.cfi_rel_offset esp${comma}0\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
-AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_rel_offset esp${comma}0\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
+KBUILD_AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_rel_offset esp${comma}0\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
 
 # is .cfi_signal_frame supported too?
 cflags-y += $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONFIG_AS_CFI_SIGNAL_FRAME=1,)
-AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONFIG_AS_CFI_SIGNAL_FRAME=1,)
+KBUILD_AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONFIG_AS_CFI_SIGNAL_FRAME=1,)
 
-CFLAGS += $(cflags-y)
+KBUILD_CFLAGS += $(cflags-y)
 
 # Default subarch .c files
 mcore-y  := arch/x86/mach-default
@@ -116,8 +116,8 @@ drivers-$(CONFIG_OPROFILE)		+= arch/x86/oprofile/
 drivers-$(CONFIG_PM)			+= arch/x86/power/
 drivers-$(CONFIG_FB)                    += arch/x86/video/
 
-CFLAGS += $(mflags-y)
-AFLAGS += $(mflags-y)
+KBUILD_CFLAGS += $(mflags-y)
+KBUILD_AFLAGS += $(mflags-y)
 
 boot := arch/x86/boot
 

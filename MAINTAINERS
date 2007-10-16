@@ -2138,8 +2138,6 @@ S:	Maintained
 ISDN SUBSYSTEM
 P:	Karsten Keil
 M:	kkeil@suse.de
-P:	Kai Germaschewski
-M:	kai.germaschewski@gmx.de
 L:	isdn4linux@listserv.isdn4linux.de
 W:	http://www.isdn4linux.de
 T:	git kernel.org:/pub/scm/linux/kernel/kkeil/isdn-2.6.git
@@ -2208,8 +2206,6 @@ L:	autofs@linux.kernel.org
 S:	Maintained
 
 KERNEL BUILD (kbuild: Makefile, scripts/Makefile.*)
-P:	Kai Germaschewski
-M:	kai@germaschewski.name
 P:	Sam Ravnborg
 M:	sam@ravnborg.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/sam/kbuild.git

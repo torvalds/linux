@@ -16,11 +16,11 @@
 
 arch_dir = arch/v850
 
-CFLAGS += -mv850e
+KBUILD_CFLAGS += -mv850e
 # r16 is a fixed pointer to the current task
-CFLAGS += -ffixed-r16 -mno-prolog-function
-CFLAGS += -fno-builtin
-CFLAGS += -D__linux__ -DUTS_SYSNAME=\"uClinux\"
+KBUILD_CFLAGS += -ffixed-r16 -mno-prolog-function
+KBUILD_CFLAGS += -fno-builtin
+KBUILD_CFLAGS += -D__linux__ -DUTS_SYSNAME=\"uClinux\"
 
 # By default, build a kernel that runs on the gdb v850 simulator.
 KBUILD_DEFCONFIG := sim_defconfig

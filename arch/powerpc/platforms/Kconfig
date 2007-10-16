@@ -117,7 +117,7 @@ config RTAS_FLASH
 
 config PPC_PMI
 	tristate "Support for PMI"
-	depends PPC_IBM_CELL_BLADE
+	depends on PPC_IBM_CELL_BLADE
 	help
 	  PMI (Platform Management Interrupt) is a way to
 	  communicate with the BMC (Baseboard Mangement Controller).

@@ -91,12 +91,12 @@ LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64+4'
 LDFLAGS			+= -EB
 endif
 
-CFLAGS		+= -pipe $(cflags-y)
-AFLAGS		+= $(cflags-y)
+KBUILD_CFLAGS		+= -pipe $(cflags-y)
+KBUILD_AFLAGS		+= $(cflags-y)
 
 head-y := arch/sh/kernel/head.o arch/sh/kernel/init_task.o
 
-LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/

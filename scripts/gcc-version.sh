@@ -9,9 +9,15 @@
 # gcc-2.95.3, `030301' for gcc-3.3.1, etc.
 #
 
-if [ $1 = "-p" ] ; then with_patchlevel=1; shift; fi
+if [[ $1 = "-p" ]] ; then with_patchlevel=1; shift; fi
 
 compiler="$*"
+
+if [ ${#compiler} -eq 0 ]; then
+	echo "Error: No compiler specified."
+	echo -e "Usage:\n\t$0 <gcc-command>"
+	exit 1
+fi
 
 MAJOR=$(echo __GNUC__ | $compiler -E -xc - | tail -n 1)
 MINOR=$(echo __GNUC_MINOR__ | $compiler -E -xc - | tail -n 1)

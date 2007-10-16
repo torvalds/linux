@@ -19,7 +19,7 @@ boot-y	:= bootstrap.o
 OBJS	:= $(addprefix $(obj)/,$(boot-y))
 LIBS	:= arch/xtensa/boot/lib/lib.a arch/xtensa/lib/lib.a
 
-LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 zImage: vmlinux $(OBJS) $(LIBS)
 	$(OBJCOPY) --strip-all -R .comment -R .xt.insn -O binary \

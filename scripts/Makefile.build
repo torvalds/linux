@@ -22,16 +22,30 @@ EXTRA_AFLAGS   :=
 EXTRA_CFLAGS   :=
 EXTRA_CPPFLAGS :=
 EXTRA_LDFLAGS  :=
+asflags-y  :=
+ccflags-y  :=
+cppflags-y :=
+ldflags-y  :=
 
 # Read .config if it exist, otherwise ignore
 -include include/config/auto.conf
 
 include scripts/Kbuild.include
 
+# For backward compatibility check that these variables does not change
+save-cflags := $(CFLAGS)
+
 # The filename Kbuild has precedence over Makefile
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
-include $(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, $(kbuild-dir)/Makefile)
+kbuild-file := $(if $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Kbuild,$(kbuild-dir)/Makefile)
+include $(kbuild-file)
 
+# If the save-* variables changed error out
+ifeq ($(KBUILD_NOPEDANTIC),)
+        ifneq ("$(save-cflags)","$(CFLAGS)")
+                $(error CFLAGS was changed in "$(kbuild-file)". Fix it to use EXTRA_CFLAGS)
+        endif
+endif
 include scripts/Makefile.lib
 
 ifdef host-progs
@@ -53,31 +67,6 @@ _dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
 # Create directories for object files if directory does not exist
 # Needed when obj-y := dir/file.o syntax is used
 _dummy := $(foreach d,$(obj-dirs), $(shell [ -d $(d) ] || mkdir -p $(d)))
-endif
-
-
-ifdef EXTRA_TARGETS
-$(warning kbuild: $(obj)/Makefile - Usage of EXTRA_TARGETS is obsolete in 2.6. Please fix!)
-endif
-
-ifdef build-targets
-$(warning kbuild: $(obj)/Makefile - Usage of build-targets is obsolete in 2.6. Please fix!)
-endif
-
-ifdef export-objs
-$(warning kbuild: $(obj)/Makefile - Usage of export-objs is obsolete in 2.6. Please fix!)
-endif
-
-ifdef O_TARGET
-$(warning kbuild: $(obj)/Makefile - Usage of O_TARGET := $(O_TARGET) is obsolete in 2.6. Please fix!)
-endif
-
-ifdef L_TARGET
-$(error kbuild: $(obj)/Makefile - Use of L_TARGET is replaced by lib-y in 2.6. Please fix!)
-endif
-
-ifdef list-multi
-$(warning kbuild: $(obj)/Makefile - list-multi := $(list-multi) is obsolete in 2.6. Please fix!)
 endif
 
 ifndef obj
@@ -291,7 +280,7 @@ endif # builtin-target
 #
 ifdef lib-target
 quiet_cmd_link_l_target = AR      $@
-cmd_link_l_target = rm -f $@; $(AR) $(EXTRA_ARFLAGS) rcs $@ $(lib-y)
+cmd_link_l_target = rm -f $@; $(AR) rcs $@ $(lib-y)
 
 $(lib-target): $(lib-y) FORCE
 	$(call if_changed,link_l_target)

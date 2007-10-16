@@ -33,7 +33,7 @@ cflags-y				+= $(cpuflags-y)
 # For TSUNAMI, we must have the assembler not emulate our instructions.
 # The same is true for IRONGATE, POLARIS, PYXIS.
 # BWX is most important, but we don't really want any emulation ever.
-CFLAGS += $(cflags-y) -Wa,-mev6
+KBUILD_CFLAGS += $(cflags-y) -Wa,-mev6
 
 head-y := arch/alpha/kernel/head.o
 

@@ -40,7 +40,7 @@ subdir-ymn	:= $(addprefix $(obj)/,$(subdir-ymn))
 # build a list of files to remove, usually releative to the current
 # directory
 
-__clean-files	:= $(extra-y) $(EXTRA_TARGETS) $(always) \
+__clean-files	:= $(extra-y) $(always)                  \
 		   $(targets) $(clean-files)             \
 		   $(host-progs)                         \
 		   $(hostprogs-y) $(hostprogs-m) $(hostprogs-)

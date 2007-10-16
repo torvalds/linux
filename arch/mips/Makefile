@@ -608,14 +608,14 @@ ifdef CONFIG_64BIT
   endif
 endif
 
-AFLAGS		+= $(cflags-y)
-CFLAGS		+= $(cflags-y) \
+KBUILD_AFLAGS	+= $(cflags-y)
+KBUILD_CFLAGS	+= $(cflags-y) \
 			-D"VMLINUX_LOAD_ADDRESS=$(load-y)"
 
 LDFLAGS			+= -m $(ld-emul)
 
 ifdef CONFIG_MIPS
-CHECKFLAGS += $(shell $(CC) $(CFLAGS) -dM -E -xc /dev/null | \
+CHECKFLAGS += $(shell $(CC) $(KBUILD_CFLAGS) -dM -E -xc /dev/null | \
 	egrep -vw '__GNUC_(|MINOR_|PATCHLEVEL_)_' | \
 	sed -e 's/^\#define /-D/' -e "s/ /='/" -e "s/$$/'/")
 ifdef CONFIG_64BIT
@@ -632,7 +632,7 @@ OBJCOPYFLAGS		+= --remove-section=.reginfo
 #
 
 CPPFLAGS_vmlinux.lds := \
-	$(CFLAGS) \
+	$(KBUILD_CFLAGS) \
 	-D"LOADADDR=$(load-y)" \
 	-D"JIFFIES=$(JIFFIES)" \
 	-D"DATAOFFSET=$(if $(dataoffset-y),$(dataoffset-y),0)"
