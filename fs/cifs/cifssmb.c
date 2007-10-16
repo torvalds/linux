@@ -661,8 +661,8 @@ signing_check:
 		cFYI(1, ("Signing disabled"));
 		if (server->secMode & SECMODE_SIGN_REQUIRED)
 			cERROR(1, ("Server requires "
-				   "/proc/fs/cifs/PacketSigningEnabled "
-				   "to be on"));
+				   "packet signing to be enabled in "
+				   "/proc/fs/cifs/SecurityFlags."));
 		server->secMode &=
 			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
 	} else if ((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
