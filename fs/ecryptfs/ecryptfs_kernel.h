@@ -156,7 +156,6 @@ struct ecryptfs_auth_tok {
 	} token;
 } __attribute__ ((packed));
 
-int ecryptfs_get_auth_tok_sig(char **sig, struct ecryptfs_auth_tok *auth_tok);
 void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok);
 extern void ecryptfs_to_hex(char *dst, char *src, size_t src_size);
 extern void ecryptfs_from_hex(char *dst, char *src, int dst_size);
@@ -536,9 +535,6 @@ void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destroy_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
 int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat);
-int ecryptfs_crypto_api_algify_cipher_name(char **algified_name,
-					   char *cipher_name,
-					   char *chaining_modifier);
 #define ECRYPTFS_LOWER_I_MUTEX_NOT_HELD 0
 #define ECRYPTFS_LOWER_I_MUTEX_HELD 1
 int ecryptfs_write_inode_size_to_metadata(struct file *lower_file,
@@ -579,13 +575,10 @@ int ecryptfs_generate_key_packet_set(char *dest_base,
 				     struct ecryptfs_crypt_stat *crypt_stat,
 				     struct dentry *ecryptfs_dentry,
 				     size_t *len, size_t max);
-int process_request_key_err(long err_code);
 int
 ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			  unsigned char *src, struct dentry *ecryptfs_dentry);
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
-int ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
-				char *cipher_name, size_t *key_size);
 int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode);
 int ecryptfs_inode_set(struct inode *inode, void *lower_inode);
 void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode);

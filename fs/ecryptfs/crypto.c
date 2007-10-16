@@ -123,9 +123,9 @@ out:
 	return rc;
 }
 
-int ecryptfs_crypto_api_algify_cipher_name(char **algified_name,
-					   char *cipher_name,
-					   char *chaining_modifier)
+static int ecryptfs_crypto_api_algify_cipher_name(char **algified_name,
+						  char *cipher_name,
+						  char *chaining_modifier)
 {
 	int cipher_name_len = strlen(cipher_name);
 	int chaining_modifier_len = strlen(chaining_modifier);
@@ -1859,7 +1859,7 @@ out:
  * should be released by other functions, such as on a superblock put
  * event, regardless of whether this function succeeds for fails.
  */
-int
+static int
 ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
 			    char *cipher_name, size_t *key_size)
 {

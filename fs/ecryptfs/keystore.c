@@ -39,7 +39,7 @@
  * determine the type of error, make appropriate log entries, and
  * return an error code.
  */
-int process_request_key_err(long err_code)
+static int process_request_key_err(long err_code)
 {
 	int rc = 0;
 
@@ -393,6 +393,27 @@ parse_tag_67_packet(struct ecryptfs_key_record *key_rec,
 	}
 	memcpy(key_rec->enc_key, &data[i], key_rec->enc_key_size);
 out:
+	return rc;
+}
+
+static int
+ecryptfs_get_auth_tok_sig(char **sig, struct ecryptfs_auth_tok *auth_tok)
+{
+	int rc = 0;
+
+	(*sig) = NULL;
+	switch (auth_tok->token_type) {
+	case ECRYPTFS_PASSWORD:
+		(*sig) = auth_tok->token.password.signature;
+		break;
+	case ECRYPTFS_PRIVATE_KEY:
+		(*sig) = auth_tok->token.private_key.signature;
+		break;
+	default:
+		printk(KERN_ERR "Cannot get sig for auth_tok of type [%d]\n",
+		       auth_tok->token_type);
+		rc = -EINVAL;
+	}
 	return rc;
 }
 
@@ -1079,26 +1100,6 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 				  crypt_stat->key_size);
 	}
 out:
-	return rc;
-}
-
-int ecryptfs_get_auth_tok_sig(char **sig, struct ecryptfs_auth_tok *auth_tok)
-{
-	int rc = 0;
-
-	(*sig) = NULL;
-	switch (auth_tok->token_type) {
-	case ECRYPTFS_PASSWORD:
-		(*sig) = auth_tok->token.password.signature;
-		break;
-	case ECRYPTFS_PRIVATE_KEY:
-		(*sig) = auth_tok->token.private_key.signature;
-		break;
-	default:
-		printk(KERN_ERR "Cannot get sig for auth_tok of type [%d]\n",
-		       auth_tok->token_type);
-		rc = -EINVAL;
-	}
 	return rc;
 }
 
