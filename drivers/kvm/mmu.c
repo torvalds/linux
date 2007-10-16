@@ -456,28 +456,53 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	}
 }
 
-static void rmap_write_protect(struct kvm *kvm, u64 gfn)
+static u64 *rmap_next(struct kvm *kvm, unsigned long *rmapp, u64 *spte)
 {
 	struct kvm_rmap_desc *desc;
+	struct kvm_rmap_desc *prev_desc;
+	u64 *prev_spte;
+	int i;
+
+	if (!*rmapp)
+		return NULL;
+	else if (!(*rmapp & 1)) {
+		if (!spte)
+			return (u64 *)*rmapp;
+		return NULL;
+	}
+	desc = (struct kvm_rmap_desc *)(*rmapp & ~1ul);
+	prev_desc = NULL;
+	prev_spte = NULL;
+	while (desc) {
+		for (i = 0; i < RMAP_EXT && desc->shadow_ptes[i]; ++i) {
+			if (prev_spte == spte)
+				return desc->shadow_ptes[i];
+			prev_spte = desc->shadow_ptes[i];
+		}
+		desc = desc->more;
+	}
+	return NULL;
+}
+
+static void rmap_write_protect(struct kvm *kvm, u64 gfn)
+{
 	unsigned long *rmapp;
 	u64 *spte;
+	u64 *prev_spte;
 
 	gfn = unalias_gfn(kvm, gfn);
 	rmapp = gfn_to_rmap(kvm, gfn);
 
-	while (*rmapp) {
-		if (!(*rmapp & 1))
-			spte = (u64 *)*rmapp;
-		else {
-			desc = (struct kvm_rmap_desc *)(*rmapp & ~1ul);
-			spte = desc->shadow_ptes[0];
-		}
+	spte = rmap_next(kvm, rmapp, NULL);
+	while (spte) {
 		BUG_ON(!spte);
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		BUG_ON(!(*spte & PT_WRITABLE_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
-		rmap_remove(kvm, spte);
-		set_shadow_pte(spte, *spte & ~PT_WRITABLE_MASK);
+		prev_spte = spte;
+		spte = rmap_next(kvm, rmapp, spte);
+		rmap_remove(kvm, prev_spte);
+		set_shadow_pte(prev_spte, *prev_spte & ~PT_WRITABLE_MASK);
 		kvm_flush_remote_tlbs(kvm);
 	}
 }
