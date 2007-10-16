@@ -262,14 +262,14 @@ static const unsigned char acorndata_8x8[] = {
 };
 
 const struct font_desc font_acorn_8x8 = {
-	ACORN8x8_IDX,
-	"Acorn8x8",
-	8,
-	8,
-	acorndata_8x8,
+	.idx	= ACORN8x8_IDX,
+	.name	= "Acorn8x8",
+	.width	= 8,
+	.height	= 8,
+	.data	= acorndata_8x8,
 #ifdef CONFIG_ARCH_ACORN
-	20
+	.pref	= 20,
 #else
-	0
+	.pref	= 0,
 #endif
 };

@@ -6152,14 +6152,14 @@ static const unsigned char fontdata_sun12x22[FONTDATAMAX] = {
 
 
 const struct font_desc font_sun_12x22 = {
-	SUN12x22_IDX,
-	"SUN12x22",
-	12,
-	22,
-	fontdata_sun12x22,
+	.idx	= SUN12x22_IDX,
+	.name	= "SUN12x22",
+	.width	= 12,
+	.height	= 22,
+	.data	= fontdata_sun12x22,
 #ifdef __sparc__
-	5
+	.pref	= 5,
 #else
-	-1
+	.pref	= -1,
 #endif
 };

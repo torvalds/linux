@@ -262,14 +262,14 @@ static const unsigned char fontdata_sun8x16[FONTDATAMAX] = {
 };
 
 const struct font_desc font_sun_8x16 = {
-	SUN8x16_IDX,
-	"SUN8x16",
-	8,
-	16,
-	fontdata_sun8x16,
+	.idx	= SUN8x16_IDX,
+	.name	= "SUN8x16",
+	.width	= 8,
+	.height	= 16,
+	.data	= fontdata_sun8x16,
 #ifdef __sparc__
-	10
+	.pref	= 10,
 #else
-	-1
+	.pref	= -1,
 #endif
 };

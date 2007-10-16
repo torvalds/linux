@@ -2148,11 +2148,11 @@ static const unsigned char fontdata_mini_4x6[FONTDATAMAX] = {
 };
 
 const struct font_desc font_mini_4x6 = {
-	MINI4x6_IDX,
-	"MINI4x6",
-	4,
-	6,
-	fontdata_mini_4x6,
-	3
+	.idx	= MINI4x6_IDX,
+	.name	= "MINI4x6",
+	.width	= 4,
+	.height	= 6,
+	.data	= fontdata_mini_4x6,
+	.pref	= 3,
 };
 
