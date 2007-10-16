@@ -396,7 +396,7 @@ sba_dump_sg( struct ioc *ioc, struct scatterlist *startsg, int nents)
 		printk(KERN_DEBUG " %d : DMA %08lx/%05x CPU %p\n", nents,
 		       startsg->dma_address, startsg->dma_length,
 		       sba_sg_address(startsg));
-		startsg++;
+		startsg = sg_next(startsg);
 	}
 }
 
@@ -409,7 +409,7 @@ sba_check_sg( struct ioc *ioc, struct scatterlist *startsg, int nents)
 	while (the_nents-- > 0) {
 		if (sba_sg_address(the_sg) == 0x0UL)
 			sba_dump_sg(NULL, startsg, nents);
-		the_sg++;
+		the_sg = sg_next(the_sg);
 	}
 }
 
@@ -1201,7 +1201,7 @@ sba_fill_pdir(
 			u32 pide = startsg->dma_address & ~PIDE_FLAG;
 			dma_offset = (unsigned long) pide & ~iovp_mask;
 			startsg->dma_address = 0;
-			dma_sg++;
+			dma_sg = sg_next(dma_sg);
 			dma_sg->dma_address = pide | ioc->ibase;
 			pdirp = &(ioc->pdir_base[pide >> iovp_shift]);
 			n_mappings++;
@@ -1228,7 +1228,7 @@ sba_fill_pdir(
 				pdirp++;
 			} while (cnt > 0);
 		}
-		startsg++;
+		startsg = sg_next(startsg);
 	}
 	/* force pdir update */
 	wmb();
@@ -1297,7 +1297,7 @@ sba_coalesce_chunks( struct ioc *ioc,
 		while (--nents > 0) {
 			unsigned long vaddr;	/* tmp */
 
-			startsg++;
+			startsg = sg_next(startsg);
 
 			/* PARANOID */
 			startsg->dma_address = startsg->dma_length = 0;
@@ -1407,7 +1407,7 @@ int sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents, int di
 #ifdef ALLOW_IOV_BYPASS_SG
 	ASSERT(to_pci_dev(dev)->dma_mask);
 	if (likely((ioc->dma_mask & ~to_pci_dev(dev)->dma_mask) == 0)) {
-		for (sg = sglist ; filled < nents ; filled++, sg++){
+		for_each_sg(sglist, sg, nents, filled) {
 			sg->dma_length = sg->length;
 			sg->dma_address = virt_to_phys(sba_sg_address(sg));
 		}
@@ -1501,7 +1501,7 @@ void sba_unmap_sg (struct device *dev, struct scatterlist *sglist, int nents, in
 	while (nents && sglist->dma_length) {
 
 		sba_unmap_single(dev, sglist->dma_address, sglist->dma_length, dir);
-		sglist++;
+		sglist = sg_next(sglist);
 		nents--;
 	}
 
