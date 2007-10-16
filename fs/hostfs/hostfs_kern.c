@@ -466,56 +466,42 @@ int hostfs_readpage(struct file *file, struct page *page)
 	return err;
 }
 
-int hostfs_prepare_write(struct file *file, struct page *page,
-			 unsigned int from, unsigned int to)
+int hostfs_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
-	char *buffer;
-	long long start, tmp;
-	int err;
+	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 
-	start = (long long) page->index << PAGE_CACHE_SHIFT;
-	buffer = kmap(page);
-	if(from != 0){
-		tmp = start;
-		err = read_file(FILE_HOSTFS_I(file)->fd, &tmp, buffer,
-				from);
-		if(err < 0) goto out;
-	}
-	if(to != PAGE_CACHE_SIZE){
-		start += to;
-		err = read_file(FILE_HOSTFS_I(file)->fd, &start, buffer + to,
-				PAGE_CACHE_SIZE - to);
-		if(err < 0) goto out;
-	}
-	err = 0;
- out:
-	kunmap(page);
-	return err;
+	*pagep = __grab_cache_page(mapping, index);
+	if (!*pagep)
+		return -ENOMEM;
+	return 0;
 }
 
-int hostfs_commit_write(struct file *file, struct page *page, unsigned from,
-		 unsigned to)
+int hostfs_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
 {
-	struct address_space *mapping = page->mapping;
 	struct inode *inode = mapping->host;
-	char *buffer;
-	long long start;
-	int err = 0;
+	void *buffer;
+	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+	int err;
 
-	start = (((long long) page->index) << PAGE_CACHE_SHIFT) + from;
 	buffer = kmap(page);
-	err = write_file(FILE_HOSTFS_I(file)->fd, &start, buffer + from,
-			 to - from);
-	if(err > 0) err = 0;
-
-	/* Actually, if !err, write_file has added to-from to start, so, despite
-	 * the appearance, we are comparing i_size against the _last_ written
-	 * location, as we should. */
-
-	if(!err && (start > inode->i_size))
-		inode->i_size = start;
-
+	err = write_file(FILE_HOSTFS_I(file)->fd, &pos, buffer + from, copied);
 	kunmap(page);
+
+	if (!PageUptodate(page) && err == PAGE_CACHE_SIZE)
+		SetPageUptodate(page);
+
+	/* If err > 0, write_file has added err to pos, so we are comparing
+	 * i_size against the last byte written.
+	 */
+	if (err > 0 && (pos > inode->i_size))
+		inode->i_size = pos;
+	unlock_page(page);
+	page_cache_release(page);
+
 	return err;
 }
 
@@ -523,8 +509,8 @@ static const struct address_space_operations hostfs_aops = {
 	.writepage 	= hostfs_writepage,
 	.readpage	= hostfs_readpage,
 	.set_page_dirty = __set_page_dirty_nobuffers,
-	.prepare_write	= hostfs_prepare_write,
-	.commit_write	= hostfs_commit_write
+	.write_begin	= hostfs_write_begin,
+	.write_end	= hostfs_write_end,
 };
 
 static int init_inode(struct inode *inode, struct dentry *dentry)
