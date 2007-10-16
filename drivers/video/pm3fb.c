@@ -886,7 +886,7 @@ static int pm3fb_set_par(struct fb_info *info)
 	if ((info->var.activate & FB_ACTIVATE_MASK) == FB_ACTIVATE_NOW)
 		par->video |= PM3VideoControl_ENABLE;
 	else {
-		par->video |= PM3VideoControl_DISABLE;
+		par->video &= ~PM3VideoControl_ENABLE;
 		DPRINTK("PM3Video disabled\n");
 	}
 	switch (bpp) {
@@ -911,8 +911,7 @@ static int pm3fb_set_par(struct fb_info *info)
 
 /*	pm3fb_clear_memory(info, 0);*/
 	pm3fb_clear_colormap(par, 0, 0, 0);
-	PM3_WRITE_DAC_REG(par, PM3RD_CursorMode,
-			  PM3RD_CursorMode_CURSOR_DISABLE);
+	PM3_WRITE_DAC_REG(par, PM3RD_CursorMode, 0);
 	pm3fb_init_engine(info);
 	pm3fb_write_mode(info);
 	return 0;
