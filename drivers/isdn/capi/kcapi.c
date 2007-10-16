@@ -821,6 +821,8 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 				return -EFAULT;
 		}
 		card = get_capi_ctr_by_nr(ldef.contr);
+		if (!card)
+			return -EINVAL;
 		card = capi_ctr_get(card);
 		if (!card)
 			return -ESRCH;
