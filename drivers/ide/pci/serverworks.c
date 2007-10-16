@@ -97,6 +97,7 @@ static u8 svwks_udma_filter(ide_drive_t *drive)
 			mode = 2;
 
 		switch(mode) {
+		case 3:	 mask = 0x3f; break;
 		case 2:	 mask = 0x1f; break;
 		case 1:	 mask = 0x07; break;
 		default: mask = 0x00; break;
