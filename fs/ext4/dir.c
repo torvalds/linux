@@ -47,9 +47,7 @@ const struct file_operations ext4_dir_operations = {
 	.compat_ioctl	= ext4_compat_ioctl,
 #endif
 	.fsync		= ext4_sync_file,	/* BKL held */
-#ifdef CONFIG_EXT4_INDEX
 	.release	= ext4_release_dir,
-#endif
 };
 
 
@@ -107,7 +105,6 @@ static int ext4_readdir(struct file * filp,
 
 	sb = inode->i_sb;
 
-#ifdef CONFIG_EXT4_INDEX
 	if (EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
 				    EXT4_FEATURE_COMPAT_DIR_INDEX) &&
 	    ((EXT4_I(inode)->i_flags & EXT4_INDEX_FL) ||
@@ -123,7 +120,6 @@ static int ext4_readdir(struct file * filp,
 		 */
 		EXT4_I(filp->f_path.dentry->d_inode)->i_flags &= ~EXT4_INDEX_FL;
 	}
-#endif
 	stored = 0;
 	offset = filp->f_pos & (sb->s_blocksize - 1);
 
@@ -232,7 +228,6 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_EXT4_INDEX
 /*
  * These functions convert from the major/minor hash to an f_pos
  * value.
@@ -518,5 +513,3 @@ static int ext4_release_dir (struct inode * inode, struct file * filp)
 
 	return 0;
 }
-
-#endif

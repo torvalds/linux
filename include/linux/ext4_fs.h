@@ -36,10 +36,6 @@
 /*max window size: 1024(direct blocks) + 3([t,d]indirect blocks) */
 #define EXT4_MAX_RESERVE_BLOCKS		1027
 #define EXT4_RESERVE_WINDOW_NOT_ALLOCATED 0
-/*
- * Always enable hashed directories
- */
-#define CONFIG_EXT4_INDEX
 
 /*
  * Debug code
@@ -766,17 +762,11 @@ struct ext4_dir_entry_2 {
  * (c) Daniel Phillips, 2001
  */
 
-#ifdef CONFIG_EXT4_INDEX
-  #define is_dx(dir) (EXT4_HAS_COMPAT_FEATURE(dir->i_sb, \
-					      EXT4_FEATURE_COMPAT_DIR_INDEX) && \
+#define is_dx(dir) (EXT4_HAS_COMPAT_FEATURE(dir->i_sb, \
+				      EXT4_FEATURE_COMPAT_DIR_INDEX) && \
 		      (EXT4_I(dir)->i_flags & EXT4_INDEX_FL))
 #define EXT4_DIR_LINK_MAX(dir) (!is_dx(dir) && (dir)->i_nlink >= EXT4_LINK_MAX)
 #define EXT4_DIR_LINK_EMPTY(dir) ((dir)->i_nlink == 2 || (dir)->i_nlink == 1)
-#else
-  #define is_dx(dir) 0
-#define EXT4_DIR_LINK_MAX(dir) ((dir)->i_nlink >= EXT4_LINK_MAX)
-#define EXT4_DIR_LINK_EMPTY(dir) ((dir)->i_nlink == 2)
-#endif
 
 /* Legal values for the dx_root hash_version field: */
 
