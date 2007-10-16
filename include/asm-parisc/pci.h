@@ -207,7 +207,7 @@ extern struct pci_bios_ops *pci_bios;
 extern void pcibios_register_hba(struct pci_hba_data *);
 extern void pcibios_set_master(struct pci_dev *);
 #else
-extern inline void pcibios_register_hba(struct pci_hba_data *x)
+static inline void pcibios_register_hba(struct pci_hba_data *x)
 {
 }
 #endif

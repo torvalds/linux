@@ -57,7 +57,7 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 #endif
 }
 
-extern __inline__ void flush_tlb_pgtables(struct mm_struct *mm, unsigned long start, unsigned long end)
+static inline void flush_tlb_pgtables(struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 }
  
