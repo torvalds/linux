@@ -84,7 +84,6 @@ EXPORT_SYMBOL(jbd2_journal_force_commit);
 
 static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
-static int jbd2_journal_create_jbd_slab(size_t slab_size);
 
 /*
  * Helper function used to manage commit timeouts
@@ -335,10 +334,10 @@ repeat:
 		char *tmp;
 
 		jbd_unlock_bh_state(bh_in);
-		tmp = jbd2_slab_alloc(bh_in->b_size, GFP_NOFS);
+		tmp = jbd2_alloc(bh_in->b_size, GFP_NOFS);
 		jbd_lock_bh_state(bh_in);
 		if (jh_in->b_frozen_data) {
-			jbd2_slab_free(tmp, bh_in->b_size);
+			jbd2_free(tmp, bh_in->b_size);
 			goto repeat;
 		}
 
@@ -1096,13 +1095,6 @@ int jbd2_journal_load(journal_t *journal)
 		}
 	}
 
-	/*
-	 * Create a slab for this blocksize
-	 */
-	err = jbd2_journal_create_jbd_slab(be32_to_cpu(sb->s_blocksize));
-	if (err)
-		return err;
-
 	/* Let the recovery code check whether it needs to recover any
 	 * data from the journal. */
 	if (jbd2_journal_recover(journal))
@@ -1636,77 +1628,6 @@ void * __jbd2_kmalloc (const char *where, size_t size, gfp_t flags, int retry)
 }
 
 /*
- * jbd slab management: create 1k, 2k, 4k, 8k slabs as needed
- * and allocate frozen and commit buffers from these slabs.
- *
- * Reason for doing this is to avoid, SLAB_DEBUG - since it could
- * cause bh to cross page boundary.
- */
-
-#define JBD_MAX_SLABS 5
-#define JBD_SLAB_INDEX(size)  (size >> 11)
-
-static struct kmem_cache *jbd_slab[JBD_MAX_SLABS];
-static const char *jbd_slab_names[JBD_MAX_SLABS] = {
-	"jbd2_1k", "jbd2_2k", "jbd2_4k", NULL, "jbd2_8k"
-};
-
-static void jbd2_journal_destroy_jbd_slabs(void)
-{
-	int i;
-
-	for (i = 0; i < JBD_MAX_SLABS; i++) {
-		if (jbd_slab[i])
-			kmem_cache_destroy(jbd_slab[i]);
-		jbd_slab[i] = NULL;
-	}
-}
-
-static int jbd2_journal_create_jbd_slab(size_t slab_size)
-{
-	int i = JBD_SLAB_INDEX(slab_size);
-
-	BUG_ON(i >= JBD_MAX_SLABS);
-
-	/*
-	 * Check if we already have a slab created for this size
-	 */
-	if (jbd_slab[i])
-		return 0;
-
-	/*
-	 * Create a slab and force alignment to be same as slabsize -
-	 * this will make sure that allocations won't cross the page
-	 * boundary.
-	 */
-	jbd_slab[i] = kmem_cache_create(jbd_slab_names[i],
-				slab_size, slab_size, 0, NULL);
-	if (!jbd_slab[i]) {
-		printk(KERN_EMERG "JBD: no memory for jbd_slab cache\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-void * jbd2_slab_alloc(size_t size, gfp_t flags)
-{
-	int idx;
-
-	idx = JBD_SLAB_INDEX(size);
-	BUG_ON(jbd_slab[idx] == NULL);
-	return kmem_cache_alloc(jbd_slab[idx], flags | __GFP_NOFAIL);
-}
-
-void jbd2_slab_free(void *ptr,  size_t size)
-{
-	int idx;
-
-	idx = JBD_SLAB_INDEX(size);
-	BUG_ON(jbd_slab[idx] == NULL);
-	kmem_cache_free(jbd_slab[idx], ptr);
-}
-
-/*
  * Journal_head storage management
  */
 static struct kmem_cache *jbd2_journal_head_cache;
@@ -1893,13 +1814,13 @@ static void __journal_remove_journal_head(struct buffer_head *bh)
 				printk(KERN_WARNING "%s: freeing "
 						"b_frozen_data\n",
 						__FUNCTION__);
-				jbd2_slab_free(jh->b_frozen_data, bh->b_size);
+				jbd2_free(jh->b_frozen_data, bh->b_size);
 			}
 			if (jh->b_committed_data) {
 				printk(KERN_WARNING "%s: freeing "
 						"b_committed_data\n",
 						__FUNCTION__);
-				jbd2_slab_free(jh->b_committed_data, bh->b_size);
+				jbd2_free(jh->b_committed_data, bh->b_size);
 			}
 			bh->b_private = NULL;
 			jh->b_bh = NULL;	/* debug, really */
@@ -2040,7 +1961,6 @@ static void jbd2_journal_destroy_caches(void)
 	jbd2_journal_destroy_revoke_caches();
 	jbd2_journal_destroy_jbd2_journal_head_cache();
 	jbd2_journal_destroy_handle_cache();
-	jbd2_journal_destroy_jbd_slabs();
 }
 
 static int __init journal_init(void)

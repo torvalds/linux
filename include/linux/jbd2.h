@@ -72,13 +72,21 @@ extern u8 jbd2_journal_enable_debug;
 #endif
 
 extern void * __jbd2_kmalloc (const char *where, size_t size, gfp_t flags, int retry);
-extern void * jbd2_slab_alloc(size_t size, gfp_t flags);
-extern void jbd2_slab_free(void *ptr, size_t size);
-
 #define jbd_kmalloc(size, flags) \
 	__jbd2_kmalloc(__FUNCTION__, (size), (flags), journal_oom_retry)
 #define jbd_rep_kmalloc(size, flags) \
 	__jbd2_kmalloc(__FUNCTION__, (size), (flags), 1)
+
+
+static inline void *jbd2_alloc(size_t size, gfp_t flags)
+{
+	return (void *)__get_free_pages(flags, get_order(size));
+}
+
+static inline void jbd2_free(void *ptr, size_t size)
+{
+	free_pages((unsigned long)ptr, get_order(size));
+};
 
 #define JBD2_MIN_JOURNAL_BLOCKS 1024
 
@@ -959,12 +967,12 @@ void jbd2_journal_put_journal_head(struct journal_head *jh);
  */
 extern struct kmem_cache *jbd2_handle_cache;
 
-static inline handle_t *jbd_alloc_handle(gfp_t gfp_flags)
+static inline handle_t *jbd2_alloc_handle(gfp_t gfp_flags)
 {
 	return kmem_cache_alloc(jbd2_handle_cache, gfp_flags);
 }
 
-static inline void jbd_free_handle(handle_t *handle)
+static inline void jbd2_free_handle(handle_t *handle)
 {
 	kmem_cache_free(jbd2_handle_cache, handle);
 }

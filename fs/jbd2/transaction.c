@@ -236,7 +236,7 @@ out:
 /* Allocate a new handle.  This should probably be in a slab... */
 static handle_t *new_handle(int nblocks)
 {
-	handle_t *handle = jbd_alloc_handle(GFP_NOFS);
+	handle_t *handle = jbd2_alloc_handle(GFP_NOFS);
 	if (!handle)
 		return NULL;
 	memset(handle, 0, sizeof(*handle));
@@ -282,7 +282,7 @@ handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 
 	err = start_this_handle(journal, handle);
 	if (err < 0) {
-		jbd_free_handle(handle);
+		jbd2_free_handle(handle);
 		current->journal_info = NULL;
 		handle = ERR_PTR(err);
 	}
@@ -668,7 +668,7 @@ repeat:
 				JBUFFER_TRACE(jh, "allocate memory for buffer");
 				jbd_unlock_bh_state(bh);
 				frozen_buffer =
-					jbd2_slab_alloc(jh2bh(jh)->b_size,
+					jbd2_alloc(jh2bh(jh)->b_size,
 							 GFP_NOFS);
 				if (!frozen_buffer) {
 					printk(KERN_EMERG
@@ -728,7 +728,7 @@ done:
 
 out:
 	if (unlikely(frozen_buffer))	/* It's usually NULL */
-		jbd2_slab_free(frozen_buffer, bh->b_size);
+		jbd2_free(frozen_buffer, bh->b_size);
 
 	JBUFFER_TRACE(jh, "exit");
 	return error;
@@ -881,7 +881,7 @@ int jbd2_journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
 
 repeat:
 	if (!jh->b_committed_data) {
-		committed_data = jbd2_slab_alloc(jh2bh(jh)->b_size, GFP_NOFS);
+		committed_data = jbd2_alloc(jh2bh(jh)->b_size, GFP_NOFS);
 		if (!committed_data) {
 			printk(KERN_EMERG "%s: No memory for committed data\n",
 				__FUNCTION__);
@@ -908,7 +908,7 @@ repeat:
 out:
 	jbd2_journal_put_journal_head(jh);
 	if (unlikely(committed_data))
-		jbd2_slab_free(committed_data, bh->b_size);
+		jbd2_free(committed_data, bh->b_size);
 	return err;
 }
 
@@ -1411,7 +1411,7 @@ int jbd2_journal_stop(handle_t *handle)
 		spin_unlock(&journal->j_state_lock);
 	}
 
-	jbd_free_handle(handle);
+	jbd2_free_handle(handle);
 	return err;
 }
 
