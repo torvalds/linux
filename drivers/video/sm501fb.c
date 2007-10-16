@@ -62,6 +62,8 @@ struct sm501fb_info {
 	struct resource		*regs_res;	/* registers resource */
 	struct sm501_platdata_fb *pdata;	/* our platform data */
 
+	unsigned long		 pm_crt_ctrl;	/* pm: crt ctrl save */
+
 	int			 irq;
 	int			 swap_endian;	/* set to swap rgb=>bgr */
 	void __iomem		*regs;		/* remapped registers */
@@ -1687,9 +1689,11 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 		goto err_nocursor;
 	}
 
+	dev_dbg(info->dev, "suspending screen to %p\n", par->store_fb);
+	dev_dbg(info->dev, "suspending cursor to %p\n", par->store_cursor);
+
 	memcpy_fromio(par->store_fb, par->screen.k_addr, par->screen.size);
 	memcpy_fromio(par->store_cursor, par->cursor.k_addr, par->cursor.size);
-
 	/* blank the relevant interface to ensure unit power minimised */
 	(par->ops.fb_blank)(FB_BLANK_POWERDOWN, fbi);
 
@@ -1697,9 +1701,9 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 
  err_nocursor:
 	vfree(par->store_fb);
+	par->store_fb = NULL;
 
 	return -ENOMEM;
-
 }
 
 static void sm501fb_resume_fb(struct sm501fb_info *info,
@@ -1717,8 +1721,16 @@ static void sm501fb_resume_fb(struct sm501fb_info *info,
 
 	/* restore the data */
 
-	memcpy_toio(par->screen.k_addr, par->store_fb, par->screen.size);
-	memcpy_toio(par->cursor.k_addr, par->store_cursor, par->cursor.size);
+	dev_dbg(info->dev, "restoring screen from %p\n", par->store_fb);
+	dev_dbg(info->dev, "restoring cursor from %p\n", par->store_cursor);
+
+	if (par->store_fb)
+		memcpy_toio(par->screen.k_addr, par->store_fb,
+			    par->screen.size);
+
+	if (par->store_cursor)
+		memcpy_toio(par->cursor.k_addr, par->store_cursor,
+			    par->cursor.size);
 
 	vfree(par->store_fb);
 	vfree(par->store_cursor);
@@ -1731,6 +1743,9 @@ static int sm501fb_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct sm501fb_info *info = platform_get_drvdata(pdev);
 
+	/* store crt control to resume with */
+	info->pm_crt_ctrl = readl(info->regs + SM501_DC_CRT_CONTROL);
+
 	sm501fb_suspend_fb(info, HEAD_CRT);
 	sm501fb_suspend_fb(info, HEAD_PANEL);
 
@@ -1740,11 +1755,23 @@ static int sm501fb_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
+#define SM501_CRT_CTRL_SAVE (SM501_DC_CRT_CONTROL_TVP |        \
+			     SM501_DC_CRT_CONTROL_SEL)
+
+
 static int sm501fb_resume(struct platform_device *pdev)
 {
 	struct sm501fb_info *info = platform_get_drvdata(pdev);
+	unsigned long crt_ctrl;
 
 	sm501_unit_power(info->dev->parent, SM501_GATE_DISPLAY, 1);
+
+	/* restore the items we want to be saved for crt control */
+
+	crt_ctrl = readl(info->regs + SM501_DC_CRT_CONTROL);
+	crt_ctrl &= ~SM501_CRT_CTRL_SAVE;
+	crt_ctrl |= info->pm_crt_ctrl & SM501_CRT_CTRL_SAVE;
+	writel(crt_ctrl, info->regs + SM501_DC_CRT_CONTROL);
 
 	sm501fb_resume_fb(info, HEAD_CRT);
 	sm501fb_resume_fb(info, HEAD_PANEL);
