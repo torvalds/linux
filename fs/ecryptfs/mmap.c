@@ -44,7 +44,7 @@ struct kmem_cache *ecryptfs_lower_page_cache;
  * Returns unlocked and up-to-date page (if ok), with increased
  * refcnt.
  */
-static struct page *ecryptfs_get1page(struct file *file, int index)
+struct page *ecryptfs_get1page(struct file *file, loff_t index)
 {
 	struct dentry *dentry;
 	struct inode *inode;

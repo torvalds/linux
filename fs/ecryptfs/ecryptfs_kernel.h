@@ -260,6 +260,8 @@ struct ecryptfs_crypt_stat {
 struct ecryptfs_inode_info {
 	struct inode vfs_inode;
 	struct inode *wii_inode;
+	struct file *lower_file;
+	struct mutex lower_file_mutex;
 	struct ecryptfs_crypt_stat crypt_stat;
 };
 
@@ -653,5 +655,21 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 				      char *sig);
 int ecryptfs_write_zeros(struct file *file, pgoff_t index, int start,
 			 int num_zeros);
+int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
+			 loff_t offset, size_t size);
+int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
+				      struct page *page_for_lower,
+				      size_t offset_in_page, size_t size);
+int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
+		   size_t size);
+int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
+			struct inode *ecryptfs_inode);
+int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
+				     pgoff_t page_index,
+				     size_t offset_in_page, size_t size,
+				     struct inode *ecryptfs_inode);
+int ecryptfs_read(char *data, loff_t offset, size_t size,
+		  struct file *ecryptfs_file);
+struct page *ecryptfs_get1page(struct file *file, loff_t index);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */
