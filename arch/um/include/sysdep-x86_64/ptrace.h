@@ -143,87 +143,87 @@ struct syscall_args {
 };
 
 #define SYSCALL_ARGS(r) ((struct syscall_args) \
-                        { .args = { UPT_SYSCALL_ARG1(r), \
-                                    UPT_SYSCALL_ARG2(r), \
- 			            UPT_SYSCALL_ARG3(r), \
-                                    UPT_SYSCALL_ARG4(r), \
-		                    UPT_SYSCALL_ARG5(r), \
-                                    UPT_SYSCALL_ARG6(r) } } )
+			 { .args = { UPT_SYSCALL_ARG1(r),	 \
+				     UPT_SYSCALL_ARG2(r),	 \
+				     UPT_SYSCALL_ARG3(r),	 \
+				     UPT_SYSCALL_ARG4(r),	 \
+				     UPT_SYSCALL_ARG5(r),	 \
+				     UPT_SYSCALL_ARG6(r) } } )
 
 #define UPT_REG(regs, reg) \
-        ({      unsigned long val; \
-                switch(reg){ \
-		case R8: val = UPT_R8(regs); break; \
-		case R9: val = UPT_R9(regs); break; \
-		case R10: val = UPT_R10(regs); break; \
-		case R11: val = UPT_R11(regs); break; \
-		case R12: val = UPT_R12(regs); break; \
-		case R13: val = UPT_R13(regs); break; \
-		case R14: val = UPT_R14(regs); break; \
-		case R15: val = UPT_R15(regs); break; \
-                case RIP: val = UPT_IP(regs); break; \
-                case RSP: val = UPT_SP(regs); break; \
-                case RAX: val = UPT_RAX(regs); break; \
-                case RBX: val = UPT_RBX(regs); break; \
-                case RCX: val = UPT_RCX(regs); break; \
-                case RDX: val = UPT_RDX(regs); break; \
-                case RSI: val = UPT_RSI(regs); break; \
-                case RDI: val = UPT_RDI(regs); break; \
-                case RBP: val = UPT_RBP(regs); break; \
-                case ORIG_RAX: val = UPT_ORIG_RAX(regs); break; \
-                case CS: val = UPT_CS(regs); break; \
-                case SS: val = UPT_SS(regs); break; \
-		case FS_BASE: val = UPT_FS_BASE(regs); break; \
-                case GS_BASE: val = UPT_GS_BASE(regs); break; \
-                case DS: val = UPT_DS(regs); break; \
-                case ES: val = UPT_ES(regs); break; \
-                case FS : val = UPT_FS (regs); break; \
-		case GS: val = UPT_GS(regs); break;	    \
-                case EFLAGS: val = UPT_EFLAGS(regs); break; \
-                default :  \
-                        panic("Bad register in UPT_REG : %d\n", reg);  \
-                        val = -1; \
-                } \
-                val; \
-        })
+	({      unsigned long val;		\
+		switch(reg){						\
+		case R8: val = UPT_R8(regs); break;			\
+		case R9: val = UPT_R9(regs); break;			\
+		case R10: val = UPT_R10(regs); break;			\
+		case R11: val = UPT_R11(regs); break;			\
+		case R12: val = UPT_R12(regs); break;			\
+		case R13: val = UPT_R13(regs); break;			\
+		case R14: val = UPT_R14(regs); break;			\
+		case R15: val = UPT_R15(regs); break;			\
+		case RIP: val = UPT_IP(regs); break;			\
+		case RSP: val = UPT_SP(regs); break;			\
+		case RAX: val = UPT_RAX(regs); break;			\
+		case RBX: val = UPT_RBX(regs); break;			\
+		case RCX: val = UPT_RCX(regs); break;			\
+		case RDX: val = UPT_RDX(regs); break;			\
+		case RSI: val = UPT_RSI(regs); break;			\
+		case RDI: val = UPT_RDI(regs); break;			\
+		case RBP: val = UPT_RBP(regs); break;			\
+		case ORIG_RAX: val = UPT_ORIG_RAX(regs); break;		\
+		case CS: val = UPT_CS(regs); break;			\
+		case SS: val = UPT_SS(regs); break;			\
+		case FS_BASE: val = UPT_FS_BASE(regs); break;		\
+		case GS_BASE: val = UPT_GS_BASE(regs); break;		\
+		case DS: val = UPT_DS(regs); break;			\
+		case ES: val = UPT_ES(regs); break;			\
+		case FS : val = UPT_FS (regs); break;			\
+		case GS: val = UPT_GS(regs); break;			\
+		case EFLAGS: val = UPT_EFLAGS(regs); break;		\
+		default :						\
+			panic("Bad register in UPT_REG : %d\n", reg);	\
+			val = -1;					\
+		}							\
+		val;							\
+	})
 
 
 #define UPT_SET(regs, reg, val) \
-        ({      unsigned long __upt_val = val; \
-                switch(reg){ \
-                case R8: UPT_R8(regs) = __upt_val; break; \
-                case R9: UPT_R9(regs) = __upt_val; break; \
-                case R10: UPT_R10(regs) = __upt_val; break; \
-                case R11: UPT_R11(regs) = __upt_val; break; \
-                case R12: UPT_R12(regs) = __upt_val; break; \
-                case R13: UPT_R13(regs) = __upt_val; break; \
-                case R14: UPT_R14(regs) = __upt_val; break; \
-                case R15: UPT_R15(regs) = __upt_val; break; \
-                case RIP: UPT_IP(regs) = __upt_val; break; \
-                case RSP: UPT_SP(regs) = __upt_val; break; \
-                case RAX: UPT_RAX(regs) = __upt_val; break; \
-                case RBX: UPT_RBX(regs) = __upt_val; break; \
-                case RCX: UPT_RCX(regs) = __upt_val; break; \
-                case RDX: UPT_RDX(regs) = __upt_val; break; \
-                case RSI: UPT_RSI(regs) = __upt_val; break; \
-                case RDI: UPT_RDI(regs) = __upt_val; break; \
-                case RBP: UPT_RBP(regs) = __upt_val; break; \
-                case ORIG_RAX: UPT_ORIG_RAX(regs) = __upt_val; break; \
-                case CS: UPT_CS(regs) = __upt_val; break; \
-                case SS: UPT_SS(regs) = __upt_val; break; \
-                case FS_BASE: UPT_FS_BASE(regs) = __upt_val; break; \
-                case GS_BASE: UPT_GS_BASE(regs) = __upt_val; break; \
-                case DS: UPT_DS(regs) = __upt_val; break; \
-                case ES: UPT_ES(regs) = __upt_val; break; \
-                case FS: UPT_FS(regs) = __upt_val; break; \
-                case GS: UPT_GS(regs) = __upt_val; break; \
-                case EFLAGS: UPT_EFLAGS(regs) = __upt_val; break; \
-                default :  \
-                        panic("Bad register in UPT_SET : %d\n", reg);  \
-			break; \
-                } \
-                __upt_val; \
-        })
+	({      unsigned long __upt_val = val;	\
+		switch(reg){						\
+		case R8: UPT_R8(regs) = __upt_val; break;		\
+		case R9: UPT_R9(regs) = __upt_val; break;		\
+		case R10: UPT_R10(regs) = __upt_val; break;		\
+		case R11: UPT_R11(regs) = __upt_val; break;		\
+		case R12: UPT_R12(regs) = __upt_val; break;		\
+		case R13: UPT_R13(regs) = __upt_val; break;		\
+		case R14: UPT_R14(regs) = __upt_val; break;		\
+		case R15: UPT_R15(regs) = __upt_val; break;		\
+		case RIP: UPT_IP(regs) = __upt_val; break;		\
+		case RSP: UPT_SP(regs) = __upt_val; break;		\
+		case RAX: UPT_RAX(regs) = __upt_val; break;		\
+		case RBX: UPT_RBX(regs) = __upt_val; break;		\
+		case RCX: UPT_RCX(regs) = __upt_val; break;		\
+		case RDX: UPT_RDX(regs) = __upt_val; break;		\
+		case RSI: UPT_RSI(regs) = __upt_val; break;		\
+		case RDI: UPT_RDI(regs) = __upt_val; break;		\
+		case RBP: UPT_RBP(regs) = __upt_val; break;		\
+		case ORIG_RAX: UPT_ORIG_RAX(regs) = __upt_val; break;	\
+		case CS: UPT_CS(regs) = __upt_val; break;		\
+		case SS: UPT_SS(regs) = __upt_val; break;		\
+		case FS_BASE: UPT_FS_BASE(regs) = __upt_val; break;	\
+		case GS_BASE: UPT_GS_BASE(regs) = __upt_val; break;	\
+		case DS: UPT_DS(regs) = __upt_val; break;		\
+		case ES: UPT_ES(regs) = __upt_val; break;		\
+		case FS: UPT_FS(regs) = __upt_val; break;		\
+		case GS: UPT_GS(regs) = __upt_val; break;		\
+		case EFLAGS: UPT_EFLAGS(regs) = __upt_val; break;	\
+		default :						\
+			panic("Bad register in UPT_SET : %d\n", reg);	\
+			break;						\
+		}							\
+		__upt_val;						\
+	})
 
 #define UPT_SET_SYSCALL_RETURN(r, res) \
 	REGS_SET_SYSCALL_RETURN((r)->regs, (res))

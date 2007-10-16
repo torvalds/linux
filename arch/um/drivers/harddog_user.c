@@ -1,14 +1,13 @@
 /*
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include "user.h"
-#include "mconsole.h"
 #include "os.h"
+#include "user.h"
 
 struct dog_data {
 	int stdin;
@@ -23,10 +22,10 @@ static void pre_exec(void *d)
 	dup2(data->stdin, 0);
 	dup2(data->stdout, 1);
 	dup2(data->stdout, 2);
-	os_close_file(data->stdin);
-	os_close_file(data->stdout);
-	os_close_file(data->close_me[0]);
-	os_close_file(data->close_me[1]);
+	close(data->stdin);
+	close(data->stdout);
+	close(data->close_me[0]);
+	close(data->close_me[1]);
 }
 
 int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
@@ -40,13 +39,13 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 	char **args = NULL;
 
 	err = os_pipe(in_fds, 1, 0);
-	if(err < 0){
+	if (err < 0) {
 		printk("harddog_open - os_pipe failed, err = %d\n", -err);
 		goto out;
 	}
 
 	err = os_pipe(out_fds, 1, 0);
-	if(err < 0){
+	if (err < 0) {
 		printk("harddog_open - os_pipe failed, err = %d\n", -err);
 		goto out_close_in;
 	}
@@ -56,7 +55,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 	data.close_me[0] = out_fds[1];
 	data.close_me[1] = in_fds[0];
 
-	if(sock != NULL){
+	if (sock != NULL) {
 		mconsole_args[2] = sock;
 		args = mconsole_args;
 	}
@@ -68,25 +67,25 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 
 	pid = run_helper(pre_exec, &data, args);
 
-	os_close_file(out_fds[0]);
-	os_close_file(in_fds[1]);
+	close(out_fds[0]);
+	close(in_fds[1]);
 
-	if(pid < 0){
+	if (pid < 0) {
 		err = -pid;
 		printk("harddog_open - run_helper failed, errno = %d\n", -err);
 		goto out_close_out;
 	}
 
-	n = os_read_file(in_fds[0], &c, sizeof(c));
-	if(n == 0){
+	n = read(in_fds[0], &c, sizeof(c));
+	if (n == 0) {
 		printk("harddog_open - EOF on watchdog pipe\n");
 		helper_wait(pid);
 		err = -EIO;
 		goto out_close_out;
 	}
-	else if(n < 0){
+	else if (n < 0) {
 		printk("harddog_open - read of watchdog pipe failed, "
-		       "err = %d\n", -n);
+		       "err = %d\n", errno);
 		helper_wait(pid);
 		err = n;
 		goto out_close_out;
@@ -96,19 +95,19 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 	return 0;
 
  out_close_in:
-	os_close_file(in_fds[0]);
-	os_close_file(in_fds[1]);
+	close(in_fds[0]);
+	close(in_fds[1]);
  out_close_out:
-	os_close_file(out_fds[0]);
-	os_close_file(out_fds[1]);
+	close(out_fds[0]);
+	close(out_fds[1]);
  out:
 	return err;
 }
 
 void stop_watchdog(int in_fd, int out_fd)
 {
-	os_close_file(in_fd);
-	os_close_file(out_fd);
+	close(in_fd);
+	close(out_fd);
 }
 
 int ping_watchdog(int fd)
@@ -116,10 +115,11 @@ int ping_watchdog(int fd)
 	int n;
 	char c = '\n';
 
-	n = os_write_file(fd, &c, sizeof(c));
-	if(n != sizeof(c)){
-		printk("ping_watchdog - write failed, err = %d\n", -n);
-		if(n < 0)
+	n = write(fd, &c, sizeof(c));
+	if (n != sizeof(c)) {
+		printk("ping_watchdog - write failed, ret = %d, err = %d\n",
+		       n, errno);
+		if (n < 0)
 			return n;
 		return -EIO;
 	}

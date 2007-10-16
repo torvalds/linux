@@ -132,7 +132,6 @@ extern void os_print_error(int error, const char* str);
 extern int os_get_exec_close(int fd, int *close_on_exec);
 extern int os_set_exec_close(int fd, int close_on_exec);
 extern int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg);
-extern int os_new_tty_pgrp(int fd, int pid);
 extern int os_get_ifname(int fd, char *namebuf);
 extern int os_set_slip(int fd);
 extern int os_set_owner(int fd, int pid);

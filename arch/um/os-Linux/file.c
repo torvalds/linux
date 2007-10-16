@@ -101,17 +101,6 @@ int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-int os_new_tty_pgrp(int fd, int pid)
-{
-	if(ioctl(fd, TIOCSCTTY, 0) < 0)
-		return -errno;
-
-	if(tcsetpgrp(fd, pid) < 0)
-		return -errno;
-
-	return 0;
-}
-
 /* FIXME: ensure namebuf in os_get_if_name is big enough */
 int os_get_ifname(int fd, char* namebuf)
 {

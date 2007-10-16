@@ -134,12 +134,12 @@ static int winch_thread(void *arg)
 	struct winch_data *data = arg;
 	sigset_t sigs;
 	int pty_fd, pipe_fd;
-	int count, err;
+	int count;
 	char c = 1;
 
 	pty_fd = data->pty_fd;
 	pipe_fd = data->pipe_fd;
-	count = os_write_file(pipe_fd, &c, sizeof(c));
+	count = write(pipe_fd, &c, sizeof(c));
 	if (count != sizeof(c))
 		printk(UM_KERN_ERR "winch_thread : failed to write "
 		       "synchronization byte, err = %d\n", -count);
@@ -167,10 +167,15 @@ static int winch_thread(void *arg)
 		exit(1);
 	}
 
-	err = os_new_tty_pgrp(pty_fd, os_getpid());
-	if (err < 0) {
-		printk(UM_KERN_ERR "winch_thread : new_tty_pgrp failed on "
-		       "fd %d err = %d\n", pty_fd, -err);
+	if(ioctl(pty_fd, TIOCSCTTY, 0) < 0){
+		printk(UM_KERN_ERR "winch_thread : TIOCSCTTY failed on "
+		       "fd %d err = %d\n", pty_fd, errno);
+		exit(1);
+	}
+
+	if(tcsetpgrp(pty_fd, os_getpid()) < 0){
+		printk(UM_KERN_ERR "winch_thread : tcsetpgrp failed on "
+		       "fd %d err = %d\n", pty_fd, errno);
 		exit(1);
 	}
 
@@ -180,10 +185,10 @@ static int winch_thread(void *arg)
 	 * kernel semaphores. We don't use SysV semaphores because they are
 	 * persistent.
 	 */
-	count = os_read_file(pipe_fd, &c, sizeof(c));
+	count = read(pipe_fd, &c, sizeof(c));
 	if (count != sizeof(c))
 		printk(UM_KERN_ERR "winch_thread : failed to read "
-		       "synchronization byte, err = %d\n", -count);
+		       "synchronization byte, err = %d\n", errno);
 
 	while(1) {
 		/*
@@ -192,10 +197,10 @@ static int winch_thread(void *arg)
 		 */
 		sigsuspend(&sigs);
 
-		count = os_write_file(pipe_fd, &c, sizeof(c));
+		count = write(pipe_fd, &c, sizeof(c));
 		if (count != sizeof(c))
 			printk(UM_KERN_ERR "winch_thread : write failed, "
-			       "err = %d\n", -count);
+			       "err = %d\n", errno);
 	}
 }
 
@@ -229,11 +234,11 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out,
 	}
 
 	*fd_out = fds[0];
-	n = os_read_file(fds[0], &c, sizeof(c));
+	n = read(fds[0], &c, sizeof(c));
 	if (n != sizeof(c)) {
 		printk(UM_KERN_ERR "winch_tramp : failed to read "
 		       "synchronization byte\n");
-		printk(UM_KERN_ERR "read failed, err = %d\n", -n);
+		printk(UM_KERN_ERR "read failed, err = %d\n", errno);
 		printk(UM_KERN_ERR "fd %d will not support SIGWINCH\n", fd);
 		err = -EINVAL;
 		goto out_close;
@@ -248,8 +253,8 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out,
 	return err;
 
  out_close:
-	os_close_file(fds[1]);
-	os_close_file(fds[0]);
+	close(fds[1]);
+	close(fds[0]);
  out:
 	return err;
 }
@@ -271,9 +276,9 @@ void register_winch(int fd, struct tty_struct *tty)
 
 		register_winch_irq(thread_fd, fd, thread, tty, stack);
 
-		count = os_write_file(thread_fd, &c, sizeof(c));
+		count = write(thread_fd, &c, sizeof(c));
 		if (count != sizeof(c))
 			printk(UM_KERN_ERR "register_winch : failed to write "
-			       "synchronization byte, err = %d\n", -count);
+			       "synchronization byte, err = %d\n", errno);
 	}
 }

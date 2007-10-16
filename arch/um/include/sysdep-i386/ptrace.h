@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
@@ -130,7 +130,6 @@ struct syscall_args {
 		} \
 	        val; \
 	})
-	
 
 #define UPT_SET(regs, reg, val) \
 	do { \
