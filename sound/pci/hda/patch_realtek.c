@@ -662,6 +662,44 @@ static struct hda_verb alc_gpio3_init_verbs[] = {
 	{ }
 };
 
+static void alc_sku_automute(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int mute;
+	unsigned int present;
+	unsigned int hp_nid = spec->autocfg.hp_pins[0];
+	unsigned int sp_nid = spec->autocfg.speaker_pins[0];
+
+	/* need to execute and sync at first */
+	snd_hda_codec_read(codec, hp_nid, 0, AC_VERB_SET_PIN_SENSE, 0);
+	present = snd_hda_codec_read(codec, hp_nid, 0,
+				     AC_VERB_GET_PIN_SENSE, 0);
+	spec->jack_present = (present & 0x80000000) != 0;
+	if (spec->jack_present) {
+		/* mute internal speaker */
+		snd_hda_codec_amp_stereo(codec, sp_nid, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
+	} else {
+		/* unmute internal speaker if necessary */
+		mute = snd_hda_codec_amp_read(codec, hp_nid, 0, HDA_OUTPUT, 0);
+		snd_hda_codec_amp_stereo(codec, sp_nid, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+	}
+}
+
+/* unsolicited event for HP jack sensing */
+static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	if (codec->vendor_id == 0x10ec0880)
+		res >>= 28;
+	else
+		res >>= 26;
+	if (res != ALC880_HP_EVENT)
+		return;
+
+	alc_sku_automute(codec);
+}
+
 /* 32-bit subsystem ID for BIOS loading in HD Audio codec.
  *	31 ~ 16 :	Manufacture ID
  *	15 ~ 8	:	SKU ID
@@ -672,13 +710,48 @@ static void alc_subsystem_id(struct hda_codec *codec,
 			     unsigned int porta, unsigned int porte,
 			     unsigned int portd)
 {
-	unsigned int ass, tmp;
+	unsigned int ass, tmp, i;
+	unsigned nid;
+	struct alc_spec *spec = codec->spec;
 
-	ass = codec->subsystem_id;
-	if (!(ass & 1))
+	ass = codec->subsystem_id & 0xffff;
+	if ((ass != codec->bus->pci->subsystem_device) && (ass & 1))
+		goto do_sku;
+
+	/*	
+	 * 31~30	: port conetcivity
+	 * 29~21	: reserve
+	 * 20		: PCBEEP input
+	 * 19~16	: Check sum (15:1)
+	 * 15~1		: Custom
+	 * 0		: override
+	*/
+	nid = 0x1d;
+	if (codec->vendor_id == 0x10ec0260)
+		nid = 0x17;
+	ass = snd_hda_codec_read(codec, nid, 0,
+				 AC_VERB_GET_CONFIG_DEFAULT, 0);
+	if (!(ass & 1) && !(ass & 0x100000))
+		return;
+	if ((ass >> 30) != 1)	/* no physical connection */
 		return;
 
-	/* Override */
+	/* check sum */
+	tmp = 0;
+	for (i = 1; i < 16; i++) {
+		if ((ass >> i) && 1)
+			tmp++;
+	}
+	if (((ass >> 16) & 0xf) != tmp)
+		return;
+do_sku:
+	/*
+	 * 0 : override
+	 * 1 :	Swap Jack
+	 * 2 : 0 --> Desktop, 1 --> Laptop
+	 * 3~5 : External Amplifier control
+	 * 7~6 : Reserved
+	*/
 	tmp = (ass & 0x38) >> 3;	/* external Amp control */
 	switch (tmp) {
 	case 1:
@@ -690,38 +763,108 @@ static void alc_subsystem_id(struct hda_codec *codec,
 	case 7:
 		snd_hda_sequence_write(codec, alc_gpio3_init_verbs);
 		break;
-	case 5:
+	case 5:	/* set EAPD output high */
 		switch (codec->vendor_id) {
-		case 0x10ec0862:
-		case 0x10ec0660:
-		case 0x10ec0662:	
+		case 0x10ec0260:
+			snd_hda_codec_write(codec, 0x0f, 0,
+					    AC_VERB_SET_EAPD_BTLENABLE, 2);
+			snd_hda_codec_write(codec, 0x10, 0,
+					    AC_VERB_SET_EAPD_BTLENABLE, 2);
+			break;
+		case 0x10ec0262:
 		case 0x10ec0267:
 		case 0x10ec0268:
+		case 0x10ec0269:
+		case 0x10ec0862:
+		case 0x10ec0662:	
 			snd_hda_codec_write(codec, 0x14, 0,
 					    AC_VERB_SET_EAPD_BTLENABLE, 2);
 			snd_hda_codec_write(codec, 0x15, 0,
 					    AC_VERB_SET_EAPD_BTLENABLE, 2);
-			return;
+			break;
 		}
-	case 6:
-		if (ass & 4) {	/* bit 2 : 0 = Desktop, 1 = Laptop */
-			hda_nid_t port = 0;
-			tmp = (ass & 0x1800) >> 11;
-			switch (tmp) {
-			case 0: port = porta; break;
-			case 1: port = porte; break;
-			case 2: port = portd; break;
-			}
-			if (port)
-				snd_hda_codec_write(codec, port, 0,
-						    AC_VERB_SET_EAPD_BTLENABLE,
-						    2);
+		switch (codec->vendor_id) {
+		case 0x10ec0260:
+			snd_hda_codec_write(codec, 0x1a, 0,
+					    AC_VERB_SET_COEF_INDEX, 7);
+			tmp = snd_hda_codec_read(codec, 0x1a, 0,
+						 AC_VERB_GET_PROC_COEF, 0);
+			snd_hda_codec_write(codec, 0x1a, 0,
+					    AC_VERB_SET_COEF_INDEX, 7);
+			snd_hda_codec_write(codec, 0x1a, 0,
+					    AC_VERB_SET_PROC_COEF,
+					    tmp | 0x2010);
+			break;
+		case 0x10ec0262:
+		case 0x10ec0880:
+		case 0x10ec0882:
+		case 0x10ec0883:
+		case 0x10ec0885:
+		case 0x10ec0888:
+			snd_hda_codec_write(codec, 0x20, 0,
+					    AC_VERB_SET_COEF_INDEX, 7);
+			tmp = snd_hda_codec_read(codec, 0x20, 0,
+						 AC_VERB_GET_PROC_COEF, 0);
+			snd_hda_codec_write(codec, 0x20, 0,
+					    AC_VERB_SET_COEF_INDEX, 7);	
+			snd_hda_codec_write(codec, 0x20, 0,
+					    AC_VERB_SET_PROC_COEF,
+					    tmp | 0x2010);
+			break;
+		case 0x10ec0267:
+		case 0x10ec0268:
+			snd_hda_codec_write(codec, 0x20, 0,
+					    AC_VERB_SET_COEF_INDEX, 7);
+			tmp = snd_hda_codec_read(codec, 0x20, 0,
+						 AC_VERB_GET_PROC_COEF, 0);
+			snd_hda_codec_write(codec, 0x20, 0,
+					    AC_VERB_SET_COEF_INDEX, 7);	
+			snd_hda_codec_write(codec, 0x20, 0,
+					    AC_VERB_SET_PROC_COEF,
+					    tmp | 0x3000);
+			break;
 		}
-		snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_COEF_INDEX, 7);
-		snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PROC_COEF,
-				    (tmp == 5 ? 0x3040 : 0x3050));
+	default:
 		break;
 	}
+	
+	/* is laptop and enable the function "Mute internal speaker
+	 * when the external headphone out jack is plugged"
+	 */
+	if (!(ass & 0x4) || !(ass & 0x8000))
+		return;
+	/*
+	 * 10~8 : Jack location
+	 * 12~11: Headphone out -> 00: PortA, 01: PortE, 02: PortD, 03: Resvered
+	 * 14~13: Resvered
+	 * 15   : 1 --> enable the function "Mute internal speaker
+	 *	        when the external headphone out jack is plugged"
+	 */
+	if (!spec->autocfg.speaker_pins[0]) {
+		if (spec->multiout.dac_nids[0])
+			spec->autocfg.speaker_pins[0] =
+				spec->multiout.dac_nids[0];
+		else
+			return;
+	}
+
+	if (!spec->autocfg.hp_pins[0]) {
+		tmp = (ass >> 11) & 0x3;	/* HP to chassis */
+		if (tmp == 0)
+			spec->autocfg.hp_pins[0] = porta;
+		else if (tmp == 1)
+			spec->autocfg.hp_pins[0] = porte;
+		else if (tmp == 2)
+			spec->autocfg.hp_pins[0] = portd;
+		else
+			return;
+	}
+
+	snd_hda_codec_write(codec, spec->autocfg.hp_pins[0], 0,
+			    AC_VERB_SET_UNSOLICITED_ENABLE,
+			    AC_USRSP_EN | ALC880_HP_EVENT);
+	spec->unsol_event = alc_sku_unsol_event;
+	spec->init_hook = alc_sku_automute;	
 }
 
 /*
