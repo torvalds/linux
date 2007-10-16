@@ -97,29 +97,17 @@ static cycle_t clock_base;
  * them as a batch when lazy_mode is eventually turned off.  Because hypercalls
  * are reasonably expensive, batching them up makes sense.  For example, a
  * large mmap might update dozens of page table entries: that code calls
- * lguest_lazy_mode(PARAVIRT_LAZY_MMU), does the dozen updates, then calls
- * lguest_lazy_mode(PARAVIRT_LAZY_NONE).
+ * paravirt_enter_lazy_mmu(), does the dozen updates, then calls
+ * lguest_leave_lazy_mode().
  *
  * So, when we're in lazy mode, we call async_hypercall() to store the call for
  * future processing.  When lazy mode is turned off we issue a hypercall to
  * flush the stored calls.
- *
- * There's also a hack where "mode" is set to "PARAVIRT_LAZY_FLUSH" which
- * indicates we're to flush any outstanding calls immediately.  This is used
- * when an interrupt handler does a kmap_atomic(): the page table changes must
- * happen immediately even if we're in the middle of a batch.  Usually we're
- * not, though, so there's nothing to do. */
-static enum paravirt_lazy_mode lazy_mode; /* Note: not SMP-safe! */
-static void lguest_lazy_mode(enum paravirt_lazy_mode mode)
+ */
+static void lguest_leave_lazy_mode(void)
 {
-	if (mode == PARAVIRT_LAZY_FLUSH) {
-		if (unlikely(lazy_mode != PARAVIRT_LAZY_NONE))
-			hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
-	} else {
-		lazy_mode = mode;
-		if (mode == PARAVIRT_LAZY_NONE)
-			hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
-	}
+	paravirt_leave_lazy(paravirt_get_lazy_mode());
+	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
 }
 
 static void lazy_hcall(unsigned long call,
@@ -127,7 +115,7 @@ static void lazy_hcall(unsigned long call,
 		       unsigned long arg2,
 		       unsigned long arg3)
 {
-	if (lazy_mode == PARAVIRT_LAZY_NONE)
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
 		hcall(call, arg1, arg2, arg3);
 	else
 		async_hcall(call, arg1, arg2, arg3);
@@ -1011,6 +999,8 @@ __init void lguest_init(void *boot)
 	pv_cpu_ops.write_gdt_entry = lguest_write_gdt_entry;
 	pv_cpu_ops.write_idt_entry = lguest_write_idt_entry;
 	pv_cpu_ops.wbinvd = lguest_wbinvd;
+	pv_cpu_ops.lazy_mode.enter = paravirt_enter_lazy_cpu;
+	pv_cpu_ops.lazy_mode.leave = lguest_leave_lazy_mode;
 
 	/* pagetable management */
 	pv_mmu_ops.write_cr3 = lguest_write_cr3;
@@ -1022,6 +1012,8 @@ __init void lguest_init(void *boot)
 	pv_mmu_ops.set_pmd = lguest_set_pmd;
 	pv_mmu_ops.read_cr2 = lguest_read_cr2;
 	pv_mmu_ops.read_cr3 = lguest_read_cr3;
+	pv_mmu_ops.lazy_mode.enter = paravirt_enter_lazy_mmu;
+	pv_mmu_ops.lazy_mode.leave = lguest_leave_lazy_mode;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
@@ -1033,8 +1025,6 @@ __init void lguest_init(void *boot)
 	/* time operations */
 	pv_time_ops.get_wallclock = lguest_get_wallclock;
 	pv_time_ops.time_init = lguest_time_init;
-
-	pv_misc_ops.set_lazy_mode = lguest_lazy_mode;
 
 	/* Now is a good time to look at the implementations of these functions
 	 * before returning to the rest of lguest_init(). */

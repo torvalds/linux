@@ -552,24 +552,22 @@ vmi_startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 }
 #endif
 
-static void vmi_set_lazy_mode(enum paravirt_lazy_mode mode)
+static void vmi_enter_lazy_cpu(void)
 {
-	static DEFINE_PER_CPU(enum paravirt_lazy_mode, lazy_mode);
+	paravirt_enter_lazy_cpu();
+	vmi_ops.set_lazy_mode(2);
+}
 
-	if (!vmi_ops.set_lazy_mode)
-		return;
+static void vmi_enter_lazy_mmu(void)
+{
+	paravirt_enter_lazy_mmu();
+	vmi_ops.set_lazy_mode(1);
+}
 
-	/* Modes should never nest or overlap */
-	BUG_ON(__get_cpu_var(lazy_mode) && !(mode == PARAVIRT_LAZY_NONE ||
-					     mode == PARAVIRT_LAZY_FLUSH));
-
-	if (mode == PARAVIRT_LAZY_FLUSH) {
-		vmi_ops.set_lazy_mode(0);
-		vmi_ops.set_lazy_mode(__get_cpu_var(lazy_mode));
-	} else {
-		vmi_ops.set_lazy_mode(mode);
-		__get_cpu_var(lazy_mode) = mode;
-	}
+static void vmi_leave_lazy(void)
+{
+	paravirt_leave_lazy(paravirt_get_lazy_mode());
+	vmi_ops.set_lazy_mode(0);
 }
 
 static inline int __init check_vmi_rom(struct vrom_header *rom)
@@ -798,7 +796,16 @@ static inline int __init activate_vmi(void)
 	para_wrap(pv_cpu_ops.load_esp0, vmi_load_esp0, set_kernel_stack, UpdateKernelStack);
 	para_fill(pv_cpu_ops.set_iopl_mask, SetIOPLMask);
 	para_fill(pv_cpu_ops.io_delay, IODelay);
-	para_wrap(pv_misc_ops.set_lazy_mode, vmi_set_lazy_mode, set_lazy_mode, SetLazyMode);
+
+	para_wrap(pv_cpu_ops.lazy_mode.enter, vmi_enter_lazy_cpu,
+		  set_lazy_mode, SetLazyMode);
+	para_wrap(pv_cpu_ops.lazy_mode.leave, vmi_leave_lazy,
+		  set_lazy_mode, SetLazyMode);
+
+	para_wrap(pv_mmu_ops.lazy_mode.enter, vmi_enter_lazy_mmu,
+		  set_lazy_mode, SetLazyMode);
+	para_wrap(pv_mmu_ops.lazy_mode.leave, vmi_leave_lazy,
+		  set_lazy_mode, SetLazyMode);
 
 	/* user and kernel flush are just handled with different flags to FlushTLB */
 	para_wrap(pv_mmu_ops.flush_tlb_user, vmi_flush_tlb_user, _flush_tlb, FlushTLB);

@@ -164,7 +164,6 @@ static void *get_call_destination(u8 type)
 {
 	struct paravirt_patch_template tmpl = {
 		.pv_init_ops = pv_init_ops,
-		.pv_misc_ops = pv_misc_ops,
 		.pv_time_ops = pv_time_ops,
 		.pv_cpu_ops = pv_cpu_ops,
 		.pv_irq_ops = pv_irq_ops,
@@ -282,6 +281,49 @@ int paravirt_disable_iospace(void)
 	return ret;
 }
 
+static DEFINE_PER_CPU(enum paravirt_lazy_mode, paravirt_lazy_mode) = PARAVIRT_LAZY_NONE;
+
+static inline void enter_lazy(enum paravirt_lazy_mode mode)
+{
+	BUG_ON(x86_read_percpu(paravirt_lazy_mode) != PARAVIRT_LAZY_NONE);
+	BUG_ON(preemptible());
+
+	x86_write_percpu(paravirt_lazy_mode, mode);
+}
+
+void paravirt_leave_lazy(enum paravirt_lazy_mode mode)
+{
+	BUG_ON(x86_read_percpu(paravirt_lazy_mode) != mode);
+	BUG_ON(preemptible());
+
+	x86_write_percpu(paravirt_lazy_mode, PARAVIRT_LAZY_NONE);
+}
+
+void paravirt_enter_lazy_mmu(void)
+{
+	enter_lazy(PARAVIRT_LAZY_MMU);
+}
+
+void paravirt_leave_lazy_mmu(void)
+{
+	paravirt_leave_lazy(PARAVIRT_LAZY_MMU);
+}
+
+void paravirt_enter_lazy_cpu(void)
+{
+	enter_lazy(PARAVIRT_LAZY_CPU);
+}
+
+void paravirt_leave_lazy_cpu(void)
+{
+	paravirt_leave_lazy(PARAVIRT_LAZY_CPU);
+}
+
+enum paravirt_lazy_mode paravirt_get_lazy_mode(void)
+{
+	return x86_read_percpu(paravirt_lazy_mode);
+}
+
 struct pv_info pv_info = {
 	.name = "bare hardware",
 	.paravirt_enabled = 0,
@@ -347,6 +389,11 @@ struct pv_cpu_ops pv_cpu_ops = {
 
 	.set_iopl_mask = native_set_iopl_mask,
 	.io_delay = native_io_delay,
+
+	.lazy_mode = {
+		.enter = paravirt_nop,
+		.leave = paravirt_nop,
+	},
 };
 
 struct pv_apic_ops pv_apic_ops = {
@@ -358,10 +405,6 @@ struct pv_apic_ops pv_apic_ops = {
 	.setup_secondary_clock = setup_secondary_APIC_clock,
 	.startup_ipi_hook = paravirt_nop,
 #endif
-};
-
-struct pv_misc_ops pv_misc_ops = {
-	.set_lazy_mode = paravirt_nop,
 };
 
 struct pv_mmu_ops pv_mmu_ops = {
@@ -414,6 +457,11 @@ struct pv_mmu_ops pv_mmu_ops = {
 	.dup_mmap = paravirt_nop,
 	.exit_mmap = paravirt_nop,
 	.activate_mm = paravirt_nop,
+
+	.lazy_mode = {
+		.enter = paravirt_nop,
+		.leave = paravirt_nop,
+	},
 };
 
 EXPORT_SYMBOL_GPL(pv_time_ops);

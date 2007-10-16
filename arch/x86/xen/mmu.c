@@ -155,7 +155,7 @@ void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
 	if (mm == current->mm || mm == &init_mm) {
-		if (xen_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
+		if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
 			struct multicall_space mcs;
 			mcs = xen_mc_entry(0);
 

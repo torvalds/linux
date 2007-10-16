@@ -52,8 +52,6 @@
 
 EXPORT_SYMBOL_GPL(hypercall_page);
 
-DEFINE_PER_CPU(enum paravirt_lazy_mode, xen_lazy_mode);
-
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 DEFINE_PER_CPU(unsigned long, xen_cr3);
@@ -249,29 +247,10 @@ static void xen_halt(void)
 		xen_safe_halt();
 }
 
-static void xen_set_lazy_mode(enum paravirt_lazy_mode mode)
+static void xen_leave_lazy(void)
 {
-	BUG_ON(preemptible());
-
-	switch (mode) {
-	case PARAVIRT_LAZY_NONE:
-		BUG_ON(x86_read_percpu(xen_lazy_mode) == PARAVIRT_LAZY_NONE);
-		break;
-
-	case PARAVIRT_LAZY_MMU:
-	case PARAVIRT_LAZY_CPU:
-		BUG_ON(x86_read_percpu(xen_lazy_mode) != PARAVIRT_LAZY_NONE);
-		break;
-
-	case PARAVIRT_LAZY_FLUSH:
-		/* flush if necessary, but don't change state */
-		if (x86_read_percpu(xen_lazy_mode) != PARAVIRT_LAZY_NONE)
-			xen_mc_flush();
-		return;
-	}
-
+	paravirt_leave_lazy(paravirt_get_lazy_mode());
 	xen_mc_flush();
-	x86_write_percpu(xen_lazy_mode, mode);
 }
 
 static unsigned long xen_store_tr(void)
@@ -358,7 +337,7 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 	 * loaded properly.  This will go away as soon as Xen has been
 	 * modified to not save/restore %gs for normal hypercalls.
 	 */
-	if (xen_get_lazy_mode() == PARAVIRT_LAZY_CPU)
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_CPU)
 		loadsegment(gs, 0);
 }
 
@@ -962,6 +941,11 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 
 	.set_iopl_mask = xen_set_iopl_mask,
 	.io_delay = xen_io_delay,
+
+	.lazy_mode = {
+		.enter = paravirt_enter_lazy_cpu,
+		.leave = xen_leave_lazy,
+	},
 };
 
 static const struct pv_irq_ops xen_irq_ops __initdata = {
@@ -1037,10 +1021,11 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.activate_mm = xen_activate_mm,
 	.dup_mmap = xen_dup_mmap,
 	.exit_mmap = xen_exit_mmap,
-};
 
-static const struct pv_misc_ops xen_misc_ops __initdata = {
-	.set_lazy_mode = xen_set_lazy_mode,
+	.lazy_mode = {
+		.enter = paravirt_enter_lazy_mmu,
+		.leave = xen_leave_lazy,
+	},
 };
 
 #ifdef CONFIG_SMP
@@ -1114,7 +1099,6 @@ asmlinkage void __init xen_start_kernel(void)
 	pv_irq_ops = xen_irq_ops;
 	pv_apic_ops = xen_apic_ops;
 	pv_mmu_ops = xen_mmu_ops;
-	pv_misc_ops = xen_misc_ops;
 
 	machine_ops = xen_machine_ops;
 

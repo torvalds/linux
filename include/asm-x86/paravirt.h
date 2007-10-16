@@ -25,15 +25,6 @@ struct tss_struct;
 struct mm_struct;
 struct desc_struct;
 
-/* Lazy mode for batching updates / context switch */
-enum paravirt_lazy_mode {
-	PARAVIRT_LAZY_NONE = 0,
-	PARAVIRT_LAZY_MMU = 1,
-	PARAVIRT_LAZY_CPU = 2,
-	PARAVIRT_LAZY_FLUSH = 3,
-};
-
-
 /* general info */
 struct pv_info {
 	unsigned int kernel_rpl;
@@ -64,9 +55,10 @@ struct pv_init_ops {
 };
 
 
-struct pv_misc_ops {
+struct pv_lazy_ops {
 	/* Set deferred update mode, used for batching operations. */
-	void (*set_lazy_mode)(enum paravirt_lazy_mode mode);
+	void (*enter)(void);
+	void (*leave)(void);
 };
 
 struct pv_time_ops {
@@ -131,6 +123,8 @@ struct pv_cpu_ops {
 	/* These two are jmp to, not actually called. */
 	void (*irq_enable_sysexit)(void);
 	void (*iret)(void);
+
+	struct pv_lazy_ops lazy_mode;
 };
 
 struct pv_irq_ops {
@@ -244,6 +238,8 @@ struct pv_mmu_ops {
 #ifdef CONFIG_HIGHPTE
 	void *(*kmap_atomic_pte)(struct page *page, enum km_type type);
 #endif
+
+	struct pv_lazy_ops lazy_mode;
 };
 
 /* This contains all the paravirt structures: we get a convenient
@@ -252,7 +248,6 @@ struct pv_mmu_ops {
 struct paravirt_patch_template
 {
 	struct pv_init_ops pv_init_ops;
-	struct pv_misc_ops pv_misc_ops;
 	struct pv_time_ops pv_time_ops;
 	struct pv_cpu_ops pv_cpu_ops;
 	struct pv_irq_ops pv_irq_ops;
@@ -262,7 +257,6 @@ struct paravirt_patch_template
 
 extern struct pv_info pv_info;
 extern struct pv_init_ops pv_init_ops;
-extern struct pv_misc_ops pv_misc_ops;
 extern struct pv_time_ops pv_time_ops;
 extern struct pv_cpu_ops pv_cpu_ops;
 extern struct pv_irq_ops pv_irq_ops;
@@ -953,37 +947,57 @@ static inline void set_pmd(pmd_t *pmdp, pmd_t pmdval)
 }
 #endif	/* CONFIG_X86_PAE */
 
+/* Lazy mode for batching updates / context switch */
+enum paravirt_lazy_mode {
+	PARAVIRT_LAZY_NONE,
+	PARAVIRT_LAZY_MMU,
+	PARAVIRT_LAZY_CPU,
+};
+
+enum paravirt_lazy_mode paravirt_get_lazy_mode(void);
+void paravirt_enter_lazy_cpu(void);
+void paravirt_leave_lazy_cpu(void);
+void paravirt_enter_lazy_mmu(void);
+void paravirt_leave_lazy_mmu(void);
+void paravirt_leave_lazy(enum paravirt_lazy_mode mode);
+
 #define  __HAVE_ARCH_ENTER_LAZY_CPU_MODE
 static inline void arch_enter_lazy_cpu_mode(void)
 {
-	PVOP_VCALL1(pv_misc_ops.set_lazy_mode, PARAVIRT_LAZY_CPU);
+	PVOP_VCALL0(pv_cpu_ops.lazy_mode.enter);
 }
 
 static inline void arch_leave_lazy_cpu_mode(void)
 {
-	PVOP_VCALL1(pv_misc_ops.set_lazy_mode, PARAVIRT_LAZY_NONE);
+	PVOP_VCALL0(pv_cpu_ops.lazy_mode.leave);
 }
 
 static inline void arch_flush_lazy_cpu_mode(void)
 {
-	PVOP_VCALL1(pv_misc_ops.set_lazy_mode, PARAVIRT_LAZY_FLUSH);
+	if (unlikely(paravirt_get_lazy_mode() == PARAVIRT_LAZY_CPU)) {
+		arch_leave_lazy_cpu_mode();
+		arch_enter_lazy_cpu_mode();
+	}
 }
 
 
 #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 static inline void arch_enter_lazy_mmu_mode(void)
 {
-	PVOP_VCALL1(pv_misc_ops.set_lazy_mode, PARAVIRT_LAZY_MMU);
+	PVOP_VCALL0(pv_mmu_ops.lazy_mode.enter);
 }
 
 static inline void arch_leave_lazy_mmu_mode(void)
 {
-	PVOP_VCALL1(pv_misc_ops.set_lazy_mode, PARAVIRT_LAZY_NONE);
+	PVOP_VCALL0(pv_mmu_ops.lazy_mode.leave);
 }
 
 static inline void arch_flush_lazy_mmu_mode(void)
 {
-	PVOP_VCALL1(pv_misc_ops.set_lazy_mode, PARAVIRT_LAZY_FLUSH);
+	if (unlikely(paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU)) {
+		arch_leave_lazy_mmu_mode();
+		arch_enter_lazy_mmu_mode();
+	}
 }
 
 void _paravirt_nop(void);

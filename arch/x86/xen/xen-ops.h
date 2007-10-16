@@ -29,13 +29,6 @@ unsigned long long xen_sched_clock(void);
 
 void xen_mark_init_mm_pinned(void);
 
-DECLARE_PER_CPU(enum paravirt_lazy_mode, xen_lazy_mode);
-
-static inline unsigned xen_get_lazy_mode(void)
-{
-	return x86_read_percpu(xen_lazy_mode);
-}
-
 void __init xen_fill_possible_map(void);
 
 void __init xen_setup_vcpu_info_placement(void);
