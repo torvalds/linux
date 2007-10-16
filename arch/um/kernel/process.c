@@ -82,9 +82,9 @@ unsigned long alloc_stack(int order, int atomic)
 	if (atomic)
 		flags = GFP_ATOMIC;
 	page = __get_free_pages(flags, order);
-	if(page == 0)
+	if (page == 0)
 		return 0;
-	stack_protections(page);
+
 	return page;
 }
 
@@ -141,7 +141,6 @@ void release_thread(struct task_struct *task)
 
 void exit_thread(void)
 {
-	unprotect_stack((unsigned long) current_thread);
 }
 
 void *get_current(void)

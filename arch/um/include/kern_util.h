@@ -82,7 +82,9 @@ extern void check_stack_overflow(void *ptr);
 extern void relay_signal(int sig, union uml_pt_regs *regs);
 extern int user_context(unsigned long sp);
 extern void timer_irq(union uml_pt_regs *regs);
+#ifdef CONFIG_MODE_TT
 extern void unprotect_stack(unsigned long stack);
+#endif
 extern void do_uml_exitcalls(void);
 extern int attach_debugger(int idle_pid, int pid, int stop);
 extern int config_gdb(char *str);
