@@ -303,13 +303,13 @@ module_param(ps3fb_mode, int, 0);
 
 static char *mode_option __devinitdata;
 
-static int ps3fb_get_res_table(u32 xres, u32 yres)
+static int ps3fb_get_res_table(u32 xres, u32 yres, int mode)
 {
 	int full_mode;
 	unsigned int i;
 	u32 x, y, f;
 
-	full_mode = (ps3fb_mode & PS3FB_FULL_MODE_BIT) ? PS3FB_RES_FULL : 0;
+	full_mode = (mode & PS3FB_FULL_MODE_BIT) ? PS3FB_RES_FULL : 0;
 	for (i = 0;; i++) {
 		x = ps3fb_res[i].xres;
 		y = ps3fb_res[i].yres;
@@ -527,7 +527,7 @@ static int ps3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 	/* Memory limit */
-	i = ps3fb_get_res_table(var->xres, var->yres);
+	i = ps3fb_get_res_table(var->xres, var->yres, mode);
 	if (ps3fb_res[i].xres*ps3fb_res[i].yres*BPP > ps3fb_videomemory.size) {
 		DPRINTK("Not enough memory\n");
 		return -ENOMEM;
@@ -553,12 +553,13 @@ static int ps3fb_set_par(struct fb_info *info)
 	DPRINTK("xres:%d xv:%d yres:%d yv:%d clock:%d\n",
 		info->var.xres, info->var.xres_virtual,
 		info->var.yres, info->var.yres_virtual, info->var.pixclock);
-	i = ps3fb_get_res_table(info->var.xres, info->var.yres);
-	ps3fb.res_index = i;
 
 	mode = ps3fb_find_mode(&info->var, &info->fix.line_length);
 	if (!mode)
 		return -EINVAL;
+
+	i = ps3fb_get_res_table(info->var.xres, info->var.yres, mode);
+	ps3fb.res_index = i;
 
 	offset = FB_OFF(i) + VP_OFF(i);
 	info->fix.smem_len = ps3fb_videomemory.size - offset;
@@ -610,7 +611,7 @@ static int ps3fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long size, offset;
 	int i;
 
-	i = ps3fb_get_res_table(info->var.xres, info->var.yres);
+	i = ps3fb_get_res_table(info->var.xres, info->var.yres, ps3fb_mode);
 	if (i == -1)
 		return -EINVAL;
 
@@ -999,7 +1000,7 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 
 	if (ps3fb_mode > 0 &&
 	    !ps3av_video_mode2res(ps3fb_mode, &xres, &yres)) {
-		ps3fb.res_index = ps3fb_get_res_table(xres, yres);
+		ps3fb.res_index = ps3fb_get_res_table(xres, yres, ps3fb_mode);
 		DPRINTK("res_index:%d\n", ps3fb.res_index);
 	} else
 		ps3fb.res_index = GPU_RES_INDEX;
