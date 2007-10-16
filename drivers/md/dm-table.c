@@ -999,33 +999,6 @@ void dm_table_unplug_all(struct dm_table *t)
 	}
 }
 
-int dm_table_flush_all(struct dm_table *t)
-{
-	struct list_head *d, *devices = dm_table_get_devices(t);
-	int ret = 0;
-	unsigned i;
-
-	for (i = 0; i < t->num_targets; i++)
-		if (t->targets[i].type->flush)
-			t->targets[i].type->flush(&t->targets[i]);
-
-	for (d = devices->next; d != devices; d = d->next) {
-		struct dm_dev *dd = list_entry(d, struct dm_dev, list);
-		struct request_queue *q = bdev_get_queue(dd->bdev);
-		int err;
-
-		if (!q->issue_flush_fn)
-			err = -EOPNOTSUPP;
-		else
-			err = q->issue_flush_fn(q, dd->bdev->bd_disk, NULL);
-
-		if (!ret)
-			ret = err;
-	}
-
-	return ret;
-}
-
 struct mapped_device *dm_table_get_md(struct dm_table *t)
 {
 	dm_get(t->md);
@@ -1043,4 +1016,3 @@ EXPORT_SYMBOL(dm_table_get_md);
 EXPORT_SYMBOL(dm_table_put);
 EXPORT_SYMBOL(dm_table_get);
 EXPORT_SYMBOL(dm_table_unplug_all);
-EXPORT_SYMBOL(dm_table_flush_all);

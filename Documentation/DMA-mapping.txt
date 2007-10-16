@@ -514,7 +514,7 @@ With scatterlists, you map a region gathered from several regions by:
 	int i, count = pci_map_sg(dev, sglist, nents, direction);
 	struct scatterlist *sg;
 
-	for (i = 0, sg = sglist; i < count; i++, sg++) {
+	for_each_sg(sglist, sg, count, i) {
 		hw_address[i] = sg_dma_address(sg);
 		hw_len[i] = sg_dma_len(sg);
 	}
@@ -782,5 +782,5 @@ following people:
 	Jay Estabrook <Jay.Estabrook@compaq.com>
 	Thomas Sailer <sailer@ife.ee.ethz.ch>
 	Andrea Arcangeli <andrea@suse.de>
-	Jens Axboe <axboe@suse.de>
+	Jens Axboe <jens.axboe@oracle.com>
 	David Mosberger-Tang <davidm@hpl.hp.com>

@@ -330,7 +330,7 @@ Here is a list of some of the different kernel trees available:
     - ACPI development tree, Len Brown <len.brown@intel.com>
 	git.kernel.org:/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
 
-    - Block development tree, Jens Axboe <axboe@suse.de>
+    - Block development tree, Jens Axboe <jens.axboe@oracle.com>
 	git.kernel.org:/pub/scm/linux/kernel/git/axboe/linux-2.6-block.git
 
     - DRM development tree, Dave Airlie <airlied@linux.ie>

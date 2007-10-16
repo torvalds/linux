@@ -218,16 +218,17 @@ EXPORT_SYMBOL(sn_dma_unmap_single);
  *
  * Unmap a set of streaming mode DMA translations.
  */
-void sn_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+void sn_dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
 		     int nhwentries, int direction)
 {
 	int i;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
+	struct scatterlist *sg;
 
 	BUG_ON(dev->bus != &pci_bus_type);
 
-	for (i = 0; i < nhwentries; i++, sg++) {
+	for_each_sg(sgl, sg, nhwentries, i) {
 		provider->dma_unmap(pdev, sg->dma_address, direction);
 		sg->dma_address = (dma_addr_t) NULL;
 		sg->dma_length = 0;
@@ -244,11 +245,11 @@ EXPORT_SYMBOL(sn_dma_unmap_sg);
  *
  * Maps each entry of @sg for DMA.
  */
-int sn_dma_map_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
+int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl, int nhwentries,
 		  int direction)
 {
 	unsigned long phys_addr;
-	struct scatterlist *saved_sg = sg;
+	struct scatterlist *saved_sg = sgl, *sg;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 	int i;
@@ -258,7 +259,7 @@ int sn_dma_map_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 	/*
 	 * Setup a DMA address for each entry in the scatterlist.
 	 */
-	for (i = 0; i < nhwentries; i++, sg++) {
+	for_each_sg(sgl, sg, nhwentries, i) {
 		phys_addr = SG_ENT_PHYS_ADDRESS(sg);
 		sg->dma_address = provider->dma_map(pdev,
 						    phys_addr, sg->length,

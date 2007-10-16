@@ -30,6 +30,7 @@
 #include <linux/cpu.h>
 #include <linux/blktrace_api.h>
 #include <linux/fault-inject.h>
+#include <linux/scatterlist.h>
 
 /*
  * for max sense size
@@ -304,23 +305,6 @@ int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 
 EXPORT_SYMBOL(blk_queue_ordered);
 
-/**
- * blk_queue_issue_flush_fn - set function for issuing a flush
- * @q:     the request queue
- * @iff:   the function to be called issuing the flush
- *
- * Description:
- *   If a driver supports issuing a flush command, the support is notified
- *   to the block layer by defining it through this call.
- *
- **/
-void blk_queue_issue_flush_fn(struct request_queue *q, issue_flush_fn *iff)
-{
-	q->issue_flush_fn = iff;
-}
-
-EXPORT_SYMBOL(blk_queue_issue_flush_fn);
-
 /*
  * Cache flushing for ordered writes handling
  */
@@ -377,10 +361,12 @@ void blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 	/*
 	 * Okay, sequence complete.
 	 */
-	rq = q->orig_bar_rq;
-	uptodate = q->orderr ? q->orderr : 1;
+	uptodate = 1;
+	if (q->orderr)
+		uptodate = q->orderr;
 
 	q->ordseq = 0;
+	rq = q->orig_bar_rq;
 
 	end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
 	end_that_request_last(rq, uptodate);
@@ -445,7 +431,8 @@ static inline struct request *start_ordered(struct request_queue *q,
 	rq_init(q, rq);
 	if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
 		rq->cmd_flags |= REQ_RW;
-	rq->cmd_flags |= q->ordered & QUEUE_ORDERED_FUA ? REQ_FUA : 0;
+	if (q->ordered & QUEUE_ORDERED_FUA)
+		rq->cmd_flags |= REQ_FUA;
 	rq->elevator_private = NULL;
 	rq->elevator_private2 = NULL;
 	init_request_from_bio(rq, q->orig_bar_rq->bio);
@@ -455,9 +442,12 @@ static inline struct request *start_ordered(struct request_queue *q,
 	 * Queue ordered sequence.  As we stack them at the head, we
 	 * need to queue in reverse order.  Note that we rely on that
 	 * no fs request uses ELEVATOR_INSERT_FRONT and thus no fs
-	 * request gets inbetween ordered sequence.
+	 * request gets inbetween ordered sequence. If this request is
+	 * an empty barrier, we don't need to do a postflush ever since
+	 * there will be no data written between the pre and post flush.
+	 * Hence a single flush will suffice.
 	 */
-	if (q->ordered & QUEUE_ORDERED_POSTFLUSH)
+	if ((q->ordered & QUEUE_ORDERED_POSTFLUSH) && !blk_empty_barrier(rq))
 		queue_flush(q, QUEUE_ORDERED_POSTFLUSH);
 	else
 		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
@@ -481,7 +471,7 @@ static inline struct request *start_ordered(struct request_queue *q,
 int blk_do_ordered(struct request_queue *q, struct request **rqp)
 {
 	struct request *rq = *rqp;
-	int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
+	const int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
 
 	if (!q->ordseq) {
 		if (!is_barrier)
@@ -1329,9 +1319,10 @@ static int blk_hw_contig_segment(struct request_queue *q, struct bio *bio,
  * must make sure sg can hold rq->nr_phys_segments entries
  */
 int blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		  struct scatterlist *sg)
+		  struct scatterlist *sglist)
 {
 	struct bio_vec *bvec, *bvprv;
+	struct scatterlist *next_sg, *sg;
 	struct req_iterator iter;
 	int nsegs, cluster;
 
@@ -1342,11 +1333,12 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * for each bio in rq
 	 */
 	bvprv = NULL;
+	sg = next_sg = &sglist[0];
 	rq_for_each_segment(bvec, rq, iter) {
 		int nbytes = bvec->bv_len;
 
 		if (bvprv && cluster) {
-			if (sg[nsegs - 1].length + nbytes > q->max_segment_size)
+			if (sg->length + nbytes > q->max_segment_size)
 				goto new_segment;
 
 			if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
@@ -1354,14 +1346,15 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 			if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
 				goto new_segment;
 
-			sg[nsegs - 1].length += nbytes;
+			sg->length += nbytes;
 		} else {
 new_segment:
-			memset(&sg[nsegs],0,sizeof(struct scatterlist));
-			sg[nsegs].page = bvec->bv_page;
-			sg[nsegs].length = nbytes;
-			sg[nsegs].offset = bvec->bv_offset;
+			sg = next_sg;
+			next_sg = sg_next(sg);
 
+			sg->page = bvec->bv_page;
+			sg->length = nbytes;
+			sg->offset = bvec->bv_offset;
 			nsegs++;
 		}
 		bvprv = bvec;
@@ -2660,6 +2653,14 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 
 EXPORT_SYMBOL(blk_execute_rq);
 
+static void bio_end_empty_barrier(struct bio *bio, int err)
+{
+	if (err)
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+
+	complete(bio->bi_private);
+}
+
 /**
  * blkdev_issue_flush - queue a flush
  * @bdev:	blockdev to issue flush for
@@ -2672,7 +2673,10 @@ EXPORT_SYMBOL(blk_execute_rq);
  */
 int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 {
+	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q;
+	struct bio *bio;
+	int ret;
 
 	if (bdev->bd_disk == NULL)
 		return -ENXIO;
@@ -2680,10 +2684,32 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	q = bdev_get_queue(bdev);
 	if (!q)
 		return -ENXIO;
-	if (!q->issue_flush_fn)
-		return -EOPNOTSUPP;
 
-	return q->issue_flush_fn(q, bdev->bd_disk, error_sector);
+	bio = bio_alloc(GFP_KERNEL, 0);
+	if (!bio)
+		return -ENOMEM;
+
+	bio->bi_end_io = bio_end_empty_barrier;
+	bio->bi_private = &wait;
+	bio->bi_bdev = bdev;
+	submit_bio(1 << BIO_RW_BARRIER, bio);
+
+	wait_for_completion(&wait);
+
+	/*
+	 * The driver must store the error location in ->bi_sector, if
+	 * it supports it. For non-stacked drivers, this should be copied
+	 * from rq->sector.
+	 */
+	if (error_sector)
+		*error_sector = bio->bi_sector;
+
+	ret = 0;
+	if (!bio_flagged(bio, BIO_UPTODATE))
+		ret = -EIO;
+
+	bio_put(bio);
+	return ret;
 }
 
 EXPORT_SYMBOL(blkdev_issue_flush);
@@ -3051,7 +3077,7 @@ static inline void blk_partition_remap(struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 
-	if (bdev != bdev->bd_contains) {
+	if (bio_sectors(bio) && bdev != bdev->bd_contains) {
 		struct hd_struct *p = bdev->bd_part;
 		const int rw = bio_data_dir(bio);
 
@@ -3117,6 +3143,35 @@ static inline int should_fail_request(struct bio *bio)
 
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
 
+/*
+ * Check whether this bio extends beyond the end of the device.
+ */
+static inline int bio_check_eod(struct bio *bio, unsigned int nr_sectors)
+{
+	sector_t maxsector;
+
+	if (!nr_sectors)
+		return 0;
+
+	/* Test device or partition size, when known. */
+	maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
+	if (maxsector) {
+		sector_t sector = bio->bi_sector;
+
+		if (maxsector < nr_sectors || maxsector - nr_sectors < sector) {
+			/*
+			 * This may well happen - the kernel calls bread()
+			 * without checking the size of the device, e.g., when
+			 * mounting a device.
+			 */
+			handle_bad_sector(bio);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * generic_make_request: hand a buffer to its device driver for I/O
  * @bio:  The bio describing the location in memory and on the device.
@@ -3144,27 +3199,14 @@ static inline int should_fail_request(struct bio *bio)
 static inline void __generic_make_request(struct bio *bio)
 {
 	struct request_queue *q;
-	sector_t maxsector;
 	sector_t old_sector;
 	int ret, nr_sectors = bio_sectors(bio);
 	dev_t old_dev;
 
 	might_sleep();
-	/* Test device or partition size, when known. */
-	maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
-	if (maxsector) {
-		sector_t sector = bio->bi_sector;
 
-		if (maxsector < nr_sectors || maxsector - nr_sectors < sector) {
-			/*
-			 * This may well happen - the kernel calls bread()
-			 * without checking the size of the device, e.g., when
-			 * mounting a device.
-			 */
-			handle_bad_sector(bio);
-			goto end_io;
-		}
-	}
+	if (bio_check_eod(bio, nr_sectors))
+		goto end_io;
 
 	/*
 	 * Resolve the mapping until finished. (drivers are
@@ -3191,7 +3233,7 @@ end_io:
 			break;
 		}
 
-		if (unlikely(bio_sectors(bio) > q->max_hw_sectors)) {
+		if (unlikely(nr_sectors > q->max_hw_sectors)) {
 			printk("bio too big device %s (%u > %u)\n", 
 				bdevname(bio->bi_bdev, b),
 				bio_sectors(bio),
@@ -3212,7 +3254,7 @@ end_io:
 		blk_partition_remap(bio);
 
 		if (old_sector != -1)
-			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector, 
+			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector,
 					    old_sector);
 
 		blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
@@ -3220,21 +3262,8 @@ end_io:
 		old_sector = bio->bi_sector;
 		old_dev = bio->bi_bdev->bd_dev;
 
-		maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
-		if (maxsector) {
-			sector_t sector = bio->bi_sector;
-
-			if (maxsector < nr_sectors ||
-					maxsector - nr_sectors < sector) {
-				/*
-				 * This may well happen - partitions are not
-				 * checked to make sure they are within the size
-				 * of the whole device.
-				 */
-				handle_bad_sector(bio);
-				goto end_io;
-			}
-		}
+		if (bio_check_eod(bio, nr_sectors))
+			goto end_io;
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
@@ -3307,23 +3336,32 @@ void submit_bio(int rw, struct bio *bio)
 {
 	int count = bio_sectors(bio);
 
-	BIO_BUG_ON(!bio->bi_size);
-	BIO_BUG_ON(!bio->bi_io_vec);
 	bio->bi_rw |= rw;
-	if (rw & WRITE) {
-		count_vm_events(PGPGOUT, count);
-	} else {
-		task_io_account_read(bio->bi_size);
-		count_vm_events(PGPGIN, count);
-	}
 
-	if (unlikely(block_dump)) {
-		char b[BDEVNAME_SIZE];
-		printk(KERN_DEBUG "%s(%d): %s block %Lu on %s\n",
-			current->comm, current->pid,
-			(rw & WRITE) ? "WRITE" : "READ",
-			(unsigned long long)bio->bi_sector,
-			bdevname(bio->bi_bdev,b));
+	/*
+	 * If it's a regular read/write or a barrier with data attached,
+	 * go through the normal accounting stuff before submission.
+	 */
+	if (!bio_empty_barrier(bio)) {
+
+		BIO_BUG_ON(!bio->bi_size);
+		BIO_BUG_ON(!bio->bi_io_vec);
+
+		if (rw & WRITE) {
+			count_vm_events(PGPGOUT, count);
+		} else {
+			task_io_account_read(bio->bi_size);
+			count_vm_events(PGPGIN, count);
+		}
+
+		if (unlikely(block_dump)) {
+			char b[BDEVNAME_SIZE];
+			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s\n",
+				current->comm, current->pid,
+				(rw & WRITE) ? "WRITE" : "READ",
+				(unsigned long long)bio->bi_sector,
+				bdevname(bio->bi_bdev,b));
+		}
 	}
 
 	generic_make_request(bio);
@@ -3398,6 +3436,14 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	total_bytes = bio_nbytes = 0;
 	while ((bio = req->bio) != NULL) {
 		int nbytes;
+
+		/*
+		 * For an empty barrier request, the low level driver must
+		 * store a potential error location in ->sector. We pass
+		 * that back up in ->bi_sector.
+		 */
+		if (blk_empty_barrier(req))
+			bio->bi_sector = req->sector;
 
 		if (nr_bytes >= bio->bi_size) {
 			req->bio = bio->bi_next;
@@ -3564,7 +3610,7 @@ static struct notifier_block blk_cpu_notifier __cpuinitdata = {
  * Description:
  *     Ends all I/O on a request. It does not handle partial completions,
  *     unless the driver actually implements this in its completion callback
- *     through requeueing. Theh actual completion happens out-of-order,
+ *     through requeueing. The actual completion happens out-of-order,
  *     through a softirq handler. The user must have registered a completion
  *     callback through blk_queue_softirq_done().
  **/
@@ -3627,15 +3673,83 @@ void end_that_request_last(struct request *req, int uptodate)
 
 EXPORT_SYMBOL(end_that_request_last);
 
-void end_request(struct request *req, int uptodate)
+static inline void __end_request(struct request *rq, int uptodate,
+				 unsigned int nr_bytes, int dequeue)
 {
-	if (!end_that_request_first(req, uptodate, req->hard_cur_sectors)) {
-		add_disk_randomness(req->rq_disk);
-		blkdev_dequeue_request(req);
-		end_that_request_last(req, uptodate);
+	if (!end_that_request_chunk(rq, uptodate, nr_bytes)) {
+		if (dequeue)
+			blkdev_dequeue_request(rq);
+		add_disk_randomness(rq->rq_disk);
+		end_that_request_last(rq, uptodate);
 	}
 }
 
+static unsigned int rq_byte_size(struct request *rq)
+{
+	if (blk_fs_request(rq))
+		return rq->hard_nr_sectors << 9;
+
+	return rq->data_len;
+}
+
+/**
+ * end_queued_request - end all I/O on a queued request
+ * @rq:		the request being processed
+ * @uptodate:	error value or 0/1 uptodate flag
+ *
+ * Description:
+ *     Ends all I/O on a request, and removes it from the block layer queues.
+ *     Not suitable for normal IO completion, unless the driver still has
+ *     the request attached to the block layer.
+ *
+ **/
+void end_queued_request(struct request *rq, int uptodate)
+{
+	__end_request(rq, uptodate, rq_byte_size(rq), 1);
+}
+EXPORT_SYMBOL(end_queued_request);
+
+/**
+ * end_dequeued_request - end all I/O on a dequeued request
+ * @rq:		the request being processed
+ * @uptodate:	error value or 0/1 uptodate flag
+ *
+ * Description:
+ *     Ends all I/O on a request. The request must already have been
+ *     dequeued using blkdev_dequeue_request(), as is normally the case
+ *     for most drivers.
+ *
+ **/
+void end_dequeued_request(struct request *rq, int uptodate)
+{
+	__end_request(rq, uptodate, rq_byte_size(rq), 0);
+}
+EXPORT_SYMBOL(end_dequeued_request);
+
+
+/**
+ * end_request - end I/O on the current segment of the request
+ * @rq:		the request being processed
+ * @uptodate:	error value or 0/1 uptodate flag
+ *
+ * Description:
+ *     Ends I/O on the current segment of a request. If that is the only
+ *     remaining segment, the request is also completed and freed.
+ *
+ *     This is a remnant of how older block drivers handled IO completions.
+ *     Modern drivers typically end IO on the full request in one go, unless
+ *     they have a residual value to account for. For that case this function
+ *     isn't really useful, unless the residual just happens to be the
+ *     full current segment. In other words, don't use this function in new
+ *     code. Either use end_request_completely(), or the
+ *     end_that_request_chunk() (along with end_that_request_last()) for
+ *     partial completions.
+ *
+ **/
+void end_request(struct request *req, int uptodate)
+{
+	__end_request(req, uptodate, req->hard_cur_sectors << 9, 1);
+}
 EXPORT_SYMBOL(end_request);
 
 static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
@@ -3949,7 +4063,23 @@ static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_hw_sectors_kb, (page));
 }
 
+static ssize_t queue_max_segments_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(q->max_phys_segments, page);
+}
 
+static ssize_t queue_max_segments_store(struct request_queue *q,
+					const char *page, size_t count)
+{
+	unsigned long segments;
+	ssize_t ret = queue_var_store(&segments, page, count);
+
+	spin_lock_irq(q->queue_lock);
+	q->max_phys_segments = segments;
+	spin_unlock_irq(q->queue_lock);
+
+	return ret;
+}
 static struct queue_sysfs_entry queue_requests_entry = {
 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_requests_show,
@@ -3973,6 +4103,12 @@ static struct queue_sysfs_entry queue_max_hw_sectors_entry = {
 	.show = queue_max_hw_sectors_show,
 };
 
+static struct queue_sysfs_entry queue_max_segments_entry = {
+	.attr = {.name = "max_segments", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_max_segments_show,
+	.store = queue_max_segments_store,
+};
+
 static struct queue_sysfs_entry queue_iosched_entry = {
 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
 	.show = elv_iosched_show,
@@ -3984,6 +4120,7 @@ static struct attribute *default_attrs[] = {
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
 	&queue_max_sectors_entry.attr,
+	&queue_max_segments_entry.attr,
 	&queue_iosched_entry.attr,
 	NULL,
 };

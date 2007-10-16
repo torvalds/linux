@@ -1843,6 +1843,7 @@ static struct scsi_host_template mesh_template = {
 	.sg_tablesize			= SG_ALL,
 	.cmd_per_lun			= 2,
 	.use_clustering			= DISABLE_CLUSTERING,
+	.use_sg_chaining		= ENABLE_SG_CHAINING,
 };
 
 static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)

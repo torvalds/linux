@@ -1,7 +1,7 @@
 
 struct request documentation
 
-Jens Axboe <axboe@suse.de> 27/05/02
+Jens Axboe <jens.axboe@oracle.com> 27/05/02
 
 1.0
 Index

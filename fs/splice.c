@@ -1335,10 +1335,10 @@ static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	if (copy_to_user(sd->u.userptr, src + buf->offset, sd->len))
 		ret = -EFAULT;
 
+	buf->ops->unmap(pipe, buf, src);
 out:
 	if (ret > 0)
 		sd->u.userptr += ret;
-	buf->ops->unmap(pipe, buf, src);
 	return ret;
 }
 

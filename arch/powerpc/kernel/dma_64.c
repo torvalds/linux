@@ -154,12 +154,13 @@ static void dma_direct_unmap_single(struct device *dev, dma_addr_t dma_addr,
 {
 }
 
-static int dma_direct_map_sg(struct device *dev, struct scatterlist *sg,
+static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
 			     int nents, enum dma_data_direction direction)
 {
+	struct scatterlist *sg;
 	int i;
 
-	for (i = 0; i < nents; i++, sg++) {
+	for_each_sg(sgl, sg, nents, i) {
 		sg->dma_address = (page_to_phys(sg->page) + sg->offset) |
 			dma_direct_offset;
 		sg->dma_length = sg->length;

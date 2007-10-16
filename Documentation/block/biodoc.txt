@@ -2,7 +2,7 @@
 	=====================================================
 
 Notes Written on Jan 15, 2002:
-	Jens Axboe <axboe@suse.de>
+	Jens Axboe <jens.axboe@oracle.com>
 	Suparna Bhattacharya <suparna@in.ibm.com>
 
 Last Updated May 2, 2002
@@ -21,7 +21,7 @@ Credits:
 ---------
 
 2.5 bio rewrite:
-	Jens Axboe <axboe@suse.de>
+	Jens Axboe <jens.axboe@oracle.com>
 
 Many aspects of the generic block layer redesign were driven by and evolved
 over discussions, prior patches and the collective experience of several

@@ -360,6 +360,7 @@ static struct scsi_host_template driver_template = {
 	.max_sectors		= 1024,
 	.cmd_per_lun		= SIMSCSI_REQ_QUEUE_LEN,
 	.use_clustering		= DISABLE_CLUSTERING,
+	.use_sg_chaining	= ENABLE_SG_CHAINING,
 };
 
 static int __init

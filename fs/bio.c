@@ -109,11 +109,14 @@ static inline struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned lon
 
 void bio_free(struct bio *bio, struct bio_set *bio_set)
 {
-	const int pool_idx = BIO_POOL_IDX(bio);
+	if (bio->bi_io_vec) {
+		const int pool_idx = BIO_POOL_IDX(bio);
 
-	BIO_BUG_ON(pool_idx >= BIOVEC_NR_POOLS);
+		BIO_BUG_ON(pool_idx >= BIOVEC_NR_POOLS);
 
-	mempool_free(bio->bi_io_vec, bio_set->bvec_pools[pool_idx]);
+		mempool_free(bio->bi_io_vec, bio_set->bvec_pools[pool_idx]);
+	}
+
 	mempool_free(bio, bio_set->bio_pool);
 }
 
@@ -127,21 +130,9 @@ static void bio_fs_destructor(struct bio *bio)
 
 void bio_init(struct bio *bio)
 {
-	bio->bi_next = NULL;
-	bio->bi_bdev = NULL;
+	memset(bio, 0, sizeof(*bio));
 	bio->bi_flags = 1 << BIO_UPTODATE;
-	bio->bi_rw = 0;
-	bio->bi_vcnt = 0;
-	bio->bi_idx = 0;
-	bio->bi_phys_segments = 0;
-	bio->bi_hw_segments = 0;
-	bio->bi_hw_front_size = 0;
-	bio->bi_hw_back_size = 0;
-	bio->bi_size = 0;
-	bio->bi_max_vecs = 0;
-	bio->bi_end_io = NULL;
 	atomic_set(&bio->bi_cnt, 1);
-	bio->bi_private = NULL;
 }
 
 /**

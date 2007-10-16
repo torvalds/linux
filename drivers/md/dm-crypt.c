@@ -441,33 +441,12 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 	return clone;
 }
 
-static void crypt_free_buffer_pages(struct crypt_config *cc,
-                                    struct bio *clone, unsigned int bytes)
+static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 {
-	unsigned int i, start, end;
+	unsigned int i;
 	struct bio_vec *bv;
 
-	/*
-	 * This is ugly, but Jens Axboe thinks that using bi_idx in the
-	 * endio function is too dangerous at the moment, so I calculate the
-	 * correct position using bi_vcnt and bi_size.
-	 * The bv_offset and bv_len fields might already be modified but we
-	 * know that we always allocated whole pages.
-	 * A fix to the bi_idx issue in the kernel is in the works, so
-	 * we will hopefully be able to revert to the cleaner solution soon.
-	 */
-	i = clone->bi_vcnt - 1;
-	bv = bio_iovec_idx(clone, i);
-	end = (i << PAGE_SHIFT) + (bv->bv_offset + bv->bv_len) - clone->bi_size;
-	start = end - bytes;
-
-	start >>= PAGE_SHIFT;
-	if (!clone->bi_size)
-		end = clone->bi_vcnt;
-	else
-		end >>= PAGE_SHIFT;
-
-	for (i = start; i < end; i++) {
+	for (i = 0; i < clone->bi_vcnt; i++) {
 		bv = bio_iovec_idx(clone, i);
 		BUG_ON(!bv->bv_page);
 		mempool_free(bv->bv_page, cc->page_pool);
@@ -519,7 +498,7 @@ static void crypt_endio(struct bio *clone, int error)
 	 * free the processed pages
 	 */
 	if (!read_io) {
-		crypt_free_buffer_pages(cc, clone, clone->bi_size);
+		crypt_free_buffer_pages(cc, clone);
 		goto out;
 	}
 
@@ -608,7 +587,7 @@ static void process_write(struct dm_crypt_io *io)
 		ctx.idx_out = 0;
 
 		if (unlikely(crypt_convert(cc, &ctx) < 0)) {
-			crypt_free_buffer_pages(cc, clone, clone->bi_size);
+			crypt_free_buffer_pages(cc, clone);
 			bio_put(clone);
 			dec_pending(io, -EIO);
 			return;

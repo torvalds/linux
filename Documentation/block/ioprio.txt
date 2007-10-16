@@ -180,4 +180,4 @@ int main(int argc, char *argv[])
 ---> snip ionice.c tool <---
 
 
-March 11 2005, Jens Axboe <axboe@suse.de>
+March 11 2005, Jens Axboe <jens.axboe@oracle.com>

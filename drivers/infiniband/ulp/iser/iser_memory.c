@@ -124,17 +124,19 @@ static int iser_start_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
 
 	if (cmd_dir == ISER_DIR_OUT) {
 		/* copy the unaligned sg the buffer which is used for RDMA */
-		struct scatterlist *sg = (struct scatterlist *)data->buf;
+		struct scatterlist *sgl = (struct scatterlist *)data->buf;
+		struct scatterlist *sg;
 		int i;
 		char *p, *from;
 
-		for (p = mem, i = 0; i < data->size; i++) {
-			from = kmap_atomic(sg[i].page, KM_USER0);
+		p = mem;
+		for_each_sg(sgl, sg, data->size, i) {
+			from = kmap_atomic(sg->page, KM_USER0);
 			memcpy(p,
-			       from + sg[i].offset,
-			       sg[i].length);
+			       from + sg->offset,
+			       sg->length);
 			kunmap_atomic(from, KM_USER0);
-			p += sg[i].length;
+			p += sg->length;
 		}
 	}
 
@@ -176,7 +178,7 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
 
 	if (cmd_dir == ISER_DIR_IN) {
 		char *mem;
-		struct scatterlist *sg;
+		struct scatterlist *sgl, *sg;
 		unsigned char *p, *to;
 		unsigned int sg_size;
 		int i;
@@ -184,16 +186,17 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
 		/* copy back read RDMA to unaligned sg */
 		mem	= mem_copy->copy_buf;
 
-		sg	= (struct scatterlist *)iser_ctask->data[ISER_DIR_IN].buf;
+		sgl	= (struct scatterlist *)iser_ctask->data[ISER_DIR_IN].buf;
 		sg_size = iser_ctask->data[ISER_DIR_IN].size;
 
-		for (p = mem, i = 0; i < sg_size; i++){
-			to = kmap_atomic(sg[i].page, KM_SOFTIRQ0);
-			memcpy(to + sg[i].offset,
+		p = mem;
+		for_each_sg(sgl, sg, sg_size, i) {
+			to = kmap_atomic(sg->page, KM_SOFTIRQ0);
+			memcpy(to + sg->offset,
 			       p,
-			       sg[i].length);
+			       sg->length);
 			kunmap_atomic(to, KM_SOFTIRQ0);
-			p += sg[i].length;
+			p += sg->length;
 		}
 	}
 
@@ -224,7 +227,8 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 			       struct iser_page_vec *page_vec,
 			       struct ib_device *ibdev)
 {
-	struct scatterlist *sg = (struct scatterlist *)data->buf;
+	struct scatterlist *sgl = (struct scatterlist *)data->buf;
+	struct scatterlist *sg;
 	u64 first_addr, last_addr, page;
 	int end_aligned;
 	unsigned int cur_page = 0;
@@ -232,24 +236,25 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 	int i;
 
 	/* compute the offset of first element */
-	page_vec->offset = (u64) sg[0].offset & ~MASK_4K;
+	page_vec->offset = (u64) sgl[0].offset & ~MASK_4K;
 
-	for (i = 0; i < data->dma_nents; i++) {
-		unsigned int dma_len = ib_sg_dma_len(ibdev, &sg[i]);
+	for_each_sg(sgl, sg, data->dma_nents, i) {
+		unsigned int dma_len = ib_sg_dma_len(ibdev, sg);
 
 		total_sz += dma_len;
 
-		first_addr = ib_sg_dma_address(ibdev, &sg[i]);
+		first_addr = ib_sg_dma_address(ibdev, sg);
 		last_addr  = first_addr + dma_len;
 
 		end_aligned   = !(last_addr  & ~MASK_4K);
 
 		/* continue to collect page fragments till aligned or SG ends */
 		while (!end_aligned && (i + 1 < data->dma_nents)) {
+			sg = sg_next(sg);
 			i++;
-			dma_len = ib_sg_dma_len(ibdev, &sg[i]);
+			dma_len = ib_sg_dma_len(ibdev, sg);
 			total_sz += dma_len;
-			last_addr = ib_sg_dma_address(ibdev, &sg[i]) + dma_len;
+			last_addr = ib_sg_dma_address(ibdev, sg) + dma_len;
 			end_aligned = !(last_addr  & ~MASK_4K);
 		}
 
@@ -284,25 +289,26 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 static unsigned int iser_data_buf_aligned_len(struct iser_data_buf *data,
 					      struct ib_device *ibdev)
 {
-	struct scatterlist *sg;
+	struct scatterlist *sgl, *sg;
 	u64 end_addr, next_addr;
 	int i, cnt;
 	unsigned int ret_len = 0;
 
-	sg = (struct scatterlist *)data->buf;
+	sgl = (struct scatterlist *)data->buf;
 
-	for (cnt = 0, i = 0; i < data->dma_nents; i++, cnt++) {
+	cnt = 0;
+	for_each_sg(sgl, sg, data->dma_nents, i) {
 		/* iser_dbg("Checking sg iobuf [%d]: phys=0x%08lX "
 		   "offset: %ld sz: %ld\n", i,
-		   (unsigned long)page_to_phys(sg[i].page),
-		   (unsigned long)sg[i].offset,
-		   (unsigned long)sg[i].length); */
-		end_addr = ib_sg_dma_address(ibdev, &sg[i]) +
-			   ib_sg_dma_len(ibdev, &sg[i]);
+		   (unsigned long)page_to_phys(sg->page),
+		   (unsigned long)sg->offset,
+		   (unsigned long)sg->length); */
+		end_addr = ib_sg_dma_address(ibdev, sg) +
+			   ib_sg_dma_len(ibdev, sg);
 		/* iser_dbg("Checking sg iobuf end address "
 		       "0x%08lX\n", end_addr); */
 		if (i + 1 < data->dma_nents) {
-			next_addr = ib_sg_dma_address(ibdev, &sg[i+1]);
+			next_addr = ib_sg_dma_address(ibdev, sg_next(sg));
 			/* are i, i+1 fragments of the same page? */
 			if (end_addr == next_addr)
 				continue;
@@ -322,15 +328,16 @@ static unsigned int iser_data_buf_aligned_len(struct iser_data_buf *data,
 static void iser_data_buf_dump(struct iser_data_buf *data,
 			       struct ib_device *ibdev)
 {
-	struct scatterlist *sg = (struct scatterlist *)data->buf;
+	struct scatterlist *sgl = (struct scatterlist *)data->buf;
+	struct scatterlist *sg;
 	int i;
 
-	for (i = 0; i < data->dma_nents; i++)
+	for_each_sg(sgl, sg, data->dma_nents, i)
 		iser_err("sg[%d] dma_addr:0x%lX page:0x%p "
 			 "off:0x%x sz:0x%x dma_len:0x%x\n",
-			 i, (unsigned long)ib_sg_dma_address(ibdev, &sg[i]),
-			 sg[i].page, sg[i].offset,
-			 sg[i].length, ib_sg_dma_len(ibdev, &sg[i]));
+			 i, (unsigned long)ib_sg_dma_address(ibdev, sg),
+			 sg->page, sg->offset,
+			 sg->length, ib_sg_dma_len(ibdev, sg));
 }
 
 static void iser_dump_page_vec(struct iser_page_vec *page_vec)

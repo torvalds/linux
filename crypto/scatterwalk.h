@@ -20,7 +20,7 @@
 
 #include "internal.h"
 
-static inline struct scatterlist *sg_next(struct scatterlist *sg)
+static inline struct scatterlist *scatterwalk_sg_next(struct scatterlist *sg)
 {
 	return (++sg)->length ? sg : (void *)sg->page;
 }

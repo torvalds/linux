@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/kdebug.h>
+#include <linux/scatterlist.h>
 #include <asm/atomic.h>
 #include <asm/io.h>
 #include <asm/mtrr.h>
@@ -278,10 +279,10 @@ static void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
  */
 static void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 {
+	struct scatterlist *s;
 	int i;
 
-	for (i = 0; i < nents; i++) {
-		struct scatterlist *s = &sg[i];
+	for_each_sg(sg, s, nents, i) {
 		if (!s->dma_length || !s->length)
 			break;
 		gart_unmap_single(dev, s->dma_address, s->dma_length, dir);
@@ -292,14 +293,14 @@ static void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 			       int nents, int dir)
 {
+	struct scatterlist *s;
 	int i;
 
 #ifdef CONFIG_IOMMU_DEBUG
 	printk(KERN_DEBUG "dma_map_sg overflow\n");
 #endif
 
- 	for (i = 0; i < nents; i++ ) {
-		struct scatterlist *s = &sg[i];
+	for_each_sg(sg, s, nents, i) {
 		unsigned long addr = page_to_phys(s->page) + s->offset; 
 		if (nonforced_iommu(dev, addr, s->length)) { 
 			addr = dma_map_area(dev, addr, s->length, dir);
@@ -319,23 +320,23 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 }
 
 /* Map multiple scatterlist entries continuous into the first. */
-static int __dma_map_cont(struct scatterlist *sg, int start, int stopat,
+static int __dma_map_cont(struct scatterlist *start, int nelems,
 		      struct scatterlist *sout, unsigned long pages)
 {
 	unsigned long iommu_start = alloc_iommu(pages);
 	unsigned long iommu_page = iommu_start; 
+	struct scatterlist *s;
 	int i;
 
 	if (iommu_start == -1)
 		return -1;
-	
-	for (i = start; i < stopat; i++) {
-		struct scatterlist *s = &sg[i];
+
+	for_each_sg(start, s, nelems, i) {
 		unsigned long pages, addr;
 		unsigned long phys_addr = s->dma_address;
 		
-		BUG_ON(i > start && s->offset);
-		if (i == start) {
+		BUG_ON(s != start && s->offset);
+		if (s == start) {
 			*sout = *s; 
 			sout->dma_address = iommu_bus_base;
 			sout->dma_address += iommu_page*PAGE_SIZE + s->offset;
@@ -357,17 +358,17 @@ static int __dma_map_cont(struct scatterlist *sg, int start, int stopat,
 	return 0;
 }
 
-static inline int dma_map_cont(struct scatterlist *sg, int start, int stopat,
+static inline int dma_map_cont(struct scatterlist *start, int nelems,
 		      struct scatterlist *sout,
 		      unsigned long pages, int need)
 {
-	if (!need) { 
-		BUG_ON(stopat - start != 1);
-		*sout = sg[start]; 
-		sout->dma_length = sg[start].length; 
+	if (!need) {
+		BUG_ON(nelems != 1);
+		*sout = *start;
+		sout->dma_length = start->length;
 		return 0;
-	} 
-	return __dma_map_cont(sg, start, stopat, sout, pages);
+	}
+	return __dma_map_cont(start, nelems, sout, pages);
 }
 		
 /*
@@ -381,6 +382,7 @@ int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 	int start;
 	unsigned long pages = 0;
 	int need = 0, nextneed;
+	struct scatterlist *s, *ps, *start_sg, *sgmap;
 
 	if (nents == 0) 
 		return 0;
@@ -390,8 +392,9 @@ int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 
 	out = 0;
 	start = 0;
-	for (i = 0; i < nents; i++) {
-		struct scatterlist *s = &sg[i];
+	start_sg = sgmap = sg;
+	ps = NULL; /* shut up gcc */
+	for_each_sg(sg, s, nents, i) {
 		dma_addr_t addr = page_to_phys(s->page) + s->offset;
 		s->dma_address = addr;
 		BUG_ON(s->length == 0); 
@@ -400,29 +403,33 @@ int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 
 		/* Handle the previous not yet processed entries */
 		if (i > start) {
-			struct scatterlist *ps = &sg[i-1];
 			/* Can only merge when the last chunk ends on a page 
 			   boundary and the new one doesn't have an offset. */
 			if (!iommu_merge || !nextneed || !need || s->offset ||
-			    (ps->offset + ps->length) % PAGE_SIZE) { 
-				if (dma_map_cont(sg, start, i, sg+out, pages,
-						 need) < 0)
+			    (ps->offset + ps->length) % PAGE_SIZE) {
+				if (dma_map_cont(start_sg, i - start, sgmap,
+						  pages, need) < 0)
 					goto error;
 				out++;
+				sgmap = sg_next(sgmap);
 				pages = 0;
-				start = i;	
+				start = i;
+				start_sg = s;
 			}
 		}
 
 		need = nextneed;
 		pages += to_pages(s->offset, s->length);
+		ps = s;
 	}
-	if (dma_map_cont(sg, start, i, sg+out, pages, need) < 0)
+	if (dma_map_cont(start_sg, i - start, sgmap, pages, need) < 0)
 		goto error;
 	out++;
 	flush_gart();
-	if (out < nents) 
-		sg[out].dma_length = 0; 
+	if (out < nents) {
+		sgmap = sg_next(sgmap);
+		sgmap->dma_length = 0;
+	}
 	return out;
 
 error:
@@ -437,8 +444,8 @@ error:
 	if (panic_on_overflow)
 		panic("dma_map_sg: overflow on %lu pages\n", pages);
 	iommu_full(dev, pages << PAGE_SHIFT, dir);
-	for (i = 0; i < nents; i++)
-		sg[i].dma_address = bad_dma_address;
+	for_each_sg(sg, s, nents, i)
+		s->dma_address = bad_dma_address;
 	return 0;
 } 
 
