@@ -287,9 +287,17 @@ int start_userspace(unsigned long stub_stack)
 
 void userspace(struct uml_pt_regs *regs)
 {
+	struct itimerval timer;
+	unsigned long long nsecs, now;
 	int err, status, op, pid = userspace_pid[0];
 	/* To prevent races if using_sysemu changes under us.*/
 	int local_using_sysemu;
+
+	if (getitimer(ITIMER_VIRTUAL, &timer))
+		printk("Failed to get itimer, errno = %d\n", errno);
+	nsecs = timer.it_value.tv_sec * BILLION +
+		timer.it_value.tv_usec * 1000;
+	nsecs += os_nsecs();
 
 	while (1) {
 		restore_registers(pid, regs);
@@ -333,8 +341,18 @@ void userspace(struct uml_pt_regs *regs)
 			case SIGTRAP:
 				relay_signal(SIGTRAP, regs);
 				break;
-			case SIGIO:
 			case SIGVTALRM:
+				now = os_nsecs();
+				if(now < nsecs)
+					break;
+				block_signals();
+				(*sig_info[sig])(sig, regs);
+				unblock_signals();
+				nsecs = timer.it_value.tv_sec * BILLION +
+					timer.it_value.tv_usec * 1000;
+				nsecs += os_nsecs();
+				break;
+			case SIGIO:
 			case SIGILL:
 			case SIGBUS:
 			case SIGFPE:
@@ -378,6 +396,7 @@ __initcall(init_thread_regs);
 
 int copy_context_skas0(unsigned long new_stack, int pid)
 {
+	struct timeval tv = { .tv_sec = 0, .tv_usec = 1000000 / UM_HZ };
 	int err;
 	unsigned long current_stack = current_stub_stack();
 	struct stub_data *data = (struct stub_data *) current_stack;
@@ -392,9 +411,9 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	*data = ((struct stub_data) { .offset	= MMAP_OFFSET(new_offset),
 				      .fd	= new_fd,
 				      .timer    = ((struct itimerval)
-					            { { 0, 1000000 / UM_HZ },
-						      { 0, 1000000 / UM_HZ }})
-				 });
+					           { .it_value = tv,
+						     .it_interval = tv }) });
+
 	err = ptrace_setregs(pid, thread_regs);
 	if (err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
