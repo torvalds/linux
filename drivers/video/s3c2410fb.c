@@ -172,19 +172,28 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 	struct s3c2410fb_info *fbi = info->par;
 	struct s3c2410fb_mach_info *mach_info = fbi->dev->platform_data;
 	struct s3c2410fb_display *display = NULL;
+	struct s3c2410fb_display *default_display = mach_info->displays +
+						    mach_info->default_display;
+	int type = default_display->type;
 	unsigned i;
 
 	dprintk("check_var(var=%p, info=%p)\n", var, info);
 
 	/* validate x/y resolution */
-
-	for (i = 0; i < mach_info->num_displays; i++)
-		if (var->yres == mach_info->displays[i].yres &&
-		    var->xres == mach_info->displays[i].xres &&
-		    var->bits_per_pixel == mach_info->displays[i].bpp) {
-			display = mach_info->displays + i;
-			break;
-		}
+	/* choose default mode if possible */
+	if (var->yres == default_display->yres &&
+	    var->xres == default_display->xres &&
+	    var->bits_per_pixel == default_display->bpp)
+		display = default_display;
+	else
+		for (i = 0; i < mach_info->num_displays; i++)
+			if (type == mach_info->displays[i].type &&
+			    var->yres == mach_info->displays[i].yres &&
+			    var->xres == mach_info->displays[i].xres &&
+			    var->bits_per_pixel == mach_info->displays[i].bpp) {
+				display = mach_info->displays + i;
+				break;
+			}
 
 	if (!display) {
 		dprintk("wrong resolution or depth %dx%d at %d bpp\n",
