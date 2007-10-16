@@ -27,25 +27,25 @@
 #define SIDNAMELENGTH 20 /* long enough for the ones we care about */
 
 struct cifs_ntsd {
-	__u16 revision; /* revision level */
-	__u16 type;
-	__u32 osidoffset;
-	__u32 gsidoffset;
-	__u32 sacloffset;
-	__u32 dacloffset;
+	__le16 revision; /* revision level */
+	__le16 type;
+	__le32 osidoffset;
+	__le32 gsidoffset;
+	__le32 sacloffset;
+	__le32 dacloffset;
 } __attribute__((packed));
 
 struct cifs_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[6];
-	__u32 sub_auth[5]; /* sub_auth[num_subauth] */
+	__le32 sub_auth[5]; /* sub_auth[num_subauth] */ /* BB FIXME endianness BB */
 } __attribute__((packed));
 
 struct cifs_acl {
-	__u16 revision; /* revision level */
-	__u16 size;
-	__u32 num_aces;
+	__le16 revision; /* revision level */
+	__le16 size;
+	__le32 num_aces;
 } __attribute__((packed));
 
 struct cifs_ntace { /* first part of ACE which contains perms */
@@ -59,7 +59,7 @@ struct cifs_ace { /* last part of ACE which includes user info */
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[6];
-	__u32 sub_auth[5];
+	__le32 sub_auth[5];
 } __attribute__((packed));
 
 struct cifs_wksid {
@@ -69,7 +69,6 @@ struct cifs_wksid {
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 
-extern struct cifs_wksid wksidarr[NUM_WK_SIDS];
 extern int match_sid(struct cifs_sid *);
 extern int compare_sids(struct cifs_sid *, struct cifs_sid *);
 

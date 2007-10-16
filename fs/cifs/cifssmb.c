@@ -3121,7 +3121,7 @@ CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
 
 /* BB check that data area is minimum length and as big as acl_len */
 
-		acl_len = le32_to_cpu(*(__le32 *)parm);
+		acl_len = le32_to_cpu(*parm);
 		/* BB check if (acl_len > bufsize) */
 
 		parse_sec_desc(psec_desc, acl_len);

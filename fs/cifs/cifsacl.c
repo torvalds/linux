@@ -31,7 +31,7 @@
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 
-struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
+static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 	{{1, 0, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0} }, "null user"},
 	{{1, 1, {0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0} }, "nobody"},
 	{{1, 1, {0, 0, 0, 0, 0, 5}, {11, 0, 0, 0, 0} }, "net-users"},
@@ -192,14 +192,15 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 	/* BB need to add parm so we can store the SID BB */
 
 	/* validate that we do not go past end of acl */
-	if (end_of_acl < (char *)pdacl + pdacl->size) {
+	if (end_of_acl < (char *)pdacl + le16_to_cpu(pdacl->size)) {
 		cERROR(1, ("ACL too small to parse DACL"));
 		return;
 	}
 
 #ifdef CONFIG_CIFS_DEBUG2
 	cFYI(1, ("DACL revision %d size %d num aces %d",
-		pdacl->revision, pdacl->size, pdacl->num_aces));
+		le16_to_cpu(pdacl->revision), le16_to_cpu(pdacl->size),
+		le32_to_cpu(pdacl->num_aces)));
 #endif
 
 	acl_base = (char *)pdacl;
@@ -255,7 +256,6 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 
 static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 {
-	int num_subauth;
 
 	/* BB need to add parm so we can store the SID BB */
 
@@ -265,14 +265,13 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 		return -EINVAL;
 	}
 
-	num_subauth = cpu_to_le32(psid->num_subauth);
-	if (num_subauth) {
+	if (psid->num_subauth) {
 #ifdef CONFIG_CIFS_DEBUG2
 		int i;
 		cFYI(1, ("SID revision %d num_auth %d First subauth 0x%x",
 			psid->revision, psid->num_subauth, psid->sub_auth[0]));
 
-		for (i = 0; i < num_subauth; ++i) {
+		for (i = 0; i < psid->num_subauth; i++) {
 			cFYI(1, ("SID sub_auth[%d]: 0x%x ", i,
 				le32_to_cpu(psid->sub_auth[i])));
 		}
@@ -280,7 +279,7 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 		/* BB add length check to make sure that we do not have huge
 			num auths and therefore go off the end */
 		cFYI(1, ("RID 0x%x",
-			le32_to_cpu(psid->sub_auth[num_subauth-1])));
+			le32_to_cpu(psid->sub_auth[psid->num_subauth-1])));
 #endif
 	}
 
@@ -297,17 +296,18 @@ int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len)
 	char *end_of_acl = ((char *)pntsd) + acl_len;
 
 	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
-				cpu_to_le32(pntsd->osidoffset));
+				le32_to_cpu(pntsd->osidoffset));
 	group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
-				cpu_to_le32(pntsd->gsidoffset));
+				le32_to_cpu(pntsd->gsidoffset));
 	dacl_ptr = (struct cifs_acl *)((char *)pntsd +
-				cpu_to_le32(pntsd->dacloffset));
+				le32_to_cpu(pntsd->dacloffset));
 #ifdef CONFIG_CIFS_DEBUG2
 	cFYI(1, ("revision %d type 0x%x ooffset 0x%x goffset 0x%x "
 		 "sacloffset 0x%x dacloffset 0x%x",
-		 pntsd->revision, pntsd->type,
-		 pntsd->osidoffset, pntsd->gsidoffset, pntsd->sacloffset,
-		 pntsd->dacloffset));
+		 pntsd->revision, pntsd->type, le32_to_cpu(pntsd->osidoffset),
+		 le32_to_cpu(pntsd->gsidoffset),
+		 le32_to_cpu(pntsd->sacloffset),
+		 le32_to_cpu(pntsd->dacloffset));
 #endif
 	rc = parse_sid(owner_sid_ptr, end_of_acl);
 	if (rc)
