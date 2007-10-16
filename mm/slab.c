@@ -4446,7 +4446,8 @@ const struct seq_operations slabstats_op = {
  */
 size_t ksize(const void *objp)
 {
-	if (unlikely(ZERO_OR_NULL_PTR(objp)))
+	BUG_ON(!objp);
+	if (unlikely(objp == ZERO_SIZE_PTR))
 		return 0;
 
 	return obj_size(virt_to_cache(objp));

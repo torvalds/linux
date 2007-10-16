@@ -81,14 +81,16 @@ EXPORT_SYMBOL(kmemdup);
 void *krealloc(const void *p, size_t new_size, gfp_t flags)
 {
 	void *ret;
-	size_t ks;
+	size_t ks = 0;
 
 	if (unlikely(!new_size)) {
 		kfree(p);
 		return ZERO_SIZE_PTR;
 	}
 
-	ks = ksize(p);
+	if (p)
+		ks = ksize(p);
+
 	if (ks >= new_size)
 		return (void *)p;
 

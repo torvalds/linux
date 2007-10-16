@@ -484,7 +484,8 @@ size_t ksize(const void *block)
 {
 	struct slob_page *sp;
 
-	if (unlikely(ZERO_OR_NULL_PTR(block)))
+	BUG_ON(!block);
+	if (unlikely(block == ZERO_SIZE_PTR))
 		return 0;
 
 	sp = (struct slob_page *)virt_to_page(block);
