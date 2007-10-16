@@ -1029,9 +1029,6 @@ int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry)
 	int rc = 0;
 
 	ecryptfs_set_default_crypt_stat_vals(crypt_stat, mount_crypt_stat);
-	mutex_lock(&mount_crypt_stat->global_auth_tok_list_mutex);
-	BUG_ON(mount_crypt_stat->num_global_auth_toks == 0);
-	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
 	crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
 	ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
