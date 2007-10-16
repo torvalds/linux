@@ -54,14 +54,11 @@ struct page *zero_page_memmap_ptr;	/* map entry for zero page */
 EXPORT_SYMBOL(zero_page_memmap_ptr);
 
 void
-lazy_mmu_prot_update (pte_t pte)
+__ia64_sync_icache_dcache (pte_t pte)
 {
 	unsigned long addr;
 	struct page *page;
 	unsigned long order;
-
-	if (!pte_exec(pte))
-		return;				/* not an executable page... */
 
 	page = pte_page(pte);
 	addr = (unsigned long) page_address(page);

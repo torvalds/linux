@@ -436,7 +436,6 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma)
 		entry = pte_wrprotect(entry);
 		entry = pte_mkclean(entry);
 		set_pte_at(mm, address, pte, entry);
-		lazy_mmu_prot_update(entry);
 		ret = 1;
 	}
 

@@ -223,12 +223,6 @@ ia64_phys_addr_valid (unsigned long addr)
  * page table.
  */
 
-/*
- * On some architectures, special things need to be done when setting
- * the PTE in a page table.  Nothing special needs to be on IA-64.
- */
-#define set_pte(ptep, pteval)	(*(ptep) = (pteval))
-#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
 #define VMALLOC_START		(RGN_BASE(RGN_GATE) + 0x200000000UL)
 #ifdef CONFIG_VIRTUAL_MEM_MAP
@@ -319,6 +313,36 @@ ia64_phys_addr_valid (unsigned long addr)
 #define pte_mkclean(pte)	(__pte(pte_val(pte) & ~_PAGE_D))
 #define pte_mkdirty(pte)	(__pte(pte_val(pte) | _PAGE_D))
 #define pte_mkhuge(pte)		(__pte(pte_val(pte)))
+
+/*
+ * Because ia64's Icache and Dcache is not coherent (on a cpu), we need to
+ * sync icache and dcache when we insert *new* executable page.
+ *  __ia64_sync_icache_dcache() check Pg_arch_1 bit and flush icache
+ * if necessary.
+ *
+ *  set_pte() is also called by the kernel, but we can expect that the kernel
+ *  flushes icache explicitly if necessary.
+ */
+#define pte_present_exec_user(pte)\
+	((pte_val(pte) & (_PAGE_P | _PAGE_PL_MASK | _PAGE_AR_RX)) == \
+		(_PAGE_P | _PAGE_PL_3 | _PAGE_AR_RX))
+
+extern void __ia64_sync_icache_dcache(pte_t pteval);
+static inline void set_pte(pte_t *ptep, pte_t pteval)
+{
+	/* page is present && page is user  && page is executable
+	 * && (page swapin or new page or page migraton
+	 *	|| copy_on_write with page copying.)
+	 */
+	if (pte_present_exec_user(pteval) &&
+	    (!pte_present(*ptep) ||
+		pte_pfn(*ptep) != pte_pfn(pteval)))
+		/* load_module() calles flush_icache_range() explicitly*/
+		__ia64_sync_icache_dcache(pteval);
+	*ptep = pteval;
+}
+
+#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
 /*
  * Make page protection values cacheable, uncacheable, or write-
@@ -489,12 +513,6 @@ extern struct page *zero_page_memmap_ptr;
 #define HUGETLB_PGDIR_MASK	(~(HUGETLB_PGDIR_SIZE-1))
 #endif
 
-/*
- * IA-64 doesn't have any external MMU info: the page tables contain all the necessary
- * information.  However, we use this routine to take care of any (delayed) i-cache
- * flushing that may be necessary.
- */
-extern void lazy_mmu_prot_update (pte_t pte);
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 /*
@@ -584,7 +602,7 @@ extern void lazy_mmu_prot_update (pte_t pte);
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME
 #define __HAVE_ARCH_PGD_OFFSET_GATE
-#define __HAVE_ARCH_LAZY_MMU_PROT_UPDATE
+
 
 #ifndef CONFIG_PGTABLE_4
 #include <asm-generic/pgtable-nopud.h>
