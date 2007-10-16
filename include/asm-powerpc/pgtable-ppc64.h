@@ -68,6 +68,14 @@
 #define USER_REGION_ID		(0UL)
 
 /*
+ * Defines the address of the vmemap area, in the top 16th of the
+ * kernel region.
+ */
+#define VMEMMAP_BASE (ASM_CONST(CONFIG_KERNEL_START) + \
+					(0xfUL << (REGION_SHIFT - 4)))
+#define vmemmap ((struct page *)VMEMMAP_BASE)
+
+/*
  * Common bits in a linux-style PTE.  These match the bits in the
  * (hardware-defined) PowerPC PTE as closely as possible. Additional
  * bits may be defined in pgtable-*.h
