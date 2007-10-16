@@ -8,14 +8,13 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
-#include "kern_util.h"
 #include "kern_constants.h"
 #include "os.h"
 #include "user.h"
 
 int set_interval(int is_virtual)
 {
-	int usec = 1000000/hz();
+	int usec = 1000000/UM_HZ;
 	int timer_type = is_virtual ? ITIMER_VIRTUAL : ITIMER_REAL;
 	struct itimerval interval = ((struct itimerval) { { 0, usec },
 							  { 0, usec } });
@@ -43,8 +42,8 @@ void disable_timer(void)
 void switch_timers(int to_real)
 {
 	struct itimerval disable = ((struct itimerval) { { 0, 0 }, { 0, 0 }});
-	struct itimerval enable = ((struct itimerval) { { 0, 1000000/hz() },
-							{ 0, 1000000/hz() }});
+	struct itimerval enable = ((struct itimerval) { { 0, 1000000/UM_HZ },
+							{ 0, 1000000/UM_HZ }});
 	int old, new;
 
 	if (to_real) {

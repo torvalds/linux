@@ -11,11 +11,6 @@
 #include "kern_util.h"
 #include "os.h"
 
-int hz(void)
-{
-	return HZ;
-}
-
 /*
  * Scheduler clock - returns current time in nanosec units.
  */

@@ -392,8 +392,9 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	*data = ((struct stub_data) { .offset	= MMAP_OFFSET(new_offset),
 				      .fd	= new_fd,
 				      .timer    = ((struct itimerval)
-					            { { 0, 1000000 / hz() },
-						      { 0, 1000000 / hz() }})});
+					            { { 0, 1000000 / UM_HZ },
+						      { 0, 1000000 / UM_HZ }})
+				 });
 	err = ptrace_setregs(pid, thread_regs);
 	if (err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "

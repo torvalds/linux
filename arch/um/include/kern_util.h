@@ -64,7 +64,6 @@ extern void paging_init(void);
 extern void init_flush_vm(void);
 extern void *syscall_sp(void *t);
 extern void syscall_trace(struct uml_pt_regs *regs, int entryexit);
-extern int hz(void);
 extern unsigned int do_IRQ(int irq, struct uml_pt_regs *regs);
 extern void interrupt_end(void);
 extern void initial_thread_cb(void (*proc)(void *), void *arg);
