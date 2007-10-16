@@ -1,1 +1,1 @@
-unifdef-y += sisfb.h
+unifdef-y += sisfb.h uvesafb.h

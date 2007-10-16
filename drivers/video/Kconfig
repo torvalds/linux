@@ -592,6 +592,24 @@ config FB_TGA
 
 	  Say Y if you have one of those.
 
+config FB_UVESA
+	tristate "Userspace VESA VGA graphics support"
+	depends on FB && CONNECTOR
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	help
+	  This is the frame buffer driver for generic VBE 2.0 compliant
+	  graphic cards. It can also take advantage of VBE 3.0 features,
+	  such as refresh rate adjustment.
+
+	  This driver generally provides more features than vesafb but
+	  requires a userspace helper application called 'v86d'. See
+	  <file:Documentation/fb/uvesafb.txt> for more information.
+
+	  If unsure, say N.
+
 config FB_VESA
 	bool "VESA VGA graphics support"
 	depends on (FB = y) && X86
