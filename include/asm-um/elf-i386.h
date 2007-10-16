@@ -5,7 +5,8 @@
 #ifndef __UM_ELF_I386_H
 #define __UM_ELF_I386_H
 
-#include <asm/user.h>
+#include <linux/sched.h>
+#include "skas.h"
 
 #define R_386_NONE	0
 #define R_386_32	1
@@ -74,6 +75,15 @@ typedef struct user_i387_struct elf_fpregset_t;
 	pr_reg[15] = PT_REGS_SP(regs);		\
 	pr_reg[16] = PT_REGS_SS(regs);		\
 } while(0);
+
+static inline int elf_core_copy_fpregs(struct task_struct *t,
+				       elf_fpregset_t *fpu)
+{
+	int cpu = ((struct thread_info *) t->stack)->cpu;
+	return save_fp_registers(userspace_pid[cpu], (unsigned long *) fpu);
+}
+
+#define ELF_CORE_COPY_FPREGS(t, fpu) elf_core_copy_fpregs(t, fpu)
 
 extern long elf_aux_hwcap;
 #define ELF_HWCAP (elf_aux_hwcap)

@@ -205,28 +205,6 @@ int set_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 	return restore_fpx_registers(userspace_pid[cpu], fpregs);
 }
 
-#ifdef notdef
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
-{
-	fpu->cwd = (((SC_FP_CW(PT_REGS_SC(regs)) & 0xffff) << 16) |
-		    (SC_FP_SW(PT_REGS_SC(regs)) & 0xffff));
-	fpu->swd = SC_FP_CSSEL(PT_REGS_SC(regs)) & 0xffff;
-	fpu->twd = SC_FP_IPOFF(PT_REGS_SC(regs));
-	fpu->fip = SC_FP_CSSEL(PT_REGS_SC(regs)) & 0xffff;
-	fpu->fcs = SC_FP_DATAOFF(PT_REGS_SC(regs));
-	fpu->foo = SC_FP_DATASEL(PT_REGS_SC(regs));
-	fpu->fos = 0;
-	memcpy(fpu->st_space, (void *) SC_FP_ST(PT_REGS_SC(regs)),
-	       sizeof(fpu->st_space));
-	return 1;
-}
-#endif
-
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu )
-{
-	return 1;
-}
-
 long subarch_ptrace(struct task_struct *child, long request, long addr,
 		    long data)
 {
