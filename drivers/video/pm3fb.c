@@ -558,7 +558,8 @@ static void pm3fb_imageblit(struct fb_info *info, const struct fb_image *image)
 
 
 	while (height--) {
-		int width = ((image->width + 7) >> 3) + info->pixmap.scan_align;
+		int width = ((image->width + 7) >> 3)
+				+ info->pixmap.scan_align - 1;
 		width >>= 2;
 
 		while (width >= PM3_FIFO_SIZE) {
@@ -1194,6 +1195,10 @@ static int __devinit pm3fb_probe(struct pci_dev *dev,
 	 */
 	pm3fb_fix.mmio_start = pci_resource_start(dev, 0);
 	pm3fb_fix.mmio_len = PM3_REGS_SIZE;
+#if defined(__BIG_ENDIAN)
+	pm3fb_fix.mmio_start += PM3_REGS_SIZE;
+	DPRINTK("Adjusting register base for big-endian.\n");
+#endif
 
 	/* Registers - request region and map it. */
 	if (!request_mem_region(pm3fb_fix.mmio_start, pm3fb_fix.mmio_len,
@@ -1210,10 +1215,6 @@ static int __devinit pm3fb_probe(struct pci_dev *dev,
 		goto err_exit_neither;
 	}
 
-#if defined(__BIG_ENDIAN)
-	pm3fb_fix.mmio_start += PM3_REGS_SIZE;
-	DPRINTK("Adjusting register base for big-endian.\n");
-#endif
 	/* Linear frame buffer - request region and map it. */
 	pm3fb_fix.smem_start = pci_resource_start(dev, 1);
 	pm3fb_fix.smem_len = pm3fb_size_memory(par);
@@ -1243,7 +1244,8 @@ static int __devinit pm3fb_probe(struct pci_dev *dev,
 	info->fix = pm3fb_fix;
 	info->pseudo_palette = par->palette;
 	info->flags = FBINFO_DEFAULT |
-/*			FBINFO_HWACCEL_YPAN |*/
+			FBINFO_HWACCEL_XPAN |
+			FBINFO_HWACCEL_YPAN |
 			FBINFO_HWACCEL_COPYAREA |
 			FBINFO_HWACCEL_IMAGEBLIT |
 			FBINFO_HWACCEL_FILLRECT;
