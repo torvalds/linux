@@ -402,20 +402,24 @@ out:
  *
  * Returns Zero on success; non-zero error otherwise.
  */
-static int decrypt_pki_encrypted_session_key(
-	struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
-	struct ecryptfs_auth_tok *auth_tok,
-	struct ecryptfs_crypt_stat *crypt_stat)
+static int
+decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
+				  struct ecryptfs_crypt_stat *crypt_stat)
 {
 	u16 cipher_code = 0;
 	struct ecryptfs_msg_ctx *msg_ctx;
 	struct ecryptfs_message *msg = NULL;
+	char *auth_tok_sig;
 	char *netlink_message;
 	size_t netlink_message_length;
 	int rc;
 
-	rc = write_tag_64_packet(mount_crypt_stat->global_auth_tok_sig,
-				 &(auth_tok->session_key),
+	if ((rc = ecryptfs_get_auth_tok_sig(&auth_tok_sig, auth_tok))) {
+		printk(KERN_ERR "Unrecognized auth tok type: [%d]\n",
+		       auth_tok->token_type);
+		goto out;
+	}
+	rc = write_tag_64_packet(auth_tok_sig, &(auth_tok->session_key),
 				 &netlink_message, &netlink_message_length);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Failed to write tag 64 packet");
@@ -921,123 +925,238 @@ out:
 	return rc;
 }
 
+static int
+ecryptfs_find_global_auth_tok_for_sig(
+	struct ecryptfs_global_auth_tok **global_auth_tok,
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat, char *sig)
+{
+	struct ecryptfs_global_auth_tok *walker;
+	int rc = 0;
+
+	(*global_auth_tok) = NULL;
+	mutex_lock(&mount_crypt_stat->global_auth_tok_list_mutex);
+	list_for_each_entry(walker,
+			    &mount_crypt_stat->global_auth_tok_list,
+			    mount_crypt_stat_list) {
+		if (memcmp(walker->sig, sig, ECRYPTFS_SIG_SIZE_HEX) == 0) {
+			(*global_auth_tok) = walker;
+			goto out;
+		}
+	}
+	rc = -EINVAL;
+out:
+	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
+	return rc;
+}
+
 /**
- * decrypt_session_key - Decrypt the session key with the given auth_tok.
+ * ecryptfs_verify_version
+ * @version: The version number to confirm
+ *
+ * Returns zero on good version; non-zero otherwise
+ */
+static int ecryptfs_verify_version(u16 version)
+{
+	int rc = 0;
+	unsigned char major;
+	unsigned char minor;
+
+	major = ((version >> 8) & 0xFF);
+	minor = (version & 0xFF);
+	if (major != ECRYPTFS_VERSION_MAJOR) {
+		ecryptfs_printk(KERN_ERR, "Major version number mismatch. "
+				"Expected [%d]; got [%d]\n",
+				ECRYPTFS_VERSION_MAJOR, major);
+		rc = -EINVAL;
+		goto out;
+	}
+	if (minor != ECRYPTFS_VERSION_MINOR) {
+		ecryptfs_printk(KERN_ERR, "Minor version number mismatch. "
+				"Expected [%d]; got [%d]\n",
+				ECRYPTFS_VERSION_MINOR, minor);
+		rc = -EINVAL;
+		goto out;
+	}
+out:
+	return rc;
+}
+
+int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
+				      struct ecryptfs_auth_tok **auth_tok,
+				      char *sig)
+{
+	int rc = 0;
+
+	(*auth_tok_key) = request_key(&key_type_user, sig, NULL);
+	if (!(*auth_tok_key) || IS_ERR(*auth_tok_key)) {
+		printk(KERN_ERR "Could not find key with description: [%s]\n",
+		       sig);
+		process_request_key_err(PTR_ERR(*auth_tok_key));
+		rc = -EINVAL;
+		goto out;
+	}
+	(*auth_tok) = ecryptfs_get_key_payload_data(*auth_tok_key);
+	if (ecryptfs_verify_version((*auth_tok)->version)) {
+		printk(KERN_ERR
+		       "Data structure version mismatch. "
+		       "Userspace tools must match eCryptfs "
+		       "kernel module with major version [%d] "
+		       "and minor version [%d]\n",
+		       ECRYPTFS_VERSION_MAJOR,
+		       ECRYPTFS_VERSION_MINOR);
+		rc = -EINVAL;
+		goto out;
+	}
+	if ((*auth_tok)->token_type != ECRYPTFS_PASSWORD
+	    && (*auth_tok)->token_type != ECRYPTFS_PRIVATE_KEY) {
+		printk(KERN_ERR "Invalid auth_tok structure "
+		       "returned from key query\n");
+		rc = -EINVAL;
+		goto out;
+	}
+out:
+	return rc;
+}
+
+/**
+ * ecryptfs_find_auth_tok_for_sig
+ * @auth_tok: Set to the matching auth_tok; NULL if not found
+ * @crypt_stat: inode crypt_stat crypto context
+ * @sig: Sig of auth_tok to find
+ *
+ * For now, this function simply looks at the registered auth_tok's
+ * linked off the mount_crypt_stat, so all the auth_toks that can be
+ * used must be registered at mount time. This function could
+ * potentially try a lot harder to find auth_tok's (e.g., by calling
+ * out to ecryptfsd to dynamically retrieve an auth_tok object) so
+ * that static registration of auth_tok's will no longer be necessary.
+ *
+ * Returns zero on no error; non-zero on error
+ */
+static int
+ecryptfs_find_auth_tok_for_sig(
+	struct ecryptfs_auth_tok **auth_tok,
+	struct ecryptfs_crypt_stat *crypt_stat, char *sig)
+{
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
+		crypt_stat->mount_crypt_stat;
+	struct ecryptfs_global_auth_tok *global_auth_tok;
+	int rc = 0;
+
+	(*auth_tok) = NULL;
+	if (ecryptfs_find_global_auth_tok_for_sig(&global_auth_tok,
+						  mount_crypt_stat, sig)) {
+		struct key *auth_tok_key;
+
+		rc = ecryptfs_keyring_auth_tok_for_sig(&auth_tok_key, auth_tok,
+						       sig);
+	} else
+		(*auth_tok) = global_auth_tok->global_auth_tok;
+	return rc;
+}
+
+/**
+ * decrypt_passphrase_encrypted_session_key - Decrypt the session key
+ * with the given auth_tok.
  *
  * Returns Zero on success; non-zero error otherwise.
  */
-static int decrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
-			       struct ecryptfs_crypt_stat *crypt_stat)
+static int
+decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
+					 struct ecryptfs_crypt_stat *crypt_stat)
 {
-	struct ecryptfs_password *password_s_ptr;
-	struct scatterlist src_sg[2], dst_sg[2];
+	struct scatterlist dst_sg;
+	struct scatterlist src_sg;
 	struct mutex *tfm_mutex = NULL;
-	char *encrypted_session_key;
-	char *session_key;
 	struct blkcipher_desc desc = {
 		.flags = CRYPTO_TFM_REQ_MAY_SLEEP
 	};
 	int rc = 0;
 
-	password_s_ptr = &auth_tok->token.password;
-	if (password_s_ptr->flags & ECRYPTFS_SESSION_KEY_ENCRYPTION_KEY_SET)
-		ecryptfs_printk(KERN_DEBUG, "Session key encryption key "
-				"set; skipping key generation\n");
-	ecryptfs_printk(KERN_DEBUG, "Session key encryption key (size [%d])"
-			":\n",
-			password_s_ptr->session_key_encryption_key_bytes);
-	if (ecryptfs_verbosity > 0)
-		ecryptfs_dump_hex(password_s_ptr->session_key_encryption_key,
-				  password_s_ptr->
-				  session_key_encryption_key_bytes);
-	if (!strcmp(crypt_stat->cipher,
-		    crypt_stat->mount_crypt_stat->global_default_cipher_name)
-	    && crypt_stat->mount_crypt_stat->global_key_tfm) {
-		desc.tfm = crypt_stat->mount_crypt_stat->global_key_tfm;
-		tfm_mutex = &crypt_stat->mount_crypt_stat->global_key_tfm_mutex;
-	} else {
-		char *full_alg_name;
-
-		rc = ecryptfs_crypto_api_algify_cipher_name(&full_alg_name,
-							    crypt_stat->cipher,
-							    "ecb");
-		if (rc)
-			goto out;
-		desc.tfm = crypto_alloc_blkcipher(full_alg_name, 0,
-						  CRYPTO_ALG_ASYNC);
-		kfree(full_alg_name);
-		if (IS_ERR(desc.tfm)) {
-			rc = PTR_ERR(desc.tfm);
-			printk(KERN_ERR "Error allocating crypto context; "
-			       "rc = [%d]\n", rc);
-			goto out;
-		}
-		crypto_blkcipher_set_flags(desc.tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+	if (unlikely(ecryptfs_verbosity > 0)) {
+		ecryptfs_printk(
+			KERN_DEBUG, "Session key encryption key (size [%d]):\n",
+			auth_tok->token.password.session_key_encryption_key_bytes);
+		ecryptfs_dump_hex(
+			auth_tok->token.password.session_key_encryption_key,
+			auth_tok->token.password.session_key_encryption_key_bytes);
 	}
-	if (tfm_mutex)
-		mutex_lock(tfm_mutex);
-	rc = crypto_blkcipher_setkey(desc.tfm,
-				     password_s_ptr->session_key_encryption_key,
-				     crypt_stat->key_size);
-	if (rc < 0) {
+	rc = ecryptfs_get_tfm_and_mutex_for_cipher_name(&desc.tfm, &tfm_mutex,
+							crypt_stat->cipher);
+	if (unlikely(rc)) {
+		printk(KERN_ERR "Internal error whilst attempting to get "
+		       "tfm and mutex for cipher name [%s]; rc = [%d]\n",
+		       crypt_stat->cipher, rc);
+		goto out;
+	}
+	if ((rc = virt_to_scatterlist(auth_tok->session_key.encrypted_key,
+				      auth_tok->session_key.encrypted_key_size,
+				      &src_sg, 1)) != 1) {
+		printk(KERN_ERR "Internal error whilst attempting to convert "
+			"auth_tok->session_key.encrypted_key to scatterlist; "
+			"expected rc = 1; got rc = [%d]. "
+		       "auth_tok->session_key.encrypted_key_size = [%d]\n", rc,
+			auth_tok->session_key.encrypted_key_size);
+		goto out;
+	}
+	auth_tok->session_key.decrypted_key_size =
+		auth_tok->session_key.encrypted_key_size;
+	if ((rc = virt_to_scatterlist(auth_tok->session_key.decrypted_key,
+				      auth_tok->session_key.decrypted_key_size,
+				      &dst_sg, 1)) != 1) {
+		printk(KERN_ERR "Internal error whilst attempting to convert "
+			"auth_tok->session_key.decrypted_key to scatterlist; "
+			"expected rc = 1; got rc = [%d]\n", rc);
+		goto out;
+	}
+	mutex_lock(tfm_mutex);
+	rc = crypto_blkcipher_setkey(
+		desc.tfm, auth_tok->token.password.session_key_encryption_key,
+		crypt_stat->key_size);
+	if (unlikely(rc < 0)) {
+		mutex_unlock(tfm_mutex);
 		printk(KERN_ERR "Error setting key for crypto context\n");
 		rc = -EINVAL;
-		goto out_free_tfm;
+		goto out;
 	}
-	/* TODO: virt_to_scatterlist */
-	encrypted_session_key = (char *)__get_free_page(GFP_KERNEL);
-	if (!encrypted_session_key) {
-		ecryptfs_printk(KERN_ERR, "Out of memory\n");
-		rc = -ENOMEM;
-		goto out_free_tfm;
-	}
-	session_key = (char *)__get_free_page(GFP_KERNEL);
-	if (!session_key) {
-		kfree(encrypted_session_key);
-		ecryptfs_printk(KERN_ERR, "Out of memory\n");
-		rc = -ENOMEM;
-		goto out_free_tfm;
-	}
-	memcpy(encrypted_session_key, auth_tok->session_key.encrypted_key,
-	       auth_tok->session_key.encrypted_key_size);
-	src_sg[0].page = virt_to_page(encrypted_session_key);
-	src_sg[0].offset = 0;
-	BUG_ON(auth_tok->session_key.encrypted_key_size > PAGE_CACHE_SIZE);
-	src_sg[0].length = auth_tok->session_key.encrypted_key_size;
-	dst_sg[0].page = virt_to_page(session_key);
-	dst_sg[0].offset = 0;
-	auth_tok->session_key.decrypted_key_size =
-	    auth_tok->session_key.encrypted_key_size;
-	dst_sg[0].length = auth_tok->session_key.encrypted_key_size;
-	rc = crypto_blkcipher_decrypt(&desc, dst_sg, src_sg,
+	rc = crypto_blkcipher_decrypt(&desc, &dst_sg, &src_sg,
 				      auth_tok->session_key.encrypted_key_size);
-	if (rc) {
+	mutex_unlock(tfm_mutex);
+	if (unlikely(rc)) {
 		printk(KERN_ERR "Error decrypting; rc = [%d]\n", rc);
-		goto out_free_memory;
+		goto out;
 	}
-	auth_tok->session_key.decrypted_key_size =
-	    auth_tok->session_key.encrypted_key_size;
-	memcpy(auth_tok->session_key.decrypted_key, session_key,
-	       auth_tok->session_key.decrypted_key_size);
 	auth_tok->session_key.flags |= ECRYPTFS_CONTAINS_DECRYPTED_KEY;
 	memcpy(crypt_stat->key, auth_tok->session_key.decrypted_key,
 	       auth_tok->session_key.decrypted_key_size);
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
-	ecryptfs_printk(KERN_DEBUG, "Decrypted session key:\n");
-	if (ecryptfs_verbosity > 0)
+	if (unlikely(ecryptfs_verbosity > 0)) {
+		ecryptfs_printk(KERN_DEBUG, "FEK of size [%d]:\n",
+				crypt_stat->key_size);
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
-out_free_memory:
-	memset(encrypted_session_key, 0, PAGE_CACHE_SIZE);
-	free_page((unsigned long)encrypted_session_key);
-	memset(session_key, 0, PAGE_CACHE_SIZE);
-	free_page((unsigned long)session_key);
-out_free_tfm:
-	if (tfm_mutex)
-		mutex_unlock(tfm_mutex);
-	else
-		crypto_free_blkcipher(desc.tfm);
+	}
 out:
+	return rc;
+}
+
+int ecryptfs_get_auth_tok_sig(char **sig, struct ecryptfs_auth_tok *auth_tok)
+{
+	int rc = 0;
+
+	(*sig) = NULL;
+	switch (auth_tok->token_type) {
+	case ECRYPTFS_PASSWORD:
+		(*sig) = auth_tok->token.password.signature;
+		break;
+	case ECRYPTFS_PRIVATE_KEY:
+		(*sig) = auth_tok->token.private_key.signature;
+		break;
+	default:
+		printk(KERN_ERR "Cannot get sig for auth_tok of type [%d]\n",
+		       auth_tok->token_type);
+		rc = -EINVAL;
+	}
 	return rc;
 }
 
@@ -1058,25 +1177,22 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			      struct dentry *ecryptfs_dentry)
 {
 	size_t i = 0;
-	size_t found_auth_tok = 0;
+	size_t found_auth_tok;
 	size_t next_packet_is_auth_tok_packet;
-	char sig[ECRYPTFS_SIG_SIZE_HEX];
 	struct list_head auth_tok_list;
-	struct list_head *walker;
-	struct ecryptfs_auth_tok *chosen_auth_tok = NULL;
-	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
-		&ecryptfs_superblock_to_private(
-			ecryptfs_dentry->d_sb)->mount_crypt_stat;
+	struct ecryptfs_auth_tok *matching_auth_tok = NULL;
 	struct ecryptfs_auth_tok *candidate_auth_tok = NULL;
+	char *candidate_auth_tok_sig;
 	size_t packet_size;
 	struct ecryptfs_auth_tok *new_auth_tok;
 	unsigned char sig_tmp_space[ECRYPTFS_SIG_SIZE];
+	struct ecryptfs_auth_tok_list_item *auth_tok_list_item;
 	size_t tag_11_contents_size;
 	size_t tag_11_packet_size;
 	int rc = 0;
 
 	INIT_LIST_HEAD(&auth_tok_list);
-	/* Parse the header to find as many packets as we can, these will be
+	/* Parse the header to find as many packets as we can; these will be
 	 * added the our &auth_tok_list */
 	next_packet_is_auth_tok_packet = 1;
 	while (next_packet_is_auth_tok_packet) {
@@ -1155,73 +1271,86 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 		}
 	}
 	if (list_empty(&auth_tok_list)) {
-		rc = -EINVAL; /* Do not support non-encrypted files in
-			       * the 0.1 release */
+		printk(KERN_ERR "The lower file appears to be a non-encrypted "
+		       "eCryptfs file; this is not supported in this version "
+		       "of the eCryptfs kernel module\n");
+		rc = -EINVAL;
 		goto out;
 	}
-	/* If we have a global auth tok, then we should try to use
-	 * it */
-	if (mount_crypt_stat->global_auth_tok) {
-		memcpy(sig, mount_crypt_stat->global_auth_tok_sig,
-		       ECRYPTFS_SIG_SIZE_HEX);
-		chosen_auth_tok = mount_crypt_stat->global_auth_tok;
-	} else
-		BUG(); /* We should always have a global auth tok in
-			* the 0.1 release */
-	/* Scan list to see if our chosen_auth_tok works */
-	list_for_each(walker, &auth_tok_list) {
-		struct ecryptfs_auth_tok_list_item *auth_tok_list_item;
-		auth_tok_list_item =
-		    list_entry(walker, struct ecryptfs_auth_tok_list_item,
-			       list);
+	/* auth_tok_list contains the set of authentication tokens
+	 * parsed from the metadata. We need to find a matching
+	 * authentication token that has the secret component(s)
+	 * necessary to decrypt the EFEK in the auth_tok parsed from
+	 * the metadata. There may be several potential matches, but
+	 * just one will be sufficient to decrypt to get the FEK. */
+find_next_matching_auth_tok:
+	found_auth_tok = 0;
+	list_for_each_entry(auth_tok_list_item, &auth_tok_list, list) {
 		candidate_auth_tok = &auth_tok_list_item->auth_tok;
 		if (unlikely(ecryptfs_verbosity > 0)) {
 			ecryptfs_printk(KERN_DEBUG,
 					"Considering cadidate auth tok:\n");
 			ecryptfs_dump_auth_tok(candidate_auth_tok);
 		}
-		/* TODO: Replace ECRYPTFS_SIG_SIZE_HEX w/ dynamic value */
-		if (candidate_auth_tok->token_type == ECRYPTFS_PASSWORD
-		    && !strncmp(candidate_auth_tok->token.password.signature,
-				sig, ECRYPTFS_SIG_SIZE_HEX)) {
+		if ((rc = ecryptfs_get_auth_tok_sig(&candidate_auth_tok_sig,
+						    candidate_auth_tok))) {
+			printk(KERN_ERR
+			       "Unrecognized candidate auth tok type: [%d]\n",
+			       candidate_auth_tok->token_type);
+			rc = -EINVAL;
+			goto out_wipe_list;
+		}
+		if ((rc = ecryptfs_find_auth_tok_for_sig(
+			     &matching_auth_tok, crypt_stat,
+			     candidate_auth_tok_sig)))
+			rc = 0;
+		if (matching_auth_tok) {
 			found_auth_tok = 1;
-			goto leave_list;
-			/* TODO: Transfer the common salt into the
-			 * crypt_stat salt */
-		} else if ((candidate_auth_tok->token_type
-			    == ECRYPTFS_PRIVATE_KEY)
-			   && !strncmp(candidate_auth_tok->token.private_key.signature,
-				     sig, ECRYPTFS_SIG_SIZE_HEX)) {
-			found_auth_tok = 1;
-			goto leave_list;
+			goto found_matching_auth_tok;
 		}
 	}
 	if (!found_auth_tok) {
-		ecryptfs_printk(KERN_ERR, "Could not find authentication "
-				"token on temporary list for sig [%.*s]\n",
-				ECRYPTFS_SIG_SIZE_HEX, sig);
+		ecryptfs_printk(KERN_ERR, "Could not find a usable "
+				"authentication token\n");
 		rc = -EIO;
 		goto out_wipe_list;
 	}
-leave_list:
-	rc = -ENOTSUPP;
+found_matching_auth_tok:
 	if (candidate_auth_tok->token_type == ECRYPTFS_PRIVATE_KEY) {
 		memcpy(&(candidate_auth_tok->token.private_key),
-		       &(chosen_auth_tok->token.private_key),
+		       &(matching_auth_tok->token.private_key),
 		       sizeof(struct ecryptfs_private_key));
-		rc = decrypt_pki_encrypted_session_key(mount_crypt_stat,
-						       candidate_auth_tok,
+		rc = decrypt_pki_encrypted_session_key(candidate_auth_tok,
 						       crypt_stat);
 	} else if (candidate_auth_tok->token_type == ECRYPTFS_PASSWORD) {
 		memcpy(&(candidate_auth_tok->token.password),
-		       &(chosen_auth_tok->token.password),
+		       &(matching_auth_tok->token.password),
 		       sizeof(struct ecryptfs_password));
-		rc = decrypt_session_key(candidate_auth_tok, crypt_stat);
+		rc = decrypt_passphrase_encrypted_session_key(
+			candidate_auth_tok, crypt_stat);
 	}
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error decrypting the "
-				"session key; rc = [%d]\n", rc);
-		goto out_wipe_list;
+		struct ecryptfs_auth_tok_list_item *auth_tok_list_item_tmp;
+
+		ecryptfs_printk(KERN_WARNING, "Error decrypting the "
+				"session key for authentication token with sig "
+				"[%.*s]; rc = [%d]. Removing auth tok "
+				"candidate from the list and searching for "
+				"the next match.\n", candidate_auth_tok_sig,
+				ECRYPTFS_SIG_SIZE_HEX, rc);
+		list_for_each_entry_safe(auth_tok_list_item,
+					 auth_tok_list_item_tmp,
+					 &auth_tok_list, list) {
+			if (candidate_auth_tok
+			    == &auth_tok_list_item->auth_tok) {
+				list_del(&auth_tok_list_item->list);
+				kmem_cache_free(
+					ecryptfs_auth_tok_list_item_cache,
+					auth_tok_list_item);
+				goto find_next_matching_auth_tok;
+			}
+		}
+		BUG();
 	}
 	rc = ecryptfs_compute_root_iv(crypt_stat);
 	if (rc) {
@@ -1240,6 +1369,7 @@ out_wipe_list:
 out:
 	return rc;
 }
+
 static int
 pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 			struct ecryptfs_crypt_stat *crypt_stat,
@@ -1291,15 +1421,15 @@ out:
  * Returns zero on success; non-zero on error.
  */
 static int
-write_tag_1_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
+write_tag_1_packet(char *dest, size_t *remaining_bytes,
+		   struct ecryptfs_auth_tok *auth_tok,
 		   struct ecryptfs_crypt_stat *crypt_stat,
-		   struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
 		   struct ecryptfs_key_record *key_rec, size_t *packet_size)
 {
 	size_t i;
 	size_t encrypted_session_key_valid = 0;
-	size_t key_rec_size;
 	size_t packet_size_length;
+	size_t max_packet_size;
 	int rc = 0;
 
 	(*packet_size) = 0;
@@ -1329,37 +1459,23 @@ write_tag_1_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
 		ecryptfs_dump_hex(key_rec->enc_key, key_rec->enc_key_size);
 	}
 encrypted_session_key_set:
-	/* Now we have a valid key_rec.  Append it to the
-	 * key_rec set. */
-	key_rec_size = (sizeof(struct ecryptfs_key_record)
-			- ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES
-			+ (key_rec->enc_key_size));
-	/* TODO: Include a packet size limit as a parameter to this
-	 * function once we have multi-packet headers (for versions
-	 * later than 0.1 */
-	if (key_rec_size >= ECRYPTFS_MAX_KEYSET_SIZE) {
-		ecryptfs_printk(KERN_ERR, "Keyset too large\n");
-		rc = -EINVAL;
-		goto out;
-	}
-	/*              ***** TAG 1 Packet Format *****
-	 *    | version number                     | 1 byte       |
-	 *    | key ID                             | 8 bytes      |
-	 *    | public key algorithm               | 1 byte       |
-	 *    | encrypted session key              | arbitrary    |
-	 */
-	if ((0x02 + ECRYPTFS_SIG_SIZE + key_rec->enc_key_size) >= max) {
-		ecryptfs_printk(KERN_ERR,
-				"Authentication token is too large\n");
+	/* This format is inspired by OpenPGP; see RFC 2440
+	 * packet tag 1 */
+	max_packet_size = (1                         /* Tag 1 identifier */
+			   + 3                       /* Max Tag 1 packet size */
+			   + 1                       /* Version */
+			   + ECRYPTFS_SIG_SIZE       /* Key identifier */
+			   + 1                       /* Cipher identifier */
+			   + key_rec->enc_key_size); /* Encrypted key size */
+	if (max_packet_size > (*remaining_bytes)) {
+		printk(KERN_ERR "Packet length larger than maximum allowable; "
+		       "need up to [%d] bytes, but there are only [%d] "
+		       "available\n", max_packet_size, (*remaining_bytes));
 		rc = -EINVAL;
 		goto out;
 	}
 	dest[(*packet_size)++] = ECRYPTFS_TAG_1_PACKET_TYPE;
-	/* This format is inspired by OpenPGP; see RFC 2440
-	 * packet tag 1 */
-	rc = write_packet_length(&dest[(*packet_size)],
-				 (0x02 + ECRYPTFS_SIG_SIZE +
-				 key_rec->enc_key_size),
+	rc = write_packet_length(&dest[(*packet_size)], (max_packet_size - 4),
 				 &packet_size_length);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 1 packet "
@@ -1377,6 +1493,8 @@ encrypted_session_key_set:
 out:
 	if (rc)
 		(*packet_size) = 0;
+	else
+		(*remaining_bytes) -= (*packet_size);
 	return rc;
 }
 
@@ -1448,19 +1566,22 @@ write_tag_11_packet(char *dest, int max, char *contents, size_t contents_length,
  * Returns zero on success; non-zero on error.
  */
 static int
-write_tag_3_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
+write_tag_3_packet(char *dest, size_t *remaining_bytes,
+		   struct ecryptfs_auth_tok *auth_tok,
 		   struct ecryptfs_crypt_stat *crypt_stat,
 		   struct ecryptfs_key_record *key_rec, size_t *packet_size)
 {
 	size_t i;
 	size_t encrypted_session_key_valid = 0;
 	char session_key_encryption_key[ECRYPTFS_MAX_KEY_BYTES];
-	struct scatterlist dest_sg[2];
-	struct scatterlist src_sg[2];
+	struct scatterlist dst_sg;
+	struct scatterlist src_sg;
 	struct mutex *tfm_mutex = NULL;
-	size_t key_rec_size;
-	size_t packet_size_length;
 	size_t cipher_code;
+	size_t packet_size_length;
+	size_t max_packet_size;
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
+		crypt_stat->mount_crypt_stat;
 	struct blkcipher_desc desc = {
 		.tfm = NULL,
 		.flags = CRYPTO_TFM_REQ_MAY_SLEEP
@@ -1470,16 +1591,25 @@ write_tag_3_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
 	(*packet_size) = 0;
 	ecryptfs_from_hex(key_rec->sig, auth_tok->token.password.signature,
 			  ECRYPTFS_SIG_SIZE);
-	encrypted_session_key_valid = 0;
-	for (i = 0; i < crypt_stat->key_size; i++)
-		encrypted_session_key_valid |=
-			auth_tok->session_key.encrypted_key[i];
-	if (encrypted_session_key_valid) {
-		memcpy(key_rec->enc_key,
-		       auth_tok->session_key.encrypted_key,
-		       auth_tok->session_key.encrypted_key_size);
-		goto encrypted_session_key_set;
+	rc = ecryptfs_get_tfm_and_mutex_for_cipher_name(&desc.tfm, &tfm_mutex,
+							crypt_stat->cipher);
+	if (unlikely(rc)) {
+		printk(KERN_ERR "Internal error whilst attempting to get "
+		       "tfm and mutex for cipher name [%s]; rc = [%d]\n",
+		       crypt_stat->cipher, rc);
+		goto out;
 	}
+	if (mount_crypt_stat->global_default_cipher_key_size == 0) {
+		struct blkcipher_alg *alg = crypto_blkcipher_alg(desc.tfm);
+
+		printk(KERN_WARNING "No key size specified at mount; "
+		       "defaulting to [%d]\n", alg->max_keysize);
+		mount_crypt_stat->global_default_cipher_key_size =
+			alg->max_keysize;
+	}
+	if (crypt_stat->key_size == 0)
+		crypt_stat->key_size =
+			mount_crypt_stat->global_default_cipher_key_size;
 	if (auth_tok->session_key.encrypted_key_size == 0)
 		auth_tok->session_key.encrypted_key_size =
 			crypt_stat->key_size;
@@ -1487,9 +1617,24 @@ write_tag_3_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
 	    && strcmp("aes", crypt_stat->cipher) == 0) {
 		memset((crypt_stat->key + 24), 0, 8);
 		auth_tok->session_key.encrypted_key_size = 32;
-	}
+	} else
+		auth_tok->session_key.encrypted_key_size = crypt_stat->key_size;
 	key_rec->enc_key_size =
 		auth_tok->session_key.encrypted_key_size;
+	encrypted_session_key_valid = 0;
+	for (i = 0; i < auth_tok->session_key.encrypted_key_size; i++)
+		encrypted_session_key_valid |=
+			auth_tok->session_key.encrypted_key[i];
+	if (encrypted_session_key_valid) {
+		ecryptfs_printk(KERN_DEBUG, "encrypted_session_key_valid != 0; "
+				"using auth_tok->session_key.encrypted_key, "
+				"where key_rec->enc_key_size = [%d]\n",
+				key_rec->enc_key_size);
+		memcpy(key_rec->enc_key,
+		       auth_tok->session_key.encrypted_key,
+		       key_rec->enc_key_size);
+		goto encrypted_session_key_set;
+	}
 	if (auth_tok->token.password.flags &
 	    ECRYPTFS_SESSION_KEY_ENCRYPTION_KEY_SET) {
 		ecryptfs_printk(KERN_DEBUG, "Using previously generated "
@@ -1508,54 +1653,32 @@ write_tag_3_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
 		ecryptfs_printk(KERN_DEBUG, "Session key encryption key:\n");
 		ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}
-	rc = virt_to_scatterlist(crypt_stat->key,
-				 key_rec->enc_key_size, src_sg, 2);
-	if (!rc) {
+	if ((rc = virt_to_scatterlist(crypt_stat->key,
+				      key_rec->enc_key_size, &src_sg, 1))
+	    != 1) {
 		ecryptfs_printk(KERN_ERR, "Error generating scatterlist "
-				"for crypt_stat session key\n");
+				"for crypt_stat session key; expected rc = 1; "
+				"got rc = [%d]. key_rec->enc_key_size = [%d]\n",
+				rc, key_rec->enc_key_size);
 		rc = -ENOMEM;
 		goto out;
 	}
-	rc = virt_to_scatterlist(key_rec->enc_key,
-				 key_rec->enc_key_size, dest_sg, 2);
-	if (!rc) {
+	if ((rc = virt_to_scatterlist(key_rec->enc_key,
+				      key_rec->enc_key_size, &dst_sg, 1))
+	    != 1) {
 		ecryptfs_printk(KERN_ERR, "Error generating scatterlist "
-				"for crypt_stat encrypted session key\n");
+				"for crypt_stat encrypted session key; "
+				"expected rc = 1; got rc = [%d]. "
+				"key_rec->enc_key_size = [%d]\n", rc,
+				key_rec->enc_key_size);
 		rc = -ENOMEM;
 		goto out;
 	}
-	if (!strcmp(crypt_stat->cipher,
-		    crypt_stat->mount_crypt_stat->global_default_cipher_name)
-	    && crypt_stat->mount_crypt_stat->global_key_tfm) {
-		desc.tfm = crypt_stat->mount_crypt_stat->global_key_tfm;
-		tfm_mutex = &crypt_stat->mount_crypt_stat->global_key_tfm_mutex;
-	} else {
-		char *full_alg_name;
-
-		rc = ecryptfs_crypto_api_algify_cipher_name(&full_alg_name,
-							    crypt_stat->cipher,
-							    "ecb");
-		if (rc)
-			goto out;
-		desc.tfm = crypto_alloc_blkcipher(full_alg_name, 0,
-						  CRYPTO_ALG_ASYNC);
-		kfree(full_alg_name);
-		if (IS_ERR(desc.tfm)) {
-			rc = PTR_ERR(desc.tfm);
-			ecryptfs_printk(KERN_ERR, "Could not initialize crypto "
-					"context for cipher [%s]; rc = [%d]\n",
-					crypt_stat->cipher, rc);
-			goto out;
-		}
-		crypto_blkcipher_set_flags(desc.tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-	}
-	if (tfm_mutex)
-		mutex_lock(tfm_mutex);
+	mutex_lock(tfm_mutex);
 	rc = crypto_blkcipher_setkey(desc.tfm, session_key_encryption_key,
 				     crypt_stat->key_size);
 	if (rc < 0) {
-		if (tfm_mutex)
-			mutex_unlock(tfm_mutex);
+		mutex_unlock(tfm_mutex);
 		ecryptfs_printk(KERN_ERR, "Error setting key for crypto "
 				"context; rc = [%d]\n", rc);
 		goto out;
@@ -1563,56 +1686,53 @@ write_tag_3_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
 	rc = 0;
 	ecryptfs_printk(KERN_DEBUG, "Encrypting [%d] bytes of the key\n",
 			crypt_stat->key_size);
-	rc = crypto_blkcipher_encrypt(&desc, dest_sg, src_sg,
+	rc = crypto_blkcipher_encrypt(&desc, &dst_sg, &src_sg,
 				      (*key_rec).enc_key_size);
+	mutex_unlock(tfm_mutex);
 	if (rc) {
 		printk(KERN_ERR "Error encrypting; rc = [%d]\n", rc);
 		goto out;
 	}
-	if (tfm_mutex)
-		mutex_unlock(tfm_mutex);
 	ecryptfs_printk(KERN_DEBUG, "This should be the encrypted key:\n");
-	if (ecryptfs_verbosity > 0)
+	if (ecryptfs_verbosity > 0) {
+		ecryptfs_printk(KERN_DEBUG, "EFEK of size [%d]:\n",
+				key_rec->enc_key_size);
 		ecryptfs_dump_hex(key_rec->enc_key,
 				  key_rec->enc_key_size);
+	}
 encrypted_session_key_set:
-	/* Now we have a valid key_rec.  Append it to the
-	 * key_rec set. */
-	key_rec_size = (sizeof(struct ecryptfs_key_record)
-			- ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES
-			+ (key_rec->enc_key_size));
-	/* TODO: Include a packet size limit as a parameter to this
-	 * function once we have multi-packet headers (for versions
-	 * later than 0.1 */
-	if (key_rec_size >= ECRYPTFS_MAX_KEYSET_SIZE) {
-		ecryptfs_printk(KERN_ERR, "Keyset too large\n");
-		rc = -EINVAL;
-		goto out;
-	}
-	/* TODO: Packet size limit */
-	/* We have 5 bytes of surrounding packet data */
-	if ((0x05 + ECRYPTFS_SALT_SIZE
-	     + key_rec->enc_key_size) >= max) {
-		ecryptfs_printk(KERN_ERR, "Authentication token is too "
-				"large\n");
-		rc = -EINVAL;
-		goto out;
-	}
 	/* This format is inspired by OpenPGP; see RFC 2440
 	 * packet tag 3 */
+	max_packet_size = (1                         /* Tag 3 identifier */
+			   + 3                       /* Max Tag 3 packet size */
+			   + 1                       /* Version */
+			   + 1                       /* Cipher code */
+			   + 1                       /* S2K specifier */
+			   + 1                       /* Hash identifier */
+			   + ECRYPTFS_SALT_SIZE      /* Salt */
+			   + 1                       /* Hash iterations */
+			   + key_rec->enc_key_size); /* Encrypted key size */
+	if (max_packet_size > (*remaining_bytes)) {
+		printk(KERN_ERR "Packet too large; need up to [%d] bytes, but "
+		       "there are only [%d] available\n", max_packet_size,
+		       (*remaining_bytes));
+		rc = -EINVAL;
+		goto out;
+	}
 	dest[(*packet_size)++] = ECRYPTFS_TAG_3_PACKET_TYPE;
-	/* ver+cipher+s2k+hash+salt+iter+enc_key */
-	rc = write_packet_length(&dest[(*packet_size)],
-				 (0x05 + ECRYPTFS_SALT_SIZE
-				  + key_rec->enc_key_size),
+	/* Chop off the Tag 3 identifier(1) and Tag 3 packet size(3)
+	 * to get the number of octets in the actual Tag 3 packet */
+	rc = write_packet_length(&dest[(*packet_size)], (max_packet_size - 4),
 				 &packet_size_length);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error generating tag 3 packet "
-				"header; cannot generate packet length\n");
+		printk(KERN_ERR "Error generating tag 3 packet header; cannot "
+		       "generate packet length. rc = [%d]\n", rc);
 		goto out;
 	}
 	(*packet_size) += packet_size_length;
 	dest[(*packet_size)++] = 0x04; /* version 4 */
+	/* TODO: Break from RFC2440 so that arbitrary ciphers can be
+	 * specified with strings */
 	cipher_code = ecryptfs_code_for_cipher_string(crypt_stat);
 	if (cipher_code == 0) {
 		ecryptfs_printk(KERN_WARNING, "Unable to generate code for "
@@ -1631,10 +1751,10 @@ encrypted_session_key_set:
 	       key_rec->enc_key_size);
 	(*packet_size) += key_rec->enc_key_size;
 out:
-	if (desc.tfm && !tfm_mutex)
-		crypto_free_blkcipher(desc.tfm);
 	if (rc)
 		(*packet_size) = 0;
+	else
+		(*remaining_bytes) -= (*packet_size);
 	return rc;
 }
 
@@ -1662,24 +1782,43 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 				 size_t max)
 {
 	struct ecryptfs_auth_tok *auth_tok;
+	struct ecryptfs_global_auth_tok *global_auth_tok;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 		&ecryptfs_superblock_to_private(
 			ecryptfs_dentry->d_sb)->mount_crypt_stat;
 	size_t written;
 	struct ecryptfs_key_record *key_rec;
+	struct ecryptfs_key_sig *key_sig;
 	int rc = 0;
 
 	(*len) = 0;
+	mutex_lock(&crypt_stat->keysig_list_mutex);
 	key_rec = kmem_cache_alloc(ecryptfs_key_record_cache, GFP_KERNEL);
 	if (!key_rec) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	if (mount_crypt_stat->global_auth_tok) {
-		auth_tok = mount_crypt_stat->global_auth_tok;
+	list_for_each_entry(key_sig, &crypt_stat->keysig_list,
+			    crypt_stat_list) {
+		memset(key_rec, 0, sizeof(*key_rec));
+		rc = ecryptfs_find_global_auth_tok_for_sig(&global_auth_tok,
+							   mount_crypt_stat,
+							   key_sig->keysig);
+		if (rc) {
+			printk(KERN_ERR "Error attempting to get the global "
+			       "auth_tok; rc = [%d]\n", rc);
+			goto out_free;
+		}
+		if (global_auth_tok->flags & ECRYPTFS_AUTH_TOK_INVALID) {
+			printk(KERN_WARNING
+			       "Skipping invalid auth tok with sig = [%s]\n",
+			       global_auth_tok->sig);
+			continue;
+		}
+		auth_tok = global_auth_tok->global_auth_tok;
 		if (auth_tok->token_type == ECRYPTFS_PASSWORD) {
 			rc = write_tag_3_packet((dest_base + (*len)),
-						max, auth_tok,
+						&max, auth_tok,
 						crypt_stat, key_rec,
 						&written);
 			if (rc) {
@@ -1689,10 +1828,9 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			}
 			(*len) += written;
 			/* Write auth tok signature packet */
-			rc = write_tag_11_packet(
-				(dest_base + (*len)),
-				(max - (*len)),
-				key_rec->sig, ECRYPTFS_SIG_SIZE, &written);
+			rc = write_tag_11_packet((dest_base + (*len)), &max,
+						 key_rec->sig,
+						 ECRYPTFS_SIG_SIZE, &written);
 			if (rc) {
 				ecryptfs_printk(KERN_ERR, "Error writing "
 						"auth tok signature packet\n");
@@ -1701,9 +1839,8 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			(*len) += written;
 		} else if (auth_tok->token_type == ECRYPTFS_PRIVATE_KEY) {
 			rc = write_tag_1_packet(dest_base + (*len),
-						max, auth_tok,
-						crypt_stat,mount_crypt_stat,
-						key_rec, &written);
+						&max, auth_tok,
+						crypt_stat, key_rec, &written);
 			if (rc) {
 				ecryptfs_printk(KERN_WARNING, "Error "
 						"writing tag 1 packet\n");
@@ -1716,19 +1853,69 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			rc = -EINVAL;
 			goto out_free;
 		}
-	} else
-		BUG();
-	if (likely((max - (*len)) > 0)) {
+	}
+	if (likely(max > 0)) {
 		dest_base[(*len)] = 0x00;
 	} else {
 		ecryptfs_printk(KERN_ERR, "Error writing boundary byte\n");
 		rc = -EIO;
 	}
-
 out_free:
 	kmem_cache_free(ecryptfs_key_record_cache, key_rec);
 out:
 	if (rc)
 		(*len) = 0;
+	mutex_unlock(&crypt_stat->keysig_list_mutex);
 	return rc;
 }
+
+struct kmem_cache *ecryptfs_key_sig_cache;
+
+int ecryptfs_add_keysig(struct ecryptfs_crypt_stat *crypt_stat, char *sig)
+{
+	struct ecryptfs_key_sig *new_key_sig;
+	int rc = 0;
+
+	new_key_sig = kmem_cache_alloc(ecryptfs_key_sig_cache, GFP_KERNEL);
+	if (!new_key_sig) {
+		rc = -ENOMEM;
+		printk(KERN_ERR
+		       "Error allocating from ecryptfs_key_sig_cache\n");
+		goto out;
+	}
+	memcpy(new_key_sig->keysig, sig, ECRYPTFS_SIG_SIZE_HEX);
+	mutex_lock(&crypt_stat->keysig_list_mutex);
+	list_add(&new_key_sig->crypt_stat_list, &crypt_stat->keysig_list);
+	mutex_unlock(&crypt_stat->keysig_list_mutex);
+out:
+	return rc;
+}
+
+struct kmem_cache *ecryptfs_global_auth_tok_cache;
+
+int
+ecryptfs_add_global_auth_tok(struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
+			     char *sig)
+{
+	struct ecryptfs_global_auth_tok *new_auth_tok;
+	int rc = 0;
+
+	new_auth_tok = kmem_cache_alloc(ecryptfs_global_auth_tok_cache,
+					GFP_KERNEL);
+	if (!new_auth_tok) {
+		rc = -ENOMEM;
+		printk(KERN_ERR "Error allocating from "
+		       "ecryptfs_global_auth_tok_cache\n");
+		goto out;
+	}
+	memcpy(new_auth_tok->sig, sig, ECRYPTFS_SIG_SIZE_HEX);
+	new_auth_tok->sig[ECRYPTFS_SIG_SIZE_HEX] = '\0';
+	mutex_lock(&mount_crypt_stat->global_auth_tok_list_mutex);
+	list_add(&new_auth_tok->mount_crypt_stat_list,
+		 &mount_crypt_stat->global_auth_tok_list);
+	mount_crypt_stat->num_global_auth_toks++;
+	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
+out:
+	return rc;
+}
+

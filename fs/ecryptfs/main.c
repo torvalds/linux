@@ -179,36 +179,38 @@ static match_table_t tokens = {
 	{ecryptfs_opt_err, NULL}
 };
 
-/**
- * ecryptfs_verify_version
- * @version: The version number to confirm
- *
- * Returns zero on good version; non-zero otherwise
- */
-static int ecryptfs_verify_version(u16 version)
+static int ecryptfs_init_global_auth_toks(
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
 {
+	struct ecryptfs_global_auth_tok *global_auth_tok;
 	int rc = 0;
-	unsigned char major;
-	unsigned char minor;
 
-	major = ((version >> 8) & 0xFF);
-	minor = (version & 0xFF);
-	if (major != ECRYPTFS_VERSION_MAJOR) {
-		ecryptfs_printk(KERN_ERR, "Major version number mismatch. "
-				"Expected [%d]; got [%d]\n",
-				ECRYPTFS_VERSION_MAJOR, major);
-		rc = -EINVAL;
-		goto out;
+	list_for_each_entry(global_auth_tok,
+			    &mount_crypt_stat->global_auth_tok_list,
+			    mount_crypt_stat_list) {
+		if ((rc = ecryptfs_keyring_auth_tok_for_sig(
+			     &global_auth_tok->global_auth_tok_key,
+			     &global_auth_tok->global_auth_tok,
+			     global_auth_tok->sig))) {
+			printk(KERN_ERR "Could not find valid key in user "
+			       "session keyring for sig specified in mount "
+			       "option: [%s]\n", global_auth_tok->sig);
+			global_auth_tok->flags |= ECRYPTFS_AUTH_TOK_INVALID;
+			rc = 0;
+		} else
+			global_auth_tok->flags &= ~ECRYPTFS_AUTH_TOK_INVALID;
 	}
-	if (minor != ECRYPTFS_VERSION_MINOR) {
-		ecryptfs_printk(KERN_ERR, "Minor version number mismatch. "
-				"Expected [%d]; got [%d]\n",
-				ECRYPTFS_VERSION_MINOR, minor);
-		rc = -EINVAL;
-		goto out;
-	}
-out:
 	return rc;
+}
+
+static void ecryptfs_init_mount_crypt_stat(
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
+{
+	memset((void *)mount_crypt_stat, 0,
+	       sizeof(struct ecryptfs_mount_crypt_stat));
+	INIT_LIST_HEAD(&mount_crypt_stat->global_auth_tok_list);
+	mutex_init(&mount_crypt_stat->global_auth_tok_list_mutex);
+	mount_crypt_stat->flags |= ECRYPTFS_MOUNT_CRYPT_STAT_INITIALIZED;
 }
 
 /**
@@ -264,14 +266,13 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		case ecryptfs_opt_sig:
 		case ecryptfs_opt_ecryptfs_sig:
 			sig_src = args[0].from;
-			sig_dst =
-				mount_crypt_stat->global_auth_tok_sig;
-			memcpy(sig_dst, sig_src, ECRYPTFS_SIG_SIZE_HEX);
-			sig_dst[ECRYPTFS_SIG_SIZE_HEX] = '\0';
-			ecryptfs_printk(KERN_DEBUG,
-					"The mount_crypt_stat "
-					"global_auth_tok_sig set to: "
-					"[%s]\n", sig_dst);
+			rc = ecryptfs_add_global_auth_tok(mount_crypt_stat,
+							  sig_src);
+			if (rc) {
+				printk(KERN_ERR "Error attempting to register "
+				       "global sig; rc = [%d]\n", rc);
+				goto out;
+			}
 			sig_set = 1;
 			break;
 		case ecryptfs_opt_debug:
@@ -358,55 +359,21 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 	if (!cipher_key_bytes_set) {
 		mount_crypt_stat->global_default_cipher_key_size = 0;
 	}
-	rc = ecryptfs_process_cipher(
-		&mount_crypt_stat->global_key_tfm,
-		mount_crypt_stat->global_default_cipher_name,
-		&mount_crypt_stat->global_default_cipher_key_size);
-	if (rc) {
-		printk(KERN_ERR "Error attempting to initialize cipher [%s] "
-		       "with key size [%Zd] bytes; rc = [%d]\n",
+	if ((rc = ecryptfs_add_new_key_tfm(
+		     NULL, mount_crypt_stat->global_default_cipher_name,
+		     mount_crypt_stat->global_default_cipher_key_size))) {
+		printk(KERN_ERR "Error attempting to initialize cipher with "
+		       "name = [%s] and key size = [%d]; rc = [%d]\n",
 		       mount_crypt_stat->global_default_cipher_name,
 		       mount_crypt_stat->global_default_cipher_key_size, rc);
-		mount_crypt_stat->global_key_tfm = NULL;
-		mount_crypt_stat->global_auth_tok_key = NULL;
 		rc = -EINVAL;
 		goto out;
 	}
-	mutex_init(&mount_crypt_stat->global_key_tfm_mutex);
-	ecryptfs_printk(KERN_DEBUG, "Requesting the key with description: "
-			"[%s]\n", mount_crypt_stat->global_auth_tok_sig);
-	/* The reference to this key is held until umount is done The
-	 * call to key_put is done in ecryptfs_put_super() */
-	auth_tok_key = request_key(&key_type_user,
-				   mount_crypt_stat->global_auth_tok_sig,
-				   NULL);
-	if (!auth_tok_key || IS_ERR(auth_tok_key)) {
-		ecryptfs_printk(KERN_ERR, "Could not find key with "
-				"description: [%s]\n",
-				mount_crypt_stat->global_auth_tok_sig);
-		process_request_key_err(PTR_ERR(auth_tok_key));
-		rc = -EINVAL;
-		goto out;
+	if ((rc = ecryptfs_init_global_auth_toks(mount_crypt_stat))) {
+		printk(KERN_WARNING "One or more global auth toks could not "
+		       "properly register; rc = [%d]\n", rc);
 	}
-	auth_tok = ecryptfs_get_key_payload_data(auth_tok_key);
-	if (ecryptfs_verify_version(auth_tok->version)) {
-		ecryptfs_printk(KERN_ERR, "Data structure version mismatch. "
-				"Userspace tools must match eCryptfs kernel "
-				"module with major version [%d] and minor "
-				"version [%d]\n", ECRYPTFS_VERSION_MAJOR,
-				ECRYPTFS_VERSION_MINOR);
-		rc = -EINVAL;
-		goto out;
-	}
-	if (auth_tok->token_type != ECRYPTFS_PASSWORD
-	    && auth_tok->token_type != ECRYPTFS_PRIVATE_KEY) {
-		ecryptfs_printk(KERN_ERR, "Invalid auth_tok structure "
-				"returned from key query\n");
-		rc = -EINVAL;
-		goto out;
-	}
-	mount_crypt_stat->global_auth_tok_key = auth_tok_key;
-	mount_crypt_stat->global_auth_tok = auth_tok;
+	rc = 0;
 out:
 	return rc;
 }

@@ -204,6 +204,8 @@ void
 ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 {
 	memset((void *)crypt_stat, 0, sizeof(struct ecryptfs_crypt_stat));
+	INIT_LIST_HEAD(&crypt_stat->keysig_list);
+	mutex_init(&crypt_stat->keysig_list_mutex);
 	mutex_init(&crypt_stat->cs_mutex);
 	mutex_init(&crypt_stat->cs_tfm_mutex);
 	mutex_init(&crypt_stat->cs_hash_tfm_mutex);
@@ -218,20 +220,41 @@ ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
  */
 void ecryptfs_destruct_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 {
+	struct ecryptfs_key_sig *key_sig, *key_sig_tmp;
+
 	if (crypt_stat->tfm)
 		crypto_free_blkcipher(crypt_stat->tfm);
 	if (crypt_stat->hash_tfm)
 		crypto_free_hash(crypt_stat->hash_tfm);
+	mutex_lock(&crypt_stat->keysig_list_mutex);
+	list_for_each_entry_safe(key_sig, key_sig_tmp,
+				 &crypt_stat->keysig_list, crypt_stat_list) {
+		list_del(&key_sig->crypt_stat_list);
+		kmem_cache_free(ecryptfs_key_sig_cache, key_sig);
+	}
+	mutex_unlock(&crypt_stat->keysig_list_mutex);
 	memset(crypt_stat, 0, sizeof(struct ecryptfs_crypt_stat));
 }
 
 void ecryptfs_destruct_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
 {
-	if (mount_crypt_stat->global_auth_tok_key)
-		key_put(mount_crypt_stat->global_auth_tok_key);
-	if (mount_crypt_stat->global_key_tfm)
-		crypto_free_blkcipher(mount_crypt_stat->global_key_tfm);
+	struct ecryptfs_global_auth_tok *auth_tok, *auth_tok_tmp;
+
+	if (!(mount_crypt_stat->flags & ECRYPTFS_MOUNT_CRYPT_STAT_INITIALIZED))
+		return;
+	mutex_lock(&mount_crypt_stat->global_auth_tok_list_mutex);
+	list_for_each_entry_safe(auth_tok, auth_tok_tmp,
+				 &mount_crypt_stat->global_auth_tok_list,
+				 mount_crypt_stat_list) {
+		list_del(&auth_tok->mount_crypt_stat_list);
+		mount_crypt_stat->num_global_auth_toks--;
+		if (auth_tok->global_auth_tok_key
+		    && !(auth_tok->flags & ECRYPTFS_AUTH_TOK_INVALID))
+			key_put(auth_tok->global_auth_tok_key);
+		kmem_cache_free(ecryptfs_global_auth_tok_cache, auth_tok);
+	}
+	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
 	memset(mount_crypt_stat, 0, sizeof(struct ecryptfs_mount_crypt_stat));
 }
 
@@ -931,6 +954,30 @@ static void ecryptfs_copy_mount_wide_flags_to_inode_flags(
 		crypt_stat->flags |= ECRYPTFS_VIEW_AS_ENCRYPTED;
 }
 
+static int ecryptfs_copy_mount_wide_sigs_to_inode_sigs(
+	struct ecryptfs_crypt_stat *crypt_stat,
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
+{
+	struct ecryptfs_global_auth_tok *global_auth_tok;
+	int rc = 0;
+
+	mutex_lock(&mount_crypt_stat->global_auth_tok_list_mutex);
+	list_for_each_entry(global_auth_tok,
+			    &mount_crypt_stat->global_auth_tok_list,
+			    mount_crypt_stat_list) {
+		rc = ecryptfs_add_keysig(crypt_stat, global_auth_tok->sig);
+		if (rc) {
+			printk(KERN_ERR "Error adding keysig; rc = [%d]\n", rc);
+			mutex_unlock(
+				&mount_crypt_stat->global_auth_tok_list_mutex);
+			goto out;
+		}
+	}
+	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
+out:
+	return rc;
+}
+
 /**
  * ecryptfs_set_default_crypt_stat_vals
  * @crypt_stat
@@ -973,46 +1020,44 @@ static void ecryptfs_set_default_crypt_stat_vals(
 /* Associate an authentication token(s) with the file */
 int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry)
 {
-	int rc = 0;
 	struct ecryptfs_crypt_stat *crypt_stat =
 	    &ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 	    &ecryptfs_superblock_to_private(
 		    ecryptfs_dentry->d_sb)->mount_crypt_stat;
 	int cipher_name_len;
+	int rc = 0;
 
 	ecryptfs_set_default_crypt_stat_vals(crypt_stat, mount_crypt_stat);
-	/* See if there are mount crypt options */
-	if (mount_crypt_stat->global_auth_tok) {
-		ecryptfs_printk(KERN_DEBUG, "Initializing context for new "
-				"file using mount_crypt_stat\n");
-		crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
-		crypt_stat->flags |= ECRYPTFS_KEY_VALID;
-		ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
-							      mount_crypt_stat);
-		memcpy(crypt_stat->keysigs[crypt_stat->num_keysigs++],
-		       mount_crypt_stat->global_auth_tok_sig,
-		       ECRYPTFS_SIG_SIZE_HEX);
-		cipher_name_len =
-		    strlen(mount_crypt_stat->global_default_cipher_name);
-		memcpy(crypt_stat->cipher,
-		       mount_crypt_stat->global_default_cipher_name,
-		       cipher_name_len);
-		crypt_stat->cipher[cipher_name_len] = '\0';
-		crypt_stat->key_size =
-			mount_crypt_stat->global_default_cipher_key_size;
-		ecryptfs_generate_new_key(crypt_stat);
-	} else
-		/* We should not encounter this scenario since we
-		 * should detect lack of global_auth_tok at mount time
-		 * TODO: Applies to 0.1 release only; remove in future
-		 * release */
-		BUG();
+	mutex_lock(&mount_crypt_stat->global_auth_tok_list_mutex);
+	BUG_ON(mount_crypt_stat->num_global_auth_toks == 0);
+	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
+	crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
+	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
+	ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
+						      mount_crypt_stat);
+	rc = ecryptfs_copy_mount_wide_sigs_to_inode_sigs(crypt_stat,
+							 mount_crypt_stat);
+	if (rc) {
+		printk(KERN_ERR "Error attempting to copy mount-wide key sigs "
+		       "to the inode key sigs; rc = [%d]\n", rc);
+		goto out;
+	}
+	cipher_name_len =
+		strlen(mount_crypt_stat->global_default_cipher_name);
+	memcpy(crypt_stat->cipher,
+	       mount_crypt_stat->global_default_cipher_name,
+	       cipher_name_len);
+	crypt_stat->cipher[cipher_name_len] = '\0';
+	crypt_stat->key_size =
+		mount_crypt_stat->global_default_cipher_key_size;
+	ecryptfs_generate_new_key(crypt_stat);
 	rc = ecryptfs_init_crypt_ctx(crypt_stat);
 	if (rc)
 		ecryptfs_printk(KERN_ERR, "Error initializing cryptographic "
 				"context for cipher [%s]: rc = [%d]\n",
 				crypt_stat->cipher, rc);
+out:
 	return rc;
 }
 
@@ -1776,7 +1821,7 @@ out:
 }
 
 /**
- * ecryptfs_process_cipher - Perform cipher initialization.
+ * ecryptfs_process_key_cipher - Perform key cipher initialization.
  * @key_tfm: Crypto context for key material, set by this function
  * @cipher_name: Name of the cipher
  * @key_size: Size of the key in bytes
@@ -1786,8 +1831,8 @@ out:
  * event, regardless of whether this function succeeds for fails.
  */
 int
-ecryptfs_process_cipher(struct crypto_blkcipher **key_tfm, char *cipher_name,
-			size_t *key_size)
+ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
+			    char *cipher_name, size_t *key_size)
 {
 	char dummy_key[ECRYPTFS_MAX_KEY_BYTES];
 	char *full_alg_name;
@@ -1826,6 +1871,101 @@ ecryptfs_process_cipher(struct crypto_blkcipher **key_tfm, char *cipher_name,
 		rc = -EINVAL;
 		goto out;
 	}
+out:
+	return rc;
+}
+
+struct kmem_cache *ecryptfs_key_tfm_cache;
+struct list_head key_tfm_list;
+struct mutex key_tfm_list_mutex;
+
+int ecryptfs_init_crypto(void)
+{
+	mutex_init(&key_tfm_list_mutex);
+	INIT_LIST_HEAD(&key_tfm_list);
+	return 0;
+}
+
+int ecryptfs_destruct_crypto(void)
+{
+	struct ecryptfs_key_tfm *key_tfm, *key_tfm_tmp;
+
+	mutex_lock(&key_tfm_list_mutex);
+	list_for_each_entry_safe(key_tfm, key_tfm_tmp, &key_tfm_list,
+				 key_tfm_list) {
+		list_del(&key_tfm->key_tfm_list);
+		if (key_tfm->key_tfm)
+			crypto_free_blkcipher(key_tfm->key_tfm);
+		kmem_cache_free(ecryptfs_key_tfm_cache, key_tfm);
+	}
+	mutex_unlock(&key_tfm_list_mutex);
+	return 0;
+}
+
+int
+ecryptfs_add_new_key_tfm(struct ecryptfs_key_tfm **key_tfm, char *cipher_name,
+			 size_t key_size)
+{
+	struct ecryptfs_key_tfm *tmp_tfm;
+	int rc = 0;
+
+	tmp_tfm = kmem_cache_alloc(ecryptfs_key_tfm_cache, GFP_KERNEL);
+	if (key_tfm != NULL)
+		(*key_tfm) = tmp_tfm;
+	if (!tmp_tfm) {
+		rc = -ENOMEM;
+		printk(KERN_ERR "Error attempting to allocate from "
+		       "ecryptfs_key_tfm_cache\n");
+		goto out;
+	}
+	mutex_init(&tmp_tfm->key_tfm_mutex);
+	strncpy(tmp_tfm->cipher_name, cipher_name,
+		ECRYPTFS_MAX_CIPHER_NAME_SIZE);
+	tmp_tfm->key_size = key_size;
+	if ((rc = ecryptfs_process_key_cipher(&tmp_tfm->key_tfm,
+					      tmp_tfm->cipher_name,
+					      &tmp_tfm->key_size))) {
+		printk(KERN_ERR "Error attempting to initialize key TFM "
+		       "cipher with name = [%s]; rc = [%d]\n",
+		       tmp_tfm->cipher_name, rc);
+		kmem_cache_free(ecryptfs_key_tfm_cache, tmp_tfm);
+		if (key_tfm != NULL)
+			(*key_tfm) = NULL;
+		goto out;
+	}
+	mutex_lock(&key_tfm_list_mutex);
+	list_add(&tmp_tfm->key_tfm_list, &key_tfm_list);
+	mutex_unlock(&key_tfm_list_mutex);
+out:
+	return rc;
+}
+
+int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_blkcipher **tfm,
+					       struct mutex **tfm_mutex,
+					       char *cipher_name)
+{
+	struct ecryptfs_key_tfm *key_tfm;
+	int rc = 0;
+
+	(*tfm) = NULL;
+	(*tfm_mutex) = NULL;
+	mutex_lock(&key_tfm_list_mutex);
+	list_for_each_entry(key_tfm, &key_tfm_list, key_tfm_list) {
+		if (strcmp(key_tfm->cipher_name, cipher_name) == 0) {
+			(*tfm) = key_tfm->key_tfm;
+			(*tfm_mutex) = &key_tfm->key_tfm_mutex;
+			mutex_unlock(&key_tfm_list_mutex);
+			goto out;
+		}
+	}
+	mutex_unlock(&key_tfm_list_mutex);
+	if ((rc = ecryptfs_add_new_key_tfm(&key_tfm, cipher_name, 0))) {
+		printk(KERN_ERR "Error adding new key_tfm to list; rc = [%d]\n",
+		       rc);
+		goto out;
+	}
+	(*tfm) = key_tfm->key_tfm;
+	(*tfm_mutex) = &key_tfm->key_tfm_mutex;
 out:
 	return rc;
 }
