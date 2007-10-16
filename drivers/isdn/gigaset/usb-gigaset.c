@@ -310,7 +310,6 @@ static void gigaset_modem_fill(unsigned long data)
 	struct cardstate *cs = (struct cardstate *) data;
 	struct bc_state *bcs = &cs->bcs[0]; /* only one channel */
 	struct cmdbuf_t *cb;
-	unsigned long flags;
 	int again;
 
 	gig_dbg(DEBUG_OUTPUT, "modem_fill");
@@ -323,9 +322,7 @@ static void gigaset_modem_fill(unsigned long data)
 	do {
 		again = 0;
 		if (!bcs->tx_skb) { /* no skb is being sent */
-			spin_lock_irqsave(&cs->cmdlock, flags);
 			cb = cs->cmdbuf;
-			spin_unlock_irqrestore(&cs->cmdlock, flags);
 			if (cb) { /* commands to send? */
 				gig_dbg(DEBUG_OUTPUT, "modem_fill: cb");
 				if (send_cb(cs, cb) < 0) {
@@ -546,13 +543,9 @@ static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
 
 static int gigaset_write_room(struct cardstate *cs)
 {
-	unsigned long flags;
 	unsigned bytes;
 
-	spin_lock_irqsave(&cs->cmdlock, flags);
 	bytes = cs->cmdbytes;
-	spin_unlock_irqrestore(&cs->cmdlock, flags);
-
 	return bytes < IF_WRITEBUF ? IF_WRITEBUF - bytes : 0;
 }
 

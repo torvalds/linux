@@ -109,13 +109,9 @@ EXPORT_SYMBOL_GPL(gigaset_skb_sent);
 static int command_from_LL(isdn_ctrl *cntrl)
 {
 	struct cardstate *cs = gigaset_get_cs_by_id(cntrl->driver);
-	//isdn_ctrl response;
-	//unsigned long flags;
 	struct bc_state *bcs;
 	int retval = 0;
 	struct setup_parm *sp;
-	unsigned param;
-	unsigned long flags;
 
 	gigaset_debugdrivers();
 
@@ -162,12 +158,8 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		}
 		*sp = cntrl->parm.setup;
 
-		spin_lock_irqsave(&cs->lock, flags);
-		param = bcs->at_state.seq_index;
-		spin_unlock_irqrestore(&cs->lock, flags);
-
-		if (!gigaset_add_event(cs, &bcs->at_state, EV_DIAL, sp, param,
-				       NULL)) {
+		if (!gigaset_add_event(cs, &bcs->at_state, EV_DIAL, sp,
+				       bcs->at_state.seq_index, NULL)) {
 			//FIXME what should we do?
 			kfree(sp);
 			gigaset_free_channel(bcs);

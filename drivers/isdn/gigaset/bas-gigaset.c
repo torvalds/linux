@@ -1936,14 +1936,7 @@ static int gigaset_write_room(struct cardstate *cs)
  */
 static int gigaset_chars_in_buffer(struct cardstate *cs)
 {
-	unsigned long flags;
-	unsigned bytes;
-
-	spin_lock_irqsave(&cs->cmdlock, flags);
-	bytes = cs->cmdbytes;
-	spin_unlock_irqrestore(&cs->cmdlock, flags);
-
-	return bytes;
+	return cs->cmdbytes;
 }
 
 /* gigaset_brkchars
