@@ -27,6 +27,8 @@ unsigned long xen_get_wallclock(void);
 int xen_set_wallclock(unsigned long time);
 unsigned long long xen_sched_clock(void);
 
+bool xen_vcpu_stolen(int vcpu);
+
 void xen_mark_init_mm_pinned(void);
 
 void __init xen_fill_possible_map(void);
