@@ -44,14 +44,6 @@ int walk_page_buffers(	handle_t *handle,
 			int (*fn)(	handle_t *handle,
 					struct buffer_head *bh));
 
-int ocfs2_write_begin(struct file *file, struct address_space *mapping,
-		      loff_t pos, unsigned len, unsigned flags,
-		      struct page **pagep, void **fsdata);
-
-int ocfs2_write_end(struct file *file, struct address_space *mapping,
-		    loff_t pos, unsigned len, unsigned copied,
-		    struct page *page, void *fsdata);
-
 int ocfs2_write_end_nolock(struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
 			   struct page *page, void *fsdata);
