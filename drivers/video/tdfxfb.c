@@ -67,7 +67,6 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <linux/timer.h>
 #include <linux/spinlock.h>
 
 #include <video/tdfx.h>
@@ -148,8 +147,9 @@ MODULE_DEVICE_TABLE(pci, tdfxfb_id_table);
 /*
  * Driver data
  */
-static int  nopan   = 0;
-static int  nowrap  = 1;      // not implemented (yet)
+static int nopan;
+static int nowrap = 1;      /* not implemented (yet) */
+static int hwcursor = 1;
 static char *mode_option __devinitdata = NULL;
 
 /* -------------------------------------------------------------------------
@@ -378,7 +378,7 @@ static void do_write_regs(struct fb_info *info, struct banshee_reg *reg)
 	tdfx_outl(par, VGAINIT0, reg->vgainit0);
 	tdfx_outl(par, DACMODE, reg->dacmode);
 	tdfx_outl(par, VIDDESKSTRIDE, reg->stride);
-	tdfx_outl(par, HWCURPATADDR, 0);
+	tdfx_outl(par, HWCURPATADDR, reg->curspataddr);
 
 	tdfx_outl(par, VIDSCREENSIZE, reg->screensize);
 	tdfx_outl(par, VIDDESKSTART, reg->startaddr);
@@ -453,6 +453,7 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		DPRINTK("xoffset not supported\n");
 		return -EINVAL;
 	}
+	var->yoffset = 0;
 
 	/* Banshee doesn't support interlace, but Voodoo4/5 and probably Voodoo3 do. */
 	/* no direct information about device id now? use max_pixclock for this... */
@@ -662,6 +663,9 @@ static int tdfxfb_set_par(struct fb_info *info)
 			VGAINIT0_ALT_READBACK |
 			VGAINIT0_EXTSHIFTOUT;
 	reg.vgainit1 = tdfx_inl(par, VGAINIT1) & 0x1fffff;
+
+	if (hwcursor)
+		reg.curspataddr = info->fix.smem_len;
 
 	reg.cursloc   = 0;
 
@@ -1012,11 +1016,25 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 }
 #endif /* CONFIG_FB_3DFX_ACCEL */
 
-#ifdef TDFX_HARDWARE_CURSOR
 static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct tdfx_par *par = info->par;
-	unsigned long flags;
+	u32 vidcfg;
+
+	if (!hwcursor)
+		return -EINVAL;	/* just to force soft_cursor() call */
+
+	/* Too large of a cursor or wrong bpp :-( */
+	if (cursor->image.width > 64 ||
+	    cursor->image.height > 64 ||
+	    cursor->image.depth > 1)
+		return -EINVAL;
+
+	vidcfg = tdfx_inl(par, VIDPROCCFG);
+	if (cursor->enable)
+		tdfx_outl(par, VIDPROCCFG, vidcfg | VIDCFG_HWCURSOR_ENABLE);
+	else
+		tdfx_outl(par, VIDPROCCFG, vidcfg & ~VIDCFG_HWCURSOR_ENABLE);
 
 	/*
 	 * If the cursor is not be changed this means either we want the
@@ -1026,69 +1044,34 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	if (!cursor->set)
 		return 0;
 
-	/* Too large of a cursor :-( */
-	if (cursor->image.width > 64 || cursor->image.height > 64)
-		return -ENXIO;
-
-	/*
-	 * If we are going to be changing things we should disable
-	 * the cursor first
-	 */
-	if (info->cursor.enable) {
-		spin_lock_irqsave(&par->DAClock, flags);
-		info->cursor.enable = 0;
-		del_timer(&(par->hwcursor.timer));
-		tdfx_outl(par, VIDPROCCFG, par->hwcursor.disable);
-		spin_unlock_irqrestore(&par->DAClock, flags);
-	}
-
-	/* Disable the Cursor */
-	if ((cursor->set && FB_CUR_SETCUR) && !cursor->enable)
-		return 0;
-
 	/* fix cursor color - XFree86 forgets to restore it properly */
-	if (cursor->set && FB_CUR_SETCMAP) {
-		struct fb_cmap cmap = cursor->image.cmap;
+	if (cursor->set & FB_CUR_SETCMAP) {
+		struct fb_cmap cmap = info->cmap;
+		u32 bg_idx = cursor->image.bg_color;
+		u32 fg_idx = cursor->image.fg_color;
 		unsigned long bg_color, fg_color;
 
-		cmap.len = 2; /* Voodoo 3+ only support 2 color cursors */
-		fg_color = ((cmap.red[cmap.start] << 16) |
-			    (cmap.green[cmap.start] << 8) |
-			    (cmap.blue[cmap.start]));
-		bg_color = ((cmap.red[cmap.start + 1] << 16) |
-			    (cmap.green[cmap.start + 1] << 8) |
-			    (cmap.blue[cmap.start + 1]));
-		fb_copy_cmap(&cmap, &info->cursor.image.cmap);
-		spin_lock_irqsave(&par->DAClock, flags);
+		fg_color = (((u32)cmap.red[fg_idx]   & 0xff00) << 8) |
+			   (((u32)cmap.green[fg_idx] & 0xff00) << 0) |
+			   (((u32)cmap.blue[fg_idx]  & 0xff00) >> 8);
+		bg_color = (((u32)cmap.red[bg_idx]   & 0xff00) << 8) |
+			   (((u32)cmap.green[bg_idx] & 0xff00) << 0) |
+			   (((u32)cmap.blue[bg_idx]  & 0xff00) >> 8);
 		banshee_make_room(par, 2);
 		tdfx_outl(par, HWCURC0, bg_color);
 		tdfx_outl(par, HWCURC1, fg_color);
-		spin_unlock_irqrestore(&par->DAClock, flags);
 	}
 
-	if (cursor->set && FB_CUR_SETPOS) {
-		int x, y;
+	if (cursor->set & FB_CUR_SETPOS) {
+		int x = cursor->image.dx;
+		int y = cursor->image.dy - info->var.yoffset;
 
-		x = cursor->image.dx;
-		y = cursor->image.dy;
-		y -= info->var.yoffset;
-		info->cursor.image.dx = x;
-		info->cursor.image.dy = y;
 		x += 63;
 		y += 63;
-		spin_lock_irqsave(&par->DAClock, flags);
 		banshee_make_room(par, 1);
 		tdfx_outl(par, HWCURLOC, (y << 16) + x);
-		spin_unlock_irqrestore(&par->DAClock, flags);
 	}
-
-	/* Not supported so we fake it */
-	if (cursor->set && FB_CUR_SETHOT) {
-		info->cursor.hot.x = cursor->hot.x;
-		info->cursor.hot.y = cursor->hot.y;
-	}
-
-	if (cursor->set && FB_CUR_SETSHAPE) {
+	if (cursor->set & (FB_CUR_SETIMAGE | FB_CUR_SETSHAPE)) {
 		/*
 		 * Voodoo 3 and above cards use 2 monochrome cursor patterns.
 		 *    The reason is so the card can fetch 8 words at a time
@@ -1096,7 +1079,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		 * This reduces the number of times for access to draw the
 		 * cursor for each screen refresh.
 		 *    Each pattern is a bitmap of 64 bit wide and 64 bit high
-		 * (total of 8192 bits or 1024 Kbytes). The two patterns are
+		 * (total of 8192 bits or 1024 bytes). The two patterns are
 		 * stored in such a way that pattern 0 always resides in the
 		 * lower half (least significant 64 bits) of a 128 bit word
 		 * and pattern 1 the upper half. If you examine the data of
@@ -1107,50 +1090,34 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		 * (128 bits) which is the maximum cursor width times two for
 		 * the two monochrome patterns.
 		 */
-		u8 *cursorbase = (u8 *)info->cursor.image.data;
-		char *bitmap = (char *)cursor->image.data;
-		char *mask = (char *)cursor->mask;
-		int i, j, k, h = 0;
+		u8 __iomem *cursorbase = info->screen_base + info->fix.smem_len;
+		u8 *bitmap = (u8 *)cursor->image.data;
+		u8 *mask = (u8 *)cursor->mask;
+		int i;
 
-		for (i = 0; i < 64; i++) {
-			if (i < cursor->image.height) {
-				j = (cursor->image.width + 7) >> 3;
-				k = 8 - j;
+		fb_memset(cursorbase, 0, 1024);
 
-				for (; j > 0; j--) {
-					/* Pattern 0. Copy the cursor bitmap to it */
-					fb_writeb(*bitmap, cursorbase + h);
-					bitmap++;
-					/* Pattern 1. Copy the cursor mask to it */
-					fb_writeb(*mask, cursorbase + h + 8);
-					mask++;
-					h++;
-				}
-				for (; k > 0; k--) {
-					fb_writeb(0, cursorbase + h);
-					fb_writeb(~0, cursorbase + h + 8);
-					h++;
-				}
-			} else {
-				fb_writel(0, cursorbase + h);
-				fb_writel(0, cursorbase + h + 4);
-				fb_writel(~0, cursorbase + h + 8);
-				fb_writel(~0, cursorbase + h + 12);
-				h += 16;
+		for (i = 0; i < cursor->image.height; i++) {
+			int h = 0;
+			int j = (cursor->image.width + 7) >> 3;
+
+			for (; j > 0; j--) {
+				u8 data = *mask ^ *bitmap;
+				if (cursor->rop == ROP_COPY)
+					data = *mask & *bitmap;
+				/* Pattern 0. Copy the cursor mask to it */
+				fb_writeb(*mask, cursorbase + h);
+				mask++;
+				/* Pattern 1. Copy the cursor bitmap to it */
+				fb_writeb(data, cursorbase + h + 8);
+				bitmap++;
+				h++;
 			}
+			cursorbase += 16;
 		}
 	}
-	/* Turn the cursor on */
-	cursor->enable = 1;
-	info->cursor = *cursor;
-	mod_timer(&par->hwcursor.timer, jiffies + HZ / 2);
-	spin_lock_irqsave(&par->DAClock, flags);
-	banshee_make_room(par, 1);
-	tdfx_outl(par, VIDPROCCFG, par->hwcursor.enable);
-	spin_unlock_irqrestore(&par->DAClock, flags);
 	return 0;
 }
-#endif
 
 static struct fb_ops tdfxfb_ops = {
 	.owner		= THIS_MODULE,
@@ -1160,6 +1127,7 @@ static struct fb_ops tdfxfb_ops = {
 	.fb_blank	= tdfxfb_blank,
 	.fb_pan_display	= tdfxfb_pan_display,
 	.fb_sync	= banshee_wait_idle,
+	.fb_cursor	= tdfxfb_cursor,
 #ifdef CONFIG_FB_3DFX_ACCEL
 	.fb_fillrect	= tdfxfb_fillrect,
 	.fb_copyarea	= tdfxfb_copyarea,
@@ -1272,6 +1240,11 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 				   FBINFO_HWACCEL_IMAGEBLIT |
 				   FBINFO_READS_FAST;
 #endif
+	/* reserve 8192 bits for cursor */
+	/* the 2.4 driver says PAGE_MASK boundary is not enough for Voodoo4 */
+	if (hwcursor)
+		info->fix.smem_len = (info->fix.smem_len - 1024) &
+					(PAGE_MASK << 1);
 
 	if (!mode_option)
 		mode_option = "640x480@60";
@@ -1336,6 +1309,8 @@ static void tdfxfb_setup(char *options)
 			nopan = 1;
 		} else if (!strcmp(this_opt, "nowrap")) {
 			nowrap = 1;
+		} else if (!strcmp(this_opt, "hwcursor")) {
+			hwcursor = simple_strtoul(opt + 9, NULL, 0);
 		} else {
 			mode_option = this_opt;
 		}
@@ -1393,6 +1368,10 @@ static void __exit tdfxfb_exit(void)
 MODULE_AUTHOR("Hannu Mallat <hmallat@cc.hut.fi>");
 MODULE_DESCRIPTION("3Dfx framebuffer device driver");
 MODULE_LICENSE("GPL");
+
+module_param(hwcursor, int, 0644);
+MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
+			"(1=enable, 0=disable, default=1)");
 
 module_init(tdfxfb_init);
 module_exit(tdfxfb_exit);

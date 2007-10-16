@@ -175,14 +175,6 @@ struct tdfx_par {
 	u32 palette[16];
 	void __iomem *regbase_virt;
 	unsigned long iobase;
-
-	struct {
-		int w, u, d;
-		unsigned long enable, disable;
-		struct timer_list timer;
-	} hwcursor;
-
-	spinlock_t DAClock;
 };
 
 #endif	/* __KERNEL__ */
