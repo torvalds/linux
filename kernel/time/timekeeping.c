@@ -49,19 +49,12 @@ struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
 static unsigned long total_sleep_time;		/* seconds */
 EXPORT_SYMBOL(xtime);
 
-
-#ifdef CONFIG_NO_HZ
 static struct timespec xtime_cache __attribute__ ((aligned (16)));
 static inline void update_xtime_cache(u64 nsec)
 {
 	xtime_cache = xtime;
 	timespec_add_ns(&xtime_cache, nsec);
 }
-#else
-#define xtime_cache xtime
-/* We do *not* want to evaluate the argument for this case */
-#define update_xtime_cache(n) do { } while (0)
-#endif
 
 static struct clocksource *clock; /* pointer to current clocksource */
 
