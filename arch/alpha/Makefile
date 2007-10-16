@@ -12,73 +12,22 @@ NM := $(NM) -B
 
 LDFLAGS_vmlinux	:= -static -N #-relax
 CHECKFLAGS	+= -D__alpha__ -m64
-cflags-y	:= -pipe -mno-fp-regs -ffixed-8
+cflags-y	:= -pipe -mno-fp-regs -ffixed-8 -msmall-data
 
-# Determine if we can use the BWX instructions with GAS.
-old_gas := $(shell if $(AS) --version 2>&1 | grep 'version 2.7' > /dev/null; then echo y; else echo n; fi)
+cpuflags-$(CONFIG_ALPHA_EV67)		:= -mcpu=ev67
+cpuflags-$(CONFIG_ALPHA_EV6)		:= -mcpu=ev6
+cpuflags-$(CONFIG_ALPHA_POLARIS)	:= -mcpu=pca56
+cpuflags-$(CONFIG_ALPHA_SX164)		:= -mcpu=pca56
+cpuflags-$(CONFIG_ALPHA_EV56)		:= -mcpu=ev56
+cpuflags-$(CONFIG_ALPHA_EV5)		:= -mcpu=ev5
+cpuflags-$(CONFIG_ALPHA_EV4)		:= -mcpu=ev4
+# If GENERIC, make sure to turn off any instruction set extensions that
+# the host compiler might have on by default.  Given that EV4 and EV5
+# have the same instruction set, prefer EV5 because an EV5 schedule is
+# more likely to keep an EV4 processor busy than vice-versa.
+cpuflags-$(CONFIG_ALPHA_GENERIC)	:= -mcpu=ev5
 
-ifeq ($(old_gas),y)
-$(error The assembler '$(AS)' does not support the BWX instruction)
-endif
-
-# Determine if GCC understands the -mcpu= option.
-have_mcpu        := $(call cc-option-yn, -mcpu=ev5)
-have_mcpu_pca56  := $(call cc-option-yn, -mcpu=pca56)
-have_mcpu_ev6    := $(call cc-option-yn, -mcpu=ev6)
-have_mcpu_ev67   := $(call cc-option-yn, -mcpu=ev67)
-have_msmall_data := $(call cc-option-yn, -msmall-data)
-
-cflags-$(have_msmall_data) += -msmall-data
-
-# Turn on the proper cpu optimizations.
-ifeq ($(have_mcpu),y)
-  mcpu_done := n
-  # If GENERIC, make sure to turn off any instruction set extensions that
-  # the host compiler might have on by default.  Given that EV4 and EV5
-  # have the same instruction set, prefer EV5 because an EV5 schedule is
-  # more likely to keep an EV4 processor busy than vice-versa.
-  ifeq ($(CONFIG_ALPHA_GENERIC),y)
-    mcpu := ev5
-    mcpu_done := y
-  endif
-  ifeq ($(mcpu_done)$(CONFIG_ALPHA_SX164)$(have_mcpu_pca56),nyy)
-    mcpu := pca56
-    mcpu_done := y
-  endif
-  ifeq ($(mcpu_done)$(CONFIG_ALPHA_POLARIS)$(have_mcpu_pca56),nyy)
-    mcpu := pca56
-    mcpu_done := y
-  endif
-  ifeq ($(mcpu_done)$(CONFIG_ALPHA_EV4),ny)
-    mcpu := ev4
-    mcpu_done := y
-  endif
-  ifeq ($(mcpu_done)$(CONFIG_ALPHA_EV56),ny)
-    mcpu := ev56
-    mcpu_done := y
-  endif
-  ifeq ($(mcpu_done)$(CONFIG_ALPHA_EV5),ny)
-    mcpu := ev5
-    mcpu_done := y
-  endif
-  ifeq ($(mcpu_done)$(CONFIG_ALPHA_EV67)$(have_mcpu_ev67),nyy)
-    mcpu := ev67
-    mcpu_done := y
-  endif
-  ifeq ($(mcpu_done)$(CONFIG_ALPHA_EV6),ny)
-    ifeq ($(have_mcpu_ev6),y)
-      mcpu := ev6
-    else
-      ifeq ($(have_mcpu_pca56),y)
-        mcpu := pca56
-      else
-        mcpu=ev56
-      endif
-    endif
-    mcpu_done := y
-  endif
-  cflags-$(mcpu_done) += -mcpu=$(mcpu)
-endif
+cflags-y				+= $(cpuflags-y)
 
 
 # For TSUNAMI, we must have the assembler not emulate our instructions.
