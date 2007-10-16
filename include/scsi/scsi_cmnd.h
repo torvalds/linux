@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/timer.h>
+#include <linux/scatterlist.h>
 
 struct request;
 struct scatterlist;
@@ -148,6 +149,6 @@ static inline int scsi_get_resid(struct scsi_cmnd *cmd)
 }
 
 #define scsi_for_each_sg(cmd, sg, nseg, __i)			\
-	for (__i = 0, sg = scsi_sglist(cmd); __i < (nseg); __i++, (sg)++)
+	for_each_sg(scsi_sglist(cmd), sg, nseg, __i)
 
 #endif /* _SCSI_SCSI_CMND_H */
