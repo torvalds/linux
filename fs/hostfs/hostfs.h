@@ -3,7 +3,8 @@
 
 #include "os.h"
 
-/* These are exactly the same definitions as in fs.h, but the names are
+/*
+ * These are exactly the same definitions as in fs.h, but the names are
  * changed so that this file can be included in both kernel and user files.
  */
 
@@ -21,7 +22,8 @@
 #define HOSTFS_ATTR_FORCE	512	/* Not a change, but a change it */
 #define HOSTFS_ATTR_ATTR_FLAG	1024
 
-/* If you are very careful, you'll notice that these two are missing:
+/*
+ * If you are very careful, you'll notice that these two are missing:
  *
  * #define ATTR_KILL_SUID	2048
  * #define ATTR_KILL_SGID	4096
@@ -76,7 +78,8 @@ extern int make_symlink(const char *from, const char *to);
 extern int unlink_file(const char *file);
 extern int do_mkdir(const char *file, int mode);
 extern int do_rmdir(const char *file);
-extern int do_mknod(const char *file, int mode, unsigned int major, unsigned int minor);
+extern int do_mknod(const char *file, int mode, unsigned int major,
+		    unsigned int minor);
 extern int link_file(const char *from, const char *to);
 extern int do_readlink(char *file, char *buf, int size);
 extern int rename_file(char *from, char *to);
