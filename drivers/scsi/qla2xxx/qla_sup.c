@@ -656,7 +656,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 				    "Unable to burst-write optrom segment "
 				    "(%x/%x/%llx).\n", ret,
 				    flash_data_to_access_addr(faddr),
-				    optrom_dma);
+				    (unsigned long long)optrom_dma);
 				qla_printk(KERN_WARNING, ha,
 				    "Reverting to slow-write.\n");
 
@@ -1853,7 +1853,8 @@ qla25xx_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 			qla_printk(KERN_WARNING, ha,
 			    "Unable to burst-read optrom segment "
 			    "(%x/%x/%llx).\n", rval,
-			    flash_data_to_access_addr(faddr), optrom_dma);
+			    flash_data_to_access_addr(faddr),
+			    (unsigned long long)optrom_dma);
 			qla_printk(KERN_WARNING, ha,
 			    "Reverting to slow-read.\n");
 
