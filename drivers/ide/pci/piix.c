@@ -384,8 +384,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &piix_set_pio_mode;
 	hwif->set_dma_mode = &piix_set_dma_mode;
 
@@ -412,12 +410,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 
 	if (no_piix_dma)
 		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[1].autodma = hwif->autodma;
-	hwif->drives[0].autodma = hwif->autodma;
 }
 
 #define DECLARE_PIIX_DEV(name_str, udma) \

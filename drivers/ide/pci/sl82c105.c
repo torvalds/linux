@@ -397,10 +397,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	hwif->dma_start			= &sl82c105_dma_start;
 	hwif->dma_timeout		= &sl82c105_dma_timeout;
 
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
-
 	if (hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
 }

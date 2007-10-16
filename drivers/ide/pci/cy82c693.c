@@ -428,8 +428,6 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
  */
 static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
-
 	hwif->chipset = ide_cy82c693;
 	hwif->set_pio_mode = &cy82c693_set_pio_mode;
 
@@ -444,10 +442,6 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x04;
 
 	hwif->ide_dma_on = &cy82c693_ide_dma_on;
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static __devinitdata ide_hwif_t *primary;

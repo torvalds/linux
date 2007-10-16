@@ -127,8 +127,6 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 {
 	u16 pcicmd = 0;
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &hpt34x_set_pio_mode;
 	hwif->set_dma_mode = &hpt34x_set_mode;
 
@@ -141,15 +139,13 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 		return;
 
 #ifdef CONFIG_HPT34X_AUTODMA
+	if ((pcicmd & PCI_COMMAND_MEMORY) == 0)
+		return;
+
 	hwif->ultra_mask = 0x07;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 #endif
-
-	if (!noautodma)
-		hwif->autodma = (pcicmd & PCI_COMMAND_MEMORY) ? 1 : 0;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t hpt34x_chipset __devinitdata = {

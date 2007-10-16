@@ -537,10 +537,11 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	struct it821x_dev *idev = kzalloc(sizeof(struct it821x_dev), GFP_KERNEL);
 	u8 conf;
 
-	if(idev == NULL) {
+	if (idev == NULL) {
 		printk(KERN_ERR "it821x: out of memory, falling back to legacy behaviour.\n");
-		goto fallback;
+		return;
 	}
+
 	ide_set_hwifdata(hwif, idev);
 
 	hwif->atapi_dma = 1;
@@ -589,27 +590,14 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;
 
-	if (!hwif->dma_base)
-		goto fallback;
+	if (hwif->dma_base == 0)
+		return;
 
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_it821x(hwif);
-
-	/*
-	 *	The BIOS often doesn't set up DMA on this controller
-	 *	so we always do it.
-	 */
-
-	hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
-	return;
-fallback:
-	hwif->autodma = 0;
-	return;
 }
 
 static void __devinit it8212_disable_raid(struct pci_dev *dev)

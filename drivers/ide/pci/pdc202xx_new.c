@@ -469,8 +469,6 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 
 static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &pdcnew_set_pio_mode;
 	hwif->set_dma_mode = &pdcnew_set_mode;
 
@@ -491,10 +489,6 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = pdcnew_cable_detect(hwif);
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
 static int __devinit init_setup_pdcnew(struct pci_dev *dev, ide_pci_device_t *d)

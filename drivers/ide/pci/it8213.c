@@ -170,8 +170,6 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	hwif->set_dma_mode = &it8213_set_dma_mode;
 	hwif->set_pio_mode = &it8213_set_pio_mode;
 
-	hwif->autodma = 0;
-
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;
 
@@ -187,16 +185,6 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = (reg42h & 0x02) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
-
-	/*
-	 *	The BIOS often doesn't set up DMA on this controller
-	 *	so we always do it.
-	 */
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 

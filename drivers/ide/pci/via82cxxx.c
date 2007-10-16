@@ -425,8 +425,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	struct via82cxxx_dev *vdev = pci_get_drvdata(hwif->pci_dev);
 	int i;
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &via_set_pio_mode;
 	hwif->set_dma_mode = &via_set_drive;
 
@@ -454,11 +452,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = via82cxxx_cable_detect(hwif);
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {

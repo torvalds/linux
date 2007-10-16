@@ -810,9 +810,6 @@ init_e100_ide (void)
 		hwif->drives[1].autotune = 1;
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
-		hwif->autodma = 1;
-		hwif->drives[0].autodma = 1;
-		hwif->drives[1].autodma = 1;
 	}
 
 	/* Reset pulse */

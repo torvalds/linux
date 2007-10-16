@@ -175,7 +175,6 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	if (!hwif->irq)
 		hwif->irq = ch ? 15 : 14;
 
-	hwif->autodma = 0;
 	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->set_dma_mode = &atiixp_set_dma_mode;
 	hwif->drives[0].autotune = 1;
@@ -197,12 +196,6 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 
 	hwif->dma_host_on = &atiixp_dma_host_on;
 	hwif->dma_host_off = &atiixp_dma_host_off;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[1].autodma = hwif->autodma;
-	hwif->drives[0].autodma = hwif->autodma;
 }
 
 

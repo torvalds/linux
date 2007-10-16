@@ -415,8 +415,6 @@ static void icside_dma_lost_irq(ide_drive_t *drive)
 
 static void icside_dma_init(ide_hwif_t *hwif)
 {
-	printk("    %s: SG-DMA", hwif->name);
-
 	hwif->atapi_dma		= 1;
 	hwif->mwdma_mask	= 7; /* MW0..2 */
 	hwif->swdma_mask	= 7; /* SW0..2 */
@@ -424,7 +422,6 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->dmatable_cpu	= NULL;
 	hwif->dmatable_dma	= 0;
 	hwif->set_dma_mode	= icside_set_dma_mode;
-	hwif->autodma		= 1;
 
 	hwif->dma_host_off	= icside_dma_host_off;
 	hwif->dma_off_quietly	= icside_dma_off_quietly;
@@ -437,11 +434,6 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->ide_dma_test_irq	= icside_dma_test_irq;
 	hwif->dma_timeout	= icside_dma_timeout;
 	hwif->dma_lost_irq	= icside_dma_lost_irq;
-
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
-
-	printk(" capable%s\n", hwif->autodma ? ", auto-enable" : "");
 }
 #else
 #define icside_dma_init(hwif)	(0)

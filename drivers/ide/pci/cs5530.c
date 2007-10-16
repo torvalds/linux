@@ -244,7 +244,6 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 {
 	unsigned long basereg;
 	u32 d0_timings;
-	hwif->autodma = 0;
 
 	if (hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
@@ -270,11 +269,6 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 
 	hwif->udma_filter = cs5530_udma_filter;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t cs5530_chipset __devinitdata = {

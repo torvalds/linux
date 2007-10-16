@@ -328,7 +328,6 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
  */
 static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
 	hwif->drives[0].drive_data = PIO_DONT_KNOW;
 	hwif->drives[1].drive_data = PIO_DONT_KNOW;
 
@@ -340,11 +339,6 @@ static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 	hwif->atapi_dma = 1;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t opti621_chipsets[] __devinitdata = {

@@ -376,8 +376,6 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 	if (hwif->irq == 0) /* 0 is bogus but will do for now */
 		hwif->irq = pci_get_legacy_ide_irq(hwif->pci_dev, hwif->channel);
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &amd_set_pio_mode;
 	hwif->set_dma_mode = &amd_set_drive;
 
@@ -404,11 +402,6 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		else
 			hwif->cbl = ATA_CBL_PATA40;
 	}
-
-        if (!noautodma)
-                hwif->autodma = 1;
-        hwif->drives[0].autodma = hwif->autodma;
-        hwif->drives[1].autodma = hwif->autodma;
 }
 
 #define DECLARE_AMD_DEV(name_str)					\

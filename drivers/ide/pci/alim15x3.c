@@ -660,7 +660,6 @@ static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
  
 static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
 	hwif->set_pio_mode = &ali_set_pio_mode;
 	hwif->set_dma_mode = &ali_set_dma_mode;
 	hwif->udma_filter = &ali_udma_filter;
@@ -699,12 +698,6 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_ali15x3(hwif);
-
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 /**

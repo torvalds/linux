@@ -458,7 +458,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->select_data		= tmp_hwif->select_data;
 	hwif->extra_base		= tmp_hwif->extra_base;
 	hwif->extra_ports		= tmp_hwif->extra_ports;
-	hwif->autodma			= tmp_hwif->autodma;
 
 	hwif->hwif_data			= tmp_hwif->hwif_data;
 }

@@ -697,12 +697,6 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 
 	/* we support 80c cable only. */
 	hwif->cbl = ATA_CBL_PATA80;
-
-	hwif->autodma = 0;
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 #define DECLARE_SCC_DEV(name_str)			\

@@ -197,7 +197,6 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	u8 stat;
 #endif
 
-	hwif->autodma = 0;
 	hwif->selectproc = &ns87415_selectproc;
 
 	/*
@@ -259,11 +258,6 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	outb(0x60, hwif->dma_status);
 	hwif->dma_setup = &ns87415_ide_dma_setup;
 	hwif->ide_dma_end = &ns87415_ide_dma_end;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t ns87415_chipset __devinitdata = {

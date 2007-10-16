@@ -576,7 +576,6 @@ typedef struct ide_drive_s {
 	select_t	select;		/* basic drive/head select reg value */
 
 	u8	keep_settings;		/* restore settings after drive reset */
-	u8	autodma;		/* device can safely use dma on host */
 	u8	using_dma;		/* disk is using dma for read/write */
 	u8	retry_pio;		/* retrying dma capable host in pio */
 	u8	state;			/* retry state */
@@ -797,7 +796,6 @@ typedef struct hwif_s {
 	unsigned	serialized : 1;	/* serialized all channel operation */
 	unsigned	sharing_irq: 1;	/* 1 = sharing irq with another hwif */
 	unsigned	reset      : 1;	/* reset after probe */
-	unsigned	autodma    : 1;	/* auto-attempt using DMA at boot */
 	unsigned	no_lba48   : 1; /* 1 = cannot do LBA48 */
 	unsigned	no_lba48_dma : 1; /* 1 = cannot do LBA48 DMA */
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */

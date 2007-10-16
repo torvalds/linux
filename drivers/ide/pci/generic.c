@@ -73,11 +73,6 @@ static void __devinit init_hwif_generic (ide_hwif_t *hwif)
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 #if 0

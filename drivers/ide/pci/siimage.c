@@ -873,8 +873,6 @@ static u8 __devinit ata66_siimage(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
-	
 	hwif->resetproc = &siimage_reset;
 	hwif->set_pio_mode = &sil_set_pio_mode;
 	hwif->set_dma_mode = &sil_set_dma_mode;
@@ -912,15 +910,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	} else {
 		hwif->ide_dma_test_irq = & siimage_io_ide_dma_test_irq;
 	}
-	
-	/*
-	 *	The BIOS often doesn't set up DMA on this controller
-	 *	so we always do it.
-	 */
-
-	hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 #define DECLARE_SII_DEV(name_str)			\

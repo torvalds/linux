@@ -212,10 +212,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 		scr1 = hwif->INW(sc_base + 0x00);
 		hwif->cbl = (scr1 & 0x2000) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 	}
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
 static unsigned int __devinit init_chipset_tc86c001(struct pci_dev *dev,

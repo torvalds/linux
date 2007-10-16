@@ -374,8 +374,6 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 
 	hwif->mwdma_mask = 0x07;
 
-	hwif->autodma = 0;
-
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;
 
@@ -386,10 +384,6 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 			hwif->cbl = ata66_svwks(hwif);
 	}
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[0].autodma = hwif->drives[1].autodma = 1;
 }
 
 static int __devinit init_setup_svwks (struct pci_dev *dev, ide_pci_device_t *d)

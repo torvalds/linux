@@ -1804,9 +1804,6 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 			hwif->swdma_mask = 0x00;
 			break;
 	}
-
-	hwif->autodma = 1;
-	hwif->drives[1].autodma = hwif->drives[0].autodma = hwif->autodma;
 }
 
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */

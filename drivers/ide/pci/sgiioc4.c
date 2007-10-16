@@ -674,12 +674,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
-	hwif->autodma = 0;
-
-	if (dma_base && ide_dma_sgiioc4(hwif, dma_base) == 0) {
-		hwif->autodma = 1;
-		hwif->drives[1].autodma = hwif->drives[0].autodma = 1;
-	} else
+	if (dma_base == 0 || ide_dma_sgiioc4(hwif, dma_base))
 		printk(KERN_INFO "%s: %s Bus-Master DMA disabled\n",
 				 hwif->name, DRV_NAME);
 

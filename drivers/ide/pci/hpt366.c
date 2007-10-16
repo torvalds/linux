@@ -1345,10 +1345,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 		hwif->dma_timeout	= &hpt370_dma_timeout;
 	} else
 		hwif->dma_lost_irq	= &hpt366_dma_lost_irq;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
 static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)

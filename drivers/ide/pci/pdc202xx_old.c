@@ -312,8 +312,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	    (dev->device == PCI_DEVICE_ID_PROMISE_20265))
 		hwif->rqsize = 256;
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &pdc202xx_set_pio_mode;
 	hwif->set_dma_mode = &pdc202xx_set_mode;
 
@@ -345,10 +343,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 		hwif->ide_dma_end = &pdc202xx_old_ide_dma_end;
 	} 
 	hwif->ide_dma_test_irq = &pdc202xx_old_ide_dma_test_irq;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
 static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)

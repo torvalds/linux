@@ -292,9 +292,6 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 	hwif->ide_dma_test_irq = &trm290_ide_dma_test_irq;
 
 	hwif->selectproc = &trm290_selectproc;
-	hwif->autodma = 0;		/* play it safe for now */
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 #if 1
 	{
 	/*
@@ -329,7 +326,9 @@ static ide_pci_device_t trm290_chipset __devinitdata = {
 	.init_hwif	= init_hwif_trm290,
 	.autodma	= NOAUTODMA,
 	.bootable	= ON_BOARD,
+#if 0 /* play it safe for now */
 	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+#endif
 };
 
 static int __devinit trm290_init_one(struct pci_dev *dev, const struct pci_device_id *id)

@@ -559,10 +559,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 		hwif->ide_dma_test_irq	= &cmd64x_ide_dma_test_irq;
 		break;
 	}
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
 static int __devinit init_setup_cmd64x(struct pci_dev *dev, ide_pci_device_t *d)
