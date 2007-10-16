@@ -2469,6 +2469,9 @@ struct skge_port {
 	void		     *mem;	/* PCI memory for rings */
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
+#ifdef CONFIG_SKGE_DEBUG
+	struct dentry	     *debugfs;
+#endif
 };
 
 
