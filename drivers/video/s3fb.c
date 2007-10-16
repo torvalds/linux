@@ -400,6 +400,7 @@ static int s3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct s3fb_info *par = info->par;
 	int rv, mem, step;
+	u16 m, n, r;
 
 	/* Find appropriate format */
 	rv = svga_match_format (s3fb_formats, var, NULL);
@@ -427,17 +428,23 @@ static int s3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	/* Check whether have enough memory */
 	mem = ((var->bits_per_pixel * var->xres_virtual) >> 3) * var->yres_virtual;
-	if (mem > info->screen_size)
-	{
+	if (mem > info->screen_size) {
 		printk(KERN_ERR "fb%d: not enough framebuffer memory (%d kB requested , %d kB available)\n",
 			info->node, mem >> 10, (unsigned int) (info->screen_size >> 10));
 		return -EINVAL;
 	}
 
 	rv = svga_check_timings (&s3_timing_regs, var, info->node);
-	if (rv < 0)
-	{
+	if (rv < 0) {
 		printk(KERN_ERR "fb%d: invalid timings requested\n", info->node);
+		return rv;
+	}
+
+	rv = svga_compute_pll(&s3_pll, PICOS2KHZ(var->pixclock), &m, &n, &r,
+				info->node);
+	if (rv < 0) {
+		printk(KERN_ERR "fb%d: invalid pixclock value requested\n",
+			info->node);
 		return rv;
 	}
 
