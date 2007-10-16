@@ -115,7 +115,7 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 		     len - bootmap_size - reserve);
 }
 
-int phys_mapping(unsigned long phys, __u64 *offset_out)
+int phys_mapping(unsigned long phys, unsigned long long *offset_out)
 {
 	int fd = -1;
 

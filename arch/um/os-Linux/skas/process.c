@@ -382,7 +382,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	unsigned long current_stack = current_stub_stack();
 	struct stub_data *data = (struct stub_data *) current_stack;
 	struct stub_data *child_data = (struct stub_data *) new_stack;
-	__u64 new_offset;
+	unsigned long long new_offset;
 	int new_fd = phys_mapping(to_phys((void *)new_stack), &new_offset);
 
 	/*
@@ -444,7 +444,7 @@ void map_stub_pages(int fd, unsigned long code,
 {
 	struct proc_mm_op mmop;
 	int n;
-	__u64 code_offset;
+	unsigned long long code_offset;
 	int code_fd = phys_mapping(to_phys((void *) &__syscall_stub_start),
 				   &code_offset);
 
@@ -469,7 +469,7 @@ void map_stub_pages(int fd, unsigned long code,
 	}
 
 	if (stack) {
-		__u64 map_offset;
+		unsigned long long map_offset;
 		int map_fd = phys_mapping(to_phys((void *)stack), &map_offset);
 		mmop = ((struct proc_mm_op)
 				{ .op        = MM_MMAP,
