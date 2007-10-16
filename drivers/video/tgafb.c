@@ -5,7 +5,7 @@
  *	Copyright (C) 1997 Geert Uytterhoeven
  *	Copyright (C) 1999,2000 Martin Lucina, Tom Zerucha
  *	Copyright (C) 2002 Richard Henderson
- *	Copyright (C) 2006 Maciej W. Rozycki
+ *	Copyright (C) 2006, 2007  Maciej W. Rozycki
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License. See the file COPYING in the main directory of this archive for
@@ -13,6 +13,7 @@
  */
 
 #include <linux/bitrev.h>
+#include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -654,6 +655,9 @@ tgafb_mono_imageblit(struct fb_info *info, const struct fb_image *image)
 	line_length = info->fix.line_length;
 	rincr = (width + 7) / 8;
 
+	/* A shift below cannot cope with.  */
+	if (unlikely(width == 0))
+		return;
 	/* Crop the image to the screen.  */
 	if (dx > vxres || dy > vyres)
 		return;
@@ -709,9 +713,10 @@ tgafb_mono_imageblit(struct fb_info *info, const struct fb_image *image)
 		unsigned long bwidth;
 
 		/* Handle common case of imaging a single character, in
-		   a font less than 32 pixels wide.  */
+		   a font less than or 32 pixels wide.  */
 
-		pixelmask = (1 << width) - 1;
+		/* Avoid a shift by 32; width > 0 implied.  */
+		pixelmask = (2ul << (width - 1)) - 1;
 		pixelmask <<= shift;
 		__raw_writel(pixelmask, regs_base + TGA_PIXELMASK_REG);
 		wmb();
