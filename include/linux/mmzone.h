@@ -37,7 +37,8 @@
 #define MIGRATE_RECLAIMABLE   1
 #define MIGRATE_MOVABLE       2
 #define MIGRATE_RESERVE       3
-#define MIGRATE_TYPES         4
+#define MIGRATE_ISOLATE       4 /* can't allocate from here */
+#define MIGRATE_TYPES         5
 
 #define for_each_migratetype_order(order, type) \
 	for (order = 0; order < MAX_ORDER; order++) \

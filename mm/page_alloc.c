@@ -41,6 +41,7 @@
 #include <linux/pfn.h>
 #include <linux/backing-dev.h>
 #include <linux/fault-inject.h>
+#include <linux/page-isolation.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -4432,4 +4433,47 @@ void set_pageblock_flags_group(struct page *page, unsigned long flags,
 			__set_bit(bitidx + start_bitidx, bitmap);
 		else
 			__clear_bit(bitidx + start_bitidx, bitmap);
+}
+
+/*
+ * This is designed as sub function...plz see page_isolation.c also.
+ * set/clear page block's type to be ISOLATE.
+ * page allocater never alloc memory from ISOLATE block.
+ */
+
+int set_migratetype_isolate(struct page *page)
+{
+	struct zone *zone;
+	unsigned long flags;
+	int ret = -EBUSY;
+
+	zone = page_zone(page);
+	spin_lock_irqsave(&zone->lock, flags);
+	/*
+	 * In future, more migrate types will be able to be isolation target.
+	 */
+	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE)
+		goto out;
+	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+	move_freepages_block(zone, page, MIGRATE_ISOLATE);
+	ret = 0;
+out:
+	spin_unlock_irqrestore(&zone->lock, flags);
+	if (!ret)
+		drain_all_local_pages();
+	return ret;
+}
+
+void unset_migratetype_isolate(struct page *page)
+{
+	struct zone *zone;
+	unsigned long flags;
+	zone = page_zone(page);
+	spin_lock_irqsave(&zone->lock, flags);
+	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+		goto out;
+	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+	move_freepages_block(zone, page, MIGRATE_MOVABLE);
+out:
+	spin_unlock_irqrestore(&zone->lock, flags);
 }
