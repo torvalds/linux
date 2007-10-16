@@ -138,14 +138,6 @@ static struct s3c2410fb_display h1940_lcd __initdata = {
 			S3C2410_LCDCON1_TFT | \
 			S3C2410_LCDCON1_CLKVAL(0x0C),
 
-	.lcdcon2=	S3C2410_LCDCON2_VBPD(7) | \
-			S3C2410_LCDCON2_LINEVAL(319) | \
-			S3C2410_LCDCON2_VFPD(6) | \
-			S3C2410_LCDCON2_VSPW(0),
-
-	.lcdcon4=	S3C2410_LCDCON4_MVAL(0) | \
-			S3C2410_LCDCON4_HSPW(3),
-
 	.lcdcon5=	S3C2410_LCDCON5_FRM565 | \
 			S3C2410_LCDCON5_INVVLINE | \
 			S3C2410_LCDCON5_HWSWP,
@@ -165,8 +157,6 @@ static struct s3c2410fb_display h1940_lcd __initdata = {
 };
 
 static struct s3c2410fb_mach_info h1940_fb_info __initdata = {
-	.fixed_syncs =		1,
-
 	.displays = &h1940_lcd,
 	.num_displays = 1,
 	.default_display = 0,

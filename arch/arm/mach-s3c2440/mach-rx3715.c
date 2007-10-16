@@ -115,14 +115,6 @@ static struct s3c2410fb_display rx3715_lcdcfg __initdata = {
 			S3C2410_LCDCON1_TFT | \
 			S3C2410_LCDCON1_CLKVAL(0x0C),
 
-	.lcdcon2 =	S3C2410_LCDCON2_VBPD(5) | \
-			S3C2410_LCDCON2_LINEVAL(319) | \
-			S3C2410_LCDCON2_VFPD(6) | \
-			S3C2410_LCDCON2_VSPW(2),
-
-	.lcdcon4 =	S3C2410_LCDCON4_MVAL(0) | \
-			S3C2410_LCDCON4_HSPW(7),
-
 	.lcdcon5 =	S3C2410_LCDCON5_INVVLINE |
 			S3C2410_LCDCON5_FRM565 |
 			S3C2410_LCDCON5_HWSWP,
@@ -159,8 +151,6 @@ static struct s3c2410fb_mach_info rx3715_fb_info __initdata = {
 	.gpdcon_mask =	0xffc0fff0,
 	.gpdup =	0x0000faff,
 	.gpdup_mask =	0xffffffff,
-
-	.fixed_syncs =	1,
 };
 
 static struct mtd_partition rx3715_nand_part[] = {

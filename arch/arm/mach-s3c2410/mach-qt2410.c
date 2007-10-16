@@ -102,14 +102,6 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 			   S3C2410_LCDCON1_TFT |
 			   S3C2410_LCDCON1_CLKVAL(0x01), /* HCLK/4 */
 
-		.lcdcon2 = S3C2410_LCDCON2_VBPD(18) |	/* 19 */
-			   S3C2410_LCDCON2_LINEVAL(479) |
-			   S3C2410_LCDCON2_VFPD(10) |	/* 11 */
-			   S3C2410_LCDCON2_VSPW(14),	/* 15 */
-
-		.lcdcon4 = S3C2410_LCDCON4_MVAL(0) |
-			   S3C2410_LCDCON4_HSPW(95),	/* 96 */
-
 		.lcdcon5 = S3C2410_LCDCON5_FRM565 |
 			   S3C2410_LCDCON5_INVVLINE |
 			   S3C2410_LCDCON5_INVVFRAME |
@@ -136,14 +128,6 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 			   S3C2410_LCDCON1_TFT |
 			   S3C2410_LCDCON1_CLKVAL(0x01), /* HCLK/4 */
 
-		.lcdcon2 = S3C2410_LCDCON2_VBPD(1) |	/* 2 */
-			   S3C2410_LCDCON2_LINEVAL(639) |/* 640 */
-			   S3C2410_LCDCON2_VFPD(3) |	/* 4 */
-			   S3C2410_LCDCON2_VSPW(1),	/* 2 */
-
-		.lcdcon4 = S3C2410_LCDCON4_MVAL(0) |
-			   S3C2410_LCDCON4_HSPW(7),	/* 8 */
-
 		.lcdcon5 = S3C2410_LCDCON5_FRM565 |
 			   S3C2410_LCDCON5_INVVLINE |
 			   S3C2410_LCDCON5_INVVFRAME |
@@ -168,14 +152,6 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 		.lcdcon1 = S3C2410_LCDCON1_TFT16BPP |
 			   S3C2410_LCDCON1_TFT |
 			   S3C2410_LCDCON1_CLKVAL(0x04),
-
-		.lcdcon2 = S3C2410_LCDCON2_VBPD(1) |
-			   S3C2410_LCDCON2_LINEVAL(319) |
-			   S3C2410_LCDCON2_VFPD(6) |
-			   S3C2410_LCDCON2_VSPW(3),
-
-		.lcdcon4 = S3C2410_LCDCON4_MVAL(0) |
-			   S3C2410_LCDCON4_HSPW(3),
 
 		.lcdcon5 = S3C2410_LCDCON5_FRM565 |
 			   S3C2410_LCDCON5_INVVLINE |

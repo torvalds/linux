@@ -341,8 +341,7 @@ static void s3c2410fb_calculate_stn_lcd_regs(const struct fb_info *info,
 			S3C2410_LCDCON3_LINEBLANK(var->right_margin / 8) |
 			S3C2410_LCDCON3_HOZVAL(hs - 1);
 
-	regs->lcdcon4 &= ~S3C2410_LCDCON4_HSPW(0xff);
-	regs->lcdcon4 |=  S3C2410_LCDCON4_HSPW(wlh);
+	regs->lcdcon4 = S3C2410_LCDCON4_WLH(wlh);
 }
 
 /* s3c2410fb_calculate_tft_lcd_regs
@@ -399,8 +398,7 @@ static void s3c2410fb_calculate_tft_lcd_regs(const struct fb_info *info,
 			S3C2410_LCDCON3_HFPD(var->left_margin - 1) |
 			S3C2410_LCDCON3_HOZVAL(var->xres - 1);
 
-	regs->lcdcon4 &= ~S3C2410_LCDCON4_HSPW(0xff);
-	regs->lcdcon4 |=  S3C2410_LCDCON4_HSPW(var->hsync_len - 1);
+	regs->lcdcon4 = S3C2410_LCDCON4_HSPW(var->hsync_len - 1);
 }
 
 /* s3c2410fb_activate_var
@@ -850,8 +848,6 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 	strcpy(fbinfo->fix.id, driver_name);
 
 	info->regs.lcdcon1 = display->lcdcon1;
-	info->regs.lcdcon2 = display->lcdcon2;
-	info->regs.lcdcon4 = display->lcdcon4;
 	info->regs.lcdcon5 = display->lcdcon5;
 
 	/* Stop the video and unset ENVID if set */

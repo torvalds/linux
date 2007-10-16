@@ -485,8 +485,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.bpp		= 4,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -505,8 +503,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.vsync_len	= 3,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -525,8 +521,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.vsync_len	= 3,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -545,8 +539,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.vsync_len	= 3,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -565,8 +557,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.vsync_len	= 3,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -585,8 +575,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.vsync_len	= 3,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -605,8 +593,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.vsync_len	= 3,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -625,8 +611,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.vsync_len	= 3,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -645,8 +629,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.vsync_len	= 3,
 
 		.lcdcon1	= 0x00000176,
-		.lcdcon2	= 0x1d77c7c2,
-		.lcdcon4	= 0x00000057,
 		.lcdcon5	= 0x00014b02,
 	},
 };

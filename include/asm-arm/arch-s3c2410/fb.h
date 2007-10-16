@@ -45,13 +45,10 @@ struct s3c2410fb_display {
 
 	/* lcd configuration registers */
 	unsigned long	lcdcon1;
-	unsigned long	lcdcon2;
-	unsigned long	lcdcon4;
 	unsigned long	lcdcon5;
 };
 
 struct s3c2410fb_mach_info {
-	unsigned char	fixed_syncs;	/* do not update sync/border */
 
 	struct s3c2410fb_display *displays;	/* attached diplays info */
 	unsigned num_displays;			/* number of defined displays */
