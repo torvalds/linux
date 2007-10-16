@@ -1407,7 +1407,11 @@ fail:
 
 
 /**
- * Similar to usb_disconnect()
+ * usb_deauthorize_device - deauthorize a device (usbcore-internal)
+ * @usb_dev: USB device
+ *
+ * Move the USB device to a very basic state where interfaces are disabled
+ * and the device is in fact unconfigured and unusable.
  *
  * We share a lock (that we have) with device_del(), so we need to
  * defer its call.

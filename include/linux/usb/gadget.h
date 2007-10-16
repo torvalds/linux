@@ -481,7 +481,7 @@ static inline void *get_gadget_data (struct usb_gadget *gadget)
 
 /**
  * gadget_is_dualspeed - return true iff the hardware handles high speed
- * @gadget: controller that might support both high and full speeds
+ * @g: controller that might support both high and full speeds
  */
 static inline int gadget_is_dualspeed(struct usb_gadget *g)
 {
@@ -497,7 +497,7 @@ static inline int gadget_is_dualspeed(struct usb_gadget *g)
 
 /**
  * gadget_is_otg - return true iff the hardware is OTG-ready
- * @gadget: controller that might have a Mini-AB connector
+ * @g: controller that might have a Mini-AB connector
  *
  * This is a runtime test, since kernels with a USB-OTG stack sometimes
  * run on boards which only have a Mini-B (or Mini-A) connector.
