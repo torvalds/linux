@@ -67,9 +67,6 @@ EXPORT_SYMBOL(run_helper);
 EXPORT_SYMBOL(start_thread);
 EXPORT_SYMBOL(dump_thread);
 
-EXPORT_SYMBOL(do_gettimeofday);
-EXPORT_SYMBOL(do_settimeofday);
-
 #ifdef CONFIG_SMP
 
 /* required for SMP */

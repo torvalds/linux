@@ -55,6 +55,10 @@ config GENERIC_BUG
 	default y
 	depends on BUG
 
+config GENERIC_TIME
+	bool
+	default y
+
 # Used in kernel/irq/manage.c and include/linux/irq.h
 config IRQ_RELEASE_METHOD
 	bool
@@ -75,6 +79,7 @@ config STATIC_LINK
 
 source "arch/um/Kconfig.arch"
 source "mm/Kconfig"
+source "kernel/time/Kconfig"
 
 config LD_SCRIPT_STATIC
 	bool

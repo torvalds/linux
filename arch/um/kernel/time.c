@@ -123,46 +123,6 @@ void time_init(void)
 	late_time_init = register_timer;
 }
 
-void do_gettimeofday(struct timeval *tv)
-{
-#ifdef CONFIG_UML_REAL_TIME_CLOCK
-	unsigned long long nsecs = get_time();
-#else
-	unsigned long long nsecs = (unsigned long long) xtime.tv_sec * BILLION +
-		xtime.tv_nsec;
-#endif
-	tv->tv_sec = nsecs / NSEC_PER_SEC;
-	/*
-	 * Careful about calculations here - this was originally done as
-	 * (nsecs - tv->tv_sec * NSEC_PER_SEC) / NSEC_PER_USEC
-	 * which gave bogus (> 1000000) values.  Dunno why, suspect gcc
-	 * (4.0.0) miscompiled it, or there's a subtle 64/32-bit conversion
-	 * problem that I missed.
-	 */
-	nsecs -= tv->tv_sec * NSEC_PER_SEC;
-	tv->tv_usec = (unsigned long) nsecs / NSEC_PER_USEC;
-}
-
-static inline void set_time(unsigned long long nsecs)
-{
-	unsigned long long now;
-	unsigned long flags;
-
-	spin_lock_irqsave(&timer_spinlock, flags);
-	now = os_nsecs();
-	local_offset = nsecs - now;
-	spin_unlock_irqrestore(&timer_spinlock, flags);
-
-	clock_was_set();
-}
-
-int do_settimeofday(struct timespec *tv)
-{
-	set_time((unsigned long long) tv->tv_sec * NSEC_PER_SEC + tv->tv_nsec);
-
-	return 0;
-}
-
 void timer_handler(int sig, struct uml_pt_regs *regs)
 {
 	if (current_thread->cpu == 0)
