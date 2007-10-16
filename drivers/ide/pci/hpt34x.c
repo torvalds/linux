@@ -82,8 +82,6 @@ static void hpt34x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	drive->init_speed = 0;
-
 	if (ide_tune_dma(drive))
 		return -1;
 

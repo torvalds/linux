@@ -264,8 +264,6 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
  
 static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	drive->init_speed = 0;
-
 	if (ide_tune_dma(drive))
 		return 0;
 

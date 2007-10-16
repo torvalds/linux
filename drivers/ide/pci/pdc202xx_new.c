@@ -225,8 +225,6 @@ static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 
 static int pdcnew_config_drive_xfer_rate(ide_drive_t *drive)
 {
-	drive->init_speed = 0;
-
 	if (ide_tune_dma(drive))
 		return 0;
 

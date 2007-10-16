@@ -159,8 +159,6 @@ static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static int cs5535_dma_check(ide_drive_t *drive)
 {
-	drive->init_speed = 0;
-
 	if (ide_tune_dma(drive))
 		return 0;
 

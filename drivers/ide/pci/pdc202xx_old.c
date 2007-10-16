@@ -181,8 +181,6 @@ static void pdc_old_disable_66MHz_clock(ide_hwif_t *hwif)
 
 static int pdc202xx_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	drive->init_speed = 0;
-
 	if (ide_tune_dma(drive))
 		return 0;
 

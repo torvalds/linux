@@ -446,8 +446,6 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 static int ali15x3_config_drive_for_dma(ide_drive_t *drive)
 {
-	drive->init_speed = 0;
-
 	if (ide_tune_dma(drive))
 		return 0;
 
