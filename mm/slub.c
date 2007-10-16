@@ -3285,7 +3285,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	int node;
 
 	if (!alloc_loc_track(&t, PAGE_SIZE / sizeof(struct location),
-			GFP_KERNEL))
+			GFP_TEMPORARY))
 		return sprintf(buf, "Out of memory\n");
 
 	/* Push back cpu slabs */
