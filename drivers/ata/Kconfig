@@ -650,11 +650,4 @@ config PATA_BF54X
 
 	  If unsure, say N.
 
-config PATA_BF54X_DMA
-	bool "DMA mode"
-	depends on PATA_BF54X
-	default y
-	help
-	  Enable DMA mode for Blackfin ATAPI controller.
-
 endif # ATA
