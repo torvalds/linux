@@ -27,10 +27,14 @@ static int hfsplus_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page, hfsplus_get_block, wbc);
 }
 
-static int hfsplus_prepare_write(struct file *file, struct page *page, unsigned from, unsigned to)
+static int hfsplus_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata)
 {
-	return cont_prepare_write(page, from, to, hfsplus_get_block,
-		&HFSPLUS_I(page->mapping->host).phys_size);
+	*pagep = NULL;
+	return cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				hfsplus_get_block,
+				&HFSPLUS_I(mapping->host).phys_size);
 }
 
 static sector_t hfsplus_bmap(struct address_space *mapping, sector_t block)
@@ -114,8 +118,8 @@ const struct address_space_operations hfsplus_btree_aops = {
 	.readpage	= hfsplus_readpage,
 	.writepage	= hfsplus_writepage,
 	.sync_page	= block_sync_page,
-	.prepare_write	= hfsplus_prepare_write,
-	.commit_write	= generic_commit_write,
+	.write_begin	= hfsplus_write_begin,
+	.write_end	= generic_write_end,
 	.bmap		= hfsplus_bmap,
 	.releasepage	= hfsplus_releasepage,
 };
@@ -124,8 +128,8 @@ const struct address_space_operations hfsplus_aops = {
 	.readpage	= hfsplus_readpage,
 	.writepage	= hfsplus_writepage,
 	.sync_page	= block_sync_page,
-	.prepare_write	= hfsplus_prepare_write,
-	.commit_write	= generic_commit_write,
+	.write_begin	= hfsplus_write_begin,
+	.write_end	= generic_write_end,
 	.bmap		= hfsplus_bmap,
 	.direct_IO	= hfsplus_direct_IO,
 	.writepages	= hfsplus_writepages,
