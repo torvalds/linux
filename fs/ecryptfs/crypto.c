@@ -1029,8 +1029,7 @@ int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry)
 	int rc = 0;
 
 	ecryptfs_set_default_crypt_stat_vals(crypt_stat, mount_crypt_stat);
-	crypt_stat->flags |= ECRYPTFS_ENCRYPTED;
-	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
+	crypt_stat->flags |= (ECRYPTFS_ENCRYPTED | ECRYPTFS_KEY_VALID);
 	ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
 						      mount_crypt_stat);
 	rc = ecryptfs_copy_mount_wide_sigs_to_inode_sigs(crypt_stat,
