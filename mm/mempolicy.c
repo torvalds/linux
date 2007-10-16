@@ -494,9 +494,9 @@ static void get_zonemask(struct mempolicy *p, nodemask_t *nodes)
 		*nodes = p->v.nodes;
 		break;
 	case MPOL_PREFERRED:
-		/* or use current node instead of online map? */
+		/* or use current node instead of memory_map? */
 		if (p->v.preferred_node < 0)
-			*nodes = node_online_map;
+			*nodes = node_states[N_HIGH_MEMORY];
 		else
 			node_set(p->v.preferred_node, *nodes);
 		break;
@@ -1687,7 +1687,7 @@ void __init numa_policy_init(void)
 	 * fall back to the largest node if they're all smaller.
 	 */
 	nodes_clear(interleave_nodes);
-	for_each_online_node(nid) {
+	for_each_node_state(nid, N_HIGH_MEMORY) {
 		unsigned long total_pages = node_present_pages(nid);
 
 		/* Preserve the largest node */
@@ -1973,7 +1973,7 @@ int show_numa_map(struct seq_file *m, void *v)
 		seq_printf(m, " huge");
 	} else {
 		check_pgd_range(vma, vma->vm_start, vma->vm_end,
-				&node_online_map, MPOL_MF_STATS, md);
+			&node_states[N_HIGH_MEMORY], MPOL_MF_STATS, md);
 	}
 
 	if (!md->pages)
@@ -2000,7 +2000,7 @@ int show_numa_map(struct seq_file *m, void *v)
 	if (md->writeback)
 		seq_printf(m," writeback=%lu", md->writeback);
 
-	for_each_online_node(n)
+	for_each_node_state(n, N_HIGH_MEMORY)
 		if (md->node[n])
 			seq_printf(m, " N%d=%lu", n, md->node[n]);
 out:
