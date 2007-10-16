@@ -1263,7 +1263,8 @@ rpcrdma_register_internal(struct rpcrdma_ia *ia, void *va, int len,
 
 	dprintk("RPC:       %s: phys convert: 0x%llx "
 			"registered 0x%llx length %d\n",
-			__func__, ipb.addr, iov->addr, len);
+			__func__, (unsigned long long)ipb.addr,
+			(unsigned long long)iov->addr, len);
 
 	if (IS_ERR(mr)) {
 		*mrp = NULL;
