@@ -99,6 +99,64 @@ void __ecryptfs_printk(const char *fmt, ...)
 }
 
 /**
+ * ecryptfs_init_persistent_file
+ * @ecryptfs_dentry: Fully initialized eCryptfs dentry object, with
+ *                   the lower dentry and the lower mount set
+ *
+ * eCryptfs only ever keeps a single open file for every lower
+ * inode. All I/O operations to the lower inode occur through that
+ * file. When the first eCryptfs dentry that interposes with the first
+ * lower dentry for that inode is created, this function creates the
+ * persistent file struct and associates it with the eCryptfs
+ * inode. When the eCryptfs inode is destroyed, the file is closed.
+ *
+ * The persistent file will be opened with read/write permissions, if
+ * possible. Otherwise, it is opened read-only.
+ *
+ * This function does nothing if a lower persistent file is already
+ * associated with the eCryptfs inode.
+ *
+ * Returns zero on success; non-zero otherwise
+ */
+int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
+{
+	struct ecryptfs_inode_info *inode_info =
+		ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
+	int rc = 0;
+
+	mutex_lock(&inode_info->lower_file_mutex);
+	if (!inode_info->lower_file) {
+		struct dentry *lower_dentry;
+		struct vfsmount *lower_mnt =
+			ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
+
+		lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
+		/* Corresponding dput() and mntput() are done when the
+		 * persistent file is fput() when the eCryptfs inode
+		 * is destroyed. */
+		dget(lower_dentry);
+		mntget(lower_mnt);
+		inode_info->lower_file = dentry_open(lower_dentry,
+						     lower_mnt,
+						     (O_RDWR | O_LARGEFILE));
+		if (IS_ERR(inode_info->lower_file))
+			inode_info->lower_file = dentry_open(lower_dentry,
+							     lower_mnt,
+							     (O_RDONLY
+							      | O_LARGEFILE));
+		if (IS_ERR(inode_info->lower_file)) {
+			printk(KERN_ERR "Error opening lower persistent file "
+			       "for lower_dentry [0x%p] and lower_mnt [0x%p]\n",
+			       lower_dentry, lower_mnt);
+			rc = PTR_ERR(inode_info->lower_file);
+			inode_info->lower_file = NULL;
+		}
+	}
+	mutex_unlock(&inode_info->lower_file_mutex);
+	return rc;
+}
+
+/**
  * ecryptfs_interpose
  * @lower_dentry: Existing dentry in the lower filesystem
  * @dentry: ecryptfs' dentry
@@ -155,6 +213,13 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 	/* This size will be overwritten for real files w/ headers and
 	 * other metadata */
 	fsstack_copy_inode_size(inode, lower_inode);
+	rc = ecryptfs_init_persistent_file(dentry);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to initialize the "
+		       "persistent file for the dentry with name [%s]; "
+		       "rc = [%d]\n", __FUNCTION__, dentry->d_name.name, rc);
+		goto out;
+	}
 out:
 	return rc;
 }

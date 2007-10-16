@@ -27,6 +27,7 @@
 #include <linux/mount.h>
 #include <linux/key.h>
 #include <linux/seq_file.h>
+#include <linux/file.h>
 #include <linux/crypto.h>
 #include "ecryptfs_kernel.h"
 
@@ -63,9 +64,10 @@ out:
  * ecryptfs_destroy_inode
  * @inode: The ecryptfs inode
  *
- * This is used during the final destruction of the inode.
- * All allocation of memory related to the inode, including allocated
- * memory in the crypt_stat struct, will be released here.
+ * This is used during the final destruction of the inode.  All
+ * allocation of memory related to the inode, including allocated
+ * memory in the crypt_stat struct, will be released here. This
+ * function also fput()'s the persistent file for the lower inode.
  * There should be no chance that this deallocation will be missed.
  */
 static void ecryptfs_destroy_inode(struct inode *inode)
@@ -73,6 +75,20 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 	struct ecryptfs_inode_info *inode_info;
 
 	inode_info = ecryptfs_inode_to_private(inode);
+	mutex_lock(&inode_info->lower_file_mutex);
+	if (inode_info->lower_file) {
+		struct dentry *lower_dentry =
+			inode_info->lower_file->f_dentry;
+
+		BUG_ON(!lower_dentry);
+		if (lower_dentry->d_inode) {
+			fput(inode_info->lower_file);
+			inode_info->lower_file = NULL;
+			d_drop(lower_dentry);
+			d_delete(lower_dentry);
+		}
+	}
+	mutex_unlock(&inode_info->lower_file_mutex);
 	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
 	kmem_cache_free(ecryptfs_inode_info_cache, inode_info);
 }

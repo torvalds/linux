@@ -119,10 +119,23 @@ ecryptfs_do_create(struct inode *directory_inode,
 	}
 	rc = ecryptfs_create_underlying_file(lower_dir_dentry->d_inode,
 					     ecryptfs_dentry, mode, nd);
-	if (unlikely(rc)) {
-		ecryptfs_printk(KERN_ERR,
-				"Failure to create underlying file\n");
-		goto out_lock;
+	if (rc) {
+		struct inode *ecryptfs_inode = ecryptfs_dentry->d_inode;
+		struct ecryptfs_inode_info *inode_info =
+			ecryptfs_inode_to_private(ecryptfs_inode);
+
+		printk(KERN_WARNING "%s: Error creating underlying file; "
+		       "rc = [%d]; checking for existing\n", __FUNCTION__, rc);
+		if (inode_info) {
+			mutex_lock(&inode_info->lower_file_mutex);
+			if (!inode_info->lower_file) {
+				mutex_unlock(&inode_info->lower_file_mutex);
+				printk(KERN_ERR "%s: Failure to set underlying "
+				       "file; rc = [%d]\n", __FUNCTION__, rc);
+				goto out_lock;
+			}
+			mutex_unlock(&inode_info->lower_file_mutex);
+		}
 	}
 	rc = ecryptfs_interpose(lower_dentry, ecryptfs_dentry,
 				directory_inode->i_sb, 0);
@@ -252,6 +265,8 @@ ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 {
 	int rc;
 
+	/* ecryptfs_do_create() calls ecryptfs_interpose(), which opens
+	 * the crypt_stat->lower_file (persistent file) */
 	rc = ecryptfs_do_create(directory_inode, ecryptfs_dentry, mode, nd);
 	if (unlikely(rc)) {
 		ecryptfs_printk(KERN_WARNING, "Failed to create file in"
