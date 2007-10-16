@@ -14,10 +14,12 @@
  */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-/*
- * This will provide the size_t definition in both kernel and userspace builds
- */
+/* This is to get size_t */
+#ifdef __KERNEL__
 #include <linux/types.h>
+#else
+#include <stddef.h>
+#endif
 
 extern void panic(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));

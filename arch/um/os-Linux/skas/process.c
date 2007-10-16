@@ -357,11 +357,10 @@ void userspace(union uml_pt_regs *regs)
 }
 
 static unsigned long thread_regs[MAX_REG_NR];
-static unsigned long thread_fp_regs[HOST_FP_SIZE];
 
 static int __init init_thread_regs(void)
 {
-	get_safe_registers(thread_regs, thread_fp_regs);
+	get_safe_registers(thread_regs);
 	/* Set parent's instruction pointer to start of clone-stub */
 	thread_regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
 				(unsigned long) stub_clone_handler -
@@ -396,11 +395,6 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	err = ptrace_setregs(pid, thread_regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
-		      "pid = %d, errno = %d\n", pid, -err);
-
-	err = ptrace_setfpregs(pid, thread_fp_regs);
-	if(err < 0)
-		panic("copy_context_skas0 : PTRACE_SETFPREGS failed, "
 		      "pid = %d, errno = %d\n", pid, -err);
 
 	/* set a well known return code for detection of child write failure */
