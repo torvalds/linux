@@ -22,6 +22,8 @@ DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 static unsigned long kprobe_status;
 static struct pt_regs jprobe_saved_regs;
 
+struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
+
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	int ret = 0;

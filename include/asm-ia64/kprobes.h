@@ -83,6 +83,7 @@ struct kprobe_ctlblk {
 };
 
 #define ARCH_SUPPORTS_KRETPROBES
+#define kretprobe_blacklist_size 0
 
 #define SLOT0_OPCODE_SHIFT	(37)
 #define SLOT1_p1_OPCODE_SHIFT	(37 - (64-46))

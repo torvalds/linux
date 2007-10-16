@@ -42,6 +42,7 @@ typedef u8 kprobe_opcode_t;
 	: (((unsigned long)current_thread_info()) + THREAD_SIZE - (ADDR)))
 
 #define ARCH_SUPPORTS_KRETPROBES
+extern const int kretprobe_blacklist_size;
 
 void kretprobe_trampoline(void);
 extern void arch_remove_kprobe(struct kprobe *p);

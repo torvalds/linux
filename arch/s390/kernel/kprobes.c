@@ -33,6 +33,8 @@
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
+struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
+
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	/* Make sure the probe isn't going on a difficult instruction */

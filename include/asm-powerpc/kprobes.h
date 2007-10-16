@@ -82,6 +82,7 @@ typedef unsigned int kprobe_opcode_t;
 
 #define ARCH_SUPPORTS_KRETPROBES
 #define flush_insn_slot(p)	do { } while (0)
+#define kretprobe_blacklist_size 0
 
 void kretprobe_trampoline(void);
 extern void arch_remove_kprobe(struct kprobe *p);

@@ -166,6 +166,12 @@ struct kretprobe_instance {
 	struct task_struct *task;
 };
 
+struct kretprobe_blackpoint {
+	const char *name;
+	void *addr;
+};
+extern struct kretprobe_blackpoint kretprobe_blacklist[];
+
 static inline void kretprobe_assert(struct kretprobe_instance *ri,
 	unsigned long orig_ret_address, unsigned long trampoline_address)
 {

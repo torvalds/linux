@@ -47,6 +47,7 @@ typedef u16 kprobe_opcode_t;
 	: (((unsigned long)current_thread_info()) + THREAD_SIZE - (ADDR)))
 
 #define ARCH_SUPPORTS_KRETPROBES
+#define kretprobe_blacklist_size 0
 
 #define KPROBE_SWAP_INST	0x10
 

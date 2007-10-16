@@ -581,7 +581,7 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
  *
  * Kprobes not supported here. Set the probe on schedule instead.
  */
-__kprobes struct task_struct *
+struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,

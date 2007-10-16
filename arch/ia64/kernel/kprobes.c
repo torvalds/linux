@@ -40,6 +40,8 @@ extern void jprobe_inst_return(void);
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
+struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
+
 enum instruction_type {A, I, M, F, B, L, X, u};
 static enum instruction_type bundle_encoding[32][3] = {
   { M, I, I },				/* 00 */
