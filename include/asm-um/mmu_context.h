@@ -56,12 +56,6 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 extern int init_new_context_skas(struct task_struct *task, 
 				 struct mm_struct *mm);
 
-static inline int init_new_context_tt(struct task_struct *task, 
-				      struct mm_struct *mm)
-{
-	return(0);
-}
-
 static inline int init_new_context(struct task_struct *task, 
 				   struct mm_struct *mm)
 {

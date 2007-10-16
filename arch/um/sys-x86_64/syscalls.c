@@ -29,36 +29,6 @@ asmlinkage long sys_uname64(struct new_utsname __user * name)
 	return err ? -EFAULT : 0;
 }
 
-#ifdef CONFIG_MODE_TT
-extern long arch_prctl(int code, unsigned long addr);
-
-static long arch_prctl_tt(int code, unsigned long addr)
-{
-	unsigned long tmp;
-	long ret;
-
-	switch(code){
-	case ARCH_SET_GS:
-	case ARCH_SET_FS:
-		ret = arch_prctl(code, addr);
-		break;
-	case ARCH_GET_FS:
-	case ARCH_GET_GS:
-		ret = arch_prctl(code, (unsigned long) &tmp);
-		if(!ret)
-			ret = put_user(tmp, (long __user *)addr);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return(ret);
-}
-#endif
-
-#ifdef CONFIG_MODE_SKAS
-
 long arch_prctl_skas(struct task_struct *task, int code,
                      unsigned long __user *addr)
 {
@@ -119,7 +89,6 @@ long arch_prctl_skas(struct task_struct *task, int code,
 
 	return ret;
 }
-#endif
 
 long sys_arch_prctl(int code, unsigned long addr)
 {

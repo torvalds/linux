@@ -25,9 +25,6 @@
 #include "um_malloc.h"
 #include "kern_constants.h"
 
-/* Set in main, unchanged thereafter */
-char *linux_prog;
-
 #define PGD_BOUND (4 * 1024 * 1024)
 #define STACKSIZE (8 * 1024 * 1024)
 #define THREAD_NAME_LEN (256)
@@ -124,35 +121,6 @@ int __init main(int argc, char **argv, char **envp)
 {
 	char **new_argv;
 	int ret, i, err;
-
-#ifdef UML_CONFIG_CMDLINE_ON_HOST
-	/* Allocate memory for thread command lines */
-	if(argc < 2 || strlen(argv[1]) < THREAD_NAME_LEN - 1){
-
-		char padding[THREAD_NAME_LEN] = {
-			[ 0 ...  THREAD_NAME_LEN - 2] = ' ', '\0'
-		};
-
-		new_argv = malloc((argc + 2) * sizeof(char*));
-		if(!new_argv) {
-			perror("Allocating extended argv");
-			exit(1);
-		}
-
-		new_argv[0] = argv[0];
-		new_argv[1] = padding;
-
-		for(i = 2; i <= argc; i++)
-			new_argv[i] = argv[i - 1];
-		new_argv[argc + 1] = NULL;
-
-		execvp(new_argv[0], new_argv);
-		perror("execing with extended args");
-		exit(1);
-	}
-#endif
-
-	linux_prog = argv[0];
 
 	set_stklim();
 

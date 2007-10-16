@@ -95,7 +95,6 @@ static int idle_proc(void *cpup)
 static struct task_struct *idle_thread(int cpu)
 {
 	struct task_struct *new_task;
-	unsigned char c;
 
 	current->thread.request.u.thread.proc = idle_proc;
 	current->thread.request.u.thread.arg = (void *) cpu;
@@ -108,9 +107,7 @@ static struct task_struct *idle_thread(int cpu)
 		          { .pid = 	new_task->thread.mode.tt.extern_pid,
 			    .task = 	new_task } );
 	idle_threads[cpu] = new_task;
-	CHOOSE_MODE(os_write_file(new_task->thread.mode.tt.switch_pipe[1], &c,
-				  sizeof(c)),
-		    ({ panic("skas mode doesn't support SMP"); }));
+	panic("skas mode doesn't support SMP");
 	return new_task;
 }
 

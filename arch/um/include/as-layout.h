@@ -28,7 +28,6 @@ extern unsigned long _unprotected_end;
 extern unsigned long brk_start;
 
 extern int linux_main(int argc, char **argv);
-extern void set_cmdline(char *cmd);
 
 extern void (*sig_info[])(int, union uml_pt_regs *);
 

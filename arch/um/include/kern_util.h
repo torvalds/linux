@@ -34,9 +34,6 @@ extern int nsyscalls;
 	UML_ROUND_DOWN(((unsigned long) addr) + PAGE_SIZE - 1)
 
 extern int kernel_fork(unsigned long flags, int (*fn)(void *), void * arg);
-#ifdef UML_CONFIG_MODE_TT
-extern unsigned long stack_sp(unsigned long page);
-#endif
 extern int kernel_thread_proc(void *data);
 extern void syscall_segv(int sig);
 extern int current_pid(void);
@@ -82,9 +79,6 @@ extern void check_stack_overflow(void *ptr);
 extern void relay_signal(int sig, union uml_pt_regs *regs);
 extern int user_context(unsigned long sp);
 extern void timer_irq(union uml_pt_regs *regs);
-#ifdef CONFIG_MODE_TT
-extern void unprotect_stack(unsigned long stack);
-#endif
 extern void do_uml_exitcalls(void);
 extern int attach_debugger(int idle_pid, int pid, int stop);
 extern int config_gdb(char *str);

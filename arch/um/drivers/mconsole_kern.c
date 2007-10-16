@@ -735,8 +735,6 @@ void mconsole_sysrq(struct mc_request *req)
 }
 #endif
 
-#ifdef CONFIG_MODE_SKAS
-
 static void stack_proc(void *arg)
 {
 	struct task_struct *from = current, *to = arg;
@@ -750,7 +748,7 @@ static void stack_proc(void *arg)
  *  Dumps a stacks registers to the linux console.
  *  Usage stack <pid>.
  */
-static void do_stack_trace(struct mc_request *req)
+void mconsole_stack(struct mc_request *req)
 {
 	char *ptr = req->request.data;
 	int pid_requested= -1;
@@ -780,17 +778,6 @@ static void do_stack_trace(struct mc_request *req)
 		return;
 	}
 	with_console(req, stack_proc, to);
-}
-#endif /* CONFIG_MODE_SKAS */
-
-void mconsole_stack(struct mc_request *req)
-{
-	/* This command doesn't work in TT mode, so let's check and then
-	 * get out of here
-	 */
-	CHOOSE_MODE(mconsole_reply(req, "Sorry, this doesn't work in TT mode",
-				   1, 0),
-		    do_stack_trace(req));
 }
 
 /* Changed by mconsole_setup, which is __setup, and called before SMP is

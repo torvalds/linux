@@ -46,10 +46,3 @@ union thread_union init_thread_union
 union thread_union cpu0_irqstack
 	__attribute__((__section__(".data.init_irqstack"))) =
 		{ INIT_THREAD_INFO(init_task) };
-
-#ifdef CONFIG_MODE_TT
-void unprotect_stack(unsigned long stack)
-{
-	os_protect_memory((void *) stack, THREAD_SIZE, 1, 1, 0);
-}
-#endif

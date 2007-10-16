@@ -1,5 +1,6 @@
 /*
  * Copyright 2003 PathScale, Inc.
+ * Copyright (C) 2003 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  *
  * Licensed under the GPL
  */
@@ -14,11 +15,6 @@
 #define MAX_REG_OFFSET (UM_FRAME_SIZE)
 #define MAX_REG_NR ((MAX_REG_OFFSET) / sizeof(unsigned long))
 
-#ifdef UML_CONFIG_MODE_TT
-#include "sysdep/sc.h"
-#endif
-
-#ifdef UML_CONFIG_MODE_SKAS
 #include "skas_ptregs.h"
 
 #define REGS_IP(r) ((r)[HOST_IP])
@@ -88,21 +84,10 @@
 
 #define REGS_ERR(r) ((r)->fault_type)
 
-#endif
-
 #include "choose-mode.h"
 
 /* XXX */
 union uml_pt_regs {
-#ifdef UML_CONFIG_MODE_TT
-	struct tt_regs {
-		long syscall;
-		unsigned long orig_rax;
-		void *sc;
-                struct faultinfo faultinfo;
-	} tt;
-#endif
-#ifdef UML_CONFIG_MODE_SKAS
 	struct skas_regs {
 		unsigned long regs[MAX_REG_NR];
 		unsigned long fp[HOST_FP_SIZE];
@@ -110,13 +95,9 @@ union uml_pt_regs {
 		long syscall;
 		int is_user;
 	} skas;
-#endif
 };
 
 #define EMPTY_UML_PT_REGS { }
-
-/* XXX */
-extern int mode_tt;
 
 #define UPT_RBX(r) __CHOOSE_MODE(SC_RBX(UPT_SC(r)), REGS_RBX((r)->skas.regs))
 #define UPT_RCX(r) __CHOOSE_MODE(SC_RCX(UPT_SC(r)), REGS_RCX((r)->skas.regs))

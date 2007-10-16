@@ -14,28 +14,9 @@
 
 void (*pm_power_off)(void);
 
-#ifdef CONFIG_SMP
-static void kill_idlers(int me)
-{
-#ifdef CONFIG_MODE_TT
-	struct task_struct *p;
-	int i;
-
-	for(i = 0; i < ARRAY_SIZE(idle_threads); i++){
-		p = idle_threads[i];
-		if((p != NULL) && (p->thread.mode.tt.extern_pid != me))
-			os_kill_process(p->thread.mode.tt.extern_pid, 0);
-	}
-#endif
-}
-#endif
-
 static void kill_off_processes(void)
 {
 	CHOOSE_MODE(kill_off_processes_tt(), kill_off_processes_skas());
-#ifdef CONFIG_SMP
-	kill_idlers(os_getpid());
-#endif
 }
 
 void uml_cleanup(void)

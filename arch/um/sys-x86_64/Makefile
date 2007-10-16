@@ -5,10 +5,9 @@
 #
 
 obj-y = bug.o bugs.o delay.o fault.o ldt.o mem.o ptrace.o ptrace_user.o \
-	setjmp.o sigcontext.o signal.o syscalls.o syscall_table.o sysrq.o \
-	ksyms.o tls.o
+	setjmp.o sigcontext.o signal.o stub.o stub_segv.o syscalls.o \
+	syscall_table.o sysrq.o ksyms.o tls.o
 
-obj-$(CONFIG_MODE_SKAS) += stub.o stub_segv.o
 obj-$(CONFIG_MODULES) += um_module.o
 
 subarch-obj-y = lib/bitops_64.o lib/csum-partial_64.o lib/memcpy_64.o lib/thunk_64.o
@@ -21,11 +20,7 @@ USER_OBJS := ptrace_user.o sigcontext.o
 USER_OBJS += user-offsets.s
 extra-y += user-offsets.s
 
-extra-$(CONFIG_MODE_TT) += unmap.o
-
 UNPROFILE_OBJS := stub_segv.o
 CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
 
 include arch/um/scripts/Makefile.rules
-
-$(obj)/unmap.%: _c_flags = $(call unprofile,$(CFLAGS))

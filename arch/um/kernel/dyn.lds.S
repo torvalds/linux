@@ -10,8 +10,6 @@ SECTIONS
   PROVIDE (__executable_start = START);
   . = START + SIZEOF_HEADERS;
   .interp         : { *(.interp) }
-  /* Used in arch/um/kernel/mem.c. Any memory between START and __binary_start
-   * is remapped.*/
   __binary_start = .;
   . = ALIGN(4096);		/* Init code and data */
   _text = .;

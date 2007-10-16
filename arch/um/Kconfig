@@ -62,55 +62,16 @@ config IRQ_RELEASE_METHOD
 
 menu "UML-specific options"
 
-config MODE_TT
-	bool "Tracing thread support (DEPRECATED)"
-	default n
-	depends on BROKEN
-	help
-	This option controls whether tracing thread support is compiled
-	into UML. This option is largely obsolete, given that skas0 provides
-	skas security and performance without needing to patch the host.
-	It is safe to say 'N' here; saying 'Y' may cause additional problems
-	with the resulting binary even if you run UML in SKAS mode, and running
-	in TT mode is strongly *NOT RECOMMENDED*.
-
 config STATIC_LINK
 	bool "Force a static link"
 	default n
-	depends on !MODE_TT
 	help
-	If CONFIG_MODE_TT is disabled, then this option gives you the ability
-	to force a static link of UML.  Normally, if only skas mode is built
-	in to UML, it will be linked as a shared binary.  This is inconvenient
-	for use in a chroot jail.  So, if you intend to run UML inside a
-	chroot, and you disable CONFIG_MODE_TT, you probably want to say Y
-	here.
+	This option gives you the ability to force a static link of UML.
+	Normally, UML is linked as a shared binary.  This is inconvenient for
+	use in a chroot jail.  So, if you intend to run UML inside a chroot,
+	you probably want to say Y here.
 	Additionally, this option enables using higher memory spaces (up to
-	2.75G) for UML - disabling CONFIG_MODE_TT and enabling this option leads
-	to best results for this.
-
-config KERNEL_HALF_GIGS
-	int "Kernel address space size (in .5G units)"
-	default "1"
-	depends on MODE_TT
-	help
-        This determines the amount of address space that UML will allocate for
-        its own, measured in half Gigabyte units.  The default is 1.
-        Change this only if you need to boot UML with an unusually large amount
-        of physical memory.
-
-config MODE_SKAS
-	bool "Separate Kernel Address Space support" if MODE_TT
-	default y
-	help
-	This option controls whether skas (separate kernel address space)
-	support is compiled in.
-	Unless you have specific needs to use TT mode (which applies almost only
-	to developers), you should say Y here.
-	SKAS mode will make use of the SKAS3 patch if it is applied on the host
-	(and your UML will run in SKAS3 mode), but if no SKAS patch is applied
-	on the host it will run in SKAS0 mode, which is anyway faster than TT
-	mode.
+	2.75G) for UML.
 
 source "arch/um/Kconfig.arch"
 source "mm/Kconfig"
@@ -118,7 +79,7 @@ source "mm/Kconfig"
 config LD_SCRIPT_STATIC
 	bool
 	default y
-	depends on MODE_TT || STATIC_LINK
+	depends on STATIC_LINK
 
 config LD_SCRIPT_DYN
 	bool
@@ -220,7 +181,7 @@ config SMP
 	bool "Symmetric multi-processing support (EXPERIMENTAL)"
 	default n
 	#SMP_BROKEN is for x86_64.
-	depends on MODE_TT && EXPERIMENTAL && (!SMP_BROKEN || (BROKEN && SMP_BROKEN))
+	depends on EXPERIMENTAL && (!SMP_BROKEN || (BROKEN && SMP_BROKEN))
 	help
 	This option enables UML SMP support.
 	It is NOT related to having a real SMP box. Not directly, at least.
@@ -258,11 +219,6 @@ config NEST_LEVEL
         inside another UML, set CONFIG_NEST_LEVEL to one more than the host
         UML.
 
-        Note that if the hosting UML has its CONFIG_KERNEL_HALF_GIGS set to
-        greater than one, then the guest UML should have its CONFIG_NEST_LEVEL
-        set to the host's CONFIG_NEST_LEVEL + CONFIG_KERNEL_HALF_GIGS.
-        Only change this if you are running nested UMLs.
-
 config HIGHMEM
 	bool "Highmem support (EXPERIMENTAL)"
 	depends on !64BIT && EXPERIMENTAL
@@ -271,9 +227,9 @@ config HIGHMEM
 	This was used to allow UML to run with big amounts of memory.
 	Currently it is unstable, so if unsure say N.
 
-	To use big amounts of memory, it is recommended to disable TT mode (i.e.
-	CONFIG_MODE_TT) and enable static linking (i.e. CONFIG_STATIC_LINK) -
-	this should allow the guest to use up to 2.75G of memory.
+	To use big amounts of memory, it is recommended enable static
+	linking (i.e. CONFIG_STATIC_LINK) - this should allow the
+	guest to use up to 2.75G of memory.
 
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"

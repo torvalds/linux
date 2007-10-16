@@ -12,9 +12,7 @@ CONFIG_IRQ_RELEASE_METHOD=y
 #
 # UML-specific options
 #
-# CONFIG_MODE_TT is not set
 # CONFIG_STATIC_LINK is not set
-CONFIG_MODE_SKAS=y
 
 #
 # Host processor type and features

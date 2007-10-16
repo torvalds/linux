@@ -133,13 +133,6 @@ void os_kill_ptraced_process(int pid, int reap_child)
 		CATCH_EINTR(waitpid(pid, NULL, 0));
 }
 
-#ifdef UML_CONFIG_MODE_TT
-void os_usr1_process(int pid)
-{
-	kill(pid, SIGUSR1);
-}
-#endif
-
 /* Don't use the glibc version, which caches the result in TLS. It misses some
  * syscalls, and also breaks with clone(), which does not unshare the TLS.
  */
@@ -238,30 +231,6 @@ out_close:
 out:
 	return ok;
 }
-
-#ifdef UML_CONFIG_MODE_TT
-void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
-{
-	int flags = 0, pages;
-
-	if(sig_stack != NULL){
-		pages = (1 << UML_CONFIG_KERNEL_STACK_ORDER);
-		set_sigstack(sig_stack, pages * UM_KERN_PAGE_SIZE);
-		flags = SA_ONSTACK;
-	}
-	if(usr1_handler){
-		struct sigaction sa;
-
-		sa.sa_handler = usr1_handler;
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = flags;
-		sa.sa_restorer = NULL;
-		if(sigaction(SIGUSR1, &sa, NULL) < 0)
-			panic("init_new_thread_stack - sigaction failed - "
-			      "errno = %d\n", errno);
-	}
-}
-#endif
 
 void init_new_thread_signals(void)
 {

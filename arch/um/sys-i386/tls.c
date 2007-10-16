@@ -18,10 +18,7 @@
 #include "mode_kern.h"
 #include "os.h"
 #include "mode.h"
-
-#ifdef CONFIG_MODE_SKAS
 #include "skas.h"
-#endif
 
 /*
  * If needed we can detect when it's uninitialized.
@@ -31,7 +28,6 @@
 static int host_supports_tls = -1;
 int host_gdt_entry_tls_min;
 
-#ifdef CONFIG_MODE_SKAS
 int do_set_thread_area_skas(struct user_desc *info)
 {
 	int ret;
@@ -53,7 +49,6 @@ int do_get_thread_area_skas(struct user_desc *info)
 	put_cpu();
 	return ret;
 }
-#endif
 
 /*
  * sys_get_thread_area: get a yet unused TLS descriptor index.
@@ -183,17 +178,6 @@ int arch_switch_tls_skas(struct task_struct *from, struct task_struct *to)
 	 * userspace_pid[cpu] == 0, which gives an error. */
 	if (likely(to->mm))
 		return load_TLS(O_FORCE, to);
-
-	return 0;
-}
-
-int arch_switch_tls_tt(struct task_struct *from, struct task_struct *to)
-{
-	if (!host_supports_tls)
-		return 0;
-
-	if (needs_TLS_update(to))
-		return load_TLS(0, to);
 
 	return 0;
 }

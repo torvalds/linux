@@ -19,72 +19,6 @@
 
 extern int modify_ldt(int func, void *ptr, unsigned long bytecount);
 
-#ifdef CONFIG_MODE_TT
-
-static long do_modify_ldt_tt(int func, void __user *ptr,
-			      unsigned long bytecount)
-{
-	struct user_desc info;
-	int res = 0;
-	void *buf = NULL;
-	void *p = NULL; /* What we pass to host. */
-
-	switch(func){
-	case 1:
-	case 0x11: /* write_ldt */
-		/* Do this check now to avoid overflows. */
-		if (bytecount != sizeof(struct user_desc)) {
-			res = -EINVAL;
-			goto out;
-		}
-
-		if(copy_from_user(&info, ptr, sizeof(info))) {
-			res = -EFAULT;
-			goto out;
-		}
-
-		p = &info;
-		break;
-	case 0:
-	case 2: /* read_ldt */
-
-		/* The use of info avoids kmalloc on the write case, not on the
-		 * read one. */
-		buf = kmalloc(bytecount, GFP_KERNEL);
-		if (!buf) {
-			res = -ENOMEM;
-			goto out;
-		}
-		p = buf;
-		break;
-	default:
-		res = -ENOSYS;
-		goto out;
-	}
-
-	res = modify_ldt(func, p, bytecount);
-	if(res < 0)
-		goto out;
-
-	switch(func){
-	case 0:
-	case 2:
-		/* Modify_ldt was for reading and returned the number of read
-		 * bytes.*/
-		if(copy_to_user(ptr, p, res))
-			res = -EFAULT;
-		break;
-	}
-
-out:
-	kfree(buf);
-	return res;
-}
-
-#endif
-
-#ifdef CONFIG_MODE_SKAS
-
 #include "skas.h"
 #include "skas_ptrace.h"
 #include "asm/mmu_context.h"
@@ -569,7 +503,6 @@ void free_ldt(struct mmu_context_skas * mm)
 	}
 	mm->ldt.entry_count = 0;
 }
-#endif
 
 int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
 {

@@ -35,12 +35,9 @@
 #include "mode.h"
 #include "tempfile.h"
 #include "kern_constants.h"
-
-#ifdef UML_CONFIG_MODE_SKAS
 #include "skas.h"
 #include "skas_ptrace.h"
 #include "registers.h"
-#endif
 
 static int ptrace_child(void *arg)
 {
@@ -407,7 +404,6 @@ __uml_setup("noptraceldt", noptraceldt_cmd_param,
 "    To support PTRACE_LDT, the host needs to be patched using\n"
 "    the current skas3 patch.\n\n");
 
-#ifdef UML_CONFIG_MODE_SKAS
 static inline void check_skas3_ptrace_faultinfo(void)
 {
 	struct ptrace_faultinfo fi;
@@ -504,12 +500,6 @@ int can_do_skas(void)
 
 	return 1;
 }
-#else
-int can_do_skas(void)
-{
-	return 0;
-}
-#endif
 
 int __init parse_iomem(char *str, int *add)
 {

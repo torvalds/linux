@@ -34,20 +34,10 @@ struct thread_struct {
 	void *exec_buf;
 	struct arch_thread arch;
 	union {
-#ifdef CONFIG_MODE_TT
-		struct {
-			int extern_pid;
-			int tracing;
-			int switch_pipe[2];
-			int vm_seq;
-		} tt;
-#endif
-#ifdef CONFIG_MODE_SKAS
 		struct {
 			jmp_buf switch_buf;
 			int mm_count;
 		} skas;
-#endif
 	} mode;
 	struct {
 		int op;
@@ -136,12 +126,8 @@ extern struct cpuinfo_um cpu_data[];
 #endif
 
 
-#ifdef CONFIG_MODE_SKAS
 #define KSTK_REG(tsk, reg) \
 	get_thread_reg(reg, &tsk->thread.mode.skas.switch_buf)
-#else
-#define KSTK_REG(tsk, reg) (0xbadbabe)
-#endif
 #define get_wchan(p) (0)
 
 #endif

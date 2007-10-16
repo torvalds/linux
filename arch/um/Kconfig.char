@@ -65,8 +65,6 @@ config XTERM_CHAN
         This option enables support for attaching UML consoles and serial
         lines to xterms.  Each UML device so assigned will be brought up in
         its own xterm.
-        If you disable this option, then CONFIG_PT_PROXY will be disabled as
-        well, since UML's gdb currently requires an xterm.
         It is safe to say 'Y' here.
 
 config NOCONFIG_CHAN

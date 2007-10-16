@@ -2,11 +2,7 @@ core-y += arch/um/sys-i386/ arch/x86/crypto/
 
 TOP_ADDR := $(CONFIG_TOP_ADDR)
 
-ifeq ($(CONFIG_MODE_SKAS),y)
-  ifneq ($(CONFIG_MODE_TT),y)
-     START := 0x8048000
-  endif
-endif
+START := 0x8048000
 
 LDFLAGS			+= -m elf_i386
 ELF_ARCH		:= $(SUBARCH)

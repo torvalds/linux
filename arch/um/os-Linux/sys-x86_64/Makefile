@@ -3,7 +3,7 @@
 # Licensed under the GPL
 #
 
-obj-$(CONFIG_MODE_SKAS) = registers.o prctl.o signal.o
+obj-y = registers.o prctl.o signal.o
 
 USER_OBJS := $(obj-y)
 

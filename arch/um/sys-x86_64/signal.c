@@ -15,9 +15,6 @@
 #include "choose-mode.h"
 #include "sysdep/ptrace.h"
 #include "frame_kern.h"
-
-#ifdef CONFIG_MODE_SKAS
-
 #include "skas.h"
 
 void copy_sc(union uml_pt_regs *regs, void *from)
@@ -133,53 +130,6 @@ int copy_sc_to_user_skas(struct sigcontext __user *to,
 
 	return(err);
 }
-
-#endif
-
-#ifdef CONFIG_MODE_TT
-int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext __user *from,
-			 int fpsize)
-{
-	struct _fpstate *to_fp;
-	struct _fpstate __user *from_fp;
-	unsigned long sigs;
-	int err;
-
-	to_fp = to->fpstate;
-	sigs = to->oldmask;
-	err = copy_from_user(to, from, sizeof(*to));
-	from_fp = to->fpstate;
-	to->fpstate = to_fp;
-	to->oldmask = sigs;
-	if(to_fp != NULL)
-		err |= copy_from_user(to_fp, from_fp, fpsize);
-	return(err);
-}
-
-int copy_sc_to_user_tt(struct sigcontext __user *to, struct _fpstate __user *fp,
-		       struct sigcontext *from, int fpsize, unsigned long sp)
-{
-	struct _fpstate __user *to_fp;
-	struct _fpstate *from_fp;
-	int err;
-
-	to_fp = (fp ? fp : (struct _fpstate __user *) (to + 1));
-	from_fp = from->fpstate;
-	err = copy_to_user(to, from, sizeof(*to));
-	/* The SP in the sigcontext is the updated one for the signal
-	 * delivery.  The sp passed in is the original, and this needs
-	 * to be restored, so we stick it in separately.
-	 */
-	err |= copy_to_user(&SC_SP(to), &sp, sizeof(sp));
-
-	if(from_fp != NULL){
-		err |= copy_to_user(&to->fpstate, &to_fp, sizeof(to->fpstate));
-		err |= copy_to_user(to_fp, from_fp, fpsize);
-	}
-	return err;
-}
-
-#endif
 
 static int copy_sc_from_user(struct pt_regs *to, void __user *from)
 {

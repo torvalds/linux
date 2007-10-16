@@ -30,8 +30,4 @@ extern void deactivate_fd(int fd, int irqnum);
 extern int deactivate_all_fds(void);
 extern int activate_ipi(int fd, int pid);
 
-#ifdef CONFIG_MODE_TT
-extern void forward_interrupts(int pid);
-#endif
-
 #endif

@@ -57,7 +57,6 @@ static long execve1(char *file, char __user * __user *argv,
 		SUBARCH_EXECVE1(&current->thread.regs.regs);
 #endif
 		task_unlock(current);
-                set_cmdline(current_cmd());
         }
         return(error);
 }

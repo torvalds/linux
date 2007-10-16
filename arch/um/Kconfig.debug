@@ -2,28 +2,9 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
-config CMDLINE_ON_HOST
-	bool "Show command line arguments on the host in TT mode"
-	depends on MODE_TT
-	default !DEBUG_INFO
-	help
-	This controls whether arguments in guest processes should be shown on
-	the host's ps output.
-	Enabling this option hinders debugging on some recent GDB versions
-	(because GDB gets "confused" when we do an execvp()). So probably you
-	should disable it.
-
-config PT_PROXY
-	bool "Enable ptrace proxy"
-	depends on XTERM_CHAN && DEBUG_INFO && MODE_TT
-	help
-	This option enables a debugging interface which allows gdb to debug
-	the kernel without needing to actually attach to kernel threads.
-	If you want to do kernel debugging, say Y here; otherwise say N.
-
 config GPROF
 	bool "Enable gprof support"
-	depends on DEBUG_INFO && MODE_SKAS && !MODE_TT
+	depends on DEBUG_INFO
 	help
         This allows profiling of a User-Mode Linux kernel with the gprof
         utility.
@@ -36,7 +17,7 @@ config GPROF
 
 config GCOV
 	bool "Enable gcov support"
-	depends on DEBUG_INFO && MODE_SKAS
+	depends on DEBUG_INFO
 	help
         This option allows developers to retrieve coverage data from a UML
         session.

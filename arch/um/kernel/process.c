@@ -183,13 +183,6 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = save_kmalloc_ok;
 }
 
-#ifdef CONFIG_MODE_TT
-unsigned long stack_sp(unsigned long page)
-{
-	return page + PAGE_SIZE - sizeof(void *);
-}
-#endif
-
 void default_idle(void)
 {
 	CHOOSE_MODE(uml_idle_timer(), (void) 0);

@@ -21,7 +21,7 @@ $(UNPROFILE_OBJS:.o=.%): \
 $(UNPROFILE_OBJS) : CHECKFLAGS := -D__linux__ -Dlinux -D__STDC__ \
 	-Dunix -D__unix__ -D__$(SUBARCH)__ $(CF)
 
-# The stubs and unmap.o can't try to call mcount or update basic block data
+# The stubs can't try to call mcount or update basic block data
 define unprofile
 	$(patsubst -pg,,$(patsubst -fprofile-arcs -ftest-coverage,,$(1)))
 endef

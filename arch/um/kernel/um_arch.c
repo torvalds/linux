@@ -38,9 +38,7 @@
 #include "choose-mode.h"
 #include "mode_kern.h"
 #include "mode.h"
-#ifdef UML_CONFIG_MODE_SKAS
 #include "skas.h"
-#endif
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
@@ -132,42 +130,11 @@ unsigned long end_vm;
 /* Set in uml_ncpus_setup */
 int ncpus = 1;
 
-#ifdef CONFIG_CMDLINE_ON_HOST
-/* Pointer set in linux_main, the array itself is private to each thread,
- * and changed at address space creation time so this poses no concurrency
- * problems.
- */
-static char *argv1_begin = NULL;
-static char *argv1_end = NULL;
-#endif
-
 /* Set in early boot */
 static int have_root __initdata = 0;
 
 /* Set in uml_mem_setup and modified in linux_main */
 long long physmem_size = 32 * 1024 * 1024;
-
-void set_cmdline(char *cmd)
-{
-#ifdef CONFIG_CMDLINE_ON_HOST
-	char *umid, *ptr;
-
-	if(CHOOSE_MODE(honeypot, 0)) return;
-
-	umid = get_umid();
-	if(*umid != '\0'){
-		snprintf(argv1_begin, 
-			 (argv1_end - argv1_begin) * sizeof(*ptr), 
-			 "(%s) ", umid);
-		ptr = &argv1_begin[strlen(argv1_begin)];
-	}
-	else ptr = argv1_begin;
-
-	snprintf(ptr, (argv1_end - ptr) * sizeof(*ptr), "[%s]", cmd);
-	memset(argv1_begin + strlen(argv1_begin), '\0', 
-	       argv1_end - argv1_begin - strlen(argv1_begin));
-#endif
-}
 
 static char *usage_string = 
 "User Mode Linux v%s\n"
@@ -201,13 +168,10 @@ __uml_setup("root=", uml_root_setup,
 "        root=/dev/ubd5\n\n"
 );
 
-#ifndef CONFIG_MODE_TT
-
 static int __init no_skas_debug_setup(char *line, int *add)
 {
 	printf("'debug' is not necessary to gdb UML in skas mode - run \n");
-	printf("'gdb linux' and disable CONFIG_CMDLINE_ON_HOST if gdb \n");
-	printf("doesn't work as expected\n");
+	printf("'gdb linux'");
 
 	return 0;
 }
@@ -216,8 +180,6 @@ __uml_setup("debug", no_skas_debug_setup,
 "debug\n"
 "    this flag is not needed to run gdb on UML in skas mode\n\n"
 );
-
-#endif
 
 #ifdef CONFIG_SMP
 static int __init uml_ncpus_setup(char *line, int *add)
@@ -235,52 +197,6 @@ __uml_setup("ncpus=", uml_ncpus_setup,
 "    This tells an SMP kernel how many virtual processors to start.\n\n" 
 );
 #endif
-
-static int force_tt = 0;
-
-#if defined(CONFIG_MODE_TT) && defined(CONFIG_MODE_SKAS)
-#define DEFAULT_TT 0
-
-static int __init mode_tt_setup(char *line, int *add)
-{
-	force_tt = 1;
-	return 0;
-}
-
-#else
-#ifdef CONFIG_MODE_SKAS
-
-#define DEFAULT_TT 0
-
-static int __init mode_tt_setup(char *line, int *add)
-{
-	printf("CONFIG_MODE_TT disabled - 'mode=tt' ignored\n");
-	return 0;
-}
-
-#else
-#ifdef CONFIG_MODE_TT
-
-#define DEFAULT_TT 1
-
-static int __init mode_tt_setup(char *line, int *add)
-{
-	printf("CONFIG_MODE_SKAS disabled - 'mode=tt' redundant\n");
-	return 0;
-}
-
-#endif
-#endif
-#endif
-
-__uml_setup("mode=tt", mode_tt_setup,
-"mode=tt\n"
-"    When both CONFIG_MODE_TT and CONFIG_MODE_SKAS are enabled, this option\n"
-"    forces UML to run in tt (tracing thread) mode.  It is not the default\n"
-"    because it's slower and less secure than skas mode.\n\n"
-);
-
-int mode_tt = DEFAULT_TT;
 
 static int __init Usage(char *line, int *add)
 {
@@ -357,29 +273,13 @@ int __init linux_main(int argc, char **argv)
 		add_arg(DEFAULT_COMMAND_LINE);
 
 	os_early_checks();
-	if (force_tt)
-		clear_can_do_skas();
-	mode_tt = force_tt ? 1 : !can_do_skas();
-#ifndef CONFIG_MODE_TT
-	if (mode_tt) {
-		/*Since CONFIG_MODE_TT is #undef'ed, force_tt cannot be 1. So,
-		 * can_do_skas() returned 0, and the message is correct. */
-		printf("Support for TT mode is disabled, and no SKAS support is present on the host.\n");
-		exit(1);
-	}
-#endif
 
-#ifndef CONFIG_MODE_SKAS
-	mode = "TT";
-#else
-	/* Show to the user the result of selection */
-	if (mode_tt)
-		mode = "TT";
-	else if (proc_mm && ptrace_faultinfo)
+	can_do_skas();
+
+	if (proc_mm && ptrace_faultinfo)
 		mode = "SKAS3";
 	else
 		mode = "SKAS0";
-#endif
 
 	printf("UML running in %s mode\n", mode);
 
@@ -410,11 +310,6 @@ int __init linux_main(int argc, char **argv)
 	uml_reserved = ROUND_4M(brk_start) + (1 << 22);
 
 	setup_machinename(init_utsname()->machine);
-
-#ifdef CONFIG_CMDLINE_ON_HOST
-	argv1_begin = argv[1];
-	argv1_end = &argv[1][strlen(argv[1])];
-#endif
 
 	highmem = 0;
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;

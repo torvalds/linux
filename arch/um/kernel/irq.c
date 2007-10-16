@@ -339,30 +339,6 @@ int deactivate_all_fds(void)
 	return 0;
 }
 
-#ifdef CONFIG_MODE_TT
-void forward_interrupts(int pid)
-{
-	struct irq_fd *irq;
-	unsigned long flags;
-	int err;
-
-	spin_lock_irqsave(&irq_lock, flags);
-	for (irq = active_fds; irq != NULL; irq = irq->next) {
-		err = os_set_owner(irq->fd, pid);
-		if (err < 0) {
-			/* XXX Just remove the irq rather than
-			 * print out an infinite stream of these
-			 */
-			printk("Failed to forward %d to pid %d, err = %d\n",
-			       irq->fd, pid, -err);
-		}
-
-		irq->pid = pid;
-	}
-	spin_unlock_irqrestore(&irq_lock, flags);
-}
-#endif
-
 /*
  * do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific

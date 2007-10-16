@@ -29,9 +29,7 @@
 #include "sysdep/sigcontext.h"
 #include "sysdep/ptrace.h"
 #include "os.h"
-#ifdef CONFIG_MODE_SKAS
 #include "skas.h"
-#endif
 #include "os.h"
 
 /* Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by segv(). */

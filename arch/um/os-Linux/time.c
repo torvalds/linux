@@ -30,13 +30,6 @@ int set_interval(int is_virtual)
 	return 0;
 }
 
-#ifdef UML_CONFIG_MODE_TT
-void enable_timer(void)
-{
-	set_interval(1);
-}
-#endif
-
 void disable_timer(void)
 {
 	struct itimerval disable = ((struct itimerval) { { 0, 0 }, { 0, 0 }});
@@ -70,18 +63,6 @@ void switch_timers(int to_real)
 		printk("switch_timers - setitimer failed, errno = %d\n",
 		       errno);
 }
-
-#ifdef UML_CONFIG_MODE_TT
-void uml_idle_timer(void)
-{
-	if(signal(SIGVTALRM, SIG_IGN) == SIG_ERR)
-		panic("Couldn't unset SIGVTALRM handler");
-
-	set_handler(SIGALRM, (__sighandler_t) alarm_handler,
-		    SA_RESTART, SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_interval(0);
-}
-#endif
 
 unsigned long long os_nsecs(void)
 {

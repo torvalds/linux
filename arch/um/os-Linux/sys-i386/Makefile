@@ -3,7 +3,7 @@
 # Licensed under the GPL
 #
 
-obj-$(CONFIG_MODE_SKAS) = registers.o signal.o tls.o
+obj-y = registers.o signal.o tls.o
 
 USER_OBJS := $(obj-y)
 

@@ -30,11 +30,7 @@
 #define SEGV_IS_FIXABLE(fi)	((fi)->trap_no == 14)
 
 /* SKAS3 has no trap_no on i386, but get_skas_faultinfo() sets it to 0. */
-#ifdef UML_CONFIG_MODE_SKAS
 #define SEGV_MAYBE_FIXABLE(fi)	((fi)->trap_no == 0 && ptrace_faultinfo)
-#else
-#define SEGV_MAYBE_FIXABLE(fi)	0
-#endif
 
 extern unsigned long *sc_sigmask(void *sc_ptr);
 extern int sc_get_fpregs(unsigned long buf, void *sc_ptr);

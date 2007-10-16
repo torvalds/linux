@@ -31,18 +31,9 @@ SYMLINK_HEADERS := $(foreach header,$(SYMLINK_HEADERS),include/asm-um/$(header))
 ARCH_SYMLINKS = include/asm-um/arch $(ARCH_DIR)/include/sysdep $(ARCH_DIR)/os \
 	$(SYMLINK_HEADERS) $(ARCH_DIR)/include/uml-config.h
 
-um-modes-$(CONFIG_MODE_TT) += tt
-um-modes-$(CONFIG_MODE_SKAS) += skas
+MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/skas
 
-MODE_INCLUDE	+= $(foreach mode,$(um-modes-y),\
-		   -I$(srctree)/$(ARCH_DIR)/include/$(mode))
-
-MAKEFILES-INCL	+= $(foreach mode,$(um-modes-y),\
-		   $(srctree)/$(ARCH_DIR)/Makefile-$(mode))
-
-ifneq ($(MAKEFILES-INCL),)
-  include $(MAKEFILES-INCL)
-endif
+include $(srctree)/$(ARCH_DIR)/Makefile-skas
 
 ARCH_INCLUDE	:= -I$(ARCH_DIR)/include
 ifneq ($(KBUILD_SRC),)
@@ -89,9 +80,8 @@ CFLAGS += $(call cc-option,-fno-unit-at-a-time,)
 # included; the values here are meaningless
 
 CONFIG_NEST_LEVEL ?= 0
-CONFIG_KERNEL_HALF_GIGS ?= 0
 
-SIZE = (($(CONFIG_NEST_LEVEL) + $(CONFIG_KERNEL_HALF_GIGS)) * 0x20000000)
+SIZE = ($(CONFIG_NEST_LEVEL) * 0x20000000)
 
 PHONY += linux
 
@@ -124,7 +114,6 @@ CFLAGS_NO_HARDENING := $(call cc-option, -fno-PIC,) $(call cc-option, -fno-pic,)
 	$(call cc-option, -fno-stack-protector,) \
 	$(call cc-option, -fno-stack-protector-all,)
 
-CPP_MODE-$(CONFIG_MODE_TT) := -DMODE_TT
 CONFIG_KERNEL_STACK_ORDER ?= 2
 STACK_SIZE := $(shell echo $$[ 4096 * (1 << $(CONFIG_KERNEL_STACK_ORDER)) ] )
 
@@ -132,11 +121,8 @@ ifndef START
   START = $(shell echo $$[ $(TOP_ADDR) - $(SIZE) ] )
 endif
 
-CPPFLAGS_vmlinux.lds = -U$(SUBARCH) \
-	-DSTART=$(START) -DELF_ARCH=$(ELF_ARCH) \
-	-DELF_FORMAT="$(ELF_FORMAT)" $(CPP_MODE-y) \
-	-DKERNEL_STACK_SIZE=$(STACK_SIZE) \
-	-DUNMAP_PATH=arch/um/sys-$(SUBARCH)/unmap.o
+CPPFLAGS_vmlinux.lds = -U$(SUBARCH) -DSTART=$(START) -DELF_ARCH=$(ELF_ARCH) \
+	-DELF_FORMAT="$(ELF_FORMAT)" -DKERNEL_STACK_SIZE=$(STACK_SIZE)
 
 #The wrappers will select whether using "malloc" or the kernel allocator.
 LINK_WRAPS = -Wl,--wrap,malloc -Wl,--wrap,free -Wl,--wrap,calloc

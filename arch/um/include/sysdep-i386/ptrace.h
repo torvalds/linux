@@ -14,12 +14,7 @@
 #define MAX_REG_NR (UM_FRAME_SIZE / sizeof(unsigned long))
 #define MAX_REG_OFFSET (UM_FRAME_SIZE)
 
-#ifdef UML_CONFIG_PT_PROXY
-extern void update_debugregs(int seq);
-#else
 static inline void update_debugregs(int seq) {}
-#endif
-
 
 /* syscall emulation path in ptrace */
 
@@ -30,12 +25,6 @@ static inline void update_debugregs(int seq) {}
 void set_using_sysemu(int value);
 int get_using_sysemu(void);
 extern int sysemu_supported;
-
-#ifdef UML_CONFIG_MODE_TT
-#include "sysdep/sc.h"
-#endif
-
-#ifdef UML_CONFIG_MODE_SKAS
 
 #include "skas_ptregs.h"
 
@@ -60,20 +49,11 @@ extern int sysemu_supported;
 
 #define REGS_RESTART_SYSCALL(r) IP_RESTART_SYSCALL(REGS_IP(r))
 
-#endif
 #ifndef PTRACE_SYSEMU_SINGLESTEP
 #define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
 
 union uml_pt_regs {
-#ifdef UML_CONFIG_MODE_TT
-	struct tt_regs {
-		long syscall;
-		void *sc;
-                struct faultinfo faultinfo;
-	} tt;
-#endif
-#ifdef UML_CONFIG_MODE_SKAS
 	struct skas_regs {
 		unsigned long regs[MAX_REG_NR];
 		unsigned long fp[HOST_FP_SIZE];
@@ -82,12 +62,9 @@ union uml_pt_regs {
 		long syscall;
 		int is_user;
 	} skas;
-#endif
 };
 
 #define EMPTY_UML_PT_REGS { }
-
-extern int mode_tt;
 
 #define UPT_SC(r) ((r)->tt.sc)
 #define UPT_IP(r) \

@@ -7,15 +7,7 @@
 #define __ARCH_UM_UACCESS_H
 
 #include "choose-mode.h"
-
-#ifdef CONFIG_MODE_TT
-#include "uaccess-tt.h"
-#endif
-
-#ifdef CONFIG_MODE_SKAS
 #include "uaccess-skas.h"
-#endif
-
 #include "asm/fixmap.h"
 
 #define __under_task_size(addr, size) \
