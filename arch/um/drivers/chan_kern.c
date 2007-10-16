@@ -291,6 +291,9 @@ int write_chan(struct list_head *chans, const char *buf, int len,
 	struct chan *chan = NULL;
 	int n, ret = 0;
 
+	if (len == 0)
+		return 0;
+
 	list_for_each(ele, chans) {
 		chan = list_entry(ele, struct chan, list);
 		if (!chan->output || (chan->ops->write == NULL))

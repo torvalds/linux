@@ -38,7 +38,16 @@ int generic_read(int fd, char *c_out, void *unused)
 
 int generic_write(int fd, const char *buf, int n, void *unused)
 {
-	return write(fd, buf, n);
+	int err;
+
+	err = write(fd, buf, n);
+	if (err > 0)
+		return err;
+	else if (errno == EAGAIN)
+		return 0;
+	else if (err == 0)
+		return -EIO;
+	return -errno;
 }
 
 int generic_window_size(int fd, void *unused, unsigned short *rows_out,

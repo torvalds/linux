@@ -216,18 +216,15 @@ int line_write(struct tty_struct *tty, const unsigned char *buf, int len)
 {
 	struct line *line = tty->driver_data;
 	unsigned long flags;
-	int n, err, ret = 0;
+	int n, ret = 0;
 
 	if(tty->stopped)
 		return 0;
 
 	spin_lock_irqsave(&line->lock, flags);
-	if (line->head != line->tail) {
+	if (line->head != line->tail)
 		ret = buffer_data(line, buf, len);
-		err = flush_buffer(line);
-		if (err <= 0 && (err != -EAGAIN || !ret))
-			ret = err;
-	} else {
+	else {
 		n = write_chan(&line->chan_list, buf, len,
 			       line->driver->write_irq);
 		if (n < 0) {
