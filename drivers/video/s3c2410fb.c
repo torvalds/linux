@@ -265,8 +265,8 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 			var->blue.length	= 5;
 		}
 		break;
-	case 24:
-		/* 24 bpp 888 */
+	case 32:
+		/* 24 bpp 888 and 8 dummy */
 		var->red.length		= 8;
 		var->red.offset		= 16;
 		var->green.length	= 8;
@@ -274,8 +274,6 @@ static int s3c2410fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length	= 8;
 		var->blue.offset	= 0;
 		break;
-
-
 	}
 	return 0;
 }
@@ -374,11 +372,21 @@ static void s3c2410fb_calculate_tft_lcd_regs(const struct fb_info *info,
 		break;
 	case 8:
 		regs->lcdcon1 |= S3C2410_LCDCON1_TFT8BPP;
+		regs->lcdcon5 |= S3C2410_LCDCON5_BSWP |
+				 S3C2410_LCDCON5_FRM565;
+		regs->lcdcon5 &= ~S3C2410_LCDCON5_HWSWP;
 		break;
 	case 16:
 		regs->lcdcon1 |= S3C2410_LCDCON1_TFT16BPP;
+		regs->lcdcon5 &= ~S3C2410_LCDCON5_BSWP;
+		regs->lcdcon5 |= S3C2410_LCDCON5_HWSWP;
 		break;
-
+	case 32:
+		regs->lcdcon1 |= S3C2410_LCDCON1_TFT24BPP;
+		regs->lcdcon5 &= ~(S3C2410_LCDCON5_BSWP |
+				   S3C2410_LCDCON5_HWSWP |
+				   S3C2410_LCDCON5_BPP24BL);
+		break;
 	default:
 		/* invalid pixel depth */
 		dev_err(fbi->dev, "invalid bpp %d\n",
@@ -475,7 +483,9 @@ static int s3c2410fb_set_par(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 
 	switch (var->bits_per_pixel) {
+	case 32:
 	case 16:
+	case 12:
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	case 1:
