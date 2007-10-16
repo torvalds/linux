@@ -796,8 +796,8 @@ static void do_sysfs_unregistration(void)
 {
 	int rc;
 
-	if ((rc = ecryptfs_destruct_crypto())) {
-		printk(KERN_ERR "Failure whilst attempting to destruct crypto; "
+	if ((rc = ecryptfs_destroy_crypto())) {
+		printk(KERN_ERR "Failure whilst attempting to destroy crypto; "
 		       "rc = [%d]\n", rc);
 	}
 	sysfs_remove_file(&ecryptfs_subsys.kobj,

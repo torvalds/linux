@@ -213,12 +213,12 @@ ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 }
 
 /**
- * ecryptfs_destruct_crypt_stat
+ * ecryptfs_destroy_crypt_stat
  * @crypt_stat: Pointer to the crypt_stat struct to initialize.
  *
  * Releases all memory associated with a crypt_stat struct.
  */
-void ecryptfs_destruct_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
+void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 {
 	struct ecryptfs_key_sig *key_sig, *key_sig_tmp;
 
@@ -236,7 +236,7 @@ void ecryptfs_destruct_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 	memset(crypt_stat, 0, sizeof(struct ecryptfs_crypt_stat));
 }
 
-void ecryptfs_destruct_mount_crypt_stat(
+void ecryptfs_destroy_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
 {
 	struct ecryptfs_global_auth_tok *auth_tok, *auth_tok_tmp;
@@ -1880,7 +1880,7 @@ int ecryptfs_init_crypto(void)
 	return 0;
 }
 
-int ecryptfs_destruct_crypto(void)
+int ecryptfs_destroy_crypto(void)
 {
 	struct ecryptfs_key_tfm *key_tfm, *key_tfm_tmp;
 

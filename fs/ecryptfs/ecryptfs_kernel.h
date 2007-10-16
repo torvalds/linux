@@ -516,8 +516,8 @@ int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_rotate_iv(unsigned char *iv);
 void ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
-void ecryptfs_destruct_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
-void ecryptfs_destruct_mount_crypt_stat(
+void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
+void ecryptfs_destroy_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
 int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat);
 int ecryptfs_crypto_api_algify_cipher_name(char **algified_name,
@@ -620,7 +620,7 @@ int
 ecryptfs_add_new_key_tfm(struct ecryptfs_key_tfm **key_tfm, char *cipher_name,
 			 size_t key_size);
 int ecryptfs_init_crypto(void);
-int ecryptfs_destruct_crypto(void);
+int ecryptfs_destroy_crypto(void);
 int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_blkcipher **tfm,
 					       struct mutex **tfm_mutex,
 					       char *cipher_name);
