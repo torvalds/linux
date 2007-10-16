@@ -26,28 +26,31 @@
 #include <linux/rcupdate.h>
 
 /*
- * A direct pointer (root->rnode pointing directly to a data item,
- * rather than another radix_tree_node) is signalled by the low bit
- * set in the root->rnode pointer.
+ * An indirect pointer (root->rnode pointing to a radix_tree_node, rather
+ * than a data item) is signalled by the low bit set in the root->rnode
+ * pointer.
  *
- * In this case root->height is also NULL, but the direct pointer tests are
- * needed for RCU lookups when root->height is unreliable.
+ * In this case root->height is > 0, but the indirect pointer tests are
+ * needed for RCU lookups (because root->height is unreliable). The only
+ * time callers need worry about this is when doing a lookup_slot under
+ * RCU.
  */
-#define RADIX_TREE_DIRECT_PTR	1
+#define RADIX_TREE_INDIRECT_PTR	1
+#define RADIX_TREE_RETRY ((void *)-1UL)
 
-static inline void *radix_tree_ptr_to_direct(void *ptr)
+static inline void *radix_tree_ptr_to_indirect(void *ptr)
 {
-	return (void *)((unsigned long)ptr | RADIX_TREE_DIRECT_PTR);
+	return (void *)((unsigned long)ptr | RADIX_TREE_INDIRECT_PTR);
 }
 
-static inline void *radix_tree_direct_to_ptr(void *ptr)
+static inline void *radix_tree_indirect_to_ptr(void *ptr)
 {
-	return (void *)((unsigned long)ptr & ~RADIX_TREE_DIRECT_PTR);
+	return (void *)((unsigned long)ptr & ~RADIX_TREE_INDIRECT_PTR);
 }
 
-static inline int radix_tree_is_direct_ptr(void *ptr)
+static inline int radix_tree_is_indirect_ptr(void *ptr)
 {
-	return (int)((unsigned long)ptr & RADIX_TREE_DIRECT_PTR);
+	return (int)((unsigned long)ptr & RADIX_TREE_INDIRECT_PTR);
 }
 
 /*** radix-tree API starts here ***/
@@ -130,7 +133,10 @@ do {									\
  */
 static inline void *radix_tree_deref_slot(void **pslot)
 {
-	return radix_tree_direct_to_ptr(*pslot);
+	void *ret = *pslot;
+	if (unlikely(radix_tree_is_indirect_ptr(ret)))
+		ret = RADIX_TREE_RETRY;
+	return ret;
 }
 /**
  * radix_tree_replace_slot	- replace item in a slot
@@ -142,10 +148,8 @@ static inline void *radix_tree_deref_slot(void **pslot)
  */
 static inline void radix_tree_replace_slot(void **pslot, void *item)
 {
-	BUG_ON(radix_tree_is_direct_ptr(item));
-	rcu_assign_pointer(*pslot,
-		(void *)((unsigned long)item |
-			((unsigned long)*pslot & RADIX_TREE_DIRECT_PTR)));
+	BUG_ON(radix_tree_is_indirect_ptr(item));
+	rcu_assign_pointer(*pslot, item);
 }
 
 int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);

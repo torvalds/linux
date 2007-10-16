@@ -104,7 +104,7 @@ radix_tree_node_alloc(struct radix_tree_root *root)
 			rtp->nr--;
 		}
 	}
-	BUG_ON(radix_tree_is_direct_ptr(ret));
+	BUG_ON(radix_tree_is_indirect_ptr(ret));
 	return ret;
 }
 
@@ -240,7 +240,7 @@ static int radix_tree_extend(struct radix_tree_root *root, unsigned long index)
 			return -ENOMEM;
 
 		/* Increase the height.  */
-		node->slots[0] = radix_tree_direct_to_ptr(root->rnode);
+		node->slots[0] = radix_tree_indirect_to_ptr(root->rnode);
 
 		/* Propagate the aggregated tag info into the new root */
 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
@@ -251,6 +251,7 @@ static int radix_tree_extend(struct radix_tree_root *root, unsigned long index)
 		newheight = root->height+1;
 		node->height = newheight;
 		node->count = 1;
+		node = radix_tree_ptr_to_indirect(node);
 		rcu_assign_pointer(root->rnode, node);
 		root->height = newheight;
 	} while (height > root->height);
@@ -274,7 +275,7 @@ int radix_tree_insert(struct radix_tree_root *root,
 	int offset;
 	int error;
 
-	BUG_ON(radix_tree_is_direct_ptr(item));
+	BUG_ON(radix_tree_is_indirect_ptr(item));
 
 	/* Make sure the tree is high enough.  */
 	if (index > radix_tree_maxindex(root->height)) {
@@ -283,7 +284,8 @@ int radix_tree_insert(struct radix_tree_root *root,
 			return error;
 	}
 
-	slot = root->rnode;
+	slot = radix_tree_indirect_to_ptr(root->rnode);
+
 	height = root->height;
 	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
 
@@ -298,7 +300,8 @@ int radix_tree_insert(struct radix_tree_root *root,
 				rcu_assign_pointer(node->slots[offset], slot);
 				node->count++;
 			} else
-				rcu_assign_pointer(root->rnode, slot);
+				rcu_assign_pointer(root->rnode,
+					radix_tree_ptr_to_indirect(slot));
 		}
 
 		/* Go a level down */
@@ -318,7 +321,7 @@ int radix_tree_insert(struct radix_tree_root *root,
 		BUG_ON(tag_get(node, 0, offset));
 		BUG_ON(tag_get(node, 1, offset));
 	} else {
-		rcu_assign_pointer(root->rnode, radix_tree_ptr_to_direct(item));
+		rcu_assign_pointer(root->rnode, item);
 		BUG_ON(root_tag_get(root, 0));
 		BUG_ON(root_tag_get(root, 1));
 	}
@@ -350,11 +353,12 @@ void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned long index)
 	if (node == NULL)
 		return NULL;
 
-	if (radix_tree_is_direct_ptr(node)) {
+	if (!radix_tree_is_indirect_ptr(node)) {
 		if (index > 0)
 			return NULL;
 		return (void **)&root->rnode;
 	}
+	node = radix_tree_indirect_to_ptr(node);
 
 	height = node->height;
 	if (index > radix_tree_maxindex(height))
@@ -398,11 +402,12 @@ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
 	if (node == NULL)
 		return NULL;
 
-	if (radix_tree_is_direct_ptr(node)) {
+	if (!radix_tree_is_indirect_ptr(node)) {
 		if (index > 0)
 			return NULL;
-		return radix_tree_direct_to_ptr(node);
+		return node;
 	}
+	node = radix_tree_indirect_to_ptr(node);
 
 	height = node->height;
 	if (index > radix_tree_maxindex(height))
@@ -447,7 +452,7 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
 	height = root->height;
 	BUG_ON(index > radix_tree_maxindex(height));
 
-	slot = root->rnode;
+	slot = radix_tree_indirect_to_ptr(root->rnode);
 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
 
 	while (height > 0) {
@@ -497,7 +502,7 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
 
 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
 	pathp->node = NULL;
-	slot = root->rnode;
+	slot = radix_tree_indirect_to_ptr(root->rnode);
 
 	while (height > 0) {
 		int offset;
@@ -562,8 +567,9 @@ int radix_tree_tag_get(struct radix_tree_root *root,
 	if (node == NULL)
 		return 0;
 
-	if (radix_tree_is_direct_ptr(node))
+	if (!radix_tree_is_indirect_ptr(node))
 		return (index == 0);
+	node = radix_tree_indirect_to_ptr(node);
 
 	height = node->height;
 	if (index > radix_tree_maxindex(height))
@@ -716,13 +722,13 @@ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
 	if (!node)
 		return 0;
 
-	if (radix_tree_is_direct_ptr(node)) {
+	if (!radix_tree_is_indirect_ptr(node)) {
 		if (first_index > 0)
 			return 0;
-		node = radix_tree_direct_to_ptr(node);
-		results[0] = rcu_dereference(node);
+		results[0] = node;
 		return 1;
 	}
+	node = radix_tree_indirect_to_ptr(node);
 
 	max_index = radix_tree_maxindex(node->height);
 
@@ -844,13 +850,13 @@ radix_tree_gang_lookup_tag(struct radix_tree_root *root, void **results,
 	if (!node)
 		return 0;
 
-	if (radix_tree_is_direct_ptr(node)) {
+	if (!radix_tree_is_indirect_ptr(node)) {
 		if (first_index > 0)
 			return 0;
-		node = radix_tree_direct_to_ptr(node);
-		results[0] = rcu_dereference(node);
+		results[0] = node;
 		return 1;
 	}
+	node = radix_tree_indirect_to_ptr(node);
 
 	max_index = radix_tree_maxindex(node->height);
 
@@ -880,11 +886,21 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag);
 static inline void radix_tree_shrink(struct radix_tree_root *root)
 {
 	/* try to shrink tree height */
-	while (root->height > 0 &&
-			root->rnode->count == 1 &&
-			root->rnode->slots[0]) {
+	while (root->height > 0) {
 		struct radix_tree_node *to_free = root->rnode;
 		void *newptr;
+
+		BUG_ON(!radix_tree_is_indirect_ptr(to_free));
+		to_free = radix_tree_indirect_to_ptr(to_free);
+
+		/*
+		 * The candidate node has more than one child, or its child
+		 * is not at the leftmost slot, we cannot shrink.
+		 */
+		if (to_free->count != 1)
+			break;
+		if (!to_free->slots[0])
+			break;
 
 		/*
 		 * We don't need rcu_assign_pointer(), since we are simply
@@ -894,8 +910,8 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
 		 * one (root->rnode).
 		 */
 		newptr = to_free->slots[0];
-		if (root->height == 1)
-			newptr = radix_tree_ptr_to_direct(newptr);
+		if (root->height > 1)
+			newptr = radix_tree_ptr_to_indirect(newptr);
 		root->rnode = newptr;
 		root->height--;
 		/* must only free zeroed nodes into the slab */
@@ -930,12 +946,12 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 		goto out;
 
 	slot = root->rnode;
-	if (height == 0 && root->rnode) {
-		slot = radix_tree_direct_to_ptr(slot);
+	if (height == 0) {
 		root_tag_clear_all(root);
 		root->rnode = NULL;
 		goto out;
 	}
+	slot = radix_tree_indirect_to_ptr(slot);
 
 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
 	pathp->node = NULL;
@@ -977,7 +993,8 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 			radix_tree_node_free(to_free);
 
 		if (pathp->node->count) {
-			if (pathp->node == root->rnode)
+			if (pathp->node ==
+					radix_tree_indirect_to_ptr(root->rnode))
 				radix_tree_shrink(root);
 			goto out;
 		}
