@@ -179,19 +179,6 @@ static void pdc_old_disable_66MHz_clock(ide_hwif_t *hwif)
 	outb(clock & ~(hwif->channel ? 0x08 : 0x02), clock_reg);
 }
 
-static int pdc202xx_config_drive_xfer_rate (ide_drive_t *drive)
-{
-	drive->init_speed = 0;
-
-	if (ide_tune_dma(drive))
-		return 0;
-
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static int pdc202xx_quirkproc (ide_drive_t *drive)
 {
 	const char **list, *model = drive->id->model;
@@ -325,8 +312,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	    (dev->device == PCI_DEVICE_ID_PROMISE_20265))
 		hwif->rqsize = 256;
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &pdc202xx_set_pio_mode;
 	hwif->set_dma_mode = &pdc202xx_set_mode;
 
@@ -347,7 +332,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x07;
 	hwif->atapi_dma = 1;
 
-	hwif->ide_dma_check = &pdc202xx_config_drive_xfer_rate;
 	hwif->dma_lost_irq = &pdc202xx_dma_lost_irq;
 	hwif->dma_timeout = &pdc202xx_dma_timeout;
 
@@ -359,10 +343,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 		hwif->ide_dma_end = &pdc202xx_old_ide_dma_end;
 	} 
 	hwif->ide_dma_test_irq = &pdc202xx_old_ide_dma_test_irq;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
 static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
@@ -510,12 +490,12 @@ static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_dev
 	return d->init_setup(dev, d);
 }
 
-static struct pci_device_id pdc202xx_pci_tbl[] = {
-	{ PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20246, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20262, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20263, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20265, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
-	{ PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20267, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
+static const struct pci_device_id pdc202xx_pci_tbl[] = {
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20246), 0 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20262), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20263), 2 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20265), 3 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20267), 4 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, pdc202xx_pci_tbl);

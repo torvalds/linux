@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/aec62xx.c		Version 0.24	May 24, 2007
+ * linux/drivers/ide/pci/aec62xx.c		Version 0.25	Aug 1, 2007
  *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2007		MontaVista Software, Inc. <source@mvista.com>
@@ -141,17 +141,6 @@ static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	drive->hwif->set_dma_mode(drive, pio + XFER_PIO_0);
 }
 
-static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static void aec62xx_dma_lost_irq (ide_drive_t *drive)
 {
 	switch (HWIF(drive)->pci_dev->device) {
@@ -207,15 +196,14 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	} else
 		hwif->set_dma_mode = &aec6260_set_mode;
 
-	if (!hwif->dma_base) {
-		hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
+	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
+
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	hwif->ultra_mask = hwif->cds->udma_mask;
 	hwif->mwdma_mask = 0x07;
 
-	hwif->ide_dma_check	= &aec62xx_config_drive_xfer_rate;
 	hwif->dma_lost_irq	= &aec62xx_dma_lost_irq;
 
 	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
@@ -230,10 +218,6 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 
 		hwif->cbl = (ata66 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 	}
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
 static int __devinit init_setup_aec62xx(struct pci_dev *dev, ide_pci_device_t *d)
@@ -325,12 +309,12 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 	return d.init_setup(dev, &d);
 }
 
-static struct pci_device_id aec62xx_pci_tbl[] = {
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP850UF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP860,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP860R,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2 },
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP865,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3 },
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP865R,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
+static const struct pci_device_id aec62xx_pci_tbl[] = {
+	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP850UF), 0 },
+	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP860),   1 },
+	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP860R),  2 },
+	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP865),   3 },
+	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP865R),  4 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, aec62xx_pci_tbl);

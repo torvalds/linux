@@ -311,27 +311,6 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-/**
- *	siimage_configure_drive_for_dma	-	set up for DMA transfers
- *	@drive: drive we are going to set up
- *
- *	Set up the drive for DMA, tune the controller and drive as 
- *	required. If the drive isn't suitable for DMA or we hit
- *	other problems then we will drop down to PIO and set up
- *	PIO appropriately
- */
- 
-static int siimage_config_drive_for_dma (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
-
-	return -1;
-}
-
 /* returns 1 if dma irq issued, 0 otherwise */
 static int siimage_io_ide_dma_test_irq (ide_drive_t *drive)
 {
@@ -894,8 +873,6 @@ static u8 __devinit ata66_siimage(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
-	
 	hwif->resetproc = &siimage_reset;
 	hwif->set_pio_mode = &sil_set_pio_mode;
 	hwif->set_dma_mode = &sil_set_dma_mode;
@@ -925,8 +902,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	if (!is_sata(hwif))
 		hwif->atapi_dma = 1;
 
-	hwif->ide_dma_check = &siimage_config_drive_for_dma;
-
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_siimage(hwif);
 
@@ -935,15 +910,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	} else {
 		hwif->ide_dma_test_irq = & siimage_io_ide_dma_test_irq;
 	}
-	
-	/*
-	 *	The BIOS often doesn't set up DMA on this controller
-	 *	so we always do it.
-	 */
-
-	hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 #define DECLARE_SII_DEV(name_str)			\
@@ -978,11 +944,11 @@ static int __devinit siimage_init_one(struct pci_dev *dev, const struct pci_devi
 	return ide_setup_pci_device(dev, &siimage_chipsets[id->driver_data]);
 }
 
-static struct pci_device_id siimage_pci_tbl[] = {
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_680,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id siimage_pci_tbl[] = {
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_680),    0 },
 #ifdef CONFIG_BLK_DEV_IDE_SATA
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_3112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_1210SA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_3112),   1 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_1210SA), 2 },
 #endif
 	{ 0, },
 };

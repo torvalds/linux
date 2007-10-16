@@ -328,7 +328,6 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
  */
 static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
 	hwif->drives[0].drive_data = PIO_DONT_KNOW;
 	hwif->drives[1].drive_data = PIO_DONT_KNOW;
 
@@ -340,11 +339,6 @@ static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 	hwif->atapi_dma = 1;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t opti621_chipsets[] __devinitdata = {
@@ -355,6 +349,7 @@ static ide_pci_device_t opti621_chipsets[] __devinitdata = {
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
 		.bootable	= ON_BOARD,
 		.pio_mask	= ATA_PIO3,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	},{	/* 1 */
 		.name		= "OPTI621X",
 		.init_hwif	= init_hwif_opti621,
@@ -362,6 +357,7 @@ static ide_pci_device_t opti621_chipsets[] __devinitdata = {
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
 		.bootable	= ON_BOARD,
 		.pio_mask	= ATA_PIO3,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	}
 };
 
@@ -370,9 +366,9 @@ static int __devinit opti621_init_one(struct pci_dev *dev, const struct pci_devi
 	return ide_setup_pci_device(dev, &opti621_chipsets[id->driver_data]);
 }
 
-static struct pci_device_id opti621_pci_tbl[] = {
-	{ PCI_VENDOR_ID_OPTI, PCI_DEVICE_ID_OPTI_82C621, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_OPTI, PCI_DEVICE_ID_OPTI_82C825, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
+static const struct pci_device_id opti621_pci_tbl[] = {
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C621), 0 },
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), 1 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, opti621_pci_tbl);

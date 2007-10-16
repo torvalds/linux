@@ -338,35 +338,30 @@ static int config_drive_for_dma (ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct hd_driveid *id = drive->id;
 
-	/* consult the list of known "bad" drives */
-	if (__ide_dma_bad_drive(drive))
-		return -1;
-
 	if (drive->media != ide_disk && hwif->atapi_dma == 0)
-		return -1;
+		return 0;
 
-	if ((id->capability & 1) && drive->autodma) {
-		/*
-		 * Enable DMA on any drive that has
-		 * UltraDMA (mode 0/1/2/3/4/5/6) enabled
-		 */
-		if ((id->field_valid & 4) && ((id->dma_ultra >> 8) & 0x7f))
-			return 0;
-		/*
-		 * Enable DMA on any drive that has mode2 DMA
-		 * (multi or single) enabled
-		 */
-		if (id->field_valid & 2)	/* regular DMA */
-			if ((id->dma_mword & 0x404) == 0x404 ||
-			    (id->dma_1word & 0x404) == 0x404)
-				return 0;
+	/*
+	 * Enable DMA on any drive that has
+	 * UltraDMA (mode 0/1/2/3/4/5/6) enabled
+	 */
+	if ((id->field_valid & 4) && ((id->dma_ultra >> 8) & 0x7f))
+		return 1;
 
-		/* Consult the list of known "good" drives */
-		if (ide_dma_good_drive(drive))
-			return 0;
-	}
+	/*
+	 * Enable DMA on any drive that has mode2 DMA
+	 * (multi or single) enabled
+	 */
+	if (id->field_valid & 2)	/* regular DMA */
+		if ((id->dma_mword & 0x404) == 0x404 ||
+		    (id->dma_1word & 0x404) == 0x404)
+			return 1;
 
-	return -1;
+	/* Consult the list of known "good" drives */
+	if (ide_dma_good_drive(drive))
+		return 1;
+
+	return 0;
 }
 
 /**
@@ -627,6 +622,8 @@ static int __ide_dma_test_irq(ide_drive_t *drive)
 			drive->name, __FUNCTION__);
 	return 0;
 }
+#else
+static inline int config_drive_for_dma(ide_drive_t *drive) { return 0; }
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 int __ide_dma_bad_drive (ide_drive_t *drive)
@@ -758,16 +755,19 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 
 EXPORT_SYMBOL_GPL(ide_find_dma_mode);
 
-int ide_tune_dma(ide_drive_t *drive)
+static int ide_tune_dma(ide_drive_t *drive)
 {
 	u8 speed;
 
-	if ((drive->id->capability & 1) == 0 || drive->autodma == 0)
+	if (noautodma || drive->nodma || (drive->id->capability & 1) == 0)
 		return 0;
 
 	/* consult the list of known "bad" drives */
 	if (__ide_dma_bad_drive(drive))
 		return 0;
+
+	if (drive->hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
+		return config_drive_for_dma(drive);
 
 	speed = ide_max_dma_mode(drive);
 
@@ -783,7 +783,22 @@ int ide_tune_dma(ide_drive_t *drive)
 	return 1;
 }
 
-EXPORT_SYMBOL_GPL(ide_tune_dma);
+static int ide_dma_check(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	int vdma = (hwif->host_flags & IDE_HFLAG_VDMA)? 1 : 0;
+
+	if (!vdma && ide_tune_dma(drive))
+		return 0;
+
+	/* TODO: always do PIO fallback */
+	if (hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
+		return -1;
+
+	ide_set_max_pio(drive);
+
+	return vdma ? 0 : -1;
+}
 
 void ide_dma_verbose(ide_drive_t *drive)
 {
@@ -842,7 +857,7 @@ int ide_set_dma(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	int rc;
 
-	rc = hwif->ide_dma_check(drive);
+	rc = ide_dma_check(drive);
 
 	switch(rc) {
 	case -1: /* DMA needs to be disabled */
@@ -1019,8 +1034,6 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 		hwif->ide_dma_on = &__ide_dma_on;
 	if (!hwif->dma_host_on)
 		hwif->dma_host_on = &ide_dma_host_on;
-	if (!hwif->ide_dma_check)
-		hwif->ide_dma_check = &config_drive_for_dma;
 	if (!hwif->dma_setup)
 		hwif->dma_setup = &ide_dma_setup;
 	if (!hwif->dma_exec_cmd)

@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/atiixp.c	Version 0.02	Jun 16 2007
+ *  linux/drivers/ide/pci/atiixp.c	Version 0.03	Aug 3 2007
  *
  *  Copyright (C) 2003 ATI Inc. <hyu@ati.com>
  *  Copyright (C) 2004,2007 Bartlomiej Zolnierkiewicz
@@ -46,43 +46,6 @@ static atiixp_ide_timing mdma_timing[] = {
 static int save_mdma_mode[4];
 
 static DEFINE_SPINLOCK(atiixp_lock);
-
-/**
- *	atiixp_dma_2_pio		-	return the PIO mode matching DMA
- *	@xfer_rate: transfer speed
- *
- *	Returns the nearest equivalent PIO timing for the PIO or DMA
- *	mode requested by the controller.
- */
-
-static u8 atiixp_dma_2_pio(u8 xfer_rate) {
-	switch(xfer_rate) {
-		case XFER_UDMA_6:
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-		case XFER_MW_DMA_2:
-		case XFER_PIO_4:
-			return 4;
-		case XFER_MW_DMA_1:
-		case XFER_PIO_3:
-			return 3;
-		case XFER_SW_DMA_2:
-		case XFER_PIO_2:
-			return 2;
-		case XFER_MW_DMA_0:
-		case XFER_SW_DMA_1:
-		case XFER_SW_DMA_0:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-		case XFER_PIO_SLOW:
-		default:
-			return 0;
-	}
-}
 
 static void atiixp_dma_host_on(ide_drive_t *drive)
 {
@@ -169,7 +132,9 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int timing_shift = (drive->dn & 2) ? 16 : 0 + (drive->dn & 1) ? 0 : 8;
 	u32 tmp32;
 	u16 tmp16;
-	u8 pio;
+
+	if (speed < XFER_MW_DMA_0)
+		return;
 
 	spin_lock_irqsave(&atiixp_lock, flags);
 
@@ -191,34 +156,6 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 
 	spin_unlock_irqrestore(&atiixp_lock, flags);
-
-	if (speed >= XFER_SW_DMA_0)
-		pio = atiixp_dma_2_pio(speed);
-	else
-		pio = speed - XFER_PIO_0;
-
-	atiixp_set_pio_mode(drive, pio);
-}
-
-/**
- *	atiixp_dma_check	-	set up an IDE device
- *	@drive: IDE drive to configure
- *
- *	Set up the ATIIXP interface for the best available speed on this
- *	interface, preferring DMA to PIO.
- */
-
-static int atiixp_dma_check(ide_drive_t *drive)
-{
-	drive->init_speed = 0;
-
-	if (ide_tune_dma(drive))
-		return 0;
-
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
-
-	return -1;
 }
 
 /**
@@ -238,7 +175,6 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	if (!hwif->irq)
 		hwif->irq = ch ? 15 : 14;
 
-	hwif->autodma = 0;
 	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->set_dma_mode = &atiixp_set_dma_mode;
 	hwif->drives[0].autotune = 1;
@@ -249,8 +185,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x3f;
-	hwif->mwdma_mask = 0x06;
-	hwif->swdma_mask = 0x04;
+	hwif->mwdma_mask = 0x07;
 
 	pci_read_config_byte(pdev, ATIIXP_IDE_UDMA_MODE + ch, &udma_mode);
 
@@ -261,12 +196,6 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 
 	hwif->dma_host_on = &atiixp_dma_host_on;
 	hwif->dma_host_off = &atiixp_dma_host_off;
-	hwif->ide_dma_check = &atiixp_dma_check;
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[1].autodma = hwif->autodma;
-	hwif->drives[0].autodma = hwif->autodma;
 }
 
 
@@ -303,12 +232,12 @@ static int __devinit atiixp_init_one(struct pci_dev *dev, const struct pci_devic
 	return ide_setup_pci_device(dev, &atiixp_pci_info[id->driver_data]);
 }
 
-static struct pci_device_id atiixp_pci_tbl[] = {
-	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP200_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP300_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP700_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id atiixp_pci_tbl[] = {
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP200_IDE), 0 },
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP300_IDE), 0 },
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP400_IDE), 0 },
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP600_IDE), 1 },
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP700_IDE), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, atiixp_pci_tbl);

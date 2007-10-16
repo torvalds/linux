@@ -105,15 +105,6 @@ static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	cs5520_set_pio_mode(drive, 0);
 }
 
-static int cs5520_config_drive_xfer_rate(ide_drive_t *drive)
-{
-	/* Tune the drive for PIO modes up to PIO 4 */	
-	ide_set_max_pio(drive);
-
-	/* Then tell the core to use DMA operations */
-	return 0;
-}
-
 /*
  *	We provide a callback for our nonstandard DMA location
  */
@@ -148,7 +139,6 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->ide_dma_check = &cs5520_config_drive_xfer_rate;
 	hwif->ide_dma_on = &cs5520_dma_on;
 
 	/* ATAPI is harder so leave it for now */
@@ -156,12 +146,6 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 	hwif->ultra_mask = 0;
 	hwif->swdma_mask = 0;
 	hwif->mwdma_mask = 0;
-
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 #define DECLARE_CS_DEV(name_str)				\
@@ -171,7 +155,8 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		.init_hwif	= init_hwif_cs5520,		\
 		.autodma	= AUTODMA,			\
 		.bootable	= ON_BOARD,			\
-		.host_flags	= IDE_HFLAG_ISA_PORTS,		\
+		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
+				  IDE_HFLAG_VDMA,		\
 		.pio_mask	= ATA_PIO4,			\
 	}
 
@@ -233,9 +218,9 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 	return 0;
 }
 
-static struct pci_device_id cs5520_pci_tbl[] = {
-	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5510, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
+static const struct pci_device_id cs5520_pci_tbl[] = {
+	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5510), 0 },
+	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5520), 1 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, cs5520_pci_tbl);

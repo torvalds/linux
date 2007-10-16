@@ -219,11 +219,11 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 
 	case ide_pm_restore_dma:	/* Resume step 3 (restore DMA) */
 		/*
-		 * Right now, all we do is call hwif->ide_dma_check(drive),
+		 * Right now, all we do is call ide_set_dma(drive),
 		 * we could be smarter and check for current xfer_speed
 		 * in struct drive etc...
 		 */
-		if (drive->hwif->ide_dma_check == NULL)
+		if (drive->hwif->ide_dma_on == NULL)
 			break;
 		drive->hwif->dma_off_quietly(drive);
 		/*

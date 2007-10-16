@@ -428,8 +428,6 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
  */
 static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
-
 	hwif->chipset = ide_cy82c693;
 	hwif->set_pio_mode = &cy82c693_set_pio_mode;
 
@@ -444,10 +442,6 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 	hwif->swdma_mask = 0x04;
 
 	hwif->ide_dma_on = &cy82c693_ide_dma_on;
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static __devinitdata ide_hwif_t *primary;
@@ -469,7 +463,7 @@ static ide_pci_device_t cy82c693_chipset __devinitdata = {
 	.init_hwif	= init_hwif_cy82c693,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
-	.host_flags	= IDE_HFLAG_SINGLE,
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 	.pio_mask	= ATA_PIO4,
 };
 
@@ -489,8 +483,8 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
 	return ret;
 }
 
-static struct pci_device_id cy82c693_pci_tbl[] = {
-	{ PCI_VENDOR_ID_CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id cy82c693_pci_tbl[] = {
+	{ PCI_VDEVICE(CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, cy82c693_pci_tbl);

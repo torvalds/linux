@@ -80,19 +80,6 @@ static void hpt34x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	hpt34x_set_mode(drive, XFER_PIO_0 + pio);
 }
 
-static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
-{
-	drive->init_speed = 0;
-
-	if (ide_tune_dma(drive))
-		return -1;
-
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
-
-	return -1;
-}
-
 /*
  * If the BIOS does not set the IO base addaress to XX00, 343 will fail.
  */
@@ -140,8 +127,6 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 {
 	u16 pcicmd = 0;
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &hpt34x_set_pio_mode;
 	hwif->set_dma_mode = &hpt34x_set_mode;
 
@@ -154,16 +139,13 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 		return;
 
 #ifdef CONFIG_HPT34X_AUTODMA
+	if ((pcicmd & PCI_COMMAND_MEMORY) == 0)
+		return;
+
 	hwif->ultra_mask = 0x07;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 #endif
-
-	hwif->ide_dma_check = &hpt34x_config_drive_xfer_rate;
-	if (!noautodma)
-		hwif->autodma = (pcicmd & PCI_COMMAND_MEMORY) ? 1 : 0;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t hpt34x_chipset __devinitdata = {
@@ -190,8 +172,8 @@ static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_devic
 	return ide_setup_pci_device(dev, d);
 }
 
-static struct pci_device_id hpt34x_pci_tbl[] = {
-	{ PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT343, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id hpt34x_pci_tbl[] = {
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT343), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, hpt34x_pci_tbl);

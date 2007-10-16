@@ -664,7 +664,6 @@ cris_ide_inb(unsigned long reg)
 	return (unsigned char)cris_ide_inw(reg);
 }
 
-static int cris_dma_check (ide_drive_t *drive);
 static int cris_dma_end (ide_drive_t *drive);
 static int cris_dma_setup (ide_drive_t *drive);
 static void cris_dma_exec_cmd (ide_drive_t *drive, u8 command);
@@ -792,7 +791,6 @@ init_e100_ide (void)
 		hwif->ata_output_data = &cris_ide_output_data;
 		hwif->atapi_input_bytes = &cris_atapi_input_bytes;
 		hwif->atapi_output_bytes = &cris_atapi_output_bytes;
-		hwif->ide_dma_check = &cris_dma_check;
 		hwif->ide_dma_end = &cris_dma_end;
 		hwif->dma_setup = &cris_dma_setup;
 		hwif->dma_exec_cmd = &cris_dma_exec_cmd;
@@ -808,11 +806,10 @@ init_e100_ide (void)
 		hwif->dma_off_quietly = &cris_dma_off;
 		hwif->cbl = ATA_CBL_PATA40;
 		hwif->pio_mask = ATA_PIO4,
+		hwif->drives[0].autotune = 1;
+		hwif->drives[1].autotune = 1;
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
-		hwif->autodma = 1;
-		hwif->drives[0].autodma = 1;
-		hwif->drives[1].autodma = 1;
 	}
 
 	/* Reset pulse */
@@ -1017,14 +1014,6 @@ static ide_startstop_t cris_dma_intr (ide_drive_t *drive)
  * Returns 1 if DMA read/write could not be started, in which case
  * the caller should revert to PIO for the current request.
  */
-
-static int cris_dma_check(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	return -1;
-}
 
 static int cris_dma_end(ide_drive_t *drive)
 {

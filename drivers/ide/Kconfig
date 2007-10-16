@@ -435,24 +435,6 @@ config BLK_DEV_IDEDMA_PCI
 	bool
 	select BLK_DEV_IDEPCI
 
-config BLK_DEV_IDEDMA_FORCED
-	bool "Force enable legacy 2.0.X HOSTS to use DMA"
-	depends on BLK_DEV_IDEDMA_PCI
-	help
-	  This is an old piece of lost code from Linux 2.0 Kernels.
-
-	  Generally say N here.
-
-# TODO: remove it
-config IDEDMA_ONLYDISK
-	bool "Enable DMA only for disks "
-	depends on BLK_DEV_IDEDMA_PCI
-	help
-	  This is used if you know your ATAPI Devices are going to fail DMA
-	  Transfers.
-
-	  Generally say N here.
-
 config BLK_DEV_AEC62XX
 	tristate "AEC62XX chipset support"
 	select BLK_DEV_IDEDMA_PCI

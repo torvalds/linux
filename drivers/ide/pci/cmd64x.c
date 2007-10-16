@@ -330,17 +330,6 @@ static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		(void) pci_write_config_byte(dev, pciU, regU);
 }
 
-static int cmd64x_config_drive_for_dma (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static int cmd648_ide_dma_end (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
@@ -547,8 +536,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	if (dev->device == PCI_DEVICE_ID_CMD_646 && rev < 5)
 		hwif->ultra_mask = 0x00;
 
-	hwif->ide_dma_check = &cmd64x_config_drive_for_dma;
-
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_cmd64x(hwif);
 
@@ -572,10 +559,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 		hwif->ide_dma_test_irq	= &cmd64x_ide_dma_test_irq;
 		break;
 	}
-
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->drives[1].autodma = hwif->autodma;
 }
 
 static int __devinit init_setup_cmd64x(struct pci_dev *dev, ide_pci_device_t *d)
@@ -654,11 +637,11 @@ static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_devic
 	return d.init_setup(dev, &d);
 }
 
-static struct pci_device_id cmd64x_pci_tbl[] = {
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_643, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_646, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_648, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_CMD_649, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
+static const struct pci_device_id cmd64x_pci_tbl[] = {
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_643), 0 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_646), 1 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_648), 2 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_649), 3 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, cmd64x_pci_tbl);

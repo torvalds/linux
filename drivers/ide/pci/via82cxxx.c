@@ -197,24 +197,6 @@ static void via_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	via_set_drive(drive, XFER_PIO_0 + pio);
 }
 
-/**
- *	via82cxxx_ide_dma_check		-	set up for DMA if possible
- *	@drive: IDE drive to set up
- *
- *	Set up the drive for the highest supported speed considering the
- *	driver, controller and cable
- */
- 
-static int via82cxxx_ide_dma_check (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 {
 	struct via_isa_bridge *via_config;
@@ -443,8 +425,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	struct via82cxxx_dev *vdev = pci_get_drvdata(hwif->pci_dev);
 	int i;
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &via_set_pio_mode;
 	hwif->set_dma_mode = &via_set_drive;
 
@@ -458,7 +438,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 		hwif->drives[i].io_32bit = 1;
 		hwif->drives[i].unmask = (vdev->via_config->flags & VIA_NO_UNMASK) ? 0 : 1;
 		hwif->drives[i].autotune = 1;
-		hwif->drives[i].dn = hwif->channel * 2 + i;
 	}
 
 	if (!hwif->dma_base)
@@ -472,12 +451,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = via82cxxx_cable_detect(hwif);
-
-	hwif->ide_dma_check = &via82cxxx_ide_dma_check;
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
@@ -522,11 +495,11 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	return ide_setup_pci_device(dev, &via82cxxx_chipsets[id->driver_data]);
 }
 
-static struct pci_device_id via_pci_tbl[] = {
-	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C576_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_6410,     PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_SATA_EIDE,     PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
+static const struct pci_device_id via_pci_tbl[] = {
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C576_1),  0 },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C586_1),  0 },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_6410),      1 },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_SATA_EIDE), 1 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, via_pci_tbl);

@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sc1200.c		Version 0.95	Jun 16 2007
+ * linux/drivers/ide/pci/sc1200.c		Version 0.97	Aug 3 2007
  *
  * Copyright (C) 2000-2002		Mark Lord <mlord@pobox.com>
  * Copyright (C)      2007		Bartlomiej Zolnierkiewicz
@@ -199,19 +199,6 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	}
 }
 
-/*
- * sc1200_config_dma() handles selection/setting of DMA/UDMA modes
- * for both the chipset and drive.
- */
-static int sc1200_config_dma (ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	return 1;
-}
-
-
 /*  Replacement for the standard ide_dma_end action in
  *  dma_proc.
  *
@@ -377,27 +364,22 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 {
 	if (hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
-	hwif->autodma = 0;
 
 	hwif->set_pio_mode = &sc1200_set_pio_mode;
 	hwif->set_dma_mode = &sc1200_set_dma_mode;
+
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
 
 	if (hwif->dma_base == 0)
 		return;
 
 	hwif->udma_filter = sc1200_udma_filter;
-	hwif->ide_dma_check = &sc1200_config_dma;
 	hwif->ide_dma_end   = &sc1200_ide_dma_end;
-
-	if (!noautodma)
-		hwif->autodma = 1;
 
         hwif->atapi_dma = 1;
         hwif->ultra_mask = 0x07;
         hwif->mwdma_mask = 0x07;
-
-        hwif->drives[0].autodma = hwif->autodma;
-        hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t sc1200_chipset __devinitdata = {
@@ -414,8 +396,8 @@ static int __devinit sc1200_init_one(struct pci_dev *dev, const struct pci_devic
 	return ide_setup_pci_device(dev, &sc1200_chipset);
 }
 
-static struct pci_device_id sc1200_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_IDE), 0},
+static const struct pci_device_id sc1200_pci_tbl[] = {
+	{ PCI_VDEVICE(NS, PCI_DEVICE_ID_NS_SCx200_IDE), 0},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, sc1200_pci_tbl);

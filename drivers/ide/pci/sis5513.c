@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sis5513.c	Version 0.27	Jul 14, 2007
+ * linux/drivers/ide/pci/sis5513.c	Version 0.31	Aug 9, 2007
  *
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
@@ -64,8 +64,6 @@
 #include <asm/irq.h>
 
 #include "ide-timing.h"
-
-#define DISPLAY_SIS_TIMINGS
 
 /* registers layout and init values are chipset family dependant */
 
@@ -193,362 +191,124 @@ static char* chipset_capability[] = {
 	"ATA 133 (1st gen)", "ATA 133 (2nd gen)"
 };
 
-#if defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
-#include <linux/stat.h>
-#include <linux/proc_fs.h>
-
-static u8 sis_proc = 0;
-
-static struct pci_dev *bmide_dev;
-
-static char* cable_type[] = {
-	"80 pins",
-	"40 pins"
-};
-
-static char* recovery_time[] ={
-	"12 PCICLK", "1 PCICLK",
-	"2 PCICLK", "3 PCICLK",
-	"4 PCICLK", "5 PCICLCK",
-	"6 PCICLK", "7 PCICLCK",
-	"8 PCICLK", "9 PCICLCK",
-	"10 PCICLK", "11 PCICLK",
-	"13 PCICLK", "14 PCICLK",
-	"15 PCICLK", "15 PCICLK"
-};
-
-static char* active_time[] = {
-	"8 PCICLK", "1 PCICLCK",
-	"2 PCICLK", "3 PCICLK",
-	"4 PCICLK", "5 PCICLK",
-	"6 PCICLK", "12 PCICLK"
-};
-
-static char* cycle_time[] = {
-	"Reserved", "2 CLK",
-	"3 CLK", "4 CLK",
-	"5 CLK", "6 CLK",
-	"7 CLK", "8 CLK",
-	"9 CLK", "10 CLK",
-	"11 CLK", "12 CLK",
-	"13 CLK", "14 CLK",
-	"15 CLK", "16 CLK"
-};
-
-/* Generic add master or slave info function */
-static char* get_drives_info (char *buffer, u8 pos)
-{
-	u8 reg00, reg01, reg10, reg11; /* timing registers */
-	u32 regdw0, regdw1;
-	char* p = buffer;
-
-/* Postwrite/Prefetch */
-	if (chipset_family < ATA_133) {
-		pci_read_config_byte(bmide_dev, 0x4b, &reg00);
-		p += sprintf(p, "Drive %d:        Postwrite %s \t \t Postwrite %s\n",
-			     pos, (reg00 & (0x10 << pos)) ? "Enabled" : "Disabled",
-			     (reg00 & (0x40 << pos)) ? "Enabled" : "Disabled");
-		p += sprintf(p, "                Prefetch  %s \t \t Prefetch  %s\n",
-			     (reg00 & (0x01 << pos)) ? "Enabled" : "Disabled",
-			     (reg00 & (0x04 << pos)) ? "Enabled" : "Disabled");
-		pci_read_config_byte(bmide_dev, 0x40+2*pos, &reg00);
-		pci_read_config_byte(bmide_dev, 0x41+2*pos, &reg01);
-		pci_read_config_byte(bmide_dev, 0x44+2*pos, &reg10);
-		pci_read_config_byte(bmide_dev, 0x45+2*pos, &reg11);
-	} else {
-		u32 reg54h;
-		u8 drive_pci = 0x40;
-		pci_read_config_dword(bmide_dev, 0x54, &reg54h);
-		if (reg54h & 0x40000000) {
-			// Configuration space remapped to 0x70
-			drive_pci = 0x70;
-		}
-		pci_read_config_dword(bmide_dev, (unsigned long)drive_pci+4*pos, &regdw0);
-		pci_read_config_dword(bmide_dev, (unsigned long)drive_pci+4*pos+8, &regdw1);
-
-		p += sprintf(p, "Drive %d:\n", pos);
-	}
-
-
-/* UDMA */
-	if (chipset_family >= ATA_133) {
-		p += sprintf(p, "                UDMA %s \t \t \t UDMA %s\n",
-			     (regdw0 & 0x04) ? "Enabled" : "Disabled",
-			     (regdw1 & 0x04) ? "Enabled" : "Disabled");
-		p += sprintf(p, "                UDMA Cycle Time    %s \t UDMA Cycle Time    %s\n",
-			     cycle_time[(regdw0 & 0xF0) >> 4],
-			     cycle_time[(regdw1 & 0xF0) >> 4]);
-	} else if (chipset_family >= ATA_33) {
-		p += sprintf(p, "                UDMA %s \t \t \t UDMA %s\n",
-			     (reg01 & 0x80) ? "Enabled" : "Disabled",
-			     (reg11 & 0x80) ? "Enabled" : "Disabled");
-
-		p += sprintf(p, "                UDMA Cycle Time    ");
-		switch(chipset_family) {
-			case ATA_33:	p += sprintf(p, cycle_time[(reg01 & 0x60) >> 5]); break;
-			case ATA_66:
-			case ATA_100a:	p += sprintf(p, cycle_time[(reg01 & 0x70) >> 4]); break;
-			case ATA_100:
-			case ATA_133a:	p += sprintf(p, cycle_time[reg01 & 0x0F]); break;
-			default:	p += sprintf(p, "?"); break;
-		}
-		p += sprintf(p, " \t UDMA Cycle Time    ");
-		switch(chipset_family) {
-			case ATA_33:	p += sprintf(p, cycle_time[(reg11 & 0x60) >> 5]); break;
-			case ATA_66:
-			case ATA_100a:	p += sprintf(p, cycle_time[(reg11 & 0x70) >> 4]); break;
-			case ATA_100:
-			case ATA_133a:  p += sprintf(p, cycle_time[reg11 & 0x0F]); break;
-			default:	p += sprintf(p, "?"); break;
-		}
-		p += sprintf(p, "\n");
-	}
-
-
-	if (chipset_family < ATA_133) {	/* else case TODO */
-
-/* Data Active */
-		p += sprintf(p, "                Data Active Time   ");
-		switch(chipset_family) {
-			case ATA_16: /* confirmed */
-			case ATA_33:
-			case ATA_66:
-			case ATA_100a: p += sprintf(p, active_time[reg01 & 0x07]); break;
-			case ATA_100:
-			case ATA_133a: p += sprintf(p, active_time[(reg00 & 0x70) >> 4]); break;
-			default: p += sprintf(p, "?"); break;
-		}
-		p += sprintf(p, " \t Data Active Time   ");
-		switch(chipset_family) {
-			case ATA_16:
-			case ATA_33:
-			case ATA_66:
-			case ATA_100a: p += sprintf(p, active_time[reg11 & 0x07]); break;
-			case ATA_100:
-			case ATA_133a: p += sprintf(p, active_time[(reg10 & 0x70) >> 4]); break;
-			default: p += sprintf(p, "?"); break;
-		}
-		p += sprintf(p, "\n");
-
-/* Data Recovery */
-	/* warning: may need (reg&0x07) for pre ATA66 chips */
-		p += sprintf(p, "                Data Recovery Time %s \t Data Recovery Time %s\n",
-			     recovery_time[reg00 & 0x0f], recovery_time[reg10 & 0x0f]);
-	}
-
-	return p;
-}
-
-static char* get_masters_info(char* buffer)
-{
-	return get_drives_info(buffer, 0);
-}
-
-static char* get_slaves_info(char* buffer)
-{
-	return get_drives_info(buffer, 1);
-}
-
-/* Main get_info, called on /proc/ide/sis reads */
-static int sis_get_info (char *buffer, char **addr, off_t offset, int count)
-{
-	char *p = buffer;
-	int len;
-	u8 reg;
-	u16 reg2, reg3;
-
-	p += sprintf(p, "\nSiS 5513 ");
-	switch(chipset_family) {
-		case ATA_16: p += sprintf(p, "DMA 16"); break;
-		case ATA_33: p += sprintf(p, "Ultra 33"); break;
-		case ATA_66: p += sprintf(p, "Ultra 66"); break;
-		case ATA_100a:
-		case ATA_100: p += sprintf(p, "Ultra 100"); break;
-		case ATA_133a:
-		case ATA_133: p += sprintf(p, "Ultra 133"); break;
-		default: p+= sprintf(p, "Unknown???"); break;
-	}
-	p += sprintf(p, " chipset\n");
-	p += sprintf(p, "--------------- Primary Channel "
-		     "---------------- Secondary Channel "
-		     "-------------\n");
-
-/* Status */
-	pci_read_config_byte(bmide_dev, 0x4a, &reg);
-	if (chipset_family == ATA_133) {
-		pci_read_config_word(bmide_dev, 0x50, &reg2);
-		pci_read_config_word(bmide_dev, 0x52, &reg3);
-	}
-	p += sprintf(p, "Channel Status: ");
-	if (chipset_family < ATA_66) {
-		p += sprintf(p, "%s \t \t \t \t %s\n",
-			     (reg & 0x04) ? "On" : "Off",
-			     (reg & 0x02) ? "On" : "Off");
-	} else if (chipset_family < ATA_133) {
-		p += sprintf(p, "%s \t \t \t \t %s \n",
-			     (reg & 0x02) ? "On" : "Off",
-			     (reg & 0x04) ? "On" : "Off");
-	} else { /* ATA_133 */
-		p += sprintf(p, "%s \t \t \t \t %s \n",
-			     (reg2 & 0x02) ? "On" : "Off",
-			     (reg3 & 0x02) ? "On" : "Off");
-	}
-
-/* Operation Mode */
-	pci_read_config_byte(bmide_dev, 0x09, &reg);
-	p += sprintf(p, "Operation Mode: %s \t \t \t %s \n",
-		     (reg & 0x01) ? "Native" : "Compatible",
-		     (reg & 0x04) ? "Native" : "Compatible");
-
-/* 80-pin cable ? */
-	if (chipset_family >= ATA_133) {
-		p += sprintf(p, "Cable Type:     %s \t \t \t %s\n",
-			     (reg2 & 0x01) ? cable_type[1] : cable_type[0],
-			     (reg3 & 0x01) ? cable_type[1] : cable_type[0]);
-	} else if (chipset_family > ATA_33) {
-		pci_read_config_byte(bmide_dev, 0x48, &reg);
-		p += sprintf(p, "Cable Type:     %s \t \t \t %s\n",
-			     (reg & 0x10) ? cable_type[1] : cable_type[0],
-			     (reg & 0x20) ? cable_type[1] : cable_type[0]);
-	}
-
-/* Prefetch Count */
-	if (chipset_family < ATA_133) {
-		pci_read_config_word(bmide_dev, 0x4c, &reg2);
-		pci_read_config_word(bmide_dev, 0x4e, &reg3);
-		p += sprintf(p, "Prefetch Count: %d \t \t \t \t %d\n",
-			     reg2, reg3);
-	}
-
-	p = get_masters_info(p);
-	p = get_slaves_info(p);
-
-	len = (p - buffer) - offset;
-	*addr = buffer + offset;
-
-	return len > count ? count : len;
-}
-#endif /* defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_IDE_PROC_FS) */
-
 /*
  * Configuration functions
  */
-/* Enables per-drive prefetch and postwrite */
+
+static u8 sis_ata133_get_base(ide_drive_t *drive)
+{
+	struct pci_dev *dev = drive->hwif->pci_dev;
+	u32 reg54 = 0;
+
+	pci_read_config_dword(dev, 0x54, &reg54);
+
+	return ((reg54 & 0x40000000) ? 0x70 : 0x40) + drive->dn * 4;
+}
+
+static void sis_ata16_program_timings(ide_drive_t *drive, const u8 mode)
+{
+	struct pci_dev *dev = drive->hwif->pci_dev;
+	u16 t1 = 0;
+	u8 drive_pci = 0x40 + drive->dn * 2;
+
+	const u16 pio_timings[]   = { 0x000, 0x607, 0x404, 0x303, 0x301 };
+	const u16 mwdma_timings[] = { 0x008, 0x302, 0x301 };
+
+	pci_read_config_word(dev, drive_pci, &t1);
+
+	/* clear active/recovery timings */
+	t1 &= ~0x070f;
+	if (mode >= XFER_MW_DMA_0) {
+		if (chipset_family > ATA_16)
+			t1 &= ~0x8000;	/* disable UDMA */
+		t1 |= mwdma_timings[mode - XFER_MW_DMA_0];
+	} else
+		t1 |= pio_timings[mode - XFER_PIO_0];
+
+	pci_write_config_word(dev, drive_pci, t1);
+}
+
+static void sis_ata100_program_timings(ide_drive_t *drive, const u8 mode)
+{
+	struct pci_dev *dev = drive->hwif->pci_dev;
+	u8 t1, drive_pci = 0x40 + drive->dn * 2;
+
+	/* timing bits: 7:4 active 3:0 recovery */
+	const u8 pio_timings[]   = { 0x00, 0x67, 0x44, 0x33, 0x31 };
+	const u8 mwdma_timings[] = { 0x08, 0x32, 0x31 };
+
+	if (mode >= XFER_MW_DMA_0) {
+		u8 t2 = 0;
+
+		pci_read_config_byte(dev, drive_pci, &t2);
+		t2 &= ~0x80;	/* disable UDMA */
+		pci_write_config_byte(dev, drive_pci, t2);
+
+		t1 = mwdma_timings[mode - XFER_MW_DMA_0];
+	} else
+		t1 = pio_timings[mode - XFER_PIO_0];
+
+	pci_write_config_byte(dev, drive_pci + 1, t1);
+}
+
+static void sis_ata133_program_timings(ide_drive_t *drive, const u8 mode)
+{
+	struct pci_dev *dev = drive->hwif->pci_dev;
+	u32 t1 = 0;
+	u8 drive_pci = sis_ata133_get_base(drive), clk, idx;
+
+	pci_read_config_dword(dev, drive_pci, &t1);
+
+	t1 &= 0xc0c00fff;
+	clk = (t1 & 0x08) ? ATA_133 : ATA_100;
+	if (mode >= XFER_MW_DMA_0) {
+		t1 &= ~0x04;	/* disable UDMA */
+		idx = mode - XFER_MW_DMA_0 + 5;
+	}
+		idx = mode - XFER_PIO_0;
+	t1 |= ini_time_value[clk][idx] << 12;
+	t1 |= act_time_value[clk][idx] << 16;
+	t1 |= rco_time_value[clk][idx] << 24;
+
+	pci_write_config_dword(dev, drive_pci, t1);
+}
+
+static void sis_program_timings(ide_drive_t *drive, const u8 mode)
+{
+	if (chipset_family < ATA_100)		/* ATA_16/33/66/100a */
+		sis_ata16_program_timings(drive, mode);
+	else if (chipset_family < ATA_133)	/* ATA_100/133a */
+		sis_ata100_program_timings(drive, mode);
+	else					/* ATA_133 */
+		sis_ata133_program_timings(drive, mode);
+}
+
 static void config_drive_art_rwp (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-
 	u8 reg4bh		= 0;
-	u8 rw_prefetch		= (0x11 << drive->dn);
+	u8 rw_prefetch		= 0;
 
-	if (drive->media != ide_disk)
-		return;
 	pci_read_config_byte(dev, 0x4b, &reg4bh);
 
-	if ((reg4bh & rw_prefetch) != rw_prefetch)
+	if (drive->media == ide_disk)
+		rw_prefetch = 0x11 << drive->dn;
+
+	if ((reg4bh & (0x11 << drive->dn)) != rw_prefetch)
 		pci_write_config_byte(dev, 0x4b, reg4bh|rw_prefetch);
 }
 
-/* Set per-drive active and recovery time */
 static void sis_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
-
-	u8 drive_pci, test1, test2;
-
 	config_drive_art_rwp(drive);
-
-	/* In pre ATA_133 case, drives sit at 0x40 + 4*drive->dn */
-	drive_pci = 0x40;
-	/* In SiS962 case drives sit at (0x40 or 0x70) + 8*drive->dn) */
-	if (chipset_family >= ATA_133) {
-		u32 reg54h;
-		pci_read_config_dword(dev, 0x54, &reg54h);
-		if (reg54h & 0x40000000) drive_pci = 0x70;
-		drive_pci += ((drive->dn)*0x4);
-	} else {
-		drive_pci += ((drive->dn)*0x2);
-	}
-
-	/* register layout changed with newer ATA100 chips */
-	if (chipset_family < ATA_100) {
-		pci_read_config_byte(dev, drive_pci, &test1);
-		pci_read_config_byte(dev, drive_pci+1, &test2);
-
-		/* Clear active and recovery timings */
-		test1 &= ~0x0F;
-		test2 &= ~0x07;
-
-		switch(pio) {
-			case 4:		test1 |= 0x01; test2 |= 0x03; break;
-			case 3:		test1 |= 0x03; test2 |= 0x03; break;
-			case 2:		test1 |= 0x04; test2 |= 0x04; break;
-			case 1:		test1 |= 0x07; test2 |= 0x06; break;
-			case 0:		/* PIO0: register setting == X000 */
-			default:	break;
-		}
-		pci_write_config_byte(dev, drive_pci, test1);
-		pci_write_config_byte(dev, drive_pci+1, test2);
-	} else if (chipset_family < ATA_133) {
-		switch(pio) { /*		active  recovery
-						  v     v */
-			case 4:		test1 = 0x30|0x01; break;
-			case 3:		test1 = 0x30|0x03; break;
-			case 2:		test1 = 0x40|0x04; break;
-			case 1:		test1 = 0x60|0x07; break;
-			case 0:		test1 = 0x00; break;
-			default:	break;
-		}
-		pci_write_config_byte(dev, drive_pci, test1);
-	} else { /* ATA_133 */
-		u32 test3;
-		pci_read_config_dword(dev, drive_pci, &test3);
-		test3 &= 0xc0c00fff;
-		if (test3 & 0x08) {
-			test3 |= ini_time_value[ATA_133][pio] << 12;
-			test3 |= act_time_value[ATA_133][pio] << 16;
-			test3 |= rco_time_value[ATA_133][pio] << 24;
-		} else {
-			test3 |= ini_time_value[ATA_100][pio] << 12;
-			test3 |= act_time_value[ATA_100][pio] << 16;
-			test3 |= rco_time_value[ATA_100][pio] << 24;
-		}
-		pci_write_config_dword(dev, drive_pci, test3);
-	}
+	sis_program_timings(drive, XFER_PIO_0 + pio);
 }
 
 static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	u32 regdw;
-	u8 drive_pci, reg;
-
-	/* See sis_set_pio_mode() for drive PCI config registers */
-	drive_pci = 0x40;
-	if (chipset_family >= ATA_133) {
-		u32 reg54h;
-		pci_read_config_dword(dev, 0x54, &reg54h);
-		if (reg54h & 0x40000000) drive_pci = 0x70;
-		drive_pci += ((drive->dn)*0x4);
-		pci_read_config_dword(dev, (unsigned long)drive_pci, &regdw);
-		/* Disable UDMA bit for non UDMA modes on UDMA chips */
-		if (speed < XFER_UDMA_0) {
-			regdw &= 0xfffffffb;
-			pci_write_config_dword(dev, (unsigned long)drive_pci, regdw);
-		}
-	
-	} else {
-		drive_pci += ((drive->dn)*0x2);
-		pci_read_config_byte(dev, drive_pci+1, &reg);
-		/* Disable UDMA bit for non UDMA modes on UDMA chips */
-		if ((speed < XFER_UDMA_0) && (chipset_family > ATA_16)) {
-			reg &= 0x7F;
-			pci_write_config_byte(dev, drive_pci+1, reg);
-		}
-	}
 
 	/* Config chip for mode */
 	switch(speed) {
@@ -560,6 +320,10 @@ static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		case XFER_UDMA_1:
 		case XFER_UDMA_0:
 			if (chipset_family >= ATA_133) {
+				u32 regdw = 0;
+				u8 drive_pci = sis_ata133_get_base(drive);
+
+				pci_read_config_dword(dev, drive_pci, &regdw);
 				regdw |= 0x04;
 				regdw &= 0xfffff00f;
 				/* check if ATA133 enable */
@@ -572,6 +336,9 @@ static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 				}
 				pci_write_config_dword(dev, (unsigned long)drive_pci, regdw);
 			} else {
+				u8 drive_pci = 0x40 + drive->dn * 2, reg = 0;
+
+				pci_read_config_byte(dev, drive_pci+1, &reg);
 				/* Force the UDMA bit on if we want to use UDMA */
 				reg |= 0x80;
 				/* clean reg cycle time bits */
@@ -586,9 +353,7 @@ static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_MW_DMA_0:
-		case XFER_SW_DMA_2:
-		case XFER_SW_DMA_1:
-		case XFER_SW_DMA_0:
+			sis_program_timings(drive, speed);
 			break;
 		default:
 			BUG();
@@ -596,32 +361,12 @@ static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-static int sis5513_config_xfer_rate(ide_drive_t *drive)
-{
-	/*
-	 * TODO: always set PIO mode and remove this
-	 */
-	ide_set_max_pio(drive);
-
-	drive->init_speed = 0;
-
-	if (ide_tune_dma(drive))
-		return 0;
-
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
-
-	return -1;
-}
-
 static u8 sis5513_ata133_udma_filter(ide_drive_t *drive)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
-	int drive_pci;
-	u32 reg54 = 0, regdw = 0;
+	u32 regdw = 0;
+	u8 drive_pci = sis_ata133_get_base(drive);
 
-	pci_read_config_dword(dev, 0x54, &reg54);
-	drive_pci = ((reg54 & 0x40000000) ? 0x70 : 0x40) + drive->dn * 4;
 	pci_read_config_dword(dev, drive_pci, &regdw);
 
 	/* if ATA133 disable, we should not set speed above UDMA5 */
@@ -767,14 +512,6 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 				}
 				break;
 		}
-
-#if defined(DISPLAY_SIS_TIMINGS) && defined(CONFIG_IDE_PROC_FS)
-		if (!sis_proc) {
-			sis_proc = 1;
-			bmide_dev = dev;
-			ide_pci_create_host_proc("sis", sis_get_info);
-		}
-#endif
 	}
 
 	return 0;
@@ -827,8 +564,6 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 {
 	u8 udma_rates[] = { 0x00, 0x00, 0x07, 0x1f, 0x3f, 0x3f, 0x7f, 0x7f };
 
-	hwif->autodma = 0;
-
 	if (!hwif->irq)
 		hwif->irq = hwif->channel ? 15 : 14;
 
@@ -838,32 +573,19 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (chipset_family >= ATA_133)
 		hwif->udma_filter = sis5513_ata133_udma_filter;
 
-	if (!(hwif->dma_base)) {
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
+
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	hwif->atapi_dma = 1;
 
 	hwif->ultra_mask = udma_rates[chipset_family];
 	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
-
-	if (!chipset_family)
-		return;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_sis5513(hwif);
-
-	if (chipset_family > ATA_16) {
-		hwif->ide_dma_check = &sis5513_config_xfer_rate;
-		if (!noautodma)
-			hwif->autodma = 1;
-	}
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
-	return;
 }
 
 static ide_pci_device_t sis5513_chipset __devinitdata = {
@@ -881,10 +603,10 @@ static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_devi
 	return ide_setup_pci_device(dev, &sis5513_chipset);
 }
 
-static struct pci_device_id sis5513_pci_tbl[] = {
-	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_5513, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_5518, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_1180, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id sis5513_pci_tbl[] = {
+	{ PCI_VDEVICE(SI, PCI_DEVICE_ID_SI_5513), 0 },
+	{ PCI_VDEVICE(SI, PCI_DEVICE_ID_SI_5518), 0 },
+	{ PCI_VDEVICE(SI, PCI_DEVICE_ID_SI_1180), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, sis5513_pci_tbl);

@@ -437,26 +437,6 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	ali15x3_config_drive_for_dma	-	configure for DMA
- *	@drive: drive to configure
- *
- *	Configure a drive for DMA operation. If DMA is not possible we
- *	drop the drive into PIO mode instead.
- */
-
-static int ali15x3_config_drive_for_dma(ide_drive_t *drive)
-{
-	drive->init_speed = 0;
-
-	if (ide_tune_dma(drive))
-		return 0;
-
-	ide_set_max_pio(drive);
-
-	return -1;
-}
-
-/**
  *	ali15x3_dma_setup	-	begin a DMA phase
  *	@drive:	target device
  *
@@ -680,7 +660,6 @@ static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
  
 static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 {
-	hwif->autodma = 0;
 	hwif->set_pio_mode = &ali_set_pio_mode;
 	hwif->set_dma_mode = &ali_set_dma_mode;
 	hwif->udma_filter = &ali_udma_filter;
@@ -715,17 +694,10 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 
-	hwif->ide_dma_check = &ali15x3_config_drive_for_dma;
 	hwif->dma_setup = &ali15x3_dma_setup;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_ali15x3(hwif);
-
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 /**
@@ -836,9 +808,9 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 }
 
 
-static struct pci_device_id alim15x3_pci_tbl[] = {
-	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M5229, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M5228, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+static const struct pci_device_id alim15x3_pci_tbl[] = {
+	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5229), 0 },
+	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5228), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, alim15x3_pci_tbl);

@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.52	Jul 14, 2007
+ *  linux/drivers/ide/pci/piix.c	Version 0.53	Aug 9, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -104,37 +104,6 @@
 #include <asm/io.h>
 
 static int no_piix_dma;
-
-/**
- *	piix_dma_2_pio		-	return the PIO mode matching DMA
- *	@xfer_rate: transfer speed
- *
- *	Returns the nearest equivalent PIO timing for the DMA
- *	mode requested by the controller.
- */
- 
-static u8 piix_dma_2_pio (u8 xfer_rate) {
-	switch(xfer_rate) {
-		case XFER_UDMA_6:
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-		case XFER_MW_DMA_2:
-			return 4;
-		case XFER_MW_DMA_1:
-			return 3;
-		case XFER_SW_DMA_2:
-			return 2;
-		case XFER_MW_DMA_0:
-		case XFER_SW_DMA_1:
-		case XFER_SW_DMA_0:
-		default:
-			return 0;
-	}
-}
 
 /**
  *	piix_set_pio_mode	-	set host controller for PIO mode
@@ -263,6 +232,9 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		} else
 			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
 	} else {
+		const u8 mwdma_to_pio[] = { 0, 3, 4 };
+		u8 pio;
+
 		if (reg48 & u_flag)
 			pci_write_config_byte(dev, 0x48, reg48 & ~u_flag);
 		if (reg4a & a_speed)
@@ -271,30 +243,14 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
 		if (reg55 & w_flag)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
+
+		if (speed >= XFER_MW_DMA_0)
+			pio = mwdma_to_pio[speed - XFER_MW_DMA_0];
+		else
+			pio = 2; /* only SWDMA2 is allowed */
+
+		piix_set_pio_mode(drive, pio);
 	}
-
-	piix_set_pio_mode(drive, piix_dma_2_pio(speed));
-}
-
-/**
- *	piix_config_drive_xfer_rate	-	set up an IDE device
- *	@drive: IDE drive to configure
- *
- *	Set up the PIIX interface for the best available speed on this
- *	interface, preferring DMA to PIO.
- */
- 
-static int piix_config_drive_xfer_rate (ide_drive_t *drive)
-{
-	drive->init_speed = 0;
-
-	if (ide_tune_dma(drive))
-		return 0;
-
-	if (ide_use_fast_pio(drive))
-		ide_set_max_pio(drive);
-
-	return -1;
 }
 
 /**
@@ -428,8 +384,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->autodma = 0;
-
 	hwif->set_pio_mode = &piix_set_pio_mode;
 	hwif->set_dma_mode = &piix_set_dma_mode;
 
@@ -456,13 +410,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 
 	if (no_piix_dma)
 		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;
-
-	hwif->ide_dma_check = &piix_config_drive_xfer_rate;
-	if (!noautodma)
-		hwif->autodma = 1;
-
-	hwif->drives[1].autodma = hwif->autodma;
-	hwif->drives[0].autodma = hwif->autodma;
 }
 
 #define DECLARE_PIIX_DEV(name_str, udma) \
@@ -565,34 +512,34 @@ static void __devinit piix_check_450nx(void)
 		printk(KERN_WARNING "piix: A BIOS update may resolve this.\n");
 }		
 
-static struct pci_device_id piix_pci_tbl[] = {
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371FB_0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371FB_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371MX,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371SB_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801AB_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 5},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82443MX_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 6},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801AA_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 7},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82372FB_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 8},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82451NX,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 9},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 10},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 11},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10,PCI_ANY_ID, PCI_ANY_ID, 0, 0, 12},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_11,PCI_ANY_ID, PCI_ANY_ID, 0, 0, 13},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_11,PCI_ANY_ID, PCI_ANY_ID, 0, 0, 14},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_11,PCI_ANY_ID, PCI_ANY_ID, 0, 0, 15},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801E_11, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 16},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_10,PCI_ANY_ID, PCI_ANY_ID, 0, 0, 17},
+static const struct pci_device_id piix_pci_tbl[] = {
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371FB_0),   0 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371FB_1),   1 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371MX),     2 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371SB_1),   3 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371AB),     4 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801AB_1),   5 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82443MX_1),   6 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801AA_1),   7 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82372FB_1),   8 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82451NX),     9 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801BA_9),  10 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801BA_8),  11 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801CA_10), 12 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801CA_11), 13 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801DB_11), 14 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801EB_11), 15 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801E_11),  16 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801DB_10), 17 },
 #ifdef CONFIG_BLK_DEV_IDE_SATA
- 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 18},
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801EB_1),  18 },
 #endif
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 19},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_19, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 20},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_21, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 21},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 22},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB2_18, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 23},
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_6, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 24},
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ESB_2),      19 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICH6_19),    20 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICH7_21),    21 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801DB_1),  22 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ESB2_18),    23 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICH8_6),     24 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, piix_pci_tbl);

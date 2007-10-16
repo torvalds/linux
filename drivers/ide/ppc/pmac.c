@@ -1421,17 +1421,12 @@ static struct macio_driver pmac_ide_macio_driver =
 	.resume		= pmac_ide_macio_resume,
 };
 
-static struct pci_device_id pmac_ide_pci_match[] = {
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_ATA,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID_ATA100,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_K2_ATA100,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_SH_ATA,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID2_ATA,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id pmac_ide_pci_match[] = {
+	{ PCI_VDEVICE(APPLE, PCI_DEVICE_ID_APPLE_UNI_N_ATA),	0 },
+	{ PCI_VDEVICE(APPLE, PCI_DEVICE_ID_APPLE_IPID_ATA100),	0 },
+	{ PCI_VDEVICE(APPLE, PCI_DEVICE_ID_APPLE_K2_ATA100),	0 },
+	{ PCI_VDEVICE(APPLE, PCI_DEVICE_ID_APPLE_SH_ATA),	0 },
+	{ PCI_VDEVICE(APPLE, PCI_DEVICE_ID_APPLE_IPID2_ATA),	0 },
 	{},
 };
 
@@ -1576,19 +1571,6 @@ pmac_ide_destroy_dmatable (ide_drive_t *drive)
 		pci_unmap_sg(dev, sg, nents, hwif->sg_dma_direction);
 		hwif->sg_nents = 0;
 	}
-}
-
-/*
- * Check what is the best DMA timing setting for the drive and
- * call appropriate functions to apply it.
- */
-static int
-pmac_ide_dma_check(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	return -1;
 }
 
 /*
@@ -1788,7 +1770,6 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 
 	hwif->dma_off_quietly = &ide_dma_off_quietly;
 	hwif->ide_dma_on = &__ide_dma_on;
-	hwif->ide_dma_check = &pmac_ide_dma_check;
 	hwif->dma_setup = &pmac_ide_dma_setup;
 	hwif->dma_exec_cmd = &pmac_ide_dma_exec_cmd;
 	hwif->dma_start = &pmac_ide_dma_start;
@@ -1823,9 +1804,6 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 			hwif->swdma_mask = 0x00;
 			break;
 	}
-
-	hwif->autodma = 1;
-	hwif->drives[1].autodma = hwif->drives[0].autodma = hwif->autodma;
 }
 
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */

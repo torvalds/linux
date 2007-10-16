@@ -100,8 +100,6 @@ static int ide_scan_direction; /* THIS was formerly 2.2.x pci=reverse */
 
 int noautodma = 0;
 
-EXPORT_SYMBOL(noautodma);
-
 #ifdef CONFIG_BLK_DEV_IDEACPI
 int ide_noacpi = 0;
 int ide_noacpitfs = 1;
@@ -418,7 +416,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->dma_exec_cmd		= tmp_hwif->dma_exec_cmd;
 	hwif->dma_start			= tmp_hwif->dma_start;
 	hwif->ide_dma_end		= tmp_hwif->ide_dma_end;
-	hwif->ide_dma_check		= tmp_hwif->ide_dma_check;
 	hwif->ide_dma_on		= tmp_hwif->ide_dma_on;
 	hwif->dma_off_quietly		= tmp_hwif->dma_off_quietly;
 	hwif->ide_dma_test_irq		= tmp_hwif->ide_dma_test_irq;
@@ -461,7 +458,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->select_data		= tmp_hwif->select_data;
 	hwif->extra_base		= tmp_hwif->extra_base;
 	hwif->extra_ports		= tmp_hwif->extra_ports;
-	hwif->autodma			= tmp_hwif->autodma;
 
 	hwif->hwif_data			= tmp_hwif->hwif_data;
 }
@@ -823,7 +819,7 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	if (!drive->id || !(drive->id->capability & 1))
 		goto out;
 
-	if (hwif->ide_dma_check == NULL)
+	if (hwif->ide_dma_on == NULL)
 		goto out;
 
 	err = -EBUSY;
@@ -1276,7 +1272,7 @@ static int __init ide_setup(char *s)
 	if (!strcmp(s, "ide=nodma")) {
 		printk(" : Prevented DMA\n");
 		noautodma = 1;
-		return 1;
+		goto obsolete_option;
 	}
 
 #ifdef CONFIG_IDEPCI_PCIBUS_ORDER
@@ -1310,7 +1306,7 @@ static int __init ide_setup(char *s)
 	 */
 	if (s[0] == 'h' && s[1] == 'd' && s[2] >= 'a' && s[2] <= max_drive) {
 		const char *hd_words[] = {
-			"none", "noprobe", "nowerr", "cdrom", "minus5",
+			"none", "noprobe", "nowerr", "cdrom", "nodma",
 			"autotune", "noautotune", "minus8", "swapdata", "bswap",
 			"noflush", "remap", "remap63", "scsi", NULL };
 		unit = s[2] - 'a';
@@ -1337,6 +1333,9 @@ static int __init ide_setup(char *s)
 				/* an ATAPI device ignores DRDY */
 				drive->ready_stat = 0;
 				hwif->noprobe = 0;
+				goto done;
+			case -5: /* nodma */
+				drive->nodma = 1;
 				goto done;
 			case -6: /* "autotune" */
 				drive->autotune = IDE_TUNE_AUTO;
@@ -1399,7 +1398,7 @@ static int __init ide_setup(char *s)
 		 */
 		static const char *ide_words[] = {
 			"noprobe", "serialize", "minus3", "minus4",
-			"reset", "dma", "ata66", "minus8", "minus9",
+			"reset", "minus6", "ata66", "minus8", "minus9",
 			"minus10", "four", "qd65xx", "ht6560b", "cmd640_vlb",
 			"dtc2278", "umc8672", "ali14xx", NULL };
 		hw = s[3] - '0';
@@ -1478,6 +1477,7 @@ static int __init ide_setup(char *s)
 			case -10: /* minus10 */
 			case -9: /* minus9 */
 			case -8: /* minus8 */
+			case -6:
 			case -4:
 			case -3:
 				goto bad_option;
@@ -1492,9 +1492,6 @@ static int __init ide_setup(char *s)
 #else
 				goto bad_hwif;
 #endif
-			case -6: /* dma */
-				hwif->autodma = 1;
-				goto obsolete_option;
 			case -5: /* "reset" */
 				hwif->reset = 1;
 				goto obsolete_option;

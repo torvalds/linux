@@ -96,21 +96,6 @@ static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 	return min(speed, mode);
 }
 
-int ide_use_fast_pio(ide_drive_t *drive)
-{
-	struct hd_driveid *id = drive->id;
-
-	if ((id->capability & 1) && drive->autodma)
-		return 1;
-
-	if ((id->capability & 8) || (id->field_valid & 2))
-		return 1;
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(ide_use_fast_pio);
-
 /*
  * Standard (generic) timings for PIO modes, from ATA2 specification.
  * These timings are for access to the IDE data port register *only*.

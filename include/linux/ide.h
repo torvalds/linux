@@ -576,7 +576,6 @@ typedef struct ide_drive_s {
 	select_t	select;		/* basic drive/head select reg value */
 
 	u8	keep_settings;		/* restore settings after drive reset */
-	u8	autodma;		/* device can safely use dma on host */
 	u8	using_dma;		/* disk is using dma for read/write */
 	u8	retry_pio;		/* retrying dma capable host in pio */
 	u8	state;			/* retry state */
@@ -600,6 +599,7 @@ typedef struct ide_drive_s {
 	unsigned nice0		: 1;	/* give obvious excess bandwidth */
 	unsigned nice2		: 1;	/* give a share in our own bandwidth */
 	unsigned doorlocking	: 1;	/* for removable only: door lock/unlock works */
+	unsigned nodma		: 1;	/* disallow DMA */
 	unsigned autotune	: 2;	/* 0=default, 1=autotune, 2=noautotune */
 	unsigned remap_0_to_1	: 1;	/* 0=noremap, 1=remap 0->1 (for EZDrive) */
 	unsigned blocked        : 1;	/* 1=powermanagment told us not to do anything, so sleep nicely */
@@ -736,7 +736,6 @@ typedef struct hwif_s {
 	void (*dma_exec_cmd)(ide_drive_t *, u8);
 	void (*dma_start)(ide_drive_t *);
 	int (*ide_dma_end)(ide_drive_t *drive);
-	int (*ide_dma_check)(ide_drive_t *drive);
 	int (*ide_dma_on)(ide_drive_t *drive);
 	void (*dma_off_quietly)(ide_drive_t *drive);
 	int (*ide_dma_test_irq)(ide_drive_t *drive);
@@ -798,7 +797,6 @@ typedef struct hwif_s {
 	unsigned	serialized : 1;	/* serialized all channel operation */
 	unsigned	sharing_irq: 1;	/* 1 = sharing irq with another hwif */
 	unsigned	reset      : 1;	/* reset after probe */
-	unsigned	autodma    : 1;	/* auto-attempt using DMA at boot */
 	unsigned	no_lba48   : 1; /* 1 = cannot do LBA48 */
 	unsigned	no_lba48_dma : 1; /* 1 = cannot do LBA48 DMA */
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */
@@ -1256,6 +1254,10 @@ enum {
 	IDE_HFLAG_POST_SET_MODE		= (1 << 8),
 	/* don't program host/device for the transfer mode ("smart" hosts) */
 	IDE_HFLAG_NO_SET_MODE		= (1 << 9),
+	/* trust BIOS for programming chipset/device for DMA */
+	IDE_HFLAG_TRUST_BIOS_FOR_DMA	= (1 << 10),
+	/* host uses VDMA */
+	IDE_HFLAG_VDMA			= (1 << 11),
 };
 
 typedef struct ide_pci_device_s {
@@ -1303,7 +1305,6 @@ static inline u8 ide_max_dma_mode(ide_drive_t *drive)
 	return ide_find_dma_mode(drive, XFER_UDMA_6);
 }
 
-int ide_tune_dma(ide_drive_t *);
 void ide_dma_off(ide_drive_t *);
 void ide_dma_verbose(ide_drive_t *);
 int ide_set_dma(ide_drive_t *);
@@ -1330,7 +1331,6 @@ extern void ide_dma_timeout(ide_drive_t *);
 #else
 static inline u8 ide_find_dma_mode(ide_drive_t *drive, u8 speed) { return 0; }
 static inline u8 ide_max_dma_mode(ide_drive_t *drive) { return 0; }
-static inline int ide_tune_dma(ide_drive_t *drive) { return 0; }
 static inline void ide_dma_off(ide_drive_t *drive) { ; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
 static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
@@ -1380,7 +1380,6 @@ static inline void ide_set_hwifdata (ide_hwif_t * hwif, void *data)
 extern char *ide_xfer_verbose(u8 xfer_rate);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
-int ide_use_fast_pio(ide_drive_t *);
 
 static inline int ide_dev_has_iordy(struct hd_driveid *id)
 {

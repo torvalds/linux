@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.74	Jul 28 2007
+ * linux/drivers/ide/pci/cs5530.c		Version 0.76	Aug 3 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
@@ -102,22 +102,6 @@ static u8 cs5530_udma_filter(ide_drive_t *drive)
 	}
 out:
 	return mask;
-}
-
-/**
- *	cs5530_config_dma	-	set DMA/UDMA mode
- *	@drive: drive to tune
- *
- *	cs5530_config_dma() handles setting of DMA/UDMA mode
- *	for both the chipset and drive.
- */
-
-static int cs5530_config_dma(ide_drive_t *drive)
-{
-	if (ide_tune_dma(drive))
-		return 0;
-
-	return 1;
 }
 
 static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
@@ -260,7 +244,6 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 {
 	unsigned long basereg;
 	u32 d0_timings;
-	hwif->autodma = 0;
 
 	if (hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
@@ -270,20 +253,13 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 
 	basereg = CS5530_BASEREG(hwif);
 	d0_timings = inl(basereg + 0);
-	if (CS5530_BAD_PIO(d0_timings)) {
-		/* PIO timings not initialized? */
+	if (CS5530_BAD_PIO(d0_timings))
 		outl(cs5530_pio_timings[(d0_timings >> 31) & 1][0], basereg + 0);
-		if (!hwif->drives[0].autotune)
-			hwif->drives[0].autotune = 1;
-			/* needs autotuning later */
-	}
-	if (CS5530_BAD_PIO(inl(basereg + 8))) {
-		/* PIO timings not initialized? */
+	if (CS5530_BAD_PIO(inl(basereg + 8)))
 		outl(cs5530_pio_timings[(d0_timings >> 31) & 1][0], basereg + 8);
-		if (!hwif->drives[1].autotune)
-			hwif->drives[1].autotune = 1;
-			/* needs autotuning later */
-	}
+
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
 
 	if (hwif->dma_base == 0)
 		return;
@@ -293,11 +269,6 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 
 	hwif->udma_filter = cs5530_udma_filter;
-	hwif->ide_dma_check = &cs5530_config_dma;
-	if (!noautodma)
-		hwif->autodma = 1;
-	hwif->drives[0].autodma = hwif->autodma;
-	hwif->drives[1].autodma = hwif->autodma;
 }
 
 static ide_pci_device_t cs5530_chipset __devinitdata = {
@@ -315,8 +286,8 @@ static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_devic
 	return ide_setup_pci_device(dev, &cs5530_chipset);
 }
 
-static struct pci_device_id cs5530_pci_tbl[] = {
-	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+static const struct pci_device_id cs5530_pci_tbl[] = {
+	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, cs5530_pci_tbl);

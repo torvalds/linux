@@ -145,39 +145,19 @@ static int ide_setup_pci_baseregs (struct pci_dev *dev, const char *name)
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
-
-#ifdef CONFIG_BLK_DEV_IDEDMA_FORCED
-/*
- * Long lost data from 2.0.34 that is now in 2.0.39
- *
- * This was used in ./drivers/block/triton.c to do DMA Base address setup
- * when PnP failed.  Oh the things we forget.  I believe this was part
- * of SFF-8038i that has been withdrawn from public access... :-((
- */
-#define DEFAULT_BMIBA	0xe800	/* in case BIOS did not init it */
-#define DEFAULT_BMCRBA	0xcc00	/* VIA's default value */
-#define DEFAULT_BMALIBA	0xd400	/* ALI's default value */
-#endif /* CONFIG_BLK_DEV_IDEDMA_FORCED */
-
 /**
  *	ide_get_or_set_dma_base		-	setup BMIBA
  *	@hwif: Interface
  *
- *	Fetch the DMA Bus-Master-I/O-Base-Address (BMIBA) from PCI space:
- *	If need be we set up the DMA base. Where a device has a partner that
- *	is already in DMA mode we check and enforce IDE simplex rules.
+ *	Fetch the DMA Bus-Master-I/O-Base-Address (BMIBA) from PCI space.
+ *	Where a device has a partner that is already in DMA mode we check
+ *	and enforce IDE simplex rules.
  */
 
 static unsigned long ide_get_or_set_dma_base (ide_hwif_t *hwif)
 {
 	unsigned long	dma_base = 0;
 	struct pci_dev	*dev = hwif->pci_dev;
-
-#ifdef CONFIG_BLK_DEV_IDEDMA_FORCED
-	int second_chance = 0;
-
-second_chance_to_dma:
-#endif /* CONFIG_BLK_DEV_IDEDMA_FORCED */
 
 	if (hwif->mmio)
 		return hwif->dma_base;
@@ -191,26 +171,6 @@ second_chance_to_dma:
 					hwif->cds->name);
 		}
 	}
-
-#ifdef CONFIG_BLK_DEV_IDEDMA_FORCED
-	/* FIXME - should use pci_assign_resource surely */
-	if ((!dma_base) && (!second_chance)) {
-		unsigned long set_bmiba = 0;
-		second_chance++;
-		switch(dev->vendor) {
-			case PCI_VENDOR_ID_AL:
-				set_bmiba = DEFAULT_BMALIBA; break;
-			case PCI_VENDOR_ID_VIA:
-				set_bmiba = DEFAULT_BMCRBA; break;
-			case PCI_VENDOR_ID_INTEL:
-				set_bmiba = DEFAULT_BMIBA; break;
-			default:
-				return dma_base;
-		}
-		pci_write_config_dword(dev, 0x20, set_bmiba|1);
-		goto second_chance_to_dma;
-	}
-#endif /* CONFIG_BLK_DEV_IDEDMA_FORCED */
 
 	if (dma_base) {
 		u8 simplex_stat = 0;
@@ -478,8 +438,6 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwi
  			 * Set up BM-DMA capability
 			 * (PnP BIOS should have done this)
  			 */
-			/* default DMA off if we had to configure it here */
-			hwif->autodma = 0;
 			pci_set_master(dev);
 			if (pci_read_config_word(dev, PCI_COMMAND, &pcicmd) || !(pcicmd & PCI_COMMAND_MASTER)) {
 				printk(KERN_ERR "%s: %s error updating PCICMD\n",
