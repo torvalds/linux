@@ -484,7 +484,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.lower_margin	= 32,
 		.vsync_len	= 3,
 
-		.lcdcon1	= 0x00000176,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -503,7 +502,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.lower_margin	= 32,
 		.vsync_len	= 3,
 
-		.lcdcon1	= 0x00000176,
 		.lcdcon5	= 0x00014b02,
 	},
 	{
@@ -522,7 +520,6 @@ static struct s3c2410fb_display __initdata bast_lcd_info[] = {
 		.lower_margin	= 32,
 		.vsync_len	= 3,
 
-		.lcdcon1	= 0x00000176,
 		.lcdcon5	= 0x00014b02,
 	},
 };

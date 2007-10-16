@@ -105,10 +105,6 @@ static struct s3c2410_uartcfg smdk2440_uartcfgs[] __initdata = {
 
 static struct s3c2410fb_display smdk2440_lcd_cfg __initdata = {
 
-	.lcdcon1	= S3C2410_LCDCON1_TFT16BPP |
-			  S3C2410_LCDCON1_TFT |
-			  S3C2410_LCDCON1_CLKVAL(0x04),
-
 	.lcdcon5	= S3C2410_LCDCON5_FRM565 |
 			  S3C2410_LCDCON5_INVVLINE |
 			  S3C2410_LCDCON5_INVVFRAME |

@@ -98,10 +98,6 @@ static struct s3c2410_uartcfg smdk2410_uartcfgs[] = {
 static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 	{
 		/* Configuration for 640x480 SHARP LQ080V3DG01 */
-		.lcdcon1 = S3C2410_LCDCON1_TFT16BPP |
-			   S3C2410_LCDCON1_TFT |
-			   S3C2410_LCDCON1_CLKVAL(0x01), /* HCLK/4 */
-
 		.lcdcon5 = S3C2410_LCDCON5_FRM565 |
 			   S3C2410_LCDCON5_INVVLINE |
 			   S3C2410_LCDCON5_INVVFRAME |
@@ -125,10 +121,6 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 	},
 	{
 		/* Configuration for 480x640 toppoly TD028TTEC1 */
-		.lcdcon1 = S3C2410_LCDCON1_TFT16BPP |
-			   S3C2410_LCDCON1_TFT |
-			   S3C2410_LCDCON1_CLKVAL(0x01), /* HCLK/4 */
-
 		.lcdcon5 = S3C2410_LCDCON5_FRM565 |
 			   S3C2410_LCDCON5_INVVLINE |
 			   S3C2410_LCDCON5_INVVFRAME |
@@ -151,10 +143,6 @@ static struct s3c2410fb_display qt2410_lcd_cfg[] __initdata = {
 	},
 	{
 		/* Config for 240x320 LCD */
-		.lcdcon1 = S3C2410_LCDCON1_TFT16BPP |
-			   S3C2410_LCDCON1_TFT |
-			   S3C2410_LCDCON1_CLKVAL(0x04),
-
 		.lcdcon5 = S3C2410_LCDCON5_FRM565 |
 			   S3C2410_LCDCON5_INVVLINE |
 			   S3C2410_LCDCON5_INVVFRAME |

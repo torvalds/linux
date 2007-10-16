@@ -134,10 +134,6 @@ static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
  * Set lcd on or off
  **/
 static struct s3c2410fb_display h1940_lcd __initdata = {
-	.lcdcon1=	S3C2410_LCDCON1_TFT16BPP | \
-			S3C2410_LCDCON1_TFT | \
-			S3C2410_LCDCON1_CLKVAL(0x0C),
-
 	.lcdcon5=	S3C2410_LCDCON5_FRM565 | \
 			S3C2410_LCDCON5_INVVLINE | \
 			S3C2410_LCDCON5_HWSWP,
