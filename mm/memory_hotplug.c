@@ -161,14 +161,27 @@ static void grow_pgdat_span(struct pglist_data *pgdat,
 					pgdat->node_start_pfn;
 }
 
-int online_pages(unsigned long pfn, unsigned long nr_pages)
+static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+			void *arg)
 {
 	unsigned long i;
+	unsigned long onlined_pages = *(unsigned long *)arg;
+	struct page *page;
+	if (PageReserved(pfn_to_page(start_pfn)))
+		for (i = 0; i < nr_pages; i++) {
+			page = pfn_to_page(start_pfn + i);
+			online_page(page);
+			onlined_pages++;
+		}
+	*(unsigned long *)arg = onlined_pages;
+	return 0;
+}
+
+
+int online_pages(unsigned long pfn, unsigned long nr_pages)
+{
 	unsigned long flags;
 	unsigned long onlined_pages = 0;
-	struct resource res;
-	u64 section_end;
-	unsigned long start_pfn;
 	struct zone *zone;
 	int need_zonelists_rebuild = 0;
 
@@ -191,28 +204,8 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	if (!populated_zone(zone))
 		need_zonelists_rebuild = 1;
 
-	res.start = (u64)pfn << PAGE_SHIFT;
-	res.end = res.start + ((u64)nr_pages << PAGE_SHIFT) - 1;
-	res.flags = IORESOURCE_MEM; /* we just need system ram */
-	section_end = res.end;
-
-	while ((res.start < res.end) && (find_next_system_ram(&res) >= 0)) {
-		start_pfn = (unsigned long)(res.start >> PAGE_SHIFT);
-		nr_pages = (unsigned long)
-                           ((res.end + 1 - res.start) >> PAGE_SHIFT);
-
-		if (PageReserved(pfn_to_page(start_pfn))) {
-			/* this region's page is not onlined now */
-			for (i = 0; i < nr_pages; i++) {
-				struct page *page = pfn_to_page(start_pfn + i);
-				online_page(page);
-				onlined_pages++;
-			}
-		}
-
-		res.start = res.end + 1;
-		res.end = section_end;
-	}
+	walk_memory_resource(pfn, nr_pages, &onlined_pages,
+		online_pages_range);
 	zone->present_pages += onlined_pages;
 	zone->zone_pgdat->node_present_pages += onlined_pages;
 

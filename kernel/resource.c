@@ -234,7 +234,7 @@ EXPORT_SYMBOL(release_resource);
  * the caller must specify res->start, res->end, res->flags.
  * If found, returns 0, res is overwritten, if not found, returns -1.
  */
-int find_next_system_ram(struct resource *res)
+static int find_next_system_ram(struct resource *res)
 {
 	resource_size_t start, end;
 	struct resource *p;
@@ -267,6 +267,30 @@ int find_next_system_ram(struct resource *res)
 		res->end = p->end;
 	return 0;
 }
+int
+walk_memory_resource(unsigned long start_pfn, unsigned long nr_pages, void *arg,
+			int (*func)(unsigned long, unsigned long, void *))
+{
+	struct resource res;
+	unsigned long pfn, len;
+	u64 orig_end;
+	int ret = -1;
+	res.start = (u64) start_pfn << PAGE_SHIFT;
+	res.end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
+	res.flags = IORESOURCE_MEM;
+	orig_end = res.end;
+	while ((res.start < res.end) && (find_next_system_ram(&res) >= 0)) {
+		pfn = (unsigned long)(res.start >> PAGE_SHIFT);
+		len = (unsigned long)((res.end + 1 - res.start) >> PAGE_SHIFT);
+		ret = (*func)(pfn, len, arg);
+		if (ret)
+			break;
+		res.start = res.end + 1;
+		res.end = orig_end;
+	}
+	return ret;
+}
+
 #endif
 
 /*
