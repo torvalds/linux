@@ -38,8 +38,6 @@ void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok)
 			auth_tok);
 	if (auth_tok->flags & ECRYPTFS_PRIVATE_KEY) {
 		ecryptfs_printk(KERN_DEBUG, " * private key type\n");
-		ecryptfs_printk(KERN_DEBUG, " * (NO PRIVATE KEY SUPPORT "
-				"IN ECRYPTFS VERSION 0.1)\n");
 	} else {
 		ecryptfs_printk(KERN_DEBUG, " * passphrase type\n");
 		ecryptfs_to_hex(salt, auth_tok->token.password.salt,

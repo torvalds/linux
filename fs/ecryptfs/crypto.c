@@ -1267,8 +1267,6 @@ static int ecryptfs_read_header_region(char *data, struct dentry *dentry,
 	lower_file->f_pos = 0;
 	oldfs = get_fs();
 	set_fs(get_ds());
-	/* For releases 0.1 and 0.2, all of the header information
-	 * fits in the first data extent-sized region. */
 	rc = lower_file->f_op->read(lower_file, (char __user *)data,
 			      ECRYPTFS_DEFAULT_EXTENT_SIZE, &lower_file->f_pos);
 	set_fs(oldfs);
