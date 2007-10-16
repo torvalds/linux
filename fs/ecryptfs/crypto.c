@@ -1673,7 +1673,7 @@ out:
 /**
  * ecryptfs_read_xattr_region
  * @page_virt: The vitual address into which to read the xattr data
- * @ecryptfs_dentry: The eCryptfs dentry
+ * @ecryptfs_inode: The eCryptfs inode
  *
  * Attempts to read the crypto metadata from the extended attribute
  * region of the lower file.
