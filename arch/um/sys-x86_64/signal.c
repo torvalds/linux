@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2003 PathScale, Inc.
+ * Copyright (C) 2003 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -110,7 +111,8 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	err |= PUTREG(regs, RDI, to, rdi);
 	err |= PUTREG(regs, RSI, to, rsi);
 	err |= PUTREG(regs, RBP, to, rbp);
-	/* Must use orignal RSP, which is passed in, rather than what's in
+	/*
+	 * Must use orignal RSP, which is passed in, rather than what's in
 	 * the pt_regs, because that's already been updated to point at the
 	 * signal frame.
 	 */
@@ -152,7 +154,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	if (copy_to_user(to_fp, &fp, sizeof(struct user_i387_struct)))
 		return 1;
 
-	return(err);
+	return err;
 }
 
 struct rt_sigframe
@@ -188,7 +190,8 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 			goto out;
 	}
 
-	/* Update SP now because the page fault handler refuses to extend
+	/*
+	 * Update SP now because the page fault handler refuses to extend
 	 * the stack if the faulting address is too far below the current
 	 * SP, which frame now certainly is.  If there's an error, the original
 	 * value is restored on the way out.
@@ -216,8 +219,10 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 		err |= __copy_to_user(&frame->uc.uc_sigmask, set,
 				      sizeof(*set));
 
-	/* Set up to return from userspace.  If provided, use a stub
-	   already in userspace.  */
+	/*
+	 * Set up to return from userspace.  If provided, use a stub
+	 * already in userspace.
+	 */
 	/* x86-64 should always use SA_RESTORER. */
 	if (ka->sa.sa_flags & SA_RESTORER)
 		err |= __put_user(ka->sa.sa_restorer, &frame->pretcode);
@@ -239,8 +244,10 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	/* In case the signal handler was declared without prototypes */
 	PT_REGS_RAX(regs) = 0;
 
-	/* This also works for non SA_SIGINFO handlers because they expect the
-	   next argument after the signal number on the stack. */
+	/*
+	 * This also works for non SA_SIGINFO handlers because they expect the
+	 * next argument after the signal number on the stack.
+	 */
 	PT_REGS_RSI(regs) = (unsigned long) &frame->info;
 	PT_REGS_RDX(regs) = (unsigned long) &frame->uc;
 	PT_REGS_RIP(regs) = (unsigned long) ka->sa.sa_handler;
@@ -276,7 +283,7 @@ long sys_rt_sigreturn(struct pt_regs *regs)
 
 	/* Avoid ERESTART handling */
 	PT_REGS_SYSCALL_NR(&current->thread.regs) = -1;
-	return(PT_REGS_SYSCALL_RET(&current->thread.regs));
+	return PT_REGS_SYSCALL_RET(&current->thread.regs);
 
  segfault:
 	force_sig(SIGSEGV, current);

@@ -171,8 +171,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		 */
 		ret = copy_to_user(p, &child->thread.arch.faultinfo,
 				   sizeof(struct ptrace_faultinfo));
-		if (ret)
-			break;
 		break;
 	}
 
