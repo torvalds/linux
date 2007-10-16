@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.17	Aug 2, 2007
+ *  linux/drivers/ide/pci/slc90e66.c	Version 0.18	Aug 9, 2007
  *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
@@ -82,7 +82,6 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int sitre = 0, a_speed	= 7 << (drive->dn * 4);
 	int u_speed = 0, u_flag = 1 << drive->dn;
 	u16			reg4042, reg44, reg48, reg4a;
-	u8			pio;
 
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;
@@ -111,10 +110,9 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pci_read_config_word(dev, 0x4a, &reg4a);
 			pci_write_config_word(dev, 0x4a, reg4a|u_speed);
 		}
-
-		pio = 4;
 	} else {
 		const u8 mwdma_to_pio[] = { 0, 3, 4 };
+		u8 pio;
 
 		if (reg48 & u_flag)
 			pci_write_config_word(dev, 0x48, reg48 & ~u_flag);
@@ -125,9 +123,9 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pio = mwdma_to_pio[speed - XFER_MW_DMA_0];
 		else
 			pio = 2; /* only SWDMA2 is allowed */
-	}
 
-	slc90e66_set_pio_mode(drive, pio);
+		slc90e66_set_pio_mode(drive, pio);
+	}
 }
 
 static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)

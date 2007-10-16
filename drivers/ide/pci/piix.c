@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.52	Jul 14, 2007
+ *  linux/drivers/ide/pci/piix.c	Version 0.53	Aug 9, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -194,7 +194,7 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int u_speed		= 0;
 	int			sitre;
 	u16			reg4042, reg4a;
-	u8			reg48, reg54, reg55, pio;
+	u8			reg48, reg54, reg55;
 
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;
@@ -231,10 +231,9 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 				pci_write_config_byte(dev, 0x54, reg54 | v_flag);
 		} else
 			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
-
-		pio = 4;
 	} else {
 		const u8 mwdma_to_pio[] = { 0, 3, 4 };
+		u8 pio;
 
 		if (reg48 & u_flag)
 			pci_write_config_byte(dev, 0x48, reg48 & ~u_flag);
@@ -249,9 +248,9 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pio = mwdma_to_pio[speed - XFER_MW_DMA_0];
 		else
 			pio = 2; /* only SWDMA2 is allowed */
-	}
 
-	piix_set_pio_mode(drive, pio);
+		piix_set_pio_mode(drive, pio);
+	}
 }
 
 /**

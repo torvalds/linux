@@ -93,7 +93,7 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int w_flag		= 0x10 << drive->dn;
 	int u_speed		= 0;
 	u16			reg4042, reg4a;
-	u8			reg48, reg54, reg55, pio;
+	u8			reg48, reg54, reg55;
 
 	pci_read_config_word(dev, maslave, &reg4042);
 	pci_read_config_byte(dev, 0x48, &reg48);
@@ -134,10 +134,9 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 				pci_write_config_byte(dev, 0x54, reg54 | v_flag);
 		} else
 			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
-
-		pio = 4;
 	} else {
 		const u8 mwdma_to_pio[] = { 0, 3, 4 };
+		u8 pio;
 
 		if (reg48 & u_flag)
 			pci_write_config_byte(dev, 0x48, reg48 & ~u_flag);
@@ -152,9 +151,9 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pio = mwdma_to_pio[speed - XFER_MW_DMA_0];
 		else
 			pio = 2; /* only SWDMA2 is allowed */
-	}
 
-	it8213_set_pio_mode(drive, pio);
+		it8213_set_pio_mode(drive, pio);
+	}
 }
 
 /**
