@@ -916,12 +916,7 @@ no_thread_group:
 
 		write_lock_irq(&tasklist_lock);
 		spin_lock(&oldsighand->siglock);
-		spin_lock_nested(&newsighand->siglock, SINGLE_DEPTH_NESTING);
-
 		rcu_assign_pointer(tsk->sighand, newsighand);
-		recalc_sigpending();
-
-		spin_unlock(&newsighand->siglock);
 		spin_unlock(&oldsighand->siglock);
 		write_unlock_irq(&tasklist_lock);
 
@@ -931,12 +926,11 @@ no_thread_group:
 	BUG_ON(!thread_group_leader(tsk));
 	return 0;
 }
-	
+
 /*
  * These functions flushes out all traces of the currently running executable
  * so that a new one can be started
  */
-
 static void flush_old_files(struct files_struct * files)
 {
 	long j = -1;
