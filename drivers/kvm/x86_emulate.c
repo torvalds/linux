@@ -161,10 +161,10 @@ static u8 opcode_table[256] = {
 	ImplicitOps, SrcImm|ImplicitOps, 0, SrcImmByte|ImplicitOps, 0, 0, 0, 0,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
-	ImplicitOps, 0,
+	ImplicitOps, ImplicitOps,
 	ByteOp | DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM,
 	/* 0xF8 - 0xFF */
-	0, 0, 0, 0,
+	ImplicitOps, 0, ImplicitOps, ImplicitOps,
 	0, 0, ByteOp | DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM
 };
 
@@ -1476,6 +1476,23 @@ special_insn:
 	case 0xf4:              /* hlt */
 		ctxt->vcpu->halt_request = 1;
 		goto done;
+	case 0xf5:	/* cmc */
+		/* complement carry flag from eflags reg */
+		ctxt->eflags ^= EFLG_CF;
+		c->dst.type = OP_NONE;	/* Disable writeback. */
+		break;
+	case 0xf8: /* clc */
+		ctxt->eflags &= ~EFLG_CF;
+		c->dst.type = OP_NONE;	/* Disable writeback. */
+		break;
+	case 0xfa: /* cli */
+		ctxt->eflags &= ~X86_EFLAGS_IF;
+		c->dst.type = OP_NONE;	/* Disable writeback. */
+		break;
+	case 0xfb: /* sti */
+		ctxt->eflags |= X86_EFLAGS_IF;
+		c->dst.type = OP_NONE;	/* Disable writeback. */
+		break;
 	}
 	if (c->rep_prefix) {
 		if (c->regs[VCPU_REGS_RCX] == 0) {
