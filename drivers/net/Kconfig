@@ -2173,6 +2173,16 @@ config SKGE
 	  To compile this driver as a module, choose M here: the module
 	  will be called skge.  This is recommended.
 
+config SKGE_DEBUG
+       bool "Debugging interface"
+       depends on SKGE && DEBUG_FS
+       help
+	 This option adds the ability to dump driver state for debugging.
+	 The file debugfs/skge/ethX displays the state of the internal
+	 transmit and receive rings.
+
+	 If unsure, say N.
+
 config SKY2
 	tristate "SysKonnect Yukon2 support"
 	depends on PCI

@@ -128,7 +128,7 @@
 #else
 #define DRIVERNAPI
 #endif
-#define FORCEDETH_VERSION		"0.60"
+#define FORCEDETH_VERSION		"0.61"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -752,7 +752,6 @@ struct fe_priv {
 
 	/* General data:
 	 * Locking: spin_lock(&np->lock); */
-	struct net_device_stats stats;
 	struct nv_ethtool_stats estats;
 	int in_shutdown;
 	u32 linkspeed;
@@ -1505,15 +1504,16 @@ static struct net_device_stats *nv_get_stats(struct net_device *dev)
 		nv_get_hw_stats(dev);
 
 		/* copy to net_device stats */
-		np->stats.tx_bytes = np->estats.tx_bytes;
-		np->stats.tx_fifo_errors = np->estats.tx_fifo_errors;
-		np->stats.tx_carrier_errors = np->estats.tx_carrier_errors;
-		np->stats.rx_crc_errors = np->estats.rx_crc_errors;
-		np->stats.rx_over_errors = np->estats.rx_over_errors;
-		np->stats.rx_errors = np->estats.rx_errors_total;
-		np->stats.tx_errors = np->estats.tx_errors_total;
+		dev->stats.tx_bytes = np->estats.tx_bytes;
+		dev->stats.tx_fifo_errors = np->estats.tx_fifo_errors;
+		dev->stats.tx_carrier_errors = np->estats.tx_carrier_errors;
+		dev->stats.rx_crc_errors = np->estats.rx_crc_errors;
+		dev->stats.rx_over_errors = np->estats.rx_over_errors;
+		dev->stats.rx_errors = np->estats.rx_errors_total;
+		dev->stats.tx_errors = np->estats.tx_errors_total;
 	}
-	return &np->stats;
+
+	return &dev->stats;
 }
 
 /*
@@ -1733,7 +1733,7 @@ static void nv_drain_tx(struct net_device *dev)
 			np->tx_ring.ex[i].buflow = 0;
 		}
 		if (nv_release_txskb(dev, &np->tx_skb[i]))
-			np->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 	}
 }
 
@@ -2049,13 +2049,13 @@ static void nv_tx_done(struct net_device *dev)
 			if (flags & NV_TX_LASTPACKET) {
 				if (flags & NV_TX_ERROR) {
 					if (flags & NV_TX_UNDERFLOW)
-						np->stats.tx_fifo_errors++;
+						dev->stats.tx_fifo_errors++;
 					if (flags & NV_TX_CARRIERLOST)
-						np->stats.tx_carrier_errors++;
-					np->stats.tx_errors++;
+						dev->stats.tx_carrier_errors++;
+					dev->stats.tx_errors++;
 				} else {
-					np->stats.tx_packets++;
-					np->stats.tx_bytes += np->get_tx_ctx->skb->len;
+					dev->stats.tx_packets++;
+					dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
 				}
 				dev_kfree_skb_any(np->get_tx_ctx->skb);
 				np->get_tx_ctx->skb = NULL;
@@ -2064,13 +2064,13 @@ static void nv_tx_done(struct net_device *dev)
 			if (flags & NV_TX2_LASTPACKET) {
 				if (flags & NV_TX2_ERROR) {
 					if (flags & NV_TX2_UNDERFLOW)
-						np->stats.tx_fifo_errors++;
+						dev->stats.tx_fifo_errors++;
 					if (flags & NV_TX2_CARRIERLOST)
-						np->stats.tx_carrier_errors++;
-					np->stats.tx_errors++;
+						dev->stats.tx_carrier_errors++;
+					dev->stats.tx_errors++;
 				} else {
-					np->stats.tx_packets++;
-					np->stats.tx_bytes += np->get_tx_ctx->skb->len;
+					dev->stats.tx_packets++;
+					dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
 				}
 				dev_kfree_skb_any(np->get_tx_ctx->skb);
 				np->get_tx_ctx->skb = NULL;
@@ -2107,7 +2107,7 @@ static void nv_tx_done_optimized(struct net_device *dev, int limit)
 
 		if (flags & NV_TX2_LASTPACKET) {
 			if (!(flags & NV_TX2_ERROR))
-				np->stats.tx_packets++;
+				dev->stats.tx_packets++;
 			dev_kfree_skb_any(np->get_tx_ctx->skb);
 			np->get_tx_ctx->skb = NULL;
 		}
@@ -2268,13 +2268,13 @@ static int nv_rx_process(struct net_device *dev, int limit)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
-	u32 rx_processed_cnt = 0;
+	int rx_work = 0;
 	struct sk_buff *skb;
 	int len;
 
 	while((np->get_rx.orig != np->put_rx.orig) &&
 	      !((flags = le32_to_cpu(np->get_rx.orig->flaglen)) & NV_RX_AVAIL) &&
-		(rx_processed_cnt++ < limit)) {
+		(rx_work < limit)) {
 
 		dprintk(KERN_DEBUG "%s: nv_rx_process: flags 0x%x.\n",
 					dev->name, flags);
@@ -2308,7 +2308,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					if (flags & NV_RX_ERROR4) {
 						len = nv_getlen(dev, skb->data, len);
 						if (len < 0) {
-							np->stats.rx_errors++;
+							dev->stats.rx_errors++;
 							dev_kfree_skb(skb);
 							goto next_pkt;
 						}
@@ -2322,12 +2322,12 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					/* the rest are hard errors */
 					else {
 						if (flags & NV_RX_MISSEDFRAME)
-							np->stats.rx_missed_errors++;
+							dev->stats.rx_missed_errors++;
 						if (flags & NV_RX_CRCERR)
-							np->stats.rx_crc_errors++;
+							dev->stats.rx_crc_errors++;
 						if (flags & NV_RX_OVERFLOW)
-							np->stats.rx_over_errors++;
-						np->stats.rx_errors++;
+							dev->stats.rx_over_errors++;
+						dev->stats.rx_errors++;
 						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
@@ -2343,7 +2343,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					if (flags & NV_RX2_ERROR4) {
 						len = nv_getlen(dev, skb->data, len);
 						if (len < 0) {
-							np->stats.rx_errors++;
+							dev->stats.rx_errors++;
 							dev_kfree_skb(skb);
 							goto next_pkt;
 						}
@@ -2357,10 +2357,10 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					/* the rest are hard errors */
 					else {
 						if (flags & NV_RX2_CRCERR)
-							np->stats.rx_crc_errors++;
+							dev->stats.rx_crc_errors++;
 						if (flags & NV_RX2_OVERFLOW)
-							np->stats.rx_over_errors++;
-						np->stats.rx_errors++;
+							dev->stats.rx_over_errors++;
+						dev->stats.rx_errors++;
 						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
@@ -2389,16 +2389,18 @@ static int nv_rx_process(struct net_device *dev, int limit)
 		netif_rx(skb);
 #endif
 		dev->last_rx = jiffies;
-		np->stats.rx_packets++;
-		np->stats.rx_bytes += len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += len;
 next_pkt:
 		if (unlikely(np->get_rx.orig++ == np->last_rx.orig))
 			np->get_rx.orig = np->first_rx.orig;
 		if (unlikely(np->get_rx_ctx++ == np->last_rx_ctx))
 			np->get_rx_ctx = np->first_rx_ctx;
+
+		rx_work++;
 	}
 
-	return rx_processed_cnt;
+	return rx_work;
 }
 
 static int nv_rx_process_optimized(struct net_device *dev, int limit)
@@ -2505,8 +2507,8 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 			}
 
 			dev->last_rx = jiffies;
-			np->stats.rx_packets++;
-			np->stats.rx_bytes += len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += len;
 		} else {
 			dev_kfree_skb(skb);
 		}
@@ -3727,7 +3729,7 @@ static void nv_do_stats_poll(unsigned long data)
 static void nv_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct fe_priv *np = netdev_priv(dev);
-	strcpy(info->driver, "forcedeth");
+	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, FORCEDETH_VERSION);
 	strcpy(info->bus_info, pci_name(np->pci_dev));
 }
@@ -4991,6 +4993,11 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	u32 phystate_orig = 0, phystate;
 	int phyinitialized = 0;
 	DECLARE_MAC_BUF(mac);
+	static int printed_version;
+
+	if (!printed_version++)
+		printk(KERN_INFO "%s: Reverse Engineered nForce ethernet"
+		       " driver. Version %s.\n", DRV_NAME, FORCEDETH_VERSION);
 
 	dev = alloc_etherdev(sizeof(struct fe_priv));
 	err = -ENOMEM;
@@ -5014,11 +5021,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	np->stats_poll.function = &nv_do_stats_poll;	/* timer handler */
 
 	err = pci_enable_device(pci_dev);
-	if (err) {
-		printk(KERN_INFO "forcedeth: pci_enable_dev failed (%d) for device %s\n",
-				err, pci_name(pci_dev));
+	if (err)
 		goto out_free;
-	}
 
 	pci_set_master(pci_dev);
 
@@ -5047,8 +5051,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		}
 	}
 	if (i == DEVICE_COUNT_RESOURCE) {
-		printk(KERN_INFO "forcedeth: Couldn't find register window for device %s.\n",
-					pci_name(pci_dev));
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			   "Couldn't find register window\n");
 		goto out_relreg;
 	}
 
@@ -5061,16 +5065,14 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->desc_ver = DESC_VER_3;
 		np->txrxctl_bits = NVREG_TXRXCTL_DESC_3;
 		if (dma_64bit) {
-			if (pci_set_dma_mask(pci_dev, DMA_39BIT_MASK)) {
-				printk(KERN_INFO "forcedeth: 64-bit DMA failed, using 32-bit addressing for device %s.\n",
-				       pci_name(pci_dev));
-			} else {
+			if (pci_set_dma_mask(pci_dev, DMA_39BIT_MASK))
+				dev_printk(KERN_INFO, &pci_dev->dev,
+					"64-bit DMA failed, using 32-bit addressing\n");
+			else
 				dev->features |= NETIF_F_HIGHDMA;
-				printk(KERN_INFO "forcedeth: using HIGHDMA\n");
-			}
 			if (pci_set_consistent_dma_mask(pci_dev, DMA_39BIT_MASK)) {
-				printk(KERN_INFO "forcedeth: 64-bit DMA (consistent) failed, using 32-bit ring buffers for device %s.\n",
-				       pci_name(pci_dev));
+				dev_printk(KERN_INFO, &pci_dev->dev,
+					"64-bit DMA (consistent) failed, using 32-bit ring buffers\n");
 			}
 		}
 	} else if (id->driver_data & DEV_HAS_LARGEDESC) {
@@ -5205,9 +5207,11 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		 * Bad mac address. At least one bios sets the mac address
 		 * to 01:23:45:67:89:ab
 		 */
-		printk(KERN_ERR "%s: Invalid Mac address detected: %s\n",
-		       pci_name(pci_dev), print_mac(mac, dev->dev_addr));
-		printk(KERN_ERR "Please complain to your hardware vendor. Switching to a random MAC.\n");
+		dev_printk(KERN_ERR, &pci_dev->dev,
+			"Invalid Mac address detected: %s\n",
+		        print_mac(mac, dev->dev_addr));
+		dev_printk(KERN_ERR, &pci_dev->dev,
+			"Please complain to your hardware vendor. Switching to a random MAC.\n");
 		dev->dev_addr[0] = 0x00;
 		dev->dev_addr[1] = 0x00;
 		dev->dev_addr[2] = 0x6c;
@@ -5321,8 +5325,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		break;
 	}
 	if (i == 33) {
-		printk(KERN_INFO "%s: open: Could not find a valid PHY.\n",
-		       pci_name(pci_dev));
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			"open: Could not find a valid PHY.\n");
 		goto out_error;
 	}
 
@@ -5344,12 +5348,37 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_INFO "forcedeth: unable to register netdev: %d\n", err);
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			   "unable to register netdev: %d\n", err);
 		goto out_error;
 	}
-	printk(KERN_INFO "%s: forcedeth.c: subsystem: %05x:%04x bound to %s\n",
-			dev->name, pci_dev->subsystem_vendor, pci_dev->subsystem_device,
-			pci_name(pci_dev));
+
+	dev_printk(KERN_INFO, &pci_dev->dev, "ifname %s, PHY OUI 0x%x @ %d, "
+		   "addr %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
+		   dev->name,
+		   np->phy_oui,
+		   np->phyaddr,
+		   dev->dev_addr[0],
+		   dev->dev_addr[1],
+		   dev->dev_addr[2],
+		   dev->dev_addr[3],
+		   dev->dev_addr[4],
+		   dev->dev_addr[5]);
+
+	dev_printk(KERN_INFO, &pci_dev->dev, "%s%s%s%s%s%s%s%s%s%sdesc-v%u\n",
+		   dev->features & NETIF_F_HIGHDMA ? "highdma " : "",
+		   dev->features & (NETIF_F_HW_CSUM | NETIF_F_SG) ?
+		   	"csum " : "",
+		   dev->features & (NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX) ?
+		   	"vlan " : "",
+		   id->driver_data & DEV_HAS_POWER_CNTRL ? "pwrctl " : "",
+		   id->driver_data & DEV_HAS_MGMT_UNIT ? "mgmt " : "",
+		   id->driver_data & DEV_NEED_TIMERIRQ ? "timirq " : "",
+		   np->gigabit == PHY_GIGABIT ? "gbit " : "",
+		   np->need_linktimer ? "lnktim " : "",
+		   np->msi_flags & NV_MSI_CAPABLE ? "msi " : "",
+		   np->msi_flags & NV_MSI_X_CAPABLE ? "msi-x " : "",
+		   np->desc_ver);
 
 	return 0;
 
@@ -5567,17 +5596,16 @@ static struct pci_device_id pci_tbl[] = {
 };
 
 static struct pci_driver driver = {
-	.name = "forcedeth",
-	.id_table = pci_tbl,
-	.probe = nv_probe,
-	.remove = __devexit_p(nv_remove),
-	.suspend = nv_suspend,
-	.resume	= nv_resume,
+	.name		= DRV_NAME,
+	.id_table	= pci_tbl,
+	.probe		= nv_probe,
+	.remove		= __devexit_p(nv_remove),
+	.suspend	= nv_suspend,
+	.resume		= nv_resume,
 };
 
 static int __init init_nic(void)
 {
-	printk(KERN_INFO "forcedeth.c: Reverse Engineered nForce ethernet driver. Version %s.\n", FORCEDETH_VERSION);
 	return pci_register_driver(&driver);
 }
 

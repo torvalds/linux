@@ -1237,8 +1237,6 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
  * starting over will fix the problem. */
 static void gfar_timeout(struct net_device *dev)
 {
-	struct gfar_private *priv = netdev_priv(dev);
-
 	dev->stats.tx_errors++;
 
 	if (dev->flags & IFF_UP) {
@@ -1344,8 +1342,9 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 	return skb;
 }
 
-static inline void count_errors(unsigned short status, struct gfar_private *priv)
+static inline void count_errors(unsigned short status, struct net_device *dev)
 {
+	struct gfar_private *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct gfar_extra_stats *estats = &priv->extra_stats;
 
@@ -1539,7 +1538,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 			dev->stats.rx_bytes += pkt_len;
 		} else {
-			count_errors(bdp->status, priv);
+			count_errors(bdp->status, dev);
 
 			if (skb)
 				dev_kfree_skb_any(skb);

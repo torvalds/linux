@@ -110,6 +110,7 @@ static int e1000_get_settings(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	u32 status;
 
 	if (hw->media_type == e1000_media_type_copper) {
 
@@ -147,16 +148,16 @@ static int e1000_get_settings(struct net_device *netdev,
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
 
-	if (er32(STATUS) & E1000_STATUS_LU) {
+	status = er32(STATUS);
+	if (status & E1000_STATUS_LU) {
+		if (status & E1000_STATUS_SPEED_1000)
+			ecmd->speed = 1000;
+		else if (status & E1000_STATUS_SPEED_100)
+			ecmd->speed = 100;
+		else
+			ecmd->speed = 10;
 
-		adapter->hw.mac.ops.get_link_up_info(hw, &adapter->link_speed,
-						  &adapter->link_duplex);
-		ecmd->speed = adapter->link_speed;
-
-		/* unfortunately FULL_DUPLEX != DUPLEX_FULL
-		 *	  and HALF_DUPLEX != DUPLEX_HALF */
-
-		if (adapter->link_duplex == FULL_DUPLEX)
+		if (status & E1000_STATUS_FD)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
@@ -168,6 +169,16 @@ static int e1000_get_settings(struct net_device *netdev,
 	ecmd->autoneg = ((hw->media_type == e1000_media_type_fiber) ||
 			 hw->mac.autoneg) ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	return 0;
+}
+
+static u32 e1000_get_link(struct net_device *netdev)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 status;
+	
+	status = er32(STATUS);
+	return (status & E1000_STATUS_LU);
 }
 
 static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)
@@ -1451,11 +1462,11 @@ static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 	}
 
 	*data = e1000_setup_desc_rings(adapter);
-	if (data)
+	if (*data)
 		goto out;
 
 	*data = e1000_setup_loopback_test(adapter);
-	if (data)
+	if (*data)
 		goto err_loopback;
 
 	*data = e1000_run_loopback_test(adapter);
@@ -1751,7 +1762,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_msglevel		= e1000_get_msglevel,
 	.set_msglevel		= e1000_set_msglevel,
 	.nway_reset		= e1000_nway_reset,
-	.get_link		= ethtool_op_get_link,
+	.get_link		= e1000_get_link,
 	.get_eeprom_len		= e1000_get_eeprom_len,
 	.get_eeprom		= e1000_get_eeprom,
 	.set_eeprom		= e1000_set_eeprom,

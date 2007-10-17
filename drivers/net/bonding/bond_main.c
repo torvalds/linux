@@ -1263,6 +1263,7 @@ static void bond_setup_by_slave(struct net_device *bond_dev,
 	struct bonding *bond = bond_dev->priv;
 
 	bond_dev->neigh_setup           = slave_dev->neigh_setup;
+	bond_dev->header_ops		= slave_dev->header_ops;
 
 	bond_dev->type		    = slave_dev->type;
 	bond_dev->hard_header_len   = slave_dev->hard_header_len;
@@ -3351,7 +3352,10 @@ static int bond_slave_netdev_event(unsigned long event, struct net_device *slave
 	switch (event) {
 	case NETDEV_UNREGISTER:
 		if (bond_dev) {
-			bond_release(bond_dev, slave_dev);
+			if (bond->setup_by_slave)
+				bond_release_and_destroy(bond_dev, slave_dev);
+			else
+				bond_release(bond_dev, slave_dev);
 		}
 		break;
 	case NETDEV_CHANGE:
@@ -3365,11 +3369,6 @@ static int bond_slave_netdev_event(unsigned long event, struct net_device *slave
 		/*
 		 * ... Or is it this?
 		 */
-		break;
-	case NETDEV_GOING_DOWN:
-		dprintk("slave %s is going down\n", slave_dev->name);
-		if (bond->setup_by_slave)
-			bond_release_and_destroy(bond_dev, slave_dev);
 		break;
 	case NETDEV_CHANGEMTU:
 		/*
