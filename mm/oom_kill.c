@@ -27,6 +27,7 @@
 #include <linux/notifier.h>
 
 int sysctl_panic_on_oom;
+static DEFINE_MUTEX(zone_scan_mutex);
 /* #define DEBUG */
 
 /**
@@ -373,6 +374,57 @@ int unregister_oom_notifier(struct notifier_block *nb)
 	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
 }
 EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+
+/*
+ * Try to acquire the OOM killer lock for the zones in zonelist.  Returns zero
+ * if a parallel OOM killing is already taking place that includes a zone in
+ * the zonelist.  Otherwise, locks all zones in the zonelist and returns 1.
+ */
+int try_set_zone_oom(struct zonelist *zonelist)
+{
+	struct zone **z;
+	int ret = 1;
+
+	z = zonelist->zones;
+
+	mutex_lock(&zone_scan_mutex);
+	do {
+		if (zone_is_oom_locked(*z)) {
+			ret = 0;
+			goto out;
+		}
+	} while (*(++z) != NULL);
+
+	/*
+	 * Lock each zone in the zonelist under zone_scan_mutex so a parallel
+	 * invocation of try_set_zone_oom() doesn't succeed when it shouldn't.
+	 */
+	z = zonelist->zones;
+	do {
+		zone_set_flag(*z, ZONE_OOM_LOCKED);
+	} while (*(++z) != NULL);
+out:
+	mutex_unlock(&zone_scan_mutex);
+	return ret;
+}
+
+/*
+ * Clears the ZONE_OOM_LOCKED flag for all zones in the zonelist so that failed
+ * allocation attempts with zonelists containing them may now recall the OOM
+ * killer, if necessary.
+ */
+void clear_zonelist_oom(struct zonelist *zonelist)
+{
+	struct zone **z;
+
+	z = zonelist->zones;
+
+	mutex_lock(&zone_scan_mutex);
+	do {
+		zone_clear_flag(*z, ZONE_OOM_LOCKED);
+	} while (*(++z) != NULL);
+	mutex_unlock(&zone_scan_mutex);
+}
 
 /**
  * out_of_memory - kill the "best" process when we run out of memory
