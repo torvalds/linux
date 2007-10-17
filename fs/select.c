@@ -651,86 +651,66 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
 {
 	struct poll_wqueues table;
- 	int fdcount, err;
- 	unsigned int i;
-	struct poll_list *head;
- 	struct poll_list *walk;
+ 	int err = -EFAULT, fdcount, len, size;
 	/* Allocate small arguments on the stack to save memory and be
 	   faster - use long to make sure the buffer is aligned properly
 	   on 64 bit archs to avoid unaligned access */
 	long stack_pps[POLL_STACK_ALLOC/sizeof(long)];
-	struct poll_list *stack_pp = NULL;
+	struct poll_list *const head = (struct poll_list *)stack_pps;
+ 	struct poll_list *walk = head;
+ 	unsigned long todo = nfds;
 
-	/* Do a sanity check on nfds ... */
 	if (nfds > current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		return -EINVAL;
 
-	poll_initwait(&table);
+	len = min_t(unsigned int, nfds, N_STACK_PPS);
+	for (;;) {
+		walk->next = NULL;
+		walk->len = len;
+		if (!len)
+			break;
 
-	head = NULL;
-	walk = NULL;
-	i = nfds;
-	err = -ENOMEM;
-	while(i!=0) {
-		struct poll_list *pp;
-		int num, size;
-		if (stack_pp == NULL)
-			num = N_STACK_PPS;
-		else
-			num = POLLFD_PER_PAGE;
-		if (num > i)
-			num = i;
-		size = sizeof(struct poll_list) + sizeof(struct pollfd)*num;
-		if (!stack_pp)
-			stack_pp = pp = (struct poll_list *)stack_pps;
-		else {
-			pp = kmalloc(size, GFP_KERNEL);
-			if (!pp)
-				goto out_fds;
-		}
-		pp->next=NULL;
-		pp->len = num;
-		if (head == NULL)
-			head = pp;
-		else
-			walk->next = pp;
+		if (copy_from_user(walk->entries, ufds + nfds-todo,
+					sizeof(struct pollfd) * walk->len))
+			goto out_fds;
 
-		walk = pp;
-		if (copy_from_user(pp->entries, ufds + nfds-i, 
-				sizeof(struct pollfd)*num)) {
-			err = -EFAULT;
+		todo -= walk->len;
+		if (!todo)
+			break;
+
+		len = min(todo, POLLFD_PER_PAGE);
+		size = sizeof(struct poll_list) + sizeof(struct pollfd) * len;
+		walk = walk->next = kmalloc(size, GFP_KERNEL);
+		if (!walk) {
+			err = -ENOMEM;
 			goto out_fds;
 		}
-		i -= pp->len;
 	}
 
+	poll_initwait(&table);
 	fdcount = do_poll(nfds, head, &table, timeout);
+	if (!fdcount && signal_pending(current))
+		fdcount = -EINTR;
+	poll_freewait(&table);
 
-	/* OK, now copy the revents fields back to user space. */
-	walk = head;
-	err = -EFAULT;
-	while(walk != NULL) {
+	for (walk = head; walk; walk = walk->next) {
 		struct pollfd *fds = walk->entries;
 		int j;
 
-		for (j=0; j < walk->len; j++, ufds++) {
-			if(__put_user(fds[j].revents, &ufds->revents))
+		for (j = 0; j < walk->len; j++, ufds++)
+			if (__put_user(fds[j].revents, &ufds->revents))
 				goto out_fds;
-		}
-		walk = walk->next;
   	}
+
 	err = fdcount;
-	if (!fdcount && signal_pending(current))
-		err = -EINTR;
 out_fds:
-	walk = head;
-	while(walk!=NULL) {
-		struct poll_list *pp = walk->next;
-		if (walk != stack_pp)
-			kfree(walk);
-		walk = pp;
+	walk = head->next;
+	while (walk) {
+		struct poll_list *pos = walk;
+		walk = walk->next;
+		kfree(pos);
 	}
-	poll_freewait(&table);
+
 	return err;
 }
 
