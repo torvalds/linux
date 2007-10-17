@@ -4,7 +4,7 @@
 
 This service allows cryptographic keys, authentication tokens, cross-domain
 user mappings, and similar to be cached in the kernel for the use of
-filesystems other kernel services.
+filesystems and other kernel services.
 
 Keyrings are permitted; these are a special type of key that can hold links to
 other keys. Processes each have three standard keyring subscriptions that a
@@ -726,6 +726,15 @@ call, and the key released upon close. How to deal with conflicting keys due to
 two different users opening the same file is left to the filesystem author to
 solve.
 
+To access the key manager, the following header must be #included:
+
+	<linux/key.h>
+
+Specific key types should have a header file under include/keys/ that should be
+used to access that type.  For keys of type "user", for example, that would be:
+
+	<keys/user-type.h>
+
 Note that there are two different types of pointers to keys that may be
 encountered:
 
@@ -789,6 +798,36 @@ payload contents" for more information.
 
     This is identical to request_key(), except that the auxiliary data is
     passed to the key_type->request_key() op if it exists.
+
+
+(*) A key can be requested asynchronously by calling one of:
+
+	struct key *request_key_async(const struct key_type *type,
+				      const char *description,
+				      const char *callout_string);
+
+    or:
+
+	struct key *request_key_async_with_auxdata(const struct key_type *type,
+						   const char *description,
+						   const char *callout_string,
+					     	   void *aux);
+
+    which are asynchronous equivalents of request_key() and
+    request_key_with_auxdata() respectively.
+
+    These two functions return with the key potentially still under
+    construction.  To wait for contruction completion, the following should be
+    called:
+
+	int wait_for_key_construction(struct key *key, bool intr);
+
+    The function will wait for the key to finish being constructed and then
+    invokes key_validate() to return an appropriate value to indicate the state
+    of the key (0 indicates the key is usable).
+
+    If intr is true, then the wait can be interrupted by a signal, in which
+    case error ERESTARTSYS will be returned.
 
 
 (*) When it is no longer required, the key should be released using:
@@ -924,7 +963,11 @@ DEFINING A KEY TYPE
 
 A kernel service may want to define its own key type. For instance, an AFS
 filesystem might want to define a Kerberos 5 ticket key type. To do this, it
-author fills in a struct key_type and registers it with the system.
+author fills in a key_type struct and registers it with the system.
+
+Source files that implement key types should include the following header file:
+
+	<linux/key-type.h>
 
 The structure has a number of fields, some of which are mandatory:
 
@@ -1053,22 +1096,44 @@ The structure has a number of fields, some of which are mandatory:
      as might happen when the userspace buffer is accessed.
 
 
- (*) int (*request_key)(struct key *key, struct key *authkey, const char *op,
+ (*) int (*request_key)(struct key_construction *cons, const char *op,
 			void *aux);
 
-     This method is optional.  If provided, request_key() and
-     request_key_with_auxdata() will invoke this function rather than
-     upcalling to /sbin/request-key to operate upon a key of this type.
+     This method is optional.  If provided, request_key() and friends will
+     invoke this function rather than upcalling to /sbin/request-key to operate
+     upon a key of this type.
 
-     The aux parameter is as passed to request_key_with_auxdata() or is NULL
-     otherwise.  Also passed are the key to be operated upon, the
-     authorisation key for this operation and the operation type (currently
-     only "create").
+     The aux parameter is as passed to request_key_async_with_auxdata() and
+     similar or is NULL otherwise.  Also passed are the construction record for
+     the key to be operated upon and the operation type (currently only
+     "create").
 
-     This function should return only when the upcall is complete.  Upon return
-     the authorisation key will be revoked, and the target key will be
-     negatively instantiated if it is still uninstantiated.  The error will be
-     returned to the caller of request_key*().
+     This method is permitted to return before the upcall is complete, but the
+     following function must be called under all circumstances to complete the
+     instantiation process, whether or not it succeeds, whether or not there's
+     an error:
+
+	void complete_request_key(struct key_construction *cons, int error);
+
+     The error parameter should be 0 on success, -ve on error.  The
+     construction record is destroyed by this action and the authorisation key
+     will be revoked.  If an error is indicated, the key under construction
+     will be negatively instantiated if it wasn't already instantiated.
+
+     If this method returns an error, that error will be returned to the
+     caller of request_key*().  complete_request_key() must be called prior to
+     returning.
+
+     The key under construction and the authorisation key can be found in the
+     key_construction struct pointed to by cons:
+
+     (*) struct key *key;
+
+     	 The key under construction.
+
+     (*) struct key *authkey;
+
+     	 The authorisation key.
 
 
 ============================

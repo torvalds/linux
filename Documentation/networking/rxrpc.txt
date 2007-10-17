@@ -857,3 +857,10 @@ The kernel interface functions are as follows:
 
      This is used to extract the error number from a message indicating either
      a local error occurred or a network error occurred.
+
+ (*) Allocate a null key for doing anonymous security.
+
+	struct key *rxrpc_get_null_key(const char *keyname);
+
+     This is used to allocate a null RxRPC key that can be used to indicate
+     anonymous security for a particular domain.

@@ -1,6 +1,6 @@
-/* key.h: authentication token and access key management
+/* Authentication token and access key management
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -175,78 +175,6 @@ struct key {
 	} payload;
 };
 
-/*****************************************************************************/
-/*
- * kernel managed key type definition
- */
-typedef int (*request_key_actor_t)(struct key *key, struct key *authkey,
-				   const char *op, void *aux);
-
-struct key_type {
-	/* name of the type */
-	const char *name;
-
-	/* default payload length for quota precalculation (optional)
-	 * - this can be used instead of calling key_payload_reserve(), that
-	 *   function only needs to be called if the real datalen is different
-	 */
-	size_t def_datalen;
-
-	/* instantiate a key of this type
-	 * - this method should call key_payload_reserve() to determine if the
-	 *   user's quota will hold the payload
-	 */
-	int (*instantiate)(struct key *key, const void *data, size_t datalen);
-
-	/* update a key of this type (optional)
-	 * - this method should call key_payload_reserve() to recalculate the
-	 *   quota consumption
-	 * - the key must be locked against read when modifying
-	 */
-	int (*update)(struct key *key, const void *data, size_t datalen);
-
-	/* match a key against a description */
-	int (*match)(const struct key *key, const void *desc);
-
-	/* clear some of the data from a key on revokation (optional)
-	 * - the key's semaphore will be write-locked by the caller
-	 */
-	void (*revoke)(struct key *key);
-
-	/* clear the data from a key (optional) */
-	void (*destroy)(struct key *key);
-
-	/* describe a key */
-	void (*describe)(const struct key *key, struct seq_file *p);
-
-	/* read a key's data (optional)
-	 * - permission checks will be done by the caller
-	 * - the key's semaphore will be readlocked by the caller
-	 * - should return the amount of data that could be read, no matter how
-	 *   much is copied into the buffer
-	 * - shouldn't do the copy if the buffer is NULL
-	 */
-	long (*read)(const struct key *key, char __user *buffer, size_t buflen);
-
-	/* handle request_key() for this type instead of invoking
-	 * /sbin/request-key (optional)
-	 * - key is the key to instantiate
-	 * - authkey is the authority to assume when instantiating this key
-	 * - op is the operation to be done, usually "create"
-	 * - the call must not return until the instantiation process has run
-	 *   its course
-	 */
-	request_key_actor_t request_key;
-
-	/* internal fields */
-	struct list_head	link;		/* link in types list */
-};
-
-extern struct key_type key_type_keyring;
-
-extern int register_key_type(struct key_type *ktype);
-extern void unregister_key_type(struct key_type *ktype);
-
 extern struct key *key_alloc(struct key_type *type,
 			     const char *desc,
 			     uid_t uid, gid_t gid,
@@ -259,16 +187,6 @@ extern struct key *key_alloc(struct key_type *type,
 #define KEY_ALLOC_QUOTA_OVERRUN	0x0001	/* add to quota, permit even if overrun */
 #define KEY_ALLOC_NOT_IN_QUOTA	0x0002	/* not in quota */
 
-extern int key_payload_reserve(struct key *key, size_t datalen);
-extern int key_instantiate_and_link(struct key *key,
-				    const void *data,
-				    size_t datalen,
-				    struct key *keyring,
-				    struct key *instkey);
-extern int key_negate_and_link(struct key *key,
-			       unsigned timeout,
-			       struct key *keyring,
-			       struct key *instkey);
 extern void key_revoke(struct key *key);
 extern void key_put(struct key *key);
 
@@ -292,6 +210,17 @@ extern struct key *request_key_with_auxdata(struct key_type *type,
 					    const char *description,
 					    const char *callout_info,
 					    void *aux);
+
+extern struct key *request_key_async(struct key_type *type,
+				     const char *description,
+				     const char *callout_info);
+
+extern struct key *request_key_async_with_auxdata(struct key_type *type,
+						  const char *description,
+						  const char *callout_info,
+						  void *aux);
+
+extern int wait_for_key_construction(struct key *key, bool intr);
 
 extern int key_validate(struct key *key);
 
@@ -327,8 +256,6 @@ extern int keyring_add_key(struct key *keyring,
 			   struct key *key);
 
 extern struct key *key_lookup(key_serial_t id);
-
-extern void keyring_replace_payload(struct key *key, void *replacement);
 
 #define key_serial(key) ((key) ? (key)->serial : 0)
 

@@ -19,4 +19,6 @@
  */
 extern struct key_type key_type_rxrpc;
 
+extern struct key *rxrpc_get_null_key(const char *);
+
 #endif /* _KEYS_USER_TYPE_H */

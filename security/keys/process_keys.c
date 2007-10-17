@@ -26,7 +26,7 @@ static DEFINE_MUTEX(key_session_mutex);
 /* the root user's tracking struct */
 struct key_user root_key_user = {
 	.usage		= ATOMIC_INIT(3),
-	.consq		= LIST_HEAD_INIT(root_key_user.consq),
+	.cons_lock	= __MUTEX_INITIALIZER(root_key_user.cons_lock),
 	.lock		= __SPIN_LOCK_UNLOCKED(root_key_user.lock),
 	.nkeys		= ATOMIC_INIT(2),
 	.nikeys		= ATOMIC_INIT(2),
@@ -679,8 +679,18 @@ key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
 		break;
 	}
 
-	/* check the status */
-	if (perm) {
+	if (!partial) {
+		ret = wait_for_key_construction(key, true);
+		switch (ret) {
+		case -ERESTARTSYS:
+			goto invalid_key;
+		default:
+			if (perm)
+				goto invalid_key;
+		case 0:
+			break;
+		}
+	} else if (perm) {
 		ret = key_validate(key);
 		if (ret < 0)
 			goto invalid_key;

@@ -1,6 +1,6 @@
 /* internal.h: authentication token and access key management internal defs
  *
- * Copyright (C) 2003-5 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2003-5, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -12,17 +12,28 @@
 #ifndef _INTERNAL_H
 #define _INTERNAL_H
 
-#include <linux/key.h>
+#include <linux/key-type.h>
 #include <linux/key-ui.h>
 
-#if 0
-#define kenter(FMT, a...)	printk("==> %s("FMT")\n",__FUNCTION__ , ## a)
-#define kleave(FMT, a...)	printk("<== %s()"FMT"\n",__FUNCTION__ , ## a)
-#define kdebug(FMT, a...)	printk(FMT"\n" , ## a)
+static inline __attribute__((format(printf, 1, 2)))
+void no_printk(const char *fmt, ...)
+{
+}
+
+#ifdef __KDEBUG
+#define kenter(FMT, ...) \
+	printk(KERN_DEBUG "==> %s("FMT")\n", __FUNCTION__, ##__VA_ARGS__)
+#define kleave(FMT, ...) \
+	printk(KERN_DEBUG "<== %s()"FMT"\n", __FUNCTION__, ##__VA_ARGS__)
+#define kdebug(FMT, ...) \
+	printk(KERN_DEBUG "xxx" FMT"yyy\n", ##__VA_ARGS__)
 #else
-#define kenter(FMT, a...)	do {} while(0)
-#define kleave(FMT, a...)	do {} while(0)
-#define kdebug(FMT, a...)	do {} while(0)
+#define kenter(FMT, ...) \
+	no_printk(KERN_DEBUG "==> %s("FMT")\n", __FUNCTION__, ##__VA_ARGS__)
+#define kleave(FMT, ...) \
+	no_printk(KERN_DEBUG "<== %s()"FMT"\n", __FUNCTION__, ##__VA_ARGS__)
+#define kdebug(FMT, ...) \
+	no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
 #endif
 
 extern struct key_type key_type_user;
@@ -36,7 +47,7 @@ extern struct key_type key_type_user;
  */
 struct key_user {
 	struct rb_node		node;
-	struct list_head	consq;		/* construction queue */
+	struct mutex		cons_lock;	/* construction initiation lock */
 	spinlock_t		lock;
 	atomic_t		usage;		/* for accessing qnkeys & qnbytes */
 	atomic_t		nkeys;		/* number of keys */
@@ -62,7 +73,7 @@ extern void key_user_put(struct key_user *user);
 extern struct rb_root key_serial_tree;
 extern spinlock_t key_serial_lock;
 extern struct semaphore key_alloc_sem;
-extern struct rw_semaphore key_construction_sem;
+extern struct mutex key_construction_mutex;
 extern wait_queue_head_t request_key_conswq;
 
 
@@ -109,7 +120,7 @@ extern struct key *request_key_and_link(struct key_type *type,
 struct request_key_auth {
 	struct key		*target_key;
 	struct task_struct	*context;
-	const char		*callout_info;
+	char			*callout_info;
 	pid_t			pid;
 };
 

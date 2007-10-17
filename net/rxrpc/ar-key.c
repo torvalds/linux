@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
-#include <linux/key.h>
+#include <linux/key-type.h>
 #include <linux/crypto.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
@@ -40,7 +40,6 @@ struct key_type key_type_rxrpc = {
 	.destroy	= rxrpc_destroy,
 	.describe	= rxrpc_describe,
 };
-
 EXPORT_SYMBOL(key_type_rxrpc);
 
 /*
@@ -330,5 +329,32 @@ error:
 	_leave(" = -ENOMEM [ins %d]", ret);
 	return -ENOMEM;
 }
-
 EXPORT_SYMBOL(rxrpc_get_server_data_key);
+
+/**
+ * rxrpc_get_null_key - Generate a null RxRPC key
+ * @keyname: The name to give the key.
+ *
+ * Generate a null RxRPC key that can be used to indicate anonymous security is
+ * required for a particular domain.
+ */
+struct key *rxrpc_get_null_key(const char *keyname)
+{
+	struct key *key;
+	int ret;
+
+	key = key_alloc(&key_type_rxrpc, keyname, 0, 0, current,
+			KEY_POS_SEARCH, KEY_ALLOC_NOT_IN_QUOTA);
+	if (IS_ERR(key))
+		return key;
+
+	ret = key_instantiate_and_link(key, NULL, 0, NULL, NULL);
+	if (ret < 0) {
+		key_revoke(key);
+		key_put(key);
+		return ERR_PTR(ret);
+	}
+
+	return key;
+}
+EXPORT_SYMBOL(rxrpc_get_null_key);
