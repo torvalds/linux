@@ -282,7 +282,7 @@ static void
 adbhid_input_keycode(int id, int scancode, int repeat)
 {
 	struct adbhid *ahid = adbhid[id];
-	int keycode, up_flag;
+	int keycode, up_flag, key;
 
 	keycode = scancode & 0x7f;
 	up_flag = scancode & 0x80;
