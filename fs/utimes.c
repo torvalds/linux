@@ -38,6 +38,14 @@ asmlinkage long sys_utime(char __user *filename, struct utimbuf __user *times)
 
 #endif
 
+static bool nsec_valid(long nsec)
+{
+	if (nsec == UTIME_OMIT || nsec == UTIME_NOW)
+		return true;
+
+	return nsec >= 0 && nsec <= 999999999;
+}
+
 /* If times==NULL, set access and modification to current time,
  * must be owner or have write permission.
  * Else, update from *times, must be owner or super user.
@@ -52,6 +60,11 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
 	struct file *f = NULL;
 
 	error = -EINVAL;
+	if (times && (!nsec_valid(times[0].tv_nsec) ||
+		      !nsec_valid(times[1].tv_nsec))) {
+		goto out;
+	}
+
 	if (flags & ~AT_SYMLINK_NOFOLLOW)
 		goto out;
 
