@@ -457,7 +457,7 @@ static void ibmpex_register_bmc(int iface, struct device *dev)
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		printk(KERN_ERR DRVNAME ": Insufficient memory for BMC "
-		       "interface %d.\n", data->interface);
+		       "interface.\n");
 		return;
 	}
 
