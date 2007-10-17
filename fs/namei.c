@@ -228,6 +228,10 @@ int generic_permission(struct inode *inode, int mask,
 int permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	int retval, submask;
+	struct vfsmount *mnt = NULL;
+
+	if (nd)
+		mnt = nd->mnt;
 
 	if (mask & MAY_WRITE) {
 		umode_t mode = inode->i_mode;
@@ -251,7 +255,7 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 		 * MAY_EXEC on regular files is denied if the fs is mounted
 		 * with the "noexec" flag.
 		 */
-		if (nd && nd->mnt && (nd->mnt->mnt_flags & MNT_NOEXEC))
+		if (mnt && (mnt->mnt_flags & MNT_NOEXEC))
 			return -EACCES;
 	}
 
