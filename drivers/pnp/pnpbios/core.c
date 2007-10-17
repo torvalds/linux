@@ -315,25 +315,31 @@ struct pnp_protocol pnpbios_protocol = {
 	.disable = pnpbios_disable_resources,
 };
 
-static int insert_device(struct pnp_dev *dev, struct pnp_bios_node *node)
+static int insert_device(struct pnp_bios_node *node)
 {
 	struct list_head *pos;
-	struct pnp_dev *pnp_dev;
+	struct pnp_dev *dev;
 	struct pnp_id *dev_id;
 	char id[8];
 
 	/* check if the device is already added */
-	dev->number = node->handle;
 	list_for_each(pos, &pnpbios_protocol.devices) {
-		pnp_dev = list_entry(pos, struct pnp_dev, protocol_list);
-		if (dev->number == pnp_dev->number)
+		dev = list_entry(pos, struct pnp_dev, protocol_list);
+		if (dev->number == node->handle)
 			return -1;
 	}
 
-	/* set the initial values for the PnP device */
-	dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
-	if (!dev_id)
+	dev = kzalloc(sizeof(struct pnp_dev), GFP_KERNEL);
+	if (!dev)
 		return -1;
+
+	dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
+	if (!dev_id) {
+		kfree(dev);
+		return -1;
+	}
+
+	dev->number = node->handle;
 	pnpid32_to_pnpid(node->eisa_id, id);
 	memcpy(dev_id->id, id, 7);
 	pnp_add_id(dev_id, dev);
@@ -367,7 +373,6 @@ static void __init build_devlist(void)
 	unsigned int nodes_got = 0;
 	unsigned int devs = 0;
 	struct pnp_bios_node *node;
-	struct pnp_dev *dev;
 
 	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
@@ -388,12 +393,7 @@ static void __init build_devlist(void)
 				break;
 		}
 		nodes_got++;
-		dev = kzalloc(sizeof(struct pnp_dev), GFP_KERNEL);
-		if (!dev)
-			break;
-		if (insert_device(dev, node) < 0)
-			kfree(dev);
-		else
+		if (insert_device(node) == 0)
 			devs++;
 		if (nodenum <= thisnodenum) {
 			printk(KERN_ERR
