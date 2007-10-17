@@ -980,23 +980,6 @@ static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg)
 	}
 }
 
-static void fuse_vmtruncate(struct inode *inode, loff_t offset)
-{
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	int need_trunc;
-
-	spin_lock(&fc->lock);
-	need_trunc = inode->i_size > offset;
-	i_size_write(inode, offset);
-	spin_unlock(&fc->lock);
-
-	if (need_trunc) {
-		struct address_space *mapping = inode->i_mapping;
-		unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
-		truncate_inode_pages(mapping, offset);
-	}
-}
-
 /*
  * Set attributes, and at the same time refresh them.
  *
@@ -1014,7 +997,6 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 	struct fuse_setattr_in inarg;
 	struct fuse_attr_out outarg;
 	int err;
-	int is_truncate = 0;
 
 	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
 		err = inode_change_ok(inode, attr);
@@ -1024,7 +1006,6 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 
 	if (attr->ia_valid & ATTR_SIZE) {
 		unsigned long limit;
-		is_truncate = 1;
 		if (IS_SWAPFILE(inode))
 			return -ETXTBSY;
 		limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
@@ -1051,21 +1032,20 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 	request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
-	if (!err) {
-		if ((inode->i_mode ^ outarg.attr.mode) & S_IFMT) {
-			make_bad_inode(inode);
-			err = -EIO;
-		} else {
-			if (is_truncate)
-				fuse_vmtruncate(inode, outarg.attr.size);
-			fuse_change_attributes(inode, &outarg.attr);
-			fi->i_time = time_to_jiffies(outarg.attr_valid,
-						     outarg.attr_valid_nsec);
-		}
-	} else if (err == -EINTR)
-		fuse_invalidate_attr(inode);
+	if (err) {
+		if (err == -EINTR)
+			fuse_invalidate_attr(inode);
+		return err;
+	}
 
-	return err;
+	if ((inode->i_mode ^ outarg.attr.mode) & S_IFMT) {
+		make_bad_inode(inode);
+		return -EIO;
+	}
+
+	fuse_change_attributes(inode, &outarg.attr);
+	fi->i_time = time_to_jiffies(outarg.attr_valid, outarg.attr_valid_nsec);
+	return 0;
 }
 
 static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,

@@ -109,20 +109,24 @@ static int fuse_remount_fs(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+static void fuse_truncate(struct address_space *mapping, loff_t offset)
+{
+	/* See vmtruncate() */
+	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+	truncate_inode_pages(mapping, offset);
+	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+}
+
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	if (S_ISREG(inode->i_mode) && i_size_read(inode) != attr->size)
-		invalidate_mapping_pages(inode->i_mapping, 0, -1);
+	loff_t oldsize;
 
 	inode->i_ino     = attr->ino;
 	inode->i_mode    = (inode->i_mode & S_IFMT) + (attr->mode & 07777);
 	inode->i_nlink   = attr->nlink;
 	inode->i_uid     = attr->uid;
 	inode->i_gid     = attr->gid;
-	spin_lock(&fc->lock);
-	i_size_write(inode, attr->size);
-	spin_unlock(&fc->lock);
 	inode->i_blocks  = attr->blocks;
 	inode->i_atime.tv_sec   = attr->atime;
 	inode->i_atime.tv_nsec  = attr->atimensec;
@@ -130,6 +134,17 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 	inode->i_mtime.tv_nsec  = attr->mtimensec;
 	inode->i_ctime.tv_sec   = attr->ctime;
 	inode->i_ctime.tv_nsec  = attr->ctimensec;
+
+	spin_lock(&fc->lock);
+	oldsize = inode->i_size;
+	i_size_write(inode, attr->size);
+	spin_unlock(&fc->lock);
+
+	if (S_ISREG(inode->i_mode) && oldsize != attr->size) {
+		if (attr->size < oldsize)
+			fuse_truncate(inode->i_mapping, attr->size);
+		invalidate_mapping_pages(inode->i_mapping, 0, -1);
+	}
 }
 
 static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
