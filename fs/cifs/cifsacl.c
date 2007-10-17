@@ -182,7 +182,7 @@ static void parse_ntace(struct cifs_ntace *pntace, char *end_of_acl)
 
 
 static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
-		       struct cifs_sid *pownersid, struct cifs_sid pgrpsid)
+		       struct cifs_sid *pownersid, struct cifs_sid *pgrpsid)
 {
 	int i;
 	int num_aces = 0;
