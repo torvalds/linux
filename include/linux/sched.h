@@ -1044,8 +1044,9 @@ struct task_struct {
 	int (*notifier)(void *priv);
 	void *notifier_data;
 	sigset_t *notifier_mask;
-	
+#ifdef CONFIG_SECURITY
 	void *security;
+#endif
 	struct audit_context *audit_context;
 	seccomp_t seccomp;
 
