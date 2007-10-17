@@ -54,7 +54,6 @@
 #include <linux/highuid.h>
 
 #include <asm/types.h>
-#include <asm/ipc.h>
 #include <asm/uaccess.h>
 #include <asm/fpumacro.h>
 #include <asm/semaphore.h>

@@ -58,9 +58,9 @@
 #include <linux/vfs.h>
 #include <linux/ptrace.h>
 #include <linux/fadvise.h>
+#include <linux/ipc.h>
 
 #include <asm/types.h>
-#include <asm/ipc.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 

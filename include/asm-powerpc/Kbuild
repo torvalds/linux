@@ -13,7 +13,6 @@ header-y += shmbuf.h
 header-y += socket.h
 header-y += termbits.h
 header-y += fcntl.h
-header-y += ipc.h
 header-y += poll.h
 header-y += sockios.h
 header-y += ucontext.h

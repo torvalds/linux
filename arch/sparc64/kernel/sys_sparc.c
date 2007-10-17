@@ -26,7 +26,6 @@
 #include <linux/random.h>
 
 #include <asm/uaccess.h>
-#include <asm/ipc.h>
 #include <asm/utrap.h>
 #include <asm/perfctr.h>
 #include <asm/a.out.h>

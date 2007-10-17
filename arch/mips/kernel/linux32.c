@@ -35,12 +35,12 @@
 #include <linux/security.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
+#include <linux/ipc.h>
 
 #include <net/sock.h>
 #include <net/scm.h>
 
 #include <asm/compat-signal.h>
-#include <asm/ipc.h>
 #include <asm/sim.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>

@@ -26,9 +26,9 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
+#include <linux/ipc.h>
 
 #include <asm/uaccess.h>
-#include <asm/ipc.h>
 
 extern unsigned long do_mremap(unsigned long addr, unsigned long old_len,
 			       unsigned long new_len, unsigned long flags,

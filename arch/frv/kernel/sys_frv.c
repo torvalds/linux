@@ -23,10 +23,10 @@
 #include <linux/file.h>
 #include <linux/utsname.h>
 #include <linux/syscalls.h>
+#include <linux/ipc.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>
-#include <asm/ipc.h>
 
 /*
  * sys_pipe() is the normal C calling standard for creating

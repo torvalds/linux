@@ -11,10 +11,10 @@
 #include <linux/shm.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
+#include <linux/ipc.h>
 
 #include <asm/uaccess.h>
 #include <asm/string.h>
-#include <asm/ipc.h>
 
 #include "conv.h"
 

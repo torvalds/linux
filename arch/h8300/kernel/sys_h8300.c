@@ -19,12 +19,12 @@
 #include <linux/file.h>
 #include <linux/utsname.h>
 #include <linux/fs.h>
+#include <linux/ipc.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>
 #include <asm/cachectl.h>
 #include <asm/traps.h>
-#include <asm/ipc.h>
 #include <asm/unistd.h>
 
 /*

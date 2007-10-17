@@ -21,9 +21,9 @@
 #include <linux/utsname.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
+#include <linux/ipc.h>
 
 #include <asm/uaccess.h>
-#include <asm/ipc.h>
 #include <asm/unistd.h>
 
 /* #define DEBUG_UNIMP_SYSCALL */

@@ -80,7 +80,7 @@
 #include <linux/sem.h>
 #include <linux/socket.h>
 #include <linux/net.h>
-#include <asm/ipc.h>
+#include <linux/ipc.h>
 #include <asm/uaccess.h>
 
 struct oldabi_stat64 {

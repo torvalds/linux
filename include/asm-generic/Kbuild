@@ -2,7 +2,6 @@ header-y += errno-base.h
 header-y += errno.h
 header-y += fcntl.h
 header-y += ioctl.h
-header-y += ipc.h
 header-y += mman.h
 header-y += poll.h
 header-y += signal.h

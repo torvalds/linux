@@ -5,7 +5,7 @@
 
 #include "linux/sched.h"
 #include "linux/shm.h"
-#include "asm/ipc.h"
+#include "linux/ipc.h"
 #include "asm/mman.h"
 #include "asm/uaccess.h"
 #include "asm/unistd.h"

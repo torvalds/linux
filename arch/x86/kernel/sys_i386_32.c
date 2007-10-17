@@ -17,10 +17,10 @@
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
+#include <linux/ipc.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
-#include <asm/ipc.h>
 
 /*
  * sys_pipe() is the normal C calling standard for creating

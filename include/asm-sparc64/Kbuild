@@ -10,7 +10,6 @@ header-y += bbc.h
 header-y += bpp.h
 header-y += display7seg.h
 header-y += envctrl.h
-header-y += ipc.h
 header-y += openprom.h
 header-y += openpromio.h
 header-y += pconf.h

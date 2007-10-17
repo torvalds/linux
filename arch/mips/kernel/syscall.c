@@ -28,11 +28,11 @@
 #include <linux/shm.h>
 #include <linux/compiler.h>
 #include <linux/module.h>
+#include <linux/ipc.h>
 
 #include <asm/branch.h>
 #include <asm/cachectl.h>
 #include <asm/cacheflush.h>
-#include <asm/ipc.h>
 #include <asm/asm-offsets.h>
 #include <asm/signal.h>
 #include <asm/sim.h>
