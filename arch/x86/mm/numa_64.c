@@ -166,7 +166,7 @@ early_node_mem(int nodeid, unsigned long start, unsigned long end,
 		return __va(mem);
 	ptr = __alloc_bootmem_nopanic(size,
 				SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS));
-	if (ptr == 0) {
+	if (ptr == NULL) {
 		printk(KERN_ERR "Cannot find %lu bytes in node %d\n",
 			size, nodeid);
 		return NULL;
