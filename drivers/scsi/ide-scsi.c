@@ -807,7 +807,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	memcpy (pc->c, cmd->cmnd, cmd->cmd_len);
 	pc->buffer = NULL;
 	pc->sg = scsi_sglist(cmd);
-	pc->last_sg = sg_last(pc->sg, cmd->use_sg);
+	pc->last_sg = sg_last(pc->sg, scsi_sg_count(cmd));
 	pc->b_count = 0;
 	pc->request_transfer = pc->buffer_size = scsi_bufflen(cmd);
 	pc->scsi_cmd = cmd;
