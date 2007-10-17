@@ -81,11 +81,6 @@ struct tty_bufhead {
 	int memory_used;		/* Buffer space used excluding free queue */
 };
 /*
- * The pty uses char_buf and flag_buf as a contiguous buffer
- */
-#define PTY_BUF_SIZE	4*TTY_FLIPBUF_SIZE
-
-/*
  * When a break, frame error, or parity error happens, these codes are
  * stuffed into the flags buffer.
  */
