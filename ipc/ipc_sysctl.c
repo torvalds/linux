@@ -15,7 +15,6 @@
 #include <linux/sysctl.h>
 #include <linux/uaccess.h>
 
-#ifdef CONFIG_IPC_NS
 static void *get_ipc(ctl_table *table)
 {
 	char *which = table->data;
@@ -23,9 +22,6 @@ static void *get_ipc(ctl_table *table)
 	which = (which - (char *)&init_ipc_ns) + (char *)ipc_ns;
 	return which;
 }
-#else
-#define get_ipc(T) ((T)->data)
-#endif
 
 #ifdef CONFIG_PROC_FS
 static int proc_ipc_dointvec(ctl_table *table, int write, struct file *filp,
