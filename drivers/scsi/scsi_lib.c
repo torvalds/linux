@@ -764,8 +764,6 @@ struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 		if (unlikely(!sgl))
 			goto enomem;
 
-		memset(sgl, 0, sizeof(*sgl) * sgp->size);
-
 		/*
 		 * first loop through, set initial index and return value
 		 */
