@@ -8,7 +8,7 @@ What is ramfs?
 
 Ramfs is a very simple filesystem that exports Linux's disk caching
 mechanisms (the page cache and dentry cache) as a dynamically resizable
-ram-based filesystem.
+RAM-based filesystem.
 
 Normally all files are cached in memory by Linux.  Pages of data read from
 backing store (usually the block device the filesystem is mounted on) are kept
@@ -34,7 +34,7 @@ ramfs and ramdisk:
 ------------------
 
 The older "ram disk" mechanism created a synthetic block device out of
-an area of ram and used it as backing store for a filesystem.  This block
+an area of RAM and used it as backing store for a filesystem.  This block
 device was of fixed size, so the filesystem mounted on it was of fixed
 size.  Using a ram disk also required unnecessarily copying memory from the
 fake block device into the page cache (and copying changes back out), as well
@@ -46,8 +46,8 @@ unnecessary work for the CPU, and pollutes the CPU caches.  (There are tricks
 to avoid this copying by playing with the page tables, but they're unpleasantly
 complicated and turn out to be about as expensive as the copying anyway.)
 More to the point, all the work ramfs is doing has to happen _anyway_,
-since all file access goes through the page and dentry caches.  The ram
-disk is simply unnecessary, ramfs is internally much simpler.
+since all file access goes through the page and dentry caches.  The RAM
+disk is simply unnecessary; ramfs is internally much simpler.
 
 Another reason ramdisks are semi-obsolete is that the introduction of
 loopback devices offered a more flexible and convenient way to create
@@ -103,7 +103,7 @@ All this differs from the old initrd in several ways:
     initramfs archive is a gzipped cpio archive (like tar only simpler,
     see cpio(1) and Documentation/early-userspace/buffer-format.txt).  The
     kernel's cpio extraction code is not only extremely small, it's also
-    __init data that can be discarded during the boot process.
+    __init text and data that can be discarded during the boot process.
 
   - The program run by the old initrd (which was called /initrd, not /init) did
     some setup and then returned to the kernel, while the init program from
@@ -220,7 +220,7 @@ device) but the separate packaging of initrd (which is nice if you have
 non-GPL code you'd like to run from initramfs, without conflating it with
 the GPL licensed Linux kernel binary).
 
-It can also be used to supplement the kernel's built-in initamfs image.  The
+It can also be used to supplement the kernel's built-in initramfs image.  The
 files in the external archive will overwrite any conflicting files in
 the built-in initramfs archive.  Some distributors also prefer to customize
 a single kernel image with task-specific initramfs images, without recompiling.
@@ -339,7 +339,7 @@ smooth transition and allowing early boot functionality to gradually move to
 The move to early userspace is necessary because finding and mounting the real
 root device is complex.  Root partitions can span multiple devices (raid or
 separate journal).  They can be out on the network (requiring dhcp, setting a
-specific mac address, logging into a server, etc).  They can live on removable
+specific MAC address, logging into a server, etc).  They can live on removable
 media, with dynamically allocated major/minor numbers and persistent naming
 issues requiring a full udev implementation to sort out.  They can be
 compressed, encrypted, copy-on-write, loopback mounted, strangely partitioned,

@@ -22,16 +22,21 @@ The RAM disk dynamically grows as more space is required. It does this by using
 RAM from the buffer cache. The driver marks the buffers it is using as dirty
 so that the VM subsystem does not try to reclaim them later.
 
-Also, the RAM disk supports up to 16 RAM disks out of the box, and can
-be reconfigured to support up to 255 RAM disks - change "#define NUM_RAMDISKS"
-in drivers/block/rd.c.  To use RAM disk support with your system, run
-'./MAKEDEV ram' from the /dev directory.  RAM disks are all major number 1, and
-start with minor number 0 for /dev/ram0, etc.  If used, modern kernels use
-/dev/ram0 for an initrd.
+The RAM disk supports up to 16 RAM disks by default, and can be reconfigured
+to support an unlimited number of RAM disks (at your own risk).  Just change
+the configuration symbol BLK_DEV_RAM_COUNT in the Block drivers config menu
+and (re)build the kernel.
+
+To use RAM disk support with your system, run './MAKEDEV ram' from the /dev
+directory.  RAM disks are all major number 1, and start with minor number 0
+for /dev/ram0, etc.  If used, modern kernels use /dev/ram0 for an initrd.
 
 The old "ramdisk=<ram_size>" has been changed to "ramdisk_size=<ram_size>" to
 make it clearer.  The original "ramdisk=<ram_size>" has been kept around for
 compatibility reasons, but it may be removed in the future.
+There are also config symbols (in the Block drivers config menu) for these
+variables:  BLK_DEV_RAM_SIZE defaults to 4096 and BLK_DEV_RAM_BLOCKSIZE
+defaults to 1024.
 
 The new RAM disk also has the ability to load compressed RAM disk images,
 allowing one to squeeze more programs onto an average installation or

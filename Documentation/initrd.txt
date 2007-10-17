@@ -80,8 +80,8 @@ Compressed cpio images
 ----------------------
 
 Recent kernels have support for populating a ramdisk from a compressed cpio
-archive, on such systems, the creation of a ramdisk image doesn't need to
-involve special block devices or loopbacks, you merely create a directory on
+archive. On such systems, the creation of a ramdisk image doesn't need to
+involve special block devices or loopbacks; you merely create a directory on
 disk with the desired initrd content, cd to that directory, and run (as an
 example):
 
@@ -293,7 +293,7 @@ information as small as possible. In this case, a common initrd could be
 generated with all the necessary modules. Then, only /sbin/init or a file
 read by it would have to be different.
 
-A third scenario are more convenient recovery disks, because information
+A third scenario is more convenient recovery disks, because information
 like the location of the root FS partition doesn't have to be provided at
 boot time, but the system loaded from initrd can invoke a user-friendly
 dialog and it can also perform some sanity checks (or even some form of
@@ -339,8 +339,8 @@ the new, supported mechanism is called "pivot_root".
 Mixed change_root and pivot_root mechanism
 ------------------------------------------
 
-In case you did not want to use root=/dev/ram0 to trig the pivot_root mechanism,
-you may create both /linuxrc and /sbin/init in your initrd image.
+In case you did not want to use root=/dev/ram0 to trigger the pivot_root
+mechanism, you may create both /linuxrc and /sbin/init in your initrd image.
 
 /linuxrc would contain only the following:
 
@@ -350,7 +350,7 @@ echo 0x0100 >/proc/sys/kernel/real-root-dev
 umount -n /proc
 
 Once linuxrc exited, the kernel would mount again your initrd as root,
-this time executing /sbin/init. Again, it would be duty of this init
+this time executing /sbin/init. Again, it would be the duty of this init
 to build the right environment (maybe using the root= device passed on
 the cmdline) before the final execution of the real /sbin/init.
 

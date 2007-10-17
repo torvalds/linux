@@ -19,7 +19,7 @@ It consists of several major infrastructure components:
 - klibc, a userspace C library, currently packaged separately, that is
   optimized for correctness and small size.
 
-The cpio file format used by initramfs is the "newc" (aka "cpio -c")
+The cpio file format used by initramfs is the "newc" (aka "cpio -H newc")
 format, and is documented in the file "buffer-format.txt".  There are
 two ways to add an early userspace image: specify an existing cpio
 archive to be used as the image or have the kernel build process build
@@ -44,7 +44,7 @@ The image is specified as one or more sources in
 CONFIG_INITRAMFS_SOURCE.  Sources can be either directories or files -
 cpio archives are *not* allowed when building from sources.
 
-A source directory will have it and all of it's contents packaged.  The
+A source directory will have it and all of its contents packaged.  The
 specified directory name will be mapped to '/'.  When packaging a
 directory, limited user and group ID translation can be performed.
 INITRAMFS_ROOT_UID can be set to a user ID that needs to be mapped to
@@ -144,7 +144,7 @@ c) using initramfs.  The call to prepare_namespace() must be skipped.
    initrd format, an cpio archive.  It must be called "/init".  This binary
    is responsible to do all the things prepare_namespace() would do.
 
-   To remain backwards compatibility, the /init binary will only run if it
+   To maintain backwards compatibility, the /init binary will only run if it
    comes via an initramfs cpio archive.  If this is not the case,
    init/main.c:init() will run prepare_namespace() to mount the final root
    and exec one of the predefined init binaries.
