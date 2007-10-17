@@ -113,7 +113,7 @@ static unsigned long create_flat_tables(
 	char * p = (char*)pp;
 	int argc = bprm->argc;
 	int envc = bprm->envc;
-	char dummy;
+	char uninitialized_var(dummy);
 
 	sp = (unsigned long *) ((-(unsigned long)sizeof(char *))&(unsigned long) p);
 
@@ -290,7 +290,6 @@ out_free_buf:
 	kfree(buf);
 out_free:
 	kfree(strm.workspace);
-out:
 	return retval;
 }
 
@@ -459,7 +458,9 @@ static int load_flat_file(struct linux_binprm * bprm,
 		printk("BINFMT_FLAT: Loading file: %s\n", bprm->filename);
 
 	if (rev != FLAT_VERSION && rev != OLD_FLAT_VERSION) {
-		printk("BINFMT_FLAT: bad flat file version 0x%x (supported 0x%x and 0x%x)\n", rev, FLAT_VERSION, OLD_FLAT_VERSION);
+		printk("BINFMT_FLAT: bad flat file version 0x%x (supported "
+			"0x%lx and 0x%lx)\n",
+			rev, FLAT_VERSION, OLD_FLAT_VERSION);
 		ret = -ENOEXEC;
 		goto err;
 	}
@@ -515,7 +516,8 @@ static int load_flat_file(struct linux_binprm * bprm,
 	/*
 	 * calculate the extra space we need to map in
 	 */
-	extra = max(bss_len + stack_len, relocs * sizeof(unsigned long));
+	extra = max_t(unsigned long, bss_len + stack_len,
+			relocs * sizeof(unsigned long));
 
 	/*
 	 * there are a couple of cases here,  the separate code/data
@@ -546,7 +548,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 			PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE, 0);
 		/* Remap to use all availabe slack region space */
 		if (realdatastart && (realdatastart < (unsigned long)-4096)) {
-			reallen = ksize(realdatastart);
+			reallen = ksize((void *)realdatastart);
 			if (reallen > len) {
 				realdatastart = do_mremap(realdatastart, len,
 					reallen, MREMAP_FIXED, realdatastart);
@@ -598,7 +600,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 			PROT_READ | PROT_EXEC | PROT_WRITE, MAP_PRIVATE, 0);
 		/* Remap to use all availabe slack region space */
 		if (textpos && (textpos < (unsigned long) -4096)) {
-			reallen = ksize(textpos);
+			reallen = ksize((void *)textpos);
 			if (reallen > len) {
 				textpos = do_mremap(textpos, len, reallen,
 					MREMAP_FIXED, textpos);
