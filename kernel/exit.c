@@ -1201,7 +1201,7 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 		return 0;
 	}
 
-	if (likely(p->real_parent == p->parent) && likely(p->signal)) {
+	if (likely(p->real_parent == p->parent)) {
 		struct signal_struct *psig;
 		struct signal_struct *sig;
 
