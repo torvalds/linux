@@ -1762,14 +1762,27 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		goto fail_unlock;
 
  	if (ispipe) {
-		core_limit = RLIM_INFINITY;
 		helper_argv = argv_split(GFP_KERNEL, corename+1, &helper_argc);
 		/* Terminate the string before the first option */
 		delimit = strchr(corename, ' ');
 		if (delimit)
 			*delimit = '\0';
+		delimit = strrchr(helper_argv[0], '/');
+		if (delimit)
+			delimit++;
+		else
+			delimit = helper_argv[0];
+		if (!strcmp(delimit, current->comm)) {
+			printk(KERN_NOTICE "Recursive core dump detected, "
+					"aborting\n");
+			goto fail_unlock;
+		}
+
+		core_limit = RLIM_INFINITY;
+
 		/* SIGPIPE can happen, but it's just never processed */
- 		if(call_usermodehelper_pipe(corename+1, helper_argv, NULL, &file)) {
+ 		if (call_usermodehelper_pipe(corename+1, helper_argv, NULL,
+				&file)) {
  			printk(KERN_INFO "Core dump to %s pipe failed\n",
 			       corename);
  			goto fail_unlock;
