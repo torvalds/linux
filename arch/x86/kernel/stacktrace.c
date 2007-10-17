@@ -33,7 +33,7 @@ static void save_stack_address(void *data, unsigned long addr)
 		trace->entries[trace->nr_entries++] = addr;
 }
 
-static struct stacktrace_ops save_stack_ops = {
+static const struct stacktrace_ops save_stack_ops = {
 	.warning = save_stack_warning,
 	.warning_symbol = save_stack_warning_symbol,
 	.stack = save_stack_stack,

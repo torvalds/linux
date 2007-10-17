@@ -215,7 +215,7 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 
 void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 		unsigned long *stack,
-		struct stacktrace_ops *ops, void *data)
+		const struct stacktrace_ops *ops, void *data)
 {
 	const unsigned cpu = get_cpu();
 	unsigned long *irqstack_end = (unsigned long*)cpu_pda(cpu)->irqstackptr;
@@ -336,7 +336,7 @@ static void print_trace_address(void *data, unsigned long addr)
 	printk_address(addr);
 }
 
-static struct stacktrace_ops print_trace_ops = {
+static const struct stacktrace_ops print_trace_ops = {
 	.warning = print_trace_warning,
 	.warning_symbol = print_trace_warning_symbol,
 	.stack = print_trace_stack,
