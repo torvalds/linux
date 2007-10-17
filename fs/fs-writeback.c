@@ -308,7 +308,7 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		struct address_space *mapping = inode->i_mapping;
 		int ret;
 
-		list_move(&inode->i_list, &inode->i_sb->s_dirty);
+		redirty_tail(inode);
 
 		/*
 		 * Even if we don't actually write the inode itself here,
