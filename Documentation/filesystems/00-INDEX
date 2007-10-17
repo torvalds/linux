@@ -44,10 +44,16 @@ files.txt
 	- info on file management in the Linux kernel.
 fuse.txt
 	- info on the Filesystem in User SpacE including mount options.
+gfs2.txt
+	- info on the Global File System 2.
 hfs.txt
 	- info on the Macintosh HFS Filesystem for Linux.
+hfsplus.txt
+	- info on the Macintosh HFSPlus Filesystem for Linux.
 hpfs.txt
 	- info and mount options for the OS/2 HPFS.
+inotify.txt
+	- info on the powerful yet simple file change notification system.
 isofs.txt
 	- info and mount options for the ISO 9660 (CDROM) filesystem.
 jfs.txt
