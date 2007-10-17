@@ -1352,6 +1352,7 @@ new_segment:
 			sg = next_sg;
 			next_sg = sg_next(sg);
 
+			memset(sg, 0, sizeof(*sg));
 			sg->page = bvec->bv_page;
 			sg->length = nbytes;
 			sg->offset = bvec->bv_offset;
