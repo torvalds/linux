@@ -30,6 +30,12 @@ struct x8664_pda {
 	struct mm_struct *active_mm;
 	unsigned apic_timer_irqs;
 	unsigned irq0_irqs;
+	unsigned irq_resched_count;
+	unsigned irq_call_count;
+	unsigned irq_tlb_count;
+	unsigned irq_thermal_count;
+	unsigned irq_threshold_count;
+	unsigned irq_spurious_count;
 } ____cacheline_aligned_in_smp;
 
 extern struct x8664_pda *_cpu_pda[];

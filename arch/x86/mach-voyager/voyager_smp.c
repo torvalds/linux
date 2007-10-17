@@ -1037,6 +1037,7 @@ smp_call_function_interrupt(void)
 	 */
 	irq_enter();
 	(*func)(info);
+	__get_cpu_var(irq_stat).irq_call_count++;
 	irq_exit();
 	if (wait) {
 		mb();

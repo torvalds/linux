@@ -1140,6 +1140,7 @@ asmlinkage void smp_spurious_interrupt(void)
 	if (v & (1 << (SPURIOUS_APIC_VECTOR & 0x1f)))
 		ack_APIC_irq();
 
+	add_pda(irq_spurious_count, 1);
 	irq_exit();
 }
 

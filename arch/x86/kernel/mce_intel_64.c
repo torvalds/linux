@@ -26,6 +26,7 @@ asmlinkage void smp_thermal_interrupt(void)
 	if (therm_throt_process(msr_val & 1))
 		mce_log_therm_throt_event(smp_processor_id(), msr_val);
 
+	add_pda(irq_thermal_count, 1);
 	irq_exit();
 }
 

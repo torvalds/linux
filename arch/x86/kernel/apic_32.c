@@ -1277,6 +1277,7 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
 	printk(KERN_INFO "spurious APIC interrupt on CPU#%d, "
 	       "should never happen.\n", smp_processor_id());
+	__get_cpu_var(irq_stat).irq_spurious_count++;
 	irq_exit();
 }
 
