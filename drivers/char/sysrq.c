@@ -36,6 +36,7 @@
 #include <linux/kexec.h>
 #include <linux/irq.h>
 #include <linux/hrtimer.h>
+#include <linux/oom.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
