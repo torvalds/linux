@@ -1108,7 +1108,7 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 	unsigned long nr_to_scan;
 	unsigned long nr_reclaimed = 0;
 
-	atomic_inc(&zone->reclaim_in_progress);
+	zone_set_flag(zone, ZONE_RECLAIM_LOCKED);
 
 	/*
 	 * Add one to `nr_to_scan' just to make sure that the kernel will
@@ -1149,7 +1149,7 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 
 	throttle_vm_writeout(sc->gfp_mask);
 
-	atomic_dec(&zone->reclaim_in_progress);
+	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
 	return nr_reclaimed;
 }
 
@@ -1187,7 +1187,7 @@ static unsigned long shrink_zones(int priority, struct zone **zones,
 
 		note_zone_scanning_priority(zone, priority);
 
-		if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+		if (zone_is_all_unreclaimable(zone) && priority != DEF_PRIORITY)
 			continue;	/* Let kswapd poll it */
 
 		sc->all_unreclaimable = 0;
@@ -1368,7 +1368,8 @@ loop_again:
 			if (!populated_zone(zone))
 				continue;
 
-			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+			if (zone_is_all_unreclaimable(zone) &&
+			    priority != DEF_PRIORITY)
 				continue;
 
 			if (!zone_watermark_ok(zone, order, zone->pages_high,
@@ -1403,7 +1404,8 @@ loop_again:
 			if (!populated_zone(zone))
 				continue;
 
-			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+			if (zone_is_all_unreclaimable(zone) &&
+					priority != DEF_PRIORITY)
 				continue;
 
 			if (!zone_watermark_ok(zone, order, zone->pages_high,
@@ -1424,12 +1426,13 @@ loop_again:
 						lru_pages);
 			nr_reclaimed += reclaim_state->reclaimed_slab;
 			total_scanned += sc.nr_scanned;
-			if (zone->all_unreclaimable)
+			if (zone_is_all_unreclaimable(zone))
 				continue;
 			if (nr_slab == 0 && zone->pages_scanned >=
 				(zone_page_state(zone, NR_ACTIVE)
 				+ zone_page_state(zone, NR_INACTIVE)) * 6)
-					zone->all_unreclaimable = 1;
+					zone_set_flag(zone,
+						      ZONE_ALL_UNRECLAIMABLE);
 			/*
 			 * If we've done a decent amount of scanning and
 			 * the reclaim ratio is low, start doing writepage
@@ -1595,7 +1598,7 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
 		if (!populated_zone(zone))
 			continue;
 
-		if (zone->all_unreclaimable && prio != DEF_PRIORITY)
+		if (zone_is_all_unreclaimable(zone) && prio != DEF_PRIORITY)
 			continue;
 
 		/* For pass = 0 we don't shrink the active list */
@@ -1919,10 +1922,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	 * not have reclaimable pages and if we should not delay the allocation
 	 * then do not scan.
 	 */
-	if (!(gfp_mask & __GFP_WAIT) ||
-		zone->all_unreclaimable ||
-		atomic_read(&zone->reclaim_in_progress) > 0 ||
-		(current->flags & PF_MEMALLOC))
+	if (!(gfp_mask & __GFP_WAIT) || zone_is_all_unreclaimable(zone) ||
+		zone_is_reclaim_locked(zone) || (current->flags & PF_MEMALLOC))
 			return 0;
 
 	/*

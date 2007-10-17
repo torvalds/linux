@@ -7,6 +7,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/wait.h>
+#include <linux/bitops.h>
 #include <linux/cache.h>
 #include <linux/threads.h>
 #include <linux/numa.h>
@@ -262,10 +263,7 @@ struct zone {
 	unsigned long		nr_scan_active;
 	unsigned long		nr_scan_inactive;
 	unsigned long		pages_scanned;	   /* since last reclaim */
-	int			all_unreclaimable; /* All pages pinned */
-
-	/* A count of how many reclaimers are scanning this zone */
-	atomic_t		reclaim_in_progress;
+	unsigned long		flags;		   /* zone flags, see below */
 
 	/* Zone statistics */
 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
@@ -342,6 +340,29 @@ struct zone {
 	 */
 	const char		*name;
 } ____cacheline_internodealigned_in_smp;
+
+typedef enum {
+	ZONE_ALL_UNRECLAIMABLE,		/* all pages pinned */
+	ZONE_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
+} zone_flags_t;
+
+static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
+{
+	set_bit(flag, &zone->flags);
+}
+static inline void zone_clear_flag(struct zone *zone, zone_flags_t flag)
+{
+	clear_bit(flag, &zone->flags);
+}
+
+static inline int zone_is_all_unreclaimable(const struct zone *zone)
+{
+	return test_bit(ZONE_ALL_UNRECLAIMABLE, &zone->flags);
+}
+static inline int zone_is_reclaim_locked(const struct zone *zone)
+{
+	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
+}
 
 /*
  * The "priority" of VM scanning is how much of the queues we will scan in one
