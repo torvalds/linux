@@ -831,12 +831,13 @@ config CRASH_DUMP
 	depends on HIGHMEM
 	help
 	  Generate crash dump after being started by kexec.
-          This should be normally only set in special crash dump kernels
+	  This should be normally only set in special crash dump kernels
 	  which are loaded in the main kernel with kexec-tools into
 	  a specially reserved region and then later executed after
 	  a crash by kdump/kexec. The crash dump kernel must be compiled
-          to a memory address not used by the main kernel or BIOS using
-          PHYSICAL_START.
+	  to a memory address not used by the main kernel or BIOS using
+	  PHYSICAL_START, or it must be built as a relocatable image
+	  (CONFIG_RELOCATABLE=y).
 	  For more details see Documentation/kdump/kdump.txt
 
 config PHYSICAL_START
@@ -882,17 +883,17 @@ config PHYSICAL_START
 	  Don't change this unless you know what you are doing.
 
 config RELOCATABLE
-	bool "Build a relocatable kernel(EXPERIMENTAL)"
+	bool "Build a relocatable kernel (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	help
 	  This builds a kernel image that retains relocation information
-          so it can be loaded someplace besides the default 1MB.
+	  so it can be loaded someplace besides the default 1MB.
 	  The relocations tend to make the kernel binary about 10% larger,
-          but are discarded at runtime.
+	  but are discarded at runtime.
 
 	  One use is for the kexec on panic case where the recovery kernel
-          must live at a different physical address than the primary
-          kernel.
+	  must live at a different physical address than the primary
+	  kernel.
 
 config PHYSICAL_ALIGN
 	hex "Alignment value to which kernel should be aligned"
