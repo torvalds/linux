@@ -752,15 +752,6 @@ static int de_thread(struct task_struct *tsk)
 	struct task_struct *leader = NULL;
 	int count;
 
-	/*
-	 * If we don't share sighandlers, then we aren't sharing anything
-	 * and we can just re-use it all.
-	 */
-	if (atomic_read(&oldsighand->count) <= 1) {
-		exit_itimers(sig);
-		return 0;
-	}
-
 	if (thread_group_empty(tsk))
 		goto no_thread_group;
 
