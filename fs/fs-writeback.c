@@ -141,6 +141,30 @@ static int write_inode(struct inode *inode, int sync)
 }
 
 /*
+ * Redirty an inode: set its when-it-was dirtied timestamp and move it to the
+ * furthest end of its superblock's dirty-inode list.
+ *
+ * Before stamping the inode's ->dirtied_when, we check to see whether it is
+ * already the most-recently-dirtied inode on the s_dirty list.  If that is
+ * the case then the inode must have been redirtied while it was being written
+ * out and we don't reset its dirtied_when.
+ */
+static void redirty_tail(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+
+	if (!list_empty(&sb->s_dirty)) {
+		struct inode *tail_inode;
+
+		tail_inode = list_entry(sb->s_dirty.next, struct inode, i_list);
+		if (!time_after_eq(inode->dirtied_when,
+				tail_inode->dirtied_when))
+			inode->dirtied_when = jiffies;
+	}
+	list_move(&inode->i_list, &sb->s_dirty);
+}
+
+/*
  * Write a single inode's dirty pages and inode data out to disk.
  * If `wait' is set, wait on the writeout.
  *
@@ -219,7 +243,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 			 * Someone redirtied the inode while were writing back
 			 * the pages.
 			 */
-			list_move(&inode->i_list, &sb->s_dirty);
+			redirty_tail(inode);
 		} else if (atomic_read(&inode->i_count)) {
 			/*
 			 * The inode is clean, inuse
