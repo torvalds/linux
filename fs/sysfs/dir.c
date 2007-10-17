@@ -112,8 +112,7 @@ struct dentry *sysfs_get_dentry(struct sysfs_dirent *sd)
 		/* look it up */
 		parent = dentry;
 		mutex_lock(&parent->d_inode->i_mutex);
-		dentry = lookup_one_len_kern(cur->s_name, parent,
-					     strlen(cur->s_name));
+		dentry = lookup_one_noperm(cur->s_name, parent);
 		mutex_unlock(&parent->d_inode->i_mutex);
 		dput(parent);
 
