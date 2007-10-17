@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <asm/semaphore.h>
 #include <asm/checksum.h>
 #include <asm/desc.h>
 
