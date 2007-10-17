@@ -124,7 +124,7 @@ static int reserve_blocks(struct super_block *sb, int count)
 			return 0;
 	}
 
-	percpu_counter_add(&sbi->s_freeblocks_counter, -count);
+	percpu_counter_sub(&sbi->s_freeblocks_counter, count);
 	sb->s_dirt = 1;
 	return count;
 }
