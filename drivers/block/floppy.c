@@ -4388,11 +4388,15 @@ static int floppy_grab_irq_and_dma(void)
 	if (fd_request_dma()) {
 		DPRINT("Unable to grab DMA%d for the floppy driver\n",
 		       FLOPPY_DMA);
-		fd_free_irq();
-		spin_lock_irqsave(&floppy_usage_lock, flags);
-		usage_count--;
-		spin_unlock_irqrestore(&floppy_usage_lock, flags);
-		return -1;
+		if (can_use_virtual_dma & 2)
+			use_virtual_dma = can_use_virtual_dma = 1;
+		if (!(can_use_virtual_dma & 1)) {
+			fd_free_irq();
+			spin_lock_irqsave(&floppy_usage_lock, flags);
+			usage_count--;
+			spin_unlock_irqrestore(&floppy_usage_lock, flags);
+			return -1;
+		}
 	}
 
 	for (fdc = 0; fdc < N_FDC; fdc++) {
