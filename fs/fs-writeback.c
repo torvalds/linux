@@ -354,7 +354,7 @@ sync_sb_inodes(struct super_block *sb, struct writeback_control *wbc)
 		long pages_skipped;
 
 		if (!bdi_cap_writeback_dirty(bdi)) {
-			list_move(&inode->i_list, &sb->s_dirty);
+			redirty_tail(inode);
 			if (sb_is_blkdev_sb(sb)) {
 				/*
 				 * Dirty memory-backed blockdev: the ramdisk
