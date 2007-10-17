@@ -87,7 +87,7 @@ void fuse_finish_open(struct inode *inode, struct file *file,
 	if (outarg->open_flags & FOPEN_DIRECT_IO)
 		file->f_op = &fuse_direct_io_file_operations;
 	if (!(outarg->open_flags & FOPEN_KEEP_CACHE))
-		invalidate_mapping_pages(inode->i_mapping, 0, -1);
+		invalidate_inode_pages2(inode->i_mapping);
 	ff->fh = outarg->fh;
 	file->private_data = fuse_file_get(ff);
 }

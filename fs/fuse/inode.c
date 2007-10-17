@@ -143,7 +143,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 	if (S_ISREG(inode->i_mode) && oldsize != attr->size) {
 		if (attr->size < oldsize)
 			fuse_truncate(inode->i_mapping, attr->size);
-		invalidate_mapping_pages(inode->i_mapping, 0, -1);
+		invalidate_inode_pages2(inode->i_mapping);
 	}
 }
 
