@@ -805,8 +805,8 @@ v9fs_stat2inode(struct p9_stat *stat, struct inode *inode,
 	inode->i_mtime.tv_sec = stat->mtime;
 	inode->i_ctime.tv_sec = stat->mtime;
 
-	inode->i_uid = v9ses->uid;
-	inode->i_gid = v9ses->gid;
+	inode->i_uid = v9ses->dfltuid;
+	inode->i_gid = v9ses->dfltgid;
 
 	if (v9fs_extended(v9ses)) {
 		inode->i_uid = stat->n_uid;

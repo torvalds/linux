@@ -38,8 +38,8 @@ struct v9fs_session_info {
 	char *options;		/* copy of mount options */
 	char *name;		/* user name to mount as */
 	char *remotename;	/* name of remote hierarchy being mounted */
-	unsigned int uid;	/* default uid/muid for legacy support */
-	unsigned int gid;	/* default gid for legacy support */
+	unsigned int dfltuid;	/* default uid/muid for legacy support */
+	unsigned int dfltgid;	/* default gid for legacy support */
 	struct p9_trans_module *trans; /* 9p transport */
 	struct p9_client *clnt;	/* 9p client */
 	struct dentry *debugfs_dir;
@@ -67,9 +67,11 @@ void v9fs_session_cancel(struct v9fs_session_info *v9ses);
 #define V9FS_MAGIC 0x01021997
 
 /* other default globals */
-#define V9FS_PORT		564
+#define V9FS_PORT	564
 #define V9FS_DEFUSER	"nobody"
 #define V9FS_DEFANAME	""
+#define V9FS_DEFUID	(-2)
+#define V9FS_DEFGID	(-2)
 
 static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
 {

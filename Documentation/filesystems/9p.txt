@@ -78,9 +78,9 @@ OPTIONS
 
   noextend	force legacy mode (no 9p2000.u semantics)
 
-  uid		attempt to mount as a particular uid
+  dfltuid	attempt to mount as a particular uid
 
-  gid		attempt to mount with a particular gid
+  dfltgid	attempt to mount with a particular gid
 
   afid		security channel - used by Plan 9 authentication protocols
 

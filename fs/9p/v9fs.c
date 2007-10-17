@@ -84,7 +84,7 @@ static struct p9_trans_module *v9fs_match_trans(const substring_t *name)
 
 enum {
 	/* Options that take integer arguments */
-	Opt_debug, Opt_msize, Opt_uid, Opt_gid, Opt_afid,
+	Opt_debug, Opt_msize, Opt_dfltuid, Opt_dfltgid, Opt_afid,
 	/* String options */
 	Opt_uname, Opt_remotename, Opt_trans,
 	/* Options that take no arguments */
@@ -98,8 +98,8 @@ enum {
 static match_table_t tokens = {
 	{Opt_debug, "debug=%x"},
 	{Opt_msize, "msize=%u"},
-	{Opt_uid, "uid=%u"},
-	{Opt_gid, "gid=%u"},
+	{Opt_dfltuid, "dfltuid=%u"},
+	{Opt_dfltgid, "dfltgid=%u"},
 	{Opt_afid, "afid=%u"},
 	{Opt_uname, "uname=%s"},
 	{Opt_remotename, "aname=%s"},
@@ -159,11 +159,11 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 		case Opt_msize:
 			v9ses->maxdata = option;
 			break;
-		case Opt_uid:
-			v9ses->uid = option;
+		case Opt_dfltuid:
+			v9ses->dfltuid = option;
 			break;
-		case Opt_gid:
-			v9ses->gid = option;
+		case Opt_dfltgid:
+			v9ses->dfltgid = option;
 			break;
 		case Opt_afid:
 			v9ses->afid = option;
@@ -219,6 +219,8 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 
 	strcpy(v9ses->name, V9FS_DEFUSER);
 	strcpy(v9ses->remotename, V9FS_DEFANAME);
+	v9ses->dfltuid = V9FS_DEFUID;
+	v9ses->dfltgid = V9FS_DEFGID;
 
 	v9ses->options = kstrdup(data, GFP_KERNEL);
 	v9fs_parse_options(v9ses);
