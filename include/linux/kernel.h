@@ -251,19 +251,31 @@ extern void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
 			const void *buf, size_t len);
 #define hex_asc(x)	"0123456789abcdef"[x]
 
+#define pr_emerg(fmt, arg...) \
+	printk(KERN_EMERG fmt, ##arg)
+#define pr_alert(fmt, arg...) \
+	printk(KERN_ALERT fmt, ##arg)
+#define pr_crit(fmt, arg...) \
+	printk(KERN_CRIT fmt, ##arg)
+#define pr_err(fmt, arg...) \
+	printk(KERN_ERR fmt, ##arg)
+#define pr_warning(fmt, arg...) \
+	printk(KERN_WARNING fmt, ##arg)
+#define pr_notice(fmt, arg...) \
+	printk(KERN_NOTICE fmt, ##arg)
+#define pr_info(fmt, arg...) \
+	printk(KERN_INFO fmt, ##arg)
+
 #ifdef DEBUG
 /* If you are writing a driver, please use dev_dbg instead */
-#define pr_debug(fmt,arg...) \
-	printk(KERN_DEBUG fmt,##arg)
+#define pr_debug(fmt, arg...) \
+	printk(KERN_DEBUG fmt, ##arg)
 #else
 static inline int __attribute__ ((format (printf, 1, 2))) pr_debug(const char * fmt, ...)
 {
 	return 0;
 }
 #endif
-
-#define pr_info(fmt,arg...) \
-	printk(KERN_INFO fmt,##arg)
 
 /*
  *      Display an IP address in readable format.

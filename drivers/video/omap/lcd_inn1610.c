@@ -27,20 +27,18 @@
 
 #define MODULE_NAME	"omapfb-lcd_h3"
 
-#define pr_err(fmt, args...) printk(KERN_ERR MODULE_NAME ": " fmt, ## args)
-
 static int innovator1610_panel_init(struct lcd_panel *panel,
 				    struct omapfb_device *fbdev)
 {
 	int r = 0;
 
 	if (omap_request_gpio(14)) {
-		pr_err("can't request GPIO 14\n");
+		pr_err(MODULE_NAME ": can't request GPIO 14\n");
 		r = -1;
 		goto exit;
 	}
 	if (omap_request_gpio(15)) {
-		pr_err("can't request GPIO 15\n");
+		pr_err(MODULE_NAME ": can't request GPIO 15\n");
 		omap_free_gpio(14);
 		r = -1;
 		goto exit;

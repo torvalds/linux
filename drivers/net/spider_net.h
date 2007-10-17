@@ -494,7 +494,4 @@ struct spider_net_card {
 	struct spider_net_descr darray[0];
 };
 
-#define pr_err(fmt,arg...) \
-	printk(KERN_ERR fmt ,##arg)
-
 #endif
