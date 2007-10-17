@@ -33,7 +33,7 @@ static char zisofs_sink_page[PAGE_CACHE_SIZE];
  * allocation; this avoids failures at block-decompression time.
  */
 static void *zisofs_zlib_workspace;
-static struct semaphore zisofs_zlib_semaphore;
+static DEFINE_MUTEX(zisofs_zlib_lock);
 
 /*
  * When decompressing, we typically obtain more than one page
@@ -180,9 +180,9 @@ static int zisofs_readpage(struct file *file, struct page *page)
 
 		/* First block is special since it may be fractional.
 		   We also wait for it before grabbing the zlib
-		   semaphore; odds are that the subsequent blocks are
+		   mutex; odds are that the subsequent blocks are
 		   going to come in in short order so we don't hold
-		   the zlib semaphore longer than necessary. */
+		   the zlib mutex longer than necessary. */
 
 		if ( !bh || (wait_on_buffer(bh), !buffer_uptodate(bh)) ) {
 			printk(KERN_DEBUG "zisofs: Hit null buffer, fpage = %d, xpage = %d, csize = %ld\n",
@@ -194,7 +194,7 @@ static int zisofs_readpage(struct file *file, struct page *page)
 		csize -= stream.avail_in;
 
 		stream.workspace = zisofs_zlib_workspace;
-		down(&zisofs_zlib_semaphore);
+		mutex_lock(&zisofs_zlib_lock);
 		
 		zerr = zlib_inflateInit(&stream);
 		if ( zerr != Z_OK ) {
@@ -281,7 +281,7 @@ static int zisofs_readpage(struct file *file, struct page *page)
 		zlib_inflateEnd(&stream);
 
 	z_eio:
-		up(&zisofs_zlib_semaphore);
+		mutex_unlock(&zisofs_zlib_lock);
 
 	b_eio:
 		for ( i = 0 ; i < haveblocks ; i++ ) {
@@ -317,31 +317,16 @@ const struct address_space_operations zisofs_aops = {
 	/* No bmap operation supported */
 };
 
-static int initialized;
-
 int __init zisofs_init(void)
 {
-	if ( initialized ) {
-		printk("zisofs_init: called more than once\n");
-		return 0;
-	}
-
 	zisofs_zlib_workspace = vmalloc(zlib_inflate_workspacesize());
 	if ( !zisofs_zlib_workspace )
 		return -ENOMEM;
-	init_MUTEX(&zisofs_zlib_semaphore);
 
-	initialized = 1;
 	return 0;
 }
 
 void zisofs_cleanup(void)
 {
-	if ( !initialized ) {
-		printk("zisofs_cleanup: called without initialization\n");
-		return;
-	}
-
 	vfree(zisofs_zlib_workspace);
-	initialized = 0;
 }
