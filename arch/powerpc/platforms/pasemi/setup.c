@@ -37,6 +37,10 @@
 #include <asm/time.h>
 #include <asm/of_platform.h>
 
+#include <pcmcia/ss.h>
+#include <pcmcia/cistpl.h>
+#include <pcmcia/ds.h>
+
 #include "pasemi.h"
 
 /* SDC reset register, must be pre-mapped at reset time */
@@ -308,7 +312,57 @@ static void __init pas_init_early(void)
 	iommu_init_early_pasemi();
 }
 
+#ifdef CONFIG_PCMCIA
+static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
+			 void *data)
+{
+	struct device *dev = data;
+	struct device *parent;
+	struct pcmcia_device *pdev = to_pcmcia_dev(dev);
+
+	/* We are only intereted in device addition */
+	if (action != BUS_NOTIFY_ADD_DEVICE)
+		return 0;
+
+	parent = pdev->socket->dev.parent;
+
+	/* We know electra_cf devices will always have of_node set, since
+	 * electra_cf is an of_platform driver.
+	 */
+	if (!parent->archdata.of_node)
+		return 0;
+
+	if (!of_device_is_compatible(parent->archdata.of_node, "electra-cf"))
+		return 0;
+
+	/* We use the direct ops for localbus */
+	dev->archdata.dma_ops = &dma_direct_ops;
+
+	return 0;
+}
+
+static struct notifier_block pcmcia_notifier = {
+	.notifier_call = pcmcia_notify,
+};
+
+static inline void pasemi_pcmcia_init(void)
+{
+	extern struct bus_type pcmcia_bus_type;
+
+	bus_register_notifier(&pcmcia_bus_type, &pcmcia_notifier);
+}
+
+#else
+
+static inline void pasemi_pcmcia_init(void)
+{
+}
+
+#endif
+
+
 static struct of_device_id pasemi_bus_ids[] = {
+	{ .type = "localbus", },
 	{ .type = "sdc", },
 	{},
 };
@@ -317,6 +371,8 @@ static int __init pasemi_publish_devices(void)
 {
 	if (!machine_is(pasemi))
 		return 0;
+
+	pasemi_pcmcia_init();
 
 	/* Publish OF platform devices for SDC and other non-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
