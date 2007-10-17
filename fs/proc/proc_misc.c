@@ -526,11 +526,8 @@ static int show_stat(struct seq_file *p, void *v)
 	}
 	seq_printf(p, "intr %llu", (unsigned long long)sum);
 
-#ifndef CONFIG_SMP
-	/* Touches too many cache lines on SMP setups */
 	for (i = 0; i < NR_IRQS; i++)
 		seq_printf(p, " %u", per_irq_sum[i]);
-#endif
 
 	seq_printf(p,
 		"\nctxt %llu\n"
