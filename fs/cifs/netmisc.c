@@ -899,8 +899,11 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 		cERROR(1, ("illegal hours %d", st->Hours));
 	days = sd->Day;
 	month = sd->Month;
-	if ((days > 31) || (month > 12))
+	if ((days > 31) || (month > 12)) {
 		cERROR(1, ("illegal date, month %d day: %d", month, days));
+		if (month > 12)
+			month = 12;
+	}
 	month -= 1;
 	days += total_days_of_prev_months[month];
 	days += 3652; /* account for difference in days between 1980 and 1970 */
