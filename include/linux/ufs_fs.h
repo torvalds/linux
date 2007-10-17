@@ -170,8 +170,9 @@ typedef __u16 __bitwise __fs16;
 #define UFS_ST_MASK		0x00000700	/* mask for the following */
 #define UFS_ST_OLD		0x00000000
 #define UFS_ST_44BSD		0x00000100
-#define UFS_ST_SUN		0x00000200
-#define UFS_ST_SUNx86		0x00000400
+#define UFS_ST_SUN		0x00000200 /* Solaris */
+#define UFS_ST_SUNOS		0x00000300
+#define UFS_ST_SUNx86		0x00000400 /* Solaris x86 */
 /*cylinder group encoding */
 #define UFS_CG_MASK		0x00003000	/* mask for the following */
 #define UFS_CG_OLD		0x00000000
@@ -204,6 +205,7 @@ typedef __u16 __bitwise __fs16;
 #define UFS_MOUNT_UFSTYPE_SUNx86	0x00000400
 #define UFS_MOUNT_UFSTYPE_HP	        0x00000800
 #define UFS_MOUNT_UFSTYPE_UFS2		0x00001000
+#define UFS_MOUNT_UFSTYPE_SUNOS		0x00002000
 
 #define ufs_clear_opt(o,opt)	o &= ~UFS_MOUNT_##opt
 #define ufs_set_opt(o,opt)	o |= UFS_MOUNT_##opt
@@ -374,7 +376,14 @@ struct ufs_csum_core {
  * struct ufs_super_block_(first,second,third) instead.
  */
 struct ufs_super_block {
-	__fs32	fs_link;	/* UNUSED */
+	union {
+		struct {
+			__fs32	fs_link;	/* UNUSED */
+		} fs_42;
+		struct {
+			__fs32	fs_state;	/* file system state flag */
+		} fs_sun;
+	} fs_u0;
 	__fs32	fs_rlink;	/* UNUSED */
 	__fs32	fs_sblkno;	/* addr of super-block in filesys */
 	__fs32	fs_cblkno;	/* offset of cyl-block in filesys */
@@ -545,6 +554,15 @@ struct ufs_super_block {
 #define	CG_MAGIC	0x090255
 #define ufs_cg_chkmagic(sb, ucg) \
 	(fs32_to_cpu((sb), (ucg)->cg_magic) == CG_MAGIC)
+/*
+ * Macros for access to old cylinder group array structures
+ */
+#define ufs_ocg_blktot(sb, ucg)      fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_btot)
+#define ufs_ocg_blks(sb, ucg, cylno) fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_b[cylno])
+#define ufs_ocg_inosused(sb, ucg)    fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_iused)
+#define ufs_ocg_blksfree(sb, ucg)    fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_free)
+#define ufs_ocg_chkmagic(sb, ucg) \
+	(fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_magic) == CG_MAGIC)
 
 /*
  * size of this structure is 172 B
@@ -587,6 +605,28 @@ struct	ufs_cylinder_group {
 		__fs32	cg_sparecon[16];	/* reserved for future use */
 	} cg_u;
 	__u8	cg_space[1];		/* space for cylinder group maps */
+/* actually longer */
+};
+
+/* Historic Cylinder group info */
+struct ufs_old_cylinder_group {
+	__fs32	cg_link;		/* linked list of cyl groups */
+	__fs32	cg_rlink;		/* for incore cyl groups     */
+	__fs32	cg_time;		/* time last written */
+	__fs32	cg_cgx;			/* we are the cgx'th cylinder group */
+	__fs16	cg_ncyl;		/* number of cyl's this cg */
+	__fs16	cg_niblk;		/* number of inode blocks this cg */
+	__fs32	cg_ndblk;		/* number of data blocks this cg */
+	struct	ufs_csum cg_cs;		/* cylinder summary information */
+	__fs32	cg_rotor;		/* position of last used block */
+	__fs32	cg_frotor;		/* position of last used frag */
+	__fs32	cg_irotor;		/* position of last used inode */
+	__fs32	cg_frsum[8];		/* counts of available frags */
+	__fs32	cg_btot[32];		/* block totals per cylinder */
+	__fs16	cg_b[32][8];		/* positions of free blocks */
+	__u8	cg_iused[256];		/* used inode map */
+	__fs32	cg_magic;		/* magic number */
+	__u8	cg_free[1];		/* free block map */
 /* actually longer */
 };
 
@@ -796,7 +836,14 @@ struct ufs_sb_private_info {
  *	ufs_super_block_third	356
  */
 struct ufs_super_block_first {
-	__fs32	fs_link;
+	union {
+		struct {
+			__fs32	fs_link;	/* UNUSED */
+		} fs_42;
+		struct {
+			__fs32	fs_state;	/* file system state flag */
+		} fs_sun;
+	} fs_u0;
 	__fs32	fs_rlink;
 	__fs32	fs_sblkno;
 	__fs32	fs_cblkno;

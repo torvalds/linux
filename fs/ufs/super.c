@@ -286,7 +286,7 @@ void ufs_warning (struct super_block * sb, const char * function,
 }
 
 enum {
-	Opt_type_old, Opt_type_sunx86, Opt_type_sun, Opt_type_44bsd,
+	Opt_type_old, Opt_type_sunx86, Opt_type_sun, Opt_type_sunos, Opt_type_44bsd,
 	Opt_type_ufs2, Opt_type_hp, Opt_type_nextstepcd, Opt_type_nextstep,
 	Opt_type_openstep, Opt_onerror_panic, Opt_onerror_lock,
 	Opt_onerror_umount, Opt_onerror_repair, Opt_err
@@ -296,6 +296,7 @@ static match_table_t tokens = {
 	{Opt_type_old, "ufstype=old"},
 	{Opt_type_sunx86, "ufstype=sunx86"},
 	{Opt_type_sun, "ufstype=sun"},
+	{Opt_type_sunos, "ufstype=sunos"},
 	{Opt_type_44bsd, "ufstype=44bsd"},
 	{Opt_type_ufs2, "ufstype=ufs2"},
 	{Opt_type_ufs2, "ufstype=5xbsd"},
@@ -338,6 +339,10 @@ static int ufs_parse_options (char * options, unsigned * mount_options)
 		case Opt_type_sun:
 			ufs_clear_opt (*mount_options, UFSTYPE);
 			ufs_set_opt (*mount_options, UFSTYPE_SUN);
+			break;
+		case Opt_type_sunos:
+			ufs_clear_opt(*mount_options, UFSTYPE);
+			ufs_set_opt(*mount_options, UFSTYPE_SUNOS);
 			break;
 		case Opt_type_44bsd:
 			ufs_clear_opt (*mount_options, UFSTYPE);
@@ -654,8 +659,8 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		ufs_set_opt (sbi->s_mount_opt, UFSTYPE_OLD);
 	}
 
-	sbi->s_uspi = uspi =
-		kmalloc (sizeof(struct ufs_sb_private_info), GFP_KERNEL);
+	uspi = kzalloc(sizeof(struct ufs_sb_private_info), GFP_KERNEL);
+	sbi->s_uspi = uspi;
 	if (!uspi)
 		goto failed;
 	uspi->s_dirblksize = UFS_SECTOR_SIZE;
@@ -692,8 +697,20 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_fshift = 10;
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
-		uspi->s_maxsymlinklen = 56;
+		uspi->s_maxsymlinklen = 0; /* Not supported on disk */
 		flags |= UFS_DE_OLD | UFS_UID_EFT | UFS_ST_SUN | UFS_CG_SUN;
+		break;
+
+	case UFS_MOUNT_UFSTYPE_SUNOS:
+		UFSD(("ufstype=sunos\n"))
+		uspi->s_fsize = block_size = 1024;
+		uspi->s_fmask = ~(1024 - 1);
+		uspi->s_fshift = 10;
+		uspi->s_sbsize = 2048;
+		super_block_size = 2048;
+		uspi->s_sbbase = 0;
+		uspi->s_maxsymlinklen = 0; /* Not supported on disk */
+		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_SUNOS | UFS_CG_SUN;
 		break;
 
 	case UFS_MOUNT_UFSTYPE_SUNx86:
@@ -703,7 +720,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_fshift = 10;
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
-		uspi->s_maxsymlinklen = 56;
+		uspi->s_maxsymlinklen = 0; /* Not supported on disk */
 		flags |= UFS_DE_OLD | UFS_UID_EFT | UFS_ST_SUNx86 | UFS_CG_SUN;
 		break;
 
@@ -805,10 +822,17 @@ again:
 	if (!ubh) 
             goto failed;
 
-	
 	usb1 = ubh_get_usb_first(uspi);
 	usb2 = ubh_get_usb_second(uspi);
 	usb3 = ubh_get_usb_third(uspi);
+
+	/* Sort out mod used on SunOS 4.1.3 for fs_state */
+	uspi->s_postblformat = fs32_to_cpu(sb, usb3->fs_postblformat);
+	if (((flags & UFS_ST_MASK) == UFS_ST_SUNOS) &&
+	    (uspi->s_postblformat != UFS_42POSTBLFMT)) {
+		flags &= ~UFS_ST_MASK;
+		flags |=  UFS_ST_SUN;
+	}
 
 	/*
 	 * Check ufs magic number
@@ -904,6 +928,7 @@ magic_found:
 	if (((flags & UFS_ST_MASK) == UFS_ST_44BSD) ||
 	  ((flags & UFS_ST_MASK) == UFS_ST_OLD) ||
 	  (((flags & UFS_ST_MASK) == UFS_ST_SUN || 
+	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
 	  (flags & UFS_ST_MASK) == UFS_ST_SUNx86) && 
 	  (ufs_get_fs_state(sb, usb1, usb3) == (UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time))))) {
 		switch(usb1->fs_clean) {
@@ -995,7 +1020,6 @@ magic_found:
 	uspi->s_contigsumsize = fs32_to_cpu(sb, usb3->fs_un2.fs_44.fs_contigsumsize);
 	uspi->s_qbmask = ufs_get_fs_qbmask(sb, usb3);
 	uspi->s_qfmask = ufs_get_fs_qfmask(sb, usb3);
-	uspi->s_postblformat = fs32_to_cpu(sb, usb3->fs_postblformat);
 	uspi->s_nrpos = fs32_to_cpu(sb, usb3->fs_nrpos);
 	uspi->s_postbloff = fs32_to_cpu(sb, usb3->fs_postbloff);
 	uspi->s_rotbloff = fs32_to_cpu(sb, usb3->fs_rotbloff);
@@ -1077,6 +1101,7 @@ static void ufs_write_super(struct super_block *sb)
 	if (!(sb->s_flags & MS_RDONLY)) {
 		usb1->fs_time = cpu_to_fs32(sb, get_seconds());
 		if ((flags & UFS_ST_MASK) == UFS_ST_SUN 
+		  || (flags & UFS_ST_MASK) == UFS_ST_SUNOS
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
 			ufs_set_fs_state(sb, usb1, usb3,
 					UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
@@ -1146,6 +1171,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		ufs_put_super_internal(sb);
 		usb1->fs_time = cpu_to_fs32(sb, get_seconds());
 		if ((flags & UFS_ST_MASK) == UFS_ST_SUN
+		  || (flags & UFS_ST_MASK) == UFS_ST_SUNOS
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNx86) 
 			ufs_set_fs_state(sb, usb1, usb3,
 				UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
@@ -1162,6 +1188,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		return -EINVAL;
 #else
 		if (ufstype != UFS_MOUNT_UFSTYPE_SUN && 
+		    ufstype != UFS_MOUNT_UFSTYPE_SUNOS &&
 		    ufstype != UFS_MOUNT_UFSTYPE_44BSD &&
 		    ufstype != UFS_MOUNT_UFSTYPE_SUNx86 &&
 		    ufstype != UFS_MOUNT_UFSTYPE_UFS2) {

@@ -38,6 +38,10 @@ ufs_get_fs_state(struct super_block *sb, struct ufs_super_block_first *usb1,
 		 struct ufs_super_block_third *usb3)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_ST_MASK) {
+	case UFS_ST_SUNOS:
+		if (fs32_to_cpu(sb, usb3->fs_postblformat) == UFS_42POSTBLFMT)
+			return fs32_to_cpu(sb, usb1->fs_u0.fs_sun.fs_state);
+		/* Fall Through to UFS_ST_SUN */
 	case UFS_ST_SUN:
 		return fs32_to_cpu(sb, usb3->fs_un2.fs_sun.fs_state);
 	case UFS_ST_SUNx86:
@@ -53,6 +57,12 @@ ufs_set_fs_state(struct super_block *sb, struct ufs_super_block_first *usb1,
 		 struct ufs_super_block_third *usb3, s32 value)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_ST_MASK) {
+	case UFS_ST_SUNOS:
+		if (fs32_to_cpu(sb, usb3->fs_postblformat == UFS_42POSTBLFMT)) {
+			usb1->fs_u0.fs_sun.fs_state = cpu_to_fs32(sb, value);
+			break;
+		}
+		/* Fall Through to UFS_ST_SUN */
 	case UFS_ST_SUN:
 		usb3->fs_un2.fs_sun.fs_state = cpu_to_fs32(sb, value);
 		break;
@@ -81,6 +91,7 @@ ufs_get_fs_qbmask(struct super_block *sb, struct ufs_super_block_third *usb3)
 	__fs64 tmp;
 
 	switch (UFS_SB(sb)->s_flags & UFS_ST_MASK) {
+	case UFS_ST_SUNOS:
 	case UFS_ST_SUN:
 		((__fs32 *)&tmp)[0] = usb3->fs_un2.fs_sun.fs_qbmask[0];
 		((__fs32 *)&tmp)[1] = usb3->fs_un2.fs_sun.fs_qbmask[1];
@@ -104,6 +115,7 @@ ufs_get_fs_qfmask(struct super_block *sb, struct ufs_super_block_third *usb3)
 	__fs64 tmp;
 
 	switch (UFS_SB(sb)->s_flags & UFS_ST_MASK) {
+	case UFS_ST_SUNOS:
 	case UFS_ST_SUN:
 		((__fs32 *)&tmp)[0] = usb3->fs_un2.fs_sun.fs_qfmask[0];
 		((__fs32 *)&tmp)[1] = usb3->fs_un2.fs_sun.fs_qfmask[1];
@@ -179,10 +191,12 @@ static inline u32
 ufs_get_inode_uid(struct super_block *sb, struct ufs_inode *inode)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_UID_MASK) {
-	case UFS_UID_EFT:
-		return fs32_to_cpu(sb, inode->ui_u3.ui_sun.ui_uid);
 	case UFS_UID_44BSD:
 		return fs32_to_cpu(sb, inode->ui_u3.ui_44.ui_uid);
+	case UFS_UID_EFT:
+		if (inode->ui_u1.oldids.ui_suid == 0xFFFF)
+			return fs32_to_cpu(sb, inode->ui_u3.ui_sun.ui_uid);
+		/* Fall through */
 	default:
 		return fs16_to_cpu(sb, inode->ui_u1.oldids.ui_suid);
 	}
@@ -192,24 +206,31 @@ static inline void
 ufs_set_inode_uid(struct super_block *sb, struct ufs_inode *inode, u32 value)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_UID_MASK) {
-	case UFS_UID_EFT:
-		inode->ui_u3.ui_sun.ui_uid = cpu_to_fs32(sb, value);
-		break;
 	case UFS_UID_44BSD:
 		inode->ui_u3.ui_44.ui_uid = cpu_to_fs32(sb, value);
+		inode->ui_u1.oldids.ui_suid = cpu_to_fs16(sb, value);
+		break;
+	case UFS_UID_EFT:
+		inode->ui_u3.ui_sun.ui_uid = cpu_to_fs32(sb, value);
+		if (value > 0xFFFF)
+			value = 0xFFFF;
+		/* Fall through */
+	default:
+		inode->ui_u1.oldids.ui_suid = cpu_to_fs16(sb, value);
 		break;
 	}
-	inode->ui_u1.oldids.ui_suid = cpu_to_fs16(sb, value); 
 }
 
 static inline u32
 ufs_get_inode_gid(struct super_block *sb, struct ufs_inode *inode)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_UID_MASK) {
-	case UFS_UID_EFT:
-		return fs32_to_cpu(sb, inode->ui_u3.ui_sun.ui_gid);
 	case UFS_UID_44BSD:
 		return fs32_to_cpu(sb, inode->ui_u3.ui_44.ui_gid);
+	case UFS_UID_EFT:
+		if (inode->ui_u1.oldids.ui_suid == 0xFFFF)
+			return fs32_to_cpu(sb, inode->ui_u3.ui_sun.ui_gid);
+		/* Fall through */
 	default:
 		return fs16_to_cpu(sb, inode->ui_u1.oldids.ui_sgid);
 	}
@@ -219,14 +240,19 @@ static inline void
 ufs_set_inode_gid(struct super_block *sb, struct ufs_inode *inode, u32 value)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_UID_MASK) {
-	case UFS_UID_EFT:
-		inode->ui_u3.ui_sun.ui_gid = cpu_to_fs32(sb, value);
-		break;
 	case UFS_UID_44BSD:
 		inode->ui_u3.ui_44.ui_gid = cpu_to_fs32(sb, value);
+		inode->ui_u1.oldids.ui_sgid =  cpu_to_fs16(sb, value);
+		break;
+	case UFS_UID_EFT:
+		inode->ui_u3.ui_sun.ui_gid = cpu_to_fs32(sb, value);
+		if (value > 0xFFFF)
+			value = 0xFFFF;
+		/* Fall through */
+	default:
+		inode->ui_u1.oldids.ui_sgid =  cpu_to_fs16(sb, value);
 		break;
 	}
-	inode->ui_u1.oldids.ui_sgid =  cpu_to_fs16(sb, value);
 }
 
 extern dev_t ufs_get_inode_dev(struct super_block *, struct ufs_inode_info *);
