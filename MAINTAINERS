@@ -1877,10 +1877,8 @@ T:	quilt kernel.org/pub/linux/kernel/people/bart/pata-2.6/
 S:	Maintained
 
 IDE/ATAPI CDROM DRIVER
-P:	Alan Cox
-M:	alan@lxorguk.ukuu.org.uk
 L:	linux-ide@vger.kernel.org
-S:	Maintained
+S:	Unmaintained
 
 IDE/ATAPI FLOPPY DRIVERS
 P:	Paul Bristow
