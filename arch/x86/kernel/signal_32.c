@@ -385,7 +385,6 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->edx = (unsigned long) 0;
 	regs->ecx = (unsigned long) 0;
 
-	set_fs(USER_DS);
 	regs->xds = __USER_DS;
 	regs->xes = __USER_DS;
 	regs->xss = __USER_DS;
@@ -479,7 +478,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->edx = (unsigned long) &frame->info;
 	regs->ecx = (unsigned long) &frame->uc;
 
-	set_fs(USER_DS);
 	regs->xds = __USER_DS;
 	regs->xes = __USER_DS;
 	regs->xss = __USER_DS;
