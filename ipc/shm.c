@@ -233,7 +233,7 @@ static int shm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 
 #ifdef CONFIG_NUMA
-int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
+static int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
 {
 	struct file *file = vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
@@ -243,7 +243,8 @@ int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
 	return err;
 }
 
-struct mempolicy *shm_get_policy(struct vm_area_struct *vma, unsigned long addr)
+static struct mempolicy *shm_get_policy(struct vm_area_struct *vma,
+					unsigned long addr)
 {
 	struct file *file = vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
