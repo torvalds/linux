@@ -138,12 +138,11 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 		return 0; /* don't care */
 	}
 
-	if ((sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip)) &&
-	    PageChecked(page)) {
-		ClearPageChecked(page);
+	if (PageChecked(page)) {
 		error = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
 		if (error)
 			goto out_ignore;
+		ClearPageChecked(page);
 		if (!page_has_buffers(page)) {
 			create_empty_buffers(page, inode->i_sb->s_blocksize,
 					     (1 << BH_Dirty)|(1 << BH_Uptodate));
@@ -180,9 +179,8 @@ static int gfs2_writepages(struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
-	if (sdp->sd_args.ar_data == GFS2_DATA_WRITEBACK && !gfs2_is_jdata(ip))
+	if (gfs2_is_writeback(ip))
 		return mpage_writepages(mapping, wbc, gfs2_get_block_noalloc);
 
 	return generic_writepages(mapping, wbc);
@@ -606,7 +604,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	if (gfs2_is_stuffed(ip))
 		return gfs2_stuffed_write_end(inode, dibh, pos, len, copied, page);
 
-	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
+	if (!gfs2_is_writeback(ip))
 		gfs2_page_add_databufs(ip, page, from, to);
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);

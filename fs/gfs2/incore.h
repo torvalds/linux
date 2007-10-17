@@ -285,7 +285,7 @@ static inline struct gfs2_inode *GFS2_I(struct inode *inode)
 	return container_of(inode, struct gfs2_inode, i_inode);
 }
 
-static inline struct gfs2_sbd *GFS2_SB(struct inode *inode)
+static inline struct gfs2_sbd *GFS2_SB(const struct inode *inode)
 {
 	return inode->i_sb->s_fs_info;
 }
