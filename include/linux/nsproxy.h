@@ -23,7 +23,6 @@ struct pid_namespace;
  */
 struct nsproxy {
 	atomic_t count;
-	spinlock_t nslock;
 	struct uts_namespace *uts_ns;
 	struct ipc_namespace *ipc_ns;
 	struct mnt_namespace *mnt_ns;
