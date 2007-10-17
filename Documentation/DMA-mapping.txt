@@ -189,12 +189,6 @@ smaller mask as pci_set_dma_mask(). However for the rare case that a
 device driver only uses consistent allocations, one would have to
 check the return value from pci_set_consistent_dma_mask().
 
-If your 64-bit device is going to be an enormous consumer of DMA
-mappings, this can be problematic since the DMA mappings are a
-finite resource on many platforms.  Please see the "DAC Addressing
-for Address Space Hungry Devices" section near the end of this
-document for how to handle this case.
-
 Finally, if your device can only drive the low 24-bits of
 address during PCI bus mastering you might do something like:
 
@@ -203,8 +197,6 @@ address during PCI bus mastering you might do something like:
 		       "mydev: 24-bit DMA addressing not available.\n");
 		goto ignore_this_device;
 	}
-[Better use DMA_24BIT_MASK instead of 0x00ffffff.
-See linux/include/dma-mapping.h for reference.]
 
 When pci_set_dma_mask() is successful, and returns zero, the PCI layer
 saves away this mask you have provided.  The PCI layer will use this
@@ -651,18 +643,6 @@ All PCI drivers should be using these interfaces with no exceptions.
 It is planned to completely remove virt_to_bus() and bus_to_virt() as
 they are entirely deprecated.  Some ports already do not provide these
 as it is impossible to correctly support them.
-
-		64-bit DMA and DAC cycle support
-
-Do you understand all of the text above?  Great, then you already
-know how to use 64-bit DMA addressing under Linux.  Simply make
-the appropriate pci_set_dma_mask() calls based upon your cards
-capabilities, then use the mapping APIs above.
-
-It is that simple.
-
-Well, not for some odd devices.  See the next section for information
-about that.
 
 		Optimizing Unmap State Space Consumption
 
