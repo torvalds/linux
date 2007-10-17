@@ -8,27 +8,10 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/time.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/mman.h>
-#include <linux/proc_fs.h>
-#include <linux/mm.h>
-#include <linux/mmzone.h>
-#include <linux/pagemap.h>
-#include <linux/swap.h>
-#include <linux/slab.h>
-#include <linux/smp.h>
-#include <linux/seq_file.h>
-#include <linux/hugetlb.h>
+#include <linux/spinlock.h>
 #include <linux/vmalloc.h>
-#include <asm/uaccess.h>
+#include <linux/highmem.h>
 #include <asm/pgtable.h>
-#include <asm/tlb.h>
-#include <asm/div64.h>
 #include "internal.h"
 
 void get_vmalloc_info(struct vmalloc_info *vmi)
