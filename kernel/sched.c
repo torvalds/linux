@@ -1712,7 +1712,7 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 
 	p->prio = effective_prio(p);
 
-	if (!p->sched_class->task_new || !current->se.on_rq || !rq->cfs.curr) {
+	if (!p->sched_class->task_new || !current->se.on_rq) {
 		activate_task(rq, p, 0);
 	} else {
 		/*
