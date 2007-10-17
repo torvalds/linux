@@ -112,9 +112,6 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (error)
 		goto out;
 
-	error = -EACCES;
-	if (nd.mnt->mnt_flags & MNT_NOEXEC)
-		goto exit;
 	error = -EINVAL;
 	if (!S_ISREG(nd.dentry->d_inode->i_mode))
 		goto exit;
@@ -658,8 +655,7 @@ struct file *open_exec(const char *name)
 	if (!err) {
 		struct inode *inode = nd.dentry->d_inode;
 		file = ERR_PTR(-EACCES);
-		if (!(nd.mnt->mnt_flags & MNT_NOEXEC) &&
-		    S_ISREG(inode->i_mode)) {
+		if (S_ISREG(inode->i_mode)) {
 			int err = vfs_permission(&nd, MAY_EXEC);
 			file = ERR_PTR(err);
 			if (!err) {
