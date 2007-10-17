@@ -144,7 +144,6 @@ struct dx_map_entry
 	u16 size;
 };
 
-#ifdef CONFIG_EXT3_INDEX
 static inline unsigned dx_get_block (struct dx_entry *entry);
 static void dx_set_block (struct dx_entry *entry, unsigned value);
 static inline unsigned dx_get_hash (struct dx_entry *entry);
@@ -768,8 +767,6 @@ static void dx_insert_block(struct dx_frame *frame, u32 hash, u32 block)
 	dx_set_block(new, block);
 	dx_set_count(entries, count + 1);
 }
-#endif
-
 
 static void ext3_update_dx_flag(struct inode *inode)
 {
@@ -871,7 +868,6 @@ static struct buffer_head * ext3_find_entry (struct dentry *dentry,
 	name = dentry->d_name.name;
 	if (namelen > EXT3_NAME_LEN)
 		return NULL;
-#ifdef CONFIG_EXT3_INDEX
 	if (is_dx(dir)) {
 		bh = ext3_dx_find_entry(dentry, res_dir, &err);
 		/*
@@ -883,7 +879,6 @@ static struct buffer_head * ext3_find_entry (struct dentry *dentry,
 			return bh;
 		dxtrace(printk("ext3_find_entry: dx failed, falling back\n"));
 	}
-#endif
 	nblocks = dir->i_size >> EXT3_BLOCK_SIZE_BITS(sb);
 	start = EXT3_I(dir)->i_dir_start_lookup;
 	if (start >= nblocks)
@@ -959,7 +954,6 @@ cleanup_and_exit:
 	return ret;
 }
 
-#ifdef CONFIG_EXT3_INDEX
 static struct buffer_head * ext3_dx_find_entry(struct dentry *dentry,
 		       struct ext3_dir_entry_2 **res_dir, int *err)
 {
@@ -1027,7 +1021,6 @@ errout:
 	dx_release (frames);
 	return NULL;
 }
-#endif
 
 static struct dentry *ext3_lookup(struct inode * dir, struct dentry *dentry, struct nameidata *nd)
 {
@@ -1123,7 +1116,6 @@ static inline void ext3_set_de_type(struct super_block *sb,
 		de->file_type = ext3_type_by_mode[(mode & S_IFMT)>>S_SHIFT];
 }
 
-#ifdef CONFIG_EXT3_INDEX
 /*
  * Move count entries from end of map between two memory locations.
  * Returns pointer to last entry moved.
@@ -1268,7 +1260,6 @@ errout:
 	*error = err;
 	return NULL;
 }
-#endif
 
 
 /*
@@ -1366,7 +1357,6 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 	return 0;
 }
 
-#ifdef CONFIG_EXT3_INDEX
 /*
  * This converts a one block unindexed directory to a 3 block indexed
  * directory, and adds the dentry to the indexed directory.
@@ -1445,7 +1435,6 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 
 	return add_dirent_to_buf(handle, dentry, inode, de, bh);
 }
-#endif
 
 /*
  *	ext3_add_entry()
@@ -1466,9 +1455,7 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 	struct ext3_dir_entry_2 *de;
 	struct super_block * sb;
 	int	retval;
-#ifdef CONFIG_EXT3_INDEX
 	int	dx_fallback=0;
-#endif
 	unsigned blocksize;
 	u32 block, blocks;
 
@@ -1476,7 +1463,6 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 	blocksize = sb->s_blocksize;
 	if (!dentry->d_name.len)
 		return -EINVAL;
-#ifdef CONFIG_EXT3_INDEX
 	if (is_dx(dir)) {
 		retval = ext3_dx_add_entry(handle, dentry, inode);
 		if (!retval || (retval != ERR_BAD_DX_DIR))
@@ -1485,7 +1471,6 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 		dx_fallback++;
 		ext3_mark_inode_dirty(handle, dir);
 	}
-#endif
 	blocks = dir->i_size >> sb->s_blocksize_bits;
 	for (block = 0, offset = 0; block < blocks; block++) {
 		bh = ext3_bread(handle, dir, block, 0, &retval);
@@ -1495,11 +1480,9 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 		if (retval != -ENOSPC)
 			return retval;
 
-#ifdef CONFIG_EXT3_INDEX
 		if (blocks == 1 && !dx_fallback &&
 		    EXT3_HAS_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_DIR_INDEX))
 			return make_indexed_dir(handle, dentry, inode, bh);
-#endif
 		brelse(bh);
 	}
 	bh = ext3_append(handle, dir, &block, &retval);
@@ -1511,7 +1494,6 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 	return add_dirent_to_buf(handle, dentry, inode, de, bh);
 }
 
-#ifdef CONFIG_EXT3_INDEX
 /*
  * Returns 0 for success, or a negative error value
  */
@@ -1646,7 +1628,6 @@ cleanup:
 	dx_release(frames);
 	return err;
 }
-#endif
 
 /*
  * ext3_delete_entry deletes a directory entry by merging it with the
