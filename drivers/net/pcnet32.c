@@ -442,7 +442,9 @@ static struct pcnet32_access pcnet32_dwio = {
 
 static void pcnet32_netif_stop(struct net_device *dev)
 {
+#ifdef CONFIG_PCNET32_NAPI
 	struct pcnet32_private *lp = netdev_priv(dev);
+#endif
 	dev->trans_start = jiffies;
 #ifdef CONFIG_PCNET32_NAPI
 	napi_disable(&lp->napi);
@@ -452,7 +454,9 @@ static void pcnet32_netif_stop(struct net_device *dev)
 
 static void pcnet32_netif_start(struct net_device *dev)
 {
+#ifdef CONFIG_PCNET32_NAPI
 	struct pcnet32_private *lp = netdev_priv(dev);
+#endif
 	netif_wake_queue(dev);
 #ifdef CONFIG_PCNET32_NAPI
 	napi_enable(&lp->napi);
