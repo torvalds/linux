@@ -413,7 +413,7 @@ sync_sb_inodes(struct super_block *sb, struct writeback_control *wbc)
 			 * writeback is not making progress due to locked
 			 * buffers.  Skip this inode for now.
 			 */
-			list_move(&inode->i_list, &sb->s_dirty);
+			redirty_tail(inode);
 		}
 		spin_unlock(&inode_lock);
 		iput(inode);
