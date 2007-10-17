@@ -30,8 +30,7 @@
 
 #define TTY_THRESHOLD_THROTTLE  128
 
-#define LO_WATER	 	(TTY_FLIPBUF_SIZE)
-#define HI_WATER		(TTY_FLIPBUF_SIZE*2*3/4)
+#define HI_WATER		768
 
 // added by James. 03-11-2004.
 #define MOXA_SDS_GETICOUNTER  	(MOXA + 68)
