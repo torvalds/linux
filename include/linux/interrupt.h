@@ -55,28 +55,6 @@
 #define IRQF_NOBALANCING	0x00000800
 #define IRQF_IRQPOLL		0x00001000
 
-/*
- * Migration helpers. Scheduled for removal in 9/2007
- * Do not use for new code !
- */
-static inline
-unsigned long __deprecated deprecated_irq_flag(unsigned long flag)
-{
-	return flag;
-}
-
-#define SA_INTERRUPT		deprecated_irq_flag(IRQF_DISABLED)
-#define SA_SAMPLE_RANDOM	deprecated_irq_flag(IRQF_SAMPLE_RANDOM)
-#define SA_SHIRQ		deprecated_irq_flag(IRQF_SHARED)
-#define SA_PROBEIRQ		deprecated_irq_flag(IRQF_PROBE_SHARED)
-#define SA_PERCPU		deprecated_irq_flag(IRQF_PERCPU)
-
-#define SA_TRIGGER_LOW		deprecated_irq_flag(IRQF_TRIGGER_LOW)
-#define SA_TRIGGER_HIGH		deprecated_irq_flag(IRQF_TRIGGER_HIGH)
-#define SA_TRIGGER_FALLING	deprecated_irq_flag(IRQF_TRIGGER_FALLING)
-#define SA_TRIGGER_RISING	deprecated_irq_flag(IRQF_TRIGGER_RISING)
-#define SA_TRIGGER_MASK		deprecated_irq_flag(IRQF_TRIGGER_MASK)
-
 typedef irqreturn_t (*irq_handler_t)(int, void *);
 
 struct irqaction {
