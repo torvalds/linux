@@ -619,11 +619,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 					ip2config.irq[i] = pci_dev_i->irq;
 				} else {	// ann error
 					ip2config.addr[i] = 0;
-					if (status == PCIBIOS_DEVICE_NOT_FOUND) {
-						printk( KERN_ERR "IP2: PCI board %d not found\n", i );
-					} else {
-						printk( KERN_ERR "IP2: PCI error 0x%x \n", status );
-					}
+					printk(KERN_ERR "IP2: PCI board %d not found\n", i);
 				} 
 			}
 #else
