@@ -403,9 +403,9 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 	}
 
 
-	/* We don't want _any_ interrupts other than
-	 * match20. Otherwise our au1000_calibrate_delay()
-	 * calculation will be off, potentially a lot.
+	/*
+	 * We don't want _any_ interrupts other than match20. Otherwise our
+	 * au1000_calibrate_delay() calculation will be off, potentially a lot.
 	 */
 	intc0_mask = save_local_and_disable(0);
 	intc1_mask = save_local_and_disable(1);
@@ -414,6 +414,7 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 	au1000_calibrate_delay();
 	restore_local_and_enable(0, intc0_mask);
 	restore_local_and_enable(1, intc1_mask);
+
 	return retval;
 }
 
