@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/pnp.h>
 #include <linux/io.h>
+#include <linux/kallsyms.h>
 #include "base.h"
 
 static void quirk_awe32_resources(struct pnp_dev *dev)
@@ -133,11 +134,18 @@ static struct pnp_fixup pnp_fixups[] = {
 void pnp_fixup_device(struct pnp_dev *dev)
 {
 	int i = 0;
+	void (*quirk)(struct pnp_dev *);
 
 	while (*pnp_fixups[i].id) {
 		if (compare_pnp_id(dev->id, pnp_fixups[i].id)) {
-			pnp_dbg("Calling quirk for %s", dev->dev.bus_id);
-			pnp_fixups[i].quirk_function(dev);
+			quirk = pnp_fixups[i].quirk_function;
+
+#ifdef DEBUG
+			dev_dbg(&dev->dev, "calling quirk 0x%p", quirk);
+			print_fn_descriptor_symbol(": %s()\n",
+				(unsigned long) *quirk);
+#endif
+			(*quirk)(dev);
 		}
 		i++;
 	}

@@ -22,8 +22,7 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 	unsigned long *flags;
 
 	if (idx >= PNP_MAX_PORT) {
-		pnp_err
-		    ("More than 4 ports is incompatible with pnp specifications.");
+		dev_err(&dev->dev, "too many I/O port resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
@@ -64,8 +63,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 	unsigned long *flags;
 
 	if (idx >= PNP_MAX_MEM) {
-		pnp_err
-		    ("More than 8 mems is incompatible with pnp specifications.");
+		dev_err(&dev->dev, "too many memory resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
@@ -122,8 +120,7 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 	};
 
 	if (idx >= PNP_MAX_IRQ) {
-		pnp_err
-		    ("More than 2 irqs is incompatible with pnp specifications.");
+		dev_err(&dev->dev, "too many IRQ resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
@@ -173,8 +170,7 @@ static void pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 	};
 
 	if (idx >= PNP_MAX_DMA) {
-		pnp_err("More than 2 dmas is incompatible with pnp "
-			"specifications.");
+		dev_err(&dev->dev, "too many DMA resources\n");
 		return;
 	}
 
@@ -442,8 +438,7 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 	int i = 1;
 
 	if (!pnp_can_configure(dev)) {
-		pnp_dbg("Device %s does not support resource configuration.",
-			dev->dev.bus_id);
+		dev_dbg(&dev->dev, "configuration not supported\n");
 		return -ENODEV;
 	}
 
@@ -460,7 +455,7 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 		} while (dep);
 	}
 
-	pnp_err("Unable to assign resources to device %s.", dev->dev.bus_id);
+	dev_err(&dev->dev, "unable to assign resources\n");
 	return -EBUSY;
 }
 
@@ -473,17 +468,16 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 int pnp_start_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_write(dev)) {
-		pnp_dbg("Device %s does not support activation.",
-			dev->dev.bus_id);
+		dev_dbg(&dev->dev, "activation not supported\n");
 		return -EINVAL;
 	}
 
 	if (dev->protocol->set(dev, &dev->res) < 0) {
-		pnp_err("Failed to activate device %s.", dev->dev.bus_id);
+		dev_err(&dev->dev, "activation failed\n");
 		return -EIO;
 	}
 
-	pnp_info("Device %s activated.", dev->dev.bus_id);
+	dev_info(&dev->dev, "activated\n");
 	return 0;
 }
 
@@ -496,16 +490,15 @@ int pnp_start_dev(struct pnp_dev *dev)
 int pnp_stop_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_disable(dev)) {
-		pnp_dbg("Device %s does not support disabling.",
-			dev->dev.bus_id);
+		dev_dbg(&dev->dev, "disabling not supported\n");
 		return -EINVAL;
 	}
 	if (dev->protocol->disable(dev) < 0) {
-		pnp_err("Failed to disable device %s.", dev->dev.bus_id);
+		dev_err(&dev->dev, "disable failed\n");
 		return -EIO;
 	}
 
-	pnp_info("Device %s disabled.", dev->dev.bus_id);
+	dev_info(&dev->dev, "disabled\n");
 	return 0;
 }
 

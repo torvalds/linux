@@ -327,8 +327,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 
 	if (dev->status & PNP_ATTACHED) {
 		retval = -EBUSY;
-		pnp_info("Device %s cannot be configured because it is in use.",
-			 dev->dev.bus_id);
+		dev_info(&dev->dev, "in use; can't configure\n");
 		goto done;
 	}
 

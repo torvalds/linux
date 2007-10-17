@@ -198,8 +198,7 @@ int pnp_add_card(struct pnp_card *card)
 	card->dev.release = &pnp_release_card;
 	error = device_register(&card->dev);
 	if (error) {
-		pnp_err("sysfs failure, card '%s' will be unavailable",
-			card->dev.bus_id);
+		dev_err(&card->dev, "could not register (err=%d)\n", error);
 		return error;
 	}
 
