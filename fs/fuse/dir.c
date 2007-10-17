@@ -695,6 +695,20 @@ static int fuse_do_getattr(struct inode *inode)
 }
 
 /*
+ * Check if attributes are still valid, and if not send a GETATTR
+ * request to refresh them.
+ */
+static int fuse_refresh_attributes(struct inode *inode)
+{
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
+	if (fi->i_time < get_jiffies_64())
+		return fuse_do_getattr(inode);
+	else
+		return 0;
+}
+
+/*
  * Calling into a user-controlled filesystem gives the filesystem
  * daemon ptrace-like capabilities over the requester process.  This
  * means, that the filesystem daemon is able to record the exact
@@ -770,7 +784,6 @@ static int fuse_access(struct inode *inode, int mask)
 static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_inode *fi = get_fuse_inode(inode);
 	bool refreshed = false;
 	int err = 0;
 
@@ -778,12 +791,11 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 		return -EACCES;
 
 	/*
-	 * If attributes are needed, but are stale, refresh them
-	 * before proceeding
+	 * If attributes are needed, refresh them before proceeding
 	 */
-	if (((fc->flags & FUSE_DEFAULT_PERMISSIONS) || (mask & MAY_EXEC)) &&
-	    fi->i_time < get_jiffies_64()) {
-		err = fuse_do_getattr(inode);
+	if ((fc->flags & FUSE_DEFAULT_PERMISSIONS) ||
+	    ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))) {
+		err = fuse_refresh_attributes(inode);
 		if (err)
 			return err;
 
@@ -806,14 +818,17 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 		   exist.  So if permissions are revoked this won't be
 		   noticed immediately, only after the attribute
 		   timeout has expired */
+	} else if (nd && (nd->flags & (LOOKUP_ACCESS | LOOKUP_CHDIR))) {
+		err = fuse_access(inode, mask);
+	} else if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode)) {
+		if (!(inode->i_mode & S_IXUGO)) {
+			if (refreshed)
+				return -EACCES;
 
-	} else {
-		int mode = inode->i_mode;
-		if ((mask & MAY_EXEC) && !S_ISDIR(mode) && !(mode & S_IXUGO))
-			return -EACCES;
-
-		if (nd && (nd->flags & (LOOKUP_ACCESS | LOOKUP_CHDIR)))
-			return fuse_access(inode, mask);
+			err = fuse_do_getattr(inode);
+			if (!err && !(inode->i_mode & S_IXUGO))
+				return -EACCES;
+		}
 	}
 	return err;
 }
@@ -1046,14 +1061,12 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 	struct inode *inode = entry->d_inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	int err = 0;
+	int err;
 
 	if (!fuse_allow_task(fc, current))
 		return -EACCES;
 
-	if (fi->i_time < get_jiffies_64())
-		err = fuse_do_getattr(inode);
-
+	err = fuse_refresh_attributes(inode);
 	if (!err) {
 		generic_fillattr(inode, stat);
 		stat->mode = fi->orig_i_mode;
