@@ -55,7 +55,6 @@
 static int ivtvfb_card_id = -1;
 static int ivtvfb_debug = 0;
 static int osd_laced;
-static int osd_compat;
 static int osd_depth;
 static int osd_upper;
 static int osd_left;
@@ -65,7 +64,6 @@ static int osd_xres;
 module_param(ivtvfb_card_id, int, 0444);
 module_param_named(debug,ivtvfb_debug, int, 0644);
 module_param(osd_laced, bool, 0444);
-module_param(osd_compat, bool, 0444);
 module_param(osd_depth, int, 0444);
 module_param(osd_upper, int, 0444);
 module_param(osd_left, int, 0444);
@@ -79,12 +77,6 @@ MODULE_PARM_DESC(ivtvfb_card_id,
 MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: errors only\n"
 		 "\t\t\t(debug = 3 gives full debugging)");
-
-MODULE_PARM_DESC(osd_compat,
-		 "Compatibility mode - Display size is locked (use for old X drivers)\n"
-		 "\t\t\t0=off\n"
-		 "\t\t\t1=on\n"
-		 "\t\t\tdefault off");
 
 /* Why upper, left, xres, yres, depth, laced ? To match terminology used
    by fbset.
@@ -574,14 +566,6 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 		osd_height_limit = 480;
 	}
 
-	/* Check the bits per pixel */
-	if (osd_compat) {
-		if (var->bits_per_pixel != 32) {
-			IVTVFB_DEBUG_WARN("Invalid colour mode: %d\n", var->bits_per_pixel);
-			return -EINVAL;
-		}
-	}
-
 	if (var->bits_per_pixel == 8 || var->bits_per_pixel == 32) {
 		var->transp.offset = 24;
 		var->transp.length = 8;
@@ -633,32 +617,20 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	}
 
 	/* Check the resolution */
-	if (osd_compat) {
-		if (var->xres != oi->ivtvfb_defined.xres ||
-		    var->yres != oi->ivtvfb_defined.yres ||
-		    var->xres_virtual != oi->ivtvfb_defined.xres_virtual ||
-		    var->yres_virtual != oi->ivtvfb_defined.yres_virtual) {
-			IVTVFB_DEBUG_WARN("Invalid resolution: %dx%d (virtual %dx%d)\n",
-				var->xres, var->yres, var->xres_virtual, var->yres_virtual);
-			return -EINVAL;
-		}
+	if (var->xres > IVTV_OSD_MAX_WIDTH || var->yres > osd_height_limit) {
+		IVTVFB_DEBUG_WARN("Invalid resolution: %dx%d\n",
+				var->xres, var->yres);
+		return -EINVAL;
 	}
-	else {
-		if (var->xres > IVTV_OSD_MAX_WIDTH || var->yres > osd_height_limit) {
-			IVTVFB_DEBUG_WARN("Invalid resolution: %dx%d\n",
-					var->xres, var->yres);
-			return -EINVAL;
-		}
 
-		/* Max horizontal size is 1023 @ 32bpp, 2046 & 16bpp, 4092 @ 8bpp */
-		if (var->xres_virtual > 4095 / (var->bits_per_pixel / 8) ||
-		    var->xres_virtual * var->yres_virtual * (var->bits_per_pixel / 8) > oi->video_buffer_size ||
-		    var->xres_virtual < var->xres ||
-		    var->yres_virtual < var->yres) {
-			IVTVFB_DEBUG_WARN("Invalid virtual resolution: %dx%d\n",
-				var->xres_virtual, var->yres_virtual);
-			return -EINVAL;
-		}
+	/* Max horizontal size is 1023 @ 32bpp, 2046 & 16bpp, 4092 @ 8bpp */
+	if (var->xres_virtual > 4095 / (var->bits_per_pixel / 8) ||
+	    var->xres_virtual * var->yres_virtual * (var->bits_per_pixel / 8) > oi->video_buffer_size ||
+	    var->xres_virtual < var->xres ||
+	    var->yres_virtual < var->yres) {
+		IVTVFB_DEBUG_WARN("Invalid virtual resolution: %dx%d\n",
+			var->xres_virtual, var->yres_virtual);
+		return -EINVAL;
 	}
 
 	/* Some extra checks if in 8 bit mode */
@@ -872,14 +844,15 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 
 	/* Color mode */
 
-	if (osd_compat) osd_depth = 32;
-	if (osd_depth != 8 && osd_depth != 16 && osd_depth != 32) osd_depth = 8;
+	if (osd_depth != 8 && osd_depth != 16 && osd_depth != 32)
+		osd_depth = 8;
 	oi->bits_per_pixel = osd_depth;
 	oi->bytes_per_pixel = oi->bits_per_pixel / 8;
 
 	/* Horizontal size & position */
 
-	if (osd_xres > 720) osd_xres = 720;
+	if (osd_xres > 720)
+		osd_xres = 720;
 
 	/* Must be a multiple of 4 for 8bpp & 2 for 16bpp */
 	if (osd_depth == 8)
@@ -887,10 +860,7 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	else if (osd_depth == 16)
 		osd_xres &= ~1;
 
-	if (osd_xres)
-		start_window.width = osd_xres;
-	else
-		start_window.width = osd_compat ? 720: 640;
+	start_window.width = osd_xres ? osd_xres : 640;
 
 	/* Check horizontal start (osd_left). */
 	if (osd_left && osd_left + start_window.width > 721) {
@@ -913,10 +883,7 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	if (osd_yres > max_height)
 		osd_yres = max_height;
 
-	if (osd_yres)
-		start_window.height = osd_yres;
-	else
-		start_window.height = osd_compat ? max_height : (itv->is_50hz ? 480 : 400);
+	start_window.height = osd_yres ? osd_yres : itv->is_50hz ? 480 : 400;
 
 	/* Check vertical start (osd_upper). */
 	if (osd_upper + start_window.height > max_height + 1) {
@@ -1118,10 +1085,6 @@ static int ivtvfb_init_card(struct ivtv *itv)
 
 	/* Enable the osd */
 	ivtvfb_blank(FB_BLANK_UNBLANK, &itv->osd_info->ivtvfb_info);
-
-	/* Note if we're running in compatibility mode */
-	if (osd_compat)
-		IVTVFB_INFO("Running in compatibility mode. Display resize & mode change disabled\n");
 
 	/* Allocate DMA */
 	ivtv_udma_alloc(itv);
