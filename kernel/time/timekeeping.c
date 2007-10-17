@@ -24,9 +24,7 @@
  * This read-write spinlock protects us from races in SMP while
  * playing with xtime and avenrun.
  */
-__attribute__((weak)) __cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
-
-EXPORT_SYMBOL(xtime_lock);
+__cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
 
 
 /*
@@ -47,7 +45,6 @@ EXPORT_SYMBOL(xtime_lock);
 struct timespec xtime __attribute__ ((aligned (16)));
 struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
 static unsigned long total_sleep_time;		/* seconds */
-EXPORT_SYMBOL(xtime);
 
 static struct timespec xtime_cache __attribute__ ((aligned (16)));
 static inline void update_xtime_cache(u64 nsec)
