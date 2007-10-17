@@ -34,7 +34,7 @@
 #include <asm/mmu.h>
 #include <asm/spu.h>
 
-static spinlock_t slice_convert_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(slice_convert_lock);
 
 
 #ifdef DEBUG

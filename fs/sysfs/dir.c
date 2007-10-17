@@ -24,9 +24,9 @@
 
 DEFINE_MUTEX(sysfs_mutex);
 DEFINE_MUTEX(sysfs_rename_mutex);
-spinlock_t sysfs_assoc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(sysfs_assoc_lock);
 
-static spinlock_t sysfs_ino_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(sysfs_ino_lock);
 static DEFINE_IDA(sysfs_ino_ida);
 
 /**
