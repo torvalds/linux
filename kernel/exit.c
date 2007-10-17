@@ -947,11 +947,13 @@ fastcall NORET_TYPE void do_exit(long code)
 		exit_itimers(tsk->signal);
 	}
 	acct_collect(code, group_dead);
+#ifdef CONFIG_FUTEX
 	if (unlikely(tsk->robust_list))
 		exit_robust_list(tsk);
-#if defined(CONFIG_FUTEX) && defined(CONFIG_COMPAT)
+#ifdef CONFIG_COMPAT
 	if (unlikely(tsk->compat_robust_list))
 		compat_exit_robust_list(tsk);
+#endif
 #endif
 	if (group_dead)
 		tty_audit_exit();
@@ -987,6 +989,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
+#ifdef CONFIG_FUTEX
 	/*
 	 * This must happen late, after the PID is not
 	 * hashed anymore:
@@ -995,6 +998,7 @@ fastcall NORET_TYPE void do_exit(long code)
 		exit_pi_state_list(tsk);
 	if (unlikely(current->pi_state_cache))
 		kfree(current->pi_state_cache);
+#endif
 	/*
 	 * Make sure we are holding no locks:
 	 */
