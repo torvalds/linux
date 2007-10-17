@@ -201,7 +201,6 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	unsigned dirty;
 	struct address_space *mapping = inode->i_mapping;
-	struct super_block *sb = inode->i_sb;
 	int wait = wbc->sync_mode == WB_SYNC_ALL;
 	int ret;
 
@@ -237,7 +236,16 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 			/*
 			 * We didn't write back all the pages.  nfs_writepages()
 			 * sometimes bales out without doing anything. Redirty
-			 * the inode.  It is still on sb->s_io.
+			 * the inode.  It is moved from s_io onto s_dirty.
+			 */
+			/*
+			 * akpm: if the caller was the kupdate function we put
+			 * this inode at the head of s_dirty so it gets first
+			 * consideration.  Otherwise, move it to the tail, for
+			 * the reasons described there.  I'm not really sure
+			 * how much sense this makes.  Presumably I had a good
+			 * reasons for doing it this way, and I'd rather not
+			 * muck with it at present.
 			 */
 			if (wbc->for_kupdate) {
 				/*
@@ -257,8 +265,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 				 * all the other files.
 				 */
 				inode->i_state |= I_DIRTY_PAGES;
-				inode->dirtied_when = jiffies;
-				list_move(&inode->i_list, &sb->s_dirty);
+				redirty_tail(inode);
 			}
 		} else if (inode->i_state & I_DIRTY) {
 			/*
