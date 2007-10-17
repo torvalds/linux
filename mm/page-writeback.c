@@ -37,7 +37,7 @@
 
 /*
  * The maximum number of pages to writeout in a single bdflush/kupdate
- * operation.  We do this so we don't hold I_LOCK against an inode for
+ * operation.  We do this so we don't hold I_SYNC against an inode for
  * enormous amounts of time, which would block a userspace task which has
  * been forced to throttle against that inode.  Also, the code reevaluates
  * the dirty each time it has written this many pages.
