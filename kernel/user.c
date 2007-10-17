@@ -44,7 +44,6 @@ struct user_struct root_user = {
 	.processes	= ATOMIC_INIT(1),
 	.files		= ATOMIC_INIT(0),
 	.sigpending	= ATOMIC_INIT(0),
-	.mq_bytes	= 0,
 	.locked_shm     = 0,
 #ifdef CONFIG_KEYS
 	.uid_keyring	= &root_user_keyring,
@@ -341,8 +340,9 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 		atomic_set(&new->inotify_watches, 0);
 		atomic_set(&new->inotify_devs, 0);
 #endif
-
+#ifdef CONFIG_POSIX_MQUEUE
 		new->mq_bytes = 0;
+#endif
 		new->locked_shm = 0;
 
 		if (alloc_uid_keyring(new, current) < 0) {
