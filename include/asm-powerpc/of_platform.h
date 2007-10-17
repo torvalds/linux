@@ -15,8 +15,14 @@
 #include <linux/of_platform.h>
 
 /* Platform drivers register/unregister */
-extern int of_register_platform_driver(struct of_platform_driver *drv);
-extern void of_unregister_platform_driver(struct of_platform_driver *drv);
+static inline int of_register_platform_driver(struct of_platform_driver *drv)
+{
+	return of_register_driver(drv, &of_platform_bus_type);
+}
+static inline void of_unregister_platform_driver(struct of_platform_driver *drv)
+{
+	of_unregister_driver(drv);
+}
 
 /* Platform devices and busses creation */
 extern struct of_device *of_platform_device_create(struct device_node *np,

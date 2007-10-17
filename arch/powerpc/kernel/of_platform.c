@@ -64,26 +64,6 @@ static int __init of_bus_driver_init(void)
 
 postcore_initcall(of_bus_driver_init);
 
-int of_register_platform_driver(struct of_platform_driver *drv)
-{
-	/* initialize common driver fields */
-	if (!drv->driver.name)
-		drv->driver.name = drv->name;
-	if (!drv->driver.owner)
-		drv->driver.owner = drv->owner;
-	drv->driver.bus = &of_platform_bus_type;
-
-	/* register with core */
-	return driver_register(&drv->driver);
-}
-EXPORT_SYMBOL(of_register_platform_driver);
-
-void of_unregister_platform_driver(struct of_platform_driver *drv)
-{
-	driver_unregister(&drv->driver);
-}
-EXPORT_SYMBOL(of_unregister_platform_driver);
-
 struct of_device* of_platform_device_create(struct device_node *np,
 					    const char *bus_id,
 					    struct device *parent)
