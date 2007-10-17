@@ -1108,8 +1108,6 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 	unsigned long nr_to_scan;
 	unsigned long nr_reclaimed = 0;
 
-	zone_set_flag(zone, ZONE_RECLAIM_LOCKED);
-
 	/*
 	 * Add one to `nr_to_scan' just to make sure that the kernel will
 	 * slowly sift through the active list.
@@ -1148,8 +1146,6 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 	}
 
 	throttle_vm_writeout(sc->gfp_mask);
-
-	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
 	return nr_reclaimed;
 }
 
@@ -1900,6 +1896,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 {
 	int node_id;
+	int ret;
 
 	/*
 	 * Zone reclaim reclaims unmapped file backed pages and
@@ -1917,13 +1914,13 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 			<= zone->min_slab_pages)
 		return 0;
 
+	if (zone_is_all_unreclaimable(zone))
+		return 0;
+
 	/*
-	 * Avoid concurrent zone reclaims, do not reclaim in a zone that does
-	 * not have reclaimable pages and if we should not delay the allocation
-	 * then do not scan.
+	 * Do not scan if the allocation should not be delayed.
 	 */
-	if (!(gfp_mask & __GFP_WAIT) || zone_is_all_unreclaimable(zone) ||
-		zone_is_reclaim_locked(zone) || (current->flags & PF_MEMALLOC))
+	if (!(gfp_mask & __GFP_WAIT) || (current->flags & PF_MEMALLOC))
 			return 0;
 
 	/*
@@ -1935,6 +1932,12 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	node_id = zone_to_nid(zone);
 	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
 		return 0;
-	return __zone_reclaim(zone, gfp_mask, order);
+
+	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+		return 0;
+	ret = __zone_reclaim(zone, gfp_mask, order);
+	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+
+	return ret;
 }
 #endif
