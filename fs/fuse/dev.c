@@ -231,8 +231,6 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		fc->num_background--;
 	}
 	spin_unlock(&fc->lock);
-	dput(req->dentry);
-	mntput(req->vfsmount);
 	wake_up(&req->waitq);
 	if (end)
 		end(fc, req);

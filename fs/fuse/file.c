@@ -71,11 +71,19 @@ static struct fuse_file *fuse_file_get(struct fuse_file *ff)
 	return ff;
 }
 
+static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
+{
+	dput(req->dentry);
+	mntput(req->vfsmount);
+	fuse_put_request(fc, req);
+}
+
 static void fuse_file_put(struct fuse_file *ff)
 {
 	if (atomic_dec_and_test(&ff->count)) {
 		struct fuse_req *req = ff->reserved_req;
 		struct fuse_conn *fc = get_fuse_conn(req->dentry->d_inode);
+		req->end = fuse_release_end;
 		request_send_background(fc, req);
 		kfree(ff);
 	}
