@@ -1,0 +1,20 @@
+00-INDEX
+	- this file.
+balance
+	- various information on memory balancing.
+hugetlbpage.txt
+	- a brief summary of hugetlbpage support in the Linux kernel.
+locking
+	- info on how locking and synchronization is done in the Linux vm code.
+numa
+	- information about NUMA specific code in the Linux vm.
+numa_memory_policy.txt
+	- documentation of concepts and APIs of the 2.6 memory policy support.
+overcommit-accounting
+	- description of the Linux kernels overcommit handling modes.
+page_migration
+	- description of page migration in NUMA systems.
+slabinfo.c
+	- source code for a tool to get reports about slabs.
+slub.txt
+	- a short users guide for SLUB.
