@@ -794,8 +794,9 @@ static int __cpuinit cache_sysfs_init(void)
 	register_hotcpu_notifier(&cacheinfo_cpu_notifier);
 
 	for_each_online_cpu(i) {
-		cacheinfo_cpu_callback(&cacheinfo_cpu_notifier, CPU_ONLINE,
-			(void *)(long)i);
+		struct sys_device *sys_dev = get_cpu_sysdev((unsigned int)i);
+
+		cache_add_dev(sys_dev);
 	}
 
 	return 0;
