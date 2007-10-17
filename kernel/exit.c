@@ -592,17 +592,6 @@ static void exit_mm(struct task_struct * tsk)
 	mmput(mm);
 }
 
-static inline void
-choose_new_parent(struct task_struct *p, struct task_struct *reaper)
-{
-	/*
-	 * Make sure we're not reparenting to ourselves and that
-	 * the parent is not a zombie.
-	 */
-	BUG_ON(p == reaper || reaper->exit_state);
-	p->real_parent = reaper;
-}
-
 static void
 reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 {
@@ -710,7 +699,7 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 
 		if (father == p->real_parent) {
 			/* reparent with a reaper, real father it's us */
-			choose_new_parent(p, reaper);
+			p->real_parent = reaper;
 			reparent_thread(p, father, 0);
 		} else {
 			/* reparent ptraced task to its real parent */
@@ -731,7 +720,7 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 	}
 	list_for_each_safe(_p, _n, &father->ptrace_children) {
 		p = list_entry(_p, struct task_struct, ptrace_list);
-		choose_new_parent(p, reaper);
+		p->real_parent = reaper;
 		reparent_thread(p, father, 1);
 	}
 }
@@ -882,6 +871,14 @@ static void check_stack_usage(void)
 static inline void check_stack_usage(void) {}
 #endif
 
+static inline void exit_child_reaper(struct task_struct *tsk)
+{
+	if (likely(tsk->group_leader != child_reaper(tsk)))
+		return;
+
+	panic("Attempted to kill init!");
+}
+
 fastcall NORET_TYPE void do_exit(long code)
 {
 	struct task_struct *tsk = current;
@@ -895,13 +892,6 @@ fastcall NORET_TYPE void do_exit(long code)
 		panic("Aiee, killing interrupt handler!");
 	if (unlikely(!tsk->pid))
 		panic("Attempted to kill the idle task!");
-	if (unlikely(tsk == child_reaper(tsk))) {
-		if (tsk->nsproxy->pid_ns != &init_pid_ns)
-			tsk->nsproxy->pid_ns->child_reaper = init_pid_ns.child_reaper;
-		else
-			panic("Attempted to kill init!");
-	}
-
 
 	if (unlikely(current->ptrace & PT_TRACE_EXIT)) {
 		current->ptrace_message = code;
@@ -951,6 +941,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	}
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
+		exit_child_reaper(tsk);
 		hrtimer_cancel(&tsk->signal->real_timer);
 		exit_itimers(tsk->signal);
 	}
