@@ -18,8 +18,8 @@
  */
 
 #if defined(__arm__)
-#define DUMMY_COLUMNS	ORIG_VIDEO_COLS
-#define DUMMY_ROWS	ORIG_VIDEO_LINES
+#define DUMMY_COLUMNS	screen_info.orig_video_cols
+#define DUMMY_ROWS	screen_info.orig_video_lines
 #elif defined(__hppa__)
 /* set by Kconfig. Use 80x25 for 640x480 and 160x64 for 1280x1024 */
 #define DUMMY_COLUMNS	CONFIG_DUMMY_CONSOLE_COLUMNS

@@ -804,7 +804,8 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 	if (bailearly == 1)
 		bailout(dinfo);
 
-	if (FIXED_MODE(dinfo) && ORIG_VIDEO_ISVGA != VIDEO_TYPE_VLFB) {
+	if (FIXED_MODE(dinfo) &&
+	    screen_info.orig_video_isVGA != VIDEO_TYPE_VLFB) {
 		ERR_MSG("Video mode must be programmed at boot time.\n");
 		cleanup(dinfo);
 		return -ENODEV;
@@ -815,7 +816,7 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 
 	/* Initialise dinfo and related data. */
 	/* If an initial mode was programmed at boot time, get its details. */
-	if (ORIG_VIDEO_ISVGA == VIDEO_TYPE_VLFB)
+	if (screen_info.orig_video_isVGA == VIDEO_TYPE_VLFB)
 		get_initial_mode(dinfo);
 
 	if (bailearly == 3)
