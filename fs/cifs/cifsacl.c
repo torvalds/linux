@@ -116,7 +116,7 @@ int compare_sids(struct cifs_sid *ctsid, struct cifs_sid *cwsid)
 
 	/* compare all of the subauth values if any */
 	num_sat = ctsid->num_subauth;
-	num_saw = cwsid->num_subauth);
+	num_saw = cwsid->num_subauth;
 	num_subauth = num_sat < num_saw ? num_sat : num_saw;
 	if (num_subauth) {
 		for (i = 0; i < num_subauth; ++i) {
