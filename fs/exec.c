@@ -747,7 +747,7 @@ static int exec_mmap(struct mm_struct *mm)
 static int de_thread(struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
-	struct sighand_struct *newsighand, *oldsighand = tsk->sighand;
+	struct sighand_struct *oldsighand = tsk->sighand;
 	spinlock_t *lock = &oldsighand->siglock;
 	struct task_struct *leader = NULL;
 	int count;
@@ -760,10 +760,6 @@ static int de_thread(struct task_struct *tsk)
 		exit_itimers(sig);
 		return 0;
 	}
-
-	newsighand = kmem_cache_alloc(sighand_cachep, GFP_KERNEL);
-	if (!newsighand)
-		return -ENOMEM;
 
 	if (thread_group_empty(tsk))
 		goto no_thread_group;
@@ -781,7 +777,6 @@ static int de_thread(struct task_struct *tsk)
 		 */
 		spin_unlock_irq(lock);
 		read_unlock(&tasklist_lock);
-		kmem_cache_free(sighand_cachep, newsighand);
 		return -EAGAIN;
 	}
 
@@ -899,17 +894,16 @@ no_thread_group:
 	if (leader)
 		release_task(leader);
 
-	if (atomic_read(&oldsighand->count) == 1) {
+	if (atomic_read(&oldsighand->count) != 1) {
+		struct sighand_struct *newsighand;
 		/*
-		 * Now that we nuked the rest of the thread group,
-		 * it turns out we are not sharing sighand any more either.
-		 * So we can just keep it.
+		 * This ->sighand is shared with the CLONE_SIGHAND
+		 * but not CLONE_THREAD task, switch to the new one.
 		 */
-		kmem_cache_free(sighand_cachep, newsighand);
-	} else {
-		/*
-		 * Move our state over to newsighand and switch it in.
-		 */
+		newsighand = kmem_cache_alloc(sighand_cachep, GFP_KERNEL);
+		if (!newsighand)
+			return -ENOMEM;
+
 		atomic_set(&newsighand->count, 1);
 		memcpy(newsighand->action, oldsighand->action,
 		       sizeof(newsighand->action));
