@@ -933,19 +933,20 @@ magic_found:
 		goto again;
 	}
 
-	sbi->s_flags = flags;/*after that line some functions use s_flags*/
+	/* Set sbi->s_flags here, used by ufs_get_fs_state() below */
+	sbi->s_flags = flags;
 	ufs_print_super_stuff(sb, usb1, usb2, usb3);
 
 	/*
 	 * Check, if file system was correctly unmounted.
 	 * If not, make it read only.
 	 */
-	if (((flags & UFS_ST_MASK) == UFS_ST_44BSD) ||
-	  ((flags & UFS_ST_MASK) == UFS_ST_OLD) ||
-	  (((flags & UFS_ST_MASK) == UFS_ST_SUN || 
-	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
-	  (flags & UFS_ST_MASK) == UFS_ST_SUNx86) && 
-	  (ufs_get_fs_state(sb, usb1, usb3) == (UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time))))) {
+	if ((((flags & UFS_ST_MASK) == UFS_ST_44BSD)	||
+	     ((flags & UFS_ST_MASK) == UFS_ST_OLD)	||
+	     ((flags & UFS_ST_MASK) == UFS_ST_SUN)	||
+	     ((flags & UFS_ST_MASK) == UFS_ST_SUNOS)	||
+	     ((flags & UFS_ST_MASK) == UFS_ST_SUNx86))	&&
+	    (ufs_get_fs_state(sb, usb1, usb3) == (UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time)))) {
 		switch(usb1->fs_clean) {
 		case UFS_FSCLEAN:
 			UFSD("fs is clean\n");
