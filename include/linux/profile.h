@@ -78,9 +78,6 @@ int profile_event_unregister(enum profile_type, struct notifier_block * n);
 int register_timer_hook(int (*hook)(struct pt_regs *));
 void unregister_timer_hook(int (*hook)(struct pt_regs *));
 
-/* Timer based profiling hook */
-extern int (*timer_hook)(struct pt_regs *);
-
 struct pt_regs;
 
 #else
