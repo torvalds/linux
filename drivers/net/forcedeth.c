@@ -128,7 +128,7 @@
 #else
 #define DRIVERNAPI
 #endif
-#define FORCEDETH_VERSION		"0.60"
+#define FORCEDETH_VERSION		"0.61"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -752,7 +752,6 @@ struct fe_priv {
 
 	/* General data:
 	 * Locking: spin_lock(&np->lock); */
-	struct net_device_stats stats;
 	struct nv_ethtool_stats estats;
 	int in_shutdown;
 	u32 linkspeed;
@@ -1505,15 +1504,16 @@ static struct net_device_stats *nv_get_stats(struct net_device *dev)
 		nv_get_hw_stats(dev);
 
 		/* copy to net_device stats */
-		np->stats.tx_bytes = np->estats.tx_bytes;
-		np->stats.tx_fifo_errors = np->estats.tx_fifo_errors;
-		np->stats.tx_carrier_errors = np->estats.tx_carrier_errors;
-		np->stats.rx_crc_errors = np->estats.rx_crc_errors;
-		np->stats.rx_over_errors = np->estats.rx_over_errors;
-		np->stats.rx_errors = np->estats.rx_errors_total;
-		np->stats.tx_errors = np->estats.tx_errors_total;
+		dev->stats.tx_bytes = np->estats.tx_bytes;
+		dev->stats.tx_fifo_errors = np->estats.tx_fifo_errors;
+		dev->stats.tx_carrier_errors = np->estats.tx_carrier_errors;
+		dev->stats.rx_crc_errors = np->estats.rx_crc_errors;
+		dev->stats.rx_over_errors = np->estats.rx_over_errors;
+		dev->stats.rx_errors = np->estats.rx_errors_total;
+		dev->stats.tx_errors = np->estats.tx_errors_total;
 	}
-	return &np->stats;
+
+	return &dev->stats;
 }
 
 /*
@@ -1733,7 +1733,7 @@ static void nv_drain_tx(struct net_device *dev)
 			np->tx_ring.ex[i].buflow = 0;
 		}
 		if (nv_release_txskb(dev, &np->tx_skb[i]))
-			np->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 	}
 }
 
@@ -2049,13 +2049,13 @@ static void nv_tx_done(struct net_device *dev)
 			if (flags & NV_TX_LASTPACKET) {
 				if (flags & NV_TX_ERROR) {
 					if (flags & NV_TX_UNDERFLOW)
-						np->stats.tx_fifo_errors++;
+						dev->stats.tx_fifo_errors++;
 					if (flags & NV_TX_CARRIERLOST)
-						np->stats.tx_carrier_errors++;
-					np->stats.tx_errors++;
+						dev->stats.tx_carrier_errors++;
+					dev->stats.tx_errors++;
 				} else {
-					np->stats.tx_packets++;
-					np->stats.tx_bytes += np->get_tx_ctx->skb->len;
+					dev->stats.tx_packets++;
+					dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
 				}
 				dev_kfree_skb_any(np->get_tx_ctx->skb);
 				np->get_tx_ctx->skb = NULL;
@@ -2064,13 +2064,13 @@ static void nv_tx_done(struct net_device *dev)
 			if (flags & NV_TX2_LASTPACKET) {
 				if (flags & NV_TX2_ERROR) {
 					if (flags & NV_TX2_UNDERFLOW)
-						np->stats.tx_fifo_errors++;
+						dev->stats.tx_fifo_errors++;
 					if (flags & NV_TX2_CARRIERLOST)
-						np->stats.tx_carrier_errors++;
-					np->stats.tx_errors++;
+						dev->stats.tx_carrier_errors++;
+					dev->stats.tx_errors++;
 				} else {
-					np->stats.tx_packets++;
-					np->stats.tx_bytes += np->get_tx_ctx->skb->len;
+					dev->stats.tx_packets++;
+					dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
 				}
 				dev_kfree_skb_any(np->get_tx_ctx->skb);
 				np->get_tx_ctx->skb = NULL;
@@ -2107,7 +2107,7 @@ static void nv_tx_done_optimized(struct net_device *dev, int limit)
 
 		if (flags & NV_TX2_LASTPACKET) {
 			if (!(flags & NV_TX2_ERROR))
-				np->stats.tx_packets++;
+				dev->stats.tx_packets++;
 			dev_kfree_skb_any(np->get_tx_ctx->skb);
 			np->get_tx_ctx->skb = NULL;
 		}
@@ -2308,7 +2308,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					if (flags & NV_RX_ERROR4) {
 						len = nv_getlen(dev, skb->data, len);
 						if (len < 0) {
-							np->stats.rx_errors++;
+							dev->stats.rx_errors++;
 							dev_kfree_skb(skb);
 							goto next_pkt;
 						}
@@ -2322,12 +2322,12 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					/* the rest are hard errors */
 					else {
 						if (flags & NV_RX_MISSEDFRAME)
-							np->stats.rx_missed_errors++;
+							dev->stats.rx_missed_errors++;
 						if (flags & NV_RX_CRCERR)
-							np->stats.rx_crc_errors++;
+							dev->stats.rx_crc_errors++;
 						if (flags & NV_RX_OVERFLOW)
-							np->stats.rx_over_errors++;
-						np->stats.rx_errors++;
+							dev->stats.rx_over_errors++;
+						dev->stats.rx_errors++;
 						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
@@ -2343,7 +2343,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					if (flags & NV_RX2_ERROR4) {
 						len = nv_getlen(dev, skb->data, len);
 						if (len < 0) {
-							np->stats.rx_errors++;
+							dev->stats.rx_errors++;
 							dev_kfree_skb(skb);
 							goto next_pkt;
 						}
@@ -2357,10 +2357,10 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					/* the rest are hard errors */
 					else {
 						if (flags & NV_RX2_CRCERR)
-							np->stats.rx_crc_errors++;
+							dev->stats.rx_crc_errors++;
 						if (flags & NV_RX2_OVERFLOW)
-							np->stats.rx_over_errors++;
-						np->stats.rx_errors++;
+							dev->stats.rx_over_errors++;
+						dev->stats.rx_errors++;
 						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
@@ -2389,8 +2389,8 @@ static int nv_rx_process(struct net_device *dev, int limit)
 		netif_rx(skb);
 #endif
 		dev->last_rx = jiffies;
-		np->stats.rx_packets++;
-		np->stats.rx_bytes += len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += len;
 next_pkt:
 		if (unlikely(np->get_rx.orig++ == np->last_rx.orig))
 			np->get_rx.orig = np->first_rx.orig;
@@ -2507,8 +2507,8 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 			}
 
 			dev->last_rx = jiffies;
-			np->stats.rx_packets++;
-			np->stats.rx_bytes += len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += len;
 		} else {
 			dev_kfree_skb(skb);
 		}
