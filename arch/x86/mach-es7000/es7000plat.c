@@ -46,11 +46,11 @@
  * ES7000 Globals
  */
 
-volatile unsigned long	*psai = NULL;
-struct mip_reg		*mip_reg;
-struct mip_reg		*host_reg;
-int 			mip_port;
-unsigned long		mip_addr, host_addr;
+static volatile unsigned long	*psai = NULL;
+static struct mip_reg		*mip_reg;
+static struct mip_reg		*host_reg;
+static int 			mip_port;
+static unsigned long		mip_addr, host_addr;
 
 /*
  * GSI override for ES7000 platforms.
@@ -288,28 +288,8 @@ es7000_start_cpu(int cpu, unsigned long eip)
 
 }
 
-int
-es7000_stop_cpu(int cpu)
-{
-	int startup;
-
-	if (psai == NULL)
-		return -1;
-
-	startup= (0x1000000 | cpu);
-
-	while ((*psai & 0xff00ffff) != startup)
-		;
-
-	startup = (*psai & 0xff0000) >> 16;
-	*psai &= 0xffffff;
-
-	return 0;
-
-}
-
 void __init
-es7000_sw_apic()
+es7000_sw_apic(void)
 {
 	if (es7000_plat) {
 		int mip_status;
