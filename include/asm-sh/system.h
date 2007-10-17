@@ -15,6 +15,7 @@
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next);
 
+#define AT_VECTOR_SIZE_ARCH 1 /* entries in ARCH_DLINFO */
 /*
  *	switch_to() should switch tasks to task nr n, first
  */

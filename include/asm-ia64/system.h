@@ -32,6 +32,8 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
+#define AT_VECTOR_SIZE_ARCH 2 /* entries in ARCH_DLINFO */
+
 struct pci_vector_struct {
 	__u16 segment;	/* PCI Segment number */
 	__u16 bus;	/* PCI Bus number */

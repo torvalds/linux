@@ -153,6 +153,7 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 
 extern unsigned int vdso_enabled;
 
+/* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 #define ARCH_DLINFO							\
 do if (vdso_enabled) {							\
 		NEW_AUX_ENT(AT_SYSINFO,	VDSO_ENTRY);			\

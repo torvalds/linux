@@ -291,6 +291,7 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
  *   AT_IGNOREPPC is used for that.
  * - for compatibility with glibc ARCH_DLINFO must always be defined on PPC,
  *   even if DLINFO_ARCH_ITEMS goes to zero or is undefined.
+ * update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes
  */
 #define ARCH_DLINFO							\
 do {									\

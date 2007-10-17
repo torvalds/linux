@@ -192,6 +192,7 @@ extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
 
 #define GATE_EHDR	((const struct elfhdr *) GATE_ADDR)
 
+/* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 #define ARCH_DLINFO								\
 do {										\
 	extern char __kernel_syscall_via_epc[];					\

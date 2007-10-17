@@ -1,7 +1,7 @@
 #ifndef _LINUX_MM_TYPES_H
 #define _LINUX_MM_TYPES_H
 
-#include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
+#include <linux/auxvec.h>
 #include <linux/types.h>
 #include <linux/threads.h>
 #include <linux/list.h>
@@ -12,6 +12,11 @@
 #include <linux/completion.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
+
+#ifndef AT_VECTOR_SIZE_ARCH
+#define AT_VECTOR_SIZE_ARCH 0
+#endif
+#define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
 
 struct address_space;
 

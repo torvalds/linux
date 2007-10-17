@@ -175,6 +175,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 
 	/* Create the ELF interpreter info */
 	elf_info = (elf_addr_t *)current->mm->saved_auxv;
+	/* update AT_VECTOR_SIZE_BASE if the number of NEW_AUX_ENT() changes */
 #define NEW_AUX_ENT(id, val) \
 	do { \
 		elf_info[ei_index++] = id; \
@@ -185,6 +186,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	/* 
 	 * ARCH_DLINFO must come first so PPC can do its special alignment of
 	 * AUXV.
+	 * update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT() in
+	 * ARCH_DLINFO changes
 	 */
 	ARCH_DLINFO;
 #endif
