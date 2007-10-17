@@ -389,11 +389,6 @@ static inline void prefetchw(void *x)
 
 #define cpu_relax()   rep_nop()
 
-static inline void serialize_cpu(void)
-{
-	__asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
-}
-
 static inline void __monitor(const void *eax, unsigned long ecx,
 		unsigned long edx)
 {
