@@ -62,9 +62,17 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
+		unsigned any_count = 0;
+
 		spin_lock_irqsave(&irq_desc[i].lock, flags);
+#ifndef CONFIG_SMP
+		any_count = kstat_irqs(i);
+#else
+		for_each_online_cpu(j)
+			any_count |= kstat_cpu(j).irqs[i];
+#endif
 		action = irq_desc[i].action;
-		if (!action) 
+		if (!action && !any_count)
 			goto skip;
 		seq_printf(p, "%3d: ",i);
 #ifndef CONFIG_SMP
@@ -76,9 +84,11 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, " %8s", irq_desc[i].chip->name);
 		seq_printf(p, "-%-8s", irq_desc[i].name);
 
-		seq_printf(p, "  %s", action->name);
-		for (action=action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
+		if (action) {
+			seq_printf(p, "  %s", action->name);
+			while ((action = action->next) != NULL)
+				seq_printf(p, ", %s", action->name);
+		}
 		seq_putc(p, '\n');
 skip:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
