@@ -108,10 +108,10 @@ time_t *udf_stamp_to_time(time_t *dest, long *dest_usec, kernel_timestamp src)
 	*dest = year_seconds[src.year - EPOCH_YEAR];
 	*dest -= offset * 60;
 
-	yday = ((__mon_yday[__isleap (src.year)]
-		 [src.month - 1]) + (src.day - 1));
-	*dest += ( ( (yday * 24) + src.hour ) * 60 + src.minute ) * 60 + src.second;
-	*dest_usec = src.centiseconds * 10000 + src.hundredsOfMicroseconds * 100 + src.microseconds;
+	yday = ((__mon_yday[__isleap(src.year)][src.month - 1]) + src.day - 1);
+	*dest += (((yday * 24) + src.hour) * 60 + src.minute) * 60 + src.second;
+	*dest_usec = src.centiseconds * 10000 +
+			src.hundredsOfMicroseconds * 100 + src.microseconds;
 	return dest;
 }
 

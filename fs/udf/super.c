@@ -913,8 +913,7 @@ static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 					UDF_SB_PARTMAPS(sb)[i].s_uspace.s_table =
 						udf_iget(sb, loc);
 					if (!UDF_SB_PARTMAPS(sb)[i].s_uspace.s_table) {
-						udf_debug("cannot load unallocSpaceTable (part %d)\n",
-							i);
+						udf_debug("cannot load unallocSpaceTable (part %d)\n", i);
 						return 1;
 					}
 					UDF_SB_PARTFLAGS(sb,i) |= UDF_PART_FLAG_UNALLOC_TABLE;
@@ -944,8 +943,7 @@ static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 					UDF_SB_PARTMAPS(sb)[i].s_fspace.s_table =
 						udf_iget(sb, loc);
 					if (!UDF_SB_PARTMAPS(sb)[i].s_fspace.s_table) {
-						udf_debug("cannot load freedSpaceTable (part %d)\n",
-							i);
+						udf_debug("cannot load freedSpaceTable (part %d)\n", i);
 						return 1;
 					}
 					UDF_SB_PARTFLAGS(sb,i) |= UDF_PART_FLAG_FREED_TABLE;
@@ -1293,19 +1291,16 @@ static int udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 
 			if (!UDF_SB_LASTBLOCK(sb)) {
 				udf_debug("Unable to determine Lastblock (For "
-						"Virtual Partition)\n");
+					  "Virtual Partition)\n");
 				return 1;
 			}
 
 			for (j = 0; j < UDF_SB_NUMPARTS(sb); j++) {
-				if (j != i && UDF_SB_PARTVSN(sb, i) ==
-					UDF_SB_PARTVSN(sb, j) &&
-				    	UDF_SB_PARTNUM(sb, i) ==
-						UDF_SB_PARTNUM(sb, j)) {
+				if (j != i &&
+				    UDF_SB_PARTVSN(sb, i) == UDF_SB_PARTVSN(sb, j) &&
+				    UDF_SB_PARTNUM(sb, i) == UDF_SB_PARTNUM(sb, j)) {
 					ino.partitionReferenceNum = j;
-					ino.logicalBlockNum =
-					    UDF_SB_LASTBLOCK(sb) -
-					    UDF_SB_PARTROOT(sb, j);
+					ino.logicalBlockNum = UDF_SB_LASTBLOCK(sb) - UDF_SB_PARTROOT(sb, j);
 					break;
 				}
 			}
@@ -1318,9 +1313,9 @@ static int udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 
 			if (UDF_SB_PARTTYPE(sb, i) == UDF_VIRTUAL_MAP15) {
 				UDF_SB_TYPEVIRT(sb, i).s_start_offset =
-				    udf_ext0_offset(UDF_SB_VAT(sb));
+					udf_ext0_offset(UDF_SB_VAT(sb));
 				UDF_SB_TYPEVIRT(sb, i).s_num_entries =
-				    (UDF_SB_VAT(sb)->i_size - 36) >> 2;
+					(UDF_SB_VAT(sb)->i_size - 36) >> 2;
 			} else if (UDF_SB_PARTTYPE(sb, i) == UDF_VIRTUAL_MAP20) {
 				struct buffer_head *bh = NULL;
 				uint32_t pos;
@@ -1330,19 +1325,15 @@ static int udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 				if (!bh)
 					return 1;
 				UDF_SB_TYPEVIRT(sb, i).s_start_offset =
-				    le16_to_cpu(((struct
-					virtualAllocationTable20 *)bh->b_data +
-					  udf_ext0_offset(UDF_SB_VAT(sb)))->
-						lengthHeader) +
-					  udf_ext0_offset(UDF_SB_VAT(sb));
-				UDF_SB_TYPEVIRT(sb, i).s_num_entries =
-				    (UDF_SB_VAT(sb)->i_size -
-				     UDF_SB_TYPEVIRT(sb, i).s_start_offset) >> 2;
+					le16_to_cpu(((struct virtualAllocationTable20 *)bh->b_data +
+						     udf_ext0_offset(UDF_SB_VAT(sb)))->lengthHeader) +
+					udf_ext0_offset(UDF_SB_VAT(sb));
+				UDF_SB_TYPEVIRT(sb, i).s_num_entries = (UDF_SB_VAT(sb)->i_size -
+									UDF_SB_TYPEVIRT(sb, i).s_start_offset) >> 2;
 				brelse(bh);
 			}
 			UDF_SB_PARTROOT(sb, i) = udf_get_pblock(sb, 0, i, 0);
-			UDF_SB_PARTLEN(sb, i) = UDF_SB_PARTLEN(sb,
-						ino.partitionReferenceNum);
+			UDF_SB_PARTLEN(sb, i) = UDF_SB_PARTLEN(sb, ino.partitionReferenceNum);
 		}
 	}
 	return 0;
@@ -1357,21 +1348,17 @@ static void udf_open_lvid(struct super_block *sb)
 		UDF_SB_LVIDIU(sb)->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 		UDF_SB_LVIDIU(sb)->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
 		if (udf_time_to_stamp(&cpu_time, CURRENT_TIME))
-			UDF_SB_LVID(sb)->recordingDateAndTime =
-			    cpu_to_lets(cpu_time);
+			UDF_SB_LVID(sb)->recordingDateAndTime = cpu_to_lets(cpu_time);
 		UDF_SB_LVID(sb)->integrityType = LVID_INTEGRITY_TYPE_OPEN;
 
-		UDF_SB_LVID(sb)->descTag.descCRC =
-		    cpu_to_le16(udf_crc((char *)UDF_SB_LVID(sb) + sizeof(tag),
-					le16_to_cpu(UDF_SB_LVID(sb)->descTag.
-						    descCRCLength), 0));
+		UDF_SB_LVID(sb)->descTag.descCRC = cpu_to_le16(udf_crc((char *)UDF_SB_LVID(sb) + sizeof(tag),
+								       le16_to_cpu(UDF_SB_LVID(sb)->descTag.descCRCLength), 0));
 
 		UDF_SB_LVID(sb)->descTag.tagChecksum = 0;
 		for (i = 0; i < 16; i++)
 			if (i != 4)
 				UDF_SB_LVID(sb)->descTag.tagChecksum +=
-				    ((uint8_t *) &
-				     (UDF_SB_LVID(sb)->descTag))[i];
+					((uint8_t *) &(UDF_SB_LVID(sb)->descTag))[i];
 
 		mark_buffer_dirty(UDF_SB_LVIDBH(sb));
 	}
