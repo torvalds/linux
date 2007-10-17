@@ -63,6 +63,3 @@ config PREEMPT_BKL
 	  Say Y here if you are building a kernel for a desktop system.
 	  Say N if you are unsure.
 
-config PREEMPT_NOTIFIERS
-	bool
-
