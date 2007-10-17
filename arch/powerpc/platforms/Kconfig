@@ -264,6 +264,7 @@ config TAU_AVERAGE
 
 config QUICC_ENGINE
 	bool
+	select PPC_LIB_RHEAP
 	help
 	  The QUICC Engine (QE) is a new generation of communications
 	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
@@ -274,6 +275,7 @@ config CPM2
 	bool
 	default n
 	select CPM
+	select PPC_LIB_RHEAP
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
@@ -312,5 +314,7 @@ config FSL_ULI1575
 
 config CPM
 	bool
+
+source "arch/powerpc/sysdev/bestcomm/Kconfig"
 
 endmenu

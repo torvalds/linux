@@ -209,9 +209,10 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 		if (prop[0] == 40) {
 			DBG("1T segment support detected\n");
 			cur_cpu_spec->cpu_features |= CPU_FTR_1T_SEGMENT;
+			return 1;
 		}
-		return 1;
 	}
+	cur_cpu_spec->cpu_features &= ~CPU_FTR_NO_SLBIE_B;
 	return 0;
 }
 

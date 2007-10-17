@@ -39,9 +39,9 @@ static inline void iSeries_hunlock(unsigned long slot)
 	spin_unlock(&iSeries_hlocks[(slot >> 4) & 0x3f]);
 }
 
-long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
+static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 			 unsigned long pa, unsigned long rflags,
-			 unsigned long vflags, int psize)
+			 unsigned long vflags, int psize, int ssize)
 {
 	long slot;
 	struct hash_pte lhpte;

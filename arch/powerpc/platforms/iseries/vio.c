@@ -2,7 +2,7 @@
  * Legacy iSeries specific vio initialisation
  * that needs to be built in (not a module).
  *
- * Â© Copyright 2007 IBM Corporation
+ * © Copyright 2007 IBM Corporation
  *	Author: Stephen Rothwell
  *	Some parts collected from various other files
  *

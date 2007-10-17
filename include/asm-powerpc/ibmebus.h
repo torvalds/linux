@@ -43,42 +43,18 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/mod_devicetable.h>
-#include <asm/of_device.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 extern struct bus_type ibmebus_bus_type;
 
-struct ibmebus_dev {
-	struct of_device ofdev;
-};
+int ibmebus_register_driver(struct of_platform_driver *drv);
+void ibmebus_unregister_driver(struct of_platform_driver *drv);
 
-struct ibmebus_driver {
-	char *name;
-	struct of_device_id *id_table;
-	int (*probe) (struct ibmebus_dev *dev, const struct of_device_id *id);
-	int (*remove) (struct ibmebus_dev *dev);
-	struct device_driver driver;
-};
-
-int ibmebus_register_driver(struct ibmebus_driver *drv);
-void ibmebus_unregister_driver(struct ibmebus_driver *drv);
-
-int ibmebus_request_irq(struct ibmebus_dev *dev,
-			u32 ist,
-			irq_handler_t handler,
-			unsigned long irq_flags, const char * devname,
+int ibmebus_request_irq(u32 ist, irq_handler_t handler,
+			unsigned long irq_flags, const char *devname,
 			void *dev_id);
-void ibmebus_free_irq(struct ibmebus_dev *dev, u32 ist, void *dev_id);
-
-static inline struct ibmebus_driver *to_ibmebus_driver(struct device_driver *drv)
-{
-	return container_of(drv, struct ibmebus_driver, driver);
-}
-
-static inline struct ibmebus_dev *to_ibmebus_dev(struct device *dev)
-{
-	return container_of(dev, struct ibmebus_dev, ofdev.dev);
-}
-
+void ibmebus_free_irq(u32 ist, void *dev_id);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_IBMEBUS_H */

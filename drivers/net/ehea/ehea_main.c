@@ -98,10 +98,10 @@ struct work_struct ehea_rereg_mr_task;
 
 struct semaphore dlpar_mem_lock;
 
-static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
+static int __devinit ehea_probe_adapter(struct of_device *dev,
 					const struct of_device_id *id);
 
-static int __devexit ehea_remove(struct ibmebus_dev *dev);
+static int __devexit ehea_remove(struct of_device *dev);
 
 static struct of_device_id ehea_device_table[] = {
 	{
@@ -111,9 +111,9 @@ static struct of_device_id ehea_device_table[] = {
 	{},
 };
 
-static struct ibmebus_driver ehea_driver = {
+static struct of_platform_driver ehea_driver = {
 	.name = "ehea",
-	.id_table = ehea_device_table,
+	.match_table = ehea_device_table,
 	.probe = ehea_probe_adapter,
 	.remove = ehea_remove,
 };
@@ -1044,7 +1044,7 @@ static int ehea_reg_interrupts(struct net_device *dev)
 	snprintf(port->int_aff_name, EHEA_IRQ_NAME_SIZE - 1, "%s-aff",
 		 dev->name);
 
-	ret = ibmebus_request_irq(NULL, port->qp_eq->attr.ist1,
+	ret = ibmebus_request_irq(port->qp_eq->attr.ist1,
 				  ehea_qp_aff_irq_handler,
 				  IRQF_DISABLED, port->int_aff_name, port);
 	if (ret) {
@@ -1062,7 +1062,7 @@ static int ehea_reg_interrupts(struct net_device *dev)
 		pr = &port->port_res[i];
 		snprintf(pr->int_send_name, EHEA_IRQ_NAME_SIZE - 1,
 			 "%s-queue%d", dev->name, i);
-		ret = ibmebus_request_irq(NULL, pr->eq->attr.ist1,
+		ret = ibmebus_request_irq(pr->eq->attr.ist1,
 					  ehea_recv_irq_handler,
 					  IRQF_DISABLED, pr->int_send_name,
 					  pr);
@@ -1083,11 +1083,11 @@ out:
 out_free_req:
 	while (--i >= 0) {
 		u32 ist = port->port_res[i].eq->attr.ist1;
-		ibmebus_free_irq(NULL, ist, &port->port_res[i]);
+		ibmebus_free_irq(ist, &port->port_res[i]);
 	}
 
 out_free_qpeq:
-	ibmebus_free_irq(NULL, port->qp_eq->attr.ist1, port);
+	ibmebus_free_irq(port->qp_eq->attr.ist1, port);
 	i = port->num_def_qps;
 
 	goto out;
@@ -1104,14 +1104,14 @@ static void ehea_free_interrupts(struct net_device *dev)
 
 	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
 		pr = &port->port_res[i];
-		ibmebus_free_irq(NULL, pr->eq->attr.ist1, pr);
+		ibmebus_free_irq(pr->eq->attr.ist1, pr);
 		if (netif_msg_intr(port))
 			ehea_info("free send irq for res %d with handle 0x%X",
 				  i, pr->eq->attr.ist1);
 	}
 
 	/* associated events */
-	ibmebus_free_irq(NULL, port->qp_eq->attr.ist1, port);
+	ibmebus_free_irq(port->qp_eq->attr.ist1, port);
 	if (netif_msg_intr(port))
 		ehea_info("associated event interrupt for handle 0x%X freed",
 			  port->qp_eq->attr.ist1);
@@ -2832,7 +2832,7 @@ static struct device *ehea_register_port(struct ehea_port *port,
 	int ret;
 
 	port->ofdev.node = of_node_get(dn);
-	port->ofdev.dev.parent = &port->adapter->ebus_dev->ofdev.dev;
+	port->ofdev.dev.parent = &port->adapter->ofdev->dev;
 	port->ofdev.dev.bus = &ibmebus_bus_type;
 
 	sprintf(port->ofdev.dev.bus_id, "port%d", port_name_cnt++);
@@ -3011,7 +3011,7 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 	const u32 *dn_log_port_id;
 	int i = 0;
 
-	lhea_dn = adapter->ebus_dev->ofdev.node;
+	lhea_dn = adapter->ofdev->node;
 	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
 
 		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-no",
@@ -3051,7 +3051,7 @@ static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
 	struct device_node *eth_dn = NULL;
 	const u32 *dn_log_port_id;
 
-	lhea_dn = adapter->ebus_dev->ofdev.node;
+	lhea_dn = adapter->ofdev->node;
 	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
 
 		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-no",
@@ -3157,31 +3157,31 @@ static ssize_t ehea_remove_port(struct device *dev,
 static DEVICE_ATTR(probe_port, S_IWUSR, NULL, ehea_probe_port);
 static DEVICE_ATTR(remove_port, S_IWUSR, NULL, ehea_remove_port);
 
-int ehea_create_device_sysfs(struct ibmebus_dev *dev)
+int ehea_create_device_sysfs(struct of_device *dev)
 {
-	int ret = device_create_file(&dev->ofdev.dev, &dev_attr_probe_port);
+	int ret = device_create_file(&dev->dev, &dev_attr_probe_port);
 	if (ret)
 		goto out;
 
-	ret = device_create_file(&dev->ofdev.dev, &dev_attr_remove_port);
+	ret = device_create_file(&dev->dev, &dev_attr_remove_port);
 out:
 	return ret;
 }
 
-void ehea_remove_device_sysfs(struct ibmebus_dev *dev)
+void ehea_remove_device_sysfs(struct of_device *dev)
 {
-	device_remove_file(&dev->ofdev.dev, &dev_attr_probe_port);
-	device_remove_file(&dev->ofdev.dev, &dev_attr_remove_port);
+	device_remove_file(&dev->dev, &dev_attr_probe_port);
+	device_remove_file(&dev->dev, &dev_attr_remove_port);
 }
 
-static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
+static int __devinit ehea_probe_adapter(struct of_device *dev,
 					const struct of_device_id *id)
 {
 	struct ehea_adapter *adapter;
 	const u64 *adapter_handle;
 	int ret;
 
-	if (!dev || !dev->ofdev.node) {
+	if (!dev || !dev->node) {
 		ehea_error("Invalid ibmebus device probed");
 		return -EINVAL;
 	}
@@ -3189,36 +3189,36 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		ret = -ENOMEM;
-		dev_err(&dev->ofdev.dev, "no mem for ehea_adapter\n");
+		dev_err(&dev->dev, "no mem for ehea_adapter\n");
 		goto out;
 	}
 
 	list_add(&adapter->list, &adapter_list);
 
-	adapter->ebus_dev = dev;
+	adapter->ofdev = dev;
 
-	adapter_handle = of_get_property(dev->ofdev.node, "ibm,hea-handle",
+	adapter_handle = of_get_property(dev->node, "ibm,hea-handle",
 					 NULL);
 	if (adapter_handle)
 		adapter->handle = *adapter_handle;
 
 	if (!adapter->handle) {
-		dev_err(&dev->ofdev.dev, "failed getting handle for adapter"
-			" '%s'\n", dev->ofdev.node->full_name);
+		dev_err(&dev->dev, "failed getting handle for adapter"
+			" '%s'\n", dev->node->full_name);
 		ret = -ENODEV;
 		goto out_free_ad;
 	}
 
 	adapter->pd = EHEA_PD_ID;
 
-	dev->ofdev.dev.driver_data = adapter;
+	dev->dev.driver_data = adapter;
 
 
 	/* initialize adapter and ports */
 	/* get adapter properties */
 	ret = ehea_sense_adapter_attr(adapter);
 	if (ret) {
-		dev_err(&dev->ofdev.dev, "sense_adapter_attr failed: %d", ret);
+		dev_err(&dev->dev, "sense_adapter_attr failed: %d", ret);
 		goto out_free_ad;
 	}
 
@@ -3226,18 +3226,18 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 				      EHEA_NEQ, EHEA_MAX_ENTRIES_EQ, 1);
 	if (!adapter->neq) {
 		ret = -EIO;
-		dev_err(&dev->ofdev.dev, "NEQ creation failed");
+		dev_err(&dev->dev, "NEQ creation failed");
 		goto out_free_ad;
 	}
 
 	tasklet_init(&adapter->neq_tasklet, ehea_neq_tasklet,
 		     (unsigned long)adapter);
 
-	ret = ibmebus_request_irq(NULL, adapter->neq->attr.ist1,
+	ret = ibmebus_request_irq(adapter->neq->attr.ist1,
 				  ehea_interrupt_neq, IRQF_DISABLED,
 				  "ehea_neq", adapter);
 	if (ret) {
-		dev_err(&dev->ofdev.dev, "requesting NEQ IRQ failed");
+		dev_err(&dev->dev, "requesting NEQ IRQ failed");
 		goto out_kill_eq;
 	}
 
@@ -3247,7 +3247,7 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 
 	ret = ehea_setup_ports(adapter);
 	if (ret) {
-		dev_err(&dev->ofdev.dev, "setup_ports failed");
+		dev_err(&dev->dev, "setup_ports failed");
 		goto out_rem_dev_sysfs;
 	}
 
@@ -3258,7 +3258,7 @@ out_rem_dev_sysfs:
 	ehea_remove_device_sysfs(dev);
 
 out_free_irq:
-	ibmebus_free_irq(NULL, adapter->neq->attr.ist1, adapter);
+	ibmebus_free_irq(adapter->neq->attr.ist1, adapter);
 
 out_kill_eq:
 	ehea_destroy_eq(adapter->neq);
@@ -3269,9 +3269,9 @@ out:
 	return ret;
 }
 
-static int __devexit ehea_remove(struct ibmebus_dev *dev)
+static int __devexit ehea_remove(struct of_device *dev)
 {
-	struct ehea_adapter *adapter = dev->ofdev.dev.driver_data;
+	struct ehea_adapter *adapter = dev->dev.driver_data;
 	int i;
 
 	for (i = 0; i < EHEA_MAX_PORTS; i++)
@@ -3284,7 +3284,7 @@ static int __devexit ehea_remove(struct ibmebus_dev *dev)
 
 	flush_scheduled_work();
 
-	ibmebus_free_irq(NULL, adapter->neq->attr.ist1, adapter);
+	ibmebus_free_irq(adapter->neq->attr.ist1, adapter);
 	tasklet_kill(&adapter->neq_tasklet);
 
 	ehea_destroy_eq(adapter->neq);

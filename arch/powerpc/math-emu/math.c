@@ -407,11 +407,16 @@ do_mathemu(struct pt_regs *regs)
 
 	case XE:
 		idx = (insn >> 16) & 0x1f;
-		if (!idx)
-			goto illegal;
-
 		op0 = (void *)&current->thread.fpr[(insn >> 21) & 0x1f];
-		op1 = (void *)(regs->gpr[idx] + regs->gpr[(insn >> 11) & 0x1f]);
+		if (!idx) {
+			if (((insn >> 1) & 0x3ff) == STFIWX)
+				op1 = (void *)(regs->gpr[(insn >> 11) & 0x1f]);
+			else
+				goto illegal;
+		} else {
+			op1 = (void *)(regs->gpr[idx] + regs->gpr[(insn >> 11) & 0x1f]);
+		}
+
 		break;
 
 	case XEU:
