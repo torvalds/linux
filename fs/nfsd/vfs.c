@@ -865,6 +865,15 @@ static int nfsd_direct_splice_actor(struct pipe_inode_info *pipe,
 	return __splice_from_pipe(pipe, sd, nfsd_splice_actor);
 }
 
+static inline int svc_msnfs(struct svc_fh *ffhp)
+{
+#ifdef MSNFS
+	return (ffhp->fh_export->ex_flags & NFSEXP_MSNFS);
+#else
+	return 0;
+#endif
+}
+
 static __be32
 nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
@@ -877,11 +886,9 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 
 	err = nfserr_perm;
 	inode = file->f_path.dentry->d_inode;
-#ifdef MSNFS
-	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
-		(!lock_may_read(inode, offset, *count)))
+
+	if (svc_msnfs(fhp) && !lock_may_read(inode, offset, *count))
 		goto out;
-#endif
 
 	/* Get readahead parameters */
 	ra = nfsd_get_raparms(inode->i_sb->s_dev, inode->i_ino);
