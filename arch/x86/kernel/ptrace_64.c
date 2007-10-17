@@ -103,7 +103,7 @@ unsigned long convert_rip_to_linear(struct task_struct *child, struct pt_regs *r
 
 		seg &= ~7UL;
 
-		down(&child->mm->context.sem);
+		mutex_lock(&child->mm->context.lock);
 		if (unlikely((seg >> 3) >= child->mm->context.size))
 			addr = -1L; /* bogus selector, access would fault */
 		else {
@@ -117,7 +117,7 @@ unsigned long convert_rip_to_linear(struct task_struct *child, struct pt_regs *r
 				addr &= 0xffff;
 			addr += base;
 		}
-		up(&child->mm->context.sem);
+		mutex_unlock(&child->mm->context.lock);
 	}
 
 	return addr;
