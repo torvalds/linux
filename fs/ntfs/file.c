@@ -61,7 +61,7 @@ static int ntfs_file_open(struct inode *vi, struct file *filp)
 {
 	if (sizeof(unsigned long) < 8) {
 		if (i_size_read(vi) > MAX_LFS_FILESIZE)
-			return -EFBIG;
+			return -EOVERFLOW;
 	}
 	return generic_file_open(vi, filp);
 }

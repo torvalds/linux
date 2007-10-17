@@ -406,7 +406,7 @@ static int gfs2_open(struct inode *inode, struct file *file)
 
 		if (!(file->f_flags & O_LARGEFILE) &&
 		    ip->i_di.di_size > MAX_NON_LFS) {
-			error = -EFBIG;
+			error = -EOVERFLOW;
 			goto fail_gunlock;
 		}
 
