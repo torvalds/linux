@@ -1,8 +1,6 @@
 #ifndef __INCLUDE_LINUX_OOM_H
 #define __INCLUDE_LINUX_OOM_H
 
-#include <linux/sched.h>
-
 /* /proc/<pid>/oom_adj set to -17 protects from the oom-killer */
 #define OOM_DISABLE (-17)
 /* inclusive */
@@ -10,6 +8,11 @@
 #define OOM_ADJUST_MAX 15
 
 #ifdef __KERNEL__
+
+#include <linux/types.h>
+
+struct zonelist;
+struct notifier_block;
 
 /*
  * Types of limitations to the nodes from which allocations may occur
