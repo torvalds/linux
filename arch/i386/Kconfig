@@ -1256,7 +1256,6 @@ source "fs/Kconfig"
 
 menuconfig INSTRUMENTATION
 	bool "Instrumentation Support"
-	depends on EXPERIMENTAL
 	default y
 	---help---
 	  Say Y here to get to see options related to performance measurement,

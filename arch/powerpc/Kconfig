@@ -670,7 +670,6 @@ source "arch/powerpc/sysdev/qe_lib/Kconfig"
 source "lib/Kconfig"
 
 menu "Instrumentation Support"
-	depends on EXPERIMENTAL
 
 source "arch/powerpc/oprofile/Kconfig"
 

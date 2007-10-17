@@ -593,7 +593,6 @@ config IRQ_PER_CPU
 source "arch/ia64/hp/sim/Kconfig"
 
 menu "Instrumentation Support"
-        depends on EXPERIMENTAL
 
 source "arch/ia64/oprofile/Kconfig"
 

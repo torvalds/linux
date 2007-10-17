@@ -796,7 +796,6 @@ source "drivers/firmware/Kconfig"
 source fs/Kconfig
 
 menu "Instrumentation Support"
-        depends on EXPERIMENTAL
 
 source "arch/x86/oprofile/Kconfig"
 

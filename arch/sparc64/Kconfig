@@ -461,7 +461,6 @@ source "drivers/fc4/Kconfig"
 source "fs/Kconfig"
 
 menu "Instrumentation Support"
-        depends on EXPERIMENTAL
 
 source "arch/sparc64/oprofile/Kconfig"
 

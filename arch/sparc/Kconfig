@@ -321,7 +321,6 @@ endmenu
 source "fs/Kconfig"
 
 menu "Instrumentation Support"
-	depends on EXPERIMENTAL
 
 source "arch/sparc/oprofile/Kconfig"
 
