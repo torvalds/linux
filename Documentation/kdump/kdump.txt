@@ -13,7 +13,7 @@ dump of the system kernel's memory needs to be taken (for example, when
 the system panics). The system kernel's memory image is preserved across
 the reboot and is accessible to the dump-capture kernel.
 
-You can use common Linux commands, such as cp and scp, to copy the
+You can use common commands, such as cp and scp, to copy the
 memory image to a dump file on the local disk, or across the network to
 a remote system.
 
@@ -69,7 +69,7 @@ http://www.kernel.org/pub/linux/kernel/people/horms/kexec-tools/kexec-tools-test
 
 This is a symlink to the latest version, which at the time of writing is
 20061214, the only release of kexec-tools-testing so far. As other versions
-are made released, the older onese will remain available at
+are released, the older ones will remain available at
 http://www.kernel.org/pub/linux/kernel/people/horms/kexec-tools/
 
 Note: Latest kexec-tools-testing git tree is available at
@@ -339,7 +339,7 @@ If die() is called, and it happens to be a thread with pid 0 or 1, or die()
 is called inside interrupt context or die() is called and panic_on_oops is set,
 the system will boot into the dump-capture kernel.
 
-On powererpc systems when a soft-reset is generated, die() is called by all cpus
+On powerpc systems when a soft-reset is generated, die() is called by all cpus
 and the system will boot into the dump-capture kernel.
 
 For testing purposes, you can trigger a crash by using "ALT-SysRq-c",
@@ -405,9 +405,3 @@ Contact
 Vivek Goyal (vgoyal@in.ibm.com)
 Maneesh Soni (maneesh@in.ibm.com)
 
-
-Trademark
-=========
-
-Linux is a trademark of Linus Torvalds in the United States, other
-countries, or both.
