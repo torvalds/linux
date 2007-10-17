@@ -12,11 +12,17 @@ int bdi_init(struct backing_dev_info *bdi)
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
 		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
-		if (err) {
-			for (j = 0; j < i; j++)
-				percpu_counter_destroy(&bdi->bdi_stat[i]);
-			break;
-		}
+		if (err)
+			goto err;
+	}
+
+	bdi->dirty_exceeded = 0;
+	err = prop_local_init_percpu(&bdi->completions);
+
+	if (err) {
+err:
+		for (j = 0; j < i; j++)
+			percpu_counter_destroy(&bdi->bdi_stat[i]);
 	}
 
 	return err;
@@ -29,6 +35,8 @@ void bdi_destroy(struct backing_dev_info *bdi)
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);
+
+	prop_local_destroy_percpu(&bdi->completions);
 }
 EXPORT_SYMBOL(bdi_destroy);
 
@@ -81,3 +89,4 @@ long congestion_wait(int rw, long timeout)
 	return ret;
 }
 EXPORT_SYMBOL(congestion_wait);
+

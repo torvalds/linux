@@ -97,6 +97,10 @@ extern int dirty_expire_interval;
 extern int block_dump;
 extern int laptop_mode;
 
+extern int dirty_ratio_handler(struct ctl_table *table, int write,
+		struct file *filp, void __user *buffer, size_t *lenp,
+		loff_t *ppos);
+
 struct ctl_table;
 struct file;
 int dirty_writeback_centisecs_handler(struct ctl_table *, int, struct file *,

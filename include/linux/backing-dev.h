@@ -10,6 +10,7 @@
 
 #include <linux/percpu_counter.h>
 #include <linux/log2.h>
+#include <linux/proportions.h>
 #include <asm/atomic.h>
 
 struct page;
@@ -44,6 +45,9 @@ struct backing_dev_info {
 	void *unplug_io_data;
 
 	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
+
+	struct prop_local_percpu completions;
+	int dirty_exceeded;
 };
 
 int bdi_init(struct backing_dev_info *bdi);
