@@ -113,12 +113,42 @@ static void nbd_end_request(struct request *req)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
+static void sock_shutdown(struct nbd_device *lo, int lock)
+{
+	/* Forcibly shutdown the socket causing all listeners
+	 * to error
+	 *
+	 * FIXME: This code is duplicated from sys_shutdown, but
+	 * there should be a more generic interface rather than
+	 * calling socket ops directly here */
+	if (lock)
+		mutex_lock(&lo->tx_lock);
+	if (lo->sock) {
+		printk(KERN_WARNING "%s: shutting down socket\n",
+			lo->disk->disk_name);
+		lo->sock->ops->shutdown(lo->sock, SEND_SHUTDOWN|RCV_SHUTDOWN);
+		lo->sock = NULL;
+	}
+	if (lock)
+		mutex_unlock(&lo->tx_lock);
+}
+
+static void nbd_xmit_timeout(unsigned long arg)
+{
+	struct task_struct *task = (struct task_struct *)arg;
+
+	printk(KERN_WARNING "nbd: killing hung xmit (%s, pid: %d)\n",
+		task->comm, task->pid);
+	force_sig(SIGKILL, task);
+}
+
 /*
  *  Send or receive packet.
  */
-static int sock_xmit(struct socket *sock, int send, void *buf, int size,
+static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
 		int msg_flags)
 {
+	struct socket *sock = lo->sock;
 	int result;
 	struct msghdr msg;
 	struct kvec iov;
@@ -139,9 +169,20 @@ static int sock_xmit(struct socket *sock, int send, void *buf, int size,
 		msg.msg_controllen = 0;
 		msg.msg_flags = msg_flags | MSG_NOSIGNAL;
 
-		if (send)
+		if (send) {
+			struct timer_list ti;
+
+			if (lo->xmit_timeout) {
+				init_timer(&ti);
+				ti.function = nbd_xmit_timeout;
+				ti.data = (unsigned long)current;
+				ti.expires = jiffies + lo->xmit_timeout;
+				add_timer(&ti);
+			}
 			result = kernel_sendmsg(sock, &msg, &iov, 1, size);
-		else
+			if (lo->xmit_timeout)
+				del_timer_sync(&ti);
+		} else
 			result = kernel_recvmsg(sock, &msg, &iov, 1, size, 0);
 
 		if (signal_pending(current)) {
@@ -150,6 +191,7 @@ static int sock_xmit(struct socket *sock, int send, void *buf, int size,
 				current->pid, current->comm,
 				dequeue_signal_lock(current, &current->blocked, &info));
 			result = -EINTR;
+			sock_shutdown(lo, !send);
 			break;
 		}
 
@@ -167,23 +209,22 @@ static int sock_xmit(struct socket *sock, int send, void *buf, int size,
 	return result;
 }
 
-static inline int sock_send_bvec(struct socket *sock, struct bio_vec *bvec,
+static inline int sock_send_bvec(struct nbd_device *lo, struct bio_vec *bvec,
 		int flags)
 {
 	int result;
 	void *kaddr = kmap(bvec->bv_page);
-	result = sock_xmit(sock, 1, kaddr + bvec->bv_offset, bvec->bv_len,
-			flags);
+	result = sock_xmit(lo, 1, kaddr + bvec->bv_offset, bvec->bv_len, flags);
 	kunmap(bvec->bv_page);
 	return result;
 }
 
+/* always call with the tx_lock held */
 static int nbd_send_req(struct nbd_device *lo, struct request *req)
 {
 	int result, flags;
 	struct nbd_request request;
 	unsigned long size = req->nr_sectors << 9;
-	struct socket *sock = lo->sock;
 
 	request.magic = htonl(NBD_REQUEST_MAGIC);
 	request.type = htonl(nbd_cmd(req));
@@ -196,8 +237,8 @@ static int nbd_send_req(struct nbd_device *lo, struct request *req)
 			nbdcmd_to_ascii(nbd_cmd(req)),
 			(unsigned long long)req->sector << 9,
 			req->nr_sectors << 9);
-	result = sock_xmit(sock, 1, &request, sizeof(request),
-			(nbd_cmd(req) == NBD_CMD_WRITE)? MSG_MORE: 0);
+	result = sock_xmit(lo, 1, &request, sizeof(request),
+			(nbd_cmd(req) == NBD_CMD_WRITE) ? MSG_MORE : 0);
 	if (result <= 0) {
 		printk(KERN_ERR "%s: Send control failed (result %d)\n",
 				lo->disk->disk_name, result);
@@ -217,7 +258,7 @@ static int nbd_send_req(struct nbd_device *lo, struct request *req)
 				flags = MSG_MORE;
 			dprintk(DBG_TX, "%s: request %p: sending %d bytes data\n",
 					lo->disk->disk_name, req, bvec->bv_len);
-			result = sock_send_bvec(sock, bvec, flags);
+			result = sock_send_bvec(lo, bvec, flags);
 			if (result <= 0) {
 				printk(KERN_ERR "%s: Send data failed (result %d)\n",
 						lo->disk->disk_name, result);
@@ -257,11 +298,11 @@ out:
 	return ERR_PTR(err);
 }
 
-static inline int sock_recv_bvec(struct socket *sock, struct bio_vec *bvec)
+static inline int sock_recv_bvec(struct nbd_device *lo, struct bio_vec *bvec)
 {
 	int result;
 	void *kaddr = kmap(bvec->bv_page);
-	result = sock_xmit(sock, 0, kaddr + bvec->bv_offset, bvec->bv_len,
+	result = sock_xmit(lo, 0, kaddr + bvec->bv_offset, bvec->bv_len,
 			MSG_WAITALL);
 	kunmap(bvec->bv_page);
 	return result;
@@ -273,10 +314,9 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 	int result;
 	struct nbd_reply reply;
 	struct request *req;
-	struct socket *sock = lo->sock;
 
 	reply.magic = 0;
-	result = sock_xmit(sock, 0, &reply, sizeof(reply), MSG_WAITALL);
+	result = sock_xmit(lo, 0, &reply, sizeof(reply), MSG_WAITALL);
 	if (result <= 0) {
 		printk(KERN_ERR "%s: Receive control failed (result %d)\n",
 				lo->disk->disk_name, result);
@@ -317,7 +357,7 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 		struct bio_vec *bvec;
 
 		rq_for_each_segment(bvec, req, iter) {
-			result = sock_recv_bvec(sock, bvec);
+			result = sock_recv_bvec(lo, bvec);
 			if (result <= 0) {
 				printk(KERN_ERR "%s: Receive data failed (result %d)\n",
 						lo->disk->disk_name, result);
@@ -391,6 +431,7 @@ static void nbd_clear_que(struct nbd_device *lo)
 		nbd_end_request(req);
 	}
 }
+
 
 /*
  * We always wait for result of write, for now. It would be nice to make it optional
@@ -500,7 +541,9 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		sreq.nr_sectors = 0;
                 if (!lo->sock)
 			return -EINVAL;
+		mutex_lock(&lo->tx_lock);
                 nbd_send_req(lo, &sreq);
+		mutex_unlock(&lo->tx_lock);
                 return 0;
  
 	case NBD_CLEAR_SOCK:
@@ -544,6 +587,9 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		set_blocksize(inode->i_bdev, lo->blksize);
 		set_capacity(lo->disk, lo->bytesize >> 9);
 		return 0;
+	case NBD_SET_TIMEOUT:
+		lo->xmit_timeout = arg * HZ;
+		return 0;
 	case NBD_SET_SIZE_BLOCKS:
 		lo->bytesize = ((u64) arg) * lo->blksize;
 		inode->i_bdev->bd_inode->i_size = lo->bytesize;
@@ -556,22 +602,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		error = nbd_do_it(lo);
 		if (error)
 			return error;
-		/* on return tidy up in case we have a signal */
-		/* Forcibly shutdown the socket causing all listeners
-		 * to error
-		 *
-		 * FIXME: This code is duplicated from sys_shutdown, but
-		 * there should be a more generic interface rather than
-		 * calling socket ops directly here */
-		mutex_lock(&lo->tx_lock);
-		if (lo->sock) {
-			printk(KERN_WARNING "%s: shutting down socket\n",
-				lo->disk->disk_name);
-			lo->sock->ops->shutdown(lo->sock,
-				SEND_SHUTDOWN|RCV_SHUTDOWN);
-			lo->sock = NULL;
-		}
-		mutex_unlock(&lo->tx_lock);
+		sock_shutdown(lo, 1);
 		file = lo->file;
 		lo->file = NULL;
 		nbd_clear_que(lo);
