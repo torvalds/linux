@@ -40,7 +40,7 @@ static void bad_io_access(unsigned long port, const char *access)
 	static int count = 10;
 	if (count) {
 		count--;
-		printk(KERN_ERR "Bad IO access at port %lx (%s)\n", port, access);
+		printk(KERN_ERR "Bad IO access at port %#lx (%s)\n", port, access);
 		WARN_ON(1);
 	}
 }
