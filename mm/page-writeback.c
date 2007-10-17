@@ -118,6 +118,7 @@ static void background_writeout(unsigned long _min_pages);
  *
  */
 static struct prop_descriptor vm_completions;
+static struct prop_descriptor vm_dirties;
 
 static unsigned long determine_dirtyable_memory(void);
 
@@ -146,6 +147,7 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
 		int shift = calc_period_shift();
 		prop_change_shift(&vm_completions, shift);
+		prop_change_shift(&vm_dirties, shift);
 	}
 	return ret;
 }
@@ -157,6 +159,11 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
 static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
 {
 	__prop_inc_percpu(&vm_completions, &bdi->completions);
+}
+
+static inline void task_dirty_inc(struct task_struct *tsk)
+{
+	prop_inc_single(&vm_dirties, &tsk->dirties);
 }
 
 /*
@@ -196,6 +203,37 @@ clip_bdi_dirty_limit(struct backing_dev_info *bdi, long dirty, long *pbdi_dirty)
 		bdi_stat(bdi, BDI_WRITEBACK);
 
 	*pbdi_dirty = min(*pbdi_dirty, avail_dirty);
+}
+
+static inline void task_dirties_fraction(struct task_struct *tsk,
+		long *numerator, long *denominator)
+{
+	prop_fraction_single(&vm_dirties, &tsk->dirties,
+				numerator, denominator);
+}
+
+/*
+ * scale the dirty limit
+ *
+ * task specific dirty limit:
+ *
+ *   dirty -= (dirty/8) * p_{t}
+ */
+void task_dirty_limit(struct task_struct *tsk, long *pdirty)
+{
+	long numerator, denominator;
+	long dirty = *pdirty;
+	u64 inv = dirty >> 3;
+
+	task_dirties_fraction(tsk, &numerator, &denominator);
+	inv *= numerator;
+	do_div(inv, denominator);
+
+	dirty -= inv;
+	if (dirty < *pdirty/2)
+		dirty = *pdirty/2;
+
+	*pdirty = dirty;
 }
 
 /*
@@ -304,6 +342,7 @@ get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
 
 		*pbdi_dirty = bdi_dirty;
 		clip_bdi_dirty_limit(bdi, dirty, pbdi_dirty);
+		task_dirty_limit(current, pbdi_dirty);
 	}
 }
 
@@ -720,6 +759,7 @@ void __init page_writeback_init(void)
 
 	shift = calc_period_shift();
 	prop_descriptor_init(&vm_completions, shift);
+	prop_descriptor_init(&vm_dirties, shift);
 }
 
 /**
@@ -998,7 +1038,7 @@ EXPORT_SYMBOL(redirty_page_for_writepage);
  * If the mapping doesn't provide a set_page_dirty a_op, then
  * just fall through and assume that it wants buffer_heads.
  */
-int fastcall set_page_dirty(struct page *page)
+static int __set_page_dirty(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
@@ -1015,6 +1055,14 @@ int fastcall set_page_dirty(struct page *page)
 			return 1;
 	}
 	return 0;
+}
+
+int fastcall set_page_dirty(struct page *page)
+{
+	int ret = __set_page_dirty(page);
+	if (ret)
+		task_dirty_inc(current);
+	return ret;
 }
 EXPORT_SYMBOL(set_page_dirty);
 

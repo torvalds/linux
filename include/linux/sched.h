@@ -74,6 +74,7 @@ struct sched_param {
 #include <linux/pid.h>
 #include <linux/percpu.h>
 #include <linux/topology.h>
+#include <linux/proportions.h>
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
 #include <linux/futex.h>
@@ -1149,6 +1150,7 @@ struct task_struct {
 #ifdef CONFIG_FAULT_INJECTION
 	int make_it_fail;
 #endif
+	struct prop_local_single dirties;
 };
 
 /*
