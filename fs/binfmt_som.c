@@ -44,7 +44,7 @@ static int load_som_library(struct file *);
  * don't even try.
  */
 #if 0
-static int som_core_dump(long signr, struct pt_regs * regs);
+static int som_core_dump(long signr, struct pt_regs *regs, unsigned long limit);
 #else
 #define som_core_dump	NULL
 #endif
