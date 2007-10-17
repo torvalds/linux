@@ -1322,8 +1322,8 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		  struct scatterlist *sglist)
 {
 	struct bio_vec *bvec, *bvprv;
-	struct scatterlist *next_sg, *sg;
 	struct req_iterator iter;
+	struct scatterlist *sg;
 	int nsegs, cluster;
 
 	nsegs = 0;
@@ -1333,7 +1333,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * for each bio in rq
 	 */
 	bvprv = NULL;
-	sg = next_sg = &sglist[0];
+	sg = NULL;
 	rq_for_each_segment(bvec, rq, iter) {
 		int nbytes = bvec->bv_len;
 
@@ -1349,8 +1349,10 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 			sg->length += nbytes;
 		} else {
 new_segment:
-			sg = next_sg;
-			next_sg = sg_next(sg);
+			if (!sg)
+				sg = sglist;
+			else
+				sg = sg_next(sg);
 
 			memset(sg, 0, sizeof(*sg));
 			sg->page = bvec->bv_page;
