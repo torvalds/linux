@@ -8,6 +8,7 @@
 #include <linux/module.h>
 
 #include <asm/processor.h>
+#include <asm/pgtable.h>
 #include <asm/msr.h>
 #include <asm/uaccess.h>
 
@@ -18,8 +19,6 @@
 #include <asm/apic.h>
 #include <mach_apic.h>
 #endif
-
-extern int trap_init_f00f_bug(void);
 
 #ifdef CONFIG_X86_INTEL_USERCOPY
 /*
@@ -94,6 +93,20 @@ static int __cpuinit num_cpu_cores(struct cpuinfo_x86 *c)
 	else
 		return 1;
 }
+
+#ifdef CONFIG_X86_F00F_BUG
+static void __cpuinit trap_init_f00f_bug(void)
+{
+	__set_fixmap(FIX_F00F_IDT, __pa(&idt_table), PAGE_KERNEL_RO);
+
+	/*
+	 * Update the IDT descriptor and reload the IDT so that
+	 * it uses the read-only mapped virtual address.
+	 */
+	idt_descr.address = fix_to_virt(FIX_F00F_IDT);
+	load_idt(&idt_descr);
+}
+#endif
 
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
