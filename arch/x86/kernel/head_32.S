@@ -51,6 +51,15 @@
  */
 LOW_PAGES = 1<<(32-PAGE_SHIFT_asm)
 
+/*
+ * To preserve the DMA pool in PAGEALLOC kernels, we'll allocate
+ * pagetables from above the 16MB DMA limit, so we'll have to set
+ * up pagetables 16MB more (worst-case):
+ */
+#ifdef CONFIG_DEBUG_PAGEALLOC
+LOW_PAGES = LOW_PAGES + 0x1000000
+#endif
+
 #if PTRS_PER_PMD > 1
 PAGE_TABLE_SIZE = (LOW_PAGES / PTRS_PER_PMD) + PTRS_PER_PGD
 #else
