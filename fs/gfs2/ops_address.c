@@ -657,18 +657,10 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	if (unlikely(error))
 		goto out_uninit;
 
-	error = -ENOMEM;
-	page = __grab_cache_page(mapping, index);
-	*pagep = page;
-	if (!page)
-		goto out_unlock;
-
 	gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);
-
 	error = gfs2_write_alloc_required(ip, pos, len, &alloc_required);
 	if (error)
-		goto out_putpage;
-
+		goto out_unlock;
 
 	ip->i_alloc.al_requested = 0;
 	if (alloc_required) {
@@ -699,40 +691,47 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	if (error)
 		goto out_trans_fail;
 
+	error = -ENOMEM;
+	page = __grab_cache_page(mapping, index);
+	*pagep = page;
+	if (unlikely(!page))
+		goto out_endtrans;
+
 	if (gfs2_is_stuffed(ip)) {
+		error = 0;
 		if (pos + len > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
 			error = gfs2_unstuff_dinode(ip, page);
 			if (error == 0)
 				goto prepare_write;
-		} else if (!PageUptodate(page))
+		} else if (!PageUptodate(page)) {
 			error = stuffed_readpage(ip, page);
+		}
 		goto out;
 	}
 
 prepare_write:
 	error = block_prepare_write(page, from, to, gfs2_get_block);
-
 out:
-	if (error) {
-		gfs2_trans_end(sdp);
-out_trans_fail:
-		if (alloc_required) {
-			gfs2_inplace_release(ip);
-out_qunlock:
-			gfs2_quota_unlock(ip);
-out_alloc_put:
-			gfs2_alloc_put(ip);
-		}
-out_putpage:
-		page_cache_release(page);
-		if (pos + len > ip->i_inode.i_size)
-			vmtruncate(&ip->i_inode, ip->i_inode.i_size);
-out_unlock:
-		gfs2_glock_dq_m(1, &ip->i_gh);
-out_uninit:
-		gfs2_holder_uninit(&ip->i_gh);
-	}
+	if (error == 0)
+		return 0;
 
+	page_cache_release(page);
+	if (pos + len > ip->i_inode.i_size)
+		vmtruncate(&ip->i_inode, ip->i_inode.i_size);
+out_endtrans:
+	gfs2_trans_end(sdp);
+out_trans_fail:
+	if (alloc_required) {
+		gfs2_inplace_release(ip);
+out_qunlock:
+		gfs2_quota_unlock(ip);
+out_alloc_put:
+		gfs2_alloc_put(ip);
+	}
+out_unlock:
+	gfs2_glock_dq(&ip->i_gh);
+out_uninit:
+	gfs2_holder_uninit(&ip->i_gh);
 	return error;
 }
 
