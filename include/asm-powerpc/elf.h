@@ -212,6 +212,14 @@ static inline int dump_task_regs(struct task_struct *tsk,
 extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *); 
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
 
+typedef elf_vrregset_t elf_fpxregset_t;
+
+#ifdef CONFIG_ALTIVEC
+extern int dump_task_altivec(struct task_struct *, elf_vrregset_t *vrregs);
+#define ELF_CORE_COPY_XFPREGS(tsk, regs) dump_task_altivec(tsk, regs)
+#define ELF_CORE_XFPREG_TYPE NT_PPC_VMX
+#endif
+
 #endif /* __KERNEL__ */
 
 /* ELF_HWCAP yields a mask that user programs can use to figure out what
