@@ -44,7 +44,6 @@
 #include <linux/resource.h>
 #include <linux/blkdev.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/freezer.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
