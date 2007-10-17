@@ -26,13 +26,16 @@ SECTIONS
      is insufficient, ld -shared will barf.  Just increase it here.  */
   . = VDSO_PRELINK + VDSO_TEXT_OFFSET;
 
-  .text           : { *(.text) }		:text
-  .text.ptr       : { *(.text.ptr) }		:text
-  . = VDSO_PRELINK + 0x900;
-  .data           : { *(.data) }		:text
-  .bss            : { *(.bss) }			:text
+  .text           : { *(.text*) }		:text
+  .rodata         : { *(.rodata*) }		:text
+  .data		  : {
+	*(.data*)
+	*(.sdata*)
+	*(.bss*)
+	*(.dynbss*)
+  }						:text
 
-  .altinstructions : { *(.altinstructions) }			:text
+  .altinstructions : { *(.altinstructions) }		:text
   .altinstr_replacement  : { *(.altinstr_replacement) }	:text
 
   .note		  : { *(.note.*) }		:text :note
@@ -42,7 +45,6 @@ SECTIONS
   .useless        : {
   	*(.got.plt) *(.got)
 	*(.gnu.linkonce.d.*)
-	*(.dynbss)
 	*(.gnu.linkonce.b.*)
   }						:text
 }
