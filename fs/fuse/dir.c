@@ -1054,8 +1054,10 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 	if (fi->i_time < get_jiffies_64())
 		err = fuse_do_getattr(inode);
 
-	if (!err)
+	if (!err) {
 		generic_fillattr(inode, stat);
+		stat->mode = fi->orig_i_mode;
+	}
 
 	return err;
 }

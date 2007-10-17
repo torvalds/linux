@@ -63,6 +63,10 @@ struct fuse_inode {
 
 	/** Time in jiffies until the file attributes are valid */
 	u64 i_time;
+
+	/** The sticky bit in inode->i_mode may have been removed, so
+	    preserve the original mode */
+	mode_t orig_i_mode;
 };
 
 /** FUSE specific file data */
