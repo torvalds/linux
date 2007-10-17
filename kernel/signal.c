@@ -2335,7 +2335,6 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 			rm_from_queue_full(&mask, &t->signal->shared_pending);
 			do {
 				rm_from_queue_full(&mask, &t->pending);
-				recalc_sigpending_and_wake(t);
 				t = next_thread(t);
 			} while (t != current);
 		}
