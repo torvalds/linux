@@ -52,6 +52,7 @@
 #include <linux/syscalls.h>
 #include <linux/signal.h>
 #include <linux/module.h>
+#include <linux/magic.h>
 #include <asm/futex.h>
 
 #include "rtmutex_common.h"
@@ -2080,7 +2081,7 @@ static int futexfs_get_sb(struct file_system_type *fs_type,
 			  int flags, const char *dev_name, void *data,
 			  struct vfsmount *mnt)
 {
-	return get_sb_pseudo(fs_type, "futex", NULL, 0xBAD1DEA, mnt);
+	return get_sb_pseudo(fs_type, "futex", NULL, FUTEXFS_SUPER_MAGIC, mnt);
 }
 
 static struct file_system_type futex_fs_type = {

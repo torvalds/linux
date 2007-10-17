@@ -31,6 +31,7 @@
 #include <linux/list.h>
 #include <linux/inotify.h>
 #include <linux/syscalls.h>
+#include <linux/magic.h>
 
 #include <asm/ioctls.h>
 
@@ -684,7 +685,8 @@ static int
 inotify_get_sb(struct file_system_type *fs_type, int flags,
 	       const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_pseudo(fs_type, "inotify", NULL, 0xBAD1DEA, mnt);
+	return get_sb_pseudo(fs_type, "inotify", NULL,
+			INOTIFYFS_SUPER_MAGIC, mnt);
 }
 
 static struct file_system_type inotify_fs_type = {
