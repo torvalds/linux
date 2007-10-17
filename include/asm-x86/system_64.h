@@ -137,6 +137,11 @@ static inline void write_cr8(unsigned long val)
 
 #endif	/* __KERNEL__ */
 
+static inline void clflush(volatile void *__p)
+{
+	asm volatile("clflush %0" : "+m" (*(char __force *)__p));
+}
+
 #define nop() __asm__ __volatile__ ("nop")
 
 #ifdef CONFIG_SMP

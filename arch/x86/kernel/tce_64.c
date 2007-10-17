@@ -40,9 +40,9 @@ static inline void flush_tce(void* tceaddr)
 {
 	/* a single tce can't cross a cache line */
 	if (cpu_has_clflush)
-		asm volatile("clflush (%0)" :: "r" (tceaddr));
+		clflush(tceaddr);
 	else
-		asm volatile("wbinvd":::"memory");
+		wbinvd();
 }
 
 void tce_build(struct iommu_table *tbl, unsigned long index,

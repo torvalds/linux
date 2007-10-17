@@ -70,10 +70,10 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 
 static void cache_flush_page(struct page *p)
 { 
-	unsigned long adr = (unsigned long)page_address(p);
+	void *adr = page_address(p);
 	int i;
 	for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
-		asm volatile("clflush (%0)" :: "r" (adr + i));
+		clflush(adr+i);
 }
 
 static void flush_kernel_map(void *arg)

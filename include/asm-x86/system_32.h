@@ -161,6 +161,10 @@ static inline void native_wbinvd(void)
 	asm volatile("wbinvd": : :"memory");
 }
 
+static inline void clflush(volatile void *__p)
+{
+	asm volatile("clflush %0" : "+m" (*(char __force *)__p));
+}
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>

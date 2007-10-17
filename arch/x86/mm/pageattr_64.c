@@ -65,7 +65,7 @@ static void cache_flush_page(void *adr)
 {
 	int i;
 	for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
-		asm volatile("clflush (%0)" :: "r" (adr + i));
+		clflush(adr+i);
 }
 
 static void flush_kernel_map(void *arg)
