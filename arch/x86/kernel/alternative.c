@@ -369,8 +369,8 @@ void apply_paravirt(struct paravirt_patch_site *start,
 		BUG_ON(p->len > MAX_PATCH_LEN);
 		/* prep the buffer with the original instructions */
 		memcpy(insnbuf, p->instr, p->len);
-		used = paravirt_ops.patch(p->instrtype, p->clobbers, insnbuf,
-					  (unsigned long)p->instr, p->len);
+		used = pv_init_ops.patch(p->instrtype, p->clobbers, insnbuf,
+					 (unsigned long)p->instr, p->len);
 
 		BUG_ON(used > p->len);
 

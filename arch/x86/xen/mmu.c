@@ -41,7 +41,6 @@
 #include <linux/sched.h>
 #include <linux/highmem.h>
 #include <linux/bug.h>
-#include <linux/sched.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -155,7 +154,7 @@ void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
 	if (mm == current->mm || mm == &init_mm) {
-		if (xen_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
+		if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
 			struct multicall_space mcs;
 			mcs = xen_mc_entry(0);
 
@@ -304,7 +303,12 @@ pgd_t xen_make_pgd(unsigned long pgd)
 }
 #endif	/* CONFIG_X86_PAE */
 
-
+enum pt_level {
+	PT_PGD,
+	PT_PUD,
+	PT_PMD,
+	PT_PTE
+};
 
 /*
   (Yet another) pagetable walker.  This one is intended for pinning a
@@ -316,7 +320,7 @@ pgd_t xen_make_pgd(unsigned long pgd)
   FIXADDR_TOP.  But the important bit is that we don't pin beyond
   there, because then we start getting into Xen's ptes.
 */
-static int pgd_walk(pgd_t *pgd_base, int (*func)(struct page *, unsigned),
+static int pgd_walk(pgd_t *pgd_base, int (*func)(struct page *, enum pt_level),
 		    unsigned long limit)
 {
 	pgd_t *pgd = pgd_base;
@@ -341,7 +345,7 @@ static int pgd_walk(pgd_t *pgd_base, int (*func)(struct page *, unsigned),
 		pud = pud_offset(pgd, 0);
 
 		if (PTRS_PER_PUD > 1) /* not folded */
-			flush |= (*func)(virt_to_page(pud), 0);
+			flush |= (*func)(virt_to_page(pud), PT_PUD);
 
 		for (; addr != pud_limit; pud++, addr = pud_next) {
 			pmd_t *pmd;
@@ -360,7 +364,7 @@ static int pgd_walk(pgd_t *pgd_base, int (*func)(struct page *, unsigned),
 			pmd = pmd_offset(pud, 0);
 
 			if (PTRS_PER_PMD > 1) /* not folded */
-				flush |= (*func)(virt_to_page(pmd), 0);
+				flush |= (*func)(virt_to_page(pmd), PT_PMD);
 
 			for (; addr != pmd_limit; pmd++) {
 				addr += (PAGE_SIZE * PTRS_PER_PTE);
@@ -372,17 +376,47 @@ static int pgd_walk(pgd_t *pgd_base, int (*func)(struct page *, unsigned),
 				if (pmd_none(*pmd))
 					continue;
 
-				flush |= (*func)(pmd_page(*pmd), 0);
+				flush |= (*func)(pmd_page(*pmd), PT_PTE);
 			}
 		}
 	}
 
-	flush |= (*func)(virt_to_page(pgd_base), UVMF_TLB_FLUSH);
+	flush |= (*func)(virt_to_page(pgd_base), PT_PGD);
 
 	return flush;
 }
 
-static int pin_page(struct page *page, unsigned flags)
+static spinlock_t *lock_pte(struct page *page)
+{
+	spinlock_t *ptl = NULL;
+
+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+	ptl = __pte_lockptr(page);
+	spin_lock(ptl);
+#endif
+
+	return ptl;
+}
+
+static void do_unlock(void *v)
+{
+	spinlock_t *ptl = v;
+	spin_unlock(ptl);
+}
+
+static void xen_do_pin(unsigned level, unsigned long pfn)
+{
+	struct mmuext_op *op;
+	struct multicall_space mcs;
+
+	mcs = __xen_mc_entry(sizeof(*op));
+	op = mcs.args;
+	op->cmd = level;
+	op->arg1.mfn = pfn_to_mfn(pfn);
+	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+}
+
+static int pin_page(struct page *page, enum pt_level level)
 {
 	unsigned pgfl = test_and_set_bit(PG_pinned, &page->flags);
 	int flush;
@@ -397,12 +431,26 @@ static int pin_page(struct page *page, unsigned flags)
 		void *pt = lowmem_page_address(page);
 		unsigned long pfn = page_to_pfn(page);
 		struct multicall_space mcs = __xen_mc_entry(0);
+		spinlock_t *ptl;
 
 		flush = 0;
 
+		ptl = NULL;
+		if (level == PT_PTE)
+			ptl = lock_pte(page);
+
 		MULTI_update_va_mapping(mcs.mc, (unsigned long)pt,
 					pfn_pte(pfn, PAGE_KERNEL_RO),
-					flags);
+					level == PT_PGD ? UVMF_TLB_FLUSH : 0);
+
+		if (level == PT_PTE)
+			xen_do_pin(MMUEXT_PIN_L1_TABLE, pfn);
+
+		if (ptl) {
+			/* Queue a deferred unlock for when this batch
+			   is completed. */
+			xen_mc_callback(do_unlock, ptl);
+		}
 	}
 
 	return flush;
@@ -413,8 +461,7 @@ static int pin_page(struct page *page, unsigned flags)
    read-only, and can be pinned. */
 void xen_pgd_pin(pgd_t *pgd)
 {
-	struct multicall_space mcs;
-	struct mmuext_op *op;
+	unsigned level;
 
 	xen_mc_batch();
 
@@ -425,16 +472,13 @@ void xen_pgd_pin(pgd_t *pgd)
 		xen_mc_batch();
 	}
 
-	mcs = __xen_mc_entry(sizeof(*op));
-	op = mcs.args;
-
 #ifdef CONFIG_X86_PAE
-	op->cmd = MMUEXT_PIN_L3_TABLE;
+	level = MMUEXT_PIN_L3_TABLE;
 #else
-	op->cmd = MMUEXT_PIN_L2_TABLE;
+	level = MMUEXT_PIN_L2_TABLE;
 #endif
-	op->arg1.mfn = pfn_to_mfn(PFN_DOWN(__pa(pgd)));
-	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+
+	xen_do_pin(level, PFN_DOWN(__pa(pgd)));
 
 	xen_mc_issue(0);
 }
@@ -442,7 +486,7 @@ void xen_pgd_pin(pgd_t *pgd)
 /* The init_mm pagetable is really pinned as soon as its created, but
    that's before we have page structures to store the bits.  So do all
    the book-keeping now. */
-static __init int mark_pinned(struct page *page, unsigned flags)
+static __init int mark_pinned(struct page *page, enum pt_level level)
 {
 	SetPagePinned(page);
 	return 0;
@@ -453,18 +497,32 @@ void __init xen_mark_init_mm_pinned(void)
 	pgd_walk(init_mm.pgd, mark_pinned, FIXADDR_TOP);
 }
 
-static int unpin_page(struct page *page, unsigned flags)
+static int unpin_page(struct page *page, enum pt_level level)
 {
 	unsigned pgfl = test_and_clear_bit(PG_pinned, &page->flags);
 
 	if (pgfl && !PageHighMem(page)) {
 		void *pt = lowmem_page_address(page);
 		unsigned long pfn = page_to_pfn(page);
-		struct multicall_space mcs = __xen_mc_entry(0);
+		spinlock_t *ptl = NULL;
+		struct multicall_space mcs;
+
+		if (level == PT_PTE) {
+			ptl = lock_pte(page);
+
+			xen_do_pin(MMUEXT_UNPIN_TABLE, pfn);
+		}
+
+		mcs = __xen_mc_entry(0);
 
 		MULTI_update_va_mapping(mcs.mc, (unsigned long)pt,
 					pfn_pte(pfn, PAGE_KERNEL),
-					flags);
+					level == PT_PGD ? UVMF_TLB_FLUSH : 0);
+
+		if (ptl) {
+			/* unlock when batch completed */
+			xen_mc_callback(do_unlock, ptl);
+		}
 	}
 
 	return 0;		/* never need to flush on unpin */
@@ -473,18 +531,9 @@ static int unpin_page(struct page *page, unsigned flags)
 /* Release a pagetables pages back as normal RW */
 static void xen_pgd_unpin(pgd_t *pgd)
 {
-	struct mmuext_op *op;
-	struct multicall_space mcs;
-
 	xen_mc_batch();
 
-	mcs = __xen_mc_entry(sizeof(*op));
-
-	op = mcs.args;
-	op->cmd = MMUEXT_UNPIN_TABLE;
-	op->arg1.mfn = pfn_to_mfn(PFN_DOWN(__pa(pgd)));
-
-	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+	xen_do_pin(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
 
 	pgd_walk(pgd, unpin_page, TASK_SIZE);
 
@@ -515,20 +564,43 @@ static void drop_other_mm_ref(void *info)
 
 	if (__get_cpu_var(cpu_tlbstate).active_mm == mm)
 		leave_mm(smp_processor_id());
+
+	/* If this cpu still has a stale cr3 reference, then make sure
+	   it has been flushed. */
+	if (x86_read_percpu(xen_current_cr3) == __pa(mm->pgd)) {
+		load_cr3(swapper_pg_dir);
+		arch_flush_lazy_cpu_mode();
+	}
 }
 
 static void drop_mm_ref(struct mm_struct *mm)
 {
+	cpumask_t mask;
+	unsigned cpu;
+
 	if (current->active_mm == mm) {
 		if (current->mm == mm)
 			load_cr3(swapper_pg_dir);
 		else
 			leave_mm(smp_processor_id());
+		arch_flush_lazy_cpu_mode();
 	}
 
-	if (!cpus_empty(mm->cpu_vm_mask))
-		xen_smp_call_function_mask(mm->cpu_vm_mask, drop_other_mm_ref,
-					   mm, 1);
+	/* Get the "official" set of cpus referring to our pagetable. */
+	mask = mm->cpu_vm_mask;
+
+	/* It's possible that a vcpu may have a stale reference to our
+	   cr3, because its in lazy mode, and it hasn't yet flushed
+	   its set of pending hypercalls yet.  In this case, we can
+	   look at its actual current cr3 value, and force it to flush
+	   if needed. */
+	for_each_online_cpu(cpu) {
+		if (per_cpu(xen_current_cr3, cpu) == __pa(mm->pgd))
+			cpu_set(cpu, mask);
+	}
+
+	if (!cpus_empty(mask))
+		xen_smp_call_function_mask(mask, drop_other_mm_ref, mm, 1);
 }
 #else
 static void drop_mm_ref(struct mm_struct *mm)
@@ -563,5 +635,6 @@ void xen_exit_mmap(struct mm_struct *mm)
 	/* pgd may not be pinned in the error exit path of execve */
 	if (PagePinned(virt_to_page(mm->pgd)))
 		xen_pgd_unpin(mm->pgd);
+
 	spin_unlock(&mm->page_table_lock);
 }

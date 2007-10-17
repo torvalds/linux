@@ -248,8 +248,8 @@ static void unmap_switcher(void)
 }
 
 /*H:130 Our Guest is usually so well behaved; it never tries to do things it
- * isn't allowed to.  Unfortunately, "struct paravirt_ops" isn't quite
- * complete, because it doesn't contain replacements for the Intel I/O
+ * isn't allowed to.  Unfortunately, Linux's paravirtual infrastructure isn't
+ * quite complete, because it doesn't contain replacements for the Intel I/O
  * instructions.  As a result, the Guest sometimes fumbles across one during
  * the boot process as it probes for various things which are usually attached
  * to a PC.
@@ -694,7 +694,7 @@ static int __init init(void)
 
 	/* Lguest can't run under Xen, VMI or itself.  It does Tricky Stuff. */
 	if (paravirt_enabled()) {
-		printk("lguest is afraid of %s\n", paravirt_ops.name);
+		printk("lguest is afraid of %s\n", pv_info.name);
 		return -EPERM;
 	}
 

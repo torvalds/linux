@@ -23,7 +23,7 @@
  *
  * So how does the kernel know it's a Guest?  The Guest starts at a special
  * entry point marked with a magic string, which sets up a few things then
- * calls here.  We replace the native functions in "struct paravirt_ops"
+ * calls here.  We replace the native functions various "paravirt" structures
  * with our Guest versions, then boot like normal. :*/
 
 /*
@@ -97,29 +97,17 @@ static cycle_t clock_base;
  * them as a batch when lazy_mode is eventually turned off.  Because hypercalls
  * are reasonably expensive, batching them up makes sense.  For example, a
  * large mmap might update dozens of page table entries: that code calls
- * lguest_lazy_mode(PARAVIRT_LAZY_MMU), does the dozen updates, then calls
- * lguest_lazy_mode(PARAVIRT_LAZY_NONE).
+ * paravirt_enter_lazy_mmu(), does the dozen updates, then calls
+ * lguest_leave_lazy_mode().
  *
  * So, when we're in lazy mode, we call async_hypercall() to store the call for
  * future processing.  When lazy mode is turned off we issue a hypercall to
  * flush the stored calls.
- *
- * There's also a hack where "mode" is set to "PARAVIRT_LAZY_FLUSH" which
- * indicates we're to flush any outstanding calls immediately.  This is used
- * when an interrupt handler does a kmap_atomic(): the page table changes must
- * happen immediately even if we're in the middle of a batch.  Usually we're
- * not, though, so there's nothing to do. */
-static enum paravirt_lazy_mode lazy_mode; /* Note: not SMP-safe! */
-static void lguest_lazy_mode(enum paravirt_lazy_mode mode)
+ */
+static void lguest_leave_lazy_mode(void)
 {
-	if (mode == PARAVIRT_LAZY_FLUSH) {
-		if (unlikely(lazy_mode != PARAVIRT_LAZY_NONE))
-			hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
-	} else {
-		lazy_mode = mode;
-		if (mode == PARAVIRT_LAZY_NONE)
-			hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
-	}
+	paravirt_leave_lazy(paravirt_get_lazy_mode());
+	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
 }
 
 static void lazy_hcall(unsigned long call,
@@ -127,7 +115,7 @@ static void lazy_hcall(unsigned long call,
 		       unsigned long arg2,
 		       unsigned long arg3)
 {
-	if (lazy_mode == PARAVIRT_LAZY_NONE)
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
 		hcall(call, arg1, arg2, arg3);
 	else
 		async_hcall(call, arg1, arg2, arg3);
@@ -331,7 +319,7 @@ static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 }
 
 /*G:038 That's enough excitement for now, back to ploughing through each of
- * the paravirt_ops (we're about 1/3 of the way through).
+ * the different pv_ops structures (we're about 1/3 of the way through).
  *
  * This is the Local Descriptor Table, another weird Intel thingy.  Linux only
  * uses this for some strange applications like Wine.  We don't do anything
@@ -558,7 +546,7 @@ static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 		lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
 }
 
-/* Unfortunately for Lguest, the paravirt_ops for page tables were based on
+/* Unfortunately for Lguest, the pv_mmu_ops for page tables were based on
  * native page table operations.  On native hardware you can set a new page
  * table entry whenever you want, but if you want to remove one you have to do
  * a TLB flush (a TLB is a little cache of page table entries kept by the CPU).
@@ -782,7 +770,7 @@ static void lguest_time_init(void)
 	clocksource_register(&lguest_clock);
 
 	/* Now we've set up our clock, we can use it as the scheduler clock */
-	paravirt_ops.sched_clock = lguest_sched_clock;
+	pv_time_ops.sched_clock = lguest_sched_clock;
 
 	/* We can't set cpumask in the initializer: damn C limitations!  Set it
 	 * here and register our timer device. */
@@ -904,7 +892,7 @@ static __init char *lguest_memory_setup(void)
 /*G:050
  * Patching (Powerfully Placating Performance Pedants)
  *
- * We have already seen that "struct paravirt_ops" lets us replace simple
+ * We have already seen that pv_ops structures let us replace simple
  * native instructions with calls to the appropriate back end all throughout
  * the kernel.  This allows the same kernel to run as a Guest and as a native
  * kernel, but it's slow because of all the indirect branches.
@@ -929,10 +917,10 @@ static const struct lguest_insns
 {
 	const char *start, *end;
 } lguest_insns[] = {
-	[PARAVIRT_PATCH(irq_disable)] = { lgstart_cli, lgend_cli },
-	[PARAVIRT_PATCH(irq_enable)] = { lgstart_sti, lgend_sti },
-	[PARAVIRT_PATCH(restore_fl)] = { lgstart_popf, lgend_popf },
-	[PARAVIRT_PATCH(save_fl)] = { lgstart_pushf, lgend_pushf },
+	[PARAVIRT_PATCH(pv_irq_ops.irq_disable)] = { lgstart_cli, lgend_cli },
+	[PARAVIRT_PATCH(pv_irq_ops.irq_enable)] = { lgstart_sti, lgend_sti },
+	[PARAVIRT_PATCH(pv_irq_ops.restore_fl)] = { lgstart_popf, lgend_popf },
+	[PARAVIRT_PATCH(pv_irq_ops.save_fl)] = { lgstart_pushf, lgend_pushf },
 };
 
 /* Now our patch routine is fairly simple (based on the native one in
@@ -959,9 +947,9 @@ static unsigned lguest_patch(u8 type, u16 clobber, void *ibuf,
 	return insn_len;
 }
 
-/*G:030 Once we get to lguest_init(), we know we're a Guest.  The paravirt_ops
- * structure in the kernel provides a single point for (almost) every routine
- * we have to override to avoid privileged instructions. */
+/*G:030 Once we get to lguest_init(), we know we're a Guest.  The pv_ops
+ * structures in the kernel provide points for (almost) every routine we have
+ * to override to avoid privileged instructions. */
 __init void lguest_init(void *boot)
 {
 	/* Copy boot parameters first: the Launcher put the physical location
@@ -976,54 +964,70 @@ __init void lguest_init(void *boot)
 
 	/* We're under lguest, paravirt is enabled, and we're running at
 	 * privilege level 1, not 0 as normal. */
-	paravirt_ops.name = "lguest";
-	paravirt_ops.paravirt_enabled = 1;
-	paravirt_ops.kernel_rpl = 1;
+	pv_info.name = "lguest";
+	pv_info.paravirt_enabled = 1;
+	pv_info.kernel_rpl = 1;
 
 	/* We set up all the lguest overrides for sensitive operations.  These
 	 * are detailed with the operations themselves. */
-	paravirt_ops.save_fl = save_fl;
-	paravirt_ops.restore_fl = restore_fl;
-	paravirt_ops.irq_disable = irq_disable;
-	paravirt_ops.irq_enable = irq_enable;
-	paravirt_ops.load_gdt = lguest_load_gdt;
-	paravirt_ops.memory_setup = lguest_memory_setup;
-	paravirt_ops.cpuid = lguest_cpuid;
-	paravirt_ops.write_cr3 = lguest_write_cr3;
-	paravirt_ops.flush_tlb_user = lguest_flush_tlb_user;
-	paravirt_ops.flush_tlb_single = lguest_flush_tlb_single;
-	paravirt_ops.flush_tlb_kernel = lguest_flush_tlb_kernel;
-	paravirt_ops.set_pte = lguest_set_pte;
-	paravirt_ops.set_pte_at = lguest_set_pte_at;
-	paravirt_ops.set_pmd = lguest_set_pmd;
+
+	/* interrupt-related operations */
+	pv_irq_ops.init_IRQ = lguest_init_IRQ;
+	pv_irq_ops.save_fl = save_fl;
+	pv_irq_ops.restore_fl = restore_fl;
+	pv_irq_ops.irq_disable = irq_disable;
+	pv_irq_ops.irq_enable = irq_enable;
+	pv_irq_ops.safe_halt = lguest_safe_halt;
+
+	/* init-time operations */
+	pv_init_ops.memory_setup = lguest_memory_setup;
+	pv_init_ops.patch = lguest_patch;
+
+	/* Intercepts of various cpu instructions */
+	pv_cpu_ops.load_gdt = lguest_load_gdt;
+	pv_cpu_ops.cpuid = lguest_cpuid;
+	pv_cpu_ops.load_idt = lguest_load_idt;
+	pv_cpu_ops.iret = lguest_iret;
+	pv_cpu_ops.load_esp0 = lguest_load_esp0;
+	pv_cpu_ops.load_tr_desc = lguest_load_tr_desc;
+	pv_cpu_ops.set_ldt = lguest_set_ldt;
+	pv_cpu_ops.load_tls = lguest_load_tls;
+	pv_cpu_ops.set_debugreg = lguest_set_debugreg;
+	pv_cpu_ops.clts = lguest_clts;
+	pv_cpu_ops.read_cr0 = lguest_read_cr0;
+	pv_cpu_ops.write_cr0 = lguest_write_cr0;
+	pv_cpu_ops.read_cr4 = lguest_read_cr4;
+	pv_cpu_ops.write_cr4 = lguest_write_cr4;
+	pv_cpu_ops.write_gdt_entry = lguest_write_gdt_entry;
+	pv_cpu_ops.write_idt_entry = lguest_write_idt_entry;
+	pv_cpu_ops.wbinvd = lguest_wbinvd;
+	pv_cpu_ops.lazy_mode.enter = paravirt_enter_lazy_cpu;
+	pv_cpu_ops.lazy_mode.leave = lguest_leave_lazy_mode;
+
+	/* pagetable management */
+	pv_mmu_ops.write_cr3 = lguest_write_cr3;
+	pv_mmu_ops.flush_tlb_user = lguest_flush_tlb_user;
+	pv_mmu_ops.flush_tlb_single = lguest_flush_tlb_single;
+	pv_mmu_ops.flush_tlb_kernel = lguest_flush_tlb_kernel;
+	pv_mmu_ops.set_pte = lguest_set_pte;
+	pv_mmu_ops.set_pte_at = lguest_set_pte_at;
+	pv_mmu_ops.set_pmd = lguest_set_pmd;
+	pv_mmu_ops.read_cr2 = lguest_read_cr2;
+	pv_mmu_ops.read_cr3 = lguest_read_cr3;
+	pv_mmu_ops.lazy_mode.enter = paravirt_enter_lazy_mmu;
+	pv_mmu_ops.lazy_mode.leave = lguest_leave_lazy_mode;
+
 #ifdef CONFIG_X86_LOCAL_APIC
-	paravirt_ops.apic_write = lguest_apic_write;
-	paravirt_ops.apic_write_atomic = lguest_apic_write;
-	paravirt_ops.apic_read = lguest_apic_read;
+	/* apic read/write intercepts */
+	pv_apic_ops.apic_write = lguest_apic_write;
+	pv_apic_ops.apic_write_atomic = lguest_apic_write;
+	pv_apic_ops.apic_read = lguest_apic_read;
 #endif
-	paravirt_ops.load_idt = lguest_load_idt;
-	paravirt_ops.iret = lguest_iret;
-	paravirt_ops.load_esp0 = lguest_load_esp0;
-	paravirt_ops.load_tr_desc = lguest_load_tr_desc;
-	paravirt_ops.set_ldt = lguest_set_ldt;
-	paravirt_ops.load_tls = lguest_load_tls;
-	paravirt_ops.set_debugreg = lguest_set_debugreg;
-	paravirt_ops.clts = lguest_clts;
-	paravirt_ops.read_cr0 = lguest_read_cr0;
-	paravirt_ops.write_cr0 = lguest_write_cr0;
-	paravirt_ops.init_IRQ = lguest_init_IRQ;
-	paravirt_ops.read_cr2 = lguest_read_cr2;
-	paravirt_ops.read_cr3 = lguest_read_cr3;
-	paravirt_ops.read_cr4 = lguest_read_cr4;
-	paravirt_ops.write_cr4 = lguest_write_cr4;
-	paravirt_ops.write_gdt_entry = lguest_write_gdt_entry;
-	paravirt_ops.write_idt_entry = lguest_write_idt_entry;
-	paravirt_ops.patch = lguest_patch;
-	paravirt_ops.safe_halt = lguest_safe_halt;
-	paravirt_ops.get_wallclock = lguest_get_wallclock;
-	paravirt_ops.time_init = lguest_time_init;
-	paravirt_ops.set_lazy_mode = lguest_lazy_mode;
-	paravirt_ops.wbinvd = lguest_wbinvd;
+
+	/* time operations */
+	pv_time_ops.get_wallclock = lguest_get_wallclock;
+	pv_time_ops.time_init = lguest_time_init;
+
 	/* Now is a good time to look at the implementations of these functions
 	 * before returning to the rest of lguest_init(). */
 

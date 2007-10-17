@@ -105,6 +105,12 @@ static void get_runstate_snapshot(struct vcpu_runstate_info *res)
 	} while (get64(&state->state_entry_time) != state_time);
 }
 
+/* return true when a vcpu could run but has no real cpu to run on */
+bool xen_vcpu_stolen(int vcpu)
+{
+	return per_cpu(runstate, vcpu).state == RUNSTATE_runnable;
+}
+
 static void setup_runstate_info(int cpu)
 {
 	struct vcpu_register_runstate_memory_area area;

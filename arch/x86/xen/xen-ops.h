@@ -11,6 +11,7 @@ void xen_copy_trap_info(struct trap_info *traps);
 
 DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DECLARE_PER_CPU(unsigned long, xen_cr3);
+DECLARE_PER_CPU(unsigned long, xen_current_cr3);
 
 extern struct start_info *xen_start_info;
 extern struct shared_info *HYPERVISOR_shared_info;
@@ -27,14 +28,9 @@ unsigned long xen_get_wallclock(void);
 int xen_set_wallclock(unsigned long time);
 unsigned long long xen_sched_clock(void);
 
+bool xen_vcpu_stolen(int vcpu);
+
 void xen_mark_init_mm_pinned(void);
-
-DECLARE_PER_CPU(enum paravirt_lazy_mode, xen_lazy_mode);
-
-static inline unsigned xen_get_lazy_mode(void)
-{
-	return x86_read_percpu(xen_lazy_mode);
-}
 
 void __init xen_fill_possible_map(void);
 

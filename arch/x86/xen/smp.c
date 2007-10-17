@@ -370,7 +370,8 @@ int xen_smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 			       void *info, int wait)
 {
 	struct call_data_struct data;
-	int cpus;
+	int cpus, cpu;
+	bool yield;
 
 	/* Holding any lock stops cpus from going down. */
 	spin_lock(&call_lock);
@@ -399,9 +400,14 @@ int xen_smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 	/* Send a message to other CPUs and wait for them to respond */
 	xen_send_IPI_mask(mask, XEN_CALL_FUNCTION_VECTOR);
 
-	/* Make sure other vcpus get a chance to run.
-	   XXX too severe?  Maybe we should check the other CPU's states? */
-	HYPERVISOR_sched_op(SCHEDOP_yield, 0);
+	/* Make sure other vcpus get a chance to run if they need to. */
+	yield = false;
+	for_each_cpu_mask(cpu, mask)
+		if (xen_vcpu_stolen(cpu))
+			yield = true;
+
+	if (yield)
+		HYPERVISOR_sched_op(SCHEDOP_yield, 0);
 
 	/* Wait for response */
 	while (atomic_read(&data.started) != cpus ||

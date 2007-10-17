@@ -35,11 +35,14 @@ void xen_mc_flush(void);
 /* Issue a multicall if we're not in a lazy mode */
 static inline void xen_mc_issue(unsigned mode)
 {
-	if ((xen_get_lazy_mode() & mode) == 0)
+	if ((paravirt_get_lazy_mode() & mode) == 0)
 		xen_mc_flush();
 
 	/* restore flags saved in xen_mc_batch */
 	local_irq_restore(x86_read_percpu(xen_mc_irq_flags));
 }
+
+/* Set up a callback to be called when the current batch is flushed */
+void xen_mc_callback(void (*fn)(void *), void *data);
 
 #endif /* _XEN_MULTICALLS_H */

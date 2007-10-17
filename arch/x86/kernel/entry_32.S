@@ -437,7 +437,7 @@ ldt_ss:
 	 * is still available to implement the setting of the high
 	 * 16-bits in the INTERRUPT_RETURN paravirt-op.
 	 */
-	cmpl $0, paravirt_ops+PARAVIRT_enabled
+	cmpl $0, pv_info+PARAVIRT_enabled
 	jne restore_nocheck
 #endif
 

@@ -134,21 +134,21 @@ static unsigned vmi_patch(u8 type, u16 clobbers, void *insns,
 			  unsigned long eip, unsigned len)
 {
 	switch (type) {
-		case PARAVIRT_PATCH(irq_disable):
+		case PARAVIRT_PATCH(pv_irq_ops.irq_disable):
 			return patch_internal(VMI_CALL_DisableInterrupts, len,
 					      insns, eip);
-		case PARAVIRT_PATCH(irq_enable):
+		case PARAVIRT_PATCH(pv_irq_ops.irq_enable):
 			return patch_internal(VMI_CALL_EnableInterrupts, len,
 					      insns, eip);
-		case PARAVIRT_PATCH(restore_fl):
+		case PARAVIRT_PATCH(pv_irq_ops.restore_fl):
 			return patch_internal(VMI_CALL_SetInterruptMask, len,
 					      insns, eip);
-		case PARAVIRT_PATCH(save_fl):
+		case PARAVIRT_PATCH(pv_irq_ops.save_fl):
 			return patch_internal(VMI_CALL_GetInterruptMask, len,
 					      insns, eip);
-		case PARAVIRT_PATCH(iret):
+		case PARAVIRT_PATCH(pv_cpu_ops.iret):
 			return patch_internal(VMI_CALL_IRET, len, insns, eip);
-		case PARAVIRT_PATCH(irq_enable_sysexit):
+		case PARAVIRT_PATCH(pv_cpu_ops.irq_enable_sysexit):
 			return patch_internal(VMI_CALL_SYSEXIT, len, insns, eip);
 		default:
 			break;
@@ -552,24 +552,22 @@ vmi_startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 }
 #endif
 
-static void vmi_set_lazy_mode(enum paravirt_lazy_mode mode)
+static void vmi_enter_lazy_cpu(void)
 {
-	static DEFINE_PER_CPU(enum paravirt_lazy_mode, lazy_mode);
+	paravirt_enter_lazy_cpu();
+	vmi_ops.set_lazy_mode(2);
+}
 
-	if (!vmi_ops.set_lazy_mode)
-		return;
+static void vmi_enter_lazy_mmu(void)
+{
+	paravirt_enter_lazy_mmu();
+	vmi_ops.set_lazy_mode(1);
+}
 
-	/* Modes should never nest or overlap */
-	BUG_ON(__get_cpu_var(lazy_mode) && !(mode == PARAVIRT_LAZY_NONE ||
-					     mode == PARAVIRT_LAZY_FLUSH));
-
-	if (mode == PARAVIRT_LAZY_FLUSH) {
-		vmi_ops.set_lazy_mode(0);
-		vmi_ops.set_lazy_mode(__get_cpu_var(lazy_mode));
-	} else {
-		vmi_ops.set_lazy_mode(mode);
-		__get_cpu_var(lazy_mode) = mode;
-	}
+static void vmi_leave_lazy(void)
+{
+	paravirt_leave_lazy(paravirt_get_lazy_mode());
+	vmi_ops.set_lazy_mode(0);
 }
 
 static inline int __init check_vmi_rom(struct vrom_header *rom)
@@ -690,9 +688,9 @@ do {								\
 	reloc = call_vrom_long_func(vmi_rom, get_reloc,		\
 				    VMI_CALL_##vmicall);	\
 	if (rel->type == VMI_RELOCATION_CALL_REL) 		\
-		paravirt_ops.opname = (void *)rel->eip;		\
+		opname = (void *)rel->eip;			\
 	else if (rel->type == VMI_RELOCATION_NOP) 		\
-		paravirt_ops.opname = (void *)vmi_nop;		\
+		opname = (void *)vmi_nop;			\
 	else if (rel->type != VMI_RELOCATION_NONE)		\
 		printk(KERN_WARNING "VMI: Unknown relocation "	\
 				    "type %d for " #vmicall"\n",\
@@ -712,7 +710,7 @@ do {								\
 				    VMI_CALL_##vmicall);	\
 	BUG_ON(rel->type == VMI_RELOCATION_JUMP_REL);		\
 	if (rel->type == VMI_RELOCATION_CALL_REL) {		\
-		paravirt_ops.opname = wrapper;			\
+		opname = wrapper;				\
 		vmi_ops.cache = (void *)rel->eip;		\
 	}							\
 } while (0)
@@ -732,11 +730,11 @@ static inline int __init activate_vmi(void)
 	}
 	savesegment(cs, kernel_cs);
 
-	paravirt_ops.paravirt_enabled = 1;
-	paravirt_ops.kernel_rpl = kernel_cs & SEGMENT_RPL_MASK;
+	pv_info.paravirt_enabled = 1;
+	pv_info.kernel_rpl = kernel_cs & SEGMENT_RPL_MASK;
+	pv_info.name = "vmi";
 
-	paravirt_ops.patch = vmi_patch;
-	paravirt_ops.name = "vmi";
+	pv_init_ops.patch = vmi_patch;
 
 	/*
 	 * Many of these operations are ABI compatible with VMI.
@@ -754,26 +752,26 @@ static inline int __init activate_vmi(void)
 	 */
 
 	/* CPUID is special, so very special it gets wrapped like a present */
-	para_wrap(cpuid, vmi_cpuid, cpuid, CPUID);
+	para_wrap(pv_cpu_ops.cpuid, vmi_cpuid, cpuid, CPUID);
 
-	para_fill(clts, CLTS);
-	para_fill(get_debugreg, GetDR);
-	para_fill(set_debugreg, SetDR);
-	para_fill(read_cr0, GetCR0);
-	para_fill(read_cr2, GetCR2);
-	para_fill(read_cr3, GetCR3);
-	para_fill(read_cr4, GetCR4);
-	para_fill(write_cr0, SetCR0);
-	para_fill(write_cr2, SetCR2);
-	para_fill(write_cr3, SetCR3);
-	para_fill(write_cr4, SetCR4);
-	para_fill(save_fl, GetInterruptMask);
-	para_fill(restore_fl, SetInterruptMask);
-	para_fill(irq_disable, DisableInterrupts);
-	para_fill(irq_enable, EnableInterrupts);
+	para_fill(pv_cpu_ops.clts, CLTS);
+	para_fill(pv_cpu_ops.get_debugreg, GetDR);
+	para_fill(pv_cpu_ops.set_debugreg, SetDR);
+	para_fill(pv_cpu_ops.read_cr0, GetCR0);
+	para_fill(pv_mmu_ops.read_cr2, GetCR2);
+	para_fill(pv_mmu_ops.read_cr3, GetCR3);
+	para_fill(pv_cpu_ops.read_cr4, GetCR4);
+	para_fill(pv_cpu_ops.write_cr0, SetCR0);
+	para_fill(pv_mmu_ops.write_cr2, SetCR2);
+	para_fill(pv_mmu_ops.write_cr3, SetCR3);
+	para_fill(pv_cpu_ops.write_cr4, SetCR4);
+	para_fill(pv_irq_ops.save_fl, GetInterruptMask);
+	para_fill(pv_irq_ops.restore_fl, SetInterruptMask);
+	para_fill(pv_irq_ops.irq_disable, DisableInterrupts);
+	para_fill(pv_irq_ops.irq_enable, EnableInterrupts);
 
-	para_fill(wbinvd, WBINVD);
-	para_fill(read_tsc, RDTSC);
+	para_fill(pv_cpu_ops.wbinvd, WBINVD);
+	para_fill(pv_cpu_ops.read_tsc, RDTSC);
 
 	/* The following we emulate with trap and emulate for now */
 	/* paravirt_ops.read_msr = vmi_rdmsr */
@@ -781,29 +779,38 @@ static inline int __init activate_vmi(void)
 	/* paravirt_ops.rdpmc = vmi_rdpmc */
 
 	/* TR interface doesn't pass TR value, wrap */
-	para_wrap(load_tr_desc, vmi_set_tr, set_tr, SetTR);
+	para_wrap(pv_cpu_ops.load_tr_desc, vmi_set_tr, set_tr, SetTR);
 
 	/* LDT is special, too */
-	para_wrap(set_ldt, vmi_set_ldt, _set_ldt, SetLDT);
+	para_wrap(pv_cpu_ops.set_ldt, vmi_set_ldt, _set_ldt, SetLDT);
 
-	para_fill(load_gdt, SetGDT);
-	para_fill(load_idt, SetIDT);
-	para_fill(store_gdt, GetGDT);
-	para_fill(store_idt, GetIDT);
-	para_fill(store_tr, GetTR);
-	paravirt_ops.load_tls = vmi_load_tls;
-	para_fill(write_ldt_entry, WriteLDTEntry);
-	para_fill(write_gdt_entry, WriteGDTEntry);
-	para_fill(write_idt_entry, WriteIDTEntry);
-	para_wrap(load_esp0, vmi_load_esp0, set_kernel_stack, UpdateKernelStack);
-	para_fill(set_iopl_mask, SetIOPLMask);
-	para_fill(io_delay, IODelay);
-	para_wrap(set_lazy_mode, vmi_set_lazy_mode, set_lazy_mode, SetLazyMode);
+	para_fill(pv_cpu_ops.load_gdt, SetGDT);
+	para_fill(pv_cpu_ops.load_idt, SetIDT);
+	para_fill(pv_cpu_ops.store_gdt, GetGDT);
+	para_fill(pv_cpu_ops.store_idt, GetIDT);
+	para_fill(pv_cpu_ops.store_tr, GetTR);
+	pv_cpu_ops.load_tls = vmi_load_tls;
+	para_fill(pv_cpu_ops.write_ldt_entry, WriteLDTEntry);
+	para_fill(pv_cpu_ops.write_gdt_entry, WriteGDTEntry);
+	para_fill(pv_cpu_ops.write_idt_entry, WriteIDTEntry);
+	para_wrap(pv_cpu_ops.load_esp0, vmi_load_esp0, set_kernel_stack, UpdateKernelStack);
+	para_fill(pv_cpu_ops.set_iopl_mask, SetIOPLMask);
+	para_fill(pv_cpu_ops.io_delay, IODelay);
+
+	para_wrap(pv_cpu_ops.lazy_mode.enter, vmi_enter_lazy_cpu,
+		  set_lazy_mode, SetLazyMode);
+	para_wrap(pv_cpu_ops.lazy_mode.leave, vmi_leave_lazy,
+		  set_lazy_mode, SetLazyMode);
+
+	para_wrap(pv_mmu_ops.lazy_mode.enter, vmi_enter_lazy_mmu,
+		  set_lazy_mode, SetLazyMode);
+	para_wrap(pv_mmu_ops.lazy_mode.leave, vmi_leave_lazy,
+		  set_lazy_mode, SetLazyMode);
 
 	/* user and kernel flush are just handled with different flags to FlushTLB */
-	para_wrap(flush_tlb_user, vmi_flush_tlb_user, _flush_tlb, FlushTLB);
-	para_wrap(flush_tlb_kernel, vmi_flush_tlb_kernel, _flush_tlb, FlushTLB);
-	para_fill(flush_tlb_single, InvalPage);
+	para_wrap(pv_mmu_ops.flush_tlb_user, vmi_flush_tlb_user, _flush_tlb, FlushTLB);
+	para_wrap(pv_mmu_ops.flush_tlb_kernel, vmi_flush_tlb_kernel, _flush_tlb, FlushTLB);
+	para_fill(pv_mmu_ops.flush_tlb_single, InvalPage);
 
 	/*
 	 * Until a standard flag format can be agreed on, we need to
@@ -819,41 +826,41 @@ static inline int __init activate_vmi(void)
 #endif
 
 	if (vmi_ops.set_pte) {
-		paravirt_ops.set_pte = vmi_set_pte;
-		paravirt_ops.set_pte_at = vmi_set_pte_at;
-		paravirt_ops.set_pmd = vmi_set_pmd;
+		pv_mmu_ops.set_pte = vmi_set_pte;
+		pv_mmu_ops.set_pte_at = vmi_set_pte_at;
+		pv_mmu_ops.set_pmd = vmi_set_pmd;
 #ifdef CONFIG_X86_PAE
-		paravirt_ops.set_pte_atomic = vmi_set_pte_atomic;
-		paravirt_ops.set_pte_present = vmi_set_pte_present;
-		paravirt_ops.set_pud = vmi_set_pud;
-		paravirt_ops.pte_clear = vmi_pte_clear;
-		paravirt_ops.pmd_clear = vmi_pmd_clear;
+		pv_mmu_ops.set_pte_atomic = vmi_set_pte_atomic;
+		pv_mmu_ops.set_pte_present = vmi_set_pte_present;
+		pv_mmu_ops.set_pud = vmi_set_pud;
+		pv_mmu_ops.pte_clear = vmi_pte_clear;
+		pv_mmu_ops.pmd_clear = vmi_pmd_clear;
 #endif
 	}
 
 	if (vmi_ops.update_pte) {
-		paravirt_ops.pte_update = vmi_update_pte;
-		paravirt_ops.pte_update_defer = vmi_update_pte_defer;
+		pv_mmu_ops.pte_update = vmi_update_pte;
+		pv_mmu_ops.pte_update_defer = vmi_update_pte_defer;
 	}
 
 	vmi_ops.allocate_page = vmi_get_function(VMI_CALL_AllocatePage);
 	if (vmi_ops.allocate_page) {
-		paravirt_ops.alloc_pt = vmi_allocate_pt;
-		paravirt_ops.alloc_pd = vmi_allocate_pd;
-		paravirt_ops.alloc_pd_clone = vmi_allocate_pd_clone;
+		pv_mmu_ops.alloc_pt = vmi_allocate_pt;
+		pv_mmu_ops.alloc_pd = vmi_allocate_pd;
+		pv_mmu_ops.alloc_pd_clone = vmi_allocate_pd_clone;
 	}
 
 	vmi_ops.release_page = vmi_get_function(VMI_CALL_ReleasePage);
 	if (vmi_ops.release_page) {
-		paravirt_ops.release_pt = vmi_release_pt;
-		paravirt_ops.release_pd = vmi_release_pd;
+		pv_mmu_ops.release_pt = vmi_release_pt;
+		pv_mmu_ops.release_pd = vmi_release_pd;
 	}
 
 	/* Set linear is needed in all cases */
 	vmi_ops.set_linear_mapping = vmi_get_function(VMI_CALL_SetLinearMapping);
 #ifdef CONFIG_HIGHPTE
 	if (vmi_ops.set_linear_mapping)
-		paravirt_ops.kmap_atomic_pte = vmi_kmap_atomic_pte;
+		pv_mmu_ops.kmap_atomic_pte = vmi_kmap_atomic_pte;
 #endif
 
 	/*
@@ -863,17 +870,17 @@ static inline int __init activate_vmi(void)
 	 * the backend.  They are performance critical anyway, so requiring
 	 * a patch is not a big problem.
 	 */
-	paravirt_ops.irq_enable_sysexit = (void *)0xfeedbab0;
-	paravirt_ops.iret = (void *)0xbadbab0;
+	pv_cpu_ops.irq_enable_sysexit = (void *)0xfeedbab0;
+	pv_cpu_ops.iret = (void *)0xbadbab0;
 
 #ifdef CONFIG_SMP
-	para_wrap(startup_ipi_hook, vmi_startup_ipi_hook, set_initial_ap_state, SetInitialAPState);
+	para_wrap(pv_apic_ops.startup_ipi_hook, vmi_startup_ipi_hook, set_initial_ap_state, SetInitialAPState);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
-	para_fill(apic_read, APICRead);
-	para_fill(apic_write, APICWrite);
-	para_fill(apic_write_atomic, APICWrite);
+	para_fill(pv_apic_ops.apic_read, APICRead);
+	para_fill(pv_apic_ops.apic_write, APICWrite);
+	para_fill(pv_apic_ops.apic_write_atomic, APICWrite);
 #endif
 
 	/*
@@ -891,15 +898,15 @@ static inline int __init activate_vmi(void)
 		vmi_timer_ops.set_alarm = vmi_get_function(VMI_CALL_SetAlarm);
 		vmi_timer_ops.cancel_alarm =
 			 vmi_get_function(VMI_CALL_CancelAlarm);
-		paravirt_ops.time_init = vmi_time_init;
-		paravirt_ops.get_wallclock = vmi_get_wallclock;
-		paravirt_ops.set_wallclock = vmi_set_wallclock;
+		pv_time_ops.time_init = vmi_time_init;
+		pv_time_ops.get_wallclock = vmi_get_wallclock;
+		pv_time_ops.set_wallclock = vmi_set_wallclock;
 #ifdef CONFIG_X86_LOCAL_APIC
-		paravirt_ops.setup_boot_clock = vmi_time_bsp_init;
-		paravirt_ops.setup_secondary_clock = vmi_time_ap_init;
+		pv_apic_ops.setup_boot_clock = vmi_time_bsp_init;
+		pv_apic_ops.setup_secondary_clock = vmi_time_ap_init;
 #endif
-		paravirt_ops.sched_clock = vmi_sched_clock;
- 		paravirt_ops.get_cpu_khz = vmi_cpu_khz;
+		pv_time_ops.sched_clock = vmi_sched_clock;
+ 		pv_time_ops.get_cpu_khz = vmi_cpu_khz;
 
 		/* We have true wallclock functions; disable CMOS clock sync */
 		no_sync_cmos_clock = 1;
@@ -908,7 +915,7 @@ static inline int __init activate_vmi(void)
 		disable_vmi_timer = 1;
 	}
 
-	para_fill(safe_halt, Halt);
+	para_fill(pv_irq_ops.safe_halt, Halt);
 
 	/*
 	 * Alternative instruction rewriting doesn't happen soon enough

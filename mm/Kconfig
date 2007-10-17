@@ -155,7 +155,6 @@ config SPLIT_PTLOCK_CPUS
 	int
 	default "4096" if ARM && !CPU_CACHE_VIPT
 	default "4096" if PARISC && !PA20
-	default "4096" if XEN
 	default "4"
 
 #
