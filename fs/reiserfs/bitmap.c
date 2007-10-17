@@ -1201,63 +1201,6 @@ int reiserfs_allocate_blocknrs(reiserfs_blocknr_hint_t * hint, b_blocknr_t * new
 	return ret;
 }
 
-/* These 2 functions are here to provide blocks reservation to the rest of kernel */
-/* Reserve @blocks amount of blocks in fs pointed by @sb. Caller must make sure
-   there are actually this much blocks on the FS available */
-void reiserfs_claim_blocks_to_be_allocated(struct super_block *sb,	/* super block of
-									   filesystem where
-									   blocks should be
-									   reserved */
-					   int blocks	/* How much to reserve */
-    )
-{
-
-	/* Fast case, if reservation is zero - exit immediately. */
-	if (!blocks)
-		return;
-
-	spin_lock(&REISERFS_SB(sb)->bitmap_lock);
-	REISERFS_SB(sb)->reserved_blocks += blocks;
-	spin_unlock(&REISERFS_SB(sb)->bitmap_lock);
-}
-
-/* Unreserve @blocks amount of blocks in fs pointed by @sb */
-void reiserfs_release_claimed_blocks(struct super_block *sb,	/* super block of
-								   filesystem where
-								   blocks should be
-								   reserved */
-				     int blocks	/* How much to unreserve */
-    )
-{
-
-	/* Fast case, if unreservation is zero - exit immediately. */
-	if (!blocks)
-		return;
-
-	spin_lock(&REISERFS_SB(sb)->bitmap_lock);
-	REISERFS_SB(sb)->reserved_blocks -= blocks;
-	spin_unlock(&REISERFS_SB(sb)->bitmap_lock);
-	RFALSE(REISERFS_SB(sb)->reserved_blocks < 0,
-	       "amount of blocks reserved became zero?");
-}
-
-/* This function estimates how much pages we will be able to write to FS
-   used for reiserfs_file_write() purposes for now. */
-int reiserfs_can_fit_pages(struct super_block *sb	/* superblock of filesystem
-							   to estimate space */ )
-{
-	int space;
-
-	spin_lock(&REISERFS_SB(sb)->bitmap_lock);
-	space =
-	    (SB_FREE_BLOCKS(sb) -
-	     REISERFS_SB(sb)->reserved_blocks) >> (PAGE_CACHE_SHIFT -
-						   sb->s_blocksize_bits);
-	spin_unlock(&REISERFS_SB(sb)->bitmap_lock);
-
-	return space > 0 ? space : 0;
-}
-
 void reiserfs_cache_bitmap_metadata(struct super_block *sb,
                                     struct buffer_head *bh,
                                     struct reiserfs_bitmap_info *info)

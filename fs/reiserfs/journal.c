@@ -966,7 +966,8 @@ static int flush_older_commits(struct super_block *s,
 	}
 	return 0;
 }
-int reiserfs_async_progress_wait(struct super_block *s)
+
+static int reiserfs_async_progress_wait(struct super_block *s)
 {
 	DEFINE_WAIT(wait);
 	struct reiserfs_journal *j = SB_JOURNAL(s);

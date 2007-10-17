@@ -208,8 +208,8 @@ static int file_capable(struct inode *inode, long block)
 	return 0;
 }
 
-/*static*/ int restart_transaction(struct reiserfs_transaction_handle *th,
-				   struct inode *inode, struct treepath *path)
+static int restart_transaction(struct reiserfs_transaction_handle *th,
+			       struct inode *inode, struct treepath *path)
 {
 	struct super_block *s = th->t_super;
 	int len = th->t_blocks_allocated;
