@@ -121,6 +121,16 @@ static int reiserfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 					continue;
 				d_reclen = entry_length(bh, ih, entry_num);
 				d_name = B_I_DEH_ENTRY_FILE_NAME(bh, ih, deh);
+
+				if (d_reclen <= 0 ||
+				    d_name + d_reclen > bh->b_data + bh->b_size) {
+					/* There is corrupted data in entry,
+					 * We'd better stop here */
+					pathrelse(&path_to_entry);
+					ret = -EIO;
+					goto out;
+				}
+
 				if (!d_name[d_reclen - 1])
 					d_reclen = strlen(d_name);
 
