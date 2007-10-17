@@ -1028,7 +1028,7 @@ static struct ext2_inode *ext2_get_inode(struct super_block *sb, ino_t ino,
 		goto Einval;
 
 	block_group = (ino - 1) / EXT2_INODES_PER_GROUP(sb);
-	gdp = ext2_get_group_desc(sb, block_group, &bh);
+	gdp = ext2_get_group_desc(sb, block_group, NULL);
 	if (!gdp)
 		goto Egdp;
 	/*
