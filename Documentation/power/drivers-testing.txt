@@ -14,8 +14,8 @@ the machine's BIOS.
 Of course, for this purpose the test system has to be known to suspend and
 resume without the driver being tested.  Thus, if possible, you should first
 resolve all suspend/resume-related problems in the test system before you start
-testing the new driver.  Please see Documents/power/basic-pm-debugging.txt for
-more information about the debugging of suspend/resume functionality.
+testing the new driver.  Please see Documentation/power/basic-pm-debugging.txt
+for more information about the debugging of suspend/resume functionality.
 
 2. Testing the driver
 
