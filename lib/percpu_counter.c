@@ -52,7 +52,7 @@ EXPORT_SYMBOL(__percpu_counter_add);
  * Add up all the per-cpu counts, return the result.  This is a more accurate
  * but much slower version of percpu_counter_read_positive()
  */
-s64 percpu_counter_sum(struct percpu_counter *fbc)
+s64 percpu_counter_sum_positive(struct percpu_counter *fbc)
 {
 	s64 ret;
 	int cpu;
@@ -66,7 +66,7 @@ s64 percpu_counter_sum(struct percpu_counter *fbc)
 	spin_unlock(&fbc->lock);
 	return ret < 0 ? 0 : ret;
 }
-EXPORT_SYMBOL(percpu_counter_sum);
+EXPORT_SYMBOL(percpu_counter_sum_positive);
 
 void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
 {

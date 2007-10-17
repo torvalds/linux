@@ -98,7 +98,7 @@ struct file *get_empty_filp(void)
 		 * percpu_counters are inaccurate.  Do an expensive check before
 		 * we go and fail.
 		 */
-		if (percpu_counter_sum(&nr_files) >= files_stat.max_files)
+		if (percpu_counter_sum_positive(&nr_files) >= files_stat.max_files)
 			goto over;
 	}
 
