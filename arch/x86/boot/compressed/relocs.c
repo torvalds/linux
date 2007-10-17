@@ -38,11 +38,9 @@ static const char* safe_abs_relocs[] = {
 
 static int is_safe_abs_reloc(const char* sym_name)
 {
-	int i, array_size;
+	int i;
 
-	array_size = sizeof(safe_abs_relocs)/sizeof(char*);
-
-	for(i = 0; i < array_size; i++) {
+	for(i = 0; i < ARRAY_SIZE(safe_abs_relocs); i++) {
 		if (!strcmp(sym_name, safe_abs_relocs[i]))
 			/* Match found */
 			return 1;
