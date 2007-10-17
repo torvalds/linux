@@ -222,6 +222,12 @@ static inline unsigned int num_dma_pages(unsigned long dma, unsigned int dmalen)
 	return npages;
 }
 
+static inline int translation_enabled(struct iommu_table *tbl)
+{
+	/* only PHBs with translation enabled have an IOMMU table */
+	return (tbl != NULL);
+}
+
 static inline int translate_phb(struct pci_dev* dev)
 {
 	int disabled = bus_info[dev->bus->number].translation_disabled;
@@ -388,7 +394,7 @@ static void calgary_unmap_sg(struct device *dev,
 	struct scatterlist *s;
 	int i;
 
-	if (!translate_phb(to_pci_dev(dev)))
+	if (!translate_enabled(tbl))
 		return;
 
 	for_each_sg(sglist, s, nelems, i) {
@@ -428,7 +434,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 	unsigned long entry;
 	int i;
 
-	if (!translate_phb(to_pci_dev(dev)))
+	if (!translation_enabled(tbl))
 		return calgary_nontranslate_map_sg(dev, sg, nelems, direction);
 
 	for_each_sg(sg, s, nelems, i) {
@@ -474,7 +480,7 @@ static dma_addr_t calgary_map_single(struct device *dev, void *vaddr,
 	uaddr = (unsigned long)vaddr;
 	npages = num_dma_pages(uaddr, size);
 
-	if (translate_phb(to_pci_dev(dev)))
+	if (translation_enabled(tbl))
 		dma_handle = iommu_alloc(tbl, vaddr, npages, direction);
 	else
 		dma_handle = virt_to_bus(vaddr);
@@ -488,7 +494,7 @@ static void calgary_unmap_single(struct device *dev, dma_addr_t dma_handle,
 	struct iommu_table *tbl = find_iommu_table(dev);
 	unsigned int npages;
 
-	if (!translate_phb(to_pci_dev(dev)))
+	if (!translation_enabled(tbl))
 		return;
 
 	npages = num_dma_pages(dma_handle, size);
@@ -513,7 +519,7 @@ static void* calgary_alloc_coherent(struct device *dev, size_t size,
 		goto error;
 	memset(ret, 0, size);
 
-	if (translate_phb(to_pci_dev(dev))) {
+	if (translation_enabled(tbl)) {
 		/* set up tces to cover the allocated range */
 		mapping = iommu_alloc(tbl, ret, npages, DMA_BIDIRECTIONAL);
 		if (mapping == bad_dma_address)
