@@ -578,6 +578,9 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		printk(KERN_WARNING "%s: queue cleared\n", lo->disk->disk_name);
 		if (file)
 			fput(file);
+		lo->bytesize = 0;
+		inode->i_bdev->bd_inode->i_size = 0;
+		set_capacity(lo->disk, 0);
 		return lo->harderror;
 	case NBD_CLEAR_QUE:
 		/*
@@ -655,14 +658,14 @@ static int __init nbd_init(void)
 		mutex_init(&nbd_dev[i].tx_lock);
 		init_waitqueue_head(&nbd_dev[i].active_wq);
 		nbd_dev[i].blksize = 1024;
-		nbd_dev[i].bytesize = 0x7ffffc00ULL << 10; /* 2TB */
+		nbd_dev[i].bytesize = 0;
 		disk->major = NBD_MAJOR;
 		disk->first_minor = i;
 		disk->fops = &nbd_fops;
 		disk->private_data = &nbd_dev[i];
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		sprintf(disk->disk_name, "nbd%d", i);
-		set_capacity(disk, 0x7ffffc00ULL << 1); /* 2 TB */
+		set_capacity(disk, 0);
 		add_disk(disk);
 	}
 
