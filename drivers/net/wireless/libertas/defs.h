@@ -39,6 +39,7 @@
 #define LBS_DEB_FW	0x00080000
 #define LBS_DEB_THREAD	0x00100000
 #define LBS_DEB_HEX	0x00200000
+#define LBS_DEB_SDIO	0x00400000
 
 extern unsigned int libertas_debug;
 
@@ -80,6 +81,7 @@ do { if ((libertas_debug & (grp)) == (grp)) \
 #define lbs_deb_usbd(dev, fmt, args...) LBS_DEB_LL(LBS_DEB_USB, " usbd", "%s:" fmt, (dev)->bus_id, ##args)
 #define lbs_deb_cs(fmt, args...)        LBS_DEB_LL(LBS_DEB_CS, " cs", fmt, ##args)
 #define lbs_deb_thread(fmt, args...)    LBS_DEB_LL(LBS_DEB_THREAD, " thread", fmt, ##args)
+#define lbs_deb_sdio(fmt, args...)      LBS_DEB_LL(LBS_DEB_SDIO, " thread", fmt, ##args)
 
 #define lbs_pr_info(format, args...) \
 	printk(KERN_INFO DRV_NAME": " format, ## args)

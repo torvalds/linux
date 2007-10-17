@@ -19,5 +19,11 @@
 #define SDIO_CLASS_WLAN		0x07	/* WLAN interface */
 #define SDIO_CLASS_ATA		0x08	/* Embedded SDIO-ATA std interface */
 
+/*
+ * Vendors and devices.  Sort key: vendor first, device next.
+ */
+
+#define SDIO_VENDOR_ID_MARVELL			0x02df
+#define SDIO_DEVICE_ID_MARVELL_LIBERTAS		0x9103
 
 #endif
