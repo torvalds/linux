@@ -1285,7 +1285,6 @@ static long lo_compat_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
 	int err;
 
-	lock_kernel();
 	switch(cmd) {
 	case LOOP_SET_STATUS:
 		mutex_lock(&lo->lo_ctl_mutex);
@@ -1311,7 +1310,6 @@ static long lo_compat_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		err = -ENOIOCTLCMD;
 		break;
 	}
-	unlock_kernel();
 	return err;
 }
 #endif
