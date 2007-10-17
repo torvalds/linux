@@ -145,7 +145,7 @@ static int finish_unfinished(struct super_block *s)
 {
 	INITIALIZE_PATH(path);
 	struct cpu_key max_cpu_key, obj_key;
-	struct reiserfs_key save_link_key;
+	struct reiserfs_key save_link_key, last_inode_key;
 	int retval = 0;
 	struct item_head *ih;
 	struct buffer_head *bh;
@@ -165,6 +165,8 @@ static int finish_unfinished(struct super_block *s)
 	max_cpu_key.on_disk_key.k_objectid = ~0U;
 	set_cpu_key_k_offset(&max_cpu_key, ~0U);
 	max_cpu_key.key_length = 3;
+
+	memset(&last_inode_key, 0, sizeof(last_inode_key));
 
 #ifdef CONFIG_QUOTA
 	/* Needed for iput() to work correctly and not trash data */
@@ -278,8 +280,18 @@ static int finish_unfinished(struct super_block *s)
 			REISERFS_I(inode)->i_flags |= i_link_saved_unlink_mask;
 			/* not completed unlink (rmdir) found */
 			reiserfs_info(s, "Removing %k..", INODE_PKEY(inode));
-			/* removal gets completed in iput */
-			retval = 0;
+			if (memcmp(&last_inode_key, INODE_PKEY(inode),
+					sizeof(last_inode_key))){
+				last_inode_key = *INODE_PKEY(inode);
+				/* removal gets completed in iput */
+				retval = 0;
+			} else {
+				reiserfs_warning(s, "Dead loop in "
+						"finish_unfinished detected, "
+						"just remove save link\n");
+				retval = remove_save_link_only(s,
+							&save_link_key, 0);
+			}
 		}
 
 		iput(inode);
