@@ -5,6 +5,33 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 
+int bdi_init(struct backing_dev_info *bdi)
+{
+	int i, j;
+	int err;
+
+	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
+		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
+		if (err) {
+			for (j = 0; j < i; j++)
+				percpu_counter_destroy(&bdi->bdi_stat[i]);
+			break;
+		}
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(bdi_init);
+
+void bdi_destroy(struct backing_dev_info *bdi)
+{
+	int i;
+
+	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
+		percpu_counter_destroy(&bdi->bdi_stat[i]);
+}
+EXPORT_SYMBOL(bdi_destroy);
+
 static wait_queue_head_t congestion_wqh[2] = {
 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
