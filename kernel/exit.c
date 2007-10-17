@@ -1189,13 +1189,6 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 		BUG_ON(state != EXIT_DEAD);
 		return 0;
 	}
-	if (unlikely(p->exit_signal == -1 && p->ptrace == 0)) {
-		/*
-		 * This can only happen in a race with a ptraced thread
-		 * dying on another processor.
-		 */
-		return 0;
-	}
 
 	/* traced means p->ptrace, but not vice versa */
 	traced = (p->real_parent != p->parent);
