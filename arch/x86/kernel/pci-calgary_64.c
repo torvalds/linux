@@ -228,12 +228,6 @@ static inline int translation_enabled(struct iommu_table *tbl)
 	return (tbl != NULL);
 }
 
-static inline int translate_phb(struct pci_dev* dev)
-{
-	int disabled = bus_info[dev->bus->number].translation_disabled;
-	return !disabled;
-}
-
 static void iommu_range_reserve(struct iommu_table *tbl,
 	unsigned long start_addr, unsigned int npages)
 {
@@ -394,7 +388,7 @@ static void calgary_unmap_sg(struct device *dev,
 	struct scatterlist *s;
 	int i;
 
-	if (!translate_enabled(tbl))
+	if (!translation_enabled(tbl))
 		return;
 
 	for_each_sg(sglist, s, nelems, i) {
@@ -1200,7 +1194,7 @@ static int __init calgary_init(void)
 {
 	int ret;
 	struct pci_dev *dev = NULL;
-	void *tce_space;
+	struct calgary_bus_info *info;
 
 	ret = calgary_locate_bbars();
 	if (ret)
@@ -1212,12 +1206,14 @@ static int __init calgary_init(void)
 			break;
 		if (!is_cal_pci_dev(dev->device))
 			continue;
-		if (!translate_phb(dev)) {
+
+		info = &bus_info[dev->bus->number];
+		if (info->translation_disabled) {
 			calgary_init_one_nontraslated(dev);
 			continue;
 		}
-		tce_space = bus_info[dev->bus->number].tce_space;
-		if (!tce_space && !translate_empty_slots)
+
+		if (!info->tce_space && !translate_empty_slots)
 			continue;
 
 		ret = calgary_init_one(dev);
@@ -1235,11 +1231,13 @@ error:
 			break;
 		if (!is_cal_pci_dev(dev->device))
 			continue;
-		if (!translate_phb(dev)) {
+
+		info = &bus_info[dev->bus->number];
+		if (info->translation_disabled) {
 			pci_dev_put(dev);
 			continue;
 		}
-		if (!bus_info[dev->bus->number].tce_space && !translate_empty_slots)
+		if (!info->tce_space && !translate_empty_slots)
 			continue;
 
 		calgary_disable_translation(dev);
@@ -1552,7 +1550,7 @@ static void __init calgary_fixup_one_tce_space(struct pci_dev *dev)
 static int __init calgary_fixup_tce_spaces(void)
 {
 	struct pci_dev *dev = NULL;
-	void *tce_space;
+	struct calgary_bus_info *info;
 
 	if (no_iommu || swiotlb || !calgary_detected)
 		return -ENODEV;
@@ -1565,11 +1563,12 @@ static int __init calgary_fixup_tce_spaces(void)
 			break;
 		if (!is_cal_pci_dev(dev->device))
 			continue;
-		if (!translate_phb(dev))
+
+		info = &bus_info[dev->bus->number];
+		if (info->translation_disabled)
 			continue;
 
-		tce_space = bus_info[dev->bus->number].tce_space;
-		if (!tce_space)
+		if (!info->tce_space)
 			continue;
 
 		calgary_fixup_one_tce_space(dev);
