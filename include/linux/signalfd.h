@@ -10,22 +10,22 @@
 
 
 struct signalfd_siginfo {
-	__u32 signo;
-	__s32 err;
-	__s32 code;
-	__u32 pid;
-	__u32 uid;
-	__s32 fd;
-	__u32 tid;
-	__u32 band;
-	__u32 overrun;
-	__u32 trapno;
-	__s32 status;
-	__s32 svint;
-	__u64 svptr;
-	__u64 utime;
-	__u64 stime;
-	__u64 addr;
+	__u32 ssi_signo;
+	__s32 ssi_errno;
+	__s32 ssi_code;
+	__u32 ssi_pid;
+	__u32 ssi_uid;
+	__s32 ssi_fd;
+	__u32 ssi_tid;
+	__u32 ssi_band;
+	__u32 ssi_overrun;
+	__u32 ssi_trapno;
+	__s32 ssi_status;
+	__s32 ssi_int;
+	__u64 ssi_ptr;
+	__u64 ssi_utime;
+	__u64 ssi_stime;
+	__u64 ssi_addr;
 
 	/*
 	 * Pad strcture to 128 bytes. Remember to update the
