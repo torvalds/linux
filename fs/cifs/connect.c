@@ -415,7 +415,10 @@ incomplete_rcv:
 			msleep(1); /* minimum sleep to prevent looping
 				allowing socket to clear and app threads to set
 				tcpStatus CifsNeedReconnect if server hung */
-			continue;
+			if (pdu_length < 4)
+				goto incomplete_rcv;
+			else
+				continue;
 		} else if (length <= 0) {
 			if (server->tcpStatus == CifsNew) {
 				cFYI(1, ("tcp session abend after SMBnegprot"));
@@ -543,6 +546,7 @@ incomplete_rcv:
 					      allowing socket to clear and app
 					      threads to set tcpStatus
 					      CifsNeedReconnect if server hung*/
+				length = 0;
 				continue;
 			} else if (length <= 0) {
 				cERROR(1, ("Received no data, expecting %d",
