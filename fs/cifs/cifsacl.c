@@ -95,23 +95,24 @@ int match_sid(struct cifs_sid *ctsid)
 	return (-1);
 }
 
-
+/* if the two SIDs (roughly equivalent to a UUID for a user or group) are
+   the same returns 1, if they do not match returns 0 */
 int compare_sids(struct cifs_sid *ctsid, struct cifs_sid *cwsid)
 {
 	int i;
 	int num_subauth, num_sat, num_saw;
 
 	if ((!ctsid) || (!cwsid))
-		return (-1);
+		return (0);
 
 	/* compare the revision */
 	if (ctsid->revision != cwsid->revision)
-		return (-1);
+		return (0);
 
 	/* compare all of the six auth values */
 	for (i = 0; i < 6; ++i) {
 		if (ctsid->authority[i] != cwsid->authority[i])
-			return (-1);
+			return (0);
 	}
 
 	/* compare all of the subauth values if any */
@@ -121,11 +122,11 @@ int compare_sids(struct cifs_sid *ctsid, struct cifs_sid *cwsid)
 	if (num_subauth) {
 		for (i = 0; i < num_subauth; ++i) {
 			if (ctsid->sub_auth[i] != cwsid->sub_auth[i])
-				return (-1);
+				return (0);
 		}
 	}
 
-	return (0); /* sids compare/match */
+	return (1); /* sids compare/match */
 }
 
 
@@ -180,7 +181,8 @@ static void parse_ntace(struct cifs_ntace *pntace, char *end_of_acl)
 
 
 
-static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
+static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
+		       struct cifs_sid *pownersid, struct cifs_sid pgrpsid)
 {
 	int i;
 	int num_aces = 0;
@@ -218,7 +220,6 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 			sizeof(struct cifs_ntace *), GFP_KERNEL);
 		cifscred->aces = kmalloc(num_aces *
 			sizeof(struct cifs_ace *), GFP_KERNEL);*/
-
 
 		for (i = 0; i < num_aces; ++i) {
 			ppntace[i] = (struct cifs_ntace *)
@@ -317,7 +318,7 @@ int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len)
 	if (rc)
 		return rc;
 
-	parse_dacl(dacl_ptr, end_of_acl);
+	parse_dacl(dacl_ptr, end_of_acl, owner_sid_ptr, group_sid_ptr);
 
 /*	cifscred->uid = owner_sid_ptr->rid;
 	cifscred->gid = group_sid_ptr->rid;

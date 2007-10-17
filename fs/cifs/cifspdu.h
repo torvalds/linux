@@ -215,6 +215,12 @@
 					 /* file_execute, file_read_attributes*/
 					 /* write_dac, and delete.           */
 
+#define FILE_READ_RIGHTS (FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES)
+#define FILE_WRITE_RIGHTS (FILE_WRITE_DATA | FILE_APPEND_DATA \
+				| FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES)
+#define FILE_EXEC_RIGHTS (FILE_EXECUTE)
+
+
 /*
  * Invalid readdir handle
  */

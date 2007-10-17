@@ -23,8 +23,17 @@
 #define _CIFSACL_H
 
 
+#define NUM_AUTHS 6 /* number of authority fields */
+#define NUM_SUBAUTHS 5 /* number of sub authority fields */
 #define NUM_WK_SIDS 7 /* number of well known sids */
 #define SIDNAMELENGTH 20 /* long enough for the ones we care about */
+
+#define READ_BIT        0x4
+#define WRITE_BIT       0x2
+#define EXEC_BIT        0x1
+
+#define UBITSHIFT	6
+#define GBITSHIFT	3
 
 struct cifs_ntsd {
 	__le16 revision; /* revision level */
