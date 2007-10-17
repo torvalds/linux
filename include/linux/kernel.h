@@ -172,6 +172,9 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	__attribute__ ((format (printf, 1, 0)));
 asmlinkage int printk(const char * fmt, ...)
 	__attribute__ ((format (printf, 1, 2))) __cold;
+extern int log_buf_get_len(void);
+extern int log_buf_read(int idx);
+extern int log_buf_copy(char *dest, int idx, int len);
 #else
 static inline int vprintk(const char *s, va_list args)
 	__attribute__ ((format (printf, 1, 0)));
@@ -179,6 +182,9 @@ static inline int vprintk(const char *s, va_list args) { return 0; }
 static inline int printk(const char *s, ...)
 	__attribute__ ((format (printf, 1, 2)));
 static inline int __cold printk(const char *s, ...) { return 0; }
+static inline int log_buf_get_len(void) { return 0; }
+static inline int log_buf_read(int idx) { return 0; }
+static inline int log_buf_copy(char *dest, int idx, int len) { return 0; }
 #endif
 
 unsigned long int_sqrt(unsigned long);
