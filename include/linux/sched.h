@@ -530,9 +530,11 @@ struct user_struct {
 
 #ifdef CONFIG_FAIR_USER_SCHED
 	struct task_group *tg;
+#ifdef CONFIG_SYSFS
 	struct kset kset;
 	struct subsys_attribute user_attr;
 	struct work_struct work;
+#endif
 #endif
 };
 
