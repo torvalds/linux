@@ -27,7 +27,7 @@ CPU which owns the data. Therefore, care must taken to make sure that only one
 CPU writes to the local_t data. This is done by using per cpu data and making
 sure that we modify it from within a preemption safe context. It is however
 permitted to read local_t data from any CPU : it will then appear to be written
-out of order wrt other memory writes on the owner CPU.
+out of order wrt other memory writes by the owner CPU.
 
 
 * Implementation for a given architecture
