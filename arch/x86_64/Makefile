@@ -110,8 +110,14 @@ bzdisk: vmlinux
 fdimage fdimage144 fdimage288 isoimage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@
 
-install:
+install: vdso_install
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@ 
+
+vdso_install:
+ifeq ($(CONFIG_IA32_EMULATION),y)
+	$(Q)$(MAKE) $(build)=arch/x86/ia32 $@
+endif
+	$(Q)$(MAKE) $(build)=arch/x86/vdso $@
 
 archclean:
 	$(Q)rm -rf $(objtree)/arch/x86_64/boot

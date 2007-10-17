@@ -105,7 +105,7 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	   LDT and other horrors are only used in user space. */
 	if (seg & (1<<2)) {
 		/* Must lock the LDT while reading it. */
-		down(&current->mm->context.sem);
+		mutex_lock(&current->mm->context.lock);
 		desc = current->mm->context.ldt;
 		desc = (void *)desc + (seg & ~7);
 	} else {
@@ -118,7 +118,7 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	base = get_desc_base((unsigned long *)desc);
 
 	if (seg & (1<<2)) { 
-		up(&current->mm->context.sem);
+		mutex_unlock(&current->mm->context.lock);
 	} else
 		put_cpu();
 
@@ -539,23 +539,22 @@ no_context:
 			printk(KERN_ALERT "BUG: unable to handle kernel paging"
 					" request");
 		printk(" at virtual address %08lx\n",address);
-		printk(KERN_ALERT " printing eip:\n");
-		printk("%08lx\n", regs->eip);
+		printk(KERN_ALERT "printing eip: %08lx ", regs->eip);
 
 		page = read_cr3();
 		page = ((__typeof__(page) *) __va(page))[address >> PGDIR_SHIFT];
 #ifdef CONFIG_X86_PAE
-		printk(KERN_ALERT "*pdpt = %016Lx\n", page);
+		printk("*pdpt = %016Lx ", page);
 		if ((page >> PAGE_SHIFT) < max_low_pfn
 		    && page & _PAGE_PRESENT) {
 			page &= PAGE_MASK;
 			page = ((__typeof__(page) *) __va(page))[(address >> PMD_SHIFT)
 			                                         & (PTRS_PER_PMD - 1)];
-			printk(KERN_ALERT "*pde = %016Lx\n", page);
+			printk(KERN_ALERT "*pde = %016Lx ", page);
 			page &= ~_PAGE_NX;
 		}
 #else
-		printk(KERN_ALERT "*pde = %08lx\n", page);
+		printk("*pde = %08lx ", page);
 #endif
 
 		/*
@@ -569,8 +568,10 @@ no_context:
 			page &= PAGE_MASK;
 			page = ((__typeof__(page) *) __va(page))[(address >> PAGE_SHIFT)
 			                                         & (PTRS_PER_PTE - 1)];
-			printk(KERN_ALERT "*pte = %0*Lx\n", sizeof(page)*2, (u64)page);
+			printk("*pte = %0*Lx ", sizeof(page)*2, (u64)page);
 		}
+
+		printk("\n");
 	}
 
 	tsk->thread.cr2 = address;

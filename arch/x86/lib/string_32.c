@@ -160,26 +160,6 @@ char *strchr(const char * s, int c)
 EXPORT_SYMBOL(strchr);
 #endif
 
-#ifdef __HAVE_ARCH_STRRCHR
-char *strrchr(const char * s, int c)
-{
-	int d0, d1;
-	char * res;
-	asm volatile( "movb %%al,%%ah\n"
-		"1:\tlodsb\n\t"
-		"cmpb %%ah,%%al\n\t"
-		"jne 2f\n\t"
-		"leal -1(%%esi),%0\n"
-		"2:\ttestb %%al,%%al\n\t"
-		"jne 1b"
-		:"=g" (res), "=&S" (d0), "=&a" (d1)
-		:"0" (0),"1" (s),"2" (c)
-		:"memory");
-	return res;
-}
-EXPORT_SYMBOL(strrchr);
-#endif
-
 #ifdef __HAVE_ARCH_STRLEN
 size_t strlen(const char * s)
 {

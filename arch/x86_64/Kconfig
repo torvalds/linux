@@ -175,14 +175,12 @@ config MK8
 config MPSC
        bool "Intel P4 / older Netburst based Xeon"
        help
-	  Optimize for Intel Pentium 4 and older Nocona/Dempsey Xeon CPUs
-	  with Intel Extended Memory 64 Technology(EM64T). For details see
-	  <http://www.intel.com/technology/64bitextensions/>.
+	  Optimize for Intel Pentium 4, Pentium D and older Nocona/Dempsey
+	  Xeon CPUs with Intel 64bit which is compatible with x86-64.
 	  Note that the latest Xeons (Xeon 51xx and 53xx) are not based on the
           Netburst core and shouldn't use this option. You can distinguish them
 	  using the cpu family field
-	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one
-	  (this rule only applies to systems that support EM64T)
+	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one.
 
 config MCORE2
 	bool "Intel Core2 / newer Xeon"
@@ -190,8 +188,7 @@ config MCORE2
 	  Optimize for Intel Core2 and newer Xeons (51xx)
 	  You can distinguish the newer Xeons from the older ones using
 	  the cpu family field in /proc/cpuinfo. 15 is an older Xeon
-	  (use CONFIG_MPSC then), 6 is a newer one. This rule only
-	  applies to CPUs that support EM64T.
+	  (use CONFIG_MPSC then), 6 is a newer one.
 
 config GENERIC_CPU
 	bool "Generic-x86-64"
@@ -476,8 +473,9 @@ config HPET_TIMER
 	  <http://www.intel.com/hardwaredesign/hpetspec.htm>.
 
 config HPET_EMULATE_RTC
-	bool "Provide RTC interrupt"
+	bool
 	depends on HPET_TIMER && RTC=y
+	default y
 
 # Mark as embedded because too many people got it wrong.
 # The code disables itself when not needed.

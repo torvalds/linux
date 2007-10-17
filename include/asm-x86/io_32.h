@@ -199,17 +199,22 @@ static inline void writel(unsigned int b, volatile void __iomem *addr)
 
 #define mmiowb()
 
-static inline void memset_io(volatile void __iomem *addr, unsigned char val, int count)
+static inline void
+memset_io(volatile void __iomem *addr, unsigned char val, int count)
 {
-	memset((void __force *) addr, val, count);
+	memset((void __force *)addr, val, count);
 }
-static inline void memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
+
+static inline void
+memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
 {
-	__memcpy(dst, (void __force *) src, count);
+	__memcpy(dst, (const void __force *)src, count);
 }
-static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int count)
+
+static inline void
+memcpy_toio(volatile void __iomem *dst, const void *src, int count)
 {
-	__memcpy((void __force *) dst, src, count);
+	__memcpy((void __force *)dst, src, count);
 }
 
 /*

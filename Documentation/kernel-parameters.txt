@@ -994,6 +994,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	mce		[X86-32] Machine Check Exception
 
+	mce=option	[X86-64] See Documentation/x86_64/boot-options.txt
+
 	md=		[HW] RAID subsystems devices and level
 			See Documentation/md.txt.
 

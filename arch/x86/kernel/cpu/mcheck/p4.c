@@ -61,6 +61,7 @@ fastcall void smp_thermal_interrupt(struct pt_regs *regs)
 {
 	irq_enter();
 	vendor_thermal_interrupt(regs);
+	__get_cpu_var(irq_stat).irq_thermal_count++;
 	irq_exit();
 }
 

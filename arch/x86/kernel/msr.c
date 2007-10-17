@@ -133,7 +133,7 @@ static const struct file_operations msr_fops = {
 	.open = msr_open,
 };
 
-static int msr_device_create(int i)
+static int __cpuinit msr_device_create(int i)
 {
 	int err = 0;
 	struct device *dev;
@@ -144,7 +144,7 @@ static int msr_device_create(int i)
 	return err;
 }
 
-static int msr_class_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit msr_class_cpu_callback(struct notifier_block *nfb,
 				unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;

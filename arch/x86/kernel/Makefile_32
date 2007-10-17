@@ -51,7 +51,7 @@ obj-$(CONFIG_SCx200)		+= scx200_32.o
 # We must build both images before we can assemble it.
 # Note: kbuild does not track this dependency due to usage of .incbin
 $(obj)/vsyscall_32.o: $(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter_32.so
-targets += $(foreach F,int80 sysenter,vsyscall-$F.o vsyscall-$F.so)
+targets += $(foreach F,int80 sysenter,vsyscall-$F_32.o vsyscall-$F_32.so)
 targets += vsyscall-note_32.o vsyscall_32.lds
 
 # The DSO images are built using a special linker script.

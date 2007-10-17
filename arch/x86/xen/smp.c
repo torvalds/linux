@@ -356,6 +356,7 @@ static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
 	 */
 	irq_enter();
 	(*func)(info);
+	__get_cpu_var(irq_stat).irq_call_count++;
 	irq_exit();
 
 	if (wait) {

@@ -1,5 +1,10 @@
-#ifdef CONFIG_X86_32
-# include "device_32.h"
-#else
-# include "device_64.h"
+#ifndef _ASM_X86_DEVICE_H
+#define _ASM_X86_DEVICE_H
+
+struct dev_archdata {
+#ifdef CONFIG_ACPI
+	void	*acpi_handle;
 #endif
+};
+
+#endif /* _ASM_X86_DEVICE_H */

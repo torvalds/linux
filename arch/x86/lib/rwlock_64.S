@@ -2,7 +2,7 @@
 
 #include <linux/linkage.h>
 #include <asm/rwlock.h>
-#include <asm/alternative-asm.i>
+#include <asm/alternative-asm.h>
 #include <asm/dwarf2.h>
 
 /* rdi:	pointer to rwlock_t */

@@ -163,6 +163,7 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 out:
 	ack_APIC_irq();
 	cpu_clear(cpu, f->flush_cpumask);
+	add_pda(irq_tlb_count, 1);
 }
 
 static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
@@ -493,6 +494,7 @@ void smp_send_stop(void)
 asmlinkage void smp_reschedule_interrupt(void)
 {
 	ack_APIC_irq();
+	add_pda(irq_resched_count, 1);
 }
 
 asmlinkage void smp_call_function_interrupt(void)
@@ -514,6 +516,7 @@ asmlinkage void smp_call_function_interrupt(void)
 	exit_idle();
 	irq_enter();
 	(*func)(info);
+	add_pda(irq_call_count, 1);
 	irq_exit();
 	if (wait) {
 		mb();

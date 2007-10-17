@@ -420,6 +420,8 @@ beyond_if:
 	(regs)->eflags = 0x200;
 	(regs)->cs = __USER32_CS;
 	(regs)->ss = __USER32_DS;
+	regs->r8 = regs->r9 = regs->r10 = regs->r11 =
+	regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;
 	set_fs(USER_DS);
 	if (unlikely(current->ptrace & PT_PTRACED)) {
 		if (current->ptrace & PT_TRACE_EXEC)

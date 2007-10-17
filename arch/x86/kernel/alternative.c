@@ -63,11 +63,11 @@ __setup("noreplace-paravirt", setup_noreplace_paravirt);
 /* Use inline assembly to define this because the nops are defined
    as inline assembly strings in the include files and we cannot
    get them easily into strings. */
-asm("\t.data\nintelnops: "
+asm("\t.section .rodata, \"a\"\nintelnops: "
 	GENERIC_NOP1 GENERIC_NOP2 GENERIC_NOP3 GENERIC_NOP4 GENERIC_NOP5 GENERIC_NOP6
 	GENERIC_NOP7 GENERIC_NOP8);
-extern unsigned char intelnops[];
-static unsigned char *intel_nops[ASM_NOP_MAX+1] = {
+extern const unsigned char intelnops[];
+static const unsigned char *const intel_nops[ASM_NOP_MAX+1] = {
 	NULL,
 	intelnops,
 	intelnops + 1,
@@ -81,11 +81,11 @@ static unsigned char *intel_nops[ASM_NOP_MAX+1] = {
 #endif
 
 #ifdef K8_NOP1
-asm("\t.data\nk8nops: "
+asm("\t.section .rodata, \"a\"\nk8nops: "
 	K8_NOP1 K8_NOP2 K8_NOP3 K8_NOP4 K8_NOP5 K8_NOP6
 	K8_NOP7 K8_NOP8);
-extern unsigned char k8nops[];
-static unsigned char *k8_nops[ASM_NOP_MAX+1] = {
+extern const unsigned char k8nops[];
+static const unsigned char *const k8_nops[ASM_NOP_MAX+1] = {
 	NULL,
 	k8nops,
 	k8nops + 1,
@@ -99,11 +99,11 @@ static unsigned char *k8_nops[ASM_NOP_MAX+1] = {
 #endif
 
 #ifdef K7_NOP1
-asm("\t.data\nk7nops: "
+asm("\t.section .rodata, \"a\"\nk7nops: "
 	K7_NOP1 K7_NOP2 K7_NOP3 K7_NOP4 K7_NOP5 K7_NOP6
 	K7_NOP7 K7_NOP8);
-extern unsigned char k7nops[];
-static unsigned char *k7_nops[ASM_NOP_MAX+1] = {
+extern const unsigned char k7nops[];
+static const unsigned char *const k7_nops[ASM_NOP_MAX+1] = {
 	NULL,
 	k7nops,
 	k7nops + 1,
@@ -116,28 +116,49 @@ static unsigned char *k7_nops[ASM_NOP_MAX+1] = {
 };
 #endif
 
+#ifdef P6_NOP1
+asm("\t.section .rodata, \"a\"\np6nops: "
+	P6_NOP1 P6_NOP2 P6_NOP3 P6_NOP4 P6_NOP5 P6_NOP6
+	P6_NOP7 P6_NOP8);
+extern const unsigned char p6nops[];
+static const unsigned char *const p6_nops[ASM_NOP_MAX+1] = {
+	NULL,
+	p6nops,
+	p6nops + 1,
+	p6nops + 1 + 2,
+	p6nops + 1 + 2 + 3,
+	p6nops + 1 + 2 + 3 + 4,
+	p6nops + 1 + 2 + 3 + 4 + 5,
+	p6nops + 1 + 2 + 3 + 4 + 5 + 6,
+	p6nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
+};
+#endif
+
 #ifdef CONFIG_X86_64
 
 extern char __vsyscall_0;
-static inline unsigned char** find_nop_table(void)
+static inline const unsigned char*const * find_nop_table(void)
 {
-	return k8_nops;
+	return boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
+	       boot_cpu_data.x86 < 6 ? k8_nops : p6_nops;
 }
 
 #else /* CONFIG_X86_64 */
 
-static struct nop {
+static const struct nop {
 	int cpuid;
-	unsigned char **noptable;
+	const unsigned char *const *noptable;
 } noptypes[] = {
 	{ X86_FEATURE_K8, k8_nops },
 	{ X86_FEATURE_K7, k7_nops },
+	{ X86_FEATURE_P4, p6_nops },
+	{ X86_FEATURE_P3, p6_nops },
 	{ -1, NULL }
 };
 
-static unsigned char** find_nop_table(void)
+static const unsigned char*const * find_nop_table(void)
 {
-	unsigned char **noptable = intel_nops;
+	const unsigned char *const *noptable = intel_nops;
 	int i;
 
 	for (i = 0; noptypes[i].cpuid >= 0; i++) {
@@ -154,7 +175,7 @@ static unsigned char** find_nop_table(void)
 /* Use this to add nops to a buffer, then text_poke the whole buffer. */
 static void add_nops(void *insns, unsigned int len)
 {
-	unsigned char **noptable = find_nop_table();
+	const unsigned char *const *noptable = find_nop_table();
 
 	while (len > 0) {
 		unsigned int noplen = len;
@@ -415,9 +436,6 @@ void __init alternative_instructions(void)
 			alternatives_smp_unlock(__smp_locks, __smp_locks_end,
 						_text, _etext);
 		}
-		free_init_pages("SMP alternatives",
-				(unsigned long)__smp_locks,
-				(unsigned long)__smp_locks_end);
 	} else {
 		alternatives_smp_module_add(NULL, "core kernel",
 					    __smp_locks, __smp_locks_end,
@@ -427,6 +445,11 @@ void __init alternative_instructions(void)
 #endif
  	apply_paravirt(__parainstructions, __parainstructions_end);
 	local_irq_restore(flags);
+
+	if (smp_alt_once)
+		free_init_pages("SMP alternatives",
+				(unsigned long)__smp_locks,
+				(unsigned long)__smp_locks_end);
 
 	restart_nmi();
 #ifdef CONFIG_X86_MCE

@@ -1,3 +1,5 @@
+#ifdef __ASSEMBLY__
+
 #include <asm/dwarf2.h>
 
 /* The annotation hides the frame from the unwinder and makes it look
@@ -21,3 +23,5 @@
 	.macro ENDFRAME
 	.endm
 #endif
+
+#endif  /*  __ASSEMBLY__  */

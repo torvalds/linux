@@ -26,27 +26,18 @@ static void __rdmsr_safe_on_cpu(void *info)
 static int _rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h, int safe)
 {
 	int err = 0;
-	preempt_disable();
-	if (smp_processor_id() == cpu)
-		if (safe)
-			err = rdmsr_safe(msr_no, l, h);
-		else
-			rdmsr(msr_no, *l, *h);
-	else {
-		struct msr_info rv;
+	struct msr_info rv;
 
-		rv.msr_no = msr_no;
-		if (safe) {
-			smp_call_function_single(cpu, __rdmsr_safe_on_cpu,
-						 &rv, 0, 1);
-			err = rv.err;
-		} else {
-			smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 0, 1);
-		}
-		*l = rv.l;
-		*h = rv.h;
+	rv.msr_no = msr_no;
+	if (safe) {
+		smp_call_function_single(cpu, __rdmsr_safe_on_cpu, &rv, 0, 1);
+		err = rv.err;
+	} else {
+		smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 0, 1);
 	}
-	preempt_enable();
+	*l = rv.l;
+	*h = rv.h;
+
 	return err;
 }
 
@@ -67,27 +58,18 @@ static void __wrmsr_safe_on_cpu(void *info)
 static int _wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h, int safe)
 {
 	int err = 0;
-	preempt_disable();
-	if (smp_processor_id() == cpu)
-		if (safe)
-			err = wrmsr_safe(msr_no, l, h);
-		else
-			wrmsr(msr_no, l, h);
-	else {
-		struct msr_info rv;
+	struct msr_info rv;
 
-		rv.msr_no = msr_no;
-		rv.l = l;
-		rv.h = h;
-		if (safe) {
-			smp_call_function_single(cpu, __wrmsr_safe_on_cpu,
-						 &rv, 0, 1);
-			err = rv.err;
-		} else {
-			smp_call_function_single(cpu, __wrmsr_on_cpu, &rv, 0, 1);
-		}
+	rv.msr_no = msr_no;
+	rv.l = l;
+	rv.h = h;
+	if (safe) {
+		smp_call_function_single(cpu, __wrmsr_safe_on_cpu, &rv, 0, 1);
+		err = rv.err;
+	} else {
+		smp_call_function_single(cpu, __wrmsr_on_cpu, &rv, 0, 1);
 	}
-	preempt_enable();
+
 	return err;
 }
 

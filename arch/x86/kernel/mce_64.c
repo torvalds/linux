@@ -695,8 +695,6 @@ static int __init mcheck_disable(char *str)
    mce=nobootlog Don't log MCEs from before booting. */
 static int __init mcheck_enable(char *str)
 {
-	if (*str == '=')
-		str++;
 	if (!strcmp(str, "off"))
 		mce_dont_init = 1;
 	else if (!strcmp(str, "bootlog") || !strcmp(str,"nobootlog"))
@@ -709,7 +707,7 @@ static int __init mcheck_enable(char *str)
 }
 
 __setup("nomce", mcheck_disable);
-__setup("mce", mcheck_enable);
+__setup("mce=", mcheck_enable);
 
 /* 
  * Sysfs support

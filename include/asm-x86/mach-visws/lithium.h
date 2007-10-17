@@ -29,22 +29,22 @@
 #define	LI_INTD		0x0080
 
 /* More special purpose macros... */
-extern __inline void li_pcia_write16(unsigned long reg, unsigned short v)
+static inline void li_pcia_write16(unsigned long reg, unsigned short v)
 {
 	*((volatile unsigned short *)(LI_PCIA_VADDR+reg))=v;
 }
 
-extern __inline unsigned short li_pcia_read16(unsigned long reg)
+static inline unsigned short li_pcia_read16(unsigned long reg)
 {
 	 return *((volatile unsigned short *)(LI_PCIA_VADDR+reg));
 }
 
-extern __inline void li_pcib_write16(unsigned long reg, unsigned short v)
+static inline void li_pcib_write16(unsigned long reg, unsigned short v)
 {
 	*((volatile unsigned short *)(LI_PCIB_VADDR+reg))=v;
 }
 
-extern __inline unsigned short li_pcib_read16(unsigned long reg)
+static inline unsigned short li_pcib_read16(unsigned long reg)
 {
 	return *((volatile unsigned short *)(LI_PCIB_VADDR+reg));
 }

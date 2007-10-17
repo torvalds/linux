@@ -85,13 +85,20 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 static pte_t * __init one_page_table_init(pmd_t *pmd)
 {
 	if (!(pmd_val(*pmd) & _PAGE_PRESENT)) {
-		pte_t *page_table = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+		pte_t *page_table = NULL;
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+		page_table = (pte_t *) alloc_bootmem_pages(PAGE_SIZE);
+#endif
+		if (!page_table)
+			page_table =
+				(pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
 
 		paravirt_alloc_pt(&init_mm, __pa(page_table) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
 		BUG_ON(page_table != pte_offset_kernel(pmd, 0));
 	}
-	
+
 	return pte_offset_kernel(pmd, 0);
 }
 

@@ -1,5 +1,11 @@
-#ifdef CONFIG_X86_32
-# include "namei_32.h"
-#else
-# include "namei_64.h"
-#endif
+#ifndef _ASM_X86_NAMEI_H
+#define _ASM_X86_NAMEI_H
+
+/* This dummy routine maybe changed to something useful
+ * for /usr/gnemul/ emulation stuff.
+ * Look at asm-sparc/namei.h for details.
+ */
+
+#define __emul_prefix() NULL
+
+#endif /* _ASM_X86_NAMEI_H */

@@ -8,6 +8,7 @@
  * See Documentation/DMA-mapping.txt for the interface specification.
  * 
  * Copyright 2002 Andi Kleen, SuSE Labs.
+ * Subject to the GNU General Public License v2 only.
  */
 
 #include <linux/types.h>
@@ -375,7 +376,8 @@ static inline int dma_map_cont(struct scatterlist *start, int nelems,
  * DMA map all entries in a scatterlist.
  * Merge chunks that have page aligned sizes into a continuous mapping. 
  */
-int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
+static int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+			int dir)
 {
 	int i;
 	int out;

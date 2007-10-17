@@ -40,22 +40,22 @@
 /*
  * Vectors 0x30-0x3f are used for ISA interrupts.
  */
-#define IRQ0_VECTOR		FIRST_EXTERNAL_VECTOR + 0x10
-#define IRQ1_VECTOR		IRQ0_VECTOR + 1
-#define IRQ2_VECTOR		IRQ0_VECTOR + 2
-#define IRQ3_VECTOR		IRQ0_VECTOR + 3
-#define IRQ4_VECTOR		IRQ0_VECTOR + 4
-#define IRQ5_VECTOR		IRQ0_VECTOR + 5 
-#define IRQ6_VECTOR		IRQ0_VECTOR + 6
-#define IRQ7_VECTOR		IRQ0_VECTOR + 7
-#define IRQ8_VECTOR		IRQ0_VECTOR + 8
-#define IRQ9_VECTOR		IRQ0_VECTOR + 9
-#define IRQ10_VECTOR		IRQ0_VECTOR + 10
-#define IRQ11_VECTOR		IRQ0_VECTOR + 11
-#define IRQ12_VECTOR		IRQ0_VECTOR + 12
-#define IRQ13_VECTOR		IRQ0_VECTOR + 13
-#define IRQ14_VECTOR		IRQ0_VECTOR + 14
-#define IRQ15_VECTOR		IRQ0_VECTOR + 15
+#define IRQ0_VECTOR		(FIRST_EXTERNAL_VECTOR + 0x10)
+#define IRQ1_VECTOR		(IRQ0_VECTOR + 1)
+#define IRQ2_VECTOR		(IRQ0_VECTOR + 2)
+#define IRQ3_VECTOR		(IRQ0_VECTOR + 3)
+#define IRQ4_VECTOR		(IRQ0_VECTOR + 4)
+#define IRQ5_VECTOR		(IRQ0_VECTOR + 5)
+#define IRQ6_VECTOR		(IRQ0_VECTOR + 6)
+#define IRQ7_VECTOR		(IRQ0_VECTOR + 7)
+#define IRQ8_VECTOR		(IRQ0_VECTOR + 8)
+#define IRQ9_VECTOR		(IRQ0_VECTOR + 9)
+#define IRQ10_VECTOR		(IRQ0_VECTOR + 10)
+#define IRQ11_VECTOR		(IRQ0_VECTOR + 11)
+#define IRQ12_VECTOR		(IRQ0_VECTOR + 12)
+#define IRQ13_VECTOR		(IRQ0_VECTOR + 13)
+#define IRQ14_VECTOR		(IRQ0_VECTOR + 14)
+#define IRQ15_VECTOR		(IRQ0_VECTOR + 15)
 
 /*
  * Special IRQ vectors used by the SMP architecture, 0xf0-0xff
@@ -147,9 +147,6 @@ extern atomic_t irq_err_count;
 extern atomic_t irq_mis_count;
 
 #define IO_APIC_IRQ(x) (((x) >= 16) || ((1<<(x)) & io_apic_irqs))
-
-#define __STR(x) #x
-#define STR(x) __STR(x)
 
 #include <asm/ptrace.h>
 

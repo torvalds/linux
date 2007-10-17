@@ -22,7 +22,7 @@ extern struct genapic apic_default;
 
 struct genapic *genapic = &apic_default;
 
-struct genapic *apic_probe[] __initdata = { 
+static struct genapic *apic_probe[] __initdata = {
 	&apic_summit,
 	&apic_bigsmp, 
 	&apic_es7000,

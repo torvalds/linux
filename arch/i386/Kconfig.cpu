@@ -109,16 +109,42 @@ config MCORE2
 	help
 	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and 53xx)
 	  CPUs. You can distinguish newer from older Xeons by the CPU family
-	  in /proc/cpuinfo. Newer ones have 6.
+	  in /proc/cpuinfo. Newer ones have 6 and older ones 15 (not a typo)
 
 config MPENTIUM4
 	bool "Pentium-4/Celeron(P4-based)/Pentium-4 M/older Xeon"
 	help
 	  Select this for Intel Pentium 4 chips.  This includes the
-	  Pentium 4, P4-based Celeron and Xeon, and Pentium-4 M
-	  (not Pentium M) chips.  This option enables compile flags
-	  optimized for the chip, uses the correct cache shift, and
-	  applies any applicable Pentium III optimizations.
+	  Pentium 4, Pentium D, P4-based Celeron and Xeon, and
+	  Pentium-4 M (not Pentium M) chips.  This option enables compile
+	  flags optimized for the chip, uses the correct cache line size, and
+	  applies any applicable optimizations.
+
+	  CPUIDs: F[0-6][1-A] (in /proc/cpuinfo show = cpu family : 15 )
+
+	  Select this for:
+	    Pentiums (Pentium 4, Pentium D, Celeron, Celeron D) corename:
+		-Willamette
+		-Northwood
+		-Mobile Pentium 4
+		-Mobile Pentium 4 M
+		-Extreme Edition (Gallatin)
+		-Prescott
+		-Prescott 2M
+		-Cedar Mill
+		-Presler
+		-Smithfiled
+	    Xeons (Intel Xeon, Xeon MP, Xeon LV, Xeon MV) corename:
+		-Foster
+		-Prestonia
+		-Gallatin
+		-Nocona
+		-Irwindale
+		-Cranford
+		-Potomac
+		-Paxville
+		-Dempsey
+
 
 config MK6
 	bool "K6/K6-II/K6-III"

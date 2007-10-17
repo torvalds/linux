@@ -102,8 +102,8 @@ u8 apicid_2_node[MAX_APICID];
  * Trampoline 80x86 program as an array.
  */
 
-extern unsigned char trampoline_data [];
-extern unsigned char trampoline_end  [];
+extern const unsigned char trampoline_data [];
+extern const unsigned char trampoline_end  [];
 static unsigned char *trampoline_base;
 static int trampoline_exec;
 
@@ -118,7 +118,7 @@ DEFINE_PER_CPU(int, cpu_state) = { 0 };
  * has made sure it's suitably aligned.
  */
 
-static unsigned long __devinit setup_trampoline(void)
+static unsigned long __cpuinit setup_trampoline(void)
 {
 	memcpy(trampoline_base, trampoline_data, trampoline_end - trampoline_data);
 	return virt_to_phys(trampoline_base);
@@ -1021,6 +1021,12 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	if (!max_cpus) {
 		smp_found_config = 0;
 		printk(KERN_INFO "SMP mode deactivated, forcing use of dummy APIC emulation.\n");
+
+		if (nmi_watchdog == NMI_LOCAL_APIC) {
+			printk(KERN_INFO "activating minimal APIC for NMI watchdog use.\n");
+			connect_bsp_APIC();
+			setup_local_APIC();
+		}
 		smpboot_clear_io_apic_irqs();
 		phys_cpu_present_map = physid_mask_of_physid(0);
 		cpu_set(0, per_cpu(cpu_sibling_map, 0));

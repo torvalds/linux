@@ -1,5 +1,6 @@
-#ifdef CONFIG_X86_32
-# include "bugs_32.h"
-#else
-# include "bugs_64.h"
-#endif
+#ifndef _ASM_X86_BUGS_H
+#define _ASM_X86_BUGS_H
+
+void check_bugs(void);
+
+#endif /* _ASM_X86_BUGS_H */

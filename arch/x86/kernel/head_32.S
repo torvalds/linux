@@ -51,6 +51,15 @@
  */
 LOW_PAGES = 1<<(32-PAGE_SHIFT_asm)
 
+/*
+ * To preserve the DMA pool in PAGEALLOC kernels, we'll allocate
+ * pagetables from above the 16MB DMA limit, so we'll have to set
+ * up pagetables 16MB more (worst-case):
+ */
+#ifdef CONFIG_DEBUG_PAGEALLOC
+LOW_PAGES = LOW_PAGES + 0x1000000
+#endif
+
 #if PTRS_PER_PMD > 1
 PAGE_TABLE_SIZE = (LOW_PAGES / PTRS_PER_PMD) + PTRS_PER_PGD
 #else
@@ -443,6 +452,7 @@ early_page_fault:
 early_fault:
 	cld
 #ifdef CONFIG_PRINTK
+	pusha
 	movl $(__KERNEL_DS),%eax
 	movl %eax,%ds
 	movl %eax,%es
@@ -534,8 +544,15 @@ int_msg:
 	.asciz "Unknown interrupt or fault at EIP %p %p %p\n"
 
 fault_msg:
-	.ascii "Int %d: CR2 %p  err %p  EIP %p  CS %p  flags %p\n"
-	.asciz "Stack: %p %p %p %p %p %p %p %p\n"
+	.ascii								\
+/* fault info: */	"BUG: Int %d: CR2 %p\n"				\
+/* pusha regs: */	"     EDI %p  ESI %p  EBP %p  ESP %p\n"		\
+			"     EBX %p  EDX %p  ECX %p  EAX %p\n"		\
+/* fault frame: */	"     err %p  EIP %p   CS %p  flg %p\n"		\
+									\
+			"Stack: %p %p %p %p %p %p %p %p\n"		\
+			"       %p %p %p %p %p %p %p %p\n"		\
+			"       %p %p %p %p %p %p %p %p\n"
 
 #include "../../x86/xen/xen-head.S"
 

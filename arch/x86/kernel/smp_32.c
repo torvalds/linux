@@ -342,6 +342,7 @@ fastcall void smp_invalidate_interrupt(struct pt_regs *regs)
 	smp_mb__after_clear_bit();
 out:
 	put_cpu_no_resched();
+	__get_cpu_var(irq_stat).irq_tlb_count++;
 }
 
 void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
@@ -640,6 +641,7 @@ static void native_smp_send_stop(void)
 fastcall void smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
+	__get_cpu_var(irq_stat).irq_resched_count++;
 }
 
 fastcall void smp_call_function_interrupt(struct pt_regs *regs)
@@ -660,6 +662,7 @@ fastcall void smp_call_function_interrupt(struct pt_regs *regs)
 	 */
 	irq_enter();
 	(*func)(info);
+	__get_cpu_var(irq_stat).irq_call_count++;
 	irq_exit();
 
 	if (wait) {
@@ -705,3 +708,10 @@ struct smp_ops smp_ops = {
 	.smp_send_reschedule = native_smp_send_reschedule,
 	.smp_call_function_mask = native_smp_call_function_mask,
 };
+
+int smp_call_function_mask(cpumask_t mask, void (*func) (void *info),
+			   void *info, int wait)
+{
+	return smp_ops.smp_call_function_mask(mask, func, info, wait);
+}
+EXPORT_SYMBOL(smp_call_function_mask);

@@ -112,11 +112,8 @@ struct elf_prpsinfo
 	char	pr_psargs[ELF_PRARGSZ];	/* initial part of arg list */
 };
 
-#define __STR(x) #x
-#define STR(x) __STR(x)
-
 #define _GET_SEG(x) \
-	({ __u32 seg; asm("movl %%" STR(x) ",%0" : "=r"(seg)); seg; })
+	({ __u32 seg; asm("movl %%" __stringify(x) ",%0" : "=r"(seg)); seg; })
 
 /* Assumes current==process to be dumped */
 #define ELF_CORE_COPY_REGS(pr_reg, regs)       		\

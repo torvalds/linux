@@ -442,8 +442,8 @@ static __u32 __init
 setup_trampoline(void)
 {
 	/* these two are global symbols in trampoline.S */
-	extern __u8 trampoline_end[];
-	extern __u8 trampoline_data[];
+	extern const __u8 trampoline_end[];
+	extern const __u8 trampoline_data[];
 
 	memcpy((__u8 *)trampoline_base, trampoline_data,
 	       trampoline_end - trampoline_data);
@@ -1037,6 +1037,7 @@ smp_call_function_interrupt(void)
 	 */
 	irq_enter();
 	(*func)(info);
+	__get_cpu_var(irq_stat).irq_call_count++;
 	irq_exit();
 	if (wait) {
 		mb();

@@ -222,20 +222,8 @@ static void tick_do_broadcast_on_off(void *why)
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_C3STOP))
 		goto out;
 
-	/*
-	 * Defect device ?
-	 */
-	if (!tick_device_is_functional(dev)) {
-		/*
-		 * AMD C1E wreckage fixup:
-		 *
-		 * Device was registered functional in the first
-		 * place. Now the secondary CPU detected the C1E
-		 * misfeature and notifies us to fix it up
-		 */
-		if (*reason != CLOCK_EVT_NOTIFY_BROADCAST_FORCE)
-			goto out;
-	}
+	if (!tick_device_is_functional(dev))
+		goto out;
 
 	switch (*reason) {
 	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
@@ -246,6 +234,8 @@ static void tick_do_broadcast_on_off(void *why)
 				clockevents_set_mode(dev,
 						     CLOCK_EVT_MODE_SHUTDOWN);
 		}
+		if (*reason == CLOCK_EVT_NOTIFY_BROADCAST_FORCE)
+			dev->features |= CLOCK_EVT_FEAT_DUMMY;
 		break;
 	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
 		if (cpu_isset(cpu, tick_broadcast_mask)) {

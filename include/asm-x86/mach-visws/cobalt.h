@@ -94,22 +94,22 @@
 #define	CO_IRQ_8259	CO_IRQ(CO_APIC_8259)
 
 #ifdef CONFIG_X86_VISWS_APIC
-extern __inline void co_cpu_write(unsigned long reg, unsigned long v)
+static inline void co_cpu_write(unsigned long reg, unsigned long v)
 {
 	*((volatile unsigned long *)(CO_CPU_VADDR+reg))=v;
 }
 
-extern __inline unsigned long co_cpu_read(unsigned long reg)
+static inline unsigned long co_cpu_read(unsigned long reg)
 {
 	return *((volatile unsigned long *)(CO_CPU_VADDR+reg));
 }            
              
-extern __inline void co_apic_write(unsigned long reg, unsigned long v)
+static inline void co_apic_write(unsigned long reg, unsigned long v)
 {
 	*((volatile unsigned long *)(CO_APIC_VADDR+reg))=v;
 }            
              
-extern __inline unsigned long co_apic_read(unsigned long reg)
+static inline unsigned long co_apic_read(unsigned long reg)
 {
 	return *((volatile unsigned long *)(CO_APIC_VADDR+reg));
 }
