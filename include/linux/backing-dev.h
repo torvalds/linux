@@ -27,6 +27,7 @@ enum bdi_state {
 typedef int (congested_fn)(void *, int);
 
 enum bdi_stat_item {
+	BDI_RECLAIMABLE,
 	NR_BDI_STAT_ITEMS
 };
 
