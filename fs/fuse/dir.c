@@ -288,12 +288,11 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 static void fuse_sync_release(struct fuse_conn *fc, struct fuse_file *ff,
 			      u64 nodeid, int flags)
 {
-	struct fuse_req *req;
-
-	req = fuse_release_fill(ff, nodeid, flags, FUSE_RELEASE);
-	req->force = 1;
-	request_send(fc, req);
-	fuse_put_request(fc, req);
+	fuse_release_fill(ff, nodeid, flags, FUSE_RELEASE);
+	ff->reserved_req->force = 1;
+	request_send(fc, ff->reserved_req);
+	fuse_put_request(fc, ff->reserved_req);
+	kfree(ff);
 }
 
 /*
@@ -859,6 +858,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	struct page *page;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_file *ff = file->private_data;
 	struct fuse_req *req;
 
 	if (is_bad_inode(inode))
@@ -875,7 +875,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	}
 	req->num_pages = 1;
 	req->pages[0] = page;
-	fuse_read_fill(req, file, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
+	fuse_read_fill(req, ff, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
 	request_send(fc, req);
 	nbytes = req->out.args[0].size;
 	err = req->out.h.error;

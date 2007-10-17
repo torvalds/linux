@@ -233,8 +233,6 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 	spin_unlock(&fc->lock);
 	dput(req->dentry);
 	mntput(req->vfsmount);
-	if (req->file)
-		fput(req->file);
 	wake_up(&req->waitq);
 	if (end)
 		end(fc, req);

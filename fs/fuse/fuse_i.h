@@ -72,6 +72,9 @@ struct fuse_file {
 
 	/** File handle used by userspace */
 	u64 fh;
+
+	/** Refcount */
+	atomic_t count;
 };
 
 /** One input argument of a request */
@@ -216,7 +219,7 @@ struct fuse_req {
 	unsigned page_offset;
 
 	/** File used in the request (or NULL) */
-	struct file *file;
+	struct fuse_file *ff;
 
 	/** vfsmount used in release */
 	struct vfsmount *vfsmount;
@@ -420,7 +423,7 @@ void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
 /**
  * Initialize READ or READDIR request
  */
-void fuse_read_fill(struct fuse_req *req, struct file *file,
+void fuse_read_fill(struct fuse_req *req, struct fuse_file *ff,
 		    struct inode *inode, loff_t pos, size_t count, int opcode);
 
 /**
@@ -433,9 +436,9 @@ void fuse_file_free(struct fuse_file *ff);
 void fuse_finish_open(struct inode *inode, struct file *file,
 		      struct fuse_file *ff, struct fuse_open_out *outarg);
 
-/** */
-struct fuse_req *fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags,
-				   int opcode);
+/** Fill in ff->reserved_req with a RELEASE request */
+void fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags, int opcode);
+
 /**
  * Send RELEASE or RELEASEDIR request
  */
