@@ -27,6 +27,9 @@
 #include <linux/ufs_fs.h>
 #include <linux/buffer_head.h>	/* for sync_mapping_buffers() */
 
+#include "ufs.h"
+
+
 static int ufs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;

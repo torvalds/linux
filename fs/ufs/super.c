@@ -91,6 +91,7 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 
+#include "ufs.h"
 #include "swab.h"
 #include "util.h"
 

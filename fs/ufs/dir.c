@@ -21,6 +21,7 @@
 #include <linux/ufs_fs.h>
 #include <linux/swap.h>
 
+#include "ufs.h"
 #include "swab.h"
 #include "util.h"
 

@@ -31,7 +31,7 @@
 #include <linux/fs.h>
 #include <linux/ufs_fs.h>
 #include <linux/smp_lock.h>
-#include "swab.h"	/* will go away - see comment in mknod() */
+#include "ufs.h"
 #include "util.h"
 
 static inline int ufs_add_nondir(struct dentry *dentry, struct inode *inode)
@@ -110,7 +110,6 @@ static int ufs_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		init_special_inode(inode, mode, rdev);
-		/* NOTE: that'll go when we get wide dev_t */
 		ufs_set_inode_dev(inode->i_sb, UFS_I(inode), rdev);
 		mark_inode_dirty(inode);
 		lock_kernel();

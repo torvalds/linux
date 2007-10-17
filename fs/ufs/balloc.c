@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <asm/byteorder.h>
 
+#include "ufs.h"
 #include "swab.h"
 #include "util.h"
 

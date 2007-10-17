@@ -46,6 +46,7 @@
 #include <linux/blkdev.h>
 #include <linux/sched.h>
 
+#include "ufs.h"
 #include "swab.h"
 #include "util.h"
 
