@@ -36,6 +36,23 @@ config VT
 	  If unsure, say Y, or else you won't be able to do much with your new
 	  shiny Linux system :-)
 
+config VT_UNICODE
+	bool "Virtual console is Unicode by default"
+	depends on VT
+	default n
+	---help---
+	  If you say Y here, the virtual terminal will be in UTF-8 by default,
+	  and the keyboard will run in unicode mode.
+
+	  If you say N here, the virtual terminal will not be in UTF-8 by
+	  default, and the keyboard will run in XLATE mode.
+
+	  This can also be changed by passing 'default_utf8=<0|1>' on the
+	  kernel command line.
+
+	  Historically, the kernel has defaulted to non-UTF8 and XLATE mode.
+	  If unsure, say N here.
+
 config VT_CONSOLE
 	bool "Support for console on virtual terminal" if EMBEDDED
 	depends on VT

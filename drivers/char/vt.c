@@ -158,7 +158,11 @@ static void blank_screen_t(unsigned long dummy);
 static void set_palette(struct vc_data *vc);
 
 static int printable;		/* Is console ready for printing? */
-static int default_utf8;
+#ifdef CONFIG_VT_UNICODE
+int default_utf8 = 1;
+#else
+int default_utf8;
+#endif
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
 
 /*

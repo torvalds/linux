@@ -87,6 +87,7 @@ extern int unbind_con_driver(const struct consw *csw, int first, int last,
 extern char con_buf[CON_BUF_SIZE];
 extern struct mutex con_buf_mtx;
 extern char vt_dont_switch;
+extern int default_utf8;
 
 struct vt_spawn_console {
 	spinlock_t lock;
