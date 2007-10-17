@@ -104,10 +104,6 @@ int pnp_add_card_id(struct pnp_id *id, struct pnp_card *card)
 {
 	struct pnp_id *ptr;
 
-	if (!id)
-		return -EINVAL;
-	if (!card)
-		return -EINVAL;
 	id->next = NULL;
 	ptr = card->id;
 	while (ptr && ptr->next)
@@ -124,8 +120,6 @@ static void pnp_free_card_ids(struct pnp_card *card)
 	struct pnp_id *id;
 	struct pnp_id *next;
 
-	if (!card)
-		return;
 	id = card->id;
 	while (id) {
 		next = id->next;
@@ -197,9 +191,6 @@ int pnp_add_card(struct pnp_card *card)
 	int error;
 	struct list_head *pos, *temp;
 
-	if (!card || !card->protocol)
-		return -EINVAL;
-
 	sprintf(card->dev.bus_id, "%02x:%02x", card->protocol->number,
 		card->number);
 	card->dev.parent = &card->protocol->dev;
@@ -243,8 +234,6 @@ void pnp_remove_card(struct pnp_card *card)
 {
 	struct list_head *pos, *temp;
 
-	if (!card)
-		return;
 	device_unregister(&card->dev);
 	spin_lock(&pnp_lock);
 	list_del(&card->global_list);
@@ -263,8 +252,6 @@ void pnp_remove_card(struct pnp_card *card)
  */
 int pnp_add_card_device(struct pnp_card *card, struct pnp_dev *dev)
 {
-	if (!card || !dev || !dev->protocol)
-		return -EINVAL;
 	dev->dev.parent = &card->dev;
 	dev->card_link = NULL;
 	snprintf(dev->dev.bus_id, BUS_ID_SIZE, "%02x:%02x.%02x",
@@ -348,8 +335,6 @@ void pnp_release_card_device(struct pnp_dev *dev)
 {
 	struct pnp_card_driver *drv = dev->card_link->driver;
 
-	if (!drv)
-		return;
 	drv->link.remove = &card_remove;
 	device_release_driver(&dev->dev);
 	drv->link.remove = &card_remove_first;
