@@ -553,18 +553,18 @@ void shrink_dcache_sb(struct super_block * sb)
 	 * superblock to the most recent end of the unused list.
 	 */
 	spin_lock(&dcache_lock);
-	list_for_each_safe(tmp, next, &dentry_unused) {
+	list_for_each_prev_safe(tmp, next, &dentry_unused) {
 		dentry = list_entry(tmp, struct dentry, d_lru);
 		if (dentry->d_sb != sb)
 			continue;
-		list_move(tmp, &dentry_unused);
+		list_move_tail(tmp, &dentry_unused);
 	}
 
 	/*
 	 * Pass two ... free the dentries for this superblock.
 	 */
 repeat:
-	list_for_each_safe(tmp, next, &dentry_unused) {
+	list_for_each_prev_safe(tmp, next, &dentry_unused) {
 		dentry = list_entry(tmp, struct dentry, d_lru);
 		if (dentry->d_sb != sb)
 			continue;
