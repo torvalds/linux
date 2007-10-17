@@ -1,8 +1,6 @@
-menu "Distributed Lock Manager"
-	depends on EXPERIMENTAL && INET
-
-config DLM
+menuconfig DLM
 	tristate "Distributed Lock Manager (DLM)"
+	depends on EXPERIMENTAL && INET
 	depends on SYSFS && (IPV6 || IPV6=n)
 	select CONFIGFS_FS
 	select IP_SCTP
@@ -17,5 +15,3 @@ config DLM_DEBUG
 	Under the debugfs mount point, the name of each lockspace will
 	appear as a file in the "dlm" directory.  The output is the
 	list of resource and locks the local node knows about.
-
-endmenu
