@@ -30,7 +30,7 @@ static atomic_t usu_bias = ATOMIC_INIT(USB_US_DEFAULT_BIAS);
 #define BIAS_NAME_SIZE  (sizeof("usb-storage"))
 static const char *bias_names[3] = { "none", "usb-storage", "ub" };
 
-static DECLARE_MUTEX_LOCKED(usu_init_notify);
+static struct semaphore usu_init_notify;
 static DECLARE_COMPLETION(usu_end_notify);
 static atomic_t total_threads = ATOMIC_INIT(0);
 
@@ -203,6 +203,8 @@ static int usu_probe_thread(void *arg)
 static int __init usb_usual_init(void)
 {
 	int rc;
+
+	sema_init(&usu_init_notify, 0);
 
 	rc = usb_register(&usu_driver);
 	up(&usu_init_notify);
