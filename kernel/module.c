@@ -1881,7 +1881,8 @@ static struct module *load_module(void __user *umod,
 	module_unload_init(mod);
 
 	/* Initialize kobject, so we can reference it. */
-	if (mod_sysfs_init(mod) != 0)
+	err = mod_sysfs_init(mod);
+	if (err)
 		goto cleanup;
 
 	/* Set up license info based on the info section */
