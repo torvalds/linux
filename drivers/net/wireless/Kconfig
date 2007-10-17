@@ -282,6 +282,12 @@ config LIBERTAS_CS
 	---help---
 	  A driver for Marvell Libertas 8385 CompactFlash devices.
 
+config LIBERTAS_SDIO
+	tristate "Marvell Libertas 8385 and 8686 SDIO 802.11b/g cards"
+	depends on LIBERTAS && MMC
+	---help---
+	  A driver for Marvell Libertas 8385 and 8686 SDIO devices.
+
 config LIBERTAS_DEBUG
 	bool "Enable full debugging output in the Libertas module."
 	depends on LIBERTAS
