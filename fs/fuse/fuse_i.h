@@ -20,7 +20,10 @@
 #define FUSE_MAX_PAGES_PER_REQ 32
 
 /** Maximum number of outstanding background requests */
-#define FUSE_MAX_BACKGROUND 10
+#define FUSE_MAX_BACKGROUND 12
+
+/** Congestion starts at 75% of maximum */
+#define FUSE_CONGESTION_THRESHOLD (FUSE_MAX_BACKGROUND * 75 / 100)
 
 /** It could be as large as PATH_MAX, but would that have any uses? */
 #define FUSE_NAME_MAX 1024
