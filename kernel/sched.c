@@ -5060,6 +5060,17 @@ wait_to_die:
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+
+static int __migrate_task_irq(struct task_struct *p, int src_cpu, int dest_cpu)
+{
+	int ret;
+
+	local_irq_disable();
+	ret = __migrate_task(p, src_cpu, dest_cpu);
+	local_irq_enable();
+	return ret;
+}
+
 /*
  * Figure out where task on dead CPU should go, use force if neccessary.
  * NOTE: interrupts should be disabled by the caller
@@ -5098,7 +5109,7 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 				       "longer affine to cpu%d\n",
 				       p->pid, p->comm, dead_cpu);
 		}
-	} while (!__migrate_task(p, dead_cpu, dest_cpu));
+	} while (!__migrate_task_irq(p, dead_cpu, dest_cpu));
 }
 
 /*
@@ -5126,7 +5137,7 @@ static void migrate_live_tasks(int src_cpu)
 {
 	struct task_struct *p, *t;
 
-	write_lock_irq(&tasklist_lock);
+	read_lock(&tasklist_lock);
 
 	do_each_thread(t, p) {
 		if (p == current)
@@ -5136,7 +5147,7 @@ static void migrate_live_tasks(int src_cpu)
 			move_task_off_dead_cpu(src_cpu, p);
 	} while_each_thread(t, p);
 
-	write_unlock_irq(&tasklist_lock);
+	read_unlock(&tasklist_lock);
 }
 
 /*
@@ -5214,11 +5225,10 @@ static void migrate_dead(unsigned int dead_cpu, struct task_struct *p)
 	 * Drop lock around migration; if someone else moves it,
 	 * that's OK.  No task can be added to this CPU, so iteration is
 	 * fine.
-	 * NOTE: interrupts should be left disabled  --dev@
 	 */
-	spin_unlock(&rq->lock);
+	spin_unlock_irq(&rq->lock);
 	move_task_off_dead_cpu(dead_cpu, p);
-	spin_lock(&rq->lock);
+	spin_lock_irq(&rq->lock);
 
 	put_task_struct(p);
 }
