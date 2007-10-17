@@ -3,12 +3,17 @@
 
 #include <asm/fcntl.h>
 
-/* Cancel a blocking posix lock; internal use only until we expose an
- * asynchronous lock api to userspace: */
-#define F_CANCELLK	(F_LINUX_SPECIFIC_BASE+5)
+#define F_SETLEASE	(F_LINUX_SPECIFIC_BASE + 0)
+#define F_GETLEASE	(F_LINUX_SPECIFIC_BASE + 1)
 
-#define F_SETLEASE	(F_LINUX_SPECIFIC_BASE+0)
-#define F_GETLEASE	(F_LINUX_SPECIFIC_BASE+1)
+/*
+ * Cancel a blocking posix lock; internal use only until we expose an
+ * asynchronous lock api to userspace:
+ */
+#define F_CANCELLK	(F_LINUX_SPECIFIC_BASE + 5)
+
+/* Create a file descriptor with FD_CLOEXEC set. */
+#define F_DUPFD_CLOEXEC	(F_LINUX_SPECIFIC_BASE + 6)
 
 /*
  * Request nofications on a directory.
