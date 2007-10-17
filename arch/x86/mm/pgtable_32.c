@@ -97,8 +97,7 @@ static void set_pte_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 	}
 	pte = pte_offset_kernel(pmd, vaddr);
 	if (pgprot_val(flags))
-		/* <pfn,flags> stored as-is, to permit clearing entries */
-		set_pte(pte, pfn_pte(pfn, flags));
+		set_pte_present(&init_mm, vaddr, pte, pfn_pte(pfn, flags));
 	else
 		pte_clear(&init_mm, vaddr, pte);
 
