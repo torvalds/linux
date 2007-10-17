@@ -81,12 +81,11 @@ int register_binfmt(struct linux_binfmt * fmt)
 
 EXPORT_SYMBOL(register_binfmt);
 
-int unregister_binfmt(struct linux_binfmt * fmt)
+void unregister_binfmt(struct linux_binfmt * fmt)
 {
 	write_lock(&binfmt_lock);
 	list_del(&fmt->lh);
 	write_unlock(&binfmt_lock);
-	return 0;
 }
 
 EXPORT_SYMBOL(unregister_binfmt);
