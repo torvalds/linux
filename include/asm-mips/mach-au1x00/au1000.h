@@ -40,7 +40,9 @@
 
 #include <linux/delay.h>
 #include <linux/types.h>
+
 #include <asm/io.h>
+#include <asm/irq.h>
 
 /* cpu pipeline flush */
 void static inline au_sync(void)
@@ -523,63 +525,67 @@ extern struct au1xxx_irqmap au1xxx_irq_map[];
 /* Interrupt Numbers */
 /* Au1000 */
 #ifdef CONFIG_SOC_AU1000
-#define AU1000_UART0_INT          0
-#define AU1000_UART1_INT          1 /* au1000 */
-#define AU1000_UART2_INT          2 /* au1000 */
-#define AU1000_UART3_INT          3
-#define AU1000_SSI0_INT           4 /* au1000 */
-#define AU1000_SSI1_INT           5 /* au1000 */
-#define AU1000_DMA_INT_BASE       6
-#define AU1000_TOY_INT            14
-#define AU1000_TOY_MATCH0_INT     15
-#define AU1000_TOY_MATCH1_INT     16
-#define AU1000_TOY_MATCH2_INT     17
-#define AU1000_RTC_INT            18
-#define AU1000_RTC_MATCH0_INT     19
-#define AU1000_RTC_MATCH1_INT     20
-#define AU1000_RTC_MATCH2_INT     21
-#define AU1000_IRDA_TX_INT        22 /* au1000 */
-#define AU1000_IRDA_RX_INT        23 /* au1000 */
-#define AU1000_USB_DEV_REQ_INT    24
-#define AU1000_USB_DEV_SUS_INT    25
-#define AU1000_USB_HOST_INT       26
-#define AU1000_ACSYNC_INT         27
-#define AU1000_MAC0_DMA_INT       28
-#define AU1000_MAC1_DMA_INT       29
-#define AU1000_I2S_UO_INT         30 /* au1000 */
-#define AU1000_AC97C_INT          31
-#define AU1000_GPIO_0             32
-#define AU1000_GPIO_1             33
-#define AU1000_GPIO_2             34
-#define AU1000_GPIO_3             35
-#define AU1000_GPIO_4             36
-#define AU1000_GPIO_5             37
-#define AU1000_GPIO_6             38
-#define AU1000_GPIO_7             39
-#define AU1000_GPIO_8             40
-#define AU1000_GPIO_9             41
-#define AU1000_GPIO_10            42
-#define AU1000_GPIO_11            43
-#define AU1000_GPIO_12            44
-#define AU1000_GPIO_13            45
-#define AU1000_GPIO_14            46
-#define AU1000_GPIO_15            47
-#define AU1000_GPIO_16            48
-#define AU1000_GPIO_17            49
-#define AU1000_GPIO_18            50
-#define AU1000_GPIO_19            51
-#define AU1000_GPIO_20            52
-#define AU1000_GPIO_21            53
-#define AU1000_GPIO_22            54
-#define AU1000_GPIO_23            55
-#define AU1000_GPIO_24            56
-#define AU1000_GPIO_25            57
-#define AU1000_GPIO_26            58
-#define AU1000_GPIO_27            59
-#define AU1000_GPIO_28            60
-#define AU1000_GPIO_29            61
-#define AU1000_GPIO_30            62
-#define AU1000_GPIO_31            63
+enum soc_au1000_ints {
+	AU1000_FIRST_INT	= MIPS_CPU_IRQ_BASE,
+	AU1000_UART0_INT	= AU1000_FIRST_INT,
+	AU1000_UART1_INT,				/* au1000 */
+	AU1000_UART2_INT,				/* au1000 */
+	AU1000_UART3_INT,
+	AU1000_SSI0_INT,				/* au1000 */
+	AU1000_SSI1_INT,				/* au1000 */
+	AU1000_DMA_INT_BASE,
+
+	AU1000_TOY_INT		= AU1000_FIRST_INT + 14,
+	AU1000_TOY_MATCH0_INT,
+	AU1000_TOY_MATCH1_INT,
+	AU1000_TOY_MATCH2_INT,
+	AU1000_RTC_INT,
+	AU1000_RTC_MATCH0_INT,
+	AU1000_RTC_MATCH1_INT,
+	AU1000_RTC_MATCH2_INT,
+	AU1000_IRDA_TX_INT,				/* au1000 */
+	AU1000_IRDA_RX_INT,				/* au1000 */
+	AU1000_USB_DEV_REQ_INT,
+	AU1000_USB_DEV_SUS_INT,
+	AU1000_USB_HOST_INT,
+	AU1000_ACSYNC_INT,
+	AU1000_MAC0_DMA_INT,
+	AU1000_MAC1_DMA_INT,
+	AU1000_I2S_UO_INT,				/* au1000 */
+	AU1000_AC97C_INT,
+	AU1000_GPIO_0,
+	AU1000_GPIO_1,
+	AU1000_GPIO_2,
+	AU1000_GPIO_3,
+	AU1000_GPIO_4,
+	AU1000_GPIO_5,
+	AU1000_GPIO_6,
+	AU1000_GPIO_7,
+	AU1000_GPIO_8,
+	AU1000_GPIO_9,
+	AU1000_GPIO_10,
+	AU1000_GPIO_11,
+	AU1000_GPIO_12,
+	AU1000_GPIO_13,
+	AU1000_GPIO_14,
+	AU1000_GPIO_15,
+	AU1000_GPIO_16,
+	AU1000_GPIO_17,
+	AU1000_GPIO_18,
+	AU1000_GPIO_19,
+	AU1000_GPIO_20,
+	AU1000_GPIO_21,
+	AU1000_GPIO_22,
+	AU1000_GPIO_23,
+	AU1000_GPIO_24,
+	AU1000_GPIO_25,
+	AU1000_GPIO_26,
+	AU1000_GPIO_27,
+	AU1000_GPIO_28,
+	AU1000_GPIO_29,
+	AU1000_GPIO_30,
+	AU1000_GPIO_31,
+};
 
 #define UART0_ADDR                0xB1100000
 #define UART1_ADDR                0xB1200000
@@ -598,61 +604,65 @@ extern struct au1xxx_irqmap au1xxx_irq_map[];
 
 /* Au1500 */
 #ifdef CONFIG_SOC_AU1500
-#define AU1500_UART0_INT          0
-#define AU1000_PCI_INTA           1 /* au1500 */
-#define AU1000_PCI_INTB           2 /* au1500 */
-#define AU1500_UART3_INT          3
-#define AU1000_PCI_INTC           4 /* au1500 */
-#define AU1000_PCI_INTD           5 /* au1500 */
-#define AU1000_DMA_INT_BASE       6
-#define AU1000_TOY_INT            14
-#define AU1000_TOY_MATCH0_INT     15
-#define AU1000_TOY_MATCH1_INT     16
-#define AU1000_TOY_MATCH2_INT     17
-#define AU1000_RTC_INT            18
-#define AU1000_RTC_MATCH0_INT     19
-#define AU1000_RTC_MATCH1_INT     20
-#define AU1000_RTC_MATCH2_INT     21
-#define AU1500_PCI_ERR_INT        22
-#define AU1000_USB_DEV_REQ_INT    24
-#define AU1000_USB_DEV_SUS_INT    25
-#define AU1000_USB_HOST_INT       26
-#define AU1000_ACSYNC_INT         27
-#define AU1500_MAC0_DMA_INT       28
-#define AU1500_MAC1_DMA_INT       29
-#define AU1000_AC97C_INT          31
-#define AU1000_GPIO_0             32
-#define AU1000_GPIO_1             33
-#define AU1000_GPIO_2             34
-#define AU1000_GPIO_3             35
-#define AU1000_GPIO_4             36
-#define AU1000_GPIO_5             37
-#define AU1000_GPIO_6             38
-#define AU1000_GPIO_7             39
-#define AU1000_GPIO_8             40
-#define AU1000_GPIO_9             41
-#define AU1000_GPIO_10            42
-#define AU1000_GPIO_11            43
-#define AU1000_GPIO_12            44
-#define AU1000_GPIO_13            45
-#define AU1000_GPIO_14            46
-#define AU1000_GPIO_15            47
-#define AU1500_GPIO_200           48
-#define AU1500_GPIO_201           49
-#define AU1500_GPIO_202           50
-#define AU1500_GPIO_203           51
-#define AU1500_GPIO_20            52
-#define AU1500_GPIO_204           53
-#define AU1500_GPIO_205           54
-#define AU1500_GPIO_23            55
-#define AU1500_GPIO_24            56
-#define AU1500_GPIO_25            57
-#define AU1500_GPIO_26            58
-#define AU1500_GPIO_27            59
-#define AU1500_GPIO_28            60
-#define AU1500_GPIO_206           61
-#define AU1500_GPIO_207           62
-#define AU1500_GPIO_208_215       63
+enum soc_au1500_ints {
+	AU1500_FIRST_INT	= MIPS_CPU_IRQ_BASE,
+	AU1500_UART0_INT	= AU1500_FIRST_INT,
+	AU1000_PCI_INTA,				/* au1500 */
+	AU1000_PCI_INTB,				/* au1500 */
+	AU1500_UART3_INT,
+	AU1000_PCI_INTC,				/* au1500 */
+	AU1000_PCI_INTD,				/* au1500 */
+	AU1000_DMA_INT_BASE,
+
+	AU1000_TOY_INT		= AU1500_FIRST_INT + 14,
+	AU1000_TOY_MATCH0_INT,
+	AU1000_TOY_MATCH1_INT,
+	AU1000_TOY_MATCH2_INT,
+	AU1000_RTC_INT,
+	AU1000_RTC_MATCH0_INT,
+	AU1000_RTC_MATCH1_INT,
+	AU1000_RTC_MATCH2_INT,
+	AU1500_PCI_ERR_INT,
+	AU1000_USB_DEV_REQ_INT,
+	AU1000_USB_DEV_SUS_INT,
+	AU1000_USB_HOST_INT,
+	AU1000_ACSYNC_INT,
+	AU1500_MAC0_DMA_INT,
+	AU1500_MAC1_DMA_INT,
+	AU1000_AC97C_INT	= AU1500_FIRST_INT + 31,
+	AU1000_GPIO_0,
+	AU1000_GPIO_1,
+	AU1000_GPIO_2,
+	AU1000_GPIO_3,
+	AU1000_GPIO_4,
+	AU1000_GPIO_5,
+	AU1000_GPIO_6,
+	AU1000_GPIO_7,
+	AU1000_GPIO_8,
+	AU1000_GPIO_9,
+	AU1000_GPIO_10,
+	AU1000_GPIO_11,
+	AU1000_GPIO_12,
+	AU1000_GPIO_13,
+	AU1000_GPIO_14,
+	AU1000_GPIO_15,
+	AU1500_GPIO_200,
+	AU1500_GPIO_201,
+	AU1500_GPIO_202,
+	AU1500_GPIO_203,
+	AU1500_GPIO_20,
+	AU1500_GPIO_204,
+	AU1500_GPIO_205,
+	AU1500_GPIO_23,
+	AU1500_GPIO_24,
+	AU1500_GPIO_25,
+	AU1500_GPIO_26,
+	AU1500_GPIO_27,
+	AU1500_GPIO_28,
+	AU1500_GPIO_206,
+	AU1500_GPIO_207,
+	AU1500_GPIO_208_215,
+};
 
 /* shortcuts */
 #define INTA AU1000_PCI_INTA
@@ -675,63 +685,67 @@ extern struct au1xxx_irqmap au1xxx_irq_map[];
 
 /* Au1100 */
 #ifdef CONFIG_SOC_AU1100
-#define AU1100_UART0_INT          0
-#define AU1100_UART1_INT          1
-#define AU1100_SD_INT             2
-#define AU1100_UART3_INT          3
-#define AU1000_SSI0_INT           4
-#define AU1000_SSI1_INT           5
-#define AU1000_DMA_INT_BASE       6
-#define AU1000_TOY_INT            14
-#define AU1000_TOY_MATCH0_INT     15
-#define AU1000_TOY_MATCH1_INT     16
-#define AU1000_TOY_MATCH2_INT     17
-#define AU1000_RTC_INT            18
-#define AU1000_RTC_MATCH0_INT     19
-#define AU1000_RTC_MATCH1_INT     20
-#define AU1000_RTC_MATCH2_INT     21
-#define AU1000_IRDA_TX_INT        22
-#define AU1000_IRDA_RX_INT        23
-#define AU1000_USB_DEV_REQ_INT    24
-#define AU1000_USB_DEV_SUS_INT    25
-#define AU1000_USB_HOST_INT       26
-#define AU1000_ACSYNC_INT         27
-#define AU1100_MAC0_DMA_INT       28
-#define	AU1100_GPIO_208_215	29
-#define	AU1100_LCD_INT            30
-#define AU1000_AC97C_INT          31
-#define AU1000_GPIO_0             32
-#define AU1000_GPIO_1             33
-#define AU1000_GPIO_2             34
-#define AU1000_GPIO_3             35
-#define AU1000_GPIO_4             36
-#define AU1000_GPIO_5             37
-#define AU1000_GPIO_6             38
-#define AU1000_GPIO_7             39
-#define AU1000_GPIO_8             40
-#define AU1000_GPIO_9             41
-#define AU1000_GPIO_10            42
-#define AU1000_GPIO_11            43
-#define AU1000_GPIO_12            44
-#define AU1000_GPIO_13            45
-#define AU1000_GPIO_14            46
-#define AU1000_GPIO_15            47
-#define AU1000_GPIO_16            48
-#define AU1000_GPIO_17            49
-#define AU1000_GPIO_18            50
-#define AU1000_GPIO_19            51
-#define AU1000_GPIO_20            52
-#define AU1000_GPIO_21            53
-#define AU1000_GPIO_22            54
-#define AU1000_GPIO_23            55
-#define AU1000_GPIO_24            56
-#define AU1000_GPIO_25            57
-#define AU1000_GPIO_26            58
-#define AU1000_GPIO_27            59
-#define AU1000_GPIO_28            60
-#define AU1000_GPIO_29            61
-#define AU1000_GPIO_30            62
-#define AU1000_GPIO_31            63
+enum soc_au1100_ints {
+	AU1100_FIRST_INT	= MIPS_CPU_IRQ_BASE,
+	AU1100_UART0_INT,
+	AU1100_UART1_INT,
+	AU1100_SD_INT,
+	AU1100_UART3_INT,
+	AU1000_SSI0_INT,
+	AU1000_SSI1_INT,
+	AU1000_DMA_INT_BASE,
+
+	AU1000_TOY_INT		= AU1100_FIRST_INT + 14,
+	AU1000_TOY_MATCH0_INT,
+	AU1000_TOY_MATCH1_INT,
+	AU1000_TOY_MATCH2_INT,
+	AU1000_RTC_INT,
+	AU1000_RTC_MATCH0_INT,
+	AU1000_RTC_MATCH1_INT,
+	AU1000_RTC_MATCH2_INT,
+	AU1000_IRDA_TX_INT,
+	AU1000_IRDA_RX_INT,
+	AU1000_USB_DEV_REQ_INT,
+	AU1000_USB_DEV_SUS_INT,
+	AU1000_USB_HOST_INT,
+	AU1000_ACSYNC_INT,
+	AU1100_MAC0_DMA_INT,
+	AU1100_GPIO_208_215,
+	AU1100_LCD_INT,
+	AU1000_AC97C_INT,
+	AU1000_GPIO_0,
+	AU1000_GPIO_1,
+	AU1000_GPIO_2,
+	AU1000_GPIO_3,
+	AU1000_GPIO_4,
+	AU1000_GPIO_5,
+	AU1000_GPIO_6,
+	AU1000_GPIO_7,
+	AU1000_GPIO_8,
+	AU1000_GPIO_9,
+	AU1000_GPIO_10,
+	AU1000_GPIO_11,
+	AU1000_GPIO_12,
+	AU1000_GPIO_13,
+	AU1000_GPIO_14,
+	AU1000_GPIO_15,
+	AU1000_GPIO_16,
+	AU1000_GPIO_17,
+	AU1000_GPIO_18,
+	AU1000_GPIO_19,
+	AU1000_GPIO_20,
+	AU1000_GPIO_21,
+	AU1000_GPIO_22,
+	AU1000_GPIO_23,
+	AU1000_GPIO_24,
+	AU1000_GPIO_25,
+	AU1000_GPIO_26,
+	AU1000_GPIO_27,
+	AU1000_GPIO_28,
+	AU1000_GPIO_29,
+	AU1000_GPIO_30,
+	AU1000_GPIO_31,
+};
 
 #define UART0_ADDR                0xB1100000
 #define UART1_ADDR                0xB1200000
@@ -746,69 +760,73 @@ extern struct au1xxx_irqmap au1xxx_irq_map[];
 #endif /* CONFIG_SOC_AU1100 */
 
 #ifdef CONFIG_SOC_AU1550
-#define AU1550_UART0_INT          0
-#define AU1550_PCI_INTA           1
-#define AU1550_PCI_INTB           2
-#define AU1550_DDMA_INT           3
-#define AU1550_CRYPTO_INT         4
-#define AU1550_PCI_INTC           5
-#define AU1550_PCI_INTD           6
-#define AU1550_PCI_RST_INT        7
-#define AU1550_UART1_INT          8
-#define AU1550_UART3_INT          9
-#define AU1550_PSC0_INT           10
-#define AU1550_PSC1_INT           11
-#define AU1550_PSC2_INT           12
-#define AU1550_PSC3_INT           13
-#define AU1000_TOY_INT			  14
-#define AU1000_TOY_MATCH0_INT     15
-#define AU1000_TOY_MATCH1_INT     16
-#define AU1000_TOY_MATCH2_INT     17
-#define AU1000_RTC_INT            18
-#define AU1000_RTC_MATCH0_INT     19
-#define AU1000_RTC_MATCH1_INT     20
-#define AU1000_RTC_MATCH2_INT     21
-#define AU1550_NAND_INT           23
-#define AU1550_USB_DEV_REQ_INT    24
-#define AU1550_USB_DEV_SUS_INT    25
-#define AU1550_USB_HOST_INT       26
-#define AU1000_USB_DEV_REQ_INT    AU1550_USB_DEV_REQ_INT
-#define AU1000_USB_DEV_SUS_INT    AU1550_USB_DEV_SUS_INT
-#define AU1000_USB_HOST_INT       AU1550_USB_HOST_INT
-#define AU1550_MAC0_DMA_INT       27
-#define AU1550_MAC1_DMA_INT       28
-#define AU1000_GPIO_0             32
-#define AU1000_GPIO_1             33
-#define AU1000_GPIO_2             34
-#define AU1000_GPIO_3             35
-#define AU1000_GPIO_4             36
-#define AU1000_GPIO_5             37
-#define AU1000_GPIO_6             38
-#define AU1000_GPIO_7             39
-#define AU1000_GPIO_8             40
-#define AU1000_GPIO_9             41
-#define AU1000_GPIO_10            42
-#define AU1000_GPIO_11            43
-#define AU1000_GPIO_12            44
-#define AU1000_GPIO_13            45
-#define AU1000_GPIO_14            46
-#define AU1000_GPIO_15            47
-#define AU1550_GPIO_200           48
-#define AU1500_GPIO_201_205       49	// Logical or of GPIO201:205
-#define AU1500_GPIO_16            50
-#define AU1500_GPIO_17            51
-#define AU1500_GPIO_20            52
-#define AU1500_GPIO_21            53
-#define AU1500_GPIO_22            54
-#define AU1500_GPIO_23            55
-#define AU1500_GPIO_24            56
-#define AU1500_GPIO_25            57
-#define AU1500_GPIO_26            58
-#define AU1500_GPIO_27            59
-#define AU1500_GPIO_28            60
-#define AU1500_GPIO_206           61
-#define AU1500_GPIO_207           62
-#define AU1500_GPIO_208_218       63	// Logical or of GPIO208:218
+enum soc_au1550_ints {
+	AU1550_FIRST_INT	= MIPS_CPU_IRQ_BASE,
+	AU1550_UART0_INT	= AU1550_FIRST_INT,
+	AU1550_PCI_INTA,
+	AU1550_PCI_INTB,
+	AU1550_DDMA_INT,
+	AU1550_CRYPTO_INT,
+	AU1550_PCI_INTC,
+	AU1550_PCI_INTD,
+	AU1550_PCI_RST_INT,
+	AU1550_UART1_INT,
+	AU1550_UART3_INT,
+	AU1550_PSC0_INT,
+	AU1550_PSC1_INT,
+	AU1550_PSC2_INT,
+	AU1550_PSC3_INT,
+	AU1000_TOY_INT,
+	AU1000_TOY_MATCH0_INT,
+	AU1000_TOY_MATCH1_INT,
+	AU1000_TOY_MATCH2_INT,
+	AU1000_RTC_INT,
+	AU1000_RTC_MATCH0_INT,
+	AU1000_RTC_MATCH1_INT,
+	AU1000_RTC_MATCH2_INT,
+
+	AU1550_NAND_INT			= AU1550_FIRST_INT + 23,
+	AU1550_USB_DEV_REQ_INT,
+	AU1000_USB_DEV_REQ_INT		= AU1550_USB_DEV_REQ_INT,
+	AU1550_USB_DEV_SUS_INT,
+	AU1000_USB_DEV_SUS_INT		= AU1550_USB_DEV_SUS_INT,
+	AU1550_USB_HOST_INT,
+	AU1000_USB_HOST_INT		= AU1550_USB_HOST_INT,
+	AU1550_MAC0_DMA_INT,
+	AU1550_MAC1_DMA_INT,
+	AU1000_GPIO_0			= AU1550_FIRST_INT + 32,
+	AU1000_GPIO_1,
+	AU1000_GPIO_2,
+	AU1000_GPIO_3,
+	AU1000_GPIO_4,
+	AU1000_GPIO_5,
+	AU1000_GPIO_6,
+	AU1000_GPIO_7,
+	AU1000_GPIO_8,
+	AU1000_GPIO_9,
+	AU1000_GPIO_10,
+	AU1000_GPIO_11,
+	AU1000_GPIO_12,
+	AU1000_GPIO_13,
+	AU1000_GPIO_14,
+	AU1000_GPIO_15,
+	AU1550_GPIO_200,
+	AU1500_GPIO_201_205,			/* Logical or of GPIO201:205 */
+	AU1500_GPIO_16,
+	AU1500_GPIO_17,
+	AU1500_GPIO_20,
+	AU1500_GPIO_21,
+	AU1500_GPIO_22,
+	AU1500_GPIO_23,
+	AU1500_GPIO_24,
+	AU1500_GPIO_25,
+	AU1500_GPIO_26,
+	AU1500_GPIO_27,
+	AU1500_GPIO_28,
+	AU1500_GPIO_206,
+	AU1500_GPIO_207,
+	AU1500_GPIO_208_218,			/* Logical or of GPIO208:218 */
+};
 
 /* shortcuts */
 #define INTA AU1550_PCI_INTA
@@ -832,70 +850,74 @@ extern struct au1xxx_irqmap au1xxx_irq_map[];
 #endif /* CONFIG_SOC_AU1550 */
 
 #ifdef CONFIG_SOC_AU1200
-#define AU1200_UART0_INT          0
-#define AU1200_SWT_INT            1
-#define AU1200_SD_INT             2
-#define AU1200_DDMA_INT           3
-#define AU1200_MAE_BE_INT         4
-#define AU1200_GPIO_200           5
-#define AU1200_GPIO_201           6
-#define AU1200_GPIO_202           7
-#define AU1200_UART1_INT          8
-#define AU1200_MAE_FE_INT         9
-#define AU1200_PSC0_INT           10
-#define AU1200_PSC1_INT           11
-#define AU1200_AES_INT            12
-#define AU1200_CAMERA_INT         13
-#define AU1000_TOY_INT			  14
-#define AU1000_TOY_MATCH0_INT     15
-#define AU1000_TOY_MATCH1_INT     16
-#define AU1000_TOY_MATCH2_INT     17
-#define AU1000_RTC_INT            18
-#define AU1000_RTC_MATCH0_INT     19
-#define AU1000_RTC_MATCH1_INT     20
-#define AU1000_RTC_MATCH2_INT     21
-#define AU1200_NAND_INT           23
-#define AU1200_GPIO_204           24
-#define AU1200_GPIO_205           25
-#define AU1200_GPIO_206           26
-#define AU1200_GPIO_207           27
-#define AU1200_GPIO_208_215       28 // Logical OR of 208:215
-#define AU1200_USB_INT            29
-#define AU1000_USB_HOST_INT		  AU1200_USB_INT
-#define AU1200_LCD_INT            30
-#define AU1200_MAE_BOTH_INT       31
-#define AU1000_GPIO_0             32
-#define AU1000_GPIO_1             33
-#define AU1000_GPIO_2             34
-#define AU1000_GPIO_3             35
-#define AU1000_GPIO_4             36
-#define AU1000_GPIO_5             37
-#define AU1000_GPIO_6             38
-#define AU1000_GPIO_7             39
-#define AU1000_GPIO_8             40
-#define AU1000_GPIO_9             41
-#define AU1000_GPIO_10            42
-#define AU1000_GPIO_11            43
-#define AU1000_GPIO_12            44
-#define AU1000_GPIO_13            45
-#define AU1000_GPIO_14            46
-#define AU1000_GPIO_15            47
-#define AU1000_GPIO_16            48
-#define AU1000_GPIO_17            49
-#define AU1000_GPIO_18            50
-#define AU1000_GPIO_19            51
-#define AU1000_GPIO_20            52
-#define AU1000_GPIO_21            53
-#define AU1000_GPIO_22            54
-#define AU1000_GPIO_23            55
-#define AU1000_GPIO_24            56
-#define AU1000_GPIO_25            57
-#define AU1000_GPIO_26            58
-#define AU1000_GPIO_27            59
-#define AU1000_GPIO_28            60
-#define AU1000_GPIO_29            61
-#define AU1000_GPIO_30            62
-#define AU1000_GPIO_31            63
+enum soc_au1200_ints {
+	AU1200_FIRST_INT	= MIPS_CPU_IRQ_BASE,
+	AU1200_UART0_INT	= AU1200_FIRST_INT,
+	AU1200_SWT_INT,
+	AU1200_SD_INT,
+	AU1200_DDMA_INT,
+	AU1200_MAE_BE_INT,
+	AU1200_GPIO_200,
+	AU1200_GPIO_201,
+	AU1200_GPIO_202,
+	AU1200_UART1_INT,
+	AU1200_MAE_FE_INT,
+	AU1200_PSC0_INT,
+	AU1200_PSC1_INT,
+	AU1200_AES_INT,
+	AU1200_CAMERA_INT,
+	AU1000_TOY_INT,
+	AU1000_TOY_MATCH0_INT,
+	AU1000_TOY_MATCH1_INT,
+	AU1000_TOY_MATCH2_INT,
+	AU1000_RTC_INT,
+	AU1000_RTC_MATCH0_INT,
+	AU1000_RTC_MATCH1_INT,
+	AU1000_RTC_MATCH2_INT,
+
+	AU1200_NAND_INT		= AU1200_FIRST_INT + 23,
+	AU1200_GPIO_204,
+	AU1200_GPIO_205,
+	AU1200_GPIO_206,
+	AU1200_GPIO_207,
+	AU1200_GPIO_208_215,			/* Logical OR of 208:215 */
+	AU1200_USB_INT,
+	AU1000_USB_HOST_INT	= AU1200_USB_INT,
+	AU1200_LCD_INT,
+	AU1200_MAE_BOTH_INT,
+	AU1000_GPIO_0,
+	AU1000_GPIO_1,
+	AU1000_GPIO_2,
+	AU1000_GPIO_3,
+	AU1000_GPIO_4,
+	AU1000_GPIO_5,
+	AU1000_GPIO_6,
+	AU1000_GPIO_7,
+	AU1000_GPIO_8,
+	AU1000_GPIO_9,
+	AU1000_GPIO_10,
+	AU1000_GPIO_11,
+	AU1000_GPIO_12,
+	AU1000_GPIO_13,
+	AU1000_GPIO_14,
+	AU1000_GPIO_15,
+	AU1000_GPIO_16,
+	AU1000_GPIO_17,
+	AU1000_GPIO_18,
+	AU1000_GPIO_19,
+	AU1000_GPIO_20,
+	AU1000_GPIO_21,
+	AU1000_GPIO_22,
+	AU1000_GPIO_23,
+	AU1000_GPIO_24,
+	AU1000_GPIO_25,
+	AU1000_GPIO_26,
+	AU1000_GPIO_27,
+	AU1000_GPIO_28,
+	AU1000_GPIO_29,
+	AU1000_GPIO_30,
+	AU1000_GPIO_31,
+};
 
 #define UART0_ADDR                0xB1100000
 #define UART1_ADDR                0xB1200000

@@ -217,31 +217,35 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 
 
 /*
- *	External Interrupts for Pb1200 as of 8/6/2004.
- *   Bit positions in the CPLD registers can be calculated by taking
- *   the interrupt define and subtracting the PB1200_INT_BEGIN value.
- *    *example: IDE bis pos is  = 64 - 64
-                ETH bit pos is  = 65 - 64
+ * External Interrupts for Pb1200 as of 8/6/2004.
+ * Bit positions in the CPLD registers can be calculated by taking
+ * the interrupt define and subtracting the PB1200_INT_BEGIN value.
+ *
+ *   Example: IDE bis pos is  = 64 - 64
+ *            ETH bit pos is  = 65 - 64
  */
-#define PB1200_INT_BEGIN		(AU1000_LAST_INTC1_INT + 1)
-#define PB1200_IDE_INT			(PB1200_INT_BEGIN + 0)
-#define PB1200_ETH_INT			(PB1200_INT_BEGIN + 1)
-#define PB1200_PC0_INT			(PB1200_INT_BEGIN + 2)
-#define PB1200_PC0_STSCHG_INT	(PB1200_INT_BEGIN + 3)
-#define PB1200_PC1_INT			(PB1200_INT_BEGIN + 4)
-#define PB1200_PC1_STSCHG_INT	(PB1200_INT_BEGIN + 5)
-#define PB1200_DC_INT			(PB1200_INT_BEGIN + 6)
-#define PB1200_FLASHBUSY_INT	(PB1200_INT_BEGIN + 7)
-#define PB1200_PC0_INSERT_INT	(PB1200_INT_BEGIN + 8)
-#define PB1200_PC0_EJECT_INT	(PB1200_INT_BEGIN + 9)
-#define PB1200_PC1_INSERT_INT	(PB1200_INT_BEGIN + 10)
-#define PB1200_PC1_EJECT_INT	(PB1200_INT_BEGIN + 11)
-#define PB1200_SD0_INSERT_INT	(PB1200_INT_BEGIN + 12)
-#define PB1200_SD0_EJECT_INT	(PB1200_INT_BEGIN + 13)
-#define PB1200_SD1_INSERT_INT	(PB1200_INT_BEGIN + 14)
-#define PB1200_SD1_EJECT_INT	(PB1200_INT_BEGIN + 15)
+enum external_pb1200_ints {
+	PB1200_INT_BEGIN	= AU1000_MAX_INTR + 1,
 
-#define PB1200_INT_END			(PB1200_INT_BEGIN + 15)
+	PB1200_IDE_INT		= PB1200_INT_BEGIN,
+	PB1200_ETH_INT,
+	PB1200_PC0_INT,
+	PB1200_PC0_STSCHG_INT,
+	PB1200_PC1_INT,
+	PB1200_PC1_STSCHG_INT,
+	PB1200_DC_INT,
+	PB1200_FLASHBUSY_INT,
+	PB1200_PC0_INSERT_INT,
+	PB1200_PC0_EJECT_INT,
+	PB1200_PC1_INSERT_INT,
+	PB1200_PC1_EJECT_INT,
+	PB1200_SD0_INSERT_INT,
+	PB1200_SD0_EJECT_INT,
+	PB1200_SD1_INSERT_INT,
+	PB1200_SD1_EJECT_INT,
+
+	PB1200_INT_END			(PB1200_INT_BEGIN + 15)
+};
 
 /* For drivers/pcmcia/au1000_db1x00.c */
 #define BOARD_PC0_INT PB1200_PC0_INT

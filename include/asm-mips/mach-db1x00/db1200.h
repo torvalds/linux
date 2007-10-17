@@ -181,29 +181,34 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #define NAND_PHYS_ADDR   0x20000000
 
 /*
- *	External Interrupts for Pb1200 as of 8/6/2004.
- *   Bit positions in the CPLD registers can be calculated by taking
- *   the interrupt define and subtracting the DB1200_INT_BEGIN value.
- *    *example: IDE bis pos is  = 64 - 64
-                ETH bit pos is  = 65 - 64
+ * External Interrupts for Pb1200 as of 8/6/2004.
+ * Bit positions in the CPLD registers can be calculated by taking
+ * the interrupt define and subtracting the DB1200_INT_BEGIN value.
+ *
+ *   Example: IDE bis pos is  = 64 - 64
+ *            ETH bit pos is  = 65 - 64
  */
-#define DB1200_INT_BEGIN		(AU1000_LAST_INTC1_INT + 1)
-#define DB1200_IDE_INT			(DB1200_INT_BEGIN + 0)
-#define DB1200_ETH_INT			(DB1200_INT_BEGIN + 1)
-#define DB1200_PC0_INT			(DB1200_INT_BEGIN + 2)
-#define DB1200_PC0_STSCHG_INT	(DB1200_INT_BEGIN + 3)
-#define DB1200_PC1_INT			(DB1200_INT_BEGIN + 4)
-#define DB1200_PC1_STSCHG_INT	(DB1200_INT_BEGIN + 5)
-#define DB1200_DC_INT			(DB1200_INT_BEGIN + 6)
-#define DB1200_FLASHBUSY_INT	(DB1200_INT_BEGIN + 7)
-#define DB1200_PC0_INSERT_INT	(DB1200_INT_BEGIN + 8)
-#define DB1200_PC0_EJECT_INT	(DB1200_INT_BEGIN + 9)
-#define DB1200_PC1_INSERT_INT	(DB1200_INT_BEGIN + 10)
-#define DB1200_PC1_EJECT_INT	(DB1200_INT_BEGIN + 11)
-#define DB1200_SD0_INSERT_INT	(DB1200_INT_BEGIN + 12)
-#define DB1200_SD0_EJECT_INT	(DB1200_INT_BEGIN + 13)
+enum external_pb1200_ints {
+	DB1200_INT_BEGIN	= AU1000_MAX_INTR + 1,
 
-#define DB1200_INT_END			(DB1200_INT_BEGIN + 15)
+	DB1200_IDE_INT		= DB1200_INT_BEGIN,
+	DB1200_ETH_INT,
+	DB1200_PC0_INT,
+	DB1200_PC0_STSCHG_INT,
+	DB1200_PC1_INT,
+	DB1200_PC1_STSCHG_INT,
+	DB1200_DC_INT,
+	DB1200_FLASHBUSY_INT,
+	DB1200_PC0_INSERT_INT,
+	DB1200_PC0_EJECT_INT,
+	DB1200_PC1_INSERT_INT,
+	DB1200_PC1_EJECT_INT,
+	DB1200_SD0_INSERT_INT,
+	DB1200_SD0_EJECT_INT,
+
+	DB1200_INT_END		= DB1200_INT_BEGIN + 15,
+};
+
 
 /* For drivers/pcmcia/au1000_db1x00.c */
 
