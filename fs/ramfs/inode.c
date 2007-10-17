@@ -223,7 +223,17 @@ module_exit(exit_ramfs_fs)
 
 int __init init_rootfs(void)
 {
-	return register_filesystem(&rootfs_fs_type);
+	int err;
+
+	err = bdi_init(&ramfs_backing_dev_info);
+	if (err)
+		return err;
+
+	err = register_filesystem(&rootfs_fs_type);
+	if (err)
+		bdi_destroy(&ramfs_backing_dev_info);
+
+	return err;
 }
 
 MODULE_LICENSE("GPL");

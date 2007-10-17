@@ -37,6 +37,11 @@ static const struct inode_operations sysfs_inode_operations ={
 	.setattr	= sysfs_setattr,
 };
 
+int __init sysfs_inode_init(void)
+{
+	return bdi_init(&sysfs_backing_dev_info);
+}
+
 int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 {
 	struct inode * inode = dentry->d_inode;

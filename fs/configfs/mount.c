@@ -154,8 +154,16 @@ static int __init configfs_init(void)
 		subsystem_unregister(&config_subsys);
 		kmem_cache_destroy(configfs_dir_cachep);
 		configfs_dir_cachep = NULL;
+		goto out;
 	}
 
+	err = configfs_inode_init();
+	if (err) {
+		unregister_filesystem(&configfs_fs_type);
+		subsystem_unregister(&config_subsys);
+		kmem_cache_destroy(configfs_dir_cachep);
+		configfs_dir_cachep = NULL;
+	}
 out:
 	return err;
 }
@@ -166,6 +174,7 @@ static void __exit configfs_exit(void)
 	subsystem_unregister(&config_subsys);
 	kmem_cache_destroy(configfs_dir_cachep);
 	configfs_dir_cachep = NULL;
+	configfs_inode_exit();
 }
 
 MODULE_AUTHOR("Oracle");

@@ -233,6 +233,12 @@ unsigned long max_sane_readahead(unsigned long nr)
 		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
 }
 
+static int __init readahead_init(void)
+{
+	return bdi_init(&default_backing_dev_info);
+}
+subsys_initcall(readahead_init);
+
 /*
  * Submit IO for the read-ahead request in file_ra_state.
  */

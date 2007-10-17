@@ -34,6 +34,14 @@ struct backing_dev_info {
 	void *unplug_io_data;
 };
 
+static inline int bdi_init(struct backing_dev_info *bdi)
+{
+	return 0;
+}
+
+static inline void bdi_destroy(struct backing_dev_info *bdi)
+{
+}
 
 /*
  * Flags in backing_dev_info::capability

@@ -893,6 +893,11 @@ static struct class *mem_class;
 static int __init chr_dev_init(void)
 {
 	int i;
+	int err;
+
+	err = bdi_init(&zero_bdi);
+	if (err)
+		return err;
 
 	if (register_chrdev(MEM_MAJOR,"mem",&memory_fops))
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);

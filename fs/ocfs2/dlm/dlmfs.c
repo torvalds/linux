@@ -588,13 +588,17 @@ static int __init init_dlmfs_fs(void)
 
 	dlmfs_print_version();
 
+	status = bdi_init(&dlmfs_backing_dev_info);
+	if (status)
+		return status;
+
 	dlmfs_inode_cache = kmem_cache_create("dlmfs_inode_cache",
 				sizeof(struct dlmfs_inode_private),
 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
 					SLAB_MEM_SPREAD),
 				dlmfs_init_once);
 	if (!dlmfs_inode_cache)
-		return -ENOMEM;
+		goto bail;
 	cleanup_inode = 1;
 
 	user_dlm_worker = create_singlethread_workqueue("user_dlm");
@@ -611,6 +615,7 @@ bail:
 			kmem_cache_destroy(dlmfs_inode_cache);
 		if (cleanup_worker)
 			destroy_workqueue(user_dlm_worker);
+		bdi_destroy(&dlmfs_backing_dev_info);
 	} else
 		printk("OCFS2 User DLM kernel interface loaded\n");
 	return status;
@@ -624,6 +629,8 @@ static void __exit exit_dlmfs_fs(void)
 	destroy_workqueue(user_dlm_worker);
 
 	kmem_cache_destroy(dlmfs_inode_cache);
+
+	bdi_destroy(&dlmfs_backing_dev_info);
 }
 
 MODULE_AUTHOR("Oracle");

@@ -92,6 +92,10 @@ int __init sysfs_init(void)
 	if (!sysfs_dir_cachep)
 		goto out;
 
+	err = sysfs_inode_init();
+	if (err)
+		goto out_err;
+
 	err = register_filesystem(&sysfs_fs_type);
 	if (!err) {
 		sysfs_mount = kern_mount(&sysfs_fs_type);

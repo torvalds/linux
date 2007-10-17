@@ -256,4 +256,12 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 	mutex_unlock(&dir->d_inode->i_mutex);
 }
 
+int __init configfs_inode_init(void)
+{
+	return bdi_init(&configfs_backing_dev_info);
+}
 
+void __exit configfs_inode_exit(void)
+{
+	bdi_destroy(&configfs_backing_dev_info);
+}
