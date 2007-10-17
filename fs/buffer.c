@@ -1730,7 +1730,6 @@ done:
 		 * The page and buffer_heads can be released at any time from
 		 * here on.
 		 */
-		wbc->pages_skipped++;	/* We didn't write this page */
 	}
 	return err;
 
