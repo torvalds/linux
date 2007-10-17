@@ -768,7 +768,6 @@ static int disk_change(int drive)
 			floppy_sizes[TOMINOR(drive)] = MAX_DISK_SIZE << 1;
 		}
 
-		/*USETF(FD_DISK_NEWCHANGE); */
 		return 1;
 	} else {
 		UDRS->last_checked = jiffies;
@@ -1324,7 +1323,6 @@ static void fdc_specify(void)
 	if (FDCS->need_configure && FDCS->version >= FDC_82072A) {
 		fdc_configure();
 		FDCS->need_configure = 0;
-		/*DPRINT("FIFO enabled\n"); */
 	}
 
 	switch (raw_cmd->rate & 0x03) {
@@ -1918,8 +1916,6 @@ static void floppy_shutdown(unsigned long data)
 	}
 	is_alive("floppy shutdown");
 }
-
-/*typedef void (*timeout_fn)(unsigned long);*/
 
 /* start motor, check media-changed condition and write protection */
 static int start_motor(void (*function)(void))
@@ -2571,19 +2567,6 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
 #endif
 }
 
-#if 0
-static inline int check_dma_crossing(char *start,
-				     unsigned long length, char *message)
-{
-	if (CROSS_64KB(start, length)) {
-		printk("DMA xfer crosses 64KB boundary in %s %p-%p\n",
-		       message, start, start + length);
-		return 1;
-	} else
-		return 0;
-}
-#endif
-
 /* work around a bug in pseudo DMA
  * (on some FDCs) pseudo DMA does not stop when the CPU stops
  * sending data.  Hence we need a different way to signal the
@@ -2781,9 +2764,7 @@ static int make_raw_rw_request(void)
 		 */
 		if (!direct ||
 		    (indirect * 2 > direct * 3 &&
-		     *errors < DP->max_errors.read_track &&
-		     /*!TESTF(FD_NEED_TWADDLE) && */
-		     ((!probing
+		     *errors < DP->max_errors.read_track && ((!probing
 		       || (DP->read_track & (1 << DRS->probed_format)))))) {
 			max_size = current_req->nr_sectors;
 		} else {
@@ -2796,10 +2777,6 @@ static int make_raw_rw_request(void)
 				       indirect, direct, fsector_t);
 				return 0;
 			}
-/*			check_dma_crossing(raw_cmd->kernel_data,
-					   raw_cmd->length,
-					   "end of make_raw_request [1]");*/
-
 			virtualdmabug_workaround();
 			return 2;
 		}
@@ -2849,8 +2826,6 @@ static int make_raw_rw_request(void)
 	raw_cmd->length = ((raw_cmd->length - 1) | (ssize - 1)) + 1;
 	raw_cmd->length <<= 9;
 #ifdef FLOPPY_SANITY_CHECK
-	/*check_dma_crossing(raw_cmd->kernel_data, raw_cmd->length, 
-	   "end of make_raw_request"); */
 	if ((raw_cmd->length < current_count_sectors << 9) ||
 	    (raw_cmd->kernel_data != current_req->buffer &&
 	     CT(COMMAND) == FD_WRITE &&
