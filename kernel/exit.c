@@ -931,13 +931,13 @@ fastcall NORET_TYPE void do_exit(long code)
 		schedule();
 	}
 
+	tsk->flags |= PF_EXITING;
 	/*
 	 * tsk->flags are checked in the futex code to protect against
 	 * an exiting task cleaning up the robust pi futexes.
 	 */
-	spin_lock_irq(&tsk->pi_lock);
-	tsk->flags |= PF_EXITING;
-	spin_unlock_irq(&tsk->pi_lock);
+	smp_mb();
+	spin_unlock_wait(&tsk->pi_lock);
 
 	if (unlikely(in_atomic()))
 		printk(KERN_INFO "note: %s[%d] exited with preempt_count %d\n",
