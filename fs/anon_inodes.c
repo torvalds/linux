@@ -76,7 +76,6 @@ int anon_inode_getfd(int *pfd, struct inode **pinode, struct file **pfile,
 {
 	struct qstr this;
 	struct dentry *dentry;
-	struct inode *inode;
 	struct file *file;
 	int error, fd;
 
@@ -86,15 +85,9 @@ int anon_inode_getfd(int *pfd, struct inode **pinode, struct file **pfile,
 	if (!file)
 		return -ENFILE;
 
-	inode = igrab(anon_inode_inode);
-	if (IS_ERR(inode)) {
-		error = PTR_ERR(inode);
-		goto err_put_filp;
-	}
-
 	error = get_unused_fd();
 	if (error < 0)
-		goto err_iput;
+		goto err_put_filp;
 	fd = error;
 
 	/*
@@ -108,14 +101,22 @@ int anon_inode_getfd(int *pfd, struct inode **pinode, struct file **pfile,
 	dentry = d_alloc(anon_inode_mnt->mnt_sb->s_root, &this);
 	if (!dentry)
 		goto err_put_unused_fd;
+
+	/*
+	 * We know the anon_inode inode count is always greater than zero,
+	 * so we can avoid doing an igrab() and we can use an open-coded
+	 * atomic_inc().
+	 */
+	atomic_inc(&anon_inode_inode->i_count);
+
 	dentry->d_op = &anon_inodefs_dentry_operations;
 	/* Do not publish this dentry inside the global dentry hash table */
 	dentry->d_flags &= ~DCACHE_UNHASHED;
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, anon_inode_inode);
 
 	file->f_path.mnt = mntget(anon_inode_mnt);
 	file->f_path.dentry = dentry;
-	file->f_mapping = inode->i_mapping;
+	file->f_mapping = anon_inode_inode->i_mapping;
 
 	file->f_pos = 0;
 	file->f_flags = O_RDWR;
@@ -127,14 +128,12 @@ int anon_inode_getfd(int *pfd, struct inode **pinode, struct file **pfile,
 	fd_install(fd, file);
 
 	*pfd = fd;
-	*pinode = inode;
+	*pinode = anon_inode_inode;
 	*pfile = file;
 	return 0;
 
 err_put_unused_fd:
 	put_unused_fd(fd);
-err_iput:
-	iput(inode);
 err_put_filp:
 	put_filp(file);
 	return error;
