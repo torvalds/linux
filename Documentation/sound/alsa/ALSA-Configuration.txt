@@ -843,6 +843,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-6ch-dig 3-stack (6-channel) with SPDIF
 	  6stack-dig	 6-stack with SPDIF
 	  lenovo-101e	 Lenovo laptop
+	  eeepc-p701	ASUS Eeepc
 	  auto		auto-config reading BIOS (default)
 
 	ALC882/885

@@ -12057,6 +12057,7 @@ static const char *alc662_models[ALC662_MODEL_LAST] = {
 	[ALC662_3ST_6ch]	= "3stack-6ch",
 	[ALC662_5ST_DIG]	= "6stack-dig",
 	[ALC662_LENOVO_101E]	= "lenovo-101e",
+	[ALC662_ASUS_EEEPC_P701] = "eeepc-p701",
 	[ALC662_AUTO]		= "auto",
 };
 
