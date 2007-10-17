@@ -26,9 +26,6 @@ extern int strncmp(const char *cs, const char *ct, size_t count);
 #define __HAVE_ARCH_STRCHR
 extern char *strchr(const char *s, int c);
 
-#define __HAVE_ARCH_STRRCHR
-extern char *strrchr(const char *s, int c);
-
 #define __HAVE_ARCH_STRLEN
 extern size_t strlen(const char *s);
 
