@@ -94,8 +94,9 @@ static int proc_read_escd(char *buf, char **start, off_t pos,
 
 	/* sanity check */
 	if (escd_size > MAX_SANE_ESCD_SIZE) {
-		printk(KERN_ERR
-		       "PnPBIOS: proc_read_escd: ESCD size reported by BIOS read_escd call is too great\n");
+		printk(KERN_ERR "PnPBIOS: proc_read_escd: ESCD size reported by"
+				" BIOS read_escd call is too great\n");
+		kfree(tmpbuf);
 		return -EFBIG;
 	}
 
