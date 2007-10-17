@@ -349,10 +349,10 @@ __cpuinit int unsynchronized_tsc(void)
 
 static void __init check_geode_tsc_reliable(void)
 {
-	unsigned long val;
+	unsigned long res_low, res_high;
 
-	rdmsrl(MSR_GEODE_BUSCONT_CONF0, val);
-	if ((val & RTSC_SUSP))
+	rdmsr_safe(MSR_GEODE_BUSCONT_CONF0, &res_low, &res_high);
+	if (res_low & RTSC_SUSP)
 		clocksource_tsc.flags &= ~CLOCK_SOURCE_MUST_VERIFY;
 }
 #else
