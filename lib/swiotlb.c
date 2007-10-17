@@ -696,7 +696,7 @@ swiotlb_map_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
 				/* Don't panic here, we expect map_sg users
 				   to do proper error handling. */
 				swiotlb_full(hwdev, sg->length, dir, 0);
-				swiotlb_unmap_sg(hwdev, sg - i, i, dir);
+				swiotlb_unmap_sg(hwdev, sgl, i, dir);
 				sgl[0].dma_length = 0;
 				return 0;
 			}
