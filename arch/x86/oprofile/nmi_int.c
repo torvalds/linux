@@ -269,7 +269,6 @@ static void nmi_cpu_shutdown(void * dummy)
 	apic_write(APIC_LVTPC, saved_lvtpc[cpu]);
 	apic_write(APIC_LVTERR, v);
 	nmi_restore_registers(msrs);
-	model->shutdown(msrs);
 }
 
  
@@ -278,6 +277,7 @@ static void nmi_shutdown(void)
 	nmi_enabled = 0;
 	on_each_cpu(nmi_cpu_shutdown, NULL, 0, 1);
 	unregister_die_notifier(&profile_exceptions_nb);
+	model->shutdown(cpu_msrs);
 	free_msrs();
 }
 
