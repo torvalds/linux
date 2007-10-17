@@ -570,7 +570,6 @@ extern int afs_abort_to_error(u32);
  */
 extern const struct inode_operations afs_mntpt_inode_operations;
 extern const struct file_operations afs_mntpt_file_operations;
-extern unsigned long afs_mntpt_expiry_timeout;
 
 extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
 extern void afs_mntpt_kill_timer(void);

@@ -15,8 +15,8 @@
 #include <linux/sched.h>
 #include "internal.h"
 
-unsigned afs_vlocation_timeout = 10;	/* volume location timeout in seconds */
-unsigned afs_vlocation_update_timeout = 10 * 60;
+static unsigned afs_vlocation_timeout = 10;	/* volume location timeout in seconds */
+static unsigned afs_vlocation_update_timeout = 10 * 60;
 
 static void afs_vlocation_reaper(struct work_struct *);
 static void afs_vlocation_updater(struct work_struct *);
@@ -335,7 +335,7 @@ static int afs_vlocation_fill_in_record(struct afs_vlocation *vl,
 /*
  * queue a vlocation record for updates
  */
-void afs_vlocation_queue_for_updates(struct afs_vlocation *vl)
+static void afs_vlocation_queue_for_updates(struct afs_vlocation *vl)
 {
 	struct afs_vlocation *xvl;
 

@@ -239,7 +239,8 @@ void afs_flat_call_destructor(struct afs_call *call)
 /*
  * attach the data from a bunch of pages on an inode to a call
  */
-int afs_send_pages(struct afs_call *call, struct msghdr *msg, struct kvec *iov)
+static int afs_send_pages(struct afs_call *call, struct msghdr *msg,
+			  struct kvec *iov)
 {
 	struct page *pages[8];
 	unsigned count, n, loop, offset, to;

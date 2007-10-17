@@ -265,6 +265,7 @@ struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz)
 	return cell;
 }
 
+#if 0
 /*
  * try and get a cell record
  */
@@ -280,6 +281,7 @@ struct afs_cell *afs_get_cell_maybe(struct afs_cell *cell)
 	write_unlock(&afs_cells_lock);
 	return cell;
 }
+#endif  /*  0  */
 
 /*
  * destroy a cell record

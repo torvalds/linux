@@ -513,7 +513,7 @@ static void afs_proc_cell_volumes_stop(struct seq_file *p, void *v)
 	up_read(&cell->vl_sem);
 }
 
-const char afs_vlocation_states[][4] = {
+static const char afs_vlocation_states[][4] = {
 	[AFS_VL_NEW]			= "New",
 	[AFS_VL_CREATING]		= "Crt",
 	[AFS_VL_VALID]			= "Val",

@@ -510,9 +510,9 @@ int afs_writepage(struct page *page, struct writeback_control *wbc)
 /*
  * write a region of pages back to the server
  */
-int afs_writepages_region(struct address_space *mapping,
-			  struct writeback_control *wbc,
-			  pgoff_t index, pgoff_t end, pgoff_t *_next)
+static int afs_writepages_region(struct address_space *mapping,
+				 struct writeback_control *wbc,
+				 pgoff_t index, pgoff_t end, pgoff_t *_next)
 {
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	struct afs_writeback *wb;

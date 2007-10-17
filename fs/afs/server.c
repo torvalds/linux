@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include "internal.h"
 
-unsigned afs_server_timeout = 10;	/* server timeout in seconds */
+static unsigned afs_server_timeout = 10;	/* server timeout in seconds */
 
 static void afs_reap_server(struct work_struct *);
 

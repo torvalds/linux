@@ -42,7 +42,7 @@ const struct inode_operations afs_mntpt_inode_operations = {
 static LIST_HEAD(afs_vfsmounts);
 static DECLARE_DELAYED_WORK(afs_mntpt_expiry_timer, afs_mntpt_expiry_timed_out);
 
-unsigned long afs_mntpt_expiry_timeout = 10 * 60;
+static unsigned long afs_mntpt_expiry_timeout = 10 * 60;
 
 /*
  * check a symbolic link to see whether it actually encodes a mountpoint

@@ -20,7 +20,9 @@
 #include <linux/sched.h>
 #include "internal.h"
 
+#if 0
 unsigned afs_vnode_update_timeout = 10;
+#endif  /*  0  */
 
 #define afs_breakring_space(server) \
 	CIRC_SPACE((server)->cb_break_head, (server)->cb_break_tail,	\
