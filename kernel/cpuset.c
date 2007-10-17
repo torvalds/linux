@@ -2506,41 +2506,20 @@ int cpuset_mem_spread_node(void)
 EXPORT_SYMBOL_GPL(cpuset_mem_spread_node);
 
 /**
- * cpuset_excl_nodes_overlap - Do we overlap @p's mem_exclusive ancestors?
- * @p: pointer to task_struct of some other task.
+ * cpuset_mems_allowed_intersects - Does @tsk1's mems_allowed intersect @tsk2's?
+ * @tsk1: pointer to task_struct of some task.
+ * @tsk2: pointer to task_struct of some other task.
  *
- * Description: Return true if the nearest mem_exclusive ancestor
- * cpusets of tasks @p and current overlap.  Used by oom killer to
- * determine if task @p's memory usage might impact the memory
- * available to the current task.
- *
- * Call while holding callback_mutex.
+ * Description: Return true if @tsk1's mems_allowed intersects the
+ * mems_allowed of @tsk2.  Used by the OOM killer to determine if
+ * one of the task's memory usage might impact the memory available
+ * to the other.
  **/
 
-int cpuset_excl_nodes_overlap(const struct task_struct *p)
+int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
+				   const struct task_struct *tsk2)
 {
-	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
-	int overlap = 1;		/* do cpusets overlap? */
-
-	task_lock(current);
-	if (current->flags & PF_EXITING) {
-		task_unlock(current);
-		goto done;
-	}
-	cs1 = nearest_exclusive_ancestor(current->cpuset);
-	task_unlock(current);
-
-	task_lock((struct task_struct *)p);
-	if (p->flags & PF_EXITING) {
-		task_unlock((struct task_struct *)p);
-		goto done;
-	}
-	cs2 = nearest_exclusive_ancestor(p->cpuset);
-	task_unlock((struct task_struct *)p);
-
-	overlap = nodes_intersects(cs1->mems_allowed, cs2->mems_allowed);
-done:
-	return overlap;
+	return nodes_intersects(tsk1->mems_allowed, tsk2->mems_allowed);
 }
 
 /*

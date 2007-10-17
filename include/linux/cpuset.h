@@ -45,7 +45,8 @@ static int inline cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
 		__cpuset_zone_allowed_hardwall(z, gfp_mask);
 }
 
-extern int cpuset_excl_nodes_overlap(const struct task_struct *p);
+extern int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
+					  const struct task_struct *tsk2);
 
 #define cpuset_memory_pressure_bump() 				\
 	do {							\
@@ -113,7 +114,8 @@ static inline int cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
 	return 1;
 }
 
-static inline int cpuset_excl_nodes_overlap(const struct task_struct *p)
+static inline int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
+						 const struct task_struct *tsk2)
 {
 	return 1;
 }
