@@ -170,15 +170,15 @@ union l3_cache {
 	unsigned val;
 };
 
-static const unsigned short assocs[] = {
+static unsigned short assocs[] __cpuinitdata = {
 	[1] = 1, [2] = 2, [4] = 4, [6] = 8,
 	[8] = 16, [0xa] = 32, [0xb] = 48,
 	[0xc] = 64,
 	[0xf] = 0xffff // ??
 };
 
-static const unsigned char levels[] = { 1, 1, 2, 3 };
-static const unsigned char types[] = { 1, 2, 3, 3 };
+static unsigned char levels[] __cpuinitdata = { 1, 1, 2, 3 };
+static unsigned char types[] __cpuinitdata = { 1, 2, 3, 3 };
 
 static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 		       union _cpuid4_leaf_ebx *ebx,
@@ -493,8 +493,8 @@ static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 	}
 }
 #else
-static void __init cache_shared_cpu_map_setup(unsigned int cpu, int index) {}
-static void __init cache_remove_shared_cpu_map(unsigned int cpu, int index) {}
+static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index) {}
+static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index) {}
 #endif
 
 static void free_cache_attributes(unsigned int cpu)
