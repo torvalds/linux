@@ -22,36 +22,39 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{"", 0}
 };
 
-static void reserve_range(const char *pnpid, resource_size_t start,
+static void reserve_range(struct pnp_dev *dev, resource_size_t start,
 			  resource_size_t end, int port)
 {
-	struct resource *res;
 	char *regionid;
+	const char *pnpid = dev->dev.bus_id;
+	struct resource *res;
 
 	regionid = kmalloc(16, GFP_KERNEL);
-	if (regionid == NULL)
+	if (!regionid)
 		return;
+
 	snprintf(regionid, 16, "pnp %s", pnpid);
 	if (port)
 		res = request_region(start, end - start + 1, regionid);
 	else
 		res = request_mem_region(start, end - start + 1, regionid);
-	if (res == NULL)
-		kfree(regionid);
-	else
+	if (res)
 		res->flags &= ~IORESOURCE_BUSY;
+	else
+		kfree(regionid);
+
 	/*
 	 * Failures at this point are usually harmless. pci quirks for
 	 * example do reserve stuff they know about too, so we may well
 	 * have double reservations.
 	 */
-	printk(KERN_INFO "pnp: %s: %s range 0x%llx-0x%llx %s reserved\n",
-	       pnpid, port ? "ioport" : "iomem",
-	       (unsigned long long)start, (unsigned long long)end,
-	       NULL != res ? "has been" : "could not be");
+	dev_info(&dev->dev, "%s range 0x%llx-0x%llx %s reserved\n",
+		port ? "ioport" : "iomem",
+		(unsigned long long) start, (unsigned long long) end,
+		res ? "has been" : "could not be");
 }
 
-static void reserve_resources_of_dev(const struct pnp_dev *dev)
+static void reserve_resources_of_dev(struct pnp_dev *dev)
 {
 	int i;
 
@@ -73,7 +76,7 @@ static void reserve_resources_of_dev(const struct pnp_dev *dev)
 		if (pnp_port_end(dev, i) < pnp_port_start(dev, i))
 			continue;	/* invalid */
 
-		reserve_range(dev->dev.bus_id, pnp_port_start(dev, i),
+		reserve_range(dev, pnp_port_start(dev, i),
 			      pnp_port_end(dev, i), 1);
 	}
 
@@ -81,7 +84,7 @@ static void reserve_resources_of_dev(const struct pnp_dev *dev)
 		if (!pnp_mem_valid(dev, i))
 			continue;
 
-		reserve_range(dev->dev.bus_id, pnp_mem_start(dev, i),
+		reserve_range(dev, pnp_mem_start(dev, i),
 			      pnp_mem_end(dev, i), 0);
 	}
 }
