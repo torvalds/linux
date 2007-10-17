@@ -38,8 +38,8 @@ note_buf_t* crash_notes;
 /* vmcoreinfo stuff */
 unsigned char vmcoreinfo_data[VMCOREINFO_BYTES];
 u32 vmcoreinfo_note[VMCOREINFO_NOTE_SIZE/4];
-unsigned int vmcoreinfo_size = 0;
-unsigned int vmcoreinfo_max_size = sizeof(vmcoreinfo_data);
+size_t vmcoreinfo_size;
+size_t vmcoreinfo_max_size = sizeof(vmcoreinfo_data);
 
 /* Location of the reserved area for the crash kernel */
 struct resource crashk_res = {
@@ -1153,7 +1153,7 @@ void crash_save_vmcoreinfo(void)
 	if (!vmcoreinfo_size)
 		return;
 
-	vmcoreinfo_append_str("CRASHTIME=%d", xtime.tv_sec);
+	vmcoreinfo_append_str("CRASHTIME=%ld", get_seconds());
 
 	buf = (u32 *)vmcoreinfo_note;
 
@@ -1195,8 +1195,8 @@ unsigned long __attribute__ ((weak)) paddr_vmcoreinfo_note(void)
 
 static int __init crash_save_vmcoreinfo_init(void)
 {
-	vmcoreinfo_append_str("OSRELEASE=%s\n", UTS_RELEASE);
-	vmcoreinfo_append_str("PAGESIZE=%d\n", PAGE_SIZE);
+	vmcoreinfo_append_str("OSRELEASE=%s\n", init_uts_ns.name.release);
+	vmcoreinfo_append_str("PAGESIZE=%ld\n", PAGE_SIZE);
 
 	SYMBOL(init_uts_ns);
 	SYMBOL(node_online_map);

@@ -66,7 +66,7 @@ static ssize_t vmcoreinfo_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%lx %x\n",
 		       paddr_vmcoreinfo_note(),
-		       vmcoreinfo_max_size);
+		       (unsigned int)vmcoreinfo_max_size);
 }
 KERNEL_ATTR_RO(vmcoreinfo);
 
