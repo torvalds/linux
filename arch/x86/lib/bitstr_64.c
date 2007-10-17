@@ -14,7 +14,7 @@ find_next_zero_string(unsigned long *bitmap, long start, long nbits, int len)
 	
 	/* could test bitsliced, but it's hardly worth it */
 	end = n+len;
-	if (end >= nbits) 
+	if (end > nbits)
 		return -1; 
 	for (i = n+1; i < end; i++) { 
 		if (test_bit(i, bitmap)) {  
