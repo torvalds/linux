@@ -730,6 +730,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	/* Some simple consistency checks for the interpreter */
 	if (elf_interpreter) {
+		static int warn;
 		interpreter_type = INTERPRETER_ELF | INTERPRETER_AOUT;
 
 		/* Now figure out which format our binary is */
@@ -740,6 +741,13 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 		if (memcmp(loc->interp_elf_ex.e_ident, ELFMAG, SELFMAG) != 0)
 			interpreter_type &= ~INTERPRETER_ELF;
+
+		if (interpreter_type == INTERPRETER_AOUT && warn < 10) {
+			printk(KERN_WARNING "a.out ELF interpreter %s is "
+				"deprecated and will not be supported "
+				"after Linux 2.6.25\n", elf_interpreter);
+			warn++;
+		}
 
 		retval = -ELIBBAD;
 		if (!interpreter_type)
