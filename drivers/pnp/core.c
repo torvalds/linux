@@ -125,9 +125,11 @@ int __pnp_add_device(struct pnp_dev *dev)
 	spin_unlock(&pnp_lock);
 
 	ret = device_register(&dev->dev);
-	if (ret == 0)
-		pnp_interface_attach_device(dev);
-	return ret;
+	if (ret)
+		return ret;
+
+	pnp_interface_attach_device(dev);
+	return 0;
 }
 
 /*
@@ -138,12 +140,30 @@ int __pnp_add_device(struct pnp_dev *dev)
  */
 int pnp_add_device(struct pnp_dev *dev)
 {
+	int ret;
+
 	if (dev->card)
 		return -EINVAL;
+
 	dev->dev.parent = &dev->protocol->dev;
 	sprintf(dev->dev.bus_id, "%02x:%02x", dev->protocol->number,
 		dev->number);
-	return __pnp_add_device(dev);
+	ret = __pnp_add_device(dev);
+	if (ret)
+		return ret;
+
+#ifdef CONFIG_PNP_DEBUG
+	{
+		struct pnp_id *id;
+
+		dev_printk(KERN_DEBUG, &dev->dev, "%s device, IDs",
+			dev->protocol->name);
+		for (id = dev->id; id; id = id->next)
+			printk(" %s", id->id);
+		printk(" (%s)\n", dev->active ? "active" : "disabled");
+	}
+#endif
+	return 0;
 }
 
 void __pnp_remove_device(struct pnp_dev *dev)

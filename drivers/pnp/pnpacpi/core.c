@@ -171,7 +171,6 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	    is_exclusive_device(device))
 		return 0;
 
-	pnp_dbg("ACPI device : hid %s", acpi_device_hid(device));
 	dev = kzalloc(sizeof(struct pnp_dev), GFP_KERNEL);
 	if (!dev) {
 		pnp_err("Out of memory");
