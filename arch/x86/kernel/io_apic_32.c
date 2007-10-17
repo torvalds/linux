@@ -1296,6 +1296,11 @@ static void __init setup_IO_APIC_irqs(void)
 			continue;
 		}
 
+		if (!first_notcon) {
+			apic_printk(APIC_VERBOSE, " not connected.\n");
+			first_notcon = 1;
+		}
+
 		entry.trigger = irq_trigger(idx);
 		entry.polarity = irq_polarity(idx);
 

@@ -875,6 +875,10 @@ static void __init setup_IO_APIC_irqs(void)
 				apic_printk(APIC_VERBOSE, ", %d-%d", mp_ioapics[apic].mpc_apicid, pin);
 			continue;
 		}
+		if (!first_notcon) {
+			apic_printk(APIC_VERBOSE, " not connected.\n");
+			first_notcon = 1;
+		}
 
 		irq = pin_2_irq(idx, apic, pin);
 		add_pin_to_irq(irq, apic, pin);
@@ -885,7 +889,7 @@ static void __init setup_IO_APIC_irqs(void)
 	}
 
 	if (!first_notcon)
-		apic_printk(APIC_VERBOSE," not connected.\n");
+		apic_printk(APIC_VERBOSE, " not connected.\n");
 }
 
 /*
