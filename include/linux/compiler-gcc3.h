@@ -1,4 +1,6 @@
-/* Never include this file directly.  Include <linux/compiler.h> instead.  */
+#ifndef __LINUX_COMPILER_H
+#error "Please don't include <linux/compiler-gcc3.h> directly, include <linux/compiler.h> instead."
+#endif
 
 /* These definitions are for GCC v3.x.  */
 #include <linux/compiler-gcc.h>
