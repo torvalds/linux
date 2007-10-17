@@ -669,17 +669,27 @@ void con_protect_unimap(struct vc_data *vc, int rdonly)
 		p->readonly = rdonly;
 }
 
+/*
+ * Always use USER_MAP. These functions are used by the keyboard,
+ * which shouldn't be affected by G0/G1 switching, etc.
+ * If the user map still contains default values, i.e. the
+ * direct-to-font mapping, then assume user is using Latin1.
+ */
 /* may be called during an interrupt */
 u32 conv_8bit_to_uni(unsigned char c)
 {
-	/*
-	 * Always use USER_MAP. This function is used by the keyboard,
-	 * which shouldn't be affected by G0/G1 switching, etc.
-	 * If the user map still contains default values, i.e. the
-	 * direct-to-font mapping, then assume user is using Latin1.
-	 */
 	unsigned short uni = translations[USER_MAP][c];
 	return uni == (0xf000 | c) ? c : uni;
+}
+
+int conv_uni_to_8bit(u32 uni)
+{
+	int c;
+	for (c = 0; c < 0x100; c++)
+		if (translations[USER_MAP][c] == uni ||
+		   (translations[USER_MAP][c] == (c | 0xf000) && uni == c))
+			return c;
+	return -1;
 }
 
 int

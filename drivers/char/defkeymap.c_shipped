@@ -222,7 +222,7 @@ char *func_table[MAX_NR_FUNC] = {
 	NULL,
 };
 
-struct kbdiacr accent_table[MAX_DIACR] = {
+struct kbdiacruc accent_table[MAX_DIACR] = {
 	{'`', 'A', '\300'},	{'`', 'a', '\340'},
 	{'\'', 'A', '\301'},	{'\'', 'a', '\341'},
 	{'^', 'A', '\302'},	{'^', 'a', '\342'},

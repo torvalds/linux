@@ -38,6 +38,7 @@
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
 #include <linux/vt_kern.h>
+#include <linux/consolemap.h>
 #include <linux/sysrq.h>
 #include <linux/input.h>
 #include <linux/reboot.h>
@@ -403,9 +404,12 @@ static unsigned int handle_diacr(struct vc_data *vc, unsigned int ch)
 		return d;
 
 	if (kbd->kbdmode == VC_UNICODE)
-		to_utf8(vc, conv_8bit_to_uni(d));
-	else if (d < 0x100)
-		put_queue(vc, d);
+		to_utf8(vc, d);
+	else {
+		int c = conv_uni_to_8bit(d);
+		if (c != -1)
+			put_queue(vc, c);
+	}
 
 	return ch;
 }
@@ -417,9 +421,12 @@ static void fn_enter(struct vc_data *vc)
 {
 	if (diacr) {
 		if (kbd->kbdmode == VC_UNICODE)
-			to_utf8(vc, conv_8bit_to_uni(diacr));
-		else if (diacr < 0x100)
-			put_queue(vc, diacr);
+			to_utf8(vc, diacr);
+		else {
+			int c = conv_uni_to_8bit(diacr);
+			if (c != -1)
+				put_queue(vc, c);
+		}
 		diacr = 0;
 	}
 	put_queue(vc, 13);
@@ -627,9 +634,12 @@ static void k_unicode(struct vc_data *vc, unsigned int value, char up_flag)
 		return;
 	}
 	if (kbd->kbdmode == VC_UNICODE)
-		to_utf8(vc, conv_8bit_to_uni(value));
-	else if (value < 0x100)
-		put_queue(vc, value);
+		to_utf8(vc, value);
+	else {
+		int c = conv_uni_to_8bit(value);
+		if (c != -1)
+			put_queue(vc, c);
+	}
 }
 
 /*
@@ -646,7 +656,12 @@ static void k_deadunicode(struct vc_data *vc, unsigned int value, char up_flag)
 
 static void k_self(struct vc_data *vc, unsigned char value, char up_flag)
 {
-	k_unicode(vc, value, up_flag);
+	unsigned int uni;
+	if (kbd->kbdmode == VC_UNICODE)
+		uni = value;
+	else
+		uni = conv_8bit_to_uni(value);
+	k_unicode(vc, uni, up_flag);
 }
 
 static void k_dead2(struct vc_data *vc, unsigned char value, char up_flag)

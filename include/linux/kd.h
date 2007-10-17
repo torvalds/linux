@@ -125,6 +125,16 @@ struct kbdiacrs {
 #define KDGKBDIACR      0x4B4A  /* read kernel accent table */
 #define KDSKBDIACR      0x4B4B  /* write kernel accent table */
 
+struct kbdiacruc {
+        __u32 diacr, base, result;
+};
+struct kbdiacrsuc {
+        unsigned int kb_cnt;    /* number of entries in following array */
+	struct kbdiacruc kbdiacruc[256];    /* MAX_DIACR from keyboard.h */
+};
+#define KDGKBDIACRUC    0x4BFA  /* read kernel accent table - UCS */
+#define KDSKBDIACRUC    0x4BFB  /* write kernel accent table - UCS */
+
 struct kbkeycode {
 	unsigned int scancode, keycode;
 };

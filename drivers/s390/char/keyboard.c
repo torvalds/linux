@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/sysrq.h>
 
+#include <linux/consolemap.h>
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
 #include <asm/uaccess.h>
@@ -82,11 +83,11 @@ kbd_alloc(void) {
 	if (!kbd->fn_handler)
 		goto out_func;
 	kbd->accent_table =
-		kmalloc(sizeof(struct kbdiacr)*MAX_DIACR, GFP_KERNEL);
+		kmalloc(sizeof(struct kbdiacruc)*MAX_DIACR, GFP_KERNEL);
 	if (!kbd->accent_table)
 		goto out_fn_handler;
 	memcpy(kbd->accent_table, accent_table,
-	       sizeof(struct kbdiacr)*MAX_DIACR);
+	       sizeof(struct kbdiacruc)*MAX_DIACR);
 	kbd->accent_table_size = accent_table_size;
 	return kbd;
 
@@ -183,8 +184,8 @@ kbd_ebcasc(struct kbd_data *kbd, unsigned char *ebcasc)
  * Otherwise, conclude that DIACR was not combining after all,
  * queue it and return CH.
  */
-static unsigned char
-handle_diacr(struct kbd_data *kbd, unsigned char ch)
+static unsigned int
+handle_diacr(struct kbd_data *kbd, unsigned int ch)
 {
 	int i, d;
 
@@ -460,7 +461,6 @@ int
 kbd_ioctl(struct kbd_data *kbd, struct file *file,
 	  unsigned int cmd, unsigned long arg)
 {
-	struct kbdiacrs __user *a;
 	void __user *argp;
 	int ct, perm;
 
@@ -481,17 +481,40 @@ kbd_ioctl(struct kbd_data *kbd, struct file *file,
 	case KDSKBSENT:
 		return do_kdgkb_ioctl(kbd, argp, cmd, perm);
 	case KDGKBDIACR:
-		a = argp;
+	{
+		struct kbdiacrs __user *a = argp;
+		struct kbdiacr diacr;
+		int i;
 
 		if (put_user(kbd->accent_table_size, &a->kb_cnt))
 			return -EFAULT;
+		for (i = 0; i < kbd->accent_table_size; i++) {
+			diacr.diacr = kbd->accent_table[i].diacr;
+			diacr.base = kbd->accent_table[i].base;
+			diacr.result = kbd->accent_table[i].result;
+			if (copy_to_user(a->kbdiacr + i, &diacr, sizeof(struct kbdiacr)))
+			return -EFAULT;
+		}
+		return 0;
+	}
+	case KDGKBDIACRUC:
+	{
+		struct kbdiacrsuc __user *a = argp;
+
 		ct = kbd->accent_table_size;
-		if (copy_to_user(a->kbdiacr, kbd->accent_table,
-				 ct * sizeof(struct kbdiacr)))
+		if (put_user(ct, &a->kb_cnt))
+			return -EFAULT;
+		if (copy_to_user(a->kbdiacruc, kbd->accent_table,
+				 ct * sizeof(struct kbdiacruc)))
 			return -EFAULT;
 		return 0;
+	}
 	case KDSKBDIACR:
-		a = argp;
+	{
+		struct kbdiacrs __user *a = argp;
+		struct kbdiacr diacr;
+		int i;
+
 		if (!perm)
 			return -EPERM;
 		if (get_user(ct, &a->kb_cnt))
@@ -499,10 +522,31 @@ kbd_ioctl(struct kbd_data *kbd, struct file *file,
 		if (ct >= MAX_DIACR)
 			return -EINVAL;
 		kbd->accent_table_size = ct;
-		if (copy_from_user(kbd->accent_table, a->kbdiacr,
-				   ct * sizeof(struct kbdiacr)))
+		for (i = 0; i < ct; i++) {
+			if (copy_from_user(&diacr, a->kbdiacr + i, sizeof(struct kbdiacr)))
+				return -EFAULT;
+			kbd->accent_table[i].diacr = diacr.diacr;
+			kbd->accent_table[i].base = diacr.base;
+			kbd->accent_table[i].result = diacr.result;
+		}
+		return 0;
+	}
+	case KDSKBDIACRUC:
+	{
+		struct kbdiacrsuc __user *a = argp;
+
+		if (!perm)
+			return -EPERM;
+		if (get_user(ct, &a->kb_cnt))
+			return -EFAULT;
+		if (ct >= MAX_DIACR)
+			return -EINVAL;
+		kbd->accent_table_size = ct;
+		if (copy_from_user(kbd->accent_table, a->kbdiacruc,
+				   ct * sizeof(struct kbdiacruc)))
 			return -EFAULT;
 		return 0;
+	}
 	default:
 		return -ENOIOCTLCMD;
 	}
