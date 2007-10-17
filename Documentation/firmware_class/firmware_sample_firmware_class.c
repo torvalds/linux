@@ -109,15 +109,15 @@ static int fw_setup_class_device(struct class_device *class_dev,
 				 const char *fw_name,
 				 struct device *device)
 {
-	int retval = 0;
-	struct firmware_priv *fw_priv = kmalloc(sizeof(struct firmware_priv),
-						GFP_KERNEL);
+	int retval;
+	struct firmware_priv *fw_priv;
 
-	if(!fw_priv){
+	fw_priv = kzalloc(sizeof(struct firmware_priv),	GFP_KERNEL);
+	if (!fw_priv) {
 		retval = -ENOMEM;
 		goto out;
 	}
-	memset(fw_priv, 0, sizeof(*fw_priv));
+
 	memset(class_dev, 0, sizeof(*class_dev));
 
 	strncpy(fw_priv->fw_id, fw_name, FIRMWARE_NAME_MAX);
