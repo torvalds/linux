@@ -100,6 +100,15 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
 	return desc;
 }
 
+static inline int
+block_in_use(ext4_fsblk_t block, struct super_block *sb, unsigned char *map)
+{
+	ext4_grpblk_t offset;
+
+	ext4_get_group_no_and_offset(sb, block, NULL, &offset);
+	return ext4_test_bit (offset, map);
+}
+
 /**
  * read_block_bitmap()
  * @sb:			super block
@@ -113,21 +122,53 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
 static struct buffer_head *
 read_block_bitmap(struct super_block *sb, unsigned int block_group)
 {
+	int i;
 	struct ext4_group_desc * desc;
 	struct buffer_head * bh = NULL;
+	ext4_fsblk_t bitmap_blk;
 
 	desc = ext4_get_group_desc (sb, block_group, NULL);
 	if (!desc)
-		goto error_out;
-	bh = sb_bread(sb, ext4_block_bitmap(sb, desc));
+		return NULL;
+	bitmap_blk = ext4_block_bitmap(sb, desc);
+	bh = sb_bread(sb, bitmap_blk);
 	if (!bh)
-		ext4_error (sb, "read_block_bitmap",
+		ext4_error (sb, __FUNCTION__,
 			    "Cannot read block bitmap - "
 			    "block_group = %d, block_bitmap = %llu",
-			    block_group,
-			    ext4_block_bitmap(sb, desc));
-error_out:
+			    block_group, bitmap_blk);
+
+	/* check whether block bitmap block number is set */
+	if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
+		/* bad block bitmap */
+		goto error_out;
+	}
+
+	/* check whether the inode bitmap block number is set */
+	bitmap_blk = ext4_inode_bitmap(sb, desc);
+	if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
+		/* bad block bitmap */
+		goto error_out;
+	}
+	/* check whether the inode table block number is set */
+	bitmap_blk = ext4_inode_table(sb, desc);
+	for (i = 0; i < EXT4_SB(sb)->s_itb_per_group; i++, bitmap_blk++) {
+		if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
+			/* bad block bitmap */
+			goto error_out;
+		}
+	}
+
 	return bh;
+
+error_out:
+	brelse(bh);
+	ext4_error(sb, __FUNCTION__,
+			"Invalid block bitmap - "
+			"block_group = %d, block = %llu",
+			block_group, bitmap_blk);
+	return NULL;
+
 }
 /*
  * The reservation window structure operations
@@ -1745,15 +1786,6 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 
 	return desc_count;
 #endif
-}
-
-static inline int
-block_in_use(ext4_fsblk_t block, struct super_block *sb, unsigned char *map)
-{
-	ext4_grpblk_t offset;
-
-	ext4_get_group_no_and_offset(sb, block, NULL, &offset);
-	return ext4_test_bit (offset, map);
 }
 
 static inline int test_root(int a, int b)
