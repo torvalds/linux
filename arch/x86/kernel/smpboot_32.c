@@ -1021,6 +1021,12 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	if (!max_cpus) {
 		smp_found_config = 0;
 		printk(KERN_INFO "SMP mode deactivated, forcing use of dummy APIC emulation.\n");
+
+		if (nmi_watchdog == NMI_LOCAL_APIC) {
+			printk(KERN_INFO "activating minimal APIC for NMI watchdog use.\n");
+			connect_bsp_APIC();
+			setup_local_APIC();
+		}
 		smpboot_clear_io_apic_irqs();
 		phys_cpu_present_map = physid_mask_of_physid(0);
 		cpu_set(0, per_cpu(cpu_sibling_map, 0));
