@@ -83,7 +83,7 @@ static void sibyte_set_mode(enum clock_event_mode mode,
 	void __iomem *timer_cfg, *timer_init;
 
 	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
 	switch(mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
@@ -111,7 +111,7 @@ sibyte_next_event(unsigned long delta, struct clock_event_device *evt)
 	void __iomem *timer_cfg, *timer_init;
 
 	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
 	__raw_writeq(0, timer_cfg);
 	__raw_writeq(delta, timer_init);
@@ -155,7 +155,7 @@ static void sibyte_set_mode(enum clock_event_mode mode,
 	void __iomem *timer_cfg, *timer_init;
 
 	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
@@ -183,7 +183,7 @@ sibyte_next_event(unsigned long delta, struct clock_event_device *evt)
 	void __iomem *timer_cfg, *timer_init;
 
 	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
 	__raw_writeq(0, timer_cfg);
 	__raw_writeq(delta, timer_init);
