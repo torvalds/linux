@@ -38,55 +38,40 @@
 
 /*
   * Option Parsing (code inspired by NFS code)
-  *
+  *  NOTE: each transport will parse its own options
   */
 
 enum {
 	/* Options that take integer arguments */
-	Opt_debug, Opt_port, Opt_msize, Opt_uid, Opt_gid, Opt_afid,
-	Opt_rfdno, Opt_wfdno,
+	Opt_debug, Opt_msize, Opt_dfltuid, Opt_dfltgid, Opt_afid,
 	/* String options */
-	Opt_uname, Opt_remotename,
+	Opt_uname, Opt_remotename, Opt_trans,
 	/* Options that take no arguments */
-	Opt_legacy, Opt_nodevmap, Opt_unix, Opt_tcp, Opt_fd, Opt_pci,
+	Opt_legacy, Opt_nodevmap,
 	/* Cache options */
 	Opt_cache_loose,
+	/* Access options */
+	Opt_access,
 	/* Error token */
 	Opt_err
 };
 
 static match_table_t tokens = {
 	{Opt_debug, "debug=%x"},
-	{Opt_port, "port=%u"},
 	{Opt_msize, "msize=%u"},
-	{Opt_uid, "uid=%u"},
-	{Opt_gid, "gid=%u"},
+	{Opt_dfltuid, "dfltuid=%u"},
+	{Opt_dfltgid, "dfltgid=%u"},
 	{Opt_afid, "afid=%u"},
-	{Opt_rfdno, "rfdno=%u"},
-	{Opt_wfdno, "wfdno=%u"},
 	{Opt_uname, "uname=%s"},
 	{Opt_remotename, "aname=%s"},
-	{Opt_unix, "proto=unix"},
-	{Opt_tcp, "proto=tcp"},
-	{Opt_fd, "proto=fd"},
-#ifdef CONFIG_PCI_9P
-	{Opt_pci, "proto=pci"},
-#endif
-	{Opt_tcp, "tcp"},
-	{Opt_unix, "unix"},
-	{Opt_fd, "fd"},
+	{Opt_trans, "trans=%s"},
 	{Opt_legacy, "noextend"},
 	{Opt_nodevmap, "nodevmap"},
 	{Opt_cache_loose, "cache=loose"},
 	{Opt_cache_loose, "loose"},
+	{Opt_access, "access=%s"},
 	{Opt_err, NULL}
 };
-
-extern struct p9_transport *p9pci_trans_create(void);
-
-/*
- *  Parse option string.
- */
 
 /**
  * v9fs_parse_options - parse mount options into session structure
@@ -95,23 +80,21 @@ extern struct p9_transport *p9pci_trans_create(void);
  *
  */
 
-static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
+static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 {
-	char *p;
+	char *options = v9ses->options;
 	substring_t args[MAX_OPT_ARGS];
+	char *p;
 	int option;
 	int ret;
+	char *s, *e;
 
 	/* setup defaults */
-	v9ses->port = V9FS_PORT;
-	v9ses->maxdata = 9000;
-	v9ses->proto = PROTO_TCP;
-	v9ses->extended = 1;
+	v9ses->maxdata = 8192;
 	v9ses->afid = ~0;
 	v9ses->debug = 0;
-	v9ses->rfdno = ~0;
-	v9ses->wfdno = ~0;
 	v9ses->cache = 0;
+	v9ses->trans = v9fs_default_trans();
 
 	if (!options)
 		return;
@@ -135,47 +118,29 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 			p9_debug_level = option;
 #endif
 			break;
-		case Opt_port:
-			v9ses->port = option;
-			break;
 		case Opt_msize:
 			v9ses->maxdata = option;
 			break;
-		case Opt_uid:
-			v9ses->uid = option;
+		case Opt_dfltuid:
+			v9ses->dfltuid = option;
 			break;
-		case Opt_gid:
-			v9ses->gid = option;
+		case Opt_dfltgid:
+			v9ses->dfltgid = option;
 			break;
 		case Opt_afid:
 			v9ses->afid = option;
 			break;
-		case Opt_rfdno:
-			v9ses->rfdno = option;
-			break;
-		case Opt_wfdno:
-			v9ses->wfdno = option;
-			break;
-		case Opt_tcp:
-			v9ses->proto = PROTO_TCP;
-			break;
-		case Opt_unix:
-			v9ses->proto = PROTO_UNIX;
-			break;
-		case Opt_pci:
-			v9ses->proto = PROTO_PCI;
-			break;
-		case Opt_fd:
-			v9ses->proto = PROTO_FD;
+		case Opt_trans:
+			v9ses->trans = v9fs_match_trans(&args[0]);
 			break;
 		case Opt_uname:
-			match_strcpy(v9ses->name, &args[0]);
+			match_strcpy(v9ses->uname, &args[0]);
 			break;
 		case Opt_remotename:
-			match_strcpy(v9ses->remotename, &args[0]);
+			match_strcpy(v9ses->aname, &args[0]);
 			break;
 		case Opt_legacy:
-			v9ses->extended = 0;
+			v9ses->flags &= ~V9FS_EXTENDED;
 			break;
 		case Opt_nodevmap:
 			v9ses->nodev = 1;
@@ -183,6 +148,22 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 		case Opt_cache_loose:
 			v9ses->cache = CACHE_LOOSE;
 			break;
+
+		case Opt_access:
+			s = match_strdup(&args[0]);
+			v9ses->flags &= ~V9FS_ACCESS_MASK;
+			if (strcmp(s, "user") == 0)
+				v9ses->flags |= V9FS_ACCESS_USER;
+			else if (strcmp(s, "any") == 0)
+				v9ses->flags |= V9FS_ACCESS_ANY;
+			else {
+				v9ses->flags |= V9FS_ACCESS_SINGLE;
+				v9ses->uid = simple_strtol(s, &e, 10);
+				if (*e != '\0')
+					v9ses->uid = ~0;
+			}
+			break;
+
 		default:
 			continue;
 		}
@@ -201,56 +182,46 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		  const char *dev_name, char *data)
 {
 	int retval = -EINVAL;
-	struct p9_transport *trans;
+	struct p9_trans *trans = NULL;
 	struct p9_fid *fid;
 
-	v9ses->name = __getname();
-	if (!v9ses->name)
+	v9ses->uname = __getname();
+	if (!v9ses->uname)
 		return ERR_PTR(-ENOMEM);
 
-	v9ses->remotename = __getname();
-	if (!v9ses->remotename) {
-		__putname(v9ses->name);
+	v9ses->aname = __getname();
+	if (!v9ses->aname) {
+		__putname(v9ses->uname);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	strcpy(v9ses->name, V9FS_DEFUSER);
-	strcpy(v9ses->remotename, V9FS_DEFANAME);
+	v9ses->flags = V9FS_EXTENDED | V9FS_ACCESS_USER;
+	strcpy(v9ses->uname, V9FS_DEFUSER);
+	strcpy(v9ses->aname, V9FS_DEFANAME);
+	v9ses->uid = ~0;
+	v9ses->dfltuid = V9FS_DEFUID;
+	v9ses->dfltgid = V9FS_DEFGID;
+	v9ses->options = kstrdup(data, GFP_KERNEL);
+	v9fs_parse_options(v9ses);
 
-	v9fs_parse_options(data, v9ses);
-
-	switch (v9ses->proto) {
-	case PROTO_TCP:
-		trans = p9_trans_create_tcp(dev_name, v9ses->port);
-		break;
-	case PROTO_UNIX:
-		trans = p9_trans_create_unix(dev_name);
-		*v9ses->remotename = 0;
-		break;
-	case PROTO_FD:
-		trans = p9_trans_create_fd(v9ses->rfdno, v9ses->wfdno);
-		*v9ses->remotename = 0;
-		break;
-#ifdef CONFIG_PCI_9P
-	case PROTO_PCI:
-		trans = p9pci_trans_create();
-		*v9ses->remotename = 0;
-		break;
-#endif
-	default:
-		printk(KERN_ERR "v9fs: Bad mount protocol %d\n", v9ses->proto);
-		retval = -ENOPROTOOPT;
+	if (v9ses->trans == NULL) {
+		retval = -EPROTONOSUPPORT;
+		P9_DPRINTK(P9_DEBUG_ERROR,
+				"No transport defined or default transport\n");
 		goto error;
-	};
+	}
 
+	trans = v9ses->trans->create(dev_name, v9ses->options);
 	if (IS_ERR(trans)) {
 		retval = PTR_ERR(trans);
 		trans = NULL;
 		goto error;
 	}
+	if ((v9ses->maxdata+P9_IOHDRSZ) > v9ses->trans->maxsize)
+		v9ses->maxdata = v9ses->trans->maxsize-P9_IOHDRSZ;
 
-	v9ses->clnt = p9_client_create(trans, v9ses->maxdata + P9_IOHDRSZ,
-		v9ses->extended);
+	v9ses->clnt = p9_client_create(trans, v9ses->maxdata+P9_IOHDRSZ,
+		v9fs_extended(v9ses));
 
 	if (IS_ERR(v9ses->clnt)) {
 		retval = PTR_ERR(v9ses->clnt);
@@ -259,14 +230,31 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto error;
 	}
 
-	fid = p9_client_attach(v9ses->clnt, NULL, v9ses->name,
-							v9ses->remotename);
+	if (!v9ses->clnt->dotu)
+		v9ses->flags &= ~V9FS_EXTENDED;
+
+	/* for legacy mode, fall back to V9FS_ACCESS_ANY */
+	if (!v9fs_extended(v9ses) &&
+		((v9ses->flags&V9FS_ACCESS_MASK) == V9FS_ACCESS_USER)) {
+
+		v9ses->flags &= ~V9FS_ACCESS_MASK;
+		v9ses->flags |= V9FS_ACCESS_ANY;
+		v9ses->uid = ~0;
+	}
+
+	fid = p9_client_attach(v9ses->clnt, NULL, v9ses->uname, ~0,
+							v9ses->aname);
 	if (IS_ERR(fid)) {
 		retval = PTR_ERR(fid);
 		fid = NULL;
 		P9_DPRINTK(P9_DEBUG_ERROR, "cannot attach\n");
 		goto error;
 	}
+
+	if ((v9ses->flags & V9FS_ACCESS_MASK) == V9FS_ACCESS_SINGLE)
+		fid->uid = v9ses->uid;
+	else
+		fid->uid = ~0;
 
 	return fid;
 
@@ -288,8 +276,9 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 		v9ses->clnt = NULL;
 	}
 
-	__putname(v9ses->name);
-	__putname(v9ses->remotename);
+	__putname(v9ses->uname);
+	__putname(v9ses->aname);
+	kfree(v9ses->options);
 }
 
 /**
@@ -311,7 +300,7 @@ extern int v9fs_error_init(void);
 static int __init init_v9fs(void)
 {
 	printk(KERN_INFO "Installing v9fs 9p2000 file system support\n");
-
+	/* TODO: Setup list of registered trasnport modules */
 	return register_filesystem(&v9fs_fs_type);
 }
 

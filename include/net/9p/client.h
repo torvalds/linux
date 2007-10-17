@@ -29,7 +29,7 @@ struct p9_client {
 	spinlock_t lock; /* protect client structure */
 	int msize;
 	unsigned char dotu;
-	struct p9_transport *trans;
+	struct p9_trans *trans;
 	struct p9_conn *conn;
 
 	struct p9_idpool *fidpool;
@@ -52,13 +52,14 @@ struct p9_fid {
 	struct list_head dlist;	/* list of all fids attached to a dentry */
 };
 
-struct p9_client *p9_client_create(struct p9_transport *trans, int msize,
+struct p9_client *p9_client_create(struct p9_trans *trans, int msize,
 								int dotu);
 void p9_client_destroy(struct p9_client *clnt);
 void p9_client_disconnect(struct p9_client *clnt);
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
-						     char *uname, char *aname);
-struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname, char *aname);
+					char *uname, u32 n_uname, char *aname);
+struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname,
+						u32 n_uname, char *aname);
 struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 								int clone);
 int p9_client_open(struct p9_fid *fid, int mode);

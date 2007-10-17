@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <net/9p/9p.h>
+#include <linux/parser.h>
 #include <net/9p/transport.h>
 #include <net/9p/conn.h>
 #include <net/9p/client.h>
@@ -38,7 +39,7 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt);
 static void p9_fid_destroy(struct p9_fid *fid);
 static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu);
 
-struct p9_client *p9_client_create(struct p9_transport *trans, int msize,
+struct p9_client *p9_client_create(struct p9_trans *trans, int msize,
 								   int dotu)
 {
 	int err, n;
@@ -146,7 +147,7 @@ void p9_client_disconnect(struct p9_client *clnt)
 EXPORT_SYMBOL(p9_client_disconnect);
 
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
-	char *uname, char *aname)
+	char *uname, u32 n_uname, char *aname)
 {
 	int err;
 	struct p9_fcall *tc, *rc;
@@ -165,7 +166,8 @@ struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 		goto error;
 	}
 
-	tc = p9_create_tattach(fid->fid, afid?afid->fid:P9_NOFID, uname, aname);
+	tc = p9_create_tattach(fid->fid, afid?afid->fid:P9_NOFID, uname, aname,
+		n_uname, clnt->dotu);
 	if (IS_ERR(tc)) {
 		err = PTR_ERR(tc);
 		tc = NULL;
@@ -190,7 +192,8 @@ error:
 }
 EXPORT_SYMBOL(p9_client_attach);
 
-struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname, char *aname)
+struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname,
+	u32 n_uname, char *aname)
 {
 	int err;
 	struct p9_fcall *tc, *rc;
@@ -209,7 +212,7 @@ struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname, char *aname)
 		goto error;
 	}
 
-	tc = p9_create_tauth(fid->fid, uname, aname);
+	tc = p9_create_tauth(fid->fid, uname, aname, n_uname, clnt->dotu);
 	if (IS_ERR(tc)) {
 		err = PTR_ERR(tc);
 		tc = NULL;

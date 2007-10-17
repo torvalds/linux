@@ -162,15 +162,17 @@ v9fs_file_write(struct file *filp, const char __user * data,
 
 	fid = filp->private_data;
 	ret = p9_client_uwrite(fid, data, *offset, count);
-	if (ret > 0)
+	if (ret > 0) {
+		invalidate_inode_pages2_range(inode->i_mapping, *offset,
+								*offset+ret);
 		*offset += ret;
+	}
 
 	if (*offset > inode->i_size) {
 		inode->i_size = *offset;
 		inode->i_blocks = (inode->i_size + 512 - 1) >> 9;
 	}
 
-	invalidate_inode_pages2(inode->i_mapping);
 	return ret;
 }
 

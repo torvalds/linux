@@ -35,12 +35,12 @@ For remote file server:
 
 For Plan 9 From User Space applications (http://swtch.com/plan9)
 
-	mount -t 9p `namespace`/acme /mnt/9 -o proto=unix,uname=$USER
+	mount -t 9p `namespace`/acme /mnt/9 -o trans=unix,uname=$USER
 
 OPTIONS
 =======
 
-  proto=name	select an alternative transport.  Valid options are
+  trans=name	select an alternative transport.  Valid options are
   		currently:
  			unix - specifying a named pipe mount point
  			tcp  - specifying a normal TCP/IP connection
@@ -68,9 +68,9 @@ OPTIONS
 			0x40 = display transport debug
 			0x80 = display allocation debug
 
-  rfdno=n	the file descriptor for reading with proto=fd
+  rfdno=n	the file descriptor for reading with trans=fd
 
-  wfdno=n	the file descriptor for writing with proto=fd
+  wfdno=n	the file descriptor for writing with trans=fd
 
   maxdata=n	the number of bytes to use for 9p packet payload (msize)
 
@@ -78,15 +78,25 @@ OPTIONS
 
   noextend	force legacy mode (no 9p2000.u semantics)
 
-  uid		attempt to mount as a particular uid
+  dfltuid	attempt to mount as a particular uid
 
-  gid		attempt to mount with a particular gid
+  dfltgid	attempt to mount with a particular gid
 
   afid		security channel - used by Plan 9 authentication protocols
 
   nodevmap	do not map special files - represent them as normal files.
   		This can be used to share devices/named pipes/sockets between
 		hosts.  This functionality will be expanded in later versions.
+
+  access	there are three access modes.
+			user  = if a user tries to access a file on v9fs
+			        filesystem for the first time, v9fs sends an
+			        attach command (Tattach) for that user.
+				This is the default mode.
+			<uid> = allows only user with uid=<uid> to access
+				the files on the mounted filesystem
+			any   = v9fs does single attach and performs all
+				operations as one user
 
 RESOURCES
 =========
