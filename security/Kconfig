@@ -74,15 +74,15 @@ config SECURITY_NETWORK_XFRM
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_CAPABILITIES
-	tristate "Default Linux Capabilities"
+	bool "Default Linux Capabilities"
 	depends on SECURITY
 	help
 	  This enables the "default" Linux capabilities functionality.
 	  If you are unsure how to answer this question, answer Y.
 
 config SECURITY_ROOTPLUG
-	tristate "Root Plug Support"
-	depends on USB && SECURITY
+	bool "Root Plug Support"
+	depends on USB=y && SECURITY
 	help
 	  This is a sample LSM module that should only be used as such.
 	  It prevents any programs running with egid == 0 if a specific

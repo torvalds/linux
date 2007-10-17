@@ -75,10 +75,12 @@ parameter is applicable:
 	PPT	Parallel port support is enabled.
 	PS2	Appropriate PS/2 support is enabled.
 	RAM	RAM disk support is enabled.
+	ROOTPLUG The example Root Plug LSM is enabled.
 	S390	S390 architecture is enabled.
 	SCSI	Appropriate SCSI support is enabled.
 			A lot of drivers has their options described inside of
 			Documentation/scsi/.
+	SECURITY Different security models are enabled.
 	SELINUX SELinux support is enabled.
 	SERIAL	Serial support is enabled.
 	SH	SuperH architecture is enabled.
@@ -372,6 +374,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			to fix known problems, but for some CPUs it is not
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
+
+	capability.disable=
+			[SECURITY] Disable capabilities.  This would normally
+			be used only if an alternative security model is to be
+			configured.  Potentially dangerous and should only be
+			used if you are entirely sure of the consequences.
 
 	chandev=	[HW,NET] Generic channel device initialisation
 
@@ -1538,6 +1546,15 @@ and is between 256 and 4096 characters. It is defined in the file
 	rootwait	[KNL] Wait (indefinitely) for root device to show up.
 			Useful for devices that are detected asynchronously
 			(e.g. USB and MMC devices).
+
+	root_plug.vendor_id=
+			[ROOTPLUG] Override the default vendor ID
+
+	root_plug.product_id=
+			[ROOTPLUG] Override the default product ID
+
+	root_plug.debug=
+			[ROOTPLUG] Enable debugging output
 
 	rw		[KNL] Mount root device read-write on boot
 

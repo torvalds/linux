@@ -339,6 +339,3 @@ EXPORT_SYMBOL(cap_task_post_setuid);
 EXPORT_SYMBOL(cap_task_reparent_to_init);
 EXPORT_SYMBOL(cap_syslog);
 EXPORT_SYMBOL(cap_vm_enough_memory);
-
-MODULE_DESCRIPTION("Standard Linux Common Capabilities Security Module");
-MODULE_LICENSE("GPL");

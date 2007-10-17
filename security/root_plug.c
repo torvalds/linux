@@ -22,11 +22,11 @@
  *	License.
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/security.h>
 #include <linux/usb.h>
+#include <linux/moduleparam.h>
 
 /* flag to keep track of how we were registered */
 static int secondary;
@@ -36,22 +36,14 @@ static int vendor_id = 0x0557;
 static int product_id = 0x2008;
 
 module_param(vendor_id, uint, 0400);
-MODULE_PARM_DESC(vendor_id, "USB Vendor ID of device to look for");
-
 module_param(product_id, uint, 0400);
-MODULE_PARM_DESC(product_id, "USB Product ID of device to look for");
 
 /* should we print out debug messages */
 static int debug = 0;
 
 module_param(debug, bool, 0600);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
-#if defined(CONFIG_SECURITY_ROOTPLUG_MODULE)
-#define MY_NAME THIS_MODULE->name
-#else
 #define MY_NAME "root_plug"
-#endif
 
 #define root_dbg(fmt, arg...)					\
 	do {							\
@@ -117,25 +109,4 @@ static int __init rootplug_init (void)
 	return 0;
 }
 
-static void __exit rootplug_exit (void)
-{
-	/* remove ourselves from the security framework */
-	if (secondary) {
-		if (mod_unreg_security (MY_NAME, &rootplug_security_ops))
-			printk (KERN_INFO "Failure unregistering Root Plug "
-				" module with primary module.\n");
-	} else { 
-		if (unregister_security (&rootplug_security_ops)) {
-			printk (KERN_INFO "Failure unregistering Root Plug "
-				"module with the kernel\n");
-		}
-	}
-	printk (KERN_INFO "Root Plug module removed\n");
-}
-
 security_initcall (rootplug_init);
-module_exit (rootplug_exit);
-
-MODULE_DESCRIPTION("Root Plug sample LSM module, written for Linux Journal article");
-MODULE_LICENSE("GPL");
-
