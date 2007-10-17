@@ -783,7 +783,10 @@ static inline int is_selected(int dor, int unit)
 
 static int set_dor(int fdc, char mask, char data)
 {
-	register unsigned char drive, unit, newdor, olddor;
+	unsigned char unit;
+	unsigned char drive;
+	unsigned char newdor;
+	unsigned char olddor;
 
 	if (FDCS->address == -1)
 		return -1;
@@ -937,7 +940,7 @@ static void motor_off_callback(unsigned long nr)
 static void floppy_off(unsigned int drive)
 {
 	unsigned long volatile delta;
-	register int fdc = FDC(drive);
+	int fdc = FDC(drive);
 
 	if (!(FDCS->dor & (0x10 << UNIT(drive))))
 		return;
