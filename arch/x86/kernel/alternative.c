@@ -116,12 +116,31 @@ static const unsigned char *const k7_nops[ASM_NOP_MAX+1] = {
 };
 #endif
 
+#ifdef P6_NOP1
+asm("\t.section .rodata, \"a\"\np6nops: "
+	P6_NOP1 P6_NOP2 P6_NOP3 P6_NOP4 P6_NOP5 P6_NOP6
+	P6_NOP7 P6_NOP8);
+extern const unsigned char p6nops[];
+static const unsigned char *const p6_nops[ASM_NOP_MAX+1] = {
+	NULL,
+	p6nops,
+	p6nops + 1,
+	p6nops + 1 + 2,
+	p6nops + 1 + 2 + 3,
+	p6nops + 1 + 2 + 3 + 4,
+	p6nops + 1 + 2 + 3 + 4 + 5,
+	p6nops + 1 + 2 + 3 + 4 + 5 + 6,
+	p6nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
+};
+#endif
+
 #ifdef CONFIG_X86_64
 
 extern char __vsyscall_0;
 static inline const unsigned char*const * find_nop_table(void)
 {
-	return k8_nops;
+	return boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
+	       boot_cpu_data.x86 < 6 ? k8_nops : p6_nops;
 }
 
 #else /* CONFIG_X86_64 */
@@ -132,6 +151,8 @@ static const struct nop {
 } noptypes[] = {
 	{ X86_FEATURE_K8, k8_nops },
 	{ X86_FEATURE_K7, k7_nops },
+	{ X86_FEATURE_P4, p6_nops },
+	{ X86_FEATURE_P3, p6_nops },
 	{ -1, NULL }
 };
 
