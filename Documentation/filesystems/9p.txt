@@ -35,12 +35,12 @@ For remote file server:
 
 For Plan 9 From User Space applications (http://swtch.com/plan9)
 
-	mount -t 9p `namespace`/acme /mnt/9 -o proto=unix,uname=$USER
+	mount -t 9p `namespace`/acme /mnt/9 -o trans=unix,uname=$USER
 
 OPTIONS
 =======
 
-  proto=name	select an alternative transport.  Valid options are
+  trans=name	select an alternative transport.  Valid options are
   		currently:
  			unix - specifying a named pipe mount point
  			tcp  - specifying a normal TCP/IP connection
@@ -68,9 +68,9 @@ OPTIONS
 			0x40 = display transport debug
 			0x80 = display allocation debug
 
-  rfdno=n	the file descriptor for reading with proto=fd
+  rfdno=n	the file descriptor for reading with trans=fd
 
-  wfdno=n	the file descriptor for writing with proto=fd
+  wfdno=n	the file descriptor for writing with trans=fd
 
   maxdata=n	the number of bytes to use for 9p packet payload (msize)
 

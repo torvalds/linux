@@ -71,7 +71,7 @@ struct p9_conn {
 	struct p9_mux_poll_task *poll_task;
 	int msize;
 	unsigned char *extended;
-	struct p9_transport *trans;
+	struct p9_trans *trans;
 	struct p9_idpool *tagpool;
 	int err;
 	wait_queue_head_t equeue;
@@ -271,7 +271,7 @@ static void p9_mux_poll_stop(struct p9_conn *m)
  * @msize - maximum message size
  * @extended - pointer to the extended flag
  */
-struct p9_conn *p9_conn_create(struct p9_transport *trans, int msize,
+struct p9_conn *p9_conn_create(struct p9_trans *trans, int msize,
 				    unsigned char *extended)
 {
 	int i, n;

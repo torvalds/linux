@@ -38,7 +38,7 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt);
 static void p9_fid_destroy(struct p9_fid *fid);
 static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu);
 
-struct p9_client *p9_client_create(struct p9_transport *trans, int msize,
+struct p9_client *p9_client_create(struct p9_trans *trans, int msize,
 								   int dotu)
 {
 	int err, n;

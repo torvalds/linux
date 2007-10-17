@@ -13,6 +13,16 @@ menuconfig NET_9P
 
 	  If unsure, say N.
 
+config NET_9P_FD
+	depends on NET_9P
+	default y if NET_9P
+	tristate "9P File Descriptor Transports (Experimental)"
+	help
+	  This builds support for file descriptor transports for 9p
+	  which includes support for TCP/IP, named pipes, or passed
+	  file descriptors.  TCP/IP is the default transport for 9p,
+	  so if you are going to use 9p, you'll likely want this.
+
 config NET_9P_DEBUG
 	bool "Debug information"
 	depends on NET_9P

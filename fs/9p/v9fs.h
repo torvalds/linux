@@ -31,29 +31,18 @@ struct v9fs_session_info {
 	unsigned int maxdata;
 	unsigned char extended;	/* set to 1 if we are using UNIX extensions */
 	unsigned char nodev;	/* set to 1 if no disable device mapping */
-	unsigned short port;	/* port to connect to */
 	unsigned short debug;	/* debug level */
-	unsigned short proto;	/* protocol to use */
 	unsigned int afid;	/* authentication fid */
-	unsigned int rfdno;	/* read file descriptor number */
-	unsigned int wfdno;	/* write file descriptor number */
 	unsigned int cache;	/* cache mode */
 
+	char *options;		/* copy of mount options */
 	char *name;		/* user name to mount as */
 	char *remotename;	/* name of remote hierarchy being mounted */
 	unsigned int uid;	/* default uid/muid for legacy support */
 	unsigned int gid;	/* default gid for legacy support */
-
+	struct p9_trans_module *trans; /* 9p transport */
 	struct p9_client *clnt;	/* 9p client */
 	struct dentry *debugfs_dir;
-};
-
-/* possible values of ->proto */
-enum {
-	PROTO_TCP,
-	PROTO_UNIX,
-	PROTO_FD,
-	PROTO_PCI,
 };
 
 /* possible values of ->cache */

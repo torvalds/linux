@@ -42,8 +42,8 @@ struct p9_req;
  */
 typedef void (*p9_conn_req_callback)(struct p9_req *req, void *a);
 
-struct p9_conn *p9_conn_create(struct p9_transport *trans, int msize,
-	unsigned char *dotu);
+struct p9_conn *p9_conn_create(struct p9_trans *trans, int msize,
+							unsigned char *dotu);
 void p9_conn_destroy(struct p9_conn *);
 int p9_conn_rpc(struct p9_conn *m, struct p9_fcall *tc, struct p9_fcall **rc);
 

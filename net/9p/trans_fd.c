@@ -5,7 +5,7 @@
  *
  *  Copyright (C) 2006 by Russ Cox <rsc@swtch.com>
  *  Copyright (C) 2004-2005 by Latchesar Ionkov <lucho@ionkov.net>
- *  Copyright (C) 2004-2005 by Eric Van Hensbergen <ericvh@gmail.com>
+ *  Copyright (C) 2004-2007 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@sarnoff.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -36,183 +36,90 @@
 #include <linux/inet.h>
 #include <linux/idr.h>
 #include <linux/file.h>
+#include <linux/parser.h>
 #include <net/9p/9p.h>
 #include <net/9p/transport.h>
 
 #define P9_PORT 564
+#define MAX_SOCK_BUF (64*1024)
+
+
+struct p9_fd_opts {
+	int rfd;
+	int wfd;
+	u16 port;
+};
 
 struct p9_trans_fd {
 	struct file *rd;
 	struct file *wr;
 };
 
-static int p9_socket_open(struct p9_transport *trans, struct socket *csocket);
-static int p9_fd_open(struct p9_transport *trans, int rfd, int wfd);
-static int p9_fd_read(struct p9_transport *trans, void *v, int len);
-static int p9_fd_write(struct p9_transport *trans, void *v, int len);
-static unsigned int p9_fd_poll(struct p9_transport *trans,
-						struct poll_table_struct *pt);
-static void p9_fd_close(struct p9_transport *trans);
+/*
+  * Option Parsing (code inspired by NFS code)
+  *  - a little lazy - parse all fd-transport options
+  */
 
-struct p9_transport *p9_trans_create_tcp(const char *addr, int port)
+enum {
+	/* Options that take integer arguments */
+	Opt_port, Opt_rfdno, Opt_wfdno,
+};
+
+static match_table_t tokens = {
+	{Opt_port, "port=%u"},
+	{Opt_rfdno, "rfdno=%u"},
+	{Opt_wfdno, "wfdno=%u"},
+};
+
+/**
+ * v9fs_parse_options - parse mount options into session structure
+ * @options: options string passed from mount
+ * @v9ses: existing v9fs session information
+ *
+ */
+
+static void parse_opts(char *options, struct p9_fd_opts *opts)
 {
-	int err;
-	struct p9_transport *trans;
-	struct socket *csocket;
-	struct sockaddr_in sin_server;
+	char *p;
+	substring_t args[MAX_OPT_ARGS];
+	int option;
+	int ret;
 
-	csocket = NULL;
-	trans = kmalloc(sizeof(struct p9_transport), GFP_KERNEL);
-	if (!trans)
-		return ERR_PTR(-ENOMEM);
+	opts->port = P9_PORT;
+	opts->rfd = ~0;
+	opts->wfd = ~0;
 
-	trans->write = p9_fd_write;
-	trans->read = p9_fd_read;
-	trans->close = p9_fd_close;
-	trans->poll = p9_fd_poll;
+	if (!options)
+		return;
 
-	sin_server.sin_family = AF_INET;
-	sin_server.sin_addr.s_addr = in_aton(addr);
-	sin_server.sin_port = htons(port);
-	sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &csocket);
-
-	if (!csocket) {
-		P9_EPRINTK(KERN_ERR, "p9_trans_tcp: problem creating socket\n");
-		err = -EIO;
-		goto error;
+	while ((p = strsep(&options, ",")) != NULL) {
+		int token;
+		if (!*p)
+			continue;
+		token = match_token(p, tokens, args);
+		ret = match_int(&args[0], &option);
+		if (ret < 0) {
+			P9_DPRINTK(P9_DEBUG_ERROR,
+			 "integer field, but no integer?\n");
+			continue;
+		}
+		switch (token) {
+		case Opt_port:
+			opts->port = option;
+			break;
+		case Opt_rfdno:
+			opts->rfd = option;
+			break;
+		case Opt_wfdno:
+			opts->wfd = option;
+			break;
+		default:
+			continue;
+		}
 	}
-
-	err = csocket->ops->connect(csocket,
-				    (struct sockaddr *)&sin_server,
-				    sizeof(struct sockaddr_in), 0);
-	if (err < 0) {
-		P9_EPRINTK(KERN_ERR,
-			"p9_trans_tcp: problem connecting socket to %s\n",
-			addr);
-		goto error;
-	}
-
-	err = p9_socket_open(trans, csocket);
-	if (err < 0)
-		goto error;
-
-	return trans;
-
-error:
-	if (csocket)
-		sock_release(csocket);
-
-	kfree(trans);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL(p9_trans_create_tcp);
-
-struct p9_transport *p9_trans_create_unix(const char *addr)
-{
-	int err;
-	struct socket *csocket;
-	struct sockaddr_un sun_server;
-	struct p9_transport *trans;
-
-	csocket = NULL;
-	trans = kmalloc(sizeof(struct p9_transport), GFP_KERNEL);
-	if (!trans)
-		return ERR_PTR(-ENOMEM);
-
-	trans->write = p9_fd_write;
-	trans->read = p9_fd_read;
-	trans->close = p9_fd_close;
-	trans->poll = p9_fd_poll;
-
-	if (strlen(addr) > UNIX_PATH_MAX) {
-		P9_EPRINTK(KERN_ERR, "p9_trans_unix: address too long: %s\n",
-			addr);
-		err = -ENAMETOOLONG;
-		goto error;
-	}
-
-	sun_server.sun_family = PF_UNIX;
-	strcpy(sun_server.sun_path, addr);
-	sock_create_kern(PF_UNIX, SOCK_STREAM, 0, &csocket);
-	err = csocket->ops->connect(csocket, (struct sockaddr *)&sun_server,
-			sizeof(struct sockaddr_un) - 1, 0);
-	if (err < 0) {
-		P9_EPRINTK(KERN_ERR,
-			"p9_trans_unix: problem connecting socket: %s: %d\n",
-			addr, err);
-		goto error;
-	}
-
-	err = p9_socket_open(trans, csocket);
-	if (err < 0)
-		goto error;
-
-	return trans;
-
-error:
-	if (csocket)
-		sock_release(csocket);
-
-	kfree(trans);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL(p9_trans_create_unix);
-
-struct p9_transport *p9_trans_create_fd(int rfd, int wfd)
-{
-	int err;
-	struct p9_transport *trans;
-
-	if (rfd == ~0 || wfd == ~0) {
-		printk(KERN_ERR "v9fs: Insufficient options for proto=fd\n");
-		return ERR_PTR(-ENOPROTOOPT);
-	}
-
-	trans = kmalloc(sizeof(struct p9_transport), GFP_KERNEL);
-	if (!trans)
-		return ERR_PTR(-ENOMEM);
-
-	trans->write = p9_fd_write;
-	trans->read = p9_fd_read;
-	trans->close = p9_fd_close;
-	trans->poll = p9_fd_poll;
-
-	err = p9_fd_open(trans, rfd, wfd);
-	if (err < 0)
-		goto error;
-
-	return trans;
-
-error:
-	kfree(trans);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL(p9_trans_create_fd);
-
-static int p9_socket_open(struct p9_transport *trans, struct socket *csocket)
-{
-	int fd, ret;
-
-	csocket->sk->sk_allocation = GFP_NOIO;
-	fd = sock_map_fd(csocket);
-	if (fd < 0) {
-		P9_EPRINTK(KERN_ERR, "p9_socket_open: failed to map fd\n");
-		return fd;
-	}
-
-	ret = p9_fd_open(trans, fd, fd);
-	if (ret < 0) {
-		P9_EPRINTK(KERN_ERR, "p9_socket_open: failed to open fd\n");
-		sockfd_put(csocket);
-		return ret;
-	}
-
-	((struct p9_trans_fd *)trans->priv)->rd->f_flags |= O_NONBLOCK;
-
-	return 0;
 }
 
-static int p9_fd_open(struct p9_transport *trans, int rfd, int wfd)
+static int p9_fd_open(struct p9_trans *trans, int rfd, int wfd)
 {
 	struct p9_trans_fd *ts = kmalloc(sizeof(struct p9_trans_fd),
 					   GFP_KERNEL);
@@ -236,6 +143,29 @@ static int p9_fd_open(struct p9_transport *trans, int rfd, int wfd)
 	return 0;
 }
 
+static int p9_socket_open(struct p9_trans *trans, struct socket *csocket)
+{
+	int fd, ret;
+
+	csocket->sk->sk_allocation = GFP_NOIO;
+	fd = sock_map_fd(csocket);
+	if (fd < 0) {
+		P9_EPRINTK(KERN_ERR, "p9_socket_open: failed to map fd\n");
+		return fd;
+	}
+
+	ret = p9_fd_open(trans, fd, fd);
+	if (ret < 0) {
+		P9_EPRINTK(KERN_ERR, "p9_socket_open: failed to open fd\n");
+		sockfd_put(csocket);
+		return ret;
+	}
+
+	((struct p9_trans_fd *)trans->priv)->rd->f_flags |= O_NONBLOCK;
+
+	return 0;
+}
+
 /**
  * p9_fd_read- read from a fd
  * @v9ses: session information
@@ -243,7 +173,7 @@ static int p9_fd_open(struct p9_transport *trans, int rfd, int wfd)
  * @len: size of receive buffer
  *
  */
-static int p9_fd_read(struct p9_transport *trans, void *v, int len)
+static int p9_fd_read(struct p9_trans *trans, void *v, int len)
 {
 	int ret;
 	struct p9_trans_fd *ts = NULL;
@@ -270,7 +200,7 @@ static int p9_fd_read(struct p9_transport *trans, void *v, int len)
  * @len: size of send buffer
  *
  */
-static int p9_fd_write(struct p9_transport *trans, void *v, int len)
+static int p9_fd_write(struct p9_trans *trans, void *v, int len)
 {
 	int ret;
 	mm_segment_t oldfs;
@@ -297,7 +227,7 @@ static int p9_fd_write(struct p9_transport *trans, void *v, int len)
 }
 
 static unsigned int
-p9_fd_poll(struct p9_transport *trans, struct poll_table_struct *pt)
+p9_fd_poll(struct p9_trans *trans, struct poll_table_struct *pt)
 {
 	int ret, n;
 	struct p9_trans_fd *ts = NULL;
@@ -341,7 +271,7 @@ end:
  * @trans: private socket structure
  *
  */
-static void p9_fd_close(struct p9_transport *trans)
+static void p9_fd_close(struct p9_trans *trans)
 {
 	struct p9_trans_fd *ts;
 
@@ -361,3 +291,182 @@ static void p9_fd_close(struct p9_transport *trans)
 	kfree(ts);
 }
 
+static struct p9_trans *p9_trans_create_tcp(const char *addr, char *args)
+{
+	int err;
+	struct p9_trans *trans;
+	struct socket *csocket;
+	struct sockaddr_in sin_server;
+	struct p9_fd_opts opts;
+
+	parse_opts(args, &opts);
+
+	csocket = NULL;
+	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
+	if (!trans)
+		return ERR_PTR(-ENOMEM);
+
+	trans->write = p9_fd_write;
+	trans->read = p9_fd_read;
+	trans->close = p9_fd_close;
+	trans->poll = p9_fd_poll;
+
+	sin_server.sin_family = AF_INET;
+	sin_server.sin_addr.s_addr = in_aton(addr);
+	sin_server.sin_port = htons(opts.port);
+	sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &csocket);
+
+	if (!csocket) {
+		P9_EPRINTK(KERN_ERR, "p9_trans_tcp: problem creating socket\n");
+		err = -EIO;
+		goto error;
+	}
+
+	err = csocket->ops->connect(csocket,
+				    (struct sockaddr *)&sin_server,
+				    sizeof(struct sockaddr_in), 0);
+	if (err < 0) {
+		P9_EPRINTK(KERN_ERR,
+			"p9_trans_tcp: problem connecting socket to %s\n",
+			addr);
+		goto error;
+	}
+
+	err = p9_socket_open(trans, csocket);
+	if (err < 0)
+		goto error;
+
+	return trans;
+
+error:
+	if (csocket)
+		sock_release(csocket);
+
+	kfree(trans);
+	return ERR_PTR(err);
+}
+
+static struct p9_trans *p9_trans_create_unix(const char *addr, char *args)
+{
+	int err;
+	struct socket *csocket;
+	struct sockaddr_un sun_server;
+	struct p9_trans *trans;
+
+	csocket = NULL;
+	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
+	if (!trans)
+		return ERR_PTR(-ENOMEM);
+
+	trans->write = p9_fd_write;
+	trans->read = p9_fd_read;
+	trans->close = p9_fd_close;
+	trans->poll = p9_fd_poll;
+
+	if (strlen(addr) > UNIX_PATH_MAX) {
+		P9_EPRINTK(KERN_ERR, "p9_trans_unix: address too long: %s\n",
+			addr);
+		err = -ENAMETOOLONG;
+		goto error;
+	}
+
+	sun_server.sun_family = PF_UNIX;
+	strcpy(sun_server.sun_path, addr);
+	sock_create_kern(PF_UNIX, SOCK_STREAM, 0, &csocket);
+	err = csocket->ops->connect(csocket, (struct sockaddr *)&sun_server,
+			sizeof(struct sockaddr_un) - 1, 0);
+	if (err < 0) {
+		P9_EPRINTK(KERN_ERR,
+			"p9_trans_unix: problem connecting socket: %s: %d\n",
+			addr, err);
+		goto error;
+	}
+
+	err = p9_socket_open(trans, csocket);
+	if (err < 0)
+		goto error;
+
+	return trans;
+
+error:
+	if (csocket)
+		sock_release(csocket);
+
+	kfree(trans);
+	return ERR_PTR(err);
+}
+
+static struct p9_trans *p9_trans_create_fd(const char *name, char *args)
+{
+	int err;
+	struct p9_trans *trans;
+	struct p9_fd_opts opts;
+
+	parse_opts(args, &opts);
+
+	if (opts.rfd == ~0 || opts.wfd == ~0) {
+		printk(KERN_ERR "v9fs: Insufficient options for proto=fd\n");
+		return ERR_PTR(-ENOPROTOOPT);
+	}
+
+	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
+	if (!trans)
+		return ERR_PTR(-ENOMEM);
+
+	trans->write = p9_fd_write;
+	trans->read = p9_fd_read;
+	trans->close = p9_fd_close;
+	trans->poll = p9_fd_poll;
+
+	err = p9_fd_open(trans, opts.rfd, opts.wfd);
+	if (err < 0)
+		goto error;
+
+	return trans;
+
+error:
+	kfree(trans);
+	return ERR_PTR(err);
+}
+
+static struct p9_trans_module p9_tcp_trans = {
+	.name = "tcp",
+	.maxsize = MAX_SOCK_BUF,
+	.def = 1,
+	.create = p9_trans_create_tcp,
+};
+
+static struct p9_trans_module p9_unix_trans = {
+	.name = "unix",
+	.maxsize = MAX_SOCK_BUF,
+	.def = 0,
+	.create = p9_trans_create_unix,
+};
+
+static struct p9_trans_module p9_fd_trans = {
+	.name = "fd",
+	.maxsize = MAX_SOCK_BUF,
+	.def = 0,
+	.create = p9_trans_create_fd,
+};
+
+static int __init p9_trans_fd_init(void)
+{
+	v9fs_register_trans(&p9_tcp_trans);
+	v9fs_register_trans(&p9_unix_trans);
+	v9fs_register_trans(&p9_fd_trans);
+
+	return 1;
+}
+
+static void __exit p9_trans_fd_exit(void) {
+	printk(KERN_ERR "Removal of 9p transports not implemented\n");
+	BUG();
+}
+
+module_init(p9_trans_fd_init);
+module_exit(p9_trans_fd_exit);
+
+MODULE_AUTHOR("Latchesar Ionkov <lucho@ionkov.net>");
+MODULE_AUTHOR("Eric Van Hensbergen <ericvh@gmail.com>");
+MODULE_LICENSE("GPL");
