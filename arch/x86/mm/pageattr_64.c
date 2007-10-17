@@ -148,6 +148,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 			split = split_large_page(address, prot, ref_prot2);
 			if (!split)
 				return -ENOMEM;
+			pgprot_val(ref_prot2) &= ~_PAGE_NX;
 			set_pte(kpte, mk_pte(split, ref_prot2));
 			kpte_page = split;
 		}
