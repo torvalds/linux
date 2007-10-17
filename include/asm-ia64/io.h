@@ -435,10 +435,6 @@ extern void memcpy_fromio(void *dst, const volatile void __iomem *src, long n);
 extern void memcpy_toio(volatile void __iomem *dst, const void *src, long n);
 extern void memset_io(volatile void __iomem *s, int c, long n);
 
-#define dma_cache_inv(_start,_size)             do { } while (0)
-#define dma_cache_wback(_start,_size)           do { } while (0)
-#define dma_cache_wback_inv(_start,_size)       do { } while (0)
-
 # endif /* __KERNEL__ */
 
 /*

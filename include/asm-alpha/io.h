@@ -551,12 +551,6 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 #endif
 #define RTC_ALWAYS_BCD	0
 
-/* Nothing to do */
-
-#define dma_cache_inv(_start,_size)		do { } while (0)
-#define dma_cache_wback(_start,_size)		do { } while (0)
-#define dma_cache_wback_inv(_start,_size)	do { } while (0)
-
 /*
  * Some mucking forons use if[n]def writeq to check if platform has it.
  * It's a bloody bad idea and we probably want ARCH_HAS_WRITEQ for them

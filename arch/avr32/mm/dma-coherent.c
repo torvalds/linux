@@ -21,13 +21,13 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size, int direction)
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
-		dma_cache_inv(vaddr, size);
+		invalidate_dcache_region(vaddr, size);
 		break;
 	case DMA_TO_DEVICE:		/* writeback only */
-		dma_cache_wback(vaddr, size);
+		clean_dcache_region(vaddr, size);
 		break;
 	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		dma_cache_wback_inv(vaddr, size);
+		flush_dcache_region(vaddr, size);
 		break;
 	default:
 		BUG();

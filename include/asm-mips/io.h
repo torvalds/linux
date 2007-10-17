@@ -554,6 +554,8 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
  *    caches.  Dirty lines of the caches may be written back or simply
  *    be discarded.  This operation is necessary before dma operations
  *    to the memory.
+ *
+ * This API used to be exported; it now is for arch code internal use only.
  */
 #ifdef CONFIG_DMA_NONCOHERENT
 

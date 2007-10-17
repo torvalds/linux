@@ -298,13 +298,6 @@ extern void __iounmap(void __iomem *addr);
 #define ioport_map(port, nr)	ioremap(port, nr)
 #define ioport_unmap(port)	iounmap(port)
 
-#define dma_cache_wback_inv(_start, _size)	\
-	flush_dcache_region(_start, _size)
-#define dma_cache_inv(_start, _size)		\
-	invalidate_dcache_region(_start, _size)
-#define dma_cache_wback(_start, _size)		\
-	clean_dcache_region(_start, _size)
-
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
  * access

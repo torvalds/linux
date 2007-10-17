@@ -213,7 +213,7 @@ static int hard_dma_setup(char *addr, unsigned long size, int mode, int io)
 	}
 #endif
 
-	dma_cache_wback_inv(addr, size);
+	__flush_purge_region(addr, size);
 
 	/* actual, physical DMA */
 	doing_pdma = 0;

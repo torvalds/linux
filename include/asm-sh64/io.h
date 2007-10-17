@@ -182,54 +182,6 @@ unsigned long onchip_remap(unsigned long addr, unsigned long size, const char* n
 extern void onchip_unmap(unsigned long vaddr);
 
 /*
- * The caches on some architectures aren't dma-coherent and have need to
- * handle this in software.  There are three types of operations that
- * can be applied to dma buffers.
- *
- *  - dma_cache_wback_inv(start, size) makes caches and RAM coherent by
- *    writing the content of the caches back to memory, if necessary.
- *    The function also invalidates the affected part of the caches as
- *    necessary before DMA transfers from outside to memory.
- *  - dma_cache_inv(start, size) invalidates the affected parts of the
- *    caches.  Dirty lines of the caches may be written back or simply
- *    be discarded.  This operation is necessary before dma operations
- *    to the memory.
- *  - dma_cache_wback(start, size) writes back any dirty lines but does
- *    not invalidate the cache.  This can be used before DMA reads from
- *    memory,
- */
-
-static __inline__ void dma_cache_wback_inv (unsigned long start, unsigned long size)
-{
-	unsigned long s = start & L1_CACHE_ALIGN_MASK;
-	unsigned long e = (start + size) & L1_CACHE_ALIGN_MASK;
-
-	for (; s <= e; s += L1_CACHE_BYTES)
-		asm volatile ("ocbp	%0, 0" : : "r" (s));
-}
-
-static __inline__ void dma_cache_inv (unsigned long start, unsigned long size)
-{
-	// Note that caller has to be careful with overzealous
-	// invalidation should there be partial cache lines at the extremities
-	// of the specified range
-	unsigned long s = start & L1_CACHE_ALIGN_MASK;
-	unsigned long e = (start + size) & L1_CACHE_ALIGN_MASK;
-
-	for (; s <= e; s += L1_CACHE_BYTES)
-		asm volatile ("ocbi	%0, 0" : : "r" (s));
-}
-
-static __inline__ void dma_cache_wback (unsigned long start, unsigned long size)
-{
-	unsigned long s = start & L1_CACHE_ALIGN_MASK;
-	unsigned long e = (start + size) & L1_CACHE_ALIGN_MASK;
-
-	for (; s <= e; s += L1_CACHE_BYTES)
-		asm volatile ("ocbwb	%0, 0" : : "r" (s));
-}
-
-/*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
  * access
  */

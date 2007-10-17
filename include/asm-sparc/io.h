@@ -310,13 +310,6 @@ extern void sbus_iounmap(volatile void __iomem *vaddr, unsigned long size);
 #define RTC_PORT(x)   (rtc_port + (x))
 #define RTC_ALWAYS_BCD  0
 
-/* Nothing to do */
-/* P3: Only IDE DMA may need these. XXX Verify that it still does... */
-
-#define dma_cache_inv(_start,_size)		do { } while (0)
-#define dma_cache_wback(_start,_size)		do { } while (0)
-#define dma_cache_wback_inv(_start,_size)	do { } while (0)
-
 #endif
 
 #define __ARCH_HAS_NO_PAGE_ZERO_MAPPED		1

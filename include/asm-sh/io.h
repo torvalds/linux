@@ -327,31 +327,6 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	__iounmap((addr))
 
 /*
- * The caches on some architectures aren't dma-coherent and have need to
- * handle this in software.  There are three types of operations that
- * can be applied to dma buffers.
- *
- *  - dma_cache_wback_inv(start, size) makes caches and RAM coherent by
- *    writing the content of the caches back to memory, if necessary.
- *    The function also invalidates the affected part of the caches as
- *    necessary before DMA transfers from outside to memory.
- *  - dma_cache_inv(start, size) invalidates the affected parts of the
- *    caches.  Dirty lines of the caches may be written back or simply
- *    be discarded.  This operation is necessary before dma operations
- *    to the memory.
- *  - dma_cache_wback(start, size) writes back any dirty lines but does
- *    not invalidate the cache.  This can be used before DMA reads from
- *    memory,
- */
-
-#define dma_cache_wback_inv(_start,_size) \
-    __flush_purge_region(_start,_size)
-#define dma_cache_inv(_start,_size) \
-    __flush_invalidate_region(_start,_size)
-#define dma_cache_wback(_start,_size) \
-    __flush_wback_region(_start,_size)
-
-/*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
  * access
  */

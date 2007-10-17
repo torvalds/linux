@@ -42,7 +42,11 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction dir)
 {
-	dma_cache_wback_inv((unsigned long)vaddr, size);
+	unsigned long s = (unsigned long) vaddr & L1_CACHE_ALIGN_MASK;
+	unsigned long e = (vaddr + size) & L1_CACHE_ALIGN_MASK;
+
+	for (; s <= e; s += L1_CACHE_BYTES)
+		asm volatile ("ocbp	%0, 0" : : "r" (s));
 }
 
 static inline dma_addr_t dma_map_single(struct device *dev,

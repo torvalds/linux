@@ -474,12 +474,6 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 #define sbus_iounmap(__addr, __size)	\
 	release_region((unsigned long)(__addr), (__size))
 
-/* Nothing to do */
-
-#define dma_cache_inv(_start,_size)		do { } while (0)
-#define dma_cache_wback(_start,_size)		do { } while (0)
-#define dma_cache_wback_inv(_start,_size)	do { } while (0)
-
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
  * access

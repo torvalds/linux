@@ -384,12 +384,6 @@ static inline void __iomem *ioremap_fullcache(unsigned long physaddr,
 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
 }
 
-
-/* m68k caches aren't DMA coherent */
-extern void dma_cache_wback_inv(unsigned long start, unsigned long size);
-extern void dma_cache_wback(unsigned long start, unsigned long size);
-extern void dma_cache_inv(unsigned long start, unsigned long size);
-
 static inline void memset_io(volatile void __iomem *addr, unsigned char val, int count)
 {
 	__builtin_memset((void __force *) addr, val, count);
