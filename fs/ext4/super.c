@@ -1479,6 +1479,7 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	int needs_recovery;
 	__le32 features;
 	__u64 blocks_count;
+	int err;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -1759,12 +1760,20 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
 
-	percpu_counter_init(&sbi->s_freeblocks_counter,
-		ext4_count_free_blocks(sb));
-	percpu_counter_init(&sbi->s_freeinodes_counter,
-		ext4_count_free_inodes(sb));
-	percpu_counter_init(&sbi->s_dirs_counter,
-		ext4_count_dirs(sb));
+	err = percpu_counter_init(&sbi->s_freeblocks_counter,
+			ext4_count_free_blocks(sb));
+	if (!err) {
+		err = percpu_counter_init(&sbi->s_freeinodes_counter,
+				ext4_count_free_inodes(sb));
+	}
+	if (!err) {
+		err = percpu_counter_init(&sbi->s_dirs_counter,
+				ext4_count_dirs(sb));
+	}
+	if (err) {
+		printk(KERN_ERR "EXT4-fs: insufficient memory\n");
+		goto failed_mount3;
+	}
 
 	/* per fileystem reservation list head & lock */
 	spin_lock_init(&sbi->s_rsv_window_lock);
