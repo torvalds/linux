@@ -36,11 +36,11 @@
 #include <asm/segment.h>
 #include <asm/page.h>
 
-.data
-
 /* We can free up trampoline after bootup if cpu hotplug is not supported. */
 #ifndef CONFIG_HOTPLUG_CPU
 .section ".init.data","aw",@progbits
+#else
+.section .rodata,"a",@progbits
 #endif
 
 .code16

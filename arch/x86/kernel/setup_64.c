@@ -968,7 +968,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	 * applications want to get the raw CPUID data, they should access
 	 * /dev/cpu/<cpu_nr>/cpuid instead.
 	 */
-	static char *x86_cap_flags[] = {
+	static const char *const x86_cap_flags[] = {
 		/* Intel-defined */
 	        "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
 	        "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
@@ -1022,7 +1022,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	};
-	static char *x86_power_flags[] = { 
+	static const char *const x86_power_flags[] = {
 		"ts",	/* temperature sensor */
 		"fid",  /* frequency id control */
 		"vid",  /* voltage id control */

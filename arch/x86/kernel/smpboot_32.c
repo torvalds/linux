@@ -102,8 +102,8 @@ u8 apicid_2_node[MAX_APICID];
  * Trampoline 80x86 program as an array.
  */
 
-extern unsigned char trampoline_data [];
-extern unsigned char trampoline_end  [];
+extern const unsigned char trampoline_data [];
+extern const unsigned char trampoline_end  [];
 static unsigned char *trampoline_base;
 static int trampoline_exec;
 

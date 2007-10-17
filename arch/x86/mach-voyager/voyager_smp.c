@@ -442,8 +442,8 @@ static __u32 __init
 setup_trampoline(void)
 {
 	/* these two are global symbols in trampoline.S */
-	extern __u8 trampoline_end[];
-	extern __u8 trampoline_data[];
+	extern const __u8 trampoline_end[];
+	extern const __u8 trampoline_data[];
 
 	memcpy((__u8 *)trampoline_base, trampoline_data,
 	       trampoline_end - trampoline_data);

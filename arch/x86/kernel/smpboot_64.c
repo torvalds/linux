@@ -102,8 +102,8 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
  * Trampoline 80x86 program as an array.
  */
 
-extern unsigned char trampoline_data[];
-extern unsigned char trampoline_end[];
+extern const unsigned char trampoline_data[];
+extern const unsigned char trampoline_end[];
 
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
