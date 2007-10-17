@@ -738,13 +738,7 @@ void mtrr_ap_init(void)
  */
 void mtrr_save_state(void)
 {
-	int cpu = get_cpu();
-
-	if (cpu == 0)
-		mtrr_save_fixed_ranges(NULL);
-	else
-		smp_call_function_single(0, mtrr_save_fixed_ranges, NULL, 1, 1);
-	put_cpu();
+	smp_call_function_single(0, mtrr_save_fixed_ranges, NULL, 1, 1);
 }
 
 static int __init mtrr_init_finialize(void)
