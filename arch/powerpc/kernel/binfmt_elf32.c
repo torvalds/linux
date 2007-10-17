@@ -13,49 +13,44 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define ELF_ARCH		EM_PPC
-#define ELF_CLASS		ELFCLASS32
-#define ELF_DATA		ELFDATA2MSB;
-
 #include <asm/processor.h>
 #include <linux/module.h>
-#include <linux/elfcore.h>
 #include <linux/compat.h>
+#include <linux/elfcore-compat.h>
 
-#define elf_prstatus elf_prstatus32
-struct elf_prstatus32
-{
-	struct elf_siginfo pr_info;	/* Info associated with signal */
-	short	pr_cursig;		/* Current signal */
-	unsigned int pr_sigpend;	/* Set of pending signals */
-	unsigned int pr_sighold;	/* Set of held signals */
-	pid_t	pr_pid;
-	pid_t	pr_ppid;
-	pid_t	pr_pgrp;
-	pid_t	pr_sid;
-	struct compat_timeval pr_utime;	/* User time */
-	struct compat_timeval pr_stime;	/* System time */
-	struct compat_timeval pr_cutime;	/* Cumulative user time */
-	struct compat_timeval pr_cstime;	/* Cumulative system time */
-	elf_gregset_t pr_reg;		/* General purpose registers. */
-	int pr_fpvalid;		/* True if math co-processor being used. */
-};
+#undef	ELF_ARCH
+#undef	ELF_CLASS
+#define ELF_CLASS	ELFCLASS32
+#define ELF_ARCH	EM_PPC
 
-#define elf_prpsinfo elf_prpsinfo32
-struct elf_prpsinfo32
+#undef	elfhdr
+#undef	elf_phdr
+#undef	elf_note
+#undef	elf_addr_t
+#define elfhdr		elf32_hdr
+#define elf_phdr	elf32_phdr
+#define elf_note	elf32_note
+#define elf_addr_t	Elf32_Off
+
+#define elf_prstatus	compat_elf_prstatus
+#define elf_prpsinfo	compat_elf_prpsinfo
+
+#define elf_core_copy_regs compat_elf_core_copy_regs
+static inline void compat_elf_core_copy_regs(compat_elf_gregset_t *elf_regs,
+					     struct pt_regs *regs)
 {
-	char	pr_state;	/* numeric process state */
-	char	pr_sname;	/* char for pr_state */
-	char	pr_zomb;	/* zombie */
-	char	pr_nice;	/* nice val */
-	unsigned int pr_flag;	/* flags */
-	u32	pr_uid;
-	u32	pr_gid;
-	pid_t	pr_pid, pr_ppid, pr_pgrp, pr_sid;
-	/* Lots missing */
-	char	pr_fname[16];	/* filename of executable */
-	char	pr_psargs[ELF_PRARGSZ];	/* initial part of arg list */
-};
+	PPC_ELF_CORE_COPY_REGS((*elf_regs), regs);
+}
+
+#define elf_core_copy_task_regs compat_elf_core_copy_task_regs
+static int compat_elf_core_copy_task_regs(struct task_struct *tsk,
+					  compat_elf_gregset_t *elf_regs)
+{
+	struct pt_regs *regs = tsk->thread.regs;
+	if (regs)
+		compat_elf_core_copy_regs(elf_regs, regs);
+	return 1;
+}
 
 #include <linux/time.h>
 
