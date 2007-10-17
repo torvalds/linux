@@ -985,9 +985,6 @@ void zap_other_threads(struct task_struct *p)
 	p->signal->flags = SIGNAL_GROUP_EXIT;
 	p->signal->group_stop_count = 0;
 
-	if (thread_group_empty(p))
-		return;
-
 	for (t = next_thread(p); t != p; t = next_thread(t)) {
 		/*
 		 * Don't bother with already dead threads
