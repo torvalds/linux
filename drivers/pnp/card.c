@@ -197,33 +197,34 @@ int pnp_add_card(struct pnp_card *card)
 	card->dev.bus = NULL;
 	card->dev.release = &pnp_release_card;
 	error = device_register(&card->dev);
-
-	if (error == 0) {
-		pnp_interface_attach_card(card);
-		spin_lock(&pnp_lock);
-		list_add_tail(&card->global_list, &pnp_cards);
-		list_add_tail(&card->protocol_list, &card->protocol->cards);
-		spin_unlock(&pnp_lock);
-
-		/* we wait until now to add devices in order to ensure the drivers
-		 * will be able to use all of the related devices on the card
-		 * without waiting any unresonable length of time */
-		list_for_each(pos, &card->devices) {
-			struct pnp_dev *dev = card_to_pnp_dev(pos);
-			__pnp_add_device(dev);
-		}
-
-		/* match with card drivers */
-		list_for_each_safe(pos, temp, &pnp_card_drivers) {
-			struct pnp_card_driver *drv =
-			    list_entry(pos, struct pnp_card_driver,
-				       global_list);
-			card_probe(card, drv);
-		}
-	} else
+	if (error) {
 		pnp_err("sysfs failure, card '%s' will be unavailable",
 			card->dev.bus_id);
-	return error;
+		return error;
+	}
+
+	pnp_interface_attach_card(card);
+	spin_lock(&pnp_lock);
+	list_add_tail(&card->global_list, &pnp_cards);
+	list_add_tail(&card->protocol_list, &card->protocol->cards);
+	spin_unlock(&pnp_lock);
+
+	/* we wait until now to add devices in order to ensure the drivers
+	 * will be able to use all of the related devices on the card
+	 * without waiting an unreasonable length of time */
+	list_for_each(pos, &card->devices) {
+		struct pnp_dev *dev = card_to_pnp_dev(pos);
+		__pnp_add_device(dev);
+	}
+
+	/* match with card drivers */
+	list_for_each_safe(pos, temp, &pnp_card_drivers) {
+		struct pnp_card_driver *drv =
+		    list_entry(pos, struct pnp_card_driver,
+			       global_list);
+		card_probe(card, drv);
+	}
+	return 0;
 }
 
 /**
@@ -291,14 +292,15 @@ struct pnp_dev *pnp_request_card_device(struct pnp_card_link *clink,
 	struct pnp_card *card;
 
 	if (!clink || !id)
-		goto done;
+		return NULL;
+
 	card = clink->card;
 	drv = clink->driver;
 	if (!from) {
 		pos = card->devices.next;
 	} else {
 		if (from->card != card)
-			goto done;
+			return NULL;
 		pos = from->card_list.next;
 	}
 	while (pos != &card->devices) {
@@ -308,7 +310,6 @@ struct pnp_dev *pnp_request_card_device(struct pnp_card_link *clink,
 		pos = pos->next;
 	}
 
-done:
 	return NULL;
 
 found:
