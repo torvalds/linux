@@ -106,14 +106,6 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 	if (err)
 		return err;
 
-	/* If opening the root node, no lookup has been performed on
-	   it, so the attributes must be refreshed */
-	if (get_node_id(inode) == FUSE_ROOT_ID) {
-		err = fuse_do_getattr(inode);
-		if (err)
-		 	return err;
-	}
-
 	ff = fuse_file_alloc();
 	if (!ff)
 		return -ENOMEM;

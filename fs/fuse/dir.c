@@ -663,7 +663,7 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 	return err;
 }
 
-int fuse_do_getattr(struct inode *inode)
+static int fuse_do_getattr(struct inode *inode)
 {
 	int err;
 	struct fuse_attr_out arg;
@@ -723,30 +723,6 @@ static int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task)
 	return 0;
 }
 
-/*
- * Check whether the inode attributes are still valid
- *
- * If the attribute validity timeout has expired, then fetch the fresh
- * attributes with a 'getattr' request
- *
- * I'm not sure why cached attributes are never returned for the root
- * inode, this is probably being too cautious.
- */
-static int fuse_revalidate(struct dentry *entry)
-{
-	struct inode *inode = entry->d_inode;
-	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_conn *fc = get_fuse_conn(inode);
-
-	if (!fuse_allow_task(fc, current))
-		return -EACCES;
-	if (get_node_id(inode) != FUSE_ROOT_ID &&
-	    fi->i_time >= get_jiffies_64())
-		return 0;
-
-	return fuse_do_getattr(inode);
-}
-
 static int fuse_access(struct inode *inode, int mask)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -794,16 +770,33 @@ static int fuse_access(struct inode *inode, int mask)
 static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	bool refreshed = false;
+	int err = 0;
 
 	if (!fuse_allow_task(fc, current))
 		return -EACCES;
-	else if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
+
+	/*
+	 * If attributes are needed, but are stale, refresh them
+	 * before proceeding
+	 */
+	if (((fc->flags & FUSE_DEFAULT_PERMISSIONS) || (mask & MAY_EXEC)) &&
+	    fi->i_time < get_jiffies_64()) {
+		err = fuse_do_getattr(inode);
+		if (err)
+			return err;
+
+		refreshed = true;
+	}
+
+	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
 		int err = generic_permission(inode, mask, NULL);
 
 		/* If permission is denied, try to refresh file
 		   attributes.  This is also needed, because the root
 		   node will at first have no permissions */
-		if (err == -EACCES) {
+		if (err == -EACCES && !refreshed) {
 		 	err = fuse_do_getattr(inode);
 			if (!err)
 				err = generic_permission(inode, mask, NULL);
@@ -814,7 +807,6 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 		   noticed immediately, only after the attribute
 		   timeout has expired */
 
-		return err;
 	} else {
 		int mode = inode->i_mode;
 		if ((mask & MAY_EXEC) && !S_ISDIR(mode) && !(mode & S_IXUGO))
@@ -822,8 +814,8 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 
 		if (nd && (nd->flags & (LOOKUP_ACCESS | LOOKUP_CHDIR)))
 			return fuse_access(inode, mask);
-		return 0;
 	}
+	return err;
 }
 
 static int parse_dirfile(char *buf, size_t nbytes, struct file *file,
@@ -1052,7 +1044,16 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 			struct kstat *stat)
 {
 	struct inode *inode = entry->d_inode;
-	int err = fuse_revalidate(entry);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	int err = 0;
+
+	if (!fuse_allow_task(fc, current))
+		return -EACCES;
+
+	if (fi->i_time < get_jiffies_64())
+		err = fuse_do_getattr(inode);
+
 	if (!err)
 		generic_fillattr(inode, stat);
 
