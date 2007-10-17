@@ -124,7 +124,7 @@ static int reserve_blocks(struct super_block *sb, int count)
 			return 0;
 	}
 
-	percpu_counter_mod(&sbi->s_freeblocks_counter, -count);
+	percpu_counter_add(&sbi->s_freeblocks_counter, -count);
 	sb->s_dirt = 1;
 	return count;
 }
@@ -134,7 +134,7 @@ static void release_blocks(struct super_block *sb, int count)
 	if (count) {
 		struct ext2_sb_info *sbi = EXT2_SB(sb);
 
-		percpu_counter_mod(&sbi->s_freeblocks_counter, count);
+		percpu_counter_add(&sbi->s_freeblocks_counter, count);
 		sb->s_dirt = 1;
 	}
 }

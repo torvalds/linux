@@ -14,7 +14,7 @@ static LIST_HEAD(percpu_counters);
 static DEFINE_MUTEX(percpu_counters_lock);
 #endif
 
-void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
+void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
 {
 	long count;
 	s32 *pcount;
@@ -32,7 +32,7 @@ void percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
 	}
 	put_cpu();
 }
-EXPORT_SYMBOL(percpu_counter_mod);
+EXPORT_SYMBOL(percpu_counter_add);
 
 /*
  * Add up all the per-cpu counts, return the result.  This is a more accurate
