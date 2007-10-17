@@ -5272,11 +5272,20 @@ static struct ctl_table *sd_alloc_ctl_entry(int n)
 
 static void sd_free_ctl_entry(struct ctl_table **tablep)
 {
-	struct ctl_table *entry = *tablep;
+	struct ctl_table *entry;
 
-	for (entry = *tablep; entry->procname; entry++)
+	/*
+	 * In the intermediate directories, both the child directory and
+	 * procname are dynamically allocated and could fail but the mode
+	 * will always be set.  In the lowest directory the names are
+	 * static strings and all have proc handlers.
+	 */
+	for (entry = *tablep; entry->mode; entry++) {
 		if (entry->child)
 			sd_free_ctl_entry(&entry->child);
+		if (entry->proc_handler == NULL)
+			kfree(entry->procname);
+	}
 
 	kfree(*tablep);
 	*tablep = NULL;
