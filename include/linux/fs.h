@@ -792,7 +792,7 @@ struct file {
 	unsigned int		f_uid, f_gid;
 	struct file_ra_state	f_ra;
 
-	unsigned long		f_version;
+	u64			f_version;
 #ifdef CONFIG_SECURITY
 	void			*f_security;
 #endif

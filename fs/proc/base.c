@@ -2586,7 +2586,7 @@ static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldi
 	/* f_version caches the tgid value that the last readdir call couldn't
 	 * return. lseek aka telldir automagically resets f_version to 0.
 	 */
-	tid = filp->f_version;
+	tid = (int)filp->f_version;
 	filp->f_version = 0;
 	for (task = first_tid(leader, tid, pos - 2);
 	     task;
@@ -2595,7 +2595,7 @@ static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldi
 		if (proc_task_fill_cache(filp, dirent, filldir, task, tid) < 0) {
 			/* returning this tgid failed, save it as the first
 			 * pid for the next readir call */
-			filp->f_version = tid;
+			filp->f_version = (u64)tid;
 			put_task_struct(task);
 			break;
 		}

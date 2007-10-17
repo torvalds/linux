@@ -586,7 +586,7 @@ bail:
 }
 
 static int ocfs2_dir_foreach_blk_id(struct inode *inode,
-				    unsigned long *f_version,
+				    u64 *f_version,
 				    loff_t *f_pos, void *priv,
 				    filldir_t filldir, int *filldir_err)
 {
@@ -648,7 +648,7 @@ revalidate:
 			 * not the directory has been modified
 			 * during the copy operation.
 			 */
-			unsigned long version = *f_version;
+			u64 version = *f_version;
 			unsigned char d_type = DT_UNKNOWN;
 
 			if (de->file_type < OCFS2_FT_MAX)
@@ -677,7 +677,7 @@ out:
 }
 
 static int ocfs2_dir_foreach_blk_el(struct inode *inode,
-				    unsigned long *f_version,
+				    u64 *f_version,
 				    loff_t *f_pos, void *priv,
 				    filldir_t filldir, int *filldir_err)
 {
@@ -798,7 +798,7 @@ out:
 	return stored;
 }
 
-static int ocfs2_dir_foreach_blk(struct inode *inode, unsigned long *f_version,
+static int ocfs2_dir_foreach_blk(struct inode *inode, u64 *f_version,
 				 loff_t *f_pos, void *priv, filldir_t filldir,
 				 int *filldir_err)
 {
@@ -818,7 +818,7 @@ int ocfs2_dir_foreach(struct inode *inode, loff_t *f_pos, void *priv,
 		      filldir_t filldir)
 {
 	int ret = 0, filldir_err = 0;
-	unsigned long version = inode->i_version;
+	u64 version = inode->i_version;
 
 	while (*f_pos < i_size_read(inode)) {
 		ret = ocfs2_dir_foreach_blk(inode, &version, f_pos, priv,

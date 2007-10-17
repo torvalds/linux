@@ -18,7 +18,7 @@ struct seq_file {
 	size_t from;
 	size_t count;
 	loff_t index;
-	loff_t version;
+	u64 version;
 	struct mutex lock;
 	const struct seq_operations *op;
 	void *private;
