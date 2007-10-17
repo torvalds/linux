@@ -115,8 +115,8 @@ int compare_sids(struct cifs_sid *ctsid, struct cifs_sid *cwsid)
 	}
 
 	/* compare all of the subauth values if any */
-	num_sat = cpu_to_le32(ctsid->num_subauth);
-	num_saw = cpu_to_le32(cwsid->num_subauth);
+	num_sat = ctsid->num_subauth;
+	num_saw = cwsid->num_subauth);
 	num_subauth = num_sat < num_saw ? num_sat : num_saw;
 	if (num_subauth) {
 		for (i = 0; i < num_subauth; ++i) {
@@ -206,7 +206,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 	acl_base = (char *)pdacl;
 	acl_size = sizeof(struct cifs_acl);
 
-	num_aces = cpu_to_le32(pdacl->num_aces);
+	num_aces = le32_to_cpu(pdacl->num_aces);
 	if (num_aces  > 0) {
 		ppntace = kmalloc(num_aces * sizeof(struct cifs_ntace *),
 				GFP_KERNEL);
