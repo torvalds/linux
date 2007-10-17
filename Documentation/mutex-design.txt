@@ -90,7 +90,8 @@ of advantages of mutexes:
    * - task may not exit with mutex held
    * - memory areas where held locks reside must not be freed
    * - held mutexes must not be reinitialized
-   * - mutexes may not be used in irq contexts
+   * - mutexes may not be used in hardware or software interrupt
+   *   contexts such as tasklets and timers
 
    furthermore, there are also convenience features in the debugging
    code:
