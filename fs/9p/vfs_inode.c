@@ -59,7 +59,7 @@ static int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
 	res = mode & 0777;
 	if (S_ISDIR(mode))
 		res |= P9_DMDIR;
-	if (v9ses->extended) {
+	if (v9fs_extended(v9ses)) {
 		if (S_ISLNK(mode))
 			res |= P9_DMSYMLINK;
 		if (v9ses->nodev == 0) {
@@ -99,21 +99,21 @@ static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 
 	if ((mode & P9_DMDIR) == P9_DMDIR)
 		res |= S_IFDIR;
-	else if ((mode & P9_DMSYMLINK) && (v9ses->extended))
+	else if ((mode & P9_DMSYMLINK) && (v9fs_extended(v9ses)))
 		res |= S_IFLNK;
-	else if ((mode & P9_DMSOCKET) && (v9ses->extended)
+	else if ((mode & P9_DMSOCKET) && (v9fs_extended(v9ses))
 		 && (v9ses->nodev == 0))
 		res |= S_IFSOCK;
-	else if ((mode & P9_DMNAMEDPIPE) && (v9ses->extended)
+	else if ((mode & P9_DMNAMEDPIPE) && (v9fs_extended(v9ses))
 		 && (v9ses->nodev == 0))
 		res |= S_IFIFO;
-	else if ((mode & P9_DMDEVICE) && (v9ses->extended)
+	else if ((mode & P9_DMDEVICE) && (v9fs_extended(v9ses))
 		 && (v9ses->nodev == 0))
 		res |= S_IFBLK;
 	else
 		res |= S_IFREG;
 
-	if (v9ses->extended) {
+	if (v9fs_extended(v9ses)) {
 		if ((mode & P9_DMSETUID) == P9_DMSETUID)
 			res |= S_ISUID;
 
@@ -214,7 +214,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		case S_IFBLK:
 		case S_IFCHR:
 		case S_IFSOCK:
-			if(!v9ses->extended) {
+			if (!v9fs_extended(v9ses)) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
 				      "special files without extended mode\n");
 				return ERR_PTR(-EINVAL);
@@ -227,7 +227,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 			inode->i_fop = &v9fs_file_operations;
 			break;
 		case S_IFLNK:
-			if(!v9ses->extended) {
+			if (!v9fs_extended(v9ses)) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
 					"extended modes used w/o 9P2000.u\n");
 				return ERR_PTR(-EINVAL);
@@ -236,7 +236,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 			break;
 		case S_IFDIR:
 			inc_nlink(inode);
-			if(v9ses->extended)
+			if (v9fs_extended(v9ses))
 				inode->i_op = &v9fs_dir_inode_operations_ext;
 			else
 				inode->i_op = &v9fs_dir_inode_operations;
@@ -768,7 +768,7 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (iattr->ia_valid & ATTR_SIZE)
 		wstat.length = iattr->ia_size;
 
-	if (v9ses->extended) {
+	if (v9fs_extended(v9ses)) {
 		if (iattr->ia_valid & ATTR_UID)
 			wstat.n_uid = iattr->ia_uid;
 
@@ -808,7 +808,7 @@ v9fs_stat2inode(struct p9_stat *stat, struct inode *inode,
 	inode->i_uid = v9ses->uid;
 	inode->i_gid = v9ses->gid;
 
-	if (v9ses->extended) {
+	if (v9fs_extended(v9ses)) {
 		inode->i_uid = stat->n_uid;
 		inode->i_gid = stat->n_gid;
 	}
@@ -890,7 +890,7 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	if(IS_ERR(fid))
 		return PTR_ERR(fid);
 
-	if (!v9ses->extended)
+	if (!v9fs_extended(v9ses))
 		return -EBADF;
 
 	st = p9_client_stat(fid);
@@ -1011,7 +1011,7 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 	struct p9_fid *fid;
 
 	v9ses = v9fs_inode2v9ses(dir);
-	if (!v9ses->extended) {
+	if (!v9fs_extended(v9ses)) {
 		P9_DPRINTK(P9_DEBUG_ERROR, "not extended\n");
 		return -EPERM;
 	}

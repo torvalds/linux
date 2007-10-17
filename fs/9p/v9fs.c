@@ -128,7 +128,7 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 
 	/* setup defaults */
 	v9ses->maxdata = 8192;
-	v9ses->extended = 1;
+	v9ses->flags = V9FS_EXTENDED;
 	v9ses->afid = ~0;
 	v9ses->debug = 0;
 	v9ses->cache = 0;
@@ -178,7 +178,7 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 			match_strcpy(v9ses->remotename, &args[0]);
 			break;
 		case Opt_legacy:
-			v9ses->extended = 0;
+			v9ses->flags &= ~V9FS_EXTENDED;
 			break;
 		case Opt_nodevmap:
 			v9ses->nodev = 1;
@@ -244,7 +244,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		v9ses->maxdata = v9ses->trans->maxsize-P9_IOHDRSZ;
 
 	v9ses->clnt = p9_client_create(trans, v9ses->maxdata+P9_IOHDRSZ,
-		v9ses->extended);
+		v9fs_extended(v9ses));
 
 	if (IS_ERR(v9ses->clnt)) {
 		retval = PTR_ERR(v9ses->clnt);

@@ -29,7 +29,7 @@
 struct v9fs_session_info {
 	/* options */
 	unsigned int maxdata;
-	unsigned char extended;	/* set to 1 if we are using UNIX extensions */
+	unsigned char flags;	/* session flags */
 	unsigned char nodev;	/* set to 1 if no disable device mapping */
 	unsigned short debug;	/* debug level */
 	unsigned int afid;	/* authentication fid */
@@ -43,6 +43,11 @@ struct v9fs_session_info {
 	struct p9_trans_module *trans; /* 9p transport */
 	struct p9_client *clnt;	/* 9p client */
 	struct dentry *debugfs_dir;
+};
+
+/* session flags */
+enum {
+	V9FS_EXTENDED,
 };
 
 /* possible values of ->cache */
@@ -69,4 +74,9 @@ void v9fs_session_cancel(struct v9fs_session_info *v9ses);
 static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
 {
 	return (inode->i_sb->s_fs_info);
+}
+
+static inline int v9fs_extended(struct v9fs_session_info *v9ses)
+{
+	return v9ses->flags & V9FS_EXTENDED;
 }
