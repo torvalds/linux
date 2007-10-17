@@ -850,23 +850,17 @@ static void page_header_update_slot(struct kvm *kvm, void *pte, gpa_t gpa)
 	__set_bit(slot, &page_head->slot_bitmap);
 }
 
-hpa_t safe_gpa_to_hpa(struct kvm *kvm, gpa_t gpa)
-{
-	hpa_t hpa = gpa_to_hpa(kvm, gpa);
-
-	return is_error_hpa(hpa) ? bad_page_address | (gpa & ~PAGE_MASK): hpa;
-}
-
 hpa_t gpa_to_hpa(struct kvm *kvm, gpa_t gpa)
 {
 	struct page *page;
+	hpa_t hpa;
 
 	ASSERT((gpa & HPA_ERR_MASK) == 0);
 	page = gfn_to_page(kvm, gpa >> PAGE_SHIFT);
-	if (!page)
-		return gpa | HPA_ERR_MASK;
-	return ((hpa_t)page_to_pfn(page) << PAGE_SHIFT)
-		| (gpa & (PAGE_SIZE-1));
+	hpa = ((hpa_t)page_to_pfn(page) << PAGE_SHIFT) | (gpa & (PAGE_SIZE-1));
+	if (is_error_page(page))
+		return hpa | HPA_ERR_MASK;
+	return hpa;
 }
 
 hpa_t gva_to_hpa(struct kvm_vcpu *vcpu, gva_t gva)

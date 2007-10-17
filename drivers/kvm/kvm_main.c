@@ -993,6 +993,12 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 	return r;
 }
 
+int is_error_page(struct page *page)
+{
+	return page == bad_page;
+}
+EXPORT_SYMBOL_GPL(is_error_page);
+
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
@@ -1034,7 +1040,7 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 	gfn = unalias_gfn(kvm, gfn);
 	slot = __gfn_to_memslot(kvm, gfn);
 	if (!slot)
-		return NULL;
+		return bad_page;
 	return slot->phys_mem[gfn - slot->base_gfn];
 }
 EXPORT_SYMBOL_GPL(gfn_to_page);
@@ -1054,7 +1060,7 @@ int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 	struct page *page;
 
 	page = gfn_to_page(kvm, gfn);
-	if (!page)
+	if (is_error_page(page))
 		return -EFAULT;
 	page_virt = kmap_atomic(page, KM_USER0);
 
@@ -1092,7 +1098,7 @@ int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
 	struct page *page;
 
 	page = gfn_to_page(kvm, gfn);
-	if (!page)
+	if (is_error_page(page))
 		return -EFAULT;
 	page_virt = kmap_atomic(page, KM_USER0);
 
@@ -1130,7 +1136,7 @@ int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
 	struct page *page;
 
 	page = gfn_to_page(kvm, gfn);
-	if (!page)
+	if (is_error_page(page))
 		return -EFAULT;
 	page_virt = kmap_atomic(page, KM_USER0);
 
@@ -3068,7 +3074,7 @@ static struct page *kvm_vm_nopage(struct vm_area_struct *vma,
 
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
 	page = gfn_to_page(kvm, pgoff);
-	if (!page)
+	if (is_error_page(page))
 		return NOPAGE_SIGBUS;
 	get_page(page);
 	if (type != NULL)
@@ -3383,7 +3389,7 @@ static struct sys_device kvm_sysdev = {
 	.cls = &kvm_sysdev_class,
 };
 
-hpa_t bad_page_address;
+struct page *bad_page;
 
 static inline
 struct kvm_vcpu *preempt_notifier_to_vcpu(struct preempt_notifier *pn)
@@ -3512,7 +3518,6 @@ EXPORT_SYMBOL_GPL(kvm_exit_x86);
 
 static __init int kvm_init(void)
 {
-	static struct page *bad_page;
 	int r;
 
 	r = kvm_mmu_module_init();
@@ -3523,15 +3528,12 @@ static __init int kvm_init(void)
 
 	kvm_arch_init();
 
-	bad_page = alloc_page(GFP_KERNEL);
+	bad_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 
 	if (bad_page == NULL) {
 		r = -ENOMEM;
 		goto out;
 	}
-
-	bad_page_address = page_to_pfn(bad_page) << PAGE_SHIFT;
-	memset(__va(bad_page_address), 0, PAGE_SIZE);
 
 	return 0;
 
@@ -3545,7 +3547,7 @@ out4:
 static __exit void kvm_exit(void)
 {
 	kvm_exit_debug();
-	__free_page(pfn_to_page(bad_page_address >> PAGE_SHIFT));
+	__free_page(bad_page);
 	kvm_mmu_module_exit();
 }
 

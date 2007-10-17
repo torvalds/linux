@@ -565,8 +565,9 @@ static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
 hpa_t gva_to_hpa(struct kvm_vcpu *vcpu, gva_t gva);
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 
-extern hpa_t bad_page_address;
+extern struct page *bad_page;
 
+int is_error_page(struct page *page);
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
