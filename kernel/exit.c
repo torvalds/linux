@@ -1322,7 +1322,7 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 	if (!p->exit_code)
 		return 0;
 	if (delayed_group_leader && !(p->ptrace & PT_PTRACED) &&
-	    p->signal && p->signal->group_stop_count > 0)
+	    p->signal->group_stop_count > 0)
 		/*
 		 * A group stop is in progress and this is the group leader.
 		 * We won't report until all threads have stopped.
@@ -1435,9 +1435,6 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 	int retval;
 	pid_t pid;
 	uid_t uid;
-
-	if (unlikely(!p->signal))
-		return 0;
 
 	if (!(p->signal->flags & SIGNAL_STOP_CONTINUED))
 		return 0;
