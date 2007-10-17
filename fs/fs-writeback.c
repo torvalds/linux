@@ -165,6 +165,28 @@ static void redirty_tail(struct inode *inode)
 }
 
 /*
+ * Redirty an inode, but mark it as the very next-to-be-written inode on its
+ * superblock's dirty-inode list.
+ * We need to preserve s_dirty's reverse-time-orderedness, so we cheat by
+ * setting this inode's dirtied_when to the same value as that of the inode
+ * which is presently head-of-list, if present head-of-list is newer than this
+ * inode. (head-of-list is the least-recently-dirtied inode: the oldest one).
+ */
+static void redirty_head(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+
+	if (!list_empty(&sb->s_dirty)) {
+		struct inode *head_inode;
+
+		head_inode = list_entry(sb->s_dirty.prev, struct inode, i_list);
+		if (time_after(inode->dirtied_when, head_inode->dirtied_when))
+			inode->dirtied_when = head_inode->dirtied_when;
+	}
+	list_move_tail(&inode->i_list, &sb->s_dirty);
+}
+
+/*
  * Write a single inode's dirty pages and inode data out to disk.
  * If `wait' is set, wait on the writeout.
  *
@@ -225,7 +247,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 				 * uncongested.
 				 */
 				inode->i_state |= I_DIRTY_PAGES;
-				list_move_tail(&inode->i_list, &sb->s_dirty);
+				redirty_head(inode);
 			} else {
 				/*
 				 * Otherwise fully redirty the inode so that
