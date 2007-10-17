@@ -283,7 +283,6 @@ extern int dir_notify_enable;
 #include <linux/init.h>
 #include <linux/pid.h>
 #include <linux/mutex.h>
-#include <linux/sysctl.h>
 #include <linux/capability.h>
 
 #include <asm/atomic.h>
@@ -2032,7 +2031,8 @@ static inline void free_secdata(void *secdata)
 { }
 #endif	/* CONFIG_SECURITY */
 
-int proc_nr_files(ctl_table *table, int write, struct file *filp,
+struct ctl_table;
+int proc_nr_files(struct ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
 
 
