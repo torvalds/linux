@@ -283,6 +283,7 @@ unifdef-y += nfs_idmap.h
 unifdef-y += n_r3964.h
 unifdef-y += nubus.h
 unifdef-y += nvram.h
+unifdef-y += oom.h
 unifdef-y += parport.h
 unifdef-y += patchkey.h
 unifdef-y += pci.h
