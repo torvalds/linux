@@ -165,7 +165,7 @@ struct snd_bt87x_board {
 	unsigned no_digital:1;	/* No digital input */
 };
 
-static const __devinitdata struct snd_bt87x_board snd_bt87x_boards[] = {
+static __devinitdata struct snd_bt87x_board snd_bt87x_boards[] = {
 	[SND_BT87X_BOARD_UNKNOWN] = {
 		.dig_rate = 32000, /* just a guess */
 	},
