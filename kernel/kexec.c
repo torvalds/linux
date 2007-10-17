@@ -1218,6 +1218,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	SIZE(zone);
 	SIZE(free_area);
 	SIZE(list_head);
+	TYPEDEF_SIZE(nodemask_t);
 	OFFSET(page, flags);
 	OFFSET(page, _count);
 	OFFSET(page, mapping);
@@ -1237,6 +1238,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	OFFSET(list_head, next);
 	OFFSET(list_head, prev);
 	LENGTH(zone.free_area, MAX_ORDER);
+	NUMBER(NR_FREE_PAGES);
 
 	arch_crash_save_vmcoreinfo();
 
