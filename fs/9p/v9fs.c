@@ -91,6 +91,8 @@ enum {
 	Opt_legacy, Opt_nodevmap,
 	/* Cache options */
 	Opt_cache_loose,
+	/* Access options */
+	Opt_access,
 	/* Error token */
 	Opt_err
 };
@@ -108,6 +110,7 @@ static match_table_t tokens = {
 	{Opt_nodevmap, "nodevmap"},
 	{Opt_cache_loose, "cache=loose"},
 	{Opt_cache_loose, "loose"},
+	{Opt_access, "access=%s"},
 	{Opt_err, NULL}
 };
 
@@ -125,10 +128,10 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 	char *p;
 	int option;
 	int ret;
+	char *s, *e;
 
 	/* setup defaults */
 	v9ses->maxdata = 8192;
-	v9ses->flags = V9FS_EXTENDED;
 	v9ses->afid = ~0;
 	v9ses->debug = 0;
 	v9ses->cache = 0;
@@ -172,10 +175,10 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 			v9ses->trans = v9fs_match_trans(&args[0]);
 			break;
 		case Opt_uname:
-			match_strcpy(v9ses->name, &args[0]);
+			match_strcpy(v9ses->uname, &args[0]);
 			break;
 		case Opt_remotename:
-			match_strcpy(v9ses->remotename, &args[0]);
+			match_strcpy(v9ses->aname, &args[0]);
 			break;
 		case Opt_legacy:
 			v9ses->flags &= ~V9FS_EXTENDED;
@@ -186,6 +189,22 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 		case Opt_cache_loose:
 			v9ses->cache = CACHE_LOOSE;
 			break;
+
+		case Opt_access:
+			s = match_strdup(&args[0]);
+			v9ses->flags &= ~V9FS_ACCESS_MASK;
+			if (strcmp(s, "user") == 0)
+				v9ses->flags |= V9FS_ACCESS_USER;
+			else if (strcmp(s, "any") == 0)
+				v9ses->flags |= V9FS_ACCESS_ANY;
+			else {
+				v9ses->flags |= V9FS_ACCESS_SINGLE;
+				v9ses->uid = simple_strtol(s, &e, 10);
+				if (*e != '\0')
+					v9ses->uid = ~0;
+			}
+			break;
+
 		default:
 			continue;
 		}
@@ -207,21 +226,22 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	struct p9_trans *trans = NULL;
 	struct p9_fid *fid;
 
-	v9ses->name = __getname();
-	if (!v9ses->name)
+	v9ses->uname = __getname();
+	if (!v9ses->uname)
 		return ERR_PTR(-ENOMEM);
 
-	v9ses->remotename = __getname();
-	if (!v9ses->remotename) {
-		__putname(v9ses->name);
+	v9ses->aname = __getname();
+	if (!v9ses->aname) {
+		__putname(v9ses->uname);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	strcpy(v9ses->name, V9FS_DEFUSER);
-	strcpy(v9ses->remotename, V9FS_DEFANAME);
+	v9ses->flags = V9FS_EXTENDED | V9FS_ACCESS_USER;
+	strcpy(v9ses->uname, V9FS_DEFUSER);
+	strcpy(v9ses->aname, V9FS_DEFANAME);
+	v9ses->uid = ~0;
 	v9ses->dfltuid = V9FS_DEFUID;
 	v9ses->dfltgid = V9FS_DEFGID;
-
 	v9ses->options = kstrdup(data, GFP_KERNEL);
 	v9fs_parse_options(v9ses);
 
@@ -255,14 +275,31 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto error;
 	}
 
-	fid = p9_client_attach(v9ses->clnt, NULL, v9ses->name,
-							v9ses->remotename);
+	if (!v9ses->clnt->dotu)
+		v9ses->flags &= ~V9FS_EXTENDED;
+
+	/* for legacy mode, fall back to V9FS_ACCESS_ANY */
+	if (!v9fs_extended(v9ses) &&
+		((v9ses->flags&V9FS_ACCESS_MASK) == V9FS_ACCESS_USER)) {
+
+		v9ses->flags &= ~V9FS_ACCESS_MASK;
+		v9ses->flags |= V9FS_ACCESS_ANY;
+		v9ses->uid = ~0;
+	}
+
+	fid = p9_client_attach(v9ses->clnt, NULL, v9ses->uname, ~0,
+							v9ses->aname);
 	if (IS_ERR(fid)) {
 		retval = PTR_ERR(fid);
 		fid = NULL;
 		P9_DPRINTK(P9_DEBUG_ERROR, "cannot attach\n");
 		goto error;
 	}
+
+	if ((v9ses->flags & V9FS_ACCESS_MASK) == V9FS_ACCESS_SINGLE)
+		fid->uid = v9ses->uid;
+	else
+		fid->uid = ~0;
 
 	return fid;
 
@@ -284,8 +321,8 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 		v9ses->clnt = NULL;
 	}
 
-	__putname(v9ses->name);
-	__putname(v9ses->remotename);
+	__putname(v9ses->uname);
+	__putname(v9ses->aname);
 	kfree(v9ses->options);
 }
 

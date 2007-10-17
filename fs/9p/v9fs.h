@@ -36,10 +36,11 @@ struct v9fs_session_info {
 	unsigned int cache;	/* cache mode */
 
 	char *options;		/* copy of mount options */
-	char *name;		/* user name to mount as */
-	char *remotename;	/* name of remote hierarchy being mounted */
+	char *uname;		/* user name to mount as */
+	char *aname;		/* name of remote hierarchy being mounted */
 	unsigned int dfltuid;	/* default uid/muid for legacy support */
 	unsigned int dfltgid;	/* default gid for legacy support */
+	u32 uid;		/* if ACCESS_SINGLE, the uid that has access */
 	struct p9_trans_module *trans; /* 9p transport */
 	struct p9_client *clnt;	/* 9p client */
 	struct dentry *debugfs_dir;
@@ -47,7 +48,11 @@ struct v9fs_session_info {
 
 /* session flags */
 enum {
-	V9FS_EXTENDED,
+	V9FS_EXTENDED		= 0x01,	/* 9P2000.u */
+	V9FS_ACCESS_MASK	= 0x06,	/* access mask */
+	V9FS_ACCESS_SINGLE	= 0x02,	/* only one user can access the files */
+	V9FS_ACCESS_USER	= 0x04,	/* attache per user */
+	V9FS_ACCESS_ANY		= 0x06,	/* use the same attach for all users */
 };
 
 /* possible values of ->cache */

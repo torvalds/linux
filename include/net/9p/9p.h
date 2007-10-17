@@ -216,6 +216,7 @@ struct p9_tauth {
 	u32 afid;
 	struct p9_str uname;
 	struct p9_str aname;
+	u32 n_uname;		/* 9P2000.u extensions */
 };
 
 struct p9_rauth {
@@ -239,6 +240,7 @@ struct p9_tattach {
 	u32 afid;
 	struct p9_str uname;
 	struct p9_str aname;
+	u32 n_uname;		/* 9P2000.u extensions */
 };
 
 struct p9_rattach {
@@ -382,8 +384,9 @@ int p9_deserialize_fcall(void *buf, u32 buflen, struct p9_fcall *fc, int dotu);
 void p9_set_tag(struct p9_fcall *fc, u16 tag);
 struct p9_fcall *p9_create_tversion(u32 msize, char *version);
 struct p9_fcall *p9_create_tattach(u32 fid, u32 afid, char *uname,
-	char *aname);
-struct p9_fcall *p9_create_tauth(u32 afid, char *uname, char *aname);
+	char *aname, u32 n_uname, int dotu);
+struct p9_fcall *p9_create_tauth(u32 afid, char *uname, char *aname,
+	u32 n_uname, int dotu);
 struct p9_fcall *p9_create_tflush(u16 oldtag);
 struct p9_fcall *p9_create_twalk(u32 fid, u32 newfid, u16 nwname,
 	char **wnames);

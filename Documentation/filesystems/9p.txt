@@ -88,6 +88,16 @@ OPTIONS
   		This can be used to share devices/named pipes/sockets between
 		hosts.  This functionality will be expanded in later versions.
 
+  access	there are three access modes.
+			user  = if a user tries to access a file on v9fs
+			        filesystem for the first time, v9fs sends an
+			        attach command (Tattach) for that user.
+				This is the default mode.
+			<uid> = allows only user with uid=<uid> to access
+				the files on the mounted filesystem
+			any   = v9fs does single attach and performs all
+				operations as one user
+
 RESOURCES
 =========
 
