@@ -42,6 +42,9 @@
 *.9.gz
 .*
 .cscope
+.gitignore
+.mailmap
+.mm
 53c700_d.h
 53c7xx_d.h
 53c7xx_u.h
@@ -175,11 +178,13 @@ times.h*
 tkparse
 trix_boot.h
 utsrelease.h*
+vdso.lds
 version.h*
 vmlinux
 vmlinux-*
 vmlinux.aout
-vmlinux.lds
+vmlinux*.lds*
+vmlinux*.scr
 vsyscall.lds
 wanxlfw.inc
 uImage
