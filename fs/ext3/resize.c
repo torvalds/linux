@@ -154,6 +154,34 @@ static void mark_bitmap_end(int start_bit, int end_bit, char *bitmap)
 }
 
 /*
+ * If we have fewer than thresh credits, extend by EXT3_MAX_TRANS_DATA.
+ * If that fails, restart the transaction & regain write access for the
+ * buffer head which is used for block_bitmap modifications.
+ */
+static int extend_or_restart_transaction(handle_t *handle, int thresh,
+					 struct buffer_head *bh)
+{
+	int err;
+
+	if (handle->h_buffer_credits >= thresh)
+		return 0;
+
+	err = ext3_journal_extend(handle, EXT3_MAX_TRANS_DATA);
+	if (err < 0)
+		return err;
+	if (err) {
+		err = ext3_journal_restart(handle, EXT3_MAX_TRANS_DATA);
+		if (err)
+			return err;
+		err = ext3_journal_get_write_access(handle, bh);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/*
  * Set up the block and inode bitmaps, and the inode table for the new group.
  * This doesn't need to be part of the main transaction, since we are only
  * changing blocks outside the actual filesystem.  We still do journaling to
@@ -175,8 +203,9 @@ static int setup_new_group_blocks(struct super_block *sb,
 	int i;
 	int err = 0, err2;
 
-	handle = ext3_journal_start_sb(sb, reserved_gdb + gdblocks +
-				       2 + sbi->s_itb_per_group);
+	/* This transaction may be extended/restarted along the way */
+	handle = ext3_journal_start_sb(sb, EXT3_MAX_TRANS_DATA);
+
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -203,6 +232,10 @@ static int setup_new_group_blocks(struct super_block *sb,
 
 		ext3_debug("update backup group %#04lx (+%d)\n", block, bit);
 
+		err = extend_or_restart_transaction(handle, 1, bh);
+		if (err)
+			goto exit_bh;
+
 		gdb = sb_getblk(sb, block);
 		if (!gdb) {
 			err = -EIO;
@@ -228,6 +261,10 @@ static int setup_new_group_blocks(struct super_block *sb,
 
 		ext3_debug("clear reserved block %#04lx (+%d)\n", block, bit);
 
+		err = extend_or_restart_transaction(handle, 1, bh);
+		if (err)
+			goto exit_bh;
+
 		if (IS_ERR(gdb = bclean(handle, sb, block))) {
 			err = PTR_ERR(bh);
 			goto exit_bh;
@@ -249,6 +286,11 @@ static int setup_new_group_blocks(struct super_block *sb,
 		struct buffer_head *it;
 
 		ext3_debug("clear inode block %#04lx (+%d)\n", block, bit);
+
+		err = extend_or_restart_transaction(handle, 1, bh);
+		if (err)
+			goto exit_bh;
+
 		if (IS_ERR(it = bclean(handle, sb, block))) {
 			err = PTR_ERR(it);
 			goto exit_bh;
@@ -257,6 +299,11 @@ static int setup_new_group_blocks(struct super_block *sb,
 		brelse(it);
 		ext3_set_bit(bit, bh->b_data);
 	}
+
+	err = extend_or_restart_transaction(handle, 2, bh);
+	if (err)
+		goto exit_bh;
+
 	mark_bitmap_end(input->blocks_count, EXT3_BLOCKS_PER_GROUP(sb),
 			bh->b_data);
 	ext3_journal_dirty_metadata(handle, bh);
