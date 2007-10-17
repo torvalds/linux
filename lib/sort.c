@@ -67,7 +67,7 @@ void sort(void *base, size_t num, size_t size,
 	}
 
 	/* sort */
-	for (i = n - size; i >= 0; i -= size) {
+	for (i = n - size; i > 0; i -= size) {
 		swap(base, base + i, size);
 		for (r = 0; r * 2 + size < i; r = c) {
 			c = r * 2 + size;
