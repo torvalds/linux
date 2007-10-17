@@ -144,7 +144,7 @@ with the lowest level (which directly handles hardware).
 	<para>This is the lowest software level.
 	It is the only layer that talks to hardware,
 	through registers, fifos, dma, irqs, and the like.
-	The <filename>&lt;linux/usb_gadget.h&gt;</filename> API abstracts
+	The <filename>&lt;linux/usb/gadget.h&gt;</filename> API abstracts
 	the peripheral controller endpoint hardware.
 	That hardware is exposed through endpoint objects, which accept
 	streams of IN/OUT buffers, and through callbacks that interact
@@ -494,7 +494,7 @@ side drivers (and usbcore).
 <sect1 id="core"><title>Core Objects and Methods</title>
 
 <para>These are declared in
-<filename>&lt;linux/usb_gadget.h&gt;</filename>,
+<filename>&lt;linux/usb/gadget.h&gt;</filename>,
 and are used by gadget drivers to interact with
 USB peripheral controller drivers.
 </para>
@@ -509,7 +509,7 @@ USB peripheral controller drivers.
 	     unless the explanations are trivial.
 	  -->
 
-!Iinclude/linux/usb_gadget.h
+!Iinclude/linux/usb/gadget.h
 </sect1>
 
 <sect1 id="utils"><title>Optional Utilities</title>
