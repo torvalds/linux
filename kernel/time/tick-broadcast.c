@@ -274,21 +274,12 @@ out:
  */
 void tick_broadcast_on_off(unsigned long reason, int *oncpu)
 {
-	int cpu = get_cpu();
-
-	if (!cpu_isset(*oncpu, cpu_online_map)) {
+	if (!cpu_isset(*oncpu, cpu_online_map))
 		printk(KERN_ERR "tick-braodcast: ignoring broadcast for "
 		       "offline CPU #%d\n", *oncpu);
-	} else {
-
-		if (cpu == *oncpu)
-			tick_do_broadcast_on_off(&reason);
-		else
-			smp_call_function_single(*oncpu,
-						 tick_do_broadcast_on_off,
-						 &reason, 1, 1);
-	}
-	put_cpu();
+	else
+		smp_call_function_single(*oncpu, tick_do_broadcast_on_off,
+					 &reason, 1, 1);
 }
 
 /*
