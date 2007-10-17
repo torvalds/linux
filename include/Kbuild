@@ -1,6 +1,5 @@
 header-y += asm-generic/
 header-y += linux/
-header-y += scsi/
 header-y += sound/
 header-y += mtd/
 header-y += rdma/
