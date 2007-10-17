@@ -229,7 +229,7 @@ static void n_hdlc_release(struct n_hdlc *n_hdlc)
 	wake_up_interruptible (&tty->read_wait);
 	wake_up_interruptible (&tty->write_wait);
 
-	if (tty != NULL && tty->disc_data == n_hdlc)
+	if (tty->disc_data == n_hdlc)
 		tty->disc_data = NULL;	/* Break the tty->n_hdlc link */
 
 	/* Release transmit and receive buffers */
