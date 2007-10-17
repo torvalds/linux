@@ -152,7 +152,7 @@ static __cpuinit int thermal_throttle_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block thermal_throttle_cpu_notifier =
+static struct notifier_block thermal_throttle_cpu_notifier __cpuinitdata =
 {
 	.notifier_call = thermal_throttle_cpu_callback,
 };
