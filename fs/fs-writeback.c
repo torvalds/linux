@@ -308,7 +308,14 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		struct address_space *mapping = inode->i_mapping;
 		int ret;
 
-		redirty_tail(inode);
+		/*
+		 * We're skipping this inode because it's locked, and we're not
+		 * doing writeback-for-data-integrity.  Move it to the head of
+		 * s_dirty so that writeback can proceed with the other inodes
+		 * on s_io.  We'll have another go at writing back this inode
+		 * when the s_dirty iodes get moved back onto s_io.
+		 */
+		redirty_head(inode);
 
 		/*
 		 * Even if we don't actually write the inode itself here,
