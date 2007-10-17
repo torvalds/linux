@@ -10,7 +10,6 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
-#include <linux/scatterlist.h>
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>

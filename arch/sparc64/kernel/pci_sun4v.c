@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/log2.h>
-#include <linux/scatterlist.h>
 
 #include <asm/iommu.h>
 #include <asm/irq.h>
