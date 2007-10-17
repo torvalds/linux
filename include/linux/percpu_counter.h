@@ -32,8 +32,13 @@ struct percpu_counter {
 
 void percpu_counter_init(struct percpu_counter *fbc, s64 amount);
 void percpu_counter_destroy(struct percpu_counter *fbc);
-void percpu_counter_add(struct percpu_counter *fbc, s32 amount);
+void __percpu_counter_add(struct percpu_counter *fbc, s32 amount, s32 batch);
 s64 percpu_counter_sum(struct percpu_counter *fbc);
+
+static inline void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
+{
+	__percpu_counter_add(fbc, amount, FBC_BATCH);
+}
 
 static inline s64 percpu_counter_read(struct percpu_counter *fbc)
 {
@@ -69,6 +74,9 @@ static inline void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
 static inline void percpu_counter_destroy(struct percpu_counter *fbc)
 {
 }
+
+#define __percpu_counter_add(fbc, amount, batch) \
+	percpu_counter_add(fbc, amount)
 
 static inline void
 percpu_counter_add(struct percpu_counter *fbc, s32 amount)

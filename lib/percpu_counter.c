@@ -14,7 +14,7 @@ static LIST_HEAD(percpu_counters);
 static DEFINE_MUTEX(percpu_counters_lock);
 #endif
 
-void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
+void __percpu_counter_add(struct percpu_counter *fbc, s32 amount, s32 batch)
 {
 	long count;
 	s32 *pcount;
@@ -22,7 +22,7 @@ void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
 
 	pcount = per_cpu_ptr(fbc->counters, cpu);
 	count = *pcount + amount;
-	if (count >= FBC_BATCH || count <= -FBC_BATCH) {
+	if (count >= batch || count <= -batch) {
 		spin_lock(&fbc->lock);
 		fbc->count += count;
 		*pcount = 0;
@@ -32,7 +32,7 @@ void percpu_counter_add(struct percpu_counter *fbc, s32 amount)
 	}
 	put_cpu();
 }
-EXPORT_SYMBOL(percpu_counter_add);
+EXPORT_SYMBOL(__percpu_counter_add);
 
 /*
  * Add up all the per-cpu counts, return the result.  This is a more accurate
