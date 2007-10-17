@@ -909,8 +909,7 @@ __group_complete_signal(int sig, struct task_struct *p)
 			do {
 				sigaddset(&t->pending.signal, SIGKILL);
 				signal_wake_up(t, 1);
-				t = next_thread(t);
-			} while (t != p);
+			} while_each_thread(p, t);
 			return;
 		}
 
@@ -928,13 +927,11 @@ __group_complete_signal(int sig, struct task_struct *p)
 		rm_from_queue(SIG_KERNEL_STOP_MASK, &p->signal->shared_pending);
 		p->signal->group_stop_count = 0;
 		p->signal->group_exit_task = t;
-		t = p;
+		p = t;
 		do {
 			p->signal->group_stop_count++;
-			signal_wake_up(t, 0);
-			t = next_thread(t);
-		} while (t != p);
-		wake_up_process(p->signal->group_exit_task);
+			signal_wake_up(t, t == p);
+		} while_each_thread(p, t);
 		return;
 	}
 
