@@ -30,6 +30,5 @@ unifdef-y += unistd.h
 unifdef-y += user.h
 
 # These probably shouldn't be exported
-unifdef-y += shmparam.h
 unifdef-y += elf.h
 unifdef-y += page.h

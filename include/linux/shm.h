@@ -16,7 +16,9 @@
 #define SHMALL (SHMMAX/PAGE_SIZE*(SHMMNI/16)) /* max shm system wide (pages) */
 #define SHMSEG SHMMNI			 /* max shared segs per process */
 
+#ifdef __KERNEL__
 #include <asm/shmparam.h>
+#endif
 
 /* Obsolete, used only for backwards compatibility and libc5 compiles */
 struct shmid_ds {

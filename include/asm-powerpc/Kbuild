@@ -15,7 +15,6 @@ header-y += termbits.h
 header-y += fcntl.h
 header-y += ipc.h
 header-y += poll.h
-header-y += shmparam.h
 header-y += sockios.h
 header-y += ucontext.h
 header-y += ioctl.h
