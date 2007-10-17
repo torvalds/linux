@@ -801,16 +801,15 @@ static int de_thread(struct task_struct *tsk)
 			hrtimer_restart(&sig->real_timer);
 		spin_lock_irq(lock);
 	}
+
+	sig->notify_count = count;
+	sig->group_exit_task = tsk;
 	while (atomic_read(&sig->count) > count) {
-		sig->group_exit_task = tsk;
-		sig->notify_count = count;
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(lock);
 		schedule();
 		spin_lock_irq(lock);
 	}
-	sig->group_exit_task = NULL;
-	sig->notify_count = 0;
 	spin_unlock_irq(lock);
 
 	/*
@@ -819,14 +818,17 @@ static int de_thread(struct task_struct *tsk)
 	 * and to assume its PID:
 	 */
 	if (!thread_group_leader(tsk)) {
-		/*
-		 * Wait for the thread group leader to be a zombie.
-		 * It should already be zombie at this point, most
-		 * of the time.
-		 */
 		leader = tsk->group_leader;
-		while (leader->exit_state != EXIT_ZOMBIE)
-			yield();
+
+		sig->notify_count = -1;
+		for (;;) {
+			write_lock_irq(&tasklist_lock);
+			if (likely(leader->exit_state))
+				break;
+			__set_current_state(TASK_UNINTERRUPTIBLE);
+			write_unlock_irq(&tasklist_lock);
+			schedule();
+		}
 
 		/*
 		 * The only record we have of the real-time age of a
@@ -839,8 +841,6 @@ static int de_thread(struct task_struct *tsk)
 		 * also take its birthdate (always earlier than our own).
 		 */
 		tsk->start_time = leader->start_time;
-
-		write_lock_irq(&tasklist_lock);
 
 		BUG_ON(leader->tgid != tsk->tgid);
 		BUG_ON(tsk->pid == tsk->tgid);
@@ -874,6 +874,8 @@ static int de_thread(struct task_struct *tsk)
 		write_unlock_irq(&tasklist_lock);
         }
 
+	sig->group_exit_task = NULL;
+	sig->notify_count = 0;
 	/*
 	 * There may be one thread left which is just exiting,
 	 * but it's safe to stop telling the group to kill themselves.
