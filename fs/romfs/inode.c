@@ -92,7 +92,7 @@ static inline unsigned long romfs_maxsize(struct super_block *sb)
 
 static inline struct romfs_inode_info *ROMFS_I(struct inode *inode)
 {
-	return list_entry(inode, struct romfs_inode_info, vfs_inode);
+	return container_of(inode, struct romfs_inode_info, vfs_inode);
 }
 
 static __u32
@@ -555,7 +555,7 @@ static struct kmem_cache * romfs_inode_cachep;
 static struct inode *romfs_alloc_inode(struct super_block *sb)
 {
 	struct romfs_inode_info *ei;
-	ei = (struct romfs_inode_info *)kmem_cache_alloc(romfs_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(romfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
