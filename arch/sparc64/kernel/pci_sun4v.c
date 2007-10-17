@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/log2.h>
-#include <linux/scatterlist.h>
 
 #include <asm/iommu.h>
 #include <asm/irq.h>
@@ -369,12 +368,11 @@ static void dma_4v_unmap_single(struct device *dev, dma_addr_t bus_addr,
 #define SG_ENT_PHYS_ADDRESS(SG)	\
 	(__pa(page_address((SG)->page)) + (SG)->offset)
 
-static inline long fill_sg(long entry, struct device *dev,
-			   struct scatterlist *sg,
-			   int nused, int nelems, unsigned long prot)
+static long fill_sg(long entry, struct device *dev,
+		    struct scatterlist *sg,
+		    int nused, int nelems, unsigned long prot)
 {
 	struct scatterlist *dma_sg = sg;
-	struct scatterlist *sg_end = sg_last(sg, nelems);
 	unsigned long flags;
 	int i;
 
@@ -415,6 +413,7 @@ static inline long fill_sg(long entry, struct device *dev,
 					break;
 				}
 				sg = sg_next(sg);
+				nelems--;
 			}
 
 			pteval = (pteval & IOPTE_PAGE);
@@ -433,19 +432,20 @@ static inline long fill_sg(long entry, struct device *dev,
 
 			pteval = (pteval & IOPTE_PAGE) + len;
 			sg = sg_next(sg);
+			nelems--;
 
 			/* Skip over any tail mappings we've fully mapped,
 			 * adjusting pteval along the way.  Stop when we
 			 * detect a page crossing event.
 			 */
-			while ((pteval << (64 - IO_PAGE_SHIFT)) != 0UL &&
+			while (nelems &&
+			       (pteval << (64 - IO_PAGE_SHIFT)) != 0UL &&
 			       (pteval == SG_ENT_PHYS_ADDRESS(sg)) &&
 			       ((pteval ^
 				 (SG_ENT_PHYS_ADDRESS(sg) + sg->length - 1UL)) >> IO_PAGE_SHIFT) == 0UL) {
 				pteval += sg->length;
-				if (sg == sg_end)
-					break;
 				sg = sg_next(sg);
+				nelems--;
 			}
 			if ((pteval << (64 - IO_PAGE_SHIFT)) == 0UL)
 				pteval = ~0UL;

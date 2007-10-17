@@ -10,7 +10,6 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
-#include <linux/scatterlist.h>
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
@@ -476,12 +475,11 @@ static void dma_4u_unmap_single(struct device *dev, dma_addr_t bus_addr,
 #define SG_ENT_PHYS_ADDRESS(SG)	\
 	(__pa(page_address((SG)->page)) + (SG)->offset)
 
-static inline void fill_sg(iopte_t *iopte, struct scatterlist *sg,
-			   int nused, int nelems,
-			   unsigned long iopte_protection)
+static void fill_sg(iopte_t *iopte, struct scatterlist *sg,
+		    int nused, int nelems,
+		    unsigned long iopte_protection)
 {
 	struct scatterlist *dma_sg = sg;
-	struct scatterlist *sg_end = sg_last(sg, nelems);
 	int i;
 
 	for (i = 0; i < nused; i++) {
@@ -517,6 +515,7 @@ static inline void fill_sg(iopte_t *iopte, struct scatterlist *sg,
 					break;
 				}
 				sg = sg_next(sg);
+				nelems--;
 			}
 
 			pteval = iopte_protection | (pteval & IOPTE_PAGE);
@@ -530,18 +529,20 @@ static inline void fill_sg(iopte_t *iopte, struct scatterlist *sg,
 
 			pteval = (pteval & IOPTE_PAGE) + len;
 			sg = sg_next(sg);
+			nelems--;
 
 			/* Skip over any tail mappings we've fully mapped,
 			 * adjusting pteval along the way.  Stop when we
 			 * detect a page crossing event.
 			 */
-			while (sg != sg_end &&
+			while (nelems &&
 			       (pteval << (64 - IO_PAGE_SHIFT)) != 0UL &&
 			       (pteval == SG_ENT_PHYS_ADDRESS(sg)) &&
 			       ((pteval ^
 				 (SG_ENT_PHYS_ADDRESS(sg) + sg->length - 1UL)) >> IO_PAGE_SHIFT) == 0UL) {
 				pteval += sg->length;
 				sg = sg_next(sg);
+				nelems--;
 			}
 			if ((pteval << (64 - IO_PAGE_SHIFT)) == 0UL)
 				pteval = ~0UL;

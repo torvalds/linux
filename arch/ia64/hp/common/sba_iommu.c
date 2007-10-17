@@ -1179,7 +1179,6 @@ sba_fill_pdir(
 	u64 *pdirp = NULL;
 	unsigned long dma_offset = 0;
 
-	dma_sg--;
 	while (nents-- > 0) {
 		int     cnt = startsg->dma_length;
 		startsg->dma_length = 0;
@@ -1201,7 +1200,8 @@ sba_fill_pdir(
 			u32 pide = startsg->dma_address & ~PIDE_FLAG;
 			dma_offset = (unsigned long) pide & ~iovp_mask;
 			startsg->dma_address = 0;
-			dma_sg = sg_next(dma_sg);
+			if (n_mappings)
+				dma_sg = sg_next(dma_sg);
 			dma_sg->dma_address = pide | ioc->ibase;
 			pdirp = &(ioc->pdir_base[pide >> iovp_shift]);
 			n_mappings++;

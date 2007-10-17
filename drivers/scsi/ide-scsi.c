@@ -70,7 +70,7 @@ typedef struct idescsi_pc_s {
 	u8 *buffer;				/* Data buffer */
 	u8 *current_position;			/* Pointer into the above buffer */
 	struct scatterlist *sg;			/* Scatter gather table */
-	struct scatterlist *last_sg;		/* Last sg element */
+	unsigned int sg_cnt;			/* Number of entries in sg */
 	int b_count;				/* Bytes transferred from current entry */
 	struct scsi_cmnd *scsi_cmd;		/* SCSI command */
 	void (*done)(struct scsi_cmnd *);	/* Scsi completion routine */
@@ -192,7 +192,7 @@ static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigne
 		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
-			if (pc->sg == pc->last_sg)
+			if (!--pc->sg_cnt)
 				break;
 			pc->sg = sg_next(pc->sg);
 			pc->b_count = 0;
@@ -229,7 +229,7 @@ static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsign
 		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
-			if (pc->sg == pc->last_sg)
+			if (!--pc->sg_cnt)
 				break;
 			pc->sg = sg_next(pc->sg);
 			pc->b_count = 0;
@@ -807,7 +807,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	memcpy (pc->c, cmd->cmnd, cmd->cmd_len);
 	pc->buffer = NULL;
 	pc->sg = scsi_sglist(cmd);
-	pc->last_sg = sg_last(pc->sg, cmd->use_sg);
+	pc->sg_cnt = scsi_sg_count(cmd);
 	pc->b_count = 0;
 	pc->request_transfer = pc->buffer_size = scsi_bufflen(cmd);
 	pc->scsi_cmd = cmd;
