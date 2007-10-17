@@ -38,6 +38,7 @@
 #include "trans.h"
 #include "util.h"
 #include "eaops.h"
+#include "ops_address.h"
 
 /**
  * gfs2_llseek - seek to a location in a file
@@ -245,7 +246,16 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 		if (error)
 			goto out;
 	}
-
+	if ((flags ^ new_flags) & GFS2_DIF_JDATA) {
+		if (flags & GFS2_DIF_JDATA)
+			gfs2_log_flush(sdp, ip->i_gl);
+		error = filemap_fdatawrite(inode->i_mapping);
+		if (error)
+			goto out;
+		error = filemap_fdatawait(inode->i_mapping);
+		if (error)
+			goto out;
+	}
 	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
 	if (error)
 		goto out;
@@ -257,6 +267,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	gfs2_dinode_out(ip, bh->b_data);
 	brelse(bh);
 	gfs2_set_inode_flags(inode);
+	gfs2_set_aops(inode);
 out_trans_end:
 	gfs2_trans_end(sdp);
 out:

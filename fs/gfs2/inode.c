@@ -136,7 +136,6 @@ void gfs2_set_iop(struct inode *inode)
 	if (S_ISREG(mode)) {
 		inode->i_op = &gfs2_file_iops;
 		inode->i_fop = &gfs2_file_fops;
-		inode->i_mapping->a_ops = &gfs2_file_aops;
 	} else if (S_ISDIR(mode)) {
 		inode->i_op = &gfs2_dir_iops;
 		inode->i_fop = &gfs2_dir_fops;
@@ -290,6 +289,9 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	di->di_entries = be32_to_cpu(str->di_entries);
 
 	di->di_eattr = be64_to_cpu(str->di_eattr);
+	if (S_ISREG(ip->i_inode.i_mode))
+		gfs2_set_aops(&ip->i_inode);
+
 	return 0;
 }
 

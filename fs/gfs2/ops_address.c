@@ -162,28 +162,18 @@ out_ignore:
 }
 
 /**
- * gfs2_writepages - Write a bunch of dirty pages back to disk
+ * gfs2_writeback_writepages - Write a bunch of dirty pages back to disk
  * @mapping: The mapping to write
  * @wbc: Write-back control
  *
- * For journaled files and/or ordered writes this just falls back to the
- * kernel's default writepages path for now. We will probably want to change
- * that eventually (i.e. when we look at allocate on flush).
- *
- * For the data=writeback case though we can already ignore buffer heads
+ * For the data=writeback case we can already ignore buffer heads
  * and write whole extents at once. This is a big reduction in the
  * number of I/O requests we send and the bmap calls we make in this case.
  */
-static int gfs2_writepages(struct address_space *mapping,
-			   struct writeback_control *wbc)
+static int gfs2_writeback_writepages(struct address_space *mapping,
+				     struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
-	struct gfs2_inode *ip = GFS2_I(inode);
-
-	if (gfs2_is_writeback(ip))
-		return mpage_writepages(mapping, wbc, gfs2_get_block_noalloc);
-
-	return generic_writepages(mapping, wbc);
+	return mpage_writepages(mapping, wbc, gfs2_get_block_noalloc);
 }
 
 /**
@@ -644,11 +634,7 @@ failed:
  
 static int gfs2_set_page_dirty(struct page *page)
 {
-	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
-	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
-
-	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
-		SetPageChecked(page);
+	SetPageChecked(page);
 	return __set_page_dirty_buffers(page);
 }
 
@@ -738,13 +724,9 @@ static int gfs2_ok_for_dio(struct gfs2_inode *ip, int rw, loff_t offset)
 {
 	/*
 	 * Should we return an error here? I can't see that O_DIRECT for
-	 * a journaled file makes any sense. For now we'll silently fall
-	 * back to buffered I/O, likewise we do the same for stuffed
-	 * files since they are (a) small and (b) unaligned.
+	 * a stuffed file makes any sense. For now we'll silently fall
+	 * back to buffered I/O
 	 */
-	if (gfs2_is_jdata(ip))
-		return 0;
-
 	if (gfs2_is_stuffed(ip))
 		return 0;
 
@@ -855,9 +837,22 @@ cannot_release:
 	return 0;
 }
 
-const struct address_space_operations gfs2_file_aops = {
+static const struct address_space_operations gfs2_writeback_aops = {
 	.writepage = gfs2_writepage,
-	.writepages = gfs2_writepages,
+	.writepages = gfs2_writeback_writepages,
+	.readpage = gfs2_readpage,
+	.readpages = gfs2_readpages,
+	.sync_page = block_sync_page,
+	.write_begin = gfs2_write_begin,
+	.write_end = gfs2_write_end,
+	.bmap = gfs2_bmap,
+	.invalidatepage = gfs2_invalidatepage,
+	.releasepage = gfs2_releasepage,
+	.direct_IO = gfs2_direct_IO,
+};
+
+static const struct address_space_operations gfs2_ordered_aops = {
+	.writepage = gfs2_writepage,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
 	.sync_page = block_sync_page,
@@ -869,4 +864,31 @@ const struct address_space_operations gfs2_file_aops = {
 	.releasepage = gfs2_releasepage,
 	.direct_IO = gfs2_direct_IO,
 };
+
+static const struct address_space_operations gfs2_jdata_aops = {
+	.writepage = gfs2_writepage,
+	.readpage = gfs2_readpage,
+	.readpages = gfs2_readpages,
+	.sync_page = block_sync_page,
+	.write_begin = gfs2_write_begin,
+	.write_end = gfs2_write_end,
+	.set_page_dirty = gfs2_set_page_dirty,
+	.bmap = gfs2_bmap,
+	.invalidatepage = gfs2_invalidatepage,
+	.releasepage = gfs2_releasepage,
+};
+
+void gfs2_set_aops(struct inode *inode)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+
+	if (gfs2_is_writeback(ip))
+		inode->i_mapping->a_ops = &gfs2_writeback_aops;
+	else if (gfs2_is_ordered(ip))
+		inode->i_mapping->a_ops = &gfs2_ordered_aops;
+	else if (gfs2_is_jdata(ip))
+		inode->i_mapping->a_ops = &gfs2_jdata_aops;
+	else
+		BUG();
+}
 
