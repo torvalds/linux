@@ -97,26 +97,28 @@ static int populate_range(struct mm_struct *mm, struct vm_area_struct *vma,
 
 }
 
-/***
- * sys_remap_file_pages - remap arbitrary pages of a shared backing store
- *                        file within an existing vma.
+/**
+ * sys_remap_file_pages - remap arbitrary pages of an existing VM_SHARED vma
  * @start: start of the remapped virtual memory range
  * @size: size of the remapped virtual memory range
- * @prot: new protection bits of the range
- * @pgoff: to be mapped page of the backing store file
+ * @prot: new protection bits of the range (see NOTE)
+ * @pgoff: to-be-mapped page of the backing store file
  * @flags: 0 or MAP_NONBLOCKED - the later will cause no IO.
  *
- * this syscall works purely via pagetables, so it's the most efficient
+ * sys_remap_file_pages remaps arbitrary pages of an existing VM_SHARED vma
+ * (shared backing store file).
+ *
+ * This syscall works purely via pagetables, so it's the most efficient
  * way to map the same (large) file into a given virtual window. Unlike
  * mmap()/mremap() it does not create any new vmas. The new mappings are
  * also safe across swapout.
  *
- * NOTE: the 'prot' parameter right now is ignored, and the vma's default
- * protection is used. Arbitrary protections might be implemented in the
- * future.
+ * NOTE: the 'prot' parameter right now is ignored (but must be zero),
+ * and the vma's default protection is used. Arbitrary protections
+ * might be implemented in the future.
  */
 asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
-	unsigned long __prot, unsigned long pgoff, unsigned long flags)
+	unsigned long prot, unsigned long pgoff, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
 	struct address_space *mapping;
@@ -125,7 +127,7 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 	int err = -EINVAL;
 	int has_write_lock = 0;
 
-	if (__prot)
+	if (prot)
 		return err;
 	/*
 	 * Sanitize the syscall parameters:
