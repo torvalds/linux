@@ -29,11 +29,12 @@
 #undef EXT2FS_DEBUG
 
 /*
- * Define EXT2_PREALLOCATE to preallocate data blocks for expanding files
+ * Define EXT2_RESERVATION to reserve data blocks for expanding files
  */
-#define EXT2_PREALLOCATE
-#define EXT2_DEFAULT_PREALLOC_BLOCKS	8
-
+#define EXT2_DEFAULT_RESERVE_BLOCKS     8
+/*max window size: 1024(direct blocks) + 3([t,d]indirect blocks) */
+#define EXT2_MAX_RESERVE_BLOCKS         1027
+#define EXT2_RESERVE_WINDOW_NOT_ALLOCATED 0
 /*
  * The second extended file system version
  */
@@ -200,6 +201,8 @@ struct ext2_group_desc
 #define	EXT2_IOC_SETFLAGS		FS_IOC_SETFLAGS
 #define	EXT2_IOC_GETVERSION		FS_IOC_GETVERSION
 #define	EXT2_IOC_SETVERSION		FS_IOC_SETVERSION
+#define	EXT2_IOC_GETRSVSZ		_IOR('f', 5, long)
+#define	EXT2_IOC_SETRSVSZ		_IOW('f', 6, long)
 
 /*
  * ioctl commands in 32 bit emulation
@@ -317,8 +320,9 @@ struct ext2_inode {
 #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
 #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
 #define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
-#define EXT2_MOUNT_USRQUOTA		0x020000 /* user quota */
-#define EXT2_MOUNT_GRPQUOTA		0x040000 /* group quota */
+#define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
+#define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
+#define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
 
 
 #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
@@ -557,5 +561,12 @@ enum {
 #define EXT2_DIR_ROUND 			(EXT2_DIR_PAD - 1)
 #define EXT2_DIR_REC_LEN(name_len)	(((name_len) + 8 + EXT2_DIR_ROUND) & \
 					 ~EXT2_DIR_ROUND)
+
+static inline ext2_fsblk_t
+ext2_group_first_block_no(struct super_block *sb, unsigned long group_no)
+{
+	return group_no * (ext2_fsblk_t)EXT2_BLOCKS_PER_GROUP(sb) +
+		le32_to_cpu(EXT2_SB(sb)->s_es->s_first_data_block);
+}
 
 #endif	/* _LINUX_EXT2_FS_H */

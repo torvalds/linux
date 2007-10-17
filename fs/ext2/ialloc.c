@@ -581,11 +581,8 @@ got:
 	ei->i_file_acl = 0;
 	ei->i_dir_acl = 0;
 	ei->i_dtime = 0;
+	ei->i_block_alloc_info = NULL;
 	ei->i_block_group = group;
-	ei->i_next_alloc_block = 0;
-	ei->i_next_alloc_goal = 0;
-	ei->i_prealloc_block = 0;
-	ei->i_prealloc_count = 0;
 	ei->i_dir_start_lookup = 0;
 	ei->i_state = EXT2_STATE_NEW;
 	ext2_set_inode_flags(inode);

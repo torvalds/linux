@@ -149,6 +149,7 @@ static struct inode *ext2_alloc_inode(struct super_block *sb)
 	ei->i_acl = EXT2_ACL_NOT_CACHED;
 	ei->i_default_acl = EXT2_ACL_NOT_CACHED;
 #endif
+	ei->i_block_alloc_info = NULL;
 	ei->vfs_inode.i_version = 1;
 	return &ei->vfs_inode;
 }
@@ -166,6 +167,7 @@ static void init_once(struct kmem_cache * cachep, void *foo)
 #ifdef CONFIG_EXT2_FS_XATTR
 	init_rwsem(&ei->xattr_sem);
 #endif
+	mutex_init(&ei->truncate_mutex);
 	inode_init_once(&ei->vfs_inode);
 }
 
@@ -188,6 +190,7 @@ static void destroy_inodecache(void)
 
 static void ext2_clear_inode(struct inode *inode)
 {
+	struct ext2_block_alloc_info *rsv = EXT2_I(inode)->i_block_alloc_info;
 #ifdef CONFIG_EXT2_FS_POSIX_ACL
 	struct ext2_inode_info *ei = EXT2_I(inode);
 
@@ -200,6 +203,10 @@ static void ext2_clear_inode(struct inode *inode)
 		ei->i_default_acl = EXT2_ACL_NOT_CACHED;
 	}
 #endif
+	ext2_discard_reservation(inode);
+	EXT2_I(inode)->i_block_alloc_info = NULL;
+	if (unlikely(rsv))
+		kfree(rsv);
 }
 
 static int ext2_show_options(struct seq_file *seq, struct vfsmount *vfs)
@@ -291,7 +298,6 @@ static const struct super_operations ext2_sops = {
 	.destroy_inode	= ext2_destroy_inode,
 	.read_inode	= ext2_read_inode,
 	.write_inode	= ext2_write_inode,
-	.put_inode	= ext2_put_inode,
 	.delete_inode	= ext2_delete_inode,
 	.put_super	= ext2_put_super,
 	.write_super	= ext2_write_super,
@@ -379,7 +385,7 @@ enum {
 	Opt_err_ro, Opt_nouid32, Opt_nocheck, Opt_debug,
 	Opt_oldalloc, Opt_orlov, Opt_nobh, Opt_user_xattr, Opt_nouser_xattr,
 	Opt_acl, Opt_noacl, Opt_xip, Opt_ignore, Opt_err, Opt_quota,
-	Opt_usrquota, Opt_grpquota
+	Opt_usrquota, Opt_grpquota, Opt_reservation, Opt_noreservation
 };
 
 static match_table_t tokens = {
@@ -411,6 +417,8 @@ static match_table_t tokens = {
 	{Opt_ignore, "noquota"},
 	{Opt_quota, "quota"},
 	{Opt_usrquota, "usrquota"},
+	{Opt_reservation, "reservation"},
+	{Opt_noreservation, "noreservation"},
 	{Opt_err, NULL}
 };
 
@@ -543,6 +551,14 @@ static int parse_options (char * options,
 			break;
 #endif
 
+		case Opt_reservation:
+			set_opt(sbi->s_mount_opt, RESERVATION);
+			printk("reservations ON\n");
+			break;
+		case Opt_noreservation:
+			clear_opt(sbi->s_mount_opt, RESERVATION);
+			printk("reservations OFF\n");
+			break;
 		case Opt_ignore:
 			break;
 		default:
@@ -784,6 +800,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
 	
+	set_opt(sbi->s_mount_opt, RESERVATION);
+
 	if (!parse_options ((char *) data, sbi))
 		goto failed_mount;
 
@@ -964,6 +982,21 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_gdb_count = db_count;
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
+
+	/* per fileystem reservation list head & lock */
+	spin_lock_init(&sbi->s_rsv_window_lock);
+	sbi->s_rsv_window_root = RB_ROOT;
+	/*
+	 * Add a single, static dummy reservation to the start of the
+	 * reservation window list --- it gives us a placeholder for
+	 * append-at-start-of-list which makes the allocation logic
+	 * _much_ simpler.
+	 */
+	sbi->s_rsv_window_head.rsv_start = EXT2_RESERVE_WINDOW_NOT_ALLOCATED;
+	sbi->s_rsv_window_head.rsv_end = EXT2_RESERVE_WINDOW_NOT_ALLOCATED;
+	sbi->s_rsv_window_head.rsv_alloc_hit = 0;
+	sbi->s_rsv_window_head.rsv_goal_size = 0;
+	ext2_rsv_window_add(sb, &sbi->s_rsv_window_head);
 
 	err = percpu_counter_init(&sbi->s_freeblocks_counter,
 				ext2_count_free_blocks(sb));
@@ -1260,7 +1293,7 @@ static ssize_t ext2_quota_read(struct super_block *sb, int type, char *data,
 
 		tmp_bh.b_state = 0;
 		err = ext2_get_block(inode, blk, &tmp_bh, 0);
-		if (err)
+		if (err < 0)
 			return err;
 		if (!buffer_mapped(&tmp_bh))	/* A hole? */
 			memset(data, 0, tocopy);
@@ -1299,7 +1332,7 @@ static ssize_t ext2_quota_write(struct super_block *sb, int type,
 
 		tmp_bh.b_state = 0;
 		err = ext2_get_block(inode, blk, &tmp_bh, 1);
-		if (err)
+		if (err < 0)
 			goto out;
 		if (offset || tocopy != EXT2_BLOCK_SIZE(sb))
 			bh = sb_bread(sb, tmp_bh.b_blocknr);

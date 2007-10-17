@@ -33,22 +33,9 @@ struct ext2_inode_info {
 	 */
 	__u32	i_block_group;
 
-	/*
-	 * i_next_alloc_block is the logical (file-relative) number of the
-	 * most-recently-allocated block in this file.  Yes, it is misnamed.
-	 * We use this for detecting linearly ascending allocation requests.
-	 */
-	__u32	i_next_alloc_block;
+	/* block reservation info */
+	struct ext2_block_alloc_info *i_block_alloc_info;
 
-	/*
-	 * i_next_alloc_goal is the *physical* companion to i_next_alloc_block.
-	 * it the the physical block number of the block which was most-recently
-	 * allocated to this file.  This give us the goal (target) for the next
-	 * allocation when we detect linearly ascending requests.
-	 */
-	__u32	i_next_alloc_goal;
-	__u32	i_prealloc_block;
-	__u32	i_prealloc_count;
 	__u32	i_dir_start_lookup;
 #ifdef CONFIG_EXT2_FS_XATTR
 	/*
@@ -65,7 +52,16 @@ struct ext2_inode_info {
 	struct posix_acl	*i_default_acl;
 #endif
 	rwlock_t i_meta_lock;
+
+	/*
+	 * truncate_mutex is for serialising ext2_truncate() against
+	 * ext2_getblock().  It also protects the internals of the inode's
+	 * reservation data structures: ext2_reserve_window and
+	 * ext2_reserve_window_node.
+	 */
+	struct mutex truncate_mutex;
 	struct inode	vfs_inode;
+	struct list_head i_orphan;	/* unlinked but open inodes */
 };
 
 /*
@@ -91,8 +87,9 @@ static inline struct ext2_inode_info *EXT2_I(struct inode *inode)
 /* balloc.c */
 extern int ext2_bg_has_super(struct super_block *sb, int group);
 extern unsigned long ext2_bg_num_gdb(struct super_block *sb, int group);
-extern int ext2_new_block (struct inode *, unsigned long,
-			   __u32 *, __u32 *, int *);
+extern ext2_fsblk_t ext2_new_block(struct inode *, unsigned long, int *);
+extern ext2_fsblk_t ext2_new_blocks(struct inode *, unsigned long,
+				unsigned long *, int *);
 extern void ext2_free_blocks (struct inode *, unsigned long,
 			      unsigned long);
 extern unsigned long ext2_count_free_blocks (struct super_block *);
@@ -101,6 +98,10 @@ extern void ext2_check_blocks_bitmap (struct super_block *);
 extern struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 						    unsigned int block_group,
 						    struct buffer_head ** bh);
+extern void ext2_discard_reservation (struct inode *);
+extern int ext2_should_retry_alloc(struct super_block *sb, int *retries);
+extern void ext2_init_block_alloc_info(struct inode *);
+extern void ext2_rsv_window_add(struct super_block *sb, struct ext2_reserve_window_node *rsv);
 
 /* dir.c */
 extern int ext2_add_link (struct dentry *, struct inode *);
@@ -128,7 +129,6 @@ extern int ext2_write_inode (struct inode *, int);
 extern void ext2_put_inode (struct inode *);
 extern void ext2_delete_inode (struct inode *);
 extern int ext2_sync_inode (struct inode *);
-extern void ext2_discard_prealloc (struct inode *);
 extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern void ext2_truncate (struct inode *);
 extern int ext2_setattr (struct dentry *, struct iattr *);
