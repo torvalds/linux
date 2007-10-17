@@ -1010,7 +1010,7 @@ struct task_struct {
 	 * a short time
 	 */
 	unsigned char fpu_counter;
-	int oomkilladj; /* OOM kill score adjustment (bit shift). */
+	s8 oomkilladj; /* OOM kill score adjustment (bit shift). */
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
 				     - access with [gs]et_task_comm (which lock
 				       it with task_lock())
