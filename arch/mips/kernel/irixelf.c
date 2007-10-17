@@ -47,8 +47,11 @@ static int irix_core_dump(long signr, struct pt_regs * regs,
                           struct file *file);
 
 static struct linux_binfmt irix_format = {
-	NULL, THIS_MODULE, load_irix_binary, load_irix_library,
-	irix_core_dump, PAGE_SIZE
+	.module		= THIS_MODULE,
+	.load_binary	= load_irix_binary,
+	.load_shlib	= load_irix_library,
+	.core_dump	= irix_core_dump,
+	.min_coredump	= PAGE_SIZE,
 };
 
 /* Debugging routines. */

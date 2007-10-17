@@ -38,8 +38,11 @@ static int load_aout32_library(struct file*);
 static int aout32_core_dump(long signr, struct pt_regs * regs, struct file *file);
 
 static struct linux_binfmt aout32_format = {
-	NULL, THIS_MODULE, load_aout32_binary, load_aout32_library, aout32_core_dump,
-	PAGE_SIZE
+	.module		= THIS_MODULE,
+	.load_binary	= load_aout32_binary,
+	.load_shlib	= load_aout32_library,
+	.core_dump	= aout32_core_dump,
+	.min_coredump	= PAGE_SIZE,
 };
 
 static void set_brk(unsigned long start, unsigned long end)
