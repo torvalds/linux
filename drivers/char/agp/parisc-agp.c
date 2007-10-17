@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/klist.h>
 #include <linux/agp_backend.h>
+#include <linux/log2.h>
 
 #include <asm-parisc/parisc-device.h>
 #include <asm-parisc/ropes.h>
@@ -26,10 +27,6 @@
 
 #define DRVNAME	"quicksilver"
 #define DRVPFX	DRVNAME ": "
-
-#ifndef log2
-#define log2(x)		ffz(~(x))
-#endif
 
 #define AGP8X_MODE_BIT		3
 #define AGP8X_MODE		(1 << AGP8X_MODE_BIT)
@@ -92,7 +89,7 @@ parisc_agp_tlbflush(struct agp_memory *mem)
 {
 	struct _parisc_agp_info *info = &parisc_agp_info;
 
-	writeq(info->gart_base | log2(info->gart_size), info->ioc_regs+IOC_PCOM);
+	writeq(info->gart_base | ilog2(info->gart_size), info->ioc_regs+IOC_PCOM);
 	readq(info->ioc_regs+IOC_PCOM);	/* flush */
 }
 
