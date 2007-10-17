@@ -127,22 +127,22 @@ void vmcoreinfo_append_str(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 unsigned long paddr_vmcoreinfo_note(void);
 
-#define SYMBOL(name) \
+#define VMCOREINFO_SYMBOL(name) \
 	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
-#define SIZE(name) \
+#define VMCOREINFO_SIZE(name) \
 	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
 			      (unsigned long)sizeof(struct name))
-#define TYPEDEF_SIZE(name) \
+#define VMCOREINFO_TYPEDEF_SIZE(name) \
 	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
 			      (unsigned long)sizeof(name))
-#define OFFSET(name, field) \
+#define VMCOREINFO_OFFSET(name, field) \
 	vmcoreinfo_append_str("OFFSET(%s.%s)=%lu\n", #name, #field, \
 			      (unsigned long)&(((struct name *)0)->field))
-#define LENGTH(name, value) \
+#define VMCOREINFO_LENGTH(name, value) \
 	vmcoreinfo_append_str("LENGTH(%s)=%lu\n", #name, (unsigned long)value)
-#define NUMBER(name) \
+#define VMCOREINFO_NUMBER(name) \
 	vmcoreinfo_append_str("NUMBER(%s)=%ld\n", #name, (long)name)
-#define CONFIG(name) \
+#define VMCOREINFO_CONFIG(name) \
 	vmcoreinfo_append_str("CONFIG_%s=y\n", #name)
 
 extern struct kimage *kexec_image;

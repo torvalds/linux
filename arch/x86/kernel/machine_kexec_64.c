@@ -261,8 +261,8 @@ early_param("crashkernel", setup_crashkernel);
 void arch_crash_save_vmcoreinfo(void)
 {
 #ifdef CONFIG_ARCH_DISCONTIGMEM_ENABLE
-	SYMBOL(node_data);
-	LENGTH(node_data, MAX_NUMNODES);
+	VMCOREINFO_SYMBOL(node_data);
+	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
 #endif
 }
 

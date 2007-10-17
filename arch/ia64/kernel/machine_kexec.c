@@ -128,19 +128,19 @@ void machine_kexec(struct kimage *image)
 void arch_crash_save_vmcoreinfo(void)
 {
 #ifdef CONFIG_ARCH_DISCONTIGMEM_ENABLE
-	SYMBOL(pgdat_list);
-	LENGTH(pgdat_list, MAX_NUMNODES);
+	VMCOREINFO_SYMBOL(pgdat_list);
+	VMCOREINFO_LENGTH(pgdat_list, MAX_NUMNODES);
 
-	SYMBOL(node_memblk);
-	LENGTH(node_memblk, NR_NODE_MEMBLKS);
-	SIZE(node_memblk_s);
-	OFFSET(node_memblk_s, start_paddr);
-	OFFSET(node_memblk_s, size);
+	VMCOREINFO_SYMBOL(node_memblk);
+	VMCOREINFO_LENGTH(node_memblk, NR_NODE_MEMBLKS);
+	VMCOREINFO_SIZE(node_memblk_s);
+	VMCOREINFO_OFFSET(node_memblk_s, start_paddr);
+	VMCOREINFO_OFFSET(node_memblk_s, size);
 #endif
 #ifdef CONFIG_PGTABLE_3
-	CONFIG(PGTABLE_3);
+	VMCOREINFO_CONFIG(PGTABLE_3);
 #elif  CONFIG_PGTABLE_4
-	CONFIG(PGTABLE_4);
+	VMCOREINFO_CONFIG(PGTABLE_4);
 #endif
 }
 

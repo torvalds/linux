@@ -1198,47 +1198,47 @@ static int __init crash_save_vmcoreinfo_init(void)
 	vmcoreinfo_append_str("OSRELEASE=%s\n", init_uts_ns.name.release);
 	vmcoreinfo_append_str("PAGESIZE=%ld\n", PAGE_SIZE);
 
-	SYMBOL(init_uts_ns);
-	SYMBOL(node_online_map);
-	SYMBOL(swapper_pg_dir);
-	SYMBOL(_stext);
+	VMCOREINFO_SYMBOL(init_uts_ns);
+	VMCOREINFO_SYMBOL(node_online_map);
+	VMCOREINFO_SYMBOL(swapper_pg_dir);
+	VMCOREINFO_SYMBOL(_stext);
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-	SYMBOL(mem_map);
-	SYMBOL(contig_page_data);
+	VMCOREINFO_SYMBOL(mem_map);
+	VMCOREINFO_SYMBOL(contig_page_data);
 #endif
 #ifdef CONFIG_SPARSEMEM
-	SYMBOL(mem_section);
-	LENGTH(mem_section, NR_SECTION_ROOTS);
-	SIZE(mem_section);
-	OFFSET(mem_section, section_mem_map);
+	VMCOREINFO_SYMBOL(mem_section);
+	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
+	VMCOREINFO_SIZE(mem_section);
+	VMCOREINFO_OFFSET(mem_section, section_mem_map);
 #endif
-	SIZE(page);
-	SIZE(pglist_data);
-	SIZE(zone);
-	SIZE(free_area);
-	SIZE(list_head);
-	TYPEDEF_SIZE(nodemask_t);
-	OFFSET(page, flags);
-	OFFSET(page, _count);
-	OFFSET(page, mapping);
-	OFFSET(page, lru);
-	OFFSET(pglist_data, node_zones);
-	OFFSET(pglist_data, nr_zones);
+	VMCOREINFO_SIZE(page);
+	VMCOREINFO_SIZE(pglist_data);
+	VMCOREINFO_SIZE(zone);
+	VMCOREINFO_SIZE(free_area);
+	VMCOREINFO_SIZE(list_head);
+	VMCOREINFO_TYPEDEF_SIZE(nodemask_t);
+	VMCOREINFO_OFFSET(page, flags);
+	VMCOREINFO_OFFSET(page, _count);
+	VMCOREINFO_OFFSET(page, mapping);
+	VMCOREINFO_OFFSET(page, lru);
+	VMCOREINFO_OFFSET(pglist_data, node_zones);
+	VMCOREINFO_OFFSET(pglist_data, nr_zones);
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
-	OFFSET(pglist_data, node_mem_map);
+	VMCOREINFO_OFFSET(pglist_data, node_mem_map);
 #endif
-	OFFSET(pglist_data, node_start_pfn);
-	OFFSET(pglist_data, node_spanned_pages);
-	OFFSET(pglist_data, node_id);
-	OFFSET(zone, free_area);
-	OFFSET(zone, vm_stat);
-	OFFSET(zone, spanned_pages);
-	OFFSET(free_area, free_list);
-	OFFSET(list_head, next);
-	OFFSET(list_head, prev);
-	LENGTH(zone.free_area, MAX_ORDER);
-	NUMBER(NR_FREE_PAGES);
+	VMCOREINFO_OFFSET(pglist_data, node_start_pfn);
+	VMCOREINFO_OFFSET(pglist_data, node_spanned_pages);
+	VMCOREINFO_OFFSET(pglist_data, node_id);
+	VMCOREINFO_OFFSET(zone, free_area);
+	VMCOREINFO_OFFSET(zone, vm_stat);
+	VMCOREINFO_OFFSET(zone, spanned_pages);
+	VMCOREINFO_OFFSET(free_area, free_list);
+	VMCOREINFO_OFFSET(list_head, next);
+	VMCOREINFO_OFFSET(list_head, prev);
+	VMCOREINFO_LENGTH(zone.free_area, MAX_ORDER);
+	VMCOREINFO_NUMBER(NR_FREE_PAGES);
 
 	arch_crash_save_vmcoreinfo();
 
