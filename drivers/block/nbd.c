@@ -231,13 +231,11 @@ error_out:
 	return 1;
 }
 
-static struct request *nbd_find_request(struct nbd_device *lo, char *handle)
+static struct request *nbd_find_request(struct nbd_device *lo,
+					struct request *xreq)
 {
 	struct request *req, *tmp;
-	struct request *xreq;
 	int err;
-
-	memcpy(&xreq, handle, sizeof(xreq));
 
 	err = wait_event_interruptible(lo->active_wq, lo->active_req != xreq);
 	if (unlikely(err))
@@ -293,7 +291,7 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 		goto harderror;
 	}
 
-	req = nbd_find_request(lo, reply.handle);
+	req = nbd_find_request(lo, *(struct request **)reply.handle);
 	if (unlikely(IS_ERR(req))) {
 		result = PTR_ERR(req);
 		if (result != -ENOENT)
