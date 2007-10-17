@@ -28,7 +28,7 @@
 
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
-static DEFINE_MUTEX(zone_scan_mutex);
+static DEFINE_SPINLOCK(zone_scan_mutex);
 /* #define DEBUG */
 
 /**
@@ -396,7 +396,7 @@ int try_set_zone_oom(struct zonelist *zonelist)
 
 	z = zonelist->zones;
 
-	mutex_lock(&zone_scan_mutex);
+	spin_lock(&zone_scan_mutex);
 	do {
 		if (zone_is_oom_locked(*z)) {
 			ret = 0;
@@ -413,7 +413,7 @@ int try_set_zone_oom(struct zonelist *zonelist)
 		zone_set_flag(*z, ZONE_OOM_LOCKED);
 	} while (*(++z) != NULL);
 out:
-	mutex_unlock(&zone_scan_mutex);
+	spin_unlock(&zone_scan_mutex);
 	return ret;
 }
 
@@ -428,11 +428,11 @@ void clear_zonelist_oom(struct zonelist *zonelist)
 
 	z = zonelist->zones;
 
-	mutex_lock(&zone_scan_mutex);
+	spin_lock(&zone_scan_mutex);
 	do {
 		zone_clear_flag(*z, ZONE_OOM_LOCKED);
 	} while (*(++z) != NULL);
-	mutex_unlock(&zone_scan_mutex);
+	spin_unlock(&zone_scan_mutex);
 }
 
 /**
