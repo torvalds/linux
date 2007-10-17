@@ -615,6 +615,31 @@ static int journal_list_still_alive(struct super_block *s,
 	return 0;
 }
 
+/*
+ * If page->mapping was null, we failed to truncate this page for
+ * some reason.  Most likely because it was truncated after being
+ * logged via data=journal.
+ *
+ * This does a check to see if the buffer belongs to one of these
+ * lost pages before doing the final put_bh.  If page->mapping was
+ * null, it tries to free buffers on the page, which should make the
+ * final page_cache_release drop the page from the lru.
+ */
+static void release_buffer_page(struct buffer_head *bh)
+{
+	struct page *page = bh->b_page;
+	if (!page->mapping && !TestSetPageLocked(page)) {
+		page_cache_get(page);
+		put_bh(bh);
+		if (!page->mapping)
+			try_to_free_buffers(page);
+		unlock_page(page);
+		page_cache_release(page);
+	} else {
+		put_bh(bh);
+	}
+}
+
 static void reiserfs_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 {
 	char b[BDEVNAME_SIZE];
@@ -628,8 +653,9 @@ static void reiserfs_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 		set_buffer_uptodate(bh);
 	else
 		clear_buffer_uptodate(bh);
+
 	unlock_buffer(bh);
-	put_bh(bh);
+	release_buffer_page(bh);
 }
 
 static void reiserfs_end_ordered_io(struct buffer_head *bh, int uptodate)
@@ -1547,9 +1573,10 @@ static int flush_journal_list(struct super_block *s,
 				BUG_ON(!test_clear_buffer_journal_dirty
 				       (cn->bh));
 
-				/* undo the inc from journal_mark_dirty */
+				/* drop one ref for us */
 				put_bh(cn->bh);
-				brelse(cn->bh);
+				/* drop one ref for journal_mark_dirty */
+				release_buffer_page(cn->bh);
 			}
 			cn = cn->next;
 		}
@@ -3709,13 +3736,8 @@ int journal_mark_freed(struct reiserfs_transaction_handle *th,
 		}
 	}
 
-	if (bh) {
-		put_bh(bh);	/* get_hash grabs the buffer */
-		if (atomic_read(&(bh->b_count)) < 0) {
-			reiserfs_warning(p_s_sb,
-					 "journal-2165: bh->b_count < 0");
-		}
-	}
+	if (bh)
+		release_buffer_page(bh); /* get_hash grabs the buffer */
 	return 0;
 }
 
