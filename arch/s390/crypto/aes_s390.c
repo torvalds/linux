@@ -16,16 +16,11 @@
  *
  */
 
+#include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include "crypt_s390.h"
-
-#define AES_MIN_KEY_SIZE	16
-#define AES_MAX_KEY_SIZE	32
-
-/* data block size for all key lengths */
-#define AES_BLOCK_SIZE		16
 
 #define AES_KEYLEN_128		1
 #define AES_KEYLEN_192		2

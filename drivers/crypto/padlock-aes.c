@@ -44,6 +44,7 @@
  */
 
 #include <crypto/algapi.h>
+#include <crypto/aes.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -53,9 +54,6 @@
 #include <asm/byteorder.h>
 #include "padlock.h"
 
-#define AES_MIN_KEY_SIZE	16	/* in uint8_t units */
-#define AES_MAX_KEY_SIZE	32	/* ditto */
-#define AES_BLOCK_SIZE		16	/* ditto */
 #define AES_EXTENDED_KEY_SIZE	64	/* in uint32_t units */
 #define AES_EXTENDED_KEY_SIZE_B	(AES_EXTENDED_KEY_SIZE * sizeof(uint32_t))
 

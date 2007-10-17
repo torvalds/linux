@@ -13,6 +13,7 @@
 #include <linux/crypto.h>
 #include <linux/spinlock.h>
 #include <crypto/algapi.h>
+#include <crypto/aes.h>
 
 #include <asm/io.h>
 #include <asm/delay.h>

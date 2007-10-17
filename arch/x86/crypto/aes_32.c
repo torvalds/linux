@@ -38,6 +38,7 @@
  */
 
 #include <asm/byteorder.h>
+#include <crypto/aes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -48,9 +49,6 @@
 asmlinkage void aes_enc_blk(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 asmlinkage void aes_dec_blk(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 
-#define AES_MIN_KEY_SIZE	16
-#define AES_MAX_KEY_SIZE	32
-#define AES_BLOCK_SIZE		16
 #define AES_KS_LENGTH		4 * AES_BLOCK_SIZE
 #define RC_LENGTH		29
 

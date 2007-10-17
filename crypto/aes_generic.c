@@ -52,17 +52,13 @@
     s/RIJNDAEL(d_key)/D_KEY/g
 */
 
+#include <crypto/aes.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/crypto.h>
 #include <asm/byteorder.h>
-
-#define AES_MIN_KEY_SIZE	16
-#define AES_MAX_KEY_SIZE	32
-
-#define AES_BLOCK_SIZE		16
 
 /*
  * #define byte(x, nr) ((unsigned char)((x) >> (nr*8))) 
