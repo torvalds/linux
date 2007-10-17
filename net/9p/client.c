@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <net/9p/9p.h>
+#include <linux/parser.h>
 #include <net/9p/transport.h>
 #include <net/9p/conn.h>
 #include <net/9p/client.h>

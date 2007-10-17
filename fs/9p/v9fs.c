@@ -37,47 +37,6 @@
 #include "v9fs_vfs.h"
 
 /*
- * Dynamic Transport Registration Routines
- *
- */
-
-static LIST_HEAD(v9fs_trans_list);
-static struct p9_trans_module *v9fs_default_trans;
-
-/**
- * v9fs_register_trans - register a new transport with 9p
- * @m - structure describing the transport module and entry points
- *
- */
-void v9fs_register_trans(struct p9_trans_module *m)
-{
-	list_add_tail(&m->list, &v9fs_trans_list);
-	if (m->def)
-		v9fs_default_trans = m;
-}
-EXPORT_SYMBOL(v9fs_register_trans);
-
-/**
- * v9fs_match_trans - match transport versus registered transports
- * @arg: string identifying transport
- *
- */
-static struct p9_trans_module *v9fs_match_trans(const substring_t *name)
-{
-	struct list_head *p;
-	struct p9_trans_module *t = NULL;
-
-	list_for_each(p, &v9fs_trans_list) {
-		t = list_entry(p, struct p9_trans_module, list);
-		if (strncmp(t->name, name->from, name->to-name->from) == 0) {
-			P9_DPRINTK(P9_DEBUG_TRANS, "trans=%s\n", t->name);
-			break;
-		}
-	}
-	return t;
-}
-
-/*
   * Option Parsing (code inspired by NFS code)
   *  NOTE: each transport will parse its own options
   */
@@ -135,7 +94,7 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 	v9ses->afid = ~0;
 	v9ses->debug = 0;
 	v9ses->cache = 0;
-	v9ses->trans = v9fs_default_trans;
+	v9ses->trans = v9fs_default_trans();
 
 	if (!options)
 		return;
@@ -244,10 +203,6 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	v9ses->dfltgid = V9FS_DEFGID;
 	v9ses->options = kstrdup(data, GFP_KERNEL);
 	v9fs_parse_options(v9ses);
-
-	if ((v9ses->trans == NULL) && !list_empty(&v9fs_trans_list))
-		v9ses->trans = list_first_entry(&v9fs_trans_list,
-		 struct p9_trans_module, list);
 
 	if (v9ses->trans == NULL) {
 		retval = -EPROTONOSUPPORT;

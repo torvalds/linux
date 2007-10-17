@@ -31,6 +31,7 @@
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <net/9p/9p.h>
+#include <linux/parser.h>
 #include <net/9p/transport.h>
 #include <net/9p/conn.h>
 
