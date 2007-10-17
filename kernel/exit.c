@@ -1158,8 +1158,7 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 			    int __user *stat_addr, struct rusage __user *ru)
 {
 	unsigned long state;
-	int retval;
-	int status;
+	int retval, status, traced;
 
 	if (unlikely(noreap)) {
 		pid_t pid = p->pid;
@@ -1201,7 +1200,10 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 		return 0;
 	}
 
-	if (likely(p->real_parent == p->parent)) {
+	/* traced means p->ptrace, but not vice versa */
+	traced = (p->real_parent != p->parent);
+
+	if (likely(!traced)) {
 		struct signal_struct *psig;
 		struct signal_struct *sig;
 
@@ -1288,35 +1290,30 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 		retval = put_user(p->pid, &infop->si_pid);
 	if (!retval && infop)
 		retval = put_user(p->uid, &infop->si_uid);
-	if (retval) {
-		// TODO: is this safe?
-		p->exit_state = EXIT_ZOMBIE;
-		return retval;
-	}
-	retval = p->pid;
-	if (p->real_parent != p->parent) {
+	if (!retval)
+		retval = p->pid;
+
+	if (traced) {
 		write_lock_irq(&tasklist_lock);
-		/* Double-check with lock held.  */
-		if (p->real_parent != p->parent) {
-			__ptrace_unlink(p);
-			// TODO: is this safe?
-			p->exit_state = EXIT_ZOMBIE;
-			/*
-			 * If this is not a detached task, notify the parent.
-			 * If it's still not detached after that, don't release
-			 * it now.
-			 */
+		/* We dropped tasklist, ptracer could die and untrace */
+		ptrace_unlink(p);
+		/*
+		 * If this is not a detached task, notify the parent.
+		 * If it's still not detached after that, don't release
+		 * it now.
+		 */
+		if (p->exit_signal != -1) {
+			do_notify_parent(p, p->exit_signal);
 			if (p->exit_signal != -1) {
-				do_notify_parent(p, p->exit_signal);
-				if (p->exit_signal != -1)
-					p = NULL;
+				p->exit_state = EXIT_ZOMBIE;
+				p = NULL;
 			}
 		}
 		write_unlock_irq(&tasklist_lock);
 	}
 	if (p != NULL)
 		release_task(p);
-	BUG_ON(!retval);
+
 	return retval;
 }
 
