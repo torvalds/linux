@@ -974,15 +974,12 @@ void __init setup_boot_APIC_clock (void)
  */
 void __cpuinit check_boot_apic_timer_broadcast(void)
 {
-	struct clock_event_device *levt = &per_cpu(lapic_events, boot_cpu_id);
-
 	if (!disable_apic_timer ||
 	    (lapic_clockevent.features & CLOCK_EVT_FEAT_DUMMY))
 		return;
 
 	printk(KERN_INFO "AMD C1E detected late. Force timer broadcast.\n");
 	lapic_clockevent.features |= CLOCK_EVT_FEAT_DUMMY;
-	levt->features |= CLOCK_EVT_FEAT_DUMMY;
 
 	local_irq_enable();
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE, &boot_cpu_id);
