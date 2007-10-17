@@ -1473,14 +1473,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	raid=		[HW,RAID]
 			See Documentation/md.txt.
 
-	ramdisk=	[RAM] Sizes of RAM disks in kilobytes [deprecated]
-			See Documentation/ramdisk.txt.
-
 	ramdisk_blocksize=	[RAM]
 			See Documentation/ramdisk.txt.
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
-			New name for the ramdisk parameter.
 			See Documentation/ramdisk.txt.
 
 	rcu.blimit=	[KNL,BOOT] Set maximum number of finished

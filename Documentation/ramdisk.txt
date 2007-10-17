@@ -31,13 +31,6 @@ To use RAM disk support with your system, run './MAKEDEV ram' from the /dev
 directory.  RAM disks are all major number 1, and start with minor number 0
 for /dev/ram0, etc.  If used, modern kernels use /dev/ram0 for an initrd.
 
-The old "ramdisk=<ram_size>" has been changed to "ramdisk_size=<ram_size>" to
-make it clearer.  The original "ramdisk=<ram_size>" has been kept around for
-compatibility reasons, but it may be removed in the future.
-There are also config symbols (in the Block drivers config menu) for these
-variables:  BLK_DEV_RAM_SIZE defaults to 4096 and BLK_DEV_RAM_BLOCKSIZE
-defaults to 1024.
-
 The new RAM disk also has the ability to load compressed RAM disk images,
 allowing one to squeeze more programs onto an average installation or
 rescue floppy disk.

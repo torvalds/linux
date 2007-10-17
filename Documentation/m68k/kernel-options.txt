@@ -192,10 +192,10 @@ Devices possible for Atari:
            seconds.
 
 
-2.6) ramdisk=
+2.6) ramdisk_size=
 -------------
 
-Syntax: ramdisk=<size>
+Syntax: ramdisk_size=<size>
 
   This option instructs the kernel to set up a ramdisk of the given
 size in KBytes. Do not use this option if the ramdisk contents are

@@ -504,17 +504,12 @@ static int __init ramdisk_size(char *str)
 	rd_size = simple_strtol(str,NULL,0);
 	return 1;
 }
-static int __init ramdisk_size2(char *str)	/* kludge */
-{
-	return ramdisk_size(str);
-}
 static int __init ramdisk_blocksize(char *str)
 {
 	rd_blocksize = simple_strtol(str,NULL,0);
 	return 1;
 }
-__setup("ramdisk=", ramdisk_size);
-__setup("ramdisk_size=", ramdisk_size2);
+__setup("ramdisk_size=", ramdisk_size);
 __setup("ramdisk_blocksize=", ramdisk_blocksize);
 #endif
 
