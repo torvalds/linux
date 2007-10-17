@@ -312,12 +312,10 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	struct autofs_sb_info *sbi;
 	struct autofs_info *ino;
 
-	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		goto fail_unlock;
 	DPRINTK("starting up, sbi = %p",sbi);
-
-	memset(sbi, 0, sizeof(*sbi));
 
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;
