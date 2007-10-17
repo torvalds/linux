@@ -206,7 +206,7 @@ static __inline__ int atomic_sub_return(int i, atomic_t *v)
 
 /* An 64bit atomic type */
 
-typedef struct { volatile long counter; } atomic64_t;
+typedef struct { long counter; } atomic64_t;
 
 #define ATOMIC64_INIT(i)	{ (i) }
 
