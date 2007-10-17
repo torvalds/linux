@@ -279,7 +279,6 @@ core-$(CONFIG_MACH_DECSTATION)	+= arch/mips/dec/
 cflags-$(CONFIG_MACH_DECSTATION)+= -Iinclude/asm-mips/mach-dec
 libs-$(CONFIG_MACH_DECSTATION)	+= arch/mips/dec/prom/
 load-$(CONFIG_MACH_DECSTATION)	+= 0xffffffff80040000
-CLEAN_FILES			+= drivers/tc/lk201-map.c
 
 #
 # Wind River PPMC Board (4KC + GT64120)

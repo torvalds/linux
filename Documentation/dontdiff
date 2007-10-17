@@ -121,7 +121,6 @@ kxgettext
 lkc_defs.h
 lex.c*
 lex.*.c
-lk201-map.c
 logo_*.c
 logo_*_clut224.c
 logo_*_mono.c
