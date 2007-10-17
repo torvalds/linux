@@ -32,7 +32,6 @@
 #include <linux/crypto.h>
 #include <linux/netlink.h>
 #include <linux/mount.h>
-#include <linux/dcache.h>
 #include <linux/pagemap.h>
 #include <linux/key.h>
 #include <linux/parser.h>
