@@ -68,6 +68,8 @@ s64 __percpu_counter_sum(struct percpu_counter *fbc)
 }
 EXPORT_SYMBOL(__percpu_counter_sum);
 
+static struct lock_class_key percpu_counter_irqsafe;
+
 int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
 {
 	spin_lock_init(&fbc->lock);
@@ -83,6 +85,16 @@ int percpu_counter_init(struct percpu_counter *fbc, s64 amount)
 	return 0;
 }
 EXPORT_SYMBOL(percpu_counter_init);
+
+int percpu_counter_init_irq(struct percpu_counter *fbc, s64 amount)
+{
+	int err;
+
+	err = percpu_counter_init(fbc, amount);
+	if (!err)
+		lockdep_set_class(&fbc->lock, &percpu_counter_irqsafe);
+	return err;
+}
 
 void percpu_counter_destroy(struct percpu_counter *fbc)
 {
