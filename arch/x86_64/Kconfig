@@ -473,8 +473,9 @@ config HPET_TIMER
 	  <http://www.intel.com/hardwaredesign/hpetspec.htm>.
 
 config HPET_EMULATE_RTC
-	bool "Provide RTC interrupt"
+	bool
 	depends on HPET_TIMER && RTC=y
+	default y
 
 # Mark as embedded because too many people got it wrong.
 # The code disables itself when not needed.
