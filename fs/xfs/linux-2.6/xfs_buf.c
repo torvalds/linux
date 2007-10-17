@@ -187,6 +187,19 @@ free_address(
 {
 	a_list_t	*aentry;
 
+#ifdef CONFIG_XEN
+	/*
+	 * Xen needs to be able to make sure it can get an exclusive
+	 * RO mapping of pages it wants to turn into a pagetable.  If
+	 * a newly allocated page is also still being vmap()ed by xfs,
+	 * it will cause pagetable construction to fail.  This is a
+	 * quick workaround to always eagerly unmap pages so that Xen
+	 * is happy.
+	 */
+	vunmap(addr);
+	return;
+#endif
+
 	aentry = kmalloc(sizeof(a_list_t), GFP_NOWAIT);
 	if (likely(aentry)) {
 		spin_lock(&as_lock);
@@ -997,7 +1010,18 @@ xfs_buf_iodone_work(
 	xfs_buf_t		*bp =
 		container_of(work, xfs_buf_t, b_iodone_work);
 
-	if (bp->b_iodone)
+	/*
+	 * We can get an EOPNOTSUPP to ordered writes.  Here we clear the
+	 * ordered flag and reissue them.  Because we can't tell the higher
+	 * layers directly that they should not issue ordered I/O anymore, they
+	 * need to check if the ordered flag was cleared during I/O completion.
+	 */
+	if ((bp->b_error == EOPNOTSUPP) &&
+	    (bp->b_flags & (XBF_ORDERED|XBF_ASYNC)) == (XBF_ORDERED|XBF_ASYNC)) {
+		XB_TRACE(bp, "ordered_retry", bp->b_iodone);
+		bp->b_flags &= ~XBF_ORDERED;
+		xfs_buf_iorequest(bp);
+	} else if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
 	else if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);

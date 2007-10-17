@@ -16,66 +16,78 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
+#include "xfs_vnodeops.h"
+
+/*
+ * The following six includes are needed so that we can include
+ * xfs_inode.h.  What a mess..
+ */
+#include "xfs_bmap_btree.h"
+#include "xfs_inum.h"
+#include "xfs_dir2.h"
+#include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
+#include "xfs_dinode.h"
+
+#include "xfs_inode.h"
 
 int  fs_noerr(void) { return 0; }
 int  fs_nosys(void) { return ENOSYS; }
 void fs_noval(void) { return; }
 
 void
-fs_tosspages(
-	bhv_desc_t	*bdp,
+xfs_tosspages(
+	xfs_inode_t	*ip,
 	xfs_off_t	first,
 	xfs_off_t	last,
 	int		fiopt)
 {
-	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
-	struct inode	*ip = vn_to_inode(vp);
+	bhv_vnode_t	*vp = XFS_ITOV(ip);
+	struct inode	*inode = vn_to_inode(vp);
 
 	if (VN_CACHED(vp))
-		truncate_inode_pages(ip->i_mapping, first);
+		truncate_inode_pages(inode->i_mapping, first);
 }
 
 int
-fs_flushinval_pages(
-	bhv_desc_t	*bdp,
+xfs_flushinval_pages(
+	xfs_inode_t	*ip,
 	xfs_off_t	first,
 	xfs_off_t	last,
 	int		fiopt)
 {
-	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
-	struct inode	*ip = vn_to_inode(vp);
+	bhv_vnode_t	*vp = XFS_ITOV(ip);
+	struct inode	*inode = vn_to_inode(vp);
 	int		ret = 0;
 
 	if (VN_CACHED(vp)) {
-		if (VN_TRUNC(vp))
-			VUNTRUNCATE(vp);
-		ret = filemap_write_and_wait(ip->i_mapping);
+		xfs_iflags_clear(ip, XFS_ITRUNCATED);
+		ret = filemap_write_and_wait(inode->i_mapping);
 		if (!ret)
-			truncate_inode_pages(ip->i_mapping, first);
+			truncate_inode_pages(inode->i_mapping, first);
 	}
 	return ret;
 }
 
 int
-fs_flush_pages(
-	bhv_desc_t	*bdp,
+xfs_flush_pages(
+	xfs_inode_t	*ip,
 	xfs_off_t	first,
 	xfs_off_t	last,
 	uint64_t	flags,
 	int		fiopt)
 {
-	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
-	struct inode	*ip = vn_to_inode(vp);
+	bhv_vnode_t	*vp = XFS_ITOV(ip);
+	struct inode	*inode = vn_to_inode(vp);
 	int		ret = 0;
 	int		ret2;
 
 	if (VN_DIRTY(vp)) {
-		if (VN_TRUNC(vp))
-			VUNTRUNCATE(vp);
-		ret = filemap_fdatawrite(ip->i_mapping);
+		xfs_iflags_clear(ip, XFS_ITRUNCATED);
+		ret = filemap_fdatawrite(inode->i_mapping);
 		if (flags & XFS_B_ASYNC)
 			return ret;
-		ret2 = filemap_fdatawait(ip->i_mapping);
+		ret2 = filemap_fdatawait(inode->i_mapping);
 		if (!ret)
 			ret = ret2;
 	}

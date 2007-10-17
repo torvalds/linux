@@ -80,9 +80,8 @@ xfs_dir2_block_leaf_p(xfs_dir2_block_tail_t *btp)
  * Function declarations.
  */
 extern int xfs_dir2_block_addname(struct xfs_da_args *args);
-extern int xfs_dir2_block_getdents(struct xfs_trans *tp, struct xfs_inode *dp,
-				   struct uio *uio, int *eofp,
-				   struct xfs_dirent *dbp, xfs_dir2_put_t put);
+extern int xfs_dir2_block_getdents(struct xfs_inode *dp, void *dirent,
+				   xfs_off_t *offset, filldir_t filldir);
 extern int xfs_dir2_block_lookup(struct xfs_da_args *args);
 extern int xfs_dir2_block_removename(struct xfs_da_args *args);
 extern int xfs_dir2_block_replace(struct xfs_da_args *args);

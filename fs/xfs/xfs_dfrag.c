@@ -42,6 +42,7 @@
 #include "xfs_dfrag.h"
 #include "xfs_error.h"
 #include "xfs_rw.h"
+#include "xfs_vnodeops.h"
 
 /*
  * Syssgi interface for swapext
@@ -199,7 +200,8 @@ xfs_swap_extents(
 
 	if (VN_CACHED(tvp) != 0) {
 		xfs_inval_cached_trace(&tip->i_iocore, 0, -1, 0, -1);
-		error = bhv_vop_flushinval_pages(tvp, 0, -1, FI_REMAPF_LOCKED);
+		error = xfs_flushinval_pages(tip, 0, -1,
+				FI_REMAPF_LOCKED);
 		if (error)
 			goto error0;
 	}
@@ -265,7 +267,7 @@ xfs_swap_extents(
 	 * fields change.
 	 */
 
-	bhv_vop_toss_pages(vp, 0, -1, FI_REMAPF);
+	xfs_tosspages(ip, 0, -1, FI_REMAPF);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SWAPEXT);
 	if ((error = xfs_trans_reserve(tp, 0,

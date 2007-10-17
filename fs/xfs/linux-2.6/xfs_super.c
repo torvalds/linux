@@ -46,6 +46,8 @@
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
+#include "xfs_vnodeops.h"
+#include "xfs_vfsops.h"
 #include "xfs_version.h"
 
 #include <linux/namei.h>
@@ -196,23 +198,20 @@ xfs_revalidate_inode(
 		inode->i_flags |= S_NOATIME;
 	else
 		inode->i_flags &= ~S_NOATIME;
-	vp->v_flag &= ~VMODIFIED;
+	xfs_iflags_clear(ip, XFS_IMODIFIED);
 }
 
 void
 xfs_initialize_vnode(
-	bhv_desc_t		*bdp,
+	struct xfs_mount	*mp,
 	bhv_vnode_t		*vp,
-	bhv_desc_t		*inode_bhv,
-	int			unlock)
+	struct xfs_inode	*ip)
 {
-	xfs_inode_t		*ip = XFS_BHVTOI(inode_bhv);
 	struct inode		*inode = vn_to_inode(vp);
 
-	if (!inode_bhv->bd_vobj) {
-		vp->v_vfsp = bhvtovfs(bdp);
-		bhv_desc_init(inode_bhv, ip, vp, &xfs_vnodeops);
-		bhv_insert(VN_BHV_HEAD(vp), inode_bhv);
+	if (!ip->i_vnode) {
+		ip->i_vnode = vp;
+		inode->i_private = ip;
 	}
 
 	/*
@@ -222,8 +221,8 @@ xfs_initialize_vnode(
 	 * second time once the inode is properly set up, and then we can
 	 * finish our work.
 	 */
-	if (ip->i_d.di_mode != 0 && unlock && (inode->i_state & I_NEW)) {
-		xfs_revalidate_inode(XFS_BHVTOM(bdp), vp, ip);
+	if (ip->i_d.di_mode != 0 && (inode->i_state & I_NEW)) {
+		xfs_revalidate_inode(mp, vp, ip);
 		xfs_set_inodeops(inode);
 
 		xfs_iflags_clear(ip, XFS_INEW);
@@ -409,19 +408,22 @@ xfs_fs_write_inode(
 	struct inode		*inode,
 	int			sync)
 {
-	bhv_vnode_t		*vp = vn_from_inode(inode);
 	int			error = 0, flags = FLUSH_INODE;
 
-	if (vp) {
-		vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-		if (sync) {
-			filemap_fdatawait(inode->i_mapping);
-			flags |= FLUSH_SYNC;
-		}
-		error = bhv_vop_iflush(vp, flags);
-		if (error == EAGAIN)
-			error = sync? bhv_vop_iflush(vp, flags | FLUSH_LOG) : 0;
+	vn_trace_entry(XFS_I(inode), __FUNCTION__,
+			(inst_t *)__return_address);
+	if (sync) {
+		filemap_fdatawait(inode->i_mapping);
+		flags |= FLUSH_SYNC;
 	}
+	error = xfs_inode_flush(XFS_I(inode), flags);
+	/*
+	 * if we failed to write out the inode then mark
+	 * it dirty again so we'll try again later.
+	 */
+	if (error)
+		mark_inode_dirty_sync(inode);
+
 	return -error;
 }
 
@@ -429,35 +431,27 @@ STATIC void
 xfs_fs_clear_inode(
 	struct inode		*inode)
 {
-	bhv_vnode_t		*vp = vn_from_inode(inode);
-
-	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-
-	XFS_STATS_INC(vn_rele);
-	XFS_STATS_INC(vn_remove);
-	XFS_STATS_INC(vn_reclaim);
-	XFS_STATS_DEC(vn_active);
+	xfs_inode_t		*ip = XFS_I(inode);
 
 	/*
-	 * This can happen because xfs_iget_core calls xfs_idestroy if we
+	 * ip can be null when xfs_iget_core calls xfs_idestroy if we
 	 * find an inode with di_mode == 0 but without IGET_CREATE set.
 	 */
-	if (VNHEAD(vp))
-		bhv_vop_inactive(vp, NULL);
+	if (ip) {
+		vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
 
-	VN_LOCK(vp);
-	vp->v_flag &= ~VMODIFIED;
-	VN_UNLOCK(vp, 0);
+		XFS_STATS_INC(vn_rele);
+		XFS_STATS_INC(vn_remove);
+		XFS_STATS_INC(vn_reclaim);
+		XFS_STATS_DEC(vn_active);
 
-	if (VNHEAD(vp))
-		if (bhv_vop_reclaim(vp))
-			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, vp);
+		xfs_inactive(ip);
+		xfs_iflags_clear(ip, XFS_IMODIFIED);
+		if (xfs_reclaim(ip))
+			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, inode);
+	}
 
-	ASSERT(VNHEAD(vp) == NULL);
-
-#ifdef XFS_VNODE_TRACE
-	ktrace_free(vp->v_trace);
-#endif
+	ASSERT(XFS_I(inode) == NULL);
 }
 
 /*
@@ -469,9 +463,9 @@ xfs_fs_clear_inode(
  */
 STATIC void
 xfs_syncd_queue_work(
-	struct bhv_vfs	*vfs,
+	struct xfs_mount *mp,
 	void		*data,
-	void		(*syncer)(bhv_vfs_t *, void *))
+	void		(*syncer)(struct xfs_mount *, void *))
 {
 	struct bhv_vfs_sync_work *work;
 
@@ -479,11 +473,11 @@ xfs_syncd_queue_work(
 	INIT_LIST_HEAD(&work->w_list);
 	work->w_syncer = syncer;
 	work->w_data = data;
-	work->w_vfs = vfs;
-	spin_lock(&vfs->vfs_sync_lock);
-	list_add_tail(&work->w_list, &vfs->vfs_sync_list);
-	spin_unlock(&vfs->vfs_sync_lock);
-	wake_up_process(vfs->vfs_sync_task);
+	work->w_mount = mp;
+	spin_lock(&mp->m_sync_lock);
+	list_add_tail(&work->w_list, &mp->m_sync_list);
+	spin_unlock(&mp->m_sync_lock);
+	wake_up_process(mp->m_sync_task);
 }
 
 /*
@@ -494,22 +488,22 @@ xfs_syncd_queue_work(
  */
 STATIC void
 xfs_flush_inode_work(
-	bhv_vfs_t	*vfs,
-	void		*inode)
+	struct xfs_mount *mp,
+	void		*arg)
 {
-	filemap_flush(((struct inode *)inode)->i_mapping);
-	iput((struct inode *)inode);
+	struct inode	*inode = arg;
+	filemap_flush(inode->i_mapping);
+	iput(inode);
 }
 
 void
 xfs_flush_inode(
 	xfs_inode_t	*ip)
 {
-	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
-	struct bhv_vfs	*vfs = XFS_MTOVFS(ip->i_mount);
+	struct inode	*inode = ip->i_vnode;
 
 	igrab(inode);
-	xfs_syncd_queue_work(vfs, inode, xfs_flush_inode_work);
+	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_inode_work);
 	delay(msecs_to_jiffies(500));
 }
 
@@ -519,11 +513,12 @@ xfs_flush_inode(
  */
 STATIC void
 xfs_flush_device_work(
-	bhv_vfs_t	*vfs,
-	void		*inode)
+	struct xfs_mount *mp,
+	void		*arg)
 {
-	sync_blockdev(vfs->vfs_super->s_bdev);
-	iput((struct inode *)inode);
+	struct inode	*inode = arg;
+	sync_blockdev(mp->m_super->s_bdev);
+	iput(inode);
 }
 
 void
@@ -531,35 +526,33 @@ xfs_flush_device(
 	xfs_inode_t	*ip)
 {
 	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
-	struct bhv_vfs	*vfs = XFS_MTOVFS(ip->i_mount);
 
 	igrab(inode);
-	xfs_syncd_queue_work(vfs, inode, xfs_flush_device_work);
+	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_device_work);
 	delay(msecs_to_jiffies(500));
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
 STATIC void
-vfs_sync_worker(
-	bhv_vfs_t	*vfsp,
+xfs_sync_worker(
+	struct xfs_mount *mp,
 	void		*unused)
 {
 	int		error;
 
-	if (!(vfsp->vfs_flag & VFS_RDONLY))
-		error = bhv_vfs_sync(vfsp, SYNC_FSDATA | SYNC_BDFLUSH | \
-					SYNC_ATTR | SYNC_REFCACHE | SYNC_SUPER,
-					NULL);
-	vfsp->vfs_sync_seq++;
-	wake_up(&vfsp->vfs_wait_single_sync_task);
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY))
+		error = xfs_sync(mp, SYNC_FSDATA | SYNC_BDFLUSH | SYNC_ATTR |
+				     SYNC_REFCACHE | SYNC_SUPER);
+	mp->m_sync_seq++;
+	wake_up(&mp->m_wait_single_sync_task);
 }
 
 STATIC int
 xfssyncd(
 	void			*arg)
 {
+	struct xfs_mount	*mp = arg;
 	long			timeleft;
-	bhv_vfs_t		*vfsp = (bhv_vfs_t *) arg;
 	bhv_vfs_sync_work_t	*work, *n;
 	LIST_HEAD		(tmp);
 
@@ -569,31 +562,31 @@ xfssyncd(
 		timeleft = schedule_timeout_interruptible(timeleft);
 		/* swsusp */
 		try_to_freeze();
-		if (kthread_should_stop() && list_empty(&vfsp->vfs_sync_list))
+		if (kthread_should_stop() && list_empty(&mp->m_sync_list))
 			break;
 
-		spin_lock(&vfsp->vfs_sync_lock);
+		spin_lock(&mp->m_sync_lock);
 		/*
 		 * We can get woken by laptop mode, to do a sync -
 		 * that's the (only!) case where the list would be
 		 * empty with time remaining.
 		 */
-		if (!timeleft || list_empty(&vfsp->vfs_sync_list)) {
+		if (!timeleft || list_empty(&mp->m_sync_list)) {
 			if (!timeleft)
 				timeleft = xfs_syncd_centisecs *
 							msecs_to_jiffies(10);
-			INIT_LIST_HEAD(&vfsp->vfs_sync_work.w_list);
-			list_add_tail(&vfsp->vfs_sync_work.w_list,
-					&vfsp->vfs_sync_list);
+			INIT_LIST_HEAD(&mp->m_sync_work.w_list);
+			list_add_tail(&mp->m_sync_work.w_list,
+					&mp->m_sync_list);
 		}
-		list_for_each_entry_safe(work, n, &vfsp->vfs_sync_list, w_list)
+		list_for_each_entry_safe(work, n, &mp->m_sync_list, w_list)
 			list_move(&work->w_list, &tmp);
-		spin_unlock(&vfsp->vfs_sync_lock);
+		spin_unlock(&mp->m_sync_lock);
 
 		list_for_each_entry_safe(work, n, &tmp, w_list) {
-			(*work->w_syncer)(vfsp, work->w_data);
+			(*work->w_syncer)(mp, work->w_data);
 			list_del(&work->w_list);
-			if (work == &vfsp->vfs_sync_work)
+			if (work == &mp->m_sync_work)
 				continue;
 			kmem_free(work, sizeof(struct bhv_vfs_sync_work));
 		}
@@ -602,41 +595,19 @@ xfssyncd(
 	return 0;
 }
 
-STATIC int
-xfs_fs_start_syncd(
-	bhv_vfs_t		*vfsp)
-{
-	vfsp->vfs_sync_work.w_syncer = vfs_sync_worker;
-	vfsp->vfs_sync_work.w_vfs = vfsp;
-	vfsp->vfs_sync_task = kthread_run(xfssyncd, vfsp, "xfssyncd");
-	if (IS_ERR(vfsp->vfs_sync_task))
-		return -PTR_ERR(vfsp->vfs_sync_task);
-	return 0;
-}
-
-STATIC void
-xfs_fs_stop_syncd(
-	bhv_vfs_t		*vfsp)
-{
-	kthread_stop(vfsp->vfs_sync_task);
-}
-
 STATIC void
 xfs_fs_put_super(
 	struct super_block	*sb)
 {
-	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
+	struct xfs_mount	*mp = XFS_M(sb);
 	int			error;
 
-	xfs_fs_stop_syncd(vfsp);
-	bhv_vfs_sync(vfsp, SYNC_ATTR | SYNC_DELWRI, NULL);
-	error = bhv_vfs_unmount(vfsp, 0, NULL);
-	if (error) {
+	kthread_stop(mp->m_sync_task);
+
+	xfs_sync(mp, SYNC_ATTR | SYNC_DELWRI);
+	error = xfs_unmount(mp, 0, NULL);
+	if (error)
 		printk("XFS: unmount got error=%d\n", error);
-		printk("%s: vfs=0x%p left dangling!\n", __FUNCTION__, vfsp);
-	} else {
-		vfs_deallocate(vfsp);
-	}
 }
 
 STATIC void
@@ -644,7 +615,7 @@ xfs_fs_write_super(
 	struct super_block	*sb)
 {
 	if (!(sb->s_flags & MS_RDONLY))
-		bhv_vfs_sync(vfs_from_sb(sb), SYNC_FSDATA, NULL);
+		xfs_sync(XFS_M(sb), SYNC_FSDATA);
 	sb->s_dirt = 0;
 }
 
@@ -653,11 +624,23 @@ xfs_fs_sync_super(
 	struct super_block	*sb,
 	int			wait)
 {
-	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
+	struct xfs_mount	*mp = XFS_M(sb);
 	int			error;
 	int			flags;
 
-	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE)) {
+	/*
+	 * Treat a sync operation like a freeze.  This is to work
+	 * around a race in sync_inodes() which works in two phases
+	 * - an asynchronous flush, which can write out an inode
+	 * without waiting for file size updates to complete, and a
+	 * synchronous flush, which wont do anything because the
+	 * async flush removed the inode's dirty flag.  Also
+	 * sync_inodes() will not see any files that just have
+	 * outstanding transactions to be flushed because we don't
+	 * dirty the Linux inode until after the transaction I/O
+	 * completes.
+	 */
+	if (wait || unlikely(sb->s_frozen == SB_FREEZE_WRITE)) {
 		/*
 		 * First stage of freeze - no more writers will make progress
 		 * now we are here, so we flush delwri and delalloc buffers
@@ -668,28 +651,28 @@ xfs_fs_sync_super(
 		 */
 		flags = SYNC_DATA_QUIESCE;
 	} else
-		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
+		flags = SYNC_FSDATA;
 
-	error = bhv_vfs_sync(vfsp, flags, NULL);
+	error = xfs_sync(mp, flags);
 	sb->s_dirt = 0;
 
 	if (unlikely(laptop_mode)) {
-		int	prev_sync_seq = vfsp->vfs_sync_seq;
+		int	prev_sync_seq = mp->m_sync_seq;
 
 		/*
 		 * The disk must be active because we're syncing.
 		 * We schedule xfssyncd now (now that the disk is
 		 * active) instead of later (when it might not be).
 		 */
-		wake_up_process(vfsp->vfs_sync_task);
+		wake_up_process(mp->m_sync_task);
 		/*
 		 * We have to wait for the sync iteration to complete.
 		 * If we don't, the disk activity caused by the sync
 		 * will come after the sync is completed, and that
 		 * triggers another sync from laptop mode.
 		 */
-		wait_event(vfsp->vfs_wait_single_sync_task,
-				vfsp->vfs_sync_seq != prev_sync_seq);
+		wait_event(mp->m_wait_single_sync_task,
+				mp->m_sync_seq != prev_sync_seq);
 	}
 
 	return -error;
@@ -700,7 +683,7 @@ xfs_fs_statfs(
 	struct dentry		*dentry,
 	struct kstatfs		*statp)
 {
-	return -bhv_vfs_statvfs(vfs_from_sb(dentry->d_sb), statp,
+	return -xfs_statvfs(XFS_M(dentry->d_sb), statp,
 				vn_from_inode(dentry->d_inode));
 }
 
@@ -710,13 +693,13 @@ xfs_fs_remount(
 	int			*flags,
 	char			*options)
 {
-	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
+	struct xfs_mount	*mp = XFS_M(sb);
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, 0);
 	int			error;
 
-	error = bhv_vfs_parseargs(vfsp, options, args, 1);
+	error = xfs_parseargs(mp, options, args, 1);
 	if (!error)
-		error = bhv_vfs_mntupdate(vfsp, flags, args);
+		error = xfs_mntupdate(mp, flags, args);
 	kmem_free(args, sizeof(*args));
 	return -error;
 }
@@ -725,7 +708,7 @@ STATIC void
 xfs_fs_lockfs(
 	struct super_block	*sb)
 {
-	bhv_vfs_freeze(vfs_from_sb(sb));
+	xfs_freeze(XFS_M(sb));
 }
 
 STATIC int
@@ -733,7 +716,7 @@ xfs_fs_show_options(
 	struct seq_file		*m,
 	struct vfsmount		*mnt)
 {
-	return -bhv_vfs_showargs(vfs_from_sb(mnt->mnt_sb), m);
+	return -xfs_showargs(XFS_M(mnt->mnt_sb), m);
 }
 
 STATIC int
@@ -741,7 +724,7 @@ xfs_fs_quotasync(
 	struct super_block	*sb,
 	int			type)
 {
-	return -bhv_vfs_quotactl(vfs_from_sb(sb), Q_XQUOTASYNC, 0, NULL);
+	return -XFS_QM_QUOTACTL(XFS_M(sb), Q_XQUOTASYNC, 0, NULL);
 }
 
 STATIC int
@@ -749,7 +732,7 @@ xfs_fs_getxstate(
 	struct super_block	*sb,
 	struct fs_quota_stat	*fqs)
 {
-	return -bhv_vfs_quotactl(vfs_from_sb(sb), Q_XGETQSTAT, 0, (caddr_t)fqs);
+	return -XFS_QM_QUOTACTL(XFS_M(sb), Q_XGETQSTAT, 0, (caddr_t)fqs);
 }
 
 STATIC int
@@ -758,7 +741,7 @@ xfs_fs_setxstate(
 	unsigned int		flags,
 	int			op)
 {
-	return -bhv_vfs_quotactl(vfs_from_sb(sb), op, 0, (caddr_t)&flags);
+	return -XFS_QM_QUOTACTL(XFS_M(sb), op, 0, (caddr_t)&flags);
 }
 
 STATIC int
@@ -768,7 +751,7 @@ xfs_fs_getxquota(
 	qid_t			id,
 	struct fs_disk_quota	*fdq)
 {
-	return -bhv_vfs_quotactl(vfs_from_sb(sb),
+	return -XFS_QM_QUOTACTL(XFS_M(sb),
 				 (type == USRQUOTA) ? Q_XGETQUOTA :
 				  ((type == GRPQUOTA) ? Q_XGETGQUOTA :
 				   Q_XGETPQUOTA), id, (caddr_t)fdq);
@@ -781,7 +764,7 @@ xfs_fs_setxquota(
 	qid_t			id,
 	struct fs_disk_quota	*fdq)
 {
-	return -bhv_vfs_quotactl(vfs_from_sb(sb),
+	return -XFS_QM_QUOTACTL(XFS_M(sb),
 				 (type == USRQUOTA) ? Q_XSETQLIM :
 				  ((type == GRPQUOTA) ? Q_XSETGQLIM :
 				   Q_XSETPQLIM), id, (caddr_t)fdq);
@@ -793,32 +776,38 @@ xfs_fs_fill_super(
 	void			*data,
 	int			silent)
 {
-	struct bhv_vnode	*rootvp;
-	struct bhv_vfs		*vfsp = vfs_allocate(sb);
+	struct inode		*rootvp;
+	struct xfs_mount	*mp = NULL;
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, silent);
 	struct kstatfs		statvfs;
 	int			error;
 
-	bhv_insert_all_vfsops(vfsp);
+	mp = xfs_mount_init();
 
-	error = bhv_vfs_parseargs(vfsp, (char *)data, args, 0);
-	if (error) {
-		bhv_remove_all_vfsops(vfsp, 1);
+	INIT_LIST_HEAD(&mp->m_sync_list);
+	spin_lock_init(&mp->m_sync_lock);
+	init_waitqueue_head(&mp->m_wait_single_sync_task);
+
+	mp->m_super = sb;
+	sb->s_fs_info = mp;
+
+	if (sb->s_flags & MS_RDONLY)
+		mp->m_flags |= XFS_MOUNT_RDONLY;
+
+	error = xfs_parseargs(mp, (char *)data, args, 0);
+	if (error)
 		goto fail_vfsop;
-	}
 
 	sb_min_blocksize(sb, BBSIZE);
 	sb->s_export_op = &xfs_export_operations;
 	sb->s_qcop = &xfs_quotactl_operations;
 	sb->s_op = &xfs_super_operations;
 
-	error = bhv_vfs_mount(vfsp, args, NULL);
-	if (error) {
-		bhv_remove_all_vfsops(vfsp, 1);
+	error = xfs_mount(mp, args, NULL);
+	if (error)
 		goto fail_vfsop;
-	}
 
-	error = bhv_vfs_statvfs(vfsp, &statvfs, NULL);
+	error = xfs_statvfs(mp, &statvfs, NULL);
 	if (error)
 		goto fail_unmount;
 
@@ -830,7 +819,7 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
-	error = bhv_vfs_root(vfsp, &rootvp);
+	error = xfs_root(mp, &rootvp);
 	if (error)
 		goto fail_unmount;
 
@@ -843,9 +832,17 @@ xfs_fs_fill_super(
 		error = EINVAL;
 		goto fail_vnrele;
 	}
-	if ((error = xfs_fs_start_syncd(vfsp)))
+
+	mp->m_sync_work.w_syncer = xfs_sync_worker;
+	mp->m_sync_work.w_mount = mp;
+	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd");
+	if (IS_ERR(mp->m_sync_task)) {
+		error = -PTR_ERR(mp->m_sync_task);
 		goto fail_vnrele;
-	vn_trace_exit(rootvp, __FUNCTION__, (inst_t *)__return_address);
+	}
+
+	vn_trace_exit(XFS_I(sb->s_root->d_inode), __FUNCTION__,
+			(inst_t *)__return_address);
 
 	kmem_free(args, sizeof(*args));
 	return 0;
@@ -859,10 +856,9 @@ fail_vnrele:
 	}
 
 fail_unmount:
-	bhv_vfs_unmount(vfsp, 0, NULL);
+	xfs_unmount(mp, 0, NULL);
 
 fail_vfsop:
-	vfs_deallocate(vfsp);
 	kmem_free(args, sizeof(*args));
 	return -error;
 }
@@ -914,14 +910,10 @@ STATIC int __init
 init_xfs_fs( void )
 {
 	int			error;
-	struct sysinfo		si;
 	static char		message[] __initdata = KERN_INFO \
 		XFS_VERSION_STRING " with " XFS_BUILD_OPTIONS " enabled\n";
 
 	printk(message);
-
-	si_meminfo(&si);
-	xfs_physmem = si.totalram;
 
 	ktrace_init(64);
 

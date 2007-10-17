@@ -36,14 +36,13 @@
  *========================================================================*/
 
 struct cred;
-struct bhv_vnode;
 struct xfs_attr_list_context;
 
-typedef int (*attrset_t)(struct bhv_vnode *, char *, void *, size_t, int);
-typedef int (*attrget_t)(struct bhv_vnode *, char *, void *, size_t, int);
-typedef int (*attrremove_t)(struct bhv_vnode *, char *, int);
-typedef int (*attrexists_t)(struct bhv_vnode *);
-typedef int (*attrcapable_t)(struct bhv_vnode *, struct cred *);
+typedef int (*attrset_t)(bhv_vnode_t *, char *, void *, size_t, int);
+typedef int (*attrget_t)(bhv_vnode_t *, char *, void *, size_t, int);
+typedef int (*attrremove_t)(bhv_vnode_t *, char *, int);
+typedef int (*attrexists_t)(bhv_vnode_t *);
+typedef int (*attrcapable_t)(bhv_vnode_t *, struct cred *);
 
 typedef struct attrnames {
 	char *		attr_name;
@@ -64,7 +63,7 @@ extern struct attrnames attr_trusted;
 extern struct attrnames *attr_namespaces[ATTR_NAMECOUNT];
 
 extern attrnames_t *attr_lookup_namespace(char *, attrnames_t **, int);
-extern int attr_generic_list(struct bhv_vnode *, void *, size_t, int, ssize_t *);
+extern int attr_generic_list(bhv_vnode_t *, void *, size_t, int, ssize_t *);
 
 #define ATTR_DONTFOLLOW	0x0001	/* -- unused, from IRIX -- */
 #define ATTR_ROOT	0x0002	/* use attrs in root (trusted) namespace */
@@ -159,12 +158,8 @@ struct xfs_da_args;
 /*
  * Overall external interface routines.
  */
-int xfs_attr_get(bhv_desc_t *, const char *, char *, int *, int, struct cred *);
-int xfs_attr_set(bhv_desc_t *, const char *, char *, int, int, struct cred *);
 int xfs_attr_set_int(struct xfs_inode *, const char *, int, char *, int, int);
-int xfs_attr_remove(bhv_desc_t *, const char *, int, struct cred *);
 int xfs_attr_remove_int(struct xfs_inode *, const char *, int, int);
-int xfs_attr_list(bhv_desc_t *, char *, int, int, struct attrlist_cursor_kern *, struct cred *);
 int xfs_attr_list_int(struct xfs_attr_list_context *);
 int xfs_attr_inactive(struct xfs_inode *dp);
 

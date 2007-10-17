@@ -37,6 +37,7 @@
 #include "xfs_error.h"
 #include "xfs_rw.h"
 #include "xfs_iomap.h"
+#include "xfs_vnodeops.h"
 #include <linux/mpage.h>
 #include <linux/pagevec.h>
 #include <linux/writeback.h>
@@ -139,9 +140,11 @@ xfs_destroy_ioend(
 		next = bh->b_private;
 		bh->b_end_io(bh, !ioend->io_error);
 	}
-	if (unlikely(ioend->io_error))
-		vn_ioerror(ioend->io_vnode, ioend->io_error, __FILE__,__LINE__);
-	vn_iowake(ioend->io_vnode);
+	if (unlikely(ioend->io_error)) {
+		vn_ioerror(XFS_I(ioend->io_inode), ioend->io_error,
+				__FILE__,__LINE__);
+	}
+	vn_iowake(XFS_I(ioend->io_inode));
 	mempool_free(ioend, xfs_ioend_pool);
 }
 
@@ -156,13 +159,9 @@ STATIC void
 xfs_setfilesize(
 	xfs_ioend_t		*ioend)
 {
-	xfs_inode_t		*ip;
+	xfs_inode_t		*ip = XFS_I(ioend->io_inode);
 	xfs_fsize_t		isize;
 	xfs_fsize_t		bsize;
-
-	ip = xfs_vtoi(ioend->io_vnode);
-	if (!ip)
-		return;
 
 	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFREG);
 	ASSERT(ioend->io_type != IOMAP_READ);
@@ -181,7 +180,7 @@ xfs_setfilesize(
 		ip->i_d.di_size = isize;
 		ip->i_update_core = 1;
 		ip->i_update_size = 1;
-		mark_inode_dirty_sync(vn_to_inode(ioend->io_vnode));
+		mark_inode_dirty_sync(ioend->io_inode);
 	}
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -227,12 +226,12 @@ xfs_end_bio_unwritten(
 {
 	xfs_ioend_t		*ioend =
 		container_of(work, xfs_ioend_t, io_work);
-	bhv_vnode_t		*vp = ioend->io_vnode;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
 
 	if (likely(!ioend->io_error)) {
-		bhv_vop_bmap(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL);
+		xfs_bmap(XFS_I(ioend->io_inode), offset, size,
+				BMAPI_UNWRITTEN, NULL, NULL);
 		xfs_setfilesize(ioend);
 	}
 	xfs_destroy_ioend(ioend);
@@ -275,10 +274,10 @@ xfs_alloc_ioend(
 	ioend->io_error = 0;
 	ioend->io_list = NULL;
 	ioend->io_type = type;
-	ioend->io_vnode = vn_from_inode(inode);
+	ioend->io_inode = inode;
 	ioend->io_buffer_head = NULL;
 	ioend->io_buffer_tail = NULL;
-	atomic_inc(&ioend->io_vnode->v_iocount);
+	atomic_inc(&XFS_I(ioend->io_inode)->i_iocount);
 	ioend->io_offset = 0;
 	ioend->io_size = 0;
 
@@ -302,12 +301,13 @@ xfs_map_blocks(
 	xfs_iomap_t		*mapp,
 	int			flags)
 {
-	bhv_vnode_t		*vp = vn_from_inode(inode);
+	xfs_inode_t		*ip = XFS_I(inode);
 	int			error, nmaps = 1;
 
-	error = bhv_vop_bmap(vp, offset, count, flags, mapp, &nmaps);
+	error = xfs_bmap(ip, offset, count,
+				flags, mapp, &nmaps);
 	if (!error && (flags & (BMAPI_WRITE|BMAPI_ALLOCATE)))
-		VMODIFY(vp);
+		xfs_iflags_set(ip, XFS_IMODIFIED);
 	return -error;
 }
 
@@ -497,7 +497,7 @@ xfs_cancel_ioend(
 			unlock_buffer(bh);
 		} while ((bh = next_bh) != NULL);
 
-		vn_iowake(ioend->io_vnode);
+		vn_iowake(XFS_I(ioend->io_inode));
 		mempool_free(ioend, xfs_ioend_pool);
 	} while ((ioend = next) != NULL);
 }
@@ -1237,10 +1237,7 @@ xfs_vm_writepages(
 	struct address_space	*mapping,
 	struct writeback_control *wbc)
 {
-	struct bhv_vnode	*vp = vn_from_inode(mapping->host);
-
-	if (VN_TRUNC(vp))
-		VUNTRUNCATE(vp);
+	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
 	return generic_writepages(mapping, wbc);
 }
 
@@ -1317,7 +1314,6 @@ __xfs_get_blocks(
 	int			direct,
 	bmapi_flags_t		flags)
 {
-	bhv_vnode_t		*vp = vn_from_inode(inode);
 	xfs_iomap_t		iomap;
 	xfs_off_t		offset;
 	ssize_t			size;
@@ -1327,7 +1323,7 @@ __xfs_get_blocks(
 	offset = (xfs_off_t)iblock << inode->i_blkbits;
 	ASSERT(bh_result->b_size >= (1 << inode->i_blkbits));
 	size = bh_result->b_size;
-	error = bhv_vop_bmap(vp, offset, size,
+	error = xfs_bmap(XFS_I(inode), offset, size,
 			     create ? flags : BMAPI_READ, &iomap, &niomap);
 	if (error)
 		return -error;
@@ -1475,13 +1471,13 @@ xfs_vm_direct_IO(
 {
 	struct file	*file = iocb->ki_filp;
 	struct inode	*inode = file->f_mapping->host;
-	bhv_vnode_t	*vp = vn_from_inode(inode);
 	xfs_iomap_t	iomap;
 	int		maps = 1;
 	int		error;
 	ssize_t		ret;
 
-	error = bhv_vop_bmap(vp, offset, 0, BMAPI_DEVICE, &iomap, &maps);
+	error = xfs_bmap(XFS_I(inode), offset, 0,
+				BMAPI_DEVICE, &iomap, &maps);
 	if (error)
 		return -error;
 
@@ -1527,12 +1523,13 @@ xfs_vm_bmap(
 	sector_t		block)
 {
 	struct inode		*inode = (struct inode *)mapping->host;
-	bhv_vnode_t		*vp = vn_from_inode(inode);
+	struct xfs_inode	*ip = XFS_I(inode);
 
-	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-	bhv_vop_rwlock(vp, VRWLOCK_READ);
-	bhv_vop_flush_pages(vp, (xfs_off_t)0, -1, 0, FI_REMAPF);
-	bhv_vop_rwunlock(vp, VRWLOCK_READ);
+	vn_trace_entry(XFS_I(inode), __FUNCTION__,
+			(inst_t *)__return_address);
+	xfs_rwlock(ip, VRWLOCK_READ);
+	xfs_flush_pages(ip, (xfs_off_t)0, -1, 0, FI_REMAPF);
+	xfs_rwunlock(ip, VRWLOCK_READ);
 	return generic_block_bmap(mapping, block, xfs_get_blocks);
 }
 

@@ -22,6 +22,7 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
@@ -128,8 +129,7 @@ xfs_lock_for_rename(
 		lock_mode = xfs_ilock_map_shared(dp2);
 	}
 
-	error = xfs_dir_lookup_int(XFS_ITOBHV(dp2), lock_mode,
-				   vname2, &inum2, &ip2);
+	error = xfs_dir_lookup_int(dp2, lock_mode, vname2, &inum2, &ip2);
 	if (error == ENOENT) {		/* target does not need to exist. */
 		inum2 = 0;
 	} else if (error) {
@@ -221,15 +221,15 @@ xfs_lock_for_rename(
  */
 int
 xfs_rename(
-	bhv_desc_t	*src_dir_bdp,
+	xfs_inode_t	*src_dp,
 	bhv_vname_t	*src_vname,
 	bhv_vnode_t	*target_dir_vp,
-	bhv_vname_t	*target_vname,
-	cred_t		*credp)
+	bhv_vname_t	*target_vname)
 {
+	bhv_vnode_t	*src_dir_vp = XFS_ITOV(src_dp);
 	xfs_trans_t	*tp;
-	xfs_inode_t	*src_dp, *target_dp, *src_ip, *target_ip;
-	xfs_mount_t	*mp;
+	xfs_inode_t	*target_dp, *src_ip, *target_ip;
+	xfs_mount_t	*mp = src_dp->i_mount;
 	int		new_parent;		/* moving to a new dir */
 	int		src_is_directory;	/* src_name is a directory */
 	int		error;
@@ -239,7 +239,6 @@ xfs_rename(
 	int		committed;
 	xfs_inode_t	*inodes[4];
 	int		target_ip_dropped = 0;	/* dropped target_ip link? */
-	bhv_vnode_t	*src_dir_vp;
 	int		spaceres;
 	int		target_link_zero = 0;
 	int		num_inodes;
@@ -248,9 +247,8 @@ xfs_rename(
 	int		src_namelen = VNAMELEN(src_vname);
 	int		target_namelen = VNAMELEN(target_vname);
 
-	src_dir_vp = BHV_TO_VNODE(src_dir_bdp);
-	vn_trace_entry(src_dir_vp, "xfs_rename", (inst_t *)__return_address);
-	vn_trace_entry(target_dir_vp, "xfs_rename", (inst_t *)__return_address);
+	vn_trace_entry(src_dp, "xfs_rename", (inst_t *)__return_address);
+	vn_trace_entry(xfs_vtoi(target_dir_vp), "xfs_rename", (inst_t *)__return_address);
 
 	/*
 	 * Find the XFS behavior descriptor for the target directory
@@ -261,12 +259,8 @@ xfs_rename(
 		return XFS_ERROR(EXDEV);
 	}
 
-	src_dp = XFS_BHVTOI(src_dir_bdp);
-	mp = src_dp->i_mount;
-
-	if (DM_EVENT_ENABLED(src_dir_vp->v_vfsp, src_dp, DM_EVENT_RENAME) ||
-	    DM_EVENT_ENABLED(target_dir_vp->v_vfsp,
-				target_dp, DM_EVENT_RENAME)) {
+	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_RENAME) ||
+	    DM_EVENT_ENABLED(target_dp, DM_EVENT_RENAME)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_RENAME,
 					src_dir_vp, DM_RIGHT_NULL,
 					target_dir_vp, DM_RIGHT_NULL,
@@ -592,20 +586,16 @@ xfs_rename(
 	/*
 	 * Let interposed file systems know about removed links.
 	 */
-	if (target_ip_dropped) {
-		bhv_vop_link_removed(XFS_ITOV(target_ip), target_dir_vp,
-					target_link_zero);
+	if (target_ip_dropped)
 		IRELE(target_ip);
-	}
 
 	IRELE(src_ip);
 
 	/* Fall through to std_return with error = 0 or errno from
 	 * xfs_trans_commit	 */
 std_return:
-	if (DM_EVENT_ENABLED(src_dir_vp->v_vfsp, src_dp, DM_EVENT_POSTRENAME) ||
-	    DM_EVENT_ENABLED(target_dir_vp->v_vfsp,
-				target_dp, DM_EVENT_POSTRENAME)) {
+	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_POSTRENAME) ||
+	    DM_EVENT_ENABLED(target_dp, DM_EVENT_POSTRENAME)) {
 		(void) XFS_SEND_NAMESP (mp, DM_EVENT_POSTRENAME,
 					src_dir_vp, DM_RIGHT_NULL,
 					target_dir_vp, DM_RIGHT_NULL,

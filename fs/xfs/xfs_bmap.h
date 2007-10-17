@@ -335,7 +335,7 @@ xfs_bunmapi(
  */
 int						/* error code */
 xfs_getbmap(
-	bhv_desc_t		*bdp,		/* XFS behavior descriptor*/
+	xfs_inode_t		*ip,
 	struct getbmap		*bmv,		/* user bmap structure */
 	void			__user *ap,	/* pointer to user's array */
 	int			iflags);	/* interface flags */
@@ -378,7 +378,7 @@ xfs_check_nostate_extents(
  * entry (null if none).  Else, *lastxp will be set to the index
  * of the found entry; *gotp will contain the entry.
  */
-xfs_bmbt_rec_t *
+xfs_bmbt_rec_host_t *
 xfs_bmap_search_multi_extents(struct xfs_ifork *, xfs_fileoff_t, int *,
 			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
 

@@ -330,12 +330,12 @@ typedef struct xfs_dqtrxops {
 } xfs_dqtrxops_t;
 
 #define XFS_DQTRXOP(mp, tp, op, args...) \
-		((mp)->m_qm_ops.xfs_dqtrxops ? \
-		((mp)->m_qm_ops.xfs_dqtrxops->op)(tp, ## args) : 0)
+		((mp)->m_qm_ops->xfs_dqtrxops ? \
+		((mp)->m_qm_ops->xfs_dqtrxops->op)(tp, ## args) : 0)
 
 #define XFS_DQTRXOP_VOID(mp, tp, op, args...) \
-		((mp)->m_qm_ops.xfs_dqtrxops ? \
-		((mp)->m_qm_ops.xfs_dqtrxops->op)(tp, ## args) : (void)0)
+		((mp)->m_qm_ops->xfs_dqtrxops ? \
+		((mp)->m_qm_ops->xfs_dqtrxops->op)(tp, ## args) : (void)0)
 
 #define XFS_TRANS_DUP_DQINFO(mp, otp, ntp) \
 	XFS_DQTRXOP_VOID(mp, otp, qo_dup_dqinfo, ntp)
@@ -364,7 +364,7 @@ typedef struct xfs_dqtrxops {
 extern int xfs_qm_dqcheck(xfs_disk_dquot_t *, xfs_dqid_t, uint, uint, char *);
 extern int xfs_mount_reset_sbqflags(struct xfs_mount *);
 
-extern struct bhv_module_vfsops xfs_qmops;
+extern struct xfs_qmops xfs_qmcore_xfs;
 
 #endif	/* __KERNEL__ */
 

@@ -51,7 +51,6 @@
 
 #include <support/ktrace.h>
 #include <support/debug.h>
-#include <support/move.h>
 #include <support/uuid.h>
 
 #include <linux/mm.h>
@@ -75,6 +74,7 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/delay.h>
+#include <linux/log2.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -83,7 +83,6 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include <xfs_behavior.h>
 #include <xfs_vfs.h>
 #include <xfs_cred.h>
 #include <xfs_vnode.h>

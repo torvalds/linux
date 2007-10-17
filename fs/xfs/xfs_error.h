@@ -144,12 +144,11 @@ extern void xfs_error_test_init(void);
 #endif /* __ANSI_CPP__ */
 
 extern int xfs_errortag_add(int error_tag, xfs_mount_t *mp);
-extern int xfs_errortag_clearall(xfs_mount_t *mp);
-extern int xfs_errortag_clearall_umount(int64_t fsid, char *fsname, int loud);
+extern int xfs_errortag_clearall(xfs_mount_t *mp, int loud);
 #else
 #define XFS_TEST_ERROR(expr, mp, tag, rf)	(expr)
 #define xfs_errortag_add(tag, mp)		(ENOSYS)
-#define xfs_errortag_clearall(mp)		(ENOSYS)
+#define xfs_errortag_clearall(mp, loud)		(ENOSYS)
 #endif /* (DEBUG || INDUCE_IO_ERROR) */
 
 /*

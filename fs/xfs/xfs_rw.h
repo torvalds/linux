@@ -23,32 +23,6 @@ struct xfs_inode;
 struct xfs_mount;
 
 /*
- * Maximum count of bmaps used by read and write paths.
- */
-#define	XFS_MAX_RW_NBMAPS	4
-
-/*
- * Counts of readahead buffers to use based on physical memory size.
- * None of these should be more than XFS_MAX_RW_NBMAPS.
- */
-#define	XFS_RW_NREADAHEAD_16MB	2
-#define	XFS_RW_NREADAHEAD_32MB	3
-#define	XFS_RW_NREADAHEAD_K32	4
-#define	XFS_RW_NREADAHEAD_K64	4
-
-/*
- * Maximum size of a buffer that we\'ll map.  Making this
- * too big will degrade performance due to the number of
- * pages which need to be gathered.  Making it too small
- * will prevent us from doing large I/O\'s to hardware that
- * needs it.
- *
- * This is currently set to 512 KB.
- */
-#define	XFS_MAX_BMAP_LEN_BB	1024
-#define	XFS_MAX_BMAP_LEN_BYTES	524288
-
-/*
  * Convert the given file system block to a disk block.
  * We have to treat it differently based on whether the
  * file is a real time file or not, because the bmap code
@@ -116,14 +90,6 @@ extern void xfs_ioerror_alert(char *func, struct xfs_mount *mp,
 /*
  * Prototypes for functions in xfs_vnodeops.c.
  */
-extern int xfs_rwlock(bhv_desc_t *bdp, bhv_vrwlock_t write_lock);
-extern void xfs_rwunlock(bhv_desc_t *bdp, bhv_vrwlock_t write_lock);
-extern int xfs_setattr(bhv_desc_t *, bhv_vattr_t *vap, int flags,
-			cred_t *credp);
-extern int xfs_change_file_space(bhv_desc_t *bdp, int cmd, xfs_flock64_t *bf,
-			xfs_off_t offset, cred_t *credp, int flags);
-extern int xfs_set_dmattrs(bhv_desc_t *bdp, u_int evmask, u_int16_t state,
-			cred_t *credp);
 extern int xfs_free_eofblocks(struct xfs_mount *mp, struct xfs_inode *ip,
 			int flags);
 

@@ -35,44 +35,15 @@ typedef struct xfs_bmdr_block {
 
 /*
  * Bmap btree record and extent descriptor.
- * For 32-bit kernels,
- *  l0:31 is an extent flag (value 1 indicates non-normal).
- *  l0:0-30 and l1:9-31 are startoff.
- *  l1:0-8, l2:0-31, and l3:21-31 are startblock.
- *  l3:0-20 are blockcount.
- * For 64-bit kernels,
  *  l0:63 is an extent flag (value 1 indicates non-normal).
  *  l0:9-62 are startoff.
  *  l0:0-8 and l1:21-63 are startblock.
  *  l1:0-20 are blockcount.
  */
-
-#ifndef XFS_NATIVE_HOST
-
-#define BMBT_TOTAL_BITLEN	128	/* 128 bits, 16 bytes */
-#define BMBT_EXNTFLAG_BITOFF	0
 #define BMBT_EXNTFLAG_BITLEN	1
-#define BMBT_STARTOFF_BITOFF	(BMBT_EXNTFLAG_BITOFF + BMBT_EXNTFLAG_BITLEN)
 #define BMBT_STARTOFF_BITLEN	54
-#define BMBT_STARTBLOCK_BITOFF	(BMBT_STARTOFF_BITOFF + BMBT_STARTOFF_BITLEN)
 #define BMBT_STARTBLOCK_BITLEN	52
-#define BMBT_BLOCKCOUNT_BITOFF	\
-	(BMBT_STARTBLOCK_BITOFF + BMBT_STARTBLOCK_BITLEN)
-#define BMBT_BLOCKCOUNT_BITLEN	(BMBT_TOTAL_BITLEN - BMBT_BLOCKCOUNT_BITOFF)
-
-#else
-
-#define BMBT_TOTAL_BITLEN	128	/* 128 bits, 16 bytes */
-#define BMBT_EXNTFLAG_BITOFF	63
-#define BMBT_EXNTFLAG_BITLEN	1
-#define BMBT_STARTOFF_BITOFF	(BMBT_EXNTFLAG_BITOFF - BMBT_STARTOFF_BITLEN)
-#define BMBT_STARTOFF_BITLEN	54
-#define BMBT_STARTBLOCK_BITOFF	85 /* 128 - 43 (other 9 is in first word) */
-#define BMBT_STARTBLOCK_BITLEN	52
-#define BMBT_BLOCKCOUNT_BITOFF	64 /* Start of second 64 bit container */
 #define BMBT_BLOCKCOUNT_BITLEN	21
-
-#endif /* XFS_NATIVE_HOST */
 
 
 #define BMBT_USE_64	1
@@ -83,11 +54,15 @@ typedef struct xfs_bmbt_rec_32
 } xfs_bmbt_rec_32_t;
 typedef struct xfs_bmbt_rec_64
 {
-	__uint64_t		l0, l1;
+	__be64			l0, l1;
 } xfs_bmbt_rec_64_t;
 
 typedef __uint64_t	xfs_bmbt_rec_base_t;	/* use this for casts */
 typedef xfs_bmbt_rec_64_t xfs_bmbt_rec_t, xfs_bmdr_rec_t;
+
+typedef struct xfs_bmbt_rec_host {
+	__uint64_t		l0, l1;
+} xfs_bmbt_rec_host_t;
 
 /*
  * Values and macros for delayed-allocation startblock fields.
@@ -281,23 +256,17 @@ extern ktrace_t	*xfs_bmbt_trace_buf;
 extern void xfs_bmdr_to_bmbt(xfs_bmdr_block_t *, int, xfs_bmbt_block_t *, int);
 extern int xfs_bmbt_decrement(struct xfs_btree_cur *, int, int *);
 extern int xfs_bmbt_delete(struct xfs_btree_cur *, int *);
-extern void xfs_bmbt_get_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
+extern void xfs_bmbt_get_all(xfs_bmbt_rec_host_t *r, xfs_bmbt_irec_t *s);
 extern xfs_bmbt_block_t *xfs_bmbt_get_block(struct xfs_btree_cur *cur,
 						int, struct xfs_buf **bpp);
-extern xfs_filblks_t xfs_bmbt_get_blockcount(xfs_bmbt_rec_t *r);
-extern xfs_fsblock_t xfs_bmbt_get_startblock(xfs_bmbt_rec_t *r);
-extern xfs_fileoff_t xfs_bmbt_get_startoff(xfs_bmbt_rec_t *r);
-extern xfs_exntst_t xfs_bmbt_get_state(xfs_bmbt_rec_t *r);
+extern xfs_filblks_t xfs_bmbt_get_blockcount(xfs_bmbt_rec_host_t *r);
+extern xfs_fsblock_t xfs_bmbt_get_startblock(xfs_bmbt_rec_host_t *r);
+extern xfs_fileoff_t xfs_bmbt_get_startoff(xfs_bmbt_rec_host_t *r);
+extern xfs_exntst_t xfs_bmbt_get_state(xfs_bmbt_rec_host_t *r);
 
-#ifndef XFS_NATIVE_HOST
 extern void xfs_bmbt_disk_get_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
 extern xfs_filblks_t xfs_bmbt_disk_get_blockcount(xfs_bmbt_rec_t *r);
 extern xfs_fileoff_t xfs_bmbt_disk_get_startoff(xfs_bmbt_rec_t *r);
-#else
-#define xfs_bmbt_disk_get_all(r, s)	xfs_bmbt_get_all(r, s)
-#define xfs_bmbt_disk_get_blockcount(r)	xfs_bmbt_get_blockcount(r)
-#define xfs_bmbt_disk_get_startoff(r)	xfs_bmbt_get_startoff(r)
-#endif /* XFS_NATIVE_HOST */
 
 extern int xfs_bmbt_increment(struct xfs_btree_cur *, int, int *);
 extern int xfs_bmbt_insert(struct xfs_btree_cur *, int *);
@@ -315,22 +284,17 @@ extern int xfs_bmbt_lookup_ge(struct xfs_btree_cur *, xfs_fileoff_t,
  */
 extern int xfs_bmbt_newroot(struct xfs_btree_cur *cur, int *lflags, int *stat);
 
-extern void xfs_bmbt_set_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
-extern void xfs_bmbt_set_allf(xfs_bmbt_rec_t *r, xfs_fileoff_t o,
+extern void xfs_bmbt_set_all(xfs_bmbt_rec_host_t *r, xfs_bmbt_irec_t *s);
+extern void xfs_bmbt_set_allf(xfs_bmbt_rec_host_t *r, xfs_fileoff_t o,
 			xfs_fsblock_t b, xfs_filblks_t c, xfs_exntst_t v);
-extern void xfs_bmbt_set_blockcount(xfs_bmbt_rec_t *r, xfs_filblks_t v);
-extern void xfs_bmbt_set_startblock(xfs_bmbt_rec_t *r, xfs_fsblock_t v);
-extern void xfs_bmbt_set_startoff(xfs_bmbt_rec_t *r, xfs_fileoff_t v);
-extern void xfs_bmbt_set_state(xfs_bmbt_rec_t *r, xfs_exntst_t v);
+extern void xfs_bmbt_set_blockcount(xfs_bmbt_rec_host_t *r, xfs_filblks_t v);
+extern void xfs_bmbt_set_startblock(xfs_bmbt_rec_host_t *r, xfs_fsblock_t v);
+extern void xfs_bmbt_set_startoff(xfs_bmbt_rec_host_t *r, xfs_fileoff_t v);
+extern void xfs_bmbt_set_state(xfs_bmbt_rec_host_t *r, xfs_exntst_t v);
 
-#ifndef XFS_NATIVE_HOST
 extern void xfs_bmbt_disk_set_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
 extern void xfs_bmbt_disk_set_allf(xfs_bmbt_rec_t *r, xfs_fileoff_t o,
 			xfs_fsblock_t b, xfs_filblks_t c, xfs_exntst_t v);
-#else
-#define xfs_bmbt_disk_set_all(r, s)		xfs_bmbt_set_all(r, s)
-#define xfs_bmbt_disk_set_allf(r, o, b, c, v)	xfs_bmbt_set_allf(r, o, b, c, v)
-#endif /* XFS_NATIVE_HOST */
 
 extern void xfs_bmbt_to_bmdr(xfs_bmbt_block_t *, int, xfs_bmdr_block_t *, int);
 extern int xfs_bmbt_update(struct xfs_btree_cur *, xfs_fileoff_t,

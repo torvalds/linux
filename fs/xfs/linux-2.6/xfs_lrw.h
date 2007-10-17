@@ -18,8 +18,6 @@
 #ifndef __XFS_LRW_H__
 #define __XFS_LRW_H__
 
-struct bhv_desc;
-struct bhv_vnode;
 struct xfs_mount;
 struct xfs_iocore;
 struct xfs_inode;
@@ -71,30 +69,11 @@ extern void xfs_inval_cached_trace(struct xfs_iocore *,
 #define xfs_inval_cached_trace(io, offset, len, first, last)
 #endif
 
-/*
- * Maximum count of bmaps used by read and write paths.
- */
-#define	XFS_MAX_RW_NBMAPS	4
-
-extern int xfs_bmap(struct bhv_desc *, xfs_off_t, ssize_t, int,
-			struct xfs_iomap *, int *);
 extern int xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
-extern int xfs_zero_eof(struct bhv_vnode *, struct xfs_iocore *, xfs_off_t,
+extern int xfs_zero_eof(struct inode *, struct xfs_iocore *, xfs_off_t,
 				xfs_fsize_t);
-extern ssize_t xfs_read(struct bhv_desc *, struct kiocb *,
-				const struct iovec *, unsigned int,
-				loff_t *, int, struct cred *);
-extern ssize_t xfs_write(struct bhv_desc *, struct kiocb *,
-				const struct iovec *, unsigned int,
-				loff_t *, int, struct cred *);
-extern ssize_t xfs_splice_read(struct bhv_desc *, struct file *, loff_t *,
-				struct pipe_inode_info *, size_t, int, int,
-				struct cred *);
-extern ssize_t xfs_splice_write(struct bhv_desc *, struct pipe_inode_info *,
-				struct file *, loff_t *, size_t, int, int,
-				struct cred *);
 
 #endif	/* __XFS_LRW_H__ */

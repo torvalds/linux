@@ -43,6 +43,7 @@
 #include "xfs_itable.h"
 #include "xfs_error.h"
 #include "xfs_dfrag.h"
+#include "xfs_vnodeops.h"
 
 #define  _NATIVE_IOC(cmd, type) \
 	  _IOC(_IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd), sizeof(type))
@@ -370,7 +371,6 @@ xfs_compat_ioctl(
 	unsigned long	arg)
 {
 	struct inode	*inode = file->f_path.dentry->d_inode;
-	bhv_vnode_t	*vp = vn_from_inode(inode);
 	int		error;
 
 	switch (cmd) {
@@ -443,7 +443,7 @@ xfs_compat_ioctl(
 	case XFS_IOC_FSBULKSTAT_SINGLE_32:
 	case XFS_IOC_FSINUMBERS_32:
 		cmd = _NATIVE_IOC(cmd, struct xfs_fsop_bulkreq);
-		return xfs_ioc_bulkstat_compat(XFS_BHVTOI(VNHEAD(vp))->i_mount,
+		return xfs_ioc_bulkstat_compat(XFS_I(inode)->i_mount,
 				cmd, (void __user*)arg);
 	case XFS_IOC_FD_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_HANDLE_32:
@@ -457,8 +457,8 @@ xfs_compat_ioctl(
 		return -ENOIOCTLCMD;
 	}
 
-	error = bhv_vop_ioctl(vp, inode, file, mode, cmd, (void __user *)arg);
-	VMODIFY(vp);
+	error = xfs_ioctl(XFS_I(inode), file, mode, cmd, (void __user *)arg);
+	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
 
 	return error;
 }

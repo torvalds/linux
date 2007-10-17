@@ -67,17 +67,15 @@ typedef enum {
 #define HAVE_DM_RIGHT_T
 
 /* Defines for determining if an event message should be sent. */
-#define	DM_EVENT_ENABLED(vfsp, ip, event) ( \
-	unlikely ((vfsp)->vfs_flag & VFS_DMI) && \
+#ifdef HAVE_DMAPI
+#define	DM_EVENT_ENABLED(ip, event) ( \
+	unlikely ((ip)->i_mount->m_flags & XFS_MOUNT_DMAPI) && \
 		( ((ip)->i_d.di_dmevmask & (1 << event)) || \
 		  ((ip)->i_mount->m_dmevmask & (1 << event)) ) \
 	)
-
-#define	DM_EVENT_ENABLED_IO(vfsp, io, event) ( \
-	unlikely ((vfsp)->vfs_flag & VFS_DMI) && \
-		( ((io)->io_dmevmask & (1 << event)) || \
-		  ((io)->io_mount->m_dmevmask & (1 << event)) ) \
-	)
+#else
+#define DM_EVENT_ENABLED(ip, event)	(0)
+#endif
 
 #define DM_XFS_VALID_FS_EVENTS		( \
 	(1 << DM_EVENT_PREUNMOUNT)	| \
@@ -169,8 +167,5 @@ typedef enum {
 #define FILP_DELAY_FLAG(filp) ((filp->f_flags&(O_NDELAY|O_NONBLOCK)) ? \
 			DM_FLAGS_NDELAY : 0)
 #define AT_DELAY_FLAG(f) ((f&ATTR_NONBLOCK) ? DM_FLAGS_NDELAY : 0)
-
-
-extern struct bhv_module_vfsops xfs_dmops;
 
 #endif  /* __XFS_DMAPI_H__ */

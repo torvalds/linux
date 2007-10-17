@@ -49,7 +49,6 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_alloc_btree.o \
 				   xfs_attr.o \
 				   xfs_attr_leaf.o \
-				   xfs_behavior.o \
 				   xfs_bit.o \
 				   xfs_bmap.o \
 				   xfs_bmap_btree.o \
@@ -108,13 +107,11 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   xfs_iops.o \
 				   xfs_lrw.o \
 				   xfs_super.o \
-				   xfs_vfs.o \
 				   xfs_vnode.o)
 
 # Objects in support/
 xfs-y				+= $(addprefix support/, \
 				   debug.o \
-				   move.o \
 				   uuid.o)
 
 xfs-$(CONFIG_XFS_TRACE)		+= support/ktrace.o

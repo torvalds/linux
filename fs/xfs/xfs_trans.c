@@ -234,7 +234,7 @@ xfs_trans_alloc(
 	xfs_mount_t	*mp,
 	uint		type)
 {
-	vfs_wait_for_freeze(XFS_MTOVFS(mp), SB_FREEZE_TRANS);
+	xfs_wait_for_freeze(mp, SB_FREEZE_TRANS);
 	return _xfs_trans_alloc(mp, type);
 }
 
@@ -548,7 +548,7 @@ STATIC void
 xfs_trans_apply_sb_deltas(
 	xfs_trans_t	*tp)
 {
-	xfs_sb_t	*sbp;
+	xfs_dsb_t	*sbp;
 	xfs_buf_t	*bp;
 	int		whole = 0;
 
@@ -566,57 +566,51 @@ xfs_trans_apply_sb_deltas(
 	 * Only update the superblock counters if we are logging them
 	 */
 	if (!xfs_sb_version_haslazysbcount(&(tp->t_mountp->m_sb))) {
-		if (tp->t_icount_delta != 0) {
-			INT_MOD(sbp->sb_icount, ARCH_CONVERT, tp->t_icount_delta);
-		}
-		if (tp->t_ifree_delta != 0) {
-			INT_MOD(sbp->sb_ifree, ARCH_CONVERT, tp->t_ifree_delta);
-		}
-
-		if (tp->t_fdblocks_delta != 0) {
-			INT_MOD(sbp->sb_fdblocks, ARCH_CONVERT, tp->t_fdblocks_delta);
-		}
-		if (tp->t_res_fdblocks_delta != 0) {
-			INT_MOD(sbp->sb_fdblocks, ARCH_CONVERT, tp->t_res_fdblocks_delta);
-		}
+		if (tp->t_icount_delta)
+			be64_add(&sbp->sb_icount, tp->t_icount_delta);
+		if (tp->t_ifree_delta)
+			be64_add(&sbp->sb_ifree, tp->t_ifree_delta);
+		if (tp->t_fdblocks_delta)
+			be64_add(&sbp->sb_fdblocks, tp->t_fdblocks_delta);
+		if (tp->t_res_fdblocks_delta)
+			be64_add(&sbp->sb_fdblocks, tp->t_res_fdblocks_delta);
 	}
 
-	if (tp->t_frextents_delta != 0) {
-		INT_MOD(sbp->sb_frextents, ARCH_CONVERT, tp->t_frextents_delta);
-	}
-	if (tp->t_res_frextents_delta != 0) {
-		INT_MOD(sbp->sb_frextents, ARCH_CONVERT, tp->t_res_frextents_delta);
-	}
-	if (tp->t_dblocks_delta != 0) {
-		INT_MOD(sbp->sb_dblocks, ARCH_CONVERT, tp->t_dblocks_delta);
+	if (tp->t_frextents_delta)
+		be64_add(&sbp->sb_frextents, tp->t_frextents_delta);
+	if (tp->t_res_frextents_delta)
+		be64_add(&sbp->sb_frextents, tp->t_res_frextents_delta);
+
+	if (tp->t_dblocks_delta) {
+		be64_add(&sbp->sb_dblocks, tp->t_dblocks_delta);
 		whole = 1;
 	}
-	if (tp->t_agcount_delta != 0) {
-		INT_MOD(sbp->sb_agcount, ARCH_CONVERT, tp->t_agcount_delta);
+	if (tp->t_agcount_delta) {
+		be32_add(&sbp->sb_agcount, tp->t_agcount_delta);
 		whole = 1;
 	}
-	if (tp->t_imaxpct_delta != 0) {
-		INT_MOD(sbp->sb_imax_pct, ARCH_CONVERT, tp->t_imaxpct_delta);
+	if (tp->t_imaxpct_delta) {
+		sbp->sb_imax_pct += tp->t_imaxpct_delta;
 		whole = 1;
 	}
-	if (tp->t_rextsize_delta != 0) {
-		INT_MOD(sbp->sb_rextsize, ARCH_CONVERT, tp->t_rextsize_delta);
+	if (tp->t_rextsize_delta) {
+		be32_add(&sbp->sb_rextsize, tp->t_rextsize_delta);
 		whole = 1;
 	}
-	if (tp->t_rbmblocks_delta != 0) {
-		INT_MOD(sbp->sb_rbmblocks, ARCH_CONVERT, tp->t_rbmblocks_delta);
+	if (tp->t_rbmblocks_delta) {
+		be32_add(&sbp->sb_rbmblocks, tp->t_rbmblocks_delta);
 		whole = 1;
 	}
-	if (tp->t_rblocks_delta != 0) {
-		INT_MOD(sbp->sb_rblocks, ARCH_CONVERT, tp->t_rblocks_delta);
+	if (tp->t_rblocks_delta) {
+		be64_add(&sbp->sb_rblocks, tp->t_rblocks_delta);
 		whole = 1;
 	}
-	if (tp->t_rextents_delta != 0) {
-		INT_MOD(sbp->sb_rextents, ARCH_CONVERT, tp->t_rextents_delta);
+	if (tp->t_rextents_delta) {
+		be64_add(&sbp->sb_rextents, tp->t_rextents_delta);
 		whole = 1;
 	}
-	if (tp->t_rextslog_delta != 0) {
-		INT_MOD(sbp->sb_rextslog, ARCH_CONVERT, tp->t_rextslog_delta);
+	if (tp->t_rextslog_delta) {
+		sbp->sb_rextslog += tp->t_rextslog_delta;
 		whole = 1;
 	}
 
@@ -624,17 +618,17 @@ xfs_trans_apply_sb_deltas(
 		/*
 		 * Log the whole thing, the fields are noncontiguous.
 		 */
-		xfs_trans_log_buf(tp, bp, 0, sizeof(xfs_sb_t) - 1);
+		xfs_trans_log_buf(tp, bp, 0, sizeof(xfs_dsb_t) - 1);
 	else
 		/*
 		 * Since all the modifiable fields are contiguous, we
 		 * can get away with this.
 		 */
-		xfs_trans_log_buf(tp, bp, offsetof(xfs_sb_t, sb_icount),
-				  offsetof(xfs_sb_t, sb_frextents) +
+		xfs_trans_log_buf(tp, bp, offsetof(xfs_dsb_t, sb_icount),
+				  offsetof(xfs_dsb_t, sb_frextents) +
 				  sizeof(sbp->sb_frextents) - 1);
 
-	XFS_MTOVFS(tp->t_mountp)->vfs_super->s_dirt = 1;
+	tp->t_mountp->m_super->s_dirt = 1;
 }
 
 /*

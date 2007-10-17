@@ -2245,7 +2245,7 @@ xlog_recover_do_inode_trans(
 	int			error;
 	int			attr_index;
 	uint			fields;
-	xfs_dinode_core_t	*dicp;
+	xfs_icdinode_t		*dicp;
 	int			need_free = 0;
 
 	if (pass == XLOG_RECOVER_PASS1) {
@@ -2309,7 +2309,7 @@ xlog_recover_do_inode_trans(
 	 * Make sure the place we're flushing out to really looks
 	 * like an inode!
 	 */
-	if (unlikely(INT_GET(dip->di_core.di_magic, ARCH_CONVERT) != XFS_DINODE_MAGIC)) {
+	if (unlikely(be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC)) {
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
 			"xfs_inode_recover: Bad inode magic number, dino ptr = 0x%p, dino bp = 0x%p, ino = %Ld",
@@ -2319,7 +2319,7 @@ xlog_recover_do_inode_trans(
 		error = EFSCORRUPTED;
 		goto error;
 	}
-	dicp = (xfs_dinode_core_t*)(item->ri_buf[1].i_addr);
+	dicp = (xfs_icdinode_t *)(item->ri_buf[1].i_addr);
 	if (unlikely(dicp->di_magic != XFS_DINODE_MAGIC)) {
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
@@ -2332,15 +2332,13 @@ xlog_recover_do_inode_trans(
 	}
 
 	/* Skip replay when the on disk inode is newer than the log one */
-	if (dicp->di_flushiter <
-	    INT_GET(dip->di_core.di_flushiter, ARCH_CONVERT)) {
+	if (dicp->di_flushiter < be16_to_cpu(dip->di_core.di_flushiter)) {
 		/*
 		 * Deal with the wrap case, DI_MAX_FLUSH is less
 		 * than smaller numbers
 		 */
-		if ((INT_GET(dip->di_core.di_flushiter, ARCH_CONVERT)
-							== DI_MAX_FLUSH) &&
-		    (dicp->di_flushiter < (DI_MAX_FLUSH>>1))) {
+		if (be16_to_cpu(dip->di_core.di_flushiter) == DI_MAX_FLUSH &&
+		    dicp->di_flushiter < (DI_MAX_FLUSH >> 1)) {
 			/* do nothing */
 		} else {
 			xfs_buf_relse(bp);
@@ -2411,8 +2409,8 @@ xlog_recover_do_inode_trans(
 	}
 
 	/* The core is in in-core format */
-	xfs_xlate_dinode_core((xfs_caddr_t)&dip->di_core,
-			      (xfs_dinode_core_t*)item->ri_buf[1].i_addr, -1);
+	xfs_dinode_to_disk(&dip->di_core,
+		(xfs_icdinode_t *)item->ri_buf[1].i_addr);
 
 	/* the rest is in on-disk format */
 	if (item->ri_buf[1].i_len > sizeof(xfs_dinode_core_t)) {
@@ -2424,8 +2422,7 @@ xlog_recover_do_inode_trans(
 	fields = in_f->ilf_fields;
 	switch (fields & (XFS_ILOG_DEV | XFS_ILOG_UUID)) {
 	case XFS_ILOG_DEV:
-		INT_SET(dip->di_u.di_dev, ARCH_CONVERT, in_f->ilf_u.ilfu_rdev);
-
+		dip->di_u.di_dev = cpu_to_be32(in_f->ilf_u.ilfu_rdev);
 		break;
 	case XFS_ILOG_UUID:
 		dip->di_u.di_muuid = in_f->ilf_u.ilfu_uuid;
@@ -3234,8 +3231,8 @@ xlog_recover_process_iunlinks(
 					ASSERT(ip->i_d.di_nlink == 0);
 
 					/* setup for the next pass */
-					agino = INT_GET(dip->di_next_unlinked,
-							ARCH_CONVERT);
+					agino = be32_to_cpu(
+							dip->di_next_unlinked);
 					xfs_buf_relse(ibp);
 					/*
 					 * Prevent any DMAPI event from
@@ -3837,7 +3834,10 @@ xlog_do_recover(
 	 */
 	bp = xfs_getsb(log->l_mp, 0);
 	XFS_BUF_UNDONE(bp);
+	ASSERT(!(XFS_BUF_ISWRITE(bp)));
+	ASSERT(!(XFS_BUF_ISDELAYWRITE(bp)));
 	XFS_BUF_READ(bp);
+	XFS_BUF_UNASYNC(bp);
 	xfsbdstrat(log->l_mp, bp);
 	if ((error = xfs_iowait(bp))) {
 		xfs_ioerror_alert("xlog_do_recover",
@@ -3849,7 +3849,7 @@ xlog_do_recover(
 
 	/* Convert superblock from on-disk format */
 	sbp = &log->l_mp->m_sb;
-	xfs_xlatesb(XFS_BUF_TO_SBP(bp), sbp, 1, XFS_SB_ALL_BITS);
+	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(bp));
 	ASSERT(sbp->sb_magicnum == XFS_SB_MAGIC);
 	ASSERT(XFS_SB_GOOD_VERSION(sbp));
 	xfs_buf_relse(bp);
@@ -4027,7 +4027,7 @@ xlog_recover_check_summary(
 	sbbp = xfs_getsb(mp, 0);
 #ifdef XFS_LOUD_RECOVERY
 	sbp = &mp->m_sb;
-	xfs_xlatesb(XFS_BUF_TO_SBP(sbbp), sbp, 1, XFS_SB_ALL_BITS);
+	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(sbbp));
 	cmn_err(CE_NOTE,
 		"xlog_recover_check_summary: sb_icount %Lu itotal %Lu",
 		sbp->sb_icount, itotal);

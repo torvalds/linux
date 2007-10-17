@@ -107,7 +107,8 @@ struct block_device;
 
 extern __uint64_t xfs_max_file_offset(unsigned int);
 
-extern void xfs_initialize_vnode(bhv_desc_t *, bhv_vnode_t *, bhv_desc_t *, int);
+extern void xfs_initialize_vnode(struct xfs_mount *mp, bhv_vnode_t *vp,
+		struct xfs_inode *ip);
 
 extern void xfs_flush_inode(struct xfs_inode *);
 extern void xfs_flush_device(struct xfs_inode *);
@@ -118,5 +119,7 @@ extern void xfs_blkdev_put(struct block_device *);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
 extern struct export_operations xfs_export_operations;
+
+#define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))
 
 #endif	/* __XFS_SUPER_H__ */

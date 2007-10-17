@@ -749,12 +749,11 @@ xfs_dir2_leaf_compact_x1(
  */
 int						/* error */
 xfs_dir2_leaf_getdents(
-	xfs_trans_t		*tp,		/* transaction pointer */
 	xfs_inode_t		*dp,		/* incore directory inode */
-	uio_t			*uio,		/* I/O control & vectors */
-	int			*eofp,		/* out: reached end of dir */
-	xfs_dirent_t		*dbp,		/* caller's buffer */
-	xfs_dir2_put_t		put)		/* ABI formatting routine */
+	void			*dirent,
+	size_t			bufsize,
+	xfs_off_t		*offset,
+	filldir_t		filldir)
 {
 	xfs_dabuf_t		*bp;		/* data block buffer */
 	int			byteoff;	/* offset in current block */
@@ -763,7 +762,6 @@ xfs_dir2_leaf_getdents(
 	xfs_dir2_data_t		*data;		/* data block structure */
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry */
-	int			eof;		/* reached end of directory */
 	int			error = 0;	/* error return value */
 	int			i;		/* temporary loop index */
 	int			j;		/* temporary loop index */
@@ -776,46 +774,38 @@ xfs_dir2_leaf_getdents(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_dir2_off_t		newoff;		/* new curoff after new blk */
 	int			nmap;		/* mappings to ask xfs_bmapi */
-	xfs_dir2_put_args_t	*p;		/* formatting arg bundle */
 	char			*ptr = NULL;	/* pointer to current data */
 	int			ra_current;	/* number of read-ahead blks */
 	int			ra_index;	/* *map index for read-ahead */
 	int			ra_offset;	/* map entry offset for ra */
 	int			ra_want;	/* readahead count wanted */
+	xfs_ino_t		ino;
 
 	/*
 	 * If the offset is at or past the largest allowed value,
-	 * give up right away, return eof.
+	 * give up right away.
 	 */
-	if (uio->uio_offset >= XFS_DIR2_MAX_DATAPTR) {
-		*eofp = 1;
+	if (*offset >= XFS_DIR2_MAX_DATAPTR)
 		return 0;
-	}
+
 	mp = dp->i_mount;
-	/*
-	 * Setup formatting arguments.
-	 */
-	p = kmem_alloc(sizeof(*p), KM_SLEEP);
-	p->dbp = dbp;
-	p->put = put;
-	p->uio = uio;
+
 	/*
 	 * Set up to bmap a number of blocks based on the caller's
 	 * buffer size, the directory block size, and the filesystem
 	 * block size.
 	 */
-	map_size =
-		howmany(uio->uio_resid + mp->m_dirblksize,
-			mp->m_sb.sb_blocksize);
+	map_size = howmany(bufsize + mp->m_dirblksize, mp->m_sb.sb_blocksize);
 	map = kmem_alloc(map_size * sizeof(*map), KM_SLEEP);
 	map_valid = ra_index = ra_offset = ra_current = map_blocks = 0;
 	bp = NULL;
-	eof = 1;
+
 	/*
 	 * Inside the loop we keep the main offset value as a byte offset
 	 * in the directory file.
 	 */
-	curoff = xfs_dir2_dataptr_to_byte(mp, uio->uio_offset);
+	curoff = xfs_dir2_dataptr_to_byte(mp, *offset);
+
 	/*
 	 * Force this conversion through db so we truncate the offset
 	 * down to get the start of the data block.
@@ -836,7 +826,7 @@ xfs_dir2_leaf_getdents(
 			 * take it out of the mapping.
 			 */
 			if (bp) {
-				xfs_da_brelse(tp, bp);
+				xfs_da_brelse(NULL, bp);
 				bp = NULL;
 				map_blocks -= mp->m_dirblkfsbs;
 				/*
@@ -862,8 +852,9 @@ xfs_dir2_leaf_getdents(
 			/*
 			 * Recalculate the readahead blocks wanted.
 			 */
-			ra_want = howmany(uio->uio_resid + mp->m_dirblksize,
+			ra_want = howmany(bufsize + mp->m_dirblksize,
 					  mp->m_sb.sb_blocksize) - 1;
+
 			/*
 			 * If we don't have as many as we want, and we haven't
 			 * run out of data blocks, get some more mappings.
@@ -876,7 +867,7 @@ xfs_dir2_leaf_getdents(
 				 * we already have in the table.
 				 */
 				nmap = map_size - map_valid;
-				error = xfs_bmapi(tp, dp,
+				error = xfs_bmapi(NULL, dp,
 					map_off,
 					xfs_dir2_byte_to_da(mp,
 						XFS_DIR2_LEAF_OFFSET) - map_off,
@@ -939,7 +930,7 @@ xfs_dir2_leaf_getdents(
 			 * mapping.
 			 */
 			curdb = xfs_dir2_da_to_db(mp, map->br_startoff);
-			error = xfs_da_read_buf(tp, dp, map->br_startoff,
+			error = xfs_da_read_buf(NULL, dp, map->br_startoff,
 				map->br_blockcount >= mp->m_dirblkfsbs ?
 				    XFS_FSB_TO_DADDR(mp, map->br_startblock) :
 				    -1,
@@ -982,7 +973,7 @@ xfs_dir2_leaf_getdents(
 				 * is a very rare case.
 				 */
 				else if (i > ra_current) {
-					(void)xfs_da_reada_buf(tp, dp,
+					(void)xfs_da_reada_buf(NULL, dp,
 						map[ra_index].br_startoff +
 						ra_offset, XFS_DATA_FORK);
 					ra_current = i;
@@ -1089,46 +1080,39 @@ xfs_dir2_leaf_getdents(
 		 */
 		dep = (xfs_dir2_data_entry_t *)ptr;
 
-		p->namelen = dep->namelen;
+		length = xfs_dir2_data_entsize(dep->namelen);
 
-		length = xfs_dir2_data_entsize(p->namelen);
-
-		p->cook = xfs_dir2_byte_to_dataptr(mp, curoff + length);
-
-		p->ino = be64_to_cpu(dep->inumber);
+		ino = be64_to_cpu(dep->inumber);
 #if XFS_BIG_INUMS
-		p->ino += mp->m_inoadd;
+		ino += mp->m_inoadd;
 #endif
-		p->name = (char *)dep->name;
-
-		error = p->put(p);
 
 		/*
 		 * Won't fit.  Return to caller.
 		 */
-		if (!p->done) {
-			eof = 0;
+		if (filldir(dirent, dep->name, dep->namelen,
+			    xfs_dir2_byte_to_dataptr(mp, curoff + length),
+			    ino, DT_UNKNOWN))
 			break;
-		}
+
 		/*
 		 * Advance to next entry in the block.
 		 */
 		ptr += length;
 		curoff += length;
+		bufsize -= length;
 	}
 
 	/*
 	 * All done.  Set output offset value to current offset.
 	 */
-	*eofp = eof;
 	if (curoff > xfs_dir2_dataptr_to_byte(mp, XFS_DIR2_MAX_DATAPTR))
-		uio->uio_offset = XFS_DIR2_MAX_DATAPTR;
+		*offset = XFS_DIR2_MAX_DATAPTR;
 	else
-		uio->uio_offset = xfs_dir2_byte_to_dataptr(mp, curoff);
+		*offset = xfs_dir2_byte_to_dataptr(mp, curoff);
 	kmem_free(map, map_size * sizeof(*map));
-	kmem_free(p, sizeof(*p));
 	if (bp)
-		xfs_da_brelse(tp, bp);
+		xfs_da_brelse(NULL, bp);
 	return error;
 }
 

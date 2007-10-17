@@ -57,11 +57,11 @@ xfs_size_fn(
 
 STATIC int
 xfs_ioinit(
-	struct bhv_vfs		*vfsp,
+	struct xfs_mount	*mp,
 	struct xfs_mount_args	*mntargs,
 	int			flags)
 {
-	return xfs_mountfs(vfsp, XFS_VFSTOM(vfsp), flags);
+	return xfs_mountfs(mp, flags);
 }
 
 xfs_ioops_t	xfs_iocore_xfs = {

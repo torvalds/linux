@@ -22,6 +22,7 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
@@ -695,19 +696,18 @@ xfs_dir2_sf_create(
 int						/* error */
 xfs_dir2_sf_getdents(
 	xfs_inode_t		*dp,		/* incore directory inode */
-	uio_t			*uio,		/* caller's buffer control */
-	int			*eofp,		/* eof reached? (out) */
-	xfs_dirent_t		*dbp,		/* caller's buffer */
-	xfs_dir2_put_t		put)		/* abi's formatting function */
+	void			*dirent,
+	xfs_off_t		*offset,
+	filldir_t		filldir)
 {
-	int			error;		/* error return value */
 	int			i;		/* shortform entry number */
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_dir2_dataptr_t	off;		/* current entry's offset */
-	xfs_dir2_put_args_t	p;		/* arg package for put rtn */
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform directory entry */
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
-	xfs_off_t			dir_offset;
+	xfs_dir2_dataptr_t	dot_offset;
+	xfs_dir2_dataptr_t	dotdot_offset;
+	xfs_ino_t		ino;
 
 	mp = dp->i_mount;
 
@@ -720,8 +720,6 @@ xfs_dir2_sf_getdents(
 		return XFS_ERROR(EIO);
 	}
 
-	dir_offset = uio->uio_offset;
-
 	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
 
@@ -732,108 +730,78 @@ xfs_dir2_sf_getdents(
 	/*
 	 * If the block number in the offset is out of range, we're done.
 	 */
-	if (xfs_dir2_dataptr_to_db(mp, dir_offset) > mp->m_dirdatablk) {
-		*eofp = 1;
+	if (xfs_dir2_dataptr_to_db(mp, *offset) > mp->m_dirdatablk)
 		return 0;
-	}
 
 	/*
-	 * Set up putargs structure.
+	 * Precalculate offsets for . and .. as we will always need them.
+	 *
+	 * XXX(hch): the second argument is sometimes 0 and sometimes
+	 * mp->m_dirdatablk.
 	 */
-	p.dbp = dbp;
-	p.put = put;
-	p.uio = uio;
+	dot_offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
+					     XFS_DIR2_DATA_DOT_OFFSET);
+	dotdot_offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
+						XFS_DIR2_DATA_DOTDOT_OFFSET);
+
 	/*
 	 * Put . entry unless we're starting past it.
 	 */
-	if (dir_offset <=
-		    xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-					       XFS_DIR2_DATA_DOT_OFFSET)) {
-		p.cook = xfs_dir2_db_off_to_dataptr(mp, 0,
-						XFS_DIR2_DATA_DOTDOT_OFFSET);
-		p.ino = dp->i_ino;
+	if (*offset <= dot_offset) {
+		ino = dp->i_ino;
 #if XFS_BIG_INUMS
-		p.ino += mp->m_inoadd;
+		ino += mp->m_inoadd;
 #endif
-		p.name = ".";
-		p.namelen = 1;
-
-		error = p.put(&p);
-
-		if (!p.done) {
-			uio->uio_offset =
-				xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-						XFS_DIR2_DATA_DOT_OFFSET);
-			return error;
+		if (filldir(dirent, ".", 1, dotdot_offset, ino, DT_DIR)) {
+			*offset = dot_offset;
+			return 0;
 		}
 	}
 
 	/*
 	 * Put .. entry unless we're starting past it.
 	 */
-	if (dir_offset <=
-		    xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-					       XFS_DIR2_DATA_DOTDOT_OFFSET)) {
-		p.cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-						XFS_DIR2_DATA_FIRST_OFFSET);
-		p.ino = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
+	if (*offset <= dotdot_offset) {
+		off = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
+						  XFS_DIR2_DATA_FIRST_OFFSET);
+		ino = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
 #if XFS_BIG_INUMS
-		p.ino += mp->m_inoadd;
+		ino += mp->m_inoadd;
 #endif
-		p.name = "..";
-		p.namelen = 2;
-
-		error = p.put(&p);
-
-		if (!p.done) {
-			uio->uio_offset =
-				xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-					XFS_DIR2_DATA_DOTDOT_OFFSET);
-			return error;
+		if (filldir(dirent, "..", 2, off, ino, DT_DIR)) {
+			*offset = dotdot_offset;
+			return 0;
 		}
 	}
 
 	/*
 	 * Loop while there are more entries and put'ing works.
 	 */
-	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp);
-		     i < sfp->hdr.count;
-			     i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
-
+	sfep = xfs_dir2_sf_firstentry(sfp);
+	for (i = 0; i < sfp->hdr.count; i++) {
 		off = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
 				xfs_dir2_sf_get_offset(sfep));
 
-		if (dir_offset > off)
+		if (*offset > off) {
+			sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 			continue;
-
-		p.namelen = sfep->namelen;
-
-		p.cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-			xfs_dir2_sf_get_offset(sfep) +
-			xfs_dir2_data_entsize(p.namelen));
-
-		p.ino = xfs_dir2_sf_get_inumber(sfp, xfs_dir2_sf_inumberp(sfep));
-#if XFS_BIG_INUMS
-		p.ino += mp->m_inoadd;
-#endif
-		p.name = (char *)sfep->name;
-
-		error = p.put(&p);
-
-		if (!p.done) {
-			uio->uio_offset = off;
-			return error;
 		}
+
+		ino = xfs_dir2_sf_get_inumber(sfp, xfs_dir2_sf_inumberp(sfep));
+#if XFS_BIG_INUMS
+		ino += mp->m_inoadd;
+#endif
+
+		if (filldir(dirent, sfep->name, sfep->namelen,
+			    off + xfs_dir2_data_entsize(sfep->namelen),
+			    ino, DT_UNKNOWN)) {
+			*offset = off;
+			return 0;
+		}
+		sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 	}
 
-	/*
-	 * They all fit.
-	 */
-	*eofp = 1;
-
-	uio->uio_offset =
-		xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0);
-
+	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0);
 	return 0;
 }
 

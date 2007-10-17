@@ -65,20 +65,15 @@ xfs_get_dir_entry(
 
 int
 xfs_dir_lookup_int(
-	bhv_desc_t	*dir_bdp,
+	xfs_inode_t	*dp,
 	uint		lock_mode,
 	bhv_vname_t	*dentry,
 	xfs_ino_t	*inum,
 	xfs_inode_t	**ipp)
 {
-	bhv_vnode_t	*dir_vp;
-	xfs_inode_t	*dp;
 	int		error;
 
-	dir_vp = BHV_TO_VNODE(dir_bdp);
-	vn_trace_entry(dir_vp, __FUNCTION__, (inst_t *)__return_address);
-
-	dp = XFS_BHVTOI(dir_bdp);
+	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
 
 	error = xfs_dir_lookup(NULL, dp, VNAME(dentry), VNAMELEN(dentry), inum);
 	if (!error) {

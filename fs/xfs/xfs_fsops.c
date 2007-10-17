@@ -136,7 +136,6 @@ xfs_growfs_data_private(
 	xfs_rfsblock_t		nfree;
 	xfs_agnumber_t		oagcount;
 	int			pct;
-	xfs_sb_t		*sbp;
 	xfs_trans_t		*tp;
 
 	nb = in->newblocks;
@@ -175,7 +174,7 @@ xfs_growfs_data_private(
 		memset(&mp->m_perag[oagcount], 0,
 			(nagcount - oagcount) * sizeof(xfs_perag_t));
 		mp->m_flags |= XFS_MOUNT_32BITINODES;
-		nagimax = xfs_initialize_perag(XFS_MTOVFS(mp), mp, nagcount);
+		nagimax = xfs_initialize_perag(mp, nagcount);
 		up_write(&mp->m_peraglock);
 	}
 	tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFS);
@@ -377,8 +376,7 @@ xfs_growfs_data_private(
 				error, agno);
 			break;
 		}
-		sbp = XFS_BUF_TO_SBP(bp);
-		xfs_xlatesb(sbp, &mp->m_sb, -1, XFS_SB_ALL_BITS);
+		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, XFS_SB_ALL_BITS);
 		/*
 		 * If we get an error writing out the alternate superblocks,
 		 * just issue a warning and continue.  The real work is
@@ -435,10 +433,10 @@ xfs_growfs_data(
 	xfs_growfs_data_t	*in)
 {
 	int error;
-	if (!cpsema(&mp->m_growlock))
+	if (!mutex_trylock(&mp->m_growlock))
 		return XFS_ERROR(EWOULDBLOCK);
 	error = xfs_growfs_data_private(mp, in);
-	vsema(&mp->m_growlock);
+	mutex_unlock(&mp->m_growlock);
 	return error;
 }
 
@@ -448,10 +446,10 @@ xfs_growfs_log(
 	xfs_growfs_log_t	*in)
 {
 	int error;
-	if (!cpsema(&mp->m_growlock))
+	if (!mutex_trylock(&mp->m_growlock))
 		return XFS_ERROR(EWOULDBLOCK);
 	error = xfs_growfs_log_private(mp, in);
-	vsema(&mp->m_growlock);
+	mutex_unlock(&mp->m_growlock);
 	return error;
 }
 
@@ -628,8 +626,7 @@ xfs_fs_goingdown(
 {
 	switch (inflags) {
 	case XFS_FSOP_GOING_FLAGS_DEFAULT: {
-		struct bhv_vfs *vfsp = XFS_MTOVFS(mp);
-		struct super_block *sb = freeze_bdev(vfsp->vfs_super->s_bdev);
+		struct super_block *sb = freeze_bdev(mp->m_super->s_bdev);
 
 		if (sb && !IS_ERR(sb)) {
 			xfs_force_shutdown(mp, SHUTDOWN_FORCE_UMOUNT);

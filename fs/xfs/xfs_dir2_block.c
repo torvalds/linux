@@ -22,6 +22,7 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
@@ -432,12 +433,10 @@ xfs_dir2_block_addname(
  */
 int						/* error */
 xfs_dir2_block_getdents(
-	xfs_trans_t		*tp,		/* transaction (NULL) */
 	xfs_inode_t		*dp,		/* incore inode */
-	uio_t			*uio,		/* caller's buffer control */
-	int			*eofp,		/* eof reached? (out) */
-	xfs_dirent_t		*dbp,		/* caller's buffer */
-	xfs_dir2_put_t		put)		/* abi's formatting function */
+	void			*dirent,
+	xfs_off_t		*offset,
+	filldir_t		filldir)
 {
 	xfs_dir2_block_t	*block;		/* directory block structure */
 	xfs_dabuf_t		*bp;		/* buffer for block */
@@ -447,31 +446,32 @@ xfs_dir2_block_getdents(
 	char			*endptr;	/* end of the data entries */
 	int			error;		/* error return value */
 	xfs_mount_t		*mp;		/* filesystem mount point */
-	xfs_dir2_put_args_t	p;		/* arg package for put rtn */
 	char			*ptr;		/* current data entry */
 	int			wantoff;	/* starting block offset */
+	xfs_ino_t		ino;
+	xfs_off_t		cook;
 
 	mp = dp->i_mount;
 	/*
 	 * If the block number in the offset is out of range, we're done.
 	 */
-	if (xfs_dir2_dataptr_to_db(mp, uio->uio_offset) > mp->m_dirdatablk) {
-		*eofp = 1;
+	if (xfs_dir2_dataptr_to_db(mp, *offset) > mp->m_dirdatablk) {
 		return 0;
 	}
 	/*
 	 * Can't read the block, give up, else get dabuf in bp.
 	 */
-	if ((error =
-	    xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, &bp, XFS_DATA_FORK))) {
+	error = xfs_da_read_buf(NULL, dp, mp->m_dirdatablk, -1,
+				&bp, XFS_DATA_FORK);
+	if (error)
 		return error;
-	}
+
 	ASSERT(bp != NULL);
 	/*
 	 * Extract the byte offset we start at from the seek pointer.
 	 * We'll skip entries before this.
 	 */
-	wantoff = xfs_dir2_dataptr_to_off(mp, uio->uio_offset);
+	wantoff = xfs_dir2_dataptr_to_off(mp, *offset);
 	block = bp->data;
 	xfs_dir2_data_check(dp, bp);
 	/*
@@ -480,9 +480,7 @@ xfs_dir2_block_getdents(
 	btp = xfs_dir2_block_tail_p(mp, block);
 	ptr = (char *)block->u;
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
-	p.dbp = dbp;
-	p.put = put;
-	p.uio = uio;
+
 	/*
 	 * Loop over the data portion of the block.
 	 * Each object is a real entry (dep) or an unused one (dup).
@@ -508,33 +506,24 @@ xfs_dir2_block_getdents(
 		 */
 		if ((char *)dep - (char *)block < wantoff)
 			continue;
-		/*
-		 * Set up argument structure for put routine.
-		 */
-		p.namelen = dep->namelen;
 
-		p.cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
+		cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
 						    ptr - (char *)block);
-		p.ino = be64_to_cpu(dep->inumber);
+		ino = be64_to_cpu(dep->inumber);
 #if XFS_BIG_INUMS
-		p.ino += mp->m_inoadd;
+		ino += mp->m_inoadd;
 #endif
-		p.name = (char *)dep->name;
-
-		/*
-		 * Put the entry in the caller's buffer.
-		 */
-		error = p.put(&p);
 
 		/*
 		 * If it didn't fit, set the final offset to here & return.
 		 */
-		if (!p.done) {
-			uio->uio_offset =
-				xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
+		if (filldir(dirent, dep->name, dep->namelen, cook,
+			    ino, DT_UNKNOWN)) {
+			*offset = xfs_dir2_db_off_to_dataptr(mp,
+					mp->m_dirdatablk,
 					(char *)dep - (char *)block);
-			xfs_da_brelse(tp, bp);
-			return error;
+			xfs_da_brelse(NULL, bp);
+			return 0;
 		}
 	}
 
@@ -542,13 +531,8 @@ xfs_dir2_block_getdents(
 	 * Reached the end of the block.
 	 * Set the offset to a non-existent block 1 and return.
 	 */
-	*eofp = 1;
-
-	uio->uio_offset =
-		xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0);
-
-	xfs_da_brelse(tp, bp);
-
+	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0);
+	xfs_da_brelse(NULL, bp);
 	return 0;
 }
 

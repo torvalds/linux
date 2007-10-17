@@ -17,12 +17,18 @@
  */
 #include "xfs.h"
 #include "xfs_types.h"
-#include "xfs_dmapi.h"
+#include "xfs_inum.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
+#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_export.h"
+#include "xfs_vnodeops.h"
+#include "xfs_bmap_btree.h"
+#include "xfs_inode.h"
+#include "xfs_vfsops.h"
 
 static struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
 
@@ -96,9 +102,7 @@ xfs_fs_encode_fh(
 	int			len;
 	int			is64 = 0;
 #if XFS_BIG_INUMS
-	bhv_vfs_t		*vfs = vfs_from_sb(inode->i_sb);
-
-	if (!(vfs->vfs_flag & VFS_32BITINODES)) {
+	if (!(XFS_M(inode->i_sb)->m_flags & XFS_MOUNT_SMALL_INUMS)) {
 		/* filesystem may contain 64bit inode numbers */
 		is64 = XFS_FILEID_TYPE_64FLAG;
 	}
@@ -138,10 +142,9 @@ xfs_fs_get_dentry(
 	bhv_vnode_t		*vp;
 	struct inode		*inode;
 	struct dentry		*result;
-	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
 	int			error;
 
-	error = bhv_vfs_vget(vfsp, &vp, (fid_t *)data);
+	error = xfs_vget(XFS_M(sb), &vp, (fid_t *)data);
 	if (error || vp == NULL)
 		return ERR_PTR(-ESTALE) ;
 
@@ -159,12 +162,11 @@ xfs_fs_get_parent(
 	struct dentry		*child)
 {
 	int			error;
-	bhv_vnode_t		*vp, *cvp;
+	bhv_vnode_t		*cvp;
 	struct dentry		*parent;
 
 	cvp = NULL;
-	vp = vn_from_inode(child->d_inode);
-	error = bhv_vop_lookup(vp, &dotdot, &cvp, 0, NULL, NULL);
+	error = xfs_lookup(XFS_I(child->d_inode), &dotdot, &cvp);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 
