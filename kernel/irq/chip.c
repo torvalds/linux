@@ -503,7 +503,6 @@ out_unlock:
 	spin_unlock(&desc->lock);
 }
 
-#ifdef CONFIG_SMP
 /**
  *	handle_percpu_IRQ - Per CPU local irq handler
  *	@irq:	the interrupt number
@@ -528,8 +527,6 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
 	if (desc->chip->eoi)
 		desc->chip->eoi(irq);
 }
-
-#endif /* CONFIG_SMP */
 
 void
 __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
