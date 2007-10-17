@@ -75,7 +75,9 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp)
 	if (argv == NULL)
 		goto out;
 
-	*argcp = argc;
+	if (argcp)
+		*argcp = argc;
+
 	argvp = argv;
 
 	while (*str) {
