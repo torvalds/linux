@@ -192,12 +192,3 @@ void indy_8254timer_irq(void)
 	ArcEnterInteractiveMode();
 	irq_exit();
 }
-
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	/* over-write the handler, we use our own way */
-	irq->handler = no_action;
-
-	/* setup irqaction */
-	setup_irq(SGI_TIMER_IRQ, irq);
-}
