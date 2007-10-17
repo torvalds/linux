@@ -41,8 +41,6 @@ MODULE_PARM_DESC(debug, "9P debugging level");
 
 extern int p9_mux_global_init(void);
 extern void p9_mux_global_exit(void);
-extern int p9_sysctl_register(void);
-extern void p9_sysctl_unregister(void);
 
 /*
  * Dynamic Transport Registration Routines
@@ -118,12 +116,6 @@ static int __init init_p9(void)
 		return ret;
 	}
 
-	ret = p9_sysctl_register();
-	if (ret) {
-		printk(KERN_WARNING "9p: registering sysctl failed\n");
-		return ret;
-	}
-
 	return ret;
 }
 
@@ -134,7 +126,6 @@ static int __init init_p9(void)
 
 static void __exit exit_p9(void)
 {
-	p9_sysctl_unregister();
 	p9_mux_global_exit();
 }
 

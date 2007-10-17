@@ -10,7 +10,5 @@ obj-$(CONFIG_NET_9P_FD) += 9pnet_fd.o
 	fcprint.o \
 	util.o \
 
-9pnet-$(CONFIG_SYSCTL) += sysctl.o
-
 9pnet_fd-objs := \
 	trans_fd.o \
