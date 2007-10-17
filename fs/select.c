@@ -714,10 +714,28 @@ out_fds:
 	return err;
 }
 
+static long do_restart_poll(struct restart_block *restart_block)
+{
+	struct pollfd __user *ufds = (struct pollfd __user*)restart_block->arg0;
+	int nfds = restart_block->arg1;
+	s64 timeout = ((s64)restart_block->arg3<<32) | (s64)restart_block->arg2;
+	int ret;
+
+	ret = do_sys_poll(ufds, nfds, &timeout);
+	if (ret == -EINTR) {
+		restart_block->fn = do_restart_poll;
+		restart_block->arg2 = timeout & 0xFFFFFFFF;
+		restart_block->arg3 = (u64)timeout >> 32;
+		ret = -ERESTART_RESTARTBLOCK;
+	}
+	return ret;
+}
+
 asmlinkage long sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 			long timeout_msecs)
 {
 	s64 timeout_jiffies;
+	int ret;
 
 	if (timeout_msecs > 0) {
 #if HZ > 1000
@@ -732,7 +750,18 @@ asmlinkage long sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 		timeout_jiffies = timeout_msecs;
 	}
 
-	return do_sys_poll(ufds, nfds, &timeout_jiffies);
+	ret = do_sys_poll(ufds, nfds, &timeout_jiffies);
+	if (ret == -EINTR) {
+		struct restart_block *restart_block;
+		restart_block = &current_thread_info()->restart_block;
+		restart_block->fn = do_restart_poll;
+		restart_block->arg0 = (unsigned long)ufds;
+		restart_block->arg1 = nfds;
+		restart_block->arg2 = timeout_jiffies & 0xFFFFFFFF;
+		restart_block->arg3 = (u64)timeout_jiffies >> 32;
+		ret = -ERESTART_RESTARTBLOCK;
+	}
+	return ret;
 }
 
 #ifdef TIF_RESTORE_SIGMASK
