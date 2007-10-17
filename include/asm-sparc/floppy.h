@@ -77,8 +77,6 @@ static struct sun_floppy_ops sun_fdops;
 #define fd_dma_mem_free(addr,size) (vfree((void *)(addr)))
 #endif
 
-#define FLOPPY_MOTOR_MASK         0x10
-
 /* XXX This isn't really correct. XXX */
 #define get_dma_residue(x)        (0)
 

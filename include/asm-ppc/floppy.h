@@ -166,8 +166,6 @@ static int FDC2 = -1;
 #define N_FDC 2			/* Don't change this! */
 #define N_DRIVE 8
 
-#define FLOPPY_MOTOR_MASK 0xf0
-
 /*
  * The PowerPC has no problems with floppy DMA crossing 64k borders.
  */

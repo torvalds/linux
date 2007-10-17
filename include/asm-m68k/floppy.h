@@ -31,9 +31,6 @@ asmlinkage irqreturn_t floppy_hardint(int irq, void *dev_id);
 #define FLOPPY0_TYPE (MACH_IS_Q40 ? 6 : 4)
 #define FLOPPY1_TYPE 0
 
-#define FLOPPY_MOTOR_MASK 0xf0
-
-
 /* basically PC init + set use_virtual_dma */
 #define  FDC1 m68k_floppy_init()
 

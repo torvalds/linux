@@ -84,8 +84,6 @@ static struct sun_floppy_ops sun_fdops;
 #define fd_free_irq()             sun_fdops.fd_free_irq()
 #define fd_eject(drive)           sun_fdops.fd_eject(drive)
 
-static int FLOPPY_MOTOR_MASK = 0x10;
-
 /* Super paranoid... */
 #undef HAVE_DISABLE_HLT
 
@@ -622,7 +620,6 @@ isa_done:
 	sun_fdops.fd_eject = sun_pci_fd_eject;
 
         fdc_status = (unsigned long) &sun_fdc->status_82077;
-	FLOPPY_MOTOR_MASK = 0xf0;
 
 	allowed_drive_mask = 0;
 	sun_floppy_types[0] = 0;
@@ -729,7 +726,6 @@ static unsigned long __init sun_floppy_init(void)
 		sun_fdops.fd_eject = sun_pci_fd_eject;
 
         	fdc_status = (unsigned long) &sun_fdc->status_82077;
-		FLOPPY_MOTOR_MASK = 0xf0;
 
 		/*
 		 * XXX: Find out on which machines this is really needed.

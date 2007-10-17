@@ -91,8 +91,6 @@ static int FDC2 = -1;
 #define N_FDC 2
 #define N_DRIVE 8
 
-#define FLOPPY_MOTOR_MASK 0xf0
-
 /*
  * Most Alphas have no problems with floppy DMA crossing 64k borders,
  * except for certain ones, like XL and RUFFIAN.

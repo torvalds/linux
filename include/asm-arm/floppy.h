@@ -128,8 +128,6 @@ static inline void fd_scandrives (void)
 #define N_FDC 1
 #define N_DRIVE 4
 
-#define FLOPPY_MOTOR_MASK 0xf0
-
 #define CROSS_64KB(a,s) (0)
 
 /*

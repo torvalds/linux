@@ -34,8 +34,6 @@ static inline void fd_cacheflush(char * addr, long size)
 #define N_FDC 1			/* do you *really* want a second controller? */
 #define N_DRIVE 8
 
-#define FLOPPY_MOTOR_MASK 0xf0
-
 /*
  * The DMA channel used by the floppy controller cannot access data at
  * addresses >= 16MB

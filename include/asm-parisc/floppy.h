@@ -266,10 +266,6 @@ static int FDC2 = -1;
 #define N_FDC 1
 #define N_DRIVE 8
 
-#define FLOPPY_MOTOR_MASK 0xf0
-
-#define AUTO_DMA
-
 #define EXTRA_FLOPPY_PARAMS
 
 #endif /* __ASM_PARISC_FLOPPY_H */
