@@ -108,7 +108,6 @@
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/video.h>
-#include <linux/lp.h>
 
 #ifdef CONFIG_SPARC
 #include <asm/fbio.h>
