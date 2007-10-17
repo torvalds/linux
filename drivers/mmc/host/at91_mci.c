@@ -581,9 +581,7 @@ static void at91_mci_completed_command(struct at91mci_host *host)
 	pr_debug("Status = %08X [%08X %08X %08X %08X]\n",
 		 status, cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3]);
 
-	if (status & (AT91_MCI_RINDE | AT91_MCI_RDIRE | AT91_MCI_RCRCE |
-			AT91_MCI_RENDE | AT91_MCI_RTOE | AT91_MCI_DCRCE |
-			AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)) {
+	if (status & AT91_MCI_ERRORS) {
 		if ((status & AT91_MCI_RCRCE) && !(mmc_resp_type(cmd) & MMC_RSP_CRC)) {
 			cmd->error = 0;
 		}
