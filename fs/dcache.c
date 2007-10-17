@@ -1542,7 +1542,7 @@ static void d_move_locked(struct dentry * dentry, struct dentry * target)
 	}
 
 	/* Move the dentry to the target hash queue, if on different bucket */
-	if (dentry->d_flags & DCACHE_UNHASHED)
+	if (d_unhashed(dentry))
 		goto already_unhashed;
 
 	hlist_del_rcu(&dentry->d_hash);
