@@ -300,9 +300,9 @@ struct kstatfs;
 struct vm_area_struct;
 struct vfsmount;
 
-extern void __init inode_init(unsigned long);
+extern void __init inode_init(void);
 extern void __init inode_init_early(void);
-extern void __init mnt_init(unsigned long);
+extern void __init mnt_init(void);
 extern void __init files_init(unsigned long);
 
 struct buffer_head;
