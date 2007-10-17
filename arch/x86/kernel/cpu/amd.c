@@ -4,6 +4,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
+#include <asm/mach_apic.h>
 
 #include "cpu.h"
 
@@ -45,13 +46,17 @@ static __cpuinit int amd_apic_timer_broken(void)
 	case CPUID_XFAM_10H:
 	case CPUID_XFAM_11H:
 		rdmsr(MSR_K8_ENABLE_C1E, lo, hi);
-		if (lo & ENABLE_C1E_MASK)
+		if (lo & ENABLE_C1E_MASK) {
+			if (smp_processor_id() != boot_cpu_physical_apicid)
+				printk(KERN_INFO "AMD C1E detected late. "
+				       "	Force timer broadcast.\n");
 			return 1;
-                break;
-        default:
-                /* err on the side of caution */
+		}
+		break;
+	default:
+		/* err on the side of caution */
 		return 1;
-        }
+	}
 	return 0;
 }
 #endif
