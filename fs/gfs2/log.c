@@ -650,7 +650,7 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 		get_bh(bh);
 		gfs2_log_unlock(sdp);
 		lock_buffer(bh);
-		if (test_clear_buffer_dirty(bh)) {
+		if (buffer_mapped(bh) && test_clear_buffer_dirty(bh)) {
 			bh->b_end_io = end_buffer_write_sync;
 			submit_bh(WRITE, bh);
 		} else {
