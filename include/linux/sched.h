@@ -261,6 +261,7 @@ extern void softlockup_tick(void);
 extern void spawn_softlockup_task(void);
 extern void touch_softlockup_watchdog(void);
 extern void touch_all_softlockup_watchdogs(void);
+extern int softlockup_thresh;
 #else
 static inline void softlockup_tick(void)
 {

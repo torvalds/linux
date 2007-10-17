@@ -80,6 +80,19 @@ extern int maps_protect;
 extern int sysctl_stat_interval;
 extern int audit_argv_kb;
 
+/* Constants used for minimum and  maximum */
+#ifdef CONFIG_DETECT_SOFTLOCKUP
+static int one = 1;
+static int sixty = 60;
+#endif
+
+#ifdef CONFIG_MMU
+static int two = 2;
+#endif
+
+static int zero;
+static int one_hundred = 100;
+
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
 static int maxolduid = 65535;
 static int minolduid;
@@ -711,6 +724,19 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+#ifdef CONFIG_DETECT_SOFTLOCKUP
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "softlockup_thresh",
+		.data		= &softlockup_thresh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &one,
+		.extra2		= &sixty,
+	},
+#endif
 #ifdef CONFIG_COMPAT
 	{
 		.ctl_name	= KERN_COMPAT_LOG,
@@ -756,13 +782,6 @@ static ctl_table kern_table[] = {
  */
 	{ .ctl_name = 0 }
 };
-
-/* Constants for minimum and maximum testing in vm_table.
-   We use these as one-element integer vectors. */
-static int zero;
-static int two = 2;
-static int one_hundred = 100;
-
 
 static ctl_table vm_table[] = {
 	{

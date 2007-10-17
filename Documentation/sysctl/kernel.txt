@@ -320,6 +320,14 @@ kernel.  This value defaults to SHMMAX.
 
 ==============================================================
 
+softlockup_thresh:
+
+This value can be used to lower the softlockup tolerance
+threshold. The default threshold is 10s.  If a cpu is locked up
+for 10s, the kernel complains.  Valid values are 1-60s.
+
+==============================================================
+
 tainted: 
 
 Non-zero if the kernel has been tainted.  Numeric values, which
