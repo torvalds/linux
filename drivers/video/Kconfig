@@ -15,7 +15,6 @@ config VGASTATE
 
 config VIDEO_OUTPUT_CONTROL
 	tristate "Lowlevel video output switch controls"
-	default m
 	help
 	  This framework adds support for low-level control of the video 
 	  output switch.
