@@ -17,13 +17,13 @@
 void __attribute__((weak)) bust_spinlocks(int yes)
 {
 	if (yes) {
-		oops_in_progress = 1;
+		++oops_in_progress;
 	} else {
 #ifdef CONFIG_VT
 		unblank_screen();
 #endif
-		oops_in_progress = 0;
-		wake_up_klogd();
+		if (--oops_in_progress == 0)
+			wake_up_klogd();
 	}
 }
 
