@@ -150,7 +150,7 @@ static const struct file_operations cpuid_fops = {
 	.open = cpuid_open,
 };
 
-static int cpuid_device_create(int i)
+static int __cpuinit cpuid_device_create(int i)
 {
 	int err = 0;
 	struct device *dev;
@@ -161,7 +161,9 @@ static int cpuid_device_create(int i)
 	return err;
 }
 
-static int cpuid_class_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+static int __cpuinit cpuid_class_cpu_callback(struct notifier_block *nfb,
+					      unsigned long action,
+					      void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 
