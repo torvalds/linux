@@ -15,8 +15,8 @@
 
 #include <linux/linkage.h>
 #include <asm/rwlock.h>
-#include <asm/alternative-asm.i>
-#include <asm/frame.i>
+#include <asm/alternative-asm.h>
+#include <asm/frame.h>
 #include <asm/dwarf2.h>
 
 /*
