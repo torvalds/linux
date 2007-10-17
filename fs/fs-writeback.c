@@ -410,14 +410,14 @@ sync_sb_inodes(struct super_block *sb, struct writeback_control *wbc)
 			wbc->encountered_congestion = 1;
 			if (!sb_is_blkdev_sb(sb))
 				break;		/* Skip a congested fs */
-			list_move(&inode->i_list, &sb->s_dirty);
+			redirty_head(inode);
 			continue;		/* Skip a congested blockdev */
 		}
 
 		if (wbc->bdi && bdi != wbc->bdi) {
 			if (!sb_is_blkdev_sb(sb))
 				break;		/* fs has the wrong queue */
-			list_move(&inode->i_list, &sb->s_dirty);
+			redirty_head(inode);
 			continue;		/* blockdev has wrong queue */
 		}
 
