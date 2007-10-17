@@ -17,7 +17,7 @@
 #include <linux/bitops.h>
 #include <linux/sched.h>
 
-static int nibblemap[] = { 4,3,3,2,3,2,2,1,3,2,2,1,2,1,1,0 };
+static const int nibblemap[] = { 4,3,3,2,3,2,2,1,3,2,2,1,2,1,1,0 };
 
 static unsigned long count_free(struct buffer_head *map[], unsigned numblocks, __u32 numbits)
 {

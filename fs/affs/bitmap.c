@@ -11,7 +11,7 @@
 
 /* This is, of course, shamelessly stolen from fs/minix */
 
-static int nibblemap[] = { 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4 };
+static const int nibblemap[] = { 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4 };
 
 static u32
 affs_count_free_bits(u32 blocksize, const void *data)
