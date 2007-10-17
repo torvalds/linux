@@ -1188,7 +1188,7 @@
 	and 15 get ignored by the driver & adapter!
      Q: I have a 9595 and I get a NMI during heavy SCSI I/O e.g. during fsck.
         A COMMAND ERROR is reported and characters on the screen are missing.
-	Warm reboot is not possible. Things look like quite weired.
+	Warm reboot is not possible. Things look like quite weird.
      A: Check the processor type of your 9595. If you have an 80486 or 486DX-2
         processor complex on your mainboard and you compiled a kernel that
 	supports 80386 processors, it is possible, that the kernel cannot
