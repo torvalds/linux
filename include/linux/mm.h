@@ -10,9 +10,7 @@
 #include <linux/mmzone.h>
 #include <linux/rbtree.h>
 #include <linux/prio_tree.h>
-#include <linux/mutex.h>
 #include <linux/debug_locks.h>
-#include <linux/backing-dev.h>
 #include <linux/mm_types.h>
 
 struct mempolicy;
