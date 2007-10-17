@@ -926,10 +926,12 @@ extern struct au1xxx_irqmap au1xxx_irq_map[];
 
 #endif /* CONFIG_SOC_AU1200 */
 
-#define AU1000_LAST_INTC0_INT     31
-#define AU1000_LAST_INTC1_INT     63
-#define AU1000_MAX_INTR           63
-#define INTX    		0xFF /* not valid */
+#define AU1000_INTC0_INT_BASE	(MIPS_CPU_IRQ_BASE + 0)
+#define AU1000_INTC0_INT_LAST	(MIPS_CPU_IRQ_BASE + 31)
+#define AU1000_INTC1_INT_BASE	(MIPS_CPU_IRQ_BASE + 32)
+#define AU1000_INTC1_INT_LAST	(MIPS_CPU_IRQ_BASE + 63)
+#define AU1000_MAX_INTR		(MIPS_CPU_IRQ_BASE + 63)
+#define INTX			0xFF			/* not valid */
 
 /* Programmable Counters 0 and 1 */
 #define SYS_BASE                   0xB1900000
