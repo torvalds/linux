@@ -2336,7 +2336,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	unsigned long max_pull;
 	unsigned long busiest_load_per_task, busiest_nr_running;
 	unsigned long this_load_per_task, this_nr_running;
-	int load_idx;
+	int load_idx, group_imb = 0;
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
 	int power_savings_balance = 1;
 	unsigned long leader_nr_running = 0, min_load_per_task = 0;
@@ -2355,9 +2355,10 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		load_idx = sd->idle_idx;
 
 	do {
-		unsigned long load, group_capacity;
+		unsigned long load, group_capacity, max_cpu_load, min_cpu_load;
 		int local_group;
 		int i;
+		int __group_imb = 0;
 		unsigned int balance_cpu = -1, first_idle_cpu = 0;
 		unsigned long sum_nr_running, sum_weighted_load;
 
@@ -2368,6 +2369,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 
 		/* Tally up the load of all CPUs in the group */
 		sum_weighted_load = sum_nr_running = avg_load = 0;
+		max_cpu_load = 0;
+		min_cpu_load = ~0UL;
 
 		for_each_cpu_mask(i, group->cpumask) {
 			struct rq *rq;
@@ -2388,8 +2391,13 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 				}
 
 				load = target_load(i, load_idx);
-			} else
+			} else {
 				load = source_load(i, load_idx);
+				if (load > max_cpu_load)
+					max_cpu_load = load;
+				if (min_cpu_load > load)
+					min_cpu_load = load;
+			}
 
 			avg_load += load;
 			sum_nr_running += rq->nr_running;
@@ -2415,6 +2423,9 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		avg_load = sg_div_cpu_power(group,
 				avg_load * SCHED_LOAD_SCALE);
 
+		if ((max_cpu_load - min_cpu_load) > SCHED_LOAD_SCALE)
+			__group_imb = 1;
+
 		group_capacity = group->__cpu_power / SCHED_LOAD_SCALE;
 
 		if (local_group) {
@@ -2423,11 +2434,12 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 			this_nr_running = sum_nr_running;
 			this_load_per_task = sum_weighted_load;
 		} else if (avg_load > max_load &&
-			   sum_nr_running > group_capacity) {
+			   (sum_nr_running > group_capacity || __group_imb)) {
 			max_load = avg_load;
 			busiest = group;
 			busiest_nr_running = sum_nr_running;
 			busiest_load_per_task = sum_weighted_load;
+			group_imb = __group_imb;
 		}
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
@@ -2499,6 +2511,9 @@ group_next:
 		goto out_balanced;
 
 	busiest_load_per_task /= busiest_nr_running;
+	if (group_imb)
+		busiest_load_per_task = min(busiest_load_per_task, avg_load);
+
 	/*
 	 * We're trying to get all the cpus to the average_load, so we don't
 	 * want to push ourselves above the average load, nor do we wish to
