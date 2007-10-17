@@ -1348,21 +1348,6 @@ config SCSI_LPFC
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
 
-config SCSI_SEAGATE
-	tristate "Seagate ST-02 and Future Domain TMC-8xx SCSI support"
-	depends on X86 && ISA && SCSI
-	select CHECK_SIGNATURE
-	---help---
-	  These are 8-bit SCSI controllers; the ST-01 is also supported by
-	  this driver.  It is explained in section 3.9 of the SCSI-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.  If it
-	  doesn't work out of the box, you may have to change some macros at
-	  compiletime, which are described in <file:drivers/scsi/seagate.c>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called seagate.
-
-# definitely looks not 64bit safe:
 config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"
 	depends on (EISA || MCA) && SCSI
