@@ -129,7 +129,7 @@ static struct fuse_req *get_reserved_req(struct fuse_conn *fc,
 	struct fuse_file *ff = file->private_data;
 
 	do {
-		wait_event(fc->blocked_waitq, ff->reserved_req);
+		wait_event(fc->reserved_req_waitq, ff->reserved_req);
 		spin_lock(&fc->lock);
 		if (ff->reserved_req) {
 			req = ff->reserved_req;
@@ -155,7 +155,7 @@ static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
 	fuse_request_init(req);
 	BUG_ON(ff->reserved_req);
 	ff->reserved_req = req;
-	wake_up(&fc->blocked_waitq);
+	wake_up_all(&fc->reserved_req_waitq);
 	spin_unlock(&fc->lock);
 	fput(file);
 }
