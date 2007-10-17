@@ -472,7 +472,7 @@ bad_map:
 	bio_io_error(bio);
 	return 0;
 }
-			   
+
 static void raid0_status (struct seq_file *seq, mddev_t *mddev)
 {
 #undef MD_DEBUG
@@ -480,18 +480,18 @@ static void raid0_status (struct seq_file *seq, mddev_t *mddev)
 	int j, k, h;
 	char b[BDEVNAME_SIZE];
 	raid0_conf_t *conf = mddev_to_conf(mddev);
-  
+
 	h = 0;
 	for (j = 0; j < conf->nr_strip_zones; j++) {
 		seq_printf(seq, "      z%d", j);
 		if (conf->hash_table[h] == conf->strip_zone+j)
-			seq_printf("(h%d)", h++);
+			seq_printf(seq, "(h%d)", h++);
 		seq_printf(seq, "=[");
 		for (k = 0; k < conf->strip_zone[j].nb_dev; k++)
-			seq_printf (seq, "%s/", bdevname(
+			seq_printf(seq, "%s/", bdevname(
 				conf->strip_zone[j].dev[k]->bdev,b));
 
-		seq_printf (seq, "] zo=%d do=%d s=%d\n",
+		seq_printf(seq, "] zo=%d do=%d s=%d\n",
 				conf->strip_zone[j].zone_offset,
 				conf->strip_zone[j].dev_offset,
 				conf->strip_zone[j].size);
