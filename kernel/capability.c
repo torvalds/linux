@@ -17,9 +17,6 @@
 unsigned securebits = SECUREBITS_DEFAULT; /* systemwide security settings */
 kernel_cap_t cap_bset = CAP_INIT_EFF_SET;
 
-EXPORT_SYMBOL(securebits);
-EXPORT_SYMBOL(cap_bset);
-
 /*
  * This lock protects task->cap_* for all tasks including current.
  * Locking rule: acquire this prior to tasklist_lock.
@@ -244,7 +241,6 @@ int __capable(struct task_struct *t, int cap)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(__capable);
 
 int capable(int cap)
 {

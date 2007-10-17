@@ -71,8 +71,7 @@ int __init security_init(void)
  *
  * This function is to allow a security module to register itself with the
  * kernel security subsystem.  Some rudimentary checking is done on the @ops
- * value passed to this function.  A call to unregister_security() should be
- * done to remove this security_options structure from the kernel.
+ * value passed to this function.
  *
  * If there is already a security module registered with the kernel,
  * an error will be returned.  Otherwise 0 is returned on success.
@@ -89,31 +88,6 @@ int register_security(struct security_operations *ops)
 		return -EAGAIN;
 
 	security_ops = ops;
-
-	return 0;
-}
-
-/**
- * unregister_security - unregisters a security framework with the kernel
- * @ops: a pointer to the struct security_options that is to be registered
- *
- * This function removes a struct security_operations variable that had
- * previously been registered with a successful call to register_security().
- *
- * If @ops does not match the valued previously passed to register_security()
- * an error is returned.  Otherwise the default security options is set to the
- * the dummy_security_ops structure, and 0 is returned.
- */
-int unregister_security(struct security_operations *ops)
-{
-	if (ops != security_ops) {
-		printk(KERN_INFO "%s: trying to unregister "
-		       "a security_opts structure that is not "
-		       "registered, failing.\n", __FUNCTION__);
-		return -EINVAL;
-	}
-
-	security_ops = &dummy_security_ops;
 
 	return 0;
 }
@@ -145,30 +119,6 @@ int mod_reg_security(const char *name, struct security_operations *ops)
 	}
 
 	return security_ops->register_security(name, ops);
-}
-
-/**
- * mod_unreg_security - allows a security module registered with mod_reg_security() to be unloaded
- * @name: a pointer to a string with the name of the security_options to be removed
- * @ops: a pointer to the struct security_options that is to be removed
- *
- * This function allows security modules that have been successfully registered
- * with a call to mod_reg_security() to be unloaded from the system.
- * This calls the currently loaded security module's unregister_security() call
- * with the @name and @ops variables.
- *
- * The return value depends on the currently loaded security module, with 0 as
- * success.
- */
-int mod_unreg_security(const char *name, struct security_operations *ops)
-{
-	if (ops == security_ops) {
-		printk(KERN_INFO "%s invalid attempt to unregister "
-		       " primary security ops.\n", __FUNCTION__);
-		return -EINVAL;
-	}
-
-	return security_ops->unregister_security(name, ops);
 }
 
 /* Security operations */
@@ -528,11 +478,6 @@ int security_inode_killpriv(struct dentry *dentry)
 	return security_ops->inode_killpriv(dentry);
 }
 
-const char *security_inode_xattr_getsuffix(void)
-{
-	return security_ops->inode_xattr_getsuffix();
-}
-
 int security_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	if (unlikely(IS_PRIVATE(inode)))
@@ -858,7 +803,6 @@ int security_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	return security_ops->netlink_send(sk, skb);
 }
-EXPORT_SYMBOL(security_netlink_send);
 
 int security_netlink_recv(struct sk_buff *skb, int cap)
 {

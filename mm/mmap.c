@@ -181,8 +181,6 @@ error:
 	return -ENOMEM;
 }
 
-EXPORT_SYMBOL(__vm_enough_memory);
-
 /*
  * Requires inode->i_mapping->i_mmap_lock
  */

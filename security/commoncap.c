@@ -30,8 +30,6 @@ int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-EXPORT_SYMBOL(cap_netlink_send);
-
 int cap_netlink_recv(struct sk_buff *skb, int cap)
 {
 	if (!cap_raised(NETLINK_CB(skb).eff_cap, cap))
@@ -532,22 +530,3 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
 }
 
-EXPORT_SYMBOL(cap_capable);
-EXPORT_SYMBOL(cap_settime);
-EXPORT_SYMBOL(cap_ptrace);
-EXPORT_SYMBOL(cap_capget);
-EXPORT_SYMBOL(cap_capset_check);
-EXPORT_SYMBOL(cap_capset_set);
-EXPORT_SYMBOL(cap_bprm_set_security);
-EXPORT_SYMBOL(cap_bprm_apply_creds);
-EXPORT_SYMBOL(cap_bprm_secureexec);
-EXPORT_SYMBOL(cap_inode_setxattr);
-EXPORT_SYMBOL(cap_inode_removexattr);
-EXPORT_SYMBOL(cap_task_post_setuid);
-EXPORT_SYMBOL(cap_task_kill);
-EXPORT_SYMBOL(cap_task_setscheduler);
-EXPORT_SYMBOL(cap_task_setioprio);
-EXPORT_SYMBOL(cap_task_setnice);
-EXPORT_SYMBOL(cap_task_reparent_to_init);
-EXPORT_SYMBOL(cap_syslog);
-EXPORT_SYMBOL(cap_vm_enough_memory);

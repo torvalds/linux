@@ -982,7 +982,6 @@ EXPORT_SYMBOL(usb_altnum_to_altsetting);
 
 EXPORT_SYMBOL(__usb_get_extra_descriptor);
 
-EXPORT_SYMBOL(usb_find_device);
 EXPORT_SYMBOL(usb_get_current_frame_number);
 
 EXPORT_SYMBOL(usb_buffer_alloc);

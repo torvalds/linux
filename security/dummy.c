@@ -401,11 +401,6 @@ static int dummy_inode_listsecurity(struct inode *inode, char *buffer, size_t bu
 	return 0;
 }
 
-static const char *dummy_inode_xattr_getsuffix(void)
-{
-	return NULL;
-}
-
 static int dummy_file_permission (struct file *file, int mask)
 {
 	return 0;
@@ -915,11 +910,6 @@ static int dummy_register_security (const char *name, struct security_operations
 	return -EINVAL;
 }
 
-static int dummy_unregister_security (const char *name, struct security_operations *ops)
-{
-	return -EINVAL;
-}
-
 static void dummy_d_instantiate (struct dentry *dentry, struct inode *inode)
 {
 	return;
@@ -1034,7 +1024,6 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, inode_removexattr);
 	set_to_dummy_if_null(ops, inode_need_killpriv);
 	set_to_dummy_if_null(ops, inode_killpriv);
-	set_to_dummy_if_null(ops, inode_xattr_getsuffix);
 	set_to_dummy_if_null(ops, inode_getsecurity);
 	set_to_dummy_if_null(ops, inode_setsecurity);
 	set_to_dummy_if_null(ops, inode_listsecurity);
@@ -1095,7 +1084,6 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, netlink_send);
 	set_to_dummy_if_null(ops, netlink_recv);
 	set_to_dummy_if_null(ops, register_security);
-	set_to_dummy_if_null(ops, unregister_security);
 	set_to_dummy_if_null(ops, d_instantiate);
  	set_to_dummy_if_null(ops, getprocattr);
  	set_to_dummy_if_null(ops, setprocattr);

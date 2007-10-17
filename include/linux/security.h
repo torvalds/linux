@@ -1158,10 +1158,6 @@ struct request_sock;
  * 	allow module stacking.
  * 	@name contains the name of the security module being stacked.
  * 	@ops contains a pointer to the struct security_operations of the module to stack.
- * @unregister_security:
- *	remove a stacked module.
- *	@name contains the name of the security module being unstacked.
- *	@ops contains a pointer to the struct security_operations of the module to unstack.
  * 
  * @secid_to_secctx:
  *	Convert secid to security context.
@@ -1259,7 +1255,6 @@ struct security_operations {
 	int (*inode_removexattr) (struct dentry *dentry, char *name);
 	int (*inode_need_killpriv) (struct dentry *dentry);
 	int (*inode_killpriv) (struct dentry *dentry);
-	const char *(*inode_xattr_getsuffix) (void);
   	int (*inode_getsecurity)(const struct inode *inode, const char *name, void *buffer, size_t size, int err);
   	int (*inode_setsecurity)(struct inode *inode, const char *name, const void *value, size_t size, int flags);
   	int (*inode_listsecurity)(struct inode *inode, char *buffer, size_t buffer_size);
@@ -1350,8 +1345,6 @@ struct security_operations {
 	/* allow module stacking */
 	int (*register_security) (const char *name,
 	                          struct security_operations *ops);
-	int (*unregister_security) (const char *name,
-	                            struct security_operations *ops);
 
 	void (*d_instantiate) (struct dentry *dentry, struct inode *inode);
 
@@ -1432,9 +1425,7 @@ struct security_operations {
 /* prototypes */
 extern int security_init	(void);
 extern int register_security	(struct security_operations *ops);
-extern int unregister_security	(struct security_operations *ops);
 extern int mod_reg_security	(const char *name, struct security_operations *ops);
-extern int mod_unreg_security	(const char *name, struct security_operations *ops);
 extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
 					     struct dentry *parent, void *data,
 					     const struct file_operations *fops);
@@ -1518,7 +1509,6 @@ int security_inode_listxattr(struct dentry *dentry);
 int security_inode_removexattr(struct dentry *dentry, char *name);
 int security_inode_need_killpriv(struct dentry *dentry);
 int security_inode_killpriv(struct dentry *dentry);
-const char *security_inode_xattr_getsuffix(void);
 int security_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err);
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags);
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size);
@@ -1921,11 +1911,6 @@ static inline int security_inode_need_killpriv(struct dentry *dentry)
 static inline int security_inode_killpriv(struct dentry *dentry)
 {
 	return cap_inode_killpriv(dentry);
-}
-
-static inline const char *security_inode_xattr_getsuffix (void)
-{
-	return NULL ;
 }
 
 static inline int security_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
