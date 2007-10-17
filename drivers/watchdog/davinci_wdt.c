@@ -262,7 +262,7 @@ static int __init davinci_wdt_init(void)
 
 static void __exit davinci_wdt_exit(void)
 {
-	return platform_driver_unregister(&platform_wdt_driver);
+	platform_driver_unregister(&platform_wdt_driver);
 }
 
 module_init(davinci_wdt_init);

@@ -335,7 +335,7 @@ static int __init pnx4008_wdt_init(void)
 
 static void __exit pnx4008_wdt_exit(void)
 {
-	return platform_driver_unregister(&platform_wdt_driver);
+	platform_driver_unregister(&platform_wdt_driver);
 }
 
 module_init(pnx4008_wdt_init);
