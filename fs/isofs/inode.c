@@ -73,7 +73,7 @@ static void isofs_destroy_inode(struct inode *inode)
 	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
 }
 
-static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
+static void init_once(struct kmem_cache *cachep, void *foo)
 {
 	struct iso_inode_info *ei = foo;
 

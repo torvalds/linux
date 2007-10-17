@@ -40,7 +40,7 @@ extern spinlock_t pgd_lock;
 extern struct page *pgd_list;
 void check_pgt_cache(void);
 
-void pmd_ctor(void *, struct kmem_cache *, unsigned long);
+void pmd_ctor(struct kmem_cache *, void *);
 void pgtable_cache_init(void);
 void paging_init(void);
 

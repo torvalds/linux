@@ -228,7 +228,7 @@ static void adfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
 }
 
-static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
+static void init_once(struct kmem_cache *cachep, void *foo)
 {
 	struct adfs_inode_info *ei = (struct adfs_inode_info *) foo;
 

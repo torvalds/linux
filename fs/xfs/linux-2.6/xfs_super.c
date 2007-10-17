@@ -356,9 +356,8 @@ xfs_fs_destroy_inode(
 
 STATIC void
 xfs_fs_inode_init_once(
-	void			*vnode,
 	kmem_zone_t		*zonep,
-	unsigned long		flags)
+	void			*vnode)
 {
 	inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
 }

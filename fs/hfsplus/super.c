@@ -466,7 +466,7 @@ static struct file_system_type hfsplus_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-static void hfsplus_init_once(void *p, struct kmem_cache *cachep, unsigned long flags)
+static void hfsplus_init_once(struct kmem_cache *cachep, void *p)
 {
 	struct hfsplus_inode_info *i = p;
 

@@ -1154,7 +1154,7 @@ static inline void nfs4_init_once(struct nfs_inode *nfsi)
 #endif
 }
 
-static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
+static void init_once(struct kmem_cache * cachep, void *foo)
 {
 	struct nfs_inode *nfsi = (struct nfs_inode *) foo;
 

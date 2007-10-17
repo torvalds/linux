@@ -87,7 +87,7 @@ struct mon_reader_text {
 
 static struct dentry *mon_dir;		/* Usually /sys/kernel/debug/usbmon */
 
-static void mon_text_ctor(void *, struct kmem_cache *, unsigned long);
+static void mon_text_ctor(struct kmem_cache *, void *);
 
 struct mon_text_ptr {
 	int cnt, limit;
@@ -720,7 +720,7 @@ void mon_text_del(struct mon_bus *mbus)
 /*
  * Slab interface: constructor.
  */
-static void mon_text_ctor(void *mem, struct kmem_cache *slab, unsigned long sflags)
+static void mon_text_ctor(struct kmem_cache *slab, void *mem)
 {
 	/*
 	 * Nothing to initialize. No, really!

@@ -215,7 +215,7 @@ void inode_init_once(struct inode *inode)
 
 EXPORT_SYMBOL(inode_init_once);
 
-static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
+static void init_once(struct kmem_cache * cachep, void *foo)
 {
 	struct inode * inode = (struct inode *) foo;
 

@@ -24,7 +24,7 @@
 #include "util.h"
 #include "glock.h"
 
-static void gfs2_init_inode_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
+static void gfs2_init_inode_once(struct kmem_cache *cachep, void *foo)
 {
 	struct gfs2_inode *ip = foo;
 
@@ -34,7 +34,7 @@ static void gfs2_init_inode_once(void *foo, struct kmem_cache *cachep, unsigned 
 	memset(ip->i_cache, 0, sizeof(ip->i_cache));
 }
 
-static void gfs2_init_glock_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
+static void gfs2_init_glock_once(struct kmem_cache *cachep, void *foo)
 {
 	struct gfs2_glock *gl = foo;
 

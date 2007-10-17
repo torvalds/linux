@@ -142,7 +142,7 @@ static int __init setup_kcore(void)
 module_init(setup_kcore);
 #endif
 
-static void zero_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
+static void zero_ctor(struct kmem_cache *cache, void *addr)
 {
 	memset(addr, 0, kmem_cache_size(cache));
 }

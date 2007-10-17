@@ -134,7 +134,7 @@ static void udf_destroy_inode(struct inode *inode)
 	kmem_cache_free(udf_inode_cachep, UDF_I(inode));
 }
 
-static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
+static void init_once(struct kmem_cache *cachep, void *foo)
 {
 	struct udf_inode_info *ei = (struct udf_inode_info *)foo;
 

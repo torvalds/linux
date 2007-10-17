@@ -43,7 +43,7 @@ static void jffs2_destroy_inode(struct inode *inode)
 	kmem_cache_free(jffs2_inode_cachep, JFFS2_INODE_INFO(inode));
 }
 
-static void jffs2_i_init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
+static void jffs2_i_init_once(struct kmem_cache *cachep, void *foo)
 {
 	struct jffs2_inode_info *ei = (struct jffs2_inode_info *) foo;
 

@@ -933,8 +933,7 @@ write_error:
  * @cache: the lock tree entry slab cache
  * @flags: constructor flags
  */
-static void ltree_entry_ctor(void *obj, struct kmem_cache *cache,
-			     unsigned long flags)
+static void ltree_entry_ctor(struct kmem_cache *cache, void *obj)
 {
 	struct ltree_entry *le = obj;
 

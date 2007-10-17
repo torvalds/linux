@@ -258,7 +258,7 @@ static void sock_destroy_inode(struct inode *inode)
 			container_of(inode, struct socket_alloc, vfs_inode));
 }
 
-static void init_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
+static void init_once(struct kmem_cache *cachep, void *foo)
 {
 	struct socket_alloc *ei = (struct socket_alloc *)foo;
 

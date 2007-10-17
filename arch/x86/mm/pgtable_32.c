@@ -193,7 +193,7 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	return pte;
 }
 
-void pmd_ctor(void *pmd, struct kmem_cache *cache, unsigned long flags)
+void pmd_ctor(struct kmem_cache *cache, void *pmd)
 {
 	memset(pmd, 0, PTRS_PER_PMD*sizeof(pmd_t));
 }

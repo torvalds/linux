@@ -501,7 +501,7 @@ static void fat_destroy_inode(struct inode *inode)
 	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
 }
 
-static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
+static void init_once(struct kmem_cache *cachep, void *foo)
 {
 	struct msdos_inode_info *ei = (struct msdos_inode_info *)foo;
 

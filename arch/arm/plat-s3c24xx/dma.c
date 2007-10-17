@@ -1272,7 +1272,7 @@ struct sysdev_class dma_sysclass = {
 
 /* kmem cache implementation */
 
-static void s3c2410_dma_cache_ctor(void *p, struct kmem_cache *c, unsigned long f)
+static void s3c2410_dma_cache_ctor(struct kmem_cache *c, void *p)
 {
 	memset(p, 0, sizeof(struct s3c2410_dma_buf));
 }

@@ -107,7 +107,7 @@ static void proc_destroy_inode(struct inode *inode)
 	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
 }
 
-static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
+static void init_once(struct kmem_cache * cachep, void *foo)
 {
 	struct proc_inode *ei = (struct proc_inode *) foo;
 
