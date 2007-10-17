@@ -27,6 +27,7 @@
 #include <linux/notifier.h>
 
 int sysctl_panic_on_oom;
+int sysctl_oom_kill_allocating_task;
 static DEFINE_MUTEX(zone_scan_mutex);
 /* #define DEBUG */
 
@@ -471,14 +472,16 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 				"No available memory (MPOL_BIND)");
 		break;
 
-	case CONSTRAINT_CPUSET:
-		oom_kill_process(current, points,
-				"No available memory in cpuset");
-		break;
-
 	case CONSTRAINT_NONE:
 		if (sysctl_panic_on_oom)
 			panic("out of memory. panic_on_oom is selected\n");
+		/* Fall-through */
+	case CONSTRAINT_CPUSET:
+		if (sysctl_oom_kill_allocating_task) {
+			oom_kill_process(current, points,
+					"Out of memory (oom_kill_allocating_task)");
+			break;
+		}
 retry:
 		/*
 		 * Rambo mode: Shoot down a process and hope it solves whatever
