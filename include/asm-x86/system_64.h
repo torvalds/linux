@@ -85,7 +85,7 @@ static inline void write_cr0(unsigned long val)
 static inline unsigned long read_cr2(void)
 {
 	unsigned long cr2;
-	asm("movq %%cr2,%0" : "=r" (cr2));
+	asm volatile("movq %%cr2,%0" : "=r" (cr2));
 	return cr2;
 }
 
@@ -97,7 +97,7 @@ static inline void write_cr2(unsigned long val)
 static inline unsigned long read_cr3(void)
 { 
 	unsigned long cr3;
-	asm("movq %%cr3,%0" : "=r" (cr3));
+	asm volatile("movq %%cr3,%0" : "=r" (cr3));
 	return cr3;
 }
 
@@ -109,7 +109,7 @@ static inline void write_cr3(unsigned long val)
 static inline unsigned long read_cr4(void)
 { 
 	unsigned long cr4;
-	asm("movq %%cr4,%0" : "=r" (cr4));
+	asm volatile("movq %%cr4,%0" : "=r" (cr4));
 	return cr4;
 }
 
@@ -121,7 +121,7 @@ static inline void write_cr4(unsigned long val)
 static inline unsigned long read_cr8(void)
 {
 	unsigned long cr8;
-	asm("movq %%cr8,%0" : "=r" (cr8));
+	asm volatile("movq %%cr8,%0" : "=r" (cr8));
 	return cr8;
 }
 

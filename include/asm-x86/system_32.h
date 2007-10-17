@@ -142,7 +142,7 @@ static inline unsigned long native_read_cr4_safe(void)
 {
 	unsigned long val;
 	/* This could fault if %cr4 does not exist */
-	asm("1: movl %%cr4, %0		\n"
+	asm volatile("1: movl %%cr4, %0		\n"
 		"2:				\n"
 		".section __ex_table,\"a\"	\n"
 		".long 1b,2b			\n"
