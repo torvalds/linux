@@ -83,7 +83,7 @@ char * __init machine_specific_memory_setup(void)
 
 		if(inb(catbase) != VOYAGER_DINO) {
 			printk(KERN_ERR "Voyager: Failed to get DINO for L4, setting tom to EXT_MEM_K\n");
-			tom = (EXT_MEM_K)<<10;
+			tom = (boot_params.screen_info.ext_mem_k)<<10;
 		}
 		who = "Voyager-TOM";
 		add_memory_region(0, 0x9f000, E820_RAM);
@@ -104,16 +104,18 @@ char * __init machine_specific_memory_setup(void)
 	 * Otherwise fake a memory map; one section from 0k->640k,
 	 * the next section from 1mb->appropriate_mem_k
 	 */
-	sanitize_e820_map(E820_MAP, &E820_MAP_NR);
-	if (copy_e820_map(E820_MAP, E820_MAP_NR) < 0) {
+	sanitize_e820_map(boot_params.e820_map, &boot_params.e820_entries);
+	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries)
+	    < 0) {
 		unsigned long mem_size;
 
 		/* compare results from other methods and take the greater */
-		if (ALT_MEM_K < EXT_MEM_K) {
-			mem_size = EXT_MEM_K;
+		if (boot_params.alt_mem_k
+		    < boot_params.screen_info.ext_mem_k) {
+			mem_size = boot_params.screen_info.ext_mem_k;
 			who = "BIOS-88";
 		} else {
-			mem_size = ALT_MEM_K;
+			mem_size = boot_params.alt_mem_k;
 			who = "BIOS-e801";
 		}
 

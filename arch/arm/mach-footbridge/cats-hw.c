@@ -78,9 +78,9 @@ static void __init
 fixup_cats(struct machine_desc *desc, struct tag *tags,
 	   char **cmdline, struct meminfo *mi)
 {
-	ORIG_VIDEO_LINES  = 25;
-	ORIG_VIDEO_POINTS = 16;
-	ORIG_Y = 24;
+	screen_info.orig_video_lines  = 25;
+	screen_info.orig_video_points = 16;
+	screen_info.orig_y = 24;
 }
 
 MACHINE_START(CATS, "Chalice-CATS")

@@ -1137,9 +1137,10 @@ asmlinkage void __init xen_start_kernel(void)
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
 
 	/* Poke various useful things into boot_params */
-	LOADER_TYPE = (9 << 4) | 0;
-	INITRD_START = xen_start_info->mod_start ? __pa(xen_start_info->mod_start) : 0;
-	INITRD_SIZE = xen_start_info->mod_len;
+	boot_params.hdr.type_of_loader = (9 << 4) | 0;
+	boot_params.hdr.ramdisk_image = xen_start_info->mod_start
+		? __pa(xen_start_info->mod_start) : 0;
+	boot_params.hdr.ramdisk_size = xen_start_info->mod_len;
 
 	/* Start the world */
 	start_kernel();

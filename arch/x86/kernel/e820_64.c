@@ -24,7 +24,7 @@
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/proto.h>
-#include <asm/bootsetup.h>
+#include <asm/setup.h>
 #include <asm/sections.h>
 
 struct e820map e820;
@@ -68,10 +68,15 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
 
 	/* initrd */ 
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (LOADER_TYPE && INITRD_START && last >= INITRD_START && 
-	    addr < INITRD_START+INITRD_SIZE) { 
-		*addrp = PAGE_ALIGN(INITRD_START + INITRD_SIZE);
-		return 1;
+	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
+		unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
+		unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
+		unsigned long ramdisk_end   = ramdisk_image+ramdisk_size;
+
+		if (last >= ramdisk_image && addr < ramdisk_end) {
+			*addrp = PAGE_ALIGN(ramdisk_end);
+			return 1;
+		}
 	} 
 #endif
 	/* kernel code */
@@ -594,8 +599,8 @@ void __init setup_memory_region(void)
 	 * Otherwise fake a memory map; one section from 0k->640k,
 	 * the next section from 1mb->appropriate_mem_k
 	 */
-	sanitize_e820_map(E820_MAP, &E820_MAP_NR);
-	if (copy_e820_map(E820_MAP, E820_MAP_NR) < 0)
+	sanitize_e820_map(boot_params.e820_map, &boot_params.e820_entries);
+	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries) < 0)
 		early_panic("Cannot find a valid memory map");
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
 	e820_print_map("BIOS-e820");

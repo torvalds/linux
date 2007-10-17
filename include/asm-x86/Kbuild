@@ -1,7 +1,6 @@
 include include/asm-generic/Kbuild.asm
 
 header-y += boot.h
-header-y += bootsetup.h
 header-y += debugreg_32.h
 header-y += debugreg_64.h
 header-y += debugreg.h

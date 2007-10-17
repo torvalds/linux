@@ -14,7 +14,6 @@
 #include <asm/processor.h>
 #include <asm/proto.h>
 #include <asm/smp.h>
-#include <asm/bootsetup.h>
 #include <asm/setup.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
@@ -36,26 +35,15 @@ static void __init clear_bss(void)
 	       (unsigned long) __bss_stop - (unsigned long) __bss_start);
 }
 
-#define NEW_CL_POINTER		0x228	/* Relative to real mode data */
-#define OLD_CL_MAGIC_ADDR	0x20
-#define OLD_CL_MAGIC            0xA33F
-#define OLD_CL_OFFSET           0x22
-
 static void __init copy_bootdata(char *real_mode_data)
 {
-	unsigned long new_data;
 	char * command_line;
 
-	memcpy(x86_boot_params, real_mode_data, BOOT_PARAM_SIZE);
-	new_data = *(u32 *) (x86_boot_params + NEW_CL_POINTER);
-	if (!new_data) {
-		if (OLD_CL_MAGIC != *(u16 *)(real_mode_data + OLD_CL_MAGIC_ADDR)) {
-			return;
-		}
-		new_data = __pa(real_mode_data) + *(u16 *)(real_mode_data + OLD_CL_OFFSET);
+	memcpy(&boot_params, real_mode_data, sizeof boot_params);
+	if (boot_params.hdr.cmd_line_ptr) {
+		command_line = __va(boot_params.hdr.cmd_line_ptr);
+		memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	}
-	command_line = __va(new_data);
-	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 }
 
 void __init x86_64_start_kernel(char * real_mode_data)

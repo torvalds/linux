@@ -362,7 +362,7 @@ static const char *vgacon_startup(void)
 	u16 saved1, saved2;
 	volatile u16 *p;
 
-	if (ORIG_VIDEO_ISVGA == VIDEO_TYPE_VLFB) {
+	if (screen_info.orig_video_isVGA == VIDEO_TYPE_VLFB) {
 	      no_vga:
 #ifdef CONFIG_DUMMY_CONSOLE
 		conswitchp = &dummy_con;
@@ -372,29 +372,30 @@ static const char *vgacon_startup(void)
 #endif
 	}
 
-	/* SCREEN_INFO initialized? */
-	if ((ORIG_VIDEO_MODE  == 0) &&
-	    (ORIG_VIDEO_LINES == 0) &&
-	    (ORIG_VIDEO_COLS  == 0))
+	/* boot_params.screen_info initialized? */
+	if ((screen_info.orig_video_mode  == 0) &&
+	    (screen_info.orig_video_lines == 0) &&
+	    (screen_info.orig_video_cols  == 0))
 		goto no_vga;
 
 	/* VGA16 modes are not handled by VGACON */
-	if ((ORIG_VIDEO_MODE == 0x0D) ||	/* 320x200/4 */
-	    (ORIG_VIDEO_MODE == 0x0E) ||	/* 640x200/4 */
-	    (ORIG_VIDEO_MODE == 0x10) ||	/* 640x350/4 */
-	    (ORIG_VIDEO_MODE == 0x12) ||	/* 640x480/4 */
-	    (ORIG_VIDEO_MODE == 0x6A))	/* 800x600/4, 0x6A is very common */
+	if ((screen_info.orig_video_mode == 0x0D) ||	/* 320x200/4 */
+	    (screen_info.orig_video_mode == 0x0E) ||	/* 640x200/4 */
+	    (screen_info.orig_video_mode == 0x10) ||	/* 640x350/4 */
+	    (screen_info.orig_video_mode == 0x12) ||	/* 640x480/4 */
+	    (screen_info.orig_video_mode == 0x6A))	/* 800x600/4 (VESA) */
 		goto no_vga;
 
-	vga_video_num_lines = ORIG_VIDEO_LINES;
-	vga_video_num_columns = ORIG_VIDEO_COLS;
+	vga_video_num_lines = screen_info.orig_video_lines;
+	vga_video_num_columns = screen_info.orig_video_cols;
 	state.vgabase = NULL;
 
-	if (ORIG_VIDEO_MODE == 7) {	/* Is this a monochrome display? */
+	if (screen_info.orig_video_mode == 7) {
+		/* Monochrome display */
 		vga_vram_base = 0xb0000;
 		vga_video_port_reg = VGA_CRT_IM;
 		vga_video_port_val = VGA_CRT_DM;
-		if ((ORIG_VIDEO_EGA_BX & 0xff) != 0x10) {
+		if ((screen_info.orig_video_ega_bx & 0xff) != 0x10) {
 			static struct resource ega_console_resource =
 			    { .name = "ega", .start = 0x3B0, .end = 0x3BF };
 			vga_video_type = VIDEO_TYPE_EGAM;
@@ -422,12 +423,12 @@ static const char *vgacon_startup(void)
 		vga_vram_base = 0xb8000;
 		vga_video_port_reg = VGA_CRT_IC;
 		vga_video_port_val = VGA_CRT_DC;
-		if ((ORIG_VIDEO_EGA_BX & 0xff) != 0x10) {
+		if ((screen_info.orig_video_ega_bx & 0xff) != 0x10) {
 			int i;
 
 			vga_vram_size = 0x8000;
 
-			if (!ORIG_VIDEO_ISVGA) {
+			if (!screen_info.orig_video_isVGA) {
 				static struct resource ega_console_resource
 				    = { .name = "ega", .start = 0x3C0, .end = 0x3DF };
 				vga_video_type = VIDEO_TYPE_EGAC;
@@ -521,14 +522,14 @@ static const char *vgacon_startup(void)
 	    || vga_video_type == VIDEO_TYPE_VGAC
 	    || vga_video_type == VIDEO_TYPE_EGAM) {
 		vga_hardscroll_enabled = vga_hardscroll_user_enable;
-		vga_default_font_height = ORIG_VIDEO_POINTS;
-		vga_video_font_height = ORIG_VIDEO_POINTS;
+		vga_default_font_height = screen_info.orig_video_points;
+		vga_video_font_height = screen_info.orig_video_points;
 		/* This may be suboptimal but is a safe bet - go with it */
 		vga_scan_lines =
 		    vga_video_font_height * vga_video_num_lines;
 	}
 
-	vgacon_xres = ORIG_VIDEO_COLS * VGA_FONTWIDTH;
+	vgacon_xres = screen_info.orig_video_cols * VGA_FONTWIDTH;
 	vgacon_yres = vga_scan_lines;
 
 	if (!vga_init_done) {
@@ -798,7 +799,7 @@ static int vgacon_switch(struct vc_data *c)
 {
 	int x = c->vc_cols * VGA_FONTWIDTH;
 	int y = c->vc_rows * c->vc_font.height;
-	int rows = ORIG_VIDEO_LINES * vga_default_font_height/
+	int rows = screen_info.orig_video_lines * vga_default_font_height/
 		c->vc_font.height;
 	/*
 	 * We need to save screen size here as it's the only way
@@ -818,7 +819,7 @@ static int vgacon_switch(struct vc_data *c)
 
 		if ((vgacon_xres != x || vgacon_yres != y) &&
 		    (!(vga_video_num_columns % 2) &&
-		     vga_video_num_columns <= ORIG_VIDEO_COLS &&
+		     vga_video_num_columns <= screen_info.orig_video_cols &&
 		     vga_video_num_lines <= rows))
 			vgacon_doresize(c, c->vc_cols, c->vc_rows);
 	}
@@ -1280,8 +1281,8 @@ static int vgacon_font_get(struct vc_data *c, struct console_font *font)
 static int vgacon_resize(struct vc_data *c, unsigned int width,
 			 unsigned int height, unsigned int user)
 {
-	if (width % 2 || width > ORIG_VIDEO_COLS ||
-	    height > (ORIG_VIDEO_LINES * vga_default_font_height)/
+	if (width % 2 || width > screen_info.orig_video_cols ||
+	    height > (screen_info.orig_video_lines * vga_default_font_height)/
 	    c->vc_font.height)
 		/* let svgatextmode tinker with video timings and
 		   return success */
@@ -1313,8 +1314,8 @@ static void vgacon_save_screen(struct vc_data *c)
 		 * console initialization routines.
 		 */
 		vga_bootup_console = 1;
-		c->vc_x = ORIG_X;
-		c->vc_y = ORIG_Y;
+		c->vc_x = screen_info.orig_x;
+		c->vc_y = screen_info.orig_y;
 	}
 
 	/* We can't copy in more then the size of the video buffer,
