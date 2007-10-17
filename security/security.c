@@ -518,6 +518,16 @@ int security_inode_removexattr(struct dentry *dentry, char *name)
 	return security_ops->inode_removexattr(dentry, name);
 }
 
+int security_inode_need_killpriv(struct dentry *dentry)
+{
+	return security_ops->inode_need_killpriv(dentry);
+}
+
+int security_inode_killpriv(struct dentry *dentry)
+{
+	return security_ops->inode_killpriv(dentry);
+}
+
 const char *security_inode_xattr_getsuffix(void)
 {
 	return security_ops->inode_xattr_getsuffix();
