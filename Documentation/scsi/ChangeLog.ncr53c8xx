@@ -195,9 +195,9 @@ Sun Feb  14:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	  Pointed out by Leonard Zubkoff.
 	- Allow to tune request_irq() flags from the boot command line using 
 	  ncr53c8xx=irqm:??, as follows:
-	  a) If bit 0x10 is set in irqm, SA_SHIRQ flag is not used.
-	  b) If bit 0x20 is set in irqm, SA_INTERRUPT flag is not used.
-	  By default the driver uses both SA_SHIRQ and SA_INTERRUPT.
+	  a) If bit 0x10 is set in irqm, IRQF_SHARED flag is not used.
+	  b) If bit 0x20 is set in irqm, IRQF_DISABLED flag is not used.
+	  By default the driver uses both IRQF_SHARED and IRQF_DISABLED.
 	  Option 'ncr53c8xx=irqm:0x20' may be used when an IRQ is shared by 
 	  a 53C8XX adapter and a network board.
 	- Tiny mispelling fixed (ABORT instead of ABRT). Was fortunately 
