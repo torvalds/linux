@@ -233,8 +233,7 @@ error_out:
 
 static struct request *nbd_find_request(struct nbd_device *lo, char *handle)
 {
-	struct request *req;
-	struct list_head *tmp;
+	struct request *req, *tmp;
 	struct request *xreq;
 	int err;
 
@@ -245,8 +244,7 @@ static struct request *nbd_find_request(struct nbd_device *lo, char *handle)
 		goto out;
 
 	spin_lock(&lo->queue_lock);
-	list_for_each(tmp, &lo->queue_head) {
-		req = list_entry(tmp, struct request, queuelist);
+	list_for_each_entry_safe(req, tmp, &lo->queue_head, queuelist) {
 		if (req != xreq)
 			continue;
 		list_del_init(&req->queuelist);
