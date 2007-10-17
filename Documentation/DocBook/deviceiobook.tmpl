@@ -85,7 +85,7 @@
 
   <chapter id="mmio">
     <title>Memory Mapped IO</title>
-    <sect1>
+    <sect1 id="getting_access_to_the_device">
       <title>Getting Access to the Device</title>
       <para>
 	The most widely supported form of IO is memory mapped IO.
@@ -114,7 +114,7 @@
       </para>
     </sect1>
 
-    <sect1>
+    <sect1 id="accessing_the_device">
       <title>Accessing the device</title>
       <para>
 	The part of the interface most used by drivers is reading and
@@ -272,9 +272,9 @@ CPU B:  spin_unlock_irqrestore(&amp;dev_lock, flags)
 
   </chapter>
 
-  <chapter>
+  <chapter id="port_space_accesses">
     <title>Port Space Accesses</title>
-    <sect1>
+    <sect1 id="port_space_explained">
       <title>Port Space Explained</title>
 
       <para>
@@ -291,7 +291,7 @@ CPU B:  spin_unlock_irqrestore(&amp;dev_lock, flags)
       </para>
 
     </sect1>
-    <sect1>
+    <sect1 id="accessing_port_space">
       <title>Accessing Port Space</title>
       <para>
 	Accesses to this space are provided through a set of functions
