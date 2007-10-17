@@ -570,7 +570,7 @@ void tick_setup_sched_timer(void)
 	/* Get the next period (per cpu) */
 	ts->sched_timer.expires = tick_init_jiffy_update();
 	offset = ktime_to_ns(tick_period) >> 1;
-	do_div(offset, NR_CPUS);
+	do_div(offset, num_possible_cpus());
 	offset *= smp_processor_id();
 	ts->sched_timer.expires = ktime_add_ns(ts->sched_timer.expires, offset);
 
