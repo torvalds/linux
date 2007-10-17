@@ -586,7 +586,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	/* Optimise the no-wait case */
 	if (!(*timeout))
 		pt = NULL;
- 
+
 	for (;;) {
 		struct poll_list *walk;
 		long __timeout;
@@ -616,10 +616,12 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 		 * a poll_table to them on the next loop iteration.
 		 */
 		pt = NULL;
-		if (count || !*timeout || signal_pending(current))
-			break;
-		count = wait->error;
-		if (count)
+		if (!count) {
+			count = wait->error;
+			if (signal_pending(current))
+				count = -EINTR;
+		}
+		if (count || !*timeout)
 			break;
 
 		if (*timeout < 0) {
@@ -689,8 +691,6 @@ int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
 
 	poll_initwait(&table);
 	fdcount = do_poll(nfds, head, &table, timeout);
-	if (!fdcount && signal_pending(current))
-		fdcount = -EINTR;
 	poll_freewait(&table);
 
 	for (walk = head; walk; walk = walk->next) {
