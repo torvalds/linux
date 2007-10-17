@@ -1031,12 +1031,8 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 		swap(curr->vruntime, se->vruntime);
 	}
 
-	update_stats_enqueue(cfs_rq, se);
-	check_spread(cfs_rq, se);
-	check_spread(cfs_rq, curr);
-	__enqueue_entity(cfs_rq, se);
-	account_entity_enqueue(cfs_rq, se);
 	se->peer_preempt = 0;
+	enqueue_task_fair(rq, p, 0);
 	resched_task(rq->curr);
 }
 

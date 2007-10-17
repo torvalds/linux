@@ -84,9 +84,6 @@ static struct user_struct *uid_hash_find(uid_t uid, struct hlist_head *hashent)
 
 #ifdef CONFIG_FAIR_USER_SCHED
 
-static struct kobject uids_kobject; /* represents /sys/kernel/uids directory */
-static DEFINE_MUTEX(uids_mutex);
-
 static void sched_destroy_user(struct user_struct *up)
 {
 	sched_destroy_group(up->tg);
@@ -107,6 +104,19 @@ static void sched_switch_user(struct task_struct *p)
 {
 	sched_move_task(p);
 }
+
+#else	/* CONFIG_FAIR_USER_SCHED */
+
+static void sched_destroy_user(struct user_struct *up) { }
+static int sched_create_user(struct user_struct *up) { return 0; }
+static void sched_switch_user(struct task_struct *p) { }
+
+#endif	/* CONFIG_FAIR_USER_SCHED */
+
+#if defined(CONFIG_FAIR_USER_SCHED) && defined(CONFIG_SYSFS)
+
+static struct kobject uids_kobject; /* represents /sys/kernel/uids directory */
+static DEFINE_MUTEX(uids_mutex);
 
 static inline void uids_mutex_lock(void)
 {
@@ -254,11 +264,8 @@ static inline void free_user(struct user_struct *up, unsigned long flags)
 	schedule_work(&up->work);
 }
 
-#else	/* CONFIG_FAIR_USER_SCHED */
+#else	/* CONFIG_FAIR_USER_SCHED && CONFIG_SYSFS */
 
-static void sched_destroy_user(struct user_struct *up) { }
-static int sched_create_user(struct user_struct *up) { return 0; }
-static void sched_switch_user(struct task_struct *p) { }
 static inline int user_kobject_create(struct user_struct *up) { return 0; }
 static inline void uids_mutex_lock(void) { }
 static inline void uids_mutex_unlock(void) { }
@@ -277,7 +284,7 @@ static inline void free_user(struct user_struct *up, unsigned long flags)
 	kmem_cache_free(uid_cachep, up);
 }
 
-#endif	/* CONFIG_FAIR_USER_SCHED */
+#endif
 
 /*
  * Locate the user_struct for the passed UID.  If found, take a ref on it.  The
