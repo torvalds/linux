@@ -85,6 +85,16 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_resource_table *res,
 	if (i >= PNP_MAX_IRQ)
 		return;
 
+#ifdef CONFIG_X86
+	if (gsi < 16 && (triggering != ACPI_EDGE_SENSITIVE ||
+				polarity != ACPI_ACTIVE_HIGH)) {
+		pnp_warn("BIOS BUG: legacy PNP IRQ %d should be edge trigger, "
+				"active high", gsi);
+		triggering = ACPI_EDGE_SENSITIVE;
+		polarity = ACPI_ACTIVE_HIGH;
+	}
+#endif
+
 	res->irq_resource[i].flags = IORESOURCE_IRQ;	// Also clears _UNSET flag
 	res->irq_resource[i].flags |= irq_flags(triggering, polarity);
 	irq = acpi_register_gsi(gsi, triggering, polarity);
