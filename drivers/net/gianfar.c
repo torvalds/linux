@@ -956,10 +956,12 @@ static int gfar_enet_open(struct net_device *dev)
 	}
 
 	err = startup_gfar(dev);
-	if (err)
+	if (err) {
 #ifdef CONFIG_GFAR_NAPI
 		napi_disable(&priv->napi);
 #endif
+		return err;
+	}
 
 	netif_start_queue(dev);
 
