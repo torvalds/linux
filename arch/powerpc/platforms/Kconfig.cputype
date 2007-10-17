@@ -37,6 +37,7 @@ config PPC_8xx
 	select FSL_SOC
 	select 8xx
 	select WANT_DEVICE_TREE
+	select PPC_LIB_RHEAP
 
 config 40x
 	bool "AMCC 40x"

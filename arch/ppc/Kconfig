@@ -102,6 +102,7 @@ config 44x
 
 config 8xx
 	bool "8xx"
+	select PPC_LIB_RHEAP
 
 config E200
 	bool "e200"
@@ -798,6 +799,7 @@ config CPM1
 config CPM2
 	bool
 	depends on 8260 || MPC8560 || MPC8555
+	select PPC_LIB_RHEAP
 	default y
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
@@ -1277,6 +1279,10 @@ config BOOT_LOAD
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
 	depends on ADVANCED_OPTIONS && 8xx
+
+config PPC_LIB_RHEAP
+	bool
+
 endmenu
 
 source "net/Kconfig"
