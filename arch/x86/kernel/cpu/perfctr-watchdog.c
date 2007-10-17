@@ -34,7 +34,7 @@ struct wd_ops {
 	u64 checkbit;
 };
 
-static struct wd_ops *wd_ops;
+static const struct wd_ops *wd_ops;
 
 /* this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
  * offset from MSR_P4_BSU_ESCR0.  It will be the max for all platforms (for now)
@@ -317,7 +317,7 @@ static void single_msr_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 	write_watchdog_counter(wd->perfctr_msr, NULL, nmi_hz);
 }
 
-static struct wd_ops k7_wd_ops = {
+static const struct wd_ops k7_wd_ops = {
 	.reserve = single_msr_reserve,
 	.unreserve = single_msr_unreserve,
 	.setup = setup_k7_watchdog,
@@ -380,7 +380,7 @@ static void p6_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 	write_watchdog_counter32(wd->perfctr_msr, NULL,nmi_hz);
 }
 
-static struct wd_ops p6_wd_ops = {
+static const struct wd_ops p6_wd_ops = {
 	.reserve = single_msr_reserve,
 	.unreserve = single_msr_unreserve,
 	.setup = setup_p6_watchdog,
@@ -532,7 +532,7 @@ static void p4_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 	write_watchdog_counter(wd->perfctr_msr, NULL, nmi_hz);
 }
 
-static struct wd_ops p4_wd_ops = {
+static const struct wd_ops p4_wd_ops = {
 	.reserve = p4_reserve,
 	.unreserve = p4_unreserve,
 	.setup = setup_p4_watchdog,
@@ -549,6 +549,8 @@ static struct wd_ops p4_wd_ops = {
 
 #define ARCH_PERFMON_NMI_EVENT_SEL	ARCH_PERFMON_UNHALTED_CORE_CYCLES_SEL
 #define ARCH_PERFMON_NMI_EVENT_UMASK	ARCH_PERFMON_UNHALTED_CORE_CYCLES_UMASK
+
+static struct wd_ops intel_arch_wd_ops;
 
 static int setup_intel_arch_watchdog(unsigned nmi_hz)
 {
@@ -591,11 +593,11 @@ static int setup_intel_arch_watchdog(unsigned nmi_hz)
 	wd->perfctr_msr = perfctr_msr;
 	wd->evntsel_msr = evntsel_msr;
 	wd->cccr_msr = 0;  //unused
-	wd_ops->checkbit = 1ULL << (eax.split.bit_width - 1);
+	intel_arch_wd_ops.checkbit = 1ULL << (eax.split.bit_width - 1);
 	return 1;
 }
 
-static struct wd_ops intel_arch_wd_ops = {
+static struct wd_ops intel_arch_wd_ops __read_mostly = {
 	.reserve = single_msr_reserve,
 	.unreserve = single_msr_unreserve,
 	.setup = setup_intel_arch_watchdog,
