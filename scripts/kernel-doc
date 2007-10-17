@@ -5,6 +5,7 @@ use strict;
 ## Copyright (c) 1998 Michael Zucchi, All Rights Reserved        ##
 ## Copyright (C) 2000, 1  Tim Waugh <twaugh@redhat.com>          ##
 ## Copyright (C) 2001  Simon Huggins                             ##
+## Copyright (C) 2005-2007  Randy Dunlap                         ##
 ## 								 ##
 ## #define enhancements by Armin Kuster <akuster@mvista.com>	 ##
 ## Copyright (c) 2000 MontaVista Software, Inc.			 ##
@@ -161,7 +162,7 @@ my $type_constant = '\%([-_\w]+)';
 my $type_func = '(\w+)\(\)';
 my $type_param = '\@(\w+)';
 my $type_struct = '\&((struct\s*)*[_\w]+)';
-my $type_struct_xml = '\\\amp;((struct\s*)*[_\w]+)';
+my $type_struct_xml = '\\&amp;((struct\s*)*[_\w]+)';
 my $type_env = '(\$\w+)';
 
 # Output conversion substitutions.
@@ -173,7 +174,9 @@ my %highlights_html = ( $type_constant, "<i>\$1</i>",
 			$type_struct_xml, "<i>\$1</i>",
 			$type_env, "<b><i>\$1</i></b>",
 			$type_param, "<tt><b>\$1</b></tt>" );
-my $blankline_html = "<p>";
+my $local_lt = "\\\\\\\\lt:";
+my $local_gt = "\\\\\\\\gt:";
+my $blankline_html = $local_lt . "p" . $local_gt;	# was "<p>"
 
 # XML, docbook format
 my %highlights_xml = ( "([^=])\\\"([^\\\"<]+)\\\"", "\$1<quote>\$2</quote>",
@@ -391,17 +394,19 @@ sub output_highlight {
 #	confess "output_highlight got called with no args?\n";
 #   }
 
+    if ($output_mode eq "html") {
+	$contents = local_unescape($contents);
+	# convert data read & converted thru xml_escape() into &xyz; format:
+	$contents =~ s/\\\\\\/&/g;
+    }
 #   print STDERR "contents b4:$contents\n";
     eval $dohighlight;
     die $@ if $@;
-    if ($output_mode eq "html") {
-	$contents =~ s/\\\\//;
-    }
 #   print STDERR "contents af:$contents\n";
 
     foreach $line (split "\n", $contents) {
 	if ($line eq ""){
-	    print $lineprefix, $blankline;
+	    print $lineprefix, local_unescape($blankline);
 	} else {
 	    $line =~ s/\\\\\\/\&/g;
 	    if ($output_mode eq "man" && substr($line, 0, 1) eq ".") {
@@ -1752,7 +1757,13 @@ sub process_state3_type($$) {
     }
 }
 
-# replace <, >, and &
+# xml_escape: replace <, >, and & in the text stream;
+#
+# however, formatting controls that are generated internally/locally in the
+# kernel-doc script are not escaped here; instead, they begin life like
+# $blankline_html (4 of '\' followed by a mnemonic + ':'), then these strings
+# are converted to their mnemonic-expected output, without the 4 * '\' & ':',
+# just before actual output; (this is done by local_unescape())
 sub xml_escape($) {
 	my $text = shift;
 	if (($output_mode eq "text") || ($output_mode eq "man")) {
@@ -1761,6 +1772,18 @@ sub xml_escape($) {
 	$text =~ s/\&/\\\\\\amp;/g;
 	$text =~ s/\</\\\\\\lt;/g;
 	$text =~ s/\>/\\\\\\gt;/g;
+	return $text;
+}
+
+# convert local escape strings to html
+# local escape strings look like:  '\\\\menmonic:' (that's 4 backslashes)
+sub local_unescape($) {
+	my $text = shift;
+	if (($output_mode eq "text") || ($output_mode eq "man")) {
+		return $text;
+	}
+	$text =~ s/\\\\\\\\lt:/</g;
+	$text =~ s/\\\\\\\\gt:/>/g;
 	return $text;
 }
 
@@ -1903,7 +1926,7 @@ sub process_file($) {
 	} elsif ($state == 4) {
 		# Documentation block
 		if (/$doc_block/) {
-			dump_section($section, $contents);
+			dump_section($section, xml_escape($contents));
 			output_intro({'sectionlist' => \@sectionlist,
 				      'sections' => \%sections });
 			$contents = "";
@@ -1923,7 +1946,7 @@ sub process_file($) {
 		}
 		elsif (/$doc_end/)
 		{
-			dump_section($section, $contents);
+			dump_section($section, xml_escape($contents));
 			output_intro({'sectionlist' => \@sectionlist,
 				      'sections' => \%sections });
 			$contents = "";
