@@ -1849,6 +1849,9 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->mii_if.mdio_read = mdio_read;
 	lp->mii_if.mdio_write = mdio_write;
 
+	/* napi.weight is used in both the napi and non-napi cases */
+	lp->napi.weight = lp->rx_ring_size / 2;
+
 #ifdef CONFIG_PCNET32_NAPI
 	netif_napi_add(dev, &lp->napi, pcnet32_poll, lp->rx_ring_size / 2);
 #endif
