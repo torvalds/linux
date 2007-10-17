@@ -81,13 +81,9 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-
 #include <linux/netdevice.h>
-
 #include <linux/vmalloc.h>
 #include <linux/init.h>
-
-#include <linux/delay.h>
 #include <linux/ioctl.h>
 
 #include <asm/system.h>

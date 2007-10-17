@@ -22,7 +22,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mm.h>
-#include <linux/fs.h>
 #include <linux/uio.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
