@@ -85,12 +85,9 @@ struct taskstats {
 	 * On some architectures, value will adjust for cpu time stolen
 	 * from the kernel in involuntary waits due to virtualization.
 	 * Value is cumulative, in nanoseconds, without a corresponding count
-	 * and wraps around to zero silently on overflow.  The
-	 * _scaled_ version accounts for cpus which can scale the
-	 * number of instructions executed each cycle.
+	 * and wraps around to zero silently on overflow
 	 */
 	__u64	cpu_run_real_total;
-	__u64	cpu_scaled_run_real_total;
 
 	/* cpu "virtual" running time
 	 * Uses time intervals seen by the kernel i.e. no adjustment
@@ -145,10 +142,6 @@ struct taskstats {
 	__u64	write_char;		/* bytes written */
 	__u64	read_syscalls;		/* read syscalls */
 	__u64	write_syscalls;		/* write syscalls */
-
-	/* time accounting for SMT machines */
-	__u64	ac_utimescaled;		/* utime scaled on frequency etc */
-	__u64	ac_stimescaled;		/* stime scaled on frequency etc */
 	/* Extended accounting fields end */
 
 #define TASKSTATS_HAS_IO_ACCOUNTING
@@ -159,6 +152,11 @@ struct taskstats {
 
 	__u64  nvcsw;			/* voluntary_ctxt_switches */
 	__u64  nivcsw;			/* nonvoluntary_ctxt_switches */
+
+	/* time accounting for SMT machines */
+	__u64	ac_utimescaled;		/* utime scaled on frequency etc */
+	__u64	ac_stimescaled;		/* stime scaled on frequency etc */
+	__u64	cpu_scaled_run_real_total; /* scaled cpu_run_real_total */
 };
 
 
