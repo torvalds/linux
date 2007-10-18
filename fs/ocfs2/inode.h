@@ -35,7 +35,6 @@ struct ocfs2_inode_info
 
 	struct ocfs2_lock_res		ip_rw_lockres;
 	struct ocfs2_lock_res		ip_meta_lockres;
-	struct ocfs2_lock_res		ip_data_lockres;
 	struct ocfs2_lock_res		ip_open_lockres;
 
 	/* protects allocation changes on this inode. */

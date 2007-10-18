@@ -181,17 +181,8 @@ static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = ocfs2_data_lock(inode, 1);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_meta_unlock;
-	}
-
 	ret = __ocfs2_page_mkwrite(inode, di_bh, page);
 
-	ocfs2_data_unlock(inode, 1);
-
-out_meta_unlock:
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 	brelse(di_bh);

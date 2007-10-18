@@ -1020,7 +1020,6 @@ static void ocfs2_inode_init_once(struct kmem_cache *cachep, void *data)
 
 	ocfs2_lock_res_init_once(&oi->ip_rw_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_meta_lockres);
-	ocfs2_lock_res_init_once(&oi->ip_data_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_open_lockres);
 
 	ocfs2_metadata_cache_init(&oi->vfs_inode);

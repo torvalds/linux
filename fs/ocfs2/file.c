@@ -382,18 +382,13 @@ static int ocfs2_truncate_file(struct inode *inode,
 
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	/* This forces other nodes to sync and drop their pages. Do
-	 * this even if we have a truncate without allocation change -
-	 * ocfs2 cluster sizes can be much greater than page size, so
-	 * we have to truncate them anyway.  */
-	status = ocfs2_data_lock(inode, 1);
-	if (status < 0) {
-		up_write(&OCFS2_I(inode)->ip_alloc_sem);
-
-		mlog_errno(status);
-		goto bail;
-	}
-
+	/*
+	 * The inode lock forced other nodes to sync and drop their
+	 * pages, which (correctly) happens even if we have a truncate
+	 * without allocation change - ocfs2 cluster sizes can be much
+	 * greater than page size, so we have to truncate them
+	 * anyway.
+	 */
 	unmap_mapping_range(inode->i_mapping, new_i_size + PAGE_SIZE - 1, 0, 1);
 	truncate_inode_pages(inode->i_mapping, new_i_size);
 
@@ -403,7 +398,7 @@ static int ocfs2_truncate_file(struct inode *inode,
 		if (status)
 			mlog_errno(status);
 
-		goto bail_unlock_data;
+		goto bail_unlock_sem;
 	}
 
 	/* alright, we're going to need to do a full blown alloc size
@@ -413,25 +408,23 @@ static int ocfs2_truncate_file(struct inode *inode,
 	status = ocfs2_orphan_for_truncate(osb, inode, di_bh, new_i_size);
 	if (status < 0) {
 		mlog_errno(status);
-		goto bail_unlock_data;
+		goto bail_unlock_sem;
 	}
 
 	status = ocfs2_prepare_truncate(osb, inode, di_bh, &tc);
 	if (status < 0) {
 		mlog_errno(status);
-		goto bail_unlock_data;
+		goto bail_unlock_sem;
 	}
 
 	status = ocfs2_commit_truncate(osb, inode, di_bh, tc);
 	if (status < 0) {
 		mlog_errno(status);
-		goto bail_unlock_data;
+		goto bail_unlock_sem;
 	}
 
 	/* TODO: orphan dir cleanup here. */
-bail_unlock_data:
-	ocfs2_data_unlock(inode, 1);
-
+bail_unlock_sem:
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 bail:
@@ -917,7 +910,7 @@ static int ocfs2_extend_file(struct inode *inode,
 			     struct buffer_head *di_bh,
 			     u64 new_i_size)
 {
-	int ret = 0, data_locked = 0;
+	int ret = 0;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	BUG_ON(!di_bh);
@@ -943,20 +936,6 @@ static int ocfs2_extend_file(struct inode *inode,
 	    && ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
 		goto out_update_size;
 
-	/* 
-	 * protect the pages that ocfs2_zero_extend is going to be
-	 * pulling into the page cache.. we do this before the
-	 * metadata extend so that we don't get into the situation
-	 * where we've extended the metadata but can't get the data
-	 * lock to zero.
-	 */
-	ret = ocfs2_data_lock(inode, 1);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out;
-	}
-	data_locked = 1;
-
 	/*
 	 * The alloc sem blocks people in read/write from reading our
 	 * allocation until we're done changing it. We depend on
@@ -980,7 +959,7 @@ static int ocfs2_extend_file(struct inode *inode,
 			up_write(&oi->ip_alloc_sem);
 
 			mlog_errno(ret);
-			goto out_unlock;
+			goto out;
 		}
 	}
 
@@ -991,17 +970,13 @@ static int ocfs2_extend_file(struct inode *inode,
 
 	if (ret < 0) {
 		mlog_errno(ret);
-		goto out_unlock;
+		goto out;
 	}
 
 out_update_size:
 	ret = ocfs2_simple_size_update(inode, di_bh, new_i_size);
 	if (ret < 0)
 		mlog_errno(ret);
-
-out_unlock:
-	if (data_locked)
-		ocfs2_data_unlock(inode, 1);
 
 out:
 	return ret;

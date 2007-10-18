@@ -305,21 +305,12 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 		goto out_alloc;
 	}
 
-	ret = ocfs2_data_lock_with_page(inode, 0, page);
-	if (ret != 0) {
-		if (ret == AOP_TRUNCATED_PAGE)
-			unlock = 0;
-		mlog_errno(ret);
-		goto out_alloc;
-	}
-
 	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		ret = ocfs2_readpage_inline(inode, page);
 	else
 		ret = block_read_full_page(page, ocfs2_get_block);
 	unlock = 0;
 
-	ocfs2_data_unlock(inode, 0);
 out_alloc:
 	up_read(&OCFS2_I(inode)->ip_alloc_sem);
 out_meta_unlock:
@@ -638,34 +629,12 @@ static ssize_t ocfs2_direct_IO(int rw,
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		return 0;
 
-	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb))) {
-		/*
-		 * We get PR data locks even for O_DIRECT.  This
-		 * allows concurrent O_DIRECT I/O but doesn't let
-		 * O_DIRECT with extending and buffered zeroing writes
-		 * race.  If they did race then the buffered zeroing
-		 * could be written back after the O_DIRECT I/O.  It's
-		 * one thing to tell people not to mix buffered and
-		 * O_DIRECT writes, but expecting them to understand
-		 * that file extension is also an implicit buffered
-		 * write is too much.  By getting the PR we force
-		 * writeback of the buffered zeroing before
-		 * proceeding.
-		 */
-		ret = ocfs2_data_lock(inode, 0);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto out;
-		}
-		ocfs2_data_unlock(inode, 0);
-	}
-
 	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev, iov, offset,
 					    nr_segs, 
 					    ocfs2_direct_IO_get_blocks,
 					    ocfs2_dio_end_io);
-out:
+
 	mlog_exit(ret);
 	return ret;
 }
@@ -1769,25 +1738,17 @@ static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = ocfs2_data_lock(inode, 1);
-	if (ret) {
-		mlog_errno(ret);
-		goto out_fail;
-	}
-
 	ret = ocfs2_write_begin_nolock(mapping, pos, len, flags, pagep,
 				       fsdata, di_bh, NULL);
 	if (ret) {
 		mlog_errno(ret);
-		goto out_fail_data;
+		goto out_fail;
 	}
 
 	brelse(di_bh);
 
 	return 0;
 
-out_fail_data:
-	ocfs2_data_unlock(inode, 1);
 out_fail:
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
@@ -1908,7 +1869,6 @@ static int ocfs2_write_end(struct file *file, struct address_space *mapping,
 
 	ret = ocfs2_write_end_nolock(mapping, pos, len, copied, page, fsdata);
 
-	ocfs2_data_unlock(inode, 1);
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 	ocfs2_meta_unlock(inode, 1);
 

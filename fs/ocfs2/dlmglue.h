@@ -49,7 +49,7 @@ struct ocfs2_meta_lvb {
 	__be32       lvb_reserved2;
 };
 
-/* ocfs2_meta_lock_full() and ocfs2_data_lock_full() 'arg_flags' flags */
+/* ocfs2_meta_lock_full() 'arg_flags' flags */
 /* don't wait on recovery. */
 #define OCFS2_META_LOCK_RECOVERY	(0x01)
 /* Instruct the dlm not to queue ourselves on the other node. */
@@ -69,15 +69,6 @@ void ocfs2_dentry_lock_res_init(struct ocfs2_dentry_lock *dl,
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res);
 int ocfs2_create_new_inode_locks(struct inode *inode);
 int ocfs2_drop_inode_locks(struct inode *inode);
-int ocfs2_data_lock_full(struct inode *inode,
-			 int write,
-			 int arg_flags);
-#define ocfs2_data_lock(inode, write) ocfs2_data_lock_full(inode, write, 0)
-int ocfs2_data_lock_with_page(struct inode *inode,
-			      int write,
-			      struct page *page);
-void ocfs2_data_unlock(struct inode *inode,
-		       int write);
 int ocfs2_rw_lock(struct inode *inode, int write);
 void ocfs2_rw_unlock(struct inode *inode, int write);
 int ocfs2_open_lock(struct inode *inode);

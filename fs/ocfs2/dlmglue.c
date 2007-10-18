@@ -232,12 +232,6 @@ static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
-	.get_osb	= ocfs2_get_inode_osb,
-	.downconvert_worker = ocfs2_data_convert_worker,
-	.flags		= 0,
-};
-
 static struct ocfs2_lock_res_ops ocfs2_super_lops = {
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
@@ -261,7 +255,6 @@ static struct ocfs2_lock_res_ops ocfs2_inode_open_lops = {
 static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 {
 	return lockres->l_type == OCFS2_LOCK_TYPE_META ||
-		lockres->l_type == OCFS2_LOCK_TYPE_DATA ||
 		lockres->l_type == OCFS2_LOCK_TYPE_RW ||
 		lockres->l_type == OCFS2_LOCK_TYPE_OPEN;
 }
@@ -404,9 +397,6 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			break;
 		case OCFS2_LOCK_TYPE_META:
 			ops = &ocfs2_inode_meta_lops;
-			break;
-		case OCFS2_LOCK_TYPE_DATA:
-			ops = &ocfs2_inode_data_lops;
 			break;
 		case OCFS2_LOCK_TYPE_OPEN:
 			ops = &ocfs2_inode_open_lops;
@@ -1154,12 +1144,6 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 		goto bail;
 	}
 
-	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_data_lockres, 1, 1);
-	if (ret) {
-		mlog_errno(ret);
-		goto bail;
-	}
-
 	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_open_lockres, 0, 0);
 	if (ret) {
 		mlog_errno(ret);
@@ -1312,67 +1296,6 @@ out:
 	mlog_exit_void();
 }
 
-int ocfs2_data_lock_full(struct inode *inode,
-			 int write,
-			 int arg_flags)
-{
-	int status = 0, level;
-	struct ocfs2_lock_res *lockres;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-
-	BUG_ON(!inode);
-
-	mlog_entry_void();
-
-	mlog(0, "inode %llu take %s DATA lock\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-	     write ? "EXMODE" : "PRMODE");
-
-	/* We'll allow faking a readonly data lock for
-	 * rodevices. */
-	if (ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb))) {
-		if (write) {
-			status = -EROFS;
-			mlog_errno(status);
-		}
-		goto out;
-	}
-
-	if (ocfs2_mount_local(osb))
-		goto out;
-
-	lockres = &OCFS2_I(inode)->ip_data_lockres;
-
-	level = write ? LKM_EXMODE : LKM_PRMODE;
-
-	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres, level,
-				    0, arg_flags);
-	if (status < 0 && status != -EAGAIN)
-		mlog_errno(status);
-
-out:
-	mlog_exit(status);
-	return status;
-}
-
-/* see ocfs2_meta_lock_with_page() */
-int ocfs2_data_lock_with_page(struct inode *inode,
-			      int write,
-			      struct page *page)
-{
-	int ret;
-
-	ret = ocfs2_data_lock_full(inode, write, OCFS2_LOCK_NONBLOCK);
-	if (ret == -EAGAIN) {
-		unlock_page(page);
-		if (ocfs2_data_lock(inode, write) == 0)
-			ocfs2_data_unlock(inode, write);
-		ret = AOP_TRUNCATED_PAGE;
-	}
-
-	return ret;
-}
-
 static void ocfs2_downconvert_on_unlock(struct ocfs2_super *osb,
 					struct ocfs2_lock_res *lockres)
 {
@@ -1400,26 +1323,6 @@ static void ocfs2_downconvert_on_unlock(struct ocfs2_super *osb,
 
 	if (kick)
 		ocfs2_wake_downconvert_thread(osb);
-
-	mlog_exit_void();
-}
-
-void ocfs2_data_unlock(struct inode *inode,
-		       int write)
-{
-	int level = write ? LKM_EXMODE : LKM_PRMODE;
-	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_data_lockres;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-
-	mlog_entry_void();
-
-	mlog(0, "inode %llu drop %s DATA lock\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-	     write ? "EXMODE" : "PRMODE");
-
-	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)) &&
-	    !ocfs2_mount_local(osb))
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
 
 	mlog_exit_void();
 }
@@ -2590,13 +2493,6 @@ int ocfs2_drop_inode_locks(struct inode *inode)
 		mlog_errno(err);
 
 	status = err;
-
-	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_data_lockres);
-	if (err < 0)
-		mlog_errno(err);
-	if (err < 0 && !status)
-		status = err;
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
 			      &OCFS2_I(inode)->ip_meta_lockres);

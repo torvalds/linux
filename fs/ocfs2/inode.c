@@ -332,10 +332,6 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 				  OCFS2_LOCK_TYPE_RW, inode->i_generation,
 				  inode);
 
-	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_data_lockres,
-				  OCFS2_LOCK_TYPE_DATA, inode->i_generation,
-				  inode);
-
 	ocfs2_set_inode_flags(inode);
 
 	status = 0;
@@ -1014,7 +1010,6 @@ void ocfs2_clear_inode(struct inode *inode)
 	 * the downconvert thread while waiting to destroy the locks. */
 	ocfs2_mark_lockres_freeing(&oi->ip_rw_lockres);
 	ocfs2_mark_lockres_freeing(&oi->ip_meta_lockres);
-	ocfs2_mark_lockres_freeing(&oi->ip_data_lockres);
 	ocfs2_mark_lockres_freeing(&oi->ip_open_lockres);
 
 	/* We very well may get a clear_inode before all an inodes
@@ -1038,7 +1033,6 @@ void ocfs2_clear_inode(struct inode *inode)
 
 	ocfs2_lock_res_free(&oi->ip_rw_lockres);
 	ocfs2_lock_res_free(&oi->ip_meta_lockres);
-	ocfs2_lock_res_free(&oi->ip_data_lockres);
 	ocfs2_lock_res_free(&oi->ip_open_lockres);
 
 	ocfs2_metadata_cache_purge(inode);
