@@ -20,7 +20,7 @@
 #include <linux/swap.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
-#include <linux/swap.h>
+#include <linux/backing-dev.h>
 #include <linux/pagevec.h>
 
 #include "gfs2.h"
