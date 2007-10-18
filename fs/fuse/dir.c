@@ -705,10 +705,12 @@ static void fuse_fillattr(struct inode *inode, struct fuse_attr *attr,
 	stat->blksize = (1 << inode->i_blkbits);
 }
 
-static int fuse_do_getattr(struct inode *inode, struct kstat *stat)
+static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
+			   struct file *file)
 {
 	int err;
-	struct fuse_attr_out arg;
+	struct fuse_getattr_in inarg;
+	struct fuse_attr_out outarg;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_req *req;
 	u64 attr_version;
@@ -721,24 +723,35 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat)
 	attr_version = fc->attr_version;
 	spin_unlock(&fc->lock);
 
+	memset(&inarg, 0, sizeof(inarg));
+	/* Directories have separate file-handle space */
+	if (file && S_ISREG(inode->i_mode)) {
+		struct fuse_file *ff = file->private_data;
+
+		inarg.getattr_flags |= FUSE_GETATTR_FH;
+		inarg.fh = ff->fh;
+	}
 	req->in.h.opcode = FUSE_GETATTR;
 	req->in.h.nodeid = get_node_id(inode);
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
 	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(arg);
-	req->out.args[0].value = &arg;
+	req->out.args[0].size = sizeof(outarg);
+	req->out.args[0].value = &outarg;
 	request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err) {
-		if ((inode->i_mode ^ arg.attr.mode) & S_IFMT) {
+		if ((inode->i_mode ^ outarg.attr.mode) & S_IFMT) {
 			make_bad_inode(inode);
 			err = -EIO;
 		} else {
-			fuse_change_attributes(inode, &arg.attr,
-					       attr_timeout(&arg),
+			fuse_change_attributes(inode, &outarg.attr,
+					       attr_timeout(&outarg),
 					       attr_version);
 			if (stat)
-				fuse_fillattr(inode, &arg.attr, stat);
+				fuse_fillattr(inode, &outarg.attr, stat);
 		}
 	}
 	return err;
@@ -833,7 +846,7 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 	    ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))) {
 		struct fuse_inode *fi = get_fuse_inode(inode);
 		if (fi->i_time < get_jiffies_64()) {
-			err = fuse_do_getattr(inode, NULL);
+			err = fuse_do_getattr(inode, NULL, NULL);
 			if (err)
 				return err;
 
@@ -848,7 +861,7 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 		   attributes.  This is also needed, because the root
 		   node will at first have no permissions */
 		if (err == -EACCES && !refreshed) {
-			err = fuse_do_getattr(inode, NULL);
+			err = fuse_do_getattr(inode, NULL, NULL);
 			if (!err)
 				err = generic_permission(inode, mask, NULL);
 		}
@@ -864,7 +877,7 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 			if (refreshed)
 				return -EACCES;
 
-			err = fuse_do_getattr(inode, NULL);
+			err = fuse_do_getattr(inode, NULL, NULL);
 			if (!err && !(inode->i_mode & S_IXUGO))
 				return -EACCES;
 		}
@@ -1107,7 +1120,7 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 		return -EACCES;
 
 	if (fi->i_time < get_jiffies_64())
-		err = fuse_do_getattr(inode, stat);
+		err = fuse_do_getattr(inode, stat, NULL);
 	else {
 		err = 0;
 		generic_fillattr(inode, stat);

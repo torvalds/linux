@@ -6,7 +6,14 @@
     See the file COPYING.
 */
 
-/* This file defines the kernel interface of FUSE */
+/*
+ * This file defines the kernel interface of FUSE
+ *
+ * Protocol changelog:
+ *
+ * 7.9:
+ *  - new fuse_getattr_in input argument of GETATTR
+ */
 
 #include <asm/types.h>
 #include <linux/major.h>
@@ -15,7 +22,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 8
+#define FUSE_KERNEL_MINOR_VERSION 9
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -91,11 +98,17 @@ struct fuse_file_lock {
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
+#define FUSE_FILE_OPS		(1 << 2)
 
 /**
  * Release flags
  */
 #define FUSE_RELEASE_FLUSH	(1 << 0)
+
+/**
+ * Getattr flags
+ */
+#define FUSE_GETATTR_FH		(1 << 0)
 
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
@@ -152,6 +165,12 @@ struct fuse_entry_out {
 
 struct fuse_forget_in {
 	__u64	nlookup;
+};
+
+struct fuse_getattr_in {
+	__u32	getattr_flags;
+	__u32	dummy;
+	__u64	fh;
 };
 
 struct fuse_attr_out {
