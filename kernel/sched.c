@@ -449,12 +449,12 @@ enum {
 };
 
 const_debug unsigned int sysctl_sched_features =
-		SCHED_FEAT_NEW_FAIR_SLEEPERS	*1 |
-		SCHED_FEAT_START_DEBIT		*1 |
-		SCHED_FEAT_TREE_AVG		*0 |
-		SCHED_FEAT_APPROX_AVG		*0 |
-		SCHED_FEAT_WAKEUP_PREEMPT	*1 |
-		SCHED_FEAT_PREEMPT_RESTRICT	*1;
+		SCHED_FEAT_NEW_FAIR_SLEEPERS	* 1 |
+		SCHED_FEAT_START_DEBIT		* 1 |
+		SCHED_FEAT_TREE_AVG		* 0 |
+		SCHED_FEAT_APPROX_AVG		* 0 |
+		SCHED_FEAT_WAKEUP_PREEMPT	* 1 |
+		SCHED_FEAT_PREEMPT_RESTRICT	* 1;
 
 #define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
 
@@ -5367,7 +5367,7 @@ sd_alloc_ctl_domain_table(struct sched_domain *sd)
 	return table;
 }
 
-static ctl_table *sd_alloc_ctl_cpu_table(int cpu)
+static ctl_table * sd_alloc_ctl_cpu_table(int cpu)
 {
 	struct ctl_table *entry, *table;
 	struct sched_domain *sd;
