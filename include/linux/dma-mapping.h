@@ -13,9 +13,15 @@ enum dma_data_direction {
 	DMA_NONE = 3,
 };
 
-#define DMA_BIT_MASK(n)	((1ULL<<(n))-1)
+#define DMA_BIT_MASK(n)	(((n) == 64) ? ~0ULL : ((1ULL<<(n))-1))
 
-#define DMA_64BIT_MASK	(~0ULL)
+/*
+ * NOTE: do not use the below macros in new code and do not add new definitions
+ * here.
+ *
+ * Instead, just open-code DMA_BIT_MASK(n) within your driver
+ */
+#define DMA_64BIT_MASK	DMA_BIT_MASK(64)
 #define DMA_48BIT_MASK	DMA_BIT_MASK(48)
 #define DMA_47BIT_MASK	DMA_BIT_MASK(47)
 #define DMA_40BIT_MASK	DMA_BIT_MASK(40)
