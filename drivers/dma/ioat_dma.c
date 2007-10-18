@@ -212,6 +212,18 @@ static dma_cookie_t ioat_tx_submit(struct dma_async_tx_descriptor *tx)
 	} while (len && (new = ioat_dma_get_next_descriptor(ioat_chan)));
 
 	hw->ctl = IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
+	if (new->async_tx.callback) {
+		hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_INT_GN;
+		if (first != new) {
+			/* move callback into to last desc */
+			new->async_tx.callback = first->async_tx.callback;
+			new->async_tx.callback_param
+					= first->async_tx.callback_param;
+			first->async_tx.callback = NULL;
+			first->async_tx.callback_param = NULL;
+		}
+	}
+
 	new->tx_cnt = desc_count;
 	new->async_tx.ack = orig_ack; /* client is in control of this ack */
 
@@ -517,6 +529,11 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 					pci_unmap_addr(desc, src),
 					pci_unmap_len(desc, len),
 					PCI_DMA_TODEVICE);
+			if (desc->async_tx.callback) {
+				desc->async_tx.callback(
+						desc->async_tx.callback_param);
+				desc->async_tx.callback = NULL;
+			}
 		}
 
 		if (desc->async_tx.phys != phys_complete) {
@@ -638,6 +655,12 @@ static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan)
  */
 #define IOAT_TEST_SIZE 2000
 
+static void ioat_dma_test_callback(void *dma_async_param)
+{
+	printk(KERN_ERR "ioatdma: ioat_dma_test_callback(%p)\n",
+			dma_async_param);
+}
+
 /**
  * ioat_dma_self_test - Perform a IOAT transaction to verify the HW works.
  * @device: device to be tested
@@ -692,6 +715,8 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	addr = dma_map_single(dma_chan->device->dev, dest, IOAT_TEST_SIZE,
 			DMA_FROM_DEVICE);
 	ioat_set_dest(addr, tx, 0);
+	tx->callback = ioat_dma_test_callback;
+	tx->callback_param = (void *)0x8086;
 	cookie = ioat_tx_submit(tx);
 	if (cookie < 0) {
 		dev_err(&device->pdev->dev,
