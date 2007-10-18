@@ -260,7 +260,6 @@ static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 static struct ctl_table_header *icmpv6_sysctl_header;
 static struct ctl_table icmpv6_sysctl_table[] = {
 	{
-		.ctl_name	= NET_NF_CONNTRACK_ICMPV6_TIMEOUT,
 		.procname	= "nf_conntrack_icmpv6_timeout",
 		.data		= &nf_ct_icmpv6_timeout,
 		.maxlen		= sizeof(unsigned int),

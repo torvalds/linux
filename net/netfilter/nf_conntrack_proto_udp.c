@@ -146,7 +146,6 @@ static unsigned int udp_sysctl_table_users;
 static struct ctl_table_header *udp_sysctl_header;
 static struct ctl_table udp_sysctl_table[] = {
 	{
-		.ctl_name	= NET_NF_CONNTRACK_UDP_TIMEOUT,
 		.procname	= "nf_conntrack_udp_timeout",
 		.data		= &nf_ct_udp_timeout,
 		.maxlen		= sizeof(unsigned int),
@@ -154,7 +153,6 @@ static struct ctl_table udp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_UDP_TIMEOUT_STREAM,
 		.procname	= "nf_conntrack_udp_timeout_stream",
 		.data		= &nf_ct_udp_timeout_stream,
 		.maxlen		= sizeof(unsigned int),
@@ -168,7 +166,6 @@ static struct ctl_table udp_sysctl_table[] = {
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 static struct ctl_table udp_compat_sysctl_table[] = {
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT,
 		.procname	= "ip_conntrack_udp_timeout",
 		.data		= &nf_ct_udp_timeout,
 		.maxlen		= sizeof(unsigned int),
@@ -176,7 +173,6 @@ static struct ctl_table udp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_UDP_TIMEOUT_STREAM,
 		.procname	= "ip_conntrack_udp_timeout_stream",
 		.data		= &nf_ct_udp_timeout_stream,
 		.maxlen		= sizeof(unsigned int),

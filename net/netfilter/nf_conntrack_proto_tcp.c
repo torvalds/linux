@@ -1162,7 +1162,6 @@ static unsigned int tcp_sysctl_table_users;
 static struct ctl_table_header *tcp_sysctl_header;
 static struct ctl_table tcp_sysctl_table[] = {
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_SENT,
 		.procname	= "nf_conntrack_tcp_timeout_syn_sent",
 		.data		= &nf_ct_tcp_timeout_syn_sent,
 		.maxlen		= sizeof(unsigned int),
@@ -1170,7 +1169,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_RECV,
 		.procname	= "nf_conntrack_tcp_timeout_syn_recv",
 		.data		= &nf_ct_tcp_timeout_syn_recv,
 		.maxlen		= sizeof(unsigned int),
@@ -1178,7 +1176,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_ESTABLISHED,
 		.procname	= "nf_conntrack_tcp_timeout_established",
 		.data		= &nf_ct_tcp_timeout_established,
 		.maxlen		= sizeof(unsigned int),
@@ -1186,7 +1183,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_FIN_WAIT,
 		.procname	= "nf_conntrack_tcp_timeout_fin_wait",
 		.data		= &nf_ct_tcp_timeout_fin_wait,
 		.maxlen		= sizeof(unsigned int),
@@ -1194,7 +1190,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_CLOSE_WAIT,
 		.procname	= "nf_conntrack_tcp_timeout_close_wait",
 		.data		= &nf_ct_tcp_timeout_close_wait,
 		.maxlen		= sizeof(unsigned int),
@@ -1202,7 +1197,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_LAST_ACK,
 		.procname	= "nf_conntrack_tcp_timeout_last_ack",
 		.data		= &nf_ct_tcp_timeout_last_ack,
 		.maxlen		= sizeof(unsigned int),
@@ -1210,7 +1204,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_TIME_WAIT,
 		.procname	= "nf_conntrack_tcp_timeout_time_wait",
 		.data		= &nf_ct_tcp_timeout_time_wait,
 		.maxlen		= sizeof(unsigned int),
@@ -1218,7 +1211,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_CLOSE,
 		.procname	= "nf_conntrack_tcp_timeout_close",
 		.data		= &nf_ct_tcp_timeout_close,
 		.maxlen		= sizeof(unsigned int),
@@ -1226,7 +1218,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_MAX_RETRANS,
 		.procname	= "nf_conntrack_tcp_timeout_max_retrans",
 		.data		= &nf_ct_tcp_timeout_max_retrans,
 		.maxlen		= sizeof(unsigned int),
@@ -1265,7 +1256,6 @@ static struct ctl_table tcp_sysctl_table[] = {
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 static struct ctl_table tcp_compat_sysctl_table[] = {
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_SYN_SENT,
 		.procname	= "ip_conntrack_tcp_timeout_syn_sent",
 		.data		= &nf_ct_tcp_timeout_syn_sent,
 		.maxlen		= sizeof(unsigned int),
@@ -1273,7 +1263,6 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_SYN_RECV,
 		.procname	= "ip_conntrack_tcp_timeout_syn_recv",
 		.data		= &nf_ct_tcp_timeout_syn_recv,
 		.maxlen		= sizeof(unsigned int),
@@ -1281,7 +1270,6 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_ESTABLISHED,
 		.procname	= "ip_conntrack_tcp_timeout_established",
 		.data		= &nf_ct_tcp_timeout_established,
 		.maxlen		= sizeof(unsigned int),
@@ -1289,7 +1277,6 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_FIN_WAIT,
 		.procname	= "ip_conntrack_tcp_timeout_fin_wait",
 		.data		= &nf_ct_tcp_timeout_fin_wait,
 		.maxlen		= sizeof(unsigned int),
@@ -1297,7 +1284,6 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_CLOSE_WAIT,
 		.procname	= "ip_conntrack_tcp_timeout_close_wait",
 		.data		= &nf_ct_tcp_timeout_close_wait,
 		.maxlen		= sizeof(unsigned int),
@@ -1305,7 +1291,6 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_LAST_ACK,
 		.procname	= "ip_conntrack_tcp_timeout_last_ack",
 		.data		= &nf_ct_tcp_timeout_last_ack,
 		.maxlen		= sizeof(unsigned int),
@@ -1313,7 +1298,6 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_TIME_WAIT,
 		.procname	= "ip_conntrack_tcp_timeout_time_wait",
 		.data		= &nf_ct_tcp_timeout_time_wait,
 		.maxlen		= sizeof(unsigned int),
@@ -1321,7 +1305,6 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_CLOSE,
 		.procname	= "ip_conntrack_tcp_timeout_close",
 		.data		= &nf_ct_tcp_timeout_close,
 		.maxlen		= sizeof(unsigned int),
@@ -1329,7 +1312,6 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_TCP_TIMEOUT_MAX_RETRANS,
 		.procname	= "ip_conntrack_tcp_timeout_max_retrans",
 		.data		= &nf_ct_tcp_timeout_max_retrans,
 		.maxlen		= sizeof(unsigned int),

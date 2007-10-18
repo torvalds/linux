@@ -476,7 +476,6 @@ static unsigned int sctp_sysctl_table_users;
 static struct ctl_table_header *sctp_sysctl_header;
 static struct ctl_table sctp_sysctl_table[] = {
 	{
-		.ctl_name	= NET_NF_CONNTRACK_SCTP_TIMEOUT_CLOSED,
 		.procname	= "nf_conntrack_sctp_timeout_closed",
 		.data		= &nf_ct_sctp_timeout_closed,
 		.maxlen		= sizeof(unsigned int),
@@ -484,7 +483,6 @@ static struct ctl_table sctp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_SCTP_TIMEOUT_COOKIE_WAIT,
 		.procname	= "nf_conntrack_sctp_timeout_cookie_wait",
 		.data		= &nf_ct_sctp_timeout_cookie_wait,
 		.maxlen		= sizeof(unsigned int),
@@ -492,7 +490,6 @@ static struct ctl_table sctp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_SCTP_TIMEOUT_COOKIE_ECHOED,
 		.procname	= "nf_conntrack_sctp_timeout_cookie_echoed",
 		.data		= &nf_ct_sctp_timeout_cookie_echoed,
 		.maxlen		= sizeof(unsigned int),
@@ -500,7 +497,6 @@ static struct ctl_table sctp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_SCTP_TIMEOUT_ESTABLISHED,
 		.procname	= "nf_conntrack_sctp_timeout_established",
 		.data		= &nf_ct_sctp_timeout_established,
 		.maxlen		= sizeof(unsigned int),
@@ -508,7 +504,6 @@ static struct ctl_table sctp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_SENT,
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_sent",
 		.data		= &nf_ct_sctp_timeout_shutdown_sent,
 		.maxlen		= sizeof(unsigned int),
@@ -516,7 +511,6 @@ static struct ctl_table sctp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_RECD,
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_recd",
 		.data		= &nf_ct_sctp_timeout_shutdown_recd,
 		.maxlen		= sizeof(unsigned int),
@@ -524,7 +518,6 @@ static struct ctl_table sctp_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_ACK_SENT,
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_ack_sent",
 		.data		= &nf_ct_sctp_timeout_shutdown_ack_sent,
 		.maxlen		= sizeof(unsigned int),
@@ -539,7 +532,6 @@ static struct ctl_table sctp_sysctl_table[] = {
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 static struct ctl_table sctp_compat_sysctl_table[] = {
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_CLOSED,
 		.procname	= "ip_conntrack_sctp_timeout_closed",
 		.data		= &nf_ct_sctp_timeout_closed,
 		.maxlen		= sizeof(unsigned int),
@@ -547,7 +539,6 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_COOKIE_WAIT,
 		.procname	= "ip_conntrack_sctp_timeout_cookie_wait",
 		.data		= &nf_ct_sctp_timeout_cookie_wait,
 		.maxlen		= sizeof(unsigned int),
@@ -555,7 +546,6 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_COOKIE_ECHOED,
 		.procname	= "ip_conntrack_sctp_timeout_cookie_echoed",
 		.data		= &nf_ct_sctp_timeout_cookie_echoed,
 		.maxlen		= sizeof(unsigned int),
@@ -563,7 +553,6 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_ESTABLISHED,
 		.procname	= "ip_conntrack_sctp_timeout_established",
 		.data		= &nf_ct_sctp_timeout_established,
 		.maxlen		= sizeof(unsigned int),
@@ -571,7 +560,6 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_SENT,
 		.procname	= "ip_conntrack_sctp_timeout_shutdown_sent",
 		.data		= &nf_ct_sctp_timeout_shutdown_sent,
 		.maxlen		= sizeof(unsigned int),
@@ -579,7 +567,6 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_RECD,
 		.procname	= "ip_conntrack_sctp_timeout_shutdown_recd",
 		.data		= &nf_ct_sctp_timeout_shutdown_recd,
 		.maxlen		= sizeof(unsigned int),
@@ -587,7 +574,6 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_ACK_SENT,
 		.procname	= "ip_conntrack_sctp_timeout_shutdown_ack_sent",
 		.data		= &nf_ct_sctp_timeout_shutdown_ack_sent,
 		.maxlen		= sizeof(unsigned int),

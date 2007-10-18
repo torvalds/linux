@@ -306,7 +306,6 @@ static struct nf_hook_ops ipv6_conntrack_ops[] = {
 #ifdef CONFIG_SYSCTL
 static ctl_table nf_ct_ipv6_sysctl_table[] = {
 	{
-		.ctl_name	= NET_NF_CONNTRACK_FRAG6_TIMEOUT,
 		.procname	= "nf_conntrack_frag6_timeout",
 		.data		= &nf_frags_ctl.timeout,
 		.maxlen		= sizeof(unsigned int),
