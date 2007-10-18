@@ -1189,7 +1189,9 @@ static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 	del_timer(&dev->video_q.timeout);
 	del_timer(&dev->vbi_q.timeout);
 	del_timer(&dev->ts_q.timeout);
-	saa7134_ir_stop(dev);
+
+	if (dev->remote)
+		saa7134_ir_stop(dev);
 
 	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
 	pci_save_state(pci_dev);
