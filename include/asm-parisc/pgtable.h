@@ -49,14 +49,6 @@
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, (unsigned long)pgd_val(e))
 
- /* Note: If you change ISTACK_SIZE, you need to change the corresponding
-  * values in vmlinux.lds and vmlinux64.lds (init_istack section). Also,
-  * the "order" and size need to agree.
-  */
-
-#define  ISTACK_SIZE  32768 /* Interrupt Stack Size */
-#define  ISTACK_ORDER 3
-
 /* This is the size of the initially mapped kernel memory */
 #ifdef CONFIG_64BIT
 #define KERNEL_INITIAL_ORDER	24	/* 0 to 1<<24 = 16MB */

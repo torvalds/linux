@@ -128,10 +128,6 @@ $pgt_fill_loop:
 	/* And the stack pointer too */
 	ldo             THREAD_SZ_ALGN(%r6),%sp
 
-	/* And the interrupt stack */
-	load32		interrupt_stack,%r6
-	mtctl           %r6,%cr31
-
 #ifdef CONFIG_SMP
 	/* Set the smp rendevous address into page zero.
 	** It would be safer to do this in init_smp_config() but

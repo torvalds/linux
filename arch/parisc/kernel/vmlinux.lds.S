@@ -153,14 +153,6 @@ SECTIONS
 		*(.data.init_task)
 	}
 
-	/* The interrupt stack is currently partially coded, but not yet
-	 * implemented
-	 */
-	. = ALIGN(16384);	
-	init_istack : {
-		*(init_istack)
-	}
-
 #ifdef CONFIG_64BIT
 	. = ALIGN(16);
 	/* Linkage tables */
