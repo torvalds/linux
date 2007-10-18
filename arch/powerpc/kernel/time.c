@@ -212,23 +212,44 @@ static u64 read_purr(void)
 }
 
 /*
+ * Read the SPURR on systems that have it, otherwise the purr
+ */
+static u64 read_spurr(u64 purr)
+{
+	if (cpu_has_feature(CPU_FTR_SPURR))
+		return mfspr(SPRN_SPURR);
+	return purr;
+}
+
+/*
  * Account time for a transition between system, hard irq
  * or soft irq state.
  */
 void account_system_vtime(struct task_struct *tsk)
 {
-	u64 now, delta;
+	u64 now, nowscaled, delta, deltascaled;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	now = read_purr();
 	delta = now - get_paca()->startpurr;
 	get_paca()->startpurr = now;
+	nowscaled = read_spurr(now);
+	deltascaled = nowscaled - get_paca()->startspurr;
+	get_paca()->startspurr = nowscaled;
 	if (!in_interrupt()) {
+		/* deltascaled includes both user and system time.
+		 * Hence scale it based on the purr ratio to estimate
+		 * the system time */
+		deltascaled = deltascaled * get_paca()->system_time /
+			(get_paca()->system_time + get_paca()->user_time);
 		delta += get_paca()->system_time;
 		get_paca()->system_time = 0;
 	}
 	account_system_time(tsk, 0, delta);
+	get_paca()->purrdelta = delta;
+	account_system_time_scaled(tsk, deltascaled);
+	get_paca()->spurrdelta = deltascaled;
 	local_irq_restore(flags);
 }
 
@@ -240,11 +261,17 @@ void account_system_vtime(struct task_struct *tsk)
  */
 void account_process_vtime(struct task_struct *tsk)
 {
-	cputime_t utime;
+	cputime_t utime, utimescaled;
 
 	utime = get_paca()->user_time;
 	get_paca()->user_time = 0;
 	account_user_time(tsk, utime);
+
+	/* Estimate the scaled utime by scaling the real utime based
+	 * on the last spurr to purr ratio */
+	utimescaled = utime * get_paca()->spurrdelta / get_paca()->purrdelta;
+	get_paca()->spurrdelta = get_paca()->purrdelta = 0;
+	account_user_time_scaled(tsk, utimescaled);
 }
 
 static void account_process_time(struct pt_regs *regs)
@@ -266,6 +293,7 @@ struct cpu_purr_data {
 	int	initialized;			/* thread is running */
 	u64	tb;			/* last TB value read */
 	u64	purr;			/* last PURR value read */
+	u64	spurr;			/* last SPURR value read */
 };
 
 /*
