@@ -257,6 +257,15 @@ static int acpi_hibernation_enter(void)
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
 }
 
+static void acpi_hibernation_leave(void)
+{
+	/*
+	 * If ACPI is not enabled by the BIOS and the boot kernel, we need to
+	 * enable it here.
+	 */
+	acpi_enable();
+}
+
 static void acpi_hibernation_finish(void)
 {
 	acpi_leave_sleep_state(ACPI_STATE_S4);
@@ -288,6 +297,7 @@ static struct platform_hibernation_ops acpi_hibernation_ops = {
 	.finish = acpi_hibernation_finish,
 	.prepare = acpi_hibernation_prepare,
 	.enter = acpi_hibernation_enter,
+	.leave = acpi_hibernation_leave,
 	.pre_restore = acpi_hibernation_pre_restore,
 	.restore_cleanup = acpi_hibernation_restore_cleanup,
 };
