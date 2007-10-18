@@ -228,6 +228,7 @@ static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
 	.check_downconvert = ocfs2_check_meta_downconvert,
 	.set_lvb	= ocfs2_set_meta_lvb,
+	.downconvert_worker = ocfs2_data_convert_worker,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
@@ -2851,6 +2852,9 @@ static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
        	inode = ocfs2_lock_res_inode(lockres);
 	mapping = inode->i_mapping;
 
+	if (S_ISREG(inode->i_mode))
+		goto out;
+
 	/*
 	 * We need this before the filemap_fdatawrite() so that it can
 	 * transfer the dirty bit from the PTE to the
@@ -2876,6 +2880,7 @@ static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
 		filemap_fdatawait(mapping);
 	}
 
+out:
 	return UNBLOCK_CONTINUE;
 }
 
