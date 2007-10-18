@@ -173,7 +173,7 @@ int inet_frag_evictor(struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frag_evictor);
 
-struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
+static struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
 		struct inet_frags *f, unsigned int hash)
 {
 	struct inet_frag_queue *qp;
@@ -208,9 +208,8 @@ struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
 	write_unlock(&f->lock);
 	return qp;
 }
-EXPORT_SYMBOL(inet_frag_intern);
 
-struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f)
+static struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f, void *arg)
 {
 	struct inet_frag_queue *q;
 
@@ -218,6 +217,7 @@ struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f)
 	if (q == NULL)
 		return NULL;
 
+	f->constructor(q, arg);
 	atomic_add(f->qsize, &f->mem);
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
@@ -225,4 +225,16 @@ struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f)
 
 	return q;
 }
-EXPORT_SYMBOL(inet_frag_alloc);
+
+struct inet_frag_queue *inet_frag_create(struct inet_frags *f, void *arg,
+		unsigned int hash)
+{
+	struct inet_frag_queue *q;
+
+	q = inet_frag_alloc(f, arg);
+	if (q == NULL)
+		return NULL;
+
+	return inet_frag_intern(q, f, hash);
+}
+EXPORT_SYMBOL(inet_frag_create);

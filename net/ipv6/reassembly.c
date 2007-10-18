@@ -164,17 +164,20 @@ static inline void frag_kfree_skb(struct sk_buff *skb, int *work)
 	kfree_skb(skb);
 }
 
+void ip6_frag_init(struct inet_frag_queue *q, void *a)
+{
+	struct frag_queue *fq = container_of(q, struct frag_queue, q);
+	struct ip6_create_arg *arg = a;
+
+	fq->id = arg->id;
+	ipv6_addr_copy(&fq->saddr, arg->src);
+	ipv6_addr_copy(&fq->daddr, arg->dst);
+}
+EXPORT_SYMBOL(ip6_frag_init);
+
 static void ip6_frag_free(struct inet_frag_queue *fq)
 {
 	kfree(container_of(fq, struct frag_queue, q));
-}
-
-static inline struct frag_queue *frag_alloc_queue(void)
-{
-	struct inet_frag_queue *q;
-
-	q = inet_frag_alloc(&ip6_frags);
-	return q ? container_of(q, struct frag_queue, q) : NULL;
 }
 
 /* Destruction primitives. */
@@ -244,31 +247,22 @@ out:
 
 /* Creation primitives. */
 
-
-static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in,
-		unsigned int hash)
-{
-	struct inet_frag_queue *q;
-
-	q = inet_frag_intern(&fq_in->q, &ip6_frags, hash);
-	return container_of(q, struct frag_queue, q);
-}
-
-
 static struct frag_queue *
 ip6_frag_create(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 		struct inet6_dev *idev, unsigned int hash)
 {
-	struct frag_queue *fq;
+	struct inet_frag_queue *q;
+	struct ip6_create_arg arg;
 
-	if ((fq = frag_alloc_queue()) == NULL)
+	arg.id = id;
+	arg.src = src;
+	arg.dst = dst;
+
+	q = inet_frag_create(&ip6_frags, &arg, hash);
+	if (q == NULL)
 		goto oom;
 
-	fq->id = id;
-	ipv6_addr_copy(&fq->saddr, src);
-	ipv6_addr_copy(&fq->daddr, dst);
-
-	return ip6_frag_intern(fq, hash);
+	return container_of(q, struct frag_queue, q);
 
 oom:
 	IP6_INC_STATS_BH(idev, IPSTATS_MIB_REASMFAILS);
@@ -675,6 +669,7 @@ void __init ipv6_frag_init(void)
 
 	ip6_frags.ctl = &ip6_frags_ctl;
 	ip6_frags.hashfn = ip6_hashfn;
+	ip6_frags.constructor = ip6_frag_init;
 	ip6_frags.destructor = ip6_frag_free;
 	ip6_frags.skb_free = NULL;
 	ip6_frags.qsize = sizeof(struct frag_queue);

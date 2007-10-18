@@ -135,14 +135,6 @@ static void nf_frag_free(struct inet_frag_queue *q)
 	kfree(container_of(q, struct nf_ct_frag6_queue, q));
 }
 
-static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
-{
-	struct inet_frag_queue *q;
-
-	q = inet_frag_alloc(&nf_frags);
-	return q ? container_of(q, struct nf_ct_frag6_queue, q) : NULL;
-}
-
 /* Destruction primitives. */
 
 static __inline__ void fq_put(struct nf_ct_frag6_queue *fq)
@@ -184,33 +176,25 @@ out:
 
 /* Creation primitives. */
 
-static struct nf_ct_frag6_queue *nf_ct_frag6_intern(unsigned int hash,
-					  struct nf_ct_frag6_queue *fq_in)
+static struct nf_ct_frag6_queue *
+nf_ct_frag6_create(unsigned int hash, __be32 id, struct in6_addr *src,
+		struct in6_addr *dst)
 {
 	struct inet_frag_queue *q;
+	struct ip6_create_arg arg;
 
-	q = inet_frag_intern(&fq_in->q, &nf_frags, hash);
-	return container_of(q, struct nf_ct_frag6_queue, q);
-}
+	arg.id = id;
+	arg.src = src;
+	arg.dst = dst;
 
-
-static struct nf_ct_frag6_queue *
-nf_ct_frag6_create(unsigned int hash, __be32 id, struct in6_addr *src,				   struct in6_addr *dst)
-{
-	struct nf_ct_frag6_queue *fq;
-
-	if ((fq = frag_alloc_queue()) == NULL) {
-		pr_debug("Can't alloc new queue\n");
+	q = inet_frag_create(&nf_frags, &arg, hash);
+	if (q == NULL)
 		goto oom;
-	}
 
-	fq->id = id;
-	ipv6_addr_copy(&fq->saddr, src);
-	ipv6_addr_copy(&fq->daddr, dst);
-
-	return nf_ct_frag6_intern(hash, fq);
+	return container_of(q, struct nf_ct_frag6_queue, q);
 
 oom:
+	pr_debug("Can't alloc new queue\n");
 	return NULL;
 }
 
@@ -718,6 +702,7 @@ int nf_ct_frag6_init(void)
 {
 	nf_frags.ctl = &nf_frags_ctl;
 	nf_frags.hashfn = nf_hashfn;
+	nf_frags.constructor = ip6_frag_init;
 	nf_frags.destructor = nf_frag_free;
 	nf_frags.skb_free = nf_skb_free;
 	nf_frags.qsize = sizeof(struct nf_ct_frag6_queue);

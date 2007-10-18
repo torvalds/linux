@@ -108,6 +108,11 @@ int ip_frag_mem(void)
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 			 struct net_device *dev);
 
+struct ip4_create_arg {
+	struct iphdr *iph;
+	u32 user;
+};
+
 static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
 {
 	return jhash_3words((__force u32)id << 16 | prot,
@@ -146,6 +151,20 @@ static __inline__ void frag_kfree_skb(struct sk_buff *skb, int *work)
 	kfree_skb(skb);
 }
 
+static void ip4_frag_init(struct inet_frag_queue *q, void *a)
+{
+	struct ipq *qp = container_of(q, struct ipq, q);
+	struct ip4_create_arg *arg = a;
+
+	qp->protocol = arg->iph->protocol;
+	qp->id = arg->iph->id;
+	qp->saddr = arg->iph->saddr;
+	qp->daddr = arg->iph->daddr;
+	qp->user = arg->user;
+	qp->peer = sysctl_ipfrag_max_dist ?
+		inet_getpeer(arg->iph->saddr, 1) : NULL;
+}
+
 static __inline__ void ip4_frag_free(struct inet_frag_queue *q)
 {
 	struct ipq *qp;
@@ -154,14 +173,6 @@ static __inline__ void ip4_frag_free(struct inet_frag_queue *q)
 	if (qp->peer)
 		inet_putpeer(qp->peer);
 	kfree(qp);
-}
-
-static __inline__ struct ipq *frag_alloc_queue(void)
-{
-	struct inet_frag_queue *q;
-
-	q = inet_frag_alloc(&ip4_frags);
-	return q ? container_of(q, struct ipq, q) : NULL;
 }
 
 
@@ -226,30 +237,20 @@ out:
 
 /* Creation primitives. */
 
-static struct ipq *ip_frag_intern(struct ipq *qp_in, unsigned int hash)
-{
-	struct inet_frag_queue *q;
-
-	q = inet_frag_intern(&qp_in->q, &ip4_frags, hash);
-	return container_of(q, struct ipq, q);
-}
-
 /* Add an entry to the 'ipq' queue for a newly received IP datagram. */
 static struct ipq *ip_frag_create(struct iphdr *iph, u32 user, unsigned int h)
 {
-	struct ipq *qp;
+	struct inet_frag_queue *q;
+	struct ip4_create_arg arg;
 
-	if ((qp = frag_alloc_queue()) == NULL)
+	arg.iph = iph;
+	arg.user = user;
+
+	q = inet_frag_create(&ip4_frags, &arg, h);
+	if (q == NULL)
 		goto out_nomem;
 
-	qp->protocol = iph->protocol;
-	qp->id = iph->id;
-	qp->saddr = iph->saddr;
-	qp->daddr = iph->daddr;
-	qp->user = user;
-	qp->peer = sysctl_ipfrag_max_dist ? inet_getpeer(iph->saddr, 1) : NULL;
-
-	return ip_frag_intern(qp, h);
+	return container_of(q, struct ipq, q);
 
 out_nomem:
 	LIMIT_NETDEBUG(KERN_ERR "ip_frag_create: no memory left !\n");
@@ -642,6 +643,7 @@ void __init ipfrag_init(void)
 {
 	ip4_frags.ctl = &ip4_frags_ctl;
 	ip4_frags.hashfn = ip4_hashfn;
+	ip4_frags.constructor = ip4_frag_init;
 	ip4_frags.destructor = ip4_frag_free;
 	ip4_frags.skb_free = NULL;
 	ip4_frags.qsize = sizeof(struct ipq);
