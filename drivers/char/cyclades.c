@@ -5362,13 +5362,13 @@ static int __init cy_init(void)
 #ifdef CONFIG_PCI
 	/* look for pci boards */
 	retval = pci_register_driver(&cy_pci_driver);
-	if (retval && !nboards)
-		goto err_unr;
+	if (retval && !nboards) {
+		tty_unregister_driver(cy_serial_driver);
+		goto err_frtty;
+	}
 #endif
 
 	return 0;
-err_unr:
-	tty_unregister_driver(cy_serial_driver);
 err_frtty:
 	put_tty_driver(cy_serial_driver);
 err:
