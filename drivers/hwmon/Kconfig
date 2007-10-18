@@ -216,6 +216,16 @@ config SENSORS_DS1621
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1621.
 
+config SENSORS_I5K_AMB
+	tristate "FB-DIMM AMB temperature sensor on Intel 5000 series chipsets"
+	depends on PCI && EXPERIMENTAL
+	help
+	  If you say yes here you get support for FB-DIMM AMB temperature
+	  monitoring chips on systems with the Intel 5000 series chipset.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i5k_amb.
+
 config SENSORS_F71805F
 	tristate "Fintek F71805F/FG, F71806F/FG and F71872F/FG"
 	depends on EXPERIMENTAL
