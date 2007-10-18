@@ -569,7 +569,6 @@ struct cyclades_port {
 	int                     x_char; /* to be pushed out ASAP */
 	int			close_delay;
 	unsigned short		closing_wait;
-	unsigned long		event;
 	int			count;	/* # of fd on device */
 	int                     breakon;
 	int                     breakoff;
@@ -584,26 +583,12 @@ struct cyclades_port {
 	struct cyclades_monitor	mon;
 	struct cyclades_idle_stats	idle_stats;
 	struct cyclades_icount	icount;
-	struct work_struct	tqueue;
 	wait_queue_head_t       open_wait;
 	wait_queue_head_t       close_wait;
 	struct completion       shutdown_wait;
 	wait_queue_head_t       delta_msr_wait;
 	int throttle;
 };
-
-/*
- * Events are used to schedule things to happen at timer-interrupt
- * time, instead of at cy interrupt time.
- */
-#define Cy_EVENT_READ_PROCESS		0
-#define Cy_EVENT_WRITE_WAKEUP		1
-#define Cy_EVENT_HANGUP			2
-#define Cy_EVENT_BREAK			3
-#define Cy_EVENT_OPEN_WAKEUP		4
-#define Cy_EVENT_SHUTDOWN_WAKEUP	5
-#define	Cy_EVENT_DELTA_WAKEUP		6
-#define	Cy_EVENT_Z_RX_FULL		7
 
 #define	CLOSING_WAIT_DELAY	30*HZ
 #define CY_CLOSING_WAIT_NONE	65535
