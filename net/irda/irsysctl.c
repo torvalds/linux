@@ -31,12 +31,6 @@
 #include <net/irda/irda.h>		/* irda_debug */
 #include <net/irda/irias_object.h>
 
-#define NET_IRDA 412 /* Random number */
-enum { DISCOVERY=1, DEVNAME, DEBUG, FAST_POLL, DISCOVERY_SLOTS,
-       DISCOVERY_TIMEOUT, SLOT_TIMEOUT, MAX_BAUD_RATE, MIN_TX_TURN_TIME,
-       MAX_TX_DATA_SIZE, MAX_TX_WINDOW, MAX_NOREPLY_TIME, WARN_NOREPLY_TIME,
-       LAP_KEEPALIVE_TIME };
-
 extern int  sysctl_discovery;
 extern int  sysctl_discovery_slots;
 extern int  sysctl_discovery_timeout;
@@ -94,7 +88,7 @@ static int do_devname(ctl_table *table, int write, struct file *filp,
 /* One file */
 static ctl_table irda_table[] = {
 	{
-		.ctl_name	= DISCOVERY,
+		.ctl_name	= NET_IRDA_DISCOVERY,
 		.procname	= "discovery",
 		.data		= &sysctl_discovery,
 		.maxlen		= sizeof(int),
@@ -102,7 +96,7 @@ static ctl_table irda_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
-		.ctl_name	= DEVNAME,
+		.ctl_name	= NET_IRDA_DEVNAME,
 		.procname	= "devname",
 		.data		= sysctl_devname,
 		.maxlen		= 65,
@@ -112,7 +106,7 @@ static ctl_table irda_table[] = {
 	},
 #ifdef CONFIG_IRDA_DEBUG
 	{
-		.ctl_name	= DEBUG,
+		.ctl_name	= NET_IRDA_DEBUG,
 		.procname	= "debug",
 		.data		= &irda_debug,
 		.maxlen		= sizeof(int),
@@ -122,7 +116,7 @@ static ctl_table irda_table[] = {
 #endif
 #ifdef CONFIG_IRDA_FAST_RR
 	{
-		.ctl_name	= FAST_POLL,
+		.ctl_name	= NET_IRDA_FAST_POLL,
 		.procname	= "fast_poll_increase",
 		.data		= &sysctl_fast_poll_increase,
 		.maxlen		= sizeof(int),
@@ -131,7 +125,7 @@ static ctl_table irda_table[] = {
 	},
 #endif
 	{
-		.ctl_name	= DISCOVERY_SLOTS,
+		.ctl_name	= NET_IRDA_DISCOVERY_SLOTS,
 		.procname	= "discovery_slots",
 		.data		= &sysctl_discovery_slots,
 		.maxlen		= sizeof(int),
@@ -142,7 +136,7 @@ static ctl_table irda_table[] = {
 		.extra2		= &max_discovery_slots
 	},
 	{
-		.ctl_name	= DISCOVERY_TIMEOUT,
+		.ctl_name	= NET_IRDA_DISCOVERY_TIMEOUT,
 		.procname	= "discovery_timeout",
 		.data		= &sysctl_discovery_timeout,
 		.maxlen		= sizeof(int),
@@ -150,7 +144,7 @@ static ctl_table irda_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
-		.ctl_name	= SLOT_TIMEOUT,
+		.ctl_name	= NET_IRDA_SLOT_TIMEOUT,
 		.procname	= "slot_timeout",
 		.data		= &sysctl_slot_timeout,
 		.maxlen		= sizeof(int),
@@ -161,7 +155,7 @@ static ctl_table irda_table[] = {
 		.extra2		= &max_slot_timeout
 	},
 	{
-		.ctl_name	= MAX_BAUD_RATE,
+		.ctl_name	= NET_IRDA_MAX_BAUD_RATE,
 		.procname	= "max_baud_rate",
 		.data		= &sysctl_max_baud_rate,
 		.maxlen		= sizeof(int),
@@ -172,7 +166,7 @@ static ctl_table irda_table[] = {
 		.extra2		= &max_max_baud_rate
 	},
 	{
-		.ctl_name	= MIN_TX_TURN_TIME,
+		.ctl_name	= NET_IRDA_MIN_TX_TURN_TIME,
 		.procname	= "min_tx_turn_time",
 		.data		= &sysctl_min_tx_turn_time,
 		.maxlen		= sizeof(int),
@@ -183,7 +177,7 @@ static ctl_table irda_table[] = {
 		.extra2		= &max_min_tx_turn_time
 	},
 	{
-		.ctl_name	= MAX_TX_DATA_SIZE,
+		.ctl_name	= NET_IRDA_MAX_TX_DATA_SIZE,
 		.procname	= "max_tx_data_size",
 		.data		= &sysctl_max_tx_data_size,
 		.maxlen		= sizeof(int),
@@ -194,7 +188,7 @@ static ctl_table irda_table[] = {
 		.extra2		= &max_max_tx_data_size
 	},
 	{
-		.ctl_name	= MAX_TX_WINDOW,
+		.ctl_name	= NET_IRDA_MAX_TX_WINDOW,
 		.procname	= "max_tx_window",
 		.data		= &sysctl_max_tx_window,
 		.maxlen		= sizeof(int),
@@ -205,7 +199,7 @@ static ctl_table irda_table[] = {
 		.extra2		= &max_max_tx_window
 	},
 	{
-		.ctl_name	= MAX_NOREPLY_TIME,
+		.ctl_name	= NET_IRDA_MAX_NOREPLY_TIME,
 		.procname	= "max_noreply_time",
 		.data		= &sysctl_max_noreply_time,
 		.maxlen		= sizeof(int),
@@ -216,7 +210,7 @@ static ctl_table irda_table[] = {
 		.extra2		= &max_max_noreply_time
 	},
 	{
-		.ctl_name	= WARN_NOREPLY_TIME,
+		.ctl_name	= NET_IRDA_WARN_NOREPLY_TIME,
 		.procname	= "warn_noreply_time",
 		.data		= &sysctl_warn_noreply_time,
 		.maxlen		= sizeof(int),
@@ -227,7 +221,7 @@ static ctl_table irda_table[] = {
 		.extra2		= &max_warn_noreply_time
 	},
 	{
-		.ctl_name	= LAP_KEEPALIVE_TIME,
+		.ctl_name	= NET_IRDA_LAP_KEEPALIVE_TIME,
 		.procname	= "lap_keepalive_time",
 		.data		= &sysctl_lap_keepalive_time,
 		.maxlen		= sizeof(int),
