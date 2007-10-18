@@ -55,6 +55,8 @@
 #include <asm/stacktrace.h>
 #endif
 
+static int deprecated_sysctl_warning(struct __sysctl_args *args);
+
 #if defined(CONFIG_SYSCTL)
 
 /* External variables not in a header file. */
@@ -1347,10 +1349,15 @@ asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
 	if (copy_from_user(&tmp, args, sizeof(tmp)))
 		return -EFAULT;
 
+	error = deprecated_sysctl_warning(&tmp);
+	if (error)
+		goto out;
+
 	lock_kernel();
 	error = do_sysctl(tmp.name, tmp.nlen, tmp.oldval, tmp.oldlenp,
 			  tmp.newval, tmp.newlen);
 	unlock_kernel();
+out:
 	return error;
 }
 #endif /* CONFIG_SYSCTL_SYSCALL */
@@ -2540,35 +2547,19 @@ int sysctl_ms_jiffies(struct ctl_table *table, int __user *name, int nlen,
 
 asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
 {
-	static int msg_count;
 	struct __sysctl_args tmp;
-	int name[CTL_MAXNAME];
-	int i;
+	int error;
 
-	/* Read in the sysctl name for better debug message logging */
 	if (copy_from_user(&tmp, args, sizeof(tmp)))
 		return -EFAULT;
-	if (tmp.nlen <= 0 || tmp.nlen >= CTL_MAXNAME)
-		return -ENOTDIR;
-	for (i = 0; i < tmp.nlen; i++)
-		if (get_user(name[i], tmp.name + i))
-			return -EFAULT;
 
-	/* Ignore accesses to kernel.version */
-	if ((tmp.nlen == 2) && (name[0] == CTL_KERN) && (name[1] == KERN_VERSION))
-		goto out;
+	error = deprecated_sysctl_warning(&tmp);
 
-	if (msg_count < 5) {
-		msg_count++;
-		printk(KERN_INFO
-			"warning: process `%s' used the removed sysctl "
-			"system call with ", current->comm);
-		for (i = 0; i < tmp.nlen; i++)
-			printk("%d.", name[i]);
-		printk("\n");
-	}
-out:
-	return -ENOSYS;
+	/* If no error reading the parameters then just -ENOSYS ... */
+	if (!error)
+		error = -ENOSYS;
+
+	return error;
 }
 
 int sysctl_data(struct ctl_table *table, int __user *name, int nlen,
@@ -2607,6 +2598,33 @@ int sysctl_ms_jiffies(struct ctl_table *table, int __user *name, int nlen,
 }
 
 #endif /* CONFIG_SYSCTL_SYSCALL */
+
+static int deprecated_sysctl_warning(struct __sysctl_args *args)
+{
+	static int msg_count;
+	int name[CTL_MAXNAME];
+	int i;
+
+	/* Read in the sysctl name for better debug message logging */
+	for (i = 0; i < args->nlen; i++)
+		if (get_user(name[i], args->name + i))
+			return -EFAULT;
+
+	/* Ignore accesses to kernel.version */
+	if ((args->nlen == 2) && (name[0] == CTL_KERN) && (name[1] == KERN_VERSION))
+		return 0;
+
+	if (msg_count < 5) {
+		msg_count++;
+		printk(KERN_INFO
+			"warning: process `%s' used the deprecated sysctl "
+			"system call with ", current->comm);
+		for (i = 0; i < args->nlen; i++)
+			printk("%d.", name[i]);
+		printk("\n");
+	}
+	return 0;
+}
 
 /*
  * No sense putting this after each symbol definition, twice,
