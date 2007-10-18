@@ -504,64 +504,26 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 	return NULL;
 }
 
-static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "PDC20268",
-		.init_chipset	= init_chipset_pdcnew,
-		.init_hwif	= init_hwif_pdc202new,
-		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA5,
-	},{	/* 1 */
-		.name		= "PDC20269",
-		.init_chipset	= init_chipset_pdcnew,
-		.init_hwif	= init_hwif_pdc202new,
-		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA6,
-	},{	/* 2 */
-		.name		= "PDC20270",
-		.init_chipset	= init_chipset_pdcnew,
-		.init_hwif	= init_hwif_pdc202new,
-		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA5,
-	},{	/* 3 */
-		.name		= "PDC20271",
-		.init_chipset	= init_chipset_pdcnew,
-		.init_hwif	= init_hwif_pdc202new,
-		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA6,
-	},{	/* 4 */
-		.name		= "PDC20275",
-		.init_chipset	= init_chipset_pdcnew,
-		.init_hwif	= init_hwif_pdc202new,
-		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA6,
-	},{	/* 5 */
-		.name		= "PDC20276",
-		.init_chipset	= init_chipset_pdcnew,
-		.init_hwif	= init_hwif_pdc202new,
-		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA6,
-	},{	/* 6 */
-		.name		= "PDC20277",
-		.init_chipset	= init_chipset_pdcnew,
-		.init_hwif	= init_hwif_pdc202new,
-		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA6,
+#define DECLARE_PDCNEW_DEV(name_str, udma) \
+	{ \
+		.name		= name_str, \
+		.init_chipset	= init_chipset_pdcnew, \
+		.init_hwif	= init_hwif_pdc202new, \
+		.host_flags	= IDE_HFLAG_POST_SET_MODE | \
+				  IDE_HFLAG_OFF_BOARD, \
+		.pio_mask	= ATA_PIO4, \
+		.mwdma_mask	= ATA_MWDMA2, \
+		.udma_mask	= udma, \
 	}
+
+static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
+	/* 0 */ DECLARE_PDCNEW_DEV("PDC20268", ATA_UDMA5),
+	/* 1 */ DECLARE_PDCNEW_DEV("PDC20269", ATA_UDMA6),
+	/* 2 */ DECLARE_PDCNEW_DEV("PDC20270", ATA_UDMA5),
+	/* 3 */ DECLARE_PDCNEW_DEV("PDC20271", ATA_UDMA6),
+	/* 4 */ DECLARE_PDCNEW_DEV("PDC20275", ATA_UDMA6),
+	/* 5 */ DECLARE_PDCNEW_DEV("PDC20276", ATA_UDMA6),
+	/* 6 */ DECLARE_PDCNEW_DEV("PDC20277", ATA_UDMA6),
 };
 
 /**
