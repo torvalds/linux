@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/mm.h>
 
 #include <asm/openprom.h>
@@ -54,12 +55,12 @@ static unsigned char saa9051_init_array[VFC_SAA9051_NR] = {
 
 void vfc_lock_device(struct vfc_dev *dev)
 {
-	down(&dev->device_lock_sem);
+	mutex_lock(&dev->device_lock_mtx);
 }
 
 void vfc_unlock_device(struct vfc_dev *dev)
 {
-	up(&dev->device_lock_sem);
+	mutex_unlock(&dev->device_lock_mtx);
 }
 
 
