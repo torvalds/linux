@@ -2376,18 +2376,6 @@ static int __init rp_init(void)
 		return -ENOMEM;
 
 	/*
-	 * Initialize the array of pointers to our own internal state
-	 * structures.
-	 */
-	memset(rp_table, 0, sizeof (rp_table));
-	memset(xmit_flags, 0, sizeof (xmit_flags));
-
-	for (i = 0; i < MAX_RP_PORTS; i++)
-		lineNumbers[i] = 0;
-	nextLineNumber = 0;
-	memset(rocketModel, 0, sizeof (rocketModel));
-
-	/*
 	 *  If board 1 is non-zero, there is at least one ISA configured.  If controller is 
 	 *  zero, use the default controller IO address of board1 + 0x40.
 	 */
