@@ -371,6 +371,8 @@ hweight64 (unsigned long x)
 #define hweight16(x)	(unsigned int) hweight64((x) & 0xfffful)
 #define hweight8(x)	(unsigned int) hweight64((x) & 0xfful)
 
+#include <asm-generic/bitops/lock.h>
+
 #endif /* __KERNEL__ */
 
 #include <asm-generic/bitops/find.h>

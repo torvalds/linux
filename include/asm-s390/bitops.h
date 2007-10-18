@@ -746,6 +746,7 @@ static inline int sched_find_first_bit(unsigned long *b)
 #include <asm-generic/bitops/fls64.h>
 
 #include <asm-generic/bitops/hweight.h>
+#include <asm-generic/bitops/lock.h>
 
 /*
  * ATTENTION: intel byte ordering convention for ext2 and minix !!

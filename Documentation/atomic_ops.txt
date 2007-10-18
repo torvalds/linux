@@ -418,6 +418,20 @@ brothers:
 	 */
 	 smp_mb__after_clear_bit();
 
+There are two special bitops with lock barrier semantics (acquire/release,
+same as spinlocks). These operate in the same way as their non-_lock/unlock
+postfixed variants, except that they are to provide acquire/release semantics,
+respectively. This means they can be used for bit_spin_trylock and
+bit_spin_unlock type operations without specifying any more barriers.
+
+	int test_and_set_bit_lock(unsigned long nr, unsigned long *addr);
+	void clear_bit_unlock(unsigned long nr, unsigned long *addr);
+	void __clear_bit_unlock(unsigned long nr, unsigned long *addr);
+
+The __clear_bit_unlock version is non-atomic, however it still implements
+unlock barrier semantics. This can be useful if the lock itself is protecting
+the other bits in the word.
+
 Finally, there are non-atomic versions of the bitmask operations
 provided.  They are used in contexts where some other higher-level SMP
 locking scheme is being used to protect the bitmask, and thus less

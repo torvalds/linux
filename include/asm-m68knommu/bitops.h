@@ -160,6 +160,7 @@ static __inline__ int __test_bit(int nr, const volatile unsigned long * addr)
 
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/hweight.h>
+#include <asm-generic/bitops/lock.h>
 
 static __inline__ int ext2_set_bit(int nr, volatile void * addr)
 {

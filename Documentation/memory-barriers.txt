@@ -1479,7 +1479,8 @@ kernel.
 
 Any atomic operation that modifies some state in memory and returns information
 about the state (old or new) implies an SMP-conditional general memory barrier
-(smp_mb()) on each side of the actual operation.  These include:
+(smp_mb()) on each side of the actual operation (with the exception of
+explicit lock operations, described later).  These include:
 
 	xchg();
 	cmpxchg();
@@ -1536,9 +1537,18 @@ If they're used for constructing a lock of some description, then they probably
 do need memory barriers as a lock primitive generally has to do things in a
 specific order.
 
-
 Basically, each usage case has to be carefully considered as to whether memory
 barriers are needed or not.
+
+The following operations are special locking primitives:
+
+	test_and_set_bit_lock();
+	clear_bit_unlock();
+	__clear_bit_unlock();
+
+These implement LOCK-class and UNLOCK-class operations. These should be used in
+preference to other operations when implementing locking primitives, because
+their implementations can be optimised on many architectures.
 
 [!] Note that special memory barrier primitives are available for these
 situations because on some CPUs the atomic instructions used imply full memory

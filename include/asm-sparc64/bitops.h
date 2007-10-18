@@ -81,6 +81,7 @@ static inline unsigned int hweight8(unsigned int w)
 #include <asm-generic/bitops/hweight.h>
 
 #endif
+#include <asm-generic/bitops/lock.h>
 #endif /* __KERNEL__ */
 
 #include <asm-generic/bitops/find.h>
