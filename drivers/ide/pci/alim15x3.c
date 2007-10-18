@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/alim15x3.c		Version 0.26	Jul 14 2007
+ * linux/drivers/ide/pci/alim15x3.c		Version 0.27	Aug 27 2007
  *
  *  Copyright (C) 1998-2000 Michel Aubry, Maintainer
  *  Copyright (C) 1998-2000 Andrzej Krzysztofowicz, Maintainer
@@ -668,11 +668,11 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	if (m5229_revision <= 0xC4)
 		hwif->host_flags |= IDE_HFLAG_NO_LBA48_DMA;
 
-	if (!hwif->dma_base) {
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
+
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	/*
 	 * check in ->init_dma guarantees m5229_revision >= 0x20 here
