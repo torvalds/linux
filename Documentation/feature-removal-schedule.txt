@@ -219,13 +219,6 @@ Who:	Jean Delvare <khali@linux-fr.org>,
 
 ---------------------------
 
-What:  drivers depending on OBSOLETE_OSS
-When:  options in 2.6.22, code in 2.6.24
-Why:   OSS drivers with ALSA replacements
-Who:   Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	ACPI procfs interface
 When:	July 2008
 Why:	ACPI sysfs conversion should be finished by January 2008.

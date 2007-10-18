@@ -59,7 +59,6 @@ static inline int ioctl_return(int __user *addr, int value)
      */
 
 #undef HAS_8BIT_TABLES
-#undef HAS_RECORD
 
 #if defined(CONFIG_DMASOUND_ATARI) || defined(CONFIG_DMASOUND_ATARI_MODULE) ||\
     defined(CONFIG_DMASOUND_PAULA) || defined(CONFIG_DMASOUND_PAULA_MODULE) ||\
@@ -82,10 +81,6 @@ static inline int ioctl_return(int __user *addr, int value)
 
 #define DEFAULT_N_BUFFERS 4
 #define DEFAULT_BUFF_SIZE (1<<15)
-
-#if defined(CONFIG_DMASOUND_PMAC) || defined(CONFIG_DMASOUND_PMAC_MODULE)
-#define HAS_RECORD
-#endif
 
     /*
      *  Initialization
@@ -168,9 +163,6 @@ struct sound_settings {
     SETTINGS soft;	/* software settings */
     SETTINGS dsp;	/* /dev/dsp default settings */
     TRANS *trans_write;	/* supported translations */
-#ifdef HAS_RECORD
-    TRANS *trans_read;	/* supported translations */
-#endif
     int volume_left;	/* volume (range is machine dependent) */
     int volume_right;
     int bass;		/* tone (range is machine dependent) */
@@ -252,11 +244,6 @@ struct sound_queue {
 
 extern struct sound_queue dmasound_write_sq;
 #define write_sq	dmasound_write_sq
-
-#ifdef HAS_RECORD
-extern struct sound_queue dmasound_read_sq;
-#define read_sq		dmasound_read_sq
-#endif
 
 extern int dmasound_catchRadius;
 #define catchRadius	dmasound_catchRadius

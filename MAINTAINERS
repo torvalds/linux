@@ -2940,13 +2940,6 @@ L:	linux-kernel@vger.kernel.org
 L:	linux-pci@atrey.karlin.mff.cuni.cz
 S:	Supported
 
-PCI SOUND DRIVERS (ES1370, ES1371 and SONICVIBES)
-P:	Thomas Sailer
-M:	sailer@ife.ee.ethz.ch
-L:	linux-sound@vger.kernel.org
-W:	http://www.ife.ee.ethz.ch/~sailer/linux/pciaudio.html
-S:	Maintained
-
 PCI SUBSYSTEM
 P:	Greg Kroah-Hartman
 M:	gregkh@suse.de
