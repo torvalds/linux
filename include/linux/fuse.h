@@ -119,6 +119,13 @@ struct fuse_file_lock {
  */
 #define FUSE_LK_FLOCK		(1 << 0)
 
+/**
+ * WRITE flags
+ *
+ * FUSE_WRITE_CACHE: delayed write from page cache, file handle is guessed
+ */
+#define FUSE_WRITE_CACHE	(1 << 0)
+
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
 	FUSE_FORGET	   = 2,  /* no reply */
