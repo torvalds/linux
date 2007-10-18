@@ -959,18 +959,33 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[], int hw)
 	return 0;
 }
 
-/* Caller must hold bond lock for write or curr_slave_lock for write*/
+/*
+ * Swap MAC addresses between two slaves.
+ *
+ * Called with RTNL held, and no other locks.
+ *
+ */
+
 static void alb_swap_mac_addr(struct bonding *bond, struct slave *slave1, struct slave *slave2)
 {
-	struct slave *disabled_slave = NULL;
 	u8 tmp_mac_addr[ETH_ALEN];
-	int slaves_state_differ;
-
-	slaves_state_differ = (SLAVE_IS_OK(slave1) != SLAVE_IS_OK(slave2));
 
 	memcpy(tmp_mac_addr, slave1->dev->dev_addr, ETH_ALEN);
 	alb_set_slave_mac_addr(slave1, slave2->dev->dev_addr, bond->alb_info.rlb_enabled);
 	alb_set_slave_mac_addr(slave2, tmp_mac_addr, bond->alb_info.rlb_enabled);
+
+}
+
+/*
+ * Send learning packets after MAC address swap.
+ *
+ * Called with RTNL and bond->lock held for read.
+ */
+static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
+				struct slave *slave2)
+{
+	int slaves_state_differ = (SLAVE_IS_OK(slave1) != SLAVE_IS_OK(slave2));
+	struct slave *disabled_slave = NULL;
 
 	/* fasten the change in the switch */
 	if (SLAVE_IS_OK(slave1)) {
@@ -1044,7 +1059,9 @@ static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *sla
 		}
 
 		if (found) {
+			/* locking: needs RTNL and nothing else */
 			alb_swap_mac_addr(bond, slave, tmp_slave);
+			alb_fasten_mac_swap(bond, slave, tmp_slave);
 		}
 	}
 }
@@ -1571,12 +1588,20 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
  * Set the bond->curr_active_slave to @new_slave and handle
  * mac address swapping and promiscuity changes as needed.
  *
- * Caller must hold bond curr_slave_lock for write (or bond lock for write)
+ * If new_slave is NULL, caller must hold curr_slave_lock or
+ * bond->lock for write.
+ *
+ * If new_slave is not NULL, caller must hold RTNL, bond->lock for
+ * read and curr_slave_lock for write.  Processing here may sleep, so
+ * no other locks may be held.
  */
 void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave)
 {
 	struct slave *swap_slave;
 	int i;
+
+	if (new_slave)
+		ASSERT_RTNL();
 
 	if (bond->curr_active_slave == new_slave) {
 		return;
@@ -1610,6 +1635,19 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		}
 	}
 
+	/*
+	 * Arrange for swap_slave and new_slave to temporarily be
+	 * ignored so we can mess with their MAC addresses without
+	 * fear of interference from transmit activity.
+	 */
+	if (swap_slave) {
+		tlb_clear_slave(bond, swap_slave, 1);
+	}
+	tlb_clear_slave(bond, new_slave, 1);
+
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
+
 	/* curr_active_slave must be set before calling alb_swap_mac_addr */
 	if (swap_slave) {
 		/* swap mac address */
@@ -1618,11 +1656,23 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		/* set the new_slave to the bond mac address */
 		alb_set_slave_mac_addr(new_slave, bond->dev->dev_addr,
 				       bond->alb_info.rlb_enabled);
+	}
+
+	read_lock(&bond->lock);
+
+	if (swap_slave) {
+		alb_fasten_mac_swap(bond, swap_slave, new_slave);
+	} else {
 		/* fasten bond mac on new current slave */
 		alb_send_learning_packets(new_slave, bond->dev->dev_addr);
 	}
+
+	write_lock_bh(&bond->curr_slave_lock);
 }
 
+/*
+ * Called with RTNL
+ */
 int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 {
 	struct bonding *bond = bond_dev->priv;
@@ -1659,8 +1709,12 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 		}
 	}
 
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
+
 	if (swap_slave) {
 		alb_swap_mac_addr(bond, swap_slave, bond->curr_active_slave);
+		alb_fasten_mac_swap(bond, swap_slave, bond->curr_active_slave);
 	} else {
 		alb_set_slave_mac_addr(bond->curr_active_slave, bond_dev->dev_addr,
 				       bond->alb_info.rlb_enabled);
@@ -1671,6 +1725,9 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 			rlb_req_update_slave_clients(bond, bond->curr_active_slave);
 		}
 	}
+
+	read_lock(&bond->lock);
+	write_lock_bh(&bond->curr_slave_lock);
 
 	return 0;
 }

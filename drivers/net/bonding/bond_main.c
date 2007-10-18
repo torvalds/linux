@@ -1590,15 +1590,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
 		new_slave->state = BOND_STATE_ACTIVE;
-		if ((!bond->curr_active_slave) &&
-		    (new_slave->link != BOND_LINK_DOWN)) {
-			/* first slave or no active slave yet, and this link
-			 * is OK, so make this interface the active one
-			 */
-			bond_change_active_slave(bond, new_slave);
-		} else {
-			bond_set_slave_inactive_flags(new_slave);
-		}
+		bond_set_slave_inactive_flags(new_slave);
 		break;
 	default:
 		dprintk("This slave is always active in trunk mode\n");
@@ -1754,8 +1746,22 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		bond_alb_deinit_slave(bond, slave);
 	}
 
-	if (oldcurrent == slave)
+	if (oldcurrent == slave) {
+		/*
+		 * Note that we hold RTNL over this sequence, so there
+		 * is no concern that another slave add/remove event
+		 * will interfere.
+		 */
+		write_unlock_bh(&bond->lock);
+		read_lock(&bond->lock);
+		write_lock_bh(&bond->curr_slave_lock);
+
 		bond_select_active_slave(bond);
+
+		write_unlock_bh(&bond->curr_slave_lock);
+		read_unlock(&bond->lock);
+		write_lock_bh(&bond->lock);
+	}
 
 	if (bond->slave_cnt == 0) {
 		bond_set_carrier(bond);
@@ -2012,16 +2018,19 @@ static int bond_ioctl_change_active(struct net_device *bond_dev, struct net_devi
 		return -EINVAL;
 	}
 
-	write_lock_bh(&bond->lock);
+	read_lock(&bond->lock);
 
+	read_lock(&bond->curr_slave_lock);
 	old_active = bond->curr_active_slave;
+	read_unlock(&bond->curr_slave_lock);
+
 	new_active = bond_get_slave_by_dev(bond, slave_dev);
 
 	/*
 	 * Changing to the current active: do nothing; return success.
 	 */
 	if (new_active && (new_active == old_active)) {
-		write_unlock_bh(&bond->lock);
+		read_unlock(&bond->lock);
 		return 0;
 	}
 
@@ -2029,12 +2038,14 @@ static int bond_ioctl_change_active(struct net_device *bond_dev, struct net_devi
 	    (old_active) &&
 	    (new_active->link == BOND_LINK_UP) &&
 	    IS_UP(new_active->dev)) {
+		write_lock_bh(&bond->curr_slave_lock);
 		bond_change_active_slave(bond, new_active);
+		write_unlock_bh(&bond->curr_slave_lock);
 	} else {
 		res = -EINVAL;
 	}
 
-	write_unlock_bh(&bond->lock);
+	read_unlock(&bond->lock);
 
 	return res;
 }
@@ -2140,7 +2151,11 @@ static int __bond_mii_monitor(struct bonding *bond, int have_locks)
 		switch (slave->link) {
 		case BOND_LINK_UP:	/* the link was up */
 			if (link_state == BMSR_LSTATUS) {
-				/* link stays up, nothing more to do */
+				if (!oldcurrent) {
+					if (!have_locks)
+						return 1;
+					do_failover = 1;
+				}
 				break;
 			} else { /* link going down */
 				slave->link  = BOND_LINK_FAIL;
@@ -2327,11 +2342,14 @@ static int __bond_mii_monitor(struct bonding *bond, int have_locks)
 	} /* end of for */
 
 	if (do_failover) {
-		write_lock(&bond->curr_slave_lock);
+		ASSERT_RTNL();
+
+		write_lock_bh(&bond->curr_slave_lock);
 
 		bond_select_active_slave(bond);
 
-		write_unlock(&bond->curr_slave_lock);
+		write_unlock_bh(&bond->curr_slave_lock);
+
 	} else
 		bond_set_carrier(bond);
 
@@ -2770,11 +2788,14 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	}
 
 	if (do_failover) {
-		write_lock(&bond->curr_slave_lock);
+		rtnl_lock();
+		write_lock_bh(&bond->curr_slave_lock);
 
 		bond_select_active_slave(bond);
 
-		write_unlock(&bond->curr_slave_lock);
+		write_unlock_bh(&bond->curr_slave_lock);
+		rtnl_unlock();
+
 	}
 
 re_arm:
@@ -2831,7 +2852,9 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 				slave->link = BOND_LINK_UP;
 
-				write_lock(&bond->curr_slave_lock);
+				rtnl_lock();
+
+				write_lock_bh(&bond->curr_slave_lock);
 
 				if ((!bond->curr_active_slave) &&
 				    ((jiffies - slave->dev->trans_start) <= delta_in_ticks)) {
@@ -2865,7 +2888,8 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 					       slave->dev->name);
 				}
 
-				write_unlock(&bond->curr_slave_lock);
+				write_unlock_bh(&bond->curr_slave_lock);
+				rtnl_unlock();
 			}
 		} else {
 			read_lock(&bond->curr_slave_lock);
@@ -2935,12 +2959,15 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 			       bond->dev->name,
 			       slave->dev->name);
 
-			write_lock(&bond->curr_slave_lock);
+			rtnl_lock();
+			write_lock_bh(&bond->curr_slave_lock);
 
 			bond_select_active_slave(bond);
 			slave = bond->curr_active_slave;
 
-			write_unlock(&bond->curr_slave_lock);
+			write_unlock_bh(&bond->curr_slave_lock);
+
+			rtnl_unlock();
 
 			bond->current_arp_slave = slave;
 
@@ -2959,9 +2986,12 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 			       bond->primary_slave->dev->name);
 
 			/* primary is up so switch to it */
-			write_lock(&bond->curr_slave_lock);
+			rtnl_lock();
+			write_lock_bh(&bond->curr_slave_lock);
 			bond_change_active_slave(bond, bond->primary_slave);
-			write_unlock(&bond->curr_slave_lock);
+			write_unlock_bh(&bond->curr_slave_lock);
+
+			rtnl_unlock();
 
 			slave = bond->primary_slave;
 			slave->jiffies = jiffies;
