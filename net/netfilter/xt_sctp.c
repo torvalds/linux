@@ -42,21 +42,21 @@ match_flags(const struct xt_sctp_flag_info *flag_info,
 static inline bool
 match_packet(const struct sk_buff *skb,
 	     unsigned int offset,
-	     const u_int32_t *chunkmap,
-	     int chunk_match_type,
-	     const struct xt_sctp_flag_info *flag_info,
-	     const int flag_count,
+	     const struct xt_sctp_info *info,
 	     bool *hotdrop)
 {
 	u_int32_t chunkmapcopy[256 / sizeof (u_int32_t)];
 	sctp_chunkhdr_t _sch, *sch;
+	int chunk_match_type = info->chunk_match_type;
+	const struct xt_sctp_flag_info *flag_info = info->flag_info;
+	int flag_count = info->flag_count;
 
 #ifdef DEBUG_SCTP
 	int i = 0;
 #endif
 
 	if (chunk_match_type == SCTP_CHUNK_MATCH_ALL)
-		SCTP_CHUNKMAP_COPY(chunkmapcopy, chunkmap);
+		SCTP_CHUNKMAP_COPY(chunkmapcopy, info->chunkmap);
 
 	do {
 		sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch);
@@ -73,7 +73,7 @@ match_packet(const struct sk_buff *skb,
 
 		duprintf("skb->len: %d\toffset: %d\n", skb->len, offset);
 
-		if (SCTP_CHUNKMAP_IS_SET(chunkmap, sch->type)) {
+		if (SCTP_CHUNKMAP_IS_SET(info->chunkmap, sch->type)) {
 			switch (chunk_match_type) {
 			case SCTP_CHUNK_MATCH_ANY:
 				if (match_flags(flag_info, flag_count,
@@ -104,7 +104,7 @@ match_packet(const struct sk_buff *skb,
 
 	switch (chunk_match_type) {
 	case SCTP_CHUNK_MATCH_ALL:
-		return SCTP_CHUNKMAP_IS_CLEAR(chunkmap);
+		return SCTP_CHUNKMAP_IS_CLEAR(info->chunkmap);
 	case SCTP_CHUNK_MATCH_ANY:
 		return false;
 	case SCTP_CHUNK_MATCH_ONLY:
@@ -148,9 +148,7 @@ match(const struct sk_buff *skb,
 			&& ntohs(sh->dest) <= info->dpts[1],
 			XT_SCTP_DEST_PORTS, info->flags, info->invflags)
 		&& SCCHECK(match_packet(skb, protoff + sizeof (sctp_sctphdr_t),
-					info->chunkmap, info->chunk_match_type,
-					info->flag_info, info->flag_count,
-					hotdrop),
+					info, hotdrop),
 			   XT_SCTP_CHUNK_TYPES, info->flags, info->invflags);
 }
 
