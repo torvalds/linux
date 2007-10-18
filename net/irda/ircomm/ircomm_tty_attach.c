@@ -381,18 +381,9 @@ static void ircomm_tty_discovery_indication(discinfo_t *discovery,
 	info.daddr = discovery->daddr;
 	info.saddr = discovery->saddr;
 
-	/* FIXME. We have a locking problem on the hashbin here.
-	 * We probably need to use hashbin_find_next(), but we first
-	 * need to ensure that "line" is unique. - Jean II */
-	self = (struct ircomm_tty_cb *) hashbin_get_first(ircomm_tty);
-	while (self != NULL) {
-		IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
-
-		ircomm_tty_do_event(self, IRCOMM_TTY_DISCOVERY_INDICATION,
-				    NULL, &info);
-
-		self = (struct ircomm_tty_cb *) hashbin_get_next(ircomm_tty);
-	}
+	self = (struct ircomm_tty_cb *) priv;
+	ircomm_tty_do_event(self, IRCOMM_TTY_DISCOVERY_INDICATION,
+			    NULL, &info);
 }
 
 /*
