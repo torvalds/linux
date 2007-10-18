@@ -132,20 +132,6 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 # define __maybe_unused		/* unimplemented */
 #endif
 
-/*
- * From the GCC manual:
- *
- * Many functions have no effects except the return value and their
- * return value depends only on the parameters and/or global
- * variables.  Such a function can be subject to common subexpression
- * elimination and loop optimization just as an arithmetic operator
- * would be.
- * [...]
- */
-#ifndef __attribute_pure__
-# define __attribute_pure__	/* unimplemented */
-#endif
-
 #ifndef noinline
 #define noinline
 #endif

@@ -144,7 +144,7 @@ const static unsigned int palette2pixelformat[] = {
 	[VIDEO_PALETTE_YUV422P] = V4L2_PIX_FMT_YUV422P,
 };
 
-static unsigned int __attribute_pure__
+static unsigned int __pure
 palette_to_pixelformat(unsigned int palette)
 {
 	if (palette < ARRAY_SIZE(palette2pixelformat))

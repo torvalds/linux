@@ -57,7 +57,7 @@ static __inline__ void set_dec(unsigned int val)
 /* Accessor functions for the timebase (RTC on 601) registers. */
 /* If one day CONFIG_POWER is added just define __USE_RTC as 1 */
 #ifdef CONFIG_6xx
-extern __inline__ int __attribute_pure__ __USE_RTC(void) {
+extern __inline__ int __pure __USE_RTC(void) {
 	return (mfspr(SPRN_PVR)>>16) == 1;
 }
 #else
