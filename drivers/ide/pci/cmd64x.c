@@ -517,9 +517,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	hwif->mwdma_mask = 0x07;
-	hwif->ultra_mask = hwif->cds->udma_mask;
-
 	/*
 	 * UltraDMA only supported on PCI646U and PCI646U2, which
 	 * correspond to revisions 0x03, 0x05 and 0x07 respectively.
@@ -586,6 +583,7 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
 		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= 0x00, /* no udma */
 	},{	/* 1 */
 		.name		= "CMD646",
@@ -595,7 +593,8 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
-		.udma_mask	= 0x07, /* udma0-2 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA2,
 	},{	/* 2 */
 		.name		= "CMD648",
 		.init_setup	= init_setup_cmd64x,
@@ -604,7 +603,8 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
-		.udma_mask	= 0x1f, /* udma0-4 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA4,
 	},{	/* 3 */
 		.name		= "CMD649",
 		.init_setup	= init_setup_cmd64x,
@@ -613,7 +613,8 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
-		.udma_mask	= 0x3f, /* udma0-5 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 	}
 };
 

@@ -1296,9 +1296,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->ultra_mask = hwif->cds->udma_mask;
-	hwif->mwdma_mask = 0x07;
-
 	/*
 	 * The HPT37x uses the CBLID pins as outputs for MA15/MA16
 	 * address lines to access an external EEPROM.  To read valid
@@ -1555,6 +1552,7 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.extra		= 240,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 1 */
 		.name		= "HPT372A",
 		.init_setup	= init_setup_hpt372a,
@@ -1566,6 +1564,7 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.extra		= 240,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 2 */
 		.name		= "HPT302",
 		.init_setup	= init_setup_hpt302,
@@ -1577,6 +1576,7 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.extra		= 240,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 3 */
 		.name		= "HPT371",
 		.init_setup	= init_setup_hpt371,
@@ -1588,6 +1588,7 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.extra		= 240,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 4 */
 		.name		= "HPT374",
 		.init_setup	= init_setup_hpt374,
@@ -1599,6 +1600,7 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.extra		= 240,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 5 */
 		.name		= "HPT372N",
 		.init_setup	= init_setup_hpt372n,
@@ -1610,6 +1612,7 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.extra		= 240,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	}
 };
 

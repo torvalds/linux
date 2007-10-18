@@ -147,10 +147,6 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->ultra_mask = 0x1f;
-	hwif->mwdma_mask = 0x06;
-	hwif->swdma_mask = 0x04;
-
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		/* bit[0(1)]: 0:80, 1:40 */
 		hwif->cbl = (reg47 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
@@ -162,6 +158,9 @@ static ide_pci_device_t slc90e66_chipset __devinitdata = {
 	.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}},
 	.host_flags	= IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.swdma_mask	= ATA_SWDMA2_ONLY,
+	.mwdma_mask	= ATA_MWDMA12_ONLY,
+	.udma_mask	= ATA_UDMA4,
 };
 
 static int __devinit slc90e66_init_one(struct pci_dev *dev, const struct pci_device_id *id)

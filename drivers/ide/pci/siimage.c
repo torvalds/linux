@@ -896,9 +896,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->ultra_mask = 0x7f;
-	hwif->mwdma_mask = 0x07;
-
 	if (is_sata(hwif))
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 
@@ -921,6 +918,8 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		.fixup		= siimage_fixup,	\
 		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
+		.mwdma_mask	= ATA_MWDMA2,		\
+		.udma_mask	= ATA_UDMA6,		\
 	}
 
 static ide_pci_device_t siimage_chipsets[] __devinitdata = {

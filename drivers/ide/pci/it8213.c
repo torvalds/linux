@@ -176,10 +176,6 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	hwif->ultra_mask = 0x7f;
-	hwif->mwdma_mask = 0x06;
-	hwif->swdma_mask = 0x04;
-
 	pci_read_config_byte(hwif->pci_dev, 0x42, &reg42h);
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
@@ -195,6 +191,9 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 		.host_flags	= IDE_HFLAG_SINGLE |	\
 				  IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
+		.swdma_mask	= ATA_SWDMA2_ONLY,	\
+		.mwdma_mask	= ATA_MWDMA12_ONLY,	\
+		.udma_mask	= ATA_UDMA6,		\
 	}
 
 static ide_pci_device_t it8213_chipsets[] __devinitdata = {

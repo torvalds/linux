@@ -261,9 +261,8 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		return;
 
 	hwif->ultra_mask = amd_config->udma_mask;
-	hwif->mwdma_mask = 0x07;
-	if ((amd_config->flags & AMD_BAD_SWDMA) == 0)
-		hwif->swdma_mask = 0x07;
+	if (amd_config->flags & AMD_BAD_SWDMA)
+		hwif->swdma_mask = 0x00;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
 		if ((amd_80w >> hwif->channel) & 1)
@@ -284,6 +283,8 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 				  IDE_HFLAG_POST_SET_MODE |		\
 				  IDE_HFLAG_BOOTABLE,			\
 		.pio_mask	= ATA_PIO5,				\
+		.swdma_mask	= ATA_SWDMA2,				\
+		.mwdma_mask	= ATA_MWDMA2,				\
 	}
 
 #define DECLARE_NV_DEV(name_str)					\
@@ -297,6 +298,8 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 				  IDE_HFLAG_POST_SET_MODE |		\
 				  IDE_HFLAG_BOOTABLE,			\
 		.pio_mask	= ATA_PIO5,				\
+		.swdma_mask	= ATA_SWDMA2,				\
+		.mwdma_mask	= ATA_MWDMA2,				\
 	}
 
 static ide_pci_device_t amd74xx_chipsets[] __devinitdata = {

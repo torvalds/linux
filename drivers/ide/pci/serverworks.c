@@ -367,11 +367,6 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	hwif->set_dma_mode = &svwks_set_dma_mode;
 	hwif->udma_filter = &svwks_udma_filter;
 
-	if (hwif->pci_dev->device != PCI_DEVICE_ID_SERVERWORKS_OSB4IDE)
-		hwif->ultra_mask = 0x3f;
-
-	hwif->mwdma_mask = 0x07;
-
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;
 
@@ -416,6 +411,8 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= 0x00, /* UDMA is problematic on OSB4 */
 	},{	/* 1 */
 		.name		= "SvrWks CSB5",
 		.init_setup	= init_setup_svwks,
@@ -423,6 +420,8 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 	},{	/* 2 */
 		.name		= "SvrWks CSB6",
 		.init_setup	= init_setup_csb6,
@@ -430,6 +429,8 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 	},{	/* 3 */
 		.name		= "SvrWks CSB6",
 		.init_setup	= init_setup_csb6,
@@ -437,6 +438,8 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 	},{	/* 4 */
 		.name		= "SvrWks HT1000",
 		.init_setup	= init_setup_svwks,
@@ -444,6 +447,8 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 	}
 };
 

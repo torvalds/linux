@@ -100,12 +100,6 @@ static void __devinit init_hwif_triflex(ide_hwif_t *hwif)
 {
 	hwif->set_pio_mode = &triflex_set_pio_mode;
 	hwif->set_dma_mode = &triflex_set_mode;
-
-	if (hwif->dma_base == 0)
-		return;
-
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 }
 
 static ide_pci_device_t triflex_device __devinitdata = {
@@ -114,6 +108,8 @@ static ide_pci_device_t triflex_device __devinitdata = {
 	.enablebits	= {{0x80, 0x01, 0x01}, {0x80, 0x02, 0x02}},
 	.host_flags	= IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.swdma_mask	= ATA_SWDMA2,
+	.mwdma_mask	= ATA_MWDMA2,
 };
 
 static int __devinit triflex_init_one(struct pci_dev *dev, 

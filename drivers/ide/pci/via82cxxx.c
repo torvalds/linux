@@ -444,8 +444,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 		return;
 
 	hwif->ultra_mask = vdev->via_config->udma_mask;
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = via82cxxx_cable_detect(hwif);
@@ -463,6 +461,8 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 				  IDE_HFLAG_NO_AUTODMA |
 				  IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 1 */
 		.name		= "VP_IDE",
 		.init_chipset	= init_chipset_via82cxxx,
@@ -473,6 +473,8 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 				  IDE_HFLAG_POST_SET_MODE |
 				  IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
 	}
 };
 

@@ -185,9 +185,6 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->ultra_mask = 0x1F;
-	hwif->mwdma_mask = 0x07;
-
 	hwif->cbl = cs5535_cable_detect(hwif->pci_dev);
 }
 
@@ -197,6 +194,8 @@ static ide_pci_device_t cs5535_chipset __devinitdata = {
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE |
 			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA4,
 };
 
 static int __devinit cs5535_init_one(struct pci_dev *dev,

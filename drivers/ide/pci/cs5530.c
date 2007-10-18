@@ -264,9 +264,6 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->ultra_mask = 0x07;
-	hwif->mwdma_mask = 0x07;
-
 	hwif->udma_filter = cs5530_udma_filter;
 }
 
@@ -276,6 +273,8 @@ static ide_pci_device_t cs5530_chipset __devinitdata = {
 	.init_hwif	= init_hwif_cs5530,
 	.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA2,
 };
 
 static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)

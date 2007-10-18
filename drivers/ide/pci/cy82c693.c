@@ -437,9 +437,6 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->mwdma_mask = 0x04;
-	hwif->swdma_mask = 0x04;
-
 	hwif->ide_dma_on = &cy82c693_ide_dma_on;
 }
 
@@ -463,6 +460,8 @@ static ide_pci_device_t cy82c693_chipset __devinitdata = {
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.swdma_mask	= ATA_SWDMA2_ONLY,
+	.mwdma_mask	= ATA_MWDMA2_ONLY,
 };
 
 static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_device_id *id)

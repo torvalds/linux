@@ -580,7 +580,6 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 		return;
 
 	hwif->ultra_mask = udma_rates[chipset_family];
-	hwif->mwdma_mask = 0x07;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_sis5513(hwif);
@@ -593,6 +592,7 @@ static ide_pci_device_t sis5513_chipset __devinitdata = {
 	.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 	.host_flags	= IDE_HFLAG_NO_AUTODMA | IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
 };
 
 static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_device_id *id)

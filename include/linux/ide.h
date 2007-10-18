@@ -1277,6 +1277,8 @@ typedef struct ide_pci_device_s {
 	struct ide_pci_device_s	*next;
 	u32			host_flags;
 	u8			pio_mask;
+	u8			swdma_mask;
+	u8			mwdma_mask;
 	u8			udma_mask;
 } ide_pci_device_t;
 

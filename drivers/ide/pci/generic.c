@@ -65,13 +65,6 @@ static void __devinit init_hwif_generic (ide_hwif_t *hwif)
 		default:
 			break;
 	}
-
-	if (!(hwif->dma_base))
-		return;
-
-	hwif->ultra_mask = 0x7f;
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 }
 
 #define DECLARE_GENERIC_PCI_DEV(name_str, dma_setting) \
@@ -81,6 +74,9 @@ static void __devinit init_hwif_generic (ide_hwif_t *hwif)
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA | \
 				  dma_setting | \
 				  IDE_HFLAG_BOOTABLE, \
+		.swdma_mask	= ATA_SWDMA2, \
+		.mwdma_mask	= ATA_MWDMA2, \
+		.udma_mask	= ATA_UDMA6, \
 	}
 
 static ide_pci_device_t generic_chipsets[] __devinitdata = {
@@ -92,6 +88,9 @@ static ide_pci_device_t generic_chipsets[] __devinitdata = {
 		.enablebits	= {{0x43,0x08,0x08}, {0x47,0x08,0x08}},
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_BOOTABLE,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA6,
 	},
 
 	/*  2 */ DECLARE_GENERIC_PCI_DEV("SAMURAI",	0),
@@ -108,6 +107,9 @@ static ide_pci_device_t generic_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_generic,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA6,
 	},
 
 	/* 11 */ DECLARE_GENERIC_PCI_DEV("Piccolo0102",	IDE_HFLAG_NO_AUTODMA),
@@ -119,6 +121,9 @@ static ide_pci_device_t generic_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_generic,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA6,
 	}
 };
 

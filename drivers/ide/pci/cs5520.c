@@ -129,10 +129,6 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 	}
 
 	hwif->ide_dma_on = &cs5520_dma_on;
-
-	hwif->ultra_mask = 0;
-	hwif->swdma_mask = 0;
-	hwif->mwdma_mask = 0;
 }
 
 #define DECLARE_CS_DEV(name_str)				\

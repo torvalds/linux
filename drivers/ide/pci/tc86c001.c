@@ -198,9 +198,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	/* Sector Count Register limit */
 	hwif->rqsize	 = 0xffff;
 
-	hwif->ultra_mask = 0x1f;
-	hwif->mwdma_mask = 0x07;
-
 	hwif->dma_start 	= &tc86c001_dma_start;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
@@ -229,6 +226,8 @@ static ide_pci_device_t tc86c001_chipset __devinitdata = {
 	.init_hwif	= init_hwif_tc86c001,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_OFF_BOARD,
 	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA4,
 };
 
 static int __devinit tc86c001_init_one(struct pci_dev *dev,

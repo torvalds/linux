@@ -684,16 +684,13 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	if (m5229_revision <= 0x20)
 		hwif->ultra_mask = 0x00; /* no udma */
 	else if (m5229_revision < 0xC2)
-		hwif->ultra_mask = 0x07; /* udma0-2 */
+		hwif->ultra_mask = ATA_UDMA2;
 	else if (m5229_revision == 0xC2 || m5229_revision == 0xC3)
-		hwif->ultra_mask = 0x1f; /* udma0-4 */
+		hwif->ultra_mask = ATA_UDMA4;
 	else if (m5229_revision == 0xC4)
-		hwif->ultra_mask = 0x3f; /* udma0-5 */
+		hwif->ultra_mask = ATA_UDMA5;
 	else
-		hwif->ultra_mask = 0x7f; /* udma0-6 */
-
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
+		hwif->ultra_mask = ATA_UDMA6;
 
 	hwif->dma_setup = &ali15x3_dma_setup;
 
@@ -779,6 +776,8 @@ static ide_pci_device_t ali15x3_chipset __devinitdata = {
 	.init_dma	= init_dma_ali15x3,
 	.host_flags	= IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO5,
+	.swdma_mask	= ATA_SWDMA2,
+	.mwdma_mask	= ATA_MWDMA2,
 };
 
 /**

@@ -397,10 +397,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	if (piix_is_ichx(hwif->pci_dev))
 		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
 
-	hwif->ultra_mask = hwif->cds->udma_mask;
-	hwif->mwdma_mask = 0x06;
-	hwif->swdma_mask = 0x04;
-
 	if (hwif->ultra_mask & 0x78) {
 		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 			hwif->cbl = piix_cable_detect(hwif);
@@ -418,12 +414,14 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
 		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
+		.swdma_mask	= ATA_SWDMA2_ONLY,	\
+		.mwdma_mask	= ATA_MWDMA12_ONLY,	\
 		.udma_mask	= udma,			\
 	}
 
 static ide_pci_device_t piix_pci_info[] __devinitdata = {
-	/*  0 */ DECLARE_PIIX_DEV("PIIXa", 0x00),	/* no udma */
-	/*  1 */ DECLARE_PIIX_DEV("PIIXb", 0x00),	/* no udma */
+	/*  0 */ DECLARE_PIIX_DEV("PIIXa",	0x00),	/* no udma */
+	/*  1 */ DECLARE_PIIX_DEV("PIIXb",	0x00),	/* no udma */
 
 	/*  2 */
 	{	/*
@@ -439,28 +437,28 @@ static ide_pci_device_t piix_pci_info[] __devinitdata = {
 		.pio_mask	= ATA_PIO4,
 	},
 
-	/*  3 */ DECLARE_PIIX_DEV("PIIX3", 0x00),	/* no udma */
-	/*  4 */ DECLARE_PIIX_DEV("PIIX4", 0x07),	/* udma0-2 */
-	/*  5 */ DECLARE_PIIX_DEV("ICH0",  0x07),	/* udma0-2 */
-	/*  6 */ DECLARE_PIIX_DEV("PIIX4", 0x07),	/* udma0-2 */
-	/*  7 */ DECLARE_PIIX_DEV("ICH",   0x1f),	/* udma0-4 */
-	/*  8 */ DECLARE_PIIX_DEV("PIIX4", 0x1f),	/* udma0-4 */
-	/*  9 */ DECLARE_PIIX_DEV("PIIX4", 0x07),	/* udma0-2 */
-	/* 10 */ DECLARE_PIIX_DEV("ICH2",  0x3f),	/* udma0-5 */
-	/* 11 */ DECLARE_PIIX_DEV("ICH2M", 0x3f),	/* udma0-5 */
-	/* 12 */ DECLARE_PIIX_DEV("ICH3M", 0x3f),	/* udma0-5 */
-	/* 13 */ DECLARE_PIIX_DEV("ICH3",  0x3f),	/* udma0-5 */
-	/* 14 */ DECLARE_PIIX_DEV("ICH4",  0x3f),	/* udma0-5 */
-	/* 15 */ DECLARE_PIIX_DEV("ICH5",  0x3f),	/* udma0-5 */
-	/* 16 */ DECLARE_PIIX_DEV("C-ICH", 0x3f),	/* udma0-5 */
-	/* 17 */ DECLARE_PIIX_DEV("ICH4",  0x3f),	/* udma0-5 */
-	/* 18 */ DECLARE_PIIX_DEV("ICH5-SATA", 0x3f),	/* udma0-5 */
-	/* 19 */ DECLARE_PIIX_DEV("ICH5",  0x3f),	/* udma0-5 */
-	/* 20 */ DECLARE_PIIX_DEV("ICH6",  0x3f),	/* udma0-5 */
-	/* 21 */ DECLARE_PIIX_DEV("ICH7",  0x3f),	/* udma0-5 */
-	/* 22 */ DECLARE_PIIX_DEV("ICH4",  0x3f),	/* udma0-5 */
-	/* 23 */ DECLARE_PIIX_DEV("ESB2",  0x3f),	/* udma0-5 */
-	/* 24 */ DECLARE_PIIX_DEV("ICH8M", 0x3f),	/* udma0-5 */
+	/*  3 */ DECLARE_PIIX_DEV("PIIX3",	0x00),	/* no udma */
+	/*  4 */ DECLARE_PIIX_DEV("PIIX4",	ATA_UDMA2),
+	/*  5 */ DECLARE_PIIX_DEV("ICH0",	ATA_UDMA2),
+	/*  6 */ DECLARE_PIIX_DEV("PIIX4",	ATA_UDMA2),
+	/*  7 */ DECLARE_PIIX_DEV("ICH",	ATA_UDMA4),
+	/*  8 */ DECLARE_PIIX_DEV("PIIX4",	ATA_UDMA4),
+	/*  9 */ DECLARE_PIIX_DEV("PIIX4",	ATA_UDMA2),
+	/* 10 */ DECLARE_PIIX_DEV("ICH2",	ATA_UDMA5),
+	/* 11 */ DECLARE_PIIX_DEV("ICH2M",	ATA_UDMA5),
+	/* 12 */ DECLARE_PIIX_DEV("ICH3M",	ATA_UDMA5),
+	/* 13 */ DECLARE_PIIX_DEV("ICH3",	ATA_UDMA5),
+	/* 14 */ DECLARE_PIIX_DEV("ICH4",	ATA_UDMA5),
+	/* 15 */ DECLARE_PIIX_DEV("ICH5",	ATA_UDMA5),
+	/* 16 */ DECLARE_PIIX_DEV("C-ICH",	ATA_UDMA5),
+	/* 17 */ DECLARE_PIIX_DEV("ICH4",	ATA_UDMA5),
+	/* 18 */ DECLARE_PIIX_DEV("ICH5-SATA",	ATA_UDMA5),
+	/* 19 */ DECLARE_PIIX_DEV("ICH5",	ATA_UDMA5),
+	/* 20 */ DECLARE_PIIX_DEV("ICH6",	ATA_UDMA5),
+	/* 21 */ DECLARE_PIIX_DEV("ICH7",	ATA_UDMA5),
+	/* 22 */ DECLARE_PIIX_DEV("ICH4",	ATA_UDMA5),
+	/* 23 */ DECLARE_PIIX_DEV("ESB2",	ATA_UDMA5),
+	/* 24 */ DECLARE_PIIX_DEV("ICH8M",	ATA_UDMA5),
 };
 
 /**

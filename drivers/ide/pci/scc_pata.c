@@ -472,7 +472,7 @@ static u8 scc_udma_filter(ide_drive_t *drive)
 	if ((drive->media != ide_disk) && (mask & 0xE0)) {
 		printk(KERN_INFO "%s: limit %s to UDMA4\n",
 		       SCC_PATA_NAME, drive->name);
-		mask = 0x1F;
+		mask = ATA_UDMA4;
 	}
 
 	return mask;
@@ -686,13 +686,10 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	hwif->drives[0].autotune = IDE_TUNE_AUTO;
 	hwif->drives[1].autotune = IDE_TUNE_AUTO;
 
-	if (in_be32((void __iomem *)(hwif->config_data + 0xff0)) & CCKCTRL_ATACLKOEN) {
-		hwif->ultra_mask = 0x7f; /* 133MHz */
-	} else {
-		hwif->ultra_mask = 0x3f; /* 100MHz */
-	}
-	hwif->mwdma_mask = 0x00;
-	hwif->swdma_mask = 0x00;
+	if (in_be32((void __iomem *)(hwif->config_data + 0xff0)) & CCKCTRL_ATACLKOEN)
+		hwif->ultra_mask = ATA_UDMA6; /* 133MHz */
+	else
+		hwif->ultra_mask = ATA_UDMA5; /* 100MHz */
 
 	/* we support 80c cable only. */
 	hwif->cbl = ATA_CBL_PATA80;
