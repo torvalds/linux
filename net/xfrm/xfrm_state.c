@@ -377,8 +377,10 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	kfree(x->calg);
 	kfree(x->encap);
 	kfree(x->coaddr);
-	if (x->mode)
-		xfrm_put_mode(x->mode);
+	if (x->inner_mode)
+		xfrm_put_mode(x->inner_mode);
+	if (x->outer_mode)
+		xfrm_put_mode(x->outer_mode);
 	if (x->type) {
 		x->type->destructor(x);
 		xfrm_put_type(x->type);
@@ -1947,6 +1949,14 @@ int xfrm_init_state(struct xfrm_state *x)
 		goto error;
 
 	err = -EPROTONOSUPPORT;
+	x->inner_mode = xfrm_get_mode(x->props.mode, x->sel.family);
+	if (x->inner_mode == NULL)
+		goto error;
+
+	if (!(x->inner_mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
+	    family != x->sel.family)
+		goto error;
+
 	x->type = xfrm_get_type(x->id.proto, family);
 	if (x->type == NULL)
 		goto error;
@@ -1955,8 +1965,8 @@ int xfrm_init_state(struct xfrm_state *x)
 	if (err)
 		goto error;
 
-	x->mode = xfrm_get_mode(x->props.mode, family);
-	if (x->mode == NULL)
+	x->outer_mode = xfrm_get_mode(x->props.mode, family);
+	if (x->outer_mode == NULL)
 		goto error;
 
 	x->km.state = XFRM_STATE_VALID;

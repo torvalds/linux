@@ -168,7 +168,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		/* Copy neighbout for reachability confirmation */
 		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
 		dst_prev->input		= rt->u.dst.input;
-		dst_prev->output = dst_prev->xfrm->mode->afinfo->output;
+		dst_prev->output = dst_prev->xfrm->outer_mode->afinfo->output;
 		if (rt0->peer)
 			atomic_inc(&rt0->peer->refcnt);
 		x->u.rt.peer = rt0->peer;

@@ -186,7 +186,8 @@ struct xfrm_state
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	struct xfrm_type	*type;
-	struct xfrm_mode	*mode;
+	struct xfrm_mode	*inner_mode;
+	struct xfrm_mode	*outer_mode;
 
 	/* Security context */
 	struct xfrm_sec_ctx	*security;

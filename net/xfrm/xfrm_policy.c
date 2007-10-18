@@ -1941,7 +1941,7 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 			return 0;
 
 		if (strict && fl &&
-		    !(dst->xfrm->mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
+		    !(dst->xfrm->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
 		    !xfrm_state_addr_flow_check(dst->xfrm, fl, family))
 			return 0;
 

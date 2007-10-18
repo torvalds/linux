@@ -68,10 +68,10 @@ int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 
 		xfrm_vec[xfrm_nr++] = x;
 
-		if (x->mode->input(x, skb))
+		if (x->outer_mode->input(x, skb))
 			goto drop;
 
-		if (x->mode->flags & XFRM_MODE_FLAG_TUNNEL) {
+		if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {
 			decaps = 1;
 			break;
 		}
