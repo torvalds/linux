@@ -549,8 +549,8 @@ static void rp_handle_port(struct r_port *info)
 static void rp_do_poll(unsigned long dummy)
 {
 	CONTROLLER_t *ctlp;
-	int ctrl, aiop, ch, line, i;
-	unsigned int xmitmask;
+	int ctrl, aiop, ch, line;
+	unsigned int xmitmask, i;
 	unsigned int CtlMask;
 	unsigned char AiopMask;
 	Word_t bit;
