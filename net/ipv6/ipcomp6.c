@@ -411,8 +411,15 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 		goto out;
 
 	x->props.header_len = 0;
-	if (x->props.mode == XFRM_MODE_TUNNEL)
+	switch (x->props.mode) {
+	case XFRM_MODE_BEET:
+	case XFRM_MODE_TRANSPORT:
+		break;
+	case XFRM_MODE_TUNNEL:
 		x->props.header_len += sizeof(struct ipv6hdr);
+	default:
+		goto error;
+	}
 
 	mutex_lock(&ipcomp6_resource_mutex);
 	if (!ipcomp6_alloc_scratches())
