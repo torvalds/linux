@@ -1455,15 +1455,15 @@ void bond_alb_monitor(struct work_struct *work)
 
 	/* handle rlb stuff */
 	if (bond_info->rlb_enabled) {
-		/* the following code changes the promiscuity of the
-		 * the curr_active_slave. It needs to be locked with a
-		 * write lock to protect from other code that also
-		 * sets the promiscuity.
-		 */
-		write_lock_bh(&bond->curr_slave_lock);
-
 		if (bond_info->primary_is_promisc &&
 		    (++bond_info->rlb_promisc_timeout_counter >= RLB_PROMISC_TIMEOUT)) {
+
+			/*
+			 * dev_set_promiscuity requires rtnl and
+			 * nothing else.
+			 */
+			read_unlock(&bond->lock);
+			rtnl_lock();
 
 			bond_info->rlb_promisc_timeout_counter = 0;
 
@@ -1473,9 +1473,10 @@ void bond_alb_monitor(struct work_struct *work)
 			 */
 			dev_set_promiscuity(bond->curr_active_slave->dev, -1);
 			bond_info->primary_is_promisc = 0;
-		}
 
-		write_unlock_bh(&bond->curr_slave_lock);
+			rtnl_unlock();
+			read_lock(&bond->lock);
+		}
 
 		if (bond_info->rlb_rebalance) {
 			bond_info->rlb_rebalance = 0;
