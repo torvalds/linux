@@ -1454,4 +1454,11 @@ static inline int hwif_to_node(ide_hwif_t *hwif)
 	return dev ? pcibus_to_node(dev->bus) : -1;
 }
 
+static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif	= HWIF(drive);
+
+	return &hwif->drives[(drive->dn ^ 1) & 1];
+}
+
 #endif /* _IDE_H */
