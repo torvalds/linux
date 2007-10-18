@@ -98,7 +98,7 @@ static inline void newport_init_cmap(void)
 	}
 }
 
-static struct linux_logo *newport_show_logo(void)
+static const struct linux_logo *newport_show_logo(void)
 {
 #ifdef CONFIG_LOGO_SGI_CLUT224
 	const struct linux_logo *logo = fb_find_logo(8);
@@ -108,8 +108,8 @@ static struct linux_logo *newport_show_logo(void)
 
 	if (!logo)
 		return NULL;
-	*clut = logo->clut;
-	*data = logo->data;
+	clut = logo->clut;
+	data = logo->data;
 
 	for (i = 0; i < logo->clutsize; i++) {
 		newport_bfwait(npregs);
