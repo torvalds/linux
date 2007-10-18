@@ -180,7 +180,7 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 	const u16 data_speed[]	= { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
 
 	ide_hwif_t *hwif	= HWIF(drive);
-	ide_drive_t *pair	= &hwif->drives[drive->dn ^ 1];
+	ide_drive_t *pair	= ide_get_paired_drive(drive);
 	u32 speedt		= 0;
 	u16 speedp		= 0;
 	unsigned long addr	= siimage_seldev(drive, 0x04);
