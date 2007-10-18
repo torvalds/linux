@@ -245,9 +245,6 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	unsigned long basereg;
 	u32 d0_timings;
 
-	if (hwif->mate)
-		hwif->serialized = hwif->mate->serialized = 1;
-
 	hwif->set_pio_mode = &cs5530_set_pio_mode;
 	hwif->set_dma_mode = &cs5530_set_dma_mode;
 
@@ -271,7 +268,9 @@ static ide_pci_device_t cs5530_chipset __devinitdata = {
 	.name		= "CS5530",
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
-	.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_BOOTABLE,
+	.host_flags	= IDE_HFLAG_SERIALIZE |
+			  IDE_HFLAG_POST_SET_MODE |
+			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA2,

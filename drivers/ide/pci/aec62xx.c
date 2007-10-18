@@ -187,11 +187,9 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 
 	hwif->set_pio_mode = &aec_set_pio_mode;
 
-	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
-		if(hwif->mate)
-			hwif->mate->serialized = hwif->serialized = 1;
+	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
 		hwif->set_dma_mode = &aec6210_set_mode;
-	} else
+	else
 		hwif->set_dma_mode = &aec6260_set_mode;
 
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
@@ -219,7 +217,9 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
+		.host_flags	= IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA2,

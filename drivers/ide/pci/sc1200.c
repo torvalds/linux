@@ -362,9 +362,6 @@ static int sc1200_resume (struct pci_dev *dev)
  */
 static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 {
-	if (hwif->mate)
-		hwif->serialized = hwif->mate->serialized = 1;
-
 	hwif->set_pio_mode = &sc1200_set_pio_mode;
 	hwif->set_dma_mode = &sc1200_set_dma_mode;
 
@@ -381,7 +378,9 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 static ide_pci_device_t sc1200_chipset __devinitdata = {
 	.name		= "SC1200",
 	.init_hwif	= init_hwif_sc1200,
-	.host_flags	= IDE_HFLAG_ABUSE_DMA_MODES | IDE_HFLAG_POST_SET_MODE |
+	.host_flags	= IDE_HFLAG_SERIALIZE |
+			  IDE_HFLAG_POST_SET_MODE |
+			  IDE_HFLAG_ABUSE_DMA_MODES |
 			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,

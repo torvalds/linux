@@ -1257,6 +1257,8 @@ enum {
 	IDE_HFLAG_NO_LBA48_DMA		= (1 << 18),
 	/* data FIFO is cleared by an error */
 	IDE_HFLAG_ERROR_STOPS_FIFO	= (1 << 19),
+	/* serialize ports */
+	IDE_HFLAG_SERIALIZE		= (1 << 20),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD

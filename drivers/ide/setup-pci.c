@@ -565,6 +565,9 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		hwif->host_flags = d->host_flags;
 		hwif->pio_mask = d->pio_mask;
 
+		if ((d->host_flags & IDE_HFLAG_SERIALIZE) && hwif->mate)
+			hwif->mate->serialized = hwif->serialized = 1;
+
 		if (hwif->dma_base) {
 			hwif->swdma_mask = d->swdma_mask;
 			hwif->mwdma_mask = d->mwdma_mask;
