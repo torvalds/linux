@@ -19,21 +19,15 @@
  * (Condolences to Napoleon XIV)
  */
 
-#include <stdarg.h>
-
-#include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/init.h>
 
 #include <asm/bugs.h>
-#include <asm/pgtable.h>
-#include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 #include <asm/inst.h>
 #include <asm/elf.h>
-#include <asm/smp.h>
 #include <asm/war.h>
 
 static inline int r45k_bvahwbug(void)
