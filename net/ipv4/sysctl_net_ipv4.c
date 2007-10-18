@@ -740,7 +740,6 @@ ctl_table ipv4_table[] = {
 		.strategy	= &sysctl_jiffies
 	},
 	{
-		.ctl_name	= NET_IPV4_IPFRAG_MAX_DIST,
 		.procname	= "ipfrag_max_dist",
 		.data		= &sysctl_ipfrag_max_dist,
 		.maxlen		= sizeof(int),
@@ -865,7 +864,6 @@ ctl_table ipv4_table[] = {
 	},
 #endif /* CONFIG_NETLABEL */
 	{
-		.ctl_name	= NET_TCP_AVAIL_CONG_CONTROL,
 		.procname	= "tcp_available_congestion_control",
 		.maxlen		= TCP_CA_BUF_MAX,
 		.mode		= 0444,
