@@ -1391,18 +1391,15 @@ static void __init build_r4000_tlb_refill_handler(void)
 extern void tlb_do_page_fault_0(void);
 extern void tlb_do_page_fault_1(void);
 
-#define __tlb_handler_align \
-	__attribute__((__aligned__(1 << CONFIG_MIPS_L1_CACHE_SHIFT)))
-
 /*
  * 128 instructions for the fastpath handler is generous and should
  * never be exceeded.
  */
 #define FASTPATH_SIZE 128
 
-u32 __tlb_handler_align handle_tlbl[FASTPATH_SIZE];
-u32 __tlb_handler_align handle_tlbs[FASTPATH_SIZE];
-u32 __tlb_handler_align handle_tlbm[FASTPATH_SIZE];
+u32 handle_tlbl[FASTPATH_SIZE] __cacheline_aligned;
+u32 handle_tlbs[FASTPATH_SIZE] __cacheline_aligned;
+u32 handle_tlbm[FASTPATH_SIZE] __cacheline_aligned;
 
 static void __init
 iPTE_LW(u32 **p, struct label **l, unsigned int pte, unsigned int ptr)
