@@ -187,6 +187,176 @@ int __xfrm_state_delete(struct xfrm_state *x);
 int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
 void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
 
+static struct xfrm_state_afinfo *xfrm_state_lock_afinfo(unsigned int family)
+{
+	struct xfrm_state_afinfo *afinfo;
+	if (unlikely(family >= NPROTO))
+		return NULL;
+	write_lock_bh(&xfrm_state_afinfo_lock);
+	afinfo = xfrm_state_afinfo[family];
+	if (unlikely(!afinfo))
+		write_unlock_bh(&xfrm_state_afinfo_lock);
+	return afinfo;
+}
+
+static void xfrm_state_unlock_afinfo(struct xfrm_state_afinfo *afinfo)
+{
+	write_unlock_bh(&xfrm_state_afinfo_lock);
+}
+
+int xfrm_register_type(struct xfrm_type *type, unsigned short family)
+{
+	struct xfrm_state_afinfo *afinfo = xfrm_state_lock_afinfo(family);
+	struct xfrm_type **typemap;
+	int err = 0;
+
+	if (unlikely(afinfo == NULL))
+		return -EAFNOSUPPORT;
+	typemap = afinfo->type_map;
+
+	if (likely(typemap[type->proto] == NULL))
+		typemap[type->proto] = type;
+	else
+		err = -EEXIST;
+	xfrm_state_unlock_afinfo(afinfo);
+	return err;
+}
+EXPORT_SYMBOL(xfrm_register_type);
+
+int xfrm_unregister_type(struct xfrm_type *type, unsigned short family)
+{
+	struct xfrm_state_afinfo *afinfo = xfrm_state_lock_afinfo(family);
+	struct xfrm_type **typemap;
+	int err = 0;
+
+	if (unlikely(afinfo == NULL))
+		return -EAFNOSUPPORT;
+	typemap = afinfo->type_map;
+
+	if (unlikely(typemap[type->proto] != type))
+		err = -ENOENT;
+	else
+		typemap[type->proto] = NULL;
+	xfrm_state_unlock_afinfo(afinfo);
+	return err;
+}
+EXPORT_SYMBOL(xfrm_unregister_type);
+
+static struct xfrm_type *xfrm_get_type(u8 proto, unsigned short family)
+{
+	struct xfrm_state_afinfo *afinfo;
+	struct xfrm_type **typemap;
+	struct xfrm_type *type;
+	int modload_attempted = 0;
+
+retry:
+	afinfo = xfrm_state_get_afinfo(family);
+	if (unlikely(afinfo == NULL))
+		return NULL;
+	typemap = afinfo->type_map;
+
+	type = typemap[proto];
+	if (unlikely(type && !try_module_get(type->owner)))
+		type = NULL;
+	if (!type && !modload_attempted) {
+		xfrm_state_put_afinfo(afinfo);
+		request_module("xfrm-type-%d-%d", family, proto);
+		modload_attempted = 1;
+		goto retry;
+	}
+
+	xfrm_state_put_afinfo(afinfo);
+	return type;
+}
+
+static void xfrm_put_type(struct xfrm_type *type)
+{
+	module_put(type->owner);
+}
+
+int xfrm_register_mode(struct xfrm_mode *mode, int family)
+{
+	struct xfrm_state_afinfo *afinfo;
+	struct xfrm_mode **modemap;
+	int err;
+
+	if (unlikely(mode->encap >= XFRM_MODE_MAX))
+		return -EINVAL;
+
+	afinfo = xfrm_state_lock_afinfo(family);
+	if (unlikely(afinfo == NULL))
+		return -EAFNOSUPPORT;
+
+	err = -EEXIST;
+	modemap = afinfo->mode_map;
+	if (likely(modemap[mode->encap] == NULL)) {
+		modemap[mode->encap] = mode;
+		err = 0;
+	}
+
+	xfrm_state_unlock_afinfo(afinfo);
+	return err;
+}
+EXPORT_SYMBOL(xfrm_register_mode);
+
+int xfrm_unregister_mode(struct xfrm_mode *mode, int family)
+{
+	struct xfrm_state_afinfo *afinfo;
+	struct xfrm_mode **modemap;
+	int err;
+
+	if (unlikely(mode->encap >= XFRM_MODE_MAX))
+		return -EINVAL;
+
+	afinfo = xfrm_state_lock_afinfo(family);
+	if (unlikely(afinfo == NULL))
+		return -EAFNOSUPPORT;
+
+	err = -ENOENT;
+	modemap = afinfo->mode_map;
+	if (likely(modemap[mode->encap] == mode)) {
+		modemap[mode->encap] = NULL;
+		err = 0;
+	}
+
+	xfrm_state_unlock_afinfo(afinfo);
+	return err;
+}
+EXPORT_SYMBOL(xfrm_unregister_mode);
+
+static struct xfrm_mode *xfrm_get_mode(unsigned int encap, int family)
+{
+	struct xfrm_state_afinfo *afinfo;
+	struct xfrm_mode *mode;
+	int modload_attempted = 0;
+
+	if (unlikely(encap >= XFRM_MODE_MAX))
+		return NULL;
+
+retry:
+	afinfo = xfrm_state_get_afinfo(family);
+	if (unlikely(afinfo == NULL))
+		return NULL;
+
+	mode = afinfo->mode_map[encap];
+	if (unlikely(mode && !try_module_get(mode->owner)))
+		mode = NULL;
+	if (!mode && !modload_attempted) {
+		xfrm_state_put_afinfo(afinfo);
+		request_module("xfrm-mode-%d-%d", family, encap);
+		modload_attempted = 1;
+		goto retry;
+	}
+
+	xfrm_state_put_afinfo(afinfo);
+	return mode;
+}
+
+static void xfrm_put_mode(struct xfrm_mode *mode)
+{
+	module_put(mode->owner);
+}
+
 static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
 	del_timer_sync(&x->timer);
