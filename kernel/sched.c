@@ -266,7 +266,8 @@ struct rt_rq {
  * acquire operations must be ordered by ascending &runqueue.
  */
 struct rq {
-	spinlock_t lock;	/* runqueue lock */
+	/* runqueue lock: */
+	spinlock_t lock;
 
 	/*
 	 * nr_running and cpu_load should be in the same cacheline because
@@ -279,13 +280,15 @@ struct rq {
 #ifdef CONFIG_NO_HZ
 	unsigned char in_nohz_recently;
 #endif
-	struct load_weight load;	/* capture load from *all* tasks on this cpu */
+	/* capture load from *all* tasks on this cpu: */
+	struct load_weight load;
 	unsigned long nr_load_updates;
 	u64 nr_switches;
 
 	struct cfs_rq cfs;
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	struct list_head leaf_cfs_rq_list; /* list of leaf cfs_rq on this cpu */
+	/* list of leaf cfs_rq on this cpu: */
+	struct list_head leaf_cfs_rq_list;
 #endif
 	struct rt_rq  rt;
 
@@ -317,7 +320,8 @@ struct rq {
 	/* For active balancing */
 	int active_balance;
 	int push_cpu;
-	int cpu;		/* cpu of this runqueue */
+	/* cpu of this runqueue: */
+	int cpu;
 
 	struct task_struct *migration_thread;
 	struct list_head migration_queue;
@@ -328,22 +332,22 @@ struct rq {
 	struct sched_info rq_sched_info;
 
 	/* sys_sched_yield() stats */
-	unsigned long yld_exp_empty;
-	unsigned long yld_act_empty;
-	unsigned long yld_both_empty;
-	unsigned long yld_count;
+	unsigned int yld_exp_empty;
+	unsigned int yld_act_empty;
+	unsigned int yld_both_empty;
+	unsigned int yld_count;
 
 	/* schedule() stats */
-	unsigned long sched_switch;
-	unsigned long sched_count;
-	unsigned long sched_goidle;
+	unsigned int sched_switch;
+	unsigned int sched_count;
+	unsigned int sched_goidle;
 
 	/* try_to_wake_up() stats */
-	unsigned long ttwu_count;
-	unsigned long ttwu_local;
+	unsigned int ttwu_count;
+	unsigned int ttwu_local;
 
 	/* BKL stats */
-	unsigned long bkl_count;
+	unsigned int bkl_count;
 #endif
 	struct lock_class_key rq_lock_key;
 };
@@ -449,12 +453,12 @@ enum {
 };
 
 const_debug unsigned int sysctl_sched_features =
-		SCHED_FEAT_NEW_FAIR_SLEEPERS	*1 |
-		SCHED_FEAT_START_DEBIT		*1 |
-		SCHED_FEAT_TREE_AVG		*0 |
-		SCHED_FEAT_APPROX_AVG		*0 |
-		SCHED_FEAT_WAKEUP_PREEMPT	*1 |
-		SCHED_FEAT_PREEMPT_RESTRICT	*1;
+		SCHED_FEAT_NEW_FAIR_SLEEPERS	* 1 |
+		SCHED_FEAT_START_DEBIT		* 1 |
+		SCHED_FEAT_TREE_AVG		* 0 |
+		SCHED_FEAT_APPROX_AVG		* 0 |
+		SCHED_FEAT_WAKEUP_PREEMPT	* 1 |
+		SCHED_FEAT_PREEMPT_RESTRICT	* 1;
 
 #define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
 
@@ -3880,7 +3884,10 @@ EXPORT_SYMBOL(wait_for_completion_timeout);
 
 int __sched wait_for_completion_interruptible(struct completion *x)
 {
-	return wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
+	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
+	if (t == -ERESTARTSYS)
+		return t;
+	return 0;
 }
 EXPORT_SYMBOL(wait_for_completion_interruptible);
 
@@ -4815,18 +4822,18 @@ static void show_task(struct task_struct *p)
 	unsigned state;
 
 	state = p->state ? __ffs(p->state) + 1 : 0;
-	printk("%-13.13s %c", p->comm,
+	printk(KERN_INFO "%-13.13s %c", p->comm,
 		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
 #if BITS_PER_LONG == 32
 	if (state == TASK_RUNNING)
-		printk(" running  ");
+		printk(KERN_CONT " running  ");
 	else
-		printk(" %08lx ", thread_saved_pc(p));
+		printk(KERN_CONT " %08lx ", thread_saved_pc(p));
 #else
 	if (state == TASK_RUNNING)
-		printk("  running task    ");
+		printk(KERN_CONT "  running task    ");
 	else
-		printk(" %016lx ", thread_saved_pc(p));
+		printk(KERN_CONT " %016lx ", thread_saved_pc(p));
 #endif
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	{
@@ -4836,7 +4843,7 @@ static void show_task(struct task_struct *p)
 		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
-	printk("%5lu %5d %6d\n", free, p->pid, p->parent->pid);
+	printk(KERN_CONT "%5lu %5d %6d\n", free, p->pid, p->parent->pid);
 
 	if (state != TASK_RUNNING)
 		show_stack(p, NULL);
@@ -5385,7 +5392,7 @@ sd_alloc_ctl_domain_table(struct sched_domain *sd)
 	return table;
 }
 
-static ctl_table *sd_alloc_ctl_cpu_table(int cpu)
+static ctl_table * sd_alloc_ctl_cpu_table(int cpu)
 {
 	struct ctl_table *entry, *table;
 	struct sched_domain *sd;
@@ -5619,20 +5626,20 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 			}
 
 			if (!group->__cpu_power) {
-				printk("\n");
+				printk(KERN_CONT "\n");
 				printk(KERN_ERR "ERROR: domain->cpu_power not "
 						"set\n");
 				break;
 			}
 
 			if (!cpus_weight(group->cpumask)) {
-				printk("\n");
+				printk(KERN_CONT "\n");
 				printk(KERN_ERR "ERROR: empty group\n");
 				break;
 			}
 
 			if (cpus_intersects(groupmask, group->cpumask)) {
-				printk("\n");
+				printk(KERN_CONT "\n");
 				printk(KERN_ERR "ERROR: repeated CPUs\n");
 				break;
 			}
@@ -5640,11 +5647,11 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 			cpus_or(groupmask, groupmask, group->cpumask);
 
 			cpumask_scnprintf(str, NR_CPUS, group->cpumask);
-			printk(" %s", str);
+			printk(KERN_CONT " %s", str);
 
 			group = group->next;
 		} while (group != sd->groups);
-		printk("\n");
+		printk(KERN_CONT "\n");
 
 		if (!cpus_equal(sd->span, groupmask))
 			printk(KERN_ERR "ERROR: groups don't span "

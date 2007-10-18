@@ -137,7 +137,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	SEQ_printf(m, "  .%-30s: %ld\n", "nr_running", cfs_rq->nr_running);
 	SEQ_printf(m, "  .%-30s: %ld\n", "load", cfs_rq->load.weight);
 #ifdef CONFIG_SCHEDSTATS
-	SEQ_printf(m, "  .%-30s: %ld\n", "bkl_count",
+	SEQ_printf(m, "  .%-30s: %d\n", "bkl_count",
 			rq->bkl_count);
 #endif
 	SEQ_printf(m, "  .%-30s: %ld\n", "nr_spread_over",
