@@ -365,7 +365,6 @@ static struct ctl_table kern_table[] = {
 	},
 #ifdef CONFIG_PROC_SYSCTL
 	{
-		.ctl_name	= KERN_TAINTED,
 		.procname	= "tainted",
 		.data		= &tainted,
 		.maxlen		= sizeof(int),
@@ -374,7 +373,6 @@ static struct ctl_table kern_table[] = {
 	},
 #endif
 	{
-		.ctl_name	= KERN_CAP_BSET,
 		.procname	= "cap-bound",
 		.data		= &cap_bset,
 		.maxlen		= sizeof(kernel_cap_t),
@@ -650,7 +648,6 @@ static struct ctl_table kern_table[] = {
 		.proc_handler   = &proc_dointvec,
 	},
 	{
-		.ctl_name       = KERN_NMI_WATCHDOG,
 		.procname       = "nmi_watchdog",
 		.data           = &nmi_watchdog_enabled,
 		.maxlen         = sizeof (int),
@@ -847,7 +844,6 @@ static struct ctl_table vm_table[] = {
 		.extra2		= &one_hundred,
 	},
 	{
-		.ctl_name	= VM_DIRTY_WB_CS,
 		.procname	= "dirty_writeback_centisecs",
 		.data		= &dirty_writeback_interval,
 		.maxlen		= sizeof(dirty_writeback_interval),
@@ -855,7 +851,6 @@ static struct ctl_table vm_table[] = {
 		.proc_handler	= &dirty_writeback_centisecs_handler,
 	},
 	{
-		.ctl_name	= VM_DIRTY_EXPIRE_CS,
 		.procname	= "dirty_expire_centisecs",
 		.data		= &dirty_expire_interval,
 		.maxlen		= sizeof(dirty_expire_interval),
@@ -883,7 +878,6 @@ static struct ctl_table vm_table[] = {
 	},
 #ifdef CONFIG_HUGETLB_PAGE
 	 {
-		.ctl_name	= VM_HUGETLB_PAGES,
 		.procname	= "nr_hugepages",
 		.data		= &max_huge_pages,
 		.maxlen		= sizeof(unsigned long),
@@ -1116,7 +1110,6 @@ static struct ctl_table fs_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= FS_NRFILE,
 		.procname	= "file-nr",
 		.data		= &files_stat,
 		.maxlen		= 3*sizeof(int),
