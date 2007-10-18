@@ -448,7 +448,7 @@ int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
 	if (dst) {
 		struct dst_entry *dst_test;
 
-		for (dst_test = dst; dst_test != 0;
+		for (dst_test = dst; dst_test != NULL;
 		     dst_test = dst_test->child) {
 			struct xfrm_state *x = dst_test->xfrm;
 

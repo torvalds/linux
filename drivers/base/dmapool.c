@@ -366,7 +366,7 @@ dma_pool_free (struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 	unsigned long		flags;
 	int			map, block;
 
-	if ((page = pool_find_page (pool, dma)) == 0) {
+	if ((page = pool_find_page(pool, dma)) == NULL) {
 		if (pool->dev)
 			dev_err(pool->dev, "dma_pool_free %s, %p/%lx (bad dma)\n",
 				pool->name, vaddr, (unsigned long) dma);
