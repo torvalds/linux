@@ -1084,7 +1084,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->security = NULL;
 #endif
 	p->io_context = NULL;
-	p->io_wait = NULL;
 	p->audit_context = NULL;
 	cpuset_fork(p);
 #ifdef CONFIG_NUMA
