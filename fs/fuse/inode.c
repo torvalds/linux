@@ -56,6 +56,7 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	fi->i_time = 0;
 	fi->nodeid = 0;
 	fi->nlookup = 0;
+	INIT_LIST_HEAD(&fi->write_files);
 	fi->forget_req = fuse_request_alloc();
 	if (!fi->forget_req) {
 		kmem_cache_free(fuse_inode_cachep, inode);
@@ -68,6 +69,7 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 static void fuse_destroy_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
+	BUG_ON(!list_empty(&fi->write_files));
 	if (fi->forget_req)
 		fuse_request_free(fi->forget_req);
 	kmem_cache_free(fuse_inode_cachep, inode);

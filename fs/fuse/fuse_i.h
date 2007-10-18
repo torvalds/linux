@@ -70,6 +70,9 @@ struct fuse_inode {
 
 	/** Version of last attribute change */
 	u64 attr_version;
+
+	/** Files usable in writepage.  Protected by fc->lock */
+	struct list_head write_files;
 };
 
 /** FUSE specific file data */
@@ -82,6 +85,9 @@ struct fuse_file {
 
 	/** Refcount */
 	atomic_t count;
+
+	/** Entry on inode's write_files list */
+	struct list_head write_entry;
 };
 
 /** One input argument of a request */

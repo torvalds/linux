@@ -56,6 +56,7 @@ struct fuse_file *fuse_file_alloc(void)
 			kfree(ff);
 			ff = NULL;
 		}
+		INIT_LIST_HEAD(&ff->write_entry);
 		atomic_set(&ff->count, 0);
 	}
 	return ff;
@@ -150,12 +151,18 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 {
 	struct fuse_file *ff = file->private_data;
 	if (ff) {
+		struct fuse_conn *fc = get_fuse_conn(inode);
+
 		fuse_release_fill(ff, get_node_id(inode), file->f_flags,
 				  isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
 
 		/* Hold vfsmount and dentry until release is finished */
 		ff->reserved_req->vfsmount = mntget(file->f_path.mnt);
 		ff->reserved_req->dentry = dget(file->f_path.dentry);
+
+		spin_lock(&fc->lock);
+		list_del(&ff->write_entry);
+		spin_unlock(&fc->lock);
 		/*
 		 * Normally this will send the RELEASE request,
 		 * however if some asynchronous READ or WRITE requests
