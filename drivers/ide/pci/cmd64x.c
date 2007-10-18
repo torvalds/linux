@@ -439,11 +439,8 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 	u8 mrdmode = 0;
 
 	if (dev->device == PCI_DEVICE_ID_CMD_646) {
-		u8 rev = 0;
 
-		pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
-
-		switch (rev) {
+		switch (dev->revision) {
 		case 0x07:
 		case 0x05:
 			printk("%s: UltraDMA capable\n", name);
@@ -505,9 +502,6 @@ static u8 __devinit ata66_cmd64x(ide_hwif_t *hwif)
 static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
-	u8 rev			= 0;
-
-	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
 
 	hwif->set_pio_mode = &cmd64x_set_pio_mode;
 	hwif->set_dma_mode = &cmd64x_set_dma_mode;
@@ -529,7 +523,7 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	 *
 	 * So we only do UltraDMA on revision 0x05 and 0x07 chipsets.
 	 */
-	if (dev->device == PCI_DEVICE_ID_CMD_646 && rev < 5)
+	if (dev->device == PCI_DEVICE_ID_CMD_646 && dev->revision < 5)
 		hwif->ultra_mask = 0x00;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
@@ -544,10 +538,10 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 		break;
 	case PCI_DEVICE_ID_CMD_646:
 		hwif->chipset = ide_cmd646;
-		if (rev == 0x01) {
+		if (dev->revision == 0x01) {
 			hwif->ide_dma_end = &cmd646_1_ide_dma_end;
 			break;
-		} else if (rev >= 0x03)
+		} else if (dev->revision >= 0x03)
 			goto alt_irq_bits;
 		/* fall thru */
 	default:
