@@ -720,6 +720,22 @@ il_bgez(u32 **p, struct reloc **r, unsigned int reg, enum label_id l)
 	i_bgez(p, reg, 0);
 }
 
+/*
+ * For debug purposes.
+ */
+static inline void dump_handler(const u32 *handler, int count)
+{
+	int i;
+
+	pr_debug("\t.set push\n");
+	pr_debug("\t.set noreorder\n");
+
+	for (i = 0; i < count; i++)
+		pr_debug("\t%p\t.word 0x%08x\n", &handler[i], handler[i]);
+
+	pr_debug("\t.set pop\n");
+}
+
 /* The only general purpose registers allowed in TLB handlers. */
 #define K0		26
 #define K1		27
@@ -762,7 +778,6 @@ static void __init build_r3000_tlb_refill_handler(void)
 {
 	long pgdc = (long)pgd_current;
 	u32 *p;
-	int i;
 
 	memset(tlb_handler, 0, sizeof(tlb_handler));
 	p = tlb_handler;
@@ -791,13 +806,9 @@ static void __init build_r3000_tlb_refill_handler(void)
 	pr_info("Synthesized TLB refill handler (%u instructions).\n",
 		(unsigned int)(p - tlb_handler));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (p - tlb_handler); i++)
-		pr_debug("\t.word 0x%08x\n", tlb_handler[i]);
-	pr_debug("\t.set pop\n");
-
 	memcpy((void *)ebase, tlb_handler, 0x80);
+
+	dump_handler((u32 *)ebase, 32);
 }
 
 /*
@@ -1264,7 +1275,6 @@ static void __init build_r4000_tlb_refill_handler(void)
 	struct reloc *r = relocs;
 	u32 *f;
 	unsigned int final_len;
-	int i;
 
 	memset(tlb_handler, 0, sizeof(tlb_handler));
 	memset(labels, 0, sizeof(labels));
@@ -1366,20 +1376,9 @@ static void __init build_r4000_tlb_refill_handler(void)
 	pr_info("Synthesized TLB refill handler (%u instructions).\n",
 		final_len);
 
-	f = final_handler;
-#if defined(CONFIG_64BIT) && !defined(CONFIG_CPU_LOONGSON2)
-	if (final_len > 32)
-		final_len = 64;
-	else
-		f = final_handler + 32;
-#endif /* CONFIG_64BIT */
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < final_len; i++)
-		pr_debug("\t.word 0x%08x\n", f[i]);
-	pr_debug("\t.set pop\n");
-
 	memcpy((void *)ebase, final_handler, 0x100);
+
+	dump_handler((u32 *)ebase, 64);
 }
 
 /*
@@ -1607,7 +1606,6 @@ static void __init build_r3000_tlb_load_handler(void)
 	u32 *p = handle_tlbl;
 	struct label *l = labels;
 	struct reloc *r = relocs;
-	int i;
 
 	memset(handle_tlbl, 0, sizeof(handle_tlbl));
 	memset(labels, 0, sizeof(labels));
@@ -1630,11 +1628,7 @@ static void __init build_r3000_tlb_load_handler(void)
 	pr_info("Synthesized TLB load handler fastpath (%u instructions).\n",
 		(unsigned int)(p - handle_tlbl));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (p - handle_tlbl); i++)
-		pr_debug("\t.word 0x%08x\n", handle_tlbl[i]);
-	pr_debug("\t.set pop\n");
+	dump_handler(handle_tlbl, ARRAY_SIZE(handle_tlbl));
 }
 
 static void __init build_r3000_tlb_store_handler(void)
@@ -1642,7 +1636,6 @@ static void __init build_r3000_tlb_store_handler(void)
 	u32 *p = handle_tlbs;
 	struct label *l = labels;
 	struct reloc *r = relocs;
-	int i;
 
 	memset(handle_tlbs, 0, sizeof(handle_tlbs));
 	memset(labels, 0, sizeof(labels));
@@ -1665,11 +1658,7 @@ static void __init build_r3000_tlb_store_handler(void)
 	pr_info("Synthesized TLB store handler fastpath (%u instructions).\n",
 		(unsigned int)(p - handle_tlbs));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (p - handle_tlbs); i++)
-		pr_debug("\t.word 0x%08x\n", handle_tlbs[i]);
-	pr_debug("\t.set pop\n");
+	dump_handler(handle_tlbs, ARRAY_SIZE(handle_tlbs));
 }
 
 static void __init build_r3000_tlb_modify_handler(void)
@@ -1677,7 +1666,6 @@ static void __init build_r3000_tlb_modify_handler(void)
 	u32 *p = handle_tlbm;
 	struct label *l = labels;
 	struct reloc *r = relocs;
-	int i;
 
 	memset(handle_tlbm, 0, sizeof(handle_tlbm));
 	memset(labels, 0, sizeof(labels));
@@ -1700,11 +1688,7 @@ static void __init build_r3000_tlb_modify_handler(void)
 	pr_info("Synthesized TLB modify handler fastpath (%u instructions).\n",
 		(unsigned int)(p - handle_tlbm));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (p - handle_tlbm); i++)
-		pr_debug("\t.word 0x%08x\n", handle_tlbm[i]);
-	pr_debug("\t.set pop\n");
+	dump_handler(handle_tlbm, ARRAY_SIZE(handle_tlbm));
 }
 
 /*
@@ -1757,7 +1741,6 @@ static void __init build_r4000_tlb_load_handler(void)
 	u32 *p = handle_tlbl;
 	struct label *l = labels;
 	struct reloc *r = relocs;
-	int i;
 
 	memset(handle_tlbl, 0, sizeof(handle_tlbl));
 	memset(labels, 0, sizeof(labels));
@@ -1790,11 +1773,7 @@ static void __init build_r4000_tlb_load_handler(void)
 	pr_info("Synthesized TLB load handler fastpath (%u instructions).\n",
 		(unsigned int)(p - handle_tlbl));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (p - handle_tlbl); i++)
-		pr_debug("\t.word 0x%08x\n", handle_tlbl[i]);
-	pr_debug("\t.set pop\n");
+	dump_handler(handle_tlbl, ARRAY_SIZE(handle_tlbl));
 }
 
 static void __init build_r4000_tlb_store_handler(void)
@@ -1802,7 +1781,6 @@ static void __init build_r4000_tlb_store_handler(void)
 	u32 *p = handle_tlbs;
 	struct label *l = labels;
 	struct reloc *r = relocs;
-	int i;
 
 	memset(handle_tlbs, 0, sizeof(handle_tlbs));
 	memset(labels, 0, sizeof(labels));
@@ -1826,11 +1804,7 @@ static void __init build_r4000_tlb_store_handler(void)
 	pr_info("Synthesized TLB store handler fastpath (%u instructions).\n",
 		(unsigned int)(p - handle_tlbs));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (p - handle_tlbs); i++)
-		pr_debug("\t.word 0x%08x\n", handle_tlbs[i]);
-	pr_debug("\t.set pop\n");
+	dump_handler(handle_tlbs, ARRAY_SIZE(handle_tlbs));
 }
 
 static void __init build_r4000_tlb_modify_handler(void)
@@ -1838,7 +1812,6 @@ static void __init build_r4000_tlb_modify_handler(void)
 	u32 *p = handle_tlbm;
 	struct label *l = labels;
 	struct reloc *r = relocs;
-	int i;
 
 	memset(handle_tlbm, 0, sizeof(handle_tlbm));
 	memset(labels, 0, sizeof(labels));
@@ -1863,11 +1836,7 @@ static void __init build_r4000_tlb_modify_handler(void)
 	pr_info("Synthesized TLB modify handler fastpath (%u instructions).\n",
 		(unsigned int)(p - handle_tlbm));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (p - handle_tlbm); i++)
-		pr_debug("\t.word 0x%08x\n", handle_tlbm[i]);
-	pr_debug("\t.set pop\n");
+	dump_handler(handle_tlbm, ARRAY_SIZE(handle_tlbm));
 }
 
 void __init build_tlb_refill_handler(void)
