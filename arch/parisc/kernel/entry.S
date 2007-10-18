@@ -652,7 +652,7 @@
 
 	.text
 
-	.align 4096
+	.align	PAGE_SIZE
 
 ENTRY(fault_vector_20)
 	/* First vector is invalid (0) */
@@ -904,7 +904,7 @@ ENDPROC(_switch_to)
 	 *
 	 */
 
-	.align 4096
+	.align	PAGE_SIZE
 
 ENTRY(syscall_exit_rfi)
 	mfctl   %cr30,%r16

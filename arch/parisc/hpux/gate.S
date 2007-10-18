@@ -20,7 +20,7 @@
 	.import hpux_call_table
 	.import hpux_syscall_exit,code
 
-	.align 4096
+	.align	PAGE_SIZE
 ENTRY(hpux_gateway_page)
 	nop
 #ifdef CONFIG_64BIT
@@ -103,5 +103,5 @@ syscall_nosys:
 	ldo	-ENOSYS(%r0),%r28
 ENDPROC(hpux_gateway_page)
 
-	.align 4096
+	.align	PAGE_SIZE
 ENTRY(end_hpux_gateway_page)

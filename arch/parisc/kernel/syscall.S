@@ -637,7 +637,7 @@ END(sys_call_table64)
 		will use this set of locks 
 	*/
 	.section .data
-	.align 4096
+	.align	PAGE_SIZE
 ENTRY(lws_lock_start)
 	/* lws locks */
 	.align 16
