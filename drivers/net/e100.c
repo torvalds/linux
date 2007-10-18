@@ -2369,7 +2369,7 @@ static const char e100_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Mac loopback     (offline)",
 	"Phy loopback     (offline)",
 };
-#define E100_TEST_LEN	sizeof(e100_gstrings_test) / ETH_GSTRING_LEN
+#define E100_TEST_LEN	ARRAY_SIZE(e100_gstrings_test)
 
 static void e100_diag_test(struct net_device *netdev,
 	struct ethtool_test *test, u64 *data)
@@ -2431,7 +2431,7 @@ static const char e100_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"rx_flow_control_unsupported", "tx_tco_packets", "rx_tco_packets",
 };
 #define E100_NET_STATS_LEN	21
-#define E100_STATS_LEN	sizeof(e100_gstrings_stats) / ETH_GSTRING_LEN
+#define E100_STATS_LEN	ARRAY_SIZE(e100_gstrings_stats)
 
 static int e100_get_sset_count(struct net_device *netdev, int sset)
 {

@@ -2174,8 +2174,7 @@ bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	strlcat(drvinfo->bus_info, pci_name(priv->pdev),
 		sizeof(drvinfo->bus_info));
 
-	drvinfo->n_stats = ((priv->stats_flag) ?
-			    (sizeof(bdx_stat_names) / ETH_GSTRING_LEN) : 0);
+	drvinfo->n_stats = ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names) : 0);
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = 0;
 	drvinfo->eedump_len = 0;
@@ -2375,10 +2374,9 @@ static void bdx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 static int bdx_get_stats_count(struct net_device *netdev)
 {
 	struct bdx_priv *priv = netdev->priv;
-	BDX_ASSERT(sizeof(bdx_stat_names) / ETH_GSTRING_LEN
+	BDX_ASSERT(ARRAY_SIZE(bdx_stat_names)
 		   != sizeof(struct bdx_stats) / sizeof(u64));
-	return ((priv->stats_flag) ? (sizeof(bdx_stat_names) / ETH_GSTRING_LEN)
-		: 0);
+	return ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names)	: 0);
 }
 
 /*

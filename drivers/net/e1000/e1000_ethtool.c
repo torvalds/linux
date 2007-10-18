@@ -110,7 +110,7 @@ static const char e1000_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Interrupt test (offline)", "Loopback test  (offline)",
 	"Link test   (on/offline)"
 };
-#define E1000_TEST_LEN sizeof(e1000_gstrings_test) / ETH_GSTRING_LEN
+#define E1000_TEST_LEN	ARRAY_SIZE(e1000_gstrings_test)
 
 static int
 e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)

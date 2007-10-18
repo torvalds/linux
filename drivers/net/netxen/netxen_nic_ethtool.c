@@ -86,7 +86,7 @@ static const char netxen_nic_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Link_Test_on_offline"
 };
 
-#define NETXEN_NIC_TEST_LEN sizeof(netxen_nic_gstrings_test) / ETH_GSTRING_LEN
+#define NETXEN_NIC_TEST_LEN	ARRAY_SIZE(netxen_nic_gstrings_test)
 
 #define NETXEN_NIC_REGS_COUNT 42
 #define NETXEN_NIC_REGS_LEN (NETXEN_NIC_REGS_COUNT * sizeof(__le32))

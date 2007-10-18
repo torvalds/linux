@@ -4394,7 +4394,7 @@ static struct {
 	{"tx_fifo_errors"},
 	{"tx_packets"}
 };
-#define CAS_NUM_STAT_KEYS (sizeof(ethtool_cassini_statnames)/ETH_GSTRING_LEN)
+#define CAS_NUM_STAT_KEYS ARRAY_SIZE(ethtool_cassini_statnames)
 
 static struct {
 	const int offsets;	/* neg. values for 2nd arg to cas_read_phy */

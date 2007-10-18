@@ -1431,7 +1431,7 @@ static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 };
 
 #define MYRI10GE_NET_STATS_LEN      21
-#define MYRI10GE_STATS_LEN  sizeof(myri10ge_gstrings_stats) / ETH_GSTRING_LEN
+#define MYRI10GE_STATS_LEN	ARRAY_SIZE(myri10ge_gstrings_stats)
 
 static void
 myri10ge_get_strings(struct net_device *netdev, u32 stringset, u8 * data)
