@@ -512,11 +512,11 @@ struct cyclades_card {
     void __iomem *base_addr;
     void __iomem *ctl_addr;
     int irq;
-    int num_chips;	/* 0 if card absent, -1 if Z/PCI, else Y */
-    int first_line;	/* minor number of first channel on card */
-    int nports;		/* Number of ports in the card */
-    int bus_index;	/* address shift - 0 for ISA, 1 for PCI */
-    int	intr_enabled;	/* FW Interrupt flag - 0 disabled, 1 enabled */
+    unsigned int num_chips;	/* 0 if card absent, -1 if Z/PCI, else Y */
+    unsigned int first_line;	/* minor number of first channel on card */
+    unsigned int nports;	/* Number of ports in the card */
+    int bus_index;		/* address shift - 0 for ISA, 1 for PCI */
+    int intr_enabled;		/* FW Interrupt flag - 0 disabled, 1 enabled */
     spinlock_t card_lock;
     struct cyclades_port *ports;
 };
@@ -566,7 +566,7 @@ struct cyclades_port {
 	int			rtsdtr_inv;
 	int			chip_rev;
 	int			custom_divisor;
-	int                     x_char; /* to be pushed out ASAP */
+	u8			x_char; /* to be pushed out ASAP */
 	int			close_delay;
 	unsigned short		closing_wait;
 	int			count;	/* # of fd on device */
