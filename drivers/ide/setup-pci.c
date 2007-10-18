@@ -185,9 +185,9 @@ static unsigned long ide_get_or_set_dma_base(ide_pci_device_t *d, ide_hwif_t *hw
 			case PCI_DEVICE_ID_CMD_643:
 			case PCI_DEVICE_ID_SERVERWORKS_CSB5IDE:
 			case PCI_DEVICE_ID_REVOLUTION:
-				simplex_stat = hwif->INB(dma_base + 2);
-				hwif->OUTB((simplex_stat&0x60),(dma_base + 2));
-				simplex_stat = hwif->INB(dma_base + 2);
+				simplex_stat = inb(dma_base + 2);
+				outb(simplex_stat & 0x60, dma_base + 2);
+				simplex_stat = inb(dma_base + 2);
 				if (simplex_stat & 0x80) {
 					printk(KERN_INFO "%s: simplex device: "
 							 "DMA forced\n",

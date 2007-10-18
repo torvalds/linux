@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.53	Aug 9, 2007
+ *  linux/drivers/ide/pci/piix.c	Version 0.54	Sep 5, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -318,9 +318,9 @@ static void piix_dma_clear_irq(ide_drive_t *drive)
 	u8 dma_stat;
 
 	/* clear the INTR & ERROR bits */
-	dma_stat = hwif->INB(hwif->dma_status);
+	dma_stat = inb(hwif->dma_status);
 	/* Should we force the bit as well ? */
-	hwif->OUTB(dma_stat, hwif->dma_status);
+	outb(dma_stat, hwif->dma_status);
 }
 
 struct ich_laptop {

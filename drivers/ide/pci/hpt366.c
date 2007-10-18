@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.14	Oct 1, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.15	Oct 1, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -676,12 +676,11 @@ static int hpt3xx_quirkproc(ide_drive_t *drive)
 
 static void hpt3xx_intrproc(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-
 	if (drive->quirk_list)
 		return;
+
 	/* drives in the quirk_list may not like intr setups/cleanups */
-	hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
+	outb(drive->ctl | 2, IDE_CONTROL_REG);
 }
 
 static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
@@ -709,8 +708,8 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 				enable_irq (hwif->irq);
 		}
 	} else
-		hwif->OUTB(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
-			   IDE_CONTROL_REG);
+		outb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
+		     IDE_CONTROL_REG);
 }
 
 /*
@@ -750,9 +749,9 @@ static void hpt370_irq_timeout(ide_drive_t *drive)
 	printk(KERN_DEBUG "%s: %d bytes in FIFO\n", drive->name, bfifo & 0x1ff);
 
 	/* get DMA command mode */
-	dma_cmd = hwif->INB(hwif->dma_command);
+	dma_cmd = inb(hwif->dma_command);
 	/* stop DMA */
-	hwif->OUTB(dma_cmd & ~0x1, hwif->dma_command);
+	outb(dma_cmd & ~0x1, hwif->dma_command);
 	hpt370_clear_engine(drive);
 }
 
@@ -767,12 +766,12 @@ static void hpt370_ide_dma_start(ide_drive_t *drive)
 static int hpt370_ide_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8  dma_stat		= hwif->INB(hwif->dma_status);
+	u8  dma_stat		= inb(hwif->dma_status);
 
 	if (dma_stat & 0x01) {
 		/* wait a little */
 		udelay(20);
-		dma_stat = hwif->INB(hwif->dma_status);
+		dma_stat = inb(hwif->dma_status);
 		if (dma_stat & 0x01)
 			hpt370_irq_timeout(drive);
 	}
@@ -833,34 +832,32 @@ static int hpt374_ide_dma_end(ide_drive_t *drive)
 
 static void hpt3xxn_set_clock(ide_hwif_t *hwif, u8 mode)
 {
-	u8 scr2 = hwif->INB(hwif->dma_master + 0x7b);
+	u8 scr2 = inb(hwif->dma_master + 0x7b);
 
 	if ((scr2 & 0x7f) == mode)
 		return;
 
 	/* Tristate the bus */
-	hwif->OUTB(0x80, hwif->dma_master + 0x73);
-	hwif->OUTB(0x80, hwif->dma_master + 0x77);
+	outb(0x80, hwif->dma_master + 0x73);
+	outb(0x80, hwif->dma_master + 0x77);
 
 	/* Switch clock and reset channels */
-	hwif->OUTB(mode, hwif->dma_master + 0x7b);
-	hwif->OUTB(0xc0, hwif->dma_master + 0x79);
+	outb(mode, hwif->dma_master + 0x7b);
+	outb(0xc0, hwif->dma_master + 0x79);
 
 	/*
 	 * Reset the state machines.
 	 * NOTE: avoid accidentally enabling the disabled channels.
 	 */
-	hwif->OUTB(hwif->INB(hwif->dma_master + 0x70) | 0x32,
-		   hwif->dma_master + 0x70);
-	hwif->OUTB(hwif->INB(hwif->dma_master + 0x74) | 0x32,
-		   hwif->dma_master + 0x74);
+	outb(inb(hwif->dma_master + 0x70) | 0x32, hwif->dma_master + 0x70);
+	outb(inb(hwif->dma_master + 0x74) | 0x32, hwif->dma_master + 0x74);
 
 	/* Complete reset */
-	hwif->OUTB(0x00, hwif->dma_master + 0x79);
+	outb(0x00, hwif->dma_master + 0x79);
 
 	/* Reconnect channels to bus */
-	hwif->OUTB(0x00, hwif->dma_master + 0x73);
-	hwif->OUTB(0x00, hwif->dma_master + 0x77);
+	outb(0x00, hwif->dma_master + 0x73);
+	outb(0x00, hwif->dma_master + 0x77);
 }
 
 /**
@@ -1351,7 +1348,7 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 	u8 dma_new	= 0, dma_old	= 0;
 	unsigned long flags;
 
-	dma_old = hwif->INB(dmabase + 2);
+	dma_old = inb(dmabase + 2);
 
 	local_irq_save(flags);
 
@@ -1362,7 +1359,7 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 	if (masterdma & 0x30)	dma_new |= 0x20;
 	if ( slavedma & 0x30)	dma_new |= 0x40;
 	if (dma_new != dma_old)
-		hwif->OUTB(dma_new, dmabase + 2);
+		outb(dma_new, dmabase + 2);
 
 	local_irq_restore(flags);
 
