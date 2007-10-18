@@ -15,6 +15,7 @@
  *  - new fuse_getattr_in input argument of GETATTR
  *  - add lk_flags in fuse_lk_in
  *  - add lock_owner field to fuse_setattr_in, fuse_read_in and fuse_write_in
+ *  - add blksize field to fuse_attr
  */
 
 #include <asm/types.h>
@@ -53,6 +54,8 @@ struct fuse_attr {
 	__u32	uid;
 	__u32	gid;
 	__u32	rdev;
+	__u32	blksize;
+	__u32	padding;
 };
 
 struct fuse_kstatfs {
@@ -177,6 +180,8 @@ enum fuse_opcode {
 /* The read buffer is required to be at least 8k, but may be much larger */
 #define FUSE_MIN_READ_BUFFER 8192
 
+#define FUSE_COMPAT_ENTRY_OUT_SIZE 120
+
 struct fuse_entry_out {
 	__u64	nodeid;		/* Inode ID */
 	__u64	generation;	/* Inode generation: nodeid:gen must
@@ -197,6 +202,8 @@ struct fuse_getattr_in {
 	__u32	dummy;
 	__u64	fh;
 };
+
+#define FUSE_COMPAT_ATTR_OUT_SIZE 96
 
 struct fuse_attr_out {
 	__u64	attr_valid;	/* Cache timeout for the attributes */

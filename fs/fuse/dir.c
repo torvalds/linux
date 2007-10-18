@@ -116,13 +116,19 @@ static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
 			     struct dentry *entry,
 			     struct fuse_entry_out *outarg)
 {
+	struct fuse_conn *fc = get_fuse_conn(dir);
+
+	memset(outarg, 0, sizeof(struct fuse_entry_out));
 	req->in.h.opcode = FUSE_LOOKUP;
 	req->in.h.nodeid = get_node_id(dir);
 	req->in.numargs = 1;
 	req->in.args[0].size = entry->d_name.len + 1;
 	req->in.args[0].value = entry->d_name.name;
 	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(struct fuse_entry_out);
+	if (fc->minor < 9)
+		req->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
+	else
+		req->out.args[0].size = sizeof(struct fuse_entry_out);
 	req->out.args[0].value = outarg;
 }
 
@@ -356,6 +362,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 
 	flags &= ~O_NOCTTY;
 	memset(&inarg, 0, sizeof(inarg));
+	memset(&outentry, 0, sizeof(outentry));
 	inarg.flags = flags;
 	inarg.mode = mode;
 	req->in.h.opcode = FUSE_CREATE;
@@ -366,7 +373,10 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	req->in.args[1].size = entry->d_name.len + 1;
 	req->in.args[1].value = entry->d_name.name;
 	req->out.numargs = 2;
-	req->out.args[0].size = sizeof(outentry);
+	if (fc->minor < 9)
+		req->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
+	else
+		req->out.args[0].size = sizeof(outentry);
 	req->out.args[0].value = &outentry;
 	req->out.args[1].size = sizeof(outopen);
 	req->out.args[1].value = &outopen;
@@ -431,9 +441,13 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 		return PTR_ERR(forget_req);
 	}
 
+	memset(&outarg, 0, sizeof(outarg));
 	req->in.h.nodeid = get_node_id(dir);
 	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(outarg);
+	if (fc->minor < 9)
+		req->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
+	else
+		req->out.args[0].size = sizeof(outarg);
 	req->out.args[0].value = &outarg;
 	request_send(fc, req);
 	err = req->out.h.error;
@@ -724,6 +738,7 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	spin_unlock(&fc->lock);
 
 	memset(&inarg, 0, sizeof(inarg));
+	memset(&outarg, 0, sizeof(outarg));
 	/* Directories have separate file-handle space */
 	if (file && S_ISREG(inode->i_mode)) {
 		struct fuse_file *ff = file->private_data;
@@ -737,7 +752,10 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
 	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(outarg);
+	if (fc->minor < 9)
+		req->out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
+	else
+		req->out.args[0].size = sizeof(outarg);
 	req->out.args[0].value = &outarg;
 	request_send(fc, req);
 	err = req->out.h.error;
@@ -1102,6 +1120,7 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 		return PTR_ERR(req);
 
 	memset(&inarg, 0, sizeof(inarg));
+	memset(&outarg, 0, sizeof(outarg));
 	iattr_to_fattr(attr, &inarg);
 	if (file) {
 		struct fuse_file *ff = file->private_data;
@@ -1119,7 +1138,10 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
 	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(outarg);
+	if (fc->minor < 9)
+		req->out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
+	else
+		req->out.args[0].size = sizeof(outarg);
 	req->out.args[0].value = &outarg;
 	request_send(fc, req);
 	err = req->out.h.error;
