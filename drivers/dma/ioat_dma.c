@@ -931,7 +931,6 @@ err_completion_pool:
 err_dma_pool:
 	kfree(device);
 err_kzalloc:
-	iounmap(iobase);
 	dev_err(&device->pdev->dev,
 		"ioatdma: Intel(R) I/OAT DMA Engine initialization failed\n");
 	return NULL;
@@ -948,6 +947,10 @@ void ioat_dma_remove(struct ioatdma_device *device)
 
 	pci_pool_destroy(device->dma_pool);
 	pci_pool_destroy(device->completion_pool);
+
+	iounmap(device->reg_base);
+	pci_release_regions(device->pdev);
+	pci_disable_device(device->pdev);
 
 	list_for_each_entry_safe(chan, _chan,
 				 &device->common.channels, device_node) {
