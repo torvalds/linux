@@ -274,7 +274,6 @@ static ide_pci_device_t cs5530_chipset __devinitdata = {
 	.name		= "CS5530",
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
-	.autodma	= AUTODMA,
 	.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 };

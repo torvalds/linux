@@ -78,48 +78,45 @@ static void __devinit init_hwif_generic (ide_hwif_t *hwif)
 	{ \
 		.name		= name_str, \
 		.init_hwif	= init_hwif_generic, \
-		.autodma	= dma_setting, \
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA | \
+				  dma_setting | \
 				  IDE_HFLAG_BOOTABLE, \
 	}
 
 static ide_pci_device_t generic_chipsets[] __devinitdata = {
-	/*  0 */ DECLARE_GENERIC_PCI_DEV("Unknown",		AUTODMA),
+	/*  0 */ DECLARE_GENERIC_PCI_DEV("Unknown",	0),
 
 	{	/* 1 */
 		.name		= "NS87410",
 		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x43,0x08,0x08}, {0x47,0x08,0x08}},
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_BOOTABLE,
 	},
 
-	/*  2 */ DECLARE_GENERIC_PCI_DEV("SAMURAI",		AUTODMA),
-	/*  3 */ DECLARE_GENERIC_PCI_DEV("HT6565",		AUTODMA),
-	/*  4 */ DECLARE_GENERIC_PCI_DEV("UM8673F",		NODMA),
-	/*  5 */ DECLARE_GENERIC_PCI_DEV("UM8886A",		NODMA),
-	/*  6 */ DECLARE_GENERIC_PCI_DEV("UM8886BF",		NODMA),
-	/*  7 */ DECLARE_GENERIC_PCI_DEV("HINT_IDE",		AUTODMA),
-	/*  8 */ DECLARE_GENERIC_PCI_DEV("VIA_IDE",		NOAUTODMA),
-	/*  9 */ DECLARE_GENERIC_PCI_DEV("OPTI621V",		NOAUTODMA),
+	/*  2 */ DECLARE_GENERIC_PCI_DEV("SAMURAI",	0),
+	/*  3 */ DECLARE_GENERIC_PCI_DEV("HT6565",	0),
+	/*  4 */ DECLARE_GENERIC_PCI_DEV("UM8673F",	IDE_HFLAG_NO_DMA),
+	/*  5 */ DECLARE_GENERIC_PCI_DEV("UM8886A",	IDE_HFLAG_NO_DMA),
+	/*  6 */ DECLARE_GENERIC_PCI_DEV("UM8886BF",	IDE_HFLAG_NO_DMA),
+	/*  7 */ DECLARE_GENERIC_PCI_DEV("HINT_IDE",	0),
+	/*  8 */ DECLARE_GENERIC_PCI_DEV("VIA_IDE",	IDE_HFLAG_NO_AUTODMA),
+	/*  9 */ DECLARE_GENERIC_PCI_DEV("OPTI621V",	IDE_HFLAG_NO_AUTODMA),
 
 	{	/* 10 */
 		.name		= "VIA8237SATA",
 		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
 	},
 
-	/* 11 */ DECLARE_GENERIC_PCI_DEV("Piccolo0102",		NOAUTODMA),
-	/* 12 */ DECLARE_GENERIC_PCI_DEV("Piccolo0103",		NOAUTODMA),
-	/* 13 */ DECLARE_GENERIC_PCI_DEV("Piccolo0105",		NOAUTODMA),
+	/* 11 */ DECLARE_GENERIC_PCI_DEV("Piccolo0102",	IDE_HFLAG_NO_AUTODMA),
+	/* 12 */ DECLARE_GENERIC_PCI_DEV("Piccolo0103",	IDE_HFLAG_NO_AUTODMA),
+	/* 13 */ DECLARE_GENERIC_PCI_DEV("Piccolo0105",	IDE_HFLAG_NO_AUTODMA),
 
 	{	/* 14 */
 		.name		= "Revolution",
 		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
 	}

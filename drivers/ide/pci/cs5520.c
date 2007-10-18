@@ -152,7 +152,6 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		.name		= name_str,			\
 		.init_setup_dma = cs5520_init_setup_dma,	\
 		.init_hwif	= init_hwif_cs5520,		\
-		.autodma	= AUTODMA,			\
 		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
 				  IDE_HFLAG_VDMA |		\
 				  IDE_HFLAG_NO_ATAPI_DMA |	\

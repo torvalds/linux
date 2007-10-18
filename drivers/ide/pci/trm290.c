@@ -324,11 +324,11 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 static ide_pci_device_t trm290_chipset __devinitdata = {
 	.name		= "TRM290",
 	.init_hwif	= init_hwif_trm290,
-	.autodma	= NOAUTODMA,
 	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
 #if 0 /* play it safe for now */
 			  IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 #endif
+			  IDE_HFLAG_NO_AUTODMA |
 			  IDE_HFLAG_BOOTABLE,
 };
 

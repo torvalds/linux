@@ -191,7 +191,6 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	{						\
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_it8213,	\
-		.autodma	= AUTODMA,		\
 		.enablebits	= {{0x41,0x80,0x80}}, \
 		.host_flags	= IDE_HFLAG_SINGLE |	\
 				  IDE_HFLAG_BOOTABLE,	\

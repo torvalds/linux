@@ -266,7 +266,6 @@ static ide_pci_device_t ns87415_chipset __devinitdata = {
 	.init_iops	= init_iops_ns87415,
 #endif
 	.init_hwif	= init_hwif_ns87415,
-	.autodma	= AUTODMA,
 	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 			  IDE_HFLAG_NO_ATAPI_DMA |
 			  IDE_HFLAG_BOOTABLE,

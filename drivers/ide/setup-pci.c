@@ -428,9 +428,10 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwi
 static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwif_t *hwif)
 {
 	u16 pcicmd;
+
 	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
 
-	if ((d->autodma == AUTODMA) ||
+	if ((d->host_flags & IDE_HFLAG_NO_AUTODMA) == 0 ||
 	    ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	     (dev->class & 0x80))) {
 		unsigned long dma_base = ide_get_or_set_dma_base(hwif);
@@ -558,7 +559,7 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		if (d->init_iops)
 			d->init_iops(hwif);
 
-		if (d->autodma == NODMA)
+		if (d->host_flags & IDE_HFLAG_NO_DMA)
 			goto bypass_legacy_dma;
 
 		if(d->init_setup_dma)

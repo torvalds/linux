@@ -414,7 +414,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.autodma	= AUTODMA,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 1 */
@@ -422,7 +421,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.autodma	= AUTODMA,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 2 */
@@ -430,7 +428,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_csb6,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.autodma	= AUTODMA,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 3 */
@@ -438,7 +435,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_csb6,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.autodma	= AUTODMA,
 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 4 */
@@ -446,7 +442,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.autodma	= AUTODMA,
 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	}

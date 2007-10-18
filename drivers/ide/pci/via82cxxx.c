@@ -456,18 +456,17 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 		.name		= "VP_IDE",
 		.init_chipset	= init_chipset_via82cxxx,
 		.init_hwif	= init_hwif_via82cxxx,
-		.autodma	= NOAUTODMA,
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |
 				  IDE_HFLAG_PIO_NO_DOWNGRADE |
 				  IDE_HFLAG_POST_SET_MODE |
+				  IDE_HFLAG_NO_AUTODMA |
 				  IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
 	},{	/* 1 */
 		.name		= "VP_IDE",
 		.init_chipset	= init_chipset_via82cxxx,
 		.init_hwif	= init_hwif_via82cxxx,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
 		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |
 				  IDE_HFLAG_PIO_NO_DOWNGRADE |

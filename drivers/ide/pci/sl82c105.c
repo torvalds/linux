@@ -404,9 +404,8 @@ static ide_pci_device_t sl82c105_chipset __devinitdata = {
 	.name		= "W82C105",
 	.init_chipset	= init_chipset_sl82c105,
 	.init_hwif	= init_hwif_sl82c105,
-	.autodma	= NOAUTODMA,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
-	.host_flags	= IDE_HFLAG_BOOTABLE,
+	.host_flags	= IDE_HFLAG_NO_AUTODMA | IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO5,
 };
 

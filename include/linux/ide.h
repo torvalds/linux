@@ -1210,10 +1210,6 @@ extern void default_hwif_iops(ide_hwif_t *);
 extern void default_hwif_mmiops(ide_hwif_t *);
 extern void default_hwif_transport(ide_hwif_t *);
 
-#define NODMA 0
-#define NOAUTODMA 1
-#define AUTODMA 2
-
 typedef struct ide_pci_enablebit_s {
 	u8	reg;	/* byte pci reg holding the enable-bit */
 	u8	mask;	/* mask to isolate the enable-bit */
@@ -1252,6 +1248,10 @@ enum {
 	IDE_HFLAG_NO_ATAPI_DMA		= (1 << 12),
 	/* set if host is a "bootable" controller */
 	IDE_HFLAG_BOOTABLE		= (1 << 13),
+	/* host doesn't support DMA */
+	IDE_HFLAG_NO_DMA		= (1 << 14),
+	/* check if host is PCI IDE device before allowing DMA */
+	IDE_HFLAG_NO_AUTODMA		= (1 << 15),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
@@ -1269,7 +1269,6 @@ typedef struct ide_pci_device_s {
 	void                    (*init_hwif)(ide_hwif_t *);
 	void			(*init_dma)(ide_hwif_t *, unsigned long);
 	void			(*fixup)(ide_hwif_t *);
-	u8			autodma;
 	ide_pci_enablebit_t	enablebits[2];
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;

@@ -202,14 +202,12 @@ static ide_pci_device_t atiixp_pci_info[] __devinitdata = {
 	{	/* 0 */
 		.name		= "ATIIXP",
 		.init_hwif	= init_hwif_atiixp,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x48,0x01,0x00}, {0x48,0x08,0x00}},
 		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 1 */
 		.name		= "SB600_PATA",
 		.init_hwif	= init_hwif_atiixp,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x48,0x01,0x00}, {0x00,0x00,0x00}},
  		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,

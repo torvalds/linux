@@ -152,9 +152,8 @@ static ide_pci_device_t hpt34x_chipset __devinitdata = {
 	.name		= "HPT34X",
 	.init_chipset	= init_chipset_hpt34x,
 	.init_hwif	= init_hwif_hpt34x,
-	.autodma	= NOAUTODMA,
 	.extra		= 16,
-	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
+	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_NO_AUTODMA,
 	.pio_mask	= ATA_PIO5,
 };
 
