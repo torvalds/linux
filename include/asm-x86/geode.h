@@ -38,6 +38,8 @@ extern int geode_get_dev_base(unsigned int dev);
 #define MSR_LBAR_ACPI		0x5140000E
 #define MSR_LBAR_PMS		0x5140000F
 
+#define MSR_DIVIL_SOFT_RESET	0x51400017
+
 #define MSR_PIC_YSEL_LOW	0x51400020
 #define MSR_PIC_YSEL_HIGH	0x51400021
 #define MSR_PIC_ZSEL_LOW	0x51400022
