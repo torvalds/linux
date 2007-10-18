@@ -134,16 +134,42 @@ extern void mark_free_pages(struct zone *zone);
  *
  * All three methods must be assigned.
  *
- * @prepare: prepare system for hibernation
- * @enter: shut down system after state has been saved to disk
- * @finish: finish/clean up after state has been reloaded
- * @pre_restore: prepare system for the restoration from a hibernation image
- * @restore_cleanup: clean up after a failing image restoration
+ * @start: Tell the platform driver that we're starting hibernation.
+ *	Called right after shrinking memory and before freezing devices.
+ *
+ * @pre_snapshot: Prepare the platform for creating the hibernation image.
+ *	Called right after devices have been frozen and before the nonboot
+ *	CPUs are disabled (runs with IRQs on).
+ *
+ * @finish: Restore the previous state of the platform after the hibernation
+ *	image has been created *or* put the platform into the normal operation
+ *	mode after the hibernation (the same method is executed in both cases).
+ *	Called right after the nonboot CPUs have been enabled and before
+ *	thawing devices (runs with IRQs on).
+ *
+ * @prepare: Prepare the platform for entering the low power state.
+ *	Called right after the hibernation image has been saved and before
+ *	devices are prepared for entering the low power state.
+ *
+ * @enter: Put the system into the low power state after the hibernation image
+ *	has been saved to disk.
+ *	Called after the nonboot CPUs have been disabled and all of the low
+ *	level devices have been shut down (runs with IRQs off).
+ *
+ * @pre_restore: Prepare system for the restoration from a hibernation image.
+ *	Called right after devices have been frozen and before the nonboot
+ *	CPUs are disabled (runs with IRQs on).
+ *
+ * @restore_cleanup: Clean up after a failing image restoration.
+ *	Called right after the nonboot CPUs have been enabled and before
+ *	thawing devices (runs with IRQs on).
  */
 struct hibernation_ops {
+	int (*start)(void);
+	int (*pre_snapshot)(void);
+	void (*finish)(void);
 	int (*prepare)(void);
 	int (*enter)(void);
-	void (*finish)(void);
 	int (*pre_restore)(void);
 	void (*restore_cleanup)(void);
 };

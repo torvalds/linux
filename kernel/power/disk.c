@@ -54,8 +54,9 @@ static struct hibernation_ops *hibernation_ops;
 
 void hibernation_set_ops(struct hibernation_ops *ops)
 {
-	if (ops && !(ops->prepare && ops->enter && ops->finish
-	    && ops->pre_restore && ops->restore_cleanup)) {
+	if (ops && !(ops->start && ops->pre_snapshot && ops->finish
+	    && ops->prepare && ops->enter && ops->pre_restore
+	    && ops->restore_cleanup)) {
 		WARN_ON(1);
 		return;
 	}
@@ -69,16 +70,26 @@ void hibernation_set_ops(struct hibernation_ops *ops)
 	mutex_unlock(&pm_mutex);
 }
 
+/**
+ *	platform_start - tell the platform driver that we're starting
+ *	hibernation
+ */
+
+static int platform_start(int platform_mode)
+{
+	return (platform_mode && hibernation_ops) ?
+		hibernation_ops->start() : 0;
+}
 
 /**
- *	platform_prepare - prepare the machine for hibernation using the
+ *	platform_pre_snapshot - prepare the machine for hibernation using the
  *	platform driver if so configured and return an error code if it fails
  */
 
-static int platform_prepare(int platform_mode)
+static int platform_pre_snapshot(int platform_mode)
 {
 	return (platform_mode && hibernation_ops) ?
-		hibernation_ops->prepare() : 0;
+		hibernation_ops->pre_snapshot() : 0;
 }
 
 /**
@@ -135,12 +146,16 @@ int hibernation_snapshot(int platform_mode)
 	if (error)
 		return error;
 
+	error = platform_start(platform_mode);
+	if (error)
+		return error;
+
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
 	if (error)
 		goto Resume_console;
 
-	error = platform_prepare(platform_mode);
+	error = platform_pre_snapshot(platform_mode);
 	if (error)
 		goto Resume_devices;
 

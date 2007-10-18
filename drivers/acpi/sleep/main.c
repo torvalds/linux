@@ -230,6 +230,12 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 #endif /* CONFIG_SUSPEND */
 
 #ifdef CONFIG_HIBERNATION
+static int acpi_hibernation_start(void)
+{
+	acpi_target_sleep_state = ACPI_STATE_S4;
+	return 0;
+}
+
 static int acpi_hibernation_prepare(void)
 {
 	return acpi_sleep_prepare(ACPI_STATE_S4);
@@ -258,6 +264,8 @@ static void acpi_hibernation_finish(void)
 
 	/* reset firmware waking vector */
 	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
+
+	acpi_target_sleep_state = ACPI_STATE_S0;
 }
 
 static int acpi_hibernation_pre_restore(void)
@@ -275,9 +283,11 @@ static void acpi_hibernation_restore_cleanup(void)
 }
 
 static struct hibernation_ops acpi_hibernation_ops = {
+	.start = acpi_hibernation_start,
+	.pre_snapshot = acpi_hibernation_prepare,
+	.finish = acpi_hibernation_finish,
 	.prepare = acpi_hibernation_prepare,
 	.enter = acpi_hibernation_enter,
-	.finish = acpi_hibernation_finish,
 	.pre_restore = acpi_hibernation_pre_restore,
 	.restore_cleanup = acpi_hibernation_restore_cleanup,
 };
