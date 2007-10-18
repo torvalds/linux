@@ -336,7 +336,7 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	struct ocfs2_dinode *di = NULL;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_super *osb;
-	int meta_lock = 0;
+	int inode_lock = 0;
 
 	mlog_entry_void();
 
@@ -366,14 +366,14 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	/* Skip recovery waits here - journal inode metadata never
 	 * changes in a live cluster so it can be considered an
 	 * exception to the rule. */
-	status = ocfs2_meta_lock_full(inode, &bh, 1, OCFS2_META_LOCK_RECOVERY);
+	status = ocfs2_inode_lock_full(inode, &bh, 1, OCFS2_META_LOCK_RECOVERY);
 	if (status < 0) {
 		if (status != -ERESTARTSYS)
 			mlog(ML_ERROR, "Could not get lock on journal!\n");
 		goto done;
 	}
 
-	meta_lock = 1;
+	inode_lock = 1;
 	di = (struct ocfs2_dinode *)bh->b_data;
 
 	if (inode->i_size <  OCFS2_MIN_JOURNAL_SIZE) {
@@ -413,8 +413,8 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	status = 0;
 done:
 	if (status < 0) {
-		if (meta_lock)
-			ocfs2_meta_unlock(inode, 1);
+		if (inode_lock)
+			ocfs2_inode_unlock(inode, 1);
 		if (bh != NULL)
 			brelse(bh);
 		if (inode) {
@@ -543,7 +543,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 	OCFS2_I(inode)->ip_open_count--;
 
 	/* unlock our journal */
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 
 	brelse(journal->j_bh);
 	journal->j_bh = NULL;
@@ -972,9 +972,9 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	}
 	SET_INODE_JOURNAL(inode);
 
-	status = ocfs2_meta_lock_full(inode, &bh, 1, OCFS2_META_LOCK_RECOVERY);
+	status = ocfs2_inode_lock_full(inode, &bh, 1, OCFS2_META_LOCK_RECOVERY);
 	if (status < 0) {
-		mlog(0, "status returned from ocfs2_meta_lock=%d\n", status);
+		mlog(0, "status returned from ocfs2_inode_lock=%d\n", status);
 		if (status != -ERESTARTSYS)
 			mlog(ML_ERROR, "Could not lock journal!\n");
 		goto done;
@@ -1046,7 +1046,7 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 done:
 	/* drop the lock on this nodes journal */
 	if (got_lock)
-		ocfs2_meta_unlock(inode, 1);
+		ocfs2_inode_unlock(inode, 1);
 
 	if (inode)
 		iput(inode);
@@ -1161,14 +1161,14 @@ static int ocfs2_trylock_journal(struct ocfs2_super *osb,
 	SET_INODE_JOURNAL(inode);
 
 	flags = OCFS2_META_LOCK_RECOVERY | OCFS2_META_LOCK_NOQUEUE;
-	status = ocfs2_meta_lock_full(inode, NULL, 1, flags);
+	status = ocfs2_inode_lock_full(inode, NULL, 1, flags);
 	if (status < 0) {
 		if (status != -EAGAIN)
 			mlog_errno(status);
 		goto bail;
 	}
 
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 bail:
 	if (inode)
 		iput(inode);
@@ -1276,7 +1276,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 	}	
 
 	mutex_lock(&orphan_dir_inode->i_mutex);
-	status = ocfs2_meta_lock(orphan_dir_inode, NULL, 0);
+	status = ocfs2_inode_lock(orphan_dir_inode, NULL, 0);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -1292,7 +1292,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 	*head = priv.head;
 
 out_cluster:
-	ocfs2_meta_unlock(orphan_dir_inode, 0);
+	ocfs2_inode_unlock(orphan_dir_inode, 0);
 out:
 	mutex_unlock(&orphan_dir_inode->i_mutex);
 	iput(orphan_dir_inode);

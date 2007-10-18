@@ -95,7 +95,7 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	mlog(0, "find parent of directory %llu\n",
 	     (unsigned long long)OCFS2_I(dir)->ip_blkno);
 
-	status = ocfs2_meta_lock(dir, NULL, 0);
+	status = ocfs2_inode_lock(dir, NULL, 0);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -126,7 +126,7 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	parent->d_op = &ocfs2_dentry_ops;
 
 bail_unlock:
-	ocfs2_meta_unlock(dir, 0);
+	ocfs2_inode_unlock(dir, 0);
 
 bail:
 	mlog_exit_ptr(parent);

@@ -114,7 +114,7 @@ void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac)
 
 	if (inode) {
 		if (ac->ac_which != OCFS2_AC_USE_LOCAL)
-			ocfs2_meta_unlock(inode, 1);
+			ocfs2_inode_unlock(inode, 1);
 
 		mutex_unlock(&inode->i_mutex);
 
@@ -412,7 +412,7 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 
 	mutex_lock(&alloc_inode->i_mutex);
 
-	status = ocfs2_meta_lock(alloc_inode, &bh, 1);
+	status = ocfs2_inode_lock(alloc_inode, &bh, 1);
 	if (status < 0) {
 		mutex_unlock(&alloc_inode->i_mutex);
 		iput(alloc_inode);

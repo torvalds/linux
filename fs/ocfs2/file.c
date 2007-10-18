@@ -1025,7 +1025,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-	status = ocfs2_meta_lock(inode, &bh, 1);
+	status = ocfs2_inode_lock(inode, &bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -1077,7 +1077,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 bail_commit:
 	ocfs2_commit_trans(osb, handle);
 bail_unlock:
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 bail_unlock_rw:
 	if (size_change)
 		ocfs2_rw_unlock(inode, 1);
@@ -1124,7 +1124,7 @@ int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 
 	mlog_entry_void();
 
-	ret = ocfs2_meta_lock(inode, NULL, 0);
+	ret = ocfs2_inode_lock(inode, NULL, 0);
 	if (ret) {
 		if (ret != -ENOENT)
 			mlog_errno(ret);
@@ -1133,7 +1133,7 @@ int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 
 	ret = generic_permission(inode, mask, NULL);
 
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_inode_unlock(inode, 0);
 out:
 	mlog_exit(ret);
 	return ret;
@@ -1605,7 +1605,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	ret = ocfs2_inode_lock(inode, &di_bh, 1);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_rw_unlock;
@@ -1613,7 +1613,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 
 	if (inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
 		ret = -EPERM;
-		goto out_meta_unlock;
+		goto out_inode_unlock;
 	}
 
 	switch (sr->l_whence) {
@@ -1627,7 +1627,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 		break;
 	default:
 		ret = -EINVAL;
-		goto out_meta_unlock;
+		goto out_inode_unlock;
 	}
 	sr->l_whence = 0;
 
@@ -1638,14 +1638,14 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 	    || (sr->l_start + llen) < 0
 	    || (sr->l_start + llen) > max_off) {
 		ret = -EINVAL;
-		goto out_meta_unlock;
+		goto out_inode_unlock;
 	}
 	size = sr->l_start + sr->l_len;
 
 	if (cmd == OCFS2_IOC_RESVSP || cmd == OCFS2_IOC_RESVSP64) {
 		if (sr->l_len <= 0) {
 			ret = -EINVAL;
-			goto out_meta_unlock;
+			goto out_inode_unlock;
 		}
 	}
 
@@ -1653,7 +1653,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 		ret = __ocfs2_write_remove_suid(inode, di_bh);
 		if (ret) {
 			mlog_errno(ret);
-			goto out_meta_unlock;
+			goto out_inode_unlock;
 		}
 	}
 
@@ -1679,7 +1679,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 	if (ret) {
 		mlog_errno(ret);
-		goto out_meta_unlock;
+		goto out_inode_unlock;
 	}
 
 	/*
@@ -1689,7 +1689,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		mlog_errno(ret);
-		goto out_meta_unlock;
+		goto out_inode_unlock;
 	}
 
 	if (change_size && i_size_read(inode) < size)
@@ -1702,9 +1702,9 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 
 	ocfs2_commit_trans(osb, handle);
 
-out_meta_unlock:
+out_inode_unlock:
 	brelse(di_bh);
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 out_rw_unlock:
 	ocfs2_rw_unlock(inode, 1);
 
@@ -1774,7 +1774,7 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 	 * if we need to make modifications here.
 	 */
 	for(;;) {
-		ret = ocfs2_meta_lock(inode, NULL, meta_level);
+		ret = ocfs2_inode_lock(inode, NULL, meta_level);
 		if (ret < 0) {
 			meta_level = -1;
 			mlog_errno(ret);
@@ -1792,7 +1792,7 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 		 * set inode->i_size at the end of a write. */
 		if (should_remove_suid(dentry)) {
 			if (meta_level == 0) {
-				ocfs2_meta_unlock(inode, meta_level);
+				ocfs2_inode_unlock(inode, meta_level);
 				meta_level = 1;
 				continue;
 			}
@@ -1861,7 +1861,7 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 		*ppos = saved_pos;
 
 out_unlock:
-	ocfs2_meta_unlock(inode, meta_level);
+	ocfs2_inode_unlock(inode, meta_level);
 
 out:
 	return ret;
@@ -2074,12 +2074,12 @@ static ssize_t ocfs2_file_splice_read(struct file *in,
 	/*
 	 * See the comment in ocfs2_file_aio_read()
 	 */
-	ret = ocfs2_meta_lock(inode, NULL, 0);
+	ret = ocfs2_inode_lock(inode, NULL, 0);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto bail;
 	}
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_inode_unlock(inode, 0);
 
 	ret = generic_file_splice_read(in, ppos, pipe, len, flags);
 
@@ -2135,12 +2135,12 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	 * like i_size. This allows the checks down below
 	 * generic_file_aio_read() a chance of actually working. 
 	 */
-	ret = ocfs2_meta_lock_atime(inode, filp->f_vfsmnt, &lock_level);
+	ret = ocfs2_inode_lock_atime(inode, filp->f_vfsmnt, &lock_level);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto bail;
 	}
-	ocfs2_meta_unlock(inode, lock_level);
+	ocfs2_inode_unlock(inode, lock_level);
 
 	ret = generic_file_aio_read(iocb, iov, nr_segs, iocb->ki_pos);
 	if (ret == -EINVAL)

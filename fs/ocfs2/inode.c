@@ -321,7 +321,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		 */
 		BUG_ON(le32_to_cpu(fe->i_flags) & OCFS2_SYSTEM_FL);
 
-		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_meta_lockres,
+		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_inode_lockres,
 					  OCFS2_LOCK_TYPE_META, 0, inode);
 
 		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_open_lockres,
@@ -409,7 +409,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	if (args->fi_flags & OCFS2_FI_FLAG_SYSFILE)
 		generation = osb->fs_generation;
 
-	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_meta_lockres,
+	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_inode_lockres,
 				  OCFS2_LOCK_TYPE_META,
 				  generation, inode);
 
@@ -424,7 +424,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 			mlog_errno(status);
 			return status;
 		}
-		status = ocfs2_meta_lock(inode, NULL, 0);
+		status = ocfs2_inode_lock(inode, NULL, 0);
 		if (status) {
 			make_bad_inode(inode);
 			mlog_errno(status);
@@ -479,7 +479,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 
 bail:
 	if (can_lock)
-		ocfs2_meta_unlock(inode, 0);
+		ocfs2_inode_unlock(inode, 0);
 
 	if (status < 0)
 		make_bad_inode(inode);
@@ -581,7 +581,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	}
 
 	mutex_lock(&inode_alloc_inode->i_mutex);
-	status = ocfs2_meta_lock(inode_alloc_inode, &inode_alloc_bh, 1);
+	status = ocfs2_inode_lock(inode_alloc_inode, &inode_alloc_bh, 1);
 	if (status < 0) {
 		mutex_unlock(&inode_alloc_inode->i_mutex);
 
@@ -630,7 +630,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 bail_commit:
 	ocfs2_commit_trans(osb, handle);
 bail_unlock:
-	ocfs2_meta_unlock(inode_alloc_inode, 1);
+	ocfs2_inode_unlock(inode_alloc_inode, 1);
 	mutex_unlock(&inode_alloc_inode->i_mutex);
 	brelse(inode_alloc_bh);
 bail:
@@ -704,7 +704,7 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	 * delete_inode operation. We do this now to avoid races with
 	 * recovery completion on other nodes. */
 	mutex_lock(&orphan_dir_inode->i_mutex);
-	status = ocfs2_meta_lock(orphan_dir_inode, &orphan_dir_bh, 1);
+	status = ocfs2_inode_lock(orphan_dir_inode, &orphan_dir_bh, 1);
 	if (status < 0) {
 		mutex_unlock(&orphan_dir_inode->i_mutex);
 
@@ -728,7 +728,7 @@ static int ocfs2_wipe_inode(struct inode *inode,
 		mlog_errno(status);
 
 bail_unlock_dir:
-	ocfs2_meta_unlock(orphan_dir_inode, 1);
+	ocfs2_inode_unlock(orphan_dir_inode, 1);
 	mutex_unlock(&orphan_dir_inode->i_mutex);
 	brelse(orphan_dir_bh);
 bail:
@@ -929,7 +929,7 @@ void ocfs2_delete_inode(struct inode *inode)
 	 * allocation lock here as it won't be needed - nobody will
 	 * have the file open.
 	 */
-	status = ocfs2_meta_lock(inode, &di_bh, 1);
+	status = ocfs2_inode_lock(inode, &di_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -975,7 +975,7 @@ void ocfs2_delete_inode(struct inode *inode)
 	OCFS2_I(inode)->ip_flags |= OCFS2_INODE_DELETED;
 
 bail_unlock_inode:
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 	brelse(di_bh);
 bail_unblock:
 	status = sigprocmask(SIG_SETMASK, &oldset, NULL);
@@ -1009,7 +1009,7 @@ void ocfs2_clear_inode(struct inode *inode)
 	/* Do these before all the other work so that we don't bounce
 	 * the downconvert thread while waiting to destroy the locks. */
 	ocfs2_mark_lockres_freeing(&oi->ip_rw_lockres);
-	ocfs2_mark_lockres_freeing(&oi->ip_meta_lockres);
+	ocfs2_mark_lockres_freeing(&oi->ip_inode_lockres);
 	ocfs2_mark_lockres_freeing(&oi->ip_open_lockres);
 
 	/* We very well may get a clear_inode before all an inodes
@@ -1032,7 +1032,7 @@ void ocfs2_clear_inode(struct inode *inode)
 		mlog_errno(status);
 
 	ocfs2_lock_res_free(&oi->ip_rw_lockres);
-	ocfs2_lock_res_free(&oi->ip_meta_lockres);
+	ocfs2_lock_res_free(&oi->ip_inode_lockres);
 	ocfs2_lock_res_free(&oi->ip_open_lockres);
 
 	ocfs2_metadata_cache_purge(inode);
@@ -1176,15 +1176,15 @@ int ocfs2_inode_revalidate(struct dentry *dentry)
 	}
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 
-	/* Let ocfs2_meta_lock do the work of updating our struct
+	/* Let ocfs2_inode_lock do the work of updating our struct
 	 * inode for us. */
-	status = ocfs2_meta_lock(inode, NULL, 0);
+	status = ocfs2_inode_lock(inode, NULL, 0);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
 		goto bail;
 	}
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_inode_unlock(inode, 0);
 bail:
 	mlog_exit(status);
 

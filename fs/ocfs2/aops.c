@@ -275,7 +275,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 
 	mlog_entry("(0x%p, %lu)\n", file, (page ? page->index : 0));
 
-	ret = ocfs2_meta_lock_with_page(inode, NULL, 0, page);
+	ret = ocfs2_inode_lock_with_page(inode, NULL, 0, page);
 	if (ret != 0) {
 		if (ret == AOP_TRUNCATED_PAGE)
 			unlock = 0;
@@ -285,7 +285,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 
 	if (down_read_trylock(&oi->ip_alloc_sem) == 0) {
 		ret = AOP_TRUNCATED_PAGE;
-		goto out_meta_unlock;
+		goto out_inode_unlock;
 	}
 
 	/*
@@ -313,8 +313,8 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 
 out_alloc:
 	up_read(&OCFS2_I(inode)->ip_alloc_sem);
-out_meta_unlock:
-	ocfs2_meta_unlock(inode, 0);
+out_inode_unlock:
+	ocfs2_inode_unlock(inode, 0);
 out:
 	if (unlock)
 		unlock_page(page);
@@ -443,7 +443,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 	 * accessed concurrently from multiple nodes.
 	 */
 	if (!INODE_JOURNAL(inode)) {
-		err = ocfs2_meta_lock(inode, NULL, 0);
+		err = ocfs2_inode_lock(inode, NULL, 0);
 		if (err) {
 			if (err != -ENOENT)
 				mlog_errno(err);
@@ -458,7 +458,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 
 	if (!INODE_JOURNAL(inode)) {
 		up_read(&OCFS2_I(inode)->ip_alloc_sem);
-		ocfs2_meta_unlock(inode, 0);
+		ocfs2_inode_unlock(inode, 0);
 	}
 
 	if (err) {
@@ -1723,7 +1723,7 @@ static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	struct buffer_head *di_bh = NULL;
 	struct inode *inode = mapping->host;
 
-	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	ret = ocfs2_inode_lock(inode, &di_bh, 1);
 	if (ret) {
 		mlog_errno(ret);
 		return ret;
@@ -1753,7 +1753,7 @@ out_fail:
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 	brelse(di_bh);
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 
 	return ret;
 }
@@ -1870,7 +1870,7 @@ static int ocfs2_write_end(struct file *file, struct address_space *mapping,
 	ret = ocfs2_write_end_nolock(mapping, pos, len, copied, page, fsdata);
 
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 
 	return ret;
 }

@@ -231,7 +231,7 @@ void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 
 	mutex_lock(&main_bm_inode->i_mutex);
 
-	status = ocfs2_meta_lock(main_bm_inode, &main_bm_bh, 1);
+	status = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_mutex;
@@ -286,7 +286,7 @@ out_unlock:
 	if (main_bm_bh)
 		brelse(main_bm_bh);
 
-	ocfs2_meta_unlock(main_bm_inode, 1);
+	ocfs2_inode_unlock(main_bm_inode, 1);
 
 out_mutex:
 	mutex_unlock(&main_bm_inode->i_mutex);
@@ -399,7 +399,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 
 	mutex_lock(&main_bm_inode->i_mutex);
 
-	status = ocfs2_meta_lock(main_bm_inode, &main_bm_bh, 1);
+	status = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_mutex;
@@ -424,7 +424,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
-	ocfs2_meta_unlock(main_bm_inode, 1);
+	ocfs2_inode_unlock(main_bm_inode, 1);
 
 out_mutex:
 	mutex_unlock(&main_bm_inode->i_mutex);

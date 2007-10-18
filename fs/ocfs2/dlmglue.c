@@ -224,7 +224,7 @@ static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 	.flags		= 0,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
+static struct ocfs2_lock_res_ops ocfs2_inode_inode_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
 	.check_downconvert = ocfs2_check_meta_downconvert,
 	.set_lvb	= ocfs2_set_meta_lvb,
@@ -306,7 +306,7 @@ static inline void ocfs2_recover_from_dlm_error(struct ocfs2_lock_res *lockres,
 static int ocfs2_downconvert_thread(void *arg);
 static void ocfs2_downconvert_on_unlock(struct ocfs2_super *osb,
 					struct ocfs2_lock_res *lockres);
-static int ocfs2_meta_lock_update(struct inode *inode,
+static int ocfs2_inode_lock_update(struct inode *inode,
 				  struct buffer_head **bh);
 static void ocfs2_drop_osb_locks(struct ocfs2_super *osb);
 static inline int ocfs2_highest_compat_lock_level(int level);
@@ -396,7 +396,7 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			ops = &ocfs2_inode_rw_lops;
 			break;
 		case OCFS2_LOCK_TYPE_META:
-			ops = &ocfs2_inode_meta_lops;
+			ops = &ocfs2_inode_inode_lops;
 			break;
 		case OCFS2_LOCK_TYPE_OPEN:
 			ops = &ocfs2_inode_open_lops;
@@ -1138,7 +1138,7 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 	 * We don't want to use LKM_LOCAL on a meta data lock as they
 	 * don't use a generation in their lock names.
 	 */
-	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_meta_lockres, 1, 0);
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_inode_lockres, 1, 0);
 	if (ret) {
 		mlog_errno(ret);
 		goto bail;
@@ -1346,11 +1346,11 @@ static u64 ocfs2_pack_timespec(struct timespec *spec)
 
 /* Call this with the lockres locked. I am reasonably sure we don't
  * need ip_lock in this function as anyone who would be changing those
- * values is supposed to be blocked in ocfs2_meta_lock right now. */
+ * values is supposed to be blocked in ocfs2_inode_lock right now. */
 static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_lock_res *lockres = &oi->ip_meta_lockres;
+	struct ocfs2_lock_res *lockres = &oi->ip_inode_lockres;
 	struct ocfs2_meta_lvb *lvb;
 
 	mlog_entry_void();
@@ -1400,7 +1400,7 @@ static void ocfs2_unpack_timespec(struct timespec *spec,
 static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_lock_res *lockres = &oi->ip_meta_lockres;
+	struct ocfs2_lock_res *lockres = &oi->ip_inode_lockres;
 	struct ocfs2_meta_lvb *lvb;
 
 	mlog_entry_void();
@@ -1508,12 +1508,12 @@ static inline void ocfs2_complete_lock_res_refresh(struct ocfs2_lock_res *lockre
 }
 
 /* may or may not return a bh if it went to disk. */
-static int ocfs2_meta_lock_update(struct inode *inode,
+static int ocfs2_inode_lock_update(struct inode *inode,
 				  struct buffer_head **bh)
 {
 	int status = 0;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_lock_res *lockres = &oi->ip_meta_lockres;
+	struct ocfs2_lock_res *lockres = &oi->ip_inode_lockres;
 	struct ocfs2_dinode *fe;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
@@ -1625,7 +1625,7 @@ static int ocfs2_assign_bh(struct inode *inode,
  * returns < 0 error if the callback will never be called, otherwise
  * the result of the lock will be communicated via the callback.
  */
-int ocfs2_meta_lock_full(struct inode *inode,
+int ocfs2_inode_lock_full(struct inode *inode,
 			 struct buffer_head **ret_bh,
 			 int ex,
 			 int arg_flags)
@@ -1660,7 +1660,7 @@ int ocfs2_meta_lock_full(struct inode *inode,
 		wait_event(osb->recovery_event,
 			   ocfs2_node_map_is_empty(osb, &osb->recovery_map));
 
-	lockres = &OCFS2_I(inode)->ip_meta_lockres;
+	lockres = &OCFS2_I(inode)->ip_inode_lockres;
 	level = ex ? LKM_EXMODE : LKM_PRMODE;
 	dlm_flags = 0;
 	if (arg_flags & OCFS2_META_LOCK_NOQUEUE)
@@ -1699,11 +1699,11 @@ local:
 	}
 
 	/* This is fun. The caller may want a bh back, or it may
-	 * not. ocfs2_meta_lock_update definitely wants one in, but
+	 * not. ocfs2_inode_lock_update definitely wants one in, but
 	 * may or may not read one, depending on what's in the
 	 * LVB. The result of all of this is that we've *only* gone to
 	 * disk if we have to, so the complexity is worthwhile. */
-	status = ocfs2_meta_lock_update(inode, &local_bh);
+	status = ocfs2_inode_lock_update(inode, &local_bh);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -1725,7 +1725,7 @@ bail:
 			*ret_bh = NULL;
 		}
 		if (acquired)
-			ocfs2_meta_unlock(inode, ex);
+			ocfs2_inode_unlock(inode, ex);
 	}
 
 	if (local_bh)
@@ -1757,32 +1757,32 @@ bail:
  * ping locks back and forth, but that's a risk we're willing to take to avoid
  * the lock inversion simply.
  */
-int ocfs2_meta_lock_with_page(struct inode *inode,
+int ocfs2_inode_lock_with_page(struct inode *inode,
 			      struct buffer_head **ret_bh,
 			      int ex,
 			      struct page *page)
 {
 	int ret;
 
-	ret = ocfs2_meta_lock_full(inode, ret_bh, ex, OCFS2_LOCK_NONBLOCK);
+	ret = ocfs2_inode_lock_full(inode, ret_bh, ex, OCFS2_LOCK_NONBLOCK);
 	if (ret == -EAGAIN) {
 		unlock_page(page);
-		if (ocfs2_meta_lock(inode, ret_bh, ex) == 0)
-			ocfs2_meta_unlock(inode, ex);
+		if (ocfs2_inode_lock(inode, ret_bh, ex) == 0)
+			ocfs2_inode_unlock(inode, ex);
 		ret = AOP_TRUNCATED_PAGE;
 	}
 
 	return ret;
 }
 
-int ocfs2_meta_lock_atime(struct inode *inode,
+int ocfs2_inode_lock_atime(struct inode *inode,
 			  struct vfsmount *vfsmnt,
 			  int *level)
 {
 	int ret;
 
 	mlog_entry_void();
-	ret = ocfs2_meta_lock(inode, NULL, 0);
+	ret = ocfs2_inode_lock(inode, NULL, 0);
 	if (ret < 0) {
 		mlog_errno(ret);
 		return ret;
@@ -1795,8 +1795,8 @@ int ocfs2_meta_lock_atime(struct inode *inode,
 	if (ocfs2_should_update_atime(inode, vfsmnt)) {
 		struct buffer_head *bh = NULL;
 
-		ocfs2_meta_unlock(inode, 0);
-		ret = ocfs2_meta_lock(inode, &bh, 1);
+		ocfs2_inode_unlock(inode, 0);
+		ret = ocfs2_inode_lock(inode, &bh, 1);
 		if (ret < 0) {
 			mlog_errno(ret);
 			return ret;
@@ -1813,11 +1813,11 @@ int ocfs2_meta_lock_atime(struct inode *inode,
 	return ret;
 }
 
-void ocfs2_meta_unlock(struct inode *inode,
+void ocfs2_inode_unlock(struct inode *inode,
 		       int ex)
 {
 	int level = ex ? LKM_EXMODE : LKM_PRMODE;
-	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_meta_lockres;
+	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_inode_lockres;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry_void();
@@ -2495,7 +2495,7 @@ int ocfs2_drop_inode_locks(struct inode *inode)
 	status = err;
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_meta_lockres);
+			      &OCFS2_I(inode)->ip_inode_lockres);
 	if (err < 0)
 		mlog_errno(err);
 	if (err < 0 && !status)

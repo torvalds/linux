@@ -964,7 +964,7 @@ static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 		goto bail;
 	}
 
-	status = ocfs2_meta_lock(inode, &bh, 0);
+	status = ocfs2_inode_lock(inode, &bh, 0);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -988,7 +988,7 @@ static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	brelse(bh);
 
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_inode_unlock(inode, 0);
 	status = 0;
 bail:
 	if (inode)
@@ -1019,7 +1019,7 @@ static void ocfs2_inode_init_once(struct kmem_cache *cachep, void *data)
 	oi->ip_clusters = 0;
 
 	ocfs2_lock_res_init_once(&oi->ip_rw_lockres);
-	ocfs2_lock_res_init_once(&oi->ip_meta_lockres);
+	ocfs2_lock_res_init_once(&oi->ip_inode_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_open_lockres);
 
 	ocfs2_metadata_cache_init(&oi->vfs_inode);

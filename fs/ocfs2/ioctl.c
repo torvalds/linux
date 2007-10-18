@@ -27,14 +27,14 @@ static int ocfs2_get_inode_attr(struct inode *inode, unsigned *flags)
 {
 	int status;
 
-	status = ocfs2_meta_lock(inode, NULL, 0);
+	status = ocfs2_inode_lock(inode, NULL, 0);
 	if (status < 0) {
 		mlog_errno(status);
 		return status;
 	}
 	ocfs2_get_inode_flags(OCFS2_I(inode));
 	*flags = OCFS2_I(inode)->ip_attr;
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_inode_unlock(inode, 0);
 
 	mlog_exit(status);
 	return status;
@@ -52,7 +52,7 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 
 	mutex_lock(&inode->i_mutex);
 
-	status = ocfs2_meta_lock(inode, &bh, 1);
+	status = ocfs2_inode_lock(inode, &bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -100,7 +100,7 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 
 	ocfs2_commit_trans(osb, handle);
 bail_unlock:
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 bail:
 	mutex_unlock(&inode->i_mutex);
 
