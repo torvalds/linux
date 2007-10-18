@@ -2178,7 +2178,7 @@ S:	Maintained
 KCONFIG
 P:	Roman Zippel
 M:	zippel@linux-m68k.org
-L:	kbuild-devel@lists.sourceforge.net
+L:	linux-kbuild@vger.kernel.org
 S:	Maintained
 
 KDUMP
@@ -2207,6 +2207,7 @@ KERNEL BUILD (kbuild: Makefile, scripts/Makefile.*)
 P:	Sam Ravnborg
 M:	sam@ravnborg.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/sam/kbuild.git
+L:	linux-kbuild@vger.kernel.org
 S:	Maintained
 
 KERNEL JANITORS
