@@ -275,35 +275,6 @@ void parport_close(struct pardevice *dev)
 	parport_unregister_device(dev);
 }
 
-/**
- *	parport_device_num - convert device coordinates
- *	@parport: parallel port number
- *	@mux: multiplexor port number (-1 for no multiplexor)
- *	@daisy: daisy chain address (-1 for no daisy chain address)
- *
- *	This tries to locate a device on the given parallel port,
- *	multiplexor port and daisy chain address, and returns its
- *	device number or %-ENXIO if no device with those coordinates
- *	exists.
- **/
-
-int parport_device_num(int parport, int mux, int daisy)
-{
-	int res = -ENXIO;
-	struct daisydev *dev;
-
-	spin_lock(&topology_lock);
-	dev = topology;
-	while (dev && dev->port->portnum != parport &&
-	       dev->port->muxport != mux && dev->daisy != daisy)
-		dev = dev->next;
-	if (dev)
-		res = dev->devnum;
-	spin_unlock(&topology_lock);
-
-	return res;
-}
-
 /* Send a daisy-chain-style CPP command packet. */
 static int cpp_daisy(struct parport *port, int cmd)
 {

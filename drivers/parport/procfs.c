@@ -237,7 +237,7 @@ static int do_hardware_modes (ctl_table *table, int write,
 #define PARPORT_PARPORT_DIR(CHILD) { .ctl_name = DEV_PARPORT, .procname = "parport", \
                                      .mode = 0555, .child = CHILD }
 #define PARPORT_DEV_DIR(CHILD) { .ctl_name = CTL_DEV, .procname = "dev", .mode = 0555, .child = CHILD }
-#define PARPORT_DEVICES_ROOT_DIR  { .ctl_name = DEV_PARPORT_DEVICES, .procname = "devices", \
+#define PARPORT_DEVICES_ROOT_DIR  {  .procname = "devices", \
                                     .mode = 0555, .child = NULL }
 
 static const unsigned long parport_min_timeslice_value =
@@ -266,7 +266,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 	.sysctl_header = NULL,
         {
 		{
-			.ctl_name	= DEV_PARPORT_SPINTIME,
 			.procname	= "spintime",
 			.data		= NULL,
 			.maxlen		= sizeof(int),
@@ -276,7 +275,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.extra2		= (void*) &parport_max_spintime_value
 		},
 		{
-			.ctl_name	= DEV_PARPORT_BASE_ADDR,
 			.procname	= "base-addr",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -284,7 +282,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.proc_handler	= &do_hardware_base_addr
 		},
 		{
-			.ctl_name	= DEV_PARPORT_IRQ,
 			.procname	= "irq",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -292,7 +289,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.proc_handler	= &do_hardware_irq
 		},
 		{
-			.ctl_name	= DEV_PARPORT_DMA,
 			.procname	= "dma",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -300,7 +296,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.proc_handler	= &do_hardware_dma
 		},
 		{
-			.ctl_name	= DEV_PARPORT_MODES,
 			.procname	= "modes",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -310,7 +305,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 		PARPORT_DEVICES_ROOT_DIR,
 #ifdef CONFIG_PARPORT_1284
 		{
-			.ctl_name	= DEV_PARPORT_AUTOPROBE,
 			.procname	= "autoprobe",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -318,7 +312,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.proc_handler	= &do_autoprobe
 		},
 		{
-			.ctl_name	= DEV_PARPORT_AUTOPROBE + 1,
 			.procname	= "autoprobe0",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -326,7 +319,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.proc_handler	=  &do_autoprobe
 		},
 		{
-			.ctl_name	= DEV_PARPORT_AUTOPROBE + 2,
 			.procname	= "autoprobe1",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -334,7 +326,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.proc_handler	= &do_autoprobe
 		},
 		{
-			.ctl_name	= DEV_PARPORT_AUTOPROBE + 3,
 			.procname	= "autoprobe2",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -342,7 +333,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.proc_handler	= &do_autoprobe
 		},
 		{
-			.ctl_name	= DEV_PARPORT_AUTOPROBE + 4,
 			.procname	= "autoprobe3",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -354,7 +344,6 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 	},
 	{
 		{
-			.ctl_name	= DEV_PARPORT_DEVICES_ACTIVE,
 			.procname	= "active",
 			.data		= NULL,
 			.maxlen		= 0,
@@ -393,7 +382,6 @@ parport_device_sysctl_template = {
 	.sysctl_header = NULL,
 	{
 		{
-			.ctl_name 	= DEV_PARPORT_DEVICE_TIMESLICE,
 			.procname 	= "timeslice",
 			.data		= NULL,
 			.maxlen		= sizeof(int),
@@ -449,7 +437,6 @@ parport_default_sysctl_table = {
 	.sysctl_header	= NULL,
 	{
 		{
-			.ctl_name	= DEV_PARPORT_DEFAULT_TIMESLICE,
 			.procname	= "timeslice",
 			.data		= &parport_default_timeslice,
 			.maxlen		= sizeof(parport_default_timeslice),
@@ -459,7 +446,6 @@ parport_default_sysctl_table = {
 			.extra2		= (void*) &parport_max_timeslice_value
 		},
 		{
-			.ctl_name	= DEV_PARPORT_DEFAULT_SPINTIME,
 			.procname	= "spintime",
 			.data		= &parport_default_spintime,
 			.maxlen		= sizeof(parport_default_spintime),
@@ -502,7 +488,7 @@ int parport_proc_register(struct parport *port)
 
 	t->device_dir[0].extra1 = port;
 
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 5; i++)
 		t->vars[i].extra1 = port;
 
 	t->vars[0].data = &port->spintime;
@@ -512,7 +498,7 @@ int parport_proc_register(struct parport *port)
 		t->vars[6 + i].extra2 = &port->probe_info[i];
 
 	t->port_dir[0].procname = port->name;
-	t->port_dir[0].ctl_name = port->number + 1; /* nb 0 isn't legal here */
+	t->port_dir[0].ctl_name = 0;
 
 	t->port_dir[0].child = t->vars;
 	t->parport_dir[0].child = t->port_dir;
@@ -551,26 +537,12 @@ int parport_device_proc_register(struct pardevice *device)
 	t->dev_dir[0].child = t->parport_dir;
 	t->parport_dir[0].child = t->port_dir;
 	t->port_dir[0].procname = port->name;
-	t->port_dir[0].ctl_name = port->number + 1; /* nb 0 isn't legal here */
+	t->port_dir[0].ctl_name = 0;
 	t->port_dir[0].child = t->devices_root_dir;
 	t->devices_root_dir[0].child = t->device_dir;
 
-#ifdef CONFIG_PARPORT_1284
-
-	t->device_dir[0].ctl_name =
-		parport_device_num(port->number, port->muxport,
-				   device->daisy)
-		+ 1;  /* nb 0 isn't legal here */ 
-
-#else /* No IEEE 1284 support */
-
-	/* parport_device_num isn't available. */
-	t->device_dir[0].ctl_name = 1;
-	
-#endif /* IEEE 1284 support or not */
-
+	t->device_dir[0].ctl_name = 0;
 	t->device_dir[0].procname = device->name;
-	t->device_dir[0].extra1 = device;
 	t->device_dir[0].child = t->vars;
 	t->vars[0].data = &device->timeslice;
 

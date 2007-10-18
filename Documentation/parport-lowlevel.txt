@@ -25,7 +25,6 @@ Global functions:
   parport_open
   parport_close
   parport_device_id
-  parport_device_num
   parport_device_coords
   parport_find_class
   parport_find_device
@@ -735,7 +734,7 @@ NULL is returned.
 
 SEE ALSO
 
-parport_register_device, parport_device_num
+parport_register_device
 
 parport_close - unregister device for particular device number
 -------------
@@ -787,29 +786,7 @@ Many devices have ill-formed IEEE 1284 Device IDs.
 
 SEE ALSO
 
-parport_find_class, parport_find_device, parport_device_num
-
-parport_device_num - convert device coordinates to device number
-------------------
-
-SYNOPSIS
-
-#include <linux/parport.h>
-
-int parport_device_num (int parport, int mux, int daisy);
-
-DESCRIPTION
-
-Convert between device coordinates (port, multiplexor, daisy chain
-address) and device number (zero-based).
-
-RETURN VALUE
-
-Device number, or -1 if no device at given coordinates.
-
-SEE ALSO
-
-parport_device_coords, parport_open, parport_device_id
+parport_find_class, parport_find_device
 
 parport_device_coords - convert device number to device coordinates
 ------------------
@@ -833,7 +810,7 @@ Zero on success, in which case the coordinates are (*parport, *mux,
 
 SEE ALSO
 
-parport_device_num, parport_open, parport_device_id
+parport_open, parport_device_id
 
 parport_find_class - find a device by its class
 ------------------
