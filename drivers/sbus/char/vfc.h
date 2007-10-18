@@ -126,7 +126,7 @@ struct vfc_dev {
 	volatile struct vfc_regs __iomem *regs;
 	struct vfc_regs *phys_regs;
 	unsigned int control_reg;
-	struct semaphore device_lock_sem;
+	struct mutex device_lock_mtx;
 	int instance;
 	int busy;
 	unsigned long which_io;
