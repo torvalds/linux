@@ -221,8 +221,13 @@ extern void clocksource_resume(void);
 
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL
 extern void update_vsyscall(struct timespec *ts, struct clocksource *c);
+extern void update_vsyscall_tz(void);
 #else
 static inline void update_vsyscall(struct timespec *ts, struct clocksource *c)
+{
+}
+
+static inline void update_vsyscall_tz(void)
 {
 }
 #endif

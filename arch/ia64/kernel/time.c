@@ -371,6 +371,11 @@ ia64_setup_printk_clock(void)
 		ia64_printk_clock = ia64_itc_printk_clock;
 }
 
+/* IA64 doesn't cache the timezone */
+void update_vsyscall_tz(void)
+{
+}
+
 void update_vsyscall(struct timespec *wall, struct clocksource *c)
 {
         unsigned long flags;

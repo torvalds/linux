@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/timex.h>
 #include <linux/capability.h>
+#include <linux/clocksource.h>
 #include <linux/errno.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
@@ -158,6 +159,7 @@ int do_sys_settimeofday(struct timespec *tv, struct timezone *tz)
 	if (tz) {
 		/* SMP safe, global irq locking makes it work. */
 		sys_tz = *tz;
+		update_vsyscall_tz();
 		if (firsttime) {
 			firsttime = 0;
 			if (!tv)
