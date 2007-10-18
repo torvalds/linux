@@ -972,6 +972,7 @@ extern int do_sysctl_strategy (struct ctl_table *table,
 			       void __user *oldval, size_t __user *oldlenp,
 			       void __user *newval, size_t newlen);
 
+extern ctl_handler sysctl_data;
 extern ctl_handler sysctl_string;
 extern ctl_handler sysctl_intvec;
 extern ctl_handler sysctl_jiffies;
