@@ -320,6 +320,9 @@ struct fuse_conn {
 	/** Do readpages asynchronously?  Only set in INIT */
 	unsigned async_read : 1;
 
+	/** Do not send separate SETATTR request before open(O_TRUNC)  */
+	unsigned atomic_o_trunc : 1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction

@@ -1083,6 +1083,9 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 			return err;
 	}
 
+	if ((attr->ia_valid & ATTR_OPEN) && fc->atomic_o_trunc)
+		return 0;
+
 	if (attr->ia_valid & ATTR_SIZE) {
 		unsigned long limit;
 		if (IS_SWAPFILE(inode))
