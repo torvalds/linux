@@ -329,16 +329,16 @@ static comp_t encode_comp_t(unsigned long value)
 	}
 
 	/*
-         * If we need to round up, do it (and handle overflow correctly).
-         */
+	 * If we need to round up, do it (and handle overflow correctly).
+	 */
 	if (rnd && (++value > MAXFRACT)) {
 		value >>= EXPSIZE;
 		exp++;
 	}
 
 	/*
-         * Clean it up and polish it off.
-         */
+	 * Clean it up and polish it off.
+	 */
 	exp <<= MANTSIZE;		/* Shift the exponent into place */
 	exp += value;			/* and add on the mantissa. */
 	return exp;
@@ -361,30 +361,30 @@ static comp_t encode_comp_t(unsigned long value)
 
 static comp2_t encode_comp2_t(u64 value)
 {
-        int exp, rnd;
+	int exp, rnd;
 
-        exp = (value > (MAXFRACT2>>1));
-        rnd = 0;
-        while (value > MAXFRACT2) {
-                rnd = value & 1;
-                value >>= 1;
-                exp++;
-        }
+	exp = (value > (MAXFRACT2>>1));
+	rnd = 0;
+	while (value > MAXFRACT2) {
+		rnd = value & 1;
+		value >>= 1;
+		exp++;
+	}
 
-        /*
-         * If we need to round up, do it (and handle overflow correctly).
-         */
-        if (rnd && (++value > MAXFRACT2)) {
-                value >>= 1;
-                exp++;
-        }
+	/*
+	 * If we need to round up, do it (and handle overflow correctly).
+	 */
+	if (rnd && (++value > MAXFRACT2)) {
+		value >>= 1;
+		exp++;
+	}
 
-        if (exp > MAXEXP2) {
-                /* Overflow. Return largest representable number instead. */
-                return (1ul << (MANTSIZE2+EXPSIZE2-1)) - 1;
-        } else {
-                return (value & (MAXFRACT2>>1)) | (exp << (MANTSIZE2-1));
-        }
+	if (exp > MAXEXP2) {
+		/* Overflow. Return largest representable number instead. */
+		return (1ul << (MANTSIZE2+EXPSIZE2-1)) - 1;
+	} else {
+		return (value & (MAXFRACT2>>1)) | (exp << (MANTSIZE2-1));
+	}
 }
 #endif
 
@@ -501,14 +501,14 @@ static void do_acct_process(struct file *file)
 	ac.ac_swaps = encode_comp_t(0);
 
 	/*
-         * Kernel segment override to datasegment and write it
-         * to the accounting file.
-         */
+	 * Kernel segment override to datasegment and write it
+	 * to the accounting file.
+	 */
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	/*
- 	 * Accounting records are not subject to resource limits.
- 	 */
+	 * Accounting records are not subject to resource limits.
+	 */
 	flim = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 	file->f_op->write(file, (char *)&ac,
