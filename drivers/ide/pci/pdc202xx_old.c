@@ -386,6 +386,19 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 	}
 }
 
+#define DECLARE_PDC2026X_DEV(name_str, udma) \
+	{ \
+		.name		= name_str, \
+		.init_chipset	= init_chipset_pdc202xx, \
+		.init_hwif	= init_hwif_pdc202xx, \
+		.init_dma	= init_dma_pdc202xx, \
+		.extra		= 48, \
+		.host_flags	= IDE_HFLAG_OFF_BOARD, \
+		.pio_mask	= ATA_PIO4, \
+		.mwdma_mask	= ATA_MWDMA2, \
+		.udma_mask	= udma, \
+	}
+
 static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "PDC20246",
@@ -397,47 +410,12 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA2,
-	},{	/* 1 */
-		.name		= "PDC20262",
-		.init_chipset	= init_chipset_pdc202xx,
-		.init_hwif	= init_hwif_pdc202xx,
-		.init_dma	= init_dma_pdc202xx,
-		.extra		= 48,
-		.host_flags	= IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA4,
-	},{	/* 2 */
-		.name		= "PDC20263",
-		.init_chipset	= init_chipset_pdc202xx,
-		.init_hwif	= init_hwif_pdc202xx,
-		.init_dma	= init_dma_pdc202xx,
-		.extra		= 48,
-		.host_flags	= IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA4,
-	},{	/* 3 */
-		.name		= "PDC20265",
-		.init_chipset	= init_chipset_pdc202xx,
-		.init_hwif	= init_hwif_pdc202xx,
-		.init_dma	= init_dma_pdc202xx,
-		.extra		= 48,
-		.host_flags	= IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA5,
-	},{	/* 4 */
-		.name		= "PDC20267",
-		.init_chipset	= init_chipset_pdc202xx,
-		.init_hwif	= init_hwif_pdc202xx,
-		.init_dma	= init_dma_pdc202xx,
-		.extra		= 48,
-		.host_flags	= IDE_HFLAG_OFF_BOARD,
-		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA5,
-	}
+	},
+
+	/* 1 */ DECLARE_PDC2026X_DEV("PDC20262", ATA_UDMA4),
+	/* 2 */ DECLARE_PDC2026X_DEV("PDC20263", ATA_UDMA4),
+	/* 3 */ DECLARE_PDC2026X_DEV("PDC20265", ATA_UDMA5),
+	/* 4 */ DECLARE_PDC2026X_DEV("PDC20267", ATA_UDMA5),
 };
 
 /**
