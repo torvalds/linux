@@ -233,16 +233,15 @@ out:
 /* Creation primitives. */
 
 
-static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in)
+static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in,
+		unsigned int hash)
 {
 	struct frag_queue *fq;
-	unsigned int hash;
 #ifdef CONFIG_SMP
 	struct hlist_node *n;
 #endif
 
 	write_lock(&ip6_frags.lock);
-	hash = ip6qhashfn(fq_in->id, &fq_in->saddr, &fq_in->daddr);
 #ifdef CONFIG_SMP
 	hlist_for_each_entry(fq, n, &ip6_frags.hash[hash], q.list) {
 		if (fq->id == fq_in->id &&
@@ -273,7 +272,7 @@ static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in)
 
 static struct frag_queue *
 ip6_frag_create(__be32 id, struct in6_addr *src, struct in6_addr *dst,
-		struct inet6_dev *idev)
+		struct inet6_dev *idev, unsigned int hash)
 {
 	struct frag_queue *fq;
 
@@ -290,7 +289,7 @@ ip6_frag_create(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 	spin_lock_init(&fq->q.lock);
 	atomic_set(&fq->q.refcnt, 1);
 
-	return ip6_frag_intern(fq);
+	return ip6_frag_intern(fq, hash);
 
 oom:
 	IP6_INC_STATS_BH(idev, IPSTATS_MIB_REASMFAILS);
@@ -318,7 +317,7 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 	}
 	read_unlock(&ip6_frags.lock);
 
-	return ip6_frag_create(id, src, dst, idev);
+	return ip6_frag_create(id, src, dst, idev, hash);
 }
 
 
