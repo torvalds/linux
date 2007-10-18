@@ -721,7 +721,7 @@ static int fuse_refresh_attributes(struct inode *inode)
  * for which the owner of the mount has ptrace privilege.  This
  * excludes processes started by other users, suid or sgid processes.
  */
-static int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task)
+int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task)
 {
 	if (fc->flags & FUSE_ALLOW_OTHER)
 		return 1;
@@ -1005,6 +1005,9 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 	struct fuse_attr_out outarg;
 	int err;
 
+	if (!fuse_allow_task(fc, current))
+		return -EACCES;
+
 	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
 		err = inode_change_ok(inode, attr);
 		if (err)
@@ -1171,6 +1174,9 @@ static ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 	struct fuse_getxattr_in inarg;
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
+
+	if (!fuse_allow_task(fc, current))
+		return -EACCES;
 
 	if (fc->no_listxattr)
 		return -EOPNOTSUPP;

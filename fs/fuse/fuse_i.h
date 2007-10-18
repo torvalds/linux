@@ -565,3 +565,8 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc);
  * Is file type valid?
  */
 int fuse_valid_type(int m);
+
+/**
+ * Is task allowed to perform filesystem operation?
+ */
+int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task);
