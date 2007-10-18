@@ -994,7 +994,6 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 	printk(KERN_DEBUG "cyy_interrupt: rcvd intr, chip %d\n", chip);
 #endif
 	/* determine the channel & change to that context */
-	spin_lock(&cinfo->card_lock);
 	save_xir = (u_char) readb(base_addr + (CyRIR << index));
 	channel = (u_short) (save_xir & CyIRChannel);
 	info = &cinfo->ports[channel + chip * 4];
@@ -1031,7 +1030,6 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 
 		if (data & info->ignore_status_mask) {
 			info->icount.rx++;
-			spin_unlock(&cinfo->card_lock);
 			return;
 		}
 		if (tty_buffer_request_room(tty, 1)) {
@@ -1116,7 +1114,6 @@ end:
 	/* end of service */
 	cy_writeb(base_addr + (CyRIR << index), save_xir & 0x3f);
 	cy_writeb(base_addr + (CyCAR << index), save_car);
-	spin_unlock(&cinfo->card_lock);
 }
 
 static void cyy_chip_tx(struct cyclades_card *cinfo, int chip,
@@ -1135,7 +1132,6 @@ static void cyy_chip_tx(struct cyclades_card *cinfo, int chip,
 #endif
 
 	/* determine the channel & change to that context */
-	spin_lock(&cinfo->card_lock);
 	save_xir = (u_char) readb(base_addr + (CyTIR << index));
 	channel = (u_short) (save_xir & CyIRChannel);
 	save_car = readb(base_addr + (CyCAR << index));
@@ -1240,7 +1236,6 @@ end:
 	/* end of service */
 	cy_writeb(base_addr + (CyTIR << index), save_xir & 0x3f);
 	cy_writeb(base_addr + (CyCAR << index), save_car);
-	spin_unlock(&cinfo->card_lock);
 }
 
 static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
@@ -1251,7 +1246,6 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 	int save_xir, channel, save_car, index = cinfo->bus_index;
 
 	/* determine the channel & change to that context */
-	spin_lock(&cinfo->card_lock);
 	save_xir = (u_char) readb(base_addr + (CyMIR << index));
 	channel = (u_short) (save_xir & CyIRChannel);
 	info = &cinfo->ports[channel + chip * 4];
@@ -1315,7 +1309,6 @@ end:
 	/* end of service */
 	cy_writeb(base_addr + (CyMIR << index), save_xir & 0x3f);
 	cy_writeb(base_addr + (CyCAR << index), save_car);
-	spin_unlock(&cinfo->card_lock);
 }
 
 /* The real interrupt service routine is called
@@ -1367,12 +1360,14 @@ static irqreturn_t cyy_interrupt(int irq, void *dev_id)
 			 */
 				if (1000 < too_many++)
 					break;
+				spin_lock(&cinfo->card_lock);
 				if (status & CySRReceive) /* rx intr */
 					cyy_chip_rx(cinfo, chip, base_addr);
 				if (status & CySRTransmit) /* tx intr */
 					cyy_chip_tx(cinfo, chip, base_addr);
 				if (status & CySRModem) /* modem intr */
 					cyy_chip_modem(cinfo, chip, base_addr);
+				spin_unlock(&cinfo->card_lock);
 			}
 		}
 	} while (had_work);
