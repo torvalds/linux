@@ -1163,13 +1163,8 @@ struct r_port {
 	int read_status_mask;
 	int cps;
 
-#ifdef DECLARE_WAITQUEUE
 	wait_queue_head_t open_wait;
-	wait_queue_head_t close_wait;
-#else
-	struct wait_queue *open_wait;
-	struct wait_queue *close_wait;
-#endif
+	struct completion close_wait;
 	spinlock_t slock;
 	struct mutex write_mtx;
 };

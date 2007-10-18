@@ -84,6 +84,7 @@
 #include <linux/mutex.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
+#include <linux/completion.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
 #include <asm/uaccess.h>
@@ -650,7 +651,7 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	info->closing_wait = 3000;
 	info->close_delay = 50;
 	init_waitqueue_head(&info->open_wait);
-	init_waitqueue_head(&info->close_wait);
+	init_completion(&info->close_wait);
 	info->flags &= ~ROCKET_MODE_MASK;
 	switch (pc104[board][line]) {
 	case 422:
@@ -878,7 +879,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	if (tty_hung_up_p(filp))
 		return ((info->flags & ROCKET_HUP_NOTIFY) ? -EAGAIN : -ERESTARTSYS);
 	if (info->flags & ROCKET_CLOSING) {
-		interruptible_sleep_on(&info->close_wait);
+		if (wait_for_completion_interruptible(&info->close_wait))
+			return -ERESTARTSYS;
 		return ((info->flags & ROCKET_HUP_NOTIFY) ? -EAGAIN : -ERESTARTSYS);
 	}
 
@@ -983,8 +985,10 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 		return -ENOMEM;
 
 	if (info->flags & ROCKET_CLOSING) {
-		interruptible_sleep_on(&info->close_wait);
+		retval = wait_for_completion_interruptible(&info->close_wait);
 		free_page(page);
+		if (retval)
+			return retval;
 		return ((info->flags & ROCKET_HUP_NOTIFY) ? -EAGAIN : -ERESTARTSYS);
 	}
 
@@ -1176,7 +1180,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	}
 	info->flags &= ~(ROCKET_INITIALIZED | ROCKET_CLOSING | ROCKET_NORMAL_ACTIVE);
 	tty->closing = 0;
-	wake_up_interruptible(&info->close_wait);
+	complete_all(&info->close_wait);
 	atomic_dec(&rp_num_ports_open);
 
 #ifdef ROCKET_DEBUG_OPEN
