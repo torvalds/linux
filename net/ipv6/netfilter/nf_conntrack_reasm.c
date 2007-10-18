@@ -187,37 +187,10 @@ out:
 static struct nf_ct_frag6_queue *nf_ct_frag6_intern(unsigned int hash,
 					  struct nf_ct_frag6_queue *fq_in)
 {
-	struct nf_ct_frag6_queue *fq;
-#ifdef CONFIG_SMP
-	struct hlist_node *n;
-#endif
+	struct inet_frag_queue *q;
 
-	write_lock(&nf_frags.lock);
-#ifdef CONFIG_SMP
-	hlist_for_each_entry(fq, n, &nf_frags.hash[hash], q.list) {
-		if (fq->id == fq_in->id &&
-		    ipv6_addr_equal(&fq_in->saddr, &fq->saddr) &&
-		    ipv6_addr_equal(&fq_in->daddr, &fq->daddr)) {
-			atomic_inc(&fq->q.refcnt);
-			write_unlock(&nf_frags.lock);
-			fq_in->q.last_in |= COMPLETE;
-			fq_put(fq_in);
-			return fq;
-		}
-	}
-#endif
-	fq = fq_in;
-
-	if (!mod_timer(&fq->q.timer, jiffies + nf_frags_ctl.timeout))
-		atomic_inc(&fq->q.refcnt);
-
-	atomic_inc(&fq->q.refcnt);
-	hlist_add_head(&fq->q.list, &nf_frags.hash[hash]);
-	INIT_LIST_HEAD(&fq->q.lru_list);
-	list_add_tail(&fq->q.lru_list, &nf_frags.lru_list);
-	nf_frags.nqueues++;
-	write_unlock(&nf_frags.lock);
-	return fq;
+	q = inet_frag_intern(&fq_in->q, &nf_frags, hash);
+	return container_of(q, struct nf_ct_frag6_queue, q);
 }
 
 
@@ -752,6 +725,7 @@ int nf_ct_frag6_init(void)
 	nf_frags.destructor = nf_frag_free;
 	nf_frags.skb_free = nf_skb_free;
 	nf_frags.qsize = sizeof(struct nf_ct_frag6_queue);
+	nf_frags.equal = ip6_frag_equal;
 	inet_frags_init(&nf_frags);
 
 	return 0;

@@ -123,6 +123,20 @@ static unsigned int ip4_hashfn(struct inet_frag_queue *q)
 	return ipqhashfn(ipq->id, ipq->saddr, ipq->daddr, ipq->protocol);
 }
 
+static int ip4_frag_equal(struct inet_frag_queue *q1,
+		struct inet_frag_queue *q2)
+{
+	struct ipq *qp1, *qp2;
+
+	qp1 = container_of(q1, struct ipq, q);
+	qp2 = container_of(q2, struct ipq, q);
+	return (qp1->id == qp2->id &&
+			qp1->saddr == qp2->saddr &&
+			qp1->daddr == qp2->daddr &&
+			qp1->protocol == qp2->protocol &&
+			qp1->user == qp2->user);
+}
+
 /* Memory Tracking Functions. */
 static __inline__ void frag_kfree_skb(struct sk_buff *skb, int *work)
 {
@@ -214,43 +228,10 @@ out:
 
 static struct ipq *ip_frag_intern(struct ipq *qp_in, unsigned int hash)
 {
-	struct ipq *qp;
-#ifdef CONFIG_SMP
-	struct hlist_node *n;
-#endif
+	struct inet_frag_queue *q;
 
-	write_lock(&ip4_frags.lock);
-#ifdef CONFIG_SMP
-	/* With SMP race we have to recheck hash table, because
-	 * such entry could be created on other cpu, while we
-	 * promoted read lock to write lock.
-	 */
-	hlist_for_each_entry(qp, n, &ip4_frags.hash[hash], q.list) {
-		if (qp->id == qp_in->id		&&
-		    qp->saddr == qp_in->saddr	&&
-		    qp->daddr == qp_in->daddr	&&
-		    qp->protocol == qp_in->protocol &&
-		    qp->user == qp_in->user) {
-			atomic_inc(&qp->q.refcnt);
-			write_unlock(&ip4_frags.lock);
-			qp_in->q.last_in |= COMPLETE;
-			ipq_put(qp_in);
-			return qp;
-		}
-	}
-#endif
-	qp = qp_in;
-
-	if (!mod_timer(&qp->q.timer, jiffies + ip4_frags_ctl.timeout))
-		atomic_inc(&qp->q.refcnt);
-
-	atomic_inc(&qp->q.refcnt);
-	hlist_add_head(&qp->q.list, &ip4_frags.hash[hash]);
-	INIT_LIST_HEAD(&qp->q.lru_list);
-	list_add_tail(&qp->q.lru_list, &ip4_frags.lru_list);
-	ip4_frags.nqueues++;
-	write_unlock(&ip4_frags.lock);
-	return qp;
+	q = inet_frag_intern(&qp_in->q, &ip4_frags, hash);
+	return container_of(q, struct ipq, q);
 }
 
 /* Add an entry to the 'ipq' queue for a newly received IP datagram. */
@@ -671,6 +652,7 @@ void __init ipfrag_init(void)
 	ip4_frags.destructor = ip4_frag_free;
 	ip4_frags.skb_free = NULL;
 	ip4_frags.qsize = sizeof(struct ipq);
+	ip4_frags.equal = ip4_frag_equal;
 	inet_frags_init(&ip4_frags);
 }
 
