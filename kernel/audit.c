@@ -664,11 +664,11 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				if (sid) {
 					if (selinux_sid_to_string(
 							sid, &ctx, &len)) {
-						audit_log_format(ab, 
+						audit_log_format(ab,
 							" ssid=%u", sid);
 						/* Maybe call audit_panic? */
 					} else
-						audit_log_format(ab, 
+						audit_log_format(ab,
 							" subj=%s", ctx);
 					kfree(ctx);
 				}
@@ -769,7 +769,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		sig_data->pid = audit_sig_pid;
 		memcpy(sig_data->ctx, ctx, len);
 		kfree(ctx);
-		audit_send_reply(NETLINK_CB(skb).pid, seq, AUDIT_SIGNAL_INFO, 
+		audit_send_reply(NETLINK_CB(skb).pid, seq, AUDIT_SIGNAL_INFO,
 				0, 0, sig_data, sizeof(*sig_data) + len);
 		kfree(sig_data);
 		break;
@@ -1005,7 +1005,7 @@ unsigned int audit_serial(void)
 	return ret;
 }
 
-static inline void audit_get_stamp(struct audit_context *ctx, 
+static inline void audit_get_stamp(struct audit_context *ctx,
 				   struct timespec *t, unsigned int *serial)
 {
 	if (ctx)
@@ -1056,7 +1056,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (gfp_mask & __GFP_WAIT)
 		reserve = 0;
 	else
-		reserve = 5; /* Allow atomic callers to go up to five 
+		reserve = 5; /* Allow atomic callers to go up to five
 				entries over the normal backlog limit */
 
 	while (audit_backlog_limit
@@ -1319,7 +1319,7 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 	if (IS_ERR(p)) { /* Should never happen since we send PATH_MAX */
 		/* FIXME: can we save some information here? */
 		audit_log_format(ab, "<too long>");
-	} else 
+	} else
 		audit_log_untrustedstring(ab, p);
 	kfree(path);
 }
@@ -1365,7 +1365,7 @@ void audit_log_end(struct audit_buffer *ab)
  * audit_log_vformat, and audit_log_end.  It may be called
  * in any context.
  */
-void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type, 
+void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type,
 	       const char *fmt, ...)
 {
 	struct audit_buffer *ab;
