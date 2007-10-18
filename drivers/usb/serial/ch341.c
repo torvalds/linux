@@ -272,9 +272,6 @@ static void ch341_set_termios(struct usb_serial_port *port,
 
 	dbg("ch341_set_termios()");
 
-	if (!tty || !tty->termios)
-		return;
-
 	baud_rate = tty_get_baud_rate(tty);
 
 	switch (baud_rate) {
@@ -299,6 +296,11 @@ static void ch341_set_termios(struct usb_serial_port *port,
 	 * (cflag & PARENB) : parity {NONE, EVEN, ODD}
 	 * (cflag & CSTOPB) : stop bits [1, 2]
 	 */
+
+	 /* Copy back the old hardware settings */
+	 tty_termios_copy_hw(tty->termios, old_termios);
+	 /* And re-encode with the new baud */
+	 tty_encode_baud_rate(tty, baud_rate, baud_rate);
 }
 
 static struct usb_driver ch341_driver = {
