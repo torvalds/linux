@@ -2054,11 +2054,20 @@ again:
 
 	kvm_x86_ops->run(vcpu, kvm_run);
 
-	kvm_guest_exit();
 	vcpu->guest_mode = 0;
 	local_irq_enable();
 
 	++vcpu->stat.exits;
+
+	/*
+	 * We must have an instruction between local_irq_enable() and
+	 * kvm_guest_exit(), so the timer interrupt isn't delayed by
+	 * the interrupt shadow.  The stat.exits increment will do nicely.
+	 * But we need to prevent reordering, hence this barrier():
+	 */
+	barrier();
+
+	kvm_guest_exit();
 
 	preempt_enable();
 
