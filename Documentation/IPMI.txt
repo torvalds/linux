@@ -584,9 +584,11 @@ The watchdog will panic and start a 120 second reset timeout if it
 gets a pre-action.  During a panic or a reboot, the watchdog will
 start a 120 timer if it is running to make sure the reboot occurs.
 
-Note that if you use the NMI preaction for the watchdog, you MUST
-NOT use nmi watchdog mode 1.  If you use the NMI watchdog, you
-must use mode 2.
+Note that if you use the NMI preaction for the watchdog, you MUST NOT
+use the nmi watchdog.  There is no reasonable way to tell if an NMI
+comes from the IPMI controller, so it must assume that if it gets an
+otherwise unhandled NMI, it must be from IPMI and it will panic
+immediately.
 
 Once you open the watchdog timer, you must write a 'V' character to the
 device to close it, or the timer will not stop.  This is a new semantic
