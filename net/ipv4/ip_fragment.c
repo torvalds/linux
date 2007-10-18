@@ -486,7 +486,6 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	if (prev) {
 		head = prev->next;
 		fp = skb_clone(head, GFP_ATOMIC);
-
 		if (!fp)
 			goto out_nomem;
 
@@ -512,7 +511,6 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		goto out_oversize;
 
 	/* Head of list must not be cloned. */
-	err = -ENOMEM;
 	if (skb_cloned(head) && pskb_expand_head(head, 0, 0, GFP_ATOMIC))
 		goto out_nomem;
 
@@ -568,6 +566,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 out_nomem:
 	LIMIT_NETDEBUG(KERN_ERR "IP: queue_glue: no memory for gluing "
 			      "queue %p\n", qp);
+	err = -ENOMEM;
 	goto out_fail;
 out_oversize:
 	if (net_ratelimit())
