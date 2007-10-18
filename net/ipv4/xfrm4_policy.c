@@ -117,7 +117,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		header_len += xfrm[i]->props.header_len;
 		trailer_len += xfrm[i]->props.trailer_len;
 
-		if (xfrm[i]->props.mode == XFRM_MODE_TUNNEL) {
+		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			unsigned short encap_family = xfrm[i]->props.family;
 			switch (encap_family) {
 			case AF_INET:
@@ -151,7 +151,6 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	i = 0;
 	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
 		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
-		struct xfrm_state_afinfo *afinfo;
 		x->u.rt.fl = *fl;
 
 		dst_prev->xfrm = xfrm[i++];
@@ -169,27 +168,17 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		/* Copy neighbout for reachability confirmation */
 		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
 		dst_prev->input		= rt->u.dst.input;
-		/* XXX: When IPv6 module can be unloaded, we should manage reference
-		 * to xfrm6_output in afinfo->output. Miyazawa
-		 * */
-		afinfo = xfrm_state_get_afinfo(dst_prev->xfrm->props.family);
-		if (!afinfo) {
-			dst = *dst_p;
-			err = -EAFNOSUPPORT;
-			goto error;
-		}
-		dst_prev->output = afinfo->output;
-		xfrm_state_put_afinfo(afinfo);
-		if (dst_prev->xfrm->props.family == AF_INET && rt->peer)
-			atomic_inc(&rt->peer->refcnt);
-		x->u.rt.peer = rt->peer;
+		dst_prev->output = dst_prev->xfrm->outer_mode->afinfo->output;
+		if (rt0->peer)
+			atomic_inc(&rt0->peer->refcnt);
+		x->u.rt.peer = rt0->peer;
 		/* Sheit... I remember I did this right. Apparently,
 		 * it was magically lost, so this code needs audit */
 		x->u.rt.rt_flags = rt0->rt_flags&(RTCF_BROADCAST|RTCF_MULTICAST|RTCF_LOCAL);
-		x->u.rt.rt_type = rt->rt_type;
+		x->u.rt.rt_type = rt0->rt_type;
 		x->u.rt.rt_src = rt0->rt_src;
 		x->u.rt.rt_dst = rt0->rt_dst;
-		x->u.rt.rt_gateway = rt->rt_gateway;
+		x->u.rt.rt_gateway = rt0->rt_gateway;
 		x->u.rt.rt_spec_dst = rt0->rt_spec_dst;
 		x->u.rt.idev = rt0->idev;
 		in_dev_hold(rt0->idev);
@@ -291,7 +280,7 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 
 	if (likely(xdst->u.rt.idev))
 		in_dev_put(xdst->u.rt.idev);
-	if (dst->xfrm && dst->xfrm->props.family == AF_INET && likely(xdst->u.rt.peer))
+	if (likely(xdst->u.rt.peer))
 		inet_putpeer(xdst->u.rt.peer);
 	xfrm_dst_destroy(xdst);
 }

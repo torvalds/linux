@@ -49,8 +49,6 @@ static DEFINE_SPINLOCK(xfrm_policy_gc_lock);
 
 static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
-static struct xfrm_policy_afinfo *xfrm_policy_lock_afinfo(unsigned int family);
-static void xfrm_policy_unlock_afinfo(struct xfrm_policy_afinfo *afinfo);
 
 static inline int
 __xfrm4_selector_match(struct xfrm_selector *sel, struct flowi *fl)
@@ -86,72 +84,6 @@ int xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
 	return 0;
 }
 
-int xfrm_register_type(struct xfrm_type *type, unsigned short family)
-{
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_lock_afinfo(family);
-	struct xfrm_type **typemap;
-	int err = 0;
-
-	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
-	typemap = afinfo->type_map;
-
-	if (likely(typemap[type->proto] == NULL))
-		typemap[type->proto] = type;
-	else
-		err = -EEXIST;
-	xfrm_policy_unlock_afinfo(afinfo);
-	return err;
-}
-EXPORT_SYMBOL(xfrm_register_type);
-
-int xfrm_unregister_type(struct xfrm_type *type, unsigned short family)
-{
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_lock_afinfo(family);
-	struct xfrm_type **typemap;
-	int err = 0;
-
-	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
-	typemap = afinfo->type_map;
-
-	if (unlikely(typemap[type->proto] != type))
-		err = -ENOENT;
-	else
-		typemap[type->proto] = NULL;
-	xfrm_policy_unlock_afinfo(afinfo);
-	return err;
-}
-EXPORT_SYMBOL(xfrm_unregister_type);
-
-struct xfrm_type *xfrm_get_type(u8 proto, unsigned short family)
-{
-	struct xfrm_policy_afinfo *afinfo;
-	struct xfrm_type **typemap;
-	struct xfrm_type *type;
-	int modload_attempted = 0;
-
-retry:
-	afinfo = xfrm_policy_get_afinfo(family);
-	if (unlikely(afinfo == NULL))
-		return NULL;
-	typemap = afinfo->type_map;
-
-	type = typemap[proto];
-	if (unlikely(type && !try_module_get(type->owner)))
-		type = NULL;
-	if (!type && !modload_attempted) {
-		xfrm_policy_put_afinfo(afinfo);
-		request_module("xfrm-type-%d-%d",
-			       (int) family, (int) proto);
-		modload_attempted = 1;
-		goto retry;
-	}
-
-	xfrm_policy_put_afinfo(afinfo);
-	return type;
-}
-
 int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl,
 		    unsigned short family)
 {
@@ -169,94 +101,6 @@ int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl,
 	return err;
 }
 EXPORT_SYMBOL(xfrm_dst_lookup);
-
-void xfrm_put_type(struct xfrm_type *type)
-{
-	module_put(type->owner);
-}
-
-int xfrm_register_mode(struct xfrm_mode *mode, int family)
-{
-	struct xfrm_policy_afinfo *afinfo;
-	struct xfrm_mode **modemap;
-	int err;
-
-	if (unlikely(mode->encap >= XFRM_MODE_MAX))
-		return -EINVAL;
-
-	afinfo = xfrm_policy_lock_afinfo(family);
-	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
-
-	err = -EEXIST;
-	modemap = afinfo->mode_map;
-	if (likely(modemap[mode->encap] == NULL)) {
-		modemap[mode->encap] = mode;
-		err = 0;
-	}
-
-	xfrm_policy_unlock_afinfo(afinfo);
-	return err;
-}
-EXPORT_SYMBOL(xfrm_register_mode);
-
-int xfrm_unregister_mode(struct xfrm_mode *mode, int family)
-{
-	struct xfrm_policy_afinfo *afinfo;
-	struct xfrm_mode **modemap;
-	int err;
-
-	if (unlikely(mode->encap >= XFRM_MODE_MAX))
-		return -EINVAL;
-
-	afinfo = xfrm_policy_lock_afinfo(family);
-	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
-
-	err = -ENOENT;
-	modemap = afinfo->mode_map;
-	if (likely(modemap[mode->encap] == mode)) {
-		modemap[mode->encap] = NULL;
-		err = 0;
-	}
-
-	xfrm_policy_unlock_afinfo(afinfo);
-	return err;
-}
-EXPORT_SYMBOL(xfrm_unregister_mode);
-
-struct xfrm_mode *xfrm_get_mode(unsigned int encap, int family)
-{
-	struct xfrm_policy_afinfo *afinfo;
-	struct xfrm_mode *mode;
-	int modload_attempted = 0;
-
-	if (unlikely(encap >= XFRM_MODE_MAX))
-		return NULL;
-
-retry:
-	afinfo = xfrm_policy_get_afinfo(family);
-	if (unlikely(afinfo == NULL))
-		return NULL;
-
-	mode = afinfo->mode_map[encap];
-	if (unlikely(mode && !try_module_get(mode->owner)))
-		mode = NULL;
-	if (!mode && !modload_attempted) {
-		xfrm_policy_put_afinfo(afinfo);
-		request_module("xfrm-mode-%d-%d", family, encap);
-		modload_attempted = 1;
-		goto retry;
-	}
-
-	xfrm_policy_put_afinfo(afinfo);
-	return mode;
-}
-
-void xfrm_put_mode(struct xfrm_mode *mode)
-{
-	module_put(mode->owner);
-}
 
 static inline unsigned long make_jiffies(long secs)
 {
@@ -2096,7 +1940,8 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		if (xdst->genid != dst->xfrm->genid)
 			return 0;
 
-		if (strict && fl && dst->xfrm->props.mode != XFRM_MODE_TUNNEL &&
+		if (strict && fl &&
+		    !(dst->xfrm->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
 		    !xfrm_state_addr_flow_check(dst->xfrm, fl, family))
 			return 0;
 
@@ -2211,23 +2056,6 @@ static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family)
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo)
 {
 	read_unlock(&xfrm_policy_afinfo_lock);
-}
-
-static struct xfrm_policy_afinfo *xfrm_policy_lock_afinfo(unsigned int family)
-{
-	struct xfrm_policy_afinfo *afinfo;
-	if (unlikely(family >= NPROTO))
-		return NULL;
-	write_lock_bh(&xfrm_policy_afinfo_lock);
-	afinfo = xfrm_policy_afinfo[family];
-	if (unlikely(!afinfo))
-		write_unlock_bh(&xfrm_policy_afinfo_lock);
-	return afinfo;
-}
-
-static void xfrm_policy_unlock_afinfo(struct xfrm_policy_afinfo *afinfo)
-{
-	write_unlock_bh(&xfrm_policy_afinfo_lock);
 }
 
 static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
@@ -2464,7 +2292,8 @@ static int xfrm_policy_migrate(struct xfrm_policy *pol,
 			if (!migrate_tmpl_match(mp, &pol->xfrm_vec[i]))
 				continue;
 			n++;
-			if (pol->xfrm_vec[i].mode != XFRM_MODE_TUNNEL)
+			if (pol->xfrm_vec[i].mode != XFRM_MODE_TUNNEL &&
+			    pol->xfrm_vec[i].mode != XFRM_MODE_BEET)
 				continue;
 			/* update endpoints */
 			memcpy(&pol->xfrm_vec[i].id.daddr, &mp->new_daddr,

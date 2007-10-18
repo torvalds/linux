@@ -173,7 +173,7 @@ u32 ssb_cpu_clock(struct ssb_mipscore *mcore)
 
 void ssb_mipscore_init(struct ssb_mipscore *mcore)
 {
-	struct ssb_bus *bus = mcore->dev->bus;
+	struct ssb_bus *bus;
 	struct ssb_device *dev;
 	unsigned long hz, ns;
 	unsigned int irq, i;
@@ -183,6 +183,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 
 	ssb_dprintk(KERN_INFO PFX "Initializing MIPS core...\n");
 
+	bus = mcore->dev->bus;
 	hz = ssb_clockspeed(bus);
 	if (!hz)
 		hz = 100000000;

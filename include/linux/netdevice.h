@@ -827,7 +827,7 @@ static inline int dev_parse_header(const struct sk_buff *skb,
 {
 	const struct net_device *dev = skb->dev;
 
-	if (!dev->header_ops->parse)
+	if (!dev->header_ops || !dev->header_ops->parse)
 		return 0;
 	return dev->header_ops->parse(skb, haddr);
 }

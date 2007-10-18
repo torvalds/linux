@@ -19,6 +19,9 @@
 #include "ccid.h"
 #include "dccp.h"
 
+/* rate-limit for syncs in reply to sequence-invalid packets; RFC 4340, 7.5.4 */
+int sysctl_dccp_sync_ratelimit	__read_mostly = HZ / 8;
+
 static void dccp_fin(struct sock *sk, struct sk_buff *skb)
 {
 	sk->sk_shutdown |= RCV_SHUTDOWN;

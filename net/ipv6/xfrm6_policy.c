@@ -178,8 +178,7 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		__xfrm6_bundle_len_inc(&header_len, &nfheader_len, xfrm[i]);
 		trailer_len += xfrm[i]->props.trailer_len;
 
-		if (xfrm[i]->props.mode == XFRM_MODE_TUNNEL ||
-		    xfrm[i]->props.mode == XFRM_MODE_ROUTEOPTIMIZATION) {
+		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			unsigned short encap_family = xfrm[i]->props.family;
 			switch(encap_family) {
 			case AF_INET:
@@ -215,7 +214,6 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	i = 0;
 	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
 		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
-		struct xfrm_state_afinfo *afinfo;
 
 		dst_prev->xfrm = xfrm[i++];
 		dst_prev->dev = rt->u.dst.dev;
@@ -232,18 +230,7 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		/* Copy neighbour for reachability confirmation */
 		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
 		dst_prev->input		= rt->u.dst.input;
-		/* XXX: When IPv4 is implemented as module and can be unloaded,
-		 * we should manage reference to xfrm4_output in afinfo->output.
-		 * Miyazawa
-		 */
-		afinfo = xfrm_state_get_afinfo(dst_prev->xfrm->props.family);
-		if (!afinfo) {
-			dst = *dst_p;
-			goto error;
-		}
-
-		dst_prev->output = afinfo->output;
-		xfrm_state_put_afinfo(afinfo);
+		dst_prev->output = dst_prev->xfrm->outer_mode->afinfo->output;
 		/* Sheit... I remember I did this right. Apparently,
 		 * it was magically lost, so this code needs audit */
 		x->u.rt6.rt6i_flags    = rt0->rt6i_flags&(RTCF_BROADCAST|RTCF_MULTICAST|RTCF_LOCAL);

@@ -16,19 +16,6 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 
-static int xfrm4_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
-{
-	switch (nexthdr) {
-	case IPPROTO_IPIP:
-	case IPPROTO_IPV6:
-		*spi = ip_hdr(skb)->saddr;
-		*seq = 0;
-		return 0;
-	}
-
-	return xfrm_parse_spi(skb, nexthdr, spi, seq);
-}
-
 #ifdef CONFIG_NETFILTER
 static inline int xfrm4_rcv_encap_finish(struct sk_buff *skb)
 {
@@ -46,28 +33,29 @@ drop:
 }
 #endif
 
-static int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
+int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
+		    int encap_type)
 {
-	__be32 spi, seq;
+	int err;
+	__be32 seq;
 	struct xfrm_state *xfrm_vec[XFRM_MAX_DEPTH];
 	struct xfrm_state *x;
 	int xfrm_nr = 0;
 	int decaps = 0;
-	int err = xfrm4_parse_spi(skb, ip_hdr(skb)->protocol, &spi, &seq);
 	unsigned int nhoff = offsetof(struct iphdr, protocol);
 
-	if (err != 0)
+	seq = 0;
+	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
 		goto drop;
 
 	do {
 		const struct iphdr *iph = ip_hdr(skb);
-		int nexthdr;
 
 		if (xfrm_nr == XFRM_MAX_DEPTH)
 			goto drop;
 
 		x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi,
-				iph->protocol != IPPROTO_IPV6 ? iph->protocol : IPPROTO_IPIP, AF_INET);
+				      nexthdr, AF_INET);
 		if (x == NULL)
 			goto drop;
 
@@ -103,15 +91,15 @@ static int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 
 		xfrm_vec[xfrm_nr++] = x;
 
-		if (x->mode->input(x, skb))
+		if (x->outer_mode->input(x, skb))
 			goto drop;
 
-		if (x->props.mode == XFRM_MODE_TUNNEL) {
+		if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {
 			decaps = 1;
 			break;
 		}
 
-		err = xfrm_parse_spi(skb, ip_hdr(skb)->protocol, &spi, &seq);
+		err = xfrm_parse_spi(skb, nexthdr, &spi, &seq);
 		if (err < 0)
 			goto drop;
 	} while (!err);
@@ -165,6 +153,7 @@ drop:
 	kfree_skb(skb);
 	return 0;
 }
+EXPORT_SYMBOL(xfrm4_rcv_encap);
 
 /* If it's a keepalive packet, then just eat it.
  * If it's an encapsulated packet, then pass it to the
@@ -252,11 +241,8 @@ int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 	__skb_pull(skb, len);
 	skb_reset_transport_header(skb);
 
-	/* modify the protocol (it's ESP!) */
-	iph->protocol = IPPROTO_ESP;
-
 	/* process ESP */
-	ret = xfrm4_rcv_encap(skb, encap_type);
+	ret = xfrm4_rcv_encap(skb, IPPROTO_ESP, 0, encap_type);
 	return ret;
 
 drop:
@@ -266,7 +252,7 @@ drop:
 
 int xfrm4_rcv(struct sk_buff *skb)
 {
-	return xfrm4_rcv_encap(skb, 0);
+	return xfrm4_rcv_spi(skb, ip_hdr(skb)->protocol, 0);
 }
 
 EXPORT_SYMBOL(xfrm4_rcv);

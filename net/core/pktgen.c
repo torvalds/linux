@@ -2454,7 +2454,7 @@ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 	spin_lock(&x->lock);
 	iph = ip_hdr(skb);
 
-	err = x->mode->output(x, skb);
+	err = x->outer_mode->output(x, skb);
 	if (err)
 		goto error;
 	err = x->type->output(x, skb);

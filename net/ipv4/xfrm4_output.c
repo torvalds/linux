@@ -47,7 +47,7 @@ static inline int xfrm4_output_one(struct sk_buff *skb)
 	struct iphdr *iph;
 	int err;
 
-	if (x->props.mode == XFRM_MODE_TUNNEL) {
+	if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {
 		err = xfrm4_tunnel_check_size(skb);
 		if (err)
 			goto error_nolock;

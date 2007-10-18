@@ -136,7 +136,9 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 		*work -= f->qsize;
 	atomic_sub(f->qsize, &f->mem);
 
-	f->destructor(q);
+	if (f->destructor)
+		f->destructor(q);
+	kfree(q);
 
 }
 EXPORT_SYMBOL(inet_frag_destroy);
@@ -172,3 +174,88 @@ int inet_frag_evictor(struct inet_frags *f)
 	return evicted;
 }
 EXPORT_SYMBOL(inet_frag_evictor);
+
+static struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
+		struct inet_frags *f, unsigned int hash, void *arg)
+{
+	struct inet_frag_queue *qp;
+#ifdef CONFIG_SMP
+	struct hlist_node *n;
+#endif
+
+	write_lock(&f->lock);
+#ifdef CONFIG_SMP
+	/* With SMP race we have to recheck hash table, because
+	 * such entry could be created on other cpu, while we
+	 * promoted read lock to write lock.
+	 */
+	hlist_for_each_entry(qp, n, &f->hash[hash], list) {
+		if (f->match(qp, arg)) {
+			atomic_inc(&qp->refcnt);
+			write_unlock(&f->lock);
+			qp_in->last_in |= COMPLETE;
+			inet_frag_put(qp_in, f);
+			return qp;
+		}
+	}
+#endif
+	qp = qp_in;
+	if (!mod_timer(&qp->timer, jiffies + f->ctl->timeout))
+		atomic_inc(&qp->refcnt);
+
+	atomic_inc(&qp->refcnt);
+	hlist_add_head(&qp->list, &f->hash[hash]);
+	list_add_tail(&qp->lru_list, &f->lru_list);
+	f->nqueues++;
+	write_unlock(&f->lock);
+	return qp;
+}
+
+static struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f, void *arg)
+{
+	struct inet_frag_queue *q;
+
+	q = kzalloc(f->qsize, GFP_ATOMIC);
+	if (q == NULL)
+		return NULL;
+
+	f->constructor(q, arg);
+	atomic_add(f->qsize, &f->mem);
+	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
+	spin_lock_init(&q->lock);
+	atomic_set(&q->refcnt, 1);
+
+	return q;
+}
+
+static struct inet_frag_queue *inet_frag_create(struct inet_frags *f,
+		void *arg, unsigned int hash)
+{
+	struct inet_frag_queue *q;
+
+	q = inet_frag_alloc(f, arg);
+	if (q == NULL)
+		return NULL;
+
+	return inet_frag_intern(q, f, hash, arg);
+}
+
+struct inet_frag_queue *inet_frag_find(struct inet_frags *f, void *key,
+		unsigned int hash)
+{
+	struct inet_frag_queue *q;
+	struct hlist_node *n;
+
+	read_lock(&f->lock);
+	hlist_for_each_entry(q, n, &f->hash[hash], list) {
+		if (f->match(q, key)) {
+			atomic_inc(&q->refcnt);
+			read_unlock(&f->lock);
+			return q;
+		}
+	}
+	read_unlock(&f->lock);
+
+	return inet_frag_create(f, key, hash);
+}
+EXPORT_SYMBOL(inet_frag_find);

@@ -344,6 +344,8 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 		goto out;
 
+	skb->ip_summed = CHECKSUM_NONE;
+
 	hdr_len = skb->data - skb_network_header(skb);
 	ah = (struct ip_auth_hdr *)skb->data;
 	ahp = x->data;
@@ -475,8 +477,15 @@ static int ah6_init_state(struct xfrm_state *x)
 
 	x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
 					  ahp->icv_trunc_len);
-	if (x->props.mode == XFRM_MODE_TUNNEL)
+	switch (x->props.mode) {
+	case XFRM_MODE_BEET:
+	case XFRM_MODE_TRANSPORT:
+		break;
+	case XFRM_MODE_TUNNEL:
 		x->props.header_len += sizeof(struct ipv6hdr);
+	default:
+		goto error;
+	}
 	x->data = ahp;
 
 	return 0;

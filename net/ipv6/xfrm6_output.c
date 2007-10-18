@@ -50,7 +50,7 @@ static inline int xfrm6_output_one(struct sk_buff *skb)
 	struct ipv6hdr *iph;
 	int err;
 
-	if (x->props.mode == XFRM_MODE_TUNNEL) {
+	if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {
 		err = xfrm6_tunnel_check_size(skb);
 		if (err)
 			goto error_nolock;

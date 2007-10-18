@@ -255,11 +255,6 @@ static void addrconf_mod_timer(struct inet6_ifaddr *ifp,
 
 static int snmp6_alloc_dev(struct inet6_dev *idev)
 {
-	int err = -ENOMEM;
-
-	if (!idev || !idev->dev)
-		return -EINVAL;
-
 	if (snmp_mib_init((void **)idev->stats.ipv6,
 			  sizeof(struct ipstats_mib),
 			  __alignof__(struct ipstats_mib)) < 0)
@@ -280,15 +275,14 @@ err_icmpmsg:
 err_icmp:
 	snmp_mib_free((void **)idev->stats.ipv6);
 err_ip:
-	return err;
+	return -ENOMEM;
 }
 
-static int snmp6_free_dev(struct inet6_dev *idev)
+static void snmp6_free_dev(struct inet6_dev *idev)
 {
 	snmp_mib_free((void **)idev->stats.icmpv6msg);
 	snmp_mib_free((void **)idev->stats.icmpv6);
 	snmp_mib_free((void **)idev->stats.ipv6);
-	return 0;
 }
 
 /* Nobody refers to this device, we may destroy it. */

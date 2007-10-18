@@ -63,7 +63,7 @@ int xfrm_output(struct sk_buff *skb)
 				xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 		}
 
-		err = x->mode->output(x, skb);
+		err = x->outer_mode->output(x, skb);
 		if (err)
 			goto error;
 
@@ -82,7 +82,7 @@ int xfrm_output(struct sk_buff *skb)
 		}
 		dst = skb->dst;
 		x = dst->xfrm;
-	} while (x && (x->props.mode != XFRM_MODE_TUNNEL));
+	} while (x && !(x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL));
 
 	err = 0;
 

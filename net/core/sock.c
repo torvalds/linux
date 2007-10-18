@@ -428,7 +428,6 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		    char __user *optval, int optlen)
 {
 	struct sock *sk=sock->sk;
-	struct sk_filter *filter;
 	int val;
 	int valbool;
 	struct linger ling;
@@ -652,16 +651,7 @@ set_rcvbuf:
 		break;
 
 	case SO_DETACH_FILTER:
-		rcu_read_lock_bh();
-		filter = rcu_dereference(sk->sk_filter);
-		if (filter) {
-			rcu_assign_pointer(sk->sk_filter, NULL);
-			sk_filter_release(sk, filter);
-			rcu_read_unlock_bh();
-			break;
-		}
-		rcu_read_unlock_bh();
-		ret = -ENONET;
+		ret = sk_detach_filter(sk);
 		break;
 
 	case SO_PASSSEC:
@@ -925,7 +915,7 @@ void sk_free(struct sock *sk)
 
 	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
-		sk_filter_release(sk, filter);
+		sk_filter_uncharge(sk, filter);
 		rcu_assign_pointer(sk->sk_filter, NULL);
 	}
 

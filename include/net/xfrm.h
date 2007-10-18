@@ -186,7 +186,8 @@ struct xfrm_state
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	struct xfrm_type	*type;
-	struct xfrm_mode	*mode;
+	struct xfrm_mode	*inner_mode;
+	struct xfrm_mode	*outer_mode;
 
 	/* Security context */
 	struct xfrm_sec_ctx	*security;
@@ -228,8 +229,6 @@ struct xfrm_type;
 struct xfrm_dst;
 struct xfrm_policy_afinfo {
 	unsigned short		family;
-	struct xfrm_type	*type_map[IPPROTO_MAX];
-	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
 	struct dst_ops		*dst_ops;
 	void			(*garbage_collect)(void);
 	int			(*dst_lookup)(struct xfrm_dst **dst, struct flowi *fl);
@@ -255,7 +254,10 @@ extern void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
 extern int __xfrm_state_delete(struct xfrm_state *x);
 
 struct xfrm_state_afinfo {
-	unsigned short		family;
+	unsigned int		family;
+	struct module		*owner;
+	struct xfrm_type	*type_map[IPPROTO_MAX];
+	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
 	int			(*init_flags)(struct xfrm_state *x);
 	void			(*init_tempsel)(struct xfrm_state *x, struct flowi *fl,
 						struct xfrm_tmpl *tmpl,
@@ -267,8 +269,6 @@ struct xfrm_state_afinfo {
 
 extern int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo);
 extern int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo);
-extern struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
-extern void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
 extern void xfrm_state_delete_tunnel(struct xfrm_state *x);
 
@@ -295,8 +295,6 @@ struct xfrm_type
 
 extern int xfrm_register_type(struct xfrm_type *type, unsigned short family);
 extern int xfrm_unregister_type(struct xfrm_type *type, unsigned short family);
-extern struct xfrm_type *xfrm_get_type(u8 proto, unsigned short family);
-extern void xfrm_put_type(struct xfrm_type *type);
 
 struct xfrm_mode {
 	int (*input)(struct xfrm_state *x, struct sk_buff *skb);
@@ -314,14 +312,19 @@ struct xfrm_mode {
 	 */
 	int (*output)(struct xfrm_state *x,struct sk_buff *skb);
 
+	struct xfrm_state_afinfo *afinfo;
 	struct module *owner;
 	unsigned int encap;
+	int flags;
+};
+
+/* Flags for xfrm_mode. */
+enum {
+	XFRM_MODE_FLAG_TUNNEL = 1,
 };
 
 extern int xfrm_register_mode(struct xfrm_mode *mode, int family);
 extern int xfrm_unregister_mode(struct xfrm_mode *mode, int family);
-extern struct xfrm_mode *xfrm_get_mode(unsigned int encap, int family);
-extern void xfrm_put_mode(struct xfrm_mode *mode);
 
 struct xfrm_tmpl
 {
@@ -1046,11 +1049,19 @@ extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm_output(struct sk_buff *skb);
+extern int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
+			   int encap_type);
 extern int xfrm4_rcv(struct sk_buff *skb);
+
+static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
+{
+	return xfrm4_rcv_encap(skb, nexthdr, spi, 0);
+}
+
 extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
-extern int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi);
+extern int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
 extern int xfrm6_rcv(struct sk_buff *skb);
 extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			    xfrm_address_t *saddr, u8 proto);

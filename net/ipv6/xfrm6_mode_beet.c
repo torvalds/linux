@@ -79,6 +79,7 @@ static struct xfrm_mode xfrm6_beet_mode = {
 	.output = xfrm6_beet_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,
+	.flags = XFRM_MODE_FLAG_TUNNEL,
 };
 
 static int __init xfrm6_beet_init(void)

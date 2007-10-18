@@ -18,9 +18,6 @@
 #error This file should not be compiled without CONFIG_SYSCTL defined
 #endif
 
-/* rate-limit for syncs in reply to sequence-invalid packets; RFC 4340, 7.5.4 */
-int sysctl_dccp_sync_ratelimit	__read_mostly = HZ / 8;
-
 static struct ctl_table dccp_default_table[] = {
 	{
 		.procname	= "seq_window",
