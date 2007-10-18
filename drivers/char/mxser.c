@@ -1938,14 +1938,6 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 				inb(info->base + UART_MSR);
 				continue;
 			}
-			/* above add by Victor Yu. 09-13-2002 */
-			/*
-			   if (info->tty->flip.count < TTY_FLIPBUF_SIZE / 4) {
-			   info->IER |= MOXA_MUST_RECV_ISR;
-			   outb(info->IER, info->base + UART_IER);
-			   }
-			 */
-
 
 			/* mask by Victor Yu. 09-13-2002
 			   if ( !info->tty ||
@@ -2599,19 +2591,8 @@ static int mxser_change_speed(struct mxser_struct *info, struct ktermios *old_te
 		info->IER |= UART_IER_MSI;
 		if ((info->type == PORT_16550A) || (info->IsMoxaMustChipFlag)) {
 			info->MCR |= UART_MCR_AFE;
-			/* status = mxser_get_msr(info->base, 0, info->port); */
-/*
-	save_flags(flags);
-	cli();
-	status = inb(baseaddr + UART_MSR);
-	restore_flags(flags);
-*/
-			/* mxser_check_modem_status(info, status); */
 		} else {
-			/* status = mxser_get_msr(info->base, 0, info->port); */
-			/* MX_LOCK(&info->slock); */
 			status = inb(info->base + UART_MSR);
-			/* MX_UNLOCK(&info->slock); */
 			if (info->tty->hw_stopped) {
 				if (status & UART_MSR_CTS) {
 					info->tty->hw_stopped = 0;
