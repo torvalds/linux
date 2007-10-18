@@ -19,12 +19,13 @@ we only consider hibernation, but the description also applies to suspend).
 Namely, as the first step of the hibernation procedure the function
 freeze_processes() (defined in kernel/power/process.c) is called.  It executes
 try_to_freeze_tasks() that sets TIF_FREEZE for all of the freezable tasks and
-sends a fake signal to each of them.  A task that receives such a signal and has
-TIF_FREEZE set, should react to it by calling the refrigerator() function
-(defined in kernel/power/process.c), which sets the task's PF_FROZEN flag,
-changes its state to TASK_UNINTERRUPTIBLE and makes it loop until PF_FROZEN is
-cleared for it.  Then, we say that the task is 'frozen' and therefore the set of
-functions handling this mechanism is called 'the freezer' (these functions are
+either wakes them up, if they are kernel threads, or sends fake signals to them,
+if they are user space processes.  A task that has TIF_FREEZE set, should react
+to it by calling the function called refrigerator() (defined in
+kernel/power/process.c), which sets the task's PF_FROZEN flag, changes its state
+to TASK_UNINTERRUPTIBLE and makes it loop until PF_FROZEN is cleared for it.
+Then, we say that the task is 'frozen' and therefore the set of functions
+handling this mechanism is referred to as 'the freezer' (these functions are
 defined in kernel/power/process.c and include/linux/freezer.h).  User space
 processes are generally frozen before kernel threads.
 
@@ -35,21 +36,27 @@ task enter refrigerator() if the flag is set.
 
 For user space processes try_to_freeze() is called automatically from the
 signal-handling code, but the freezable kernel threads need to call it
-explicitly in suitable places.  The code to do this may look like the following:
+explicitly in suitable places or use the wait_event_freezable() or
+wait_event_freezable_timeout() macros (defined in include/linux/freezer.h)
+that combine interruptible sleep with checking if TIF_FREEZE is set and calling
+try_to_freeze().  The main loop of a freezable kernel thread may look like the
+following one:
 
+	set_freezable();
 	do {
 		hub_events();
-		wait_event_interruptible(khubd_wait,
-					!list_empty(&hub_event_list));
-		try_to_freeze();
-	} while (!signal_pending(current));
+		wait_event_freezable(khubd_wait,
+				!list_empty(&hub_event_list) ||
+				kthread_should_stop());
+	} while (!kthread_should_stop() || !list_empty(&hub_event_list));
 
 (from drivers/usb/core/hub.c::hub_thread()).
 
 If a freezable kernel thread fails to call try_to_freeze() after the freezer has
 set TIF_FREEZE for it, the freezing of tasks will fail and the entire
 hibernation operation will be cancelled.  For this reason, freezable kernel
-threads must call try_to_freeze() somewhere.
+threads must call try_to_freeze() somewhere or use one of the
+wait_event_freezable() and wait_event_freezable_timeout() macros.
 
 After the system memory state has been restored from a hibernation image and
 devices have been reinitialized, the function thaw_processes() is called in
