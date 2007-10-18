@@ -283,12 +283,11 @@ err_ip:
 	return err;
 }
 
-static int snmp6_free_dev(struct inet6_dev *idev)
+static void snmp6_free_dev(struct inet6_dev *idev)
 {
 	snmp_mib_free((void **)idev->stats.icmpv6msg);
 	snmp_mib_free((void **)idev->stats.icmpv6);
 	snmp_mib_free((void **)idev->stats.ipv6);
-	return 0;
 }
 
 /* Nobody refers to this device, we may destroy it. */
