@@ -79,7 +79,7 @@ PALO := $(shell if which palo; then : ; \
 	fi)
 
 palo: vmlinux
-	@if [ -x $PALO ]; then \
+	@if [ ! -x $(PALO) ]; then \
 		echo 'ERROR: Please install palo first (apt-get install palo)';\
 		echo 'or build it from source and install it somewhere in your $$PATH';\
 		false; \
