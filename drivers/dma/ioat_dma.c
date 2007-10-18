@@ -941,9 +941,9 @@ void ioat_dma_remove(struct ioatdma_device *device)
 	struct dma_chan *chan, *_chan;
 	struct ioat_dma_chan *ioat_chan;
 
-	dma_async_device_unregister(&device->common);
-
 	ioat_dma_remove_interrupts(device);
+
+	dma_async_device_unregister(&device->common);
 
 	pci_pool_destroy(device->dma_pool);
 	pci_pool_destroy(device->completion_pool);
