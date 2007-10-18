@@ -665,7 +665,8 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	hwif->udma_filter = &ali_udma_filter;
 
 	/* don't use LBA48 DMA on ALi devices before rev 0xC5 */
-	hwif->no_lba48_dma = (m5229_revision <= 0xC4) ? 1 : 0;
+	if (m5229_revision <= 0xC4)
+		hwif->host_flags |= IDE_HFLAG_NO_LBA48_DMA;
 
 	if (!hwif->dma_base) {
 		hwif->drives[0].autotune = 1;

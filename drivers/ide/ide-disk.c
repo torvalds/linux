@@ -169,7 +169,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 
 	nsectors.all		= (u16) rq->nr_sectors;
 
-	if (hwif->no_lba48_dma && lba48 && dma) {
+	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) && lba48 && dma) {
 		if (block + rq->nr_sectors > 1ULL << 28)
 			dma = 0;
 		else
@@ -856,7 +856,7 @@ static int set_lba_addressing(ide_drive_t *drive, int arg)
 
 	drive->addressing =  0;
 
-	if (HWIF(drive)->no_lba48)
+	if (drive->hwif->host_flags & IDE_HFLAG_NO_LBA48)
 		return 0;
 
 	if (!idedisk_supports_lba48(drive->id))
@@ -889,6 +889,7 @@ static inline void idedisk_add_settings(ide_drive_t *drive) { ; }
 
 static void idedisk_setup (ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	struct hd_driveid *id = drive->id;
 	unsigned long long capacity;
 
@@ -909,7 +910,6 @@ static void idedisk_setup (ide_drive_t *drive)
 	(void)set_lba_addressing(drive, 1);
 
 	if (drive->addressing == 1) {
-		ide_hwif_t *hwif = HWIF(drive);
 		int max_s = 2048;
 
 		if (max_s > hwif->rqsize)
@@ -932,7 +932,7 @@ static void idedisk_setup (ide_drive_t *drive)
 		drive->capacity64 = 1ULL << 28;
 	}
 
-	if (drive->hwif->no_lba48_dma && drive->addressing) {
+	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) && drive->addressing) {
 		if (drive->capacity64 > 1ULL << 28) {
 			printk(KERN_INFO "%s: cannot use LBA48 DMA - PIO mode will"
 					 " be used for accessing sectors > %u\n",

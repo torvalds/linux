@@ -796,8 +796,6 @@ typedef struct hwif_s {
 	unsigned	serialized : 1;	/* serialized all channel operation */
 	unsigned	sharing_irq: 1;	/* 1 = sharing irq with another hwif */
 	unsigned	reset      : 1;	/* reset after probe */
-	unsigned	no_lba48   : 1; /* 1 = cannot do LBA48 */
-	unsigned	no_lba48_dma : 1; /* 1 = cannot do LBA48 DMA */
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	no_io_32bit : 1; /* 1 = can not do 32-bit IO ops */
@@ -1254,6 +1252,10 @@ enum {
 	IDE_HFLAG_NO_AUTODMA		= (1 << 15),
 	/* host is CS5510/CS5520 */
 	IDE_HFLAG_CS5520		= (1 << 16),
+	/* no LBA48 */
+	IDE_HFLAG_NO_LBA48		= (1 << 17),
+	/* no LBA48 DMA */
+	IDE_HFLAG_NO_LBA48_DMA		= (1 << 18),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD

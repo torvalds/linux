@@ -951,7 +951,8 @@ static int ide_init_queue(ide_drive_t *drive)
 	blk_queue_segment_boundary(q, 0xffff);
 
 	if (!hwif->rqsize) {
-		if (hwif->no_lba48 || hwif->no_lba48_dma)
+		if ((hwif->host_flags & IDE_HFLAG_NO_LBA48) ||
+		    (hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA))
 			hwif->rqsize = 256;
 		else
 			hwif->rqsize = 65536;
