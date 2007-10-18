@@ -2234,7 +2234,7 @@ S:	Supported
 KEXEC
 P:	Eric Biederman
 M:	ebiederm@xmission.com
-W:	http://www.xmission.com/~ebiederm/files/kexec/
+W:	http://ftp.kernel.org/pub/linux/kernel/people/horms/kexec-tools/
 L:	linux-kernel@vger.kernel.org
 L:	kexec@lists.infradead.org
 S:	Maintained
