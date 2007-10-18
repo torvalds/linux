@@ -1282,13 +1282,18 @@ static int __cpuinit cpuup_prepare(long cpu)
 			shared = alloc_arraycache(node,
 				cachep->shared * cachep->batchcount,
 				0xbaadf00d);
-			if (!shared)
+			if (!shared) {
+				kfree(nc);
 				goto bad;
+			}
 		}
 		if (use_alien_caches) {
 			alien = alloc_alien_cache(node, cachep->limit);
-			if (!alien)
+			if (!alien) {
+				kfree(shared);
+				kfree(nc);
 				goto bad;
+			}
 		}
 		cachep->array[cpu] = nc;
 		l3 = cachep->nodelists[node];
@@ -1315,6 +1320,7 @@ static int __cpuinit cpuup_prepare(long cpu)
 	}
 	return 0;
 bad:
+	cpuup_canceled(cpu);
 	return -ENOMEM;
 }
 
