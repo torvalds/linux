@@ -25,6 +25,7 @@
 #include <linux/uio.h>
 #include <linux/hash.h>
 #include <linux/writeback.h>
+#include <linux/backing-dev.h>
 #include <linux/pagevec.h>
 #include <linux/blkdev.h>
 #include <linux/security.h>
