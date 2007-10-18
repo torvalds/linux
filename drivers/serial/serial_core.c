@@ -1875,6 +1875,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 		 int baud, int parity, int bits, int flow)
 {
 	struct ktermios termios;
+	static struct ktermios dummy;
 	int i;
 
 	/*
@@ -1920,7 +1921,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	 */
 	port->mctrl |= TIOCM_DTR;
 
-	port->ops->set_termios(port, &termios, NULL);
+	port->ops->set_termios(port, &termios, &dummy);
 	co->cflag = termios.c_cflag;
 
 	return 0;
