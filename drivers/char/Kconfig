@@ -632,8 +632,6 @@ config HVCS
 
 source "drivers/char/ipmi/Kconfig"
 
-source "drivers/char/watchdog/Kconfig"
-
 config DS1620
 	tristate "NetWinder thermometer support"
 	depends on ARCH_NETWINDER
