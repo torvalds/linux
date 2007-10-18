@@ -13,6 +13,7 @@
  *
  * 7.9:
  *  - new fuse_getattr_in input argument of GETATTR
+ *  - add lk_flags in fuse_lk_in
  */
 
 #include <asm/types.h>
@@ -112,6 +113,11 @@ struct fuse_file_lock {
  * Getattr flags
  */
 #define FUSE_GETATTR_FH		(1 << 0)
+
+/**
+ * Lock flags
+ */
+#define FUSE_LK_FLOCK		(1 << 0)
 
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
@@ -295,6 +301,8 @@ struct fuse_lk_in {
 	__u64	fh;
 	__u64	owner;
 	struct fuse_file_lock lk;
+	__u32	lk_flags;
+	__u32	padding;
 };
 
 struct fuse_lk_out {

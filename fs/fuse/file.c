@@ -699,7 +699,8 @@ static int convert_fuse_file_lock(const struct fuse_file_lock *ffl,
 }
 
 static void fuse_lk_fill(struct fuse_req *req, struct file *file,
-			 const struct file_lock *fl, int opcode, pid_t pid)
+			 const struct file_lock *fl, int opcode, pid_t pid,
+			 int flock)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -712,6 +713,8 @@ static void fuse_lk_fill(struct fuse_req *req, struct file *file,
 	arg->lk.end = fl->fl_end;
 	arg->lk.type = fl->fl_type;
 	arg->lk.pid = pid;
+	if (flock)
+		arg->lk_flags |= FUSE_LK_FLOCK;
 	req->in.h.opcode = opcode;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.numargs = 1;
@@ -731,7 +734,7 @@ static int fuse_getlk(struct file *file, struct file_lock *fl)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	fuse_lk_fill(req, file, fl, FUSE_GETLK, 0);
+	fuse_lk_fill(req, file, fl, FUSE_GETLK, 0, 0);
 	req->out.numargs = 1;
 	req->out.args[0].size = sizeof(outarg);
 	req->out.args[0].value = &outarg;
@@ -744,7 +747,7 @@ static int fuse_getlk(struct file *file, struct file_lock *fl)
 	return err;
 }
 
-static int fuse_setlk(struct file *file, struct file_lock *fl)
+static int fuse_setlk(struct file *file, struct file_lock *fl, int flock)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -761,7 +764,7 @@ static int fuse_setlk(struct file *file, struct file_lock *fl)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	fuse_lk_fill(req, file, fl, opcode, pid);
+	fuse_lk_fill(req, file, fl, opcode, pid, flock);
 	request_send(fc, req);
 	err = req->out.h.error;
 	/* locking is restartable */
@@ -787,8 +790,25 @@ static int fuse_file_lock(struct file *file, int cmd, struct file_lock *fl)
 		if (fc->no_lock)
 			err = posix_lock_file_wait(file, fl);
 		else
-			err = fuse_setlk(file, fl);
+			err = fuse_setlk(file, fl, 0);
 	}
+	return err;
+}
+
+static int fuse_file_flock(struct file *file, int cmd, struct file_lock *fl)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	int err;
+
+	if (fc->no_lock) {
+		err = flock_lock_file_wait(file, fl);
+	} else {
+		/* emulate flock with POSIX locks */
+		fl->fl_owner = (fl_owner_t) file;
+		err = fuse_setlk(file, fl, 1);
+	}
+
 	return err;
 }
 
@@ -840,6 +860,7 @@ static const struct file_operations fuse_file_operations = {
 	.release	= fuse_release,
 	.fsync		= fuse_fsync,
 	.lock		= fuse_file_lock,
+	.flock		= fuse_file_flock,
 	.splice_read	= generic_file_splice_read,
 };
 
@@ -852,6 +873,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.release	= fuse_release,
 	.fsync		= fuse_fsync,
 	.lock		= fuse_file_lock,
+	.flock		= fuse_file_flock,
 	/* no mmap and splice_read */
 };
 
