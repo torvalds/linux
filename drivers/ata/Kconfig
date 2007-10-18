@@ -182,6 +182,15 @@ config PATA_ACPI
 	  firmware in the BIOS. This driver can sometimes handle
 	  otherwise unsupported hardware.
 
+config SATA_FSL
+	tristate "Freescale 3.0Gbps SATA support"
+	depends on PPC_MPC837x
+	help
+	  This option enables support for Freescale 3.0Gbps SATA controller.
+	  It can be found on MPC837x and MPC8315.
+
+	  If unsure, say N.
+
 config PATA_ALI
 	tristate "ALi PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
@@ -640,12 +649,5 @@ config PATA_BF54X
 	  Blackfin 54x family chips.
 
 	  If unsure, say N.
-
-config PATA_BF54X_DMA
-	bool "DMA mode"
-	depends on PATA_BF54X
-	default y
-	help
-	  Enable DMA mode for Blackfin ATAPI controller.
 
 endif # ATA

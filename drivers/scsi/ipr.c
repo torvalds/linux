@@ -5134,6 +5134,7 @@ static void ipr_build_ata_ioadl(struct ipr_cmnd *ipr_cmd,
 	u32 ioadl_flags = 0;
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
+	struct ipr_ioadl_desc *last_ioadl = NULL;
 	int len = qc->nbytes + qc->pad_len;
 	struct scatterlist *sg;
 
@@ -5156,11 +5157,13 @@ static void ipr_build_ata_ioadl(struct ipr_cmnd *ipr_cmd,
 	ata_for_each_sg(sg, qc) {
 		ioadl->flags_and_data_len = cpu_to_be32(ioadl_flags | sg_dma_len(sg));
 		ioadl->address = cpu_to_be32(sg_dma_address(sg));
-		if (ata_sg_is_last(sg, qc))
-			ioadl->flags_and_data_len |= cpu_to_be32(IPR_IOADL_FLAGS_LAST);
-		else
-			ioadl++;
+
+		last_ioadl = ioadl;
+		ioadl++;
 	}
+
+	if (likely(last_ioadl))
+		last_ioadl->flags_and_data_len |= cpu_to_be32(IPR_IOADL_FLAGS_LAST);
 }
 
 /**

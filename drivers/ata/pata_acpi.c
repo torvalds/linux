@@ -370,8 +370,10 @@ static struct pci_driver pacpi_pci_driver = {
 	.id_table		= pacpi_pci_tbl,
 	.probe			= pacpi_init_one,
 	.remove			= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend		= ata_pci_device_suspend,
 	.resume			= ata_pci_device_resume,
+#endif
 };
 
 static int __init pacpi_init(void)

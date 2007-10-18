@@ -1037,18 +1037,6 @@ extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 /*
  * qc helpers
  */
-static inline int
-ata_sg_is_last(struct scatterlist *sg, struct ata_queued_cmd *qc)
-{
-	if (sg == &qc->pad_sgent)
-		return 1;
-	if (qc->pad_len)
-		return 0;
-	if (qc->n_iter == qc->n_elem)
-		return 1;
-	return 0;
-}
-
 static inline struct scatterlist *
 ata_qc_first_sg(struct ata_queued_cmd *qc)
 {
