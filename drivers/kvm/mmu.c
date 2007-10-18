@@ -425,6 +425,8 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	if (!is_rmap_pte(*spte))
 		return;
 	page = page_header(__pa(spte));
+	kvm_release_page(pfn_to_page((*spte & PT64_BASE_ADDR_MASK) >>
+			 PAGE_SHIFT));
 	rmapp = gfn_to_rmap(kvm, page->gfns[spte - page->spt]);
 	if (!*rmapp) {
 		printk(KERN_ERR "rmap_remove: %p %llx 0->BUG\n", spte, *spte);
@@ -911,6 +913,8 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
 								PT_USER_MASK;
 			if (!was_rmapped)
 				rmap_add(vcpu, &table[index], v >> PAGE_SHIFT);
+			else
+				kvm_release_page(pfn_to_page(p >> PAGE_SHIFT));
 			return 0;
 		}
 
@@ -925,6 +929,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
 						     1, 3, &table[index]);
 			if (!new_table) {
 				pgprintk("nonpaging_map: ENOMEM\n");
+				kvm_release_page(pfn_to_page(p >> PAGE_SHIFT));
 				return -ENOMEM;
 			}
 
@@ -1039,8 +1044,11 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 
 	paddr = gpa_to_hpa(vcpu->kvm, addr & PT64_BASE_ADDR_MASK);
 
-	if (is_error_hpa(paddr))
+	if (is_error_hpa(paddr)) {
+		kvm_release_page(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
+				 >> PAGE_SHIFT));
 		return 1;
+	}
 
 	return nonpaging_map(vcpu, addr & PAGE_MASK, paddr);
 }
@@ -1507,6 +1515,7 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 		} else {
 			gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, va);
 			hpa_t hpa = gpa_to_hpa(vcpu, gpa);
+			struct page *page;
 
 			if (is_shadow_present_pte(ent)
 			    && (ent & PT64_BASE_ADDR_MASK) != hpa)
@@ -1519,6 +1528,9 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 				 && !is_error_hpa(hpa))
 				printk(KERN_ERR "audit: (%s) notrap shadow,"
 				       " valid guest gva %lx\n", audit_msg, va);
+			page = pfn_to_page((gpa & PT64_BASE_ADDR_MASK)
+					   >> PAGE_SHIFT);
+			kvm_release_page(page);
 
 		}
 	}

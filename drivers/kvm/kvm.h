@@ -409,6 +409,7 @@ struct kvm_memory_slot {
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
 	int user_alloc; /* user allocated memory */
+	unsigned long userspace_addr;
 };
 
 struct kvm {
@@ -570,6 +571,7 @@ extern struct page *bad_page;
 int is_error_page(struct page *page);
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
+void kvm_release_page(struct page *page);
 int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 			int len);
 int kvm_read_guest(struct kvm *kvm, gpa_t gpa, void *data, unsigned long len);

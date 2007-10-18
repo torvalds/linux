@@ -72,7 +72,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 			    struct kvm_vcpu *vcpu, gva_t addr,
 			    int write_fault, int user_fault, int fetch_fault)
 {
-	struct page *page;
+	struct page *page = NULL;
 	pt_element_t *table;
 	pt_element_t pte;
 	gfn_t table_gfn;
@@ -149,6 +149,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 
 		walker->inherited_ar &= pte;
 		--walker->level;
+		kvm_release_page(page);
 	}
 
 	if (write_fault && !is_dirty_pte(pte)) {
@@ -162,6 +163,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		kvm_mmu_pte_write(vcpu, pte_gpa, (u8 *)&pte, sizeof(pte));
 	}
 
+	kvm_release_page(page);
 	walker->pte = pte;
 	pgprintk("%s: pte %llx\n", __FUNCTION__, (u64)pte);
 	return 1;
@@ -180,6 +182,8 @@ err:
 		walker->error_code |= PFERR_USER_MASK;
 	if (fetch_fault)
 		walker->error_code |= PFERR_FETCH_MASK;
+	if (page)
+		kvm_release_page(page);
 	return 0;
 }
 
@@ -223,6 +227,8 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 	if (is_error_hpa(paddr)) {
 		set_shadow_pte(shadow_pte,
 			       shadow_trap_nonpresent_pte | PT_SHADOW_IO_MARK);
+		kvm_release_page(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
+					     >> PAGE_SHIFT));
 		return;
 	}
 
@@ -260,9 +266,20 @@ unshadowed:
 	pgprintk("%s: setting spte %llx\n", __FUNCTION__, spte);
 	set_shadow_pte(shadow_pte, spte);
 	page_header_update_slot(vcpu->kvm, shadow_pte, gaddr);
-	if (!was_rmapped)
+	if (!was_rmapped) {
 		rmap_add(vcpu, shadow_pte, (gaddr & PT64_BASE_ADDR_MASK)
 			 >> PAGE_SHIFT);
+		if (!is_rmap_pte(*shadow_pte)) {
+			struct page *page;
+
+			page = pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
+					   >> PAGE_SHIFT);
+			kvm_release_page(page);
+		}
+	}
+	else
+		kvm_release_page(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
+				 >> PAGE_SHIFT));
 	if (!ptwrite || !*ptwrite)
 		vcpu->last_pte_updated = shadow_pte;
 }
@@ -486,19 +503,22 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 {
 	int i;
 	pt_element_t *gpt;
+	struct page *page;
 
 	if (sp->role.metaphysical || PTTYPE == 32) {
 		nonpaging_prefetch_page(vcpu, sp);
 		return;
 	}
 
-	gpt = kmap_atomic(gfn_to_page(vcpu->kvm, sp->gfn), KM_USER0);
+	page = gfn_to_page(vcpu->kvm, sp->gfn);
+	gpt = kmap_atomic(page, KM_USER0);
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
 		if (is_present_pte(gpt[i]))
 			sp->spt[i] = shadow_trap_nonpresent_pte;
 		else
 			sp->spt[i] = shadow_notrap_nonpresent_pte;
 	kunmap_atomic(gpt, KM_USER0);
+	kvm_release_page(page);
 }
 
 #undef pt_element_t
