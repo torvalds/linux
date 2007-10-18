@@ -703,6 +703,24 @@ static struct trans_ctl_table trans_net_dccp_table[] = {
 	{}
 };
 
+static struct trans_ctl_table trans_net_irda_table[] = {
+	{ NET_IRDA_DISCOVERY,		"discovery" },
+	{ NET_IRDA_DEVNAME,		"devname" },
+	{ NET_IRDA_DEBUG,		"debug" },
+	{ NET_IRDA_FAST_POLL,		"fast_poll_increase" },
+	{ NET_IRDA_DISCOVERY_SLOTS,	"discovery_slots" },
+	{ NET_IRDA_DISCOVERY_TIMEOUT,	"discovery_timeout" },
+	{ NET_IRDA_SLOT_TIMEOUT,	"slot_timeout" },
+	{ NET_IRDA_MAX_BAUD_RATE,	"max_baud_rate" },
+	{ NET_IRDA_MIN_TX_TURN_TIME,	"min_tx_turn_time" },
+	{ NET_IRDA_MAX_TX_DATA_SIZE,	"max_tx_data_size" },
+	{ NET_IRDA_MAX_TX_WINDOW,	"max_tx_window" },
+	{ NET_IRDA_MAX_NOREPLY_TIME,	"max_noreply_time" },
+	{ NET_IRDA_WARN_NOREPLY_TIME,	"warn_noreply_time" },
+	{ NET_IRDA_LAP_KEEPALIVE_TIME,	"lap_keepalive_time" },
+	{}
+};
+
 static struct trans_ctl_table trans_net_table[] = {
 	{ NET_CORE,		"core",		trans_net_core_table },
 	/* NET_ETHER not used */
@@ -724,6 +742,7 @@ static struct trans_ctl_table trans_net_table[] = {
 	{ NET_LLC,		"llc",		trans_net_llc_table },
 	{ NET_NETFILTER,	"netfilter",	trans_net_netfilter_table },
 	{ NET_DCCP,		"dccp",		trans_net_dccp_table },
+	{ NET_IRDA,		"irda",		trans_net_irda_table },
 	{ 2089,			"nf_conntrack_max" },
 	{}
 };
