@@ -16,7 +16,7 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
-int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
+int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 {
 	int err;
 	__be32 seq;
@@ -24,11 +24,9 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 	struct xfrm_state *x;
 	int xfrm_nr = 0;
 	int decaps = 0;
-	int nexthdr;
 	unsigned int nhoff;
 
 	nhoff = IP6CB(skb)->nhoff;
-	nexthdr = skb_network_header(skb)[nhoff];
 
 	seq = 0;
 	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
@@ -41,7 +39,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 			goto drop;
 
 		x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi,
-				nexthdr != IPPROTO_IPIP ? nexthdr : IPPROTO_IPV6, AF_INET6);
+				      nexthdr, AF_INET6);
 		if (x == NULL)
 			goto drop;
 		spin_lock(&x->lock);
@@ -135,7 +133,8 @@ EXPORT_SYMBOL(xfrm6_rcv_spi);
 
 int xfrm6_rcv(struct sk_buff *skb)
 {
-	return xfrm6_rcv_spi(skb, 0);
+	return xfrm6_rcv_spi(skb, skb_network_header(skb)[IP6CB(skb)->nhoff],
+			     0);
 }
 
 EXPORT_SYMBOL(xfrm6_rcv);
