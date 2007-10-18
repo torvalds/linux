@@ -32,7 +32,7 @@ DEFINE_MUTEX(pm_mutex);
 /* This is just an arbitrary number */
 #define FREE_PAGE_NUMBER (100)
 
-struct platform_suspend_ops *suspend_ops;
+static struct platform_suspend_ops *suspend_ops;
 
 /**
  *	suspend_set_ops - Set the global suspend method table.

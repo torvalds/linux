@@ -79,8 +79,6 @@ struct platform_suspend_ops {
 };
 
 #ifdef CONFIG_SUSPEND
-extern struct platform_suspend_ops *suspend_ops;
-
 /**
  * suspend_set_ops - set platform dependent suspend operations
  * @ops: The new suspend operations to set.
