@@ -63,6 +63,10 @@ struct mlx4_ib_sqp {
 	u8			header_buf[MLX4_IB_UD_HEADER_SIZE];
 };
 
+enum {
+	MLX4_IB_MIN_SQ_STRIDE = 6
+};
+
 static const __be32 mlx4_ib_opcode[] = {
 	[IB_WR_SEND]			= __constant_cpu_to_be32(MLX4_OPCODE_SEND),
 	[IB_WR_SEND_WITH_IMM]		= __constant_cpu_to_be32(MLX4_OPCODE_SEND_IMM),
@@ -285,9 +289,17 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 	return 0;
 }
 
-static int set_user_sq_size(struct mlx4_ib_qp *qp,
+static int set_user_sq_size(struct mlx4_ib_dev *dev,
+			    struct mlx4_ib_qp *qp,
 			    struct mlx4_ib_create_qp *ucmd)
 {
+	/* Sanity check SQ size before proceeding */
+	if ((1 << ucmd->log_sq_bb_count) > dev->dev->caps.max_wqes	 ||
+	    ucmd->log_sq_stride >
+		ilog2(roundup_pow_of_two(dev->dev->caps.max_sq_desc_sz)) ||
+	    ucmd->log_sq_stride < MLX4_IB_MIN_SQ_STRIDE)
+		return -EINVAL;
+
 	qp->sq.wqe_cnt   = 1 << ucmd->log_sq_bb_count;
 	qp->sq.wqe_shift = ucmd->log_sq_stride;
 
@@ -330,7 +342,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 
 		qp->sq_no_prefetch = ucmd.sq_no_prefetch;
 
-		err = set_user_sq_size(qp, &ucmd);
+		err = set_user_sq_size(dev, qp, &ucmd);
 		if (err)
 			goto err;
 
