@@ -95,7 +95,7 @@ $bss_loop:
 
 1:
 	stw		%r3,0(%r4)
-	ldo		(ASM_PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
+	ldo		(PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
 	addib,>		-1,%r1,1b
 #if PT_NLEVELS == 3
 	ldo             ASM_PMD_ENTRY_SIZE(%r4),%r4
