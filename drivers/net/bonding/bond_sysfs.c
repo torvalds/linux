@@ -229,7 +229,7 @@ static ssize_t bonding_show_slaves(struct device *d,
 	int i, res = 0;
 	struct bonding *bond = to_bond(d);
 
-	read_lock_bh(&bond->lock);
+	read_lock(&bond->lock);
 	bond_for_each_slave(bond, slave, i) {
 		if (res > (PAGE_SIZE - IFNAMSIZ)) {
 			/* not enough space for another interface name */
@@ -240,7 +240,7 @@ static ssize_t bonding_show_slaves(struct device *d,
 		}
 		res += sprintf(buf + res, "%s ", slave->dev->name);
 	}
-	read_unlock_bh(&bond->lock);
+	read_unlock(&bond->lock);
 	res += sprintf(buf + res, "\n");
 	res++;
 	return res;
@@ -282,18 +282,18 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 		/* Got a slave name in ifname.  Is it already in the list? */
 		found = 0;
-		read_lock_bh(&bond->lock);
+		read_lock(&bond->lock);
 		bond_for_each_slave(bond, slave, i)
 			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
 				printk(KERN_ERR DRV_NAME
 				       ": %s: Interface %s is already enslaved!\n",
 				       bond->dev->name, ifname);
 				ret = -EPERM;
-				read_unlock_bh(&bond->lock);
+				read_unlock(&bond->lock);
 				goto out;
 			}
 
-		read_unlock_bh(&bond->lock);
+		read_unlock(&bond->lock);
 		printk(KERN_INFO DRV_NAME ": %s: Adding slave %s.\n",
 		       bond->dev->name, ifname);
 		dev = dev_get_by_name(&init_net, ifname);
@@ -1133,6 +1133,9 @@ static ssize_t bonding_store_primary(struct device *d,
 	}
 out:
 	write_unlock_bh(&bond->lock);
+
+	rtnl_unlock();
+
 	return count;
 }
 static DEVICE_ATTR(primary, S_IRUGO | S_IWUSR, bonding_show_primary, bonding_store_primary);
@@ -1190,6 +1193,7 @@ static ssize_t bonding_show_active_slave(struct device *d,
 	struct bonding *bond = to_bond(d);
 	int count;
 
+	rtnl_lock();
 
 	read_lock(&bond->curr_slave_lock);
 	curr = bond->curr_active_slave;
@@ -1269,6 +1273,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
 	}
 out:
 	write_unlock_bh(&bond->lock);
+	rtnl_unlock();
+
 	return count;
 
 }

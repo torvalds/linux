@@ -128,12 +128,12 @@ static inline u8 _simple_hash(const u8 *hash_start, int hash_size)
 
 static inline void _lock_tx_hashtbl(struct bonding *bond)
 {
-	spin_lock(&(BOND_ALB_INFO(bond).tx_hashtbl_lock));
+	spin_lock_bh(&(BOND_ALB_INFO(bond).tx_hashtbl_lock));
 }
 
 static inline void _unlock_tx_hashtbl(struct bonding *bond)
 {
-	spin_unlock(&(BOND_ALB_INFO(bond).tx_hashtbl_lock));
+	spin_unlock_bh(&(BOND_ALB_INFO(bond).tx_hashtbl_lock));
 }
 
 /* Caller must hold tx_hashtbl lock */
@@ -305,12 +305,12 @@ static struct slave *tlb_choose_channel(struct bonding *bond, u32 hash_index, u3
 /*********************** rlb specific functions ***************************/
 static inline void _lock_rx_hashtbl(struct bonding *bond)
 {
-	spin_lock(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
+	spin_lock_bh(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
 }
 
 static inline void _unlock_rx_hashtbl(struct bonding *bond)
 {
-	spin_unlock(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
+	spin_unlock_bh(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
 }
 
 /* when an ARP REPLY is received from a client update its info
@@ -472,13 +472,13 @@ static void rlb_clear_slave(struct bonding *bond, struct slave *slave)
 
 	_unlock_rx_hashtbl(bond);
 
-	write_lock(&bond->curr_slave_lock);
+	write_lock_bh(&bond->curr_slave_lock);
 
 	if (slave != bond->curr_active_slave) {
 		rlb_teach_disabled_mac_on_primary(bond, slave->dev->dev_addr);
 	}
 
-	write_unlock(&bond->curr_slave_lock);
+	write_unlock_bh(&bond->curr_slave_lock);
 }
 
 static void rlb_update_client(struct rlb_client_info *client_info)
@@ -1519,11 +1519,11 @@ int bond_alb_init_slave(struct bonding *bond, struct slave *slave)
 	/* caller must hold the bond lock for write since the mac addresses
 	 * are compared and may be swapped.
 	 */
-	write_lock_bh(&bond->lock);
+	read_lock(&bond->lock);
 
 	res = alb_handle_addr_collision_on_attach(bond, slave);
 
-	write_unlock_bh(&bond->lock);
+	read_unlock(&bond->lock);
 
 	if (res) {
 		return res;
