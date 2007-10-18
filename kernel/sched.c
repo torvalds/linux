@@ -266,7 +266,8 @@ struct rt_rq {
  * acquire operations must be ordered by ascending &runqueue.
  */
 struct rq {
-	spinlock_t lock;	/* runqueue lock */
+	/* runqueue lock: */
+	spinlock_t lock;
 
 	/*
 	 * nr_running and cpu_load should be in the same cacheline because
@@ -279,13 +280,15 @@ struct rq {
 #ifdef CONFIG_NO_HZ
 	unsigned char in_nohz_recently;
 #endif
-	struct load_weight load;	/* capture load from *all* tasks on this cpu */
+	/* capture load from *all* tasks on this cpu: */
+	struct load_weight load;
 	unsigned long nr_load_updates;
 	u64 nr_switches;
 
 	struct cfs_rq cfs;
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	struct list_head leaf_cfs_rq_list; /* list of leaf cfs_rq on this cpu */
+	/* list of leaf cfs_rq on this cpu: */
+	struct list_head leaf_cfs_rq_list;
 #endif
 	struct rt_rq  rt;
 
@@ -317,7 +320,8 @@ struct rq {
 	/* For active balancing */
 	int active_balance;
 	int push_cpu;
-	int cpu;		/* cpu of this runqueue */
+	/* cpu of this runqueue: */
+	int cpu;
 
 	struct task_struct *migration_thread;
 	struct list_head migration_queue;
