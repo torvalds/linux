@@ -318,7 +318,7 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 	struct scatterlist *sg;
 	struct ata_port *ap = qc->ap;
 	struct adma_port_priv *pp = ap->private_data;
-	u8  *buf = pp->pkt;
+	u8  *buf = pp->pkt, *last_buf = NULL;
 	int i = (2 + buf[3]) * 8;
 	u8 pFLAGS = pORD | ((qc->tf.flags & ATA_TFLAG_WRITE) ? pDIRO : 0);
 
@@ -334,8 +334,7 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 		*(__le32 *)(buf + i) = cpu_to_le32(len);
 		i += 4;
 
-		if (ata_sg_is_last(sg, qc))
-			pFLAGS |= pEND;
+		last_buf = &buf[i];
 		buf[i++] = pFLAGS;
 		buf[i++] = qc->dev->dma_mode & 0xf;
 		buf[i++] = 0;	/* pPKLW */
@@ -348,6 +347,10 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 		VPRINTK("PRD[%u] = (0x%lX, 0x%X)\n", i/4,
 					(unsigned long)addr, len);
 	}
+
+	if (likely(last_buf))
+		*last_buf |= pEND;
+
 	return i;
 }
 
