@@ -145,6 +145,9 @@ static void __init lite5200_setup_arch(void)
 	/* Some mpc5200 & mpc5200b related configuration */
 	mpc5200_setup_xlb_arbiter();
 
+	/* Map wdt for mpc52xx_restart() */
+	mpc52xx_map_wdt();
+
 #ifdef CONFIG_PM
 	mpc52xx_suspend.board_suspend_prepare = lite5200_suspend_prepare;
 	mpc52xx_suspend.board_resume_finish = lite5200_resume_finish;
@@ -183,5 +186,6 @@ define_machine(lite5200) {
 	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ 	= mpc52xx_init_irq,
 	.get_irq 	= mpc52xx_get_irq,
+	.restart	= mpc52xx_restart,
 	.calibrate_decr	= generic_calibrate_decr,
 };
