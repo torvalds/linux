@@ -40,7 +40,6 @@ extern int rtc_mips_set_mmss(unsigned long);
  * mips_timer_ack may be NULL if the interrupt is self-recoverable.
  */
 extern int (*mips_timer_state)(void);
-extern void (*mips_timer_ack)(void);
 
 /*
  * High precision timer clocksource.

@@ -72,14 +72,6 @@ int update_persistent_clock(struct timespec now)
 	return rtc_mips_set_mmss(now.tv_sec);
 }
 
-/* how many counter cycles in a jiffy */
-static unsigned long cycles_per_jiffy __read_mostly;
-
-/*
- * Null timer ack for systems not needing one (e.g. i8254).
- */
-static void null_timer_ack(void) { /* nothing */ }
-
 /*
  * Null high precision timer functions for systems lacking one.
  */
@@ -105,7 +97,6 @@ static cycle_t c0_hpt_read(void)
 }
 
 int (*mips_timer_state)(void);
-void (*mips_timer_ack)(void);
 
 /*
  * local_timer_interrupt() does profiling and process accounting
@@ -512,14 +503,6 @@ void __init time_init(void)
 		if (!clocksource_mips.read) {
 			/* No external high precision timer -- use R4k.  */
 			clocksource_mips.read = c0_hpt_read;
-
-			if (!mips_timer_state) {
-				/* No external timer interrupt -- use R4k.  */
-				mips_timer_ack = c0_timer_ack;
-				/* Calculate cache parameters.  */
-				cycles_per_jiffy =
-					(mips_hpt_frequency + HZ / 2) / HZ;
-			}
 		}
 		if (!mips_hpt_frequency)
 			mips_hpt_frequency = calibrate_hpt();
@@ -533,10 +516,6 @@ void __init time_init(void)
 		setup_irq(MIPS_CPU_IRQ_BASE + 7, &timer_irqaction);
 #endif
 	}
-
-	if (!mips_timer_ack)
-		/* No timer interrupt ack (e.g. i8254).  */
-		mips_timer_ack = null_timer_ack;
 
 	/*
 	 * Call board specific timer interrupt setup.
