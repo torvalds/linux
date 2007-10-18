@@ -178,7 +178,7 @@ extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struc
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_proc_async_renew(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_proc_renew(struct nfs_client *, struct rpc_cred *);
-extern int nfs4_do_close(struct path *path, struct nfs4_state *state);
+extern int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait);
 extern struct dentry *nfs4_atomic_open(struct inode *, struct dentry *, struct nameidata *);
 extern int nfs4_open_revalidate(struct inode *, struct dentry *, int, struct nameidata *);
 extern int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle);
@@ -209,6 +209,7 @@ extern void nfs4_drop_state_owner(struct nfs4_state_owner *);
 extern struct nfs4_state * nfs4_get_open_state(struct inode *, struct nfs4_state_owner *);
 extern void nfs4_put_open_state(struct nfs4_state *);
 extern void nfs4_close_state(struct path *, struct nfs4_state *, mode_t);
+extern void nfs4_close_sync(struct path *, struct nfs4_state *, mode_t);
 extern void nfs4_state_set_mode_locked(struct nfs4_state *, mode_t);
 extern void nfs4_schedule_state_recovery(struct nfs_client *);
 extern void nfs4_put_lock_state(struct nfs4_lock_state *lsp);
