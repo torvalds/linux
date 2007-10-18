@@ -253,7 +253,8 @@ extern void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
 extern int __xfrm_state_delete(struct xfrm_state *x);
 
 struct xfrm_state_afinfo {
-	unsigned short		family;
+	unsigned int		family;
+	struct module		*owner;
 	struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
 	int			(*init_flags)(struct xfrm_state *x);
@@ -267,8 +268,6 @@ struct xfrm_state_afinfo {
 
 extern int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo);
 extern int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo);
-extern struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
-extern void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
 extern void xfrm_state_delete_tunnel(struct xfrm_state *x);
 
@@ -312,6 +311,7 @@ struct xfrm_mode {
 	 */
 	int (*output)(struct xfrm_state *x,struct sk_buff *skb);
 
+	struct xfrm_state_afinfo *afinfo;
 	struct module *owner;
 	unsigned int encap;
 	int flags;

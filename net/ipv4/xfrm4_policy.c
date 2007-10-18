@@ -151,7 +151,6 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	i = 0;
 	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
 		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
-		struct xfrm_state_afinfo *afinfo;
 		x->u.rt.fl = *fl;
 
 		dst_prev->xfrm = xfrm[i++];
@@ -169,17 +168,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		/* Copy neighbout for reachability confirmation */
 		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
 		dst_prev->input		= rt->u.dst.input;
-		/* XXX: When IPv6 module can be unloaded, we should manage reference
-		 * to xfrm6_output in afinfo->output. Miyazawa
-		 * */
-		afinfo = xfrm_state_get_afinfo(dst_prev->xfrm->props.family);
-		if (!afinfo) {
-			dst = *dst_p;
-			err = -EAFNOSUPPORT;
-			goto error;
-		}
-		dst_prev->output = afinfo->output;
-		xfrm_state_put_afinfo(afinfo);
+		dst_prev->output = dst_prev->xfrm->mode->afinfo->output;
 		if (dst_prev->xfrm->props.family == AF_INET && rt->peer)
 			atomic_inc(&rt->peer->refcnt);
 		x->u.rt.peer = rt->peer;

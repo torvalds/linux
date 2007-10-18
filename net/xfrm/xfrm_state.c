@@ -57,6 +57,9 @@ static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
 static unsigned int xfrm_state_num;
 static unsigned int xfrm_state_genid;
 
+static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family);
+static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
+
 static inline unsigned int xfrm_dst_hash(xfrm_address_t *daddr,
 					 xfrm_address_t *saddr,
 					 u32 reqid,
@@ -289,11 +292,18 @@ int xfrm_register_mode(struct xfrm_mode *mode, int family)
 
 	err = -EEXIST;
 	modemap = afinfo->mode_map;
-	if (likely(modemap[mode->encap] == NULL)) {
-		modemap[mode->encap] = mode;
-		err = 0;
-	}
+	if (modemap[mode->encap])
+		goto out;
 
+	err = -ENOENT;
+	if (!try_module_get(afinfo->owner))
+		goto out;
+
+	mode->afinfo = afinfo;
+	modemap[mode->encap] = mode;
+	err = 0;
+
+out:
 	xfrm_state_unlock_afinfo(afinfo);
 	return err;
 }
@@ -316,6 +326,7 @@ int xfrm_unregister_mode(struct xfrm_mode *mode, int family)
 	modemap = afinfo->mode_map;
 	if (likely(modemap[mode->encap] == mode)) {
 		modemap[mode->encap] = NULL;
+		module_put(mode->afinfo->owner);
 		err = 0;
 	}
 
@@ -1869,7 +1880,7 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 }
 EXPORT_SYMBOL(xfrm_state_unregister_afinfo);
 
-struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family)
+static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family)
 {
 	struct xfrm_state_afinfo *afinfo;
 	if (unlikely(family >= NPROTO))
@@ -1881,13 +1892,10 @@ struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family)
 	return afinfo;
 }
 
-void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo)
+static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo)
 {
 	read_unlock(&xfrm_state_afinfo_lock);
 }
-
-EXPORT_SYMBOL(xfrm_state_get_afinfo);
-EXPORT_SYMBOL(xfrm_state_put_afinfo);
 
 /* Temporarily located here until net/xfrm/xfrm_tunnel.c is created */
 void xfrm_state_delete_tunnel(struct xfrm_state *x)
