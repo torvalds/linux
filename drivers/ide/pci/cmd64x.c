@@ -551,27 +551,9 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	}
 }
 
-static int __devinit init_setup_cmd64x(struct pci_dev *dev, ide_pci_device_t *d)
-{
-	return ide_setup_pci_device(dev, d);
-}
-
-static int __devinit init_setup_cmd646(struct pci_dev *dev, ide_pci_device_t *d)
-{
-	/*
-	 * The original PCI0646 didn't have the primary channel enable bit,
-	 * it appeared starting with PCI0646U (i.e. revision ID 3).
-	 */
-	if (dev->revision < 3)
-		d->enablebits[0].reg = 0;
-
-	return ide_setup_pci_device(dev, d);
-}
-
 static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "CMD643",
-		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
@@ -581,7 +563,6 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.udma_mask	= 0x00, /* no udma */
 	},{	/* 1 */
 		.name		= "CMD646",
-		.init_setup	= init_setup_cmd646,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
@@ -591,7 +572,6 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA2,
 	},{	/* 2 */
 		.name		= "CMD648",
-		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
@@ -601,7 +581,6 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA4,
 	},{	/* 3 */
 		.name		= "CMD649",
-		.init_setup	= init_setup_cmd64x,
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
@@ -612,15 +591,21 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 	}
 };
 
-/*
- * We may have to modify enablebits for PCI0646, so we'd better pass
- * a local copy of the ide_pci_device_t structure down the call chain...
- */
 static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t d = cmd64x_chipsets[id->driver_data];
+	ide_pci_device_t d;
+	u8 idx = id->driver_data;
 
-	return d.init_setup(dev, &d);
+	d = cmd64x_chipsets[idx];
+
+	/*
+	 * The original PCI0646 didn't have the primary channel enable bit,
+	 * it appeared starting with PCI0646U (i.e. revision ID 3).
+	 */
+	if (idx == 1 && dev->revision < 3)
+		d.enablebits[0].reg = 0;
+
+	return ide_setup_pci_device(dev, &d);
 }
 
 static const struct pci_device_id cmd64x_pci_tbl[] = {
