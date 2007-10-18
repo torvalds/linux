@@ -18,7 +18,7 @@ static int ipip_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int ipip_xfrm_rcv(struct xfrm_state *x, struct sk_buff *skb)
 {
-	return IPPROTO_IP;
+	return ip_hdr(skb)->protocol;
 }
 
 static int ipip_init_state(struct xfrm_state *x)

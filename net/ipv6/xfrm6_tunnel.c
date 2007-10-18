@@ -248,7 +248,7 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	return 0;
+	return skb_network_header(skb)[IP6CB(skb)->nhoff];
 }
 
 static int xfrm6_tunnel_rcv(struct sk_buff *skb)
