@@ -198,7 +198,7 @@ error:
 }
 
 
-static struct pm_ops at91_pm_ops ={
+static struct platform_suspend_ops at91_pm_ops ={
 	.valid		= at91_pm_valid_state,
 	.set_target	= at91_pm_set_target,
 	.enter		= at91_pm_enter,
@@ -219,7 +219,7 @@ static int __init at91_pm_init(void)
 	/* Disable SDRAM low-power mode.  Cannot be used with self-refresh. */
 	at91_sys_write(AT91_SDRAMC_LPR, 0);
 
-	pm_set_ops(&at91_pm_ops);
+	suspend_set_ops(&at91_pm_ops);
 
 	return 0;
 }

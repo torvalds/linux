@@ -766,9 +766,9 @@ static void sharpsl_apm_get_power_status(struct apm_power_info *info)
 	info->battery_life = sharpsl_pm.battstat.mainbat_percent;
 }
 
-static struct pm_ops sharpsl_pm_ops = {
+static struct platform_suspend_ops sharpsl_pm_ops = {
 	.enter		= corgi_pxa_pm_enter,
-	.valid		= pm_valid_only_mem,
+	.valid		= suspend_valid_only_mem,
 };
 
 static int __init sharpsl_pm_probe(struct platform_device *pdev)
@@ -800,7 +800,7 @@ static int __init sharpsl_pm_probe(struct platform_device *pdev)
 
 	apm_get_power_status = sharpsl_apm_get_power_status;
 
-	pm_set_ops(&sharpsl_pm_ops);
+	suspend_set_ops(&sharpsl_pm_ops);
 
 	mod_timer(&sharpsl_pm.ac_timer, jiffies + msecs_to_jiffies(250));
 
@@ -809,7 +809,7 @@ static int __init sharpsl_pm_probe(struct platform_device *pdev)
 
 static int sharpsl_pm_remove(struct platform_device *pdev)
 {
-	pm_set_ops(NULL);
+	suspend_set_ops(NULL);
 
 	device_remove_file(&pdev->dev, &dev_attr_battery_percentage);
 	device_remove_file(&pdev->dev, &dev_attr_battery_voltage);

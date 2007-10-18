@@ -86,7 +86,7 @@ static int pxa_pm_valid(suspend_state_t state)
 	return -EINVAL;
 }
 
-static struct pm_ops pxa_pm_ops = {
+static struct platform_suspend_ops pxa_pm_ops = {
 	.valid		= pxa_pm_valid,
 	.enter		= pxa_pm_enter,
 };
@@ -104,7 +104,7 @@ static int __init pxa_pm_init(void)
 		return -ENOMEM;
 	}
 
-	pm_set_ops(&pxa_pm_ops);
+	suspend_set_ops(&pxa_pm_ops);
 	return 0;
 }
 

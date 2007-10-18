@@ -50,7 +50,7 @@ int acpi_sleep_prepare(u32 acpi_state)
 }
 
 #ifdef CONFIG_SUSPEND
-static struct pm_ops acpi_pm_ops;
+static struct platform_suspend_ops acpi_pm_ops;
 
 extern void do_suspend_lowlevel(void);
 
@@ -203,7 +203,7 @@ static int acpi_pm_state_valid(suspend_state_t pm_state)
 	}
 }
 
-static struct pm_ops acpi_pm_ops = {
+static struct platform_suspend_ops acpi_pm_ops = {
 	.valid = acpi_pm_state_valid,
 	.set_target = acpi_pm_set_target,
 	.prepare = acpi_pm_prepare,
@@ -417,7 +417,7 @@ int __init acpi_sleep_init(void)
 		}
 	}
 
-	pm_set_ops(&acpi_pm_ops);
+	suspend_set_ops(&acpi_pm_ops);
 #endif
 
 #ifdef CONFIG_HIBERNATION

@@ -362,11 +362,11 @@ static int omap2_pm_finish(suspend_state_t state)
 	return 0;
 }
 
-static struct pm_ops omap_pm_ops = {
+static struct platform_suspend_ops omap_pm_ops = {
 	.prepare	= omap2_pm_prepare,
 	.enter		= omap2_pm_enter,
 	.finish		= omap2_pm_finish,
-	.valid		= pm_valid_only_mem,
+	.valid		= suspend_valid_only_mem,
 };
 
 int __init omap2_pm_init(void)
@@ -390,7 +390,7 @@ int __init omap2_pm_init(void)
 	omap2_sram_suspend = omap_sram_push(omap24xx_cpu_suspend,
 					    omap24xx_cpu_suspend_sz);
 
-	pm_set_ops(&omap_pm_ops);
+	suspend_set_ops(&omap_pm_ops);
 	pm_idle = omap2_pm_idle;
 
 	pmdomain_init();

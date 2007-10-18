@@ -27,16 +27,16 @@ typedef int __bitwise suspend_state_t;
 #define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
 
 /**
- * struct pm_ops - Callbacks for managing platform dependent system sleep
- *	states.
+ * struct platform_suspend_ops - Callbacks for managing platform dependent
+ *	system sleep states.
  *
  * @valid: Callback to determine if given system sleep state is supported by
  *	the platform.
  *	Valid (ie. supported) states are advertised in /sys/power/state.  Note
  *	that it still may be impossible to enter given system sleep state if the
  *	conditions aren't right.
- *	There is the %pm_valid_only_mem function available that can be assigned
- *	to this if the platform only supports mem sleep.
+ *	There is the %suspend_valid_only_mem function available that can be
+ *	assigned to this if the platform only supports mem sleep.
  *
  * @set_target: Tell the platform which system sleep state is going to be
  *	entered.
@@ -73,7 +73,7 @@ typedef int __bitwise suspend_state_t;
  *	that implement @prepare().  If implemented, it is always called after
  *	@enter() (even if @enter() fails).
  */
-struct pm_ops {
+struct platform_suspend_ops {
 	int (*valid)(suspend_state_t state);
 	int (*set_target)(suspend_state_t state);
 	int (*prepare)(suspend_state_t state);
@@ -82,14 +82,14 @@ struct pm_ops {
 };
 
 #ifdef CONFIG_SUSPEND
-extern struct pm_ops *pm_ops;
+extern struct platform_suspend_ops *suspend_ops;
 
 /**
- * pm_set_ops - set platform dependent power management ops
- * @pm_ops: The new power management operations to set.
+ * suspend_set_ops - set platform dependent suspend operations
+ * @ops: The new suspend operations to set.
  */
-extern void pm_set_ops(struct pm_ops *pm_ops);
-extern int pm_valid_only_mem(suspend_state_t state);
+extern void suspend_set_ops(struct platform_suspend_ops *ops);
+extern int suspend_valid_only_mem(suspend_state_t state);
 
 /**
  * arch_suspend_disable_irqs - disable IRQs for suspend
@@ -113,7 +113,7 @@ extern int pm_suspend(suspend_state_t state);
 #else /* !CONFIG_SUSPEND */
 #define suspend_valid_only_mem	NULL
 
-static inline void pm_set_ops(struct pm_ops *pm_ops) {}
+static inline void suspend_set_ops(struct platform_suspend_ops *ops) {}
 static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
 #endif /* !CONFIG_SUSPEND */
 

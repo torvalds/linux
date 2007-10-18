@@ -215,7 +215,7 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 
 static struct pxa_cpu_pm_fns pxa25x_cpu_pm_fns = {
 	.save_size	= SLEEP_SAVE_SIZE,
-	.valid		= pm_valid_only_mem,
+	.valid		= suspend_valid_only_mem,
 	.save		= pxa25x_cpu_pm_save,
 	.restore	= pxa25x_cpu_pm_restore,
 	.enter		= pxa25x_cpu_pm_enter,

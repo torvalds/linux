@@ -177,7 +177,7 @@ int mpc52xx_pm_finish(suspend_state_t state)
 	return 0;
 }
 
-static struct pm_ops mpc52xx_pm_ops = {
+static struct platform_suspend_ops mpc52xx_pm_ops = {
 	.valid		= mpc52xx_pm_valid,
 	.prepare	= mpc52xx_pm_prepare,
 	.enter		= mpc52xx_pm_enter,
@@ -186,6 +186,6 @@ static struct pm_ops mpc52xx_pm_ops = {
 
 int __init mpc52xx_pm_init(void)
 {
-	pm_set_ops(&mpc52xx_pm_ops);
+	suspend_set_ops(&mpc52xx_pm_ops);
 	return 0;
 }
