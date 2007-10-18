@@ -133,37 +133,42 @@ static const struct file_operations msr_fops = {
 	.open = msr_open,
 };
 
-static int __cpuinit msr_device_create(int i)
+static int msr_device_create(int cpu)
 {
-	int err = 0;
 	struct device *dev;
 
-	dev = device_create(msr_class, NULL, MKDEV(MSR_MAJOR, i), "msr%d",i);
-	if (IS_ERR(dev))
-		err = PTR_ERR(dev);
-	return err;
+	dev = device_create(msr_class, NULL, MKDEV(MSR_MAJOR, cpu),
+			    "msr%d", cpu);
+	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+}
+
+static void msr_device_destroy(int cpu)
+{
+	device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
 }
 
 static int __cpuinit msr_class_cpu_callback(struct notifier_block *nfb,
 				unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
+	int err = 0;
 
 	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		msr_device_create(cpu);
+	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
+		err = msr_device_create(cpu);
 		break;
+	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
+		msr_device_destroy(cpu);
 		break;
 	}
-	return NOTIFY_OK;
+	return err ? NOTIFY_BAD : NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata msr_class_cpu_notifier =
-{
+static struct notifier_block __cpuinitdata msr_class_cpu_notifier = {
 	.notifier_call = msr_class_cpu_callback,
 };
 
@@ -196,7 +201,7 @@ static int __init msr_init(void)
 out_class:
 	i = 0;
 	for_each_online_cpu(i)
-		device_destroy(msr_class, MKDEV(MSR_MAJOR, i));
+		msr_device_destroy(i);
 	class_destroy(msr_class);
 out_chrdev:
 	unregister_chrdev(MSR_MAJOR, "cpu/msr");
@@ -208,7 +213,7 @@ static void __exit msr_exit(void)
 {
 	int cpu = 0;
 	for_each_online_cpu(cpu)
-		device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
+		msr_device_destroy(cpu);
 	class_destroy(msr_class);
 	unregister_chrdev(MSR_MAJOR, "cpu/msr");
 	unregister_hotcpu_notifier(&msr_class_cpu_notifier);
