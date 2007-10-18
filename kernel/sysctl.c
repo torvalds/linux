@@ -509,7 +509,6 @@ static struct ctl_table kern_table[] = {
 #endif
 #ifdef CONFIG_PROC_SYSCTL
 	{
-		.ctl_name	= KERN_CADPID,
 		.procname	= "cad_pid",
 		.data		= NULL,
 		.maxlen		= sizeof (int),
