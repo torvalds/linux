@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/aec62xx.c		Version 0.25	Aug 1, 2007
+ * linux/drivers/ide/pci/aec62xx.c		Version 0.26	Sep 1, 2007
  *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2007		MontaVista Software, Inc. <source@mvista.com>
@@ -184,8 +184,6 @@ static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const ch
 static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
-	u8 reg54 = 0,  mask	= hwif->channel ? 0xf0 : 0x0f;
-	unsigned long flags;
 
 	hwif->set_pio_mode = &aec_set_pio_mode;
 
@@ -203,12 +201,10 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 
 	hwif->dma_lost_irq	= &aec62xx_dma_lost_irq;
 
-	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
-		spin_lock_irqsave(&ide_lock, flags);
-		pci_read_config_byte (dev, 0x54, &reg54);
-		pci_write_config_byte(dev, 0x54, (reg54 & ~mask));
-		spin_unlock_irqrestore(&ide_lock, flags);
-	} else if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
+	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
+		return;
+
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
 		u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;
 
 		pci_read_config_byte(hwif->pci_dev, 0x49, &ata66);
