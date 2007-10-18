@@ -565,6 +565,7 @@ static struct trans_ctl_table trans_net_ipv6_table[] = {
 	{ NET_IPV6_IP6FRAG_TIME,	"ip6frag_time" },
 	{ NET_IPV6_IP6FRAG_SECRET_INTERVAL,	"ip6frag_secret_interval" },
 	{ NET_IPV6_MLD_MAX_MSF,		"mld_max_msf" },
+	{ 2088 /* IPQ_QMAX */,		"ip6_queue_maxlen" },
 	{}
 };
 
@@ -723,6 +724,7 @@ static struct trans_ctl_table trans_net_table[] = {
 	{ NET_LLC,		"llc",		trans_net_llc_table },
 	{ NET_NETFILTER,	"netfilter",	trans_net_netfilter_table },
 	{ NET_DCCP,		"dccp",		trans_net_dccp_table },
+	{ 2089,			"nf_conntrack_max" },
 	{}
 };
 
@@ -1421,12 +1423,14 @@ static int sysctl_check_dir(struct ctl_table *table)
 	ref = sysctl_check_lookup(table);
 	if (ref) {
 		int match = 0;
-		if (table->procname && ref->procname &&
-		    (strcmp(table->procname, ref->procname) == 0))
+		if ((!table->procname && !ref->procname) ||
+		    (table->procname && ref->procname &&
+		     (strcmp(table->procname, ref->procname) == 0)))
 			match++;
 
-		if (table->ctl_name && ref->ctl_name &&
-		    (table->ctl_name == ref->ctl_name))
+		if ((!table->ctl_name && !ref->ctl_name) ||
+		    (table->ctl_name && ref->ctl_name &&
+		     (table->ctl_name == ref->ctl_name)))
 			match++;
 
 		if (match != 2) {
@@ -1463,8 +1467,8 @@ static void sysctl_check_bin_path(struct ctl_table *table, const char **fail)
 		     (strcmp(table->procname, ref->procname) != 0)))
 			set_fail(fail, table, "procname does not match binary path procname");
 
-		if (ref->ctl_name &&
-		    (!table->ctl_name || table->ctl_name != ref->ctl_name))
+		if (ref->ctl_name && table->ctl_name &&
+		    (table->ctl_name != ref->ctl_name))
 			set_fail(fail, table, "ctl_name does not match binary path ctl_name");
 	}
 }
@@ -1500,7 +1504,7 @@ int sysctl_check_table(struct ctl_table *table)
 			if (table->extra2)
 				set_fail(&fail, table, "Directory with extra2");
 			if (sysctl_check_dir(table))
-				set_fail(&fail, table, "Inconsistent directory");
+				set_fail(&fail, table, "Inconsistent directory names");
 		} else {
 			if ((table->strategy == sysctl_data) ||
 			    (table->strategy == sysctl_string) ||
@@ -1521,23 +1525,27 @@ int sysctl_check_table(struct ctl_table *table)
 				if (!table->maxlen)
 					set_fail(&fail, table, "No maxlen");
 			}
-			if ((table->strategy == sysctl_intvec) ||
-			    (table->proc_handler == proc_dointvec_minmax) ||
-			    (table->proc_handler == proc_doulongvec_minmax) ||
+			if ((table->proc_handler == proc_doulongvec_minmax) ||
 			    (table->proc_handler == proc_doulongvec_ms_jiffies_minmax)) {
-				if (!table->extra1)
-					set_fail(&fail, table, "No min");
-				if (!table->extra2)
-					set_fail(&fail, table, "No max");
+				if (table->maxlen > sizeof (unsigned long)) {
+					if (!table->extra1)
+						set_fail(&fail, table, "No min");
+					if (!table->extra2)
+						set_fail(&fail, table, "No max");
+				}
 			}
+#ifdef CONFIG_SYSCTL_SYSCALL
 			if (table->ctl_name && !table->strategy)
 				set_fail(&fail, table, "Missing strategy");
+#endif
 #if 0
 			if (!table->ctl_name && table->strategy)
 				set_fail(&fail, table, "Strategy without ctl_name");
 #endif
+#ifdef CONFIG_PROC_FS
 			if (table->procname && !table->proc_handler)
 				set_fail(&fail, table, "No proc_handler");
+#endif
 #if 0
 			if (!table->procname && table->proc_handler)
 				set_fail(&fail, table, "proc_handler without procname");
