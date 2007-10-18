@@ -166,8 +166,6 @@ static char expect_close;
 
 static int ifnum_to_use = -1;
 
-static DECLARE_RWSEM(register_sem);
-
 /* Parameters to ipmi_set_timeout */
 #define IPMI_SET_TIMEOUT_NO_HB			0
 #define IPMI_SET_TIMEOUT_HB_IF_NECESSARY	1
@@ -193,11 +191,9 @@ static int set_param_int(const char *val, struct kernel_param *kp)
 	if (endp == val)
 		return -EINVAL;
 
-	down_read(&register_sem);
 	*((int *)kp->arg) = l;
 	if (watchdog_user)
 		rv = ipmi_set_timeout(IPMI_SET_TIMEOUT_HB_IF_NECESSARY);
-	up_read(&register_sem);
 
 	return rv;
 }
@@ -226,17 +222,15 @@ static int set_param_str(const char *val, struct kernel_param *kp)
 
 	s = strstrip(valcp);
 
-	down_read(&register_sem);
 	rv = fn(s, NULL);
 	if (rv)
-		goto out_unlock;
+		goto out;
 
 	check_parms();
 	if (watchdog_user)
 		rv = ipmi_set_timeout(IPMI_SET_TIMEOUT_HB_IF_NECESSARY);
 
- out_unlock:
-	up_read(&register_sem);
+ out:
 	return rv;
 }
 
@@ -895,7 +889,6 @@ static void ipmi_register_watchdog(int ipmi_intf)
 {
 	int rv = -EBUSY;
 
-	down_write(&register_sem);
 	if (watchdog_user)
 		goto out;
 
@@ -922,8 +915,6 @@ static void ipmi_register_watchdog(int ipmi_intf)
 	}
 
  out:
-	up_write(&register_sem);
-
 	if ((start_now) && (rv == 0)) {
 		/* Run from startup, so start the timer now. */
 		start_now = 0; /* Disable this function after first startup. */
@@ -936,8 +927,6 @@ static void ipmi_register_watchdog(int ipmi_intf)
 static void ipmi_unregister_watchdog(int ipmi_intf)
 {
 	int rv;
-
-	down_write(&register_sem);
 
 	if (!watchdog_user)
 		goto out;
@@ -963,7 +952,7 @@ static void ipmi_unregister_watchdog(int ipmi_intf)
 	watchdog_user = NULL;
 
  out:
-	up_write(&register_sem);
+	return;
 }
 
 #ifdef HAVE_NMI_HANDLER
