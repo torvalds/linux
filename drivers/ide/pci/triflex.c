@@ -100,6 +100,9 @@ static void __devinit init_hwif_triflex(ide_hwif_t *hwif)
 {
 	hwif->set_pio_mode = &triflex_set_pio_mode;
 	hwif->set_dma_mode = &triflex_set_mode;
+
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
 }
 
 static ide_pci_device_t triflex_device __devinitdata = {
