@@ -320,7 +320,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 			result = audit_comparator(tsk->personality, f->op, f->val);
 			break;
 		case AUDIT_ARCH:
- 			if (ctx)
+			if (ctx)
 				result = audit_comparator(ctx->arch, f->op, f->val);
 			break;
 
@@ -898,7 +898,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 	if (context->personality != PER_LINUX)
 		audit_log_format(ab, " per=%lx", context->personality);
 	if (context->return_valid)
-		audit_log_format(ab, " success=%s exit=%ld", 
+		audit_log_format(ab, " success=%s exit=%ld",
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
 
@@ -1135,8 +1135,8 @@ void audit_free(struct task_struct *tsk)
 		return;
 
 	/* Check for system calls that do not go through the exit
-	 * function (e.g., exit_group), then free context block. 
-	 * We use GFP_ATOMIC here because we might be doing this 
+	 * function (e.g., exit_group), then free context block.
+	 * We use GFP_ATOMIC here because we might be doing this
 	 * in the context of the idle thread */
 	/* that can happen only if we are called from do_exit() */
 	if (context->in_syscall && context->auditable)
@@ -1316,7 +1316,7 @@ void __audit_getname(const char *name)
 		context->pwdmnt = mntget(current->fs->pwdmnt);
 		read_unlock(&current->fs->lock);
 	}
-		
+
 }
 
 /* audit_putname - intercept a putname request
