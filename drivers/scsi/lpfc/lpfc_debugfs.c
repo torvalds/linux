@@ -901,7 +901,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 	}
 
-	vport->disc_trc = kmzlloc(
+	vport->disc_trc = kzalloc(
 		(sizeof(struct lpfc_debugfs_trc) * lpfc_debugfs_max_disc_trc),
 		GFP_KERNEL);
 
