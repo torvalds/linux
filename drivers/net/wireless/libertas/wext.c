@@ -52,11 +52,9 @@ struct chan_freq_power *libertas_find_cfp_by_band_and_channel(wlan_adapter * ada
 {
 	struct chan_freq_power *cfp = NULL;
 	struct region_channel *rc;
-	int count = sizeof(adapter->region_channel) /
-	    sizeof(adapter->region_channel[0]);
 	int i, j;
 
-	for (j = 0; !cfp && (j < count); j++) {
+	for (j = 0; !cfp && (j < ARRAY_SIZE(adapter->region_channel)); j++) {
 		rc = &adapter->region_channel[j];
 
 		if (adapter->enable11d)
@@ -93,11 +91,9 @@ static struct chan_freq_power *find_cfp_by_band_and_freq(wlan_adapter * adapter,
 {
 	struct chan_freq_power *cfp = NULL;
 	struct region_channel *rc;
-	int count = sizeof(adapter->region_channel) /
-	    sizeof(adapter->region_channel[0]);
 	int i, j;
 
-	for (j = 0; !cfp && (j < count); j++) {
+	for (j = 0; !cfp && (j < ARRAY_SIZE(adapter->region_channel)); j++) {
 		rc = &adapter->region_channel[j];
 
 		if (adapter->enable11d)
@@ -624,8 +620,7 @@ static int wlan_get_range(struct net_device *dev, struct iw_request_info *info,
 	}
 	if (!flag) {
 		for (j = 0; (range->num_frequency < IW_MAX_FREQUENCIES)
-		     && (j < sizeof(adapter->region_channel)
-			 / sizeof(adapter->region_channel[0])); j++) {
+		     && (j < ARRAY_SIZE(adapter->region_channel)); j++) {
 			cfp = adapter->region_channel[j].CFP;
 			for (i = 0; (range->num_frequency < IW_MAX_FREQUENCIES)
 			     && adapter->region_channel[j].valid

@@ -3740,7 +3740,7 @@ static int wv_check_ioaddr(unsigned long ioaddr, u8 * mac)
 	 * non-NCR/AT&T/Lucent ISA card.  See wavelan.p.h for detail on
 	 * how to configure your card.
 	 */
-	for (i = 0; i < (sizeof(MAC_ADDRESSES) / sizeof(char) / 3); i++)
+	for (i = 0; i < ARRAY_SIZE(MAC_ADDRESSES); i++)
 		if ((mac[0] == MAC_ADDRESSES[i][0]) &&
 		    (mac[1] == MAC_ADDRESSES[i][1]) &&
 		    (mac[2] == MAC_ADDRESSES[i][2]))

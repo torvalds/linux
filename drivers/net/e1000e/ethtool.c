@@ -95,8 +95,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "tx_dma_failed", E1000_STAT(tx_dma_failed) },
 };
 
-#define E1000_GLOBAL_STATS_LEN	\
-	sizeof(e1000_gstrings_stats) / sizeof(struct e1000_stats)
+#define E1000_GLOBAL_STATS_LEN	ARRAY_SIZE(e1000_gstrings_stats)
 #define E1000_STATS_LEN (E1000_GLOBAL_STATS_LEN)
 static const char e1000_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register test  (offline)", "Eeprom test    (offline)",

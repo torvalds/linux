@@ -6591,8 +6591,7 @@ static const long ipw2100_frequencies[] = {
 	2472, 2484
 };
 
-#define FREQ_COUNT (sizeof(ipw2100_frequencies) / \
-                    sizeof(ipw2100_frequencies[0]))
+#define FREQ_COUNT	ARRAY_SIZE(ipw2100_frequencies)
 
 static const long ipw2100_rates_11b[] = {
 	1000000,

@@ -46,13 +46,11 @@ static struct chan_freq_power channel_freq_power_UN_BG[] = {
 static u8 wlan_region_2_code(u8 * region)
 {
 	u8 i;
-	u8 size = sizeof(region_code_mapping)/
-		  sizeof(struct region_code_mapping);
 
 	for (i = 0; region[i] && i < COUNTRY_CODE_LEN; i++)
 		region[i] = toupper(region[i]);
 
-	for (i = 0; i < size; i++) {
+	for (i = 0; i < ARRAY_SIZE(region_code_mapping); i++) {
 		if (!memcmp(region, region_code_mapping[i].region,
 			    COUNTRY_CODE_LEN))
 			return (region_code_mapping[i].code);
@@ -65,9 +63,8 @@ static u8 wlan_region_2_code(u8 * region)
 static u8 *wlan_code_2_region(u8 code)
 {
 	u8 i;
-	u8 size = sizeof(region_code_mapping)
-		  / sizeof(struct region_code_mapping);
-	for (i = 0; i < size; i++) {
+
+	for (i = 0; i < ARRAY_SIZE(region_code_mapping); i++) {
 		if (region_code_mapping[i].code == code)
 			return (region_code_mapping[i].region);
 	}
@@ -90,8 +87,7 @@ static u8 wlan_get_chan_11d(u8 band, u8 firstchan, u8 nrchan, u8 * chan)
 	u8 cfp_no;
 
 	cfp = channel_freq_power_UN_BG;
-	cfp_no = sizeof(channel_freq_power_UN_BG) /
-	    sizeof(struct chan_freq_power);
+	cfp_no = ARRAY_SIZE(channel_freq_power_UN_BG);
 
 	for (i = 0; i < cfp_no; i++) {
 		if ((cfp + i)->channel == firstchan) {
@@ -141,16 +137,12 @@ static u8 wlan_channel_known_11d(u8 chan,
 u32 libertas_chan_2_freq(u8 chan, u8 band)
 {
 	struct chan_freq_power *cf;
-	u16 cnt;
 	u16 i;
 	u32 freq = 0;
 
 	cf = channel_freq_power_UN_BG;
-	cnt =
-	    sizeof(channel_freq_power_UN_BG) /
-	    sizeof(struct chan_freq_power);
 
-	for (i = 0; i < cnt; i++) {
+	for (i = 0; i < ARRAY_SIZE(channel_freq_power_UN_BG); i++) {
 		if (chan == cf[i].channel)
 			freq = cf[i].freq;
 	}
@@ -664,8 +656,7 @@ int libertas_create_dnld_countryinfo_11d(wlan_private * priv)
 	if (priv->adapter->enable11d) {
 		/* update parsed_region_chan_11; dnld domaininf to FW */
 
-		for (j = 0; j < sizeof(adapter->region_channel) /
-		     sizeof(adapter->region_channel[0]); j++) {
+		for (j = 0; j < ARRAY_SIZE(adapter->region_channel); j++) {
 			region_chan = &adapter->region_channel[j];
 
 			lbs_deb_11d("%d region_chan->band %d\n", j,
@@ -679,8 +670,7 @@ int libertas_create_dnld_countryinfo_11d(wlan_private * priv)
 			break;
 		}
 
-		if (j >= sizeof(adapter->region_channel) /
-		    sizeof(adapter->region_channel[0])) {
+		if (j >= ARRAY_SIZE(adapter->region_channel)) {
 			lbs_deb_11d("region_chan not found, band %d\n",
 			       adapter->curbssparams.band);
 			ret = -1;

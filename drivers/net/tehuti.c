@@ -621,7 +621,7 @@ err:
 static void __init bdx_firmware_endianess(void)
 {
 	int i;
-	for (i = 0; i < sizeof(s_firmLoad) / sizeof(u32); i++)
+	for (i = 0; i < ARRAY_SIZE(s_firmLoad); i++)
 		s_firmLoad[i] = CPU_CHIP_SWAP32(s_firmLoad[i]);
 }
 
