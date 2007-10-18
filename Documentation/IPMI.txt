@@ -441,17 +441,20 @@ ACPI, and if none of those then a KCS device at the spec-specified
 0xca2.  If you want to turn this off, set the "trydefaults" option to
 false.
 
-If you have high-res timers compiled into the kernel, the driver will
-use them to provide much better performance.  Note that if you do not
-have high-res timers enabled in the kernel and you don't have
-interrupts enabled, the driver will run VERY slowly.  Don't blame me,
+If your IPMI interface does not support interrupts and is a KCS or
+SMIC interface, the IPMI driver will start a kernel thread for the
+interface to help speed things up.  This is a low-priority kernel
+thread that constantly polls the IPMI driver while an IPMI operation
+is in progress.  The force_kipmid module parameter will all the user to
+force this thread on or off.  If you force it off and don't have
+interrupts, the driver will run VERY slowly.  Don't blame me,
 these interfaces suck.
 
 The driver supports a hot add and remove of interfaces.  This way,
 interfaces can be added or removed after the kernel is up and running.
-This is done using /sys/modules/ipmi_si/hotmod, which is a write-only
-parameter.  You write a string to this interface.  The string has the
-format:
+This is done using /sys/modules/ipmi_si/parameters/hotmod, which is a
+write-only parameter.  You write a string to this interface.  The string
+has the format:
    <op1>[:op2[:op3...]]
 The "op"s are:
    add|remove,kcs|bt|smic,mem|i/o,<address>[,<opt1>[,<opt2>[,...]]]
