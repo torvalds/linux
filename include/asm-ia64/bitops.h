@@ -94,6 +94,38 @@ clear_bit (int nr, volatile void *addr)
 }
 
 /**
+ * clear_bit_unlock - Clears a bit in memory with release
+ * @nr: Bit to clear
+ * @addr: Address to start counting from
+ *
+ * clear_bit_unlock() is atomic and may not be reordered.  It does
+ * contain a memory barrier suitable for unlock type operations.
+ */
+static __inline__ void
+clear_bit_unlock (int nr, volatile void *addr)
+{
+	__u32 mask, old, new;
+	volatile __u32 *m;
+	CMPXCHG_BUGCHECK_DECL
+
+	m = (volatile __u32 *) addr + (nr >> 5);
+	mask = ~(1 << (nr & 31));
+	do {
+		CMPXCHG_BUGCHECK(m);
+		old = *m;
+		new = old & mask;
+	} while (cmpxchg_rel(m, old, new) != old);
+}
+
+/**
+ * __clear_bit_unlock - Non-atomically clear a bit with release
+ *
+ * This is like clear_bit_unlock, but the implementation may use a non-atomic
+ * store (this one uses an atomic, however).
+ */
+#define __clear_bit_unlock clear_bit_unlock
+
+/**
  * __clear_bit - Clears a bit in memory (non-atomic version)
  */
 static __inline__ void
@@ -168,6 +200,15 @@ test_and_set_bit (int nr, volatile void *addr)
 	} while (cmpxchg_acq(m, old, new) != old);
 	return (old & bit) != 0;
 }
+
+/**
+ * test_and_set_bit_lock - Set a bit and return its old value for lock
+ * @nr: Bit to set
+ * @addr: Address to count from
+ *
+ * This is the same as test_and_set_bit on ia64
+ */
+#define test_and_set_bit_lock test_and_set_bit
 
 /**
  * __test_and_set_bit - Set a bit and return its old value
@@ -370,8 +411,6 @@ hweight64 (unsigned long x)
 #define hweight32(x)	(unsigned int) hweight64((x) & 0xfffffffful)
 #define hweight16(x)	(unsigned int) hweight64((x) & 0xfffful)
 #define hweight8(x)	(unsigned int) hweight64((x) & 0xfful)
-
-#include <asm-generic/bitops/lock.h>
 
 #endif /* __KERNEL__ */
 
