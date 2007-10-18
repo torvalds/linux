@@ -344,6 +344,8 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 		goto out;
 
+	skb->ip_summed = CHECKSUM_NONE;
+
 	hdr_len = skb->data - skb_network_header(skb);
 	ah = (struct ip_auth_hdr *)skb->data;
 	ahp = x->data;

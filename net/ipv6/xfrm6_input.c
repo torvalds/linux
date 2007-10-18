@@ -97,7 +97,6 @@ int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 	memcpy(skb->sp->xvec + skb->sp->len, xfrm_vec,
 	       xfrm_nr * sizeof(xfrm_vec[0]));
 	skb->sp->len += xfrm_nr;
-	skb->ip_summed = CHECKSUM_NONE;
 
 	nf_reset(skb);
 
