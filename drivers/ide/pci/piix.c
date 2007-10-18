@@ -341,16 +341,6 @@ static u8 __devinit piix_cable_detect(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 {
-#ifndef CONFIG_IA64
-	if (!hwif->irq)
-		hwif->irq = hwif->channel ? 15 : 14;
-#endif /* CONFIG_IA64 */
-
-	if (hwif->pci_dev->device == PCI_DEVICE_ID_INTEL_82371MX) {
-		/* This is a painful system best to let it self tune for now */
-		return;
-	}
-
 	hwif->set_pio_mode = &piix_set_pio_mode;
 	hwif->set_dma_mode = &piix_set_dma_mode;
 
@@ -378,12 +368,18 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
 }
 
+#ifndef CONFIG_IA64
+ #define IDE_HFLAGS_PIIX (IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE)
+#else
+ #define IDE_HFLAGS_PIIX IDE_HFLAG_BOOTABLE
+#endif
+
 #define DECLARE_PIIX_DEV(name_str, udma) \
 	{						\
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_piix,	\
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
-		.host_flags	= IDE_HFLAG_BOOTABLE,	\
+		.host_flags	= IDE_HFLAGS_PIIX,	\
 		.pio_mask	= ATA_PIO4,		\
 		.swdma_mask	= ATA_SWDMA2_ONLY,	\
 		.mwdma_mask	= ATA_MWDMA12_ONLY,	\
@@ -396,7 +392,7 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		.init_chipset	= init_chipset_ich, \
 		.init_hwif	= init_hwif_ich, \
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
-		.host_flags	= IDE_HFLAG_BOOTABLE, \
+		.host_flags	= IDE_HFLAGS_PIIX, \
 		.pio_mask	= ATA_PIO4, \
 		.swdma_mask	= ATA_SWDMA2_ONLY, \
 		.mwdma_mask	= ATA_MWDMA12_ONLY, \
@@ -414,11 +410,11 @@ static ide_pci_device_t piix_pci_info[] __devinitdata = {
 		 * of the bit 14 of the IDETIM register at offset 0x6c
 		 */
 		.name		= "MPIIX",
-		.init_hwif	= init_hwif_piix,
 		.enablebits	= {{0x6d,0xc0,0x80}, {0x6d,0xc0,0xc0}},
 		.host_flags	= IDE_HFLAG_ISA_PORTS | IDE_HFLAG_NO_DMA |
-				  IDE_HFLAG_BOOTABLE,
+				  IDE_HFLAGS_PIIX,
 		.pio_mask	= ATA_PIO4,
+		/* This is a painful system best to let it self tune for now */
 	},
 
 	/*  3 */ DECLARE_PIIX_DEV("PIIX3",	0x00),	/* no udma */

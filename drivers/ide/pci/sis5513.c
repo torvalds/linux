@@ -564,9 +564,6 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 {
 	u8 udma_rates[] = { 0x00, 0x00, 0x07, 0x1f, 0x3f, 0x3f, 0x7f, 0x7f };
 
-	if (!hwif->irq)
-		hwif->irq = hwif->channel ? 15 : 14;
-
 	hwif->set_pio_mode = &sis_set_pio_mode;
 	hwif->set_dma_mode = &sis_set_dma_mode;
 
@@ -590,7 +587,8 @@ static ide_pci_device_t sis5513_chipset __devinitdata = {
 	.init_chipset	= init_chipset_sis5513,
 	.init_hwif	= init_hwif_sis5513,
 	.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-	.host_flags	= IDE_HFLAG_NO_AUTODMA | IDE_HFLAG_BOOTABLE,
+	.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_NO_AUTODMA |
+			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 };

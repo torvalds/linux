@@ -1259,6 +1259,8 @@ enum {
 	IDE_HFLAG_ERROR_STOPS_FIFO	= (1 << 19),
 	/* serialize ports */
 	IDE_HFLAG_SERIALIZE		= (1 << 20),
+	/* use legacy IRQs */
+	IDE_HFLAG_LEGACY_IRQS		= (1 << 21),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
