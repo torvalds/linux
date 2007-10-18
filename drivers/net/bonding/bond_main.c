@@ -2089,9 +2089,10 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 /*-------------------------------- Monitoring -------------------------------*/
 
 /* this function is called regularly to monitor each slave's link. */
-void bond_mii_monitor(struct net_device *bond_dev)
+void bond_mii_monitor(struct work_struct *work)
 {
-	struct bonding *bond = bond_dev->priv;
+	struct bonding *bond = container_of(work, struct bonding,
+					    mii_work.work);
 	struct slave *slave, *oldcurrent;
 	int do_failover = 0;
 	int delta_in_ticks;
@@ -2156,7 +2157,7 @@ void bond_mii_monitor(struct net_device *bond_dev)
 					       ": %s: link status down for %s "
 					       "interface %s, disabling it in "
 					       "%d ms.\n",
-					       bond_dev->name,
+					       bond->dev->name,
 					       IS_UP(slave_dev)
 					       ? ((bond->params.mode == BOND_MODE_ACTIVEBACKUP)
 						  ? ((slave == oldcurrent)
@@ -2189,7 +2190,7 @@ void bond_mii_monitor(struct net_device *bond_dev)
 					       ": %s: link status definitely "
 					       "down for interface %s, "
 					       "disabling it\n",
-					       bond_dev->name,
+					       bond->dev->name,
 					       slave_dev->name);
 
 					/* notify ad that the link status has changed */
@@ -2215,7 +2216,7 @@ void bond_mii_monitor(struct net_device *bond_dev)
 				printk(KERN_INFO DRV_NAME
 				       ": %s: link status up again after %d "
 				       "ms for interface %s.\n",
-				       bond_dev->name,
+				       bond->dev->name,
 				       (bond->params.downdelay - slave->delay) * bond->params.miimon,
 				       slave_dev->name);
 			}
@@ -2235,7 +2236,7 @@ void bond_mii_monitor(struct net_device *bond_dev)
 					       ": %s: link status up for "
 					       "interface %s, enabling it "
 					       "in %d ms.\n",
-					       bond_dev->name,
+					       bond->dev->name,
 					       slave_dev->name,
 					       bond->params.updelay * bond->params.miimon);
 				}
@@ -2251,7 +2252,7 @@ void bond_mii_monitor(struct net_device *bond_dev)
 				printk(KERN_INFO DRV_NAME
 				       ": %s: link status down again after %d "
 				       "ms for interface %s.\n",
-				       bond_dev->name,
+				       bond->dev->name,
 				       (bond->params.updelay - slave->delay) * bond->params.miimon,
 				       slave_dev->name);
 			} else {
@@ -2275,7 +2276,7 @@ void bond_mii_monitor(struct net_device *bond_dev)
 					printk(KERN_INFO DRV_NAME
 					       ": %s: link status definitely "
 					       "up for interface %s.\n",
-					       bond_dev->name,
+					       bond->dev->name,
 					       slave_dev->name);
 
 					/* notify ad that the link status has changed */
@@ -2301,7 +2302,7 @@ void bond_mii_monitor(struct net_device *bond_dev)
 			/* Should not happen */
 			printk(KERN_ERR DRV_NAME
 			       ": %s: Error: %s Illegal value (link=%d)\n",
-			       bond_dev->name,
+			       bond->dev->name,
 			       slave->dev->name,
 			       slave->link);
 			goto out;
@@ -2331,9 +2332,8 @@ void bond_mii_monitor(struct net_device *bond_dev)
 		bond_set_carrier(bond);
 
 re_arm:
-	if (bond->params.miimon) {
-		mod_timer(&bond->mii_timer, jiffies + delta_in_ticks);
-	}
+	if (bond->params.miimon)
+		queue_delayed_work(bond->wq, &bond->mii_work, delta_in_ticks);
 out:
 	read_unlock(&bond->lock);
 }
@@ -2636,9 +2636,10 @@ out:
  * arp is transmitted to generate traffic. see activebackup_arp_monitor for
  * arp monitoring in active backup mode.
  */
-void bond_loadbalance_arp_mon(struct net_device *bond_dev)
+void bond_loadbalance_arp_mon(struct work_struct *work)
 {
-	struct bonding *bond = bond_dev->priv;
+	struct bonding *bond = container_of(work, struct bonding,
+					    arp_work.work);
 	struct slave *slave, *oldcurrent;
 	int do_failover = 0;
 	int delta_in_ticks;
@@ -2685,13 +2686,13 @@ void bond_loadbalance_arp_mon(struct net_device *bond_dev)
 					printk(KERN_INFO DRV_NAME
 					       ": %s: link status definitely "
 					       "up for interface %s, ",
-					       bond_dev->name,
+					       bond->dev->name,
 					       slave->dev->name);
 					do_failover = 1;
 				} else {
 					printk(KERN_INFO DRV_NAME
 					       ": %s: interface %s is now up\n",
-					       bond_dev->name,
+					       bond->dev->name,
 					       slave->dev->name);
 				}
 			}
@@ -2715,7 +2716,7 @@ void bond_loadbalance_arp_mon(struct net_device *bond_dev)
 
 				printk(KERN_INFO DRV_NAME
 				       ": %s: interface %s is now down.\n",
-				       bond_dev->name,
+				       bond->dev->name,
 				       slave->dev->name);
 
 				if (slave == oldcurrent) {
@@ -2745,9 +2746,8 @@ void bond_loadbalance_arp_mon(struct net_device *bond_dev)
 	}
 
 re_arm:
-	if (bond->params.arp_interval) {
-		mod_timer(&bond->arp_timer, jiffies + delta_in_ticks);
-	}
+	if (bond->params.arp_interval)
+		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
 out:
 	read_unlock(&bond->lock);
 }
@@ -2767,9 +2767,10 @@ out:
  * may have received.
  * see loadbalance_arp_monitor for arp monitoring in load balancing mode
  */
-void bond_activebackup_arp_mon(struct net_device *bond_dev)
+void bond_activebackup_arp_mon(struct work_struct *work)
 {
-	struct bonding *bond = bond_dev->priv;
+	struct bonding *bond = container_of(work, struct bonding,
+					    arp_work.work);
 	struct slave *slave;
 	int delta_in_ticks;
 	int i;
@@ -2821,14 +2822,14 @@ void bond_activebackup_arp_mon(struct net_device *bond_dev)
 					printk(KERN_INFO DRV_NAME
 					       ": %s: %s is up and now the "
 					       "active interface\n",
-					       bond_dev->name,
+					       bond->dev->name,
 					       slave->dev->name);
 					netif_carrier_on(bond->dev);
 				} else {
 					printk(KERN_INFO DRV_NAME
 					       ": %s: backup interface %s is "
 					       "now up\n",
-					       bond_dev->name,
+					       bond->dev->name,
 					       slave->dev->name);
 				}
 
@@ -2864,7 +2865,7 @@ void bond_activebackup_arp_mon(struct net_device *bond_dev)
 
 				printk(KERN_INFO DRV_NAME
 				       ": %s: backup interface %s is now down\n",
-				       bond_dev->name,
+				       bond->dev->name,
 				       slave->dev->name);
 			} else {
 				read_unlock(&bond->curr_slave_lock);
@@ -2899,7 +2900,7 @@ void bond_activebackup_arp_mon(struct net_device *bond_dev)
 			printk(KERN_INFO DRV_NAME
 			       ": %s: link status down for active interface "
 			       "%s, disabling it\n",
-			       bond_dev->name,
+			       bond->dev->name,
 			       slave->dev->name);
 
 			write_lock(&bond->curr_slave_lock);
@@ -2921,7 +2922,7 @@ void bond_activebackup_arp_mon(struct net_device *bond_dev)
 			printk(KERN_INFO DRV_NAME
 			       ": %s: changing from interface %s to primary "
 			       "interface %s\n",
-			       bond_dev->name,
+			       bond->dev->name,
 			       slave->dev->name,
 			       bond->primary_slave->dev->name);
 
@@ -2985,7 +2986,7 @@ void bond_activebackup_arp_mon(struct net_device *bond_dev)
 					printk(KERN_INFO DRV_NAME
 					       ": %s: backup interface %s is "
 					       "now down.\n",
-					       bond_dev->name,
+					       bond->dev->name,
 					       slave->dev->name);
 				}
 			}
@@ -2994,7 +2995,7 @@ void bond_activebackup_arp_mon(struct net_device *bond_dev)
 
 re_arm:
 	if (bond->params.arp_interval) {
-		mod_timer(&bond->arp_timer, jiffies + delta_in_ticks);
+		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
 	}
 out:
 	read_unlock(&bond->lock);
@@ -3582,15 +3583,11 @@ static int bond_xmit_hash_policy_l2(struct sk_buff *skb,
 static int bond_open(struct net_device *bond_dev)
 {
 	struct bonding *bond = bond_dev->priv;
-	struct timer_list *mii_timer = &bond->mii_timer;
-	struct timer_list *arp_timer = &bond->arp_timer;
 
 	bond->kill_timers = 0;
 
 	if ((bond->params.mode == BOND_MODE_TLB) ||
 	    (bond->params.mode == BOND_MODE_ALB)) {
-		struct timer_list *alb_timer = &(BOND_ALB_INFO(bond).alb_timer);
-
 		/* bond_alb_initialize must be called before the timer
 		 * is started.
 		 */
@@ -3599,44 +3596,31 @@ static int bond_open(struct net_device *bond_dev)
 			return -1;
 		}
 
-		init_timer(alb_timer);
-		alb_timer->expires  = jiffies + 1;
-		alb_timer->data     = (unsigned long)bond;
-		alb_timer->function = (void *)&bond_alb_monitor;
-		add_timer(alb_timer);
+		INIT_DELAYED_WORK(&bond->alb_work, bond_alb_monitor);
+		queue_delayed_work(bond->wq, &bond->alb_work, 0);
 	}
 
 	if (bond->params.miimon) {  /* link check interval, in milliseconds. */
-		init_timer(mii_timer);
-		mii_timer->expires  = jiffies + 1;
-		mii_timer->data     = (unsigned long)bond_dev;
-		mii_timer->function = (void *)&bond_mii_monitor;
-		add_timer(mii_timer);
+		INIT_DELAYED_WORK(&bond->mii_work, bond_mii_monitor);
+		queue_delayed_work(bond->wq, &bond->mii_work, 0);
 	}
 
 	if (bond->params.arp_interval) {  /* arp interval, in milliseconds. */
-		init_timer(arp_timer);
-		arp_timer->expires  = jiffies + 1;
-		arp_timer->data     = (unsigned long)bond_dev;
-		if (bond->params.mode == BOND_MODE_ACTIVEBACKUP) {
-			arp_timer->function = (void *)&bond_activebackup_arp_mon;
-		} else {
-			arp_timer->function = (void *)&bond_loadbalance_arp_mon;
-		}
+		if (bond->params.mode == BOND_MODE_ACTIVEBACKUP)
+			INIT_DELAYED_WORK(&bond->arp_work,
+					  bond_activebackup_arp_mon);
+		else
+			INIT_DELAYED_WORK(&bond->arp_work,
+					  bond_loadbalance_arp_mon);
+
+		queue_delayed_work(bond->wq, &bond->arp_work, 0);
 		if (bond->params.arp_validate)
 			bond_register_arp(bond);
-
-		add_timer(arp_timer);
 	}
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
-		struct timer_list *ad_timer = &(BOND_AD_INFO(bond).ad_timer);
-		init_timer(ad_timer);
-		ad_timer->expires  = jiffies + 1;
-		ad_timer->data     = (unsigned long)bond;
-		ad_timer->function = (void *)&bond_3ad_state_machine_handler;
-		add_timer(ad_timer);
-
+		INIT_DELAYED_WORK(&bond->ad_work, bond_alb_monitor);
+		queue_delayed_work(bond->wq, &bond->ad_work, 0);
 		/* register to receive LACPDUs */
 		bond_register_lacpdu(bond);
 	}
@@ -3664,25 +3648,21 @@ static int bond_close(struct net_device *bond_dev)
 
 	write_unlock_bh(&bond->lock);
 
-	/* del_timer_sync must run without holding the bond->lock
-	 * because a running timer might be trying to hold it too
-	 */
-
 	if (bond->params.miimon) {  /* link check interval, in milliseconds. */
-		del_timer_sync(&bond->mii_timer);
+		cancel_delayed_work(&bond->mii_work);
 	}
 
 	if (bond->params.arp_interval) {  /* arp interval, in milliseconds. */
-		del_timer_sync(&bond->arp_timer);
+		cancel_delayed_work(&bond->arp_work);
 	}
 
 	switch (bond->params.mode) {
 	case BOND_MODE_8023AD:
-		del_timer_sync(&(BOND_AD_INFO(bond).ad_timer));
+		cancel_delayed_work(&bond->ad_work);
 		break;
 	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
-		del_timer_sync(&(BOND_ALB_INFO(bond).alb_timer));
+		cancel_delayed_work(&bond->alb_work);
 		break;
 	default:
 		break;
@@ -4340,6 +4320,10 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 
 	bond->params = *params; /* copy params struct */
 
+	bond->wq = create_singlethread_workqueue(bond_dev->name);
+	if (!bond->wq)
+		return -ENOMEM;
+
 	/* Initialize pointers */
 	bond->first_slave = NULL;
 	bond->curr_active_slave = NULL;
@@ -4826,10 +4810,32 @@ out_rtnl:
 	return res;
 }
 
+static void bond_work_cancel_all(struct bonding *bond)
+{
+	write_lock_bh(&bond->lock);
+	bond->kill_timers = 1;
+	write_unlock_bh(&bond->lock);
+
+	if (bond->params.miimon && delayed_work_pending(&bond->mii_work))
+		cancel_delayed_work(&bond->mii_work);
+
+	if (bond->params.arp_interval && delayed_work_pending(&bond->arp_work))
+		cancel_delayed_work(&bond->arp_work);
+
+	if (bond->params.mode == BOND_MODE_ALB &&
+	    delayed_work_pending(&bond->alb_work))
+		cancel_delayed_work(&bond->alb_work);
+
+	if (bond->params.mode == BOND_MODE_8023AD &&
+	    delayed_work_pending(&bond->ad_work))
+		cancel_delayed_work(&bond->ad_work);
+}
+
 static int __init bonding_init(void)
 {
 	int i;
 	int res;
+	struct bonding *bond, *nxt;
 
 	printk(KERN_INFO "%s", version);
 
@@ -4856,6 +4862,11 @@ static int __init bonding_init(void)
 
 	goto out;
 err:
+	list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list) {
+		bond_work_cancel_all(bond);
+		destroy_workqueue(bond->wq);
+	}
+
 	rtnl_lock();
 	bond_free_all();
 	bond_destroy_sysfs();
