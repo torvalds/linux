@@ -351,7 +351,7 @@ static ssize_t iowarrior_write(struct file *file,
 
 	mutex_lock(&dev->mutex);
 	/* verify that the device wasn't unplugged */
-	if (dev == NULL || !dev->present) {
+	if (!dev->present) {
 		retval = -ENODEV;
 		goto exit;
 	}
