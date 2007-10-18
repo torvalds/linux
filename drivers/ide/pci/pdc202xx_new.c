@@ -552,70 +552,63 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_pdcnew,
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
-		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 1 */
 		.name		= "PDC20269",
 		.init_setup	= init_setup_pdcnew,
 		.init_chipset	= init_chipset_pdcnew,
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
-		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 2 */
 		.name		= "PDC20270",
 		.init_setup	= init_setup_pdc20270,
 		.init_chipset	= init_chipset_pdcnew,
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
-		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 3 */
 		.name		= "PDC20271",
 		.init_setup	= init_setup_pdcnew,
 		.init_chipset	= init_chipset_pdcnew,
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
-		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 4 */
 		.name		= "PDC20275",
 		.init_setup	= init_setup_pdcnew,
 		.init_chipset	= init_chipset_pdcnew,
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
-		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 5 */
 		.name		= "PDC20276",
 		.init_setup	= init_setup_pdc20276,
 		.init_chipset	= init_chipset_pdcnew,
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
-		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	},{	/* 6 */
 		.name		= "PDC20277",
 		.init_setup	= init_setup_pdcnew,
 		.init_chipset	= init_chipset_pdcnew,
 		.init_hwif	= init_hwif_pdc202new,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_POST_SET_MODE | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x7f, /* udma0-6*/
-		.host_flags	= IDE_HFLAG_POST_SET_MODE,
 	}
 };
 

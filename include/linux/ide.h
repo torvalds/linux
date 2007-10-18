@@ -1210,15 +1210,6 @@ extern void default_hwif_iops(ide_hwif_t *);
 extern void default_hwif_mmiops(ide_hwif_t *);
 extern void default_hwif_transport(ide_hwif_t *);
 
-#define ON_BOARD		1
-#define NEVER_BOARD		0
-
-#ifdef CONFIG_BLK_DEV_OFFBOARD
-#  define OFF_BOARD		ON_BOARD
-#else /* CONFIG_BLK_DEV_OFFBOARD */
-#  define OFF_BOARD		NEVER_BOARD
-#endif /* CONFIG_BLK_DEV_OFFBOARD */
-
 #define NODMA 0
 #define NOAUTODMA 1
 #define AUTODMA 2
@@ -1259,7 +1250,15 @@ enum {
 	IDE_HFLAG_VDMA			= (1 << 11),
 	/* ATAPI DMA is unsupported */
 	IDE_HFLAG_NO_ATAPI_DMA		= (1 << 12),
+	/* set if host is a "bootable" controller */
+	IDE_HFLAG_BOOTABLE		= (1 << 13),
 };
+
+#ifdef CONFIG_BLK_DEV_OFFBOARD
+# define IDE_HFLAG_OFF_BOARD	IDE_HFLAG_BOOTABLE
+#else
+# define IDE_HFLAG_OFF_BOARD	0
+#endif
 
 typedef struct ide_pci_device_s {
 	char			*name;
@@ -1272,7 +1271,6 @@ typedef struct ide_pci_device_s {
 	void			(*fixup)(ide_hwif_t *);
 	u8			autodma;
 	ide_pci_enablebit_t	enablebits[2];
-	u8			bootable;
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
 	u16			host_flags;

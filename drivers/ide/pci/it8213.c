@@ -193,8 +193,8 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 		.init_hwif	= init_hwif_it8213,	\
 		.autodma	= AUTODMA,		\
 		.enablebits	= {{0x41,0x80,0x80}}, \
-		.bootable	= ON_BOARD,		\
-		.host_flags	= IDE_HFLAG_SINGLE,	\
+		.host_flags	= IDE_HFLAG_SINGLE |	\
+				  IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
 	}
 

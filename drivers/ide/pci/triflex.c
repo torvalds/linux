@@ -113,7 +113,7 @@ static ide_pci_device_t triflex_device __devinitdata = {
 	.init_hwif	= init_hwif_triflex,
 	.autodma	= AUTODMA,
 	.enablebits	= {{0x80, 0x01, 0x01}, {0x80, 0x02, 0x02}},
-	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 };
 

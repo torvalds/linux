@@ -161,7 +161,7 @@ static ide_pci_device_t slc90e66_chipset __devinitdata = {
 	.init_hwif	= init_hwif_slc90e66,
 	.autodma	= AUTODMA,
 	.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}},
-	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 };
 

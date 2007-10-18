@@ -705,8 +705,8 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
       .init_iops	= init_iops_scc,		\
       .init_hwif	= init_hwif_scc,		\
       .autodma	= AUTODMA,				\
-      .bootable	= ON_BOARD,				\
-      .host_flags	= IDE_HFLAG_SINGLE,		\
+      .host_flags	= IDE_HFLAG_SINGLE |		\
+			  IDE_HFLAG_BOOTABLE,		\
       .pio_mask		= ATA_PIO4,			\
   }
 

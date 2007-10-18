@@ -153,7 +153,6 @@ static ide_pci_device_t hpt34x_chipset __devinitdata = {
 	.init_chipset	= init_chipset_hpt34x,
 	.init_hwif	= init_hwif_hpt34x,
 	.autodma	= NOAUTODMA,
-	.bootable	= NEVER_BOARD,
 	.extra		= 16,
 	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 	.pio_mask	= ATA_PIO5,
@@ -168,7 +167,10 @@ static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_devic
 	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
 
 	d->name = chipset_names[(pcicmd & PCI_COMMAND_MEMORY) ? 1 : 0];
-	d->bootable = (pcicmd & PCI_COMMAND_MEMORY) ? OFF_BOARD : NEVER_BOARD;
+	if (pcicmd & PCI_COMMAND_MEMORY)
+		d->host_flags |= IDE_HFLAG_OFF_BOARD;
+	else
+		d->host_flags &= ~IDE_HFLAG_OFF_BOARD;
 
 	return ide_setup_pci_device(dev, d);
 }

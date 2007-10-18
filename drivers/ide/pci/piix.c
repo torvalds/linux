@@ -417,7 +417,7 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		.init_hwif	= init_hwif_piix,	\
 		.autodma	= AUTODMA,		\
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
-		.bootable	= ON_BOARD,		\
+		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
 		.udma_mask	= udma,			\
 	}
@@ -436,8 +436,7 @@ static ide_pci_device_t piix_pci_info[] __devinitdata = {
 		.init_hwif	= init_hwif_piix,
 		.autodma	= NODMA,
 		.enablebits	= {{0x6d,0xc0,0x80}, {0x6d,0xc0,0xc0}},
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_ISA_PORTS,
+		.host_flags	= IDE_HFLAG_ISA_PORTS | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},
 

@@ -280,10 +280,10 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.init_hwif	= init_hwif_amd74xx,			\
 		.autodma	= AUTODMA,				\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
-		.bootable	= ON_BOARD,				\
-		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
-				| IDE_HFLAG_PIO_NO_DOWNGRADE		\
-				| IDE_HFLAG_POST_SET_MODE,		\
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |		\
+				  IDE_HFLAG_PIO_NO_DOWNGRADE |		\
+				  IDE_HFLAG_POST_SET_MODE |		\
+				  IDE_HFLAG_BOOTABLE,			\
 		.pio_mask	= ATA_PIO5,				\
 	}
 
@@ -294,10 +294,10 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.init_hwif	= init_hwif_amd74xx,			\
 		.autodma	= AUTODMA,				\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
-		.bootable	= ON_BOARD,				\
-		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
-				| IDE_HFLAG_PIO_NO_DOWNGRADE		\
-				| IDE_HFLAG_POST_SET_MODE,		\
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |		\
+				  IDE_HFLAG_PIO_NO_DOWNGRADE |		\
+				  IDE_HFLAG_POST_SET_MODE |		\
+				  IDE_HFLAG_BOOTABLE,			\
 		.pio_mask	= ATA_PIO5,				\
 	}
 

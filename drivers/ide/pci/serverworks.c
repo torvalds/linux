@@ -392,9 +392,10 @@ static int __devinit init_setup_svwks (struct pci_dev *dev, ide_pci_device_t *d)
 static int __devinit init_setup_csb6 (struct pci_dev *dev, ide_pci_device_t *d)
 {
 	if (!(PCI_FUNC(dev->devfn) & 1)) {
-		d->bootable = NEVER_BOARD;
 		if (dev->resource[0].start == 0x01f1)
-			d->bootable = ON_BOARD;
+			d->host_flags |= IDE_HFLAG_BOOTABLE;
+		else
+			d->host_flags &= ~IDE_HFLAG_BOOTABLE;
 	}
 
 	if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE ||
@@ -414,7 +415,7 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 1 */
 		.name		= "SvrWks CSB5",
@@ -422,7 +423,7 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 2 */
 		.name		= "SvrWks CSB6",
@@ -430,7 +431,7 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 3 */
 		.name		= "SvrWks CSB6",
@@ -438,8 +439,7 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_SINGLE,
+		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 4 */
 		.name		= "SvrWks HT1000",
@@ -447,8 +447,7 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_SINGLE,
+		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
 	}
 };

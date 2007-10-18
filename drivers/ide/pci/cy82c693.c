@@ -461,8 +461,8 @@ static ide_pci_device_t cy82c693_chipset __devinitdata = {
 	.init_iops	= init_iops_cy82c693,
 	.init_hwif	= init_hwif_cy82c693,
 	.autodma	= AUTODMA,
-	.bootable	= ON_BOARD,
-	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 };
 

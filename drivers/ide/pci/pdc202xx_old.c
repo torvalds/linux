@@ -422,8 +422,8 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
 		.extra		= 16,
+		.host_flags	= IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x07, /* udma0-2 */
 	},{	/* 1 */
@@ -433,8 +433,8 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.host_flags	= IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 2 */
@@ -444,8 +444,8 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.host_flags	= IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
@@ -455,8 +455,8 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.host_flags	= IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 4 */
@@ -466,8 +466,8 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
 		.extra		= 48,
+		.host_flags	= IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	}

@@ -637,8 +637,8 @@ static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev, const cha
 		.init_chipset	= init_chipset_it821x,	\
 		.init_hwif	= init_hwif_it821x,	\
 		.autodma	= AUTODMA,		\
-		.bootable	= ON_BOARD,		\
 		.fixup	 	= it821x_fixups,	\
+		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
 	}
 

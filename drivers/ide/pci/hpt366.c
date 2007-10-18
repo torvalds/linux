@@ -1531,7 +1531,7 @@ static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
 		pci_read_config_byte(dev,  PCI_INTERRUPT_PIN, &pin1);
 		pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin2);
 		if (pin1 != pin2 && dev->irq == dev2->irq) {
-			d->bootable = ON_BOARD;
+			d->host_flags |= IDE_HFLAG_BOOTABLE;
 			printk("%s: onboard version of chipset, pin1=%d pin2=%d\n",
 			       d->name, pin1, pin2);
 		}
@@ -1553,9 +1553,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.init_dma	= init_dma_hpt366,
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 1 */
 		.name		= "HPT372A",
@@ -1566,9 +1565,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 2 */
 		.name		= "HPT302",
@@ -1579,9 +1577,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT302_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 3 */
 		.name		= "HPT371",
@@ -1592,9 +1589,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT371_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 4 */
 		.name		= "HPT374",
@@ -1605,9 +1601,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 	},{	/* 5 */
 		.name		= "HPT372N",
@@ -1618,9 +1613,8 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 	}
 };

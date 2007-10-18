@@ -592,7 +592,7 @@ static ide_pci_device_t sis5513_chipset __devinitdata = {
 	.init_hwif	= init_hwif_sis5513,
 	.autodma	= NOAUTODMA,
 	.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 };
 
