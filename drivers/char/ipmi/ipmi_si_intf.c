@@ -1006,6 +1006,10 @@ static int smi_start_processing(void       *send_info,
 
 	new_smi->intf = intf;
 
+	/* Try to claim any interrupts. */
+	if (new_smi->irq_setup)
+		new_smi->irq_setup(new_smi);
+
 	/* Set up the timer that drives the interface. */
 	setup_timer(&new_smi->si_timer, smi_timeout, (long)new_smi);
 	new_smi->last_timeout_jiffies = jiffies;
@@ -2764,10 +2768,6 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	setup_oem_data_handler(new_smi);
 	setup_xaction_handlers(new_smi);
-
-	/* Try to claim any interrupts. */
-	if (new_smi->irq_setup)
-		new_smi->irq_setup(new_smi);
 
 	INIT_LIST_HEAD(&(new_smi->xmit_msgs));
 	INIT_LIST_HEAD(&(new_smi->hp_xmit_msgs));
