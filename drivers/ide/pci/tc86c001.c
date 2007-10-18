@@ -1,5 +1,5 @@
 /*
- * drivers/ide/pci/tc86c001.c	Version 1.00	Dec 12, 2006
+ * drivers/ide/pci/tc86c001.c	Version 1.01	Sep 5, 2007
  *
  * Copyright (C) 2002 Toshiba Corporation
  * Copyright (C) 2005-2006 MontaVista Software, Inc. <source@mvista.com>
@@ -17,7 +17,7 @@ static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long scr_port	= hwif->config_data + (drive->dn ? 0x02 : 0x00);
-	u16 mode, scr		= hwif->INW(scr_port);
+	u16 mode, scr		= inw(scr_port);
 
 	switch (speed) {
 		case XFER_UDMA_4:	mode = 0x00c0; break;
@@ -65,7 +65,7 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 	ide_expiry_t *expiry	= ide_get_hwifdata(hwif);
 	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
-	u8 dma_stat		= hwif->INB(hwif->dma_status);
+	u8 dma_stat		= inb(hwif->dma_status);
 
 	/* Restore a higher level driver's expiry handler first. */
 	hwgroup->expiry	= expiry;
@@ -73,7 +73,7 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 	if ((dma_stat & 5) == 1) {	/* DMA active and no interrupt */
 		unsigned long sc_base	= hwif->config_data;
 		unsigned long twcr_port	= sc_base + (drive->dn ? 0x06 : 0x04);
-		u8 dma_cmd		= hwif->INB(hwif->dma_command);
+		u8 dma_cmd		= inb(hwif->dma_command);
 
 		printk(KERN_WARNING "%s: DMA interrupt possibly stuck, "
 		       "attempting recovery...\n", drive->name);
@@ -135,7 +135,7 @@ static int tc86c001_busproc(ide_drive_t *drive, int state)
 	u16 scr1;
 
 	/* System Control 1 Register bit 11 (ATA Hard Reset) read */
-	scr1 = hwif->INW(sc_base + 0x00);
+	scr1 = inw(sc_base + 0x00);
 
 	switch (state) {
 		case BUSSTATE_ON:
@@ -165,7 +165,7 @@ static int tc86c001_busproc(ide_drive_t *drive, int state)
 static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 {
 	unsigned long sc_base	= pci_resource_start(hwif->pci_dev, 5);
-	u16 scr1		= hwif->INW(sc_base + 0x00);;
+	u16 scr1		= inw(sc_base + 0x00);
 
 	/* System Control 1 Register bit 15 (Soft Reset) set */
 	outw(scr1 |  0x8000, sc_base + 0x00);
@@ -184,8 +184,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 
 	hwif->busproc	= &tc86c001_busproc;
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (!hwif->dma_base)
 		return;
 
@@ -198,10 +196,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	/* Sector Count Register limit */
 	hwif->rqsize	 = 0xffff;
 
-	hwif->atapi_dma  = 1;
-	hwif->ultra_mask = 0x1f;
-	hwif->mwdma_mask = 0x07;
-
 	hwif->dma_start 	= &tc86c001_dma_start;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
@@ -209,7 +203,7 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 		 * System Control  1 Register bit 13 (PDIAGN):
 		 * 0=80-pin cable, 1=40-pin cable
 		 */
-		scr1 = hwif->INW(sc_base + 0x00);
+		scr1 = inw(sc_base + 0x00);
 		hwif->cbl = (scr1 & 0x2000) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 	}
 }
@@ -228,10 +222,10 @@ static ide_pci_device_t tc86c001_chipset __devinitdata = {
 	.name		= "TC86C001",
 	.init_chipset	= init_chipset_tc86c001,
 	.init_hwif	= init_hwif_tc86c001,
-	.autodma	= AUTODMA,
-	.bootable	= OFF_BOARD,
-	.host_flags	= IDE_HFLAG_SINGLE,
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_OFF_BOARD,
 	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA4,
 };
 
 static int __devinit tc86c001_init_one(struct pci_dev *dev,

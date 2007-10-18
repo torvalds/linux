@@ -1,9 +1,10 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.14	Oct 1, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.20	Oct 1, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
+ * Portions Copyright (C) 2007		Bartlomiej Zolnierkiewicz
  * Portions Copyright (C) 2005-2007	MontaVista Software, Inc.
  *
  * Thanks to HighPoint Technologies for their assistance, and hardware.
@@ -393,8 +394,9 @@ enum ata_clock {
  */
 
 struct hpt_info {
+	char *chip_name;	/* Chip name */
 	u8 chip_type;		/* Chip type */
-	u8 max_ultra;		/* Max. UltraDMA mode allowed */
+	u8 udma_mask;		/* Allowed UltraDMA modes mask. */
 	u8 dpll_clk;		/* DPLL clock in MHz */
 	u8 pci_clk;		/* PCI  clock in MHz */
 	u32 **settings; 	/* Chipset settings table */
@@ -432,78 +434,89 @@ static u32 *hpt37x_settings[NUM_ATA_CLOCKS] = {
 };
 
 static struct hpt_info hpt36x __devinitdata = {
+	.chip_name	= "HPT36x",
 	.chip_type	= HPT36x,
-	.max_ultra	= HPT366_ALLOW_ATA66_3 ? (HPT366_ALLOW_ATA66_4 ? 4 : 3) : 2,
+	.udma_mask	= HPT366_ALLOW_ATA66_3 ? (HPT366_ALLOW_ATA66_4 ? ATA_UDMA4 : ATA_UDMA3) : ATA_UDMA2,
 	.dpll_clk	= 0,	/* no DPLL */
 	.settings	= hpt36x_settings
 };
 
 static struct hpt_info hpt370 __devinitdata = {
+	.chip_name	= "HPT370",
 	.chip_type	= HPT370,
-	.max_ultra	= HPT370_ALLOW_ATA100_5 ? 5 : 4,
+	.udma_mask	= HPT370_ALLOW_ATA100_5 ? ATA_UDMA5 : ATA_UDMA4,
 	.dpll_clk	= 48,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt370a __devinitdata = {
+	.chip_name	= "HPT370A",
 	.chip_type	= HPT370A,
-	.max_ultra	= HPT370_ALLOW_ATA100_5 ? 5 : 4,
+	.udma_mask	= HPT370_ALLOW_ATA100_5 ? ATA_UDMA5 : ATA_UDMA4,
 	.dpll_clk	= 48,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt374 __devinitdata = {
+	.chip_name	= "HPT374",
 	.chip_type	= HPT374,
-	.max_ultra	= 5,
+	.udma_mask	= ATA_UDMA5,
 	.dpll_clk	= 48,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt372 __devinitdata = {
+	.chip_name	= "HPT372",
 	.chip_type	= HPT372,
-	.max_ultra	= HPT372_ALLOW_ATA133_6 ? 6 : 5,
+	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
 	.dpll_clk	= 55,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt372a __devinitdata = {
+	.chip_name	= "HPT372A",
 	.chip_type	= HPT372A,
-	.max_ultra	= HPT372_ALLOW_ATA133_6 ? 6 : 5,
+	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
 	.dpll_clk	= 66,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt302 __devinitdata = {
+	.chip_name	= "HPT302",
 	.chip_type	= HPT302,
-	.max_ultra	= HPT372_ALLOW_ATA133_6 ? 6 : 5,
+	.udma_mask	= HPT302_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
 	.dpll_clk	= 66,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt371 __devinitdata = {
+	.chip_name	= "HPT371",
 	.chip_type	= HPT371,
-	.max_ultra	= HPT371_ALLOW_ATA133_6 ? 6 : 5,
+	.udma_mask	= HPT371_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
 	.dpll_clk	= 66,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt372n __devinitdata = {
+	.chip_name	= "HPT372N",
 	.chip_type	= HPT372N,
-	.max_ultra	= HPT372_ALLOW_ATA133_6 ? 6 : 5,
+	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
 	.dpll_clk	= 77,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt302n __devinitdata = {
+	.chip_name	= "HPT302N",
 	.chip_type	= HPT302N,
-	.max_ultra	= HPT302_ALLOW_ATA133_6 ? 6 : 5,
+	.udma_mask	= HPT302_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
 	.dpll_clk	= 77,
 	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt371n __devinitdata = {
+	.chip_name	= "HPT371N",
 	.chip_type	= HPT371N,
-	.max_ultra	= HPT371_ALLOW_ATA133_6 ? 6 : 5,
+	.udma_mask	= HPT371_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
 	.dpll_clk	= 77,
 	.settings	= hpt37x_settings
 };
@@ -676,12 +689,11 @@ static int hpt3xx_quirkproc(ide_drive_t *drive)
 
 static void hpt3xx_intrproc(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-
 	if (drive->quirk_list)
 		return;
+
 	/* drives in the quirk_list may not like intr setups/cleanups */
-	hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
+	outb(drive->ctl | 2, IDE_CONTROL_REG);
 }
 
 static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
@@ -709,8 +721,8 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 				enable_irq (hwif->irq);
 		}
 	} else
-		hwif->OUTB(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
-			   IDE_CONTROL_REG);
+		outb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
+		     IDE_CONTROL_REG);
 }
 
 /*
@@ -750,9 +762,9 @@ static void hpt370_irq_timeout(ide_drive_t *drive)
 	printk(KERN_DEBUG "%s: %d bytes in FIFO\n", drive->name, bfifo & 0x1ff);
 
 	/* get DMA command mode */
-	dma_cmd = hwif->INB(hwif->dma_command);
+	dma_cmd = inb(hwif->dma_command);
 	/* stop DMA */
-	hwif->OUTB(dma_cmd & ~0x1, hwif->dma_command);
+	outb(dma_cmd & ~0x1, hwif->dma_command);
 	hpt370_clear_engine(drive);
 }
 
@@ -767,12 +779,12 @@ static void hpt370_ide_dma_start(ide_drive_t *drive)
 static int hpt370_ide_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	u8  dma_stat		= hwif->INB(hwif->dma_status);
+	u8  dma_stat		= inb(hwif->dma_status);
 
 	if (dma_stat & 0x01) {
 		/* wait a little */
 		udelay(20);
-		dma_stat = hwif->INB(hwif->dma_status);
+		dma_stat = inb(hwif->dma_status);
 		if (dma_stat & 0x01)
 			hpt370_irq_timeout(drive);
 	}
@@ -833,34 +845,32 @@ static int hpt374_ide_dma_end(ide_drive_t *drive)
 
 static void hpt3xxn_set_clock(ide_hwif_t *hwif, u8 mode)
 {
-	u8 scr2 = hwif->INB(hwif->dma_master + 0x7b);
+	u8 scr2 = inb(hwif->dma_master + 0x7b);
 
 	if ((scr2 & 0x7f) == mode)
 		return;
 
 	/* Tristate the bus */
-	hwif->OUTB(0x80, hwif->dma_master + 0x73);
-	hwif->OUTB(0x80, hwif->dma_master + 0x77);
+	outb(0x80, hwif->dma_master + 0x73);
+	outb(0x80, hwif->dma_master + 0x77);
 
 	/* Switch clock and reset channels */
-	hwif->OUTB(mode, hwif->dma_master + 0x7b);
-	hwif->OUTB(0xc0, hwif->dma_master + 0x79);
+	outb(mode, hwif->dma_master + 0x7b);
+	outb(0xc0, hwif->dma_master + 0x79);
 
 	/*
 	 * Reset the state machines.
 	 * NOTE: avoid accidentally enabling the disabled channels.
 	 */
-	hwif->OUTB(hwif->INB(hwif->dma_master + 0x70) | 0x32,
-		   hwif->dma_master + 0x70);
-	hwif->OUTB(hwif->INB(hwif->dma_master + 0x74) | 0x32,
-		   hwif->dma_master + 0x74);
+	outb(inb(hwif->dma_master + 0x70) | 0x32, hwif->dma_master + 0x70);
+	outb(inb(hwif->dma_master + 0x74) | 0x32, hwif->dma_master + 0x74);
 
 	/* Complete reset */
-	hwif->OUTB(0x00, hwif->dma_master + 0x79);
+	outb(0x00, hwif->dma_master + 0x79);
 
 	/* Reconnect channels to bus */
-	hwif->OUTB(0x00, hwif->dma_master + 0x73);
-	hwif->OUTB(0x00, hwif->dma_master + 0x77);
+	outb(0x00, hwif->dma_master + 0x73);
+	outb(0x00, hwif->dma_master + 0x77);
 }
 
 /**
@@ -1139,7 +1149,7 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev, const cha
 		  * Select 66 MHz DPLL clock only if UltraATA/133 mode is
 		  * supported/enabled, use 50 MHz DPLL clock otherwise...
 		  */
-		if (info->max_ultra == 6) {
+		if (info->udma_mask == ATA_UDMA6) {
 			dpll_clk = 66;
 			clock = ATA_CLOCK_66MHZ;
 		} else if (dpll_clk) {	/* HPT36x chips don't have DPLL */
@@ -1291,13 +1301,8 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	if (new_mcr != old_mcr)
 		pci_write_config_byte(dev, hwif->select_data + 1, new_mcr);
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
-
-	hwif->ultra_mask = hwif->cds->udma_mask;
-	hwif->mwdma_mask = 0x07;
 
 	/*
 	 * The HPT37x uses the CBLID pins as outputs for MA15/MA16
@@ -1354,7 +1359,7 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 	u8 dma_new	= 0, dma_old	= 0;
 	unsigned long flags;
 
-	dma_old = hwif->INB(dmabase + 2);
+	dma_old = inb(dmabase + 2);
 
 	local_irq_save(flags);
 
@@ -1365,59 +1370,25 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 	if (masterdma & 0x30)	dma_new |= 0x20;
 	if ( slavedma & 0x30)	dma_new |= 0x40;
 	if (dma_new != dma_old)
-		hwif->OUTB(dma_new, dmabase + 2);
+		outb(dma_new, dmabase + 2);
 
 	local_irq_restore(flags);
 
 	ide_setup_dma(hwif, dmabase, 8);
 }
 
-static int __devinit init_setup_hpt374(struct pci_dev *dev, ide_pci_device_t *d)
+static void __devinit hpt374_init(struct pci_dev *dev, struct pci_dev *dev2)
 {
-	struct pci_dev *dev2;
-
-	if (PCI_FUNC(dev->devfn) & 1)
-		return -ENODEV;
-
-	pci_set_drvdata(dev, &hpt374);
-
-	if ((dev2 = pci_get_slot(dev->bus, dev->devfn + 1)) != NULL) {
-		int ret;
-
-		pci_set_drvdata(dev2, &hpt374);
-
-		if (dev2->irq != dev->irq) {
-			/* FIXME: we need a core pci_set_interrupt() */
-			dev2->irq = dev->irq;
-			printk(KERN_WARNING "%s: PCI config space interrupt "
-			       "fixed.\n", d->name);
-		}
-		ret = ide_setup_pci_devices(dev, dev2, d);
-		if (ret < 0)
-			pci_dev_put(dev2);
-		return ret;
+	if (dev2->irq != dev->irq) {
+		/* FIXME: we need a core pci_set_interrupt() */
+		dev2->irq = dev->irq;
+		printk(KERN_INFO "HPT374: PCI config space interrupt fixed\n");
 	}
-	return ide_setup_pci_device(dev, d);
 }
 
-static int __devinit init_setup_hpt372n(struct pci_dev *dev, ide_pci_device_t *d)
+static void __devinit hpt371_init(struct pci_dev *dev)
 {
-	pci_set_drvdata(dev, &hpt372n);
-
-	return ide_setup_pci_device(dev, d);
-}
-
-static int __devinit init_setup_hpt371(struct pci_dev *dev, ide_pci_device_t *d)
-{
-	struct hpt_info *info;
 	u8 mcr1 = 0;
-
-	if (dev->revision > 1) {
-		d->name = "HPT371N";
-
-		info = &hpt371n;
-	} else
-		info = &hpt371;
 
 	/*
 	 * HPT371 chips physically have only one channel, the secondary one,
@@ -1428,194 +1399,102 @@ static int __devinit init_setup_hpt371(struct pci_dev *dev, ide_pci_device_t *d)
 	pci_read_config_byte(dev, 0x50, &mcr1);
 	if (mcr1 & 0x04)
 		pci_write_config_byte(dev, 0x50, mcr1 & ~0x04);
-
-	pci_set_drvdata(dev, info);
-
-	return ide_setup_pci_device(dev, d);
 }
 
-static int __devinit init_setup_hpt372a(struct pci_dev *dev, ide_pci_device_t *d)
+static int __devinit hpt36x_init(struct pci_dev *dev, struct pci_dev *dev2)
 {
-	struct hpt_info *info;
+	u8 mcr1 = 0, pin1 = 0, pin2 = 0;
 
-	if (dev->revision > 1) {
-		d->name = "HPT372N";
+	/*
+	 * Now we'll have to force both channels enabled if
+	 * at least one of them has been enabled by BIOS...
+	 */
+	pci_read_config_byte(dev, 0x50, &mcr1);
+	if (mcr1 & 0x30)
+		pci_write_config_byte(dev, 0x50, mcr1 | 0x30);
 
-		info = &hpt372n;
-	} else
-		info = &hpt372a;
-	pci_set_drvdata(dev, info);
+	pci_read_config_byte(dev,  PCI_INTERRUPT_PIN, &pin1);
+	pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin2);
 
-	return ide_setup_pci_device(dev, d);
+	if (pin1 != pin2 && dev->irq == dev2->irq) {
+		printk(KERN_INFO "HPT36x: onboard version of chipset, "
+				 "pin1=%d pin2=%d\n", pin1, pin2);
+		return 1;
+	}
+
+	return 0;
 }
 
-static int __devinit init_setup_hpt302(struct pci_dev *dev, ide_pci_device_t *d)
-{
-	struct hpt_info *info;
-
-	if (dev->revision > 1) {
-		d->name = "HPT302N";
-
-		info = &hpt302n;
-	} else
-		info = &hpt302;
-	pci_set_drvdata(dev, info);
-
-	return ide_setup_pci_device(dev, d);
-}
-
-static int __devinit init_setup_hpt366(struct pci_dev *dev, ide_pci_device_t *d)
-{
-	struct pci_dev *dev2;
-	u8 rev = dev->revision;
-	static char   *chipset_names[] = { "HPT366", "HPT366",  "HPT368",
-					   "HPT370", "HPT370A", "HPT372",
-					   "HPT372N" };
-	static struct hpt_info *info[] = { &hpt36x,  &hpt36x,  &hpt36x,
-					   &hpt370,  &hpt370a, &hpt372,
-					   &hpt372n  };
-
-	if (PCI_FUNC(dev->devfn) & 1)
-		return -ENODEV;
-
-	switch (rev) {
-	case 0:
-	case 1:
-	case 2:
+static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
+	{	/* 0 */
+		.name		= "HPT36x",
+		.init_chipset	= init_chipset_hpt366,
+		.init_hwif	= init_hwif_hpt366,
+		.init_dma	= init_dma_hpt366,
 		/*
 		 * HPT36x chips have one channel per function and have
 		 * both channel enable bits located differently and visible
 		 * to both functions -- really stupid design decision... :-(
 		 * Bit 4 is for the primary channel, bit 5 for the secondary.
 		 */
-		d->host_flags |= IDE_HFLAG_SINGLE;
-		d->enablebits[0].mask = d->enablebits[0].val = 0x10;
-
-		d->udma_mask = HPT366_ALLOW_ATA66_3 ? (HPT366_ALLOW_ATA66_4 ?
-			       ATA_UDMA4 : ATA_UDMA3) : ATA_UDMA2;
-		break;
-	case 3:
-	case 4:
-		d->udma_mask = HPT370_ALLOW_ATA100_5 ? ATA_UDMA5 : ATA_UDMA4;
-		break;
-	default:
-		rev = 6;
-		/* fall thru */
-	case 5:
-	case 6:
-		d->udma_mask = HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5;
-		break;
-	}
-
-	d->name = chipset_names[rev];
-
-	pci_set_drvdata(dev, info[rev]);
-
-	if (rev > 2)
-		goto init_single;
-
-	if ((dev2 = pci_get_slot(dev->bus, dev->devfn + 1)) != NULL) {
-		u8  mcr1 = 0, pin1 = 0, pin2 = 0;
-		int ret;
-
-		pci_set_drvdata(dev2, info[rev]);
-
-		/*
-		 * Now we'll have to force both channels enabled if
-		 * at least one of them has been enabled by BIOS...
-		 */
-		pci_read_config_byte(dev, 0x50, &mcr1);
-		if (mcr1 & 0x30)
-			pci_write_config_byte(dev, 0x50, mcr1 | 0x30);
-
-		pci_read_config_byte(dev,  PCI_INTERRUPT_PIN, &pin1);
-		pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin2);
-		if (pin1 != pin2 && dev->irq == dev2->irq) {
-			d->bootable = ON_BOARD;
-			printk("%s: onboard version of chipset, pin1=%d pin2=%d\n",
-			       d->name, pin1, pin2);
-		}
-		ret = ide_setup_pci_devices(dev, dev2, d);
-		if (ret < 0)
-			pci_dev_put(dev2);
-		return ret;
-	}
-init_single:
-	return ide_setup_pci_device(dev, d);
-}
-
-static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "HPT366",
-		.init_setup	= init_setup_hpt366,
-		.init_chipset	= init_chipset_hpt366,
-		.init_hwif	= init_hwif_hpt366,
-		.init_dma	= init_dma_hpt366,
-		.autodma	= AUTODMA,
-		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.bootable	= OFF_BOARD,
+		.enablebits	= {{0x50,0x10,0x10}, {0x54,0x04,0x04}},
 		.extra		= 240,
+		.host_flags	= IDE_HFLAG_SINGLE |
+				  IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 1 */
 		.name		= "HPT372A",
-		.init_setup	= init_setup_hpt372a,
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 2 */
 		.name		= "HPT302",
-		.init_setup	= init_setup_hpt302,
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.udma_mask	= HPT302_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 3 */
 		.name		= "HPT371",
-		.init_setup	= init_setup_hpt371,
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.udma_mask	= HPT371_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 4 */
 		.name		= "HPT374",
-		.init_setup	= init_setup_hpt374,
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
 		.udma_mask	= ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 5 */
 		.name		= "HPT372N",
-		.init_setup	= init_setup_hpt372n,
 		.init_chipset	= init_chipset_hpt366,
 		.init_hwif	= init_hwif_hpt366,
 		.init_dma	= init_dma_hpt366,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x50,0x04,0x04}, {0x54,0x04,0x04}},
-		.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
-		.bootable	= OFF_BOARD,
 		.extra		= 240,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 	}
 };
 
@@ -1626,16 +1505,77 @@ static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
  *
  *	Called when the PCI registration layer (or the IDE initialization)
  *	finds a device matching our IDE device tables.
- *
- *	NOTE: since we'll have to modify some fields of the ide_pci_device_t
- *	structure depending on the chip's revision, we'd better pass a local
- *	copy down the call chain...
  */
 static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t d = hpt366_chipsets[id->driver_data];
+	struct hpt_info *info = NULL;
+	struct pci_dev *dev2 = NULL;
+	ide_pci_device_t d;
+	u8 idx = id->driver_data;
+	u8 rev = dev->revision;
 
-	return d.init_setup(dev, &d);
+	if ((idx == 0 || idx == 4) && (PCI_FUNC(dev->devfn) & 1))
+		return -ENODEV;
+
+	switch (idx) {
+	case 0:
+		if (rev < 3)
+			info = &hpt36x;
+		else {
+			static struct hpt_info *hpt37x_info[] =
+				{ &hpt370, &hpt370a, &hpt372, &hpt372n };
+
+			info = hpt37x_info[min_t(u8, rev, 6) - 3];
+			idx++;
+		}
+		break;
+	case 1:
+		info = (rev > 1) ? &hpt372n : &hpt372a;
+		break;
+	case 2:
+		info = (rev > 1) ? &hpt302n : &hpt302;
+		break;
+	case 3:
+		hpt371_init(dev);
+		info = (rev > 1) ? &hpt371n : &hpt371;
+		break;
+	case 4:
+		info = &hpt374;
+		break;
+	case 5:
+		info = &hpt372n;
+		break;
+	}
+
+	d = hpt366_chipsets[idx];
+
+	d.name = info->chip_name;
+	d.udma_mask = info->udma_mask;
+
+	pci_set_drvdata(dev, info);
+
+	if (info == &hpt36x || info == &hpt374)
+		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
+
+	if (dev2) {
+		int ret;
+
+		pci_set_drvdata(dev2, info);
+
+		if (info == &hpt374)
+			hpt374_init(dev, dev2);
+		else {
+			if (hpt36x_init(dev, dev2))
+				d.host_flags |= IDE_HFLAG_BOOTABLE;
+		}
+
+		ret = ide_setup_pci_devices(dev, dev2, &d);
+		if (ret < 0)
+			pci_dev_put(dev2);
+		return ret;
+	}
+
+	return ide_setup_pci_device(dev, &d);
 }
 
 static const struct pci_device_id hpt366_pci_tbl[] = {

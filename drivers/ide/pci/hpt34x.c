@@ -125,49 +125,45 @@ static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev, const cha
 
 static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 {
-	u16 pcicmd = 0;
-
 	hwif->set_pio_mode = &hpt34x_set_pio_mode;
 	hwif->set_dma_mode = &hpt34x_set_mode;
-
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
-	pci_read_config_word(hwif->pci_dev, PCI_COMMAND, &pcicmd);
-
-	if (!hwif->dma_base)
-		return;
-
-#ifdef CONFIG_HPT34X_AUTODMA
-	if ((pcicmd & PCI_COMMAND_MEMORY) == 0)
-		return;
-
-	hwif->ultra_mask = 0x07;
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
-#endif
 }
 
-static ide_pci_device_t hpt34x_chipset __devinitdata = {
-	.name		= "HPT34X",
-	.init_chipset	= init_chipset_hpt34x,
-	.init_hwif	= init_hwif_hpt34x,
-	.autodma	= NOAUTODMA,
-	.bootable	= NEVER_BOARD,
-	.extra		= 16,
-	.pio_mask	= ATA_PIO5,
+static ide_pci_device_t hpt34x_chipsets[] __devinitdata = {
+	{ /* 0 */
+		.name		= "HPT343",
+		.init_chipset	= init_chipset_hpt34x,
+		.init_hwif	= init_hwif_hpt34x,
+		.extra		= 16,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_NO_AUTODMA,
+		.pio_mask	= ATA_PIO5,
+	},
+	{ /* 1 */
+		.name		= "HPT345",
+		.init_chipset	= init_chipset_hpt34x,
+		.init_hwif	= init_hwif_hpt34x,
+		.extra		= 16,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_NO_AUTODMA |
+				  IDE_HFLAG_OFF_BOARD,
+		.pio_mask	= ATA_PIO5,
+#ifdef CONFIG_HPT34X_AUTODMA
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA2,
+#endif
+	}
 };
 
 static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &hpt34x_chipset;
-	static char *chipset_names[] = {"HPT343", "HPT345"};
+	ide_pci_device_t *d;
 	u16 pcicmd = 0;
 
 	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
 
-	d->name = chipset_names[(pcicmd & PCI_COMMAND_MEMORY) ? 1 : 0];
-	d->bootable = (pcicmd & PCI_COMMAND_MEMORY) ? OFF_BOARD : NEVER_BOARD;
+	d = &hpt34x_chipsets[(pcicmd & PCI_COMMAND_MEMORY) ? 1 : 0];
 
 	return ide_setup_pci_device(dev, d);
 }

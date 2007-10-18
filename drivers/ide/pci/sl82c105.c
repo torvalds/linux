@@ -368,12 +368,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	hwif->drives[0].io_32bit = hwif->drives[1].io_32bit = 1;
 	hwif->drives[0].unmask   = hwif->drives[1].unmask   = 1;
 
-	/*
-	 * We always autotune PIO,  this is done before DMA is checked,
-	 * so there's no risk of accidentally disabling DMA
-	 */
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (!hwif->dma_base)
 		return;
 
@@ -388,8 +382,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->atapi_dma  = 1;
-	hwif->mwdma_mask = 0x07;
+	hwif->mwdma_mask = ATA_MWDMA2;
 
 	hwif->ide_dma_on		= &sl82c105_ide_dma_on;
 	hwif->dma_off_quietly		= &sl82c105_dma_off_quietly;
@@ -405,9 +398,8 @@ static ide_pci_device_t sl82c105_chipset __devinitdata = {
 	.name		= "W82C105",
 	.init_chipset	= init_chipset_sl82c105,
 	.init_hwif	= init_hwif_sl82c105,
-	.autodma	= NOAUTODMA,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
-	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_NO_AUTODMA | IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO5,
 };
 

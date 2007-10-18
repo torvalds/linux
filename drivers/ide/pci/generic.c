@@ -65,119 +65,65 @@ static void __devinit init_hwif_generic (ide_hwif_t *hwif)
 		default:
 			break;
 	}
-
-	if (!(hwif->dma_base))
-		return;
-
-	hwif->atapi_dma = 1;
-	hwif->ultra_mask = 0x7f;
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 }
 
-#if 0
-	/* Logic to add back later on */
-
-	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
-		ide_pci_device_t *unknown = unknown_chipset;
-		init_setup_unknown(dev, unknown);
-		return 1;
+#define DECLARE_GENERIC_PCI_DEV(name_str, dma_setting) \
+	{ \
+		.name		= name_str, \
+		.init_hwif	= init_hwif_generic, \
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA | \
+				  dma_setting | \
+				  IDE_HFLAG_BOOTABLE, \
+		.swdma_mask	= ATA_SWDMA2, \
+		.mwdma_mask	= ATA_MWDMA2, \
+		.udma_mask	= ATA_UDMA6, \
 	}
-	return 0;
-#endif	
 
 static ide_pci_device_t generic_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "Unknown",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 1 */
+	/*  0 */ DECLARE_GENERIC_PCI_DEV("Unknown",	0),
+
+	{	/* 1 */
 		.name		= "NS87410",
 		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x43,0x08,0x08}, {0x47,0x08,0x08}},
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-        },{	/* 2 */
-		.name		= "SAMURAI",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 3 */
-		.name		= "HT6565",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 4 */
-		.name		= "UM8673F",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= NODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 5 */
-		.name		= "UM8886A",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= NODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 6 */
-		.name		= "UM8886BF",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= NODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 7 */
-		.name		= "HINT_IDE",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 8 */
-		.name		= "VIA_IDE",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= NOAUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 9 */
-		.name		= "OPTI621V",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= NOAUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 10 */
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+				  IDE_HFLAG_BOOTABLE,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA6,
+	},
+
+	/*  2 */ DECLARE_GENERIC_PCI_DEV("SAMURAI",	0),
+	/*  3 */ DECLARE_GENERIC_PCI_DEV("HT6565",	0),
+	/*  4 */ DECLARE_GENERIC_PCI_DEV("UM8673F",	IDE_HFLAG_NO_DMA),
+	/*  5 */ DECLARE_GENERIC_PCI_DEV("UM8886A",	IDE_HFLAG_NO_DMA),
+	/*  6 */ DECLARE_GENERIC_PCI_DEV("UM8886BF",	IDE_HFLAG_NO_DMA),
+	/*  7 */ DECLARE_GENERIC_PCI_DEV("HINT_IDE",	0),
+	/*  8 */ DECLARE_GENERIC_PCI_DEV("VIA_IDE",	IDE_HFLAG_NO_AUTODMA),
+	/*  9 */ DECLARE_GENERIC_PCI_DEV("OPTI621V",	IDE_HFLAG_NO_AUTODMA),
+
+	{	/* 10 */
 		.name		= "VIA8237SATA",
 		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 11 */
-		.name 		= "Piccolo0102",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= NOAUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 12 */
-		.name 		= "Piccolo0103",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= NOAUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 13 */
-		.name 		= "Piccolo0105",
-		.init_hwif	= init_hwif_generic,
-		.autodma	= NOAUTODMA,
-		.bootable	= ON_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
-	},{	/* 14 */
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+				  IDE_HFLAG_OFF_BOARD,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA6,
+	},
+
+	/* 11 */ DECLARE_GENERIC_PCI_DEV("Piccolo0102",	IDE_HFLAG_NO_AUTODMA),
+	/* 12 */ DECLARE_GENERIC_PCI_DEV("Piccolo0103",	IDE_HFLAG_NO_AUTODMA),
+	/* 13 */ DECLARE_GENERIC_PCI_DEV("Piccolo0105",	IDE_HFLAG_NO_AUTODMA),
+
+	{	/* 14 */
 		.name		= "Revolution",
 		.init_hwif	= init_hwif_generic,
-		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+				  IDE_HFLAG_OFF_BOARD,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA6,
 	}
 };
 

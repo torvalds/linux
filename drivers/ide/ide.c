@@ -134,8 +134,6 @@ static void init_hwif_data(ide_hwif_t *hwif, unsigned int index)
 
 	hwif->bus_state	= BUSSTATE_ON;
 
-	hwif->atapi_dma = 0;		/* disable all atapi dma */ 
-
 	init_completion(&hwif->gendev_rel_comp);
 
 	default_hwif_iops(hwif);
@@ -379,7 +377,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 
 	hwif->pio_mask			= tmp_hwif->pio_mask;
 
-	hwif->atapi_dma			= tmp_hwif->atapi_dma;
 	hwif->ultra_mask		= tmp_hwif->ultra_mask;
 	hwif->mwdma_mask		= tmp_hwif->mwdma_mask;
 	hwif->swdma_mask		= tmp_hwif->swdma_mask;
@@ -440,7 +437,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 
 	hwif->mmio			= tmp_hwif->mmio;
 	hwif->rqsize			= tmp_hwif->rqsize;
-	hwif->no_lba48			= tmp_hwif->no_lba48;
 
 #ifndef CONFIG_BLK_DEV_IDECS
 	hwif->irq			= tmp_hwif->irq;

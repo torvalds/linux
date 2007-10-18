@@ -133,24 +133,13 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 	u8 reg47 = 0;
 	u8 mask = hwif->channel ? 0x01 : 0x02;  /* bit0:Primary */
 
-	if (!hwif->irq)
-		hwif->irq = hwif->channel ? 15 : 14;
-
 	hwif->set_pio_mode = &slc90e66_set_pio_mode;
 	hwif->set_dma_mode = &slc90e66_set_dma_mode;
 
 	pci_read_config_byte(hwif->pci_dev, 0x47, &reg47);
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
-
-	hwif->atapi_dma = 1;
-	hwif->ultra_mask = 0x1f;
-	hwif->mwdma_mask = 0x06;
-	hwif->swdma_mask = 0x04;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		/* bit[0(1)]: 0:80, 1:40 */
@@ -160,10 +149,12 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 static ide_pci_device_t slc90e66_chipset __devinitdata = {
 	.name		= "SLC90E66",
 	.init_hwif	= init_hwif_slc90e66,
-	.autodma	= AUTODMA,
 	.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}},
-	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.swdma_mask	= ATA_SWDMA2_ONLY,
+	.mwdma_mask	= ATA_MWDMA12_ONLY,
+	.udma_mask	= ATA_UDMA4,
 };
 
 static int __devinit slc90e66_init_one(struct pci_dev *dev, const struct pci_device_id *id)

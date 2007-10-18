@@ -170,16 +170,8 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	hwif->set_dma_mode = &it8213_set_dma_mode;
 	hwif->set_pio_mode = &it8213_set_pio_mode;
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (!hwif->dma_base)
 		return;
-
-	hwif->atapi_dma = 1;
-	hwif->ultra_mask = 0x7f;
-	hwif->mwdma_mask = 0x06;
-	hwif->swdma_mask = 0x04;
 
 	pci_read_config_byte(hwif->pci_dev, 0x42, &reg42h);
 
@@ -192,11 +184,13 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	{						\
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_it8213,	\
-		.autodma	= AUTODMA,		\
 		.enablebits	= {{0x41,0x80,0x80}}, \
-		.bootable	= ON_BOARD,		\
-		.host_flags	= IDE_HFLAG_SINGLE,	\
+		.host_flags	= IDE_HFLAG_SINGLE |	\
+				  IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
+		.swdma_mask	= ATA_SWDMA2_ONLY,	\
+		.mwdma_mask	= ATA_MWDMA12_ONLY,	\
+		.udma_mask	= ATA_UDMA6,		\
 	}
 
 static ide_pci_device_t it8213_chipsets[] __devinitdata = {

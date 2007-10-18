@@ -1780,7 +1780,6 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->dma_timeout = &ide_dma_timeout;
 	hwif->dma_lost_irq = &pmac_ide_dma_lost_irq;
 
-	hwif->atapi_dma = 1;
 	switch(pmif->kind) {
 		case controller_sh_ata6:
 			hwif->ultra_mask = pmif->cable_80 ? 0x7f : 0x07;

@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cy82c693.c		Version 0.40	Sep. 10, 2002
+ * linux/drivers/ide/pci/cy82c693.c		Version 0.41	Aug 27, 2007
  *
  *  Copyright (C) 1998-2000 Andreas S. Krebs (akrebs@altavista.net), Maintainer
  *  Copyright (C) 1998-2002 Andre Hedrick <andre@linux-ide.org>, Integrator
@@ -431,15 +431,8 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 	hwif->chipset = ide_cy82c693;
 	hwif->set_pio_mode = &cy82c693_set_pio_mode;
 
-	if (!hwif->dma_base) {
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+	if (hwif->dma_base == 0)
 		return;
-	}
-
-	hwif->atapi_dma = 1;
-	hwif->mwdma_mask = 0x04;
-	hwif->swdma_mask = 0x04;
 
 	hwif->ide_dma_on = &cy82c693_ide_dma_on;
 }
@@ -461,10 +454,11 @@ static ide_pci_device_t cy82c693_chipset __devinitdata = {
 	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,
 	.init_hwif	= init_hwif_cy82c693,
-	.autodma	= AUTODMA,
-	.bootable	= ON_BOARD,
-	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.swdma_mask	= ATA_SWDMA2_ONLY,
+	.mwdma_mask	= ATA_MWDMA2_ONLY,
 };
 
 static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_device_id *id)

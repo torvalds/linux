@@ -699,9 +699,6 @@ static int au_ide_probe(struct device *dev)
 	hwif->dma_host_on		= &auide_dma_host_on;
 	hwif->dma_lost_irq		= &auide_dma_lost_irq;
 	hwif->ide_dma_on                = &auide_dma_on;
-
-	hwif->atapi_dma                 = 1;
-
 #else /* !CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
 	hwif->channel                   = 0;
 	hwif->hold                      = 1;

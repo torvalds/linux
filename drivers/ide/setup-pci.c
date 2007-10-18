@@ -147,6 +147,7 @@ static int ide_setup_pci_baseregs (struct pci_dev *dev, const char *name)
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_get_or_set_dma_base		-	setup BMIBA
+ *	@d: IDE pci device data
  *	@hwif: Interface
  *
  *	Fetch the DMA Bus-Master-I/O-Base-Address (BMIBA) from PCI space.
@@ -154,7 +155,7 @@ static int ide_setup_pci_baseregs (struct pci_dev *dev, const char *name)
  *	and enforce IDE simplex rules.
  */
 
-static unsigned long ide_get_or_set_dma_base (ide_hwif_t *hwif)
+static unsigned long ide_get_or_set_dma_base(ide_pci_device_t *d, ide_hwif_t *hwif)
 {
 	unsigned long	dma_base = 0;
 	struct pci_dev	*dev = hwif->pci_dev;
@@ -165,14 +166,15 @@ static unsigned long ide_get_or_set_dma_base (ide_hwif_t *hwif)
 	if (hwif->mate && hwif->mate->dma_base) {
 		dma_base = hwif->mate->dma_base - (hwif->channel ? 0 : 8);
 	} else {
-		dma_base = pci_resource_start(dev, 4);
-		if (!dma_base) {
-			printk(KERN_ERR "%s: dma_base is invalid\n",
-					hwif->cds->name);
-		}
+		u8 baridx = (d->host_flags & IDE_HFLAG_CS5520) ? 2 : 4;
+
+		dma_base = pci_resource_start(dev, baridx);
+
+		if (dma_base == 0)
+			printk(KERN_ERR "%s: DMA base is invalid\n", d->name);
 	}
 
-	if (dma_base) {
+	if ((d->host_flags & IDE_HFLAG_CS5520) == 0 && dma_base) {
 		u8 simplex_stat = 0;
 		dma_base += hwif->channel ? 8 : 0;
 
@@ -183,13 +185,13 @@ static unsigned long ide_get_or_set_dma_base (ide_hwif_t *hwif)
 			case PCI_DEVICE_ID_CMD_643:
 			case PCI_DEVICE_ID_SERVERWORKS_CSB5IDE:
 			case PCI_DEVICE_ID_REVOLUTION:
-				simplex_stat = hwif->INB(dma_base + 2);
-				hwif->OUTB((simplex_stat&0x60),(dma_base + 2));
-				simplex_stat = hwif->INB(dma_base + 2);
+				simplex_stat = inb(dma_base + 2);
+				outb(simplex_stat & 0x60, dma_base + 2);
+				simplex_stat = inb(dma_base + 2);
 				if (simplex_stat & 0x80) {
 					printk(KERN_INFO "%s: simplex device: "
-						"DMA forced\n",
-						hwif->cds->name);
+							 "DMA forced\n",
+							 d->name);
 				}
 				break;
 			default:
@@ -212,8 +214,8 @@ static unsigned long ide_get_or_set_dma_base (ide_hwif_t *hwif)
  */
 					if (hwif->mate && hwif->mate->dma_base) {
 						printk(KERN_INFO "%s: simplex device: "
-							"DMA disabled\n",
-							hwif->cds->name);
+								 "DMA disabled\n",
+								 d->name);
 						dma_base = 0;
 					}
 				}
@@ -360,6 +362,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, ide_pci_device_t *d, 
 {
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
+	u8 bootable = (d->host_flags & IDE_HFLAG_BOOTABLE) ? 1 : 0;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
 		/*  Possibly we should fail if these checks report true */
@@ -380,7 +383,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, ide_pci_device_t *d, 
 		ctl = port ? 0x374 : 0x3f4;
 		base = port ? 0x170 : 0x1f0;
 	}
-	if ((hwif = ide_match_hwif(base, d->bootable, d->name)) == NULL)
+	if ((hwif = ide_match_hwif(base, bootable, d->name)) == NULL)
 		return NULL;	/* no room in ide_hwifs[] */
 	if (hwif->io_ports[IDE_DATA_OFFSET] != base ||
 	    hwif->io_ports[IDE_CONTROL_OFFSET] != (ctl | 2)) {
@@ -427,12 +430,13 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwi
 static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwif_t *hwif)
 {
 	u16 pcicmd;
+
 	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
 
-	if ((d->autodma == AUTODMA) ||
+	if ((d->host_flags & IDE_HFLAG_NO_AUTODMA) == 0 ||
 	    ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	     (dev->class & 0x80))) {
-		unsigned long dma_base = ide_get_or_set_dma_base(hwif);
+		unsigned long dma_base = ide_get_or_set_dma_base(d, hwif);
 		if (dma_base && !(pcicmd & PCI_COMMAND_MASTER)) {
 			/*
  			 * Set up BM-DMA capability
@@ -474,7 +478,6 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwi
 static int ide_setup_pci_controller(struct pci_dev *dev, ide_pci_device_t *d, int noisy, int *config)
 {
 	int ret;
-	u32 class_rev;
 	u16 pcicmd;
 
 	if (noisy)
@@ -497,10 +500,9 @@ static int ide_setup_pci_controller(struct pci_dev *dev, ide_pci_device_t *d, in
 		printk(KERN_INFO "%s: device enabled (Linux)\n", d->name);
 	}
 
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xff;
 	if (noisy)
-		printk(KERN_INFO "%s: chipset revision %d\n", d->name, class_rev);
+		printk(KERN_INFO "%s: chipset revision %d\n",
+				 d->name, dev->revision);
 out:
 	return ret;
 }
@@ -557,16 +559,26 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		if (d->init_iops)
 			d->init_iops(hwif);
 
-		if (d->autodma == NODMA)
-			goto bypass_legacy_dma;
-
-		if(d->init_setup_dma)
-			d->init_setup_dma(dev, d, hwif);
-		else
+		if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0)
 			ide_hwif_setup_dma(dev, d, hwif);
-bypass_legacy_dma:
+
+		if ((d->host_flags & IDE_HFLAG_LEGACY_IRQS) && hwif->irq == 0)
+			hwif->irq = port ? 15 : 14;
+
 		hwif->host_flags = d->host_flags;
 		hwif->pio_mask = d->pio_mask;
+
+		if ((d->host_flags & IDE_HFLAG_SERIALIZE) && hwif->mate)
+			hwif->mate->serialized = hwif->serialized = 1;
+
+		if (hwif->dma_base) {
+			hwif->swdma_mask = d->swdma_mask;
+			hwif->mwdma_mask = d->mwdma_mask;
+			hwif->ultra_mask = d->udma_mask;
+		}
+
+		hwif->drives[0].autotune = 1;
+		hwif->drives[1].autotune = 1;
 
 		if (d->init_hwif)
 			/* Call chipset-specific routine

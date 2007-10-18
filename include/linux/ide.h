@@ -685,7 +685,6 @@ typedef struct hwif_s {
 
 	u8 pio_mask;
 
-	u8 atapi_dma;	/* host supports atapi_dma */
 	u8 ultra_mask;
 	u8 mwdma_mask;
 	u8 swdma_mask;
@@ -797,12 +796,9 @@ typedef struct hwif_s {
 	unsigned	serialized : 1;	/* serialized all channel operation */
 	unsigned	sharing_irq: 1;	/* 1 = sharing irq with another hwif */
 	unsigned	reset      : 1;	/* reset after probe */
-	unsigned	no_lba48   : 1; /* 1 = cannot do LBA48 */
-	unsigned	no_lba48_dma : 1; /* 1 = cannot do LBA48 DMA */
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	no_io_32bit : 1; /* 1 = can not do 32-bit IO ops */
-	unsigned	err_stops_fifo : 1; /* 1=data FIFO is cleared by an error */
 	unsigned	mmio       : 1; /* host uses MMIO */
 
 	struct device	gendev;
@@ -1211,19 +1207,6 @@ extern void default_hwif_iops(ide_hwif_t *);
 extern void default_hwif_mmiops(ide_hwif_t *);
 extern void default_hwif_transport(ide_hwif_t *);
 
-#define ON_BOARD		1
-#define NEVER_BOARD		0
-
-#ifdef CONFIG_BLK_DEV_OFFBOARD
-#  define OFF_BOARD		ON_BOARD
-#else /* CONFIG_BLK_DEV_OFFBOARD */
-#  define OFF_BOARD		NEVER_BOARD
-#endif /* CONFIG_BLK_DEV_OFFBOARD */
-
-#define NODMA 0
-#define NOAUTODMA 1
-#define AUTODMA 2
-
 typedef struct ide_pci_enablebit_s {
 	u8	reg;	/* byte pci reg holding the enable-bit */
 	u8	mask;	/* mask to isolate the enable-bit */
@@ -1258,24 +1241,48 @@ enum {
 	IDE_HFLAG_TRUST_BIOS_FOR_DMA	= (1 << 10),
 	/* host uses VDMA */
 	IDE_HFLAG_VDMA			= (1 << 11),
+	/* ATAPI DMA is unsupported */
+	IDE_HFLAG_NO_ATAPI_DMA		= (1 << 12),
+	/* set if host is a "bootable" controller */
+	IDE_HFLAG_BOOTABLE		= (1 << 13),
+	/* host doesn't support DMA */
+	IDE_HFLAG_NO_DMA		= (1 << 14),
+	/* check if host is PCI IDE device before allowing DMA */
+	IDE_HFLAG_NO_AUTODMA		= (1 << 15),
+	/* host is CS5510/CS5520 */
+	IDE_HFLAG_CS5520		= (1 << 16),
+	/* no LBA48 */
+	IDE_HFLAG_NO_LBA48		= (1 << 17),
+	/* no LBA48 DMA */
+	IDE_HFLAG_NO_LBA48_DMA		= (1 << 18),
+	/* data FIFO is cleared by an error */
+	IDE_HFLAG_ERROR_STOPS_FIFO	= (1 << 19),
+	/* serialize ports */
+	IDE_HFLAG_SERIALIZE		= (1 << 20),
+	/* use legacy IRQs */
+	IDE_HFLAG_LEGACY_IRQS		= (1 << 21),
 };
+
+#ifdef CONFIG_BLK_DEV_OFFBOARD
+# define IDE_HFLAG_OFF_BOARD	IDE_HFLAG_BOOTABLE
+#else
+# define IDE_HFLAG_OFF_BOARD	0
+#endif
 
 typedef struct ide_pci_device_s {
 	char			*name;
-	int			(*init_setup)(struct pci_dev *, struct ide_pci_device_s *);
-	void			(*init_setup_dma)(struct pci_dev *, struct ide_pci_device_s *, ide_hwif_t *);
 	unsigned int		(*init_chipset)(struct pci_dev *, const char *);
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
 	void			(*init_dma)(ide_hwif_t *, unsigned long);
 	void			(*fixup)(ide_hwif_t *);
-	u8			autodma;
 	ide_pci_enablebit_t	enablebits[2];
-	u8			bootable;
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
-	u16			host_flags;
+	u32			host_flags;
 	u8			pio_mask;
+	u8			swdma_mask;
+	u8			mwdma_mask;
 	u8			udma_mask;
 } ide_pci_device_t;
 
@@ -1452,6 +1459,13 @@ static inline int hwif_to_node(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = hwif->pci_dev;
 	return dev ? pcibus_to_node(dev->bus) : -1;
+}
+
+static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif	= HWIF(drive);
+
+	return &hwif->drives[(drive->dn ^ 1) & 1];
 }
 
 #endif /* _IDE_H */

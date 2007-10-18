@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.16	Jul 13 2007
+ * linux/drivers/ide/pci/siimage.c		Version 1.17	Oct 18 2007
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
@@ -180,7 +180,7 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 	const u16 data_speed[]	= { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
 
 	ide_hwif_t *hwif	= HWIF(drive);
-	ide_drive_t *pair	= &hwif->drives[drive->dn ^ 1];
+	ide_drive_t *pair	= ide_get_paired_drive(drive);
 	u32 speedt		= 0;
 	u16 speedp		= 0;
 	unsigned long addr	= siimage_seldev(drive, 0x04);
@@ -640,13 +640,9 @@ static unsigned int setup_mmio_siimage (struct pci_dev *dev, const char *name)
 
 static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev, const char *name)
 {
-	u32 class_rev	= 0;
-	u8 tmpbyte	= 0;
-	u8 BA5_EN	= 0;
+	u8 rev = dev->revision, tmpbyte = 0, BA5_EN = 0;
 
-        pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-        class_rev &= 0xff;
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, (class_rev) ? 1 : 255);	
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, rev ? 1 : 255);
 
 	pci_read_config_byte(dev, 0x8A, &BA5_EN);
 	if ((BA5_EN & 0x01) || (pci_resource_start(dev, 5))) {
@@ -825,19 +821,14 @@ static void __devinit siimage_fixup(ide_hwif_t *hwif)
 
 static void __devinit init_iops_siimage(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev	= hwif->pci_dev;
-	u32 class_rev		= 0;
-
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xff;
-	
 	hwif->hwif_data = NULL;
 
 	/* Pessimal until we finish probing */
 	hwif->rqsize = 15;
 
-	if (pci_get_drvdata(dev) == NULL)
+	if (pci_get_drvdata(hwif->pci_dev) == NULL)
 		return;
+
 	init_mmio_iops_siimage(hwif);
 }
 
@@ -891,16 +882,11 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		}
 	}
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->ultra_mask = 0x7f;
-	hwif->mwdma_mask = 0x07;
-
-	if (!is_sata(hwif))
-		hwif->atapi_dma = 1;
+	if (is_sata(hwif))
+		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_siimage(hwif);
@@ -919,9 +905,10 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		.init_iops	= init_iops_siimage,	\
 		.init_hwif	= init_hwif_siimage,	\
 		.fixup		= siimage_fixup,	\
-		.autodma	= AUTODMA,		\
-		.bootable	= ON_BOARD,		\
+		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
+		.mwdma_mask	= ATA_MWDMA2,		\
+		.udma_mask	= ATA_UDMA6,		\
 	}
 
 static ide_pci_device_t siimage_chipsets[] __devinitdata = {

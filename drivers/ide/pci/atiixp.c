@@ -172,20 +172,11 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	u8 ch = hwif->channel;
 	struct pci_dev *pdev = hwif->pci_dev;
 
-	if (!hwif->irq)
-		hwif->irq = ch ? 15 : 14;
-
 	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->set_dma_mode = &atiixp_set_dma_mode;
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
 
 	if (!hwif->dma_base)
 		return;
-
-	hwif->atapi_dma = 1;
-	hwif->ultra_mask = 0x3f;
-	hwif->mwdma_mask = 0x07;
 
 	pci_read_config_byte(pdev, ATIIXP_IDE_UDMA_MODE + ch, &udma_mode);
 
@@ -203,18 +194,20 @@ static ide_pci_device_t atiixp_pci_info[] __devinitdata = {
 	{	/* 0 */
 		.name		= "ATIIXP",
 		.init_hwif	= init_hwif_atiixp,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x48,0x01,0x00}, {0x48,0x08,0x00}},
-		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 	},{	/* 1 */
 		.name		= "SB600_PATA",
 		.init_hwif	= init_hwif_atiixp,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x48,0x01,0x00}, {0x00,0x00,0x00}},
- 		.bootable	= ON_BOARD,
- 		.host_flags	= IDE_HFLAG_SINGLE,
+ 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_LEGACY_IRQS |
+				  IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
  	},
 };
 

@@ -84,7 +84,7 @@ static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
 
 	/* Set the PIO timings */
 	if ((speed & XFER_MODE) == XFER_PIO) {
-		ide_drive_t *pair = &drive->hwif->drives[drive->dn ^ 1];
+		ide_drive_t *pair = ide_get_paired_drive(drive);
 		u8 cmd, pioa;
 
 		cmd = pioa = speed - XFER_PIO_0;
@@ -180,14 +180,8 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cs5535_set_pio_mode;
 	hwif->set_dma_mode = &cs5535_set_dma_mode;
 
-	hwif->drives[1].autotune = hwif->drives[0].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
-
-	hwif->atapi_dma = 1;
-	hwif->ultra_mask = 0x1F;
-	hwif->mwdma_mask = 0x07;
 
 	hwif->cbl = cs5535_cable_detect(hwif->pci_dev);
 }
@@ -195,10 +189,11 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 static ide_pci_device_t cs5535_chipset __devinitdata = {
 	.name		= "CS5535",
 	.init_hwif	= init_hwif_cs5535,
-	.autodma	= AUTODMA,
-	.bootable	= ON_BOARD,
-	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE,
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE |
+			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA4,
 };
 
 static int __devinit cs5535_init_one(struct pci_dev *dev,

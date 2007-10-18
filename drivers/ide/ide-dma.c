@@ -338,8 +338,10 @@ static int config_drive_for_dma (ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct hd_driveid *id = drive->id;
 
-	if (drive->media != ide_disk && hwif->atapi_dma == 0)
-		return 0;
+	if (drive->media != ide_disk) {
+		if (hwif->host_flags & IDE_HFLAG_NO_ATAPI_DMA)
+			return -1;
+	}
 
 	/*
 	 * Enable DMA on any drive that has
@@ -726,8 +728,10 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 	int x, i;
 	u8 mode = 0;
 
-	if (drive->media != ide_disk && hwif->atapi_dma == 0)
-		return 0;
+	if (drive->media != ide_disk) {
+		if (hwif->host_flags & IDE_HFLAG_NO_ATAPI_DMA)
+			return 0;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(xfer_mode_bases); i++) {
 		if (req_mode < xfer_mode_bases[i])

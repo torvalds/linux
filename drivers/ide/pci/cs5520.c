@@ -106,18 +106,6 @@ static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /*
- *	We provide a callback for our nonstandard DMA location
- */
-
-static void __devinit cs5520_init_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwif_t *hwif)
-{
-	unsigned long bmide = pci_resource_start(dev, 2);	/* Not the usual 4 */
-	if(hwif->mate && hwif->mate->dma_base)	/* Second channel at primary + 8 */
-		bmide += 8;
-	ide_setup_dma(hwif, bmide, 8);
-}
-
-/*
  *	We wrap the DMA activate to set the vdma flag. This is needed
  *	so that the IDE DMA layer issues PIO not DMA commands over the
  *	DMA channel
@@ -125,6 +113,7 @@ static void __devinit cs5520_init_setup_dma(struct pci_dev *dev, ide_pci_device_
  
 static int cs5520_dma_on(ide_drive_t *drive)
 {
+	/* ATAPI is harder so leave it for now */
 	drive->vdma = 1;
 	return 0;
 }
@@ -134,29 +123,21 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cs5520_set_pio_mode;
 	hwif->set_dma_mode = &cs5520_set_dma_mode;
 
-	if (hwif->dma_base == 0) {
-		hwif->drives[1].autotune = hwif->drives[0].autotune = 1;
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	hwif->ide_dma_on = &cs5520_dma_on;
-
-	/* ATAPI is harder so leave it for now */
-	hwif->atapi_dma = 0;
-	hwif->ultra_mask = 0;
-	hwif->swdma_mask = 0;
-	hwif->mwdma_mask = 0;
 }
 
 #define DECLARE_CS_DEV(name_str)				\
 	{							\
 		.name		= name_str,			\
-		.init_setup_dma = cs5520_init_setup_dma,	\
 		.init_hwif	= init_hwif_cs5520,		\
-		.autodma	= AUTODMA,			\
-		.bootable	= ON_BOARD,			\
 		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
-				  IDE_HFLAG_VDMA,		\
+				  IDE_HFLAG_CS5520 |		\
+				  IDE_HFLAG_VDMA |		\
+				  IDE_HFLAG_NO_ATAPI_DMA |	\
+				  IDE_HFLAG_BOOTABLE,		\
 		.pio_mask	= ATA_PIO4,			\
 	}
 

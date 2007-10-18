@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/opti621.c		Version 0.7	Sept 10, 2002
+ *  linux/drivers/ide/pci/opti621.c		Version 0.8	Aug 27, 2007
  *
  *  Copyright (C) 1996-1998  Linus Torvalds & authors (see below)
  */
@@ -57,9 +57,6 @@
  * There is a 25/33MHz switch in configuration
  * register, but driver is written for use at any frequency which get
  * (use idebus=xx to select PCI bus speed).
- * Use hda=autotune and hdb=autotune for automatical tune of the PIO modes.
- * If you get strange results, do not use this and set PIO manually
- * by hdparm.
  *
  * Version 0.1, Nov 8, 1996
  * by Jaromir Koutek, for 2.1.8. 
@@ -332,32 +329,27 @@ static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 	hwif->drives[1].drive_data = PIO_DONT_KNOW;
 
 	hwif->set_pio_mode = &opti621_set_pio_mode;
-
-	if (!(hwif->dma_base))
-		return;
-
-	hwif->atapi_dma = 1;
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
 }
 
 static ide_pci_device_t opti621_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "OPTI621",
 		.init_hwif	= init_hwif_opti621,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
-		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+				  IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO3,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
 	},{	/* 1 */
 		.name		= "OPTI621X",
 		.init_hwif	= init_hwif_opti621,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
-		.bootable	= ON_BOARD,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+				  IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO3,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+		.swdma_mask	= ATA_SWDMA2,
+		.mwdma_mask	= ATA_MWDMA2,
 	}
 };
 

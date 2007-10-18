@@ -415,7 +415,6 @@ static void icside_dma_lost_irq(ide_drive_t *drive)
 
 static void icside_dma_init(ide_hwif_t *hwif)
 {
-	hwif->atapi_dma		= 1;
 	hwif->mwdma_mask	= 7; /* MW0..2 */
 	hwif->swdma_mask	= 7; /* SW0..2 */
 

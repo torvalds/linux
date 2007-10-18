@@ -233,7 +233,6 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
  * Print the boot message.
  */
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &t);
 	printk(KERN_INFO "%s: %s (rev %02x) UDMA%s controller\n",
 		amd_chipset->name, pci_name(dev), dev->revision,
 		amd_dma[fls(amd_config->udma_mask) - 1]);
@@ -254,18 +253,14 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 	for (i = 0; i < 2; i++) {
 		hwif->drives[i].io_32bit = 1;
 		hwif->drives[i].unmask = 1;
-		hwif->drives[i].autotune = 1;
 	}
 
 	if (!hwif->dma_base)
 		return;
 
-        hwif->atapi_dma = 1;
-
 	hwif->ultra_mask = amd_config->udma_mask;
-	hwif->mwdma_mask = 0x07;
-	if ((amd_config->flags & AMD_BAD_SWDMA) == 0)
-		hwif->swdma_mask = 0x07;
+	if (amd_config->flags & AMD_BAD_SWDMA)
+		hwif->swdma_mask = 0x00;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
 		if ((amd_80w >> hwif->channel) & 1)
@@ -280,13 +275,14 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
-		.autodma	= AUTODMA,				\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
-		.bootable	= ON_BOARD,				\
-		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
-				| IDE_HFLAG_PIO_NO_DOWNGRADE		\
-				| IDE_HFLAG_POST_SET_MODE,		\
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |		\
+				  IDE_HFLAG_PIO_NO_DOWNGRADE |		\
+				  IDE_HFLAG_POST_SET_MODE |		\
+				  IDE_HFLAG_BOOTABLE,			\
 		.pio_mask	= ATA_PIO5,				\
+		.swdma_mask	= ATA_SWDMA2,				\
+		.mwdma_mask	= ATA_MWDMA2,				\
 	}
 
 #define DECLARE_NV_DEV(name_str)					\
@@ -294,13 +290,14 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
-		.autodma	= AUTODMA,				\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
-		.bootable	= ON_BOARD,				\
-		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST		\
-				| IDE_HFLAG_PIO_NO_DOWNGRADE		\
-				| IDE_HFLAG_POST_SET_MODE,		\
+		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |		\
+				  IDE_HFLAG_PIO_NO_DOWNGRADE |		\
+				  IDE_HFLAG_POST_SET_MODE |		\
+				  IDE_HFLAG_BOOTABLE,			\
 		.pio_mask	= ATA_PIO5,				\
+		.swdma_mask	= ATA_SWDMA2,				\
+		.mwdma_mask	= ATA_MWDMA2,				\
 	}
 
 static ide_pci_device_t amd74xx_chipsets[] __devinitdata = {

@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/alim15x3.c		Version 0.26	Jul 14 2007
+ * linux/drivers/ide/pci/alim15x3.c		Version 0.27	Aug 27 2007
  *
  *  Copyright (C) 1998-2000 Michel Aubry, Maintainer
  *  Copyright (C) 1998-2000 Andrzej Krzysztofowicz, Maintainer
@@ -665,34 +665,29 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	hwif->udma_filter = &ali_udma_filter;
 
 	/* don't use LBA48 DMA on ALi devices before rev 0xC5 */
-	hwif->no_lba48_dma = (m5229_revision <= 0xC4) ? 1 : 0;
+	if (m5229_revision <= 0xC4)
+		hwif->host_flags |= IDE_HFLAG_NO_LBA48_DMA;
 
-	if (!hwif->dma_base) {
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	/*
 	 * check in ->init_dma guarantees m5229_revision >= 0x20 here
 	 */
 
-	if (m5229_revision > 0x20)
-		hwif->atapi_dma = 1;
+	if (m5229_revision == 0x20)
+		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 
 	if (m5229_revision <= 0x20)
 		hwif->ultra_mask = 0x00; /* no udma */
 	else if (m5229_revision < 0xC2)
-		hwif->ultra_mask = 0x07; /* udma0-2 */
+		hwif->ultra_mask = ATA_UDMA2;
 	else if (m5229_revision == 0xC2 || m5229_revision == 0xC3)
-		hwif->ultra_mask = 0x1f; /* udma0-4 */
+		hwif->ultra_mask = ATA_UDMA4;
 	else if (m5229_revision == 0xC4)
-		hwif->ultra_mask = 0x3f; /* udma0-5 */
+		hwif->ultra_mask = ATA_UDMA5;
 	else
-		hwif->ultra_mask = 0x7f; /* udma0-6 */
-
-	hwif->mwdma_mask = 0x07;
-	hwif->swdma_mask = 0x07;
+		hwif->ultra_mask = ATA_UDMA6;
 
 	hwif->dma_setup = &ali15x3_dma_setup;
 
@@ -776,9 +771,10 @@ static ide_pci_device_t ali15x3_chipset __devinitdata = {
 	.init_chipset	= init_chipset_ali15x3,
 	.init_hwif	= init_hwif_ali15x3,
 	.init_dma	= init_dma_ali15x3,
-	.autodma	= AUTODMA,
-	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO5,
+	.swdma_mask	= ATA_SWDMA2,
+	.mwdma_mask	= ATA_MWDMA2,
 };
 
 /**

@@ -245,9 +245,6 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	unsigned long basereg;
 	u32 d0_timings;
 
-	if (hwif->mate)
-		hwif->serialized = hwif->mate->serialized = 1;
-
 	hwif->set_pio_mode = &cs5530_set_pio_mode;
 	hwif->set_dma_mode = &cs5530_set_dma_mode;
 
@@ -258,15 +255,8 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	if (CS5530_BAD_PIO(inl(basereg + 8)))
 		outl(cs5530_pio_timings[(d0_timings >> 31) & 1][0], basereg + 8);
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
-
-	hwif->atapi_dma = 1;
-	hwif->ultra_mask = 0x07;
-	hwif->mwdma_mask = 0x07;
 
 	hwif->udma_filter = cs5530_udma_filter;
 }
@@ -275,10 +265,12 @@ static ide_pci_device_t cs5530_chipset __devinitdata = {
 	.name		= "CS5530",
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
-	.autodma	= AUTODMA,
-	.bootable	= ON_BOARD,
+	.host_flags	= IDE_HFLAG_SERIALIZE |
+			  IDE_HFLAG_POST_SET_MODE |
+			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
-	.host_flags	= IDE_HFLAG_POST_SET_MODE,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA2,
 };
 
 static int __devinit cs5530_init_one(struct pci_dev *dev, const struct pci_device_id *id)

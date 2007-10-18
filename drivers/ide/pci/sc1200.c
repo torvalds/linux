@@ -362,33 +362,26 @@ static int sc1200_resume (struct pci_dev *dev)
  */
 static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 {
-	if (hwif->mate)
-		hwif->serialized = hwif->mate->serialized = 1;
-
 	hwif->set_pio_mode = &sc1200_set_pio_mode;
 	hwif->set_dma_mode = &sc1200_set_dma_mode;
-
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
 
 	if (hwif->dma_base == 0)
 		return;
 
 	hwif->udma_filter = sc1200_udma_filter;
 	hwif->ide_dma_end   = &sc1200_ide_dma_end;
-
-        hwif->atapi_dma = 1;
-        hwif->ultra_mask = 0x07;
-        hwif->mwdma_mask = 0x07;
 }
 
 static ide_pci_device_t sc1200_chipset __devinitdata = {
 	.name		= "SC1200",
 	.init_hwif	= init_hwif_sc1200,
-	.autodma	= AUTODMA,
-	.bootable	= ON_BOARD,
-	.host_flags	= IDE_HFLAG_ABUSE_DMA_MODES | IDE_HFLAG_POST_SET_MODE,
+	.host_flags	= IDE_HFLAG_SERIALIZE |
+			  IDE_HFLAG_POST_SET_MODE |
+			  IDE_HFLAG_ABUSE_DMA_MODES |
+			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA2,
 };
 
 static int __devinit sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)

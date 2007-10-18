@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/aec62xx.c		Version 0.25	Aug 1, 2007
+ * linux/drivers/ide/pci/aec62xx.c		Version 0.26	Sep 1, 2007
  *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2007		MontaVista Software, Inc. <source@mvista.com>
@@ -184,34 +184,23 @@ static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const ch
 static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= hwif->pci_dev;
-	u8 reg54 = 0,  mask	= hwif->channel ? 0xf0 : 0x0f;
-	unsigned long flags;
 
 	hwif->set_pio_mode = &aec_set_pio_mode;
 
-	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
-		if(hwif->mate)
-			hwif->mate->serialized = hwif->serialized = 1;
+	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
 		hwif->set_dma_mode = &aec6210_set_mode;
-	} else
+	else
 		hwif->set_dma_mode = &aec6260_set_mode;
-
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
 
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->ultra_mask = hwif->cds->udma_mask;
-	hwif->mwdma_mask = 0x07;
-
 	hwif->dma_lost_irq	= &aec62xx_dma_lost_irq;
 
-	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
-		spin_lock_irqsave(&ide_lock, flags);
-		pci_read_config_byte (dev, 0x54, &reg54);
-		pci_write_config_byte(dev, 0x54, (reg54 & ~mask));
-		spin_unlock_irqrestore(&ide_lock, flags);
-	} else if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
+	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
+		return;
+
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
 		u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;
 
 		pci_read_config_byte(hwif->pci_dev, 0x49, &ata66);
@@ -220,73 +209,53 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	}
 }
 
-static int __devinit init_setup_aec62xx(struct pci_dev *dev, ide_pci_device_t *d)
-{
-	return ide_setup_pci_device(dev, d);
-}
-
-static int __devinit init_setup_aec6x80(struct pci_dev *dev, ide_pci_device_t *d)
-{
-	unsigned long dma_base = pci_resource_start(dev, 4);
-
-	if (inb(dma_base + 2) & 0x10) {
-		d->name = (dev->device == PCI_DEVICE_ID_ARTOP_ATP865R) ?
-			  "AEC6880R" : "AEC6880";
-		d->udma_mask = 0x7f; /* udma0-6 */
-	}
-
-	return ide_setup_pci_device(dev, d);
-}
-
 static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "AEC6210",
-		.init_setup	= init_setup_aec62xx,
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
-		.udma_mask	= 0x07, /* udma0-2 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA2,
 	},{	/* 1 */
 		.name		= "AEC6260",
-		.init_setup	= init_setup_aec62xx,
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
-		.autodma	= NOAUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_NO_AUTODMA |
+				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
-		.udma_mask	= 0x1f, /* udma0-4 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA4,
 	},{	/* 2 */
 		.name		= "AEC6260R",
-		.init_setup	= init_setup_aec62xx,
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-		.bootable	= NEVER_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 		.pio_mask	= ATA_PIO4,
-		.udma_mask	= 0x1f, /* udma0-4 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA4,
 	},{	/* 3 */
 		.name		= "AEC6280",
-		.init_setup	= init_setup_aec6x80,
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
-		.autodma	= AUTODMA,
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
-		.udma_mask	= 0x3f, /* udma0-5 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 	},{	/* 4 */
 		.name		= "AEC6280R",
-		.init_setup	= init_setup_aec6x80,
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
-		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
-		.udma_mask	= 0x3f, /* udma0-5 */
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask	= ATA_UDMA5,
 	}
 };
 
@@ -304,9 +273,21 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
  
 static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t d = aec62xx_chipsets[id->driver_data];
+	ide_pci_device_t d;
+	u8 idx = id->driver_data;
 
-	return d.init_setup(dev, &d);
+	d = aec62xx_chipsets[idx];
+
+	if (idx == 3 || idx == 4) {
+		unsigned long dma_base = pci_resource_start(dev, 4);
+
+		if (inb(dma_base + 2) & 0x10) {
+			d.name = (idx == 4) ? "AEC6880R" : "AEC6880";
+			d.udma_mask = ATA_UDMA6;
+		}
+	}
+
+	return ide_setup_pci_device(dev, &d);
 }
 
 static const struct pci_device_id aec62xx_pci_tbl[] = {
