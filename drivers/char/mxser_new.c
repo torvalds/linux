@@ -113,29 +113,29 @@ struct mxser_cardinfo {
 };
 
 static const struct mxser_cardinfo mxser_cards[] = {
-/* 0*/	{ 8, "C168 series", },			/* C168-ISA */
-	{ 4, "C104 series", },			/* C104-ISA */
-	{ 4, "CI-104J series", },		/* CI104J */
-	{ 8, "C168H/PCI series", },		/* C168-PCI */
-	{ 4, "C104H/PCI series", },		/* C104-PCI */
+/* 0*/	{ 8, "C168 series", },
+	{ 4, "C104 series", },
+	{ 4, "CI-104J series", },
+	{ 8, "C168H/PCI series", },
+	{ 4, "C104H/PCI series", },
 /* 5*/	{ 4, "C102 series", MXSER_HAS2 },	/* C102-ISA */
-	{ 4, "CI-132 series", MXSER_HAS2 },	/* CI132 */
-	{ 4, "CI-134 series", },		/* CI134 */
-	{ 2, "CP-132 series", },		/* CP132 */
-	{ 4, "CP-114 series", },		/* CP114 */
-/*10*/	{ 4, "CT-114 series", },		/* CT114 */
-	{ 2, "CP-102 series", MXSER_HIGHBAUD },	/* CP102 */
-	{ 4, "CP-104U series", },		/* CP104U */
-	{ 8, "CP-168U series", },		/* CP168U */
-	{ 2, "CP-132U series", },		/* CP132U */
-/*15*/	{ 4, "CP-134U series", },		/* CP134U */
-	{ 4, "CP-104JU series", },		/* CP104JU */
+	{ 4, "CI-132 series", MXSER_HAS2 },
+	{ 4, "CI-134 series", },
+	{ 2, "CP-132 series", },
+	{ 4, "CP-114 series", },
+/*10*/	{ 4, "CT-114 series", },
+	{ 2, "CP-102 series", MXSER_HIGHBAUD },
+	{ 4, "CP-104U series", },
+	{ 8, "CP-168U series", },
+	{ 2, "CP-132U series", },
+/*15*/	{ 4, "CP-134U series", },
+	{ 4, "CP-104JU series", },
 	{ 8, "Moxa UC7000 Serial", },		/* RC7000 */
-	{ 8, "CP-118U series", },		/* CP118U */
-	{ 2, "CP-102UL series", },		/* CP102UL */
-/*20*/	{ 2, "CP-102U series", },		/* CP102U */
-	{ 8, "CP-118EL series", },		/* CP118EL */
-	{ 8, "CP-168EL series", },		/* CP168EL */
+	{ 8, "CP-118U series", },
+	{ 2, "CP-102UL series", },
+/*20*/	{ 2, "CP-102U series", },
+	{ 8, "CP-118EL series", },
+	{ 8, "CP-168EL series", },
 	{ 4, "CP-104EL series", },
 	{ 8, "CB-108 series", },
 /*25*/	{ 4, "CB-114 series", },
