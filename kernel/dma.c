@@ -20,7 +20,7 @@
 #include <asm/dma.h>
 #include <asm/system.h>
 
- 
+
 
 /* A note on resource allocation:
  *
@@ -95,7 +95,7 @@ void free_dma(unsigned int dmanr)
 	if (xchg(&dma_chan_busy[dmanr].lock, 0) == 0) {
 		printk(KERN_WARNING "Trying to free free DMA%d\n", dmanr);
 		return;
-	}	
+	}
 
 } /* free_dma */
 
@@ -121,8 +121,8 @@ static int proc_dma_show(struct seq_file *m, void *v)
 
 	for (i = 0 ; i < MAX_DMA_CHANNELS ; i++) {
 		if (dma_chan_busy[i].lock) {
-		    seq_printf(m, "%2d: %s\n", i,
-			       dma_chan_busy[i].device_id);
+			seq_printf(m, "%2d: %s\n", i,
+				   dma_chan_busy[i].device_id);
 		}
 	}
 	return 0;
