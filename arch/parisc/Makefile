@@ -74,6 +74,25 @@ libs-y	+= arch/parisc/lib/
 
 drivers-$(CONFIG_OPROFILE)		+= arch/parisc/oprofile/
 
+PALO := $(shell if which palo; then : ; \
+	elif [ -x /sbin/palo ]; then echo /sbin/palo; \
+	fi)
+
+palo: vmlinux
+	@if [ -x $PALO ]; then \
+		echo 'ERROR: Please install palo first (apt-get install palo)';\
+		echo 'or build it from source and install it somewhere in your $$PATH';\
+		false; \
+	fi
+	@if [ ! -f ./palo.conf ]; then \
+		cp arch/parisc/defpalo.conf palo.conf; \
+		echo 'A generic palo config file (./palo.conf) has been created for you.'; \
+		echo 'You should check it and re-run "make palo".'; \
+		echo 'WARNING: the "lifimage" file is now placed in this directory by default!'; \
+		false; \
+	fi
+	$(PALO) -f ./palo.conf
+
 # Shorthands for known targets not supported by parisc, use vmlinux as default
 Image zImage bzImage: vmlinux
 
@@ -88,6 +107,7 @@ MRPROPER_FILES	+= palo.conf
 
 define archhelp
 	@echo  '* vmlinux	- Uncompressed kernel image (./vmlinux)'
+	@echo  '  palo		- Bootable image (./lifimage)'
 	@echo  '  install	- Install kernel using'
 	@echo  '		  (your) ~/bin/installkernel or'
 	@echo  '		  (distribution) /sbin/installkernel or'
