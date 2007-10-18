@@ -1108,6 +1108,11 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 		inarg.valid |= FATTR_FH;
 		inarg.fh = ff->fh;
 	}
+	if (attr->ia_valid & ATTR_SIZE) {
+		/* For mandatory locking in truncate */
+		inarg.valid |= FATTR_LOCKOWNER;
+		inarg.lock_owner = fuse_lock_owner_id(fc, current->files);
+	}
 	req->in.h.opcode = FUSE_SETATTR;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.numargs = 1;

@@ -14,6 +14,7 @@
  * 7.9:
  *  - new fuse_getattr_in input argument of GETATTR
  *  - add lk_flags in fuse_lk_in
+ *  - add lock_owner field to fuse_setattr_in, fuse_read_in and fuse_write_in
  */
 
 #include <asm/types.h>
@@ -86,6 +87,7 @@ struct fuse_file_lock {
 #define FATTR_FH	(1 << 6)
 #define FATTR_ATIME_NOW	(1 << 7)
 #define FATTR_MTIME_NOW	(1 << 8)
+#define FATTR_LOCKOWNER	(1 << 9)
 
 /**
  * Flags returned by the OPEN request
@@ -123,8 +125,15 @@ struct fuse_file_lock {
  * WRITE flags
  *
  * FUSE_WRITE_CACHE: delayed write from page cache, file handle is guessed
+ * FUSE_WRITE_LOCKOWNER: lock_owner field is valid
  */
 #define FUSE_WRITE_CACHE	(1 << 0)
+#define FUSE_WRITE_LOCKOWNER	(1 << 1)
+
+/**
+ * Read flags
+ */
+#define FUSE_READ_LOCKOWNER	(1 << 1)
 
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
@@ -219,7 +228,7 @@ struct fuse_setattr_in {
 	__u32	padding;
 	__u64	fh;
 	__u64	size;
-	__u64	unused1;
+	__u64	lock_owner;
 	__u64	atime;
 	__u64	mtime;
 	__u64	unused2;
@@ -262,14 +271,18 @@ struct fuse_read_in {
 	__u64	fh;
 	__u64	offset;
 	__u32	size;
-	__u32	padding;
+	__u32	read_flags;
+	__u64	lock_owner;
 };
+
+#define FUSE_COMPAT_WRITE_IN_SIZE 24
 
 struct fuse_write_in {
 	__u64	fh;
 	__u64	offset;
 	__u32	size;
 	__u32	write_flags;
+	__u64	lock_owner;
 };
 
 struct fuse_write_out {

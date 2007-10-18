@@ -591,3 +591,5 @@ int fuse_valid_type(int m);
  * Is task allowed to perform filesystem operation?
  */
 int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task);
+
+u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
