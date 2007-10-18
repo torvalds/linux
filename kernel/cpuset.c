@@ -2431,12 +2431,12 @@ int __cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
 	node = zone_to_nid(z);
 	if (node_isset(node, current->mems_allowed))
 		return 1;
-        /*
-         * Allow tasks that have access to memory reserves because they have
-         * been OOM killed to get memory anywhere.
-         */
-        if (unlikely(test_thread_flag(TIF_MEMDIE)))
-                return 1;
+	/*
+	 * Allow tasks that have access to memory reserves because they have
+	 * been OOM killed to get memory anywhere.
+	 */
+	if (unlikely(test_thread_flag(TIF_MEMDIE)))
+		return 1;
 	return 0;
 }
 
