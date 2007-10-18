@@ -176,18 +176,19 @@ out:
 
 /* Creation primitives. */
 
-static struct nf_ct_frag6_queue *
-nf_ct_frag6_create(unsigned int hash, __be32 id, struct in6_addr *src,
-		struct in6_addr *dst)
+static __inline__ struct nf_ct_frag6_queue *
+fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst)
 {
 	struct inet_frag_queue *q;
 	struct ip6_create_arg arg;
+	unsigned int hash;
 
 	arg.id = id;
 	arg.src = src;
 	arg.dst = dst;
+	hash = ip6qhashfn(id, src, dst);
 
-	q = inet_frag_create(&nf_frags, &arg, hash);
+	q = inet_frag_find(&nf_frags, &arg, hash);
 	if (q == NULL)
 		goto oom;
 
@@ -196,28 +197,6 @@ nf_ct_frag6_create(unsigned int hash, __be32 id, struct in6_addr *src,
 oom:
 	pr_debug("Can't alloc new queue\n");
 	return NULL;
-}
-
-static __inline__ struct nf_ct_frag6_queue *
-fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst)
-{
-	struct nf_ct_frag6_queue *fq;
-	struct hlist_node *n;
-	unsigned int hash = ip6qhashfn(id, src, dst);
-
-	read_lock(&nf_frags.lock);
-	hlist_for_each_entry(fq, n, &nf_frags.hash[hash], q.list) {
-		if (fq->id == id &&
-		    ipv6_addr_equal(src, &fq->saddr) &&
-		    ipv6_addr_equal(dst, &fq->daddr)) {
-			atomic_inc(&fq->q.refcnt);
-			read_unlock(&nf_frags.lock);
-			return fq;
-		}
-	}
-	read_unlock(&nf_frags.lock);
-
-	return nf_ct_frag6_create(hash, id, src, dst);
 }
 
 
@@ -706,6 +685,7 @@ int nf_ct_frag6_init(void)
 	nf_frags.destructor = nf_frag_free;
 	nf_frags.skb_free = nf_skb_free;
 	nf_frags.qsize = sizeof(struct nf_ct_frag6_queue);
+	nf_frags.match = ip6_frag_match;
 	nf_frags.equal = ip6_frag_equal;
 	nf_frags.frag_expire = nf_ct_frag6_expire;
 	inet_frags_init(&nf_frags);

@@ -142,6 +142,19 @@ static int ip4_frag_equal(struct inet_frag_queue *q1,
 			qp1->user == qp2->user);
 }
 
+static int ip4_frag_match(struct inet_frag_queue *q, void *a)
+{
+	struct ipq *qp;
+	struct ip4_create_arg *arg = a;
+
+	qp = container_of(q, struct ipq, q);
+	return (qp->id == arg->iph->id &&
+			qp->saddr == arg->iph->saddr &&
+			qp->daddr == arg->iph->daddr &&
+			qp->protocol == arg->iph->protocol &&
+			qp->user == arg->user);
+}
+
 /* Memory Tracking Functions. */
 static __inline__ void frag_kfree_skb(struct sk_buff *skb, int *work)
 {
@@ -235,18 +248,20 @@ out:
 	ipq_put(qp);
 }
 
-/* Creation primitives. */
-
-/* Add an entry to the 'ipq' queue for a newly received IP datagram. */
-static struct ipq *ip_frag_create(struct iphdr *iph, u32 user, unsigned int h)
+/* Find the correct entry in the "incomplete datagrams" queue for
+ * this IP datagram, and create new one, if nothing is found.
+ */
+static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 {
 	struct inet_frag_queue *q;
 	struct ip4_create_arg arg;
+	unsigned int hash;
 
 	arg.iph = iph;
 	arg.user = user;
+	hash = ipqhashfn(iph->id, iph->saddr, iph->daddr, iph->protocol);
 
-	q = inet_frag_create(&ip4_frags, &arg, h);
+	q = inet_frag_find(&ip4_frags, &arg, hash);
 	if (q == NULL)
 		goto out_nomem;
 
@@ -255,37 +270,6 @@ static struct ipq *ip_frag_create(struct iphdr *iph, u32 user, unsigned int h)
 out_nomem:
 	LIMIT_NETDEBUG(KERN_ERR "ip_frag_create: no memory left !\n");
 	return NULL;
-}
-
-/* Find the correct entry in the "incomplete datagrams" queue for
- * this IP datagram, and create new one, if nothing is found.
- */
-static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
-{
-	__be16 id = iph->id;
-	__be32 saddr = iph->saddr;
-	__be32 daddr = iph->daddr;
-	__u8 protocol = iph->protocol;
-	unsigned int hash;
-	struct ipq *qp;
-	struct hlist_node *n;
-
-	read_lock(&ip4_frags.lock);
-	hash = ipqhashfn(id, saddr, daddr, protocol);
-	hlist_for_each_entry(qp, n, &ip4_frags.hash[hash], q.list) {
-		if (qp->id == id		&&
-		    qp->saddr == saddr	&&
-		    qp->daddr == daddr	&&
-		    qp->protocol == protocol &&
-		    qp->user == user) {
-			atomic_inc(&qp->q.refcnt);
-			read_unlock(&ip4_frags.lock);
-			return qp;
-		}
-	}
-	read_unlock(&ip4_frags.lock);
-
-	return ip_frag_create(iph, user, hash);
 }
 
 /* Is the fragment too far ahead to be part of ipq? */
@@ -648,6 +632,7 @@ void __init ipfrag_init(void)
 	ip4_frags.skb_free = NULL;
 	ip4_frags.qsize = sizeof(struct ipq);
 	ip4_frags.equal = ip4_frag_equal;
+	ip4_frags.match = ip4_frag_match;
 	ip4_frags.frag_expire = ip_expire;
 	inet_frags_init(&ip4_frags);
 }

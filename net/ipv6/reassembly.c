@@ -155,6 +155,18 @@ int ip6_frag_equal(struct inet_frag_queue *q1, struct inet_frag_queue *q2)
 }
 EXPORT_SYMBOL(ip6_frag_equal);
 
+int ip6_frag_match(struct inet_frag_queue *q, void *a)
+{
+	struct frag_queue *fq;
+	struct ip6_create_arg *arg = a;
+
+	fq = container_of(q, struct frag_queue, q);
+	return (fq->id == arg->id &&
+			ipv6_addr_equal(&fq->saddr, arg->src) &&
+			ipv6_addr_equal(&fq->daddr, arg->dst));
+}
+EXPORT_SYMBOL(ip6_frag_match);
+
 /* Memory Tracking Functions. */
 static inline void frag_kfree_skb(struct sk_buff *skb, int *work)
 {
@@ -245,20 +257,20 @@ out:
 	fq_put(fq);
 }
 
-/* Creation primitives. */
-
-static struct frag_queue *
-ip6_frag_create(__be32 id, struct in6_addr *src, struct in6_addr *dst,
-		struct inet6_dev *idev, unsigned int hash)
+static __inline__ struct frag_queue *
+fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
+	struct inet6_dev *idev)
 {
 	struct inet_frag_queue *q;
 	struct ip6_create_arg arg;
+	unsigned int hash;
 
 	arg.id = id;
 	arg.src = src;
 	arg.dst = dst;
+	hash = ip6qhashfn(id, src, dst);
 
-	q = inet_frag_create(&ip6_frags, &arg, hash);
+	q = inet_frag_find(&ip6_frags, &arg, hash);
 	if (q == NULL)
 		goto oom;
 
@@ -268,31 +280,6 @@ oom:
 	IP6_INC_STATS_BH(idev, IPSTATS_MIB_REASMFAILS);
 	return NULL;
 }
-
-static __inline__ struct frag_queue *
-fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
-	struct inet6_dev *idev)
-{
-	struct frag_queue *fq;
-	struct hlist_node *n;
-	unsigned int hash;
-
-	read_lock(&ip6_frags.lock);
-	hash = ip6qhashfn(id, src, dst);
-	hlist_for_each_entry(fq, n, &ip6_frags.hash[hash], q.list) {
-		if (fq->id == id &&
-		    ipv6_addr_equal(src, &fq->saddr) &&
-		    ipv6_addr_equal(dst, &fq->daddr)) {
-			atomic_inc(&fq->q.refcnt);
-			read_unlock(&ip6_frags.lock);
-			return fq;
-		}
-	}
-	read_unlock(&ip6_frags.lock);
-
-	return ip6_frag_create(id, src, dst, idev, hash);
-}
-
 
 static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 			   struct frag_hdr *fhdr, int nhoff)
@@ -673,6 +660,7 @@ void __init ipv6_frag_init(void)
 	ip6_frags.destructor = ip6_frag_free;
 	ip6_frags.skb_free = NULL;
 	ip6_frags.qsize = sizeof(struct frag_queue);
+	ip6_frags.match = ip6_frag_match;
 	ip6_frags.equal = ip6_frag_equal;
 	ip6_frags.frag_expire = ip6_frag_expire;
 	inet_frags_init(&ip6_frags);
