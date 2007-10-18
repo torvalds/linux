@@ -1498,7 +1498,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 		 * auditctl to read from it... which isn't ever going to
 		 * happen if we're actually running in the context of auditctl
 		 * trying to _send_ the stuff */
-		 
+
 		dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
 		if (!dest)
 			return -ENOMEM;
@@ -1678,7 +1678,7 @@ int audit_filter_type(int type)
 {
 	struct audit_entry *e;
 	int result = 0;
-	
+
 	rcu_read_lock();
 	if (list_empty(&audit_filter_list[AUDIT_FILTER_TYPE]))
 		goto unlock_and_return;
