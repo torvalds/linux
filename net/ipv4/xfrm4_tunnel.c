@@ -48,20 +48,25 @@ static struct xfrm_type ipip_type = {
 	.output		= ipip_output
 };
 
+static int xfrm_tunnel_rcv(struct sk_buff *skb)
+{
+	return xfrm4_rcv_spi(skb, IPPROTO_IP, ip_hdr(skb)->saddr);
+}
+
 static int xfrm_tunnel_err(struct sk_buff *skb, u32 info)
 {
 	return -ENOENT;
 }
 
 static struct xfrm_tunnel xfrm_tunnel_handler = {
-	.handler	=	xfrm4_rcv,
+	.handler	=	xfrm_tunnel_rcv,
 	.err_handler	=	xfrm_tunnel_err,
 	.priority	=	2,
 };
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static struct xfrm_tunnel xfrm64_tunnel_handler = {
-	.handler	=	xfrm4_rcv,
+	.handler	=	xfrm_tunnel_rcv,
 	.err_handler	=	xfrm_tunnel_err,
 	.priority	=	2,
 };

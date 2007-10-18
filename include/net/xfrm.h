@@ -1046,7 +1046,15 @@ extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm_output(struct sk_buff *skb);
+extern int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
+			   int encap_type);
 extern int xfrm4_rcv(struct sk_buff *skb);
+
+static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
+{
+	return xfrm4_rcv_encap(skb, nexthdr, spi, 0);
+}
+
 extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
