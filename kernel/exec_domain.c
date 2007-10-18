@@ -57,7 +57,7 @@ lookup_exec_domain(u_long personality)
 {
 	struct exec_domain *	ep;
 	u_long			pers = personality(personality);
-		
+
 	read_lock(&exec_domains_lock);
 	for (ep = exec_domains; ep; ep = ep->next) {
 		if (pers >= ep->pers_low && pers <= ep->pers_high)
