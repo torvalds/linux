@@ -592,7 +592,6 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->atapi_dma = 1;
 	hwif->mwdma_mask = 0x04;
 
 	hwif->dma_setup = &sgiioc4_ide_dma_setup;

@@ -388,7 +388,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->atapi_dma  = 1;
 	hwif->mwdma_mask = 0x07;
 
 	hwif->ide_dma_on		= &sl82c105_ide_dma_on;

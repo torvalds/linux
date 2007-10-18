@@ -377,7 +377,6 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 	hwif->udma_filter = sc1200_udma_filter;
 	hwif->ide_dma_end   = &sc1200_ide_dma_end;
 
-        hwif->atapi_dma = 1;
         hwif->ultra_mask = 0x07;
         hwif->mwdma_mask = 0x07;
 }

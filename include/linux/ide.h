@@ -685,7 +685,6 @@ typedef struct hwif_s {
 
 	u8 pio_mask;
 
-	u8 atapi_dma;	/* host supports atapi_dma */
 	u8 ultra_mask;
 	u8 mwdma_mask;
 	u8 swdma_mask;
@@ -1258,6 +1257,8 @@ enum {
 	IDE_HFLAG_TRUST_BIOS_FOR_DMA	= (1 << 10),
 	/* host uses VDMA */
 	IDE_HFLAG_VDMA			= (1 << 11),
+	/* ATAPI DMA is unsupported */
+	IDE_HFLAG_NO_ATAPI_DMA		= (1 << 12),
 };
 
 typedef struct ide_pci_device_s {

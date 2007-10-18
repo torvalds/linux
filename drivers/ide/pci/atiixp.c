@@ -183,7 +183,6 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x3f;
 	hwif->mwdma_mask = 0x07;
 

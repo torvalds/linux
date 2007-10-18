@@ -268,7 +268,8 @@ static ide_pci_device_t ns87415_chipset __devinitdata = {
 	.init_hwif	= init_hwif_ns87415,
 	.autodma	= AUTODMA,
 	.bootable	= ON_BOARD,
-	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+			  IDE_HFLAG_NO_ATAPI_DMA,
 };
 
 static int __devinit ns87415_init_one(struct pci_dev *dev, const struct pci_device_id *id)

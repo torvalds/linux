@@ -198,7 +198,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	/* Sector Count Register limit */
 	hwif->rqsize	 = 0xffff;
 
-	hwif->atapi_dma  = 1;
 	hwif->ultra_mask = 0x1f;
 	hwif->mwdma_mask = 0x07;
 

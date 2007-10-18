@@ -517,7 +517,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	hwif->atapi_dma  = 1;
 	hwif->mwdma_mask = 0x07;
 	hwif->ultra_mask = hwif->cds->udma_mask;
 

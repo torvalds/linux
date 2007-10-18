@@ -677,8 +677,8 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	 * check in ->init_dma guarantees m5229_revision >= 0x20 here
 	 */
 
-	if (m5229_revision > 0x20)
-		hwif->atapi_dma = 1;
+	if (m5229_revision == 0x20)
+		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 
 	if (m5229_revision <= 0x20)
 		hwif->ultra_mask = 0x00; /* no udma */

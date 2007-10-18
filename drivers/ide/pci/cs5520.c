@@ -125,6 +125,7 @@ static void __devinit cs5520_init_setup_dma(struct pci_dev *dev, ide_pci_device_
  
 static int cs5520_dma_on(ide_drive_t *drive)
 {
+	/* ATAPI is harder so leave it for now */
 	drive->vdma = 1;
 	return 0;
 }
@@ -141,8 +142,6 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 
 	hwif->ide_dma_on = &cs5520_dma_on;
 
-	/* ATAPI is harder so leave it for now */
-	hwif->atapi_dma = 0;
 	hwif->ultra_mask = 0;
 	hwif->swdma_mask = 0;
 	hwif->mwdma_mask = 0;
@@ -156,7 +155,8 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		.autodma	= AUTODMA,			\
 		.bootable	= ON_BOARD,			\
 		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
-				  IDE_HFLAG_VDMA,		\
+				  IDE_HFLAG_VDMA |		\
+				  IDE_HFLAG_NO_ATAPI_DMA,	\
 		.pio_mask	= ATA_PIO4,			\
 	}
 

@@ -247,6 +247,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x07, /* udma0-2 */
 	},{	/* 1 */
@@ -256,6 +257,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_aec62xx,
 		.autodma	= NOAUTODMA,
 		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 2 */
@@ -266,6 +268,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= NEVER_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x1f, /* udma0-4 */
 	},{	/* 3 */
@@ -275,6 +278,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_aec62xx,
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	},{	/* 4 */
@@ -285,6 +289,7 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.bootable	= OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= 0x3f, /* udma0-5 */
 	}

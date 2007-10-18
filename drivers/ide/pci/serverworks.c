@@ -367,8 +367,6 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	hwif->set_dma_mode = &svwks_set_dma_mode;
 	hwif->udma_filter = &svwks_udma_filter;
 
-	hwif->atapi_dma = 1;
-
 	if (hwif->pci_dev->device != PCI_DEVICE_ID_SERVERWORKS_OSB4IDE)
 		hwif->ultra_mask = 0x3f;
 

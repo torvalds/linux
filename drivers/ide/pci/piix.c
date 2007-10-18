@@ -397,8 +397,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	if (piix_is_ichx(hwif->pci_dev))
 		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
 
-	hwif->atapi_dma = 1;
-
 	hwif->ultra_mask = hwif->cds->udma_mask;
 	hwif->mwdma_mask = 0x06;
 	hwif->swdma_mask = 0x04;

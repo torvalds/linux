@@ -693,7 +693,6 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	}
 	hwif->mwdma_mask = 0x00;
 	hwif->swdma_mask = 0x00;
-	hwif->atapi_dma = 1;
 
 	/* we support 80c cable only. */
 	hwif->cbl = ATA_CBL_PATA80;

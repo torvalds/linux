@@ -544,12 +544,10 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 
 	ide_set_hwifdata(hwif, idev);
 
-	hwif->atapi_dma = 1;
-
 	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);
-	if(conf & 1) {
+	if (conf & 1) {
 		idev->smart = 1;
-		hwif->atapi_dma = 0;
+		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 		/* Long I/O's although allowed in LBA48 space cause the
 		   onboard firmware to enter the twighlight zone */
 		hwif->rqsize = 256;
@@ -570,10 +568,10 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	 */
 
 	pci_read_config_byte(hwif->pci_dev, 0x08, &conf);
-	if(conf == 0x10) {
+	if (conf == 0x10) {
 		idev->timing10 = 1;
-		hwif->atapi_dma = 0;
-		if(!idev->smart)
+		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
+		if (idev->smart == 0)
 			printk(KERN_WARNING "it821x: Revision 0x10, workarounds activated.\n");
 	}
 

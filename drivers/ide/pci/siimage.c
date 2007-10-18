@@ -899,8 +899,8 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
 
-	if (!is_sata(hwif))
-		hwif->atapi_dma = 1;
+	if (is_sata(hwif))
+		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = ata66_siimage(hwif);

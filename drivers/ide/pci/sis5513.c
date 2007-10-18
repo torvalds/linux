@@ -579,8 +579,6 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->atapi_dma = 1;
-
 	hwif->ultra_mask = udma_rates[chipset_family];
 	hwif->mwdma_mask = 0x07;
 

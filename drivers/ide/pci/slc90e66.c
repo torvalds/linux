@@ -147,7 +147,6 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x1f;
 	hwif->mwdma_mask = 0x06;
 	hwif->swdma_mask = 0x04;

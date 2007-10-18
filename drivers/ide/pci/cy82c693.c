@@ -437,7 +437,6 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->atapi_dma = 1;
 	hwif->mwdma_mask = 0x04;
 	hwif->swdma_mask = 0x04;
 

@@ -327,7 +327,9 @@ static ide_pci_device_t trm290_chipset __devinitdata = {
 	.autodma	= NOAUTODMA,
 	.bootable	= ON_BOARD,
 #if 0 /* play it safe for now */
-	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA | IDE_HFLAG_NO_ATAPI_DMA,
+#else
+	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 #endif
 };
 

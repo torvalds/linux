@@ -155,6 +155,7 @@ static ide_pci_device_t hpt34x_chipset __devinitdata = {
 	.autodma	= NOAUTODMA,
 	.bootable	= NEVER_BOARD,
 	.extra		= 16,
+	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
 	.pio_mask	= ATA_PIO5,
 };
 

@@ -443,8 +443,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	hwif->atapi_dma = 1;
-
 	hwif->ultra_mask = vdev->via_config->udma_mask;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;

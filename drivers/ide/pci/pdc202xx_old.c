@@ -330,7 +330,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->ultra_mask = hwif->cds->udma_mask;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
-	hwif->atapi_dma = 1;
 
 	hwif->dma_lost_irq = &pdc202xx_dma_lost_irq;
 	hwif->dma_timeout = &pdc202xx_dma_timeout;

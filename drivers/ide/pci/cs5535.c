@@ -185,7 +185,6 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x1F;
 	hwif->mwdma_mask = 0x07;
 

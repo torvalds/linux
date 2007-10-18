@@ -260,8 +260,6 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-        hwif->atapi_dma = 1;
-
 	hwif->ultra_mask = amd_config->udma_mask;
 	hwif->mwdma_mask = 0x07;
 	if ((amd_config->flags & AMD_BAD_SWDMA) == 0)

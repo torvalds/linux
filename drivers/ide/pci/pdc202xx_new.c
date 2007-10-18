@@ -482,8 +482,6 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->atapi_dma  = 1;
-
 	hwif->ultra_mask = hwif->cds->udma_mask;
 	hwif->mwdma_mask = 0x07;
 

@@ -264,7 +264,6 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x07;
 	hwif->mwdma_mask = 0x07;
 
