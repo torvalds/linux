@@ -4734,7 +4734,7 @@ static struct scsi_host_template gdth_template = {
 };
 
 #ifdef CONFIG_ISA
-static int gdth_isa_probe_one(ulong32 isa_bios)
+static int __init gdth_isa_probe_one(ulong32 isa_bios)
 {
 	struct Scsi_Host *shp;
 	gdth_ha_str *ha;
@@ -4862,7 +4862,7 @@ static int gdth_isa_probe_one(ulong32 isa_bios)
 #endif /* CONFIG_ISA */
 
 #ifdef CONFIG_EISA
-static int gdth_eisa_probe_one(ushort eisa_slot)
+static int __init gdth_eisa_probe_one(ushort eisa_slot)
 {
 	struct Scsi_Host *shp;
 	gdth_ha_str *ha;
@@ -4991,7 +4991,7 @@ static int gdth_eisa_probe_one(ushort eisa_slot)
 #endif /* CONFIG_EISA */
 
 #ifdef CONFIG_PCI
-static int gdth_pci_probe_one(gdth_pci_str *pcistr, int ctr)
+static int __init gdth_pci_probe_one(gdth_pci_str *pcistr, int ctr)
 {
 	struct Scsi_Host *shp;
 	gdth_ha_str *ha;
