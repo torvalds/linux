@@ -7,6 +7,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/hardirq.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -671,11 +672,13 @@ __init void kvm_arch_init(void);
 
 static inline void kvm_guest_enter(void)
 {
+	account_system_vtime(current);
 	current->flags |= PF_VCPU;
 }
 
 static inline void kvm_guest_exit(void)
 {
+	account_system_vtime(current);
 	current->flags &= ~PF_VCPU;
 }
 
