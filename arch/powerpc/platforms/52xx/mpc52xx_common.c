@@ -19,14 +19,12 @@
 #include <asm/mpc52xx.h>
 
 
-void __iomem *
-mpc52xx_find_and_map(const char *compatible)
+static void __iomem *
+mpc52xx_map_node(struct device_node *ofn)
 {
-	struct device_node *ofn;
 	const u32 *regaddr_p;
 	u64 regaddr64, size64;
 
-	ofn = of_find_compatible_node(NULL, NULL, compatible);
 	if (!ofn)
 		return NULL;
 
@@ -42,8 +40,23 @@ mpc52xx_find_and_map(const char *compatible)
 
 	return ioremap((u32)regaddr64, (u32)size64);
 }
+
+void __iomem *
+mpc52xx_find_and_map(const char *compatible)
+{
+	return mpc52xx_map_node(
+		of_find_compatible_node(NULL, NULL, compatible));
+}
+
 EXPORT_SYMBOL(mpc52xx_find_and_map);
 
+void __iomem *
+mpc52xx_find_and_map_path(const char *path)
+{
+	return mpc52xx_map_node(of_find_node_by_path(path));
+}
+
+EXPORT_SYMBOL(mpc52xx_find_and_map_path);
 
 /**
  * 	mpc52xx_find_ipb_freq - Find the IPB bus frequency for a device
