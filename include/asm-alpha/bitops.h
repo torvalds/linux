@@ -117,6 +117,9 @@ test_and_set_bit(unsigned long nr, volatile void *addr)
 	int *m = ((int *) addr) + (nr >> 5);
 
 	__asm__ __volatile__(
+#ifdef CONFIG_SMP
+	"	mb\n"
+#endif
 	"1:	ldl_l %0,%4\n"
 	"	and %0,%3,%2\n"
 	"	bne %2,2f\n"
@@ -158,6 +161,9 @@ test_and_clear_bit(unsigned long nr, volatile void * addr)
 	int *m = ((int *) addr) + (nr >> 5);
 
 	__asm__ __volatile__(
+#ifdef CONFIG_SMP
+	"	mb\n"
+#endif
 	"1:	ldl_l %0,%4\n"
 	"	and %0,%3,%2\n"
 	"	beq %2,2f\n"
@@ -199,6 +205,9 @@ test_and_change_bit(unsigned long nr, volatile void * addr)
 	int *m = ((int *) addr) + (nr >> 5);
 
 	__asm__ __volatile__(
+#ifdef CONFIG_SMP
+	"	mb\n"
+#endif
 	"1:	ldl_l %0,%4\n"
 	"	and %0,%3,%2\n"
 	"	xor %0,%3,%0\n"
