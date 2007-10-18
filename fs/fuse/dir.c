@@ -1032,11 +1032,6 @@ static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg)
 		arg->atime = iattr->ia_atime.tv_sec;
 		arg->mtime = iattr->ia_mtime.tv_sec;
 	}
-	if (ivalid & ATTR_FILE) {
-		struct fuse_file *ff = iattr->ia_file->private_data;
-		arg->valid |= FATTR_FH;
-		arg->fh = ff->fh;
-	}
 }
 
 /*
@@ -1047,7 +1042,8 @@ static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg)
  * vmtruncate() doesn't allow for this case, so do the rlimit checking
  * and the actual truncation by hand.
  */
-static int fuse_setattr(struct dentry *entry, struct iattr *attr)
+static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
+			   struct file *file)
 {
 	struct inode *inode = entry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -1082,6 +1078,11 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 
 	memset(&inarg, 0, sizeof(inarg));
 	iattr_to_fattr(attr, &inarg);
+	if (file) {
+		struct fuse_file *ff = file->private_data;
+		inarg.valid |= FATTR_FH;
+		inarg.fh = ff->fh;
+	}
 	req->in.h.opcode = FUSE_SETATTR;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.numargs = 1;
@@ -1106,6 +1107,14 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 
 	fuse_change_attributes(inode, &outarg.attr, attr_timeout(&outarg), 0);
 	return 0;
+}
+
+static int fuse_setattr(struct dentry *entry, struct iattr *attr)
+{
+	if (attr->ia_valid & ATTR_FILE)
+		return fuse_do_setattr(entry, attr, attr->ia_file);
+	else
+		return fuse_do_setattr(entry, attr, NULL);
 }
 
 static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
