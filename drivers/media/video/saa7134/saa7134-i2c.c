@@ -323,7 +323,6 @@ static int attach_inform(struct i2c_client *client)
 {
 	struct saa7134_dev *dev = client->adapter->algo_data;
 	int tuner = dev->tuner_type;
-	int conf  = dev->tda9887_conf;
 	struct tuner_setup tun_setup;
 
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
@@ -360,7 +359,6 @@ static int attach_inform(struct i2c_client *client)
 	}
 
 	if (tuner != UNSET) {
-
 		tun_setup.type = tuner;
 		tun_setup.addr = saa7134_boards[dev->board].tuner_addr;
 		tun_setup.config = saa7134_boards[dev->board].tuner_config;
@@ -372,9 +370,18 @@ static int attach_inform(struct i2c_client *client)
 
 			client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
+
+		if (tuner == TUNER_TDA9887) {
+			struct v4l2_priv_tun_config tda9887_cfg;
+
+			tda9887_cfg.tuner = TUNER_TDA9887;
+			tda9887_cfg.priv = &dev->tda9887_conf;
+
+			client->driver->command(client, TUNER_SET_CONFIG,
+						&tda9887_cfg);
+		}
 	}
 
-	client->driver->command(client, TDA9887_SET_CONFIG, &conf);
 
 	return 0;
 }

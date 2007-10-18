@@ -127,8 +127,14 @@ static int attach_inform(struct i2c_client *client)
 		}
 	}
 
-	if (core->board.tda9887_conf)
-		client->driver->command(client, TDA9887_SET_CONFIG, &core->board.tda9887_conf);
+	if (core->board.tda9887_conf) {
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv  = &core->board.tda9887_conf;
+
+		client->driver->command(client, TUNER_SET_CONFIG, &tda9887_cfg);
+	}
 	return 0;
 }
 

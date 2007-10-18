@@ -400,7 +400,7 @@ static const char *v4l2_int_ioctls[] = {
 
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
 	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
-	[_IOC_NR(TDA9887_SET_CONFIG)]          = "TDA9887_SET_CONFIG",
+	[_IOC_NR(TUNER_SET_CONFIG)]            = "TUNER_SET_CONFIG",
 
 	[_IOC_NR(VIDIOC_INT_S_TUNER_MODE)]     = "VIDIOC_INT_S_TUNER_MODE",
 	[_IOC_NR(VIDIOC_INT_RESET)]            = "VIDIOC_INT_RESET",

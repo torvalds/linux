@@ -421,6 +421,8 @@ static int attach_inform(struct i2c_client *client)
 		case 0x96:
 		case 0x94:
 		{
+			struct v4l2_priv_tun_config tda9887_cfg;
+
 			struct tuner_setup tun_setup;
 
 			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
@@ -428,7 +430,11 @@ static int attach_inform(struct i2c_client *client)
 			tun_setup.addr = client->addr;
 
 			em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
-			em28xx_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
+
+			tda9887_cfg.tuner = TUNER_TDA9887;
+			tda9887_cfg.priv = &dev->tda9887_conf;
+			em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG,
+						&tda9887_cfg);
 			break;
 		}
 		case 0x42:

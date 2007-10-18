@@ -3574,8 +3574,12 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	}
 
 	if (btv->tda9887_conf) {
-		bttv_call_i2c_clients(btv, TDA9887_SET_CONFIG,
-							&btv->tda9887_conf);
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv = &btv->tda9887_conf;
+
+		bttv_call_i2c_clients(btv, TUNER_SET_CONFIG, &tda9887_cfg);
 	}
 
 	btv->svhs = bttv_tvcards[btv->c.type].svhs;

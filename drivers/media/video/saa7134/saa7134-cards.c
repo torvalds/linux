@@ -4570,8 +4570,17 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 
 		printk(KERN_INFO "%s Tuner type is %d\n", dev->name, dev->tuner_type);
 		if (dev->tuner_type == TUNER_PHILIPS_FMD1216ME_MK3) {
-			dev->tda9887_conf = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE | TDA9887_PORT2_ACTIVE;
-			saa7134_i2c_call_clients(dev,TDA9887_SET_CONFIG, &dev->tda9887_conf);
+			struct v4l2_priv_tun_config tda9887_cfg;
+
+			tda9887_cfg.tuner = TUNER_TDA9887;
+			tda9887_cfg.priv  = &dev->tda9887_conf;
+
+			dev->tda9887_conf = TDA9887_PRESENT      |
+					    TDA9887_PORT1_ACTIVE |
+					    TDA9887_PORT2_ACTIVE;
+
+			saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG,
+						 &tda9887_cfg);
 		}
 
 		tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;

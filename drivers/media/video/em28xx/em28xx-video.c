@@ -186,11 +186,6 @@ static void em28xx_config_i2c(struct em28xx *dev)
 	f.frequency = 9076;	/* FIXME:remove magic number */
 	dev->ctl_freq = f.frequency;
 	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
-
-	/* configure tda9887 */
-
-
-/*	em28xx_i2c_call_clients(dev,VIDIOC_S_STD,&dev->tvnorm->id); */
 }
 
 /*

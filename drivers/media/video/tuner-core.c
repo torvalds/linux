@@ -889,14 +889,29 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			return 0;
 		}
 #endif
-	case TDA9887_SET_CONFIG:
-		if (t->type == TUNER_TDA9887) {
-			int *i = arg;
+	case TUNER_SET_CONFIG:
+	{
+		struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
+		struct v4l2_priv_tun_config *cfg = arg;
 
-			t->tda9887_config = *i;
+		if (t->type != cfg->tuner)
+			break;
+
+		if (t->type == TUNER_TDA9887) {
+			t->tda9887_config = *(unsigned int *)cfg->priv;
 			set_freq(client, t->tv_freq);
+			break;
 		}
+
+		if (NULL == fe_tuner_ops->set_config) {
+			tuner_warn("Tuner frontend module has no way to "
+				   "set config\n");
+			break;
+		}
+		fe_tuner_ops->set_config(&t->fe, cfg->priv);
+
 		break;
+	}
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
 	   kernel pointer here... */

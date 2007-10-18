@@ -1236,16 +1236,24 @@ static int set_control(struct saa7134_dev *dev, struct saa7134_fh *fh,
 		restart_overlay = 1;
 		break;
 	case V4L2_CID_PRIVATE_AUTOMUTE:
+	{
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv = &dev->tda9887_conf;
+
 		dev->ctl_automute = c->value;
 		if (dev->tda9887_conf) {
 			if (dev->ctl_automute)
 				dev->tda9887_conf |= TDA9887_AUTOMUTE;
 			else
 				dev->tda9887_conf &= ~TDA9887_AUTOMUTE;
-			saa7134_i2c_call_clients(dev, TDA9887_SET_CONFIG,
-						 &dev->tda9887_conf);
+
+			saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG,
+						 &tda9887_cfg);
 		}
 		break;
+	}
 	default:
 		return -EINVAL;
 	}
