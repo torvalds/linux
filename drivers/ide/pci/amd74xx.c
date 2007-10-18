@@ -233,7 +233,6 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
  * Print the boot message.
  */
 
-	pci_read_config_byte(dev, PCI_REVISION_ID, &t);
 	printk(KERN_INFO "%s: %s (rev %02x) UDMA%s controller\n",
 		amd_chipset->name, pci_name(dev), dev->revision,
 		amd_dma[fls(amd_config->udma_mask) - 1]);
