@@ -46,7 +46,14 @@
 	lh	t1, KV_RO_NASID_OFFSET(t0)
 	lh	t2, KV_RW_NASID_OFFSET(t0)
 	MAPPED_KERNEL_SETUP_TLB
-	ARC64_TWIDDLE_PC
+
+	/*
+	 * We might not get launched at the address the kernel is linked to,
+	 * so we jump there.
+	 */
+	PTR_LA  t0, 0f
+	jr      t0
+0:
 	.endm
 
 #endif /* __ASM_MACH_IP27_KERNEL_ENTRY_H */

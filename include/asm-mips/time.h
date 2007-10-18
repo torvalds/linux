@@ -40,7 +40,6 @@ extern int rtc_mips_set_mmss(unsigned long);
  * mips_timer_ack may be NULL if the interrupt is self-recoverable.
  */
 extern int (*mips_timer_state)(void);
-extern void (*mips_timer_ack)(void);
 
 /*
  * High precision timer clocksource.
@@ -76,6 +75,12 @@ extern int (*perf_irq)(void);
 /*
  * Initialize the calling CPU's compare interrupt as clockevent device
  */
+#ifdef CONFIG_CEVT_R4K
 extern void mips_clockevent_init(void);
+#else
+static inline void mips_clockevent_init(void)
+{
+}
+#endif
 
 #endif /* _ASM_TIME_H */

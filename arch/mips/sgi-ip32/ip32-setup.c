@@ -80,12 +80,6 @@ void __init plat_time_init(void)
 	printk("%d MHz CPU detected\n", mips_hpt_frequency * 2 / 1000000);
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	irq->handler = no_action;
-	setup_irq(MIPS_CPU_IRQ_BASE + 7, irq);
-}
-
 void __init plat_mem_setup(void)
 {
 	board_be_init = ip32_be_init;

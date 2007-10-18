@@ -374,14 +374,13 @@ int __devinit request_bridge_irq(struct bridge_controller *bc)
 	return irq;
 }
 
-extern void ip27_rt_timer_interrupt(void);
-
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned long pending = read_c0_cause() & read_c0_status();
+	extern unsigned int rt_timer_irq;
 
 	if (pending & CAUSEF_IP4)
-		ip27_rt_timer_interrupt();
+		do_IRQ(rt_timer_irq);
 	else if (pending & CAUSEF_IP2)	/* PI_INT_PEND_0 or CC_PEND_{A|B} */
 		ip27_do_irq_mask0();
 	else if (pending & CAUSEF_IP3)	/* PI_INT_PEND_1 */

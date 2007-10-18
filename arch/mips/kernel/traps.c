@@ -1336,6 +1336,17 @@ extern void cpu_cache_init(void);
 extern void tlb_init(void);
 extern void flush_tlb_handlers(void);
 
+/*
+ * Timer interrupt
+ */
+int cp0_compare_irq;
+
+/*
+ * Performance counter IRQ or -1 if shared with timer
+ */
+int cp0_perfcount_irq;
+EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
+
 void __init per_cpu_trap_init(void)
 {
 	unsigned int cpu = smp_processor_id();

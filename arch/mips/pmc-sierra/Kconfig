@@ -4,11 +4,13 @@ choice
 
 config PMC_MSP4200_EVAL
 	bool "PMC-Sierra MSP4200 Eval Board"
+	select CEVT_R4K
 	select IRQ_MSP_SLP
 	select HW_HAS_PCI
 
 config PMC_MSP4200_GW
 	bool "PMC-Sierra MSP4200 VoIP Gateway"
+	select CEVT_R4K
 	select IRQ_MSP_SLP
 	select HW_HAS_PCI
 

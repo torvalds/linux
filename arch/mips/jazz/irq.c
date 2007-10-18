@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1992 Linus Torvalds
- * Copyright (C) 1994 - 2001, 2003 Ralf Baechle
+ * Copyright (C) 1994 - 2001, 2003, 07 Ralf Baechle
  */
 #include <linux/clockchips.h>
 #include <linux/init.h>
@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/irq_cpu.h>
+#include <asm/i8253.h>
 #include <asm/i8259.h>
 #include <asm/io.h>
 #include <asm/jazz.h>
@@ -136,7 +137,7 @@ static struct irqaction r4030_timer_irqaction = {
 	.name		= "timer",
 };
 
-void __init plat_timer_setup(struct irqaction *ignored)
+void __init plat_time_init(void)
 {
 	struct irqaction *irq = &r4030_timer_irqaction;
 
@@ -152,4 +153,5 @@ void __init plat_timer_setup(struct irqaction *ignored)
 	setup_irq(JAZZ_TIMER_IRQ, irq);
 
 	clockevents_register_device(&r4030_clockevent);
+	setup_pit_timer();
 }
