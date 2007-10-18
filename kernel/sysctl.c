@@ -703,7 +703,6 @@ static struct ctl_table kern_table[] = {
 #endif
 #if	defined(CONFIG_ACPI_SLEEP) && defined(CONFIG_X86)
 	{
-		.ctl_name	= KERN_ACPI_VIDEO_FLAGS,
 		.procname	= "acpi_video_flags",
 		.data		= &acpi_realmode_flags,
 		.maxlen		= sizeof (unsigned long),
@@ -1185,7 +1184,6 @@ static struct ctl_table fs_table[] = {
 		.extra2		= &two,
 	},
 	{
-		.ctl_name	= FS_AIO_NR,
 		.procname	= "aio-nr",
 		.data		= &aio_nr,
 		.maxlen		= sizeof(aio_nr),
@@ -1193,7 +1191,6 @@ static struct ctl_table fs_table[] = {
 		.proc_handler	= &proc_doulongvec_minmax,
 	},
 	{
-		.ctl_name	= FS_AIO_MAX_NR,
 		.procname	= "aio-max-nr",
 		.data		= &aio_max_nr,
 		.maxlen		= sizeof(aio_max_nr),
