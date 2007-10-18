@@ -114,7 +114,7 @@ static unsigned int read_magic_time(void)
 	get_rtc_time(&time);
 	printk("Time: %2d:%02d:%02d  Date: %02d/%02d/%02d\n",
 		time.tm_hour, time.tm_min, time.tm_sec,
-		time.tm_mon, time.tm_mday, time.tm_year);
+		time.tm_mon + 1, time.tm_mday, time.tm_year % 100);
 	val = time.tm_year;				/* 100 years */
 	if (val > 100)
 		val -= 100;
