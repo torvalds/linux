@@ -1260,6 +1260,8 @@ static void rtl8168cp_hw_phy_config(void __iomem *ioaddr)
 static void rtl8168c_hw_phy_config(void __iomem *ioaddr)
 {
 	struct phy_reg phy_reg_init[] = {
+		{ 0x1f, 0x0001 },
+		{ 0x12, 0x2300 },
 		{ 0x1f, 0x0002 },
 		{ 0x00, 0x88d4 },
 		{ 0x01, 0x82b1 },
