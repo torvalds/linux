@@ -11,7 +11,7 @@
 #
 # If physical address of wakeup_code is 0x12345, BIOS should call us with
 # cs = 0x1234, eip = 0x05
-# 
+#
 
 #define BEEP \
 	inb	$97, %al; 	\
@@ -52,7 +52,6 @@ wakeup_code:
 	BEEP
 1:
 	mov	$(wakeup_stack - wakeup_code), %sp		# Private stack is needed for ASUS board
-	movw	$0x0e00 + 'S', %fs:(0x12)
 
 	pushl	$0						# Kill any dangerous flags
 	popfl
@@ -90,9 +89,6 @@ wakeup_code:
 	# make sure %cr4 is set correctly (features, etc)
 	movl	real_save_cr4 - wakeup_code, %eax
 	movl	%eax, %cr4
-	movw	$0xb800, %ax
-	movw	%ax,%fs
-	movw	$0x0e00 + 'i', %fs:(0x12)
 	
 	# need a gdt -- use lgdtl to force 32-bit operands, in case
 	# the GDT is located past 16 megabytes.
@@ -102,8 +98,6 @@ wakeup_code:
 	movl	%eax, %cr0
 	jmp 1f
 1:
-	movw	$0x0e00 + 'n', %fs:(0x14)
-
 	movl	real_magic - wakeup_code, %eax
 	cmpl	$0x12345678, %eax
 	jne	bogus_real_magic
@@ -122,13 +116,11 @@ real_save_cr4:	.long 0
 real_magic:	.long 0
 video_mode:	.long 0
 realmode_flags:	.long 0
-beep_flags:	.long 0
 real_efer_save_restore:	.long 0
 real_save_efer_edx: 	.long 0
 real_save_efer_eax: 	.long 0
 
 bogus_real_magic:
-	movw	$0x0e00 + 'B', %fs:(0x12)
 	jmp bogus_real_magic
 
 /* This code uses an extended set of video mode numbers. These include:
@@ -194,7 +186,6 @@ wakeup_pmode_return:
 	movw	%ax, %es
 	movw	%ax, %fs
 	movw	%ax, %gs
-	movw	$0x0e00 + 'u', 0xb8016
 
 	# reload the gdt, as we need the full 32 bit address
 	lgdt	saved_gdt
@@ -218,7 +209,6 @@ wakeup_pmode_return:
 	jmp	*%eax
 
 bogus_magic:
-	movw	$0x0e00 + 'B', 0xb8018
 	jmp	bogus_magic
 
 

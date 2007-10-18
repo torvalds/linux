@@ -41,7 +41,6 @@ wakeup_code:
 
 # Running in *copy* of this code, somewhere in low 1MB.
 
-	movb	$0xa1, %al	;  outb %al, $0x80
 	cli
 	cld
 	# setup data segment
@@ -65,11 +64,6 @@ wakeup_code:
 	cmpl	$0x12345678, %eax
 	jne	bogus_real_magic
 
-  	call	verify_cpu			# Verify the cpu supports long
-						# mode
-	testl	%eax, %eax
-	jnz	no_longmode
-
 	testl	$1, realmode_flags - wakeup_code
 	jz	1f
 	lcall   $0xc000,$3
@@ -84,12 +78,6 @@ wakeup_code:
 	call	mode_set
 1:
 
- 	movw	$0xb800, %ax
-	movw	%ax,%fs
-	movw	$0x0e00 + 'L', %fs:(0x10)
-
-	movb	$0xa2, %al	;  outb %al, $0x80
-	
 	mov	%ds, %ax			# Find 32bit wakeup_code addr
 	movzx   %ax, %esi			# (Convert %ds:gdt to a liner ptr)
 	shll    $4, %esi
@@ -117,13 +105,9 @@ wakeup_32_vector:
 	.code32
 wakeup_32:
 # Running in this code, but at low address; paging is not yet turned on.
-	movb	$0xa5, %al	;  outb %al, $0x80
 
 	movl	$__KERNEL_DS, %eax
 	movl	%eax, %ds
-
-	movw	$0x0e00 + 'i', %ds:(0xb8012)
-	movb	$0xa8, %al	;  outb %al, $0x80;
 
 	/*
 	 * Prepare for entering 64bits mode
@@ -200,16 +184,11 @@ wakeup_long64:
 	 */
 	lgdt	cpu_gdt_descr
 
-	movw	$0x0e00 + 'n', %ds:(0xb8014)
-	movb	$0xa9, %al	;  outb %al, $0x80
-
 	movq    saved_magic, %rax
 	movq    $0x123456789abcdef0, %rdx
 	cmpq    %rdx, %rax
 	jne     bogus_64_magic
 
-	movw	$0x0e00 + 'u', %ds:(0xb8016)
-	
 	nop
 	nop
 	movw	$__KERNEL_DS, %ax
@@ -220,13 +199,11 @@ wakeup_long64:
 	movw	%ax, %gs
 	movq	saved_rsp, %rsp
 
-	movw	$0x0e00 + 'x', %ds:(0xb8018)
 	movq	saved_rbx, %rbx
 	movq	saved_rdi, %rdi
 	movq	saved_rsi, %rsi
 	movq	saved_rbp, %rbp
 
-	movw	$0x0e00 + '!', %ds:(0xb801a)
 	movq	saved_rip, %rax
 	jmp	*%rax
 
@@ -256,21 +233,12 @@ realmode_flags:	.quad 0
 
 .code16
 bogus_real_magic:
-	movb	$0xba,%al	;  outb %al,$0x80
 	jmp bogus_real_magic
 
 .code64
 bogus_64_magic:
-	movb	$0xb3,%al	;  outb %al,$0x80
 	jmp bogus_64_magic
 
-.code16
-no_longmode:
-	movb    $0xbc,%al       ;  outb %al,$0x80
-	jmp no_longmode
-
-#include "../verify_cpu_64.S"
-	
 /* This code uses an extended set of video mode numbers. These include:
  * Aliases for standard modes
  *	NORMAL_VGA (-1)
