@@ -365,6 +365,16 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
 			     int                  priority);
 
 /*
+ * Poll the IPMI interface for the user.  This causes the IPMI code to
+ * do an immediate check for information from the driver and handle
+ * anything that is immediately pending.  This will not block in any
+ * way.  This is useful if you need to implement polling from the user
+ * for things like modifying the watchdog timeout when a panic occurs
+ * or disabling the watchdog timer on a reboot.
+ */
+void ipmi_poll_interface(ipmi_user_t user);
+
+/*
  * When commands come in to the SMS, the user can register to receive
  * them.  Only one user can be listening on a specific netfn/cmd/chan tuple
  * at a time, you will get an EBUSY error if the command is already

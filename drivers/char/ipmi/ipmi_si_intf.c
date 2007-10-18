@@ -675,7 +675,8 @@ static void handle_transaction_done(struct smi_info *smi_info)
 }
 
 /* Called on timeouts and events.  Timeouts should pass the elapsed
-   time, interrupts should pass in zero. */
+   time, interrupts should pass in zero.  Must be called with
+   si_lock held and interrupts disabled. */
 static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 					   int time)
 {
@@ -892,13 +893,16 @@ static int ipmi_thread(void *data)
 static void poll(void *send_info)
 {
 	struct smi_info *smi_info = send_info;
+	unsigned long flags;
 
 	/*
 	 * Make sure there is some delay in the poll loop so we can
 	 * drive time forward and timeout things.
 	 */
 	udelay(10);
+	spin_lock_irqsave(&smi_info->si_lock, flags);
 	smi_event_handler(smi_info, 10);
+	spin_unlock_irqrestore(&smi_info->si_lock, flags);
 }
 
 static void request_events(void *send_info)

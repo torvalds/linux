@@ -2614,6 +2614,14 @@ channel_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 	return;
 }
 
+void ipmi_poll_interface(ipmi_user_t user)
+{
+	ipmi_smi_t intf = user->intf;
+
+	if (intf->handlers->poll)
+		intf->handlers->poll(intf->send_info);
+}
+
 int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		      void		       *send_info,
 		      struct ipmi_device_id    *device_id,
@@ -4166,6 +4174,7 @@ EXPORT_SYMBOL(ipmi_destroy_user);
 EXPORT_SYMBOL(ipmi_get_version);
 EXPORT_SYMBOL(ipmi_request_settime);
 EXPORT_SYMBOL(ipmi_request_supply_msgs);
+EXPORT_SYMBOL(ipmi_poll_interface);
 EXPORT_SYMBOL(ipmi_register_smi);
 EXPORT_SYMBOL(ipmi_unregister_smi);
 EXPORT_SYMBOL(ipmi_register_for_cmd);

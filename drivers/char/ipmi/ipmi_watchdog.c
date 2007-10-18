@@ -314,8 +314,6 @@ static unsigned char ipmi_version_minor;
 static atomic_t preop_panic_excl = ATOMIC_INIT(-1);
 
 static int ipmi_heartbeat(void);
-static void panic_halt_ipmi_heartbeat(void);
-
 
 /* We use a mutex to make sure that only one thing can send a set
    timeout at one time, because we only have one copy of the data.
@@ -440,19 +438,64 @@ out:
 	return rv;
 }
 
-static void dummy_smi_free(struct ipmi_smi_msg *msg)
+static atomic_t panic_done_count = ATOMIC_INIT(0);
+
+static void panic_smi_free(struct ipmi_smi_msg *msg)
 {
+	atomic_dec(&panic_done_count);
 }
-static void dummy_recv_free(struct ipmi_recv_msg *msg)
+static void panic_recv_free(struct ipmi_recv_msg *msg)
 {
+	atomic_dec(&panic_done_count);
 }
+
+static struct ipmi_smi_msg panic_halt_heartbeat_smi_msg =
+{
+	.done = panic_smi_free
+};
+static struct ipmi_recv_msg panic_halt_heartbeat_recv_msg =
+{
+	.done = panic_recv_free
+};
+
+static void panic_halt_ipmi_heartbeat(void)
+{
+	struct kernel_ipmi_msg             msg;
+	struct ipmi_system_interface_addr addr;
+	int rv;
+
+	/* Don't reset the timer if we have the timer turned off, that
+           re-enables the watchdog. */
+	if (ipmi_watchdog_state == WDOG_TIMEOUT_NONE)
+		return;
+
+	addr.addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
+	addr.channel = IPMI_BMC_CHANNEL;
+	addr.lun = 0;
+
+	msg.netfn = 0x06;
+	msg.cmd = IPMI_WDOG_RESET_TIMER;
+	msg.data = NULL;
+	msg.data_len = 0;
+	rv = ipmi_request_supply_msgs(watchdog_user,
+				      (struct ipmi_addr *) &addr,
+				      0,
+				      &msg,
+				      NULL,
+				      &panic_halt_heartbeat_smi_msg,
+				      &panic_halt_heartbeat_recv_msg,
+				      1);
+	if (!rv)
+		atomic_add(2, &panic_done_count);
+}
+
 static struct ipmi_smi_msg panic_halt_smi_msg =
 {
-	.done = dummy_smi_free
+	.done = panic_smi_free
 };
 static struct ipmi_recv_msg panic_halt_recv_msg =
 {
-	.done = dummy_recv_free
+	.done = panic_recv_free
 };
 
 /* Special call, doesn't claim any locks.  This is only to be called
@@ -464,13 +507,21 @@ static void panic_halt_ipmi_set_timeout(void)
 	int send_heartbeat_now;
 	int rv;
 
+	/* Wait for the messages to be free. */
+	while (atomic_read(&panic_done_count) != 0)
+		ipmi_poll_interface(watchdog_user);
 	rv = i_ipmi_set_timeout(&panic_halt_smi_msg,
 				&panic_halt_recv_msg,
 				&send_heartbeat_now);
 	if (!rv) {
+		atomic_add(2, &panic_done_count);
 		if (send_heartbeat_now)
 			panic_halt_ipmi_heartbeat();
-	}
+	} else
+		printk(KERN_WARNING PFX
+		       "Unable to extend the watchdog timeout.");
+	while (atomic_read(&panic_done_count) != 0)
+		ipmi_poll_interface(watchdog_user);
 }
 
 /* We use a semaphore to make sure that only one thing can send a
@@ -497,15 +548,6 @@ static struct ipmi_smi_msg heartbeat_smi_msg =
 static struct ipmi_recv_msg heartbeat_recv_msg =
 {
 	.done = heartbeat_free_recv
-};
- 
-static struct ipmi_smi_msg panic_halt_heartbeat_smi_msg =
-{
-	.done = dummy_smi_free
-};
-static struct ipmi_recv_msg panic_halt_heartbeat_recv_msg =
-{
-	.done = dummy_recv_free
 };
  
 static int ipmi_heartbeat(void)
@@ -578,35 +620,6 @@ static int ipmi_heartbeat(void)
 	mutex_unlock(&heartbeat_lock);
 
 	return rv;
-}
-
-static void panic_halt_ipmi_heartbeat(void)
-{
-	struct kernel_ipmi_msg             msg;
-	struct ipmi_system_interface_addr addr;
-
-
-	/* Don't reset the timer if we have the timer turned off, that
-           re-enables the watchdog. */
-	if (ipmi_watchdog_state == WDOG_TIMEOUT_NONE)
-		return;
-
-	addr.addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
-	addr.channel = IPMI_BMC_CHANNEL;
-	addr.lun = 0;
-
-	msg.netfn = 0x06;
-	msg.cmd = IPMI_WDOG_RESET_TIMER;
-	msg.data = NULL;
-	msg.data_len = 0;
-	ipmi_request_supply_msgs(watchdog_user,
-				 (struct ipmi_addr *) &addr,
-				 0,
-				 &msg,
-				 NULL,
-				 &panic_halt_heartbeat_smi_msg,
-				 &panic_halt_heartbeat_recv_msg,
-				 1);
 }
 
 static struct watchdog_info ident =
@@ -998,7 +1011,7 @@ static int wdog_reboot_handler(struct notifier_block *this,
 		/* Make sure we only do this once. */
 		reboot_event_handled = 1;
 
-		if (code == SYS_DOWN || code == SYS_HALT) {
+		if (code == SYS_POWER_OFF || code == SYS_HALT) {
 			/* Disable the WDT if we are shutting down. */
 			ipmi_watchdog_state = WDOG_TIMEOUT_NONE;
 			panic_halt_ipmi_set_timeout();
