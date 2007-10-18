@@ -1068,6 +1068,7 @@ struct ctl_table_header
 struct ctl_table_header *register_sysctl_table(struct ctl_table * table);
 
 void unregister_sysctl_table(struct ctl_table_header * table);
+int sysctl_check_table(struct ctl_table *table);
 
 #else /* __KERNEL__ */
 

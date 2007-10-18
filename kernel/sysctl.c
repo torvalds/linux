@@ -1461,7 +1461,9 @@ static void sysctl_set_parent(struct ctl_table *parent, struct ctl_table *table)
 
 static __init int sysctl_init(void)
 {
+	int err;
 	sysctl_set_parent(NULL, root_table);
+	err = sysctl_check_table(root_table);
 	return 0;
 }
 
@@ -1546,6 +1548,10 @@ struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
 	tmp->used = 0;
 	tmp->unregistering = NULL;
 	sysctl_set_parent(NULL, table);
+	if (sysctl_check_table(tmp->ctl_table)) {
+		kfree(tmp);
+		return NULL;
+	}
 	spin_lock(&sysctl_lock);
 	list_add_tail(&tmp->ctl_entry, &root_table_header.ctl_entry);
 	spin_unlock(&sysctl_lock);
