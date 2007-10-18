@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1996, 1997, 1998, 2001 by Ralf Baechle
+ * Copyright (C) 1996, 1997, 1998, 2001, 07 by Ralf Baechle
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2007 by Thomas Bogendoerfer
  */
@@ -25,7 +25,6 @@
 #include <linux/serial_8250.h>
 
 #include <asm/bootinfo.h>
-#include <asm/i8253.h>
 #include <asm/irq.h>
 #include <asm/jazz.h>
 #include <asm/jazzdma.h>
@@ -63,11 +62,6 @@ static struct resource jazz_io_resources[] = {
 		.flags	= IORESOURCE_BUSY
 	}
 };
-
-void __init plat_time_init(void)
-{
-	setup_pit_timer();
-}
 
 void __init plat_mem_setup(void)
 {
