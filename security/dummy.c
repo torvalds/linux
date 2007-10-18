@@ -37,15 +37,13 @@ static int dummy_capget (struct task_struct *target, kernel_cap_t * effective,
 			 kernel_cap_t * inheritable, kernel_cap_t * permitted)
 {
 	*effective = *inheritable = *permitted = 0;
-	if (!issecure(SECURE_NOROOT)) {
-		if (target->euid == 0) {
-			*permitted |= (~0 & ~CAP_FS_MASK);
-			*effective |= (~0 & ~CAP_TO_MASK(CAP_SETPCAP) & ~CAP_FS_MASK);
-		}
-		if (target->fsuid == 0) {
-			*permitted |= CAP_FS_MASK;
-			*effective |= CAP_FS_MASK;
-		}
+	if (target->euid == 0) {
+		*permitted |= (~0 & ~CAP_FS_MASK);
+		*effective |= (~0 & ~CAP_TO_MASK(CAP_SETPCAP) & ~CAP_FS_MASK);
+	}
+	if (target->fsuid == 0) {
+		*permitted |= CAP_FS_MASK;
+		*effective |= CAP_FS_MASK;
 	}
 	return 0;
 }

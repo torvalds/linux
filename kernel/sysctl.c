@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
-#include <linux/capability.h>
+#include <linux/security.h>
 #include <linux/ctype.h>
 #include <linux/utsname.h>
 #include <linux/smp_lock.h>
@@ -371,6 +371,7 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec_taint,
 	},
 #endif
+#ifdef CONFIG_SECURITY_CAPABILITIES
 	{
 		.procname	= "cap-bound",
 		.data		= &cap_bset,
@@ -378,6 +379,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0600,
 		.proc_handler	= &proc_dointvec_bset,
 	},
+#endif /* def CONFIG_SECURITY_CAPABILITIES */
 #ifdef CONFIG_BLK_DEV_INITRD
 	{
 		.ctl_name	= KERN_REALROOTDEV,
@@ -1872,10 +1874,11 @@ static int do_proc_dointvec_bset_conv(int *negp, unsigned long *lvalp,
 	return 0;
 }
 
+#ifdef CONFIG_SECURITY_CAPABILITIES
 /*
  *	init may raise the set.
  */
- 
+
 int proc_dointvec_bset(struct ctl_table *table, int write, struct file *filp,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1889,6 +1892,7 @@ int proc_dointvec_bset(struct ctl_table *table, int write, struct file *filp,
 	return do_proc_dointvec(table,write,filp,buffer,lenp,ppos,
 				do_proc_dointvec_bset_conv,&op);
 }
+#endif /* def CONFIG_SECURITY_CAPABILITIES */
 
 /*
  *	Taint values can only be increased

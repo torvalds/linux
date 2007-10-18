@@ -24,6 +24,25 @@
 #include <linux/hugetlb.h>
 #include <linux/mount.h>
 
+#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
+/*
+ * Because of the reduced scope of CAP_SETPCAP when filesystem
+ * capabilities are in effect, it is safe to allow this capability to
+ * be available in the default configuration.
+ */
+# define CAP_INIT_BSET  CAP_FULL_SET
+#else /* ie. ndef CONFIG_SECURITY_FILE_CAPABILITIES */
+# define CAP_INIT_BSET  CAP_INIT_EFF_SET
+#endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
+
+kernel_cap_t cap_bset = CAP_INIT_BSET;    /* systemwide capability bound */
+EXPORT_SYMBOL(cap_bset);
+
+/* Global security state */
+
+unsigned securebits = SECUREBITS_DEFAULT; /* systemwide security settings */
+EXPORT_SYMBOL(securebits);
+
 int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	NETLINK_CB(skb).eff_cap = current->cap_effective;
@@ -73,14 +92,44 @@ int cap_capget (struct task_struct *target, kernel_cap_t *effective,
 	return 0;
 }
 
+#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
+
+static inline int cap_block_setpcap(struct task_struct *target)
+{
+	/*
+	 * No support for remote process capability manipulation with
+	 * filesystem capability support.
+	 */
+	return (target != current);
+}
+
+static inline int cap_inh_is_capped(void)
+{
+	/*
+	 * return 1 if changes to the inheritable set are limited
+	 * to the old permitted set.
+	 */
+	return !cap_capable(current, CAP_SETPCAP);
+}
+
+#else /* ie., ndef CONFIG_SECURITY_FILE_CAPABILITIES */
+
+static inline int cap_block_setpcap(struct task_struct *t) { return 0; }
+static inline int cap_inh_is_capped(void) { return 1; }
+
+#endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
+
 int cap_capset_check (struct task_struct *target, kernel_cap_t *effective,
 		      kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
-	/* Derived from kernel/capability.c:sys_capset. */
-	/* verify restrictions on target's new Inheritable set */
-	if (!cap_issubset (*inheritable,
-			   cap_combine (target->cap_inheritable,
-					current->cap_permitted))) {
+	if (cap_block_setpcap(target)) {
+		return -EPERM;
+	}
+	if (cap_inh_is_capped()
+	    && !cap_issubset(*inheritable,
+			     cap_combine(target->cap_inheritable,
+					 current->cap_permitted))) {
+		/* incapable of using this inheritable set */
 		return -EPERM;
 	}
 

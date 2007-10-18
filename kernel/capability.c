@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1997  Andrew Main <zefram@fysh.org>
  *
- * Integrated into 2.1.97+,  Andrew G. Morgan <morgan@transmeta.com>
+ * Integrated into 2.1.97+,  Andrew G. Morgan <morgan@kernel.org>
  * 30 May 2002:	Cleanup, Robert M. Love <rml@tech9.net>
  */ 
 
@@ -13,9 +13,6 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <asm/uaccess.h>
-
-unsigned securebits = SECUREBITS_DEFAULT; /* systemwide security settings */
-kernel_cap_t cap_bset = CAP_INIT_EFF_SET;
 
 /*
  * This lock protects task->cap_* for all tasks including current.

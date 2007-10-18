@@ -310,10 +310,6 @@ typedef __u32 kernel_cap_t;
 #define CAP_SETFCAP	     31
 
 #ifdef __KERNEL__
-/*
- * Bounding set
- */
-extern kernel_cap_t cap_bset;
 
 /*
  * Internal kernel functions only

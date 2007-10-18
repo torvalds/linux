@@ -34,6 +34,13 @@
 #include <linux/xfrm.h>
 #include <net/flow.h>
 
+/*
+ * Bounding set
+ */
+extern kernel_cap_t cap_bset;
+
+extern unsigned securebits;
+
 struct ctl_table;
 
 /*
