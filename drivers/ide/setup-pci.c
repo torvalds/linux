@@ -478,7 +478,6 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwi
 static int ide_setup_pci_controller(struct pci_dev *dev, ide_pci_device_t *d, int noisy, int *config)
 {
 	int ret;
-	u32 class_rev;
 	u16 pcicmd;
 
 	if (noisy)
@@ -501,10 +500,9 @@ static int ide_setup_pci_controller(struct pci_dev *dev, ide_pci_device_t *d, in
 		printk(KERN_INFO "%s: device enabled (Linux)\n", d->name);
 	}
 
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xff;
 	if (noisy)
-		printk(KERN_INFO "%s: chipset revision %d\n", d->name, class_rev);
+		printk(KERN_INFO "%s: chipset revision %d\n",
+				 d->name, dev->revision);
 out:
 	return ret;
 }

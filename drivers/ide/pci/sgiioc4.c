@@ -691,14 +691,12 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 static unsigned int __devinit
 pci_init_sgiioc4(struct pci_dev *dev)
 {
-	unsigned int class_rev;
 	int ret;
 
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xff;
 	printk(KERN_INFO "%s: IDE controller at PCI slot %s, revision %d\n",
-			 DRV_NAME, pci_name(dev), class_rev);
-	if (class_rev < IOC4_SUPPORTED_FIRMWARE_REV) {
+			 DRV_NAME, pci_name(dev), dev->revision);
+
+	if (dev->revision < IOC4_SUPPORTED_FIRMWARE_REV) {
 		printk(KERN_ERR "Skipping %s IDE controller in slot %s: "
 				"firmware is obsolete - please upgrade to "
 				"revision46 or higher\n",

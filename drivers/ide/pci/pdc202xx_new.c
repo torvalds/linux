@@ -332,16 +332,12 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 static void __devinit apple_kiwi_init(struct pci_dev *pdev)
 {
 	struct device_node *np = pci_device_to_OF_node(pdev);
-	unsigned int class_rev = 0;
 	u8 conf;
 
 	if (np == NULL || !of_device_is_compatible(np, "kiwi-root"))
 		return;
 
-	pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xff;
-
-	if (class_rev >= 0x03) {
+	if (pdev->revision >= 0x03) {
 		/* Setup chip magic config stuff (from darwin) */
 		pci_read_config_byte (pdev, 0x40, &conf);
 		pci_write_config_byte(pdev, 0x40, (conf | 0x01));
