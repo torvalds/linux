@@ -163,9 +163,6 @@ static struct ctl_table fs_table[];
 static struct ctl_table debug_table[];
 static struct ctl_table dev_table[];
 extern struct ctl_table random_table[];
-#ifdef CONFIG_UNIX98_PTYS
-extern struct ctl_table pty_table[];
-#endif
 #ifdef CONFIG_INOTIFY_USER
 extern struct ctl_table inotify_table[];
 #endif
@@ -534,14 +531,6 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0555,
 		.child		= random_table,
 	},
-#ifdef CONFIG_UNIX98_PTYS
-	{
-		.ctl_name	= KERN_PTY,
-		.procname	= "pty",
-		.mode		= 0555,
-		.child		= pty_table,
-	},
-#endif
 	{
 		.ctl_name	= KERN_OVERFLOWUID,
 		.procname	= "overflowuid",

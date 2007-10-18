@@ -318,7 +318,7 @@ int pty_limit = NR_UNIX98_PTY_DEFAULT;
 static int pty_limit_min = 0;
 static int pty_limit_max = NR_UNIX98_PTY_MAX;
 
-ctl_table pty_table[] = {
+static struct ctl_table pty_table[] = {
 	{
 		.ctl_name	= PTY_MAX,
 		.procname	= "max",
@@ -339,6 +339,27 @@ ctl_table pty_table[] = {
 		.ctl_name	= 0
 	}
 };
+
+static struct ctl_table pty_kern_table[] = {
+	{
+		.ctl_name	= KERN_PTY,
+		.procname	= "pty",
+		.mode		= 0555,
+		.child		= pty_table,
+	},
+	{}
+};
+
+static struct ctl_table pty_root_table[] = {
+	{
+		.ctl_name	= CTL_KERN,
+		.procname	= "kernel",
+		.mode		= 0555,
+		.child		= pty_kern_table,
+	},
+	{}
+};
+
 
 static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
 			    unsigned int cmd, unsigned long arg)
@@ -404,6 +425,7 @@ static void __init unix98_pty_init(void)
 		panic("Couldn't register Unix98 pts driver");
 
 	pty_table[1].data = &ptm_driver->refcount;
+	register_sysctl_table(pty_root_table);
 }
 #else
 static inline void unix98_pty_init(void) { }
