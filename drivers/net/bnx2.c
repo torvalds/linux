@@ -3079,14 +3079,18 @@ bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 			autoneg = bp->autoneg;
 			advertising = bp->advertising;
 
-			bp->autoneg = AUTONEG_SPEED;
-			bp->advertising = ADVERTISED_10baseT_Half |
-				ADVERTISED_10baseT_Full |
-				ADVERTISED_100baseT_Half |
-				ADVERTISED_100baseT_Full |
-				ADVERTISED_Autoneg;
+			if (bp->phy_port == PORT_TP) {
+				bp->autoneg = AUTONEG_SPEED;
+				bp->advertising = ADVERTISED_10baseT_Half |
+					ADVERTISED_10baseT_Full |
+					ADVERTISED_100baseT_Half |
+					ADVERTISED_100baseT_Full |
+					ADVERTISED_Autoneg;
+			}
 
-			bnx2_setup_copper_phy(bp);
+			spin_lock_bh(&bp->phy_lock);
+			bnx2_setup_phy(bp, bp->phy_port);
+			spin_unlock_bh(&bp->phy_lock);
 
 			bp->autoneg = autoneg;
 			bp->advertising = advertising;
@@ -3097,10 +3101,16 @@ bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 
 			/* Enable port mode. */
 			val &= ~BNX2_EMAC_MODE_PORT;
-			val |= BNX2_EMAC_MODE_PORT_MII |
-			       BNX2_EMAC_MODE_MPKT_RCVD |
+			val |= BNX2_EMAC_MODE_MPKT_RCVD |
 			       BNX2_EMAC_MODE_ACPI_RCVD |
 			       BNX2_EMAC_MODE_MPKT;
+			if (bp->phy_port == PORT_TP)
+				val |= BNX2_EMAC_MODE_PORT_MII;
+			else {
+				val |= BNX2_EMAC_MODE_PORT_GMII;
+				if (bp->line_speed == SPEED_2500)
+					val |= BNX2_EMAC_MODE_25G_MODE;
+			}
 
 			REG_WR(bp, BNX2_EMAC_MODE, val);
 
