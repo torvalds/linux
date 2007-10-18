@@ -73,7 +73,7 @@ SECTIONS
 	 * that we can properly leave these
 	 * as writable
 	 */
-	. = ALIGN(ASM_PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 	data_start = .;
 	. = ALIGN(16);
 	/* Exception table */
@@ -119,12 +119,12 @@ SECTIONS
 	/* nosave data is really only used for software suspend...it's here
 	 * just in case we ever implement it
 	 */
-	. = ALIGN(ASM_PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 	__nosave_begin = .;
 	.data_nosave : {
 		*(.data.nosave)
 	}
-	. = ALIGN(ASM_PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 	__nosave_end = .;
 
 	/* End of data section */
@@ -133,7 +133,7 @@ SECTIONS
 	/* BSS */
 	__bss_start = .;
 	/* page table entries need to be PAGE_SIZE aligned */
-	. = ALIGN(ASM_PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 	.data.vmpages : {
 		*(.data.vm0.pmd)
 		*(.data.vm0.pgd)
@@ -229,7 +229,7 @@ SECTIONS
 		*(.exit.data)
 	}
 #ifdef CONFIG_BLK_DEV_INITRD
-	. = ALIGN(ASM_PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 	.init.ramfs : {
 		__initramfs_start = .;
 		*(.init.ramfs)
@@ -237,8 +237,8 @@ SECTIONS
 	}
 #endif
 
-	PERCPU(ASM_PAGE_SIZE)
-	. = ALIGN(ASM_PAGE_SIZE);
+	PERCPU(PAGE_SIZE)
+	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 	/* freed after init ends here */
 	_end = . ;
