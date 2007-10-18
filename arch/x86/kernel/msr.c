@@ -133,7 +133,7 @@ static const struct file_operations msr_fops = {
 	.open = msr_open,
 };
 
-static int msr_device_create(int cpu)
+static int __cpuinit msr_device_create(int cpu)
 {
 	struct device *dev;
 
