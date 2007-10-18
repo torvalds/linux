@@ -398,7 +398,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
  */
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 {
-	struct sk_filter *fp;
+	struct sk_filter *fp, *old_fp;
 	unsigned int fsize = sizeof(struct sock_filter) * fprog->len;
 	int err;
 
@@ -418,19 +418,18 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	fp->len = fprog->len;
 
 	err = sk_chk_filter(fp->insns, fp->len);
-	if (!err) {
-		struct sk_filter *old_fp;
-
-		rcu_read_lock_bh();
-		old_fp = rcu_dereference(sk->sk_filter);
-		rcu_assign_pointer(sk->sk_filter, fp);
-		rcu_read_unlock_bh();
-		fp = old_fp;
+	if (err) {
+		sk_filter_uncharge(sk, fp);
+		return err;
 	}
 
-	if (fp)
-		sk_filter_uncharge(sk, fp);
-	return err;
+	rcu_read_lock_bh();
+	old_fp = rcu_dereference(sk->sk_filter);
+	rcu_assign_pointer(sk->sk_filter, fp);
+	rcu_read_unlock_bh();
+
+	sk_filter_uncharge(sk, old_fp);
+	return 0;
 }
 
 int sk_detach_filter(struct sock *sk)
