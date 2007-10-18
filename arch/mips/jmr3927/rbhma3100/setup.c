@@ -1,15 +1,4 @@
-/***********************************************************************
- *
- * Copyright 2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *              ahennessy@mvista.com
- *
- * Based on arch/mips/ddb5xxx/ddb5477/setup.c
- *
- *     Setup file for JMR3927.
- *
- * Copyright (C) 2000-2001 Toshiba Corporation
- *
+/*
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
@@ -30,9 +19,15 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
- ***********************************************************************
+ * Copyright 2001 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc.
+ *              ahennessy@mvista.com
+ *
+ * Copyright (C) 2000-2001 Toshiba Corporation
+ * Copyright (C) 2007 Ralf Baechle (ralf@linux-mips.org)
  */
 
+#include <linux/clockchips.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kdev_t.h>
@@ -104,27 +99,60 @@ static cycle_t jmr3927_hpt_read(void)
 	return jiffies * (JMR3927_TIMER_CLK / HZ) + jmr3927_tmrptr->trr;
 }
 
-static void jmr3927_timer_ack(void)
+static void jmr3927_set_mode(enum clock_event_mode mode,
+	struct clock_event_device *evt)
 {
-	jmr3927_tmrptr->tisr = 0;       /* ack interrupt */
+	/* Nothing to do here */
 }
+
+struct clock_event_device jmr3927_clock_event_device = {
+	.name		= "MIPS",
+	.features	= CLOCK_EVT_FEAT_PERIODIC,
+	.shift		= 32,
+	.rating		= 300,
+	.cpumask	= CPU_MASK_CPU0,
+	.irq		= JMR3927_IRQ_TICK,
+	.set_mode	= jmr3927_set_mode,
+};
+
+static irqreturn_t jmr3927_timer_interrupt(int irq, void *dev_id)
+{
+	struct clock_event_device *cd = &jmr3927_clock_event_device;
+
+	jmr3927_tmrptr->tisr = 0;       /* ack interrupt */
+
+	cd->event_handler(cd);
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction jmr3927_timer_irqaction = {
+	.handler	= jmr3927_timer_interrupt,
+	.flags		= IRQF_DISABLED | IRQF_PERCPU,
+	.name		= "jmr3927-timer",
+};
 
 void __init plat_time_init(void)
 {
-	clocksource_mips.read = jmr3927_hpt_read;
-	mips_timer_ack = jmr3927_timer_ack;
-	mips_hpt_frequency = JMR3927_TIMER_CLK;
-}
+	struct clock_event_device *cd;
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
+	clocksource_mips.read = jmr3927_hpt_read;
+	mips_hpt_frequency = JMR3927_TIMER_CLK;
+
 	jmr3927_tmrptr->cpra = JMR3927_TIMER_CLK / HZ;
 	jmr3927_tmrptr->itmr = TXx927_TMTITMR_TIIE | TXx927_TMTITMR_TZCE;
 	jmr3927_tmrptr->ccdr = JMR3927_TIMER_CCD;
 	jmr3927_tmrptr->tcr =
 		TXx927_TMTCR_TCE | TXx927_TMTCR_CCDE | TXx927_TMTCR_TMODE_ITVL;
 
-	setup_irq(JMR3927_IRQ_TICK, irq);
+	cd = &jmr3927_clock_event_device;
+	/* Calculate the min / max delta */
+	cd->mult = div_sc((unsigned long) JMR3927_IMCLK, NSEC_PER_SEC, 32);
+	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
+	cd->min_delta_ns	= clockevent_delta2ns(0x300, cd);
+	clockevents_register_device(cd);
+
+	setup_irq(JMR3927_IRQ_TICK, &jmr3927_timer_irqaction);
 }
 
 #define DO_WRITE_THROUGH
