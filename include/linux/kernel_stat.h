@@ -53,7 +53,9 @@ static inline int kstat_irqs(int irq)
 }
 
 extern void account_user_time(struct task_struct *, cputime_t);
+extern void account_user_time_scaled(struct task_struct *, cputime_t);
 extern void account_system_time(struct task_struct *, int, cputime_t);
+extern void account_system_time_scaled(struct task_struct *, cputime_t);
 extern void account_steal_time(struct task_struct *, cputime_t);
 
 #endif /* _LINUX_KERNEL_STAT_H */

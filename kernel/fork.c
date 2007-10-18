@@ -1059,6 +1059,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->utime = cputime_zero;
 	p->stime = cputime_zero;
 	p->gtime = cputime_zero;
+	p->utimescaled = cputime_zero;
+	p->stimescaled = cputime_zero;
 
 #ifdef CONFIG_TASK_XACCT
 	p->rchar = 0;		/* I/O counter: bytes read */

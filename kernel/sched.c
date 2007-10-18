@@ -3334,6 +3334,16 @@ void account_guest_time(struct task_struct *p, cputime_t cputime)
 }
 
 /*
+ * Account scaled user cpu time to a process.
+ * @p: the process that the cpu time gets accounted to
+ * @cputime: the cpu time spent in user space since the last update
+ */
+void account_user_time_scaled(struct task_struct *p, cputime_t cputime)
+{
+	p->utimescaled = cputime_add(p->utimescaled, cputime);
+}
+
+/*
  * Account system cpu time to a process.
  * @p: the process that the cpu time gets accounted to
  * @hardirq_offset: the offset to subtract from hardirq_count()
@@ -3368,6 +3378,17 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 		cpustat->idle = cputime64_add(cpustat->idle, tmp);
 	/* Account for system time used */
 	acct_update_integrals(p);
+}
+
+/*
+ * Account scaled system cpu time to a process.
+ * @p: the process that the cpu time gets accounted to
+ * @hardirq_offset: the offset to subtract from hardirq_count()
+ * @cputime: the cpu time spent in kernel space since the last update
+ */
+void account_system_time_scaled(struct task_struct *p, cputime_t cputime)
+{
+	p->stimescaled = cputime_add(p->stimescaled, cputime);
 }
 
 /*
