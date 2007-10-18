@@ -585,24 +585,6 @@ static int __init of_debug(char *str)
 
 __setup("of_debug=", of_debug);
 
-int of_register_driver(struct of_platform_driver *drv, struct bus_type *bus)
-{
-	/* initialize common driver fields */
-	if (!drv->driver.name)
-		drv->driver.name = drv->name;
-	if (!drv->driver.owner)
-		drv->driver.owner = drv->owner;
-	drv->driver.bus = bus;
-
-	/* register with core */
-	return driver_register(&drv->driver);
-}
-
-void of_unregister_driver(struct of_platform_driver *drv)
-{
-	driver_unregister(&drv->driver);
-}
-
 struct of_device* of_platform_device_create(struct device_node *np,
 					    const char *bus_id,
 					    struct device *parent,
@@ -628,6 +610,4 @@ struct of_device* of_platform_device_create(struct device_node *np,
 	return dev;
 }
 
-EXPORT_SYMBOL(of_register_driver);
-EXPORT_SYMBOL(of_unregister_driver);
 EXPORT_SYMBOL(of_platform_device_create);

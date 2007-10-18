@@ -48,6 +48,10 @@ struct of_platform_driver
 #define	to_of_platform_driver(drv) \
 	container_of(drv,struct of_platform_driver, driver)
 
+extern int of_register_driver(struct of_platform_driver *drv,
+			      struct bus_type *bus);
+extern void of_unregister_driver(struct of_platform_driver *drv);
+
 #include <asm/of_platform.h>
 
 extern struct of_device *of_find_device_by_node(struct device_node *np);

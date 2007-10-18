@@ -19,12 +19,9 @@
 extern struct bus_type isa_bus_type;
 extern struct bus_type ebus_bus_type;
 extern struct bus_type sbus_bus_type;
-extern struct bus_type of_platform_bus_type;
+
 #define of_bus_type	of_platform_bus_type	/* for compatibility */
 
-extern int of_register_driver(struct of_platform_driver *drv,
-			      struct bus_type *bus);
-extern void of_unregister_driver(struct of_platform_driver *drv);
 extern struct of_device *of_platform_device_create(struct device_node *np,
 						   const char *bus_id,
 						   struct device *parent,

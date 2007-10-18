@@ -12,6 +12,7 @@
  *
  */
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
@@ -94,3 +95,23 @@ int of_bus_type_init(struct bus_type *bus, const char *name)
 	bus->resume = of_platform_device_resume;
 	return bus_register(bus);
 }
+
+int of_register_driver(struct of_platform_driver *drv, struct bus_type *bus)
+{
+	/* initialize common driver fields */
+	if (!drv->driver.name)
+		drv->driver.name = drv->name;
+	if (!drv->driver.owner)
+		drv->driver.owner = drv->owner;
+	drv->driver.bus = bus;
+
+	/* register with core */
+	return driver_register(&drv->driver);
+}
+EXPORT_SYMBOL(of_register_driver);
+
+void of_unregister_driver(struct of_platform_driver *drv)
+{
+	driver_unregister(&drv->driver);
+}
+EXPORT_SYMBOL(of_unregister_driver);
