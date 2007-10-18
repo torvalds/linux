@@ -499,6 +499,11 @@ static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index) {
 
 static void free_cache_attributes(unsigned int cpu)
 {
+	int i;
+
+	for (i = 0; i < num_cache_leaves; i++)
+		cache_remove_shared_cpu_map(cpu, i);
+
 	kfree(cpuid4_info[cpu]);
 	cpuid4_info[cpu] = NULL;
 }
@@ -506,8 +511,8 @@ static void free_cache_attributes(unsigned int cpu)
 static int __cpuinit detect_cache_attributes(unsigned int cpu)
 {
 	struct _cpuid4_info	*this_leaf;
-	unsigned long 		j;
-	int 			retval;
+	unsigned long		j;
+	int			retval;
 	cpumask_t		oldmask;
 
 	if (num_cache_leaves == 0)
@@ -524,19 +529,26 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 		goto out;
 
 	/* Do cpuid and store the results */
-	retval = 0;
 	for (j = 0; j < num_cache_leaves; j++) {
 		this_leaf = CPUID4_INFO_IDX(cpu, j);
 		retval = cpuid4_cache_lookup(j, this_leaf);
-		if (unlikely(retval < 0))
+		if (unlikely(retval < 0)) {
+			int i;
+
+			for (i = 0; i < j; i++)
+				cache_remove_shared_cpu_map(cpu, i);
 			break;
+		}
 		cache_shared_cpu_map_setup(cpu, j);
 	}
 	set_cpus_allowed(current, oldmask);
 
 out:
-	if (retval)
-		free_cache_attributes(cpu);
+	if (retval) {
+		kfree(cpuid4_info[cpu]);
+		cpuid4_info[cpu] = NULL;
+	}
+
 	return retval;
 }
 
@@ -669,7 +681,7 @@ static struct kobj_type ktype_percpu_entry = {
 	.sysfs_ops	= &sysfs_ops,
 };
 
-static void cpuid4_cache_sysfs_exit(unsigned int cpu)
+static void __cpuinit cpuid4_cache_sysfs_exit(unsigned int cpu)
 {
 	kfree(cache_kobject[cpu]);
 	kfree(index_kobject[cpu]);
@@ -680,13 +692,14 @@ static void cpuid4_cache_sysfs_exit(unsigned int cpu)
 
 static int __cpuinit cpuid4_cache_sysfs_init(unsigned int cpu)
 {
+	int err;
 
 	if (num_cache_leaves == 0)
 		return -ENOENT;
 
-	detect_cache_attributes(cpu);
-	if (cpuid4_info[cpu] == NULL)
-		return -ENOENT;
+	err = detect_cache_attributes(cpu);
+	if (err)
+		return err;
 
 	/* Allocate all required memory */
 	cache_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
@@ -705,13 +718,15 @@ err_out:
 	return -ENOMEM;
 }
 
+static cpumask_t cache_dev_map = CPU_MASK_NONE;
+
 /* Add/Remove cache interface for CPU device */
 static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	unsigned long i, j;
 	struct _index_kobject *this_object;
-	int retval = 0;
+	int retval;
 
 	retval = cpuid4_cache_sysfs_init(cpu);
 	if (unlikely(retval < 0))
@@ -721,6 +736,10 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 	kobject_set_name(cache_kobject[cpu], "%s", "cache");
 	cache_kobject[cpu]->ktype = &ktype_percpu_entry;
 	retval = kobject_register(cache_kobject[cpu]);
+	if (retval < 0) {
+		cpuid4_cache_sysfs_exit(cpu);
+		return retval;
+	}
 
 	for (i = 0; i < num_cache_leaves; i++) {
 		this_object = INDEX_KOBJECT_PTR(cpu,i);
@@ -740,6 +759,9 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 			break;
 		}
 	}
+	if (!retval)
+		cpu_set(cpu, cache_dev_map);
+
 	return retval;
 }
 
@@ -750,13 +772,14 @@ static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)
 
 	if (cpuid4_info[cpu] == NULL)
 		return;
-	for (i = 0; i < num_cache_leaves; i++) {
-		cache_remove_shared_cpu_map(cpu, i);
+	if (!cpu_isset(cpu, cache_dev_map))
+		return;
+	cpu_clear(cpu, cache_dev_map);
+
+	for (i = 0; i < num_cache_leaves; i++)
 		kobject_unregister(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
-	}
 	kobject_unregister(cache_kobject[cpu]);
 	cpuid4_cache_sysfs_exit(cpu);
-	return;
 }
 
 static int __cpuinit cacheinfo_cpu_callback(struct notifier_block *nfb,
@@ -781,7 +804,7 @@ static int __cpuinit cacheinfo_cpu_callback(struct notifier_block *nfb,
 
 static struct notifier_block __cpuinitdata cacheinfo_cpu_notifier =
 {
-    .notifier_call = cacheinfo_cpu_callback,
+	.notifier_call = cacheinfo_cpu_callback,
 };
 
 static int __cpuinit cache_sysfs_init(void)
@@ -791,14 +814,15 @@ static int __cpuinit cache_sysfs_init(void)
 	if (num_cache_leaves == 0)
 		return 0;
 
-	register_hotcpu_notifier(&cacheinfo_cpu_notifier);
-
 	for_each_online_cpu(i) {
-		struct sys_device *sys_dev = get_cpu_sysdev((unsigned int)i);
+		int err;
+		struct sys_device *sys_dev = get_cpu_sysdev(i);
 
-		cache_add_dev(sys_dev);
+		err = cache_add_dev(sys_dev);
+		if (err)
+			return err;
 	}
-
+	register_hotcpu_notifier(&cacheinfo_cpu_notifier);
 	return 0;
 }
 
