@@ -123,10 +123,11 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cs5520_set_pio_mode;
 	hwif->set_dma_mode = &cs5520_set_dma_mode;
 
-	if (hwif->dma_base == 0) {
-		hwif->drives[1].autotune = hwif->drives[0].autotune = 1;
+	hwif->drives[0].autotune = 1;
+	hwif->drives[1].autotune = 1;
+
+	if (hwif->dma_base == 0)
 		return;
-	}
 
 	hwif->ide_dma_on = &cs5520_dma_on;
 }
