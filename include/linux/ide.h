@@ -1252,6 +1252,8 @@ enum {
 	IDE_HFLAG_NO_DMA		= (1 << 14),
 	/* check if host is PCI IDE device before allowing DMA */
 	IDE_HFLAG_NO_AUTODMA		= (1 << 15),
+	/* host is CS5510/CS5520 */
+	IDE_HFLAG_CS5520		= (1 << 16),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
@@ -1263,7 +1265,6 @@ enum {
 typedef struct ide_pci_device_s {
 	char			*name;
 	int			(*init_setup)(struct pci_dev *, struct ide_pci_device_s *);
-	void			(*init_setup_dma)(struct pci_dev *, struct ide_pci_device_s *, ide_hwif_t *);
 	unsigned int		(*init_chipset)(struct pci_dev *, const char *);
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
@@ -1272,7 +1273,7 @@ typedef struct ide_pci_device_s {
 	ide_pci_enablebit_t	enablebits[2];
 	unsigned int		extra;
 	struct ide_pci_device_s	*next;
-	u16			host_flags;
+	u32			host_flags;
 	u8			pio_mask;
 	u8			udma_mask;
 } ide_pci_device_t;
