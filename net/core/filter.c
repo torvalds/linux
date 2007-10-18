@@ -433,5 +433,21 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	return err;
 }
 
+int sk_detach_filter(struct sock *sk)
+{
+	int ret = -ENOENT;
+	struct sk_filter *filter;
+
+	rcu_read_lock_bh();
+	filter = rcu_dereference(sk->sk_filter);
+	if (filter) {
+		rcu_assign_pointer(sk->sk_filter, NULL);
+		sk_filter_release(sk, filter);
+		ret = 0;
+	}
+	rcu_read_unlock_bh();
+	return ret;
+}
+
 EXPORT_SYMBOL(sk_chk_filter);
 EXPORT_SYMBOL(sk_run_filter);
