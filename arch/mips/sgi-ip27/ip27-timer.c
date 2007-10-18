@@ -3,6 +3,7 @@
  * Copytight (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/bcd.h>
+#include <linux/clockchips.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -25,21 +26,7 @@
 #include <asm/sn/sn0/ip27.h>
 #include <asm/sn/sn0/hub.h>
 
-/*
- * This is a hack; we really need to figure these values out dynamically
- *
- * Since 800 ns works very well with various HUB frequencies, such as
- * 360, 380, 390 and 400 MHZ, we use 800 ns rtc cycle time.
- *
- * Ralf: which clock rate is used to feed the counter?
- */
-#define NSEC_PER_CYCLE		800
-#define CYCLES_PER_SEC		(NSEC_PER_SEC/NSEC_PER_CYCLE)
-#define CYCLES_PER_JIFFY	(CYCLES_PER_SEC/HZ)
-
 #define TICK_SIZE (tick_nsec / 1000)
-
-static unsigned long ct_cur[NR_CPUS];	/* What counter should be at next timer irq */
 
 #if 0
 static int set_rtc_mmss(unsigned long nowtime)
@@ -86,36 +73,6 @@ static int set_rtc_mmss(unsigned long nowtime)
 }
 #endif
 
-static unsigned int rt_timer_irq;
-
-void ip27_rt_timer_interrupt(void)
-{
-	int cpu = smp_processor_id();
-	int cpuA = cputoslice(cpu) == 0;
-	unsigned int irq = rt_timer_irq;
-
-	irq_enter();
-	write_seqlock(&xtime_lock);
-
-again:
-	LOCAL_HUB_S(cpuA ? PI_RT_PEND_A : PI_RT_PEND_B, 0);	/* Ack  */
-	ct_cur[cpu] += CYCLES_PER_JIFFY;
-	LOCAL_HUB_S(cpuA ? PI_RT_COMPARE_A : PI_RT_COMPARE_B, ct_cur[cpu]);
-
-	if (LOCAL_HUB_L(PI_RT_COUNT) >= ct_cur[cpu])
-		goto again;
-
-	kstat_this_cpu.irqs[irq]++;		/* kstat only for bootcpu? */
-
-	if (cpu == 0)
-		do_timer(1);
-
-	update_process_times(user_mode(get_irq_regs()));
-
-	write_sequnlock(&xtime_lock);
-	irq_exit();
-}
-
 /* Includes for ioc3_init().  */
 #include <asm/sn/types.h>
 #include <asm/sn/sn0/addrs.h>
@@ -154,6 +111,46 @@ unsigned long read_persistent_clock(void)
         return mktime(year, month, date, hour, min, sec);
 }
 
+static int rt_set_next_event(unsigned long delta,
+		struct clock_event_device *evt)
+{
+	unsigned int cpu = smp_processor_id();
+	int slice = cputoslice(cpu) == 0;
+	unsigned long cnt;
+
+	cnt = LOCAL_HUB_L(PI_RT_COUNT);
+	cnt += delta;
+	LOCAL_HUB_S(slice ? PI_RT_COMPARE_A : PI_RT_COMPARE_B, cnt);
+
+	return LOCAL_HUB_L(PI_RT_COUNT) >= cnt ? -ETIME : 0;
+}
+
+static void rt_set_mode(enum clock_event_mode mode,
+		struct clock_event_device *evt)
+{
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		/* The only mode supported */
+		break;
+
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_RESUME:
+		/* Nothing to do  */
+		break;
+	}
+}
+
+struct clock_event_device rt_clock_event_device = {
+	.name		= "HUB-RT",
+	.features	= CLOCK_EVT_FEAT_ONESHOT,
+
+	.rating		= 300,
+	.set_next_event	= rt_set_next_event,
+	.set_mode	= rt_set_mode,
+};
+
 static void enable_rt_irq(unsigned int irq)
 {
 }
@@ -171,6 +168,20 @@ static struct irq_chip rt_irq_type = {
 	.eoi		= enable_rt_irq,
 };
 
+unsigned int rt_timer_irq;
+
+static irqreturn_t ip27_rt_timer_interrupt(int irq, void *dev_id)
+{
+	struct clock_event_device *cd = &rt_clock_event_device;
+	unsigned int cpu = smp_processor_id();
+	int slice = cputoslice(cpu) == 0;
+
+	LOCAL_HUB_S(slice ? PI_RT_PEND_A : PI_RT_PEND_B, 0);	/* Ack  */
+	cd->event_handler(cd);
+
+	return IRQ_HANDLED;
+}
+
 static struct irqaction rt_irqaction = {
 	.handler	= (irq_handler_t) ip27_rt_timer_interrupt,
 	.flags		= IRQF_DISABLED,
@@ -178,26 +189,43 @@ static struct irqaction rt_irqaction = {
 	.name		= "timer"
 };
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	int irqno  = allocate_irqno();
+/*
+ * This is a hack; we really need to figure these values out dynamically
+ *
+ * Since 800 ns works very well with various HUB frequencies, such as
+ * 360, 380, 390 and 400 MHZ, we use 800 ns rtc cycle time.
+ *
+ * Ralf: which clock rate is used to feed the counter?
+ */
+#define NSEC_PER_CYCLE		800
+#define CYCLES_PER_SEC		(NSEC_PER_SEC / NSEC_PER_CYCLE)
 
-	if (irqno < 0)
+static void __init ip27_rt_clock_event_init(void)
+{
+	struct clock_event_device *cd = &rt_clock_event_device;
+	unsigned int cpu = smp_processor_id();
+	int irq = allocate_irqno();
+
+	if (irq < 0)
 		panic("Can't allocate interrupt number for timer interrupt");
 
-	set_irq_chip_and_handler(irqno, &rt_irq_type, handle_percpu_irq);
+	rt_timer_irq = irq;
 
-	/* over-write the handler, we use our own way */
-	irq->handler = no_action;
+	cd->irq			= irq,
+	cd->cpumask		= cpumask_of_cpu(cpu),
 
-	/* setup irqaction */
-	irq_desc[irqno].status |= IRQ_PER_CPU;
-
-	rt_timer_irq = irqno;
 	/*
-	 * Only needed to get /proc/interrupt to display timer irq stats
+	 * Calculate the min / max delta
 	 */
-	setup_irq(irqno, &rt_irqaction);
+	cd->mult        	=
+		div_sc((unsigned long) CYCLES_PER_SEC, NSEC_PER_SEC, 32);
+	cd->shift               = 32;
+	cd->max_delta_ns        = clockevent_delta2ns(0x7fffffff, cd);
+	cd->min_delta_ns        = clockevent_delta2ns(0x300, cd);
+	clockevents_register_device(cd);
+
+	set_irq_chip_and_handler(irq, &rt_irq_type, handle_percpu_irq);
+	setup_irq(irq, &rt_irqaction);
 }
 
 static cycle_t hub_rt_read(void)
@@ -206,7 +234,7 @@ static cycle_t hub_rt_read(void)
 }
 
 struct clocksource ht_rt_clocksource = {
-	.name	= "HUB",
+	.name	= "HUB-RT",
 	.rating	= 200,
 	.read	= hub_rt_read,
 	.mask	= CLOCKSOURCE_MASK(52),
@@ -214,9 +242,15 @@ struct clocksource ht_rt_clocksource = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-void __init plat_time_init(void)
+static void __init ip27_rt_clocksource_init(void)
 {
 	clocksource_register(&ht_rt_clocksource);
+}
+
+void __init plat_time_init(void)
+{
+	ip27_rt_clock_event_init();
+	ip27_rt_clocksource_init();
 }
 
 void __init cpu_time_init(void)
@@ -248,17 +282,12 @@ void __init hub_rtc_init(cnodeid_t cnode)
 	 * node and timeouts will not happen there.
 	 */
 	if (get_compact_nodeid() == cnode) {
-		int cpu = smp_processor_id();
 		LOCAL_HUB_S(PI_RT_EN_A, 1);
 		LOCAL_HUB_S(PI_RT_EN_B, 1);
 		LOCAL_HUB_S(PI_PROF_EN_A, 0);
 		LOCAL_HUB_S(PI_PROF_EN_B, 0);
-		ct_cur[cpu] = CYCLES_PER_JIFFY;
-		LOCAL_HUB_S(PI_RT_COMPARE_A, ct_cur[cpu]);
 		LOCAL_HUB_S(PI_RT_COUNT, 0);
 		LOCAL_HUB_S(PI_RT_PEND_A, 0);
-		LOCAL_HUB_S(PI_RT_COMPARE_B, ct_cur[cpu]);
-		LOCAL_HUB_S(PI_RT_COUNT, 0);
 		LOCAL_HUB_S(PI_RT_PEND_B, 0);
 	}
 }
