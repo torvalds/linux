@@ -254,53 +254,20 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	piix_is_ichx	-	check if ICHx
- *	@dev: PCI device to check
- *
- *	returns 1 if ICHx, 0 otherwise.
- */
-static int piix_is_ichx(struct pci_dev *dev)
-{
-        switch (dev->device) {
-		case PCI_DEVICE_ID_INTEL_82801EB_1:
-		case PCI_DEVICE_ID_INTEL_82801AA_1:
-		case PCI_DEVICE_ID_INTEL_82801AB_1:
-		case PCI_DEVICE_ID_INTEL_82801BA_8:
-		case PCI_DEVICE_ID_INTEL_82801BA_9:
-		case PCI_DEVICE_ID_INTEL_82801CA_10:
-		case PCI_DEVICE_ID_INTEL_82801CA_11:
-		case PCI_DEVICE_ID_INTEL_82801DB_1:
-		case PCI_DEVICE_ID_INTEL_82801DB_10:
-		case PCI_DEVICE_ID_INTEL_82801DB_11:
-		case PCI_DEVICE_ID_INTEL_82801EB_11:
-		case PCI_DEVICE_ID_INTEL_82801E_11:
-		case PCI_DEVICE_ID_INTEL_ESB_2:
-		case PCI_DEVICE_ID_INTEL_ICH6_19:
-		case PCI_DEVICE_ID_INTEL_ICH7_21:
-		case PCI_DEVICE_ID_INTEL_ESB2_18:
-		case PCI_DEVICE_ID_INTEL_ICH8_6:
-			return 1;
-	}
-
-	return 0;
-}
-
-/**
- *	init_chipset_piix	-	set up the PIIX chipset
+ *	init_chipset_ich	-	set up the ICH chipset
  *	@dev: PCI device to set up
  *	@name: Name of the device
  *
- *	Initialize the PCI device as required. For the PIIX this turns
- *	out to be nice and simple
+ *	Initialize the PCI device as required.  For the ICH this turns
+ *	out to be nice and simple.
  */
 
-static unsigned int __devinit init_chipset_piix (struct pci_dev *dev, const char *name)
+static unsigned int __devinit init_chipset_ich(struct pci_dev *dev, const char *name)
 {
-	if (piix_is_ichx(dev)) {
-		unsigned int extra = 0;
-		pci_read_config_dword(dev, 0x54, &extra);
-		pci_write_config_dword(dev, 0x54, extra|0x400);
-	}
+	u32 extra = 0;
+
+	pci_read_config_dword(dev, 0x54, &extra);
+	pci_write_config_dword(dev, 0x54, extra | 0x400);
 
 	return 0;
 }
@@ -393,10 +360,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	/* ICHx need to clear the bmdma status for all interrupts */
-	if (piix_is_ichx(hwif->pci_dev))
-		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
-
 	if (hwif->ultra_mask & 0x78) {
 		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 			hwif->cbl = piix_cable_detect(hwif);
@@ -406,10 +369,18 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;
 }
 
+static void __devinit init_hwif_ich(ide_hwif_t *hwif)
+{
+	init_hwif_piix(hwif);
+
+	/* ICHx need to clear the BMDMA status for all interrupts */
+	if (hwif->dma_base)
+		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
+}
+
 #define DECLARE_PIIX_DEV(name_str, udma) \
 	{						\
 		.name		= name_str,		\
-		.init_chipset	= init_chipset_piix,	\
 		.init_hwif	= init_hwif_piix,	\
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
 		.host_flags	= IDE_HFLAG_BOOTABLE,	\
@@ -417,6 +388,19 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		.swdma_mask	= ATA_SWDMA2_ONLY,	\
 		.mwdma_mask	= ATA_MWDMA12_ONLY,	\
 		.udma_mask	= udma,			\
+	}
+
+#define DECLARE_ICH_DEV(name_str, udma) \
+	{ \
+		.name		= name_str, \
+		.init_chipset	= init_chipset_ich, \
+		.init_hwif	= init_hwif_ich, \
+		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
+		.host_flags	= IDE_HFLAG_BOOTABLE, \
+		.pio_mask	= ATA_PIO4, \
+		.swdma_mask	= ATA_SWDMA2_ONLY, \
+		.mwdma_mask	= ATA_MWDMA12_ONLY, \
+		.udma_mask	= udma, \
 	}
 
 static ide_pci_device_t piix_pci_info[] __devinitdata = {
@@ -439,26 +423,26 @@ static ide_pci_device_t piix_pci_info[] __devinitdata = {
 
 	/*  3 */ DECLARE_PIIX_DEV("PIIX3",	0x00),	/* no udma */
 	/*  4 */ DECLARE_PIIX_DEV("PIIX4",	ATA_UDMA2),
-	/*  5 */ DECLARE_PIIX_DEV("ICH0",	ATA_UDMA2),
+	/*  5 */ DECLARE_ICH_DEV("ICH0",	ATA_UDMA2),
 	/*  6 */ DECLARE_PIIX_DEV("PIIX4",	ATA_UDMA2),
-	/*  7 */ DECLARE_PIIX_DEV("ICH",	ATA_UDMA4),
+	/*  7 */ DECLARE_ICH_DEV("ICH",		ATA_UDMA4),
 	/*  8 */ DECLARE_PIIX_DEV("PIIX4",	ATA_UDMA4),
 	/*  9 */ DECLARE_PIIX_DEV("PIIX4",	ATA_UDMA2),
-	/* 10 */ DECLARE_PIIX_DEV("ICH2",	ATA_UDMA5),
-	/* 11 */ DECLARE_PIIX_DEV("ICH2M",	ATA_UDMA5),
-	/* 12 */ DECLARE_PIIX_DEV("ICH3M",	ATA_UDMA5),
-	/* 13 */ DECLARE_PIIX_DEV("ICH3",	ATA_UDMA5),
-	/* 14 */ DECLARE_PIIX_DEV("ICH4",	ATA_UDMA5),
-	/* 15 */ DECLARE_PIIX_DEV("ICH5",	ATA_UDMA5),
-	/* 16 */ DECLARE_PIIX_DEV("C-ICH",	ATA_UDMA5),
-	/* 17 */ DECLARE_PIIX_DEV("ICH4",	ATA_UDMA5),
-	/* 18 */ DECLARE_PIIX_DEV("ICH5-SATA",	ATA_UDMA5),
-	/* 19 */ DECLARE_PIIX_DEV("ICH5",	ATA_UDMA5),
-	/* 20 */ DECLARE_PIIX_DEV("ICH6",	ATA_UDMA5),
-	/* 21 */ DECLARE_PIIX_DEV("ICH7",	ATA_UDMA5),
-	/* 22 */ DECLARE_PIIX_DEV("ICH4",	ATA_UDMA5),
-	/* 23 */ DECLARE_PIIX_DEV("ESB2",	ATA_UDMA5),
-	/* 24 */ DECLARE_PIIX_DEV("ICH8M",	ATA_UDMA5),
+	/* 10 */ DECLARE_ICH_DEV("ICH2",	ATA_UDMA5),
+	/* 11 */ DECLARE_ICH_DEV("ICH2M",	ATA_UDMA5),
+	/* 12 */ DECLARE_ICH_DEV("ICH3M",	ATA_UDMA5),
+	/* 13 */ DECLARE_ICH_DEV("ICH3",	ATA_UDMA5),
+	/* 14 */ DECLARE_ICH_DEV("ICH4",	ATA_UDMA5),
+	/* 15 */ DECLARE_ICH_DEV("ICH5",	ATA_UDMA5),
+	/* 16 */ DECLARE_ICH_DEV("C-ICH",	ATA_UDMA5),
+	/* 17 */ DECLARE_ICH_DEV("ICH4",	ATA_UDMA5),
+	/* 18 */ DECLARE_ICH_DEV("ICH5-SATA",	ATA_UDMA5),
+	/* 19 */ DECLARE_ICH_DEV("ICH5",	ATA_UDMA5),
+	/* 20 */ DECLARE_ICH_DEV("ICH6",	ATA_UDMA5),
+	/* 21 */ DECLARE_ICH_DEV("ICH7",	ATA_UDMA5),
+	/* 22 */ DECLARE_ICH_DEV("ICH4",	ATA_UDMA5),
+	/* 23 */ DECLARE_ICH_DEV("ESB2",	ATA_UDMA5),
+	/* 24 */ DECLARE_ICH_DEV("ICH8M",	ATA_UDMA5),
 };
 
 /**
