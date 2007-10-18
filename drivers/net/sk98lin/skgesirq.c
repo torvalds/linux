@@ -892,7 +892,7 @@ int		Port)		/* Which port should be checked */
 	 */
 	RxCts = 0;
 
-	for (i = 0; i < sizeof(SkGeRxRegs)/sizeof(SkGeRxRegs[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(SkGeRxRegs); i++) {
 		
 		(void)SkXmMacStatistic(pAC, IoC, Port, SkGeRxRegs[i], &RxTmp);
 		
