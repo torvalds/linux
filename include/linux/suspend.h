@@ -46,12 +46,10 @@ typedef int __bitwise suspend_state_t;
  *	@prepare() fails.  If @set_target() fails (ie. returns nonzero),
  *	@prepare(), @enter() and @finish() will not be called by the PM core.
  *	This callback is optional.  However, if it is implemented, the argument
- *	passed to @prepare(), @enter() and @finish() is meaningless and should
- *	be ignored.
+ *	passed to @enter() is meaningless and should be ignored.
  *
  * @prepare: Prepare the platform for entering the system sleep state indicated
- *	by @set_target() or represented by the argument if @set_target() is not
- *	implemented.
+ *	by @set_target().
  *	@prepare() is called right after devices have been suspended (ie. the
  *	appropriate .suspend() method has been executed for each device) and
  *	before the nonboot CPUs are disabled (it is executed with IRQs enabled).
@@ -67,8 +65,7 @@ typedef int __bitwise suspend_state_t;
  *
  * @finish: Called when the system has just left a sleep state, right after
  *	the nonboot CPUs have been enabled and before devices are resumed (it is
- *	executed with IRQs enabled).  If @set_target() is not implemented, the
- *	argument represents the sleep state being left.
+ *	executed with IRQs enabled).
  *	This callback is optional, but should be implemented by the platforms
  *	that implement @prepare().  If implemented, it is always called after
  *	@enter() (even if @enter() fails).
@@ -76,9 +73,9 @@ typedef int __bitwise suspend_state_t;
 struct platform_suspend_ops {
 	int (*valid)(suspend_state_t state);
 	int (*set_target)(suspend_state_t state);
-	int (*prepare)(suspend_state_t state);
+	int (*prepare)(void);
 	int (*enter)(suspend_state_t state);
-	int (*finish)(suspend_state_t state);
+	void (*finish)(void);
 };
 
 #ifdef CONFIG_SUSPEND

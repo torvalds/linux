@@ -57,11 +57,8 @@ int mpc52xx_set_wakeup_gpio(u8 pin, u8 level)
 	return 0;
 }
 
-int mpc52xx_pm_prepare(suspend_state_t state)
+int mpc52xx_pm_prepare(void)
 {
-	if (state != PM_SUSPEND_STANDBY)
-		return -EINVAL;
-
 	/* map the whole register space */
 	mbar = mpc52xx_find_and_map("mpc5200");
 	if (!mbar) {
@@ -166,15 +163,13 @@ int mpc52xx_pm_enter(suspend_state_t state)
 	return 0;
 }
 
-int mpc52xx_pm_finish(suspend_state_t state)
+void mpc52xx_pm_finish(void)
 {
 	/* call board resume code */
 	if (mpc52xx_suspend.board_resume_finish)
 		mpc52xx_suspend.board_resume_finish(mbar);
 
 	iounmap(mbar);
-
-	return 0;
 }
 
 static struct platform_suspend_ops mpc52xx_pm_ops = {

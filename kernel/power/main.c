@@ -58,13 +58,6 @@ int suspend_valid_only_mem(suspend_state_t state)
 	return state == PM_SUSPEND_MEM;
 }
 
-
-static inline void pm_finish(suspend_state_t state)
-{
-	if (suspend_ops->finish)
-		suspend_ops->finish(state);
-}
-
 /**
  *	suspend_prepare - Do prep work before entering low-power state.
  *
@@ -171,7 +164,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 		goto Resume_console;
 	}
 	if (suspend_ops->prepare) {
-		error = suspend_ops->prepare(state);
+		error = suspend_ops->prepare();
 		if (error)
 			goto Resume_devices;
 	}
@@ -180,7 +173,8 @@ int suspend_devices_and_enter(suspend_state_t state)
 		suspend_enter(state);
 
 	enable_nonboot_cpus();
-	pm_finish(state);
+	if (suspend_ops->finish)
+		suspend_ops->finish();
  Resume_devices:
 	device_resume();
  Resume_console:

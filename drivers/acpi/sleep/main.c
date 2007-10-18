@@ -85,13 +85,12 @@ static int acpi_pm_set_target(suspend_state_t pm_state)
 
 /**
  *	acpi_pm_prepare - Do preliminary suspend work.
- *	@pm_state: ignored
  *
  *	If necessary, set the firmware waking vector and do arch-specific
  *	nastiness to get the wakeup code to the waking vector.
  */
 
-static int acpi_pm_prepare(suspend_state_t pm_state)
+static int acpi_pm_prepare(void)
 {
 	int error = acpi_sleep_prepare(acpi_target_sleep_state);
 
@@ -160,13 +159,12 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 
 /**
  *	acpi_pm_finish - Finish up suspend sequence.
- *	@pm_state: ignored
  *
  *	This is called after we wake back up (or if entering the sleep state
  *	failed). 
  */
 
-static int acpi_pm_finish(suspend_state_t pm_state)
+static void acpi_pm_finish(void)
 {
 	u32 acpi_state = acpi_target_sleep_state;
 
@@ -184,7 +182,6 @@ static int acpi_pm_finish(suspend_state_t pm_state)
 		init_8259A(0);
 	}
 #endif
-	return 0;
 }
 
 static int acpi_pm_state_valid(suspend_state_t pm_state)

@@ -70,25 +70,12 @@ void omap2_pm_idle(void)
 	local_irq_enable();
 }
 
-static int omap2_pm_prepare(suspend_state_t state)
+static int omap2_pm_prepare(void)
 {
-	int error = 0;
-
 	/* We cannot sleep in idle until we have resumed */
 	saved_idle = pm_idle;
 	pm_idle = NULL;
-
-	switch (state)
-	{
-	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return error;
+	return 0;
 }
 
 #define INT0_WAKE_MASK	(OMAP_IRQ_BIT(INT_24XX_GPIO_BANK1) |	\
@@ -356,10 +343,9 @@ static int omap2_pm_enter(suspend_state_t state)
 	return ret;
 }
 
-static int omap2_pm_finish(suspend_state_t state)
+static void omap2_pm_finish(void)
 {
 	pm_idle = saved_idle;
-	return 0;
 }
 
 static struct platform_suspend_ops omap_pm_ops = {
