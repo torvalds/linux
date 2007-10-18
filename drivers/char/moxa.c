@@ -41,6 +41,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/completion.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -142,7 +143,7 @@ struct moxa_port {
 	struct tty_struct *tty;
 	int cflag;
 	wait_queue_head_t open_wait;
-	wait_queue_head_t close_wait;
+	struct completion close_wait;
 
 	struct timer_list emptyTimer;
 
@@ -374,7 +375,7 @@ static int __init moxa_init(void)
 		ch->closing_wait = 30 * HZ;
 		ch->cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 		init_waitqueue_head(&ch->open_wait);
-		init_waitqueue_head(&ch->close_wait);
+		init_completion(&ch->close_wait);
 
 		setup_timer(&ch->emptyTimer, moxa_check_xmit_empty,
 				(unsigned long)ch);
@@ -577,7 +578,7 @@ static void moxa_close(struct tty_struct *tty, struct file *filp)
 		wake_up_interruptible(&ch->open_wait);
 	}
 	ch->asyncflags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
-	wake_up_interruptible(&ch->close_wait);
+	complete_all(&ch->close_wait);
 }
 
 static int moxa_write(struct tty_struct *tty,
@@ -941,7 +942,7 @@ static int moxa_block_till_ready(struct tty_struct *tty, struct file *filp,
 	 */
 	if (tty_hung_up_p(filp) || (ch->asyncflags & ASYNC_CLOSING)) {
 		if (ch->asyncflags & ASYNC_CLOSING)
-			interruptible_sleep_on(&ch->close_wait);
+			wait_for_completion_interruptible(&ch->close_wait);
 #ifdef SERIAL_DO_RESTART
 		if (ch->asyncflags & ASYNC_HUP_NOTIFY)
 			return (-EAGAIN);
