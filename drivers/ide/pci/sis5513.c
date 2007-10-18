@@ -570,9 +570,6 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (chipset_family >= ATA_133)
 		hwif->udma_filter = sis5513_ata133_udma_filter;
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

@@ -192,8 +192,6 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	else
 		hwif->set_dma_mode = &aec6260_set_mode;
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

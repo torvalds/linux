@@ -138,9 +138,6 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 
 	pci_read_config_byte(hwif->pci_dev, 0x47, &reg47);
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

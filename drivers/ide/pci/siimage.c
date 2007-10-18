@@ -882,8 +882,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		}
 	}
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

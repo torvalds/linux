@@ -668,9 +668,6 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 	if (m5229_revision <= 0xC4)
 		hwif->host_flags |= IDE_HFLAG_NO_LBA48_DMA;
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

@@ -368,12 +368,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	hwif->drives[0].io_32bit = hwif->drives[1].io_32bit = 1;
 	hwif->drives[0].unmask   = hwif->drives[1].unmask   = 1;
 
-	/*
-	 * We always autotune PIO,  this is done before DMA is checked,
-	 * so there's no risk of accidentally disabling DMA
-	 */
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (!hwif->dma_base)
 		return;
 

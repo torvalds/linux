@@ -174,8 +174,6 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 
 	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->set_dma_mode = &atiixp_set_dma_mode;
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
 
 	if (!hwif->dma_base)
 		return;

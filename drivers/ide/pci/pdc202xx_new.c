@@ -471,8 +471,6 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	hwif->quirkproc = &pdcnew_quirkproc;
 	hwif->resetproc = &pdcnew_reset;
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

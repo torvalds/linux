@@ -1301,8 +1301,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	if (new_mcr != old_mcr)
 		pci_write_config_byte(dev, hwif->select_data + 1, new_mcr);
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

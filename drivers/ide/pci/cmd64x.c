@@ -506,8 +506,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cmd64x_set_pio_mode;
 	hwif->set_dma_mode = &cmd64x_set_dma_mode;
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (!hwif->dma_base)
 		return;
 

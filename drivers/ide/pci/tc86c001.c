@@ -184,8 +184,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 
 	hwif->busproc	= &tc86c001_busproc;
 
-	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
-
 	if (!hwif->dma_base)
 		return;
 

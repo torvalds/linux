@@ -170,9 +170,6 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	hwif->set_dma_mode = &it8213_set_dma_mode;
 	hwif->set_pio_mode = &it8213_set_pio_mode;
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (!hwif->dma_base)
 		return;
 

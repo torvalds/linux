@@ -364,9 +364,6 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	hwif->set_dma_mode = &svwks_set_dma_mode;
 	hwif->udma_filter = &svwks_udma_filter;
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (!hwif->dma_base)
 		return;
 

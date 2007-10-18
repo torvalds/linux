@@ -585,9 +585,6 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	} else
 		hwif->host_flags |= IDE_HFLAG_NO_SET_MODE;
 
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

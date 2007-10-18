@@ -180,8 +180,6 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cs5535_set_pio_mode;
 	hwif->set_dma_mode = &cs5535_set_dma_mode;
 
-	hwif->drives[1].autotune = hwif->drives[0].autotune = 1;
-
 	if (hwif->dma_base == 0)
 		return;
 

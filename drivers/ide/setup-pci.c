@@ -577,6 +577,9 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 			hwif->ultra_mask = d->udma_mask;
 		}
 
+		hwif->drives[0].autotune = 1;
+		hwif->drives[1].autotune = 1;
+
 		if (d->init_hwif)
 			/* Call chipset-specific routine
 			 * for each enabled hwif

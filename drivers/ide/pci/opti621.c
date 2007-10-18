@@ -329,9 +329,6 @@ static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 	hwif->drives[1].drive_data = PIO_DONT_KNOW;
 
 	hwif->set_pio_mode = &opti621_set_pio_mode;
-
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
 }
 
 static ide_pci_device_t opti621_chipsets[] __devinitdata = {
