@@ -16,10 +16,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/pm.h>
+#include <linux/suspend.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
-#include <linux/pm.h>
 #include <linux/interrupt.h>
 #include <linux/sysfs.h>
 #include <linux/module.h>
@@ -84,9 +83,6 @@ static int omap2_pm_prepare(suspend_state_t state)
 	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		break;
-
-	case PM_SUSPEND_DISK:
-		return -ENOTSUPP;
 
 	default:
 		return -EINVAL;
@@ -352,9 +348,6 @@ static int omap2_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		ret = omap2_pm_suspend();
-		break;
-	case PM_SUSPEND_DISK:
-		ret = -ENOTSUPP;
 		break;
 	default:
 		ret = -EINVAL;

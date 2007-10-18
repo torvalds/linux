@@ -1,5 +1,5 @@
 #include <linux/init.h>
-#include <linux/pm.h>
+#include <linux/suspend.h>
 #include <linux/io.h>
 #include <asm/time.h>
 #include <asm/cacheflush.h>

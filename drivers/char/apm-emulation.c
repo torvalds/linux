@@ -18,7 +18,7 @@
 #include <linux/apm_bios.h>
 #include <linux/capability.h>
 #include <linux/sched.h>
-#include <linux/pm.h>
+#include <linux/suspend.h>
 #include <linux/apm-emulation.h>
 #include <linux/freezer.h>
 #include <linux/device.h>

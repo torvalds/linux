@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/pm.h>
+#include <linux/suspend.h>
 #include <linux/platform_device.h>
 
 #include <asm/hardware.h>

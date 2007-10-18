@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
+#include <linux/suspend.h>
 
 #include <asm/hardware.h>
 #include <asm/arch/irqs.h>

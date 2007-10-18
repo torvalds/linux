@@ -7,6 +7,8 @@
  *
  */
 
+#include <linux/suspend.h>
+
 struct pxa_cpu_pm_fns {
 	int	save_size;
 	void	(*save)(unsigned long *);

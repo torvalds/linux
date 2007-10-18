@@ -15,7 +15,7 @@
 #include <linux/rtc.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
-#include <linux/pm.h>
+#include <linux/suspend.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 
