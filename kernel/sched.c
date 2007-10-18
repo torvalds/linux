@@ -3859,7 +3859,10 @@ EXPORT_SYMBOL(wait_for_completion_timeout);
 
 int __sched wait_for_completion_interruptible(struct completion *x)
 {
-	return wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
+	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
+	if (t == -ERESTARTSYS)
+		return t;
+	return 0;
 }
 EXPORT_SYMBOL(wait_for_completion_interruptible);
 
