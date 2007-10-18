@@ -323,7 +323,7 @@ static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *attr,
 	int val = simple_strtoul(buf, NULL, 10);
 	u8 conf = 0;
 
-	if (val != 0 || val != 1 || data->kind == f75373)
+	if (!(val == 0 || val == 1) || data->kind == f75373)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
