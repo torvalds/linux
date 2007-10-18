@@ -240,6 +240,8 @@ static inline int test_and_set_bit(unsigned long nr,
 	unsigned short bit = nr & SZLONG_MASK;
 	unsigned long res;
 
+	smp_llsc_mb();
+
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
 		unsigned long temp;
@@ -307,6 +309,8 @@ static inline int test_and_clear_bit(unsigned long nr,
 {
 	unsigned short bit = nr & SZLONG_MASK;
 	unsigned long res;
+
+	smp_llsc_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
@@ -395,6 +399,8 @@ static inline int test_and_change_bit(unsigned long nr,
 {
 	unsigned short bit = nr & SZLONG_MASK;
 	unsigned long res;
+
+	smp_llsc_mb();
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
