@@ -332,22 +332,22 @@ struct rq {
 	struct sched_info rq_sched_info;
 
 	/* sys_sched_yield() stats */
-	unsigned long yld_exp_empty;
-	unsigned long yld_act_empty;
-	unsigned long yld_both_empty;
-	unsigned long yld_count;
+	unsigned int yld_exp_empty;
+	unsigned int yld_act_empty;
+	unsigned int yld_both_empty;
+	unsigned int yld_count;
 
 	/* schedule() stats */
-	unsigned long sched_switch;
-	unsigned long sched_count;
-	unsigned long sched_goidle;
+	unsigned int sched_switch;
+	unsigned int sched_count;
+	unsigned int sched_goidle;
 
 	/* try_to_wake_up() stats */
-	unsigned long ttwu_count;
-	unsigned long ttwu_local;
+	unsigned int ttwu_count;
+	unsigned int ttwu_local;
 
 	/* BKL stats */
-	unsigned long bkl_count;
+	unsigned int bkl_count;
 #endif
 	struct lock_class_key rq_lock_key;
 };

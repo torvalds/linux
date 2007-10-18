@@ -21,7 +21,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 
 		/* runqueue-specific stats */
 		seq_printf(seq,
-		    "cpu%d %lu %lu %lu %lu %lu %lu %lu %lu %lu %llu %llu %lu",
+		    "cpu%d %u %u %u %u %u %u %u %u %u %llu %llu %lu",
 		    cpu, rq->yld_both_empty,
 		    rq->yld_act_empty, rq->yld_exp_empty, rq->yld_count,
 		    rq->sched_switch, rq->sched_count, rq->sched_goidle,
@@ -42,8 +42,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 			seq_printf(seq, "domain%d %s", dcount++, mask_str);
 			for (itype = CPU_IDLE; itype < CPU_MAX_IDLE_TYPES;
 					itype++) {
-				seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu "
-						"%lu",
+				seq_printf(seq, " %u %u %u %u %u %u %u %u",
 				    sd->lb_count[itype],
 				    sd->lb_balanced[itype],
 				    sd->lb_failed[itype],
@@ -53,8 +52,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 				    sd->lb_nobusyq[itype],
 				    sd->lb_nobusyg[itype]);
 			}
-			seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu %lu"
-			    " %lu %lu %lu\n",
+			seq_printf(seq, " %u %u %u %u %u %u %u %u %u %u %u %u\n",
 			    sd->alb_count, sd->alb_failed, sd->alb_pushed,
 			    sd->sbe_count, sd->sbe_balanced, sd->sbe_pushed,
 			    sd->sbf_count, sd->sbf_balanced, sd->sbf_pushed,
