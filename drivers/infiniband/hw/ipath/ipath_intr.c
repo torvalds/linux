@@ -954,7 +954,15 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 	int i;
 	int rcvdint = 0;
 
-	/* test_bit below needs this... */
+	/*
+	 * test_and_clear_bit(IPATH_PORT_WAITING_RCV) and
+	 * test_and_clear_bit(IPATH_PORT_WAITING_URG) below
+	 * would both like timely updates of the bits so that
+	 * we don't pass them by unnecessarily.  the rmb()
+	 * here ensures that we see them promptly -- the
+	 * corresponding wmb()'s are in ipath_poll_urgent()
+	 * and ipath_poll_next()...
+	 */
 	rmb();
 	portr = ((istat >> INFINIPATH_I_RCVAVAIL_SHIFT) &
 		 dd->ipath_i_rcvavail_mask)
