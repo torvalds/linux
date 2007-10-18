@@ -2397,7 +2397,6 @@ int ipv6_sysctl_rtcache_flush(ctl_table *ctl, int write, struct file * filp,
 
 ctl_table ipv6_route_table[] = {
 	{
-		.ctl_name	=	NET_IPV6_ROUTE_FLUSH,
 		.procname	=	"flush",
 		.data		=	&flush_delay,
 		.maxlen		=	sizeof(int),
