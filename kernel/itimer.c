@@ -130,7 +130,7 @@ asmlinkage long sys_getitimer(int which, struct itimerval __user *value)
 enum hrtimer_restart it_real_fn(struct hrtimer *timer)
 {
 	struct signal_struct *sig =
-	    container_of(timer, struct signal_struct, real_timer);
+		container_of(timer, struct signal_struct, real_timer);
 
 	send_group_sig_info(SIGALRM, SEND_SIG_PRIV, sig->tsk);
 
@@ -291,6 +291,6 @@ asmlinkage long sys_setitimer(int which,
 		return error;
 
 	if (copy_to_user(ovalue, &get_buffer, sizeof(get_buffer)))
-		return -EFAULT; 
+		return -EFAULT;
 	return 0;
 }
