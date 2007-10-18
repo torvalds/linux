@@ -698,7 +698,6 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 #define DECLARE_SCC_DEV(name_str)			\
   {							\
       .name		= name_str,			\
-      .init_setup	= init_setup_scc,		\
       .init_iops	= init_iops_scc,		\
       .init_hwif	= init_hwif_scc,		\
       .host_flags	= IDE_HFLAG_SINGLE |		\
@@ -722,7 +721,8 @@ static ide_pci_device_t scc_chipsets[] __devinitdata = {
 static int __devinit scc_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	ide_pci_device_t *d = &scc_chipsets[id->driver_data];
-	return d->init_setup(dev, d);
+
+	return init_setup_scc(dev, d);
 }
 
 /**
