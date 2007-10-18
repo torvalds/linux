@@ -1959,12 +1959,11 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 
 	mutex_lock(&state->mutex);
 
-#ifdef CONFIG_DISABLE_CONSOLE_SUSPEND
-	if (uart_console(port)) {
+	if (!console_suspend_enabled && uart_console(port)) {
+		/* we're going to avoid suspending serial console */
 		mutex_unlock(&state->mutex);
 		return 0;
 	}
-#endif
 
 	tty_dev = device_find_child(port->dev, &match, serial_match_port);
 	if (device_may_wakeup(tty_dev)) {
@@ -2016,12 +2015,11 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 
 	mutex_lock(&state->mutex);
 
-#ifdef CONFIG_DISABLE_CONSOLE_SUSPEND
-	if (uart_console(port)) {
+	if (!console_suspend_enabled && uart_console(port)) {
+		/* no need to resume serial console, it wasn't suspended */
 		mutex_unlock(&state->mutex);
 		return 0;
 	}
-#endif
 
 	if (!port->suspended) {
 		disable_irq_wake(port->irq);

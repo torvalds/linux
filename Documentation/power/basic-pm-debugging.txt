@@ -78,8 +78,8 @@ c) Advanced debugging
 In case the STD does not work on your system even in the minimal configuration
 and compiling more drivers as modules is not practical or some modules cannot
 be unloaded, you can use one of the more advanced debugging techniques to find
-the problem.  First, if there is a serial port in your box, you can set the
-CONFIG_DISABLE_CONSOLE_SUSPEND kernel configuration option and try to log kernel
+the problem.  First, if there is a serial port in your box, you can boot the
+kernel with the 'no_console_suspend' parameter and try to log kernel
 messages using the serial console.  This may provide you with some information
 about the reasons of the suspend (resume) failure.  Alternatively, it may be
 possible to use a FireWire port for debugging with firescope
