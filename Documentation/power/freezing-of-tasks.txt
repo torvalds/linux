@@ -81,7 +81,16 @@ hibernation image has been created and before the system is finally powered off.
 The majority of these are user space processes, but if any of the kernel threads
 may cause something like this to happen, they have to be freezable.
 
-2. The second reason is to prevent user space processes and some kernel threads
+2. Next, to create the hibernation image we need to free a sufficient amount of
+memory (approximately 50% of available RAM) and we need to do that before
+devices are deactivated, because we generally need them for swapping out.  Then,
+after the memory for the image has been freed, we don't want tasks to allocate
+additional memory and we prevent them from doing that by freezing them earlier.
+[Of course, this also means that device drivers should not allocate substantial
+amounts of memory from their .suspend() callbacks before hibernation, but this
+is e separate issue.]
+
+3. The third reason is to prevent user space processes and some kernel threads
 from interfering with the suspending and resuming of devices.  A user space
 process running on a second CPU while we are suspending devices may, for
 example, be troublesome and without the freezing of tasks we would need some
@@ -111,7 +120,7 @@ frozen before the driver's .suspend() callback is executed and it will be
 thawed after the driver's .resume() callback has run, so it won't be accessing
 the device while it's suspended.
 
-3. Another reason for freezing tasks is to prevent user space processes from
+4. Another reason for freezing tasks is to prevent user space processes from
 realizing that hibernation (or suspend) operation takes place.  Ideally, user
 space processes should not notice that such a system-wide operation has occurred
 and should continue running without any problems after the restore (or resume
