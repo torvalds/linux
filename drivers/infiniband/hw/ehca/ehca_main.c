@@ -579,12 +579,12 @@ static ssize_t  ehca_show_##name(struct device *dev,                       \
 									   \
 	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);			   \
 	if (!rblock) {						           \
-		dev_err(dev, "Can't allocate rblock memory.");		   \
+		dev_err(dev, "Can't allocate rblock memory.\n");           \
 		return 0;						   \
 	}								   \
 									   \
 	if (hipz_h_query_hca(shca->ipz_hca_handle, rblock) != H_SUCCESS) { \
-		dev_err(dev, "Can't query device properties");	   	   \
+		dev_err(dev, "Can't query device properties\n");           \
 		ehca_free_fw_ctrlblock(rblock);			   	   \
 		return 0;					   	   \
 	}								   \

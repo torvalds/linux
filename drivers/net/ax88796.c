@@ -900,7 +900,7 @@ static int ax_probe(struct platform_device *pdev)
 
 		ax->map2 = ioremap(res->start, size);
 		if (ax->map2 == NULL) {
-			dev_err(&pdev->dev, "cannot map reset register");
+			dev_err(&pdev->dev, "cannot map reset register\n");
 			ret = -ENXIO;
 			goto exit_mem2;
 		}

@@ -216,7 +216,7 @@ static void iowarrior_callback(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&dev->interface->dev, "%s - usb_submit_urb failed with result %d",
+		dev_err(&dev->interface->dev, "%s - usb_submit_urb failed with result %d\n",
 			__FUNCTION__, retval);
 
 }
@@ -451,7 +451,7 @@ static ssize_t iowarrior_write(struct file *file,
 		break;
 	default:
 		/* what do we have here ? An unsupported Product-ID ? */
-		dev_err(&dev->interface->dev, "%s - not supported for product=0x%x",
+		dev_err(&dev->interface->dev, "%s - not supported for product=0x%x\n",
 			__FUNCTION__, dev->product_id);
 		retval = -EFAULT;
 		goto exit;
@@ -526,7 +526,7 @@ static int iowarrior_ioctl(struct inode *inode, struct file *file,
 		} else {
 			retval = -EINVAL;
 			dev_err(&dev->interface->dev,
-				"ioctl 'IOW_WRITE' is not supported for product=0x%x.",
+				"ioctl 'IOW_WRITE' is not supported for product=0x%x.\n",
 				dev->product_id);
 		}
 		break;
@@ -752,7 +752,7 @@ static int iowarrior_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and intialize it */
 	dev = kzalloc(sizeof(struct iowarrior), GFP_KERNEL);
 	if (dev == NULL) {
-		dev_err(&interface->dev, "Out of memory");
+		dev_err(&interface->dev, "Out of memory\n");
 		return retval;
 	}
 

@@ -1526,7 +1526,7 @@ static int xennet_connect(struct net_device *dev)
 
 	if (!feature_rx_copy) {
 		dev_info(&dev->dev,
-			 "backend does not support copying recieve path");
+			 "backend does not support copying receive path\n");
 		return -ENODEV;
 	}
 

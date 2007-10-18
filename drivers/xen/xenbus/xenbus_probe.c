@@ -185,13 +185,14 @@ static void otherend_changed(struct xenbus_watch *watch,
 	if (!dev->otherend ||
 	    strncmp(dev->otherend, vec[XS_WATCH_PATH],
 		    strlen(dev->otherend))) {
-		dev_dbg(&dev->dev, "Ignoring watch at %s", vec[XS_WATCH_PATH]);
+		dev_dbg(&dev->dev, "Ignoring watch at %s\n",
+			vec[XS_WATCH_PATH]);
 		return;
 	}
 
 	state = xenbus_read_driver_state(dev->otherend);
 
-	dev_dbg(&dev->dev, "state is %d, (%s), %s, %s",
+	dev_dbg(&dev->dev, "state is %d, (%s), %s, %s\n",
 		state, xenbus_strstate(state), dev->otherend_watch.node,
 		vec[XS_WATCH_PATH]);
 

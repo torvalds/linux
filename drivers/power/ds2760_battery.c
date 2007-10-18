@@ -366,7 +366,7 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 
 	retval = power_supply_register(&pdev->dev, &di->bat);
 	if (retval) {
-		dev_err(di->dev, "failed to register battery");
+		dev_err(di->dev, "failed to register battery\n");
 		goto batt_failed;
 	}
 

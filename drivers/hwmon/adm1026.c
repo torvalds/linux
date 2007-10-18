@@ -1651,7 +1651,7 @@ static int adm1026_detect(struct i2c_adapter *adapter, int address,
 		break;
 	default :
 		dev_err(&adapter->dev, ": Internal error, invalid "
-			"kind (%d)!", kind);
+			"kind (%d)!\n", kind);
 		err = -EFAULT;
 		goto exitfree;
 	}

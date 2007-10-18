@@ -636,7 +636,7 @@ static int __devinit gxt4500_probe(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct gxt4500_par), &pdev->dev);
 	if (!info) {
-		dev_err(&pdev->dev, "gxt4500: cannot alloc FB info record");
+		dev_err(&pdev->dev, "gxt4500: cannot alloc FB info record\n");
 		goto err_free_fb;
 	}
 	par = info->par;

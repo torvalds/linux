@@ -534,7 +534,8 @@ int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 			n = RBUFSIZE - tail;
 		if (!n) {
 			dev_err(inbuf->cs->dev,
-				"buffer overflow (%u bytes lost)", bytesleft);
+				"buffer overflow (%u bytes lost)\n",
+				bytesleft);
 			break;
 		}
 		if (n > bytesleft)

@@ -1243,7 +1243,8 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba *phba)
 				memset(adaptermsg, 0, LPFC_MAX_ADPTMSG);
 				memcpy(&adaptermsg[0], (uint8_t *) irsp,
 				       MAX_MSG_DATA);
-				dev_warn(&((phba->pcidev)->dev), "lpfc%d: %s",
+				dev_warn(&((phba->pcidev)->dev),
+					 "lpfc%d: %s\n",
 					 phba->brd_no, adaptermsg);
 			} else {
 				/* Unknown IOCB command */
@@ -1430,7 +1431,8 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 				memset(adaptermsg, 0, LPFC_MAX_ADPTMSG);
 				memcpy(&adaptermsg[0], (uint8_t *) irsp,
 				       MAX_MSG_DATA);
-				dev_warn(&((phba->pcidev)->dev), "lpfc%d: %s",
+				dev_warn(&((phba->pcidev)->dev),
+					 "lpfc%d: %s\n",
 					 phba->brd_no, adaptermsg);
 			} else {
 				/* Unknown IOCB command */
@@ -1681,7 +1683,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 					memcpy(&adaptermsg[0], (uint8_t *) irsp,
 					       MAX_MSG_DATA);
 					dev_warn(&((phba->pcidev)->dev),
-						 "lpfc%d: %s",
+						 "lpfc%d: %s\n",
 						 phba->brd_no, adaptermsg);
 				} else {
 					/* Unknown IOCB command */

@@ -575,7 +575,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	else {
 		freq_mhz = PNX_DEFAULT_FREQ;
 		dev_info(&pdev->dev, "Setting bus frequency to default value: "
-		       "%d MHz", freq_mhz);
+		       "%d MHz\n", freq_mhz);
 	}
 
 	i2c_pnx->adapter->algo = &pnx_algorithm;

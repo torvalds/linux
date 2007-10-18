@@ -795,7 +795,7 @@ static ssize_t set_pwm_auto_point_pwm(struct device *dev,
 
 	if ((val < 0) || (val > 255)) {
 		dev_err(dev, "pwm value %ld is out of range. "
-			"Choose a value between 0 and 255." , val);
+			"Choose a value between 0 and 255.\n" , val);
 		return -EINVAL;
 	}
 

@@ -66,7 +66,7 @@ static int ps3stor_probe_access(struct ps3_storage_device *dev)
 	if (n > 1)
 		dev_info(&dev->sbd.core,
 			 "%s:%u: %lu accessible regions found. Only the first "
-			 "one will be used",
+			 "one will be used\n",
 			 __func__, __LINE__, n);
 	dev->region_idx = __ffs(dev->accessible_regions);
 	dev_info(&dev->sbd.core,

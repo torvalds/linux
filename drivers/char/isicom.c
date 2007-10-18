@@ -1529,7 +1529,7 @@ static int __devinit reset_card(struct pci_dev *pdev,
 	portcount = inw(base + 0x2);
 	if (!inw(base + 0xe) & 0x1 || (portcount != 0 && portcount != 4 &&
 				portcount != 8 && portcount != 16)) {
-		dev_err(&pdev->dev, "ISILoad:PCI Card%d reset failure.",
+		dev_err(&pdev->dev, "ISILoad:PCI Card%d reset failure.\n",
 			card + 1);
 		retval = -EIO;
 		goto end;
@@ -1622,7 +1622,9 @@ static int __devinit load_firmware(struct pci_dev *pdev,
 
 		if ((status = inw(base + 0x4)) != 0) {
 			dev_warn(&pdev->dev, "Card%d rejected load header:\n"
-				"Address:0x%x\nCount:0x%x\nStatus:0x%x\n",
+				KERN_WARNING "Address:0x%x\n"
+				KERN_WARNING "Count:0x%x\n"
+				KERN_WARNING "Status:0x%x\n",
 				index + 1, frame->addr, frame->count, status);
 			goto errrelfw;
 		}
@@ -1666,7 +1668,9 @@ static int __devinit load_firmware(struct pci_dev *pdev,
 
 		if ((status = inw(base + 0x4)) != 0) {
 			dev_warn(&pdev->dev, "Card%d rejected verify header:\n"
-				"Address:0x%x\nCount:0x%x\nStatus: 0x%x\n",
+				KERN_WARNING "Address:0x%x\n"
+				KERN_WARNING "Count:0x%x\n"
+				KERN_WARNING "Status: 0x%x\n",
 				index + 1, frame->addr, frame->count, status);
 			goto errrelfw;
 		}

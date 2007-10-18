@@ -155,7 +155,7 @@ resubmit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		dev_err(&mc->intf->dev,
-			"can't resubmit intr, %s-%s/motorcontrol0, retval %d",
+			"can't resubmit intr, %s-%s/motorcontrol0, retval %d\n",
 			mc->udev->bus->bus_name,
 			mc->udev->devpath, retval);
 }

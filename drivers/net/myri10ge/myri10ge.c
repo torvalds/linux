@@ -3058,7 +3058,8 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (status != 0) {
 		dac_enabled = 0;
 		dev_err(&pdev->dev,
-			"64-bit pci address mask was refused, trying 32-bit");
+			"64-bit pci address mask was refused, "
+			"trying 32-bit\n");
 		status = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	}
 	if (status != 0) {

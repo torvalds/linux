@@ -269,8 +269,9 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 	skb->protocol = eth_type_trans(skb, xpnet_device);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	dev_dbg(xpnet, "passing skb to network layer; \n\tskb->head=0x%p "
-		"skb->data=0x%p skb->tail=0x%p skb->end=0x%p skb->len=%d\n",
+	dev_dbg(xpnet, "passing skb to network layer\n"
+		KERN_DEBUG "\tskb->head=0x%p skb->data=0x%p skb->tail=0x%p "
+		"skb->end=0x%p skb->len=%d\n",
 		(void *)skb->head, (void *)skb->data, skb_tail_pointer(skb),
 		skb_end_pointer(skb), skb->len);
 
@@ -576,10 +577,10 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		msg->tailout_ignore = end_addr - (u64)skb_tail_pointer(skb);
 		msg->buf_pa = __pa(start_addr);
 
-		dev_dbg(xpnet, "sending XPC message to %d:%d\nmsg->buf_pa="
-			"0x%lx, msg->size=%u, msg->leadin_ignore=%u, "
-			"msg->tailout_ignore=%u\n", dest_partid,
-			XPC_NET_CHANNEL, msg->buf_pa, msg->size,
+		dev_dbg(xpnet, "sending XPC message to %d:%d\n"
+			KERN_DEBUG "msg->buf_pa=0x%lx, msg->size=%u, "
+			"msg->leadin_ignore=%u, msg->tailout_ignore=%u\n",
+			dest_partid, XPC_NET_CHANNEL, msg->buf_pa, msg->size,
 			msg->leadin_ignore, msg->tailout_ignore);
 
 

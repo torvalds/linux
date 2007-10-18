@@ -508,7 +508,7 @@ int hwa742_update_window_async(struct fb_info *fbi,
 	if (unlikely(win->format &
 	    ~(0x03 | OMAPFB_FORMAT_FLAG_DOUBLE |
 	    OMAPFB_FORMAT_FLAG_TEARSYNC | OMAPFB_FORMAT_FLAG_FORCE_VSYNC))) {
-		dev_dbg(hwa742.fbdev->dev, "invalid window flag");
+		dev_dbg(hwa742.fbdev->dev, "invalid window flag\n");
 		r = -EINVAL;
 		goto out;
 	}

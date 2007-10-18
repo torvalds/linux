@@ -478,7 +478,7 @@ static int mos7720_open(struct usb_serial_port *port, struct file * filp)
 		response = usb_submit_urb(port0->interrupt_in_urb, GFP_KERNEL);
 		if (response)
 			dev_err(&port->dev,
-				"%s - Error %d submitting control urb",
+				"%s - Error %d submitting control urb\n",
 				__FUNCTION__, response);
 	}
 
@@ -492,7 +492,7 @@ static int mos7720_open(struct usb_serial_port *port, struct file * filp)
 	response = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (response)
 		dev_err(&port->dev,
-			"%s - Error %d submitting read urb", __FUNCTION__, response);
+			"%s - Error %d submitting read urb\n", __FUNCTION__, response);
 
 	/* initialize our icount structure */
 	memset(&(mos7720_port->icount), 0x00, sizeof(mos7720_port->icount));

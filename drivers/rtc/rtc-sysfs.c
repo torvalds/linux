@@ -200,9 +200,8 @@ void rtc_sysfs_add_device(struct rtc_device *rtc)
 
 	err = device_create_file(&rtc->dev, &dev_attr_wakealarm);
 	if (err)
-		dev_err(rtc->dev.parent, "failed to create "
-				"alarm attribute, %d",
-				err);
+		dev_err(rtc->dev.parent,
+			"failed to create alarm attribute, %d\n", err);
 }
 
 void rtc_sysfs_del_device(struct rtc_device *rtc)

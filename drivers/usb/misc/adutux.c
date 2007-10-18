@@ -805,7 +805,7 @@ static int adu_probe(struct usb_interface *interface,
 	dev->minor = interface->minor;
 
 	/* let the user know what node this device is now attached to */
-	dev_info(&interface->dev, "ADU%d %s now attached to /dev/usb/adutux%d",
+	dev_info(&interface->dev, "ADU%d %s now attached to /dev/usb/adutux%d\n",
 		 udev->descriptor.idProduct, dev->serial_number,
 		 (dev->minor - ADU_MINOR_BASE));
 exit:
@@ -851,7 +851,7 @@ static void adu_disconnect(struct usb_interface *interface)
 		mutex_unlock(&dev->mtx);
 	}
 
-	dev_info(&interface->dev, "ADU device adutux%d now disconnected",
+	dev_info(&interface->dev, "ADU device adutux%d now disconnected\n",
 		 (minor - ADU_MINOR_BASE));
 
 	dbg(2," %s : leave", __FUNCTION__);

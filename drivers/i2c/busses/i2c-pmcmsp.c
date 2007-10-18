@@ -591,18 +591,18 @@ static int pmcmsptwi_master_xfer(struct i2c_adapter *adap,
 	if (msg->flags & I2C_M_TEN)
 		pmcmsptwi_set_twi_config(&oldcfg, data);
 
-	dev_dbg(&adap->dev, "I2C %s of %d bytes ",
-		(msg->flags & I2C_M_RD) ? "read" : "write", msg->len);
+	dev_dbg(&adap->dev, "I2C %s of %d bytes %s\n",
+		(msg->flags & I2C_M_RD) ? "read" : "write", msg->len,
+		(ret == MSP_TWI_XFER_OK) ? "succeeded" : "failed");
+
 	if (ret != MSP_TWI_XFER_OK) {
 		/*
 		 * TODO: We could potentially loop and retry in the case
 		 * of MSP_TWI_XFER_TIMEOUT.
 		 */
-		dev_dbg(&adap->dev, "failed\n");
 		return -1;
 	}
 
-	dev_dbg(&adap->dev, "succeeded\n");
 	return 0;
 }
 

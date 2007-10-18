@@ -696,7 +696,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev,
 
 	info->clk = clk_get(&pdev->dev, "nand");
 	if (IS_ERR(info->clk)) {
-		dev_err(&pdev->dev, "failed to get clock");
+		dev_err(&pdev->dev, "failed to get clock\n");
 		err = -ENOENT;
 		goto exit_error;
 	}

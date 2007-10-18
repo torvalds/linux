@@ -1286,7 +1286,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 
         ret = scsi_init_shared_tag_map(host, MAX_SRBS);
         if (ret) {
-                dev_warn(&ha->pdev->dev, "scsi_init_shared_tag_map failed");
+                dev_warn(&ha->pdev->dev, "scsi_init_shared_tag_map failed\n");
                 goto probe_failed;
         }
 

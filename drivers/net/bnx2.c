@@ -6428,7 +6428,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	/* enable device (incl. PCI PM wakeup), and bus-mastering */
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		dev_err(&pdev->dev, "Cannot enable PCI device, aborting.");
+		dev_err(&pdev->dev, "Cannot enable PCI device, aborting.\n");
 		goto err_out;
 	}
 

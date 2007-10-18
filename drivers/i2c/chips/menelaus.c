@@ -1195,7 +1195,7 @@ static int menelaus_probe(struct i2c_client *client)
 		err = request_irq(client->irq, menelaus_irq, IRQF_DISABLED,
 				  DRIVER_NAME, menelaus);
 		if (err) {
-			dev_dbg(&client->dev,  "can't get IRQ %d, err %d",
+			dev_dbg(&client->dev,  "can't get IRQ %d, err %d\n",
 					client->irq, err);
 			goto fail1;
 		}

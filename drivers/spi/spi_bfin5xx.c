@@ -1070,7 +1070,7 @@ static int setup(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	dev_dbg(&spi->dev, "setup spi chip %s, width is %d, dma is %d,",
+	dev_dbg(&spi->dev, "setup spi chip %s, width is %d, dma is %d\n",
 			spi->modalias, chip->width, chip->enable_dma);
 	dev_dbg(&spi->dev, "ctl_reg is 0x%x, flag_reg is 0x%x\n",
 			chip->ctl_reg, chip->flag);

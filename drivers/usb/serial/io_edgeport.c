@@ -2882,7 +2882,7 @@ static int edge_startup (struct usb_serial *serial)
 	    (edge_serial->product_info.NumPorts != serial->num_ports)) {
 		dev_warn(&serial->dev->dev, "Device Reported %d serial ports "
 			 "vs. core thinking we have %d ports, email "
-			 "greg@kroah.com this information.",
+			 "greg@kroah.com this information.\n",
 			 edge_serial->product_info.NumPorts,
 			 serial->num_ports);
 	}

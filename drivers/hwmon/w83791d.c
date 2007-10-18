@@ -1096,7 +1096,7 @@ static int w83791d_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (kind == w83791d) {
 		client_name = "w83791d";
 	} else {
-		dev_err(dev, "w83791d: Internal error: unknown kind (%d)?!?",
+		dev_err(dev, "w83791d: Internal error: unknown kind (%d)?!?\n",
 			kind);
 		goto error1;
 	}

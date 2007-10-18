@@ -1194,7 +1194,7 @@ static int setup(struct spi_device *spi)
 		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
 		if (!chip) {
 			dev_err(&spi->dev,
-				"setup - cannot allocate controller state");
+				"setup - cannot allocate controller state\n");
 			return -ENOMEM;
 		}
 		chip->control = SPI_DEFAULT_CONTROL;
@@ -1206,7 +1206,7 @@ static int setup(struct spi_device *spi)
 			if (!chip_info) {
 				dev_err(&spi->dev,
 					"setup - "
-					"cannot allocate controller data");
+					"cannot allocate controller data\n");
 				status = -ENOMEM;
 				goto err_first_setup;
 			}

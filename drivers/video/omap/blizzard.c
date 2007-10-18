@@ -225,7 +225,7 @@ static void blizzard_restart_sdram(void)
 	while (!(blizzard_read_reg(BLIZZARD_MEM_BANK0_STATUS) & 0x01)) {
 		if (time_after(jiffies, tmo)) {
 			dev_err(blizzard.fbdev->dev,
-					"s1d1374x: SDRAM not ready");
+					"s1d1374x: SDRAM not ready\n");
 			break;
 		}
 		msleep(1);

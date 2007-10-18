@@ -3218,7 +3218,7 @@ static int __devinit ehea_probe_adapter(struct of_device *dev,
 	/* get adapter properties */
 	ret = ehea_sense_adapter_attr(adapter);
 	if (ret) {
-		dev_err(&dev->dev, "sense_adapter_attr failed: %d", ret);
+		dev_err(&dev->dev, "sense_adapter_attr failed: %d\n", ret);
 		goto out_free_ad;
 	}
 
@@ -3226,7 +3226,7 @@ static int __devinit ehea_probe_adapter(struct of_device *dev,
 				      EHEA_NEQ, EHEA_MAX_ENTRIES_EQ, 1);
 	if (!adapter->neq) {
 		ret = -EIO;
-		dev_err(&dev->dev, "NEQ creation failed");
+		dev_err(&dev->dev, "NEQ creation failed\n");
 		goto out_free_ad;
 	}
 
@@ -3237,7 +3237,7 @@ static int __devinit ehea_probe_adapter(struct of_device *dev,
 				  ehea_interrupt_neq, IRQF_DISABLED,
 				  "ehea_neq", adapter);
 	if (ret) {
-		dev_err(&dev->dev, "requesting NEQ IRQ failed");
+		dev_err(&dev->dev, "requesting NEQ IRQ failed\n");
 		goto out_kill_eq;
 	}
 
@@ -3247,7 +3247,7 @@ static int __devinit ehea_probe_adapter(struct of_device *dev,
 
 	ret = ehea_setup_ports(adapter);
 	if (ret) {
-		dev_err(&dev->dev, "setup_ports failed");
+		dev_err(&dev->dev, "setup_ports failed\n");
 		goto out_rem_dev_sysfs;
 	}
 
