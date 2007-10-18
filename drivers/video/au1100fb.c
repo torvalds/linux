@@ -457,7 +457,7 @@ static struct fb_ops au1100fb_ops =
 
 /* AU1100 LCD controller device driver */
 
-int au1100fb_drv_probe(struct device *dev)
+static int __init au1100fb_drv_probe(struct device *dev)
 {
 	struct au1100fb_device *fbdev = NULL;
 	struct resource *regs_res;
