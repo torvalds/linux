@@ -522,29 +522,30 @@ static int ieee80211_ioctl_siwscan(struct net_device *dev,
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
+	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_STA:
+	case IEEE80211_IF_TYPE_IBSS:
+		if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
+			ssid = sdata->u.sta.ssid;
+			ssid_len = sdata->u.sta.ssid_len;
+		}
+		break;
+	case IEEE80211_IF_TYPE_AP:
+		if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
+			ssid = sdata->u.ap.ssid;
+			ssid_len = sdata->u.ap.ssid_len;
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	/* if SSID was specified explicitly then use that */
 	if (wrqu->data.length == sizeof(struct iw_scan_req) &&
 	    wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		req = (struct iw_scan_req *)extra;
 		ssid = req->essid;
 		ssid_len = req->essid_len;
-	} else {
-		switch (sdata->type) {
-		case IEEE80211_IF_TYPE_STA:
-		case IEEE80211_IF_TYPE_IBSS:
-			if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
-				ssid = sdata->u.sta.ssid;
-				ssid_len = sdata->u.sta.ssid_len;
-			}
-			break;
-		case IEEE80211_IF_TYPE_AP:
-			if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
-				ssid = sdata->u.ap.ssid;
-				ssid_len = sdata->u.ap.ssid_len;
-			}
-			break;
-		default:
-			return -EOPNOTSUPP;
-		}
 	}
 
 	return ieee80211_sta_req_scan(dev, ssid, ssid_len);
