@@ -378,7 +378,6 @@ static inline int ipv6_prefix_equal(const struct in6_addr *a1,
 }
 
 struct inet_frag_queue;
-int ip6_frag_equal(struct inet_frag_queue *q1, struct inet_frag_queue *q2);
 
 struct ip6_create_arg {
 	__be32 id;

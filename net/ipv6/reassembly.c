@@ -143,18 +143,6 @@ static unsigned int ip6_hashfn(struct inet_frag_queue *q)
 	return ip6qhashfn(fq->id, &fq->saddr, &fq->daddr);
 }
 
-int ip6_frag_equal(struct inet_frag_queue *q1, struct inet_frag_queue *q2)
-{
-	struct frag_queue *fq1, *fq2;
-
-	fq1 = container_of(q1, struct frag_queue, q);
-	fq2 = container_of(q2, struct frag_queue, q);
-	return (fq1->id == fq2->id &&
-			ipv6_addr_equal(&fq2->saddr, &fq1->saddr) &&
-			ipv6_addr_equal(&fq2->daddr, &fq1->daddr));
-}
-EXPORT_SYMBOL(ip6_frag_equal);
-
 int ip6_frag_match(struct inet_frag_queue *q, void *a)
 {
 	struct frag_queue *fq;
@@ -661,7 +649,6 @@ void __init ipv6_frag_init(void)
 	ip6_frags.skb_free = NULL;
 	ip6_frags.qsize = sizeof(struct frag_queue);
 	ip6_frags.match = ip6_frag_match;
-	ip6_frags.equal = ip6_frag_equal;
 	ip6_frags.frag_expire = ip6_frag_expire;
 	inet_frags_init(&ip6_frags);
 }

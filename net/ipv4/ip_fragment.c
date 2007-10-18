@@ -128,20 +128,6 @@ static unsigned int ip4_hashfn(struct inet_frag_queue *q)
 	return ipqhashfn(ipq->id, ipq->saddr, ipq->daddr, ipq->protocol);
 }
 
-static int ip4_frag_equal(struct inet_frag_queue *q1,
-		struct inet_frag_queue *q2)
-{
-	struct ipq *qp1, *qp2;
-
-	qp1 = container_of(q1, struct ipq, q);
-	qp2 = container_of(q2, struct ipq, q);
-	return (qp1->id == qp2->id &&
-			qp1->saddr == qp2->saddr &&
-			qp1->daddr == qp2->daddr &&
-			qp1->protocol == qp2->protocol &&
-			qp1->user == qp2->user);
-}
-
 static int ip4_frag_match(struct inet_frag_queue *q, void *a)
 {
 	struct ipq *qp;
@@ -631,7 +617,6 @@ void __init ipfrag_init(void)
 	ip4_frags.destructor = ip4_frag_free;
 	ip4_frags.skb_free = NULL;
 	ip4_frags.qsize = sizeof(struct ipq);
-	ip4_frags.equal = ip4_frag_equal;
 	ip4_frags.match = ip4_frag_match;
 	ip4_frags.frag_expire = ip_expire;
 	inet_frags_init(&ip4_frags);

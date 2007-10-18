@@ -174,7 +174,7 @@ int inet_frag_evictor(struct inet_frags *f)
 EXPORT_SYMBOL(inet_frag_evictor);
 
 static struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
-		struct inet_frags *f, unsigned int hash)
+		struct inet_frags *f, unsigned int hash, void *arg)
 {
 	struct inet_frag_queue *qp;
 #ifdef CONFIG_SMP
@@ -188,7 +188,7 @@ static struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
 	 * promoted read lock to write lock.
 	 */
 	hlist_for_each_entry(qp, n, &f->hash[hash], list) {
-		if (f->equal(qp, qp_in)) {
+		if (f->match(qp, arg)) {
 			atomic_inc(&qp->refcnt);
 			write_unlock(&f->lock);
 			qp_in->last_in |= COMPLETE;
@@ -235,7 +235,7 @@ static struct inet_frag_queue *inet_frag_create(struct inet_frags *f,
 	if (q == NULL)
 		return NULL;
 
-	return inet_frag_intern(q, f, hash);
+	return inet_frag_intern(q, f, hash, arg);
 }
 
 struct inet_frag_queue *inet_frag_find(struct inet_frags *f, void *key,
