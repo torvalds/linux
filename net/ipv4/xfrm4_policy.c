@@ -117,7 +117,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		header_len += xfrm[i]->props.header_len;
 		trailer_len += xfrm[i]->props.trailer_len;
 
-		if (xfrm[i]->props.mode == XFRM_MODE_TUNNEL) {
+		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			unsigned short encap_family = xfrm[i]->props.family;
 			switch (encap_family) {
 			case AF_INET:

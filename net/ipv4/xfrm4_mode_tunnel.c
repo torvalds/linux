@@ -139,6 +139,7 @@ static struct xfrm_mode xfrm4_tunnel_mode = {
 	.output = xfrm4_tunnel_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
+	.flags = XFRM_MODE_FLAG_TUNNEL,
 };
 
 static int __init xfrm4_tunnel_init(void)

@@ -93,7 +93,8 @@ __xfrm6_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n)
 	/* Rule 4: select IPsec tunnel */
 	for (i = 0; i < n; i++) {
 		if (src[i] &&
-		    src[i]->props.mode == XFRM_MODE_TUNNEL) {
+		    (src[i]->props.mode == XFRM_MODE_TUNNEL ||
+		     src[i]->props.mode == XFRM_MODE_BEET)) {
 			dst[j++] = src[i];
 			src[i] = NULL;
 		}
@@ -146,7 +147,8 @@ __xfrm6_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n)
 	/* Rule 3: select IPsec tunnel */
 	for (i = 0; i < n; i++) {
 		if (src[i] &&
-		    src[i]->mode == XFRM_MODE_TUNNEL) {
+		    (src[i]->mode == XFRM_MODE_TUNNEL ||
+		     src[i]->mode == XFRM_MODE_BEET)) {
 			dst[j++] = src[i];
 			src[i] = NULL;
 		}

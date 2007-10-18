@@ -82,7 +82,7 @@ int xfrm_output(struct sk_buff *skb)
 		}
 		dst = skb->dst;
 		x = dst->xfrm;
-	} while (x && (x->props.mode != XFRM_MODE_TUNNEL));
+	} while (x && !(x->mode->flags & XFRM_MODE_FLAG_TUNNEL));
 
 	err = 0;
 

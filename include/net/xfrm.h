@@ -314,6 +314,12 @@ struct xfrm_mode {
 
 	struct module *owner;
 	unsigned int encap;
+	int flags;
+};
+
+/* Flags for xfrm_mode. */
+enum {
+	XFRM_MODE_FLAG_TUNNEL = 1,
 };
 
 extern int xfrm_register_mode(struct xfrm_mode *mode, int family);

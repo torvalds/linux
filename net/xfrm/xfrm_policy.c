@@ -1940,7 +1940,8 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		if (xdst->genid != dst->xfrm->genid)
 			return 0;
 
-		if (strict && fl && dst->xfrm->props.mode != XFRM_MODE_TUNNEL &&
+		if (strict && fl &&
+		    !(dst->xfrm->mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
 		    !xfrm_state_addr_flow_check(dst->xfrm, fl, family))
 			return 0;
 
@@ -2291,7 +2292,8 @@ static int xfrm_policy_migrate(struct xfrm_policy *pol,
 			if (!migrate_tmpl_match(mp, &pol->xfrm_vec[i]))
 				continue;
 			n++;
-			if (pol->xfrm_vec[i].mode != XFRM_MODE_TUNNEL)
+			if (pol->xfrm_vec[i].mode != XFRM_MODE_TUNNEL &&
+			    pol->xfrm_vec[i].mode != XFRM_MODE_BEET)
 				continue;
 			/* update endpoints */
 			memcpy(&pol->xfrm_vec[i].id.daddr, &mp->new_daddr,
