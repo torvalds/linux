@@ -136,7 +136,9 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 		*work -= f->qsize;
 	atomic_sub(f->qsize, &f->mem);
 
-	f->destructor(q);
+	if (f->destructor)
+		f->destructor(q);
+	kfree(q);
 
 }
 EXPORT_SYMBOL(inet_frag_destroy);

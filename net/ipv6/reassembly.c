@@ -175,11 +175,6 @@ void ip6_frag_init(struct inet_frag_queue *q, void *a)
 }
 EXPORT_SYMBOL(ip6_frag_init);
 
-static void ip6_frag_free(struct inet_frag_queue *fq)
-{
-	kfree(container_of(fq, struct frag_queue, q));
-}
-
 /* Destruction primitives. */
 
 static __inline__ void fq_put(struct frag_queue *fq)
@@ -645,7 +640,7 @@ void __init ipv6_frag_init(void)
 	ip6_frags.ctl = &ip6_frags_ctl;
 	ip6_frags.hashfn = ip6_hashfn;
 	ip6_frags.constructor = ip6_frag_init;
-	ip6_frags.destructor = ip6_frag_free;
+	ip6_frags.destructor = NULL;
 	ip6_frags.skb_free = NULL;
 	ip6_frags.qsize = sizeof(struct frag_queue);
 	ip6_frags.match = ip6_frag_match;
