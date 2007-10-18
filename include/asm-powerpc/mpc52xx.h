@@ -259,6 +259,9 @@ extern unsigned int mpc52xx_get_irq(void);
 
 extern int __init mpc52xx_add_bridge(struct device_node *node);
 
+extern void __init mpc52xx_map_wdt(void);
+extern void mpc52xx_restart(char *cmd);
+
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_PM
