@@ -361,7 +361,6 @@ static void cp2101_get_termios (struct usb_serial_port *port)
 		dbg("%s - no tty structures", __FUNCTION__);
 		return;
 	}
-	cflag = port->tty->termios->c_cflag;
 
 	cp2101_get_config(port, CP2101_BAUDRATE, &baud, 2);
 	/* Convert to baudrate */
@@ -369,40 +368,9 @@ static void cp2101_get_termios (struct usb_serial_port *port)
 		baud = BAUD_RATE_GEN_FREQ / baud;
 
 	dbg("%s - baud rate = %d", __FUNCTION__, baud);
-	cflag &= ~CBAUD;
-	switch (baud) {
-		/*
-		 * The baud rates which are commented out below
-		 * appear to be supported by the device
-		 * but are non-standard
-		 */
-		case 600:	cflag |= B600;		break;
-		case 1200:	cflag |= B1200;		break;
-		case 1800:	cflag |= B1800;		break;
-		case 2400:	cflag |= B2400;		break;
-		case 4800:	cflag |= B4800;		break;
-		/*case 7200:	cflag |= B7200;		break;*/
-		case 9600:	cflag |= B9600;		break;
-		/*case 14400:	cflag |= B14400;	break;*/
-		case 19200:	cflag |= B19200;	break;
-		/*case 28800:	cflag |= B28800;	break;*/
-		case 38400:	cflag |= B38400;	break;
-		/*case 55854:	cflag |= B55054;	break;*/
-		case 57600:	cflag |= B57600;	break;
-		case 115200:	cflag |= B115200;	break;
-		/*case 127117:	cflag |= B127117;	break;*/
-		case 230400:	cflag |= B230400;	break;
-		case 460800:	cflag |= B460800;	break;
-		case 921600:	cflag |= B921600;	break;
-		/*case 3686400:	cflag |= B3686400;	break;*/
-		default:
-			dbg("%s - Baud rate is not supported, "
-					"using 9600 baud", __FUNCTION__);
-			cflag |= B9600;
-			cp2101_set_config_single(port, CP2101_BAUDRATE,
-					(BAUD_RATE_GEN_FREQ/9600));
-			break;
-	}
+
+	tty_encode_baud_rate(port->tty, baud, baud);
+	cflag = port->tty->termios->c_cflag;
 
 	cp2101_get_config(port, CP2101_BITS, &bits, 2);
 	cflag &= ~CSIZE;
@@ -516,7 +484,7 @@ static void cp2101_get_termios (struct usb_serial_port *port)
 static void cp2101_set_termios (struct usb_serial_port *port,
 		struct ktermios *old_termios)
 {
-	unsigned int cflag, old_cflag=0;
+	unsigned int cflag, old_cflag;
 	int baud=0, bits;
 	unsigned int modem_ctl[4];
 
@@ -526,6 +494,8 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 		dbg("%s - no tty structures", __FUNCTION__);
 		return;
 	}
+	port->tty->termios->c_cflag &= ~CMSPAR;
+
 	cflag = port->tty->termios->c_cflag;
 	old_cflag = old_termios->c_cflag;
 	baud = tty_get_baud_rate(port->tty);
@@ -563,11 +533,15 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 			dbg("%s - Setting baud rate to %d baud", __FUNCTION__,
 					baud);
 			if (cp2101_set_config_single(port, CP2101_BAUDRATE,
-						(BAUD_RATE_GEN_FREQ / baud)))
+						(BAUD_RATE_GEN_FREQ / baud))) {
 				dev_err(&port->dev, "Baud rate requested not "
 						"supported by device\n");
+				baud = tty_termios_baud_rate(old_termios);
+			}
 		}
 	}
+	/* Report back the resulting baud rate */
+	tty_encode_baud_rate(port->tty, baud, baud);
 
 	/* If the number of data bits is to be updated */
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
