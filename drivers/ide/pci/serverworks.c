@@ -379,34 +379,9 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	}
 }
 
-static int __devinit init_setup_svwks (struct pci_dev *dev, ide_pci_device_t *d)
-{
-	return ide_setup_pci_device(dev, d);
-}
-
-static int __devinit init_setup_csb6 (struct pci_dev *dev, ide_pci_device_t *d)
-{
-	if (!(PCI_FUNC(dev->devfn) & 1)) {
-		if (dev->resource[0].start == 0x01f1)
-			d->host_flags |= IDE_HFLAG_BOOTABLE;
-		else
-			d->host_flags &= ~IDE_HFLAG_BOOTABLE;
-	}
-
-	if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE ||
-	    dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2) &&
-	    (!(PCI_FUNC(dev->devfn) & 1)))
-		d->host_flags |= IDE_HFLAG_SINGLE;
-	else
-		d->host_flags &= ~IDE_HFLAG_SINGLE;
-
-	return ide_setup_pci_device(dev, d);
-}
-
 static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "SvrWks OSB4",
-		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
@@ -415,7 +390,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.udma_mask	= 0x00, /* UDMA is problematic on OSB4 */
 	},{	/* 1 */
 		.name		= "SvrWks CSB5",
-		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
@@ -424,7 +398,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA5,
 	},{	/* 2 */
 		.name		= "SvrWks CSB6",
-		.init_setup	= init_setup_csb6,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_BOOTABLE,
@@ -433,7 +406,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA5,
 	},{	/* 3 */
 		.name		= "SvrWks CSB6",
-		.init_setup	= init_setup_csb6,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
@@ -442,7 +414,6 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA5,
 	},{	/* 4 */
 		.name		= "SvrWks HT1000",
-		.init_setup	= init_setup_svwks,
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_BOOTABLE,
@@ -463,9 +434,21 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
  
 static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &serverworks_chipsets[id->driver_data];
+	ide_pci_device_t d;
+	u8 idx = id->driver_data;
 
-	return d->init_setup(dev, d);
+	d = serverworks_chipsets[idx];
+
+	if (idx == 2 || idx == 3) {
+		if ((PCI_FUNC(dev->devfn) & 1) == 0) {
+			if (pci_resource_start(dev, 0) != 0x01f1)
+				d.host_flags &= ~IDE_HFLAG_BOOTABLE;
+			d.host_flags |= IDE_HFLAG_SINGLE;
+		} else
+			d.host_flags &= ~IDE_HFLAG_SINGLE;
+	}
+
+	return ide_setup_pci_device(dev, &d);
 }
 
 static const struct pci_device_id svwks_pci_tbl[] = {
