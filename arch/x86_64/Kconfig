@@ -716,6 +716,11 @@ menu "Power management options"
 
 source kernel/power/Kconfig
 
+config ARCH_HIBERNATION_HEADER
+	bool
+	depends on HIBERNATION
+	default y
+
 source "drivers/acpi/Kconfig"
 
 source "arch/x86/kernel/cpufreq/Kconfig"

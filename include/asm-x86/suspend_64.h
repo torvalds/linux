@@ -53,3 +53,5 @@ extern unsigned long saved_rdi;
 
 /* routines for saving/restoring kernel state */
 extern int acpi_save_state_mem(void);
+extern char core_restore_code;
+extern char restore_registers;
