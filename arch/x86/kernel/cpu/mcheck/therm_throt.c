@@ -131,17 +131,19 @@ static __cpuinit int thermal_throttle_cpu_callback(struct notifier_block *nfb,
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	struct sys_device *sys_dev;
-	int err;
+	int err = 0;
 
 	sys_dev = get_cpu_sysdev(cpu);
 	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
+	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		mutex_lock(&therm_cpu_lock);
 		err = thermal_throttle_add_dev(sys_dev);
 		mutex_unlock(&therm_cpu_lock);
 		WARN_ON(err);
 		break;
+	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		mutex_lock(&therm_cpu_lock);
@@ -149,7 +151,7 @@ static __cpuinit int thermal_throttle_cpu_callback(struct notifier_block *nfb,
 		mutex_unlock(&therm_cpu_lock);
 		break;
 	}
-	return NOTIFY_OK;
+	return err ? NOTIFY_BAD : NOTIFY_OK;
 }
 
 static struct notifier_block thermal_throttle_cpu_notifier __cpuinitdata =
