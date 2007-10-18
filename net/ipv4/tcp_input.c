@@ -1121,7 +1121,7 @@ static int tcp_mark_lost_retrans(struct sock *sk, u32 received_upto)
 	struct sk_buff *skb;
 	int flag = 0;
 	int cnt = 0;
-	u32 new_low_seq = 0;
+	u32 new_low_seq = tp->snd_nxt;
 
 	tcp_for_write_queue(skb, sk) {
 		u32 ack_seq = TCP_SKB_CB(skb)->ack_seq;
@@ -1153,7 +1153,7 @@ static int tcp_mark_lost_retrans(struct sock *sk, u32 received_upto)
 				NET_INC_STATS_BH(LINUX_MIB_TCPLOSTRETRANSMIT);
 			}
 		} else {
-			if (!new_low_seq || before(ack_seq, new_low_seq))
+			if (before(ack_seq, new_low_seq))
 				new_low_seq = ack_seq;
 			cnt += tcp_skb_pcount(skb);
 		}
@@ -1242,7 +1242,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
 	int prior_fackets;
-	u32 highest_sack_end_seq = 0;
+	u32 highest_sack_end_seq = tp->lost_retrans_low;
 	int flag = 0;
 	int found_dup_sack = 0;
 	int cached_fack_count;
