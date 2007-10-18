@@ -915,7 +915,7 @@ void sk_free(struct sock *sk)
 
 	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
-		sk_filter_release(sk, filter);
+		sk_filter_uncharge(sk, filter);
 		rcu_assign_pointer(sk->sk_filter, NULL);
 	}
 
