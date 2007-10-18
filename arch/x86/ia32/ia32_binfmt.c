@@ -289,7 +289,6 @@ static void elf32_init(struct pt_regs *regs)
 
 static ctl_table abi_table2[] = {
 	{
-		.ctl_name	= 99,
 		.procname	= "vsyscall32",
 		.data		= &sysctl_vsyscall32,
 		.maxlen		= sizeof(int),

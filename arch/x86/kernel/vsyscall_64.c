@@ -266,18 +266,10 @@ out:
 	return ret;
 }
 
-static int vsyscall_sysctl_nostrat(ctl_table *t, int __user *name, int nlen,
-				void __user *oldval, size_t __user *oldlenp,
-				void __user *newval, size_t newlen)
-{
-	return -ENOSYS;
-}
-
 static ctl_table kernel_table2[] = {
-	{ .ctl_name = 99, .procname = "vsyscall64",
+	{ .procname = "vsyscall64",
 	  .data = &vsyscall_gtod_data.sysctl_enabled, .maxlen = sizeof(int),
 	  .mode = 0644,
-	  .strategy = vsyscall_sysctl_nostrat,
 	  .proc_handler = vsyscall_sysctl_change },
 	{}
 };
