@@ -137,13 +137,10 @@ static void nf_frag_free(struct inet_frag_queue *q)
 
 static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
 {
-	struct nf_ct_frag6_queue *fq;
+	struct inet_frag_queue *q;
 
-	fq = kzalloc(sizeof(struct nf_ct_frag6_queue), GFP_ATOMIC);
-	if (fq == NULL)
-		return NULL;
-	atomic_add(sizeof(struct nf_ct_frag6_queue), &nf_frags.mem);
-	return fq;
+	q = inet_frag_alloc(&nf_frags);
+	return q ? container_of(q, struct nf_ct_frag6_queue, q) : NULL;
 }
 
 /* Destruction primitives. */
@@ -168,7 +165,10 @@ static void nf_ct_frag6_evictor(void)
 
 static void nf_ct_frag6_expire(unsigned long data)
 {
-	struct nf_ct_frag6_queue *fq = (struct nf_ct_frag6_queue *) data;
+	struct nf_ct_frag6_queue *fq;
+
+	fq = container_of((struct inet_frag_queue *)data,
+			struct nf_ct_frag6_queue, q);
 
 	spin_lock(&fq->q.lock);
 
@@ -207,10 +207,6 @@ nf_ct_frag6_create(unsigned int hash, __be32 id, struct in6_addr *src,				   str
 	fq->id = id;
 	ipv6_addr_copy(&fq->saddr, src);
 	ipv6_addr_copy(&fq->daddr, dst);
-
-	setup_timer(&fq->q.timer, nf_ct_frag6_expire, (unsigned long)fq);
-	spin_lock_init(&fq->q.lock);
-	atomic_set(&fq->q.refcnt, 1);
 
 	return nf_ct_frag6_intern(hash, fq);
 
@@ -726,6 +722,7 @@ int nf_ct_frag6_init(void)
 	nf_frags.skb_free = nf_skb_free;
 	nf_frags.qsize = sizeof(struct nf_ct_frag6_queue);
 	nf_frags.equal = ip6_frag_equal;
+	nf_frags.frag_expire = nf_ct_frag6_expire;
 	inet_frags_init(&nf_frags);
 
 	return 0;

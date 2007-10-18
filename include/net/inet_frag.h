@@ -43,6 +43,7 @@ struct inet_frags {
 	void			(*skb_free)(struct sk_buff *);
 	int			(*equal)(struct inet_frag_queue *q1,
 					 struct inet_frag_queue *q2);
+	void			(*frag_expire)(unsigned long data);
 };
 
 void inet_frags_init(struct inet_frags *);
@@ -54,6 +55,7 @@ void inet_frag_destroy(struct inet_frag_queue *q,
 int inet_frag_evictor(struct inet_frags *f);
 struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *q,
 		struct inet_frags *f, unsigned int hash);
+struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f);
 
 static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f)
 {

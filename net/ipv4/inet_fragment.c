@@ -209,3 +209,20 @@ struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
 	return qp;
 }
 EXPORT_SYMBOL(inet_frag_intern);
+
+struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f)
+{
+	struct inet_frag_queue *q;
+
+	q = kzalloc(f->qsize, GFP_ATOMIC);
+	if (q == NULL)
+		return NULL;
+
+	atomic_add(f->qsize, &f->mem);
+	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
+	spin_lock_init(&q->lock);
+	atomic_set(&q->refcnt, 1);
+
+	return q;
+}
+EXPORT_SYMBOL(inet_frag_alloc);

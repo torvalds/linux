@@ -158,12 +158,10 @@ static __inline__ void ip4_frag_free(struct inet_frag_queue *q)
 
 static __inline__ struct ipq *frag_alloc_queue(void)
 {
-	struct ipq *qp = kzalloc(sizeof(struct ipq), GFP_ATOMIC);
+	struct inet_frag_queue *q;
 
-	if (!qp)
-		return NULL;
-	atomic_add(sizeof(struct ipq), &ip4_frags.mem);
-	return qp;
+	q = inet_frag_alloc(&ip4_frags);
+	return q ? container_of(q, struct ipq, q) : NULL;
 }
 
 
@@ -199,7 +197,9 @@ static void ip_evictor(void)
  */
 static void ip_expire(unsigned long arg)
 {
-	struct ipq *qp = (struct ipq *) arg;
+	struct ipq *qp;
+
+	qp = container_of((struct inet_frag_queue *) arg, struct ipq, q);
 
 	spin_lock(&qp->q.lock);
 
@@ -248,13 +248,6 @@ static struct ipq *ip_frag_create(struct iphdr *iph, u32 user, unsigned int h)
 	qp->daddr = iph->daddr;
 	qp->user = user;
 	qp->peer = sysctl_ipfrag_max_dist ? inet_getpeer(iph->saddr, 1) : NULL;
-
-	/* Initialize a timer for this entry. */
-	init_timer(&qp->q.timer);
-	qp->q.timer.data = (unsigned long) qp;	/* pointer to queue	*/
-	qp->q.timer.function = ip_expire;		/* expire function	*/
-	spin_lock_init(&qp->q.lock);
-	atomic_set(&qp->q.refcnt, 1);
 
 	return ip_frag_intern(qp, h);
 
@@ -653,6 +646,7 @@ void __init ipfrag_init(void)
 	ip4_frags.skb_free = NULL;
 	ip4_frags.qsize = sizeof(struct ipq);
 	ip4_frags.equal = ip4_frag_equal;
+	ip4_frags.frag_expire = ip_expire;
 	inet_frags_init(&ip4_frags);
 }
 
