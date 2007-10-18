@@ -478,6 +478,7 @@ static int fuse_buffered_write(struct file *file, struct inode *inode,
 	int err;
 	size_t nres;
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
 	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
 	struct fuse_req *req;
 
@@ -499,6 +500,7 @@ static int fuse_buffered_write(struct file *file, struct inode *inode,
 	if (!err) {
 		pos += nres;
 		spin_lock(&fc->lock);
+		fi->attr_version = ++fc->attr_version;
 		if (pos > inode->i_size)
 			i_size_write(inode, pos);
 		spin_unlock(&fc->lock);

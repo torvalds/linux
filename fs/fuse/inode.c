@@ -117,11 +117,21 @@ static void fuse_truncate(struct address_space *mapping, loff_t offset)
 	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
 }
 
-void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
+
+void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
+			    u64 attr_valid, u64 attr_version)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	loff_t oldsize;
+
+	spin_lock(&fc->lock);
+	if (attr_version != 0 && fi->attr_version > attr_version) {
+		spin_unlock(&fc->lock);
+		return;
+	}
+	fi->attr_version = ++fc->attr_version;
+	fi->i_time = attr_valid;
 
 	inode->i_ino     = attr->ino;
 	inode->i_mode    = (inode->i_mode & S_IFMT) | (attr->mode & 07777);
@@ -145,7 +155,6 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 	if (!(fc->flags & FUSE_DEFAULT_PERMISSIONS))
 		inode->i_mode &= ~S_ISVTX;
 
-	spin_lock(&fc->lock);
 	oldsize = inode->i_size;
 	i_size_write(inode, attr->size);
 	spin_unlock(&fc->lock);
@@ -194,7 +203,8 @@ static int fuse_inode_set(struct inode *inode, void *_nodeidp)
 }
 
 struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
-			int generation, struct fuse_attr *attr)
+			int generation, struct fuse_attr *attr,
+			u64 attr_valid, u64 attr_version)
 {
 	struct inode *inode;
 	struct fuse_inode *fi;
@@ -222,7 +232,8 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 	spin_lock(&fc->lock);
 	fi->nlookup ++;
 	spin_unlock(&fc->lock);
-	fuse_change_attributes(inode, attr);
+	fuse_change_attributes(inode, attr, attr_valid, attr_version);
+
 	return inode;
 }
 
@@ -457,6 +468,7 @@ static struct fuse_conn *new_conn(void)
 		}
 		fc->reqctr = 0;
 		fc->blocked = 1;
+		fc->attr_version = 1;
 		get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 	}
 out:
@@ -488,7 +500,7 @@ static struct inode *get_root_inode(struct super_block *sb, unsigned mode)
 	attr.mode = mode;
 	attr.ino = FUSE_ROOT_ID;
 	attr.nlink = 1;
-	return fuse_iget(sb, 1, 0, &attr);
+	return fuse_iget(sb, 1, 0, &attr, 0, 0);
 }
 
 static const struct super_operations fuse_super_operations = {

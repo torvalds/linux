@@ -67,6 +67,9 @@ struct fuse_inode {
 	/** The sticky bit in inode->i_mode may have been removed, so
 	    preserve the original mode */
 	mode_t orig_i_mode;
+
+	/** Version of last attribute change */
+	u64 attr_version;
 };
 
 /** FUSE specific file data */
@@ -387,6 +390,9 @@ struct fuse_conn {
 
 	/** Reserved request for the DESTROY message */
 	struct fuse_req *destroy_req;
+
+	/** Version counter for attribute changes */
+	u64 attr_version;
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
@@ -416,7 +422,8 @@ extern const struct file_operations fuse_dev_operations;
  * Get a filled in inode
  */
 struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
-			int generation, struct fuse_attr *attr);
+			int generation, struct fuse_attr *attr,
+			u64 attr_valid, u64 attr_version);
 
 /**
  * Send FORGET command
@@ -477,7 +484,8 @@ void fuse_init_symlink(struct inode *inode);
 /**
  * Change attributes of an inode
  */
-void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr);
+void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
+			    u64 attr_valid, u64 attr_version);
 
 /**
  * Initialize the client device
