@@ -4801,18 +4801,18 @@ static void show_task(struct task_struct *p)
 	unsigned state;
 
 	state = p->state ? __ffs(p->state) + 1 : 0;
-	printk("%-13.13s %c", p->comm,
+	printk(KERN_INFO "%-13.13s %c", p->comm,
 		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
 #if BITS_PER_LONG == 32
 	if (state == TASK_RUNNING)
-		printk(" running  ");
+		printk(KERN_CONT " running  ");
 	else
-		printk(" %08lx ", thread_saved_pc(p));
+		printk(KERN_CONT " %08lx ", thread_saved_pc(p));
 #else
 	if (state == TASK_RUNNING)
-		printk("  running task    ");
+		printk(KERN_CONT "  running task    ");
 	else
-		printk(" %016lx ", thread_saved_pc(p));
+		printk(KERN_CONT " %016lx ", thread_saved_pc(p));
 #endif
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	{
@@ -4822,7 +4822,7 @@ static void show_task(struct task_struct *p)
 		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
-	printk("%5lu %5d %6d\n", free, p->pid, p->parent->pid);
+	printk(KERN_CONT "%5lu %5d %6d\n", free, p->pid, p->parent->pid);
 
 	if (state != TASK_RUNNING)
 		show_stack(p, NULL);
@@ -5605,20 +5605,20 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 			}
 
 			if (!group->__cpu_power) {
-				printk("\n");
+				printk(KERN_CONT "\n");
 				printk(KERN_ERR "ERROR: domain->cpu_power not "
 						"set\n");
 				break;
 			}
 
 			if (!cpus_weight(group->cpumask)) {
-				printk("\n");
+				printk(KERN_CONT "\n");
 				printk(KERN_ERR "ERROR: empty group\n");
 				break;
 			}
 
 			if (cpus_intersects(groupmask, group->cpumask)) {
-				printk("\n");
+				printk(KERN_CONT "\n");
 				printk(KERN_ERR "ERROR: repeated CPUs\n");
 				break;
 			}
@@ -5626,11 +5626,11 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 			cpus_or(groupmask, groupmask, group->cpumask);
 
 			cpumask_scnprintf(str, NR_CPUS, group->cpumask);
-			printk(" %s", str);
+			printk(KERN_CONT " %s", str);
 
 			group = group->next;
 		} while (group != sd->groups);
-		printk("\n");
+		printk(KERN_CONT "\n");
 
 		if (!cpus_equal(sd->span, groupmask))
 			printk(KERN_ERR "ERROR: groups don't span "
