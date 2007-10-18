@@ -1873,8 +1873,6 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 	int fast_clock = 0;
 	int altChanRingIndicator = 0;
 	int ports_per_aiop = 8;
-	int ret;
-	unsigned int class_rev;
 	WordIO_t ConfigIO = 0;
 	ByteIO_t UPCIRingInd = 0;
 
@@ -1882,12 +1880,6 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 		return 0;
 
 	rcktpt_io_addr[i] = pci_resource_start(dev, 0);
-	ret = pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-
-	if (ret) {
-		printk(KERN_INFO "  Error during register_PCI(), unable to read config dword \n");
-		return 0;
-	}
 
 	rcktpt_type[i] = ROCKET_TYPE_NORMAL;
 	rocketModel[i].loadrm2 = 0;
@@ -2041,8 +2033,9 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 		ports_per_aiop = 6;
 		str = "6-port";
 
-		/*  If class_rev is 1, the rocketmodem flash must be loaded.  If it is 2 it is a "socketed" version. */
-		if ((class_rev & 0xFF) == 1) {
+		/*  If revision is 1, the rocketmodem flash must be loaded.
+		 *  If it is 2 it is a "socketed" version. */
+		if (dev->revision == 1) {
 			rcktpt_type[i] = ROCKET_TYPE_MODEMII;
 			rocketModel[i].loadrm2 = 1;
 		} else {
@@ -2057,7 +2050,7 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 		max_num_aiops = 1;
 		ports_per_aiop = 4;
 		str = "4-port";
-		if ((class_rev & 0xFF) == 1) {
+		if (dev->revision == 1) {
 			rcktpt_type[i] = ROCKET_TYPE_MODEMII;
 			rocketModel[i].loadrm2 = 1;
 		} else {
