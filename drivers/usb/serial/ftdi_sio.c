@@ -878,7 +878,7 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 		if (div_value == 0) {
 			dbg("%s - Baudrate (%d) requested is not supported", __FUNCTION__,  baud);
 			div_value = ftdi_sio_b9600;
-	                baud = 9600;
+			baud = 9600;
 			div_okay = 0;
 		}
 		break;
@@ -887,7 +887,7 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 			div_value = ftdi_232am_baud_to_divisor(baud);
 		} else {
 	                dbg("%s - Baud rate too high!", __FUNCTION__);
-	                baud = 9600;
+			baud = 9600;
 			div_value = ftdi_232am_baud_to_divisor(9600);
 			div_okay = 0;
 		}
@@ -1953,7 +1953,8 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old
 	/* Force baud rate if this device requires it, unless it is set to B0. */
 	if (priv->force_baud && ((termios->c_cflag & CBAUD) != B0)) {
 		dbg("%s: forcing baud rate for this device", __FUNCTION__);
-		tty_encode_baud_rate(port->tty, priv->force_baud, priv->force_baud);
+		tty_encode_baud_rate(port->tty, priv->force_baud,
+					priv->force_baud);
 	}
 
 	/* Force RTS-CTS if this device requires it. */
