@@ -105,7 +105,6 @@ EXPORT_SYMBOL(cad_pid);
  */
 
 void (*pm_power_off_prepare)(void);
-EXPORT_SYMBOL(pm_power_off_prepare);
 
 /*
  *	Notifier list for kernel code which wants to be called
