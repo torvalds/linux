@@ -48,6 +48,7 @@ config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
 	select WANT_DEVICE_TREE
+	select PPC_UDBG_16550
 
 config E200
 	bool "Freescale e200"

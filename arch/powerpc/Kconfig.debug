@@ -216,7 +216,6 @@ config PPC_EARLY_DEBUG_BEAT
 config PPC_EARLY_DEBUG_44x
 	bool "Early serial debugging for IBM/AMCC 44x CPUs"
 	depends on 44x
-	select PPC_UDBG_16550
 	help
 	  Select this to enable early debugging for IBM 44x chips via the
 	  inbuilt serial port.
