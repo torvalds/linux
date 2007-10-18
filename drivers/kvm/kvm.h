@@ -406,10 +406,8 @@ struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
 	unsigned long flags;
-	struct page **phys_mem;
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
-	int user_alloc; /* user allocated memory */
 	unsigned long userspace_addr;
 };
 
