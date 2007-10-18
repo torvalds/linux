@@ -169,16 +169,16 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
 		dst_prev->input		= rt->u.dst.input;
 		dst_prev->output = dst_prev->xfrm->mode->afinfo->output;
-		if (dst_prev->xfrm->props.family == AF_INET && rt->peer)
-			atomic_inc(&rt->peer->refcnt);
-		x->u.rt.peer = rt->peer;
+		if (rt0->peer)
+			atomic_inc(&rt0->peer->refcnt);
+		x->u.rt.peer = rt0->peer;
 		/* Sheit... I remember I did this right. Apparently,
 		 * it was magically lost, so this code needs audit */
 		x->u.rt.rt_flags = rt0->rt_flags&(RTCF_BROADCAST|RTCF_MULTICAST|RTCF_LOCAL);
-		x->u.rt.rt_type = rt->rt_type;
+		x->u.rt.rt_type = rt0->rt_type;
 		x->u.rt.rt_src = rt0->rt_src;
 		x->u.rt.rt_dst = rt0->rt_dst;
-		x->u.rt.rt_gateway = rt->rt_gateway;
+		x->u.rt.rt_gateway = rt0->rt_gateway;
 		x->u.rt.rt_spec_dst = rt0->rt_spec_dst;
 		x->u.rt.idev = rt0->idev;
 		in_dev_hold(rt0->idev);
@@ -280,7 +280,7 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 
 	if (likely(xdst->u.rt.idev))
 		in_dev_put(xdst->u.rt.idev);
-	if (dst->xfrm && dst->xfrm->props.family == AF_INET && likely(xdst->u.rt.peer))
+	if (likely(xdst->u.rt.peer))
 		inet_putpeer(xdst->u.rt.peer);
 	xfrm_dst_destroy(xdst);
 }
