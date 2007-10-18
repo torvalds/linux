@@ -190,14 +190,17 @@ struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, __be32 label)
 
 	label &= IPV6_FLOWLABEL_MASK;
 
+	read_lock_bh(&ip6_sk_fl_lock);
 	for (sfl=np->ipv6_fl_list; sfl; sfl = sfl->next) {
 		struct ip6_flowlabel *fl = sfl->fl;
 		if (fl->label == label) {
+			read_unlock_bh(&ip6_sk_fl_lock);
 			fl->lastuse = jiffies;
 			atomic_inc(&fl->users);
 			return fl;
 		}
 	}
+	read_unlock_bh(&ip6_sk_fl_lock);
 	return NULL;
 }
 
