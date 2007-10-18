@@ -383,7 +383,6 @@ static int mxser_init(void);
 
 /* static void   mxser_poll(unsigned long); */
 static int mxser_get_ISA_conf(int, struct mxser_hwconf *);
-static int mxser_get_PCI_conf(int, int, int, struct mxser_hwconf *);
 static void mxser_do_softint(struct work_struct *);
 static int mxser_open(struct tty_struct *, struct file *);
 static void mxser_close(struct tty_struct *, struct file *);
@@ -422,7 +421,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout);
 static void mxser_startrx(struct tty_struct *tty);
 static void mxser_stoprx(struct tty_struct *tty);
 
-
+#ifdef CONFIG_PCI
 static int CheckIsMoxaMust(int io)
 {
 	u8 oldmcr, hwid;
@@ -445,6 +444,7 @@ static int CheckIsMoxaMust(int io)
 	}
 	return MOXA_OTHER_UART;
 }
+#endif
 
 /* above is modified by Victor Yu. 08-15-2002 */
 
