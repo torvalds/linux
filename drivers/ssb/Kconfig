@@ -22,7 +22,7 @@ config SSB
 
 config SSB_PCIHOST_POSSIBLE
 	bool
-	depends on SSB && PCI
+	depends on SSB && (PCI = y || PCI = SSB)
 	default y
 
 config SSB_PCIHOST
@@ -37,7 +37,7 @@ config SSB_PCIHOST
 
 config SSB_PCMCIAHOST_POSSIBLE
 	bool
-	depends on SSB && PCMCIA && EXPERIMENTAL
+	depends on SSB && (PCMCIA = y || PCMCIA = SSB) && EXPERIMENTAL
 	default y
 
 config SSB_PCMCIAHOST

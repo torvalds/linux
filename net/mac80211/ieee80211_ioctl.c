@@ -306,9 +306,12 @@ int ieee80211_set_channel(struct ieee80211_local *local, int channel, int freq)
 			    ((chan->chan == channel) || (chan->freq == freq))) {
 				local->oper_channel = chan;
 				local->oper_hw_mode = mode;
-				set++;
+				set = 1;
+				break;
 			}
 		}
+		if (set)
+			break;
 	}
 
 	if (set) {
@@ -508,32 +511,40 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 
 static int ieee80211_ioctl_siwscan(struct net_device *dev,
 				   struct iw_request_info *info,
-				   struct iw_point *data, char *extra)
+				   union iwreq_data *wrqu, char *extra)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct iw_scan_req *req = NULL;
 	u8 *ssid = NULL;
 	size_t ssid_len = 0;
 
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
-	switch (sdata->type) {
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
-		if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
-			ssid = sdata->u.sta.ssid;
-			ssid_len = sdata->u.sta.ssid_len;
+	if (wrqu->data.length == sizeof(struct iw_scan_req) &&
+	    wrqu->data.flags & IW_SCAN_THIS_ESSID) {
+		req = (struct iw_scan_req *)extra;
+		ssid = req->essid;
+		ssid_len = req->essid_len;
+	} else {
+		switch (sdata->type) {
+		case IEEE80211_IF_TYPE_STA:
+		case IEEE80211_IF_TYPE_IBSS:
+			if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
+				ssid = sdata->u.sta.ssid;
+				ssid_len = sdata->u.sta.ssid_len;
+			}
+			break;
+		case IEEE80211_IF_TYPE_AP:
+			if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
+				ssid = sdata->u.ap.ssid;
+				ssid_len = sdata->u.ap.ssid_len;
+			}
+			break;
+		default:
+			return -EOPNOTSUPP;
 		}
-		break;
-	case IEEE80211_IF_TYPE_AP:
-		if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
-			ssid = sdata->u.ap.ssid;
-			ssid_len = sdata->u.ap.ssid_len;
-		}
-		break;
-	default:
-		return -EOPNOTSUPP;
 	}
 
 	return ieee80211_sta_req_scan(dev, ssid, ssid_len);
