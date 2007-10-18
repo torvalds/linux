@@ -471,8 +471,6 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	hwif->quirkproc = &pdcnew_quirkproc;
 	hwif->resetproc = &pdcnew_reset;
 
-	hwif->err_stops_fifo = 1;
-
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
 
 	if (hwif->dma_base == 0)
@@ -510,6 +508,7 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 		.init_chipset	= init_chipset_pdcnew, \
 		.init_hwif	= init_hwif_pdc202new, \
 		.host_flags	= IDE_HFLAG_POST_SET_MODE | \
+				  IDE_HFLAG_ERROR_STOPS_FIFO | \
 				  IDE_HFLAG_OFF_BOARD, \
 		.pio_mask	= ATA_PIO4, \
 		.mwdma_mask	= ATA_MWDMA2, \

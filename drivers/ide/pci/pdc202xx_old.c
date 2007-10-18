@@ -317,8 +317,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246)
 		hwif->resetproc = &pdc202xx_reset;
 
-	hwif->err_stops_fifo = 1;
-
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
 
 	if (hwif->dma_base == 0)
@@ -393,7 +391,8 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 		.init_hwif	= init_hwif_pdc202xx, \
 		.init_dma	= init_dma_pdc202xx, \
 		.extra		= 48, \
-		.host_flags	= IDE_HFLAG_OFF_BOARD, \
+		.host_flags	= IDE_HFLAG_ERROR_STOPS_FIFO | \
+				  IDE_HFLAG_OFF_BOARD, \
 		.pio_mask	= ATA_PIO4, \
 		.mwdma_mask	= ATA_MWDMA2, \
 		.udma_mask	= udma, \
@@ -406,7 +405,8 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
 		.extra		= 16,
-		.host_flags	= IDE_HFLAG_OFF_BOARD,
+		.host_flags	= IDE_HFLAG_ERROR_STOPS_FIFO |
+				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA2,

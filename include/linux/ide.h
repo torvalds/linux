@@ -799,7 +799,6 @@ typedef struct hwif_s {
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	no_io_32bit : 1; /* 1 = can not do 32-bit IO ops */
-	unsigned	err_stops_fifo : 1; /* 1=data FIFO is cleared by an error */
 	unsigned	mmio       : 1; /* host uses MMIO */
 
 	struct device	gendev;
@@ -1256,6 +1255,8 @@ enum {
 	IDE_HFLAG_NO_LBA48		= (1 << 17),
 	/* no LBA48 DMA */
 	IDE_HFLAG_NO_LBA48_DMA		= (1 << 18),
+	/* data FIFO is cleared by an error */
+	IDE_HFLAG_ERROR_STOPS_FIFO	= (1 << 19),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD

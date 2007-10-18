@@ -484,7 +484,8 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq, u8 
 		}
 	}
 
-	if ((stat & DRQ_STAT) && rq_data_dir(rq) == READ && hwif->err_stops_fifo == 0)
+	if ((stat & DRQ_STAT) && rq_data_dir(rq) == READ &&
+	    (hwif->host_flags & IDE_HFLAG_ERROR_STOPS_FIFO) == 0)
 		try_to_flush_leftover_data(drive);
 
 	if (rq->errors >= ERROR_MAX || blk_noretry_request(rq)) {
