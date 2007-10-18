@@ -350,6 +350,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	default:
 		dprintk(verbose, FE_NOTICE, 1, "symbol rate unknown!");
 		srate = 22000000; /* just a typical default value	*/
+		break;
 	}
 
 	/* Baseband gain.	*/
