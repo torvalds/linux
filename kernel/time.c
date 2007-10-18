@@ -9,9 +9,9 @@
  */
 /*
  * Modification history kernel/time.c
- * 
+ *
  * 1993-09-02    Philip Gladstone
- *      Created file with time related functions from sched.c and adjtimex() 
+ *      Created file with time related functions from sched.c and adjtimex()
  * 1993-10-08    Torsten Duwe
  *      adjtime interface update and CMOS clock write code
  * 1995-08-13    Torsten Duwe
@@ -39,7 +39,7 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
-/* 
+/*
  * The timezone where the local system is located.  Used as a default by some
  * programs who obtain this value by using gettimeofday.
  */
@@ -72,7 +72,7 @@ asmlinkage long sys_time(time_t __user * tloc)
  * why not move it into the appropriate arch directory (for those
  * architectures that need it).
  */
- 
+
 asmlinkage long sys_stime(time_t __user *tptr)
 {
 	struct timespec tv;
@@ -111,10 +111,10 @@ asmlinkage long sys_gettimeofday(struct timeval __user *tv, struct timezone __us
 /*
  * Adjust the time obtained from the CMOS to be UTC time instead of
  * local time.
- * 
+ *
  * This is ugly, but preferable to the alternatives.  Otherwise we
  * would either need to write a program to do it in /etc/rc (and risk
- * confusion if the program gets run more than once; it would also be 
+ * confusion if the program gets run more than once; it would also be
  * hard to make the program warp the clock precisely n hours)  or
  * compile in the timezone information into the kernel.  Bad, bad....
  *
