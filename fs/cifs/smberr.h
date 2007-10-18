@@ -173,9 +173,10 @@
 #define ERRusestd		251	/* temporarily unable to use either raw
 					   or mpx */
 #define ERR_NOTIFY_ENUM_DIR	1024
+#define ERRnoSuchUser		2238	/* user account does not exist */
 #define ERRaccountexpired	2239
-#define ERRbadclient		2240
-#define ERRbadLogonTime		2241
+#define ERRbadclient		2240	/* can not logon from this client */
+#define ERRbadLogonTime		2241	/* logon hours do not allow this */
 #define ERRpasswordExpired	2242
 #define ERRnetlogonNotStarted	2455
 #define ERRnosupport		0xFFFF

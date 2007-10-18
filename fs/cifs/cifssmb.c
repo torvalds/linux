@@ -1446,9 +1446,8 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon, const int netfid,
 
 	iov[0].iov_base = (char *)pSMB;
 	iov[0].iov_len = pSMB->hdr.smb_buf_length + 4;
-	rc = SendReceive2(xid, tcon->ses, iov,
-			  1 /* num iovecs */,
-			  &resp_buf_type, 0);
+	rc = SendReceive2(xid, tcon->ses, iov, 1 /* num iovecs */,
+			 &resp_buf_type, 0 /* not long op */, 1 /* log err */ );
 	cifs_stats_inc(&tcon->num_reads);
 	pSMBr = (READ_RSP *)iov[0].iov_base;
 	if (rc) {
@@ -1667,7 +1666,7 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 
 
 	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &resp_buf_type,
-			  long_op);
+			  long_op, 0 /* do not log STATUS code */ );
 	cifs_stats_inc(&tcon->num_writes);
 	if (rc) {
 		cFYI(1, ("Send error Write2 = %d", rc));
@@ -3094,7 +3093,8 @@ CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
 	iov[0].iov_base = (char *)pSMB;
 	iov[0].iov_len = pSMB->hdr.smb_buf_length + 4;
 
-	rc = SendReceive2(xid, tcon->ses, iov, 1 /* num iovec */, &buf_type, 0);
+	rc = SendReceive2(xid, tcon->ses, iov, 1 /* num iovec */, &buf_type,
+			 0 /* not long op */, 0 /* do not log STATUS codes */ );
 	cifs_stats_inc(&tcon->num_acl_get);
 	if (rc) {
 		cFYI(1, ("Send error in QuerySecDesc = %d", rc));

@@ -418,7 +418,7 @@ static int wait_for_response(struct cifsSesInfo *ses,
 int
 SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	     struct kvec *iov, int n_vec, int *pRespBufType /* ret */,
-	     const int long_op)
+	     const int long_op, const int logError)
 {
 	int rc = 0;
 	unsigned int receive_len;
@@ -464,7 +464,6 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
-
 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
@@ -567,8 +566,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 			}
 
 			/* BB special case reconnect tid and uid here? */
-			/* BB special case Errbadpassword and pwdexpired here */
-			rc = map_smb_to_linux_error(midQ->resp_buf);
+			rc = map_smb_to_linux_error(midQ->resp_buf, logError);
 
 			/* convert ByteCount if necessary */
 			if (receive_len >= sizeof(struct smb_hdr) - 4
@@ -747,7 +745,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 			*pbytes_returned = out_buf->smb_buf_length;
 
 			/* BB special case reconnect tid and uid here? */
-			rc = map_smb_to_linux_error(out_buf);
+			rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
 
 			/* convert ByteCount if necessary */
 			if (receive_len >= sizeof(struct smb_hdr) - 4
@@ -990,7 +988,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 			*pbytes_returned = out_buf->smb_buf_length;
 
 			/* BB special case reconnect tid and uid here? */
-			rc = map_smb_to_linux_error(out_buf);
+			rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
 
 			/* convert ByteCount if necessary */
 			if (receive_len >= sizeof(struct smb_hdr) - 4
