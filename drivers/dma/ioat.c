@@ -34,7 +34,7 @@
 #include "ioatdma_registers.h"
 #include "ioatdma_hw.h"
 
-MODULE_VERSION("1.24");
+MODULE_VERSION(IOAT_DMA_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Intel Corporation");
 
@@ -85,6 +85,7 @@ static void ioat_shutdown_functionality(struct pci_dev *pdev)
 {
 	struct ioat_device *device = pci_get_drvdata(pdev);
 
+	dev_err(&pdev->dev, "Removing dma and dca services\n");
 	if (device->dca) {
 		unregister_dca_provider(device->dca);
 		free_dca_provider(device->dca);

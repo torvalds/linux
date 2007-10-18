@@ -65,7 +65,7 @@ static inline u16 dcaid_from_pcidev(struct pci_dev *pci)
 	return (pci->bus->number << 8) | pci->devfn;
 }
 
-static int dca_enabled_in_bios(void)
+static int dca_enabled_in_bios(struct pci_dev *pdev)
 {
 	/* CPUID level 9 returns DCA configuration */
 	/* Bit 0 indicates DCA enabled by the BIOS */
@@ -75,17 +75,17 @@ static int dca_enabled_in_bios(void)
 	cpuid_level_9 = cpuid_eax(9);
 	res = test_bit(0, &cpuid_level_9);
 	if (!res)
-		printk(KERN_ERR "ioat dma: DCA is disabled in BIOS\n");
+		dev_err(&pdev->dev, "DCA is disabled in BIOS\n");
 
 	return res;
 }
 
-static int system_has_dca_enabled(void)
+static int system_has_dca_enabled(struct pci_dev *pdev)
 {
 	if (boot_cpu_has(X86_FEATURE_DCA))
-		return dca_enabled_in_bios();
+		return dca_enabled_in_bios(pdev);
 
-	printk(KERN_ERR "ioat dma: boot cpu doesn't have X86_FEATURE_DCA\n");
+	dev_err(&pdev->dev, "boot cpu doesn't have X86_FEATURE_DCA\n");
 	return 0;
 }
 
@@ -208,7 +208,7 @@ struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 	int i;
 	int err;
 
-	if (!system_has_dca_enabled())
+	if (!system_has_dca_enabled(pdev))
 		return NULL;
 
 	/* I/OAT v1 systems must have a known tag_map to support DCA */

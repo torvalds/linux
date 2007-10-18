@@ -28,6 +28,8 @@
 #include <linux/cache.h>
 #include <linux/pci_ids.h>
 
+#define IOAT_DMA_VERSION "1.26"
+
 enum ioat_interrupt {
 	none = 0,
 	msix_multi_vector = 1,

@@ -267,7 +267,7 @@ static int ioat_dma_alloc_chan_resources(struct dma_chan *chan)
 	chanerr = readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
 	if (chanerr) {
 		dev_err(&ioat_chan->device->pdev->dev,
-			"ioatdma: CHANERR = %x, clearing\n", chanerr);
+			"CHANERR = %x, clearing\n", chanerr);
 		writel(chanerr, ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
 	}
 
@@ -276,7 +276,7 @@ static int ioat_dma_alloc_chan_resources(struct dma_chan *chan)
 		desc = ioat_dma_alloc_descriptor(ioat_chan, GFP_KERNEL);
 		if (!desc) {
 			dev_err(&ioat_chan->device->pdev->dev,
-				"ioatdma: Only %d initial descriptors\n", i);
+				"Only %d initial descriptors\n", i);
 			break;
 		}
 		list_add_tail(&desc->node, &tmp_list);
@@ -342,7 +342,7 @@ static void ioat_dma_free_chan_resources(struct dma_chan *chan)
 	/* one is ok since we left it on there on purpose */
 	if (in_use_descs > 1)
 		dev_err(&ioat_chan->device->pdev->dev,
-			"ioatdma: Freeing %d in use descriptors!\n",
+			"Freeing %d in use descriptors!\n",
 			in_use_descs - 1);
 
 	ioat_chan->last_completion = ioat_chan->completion_addr = 0;
@@ -482,7 +482,7 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 	if ((ioat_chan->completion_virt->full & IOAT_CHANSTS_DMA_TRANSFER_STATUS) ==
 				IOAT_CHANSTS_DMA_TRANSFER_STATUS_HALTED) {
 		dev_err(&ioat_chan->device->pdev->dev,
-			"ioatdma: Channel halted, chanerr = %x\n",
+			"Channel halted, chanerr = %x\n",
 			readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET));
 
 		/* TODO do something to salvage the situation */
@@ -643,7 +643,7 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	u8 *src;
 	u8 *dest;
 	struct dma_chan *dma_chan;
-	struct dma_async_tx_descriptor *tx;
+	struct dma_async_tx_descriptor *tx = NULL;
 	dma_addr_t addr;
 	dma_cookie_t cookie;
 	int err = 0;
@@ -673,6 +673,13 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	}
 
 	tx = ioat_dma_prep_memcpy(dma_chan, IOAT_TEST_SIZE, 0);
+	if (!tx) {
+		dev_err(&device->pdev->dev,
+			"Self-test prep failed, disabling\n");
+		err = -ENODEV;
+		goto free_resources;
+	}
+
 	async_tx_ack(tx);
 	addr = dma_map_single(dma_chan->device->dev, src, IOAT_TEST_SIZE,
 			DMA_TO_DEVICE);
@@ -686,13 +693,13 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 
 	if (ioat_dma_is_complete(dma_chan, cookie, NULL, NULL) != DMA_SUCCESS) {
 		dev_err(&device->pdev->dev,
-			"ioatdma: Self-test copy timed out, disabling\n");
+			"Self-test copy timed out, disabling\n");
 		err = -ENODEV;
 		goto free_resources;
 	}
 	if (memcmp(src, dest, IOAT_TEST_SIZE)) {
 		dev_err(&device->pdev->dev,
-			"ioatdma: Self-test copy failed compare, disabling\n");
+			"Self-test copy failed compare, disabling\n");
 		err = -ENODEV;
 		goto free_resources;
 	}
@@ -730,6 +737,9 @@ static int ioat_dma_setup_interrupts(struct ioatdma_device *device)
 		goto msi;
 	if (!strcmp(ioat_interrupt_style, "intx"))
 		goto intx;
+	dev_err(&device->pdev->dev, "invalid ioat_interrupt_style %s\n",
+		ioat_interrupt_style);
+	goto err_no_irq;
 
 msix:
 	/* The number of MSI-X vectors should equal the number of channels */
@@ -906,9 +916,9 @@ struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 	device->common.device_dependency_added = ioat_dma_dependency_added;
 	device->common.dev = &pdev->dev;
 	dev_err(&device->pdev->dev,
-		"ioatdma: Intel(R) I/OAT DMA Engine found,"
-		" %d channels, device version 0x%02x\n",
-		device->common.chancnt, device->version);
+		"Intel(R) I/OAT DMA Engine found,"
+		" %d channels, device version 0x%02x, driver version %s\n",
+		device->common.chancnt, device->version, IOAT_DMA_VERSION);
 
 	err = ioat_dma_setup_interrupts(device);
 	if (err)
@@ -932,7 +942,7 @@ err_dma_pool:
 	kfree(device);
 err_kzalloc:
 	dev_err(&device->pdev->dev,
-		"ioatdma: Intel(R) I/OAT DMA Engine initialization failed\n");
+		"Intel(R) I/OAT DMA Engine initialization failed\n");
 	return NULL;
 }
 
