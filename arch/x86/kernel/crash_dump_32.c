@@ -47,6 +47,7 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 		if (!kdump_buf_page) {
 			printk(KERN_WARNING "Kdump: Kdump buffer page not"
 				" allocated\n");
+			kunmap_atomic(vaddr, KM_PTE0);
 			return -EFAULT;
 		}
 		copy_page(kdump_buf_page, vaddr);
