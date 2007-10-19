@@ -405,7 +405,7 @@ void daemonize(const char *name, ...)
 		switch_task_namespaces(current, init_task.nsproxy);
 	}
 
- 	exit_files(current);
+	exit_files(current);
 	current->files = init_task.files;
 	atomic_inc(&current->files->count);
 
@@ -790,7 +790,7 @@ static void exit_notify(struct task_struct *tsk)
 	/* Let father know we died
 	 *
 	 * Thread signals are configurable, but you aren't going to use
-	 * that to send signals to arbitary processes. 
+	 * that to send signals to arbitary processes.
 	 * That stops right now.
 	 *
 	 * If the parent exec id doesn't match the exec id we saved
