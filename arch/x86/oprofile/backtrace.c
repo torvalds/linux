@@ -76,16 +76,8 @@ dump_user_backtrace(struct frame_head * head)
 void
 x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
-	struct frame_head *head;
-	unsigned long stack;
-
-#ifdef CONFIG_X86_64
-	head = (struct frame_head *)regs->rbp;
-	stack = regs->rsp;
-#else
-	head = (struct frame_head *)regs->ebp;
-	stack = regs->esp;
-#endif
+	struct frame_head *head = (struct frame_head *)frame_pointer(regs);
+	unsigned long stack = stack_pointer(regs);
 
 	if (!user_mode_vm(regs)) {
 		if (depth)
