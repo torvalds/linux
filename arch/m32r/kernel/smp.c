@@ -202,7 +202,7 @@ void smp_flush_cache_all_interrupt(void)
 }
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-/* TLB flush request Routins                                                 */
+/* TLB flush request Routines                                                */
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
 /*==========================================================================*
@@ -378,7 +378,7 @@ void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
  * Name:         flush_tlb_others
  *
  * Description:  This routine requests other CPU to execute flush TLB.
- *               1.Setup parmeters.
+ *               1.Setup parameters.
  *               2.Send 'INVALIDATE_TLB_IPI' to other CPU.
  *                 Request other CPU to execute 'smp_invalidate_interrupt()'.
  *               3.Wait for other CPUs operation finished.
@@ -502,7 +502,7 @@ void smp_invalidate_interrupt(void)
 }
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-/* Stop CPU request Routins                                                 */
+/* Stop CPU request Routines                                                 */
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
 /*==========================================================================*
@@ -566,7 +566,7 @@ static void stop_this_cpu(void *dummy)
 }
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-/* Call function Routins                                                     */
+/* Call function Routines                                                    */
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
 /*==========================================================================*
@@ -690,7 +690,7 @@ void smp_call_function_interrupt(void)
 }
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-/* Timer Routins                                                             */
+/* Timer Routines                                                            */
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
 /*==========================================================================*
@@ -802,7 +802,7 @@ void smp_local_timer_interrupt(void)
 }
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-/* Send IPI Routins                                                          */
+/* Send IPI Routines                                                         */
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
 /*==========================================================================*
@@ -814,7 +814,7 @@ void smp_local_timer_interrupt(void)
  *
  * Arguments:    ipi_num - Number of IPI
  *               try -  0 : Send IPI certainly.
- *                     !0 : The following IPI is not sended when Target CPU
+ *                     !0 : The following IPI is not sent when Target CPU
  *                          has not received the before IPI.
  *
  * Returns:      void (cannot fail)
@@ -844,7 +844,7 @@ void send_IPI_allbutself(int ipi_num, int try)
  * Arguments:    cpu_mask - Bitmap of target CPUs logical ID
  *               ipi_num - Number of IPI
  *               try -  0 : Send IPI certainly.
- *                     !0 : The following IPI is not sended when Target CPU
+ *                     !0 : The following IPI is not sent when Target CPU
  *                          has not received the before IPI.
  *
  * Returns:      void (cannot fail)
@@ -885,7 +885,7 @@ static void send_IPI_mask(cpumask_t cpumask, int ipi_num, int try)
  * Arguments:    cpu_mask - Bitmap of target CPUs physical ID
  *               ipi_num - Number of IPI
  *               try -  0 : Send IPI certainly.
- *                     !0 : The following IPI is not sended when Target CPU
+ *                     !0 : The following IPI is not sent when Target CPU
  *                          has not received the before IPI.
  *
  * Returns:      IPICRi regster value.
