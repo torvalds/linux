@@ -206,7 +206,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 }
 
 #ifdef CONFIG_MMU
-static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
+static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 {
 	struct vm_area_struct *mpnt, *tmp, **pprev;
 	struct rb_node **rb_link, *rb_parent;
@@ -584,7 +584,7 @@ fail_nomem:
 	return retval;
 }
 
-static inline struct fs_struct *__copy_fs_struct(struct fs_struct *old)
+static struct fs_struct *__copy_fs_struct(struct fs_struct *old)
 {
 	struct fs_struct *fs = kmem_cache_alloc(fs_cachep, GFP_KERNEL);
 	/* We don't need to lock fs - think why ;-) */
@@ -616,7 +616,7 @@ struct fs_struct *copy_fs_struct(struct fs_struct *old)
 
 EXPORT_SYMBOL_GPL(copy_fs_struct);
 
-static inline int copy_fs(unsigned long clone_flags, struct task_struct * tsk)
+static int copy_fs(unsigned long clone_flags, struct task_struct *tsk)
 {
 	if (clone_flags & CLONE_FS) {
 		atomic_inc(&current->fs->count);
@@ -819,7 +819,7 @@ int unshare_files(void)
 
 EXPORT_SYMBOL(unshare_files);
 
-static inline int copy_sighand(unsigned long clone_flags, struct task_struct * tsk)
+static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct sighand_struct *sig;
 
@@ -842,7 +842,7 @@ void __cleanup_sighand(struct sighand_struct *sighand)
 		kmem_cache_free(sighand_cachep, sighand);
 }
 
-static inline int copy_signal(unsigned long clone_flags, struct task_struct * tsk)
+static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct signal_struct *sig;
 	int ret;
@@ -924,7 +924,7 @@ void __cleanup_signal(struct signal_struct *sig)
 	kmem_cache_free(signal_cachep, sig);
 }
 
-static inline void cleanup_signal(struct task_struct *tsk)
+static void cleanup_signal(struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
 
@@ -934,7 +934,7 @@ static inline void cleanup_signal(struct task_struct *tsk)
 		__cleanup_signal(sig);
 }
 
-static inline void copy_flags(unsigned long clone_flags, struct task_struct *p)
+static void copy_flags(unsigned long clone_flags, struct task_struct *p)
 {
 	unsigned long new_flags = p->flags;
 
@@ -953,7 +953,7 @@ asmlinkage long sys_set_tid_address(int __user *tidptr)
 	return task_pid_vnr(current);
 }
 
-static inline void rt_mutex_init_task(struct task_struct *p)
+static void rt_mutex_init_task(struct task_struct *p)
 {
 	spin_lock_init(&p->pi_lock);
 #ifdef CONFIG_RT_MUTEXES
@@ -1385,7 +1385,7 @@ struct task_struct * __cpuinit fork_idle(int cpu)
 	return task;
 }
 
-static inline int fork_traceflag (unsigned clone_flags)
+static int fork_traceflag(unsigned clone_flags)
 {
 	if (clone_flags & CLONE_UNTRACED)
 		return 0;
@@ -1521,7 +1521,7 @@ void __init proc_caches_init(void)
  * Check constraints on flags passed to the unshare system call and
  * force unsharing of additional process context as appropriate.
  */
-static inline void check_unshare_flags(unsigned long *flags_ptr)
+static void check_unshare_flags(unsigned long *flags_ptr)
 {
 	/*
 	 * If unsharing a thread from a thread group, must also

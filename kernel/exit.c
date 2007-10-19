@@ -493,7 +493,7 @@ void reset_files_struct(struct task_struct *tsk, struct files_struct *files)
 }
 EXPORT_SYMBOL(reset_files_struct);
 
-static inline void __exit_files(struct task_struct *tsk)
+static void __exit_files(struct task_struct *tsk)
 {
 	struct files_struct * files = tsk->files;
 
@@ -510,7 +510,7 @@ void exit_files(struct task_struct *tsk)
 	__exit_files(tsk);
 }
 
-static inline void __put_fs_struct(struct fs_struct *fs)
+static void __put_fs_struct(struct fs_struct *fs)
 {
 	/* No need to hold fs->lock if we are killing it */
 	if (atomic_dec_and_test(&fs->count)) {
@@ -531,7 +531,7 @@ void put_fs_struct(struct fs_struct *fs)
 	__put_fs_struct(fs);
 }
 
-static inline void __exit_fs(struct task_struct *tsk)
+static void __exit_fs(struct task_struct *tsk)
 {
 	struct fs_struct * fs = tsk->fs;
 
