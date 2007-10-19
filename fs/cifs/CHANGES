@@ -1,3 +1,19 @@
+Version 1.51
+------------
+Fix memory leak in statfs when mounted to very old servers (e.g.
+Windows 9x).  Add new feature "POSIX open" which allows servers
+which support the current POSIX Extensions to provide better semantics
+(e.g. delete for open files opened with posix open).  Take into
+account umask on posix mkdir not just older style mkdir.  Add
+ability to mount to IPC$ share (which allows CIFS named pipes to be
+opened, read and written as if they were files).  When 1st tree
+connect fails (e.g. due to signing negotiation failure) fix
+leak that causes cifsd not to stop and rmmod to fail to cleanup
+cifs_request_buffers pool. Fix problem with POSIX Open/Mkdir on
+bigendian architectures. Fix possible memory corruption when
+EAGAIN returned on kern_recvmsg. Return better error if server
+requires packet signing but client has disabled it.
+
 Version 1.50
 ------------
 Fix NTLMv2 signing. NFS server mounted over cifs works (if cifs mount is
@@ -6,7 +22,10 @@ done with "serverino" mount option).  Add support for POSIX Unlink
 Samba supports newer POSIX CIFS Protocol Extensions). Add "nounix"
 mount option to allow disabling the CIFS Unix Extensions for just
 that mount. Fix hang on spinlock in find_writable_file (race when
-reopening file after session crash).
+reopening file after session crash).  Byte range unlock request to
+windows server could unlock more bytes (on server copy of file)
+than intended if start of unlock request is well before start of
+a previous byte range lock that we issued.
 
 Version 1.49
 ------------

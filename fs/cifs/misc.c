@@ -169,7 +169,6 @@ cifs_buf_get(void)
 void
 cifs_buf_release(void *buf_to_free)
 {
-
 	if (buf_to_free == NULL) {
 		/* cFYI(1, ("Null buffer passed to cifs_buf_release"));*/
 		return;

@@ -237,7 +237,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	char *tmp_path = NULL;
 	char *tmpbuffer;
 	unsigned char *referrals = NULL;
-	int num_referrals = 0;
+	unsigned int num_referrals = 0;
 	int len;
 	__u16 fid;
 

@@ -55,7 +55,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 	if (temp == NULL)
 		return temp;
 	else {
-		memset(temp, 0, sizeof (struct mid_q_entry));
+		memset(temp, 0, sizeof(struct mid_q_entry));
 		temp->mid = smb_buffer->Mid;	/* always LE */
 		temp->pid = current->pid;
 		temp->command = smb_buffer->Command;
@@ -158,7 +158,7 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	iov.iov_len = len;
 
 	smb_msg.msg_name = sin;
-	smb_msg.msg_namelen = sizeof (struct sockaddr);
+	smb_msg.msg_namelen = sizeof(struct sockaddr);
 	smb_msg.msg_control = NULL;
 	smb_msg.msg_controllen = 0;
 	smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL; /* BB add more flags?*/
@@ -228,7 +228,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 		return -ENOTSOCK; /* BB eventually add reconnect code here */
 
 	smb_msg.msg_name = sin;
-	smb_msg.msg_namelen = sizeof (struct sockaddr);
+	smb_msg.msg_namelen = sizeof(struct sockaddr);
 	smb_msg.msg_control = NULL;
 	smb_msg.msg_controllen = 0;
 	smb_msg.msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL; /* BB add more flags?*/
@@ -363,9 +363,8 @@ static int allocate_mid(struct cifsSesInfo *ses, struct smb_hdr *in_buf,
 		} /* else ok - we are setting up session */
 	}
 	*ppmidQ = AllocMidQEntry(in_buf, ses);
-	if (*ppmidQ == NULL) {
+	if (*ppmidQ == NULL)
 		return -ENOMEM;
-	}
 	return 0;
 }
 
@@ -419,7 +418,7 @@ static int wait_for_response(struct cifsSesInfo *ses,
 int
 SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	     struct kvec *iov, int n_vec, int *pRespBufType /* ret */,
-	     const int long_op)
+	     const int long_op, const int logError)
 {
 	int rc = 0;
 	unsigned int receive_len;
@@ -465,7 +464,6 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
-
 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
@@ -568,13 +566,11 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 			}
 
 			/* BB special case reconnect tid and uid here? */
-			/* BB special case Errbadpassword and pwdexpired here */
-			rc = map_smb_to_linux_error(midQ->resp_buf);
+			rc = map_smb_to_linux_error(midQ->resp_buf, logError);
 
 			/* convert ByteCount if necessary */
-			if (receive_len >=
-			    sizeof (struct smb_hdr) -
-			    4 /* do not count RFC1001 header */  +
+			if (receive_len >= sizeof(struct smb_hdr) - 4
+			    /* do not count RFC1001 header */  +
 			    (2 * midQ->resp_buf->WordCount) + 2 /* bcc */ )
 				BCC(midQ->resp_buf) =
 					le16_to_cpu(BCC_LE(midQ->resp_buf));
@@ -749,12 +745,11 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 			*pbytes_returned = out_buf->smb_buf_length;
 
 			/* BB special case reconnect tid and uid here? */
-			rc = map_smb_to_linux_error(out_buf);
+			rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
 
 			/* convert ByteCount if necessary */
-			if (receive_len >=
-			    sizeof (struct smb_hdr) -
-			    4 /* do not count RFC1001 header */  +
+			if (receive_len >= sizeof(struct smb_hdr) - 4
+			    /* do not count RFC1001 header */  +
 			    (2 * out_buf->WordCount) + 2 /* bcc */ )
 				BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
 		} else {
@@ -993,12 +988,11 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 			*pbytes_returned = out_buf->smb_buf_length;
 
 			/* BB special case reconnect tid and uid here? */
-			rc = map_smb_to_linux_error(out_buf);
+			rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
 
 			/* convert ByteCount if necessary */
-			if (receive_len >=
-			    sizeof (struct smb_hdr) -
-			    4 /* do not count RFC1001 header */  +
+			if (receive_len >= sizeof(struct smb_hdr) - 4
+			    /* do not count RFC1001 header */  +
 			    (2 * out_buf->WordCount) + 2 /* bcc */ )
 				BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
 		} else {

@@ -124,7 +124,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	struct mid_q_entry *mid_entry;
 
 	spin_lock(&GlobalMid_Lock);
-	if ( kthread_should_stop() ) {
+	if (kthread_should_stop()) {
 		/* the demux thread will exit normally
 		next time through the loop */
 		spin_unlock(&GlobalMid_Lock);
@@ -151,9 +151,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	}
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		if ((tcon) && (tcon->ses) && (tcon->ses->server == server)) {
+		if ((tcon) && (tcon->ses) && (tcon->ses->server == server))
 			tcon->tidStatus = CifsNeedReconnect;
-		}
 	}
 	read_unlock(&GlobalSMBSeslock);
 	/* do not want to be sending data on a socket we are freeing */
@@ -187,7 +186,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	up(&server->tcpSem);
 
-	while ( (!kthread_should_stop()) && (server->tcpStatus != CifsGood)) {
+	while ((!kthread_should_stop()) && (server->tcpStatus != CifsGood)) {
 		try_to_freeze();
 		if (server->protocolType == IPV6) {
 			rc = ipv6_connect(&server->addr.sockAddr6,
@@ -204,7 +203,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
 			spin_lock(&GlobalMid_Lock);
-			if ( !kthread_should_stop() )
+			if (!kthread_should_stop())
 				server->tcpStatus = CifsGood;
 			server->sequence_number = 0;
 			spin_unlock(&GlobalMid_Lock);
@@ -358,11 +357,9 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	length = tcpSesAllocCount.counter;
 	write_unlock(&GlobalSMBSeslock);
 	complete(&cifsd_complete);
-	if (length  > 1) {
-		mempool_resize(cifs_req_poolp,
-			length + cifs_min_rcv,
-			GFP_KERNEL);
-	}
+	if (length  > 1)
+		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
+				GFP_KERNEL);
 
 	set_freezable();
 	while (!kthread_should_stop()) {
@@ -378,7 +375,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			}
 		} else if (isLargeBuf) {
 			/* we are reusing a dirty large buf, clear its start */
-			memset(bigbuf, 0, sizeof (struct smb_hdr));
+			memset(bigbuf, 0, sizeof(struct smb_hdr));
 		}
 
 		if (smallbuf == NULL) {
@@ -391,7 +388,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			}
 			/* beginning of smb buffer is cleared in our buf_get */
 		} else /* if existing small buf clear beginning */
-			memset(smallbuf, 0, sizeof (struct smb_hdr));
+			memset(smallbuf, 0, sizeof(struct smb_hdr));
 
 		isLargeBuf = FALSE;
 		isMultiRsp = FALSE;
@@ -400,11 +397,13 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		iov.iov_len = 4;
 		smb_msg.msg_control = NULL;
 		smb_msg.msg_controllen = 0;
+		pdu_length = 4; /* enough to get RFC1001 header */
+incomplete_rcv:
 		length =
 		    kernel_recvmsg(csocket, &smb_msg,
-				 &iov, 1, 4, 0 /* BB see socket.h flags */);
+				&iov, 1, pdu_length, 0 /* BB other flags? */);
 
-		if ( kthread_should_stop() ) {
+		if (kthread_should_stop()) {
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
 			cFYI(1, ("Reconnect after server stopped responding"));
@@ -416,7 +415,10 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			msleep(1); /* minimum sleep to prevent looping
 				allowing socket to clear and app threads to set
 				tcpStatus CifsNeedReconnect if server hung */
-			continue;
+			if (pdu_length < 4)
+				goto incomplete_rcv;
+			else
+				continue;
 		} else if (length <= 0) {
 			if (server->tcpStatus == CifsNew) {
 				cFYI(1, ("tcp session abend after SMBnegprot"));
@@ -437,13 +439,11 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			wake_up(&server->response_q);
 			continue;
 		} else if (length < 4) {
-			cFYI(1,
-			    ("Frame under four bytes received (%d bytes long)",
+			cFYI(1, ("less than four bytes received (%d bytes)",
 			      length));
-			cifs_reconnect(server);
-			csocket = server->ssocket;
-			wake_up(&server->response_q);
-			continue;
+			pdu_length -= length;
+			msleep(1);
+			goto incomplete_rcv;
 		}
 
 		/* The right amount was read from socket - 4 bytes */
@@ -504,7 +504,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 
 		/* else we have an SMB response */
 		if ((pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) ||
-			    (pdu_length < sizeof (struct smb_hdr) - 1 - 4)) {
+			    (pdu_length < sizeof(struct smb_hdr) - 1 - 4)) {
 			cERROR(1, ("Invalid size SMB length %d pdu_length %d",
 					length, pdu_length+4));
 			cifs_reconnect(server);
@@ -528,7 +528,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		     total_read += length) {
 			length = kernel_recvmsg(csocket, &smb_msg, &iov, 1,
 						pdu_length - total_read, 0);
-			if ( kthread_should_stop() ||
+			if (kthread_should_stop() ||
 			    (length == -EINTR)) {
 				/* then will exit */
 				reconnect = 2;
@@ -546,6 +546,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 					      allowing socket to clear and app
 					      threads to set tcpStatus
 					      CifsNeedReconnect if server hung*/
+				length = 0;
 				continue;
 			} else if (length <= 0) {
 				cERROR(1, ("Received no data, expecting %d",
@@ -631,9 +632,9 @@ multi_t2_fnd:
 			/* Was previous buf put in mpx struct for multi-rsp? */
 			if (!isMultiRsp) {
 				/* smb buffer will be freed by user thread */
-				if (isLargeBuf) {
+				if (isLargeBuf)
 					bigbuf = NULL;
-				} else
+				else
 					smallbuf = NULL;
 			}
 			wake_up_process(task_to_wake);
@@ -676,9 +677,8 @@ multi_t2_fnd:
 		server->ssocket = NULL;
 	}
 	/* buffer usuallly freed in free_mid - need to free it here on exit */
-	if (bigbuf != NULL)
-		cifs_buf_release(bigbuf);
-	if (smallbuf != NULL)
+	cifs_buf_release(bigbuf);
+	if (smallbuf) /* no sense logging a debug message if NULL */
 		cifs_small_buf_release(smallbuf);
 
 	read_lock(&GlobalSMBSeslock);
@@ -702,9 +702,8 @@ multi_t2_fnd:
 		list_for_each(tmp, &GlobalSMBSessionList) {
 			ses = list_entry(tmp, struct cifsSesInfo,
 					 cifsSessionList);
-			if (ses->server == server) {
+			if (ses->server == server)
 				ses->status = CifsExiting;
-			}
 		}
 
 		spin_lock(&GlobalMid_Lock);
@@ -714,9 +713,8 @@ multi_t2_fnd:
 				cFYI(1, ("Clearing Mid 0x%x - waking up ",
 					 mid_entry->mid));
 				task_to_wake = mid_entry->tsk;
-				if (task_to_wake) {
+				if (task_to_wake)
 					wake_up_process(task_to_wake);
-				}
 			}
 		}
 		spin_unlock(&GlobalMid_Lock);
@@ -749,18 +747,15 @@ multi_t2_fnd:
 	list_for_each(tmp, &GlobalSMBSessionList) {
 		ses = list_entry(tmp, struct cifsSesInfo,
 				cifsSessionList);
-		if (ses->server == server) {
+		if (ses->server == server)
 			ses->server = NULL;
-		}
 	}
 	write_unlock(&GlobalSMBSeslock);
 
 	kfree(server);
-	if (length  > 0) {
-		mempool_resize(cifs_req_poolp,
-			length + cifs_min_rcv,
-			GFP_KERNEL);
-	}
+	if (length  > 0)
+		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
+				GFP_KERNEL);
 
 	return 0;
 }
@@ -1477,7 +1472,7 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 	if (psin_server->sin_port) { /* user overrode default port */
 		rc = (*csocket)->ops->connect(*csocket,
 				(struct sockaddr *) psin_server,
-				sizeof (struct sockaddr_in), 0);
+				sizeof(struct sockaddr_in), 0);
 		if (rc >= 0)
 			connected = 1;
 	}
@@ -1493,7 +1488,7 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 
 			rc = (*csocket)->ops->connect(*csocket,
 					(struct sockaddr *) psin_server,
-					sizeof (struct sockaddr_in), 0);
+					sizeof(struct sockaddr_in), 0);
 			if (rc >= 0)
 				connected = 1;
 		}
@@ -1502,7 +1497,7 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 		psin_server->sin_port = htons(RFC1001_PORT);
 		rc = (*csocket)->ops->connect(*csocket, (struct sockaddr *)
 					      psin_server,
-					      sizeof (struct sockaddr_in), 0);
+					      sizeof(struct sockaddr_in), 0);
 		if (rc >= 0)
 			connected = 1;
 	}
@@ -1610,7 +1605,7 @@ ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket)
 	if (psin_server->sin6_port) { /* user overrode default port */
 		rc = (*csocket)->ops->connect(*csocket,
 				(struct sockaddr *) psin_server,
-				sizeof (struct sockaddr_in6), 0);
+				sizeof(struct sockaddr_in6), 0);
 		if (rc >= 0)
 			connected = 1;
 	}
@@ -1626,7 +1621,7 @@ ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket)
 
 			rc = (*csocket)->ops->connect(*csocket,
 					(struct sockaddr *) psin_server,
-					sizeof (struct sockaddr_in6), 0);
+					sizeof(struct sockaddr_in6), 0);
 			if (rc >= 0)
 				connected = 1;
 		}
@@ -1634,7 +1629,7 @@ ipv6_connect(struct sockaddr_in6 *psin_server, struct socket **csocket)
 	if (!connected) {
 		psin_server->sin6_port = htons(RFC1001_PORT);
 		rc = (*csocket)->ops->connect(*csocket, (struct sockaddr *)
-				 psin_server, sizeof (struct sockaddr_in6), 0);
+				 psin_server, sizeof(struct sockaddr_in6), 0);
 		if (rc >= 0)
 			connected = 1;
 	}
@@ -1750,7 +1745,16 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 			cFYI(1, ("very large write cap"));
 #endif /* CIFS_DEBUG2 */
 		if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
-			cFYI(1, ("setting capabilities failed"));
+			if (vol_info == NULL) {
+				cFYI(1, ("resetting capabilities failed"));
+			} else
+				cERROR(1, ("Negotiating Unix capabilities "
+					   "with the server failed.  Consider "
+					   "mounting with the Unix Extensions\n"
+					   "disabled, if problems are found, "
+					   "by specifying the nounix mount "
+					   "option."));
+
 		}
 	}
 }
@@ -1909,8 +1913,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			return rc;
 		}
 
-		srvTcp = kmalloc(sizeof (struct TCP_Server_Info), GFP_KERNEL);
-		if (srvTcp == NULL) {
+		srvTcp = kzalloc(sizeof(struct TCP_Server_Info), GFP_KERNEL);
+		if (!srvTcp) {
 			rc = -ENOMEM;
 			sock_release(csocket);
 			kfree(volume_info.UNC);
@@ -1919,9 +1923,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			FreeXid(xid);
 			return rc;
 		} else {
-			memset(srvTcp, 0, sizeof (struct TCP_Server_Info));
 			memcpy(&srvTcp->addr.sockAddr, &sin_server,
-				sizeof (struct sockaddr_in));
+				sizeof(struct sockaddr_in));
 			atomic_set(&srvTcp->inFlight, 0);
 			/* BB Add code for ipv6 case too */
 			srvTcp->ssocket = csocket;
@@ -2173,8 +2176,18 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 						if (tsk)
 							kthread_stop(tsk);
 					}
-				} else
+				} else {
 					cFYI(1, ("No session or bad tcon"));
+					if ((pSesInfo->server) &&
+					    (pSesInfo->server->tsk)) {
+						struct task_struct *tsk;
+						force_sig(SIGKILL,
+							pSesInfo->server->tsk);
+						tsk = pSesInfo->server->tsk;
+						if (tsk)
+							kthread_stop(tsk);
+					}
+				}
 				sesInfoFree(pSesInfo);
 				/* pSesInfo = NULL; */
 			}
@@ -2185,8 +2198,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		tcon->ses = pSesInfo;
 
 		/* do not care if following two calls succeed - informational */
-		CIFSSMBQFSDeviceInfo(xid, tcon);
-		CIFSSMBQFSAttributeInfo(xid, tcon);
+		if (!tcon->ipc) {
+			CIFSSMBQFSDeviceInfo(xid, tcon);
+			CIFSSMBQFSAttributeInfo(xid, tcon);
+		}
 
 		/* tell server which Unix caps we support */
 		if (tcon->ses->capabilities & CAP_UNIX)
@@ -2526,8 +2541,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 sesssetup_nomem:	/* do not return an error on nomem for the info strings,
 			   since that could make reconnection harder, and
 			   reconnection might be needed to free memory */
-	if (smb_buffer)
-		cifs_buf_release(smb_buffer);
+	cifs_buf_release(smb_buffer);
 
 	return rc;
 }
@@ -2547,7 +2561,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	int remaining_words = 0;
 	int bytes_returned = 0;
 	int len;
-	int SecurityBlobLength = sizeof (NEGOTIATE_MESSAGE);
+	int SecurityBlobLength = sizeof(NEGOTIATE_MESSAGE);
 	PNEGOTIATE_MESSAGE SecurityBlob;
 	PCHALLENGE_MESSAGE SecurityBlob2;
 	__u32 negotiate_flags, capabilities;
@@ -2865,15 +2879,14 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 		rc = -EIO;
 	}
 
-	if (smb_buffer)
-		cifs_buf_release(smb_buffer);
+	cifs_buf_release(smb_buffer);
 
 	return rc;
 }
 static int
 CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
-		char *ntlm_session_key, int ntlmv2_flag,
-		const struct nls_table *nls_codepage)
+			char *ntlm_session_key, int ntlmv2_flag,
+			const struct nls_table *nls_codepage)
 {
 	struct smb_hdr *smb_buffer;
 	struct smb_hdr *smb_buffer_response;
@@ -2886,7 +2899,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	int remaining_words = 0;
 	int bytes_returned = 0;
 	int len;
-	int SecurityBlobLength = sizeof (AUTHENTICATE_MESSAGE);
+	int SecurityBlobLength = sizeof(AUTHENTICATE_MESSAGE);
 	PAUTHENTICATE_MESSAGE SecurityBlob;
 	__u32 negotiate_flags, capabilities;
 	__u16 count;
@@ -2901,8 +2914,8 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		return -ENOMEM;
 	}
 	smb_buffer_response = smb_buffer;
-	pSMB = (SESSION_SETUP_ANDX *) smb_buffer;
-	pSMBr = (SESSION_SETUP_ANDX *) smb_buffer_response;
+	pSMB = (SESSION_SETUP_ANDX *)smb_buffer;
+	pSMBr = (SESSION_SETUP_ANDX *)smb_buffer_response;
 
 	/* send SMBsessionSetup here */
 	header_assemble(smb_buffer, SMB_COM_SESSION_SETUP_ANDX,
@@ -2921,7 +2934,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	capabilities = CAP_LARGE_FILES | CAP_NT_SMBS | CAP_LEVEL_II_OPLOCKS |
-	    CAP_EXTENDED_SECURITY;
+			CAP_EXTENDED_SECURITY;
 	if (ses->capabilities & CAP_UNICODE) {
 		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
 		capabilities |= CAP_UNICODE;
@@ -2936,15 +2949,14 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	}
 	pSMB->req.Capabilities = cpu_to_le32(capabilities);
 
-	bcc_ptr = (char *) &pSMB->req.SecurityBlob;
-	SecurityBlob = (PAUTHENTICATE_MESSAGE) bcc_ptr;
+	bcc_ptr = (char *)&pSMB->req.SecurityBlob;
+	SecurityBlob = (PAUTHENTICATE_MESSAGE)bcc_ptr;
 	strncpy(SecurityBlob->Signature, NTLMSSP_SIGNATURE, 8);
 	SecurityBlob->MessageType = NtLmAuthenticate;
 	bcc_ptr += SecurityBlobLength;
-	negotiate_flags =
-	    NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_REQUEST_TARGET |
-	    NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_TARGET_INFO |
-	    0x80000000 | NTLMSSP_NEGOTIATE_128;
+	negotiate_flags = NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_REQUEST_TARGET |
+			NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_TARGET_INFO |
+			0x80000000 | NTLMSSP_NEGOTIATE_128;
 	if (sign_CIFS_PDUs)
 		negotiate_flags |= /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN |*/ NTLMSSP_NEGOTIATE_SIGN;
 	if (ntlmv2_flag)
@@ -2979,36 +2991,32 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			SecurityBlob->DomainName.Length = 0;
 			SecurityBlob->DomainName.MaximumLength = 0;
 		} else {
-			__u16 len =
-			    cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
+			__u16 ln = cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
 					  nls_codepage);
-			len *= 2;
+			ln *= 2;
 			SecurityBlob->DomainName.MaximumLength =
-			    cpu_to_le16(len);
+			    cpu_to_le16(ln);
 			SecurityBlob->DomainName.Buffer =
 			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += len;
-			SecurityBlobLength += len;
-			SecurityBlob->DomainName.Length =
-			    cpu_to_le16(len);
+			bcc_ptr += ln;
+			SecurityBlobLength += ln;
+			SecurityBlob->DomainName.Length = cpu_to_le16(ln);
 		}
 		if (user == NULL) {
 			SecurityBlob->UserName.Buffer = 0;
 			SecurityBlob->UserName.Length = 0;
 			SecurityBlob->UserName.MaximumLength = 0;
 		} else {
-			__u16 len =
-			    cifs_strtoUCS((__le16 *) bcc_ptr, user, 64,
+			__u16 ln = cifs_strtoUCS((__le16 *) bcc_ptr, user, 64,
 					  nls_codepage);
-			len *= 2;
+			ln *= 2;
 			SecurityBlob->UserName.MaximumLength =
-			    cpu_to_le16(len);
+			    cpu_to_le16(ln);
 			SecurityBlob->UserName.Buffer =
 			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += len;
-			SecurityBlobLength += len;
-			SecurityBlob->UserName.Length =
-			    cpu_to_le16(len);
+			bcc_ptr += ln;
+			SecurityBlobLength += ln;
+			SecurityBlob->UserName.Length = cpu_to_le16(ln);
 		}
 
 		/* SecurityBlob->WorkstationName.Length =
@@ -3052,33 +3060,32 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			SecurityBlob->DomainName.Length = 0;
 			SecurityBlob->DomainName.MaximumLength = 0;
 		} else {
-			__u16 len;
+			__u16 ln;
 			negotiate_flags |= NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED;
 			strncpy(bcc_ptr, domain, 63);
-			len = strnlen(domain, 64);
+			ln = strnlen(domain, 64);
 			SecurityBlob->DomainName.MaximumLength =
-			    cpu_to_le16(len);
+			    cpu_to_le16(ln);
 			SecurityBlob->DomainName.Buffer =
 			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += len;
-			SecurityBlobLength += len;
-			SecurityBlob->DomainName.Length = cpu_to_le16(len);
+			bcc_ptr += ln;
+			SecurityBlobLength += ln;
+			SecurityBlob->DomainName.Length = cpu_to_le16(ln);
 		}
 		if (user == NULL) {
 			SecurityBlob->UserName.Buffer = 0;
 			SecurityBlob->UserName.Length = 0;
 			SecurityBlob->UserName.MaximumLength = 0;
 		} else {
-			__u16 len;
+			__u16 ln;
 			strncpy(bcc_ptr, user, 63);
-			len = strnlen(user, 64);
-			SecurityBlob->UserName.MaximumLength =
-			    cpu_to_le16(len);
+			ln = strnlen(user, 64);
+			SecurityBlob->UserName.MaximumLength = cpu_to_le16(ln);
 			SecurityBlob->UserName.Buffer =
-			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += len;
-			SecurityBlobLength += len;
-			SecurityBlob->UserName.Length = cpu_to_le16(len);
+						cpu_to_le32(SecurityBlobLength);
+			bcc_ptr += ln;
+			SecurityBlobLength += ln;
+			SecurityBlob->UserName.Length = cpu_to_le16(ln);
 		}
 		/* BB fill in our workstation name if known BB */
 
@@ -3100,12 +3107,11 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response,
 			 &bytes_returned, 1);
 	if (rc) {
-/*    rc = map_smb_to_linux_error(smb_buffer_response);  *//* done in SendReceive now */
-	} else if ((smb_buffer_response->WordCount == 3)
-		   || (smb_buffer_response->WordCount == 4)) {
+/*   rc = map_smb_to_linux_error(smb_buffer_response) done in SendReceive now */
+	} else if ((smb_buffer_response->WordCount == 3) ||
+		   (smb_buffer_response->WordCount == 4)) {
 		__u16 action = le16_to_cpu(pSMBr->resp.Action);
-		__u16 blob_len =
-		    le16_to_cpu(pSMBr->resp.SecurityBlobLength);
+		__u16 blob_len = le16_to_cpu(pSMBr->resp.SecurityBlobLength);
 		if (action & GUEST_LOGIN)
 			cFYI(1, (" Guest login")); /* BB Should we set anything
 							 in SesInfo struct ? */
@@ -3145,8 +3151,8 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					} else {
 						remaining_words = BCC(smb_buffer_response) / 2;
 					}
-					len =
-					    UniStrnlen((wchar_t *) bcc_ptr,remaining_words - 1);
+					len = UniStrnlen((wchar_t *) bcc_ptr,
+							remaining_words - 1);
 /* We look for obvious messed up bcc or strings in response so we do not go off
   the end since (at least) WIN2K and Windows XP have a major bug in not null
   terminating last Unicode string in response  */
@@ -3230,7 +3236,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						<= BCC(smb_buffer_response)) {
 						if (ses->serverOS)
 							kfree(ses->serverOS);
-						ses->serverOS = kzalloc(len + 1,GFP_KERNEL);
+						ses->serverOS = kzalloc(len + 1, GFP_KERNEL);
 						strncpy(ses->serverOS,bcc_ptr, len);
 
 						bcc_ptr += len;
@@ -3259,28 +3265,24 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						bcc_ptr[0] = 0;
 						bcc_ptr++;
 					} else
-						cFYI(1,
-						     ("field of length %d "
+						cFYI(1, ("field of length %d "
 						   "extends beyond end of smb ",
 						      len));
 				}
 			} else {
-				cERROR(1,
-				       (" Security Blob extends beyond end "
+				cERROR(1, ("Security Blob extends beyond end "
 					"of SMB"));
 			}
 		} else {
 			cERROR(1, ("No session structure passed in."));
 		}
 	} else {
-		cERROR(1,
-		       (" Invalid Word count %d: ",
+		cERROR(1, ("Invalid Word count %d: ",
 			smb_buffer_response->WordCount));
 		rc = -EIO;
 	}
 
-	if (smb_buffer)
-		cifs_buf_release(smb_buffer);
+	cifs_buf_release(smb_buffer);
 
 	return rc;
 }
@@ -3389,6 +3391,18 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		bcc_ptr = pByteArea(smb_buffer_response);
 		length = strnlen(bcc_ptr, BCC(smb_buffer_response) - 2);
 		/* skip service field (NB: this field is always ASCII) */
+		if (length == 3) {
+			if ((bcc_ptr[0] == 'I') && (bcc_ptr[1] == 'P') &&
+			    (bcc_ptr[2] == 'C')) {
+				cFYI(1, ("IPC connection"));
+				tcon->ipc = 1;
+			}
+		} else if (length == 2) {
+			if ((bcc_ptr[0] == 'A') && (bcc_ptr[1] == ':')) {
+				/* the most common case */
+				cFYI(1, ("disk share connection"));
+			}
+		}
 		bcc_ptr += length + 1;
 		strncpy(tcon->treeName, tree, MAX_TREE_SIZE);
 		if (smb_buffer->Flags2 & SMBFLG2_UNICODE) {
@@ -3399,9 +3413,11 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 				kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
 				    kzalloc(length + 2, GFP_KERNEL);
-				cifs_strfromUCS_le(tcon->nativeFileSystem,
-						   (__le16 *) bcc_ptr,
-						   length, nls_codepage);
+				if (tcon->nativeFileSystem)
+					cifs_strfromUCS_le(
+						tcon->nativeFileSystem,
+						(__le16 *) bcc_ptr,
+						length, nls_codepage);
 				bcc_ptr += 2 * length;
 				bcc_ptr[0] = 0;	/* null terminate the string */
 				bcc_ptr[1] = 0;
@@ -3416,8 +3432,9 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 				kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
 				    kzalloc(length + 1, GFP_KERNEL);
-				strncpy(tcon->nativeFileSystem, bcc_ptr,
-					length);
+				if (tcon->nativeFileSystem)
+					strncpy(tcon->nativeFileSystem, bcc_ptr,
+						length);
 			}
 			/* else do not bother copying these information fields*/
 		}
@@ -3433,8 +3450,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		ses->ipc_tid = smb_buffer_response->Tid;
 	}
 
-	if (smb_buffer)
-		cifs_buf_release(smb_buffer);
+	cifs_buf_release(smb_buffer);
 	return rc;
 }
 

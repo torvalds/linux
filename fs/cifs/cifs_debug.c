@@ -209,13 +209,16 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		i++;
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
-		length =
-		    sprintf(buf,
-			    "\n%d) %s Uses: %d Type: %s DevInfo: 0x%x "
-			    "Attributes: 0x%x\nPathComponentMax: %d Status: %d",
-			    i, tcon->treeName,
-			    atomic_read(&tcon->useCount),
-			    tcon->nativeFileSystem,
+		length = sprintf(buf, "\n%d) %s Uses: %d ", i,
+				 tcon->treeName, atomic_read(&tcon->useCount));
+		buf += length;
+		if (tcon->nativeFileSystem) {
+			length = sprintf(buf, "Type: %s ",
+					 tcon->nativeFileSystem);
+			buf += length;
+		}
+		length = sprintf(buf, "DevInfo: 0x%x Attributes: 0x%x"
+				 "\nPathComponentMax: %d Status: %d",
 			    le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics),
 			    le32_to_cpu(tcon->fsAttrInfo.Attributes),
 			    le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
@@ -876,11 +879,16 @@ security_flags_write(struct file *file, const char __user *buffer,
 	if (count < 3) {
 		/* single char or single char followed by null */
 		c = flags_string[0];
-		if (c == '0' || c == 'n' || c == 'N')
+		if (c == '0' || c == 'n' || c == 'N') {
 			extended_security = CIFSSEC_DEF; /* default */
-		else if (c == '1' || c == 'y' || c == 'Y')
+			return count;
+		} else if (c == '1' || c == 'y' || c == 'Y') {
 			extended_security = CIFSSEC_MAX;
-		return count;
+			return count;
+		} else if (!isdigit(c)) {
+			cERROR(1, ("invalid flag %c", c));
+			return -EINVAL;
+		}
 	}
 	/* else we have a number */
 

@@ -67,13 +67,58 @@ static __u32 cifs_ssetup_hdr(struct cifsSesInfo *ses, SESSION_SETUP_ANDX *pSMB)
 		pSMB->req.hdr.Flags2 |= SMBFLG2_DFS;
 		capabilities |= CAP_DFS;
 	}
-	if (ses->capabilities & CAP_UNIX) {
+	if (ses->capabilities & CAP_UNIX)
 		capabilities |= CAP_UNIX;
-	}
 
 	/* BB check whether to init vcnum BB */
 	return capabilities;
 }
+
+static void
+unicode_oslm_strings(char **pbcc_area, const struct nls_table *nls_cp)
+{
+	char *bcc_ptr = *pbcc_area;
+	int bytes_ret = 0;
+
+	/* Copy OS version */
+	bytes_ret = cifs_strtoUCS((__le16 *)bcc_ptr, "Linux version ", 32,
+				  nls_cp);
+	bcc_ptr += 2 * bytes_ret;
+	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, init_utsname()->release,
+				  32, nls_cp);
+	bcc_ptr += 2 * bytes_ret;
+	bcc_ptr += 2; /* trailing null */
+
+	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
+				  32, nls_cp);
+	bcc_ptr += 2 * bytes_ret;
+	bcc_ptr += 2; /* trailing null */
+
+	*pbcc_area = bcc_ptr;
+}
+
+static void unicode_domain_string(char **pbcc_area, struct cifsSesInfo *ses,
+				   const struct nls_table *nls_cp)
+{
+	char *bcc_ptr = *pbcc_area;
+	int bytes_ret = 0;
+
+	/* copy domain */
+	if (ses->domainName == NULL) {
+		/* Sending null domain better than using a bogus domain name (as
+		we did briefly in 2.6.18) since server will use its default */
+		*bcc_ptr = 0;
+		*(bcc_ptr+1) = 0;
+		bytes_ret = 0;
+	} else
+		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->domainName,
+					  256, nls_cp);
+	bcc_ptr += 2 * bytes_ret;
+	bcc_ptr += 2;  /* account for null terminator */
+
+	*pbcc_area = bcc_ptr;
+}
+
 
 static void unicode_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 				   const struct nls_table *nls_cp)
@@ -100,32 +145,9 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 	}
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* account for null termination */
-	/* copy domain */
-	if (ses->domainName == NULL) {
-		/* Sending null domain better than using a bogus domain name (as
-		we did briefly in 2.6.18) since server will use its default */
-		*bcc_ptr = 0;
-		*(bcc_ptr+1) = 0;
-		bytes_ret = 0;
-	} else
-		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->domainName,
-					  256, nls_cp);
-	bcc_ptr += 2 * bytes_ret;
-	bcc_ptr += 2;  /* account for null terminator */
 
-	/* Copy OS version */
-	bytes_ret = cifs_strtoUCS((__le16 *)bcc_ptr, "Linux version ", 32,
-				  nls_cp);
-	bcc_ptr += 2 * bytes_ret;
-	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, init_utsname()->release,
-				  32, nls_cp);
-	bcc_ptr += 2 * bytes_ret;
-	bcc_ptr += 2; /* trailing null */
-
-	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
-				  32, nls_cp);
-	bcc_ptr += 2 * bytes_ret;
-	bcc_ptr += 2; /* trailing null */
+	unicode_domain_string(&bcc_ptr, ses, nls_cp);
+	unicode_oslm_strings(&bcc_ptr, nls_cp);
 
 	*pbcc_area = bcc_ptr;
 }
@@ -203,14 +225,11 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 	if (len >= words_left)
 		return rc;
 
-	if (ses->serverOS)
-		kfree(ses->serverOS);
+	kfree(ses->serverOS);
 	/* UTF-8 string will not grow more than four times as big as UCS-16 */
 	ses->serverOS = kzalloc(4 * len, GFP_KERNEL);
-	if (ses->serverOS != NULL) {
-		cifs_strfromUCS_le(ses->serverOS, (__le16 *)data, len,
-				   nls_cp);
-	}
+	if (ses->serverOS != NULL)
+		cifs_strfromUCS_le(ses->serverOS, (__le16 *)data, len, nls_cp);
 	data += 2 * (len + 1);
 	words_left -= len + 1;
 
@@ -220,8 +239,7 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 	if (len >= words_left)
 		return rc;
 
-	if (ses->serverNOS)
-		kfree(ses->serverNOS);
+	kfree(ses->serverNOS);
 	ses->serverNOS = kzalloc(4 * len, GFP_KERNEL); /* BB this is wrong length FIXME BB */
 	if (ses->serverNOS != NULL) {
 		cifs_strfromUCS_le(ses->serverNOS, (__le16 *)data, len,
@@ -240,8 +258,7 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 	if (len > words_left)
 		return rc;
 
-	if (ses->serverDomain)
-		kfree(ses->serverDomain);
+	kfree(ses->serverDomain);
 	ses->serverDomain = kzalloc(2 * (len + 1), GFP_KERNEL); /* BB FIXME wrong length */
 	if (ses->serverDomain != NULL) {
 		cifs_strfromUCS_le(ses->serverDomain, (__le16 *)data, len,
@@ -271,8 +288,7 @@ static int decode_ascii_ssetup(char **pbcc_area, int bleft,
 	if (len >= bleft)
 		return rc;
 
-	if (ses->serverOS)
-		kfree(ses->serverOS);
+	kfree(ses->serverOS);
 
 	ses->serverOS = kzalloc(len + 1, GFP_KERNEL);
 	if (ses->serverOS)
@@ -289,8 +305,7 @@ static int decode_ascii_ssetup(char **pbcc_area, int bleft,
 	if (len >= bleft)
 		return rc;
 
-	if (ses->serverNOS)
-		kfree(ses->serverNOS);
+	kfree(ses->serverNOS);
 
 	ses->serverNOS = kzalloc(len + 1, GFP_KERNEL);
 	if (ses->serverNOS)
@@ -479,7 +494,8 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		if (ses->capabilities & CAP_UNICODE) {
 			if (iov[0].iov_len % 2) {
 				*bcc_ptr = 0;
-			}	bcc_ptr++;
+				bcc_ptr++;
+			}
 			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
 		} else
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
@@ -497,7 +513,8 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 	iov[1].iov_base = str_area;
 	iov[1].iov_len = count;
-	rc = SendReceive2(xid, ses, iov, 2 /* num_iovecs */, &resp_buf_type, 0);
+	rc = SendReceive2(xid, ses, iov, 2 /* num_iovecs */, &resp_buf_type,
+			  0 /* not long op */, 1 /* log NT STATUS if any */ );
 	/* SMB request buf freed in SendReceive2 */
 
 	cFYI(1, ("ssetup rc from sendrecv2 is %d", rc));

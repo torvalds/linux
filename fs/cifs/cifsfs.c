@@ -49,10 +49,6 @@
 static struct quotactl_ops cifs_quotactl_ops;
 #endif /* QUOTA */
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-extern struct export_operations cifs_export_ops;
-#endif /* EXPERIMENTAL */
-
 int cifsFYI = 0;
 int cifsERROR = 1;
 int traceSMB = 0;
@@ -240,9 +236,9 @@ static int cifs_permission(struct inode *inode, int mask, struct nameidata *nd)
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) {
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		return 0;
-	} else /* file mode might have been restricted at mount time
+	else /* file mode might have been restricted at mount time
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
@@ -312,15 +308,15 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 					seq_printf(s, ",domain=%s",
 					   cifs_sb->tcon->ses->domainName);
 			}
+			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID) ||
+			   !(cifs_sb->tcon->unix_ext))
+				seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
+			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
+			   !(cifs_sb->tcon->unix_ext))
+				seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
 		}
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 			seq_printf(s, ",posixpaths");
-		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID) ||
-		   !(cifs_sb->tcon->unix_ext))
-			seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
-		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
-		   !(cifs_sb->tcon->unix_ext))
-			seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
 		seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 		seq_printf(s, ",wsize=%d", cifs_sb->wsize);
 	}
@@ -346,7 +342,7 @@ int cifs_xquota_set(struct super_block *sb, int quota_type, qid_t qid,
 	if (pTcon) {
 		cFYI(1, ("set type: 0x%x id: %d", quota_type, qid));
 	} else {
-		return -EIO;
+		rc = -EIO;
 	}
 
 	FreeXid(xid);
@@ -716,7 +712,7 @@ static int
 cifs_init_inodecache(void)
 {
 	cifs_inode_cachep = kmem_cache_create("cifs_inode_cache",
-					      sizeof (struct cifsInodeInfo),
+					      sizeof(struct cifsInodeInfo),
 					      0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
 					      cifs_init_once);
@@ -816,8 +812,8 @@ static int
 cifs_init_mids(void)
 {
 	cifs_mid_cachep = kmem_cache_create("cifs_mpx_ids",
-				sizeof (struct mid_q_entry), 0,
-				SLAB_HWCACHE_ALIGN, NULL);
+					    sizeof(struct mid_q_entry), 0,
+					    SLAB_HWCACHE_ALIGN, NULL);
 	if (cifs_mid_cachep == NULL)
 		return -ENOMEM;
 
@@ -829,8 +825,8 @@ cifs_init_mids(void)
 	}
 
 	cifs_oplock_cachep = kmem_cache_create("cifs_oplock_structs",
-				sizeof (struct oplock_q_entry), 0,
-				SLAB_HWCACHE_ALIGN, NULL);
+					sizeof(struct oplock_q_entry), 0,
+					SLAB_HWCACHE_ALIGN, NULL);
 	if (cifs_oplock_cachep == NULL) {
 		mempool_destroy(cifs_mid_poolp);
 		kmem_cache_destroy(cifs_mid_cachep);
@@ -882,7 +878,8 @@ static int cifs_oplock_thread(void *dummyarg)
 				the call */
 				/* mutex_lock(&inode->i_mutex);*/
 				if (S_ISREG(inode->i_mode)) {
-					rc = filemap_fdatawrite(inode->i_mapping);
+					rc =
+					   filemap_fdatawrite(inode->i_mapping);
 					if (CIFS_I(inode)->clientCanCacheRead
 									 == 0) {
 						filemap_fdatawait(inode->i_mapping);
@@ -907,8 +904,7 @@ static int cifs_oplock_thread(void *dummyarg)
 					    0 /* len */ , 0 /* offset */, 0,
 					    0, LOCKING_ANDX_OPLOCK_RELEASE,
 					    0 /* wait flag */);
-					cFYI(1, 
-					      ("Oplock release rc = %d ", rc));
+					cFYI(1, ("Oplock release rc = %d", rc));
 				}
 			} else
 				spin_unlock(&GlobalMid_Lock);

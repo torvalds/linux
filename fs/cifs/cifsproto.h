@@ -50,7 +50,8 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			int * /* bytes returned */ , const int long_op);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct kvec *, int /* nvec to send */,
-			int * /* type of buf returned */ , const int long_op);
+			int * /* type of buf returned */ , const int long_op,
+			const int logError /* whether to log status code*/ );
 extern int SendReceiveBlockingLock(const unsigned int /* xid */ ,
 					struct cifsTconInfo *,
 				struct smb_hdr * /* input */ ,
@@ -65,7 +66,7 @@ extern unsigned int smbCalcSize_LE(struct smb_hdr *ptr);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			enum securityEnum *secType);
 extern int cifs_inet_pton(int, char *source, void *dst);
-extern int map_smb_to_linux_error(struct smb_hdr *smb);
+extern int map_smb_to_linux_error(struct smb_hdr *smb, int logErr);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifsTconInfo *, int /* length of
 			    fixed section (word count) in two byte units */);
@@ -304,12 +305,13 @@ extern int cifs_calculate_mac_key(struct mac_key *key, const char *rn,
 				 const char *pass);
 extern int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *,
 			const struct nls_table *);
-extern void CalcNTLMv2_response(const struct cifsSesInfo *, char * );
+extern void CalcNTLMv2_response(const struct cifsSesInfo *, char *);
 extern void setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
 			     const struct nls_table *);
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(struct cifsSesInfo *ses, char *lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */
+extern int parse_sec_desc(struct cifs_ntsd *, int);
 extern int CIFSSMBCopy(int xid,
 			struct cifsTconInfo *source_tcon,
 			const char *fromName,

@@ -114,10 +114,16 @@ static const struct smb_to_posix_error mapping_table_ERRSRV[] = {
 	{ERRusempx, -EIO},
 	{ERRusestd, -EIO},
 	{ERR_NOTIFY_ENUM_DIR, -ENOBUFS},
-	{ERRaccountexpired, -EACCES},
+	{ERRnoSuchUser, -EACCES},
+/*	{ERRaccountexpired, -EACCES},
 	{ERRbadclient, -EACCES},
 	{ERRbadLogonTime, -EACCES},
-	{ERRpasswordExpired, -EACCES},
+	{ERRpasswordExpired, -EACCES},*/
+	{ERRaccountexpired, -EKEYEXPIRED},
+	{ERRbadclient, -EACCES},
+	{ERRbadLogonTime, -EACCES},
+	{ERRpasswordExpired, -EKEYEXPIRED},
+
 	{ERRnosupport, -EINVAL},
 	{0, 0}
 };
@@ -270,7 +276,7 @@ static const struct {
 	 from NT_STATUS_NO_SUCH_USER to NT_STATUS_LOGON_FAILURE
 	 during the session setup } */
 	{
-	ERRDOS, ERRnoaccess, NT_STATUS_NO_SUCH_USER}, {
+	ERRDOS, ERRnoaccess, NT_STATUS_NO_SUCH_USER}, { /* could map to 2238 */
 	ERRHRD, ERRgeneral, NT_STATUS_GROUP_EXISTS}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_SUCH_GROUP}, {
 	ERRHRD, ERRgeneral, NT_STATUS_MEMBER_IN_GROUP}, {
@@ -285,10 +291,10 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_PASSWORD_RESTRICTION}, {
 	ERRDOS, ERRnoaccess, NT_STATUS_LOGON_FAILURE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_ACCOUNT_RESTRICTION}, {
-	ERRSRV, 2241, NT_STATUS_INVALID_LOGON_HOURS}, {
-	ERRSRV, 2240, NT_STATUS_INVALID_WORKSTATION}, {
+	ERRSRV, ERRbadLogonTime, NT_STATUS_INVALID_LOGON_HOURS}, {
+	ERRSRV, ERRbadclient, NT_STATUS_INVALID_WORKSTATION}, {
 	ERRSRV, ERRpasswordExpired, NT_STATUS_PASSWORD_EXPIRED}, {
-	ERRSRV, 2239, NT_STATUS_ACCOUNT_DISABLED}, {
+	ERRSRV, ERRaccountexpired, NT_STATUS_ACCOUNT_DISABLED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NONE_MAPPED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_TOO_MANY_LUIDS_REQUESTED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_LUIDS_EXHAUSTED}, {
@@ -585,7 +591,7 @@ static const struct {
 	ERRDOS, ERRnoaccess, NT_STATUS_TRUST_FAILURE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_MUTANT_LIMIT_EXCEEDED}, {
 	ERRDOS, ERRnetlogonNotStarted, NT_STATUS_NETLOGON_NOT_STARTED}, {
-	ERRSRV, 2239, NT_STATUS_ACCOUNT_EXPIRED}, {
+	ERRSRV, ERRaccountexpired, NT_STATUS_ACCOUNT_EXPIRED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_POSSIBLE_DEADLOCK}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NETWORK_CREDENTIAL_CONFLICT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_REMOTE_SESSION_LIMIT}, {
@@ -754,7 +760,7 @@ ntstatus_to_dos(__u32 ntstatus, __u8 * eclass, __u16 * ecode)
 }
 
 int
-map_smb_to_linux_error(struct smb_hdr *smb)
+map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 {
 	unsigned int i;
 	int rc = -EIO;	/* if transport error smb error may not be set */
@@ -771,7 +777,9 @@ map_smb_to_linux_error(struct smb_hdr *smb)
 		/* translate the newer STATUS codes to old style SMB errors
 		 * and then to POSIX errors */
 		__u32 err = le32_to_cpu(smb->Status.CifsError);
-		if (cifsFYI & CIFS_RC)
+		if (logErr && (err != (NT_STATUS_MORE_PROCESSING_REQUIRED)))
+			cifs_print_status(err);
+		else if (cifsFYI & CIFS_RC)
 			cifs_print_status(err);
 		ntstatus_to_dos(err, &smberrclass, &smberrcode);
 	} else {
@@ -813,7 +821,7 @@ map_smb_to_linux_error(struct smb_hdr *smb)
 	}
 	/* else ERRHRD class errors or junk  - return EIO */
 
-	cFYI(1, (" !!Mapping smb error code %d to POSIX err %d !!",
+	cFYI(1, ("Mapping smb error code %d to POSIX err %d",
 		 smberrcode, rc));
 
 	/* generic corrective action e.g. reconnect SMB session on
@@ -899,8 +907,11 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 		cERROR(1, ("illegal hours %d", st->Hours));
 	days = sd->Day;
 	month = sd->Month;
-	if ((days > 31) || (month > 12))
+	if ((days > 31) || (month > 12)) {
 		cERROR(1, ("illegal date, month %d day: %d", month, days));
+		if (month > 12)
+			month = 12;
+	}
 	month -= 1;
 	days += total_days_of_prev_months[month];
 	days += 3652; /* account for difference in days between 1980 and 1970 */

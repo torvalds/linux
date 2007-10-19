@@ -3,7 +3,7 @@
  *
  *   vfs operations that deal with dentries
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2005
+ *   Copyright (C) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -269,7 +269,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if (newinode) {
 			pCifsFile =
-			   kzalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
+			   kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 
 			if (pCifsFile == NULL)
 				goto cifs_create_out;
@@ -397,7 +397,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 				/* BB Do not bother to decode buf since no
 				   local inode yet to put timestamps in,
 				   but we can reuse it safely */
-				int bytes_written;
+				unsigned int bytes_written;
 				struct win_dev *pdev;
 				pdev = (struct win_dev *)buf;
 				if (S_ISCHR(mode)) {
@@ -450,8 +450,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	xid = GetXid();
 
-	cFYI(1,
-	     (" parent inode = 0x%p name is: %s and dentry = 0x%p",
+	cFYI(1, (" parent inode = 0x%p name is: %s and dentry = 0x%p",
 	      parent_dir_inode, direntry->d_name.name, direntry));
 
 	/* check whether path exists */

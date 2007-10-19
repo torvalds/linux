@@ -467,7 +467,7 @@ reopen_error_exit:
 int cifs_close(struct inode *inode, struct file *file)
 {
 	int rc = 0;
-	int xid;
+	int xid, timeout;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	struct cifsFileInfo *pSMBFile =
@@ -485,9 +485,9 @@ int cifs_close(struct inode *inode, struct file *file)
 			/* no sense reconnecting to close a file that is
 			   already closed */
 			if (pTcon->tidStatus != CifsNeedReconnect) {
-				int timeout = 2;
+				timeout = 2;
 				while ((atomic_read(&pSMBFile->wrtPending) != 0)
-					 && (timeout < 1000) ) {
+					&& (timeout <= 2048)) {
 					/* Give write a better chance to get to
 					server ahead of the close.  We do not
 					want to add a wait_q here as it would
@@ -522,12 +522,30 @@ int cifs_close(struct inode *inode, struct file *file)
 		list_del(&pSMBFile->flist);
 		list_del(&pSMBFile->tlist);
 		write_unlock(&GlobalSMBSeslock);
+		timeout = 10;
+		/* We waited above to give the SMBWrite a chance to issue
+		   on the wire (so we do not get SMBWrite returning EBADF
+		   if writepages is racing with close.  Note that writepages
+		   does not specify a file handle, so it is possible for a file
+		   to be opened twice, and the application close the "wrong"
+		   file handle - in these cases we delay long enough to allow
+		   the SMBWrite to get on the wire before the SMB Close.
+		   We allow total wait here over 45 seconds, more than
+		   oplock break time, and more than enough to allow any write
+		   to complete on the server, or to time out on the client */
+		while ((atomic_read(&pSMBFile->wrtPending) != 0)
+				&& (timeout <= 50000)) {
+			cERROR(1, ("writes pending, delay free of handle"));
+			msleep(timeout);
+			timeout *= 8;
+		}
 		kfree(pSMBFile->search_resume_name);
 		kfree(file->private_data);
 		file->private_data = NULL;
 	} else
 		rc = -EBADF;
 
+	read_lock(&GlobalSMBSeslock);
 	if (list_empty(&(CIFS_I(inode)->openFileList))) {
 		cFYI(1, ("closing last open instance for inode %p", inode));
 		/* if the file is not open we do not know if we can cache info
@@ -535,6 +553,7 @@ int cifs_close(struct inode *inode, struct file *file)
 		CIFS_I(inode)->clientCanCacheRead = FALSE;
 		CIFS_I(inode)->clientCanCacheAll  = FALSE;
 	}
+	read_unlock(&GlobalSMBSeslock);
 	if ((rc == 0) && CIFS_I(inode)->write_behind_rc)
 		rc = CIFS_I(inode)->write_behind_rc;
 	FreeXid(xid);
@@ -767,7 +786,8 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			mutex_lock(&fid->lock_mutex);
 			list_for_each_entry_safe(li, tmp, &fid->llist, llist) {
 				if (pfLock->fl_start <= li->offset &&
-						length >= li->length) {
+						(pfLock->fl_start + length) >=
+						(li->offset + li->length)) {
 					stored_rc = CIFSSMBLock(xid, pTcon,
 							netfid,
 							li->length, li->offset,
@@ -1022,6 +1042,7 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 	}
 
 	read_lock(&GlobalSMBSeslock);
+refind_writable:
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
 		if (open_file->closePend)
 			continue;
@@ -1029,24 +1050,49 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 		    ((open_file->pfile->f_flags & O_RDWR) ||
 		     (open_file->pfile->f_flags & O_WRONLY))) {
 			atomic_inc(&open_file->wrtPending);
+
+			if (!open_file->invalidHandle) {
+				/* found a good writable file */
+				read_unlock(&GlobalSMBSeslock);
+				return open_file;
+			}
+	
 			read_unlock(&GlobalSMBSeslock);
-			if ((open_file->invalidHandle) &&
-			   (!open_file->closePend) /* BB fixme -since the second clause can not be true remove it BB */) {
-				rc = cifs_reopen_file(open_file->pfile, FALSE);
-				/* if it fails, try another handle - might be */
-				/* dangerous to hold up writepages with retry */
-				if (rc) {
-					cFYI(1,
-					      ("failed on reopen file in wp"));
+			/* Had to unlock since following call can block */
+			rc = cifs_reopen_file(open_file->pfile, FALSE);
+			if (!rc) { 
+				if (!open_file->closePend)
+					return open_file;
+				else { /* start over in case this was deleted */
+				       /* since the list could be modified */
 					read_lock(&GlobalSMBSeslock);
-					/* can not use this handle, no write
-					pending on this one after all */
-					atomic_dec
-					     (&open_file->wrtPending);
-					continue;
+					atomic_dec(&open_file->wrtPending);
+					goto refind_writable;
 				}
 			}
-			return open_file;
+
+			/* if it fails, try another handle if possible -
+			(we can not do this if closePending since
+			loop could be modified - in which case we
+			have to start at the beginning of the list
+			again. Note that it would be bad
+			to hold up writepages here (rather than
+			in caller) with continuous retries */
+			cFYI(1, ("wp failed on reopen file"));
+			read_lock(&GlobalSMBSeslock);
+			/* can not use this handle, no write
+			   pending on this one after all */
+			atomic_dec(&open_file->wrtPending);
+			
+			if (open_file->closePend) /* list could have changed */
+				goto refind_writable;
+			/* else we simply continue to the next entry. Thus
+			   we do not loop on reopen errors.  If we
+			   can not reopen the file, for example if we
+			   reconnected to a server with another client
+			   racing to delete or lock the file we would not
+			   make progress if we restarted before the beginning
+			   of the loop here. */
 		}
 	}
 	read_unlock(&GlobalSMBSeslock);
@@ -1709,7 +1755,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	struct page *page;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	int bytes_read = 0;
+	unsigned int bytes_read = 0;
 	unsigned int read_size, i;
 	char *smb_read_data = NULL;
 	struct smb_com_read_rsp *pSMBr;
@@ -1803,7 +1849,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 
 			i +=  bytes_read >> PAGE_CACHE_SHIFT;
 			cifs_stats_bytes_read(pTcon, bytes_read);
-			if ((int)(bytes_read & PAGE_CACHE_MASK) != bytes_read) {
+			if ((bytes_read & PAGE_CACHE_MASK) != bytes_read) {
 				i++; /* account for partial page */
 
 				/* server copy of file can have smaller size

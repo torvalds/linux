@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsfs.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002, 2005
+ *   Copyright (c) International Business Machines  Corp., 2002, 2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -99,7 +99,12 @@ extern int 	cifs_setxattr(struct dentry *, const char *, const void *,
 			size_t, int);
 extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
-extern int cifs_ioctl (struct inode *inode, struct file *filep,
+extern int cifs_ioctl(struct inode *inode, struct file *filep,
 		       unsigned int command, unsigned long arg);
-#define CIFS_VERSION   "1.50"
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+extern struct export_operations cifs_export_ops;
+#endif /* EXPERIMENTAL */
+
+#define CIFS_VERSION   "1.51"
 #endif				/* _CIFSFS_H */

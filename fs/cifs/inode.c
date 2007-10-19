@@ -115,7 +115,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		inode->i_mode = le64_to_cpu(findData.Permissions);
 		/* since we set the inode type below we need to mask off
 		   to avoid strange results if bits set above */
-			inode->i_mode &= ~S_IFMT;
+		inode->i_mode &= ~S_IFMT;
 		if (type == UNIX_FILE) {
 			inode->i_mode |= S_IFREG;
 		} else if (type == UNIX_SYMLINK) {
@@ -575,19 +575,33 @@ int cifs_get_inode_info(struct inode **pinode,
 	return rc;
 }
 
+static const struct inode_operations cifs_ipc_inode_ops = {
+	.lookup = cifs_lookup,
+};
+
 /* gets root inode */
 void cifs_read_inode(struct inode *inode)
 {
-	int xid;
+	int xid, rc;
 	struct cifs_sb_info *cifs_sb;
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	xid = GetXid();
 
 	if (cifs_sb->tcon->unix_ext)
-		cifs_get_inode_info_unix(&inode, "", inode->i_sb, xid);
+		rc = cifs_get_inode_info_unix(&inode, "", inode->i_sb, xid);
 	else
-		cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid);
+		rc = cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid);
+	if (rc && cifs_sb->tcon->ipc) {
+		cFYI(1, ("ipc connection - fake read inode"));
+		inode->i_mode |= S_IFDIR;
+		inode->i_nlink = 2;
+		inode->i_op = &cifs_ipc_inode_ops;
+		inode->i_fop = &simple_dir_operations;
+		inode->i_uid = cifs_sb->mnt_uid;
+		inode->i_gid = cifs_sb->mnt_gid;
+	}
+
 	/* can not call macro FreeXid here since in a void func */
 	_FreeXid(xid);
 }
@@ -919,18 +933,25 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			goto mkdir_out;
 		}
 
+		mode &= ~current->fs->umask;
 		rc = CIFSPOSIXCreate(xid, pTcon, SMB_O_DIRECTORY | SMB_O_CREAT,
 				mode, NULL /* netfid */, pInfo, &oplock,
 				full_path, cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc) {
+		if (rc == -EOPNOTSUPP) {
+			kfree(pInfo);
+			goto mkdir_retry_old;
+		} else if (rc) {
 			cFYI(1, ("posix mkdir returned 0x%x", rc));
 			d_drop(direntry);
 		} else {
 			int obj_type;
-			if (pInfo->Type == -1) /* no return info - go query */
+			if (pInfo->Type == cpu_to_le32(-1)) {
+				/* no return info, go query for it */
+				kfree(pInfo);
 				goto mkdir_get_info;
+			}
 /*BB check (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID ) to see if need
 	to set uid/gid */
 			inc_nlink(inode);
@@ -940,8 +961,10 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 				direntry->d_op = &cifs_dentry_ops;
 
 			newinode = new_inode(inode->i_sb);
-			if (newinode == NULL)
+			if (newinode == NULL) {
+				kfree(pInfo);
 				goto mkdir_get_info;
+			}
 			/* Is an i_ino of zero legal? */
 			/* Are there sanity checks we can use to ensure that
 			   the server is really filling in that field? */
@@ -972,7 +995,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		kfree(pInfo);
 		goto mkdir_out;
 	}
-
+mkdir_retry_old:
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
 	rc = CIFSSMBMkDir(xid, pTcon, full_path, cifs_sb->local_nls,
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1377,8 +1400,17 @@ static int cifs_vmtruncate(struct inode *inode, loff_t offset)
 	}
 	i_size_write(inode, offset);
 	spin_unlock(&inode->i_lock);
+	/*
+	 * unmap_mapping_range is called twice, first simply for efficiency
+	 * so that truncate_inode_pages does fewer single-page unmaps. However
+	 * after this first call, and before truncate_inode_pages finishes,
+	 * it is possible for private pages to be COWed, which remain after
+	 * truncate_inode_pages finishes, hence the second unmap_mapping_range
+	 * call must be made for correctness.
+	 */
 	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
 	truncate_inode_pages(mapping, offset);
+	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
 	goto out_truncate;
 
 do_expand:
@@ -1469,7 +1501,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			atomic_dec(&open_file->wrtPending);
 			cFYI(1, ("SetFSize for attrs rc = %d", rc));
 			if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
-				int bytes_written;
+				unsigned int bytes_written;
 				rc = CIFSSMBWrite(xid, pTcon,
 						  nfid, 0, attrs->ia_size,
 						  &bytes_written, NULL, NULL,
@@ -1502,7 +1534,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if (rc == 0) {
-					int bytes_written;
+					unsigned int bytes_written;
 					rc = CIFSSMBWrite(xid, pTcon,
 							netfid, 0,
 							attrs->ia_size,

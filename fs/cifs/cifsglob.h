@@ -19,6 +19,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include "cifs_fs_sb.h"
+#include "cifsacl.h"
 /*
  * The sizes of various internal tables and strings
  */
@@ -89,7 +90,8 @@ enum statusEnum {
 };
 
 enum securityEnum {
-	LANMAN = 0,             /* Legacy LANMAN auth */
+	PLAINTXT = 0, 		/* Legacy with Plaintext passwords */
+	LANMAN,			/* Legacy LANMAN auth */
 	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO */
@@ -113,6 +115,17 @@ struct mac_key {
 			struct ntlmv2_resp resp;
 		} ntlmv2;
 	} data;
+};
+
+struct cifs_cred {
+	int uid;
+	int gid;
+	int mode;
+	int cecount;
+	struct cifs_sid osid;
+	struct cifs_sid gsid;
+	struct cifs_ntace *ntaces;
+	struct cifs_ace *aces;
 };
 
 /*
@@ -279,6 +292,7 @@ struct cifsTconInfo {
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
 	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo; /* ok if fs name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
+	unsigned ipc:1;		/* set if connection to IPC$ eg for RPC/PIPES */
 	unsigned retry:1;
 	unsigned nocase:1;
 	unsigned unix_ext:1; /* if off disable Linux extensions to CIFS protocol
@@ -329,6 +343,7 @@ struct cifsFileInfo {
 	struct list_head llist; /* list of byte range locks we have. */
 	unsigned closePend:1;	/* file is marked to close */
 	unsigned invalidHandle:1;  /* file closed via session abend */
+	unsigned messageMode:1;    /* for pipes: message vs byte mode */
 	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
 	char *search_resume_name; /* BB removeme BB */
@@ -464,6 +479,9 @@ struct dir_notify_req {
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 #define   CIFSSEC_MAY_LANMAN	0x00010
 #define   CIFSSEC_MAY_PLNTXT	0x00020
+#else
+#define   CIFSSEC_MAY_LANMAN    0
+#define   CIFSSEC_MAY_PLNTXT    0
 #endif /* weak passwords */
 #define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
 
@@ -477,14 +495,23 @@ require use of the stronger protocol */
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 #define   CIFSSEC_MUST_LANMAN	0x10010
 #define   CIFSSEC_MUST_PLNTXT	0x20020
-#define   CIFSSEC_MASK          0x37037 /* current flags supported if weak */
+#ifdef CONFIG_CIFS_UPCALL
+#define   CIFSSEC_MASK          0x3F03F /* allows weak security but also krb5 */
 #else
-#define	  CIFSSEC_MASK          0x07007 /* flags supported if no weak config */
+#define   CIFSSEC_MASK          0x37037 /* current flags supported if weak */
+#endif /* UPCALL */
+#else /* do not allow weak pw hash */
+#ifdef CONFIG_CIFS_UPCALL
+#define   CIFSSEC_MASK          0x0F00F /* flags supported if no weak allowed */
+#else
+#define	  CIFSSEC_MASK          0x07007 /* flags supported if no weak allowed */
+#endif /* UPCALL */
 #endif /* WEAK_PW_HASH */
 #define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
 
 #define   CIFSSEC_DEF  CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2
 #define   CIFSSEC_MAX  CIFSSEC_MUST_SIGN | CIFSSEC_MUST_NTLMV2
+#define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_LANMAN | CIFSSEC_MAY_PLNTXT | CIFSSEC_MAY_KRB5)
 /*
  *****************************************************************
  * All constants go here
