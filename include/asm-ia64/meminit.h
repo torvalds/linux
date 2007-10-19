@@ -35,7 +35,7 @@ extern void find_memory (void);
 extern void reserve_memory (void);
 extern void find_initrd (void);
 extern int filter_rsvd_memory (unsigned long start, unsigned long end, void *arg);
-extern void efi_memmap_init(unsigned long *, unsigned long *);
+extern unsigned long efi_memmap_init(unsigned long *s, unsigned long *e);
 extern int find_max_min_low_pfn (unsigned long , unsigned long, void *);
 
 extern unsigned long vmcore_find_descriptor_size(unsigned long address);

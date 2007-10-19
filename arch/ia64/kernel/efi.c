@@ -967,7 +967,7 @@ find_memmap_space (void)
  * to use.  We can allocate partial granules only if the unavailable
  * parts exist, and are WB.
  */
-void
+unsigned long
 efi_memmap_init(unsigned long *s, unsigned long *e)
 {
 	struct kern_memdesc *k, *prev = NULL;
@@ -1084,6 +1084,8 @@ efi_memmap_init(unsigned long *s, unsigned long *e)
 	/* reserve the memory we are using for kern_memmap */
 	*s = (u64)kern_memmap;
 	*e = (u64)++k;
+
+	return total_mem;
 }
 
 void
