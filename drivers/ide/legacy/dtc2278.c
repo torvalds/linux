@@ -130,6 +130,7 @@ static int __init dtc2278_probe(void)
 
 	mate->serialized = 1;
 	mate->chipset = ide_dtc2278;
+	mate->pio_mask = ATA_PIO4;
 	mate->drives[0].no_unmask = 1;
 	mate->drives[1].no_unmask = 1;
 	mate->mate = hwif;
