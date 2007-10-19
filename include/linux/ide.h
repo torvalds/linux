@@ -683,6 +683,8 @@ typedef struct hwif_s {
 	struct pci_dev  *pci_dev;	/* for pci chipsets */
 	struct ide_pci_device_s	*cds;	/* chipset device struct */
 
+	ide_ack_intr_t *ack_intr;
+
 	void (*rw_disk)(ide_drive_t *, struct request *);
 
 #if 0

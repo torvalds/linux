@@ -737,6 +737,7 @@ found:
 	hwif->fixup = fixup;
 	hwif->chipset = hw->chipset;
 	hwif->gendev.parent = hw->dev;
+	hwif->ack_intr = hw->ack_intr;
 
 	if (initializing == 0) {
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };

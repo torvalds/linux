@@ -316,8 +316,8 @@ m8xx_ide_init_hwif_ports(hw_regs_t *hw, unsigned long data_port,
 
 	ide_hwifs[data_port].pio_mask = ATA_PIO4;
 	ide_hwifs[data_port].set_pio_mode = m8xx_ide_set_pio_mode;
+	ide_hwifs[data_port].ack_intr = (ide_ack_intr_t *)ide_interrupt_ack;
 
-	hw->ack_intr = (ide_ack_intr_t *) ide_interrupt_ack;
 	/* Enable Harddisk Interrupt,
 	 * and make it edge sensitive
 	 */
@@ -402,8 +402,8 @@ void m8xx_ide_init_hwif_ports (hw_regs_t *hw,
 
 	ide_hwifs[data_port].pio_mask = ATA_PIO4;
 	ide_hwifs[data_port].set_pio_mode = m8xx_ide_set_pio_mode;
+	ide_hwifs[data_port].ack_intr = (ide_ack_intr_t *)ide_interrupt_ack;
 
-	hw->ack_intr = (ide_ack_intr_t *) ide_interrupt_ack;
 	/* Enable Harddisk Interrupt,
 	 * and make it edge sensitive
 	 */
