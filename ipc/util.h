@@ -107,7 +107,6 @@ void ipc_rcu_getref(void *ptr);
 void ipc_rcu_putref(void *ptr);
 
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *, int);
-int ipc_buildid(struct ipc_ids* ids, int id, int seq);
 
 void kernel_to_ipc64_perm(struct kern_ipc_perm *in, struct ipc64_perm *out);
 void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out);
@@ -126,6 +125,11 @@ extern int ipcget_new(struct ipc_namespace *, struct ipc_ids *,
 			struct ipc_ops *, struct ipc_params *);
 extern int ipcget_public(struct ipc_namespace *, struct ipc_ids *,
 			struct ipc_ops *, struct ipc_params *);
+
+static inline int ipc_buildid(struct ipc_ids *ids, int id, int seq)
+{
+	return SEQ_MULTIPLIER * seq + id;
+}
 
 static inline int ipc_checkid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp,
 				int uid)

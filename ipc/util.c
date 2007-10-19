@@ -695,11 +695,6 @@ struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 	return out;
 }
 
-int ipc_buildid(struct ipc_ids* ids, int id, int seq)
-{
-	return SEQ_MULTIPLIER*seq + id;
-}
-
 #ifdef __ARCH_WANT_IPC_PARSE_VERSION
 
 
