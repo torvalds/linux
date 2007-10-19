@@ -13,31 +13,16 @@
 
 #include <asm/ecard.h>
 
-/*
- * Something like this really should be in generic code, but isn't.
- */
 static ide_hwif_t *
 rapide_locate_hwif(void __iomem *base, void __iomem *ctrl, unsigned int sz, int irq)
 {
 	unsigned long port = (unsigned long)base;
-	ide_hwif_t *hwif;
-	int index, i;
+	ide_hwif_t *hwif = ide_find_port(port);
+	int i;
 
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = ide_hwifs + index;
-		if (hwif->io_ports[IDE_DATA_OFFSET] == port)
-			goto found;
-	}
+	if (hwif == NULL)
+		goto out;
 
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = ide_hwifs + index;
-		if (hwif->io_ports[IDE_DATA_OFFSET] == 0)
-			goto found;
-	}
-
-	return NULL;
-
- found:
 	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
 		hwif->hw.io_ports[i] = port;
 		hwif->io_ports[i] = port;
@@ -48,7 +33,7 @@ rapide_locate_hwif(void __iomem *base, void __iomem *ctrl, unsigned int sz, int 
 	hwif->hw.irq = hwif->irq = irq;
 	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
-
+out:
 	return hwif;
 }
 

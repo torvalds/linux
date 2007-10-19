@@ -265,6 +265,30 @@ static int ide_system_bus_speed(void)
 	return system_bus_speed;
 }
 
+ide_hwif_t * ide_find_port(unsigned long base)
+{
+	ide_hwif_t *hwif;
+	int i;
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		hwif = &ide_hwifs[i];
+		if (hwif->io_ports[IDE_DATA_OFFSET] == base)
+			goto found;
+	}
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		hwif = &ide_hwifs[i];
+		if (hwif->io_ports[IDE_DATA_OFFSET] == 0)
+			goto found;
+	}
+
+	hwif = NULL;
+found:
+	return hwif;
+}
+
+EXPORT_SYMBOL_GPL(ide_find_port);
+
 static struct resource* hwif_request_region(ide_hwif_t *hwif,
 					    unsigned long addr, int num)
 {

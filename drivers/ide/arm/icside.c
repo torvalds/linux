@@ -438,35 +438,13 @@ static void icside_dma_init(ide_hwif_t *hwif)
 #define icside_dma_init(hwif)	(0)
 #endif
 
-static ide_hwif_t *icside_find_hwif(unsigned long dataport)
-{
-	ide_hwif_t *hwif;
-	int index;
-
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = &ide_hwifs[index];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == dataport)
-			goto found;
-	}
-
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = &ide_hwifs[index];
-		if (!hwif->io_ports[IDE_DATA_OFFSET])
-			goto found;
-	}
-
-	hwif = NULL;
-found:
-	return hwif;
-}
-
 static ide_hwif_t *
 icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *ec)
 {
 	unsigned long port = (unsigned long)base + info->dataoffset;
 	ide_hwif_t *hwif;
 
-	hwif = icside_find_hwif(port);
+	hwif = ide_find_port(port);
 	if (hwif) {
 		int i;
 

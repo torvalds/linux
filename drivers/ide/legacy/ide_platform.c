@@ -33,24 +33,11 @@ static ide_hwif_t *__devinit plat_ide_locate_hwif(void __iomem *base,
 	    int mmio)
 {
 	unsigned long port = (unsigned long)base;
-	ide_hwif_t *hwif;
-	int index, i;
+	ide_hwif_t *hwif = ide_find_port(port);
+	int i;
 
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = ide_hwifs + index;
-		if (hwif->io_ports[IDE_DATA_OFFSET] == port)
-			goto found;
-	}
-
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = ide_hwifs + index;
-		if (hwif->io_ports[IDE_DATA_OFFSET] == 0)
-			goto found;
-	}
-
-	return NULL;
-
-found:
+	if (hwif == NULL)
+		goto out;
 
 	hwif->hw.io_ports[IDE_DATA_OFFSET] = port;
 
@@ -73,8 +60,8 @@ found:
 	}
 
 	hwif_prop.hwif = hwif;
-	hwif_prop.index = index;
-
+	hwif_prop.index = hwif->index;
+out:
 	return hwif;
 }
 
