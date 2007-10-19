@@ -69,7 +69,7 @@ static int qla4xxx_get_req_pkt(struct scsi_qla_host *ha,
 static int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
 				    struct ddb_entry *ddb_entry, int lun)
 {
-	struct marker_entry *marker_entry;
+	struct qla4_marker_entry *marker_entry;
 	unsigned long flags = 0;
 	uint8_t status = QLA_SUCCESS;
 

@@ -126,7 +126,7 @@ static struct aggregator *__get_active_agg(struct aggregator *aggregator);
 
 // ================= main 802.3ad protocol functions ==================
 static int ad_lacpdu_send(struct port *port);
-static int ad_marker_send(struct port *port, struct marker *marker);
+static int ad_marker_send(struct port *port, struct bond_marker *marker);
 static void ad_mux_machine(struct port *port);
 static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port);
 static void ad_tx_machine(struct port *port);
@@ -139,8 +139,8 @@ static void ad_initialize_port(struct port *port, int lacp_fast);
 static void ad_initialize_lacpdu(struct lacpdu *Lacpdu);
 static void ad_enable_collecting_distributing(struct port *port);
 static void ad_disable_collecting_distributing(struct port *port);
-static void ad_marker_info_received(struct marker *marker_info, struct port *port);
-static void ad_marker_response_received(struct marker *marker, struct port *port);
+static void ad_marker_info_received(struct bond_marker *marker_info, struct port *port);
+static void ad_marker_response_received(struct bond_marker *marker, struct port *port);
 
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -889,12 +889,12 @@ static int ad_lacpdu_send(struct port *port)
  * Returns:   0 on success
  *          < 0 on error
  */
-static int ad_marker_send(struct port *port, struct marker *marker)
+static int ad_marker_send(struct port *port, struct bond_marker *marker)
 {
 	struct slave *slave = port->slave;
 	struct sk_buff *skb;
-	struct marker_header *marker_header;
-	int length = sizeof(struct marker_header);
+	struct bond_marker_header *marker_header;
+	int length = sizeof(struct bond_marker_header);
 	struct mac_addr lacpdu_multicast_address = AD_MULTICAST_LACPDU_ADDR;
 
 	skb = dev_alloc_skb(length + 16);
@@ -909,7 +909,7 @@ static int ad_marker_send(struct port *port, struct marker *marker)
 	skb->network_header = skb->mac_header + ETH_HLEN;
 	skb->protocol = PKT_TYPE_LACPDU;
 
-	marker_header = (struct marker_header *)skb_put(skb, length);
+	marker_header = (struct bond_marker_header *)skb_put(skb, length);
 
 	marker_header->ad_header.destination_address = lacpdu_multicast_address;
 	/* Note: source addres is set to be the member's PERMANENT address, because we use it
@@ -1709,7 +1709,7 @@ static void ad_disable_collecting_distributing(struct port *port)
  */
 static void ad_marker_info_send(struct port *port)
 {
-	struct marker marker;
+	struct bond_marker marker;
 	u16 index;
 
 	// fill the marker PDU with the appropriate values
@@ -1742,13 +1742,14 @@ static void ad_marker_info_send(struct port *port)
  * @port: the port we're looking at
  *
  */
-static void ad_marker_info_received(struct marker *marker_info,struct port *port)
+static void ad_marker_info_received(struct bond_marker *marker_info,
+	struct port *port)
 {
-	struct marker marker;
+	struct bond_marker marker;
 
 	// copy the received marker data to the response marker
 	//marker = *marker_info;
-	memcpy(&marker, marker_info, sizeof(struct marker));
+	memcpy(&marker, marker_info, sizeof(struct bond_marker));
 	// change the marker subtype to marker response
 	marker.tlv_type=AD_MARKER_RESPONSE_SUBTYPE;
 	// send the marker response
@@ -1767,7 +1768,8 @@ static void ad_marker_info_received(struct marker *marker_info,struct port *port
  * response for marker PDU's, in this stage, but only to respond to marker
  * information.
  */
-static void ad_marker_response_received(struct marker *marker, struct port *port)
+static void ad_marker_response_received(struct bond_marker *marker,
+	struct port *port)
 {
 	marker=NULL; // just to satisfy the compiler
 	port=NULL;  // just to satisfy the compiler
@@ -2164,15 +2166,15 @@ static void bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave, u
 		case AD_TYPE_MARKER:
 			// No need to convert fields to Little Endian since we don't use the marker's fields.
 
-			switch (((struct marker *)lacpdu)->tlv_type) {
+			switch (((struct bond_marker *)lacpdu)->tlv_type) {
 			case AD_MARKER_INFORMATION_SUBTYPE:
 				dprintk("Received Marker Information on port %d\n", port->actor_port_number);
-				ad_marker_info_received((struct marker *)lacpdu, port);
+				ad_marker_info_received((struct bond_marker *)lacpdu, port);
 				break;
 
 			case AD_MARKER_RESPONSE_SUBTYPE:
 				dprintk("Received Marker Response on port %d\n", port->actor_port_number);
-				ad_marker_response_received((struct marker *)lacpdu, port);
+				ad_marker_response_received((struct bond_marker *)lacpdu, port);
 				break;
 
 			default:

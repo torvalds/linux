@@ -92,7 +92,7 @@ typedef enum {
 typedef enum {
 	AD_MARKER_INFORMATION_SUBTYPE = 1, // marker imformation subtype
 	AD_MARKER_RESPONSE_SUBTYPE     // marker response subtype
-} marker_subtype_t;
+} bond_marker_subtype_t;
 
 // timers types(43.4.9 in the 802.3ad standard)
 typedef enum {
@@ -148,7 +148,7 @@ typedef struct lacpdu_header {
 } lacpdu_header_t;
 
 // Marker Protocol Data Unit(PDU) structure(43.5.3.2 in the 802.3ad standard)
-typedef struct marker {
+typedef struct bond_marker {
 	u8 subtype;		 //  = 0x02  (marker PDU)
 	u8 version_number;	 //  = 0x01
 	u8 tlv_type;		 //  = 0x01  (marker information)
@@ -161,12 +161,12 @@ typedef struct marker {
 	u8 tlv_type_terminator;	     //  = 0x00
 	u8 terminator_length;	     //  = 0x00
 	u8 reserved_90[90];	     //  = 0
-} marker_t;
+} bond_marker_t;
 
-typedef struct marker_header {
+typedef struct bond_marker_header {
 	struct ad_header ad_header;
-	struct marker marker;
-} marker_header_t;
+	struct bond_marker marker;
+} bond_marker_header_t;
 
 #pragma pack()
 

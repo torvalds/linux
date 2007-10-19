@@ -671,7 +671,7 @@ struct continuation_t1_entry {
 #define ET_CONTINUE	ET_CONT_T1
 
 /* Marker entry structure*/
-struct marker_entry {
+struct qla4_marker_entry {
 	struct qla4_header hdr;	/* 00-03 */
 
 	uint32_t system_defined; /* 04-07 */
