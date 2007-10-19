@@ -131,7 +131,7 @@ static __init int no_ipi_broadcast(char *str)
 	return 1;
 }
 
-__setup("no_ipi_broadcast", no_ipi_broadcast);
+__setup("no_ipi_broadcast=", no_ipi_broadcast);
 
 static int __init print_ipi_mode(void)
 {
