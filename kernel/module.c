@@ -1673,6 +1673,8 @@ static struct module *load_module(void __user *umod,
 	unsigned int unusedcrcindex;
 	unsigned int unusedgplindex;
 	unsigned int unusedgplcrcindex;
+	unsigned int markersindex;
+	unsigned int markersstringsindex;
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
@@ -1939,6 +1941,9 @@ static struct module *load_module(void __user *umod,
 		add_taint_module(mod, TAINT_FORCED_MODULE);
 	}
 #endif
+	markersindex = find_sec(hdr, sechdrs, secstrings, "__markers");
+ 	markersstringsindex = find_sec(hdr, sechdrs, secstrings,
+					"__markers_strings");
 
 	/* Now do relocations. */
 	for (i = 1; i < hdr->e_shnum; i++) {
@@ -1961,6 +1966,11 @@ static struct module *load_module(void __user *umod,
 		if (err < 0)
 			goto cleanup;
 	}
+#ifdef CONFIG_MARKERS
+	mod->markers = (void *)sechdrs[markersindex].sh_addr;
+	mod->num_markers =
+		sechdrs[markersindex].sh_size / sizeof(*mod->markers);
+#endif
 
         /* Find duplicate symbols */
 	err = verify_export_symbols(mod);
@@ -1979,6 +1989,11 @@ static struct module *load_module(void __user *umod,
 
 	add_kallsyms(mod, sechdrs, symindex, strindex, secstrings);
 
+#ifdef CONFIG_MARKERS
+	if (!mod->taints)
+		marker_update_probe_range(mod->markers,
+			mod->markers + mod->num_markers, NULL, NULL);
+#endif
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
 		goto cleanup;
@@ -2569,4 +2584,19 @@ EXPORT_SYMBOL(module_remove_driver);
 /* Generate the signature for struct module here, too, for modversions. */
 void struct_module(struct module *mod) { return; }
 EXPORT_SYMBOL(struct_module);
+#endif
+
+#ifdef CONFIG_MARKERS
+void module_update_markers(struct module *probe_module, int *refcount)
+{
+	struct module *mod;
+
+	mutex_lock(&module_mutex);
+	list_for_each_entry(mod, &modules, list)
+		if (!mod->taints)
+			marker_update_probe_range(mod->markers,
+				mod->markers + mod->num_markers,
+				probe_module, refcount);
+	mutex_unlock(&module_mutex);
+}
 #endif

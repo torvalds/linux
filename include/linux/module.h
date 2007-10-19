@@ -15,6 +15,7 @@
 #include <linux/stringify.h>
 #include <linux/kobject.h>
 #include <linux/moduleparam.h>
+#include <linux/marker.h>
 #include <asm/local.h>
 
 #include <asm/module.h>
@@ -354,6 +355,10 @@ struct module
 	/* The command line arguments (may be mangled).  People like
 	   keeping pointers to this stuff */
 	char *args;
+#ifdef CONFIG_MARKERS
+	struct marker *markers;
+	unsigned int num_markers;
+#endif
 };
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
@@ -457,6 +462,8 @@ int unregister_module_notifier(struct notifier_block * nb);
 
 extern void print_modules(void);
 
+extern void module_update_markers(struct module *probe_module, int *refcount);
+
 #else /* !CONFIG_MODULES... */
 #define EXPORT_SYMBOL(sym)
 #define EXPORT_SYMBOL_GPL(sym)
@@ -553,6 +560,11 @@ static inline int unregister_module_notifier(struct notifier_block * nb)
 #define module_put_and_exit(code) do_exit(code)
 
 static inline void print_modules(void)
+{
+}
+
+static inline void module_update_markers(struct module *probe_module,
+		int *refcount)
 {
 }
 
