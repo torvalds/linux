@@ -549,7 +549,7 @@ cyber2000fb_decode_crtc(struct par_info *hw, struct cfb_info *cfb,
 {
 	u_int Htotal, Hblankend, Hsyncend;
 	u_int Vtotal, Vdispend, Vblankstart, Vblankend, Vsyncstart, Vsyncend;
-#define BIT(v,b1,m,b2) (((v >> b1) & m) << b2)
+#define ENCODE_BIT(v,b1,m,b2) (((v >> b1) & m) << b2)
 
 	hw->crtc[13] = hw->pitch;
 	hw->crtc[17] = 0xe3;
@@ -569,13 +569,13 @@ cyber2000fb_decode_crtc(struct par_info *hw, struct cfb_info *cfb,
 
 	Hblankend   = (Htotal - 4*8) >> 3;
 
-	hw->crtc[3] = BIT(Hblankend,  0, 0x1f,  0) |
-		      BIT(1,          0, 0x01,  7);
+	hw->crtc[3] = ENCODE_BIT(Hblankend,  0, 0x1f,  0) |
+		      ENCODE_BIT(1,          0, 0x01,  7);
 
 	Hsyncend    = (var->xres + var->right_margin + var->hsync_len) >> 3;
 
-	hw->crtc[5] = BIT(Hsyncend,   0, 0x1f,  0) |
-		      BIT(Hblankend,  5, 0x01,  7);
+	hw->crtc[5] = ENCODE_BIT(Hsyncend,   0, 0x1f,  0) |
+		      ENCODE_BIT(Hblankend,  5, 0x01,  7);
 
 	Vdispend    = var->yres - 1;
 	Vsyncstart  = var->yres + var->lower_margin;
@@ -590,20 +590,20 @@ cyber2000fb_decode_crtc(struct par_info *hw, struct cfb_info *cfb,
 	Vblankend   = Vtotal - 10;
 
 	hw->crtc[6]  = Vtotal;
-	hw->crtc[7]  = BIT(Vtotal,     8, 0x01,  0) |
-			BIT(Vdispend,   8, 0x01,  1) |
-			BIT(Vsyncstart, 8, 0x01,  2) |
-			BIT(Vblankstart,8, 0x01,  3) |
-			BIT(1,          0, 0x01,  4) |
-	        	BIT(Vtotal,     9, 0x01,  5) |
-			BIT(Vdispend,   9, 0x01,  6) |
-			BIT(Vsyncstart, 9, 0x01,  7);
-	hw->crtc[9]  = BIT(0,          0, 0x1f,  0) |
-		        BIT(Vblankstart,9, 0x01,  5) |
-			BIT(1,          0, 0x01,  6);
+	hw->crtc[7]  = ENCODE_BIT(Vtotal,     8, 0x01,  0) |
+			ENCODE_BIT(Vdispend,   8, 0x01,  1) |
+			ENCODE_BIT(Vsyncstart, 8, 0x01,  2) |
+			ENCODE_BIT(Vblankstart,8, 0x01,  3) |
+			ENCODE_BIT(1,          0, 0x01,  4) |
+	        	ENCODE_BIT(Vtotal,     9, 0x01,  5) |
+			ENCODE_BIT(Vdispend,   9, 0x01,  6) |
+			ENCODE_BIT(Vsyncstart, 9, 0x01,  7);
+	hw->crtc[9]  = ENCODE_BIT(0,          0, 0x1f,  0) |
+		        ENCODE_BIT(Vblankstart,9, 0x01,  5) |
+			ENCODE_BIT(1,          0, 0x01,  6);
 	hw->crtc[10] = Vsyncstart;
-	hw->crtc[11] = BIT(Vsyncend,   0, 0x0f,  0) |
-		       BIT(1,          0, 0x01,  7);
+	hw->crtc[11] = ENCODE_BIT(Vsyncend,   0, 0x0f,  0) |
+		       ENCODE_BIT(1,          0, 0x01,  7);
 	hw->crtc[12] = Vdispend;
 	hw->crtc[15] = Vblankstart;
 	hw->crtc[16] = Vblankend;
@@ -615,10 +615,10 @@ cyber2000fb_decode_crtc(struct par_info *hw, struct cfb_info *cfb,
 	 * 4=LINECOMP:10 5-IVIDEO 6=FIXCNT
 	 */
 	hw->crtc_ofl =
-		BIT(Vtotal,     10, 0x01,  0) |
-		BIT(Vdispend,   10, 0x01,  1) |
-		BIT(Vsyncstart, 10, 0x01,  2) |
-		BIT(Vblankstart,10, 0x01,  3) |
+		ENCODE_BIT(Vtotal,     10, 0x01,  0) |
+		ENCODE_BIT(Vdispend,   10, 0x01,  1) |
+		ENCODE_BIT(Vsyncstart, 10, 0x01,  2) |
+		ENCODE_BIT(Vblankstart,10, 0x01,  3) |
 		EXT_CRT_VRTOFL_LINECOMP10;
 
 	/* woody: set the interlaced bit... */
