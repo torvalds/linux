@@ -50,6 +50,11 @@ config MPC836x_MDS
 	help
 	  This option enables support for the MPC836x MDS Processor Board.
 
+config MPC837x_MDS
+	bool "Freescale MPC837x MDS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC837x MDS Processor Board.
 endchoice
 
 config PPC_MPC831x
@@ -75,3 +80,9 @@ config PPC_MPC836x
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
 	default y if MPC836x_MDS
+
+config PPC_MPC837x
+	bool
+	select PPC_UDBG_16550
+	select PPC_INDIRECT_PCI
+	default y if MPC837x_MDS
