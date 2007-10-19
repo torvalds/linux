@@ -23,6 +23,9 @@ struct pid_namespace {
 	struct kmem_cache *pid_cachep;
 	int level;
 	struct pid_namespace *parent;
+#ifdef CONFIG_PROC_FS
+	struct vfsmount *proc_mnt;
+#endif
 };
 
 extern struct pid_namespace init_pid_ns;
