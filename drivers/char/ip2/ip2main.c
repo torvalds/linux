@@ -1166,6 +1166,31 @@ ip2_interrupt_bh(struct work_struct *work)
 /*                                                                            */
 /*                                                                            */
 /******************************************************************************/
+static void
+ip2_irq_work(i2eBordStrPtr pB)
+{
+#ifdef USE_IQI
+	if (NO_MAIL_HERE != ( pB->i2eStartMail = iiGetMail(pB))) {
+//		Disable his interrupt (will be enabled when serviced)
+//		This is mostly to protect from reentrancy.
+		iiDisableMailIrq(pB);
+
+//		Park the board on the immediate queue for processing.
+		schedule_work(&pB->tqueue_interrupt);
+
+//		Make sure the immediate queue is flagged to fire.
+	}
+#else
+
+//	We are using immediate servicing here.  This sucks and can
+//	cause all sorts of havoc with ppp and others.  The failsafe
+//	check on iiSendPendingMail could also throw a hairball.
+
+	i2ServiceBoard( pB );
+
+#endif /* USE_IQI */
+}
+
 static irqreturn_t
 ip2_interrupt(int irq, void *dev_id)
 {
@@ -1184,24 +1209,7 @@ ip2_interrupt(int irq, void *dev_id)
 
 		if ( pB && (pB->i2eUsingIrq == irq) ) {
 			handled = 1;
-#ifdef USE_IQI
-
-		    if (NO_MAIL_HERE != ( pB->i2eStartMail = iiGetMail(pB))) {
-//			Disable his interrupt (will be enabled when serviced)
-//			This is mostly to protect from reentrancy.
-			iiDisableMailIrq(pB);
-
-//			Park the board on the immediate queue for processing.
-			schedule_work(&pB->tqueue_interrupt);
-
-//			Make sure the immediate queue is flagged to fire.
-		    }
-#else
-//		We are using immediate servicing here.  This sucks and can
-//		cause all sorts of havoc with ppp and others.  The failsafe
-//		check on iiSendPendingMail could also throw a hairball.
-			i2ServiceBoard( pB );
-#endif /* USE_IQI */
+			ip2_irq_work(pB);
 		}
 	}
 
