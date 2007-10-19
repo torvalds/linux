@@ -771,7 +771,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
  	if (crypt_set_key(cc, argv[1])) {
 		ti->error = "Error decoding key";
-		goto bad1;
+		goto bad_cipher;
 	}
 
 	/* Compatiblity mode for old dm-crypt cipher strings */
@@ -782,19 +782,19 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (strcmp(chainmode, "ecb") && !ivmode) {
 		ti->error = "This chaining mode requires an IV mechanism";
-		goto bad1;
+		goto bad_cipher;
 	}
 
 	if (snprintf(cc->cipher, CRYPTO_MAX_ALG_NAME, "%s(%s)",
 		     chainmode, cipher) >= CRYPTO_MAX_ALG_NAME) {
 		ti->error = "Chain mode + cipher name is too long";
-		goto bad1;
+		goto bad_cipher;
 	}
 
 	tfm = crypto_alloc_blkcipher(cc->cipher, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
 		ti->error = "Error allocating crypto tfm";
-		goto bad1;
+		goto bad_cipher;
 	}
 
 	strcpy(cc->cipher, cipher);
@@ -818,12 +818,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->iv_gen_ops = &crypt_iv_null_ops;
 	else {
 		ti->error = "Invalid IV mode";
-		goto bad2;
+		goto bad_ivmode;
 	}
 
 	if (cc->iv_gen_ops && cc->iv_gen_ops->ctr &&
 	    cc->iv_gen_ops->ctr(cc, ti, ivopts) < 0)
-		goto bad2;
+		goto bad_ivmode;
 
 	cc->iv_size = crypto_blkcipher_ivsize(tfm);
 	if (cc->iv_size)
@@ -842,13 +842,13 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	cc->io_pool = mempool_create_slab_pool(MIN_IOS, _crypt_io_pool);
 	if (!cc->io_pool) {
 		ti->error = "Cannot allocate crypt io mempool";
-		goto bad3;
+		goto bad_slab_pool;
 	}
 
 	cc->page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!cc->page_pool) {
 		ti->error = "Cannot allocate page mempool";
-		goto bad4;
+		goto bad_page_pool;
 	}
 
 	cc->bs = bioset_create(MIN_IOS, MIN_IOS);
@@ -859,25 +859,25 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (crypto_blkcipher_setkey(tfm, cc->key, key_size) < 0) {
 		ti->error = "Error setting key";
-		goto bad5;
+		goto bad_device;
 	}
 
 	if (sscanf(argv[2], "%llu", &tmpll) != 1) {
 		ti->error = "Invalid iv_offset sector";
-		goto bad5;
+		goto bad_device;
 	}
 	cc->iv_offset = tmpll;
 
 	if (sscanf(argv[4], "%llu", &tmpll) != 1) {
 		ti->error = "Invalid device sector";
-		goto bad5;
+		goto bad_device;
 	}
 	cc->start = tmpll;
 
 	if (dm_get_device(ti, argv[3], cc->start, ti->len,
 			  dm_table_get_mode(ti->table), &cc->dev)) {
 		ti->error = "Device lookup failed";
-		goto bad5;
+		goto bad_device;
 	}
 
 	if (ivmode && cc->iv_gen_ops) {
@@ -886,7 +886,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->iv_mode = kmalloc(strlen(ivmode) + 1, GFP_KERNEL);
 		if (!cc->iv_mode) {
 			ti->error = "Error kmallocing iv_mode string";
-			goto bad_iv_mode;
+			goto bad_ivmode_string;
 		}
 		strcpy(cc->iv_mode, ivmode);
 	} else
@@ -911,20 +911,20 @@ bad_crypt_queue:
 	destroy_workqueue(cc->io_queue);
 bad_io_queue:
 	kfree(cc->iv_mode);
-bad_iv_mode:
+bad_ivmode_string:
 	dm_put_device(ti, cc->dev);
-bad5:
+bad_device:
 	bioset_free(cc->bs);
 bad_bs:
 	mempool_destroy(cc->page_pool);
-bad4:
+bad_page_pool:
 	mempool_destroy(cc->io_pool);
-bad3:
+bad_slab_pool:
 	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
 		cc->iv_gen_ops->dtr(cc);
-bad2:
+bad_ivmode:
 	crypto_free_blkcipher(tfm);
-bad1:
+bad_cipher:
 	/* Must zero key material before freeing */
 	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
 	kfree(cc);
