@@ -737,6 +737,8 @@ struct sched_domain {
 #endif
 };
 
+extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new);
+
 #endif	/* CONFIG_SMP */
 
 /*

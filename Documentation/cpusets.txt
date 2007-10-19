@@ -19,7 +19,8 @@ CONTENTS:
   1.4 What are exclusive cpusets ?
   1.5 What is memory_pressure ?
   1.6 What is memory spread ?
-  1.7 How do I use cpusets ?
+  1.7 What is sched_load_balance ?
+  1.8 How do I use cpusets ?
 2. Usage Examples and Syntax
   2.1 Basic Usage
   2.2 Adding/removing cpus
@@ -359,8 +360,144 @@ policy, especially for jobs that might have one thread reading in the
 data set, the memory allocation across the nodes in the jobs cpuset
 can become very uneven.
 
+1.7 What is sched_load_balance ?
+--------------------------------
 
-1.7 How do I use cpusets ?
+The kernel scheduler (kernel/sched.c) automatically load balances
+tasks.  If one CPU is underutilized, kernel code running on that
+CPU will look for tasks on other more overloaded CPUs and move those
+tasks to itself, within the constraints of such placement mechanisms
+as cpusets and sched_setaffinity.
+
+The algorithmic cost of load balancing and its impact on key shared
+kernel data structures such as the task list increases more than
+linearly with the number of CPUs being balanced.  So the scheduler
+has support to  partition the systems CPUs into a number of sched
+domains such that it only load balances within each sched domain.
+Each sched domain covers some subset of the CPUs in the system;
+no two sched domains overlap; some CPUs might not be in any sched
+domain and hence won't be load balanced.
+
+Put simply, it costs less to balance between two smaller sched domains
+than one big one, but doing so means that overloads in one of the
+two domains won't be load balanced to the other one.
+
+By default, there is one sched domain covering all CPUs, except those
+marked isolated using the kernel boot time "isolcpus=" argument.
+
+This default load balancing across all CPUs is not well suited for
+the following two situations:
+ 1) On large systems, load balancing across many CPUs is expensive.
+    If the system is managed using cpusets to place independent jobs
+    on separate sets of CPUs, full load balancing is unnecessary.
+ 2) Systems supporting realtime on some CPUs need to minimize
+    system overhead on those CPUs, including avoiding task load
+    balancing if that is not needed.
+
+When the per-cpuset flag "sched_load_balance" is enabled (the default
+setting), it requests that all the CPUs in that cpusets allowed 'cpus'
+be contained in a single sched domain, ensuring that load balancing
+can move a task (not otherwised pinned, as by sched_setaffinity)
+from any CPU in that cpuset to any other.
+
+When the per-cpuset flag "sched_load_balance" is disabled, then the
+scheduler will avoid load balancing across the CPUs in that cpuset,
+--except-- in so far as is necessary because some overlapping cpuset
+has "sched_load_balance" enabled.
+
+So, for example, if the top cpuset has the flag "sched_load_balance"
+enabled, then the scheduler will have one sched domain covering all
+CPUs, and the setting of the "sched_load_balance" flag in any other
+cpusets won't matter, as we're already fully load balancing.
+
+Therefore in the above two situations, the top cpuset flag
+"sched_load_balance" should be disabled, and only some of the smaller,
+child cpusets have this flag enabled.
+
+When doing this, you don't usually want to leave any unpinned tasks in
+the top cpuset that might use non-trivial amounts of CPU, as such tasks
+may be artificially constrained to some subset of CPUs, depending on
+the particulars of this flag setting in descendent cpusets.  Even if
+such a task could use spare CPU cycles in some other CPUs, the kernel
+scheduler might not consider the possibility of load balancing that
+task to that underused CPU.
+
+Of course, tasks pinned to a particular CPU can be left in a cpuset
+that disables "sched_load_balance" as those tasks aren't going anywhere
+else anyway.
+
+There is an impedance mismatch here, between cpusets and sched domains.
+Cpusets are hierarchical and nest.  Sched domains are flat; they don't
+overlap and each CPU is in at most one sched domain.
+
+It is necessary for sched domains to be flat because load balancing
+across partially overlapping sets of CPUs would risk unstable dynamics
+that would be beyond our understanding.  So if each of two partially
+overlapping cpusets enables the flag 'sched_load_balance', then we
+form a single sched domain that is a superset of both.  We won't move
+a task to a CPU outside it cpuset, but the scheduler load balancing
+code might waste some compute cycles considering that possibility.
+
+This mismatch is why there is not a simple one-to-one relation
+between which cpusets have the flag "sched_load_balance" enabled,
+and the sched domain configuration.  If a cpuset enables the flag, it
+will get balancing across all its CPUs, but if it disables the flag,
+it will only be assured of no load balancing if no other overlapping
+cpuset enables the flag.
+
+If two cpusets have partially overlapping 'cpus' allowed, and only
+one of them has this flag enabled, then the other may find its
+tasks only partially load balanced, just on the overlapping CPUs.
+This is just the general case of the top_cpuset example given a few
+paragraphs above.  In the general case, as in the top cpuset case,
+don't leave tasks that might use non-trivial amounts of CPU in
+such partially load balanced cpusets, as they may be artificially
+constrained to some subset of the CPUs allowed to them, for lack of
+load balancing to the other CPUs.
+
+1.7.1 sched_load_balance implementation details.
+------------------------------------------------
+
+The per-cpuset flag 'sched_load_balance' defaults to enabled (contrary
+to most cpuset flags.)  When enabled for a cpuset, the kernel will
+ensure that it can load balance across all the CPUs in that cpuset
+(makes sure that all the CPUs in the cpus_allowed of that cpuset are
+in the same sched domain.)
+
+If two overlapping cpusets both have 'sched_load_balance' enabled,
+then they will be (must be) both in the same sched domain.
+
+If, as is the default, the top cpuset has 'sched_load_balance' enabled,
+then by the above that means there is a single sched domain covering
+the whole system, regardless of any other cpuset settings.
+
+The kernel commits to user space that it will avoid load balancing
+where it can.  It will pick as fine a granularity partition of sched
+domains as it can while still providing load balancing for any set
+of CPUs allowed to a cpuset having 'sched_load_balance' enabled.
+
+The internal kernel cpuset to scheduler interface passes from the
+cpuset code to the scheduler code a partition of the load balanced
+CPUs in the system. This partition is a set of subsets (represented
+as an array of cpumask_t) of CPUs, pairwise disjoint, that cover all
+the CPUs that must be load balanced.
+
+Whenever the 'sched_load_balance' flag changes, or CPUs come or go
+from a cpuset with this flag enabled, or a cpuset with this flag
+enabled is removed, the cpuset code builds a new such partition and
+passes it to the scheduler sched domain setup code, to have the sched
+domains rebuilt as necessary.
+
+This partition exactly defines what sched domains the scheduler should
+setup - one sched domain for each element (cpumask_t) in the partition.
+
+The scheduler remembers the currently active sched domain partitions.
+When the scheduler routine partition_sched_domains() is invoked from
+the cpuset code to update these sched domains, it compares the new
+partition requested with the current, and updates its sched domains,
+removing the old and adding the new, for each change.
+
+1.8 How do I use cpusets ?
 --------------------------
 
 In order to minimize the impact of cpusets on critical kernel
