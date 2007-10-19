@@ -33,6 +33,30 @@ static struct ipic * primary_ipic;
 static DEFINE_SPINLOCK(ipic_lock);
 
 static struct ipic_info ipic_info[] = {
+	[1] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_C,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 16,
+		.prio_mask = 0,
+	},
+	[2] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_C,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 17,
+		.prio_mask = 1,
+	},
+	[4] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_C,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 19,
+		.prio_mask = 3,
+	},
 	[9] = {
 		.pend	= IPIC_SIPNR_H,
 		.mask	= IPIC_SIMSR_H,
@@ -56,6 +80,22 @@ static struct ipic_info ipic_info[] = {
 		.force	= IPIC_SIFCR_H,
 		.bit	= 26,
 		.prio_mask = 2,
+	},
+	[12] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_D,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 27,
+		.prio_mask = 3,
+	},
+	[13] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_D,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 28,
+		.prio_mask = 4,
 	},
 	[14] = {
 		.pend	= IPIC_SIPNR_H,
@@ -201,6 +241,46 @@ static struct ipic_info ipic_info[] = {
 		.bit	= 7,
 		.prio_mask = 7,
 	},
+	[42] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_B,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 10,
+		.prio_mask = 2,
+	},
+	[44] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_B,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 12,
+		.prio_mask = 4,
+	},
+	[45] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_B,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 13,
+		.prio_mask = 5,
+	},
+	[46] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_B,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 14,
+		.prio_mask = 6,
+	},
+	[47] = {
+		.pend	= IPIC_SIPNR_H,
+		.mask	= IPIC_SIMSR_H,
+		.prio	= IPIC_SIPRR_B,
+		.force	= IPIC_SIFCR_H,
+		.bit	= 15,
+		.prio_mask = 7,
+	},
 	[48] = {
 		.pend	= IPIC_SEPNR,
 		.mask	= IPIC_SEMSR,
@@ -336,6 +416,20 @@ static struct ipic_info ipic_info[] = {
 		.force	= IPIC_SIFCR_L,
 		.bit	= 16,
 	},
+	[81] = {
+		.pend	= IPIC_SIPNR_L,
+		.mask	= IPIC_SIMSR_L,
+		.prio	= 0,
+		.force	= IPIC_SIFCR_L,
+		.bit	= 17,
+	},
+	[82] = {
+		.pend	= IPIC_SIPNR_L,
+		.mask	= IPIC_SIMSR_L,
+		.prio	= 0,
+		.force	= IPIC_SIFCR_L,
+		.bit	= 18,
+	},
 	[84] = {
 		.pend	= IPIC_SIPNR_L,
 		.mask	= IPIC_SIMSR_L,
@@ -349,6 +443,34 @@ static struct ipic_info ipic_info[] = {
 		.prio	= 0,
 		.force	= IPIC_SIFCR_L,
 		.bit	= 21,
+	},
+	[86] = {
+		.pend	= IPIC_SIPNR_L,
+		.mask	= IPIC_SIMSR_L,
+		.prio	= 0,
+		.force	= IPIC_SIFCR_L,
+		.bit	= 22,
+	},
+	[87] = {
+		.pend	= IPIC_SIPNR_L,
+		.mask	= IPIC_SIMSR_L,
+		.prio	= 0,
+		.force	= IPIC_SIFCR_L,
+		.bit	= 23,
+	},
+	[88] = {
+		.pend	= IPIC_SIPNR_L,
+		.mask	= IPIC_SIMSR_L,
+		.prio	= 0,
+		.force	= IPIC_SIFCR_L,
+		.bit	= 24,
+	},
+	[89] = {
+		.pend	= IPIC_SIPNR_L,
+		.mask	= IPIC_SIMSR_L,
+		.prio	= 0,
+		.force	= IPIC_SIFCR_L,
+		.bit	= 25,
 	},
 	[90] = {
 		.pend	= IPIC_SIPNR_L,
@@ -593,6 +715,10 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	 * configure SICFR accordingly */
 	if (flags & IPIC_SPREADMODE_GRP_A)
 		temp |= SICFR_IPSA;
+	if (flags & IPIC_SPREADMODE_GRP_B)
+		temp |= SICFR_IPSB;
+	if (flags & IPIC_SPREADMODE_GRP_C)
+		temp |= SICFR_IPSC;
 	if (flags & IPIC_SPREADMODE_GRP_D)
 		temp |= SICFR_IPSD;
 	if (flags & IPIC_SPREADMODE_MIX_A)
@@ -600,7 +726,7 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	if (flags & IPIC_SPREADMODE_MIX_B)
 		temp |= SICFR_MPSB;
 
-	ipic_write(ipic->regs, IPIC_SICNR, temp);
+	ipic_write(ipic->regs, IPIC_SICFR, temp);
 
 	/* handle MCP route */
 	temp = 0;
@@ -672,10 +798,12 @@ void ipic_set_highest_priority(unsigned int virq)
 
 void ipic_set_default_priority(void)
 {
-	ipic_write(primary_ipic->regs, IPIC_SIPRR_A, IPIC_SIPRR_A_DEFAULT);
-	ipic_write(primary_ipic->regs, IPIC_SIPRR_D, IPIC_SIPRR_D_DEFAULT);
-	ipic_write(primary_ipic->regs, IPIC_SMPRR_A, IPIC_SMPRR_A_DEFAULT);
-	ipic_write(primary_ipic->regs, IPIC_SMPRR_B, IPIC_SMPRR_B_DEFAULT);
+	ipic_write(primary_ipic->regs, IPIC_SIPRR_A, IPIC_PRIORITY_DEFAULT);
+	ipic_write(primary_ipic->regs, IPIC_SIPRR_B, IPIC_PRIORITY_DEFAULT);
+	ipic_write(primary_ipic->regs, IPIC_SIPRR_C, IPIC_PRIORITY_DEFAULT);
+	ipic_write(primary_ipic->regs, IPIC_SIPRR_D, IPIC_PRIORITY_DEFAULT);
+	ipic_write(primary_ipic->regs, IPIC_SMPRR_A, IPIC_PRIORITY_DEFAULT);
+	ipic_write(primary_ipic->regs, IPIC_SMPRR_B, IPIC_PRIORITY_DEFAULT);
 }
 
 void ipic_enable_mcp(enum ipic_mcp_irq mcp_irq)
