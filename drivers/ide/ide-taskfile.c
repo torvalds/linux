@@ -8,23 +8,6 @@
  *  Copyright (C) 2003-2004	Bartlomiej Zolnierkiewicz
  *
  *  The big the bad and the ugly.
- *
- *  Problems to be fixed because of BH interface or the lack therefore.
- *
- *  Fill me in stupid !!!
- *
- *  HOST:
- *	General refers to the Controller and Driver "pair".
- *  DATA HANDLER:
- *	Under the context of Linux it generally refers to an interrupt handler.
- *	However, it correctly describes the 'HOST'
- *  DATA BLOCK:
- *	The amount of data needed to be transfered as predefined in the
- *	setup of the device.
- *  STORAGE ATOMIC:
- *	The 'DATA BLOCK' associated to the 'DATA HANDLER', and can be as
- *	small as a single sector or as large as the entire command block
- *	request.
  */
 
 #include <linux/module.h>
@@ -695,9 +678,6 @@ int ide_wait_cmd (ide_drive_t *drive, u8 cmd, u8 nsect, u8 feature, u8 sectors, 
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
 }
 
-/*
- * FIXME : this needs to map into at taskfile. <andre@linux-ide.org>
- */
 int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
@@ -761,9 +741,6 @@ static int ide_wait_cmd_task(ide_drive_t *drive, u8 *buf)
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
 }
 
-/*
- * FIXME : this needs to map into at taskfile. <andre@linux-ide.org>
- */
 int ide_task_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 {
 	void __user *p = (void __user *)arg;
