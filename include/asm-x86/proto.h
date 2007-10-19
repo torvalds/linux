@@ -83,8 +83,6 @@ extern unsigned tsc_khz;
 extern int reboot_force;
 extern int notsc_setup(char *);
 
-extern int timer_over_8254;
-
 extern int gsi_irq_sharing(int gsi);
 
 extern int force_mwait;
