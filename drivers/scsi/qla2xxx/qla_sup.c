@@ -7,6 +7,7 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 
 static uint16_t qla2x00_nvram_request(scsi_qla_host_t *, uint32_t);
@@ -745,9 +746,11 @@ qla2x00_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 	int ret, stat;
 	uint32_t i;
 	uint16_t *wptr;
+	unsigned long flags;
 
 	ret = QLA_SUCCESS;
 
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qla2x00_lock_nvram_access(ha);
 
 	/* Disable NVRAM write-protection. */
@@ -764,6 +767,7 @@ qla2x00_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 	qla2x00_set_nvram_protection(ha, stat);
 
 	qla2x00_unlock_nvram_access(ha);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return ret;
 }
@@ -776,9 +780,11 @@ qla24xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 	uint32_t i;
 	uint32_t *dwptr;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	unsigned long flags;
 
 	ret = QLA_SUCCESS;
 
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	/* Enable flash write. */
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
@@ -812,6 +818,7 @@ qla24xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
 	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return ret;
 }
@@ -836,8 +843,20 @@ int
 qla25xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
     uint32_t bytes)
 {
-	return qla24xx_write_flash_data(ha, (uint32_t *)buf,
-	    FA_VPD_NVRAM_ADDR | naddr, bytes >> 2);
+#define RMW_BUFFER_SIZE	(64 * 1024)
+	uint8_t *dbuf;
+
+	dbuf = vmalloc(RMW_BUFFER_SIZE);
+	if (!dbuf)
+		return QLA_MEMORY_ALLOC_FAILED;
+	ha->isp_ops->read_optrom(ha, dbuf, FA_VPD_NVRAM_ADDR << 2,
+	    RMW_BUFFER_SIZE);
+	memcpy(dbuf + (naddr << 2), buf, bytes);
+	ha->isp_ops->write_optrom(ha, dbuf, FA_VPD_NVRAM_ADDR << 2,
+	    RMW_BUFFER_SIZE);
+	vfree(dbuf);
+
+	return QLA_SUCCESS;
 }
 
 static inline void
