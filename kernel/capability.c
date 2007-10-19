@@ -62,8 +62,9 @@ asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
 	spin_lock(&task_capability_lock);
 	read_lock(&tasklist_lock);
 
-	if (pid && pid != current->pid) {
-		target = find_task_by_pid(pid);
+	if (pid && pid != task_pid_vnr(current)) {
+		target = find_task_by_pid_ns(pid,
+				current->nsproxy->pid_ns);
 		if (!target) {
 			ret = -ESRCH;
 			goto out;
@@ -96,7 +97,7 @@ static inline int cap_set_pg(int pgrp_nr, kernel_cap_t *effective,
 	int found = 0;
 	struct pid *pgrp;
 
-	pgrp = find_pid(pgrp_nr);
+	pgrp = find_pid_ns(pgrp_nr, current->nsproxy->pid_ns);
 	do_each_pid_task(pgrp, PIDTYPE_PGID, g) {
 		target = g;
 		while_each_thread(g, target) {
@@ -185,7 +186,7 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	if (get_user(pid, &header->pid))
 		return -EFAULT;
 
-	if (pid && pid != current->pid && !capable(CAP_SETPCAP))
+	if (pid && pid != task_pid_vnr(current) && !capable(CAP_SETPCAP))
 		return -EPERM;
 
 	if (copy_from_user(&effective, &data->effective, sizeof(effective)) ||
@@ -196,8 +197,9 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	spin_lock(&task_capability_lock);
 	read_lock(&tasklist_lock);
 
-	if (pid > 0 && pid != current->pid) {
-		target = find_task_by_pid(pid);
+	if (pid > 0 && pid != task_pid_vnr(current)) {
+		target = find_task_by_pid_ns(pid,
+				current->nsproxy->pid_ns);
 		if (!target) {
 			ret = -ESRCH;
 			goto out;

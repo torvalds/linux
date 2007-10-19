@@ -103,6 +103,7 @@
 #include <linux/selection.h>
 
 #include <linux/kmod.h>
+#include <linux/nsproxy.h>
 
 #undef TTY_DEBUG_HANGUP
 
@@ -3107,7 +3108,7 @@ static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t 
 	 */
 	if (tty == real_tty && current->signal->tty != real_tty)
 		return -ENOTTY;
-	return put_user(pid_nr(real_tty->pgrp), p);
+	return put_user(pid_vnr(real_tty->pgrp), p);
 }
 
 /**
@@ -3141,7 +3142,7 @@ static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t 
 	if (pgrp_nr < 0)
 		return -EINVAL;
 	rcu_read_lock();
-	pgrp = find_pid(pgrp_nr);
+	pgrp = find_vpid(pgrp_nr);
 	retval = -ESRCH;
 	if (!pgrp)
 		goto out_unlock;
@@ -3178,7 +3179,7 @@ static int tiocgsid(struct tty_struct *tty, struct tty_struct *real_tty, pid_t _
 		return -ENOTTY;
 	if (!real_tty->session)
 		return -ENOTTY;
-	return put_user(pid_nr(real_tty->session), p);
+	return put_user(pid_vnr(real_tty->session), p);
 }
 
 /**

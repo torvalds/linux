@@ -18,6 +18,7 @@
 #include <linux/ptrace.h>
 #include <linux/signal.h>
 #include <linux/rcupdate.h>
+#include <linux/pid_namespace.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
@@ -292,7 +293,7 @@ int f_setown(struct file *filp, unsigned long arg, int force)
 		who = -who;
 	}
 	rcu_read_lock();
-	pid = find_pid(who);
+	pid = find_vpid(who);
 	result = __f_setown(filp, pid, type, force);
 	rcu_read_unlock();
 	return result;
@@ -308,7 +309,7 @@ pid_t f_getown(struct file *filp)
 {
 	pid_t pid;
 	read_lock(&filp->f_owner.lock);
-	pid = pid_nr(filp->f_owner.pid);
+	pid = pid_nr_ns(filp->f_owner.pid, current->nsproxy->pid_ns);
 	if (filp->f_owner.pid_type == PIDTYPE_PGID)
 		pid = -pid;
 	read_unlock(&filp->f_owner.lock);

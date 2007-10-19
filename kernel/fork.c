@@ -950,7 +950,7 @@ asmlinkage long sys_set_tid_address(int __user *tidptr)
 {
 	current->clear_child_tid = tidptr;
 
-	return current->pid;
+	return task_pid_vnr(current);
 }
 
 static inline void rt_mutex_init_task(struct task_struct *p)

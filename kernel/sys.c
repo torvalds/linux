@@ -152,7 +152,8 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 	switch (which) {
 		case PRIO_PROCESS:
 			if (who)
-				p = find_task_by_pid(who);
+				p = find_task_by_pid_ns(who,
+						current->nsproxy->pid_ns);
 			else
 				p = current;
 			if (p)
@@ -160,7 +161,7 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 			break;
 		case PRIO_PGRP:
 			if (who)
-				pgrp = find_pid(who);
+				pgrp = find_vpid(who);
 			else
 				pgrp = task_pgrp(current);
 			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
@@ -209,7 +210,8 @@ asmlinkage long sys_getpriority(int which, int who)
 	switch (which) {
 		case PRIO_PROCESS:
 			if (who)
-				p = find_task_by_pid(who);
+				p = find_task_by_pid_ns(who,
+						current->nsproxy->pid_ns);
 			else
 				p = current;
 			if (p) {
@@ -220,7 +222,7 @@ asmlinkage long sys_getpriority(int which, int who)
 			break;
 		case PRIO_PGRP:
 			if (who)
-				pgrp = find_pid(who);
+				pgrp = find_vpid(who);
 			else
 				pgrp = task_pgrp(current);
 			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
@@ -917,9 +919,10 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 	struct task_struct *p;
 	struct task_struct *group_leader = current->group_leader;
 	int err = -EINVAL;
+	struct pid_namespace *ns;
 
 	if (!pid)
-		pid = group_leader->pid;
+		pid = task_pid_vnr(group_leader);
 	if (!pgid)
 		pgid = pid;
 	if (pgid < 0)
@@ -928,10 +931,12 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 	/* From this point forward we keep holding onto the tasklist lock
 	 * so that our parent does not change from under us. -DaveM
 	 */
+	ns = current->nsproxy->pid_ns;
+
 	write_lock_irq(&tasklist_lock);
 
 	err = -ESRCH;
-	p = find_task_by_pid(pid);
+	p = find_task_by_pid_ns(pid, ns);
 	if (!p)
 		goto out;
 
@@ -957,9 +962,9 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		goto out;
 
 	if (pgid != pid) {
-		struct task_struct *g =
-			find_task_by_pid_type(PIDTYPE_PGID, pgid);
+		struct task_struct *g;
 
+		g = find_task_by_pid_type_ns(PIDTYPE_PGID, pgid, ns);
 		if (!g || task_session(g) != task_session(group_leader))
 			goto out;
 	}
@@ -968,10 +973,13 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 	if (err)
 		goto out;
 
-	if (task_pgrp_nr(p) != pgid) {
+	if (task_pgrp_nr_ns(p, ns) != pgid) {
+		struct pid *pid;
+
 		detach_pid(p, PIDTYPE_PGID);
-		p->signal->pgrp = pgid;
-		attach_pid(p, PIDTYPE_PGID, find_pid(pgid));
+		pid = find_vpid(pgid);
+		attach_pid(p, PIDTYPE_PGID, pid);
+		p->signal->pgrp = pid_nr(pid);
 	}
 
 	err = 0;
@@ -984,19 +992,21 @@ out:
 asmlinkage long sys_getpgid(pid_t pid)
 {
 	if (!pid)
-		return task_pgrp_nr(current);
+		return task_pgrp_vnr(current);
 	else {
 		int retval;
 		struct task_struct *p;
+		struct pid_namespace *ns;
+
+		ns = current->nsproxy->pid_ns;
 
 		read_lock(&tasklist_lock);
-		p = find_task_by_pid(pid);
-
+		p = find_task_by_pid_ns(pid, ns);
 		retval = -ESRCH;
 		if (p) {
 			retval = security_task_getpgid(p);
 			if (!retval)
-				retval = task_pgrp_nr(p);
+				retval = task_pgrp_nr_ns(p, ns);
 		}
 		read_unlock(&tasklist_lock);
 		return retval;
@@ -1008,7 +1018,7 @@ asmlinkage long sys_getpgid(pid_t pid)
 asmlinkage long sys_getpgrp(void)
 {
 	/* SMP - assuming writes are word atomic this is fine */
-	return task_pgrp_nr(current);
+	return task_pgrp_vnr(current);
 }
 
 #endif
@@ -1016,19 +1026,21 @@ asmlinkage long sys_getpgrp(void)
 asmlinkage long sys_getsid(pid_t pid)
 {
 	if (!pid)
-		return task_session_nr(current);
+		return task_session_vnr(current);
 	else {
 		int retval;
 		struct task_struct *p;
+		struct pid_namespace *ns;
+
+		ns = current->nsproxy->pid_ns;
 
 		read_lock(&tasklist_lock);
-		p = find_task_by_pid(pid);
-
+		p = find_task_by_pid_ns(pid, ns);
 		retval = -ESRCH;
 		if (p) {
 			retval = security_task_getsid(p);
 			if (!retval)
-				retval = task_session_nr(p);
+				retval = task_session_nr_ns(p, ns);
 		}
 		read_unlock(&tasklist_lock);
 		return retval;
@@ -1065,7 +1077,7 @@ asmlinkage long sys_setsid(void)
 	group_leader->signal->tty = NULL;
 	spin_unlock(&group_leader->sighand->siglock);
 
-	err = task_pgrp_nr(group_leader);
+	err = task_pgrp_vnr(group_leader);
 out:
 	write_unlock_irq(&tasklist_lock);
 	return err;

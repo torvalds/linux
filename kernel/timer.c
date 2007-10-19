@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
+#include <linux/pid_namespace.h>
 #include <linux/notifier.h>
 #include <linux/thread_info.h>
 #include <linux/time.h>
@@ -956,7 +957,7 @@ asmlinkage unsigned long sys_alarm(unsigned int seconds)
  */
 asmlinkage long sys_getpid(void)
 {
-	return current->tgid;
+	return task_tgid_vnr(current);
 }
 
 /*
@@ -970,7 +971,7 @@ asmlinkage long sys_getppid(void)
 	int pid;
 
 	rcu_read_lock();
-	pid = rcu_dereference(current->real_parent)->tgid;
+	pid = task_ppid_nr_ns(current, current->nsproxy->pid_ns);
 	rcu_read_unlock();
 
 	return pid;
@@ -1102,7 +1103,7 @@ EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 /* Thread ID - the internal kernel "pid" */
 asmlinkage long sys_gettid(void)
 {
-	return current->pid;
+	return task_pid_vnr(current);
 }
 
 /**

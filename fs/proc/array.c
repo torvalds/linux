@@ -77,6 +77,7 @@
 #include <linux/cpuset.h>
 #include <linux/rcupdate.h>
 #include <linux/delayacct.h>
+#include <linux/pid_namespace.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -161,8 +162,15 @@ static inline char *task_state(struct task_struct *p, char *buffer)
 	struct group_info *group_info;
 	int g;
 	struct fdtable *fdt = NULL;
+	struct pid_namespace *ns;
+	pid_t ppid, tpid;
 
+	ns = current->nsproxy->pid_ns;
 	rcu_read_lock();
+	ppid = pid_alive(p) ?
+		task_tgid_nr_ns(rcu_dereference(p->real_parent), ns) : 0;
+	tpid = pid_alive(p) && p->ptrace ?
+		task_ppid_nr_ns(rcu_dereference(p->parent), ns) : 0;
 	buffer += sprintf(buffer,
 		"State:\t%s\n"
 		"Tgid:\t%d\n"
@@ -172,9 +180,9 @@ static inline char *task_state(struct task_struct *p, char *buffer)
 		"Uid:\t%d\t%d\t%d\t%d\n"
 		"Gid:\t%d\t%d\t%d\t%d\n",
 		get_task_state(p),
-		p->tgid, p->pid,
-		pid_alive(p) ? rcu_dereference(p->real_parent)->tgid : 0,
-		pid_alive(p) && p->ptrace ? rcu_dereference(p->parent)->pid : 0,
+		task_tgid_nr_ns(p, ns),
+		task_pid_nr_ns(p, ns),
+		ppid, tpid,
 		p->uid, p->euid, p->suid, p->fsuid,
 		p->gid, p->egid, p->sgid, p->fsgid);
 
@@ -394,6 +402,9 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 	unsigned long rsslim = 0;
 	char tcomm[sizeof(task->comm)];
 	unsigned long flags;
+	struct pid_namespace *ns;
+
+	ns = current->nsproxy->pid_ns;
 
 	state = *get_task_state(task);
 	vsize = eip = esp = 0;
@@ -416,7 +427,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 		struct signal_struct *sig = task->signal;
 
 		if (sig->tty) {
-			tty_pgrp = pid_nr(sig->tty->pgrp);
+			tty_pgrp = pid_nr_ns(sig->tty->pgrp, ns);
 			tty_nr = new_encode_dev(tty_devnum(sig->tty));
 		}
 
@@ -449,9 +460,9 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 			gtime += cputime_add(gtime, sig->gtime);
 		}
 
-		sid = task_session_nr(task);
-		pgid = task_pgrp_nr(task);
-		ppid = rcu_dereference(task->real_parent)->tgid;
+		sid = task_session_nr_ns(task, ns);
+		pgid = task_pgrp_nr_ns(task, ns);
+		ppid = task_ppid_nr_ns(task, ns);
 
 		unlock_task_sighand(task, &flags);
 	}
@@ -483,7 +494,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 	res = sprintf(buffer, "%d (%s) %c %d %d %d %d %d %u %lu \
 %lu %lu %lu %lu %lu %ld %ld %ld %ld %d 0 %llu %lu %ld %lu %lu %lu %lu %lu \
 %lu %lu %lu %lu %lu %lu %lu %lu %d %d %u %u %llu %lu %ld\n",
-		task->pid,
+		task_pid_nr_ns(task, ns),
 		tcomm,
 		state,
 		ppid,

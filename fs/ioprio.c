@@ -25,6 +25,7 @@
 #include <linux/capability.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
+#include <linux/pid_namespace.h>
 
 static int set_task_ioprio(struct task_struct *task, int ioprio)
 {
@@ -93,7 +94,8 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 			if (!who)
 				p = current;
 			else
-				p = find_task_by_pid(who);
+				p = find_task_by_pid_ns(who,
+						current->nsproxy->pid_ns);
 			if (p)
 				ret = set_task_ioprio(p, ioprio);
 			break;
@@ -101,7 +103,7 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 			if (!who)
 				pgrp = task_pgrp(current);
 			else
-				pgrp = find_pid(who);
+				pgrp = find_vpid(who);
 			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 				ret = set_task_ioprio(p, ioprio);
 				if (ret)
@@ -180,7 +182,8 @@ asmlinkage long sys_ioprio_get(int which, int who)
 			if (!who)
 				p = current;
 			else
-				p = find_task_by_pid(who);
+				p = find_task_by_pid_ns(who,
+						current->nsproxy->pid_ns);
 			if (p)
 				ret = get_task_ioprio(p);
 			break;
@@ -188,7 +191,7 @@ asmlinkage long sys_ioprio_get(int which, int who)
 			if (!who)
 				pgrp = task_pgrp(current);
 			else
-				pgrp = find_pid(who);
+				pgrp = find_vpid(who);
 			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 				tmpio = get_task_ioprio(p);
 				if (tmpio < 0)

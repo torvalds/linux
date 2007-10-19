@@ -19,6 +19,7 @@
 #include <linux/security.h>
 #include <linux/signal.h>
 #include <linux/audit.h>
+#include <linux/pid_namespace.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -443,7 +444,8 @@ struct task_struct *ptrace_get_task_struct(pid_t pid)
 		return ERR_PTR(-EPERM);
 
 	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
+	child = find_task_by_pid_ns(pid,
+			current->nsproxy->pid_ns);
 	if (child)
 		get_task_struct(child);
 

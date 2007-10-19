@@ -1112,15 +1112,17 @@ asmlinkage void sys_exit_group(int error_code)
 static int eligible_child(pid_t pid, int options, struct task_struct *p)
 {
 	int err;
+	struct pid_namespace *ns;
 
+	ns = current->nsproxy->pid_ns;
 	if (pid > 0) {
-		if (p->pid != pid)
+		if (task_pid_nr_ns(p, ns) != pid)
 			return 0;
 	} else if (!pid) {
-		if (task_pgrp_nr(p) != task_pgrp_nr(current))
+		if (task_pgrp_nr_ns(p, ns) != task_pgrp_vnr(current))
 			return 0;
 	} else if (pid != -1) {
-		if (task_pgrp_nr(p) != -pid)
+		if (task_pgrp_nr_ns(p, ns) != -pid)
 			return 0;
 	}
 
@@ -1190,9 +1192,12 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 {
 	unsigned long state;
 	int retval, status, traced;
+	struct pid_namespace *ns;
+
+	ns = current->nsproxy->pid_ns;
 
 	if (unlikely(noreap)) {
-		pid_t pid = p->pid;
+		pid_t pid = task_pid_nr_ns(p, ns);
 		uid_t uid = p->uid;
 		int exit_code = p->exit_code;
 		int why, status;
@@ -1311,11 +1316,11 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 			retval = put_user(status, &infop->si_status);
 	}
 	if (!retval && infop)
-		retval = put_user(p->pid, &infop->si_pid);
+		retval = put_user(task_pid_nr_ns(p, ns), &infop->si_pid);
 	if (!retval && infop)
 		retval = put_user(p->uid, &infop->si_uid);
 	if (!retval)
-		retval = p->pid;
+		retval = task_pid_nr_ns(p, ns);
 
 	if (traced) {
 		write_lock_irq(&tasklist_lock);
@@ -1352,6 +1357,7 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 			     int __user *stat_addr, struct rusage __user *ru)
 {
 	int retval, exit_code;
+	struct pid_namespace *ns;
 
 	if (!p->exit_code)
 		return 0;
@@ -1370,11 +1376,12 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 	 * keep holding onto the tasklist_lock while we call getrusage and
 	 * possibly take page faults for user memory.
 	 */
+	ns = current->nsproxy->pid_ns;
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
 
 	if (unlikely(noreap)) {
-		pid_t pid = p->pid;
+		pid_t pid = task_pid_nr_ns(p, ns);
 		uid_t uid = p->uid;
 		int why = (p->ptrace & PT_PTRACED) ? CLD_TRAPPED : CLD_STOPPED;
 
@@ -1445,11 +1452,11 @@ bail_ref:
 	if (!retval && infop)
 		retval = put_user(exit_code, &infop->si_status);
 	if (!retval && infop)
-		retval = put_user(p->pid, &infop->si_pid);
+		retval = put_user(task_pid_nr_ns(p, ns), &infop->si_pid);
 	if (!retval && infop)
 		retval = put_user(p->uid, &infop->si_uid);
 	if (!retval)
-		retval = p->pid;
+		retval = task_pid_nr_ns(p, ns);
 	put_task_struct(p);
 
 	BUG_ON(!retval);
@@ -1469,6 +1476,7 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 	int retval;
 	pid_t pid;
 	uid_t uid;
+	struct pid_namespace *ns;
 
 	if (!(p->signal->flags & SIGNAL_STOP_CONTINUED))
 		return 0;
@@ -1483,7 +1491,8 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 		p->signal->flags &= ~SIGNAL_STOP_CONTINUED;
 	spin_unlock_irq(&p->sighand->siglock);
 
-	pid = p->pid;
+	ns = current->nsproxy->pid_ns;
+	pid = task_pid_nr_ns(p, ns);
 	uid = p->uid;
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
@@ -1494,7 +1503,7 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 		if (!retval && stat_addr)
 			retval = put_user(0xffff, stat_addr);
 		if (!retval)
-			retval = p->pid;
+			retval = task_pid_nr_ns(p, ns);
 	} else {
 		retval = wait_noreap_copyout(p, pid, uid,
 					     CLD_CONTINUED, SIGCONT,
