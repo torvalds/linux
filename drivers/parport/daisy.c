@@ -199,11 +199,6 @@ void parport_daisy_fini(struct parport *port)
  *	parport_open - find a device by canonical device number
  *	@devnum: canonical device number
  *	@name: name to associate with the device
- *	@pf: preemption callback
- *	@kf: kick callback
- *	@irqf: interrupt handler
- *	@flags: registration flags
- *	@handle: driver data
  *
  *	This function is similar to parport_register_device(), except
  *	that it locates a device by its number rather than by the port
@@ -214,10 +209,7 @@ void parport_daisy_fini(struct parport *port)
  *	for parport_register_device().
  **/
 
-struct pardevice *parport_open(int devnum, const char *name,
-				int (*pf) (void *), void (*kf) (void *),
-				void (*irqf) (int, void *),
-				int flags, void *handle)
+struct pardevice *parport_open(int devnum, const char *name)
 {
 	struct daisydev *p = topology;
 	struct parport *port;
@@ -237,8 +229,7 @@ struct pardevice *parport_open(int devnum, const char *name,
 	port = parport_get_port(p->port);
 	spin_unlock(&topology_lock);
 
-	dev = parport_register_device(port, name, pf, kf,
-				       irqf, flags, handle);
+	dev = parport_register_device(port, name, NULL, NULL, NULL, 0, NULL);
 	parport_put_port(port);
 	if (!dev)
 		return NULL;

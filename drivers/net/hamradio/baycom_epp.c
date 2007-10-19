@@ -325,12 +325,6 @@ static int eppconfig(struct baycom_state *bc)
 
 /* ---------------------------------------------------------------------- */
 
-static void epp_interrupt(int irq, void *dev_id)
-{
-}
-
-/* ---------------------------------------------------------------------- */
-
 static inline void do_kiss_params(struct baycom_state *bc,
 				  unsigned char *data, unsigned long len)
 {
@@ -871,7 +865,7 @@ static int epp_open(struct net_device *dev)
 	}
 	memset(&bc->modem, 0, sizeof(bc->modem));
         bc->pdev = parport_register_device(pp, dev->name, NULL, epp_wakeup, 
-					epp_interrupt, PARPORT_DEV_EXCL, dev);
+					   NULL, PARPORT_DEV_EXCL, dev);
 	parport_put_port(pp);
         if (!bc->pdev) {
                 printk(KERN_ERR "%s: cannot register parport at 0x%lx\n", bc_drvname, pp->base);

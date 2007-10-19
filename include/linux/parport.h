@@ -230,7 +230,7 @@ struct pardevice {
 	int (*preempt)(void *);
 	void (*wakeup)(void *);
 	void *private;
-	void (*irq_func)(int, void *);
+	void (*irq_func)(void *);
 	unsigned int flags;
 	struct pardevice *next;
 	struct pardevice *prev;
@@ -383,7 +383,7 @@ extern void parport_put_port (struct parport *);
 struct pardevice *parport_register_device(struct parport *port, 
 			  const char *name,
 			  int (*pf)(void *), void (*kf)(void *),
-			  void (*irq_func)(int, void *), 
+			  void (*irq_func)(void *), 
 			  int flags, void *handle);
 
 /* parport_unregister unlinks a device from the chain. */
@@ -507,11 +507,7 @@ extern size_t parport_ieee1284_epp_read_addr (struct parport *,
 /* IEEE1284.3 functions */
 extern int parport_daisy_init (struct parport *port);
 extern void parport_daisy_fini (struct parport *port);
-extern struct pardevice *parport_open (int devnum, const char *name,
-				       int (*pf) (void *),
-				       void (*kf) (void *),
-				       void (*irqf) (int, void *),
-				       int flags, void *handle);
+extern struct pardevice *parport_open (int devnum, const char *name);
 extern void parport_close (struct pardevice *dev);
 extern ssize_t parport_device_id (int devnum, char *buffer, size_t len);
 extern void parport_daisy_deselect_all (struct parport *port);
@@ -523,7 +519,7 @@ static inline void parport_generic_irq(struct parport *port)
 	parport_ieee1284_interrupt (port);
 	read_lock(&port->cad_lock);
 	if (port->cad && port->cad->irq_func)
-		port->cad->irq_func(port->irq, port->cad->private);
+		port->cad->irq_func(port->cad->private);
 	read_unlock(&port->cad_lock);
 }
 
