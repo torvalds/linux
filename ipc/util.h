@@ -54,7 +54,7 @@ struct ipc_params {
  * the calls to sys_msgget(), sys_semget(), sys_shmget()
  *      . routine to call to create a new ipc object. Can be one of newque,
  *        newary, newseg
- *      . routine to call to call to check permissions for a new ipc object.
+ *      . routine to call to check permissions for a new ipc object.
  *        Can be one of security_msg_associate, security_sem_associate,
  *        security_shm_associate
  *      . routine to call for an extra check if needed
@@ -88,7 +88,8 @@ int ipc_get_maxid(struct ipc_ids *);
 /* must be called with both locks acquired. */
 void ipc_rmid(struct ipc_ids *, struct kern_ipc_perm *);
 
-int ipcperms (struct kern_ipc_perm *ipcp, short flg);
+/* must be called with ipcp locked */
+int ipcperms(struct kern_ipc_perm *ipcp, short flg);
 
 /* for rare, potentially huge allocations.
  * both function can sleep
@@ -131,6 +132,9 @@ static inline int ipc_buildid(struct ipc_ids *ids, int id, int seq)
 	return SEQ_MULTIPLIER * seq + id;
 }
 
+/*
+ * Must be called with ipcp locked
+ */
 static inline int ipc_checkid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp,
 				int uid)
 {
@@ -168,6 +172,16 @@ static inline struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids,
 	return out;
 }
 
+/**
+ * ipcget - Common sys_*get() code
+ * @ns : namsepace
+ * @ids : IPC identifier set
+ * @ops : operations to be called on ipc object creation, permission checks
+ *        and further checks
+ * @params : the parameters needed by the previous operations.
+ *
+ * Common routine called by sys_msgget(), sys_semget() and sys_shmget().
+ */
 static inline int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 			struct ipc_ops *ops, struct ipc_params *params)
 {

@@ -156,6 +156,13 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
 	ipc_rmid(&msg_ids(ns), &s->q_perm);
 }
 
+/**
+ * newque - Create a new msg queue
+ * @ns: namespace
+ * @params: ptr to the structure that contains the key and msgflg
+ *
+ * Called with msg_ids.mutex held
+ */
 static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 {
 	struct msg_queue *msq;
@@ -250,8 +257,8 @@ static void expunge_all(struct msg_queue *msq, int res)
 
 /*
  * freeque() wakes up waiters on the sender and receiver waiting queue,
- * removes the message queue from message queue ID
- * IDR, and cleans up all the messages associated with this queue.
+ * removes the message queue from message queue ID IDR, and cleans up all the
+ * messages associated with this queue.
  *
  * msg_ids.mutex and the spinlock for this message queue are held
  * before freeque() is called. msg_ids.mutex remains locked on exit.
@@ -278,6 +285,9 @@ static void freeque(struct ipc_namespace *ns, struct msg_queue *msq)
 	ipc_rcu_putref(msq);
 }
 
+/*
+ * Called with msg_ids.mutex and ipcp locked.
+ */
 static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
 {
 	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);

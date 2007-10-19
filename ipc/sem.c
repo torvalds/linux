@@ -228,6 +228,14 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
  */
 #define IN_WAKEUP	1
 
+/**
+ * newary - Create a new semaphore set
+ * @ns: namespace
+ * @params: ptr to the structure that contains key, semflg and nsems
+ *
+ * Called with sem_ids.mutex held
+ */
+
 static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 {
 	int id;
@@ -281,6 +289,9 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 }
 
 
+/*
+ * Called with sem_ids.mutex and ipcp locked.
+ */
 static inline int sem_security(struct kern_ipc_perm *ipcp, int semflg)
 {
 	struct sem_array *sma;
@@ -289,6 +300,9 @@ static inline int sem_security(struct kern_ipc_perm *ipcp, int semflg)
 	return security_sem_associate(sma, semflg);
 }
 
+/*
+ * Called with sem_ids.mutex and ipcp locked.
+ */
 static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
 				struct ipc_params *params)
 {

@@ -82,6 +82,10 @@ static void __shm_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
 	ipc_init_ids(ids);
 }
 
+/*
+ * Called with shm_ids.mutex and the shp structure locked.
+ * Only shm_ids.mutex remains locked on exit.
+ */
 static void do_shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *shp)
 {
 	if (shp->shm_nattch){
@@ -182,6 +186,7 @@ static void shm_open(struct vm_area_struct *vma)
 /*
  * shm_destroy - free the struct shmid_kernel
  *
+ * @ns: namespace
  * @shp: struct to free
  *
  * It has to be called with shp and shm_ids.mutex locked,
@@ -343,6 +348,14 @@ static struct vm_operations_struct shm_vm_ops = {
 #endif
 };
 
+/**
+ * newseg - Create a new shared memory segment
+ * @ns: namespace
+ * @params: ptr to the structure that contains key, size and shmflg
+ *
+ * Called with shm_ids.mutex held
+ */
+
 static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 {
 	key_t key = params->key;
@@ -428,6 +441,9 @@ no_file:
 	return error;
 }
 
+/*
+ * Called with shm_ids.mutex and ipcp locked.
+ */
 static inline int shm_security(struct kern_ipc_perm *ipcp, int shmflg)
 {
 	struct shmid_kernel *shp;
@@ -436,6 +452,9 @@ static inline int shm_security(struct kern_ipc_perm *ipcp, int shmflg)
 	return security_shm_associate(shp, shmflg);
 }
 
+/*
+ * Called with shm_ids.mutex and ipcp locked.
+ */
 static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
 				struct ipc_params *params)
 {
@@ -558,6 +577,9 @@ static inline unsigned long copy_shminfo_to_user(void __user *buf, struct shminf
 	}
 }
 
+/*
+ * Called with shm_ids.mutex held
+ */
 static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
 		unsigned long *swp)
 {
@@ -572,18 +594,6 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
 	for (total = 0, next_id = 0; total < in_use; next_id++) {
 		struct shmid_kernel *shp;
 		struct inode *inode;
-
-		/*
-		 * idr_find() is called via shm_get(), so with shm_ids.mutex
-		 * locked. Since ipc_addid() is also called with
-		 * shm_ids.mutex down, there is no need to add read barriers
-		 * here to gurantee the writes in ipc_addid() are seen in
-		 * order here (for Alpha).
-		 * However idr_find() itself does not necessary require
-		 * ipc_ids.mutex down. So if idr_find() is used by other
-		 * places without ipc_ids.mutex down, then it needs read
-		 * read memory barriers as ipc_lock() does.
-		 */
 
 		shp = idr_find(&shm_ids(ns).ipcs_idr, next_id);
 		if (shp == NULL)
@@ -638,8 +648,11 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		shminfo.shmmin = SHMMIN;
 		if(copy_shminfo_to_user (buf, &shminfo, version))
 			return -EFAULT;
-		/* reading a integer is always atomic */
+
+		mutex_lock(&shm_ids(ns).mutex);
 		err = ipc_get_maxid(&shm_ids(ns));
+		mutex_unlock(&shm_ids(ns).mutex);
+
 		if(err<0)
 			err = 0;
 		goto out;
