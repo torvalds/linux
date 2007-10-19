@@ -280,7 +280,7 @@ static int __init unknown_bootoption(char *param, char *val)
 		return 0;
 
 	/*
-	 * Preemptive maintenance for "why didn't my mispelled command
+	 * Preemptive maintenance for "why didn't my misspelled command
 	 * line work?"
 	 */
 	if (strchr(param, '.') && (!val || strchr(param, '.') < val)) {
