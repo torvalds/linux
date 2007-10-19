@@ -69,8 +69,9 @@ void bcm1480_smp_init(void)
 
 void bcm1480_smp_finish(void)
 {
-	extern void bcm1480_time_init(void);
-	bcm1480_time_init();
+	extern void sb1480_clockevent_init(void);
+
+	sb1480_clockevent_init();
 	local_irq_enable();
 }
 

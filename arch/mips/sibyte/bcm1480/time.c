@@ -27,9 +27,8 @@
  */
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/percpu.h>
 #include <linux/spinlock.h>
-#include <linux/kernel_stat.h>
 
 #include <asm/irq.h>
 #include <asm/addrspace.h>
@@ -101,25 +100,36 @@ static void sibyte_set_mode(enum clock_event_mode mode,
 		break;
 
 	case CLOCK_EVT_MODE_UNUSED:	/* shuddup gcc */
+	case CLOCK_EVT_MODE_RESUME:
 		;
 	}
 }
 
-struct clock_event_device sibyte_hpt_clockevent = {
-	.name		= "bcm1480-counter",
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
-	.set_mode	= sibyte_set_mode,
-	.shift		= 32,
-	.irq		= 0,
-};
+static int sibyte_next_event(unsigned long delta, struct clock_event_device *cd)
+{
+	unsigned int cpu = smp_processor_id();
+	void __iomem *timer_init;
+	unsigned int cnt;
+	int res;
+
+	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
+	cnt = __raw_readq(timer_init);
+	cnt += delta;
+	__raw_writeq(cnt, timer_init);
+	res = ((long)(__raw_readq(timer_init) - cnt ) > 0) ? -ETIME : 0;
+
+	return res;
+}
+
+static DEFINE_PER_CPU(struct clock_event_device, sibyte_hpt_clockevent);
 
 static irqreturn_t sibyte_counter_handler(int irq, void *dev_id)
 {
-	struct clock_event_device *cd = &sibyte_hpt_clockevent;
 	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *cd = &per_cpu(sibyte_hpt_clockevent, cpu);
 
 	/* Reset the timer */
-	__raw_writeq(M_SCD_TIMER_ENABLE|M_SCD_TIMER_MODE_CONTINUOUS,
+	__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
 	             IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
 	cd->event_handler(cd);
 
@@ -140,24 +150,21 @@ static struct irqaction sibyte_counter_irqaction = {
  * called directly from irq_handler.S when IP[4] is set during an
  * interrupt
  */
-static void __init sb1480_clockevent_init(void)
+void __cpuinit sb1480_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int irq = K_BCM1480_INT_TIMER_0 + cpu;
+	struct clock_event_device *cd = &per_cpu(sibyte_hpt_clockevent, cpu);
+
+	cd->name		= "bcm1480-counter";
+	cd->features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_MODE_ONESHOT;
+	cd->set_next_event	= sibyte_next_event;
+	cd->set_mode		= sibyte_set_mode;
+	cd->irq			= irq;
+	clockevent_set_clock(cd, BCM1480_HPT_VALUE);
 
 	setup_irq(irq, &sibyte_counter_irqaction);
-}
-
-void bcm1480_timer_interrupt(void)
-{
-	int cpu = smp_processor_id();
-	int irq = K_BCM1480_INT_TIMER_0 + cpu;
-
-	/* Reset the timer */
-	__raw_writeq(M_SCD_TIMER_ENABLE|M_SCD_TIMER_MODE_CONTINUOUS,
-	      IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
-
-	ll_timer_interrupt(irq);
 }
 
 static cycle_t bcm1480_hpt_read(void)
@@ -168,9 +175,26 @@ static cycle_t bcm1480_hpt_read(void)
 	return (jiffies + 1) * (BCM1480_HPT_VALUE / HZ) - count;
 }
 
+struct clocksource bcm1480_clocksource = {
+	.name	= "MIPS",
+	.rating	= 200,
+	.read	= bcm1480_hpt_read,
+	.mask	= CLOCKSOURCE_MASK(32),
+	.shift	= 32,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+void __init sb1480_clocksource_init(void)
+{
+	struct clocksource *cs = &bcm1480_clocksource;
+
+	clocksource_set_clock(cs, BCM1480_HPT_VALUE);
+	clocksource_register(cs);
+}
+
 void __init bcm1480_hpt_setup(void)
 {
-	clocksource_mips.read = bcm1480_hpt_read;
 	mips_hpt_frequency = BCM1480_HPT_VALUE;
+	sb1480_clocksource_init();
 	sb1480_clockevent_init();
 }
