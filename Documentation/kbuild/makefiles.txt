@@ -518,6 +518,28 @@ more details, with real examples.
 	In this example for a specific GCC version the build will error out explaining
 	to the user why it stops.
 
+    cc-cross-prefix
+	cc-cross-prefix is used to check if there exist a $(CC) in path with
+	one of the listed prefixes. The first prefix where there exist a
+	prefix$(CC) in the PATH is returned - and if no prefix$(CC) is found
+	then nothing is returned.
+	Additional prefixes are separated by a single space in the
+	call of cc-cross-prefix.
+	This functionality is usefull for architecture Makefile that try
+	to set CROSS_COMPILE to well know values but may have several
+	values to select between.
+	It is recommended only to try to set CROSS_COMPILE is it is a cross
+	build (host arch is different from target arch). And is CROSS_COMPILE
+	is already set then leave it with the old value.
+
+	Example:
+		#arch/m68k/Makefile
+		ifneq ($(SUBARCH),$(ARCH))
+		        ifeq ($(CROSS_COMPILE),)
+		               CROSS_COMPILE := $(call cc-cross-prefix, m68k-linux-gnu-)
+			endif
+		endif
+
 === 4 Host Program support
 
 Kbuild supports building executables on the host for use during the
