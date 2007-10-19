@@ -89,10 +89,8 @@
 #define sem_ids(ns)	(*((ns)->ids[IPC_SEM_IDS]))
 
 #define sem_unlock(sma)		ipc_unlock(&(sma)->sem_perm)
-#define sem_checkid(ns, sma, semid)	\
-	ipc_checkid(&sem_ids(ns),&sma->sem_perm,semid)
-#define sem_buildid(ns, id, seq) \
-	ipc_buildid(&sem_ids(ns), id, seq)
+#define sem_checkid(sma, semid)	ipc_checkid(&sma->sem_perm, semid)
+#define sem_buildid(id, seq)	ipc_buildid(id, seq)
 
 static struct ipc_ids init_sem_ids;
 
@@ -292,7 +290,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	}
 	ns->used_sems += nsems;
 
-	sma->sem_perm.id = sem_buildid(ns, id, sma->sem_perm.seq);
+	sma->sem_perm.id = sem_buildid(id, sma->sem_perm.seq);
 	sma->sem_base = (struct sem *) &sma[1];
 	/* sma->sem_pending = NULL; */
 	sma->sem_pending_last = &sma->sem_pending;
@@ -1386,7 +1384,7 @@ void exit_sem(struct task_struct *tsk)
 		if (u->semid == -1)
 			goto next_entry;
 
-		BUG_ON(sem_checkid(ns,sma,u->semid));
+		BUG_ON(sem_checkid(sma, u->semid));
 
 		/* remove u from the sma->undo list */
 		for (unp = &sma->undo; (un = *unp); unp = &un->id_next) {

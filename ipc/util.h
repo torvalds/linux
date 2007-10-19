@@ -134,7 +134,7 @@ extern int ipcget_new(struct ipc_namespace *, struct ipc_ids *,
 extern int ipcget_public(struct ipc_namespace *, struct ipc_ids *,
 			struct ipc_ops *, struct ipc_params *);
 
-static inline int ipc_buildid(struct ipc_ids *ids, int id, int seq)
+static inline int ipc_buildid(int id, int seq)
 {
 	return SEQ_MULTIPLIER * seq + id;
 }
@@ -142,8 +142,7 @@ static inline int ipc_buildid(struct ipc_ids *ids, int id, int seq)
 /*
  * Must be called with ipcp locked
  */
-static inline int ipc_checkid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp,
-				int uid)
+static inline int ipc_checkid(struct kern_ipc_perm *ipcp, int uid)
 {
 	if (uid / SEQ_MULTIPLIER != ipcp->seq)
 		return 1;
@@ -171,7 +170,7 @@ static inline struct kern_ipc_perm *ipc_lock_check_down(struct ipc_ids *ids,
 	if (IS_ERR(out))
 		return out;
 
-	if (ipc_checkid(ids, out, id)) {
+	if (ipc_checkid(out, id)) {
 		ipc_unlock(out);
 		return ERR_PTR(-EIDRM);
 	}
@@ -188,7 +187,7 @@ static inline struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids,
 	if (IS_ERR(out))
 		return out;
 
-	if (ipc_checkid(ids, out, id)) {
+	if (ipc_checkid(out, id)) {
 		ipc_unlock(out);
 		return ERR_PTR(-EIDRM);
 	}
