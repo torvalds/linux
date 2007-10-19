@@ -240,5 +240,7 @@ static inline int notifier_to_errno(int ret)
 #define KBD_KEYSYM		0x0004 /* Keyboard keysym */
 #define KBD_POST_KEYSYM		0x0005 /* Called after keyboard keysym interpretation */
 
+extern struct blocking_notifier_head reboot_notifier_list;
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_NOTIFIER_H */

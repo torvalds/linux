@@ -8,8 +8,8 @@ obj-y     = sched.o fork.o exec_domain.o panic.o printk.o profile.o \
 	    signal.o sys.o kmod.o workqueue.o pid.o \
 	    rcupdate.o extable.o params.o posix-timers.o \
 	    kthread.o wait.o kfifo.o sys_ni.o posix-cpu-timers.o mutex.o \
-	    hrtimer.o rwsem.o latency.o nsproxy.o srcu.o die_notifier.o \
-	    utsname.o sysctl_check.o
+	    hrtimer.o rwsem.o latency.o nsproxy.o srcu.o \
+	    utsname.o sysctl_check.o notifier.o
 
 obj-$(CONFIG_STACKTRACE) += stacktrace.o
 obj-y += time/
