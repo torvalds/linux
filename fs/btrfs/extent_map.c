@@ -1986,12 +1986,15 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 					      unsigned long i)
 {
 	struct page *p;
+	struct address_space *mapping;
 
 	if (i == 0)
 		return eb->first_page;
 	i += eb->start >> PAGE_CACHE_SHIFT;
-	p = find_get_page(eb->first_page->mapping, i);
-	page_cache_release(p);
+	mapping = eb->first_page->mapping;
+	read_lock_irq(&mapping->tree_lock);
+	p = radix_tree_lookup(&mapping->page_tree, i);
+	read_unlock_irq(&mapping->tree_lock);
 	return p;
 }
 
@@ -2365,9 +2368,7 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
 
-	offset = start & ((unsigned long)PAGE_CACHE_SIZE - 1);
-	if (i == 0)
-		offset += start_offset;
+	offset = (start_offset + start) & ((unsigned long)PAGE_CACHE_SIZE - 1);
 
 	while(len > 0) {
 		page = extent_buffer_page(eb, i);
@@ -2475,9 +2476,7 @@ int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
 
-	offset = start & ((unsigned long)PAGE_CACHE_SIZE - 1);
-	if (i == 0)
-		offset += start_offset;
+	offset = (start_offset + start) & ((unsigned long)PAGE_CACHE_SIZE - 1);
 
 	while(len > 0) {
 		page = extent_buffer_page(eb, i);
@@ -2514,9 +2513,7 @@ void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
 
-	offset = start & ((unsigned long)PAGE_CACHE_SIZE - 1);
-	if (i == 0)
-		offset += start_offset;
+	offset = (start_offset + start) & ((unsigned long)PAGE_CACHE_SIZE - 1);
 
 	while(len > 0) {
 		page = extent_buffer_page(eb, i);
@@ -2548,9 +2545,7 @@ void memset_extent_buffer(struct extent_buffer *eb, char c,
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
 
-	offset = start & ((unsigned long)PAGE_CACHE_SIZE - 1);
-	if (i == 0)
-		offset += start_offset;
+	offset = (start_offset + start) & ((unsigned long)PAGE_CACHE_SIZE - 1);
 
 	while(len > 0) {
 		page = extent_buffer_page(eb, i);
@@ -2582,9 +2577,8 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 
 	WARN_ON(src->len != dst_len);
 
-	offset = dst_offset & ((unsigned long)PAGE_CACHE_SIZE - 1);
-	if (i == 0)
-		offset += start_offset;
+	offset = (start_offset + dst_offset) &
+		((unsigned long)PAGE_CACHE_SIZE - 1);
 
 	while(len > 0) {
 		page = extent_buffer_page(dst, i);
@@ -2664,18 +2658,13 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	}
 
 	while(len > 0) {
-		dst_off_in_page = dst_offset &
+		dst_off_in_page = (start_offset + dst_offset) &
 			((unsigned long)PAGE_CACHE_SIZE - 1);
-		src_off_in_page = src_offset &
+		src_off_in_page = (start_offset + src_offset) &
 			((unsigned long)PAGE_CACHE_SIZE - 1);
 
 		dst_i = (start_offset + dst_offset) >> PAGE_CACHE_SHIFT;
 		src_i = (start_offset + src_offset) >> PAGE_CACHE_SHIFT;
-
-		if (src_i == 0)
-			src_off_in_page += start_offset;
-		if (dst_i == 0)
-			dst_off_in_page += start_offset;
 
 		cur = min(len, (unsigned long)(PAGE_CACHE_SIZE -
 					       src_off_in_page));
@@ -2723,14 +2712,10 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		dst_i = (start_offset + dst_end) >> PAGE_CACHE_SHIFT;
 		src_i = (start_offset + src_end) >> PAGE_CACHE_SHIFT;
 
-		dst_off_in_page = dst_end &
+		dst_off_in_page = (start_offset + dst_end) &
 			((unsigned long)PAGE_CACHE_SIZE - 1);
-		src_off_in_page = src_end &
+		src_off_in_page = (start_offset + src_end) &
 			((unsigned long)PAGE_CACHE_SIZE - 1);
-		if (src_i == 0)
-			src_off_in_page += start_offset;
-		if (dst_i == 0)
-			dst_off_in_page += start_offset;
 
 		cur = min_t(unsigned long, len, src_off_in_page + 1);
 		cur = min(cur, dst_off_in_page + 1);

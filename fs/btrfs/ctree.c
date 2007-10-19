@@ -1588,6 +1588,11 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (!path->nodes[1])
 		return 1;
 
+	right_nritems = btrfs_header_nritems(right);
+	if (right_nritems == 0) {
+		return 1;
+	}
+
 	left = read_tree_block(root, btrfs_node_blockptr(path->nodes[1],
 			       slot - 1), root->leafsize);
 	free_space = btrfs_leaf_free_space(root, left);
@@ -1604,14 +1609,9 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		free_extent_buffer(left);
 		return 1;
 	}
+
 	free_space = btrfs_leaf_free_space(root, left);
 	if (free_space < data_size + sizeof(struct btrfs_item)) {
-		free_extent_buffer(left);
-		return 1;
-	}
-
-	right_nritems = btrfs_header_nritems(right);
-	if (right_nritems == 0) {
 		free_extent_buffer(left);
 		return 1;
 	}
@@ -1772,21 +1772,25 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_disk_key disk_key;
 
 	/* first try to make some room by pushing left and right */
-	wret = push_leaf_left(trans, root, path, data_size);
-	if (wret < 0) {
-		return wret;
-	}
-	if (wret) {
+	if (ins_key->type != BTRFS_DIR_ITEM_KEY) {
 		wret = push_leaf_right(trans, root, path, data_size);
-		if (wret < 0)
+		if (wret < 0) {
 			return wret;
-	}
-	l = path->nodes[0];
+		}
+		if (wret) {
+			wret = push_leaf_left(trans, root, path, data_size);
+			if (wret < 0)
+				return wret;
+		}
+		l = path->nodes[0];
 
-	/* did the pushes work? */
-	if (btrfs_leaf_free_space(root, l) >=
-	    sizeof(struct btrfs_item) + data_size) {
-		return 0;
+		/* did the pushes work? */
+		if (btrfs_leaf_free_space(root, l) >=
+		    sizeof(struct btrfs_item) + data_size) {
+			return 0;
+		}
+	} else {
+		l = path->nodes[0];
 	}
 
 	if (!path->nodes[1]) {
@@ -2388,13 +2392,13 @@ int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			slot = path->slots[1];
 			extent_buffer_get(leaf);
 
-			wret = push_leaf_left(trans, root, path, 1);
+			wret = push_leaf_right(trans, root, path, 1);
 			if (wret < 0 && wret != -ENOSPC)
 				ret = wret;
 
 			if (path->nodes[0] == leaf &&
 			    btrfs_header_nritems(leaf)) {
-				wret = push_leaf_right(trans, root, path, 1);
+				wret = push_leaf_left(trans, root, path, 1);
 				if (wret < 0 && wret != -ENOSPC)
 					ret = wret;
 			}
