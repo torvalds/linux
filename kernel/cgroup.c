@@ -829,6 +829,39 @@ enum cgroup_filetype {
 	FILE_TASKLIST,
 };
 
+static ssize_t cgroup_write_uint(struct cgroup *cont, struct cftype *cft,
+				 struct file *file,
+				 const char __user *userbuf,
+				 size_t nbytes, loff_t *unused_ppos)
+{
+	char buffer[64];
+	int retval = 0;
+	u64 val;
+	char *end;
+
+	if (!nbytes)
+		return -EINVAL;
+	if (nbytes >= sizeof(buffer))
+		return -E2BIG;
+	if (copy_from_user(buffer, userbuf, nbytes))
+		return -EFAULT;
+
+	buffer[nbytes] = 0;     /* nul-terminate */
+
+	/* strip newline if necessary */
+	if (nbytes && (buffer[nbytes-1] == '\n'))
+		buffer[nbytes-1] = 0;
+	val = simple_strtoull(buffer, &end, 0);
+	if (*end)
+		return -EINVAL;
+
+	/* Pass to subsystem */
+	retval = cft->write_uint(cont, cft, val);
+	if (!retval)
+		retval = nbytes;
+	return retval;
+}
+
 static ssize_t cgroup_common_file_write(struct cgroup *cont,
 					   struct cftype *cft,
 					   struct file *file,
@@ -886,10 +919,11 @@ static ssize_t cgroup_file_write(struct file *file, const char __user *buf,
 
 	if (!cft)
 		return -ENODEV;
-	if (!cft->write)
-		return -EINVAL;
-
-	return cft->write(cont, cft, file, buf, nbytes, ppos);
+	if (cft->write)
+		return cft->write(cont, cft, file, buf, nbytes, ppos);
+	if (cft->write_uint)
+		return cgroup_write_uint(cont, cft, file, buf, nbytes, ppos);
+	return -EINVAL;
 }
 
 static ssize_t cgroup_read_uint(struct cgroup *cont, struct cftype *cft,

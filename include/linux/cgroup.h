@@ -125,6 +125,14 @@ struct cftype {
 	ssize_t (*write) (struct cgroup *cont, struct cftype *cft,
 			  struct file *file,
 			  const char __user *buf, size_t nbytes, loff_t *ppos);
+
+	/*
+	 * write_uint() is a shortcut for the common case of accepting
+	 * a single integer (as parsed by simple_strtoull) from
+	 * userspace. Use in place of write(); return 0 or error.
+	 */
+	int (*write_uint) (struct cgroup *cont, struct cftype *cft, u64 val);
+
 	int (*release) (struct inode *inode, struct file *file);
 };
 
