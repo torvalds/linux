@@ -214,7 +214,7 @@ static struct dentry *autofs_root_lookup(struct inode *dir, struct dentry *dentr
 
 	oz_mode = autofs_oz_mode(sbi);
 	DPRINTK(("autofs_lookup: pid = %u, pgrp = %u, catatonic = %d, "
-				"oz_mode = %d\n", pid_nr(task_pid(current)),
+				"oz_mode = %d\n", task_pid_nr(current),
 				task_pgrp_nr(current), sbi->catatonic,
 				oz_mode));
 

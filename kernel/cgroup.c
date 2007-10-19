@@ -1763,7 +1763,7 @@ static int pid_array_load(pid_t *pidarray, int npids, struct cgroup *cont)
 	while ((tsk = cgroup_iter_next(cont, &it))) {
 		if (unlikely(n == npids))
 			break;
-		pidarray[n++] = pid_nr(task_pid(tsk));
+		pidarray[n++] = task_pid_nr(tsk);
 	}
 	cgroup_iter_end(cont, &it);
 	return n;
