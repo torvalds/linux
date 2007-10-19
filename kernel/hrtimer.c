@@ -638,7 +638,7 @@ void __timer_stats_hrtimer_set_start_info(struct hrtimer *timer, void *addr)
 #endif
 
 /*
- * Counterpart to lock_timer_base above:
+ * Counterpart to lock_hrtimer_base above:
  */
 static inline
 void unlock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
