@@ -974,6 +974,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 
 	if (rh_init(&ms->rh, ms, dl, region_size, ms->nr_regions)) {
 		ti->error = "Error creating dirty region hash";
+		dm_io_client_destroy(ms->io_client);
 		kfree(ms);
 		return NULL;
 	}
@@ -1163,16 +1164,14 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ms->kmirrord_wq = create_singlethread_workqueue("kmirrord");
 	if (!ms->kmirrord_wq) {
 		DMERR("couldn't start kmirrord");
-		free_context(ms, ti, m);
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto err_free_context;
 	}
 	INIT_WORK(&ms->kmirrord_work, do_mirror);
 
 	r = parse_features(ms, argc, argv, &args_used);
-	if (r) {
-		free_context(ms, ti, ms->nr_mirrors);
-		return r;
-	}
+	if (r)
+		goto err_destroy_wq;
 
 	argv += args_used;
 	argc -= args_used;
@@ -1188,19 +1187,22 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (argc) {
 		ti->error = "Too many mirror arguments";
-		free_context(ms, ti, ms->nr_mirrors);
-		return -EINVAL;
+		r = -EINVAL;
+		goto err_destroy_wq;
 	}
 
 	r = kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
-	if (r) {
-		destroy_workqueue(ms->kmirrord_wq);
-		free_context(ms, ti, ms->nr_mirrors);
-		return r;
-	}
+	if (r)
+		goto err_destroy_wq;
 
 	wake(ms);
 	return 0;
+
+err_destroy_wq:
+	destroy_workqueue(ms->kmirrord_wq);
+err_free_context:
+	free_context(ms, ti, ms->nr_mirrors);
+	return r;
 }
 
 static void mirror_dtr(struct dm_target *ti)
