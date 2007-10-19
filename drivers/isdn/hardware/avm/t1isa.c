@@ -180,8 +180,8 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 
 			ApplId = (unsigned) b1_get_word(card->port);
 			MsgLen = t1_get_slice(card->port, card->msgbuf);
-			spin_unlock_irqrestore(&card->lock, flags);
 			if (!(skb = alloc_skb(MsgLen, GFP_ATOMIC))) {
+				spin_unlock_irqrestore(&card->lock, flags);
 				printk(KERN_ERR "%s: incoming packet dropped\n",
 						card->name);
 			} else {
@@ -190,7 +190,7 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 					capilib_data_b3_conf(&cinfo->ncci_head, ApplId,
 							     CAPIMSG_NCCI(skb->data),
 							     CAPIMSG_MSGID(skb->data));
-
+				spin_unlock_irqrestore(&card->lock, flags);
 				capi_ctr_handle_message(ctrl, ApplId, skb);
 			}
 			break;
@@ -200,21 +200,17 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 			ApplId = b1_get_word(card->port);
 			NCCI = b1_get_word(card->port);
 			WindowSize = b1_get_word(card->port);
-			spin_unlock_irqrestore(&card->lock, flags);
-
 			capilib_new_ncci(&cinfo->ncci_head, ApplId, NCCI, WindowSize);
-
+			spin_unlock_irqrestore(&card->lock, flags);
 			break;
 
 		case RECEIVE_FREE_NCCI:
 
 			ApplId = b1_get_word(card->port);
 			NCCI = b1_get_word(card->port);
-			spin_unlock_irqrestore(&card->lock, flags);
-
 			if (NCCI != 0xffffffff)
 				capilib_free_ncci(&cinfo->ncci_head, ApplId, NCCI);
-
+			spin_unlock_irqrestore(&card->lock, flags);
 			break;
 
 		case RECEIVE_START:
@@ -333,13 +329,16 @@ static void t1isa_reset_ctr(struct capi_ctr *ctrl)
 	avmctrl_info *cinfo = (avmctrl_info *)(ctrl->driverdata);
 	avmcard *card = cinfo->card;
 	unsigned int port = card->port;
+	unsigned long flags;
 
 	t1_disable_irq(port);
 	b1_reset(port);
 	b1_reset(port);
 
 	memset(cinfo->version, 0, sizeof(cinfo->version));
+	spin_lock_irqsave(&card->lock, flags);
 	capilib_release(&cinfo->ncci_head);
+	spin_unlock_irqrestore(&card->lock, flags);
 	capi_ctr_reseted(ctrl);
 }
 
@@ -466,29 +465,26 @@ static u16 t1isa_send_message(struct capi_ctr *ctrl, struct sk_buff *skb)
 	u8 subcmd = CAPIMSG_SUBCOMMAND(skb->data);
 	u16 dlen, retval;
 
+	spin_lock_irqsave(&card->lock, flags);
 	if (CAPICMD(cmd, subcmd) == CAPI_DATA_B3_REQ) {
 		retval = capilib_data_b3_req(&cinfo->ncci_head,
 					     CAPIMSG_APPID(skb->data),
 					     CAPIMSG_NCCI(skb->data),
 					     CAPIMSG_MSGID(skb->data));
-		if (retval != CAPI_NOERROR) 
+		if (retval != CAPI_NOERROR) {
+			spin_unlock_irqrestore(&card->lock, flags);
 			return retval;
-
+		}
 		dlen = CAPIMSG_DATALEN(skb->data);
 
-		spin_lock_irqsave(&card->lock, flags);
 		b1_put_byte(port, SEND_DATA_B3_REQ);
 		t1_put_slice(port, skb->data, len);
 		t1_put_slice(port, skb->data + len, dlen);
-		spin_unlock_irqrestore(&card->lock, flags);
 	} else {
-
-		spin_lock_irqsave(&card->lock, flags);
 		b1_put_byte(port, SEND_MESSAGE);
 		t1_put_slice(port, skb->data, len);
-		spin_unlock_irqrestore(&card->lock, flags);
 	}
-
+	spin_unlock_irqrestore(&card->lock, flags);
 	dev_kfree_skb_any(skb);
 	return CAPI_NOERROR;
 }
