@@ -859,6 +859,7 @@ static void probe_hwif(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
 }
 
 static int hwif_init(ide_hwif_t *hwif);
+static void hwif_register_devices(ide_hwif_t *hwif);
 
 int probe_hwif_init_with_fixup(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
 {
@@ -870,24 +871,9 @@ int probe_hwif_init_with_fixup(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif)
 		return -1;
 	}
 
-	if (hwif->present) {
-		u16 unit = 0;
-		int ret;
+	if (hwif->present)
+		hwif_register_devices(hwif);
 
-		for (unit = 0; unit < MAX_DRIVES; ++unit) {
-			ide_drive_t *drive = &hwif->drives[unit];
-			/* For now don't attach absent drives, we may
-			   want them on default or a new "empty" class
-			   for hotplug reprobing ? */
-			if (drive->present) {
-				ret = device_register(&drive->gendev);
-				if (ret < 0)
-					printk(KERN_WARNING "IDE: %s: "
-						"device_register error: %d\n",
-						__FUNCTION__, ret);
-			}
-		}
-	}
 	return 0;
 }
 
@@ -1379,6 +1365,24 @@ out:
 	return 0;
 }
 
+static void hwif_register_devices(ide_hwif_t *hwif)
+{
+	unsigned int i;
+
+	for (i = 0; i < MAX_DRIVES; i++) {
+		ide_drive_t *drive = &hwif->drives[i];
+
+		if (drive->present) {
+			int ret = device_register(&drive->gendev);
+
+			if (ret < 0)
+				printk(KERN_WARNING "IDE: %s: "
+					"device_register error: %d\n",
+					__FUNCTION__, ret);
+		}
+	}
+}
+
 int ideprobe_init (void)
 {
 	unsigned int index;
@@ -1397,20 +1401,11 @@ int ideprobe_init (void)
 	for (index = 0; index < MAX_HWIFS; ++index) {
 		if (probe[index]) {
 			ide_hwif_t *hwif = &ide_hwifs[index];
-			int unit;
 			if (!hwif->present)
 				continue;
 			if (hwif->chipset == ide_unknown || hwif->chipset == ide_forced)
 				hwif->chipset = ide_generic;
-			for (unit = 0; unit < MAX_DRIVES; ++unit)
-				if (hwif->drives[unit].present) {
-					int ret = device_register(
-						&hwif->drives[unit].gendev);
-					if (ret < 0)
-						printk(KERN_WARNING "IDE: %s: "
-							"device_register error: %d\n",
-							__FUNCTION__, ret);
-				}
+			hwif_register_devices(hwif);
 		}
 	}
 	for (index = 0; index < MAX_HWIFS; ++index)
