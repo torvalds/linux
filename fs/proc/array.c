@@ -456,7 +456,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 			maj_flt += sig->maj_flt;
 			utime = cputime_add(utime, sig->utime);
 			stime = cputime_add(stime, sig->stime);
-			gtime += cputime_add(gtime, sig->gtime);
+			gtime = cputime_add(gtime, sig->gtime);
 		}
 
 		sid = task_session_nr_ns(task, ns);
