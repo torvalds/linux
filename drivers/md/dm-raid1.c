@@ -114,6 +114,7 @@ struct region {
  * Mirror set structures.
  *---------------------------------------------------------------*/
 struct mirror {
+	struct mirror_set *ms;
 	atomic_t error_count;
 	struct dm_dev *dev;
 	sector_t offset;
@@ -1017,6 +1018,7 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 		return -ENXIO;
 	}
 
+	ms->mirror[mirror].ms = ms;
 	ms->mirror[mirror].offset = offset;
 
 	return 0;
