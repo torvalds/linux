@@ -751,15 +751,13 @@ static void __clone_and_map(struct clone_info *ci)
 /*
  * Split the bio into several clones.
  */
-static void __split_bio(struct mapped_device *md, struct bio *bio)
+static int __split_bio(struct mapped_device *md, struct bio *bio)
 {
 	struct clone_info ci;
 
 	ci.map = dm_get_table(md);
-	if (!ci.map) {
-		bio_io_error(bio);
-		return;
-	}
+	if (unlikely(!ci.map))
+		return -EIO;
 
 	ci.md = md;
 	ci.bio = bio;
@@ -779,6 +777,8 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
 	/* drop the extra reference count */
 	dec_pending(ci.io, 0);
 	dm_table_put(ci.map);
+
+	return 0;
 }
 /*-----------------------------------------------------------------
  * CRUD END
@@ -790,7 +790,7 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
  */
 static int dm_request(struct request_queue *q, struct bio *bio)
 {
-	int r;
+	int r = -EIO;
 	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
 
@@ -815,18 +815,11 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	while (test_bit(DMF_BLOCK_IO, &md->flags)) {
 		up_read(&md->io_lock);
 
-		if (bio_rw(bio) == READA) {
-			bio_io_error(bio);
-			return 0;
-		}
+		if (bio_rw(bio) != READA)
+			r = queue_io(md, bio);
 
-		r = queue_io(md, bio);
-		if (r < 0) {
-			bio_io_error(bio);
-			return 0;
-
-		} else if (r == 0)
-			return 0;	/* deferred successfully */
+		if (r <= 0)
+			goto out_req;
 
 		/*
 		 * We're in a while loop, because someone could suspend
@@ -835,8 +828,13 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 		down_read(&md->io_lock);
 	}
 
-	__split_bio(md, bio);
+	r = __split_bio(md, bio);
 	up_read(&md->io_lock);
+
+out_req:
+	if (r < 0)
+		bio_io_error(bio);
+
 	return 0;
 }
 
@@ -1235,7 +1233,8 @@ static void __flush_deferred_io(struct mapped_device *md, struct bio *c)
 	while (c) {
 		n = c->bi_next;
 		c->bi_next = NULL;
-		__split_bio(md, c);
+		if (__split_bio(md, c))
+			bio_io_error(c);
 		c = n;
 	}
 }
