@@ -177,11 +177,6 @@ get_max:
 	return max;
 }
 
-#define BIT(i)		(1UL << ((i)&(__NFDBITS-1)))
-#define MEM(i,m)	((m)+(unsigned)(i)/__NFDBITS)
-#define ISSET(i,m)	(((i)&*(m)) != 0)
-#define SET(i,m)	(*(m) |= (i))
-
 #define POLLIN_SET (POLLRDNORM | POLLRDBAND | POLLIN | POLLHUP | POLLERR)
 #define POLLOUT_SET (POLLWRBAND | POLLWRNORM | POLLOUT | POLLERR)
 #define POLLEX_SET (POLLPRI)
