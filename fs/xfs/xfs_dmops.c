@@ -41,29 +41,16 @@ int
 xfs_dmops_get(struct xfs_mount *mp, struct xfs_mount_args *args)
 {
 	if (args->flags & XFSMNT_DMAPI) {
-		struct xfs_dmops *ops;
-
-		ops = symbol_get(xfs_dmcore_xfs);
-		if (!ops) {
-			request_module("xfs_dmapi");
-			ops = symbol_get(xfs_dmcore_xfs);
-		}
-
-		if (!ops) {
-			cmn_err(CE_WARN, "XFS: no dmapi support available.");
-			return EINVAL;
-		}
-		mp->m_dm_ops = ops;
-	} else {
-		mp->m_dm_ops = &xfs_dmcore_stub;
+		cmn_err(CE_WARN,
+			"XFS: dmapi support not available in this kernel.");
+		return EINVAL;
 	}
 
+	mp->m_dm_ops = &xfs_dmcore_stub;
 	return 0;
 }
 
 void
 xfs_dmops_put(struct xfs_mount *mp)
 {
-	if (mp->m_dm_ops != &xfs_dmcore_stub)
-		symbol_put(xfs_dmcore_xfs);
 }
