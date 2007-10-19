@@ -72,12 +72,44 @@ static __inline__ void clear_bit(int nr, volatile void * addr)
 		:"dIr" (nr));
 }
 
+/*
+ * clear_bit_unlock - Clears a bit in memory
+ * @nr: Bit to clear
+ * @addr: Address to start counting from
+ *
+ * clear_bit() is atomic and implies release semantics before the memory
+ * operation. It can be used for an unlock.
+ */
+static inline void clear_bit_unlock(unsigned long nr, volatile unsigned long *addr)
+{
+	barrier();
+	clear_bit(nr, addr);
+}
+
 static __inline__ void __clear_bit(int nr, volatile void * addr)
 {
 	__asm__ __volatile__(
 		"btrl %1,%0"
 		:ADDR
 		:"dIr" (nr));
+}
+
+/*
+ * __clear_bit_unlock - Clears a bit in memory
+ * @nr: Bit to clear
+ * @addr: Address to start counting from
+ *
+ * __clear_bit() is non-atomic and implies release semantics before the memory
+ * operation. It can be used for an unlock if no other CPUs can concurrently
+ * modify other bits in the word.
+ *
+ * No memory barrier is required here, because x86 cannot reorder stores past
+ * older loads. Same principle as spin_unlock.
+ */
+static inline void __clear_bit_unlock(unsigned long nr, volatile unsigned long *addr)
+{
+	barrier();
+	__clear_bit(nr, addr);
 }
 
 #define smp_mb__before_clear_bit()	barrier()
@@ -135,6 +167,15 @@ static __inline__ int test_and_set_bit(int nr, volatile void * addr)
 		:"dIr" (nr) : "memory");
 	return oldbit;
 }
+
+/**
+ * test_and_set_bit_lock - Set a bit and return its old value for lock
+ * @nr: Bit to set
+ * @addr: Address to count from
+ *
+ * This is the same as test_and_set_bit on x86
+ */
+#define test_and_set_bit_lock test_and_set_bit
 
 /**
  * __test_and_set_bit - Set a bit and return its old value
@@ -412,7 +453,6 @@ static __inline__ int fls(int x)
 #define ARCH_HAS_FAST_MULTIPLIER 1
 
 #include <asm-generic/bitops/hweight.h>
-#include <asm-generic/bitops/lock.h>
 
 #endif /* __KERNEL__ */
 
