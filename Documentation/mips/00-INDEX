@@ -4,5 +4,3 @@ AU1xxx_IDE.README
 	- README for MIPS AU1XXX IDE driver.
 GT64120.README
 	- README for dir with info on MIPS boards using GT-64120 or GT-64120A.
-time.README
-	- README for MIPS time services.
