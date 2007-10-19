@@ -74,7 +74,7 @@ KBUILD_CFLAGS += $(cflags-y)
 CFLAGS_KERNEL += $(cflags-kernel-y)
 KBUILD_AFLAGS += -m64
 
-head-y := arch/x86/kernel/head_64.o arch/x86/kernel/head64.o arch/x86/kernel/init_task_64.o
+head-y := arch/x86/kernel/head_64.o arch/x86/kernel/head64.o arch/x86/kernel/init_task.o
 
 libs-y 					+= arch/x86/lib/
 core-y					+= arch/x86/kernel/ \
