@@ -643,7 +643,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 		}
 
 		/* Go with burst-write. */
-		if (optrom && (liter + OPTROM_BURST_DWORDS) < dwords) {
+		if (optrom && (liter + OPTROM_BURST_DWORDS) <= dwords) {
 			/* Copy data to DMA'ble buffer. */
 			for (miter = 0, s = optrom, d = dwptr;
 			    miter < OPTROM_BURST_DWORDS; miter++, s++, d++)
