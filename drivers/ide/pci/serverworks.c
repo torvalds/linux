@@ -158,13 +158,6 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 	u8 ultra_enable	 = 0, ultra_timing = 0, dma_timing = 0;
 
-	/* If we are about to put a disk into UDMA mode we screwed up.
-	   Our code assumes we never _ever_ do this on an OSB4 */
-	   
-	if(dev->device == PCI_DEVICE_ID_SERVERWORKS_OSB4 &&
-		drive->media == ide_disk && speed >= XFER_UDMA_0)
-			BUG();
-
 	pci_read_config_byte(dev, (0x56|hwif->channel), &ultra_timing);
 	pci_read_config_byte(dev, 0x54, &ultra_enable);
 
