@@ -507,8 +507,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	cs89x0_media=	[HW,NET]
 			Format: { rj45 | aui | bnc }
 
-	cyclades=	[HW,SERIAL] Cyclades multi-serial port adapter.
-
 	dasd=		[HW,NET]
 			See header of drivers/s390/block/dasd_devmap.c.
 

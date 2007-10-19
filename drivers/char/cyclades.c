@@ -727,8 +727,6 @@ static struct tty_driver *cy_serial_driver;
    driver to probe addresses at a different address, add it to
    this table.  If the driver is probing some other board and
    causing problems, remove the offending address from this table.
-   The cy_setup function extracts additional addresses from the
-   boot options line.  The form is "cyclades=address,address..."
 */
 
 static unsigned int cy_isa_addresses[] = {
