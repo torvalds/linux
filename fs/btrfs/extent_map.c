@@ -2654,8 +2654,8 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 
 		cur = min(len, (unsigned long)(PAGE_CACHE_SIZE -
 					       src_off_in_page));
-		cur = min(cur, (unsigned long)(PAGE_CACHE_SIZE -
-					       dst_off_in_page));
+		cur = min_t(unsigned long, cur,
+			(unsigned long)(PAGE_CACHE_SIZE - dst_off_in_page));
 
 		copy_pages(extent_buffer_page(dst, dst_i),
 			   extent_buffer_page(dst, src_i),
@@ -2707,7 +2707,7 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		if (dst_i == 0)
 			dst_off_in_page += start_offset;
 
-		cur = min(len, src_off_in_page + 1);
+		cur = min_t(unsigned long, len, src_off_in_page + 1);
 		cur = min(cur, dst_off_in_page + 1);
 		move_pages(extent_buffer_page(dst, dst_i),
 			   extent_buffer_page(dst, src_i),

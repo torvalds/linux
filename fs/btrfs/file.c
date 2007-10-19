@@ -188,7 +188,7 @@ insert:
 	while (size > 0) {
 		page = pages[i];
 		kaddr = kmap_atomic(page, KM_USER0);
-		cur_size = min(PAGE_CACHE_SIZE - page_offset, size);
+		cur_size = min_t(size_t, PAGE_CACHE_SIZE - page_offset, size);
 		write_extent_buffer(leaf, kaddr + page_offset, ptr, cur_size);
 		kunmap_atomic(kaddr, KM_USER0);
 		page_offset = 0;

@@ -149,7 +149,7 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 	if (ret)
 		return NULL;
 
-	block_group = (struct btrfs_block_group_cache *)ptr;
+	block_group = (struct btrfs_block_group_cache *)(unsigned long)ptr;
 
 
 	if (block_group->key.objectid <= bytenr && bytenr <=
@@ -279,7 +279,7 @@ again:
 		if (ret)
 			break;
 
-		cache = (struct btrfs_block_group_cache *)ptr;
+		cache = (struct btrfs_block_group_cache *)(unsigned long)ptr;
 		last = cache->key.objectid + cache->key.offset;
 		used = btrfs_block_group_used(&cache->item);
 
@@ -537,7 +537,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		if (ret)
 			break;
 
-		cache = (struct btrfs_block_group_cache *)ptr;
+		cache = (struct btrfs_block_group_cache *)(unsigned long)ptr;
 		err = write_one_cache_group(trans, root,
 					    path, cache);
 		/*
@@ -1541,7 +1541,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 				found_key.objectid + found_key.offset - 1,
 				bit | EXTENT_LOCKED, GFP_NOFS);
 		set_state_private(block_group_cache, found_key.objectid,
-				  (u64)cache);
+				  (unsigned long)cache);
 
 		if (key.objectid >=
 		    btrfs_super_total_bytes(&info->super_copy))

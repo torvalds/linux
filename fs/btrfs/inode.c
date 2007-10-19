@@ -1606,7 +1606,7 @@ again:
 			extent_start;
 		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
 		map = kmap(page);
-		copy_size = min(PAGE_CACHE_SIZE - page_offset,
+		copy_size = min_t(u64, PAGE_CACHE_SIZE - page_offset,
 				size - extent_offset);
 
 		em->block_start = EXTENT_MAP_INLINE;
