@@ -195,8 +195,8 @@ void __cpuinit clockevent_set_clock(struct clock_event_device *cd,
 
 	/* Find a shift value */
 	for (shift = 32; shift > 0; shift--) {
-		temp = (u64) NSEC_PER_SEC << shift;
-		do_div(temp, clock);
+		temp = (u64) clock << shift;
+		do_div(temp, NSEC_PER_SEC);
 		if ((temp >> 32) == 0)
 			break;
 	}
