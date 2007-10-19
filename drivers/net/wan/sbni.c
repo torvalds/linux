@@ -502,8 +502,8 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 static irqreturn_t
 sbni_interrupt( int  irq,  void  *dev_id )
 {
-	struct net_device	  *dev = (struct net_device *) dev_id;
-	struct net_local  *nl  = (struct net_local *) dev->priv;
+	struct net_device	  *dev = dev_id;
+	struct net_local  *nl  = dev->priv;
 	int	repeat;
 
 	spin_lock( &nl->lock );

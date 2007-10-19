@@ -381,7 +381,7 @@ static struct tpm_vendor_specific tpm_tis = {
 
 static irqreturn_t tis_int_probe(int irq, void *dev_id)
 {
-	struct tpm_chip *chip = (struct tpm_chip *) dev_id;
+	struct tpm_chip *chip = dev_id;
 	u32 interrupt;
 
 	interrupt = ioread32(chip->vendor.iobase +
@@ -401,7 +401,7 @@ static irqreturn_t tis_int_probe(int irq, void *dev_id)
 
 static irqreturn_t tis_int_handler(int irq, void *dev_id)
 {
-	struct tpm_chip *chip = (struct tpm_chip *) dev_id;
+	struct tpm_chip *chip = dev_id;
 	u32 interrupt;
 	int i;
 

@@ -1801,7 +1801,7 @@ typhoon_poll(struct napi_struct *napi, int budget)
 static irqreturn_t
 typhoon_interrupt(int irq, void *dev_instance)
 {
-	struct net_device *dev = (struct net_device *) dev_instance;
+	struct net_device *dev = dev_instance;
 	struct typhoon *tp = dev->priv;
 	void __iomem *ioaddr = tp->ioaddr;
 	u32 intr_status;

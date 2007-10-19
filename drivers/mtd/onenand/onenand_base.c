@@ -359,7 +359,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
  */
 static irqreturn_t onenand_interrupt(int irq, void *data)
 {
-	struct onenand_chip *this = (struct onenand_chip *) data;
+	struct onenand_chip *this = data;
 
 	/* To handle shared interrupt */
 	if (!this->complete.done)
