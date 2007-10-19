@@ -1041,7 +1041,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		goto bad_fork_cleanup_put_domain;
 
 	if (pid != &init_struct_pid) {
-		pid = alloc_pid();
+		pid = alloc_pid(task_active_pid_ns(p));
 		if (!pid)
 			goto bad_fork_put_binfmt_module;
 	}
