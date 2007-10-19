@@ -57,8 +57,8 @@ void ibm405gp_fixup_clocks(unsigned int sysclk, unsigned int ser_clk)
 	}
 
 	/* setup the timebase clock to tick at the cpu frequency */
-	cpc0_cr1 = cpc0_cr1 & ~ 0x00800000;
-	mtdcr(DCRN_CPC0_CR1, cpc0_cr1);
+	cpc0_cr1 = cpc0_cr1 & ~0x00800000;
+	mtdcr(DCRN_405_CPC0_CR1, cpc0_cr1);
 	tb = cpu;
 
 	dt_fixup_cpu_clocks(cpu, tb, 0);
