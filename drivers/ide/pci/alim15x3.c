@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/alim15x3.c		Version 0.27	Aug 27 2007
+ * linux/drivers/ide/pci/alim15x3.c		Version 0.28	Sep 15 2007
  *
  *  Copyright (C) 1998-2000 Michel Aubry, Maintainer
  *  Copyright (C) 1998-2000 Andrzej Krzysztofowicz, Maintainer
@@ -492,6 +492,13 @@ static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const c
 		 * clear bit 7
 		 */
 		pci_write_config_byte(dev, 0x4b, tmpbyte & 0x7F);
+		/*
+		 * check m1533, 0x5e, bit 1~4 == 1001 => & 00011110 = 00010010
+		 */
+		if (m5229_revision >= 0x20 && isa_dev) {
+			pci_read_config_byte(isa_dev, 0x5e, &tmpbyte);
+			chip_is_1543c_e = ((tmpbyte & 0x1e) == 0x12) ? 1: 0;
+		}
 		goto out;
 	}
 
@@ -537,7 +544,30 @@ static unsigned int __devinit init_chipset_ali15x3 (struct pci_dev *dev, const c
 			pci_write_config_byte(isa_dev, 0x79, tmpbyte | 0x02);
 		}
 	}
+
 out:
+	/*
+	 * CD_ROM DMA on (m5229, 0x53, bit0)
+	 *      Enable this bit even if we want to use PIO.
+	 * PIO FIFO off (m5229, 0x53, bit1)
+	 *      The hardware will use 0x54h and 0x55h to control PIO FIFO.
+	 *	(Not on later devices it seems)
+	 *
+	 *	0x53 changes meaning on later revs - we must no touch
+	 *	bit 1 on them.  Need to check if 0x20 is the right break.
+	 */
+	if (m5229_revision >= 0x20) {
+		pci_read_config_byte(dev, 0x53, &tmpbyte);
+
+		if (m5229_revision <= 0x20)
+			tmpbyte = (tmpbyte & (~0x02)) | 0x01;
+		else if (m5229_revision == 0xc7 || m5229_revision == 0xc8)
+			tmpbyte |= 0x03;
+		else
+			tmpbyte |= 0x01;
+
+		pci_write_config_byte(dev, 0x53, tmpbyte);
+	}
 	pci_dev_put(north);
 	pci_dev_put(isa_dev);
 	local_irq_restore(flags);
@@ -616,35 +646,7 @@ static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
 			if ((tmpbyte & (1 << hwif->channel)) == 0)
 				cbl = ATA_CBL_PATA80;
 		}
-	} else {
-		/*
-		 * check m1533, 0x5e, bit 1~4 == 1001 => & 00011110 = 00010010
-		 */
-		pci_read_config_byte(isa_dev, 0x5e, &tmpbyte);
-		chip_is_1543c_e = ((tmpbyte & 0x1e) == 0x12) ? 1: 0;
 	}
-
-	/*
-	 * CD_ROM DMA on (m5229, 0x53, bit0)
-	 *      Enable this bit even if we want to use PIO
-	 * PIO FIFO off (m5229, 0x53, bit1)
-	 *      The hardware will use 0x54h and 0x55h to control PIO FIFO
-	 *	(Not on later devices it seems)
-	 *
-	 *	0x53 changes meaning on later revs - we must no touch
-	 *	bit 1 on them. Need to check if 0x20 is the right break
-	 */
-	 
-	pci_read_config_byte(dev, 0x53, &tmpbyte);
-	
-	if(m5229_revision <= 0x20)
-		tmpbyte = (tmpbyte & (~0x02)) | 0x01;
-	else if (m5229_revision == 0xc7 || m5229_revision == 0xc8)
-		tmpbyte |= 0x03;
-	else
-		tmpbyte |= 0x01;
-
-	pci_write_config_byte(dev, 0x53, tmpbyte);
 
 	local_irq_restore(flags);
 
