@@ -283,6 +283,18 @@ static inline struct reiserfs_sb_info *REISERFS_SB(const struct super_block *sb)
 	return sb->s_fs_info;
 }
 
+/* Don't trust REISERFS_SB(sb)->s_bmap_nr, it's a u16
+ * which overflows on large file systems. */
+static inline u32 reiserfs_bmap_count(struct super_block *sb)
+{
+	return (SB_BLOCK_COUNT(sb) - 1) / (sb->s_blocksize * 8) + 1;
+}
+
+static inline int bmap_would_wrap(unsigned bmap_nr)
+{
+	return bmap_nr > ((1LL << 16) - 1);
+}
+
 /** this says about version of key of all items (but stat data) the
     object consists of */
 #define get_inode_item_key_version( inode )                                    \

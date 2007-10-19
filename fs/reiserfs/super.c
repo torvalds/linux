@@ -1725,6 +1725,21 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		set_sb_umount_state(rs, REISERFS_ERROR_FS);
 		set_sb_fs_state(rs, 0);
 
+		/* Clear out s_bmap_nr if it would wrap. We can handle this
+		 * case, but older revisions can't. This will cause the
+		 * file system to fail mount on those older implementations,
+		 * avoiding corruption. -jeffm */
+		if (bmap_would_wrap(reiserfs_bmap_count(s)) &&
+		    sb_bmap_nr(rs) != 0) {
+			reiserfs_warning(s, "super-2030: This file system "
+					"claims to use %u bitmap blocks in "
+					"its super block, but requires %u. "
+					"Clearing to zero.", sb_bmap_nr(rs),
+					reiserfs_bmap_count(s));
+
+			set_sb_bmap_nr(rs, 0);
+		}
+
 		if (old_format_only(s)) {
 			/* filesystem of format 3.5 either with standard or non-standard
 			   journal */
