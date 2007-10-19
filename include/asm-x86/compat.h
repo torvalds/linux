@@ -6,6 +6,7 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <asm/user32.h>
 
 #define COMPAT_USER_HZ	100
 
@@ -179,6 +180,11 @@ struct compat_shmid64_ds {
 	compat_ulong_t __unused4;
 	compat_ulong_t __unused5;
 };
+
+/*
+ * The type of struct elf_prstatus.pr_reg in compatible core dumps.
+ */
+typedef struct user_regs_struct32 compat_elf_gregset_t;
 
 /*
  * A pointer passed in from user mode. This should not
