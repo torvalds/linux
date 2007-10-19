@@ -1,4 +1,4 @@
-#define QLA_MODEL_NAMES		0x57
+#define QLA_MODEL_NAMES		0x5C
 
 /*
  * Adapter model names and descriptions.
@@ -91,4 +91,9 @@ static char *qla2x00_model_name[QLA_MODEL_NAMES*2] = {
 	" ",		" ",						/* 0x154 */
 	"QLE220",	"PCI-Express to 4Gb FC, Single Channel",	/* 0x155 */
 	"QLE220",	"PCI-Express to 4Gb FC, Single Channel",	/* 0x156 */
+	" ",		" ",						/* 0x157 */
+	" ",		" ",						/* 0x158 */
+	" ",		" ",						/* 0x159 */
+	" ",		" ",						/* 0x15a */
+	"QME2472",	"Dell BS PCI-Express to 4Gb FC, Dual Channel",	/* 0x15b */
 };
