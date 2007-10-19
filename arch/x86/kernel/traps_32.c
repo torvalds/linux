@@ -350,11 +350,11 @@ int is_valid_bugaddr(unsigned long eip)
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static struct {
-		spinlock_t lock;
+		raw_spinlock_t lock;
 		u32 lock_owner;
 		int lock_owner_depth;
 	} die = {
-		.lock =			__SPIN_LOCK_UNLOCKED(die.lock),
+		.lock =			__RAW_SPIN_LOCK_UNLOCKED,
 		.lock_owner =		-1,
 		.lock_owner_depth =	0
 	};
@@ -365,13 +365,14 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	if (die.lock_owner != raw_smp_processor_id()) {
 		console_verbose();
-		spin_lock_irqsave(&die.lock, flags);
+		__raw_spin_lock(&die.lock);
+		raw_local_save_flags(flags);
 		die.lock_owner = smp_processor_id();
 		die.lock_owner_depth = 0;
 		bust_spinlocks(1);
 	}
 	else
-		local_save_flags(flags);
+		raw_local_save_flags(flags);
 
 	if (++die.lock_owner_depth < 3) {
 		unsigned long esp;
@@ -415,7 +416,8 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(0);
 	die.lock_owner = -1;
 	add_taint(TAINT_DIE);
-	spin_unlock_irqrestore(&die.lock, flags);
+	__raw_spin_unlock(&die.lock);
+	raw_local_irq_restore(flags);
 
 	if (!regs)
 		return;
