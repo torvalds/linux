@@ -567,6 +567,8 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
 			hwif->irq = port ? 15 : 14;
 
+		hwif->fixup = d->fixup;
+
 		hwif->host_flags = d->host_flags;
 		hwif->pio_mask = d->pio_mask;
 
@@ -692,9 +694,9 @@ int ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d)
 		mate = &ide_hwifs[index_list.b.high];
 
 	if (hwif)
-		probe_hwif_init_with_fixup(hwif, d->fixup);
+		probe_hwif_init(hwif);
 	if (mate)
-		probe_hwif_init_with_fixup(mate, d->fixup);
+		probe_hwif_init(mate);
 
 	if (hwif)
 		ide_proc_register_port(hwif);

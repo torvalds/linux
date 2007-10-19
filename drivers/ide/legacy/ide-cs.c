@@ -153,7 +153,7 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
     hw.irq = irq;
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
-    return ide_register_hw_with_fixup(&hw, 0, NULL, ide_undecoded_slave);
+    return ide_register_hw(&hw, &ide_undecoded_slave, 0, NULL);
 }
 
 /*======================================================================

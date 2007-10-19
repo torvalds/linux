@@ -223,12 +223,8 @@ typedef struct hw_regs_s {
 	struct device	*dev;
 } hw_regs_t;
 
-/*
- * Register new hardware with ide
- */
-int ide_register_hw(hw_regs_t *, int, struct hwif_s **);
-int ide_register_hw_with_fixup(hw_regs_t *, int, struct hwif_s **,
-			       void (*)(struct hwif_s *));
+int ide_register_hw(hw_regs_t *, void (*)(struct hwif_s *), int,
+		    struct hwif_s **);
 
 /*
  * Set up hw_regs_t structure before calling ide_register_hw (optional)
@@ -726,6 +722,8 @@ typedef struct hwif_s {
 #endif
 	u8 (*mdma_filter)(ide_drive_t *);
 	u8 (*udma_filter)(ide_drive_t *);
+
+	void (*fixup)(struct hwif_s *);
 
 	void (*ata_input_data)(ide_drive_t *, void *, u32);
 	void (*ata_output_data)(ide_drive_t *, void *, u32);
@@ -1380,7 +1378,6 @@ void ide_unregister_region(struct gendisk *);
 
 void ide_undecoded_slave(ide_hwif_t *);
 
-int probe_hwif_init_with_fixup(ide_hwif_t *, void (*)(ide_hwif_t *));
 extern int probe_hwif_init(ide_hwif_t *);
 
 static inline void *ide_get_hwifdata (ide_hwif_t * hwif)

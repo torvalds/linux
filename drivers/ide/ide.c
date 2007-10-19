@@ -391,6 +391,8 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->cds			= tmp_hwif->cds;
 #endif
 
+	hwif->fixup			= tmp_hwif->fixup;
+
 	hwif->set_pio_mode		= tmp_hwif->set_pio_mode;
 	hwif->set_dma_mode		= tmp_hwif->set_dma_mode;
 	hwif->mdma_filter		= tmp_hwif->mdma_filter;
@@ -660,11 +662,11 @@ void ide_setup_ports (	hw_regs_t *hw,
 }
 
 /**
- *	ide_register_hw_with_fixup	-	register IDE interface
+ *	ide_register_hw		-	register IDE interface
  *	@hw: hardware registers
+ *	@fixup: fixup function
  *	@initializing: set while initializing built-in drivers
  *	@hwifp: pointer to returned hwif
- *	@fixup: fixup function
  *
  *	Register an IDE interface, specifying exactly the registers etc.
  *	Set init=1 iff calling before probes have taken place.
@@ -672,9 +674,8 @@ void ide_setup_ports (	hw_regs_t *hw,
  *	Returns -1 on error.
  */
 
-int ide_register_hw_with_fixup(hw_regs_t *hw, int initializing,
-			       ide_hwif_t **hwifp,
-			       void(*fixup)(ide_hwif_t *hwif))
+int ide_register_hw(hw_regs_t *hw, void (*fixup)(ide_hwif_t *),
+		    int initializing, ide_hwif_t **hwifp)
 {
 	int index, retry = 1;
 	ide_hwif_t *hwif;
@@ -710,11 +711,12 @@ found:
 	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->hw.io_ports));
 	hwif->irq = hw->irq;
 	hwif->noprobe = 0;
+	hwif->fixup = fixup;
 	hwif->chipset = hw->chipset;
 	hwif->gendev.parent = hw->dev;
 
 	if (!initializing) {
-		probe_hwif_init_with_fixup(hwif, fixup);
+		probe_hwif_init(hwif);
 		ide_proc_register_port(hwif);
 	}
 
@@ -722,13 +724,6 @@ found:
 		*hwifp = hwif;
 
 	return (initializing || hwif->present) ? index : -1;
-}
-
-EXPORT_SYMBOL(ide_register_hw_with_fixup);
-
-int ide_register_hw(hw_regs_t *hw, int initializing, ide_hwif_t **hwifp)
-{
-	return ide_register_hw_with_fixup(hw, initializing, hwifp, NULL);
 }
 
 EXPORT_SYMBOL(ide_register_hw);
@@ -1046,7 +1041,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			ide_init_hwif_ports(&hw, (unsigned long) args[0],
 					    (unsigned long) args[1], NULL);
 			hw.irq = args[2];
-			if (ide_register_hw(&hw, 0, NULL) == -1)
+			if (ide_register_hw(&hw, NULL, 0, NULL) == -1)
 				return -EIO;
 			return 0;
 		}

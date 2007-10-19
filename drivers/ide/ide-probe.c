@@ -717,7 +717,7 @@ EXPORT_SYMBOL_GPL(ide_undecoded_slave);
  * This routine only knows how to look for drive units 0 and 1
  * on an interface, so any setting of MAX_DRIVES > 2 won't work here.
  */
-static void probe_hwif(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
+static void probe_hwif(ide_hwif_t *hwif)
 {
 	unsigned long flags;
 	unsigned int irqd;
@@ -819,8 +819,8 @@ static void probe_hwif(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
 		return;
 	}
 
-	if (fixup)
-		fixup(hwif);
+	if (hwif->fixup)
+		hwif->fixup(hwif);
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
@@ -861,9 +861,9 @@ static void probe_hwif(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
 static int hwif_init(ide_hwif_t *hwif);
 static void hwif_register_devices(ide_hwif_t *hwif);
 
-int probe_hwif_init_with_fixup(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif))
+int probe_hwif_init(ide_hwif_t *hwif)
 {
-	probe_hwif(hwif, fixup);
+	probe_hwif(hwif);
 
 	if (!hwif_init(hwif)) {
 		printk(KERN_INFO "%s: failed to initialize IDE interface\n",
@@ -875,11 +875,6 @@ int probe_hwif_init_with_fixup(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif)
 		hwif_register_devices(hwif);
 
 	return 0;
-}
-
-int probe_hwif_init(ide_hwif_t *hwif)
-{
-	return probe_hwif_init_with_fixup(hwif, NULL);
 }
 
 EXPORT_SYMBOL(probe_hwif_init);
@@ -1394,7 +1389,7 @@ int ideprobe_init (void)
 
 	for (index = 0; index < MAX_HWIFS; ++index)
 		if (probe[index])
-			probe_hwif(&ide_hwifs[index], NULL);
+			probe_hwif(&ide_hwifs[index]);
 	for (index = 0; index < MAX_HWIFS; ++index)
 		if (probe[index])
 			hwif_init(&ide_hwifs[index]);
