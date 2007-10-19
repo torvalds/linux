@@ -886,9 +886,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	lapic_timer_c2_ok	[X86-32,x86-64,APIC] trust the local apic timer in
 			C2 power state.
 
-	lasi=		[HW,SCSI] PARISC LASI driver for the 53c700 chip
-			Format: addr:<io>,irq:<irq>
-
 	libata.noacpi	[LIBATA] Disables use of ACPI in libata suspend/resume
 			when set.
 			Format: <int>
