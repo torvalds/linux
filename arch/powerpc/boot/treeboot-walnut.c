@@ -109,6 +109,7 @@ static void walnut_flashsel_fixup(void)
 	setprop(sram, "reg", reg_sram, sizeof(reg_sram));
 }
 
+#define WALNUT_OPENBIOS_MAC_OFF 0xfffffe0b
 static void walnut_fixups(void)
 {
 	ibm4xx_fixup_memsize();
@@ -116,6 +117,7 @@ static void walnut_fixups(void)
 	ibm4xx_quiesce_eth((u32 *)0xef600800, NULL);
 	ibm4xx_fixup_ebc_ranges("/plb/ebc");
 	walnut_flashsel_fixup();
+	dt_fixup_mac_addresses((u8 *) WALNUT_OPENBIOS_MAC_OFF);
 }
 
 void platform_init(void)
