@@ -320,7 +320,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 #ifdef CONFIG_X86_MCE_INTEL
 /***
  * mce_log_therm_throt_event - Logs the thermal throttling event to mcelog
- * @cpu: The CPU on which the event occured.
+ * @cpu: The CPU on which the event occurred.
  * @status: Event status information
  *
  * This function should be called by the thermal interrupt after the
@@ -688,7 +688,7 @@ static int __init mcheck_disable(char *str)
 	return 1;
 }
 
-/* mce=off disables machine check. Note you can reenable it later
+/* mce=off disables machine check. Note you can re-enable it later
    using sysfs.
    mce=TOLERANCELEVEL (number, see above)
    mce=bootlog Log MCEs from before booting. Disabled by default on AMD.

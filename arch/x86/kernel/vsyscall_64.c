@@ -53,7 +53,7 @@
 /*
  * vsyscall_gtod_data contains data that is :
  * - readonly from vsyscalls
- * - writen by timer interrupt or systcl (/proc/sys/kernel/vsyscall64)
+ * - written by timer interrupt or systcl (/proc/sys/kernel/vsyscall64)
  * Try to keep this structure as small as possible to avoid cache line ping pongs
  */
 int __vgetcpu_mode __section_vgetcpu_mode;
