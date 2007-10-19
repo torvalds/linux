@@ -478,8 +478,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
 		pos = n, n = pos->next)
 
 /**
- * list_for_each_prev_safe - iterate over a list backwards safe against removal
-			of list entry
+ * list_for_each_prev_safe - iterate over a list backwards safe against removal of list entry
  * @pos:	the &struct list_head to use as a loop cursor.
  * @n:		another &struct list_head to use as temporary storage
  * @head:	the head for your list.

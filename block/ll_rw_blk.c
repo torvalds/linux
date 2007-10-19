@@ -3739,7 +3739,7 @@ EXPORT_SYMBOL(end_dequeued_request);
 
 /**
  * end_request - end I/O on the current segment of the request
- * @rq:		the request being processed
+ * @req:	the request being processed
  * @uptodate:	error value or 0/1 uptodate flag
  *
  * Description:

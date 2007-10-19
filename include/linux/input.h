@@ -1005,13 +1005,15 @@ struct ff_effect {
  * @going_away: marks devices that are in a middle of unregistering and
  *	causes input_open_device*() fail with -ENODEV.
  * @dev: driver model's view of this device
+ * @cdev: union for struct device pointer
  * @h_list: list of input handles associated with the device. When
  *	accessing the list dev->mutex must be held
  * @node: used to place the device onto input_dev_list
  */
 struct input_dev {
-
+	/* private: */
 	void *private;	/* do not use */
+	/* public: */
 
 	const char *name;
 	const char *phys;
