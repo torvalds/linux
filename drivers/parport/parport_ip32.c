@@ -778,14 +778,16 @@ static irqreturn_t parport_ip32_interrupt(int irq, void *dev_id)
 	struct parport * const p = dev_id;
 	struct parport_ip32_private * const priv = p->physport->private_data;
 	enum parport_ip32_irq_mode irq_mode = priv->irq_mode;
+
 	switch (irq_mode) {
 	case PARPORT_IP32_IRQ_FWD:
-		parport_generic_irq(irq, p);
-		break;
+		return parport_irq_handler(irq, dev_id);
+
 	case PARPORT_IP32_IRQ_HERE:
 		parport_ip32_wakeup(p);
 		break;
 	}
+
 	return IRQ_HANDLED;
 }
 

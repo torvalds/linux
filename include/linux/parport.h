@@ -100,6 +100,7 @@ typedef enum {
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/irqreturn.h>
 #include <asm/system.h>
 #include <asm/ptrace.h>
 #include <asm/semaphore.h>
@@ -366,6 +367,9 @@ extern void parport_unregister_driver (struct parport_driver *);
 extern struct parport *parport_find_number (int);
 extern struct parport *parport_find_base (unsigned long);
 
+/* generic irq handler, if it suits your needs */
+extern irqreturn_t parport_irq_handler(int irq, void *dev_id);
+
 /* Reference counting for ports. */
 extern struct parport *parport_get_port (struct parport *);
 extern void parport_put_port (struct parport *);
@@ -514,7 +518,7 @@ extern void parport_daisy_deselect_all (struct parport *port);
 extern int parport_daisy_select (struct parport *port, int daisy, int mode);
 
 /* Lowlevel drivers _can_ call this support function to handle irqs.  */
-static __inline__ void parport_generic_irq(int irq, struct parport *port)
+static inline void parport_generic_irq(int irq, struct parport *port)
 {
 	parport_ieee1284_interrupt (irq, port);
 	read_lock(&port->cad_lock);

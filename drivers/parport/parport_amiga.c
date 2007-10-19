@@ -137,13 +137,6 @@ static unsigned char amiga_read_status(struct parport *p)
 	return status;
 }
 
-/* as this ports irq handling is already done, we use a generic funktion */
-static irqreturn_t amiga_interrupt(int irq, void *dev_id)
-{
-	parport_generic_irq(irq, (struct parport *) dev_id);
-	return IRQ_HANDLED;
-}
-
 static void amiga_enable_irq(struct parport *p)
 {
 	enable_irq(IRQ_AMIGA_CIAA_FLG);
@@ -255,7 +248,7 @@ static int __init parport_amiga_init(void)
 	if (!p)
 		goto out_port;
 
-	err = request_irq(IRQ_AMIGA_CIAA_FLG, amiga_interrupt, 0, p->name, p);
+	err = request_irq(IRQ_AMIGA_CIAA_FLG, parport_irq_handler, 0, p->name, p);
 	if (err)
 		goto out_irq;
 
