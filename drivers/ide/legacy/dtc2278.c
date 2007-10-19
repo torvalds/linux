@@ -83,6 +83,8 @@ static void dtc2278_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		spin_unlock_irqrestore(&dtc2278_lock, flags);
 	} else {
 		/* we don't know how to set it back again.. */
+		/* Actually we do - there is a data sheet available for the
+		   Winbond but does anyone actually care */
 	}
 
 	/*
