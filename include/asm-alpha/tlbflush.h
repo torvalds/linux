@@ -92,17 +92,6 @@ flush_tlb_other(struct mm_struct *mm)
 	if (*mmc) *mmc = 0;
 }
 
-/* Flush a specified range of user mapping page tables from TLB.
-   Although Alpha uses VPTE caches, this can be a nop, as Alpha does
-   not have finegrained tlb flushing, so it will flush VPTE stuff
-   during next flush_tlb_range.  */
-
-static inline void
-flush_tlb_pgtables(struct mm_struct *mm, unsigned long start,
-		   unsigned long end)
-{
-}
-
 #ifndef CONFIG_SMP
 /* Flush everything (kernel mapping may also have changed
    due to vmalloc/vfree).  */

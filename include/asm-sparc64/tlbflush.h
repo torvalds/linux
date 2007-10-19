@@ -41,11 +41,4 @@ do {	flush_tsb_kernel_range(start,end); \
 
 #endif /* ! CONFIG_SMP */
 
-static inline void flush_tlb_pgtables(struct mm_struct *mm, unsigned long start, unsigned long end)
-{
-	/* We don't use virtual page tables for TLB miss processing
-	 * any more.  Nowadays we use the TSB.
-	 */
-}
-
 #endif /* _SPARC64_TLBFLUSH_H */

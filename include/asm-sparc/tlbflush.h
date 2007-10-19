@@ -13,7 +13,6 @@
  *  - flush_tlb_page(vma, vmaddr) flushes one page
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
- *  - flush_tlb_pgtables(mm, start, end) flushes a range of page tables
  */
 
 #ifdef CONFIG_SMP
@@ -41,11 +40,6 @@ BTFIXUPDEF_CALL(void, flush_tlb_all, void)
 BTFIXUPDEF_CALL(void, flush_tlb_mm, struct mm_struct *)
 BTFIXUPDEF_CALL(void, flush_tlb_range, struct vm_area_struct *, unsigned long, unsigned long)
 BTFIXUPDEF_CALL(void, flush_tlb_page, struct vm_area_struct *, unsigned long)
-
-// Thanks to Anton Blanchard, our pagetables became uncached in 2.4. Wee!
-// extern void flush_tlb_pgtables(struct mm_struct *mm,
-//     unsigned long start, unsigned long end);
-#define flush_tlb_pgtables(mm, start, end)	do{ }while(0)
 
 #define flush_tlb_all() BTFIXUP_CALL(flush_tlb_all)()
 #define flush_tlb_mm(mm) BTFIXUP_CALL(flush_tlb_mm)(mm)

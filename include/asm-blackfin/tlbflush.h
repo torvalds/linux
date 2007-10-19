@@ -53,10 +53,4 @@ static inline void flush_tlb_kernel_page(unsigned long addr)
 	BUG();
 }
 
-static inline void flush_tlb_pgtables(struct mm_struct *mm,
-				      unsigned long start, unsigned long end)
-{
-	BUG();
-}
-
 #endif

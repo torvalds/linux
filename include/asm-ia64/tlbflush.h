@@ -84,19 +84,6 @@ flush_tlb_page (struct vm_area_struct *vma, unsigned long addr)
 }
 
 /*
- * Flush the TLB entries mapping the virtually mapped linear page
- * table corresponding to address range [START-END).
- */
-static inline void
-flush_tlb_pgtables (struct mm_struct *mm, unsigned long start, unsigned long end)
-{
-	/*
-	 * Deprecated.  The virtual page table is now flushed via the normal gather/flush
-	 * interface (see tlb.h).
-	 */
-}
-
-/*
  * Flush the local TLB. Invoked from another cpu using an IPI.
  */
 #ifdef CONFIG_SMP

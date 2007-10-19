@@ -78,7 +78,6 @@
  *  - flush_tlb_page(vma, vmaddr) flushes one page
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
- *  - flush_tlb_pgtables(mm, start, end) flushes a range of page tables
  *  - flush_tlb_others(cpumask, mm, va) flushes a TLBs on other cpus
  *
  * ..but the i386 has somewhat limited tlb flushing capabilities,
@@ -164,12 +163,6 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 					unsigned long end)
 {
 	flush_tlb_all();
-}
-
-static inline void flush_tlb_pgtables(struct mm_struct *mm,
-				      unsigned long start, unsigned long end)
-{
-	/* i386 does not keep any page table caches in TLB */
 }
 
 #endif /* _I386_TLBFLUSH_H */

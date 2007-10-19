@@ -41,17 +41,6 @@ extern void flush_tlb_range(struct vm_area_struct*,unsigned long,unsigned long);
 
 #define flush_tlb_kernel_range(start,end) flush_tlb_all()
 
-
-/* This is calld in munmap when we have freed up some page-table pages.
- * We don't need to do anything here, there's nothing special about our
- * page-table pages.
- */
-
-static inline void flush_tlb_pgtables(struct mm_struct *mm,
-                                      unsigned long start, unsigned long end)
-{
-}
-
 /* TLB operations. */
 
 static inline unsigned long itlb_probe(unsigned long addr)

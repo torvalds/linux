@@ -14,7 +14,6 @@
  *  - flush_tlb_page(vma, vmaddr) flushes one page
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
- *  - flush_tlb_pgtables(mm, start, end) flushes a range of page tables
  */
 
 /*
@@ -151,11 +150,5 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 #define flush_tlb_kernel_range(start, end) global_flush_tlb()
 
 #endif
-
-static inline void flush_tlb_pgtables(struct mm_struct *mm,
-                                      unsigned long start, unsigned long end)
-{
-        /* S/390 does not keep any page table caches in TLB */
-}
 
 #endif /* _S390_TLBFLUSH_H */

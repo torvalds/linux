@@ -8,7 +8,6 @@
  *  - flush_tlb_page_nohash(vma, vmaddr) flushes one page if SW loaded TLB
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
- *  - flush_tlb_pgtables(mm, start, end) flushes a range of page tables
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -173,16 +172,6 @@ extern void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
  * waiting for the inevitable extra hash-table miss exception.
  */
 extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
-
-/*
- * This is called in munmap when we have freed up some page-table
- * pages.  We don't need to do anything here, there's nothing special
- * about our page-table pages.  -- paulus
- */
-static inline void flush_tlb_pgtables(struct mm_struct *mm,
-				      unsigned long start, unsigned long end)
-{
-}
 
 #endif /*__KERNEL__ */
 #endif /* _ASM_POWERPC_TLBFLUSH_H */

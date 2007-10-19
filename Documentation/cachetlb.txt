@@ -87,30 +87,7 @@ changes occur:
 
 	This is used primarily during fault processing.
 
-5) void flush_tlb_pgtables(struct mm_struct *mm,
-			   unsigned long start, unsigned long end)
-
-   The software page tables for address space 'mm' for virtual
-   addresses in the range 'start' to 'end-1' are being torn down.
-
-   Some platforms cache the lowest level of the software page tables
-   in a linear virtually mapped array, to make TLB miss processing
-   more efficient.  On such platforms, since the TLB is caching the
-   software page table structure, it needs to be flushed when parts
-   of the software page table tree are unlinked/freed.
-
-   Sparc64 is one example of a platform which does this.
-
-   Usually, when munmap()'ing an area of user virtual address
-   space, the kernel leaves the page table parts around and just
-   marks the individual pte's as invalid.  However, if very large
-   portions of the address space are unmapped, the kernel frees up
-   those portions of the software page tables to prevent potential
-   excessive kernel memory usage caused by erratic mmap/mmunmap
-   sequences.  It is at these times that flush_tlb_pgtables will
-   be invoked.
-
-6) void update_mmu_cache(struct vm_area_struct *vma,
+5) void update_mmu_cache(struct vm_area_struct *vma,
 			 unsigned long address, pte_t pte)
 
 	At the end of every page fault, this routine is invoked to
@@ -123,7 +100,7 @@ changes occur:
 	translations for software managed TLB configurations.
 	The sparc64 port currently does this.
 
-7) void tlb_migrate_finish(struct mm_struct *mm)
+6) void tlb_migrate_finish(struct mm_struct *mm)
 
 	This interface is called at the end of an explicit
 	process migration. This interface provides a hook

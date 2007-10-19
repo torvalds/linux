@@ -57,7 +57,6 @@ do {								\
 #define __flush_tlb_global()			flush_tlb_all()
 #define flush_tlb()				flush_tlb_all()
 #define flush_tlb_kernel_range(start, end)	flush_tlb_all()
-#define flush_tlb_pgtables(mm,start,end)	do { } while(0)
 
 #else
 
@@ -66,7 +65,6 @@ do {								\
 #define flush_tlb_mm(mm)			BUG()
 #define flush_tlb_page(vma,addr)		BUG()
 #define flush_tlb_range(mm,start,end)		BUG()
-#define flush_tlb_pgtables(mm,start,end)	BUG()
 #define flush_tlb_kernel_range(start, end)	BUG()
 
 #endif

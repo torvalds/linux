@@ -463,11 +463,6 @@ extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
  */
 extern void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte_t pte);
 
-/*
- * ARM processors do not cache TLB tables in RAM.
- */
-#define flush_tlb_pgtables(mm,start,end)	do { } while (0)
-
 #endif
 
 #endif /* CONFIG_MMU */
