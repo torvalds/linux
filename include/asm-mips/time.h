@@ -21,6 +21,7 @@
 #include <linux/ptrace.h>
 #include <linux/rtc.h>
 #include <linux/spinlock.h>
+#include <linux/clockchips.h>
 #include <linux/clocksource.h>
 
 extern spinlock_t rtc_lock;
@@ -82,5 +83,9 @@ static inline void mips_clockevent_init(void)
 {
 }
 #endif
+
+extern void clocksource_set_clock(struct clocksource *cs, unsigned int clock);
+extern void clockevent_set_clock(struct clock_event_device *cd,
+		unsigned int clock);
 
 #endif /* _ASM_TIME_H */
