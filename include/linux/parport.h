@@ -465,7 +465,7 @@ static __inline__ int parport_yield_blocking(struct pardevice *dev)
 #define PARPORT_FLAG_EXCL		(1<<1)	/* EXCL driver registered. */
 
 /* IEEE1284 functions */
-extern void parport_ieee1284_interrupt (int, void *);
+extern void parport_ieee1284_interrupt (void *);
 extern int parport_negotiate (struct parport *, int mode);
 extern ssize_t parport_write (struct parport *, const void *buf, size_t len);
 extern ssize_t parport_read (struct parport *, void *buf, size_t len);
@@ -518,12 +518,12 @@ extern void parport_daisy_deselect_all (struct parport *port);
 extern int parport_daisy_select (struct parport *port, int daisy, int mode);
 
 /* Lowlevel drivers _can_ call this support function to handle irqs.  */
-static inline void parport_generic_irq(int irq, struct parport *port)
+static inline void parport_generic_irq(struct parport *port)
 {
-	parport_ieee1284_interrupt (irq, port);
+	parport_ieee1284_interrupt (port);
 	read_lock(&port->cad_lock);
 	if (port->cad && port->cad->irq_func)
-		port->cad->irq_func(irq, port->cad->private);
+		port->cad->irq_func(port->irq, port->cad->private);
 	read_unlock(&port->cad_lock);
 }
 
