@@ -302,13 +302,6 @@ static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev,
 
 static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
-
-	/* PDC20265 has problems with large LBA48 requests */
-	if ((dev->device == PCI_DEVICE_ID_PROMISE_20267) ||
-	    (dev->device == PCI_DEVICE_ID_PROMISE_20265))
-		hwif->rqsize = 256;
-
 	hwif->set_pio_mode = &pdc202xx_set_pio_mode;
 	hwif->set_dma_mode = &pdc202xx_set_mode;
 
@@ -382,7 +375,7 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 	}
 }
 
-#define DECLARE_PDC2026X_DEV(name_str, udma) \
+#define DECLARE_PDC2026X_DEV(name_str, udma, extra_flags) \
 	{ \
 		.name		= name_str, \
 		.init_chipset	= init_chipset_pdc202xx, \
@@ -390,6 +383,7 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 		.init_dma	= init_dma_pdc202xx, \
 		.extra		= 48, \
 		.host_flags	= IDE_HFLAG_ERROR_STOPS_FIFO | \
+				  extra_flags | \
 				  IDE_HFLAG_OFF_BOARD, \
 		.pio_mask	= ATA_PIO4, \
 		.mwdma_mask	= ATA_MWDMA2, \
@@ -410,10 +404,10 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.udma_mask	= ATA_UDMA2,
 	},
 
-	/* 1 */ DECLARE_PDC2026X_DEV("PDC20262", ATA_UDMA4),
-	/* 2 */ DECLARE_PDC2026X_DEV("PDC20263", ATA_UDMA4),
-	/* 3 */ DECLARE_PDC2026X_DEV("PDC20265", ATA_UDMA5),
-	/* 4 */ DECLARE_PDC2026X_DEV("PDC20267", ATA_UDMA5),
+	/* 1 */ DECLARE_PDC2026X_DEV("PDC20262", ATA_UDMA4, 0),
+	/* 2 */ DECLARE_PDC2026X_DEV("PDC20263", ATA_UDMA4, 0),
+	/* 3 */ DECLARE_PDC2026X_DEV("PDC20265", ATA_UDMA5, IDE_HFLAG_RQSIZE_256),
+	/* 4 */ DECLARE_PDC2026X_DEV("PDC20267", ATA_UDMA5, IDE_HFLAG_RQSIZE_256),
 };
 
 /**

@@ -582,6 +582,9 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		hwif->drives[0].autotune = 1;
 		hwif->drives[1].autotune = 1;
 
+		if (d->host_flags & IDE_HFLAG_RQSIZE_256)
+			hwif->rqsize = 256;
+
 		if (d->init_hwif)
 			/* Call chipset-specific routine
 			 * for each enabled hwif
