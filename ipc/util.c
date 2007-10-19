@@ -413,7 +413,7 @@ int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
  
 void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 {
-	int lid = ipcp->id % SEQ_MULTIPLIER;
+	int lid = ipcid_to_idx(ipcp->id);
 
 	idr_remove(&ids->ipcs_idr, lid);
 
@@ -672,7 +672,7 @@ void ipc64_perm_to_ipc_perm (struct ipc64_perm *in, struct ipc_perm *out)
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 {
 	struct kern_ipc_perm *out;
-	int lid = id % SEQ_MULTIPLIER;
+	int lid = ipcid_to_idx(id);
 
 	rcu_read_lock();
 	out = idr_find(&ids->ipcs_idr, lid);

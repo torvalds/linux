@@ -79,6 +79,8 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 #define IPC_MSG_IDS	1
 #define IPC_SHM_IDS	2
 
+#define ipcid_to_idx(id) ((id) % SEQ_MULTIPLIER)
+
 /* must be called with ids->mutex acquired.*/
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
 int ipc_get_maxid(struct ipc_ids *);
