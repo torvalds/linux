@@ -10,6 +10,8 @@
 #ifndef _IPC_UTIL_H
 #define _IPC_UTIL_H
 
+#include <linux/idr.h>
+
 #define USHRT_MAX 0xffff
 #define SEQ_MULTIPLIER	(IPCMNI)
 
@@ -25,24 +27,17 @@ void sem_exit_ns(struct ipc_namespace *ns);
 void msg_exit_ns(struct ipc_namespace *ns);
 void shm_exit_ns(struct ipc_namespace *ns);
 
-struct ipc_id_ary {
-	int size;
-	struct kern_ipc_perm *p[0];
-};
-
 struct ipc_ids {
 	int in_use;
-	int max_id;
 	unsigned short seq;
 	unsigned short seq_max;
 	struct mutex mutex;
-	struct ipc_id_ary nullentry;
-	struct ipc_id_ary* entries;
+	struct idr ipcs_idr;
 };
 
 struct seq_file;
 
-void ipc_init_ids(struct ipc_ids *ids, int size);
+void ipc_init_ids(struct ipc_ids *);
 #ifdef CONFIG_PROC_FS
 void __init ipc_init_proc_interface(const char *path, const char *header,
 		int ids, int (*show)(struct seq_file *, void *));
@@ -55,11 +50,12 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 #define IPC_SHM_IDS	2
 
 /* must be called with ids->mutex acquired.*/
-int ipc_findkey(struct ipc_ids* ids, key_t key);
-int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size);
+struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key);
+int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
+int ipc_get_maxid(struct ipc_ids *);
 
 /* must be called with both locks acquired. */
-struct kern_ipc_perm* ipc_rmid(struct ipc_ids* ids, int id);
+void ipc_rmid(struct ipc_ids *, struct kern_ipc_perm *);
 
 int ipcperms (struct kern_ipc_perm *ipcp, short flg);
 
@@ -78,18 +74,6 @@ void ipc_free(void* ptr, int size);
 void* ipc_rcu_alloc(int size);
 void ipc_rcu_getref(void *ptr);
 void ipc_rcu_putref(void *ptr);
-
-static inline void __ipc_fini_ids(struct ipc_ids *ids,
-		struct ipc_id_ary *entries)
-{
-	if (entries != &ids->nullentry)
-		ipc_rcu_putref(entries);
-}
-
-static inline void ipc_fini_ids(struct ipc_ids *ids)
-{
-	__ipc_fini_ids(ids, ids->entries);
-}
 
 struct kern_ipc_perm* ipc_get(struct ipc_ids* ids, int id);
 struct kern_ipc_perm* ipc_lock(struct ipc_ids* ids, int id);

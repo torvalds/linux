@@ -79,7 +79,6 @@ struct shmid_kernel /* private to the kernel */
 {	
 	struct kern_ipc_perm	shm_perm;
 	struct file *		shm_file;
-	int			id;
 	unsigned long		shm_nattch;
 	unsigned long		shm_segsz;
 	time_t			shm_atim;

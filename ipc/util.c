@@ -129,23 +129,16 @@ __initcall(ipc_init);
 /**
  *	ipc_init_ids		-	initialise IPC identifiers
  *	@ids: Identifier set
- *	@size: Number of identifiers
  *
- *	Given a size for the ipc identifier range (limited below IPCMNI)
- *	set up the sequence range to use then allocate and initialise the
- *	array itself. 
+ *	Set up the sequence range to use for the ipc identifier range (limited
+ *	below IPCMNI) then initialise the ids idr.
  */
  
-void ipc_init_ids(struct ipc_ids* ids, int size)
+void ipc_init_ids(struct ipc_ids *ids)
 {
-	int i;
-
 	mutex_init(&ids->mutex);
 
-	if(size > IPCMNI)
-		size = IPCMNI;
 	ids->in_use = 0;
-	ids->max_id = -1;
 	ids->seq = 0;
 	{
 		int seq_limit = INT_MAX/SEQ_MULTIPLIER;
@@ -155,17 +148,7 @@ void ipc_init_ids(struct ipc_ids* ids, int size)
 		 	ids->seq_max = seq_limit;
 	}
 
-	ids->entries = ipc_rcu_alloc(sizeof(struct kern_ipc_perm *)*size +
-				     sizeof(struct ipc_id_ary));
-
-	if(ids->entries == NULL) {
-		printk(KERN_ERR "ipc_init_ids() failed, ipc service disabled.\n");
-		size = 0;
-		ids->entries = &ids->nullentry;
-	}
-	ids->entries->size = size;
-	for(i=0;i<size;i++)
-		ids->entries->p[i] = NULL;
+	idr_init(&ids->ipcs_idr);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -209,72 +192,73 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
  *	@key: The key to find
  *	
  *	Requires ipc_ids.mutex locked.
- *	Returns the identifier if found or -1 if not.
+ *	Returns the LOCKED pointer to the ipc structure if found or NULL
+ *	if not.
+ *	If key is found ipc contains its ipc structure
  */
  
-int ipc_findkey(struct ipc_ids* ids, key_t key)
+struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
 {
-	int id;
-	struct kern_ipc_perm* p;
-	int max_id = ids->max_id;
+	struct kern_ipc_perm *ipc;
+	int next_id;
+	int total;
 
-	/*
-	 * rcu_dereference() is not needed here
-	 * since ipc_ids.mutex is held
-	 */
-	for (id = 0; id <= max_id; id++) {
-		p = ids->entries->p[id];
-		if(p==NULL)
+	for (total = 0, next_id = 0; total < ids->in_use; next_id++) {
+		ipc = idr_find(&ids->ipcs_idr, next_id);
+
+		if (ipc == NULL)
 			continue;
-		if (key == p->key)
-			return id;
+
+		if (ipc->key != key) {
+			total++;
+			continue;
+		}
+
+		ipc_lock_by_ptr(ipc);
+		return ipc;
 	}
-	return -1;
+
+	return NULL;
 }
 
-/*
- * Requires ipc_ids.mutex locked
+/**
+ *	ipc_get_maxid 	-	get the last assigned id
+ *	@ids: IPC identifier set
+ *
+ *	Called with ipc_ids.mutex held.
  */
-static int grow_ary(struct ipc_ids* ids, int newsize)
+
+int ipc_get_maxid(struct ipc_ids *ids)
 {
-	struct ipc_id_ary* new;
-	struct ipc_id_ary* old;
-	int i;
-	int size = ids->entries->size;
+	struct kern_ipc_perm *ipc;
+	int max_id = -1;
+	int total, id;
 
-	if(newsize > IPCMNI)
-		newsize = IPCMNI;
-	if(newsize <= size)
-		return newsize;
+	if (ids->in_use == 0)
+		return -1;
 
-	new = ipc_rcu_alloc(sizeof(struct kern_ipc_perm *)*newsize +
-			    sizeof(struct ipc_id_ary));
-	if(new == NULL)
-		return size;
-	new->size = newsize;
-	memcpy(new->p, ids->entries->p, sizeof(struct kern_ipc_perm *)*size);
-	for(i=size;i<newsize;i++) {
-		new->p[i] = NULL;
+	if (ids->in_use == IPCMNI)
+		return IPCMNI - 1;
+
+	/* Look for the last assigned id */
+	total = 0;
+	for (id = 0; id < IPCMNI && total < ids->in_use; id++) {
+		ipc = idr_find(&ids->ipcs_idr, id);
+		if (ipc != NULL) {
+			max_id = id;
+			total++;
+		}
 	}
-	old = ids->entries;
-
-	/*
-	 * Use rcu_assign_pointer() to make sure the memcpyed contents
-	 * of the new array are visible before the new array becomes visible.
-	 */
-	rcu_assign_pointer(ids->entries, new);
-
-	__ipc_fini_ids(ids, old);
-	return newsize;
+	return max_id;
 }
 
 /**
  *	ipc_addid 	-	add an IPC identifier
  *	@ids: IPC identifier set
  *	@new: new IPC permission set
- *	@size: new size limit for the id array
+ *	@size: limit for the number of used ids
  *
- *	Add an entry 'new' to the IPC arrays. The permissions object is
+ *	Add an entry 'new' to the IPC idr. The permissions object is
  *	initialised and the first free entry is set up and the id assigned
  *	is returned. The list is returned in a locked state on success.
  *	On failure the list is not locked and -1 is returned.
@@ -284,23 +268,23 @@ static int grow_ary(struct ipc_ids* ids, int newsize)
  
 int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
 {
-	int id;
-
-	size = grow_ary(ids,size);
+	int id, err;
 
 	/*
 	 * rcu_dereference()() is not needed here since
 	 * ipc_ids.mutex is held
 	 */
-	for (id = 0; id < size; id++) {
-		if(ids->entries->p[id] == NULL)
-			goto found;
-	}
-	return -1;
-found:
+	if (size > IPCMNI)
+		size = IPCMNI;
+
+	if (ids->in_use >= size)
+		return -1;
+
+	err = idr_get_new(&ids->ipcs_idr, new, &id);
+	if (err)
+		return -1;
+
 	ids->in_use++;
-	if (id > ids->max_id)
-		ids->max_id = id;
 
 	new->cuid = new->uid = current->euid;
 	new->gid = new->cgid = current->egid;
@@ -313,48 +297,32 @@ found:
 	new->deleted = 0;
 	rcu_read_lock();
 	spin_lock(&new->lock);
-	ids->entries->p[id] = new;
 	return id;
 }
 
 /**
  *	ipc_rmid	-	remove an IPC identifier
  *	@ids: identifier set
- *	@id: Identifier to remove
+ *	@id: ipc perm structure containing the identifier to remove
  *
  *	The identifier must be valid, and in use. The kernel will panic if
  *	fed an invalid identifier. The entry is removed and internal
- *	variables recomputed. The object associated with the identifier
- *	is returned.
- *	ipc_ids.mutex and the spinlock for this ID is hold before this function
- *	is called, and remain locked on the exit.
+ *	variables recomputed.
+ *	ipc_ids.mutex and the spinlock for this ID are held before this
+ *	function is called, and remain locked on the exit.
  */
  
-struct kern_ipc_perm* ipc_rmid(struct ipc_ids* ids, int id)
+void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 {
-	struct kern_ipc_perm* p;
-	int lid = id % SEQ_MULTIPLIER;
-	BUG_ON(lid >= ids->entries->size);
+	int lid = ipcp->id % SEQ_MULTIPLIER;
 
-	/* 
-	 * do not need a rcu_dereference()() here to force ordering
-	 * on Alpha, since the ipc_ids.mutex is held.
-	 */	
-	p = ids->entries->p[lid];
-	ids->entries->p[lid] = NULL;
-	BUG_ON(p==NULL);
+	idr_remove(&ids->ipcs_idr, lid);
+
 	ids->in_use--;
 
-	if (lid == ids->max_id) {
-		do {
-			lid--;
-			if(lid == -1)
-				break;
-		} while (ids->entries->p[lid] == NULL);
-		ids->max_id = lid;
-	}
-	p->deleted = 1;
-	return p;
+	ipcp->deleted = 1;
+
+	return;
 }
 
 /**
@@ -613,33 +581,26 @@ void ipc64_perm_to_ipc_perm (struct ipc64_perm *in, struct ipc_perm *out)
  * if in the future ipc_get() is used by other places without ipc_ids.mutex
  * down, then ipc_get() needs read memery barriers as ipc_lock() does.
  */
-struct kern_ipc_perm* ipc_get(struct ipc_ids* ids, int id)
+struct kern_ipc_perm *ipc_get(struct ipc_ids *ids, int id)
 {
-	struct kern_ipc_perm* out;
+	struct kern_ipc_perm *out;
 	int lid = id % SEQ_MULTIPLIER;
-	if(lid >= ids->entries->size)
-		return NULL;
-	out = ids->entries->p[lid];
+	out = idr_find(&ids->ipcs_idr, lid);
 	return out;
 }
 
-struct kern_ipc_perm* ipc_lock(struct ipc_ids* ids, int id)
+struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 {
-	struct kern_ipc_perm* out;
+	struct kern_ipc_perm *out;
 	int lid = id % SEQ_MULTIPLIER;
-	struct ipc_id_ary* entries;
 
 	rcu_read_lock();
-	entries = rcu_dereference(ids->entries);
-	if(lid >= entries->size) {
+	out = idr_find(&ids->ipcs_idr, lid);
+	if (out == NULL) {
 		rcu_read_unlock();
 		return NULL;
 	}
-	out = entries->p[lid];
-	if(out == NULL) {
-		rcu_read_unlock();
-		return NULL;
-	}
+
 	spin_lock(&out->lock);
 	
 	/* ipc_rmid() may have already freed the ID while ipc_lock
@@ -650,6 +611,7 @@ struct kern_ipc_perm* ipc_lock(struct ipc_ids* ids, int id)
 		rcu_read_unlock();
 		return NULL;
 	}
+
 	return out;
 }
 
@@ -707,33 +669,49 @@ struct ipc_proc_iter {
 	struct ipc_proc_iface *iface;
 };
 
-static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
+/*
+ * This routine locks the ipc structure found at least at position pos.
+ */
+struct kern_ipc_perm *sysvipc_find_ipc(struct ipc_ids *ids, loff_t pos,
+					loff_t *new_pos)
 {
-	struct ipc_proc_iter *iter = s->private;
-	struct ipc_proc_iface *iface = iter->iface;
-	struct kern_ipc_perm *ipc = it;
-	loff_t p;
-	struct ipc_ids *ids;
+	struct kern_ipc_perm *ipc;
+	int total, id;
 
-	ids = iter->ns->ids[iface->ids];
+	total = 0;
+	for (id = 0; id < pos && total < ids->in_use; id++) {
+		ipc = idr_find(&ids->ipcs_idr, id);
+		if (ipc != NULL)
+			total++;
+	}
 
-	/* If we had an ipc id locked before, unlock it */
-	if (ipc && ipc != SEQ_START_TOKEN)
-		ipc_unlock(ipc);
+	if (total >= ids->in_use)
+		return NULL;
 
-	/*
-	 * p = *pos - 1 (because id 0 starts at position 1)
-	 *          + 1 (because we increment the position by one)
-	 */
-	for (p = *pos; p <= ids->max_id; p++) {
-		if ((ipc = ipc_lock(ids, p)) != NULL) {
-			*pos = p + 1;
+	for ( ; pos < IPCMNI; pos++) {
+		ipc = idr_find(&ids->ipcs_idr, pos);
+		if (ipc != NULL) {
+			*new_pos = pos + 1;
+			ipc_lock_by_ptr(ipc);
 			return ipc;
 		}
 	}
 
 	/* Out of range - return NULL to terminate iteration */
 	return NULL;
+}
+
+static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
+{
+	struct ipc_proc_iter *iter = s->private;
+	struct ipc_proc_iface *iface = iter->iface;
+	struct kern_ipc_perm *ipc = it;
+
+	/* If we had an ipc id locked before, unlock it */
+	if (ipc && ipc != SEQ_START_TOKEN)
+		ipc_unlock(ipc);
+
+	return sysvipc_find_ipc(iter->ns->ids[iface->ids], *pos, pos);
 }
 
 /*
@@ -744,8 +722,6 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 {
 	struct ipc_proc_iter *iter = s->private;
 	struct ipc_proc_iface *iface = iter->iface;
-	struct kern_ipc_perm *ipc;
-	loff_t p;
 	struct ipc_ids *ids;
 
 	ids = iter->ns->ids[iface->ids];
@@ -765,13 +741,7 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 		return SEQ_START_TOKEN;
 
 	/* Find the (pos-1)th ipc */
-	for (p = *pos - 1; p <= ids->max_id; p++) {
-		if ((ipc = ipc_lock(ids, p)) != NULL) {
-			*pos = p + 1;
-			return ipc;
-		}
-	}
-	return NULL;
+	return sysvipc_find_ipc(ids, *pos - 1, pos);
 }
 
 static void sysvipc_proc_stop(struct seq_file *s, void *it)
