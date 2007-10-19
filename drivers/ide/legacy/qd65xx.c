@@ -89,28 +89,6 @@
 
 static int timings[4]={-1,-1,-1,-1}; /* stores current timing for each timer */
 
-static DEFINE_SPINLOCK(qd65xx_lock);
-
-static void qd_write_reg (u8 content, unsigned long reg)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&qd65xx_lock, flags);
-	outb(content,reg);
-	spin_unlock_irqrestore(&qd65xx_lock, flags);
-}
-
-static u8 __init qd_read_reg (unsigned long reg)
-{
-	unsigned long flags;
-	u8 read;
-
-	spin_lock_irqsave(&qd65xx_lock, flags);
-	read = inb(reg);
-	spin_unlock_irqrestore(&qd65xx_lock, flags);
-	return read;
-}
-
 /*
  * qd_select:
  *
@@ -123,7 +101,7 @@ static void qd_select (ide_drive_t *drive)
 			(QD_TIMREG(drive) & 0x02);
 
 	if (timings[index] != QD_TIMING(drive))
-		qd_write_reg(timings[index] = QD_TIMING(drive), QD_TIMREG(drive));
+		outb(timings[index] = QD_TIMING(drive), QD_TIMREG(drive));
 }
 
 /*
@@ -286,7 +264,7 @@ static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 
 	if (!HWIF(drive)->channel && drive->media != ide_disk) {
-		qd_write_reg(0x5f, QD_CONTROL_PORT);
+		outb(0x5f, QD_CONTROL_PORT);
 		printk(KERN_WARNING "%s: ATAPI: disabled read-ahead FIFO "
 			"and post-write buffer on %s.\n",
 			drive->name, HWIF(drive)->name);
@@ -306,12 +284,12 @@ static int __init qd_testreg(int port)
 	unsigned long flags;
 	u8 savereg, readreg;
 
-	spin_lock_irqsave(&qd65xx_lock, flags);
+	local_irq_save(flags);
 	savereg = inb_p(port);
 	outb_p(QD_TESTVAL, port);	/* safe value */
 	readreg = inb_p(port);
 	outb(savereg, port);
-	spin_unlock_irqrestore(&qd65xx_lock, flags);
+	local_irq_restore(flags);
 
 	if (savereg == QD_TESTVAL) {
 		printk(KERN_ERR "Outch ! the probe for qd65xx isn't reliable !\n");
@@ -365,13 +343,13 @@ static void __exit qd_unsetup(ide_hwif_t *hwif)
 
 	if (set_pio_mode == (void *)qd6500_set_pio_mode) {
 		// will do it for both
-		qd_write_reg(QD6500_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
+		outb(QD6500_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
 	} else if (set_pio_mode == (void *)qd6580_set_pio_mode) {
 		if (QD_CONTROL(hwif) & QD_CONTR_SEC_DISABLED) {
-			qd_write_reg(QD6580_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
-			qd_write_reg(QD6580_DEF_DATA2, QD_TIMREG(&hwif->drives[1]));
+			outb(QD6580_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
+			outb(QD6580_DEF_DATA2, QD_TIMREG(&hwif->drives[1]));
 		} else {
-			qd_write_reg(hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
+			outb(hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
 		}
 	} else {
 		printk(KERN_WARNING "Unknown qd65xx tuning fonction !\n");
@@ -394,7 +372,7 @@ static int __init qd_probe(int base)
 	u8 config;
 	u8 unit;
 
-	config = qd_read_reg(QD_CONFIG_PORT);
+	config = inb(QD_CONFIG_PORT);
 
 	if (! ((config & QD_CONFIG_BASEPORT) >> 1 == (base == 0xb0)) )
 		return 1;
@@ -438,7 +416,7 @@ static int __init qd_probe(int base)
 
 		/* qd6580 found */
 
-		control = qd_read_reg(QD_CONTROL_PORT);
+		control = inb(QD_CONTROL_PORT);
 
 		printk(KERN_NOTICE "qd6580 at %#x\n", base);
 		printk(KERN_DEBUG "qd6580: config=%#x, control=%#x, ID3=%u\n",
@@ -459,7 +437,7 @@ static int __init qd_probe(int base)
 
 			ide_device_add(idx);
 
-			qd_write_reg(QD_DEF_CONTR, QD_CONTROL_PORT);
+			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 1;
 		} else {
@@ -486,7 +464,7 @@ static int __init qd_probe(int base)
 
 			ide_device_add(idx);
 
-			qd_write_reg(QD_DEF_CONTR, QD_CONTROL_PORT);
+			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 0; /* no other qd65xx possible */
 		}
