@@ -593,28 +593,12 @@ static int smart_enable(ide_drive_t *drive)
 	return ide_raw_taskfile(drive, &args, NULL);
 }
 
-static int get_smart_values(ide_drive_t *drive, u8 *buf)
+static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 {
 	ide_task_t args;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_FEATURE_OFFSET]	= SMART_READ_VALUES;
-	args.tfRegister[IDE_NSECTOR_OFFSET]	= 0x01;
-	args.tfRegister[IDE_LCYL_OFFSET]	= SMART_LCYL_PASS;
-	args.tfRegister[IDE_HCYL_OFFSET]	= SMART_HCYL_PASS;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SMART;
-	args.command_type			= IDE_DRIVE_TASK_IN;
-	args.data_phase				= TASKFILE_IN;
-	args.handler				= &task_in_intr;
-	(void) smart_enable(drive);
-	return ide_raw_taskfile(drive, &args, buf);
-}
-
-static int get_smart_thresholds(ide_drive_t *drive, u8 *buf)
-{
-	ide_task_t args;
-	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_FEATURE_OFFSET]	= SMART_READ_THRESHOLDS;
+	args.tfRegister[IDE_FEATURE_OFFSET]	= sub_cmd;
 	args.tfRegister[IDE_NSECTOR_OFFSET]	= 0x01;
 	args.tfRegister[IDE_LCYL_OFFSET]	= SMART_LCYL_PASS;
 	args.tfRegister[IDE_HCYL_OFFSET]	= SMART_HCYL_PASS;
@@ -656,7 +640,7 @@ static int proc_idedisk_read_smart_thresholds
 	ide_drive_t	*drive = (ide_drive_t *)data;
 	int		len = 0, i = 0;
 
-	if (!get_smart_thresholds(drive, page)) {
+	if (get_smart_data(drive, page, SMART_READ_THRESHOLDS) == 0) {
 		unsigned short *val = (unsigned short *) page;
 		char *out = ((char *)val) + (SECTOR_WORDS * 4);
 		page = out;
@@ -675,7 +659,7 @@ static int proc_idedisk_read_smart_values
 	ide_drive_t	*drive = (ide_drive_t *)data;
 	int		len = 0, i = 0;
 
-	if (!get_smart_values(drive, page)) {
+	if (get_smart_data(drive, page, SMART_READ_VALUES) == 0) {
 		unsigned short *val = (unsigned short *) page;
 		char *out = ((char *)val) + (SECTOR_WORDS * 4);
 		page = out;
