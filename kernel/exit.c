@@ -221,7 +221,7 @@ static int will_become_orphaned_pgrp(struct pid *pgrp, struct task_struct *ignor
 	do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 		if (p == ignored_task
 				|| p->exit_state
-				|| is_init(p->real_parent))
+				|| is_global_init(p->real_parent))
 			continue;
 		if (task_pgrp(p->real_parent) != pgrp &&
 		    task_session(p->real_parent) == task_session(p)) {

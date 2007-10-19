@@ -211,7 +211,7 @@ static int do_out_of_memory(struct pt_regs *regs, unsigned long error_code,
 	struct mm_struct *mm = tsk->mm;
 
 	up_read(&mm->mmap_sem);
-	if (is_init(tsk)) {
+	if (is_global_init(tsk)) {
 		yield();
 		down_read(&mm->mmap_sem);
 		return 1;

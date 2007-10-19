@@ -70,6 +70,11 @@ struct pid_namespace init_pid_ns = {
 	.child_reaper = &init_task
 };
 
+int is_global_init(struct task_struct *tsk)
+{
+	return tsk == init_pid_ns.child_reaper;
+}
+
 /*
  * Note: disable interrupts while the pidmap_lock is held as an
  * interrupt might come in and do read_lock(&tasklist_lock).

@@ -1237,12 +1237,20 @@ static inline int pid_alive(struct task_struct *p)
 }
 
 /**
- * is_init - check if a task structure is init
+ * is_global_init - check if a task structure is init
  * @tsk: Task structure to be checked.
  *
  * Check if a task structure is the first user space task the kernel created.
+ *
+ * TODO: We should inline this function after some cleanups in pid_namespace.h
  */
-static inline int is_init(struct task_struct *tsk)
+extern int is_global_init(struct task_struct *tsk);
+
+/*
+ * is_container_init:
+ * check whether in the task is init in its own pid namespace.
+ */
+static inline int is_container_init(struct task_struct *tsk)
 {
 	return tsk->pid == 1;
 }

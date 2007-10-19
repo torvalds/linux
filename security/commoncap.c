@@ -23,6 +23,7 @@
 #include <linux/xattr.h>
 #include <linux/hugetlb.h>
 #include <linux/mount.h>
+#include <linux/sched.h>
 
 #ifdef CONFIG_SECURITY_FILE_CAPABILITIES
 /*
@@ -334,7 +335,7 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 	/* For init, we want to retain the capabilities set
 	 * in the init_task struct. Thus we skip the usual
 	 * capability rules */
-	if (!is_init(current)) {
+	if (!is_global_init(current)) {
 		current->cap_permitted = new_permitted;
 		current->cap_effective = bprm->cap_effective ?
 				new_permitted : 0;

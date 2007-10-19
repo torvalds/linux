@@ -197,7 +197,7 @@ survive:
 	return fault;
 
 out_of_memory:
-	if (!is_init(tsk))
+	if (!is_global_init(tsk))
 		goto out;
 
 	/*
