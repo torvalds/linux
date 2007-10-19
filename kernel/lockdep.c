@@ -511,11 +511,11 @@ static void lockdep_print_held_locks(struct task_struct *curr)
 	int i, depth = curr->lockdep_depth;
 
 	if (!depth) {
-		printk("no locks held by %s/%d.\n", curr->comm, curr->pid);
+		printk("no locks held by %s/%d.\n", curr->comm, task_pid_nr(curr));
 		return;
 	}
 	printk("%d lock%s held by %s/%d:\n",
-		depth, depth > 1 ? "s" : "", curr->comm, curr->pid);
+		depth, depth > 1 ? "s" : "", curr->comm, task_pid_nr(curr));
 
 	for (i = 0; i < depth; i++) {
 		printk(" #%d: ", i);
@@ -904,7 +904,7 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth)
 	print_kernel_version();
 	printk(  "-------------------------------------------------------\n");
 	printk("%s/%d is trying to acquire lock:\n",
-		curr->comm, curr->pid);
+		curr->comm, task_pid_nr(curr));
 	print_lock(check_source);
 	printk("\nbut task is already holding lock:\n");
 	print_lock(check_target);
@@ -1085,7 +1085,7 @@ print_bad_irq_dependency(struct task_struct *curr,
 	print_kernel_version();
 	printk(  "------------------------------------------------------\n");
 	printk("%s/%d [HC%u[%lu]:SC%u[%lu]:HE%u:SE%u] is trying to acquire:\n",
-		curr->comm, curr->pid,
+		curr->comm, task_pid_nr(curr),
 		curr->hardirq_context, hardirq_count() >> HARDIRQ_SHIFT,
 		curr->softirq_context, softirq_count() >> SOFTIRQ_SHIFT,
 		curr->hardirqs_enabled,
@@ -1237,7 +1237,7 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
 	print_kernel_version();
 	printk(  "---------------------------------------------\n");
 	printk("%s/%d is trying to acquire lock:\n",
-		curr->comm, curr->pid);
+		curr->comm, task_pid_nr(curr));
 	print_lock(next);
 	printk("\nbut task is already holding lock:\n");
 	print_lock(prev);
@@ -1641,7 +1641,7 @@ print_usage_bug(struct task_struct *curr, struct held_lock *this,
 		usage_str[prev_bit], usage_str[new_bit]);
 
 	printk("%s/%d [HC%u[%lu]:SC%u[%lu]:HE%u:SE%u] takes:\n",
-		curr->comm, curr->pid,
+		curr->comm, task_pid_nr(curr),
 		trace_hardirq_context(curr), hardirq_count() >> HARDIRQ_SHIFT,
 		trace_softirq_context(curr), softirq_count() >> SOFTIRQ_SHIFT,
 		trace_hardirqs_enabled(curr),
@@ -1694,7 +1694,7 @@ print_irq_inversion_bug(struct task_struct *curr, struct lock_class *other,
 	print_kernel_version();
 	printk(  "---------------------------------------------------------\n");
 	printk("%s/%d just changed the state of lock:\n",
-		curr->comm, curr->pid);
+		curr->comm, task_pid_nr(curr));
 	print_lock(this);
 	if (forwards)
 		printk("but this lock took another, %s-irq-unsafe lock in the past:\n", irqclass);
@@ -2487,7 +2487,7 @@ print_unlock_inbalance_bug(struct task_struct *curr, struct lockdep_map *lock,
 	printk(  "[ BUG: bad unlock balance detected! ]\n");
 	printk(  "-------------------------------------\n");
 	printk("%s/%d is trying to release lock (",
-		curr->comm, curr->pid);
+		curr->comm, task_pid_nr(curr));
 	print_lockdep_cache(lock);
 	printk(") at:\n");
 	print_ip_sym(ip);
@@ -2737,7 +2737,7 @@ print_lock_contention_bug(struct task_struct *curr, struct lockdep_map *lock,
 	printk(  "[ BUG: bad contention detected! ]\n");
 	printk(  "---------------------------------\n");
 	printk("%s/%d is trying to contend lock (",
-		curr->comm, curr->pid);
+		curr->comm, task_pid_nr(curr));
 	print_lockdep_cache(lock);
 	printk(") at:\n");
 	print_ip_sym(ip);
@@ -3072,7 +3072,7 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 	printk(  "[ BUG: held lock freed! ]\n");
 	printk(  "-------------------------\n");
 	printk("%s/%d is freeing memory %p-%p, with a lock still held there!\n",
-		curr->comm, curr->pid, mem_from, mem_to-1);
+		curr->comm, task_pid_nr(curr), mem_from, mem_to-1);
 	print_lock(hlock);
 	lockdep_print_held_locks(curr);
 
@@ -3125,7 +3125,7 @@ static void print_held_locks_bug(struct task_struct *curr)
 	printk(  "[ BUG: lock held at task exit time! ]\n");
 	printk(  "-------------------------------------\n");
 	printk("%s/%d is exiting with locks still held!\n",
-		curr->comm, curr->pid);
+		curr->comm, task_pid_nr(curr));
 	lockdep_print_held_locks(curr);
 
 	printk("\nstack backtrace:\n");

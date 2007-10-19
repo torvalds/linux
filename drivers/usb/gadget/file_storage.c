@@ -4006,7 +4006,7 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	DBG(fsg, "removable=%d, stall=%d, buflen=%u\n",
 			mod_data.removable, mod_data.can_stall,
 			mod_data.buflen);
-	DBG(fsg, "I/O thread pid: %d\n", fsg->thread_task->pid);
+	DBG(fsg, "I/O thread pid: %d\n", task_pid_nr(fsg->thread_task));
 
 	set_bit(REGISTERED, &fsg->atomic_bitflags);
 

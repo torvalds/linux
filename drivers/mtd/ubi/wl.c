@@ -1309,7 +1309,7 @@ static int ubi_thread(void *u)
 	struct ubi_device *ubi = u;
 
 	ubi_msg("background thread \"%s\" started, PID %d",
-		ubi->bgt_name, current->pid);
+		ubi->bgt_name, task_pid_nr(current));
 
 	set_freezable();
 	for (;;) {

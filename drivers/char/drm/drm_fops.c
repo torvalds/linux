@@ -234,7 +234,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	if (!drm_cpu_valid())
 		return -EINVAL;
 
-	DRM_DEBUG("pid = %d, minor = %d\n", current->pid, minor);
+	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor);
 
 	priv = drm_alloc(sizeof(*priv), DRM_MEM_FILES);
 	if (!priv)
@@ -244,7 +244,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	filp->private_data = priv;
 	priv->filp = filp;
 	priv->uid = current->euid;
-	priv->pid = current->pid;
+	priv->pid = task_pid_nr(current);
 	priv->minor = minor;
 	priv->head = drm_heads[minor];
 	priv->ioctl_count = 0;
@@ -339,7 +339,8 @@ int drm_release(struct inode *inode, struct file *filp)
 	 */
 
 	DRM_DEBUG("pid = %d, device = 0x%lx, open_count = %d\n",
-		  current->pid, (long)old_encode_dev(file_priv->head->device),
+		  task_pid_nr(current),
+		  (long)old_encode_dev(file_priv->head->device),
 		  dev->open_count);
 
 	if (dev->driver->reclaim_buffers_locked && dev->lock.hw_lock) {

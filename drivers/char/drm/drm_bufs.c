@@ -1456,7 +1456,7 @@ int drm_freebufs(struct drm_device *dev, void *data,
 		buf = dma->buflist[idx];
 		if (buf->file_priv != file_priv) {
 			DRM_ERROR("Process %d freeing buffer not owned\n",
-				  current->pid);
+				  task_pid_nr(current));
 			return -EINVAL;
 		}
 		drm_free_buffer(dev, buf);

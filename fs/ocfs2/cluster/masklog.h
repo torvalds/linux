@@ -192,7 +192,7 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
  * previous token if args expands to nothing.
  */
 #define __mlog_printk(level, fmt, args...)				\
-	printk(level "(%u,%lu):%s:%d " fmt, current->pid,		\
+	printk(level "(%u,%lu):%s:%d " fmt, task_pid_nr(current),	\
 	       __mlog_cpu_guess, __PRETTY_FUNCTION__, __LINE__ ,	\
 	       ##args)
 

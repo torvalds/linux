@@ -352,7 +352,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 
 	current->flags |= PF_MEMALLOC;
 	server->tsk = current;	/* save process info to wake at shutdown */
-	cFYI(1, ("Demultiplex PID: %d", current->pid));
+	cFYI(1, ("Demultiplex PID: %d", task_pid_nr(current)));
 	write_lock(&GlobalSMBSeslock);
 	atomic_inc(&tcpSesAllocCount);
 	length = tcpSesAllocCount.counter;

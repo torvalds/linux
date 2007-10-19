@@ -2920,7 +2920,7 @@ static int prism2_ioctl_priv_monitor(struct net_device *dev, int *i)
 
 	printk(KERN_DEBUG "%s: process %d (%s) used deprecated iwpriv monitor "
 	       "- update software to use iwconfig mode monitor\n",
-	       dev->name, current->pid, current->comm);
+	       dev->name, task_pid_nr(current), current->comm);
 
 	/* Backward compatibility code - this can be removed at some point */
 

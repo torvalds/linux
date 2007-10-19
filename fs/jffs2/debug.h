@@ -80,28 +80,28 @@
 #define JFFS2_ERROR(fmt, ...)						\
 	do {								\
 		printk(JFFS2_ERR_MSG_PREFIX				\
-			" (%d) %s: " fmt, current->pid,			\
+			" (%d) %s: " fmt, task_pid_nr(current),		\
 			__FUNCTION__ , ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_WARNING(fmt, ...)						\
 	do {								\
 		printk(JFFS2_WARN_MSG_PREFIX				\
-			" (%d) %s: " fmt, current->pid,			\
+			" (%d) %s: " fmt, task_pid_nr(current),		\
 			__FUNCTION__ , ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_NOTICE(fmt, ...)						\
 	do {								\
 		printk(JFFS2_NOTICE_MSG_PREFIX				\
-			" (%d) %s: " fmt, current->pid,			\
+			" (%d) %s: " fmt, task_pid_nr(current),		\
 			__FUNCTION__ , ##__VA_ARGS__);			\
 	} while(0)
 
 #define JFFS2_DEBUG(fmt, ...)						\
 	do {								\
 		printk(JFFS2_DBG_MSG_PREFIX				\
-			" (%d) %s: " fmt, current->pid,			\
+			" (%d) %s: " fmt, task_pid_nr(current),		\
 			__FUNCTION__ , ##__VA_ARGS__);			\
 	} while(0)
 

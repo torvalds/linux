@@ -3514,7 +3514,7 @@ static int pktgen_thread_worker(void *arg)
 
 	init_waitqueue_head(&t->queue);
 
-	pr_debug("pktgen: starting pktgen/%d:  pid=%d\n", cpu, current->pid);
+	pr_debug("pktgen: starting pktgen/%d:  pid=%d\n", cpu, task_pid_nr(current));
 
 	set_current_state(TASK_INTERRUPTIBLE);
 

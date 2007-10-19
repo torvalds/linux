@@ -285,7 +285,7 @@ static void sas_discover_domain(struct work_struct *work)
 	dev = port->port_dev;
 
 	SAS_DPRINTK("DOING DISCOVERY on port %d, pid:%d\n", port->id,
-		    current->pid);
+		    task_pid_nr(current));
 
 	switch (dev->dev_type) {
 	case SAS_END_DEV:
@@ -320,7 +320,7 @@ static void sas_discover_domain(struct work_struct *work)
 	}
 
 	SAS_DPRINTK("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
-		    current->pid, error);
+		    task_pid_nr(current), error);
 }
 
 static void sas_revalidate_domain(struct work_struct *work)
@@ -334,12 +334,12 @@ static void sas_revalidate_domain(struct work_struct *work)
 			&port->disc.pending);
 
 	SAS_DPRINTK("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
-		    current->pid);
+		    task_pid_nr(current));
 	if (port->port_dev)
 		res = sas_ex_revalidate_domain(port->port_dev);
 
 	SAS_DPRINTK("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
-		    port->id, current->pid, res);
+		    port->id, task_pid_nr(current), res);
 }
 
 /* ---------- Events ---------- */

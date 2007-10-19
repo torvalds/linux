@@ -3530,7 +3530,7 @@ void __do_SAK(struct tty_struct *tty)
 	do_each_pid_task(session, PIDTYPE_SID, p) {
 		printk(KERN_NOTICE "SAK: killed process %d"
 			" (%s): task_session_nr(p)==tty->session\n",
-			p->pid, p->comm);
+			task_pid_nr(p), p->comm);
 		send_sig(SIGKILL, p, 1);
 	} while_each_pid_task(session, PIDTYPE_SID, p);
 	/* Now kill any processes that happen to have the
@@ -3540,7 +3540,7 @@ void __do_SAK(struct tty_struct *tty)
 		if (p->signal->tty == tty) {
 			printk(KERN_NOTICE "SAK: killed process %d"
 			    " (%s): task_session_nr(p)==tty->session\n",
-			    p->pid, p->comm);
+			    task_pid_nr(p), p->comm);
 			send_sig(SIGKILL, p, 1);
 			continue;
 		}
@@ -3560,7 +3560,7 @@ void __do_SAK(struct tty_struct *tty)
 				    filp->private_data == tty) {
 					printk(KERN_NOTICE "SAK: killed process %d"
 					    " (%s): fd#%d opened to the tty\n",
-					    p->pid, p->comm, i);
+					    task_pid_nr(p), p->comm, i);
 					force_sig(SIGKILL, p);
 					break;
 				}

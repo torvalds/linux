@@ -7,7 +7,7 @@
 #include <linux/delay.h>
 
 /** Current process ID */
-#define DRM_CURRENTPID			current->pid
+#define DRM_CURRENTPID			task_pid_nr(current)
 #define DRM_SUSER(p)			capable(CAP_SYS_ADMIN)
 #define DRM_UDELAY(d)			udelay(d)
 /** Read a byte from a MMIO region */

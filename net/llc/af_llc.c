@@ -762,7 +762,7 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 			if (net_ratelimit())
 				printk(KERN_DEBUG "LLC(%s:%d): Application "
 						  "bug, race in MSG_PEEK.\n",
-				       current->comm, current->pid);
+				       current->comm, task_pid_nr(current));
 			peek_seq = llc->copied_seq;
 		}
 		continue;

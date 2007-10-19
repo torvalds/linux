@@ -87,7 +87,7 @@ static int rt_trace_on = 1;
 static void printk_task(struct task_struct *p)
 {
 	if (p)
-		printk("%16s:%5d [%p, %3d]", p->comm, p->pid, p, p->prio);
+		printk("%16s:%5d [%p, %3d]", p->comm, task_pid_nr(p), p, p->prio);
 	else
 		printk("<none>");
 }
@@ -152,22 +152,25 @@ void debug_rt_mutex_print_deadlock(struct rt_mutex_waiter *waiter)
 	printk(  "[ BUG: circular locking deadlock detected! ]\n");
 	printk(  "--------------------------------------------\n");
 	printk("%s/%d is deadlocking current task %s/%d\n\n",
-	       task->comm, task->pid, current->comm, current->pid);
+	       task->comm, task_pid_nr(task),
+	       current->comm, task_pid_nr(current));
 
 	printk("\n1) %s/%d is trying to acquire this lock:\n",
-	       current->comm, current->pid);
+	       current->comm, task_pid_nr(current));
 	printk_lock(waiter->lock, 1);
 
-	printk("\n2) %s/%d is blocked on this lock:\n", task->comm, task->pid);
+	printk("\n2) %s/%d is blocked on this lock:\n",
+		task->comm, task_pid_nr(task));
 	printk_lock(waiter->deadlock_lock, 1);
 
 	debug_show_held_locks(current);
 	debug_show_held_locks(task);
 
-	printk("\n%s/%d's [blocked] stackdump:\n\n", task->comm, task->pid);
+	printk("\n%s/%d's [blocked] stackdump:\n\n",
+		task->comm, task_pid_nr(task));
 	show_stack(task, NULL);
 	printk("\n%s/%d's [current] stackdump:\n\n",
-	       current->comm, current->pid);
+		current->comm, task_pid_nr(current));
 	dump_stack();
 	debug_show_all_locks();
 

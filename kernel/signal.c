@@ -730,7 +730,7 @@ int print_fatal_signals;
 static void print_fatal_signal(struct pt_regs *regs, int signr)
 {
 	printk("%s/%d: potentially unexpected fatal signal %d.\n",
-		current->comm, current->pid, signr);
+		current->comm, task_pid_nr(current), signr);
 
 #ifdef __i386__
 	printk("code at %08lx: ", regs->eip);

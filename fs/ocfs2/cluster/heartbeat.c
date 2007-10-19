@@ -1372,7 +1372,7 @@ static ssize_t o2hb_region_pid_read(struct o2hb_region *reg,
 
 	spin_lock(&o2hb_live_lock);
 	if (reg->hr_task)
-		pid = reg->hr_task->pid;
+		pid = task_pid_nr(reg->hr_task);
 	spin_unlock(&o2hb_live_lock);
 
 	if (!pid)

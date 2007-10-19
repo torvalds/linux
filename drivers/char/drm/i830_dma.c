@@ -1409,7 +1409,7 @@ static int i830_getbuf(struct drm_device *dev, void *data,
 	retcode = i830_dma_get_buffer(dev, d, file_priv);
 
 	DRM_DEBUG("i830_dma: %d returning %d, granted = %d\n",
-		  current->pid, retcode, d->granted);
+		  task_pid_nr(current), retcode, d->granted);
 
 	sarea_priv->last_dispatch = (int)hw_status[5];
 

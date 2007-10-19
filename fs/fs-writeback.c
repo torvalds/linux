@@ -89,7 +89,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 		if (inode->i_ino || strcmp(inode->i_sb->s_id, "bdev"))
 			printk(KERN_DEBUG
 			       "%s(%d): dirtied inode %lu (%s) on %s\n",
-			       current->comm, current->pid, inode->i_ino,
+			       current->comm, task_pid_nr(current), inode->i_ino,
 			       name, inode->i_sb->s_id);
 	}
 

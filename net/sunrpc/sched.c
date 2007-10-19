@@ -847,7 +847,7 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 	task->tk_start = jiffies;
 
 	dprintk("RPC:       new task initialized, procpid %u\n",
-				current->pid);
+				task_pid_nr(current));
 }
 
 static struct rpc_task *

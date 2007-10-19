@@ -3502,7 +3502,7 @@ EXPORT_SYMBOL(sub_preempt_count);
 static noinline void __schedule_bug(struct task_struct *prev)
 {
 	printk(KERN_ERR "BUG: scheduling while atomic: %s/0x%08x/%d\n",
-		prev->comm, preempt_count(), prev->pid);
+		prev->comm, preempt_count(), task_pid_nr(prev));
 	debug_show_held_locks(prev);
 	if (irqs_disabled())
 		print_irqtrace_events(prev);
@@ -4865,7 +4865,8 @@ static void show_task(struct task_struct *p)
 		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
-	printk(KERN_CONT "%5lu %5d %6d\n", free, p->pid, p->parent->pid);
+	printk(KERN_CONT "%5lu %5d %6d\n", free,
+		task_pid_nr(p), task_pid_nr(p->parent));
 
 	if (state != TASK_RUNNING)
 		show_stack(p, NULL);
@@ -5172,7 +5173,7 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 			if (p->mm && printk_ratelimit())
 				printk(KERN_INFO "process %d (%s) no "
 				       "longer affine to cpu%d\n",
-				       p->pid, p->comm, dead_cpu);
+			       task_pid_nr(p), p->comm, dead_cpu);
 		}
 	} while (!__migrate_task_irq(p, dead_cpu, dest_cpu));
 }

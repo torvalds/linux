@@ -1285,7 +1285,7 @@ zoran_open (struct inode *inode,
 	}
 
 	dprintk(1, KERN_INFO "%s: zoran_open(%s, pid=[%d]), users(-)=%d\n",
-		ZR_DEVNAME(zr), current->comm, current->pid, zr->user);
+		ZR_DEVNAME(zr), current->comm, task_pid_nr(current), zr->user);
 
 	/* now, create the open()-specific file_ops struct */
 	fh = kzalloc(sizeof(struct zoran_fh), GFP_KERNEL);
@@ -1358,7 +1358,7 @@ zoran_close (struct inode *inode,
 	struct zoran *zr = fh->zr;
 
 	dprintk(1, KERN_INFO "%s: zoran_close(%s, pid=[%d]), users(+)=%d\n",
-		ZR_DEVNAME(zr), current->comm, current->pid, zr->user);
+		ZR_DEVNAME(zr), current->comm, task_pid_nr(current), zr->user);
 
 	/* kernel locks (fs/device.c), so don't do that ourselves
 	 * (prevents deadlocks) */

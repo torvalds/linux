@@ -959,7 +959,7 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	if (unlikely(in_atomic()))
 		printk(KERN_INFO "note: %s[%d] exited with preempt_count %d\n",
-				current->comm, current->pid,
+				current->comm, task_pid_nr(current),
 				preempt_count());
 
 	acct_update_integrals(tsk);

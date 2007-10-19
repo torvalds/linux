@@ -463,7 +463,7 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	++file_priv->ioctl_count;
 
 	DRM_DEBUG("pid=%d, cmd=0x%02x, nr=0x%02x, dev 0x%lx, auth=%d\n",
-		  current->pid, cmd, nr,
+		  task_pid_nr(current), cmd, nr,
 		  (long)old_encode_dev(file_priv->head->device),
 		  file_priv->authenticated);
 

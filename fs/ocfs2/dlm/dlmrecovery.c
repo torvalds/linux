@@ -259,7 +259,7 @@ static void dlm_print_reco_node_status(struct dlm_ctxt *dlm)
 	struct dlm_lock_resource *res;
 
 	mlog(ML_NOTICE, "%s(%d): recovery info, state=%s, dead=%u, master=%u\n",
-	     dlm->name, dlm->dlm_reco_thread_task->pid,
+	     dlm->name, task_pid_nr(dlm->dlm_reco_thread_task),
 	     dlm->reco.state & DLM_RECO_STATE_ACTIVE ? "ACTIVE" : "inactive",
 	     dlm->reco.dead_node, dlm->reco.new_master);
 
@@ -420,7 +420,7 @@ void dlm_wait_for_recovery(struct dlm_ctxt *dlm)
 	if (dlm_in_recovery(dlm)) {
 		mlog(0, "%s: reco thread %d in recovery: "
 		     "state=%d, master=%u, dead=%u\n",
-		     dlm->name, dlm->dlm_reco_thread_task->pid,
+		     dlm->name, task_pid_nr(dlm->dlm_reco_thread_task),
 		     dlm->reco.state, dlm->reco.new_master,
 		     dlm->reco.dead_node);
 	}
@@ -483,7 +483,7 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 		return 0;
 	}
 	mlog(0, "%s(%d):recovery thread found node %u in the recovery map!\n",
-	     dlm->name, dlm->dlm_reco_thread_task->pid,
+	     dlm->name, task_pid_nr(dlm->dlm_reco_thread_task),
 	     dlm->reco.dead_node);
 	spin_unlock(&dlm->spinlock);
 
@@ -507,7 +507,7 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 		mlog(0, "another node will master this recovery session.\n");
 	}
 	mlog(0, "dlm=%s (%d), new_master=%u, this node=%u, dead_node=%u\n",
-	     dlm->name, dlm->dlm_reco_thread_task->pid, dlm->reco.new_master,
+	     dlm->name, task_pid_nr(dlm->dlm_reco_thread_task), dlm->reco.new_master,
 	     dlm->node_num, dlm->reco.dead_node);
 
 	/* it is safe to start everything back up here
@@ -520,7 +520,7 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 
 master_here:
 	mlog(0, "(%d) mastering recovery of %s:%u here(this=%u)!\n",
-	     dlm->dlm_reco_thread_task->pid,
+	     task_pid_nr(dlm->dlm_reco_thread_task),
 	     dlm->name, dlm->reco.dead_node, dlm->node_num);
 
 	status = dlm_remaster_locks(dlm, dlm->reco.dead_node);

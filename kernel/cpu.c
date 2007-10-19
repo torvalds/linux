@@ -98,7 +98,8 @@ static inline void check_for_tasks(int cpu)
 		     !cputime_eq(p->stime, cputime_zero)))
 			printk(KERN_WARNING "Task %s (pid = %d) is on cpu %d\
 				(state = %ld, flags = %x) \n",
-				 p->comm, p->pid, cpu, p->state, p->flags);
+				 p->comm, task_pid_nr(p), cpu,
+				 p->state, p->flags);
 	}
 	write_unlock_irq(&tasklist_lock);
 }

@@ -456,7 +456,7 @@ static int check_version(struct dlm_write_request *req)
 		printk(KERN_DEBUG "dlm: process %s (%d) version mismatch "
 		       "user (%d.%d.%d) kernel (%d.%d.%d)\n",
 		       current->comm,
-		       current->pid,
+		       task_pid_nr(current),
 		       req->version[0],
 		       req->version[1],
 		       req->version[2],
