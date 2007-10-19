@@ -514,7 +514,7 @@ struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 	return ctx;
 }
 
-void put_nfs_open_context(struct nfs_open_context *ctx)
+static void __put_nfs_open_context(struct nfs_open_context *ctx, int wait)
 {
 	struct inode *inode = ctx->path.dentry->d_inode;
 
@@ -522,13 +522,27 @@ void put_nfs_open_context(struct nfs_open_context *ctx)
 		return;
 	list_del(&ctx->list);
 	spin_unlock(&inode->i_lock);
-	if (ctx->state != NULL)
-		nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
+	if (ctx->state != NULL) {
+		if (wait)
+			nfs4_close_sync(&ctx->path, ctx->state, ctx->mode);
+		else
+			nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
+	}
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
 	dput(ctx->path.dentry);
 	mntput(ctx->path.mnt);
 	kfree(ctx);
+}
+
+void put_nfs_open_context(struct nfs_open_context *ctx)
+{
+	__put_nfs_open_context(ctx, 0);
+}
+
+static void put_nfs_open_context_sync(struct nfs_open_context *ctx)
+{
+	__put_nfs_open_context(ctx, 1);
 }
 
 /*
@@ -577,7 +591,7 @@ static void nfs_file_clear_open_context(struct file *filp)
 		spin_lock(&inode->i_lock);
 		list_move_tail(&ctx->list, &NFS_I(inode)->open_files);
 		spin_unlock(&inode->i_lock);
-		put_nfs_open_context(ctx);
+		put_nfs_open_context_sync(ctx);
 	}
 }
 
@@ -1169,6 +1183,9 @@ static void init_once(struct kmem_cache * cachep, void *foo)
 	INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
 	nfsi->ncommit = 0;
 	nfsi->npages = 0;
+	atomic_set(&nfsi->silly_count, 1);
+	INIT_HLIST_HEAD(&nfsi->silly_list);
+	init_waitqueue_head(&nfsi->waitqueue);
 	nfs4_init_once(nfsi);
 }
 

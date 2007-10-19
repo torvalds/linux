@@ -131,7 +131,7 @@ nfs_file_release(struct inode *inode, struct file *filp)
 {
 	/* Ensure that dirty pages are flushed out with the right creds */
 	if (filp->f_mode & FMODE_WRITE)
-		filemap_fdatawrite(filp->f_mapping);
+		nfs_wb_all(filp->f_path.dentry->d_inode);
 	nfs_inc_stats(inode, NFSIOS_VFSRELEASE);
 	return NFS_PROTO(inode)->file_release(inode, filp);
 }
