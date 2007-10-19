@@ -432,7 +432,7 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 		hwif->cbl = via82cxxx_cable_detect(hwif);
 }
 
-static struct ide_port_info via82cxxx_chipset __devinitdata = {
+static const struct ide_port_info via82cxxx_chipset __devinitdata = {
 	.name		= "VP_IDE",
 	.init_chipset	= init_chipset_via82cxxx,
 	.init_hwif	= init_hwif_via82cxxx,

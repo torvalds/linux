@@ -49,7 +49,7 @@ static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 	}
 }
 
-static struct ide_port_info rz1000_chipset __devinitdata = {
+static const struct ide_port_info rz1000_chipset __devinitdata = {
 	.name		= "RZ100x",
 	.init_hwif	= init_hwif_rz1000,
 	.chipset	= ide_rz1000,

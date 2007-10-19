@@ -448,7 +448,7 @@ static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 	}
 }
 
-static struct ide_port_info cy82c693_chipset __devinitdata = {
+static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.name		= "CY82C693",
 	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,

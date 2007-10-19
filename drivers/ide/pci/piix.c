@@ -396,7 +396,7 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		.udma_mask	= udma, \
 	}
 
-static struct ide_port_info piix_pci_info[] __devinitdata = {
+static const struct ide_port_info piix_pci_info[] __devinitdata = {
 	/*  0 */ DECLARE_PIIX_DEV("PIIXa",	0x00),	/* no udma */
 	/*  1 */ DECLARE_PIIX_DEV("PIIXb",	0x00),	/* no udma */
 

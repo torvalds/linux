@@ -544,7 +544,7 @@ static int setup_mmio_scc (struct pci_dev *dev, const char *name)
  */
 
 static int __devinit init_setup_scc(struct pci_dev *dev,
-				    struct ide_port_info *d)
+				    const struct ide_port_info *d)
 {
 	unsigned long ctl_base;
 	unsigned long dma_base;
@@ -703,7 +703,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
       .pio_mask		= ATA_PIO4,			\
   }
 
-static struct ide_port_info scc_chipsets[] __devinitdata = {
+static const struct ide_port_info scc_chipsets[] __devinitdata = {
 	/* 0 */ DECLARE_SCC_DEV("sccIDE"),
 };
 

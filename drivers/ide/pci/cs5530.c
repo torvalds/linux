@@ -261,7 +261,7 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	hwif->udma_filter = cs5530_udma_filter;
 }
 
-static struct ide_port_info cs5530_chipset __devinitdata = {
+static const struct ide_port_info cs5530_chipset __devinitdata = {
 	.name		= "CS5530",
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,

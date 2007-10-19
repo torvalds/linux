@@ -155,7 +155,7 @@ static int ide_setup_pci_baseregs (struct pci_dev *dev, const char *name)
  *	and enforce IDE simplex rules.
  */
 
-static unsigned long ide_get_or_set_dma_base(struct ide_port_info *d, ide_hwif_t *hwif)
+static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_hwif_t *hwif)
 {
 	unsigned long	dma_base = 0;
 	struct pci_dev	*dev = hwif->pci_dev;
@@ -225,7 +225,7 @@ static unsigned long ide_get_or_set_dma_base(struct ide_port_info *d, ide_hwif_t
 }
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
-void ide_setup_pci_noise(struct pci_dev *dev, struct ide_port_info *d)
+void ide_setup_pci_noise(struct pci_dev *dev, const struct ide_port_info *d)
 {
 	printk(KERN_INFO "%s: IDE controller at PCI slot %s\n",
 			 d->name, pci_name(dev));
@@ -245,7 +245,7 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
  *	Returns zero on success or an error code
  */
 
-static int ide_pci_enable(struct pci_dev *dev, struct ide_port_info *d)
+static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 {
 	int ret;
 
@@ -290,7 +290,7 @@ out:
  *	Returns zero on success or an error code.
  */
 
-static int ide_pci_configure(struct pci_dev *dev, struct ide_port_info *d)
+static int ide_pci_configure(struct pci_dev *dev, const struct ide_port_info *d)
 {
 	u16 pcicmd = 0;
 	/*
@@ -326,7 +326,7 @@ static int ide_pci_configure(struct pci_dev *dev, struct ide_port_info *d)
  *	print an error and return an error code. Otherwise return 0
  */
 
-static int ide_pci_check_iomem(struct pci_dev *dev, struct ide_port_info *d, int bar)
+static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *d, int bar)
 {
 	ulong flags = pci_resource_flags(dev, bar);
 	
@@ -358,7 +358,7 @@ static int ide_pci_check_iomem(struct pci_dev *dev, struct ide_port_info *d, int
  *	Returns the new hardware interface structure, or NULL on a failure
  */
 
-static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, struct ide_port_info *d, ide_hwif_t *mate, int port, int irq)
+static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, const struct ide_port_info *d, ide_hwif_t *mate, int port, int irq)
 {
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
@@ -423,7 +423,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, struct ide_port_info 
  *	state
  */
 
-static void ide_hwif_setup_dma(struct pci_dev *dev, struct ide_port_info *d, ide_hwif_t *hwif)
+static void ide_hwif_setup_dma(struct pci_dev *dev, const struct ide_port_info *d, ide_hwif_t *hwif)
 {
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 	u16 pcicmd;
@@ -472,7 +472,7 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, struct ide_port_info *d, ide
  *	and enables it if need be
  */
 
-static int ide_setup_pci_controller(struct pci_dev *dev, struct ide_port_info *d, int noisy, int *config)
+static int ide_setup_pci_controller(struct pci_dev *dev, const struct ide_port_info *d, int noisy, int *config)
 {
 	int ret;
 	u16 pcicmd;
@@ -520,7 +520,7 @@ out:
  *	where the chipset setup is not the default PCI IDE one.
  */
 
-void ide_pci_setup_ports(struct pci_dev *dev, struct ide_port_info *d, int pciirq, u8 *idx)
+void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int pciirq, u8 *idx)
 {
 	int channels = (d->host_flags & IDE_HFLAG_SINGLE) ? 1 : 2, port;
 	ide_hwif_t *hwif, *mate = NULL;
@@ -531,8 +531,8 @@ void ide_pci_setup_ports(struct pci_dev *dev, struct ide_port_info *d, int pciir
 	 */
 
 	for (port = 0; port < channels; ++port) {
-		ide_pci_enablebit_t *e = &(d->enablebits[port]);
-	
+		const ide_pci_enablebit_t *e = &(d->enablebits[port]);
+
 		if (e->reg && (pci_read_config_byte(dev, e->reg, &tmp) ||
 		    (tmp & e->mask) != e->val)) {
 			printk(KERN_INFO "%s: IDE port disabled\n", d->name);
@@ -611,7 +611,7 @@ EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
  * for all other chipsets, we just assume both interfaces are enabled.
  */
 static int do_ide_setup_pci_device(struct pci_dev *dev,
-				   struct ide_port_info *d,
+				   const struct ide_port_info *d,
 				   u8 *idx, u8 noisy)
 {
 	int tried_config = 0;
@@ -668,7 +668,7 @@ out:
 	return ret;
 }
 
-int ide_setup_pci_device(struct pci_dev *dev, struct ide_port_info *d)
+int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 {
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int ret;
@@ -684,7 +684,7 @@ int ide_setup_pci_device(struct pci_dev *dev, struct ide_port_info *d)
 EXPORT_SYMBOL_GPL(ide_setup_pci_device);
 
 int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
-			  struct ide_port_info *d)
+			  const struct ide_port_info *d)
 {
 	struct pci_dev *pdev[] = { dev1, dev2 };
 	int ret, i;

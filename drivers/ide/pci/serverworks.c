@@ -366,7 +366,7 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	}
 }
 
-static struct ide_port_info serverworks_chipsets[] __devinitdata = {
+static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "SvrWks OSB4",
 		.init_chipset	= init_chipset_svwks,

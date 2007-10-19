@@ -680,7 +680,7 @@ typedef struct hwif_s {
 	hwif_chipset_t chipset;	/* sub-module for tuning.. */
 
 	struct pci_dev  *pci_dev;	/* for pci chipsets */
-	struct ide_port_info *cds;	/* chipset device struct */
+	const struct ide_port_info *cds;	/* chipset device struct */
 
 	ide_ack_intr_t *ack_intr;
 
@@ -1150,8 +1150,8 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 #define ide_pci_register_driver(d) pci_register_driver(d)
 #endif
 
-void ide_pci_setup_ports(struct pci_dev *, struct ide_port_info *, int, u8 *);
-void ide_setup_pci_noise(struct pci_dev *, struct ide_port_info *);
+void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int, u8 *);
+void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
 extern void default_hwif_iops(ide_hwif_t *);
 extern void default_hwif_mmiops(ide_hwif_t *);
@@ -1244,8 +1244,8 @@ struct ide_port_info {
 	u8			udma_mask;
 };
 
-int ide_setup_pci_device(struct pci_dev *, struct ide_port_info *);
-int ide_setup_pci_devices(struct pci_dev *, struct pci_dev *, struct ide_port_info *);
+int ide_setup_pci_device(struct pci_dev *, const struct ide_port_info *);
+int ide_setup_pci_devices(struct pci_dev *, struct pci_dev *, const struct ide_port_info *);
 
 void ide_map_sg(ide_drive_t *, struct request *);
 void ide_init_sg_cmd(ide_drive_t *, struct request *);

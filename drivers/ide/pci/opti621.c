@@ -331,7 +331,7 @@ static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 	hwif->set_pio_mode = &opti621_set_pio_mode;
 }
 
-static struct ide_port_info opti621_chipsets[] __devinitdata = {
+static const struct ide_port_info opti621_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "OPTI621",
 		.init_hwif	= init_hwif_opti621,

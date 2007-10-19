@@ -390,7 +390,7 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 		.udma_mask	= udma, \
 	}
 
-static struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
+static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "PDC20246",
 		.init_chipset	= init_chipset_pdc202xx,
@@ -421,7 +421,7 @@ static struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
  
 static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	struct ide_port_info *d;
+	const struct ide_port_info *d;
 	u8 idx = id->driver_data;
 
 	d = &pdc202xx_chipsets[idx];

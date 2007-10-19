@@ -77,7 +77,7 @@ static struct amd_ide_chip {
 };
 
 static struct amd_ide_chip *amd_config;
-static struct ide_port_info *amd_chipset;
+static const struct ide_port_info *amd_chipset;
 static unsigned int amd_80w;
 static unsigned int amd_clock;
 
@@ -295,7 +295,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.mwdma_mask	= ATA_MWDMA2,				\
 	}
 
-static struct ide_port_info amd74xx_chipsets[] __devinitdata = {
+static const struct ide_port_info amd74xx_chipsets[] __devinitdata = {
 	/*  0 */ DECLARE_AMD_DEV("AMD7401"),
 	/*  1 */ DECLARE_AMD_DEV("AMD7409"),
 	/*  2 */ DECLARE_AMD_DEV("AMD7411"),

@@ -141,7 +141,7 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		.pio_mask	= ATA_PIO4,			\
 	}
 
-static struct ide_port_info cyrix_chipsets[] __devinitdata = {
+static const struct ide_port_info cyrix_chipsets[] __devinitdata = {
 	/* 0 */ DECLARE_CS_DEV("Cyrix 5510"),
 	/* 1 */ DECLARE_CS_DEV("Cyrix 5520")
 };
@@ -154,7 +154,7 @@ static struct ide_port_info cyrix_chipsets[] __devinitdata = {
  
 static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	struct ide_port_info *d = &cyrix_chipsets[id->driver_data];
+	const struct ide_port_info *d = &cyrix_chipsets[id->driver_data];
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	ide_setup_pci_noise(dev, d);
