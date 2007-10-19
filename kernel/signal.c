@@ -536,7 +536,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 			return error;
 		error = -EPERM;
 		if (((sig != SIGCONT) ||
-			(process_session(current) != process_session(t)))
+			(task_session_nr(current) != task_session_nr(t)))
 		    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
 		    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
 		    && !capable(CAP_KILL))
