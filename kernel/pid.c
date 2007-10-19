@@ -376,6 +376,19 @@ struct pid *find_get_pid(pid_t nr)
 	return pid;
 }
 
+pid_t pid_nr_ns(struct pid *pid, struct pid_namespace *ns)
+{
+	struct upid *upid;
+	pid_t nr = 0;
+
+	if (pid && ns->level <= pid->level) {
+		upid = &pid->numbers[ns->level];
+		if (upid->ns == ns)
+			nr = upid->nr;
+	}
+	return nr;
+}
+
 /*
  * Used by proc to find the first pid that is greater then or equal to nr.
  *
