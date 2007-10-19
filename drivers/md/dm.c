@@ -7,6 +7,7 @@
 
 #include "dm.h"
 #include "dm-bio-list.h"
+#include "dm-uevent.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -143,11 +144,19 @@ static int __init local_init(void)
 		return -ENOMEM;
 	}
 
+	r = dm_uevent_init();
+	if (r) {
+		kmem_cache_destroy(_tio_cache);
+		kmem_cache_destroy(_io_cache);
+		return r;
+	}
+
 	_major = major;
 	r = register_blkdev(_major, _name);
 	if (r < 0) {
 		kmem_cache_destroy(_tio_cache);
 		kmem_cache_destroy(_io_cache);
+		dm_uevent_exit();
 		return r;
 	}
 
@@ -162,6 +171,7 @@ static void local_exit(void)
 	kmem_cache_destroy(_tio_cache);
 	kmem_cache_destroy(_io_cache);
 	unregister_blkdev(_major, _name);
+	dm_uevent_exit();
 
 	_major = 0;
 
