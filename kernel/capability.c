@@ -96,7 +96,7 @@ static inline int cap_set_pg(int pgrp_nr, kernel_cap_t *effective,
 	int found = 0;
 	struct pid *pgrp;
 
-	pgrp = find_pid_ns(pgrp_nr, current->nsproxy->pid_ns);
+	pgrp = find_vpid(pgrp_nr);
 	do_each_pid_task(pgrp, PIDTYPE_PGID, g) {
 		target = g;
 		while_each_thread(g, target) {

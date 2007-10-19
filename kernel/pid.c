@@ -302,6 +302,18 @@ struct pid * fastcall find_pid_ns(int nr, struct pid_namespace *ns)
 }
 EXPORT_SYMBOL_GPL(find_pid_ns);
 
+struct pid *find_vpid(int nr)
+{
+	return find_pid_ns(nr, current->nsproxy->pid_ns);
+}
+EXPORT_SYMBOL_GPL(find_vpid);
+
+struct pid *find_pid(int nr)
+{
+	return find_pid_ns(nr, &init_pid_ns);
+}
+EXPORT_SYMBOL_GPL(find_pid);
+
 /*
  * attach_pid() must be called with the tasklist_lock write-held.
  */
