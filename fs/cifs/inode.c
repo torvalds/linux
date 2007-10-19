@@ -527,6 +527,12 @@ int cifs_get_inode_info(struct inode **pinode,
 
 		/* BB fill in uid and gid here? with help from winbind?
 		   or retrieve from NTFS stream extended attribute */
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
+			cFYI(1, ("Getting mode bits from ACL"));
+			get_mode_from_acl(inode, search_path);
+		}
+#endif
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 			/* fill in uid, gid, mode from server ACL */
 			/* BB FIXME this should also take into account the

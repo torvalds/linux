@@ -129,6 +129,29 @@ int compare_sids(struct cifs_sid *ctsid, struct cifs_sid *cwsid)
 	return (1); /* sids compare/match */
 }
 
+void get_mode_from_acl(struct inode * inode, const char * path)
+{
+	
+	if (inode == NULL)
+		return;
+
+	/* find an open readable handle
+	   if handle found
+		 lock handle 
+	   else open file
+	      if no open file can not hurt to check if path is null
+	   GetCIFSACL
+	   for all ACEs in ACL {
+		   if U or G or O
+			   inode->i_mode = parse_ace(file_type, UG or O, ace->perms, inode->i_mode)
+		   else continue
+	   }
+	   if handle open close it
+	   else unlock handle */
+
+	return;
+}
+
 
 static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 {
