@@ -113,6 +113,9 @@ struct mapped_device {
 	 */
 	atomic_t event_nr;
 	wait_queue_head_t eventq;
+	atomic_t uevent_seq;
+	struct list_head uevent_list;
+	spinlock_t uevent_lock; /* Protect access to uevent_list */
 
 	/*
 	 * freeze/thaw support require holding onto a super block
@@ -985,6 +988,9 @@ static struct mapped_device *alloc_dev(int minor)
 	atomic_set(&md->holders, 1);
 	atomic_set(&md->open_count, 0);
 	atomic_set(&md->event_nr, 0);
+	atomic_set(&md->uevent_seq, 0);
+	INIT_LIST_HEAD(&md->uevent_list);
+	spin_lock_init(&md->uevent_lock);
 
 	md->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!md->queue)
@@ -1083,7 +1089,15 @@ static void free_dev(struct mapped_device *md)
  */
 static void event_callback(void *context)
 {
+	unsigned long flags;
+	LIST_HEAD(uevents);
 	struct mapped_device *md = (struct mapped_device *) context;
+
+	spin_lock_irqsave(&md->uevent_lock, flags);
+	list_splice_init(&md->uevent_list, &uevents);
+	spin_unlock_irqrestore(&md->uevent_lock, flags);
+
+	dm_send_uevents(&uevents, &md->disk->kobj);
 
 	atomic_inc(&md->event_nr);
 	wake_up(&md->eventq);
@@ -1502,6 +1516,11 @@ out:
 /*-----------------------------------------------------------------
  * Event notification.
  *---------------------------------------------------------------*/
+uint32_t dm_next_uevent_seq(struct mapped_device *md)
+{
+	return atomic_add_return(1, &md->uevent_seq);
+}
+
 uint32_t dm_get_event_nr(struct mapped_device *md)
 {
 	return atomic_read(&md->event_nr);
@@ -1511,6 +1530,15 @@ int dm_wait_event(struct mapped_device *md, int event_nr)
 {
 	return wait_event_interruptible(md->eventq,
 			(event_nr != atomic_read(&md->event_nr)));
+}
+
+void dm_uevent_add(struct mapped_device *md, struct list_head *elist)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&md->uevent_lock, flags);
+	list_add(elist, &md->uevent_list);
+	spin_unlock_irqrestore(&md->uevent_lock, flags);
 }
 
 /*

@@ -183,6 +183,8 @@ int dm_resume(struct mapped_device *md);
  */
 uint32_t dm_get_event_nr(struct mapped_device *md);
 int dm_wait_event(struct mapped_device *md, int event_nr);
+uint32_t dm_next_uevent_seq(struct mapped_device *md);
+void dm_uevent_add(struct mapped_device *md, struct list_head *elist);
 
 /*
  * Info functions.
