@@ -332,21 +332,21 @@ struct super_block *sget(struct file_system_type *type,
 			void *data)
 {
 	struct super_block *s = NULL;
-	struct list_head *p;
+	struct super_block *old;
 	int err;
 
 retry:
 	spin_lock(&sb_lock);
-	if (test) list_for_each(p, &type->fs_supers) {
-		struct super_block *old;
-		old = list_entry(p, struct super_block, s_instances);
-		if (!test(old, data))
-			continue;
-		if (!grab_super(old))
-			goto retry;
-		if (s)
-			destroy_super(s);
-		return old;
+	if (test) {
+		list_for_each_entry(old, &type->fs_supers, s_instances) {
+			if (!test(old, data))
+				continue;
+			if (!grab_super(old))
+				goto retry;
+			if (s)
+				destroy_super(s);
+			return old;
+		}
 	}
 	if (!s) {
 		spin_unlock(&sb_lock);
