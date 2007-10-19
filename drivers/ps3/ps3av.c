@@ -729,7 +729,7 @@ static void ps3av_monitor_info_dump(const struct ps3av_pkt_av_get_monitor_info *
 
 static const struct ps3av_monitor_quirk {
 	const char *monitor_name;
-	u32 clear_60, clear_50, clear_vesa;
+	u32 clear_60;
 } ps3av_monitor_quirks[] = {
 	{
 		.monitor_name	= "DELL 2007WFP",
@@ -757,10 +757,6 @@ static void ps3av_fixup_monitor_info(struct ps3av_info_monitor *info)
 				quirk->monitor_name);
 			info->res_60.res_bits &= ~quirk->clear_60;
 			info->res_60.native &= ~quirk->clear_60;
-			info->res_50.res_bits &= ~quirk->clear_50;
-			info->res_50.native &= ~quirk->clear_50;
-			info->res_vesa.res_bits &= ~quirk->clear_vesa;
-			info->res_vesa.native &= ~quirk->clear_vesa;
 			break;
 		}
 	}
