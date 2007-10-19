@@ -1203,7 +1203,7 @@ for example:
 Enabling debugging output
 -------------------------
 
-The module takes a debug paramater which can be used to selectively
+The module takes a debug parameter which can be used to selectively
 enable various classes of debugging output, for example:
 
 	 modprobe ibm_acpi debug=0xffff
