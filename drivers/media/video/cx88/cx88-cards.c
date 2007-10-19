@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 
 #include "cx88.h"
+#include "tea5767.h"
 
 static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
@@ -245,6 +246,10 @@ static const struct cx88_board cx88_boards[] = {
 		}},
 		.radio = {
 			 .type   = CX88_RADIO,
+			 .vmux   = 3,
+			 .gpio0  = 0x000040bf,
+			 .gpio1  = 0x000080c0,
+			 .gpio2  = 0x0000ff20,
 		},
 	},
 	[CX88_BOARD_WINFAST_DV2000] = {
@@ -1979,6 +1984,23 @@ static void cx88_card_setup(struct cx88_core *core)
 						core->name, i);
 		}
 		break;
+	case CX88_BOARD_MSI_TVANYWHERE_MASTER:
+	{
+		struct v4l2_priv_tun_config tea5767_cfg;
+		struct tea5767_ctrl ctl;
+
+		memset(&ctl, 0, sizeof(ctl));
+
+		ctl.high_cut  = 1;
+		ctl.st_noise  = 1;
+		ctl.deemph_75 = 1;
+		ctl.xtal_freq = TEA5767_HIGH_LO_13MHz;
+
+		tea5767_cfg.tuner = TUNER_TEA5767;
+		tea5767_cfg.priv  = &ctl;
+
+		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tea5767_cfg);
+	}
 	}
 }
 
