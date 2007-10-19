@@ -335,6 +335,13 @@ config PROC_PID_CPUSET
 	depends on CPUSETS
 	default y
 
+config CGROUP_CPUACCT
+	bool "Simple CPU accounting cgroup subsystem"
+	depends on CGROUPS
+	help
+	  Provides a simple Resource Controller for monitoring the
+	  total CPU consumed by the tasks in a cgroup
+
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"
 	help

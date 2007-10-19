@@ -13,4 +13,10 @@ SUBSYS(cpuset)
 
 /* */
 
+#ifdef CONFIG_CGROUP_CPUACCT
+SUBSYS(cpuacct)
+#endif
+
+/* */
+
 /* */
