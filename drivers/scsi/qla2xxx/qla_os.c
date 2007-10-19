@@ -1482,6 +1482,17 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 	unsigned long	pio, pio_len, pio_flags;
 	unsigned long	mmio, mmio_len, mmio_flags;
 
+	if (pci_request_selected_regions(ha->pdev, ha->bars,
+	    QLA2XXX_DRIVER_NAME)) {
+		qla_printk(KERN_WARNING, ha,
+		    "Failed to reserve PIO/MMIO regions (%s)\n",
+		    pci_name(ha->pdev));
+
+		goto iospace_error_exit;
+	}
+	if (!(ha->bars & 1))
+		goto skip_pio;
+
 	/* We only need PIO for Flash operations on ISP2312 v2 chips. */
 	pio = pci_resource_start(ha->pdev, 0);
 	pio_len = pci_resource_len(ha->pdev, 0);
@@ -1499,7 +1510,10 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 		    pci_name(ha->pdev));
 		pio = 0;
 	}
+	ha->pio_address = pio;
+	ha->pio_length = pio_len;
 
+skip_pio:
 	/* Use MMIO operations for all accesses. */
 	mmio = pci_resource_start(ha->pdev, 1);
 	mmio_len = pci_resource_len(ha->pdev, 1);
@@ -1518,16 +1532,6 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 		goto iospace_error_exit;
 	}
 
-	if (pci_request_regions(ha->pdev, QLA2XXX_DRIVER_NAME)) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to reserve PIO/MMIO regions (%s)\n",
-		    pci_name(ha->pdev));
-
-		goto iospace_error_exit;
-	}
-
-	ha->pio_address = pio;
-	ha->pio_length = pio_len;
 	ha->iobase = ioremap(mmio, MIN_IOBASE_LEN);
 	if (!ha->iobase) {
 		qla_printk(KERN_ERR, ha,
@@ -1579,21 +1583,26 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	char pci_info[30];
 	char fw_str[30];
 	struct scsi_host_template *sht;
+	int bars;
 
-	if (pci_enable_device(pdev))
+	bars = pci_select_bars(pdev, IORESOURCE_MEM | IORESOURCE_IO);
+	sht = &qla2x00_driver_template;
+	if (pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2422 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5422 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5432 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2532) {
+		bars = pci_select_bars(pdev, IORESOURCE_MEM);
+		sht = &qla24xx_driver_template;
+	}
+
+	if (pci_enable_device_bars(pdev, bars))
 		goto probe_out;
 
 	if (pci_find_aer_capability(pdev))
 		if (pci_enable_pcie_error_reporting(pdev))
 			goto probe_out;
 
-	sht = &qla2x00_driver_template;
-	if (pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2422 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5422 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP5432 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2532)
-		sht = &qla24xx_driver_template;
 	host = scsi_host_alloc(sht, sizeof(scsi_qla_host_t));
 	if (host == NULL) {
 		printk(KERN_WARNING
@@ -1610,6 +1619,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->host_no = host->host_no;
 	sprintf(ha->host_str, "%s_%ld", QLA2XXX_DRIVER_NAME, ha->host_no);
 	ha->parent = NULL;
+	ha->bars = bars;
 
 	/* Set ISP-type information. */
 	qla2x00_set_isp_flags(ha);
@@ -1880,7 +1890,7 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	/* release io space registers  */
 	if (ha->iobase)
 		iounmap(ha->iobase);
-	pci_release_regions(ha->pdev);
+	pci_release_selected_regions(ha->pdev, ha->bars);
 }
 
 static inline void
@@ -2890,7 +2900,7 @@ qla2xxx_pci_slot_reset(struct pci_dev *pdev)
 	pci_ers_result_t ret = PCI_ERS_RESULT_DISCONNECT;
 	scsi_qla_host_t *ha = pci_get_drvdata(pdev);
 
-	if (pci_enable_device(pdev)) {
+	if (pci_enable_device_bars(pdev, ha->bars)) {
 		qla_printk(KERN_WARNING, ha,
 		    "Can't re-enable PCI device after reset.\n");
 
