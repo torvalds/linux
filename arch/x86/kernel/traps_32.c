@@ -288,33 +288,9 @@ EXPORT_SYMBOL(dump_stack);
 void show_registers(struct pt_regs *regs)
 {
 	int i;
-	int in_kernel = 1;
-	unsigned long esp;
-	unsigned short ss, gs;
 
-	esp = (unsigned long) (&regs->esp);
-	savesegment(ss, ss);
-	savesegment(gs, gs);
-	if (user_mode_vm(regs)) {
-		in_kernel = 0;
-		esp = regs->esp;
-		ss = regs->xss & 0xffff;
-	}
 	print_modules();
-	printk(KERN_EMERG "CPU:    %d\n"
-		KERN_EMERG "EIP:    %04x:[<%08lx>]    %s VLI\n"
-		KERN_EMERG "EFLAGS: %08lx   (%s %.*s)\n",
-		smp_processor_id(), 0xffff & regs->xcs, regs->eip,
-		print_tainted(), regs->eflags, init_utsname()->release,
-		(int)strcspn(init_utsname()->version, " "),
-		init_utsname()->version);
-	print_symbol(KERN_EMERG "EIP is at %s\n", regs->eip);
-	printk(KERN_EMERG "eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
-		regs->eax, regs->ebx, regs->ecx, regs->edx);
-	printk(KERN_EMERG "esi: %08lx   edi: %08lx   ebp: %08lx   esp: %08lx\n",
-		regs->esi, regs->edi, regs->ebp, esp);
-	printk(KERN_EMERG "ds: %04x   es: %04x   fs: %04x  gs: %04x  ss: %04x\n",
-	       regs->xds & 0xffff, regs->xes & 0xffff, regs->xfs & 0xffff, gs, ss);
+	__show_registers(regs, 0);
 	printk(KERN_EMERG "Process %.*s (pid: %d, ti=%p task=%p task.ti=%p)",
 		TASK_COMM_LEN, current->comm, current->pid,
 		current_thread_info(), current, task_thread_info(current));
@@ -322,14 +298,14 @@ void show_registers(struct pt_regs *regs)
 	 * When in-kernel, we also print out the stack and code at the
 	 * time of the fault..
 	 */
-	if (in_kernel) {
+	if (!user_mode_vm(regs)) {
 		u8 *eip;
 		unsigned int code_prologue = code_bytes * 43 / 64;
 		unsigned int code_len = code_bytes;
 		unsigned char c;
 
 		printk("\n" KERN_EMERG "Stack: ");
-		show_stack_log_lvl(NULL, regs, (unsigned long *)esp, KERN_EMERG);
+		show_stack_log_lvl(NULL, regs, &regs->esp, KERN_EMERG);
 
 		printk(KERN_EMERG "Code: ");
 
