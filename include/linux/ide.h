@@ -192,10 +192,6 @@ typedef unsigned char	byte;	/* used everywhere */
 struct hwif_s;
 typedef int (ide_ack_intr_t)(struct hwif_s *);
 
-#ifndef NO_DMA
-#define NO_DMA  255
-#endif
-
 /*
  * hwif_chipset_t is used to keep track of the specific hardware
  * chipset used by each IDE interface, if known.
@@ -217,7 +213,6 @@ typedef u8 hwif_chipset_t;
 typedef struct hw_regs_s {
 	unsigned long	io_ports[IDE_NR_PORTS];	/* task file registers */
 	int		irq;			/* our irq number */
-	int		dma;			/* our dma entry */
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	hwif_chipset_t  chipset;
 	struct device	*dev;

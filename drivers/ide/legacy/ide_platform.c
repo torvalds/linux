@@ -51,7 +51,6 @@ static ide_hwif_t *__devinit plat_ide_locate_hwif(void __iomem *base,
 	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->hw.io_ports));
 	hwif->hw.irq = hwif->irq = irq;
 
-	hwif->hw.dma = NO_DMA;
 	hwif->chipset = hwif->hw.chipset = ide_generic;
 
 	if (mmio) {

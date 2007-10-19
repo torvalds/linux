@@ -89,9 +89,8 @@ void q40_ide_setup_ports ( hw_regs_t *hw,
 		else
 			hw->io_ports[i] = Q40_ISA_IO_B(base + offsets[i]);
 	}
-	
+
 	hw->irq = irq;
-	hw->dma = NO_DMA;
 	hw->ack_intr = ack_intr;
 /*
  *	hw->iops = iops;

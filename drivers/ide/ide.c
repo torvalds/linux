@@ -678,7 +678,6 @@ void ide_setup_ports (	hw_regs_t *hw,
 		}
 	}
 	hw->irq = irq;
-	hw->dma = NO_DMA;
 	hw->ack_intr = ack_intr;
 /*
  *	hw->iops = iops;
