@@ -282,7 +282,6 @@ struct pcnet32_private {
 
 	struct net_device	*dev;
 	struct napi_struct	napi;
-	struct net_device_stats	stats;
 	char			tx_full;
 	char			phycount;	/* number of phys found */
 	int			options;
@@ -442,7 +441,9 @@ static struct pcnet32_access pcnet32_dwio = {
 
 static void pcnet32_netif_stop(struct net_device *dev)
 {
+#ifdef CONFIG_PCNET32_NAPI
 	struct pcnet32_private *lp = netdev_priv(dev);
+#endif
 	dev->trans_start = jiffies;
 #ifdef CONFIG_PCNET32_NAPI
 	napi_disable(&lp->napi);
@@ -452,7 +453,9 @@ static void pcnet32_netif_stop(struct net_device *dev)
 
 static void pcnet32_netif_start(struct net_device *dev)
 {
+#ifdef CONFIG_PCNET32_NAPI
 	struct pcnet32_private *lp = netdev_priv(dev);
+#endif
 	netif_wake_queue(dev);
 #ifdef CONFIG_PCNET32_NAPI
 	napi_enable(&lp->napi);
@@ -1178,15 +1181,15 @@ static void pcnet32_rx_entry(struct net_device *dev,
 		 * buffers, with only the last correctly noting the error.
 		 */
 		if (status & 0x01)	/* Only count a general error at the */
-			lp->stats.rx_errors++;	/* end of a packet. */
+			dev->stats.rx_errors++;	/* end of a packet. */
 		if (status & 0x20)
-			lp->stats.rx_frame_errors++;
+			dev->stats.rx_frame_errors++;
 		if (status & 0x10)
-			lp->stats.rx_over_errors++;
+			dev->stats.rx_over_errors++;
 		if (status & 0x08)
-			lp->stats.rx_crc_errors++;
+			dev->stats.rx_crc_errors++;
 		if (status & 0x04)
-			lp->stats.rx_fifo_errors++;
+			dev->stats.rx_fifo_errors++;
 		return;
 	}
 
@@ -1197,13 +1200,13 @@ static void pcnet32_rx_entry(struct net_device *dev,
 		if (netif_msg_drv(lp))
 			printk(KERN_ERR "%s: Impossible packet size %d!\n",
 			       dev->name, pkt_len);
-		lp->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		return;
 	}
 	if (pkt_len < 60) {
 		if (netif_msg_rx_err(lp))
 			printk(KERN_ERR "%s: Runt packet!\n", dev->name);
-		lp->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		return;
 	}
 
@@ -1237,7 +1240,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 			printk(KERN_ERR
 			       "%s: Memory squeeze, dropping packet.\n",
 			       dev->name);
-		lp->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 	skb->dev = dev;
@@ -1256,7 +1259,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 					       pkt_len,
 					       PCI_DMA_FROMDEVICE);
 	}
-	lp->stats.rx_bytes += skb->len;
+	dev->stats.rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, dev);
 #ifdef CONFIG_PCNET32_NAPI
 	netif_receive_skb(skb);
@@ -1264,7 +1267,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	netif_rx(skb);
 #endif
 	dev->last_rx = jiffies;
-	lp->stats.rx_packets++;
+	dev->stats.rx_packets++;
 	return;
 }
 
@@ -1312,21 +1315,21 @@ static int pcnet32_tx(struct net_device *dev)
 		if (status & 0x4000) {
 			/* There was a major error, log it. */
 			int err_status = le32_to_cpu(lp->tx_ring[entry].misc);
-			lp->stats.tx_errors++;
+			dev->stats.tx_errors++;
 			if (netif_msg_tx_err(lp))
 				printk(KERN_ERR
 				       "%s: Tx error status=%04x err_status=%08x\n",
 				       dev->name, status,
 				       err_status);
 			if (err_status & 0x04000000)
-				lp->stats.tx_aborted_errors++;
+				dev->stats.tx_aborted_errors++;
 			if (err_status & 0x08000000)
-				lp->stats.tx_carrier_errors++;
+				dev->stats.tx_carrier_errors++;
 			if (err_status & 0x10000000)
-				lp->stats.tx_window_errors++;
+				dev->stats.tx_window_errors++;
 #ifndef DO_DXSUFLO
 			if (err_status & 0x40000000) {
-				lp->stats.tx_fifo_errors++;
+				dev->stats.tx_fifo_errors++;
 				/* Ackk!  On FIFO errors the Tx unit is turned off! */
 				/* Remove this verbosity later! */
 				if (netif_msg_tx_err(lp))
@@ -1337,7 +1340,7 @@ static int pcnet32_tx(struct net_device *dev)
 			}
 #else
 			if (err_status & 0x40000000) {
-				lp->stats.tx_fifo_errors++;
+				dev->stats.tx_fifo_errors++;
 				if (!lp->dxsuflo) {	/* If controller doesn't recover ... */
 					/* Ackk!  On FIFO errors the Tx unit is turned off! */
 					/* Remove this verbosity later! */
@@ -1351,8 +1354,8 @@ static int pcnet32_tx(struct net_device *dev)
 #endif
 		} else {
 			if (status & 0x1800)
-				lp->stats.collisions++;
-			lp->stats.tx_packets++;
+				dev->stats.collisions++;
+			dev->stats.tx_packets++;
 		}
 
 		/* We must free the original skb */
@@ -1848,6 +1851,9 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->mii_if.dev = dev;
 	lp->mii_if.mdio_read = mdio_read;
 	lp->mii_if.mdio_write = mdio_write;
+
+	/* napi.weight is used in both the napi and non-napi cases */
+	lp->napi.weight = lp->rx_ring_size / 2;
 
 #ifdef CONFIG_PCNET32_NAPI
 	netif_napi_add(dev, &lp->napi, pcnet32_poll, lp->rx_ring_size / 2);
@@ -2471,7 +2477,7 @@ static void pcnet32_tx_timeout(struct net_device *dev)
 		       "%s: transmit timed out, status %4.4x, resetting.\n",
 		       dev->name, lp->a.read_csr(ioaddr, CSR0));
 	lp->a.write_csr(ioaddr, CSR0, CSR0_STOP);
-	lp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 	if (netif_msg_tx_err(lp)) {
 		int i;
 		printk(KERN_DEBUG
@@ -2541,7 +2547,7 @@ static int pcnet32_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	lp->tx_ring[entry].status = cpu_to_le16(status);
 
 	lp->cur_tx++;
-	lp->stats.tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb->len;
 
 	/* Trigger an immediate send poll. */
 	lp->a.write_csr(ioaddr, CSR0, CSR0_INTEN | CSR0_TXPOLL);
@@ -2586,7 +2592,7 @@ pcnet32_interrupt(int irq, void *dev_id)
 
 		/* Log misc errors. */
 		if (csr0 & 0x4000)
-			lp->stats.tx_errors++;	/* Tx babble. */
+			dev->stats.tx_errors++;	/* Tx babble. */
 		if (csr0 & 0x1000) {
 			/*
 			 * This happens when our receive ring is full. This
@@ -2599,7 +2605,7 @@ pcnet32_interrupt(int irq, void *dev_id)
 			 * don't get a rx interrupt, but a missed frame
 			 * interrupt sooner or later.
 			 */
-			lp->stats.rx_errors++;	/* Missed a Rx frame. */
+			dev->stats.rx_errors++;	/* Missed a Rx frame. */
 		}
 		if (csr0 & 0x0800) {
 			if (netif_msg_drv(lp))
@@ -2661,7 +2667,7 @@ static int pcnet32_close(struct net_device *dev)
 
 	spin_lock_irqsave(&lp->lock, flags);
 
-	lp->stats.rx_missed_errors = lp->a.read_csr(ioaddr, 112);
+	dev->stats.rx_missed_errors = lp->a.read_csr(ioaddr, 112);
 
 	if (netif_msg_ifdown(lp))
 		printk(KERN_DEBUG
@@ -2698,10 +2704,10 @@ static struct net_device_stats *pcnet32_get_stats(struct net_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&lp->lock, flags);
-	lp->stats.rx_missed_errors = lp->a.read_csr(ioaddr, 112);
+	dev->stats.rx_missed_errors = lp->a.read_csr(ioaddr, 112);
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	return &lp->stats;
+	return &dev->stats;
 }
 
 /* taken from the sunlance driver, which it took from the depca driver */

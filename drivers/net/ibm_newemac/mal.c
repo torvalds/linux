@@ -322,7 +322,7 @@ void mal_poll_disable(struct mal_instance *mal, struct mal_commac *commac)
 		msleep(1);
 
 	/* Synchronize with the MAL NAPI poller */
-	__napi_synchronize(&mal->napi);
+	napi_synchronize(&mal->napi);
 }
 
 void mal_poll_enable(struct mal_instance *mal, struct mal_commac *commac)

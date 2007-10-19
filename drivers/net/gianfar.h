@@ -749,7 +749,6 @@ struct gfar_private {
 	uint32_t msg_enable;
 
 	/* Network Statistics */
-	struct net_device_stats stats;
 	struct gfar_extra_stats extra_stats;
 };
 

@@ -992,7 +992,7 @@ static void nv_enable_irq(struct net_device *dev)
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
-			enable_irq(dev->irq);
+			enable_irq(np->pci_dev->irq);
 	} else {
 		enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 		enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
@@ -1008,7 +1008,7 @@ static void nv_disable_irq(struct net_device *dev)
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
-			disable_irq(dev->irq);
+			disable_irq(np->pci_dev->irq);
 	} else {
 		disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 		disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
@@ -1607,7 +1607,7 @@ static void nv_do_rx_refill(unsigned long data)
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
-			disable_irq(dev->irq);
+			disable_irq(np->pci_dev->irq);
 	} else {
 		disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 	}
@@ -1625,7 +1625,7 @@ static void nv_do_rx_refill(unsigned long data)
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
-			enable_irq(dev->irq);
+			enable_irq(np->pci_dev->irq);
 	} else {
 		enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 	}
@@ -2408,13 +2408,13 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 	struct fe_priv *np = netdev_priv(dev);
 	u32 flags;
 	u32 vlanflags = 0;
-	u32 rx_processed_cnt = 0;
+	int rx_work = 0;
 	struct sk_buff *skb;
 	int len;
 
 	while((np->get_rx.ex != np->put_rx.ex) &&
 	      !((flags = le32_to_cpu(np->get_rx.ex->flaglen)) & NV_RX2_AVAIL) &&
-	      (rx_processed_cnt++ < limit)) {
+	      (rx_work < limit)) {
 
 		dprintk(KERN_DEBUG "%s: nv_rx_process_optimized: flags 0x%x.\n",
 					dev->name, flags);
@@ -2517,9 +2517,11 @@ next_pkt:
 			np->get_rx.ex = np->first_rx.ex;
 		if (unlikely(np->get_rx_ctx++ == np->last_rx_ctx))
 			np->get_rx_ctx = np->first_rx_ctx;
+
+		rx_work++;
 	}
 
-	return rx_processed_cnt;
+	return rx_work;
 }
 
 static void set_bufsize(struct net_device *dev)
@@ -3558,10 +3560,12 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 	if (ret != 0 && np->msi_flags & NV_MSI_CAPABLE) {
 		if ((ret = pci_enable_msi(np->pci_dev)) == 0) {
 			np->msi_flags |= NV_MSI_ENABLED;
+			dev->irq = np->pci_dev->irq;
 			if (request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev) != 0) {
 				printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
 				pci_disable_msi(np->pci_dev);
 				np->msi_flags &= ~NV_MSI_ENABLED;
+				dev->irq = np->pci_dev->irq;
 				goto out_err;
 			}
 
@@ -3624,7 +3628,7 @@ static void nv_do_nic_poll(unsigned long data)
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
-			disable_irq_lockdep(dev->irq);
+			disable_irq_lockdep(np->pci_dev->irq);
 		mask = np->irqmask;
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
@@ -3641,6 +3645,8 @@ static void nv_do_nic_poll(unsigned long data)
 		}
 	}
 	np->nic_poll_irq = 0;
+
+	/* disable_irq() contains synchronize_irq, thus no irq handler can run now */
 
 	if (np->recover_error) {
 		np->recover_error = 0;
@@ -3678,7 +3684,6 @@ static void nv_do_nic_poll(unsigned long data)
 		}
 	}
 
-	/* FIXME: Do we need synchronize_irq(dev->irq) here? */
 
 	writel(mask, base + NvRegIrqMask);
 	pci_push(base);
@@ -3691,7 +3696,7 @@ static void nv_do_nic_poll(unsigned long data)
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
-			enable_irq_lockdep(dev->irq);
+			enable_irq_lockdep(np->pci_dev->irq);
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
 			nv_nic_irq_rx(0, dev);
@@ -4948,7 +4953,7 @@ static int nv_close(struct net_device *dev)
 #ifdef CONFIG_FORCEDETH_NAPI
 	napi_disable(&np->napi);
 #endif
-	synchronize_irq(dev->irq);
+	synchronize_irq(np->pci_dev->irq);
 
 	del_timer_sync(&np->oom_kick);
 	del_timer_sync(&np->nic_poll);
