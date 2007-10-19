@@ -564,10 +564,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			See drivers/char/README.epca and
 			Documentation/digiepca.txt.
 
-	dmascc=		[HW,AX25,SERIAL] AX.25 Z80SCC driver with DMA
-			support available.
-			Format: <io_dev0>[,<io_dev1>[,..<io_dev32>]]
-
 	dmasound=	[HW,OSS] Sound subsystem buffers
 
 	dscc4.setup=	[NET]
