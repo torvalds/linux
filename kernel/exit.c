@@ -674,7 +674,7 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 	do {
 		reaper = next_thread(reaper);
 		if (reaper == father) {
-			reaper = child_reaper(father);
+			reaper = task_child_reaper(father);
 			break;
 		}
 	} while (reaper->exit_state);
@@ -874,7 +874,7 @@ static inline void check_stack_usage(void) {}
 
 static inline void exit_child_reaper(struct task_struct *tsk)
 {
-	if (likely(tsk->group_leader != child_reaper(tsk)))
+	if (likely(tsk->group_leader != task_child_reaper(tsk)))
 		return;
 
 	panic("Attempted to kill init!");
