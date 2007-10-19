@@ -56,7 +56,6 @@ static inline void get_bit_address(struct super_block *s,
 	*offset = block & ((s->s_blocksize << 3) - 1);
 }
 
-#ifdef CONFIG_REISERFS_CHECK
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 {
 	int bmap, offset;
@@ -106,7 +105,6 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 
 	return 1;
 }
-#endif				/* CONFIG_REISERFS_CHECK */
 
 /* searches in journal structures for a given block number (bmap, off). If block
    is found in reiserfs journal it suggests next free block candidate to test. */
@@ -434,12 +432,19 @@ void reiserfs_free_block(struct reiserfs_transaction_handle *th,
 			 int for_unformatted)
 {
 	struct super_block *s = th->t_super;
-
 	BUG_ON(!th->t_trans_id);
 
 	RFALSE(!s, "vs-4061: trying to free block on nonexistent device");
-	RFALSE(is_reusable(s, block, 1) == 0,
-	       "vs-4071: can not free such block");
+	if (!is_reusable(s, block, 1))
+		return;
+
+	if (block > sb_block_count(REISERFS_SB(s)->s_rs)) {
+		reiserfs_panic(th->t_super, "bitmap-4072",
+			       "Trying to free block outside file system "
+			       "boundaries (%lu > %lu)",
+			       block, sb_block_count(REISERFS_SB(s)->s_rs));
+		return;
+	}
 	/* mark it before we clear it, just in case */
 	journal_mark_freed(th, s, block);
 	_reiserfs_free_block(th, inode, block, for_unformatted);
@@ -449,11 +454,11 @@ void reiserfs_free_block(struct reiserfs_transaction_handle *th,
 static void reiserfs_free_prealloc_block(struct reiserfs_transaction_handle *th,
 					 struct inode *inode, b_blocknr_t block)
 {
+	BUG_ON(!th->t_trans_id);
 	RFALSE(!th->t_super,
 	       "vs-4060: trying to free block on nonexistent device");
-	RFALSE(is_reusable(th->t_super, block, 1) == 0,
-	       "vs-4070: can not free such block");
-	BUG_ON(!th->t_trans_id);
+	if (!is_reusable(th->t_super, block, 1))
+		return;
 	_reiserfs_free_block(th, inode, block, 1);
 }
 
