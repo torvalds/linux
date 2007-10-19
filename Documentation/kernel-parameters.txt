@@ -294,9 +294,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	apm=		[APM] Advanced Power Management
 			See header of arch/i386/kernel/apm.c.
 
-	applicom=	[HW]
-			Format: <mem>,<irq>
-
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
 
