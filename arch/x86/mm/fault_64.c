@@ -285,7 +285,6 @@ static int vmalloc_fault(unsigned long address)
 	return 0;
 }
 
-static int page_fault_trace;
 int show_unhandled_signals = 1;
 
 /*
@@ -353,10 +352,6 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 
 	if (likely(regs->eflags & X86_EFLAGS_IF))
 		local_irq_enable();
-
-	if (unlikely(page_fault_trace))
-		printk("pagefault rip:%lx rsp:%lx cs:%lu ss:%lu address %lx error %lx\n",
-		       regs->rip,regs->rsp,regs->cs,regs->ss,address,error_code); 
 
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(address, regs, error_code);
@@ -621,10 +616,3 @@ void vmalloc_sync_all(void)
 	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) == 
 				(__START_KERNEL & PGDIR_MASK)));
 }
-
-static int __init enable_pagefaulttrace(char *str)
-{
-	page_fault_trace = 1;
-	return 1;
-}
-__setup("pagefaulttrace", enable_pagefaulttrace);
