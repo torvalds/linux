@@ -401,7 +401,7 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	if ((diff0 & ~(1<<fls(diff0))) == 0)
 		return 1;
 
-	return 0;
+	return -1;
 }
 
 /* ECC functions
