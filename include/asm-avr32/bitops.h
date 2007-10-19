@@ -8,6 +8,10 @@
 #ifndef __ASM_AVR32_BITOPS_H
 #define __ASM_AVR32_BITOPS_H
 
+#ifndef _LINUX_BITOPS_H
+#error only <linux/bitops.h> can be included directly
+#endif
+
 #include <asm/byteorder.h>
 #include <asm/system.h>
 

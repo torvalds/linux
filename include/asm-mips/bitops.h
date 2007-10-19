@@ -9,6 +9,10 @@
 #ifndef _ASM_BITOPS_H
 #define _ASM_BITOPS_H
 
+#ifndef _LINUX_BITOPS_H
+#error only <linux/bitops.h> can be included directly
+#endif
+
 #include <linux/compiler.h>
 #include <linux/irqflags.h>
 #include <linux/types.h>

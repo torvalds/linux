@@ -14,6 +14,10 @@
 /* Currently this is unsuitable for consumption outside the kernel.  */
 #ifdef __KERNEL__ 
 
+#ifndef _LINUX_BITOPS_H
+#error only <linux/bitops.h> can be included directly
+#endif
+
 #include <asm/arch/bitops.h>
 #include <asm/system.h>
 #include <asm/atomic.h>
