@@ -2378,9 +2378,9 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page, KM_USER1);
 		memcpy(dst, kaddr + offset, cur);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr, KM_USER1);
 
 		dst += cur;
 		len -= cur;
@@ -2523,9 +2523,9 @@ void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, PAGE_CACHE_SIZE - offset);
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page, KM_USER1);
 		memcpy(kaddr + offset, src, cur);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr, KM_USER1);
 
 		src += cur;
 		len -= cur;
