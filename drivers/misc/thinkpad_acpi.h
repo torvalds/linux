@@ -58,13 +58,14 @@
 
 #define IBM_NAME "thinkpad"
 #define IBM_DESC "ThinkPad ACPI Extras"
-#define IBM_FILE "thinkpad_acpi"
+#define IBM_FILE IBM_NAME "_acpi"
 #define IBM_URL "http://ibm-acpi.sf.net/"
 #define IBM_MAIL "ibm-acpi-devel@lists.sourceforge.net"
 
 #define IBM_PROC_DIR "ibm"
 #define IBM_ACPI_EVENT_PREFIX "ibm"
 #define IBM_DRVR_NAME IBM_FILE
+#define IBM_HWMON_DRVR_NAME IBM_NAME "_hwmon"
 
 #define IBM_LOG IBM_FILE ": "
 #define IBM_ERR	   KERN_ERR    IBM_LOG
@@ -171,6 +172,7 @@ static int parse_strtoul(const char *buf, unsigned long max,
 
 /* Device model */
 static struct platform_device *tpacpi_pdev;
+static struct platform_device *tpacpi_sensors_pdev;
 static struct device *tpacpi_hwmon;
 static struct platform_driver tpacpi_pdriver;
 static struct input_dev *tpacpi_inputdev;
@@ -233,22 +235,25 @@ struct ibm_init_struct {
 
 static struct {
 #ifdef CONFIG_THINKPAD_ACPI_BAY
-	u16 bay_status:1;
-	u16 bay_eject:1;
-	u16 bay_status2:1;
-	u16 bay_eject2:1;
+	u32 bay_status:1;
+	u32 bay_eject:1;
+	u32 bay_status2:1;
+	u32 bay_eject2:1;
 #endif
-	u16 bluetooth:1;
-	u16 hotkey:1;
-	u16 hotkey_mask:1;
-	u16 hotkey_wlsw:1;
-	u16 light:1;
-	u16 light_status:1;
-	u16 wan:1;
-	u16 fan_ctrl_status_undef:1;
-	u16 input_device_registered:1;
-	u16 platform_drv_registered:1;
-	u16 platform_drv_attrs_registered:1;
+	u32 bluetooth:1;
+	u32 hotkey:1;
+	u32 hotkey_mask:1;
+	u32 hotkey_wlsw:1;
+	u32 light:1;
+	u32 light_status:1;
+	u32 wan:1;
+	u32 fan_ctrl_status_undef:1;
+	u32 input_device_registered:1;
+	u32 platform_drv_registered:1;
+	u32 platform_drv_attrs_registered:1;
+	u32 sensors_pdrv_registered:1;
+	u32 sensors_pdrv_attrs_registered:1;
+	u32 sensors_pdev_attrs_registered:1;
 } tp_features;
 
 struct thinkpad_id_data {

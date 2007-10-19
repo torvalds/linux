@@ -1,0 +1,166 @@
+/*
+ * ladder.c - the residency ladder algorithm
+ *
+ *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
+ *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
+ *  Copyright (C) 2004, 2005 Dominik Brodowski <linux@brodo.de>
+ *
+ * (C) 2006-2007 Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
+ *               Shaohua Li <shaohua.li@intel.com>
+ *               Adam Belay <abelay@novell.com>
+ *
+ * This code is licenced under the GPL.
+ */
+
+#include <linux/kernel.h>
+#include <linux/cpuidle.h>
+#include <linux/latency.h>
+#include <linux/moduleparam.h>
+#include <linux/jiffies.h>
+
+#include <asm/io.h>
+#include <asm/uaccess.h>
+
+#define PROMOTION_COUNT 4
+#define DEMOTION_COUNT 1
+
+struct ladder_device_state {
+	struct {
+		u32 promotion_count;
+		u32 demotion_count;
+		u32 promotion_time;
+		u32 demotion_time;
+	} threshold;
+	struct {
+		int promotion_count;
+		int demotion_count;
+	} stats;
+};
+
+struct ladder_device {
+	struct ladder_device_state states[CPUIDLE_STATE_MAX];
+	int last_state_idx;
+};
+
+static DEFINE_PER_CPU(struct ladder_device, ladder_devices);
+
+/**
+ * ladder_do_selection - prepares private data for a state change
+ * @ldev: the ladder device
+ * @old_idx: the current state index
+ * @new_idx: the new target state index
+ */
+static inline void ladder_do_selection(struct ladder_device *ldev,
+				       int old_idx, int new_idx)
+{
+	ldev->states[old_idx].stats.promotion_count = 0;
+	ldev->states[old_idx].stats.demotion_count = 0;
+	ldev->last_state_idx = new_idx;
+}
+
+/**
+ * ladder_select_state - selects the next state to enter
+ * @dev: the CPU
+ */
+static int ladder_select_state(struct cpuidle_device *dev)
+{
+	struct ladder_device *ldev = &__get_cpu_var(ladder_devices);
+	struct ladder_device_state *last_state;
+	int last_residency, last_idx = ldev->last_state_idx;
+
+	if (unlikely(!ldev))
+		return 0;
+
+	last_state = &ldev->states[last_idx];
+
+	if (dev->states[last_idx].flags & CPUIDLE_FLAG_TIME_VALID)
+		last_residency = cpuidle_get_last_residency(dev) - dev->states[last_idx].exit_latency;
+	else
+		last_residency = last_state->threshold.promotion_time + 1;
+
+	/* consider promotion */
+	if (last_idx < dev->state_count - 1 &&
+	    last_residency > last_state->threshold.promotion_time &&
+	    dev->states[last_idx + 1].exit_latency <= system_latency_constraint()) {
+		last_state->stats.promotion_count++;
+		last_state->stats.demotion_count = 0;
+		if (last_state->stats.promotion_count >= last_state->threshold.promotion_count) {
+			ladder_do_selection(ldev, last_idx, last_idx + 1);
+			return last_idx + 1;
+		}
+	}
+
+	/* consider demotion */
+	if (last_idx > 0 &&
+	    last_residency < last_state->threshold.demotion_time) {
+		last_state->stats.demotion_count++;
+		last_state->stats.promotion_count = 0;
+		if (last_state->stats.demotion_count >= last_state->threshold.demotion_count) {
+			ladder_do_selection(ldev, last_idx, last_idx - 1);
+			return last_idx - 1;
+		}
+	}
+
+	/* otherwise remain at the current state */
+	return last_idx;
+}
+
+/**
+ * ladder_enable_device - setup for the governor
+ * @dev: the CPU
+ */
+static int ladder_enable_device(struct cpuidle_device *dev)
+{
+	int i;
+	struct ladder_device *ldev = &per_cpu(ladder_devices, dev->cpu);
+	struct ladder_device_state *lstate;
+	struct cpuidle_state *state;
+
+	ldev->last_state_idx = 0;
+
+	for (i = 0; i < dev->state_count; i++) {
+		state = &dev->states[i];
+		lstate = &ldev->states[i];
+
+		lstate->stats.promotion_count = 0;
+		lstate->stats.demotion_count = 0;
+
+		lstate->threshold.promotion_count = PROMOTION_COUNT;
+		lstate->threshold.demotion_count = DEMOTION_COUNT;
+
+		if (i < dev->state_count - 1)
+			lstate->threshold.promotion_time = state->exit_latency;
+		if (i > 0)
+			lstate->threshold.demotion_time = state->exit_latency;
+	}
+
+	return 0;
+}
+
+static struct cpuidle_governor ladder_governor = {
+	.name =		"ladder",
+	.rating =	10,
+	.enable =	ladder_enable_device,
+	.select =	ladder_select_state,
+	.owner =	THIS_MODULE,
+};
+
+/**
+ * init_ladder - initializes the governor
+ */
+static int __init init_ladder(void)
+{
+	return cpuidle_register_governor(&ladder_governor);
+}
+
+/**
+ * exit_ladder - exits the governor
+ */
+static void __exit exit_ladder(void)
+{
+	cpuidle_unregister_governor(&ladder_governor);
+}
+
+MODULE_LICENSE("GPL");
+module_init(init_ladder);
+module_exit(exit_ladder);

@@ -189,32 +189,6 @@ extern int ec_transaction(u8 command,
 extern int acpi_blacklisted(void);
 extern void acpi_bios_year(char *s);
 
-#define	ACPI_CSTATE_LIMIT_DEFINED	/* for driver builds */
-#ifdef	CONFIG_ACPI
-
-/*
- * Set highest legal C-state
- * 0: C0 okay, but not C1
- * 1: C1 okay, but not C2
- * 2: C2 okay, but not C3 etc.
- */
-
-extern unsigned int max_cstate;
-
-static inline unsigned int acpi_get_cstate_limit(void)
-{
-	return max_cstate;
-}
-static inline void acpi_set_cstate_limit(unsigned int new_limit)
-{
-	max_cstate = new_limit;
-	return;
-}
-#else
-static inline unsigned int acpi_get_cstate_limit(void) { return 0; }
-static inline void acpi_set_cstate_limit(unsigned int new_limit) { return; }
-#endif
-
 #ifdef CONFIG_ACPI_NUMA
 int acpi_get_pxm(acpi_handle handle);
 int acpi_get_node(acpi_handle *handle);

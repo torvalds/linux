@@ -1858,14 +1858,6 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 
 	modify_acceptable_latency("ipw2100", INFINITE_LATENCY);
 
-#ifdef ACPI_CSTATE_LIMIT_DEFINED
-	if (priv->config & CFG_C3_DISABLED) {
-		IPW_DEBUG_INFO(": Resetting C3 transitions.\n");
-		acpi_set_cstate_limit(priv->cstate_limit);
-		priv->config &= ~CFG_C3_DISABLED;
-	}
-#endif
-
 	/* We have to signal any supplicant if we are disassociating */
 	if (associated)
 		wireless_send_event(priv->net_dev, SIOCGIWAP, &wrqu, NULL);
@@ -2090,14 +2082,6 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 
 	/* RF_KILL is now enabled (else we wouldn't be here) */
 	priv->status |= STATUS_RF_KILL_HW;
-
-#ifdef ACPI_CSTATE_LIMIT_DEFINED
-	if (priv->config & CFG_C3_DISABLED) {
-		IPW_DEBUG_INFO(": Resetting C3 transitions.\n");
-		acpi_set_cstate_limit(priv->cstate_limit);
-		priv->config &= ~CFG_C3_DISABLED;
-	}
-#endif
 
 	/* Make sure the RF Kill check timer is running */
 	priv->stop_rf_kill = 0;
@@ -2329,22 +2313,9 @@ static void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 	u32 match, reg;
 	int j;
 #endif
-#ifdef ACPI_CSTATE_LIMIT_DEFINED
-	int limit;
-#endif
 
 	IPW_DEBUG_INFO(": PCI latency error detected at 0x%04zX.\n",
 		       i * sizeof(struct ipw2100_status));
-
-#ifdef ACPI_CSTATE_LIMIT_DEFINED
-	IPW_DEBUG_INFO(": Disabling C3 transitions.\n");
-	limit = acpi_get_cstate_limit();
-	if (limit > 2) {
-		priv->cstate_limit = limit;
-		acpi_set_cstate_limit(2);
-		priv->config |= CFG_C3_DISABLED;
-	}
-#endif
 
 #ifdef IPW2100_DEBUG_C3
 	/* Halt the fimrware so we can get a good image */

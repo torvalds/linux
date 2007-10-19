@@ -111,6 +111,21 @@ config ASUS_LAPTOP
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
+config FUJITSU_LAPTOP
+        tristate "Fujitsu Laptop Extras"
+        depends on X86
+        depends on ACPI
+        depends on BACKLIGHT_CLASS_DEVICE
+        ---help---
+	  This is a driver for laptops built by Fujitsu:
+
+	    * P2xxx/P5xxx/S6xxx/S7xxx series Lifebooks
+	    * Possibly other Fujitsu laptop models
+
+	  It adds support for LCD brightness control.
+
+	  If you have a Fujitsu laptop, say Y or M here.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
@@ -134,6 +149,7 @@ config SONY_LAPTOP
 	tristate "Sony Laptop Extras"
 	depends on X86 && ACPI
 	select BACKLIGHT_CLASS_DEVICE
+	depends on INPUT
 	  ---help---
 	  This mini-driver drives the SNC and SPIC devices present in the ACPI
 	  BIOS of the Sony Vaio laptops.
@@ -156,6 +172,7 @@ config THINKPAD_ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
 	select NVRAM
+	depends on INPUT
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video

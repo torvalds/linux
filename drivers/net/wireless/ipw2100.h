@@ -479,7 +479,6 @@ enum {
 #define CFG_ASSOCIATE           (1<<6)
 #define CFG_FIXED_RATE          (1<<7)
 #define CFG_ADHOC_CREATE        (1<<8)
-#define CFG_C3_DISABLED         (1<<9)
 #define CFG_PASSIVE_SCAN        (1<<10)
 #ifdef CONFIG_IPW2100_MONITOR
 #define CFG_CRC_CHECK           (1<<11)
@@ -508,7 +507,6 @@ struct ipw2100_priv {
 	u8 bssid[ETH_ALEN];
 	u8 channel;
 	int last_mode;
-	int cstate_limit;
 
 	unsigned long connect_start;
 	unsigned long last_reset;

@@ -105,10 +105,15 @@ The version of thinkpad-acpi's sysfs interface is exported by the driver
 as a driver attribute (see below).
 
 Sysfs driver attributes are on the driver's sysfs attribute space,
-for 2.6.20 this is /sys/bus/platform/drivers/thinkpad_acpi/.
+for 2.6.23 this is /sys/bus/platform/drivers/thinkpad_acpi/ and
+/sys/bus/platform/drivers/thinkpad_hwmon/
 
-Sysfs device attributes are on the driver's sysfs attribute space,
-for 2.6.20 this is /sys/devices/platform/thinkpad_acpi/.
+Sysfs device attributes are on the thinkpad_acpi device sysfs attribute
+space, for 2.6.23 this is /sys/devices/platform/thinkpad_acpi/.
+
+Sysfs device attributes for the sensors and fan are on the
+thinkpad_hwmon device's sysfs attribute space, but you should locate it
+looking for a hwmon device with the name attribute of "thinkpad".
 
 Driver version
 --------------
@@ -766,7 +771,7 @@ Temperature sensors
 -------------------
 
 procfs: /proc/acpi/ibm/thermal
-sysfs device attributes: (hwmon) temp*_input
+sysfs device attributes: (hwmon "thinkpad") temp*_input
 
 Most ThinkPads include six or more separate temperature sensors but only
 expose the CPU temperature through the standard ACPI methods.  This
@@ -989,7 +994,9 @@ Fan control and monitoring: fan speed, fan enable/disable
 ---------------------------------------------------------
 
 procfs: /proc/acpi/ibm/fan
-sysfs device attributes: (hwmon) fan_input, pwm1, pwm1_enable
+sysfs device attributes: (hwmon "thinkpad") fan1_input, pwm1,
+			  pwm1_enable
+sysfs hwmon driver attributes: fan_watchdog
 
 NOTE NOTE NOTE: fan control operations are disabled by default for
 safety reasons.  To enable them, the module parameter "fan_control=1"
@@ -1131,7 +1138,7 @@ hwmon device attribute fan1_input:
 	which can take up to two minutes.  May return rubbish on older
 	ThinkPads.
 
-driver attribute fan_watchdog:
+hwmon driver attribute fan_watchdog:
 	Fan safety watchdog timer interval, in seconds.  Minimum is
 	1 second, maximum is 120 seconds.  0 disables the watchdog.
 
@@ -1233,3 +1240,9 @@ Sysfs interface changelog:
 		layer, the radio switch generates input event EV_RADIO,
 		and the driver enables hot key handling by default in
 		the firmware.
+
+0x020000:	ABI fix: added a separate hwmon platform device and
+		driver, which must be located by name (thinkpad)
+		and the hwmon class for libsensors4 (lm-sensors 3)
+		compatibility.  Moved all hwmon attributes to this
+		new platform device.

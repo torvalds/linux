@@ -88,7 +88,7 @@ config ACPI_PROC_EVENT
 
 config ACPI_AC
 	tristate "AC Adapter"
-	depends on X86
+	depends on X86 && POWER_SUPPLY
 	default y
 	help
 	  This driver adds support for the AC Adapter object, which indicates
@@ -97,7 +97,7 @@ config ACPI_AC
 
 config ACPI_BATTERY
 	tristate "Battery"
-	depends on X86
+	depends on X86 && POWER_SUPPLY
 	default y
 	help
 	  This driver adds support for battery information through
@@ -117,6 +117,7 @@ config ACPI_BUTTON
 config ACPI_VIDEO
 	tristate "Video"
 	depends on X86 && BACKLIGHT_CLASS_DEVICE && VIDEO_OUTPUT_CONTROL
+	depends on INPUT
 	help
 	  This driver implement the ACPI Extensions For Display Adapters
 	  for integrated graphics devices on motherboard, as specified in
@@ -349,12 +350,11 @@ config ACPI_HOTPLUG_MEMORY
 		$>modprobe acpi_memhotplug 
 
 config ACPI_SBS
-	tristate "Smart Battery System (EXPERIMENTAL)"
+	tristate "Smart Battery System"
 	depends on X86
-	depends on EXPERIMENTAL
+	depends on POWER_SUPPLY
 	help
-	  This driver adds support for the Smart Battery System.
-	  A "Smart Battery" is quite old and quite rare compared
-	  to today's ACPI "Control Method" battery.
+	  This driver adds support for the Smart Battery System, another
+	  type of access to battery information, found on some laptops.
 
 endif	# ACPI

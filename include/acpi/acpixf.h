@@ -314,6 +314,8 @@ acpi_resource_to_address64(struct acpi_resource *resource,
  */
 acpi_status acpi_get_register(u32 register_id, u32 * return_value);
 
+acpi_status acpi_get_register_unlocked(u32 register_id, u32 *return_value);
+
 acpi_status acpi_set_register(u32 register_id, u32 value);
 
 acpi_status

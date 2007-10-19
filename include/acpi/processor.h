@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/cpu.h>
+#include <linux/cpuidle.h>
 
 #include <asm/acpi.h>
 
@@ -75,7 +76,9 @@ struct acpi_processor_cx {
 };
 
 struct acpi_processor_power {
+	struct cpuidle_device dev;
 	struct acpi_processor_cx *state;
+	struct acpi_processor_cx *bm_state;
 	unsigned long bm_check_timestamp;
 	u32 default_state;
 	u32 bm_activity;
@@ -199,6 +202,7 @@ struct acpi_processor_flags {
 	u8 bm_check:1;
 	u8 has_cst:1;
 	u8 power_setup_done:1;
+	u8 bm_rld_set:1;
 };
 
 struct acpi_processor {
@@ -322,6 +326,7 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 			      struct acpi_device *device);
 int acpi_processor_suspend(struct acpi_device * device, pm_message_t state);
 int acpi_processor_resume(struct acpi_device * device);
+extern struct cpuidle_driver acpi_idle_driver;
 
 /* in processor_thermal.c */
 int acpi_processor_get_limit_info(struct acpi_processor *pr);

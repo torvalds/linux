@@ -121,6 +121,7 @@ static struct acpi_ec {
 	atomic_t event_count;
 	wait_queue_head_t wait;
 	struct list_head list;
+	u8 handlers_installed;
 } *boot_ec, *first_ec;
 
 /* --------------------------------------------------------------------------
@@ -425,7 +426,7 @@ int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 	handler->func = func;
 	handler->data = data;
 	mutex_lock(&ec->lock);
-	list_add_tail(&handler->node, &ec->list);
+	list_add(&handler->node, &ec->list);
 	mutex_unlock(&ec->lock);
 	return 0;
 }
@@ -440,7 +441,6 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit)
 		if (query_bit == handler->query_bit) {
 			list_del(&handler->node);
 			kfree(handler);
-			break;
 		}
 	}
 	mutex_unlock(&ec->lock);
@@ -680,20 +680,24 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	status = acpi_evaluate_integer(handle, "_GPE", NULL, &ec->gpe);
 	if (ACPI_FAILURE(status))
 		return status;
-
 	/* Find and register all query methods */
 	acpi_walk_namespace(ACPI_TYPE_METHOD, handle, 1,
 			    acpi_ec_register_query_methods, ec, NULL);
-
 	/* Use the global lock for all EC transactions? */
 	acpi_evaluate_integer(handle, "_GLK", NULL, &ec->global_lock);
-
 	ec->handle = handle;
-
-	printk(KERN_INFO PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
-			  ec->gpe, ec->command_addr, ec->data_addr);
-
 	return AE_CTRL_TERMINATE;
+}
+
+static void ec_remove_handlers(struct acpi_ec *ec)
+{
+	if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
+				ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
+		printk(KERN_ERR PREFIX "failed to remove space handler\n");
+	if (ACPI_FAILURE(acpi_remove_gpe_handler(NULL, ec->gpe,
+				&acpi_ec_gpe_handler)))
+		printk(KERN_ERR PREFIX "failed to remove gpe handler\n");
+	ec->handlers_installed = 0;
 }
 
 static int acpi_ec_add(struct acpi_device *device)
@@ -702,9 +706,23 @@ static int acpi_ec_add(struct acpi_device *device)
 
 	if (!device)
 		return -EINVAL;
-
 	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
+
+	/* Check for boot EC */
+	if (boot_ec) {
+		if (boot_ec->handle == device->handle) {
+			/* Pre-loaded EC from DSDT, just move pointer */
+			ec = boot_ec;
+			boot_ec = NULL;
+			goto end;
+		} else if (boot_ec->handle == ACPI_ROOT_OBJECT) {
+			/* ECDT-based EC, time to shut it down */
+			ec_remove_handlers(boot_ec);
+			kfree(boot_ec);
+			first_ec = boot_ec = NULL;
+		}
+	}
 
 	ec = make_acpi_ec();
 	if (!ec)
@@ -715,25 +733,14 @@ static int acpi_ec_add(struct acpi_device *device)
 		kfree(ec);
 		return -EINVAL;
 	}
-
-	/* Check if we found the boot EC */
-	if (boot_ec) {
-		if (boot_ec->gpe == ec->gpe) {
-			/* We might have incorrect info for GL at boot time */
-			mutex_lock(&boot_ec->lock);
-			boot_ec->global_lock = ec->global_lock;
-			/* Copy handlers from new ec into boot ec */
-			list_splice(&ec->list, &boot_ec->list);
-			mutex_unlock(&boot_ec->lock);
-			kfree(ec);
-			ec = boot_ec;
-		}
-	} else
-		first_ec = ec;
 	ec->handle = device->handle;
+      end:
+	if (!first_ec)
+		first_ec = ec;
 	acpi_driver_data(device) = ec;
-
 	acpi_ec_add_fs(device);
+	printk(KERN_INFO PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
+			  ec->gpe, ec->command_addr, ec->data_addr);
 	return 0;
 }
 
@@ -756,10 +763,7 @@ static int acpi_ec_remove(struct acpi_device *device, int type)
 	acpi_driver_data(device) = NULL;
 	if (ec == first_ec)
 		first_ec = NULL;
-
-	/* Don't touch boot EC */
-	if (boot_ec != ec)
-		kfree(ec);
+	kfree(ec);
 	return 0;
 }
 
@@ -789,6 +793,8 @@ ec_parse_io_ports(struct acpi_resource *resource, void *context)
 static int ec_install_handlers(struct acpi_ec *ec)
 {
 	acpi_status status;
+	if (ec->handlers_installed)
+		return 0;
 	status = acpi_install_gpe_handler(NULL, ec->gpe,
 					  ACPI_GPE_EDGE_TRIGGERED,
 					  &acpi_ec_gpe_handler, ec);
@@ -807,6 +813,7 @@ static int ec_install_handlers(struct acpi_ec *ec)
 		return -ENODEV;
 	}
 
+	ec->handlers_installed = 1;
 	return 0;
 }
 
@@ -823,41 +830,22 @@ static int acpi_ec_start(struct acpi_device *device)
 	if (!ec)
 		return -EINVAL;
 
-	/* Boot EC is already working */
-	if (ec != boot_ec)
-		ret = ec_install_handlers(ec);
+	ret = ec_install_handlers(ec);
 
 	/* EC is fully operational, allow queries */
 	atomic_set(&ec->query_pending, 0);
-
 	return ret;
 }
 
 static int acpi_ec_stop(struct acpi_device *device, int type)
 {
-	acpi_status status;
 	struct acpi_ec *ec;
-
 	if (!device)
 		return -EINVAL;
-
 	ec = acpi_driver_data(device);
 	if (!ec)
 		return -EINVAL;
-
-	/* Don't touch boot EC */
-	if (ec == boot_ec)
-		return 0;
-
-	status = acpi_remove_address_space_handler(ec->handle,
-						   ACPI_ADR_SPACE_EC,
-						   &acpi_ec_space_handler);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	status = acpi_remove_gpe_handler(NULL, ec->gpe, &acpi_ec_gpe_handler);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
+	ec_remove_handlers(ec);
 
 	return 0;
 }
@@ -877,7 +865,7 @@ int __init acpi_ec_ecdt_probe(void)
 	status = acpi_get_table(ACPI_SIG_ECDT, 1,
 				(struct acpi_table_header **)&ecdt_ptr);
 	if (ACPI_SUCCESS(status)) {
-		printk(KERN_INFO PREFIX "EC description table is found, configuring boot EC\n\n");
+		printk(KERN_INFO PREFIX "EC description table is found, configuring boot EC\n");
 		boot_ec->command_addr = ecdt_ptr->control.address;
 		boot_ec->data_addr = ecdt_ptr->data.address;
 		boot_ec->gpe = ecdt_ptr->gpe;
@@ -899,7 +887,6 @@ int __init acpi_ec_ecdt_probe(void)
       error:
 	kfree(boot_ec);
 	boot_ec = NULL;
-
 	return -ENODEV;
 }
 

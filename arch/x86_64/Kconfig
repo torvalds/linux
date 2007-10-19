@@ -725,6 +725,8 @@ source "drivers/acpi/Kconfig"
 
 source "arch/x86/kernel/cpufreq/Kconfig"
 
+source "drivers/cpuidle/Kconfig"
+
 endmenu
 
 menu "Bus options (PCI etc.)"
