@@ -86,7 +86,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
-static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
+static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 {
 	int cpu;
 	cpumask_t tmp_map;
@@ -123,7 +123,18 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 		cpu = 0;
  	}
 	bios_cpu_apicid[cpu] = m->mpc_apicid;
-	x86_cpu_to_apicid[cpu] = m->mpc_apicid;
+	/*
+	 * We get called early in the the start_kernel initialization
+	 * process when the per_cpu data area is not yet setup, so we
+	 * use a static array that is removed after the per_cpu data
+	 * area is created.
+	 */
+	if (x86_cpu_to_apicid_ptr) {
+		u8 *x86_cpu_to_apicid = (u8 *)x86_cpu_to_apicid_ptr;
+		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
+	} else {
+		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
+	}
 
 	cpu_set(cpu, cpu_possible_map);
 	cpu_set(cpu, cpu_present_map);

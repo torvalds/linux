@@ -271,6 +271,11 @@ void __init setup_arch(char **cmdline_p)
 
 	dmi_scan_machine();
 
+#ifdef CONFIG_SMP
+	/* setup to use the static apicid table during kernel startup */
+	x86_cpu_to_apicid_ptr = (void *)&x86_cpu_to_apicid_init;
+#endif
+
 #ifdef CONFIG_ACPI
 	/*
 	 * Initialize the ACPI boot-time table parser (gets the RSDP and SDT).

@@ -92,9 +92,17 @@ static cpumask_t smp_commenced_mask;
 struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
 EXPORT_SYMBOL(cpu_data);
 
-u8 x86_cpu_to_apicid[NR_CPUS] __read_mostly =
-			{ [0 ... NR_CPUS-1] = 0xff };
-EXPORT_SYMBOL(x86_cpu_to_apicid);
+/*
+ * The following static array is used during kernel startup
+ * and the x86_cpu_to_apicid_ptr contains the address of the
+ * array during this time.  Is it zeroed when the per_cpu
+ * data area is removed.
+ */
+u8 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
+			{ [0 ... NR_CPUS-1] = BAD_APICID };
+void *x86_cpu_to_apicid_ptr;
+DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
 u8 apicid_2_node[MAX_APICID];
 
@@ -804,7 +812,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 
 	irq_ctx_init(cpu);
 
-	x86_cpu_to_apicid[cpu] = apicid;
+	per_cpu(x86_cpu_to_apicid, cpu) = apicid;
 	/*
 	 * This grunge runs the startup process for
 	 * the targeted processor.
@@ -866,7 +874,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
 		cpucount--;
 	} else {
-		x86_cpu_to_apicid[cpu] = apicid;
+		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
 		cpu_set(cpu, cpu_present_map);
 	}
 
@@ -915,7 +923,7 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	struct warm_boot_cpu_info info;
 	int	apicid, ret;
 
-	apicid = x86_cpu_to_apicid[cpu];
+	apicid = per_cpu(x86_cpu_to_apicid, cpu);
 	if (apicid == BAD_APICID) {
 		ret = -ENODEV;
 		goto exit;
@@ -965,7 +973,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
 	boot_cpu_logical_apicid = logical_smp_processor_id();
-	x86_cpu_to_apicid[0] = boot_cpu_physical_apicid;
+	per_cpu(x86_cpu_to_apicid, 0) = boot_cpu_physical_apicid;
 
 	current_thread_info()->cpu = 0;
 

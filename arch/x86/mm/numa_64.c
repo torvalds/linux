@@ -612,7 +612,7 @@ void __init init_cpu_to_node(void)
 {
 	int i;
  	for (i = 0; i < NR_CPUS; i++) {
-		u8 apicid = x86_cpu_to_apicid[i];
+		u8 apicid = x86_cpu_to_apicid_init[i];
 		if (apicid == BAD_APICID)
 			continue;
 		if (apicid_to_node[apicid] == NUMA_NO_NODE)

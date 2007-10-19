@@ -119,7 +119,7 @@ static inline void send_IPI_mask_sequence(cpumask_t mask, int vector)
 	 */
 	local_irq_save(flags);
 	for_each_cpu_mask(query_cpu, mask) {
-		__send_IPI_dest_field(x86_cpu_to_apicid[query_cpu],
+		__send_IPI_dest_field(per_cpu(x86_cpu_to_apicid, query_cpu),
 				      vector, APIC_DEST_PHYSICAL);
 	}
 	local_irq_restore(flags);

@@ -86,7 +86,9 @@ static inline int hard_smp_processor_id(void)
  * Some lowlevel functions might want to know about
  * the real APIC ID <-> CPU # mapping.
  */
-extern u8 x86_cpu_to_apicid[NR_CPUS];	/* physical ID */
+extern u8 __initdata x86_cpu_to_apicid_init[];
+extern void *x86_cpu_to_apicid_ptr;
+DECLARE_PER_CPU(u8, x86_cpu_to_apicid);	/* physical ID */
 extern u8 bios_cpu_apicid[];
 
 static inline int cpu_present_to_apicid(int mps_cpu)
@@ -117,7 +119,7 @@ static __inline int logical_smp_processor_id(void)
 }
 
 #ifdef CONFIG_SMP
-#define cpu_physical_id(cpu)		x86_cpu_to_apicid[cpu]
+#define cpu_physical_id(cpu)		per_cpu(x86_cpu_to_apicid, cpu)
 #else
 #define cpu_physical_id(cpu)		boot_cpu_id
 #endif /* !CONFIG_SMP */

@@ -694,7 +694,7 @@ do_rest:
 		clear_node_cpumask(cpu); /* was set by numa_add_cpu */
 		cpu_clear(cpu, cpu_present_map);
 		cpu_clear(cpu, cpu_possible_map);
-		x86_cpu_to_apicid[cpu] = BAD_APICID;
+		per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
 		return -EIO;
 	}
 
@@ -841,6 +841,26 @@ static int __init smp_sanity_check(unsigned max_cpus)
 }
 
 /*
+ * Copy apicid's found by MP_processor_info from initial array to the per cpu
+ * data area.  The x86_cpu_to_apicid_init array is then expendable and the
+ * x86_cpu_to_apicid_ptr is zeroed indicating that the static array is no
+ * longer available.
+ */
+void __init smp_set_apicids(void)
+{
+	int cpu;
+
+	for_each_cpu_mask(cpu, cpu_possible_map) {
+		if (per_cpu_offset(cpu))
+			per_cpu(x86_cpu_to_apicid, cpu) =
+						x86_cpu_to_apicid_init[cpu];
+	}
+
+	/* indicate the static array will be going away soon */
+	x86_cpu_to_apicid_ptr = NULL;
+}
+
+/*
  * Prepare for SMP bootup.  The MP table or ACPI has been read
  * earlier.  Just do some sanity checking here and enable APIC mode.
  */
@@ -849,6 +869,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	nmi_watchdog_default();
 	current_cpu_data = boot_cpu_data;
 	current_thread_info()->cpu = 0;  /* needed? */
+	smp_set_apicids();
 	set_cpu_sibling_map(0);
 
 	if (smp_sanity_check(max_cpus) < 0) {

@@ -676,7 +676,7 @@ static int convert_apicid_to_cpu(int apic_id)
 	int i;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (x86_cpu_to_apicid[i] == apic_id)
+		if (per_cpu(x86_cpu_to_apicid, i) == apic_id)
 			return i;
 	}
 	return -1;
