@@ -483,7 +483,7 @@ bad_area_nosemaphore:
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit()) {
 			printk(
-		       "%s%s[%d]: segfault at %016lx rip %016lx rsp %016lx error %lx\n",
+		       "%s%s[%d]: segfault at %lx rip %lx rsp %lx error %lx\n",
 					tsk->pid > 1 ? KERN_INFO : KERN_EMERG,
 					tsk->comm, tsk->pid, address, regs->rip,
 					regs->rsp, error_code);
