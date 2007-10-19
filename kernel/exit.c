@@ -669,8 +669,7 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 static void
 forget_original_parent(struct task_struct *father, struct list_head *to_release)
 {
-	struct task_struct *p, *reaper = father;
-	struct list_head *_p, *_n;
+	struct task_struct *p, *n, *reaper = father;
 
 	do {
 		reaper = next_thread(reaper);
@@ -688,9 +687,8 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 	 *
 	 * Search them and reparent children.
 	 */
-	list_for_each_safe(_p, _n, &father->children) {
+	list_for_each_entry_safe(p, n, &father->children, sibling) {
 		int ptrace;
-		p = list_entry(_p, struct task_struct, sibling);
 
 		ptrace = p->ptrace;
 
@@ -718,8 +716,7 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 		if (unlikely(ptrace && p->exit_state == EXIT_ZOMBIE && p->exit_signal == -1))
 			list_add(&p->ptrace_list, to_release);
 	}
-	list_for_each_safe(_p, _n, &father->ptrace_children) {
-		p = list_entry(_p, struct task_struct, ptrace_list);
+	list_for_each_entry_safe(p, n, &father->ptrace_children, ptrace_list) {
 		p->real_parent = reaper;
 		reparent_thread(p, father, 1);
 	}
@@ -1518,12 +1515,9 @@ repeat:
 	tsk = current;
 	do {
 		struct task_struct *p;
-		struct list_head *_p;
 		int ret;
 
-		list_for_each(_p,&tsk->children) {
-			p = list_entry(_p, struct task_struct, sibling);
-
+		list_for_each_entry(p, &tsk->children, sibling) {
 			ret = eligible_child(pid, options, p);
 			if (!ret)
 				continue;
@@ -1605,9 +1599,8 @@ check_continued:
 			}
 		}
 		if (!flag) {
-			list_for_each(_p, &tsk->ptrace_children) {
-				p = list_entry(_p, struct task_struct,
-						ptrace_list);
+			list_for_each_entry(p, &tsk->ptrace_children,
+					    ptrace_list) {
 				if (!eligible_child(pid, options, p))
 					continue;
 				flag = 1;
