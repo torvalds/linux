@@ -184,9 +184,7 @@ static struct kobj_type btrfs_super_ktype = {
 	.release	= btrfs_super_release,
 };
 
-static struct kset btrfs_kset = {
-	.kobj	= {.name = "btrfs"},
-};
+static struct kset btrfs_kset;
 
 int btrfs_sysfs_add_super(struct btrfs_fs_info *fs)
 {
@@ -249,6 +247,7 @@ void btrfs_sysfs_del_super(struct btrfs_fs_info *fs)
 int btrfs_init_sysfs()
 {
 	kobj_set_kset_s(&btrfs_kset, fs_subsys);
+	kobject_set_name(&btrfs_kset.kobj, "btrfs");
 	return kset_register(&btrfs_kset);
 }
 
