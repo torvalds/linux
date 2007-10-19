@@ -1623,11 +1623,6 @@ static struct vm_operations_struct packet_mmap_ops = {
 	.close =packet_mm_close,
 };
 
-static inline struct page *pg_vec_endpage(char *one_pg_vec, unsigned int order)
-{
-	return virt_to_page(one_pg_vec + (PAGE_SIZE << order) - 1);
-}
-
 static void free_pg_vec(char **pg_vec, unsigned int order, unsigned int len)
 {
 	int i;

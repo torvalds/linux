@@ -93,7 +93,7 @@ int inet_csk_get_port(struct inet_hashinfo *hashinfo,
 		int remaining, rover, low, high;
 
 		inet_get_local_port_range(&low, &high);
-		remaining = high - low;
+		remaining = (high - low) + 1;
 		rover = net_random() % remaining + low;
 
 		do {

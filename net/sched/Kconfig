@@ -2,9 +2,7 @@
 # Traffic control configuration.
 # 
 
-menu "QoS and/or fair queueing"
-
-config NET_SCHED
+menuconfig NET_SCHED
 	bool "QoS and/or fair queueing"
 	select NET_SCH_FIFO
 	---help---
@@ -40,9 +38,6 @@ config NET_SCHED
 
 	  The available schedulers are listed in the following questions; you
 	  can say Y to as many as you like. If unsure, say N now.
-
-config NET_SCH_FIFO
-	bool
 
 if NET_SCHED
 
@@ -500,4 +495,5 @@ config NET_CLS_IND
 
 endif # NET_SCHED
 
-endmenu
+config NET_SCH_FIFO
+	bool
