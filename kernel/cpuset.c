@@ -488,6 +488,14 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
 			return -EINVAL;
 	}
 
+	/* Cpusets with tasks can't have empty cpus_allowed or mems_allowed */
+	if (cgroup_task_count(cur->css.cgroup)) {
+		if (cpus_empty(trial->cpus_allowed) ||
+		    nodes_empty(trial->mems_allowed)) {
+			return -ENOSPC;
+		}
+	}
+
 	return 0;
 }
 
@@ -710,11 +718,13 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 	trialcs = *cs;
 
 	/*
-	 * We allow a cpuset's cpus_allowed to be empty; if it has attached
-	 * tasks, we'll catch it later when we validate the change and return
-	 * -ENOSPC.
+	 * An empty cpus_allowed is ok iff there are no tasks in the cpuset.
+	 * Since cpulist_parse() fails on an empty mask, we special case
+	 * that parsing.  The validate_change() call ensures that cpusets
+	 * with tasks have cpus.
 	 */
-	if (!buf[0] || (buf[0] == '\n' && !buf[1])) {
+	buf = strstrip(buf);
+	if (!*buf) {
 		cpus_clear(trialcs.cpus_allowed);
 	} else {
 		retval = cpulist_parse(buf, trialcs.cpus_allowed);
@@ -722,10 +732,6 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 			return retval;
 	}
 	cpus_and(trialcs.cpus_allowed, trialcs.cpus_allowed, cpu_online_map);
-	/* cpus_allowed cannot be empty for a cpuset with attached tasks. */
-	if (cgroup_task_count(cs->css.cgroup) &&
-	    cpus_empty(trialcs.cpus_allowed))
-		return -ENOSPC;
 	retval = validate_change(cs, &trialcs);
 	if (retval < 0)
 		return retval;
@@ -830,40 +836,24 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	trialcs = *cs;
 
 	/*
-	 * We allow a cpuset's mems_allowed to be empty; if it has attached
-	 * tasks, we'll catch it later when we validate the change and return
-	 * -ENOSPC.
+	 * An empty mems_allowed is ok iff there are no tasks in the cpuset.
+	 * Since nodelist_parse() fails on an empty mask, we special case
+	 * that parsing.  The validate_change() call ensures that cpusets
+	 * with tasks have memory.
 	 */
-	if (!buf[0] || (buf[0] == '\n' && !buf[1])) {
+	buf = strstrip(buf);
+	if (!*buf) {
 		nodes_clear(trialcs.mems_allowed);
 	} else {
 		retval = nodelist_parse(buf, trialcs.mems_allowed);
 		if (retval < 0)
 			goto done;
-		if (!nodes_intersects(trialcs.mems_allowed,
-						node_states[N_HIGH_MEMORY])) {
-			/*
-			 * error if only memoryless nodes specified.
-			 */
-			retval = -ENOSPC;
-			goto done;
-		}
 	}
-	/*
-	 * Exclude memoryless nodes.  We know that trialcs.mems_allowed
-	 * contains at least one node with memory.
-	 */
 	nodes_and(trialcs.mems_allowed, trialcs.mems_allowed,
 						node_states[N_HIGH_MEMORY]);
 	oldmem = cs->mems_allowed;
 	if (nodes_equal(oldmem, trialcs.mems_allowed)) {
 		retval = 0;		/* Too easy - nothing to do */
-		goto done;
-	}
-	/* mems_allowed cannot be empty for a cpuset with attached tasks. */
-	if (cgroup_task_count(cs->css.cgroup) &&
-	    nodes_empty(trialcs.mems_allowed)) {
-		retval = -ENOSPC;
 		goto done;
 	}
 	retval = validate_change(cs, &trialcs);
