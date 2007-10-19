@@ -138,7 +138,7 @@ alcor_init_irq(void)
 
 	for (i = 16; i < 48; ++i) {
 		/* On Alcor, at least, lines 20..30 are not connected
-		   and can generate spurrious interrupts if we turn them
+		   and can generate spurious interrupts if we turn them
 		   on while IRQ probing.  */
 		if (i >= 16+20 && i <= 16+30)
 			continue;

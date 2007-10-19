@@ -235,7 +235,7 @@ callback_init(void * kernel_end)
 			unsigned long pfn = crb->map[i].pa >> PAGE_SHIFT;
 			crb->map[i].va = vaddr;
 			for (j = 0; j < crb->map[i].count; ++j) {
-				/* Newer console's (especially on larger
+				/* Newer consoles (especially on larger
 				   systems) may require more pages of
 				   PTEs. Grab additional pages as needed. */
 				if (pmd != pmd_offset(pgd, vaddr)) {

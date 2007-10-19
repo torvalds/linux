@@ -591,7 +591,7 @@ privateer_process_680_frame(struct el_common *mchk_header, int print)
 		(struct el_PRIVATEER_envdata_mcheck *)
 		((unsigned long)mchk_header + mchk_header->sys_offset);
 
-	/* TODO - catagorize errors, for now, no error */
+	/* TODO - categorize errors, for now, no error */
 
 	if (!print)
 		return status;
