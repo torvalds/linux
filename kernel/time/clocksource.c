@@ -207,15 +207,12 @@ static inline void clocksource_resume_watchdog(void) { }
  */
 void clocksource_resume(void)
 {
-	struct list_head *tmp;
+	struct clocksource *cs;
 	unsigned long flags;
 
 	spin_lock_irqsave(&clocksource_lock, flags);
 
-	list_for_each(tmp, &clocksource_list) {
-		struct clocksource *cs;
-
-		cs = list_entry(tmp, struct clocksource, list);
+	list_for_each_entry(cs, &clocksource_list, list) {
 		if (cs->resume)
 			cs->resume();
 	}
@@ -369,7 +366,6 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 					  const char *buf, size_t count)
 {
 	struct clocksource *ovr = NULL;
-	struct list_head *tmp;
 	size_t ret = count;
 	int len;
 
@@ -389,12 +385,11 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 
 	len = strlen(override_name);
 	if (len) {
+		struct clocksource *cs;
+
 		ovr = clocksource_override;
 		/* try to select it: */
-		list_for_each(tmp, &clocksource_list) {
-			struct clocksource *cs;
-
-			cs = list_entry(tmp, struct clocksource, list);
+		list_for_each_entry(cs, &clocksource_list, list) {
 			if (strlen(cs->name) == len &&
 			    !strcmp(cs->name, override_name))
 				ovr = cs;
@@ -422,14 +417,11 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 static ssize_t
 sysfs_show_available_clocksources(struct sys_device *dev, char *buf)
 {
-	struct list_head *tmp;
+	struct clocksource *src;
 	char *curr = buf;
 
 	spin_lock_irq(&clocksource_lock);
-	list_for_each(tmp, &clocksource_list) {
-		struct clocksource *src;
-
-		src = list_entry(tmp, struct clocksource, list);
+	list_for_each_entry(src, &clocksource_list, list) {
 		curr += sprintf(curr, "%s ", src->name);
 	}
 	spin_unlock_irq(&clocksource_lock);
