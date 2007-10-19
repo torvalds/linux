@@ -175,7 +175,8 @@ EXPORT_SYMBOL(vfree);
 void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 {
 	/*
-	 * kmalloc doesn't like __GFP_HIGHMEM for some reason
+	 *  You can't specify __GFP_HIGHMEM with kmalloc() since kmalloc()
+	 * returns only a logical address.
 	 */
 	return kmalloc(size, (gfp_mask | __GFP_COMP) & ~__GFP_HIGHMEM);
 }
