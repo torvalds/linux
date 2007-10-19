@@ -169,7 +169,7 @@ void dump_pagetable(unsigned long address)
 	pmd = pmd_offset(pud, address);
 	if (bad_address(pmd)) goto bad;
 	printk("PMD %lx ", pmd_val(*pmd));
-	if (!pmd_present(*pmd))	goto ret;	 
+	if (!pmd_present(*pmd) || pmd_large(*pmd)) goto ret;
 
 	pte = pte_offset_kernel(pmd, address);
 	if (bad_address(pte)) goto bad;

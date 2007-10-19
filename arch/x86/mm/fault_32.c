@@ -564,7 +564,8 @@ no_context:
 		 * it's allocated already.
 		 */
 		if ((page >> PAGE_SHIFT) < max_low_pfn
-		    && (page & _PAGE_PRESENT)) {
+		    && (page & _PAGE_PRESENT)
+		    && !(page & _PAGE_PSE)) {
 			page &= PAGE_MASK;
 			page = ((__typeof__(page) *) __va(page))[(address >> PAGE_SHIFT)
 			                                         & (PTRS_PER_PTE - 1)];
