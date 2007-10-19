@@ -35,7 +35,7 @@ static void line_timer_cb(struct work_struct *work)
 /*
  * Returns the free space inside the ring buffer of this line.
  *
- * Should be called while holding line->lock (this does not modify datas).
+ * Should be called while holding line->lock (this does not modify data).
  */
 static int write_room(struct line *line)
 {

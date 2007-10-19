@@ -326,7 +326,7 @@ int deactivate_all_fds(void)
 }
 
 /*
- * do_IRQ handles all normal device IRQ's (the special
+ * do_IRQ handles all normal device IRQs (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
