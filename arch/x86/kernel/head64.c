@@ -58,7 +58,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	for (i = 0; i < IDT_ENTRIES; i++)
 		set_intr_gate(i, early_idt_handler);
-	asm volatile("lidt %0" :: "m" (idt_descr));
+	load_idt((const struct desc_ptr *)&idt_descr);
 
 	early_printk("Kernel alive\n");
 
