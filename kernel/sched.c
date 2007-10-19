@@ -3310,7 +3310,6 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 /*
  * Account user cpu time to a process.
  * @p: the process that the cpu time gets accounted to
- * @hardirq_offset: the offset to subtract from hardirq_count()
  * @cputime: the cpu time spent in user space since the last update
  */
 void account_user_time(struct task_struct *p, cputime_t cputime)
