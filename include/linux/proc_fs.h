@@ -207,7 +207,9 @@ extern void proc_net_remove(struct net *net, const char *name);
 #define proc_net_create(net, name, mode, info)	({ (void)(mode), NULL; })
 static inline void proc_net_remove(struct net *net, const char *name) {}
 
-static inline void proc_flush_task(struct task_struct *task) { }
+static inline void proc_flush_task(struct task_struct *task)
+{
+}
 
 static inline struct proc_dir_entry *create_proc_entry(const char *name,
 	mode_t mode, struct proc_dir_entry *parent) { return NULL; }

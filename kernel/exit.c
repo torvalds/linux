@@ -148,6 +148,7 @@ void release_task(struct task_struct * p)
 	int zap_leader;
 repeat:
 	atomic_dec(&p->user->processes);
+	proc_flush_task(p);
 	write_lock_irq(&tasklist_lock);
 	ptrace_unlink(p);
 	BUG_ON(!list_empty(&p->ptrace_list) || !list_empty(&p->ptrace_children));
@@ -175,7 +176,6 @@ repeat:
 	}
 
 	write_unlock_irq(&tasklist_lock);
-	proc_flush_task(p);
 	release_thread(p);
 	call_rcu(&p->rcu, delayed_put_task_struct);
 
