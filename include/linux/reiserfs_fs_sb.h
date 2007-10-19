@@ -265,9 +265,7 @@ enum journal_state_bits {
 typedef __u32(*hashf_t) (const signed char *, int);
 
 struct reiserfs_bitmap_info {
-	// FIXME: Won't work with block sizes > 8K
-	__u16 first_zero_hint;
-	__u16 free_count;
+	__u32 free_count;
 };
 
 struct proc_dir_entry;

@@ -143,7 +143,6 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 			mark_buffer_dirty(bh);
 			sync_dirty_buffer(bh);
 			// update bitmap_info stuff
-			bitmap[i].first_zero_hint = 1;
 			bitmap[i].free_count = sb_blocksize(sb) * 8 - 1;
 			brelse(bh);
 		}
@@ -173,8 +172,6 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	for (i = block_r; i < s->s_blocksize * 8; i++)
 		reiserfs_test_and_clear_le_bit(i, bh->b_data);
 	info->free_count += s->s_blocksize * 8 - block_r;
-	if (!info->first_zero_hint)
-		info->first_zero_hint = block_r;
 
 	journal_mark_dirty(&th, s, bh);
 	brelse(bh);
@@ -196,9 +193,6 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	brelse(bh);
 
 	info->free_count -= s->s_blocksize * 8 - block_r_new;
-	/* Extreme case where last bitmap is the only valid block in itself. */
-	if (!info->free_count)
-		info->first_zero_hint = 0;
 	/* update super */
 	reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
 	free_blocks = SB_FREE_BLOCKS(s);

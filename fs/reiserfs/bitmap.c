@@ -273,7 +273,7 @@ static inline int block_group_used(struct super_block *s, u32 id)
 	 * to make a better decision. This favors long-term performace gain
 	 * with a better on-disk layout vs. a short term gain of skipping the
 	 * read and potentially having a bad placement. */
-	if (info->first_zero_hint == 0) {
+	if (info->free_count == UINT_MAX) {
 		struct buffer_head *bh = reiserfs_read_bitmap_block(s, bm);
 		brelse(bh);
 	}
@@ -1214,27 +1214,22 @@ void reiserfs_cache_bitmap_metadata(struct super_block *sb,
 {
 	unsigned long *cur = (unsigned long *)(bh->b_data + bh->b_size);
 
-	info->first_zero_hint = 1 << (sb->s_blocksize_bits + 3);
+	/* The first bit must ALWAYS be 1 */
+	BUG_ON(!reiserfs_test_le_bit(0, (unsigned long *)bh->b_data));
+
+	info->free_count = 0;
 
 	while (--cur >= (unsigned long *)bh->b_data) {
-		int base = ((char *)cur - bh->b_data) << 3;
+		int i;
 
 		/* 0 and ~0 are special, we can optimize for them */
-		if (*cur == 0) {
-			info->first_zero_hint = base;
+		if (*cur == 0)
 			info->free_count += BITS_PER_LONG;
-		} else if (*cur != ~0L) {       /* A mix, investigate */
-			int b;
-			for (b = BITS_PER_LONG - 1; b >= 0; b--) {
-				if (!reiserfs_test_le_bit(b, cur)) {
-					info->first_zero_hint = base + b;
+		else if (*cur != ~0L)	/* A mix, investigate */
+			for (i = BITS_PER_LONG - 1; i >= 0; i--)
+				if (!reiserfs_test_le_bit(i, cur))
 					info->free_count++;
-				}
-			}
-		}
 	}
-	/* The first bit must ALWAYS be 1 */
-	BUG_ON(info->first_zero_hint == 0);
 }
 
 struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
@@ -1264,7 +1259,7 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 		BUG_ON(!buffer_uptodate(bh));
 		BUG_ON(atomic_read(&bh->b_count) == 0);
 
-		if (info->first_zero_hint == 0)
+		if (info->free_count == UINT_MAX)
 			reiserfs_cache_bitmap_metadata(sb, bh, info);
 	}
 
@@ -1279,7 +1274,7 @@ int reiserfs_init_bitmap_cache(struct super_block *sb)
 	if (bitmap == NULL)
 		return -ENOMEM;
 
-	memset(bitmap, 0, sizeof (*bitmap) * SB_BMAP_NR(sb));
+	memset(bitmap, 0xff, sizeof(*bitmap) * SB_BMAP_NR(sb));
 
 	SB_AP_BITMAP(sb) = bitmap;
 
