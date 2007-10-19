@@ -66,9 +66,6 @@ struct msg_sender {
 #define SEARCH_NOTEQUAL		3
 #define SEARCH_LESSEQUAL	4
 
-static atomic_t msg_bytes =	ATOMIC_INIT(0);
-static atomic_t msg_hdrs =	ATOMIC_INIT(0);
-
 static struct ipc_ids init_msg_ids;
 
 #define msg_ids(ns)	(*((ns)->ids[IPC_MSG_IDS]))
@@ -88,6 +85,8 @@ static void __msg_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
 	ns->msg_ctlmax = MSGMAX;
 	ns->msg_ctlmnb = MSGMNB;
 	ns->msg_ctlmni = MSGMNI;
+	atomic_set(&ns->msg_bytes, 0);
+	atomic_set(&ns->msg_hdrs, 0);
 	ipc_init_ids(ids);
 }
 
@@ -293,10 +292,10 @@ static void freeque(struct ipc_namespace *ns, struct msg_queue *msq)
 		struct msg_msg *msg = list_entry(tmp, struct msg_msg, m_list);
 
 		tmp = tmp->next;
-		atomic_dec(&msg_hdrs);
+		atomic_dec(&ns->msg_hdrs);
 		free_msg(msg);
 	}
-	atomic_sub(msq->q_cbytes, &msg_bytes);
+	atomic_sub(msq->q_cbytes, &ns->msg_bytes);
 	security_msg_queue_free(msq);
 	ipc_rcu_putref(msq);
 }
@@ -463,8 +462,8 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 		down_read(&msg_ids(ns).rw_mutex);
 		if (cmd == MSG_INFO) {
 			msginfo.msgpool = msg_ids(ns).in_use;
-			msginfo.msgmap = atomic_read(&msg_hdrs);
-			msginfo.msgtql = atomic_read(&msg_bytes);
+			msginfo.msgmap = atomic_read(&ns->msg_hdrs);
+			msginfo.msgtql = atomic_read(&ns->msg_bytes);
 		} else {
 			msginfo.msgmap = MSGMAP;
 			msginfo.msgpool = MSGPOOL;
@@ -735,8 +734,8 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		list_add_tail(&msg->m_list, &msq->q_messages);
 		msq->q_cbytes += msgsz;
 		msq->q_qnum++;
-		atomic_add(msgsz, &msg_bytes);
-		atomic_inc(&msg_hdrs);
+		atomic_add(msgsz, &ns->msg_bytes);
+		atomic_inc(&ns->msg_hdrs);
 	}
 
 	err = 0;
@@ -840,8 +839,8 @@ long do_msgrcv(int msqid, long *pmtype, void __user *mtext,
 			msq->q_rtime = get_seconds();
 			msq->q_lrpid = task_tgid_vnr(current);
 			msq->q_cbytes -= msg->m_ts;
-			atomic_sub(msg->m_ts, &msg_bytes);
-			atomic_dec(&msg_hdrs);
+			atomic_sub(msg->m_ts, &ns->msg_bytes);
+			atomic_dec(&ns->msg_hdrs);
 			ss_wakeup(&msq->q_senders, 0);
 			msg_unlock(msq);
 			break;

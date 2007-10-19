@@ -111,6 +111,8 @@ struct ipc_namespace {
 	int		msg_ctlmax;
 	int		msg_ctlmnb;
 	int		msg_ctlmni;
+	atomic_t	msg_bytes;
+	atomic_t	msg_hdrs;
 
 	size_t		shm_ctlmax;
 	size_t		shm_ctlall;
