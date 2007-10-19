@@ -24,13 +24,11 @@ rapide_locate_hwif(void __iomem *base, void __iomem *ctrl, unsigned int sz, int 
 		goto out;
 
 	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hwif->hw.io_ports[i] = port;
 		hwif->io_ports[i] = port;
 		port += sz;
 	}
-	hwif->hw.io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
 	hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
-	hwif->hw.irq = hwif->irq = irq;
+	hwif->irq = irq;
 	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
 out:

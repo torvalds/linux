@@ -754,16 +754,11 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 		hwif->sata_misc[SATA_IEN_OFFSET]	= base + 0x148;
 	}
 
-	hw.irq				= hwif->pci_dev->irq;
+	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
 
-	memcpy(&hwif->hw, &hw, sizeof(hw));
-	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->hw.io_ports));
+	hwif->irq = dev->irq;
 
-	hwif->irq			= hw.irq;
-
-       	base = (unsigned long) addr;
-
-	hwif->dma_base			= base + (ch ? 0x08 : 0x00);
+	hwif->dma_base = (unsigned long)addr + (ch ? 0x08 : 0x00);
 
 	hwif->mmio = 1;
 }

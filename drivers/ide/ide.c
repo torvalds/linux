@@ -168,7 +168,6 @@ static void init_hwif_default(ide_hwif_t *hwif, unsigned int index)
 
 	ide_init_hwif_ports(&hw, ide_default_io_base(index), 0, &hwif->irq);
 
-	memcpy(&hwif->hw, &hw, sizeof(hw));
 	memcpy(hwif->io_ports, hw.io_ports, sizeof(hw.io_ports));
 
 	hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
@@ -214,7 +213,7 @@ static void __init init_ide_data (void)
 		init_hwif_data(hwif, index);
 		init_hwif_default(hwif, index);
 #if !defined(CONFIG_PPC32) || !defined(CONFIG_PCI)
-		hwif->irq = hwif->hw.irq =
+		hwif->irq =
 			ide_init_default_irq(hwif->io_ports[IDE_DATA_OFFSET]);
 #endif
 	}
@@ -730,8 +729,7 @@ found:
 	}
 	if (hwif->present)
 		return -1;
-	memcpy(&hwif->hw, hw, sizeof(*hw));
-	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->hw.io_ports));
+	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
 	hwif->noprobe = 0;
 	hwif->fixup = fixup;
@@ -1417,6 +1415,9 @@ static int __init ide_setup(char *s)
 			"reset", "minus6", "ata66", "minus8", "minus9",
 			"minus10", "four", "qd65xx", "ht6560b", "cmd640_vlb",
 			"dtc2278", "umc8672", "ali14xx", NULL };
+
+		hw_regs_t hwregs;
+
 		hw = s[3] - '0';
 		hwif = &ide_hwifs[hw];
 		i = match_parm(&s[4], ide_words, vals, 3);
@@ -1526,9 +1527,9 @@ static int __init ide_setup(char *s)
 			case 2: /* base,ctl */
 				vals[2] = 0;	/* default irq = probe for it */
 			case 3: /* base,ctl,irq */
-				hwif->hw.irq = vals[2];
-				ide_init_hwif_ports(&hwif->hw, (unsigned long) vals[0], (unsigned long) vals[1], &hwif->irq);
-				memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->io_ports));
+				memset(&hwregs, 0, sizeof(hwregs));
+				ide_init_hwif_ports(&hwregs, vals[0], vals[1], &hwif->irq);
+				memcpy(hwif->io_ports, hwregs.io_ports, sizeof(hwif->io_ports));
 				hwif->irq      = vals[2];
 				hwif->noprobe  = 0;
 				hwif->chipset  = ide_forced;

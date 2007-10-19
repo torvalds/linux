@@ -39,19 +39,18 @@ static ide_hwif_t *__devinit plat_ide_locate_hwif(void __iomem *base,
 	if (hwif == NULL)
 		goto out;
 
-	hwif->hw.io_ports[IDE_DATA_OFFSET] = port;
+	hwif->io_ports[IDE_DATA_OFFSET] = port;
 
 	port += (1 << pdata->ioport_shift);
 	for (i = IDE_ERROR_OFFSET; i <= IDE_STATUS_OFFSET;
 	     i++, port += (1 << pdata->ioport_shift))
-		hwif->hw.io_ports[i] = port;
+		hwif->io_ports[i] = port;
 
-	hwif->hw.io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
+	hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
 
-	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->hw.io_ports));
-	hwif->hw.irq = hwif->irq = irq;
+	hwif->irq = irq;
 
-	hwif->chipset = hwif->hw.chipset = ide_generic;
+	hwif->chipset = ide_generic;
 
 	if (mmio) {
 		hwif->mmio = 1;

@@ -601,9 +601,9 @@ static int au_ide_probe(struct device *dev)
 	_auide_hwif *ahwif = &auide_hwif;
 	ide_hwif_t *hwif;
 	struct resource *res;
-	hw_regs_t *hw;
 	int ret = 0;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw;
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 	char *mode = "MWDMA2";
@@ -645,12 +645,12 @@ static int au_ide_probe(struct device *dev)
 	/* FIXME:  This might possibly break PCMCIA IDE devices */
 
 	hwif                            = &ide_hwifs[pdev->id];
-	hw 				= &hwif->hw;
-	hwif->irq = hw->irq             = ahwif->irq;
+	hwif->irq			= ahwif->irq;
 	hwif->chipset                   = ide_au1xxx;
 
-	auide_setup_ports(hw, ahwif);
-	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
+	memset(&hw, 0, sizeof(hw));
+	auide_setup_ports(&hw, ahwif);
+	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
 
 	hwif->ultra_mask                = 0x0;  /* Disable Ultra DMA */
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA

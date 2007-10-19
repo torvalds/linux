@@ -450,8 +450,6 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 	if (hwif) {
 		int i;
 
-		memset(&hwif->hw, 0, sizeof(hw_regs_t));
-
 		/*
 		 * Ensure we're using MMIO
 		 */
@@ -459,13 +457,10 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		hwif->mmio = 1;
 
 		for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-			hwif->hw.io_ports[i] = port;
 			hwif->io_ports[i] = port;
 			port += 1 << info->stepping;
 		}
-		hwif->hw.io_ports[IDE_CONTROL_OFFSET] = (unsigned long)base + info->ctrloffset;
 		hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)base + info->ctrloffset;
-		hwif->hw.irq  = ec->irq;
 		hwif->irq     = ec->irq;
 		hwif->noprobe = 0;
 		hwif->chipset = ide_acorn;

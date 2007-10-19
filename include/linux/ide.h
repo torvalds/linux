@@ -659,7 +659,6 @@ typedef struct hwif_s {
 	unsigned long	sata_scr[SATA_NR_PORTS];
 	unsigned long	sata_misc[SATA_NR_PORTS];
 
-	hw_regs_t	hw;		/* Hardware info */
 	ide_drive_t	drives[MAX_DRIVES];	/* drive info */
 
 	u8 major;	/* our major number */

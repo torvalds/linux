@@ -655,10 +655,12 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	}
 
 	if (hwif->io_ports[IDE_DATA_OFFSET] != cmd_base) {
+		hw_regs_t hw;
+
 		/* Initialize the IO registers */
-		sgiioc4_init_hwif_ports(&hwif->hw, cmd_base, ctl, irqport);
-		memcpy(hwif->io_ports, hwif->hw.io_ports,
-		       sizeof (hwif->io_ports));
+		memset(&hw, 0, sizeof(hw));
+		sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
+		memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
 		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
 	}
 
