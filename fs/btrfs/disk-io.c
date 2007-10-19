@@ -410,6 +410,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
 	read_extent_buffer(l, &root->root_item,
 	       btrfs_item_ptr_offset(l, path->slots[0]),
 	       sizeof(root->root_item));
+	memcpy(&root->root_key, location, sizeof(*location));
 	ret = 0;
 out:
 	btrfs_release_path(root, path);
