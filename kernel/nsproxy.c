@@ -156,7 +156,14 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 		goto out;
 	}
 
+	err = ns_cgroup_clone(tsk);
+	if (err) {
+		put_nsproxy(new_ns);
+		goto out;
+	}
+
 	tsk->nsproxy = new_ns;
+
 out:
 	put_nsproxy(old_ns);
 	return err;
@@ -196,8 +203,16 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 
 	*new_nsp = create_new_namespaces(unshare_flags, current,
 				new_fs ? new_fs : current->fs);
-	if (IS_ERR(*new_nsp))
+	if (IS_ERR(*new_nsp)) {
 		err = PTR_ERR(*new_nsp);
+		goto out;
+	}
+
+	err = ns_cgroup_clone(current);
+	if (err)
+		put_nsproxy(*new_nsp);
+
+out:
 	return err;
 }
 
