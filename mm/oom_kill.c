@@ -337,7 +337,6 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			    unsigned long points, const char *message)
 {
 	struct task_struct *c;
-	struct list_head *tsk;
 
 	if (printk_ratelimit()) {
 		printk(KERN_WARNING "%s invoked oom-killer: "
@@ -360,8 +359,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 					message, p->pid, p->comm, points);
 
 	/* Try to kill a child first */
-	list_for_each(tsk, &p->children) {
-		c = list_entry(tsk, struct task_struct, sibling);
+	list_for_each_entry(c, &p->children, sibling) {
 		if (c->mm == p->mm)
 			continue;
 		if (!oom_kill_task(c))
