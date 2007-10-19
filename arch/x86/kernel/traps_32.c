@@ -63,6 +63,9 @@
 
 int panic_on_unrecovered_nmi;
 
+DECLARE_BITMAP(used_vectors, NR_VECTORS);
+EXPORT_SYMBOL_GPL(used_vectors);
+
 asmlinkage int system_call(void);
 
 /* Do we ignore FPU interrupts ? */
@@ -1120,6 +1123,8 @@ static void __init set_task_gate(unsigned int n, unsigned int gdt_entry)
 
 void __init trap_init(void)
 {
+	int i;
+
 #ifdef CONFIG_EISA
 	void __iomem *p = ioremap(0x0FFFD9, 4);
 	if (readl(p) == 'E'+('I'<<8)+('S'<<16)+('A'<<24)) {
@@ -1178,6 +1183,11 @@ void __init trap_init(void)
 	}
 
 	set_system_gate(SYSCALL_VECTOR,&system_call);
+
+	/* Reserve all the builtin and the syscall vector. */
+	for (i = 0; i < FIRST_EXTERNAL_VECTOR; i++)
+		set_bit(i, used_vectors);
+	set_bit(SYSCALL_VECTOR, used_vectors);
 
 	/*
 	 * Should be a barrier for any external CPU state.
