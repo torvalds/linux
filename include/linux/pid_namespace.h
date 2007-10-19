@@ -20,6 +20,7 @@ struct pid_namespace {
 	struct pidmap pidmap[PIDMAP_ENTRIES];
 	int last_pid;
 	struct task_struct *child_reaper;
+	struct kmem_cache *pid_cachep;
 };
 
 extern struct pid_namespace init_pid_ns;
