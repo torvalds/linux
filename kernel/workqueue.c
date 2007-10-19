@@ -32,6 +32,7 @@
 #include <linux/freezer.h>
 #include <linux/kallsyms.h>
 #include <linux/debug_locks.h>
+#include <linux/lockdep.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -61,6 +62,9 @@ struct workqueue_struct {
 	const char *name;
 	int singlethread;
 	int freezeable;		/* Freeze threads during suspend */
+#ifdef CONFIG_LOCKDEP
+	struct lockdep_map lockdep_map;
+#endif
 };
 
 /* All the per-cpu workqueues on the system, for hotplug cpu to add/remove
@@ -250,6 +254,17 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		struct work_struct *work = list_entry(cwq->worklist.next,
 						struct work_struct, entry);
 		work_func_t f = work->func;
+#ifdef CONFIG_LOCKDEP
+		/*
+		 * It is permissible to free the struct work_struct
+		 * from inside the function that is called from it,
+		 * this we need to take into account for lockdep too.
+		 * To avoid bogus "held lock freed" warnings as well
+		 * as problems when looking into work->lockdep_map,
+		 * make a copy and use that here.
+		 */
+		struct lockdep_map lockdep_map = work->lockdep_map;
+#endif
 
 		cwq->current_work = work;
 		list_del_init(cwq->worklist.next);
@@ -257,7 +272,11 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 
 		BUG_ON(get_wq_data(work) != cwq);
 		work_clear_pending(work);
+		lock_acquire(&cwq->wq->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+		lock_acquire(&lockdep_map, 0, 0, 0, 2, _THIS_IP_);
 		f(work);
+		lock_release(&lockdep_map, 1, _THIS_IP_);
+		lock_release(&cwq->wq->lockdep_map, 1, _THIS_IP_);
 
 		if (unlikely(in_atomic() || lockdep_depth(current) > 0)) {
 			printk(KERN_ERR "BUG: workqueue leaked lock or atomic: "
@@ -376,6 +395,8 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 	int cpu;
 
 	might_sleep();
+	lock_acquire(&wq->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+	lock_release(&wq->lockdep_map, 1, _THIS_IP_);
 	for_each_cpu_mask(cpu, *cpu_map)
 		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, cpu));
 }
@@ -445,6 +466,9 @@ static void wait_on_work(struct work_struct *work)
 	int cpu;
 
 	might_sleep();
+
+	lock_acquire(&work->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+	lock_release(&work->lockdep_map, 1, _THIS_IP_);
 
 	cwq = get_wq_data(work);
 	if (!cwq)
@@ -695,8 +719,10 @@ static void start_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 	}
 }
 
-struct workqueue_struct *__create_workqueue(const char *name,
-					    int singlethread, int freezeable)
+struct workqueue_struct *__create_workqueue_key(const char *name,
+						int singlethread,
+						int freezeable,
+						struct lock_class_key *key)
 {
 	struct workqueue_struct *wq;
 	struct cpu_workqueue_struct *cwq;
@@ -713,6 +739,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	}
 
 	wq->name = name;
+	lockdep_init_map(&wq->lockdep_map, name, key, 0);
 	wq->singlethread = singlethread;
 	wq->freezeable = freezeable;
 	INIT_LIST_HEAD(&wq->list);
@@ -741,7 +768,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	}
 	return wq;
 }
-EXPORT_SYMBOL_GPL(__create_workqueue);
+EXPORT_SYMBOL_GPL(__create_workqueue_key);
 
 static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 {
@@ -751,6 +778,9 @@ static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 	 */
 	if (cwq->thread == NULL)
 		return;
+
+	lock_acquire(&cwq->wq->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+	lock_release(&cwq->wq->lockdep_map, 1, _THIS_IP_);
 
 	flush_cpu_workqueue(cwq);
 	/*

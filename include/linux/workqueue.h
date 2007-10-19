@@ -8,6 +8,7 @@
 #include <linux/timer.h>
 #include <linux/linkage.h>
 #include <linux/bitops.h>
+#include <linux/lockdep.h>
 #include <asm/atomic.h>
 
 struct workqueue_struct;
@@ -28,6 +29,9 @@ struct work_struct {
 #define WORK_STRUCT_WQ_DATA_MASK (~WORK_STRUCT_FLAG_MASK)
 	struct list_head entry;
 	work_func_t func;
+#ifdef CONFIG_LOCKDEP
+	struct lockdep_map lockdep_map;
+#endif
 };
 
 #define WORK_DATA_INIT()	ATOMIC_LONG_INIT(0)
@@ -41,10 +45,23 @@ struct execute_work {
 	struct work_struct work;
 };
 
+#ifdef CONFIG_LOCKDEP
+/*
+ * NB: because we have to copy the lockdep_map, setting _key
+ * here is required, otherwise it could get initialised to the
+ * copy of the lockdep_map!
+ */
+#define __WORK_INIT_LOCKDEP_MAP(n, k) \
+	.lockdep_map = STATIC_LOCKDEP_MAP_INIT(n, k),
+#else
+#define __WORK_INIT_LOCKDEP_MAP(n, k)
+#endif
+
 #define __WORK_INITIALIZER(n, f) {				\
 	.data = WORK_DATA_INIT(),				\
 	.entry	= { &(n).entry, &(n).entry },			\
 	.func = (f),						\
+	__WORK_INIT_LOCKDEP_MAP(#n, &(n))			\
 	}
 
 #define __DELAYED_WORK_INITIALIZER(n, f) {			\
@@ -76,12 +93,24 @@ struct execute_work {
  * assignment of the work data initializer allows the compiler
  * to generate better code.
  */
+#ifdef CONFIG_LOCKDEP
+#define INIT_WORK(_work, _func)						\
+	do {								\
+		static struct lock_class_key __key;			\
+									\
+		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
+		lockdep_init_map(&(_work)->lockdep_map, #_work, &__key, 0);\
+		INIT_LIST_HEAD(&(_work)->entry);			\
+		PREPARE_WORK((_work), (_func));				\
+	} while (0)
+#else
 #define INIT_WORK(_work, _func)						\
 	do {								\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		PREPARE_WORK((_work), (_func));				\
 	} while (0)
+#endif
 
 #define INIT_DELAYED_WORK(_work, _func)				\
 	do {							\
@@ -118,9 +147,23 @@ struct execute_work {
 	clear_bit(WORK_STRUCT_PENDING, work_data_bits(work))
 
 
-extern struct workqueue_struct *__create_workqueue(const char *name,
-						    int singlethread,
-						    int freezeable);
+extern struct workqueue_struct *
+__create_workqueue_key(const char *name, int singlethread,
+		       int freezeable, struct lock_class_key *key);
+
+#ifdef CONFIG_LOCKDEP
+#define __create_workqueue(name, singlethread, freezeable)	\
+({								\
+	static struct lock_class_key __key;			\
+								\
+	__create_workqueue_key((name), (singlethread),		\
+			       (freezeable), &__key);		\
+})
+#else
+#define __create_workqueue(name, singlethread, freezeable)	\
+	__create_workqueue_key((name), (singlethread), (freezeable), NULL)
+#endif
+
 #define create_workqueue(name) __create_workqueue((name), 0, 0)
 #define create_freezeable_workqueue(name) __create_workqueue((name), 1, 1)
 #define create_singlethread_workqueue(name) __create_workqueue((name), 1, 0)
