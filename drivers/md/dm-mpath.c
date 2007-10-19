@@ -10,6 +10,7 @@
 #include "dm-hw-handler.h"
 #include "dm-bio-list.h"
 #include "dm-bio-record.h"
+#include "dm-uevent.h"
 
 #include <linux/ctype.h>
 #include <linux/init.h>
@@ -857,6 +858,9 @@ static int fail_path(struct pgpath *pgpath)
 	if (pgpath == m->current_pgpath)
 		m->current_pgpath = NULL;
 
+	dm_path_uevent(DM_UEVENT_PATH_FAILED, m->ti,
+		      pgpath->path.dev->name, m->nr_valid_paths);
+
 	queue_work(kmultipathd, &m->trigger_event);
 
 out:
@@ -895,6 +899,9 @@ static int reinstate_path(struct pgpath *pgpath)
 	m->current_pgpath = NULL;
 	if (!m->nr_valid_paths++ && m->queue_size)
 		queue_work(kmultipathd, &m->process_queued_ios);
+
+	dm_path_uevent(DM_UEVENT_PATH_REINSTATED, m->ti,
+		      pgpath->path.dev->name, m->nr_valid_paths);
 
 	queue_work(kmultipathd, &m->trigger_event);
 
