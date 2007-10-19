@@ -247,6 +247,8 @@ static u8 ht_pio2timings(ide_drive_t *drive, const u8 pio)
 	}
 }
 
+static DEFINE_SPINLOCK(ht6560b_lock);
+
 /*
  *  Enable/Disable so called prefetch mode
  */
@@ -254,9 +256,9 @@ static void ht_set_prefetch(ide_drive_t *drive, u8 state)
 {
 	unsigned long flags;
 	int t = HT_PREFETCH_MODE << 8;
-	
-	spin_lock_irqsave(&ide_lock, flags);
-	
+
+	spin_lock_irqsave(&ht6560b_lock, flags);
+
 	/*
 	 *  Prefetch mode and unmask irq seems to conflict
 	 */
@@ -268,9 +270,9 @@ static void ht_set_prefetch(ide_drive_t *drive, u8 state)
 		drive->drive_data &= ~t;  /* disable prefetch mode */
 		drive->no_unmask = 0;
 	}
-	
-	spin_unlock_irqrestore(&ide_lock, flags);
-	
+
+	spin_unlock_irqrestore(&ht6560b_lock, flags);
+
 #ifdef DEBUG
 	printk("ht6560b: drive %s prefetch mode %sabled\n", drive->name, (state ? "en" : "dis"));
 #endif
@@ -284,19 +286,22 @@ static void ht6560b_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	switch (pio) {
 	case 8:         /* set prefetch off */
 	case 9:         /* set prefetch on */
+		/*
+		 * take ide_lock for drive->[no_]unmask
+		 */
+		spin_lock_irqsave(&ide_lock, flags);
 		ht_set_prefetch(drive, pio & 1);
+		spin_unlock_irqrestore(&ide_lock, flags);
 		return;
 	}
-	
+
 	timing = ht_pio2timings(drive, pio);
-	
-	spin_lock_irqsave(&ide_lock, flags);
-	
+
+	spin_lock_irqsave(&ht6560b_lock, flags);
 	drive->drive_data &= 0xff00;
 	drive->drive_data |= timing;
-	
-	spin_unlock_irqrestore(&ide_lock, flags);
-	
+	spin_unlock_irqrestore(&ht6560b_lock, flags);
+
 #ifdef DEBUG
 	printk("ht6560b: drive %s tuned to pio mode %#x timing=%#x\n", drive->name, pio, timing);
 #endif
