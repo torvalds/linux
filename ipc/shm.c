@@ -63,8 +63,6 @@ static struct ipc_ids init_shm_ids;
 	((struct shmid_kernel*)ipc_lock(&shm_ids(ns),id))
 #define shm_unlock(shp)			\
 	ipc_unlock(&(shp)->shm_perm)
-#define shm_get(ns, id)			\
-	((struct shmid_kernel*)ipc_get(&shm_ids(ns),id))
 #define shm_buildid(ns, id, seq)	\
 	ipc_buildid(&shm_ids(ns), id, seq)
 
@@ -563,7 +561,19 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
 		struct shmid_kernel *shp;
 		struct inode *inode;
 
-		shp = shm_get(ns, next_id);
+		/*
+		 * idr_find() is called via shm_get(), so with shm_ids.mutex
+		 * locked. Since ipc_addid() is also called with
+		 * shm_ids.mutex down, there is no need to add read barriers
+		 * here to gurantee the writes in ipc_addid() are seen in
+		 * order here (for Alpha).
+		 * However idr_find() itself does not necessary require
+		 * ipc_ids.mutex down. So if idr_find() is used by other
+		 * places without ipc_ids.mutex down, then it needs read
+		 * read memory barriers as ipc_lock() does.
+		 */
+
+		shp = idr_find(&shm_ids(ns).ipcs_idr, next_id);
 		if (shp == NULL)
 			continue;
 

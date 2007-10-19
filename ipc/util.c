@@ -669,25 +669,6 @@ void ipc64_perm_to_ipc_perm (struct ipc64_perm *in, struct ipc_perm *out)
 	out->seq	= in->seq;
 }
 
-/*
- * So far only shm_get_stat() calls ipc_get() via shm_get(), so ipc_get()
- * is called with shm_ids.mutex locked.  Since grow_ary() is also called with
- * shm_ids.mutex down(for Shared Memory), there is no need to add read
- * barriers here to gurantee the writes in grow_ary() are seen in order 
- * here (for Alpha).
- *
- * However ipc_get() itself does not necessary require ipc_ids.mutex down. So
- * if in the future ipc_get() is used by other places without ipc_ids.mutex
- * down, then ipc_get() needs read memery barriers as ipc_lock() does.
- */
-struct kern_ipc_perm *ipc_get(struct ipc_ids *ids, int id)
-{
-	struct kern_ipc_perm *out;
-	int lid = id % SEQ_MULTIPLIER;
-	out = idr_find(&ids->ipcs_idr, lid);
-	return out;
-}
-
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 {
 	struct kern_ipc_perm *out;
