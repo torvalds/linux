@@ -325,6 +325,12 @@ M:	Juergen Fischer <fischer@norbit.de>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+AIC7XXX / AIC79XX SCSI DRIVER
+P:	Hannes Reinecke
+M:	hare@suse.de
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+
 ALCATEL SPEEDTOUCH USB DRIVER
 P:	Duncan Sands
 M:	duncan.sands@free.fr
