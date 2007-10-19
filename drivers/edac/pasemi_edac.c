@@ -270,6 +270,7 @@ static void __devexit pasemi_edac_remove(struct pci_dev *pdev)
 
 static const struct pci_device_id pasemi_edac_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PASEMI, 0xa00a) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, pasemi_edac_pci_tbl);
