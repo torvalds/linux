@@ -182,6 +182,7 @@ struct cgroup_subsys {
 	void (*exit)(struct cgroup_subsys *ss, struct task_struct *task);
 	int (*populate)(struct cgroup_subsys *ss,
 			struct cgroup *cont);
+	void (*post_clone)(struct cgroup_subsys *ss, struct cgroup *cont);
 	void (*bind)(struct cgroup_subsys *ss, struct cgroup *root);
 	int subsys_id;
 	int active;
@@ -220,6 +221,8 @@ static inline struct cgroup* task_cgroup(struct task_struct *task,
 }
 
 int cgroup_path(const struct cgroup *cont, char *buf, int buflen);
+
+int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *ss);
 
 #else /* !CONFIG_CGROUPS */
 
