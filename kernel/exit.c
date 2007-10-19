@@ -666,10 +666,14 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
  * the child reaper process (ie "init") in our pid
  * space.
  */
-static void
-forget_original_parent(struct task_struct *father, struct list_head *to_release)
+static void forget_original_parent(struct task_struct *father)
 {
 	struct task_struct *p, *n, *reaper = father;
+	struct list_head ptrace_dead;
+
+	INIT_LIST_HEAD(&ptrace_dead);
+
+	write_lock_irq(&tasklist_lock);
 
 	do {
 		reaper = next_thread(reaper);
@@ -677,7 +681,7 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 			reaper = task_child_reaper(father);
 			break;
 		}
-	} while (reaper->exit_state);
+	} while (reaper->flags & PF_EXITING);
 
 	/*
 	 * There are only two places where our children can be:
@@ -714,12 +718,23 @@ forget_original_parent(struct task_struct *father, struct list_head *to_release)
 		 * while it was being traced by us, to be able to see it in wait4.
 		 */
 		if (unlikely(ptrace && p->exit_state == EXIT_ZOMBIE && p->exit_signal == -1))
-			list_add(&p->ptrace_list, to_release);
+			list_add(&p->ptrace_list, &ptrace_dead);
 	}
+
 	list_for_each_entry_safe(p, n, &father->ptrace_children, ptrace_list) {
 		p->real_parent = reaper;
 		reparent_thread(p, father, 1);
 	}
+
+	write_unlock_irq(&tasklist_lock);
+	BUG_ON(!list_empty(&father->children));
+	BUG_ON(!list_empty(&father->ptrace_children));
+
+	list_for_each_entry_safe(p, n, &ptrace_dead, ptrace_list) {
+		list_del_init(&p->ptrace_list);
+		release_task(p);
+	}
+
 }
 
 /*
@@ -730,7 +745,6 @@ static void exit_notify(struct task_struct *tsk)
 {
 	int state;
 	struct task_struct *t;
-	struct list_head ptrace_dead, *_p, *_n;
 	struct pid *pgrp;
 
 	if (signal_pending(tsk) && !(tsk->signal->flags & SIGNAL_GROUP_EXIT)
@@ -751,8 +765,6 @@ static void exit_notify(struct task_struct *tsk)
 		spin_unlock_irq(&tsk->sighand->siglock);
 	}
 
-	write_lock_irq(&tasklist_lock);
-
 	/*
 	 * This does two things:
 	 *
@@ -761,12 +773,9 @@ static void exit_notify(struct task_struct *tsk)
 	 *	as a result of our exiting, and if they have any stopped
 	 *	jobs, send them a SIGHUP and then a SIGCONT.  (POSIX 3.2.2.2)
 	 */
+	forget_original_parent(tsk);
 
-	INIT_LIST_HEAD(&ptrace_dead);
-	forget_original_parent(tsk, &ptrace_dead);
-	BUG_ON(!list_empty(&tsk->children));
-	BUG_ON(!list_empty(&tsk->ptrace_children));
-
+	write_lock_irq(&tasklist_lock);
 	/*
 	 * Check to see if any process groups have become orphaned
 	 * as a result of our exiting, and if they have any stopped
@@ -830,12 +839,6 @@ static void exit_notify(struct task_struct *tsk)
 		wake_up_process(tsk->signal->group_exit_task);
 
 	write_unlock_irq(&tasklist_lock);
-
-	list_for_each_safe(_p, _n, &ptrace_dead) {
-		list_del_init(_p);
-		t = list_entry(_p, struct task_struct, ptrace_list);
-		release_task(t);
-	}
 
 	/* If the process is dead, release it - nobody will wait for it */
 	if (state == EXIT_DEAD)
