@@ -112,7 +112,7 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 static int msr_open(struct inode *inode, struct file *file)
 {
 	unsigned int cpu = iminor(file->f_path.dentry->d_inode);
-	struct cpuinfo_x86 *c = &(cpu_data)[cpu];
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	if (cpu >= NR_CPUS || !cpu_online(cpu))
 		return -ENXIO;	/* No such CPU */

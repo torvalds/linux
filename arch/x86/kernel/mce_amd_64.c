@@ -472,11 +472,11 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	sprintf(name, "threshold_bank%i", bank);
 
 #ifdef CONFIG_SMP
-	if (cpu_data[cpu].cpu_core_id && shared_bank[bank]) {	/* symlink */
+	if (cpu_data(cpu).cpu_core_id && shared_bank[bank]) {	/* symlink */
 		i = first_cpu(per_cpu(cpu_core_map, cpu));
 
 		/* first core not up yet */
-		if (cpu_data[i].cpu_core_id)
+		if (cpu_data(i).cpu_core_id)
 			goto out;
 
 		/* already linked */

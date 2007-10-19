@@ -40,7 +40,8 @@ EXPORT_SYMBOL(__delay);
 
 inline void __const_udelay(unsigned long xloops)
 {
-	__delay(((xloops * HZ * cpu_data[raw_smp_processor_id()].loops_per_jiffy) >> 32) + 1);
+	__delay(((xloops * HZ *
+		cpu_data(raw_smp_processor_id()).loops_per_jiffy) >> 32) + 1);
 }
 EXPORT_SYMBOL(__const_udelay);
 

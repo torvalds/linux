@@ -199,7 +199,7 @@ static int elanfreq_target (struct cpufreq_policy *policy,
 
 static int elanfreq_cpu_init(struct cpufreq_policy *policy)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	unsigned int i;
 	int result;
 
@@ -280,7 +280,7 @@ static struct cpufreq_driver elanfreq_driver = {
 
 static int __init elanfreq_init(void)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	/* Test if we have the right hardware */
 	if ((c->x86_vendor != X86_VENDOR_AMD) ||

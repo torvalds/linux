@@ -228,7 +228,7 @@ EXPORT_SYMBOL_GPL(speedstep_get_processor_frequency);
 
 unsigned int speedstep_detect_processor (void)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 ebx, msr_lo, msr_hi;
 
 	dprintk("x86: %x, model: %x\n", c->x86, c->x86_model);

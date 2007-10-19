@@ -82,7 +82,7 @@ inline void __const_udelay(unsigned long xloops)
 	__asm__("mull %0"
 		:"=d" (xloops), "=&a" (d0)
 		:"1" (xloops), "0"
-		(cpu_data[raw_smp_processor_id()].loops_per_jiffy * (HZ/4)));
+		(cpu_data(raw_smp_processor_id()).loops_per_jiffy * (HZ/4)));
 
 	__delay(++xloops);
 }

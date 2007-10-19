@@ -63,7 +63,7 @@ static void init_intel_pdc(struct acpi_processor *pr, struct cpuinfo_x86 *c)
 void arch_acpi_processor_init_pdc(struct acpi_processor *pr)
 {
 	unsigned int cpu = pr->id;
-	struct cpuinfo_x86 *c = cpu_data + cpu;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	pr->pdc = NULL;
 	if (c->x86_vendor == X86_VENDOR_INTEL)
