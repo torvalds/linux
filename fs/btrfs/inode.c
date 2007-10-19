@@ -168,8 +168,10 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 	int ret;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u32 csum = ~(u32)0;
+	unsigned long flags;
 
 	ret = get_state_private(em_tree, start, &private);
+	local_irq_save(flags);
 	kaddr = kmap_atomic(page, KM_IRQ0);
 	if (ret) {
 		goto zeroit;
@@ -180,6 +182,7 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 		goto zeroit;
 	}
 	kunmap_atomic(kaddr, KM_IRQ0);
+	local_irq_restore(flags);
 	return 0;
 
 zeroit:
@@ -188,6 +191,7 @@ zeroit:
 	memset(kaddr + offset, 1, end - start + 1);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_IRQ0);
+	local_irq_restore(flags);
 	return 0;
 }
 
