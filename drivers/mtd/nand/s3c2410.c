@@ -366,23 +366,21 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	    ((diff2 ^ (diff2 >> 1)) & 0x55) == 0x55) {
 		/* calculate the bit position of the error */
 
-		bit  = (diff2 >> 2) & 1;
-		bit |= (diff2 >> 3) & 2;
-		bit |= (diff2 >> 4) & 4;
+		bit  = ((diff2 >> 3) & 1) |
+		       ((diff2 >> 4) & 2) |
+		       ((diff2 >> 5) & 4);
 
 		/* calculate the byte position of the error */
 
-		byte  = (diff1 << 1) & 0x80;
-		byte |= (diff1 << 2) & 0x40;
-		byte |= (diff1 << 3) & 0x20;
-		byte |= (diff1 << 4) & 0x10;
-
-		byte |= (diff0 >> 3) & 0x08;
-		byte |= (diff0 >> 2) & 0x04;
-		byte |= (diff0 >> 1) & 0x02;
-		byte |= (diff0 >> 0) & 0x01;
-
-		byte |= (diff2 << 8) & 0x100;
+		byte = ((diff2 << 7) & 0x100) |
+		       ((diff1 << 0) & 0x80)  |
+		       ((diff1 << 1) & 0x40)  |
+		       ((diff1 << 2) & 0x20)  |
+		       ((diff1 << 3) & 0x10)  |
+		       ((diff0 >> 4) & 0x08)  |
+		       ((diff0 >> 3) & 0x04)  |
+		       ((diff0 >> 2) & 0x02)  |
+		       ((diff0 >> 1) & 0x01);
 
 		dev_dbg(info->device, "correcting error bit %d, byte %d\n",
 			bit, byte);
