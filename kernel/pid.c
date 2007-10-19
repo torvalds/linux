@@ -73,10 +73,20 @@ struct pid_namespace init_pid_ns = {
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 
-int is_global_init(struct task_struct *tsk)
+int is_container_init(struct task_struct *tsk)
 {
-	return tsk == init_pid_ns.child_reaper;
+	int ret = 0;
+	struct pid *pid;
+
+	rcu_read_lock();
+	pid = task_pid(tsk);
+	if (pid != NULL && pid->numbers[pid->level].nr == 1)
+		ret = 1;
+	rcu_read_unlock();
+
+	return ret;
 }
+EXPORT_SYMBOL(is_container_init);
 
 /*
  * Note: disable interrupts while the pidmap_lock is held as an
@@ -192,8 +202,7 @@ fastcall void put_pid(struct pid *pid)
 	if ((atomic_read(&pid->count) == 1) ||
 	     atomic_dec_and_test(&pid->count)) {
 		kmem_cache_free(ns->pid_cachep, pid);
-		if (ns != &init_pid_ns)
-			put_pid_ns(ns);
+		put_pid_ns(ns);
 	}
 }
 EXPORT_SYMBOL_GPL(put_pid);
@@ -244,9 +253,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		tmp = tmp->parent;
 	}
 
-	if (ns != &init_pid_ns)
-		get_pid_ns(ns);
-
+	get_pid_ns(ns);
 	pid->level = ns->level;
 	pid->nr = pid->numbers[0].nr;
 	atomic_set(&pid->count, 1);
