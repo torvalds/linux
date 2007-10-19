@@ -192,11 +192,9 @@ success:
 	 * held in write mode.
 	 */
 	vma->vm_flags = newflags;
-	vma->vm_page_prot = protection_map[newflags &
-		(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
+	vma->vm_page_prot = vm_get_page_prot(newflags);
 	if (vma_wants_writenotify(vma)) {
-		vma->vm_page_prot = protection_map[newflags &
-			(VM_READ|VM_WRITE|VM_EXEC)];
+		vma->vm_page_prot = vm_get_page_prot(newflags);
 		dirty_accountable = 1;
 	}
 
