@@ -426,6 +426,8 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	if ((rc = stb6100_write_reg(state, STB6100_FCCK, regs[STB6100_FCCK])) < 0)
 		return rc;
 
+	msleep(30);
+
 	return 0;
 }
 

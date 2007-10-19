@@ -618,8 +618,6 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		if (state->config->tuner_set_frequency)
 			state->config->tuner_set_frequency(&state->frontend, internal->freq);
 
-		msleep(100);
-
 		if (state->config->tuner_get_frequency)
 			state->config->tuner_get_frequency(&state->frontend, &internal->freq);
 
