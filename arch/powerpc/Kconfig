@@ -669,20 +669,7 @@ source "arch/powerpc/sysdev/qe_lib/Kconfig"
 
 source "lib/Kconfig"
 
-menu "Instrumentation Support"
-
-source "arch/powerpc/oprofile/Kconfig"
-
-config KPROBES
-	bool "Kprobes"
-	depends on !BOOKE && !4xx && KALLSYMS && MODULES
-	help
-	  Kprobes allows you to trap at almost any kernel address and
-	  execute a callback function.  register_kprobe() establishes
-	  a probepoint and specifies the callback.  Kprobes is useful
-	  for kernel debugging, non-intrusive instrumentation and testing.
-	  If in doubt, say "N".
-endmenu
+source "kernel/Kconfig.instrumentation"
 
 source "arch/powerpc/Kconfig.debug"
 

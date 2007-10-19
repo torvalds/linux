@@ -799,21 +799,6 @@ source "drivers/firmware/Kconfig"
 
 source fs/Kconfig
 
-menu "Instrumentation Support"
-
-source "arch/x86/oprofile/Kconfig"
-
-config KPROBES
-	bool "Kprobes"
-	depends on KALLSYMS && MODULES
-	help
-	  Kprobes allows you to trap at almost any kernel address and
-	  execute a callback function.  register_kprobe() establishes
-	  a probepoint and specifies the callback.  Kprobes is useful
-	  for kernel debugging, non-intrusive instrumentation and testing.
-	  If in doubt, say "N".
-endmenu
-
 source "arch/x86_64/Kconfig.debug"
 
 source "security/Kconfig"

@@ -251,6 +251,8 @@ config EMBEDDED_RAMDISK_IMAGE
 	  provide one yourself.
 endmenu
 
+source "kernel/Kconfig.instrumentation"
+
 source "arch/xtensa/Kconfig.debug"
 
 source "security/Kconfig"

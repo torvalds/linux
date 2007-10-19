@@ -223,6 +223,8 @@ endmenu
 
 source "fs/Kconfig"
 
+source "kernel/Kconfig.instrumentation"
+
 source "arch/h8300/Kconfig.debug"
 
 source "security/Kconfig"

@@ -654,7 +654,7 @@ source "drivers/Kconfig"
 
 source "fs/Kconfig"
 
-source "arch/alpha/oprofile/Kconfig"
+source "kernel/Kconfig.instrumentation"
 
 source "arch/alpha/Kconfig.debug"
 

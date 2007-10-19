@@ -320,11 +320,7 @@ endmenu
 
 source "fs/Kconfig"
 
-menu "Instrumentation Support"
-
-source "arch/sparc/oprofile/Kconfig"
-
-endmenu
+source "kernel/Kconfig.instrumentation"
 
 source "arch/sparc/Kconfig.debug"
 

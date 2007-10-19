@@ -426,7 +426,7 @@ source "drivers/Kconfig"
 
 source "fs/Kconfig"
 
-source "arch/m32r/oprofile/Kconfig"
+source "kernel/Kconfig.instrumentation"
 
 source "arch/m32r/Kconfig.debug"
 
