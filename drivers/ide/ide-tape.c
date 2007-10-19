@@ -621,7 +621,6 @@ typedef struct os_dat_s {
  */
 #define USE_IOTRACE	0
 #if USE_IOTRACE
-#include <linux/io_trace.h>
 #define IO_IDETAPE_FIFO	500
 #endif
 
