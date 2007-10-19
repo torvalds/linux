@@ -79,6 +79,7 @@ struct cpuinfo_x86 {
 	unsigned char booted_cores;	/* number of cores as seen by OS */
 	__u8 phys_proc_id; 		/* Physical processor id. */
 	__u8 cpu_core_id;  		/* Core id */
+	__u8 cpu_index;			/* index into per_cpu list */
 #endif
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
@@ -103,14 +104,19 @@ extern struct tss_struct doublefault_tss;
 DECLARE_PER_CPU(struct tss_struct, init_tss);
 
 #ifdef CONFIG_SMP
-extern struct cpuinfo_x86 cpu_data[];
-#define current_cpu_data cpu_data[smp_processor_id()]
+DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
+#define cpu_data(cpu)		per_cpu(cpu_info, cpu)
+#define current_cpu_data	cpu_data(smp_processor_id())
 #else
-#define cpu_data (&boot_cpu_data)
-#define current_cpu_data boot_cpu_data
+#define cpu_data(cpu)		boot_cpu_data
+#define current_cpu_data	boot_cpu_data
 #endif
 
-extern	int cpu_llc_id[NR_CPUS];
+/*
+ * the following now lives in the per cpu area:
+ * extern	int cpu_llc_id[NR_CPUS];
+ */
+DECLARE_PER_CPU(u8, cpu_llc_id);
 extern char ignore_fpu_irq;
 
 void __init cpu_detect(struct cpuinfo_x86 *c);

@@ -37,6 +37,8 @@ extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
 extern int smp_num_siblings;
 extern void smp_send_reschedule(int cpu);
+extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
+				  void *info, int wait);
 
 /*
  * cpu_sibling_map and cpu_core_map now live
@@ -47,7 +49,7 @@ extern void smp_send_reschedule(int cpu);
  */
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
-extern u8 cpu_llc_id[NR_CPUS];
+DECLARE_PER_CPU(u8, cpu_llc_id);
 
 #define SMP_TRAMPOLINE_BASE 0x6000
 
@@ -84,7 +86,9 @@ static inline int hard_smp_processor_id(void)
  * Some lowlevel functions might want to know about
  * the real APIC ID <-> CPU # mapping.
  */
-extern u8 x86_cpu_to_apicid[NR_CPUS];	/* physical ID */
+extern u8 __initdata x86_cpu_to_apicid_init[];
+extern void *x86_cpu_to_apicid_ptr;
+DECLARE_PER_CPU(u8, x86_cpu_to_apicid);	/* physical ID */
 extern u8 bios_cpu_apicid[];
 
 static inline int cpu_present_to_apicid(int mps_cpu)
@@ -115,8 +119,9 @@ static __inline int logical_smp_processor_id(void)
 }
 
 #ifdef CONFIG_SMP
-#define cpu_physical_id(cpu)		x86_cpu_to_apicid[cpu]
+#define cpu_physical_id(cpu)		per_cpu(x86_cpu_to_apicid, cpu)
 #else
+extern unsigned int boot_cpu_id;
 #define cpu_physical_id(cpu)		boot_cpu_id
 #endif /* !CONFIG_SMP */
 #endif

@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <asm/io.h>
 #include <asm/delay.h>
+#include <asm/desc.h>
 #include <asm/hw_irq.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -136,7 +137,7 @@ void machine_emergency_restart(void)
 		}
 
 		case BOOT_TRIPLE: 
-			__asm__ __volatile__("lidt (%0)": :"r" (&no_idt));
+			load_idt((const struct desc_ptr *)&no_idt);
 			__asm__ __volatile__("int3");
 
 			reboot_type = BOOT_KBD;

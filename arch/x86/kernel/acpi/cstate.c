@@ -29,7 +29,7 @@
 void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 					unsigned int cpu)
 {
-	struct cpuinfo_x86 *c = cpu_data + cpu;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	flags->bm_check = 0;
 	if (num_online_cpus() == 1)
@@ -72,7 +72,7 @@ int acpi_processor_ffh_cstate_probe(unsigned int cpu,
 		struct acpi_processor_cx *cx, struct acpi_power_register *reg)
 {
 	struct cstate_entry *percpu_entry;
-	struct cpuinfo_x86 *c = cpu_data + cpu;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	cpumask_t saved_mask;
 	int retval;

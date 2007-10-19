@@ -462,7 +462,7 @@ void out_of_line_bug(void)
 EXPORT_SYMBOL(out_of_line_bug);
 #endif
 
-static DEFINE_SPINLOCK(die_lock);
+static raw_spinlock_t die_lock = __RAW_SPIN_LOCK_UNLOCKED;
 static int die_owner = -1;
 static unsigned int die_nest_count;
 
@@ -474,13 +474,13 @@ unsigned __kprobes long oops_begin(void)
 	oops_enter();
 
 	/* racy, but better than risking deadlock. */
-	local_irq_save(flags);
+	raw_local_irq_save(flags);
 	cpu = smp_processor_id();
-	if (!spin_trylock(&die_lock)) { 
+	if (!__raw_spin_trylock(&die_lock)) {
 		if (cpu == die_owner) 
 			/* nested oops. should stop eventually */;
 		else
-			spin_lock(&die_lock);
+			__raw_spin_lock(&die_lock);
 	}
 	die_nest_count++;
 	die_owner = cpu;
@@ -494,12 +494,10 @@ void __kprobes oops_end(unsigned long flags)
 	die_owner = -1;
 	bust_spinlocks(0);
 	die_nest_count--;
-	if (die_nest_count)
-		/* We still own the lock */
-		local_irq_restore(flags);
-	else
+	if (!die_nest_count)
 		/* Nest count reaches zero, release the lock. */
-		spin_unlock_irqrestore(&die_lock, flags);
+		__raw_spin_unlock(&die_lock);
+	raw_local_irq_restore(flags);
 	if (panic_on_oops)
 		panic("Fatal exception");
 	oops_exit();

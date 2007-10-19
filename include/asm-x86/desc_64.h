@@ -20,6 +20,16 @@ extern struct desc_struct cpu_gdt_table[GDT_ENTRIES];
 #define load_LDT_desc() asm volatile("lldt %w0"::"r" (GDT_ENTRY_LDT*8))
 #define clear_LDT()  asm volatile("lldt %w0"::"r" (0))
 
+static inline unsigned long __store_tr(void)
+{
+       unsigned long tr;
+
+       asm volatile ("str %w0":"=r" (tr));
+       return tr;
+}
+
+#define store_tr(tr) (tr) = __store_tr()
+
 /*
  * This is the ldt that every process will get unless we need
  * something other than this.
@@ -30,6 +40,16 @@ extern struct desc_ptr cpu_gdt_descr[];
 
 /* the cpu gdt accessor */
 #define cpu_gdt(_cpu) ((struct desc_struct *)cpu_gdt_descr[_cpu].address)
+
+static inline void load_gdt(const struct desc_ptr *ptr)
+{
+	asm volatile("lgdt %w0"::"m" (*ptr));
+}
+
+static inline void store_gdt(struct desc_ptr *ptr)
+{
+       asm("sgdt %w0":"=m" (*ptr));
+}
 
 static inline void _set_gate(void *adr, unsigned type, unsigned long func, unsigned dpl, unsigned ist)  
 {
@@ -69,6 +89,16 @@ static inline void set_system_gate(int nr, void *func)
 static inline void set_system_gate_ist(int nr, void *func, unsigned ist)
 {
 	_set_gate(&idt_table[nr], GATE_INTERRUPT, (unsigned long) func, 3, ist);
+}
+
+static inline void load_idt(const struct desc_ptr *ptr)
+{
+	asm volatile("lidt %w0"::"m" (*ptr));
+}
+
+static inline void store_idt(struct desc_ptr *dtr)
+{
+       asm("sidt %w0":"=m" (*dtr));
 }
 
 static inline void set_tssldt_descriptor(void *ptr, unsigned long tss, unsigned type, 

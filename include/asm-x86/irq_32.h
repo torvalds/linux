@@ -45,4 +45,7 @@ unsigned int do_IRQ(struct pt_regs *regs);
 void init_IRQ(void);
 void __init native_init_IRQ(void);
 
+/* Interrupt vector management */
+extern DECLARE_BITMAP(used_vectors, NR_VECTORS);
+
 #endif /* _ASM_IRQ_H */

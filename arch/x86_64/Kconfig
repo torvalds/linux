@@ -723,7 +723,7 @@ config ARCH_HIBERNATION_HEADER
 
 source "drivers/acpi/Kconfig"
 
-source "arch/x86/kernel/cpufreq/Kconfig"
+source "arch/x86/kernel/cpu/cpufreq/Kconfig_64"
 
 source "drivers/cpuidle/Kconfig"
 
@@ -768,9 +768,9 @@ source "fs/Kconfig.binfmt"
 config IA32_EMULATION
 	bool "IA32 Emulation"
 	help
-	  Include code to run 32-bit programs under a 64-bit kernel. You should likely
-	  turn this on, unless you're 100% sure that you don't have any 32-bit programs
-	  left.
+	  Include code to run 32-bit programs under a 64-bit kernel. You should
+	  likely turn this on, unless you're 100% sure that you don't have any
+	  32-bit programs left.
 
 config IA32_AOUT
        tristate "IA32 a.out support"

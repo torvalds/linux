@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <asm/reboot_fixups.h>
 #include <asm/msr.h>
+#include <asm/geode.h>
 
 static void cs5530a_warm_reset(struct pci_dev *dev)
 {
@@ -24,11 +25,8 @@ static void cs5530a_warm_reset(struct pci_dev *dev)
 
 static void cs5536_warm_reset(struct pci_dev *dev)
 {
-	/*
-	 * 6.6.2.12 Soft Reset (DIVIL_SOFT_RESET)
-	 * writing 1 to the LSB of this MSR causes a hard reset.
-	 */
-	wrmsrl(0x51400017, 1ULL);
+	/* writing 1 to the LSB of this MSR causes a hard reset */
+	wrmsrl(MSR_DIVIL_SOFT_RESET, 1ULL);
 	udelay(50); /* shouldn't get here but be safe and spin a while */
 }
 

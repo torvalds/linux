@@ -172,7 +172,7 @@ static unsigned int __init longrun_determine_freqs(unsigned int *low_freq,
 	u32 save_lo, save_hi;
 	u32 eax, ebx, ecx, edx;
 	u32 try_hi;
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	if (!low_freq || !high_freq)
 		return -EINVAL;
@@ -298,7 +298,7 @@ static struct cpufreq_driver longrun_driver = {
  */
 static int __init longrun_init(void)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	if (c->x86_vendor != X86_VENDOR_TRANSMETA ||
 	    !cpu_has(c, X86_FEATURE_LONGRUN))

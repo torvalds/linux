@@ -132,7 +132,7 @@ static struct ucode_cpu_info {
 
 static void collect_cpu_info(int cpu_num)
 {
-	struct cpuinfo_x86 *c = cpu_data + cpu_num;
+	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 	unsigned int val[2];
 
@@ -522,7 +522,7 @@ static struct platform_device *microcode_pdev;
 static int cpu_request_microcode(int cpu)
 {
 	char name[30];
-	struct cpuinfo_x86 *c = cpu_data + cpu;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
 	void *buf;
 	unsigned long size;
@@ -570,7 +570,7 @@ static int cpu_request_microcode(int cpu)
 
 static int apply_microcode_check_cpu(int cpu)
 {
-	struct cpuinfo_x86 *c = cpu_data + cpu;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	cpumask_t old;
 	unsigned int val[2];

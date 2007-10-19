@@ -102,7 +102,7 @@ static int sc520_freq_target (struct cpufreq_policy *policy,
 
 static int sc520_freq_cpu_init(struct cpufreq_policy *policy)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	int result;
 
 	/* capability check */
@@ -151,7 +151,7 @@ static struct cpufreq_driver sc520_freq_driver = {
 
 static int __init sc520_freq_init(void)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	int err;
 
 	/* Test if we have the right hardware */

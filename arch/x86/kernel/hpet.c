@@ -69,12 +69,15 @@ static inline void hpet_clear_mapping(void)
  * HPET command line enable / disable
  */
 static int boot_hpet_disable;
+int hpet_force_user;
 
 static int __init hpet_setup(char* str)
 {
 	if (str) {
 		if (!strncmp("disable", str, 7))
 			boot_hpet_disable = 1;
+		if (!strncmp("force", str, 5))
+			hpet_force_user = 1;
 	}
 	return 1;
 }

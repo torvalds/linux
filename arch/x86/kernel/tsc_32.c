@@ -181,8 +181,8 @@ int recalibrate_cpu_khz(void)
 	if (cpu_has_tsc) {
 		cpu_khz = calculate_cpu_khz();
 		tsc_khz = cpu_khz;
-		cpu_data[0].loops_per_jiffy =
-			cpufreq_scale(cpu_data[0].loops_per_jiffy,
+		cpu_data(0).loops_per_jiffy =
+			cpufreq_scale(cpu_data(0).loops_per_jiffy,
 					cpu_khz_old, cpu_khz);
 		return 0;
 	} else
@@ -215,7 +215,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
 			return 0;
 		}
 		ref_freq = freq->old;
-		loops_per_jiffy_ref = cpu_data[freq->cpu].loops_per_jiffy;
+		loops_per_jiffy_ref = cpu_data(freq->cpu).loops_per_jiffy;
 		cpu_khz_ref = cpu_khz;
 	}
 
@@ -223,7 +223,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
 	    (val == CPUFREQ_POSTCHANGE && freq->old > freq->new) ||
 	    (val == CPUFREQ_RESUMECHANGE)) {
 		if (!(freq->flags & CPUFREQ_CONST_LOOPS))
-			cpu_data[freq->cpu].loops_per_jiffy =
+			cpu_data(freq->cpu).loops_per_jiffy =
 				cpufreq_scale(loops_per_jiffy_ref,
 						ref_freq, freq->new);
 

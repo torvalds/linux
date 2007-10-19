@@ -67,7 +67,7 @@ int smp_num_siblings = 1;
 EXPORT_SYMBOL(smp_num_siblings);
 
 /* Last level cache ID of each logical CPU */
-int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
+DEFINE_PER_CPU(u8, cpu_llc_id) = BAD_APICID;
 
 /* representing HT siblings of each logical CPU */
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
@@ -89,12 +89,20 @@ EXPORT_SYMBOL(cpu_possible_map);
 static cpumask_t smp_commenced_mask;
 
 /* Per CPU bogomips and other parameters */
-struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
-EXPORT_SYMBOL(cpu_data);
+DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
+EXPORT_PER_CPU_SYMBOL(cpu_info);
 
-u8 x86_cpu_to_apicid[NR_CPUS] __read_mostly =
-			{ [0 ... NR_CPUS-1] = 0xff };
-EXPORT_SYMBOL(x86_cpu_to_apicid);
+/*
+ * The following static array is used during kernel startup
+ * and the x86_cpu_to_apicid_ptr contains the address of the
+ * array during this time.  Is it zeroed when the per_cpu
+ * data area is removed.
+ */
+u8 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
+			{ [0 ... NR_CPUS-1] = BAD_APICID };
+void *x86_cpu_to_apicid_ptr;
+DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
 u8 apicid_2_node[MAX_APICID];
 
@@ -150,9 +158,10 @@ void __init smp_alloc_memory(void)
 
 void __cpuinit smp_store_cpu_info(int id)
 {
-	struct cpuinfo_x86 *c = cpu_data + id;
+	struct cpuinfo_x86 *c = &cpu_data(id);
 
 	*c = boot_cpu_data;
+	c->cpu_index = id;
 	if (id!=0)
 		identify_secondary_cpu(c);
 	/*
@@ -294,7 +303,7 @@ static int cpucount;
 /* maps the cpu to the sched domain representing multi-core */
 cpumask_t cpu_coregroup_map(int cpu)
 {
-	struct cpuinfo_x86 *c = cpu_data + cpu;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	/*
 	 * For perf, we return last level cache shared map.
 	 * And for power savings, we return cpu_core_map
@@ -311,41 +320,41 @@ static cpumask_t cpu_sibling_setup_map;
 void __cpuinit set_cpu_sibling_map(int cpu)
 {
 	int i;
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	cpu_set(cpu, cpu_sibling_setup_map);
 
 	if (smp_num_siblings > 1) {
 		for_each_cpu_mask(i, cpu_sibling_setup_map) {
-			if (c[cpu].phys_proc_id == c[i].phys_proc_id &&
-			    c[cpu].cpu_core_id == c[i].cpu_core_id) {
+			if (c->phys_proc_id == cpu_data(i).phys_proc_id &&
+			    c->cpu_core_id == cpu_data(i).cpu_core_id) {
 				cpu_set(i, per_cpu(cpu_sibling_map, cpu));
 				cpu_set(cpu, per_cpu(cpu_sibling_map, i));
 				cpu_set(i, per_cpu(cpu_core_map, cpu));
 				cpu_set(cpu, per_cpu(cpu_core_map, i));
-				cpu_set(i, c[cpu].llc_shared_map);
-				cpu_set(cpu, c[i].llc_shared_map);
+				cpu_set(i, c->llc_shared_map);
+				cpu_set(cpu, cpu_data(i).llc_shared_map);
 			}
 		}
 	} else {
 		cpu_set(cpu, per_cpu(cpu_sibling_map, cpu));
 	}
 
-	cpu_set(cpu, c[cpu].llc_shared_map);
+	cpu_set(cpu, c->llc_shared_map);
 
 	if (current_cpu_data.x86_max_cores == 1) {
 		per_cpu(cpu_core_map, cpu) = per_cpu(cpu_sibling_map, cpu);
-		c[cpu].booted_cores = 1;
+		c->booted_cores = 1;
 		return;
 	}
 
 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
-		if (cpu_llc_id[cpu] != BAD_APICID &&
-		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
-			cpu_set(i, c[cpu].llc_shared_map);
-			cpu_set(cpu, c[i].llc_shared_map);
+		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
+		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
+			cpu_set(i, c->llc_shared_map);
+			cpu_set(cpu, cpu_data(i).llc_shared_map);
 		}
-		if (c[cpu].phys_proc_id == c[i].phys_proc_id) {
+		if (c->phys_proc_id == cpu_data(i).phys_proc_id) {
 			cpu_set(i, per_cpu(cpu_core_map, cpu));
 			cpu_set(cpu, per_cpu(cpu_core_map, i));
 			/*
@@ -357,15 +366,15 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 				 * the booted_cores for this new cpu
 				 */
 				if (first_cpu(per_cpu(cpu_sibling_map, i)) == i)
-					c[cpu].booted_cores++;
+					c->booted_cores++;
 				/*
 				 * increment the core count for all
 				 * the other cpus in this package
 				 */
 				if (i != cpu)
-					c[i].booted_cores++;
-			} else if (i != cpu && !c[cpu].booted_cores)
-				c[cpu].booted_cores = c[i].booted_cores;
+					cpu_data(i).booted_cores++;
+			} else if (i != cpu && !c->booted_cores)
+				c->booted_cores = cpu_data(i).booted_cores;
 		}
 	}
 }
@@ -804,7 +813,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 
 	irq_ctx_init(cpu);
 
-	x86_cpu_to_apicid[cpu] = apicid;
+	per_cpu(x86_cpu_to_apicid, cpu) = apicid;
 	/*
 	 * This grunge runs the startup process for
 	 * the targeted processor.
@@ -844,7 +853,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 			/* number CPUs logically, starting from 1 (BSP is 0) */
 			Dprintk("OK.\n");
 			printk("CPU%d: ", cpu);
-			print_cpu_info(&cpu_data[cpu]);
+			print_cpu_info(&cpu_data(cpu));
 			Dprintk("CPU has booted.\n");
 		} else {
 			boot_error= 1;
@@ -866,7 +875,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
 		cpucount--;
 	} else {
-		x86_cpu_to_apicid[cpu] = apicid;
+		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
 		cpu_set(cpu, cpu_present_map);
 	}
 
@@ -915,7 +924,7 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	struct warm_boot_cpu_info info;
 	int	apicid, ret;
 
-	apicid = x86_cpu_to_apicid[cpu];
+	apicid = per_cpu(x86_cpu_to_apicid, cpu);
 	if (apicid == BAD_APICID) {
 		ret = -ENODEV;
 		goto exit;
@@ -961,11 +970,11 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	 */
 	smp_store_cpu_info(0); /* Final full version of the data */
 	printk("CPU%d: ", 0);
-	print_cpu_info(&cpu_data[0]);
+	print_cpu_info(&cpu_data(0));
 
 	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
 	boot_cpu_logical_apicid = logical_smp_processor_id();
-	x86_cpu_to_apicid[0] = boot_cpu_physical_apicid;
+	per_cpu(x86_cpu_to_apicid, 0) = boot_cpu_physical_apicid;
 
 	current_thread_info()->cpu = 0;
 
@@ -1008,6 +1017,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		printk(KERN_ERR "... forcing use of dummy APIC emulation. (tell your hw vendor)\n");
 		smpboot_clear_io_apic_irqs();
 		phys_cpu_present_map = physid_mask_of_physid(0);
+		map_cpu_to_logical_apicid();
 		cpu_set(0, per_cpu(cpu_sibling_map, 0));
 		cpu_set(0, per_cpu(cpu_core_map, 0));
 		return;
@@ -1029,6 +1039,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		}
 		smpboot_clear_io_apic_irqs();
 		phys_cpu_present_map = physid_mask_of_physid(0);
+		map_cpu_to_logical_apicid();
 		cpu_set(0, per_cpu(cpu_sibling_map, 0));
 		cpu_set(0, per_cpu(cpu_core_map, 0));
 		return;
@@ -1082,7 +1093,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	Dprintk("Before bogomips.\n");
 	for (cpu = 0; cpu < NR_CPUS; cpu++)
 		if (cpu_isset(cpu, cpu_callout_map))
-			bogosum += cpu_data[cpu].loops_per_jiffy;
+			bogosum += cpu_data(cpu).loops_per_jiffy;
 	printk(KERN_INFO
 		"Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
 		cpucount+1,
@@ -1152,7 +1163,7 @@ void __init native_smp_prepare_boot_cpu(void)
 void remove_siblinginfo(int cpu)
 {
 	int sibling;
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	for_each_cpu_mask(sibling, per_cpu(cpu_core_map, cpu)) {
 		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
@@ -1160,15 +1171,15 @@ void remove_siblinginfo(int cpu)
 		 * last thread sibling in this cpu core going down
 		 */
 		if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1)
-			c[sibling].booted_cores--;
+			cpu_data(sibling).booted_cores--;
 	}
 			
 	for_each_cpu_mask(sibling, per_cpu(cpu_sibling_map, cpu))
 		cpu_clear(cpu, per_cpu(cpu_sibling_map, sibling));
 	cpus_clear(per_cpu(cpu_sibling_map, cpu));
 	cpus_clear(per_cpu(cpu_core_map, cpu));
-	c[cpu].phys_proc_id = 0;
-	c[cpu].cpu_core_id = 0;
+	c->phys_proc_id = 0;
+	c->cpu_core_id = 0;
 	cpu_clear(cpu, cpu_sibling_setup_map);
 }
 

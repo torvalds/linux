@@ -230,7 +230,7 @@ static struct cpu_model models[] =
 
 static int centrino_cpu_init_table(struct cpufreq_policy *policy)
 {
-	struct cpuinfo_x86 *cpu = &cpu_data[policy->cpu];
+	struct cpuinfo_x86 *cpu = &cpu_data(policy->cpu);
 	struct cpu_model *model;
 
 	for(model = models; model->cpu_id != NULL; model++)
@@ -340,7 +340,7 @@ static unsigned int get_cur_freq(unsigned int cpu)
 
 static int centrino_cpu_init(struct cpufreq_policy *policy)
 {
-	struct cpuinfo_x86 *cpu = &cpu_data[policy->cpu];
+	struct cpuinfo_x86 *cpu = &cpu_data(policy->cpu);
 	unsigned freq;
 	unsigned l, h;
 	int ret;
@@ -612,7 +612,7 @@ static struct cpufreq_driver centrino_driver = {
  */
 static int __init centrino_init(void)
 {
-	struct cpuinfo_x86 *cpu = cpu_data;
+	struct cpuinfo_x86 *cpu = &cpu_data(0);
 
 	if (!cpu_has(cpu, X86_FEATURE_EST))
 		return -ENODEV;

@@ -1080,7 +1080,7 @@ config APM_REAL_MODE_POWER_OFF
 
 endif # APM
 
-source "arch/x86/kernel/cpu/cpufreq/Kconfig"
+source "arch/x86/kernel/cpu/cpufreq/Kconfig_32"
 
 source "drivers/cpuidle/Kconfig"
 

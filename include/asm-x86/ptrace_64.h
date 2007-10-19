@@ -40,6 +40,8 @@ struct pt_regs {
 #define user_mode(regs) (!!((regs)->cs & 3))
 #define user_mode_vm(regs) user_mode(regs)
 #define instruction_pointer(regs) ((regs)->rip)
+#define frame_pointer(regs) ((regs)->rbp)
+#define stack_pointer(regs) ((regs)->rsp)
 #define regs_return_value(regs) ((regs)->rax)
 
 extern unsigned long profile_pc(struct pt_regs *regs);

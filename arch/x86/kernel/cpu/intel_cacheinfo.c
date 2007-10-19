@@ -295,7 +295,7 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	unsigned int new_l2 = 0, new_l3 = 0, i; /* Cache sizes from cpuid(4) */
 	unsigned int l2_id = 0, l3_id = 0, num_threads_sharing, index_msb;
 #ifdef CONFIG_X86_HT
-	unsigned int cpu = (c == &boot_cpu_data) ? 0 : (c - cpu_data);
+	unsigned int cpu = c->cpu_index;
 #endif
 
 	if (c->cpuid_level > 3) {
@@ -417,14 +417,14 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	if (new_l2) {
 		l2 = new_l2;
 #ifdef CONFIG_X86_HT
-		cpu_llc_id[cpu] = l2_id;
+		per_cpu(cpu_llc_id, cpu) = l2_id;
 #endif
 	}
 
 	if (new_l3) {
 		l3 = new_l3;
 #ifdef CONFIG_X86_HT
-		cpu_llc_id[cpu] = l3_id;
+		per_cpu(cpu_llc_id, cpu) = l3_id;
 #endif
 	}
 
@@ -459,7 +459,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 	struct _cpuid4_info	*this_leaf, *sibling_leaf;
 	unsigned long num_threads_sharing;
 	int index_msb, i;
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
 	num_threads_sharing = 1 + this_leaf->eax.split.num_threads_sharing;
@@ -470,8 +470,8 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 		index_msb = get_count_order(num_threads_sharing);
 
 		for_each_online_cpu(i) {
-			if (c[i].apicid >> index_msb ==
-			    c[cpu].apicid >> index_msb) {
+			if (cpu_data(i).apicid >> index_msb ==
+			    c->apicid >> index_msb) {
 				cpu_set(i, this_leaf->shared_cpu_map);
 				if (i != cpu && cpuid4_info[i])  {
 					sibling_leaf = CPUID4_INFO_IDX(i, index);
