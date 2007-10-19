@@ -522,12 +522,12 @@ BTRFS_SETGET_FUNCS(timespec_nsec, struct btrfs_inode_timespec, nsec, 32);
 
 /* struct btrfs_extent_item */
 BTRFS_SETGET_FUNCS(extent_refs, struct btrfs_extent_item, refs, 32);
-BTRFS_SETGET_FUNCS(extent_owner, struct btrfs_extent_item, owner, 32);
+BTRFS_SETGET_FUNCS(extent_owner, struct btrfs_extent_item, owner, 64);
 
 BTRFS_SETGET_STACK_FUNCS(stack_extent_refs, struct btrfs_extent_item,
 			 refs, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_extent_owner, struct btrfs_extent_item,
-			 owner, 32);
+			 owner, 64);
 
 /* struct btrfs_node */
 BTRFS_SETGET_FUNCS(key_blockptr, struct btrfs_key_ptr, blockptr, 64);
