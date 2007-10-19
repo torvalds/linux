@@ -2431,7 +2431,7 @@ static irqreturn_t t3b_intr_napi(int irq, void *cookie)
  *	(MSI-X, MSI, or legacy) and whether NAPI will be used to service the
  *	response queues.
  */
-intr_handler_t t3_intr_handler(struct adapter *adap, int polling)
+irq_handler_t t3_intr_handler(struct adapter *adap, int polling)
 {
 	if (adap->flags & USING_MSIX)
 		return polling ? t3_sge_intr_msix_napi : t3_sge_intr_msix;

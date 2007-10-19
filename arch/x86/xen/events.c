@@ -383,7 +383,7 @@ static void unbind_from_irq(unsigned int irq)
 }
 
 int bind_evtchn_to_irqhandler(unsigned int evtchn,
-			      irqreturn_t (*handler)(int, void *),
+			      irq_handler_t handler,
 			      unsigned long irqflags,
 			      const char *devname, void *dev_id)
 {
@@ -402,7 +402,7 @@ int bind_evtchn_to_irqhandler(unsigned int evtchn,
 EXPORT_SYMBOL_GPL(bind_evtchn_to_irqhandler);
 
 int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
-			    irqreturn_t (*handler)(int, void *),
+			    irq_handler_t handler,
 			    unsigned long irqflags, const char *devname, void *dev_id)
 {
 	unsigned int irq;
