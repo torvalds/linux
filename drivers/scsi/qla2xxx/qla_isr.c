@@ -1012,8 +1012,14 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 	case CS_DATA_UNDERRUN:
 		resid = resid_len;
 		/* Use F/W calculated residual length. */
-		if (IS_FWI2_CAPABLE(ha))
+		if (IS_FWI2_CAPABLE(ha)) {
+			if (scsi_status & SS_RESIDUAL_UNDER &&
+			    resid != fw_resid_len) {
+				scsi_status &= ~SS_RESIDUAL_UNDER;
+				lscsi_status = 0;
+			}
 			resid = fw_resid_len;
+		}
 
 		if (scsi_status & SS_RESIDUAL_UNDER) {
 			scsi_set_resid(cp, resid);
