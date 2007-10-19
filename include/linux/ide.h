@@ -200,14 +200,16 @@ typedef int (ide_ack_intr_t)(struct hwif_s *);
  * hwif_chipset_t is used to keep track of the specific hardware
  * chipset used by each IDE interface, if known.
  */
-typedef enum {	ide_unknown,	ide_generic,	ide_pci,
+enum {		ide_unknown,	ide_generic,	ide_pci,
 		ide_cmd640,	ide_dtc2278,	ide_ali14xx,
 		ide_qd65xx,	ide_umc8672,	ide_ht6560b,
 		ide_rz1000,	ide_trm290,
 		ide_cmd646,	ide_cy82c693,	ide_4drives,
 		ide_pmac,	ide_etrax100,	ide_acorn,
 		ide_au1xxx, ide_forced
-} hwif_chipset_t;
+};
+
+typedef u8 hwif_chipset_t;
 
 /*
  * Structure to hold all information about the location of this port
@@ -1277,6 +1279,7 @@ typedef struct ide_pci_device_s {
 	void			(*init_dma)(ide_hwif_t *, unsigned long);
 	void			(*fixup)(ide_hwif_t *);
 	ide_pci_enablebit_t	enablebits[2];
+	hwif_chipset_t		chipset;
 	unsigned int		extra;
 	u32			host_flags;
 	u8			pio_mask;

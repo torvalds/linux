@@ -506,9 +506,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cmd64x_set_pio_mode;
 	hwif->set_dma_mode = &cmd64x_set_dma_mode;
 
-	if (dev->device == PCI_DEVICE_ID_CMD_646)
-		hwif->chipset = ide_cmd646;
-
 	if (!hwif->dma_base)
 		return;
 
@@ -575,6 +572,7 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
+		.chipset	= ide_cmd646,
 		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
