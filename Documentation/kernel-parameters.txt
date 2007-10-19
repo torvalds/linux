@@ -222,9 +222,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Warning: Many of these options can produce a lot of
 			output and make your system unusable. Be very careful.
 
-
-	acpi_fake_ecdt	[HW,ACPI] Workaround failure due to BIOS lacking ECDT
-
 	acpi_pm_good	[X86-32,X86-64]
 			Override the pmtimer bug detection: force the kernel
 			to assume that this machine's pmtimer latches its value
