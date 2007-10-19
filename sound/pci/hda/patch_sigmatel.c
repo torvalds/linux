@@ -393,6 +393,16 @@ static struct hda_verb stac9205_core_init[] = {
 	{}
 };
 
+#define STAC_DIGITAL_INPUT_SOURCE(cnt) \
+	{ \
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+		.name = "Digital Input Source", \
+		.count = cnt, \
+		.info = stac92xx_dmux_enum_info, \
+		.get = stac92xx_dmux_enum_get, \
+		.put = stac92xx_dmux_enum_put,\
+	}
+
 #define STAC_INPUT_SOURCE(cnt) \
 	{ \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
@@ -433,14 +443,7 @@ static struct snd_kcontrol_new stac925x_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac9205_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Digital Input Source",
-		.count = 1,
-		.info = stac92xx_dmux_enum_info,
-		.get = stac92xx_dmux_enum_get,
-		.put = stac92xx_dmux_enum_put,
-	},
+	STAC_DIGITAL_INPUT_SOURCE(1),
 	STAC_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFE0, 0x7E0),
 
@@ -470,6 +473,7 @@ static struct snd_kcontrol_new stac922x_mixer[] = {
 
 
 static struct snd_kcontrol_new stac927x_mixer[] = {
+	STAC_DIGITAL_INPUT_SOURCE(1),
 	STAC_INPUT_SOURCE(3),
 	STAC_ANALOG_LOOPBACK(0xFEB, 0x7EB),
 
@@ -2718,6 +2722,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	case 0x10280209: /* STAC 9228 */
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
+		spec->dmux_nid = 0x1c;
 		break;
 	default:
 		spec->num_dmics = 0;	
