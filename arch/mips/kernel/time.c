@@ -40,17 +40,6 @@
 #include <irq.h>
 
 /*
- * The integer part of the number of usecs per jiffy is taken from tick,
- * but the fractional part is not recorded, so we calculate it using the
- * initial value of HZ.  This aids systems where tick isn't really an
- * integer (e.g. for HZ = 128).
- */
-#define USECS_PER_JIFFY		TICK_SIZE
-#define USECS_PER_JIFFY_FRAC	((unsigned long)(u32)((1000000ULL << 32) / HZ))
-
-#define TICK_SIZE	(tick_nsec / 1000)
-
-/*
  * forward reference
  */
 DEFINE_SPINLOCK(rtc_lock);
@@ -212,54 +201,6 @@ void __init __weak plat_time_init(void)
 void __init __weak plat_timer_setup(struct irqaction *irq)
 {
 }
-
-#ifdef CONFIG_MIPS_MT_SMTC
-DEFINE_PER_CPU(struct clock_event_device, smtc_dummy_clockevent_device);
-
-static void smtc_set_mode(enum clock_event_mode mode,
-                          struct clock_event_device *evt)
-{
-}
-
-static void mips_broadcast(cpumask_t mask)
-{
-	unsigned int cpu;
-
-	for_each_cpu_mask(cpu, mask)
-		smtc_send_ipi(cpu, SMTC_CLOCK_TICK, 0);
-}
-
-static void setup_smtc_dummy_clockevent_device(void)
-{
-	//uint64_t mips_freq = mips_hpt_^frequency;
-	unsigned int cpu = smp_processor_id();
-	struct clock_event_device *cd;
-
-	cd = &per_cpu(smtc_dummy_clockevent_device, cpu);
-
-	cd->name		= "SMTC";
-	cd->features		= CLOCK_EVT_FEAT_DUMMY;
-
-	/* Calculate the min / max delta */
-	cd->mult	= 0; //div_sc((unsigned long) mips_freq, NSEC_PER_SEC, 32);
-	cd->shift		= 0; //32;
-	cd->max_delta_ns	= 0; //clockevent_delta2ns(0x7fffffff, cd);
-	cd->min_delta_ns	= 0; //clockevent_delta2ns(0x30, cd);
-
-	cd->rating		= 200;
-	cd->irq			= 17; //-1;
-//	if (cpu)
-//		cd->cpumask	= CPU_MASK_ALL; // cpumask_of_cpu(cpu);
-//	else
-		cd->cpumask	= cpumask_of_cpu(cpu);
-
-	cd->set_mode		= smtc_set_mode;
-
-	cd->broadcast		= mips_broadcast;
-
-	clockevents_register_device(cd);
-}
-#endif
 
 void __init time_init(void)
 {
