@@ -54,8 +54,8 @@ xfs_fs_decode_fh(
 		struct dentry	*de),
 	void			*context)
 {
-	xfs_fid2_t		ifid;
-	xfs_fid2_t		pfid;
+	xfs_fid_t		ifid;
+	xfs_fid_t		pfid;
 	void			*parent = NULL;
 	int			is64 = 0;
 	__u32			*p = fh;
@@ -144,7 +144,7 @@ xfs_fs_get_dentry(
 	struct dentry		*result;
 	int			error;
 
-	error = xfs_vget(XFS_M(sb), &vp, (fid_t *)data);
+	error = xfs_vget(XFS_M(sb), &vp, data);
 	if (error || vp == NULL)
 		return ERR_PTR(-ESTALE) ;
 

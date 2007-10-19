@@ -71,13 +71,13 @@ xfs_fileid_length(int hasparent, int is64)
 
 /*
  * Decode encoded inode information (either for the inode itself
- * or the parent) into an xfs_fid2_t structure.  Advances and
+ * or the parent) into an xfs_fid_t structure.  Advances and
  * returns the new data pointer
  */
 static inline __u32 *
-xfs_fileid_decode_fid2(__u32 *p, xfs_fid2_t *fid, int is64)
+xfs_fileid_decode_fid2(__u32 *p, xfs_fid_t *fid, int is64)
 {
-	fid->fid_len = sizeof(xfs_fid2_t) - sizeof(fid->fid_len);
+	fid->fid_len = sizeof(xfs_fid_t) - sizeof(fid->fid_len);
 	fid->fid_pad = 0;
 	fid->fid_ino = *p++;
 #if XFS_BIG_INUMS

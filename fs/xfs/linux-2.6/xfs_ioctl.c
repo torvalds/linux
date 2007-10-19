@@ -152,11 +152,11 @@ xfs_find_handle(
 		lock_mode = xfs_ilock_map_shared(ip);
 
 		/* fill in fid section of handle from inode */
-		handle.ha_fid.xfs_fid_len = sizeof(xfs_fid_t) -
-					    sizeof(handle.ha_fid.xfs_fid_len);
-		handle.ha_fid.xfs_fid_pad = 0;
-		handle.ha_fid.xfs_fid_gen = ip->i_d.di_gen;
-		handle.ha_fid.xfs_fid_ino = ip->i_ino;
+		handle.ha_fid.fid_len = sizeof(xfs_fid_t) -
+					sizeof(handle.ha_fid.fid_len);
+		handle.ha_fid.fid_pad = 0;
+		handle.ha_fid.fid_gen = ip->i_d.di_gen;
+		handle.ha_fid.fid_ino = ip->i_ino;
 
 		xfs_iunlock_map_shared(ip, lock_mode);
 
@@ -222,10 +222,10 @@ xfs_vget_fsop_handlereq(
 	if (hlen < sizeof(*handlep))
 		memset(((char *)handlep) + hlen, 0, sizeof(*handlep) - hlen);
 	if (hlen > sizeof(handlep->ha_fsid)) {
-		if (handlep->ha_fid.xfs_fid_len !=
-				(hlen - sizeof(handlep->ha_fsid)
-					- sizeof(handlep->ha_fid.xfs_fid_len))
-		    || handlep->ha_fid.xfs_fid_pad)
+		if (handlep->ha_fid.fid_len !=
+		    (hlen - sizeof(handlep->ha_fsid) -
+		            sizeof(handlep->ha_fid.fid_len)) ||
+		    handlep->ha_fid.fid_pad)
 			return XFS_ERROR(EINVAL);
 	}
 
@@ -233,9 +233,9 @@ xfs_vget_fsop_handlereq(
 	 * Crack the handle, obtain the inode # & generation #
 	 */
 	xfid = (struct xfs_fid *)&handlep->ha_fid;
-	if (xfid->xfs_fid_len == sizeof(*xfid) - sizeof(xfid->xfs_fid_len)) {
-		ino  = xfid->xfs_fid_ino;
-		igen = xfid->xfs_fid_gen;
+	if (xfid->fid_len == sizeof(*xfid) - sizeof(xfid->fid_len)) {
+		ino  = xfid->fid_ino;
+		igen = xfid->fid_gen;
 	} else {
 		return XFS_ERROR(EINVAL);
 	}
