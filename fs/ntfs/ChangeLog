@@ -1585,7 +1585,7 @@ tng-0.0.4 - Big changes, getting in line with Al Viro's comments.
 	  for reading $MFT (ntfs_mft_readpage). In the process create dedicated
 	  address space operations (ntfs_mft_aops) for $MFT inode mapping. Also
 	  removed the now superfluous exports from the kernel core patch.
-	- Fix a bug where kfree() was used insted of ntfs_free().
+	- Fix a bug where kfree() was used instead of ntfs_free().
 	- Change map_mft_record() to take ntfs_inode as argument instead of
 	  vfs inode. Dito for unmap_mft_record(). Adapt all callers.
 	- Add pointer to ntfs_volume to ntfs_inode.

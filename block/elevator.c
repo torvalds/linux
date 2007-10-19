@@ -390,7 +390,7 @@ EXPORT_SYMBOL(elv_rb_find);
 
 /*
  * Insert rq into dispatch queue of q.  Queue lock must be held on
- * entry.  rq is sort insted into the dispatch queue. To be used by
+ * entry.  rq is sort instead into the dispatch queue. To be used by
  * specific elevators.
  */
 void elv_dispatch_sort(struct request_queue *q, struct request *rq)
