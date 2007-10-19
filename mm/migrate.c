@@ -925,8 +925,7 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 
 	/* Find the mm_struct */
 	read_lock(&tasklist_lock);
-	task = pid ?
-		find_task_by_pid_ns(pid, current->nsproxy->pid_ns) : current;
+	task = pid ? find_task_by_vpid(pid) : current;
 	if (!task) {
 		read_unlock(&tasklist_lock);
 		return -ESRCH;

@@ -152,8 +152,7 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 	switch (which) {
 		case PRIO_PROCESS:
 			if (who)
-				p = find_task_by_pid_ns(who,
-						current->nsproxy->pid_ns);
+				p = find_task_by_vpid(who);
 			else
 				p = current;
 			if (p)
@@ -210,8 +209,7 @@ asmlinkage long sys_getpriority(int which, int who)
 	switch (which) {
 		case PRIO_PROCESS:
 			if (who)
-				p = find_task_by_pid_ns(who,
-						current->nsproxy->pid_ns);
+				p = find_task_by_vpid(who);
 			else
 				p = current;
 			if (p) {
@@ -1067,7 +1065,8 @@ asmlinkage long sys_setsid(void)
 	 * session id and so the check will always fail and make it so
 	 * init cannot successfully call setsid.
 	 */
-	if (session > 1 && find_task_by_pid_type(PIDTYPE_PGID, session))
+	if (session > 1 && find_task_by_pid_type_ns(PIDTYPE_PGID,
+				session, &init_pid_ns))
 		goto out;
 
 	group_leader->signal->leader = 1;

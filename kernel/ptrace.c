@@ -444,8 +444,7 @@ struct task_struct *ptrace_get_task_struct(pid_t pid)
 		return ERR_PTR(-EPERM);
 
 	read_lock(&tasklist_lock);
-	child = find_task_by_pid_ns(pid,
-			current->nsproxy->pid_ns);
+	child = find_task_by_vpid(pid);
 	if (child)
 		get_task_struct(child);
 

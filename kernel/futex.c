@@ -446,9 +446,7 @@ static struct task_struct * futex_find_get_task(pid_t pid)
 	struct task_struct *p;
 
 	rcu_read_lock();
-	p = find_task_by_pid_ns(pid,
-			current->nsproxy->pid_ns);
-
+	p = find_task_by_vpid(pid);
 	if (!p || ((current->euid != p->euid) && (current->euid != p->uid)))
 		p = ERR_PTR(-ESRCH);
 	else
@@ -1858,8 +1856,7 @@ sys_get_robust_list(int pid, struct robust_list_head __user * __user *head_ptr,
 
 		ret = -ESRCH;
 		rcu_read_lock();
-		p = find_task_by_pid_ns(pid,
-				current->nsproxy->pid_ns);
+		p = find_task_by_vpid(pid);
 		if (!p)
 			goto err_unlock;
 		ret = -EPERM;

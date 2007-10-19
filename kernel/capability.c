@@ -63,8 +63,7 @@ asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
 	read_lock(&tasklist_lock);
 
 	if (pid && pid != task_pid_vnr(current)) {
-		target = find_task_by_pid_ns(pid,
-				current->nsproxy->pid_ns);
+		target = find_task_by_vpid(pid);
 		if (!target) {
 			ret = -ESRCH;
 			goto out;
@@ -198,8 +197,7 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	read_lock(&tasklist_lock);
 
 	if (pid > 0 && pid != task_pid_vnr(current)) {
-		target = find_task_by_pid_ns(pid,
-				current->nsproxy->pid_ns);
+		target = find_task_by_vpid(pid);
 		if (!target) {
 			ret = -ESRCH;
 			goto out;

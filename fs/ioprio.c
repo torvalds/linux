@@ -94,8 +94,7 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 			if (!who)
 				p = current;
 			else
-				p = find_task_by_pid_ns(who,
-						current->nsproxy->pid_ns);
+				p = find_task_by_vpid(who);
 			if (p)
 				ret = set_task_ioprio(p, ioprio);
 			break;
@@ -182,8 +181,7 @@ asmlinkage long sys_ioprio_get(int which, int who)
 			if (!who)
 				p = current;
 			else
-				p = find_task_by_pid_ns(who,
-						current->nsproxy->pid_ns);
+				p = find_task_by_vpid(who);
 			if (p)
 				ret = get_task_ioprio(p);
 			break;
