@@ -17,7 +17,7 @@
  *    TODO:
  *	Test PARISC SuperIO
  *	Get someone to test on SPARC
- *	Implement lazy pio/dma switching for better performance	
+ *	Implement lazy pio/dma switching for better performance
  *	8bit shared timing.
  *	See if we need to kill the FIFO for ATAPI
  */
@@ -60,10 +60,10 @@ static void ns87415_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 	u16 clocking;
 	u8 iordy;
 	u8 status;
-	
+
 	/* Timing register format is 17 - low nybble read timing with
 	   the high nybble being 16 - x for recovery time in PCI clocks */
-   
+
 	ata_timing_compute(adev, adev->pio_mode, &t, T, 0);
 
 	clocking = 17 - FIT(t.active, 2, 17);
@@ -71,7 +71,7 @@ static void ns87415_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
  	/* Use the same timing for read and write bytes */
 	clocking |= (clocking << 8);
 	pci_write_config_word(dev, timing, clocking);
-	
+
 	/* Set the IORDY enable versus DMA enable on or off properly */
 	pci_read_config_byte(dev, 0x42, &iordy);
 	iordy &= ~(1 << (4 + unit));
@@ -185,7 +185,7 @@ static void ns87415_bmdma_irq_clear(struct ata_port *ap)
 
 	if (!mmio)
 		return;
-	iowrite8((ioread8(mmio + ATA_DMA_CMD) | ATA_DMA_INTR | ATA_DMA_ERR), 
+	iowrite8((ioread8(mmio + ATA_DMA_CMD) | ATA_DMA_INTR | ATA_DMA_ERR),
 			mmio + ATA_DMA_CMD);
 }
 

@@ -163,7 +163,7 @@ enum {
 	NV_ADMA_STAT_STOPPED		= (1 << 10),
 	NV_ADMA_STAT_DONE		= (1 << 12),
 	NV_ADMA_STAT_ERR		= NV_ADMA_STAT_CPBERR |
-	 				  NV_ADMA_STAT_TIMEOUT,
+					  NV_ADMA_STAT_TIMEOUT,
 
 	/* port flags */
 	NV_ADMA_PORT_REGISTER_MODE	= (1 << 0),
@@ -228,7 +228,7 @@ struct nv_adma_cpb {
 	u8			reserved1;     /* 1 */
 	u8			ctl_flags;     /* 2 */
 	/* len is length of taskfile in 64 bit words */
- 	u8			len;           /* 3  */
+	u8			len;		/* 3  */
 	u8			tag;           /* 4 */
 	u8			next_cpb_idx;  /* 5 */
 	__le16			reserved2;     /* 6-7 */
@@ -244,9 +244,9 @@ struct nv_adma_port_priv {
 	dma_addr_t		cpb_dma;
 	struct nv_adma_prd	*aprd;
 	dma_addr_t		aprd_dma;
-	void __iomem *		ctl_block;
-	void __iomem *		gen_block;
-	void __iomem *		notifier_clear_block;
+	void __iomem		*ctl_block;
+	void __iomem		*gen_block;
+	void __iomem		*notifier_clear_block;
 	u8			flags;
 	int			last_issue_ncq;
 };
@@ -293,7 +293,7 @@ struct nv_swncq_port_priv {
 
 #define NV_ADMA_CHECK_INTR(GCTL, PORT) ((GCTL) & ( 1 << (19 + (12 * (PORT)))))
 
-static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
+static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 #ifdef CONFIG_PM
 static int nv_pci_device_resume(struct pci_dev *pdev);
 #endif
@@ -301,8 +301,8 @@ static void nv_ck804_host_stop(struct ata_host *host);
 static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance);
 static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance);
 static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance);
-static int nv_scr_read (struct ata_port *ap, unsigned int sc_reg, u32 *val);
-static int nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int nv_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
+static int nv_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 
 static void nv_nf2_freeze(struct ata_port *ap);
 static void nv_nf2_thaw(struct ata_port *ap);
@@ -653,12 +653,12 @@ static void nv_adma_register_mode(struct ata_port *ap)
 		return;
 
 	status = readw(mmio + NV_ADMA_STAT);
-	while(!(status & NV_ADMA_STAT_IDLE) && count < 20) {
+	while (!(status & NV_ADMA_STAT_IDLE) && count < 20) {
 		ndelay(50);
 		status = readw(mmio + NV_ADMA_STAT);
 		count++;
 	}
-	if(count == 20)
+	if (count == 20)
 		ata_port_printk(ap, KERN_WARNING,
 			"timeout waiting for ADMA IDLE, stat=0x%hx\n",
 			status);
@@ -668,12 +668,12 @@ static void nv_adma_register_mode(struct ata_port *ap)
 
 	count = 0;
 	status = readw(mmio + NV_ADMA_STAT);
-	while(!(status & NV_ADMA_STAT_LEGACY) && count < 20) {
+	while (!(status & NV_ADMA_STAT_LEGACY) && count < 20) {
 		ndelay(50);
 		status = readw(mmio + NV_ADMA_STAT);
 		count++;
 	}
-	if(count == 20)
+	if (count == 20)
 		ata_port_printk(ap, KERN_WARNING,
 			 "timeout waiting for ADMA LEGACY, stat=0x%hx\n",
 			 status);
@@ -697,13 +697,13 @@ static void nv_adma_mode(struct ata_port *ap)
 	writew(tmp | NV_ADMA_CTL_GO, mmio + NV_ADMA_CTL);
 
 	status = readw(mmio + NV_ADMA_STAT);
-	while(((status & NV_ADMA_STAT_LEGACY) ||
+	while (((status & NV_ADMA_STAT_LEGACY) ||
 	      !(status & NV_ADMA_STAT_IDLE)) && count < 20) {
 		ndelay(50);
 		status = readw(mmio + NV_ADMA_STAT);
 		count++;
 	}
-	if(count == 20)
+	if (count == 20)
 		ata_port_printk(ap, KERN_WARNING,
 			"timeout waiting for ADMA LEGACY clear and IDLE, stat=0x%hx\n",
 			status);
@@ -747,8 +747,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 		   on the port. */
 		adma_enable = 0;
 		nv_adma_register_mode(ap);
-	}
-	else {
+	} else {
 		bounce_limit = *ap->dev->dma_mask;
 		segment_boundary = NV_ADMA_DMA_BOUNDARY;
 		sg_tablesize = NV_ADMA_SGTBL_TOTAL_LEN;
@@ -757,23 +756,22 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 
 	pci_read_config_dword(pdev, NV_MCP_SATA_CFG_20, &current_reg);
 
-	if(ap->port_no == 1)
+	if (ap->port_no == 1)
 		config_mask = NV_MCP_SATA_CFG_20_PORT1_EN |
 			      NV_MCP_SATA_CFG_20_PORT1_PWB_EN;
 	else
 		config_mask = NV_MCP_SATA_CFG_20_PORT0_EN |
 			      NV_MCP_SATA_CFG_20_PORT0_PWB_EN;
 
-	if(adma_enable) {
+	if (adma_enable) {
 		new_reg = current_reg | config_mask;
 		pp->flags &= ~NV_ADMA_ATAPI_SETUP_COMPLETE;
-	}
-	else {
+	} else {
 		new_reg = current_reg & ~config_mask;
 		pp->flags |= NV_ADMA_ATAPI_SETUP_COMPLETE;
 	}
 
-	if(current_reg != new_reg)
+	if (current_reg != new_reg)
 		pci_write_config_dword(pdev, NV_MCP_SATA_CFG_20, new_reg);
 
 	blk_queue_bounce_limit(sdev->request_queue, bounce_limit);
@@ -807,7 +805,7 @@ static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, __le16 *cpb)
 {
 	unsigned int idx = 0;
 
-	if(tf->flags & ATA_TFLAG_ISADDR) {
+	if (tf->flags & ATA_TFLAG_ISADDR) {
 		if (tf->flags & ATA_TFLAG_LBA48) {
 			cpb[idx++] = cpu_to_le16((ATA_REG_ERR   << 8) | tf->hob_feature | WNB);
 			cpb[idx++] = cpu_to_le16((ATA_REG_NSECT << 8) | tf->hob_nsect);
@@ -824,12 +822,12 @@ static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, __le16 *cpb)
 		cpb[idx++] = cpu_to_le16((ATA_REG_LBAH   << 8) | tf->lbah);
 	}
 
-	if(tf->flags & ATA_TFLAG_DEVICE)
+	if (tf->flags & ATA_TFLAG_DEVICE)
 		cpb[idx++] = cpu_to_le16((ATA_REG_DEVICE << 8) | tf->device);
 
 	cpb[idx++] = cpu_to_le16((ATA_REG_CMD    << 8) | tf->command | CMDEND);
 
-	while(idx < 12)
+	while (idx < 12)
 		cpb[idx++] = cpu_to_le16(IGN);
 
 	return idx;
@@ -850,7 +848,7 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 		int freeze = 0;
 
 		ata_ehi_clear_desc(ehi);
-		__ata_ehi_push_desc(ehi, "CPB resp_flags 0x%x: ", flags );
+		__ata_ehi_push_desc(ehi, "CPB resp_flags 0x%x: ", flags);
 		if (flags & NV_CPB_RESP_ATA_ERR) {
 			ata_ehi_push_desc(ehi, "ATA error");
 			ehi->err_mask |= AC_ERR_DEV;
@@ -879,7 +877,7 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, cpb_num);
 		VPRINTK("CPB flags done, flags=0x%x\n", flags);
 		if (likely(qc)) {
-			DPRINTK("Completing qc from tag %d\n",cpb_num);
+			DPRINTK("Completing qc from tag %d\n", cpb_num);
 			ata_qc_complete(qc);
 		} else {
 			struct ata_eh_info *ehi = &ap->link.eh_info;
@@ -952,7 +950,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			if (pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
 				u8 irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804)
 					>> (NV_INT_PORT_SHIFT * i);
-				if(ata_tag_valid(ap->link.active_tag))
+				if (ata_tag_valid(ap->link.active_tag))
 					/** NV_INT_DEV indication seems unreliable at times
 					    at least in ADMA mode. Force it on always when a
 					    command is active, to prevent losing interrupts. */
@@ -966,7 +964,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 
 			gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
 
-			if( !NV_ADMA_CHECK_INTR(gen_ctl, ap->port_no) && !notifier &&
+			if (!NV_ADMA_CHECK_INTR(gen_ctl, ap->port_no) && !notifier &&
 			    !notifier_error)
 				/* Nothing to do */
 				continue;
@@ -990,7 +988,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 				struct ata_eh_info *ehi = &ap->link.eh_info;
 
 				ata_ehi_clear_desc(ehi);
-				__ata_ehi_push_desc(ehi, "ADMA status 0x%08x: ", status );
+				__ata_ehi_push_desc(ehi, "ADMA status 0x%08x: ", status);
 				if (status & NV_ADMA_STAT_TIMEOUT) {
 					ehi->err_mask |= AC_ERR_SYSTEM;
 					ata_ehi_push_desc(ehi, "timeout");
@@ -1056,14 +1054,14 @@ static void nv_adma_freeze(struct ata_port *ap)
 		return;
 
 	/* clear any outstanding CK804 notifications */
-	writeb( NV_INT_ALL << (ap->port_no * NV_INT_PORT_SHIFT),
+	writeb(NV_INT_ALL << (ap->port_no * NV_INT_PORT_SHIFT),
 		ap->host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804);
 
 	/* Disable interrupt */
 	tmp = readw(mmio + NV_ADMA_CTL);
-	writew( tmp & ~(NV_ADMA_CTL_AIEN | NV_ADMA_CTL_HOTPLUG_IEN),
+	writew(tmp & ~(NV_ADMA_CTL_AIEN | NV_ADMA_CTL_HOTPLUG_IEN),
 		mmio + NV_ADMA_CTL);
-	readw( mmio + NV_ADMA_CTL );	/* flush posted write */
+	readw(mmio + NV_ADMA_CTL );	/* flush posted write */
 }
 
 static void nv_adma_thaw(struct ata_port *ap)
@@ -1079,9 +1077,9 @@ static void nv_adma_thaw(struct ata_port *ap)
 
 	/* Enable interrupt */
 	tmp = readw(mmio + NV_ADMA_CTL);
-	writew( tmp | (NV_ADMA_CTL_AIEN | NV_ADMA_CTL_HOTPLUG_IEN),
+	writew(tmp | (NV_ADMA_CTL_AIEN | NV_ADMA_CTL_HOTPLUG_IEN),
 		mmio + NV_ADMA_CTL);
-	readw( mmio + NV_ADMA_CTL );	/* flush posted write */
+	readw(mmio + NV_ADMA_CTL );	/* flush posted write */
 }
 
 static void nv_adma_irq_clear(struct ata_port *ap)
@@ -1096,7 +1094,7 @@ static void nv_adma_irq_clear(struct ata_port *ap)
 	}
 
 	/* clear any outstanding CK804 notifications */
-	writeb( NV_INT_ALL << (ap->port_no * NV_INT_PORT_SHIFT),
+	writeb(NV_INT_ALL << (ap->port_no * NV_INT_PORT_SHIFT),
 		ap->host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804);
 
 	/* clear ADMA status */

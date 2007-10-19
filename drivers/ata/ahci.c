@@ -227,7 +227,7 @@ struct ahci_port_priv {
 
 static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
 static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
-static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
+static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
 static void ahci_irq_clear(struct ata_port *ap);
 static int ahci_port_start(struct ata_port *ap);
@@ -729,7 +729,7 @@ static int ahci_stop_engine(struct ata_port *ap)
 
 	/* wait for engine to stop. This could be as long as 500 msec */
 	tmp = ata_wait_register(port_mmio + PORT_CMD,
-			        PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1, 500);
+				PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1, 500);
 	if (tmp & PORT_CMD_LIST_ON)
 		return -EIO;
 
@@ -1564,9 +1564,9 @@ static irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 	if (!irq_stat)
 		return IRQ_NONE;
 
-        spin_lock(&host->lock);
+	spin_lock(&host->lock);
 
-        for (i = 0; i < host->n_ports; i++) {
+	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap;
 
 		if (!(irq_stat & (1 << i)))
@@ -1829,9 +1829,9 @@ static int ahci_port_start(struct ata_port *ap)
 	pp->cmd_tbl_dma = mem_dma;
 
 	/*
- 	 * Save off initial list of interrupts to be enabled.
- 	 * This could be changed later
- 	 */
+	 * Save off initial list of interrupts to be enabled.
+	 * This could be changed later
+	 */
 	pp->intr_mask = DEF_PORT_IRQ;
 
 	ap->private_data = pp;
@@ -1918,12 +1918,12 @@ static void ahci_print_info(struct ata_host *host)
 	dev_printk(KERN_INFO, &pdev->dev,
 		"AHCI %02x%02x.%02x%02x "
 		"%u slots %u ports %s Gbps 0x%x impl %s mode\n"
-	       	,
+		,
 
-	       	(vers >> 24) & 0xff,
-	       	(vers >> 16) & 0xff,
-	       	(vers >> 8) & 0xff,
-	       	vers & 0xff,
+		(vers >> 24) & 0xff,
+		(vers >> 16) & 0xff,
+		(vers >> 8) & 0xff,
+		vers & 0xff,
 
 		((cap >> 8) & 0x1f) + 1,
 		(cap & 0x1f) + 1,
@@ -1935,7 +1935,7 @@ static void ahci_print_info(struct ata_host *host)
 		"flags: "
 		"%s%s%s%s%s%s%s"
 		"%s%s%s%s%s%s%s\n"
-	       	,
+		,
 
 		cap & (1 << 31) ? "64bit " : "",
 		cap & (1 << 30) ? "ncq " : "",

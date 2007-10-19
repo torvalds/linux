@@ -845,7 +845,7 @@ static int __mv_stop_dma(struct ata_port *ap)
 		pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
 	} else {
 		WARN_ON(EDMA_EN & readl(port_mmio + EDMA_CMD_OFS));
-  	}
+	}
 
 	/* now properly wait for the eDMA to stop */
 	for (i = 1000; i > 0; i--) {
@@ -883,7 +883,7 @@ static void mv_dump_mem(void __iomem *start, unsigned bytes)
 	for (b = 0; b < bytes; ) {
 		DPRINTK("%p: ", start + b);
 		for (w = 0; b < bytes && w < 4; w++) {
-			printk("%08x ",readl(start + b));
+			printk("%08x ", readl(start + b));
 			b += sizeof(u32);
 		}
 		printk("\n");
@@ -899,8 +899,8 @@ static void mv_dump_pci_cfg(struct pci_dev *pdev, unsigned bytes)
 	for (b = 0; b < bytes; ) {
 		DPRINTK("%02x: ", b);
 		for (w = 0; b < bytes && w < 4; w++) {
-			(void) pci_read_config_dword(pdev,b,&dw);
-			printk("%08x ",dw);
+			(void) pci_read_config_dword(pdev, b, &dw);
+			printk("%08x ", dw);
 			b += sizeof(u32);
 		}
 		printk("\n");
@@ -944,9 +944,9 @@ static void mv_dump_all_regs(void __iomem *mmio_base, int port,
 	}
 	for (p = start_port; p < start_port + num_ports; p++) {
 		port_base = mv_port_base(mmio_base, p);
-		DPRINTK("EDMA regs (port %i):\n",p);
+		DPRINTK("EDMA regs (port %i):\n", p);
 		mv_dump_mem(port_base, 0x54);
-		DPRINTK("SATA regs (port %i):\n",p);
+		DPRINTK("SATA regs (port %i):\n", p);
 		mv_dump_mem(port_base+0x300, 0x60);
 	}
 #endif
@@ -1184,7 +1184,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	u16 flags = 0;
 	unsigned in_index;
 
- 	if (qc->tf.protocol != ATA_PROT_DMA)
+	if (qc->tf.protocol != ATA_PROT_DMA)
 		return;
 
 	/* Fill in command request block
@@ -1276,7 +1276,7 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	unsigned in_index;
 	u32 flags = 0;
 
- 	if (qc->tf.protocol != ATA_PROT_DMA)
+	if (qc->tf.protocol != ATA_PROT_DMA)
 		return;
 
 	/* Fill in Gen IIE command request block
@@ -1606,7 +1606,7 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 	writelfl(~hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
 
 	VPRINTK("ENTER, hc%u relevant=0x%08x HC IRQ cause=0x%08x\n",
-		hc,relevant,hc_irq_cause);
+		hc, relevant, hc_irq_cause);
 
 	for (port = port0; port < port0 + MV_PORTS_PER_HC; port++) {
 		struct ata_port *ap = host->ports[port];
@@ -1983,9 +1983,8 @@ static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio,
 	for (i = 0; i < 1000; i++) {
 		udelay(1);
 		t = readl(reg);
-		if (PCI_MASTER_EMPTY & t) {
+		if (PCI_MASTER_EMPTY & t)
 			break;
-		}
 	}
 	if (!(PCI_MASTER_EMPTY & t)) {
 		printk(KERN_ERR DRV_NAME ": PCI master won't flush\n");
@@ -2668,7 +2667,7 @@ static void mv_print_info(struct ata_host *host)
  */
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version = 0;
+	static int printed_version;
 	unsigned int board_idx = (unsigned int)ent->driver_data;
 	const struct ata_port_info *ppi[] = { &mv_port_info[board_idx], NULL };
 	struct ata_host *host;

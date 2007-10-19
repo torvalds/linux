@@ -178,8 +178,8 @@ enum {
 	ATA_CMD_PACKET		= 0xA0,
 	ATA_CMD_VERIFY		= 0x40,
 	ATA_CMD_VERIFY_EXT	= 0x42,
- 	ATA_CMD_STANDBYNOW1	= 0xE0,
- 	ATA_CMD_IDLEIMMEDIATE	= 0xE1,
+	ATA_CMD_STANDBYNOW1	= 0xE0,
+	ATA_CMD_IDLEIMMEDIATE	= 0xE1,
 	ATA_CMD_INIT_DEV_PARAMS	= 0x91,
 	ATA_CMD_READ_NATIVE_MAX	= 0xF8,
 	ATA_CMD_READ_NATIVE_MAX_EXT = 0x27,
@@ -458,7 +458,7 @@ static inline int ata_id_wcache_enabled(const u16 *id)
  *		ATA-3 introduces word 80 and accurate reporting
  *
  *	The practical impact of this is that ata_id_major_version cannot
- *	reliably report on drives below ATA3. 
+ *	reliably report on drives below ATA3.
  */
 
 static inline unsigned int ata_id_major_version(const u16 *id)
