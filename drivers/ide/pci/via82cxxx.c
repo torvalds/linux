@@ -428,12 +428,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &via_set_pio_mode;
 	hwif->set_dma_mode = &via_set_drive;
 
-#ifdef CONFIG_PPC_CHRP
-	if(machine_is(chrp) && _chrp_type == _CHRP_Pegasos) {
-		hwif->irq = hwif->channel ? 15 : 14;
-	}
-#endif
-
 	for (i = 0; i < 2; i++) {
 		hwif->drives[i].io_32bit = 1;
 		hwif->drives[i].unmask = (vdev->via_config->flags & VIA_NO_UNMASK) ? 0 : 1;
@@ -441,8 +435,6 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 
 	if (!hwif->dma_base)
 		return;
-
-	hwif->ultra_mask = vdev->via_config->udma_mask;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = via82cxxx_cable_detect(hwif);
@@ -479,8 +471,10 @@ static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
 
 static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	ide_pci_device_t *d = &via82cxxx_chipsets[id->driver_data];
 	struct pci_dev *isa = NULL;
 	struct via_isa_bridge *via_config;
+
 	/*
 	 * Find the ISA bridge and check we know what it is.
 	 */
@@ -490,7 +484,15 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 		printk(KERN_WARNING "VP_IDE: Unknown VIA SouthBridge, disabling DMA.\n");
 		return -ENODEV;
 	}
-	return ide_setup_pci_device(dev, &via82cxxx_chipsets[id->driver_data]);
+
+#ifdef CONFIG_PPC_CHRP
+	if (machine_is(chrp) && _chrp_type == _CHRP_Pegasos)
+		d->host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
+#endif
+
+	d->udma_mask = via_config->udma_mask;
+
+	return ide_setup_pci_device(dev, d);
 }
 
 static const struct pci_device_id via_pci_tbl[] = {

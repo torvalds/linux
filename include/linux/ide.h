@@ -1263,6 +1263,8 @@ enum {
 	IDE_HFLAG_SERIALIZE		= (1 << 20),
 	/* use legacy IRQs */
 	IDE_HFLAG_LEGACY_IRQS		= (1 << 21),
+	/* force use of legacy IRQs */
+	IDE_HFLAG_FORCE_LEGACY_IRQS	= (1 << 22),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
