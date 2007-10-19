@@ -5,7 +5,7 @@
  */
 
 /*
- * This file contains the default values for the opereation of the
+ * This file contains the default values for the operation of the
  * Linux VM subsystem. Fine-tuning documentation can be found in
  * Documentation/sysctl/vm.txt.
  * Started 18.12.91

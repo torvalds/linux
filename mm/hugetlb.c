@@ -1017,7 +1017,7 @@ static long region_chg(struct list_head *head, long f, long t)
 
 	/* If we are below the current region then a new region is required.
 	 * Subtle, allocate a new region at the position but make it zero
-	 * size such that we can guarentee to record the reservation. */
+	 * size such that we can guarantee to record the reservation. */
 	if (&rg->link == head || t < rg->from) {
 		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
 		if (!nrg)

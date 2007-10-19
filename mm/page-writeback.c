@@ -989,7 +989,7 @@ int __set_page_dirty_no_writeback(struct page *page)
  * mapping is pinned by the vma's ->vm_file reference.
  *
  * We take care to handle the case where the page was truncated from the
- * mapping by re-checking page_mapping() insode tree_lock.
+ * mapping by re-checking page_mapping() inside tree_lock.
  */
 int __set_page_dirty_nobuffers(struct page *page)
 {
