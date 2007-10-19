@@ -837,9 +837,11 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 		case TASKFILE_OUT_DMA:
 		case TASKFILE_IN_DMAQ:
 		case TASKFILE_IN_DMA:
-			hwif->dma_setup(drive);
-			hwif->dma_exec_cmd(drive, taskfile->command);
-			hwif->dma_start(drive);
+			if (!hwif->dma_setup(drive)) {
+				hwif->dma_exec_cmd(drive, taskfile->command);
+				hwif->dma_start(drive);
+				return ide_started;
+			}
 			break;
 
 	        default:
@@ -853,7 +855,8 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 				return task->prehandler(drive, task->rq);
 			}
 			ide_execute_command(drive, taskfile->command, task->handler, WAIT_WORSTCASE, NULL);
+			return ide_started;
 	}
 
-	return ide_started;
+	return ide_stopped;
 }
