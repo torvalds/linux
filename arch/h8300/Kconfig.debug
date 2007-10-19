@@ -42,16 +42,16 @@ config SH_STANDARD_BIOS
 	  Require eCos/RedBoot
 
 config DEFAULT_CMDLINE
-	bool "Use buildin commandline"
+	bool "Use builtin commandline"
 	default n
 	help
-	  buildin kernel commandline enabled.
+	  builtin kernel commandline enabled.
 
 config KERNEL_COMMAND
 	string "Buildin commmand string"
 	depends on DEFAULT_CMDLINE
 	help
-	  buildin kernel commandline strings.
+	  builtin kernel commandline strings.
 
 config BLKDEV_RESERVE
 	bool "BLKDEV Reserved Memory"
