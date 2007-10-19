@@ -794,7 +794,7 @@ static int sync_thread(void *startup)
 
 	add_wait_queue(&sync_wait, &wait);
 
-	set_sync_pid(state, current->pid);
+	set_sync_pid(state, task_pid_nr(current));
 	complete(tinfo->startup);
 
 	/*
