@@ -1515,3 +1515,35 @@ void dm_interface_exit(void)
 
 	dm_hash_exit();
 }
+
+/**
+ * dm_copy_name_and_uuid - Copy mapped device name & uuid into supplied buffers
+ * @md: Pointer to mapped_device
+ * @name: Buffer (size DM_NAME_LEN) for name
+ * @uuid: Buffer (size DM_UUID_LEN) for uuid or empty string if uuid not defined
+ */
+int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid)
+{
+	int r = 0;
+	struct hash_cell *hc;
+
+	if (!md)
+		return -ENXIO;
+
+	dm_get(md);
+	down_read(&_hash_lock);
+	hc = dm_get_mdptr(md);
+	if (!hc || hc->md != md) {
+		r = -ENXIO;
+		goto out;
+	}
+
+	strcpy(name, hc->name);
+	strcpy(uuid, hc->uuid ? : "");
+
+out:
+	up_read(&_hash_lock);
+	dm_put(md);
+
+	return r;
+}
