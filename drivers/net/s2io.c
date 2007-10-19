@@ -1716,7 +1716,7 @@ static int init_nic(struct s2io_nic *nic)
 			MISC_LINK_STABILITY_PRD(3);
 		writeq(val64, &bar0->misc_control);
 		val64 = readq(&bar0->pic_control2);
-		val64 &= ~(BIT(13)|BIT(14)|BIT(15));
+		val64 &= ~(s2BIT(13)|s2BIT(14)|s2BIT(15));
 		writeq(val64, &bar0->pic_control2);
 	}
 	if (strstr(nic->product_name, "CX4")) {
@@ -2427,7 +2427,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 		}
 		if ((rxdp->Control_1 & RXD_OWN_XENA) &&
 			((nic->rxd_mode == RXD_MODE_3B) &&
-				(rxdp->Control_2 & BIT(0)))) {
+				(rxdp->Control_2 & s2BIT(0)))) {
 			mac_control->rings[ring_no].rx_curr_put_info.
 					offset = off;
 			goto end;
@@ -2540,7 +2540,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 				rxdp->Control_2 |= SET_BUFFER2_SIZE_3
 								(dev->mtu + 4);
 			}
-			rxdp->Control_2 |= BIT(0);
+			rxdp->Control_2 |= s2BIT(0);
 		}
 		rxdp->Host_Control = (unsigned long) (skb);
 		if (alloc_tab & ((1 << rxsync_frequency) - 1))
@@ -3377,7 +3377,7 @@ static void s2io_reset(struct s2io_nic * sp)
 		pci_write_config_dword(sp->pdev, 0x68, 0x7C);
 
 		/* Clearing PCI_STATUS error reflected here */
-		writeq(BIT(62), &bar0->txpic_int_reg);
+		writeq(s2BIT(62), &bar0->txpic_int_reg);
 	}
 
 	/* Reset device statistics maintained by OS */
@@ -3575,7 +3575,7 @@ static int wait_for_msix_trans(struct s2io_nic *nic, int i)
 
 	do {
 		val64 = readq(&bar0->xmsi_access);
-		if (!(val64 & BIT(15)))
+		if (!(val64 & s2BIT(15)))
 			break;
 		mdelay(1);
 		cnt++;
@@ -3597,7 +3597,7 @@ static void restore_xmsi_data(struct s2io_nic *nic)
 	for (i=0; i < MAX_REQUESTED_MSI_X; i++) {
 		writeq(nic->msix_info[i].addr, &bar0->xmsi_address);
 		writeq(nic->msix_info[i].data, &bar0->xmsi_data);
-		val64 = (BIT(7) | BIT(15) | vBIT(i, 26, 6));
+		val64 = (s2BIT(7) | s2BIT(15) | vBIT(i, 26, 6));
 		writeq(val64, &bar0->xmsi_access);
 		if (wait_for_msix_trans(nic, i)) {
 			DBG_PRINT(ERR_DBG, "failed in %s\n", __FUNCTION__);
@@ -3614,7 +3614,7 @@ static void store_xmsi_data(struct s2io_nic *nic)
 
 	/* Store and display */
 	for (i=0; i < MAX_REQUESTED_MSI_X; i++) {
-		val64 = (BIT(15) | vBIT(i, 26, 6));
+		val64 = (s2BIT(15) | vBIT(i, 26, 6));
 		writeq(val64, &bar0->xmsi_access);
 		if (wait_for_msix_trans(nic, i)) {
 			DBG_PRINT(ERR_DBG, "failed in %s\n", __FUNCTION__);
@@ -4634,7 +4634,7 @@ static void s2io_updt_stats(struct s2io_nic *sp)
 		do {
 			udelay(100);
 			val64 = readq(&bar0->stat_cfg);
-			if (!(val64 & BIT(0)))
+			if (!(val64 & s2BIT(0)))
 				break;
 			cnt++;
 			if (cnt == 5)

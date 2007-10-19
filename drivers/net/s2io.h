@@ -14,7 +14,7 @@
 #define _S2IO_H
 
 #define TBD 0
-#define BIT(loc)		(0x8000000000000000ULL >> (loc))
+#define s2BIT(loc)		(0x8000000000000000ULL >> (loc))
 #define vBIT(val, loc, sz)	(((u64)val) << (64-loc-sz))
 #define INV(d)  ((d&0xff)<<24) | (((d>>8)&0xff)<<16) | (((d>>16)&0xff)<<8)| ((d>>24)&0xff)
 
@@ -473,42 +473,42 @@ struct TxFIFO_element {
 
 	u64 List_Control;
 #define TX_FIFO_LAST_TXD_NUM( val)     vBIT(val,0,8)
-#define TX_FIFO_FIRST_LIST             BIT(14)
-#define TX_FIFO_LAST_LIST              BIT(15)
+#define TX_FIFO_FIRST_LIST             s2BIT(14)
+#define TX_FIFO_LAST_LIST              s2BIT(15)
 #define TX_FIFO_FIRSTNLAST_LIST        vBIT(3,14,2)
-#define TX_FIFO_SPECIAL_FUNC           BIT(23)
-#define TX_FIFO_DS_NO_SNOOP            BIT(31)
-#define TX_FIFO_BUFF_NO_SNOOP          BIT(30)
+#define TX_FIFO_SPECIAL_FUNC           s2BIT(23)
+#define TX_FIFO_DS_NO_SNOOP            s2BIT(31)
+#define TX_FIFO_BUFF_NO_SNOOP          s2BIT(30)
 };
 
 /* Tx descriptor structure */
 struct TxD {
 	u64 Control_1;
 /* bit mask */
-#define TXD_LIST_OWN_XENA       BIT(7)
-#define TXD_T_CODE              (BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define TXD_LIST_OWN_XENA       s2BIT(7)
+#define TXD_T_CODE              (s2BIT(12)|s2BIT(13)|s2BIT(14)|s2BIT(15))
 #define TXD_T_CODE_OK(val)      (|(val & TXD_T_CODE))
 #define GET_TXD_T_CODE(val)     ((val & TXD_T_CODE)<<12)
-#define TXD_GATHER_CODE         (BIT(22) | BIT(23))
-#define TXD_GATHER_CODE_FIRST   BIT(22)
-#define TXD_GATHER_CODE_LAST    BIT(23)
-#define TXD_TCP_LSO_EN          BIT(30)
-#define TXD_UDP_COF_EN          BIT(31)
-#define TXD_UFO_EN		BIT(31) | BIT(30)
+#define TXD_GATHER_CODE         (s2BIT(22) | s2BIT(23))
+#define TXD_GATHER_CODE_FIRST   s2BIT(22)
+#define TXD_GATHER_CODE_LAST    s2BIT(23)
+#define TXD_TCP_LSO_EN          s2BIT(30)
+#define TXD_UDP_COF_EN          s2BIT(31)
+#define TXD_UFO_EN		s2BIT(31) | s2BIT(30)
 #define TXD_TCP_LSO_MSS(val)    vBIT(val,34,14)
 #define TXD_UFO_MSS(val)	vBIT(val,34,14)
 #define TXD_BUFFER0_SIZE(val)   vBIT(val,48,16)
 
 	u64 Control_2;
-#define TXD_TX_CKO_CONTROL      (BIT(5)|BIT(6)|BIT(7))
-#define TXD_TX_CKO_IPV4_EN      BIT(5)
-#define TXD_TX_CKO_TCP_EN       BIT(6)
-#define TXD_TX_CKO_UDP_EN       BIT(7)
-#define TXD_VLAN_ENABLE         BIT(15)
+#define TXD_TX_CKO_CONTROL      (s2BIT(5)|s2BIT(6)|s2BIT(7))
+#define TXD_TX_CKO_IPV4_EN      s2BIT(5)
+#define TXD_TX_CKO_TCP_EN       s2BIT(6)
+#define TXD_TX_CKO_UDP_EN       s2BIT(7)
+#define TXD_VLAN_ENABLE         s2BIT(15)
 #define TXD_VLAN_TAG(val)       vBIT(val,16,16)
 #define TXD_INT_NUMBER(val)     vBIT(val,34,6)
-#define TXD_INT_TYPE_PER_LIST   BIT(47)
-#define TXD_INT_TYPE_UTILZ      BIT(46)
+#define TXD_INT_TYPE_PER_LIST   s2BIT(47)
+#define TXD_INT_TYPE_UTILZ      s2BIT(46)
 #define TXD_SET_MARKER         vBIT(0x6,0,4)
 
 	u64 Buffer_Pointer;
@@ -525,14 +525,14 @@ struct list_info_hold {
 struct RxD_t {
 	u64 Host_Control;	/* reserved for host */
 	u64 Control_1;
-#define RXD_OWN_XENA            BIT(7)
-#define RXD_T_CODE              (BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define RXD_OWN_XENA            s2BIT(7)
+#define RXD_T_CODE              (s2BIT(12)|s2BIT(13)|s2BIT(14)|s2BIT(15))
 #define RXD_FRAME_PROTO         vBIT(0xFFFF,24,8)
-#define RXD_FRAME_PROTO_IPV4    BIT(27)
-#define RXD_FRAME_PROTO_IPV6    BIT(28)
-#define RXD_FRAME_IP_FRAG	BIT(29)
-#define RXD_FRAME_PROTO_TCP     BIT(30)
-#define RXD_FRAME_PROTO_UDP     BIT(31)
+#define RXD_FRAME_PROTO_IPV4    s2BIT(27)
+#define RXD_FRAME_PROTO_IPV6    s2BIT(28)
+#define RXD_FRAME_IP_FRAG	s2BIT(29)
+#define RXD_FRAME_PROTO_TCP     s2BIT(30)
+#define RXD_FRAME_PROTO_UDP     s2BIT(31)
 #define TCP_OR_UDP_FRAME        (RXD_FRAME_PROTO_TCP | RXD_FRAME_PROTO_UDP)
 #define RXD_GET_L3_CKSUM(val)   ((u16)(val>> 16) & 0xFFFF)
 #define RXD_GET_L4_CKSUM(val)   ((u16)(val) & 0xFFFF)
@@ -998,26 +998,26 @@ static inline void SPECIAL_REG_WRITE(u64 val, void __iomem *addr, int order)
 /*  Interrupt masks for the general interrupt mask register */
 #define DISABLE_ALL_INTRS   0xFFFFFFFFFFFFFFFFULL
 
-#define TXPIC_INT_M         BIT(0)
-#define TXDMA_INT_M         BIT(1)
-#define TXMAC_INT_M         BIT(2)
-#define TXXGXS_INT_M        BIT(3)
-#define TXTRAFFIC_INT_M     BIT(8)
-#define PIC_RX_INT_M        BIT(32)
-#define RXDMA_INT_M         BIT(33)
-#define RXMAC_INT_M         BIT(34)
-#define MC_INT_M            BIT(35)
-#define RXXGXS_INT_M        BIT(36)
-#define RXTRAFFIC_INT_M     BIT(40)
+#define TXPIC_INT_M         s2BIT(0)
+#define TXDMA_INT_M         s2BIT(1)
+#define TXMAC_INT_M         s2BIT(2)
+#define TXXGXS_INT_M        s2BIT(3)
+#define TXTRAFFIC_INT_M     s2BIT(8)
+#define PIC_RX_INT_M        s2BIT(32)
+#define RXDMA_INT_M         s2BIT(33)
+#define RXMAC_INT_M         s2BIT(34)
+#define MC_INT_M            s2BIT(35)
+#define RXXGXS_INT_M        s2BIT(36)
+#define RXTRAFFIC_INT_M     s2BIT(40)
 
 /*  PIC level Interrupts TODO*/
 
 /*  DMA level Inressupts */
-#define TXDMA_PFC_INT_M     BIT(0)
-#define TXDMA_PCC_INT_M     BIT(2)
+#define TXDMA_PFC_INT_M     s2BIT(0)
+#define TXDMA_PCC_INT_M     s2BIT(2)
 
 /*  PFC block interrupts */
-#define PFC_MISC_ERR_1      BIT(0)	/* Interrupt to indicate FIFO full */
+#define PFC_MISC_ERR_1      s2BIT(0)	/* Interrupt to indicate FIFO full */
 
 /* PCC block interrupts. */
 #define	PCC_FB_ECC_ERR	   vBIT(0xff, 16, 8)	/* Interrupt to indicate
