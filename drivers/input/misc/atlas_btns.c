@@ -81,7 +81,7 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 	input_dev->name = "Atlas ACPI button driver";
 	input_dev->phys = "ASIM0000/atlas/input0";
 	input_dev->id.bustype = BUS_HOST;
-	input_dev->evbit[LONG(EV_KEY)] = BIT(EV_KEY);
+	input_dev->evbit[BIT_WORD(EV_KEY)] = BIT_MASK(EV_KEY);
 
 	set_bit(KEY_F1, input_dev->keybit);
 	set_bit(KEY_F2, input_dev->keybit);

@@ -125,8 +125,8 @@ static int tr_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.product = 0;
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(tr->dev, ABS_X, TR_MIN_XC, TR_MAX_XC, 0, 0);
 	input_set_abs_params(tr->dev, ABS_Y, TR_MIN_YC, TR_MAX_YC, 0, 0);
 

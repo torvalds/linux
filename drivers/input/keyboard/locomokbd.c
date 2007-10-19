@@ -233,7 +233,7 @@ static int locomokbd_probe(struct locomo_dev *dev)
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &dev->dev;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	input_dev->keycode = locomokbd->keycode;
 	input_dev->keycodesize = sizeof(unsigned char);
 	input_dev->keycodemax = ARRAY_SIZE(locomokbd_keycode);

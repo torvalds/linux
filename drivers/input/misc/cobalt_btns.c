@@ -104,7 +104,7 @@ static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
 	input->id.bustype = BUS_HOST;
 	input->cdev.dev = &pdev->dev;
 
-	input->evbit[0] = BIT(EV_KEY);
+	input->evbit[0] = BIT_MASK(EV_KEY);
 	for (i = 0; i < ARRAY_SIZE(buttons_map); i++) {
 		set_bit(buttons_map[i].keycode, input->keybit);
 		buttons_map[i].count = 0;

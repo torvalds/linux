@@ -658,7 +658,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	input_dev->open = xpad_open;
 	input_dev->close = xpad_close;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 	/* set up buttons */
 	for (i = 0; xpad_btn[i] >= 0; i++)

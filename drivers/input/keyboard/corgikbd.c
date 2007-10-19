@@ -325,7 +325,8 @@ static int __init corgikbd_probe(struct platform_device *pdev)
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &pdev->dev;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) |
+		BIT_MASK(EV_PWR) | BIT_MASK(EV_SW);
 	input_dev->keycode = corgikbd->keycode;
 	input_dev->keycodesize = sizeof(unsigned char);
 	input_dev->keycodemax = ARRAY_SIZE(corgikbd_keycode);

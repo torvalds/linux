@@ -900,27 +900,32 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 
 	input_set_drvdata(input_dev, atkbd);
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_MSC);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) |
+		BIT_MASK(EV_MSC);
 
 	if (atkbd->write) {
-		input_dev->evbit[0] |= BIT(EV_LED);
-		input_dev->ledbit[0] = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
+		input_dev->evbit[0] |= BIT_MASK(EV_LED);
+		input_dev->ledbit[0] = BIT_MASK(LED_NUML) |
+			BIT_MASK(LED_CAPSL) | BIT_MASK(LED_SCROLLL);
 	}
 
 	if (atkbd->extra)
-		input_dev->ledbit[0] |= BIT(LED_COMPOSE) | BIT(LED_SUSPEND) |
-					BIT(LED_SLEEP) | BIT(LED_MUTE) | BIT(LED_MISC);
+		input_dev->ledbit[0] |= BIT_MASK(LED_COMPOSE) |
+			BIT_MASK(LED_SUSPEND) | BIT_MASK(LED_SLEEP) |
+			BIT_MASK(LED_MUTE) | BIT_MASK(LED_MISC);
 
 	if (!atkbd->softrepeat) {
 		input_dev->rep[REP_DELAY] = 250;
 		input_dev->rep[REP_PERIOD] = 33;
 	}
 
-	input_dev->mscbit[0] = atkbd->softraw ? BIT(MSC_SCAN) : BIT(MSC_RAW) | BIT(MSC_SCAN);
+	input_dev->mscbit[0] = atkbd->softraw ? BIT_MASK(MSC_SCAN) :
+		BIT_MASK(MSC_RAW) | BIT_MASK(MSC_SCAN);
 
 	if (atkbd->scroll) {
-		input_dev->evbit[0] |= BIT(EV_REL);
-		input_dev->relbit[0] = BIT(REL_WHEEL) | BIT(REL_HWHEEL);
+		input_dev->evbit[0] |= BIT_MASK(EV_REL);
+		input_dev->relbit[0] = BIT_MASK(REL_WHEEL) |
+			BIT_MASK(REL_HWHEEL);
 		set_bit(BTN_MIDDLE, input_dev->keybit);
 	}
 

@@ -186,8 +186,8 @@ static int __init mk712_init(void)
 	mk712_dev->open    = mk712_open;
 	mk712_dev->close   = mk712_close;
 
-	mk712_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	mk712_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	mk712_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	mk712_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(mk712_dev, ABS_X, 0, 0xfff, 88, 0);
 	input_set_abs_params(mk712_dev, ABS_Y, 0, 0xfff, 88, 0);
 

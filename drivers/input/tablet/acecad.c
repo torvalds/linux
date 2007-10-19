@@ -192,10 +192,14 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	input_dev->open = usb_acecad_open;
 	input_dev->close = usb_acecad_close;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	input_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
-	input_dev->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
-	input_dev->keybit[LONG(BTN_DIGI)] = BIT(BTN_TOOL_PEN) |BIT(BTN_TOUCH) | BIT(BTN_STYLUS) | BIT(BTN_STYLUS2);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	input_dev->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
+		BIT_MASK(ABS_PRESSURE);
+	input_dev->keybit[BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
+	input_dev->keybit[BIT_WORD(BTN_DIGI)] = BIT_MASK(BTN_TOOL_PEN) |
+		BIT_MASK(BTN_TOUCH) | BIT_MASK(BTN_STYLUS) |
+		BIT_MASK(BTN_STYLUS2);
 
 	switch (id->driver_info) {
 		case 0:

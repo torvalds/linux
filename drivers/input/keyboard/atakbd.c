@@ -237,7 +237,7 @@ static int __init atakbd_init(void)
 	atakbd_dev->id.product = 0x0001;
 	atakbd_dev->id.version = 0x0100;
 
-	atakbd_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	atakbd_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	atakbd_dev->keycode = atakbd_keycode;
 	atakbd_dev->keycodesize = sizeof(unsigned char);
 	atakbd_dev->keycodemax = ARRAY_SIZE(atakbd_keycode);

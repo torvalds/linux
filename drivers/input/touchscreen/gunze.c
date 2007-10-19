@@ -137,8 +137,8 @@ static int gunze_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.product = 0x0051;
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(input_dev, ABS_X, 24, 1000, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 24, 1000, 0, 0);
 

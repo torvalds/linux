@@ -653,12 +653,12 @@ static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	input_dev->close = gc_close;
 
 	if (pad_type != GC_SNESMOUSE) {
-		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 		for (i = 0; i < 2; i++)
 			input_set_abs_params(input_dev, ABS_X + i, -1, 1, 0, 0);
 	} else
-		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
+		input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
 
 	gc->pads[0] |= gc_status_bit[idx];
 	gc->pads[pad_type] |= gc_status_bit[idx];

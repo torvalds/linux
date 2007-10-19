@@ -31,6 +31,8 @@ MODULE_LICENSE("GPL");
 
 #define MACE_PS2_TIMEOUT 10000 /* in 50us unit */
 
+#define BIT(x) (1UL << (x))
+
 #define PS2_STATUS_CLOCK_SIGNAL  BIT(0) /* external clock signal */
 #define PS2_STATUS_CLOCK_INHIBIT BIT(1) /* clken output signal */
 #define PS2_STATUS_TX_INPROGRESS BIT(2) /* transmission in progress */

@@ -844,8 +844,8 @@ static const struct input_device_id joydev_blacklist[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_KEYBIT,
-		.evbit = { BIT(EV_KEY) },
-		.keybit = { [LONG(BTN_TOUCH)] = BIT(BTN_TOUCH) },
+		.evbit = { BIT_MASK(EV_KEY) },
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
 	},	/* Avoid itouchpads, touchscreens and tablets */
 	{ }	/* Terminating entry */
 };
@@ -854,20 +854,20 @@ static const struct input_device_id joydev_ids[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.evbit = { BIT(EV_ABS) },
-		.absbit = { BIT(ABS_X) },
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { BIT_MASK(ABS_X) },
 	},
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.evbit = { BIT(EV_ABS) },
-		.absbit = { BIT(ABS_WHEEL) },
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { BIT_MASK(ABS_WHEEL) },
 	},
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.evbit = { BIT(EV_ABS) },
-		.absbit = { BIT(ABS_THROTTLE) },
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { BIT_MASK(ABS_THROTTLE) },
 	},
 	{ }	/* Terminating entry */
 };

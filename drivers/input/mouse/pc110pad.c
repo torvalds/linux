@@ -144,9 +144,9 @@ static int __init pc110pad_init(void)
 	pc110pad_dev->id.product = 0x0001;
 	pc110pad_dev->id.version = 0x0100;
 
-	pc110pad_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	pc110pad_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
-	pc110pad_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	pc110pad_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	pc110pad_dev->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y);
+	pc110pad_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
 	pc110pad_dev->absmax[ABS_X] = 0x1ff;
 	pc110pad_dev->absmax[ABS_Y] = 0x0ff;

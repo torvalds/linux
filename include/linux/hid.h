@@ -469,8 +469,8 @@ struct hid_device {							/* device report descriptor */
 	/* handler for raw output data, used by hidraw */
 	int (*hid_output_raw_report) (struct hid_device *, __u8 *, size_t);
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
-	unsigned long pb_pressed_fn[NBITS(KEY_MAX)];
-	unsigned long pb_pressed_numlock[NBITS(KEY_MAX)];
+	unsigned long pb_pressed_fn[BITS_TO_LONGS(KEY_CNT)];
+	unsigned long pb_pressed_numlock[BITS_TO_LONGS(KEY_CNT)];
 #endif
 };
 

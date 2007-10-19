@@ -274,8 +274,11 @@ static int usb_kbd_probe(struct usb_interface *iface,
 
 	input_set_drvdata(input_dev, kbd);
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_LED) | BIT(EV_REP);
-	input_dev->ledbit[0] = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL) | BIT(LED_COMPOSE) | BIT(LED_KANA);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_LED) |
+		BIT_MASK(EV_REP);
+	input_dev->ledbit[0] = BIT_MASK(LED_NUML) | BIT_MASK(LED_CAPSL) |
+		BIT_MASK(LED_SCROLLL) | BIT_MASK(LED_COMPOSE) |
+		BIT_MASK(LED_KANA);
 
 	for (i = 0; i < 255; i++)
 		set_bit(usb_kbd_keycode[i], input_dev->keybit);

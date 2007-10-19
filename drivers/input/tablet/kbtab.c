@@ -153,10 +153,13 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	input_dev->open = kbtab_open;
 	input_dev->close = kbtab_close;
 
-	input_dev->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_MSC);
-	input_dev->keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
-	input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_PEN) | BIT(BTN_TOUCH);
-	input_dev->mscbit[0] |= BIT(MSC_SERIAL);
+	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) |
+		BIT_MASK(EV_MSC);
+	input_dev->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
+	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_PEN) |
+		BIT_MASK(BTN_TOUCH);
+	input_dev->mscbit[0] |= BIT_MASK(MSC_SERIAL);
 	input_set_abs_params(input_dev, ABS_X, 0, 0x2000, 4, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, 0x1750, 4, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 0xff, 0, 0);

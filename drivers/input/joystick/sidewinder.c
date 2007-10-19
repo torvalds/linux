@@ -758,7 +758,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->open = sw_open;
 		input_dev->close = sw_close;
 
-		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 		for (j = 0; (bits = sw_bit[sw->type][j]); j++) {
 			code = sw_abs[sw->type][j];

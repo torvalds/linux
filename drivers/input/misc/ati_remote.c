@@ -662,10 +662,10 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 	struct input_dev *idev = ati_remote->idev;
 	int i;
 
-	idev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	idev->keybit[LONG(BTN_MOUSE)] = ( BIT(BTN_LEFT) | BIT(BTN_RIGHT) |
-					  BIT(BTN_SIDE) | BIT(BTN_EXTRA) );
-	idev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	idev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	idev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_SIDE) | BIT_MASK(BTN_EXTRA);
+	idev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
 	for (i = 0; ati_remote_tbl[i].kind != KIND_END; i++)
 		if (ati_remote_tbl[i].type == EV_KEY)
 			set_bit(ati_remote_tbl[i].code, idev->keybit);

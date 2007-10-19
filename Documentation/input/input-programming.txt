@@ -42,8 +42,8 @@ static int __init button_init(void)
 		goto err_free_irq;
 	}
 
-	button_dev->evbit[0] = BIT(EV_KEY);
-	button_dev->keybit[LONG(BTN_0)] = BIT(BTN_0);
+	button_dev->evbit[0] = BIT_MASK(EV_KEY);
+	button_dev->keybit[BIT_WORD(BTN_0)] = BIT_MASK(BTN_0);
 
 	error = input_register_device(button_dev);
 	if (error) {
@@ -217,14 +217,15 @@ If you don't need absfuzz and absflat, you can set them to zero, which mean
 that the thing is precise and always returns to exactly the center position
 (if it has any).
 
-1.4 NBITS(), LONG(), BIT()
+1.4 BITS_TO_LONGS(), BIT_WORD(), BIT_MASK()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These three macros from input.h help some bitfield computations:
+These three macros from bitops.h help some bitfield computations:
 
-	NBITS(x) - returns the length of a bitfield array in longs for x bits
-	LONG(x)  - returns the index in the array in longs for bit x
-	BIT(x)   - returns the index in a long for bit x
+	BITS_TO_LONGS(x) - returns the length of a bitfield array in longs for
+			   x bits
+	BIT_WORD(x)	 - returns the index in the array in longs for bit x
+	BIT_MASK(x)	 - returns the index in a long for bit x
 
 1.5 The id* and name fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -346,9 +346,10 @@ static int ati_remote2_input_init(struct ati_remote2 *ar2)
 	ar2->idev = idev;
 	input_set_drvdata(idev, ar2);
 
-	idev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_REL);
-	idev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT);
-	idev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	idev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) | BIT_MASK(EV_REL);
+	idev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_RIGHT);
+	idev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
 	for (i = 0; ati_remote2_key_table[i].key_code != KEY_RESERVED; i++)
 		set_bit(ati_remote2_key_table[i].key_code, idev->keybit);
 

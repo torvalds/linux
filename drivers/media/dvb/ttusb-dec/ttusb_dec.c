@@ -1198,7 +1198,7 @@ static int ttusb_init_rc( struct ttusb_dec *dec)
 
 	input_dev->name = "ttusb_dec remote control";
 	input_dev->phys = dec->rc_phys;
-	input_dev->evbit[0] = BIT(EV_KEY);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	input_dev->keycodesize = sizeof(u16);
 	input_dev->keycodemax = 0x1a;
 	input_dev->keycode = rc_keys;

@@ -456,7 +456,7 @@ static int analog_init_device(struct analog_port *port, struct analog *analog, i
 	input_dev->open = analog_open;
 	input_dev->close = analog_close;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 	for (i = j = 0; i < 4; i++)
 		if (analog->mask & (1 << i)) {

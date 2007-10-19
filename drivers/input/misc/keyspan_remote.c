@@ -497,7 +497,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	usb_to_input_id(udev, &input_dev->id);
 	input_dev->dev.parent = &interface->dev;
 
-	input_dev->evbit[0] = BIT(EV_KEY);		/* We will only report KEY events. */
+	input_dev->evbit[0] = BIT_MASK(EV_KEY);		/* We will only report KEY events. */
 	for (i = 0; i < ARRAY_SIZE(keyspan_key_table); i++)
 		if (keyspan_key_table[i] != KEY_RESERVED)
 			set_bit(keyspan_key_table[i], input_dev->keybit);

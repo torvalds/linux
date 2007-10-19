@@ -270,9 +270,10 @@ static int lifebook_create_relative_device(struct psmouse *psmouse)
 	dev2->id.version = 0x0000;
 	dev2->dev.parent = &psmouse->ps2dev.serio->dev;
 
-	dev2->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	dev2->relbit[LONG(REL_X)] = BIT(REL_X) | BIT(REL_Y);
-	dev2->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT);
+	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	dev2->relbit[BIT_WORD(REL_X)] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
+	dev2->keybit[BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_RIGHT);
 
 	error = input_register_device(priv->dev2);
 	if (error)
@@ -295,9 +296,9 @@ int lifebook_init(struct psmouse *psmouse)
 	if (lifebook_absolute_mode(psmouse))
 		return -1;
 
-	dev1->evbit[0] = BIT(EV_ABS) | BIT(EV_KEY);
+	dev1->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
 	dev1->relbit[0] = 0;
-	dev1->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	dev1->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(dev1, ABS_X, 0, max_coord, 0, 0);
 	input_set_abs_params(dev1, ABS_Y, 0, max_coord, 0, 0);
 

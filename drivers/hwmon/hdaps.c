@@ -574,7 +574,7 @@ static int __init hdaps_init(void)
 	idev = hdaps_idev->input;
 	idev->name = "hdaps";
 	idev->dev.parent = &pdev->dev;
-	idev->evbit[0] = BIT(EV_ABS);
+	idev->evbit[0] = BIT_MASK(EV_ABS);
 	input_set_abs_params(idev, ABS_X,
 			-256, 256, HDAPS_INPUT_FUZZ, HDAPS_INPUT_FLAT);
 	input_set_abs_params(idev, ABS_Y,

@@ -17,9 +17,10 @@
 #define _DCDBAS_H_
 
 #include <linux/device.h>
-#include <linux/input.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
+
+#define BIT(x)					(1UL << x)
 
 #define MAX_SMI_DATA_BUF_SIZE			(256 * 1024)
 

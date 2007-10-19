@@ -269,7 +269,7 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	input_dev->open = interact_open;
 	input_dev->close = interact_close;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 	for (i = 0; (t = interact_type[interact->type].abs[i]) >= 0; i++) {
 		set_bit(t, input_dev->absbit);

@@ -370,7 +370,7 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->open = grip_open;
 		input_dev->close = grip_close;
 
-		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 		for (j = 0; (t = grip_abs[grip->mode[i]][j]) >= 0; j++) {
 

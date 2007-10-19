@@ -238,7 +238,7 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	input_dev->open = guillemot_open;
 	input_dev->close = guillemot_close;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 	for (i = 0; (t = guillemot->type->abs[i]) >= 0; i++)
 		input_set_abs_params(input_dev, t, 0, 255, 0, 0);

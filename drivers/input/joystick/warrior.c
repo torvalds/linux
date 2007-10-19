@@ -162,9 +162,11 @@ static int warrior_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL) | BIT(EV_ABS);
-	input_dev->keybit[LONG(BTN_TRIGGER)] = BIT(BTN_TRIGGER) | BIT(BTN_THUMB) | BIT(BTN_TOP) | BIT(BTN_TOP2);
-	input_dev->relbit[0] = BIT(REL_DIAL);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL) |
+		BIT_MASK(EV_ABS);
+	input_dev->keybit[BIT_WORD(BTN_TRIGGER)] = BIT_MASK(BTN_TRIGGER) |
+		BIT_MASK(BTN_THUMB) | BIT_MASK(BTN_TOP) | BIT_MASK(BTN_TOP2);
+	input_dev->relbit[0] = BIT_MASK(REL_DIAL);
 	input_set_abs_params(input_dev, ABS_X, -64, 64, 0, 8);
 	input_set_abs_params(input_dev, ABS_Y, -64, 64, 0, 8);
 	input_set_abs_params(input_dev, ABS_THROTTLE, -112, 112, 0, 0);

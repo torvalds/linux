@@ -945,7 +945,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* input_dev->event = input_ev;	TODO */
 
 	/* register available key events */
-	input_dev->evbit[0] = BIT(EV_KEY);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	for (i = 0; i < 256; i++) {
 		int k = map_p1k_to_key(i);
 		if (k >= 0) {

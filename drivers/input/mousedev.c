@@ -998,34 +998,36 @@ static const struct input_device_id mousedev_ids[] = {
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_KEYBIT |
 				INPUT_DEVICE_ID_MATCH_RELBIT,
-		.evbit = { BIT(EV_KEY) | BIT(EV_REL) },
-		.keybit = { [LONG(BTN_LEFT)] = BIT(BTN_LEFT) },
-		.relbit = { BIT(REL_X) | BIT(REL_Y) },
+		.evbit = { BIT_MASK(EV_KEY) | BIT_MASK(EV_REL) },
+		.keybit = { [BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) },
+		.relbit = { BIT_MASK(REL_X) | BIT_MASK(REL_Y) },
 	},	/* A mouse like device, at least one button,
 		   two relative axes */
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_RELBIT,
-		.evbit = { BIT(EV_KEY) | BIT(EV_REL) },
-		.relbit = { BIT(REL_WHEEL) },
+		.evbit = { BIT_MASK(EV_KEY) | BIT_MASK(EV_REL) },
+		.relbit = { BIT_MASK(REL_WHEEL) },
 	},	/* A separate scrollwheel */
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_KEYBIT |
 				INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.evbit = { BIT(EV_KEY) | BIT(EV_ABS) },
-		.keybit = { [LONG(BTN_TOUCH)] = BIT(BTN_TOUCH) },
-		.absbit = { BIT(ABS_X) | BIT(ABS_Y) },
+		.evbit = { BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) },
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
 	},	/* A tablet like device, at least touch detection,
 		   two absolute axes */
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_KEYBIT |
 				INPUT_DEVICE_ID_MATCH_ABSBIT,
-		.evbit = { BIT(EV_KEY) | BIT(EV_ABS) },
-		.keybit = { [LONG(BTN_TOOL_FINGER)] = BIT(BTN_TOOL_FINGER) },
-		.absbit = { BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE) |
-				BIT(ABS_TOOL_WIDTH) },
+		.evbit = { BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) },
+		.keybit = { [BIT_WORD(BTN_TOOL_FINGER)] =
+				BIT_MASK(BTN_TOOL_FINGER) },
+		.absbit = { BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
+				BIT_MASK(ABS_PRESSURE) |
+				BIT_MASK(ABS_TOOL_WIDTH) },
 	},	/* A touchpad */
 
 	{ },	/* Terminating entry */

@@ -209,7 +209,7 @@ static int __init amikbd_init(void)
 	amikbd_dev->id.product = 0x0001;
 	amikbd_dev->id.version = 0x0100;
 
-	amikbd_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	amikbd_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 
 	for (i = 0; i < 0x78; i++)
 		set_bit(i, amikbd_dev->keybit);

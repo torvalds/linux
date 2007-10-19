@@ -868,8 +868,8 @@ static int usbtouch_probe(struct usb_interface *intf,
 	input_dev->open = usbtouch_open;
 	input_dev->close = usbtouch_close;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(input_dev, ABS_X, type->min_xc, type->max_xc, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, type->min_yc, type->max_yc, 0, 0);
 	if (type->max_press)

@@ -1178,9 +1178,9 @@ static int __devinit sonypi_create_input_devices(void)
 	jog_dev->id.bustype = BUS_ISA;
 	jog_dev->id.vendor = PCI_VENDOR_ID_SONY;
 
-	jog_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	jog_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_MIDDLE);
-	jog_dev->relbit[0] = BIT(REL_WHEEL);
+	jog_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	jog_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_MIDDLE);
+	jog_dev->relbit[0] = BIT_MASK(REL_WHEEL);
 
 	sonypi_device.input_key_dev = key_dev = input_allocate_device();
 	if (!key_dev) {
@@ -1193,7 +1193,7 @@ static int __devinit sonypi_create_input_devices(void)
 	key_dev->id.vendor = PCI_VENDOR_ID_SONY;
 
 	/* Initialize the Input Drivers: special keys */
-	key_dev->evbit[0] = BIT(EV_KEY);
+	key_dev->evbit[0] = BIT_MASK(EV_KEY);
 	for (i = 0; sonypi_inputkeys[i].sonypiev; i++)
 		if (sonypi_inputkeys[i].inputev)
 			set_bit(sonypi_inputkeys[i].inputev, key_dev->keybit);

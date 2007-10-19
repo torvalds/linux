@@ -363,10 +363,11 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 
 	input_dev->event = powermate_input_event;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL) | BIT(EV_MSC);
-	input_dev->keybit[LONG(BTN_0)] = BIT(BTN_0);
-	input_dev->relbit[LONG(REL_DIAL)] = BIT(REL_DIAL);
-	input_dev->mscbit[LONG(MSC_PULSELED)] = BIT(MSC_PULSELED);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL) |
+		BIT_MASK(EV_MSC);
+	input_dev->keybit[BIT_WORD(BTN_0)] = BIT_MASK(BTN_0);
+	input_dev->relbit[BIT_WORD(REL_DIAL)] = BIT_MASK(REL_DIAL);
+	input_dev->mscbit[BIT_WORD(MSC_PULSELED)] = BIT_MASK(MSC_PULSELED);
 
 	/* get a handle to the interrupt data pipe */
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);

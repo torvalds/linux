@@ -228,18 +228,23 @@ static int spaceball_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 	switch (id) {
 		case SPACEBALL_4000FLX:
 		case SPACEBALL_4000FLX_L:
-			input_dev->keybit[LONG(BTN_0)] |= BIT(BTN_9);
-			input_dev->keybit[LONG(BTN_A)] |= BIT(BTN_A) | BIT(BTN_B) | BIT(BTN_C) | BIT(BTN_MODE);
+			input_dev->keybit[BIT_WORD(BTN_0)] |= BIT_MASK(BTN_9);
+			input_dev->keybit[BIT_WORD(BTN_A)] |= BIT_MASK(BTN_A) |
+				BIT_MASK(BTN_B) | BIT_MASK(BTN_C) |
+				BIT_MASK(BTN_MODE);
 		default:
-			input_dev->keybit[LONG(BTN_0)] |= BIT(BTN_2) | BIT(BTN_3) | BIT(BTN_4)
-				| BIT(BTN_5) | BIT(BTN_6) | BIT(BTN_7) | BIT(BTN_8);
+			input_dev->keybit[BIT_WORD(BTN_0)] |= BIT_MASK(BTN_2) |
+				BIT_MASK(BTN_3) | BIT_MASK(BTN_4) |
+				BIT_MASK(BTN_5) | BIT_MASK(BTN_6) |
+				BIT_MASK(BTN_7) | BIT_MASK(BTN_8);
 		case SPACEBALL_3003C:
-			input_dev->keybit[LONG(BTN_0)] |= BIT(BTN_1) | BIT(BTN_8);
+			input_dev->keybit[BIT_WORD(BTN_0)] |= BIT_MASK(BTN_1) |
+				BIT_MASK(BTN_8);
 	}
 
 	for (i = 0; i < 3; i++) {

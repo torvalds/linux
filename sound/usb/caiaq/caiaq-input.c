@@ -200,8 +200,9 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 
         switch (dev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL2):
-		input->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-		input->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_Z);
+		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+		input->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
+			BIT_MASK(ABS_Z);
 		input->keycode = keycode_rk2;
 		input->keycodesize = sizeof(char);
 		input->keycodemax = ARRAY_SIZE(keycode_rk2);
@@ -228,8 +229,8 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 		snd_usb_caiaq_set_auto_msg(dev, 1, 10, 0);
 		break;
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
-		input->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-		input->absbit[0] = BIT(ABS_X);
+		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+		input->absbit[0] = BIT_MASK(ABS_X);
 		input->keycode = keycode_ak1;
 		input->keycodesize = sizeof(char);
 		input->keycodemax = ARRAY_SIZE(keycode_ak1);

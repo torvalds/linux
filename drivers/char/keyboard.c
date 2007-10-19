@@ -129,7 +129,7 @@ int shift_state = 0;
  */
 
 static struct input_handler kbd_handler;
-static unsigned long key_down[NBITS(KEY_MAX)];		/* keyboard key bitmap */
+static unsigned long key_down[BITS_TO_LONGS(KEY_CNT)];	/* keyboard key bitmap */
 static unsigned char shift_down[NR_SHIFT];		/* shift state counters.. */
 static int dead_key_next;
 static int npadch = -1;					/* -1 or number assembled on pad */
@@ -1377,12 +1377,12 @@ static void kbd_start(struct input_handle *handle)
 static const struct input_device_id kbd_ids[] = {
 	{
                 .flags = INPUT_DEVICE_ID_MATCH_EVBIT,
-                .evbit = { BIT(EV_KEY) },
+                .evbit = { BIT_MASK(EV_KEY) },
         },
 
 	{
                 .flags = INPUT_DEVICE_ID_MATCH_EVBIT,
-                .evbit = { BIT(EV_SND) },
+                .evbit = { BIT_MASK(EV_SND) },
         },
 
 	{ },    /* Terminating entry */

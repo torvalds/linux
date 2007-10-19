@@ -117,9 +117,10 @@ static int emumousebtn_input_register(void)
 	emumousebtn->id.product = 0x0001;
 	emumousebtn->id.version = 0x0100;
 
-	emumousebtn->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	emumousebtn->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
-	emumousebtn->relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	emumousebtn->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	emumousebtn->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
+	emumousebtn->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
 
 	ret = input_register_device(emumousebtn);
 	if (ret)

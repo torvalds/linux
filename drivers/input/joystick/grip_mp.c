@@ -606,7 +606,7 @@ static int register_slot(int slot, struct grip_mp *grip)
 	input_dev->open = grip_open;
 	input_dev->close = grip_close;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
 	for (j = 0; (t = grip_abs[port->mode][j]) >= 0; j++)
 		input_set_abs_params(input_dev, t, -1, 1, 0, 0);

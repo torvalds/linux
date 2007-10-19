@@ -411,9 +411,9 @@ static int sony_laptop_setup_input(void)
 	jog_dev->id.bustype = BUS_ISA;
 	jog_dev->id.vendor = PCI_VENDOR_ID_SONY;
 
-	jog_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	jog_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_MIDDLE);
-	jog_dev->relbit[0] = BIT(REL_WHEEL);
+	jog_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	jog_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_MIDDLE);
+	jog_dev->relbit[0] = BIT_MASK(REL_WHEEL);
 
 	error = input_register_device(jog_dev);
 	if (error)

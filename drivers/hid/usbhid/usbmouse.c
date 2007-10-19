@@ -173,11 +173,13 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	usb_to_input_id(dev, &input_dev->id);
 	input_dev->dev.parent = &intf->dev;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	input_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
-	input_dev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
-	input_dev->keybit[LONG(BTN_MOUSE)] |= BIT(BTN_SIDE) | BIT(BTN_EXTRA);
-	input_dev->relbit[0] |= BIT(REL_WHEEL);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	input_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
+	input_dev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
+	input_dev->keybit[BIT_WORD(BTN_MOUSE)] |= BIT_MASK(BTN_SIDE) |
+		BIT_MASK(BTN_EXTRA);
+	input_dev->relbit[0] |= BIT_MASK(REL_WHEEL);
 
 	input_set_drvdata(input_dev, mouse);
 

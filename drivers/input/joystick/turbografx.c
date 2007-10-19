@@ -229,7 +229,7 @@ static struct tgfx __init *tgfx_probe(int parport, int *n_buttons, int n_devs)
 		input_dev->open = tgfx_open;
 		input_dev->close = tgfx_close;
 
-		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 		input_set_abs_params(input_dev, ABS_X, -1, 1, 0, 0);
 		input_set_abs_params(input_dev, ABS_Y, -1, 1, 0, 0);
 

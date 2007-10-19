@@ -162,10 +162,6 @@ struct uinput_ff_erase {
 #define UI_FF_UPLOAD		1
 #define UI_FF_ERASE		2
 
-#ifndef NBITS
-#define NBITS(x) ((((x)-1)/(sizeof(long)*8))+1)
-#endif	/* NBITS */
-
 #define UINPUT_MAX_NAME_SIZE	80
 struct uinput_user_dev {
 	char name[UINPUT_MAX_NAME_SIZE];

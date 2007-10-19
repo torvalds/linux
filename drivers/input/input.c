@@ -584,10 +584,10 @@ static int input_default_setkeycode(struct input_dev *dev,
 
 
 #define MATCH_BIT(bit, max) \
-		for (i = 0; i < NBITS(max); i++) \
+		for (i = 0; i < BITS_TO_LONGS(max); i++) \
 			if ((id->bit[i] & dev->bit[i]) != id->bit[i]) \
 				break; \
-		if (i != NBITS(max)) \
+		if (i != BITS_TO_LONGS(max)) \
 			continue;
 
 static const struct input_device_id *input_match_device(const struct input_device_id *id,
@@ -698,7 +698,7 @@ static void input_seq_print_bitmap(struct seq_file *seq, const char *name,
 {
 	int i;
 
-	for (i = NBITS(max) - 1; i > 0; i--)
+	for (i = BITS_TO_LONGS(max) - 1; i > 0; i--)
 		if (bitmap[i])
 			break;
 
@@ -892,7 +892,7 @@ static int input_print_modalias_bits(char *buf, int size,
 
 	len += snprintf(buf, max(size, 0), "%c", name);
 	for (i = min_bit; i < max_bit; i++)
-		if (bm[LONG(i)] & BIT(i))
+		if (bm[BIT_WORD(i)] & BIT_MASK(i))
 			len += snprintf(buf + len, max(size - len, 0), "%X,", i);
 	return len;
 }
@@ -991,7 +991,7 @@ static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap,
 	int i;
 	int len = 0;
 
-	for (i = NBITS(max) - 1; i > 0; i--)
+	for (i = BITS_TO_LONGS(max) - 1; i > 0; i--)
 		if (bitmap[i])
 			break;
 

@@ -218,7 +218,7 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->open = cobra_open;
 		input_dev->close = cobra_close;
 
-		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 		input_set_abs_params(input_dev, ABS_X, -1, 1, 0, 0);
 		input_set_abs_params(input_dev, ABS_Y, -1, 1, 0, 0);
 		for (j = 0; cobra_btn[j]; j++)

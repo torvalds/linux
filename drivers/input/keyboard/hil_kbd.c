@@ -323,8 +323,9 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 		goto bail2;
 	}
 
-	kbd->dev->evbit[0]	= BIT(EV_KEY) | BIT(EV_REP);
-	kbd->dev->ledbit[0]	= BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
+	kbd->dev->evbit[0]	= BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+	kbd->dev->ledbit[0]	= BIT_MASK(LED_NUML) | BIT_MASK(LED_CAPSL) |
+		BIT_MASK(LED_SCROLLL);
 	kbd->dev->keycodemax	= HIL_KEYCODES_SET1_TBLSIZE;
 	kbd->dev->keycodesize	= sizeof(hil_kbd_set1[0]);
 	kbd->dev->keycode	= hil_kbd_set1;

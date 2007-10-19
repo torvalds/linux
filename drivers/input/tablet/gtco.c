@@ -573,10 +573,12 @@ static void gtco_setup_caps(struct input_dev *inputdev)
 	struct gtco *device = input_get_drvdata(inputdev);
 
 	/* Which events */
-	inputdev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_MSC);
+	inputdev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) |
+		BIT_MASK(EV_MSC);
 
 	/* Misc event menu block */
-	inputdev->mscbit[0] = BIT(MSC_SCAN)|BIT(MSC_SERIAL)|BIT(MSC_RAW) ;
+	inputdev->mscbit[0] = BIT_MASK(MSC_SCAN) | BIT_MASK(MSC_SERIAL) |
+		BIT_MASK(MSC_RAW);
 
 	/* Absolute values based on HID report info */
 	input_set_abs_params(inputdev, ABS_X, device->min_X, device->max_X,

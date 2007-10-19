@@ -455,24 +455,25 @@ int alps_init(struct psmouse *psmouse)
 	if (alps_hw_init(psmouse, &version))
 		goto init_fail;
 
-	dev1->evbit[LONG(EV_KEY)] |= BIT(EV_KEY);
-	dev1->keybit[LONG(BTN_TOUCH)] |= BIT(BTN_TOUCH);
-	dev1->keybit[LONG(BTN_TOOL_FINGER)] |= BIT(BTN_TOOL_FINGER);
-	dev1->keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	dev1->evbit[BIT_WORD(EV_KEY)] |= BIT_MASK(EV_KEY);
+	dev1->keybit[BIT_WORD(BTN_TOUCH)] |= BIT_MASK(BTN_TOUCH);
+	dev1->keybit[BIT_WORD(BTN_TOOL_FINGER)] |= BIT_MASK(BTN_TOOL_FINGER);
+	dev1->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
 
-	dev1->evbit[LONG(EV_ABS)] |= BIT(EV_ABS);
+	dev1->evbit[BIT_WORD(EV_ABS)] |= BIT_MASK(EV_ABS);
 	input_set_abs_params(dev1, ABS_X, 0, 1023, 0, 0);
 	input_set_abs_params(dev1, ABS_Y, 0, 767, 0, 0);
 	input_set_abs_params(dev1, ABS_PRESSURE, 0, 127, 0, 0);
 
 	if (priv->i->flags & ALPS_WHEEL) {
-		dev1->evbit[LONG(EV_REL)] |= BIT(EV_REL);
-		dev1->relbit[LONG(REL_WHEEL)] |= BIT(REL_WHEEL);
+		dev1->evbit[BIT_WORD(EV_REL)] |= BIT_MASK(EV_REL);
+		dev1->relbit[BIT_WORD(REL_WHEEL)] |= BIT_MASK(REL_WHEEL);
 	}
 
 	if (priv->i->flags & (ALPS_FW_BK_1 | ALPS_FW_BK_2)) {
-		dev1->keybit[LONG(BTN_FORWARD)] |= BIT(BTN_FORWARD);
-		dev1->keybit[LONG(BTN_BACK)] |= BIT(BTN_BACK);
+		dev1->keybit[BIT_WORD(BTN_FORWARD)] |= BIT_MASK(BTN_FORWARD);
+		dev1->keybit[BIT_WORD(BTN_BACK)] |= BIT_MASK(BTN_BACK);
 	}
 
 	snprintf(priv->phys, sizeof(priv->phys), "%s/input1", psmouse->ps2dev.serio->phys);
@@ -483,9 +484,10 @@ int alps_init(struct psmouse *psmouse)
 	dev2->id.product = PSMOUSE_ALPS;
 	dev2->id.version = 0x0000;
 
-	dev2->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	dev2->relbit[LONG(REL_X)] |= BIT(REL_X) | BIT(REL_Y);
-	dev2->keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	dev2->relbit[BIT_WORD(REL_X)] |= BIT_MASK(REL_X) | BIT_MASK(REL_Y);
+	dev2->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
 
 	if (input_register_device(priv->dev2))
 		goto init_fail;

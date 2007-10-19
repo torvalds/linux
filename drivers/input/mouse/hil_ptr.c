@@ -298,12 +298,12 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	idd = ptr->idd + 1;
 	txt = "unknown";
 	if ((did & HIL_IDD_DID_TYPE_MASK) == HIL_IDD_DID_TYPE_REL) {
-		ptr->dev->evbit[0] = BIT(EV_REL);
+		ptr->dev->evbit[0] = BIT_MASK(EV_REL);
 		txt = "relative";
 	}
 
 	if ((did & HIL_IDD_DID_TYPE_MASK) == HIL_IDD_DID_TYPE_ABS) {
-		ptr->dev->evbit[0] = BIT(EV_ABS);
+		ptr->dev->evbit[0] = BIT_MASK(EV_ABS);
 		txt = "absolute";
 	}
 	if (!ptr->dev->evbit[0])
@@ -311,7 +311,7 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 
 	ptr->nbtn = HIL_IDD_NUM_BUTTONS(idd);
 	if (ptr->nbtn)
-		ptr->dev->evbit[0] |= BIT(EV_KEY);
+		ptr->dev->evbit[0] |= BIT_MASK(EV_KEY);
 
 	naxsets = HIL_IDD_NUM_AXSETS(*idd);
 	ptr->naxes = HIL_IDD_NUM_AXES_PER_SET(*idd);

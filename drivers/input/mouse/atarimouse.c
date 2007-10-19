@@ -137,9 +137,10 @@ static int __init atamouse_init(void)
 	atamouse_dev->id.product = 0x0002;
 	atamouse_dev->id.version = 0x0100;
 
-	atamouse_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	atamouse_dev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
-	atamouse_dev->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	atamouse_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	atamouse_dev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
+	atamouse_dev->keybit[BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) |
+		BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
 	atamouse_dev->open = atamouse_open;
 	atamouse_dev->close = atamouse_close;
 

@@ -62,7 +62,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, input);
 
-	input->evbit[0] = BIT(EV_KEY);
+	input->evbit[0] = BIT_MASK(EV_KEY);
 
 	input->name = pdev->name;
 	input->phys = "gpio-keys/input0";
