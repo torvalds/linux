@@ -176,13 +176,17 @@ void __init sem_init (void)
 
 static inline struct sem_array *sem_lock(struct ipc_namespace *ns, int id)
 {
-	return (struct sem_array *) ipc_lock(&sem_ids(ns), id);
+	struct kern_ipc_perm *ipcp = ipc_lock(&sem_ids(ns), id);
+
+	return container_of(ipcp, struct sem_array, sem_perm);
 }
 
 static inline struct sem_array *sem_lock_check(struct ipc_namespace *ns,
 						int id)
 {
-	return (struct sem_array *) ipc_lock_check(&sem_ids(ns), id);
+	struct kern_ipc_perm *ipcp = ipc_lock_check(&sem_ids(ns), id);
+
+	return container_of(ipcp, struct sem_array, sem_perm);
 }
 
 static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
@@ -277,14 +281,21 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 }
 
 
-static inline int sem_security(void *sma, int semflg)
+static inline int sem_security(struct kern_ipc_perm *ipcp, int semflg)
 {
-	return security_sem_associate((struct sem_array *) sma, semflg);
+	struct sem_array *sma;
+
+	sma = container_of(ipcp, struct sem_array, sem_perm);
+	return security_sem_associate(sma, semflg);
 }
 
-static inline int sem_more_checks(void *sma, struct ipc_params *params)
+static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
+				struct ipc_params *params)
 {
-	if (params->u.nsems > ((struct sem_array *)sma)->sem_nsems)
+	struct sem_array *sma;
+
+	sma = container_of(ipcp, struct sem_array, sem_perm);
+	if (params->u.nsems > sma->sem_nsems)
 		return -EINVAL;
 
 	return 0;

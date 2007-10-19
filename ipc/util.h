@@ -61,8 +61,8 @@ struct ipc_params {
  */
 struct ipc_ops {
 	int (*getnew) (struct ipc_namespace *, struct ipc_params *);
-	int (*associate) (void *, int);
-	int (*more_checks) (void *, struct ipc_params *);
+	int (*associate) (struct kern_ipc_perm *, int);
+	int (*more_checks) (struct kern_ipc_perm *, struct ipc_params *);
 };
 
 struct seq_file;

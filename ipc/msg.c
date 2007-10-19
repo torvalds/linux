@@ -138,13 +138,17 @@ void __init msg_init(void)
 
 static inline struct msg_queue *msg_lock(struct ipc_namespace *ns, int id)
 {
-	return (struct msg_queue *) ipc_lock(&msg_ids(ns), id);
+	struct kern_ipc_perm *ipcp = ipc_lock(&msg_ids(ns), id);
+
+	return container_of(ipcp, struct msg_queue, q_perm);
 }
 
 static inline struct msg_queue *msg_lock_check(struct ipc_namespace *ns,
 						int id)
 {
-	return (struct msg_queue *) ipc_lock_check(&msg_ids(ns), id);
+	struct kern_ipc_perm *ipcp = ipc_lock_check(&msg_ids(ns), id);
+
+	return container_of(ipcp, struct msg_queue, q_perm);
 }
 
 static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
@@ -274,9 +278,11 @@ static void freeque(struct ipc_namespace *ns, struct msg_queue *msq)
 	ipc_rcu_putref(msq);
 }
 
-static inline int msg_security(void *msq, int msgflg)
+static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
 {
-	return security_msg_queue_associate((struct msg_queue *) msq, msgflg);
+	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
+
+	return security_msg_queue_associate(msq, msgflg);
 }
 
 asmlinkage long sys_msgget(key_t key, int msgflg)

@@ -139,13 +139,17 @@ void __init shm_init (void)
 
 static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
 {
-	return (struct shmid_kernel *) ipc_lock(&shm_ids(ns), id);
+	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
+
+	return container_of(ipcp, struct shmid_kernel, shm_perm);
 }
 
 static inline struct shmid_kernel *shm_lock_check(struct ipc_namespace *ns,
 						int id)
 {
-	return (struct shmid_kernel *) ipc_lock_check(&shm_ids(ns), id);
+	struct kern_ipc_perm *ipcp = ipc_lock_check(&shm_ids(ns), id);
+
+	return container_of(ipcp, struct shmid_kernel, shm_perm);
 }
 
 static inline void shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *s)
@@ -424,14 +428,21 @@ no_file:
 	return error;
 }
 
-static inline int shm_security(void *shp, int shmflg)
+static inline int shm_security(struct kern_ipc_perm *ipcp, int shmflg)
 {
-	return security_shm_associate((struct shmid_kernel *) shp, shmflg);
+	struct shmid_kernel *shp;
+
+	shp = container_of(ipcp, struct shmid_kernel, shm_perm);
+	return security_shm_associate(shp, shmflg);
 }
 
-static inline int shm_more_checks(void *shp, struct ipc_params *params)
+static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
+				struct ipc_params *params)
 {
-	if (((struct shmid_kernel *)shp)->shm_segsz < params->u.size)
+	struct shmid_kernel *shp;
+
+	shp = container_of(ipcp, struct shmid_kernel, shm_perm);
+	if (shp->shm_segsz < params->u.size)
 		return -EINVAL;
 
 	return 0;
