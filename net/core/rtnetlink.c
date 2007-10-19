@@ -744,10 +744,10 @@ static struct net *get_net_ns_by_pid(pid_t pid)
 	rcu_read_lock();
 	tsk = find_task_by_pid(pid);
 	if (tsk) {
-		task_lock(tsk);
-		if (tsk->nsproxy)
-			net = get_net(tsk->nsproxy->net_ns);
-		task_unlock(tsk);
+		struct nsproxy *nsproxy;
+		nsproxy = task_nsproxy(tsk);
+		if (nsproxy)
+			net = get_net(nsproxy->net_ns);
 	}
 	rcu_read_unlock();
 	return net;

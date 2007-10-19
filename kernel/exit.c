@@ -400,9 +400,10 @@ void daemonize(const char *name, ...)
 	current->fs = fs;
 	atomic_inc(&fs->count);
 
-	exit_task_namespaces(current);
-	current->nsproxy = init_task.nsproxy;
-	get_task_namespaces(current);
+	if (current->nsproxy != init_task.nsproxy) {
+		get_nsproxy(init_task.nsproxy);
+		switch_task_namespaces(current, init_task.nsproxy);
+	}
 
  	exit_files(current);
 	current->files = init_task.files;

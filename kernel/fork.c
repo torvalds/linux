@@ -1632,7 +1632,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	struct mm_struct *mm, *new_mm = NULL, *active_mm = NULL;
 	struct files_struct *fd, *new_fd = NULL;
 	struct sem_undo_list *new_ulist = NULL;
-	struct nsproxy *new_nsproxy = NULL, *old_nsproxy = NULL;
+	struct nsproxy *new_nsproxy = NULL;
 
 	check_unshare_flags(&unshare_flags);
 
@@ -1662,13 +1662,12 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 
 	if (new_fs ||  new_mm || new_fd || new_ulist || new_nsproxy) {
 
-		task_lock(current);
-
 		if (new_nsproxy) {
-			old_nsproxy = current->nsproxy;
-			current->nsproxy = new_nsproxy;
-			new_nsproxy = old_nsproxy;
+			switch_task_namespaces(current, new_nsproxy);
+			new_nsproxy = NULL;
 		}
+
+		task_lock(current);
 
 		if (new_fs) {
 			fs = current->fs;
