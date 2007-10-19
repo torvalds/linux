@@ -1278,7 +1278,6 @@ typedef struct ide_pci_device_s {
 	void			(*fixup)(ide_hwif_t *);
 	ide_pci_enablebit_t	enablebits[2];
 	unsigned int		extra;
-	struct ide_pci_device_s	*next;
 	u32			host_flags;
 	u8			pio_mask;
 	u8			swdma_mask;
