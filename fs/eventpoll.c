@@ -325,15 +325,14 @@ static void ep_poll_safewake(struct poll_safewake *psw, wait_queue_head_t *wq)
 	int wake_nests = 0;
 	unsigned long flags;
 	struct task_struct *this_task = current;
-	struct list_head *lsthead = &psw->wake_task_list, *lnk;
+	struct list_head *lsthead = &psw->wake_task_list;
 	struct wake_task_node *tncur;
 	struct wake_task_node tnode;
 
 	spin_lock_irqsave(&psw->lock, flags);
 
 	/* Try to see if the current task is already inside this wakeup call */
-	list_for_each(lnk, lsthead) {
-		tncur = list_entry(lnk, struct wake_task_node, llink);
+	list_for_each_entry(tncur, lsthead, llink) {
 
 		if (tncur->wq == wq ||
 		    (tncur->task == this_task && ++wake_nests > EP_MAX_POLLWAKE_NESTS)) {
