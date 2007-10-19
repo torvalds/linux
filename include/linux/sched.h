@@ -894,34 +894,6 @@ struct sched_entity {
 #endif
 };
 
-#ifdef CONFIG_CGROUPS
-
-#define SUBSYS(_x) _x ## _subsys_id,
-enum cgroup_subsys_id {
-#include <linux/cgroup_subsys.h>
-	CGROUP_SUBSYS_COUNT
-};
-#undef SUBSYS
-
-/* A css_set is a structure holding pointers to a set of
- * cgroup_subsys_state objects.
- */
-
-struct css_set {
-
-	/* Set of subsystem states, one for each subsystem. NULL for
-	 * subsystems that aren't part of this hierarchy. These
-	 * pointers reduce the number of dereferences required to get
-	 * from a task to its state for a given cgroup, but result
-	 * in increased space usage if tasks are in wildly different
-	 * groupings across different hierarchies. This array is
-	 * immutable after creation */
-	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
-
-};
-
-#endif /* CONFIG_CGROUPS */
-
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	void *stack;
@@ -1159,7 +1131,10 @@ struct task_struct {
 	int cpuset_mem_spread_rotor;
 #endif
 #ifdef CONFIG_CGROUPS
-	struct css_set cgroups;
+	/* Control Group info protected by css_set_lock */
+	struct css_set *cgroups;
+	/* cg_list protected by css_set_lock and tsk->alloc_lock */
+	struct list_head cg_list;
 #endif
 #ifdef CONFIG_FUTEX
 	struct robust_list_head __user *robust_list;

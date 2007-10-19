@@ -176,7 +176,9 @@ Control Groups extends the kernel as follows:
    subsystem state is something that's expected to happen frequently
    and in performance-critical code, whereas operations that require a
    task's actual cgroup assignments (in particular, moving between
-   cgroups) are less common.
+   cgroups) are less common. A linked list runs through the cg_list
+   field of each task_struct using the css_set, anchored at
+   css_set->tasks.
 
  - A cgroup hierarchy filesystem can be mounted  for browsing and
    manipulation from user space.
@@ -251,6 +253,16 @@ css_set is allocated. Note that the current implementation uses a
 linear search to locate an appropriate existing css_set, so isn't
 very efficient. A future version will use a hash table for better
 performance.
+
+To allow access from a cgroup to the css_sets (and hence tasks)
+that comprise it, a set of cg_cgroup_link objects form a lattice;
+each cg_cgroup_link is linked into a list of cg_cgroup_links for
+a single cgroup on its cont_link_list field, and a list of
+cg_cgroup_links for a single css_set on its cg_link_list.
+
+Thus the set of tasks in a cgroup can be listed by iterating over
+each css_set that references the cgroup, and sub-iterating over
+each css_set's task set.
 
 The use of a Linux virtual file system (vfs) to represent the
 cgroup hierarchy provides for a familiar permission and name space

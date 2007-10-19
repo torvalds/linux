@@ -27,9 +27,18 @@ extern void cgroup_lock(void);
 extern void cgroup_unlock(void);
 extern void cgroup_fork(struct task_struct *p);
 extern void cgroup_fork_callbacks(struct task_struct *p);
+extern void cgroup_post_fork(struct task_struct *p);
 extern void cgroup_exit(struct task_struct *p, int run_callbacks);
 
 extern struct file_operations proc_cgroup_operations;
+
+/* Define the enumeration of all cgroup subsystems */
+#define SUBSYS(_x) _x ## _subsys_id,
+enum cgroup_subsys_id {
+#include <linux/cgroup_subsys.h>
+	CGROUP_SUBSYS_COUNT
+};
+#undef SUBSYS
 
 /* Per-subsystem/per-cgroup state maintained by the system. */
 struct cgroup_subsys_state {
@@ -97,6 +106,52 @@ struct cgroup {
 
 	struct cgroupfs_root *root;
 	struct cgroup *top_cgroup;
+
+	/*
+	 * List of cg_cgroup_links pointing at css_sets with
+	 * tasks in this cgroup. Protected by css_set_lock
+	 */
+	struct list_head css_sets;
+};
+
+/* A css_set is a structure holding pointers to a set of
+ * cgroup_subsys_state objects. This saves space in the task struct
+ * object and speeds up fork()/exit(), since a single inc/dec and a
+ * list_add()/del() can bump the reference count on the entire
+ * cgroup set for a task.
+ */
+
+struct css_set {
+
+	/* Reference count */
+	struct kref ref;
+
+	/*
+	 * List running through all cgroup groups. Protected by
+	 * css_set_lock
+	 */
+	struct list_head list;
+
+	/*
+	 * List running through all tasks using this cgroup
+	 * group. Protected by css_set_lock
+	 */
+	struct list_head tasks;
+
+	/*
+	 * List of cg_cgroup_link objects on link chains from
+	 * cgroups referenced from this css_set. Protected by
+	 * css_set_lock
+	 */
+	struct list_head cg_links;
+
+	/*
+	 * Set of subsystem states, one for each subsystem. This array
+	 * is immutable after creation apart from the init_css_set
+	 * during subsystem registration (at boot time).
+	 */
+	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
+
 };
 
 /* struct cftype:
@@ -157,15 +212,7 @@ int cgroup_is_removed(const struct cgroup *cont);
 
 int cgroup_path(const struct cgroup *cont, char *buf, int buflen);
 
-int __cgroup_task_count(const struct cgroup *cont);
-static inline int cgroup_task_count(const struct cgroup *cont)
-{
-	int task_count;
-	rcu_read_lock();
-	task_count = __cgroup_task_count(cont);
-	rcu_read_unlock();
-	return task_count;
-}
+int cgroup_task_count(const struct cgroup *cont);
 
 /* Return true if the cgroup is a descendant of the current cgroup */
 int cgroup_is_descendant(const struct cgroup *cont);
@@ -213,7 +260,7 @@ static inline struct cgroup_subsys_state *cgroup_subsys_state(
 static inline struct cgroup_subsys_state *task_subsys_state(
 	struct task_struct *task, int subsys_id)
 {
-	return rcu_dereference(task->cgroups.subsys[subsys_id]);
+	return rcu_dereference(task->cgroups->subsys[subsys_id]);
 }
 
 static inline struct cgroup* task_cgroup(struct task_struct *task,
@@ -226,6 +273,27 @@ int cgroup_path(const struct cgroup *cont, char *buf, int buflen);
 
 int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *ss);
 
+/* A cgroup_iter should be treated as an opaque object */
+struct cgroup_iter {
+	struct list_head *cg_link;
+	struct list_head *task;
+};
+
+/* To iterate across the tasks in a cgroup:
+ *
+ * 1) call cgroup_iter_start to intialize an iterator
+ *
+ * 2) call cgroup_iter_next() to retrieve member tasks until it
+ *    returns NULL or until you want to end the iteration
+ *
+ * 3) call cgroup_iter_end() to destroy the iterator.
+ */
+void cgroup_iter_start(struct cgroup *cont, struct cgroup_iter *it);
+struct task_struct *cgroup_iter_next(struct cgroup *cont,
+					struct cgroup_iter *it);
+void cgroup_iter_end(struct cgroup *cont, struct cgroup_iter *it);
+
+
 #else /* !CONFIG_CGROUPS */
 
 static inline int cgroup_init_early(void) { return 0; }
@@ -233,6 +301,7 @@ static inline int cgroup_init(void) { return 0; }
 static inline void cgroup_init_smp(void) {}
 static inline void cgroup_fork(struct task_struct *p) {}
 static inline void cgroup_fork_callbacks(struct task_struct *p) {}
+static inline void cgroup_post_fork(struct task_struct *p) {}
 static inline void cgroup_exit(struct task_struct *p, int callbacks) {}
 
 static inline void cgroup_lock(void) {}

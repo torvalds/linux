@@ -1301,6 +1301,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	spin_unlock(&current->sighand->siglock);
 	write_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
+	cgroup_post_fork(p);
 	return p;
 
 bad_fork_cleanup_namespaces:
