@@ -1,7 +1,7 @@
 #
 # Makefile for the I-Force driver
 #
-# By Johann Deneux <deneux@ifrance.com>
+# By Johann Deneux <johann.deneux@gmail.com>
 #
 
 # Goal definition

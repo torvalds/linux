@@ -1,5 +1,5 @@
 Force feedback for Linux.
-By Johann Deneux <deneux@ifrance.com> on 2001/04/22.
+By Johann Deneux <johann.deneux@gmail.com> on 2001/04/22.
 Updated by Anssi Hannula <anssi.hannula@gmail.com> on 2006/04/09.
 You may redistribute this file. Please remember to include shape.fig and
 interactive.fig as well.

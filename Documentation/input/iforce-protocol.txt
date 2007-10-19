@@ -4,7 +4,7 @@ specify force effects to I-Force 2.0 devices.  None of this information comes
 from Immerse. That's why you should not trust what is written in this
 document. This document is intended to help understanding the protocol.
 This is not a reference. Comments and corrections are welcome.  To contact me,
-send an email to: deneux@ifrance.com
+send an email to: johann.deneux@gmail.com
 
 ** WARNING **
 I may not be held responsible for any dammage or harm caused if you try to
@@ -246,7 +246,7 @@ Remember it's free (as in free beer) and alpha!
 Check www.immerse.com for Immersion Studio, and www.fcoder.com for ComPortSpy.
 
 ** Author of this document **
-Johann Deneux <deneux@ifrance.com>
+Johann Deneux <johann.deneux@gmail.com>
 Home page at http://www.esil.univ-mrs.fr/~jdeneux/projects/ff/
 
 Additions by Vojtech Pavlik.
