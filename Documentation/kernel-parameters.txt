@@ -339,12 +339,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <io>,<irq>,<mode>
 			See header of drivers/net/hamradio/baycom_ser_hdx.c.
 
-	blkmtd_device=	[HW,MTD]
-	blkmtd_erasesz=
-	blkmtd_ro=
-	blkmtd_bs=
-	blkmtd_count=
-
 	boot_delay=	Milliseconds to delay each printk during boot.
 			Values larger than 10 seconds (10000) are changed to
 			no delay (0).
