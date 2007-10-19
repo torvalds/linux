@@ -37,7 +37,7 @@
  * Video4linux 1/2 integration by Justin Schoeman
  * <justin@suntiger.ee.up.ac.za>
  * 2.4 PROCFS support ported from 2.4 kernels by
- *  Iñaki García Etxebarria <garetxe@euskalnet.net>
+ *  IÃ±aki GarcÃ­a Etxebarria <garetxe@euskalnet.net>
  * Makefile fix by "W. Michael Petullo" <mike@flyn.org>
  * 2.4 devfs support ported from 2.4 kernels by
  *  Dan Merillat <dan@merillat.org>

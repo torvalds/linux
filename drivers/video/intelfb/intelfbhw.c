@@ -3,7 +3,7 @@
  *
  * Linux framebuffer driver for Intel(R) 865G integrated graphics chips.
  *
- * Copyright © 2002, 2003 David Dawes <dawes@xfree86.org>
+ * Copyright Â© 2002, 2003 David Dawes <dawes@xfree86.org>
  *                   2004 Sylvain Meyer
  *
  * This driver consists of two parts.  The first part (intelfbdrv.c) provides

@@ -382,7 +382,7 @@ ToDo/Notes:
 	  own locking so it does not matter if the vfs inode is locked.
 	- Fix bug in mft record writing where we forgot to set the device in
 	  the buffers when mapping them after the VM had discarded them.
-	  Thanks to Martin MOKREJŠ for the bug report.
+	  Thanks to Martin MOKREJÅ for the bug report.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

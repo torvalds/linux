@@ -3,7 +3,7 @@
 		for hardware monitoring
 
     Copyright (C) 1998 - 2001 Frodo Looijaard <frodol@dds.nl>,
-			Kyösti Mälkki <kmalkki@cc.hut.fi>, and
+			KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>, and
 			Mark D. Studebaker <mdsxyz123@yahoo.com>
     Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
     the help of Jean Delvare <khali@linux-fr.org>

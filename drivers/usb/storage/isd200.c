@@ -3,7 +3,7 @@
  * $Id: isd200.c,v 1.16 2002/04/22 03:39:43 mdharm Exp $
  *
  * Current development and maintenance:
- *   (C) 2001-2002 Björn Stenberg (bjorn@haxx.se)
+ *   (C) 2001-2002 BjÃ¶rn Stenberg (bjorn@haxx.se)
  *
  * Developed with the assistance of:
  *   (C) 2002 Alan Stern <stern@rowland.org>

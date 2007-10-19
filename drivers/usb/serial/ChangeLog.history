@@ -400,7 +400,7 @@ visor.c Change Log comments:
 
  (11/11/2001) gkh
 	Added support for the m125 devices, and added check to prevent oopses
-	for Clié devices that lie about the number of ports they have.
+	for CliÃ© devices that lie about the number of ports they have.
 
  (08/30/2001) gkh
 	Added support for the Clie devices, both the 3.5 and 4.0 os versions.

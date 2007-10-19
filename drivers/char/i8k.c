@@ -371,14 +371,14 @@ static int i8k_proc_show(struct seq_file *seq, void *offset)
 	int fn_key, cpu_temp, ac_power;
 	int left_fan, right_fan, left_speed, right_speed;
 
-	cpu_temp	= i8k_get_temp(0);			/* 11100 µs */
-	left_fan	= i8k_get_fan_status(I8K_FAN_LEFT);	/*   580 µs */
-	right_fan	= i8k_get_fan_status(I8K_FAN_RIGHT);	/*   580 µs */
-	left_speed	= i8k_get_fan_speed(I8K_FAN_LEFT);	/*   580 µs */
-	right_speed	= i8k_get_fan_speed(I8K_FAN_RIGHT);	/*   580 µs */
-	fn_key		= i8k_get_fn_status();			/*   750 µs */
+	cpu_temp	= i8k_get_temp(0);			/* 11100 Âµs */
+	left_fan	= i8k_get_fan_status(I8K_FAN_LEFT);	/*   580 Âµs */
+	right_fan	= i8k_get_fan_status(I8K_FAN_RIGHT);	/*   580 Âµs */
+	left_speed	= i8k_get_fan_speed(I8K_FAN_LEFT);	/*   580 Âµs */
+	right_speed	= i8k_get_fan_speed(I8K_FAN_RIGHT);	/*   580 Âµs */
+	fn_key		= i8k_get_fn_status();			/*   750 Âµs */
 	if (power_status)
-		ac_power = i8k_get_power_status();		/* 14700 µs */
+		ac_power = i8k_get_power_status();		/* 14700 Âµs */
 	else
 		ac_power = -1;
 

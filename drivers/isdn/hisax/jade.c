@@ -304,7 +304,7 @@ initjade(struct IsdnCardState *cs)
 	cs->BC_Write_Reg(cs, 1, jade_HDLC_IMR,  0x00);
 	/* Setup host access to hdlc controller */
 	jade_write_indirect(cs, jade_HDLCCNTRACCESS, (jadeINDIRECT_HAH1|jadeINDIRECT_HAH2));
-	/* Unmask HDLC int (don´t forget DSP int later on)*/
+	/* Unmask HDLC int (don't forget DSP int later on)*/
 	cs->BC_Write_Reg(cs, -1,jade_INT, (jadeINT_HDLC1|jadeINT_HDLC2));
 
 	/* once again TRANSPARENT */	

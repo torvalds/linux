@@ -6,7 +6,7 @@
  *
  * Alexey Kuznetsov  <kuznet@ms2.inr.ac.ru>
  * Ben Greear <greearb@candelatech.com>
- * Jens Låås <jens.laas@data.slu.se>
+ * Jens LÃ¥Ã¥s <jens.laas@data.slu.se>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

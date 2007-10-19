@@ -7,7 +7,7 @@
    Copyright (C) 1995-2000 Simon G. Vogl
    With some changes from:
    Frodo Looijaard <frodol@dds.nl>
-   Kyösti Mälkki <kmalkki@cc.hut.fi>
+   KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

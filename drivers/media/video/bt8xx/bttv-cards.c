@@ -1259,7 +1259,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio	= 1,
 	},
 	[BTTV_BOARD_LIFETEC_9415] = {
-		/* Tim Röstermundt <rosterm@uni-muenster.de>
+		/* Tim RÃ¶stermundt <rosterm@uni-muenster.de>
 		in de.comp.os.unix.linux.hardware:
 			options bttv card=0 pll=1 radio=1 gpiomask=0x18e0
 			gpiomux =0x44c71f,0x44d71f,0,0x44d71f,0x44dfff
@@ -2824,7 +2824,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 		/* ---- card 0x8b ---------------------------------- */
 	[BTTV_BOARD_PV_M4900] = {
-		/* Sérgio Fortier <sergiofortier@yahoo.com.br> */
+		/* SÃ©rgio Fortier <sergiofortier@yahoo.com.br> */
 		.name           = "Prolink PixelView PlayTV MPEG2 PV-M4900",
 		.video_inputs   = 3,
 		.audio_inputs   = 1,

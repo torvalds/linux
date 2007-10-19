@@ -75,16 +75,16 @@
 static const char *enternow_pci_rev = "$Revision: 1.1.4.5 $";
 
 
-/* für PowerISDN PCI */
+/* for PowerISDN PCI */
 #define TJ_AMD_IRQ                                              0x20
 #define TJ_LED1                                                 0x40
 #define TJ_LED2                                                 0x80
 
 
-/* Das Fenster zum AMD...
- * Ab Adresse hw.njet.base + TJ_AMD_PORT werden vom AMD jeweils 8 Bit in
- * den TigerJet i/o-Raum gemappt
- * -> 0x01 des AMD bei hw.njet.base + 0C4 */
+/* The window to [the] AMD [chip]...
+ * From address hw.njet.base + TJ_AMD_PORT onwards, the AMD
+ * maps [consecutive/multiple] 8 bits into the TigerJet I/O space
+ * -> 0x01 of the AMD at hw.njet.base + 0C4 */
 #define TJ_AMD_PORT                                             0xC0
 
 
@@ -96,11 +96,11 @@ static const char *enternow_pci_rev = "$Revision: 1.1.4.5 $";
 static unsigned char
 ReadByteAmd7930(struct IsdnCardState *cs, unsigned char offset)
 {
-	/* direktes Register */
+	/* direct register */
 	if(offset < 8)
 		return (inb(cs->hw.njet.isac + 4*offset));
 
-	/* indirektes Register */
+	/* indirect register */
 	else {
 		outb(offset, cs->hw.njet.isac + 4*AMD_CR);
 		return(inb(cs->hw.njet.isac + 4*AMD_DR));
@@ -111,11 +111,11 @@ ReadByteAmd7930(struct IsdnCardState *cs, unsigned char offset)
 static void
 WriteByteAmd7930(struct IsdnCardState *cs, unsigned char offset, unsigned char value)
 {
-	/* direktes Register */
+	/* direct register */
 	if(offset < 8)
 		outb(value, cs->hw.njet.isac + 4*offset);
 
-	/* indirektes Register */
+	/* indirect register */
 	else {
 		outb(offset, cs->hw.njet.isac + 4*AMD_CR);
 		outb(value, cs->hw.njet.isac + 4*AMD_DR);

@@ -955,7 +955,7 @@ read_frame(struct vicam_camera *cam, int framenum)
 		request[7] = realShutter >> 8;
 	}
 
-	// Per John Markus Bjørndalen, byte at index 8 causes problems if it isn't 0
+	// Per John Markus BjÃ¸rndalen, byte at index 8 causes problems if it isn't 0
 	request[8] = 0;
 	// bytes 9-15 do not seem to affect exposure or image quality
 

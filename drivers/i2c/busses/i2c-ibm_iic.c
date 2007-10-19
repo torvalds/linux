@@ -18,7 +18,7 @@
  *   	Copyright 1995-97 Simon G. Vogl
  *                1998-99 Hans Berglund
  *
- *   	With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> 
+ *   	With some changes from KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>
  *	and even Frodo Looijaard <frodol@dds.nl>
  *
  * This program is free software; you can redistribute  it and/or modify it

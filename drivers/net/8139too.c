@@ -73,7 +73,7 @@
 
 		Jean-Jacques Michel - bug fix
 
-		Tobias Ringström - Rx interrupt status checking suggestion
+		Tobias RingstrÃ¶m - Rx interrupt status checking suggestion
 
 		Andrew Morton - Clear blocked signals, avoid
 		buffer overrun setting current->comm.

@@ -28,7 +28,7 @@
 
 /*
  * Authors:
- *    Thomas Hellström <thomas-at-tungstengraphics-dot-com>
+ *    Thomas HellstrÃ¶m <thomas-at-tungstengraphics-dot-com>
  */
 
 #include "drmP.h"

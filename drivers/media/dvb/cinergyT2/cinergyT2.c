@@ -1,5 +1,5 @@
 /*
- * TerraTec Cinergy T²/qanu USB2 DVB-T adapter.
+ * TerraTec Cinergy TÂ²/qanu USB2 DVB-T adapter.
  *
  * Copyright (C) 2004 Daniel Mack <daniel@qanu.de> and
  *		    Holger Waechtler <holger@qanu.de>

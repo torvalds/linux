@@ -115,9 +115,9 @@ static void __cpuinit set_cx86_reorder(void)
 
 	printk(KERN_INFO "Enable Memory access reorder on Cyrix/NSC processor.\n");
 	ccr3 = getCx86(CX86_CCR3);
-	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN  */
+	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN */
 
-	/* Load/Store Serialize to mem access disable (=reorder it)  */
+	/* Load/Store Serialize to mem access disable (=reorder it) */
 	setCx86(CX86_PCR0, getCx86(CX86_PCR0) & ~0x80);
 	/* set load/store serialize from 1GB to 4GB */
 	ccr3 |= 0xe0;
@@ -146,7 +146,7 @@ static void __cpuinit set_cx86_inc(void)
 	printk(KERN_INFO "Enable Incrementor on Cyrix/NSC processor.\n");
 
 	ccr3 = getCx86(CX86_CCR3);
-	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN  */
+	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN */
 	/* PCR1 -- Performance Control */
 	/* Incrementor on, whatever that is */
 	setCx86(CX86_PCR1, getCx86(CX86_PCR1) | 0x02);

@@ -26,7 +26,7 @@
  *			   Anthony Tong <atong@uiuc.edu>
  *
  *  Generic LCD support written by Daniel Mantione, ported from 2.4.20 by Alex Kern
- *  Many Thanks to Ville Syrj‰l‰ for patches and fixing nasting 16 bit color bug.
+ *  Many Thanks to Ville Syrj√§l√§ for patches and fixing nasting 16 bit color bug.
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License. See the file COPYING in the main directory of this archive for

@@ -118,7 +118,7 @@ static ssize_t set_brightness(struct device *dev, struct device_attribute *attr,
 				cytherm->brightness, buffer, 8);
 	if (retval)
 		dev_dbg(&cytherm->udev->dev, "retval = %d\n", retval);
-	/* Inform µC that we have changed the brightness setting */
+	/* Inform ÂµC that we have changed the brightness setting */
 	retval = vendor_command(cytherm->udev, WRITE_RAM, BRIGHTNESS_SEM,
 				0x01, buffer, 8);
 	if (retval)

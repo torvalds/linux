@@ -295,7 +295,7 @@
 	0100  RH 800C [HD Controller]
 	0200  RH 800C [RAM Expansion]
 0861  Kato
-# The Rainbow II and III are actually made by Ingenieurbüro Helfrich
+# The Rainbow II and III are actually made by IngenieurbÃ¼ro Helfrich
 	2000  Rainbow II [Graphics Card]
 	2100  Rainbow III [Graphics Card]
 	8000  Melody MPEG [Audio Card]

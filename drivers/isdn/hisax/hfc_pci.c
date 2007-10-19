@@ -1,6 +1,6 @@
 /* $Id: hfc_pci.c,v 1.48.2.4 2004/02/11 13:21:33 keil Exp $
  *
- * low level driver for CCD´s hfc-pci based cards
+ * low level driver for CCD's hfc-pci based cards
  *
  * Author       Werner Cornelius
  *              based on existing driver for CCD hfc ISA cards

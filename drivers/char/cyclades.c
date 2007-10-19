@@ -359,7 +359,7 @@
  *
  * Revision 1.36.3.8  1996/06/07 16:29:00  bentson
  * starting minor number at zero; added missing verify_area
- * as noted by Heiko Eissfeldt <heiko@colossus.escape.de>
+ * as noted by Heiko Eißfeldt <heiko@colossus.escape.de>
  *
  * Revision 1.36.3.7  1996/04/19 21:06:18  bentson
  * remove unneeded boot message & fix CLOCAL hardware flow
