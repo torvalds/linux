@@ -1865,7 +1865,11 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 				return ret;
 			}
 			mid = slot;
-			double_split = 1;
+			if (mid != nritems &&
+			    leaf_space_used(l, mid, nritems - mid) +
+			    space_needed > BTRFS_LEAF_DATA_SIZE(root)) {
+				double_split = 1;
+			}
 		}
 	}
 	nritems = nritems - mid;
