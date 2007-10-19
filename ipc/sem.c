@@ -283,10 +283,10 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	}
 
 	id = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
-	if(id == -1) {
+	if (id < 0) {
 		security_sem_free(sma);
 		ipc_rcu_putref(sma);
-		return -ENOSPC;
+		return id;
 	}
 	ns->used_sems += nsems;
 

@@ -433,10 +433,11 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	if (IS_ERR(file))
 		goto no_file;
 
-	error = -ENOSPC;
 	id = shm_addid(ns, shp);
-	if(id == -1) 
+	if (id < 0) {
+		error = id;
 		goto no_id;
+	}
 
 	shp->shm_cprid = task_tgid_vnr(current);
 	shp->shm_lprid = 0;

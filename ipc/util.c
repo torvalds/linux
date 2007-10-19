@@ -262,7 +262,7 @@ int ipc_get_maxid(struct ipc_ids *ids)
  *	Add an entry 'new' to the IPC ids idr. The permissions object is
  *	initialised and the first free entry is set up and the id assigned
  *	is returned. The 'new' entry is returned in a locked state on success.
- *	On failure the entry is not locked and -1 is returned.
+ *	On failure the entry is not locked and a negative err-code is returned.
  *
  *	Called with ipc_ids.rw_mutex held as a writer.
  */
@@ -275,11 +275,11 @@ int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
 		size = IPCMNI;
 
 	if (ids->in_use >= size)
-		return -1;
+		return -ENOSPC;
 
 	err = idr_get_new(&ids->ipcs_idr, new, &id);
 	if (err)
-		return -1;
+		return err;
 
 	ids->in_use++;
 
@@ -311,7 +311,7 @@ int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
 		struct ipc_ops *ops, struct ipc_params *params)
 {
 	int err;
-
+retry:
 	err = idr_pre_get(&ids->ipcs_idr, GFP_KERNEL);
 
 	if (!err)
@@ -320,6 +320,9 @@ int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
 	down_write(&ids->rw_mutex);
 	err = ops->getnew(ns, params);
 	up_write(&ids->rw_mutex);
+
+	if (err == -EAGAIN)
+		goto retry;
 
 	return err;
 }
@@ -374,7 +377,7 @@ int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 	struct kern_ipc_perm *ipcp;
 	int flg = params->flg;
 	int err;
-
+retry:
 	err = idr_pre_get(&ids->ipcs_idr, GFP_KERNEL);
 
 	/*
@@ -410,6 +413,9 @@ int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 		ipc_unlock(ipcp);
 	}
 	up_write(&ids->rw_mutex);
+
+	if (err == -EAGAIN)
+		goto retry;
 
 	return err;
 }

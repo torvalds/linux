@@ -203,10 +203,10 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	 * ipc_addid() locks msq
 	 */
 	id = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni);
-	if (id == -1) {
+	if (id < 0) {
 		security_msg_queue_free(msq);
 		ipc_rcu_putref(msq);
-		return -ENOSPC;
+		return id;
 	}
 
 	msq->q_perm.id = msg_buildid(id, msq->q_perm.seq);
