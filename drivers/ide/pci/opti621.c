@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/opti621.c		Version 0.8	Aug 27, 2007
+ *  linux/drivers/ide/pci/opti621.c		Version 0.9	Sep 24, 2007
  *
  *  Copyright (C) 1996-1998  Linus Torvalds & authors (see below)
  */
@@ -132,6 +132,8 @@ static int reg_base;
 
 #define PIO_NOT_EXIST 254
 #define PIO_DONT_KNOW 255
+
+static DEFINE_SPINLOCK(opti621_lock);
 
 /* there are stored pio numbers from other calls of opti621_set_pio_mode */
 static void compute_pios(ide_drive_t *drive, const u8 pio)
@@ -278,7 +280,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		second.recovery_time, drdy);
 #endif
 
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&opti621_lock, flags);
 
      	reg_base = hwif->io_ports[IDE_DATA_OFFSET];
 
@@ -317,7 +319,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	/*  and read prefetch for both drives */
 	write_reg(misc, MISC_REG);
 
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&opti621_lock, flags);
 }
 
 /*
