@@ -78,26 +78,19 @@ static const struct ethtool_ops mv643xx_ethtool_ops;
 static char mv643xx_driver_name[] = "mv643xx_eth";
 static char mv643xx_driver_version[] = "1.0";
 
-static void __iomem *mv643xx_eth_shared_base;
+static void __iomem *mv643xx_eth_base;
 
 /* used to protect MV643XX_ETH_SMI_REG, which is shared across ports */
 static DEFINE_SPINLOCK(mv643xx_eth_phy_lock);
 
 static inline u32 mv_read(int offset)
 {
-	void __iomem *reg_base;
-
-	reg_base = mv643xx_eth_shared_base - MV643XX_ETH_SHARED_REGS;
-
-	return readl(reg_base + offset);
+	return readl(mv643xx_eth_base + offset);
 }
 
 static inline void mv_write(int offset, u32 data)
 {
-	void __iomem *reg_base;
-
-	reg_base = mv643xx_eth_shared_base - MV643XX_ETH_SHARED_REGS;
-	writel(data, reg_base + offset);
+	writel(data, mv643xx_eth_base + offset);
 }
 
 /*
@@ -1470,9 +1463,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -ENODEV;
 
-	mv643xx_eth_shared_base = ioremap(res->start,
-						MV643XX_ETH_SHARED_REGS_SIZE);
-	if (mv643xx_eth_shared_base == NULL)
+	mv643xx_eth_base = ioremap(res->start, res->end - res->start + 1);
+	if (mv643xx_eth_base == NULL)
 		return -ENOMEM;
 
 	return 0;
@@ -1481,8 +1473,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 
 static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
-	iounmap(mv643xx_eth_shared_base);
-	mv643xx_eth_shared_base = NULL;
+	iounmap(mv643xx_eth_base);
+	mv643xx_eth_base = NULL;
 
 	return 0;
 }
