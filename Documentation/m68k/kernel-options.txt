@@ -890,10 +890,7 @@ Syntax: nosync:0
 5.5.2) noasync
 --------------
 
-Syntax: noasync:0
-
-  Disables async and sync negotiation for all devices.  Any value
-  after the colon is acceptable (and has the same effect).
+[OBSOLETE, REMOVED]
 
 5.5.3) nodisconnect
 -------------------

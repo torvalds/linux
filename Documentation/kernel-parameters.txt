@@ -1133,9 +1133,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	noapic		[SMP,APIC] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 
-	noasync		[HW,M68K] Disables async and sync negotiation for
-			all devices.
-
 	nobats		[PPC] Do not use BATs for mapping kernel lowmem
 			on "Classic" PPC cores.
 
