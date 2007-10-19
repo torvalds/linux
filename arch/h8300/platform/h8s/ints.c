@@ -179,7 +179,7 @@ int request_irq(unsigned int irq,
 	if (use_kmalloc)
 		irq_handle = kmalloc(sizeof(irq_handler_t), GFP_ATOMIC);
 	else {
-		/* use bootmem allocater */
+		/* use bootmem allocator */
 		irq_handle = (irq_handler_t *)alloc_bootmem(sizeof(irq_handler_t));
 		irq_handle = (irq_handler_t *)((unsigned long)irq_handle | 0x80000000);
 	}
