@@ -7,5 +7,10 @@ menuconfig SAMPLES
 
 if SAMPLES
 
+config SAMPLE_MARKERS
+	tristate "Build markers examples -- loadable modules only"
+	depends on MARKERS && m
+	help
+	  This build markers example modules.
 
 endif # SAMPLES
