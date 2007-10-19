@@ -80,6 +80,7 @@ struct crypt_config {
 	mempool_t *page_pool;
 	struct bio_set *bs;
 
+	struct workqueue_struct *queue;
 	/*
 	 * crypto related data
 	 */
@@ -480,13 +481,14 @@ static void dec_pending(struct dm_crypt_io *io, int error)
  * Needed because it would be very unwise to do decryption in an
  * interrupt context.
  */
-static struct workqueue_struct *_kcryptd_workqueue;
 static void kcryptd_do_work(struct work_struct *work);
 
 static void kcryptd_queue_io(struct dm_crypt_io *io)
 {
+	struct crypt_config *cc = io->target->private;
+
 	INIT_WORK(&io->work, kcryptd_do_work);
-	queue_work(_kcryptd_workqueue, &io->work);
+	queue_work(cc->queue, &io->work);
 }
 
 static void crypt_endio(struct bio *clone, int error)
@@ -868,9 +870,17 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	} else
 		cc->iv_mode = NULL;
 
+	cc->queue = create_singlethread_workqueue("kcryptd");
+	if (!cc->queue) {
+		ti->error = "Couldn't create kcryptd queue";
+		goto bad_queue;
+	}
+
 	ti->private = cc;
 	return 0;
 
+bad_queue:
+	kfree(cc->iv_mode);
 bad_iv_mode:
 	dm_put_device(ti, cc->dev);
 bad5:
@@ -895,7 +905,7 @@ static void crypt_dtr(struct dm_target *ti)
 {
 	struct crypt_config *cc = (struct crypt_config *) ti->private;
 
-	flush_workqueue(_kcryptd_workqueue);
+	destroy_workqueue(cc->queue);
 
 	bioset_free(cc->bs);
 	mempool_destroy(cc->page_pool);
@@ -1040,25 +1050,12 @@ static int __init dm_crypt_init(void)
 	if (!_crypt_io_pool)
 		return -ENOMEM;
 
-	_kcryptd_workqueue = create_workqueue("kcryptd");
-	if (!_kcryptd_workqueue) {
-		r = -ENOMEM;
-		DMERR("couldn't create kcryptd");
-		goto bad1;
-	}
-
 	r = dm_register_target(&crypt_target);
 	if (r < 0) {
 		DMERR("register failed %d", r);
-		goto bad2;
+		kmem_cache_destroy(_crypt_io_pool);
 	}
 
-	return 0;
-
-bad2:
-	destroy_workqueue(_kcryptd_workqueue);
-bad1:
-	kmem_cache_destroy(_crypt_io_pool);
 	return r;
 }
 
@@ -1069,7 +1066,6 @@ static void __exit dm_crypt_exit(void)
 	if (r < 0)
 		DMERR("unregister failed %d", r);
 
-	destroy_workqueue(_kcryptd_workqueue);
 	kmem_cache_destroy(_crypt_io_pool);
 }
 
