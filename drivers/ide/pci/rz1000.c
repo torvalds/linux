@@ -41,7 +41,8 @@ static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 		printk(KERN_INFO "%s: disabled chipset read-ahead "
 			"(buggy RZ1000/RZ1001)\n", hwif->name);
 	} else {
-		hwif->serialized = 1;
+		if (hwif->mate)
+			hwif->mate->serialized = hwif->serialized = 1;
 		hwif->drives[0].no_unmask = 1;
 		hwif->drives[1].no_unmask = 1;
 		printk(KERN_INFO "%s: serialized, disabled unmasking "
