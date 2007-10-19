@@ -99,6 +99,7 @@
 #include <linux/pm.h>
 #include <linux/font.h>
 #include <linux/bitops.h>
+#include <linux/notifier.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -221,6 +222,35 @@ enum {
 	blank_normal_wait,
 	blank_vesa_wait,
 };
+
+/*
+ * Notifier list for console events.
+ */
+static ATOMIC_NOTIFIER_HEAD(vt_notifier_list);
+
+int register_vt_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&vt_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(register_vt_notifier);
+
+int unregister_vt_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&vt_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_vt_notifier);
+
+static void notify_write(struct vc_data *vc, unsigned int unicode)
+{
+	struct vt_notifier_param param = { .vc = vc, unicode = unicode };
+	atomic_notifier_call_chain(&vt_notifier_list, VT_WRITE, &param);
+}
+
+static void notify_update(struct vc_data *vc)
+{
+	struct vt_notifier_param param = { .vc = vc };
+	atomic_notifier_call_chain(&vt_notifier_list, VT_UPDATE, &param);
+}
 
 /*
  *	Low-Level Functions
@@ -718,6 +748,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 		return -ENXIO;
 	if (!vc_cons[currcons].d) {
 	    struct vc_data *vc;
+	    struct vt_notifier_param param;
 
 	    /* prevent users from taking too much memory */
 	    if (currcons >= MAX_NR_USER_CONSOLES && !capable(CAP_SYS_RESOURCE))
@@ -729,7 +760,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    /* although the numbers above are not valid since long ago, the
 	       point is still up-to-date and the comment still has its value
 	       even if only as a historical artifact.  --mj, July 1998 */
-	    vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
+	    param.vc = vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
 	    if (!vc)
 		return -ENOMEM;
 	    vc_cons[currcons].d = vc;
@@ -746,6 +777,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    }
 	    vc->vc_kmalloced = 1;
 	    vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
+	    atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
 	}
 	return 0;
 }
@@ -907,6 +939,8 @@ void vc_deallocate(unsigned int currcons)
 
 	if (vc_cons_allocated(currcons)) {
 		struct vc_data *vc = vc_cons[currcons].d;
+		struct vt_notifier_param param = { .vc = vc };
+		atomic_notifier_call_chain(&vt_notifier_list, VT_DEALLOCATE, &param);
 		vc->vc_sw->con_deinit(vc);
 		put_pid(vc->vt_pid);
 		module_put(vc->vc_sw->owner);
@@ -1019,6 +1053,7 @@ static void lf(struct vc_data *vc)
 		vc->vc_pos += vc->vc_size_row;
 	}
 	vc->vc_need_wrap = 0;
+	notify_write(vc, '\n');
 }
 
 static void ri(struct vc_data *vc)
@@ -1039,6 +1074,7 @@ static inline void cr(struct vc_data *vc)
 {
 	vc->vc_pos -= vc->vc_x << 1;
 	vc->vc_need_wrap = vc->vc_x = 0;
+	notify_write(vc, '\r');
 }
 
 static inline void bs(struct vc_data *vc)
@@ -1047,6 +1083,7 @@ static inline void bs(struct vc_data *vc)
 		vc->vc_pos -= 2;
 		vc->vc_x--;
 		vc->vc_need_wrap = 0;
+		notify_write(vc, '\b');
 	}
 }
 
@@ -1593,6 +1630,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				break;
 		}
 		vc->vc_pos += (vc->vc_x << 1);
+		notify_write(vc, '\t');
 		return;
 	case 10: case 11: case 12:
 		lf(vc);
@@ -2252,6 +2290,7 @@ rescan_last_byte:
 				tc = conv_uni_to_pc(vc, ' '); /* A space is printed in the second column */
 				if (tc < 0) tc = ' ';
 			}
+			notify_write(vc, c);
 
 			if (inverse) {
 				FLUSH
@@ -2274,6 +2313,7 @@ rescan_last_byte:
 	release_console_sem();
 
 out:
+	notify_update(vc);
 	return n;
 #undef FLUSH
 }
@@ -2317,6 +2357,7 @@ static void console_callback(struct work_struct *ignored)
 		do_blank_screen(0);
 		blank_timer_expired = 0;
 	}
+	notify_update(vc_cons[fg_console].d);
 
 	release_console_sem();
 }
@@ -2418,6 +2459,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 				continue;
 		}
 		scr_writew((vc->vc_attr << 8) + c, (unsigned short *)vc->vc_pos);
+		notify_write(vc, c);
 		cnt++;
 		if (myx == vc->vc_cols - 1) {
 			vc->vc_need_wrap = 1;
@@ -2436,6 +2478,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		}
 	}
 	set_cursor(vc);
+	notify_update(vc);
 
 quit:
 	clear_bit(0, &printing);

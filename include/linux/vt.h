@@ -1,6 +1,18 @@
 #ifndef _LINUX_VT_H
 #define _LINUX_VT_H
 
+#ifdef __KERNEL__
+struct notifier_block;
+
+struct vt_notifier_param {
+	struct vc_data *vc;	/* VC on which the update happened */
+	unsigned int c;		/* Printed char */
+};
+
+extern int register_vt_notifier(struct notifier_block *nb);
+extern int unregister_vt_notifier(struct notifier_block *nb);
+#endif
+
 /*
  * These constants are also useful for user-level apps (e.g., VC
  * resizing).
