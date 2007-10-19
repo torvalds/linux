@@ -94,12 +94,10 @@ out:
 
 static struct ps_internal *_alloc_path_selector(struct path_selector_type *pst)
 {
-	struct ps_internal *psi = kmalloc(sizeof(*psi), GFP_KERNEL);
+	struct ps_internal *psi = kzalloc(sizeof(*psi), GFP_KERNEL);
 
-	if (psi) {
-		memset(psi, 0, sizeof(*psi));
+	if (psi)
 		psi->pst = *pst;
-	}
 
 	return psi;
 }
