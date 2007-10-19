@@ -29,6 +29,8 @@ extern void cgroup_fork(struct task_struct *p);
 extern void cgroup_fork_callbacks(struct task_struct *p);
 extern void cgroup_exit(struct task_struct *p, int run_callbacks);
 
+extern struct file_operations proc_cgroup_operations;
+
 /* Per-subsystem/per-cgroup state maintained by the system. */
 struct cgroup_subsys_state {
 	/* The cgroup that this subsystem is attached to. Useful

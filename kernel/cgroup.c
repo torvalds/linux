@@ -33,6 +33,7 @@
 #include <linux/mutex.h>
 #include <linux/mount.h>
 #include <linux/pagemap.h>
+#include <linux/proc_fs.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -247,13 +248,15 @@ static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cont);
 static struct inode_operations cgroup_dir_inode_operations;
+static struct file_operations proc_cgroupstats_operations;
+
+static struct backing_dev_info cgroup_backing_dev_info = {
+	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
+};
 
 static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
-	static struct backing_dev_info cgroup_backing_dev_info = {
-		.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
-	};
 
 	if (inode) {
 		inode->i_mode = mode;
@@ -1600,6 +1603,11 @@ int __init cgroup_init(void)
 {
 	int err;
 	int i;
+	struct proc_dir_entry *entry;
+
+	err = bdi_init(&cgroup_backing_dev_info);
+	if (err)
+		return err;
 
 	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
 		struct cgroup_subsys *ss = subsys[i];
@@ -1611,9 +1619,141 @@ int __init cgroup_init(void)
 	if (err < 0)
 		goto out;
 
+	entry = create_proc_entry("cgroups", 0, NULL);
+	if (entry)
+		entry->proc_fops = &proc_cgroupstats_operations;
+
 out:
+	if (err)
+		bdi_destroy(&cgroup_backing_dev_info);
+
 	return err;
 }
+
+/*
+ * proc_cgroup_show()
+ *  - Print task's cgroup paths into seq_file, one line for each hierarchy
+ *  - Used for /proc/<pid>/cgroup.
+ *  - No need to task_lock(tsk) on this tsk->cgroup reference, as it
+ *    doesn't really matter if tsk->cgroup changes after we read it,
+ *    and we take cgroup_mutex, keeping attach_task() from changing it
+ *    anyway.  No need to check that tsk->cgroup != NULL, thanks to
+ *    the_top_cgroup_hack in cgroup_exit(), which sets an exiting tasks
+ *    cgroup to top_cgroup.
+ */
+
+/* TODO: Use a proper seq_file iterator */
+static int proc_cgroup_show(struct seq_file *m, void *v)
+{
+	struct pid *pid;
+	struct task_struct *tsk;
+	char *buf;
+	int retval;
+	struct cgroupfs_root *root;
+
+	retval = -ENOMEM;
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		goto out;
+
+	retval = -ESRCH;
+	pid = m->private;
+	tsk = get_pid_task(pid, PIDTYPE_PID);
+	if (!tsk)
+		goto out_free;
+
+	retval = 0;
+
+	mutex_lock(&cgroup_mutex);
+
+	for_each_root(root) {
+		struct cgroup_subsys *ss;
+		struct cgroup *cont;
+		int subsys_id;
+		int count = 0;
+
+		/* Skip this hierarchy if it has no active subsystems */
+		if (!root->actual_subsys_bits)
+			continue;
+		for_each_subsys(root, ss)
+			seq_printf(m, "%s%s", count++ ? "," : "", ss->name);
+		seq_putc(m, ':');
+		get_first_subsys(&root->top_cgroup, NULL, &subsys_id);
+		cont = task_cgroup(tsk, subsys_id);
+		retval = cgroup_path(cont, buf, PAGE_SIZE);
+		if (retval < 0)
+			goto out_unlock;
+		seq_puts(m, buf);
+		seq_putc(m, '\n');
+	}
+
+out_unlock:
+	mutex_unlock(&cgroup_mutex);
+	put_task_struct(tsk);
+out_free:
+	kfree(buf);
+out:
+	return retval;
+}
+
+static int cgroup_open(struct inode *inode, struct file *file)
+{
+	struct pid *pid = PROC_I(inode)->pid;
+	return single_open(file, proc_cgroup_show, pid);
+}
+
+struct file_operations proc_cgroup_operations = {
+	.open		= cgroup_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/* Display information about each subsystem and each hierarchy */
+static int proc_cgroupstats_show(struct seq_file *m, void *v)
+{
+	int i;
+	struct cgroupfs_root *root;
+
+	mutex_lock(&cgroup_mutex);
+	seq_puts(m, "Hierarchies:\n");
+	for_each_root(root) {
+		struct cgroup_subsys *ss;
+		int first = 1;
+		seq_printf(m, "%p: bits=%lx cgroups=%d (", root,
+			   root->subsys_bits, root->number_of_cgroups);
+		for_each_subsys(root, ss) {
+			seq_printf(m, "%s%s", first ? "" : ", ", ss->name);
+			first = false;
+		}
+		seq_putc(m, ')');
+		if (root->sb) {
+			seq_printf(m, " s_active=%d",
+				   atomic_read(&root->sb->s_active));
+		}
+		seq_putc(m, '\n');
+	}
+	seq_puts(m, "Subsystems:\n");
+	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
+		struct cgroup_subsys *ss = subsys[i];
+		seq_printf(m, "%d: name=%s hierarchy=%p\n",
+			   i, ss->name, ss->root);
+	}
+	mutex_unlock(&cgroup_mutex);
+	return 0;
+}
+
+static int cgroupstats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_cgroupstats_show, 0);
+}
+
+static struct file_operations proc_cgroupstats_operations = {
+	.open = cgroupstats_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 
 /**
  * cgroup_fork - attach newly forked task to its parents cgroup.
