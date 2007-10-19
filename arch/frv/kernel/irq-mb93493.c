@@ -17,10 +17,10 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/bitops.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/delay.h>
 #include <asm/irq.h>
 #include <asm/irc-regs.h>

@@ -17,10 +17,7 @@
 #include <linux/threads.h>
 #include <asm/paravirt.h>
 
-#ifndef _I386_BITOPS_H
-#include <asm/bitops.h>
-#endif
-
+#include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>

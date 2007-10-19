@@ -26,9 +26,9 @@
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/bitops.h>
 #include <asm/machdep.h>
 #include <asm/types.h>
-#include <asm/bitops.h>
 
 #define IOMMU_PAGE_SHIFT      12
 #define IOMMU_PAGE_SIZE       (ASM_CONST(1) << IOMMU_PAGE_SHIFT)

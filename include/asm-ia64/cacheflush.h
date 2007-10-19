@@ -7,8 +7,8 @@
  */
 
 #include <linux/page-flags.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/page.h>
 
 /*

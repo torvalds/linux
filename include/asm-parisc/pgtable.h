@@ -11,9 +11,9 @@
  */
 
 #include <linux/mm.h>		/* for vm_area_struct */
+#include <linux/bitops.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
-#include <asm/bitops.h>
 
 /*
  * kern_addr_valid(ADDR) tests if ADDR is pointing to valid kernel

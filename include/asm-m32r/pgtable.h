@@ -21,9 +21,9 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/threads.h>
+#include <linux/bitops.h>
 #include <asm/processor.h>
 #include <asm/addrspace.h>
-#include <asm/bitops.h>
 #include <asm/page.h>
 
 struct mm_struct;

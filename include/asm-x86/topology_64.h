@@ -5,7 +5,7 @@
 #ifdef CONFIG_NUMA
 
 #include <asm/mpspec.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 
 extern cpumask_t cpu_online_map;
 

@@ -41,9 +41,9 @@
 #include <linux/timer.h>
 #include <linux/cache.h>
 #include <linux/mutex.h>
+#include <linux/bitops.h>
 #include "t3cdev.h"
 #include <asm/semaphore.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 
 typedef irqreturn_t(*intr_handler_t) (int, void *);

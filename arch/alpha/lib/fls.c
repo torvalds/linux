@@ -3,7 +3,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 
 /* This is fls(x)-1, except zero is held to zero.  This allows most
    efficent input into extbl, plus it allows easy handling of fls(0)=0.  */

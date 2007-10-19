@@ -41,13 +41,13 @@
 #include <linux/root_dev.h>
 #include <linux/serial.h>
 #include <linux/smp.h>
+#include <linux/bitops.h>
 
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/prom.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/kexec.h>
 #include <asm/pci-bridge.h>

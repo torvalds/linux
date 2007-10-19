@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 
 #include "av7110.h"
 #include "av7110_hw.h"

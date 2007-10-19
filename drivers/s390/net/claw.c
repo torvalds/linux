@@ -59,13 +59,13 @@
  *    1.15  Changed for 2.6 Kernel  No longer compiles on 2.4 or lower
  *    1.25  Added Packing support
  */
-#include <asm/bitops.h>
 #include <asm/ccwdev.h>
 #include <asm/ccwgroup.h>
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/io.h>
 
+#include <linux/bitops.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/errno.h>

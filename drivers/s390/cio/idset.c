@@ -6,7 +6,7 @@
  */
 
 #include <linux/slab.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include "idset.h"
 #include "css.h"
 

@@ -11,9 +11,9 @@
 
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/bitops.h>
 
 #include <asm/atomic.h>
-#include <asm/bitops.h>
 #include <asm/intrinsics.h>
 #include <asm/system.h>
 

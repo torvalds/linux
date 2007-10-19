@@ -11,7 +11,7 @@
 #endif
 
 #if defined(CONFIG_X86_LOCAL_APIC) && !defined(__ASSEMBLY__)
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/mpspec.h>
 #include <asm/apic.h>
 #ifdef CONFIG_X86_IO_APIC

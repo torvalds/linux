@@ -16,8 +16,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <linux/types.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/prom.h>
 
 /* flag descriptions */

@@ -21,11 +21,11 @@
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/pm.h>
+#include <linux/bitops.h>
 
 #include <linux/amba/bus.h>
 
 #include <asm/io.h>
-#include <asm/bitops.h>
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/rtc.h>

@@ -29,7 +29,7 @@
 #include "bcm43xx_radio.h"
 #include "bcm43xx.h"
 
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 
 
 static void bcm43xx_led_changestate(struct bcm43xx_led *led)

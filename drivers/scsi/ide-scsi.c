@@ -47,9 +47,9 @@
 #include <linux/scatterlist.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/bitops.h>
 
 #include <asm/io.h>
-#include <asm/bitops.h>
 #include <asm/uaccess.h>
 
 #include <scsi/scsi.h>

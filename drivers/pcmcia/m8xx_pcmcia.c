@@ -48,9 +48,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/fsl_devices.h>
+#include <linux/bitops.h>
 
 #include <asm/io.h>
-#include <asm/bitops.h>
 #include <asm/system.h>
 #include <asm/time.h>
 #include <asm/mpc8xx.h>

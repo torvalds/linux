@@ -2,8 +2,9 @@
 #ifndef __PPC_MMU_CONTEXT_H
 #define __PPC_MMU_CONTEXT_H
 
+#include <linux/bitops.h>
+
 #include <asm/atomic.h>
-#include <asm/bitops.h>
 #include <asm/mmu.h>
 #include <asm/cputable.h>
 #include <asm-generic/mm_hooks.h>

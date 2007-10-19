@@ -1,6 +1,6 @@
 #include <linux/module.h>
+#include <linux/bitops.h>
 #include <asm/types.h>
-#include <asm/bitops.h>
 
 /**
  * hweightN - returns the hamming weight of a N-bit word

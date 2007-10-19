@@ -26,7 +26,7 @@
  *	Private routines/data
  */
  
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/atomic.h>
 #include <asm/percpu.h>
 

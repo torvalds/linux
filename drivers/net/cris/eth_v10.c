@@ -234,6 +234,7 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/bitops.h>
 
 #include <linux/if.h>
 #include <linux/mii.h>
@@ -247,7 +248,6 @@
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <asm/ethernet.h>
 #include <asm/cache.h>
 

@@ -14,8 +14,8 @@
 #include <linux/threads.h>
 #include <linux/kernel.h>
 #include <linux/cpumask.h>
+#include <linux/bitops.h>
 
-#include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/param.h>
 #include <asm/processor.h>

@@ -150,7 +150,7 @@
 # ifndef __ASSEMBLY__
 
 #include <linux/sched.h>	/* for mm_struct */
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 #include <asm/processor.h>

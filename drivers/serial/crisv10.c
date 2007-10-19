@@ -442,11 +442,11 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <asm/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/bitops.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 #include <linux/delay.h>
 
 #include <asm/arch/svinto.h>
