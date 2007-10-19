@@ -999,36 +999,6 @@ asmlinkage long sys_semctl (int semid, int semnum, int cmd, union semun arg)
 	}
 }
 
-static inline void lock_semundo(void)
-{
-	struct sem_undo_list *undo_list;
-
-	undo_list = current->sysvsem.undo_list;
-	if (undo_list)
-		spin_lock(&undo_list->lock);
-}
-
-/* This code has an interaction with copy_semundo().
- * Consider; two tasks are sharing the undo_list. task1
- * acquires the undo_list lock in lock_semundo().  If task2 now
- * exits before task1 releases the lock (by calling
- * unlock_semundo()), then task1 will never call spin_unlock().
- * This leave the sem_undo_list in a locked state.  If task1 now creats task3
- * and once again shares the sem_undo_list, the sem_undo_list will still be
- * locked, and future SEM_UNDO operations will deadlock.  This case is
- * dealt with in copy_semundo() by having it reinitialize the spin lock when 
- * the refcnt goes from 1 to 2.
- */
-static inline void unlock_semundo(void)
-{
-	struct sem_undo_list *undo_list;
-
-	undo_list = current->sysvsem.undo_list;
-	if (undo_list)
-		spin_unlock(&undo_list->lock);
-}
-
-
 /* If the task doesn't already have a undo_list, then allocate one
  * here.  We guarantee there is only one thread using this undo list,
  * and current is THE ONE
@@ -1089,9 +1059,9 @@ static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
 	if (error)
 		return ERR_PTR(error);
 
-	lock_semundo();
+	spin_lock(&ulp->lock);
 	un = lookup_undo(ulp, semid);
-	unlock_semundo();
+	spin_unlock(&ulp->lock);
 	if (likely(un!=NULL))
 		goto out;
 
@@ -1114,10 +1084,10 @@ static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
 	new->semadj = (short *) &new[1];
 	new->semid = semid;
 
-	lock_semundo();
+	spin_lock(&ulp->lock);
 	un = lookup_undo(ulp, semid);
 	if (un) {
-		unlock_semundo();
+		spin_unlock(&ulp->lock);
 		kfree(new);
 		ipc_lock_by_ptr(&sma->sem_perm);
 		ipc_rcu_putref(sma);
@@ -1128,7 +1098,7 @@ static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
 	ipc_rcu_putref(sma);
 	if (sma->sem_perm.deleted) {
 		sem_unlock(sma);
-		unlock_semundo();
+		spin_unlock(&ulp->lock);
 		kfree(new);
 		un = ERR_PTR(-EIDRM);
 		goto out;
@@ -1139,7 +1109,7 @@ static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
 	sma->undo = new;
 	sem_unlock(sma);
 	un = new;
-	unlock_semundo();
+	spin_unlock(&ulp->lock);
 out:
 	return un;
 }
@@ -1315,10 +1285,6 @@ asmlinkage long sys_semop (int semid, struct sembuf __user *tsops, unsigned nsop
 
 /* If CLONE_SYSVSEM is set, establish sharing of SEM_UNDO state between
  * parent and child tasks.
- *
- * See the notes above unlock_semundo() regarding the spin_lock_init()
- * in this code.  Initialize the undo_list->lock here instead of get_undo_list()
- * because of the reasoning in the comment above unlock_semundo.
  */
 
 int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
