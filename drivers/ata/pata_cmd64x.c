@@ -215,7 +215,7 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	regU &= ~(0x05 << adev->devno);
 
 	if (adev->dma_mode >= XFER_UDMA_0) {
-		/* Merge thge timing value */
+		/* Merge the timing value */
 		regU |= udma_data[adev->dma_mode - XFER_UDMA_0] << shift;
 		/* Merge the control bits */
 		regU |= 1 << adev->devno; /* UDMA on */
