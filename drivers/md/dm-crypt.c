@@ -861,7 +861,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->iv_mode = kmalloc(strlen(ivmode) + 1, GFP_KERNEL);
 		if (!cc->iv_mode) {
 			ti->error = "Error kmallocing iv_mode string";
-			goto bad5;
+			goto bad_iv_mode;
 		}
 		strcpy(cc->iv_mode, ivmode);
 	} else
@@ -870,6 +870,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->private = cc;
 	return 0;
 
+bad_iv_mode:
+	dm_put_device(ti, cc->dev);
 bad5:
 	bioset_free(cc->bs);
 bad_bs:
