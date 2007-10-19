@@ -39,6 +39,11 @@ static inline void put_pid_ns(struct pid_namespace *ns)
 	kref_put(&ns->kref, free_pid_ns);
 }
 
+static inline struct pid_namespace *task_active_pid_ns(struct task_struct *tsk)
+{
+	return tsk->nsproxy->pid_ns;
+}
+
 static inline struct task_struct *child_reaper(struct task_struct *tsk)
 {
 	return init_pid_ns.child_reaper;

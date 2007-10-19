@@ -214,7 +214,7 @@ struct pid *alloc_pid(void)
 	int nr = -1;
 	struct pid_namespace *ns;
 
-	ns = current->nsproxy->pid_ns;
+	ns = task_active_pid_ns(current);
 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
 	if (!pid)
 		goto out;
@@ -364,7 +364,7 @@ struct pid *find_ge_pid(int nr)
 		pid = find_pid(nr);
 		if (pid)
 			break;
-		nr = next_pidmap(current->nsproxy->pid_ns, nr);
+		nr = next_pidmap(task_active_pid_ns(current), nr);
 	} while (nr > 0);
 
 	return pid;
