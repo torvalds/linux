@@ -111,7 +111,6 @@ MODULE_AUTHOR("Myson or whoever");
 MODULE_DESCRIPTION("Myson MTD-8xx 100/10M Ethernet PCI Adapter Driver");
 MODULE_LICENSE("GPL");
 module_param(max_interrupt_work, int, 0);
-//MODULE_PARM(min_pci_latency, "i");
 module_param(debug, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param(multicast_filter_limit, int, 0);
