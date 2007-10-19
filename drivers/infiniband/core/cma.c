@@ -2797,11 +2797,12 @@ static void cma_remove_one(struct ib_device *device)
 
 static int cma_init(void)
 {
-	int ret, low, high;
+	int ret, low, high, remaining;
 
 	get_random_bytes(&next_port, sizeof next_port);
 	inet_get_local_port_range(&low, &high);
-	next_port = ((unsigned int) next_port % (high - low)) + low;
+	remaining = (high - low) + 1;
+	next_port = ((unsigned int) next_port % remaining) + low;
 
 	cma_wq = create_singlethread_workqueue("rdma_cm");
 	if (!cma_wq)

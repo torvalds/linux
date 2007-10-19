@@ -147,13 +147,14 @@ int __udp_lib_get_port(struct sock *sk, unsigned short snum,
 	write_lock_bh(&udp_hash_lock);
 
 	if (!snum) {
-		int i, low, high;
+		int i, low, high, remaining;
 		unsigned rover, best, best_size_so_far;
 
 		inet_get_local_port_range(&low, &high);
+		remaining = (high - low) + 1;
 
 		best_size_so_far = UINT_MAX;
-		best = rover = net_random() % (high - low) + low;
+		best = rover = net_random() % remaining + low;
 
 		/* 1st pass: look for empty (or shortest) hash chain */
 		for (i = 0; i < UDP_HTABLE_SIZE; i++) {

@@ -286,7 +286,7 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 		struct inet_timewait_sock *tw = NULL;
 
 		inet_get_local_port_range(&low, &high);
-		remaining = high - low;
+		remaining = (high - low) + 1;
 
 		local_bh_disable();
 		for (i = 1; i <= remaining; i++) {

@@ -122,7 +122,7 @@ static int ipv4_local_port_range(ctl_table *table, int write, struct file *filp,
 	ret = proc_dointvec_minmax(&tmp, write, filp, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
-		if (range[1] <= range[0])
+		if (range[1] < range[0])
 			ret = -EINVAL;
 		else
 			set_local_port_range(range);
@@ -150,7 +150,7 @@ static int ipv4_sysctl_local_port_range(ctl_table *table, int __user *name,
 
 	ret = sysctl_intvec(&tmp, name, nlen, oldval, oldlenp, newval, newlen);
 	if (ret == 0 && newval && newlen) {
-		if (range[1] <= range[0])
+		if (range[1] < range[0])
 			ret = -EINVAL;
 		else
 			set_local_port_range(range);
