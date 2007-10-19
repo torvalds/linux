@@ -29,7 +29,6 @@
 #include <linux/nsproxy.h>
 #include <linux/capability.h>
 #include <linux/cpu.h>
-#include <linux/cpuset.h>
 #include <linux/cgroup.h>
 #include <linux/security.h>
 #include <linux/swap.h>
@@ -1089,7 +1088,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #endif
 	p->io_context = NULL;
 	p->audit_context = NULL;
-	cpuset_fork(p);
 	cgroup_fork(p);
 #ifdef CONFIG_NUMA
  	p->mempolicy = mpol_copy(p->mempolicy);
@@ -1330,7 +1328,6 @@ bad_fork_cleanup_policy:
 	mpol_free(p->mempolicy);
 bad_fork_cleanup_cgroup:
 #endif
-	cpuset_exit(p);
 	cgroup_exit(p, cgroup_callbacks_done);
 bad_fork_cleanup_delays_binfmt:
 	delayacct_tsk_free(p);

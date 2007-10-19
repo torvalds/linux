@@ -148,14 +148,6 @@ extern void mpol_rebind_task(struct task_struct *tsk,
 					const nodemask_t *new);
 extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
 extern void mpol_fix_fork_child_flag(struct task_struct *p);
-#define set_cpuset_being_rebound(x) (cpuset_being_rebound = (x))
-
-#ifdef CONFIG_CPUSETS
-#define current_cpuset_is_being_rebound() \
-				(cpuset_being_rebound == current->cpuset)
-#else
-#define current_cpuset_is_being_rebound() 0
-#endif
 
 extern struct mempolicy default_policy;
 extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
@@ -172,8 +164,6 @@ static inline void check_highest_zone(enum zone_type k)
 
 int do_migrate_pages(struct mm_struct *mm,
 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
-
-extern void *cpuset_being_rebound;	/* Trigger mpol_copy vma rebind */
 
 #else
 
@@ -247,8 +237,6 @@ static inline void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
 static inline void mpol_fix_fork_child_flag(struct task_struct *p)
 {
 }
-
-#define set_cpuset_being_rebound(x) do {} while (0)
 
 static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
  		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol)

@@ -756,8 +756,6 @@ static inline int above_background_load(void)
 }
 
 struct io_context;			/* See blkdev.h */
-struct cpuset;
-
 #define NGROUPS_SMALL		32
 #define NGROUPS_PER_BLOCK	((int)(PAGE_SIZE / sizeof(gid_t)))
 struct group_info {
@@ -1125,7 +1123,6 @@ struct task_struct {
 	short il_next;
 #endif
 #ifdef CONFIG_CPUSETS
-	struct cpuset *cpuset;
 	nodemask_t mems_allowed;
 	int cpuset_mems_generation;
 	int cpuset_mem_spread_rotor;

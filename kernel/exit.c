@@ -31,7 +31,6 @@
 #include <linux/taskstats_kern.h>
 #include <linux/delayacct.h>
 #include <linux/freezer.h>
-#include <linux/cpuset.h>
 #include <linux/cgroup.h>
 #include <linux/syscalls.h>
 #include <linux/signal.h>
@@ -973,7 +972,6 @@ fastcall NORET_TYPE void do_exit(long code)
 	__exit_fs(tsk);
 	check_stack_usage();
 	exit_thread();
-	cpuset_exit(tsk);
 	cgroup_exit(tsk, 1);
 	exit_keys(tsk);
 

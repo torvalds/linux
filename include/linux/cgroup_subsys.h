@@ -7,4 +7,10 @@
 
 /* */
 
+#ifdef CONFIG_CPUSETS
+SUBSYS(cpuset)
+#endif
+
+/* */
+
 /* */

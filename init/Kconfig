@@ -280,7 +280,7 @@ config CGROUPS
 
 config CPUSETS
 	bool "Cpuset support"
-	depends on SMP
+	depends on SMP && CGROUPS
 	help
 	  This option will let you create and manage CPUSETs which
 	  allow dynamically partitioning a system into sets of CPUs and
@@ -329,6 +329,11 @@ config SYSFS_DEPRECATED
 
 	  If you are using a distro that was released in 2006 or later,
 	  it should be safe to say N here.
+
+config PROC_PID_CPUSET
+	bool "Include legacy /proc/<pid>/cpuset file"
+	depends on CPUSETS
+	default y
 
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"

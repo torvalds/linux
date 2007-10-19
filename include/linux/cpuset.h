@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
+#include <linux/cgroup.h>
 
 #ifdef CONFIG_CPUSETS
 
@@ -19,8 +20,6 @@ extern int number_of_cpusets;	/* How many cpusets are defined in system? */
 extern int cpuset_init_early(void);
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
-extern void cpuset_fork(struct task_struct *p);
-extern void cpuset_exit(struct task_struct *p);
 extern cpumask_t cpuset_cpus_allowed(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
 #define cpuset_current_mems_allowed (current->mems_allowed)
@@ -76,13 +75,13 @@ static inline int cpuset_do_slab_mem_spread(void)
 
 extern void cpuset_track_online_nodes(void);
 
+extern int current_cpuset_is_being_rebound(void);
+
 #else /* !CONFIG_CPUSETS */
 
 static inline int cpuset_init_early(void) { return 0; }
 static inline int cpuset_init(void) { return 0; }
 static inline void cpuset_init_smp(void) {}
-static inline void cpuset_fork(struct task_struct *p) {}
-static inline void cpuset_exit(struct task_struct *p) {}
 
 static inline cpumask_t cpuset_cpus_allowed(struct task_struct *p)
 {
@@ -147,6 +146,11 @@ static inline int cpuset_do_slab_mem_spread(void)
 }
 
 static inline void cpuset_track_online_nodes(void) {}
+
+static inline int current_cpuset_is_being_rebound(void)
+{
+	return 0;
+}
 
 #endif /* !CONFIG_CPUSETS */
 
