@@ -49,7 +49,7 @@ extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
  */
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
-extern u8 cpu_llc_id[NR_CPUS];
+DECLARE_PER_CPU(u8, cpu_llc_id);
 
 #define SMP_TRAMPOLINE_BASE 0x6000
 
@@ -121,6 +121,7 @@ static __inline int logical_smp_processor_id(void)
 #ifdef CONFIG_SMP
 #define cpu_physical_id(cpu)		per_cpu(x86_cpu_to_apicid, cpu)
 #else
+extern unsigned int boot_cpu_id;
 #define cpu_physical_id(cpu)		boot_cpu_id
 #endif /* !CONFIG_SMP */
 #endif

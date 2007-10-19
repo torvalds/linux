@@ -417,14 +417,14 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	if (new_l2) {
 		l2 = new_l2;
 #ifdef CONFIG_X86_HT
-		cpu_llc_id[cpu] = l2_id;
+		per_cpu(cpu_llc_id, cpu) = l2_id;
 #endif
 	}
 
 	if (new_l3) {
 		l3 = new_l3;
 #ifdef CONFIG_X86_HT
-		cpu_llc_id[cpu] = l3_id;
+		per_cpu(cpu_llc_id, cpu) = l3_id;
 #endif
 	}
 
