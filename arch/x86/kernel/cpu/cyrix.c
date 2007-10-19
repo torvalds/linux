@@ -93,7 +93,7 @@ static void __cpuinit check_cx686_slop(struct cpuinfo_x86 *c)
 
 		local_irq_save(flags);
 		ccr3 = getCx86(CX86_CCR3);
-		setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN  */
+		setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN */
 		ccr5 = getCx86(CX86_CCR5);
 		if (ccr5 & 2)
 			setCx86(CX86_CCR5, ccr5 & 0xfd);  /* reset SLOP */
