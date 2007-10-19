@@ -32,7 +32,7 @@ braindamaged document, if it's finally working, well, it's working.
 
 For one reason or another, low level drivers don't receive as much
 attention or testing as core code, and bugs on driver detach or
-initilaization failure doesn't happen often enough to be noticeable.
+initialization failure don't happen often enough to be noticeable.
 Init failure path is worse because it's much less travelled while
 needs to handle multiple entry points.
 
@@ -160,7 +160,7 @@ resources on failure.  For example,
   devres_release_group(dev, NULL);
   return err_code;
 
-As resource acquision failure usually means probe failure, constructs
+As resource acquisition failure usually means probe failure, constructs
 like above are usually useful in midlayer driver (e.g. libata core
 layer) where interface function shouldn't have side effect on failure.
 For LLDs, just returning error code suffices in most cases.

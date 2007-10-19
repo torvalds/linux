@@ -180,7 +180,7 @@ config THINKPAD_ACPI
 	  For more information about this driver see 
 	  <file:Documentation/thinkpad-acpi.txt> and <http://ibm-acpi.sf.net/> .
 
-	  This driver was formely known as ibm-acpi.
+	  This driver was formerly known as ibm-acpi.
 
 	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
 
@@ -214,7 +214,7 @@ config THINKPAD_ACPI_BAY
 	default y
 	---help---
 	  Allows the thinkpad_acpi driver to handle removable bays.  It will
-	  eletrically disable the device in the bay, and also generate
+	  electrically disable the device in the bay, and also generate
 	  notifications when the bay lever is ejected or inserted.
 
 	  If you are not sure, say Y here.

@@ -560,7 +560,7 @@ config TCP_CONG_ILLINOIS
 	depends on EXPERIMENTAL
 	default n
 	---help---
-	TCP-Illinois is a sender-side modificatio of TCP Reno for
+	TCP-Illinois is a sender-side modification of TCP Reno for
 	high speed long delay links. It uses round-trip-time to
 	adjust the alpha and beta parameters to achieve a higher average
 	throughput and maintain fairness.

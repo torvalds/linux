@@ -21,10 +21,10 @@ software test suits to do stressful testing on IPF.
 
 Below is a sample application as part of the whole tool. The sample
 can be used as a working test tool. Or it can be expanded to include
-more features. It also can be a integrated into a libary or other user
+more features. It also can be a integrated into a library or other user
 application to have more thorough test.
 
-The sample application takes err.conf as error configuation input. Gcc
+The sample application takes err.conf as error configuration input. GCC
 compiles the code. After you install err_inject driver, you can run
 this sample application to inject errors.
 
@@ -809,7 +809,7 @@ int err_inj()
 	}
 
 	/* Create semaphore: If one_lock, one semaphore for all processors.
-	   Otherwise, one sempaphore for each processor. */
+	   Otherwise, one semaphore for each processor. */
 	if (one_lock) {
 		if (create_sem(0)) {
 			printf("Can not create semaphore...exit\n");

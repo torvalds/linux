@@ -21,7 +21,7 @@
    versions older than 4.0 do not work with kernels 2.4.0 or later! If you
    try to compile your kernel with the wrong driver source, the 
    compilation is aborted and you get a corresponding error message. This is
-   no bug in the driver. It prevents you from using the wrong sourcecode
+   no bug in the driver; it prevents you from using the wrong source code
    with the wrong kernel version.
 
    Authors of this Driver
@@ -58,7 +58,7 @@
    5 Users' Manual
      5.1 Commandline Parameters
      5.2 Troubleshooting
-     5.3 Bugreports
+     5.3 Bug reports
      5.4 Support WWW-page
    6 References
    7 Credits to
@@ -71,13 +71,13 @@
 
    1 Abstract
    ----------
-   This README-file describes the IBM SCSI-subsystem low level driver for 
-   Linux. The descriptions which were formerly kept in the source-code have 
-   been taken out to this file to easify the codes' readability. The driver 
+   This README-file describes the IBM SCSI-subsystem low level driver for
+   Linux. The descriptions which were formerly kept in the source code have
+   been taken out of this file to simplify the codes readability. The driver
    description has been updated, as most of the former description was already
-   quite outdated. The history of the driver development is also kept inside 
-   here. Multiple historical developments have been summarized to shorten the 
-   textsize a bit. At the end of this file you can find a small manual for 
+   quite outdated. The history of the driver development is also kept inside
+   here. Multiple historical developments have been summarized to shorten the
+   text size a bit. At the end of this file you can find a small manual for
    this driver and hints to get it running on your machine.
 
    2 Driver Description
@@ -186,7 +186,7 @@
    between 0 and 7). The IBM SCSI-2 F/W adapter offers this on up to two
    busses and provides support for 30 logical devices at the same time, where
    in wide-addressing mode you can have 16 puns with 32 luns on each device.
-   This section dexribes you the handling of devices on non-F/W adapters.
+   This section describes the handling of devices on non-F/W adapters.
    Just imagine, that you can have 16 * 32 = 512 devices on a F/W adapter
    which means a lot of possible devices for such a small machine.
 
@@ -209,10 +209,10 @@
    --------------------------------------------------------
    One consequence of information hiding is that the real (pun,lun)    
    numbers are also hidden. The two possibilities to get around this problem
-   is to offer fake pun/lun combinations to the operating system or to 
+   are to offer fake pun/lun combinations to the operating system or to 
    delete the whole mapping of the adapter and to reassign the ldns, using
    the immediate assign command of the SCSI-subsystem for probing through
-   all possible pun/lun combinations. a ldn is a "logical device number"
+   all possible pun/lun combinations.  An ldn is a "logical device number"
    which is used by IBM SCSI-subsystems to access some valid SCSI-device.
    At the beginning of the development of this driver, the following approach 
    was used:
@@ -251,9 +251,9 @@
    lun>0 or to non-existing devices, in order to satisfy the subsystem, if 
    there are less than 15 SCSI-devices connected. In the case of more than 15 
    devices, the dynamical mapping goes active. If the get_scsi[][] reports a 
-   device to be existant, but it has no ldn assigned, it gets a ldn out of 7 
-   to 14. The numbers are assigned in cyclic order. Therefore it takes 8 
-   dynamical reassignments on the SCSI-devices, until a certain device 
+   device to be existent, but it has no ldn assigned, it gets an ldn out of 7
+   to 14. The numbers are assigned in cyclic order, therefore it takes 8 
+   dynamical reassignments on the SCSI-devices until a certain device 
    loses its ldn again. This assures that dynamical remapping is avoided 
    during intense I/O between up to 15 SCSI-devices (means pun,lun 
    combinations). A further advantage of this method is that people who
@@ -551,7 +551,7 @@
       than devices are available, they are assigned to non existing pun,lun
       combinations to satisfy the adapter. With this, the dynamical mapping
       was possible to implement. (For further info see the text in the 
-      source-code and in the description below. Read the description
+      source code and in the description below. Read the description
       below BEFORE installing this driver on your system!)
    2) Changed the name IBMMCA_DRIVER_VERSION to IBMMCA_SCSI_DRIVER_VERSION.
    3) The LED-display shows on PS/2-95 no longer the ldn, but the SCSI-ID
@@ -762,9 +762,9 @@
    - Michael Lang
 
    Apr 23, 2000 (v3.2pre1)
-   1) During a very long time, I collected a huge amount of bugreports from
+   1) During a very long time, I collected a huge amount of bug reports from
       various people, trying really quite different things on their SCSI-
-      PS/2s. Today, all these bugreports are taken into account and should be
+      PS/2s. Today, all these bug reports are taken into account and should be
       mostly solved. The major topics were:
       - Driver crashes during boottime by no obvious reason.
       - Driver panics while the midlevel-SCSI-driver is trying to inquire
@@ -819,7 +819,7 @@
    - Michael Lang
    
    July 17, 2000 (v3.2pre8)
-   A long period of collecting bugreports from all corners of the world
+   A long period of collecting bug reports from all corners of the world
    now lead to the following corrections to the code:
    1) SCSI-2 F/W support crashed with a COMMAND ERROR. The reason for this 
       was that it is possible to disable Fast-SCSI for the external bus.
@@ -873,7 +873,7 @@
    July 26, 2000 (v3.2pre11)
    1) I passed a horrible weekend getting mad with NMIs on kernel 2.2.14 and
       a model 9595. Asking around in the community, nobody except of me has
-      seen such errors. Weired, but I am trying to recompile everything on
+      seen such errors. Weird, but I am trying to recompile everything on
       the model 9595. Maybe, as I use a specially modified gcc, that could
       cause problems. But, it was not the reason. The true background was,
       that the kernel was compiled for i386 and the 9595 has a 486DX-2. 
@@ -886,7 +886,7 @@
       alive rotator during boottime. This makes sense, when no monitor is 
       connected to the system. You can get rid of all display activity, if
       you do not use any parameter or just ibmmcascsi=activity, for the 
-      harddrive activity LED, existant on all PS/2, except models 8595-XXX.
+      harddrive activity LED, existent on all PS/2, except models 8595-XXX.
       If no monitor is available, please use ibmmcascsi=display, which works
       fine together with the linuxinfo utility for the LED-panel.
    - Michael Lang
@@ -1115,7 +1115,7 @@
         If this really happens, do also send e-mail to the maintainer, as
 	forced detection should be never necessary. Forced detection is in
 	principal some flaw of the driver adapter detection and goes into 
-	bugreports.
+	bug reports.
      Q: The driver screws up, if it starts to probe SCSI-devices, is there
         some way out of it?
      A: Yes, that was some recognition problem of the correct SCSI-adapter
@@ -1172,7 +1172,7 @@
 	recommended version is 3.2 or later. Here, the F/W support is in
 	a stable and reliable condition. Wide-addressing is in addition 
 	supported.
-     Q: I get a Ooops message and something like "killing interrupt".
+     Q: I get an Oops message and something like "killing interrupt".
      A: The reason for this is that the IBM SCSI-subsystem only sends a 
         termination status back, if some error appeared. In former releases
 	of the driver, it was not checked, if the termination status block
@@ -1213,21 +1213,21 @@
 	problem. Not yet tried, but guessing that it could work. To get this,
 	set unchecked_isa_dma argument of ibmmca.h from 0 to 1.
 
-   5.3 Bugreports
+   5.3 Bug reports
    --------------
-   If you really find bugs in the sourcecode or the driver will successfully
+   If you really find bugs in the source code or the driver will successfully
    refuse to work on your machine, you should send a bug report to me. The
    best for this is to follow the instructions on the WWW-page for this
    driver. Fill out the bug-report form, placed on the WWW-page and ship it,
    so the bugs can be taken into account with maximum efforts. But, please
    do not send bug reports about this driver to Linus Torvalds or Leonard
-   Zubkoff, as Linus is burried in E-Mail and Leonard is supervising all
+   Zubkoff, as Linus is buried in E-Mail and Leonard is supervising all
    SCSI-drivers and won't have the time left to look inside every single
    driver to fix a bug and especially DO NOT send modified code to Linus
    Torvalds or Alan J. Cox which has not been checked here!!! They are both
-   quite burried in E-mail (as me, sometimes, too) and one should first check
+   quite buried in E-mail (as me, sometimes, too) and one should first check
    for problems on my local teststand. Recently, I got a lot of 
-   bugreports for errors in the ibmmca.c code, which I could not imagine, but
+   bug reports for errors in the ibmmca.c code, which I could not imagine, but
    a look inside some Linux-distribution showed me quite often some modified
    code, which did no longer work on most other machines than the one of the
    modifier. Ok, so now that there is maintenance service available for this
@@ -1261,7 +1261,7 @@
    some e-mail directly, but at least with the same information as required by
    the formular.
    
-   If you have extensive bugreports, including Ooops messages and 
+   If you have extensive bug reports, including Oops messages and
    screen-shots, please feel free to send it directly to the address
    of the maintainer, too. The current address of the maintainer is:
    
@@ -1318,7 +1318,7 @@
 		detailed bug reports and ideas for this driver (and his 
 		patience ;-)).
    Alan J. Cox  
-                for his bugreports and his bold activities in cross-checking
+                for his bug reports and his bold activities in cross-checking
 		the driver-code with his teststand.
 		
    7.2 Sponsors & Supporters

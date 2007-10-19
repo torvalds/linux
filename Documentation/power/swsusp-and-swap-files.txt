@@ -39,7 +39,7 @@ resume=<swap_file_partition> resume_offset=<swap_file_offset>
 where <swap_file_partition> is the partition on which the swap file is located
 and <swap_file_offset> is the offset of the swap header determined by the
 application in 2) (of course, this step may be carried out automatically
-by the same application that determies the swap file's header offset using the
+by the same application that determines the swap file's header offset using the
 FIBMAP ioctl)
 
 OR

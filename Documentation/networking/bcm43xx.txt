@@ -37,7 +37,7 @@ all, distributions.  There is, however, additional software that is
 required. The firmware used by the chip is the intellectual property
 of Broadcom and they have not given the bcm43xx team redistribution
 rights to this firmware.  Since we cannot legally redistribute
-the firwmare we cannot include it with the driver. Furthermore, it
+the firmware we cannot include it with the driver. Furthermore, it
 cannot be placed in the downloadable archives of any distributing
 organization; therefore, the user is responsible for obtaining the
 firmware and placing it in the appropriate location so that the driver

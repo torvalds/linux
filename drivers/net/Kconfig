@@ -855,7 +855,7 @@ config BFIN_MAC_USE_L1
 	depends on BFIN_MAC && BF537
 	default y
 	help
-	  To get maximum network performace, you should use L1 memory as rx/tx buffers.
+	  To get maximum network performance, you should use L1 memory as rx/tx buffers.
 	  Say N here if you want to reserve L1 memory for other uses.
 
 config BFIN_TX_DESC_NUM

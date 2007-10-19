@@ -1,5 +1,5 @@
 #
-# USB Imageing devices configuration
+# USB Imaging devices configuration
 #
 comment "USB Imaging devices"
 	depends on USB

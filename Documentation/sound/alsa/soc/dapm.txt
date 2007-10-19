@@ -11,7 +11,7 @@ other PM systems.
 
 DAPM is also completely transparent to all user space applications as all power
 switching is done within the ASoC core. No code changes or recompiling are
-required for user space applications. DAPM makes power switching descisions based
+required for user space applications. DAPM makes power switching decisions based
 upon any audio stream (capture/playback) activity and audio mixer settings
 within the device.
 
@@ -38,7 +38,7 @@ There are 4 power domains within DAPM
       Enabled and disabled when stream playback/capture is started and
       stopped respectively. e.g. aplay, arecord.
 
-All DAPM power switching descisons are made automatically by consulting an audio
+All DAPM power switching decisions are made automatically by consulting an audio
 routing map of the whole machine. This map is specific to each machine and
 consists of the interconnections between every audio component (including
 internal codec components). All audio components that effect power are called

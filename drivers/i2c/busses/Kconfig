@@ -278,7 +278,7 @@ config I2C_IXP2000
 	depends on ARCH_IXP2000
 	select I2C_ALGOBIT
 	help
-	  Say Y here if you have an Intel IXP2000(2400, 2800, 2850) based 
+	  Say Y here if you have an Intel IXP2000 (2400, 2800, 2850) based 
 	  system and are using GPIO lines for an I2C bus.
 
 	  This support is also available as a module. If so, the module
@@ -293,8 +293,8 @@ config I2C_POWERMAC
 	default y
 	help
 	  This exposes the various PowerMac i2c interfaces to the linux i2c
-	  layer and to userland. It is used by various drivers on the powemac
-	  platform, thus should generally be enabled.
+	  layer and to userland. It is used by various drivers on the PowerMac
+	  platform, and should generally be enabled.
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-powermac.
@@ -438,12 +438,12 @@ config I2C_SIMTEC
 	tristate "Simtec Generic I2C interface"
 	select I2C_ALGOBIT
 	help
-	  If you say yes to this option, support will be inclyded for
+	  If you say yes to this option, support will be included for
 	  the Simtec Generic I2C interface. This driver is for the
 	  simple I2C bus used on newer Simtec products for general
 	  I2C, such as DDC on the Simtec BBD2016A.
 
-	  This driver can also be build as a module. If so, the module
+	  This driver can also be built as a module. If so, the module
 	  will be called i2c-simtec.
 
 config SCx200_I2C

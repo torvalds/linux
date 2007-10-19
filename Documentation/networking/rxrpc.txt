@@ -689,7 +689,7 @@ such as the AFS filesystem.  This permits such a utility to:
      buffers manipulated directly.
 
 To use the RxRPC facility, a kernel utility must still open an AF_RXRPC socket,
-bind an addess as appropriate and listen if it's to be a server socket, but
+bind an address as appropriate and listen if it's to be a server socket, but
 then it passes this to the kernel interface functions.
 
 The kernel interface functions are as follows:

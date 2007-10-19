@@ -54,7 +54,7 @@ config MTD_PHYSMAP_BANKWIDTH
 	help
 	  This is the total width of the data bus of the flash devices
 	  in octets. For example, if you have a data bus width of 32
-	  bits, you would set the bus width octect value to 4. This is
+	  bits, you would set the bus width octet value to 4. This is
 	  used internally by the CFI drivers.
 	  Ignore this option if you use run-time physmap configuration
 	  (i.e., run-time calling physmap_configure()).
@@ -73,12 +73,12 @@ config MTD_PMC_MSP_EVM
 	depends on PMC_MSP && MTD_CFI
 	select MTD_PARTITIONS
 	help
-	  This provides a 'mapping' driver which support the way
-          in which user-programmable flash chips are connected on the
-          PMC-Sierra MSP eval/demo boards
+	  This provides a 'mapping' driver which supports the way
+	  in which user-programmable flash chips are connected on the
+	  PMC-Sierra MSP eval/demo boards.
 
 choice
-	prompt "Maximum mappable memory avialable for flash IO"
+	prompt "Maximum mappable memory available for flash IO"
 	depends on MTD_PMC_MSP_EVM
 	default MSP_FLASH_MAP_LIMIT_32M
 
