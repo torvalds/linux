@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/aec62xx.c		Version 0.26	Sep 1, 2007
+ * linux/drivers/ide/pci/aec62xx.c		Version 0.27	Sep 16, 2007
  *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2007		MontaVista Software, Inc. <source@mvista.com>
@@ -141,19 +141,6 @@ static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	drive->hwif->set_dma_mode(drive, pio + XFER_PIO_0);
 }
 
-static void aec62xx_dma_lost_irq (ide_drive_t *drive)
-{
-	switch (HWIF(drive)->pci_dev->device) {
-		case PCI_DEVICE_ID_ARTOP_ATP860:
-		case PCI_DEVICE_ID_ARTOP_ATP860R:
-		case PCI_DEVICE_ID_ARTOP_ATP865:
-		case PCI_DEVICE_ID_ARTOP_ATP865R:
-			printk(" AEC62XX time out ");
-		default:
-			break;
-	}
-}
-
 static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const char *name)
 {
 	int bus_speed = system_bus_clock();
@@ -194,8 +181,6 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 
 	if (hwif->dma_base == 0)
 		return;
-
-	hwif->dma_lost_irq	= &aec62xx_dma_lost_irq;
 
 	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
 		return;
