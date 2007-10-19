@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 
+#include <asm/smtc_ipi.h>
 #include <asm/time.h>
 
 static int mips_next_event(unsigned long delta,

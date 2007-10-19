@@ -43,8 +43,3 @@ plat_mem_setup(void)
 {
 	toshiba_rbtx4938_setup();
 }
-
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	setup_irq(TX4938_IRQ_CPU_TIMER, irq);
-}

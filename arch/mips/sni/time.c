@@ -121,15 +121,6 @@ void __init plat_time_init(void)
 	setup_pit_timer();
 }
 
-/*
- * R4k counter based timer interrupt. Works on RM200-225 and possibly
- * others but not on RM400
- */
-static void __init sni_cpu_timer_setup(struct irqaction *irq)
-{
-        setup_irq(SNI_MIPS_IRQ_CPU_TIMER, irq);
-}
-
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	switch (sni_brd_type) {
@@ -138,15 +129,6 @@ void __init plat_timer_setup(struct irqaction *irq)
 	case SNI_BRD_TOWER_OASIC:
 	case SNI_BRD_MINITOWER:
 	        sni_a20r_timer_setup(irq);
-	        break;
-
-	case SNI_BRD_PCI_TOWER:
-	case SNI_BRD_RM200:
-	case SNI_BRD_PCI_MTOWER:
-	case SNI_BRD_PCI_DESKTOP:
-	case SNI_BRD_PCI_TOWER_CPLUS:
-	case SNI_BRD_PCI_MTOWER_CPLUS:
-	        sni_cpu_timer_setup(irq);
 	        break;
 	}
 }

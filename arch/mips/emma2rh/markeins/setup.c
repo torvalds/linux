@@ -104,12 +104,6 @@ void __init plat_time_init(void)
 	mips_hpt_frequency = (bus_frequency * (4 + reg)) / 4 / 2;
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	/* we are using the cpu counter for timer interrupts */
-	setup_irq(CPU_IRQ_BASE + 7, irq);
-}
-
 static void markeins_board_init(void);
 extern void markeins_irq_setup(void);
 

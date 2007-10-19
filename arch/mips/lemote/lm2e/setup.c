@@ -53,11 +53,6 @@ unsigned long bus_clock;
 unsigned int memsize;
 unsigned int highmemsize = 0;
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	setup_irq(MIPS_CPU_IRQ_BASE + 7, irq);
-}
-
 void __init plat_time_init(void)
 {
 	/* setup mips r4k timer */

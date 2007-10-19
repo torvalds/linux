@@ -69,31 +69,6 @@ const char *get_system_type(void)
 	return "SiByte " SIBYTE_BOARD_NAME;
 }
 
-void __init plat_time_init(void)
-{
-#if defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
-	/* Setup HPT */
-	sb1250_hpt_setup();
-#endif
-}
-
-void __init plat_timer_setup(struct irqaction *irq)
-{
-        /*
-         * we don't set up irqaction, because we will deliver timer
-         * interrupts through low-level (direct) meachanism.
-         */
-
-        /* We only need to setup the generic timer */
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
-	bcm1480_time_init();
-#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
-	sb1250_time_init();
-#else
-#error invalid SiByte board configuration
-#endif
-}
-
 int swarm_be_handler(struct pt_regs *regs, int is_fixup)
 {
 	if (!is_fixup && (regs->cp0_cause & 4)) {

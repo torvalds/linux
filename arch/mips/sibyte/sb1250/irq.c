@@ -400,43 +400,11 @@ static void sb1250_kgdb_interrupt(void)
 
 #endif 	/* CONFIG_KGDB */
 
-static inline void sb1250_timer_interrupt(void)
-{
-	int cpu = smp_processor_id();
-	int irq = K_INT_TIMER_0 + cpu;
-
-	irq_enter();
-	kstat_this_cpu.irqs[irq]++;
-
-	write_seqlock(&xtime_lock);
-
-	/* ACK interrupt */
-	____raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-		       IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
-
-	/*
-	 * call the generic timer interrupt handling
-	 */
-	do_timer(1);
-
-	write_sequnlock(&xtime_lock);
-
-	/*
-	 * In UP mode, we call local_timer_interrupt() to do profiling
-	 * and process accouting.
-	 *
-	 * In SMP mode, local_timer_interrupt() is invoked by appropriate
-	 * low-level local timer interrupt handler.
-	 */
-	local_timer_interrupt(irq);
-
-	irq_exit();
-}
-
 extern void sb1250_mailbox_interrupt(void);
 
 asmlinkage void plat_irq_dispatch(void)
 {
+	unsigned int cpu = smp_processor_id();
 	unsigned int pending;
 
 	/*
@@ -454,7 +422,7 @@ asmlinkage void plat_irq_dispatch(void)
 	if (pending & CAUSEF_IP7) /* CPU performance counter interrupt */
 		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
 	else if (pending & CAUSEF_IP4)
-		sb1250_timer_interrupt();
+		do_IRQ(K_INT_TIMER_0 + cpu); 	/* sb1250_timer_interrupt() */
 
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)

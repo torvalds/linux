@@ -57,8 +57,9 @@ void sb1250_smp_init(void)
 
 void sb1250_smp_finish(void)
 {
-	extern void sb1250_time_init(void);
-	sb1250_time_init();
+	extern void sb1250_clockevent_init(void);
+
+	sb1250_clockevent_init();
 	local_irq_enable();
 }
 

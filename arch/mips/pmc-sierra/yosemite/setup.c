@@ -137,11 +137,6 @@ int rtc_mips_set_time(unsigned long tim)
 	return 0;
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	setup_irq(7, irq);
-}
-
 void __init plat_time_init(void)
 {
 	mips_hpt_frequency = cpu_clock_freq / 2;

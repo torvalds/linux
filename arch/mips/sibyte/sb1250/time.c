@@ -100,6 +100,7 @@ static void sibyte_set_mode(enum clock_event_mode mode,
 		break;
 
 	case CLOCK_EVT_MODE_UNUSED:	/* shuddup gcc */
+	case CLOCK_EVT_MODE_RESUME:
 		;
 	}
 }
@@ -144,79 +145,7 @@ static struct irqaction sibyte_irqaction = {
 	.name		= "timer",
 };
 
-/*
- * The general purpose timer ticks at 1 Mhz independent if
- * the rest of the system
- */
-static void sibyte_set_mode(enum clock_event_mode mode,
-                           struct clock_event_device *evt)
-{
-	unsigned int cpu = smp_processor_id();
-	void __iomem *timer_cfg, *timer_init;
-
-	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
-
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		__raw_writeq(0, timer_cfg);
-		__raw_writeq((V_SCD_TIMER_FREQ / HZ) - 1, timer_init);
-		__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-			     timer_cfg);
-		break;
-
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* Stop the timer until we actually program a shot */
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		__raw_writeq(0, timer_cfg);
-		break;
-
-	case CLOCK_EVT_MODE_UNUSED:	/* shuddup gcc */
-		;
-	}
-}
-
-static int
-sibyte_next_event(unsigned long delta, struct clock_event_device *evt)
-{
-	unsigned int cpu = smp_processor_id();
-	void __iomem *timer_cfg, *timer_init;
-
-	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
-
-	__raw_writeq(0, timer_cfg);
-	__raw_writeq(delta, timer_init);
-	__raw_writeq(M_SCD_TIMER_ENABLE, timer_cfg);
-
-	return 0;
-}
-
-struct clock_event_device sibyte_hpt_clockevent = {
-	.name		= "sb1250-counter",
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
-	.set_mode	= sibyte_set_mode,
-	.set_next_event	= sibyte_next_event,
-	.shift		= 32,
-	.irq		= 0,
-};
-
-static irqreturn_t sibyte_counter_handler(int irq, void *dev_id)
-{
-	struct clock_event_device *cd = &sibyte_hpt_clockevent;
-
-	cd->event_handler(cd);
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction sibyte_irqaction = {
-	.handler	= sibyte_counter_handler,
-	.flags		= IRQF_DISABLED | IRQF_PERCPU,
-	.name		= "timer",
-};
-
-static void __init sb1250_clockevent_init(void)
+void __cpuinit sb1250_clockevent_init(void)
 {
 	struct clock_event_device *cd = &sibyte_hpt_clockevent;
 	unsigned int cpu = smp_processor_id();
@@ -249,12 +178,6 @@ static void __init sb1250_clockevent_init(void)
 	clockevents_register_device(cd);
 }
 
-void __init plat_time_init(void)
-{
-	sb1250_clocksource_init();
-	sb1250_clockevent_init();
-}
-
 /*
  * The HPT is free running from SB1250_HPT_VALUE down to 0 then starts over
  * again.
@@ -266,4 +189,27 @@ static cycle_t sb1250_hpt_read(void)
 	count = G_SCD_TIMER_CNT(__raw_readq(IOADDR(A_SCD_TIMER_REGISTER(SB1250_HPT_NUM, R_SCD_TIMER_CNT))));
 
 	return SB1250_HPT_VALUE - count;
+}
+
+struct clocksource bcm1250_clocksource = {
+	.name	= "MIPS",
+	.rating	= 200,
+	.read	= sb1250_hpt_read,
+	.mask	= CLOCKSOURCE_MASK(32),
+	.shift	= 32,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+void __init sb1250_clocksource_init(void)
+{
+	struct clocksource *cs = &bcm1250_clocksource;
+
+	clocksource_set_clock(cs, V_SCD_TIMER_FREQ);
+	clocksource_register(cs);
+}
+
+void __init plat_time_init(void)
+{
+	sb1250_clocksource_init();
+	sb1250_clockevent_init();
 }

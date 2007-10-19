@@ -46,10 +46,3 @@ void __init plat_time_init(void)
 	/* Set MIPS counter frequency for fixed_rate_gettimeoffset() */
 	mips_hpt_frequency = hz;
 }
-
-void __init
-plat_timer_setup(struct irqaction *irq)
-{
-	/* Enable the timer interrupt */
-	setup_irq(7, irq);
-}
