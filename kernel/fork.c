@@ -1293,13 +1293,13 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			if (clone_flags & CLONE_NEWPID) {
 				p->nsproxy->pid_ns->child_reaper = p;
 				p->signal->tty = NULL;
-				p->signal->pgrp = p->pid;
+				set_task_pgrp(p, p->pid);
 				set_task_session(p, p->pid);
 				attach_pid(p, PIDTYPE_PGID, pid);
 				attach_pid(p, PIDTYPE_SID, pid);
 			} else {
 				p->signal->tty = current->signal->tty;
-				p->signal->pgrp = task_pgrp_nr(current);
+				set_task_pgrp(p, task_pgrp_nr(current));
 				set_task_session(p, task_session_nr(current));
 				attach_pid(p, PIDTYPE_PGID,
 						task_pgrp(current));

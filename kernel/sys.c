@@ -977,7 +977,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		detach_pid(p, PIDTYPE_PGID);
 		pid = find_vpid(pgid);
 		attach_pid(p, PIDTYPE_PGID, pid);
-		p->signal->pgrp = pid_nr(pid);
+		set_task_pgrp(p, pid_nr(pid));
 	}
 
 	err = 0;

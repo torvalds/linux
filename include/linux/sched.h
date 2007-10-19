@@ -429,7 +429,17 @@ struct signal_struct {
 	cputime_t it_prof_incr, it_virt_incr;
 
 	/* job control IDs */
-	pid_t pgrp;
+
+	/*
+	 * pgrp and session fields are deprecated.
+	 * use the task_session_Xnr and task_pgrp_Xnr routines below
+	 */
+
+	union {
+		pid_t pgrp __deprecated;
+		pid_t __pgrp;
+	};
+
 	struct pid *tty_old_pgrp;
 
 	union {
@@ -1196,6 +1206,11 @@ static inline void set_task_session(struct task_struct *tsk, pid_t session)
 	tsk->signal->__session = session;
 }
 
+static inline void set_task_pgrp(struct task_struct *tsk, pid_t pgrp)
+{
+	tsk->signal->__pgrp = pgrp;
+}
+
 static inline struct pid *task_pid(struct task_struct *task)
 {
 	return task->pids[PIDTYPE_PID].pid;
@@ -1268,7 +1283,7 @@ static inline pid_t task_tgid_vnr(struct task_struct *tsk)
 
 static inline pid_t task_pgrp_nr(struct task_struct *tsk)
 {
-	return tsk->signal->pgrp;
+	return tsk->signal->__pgrp;
 }
 
 pid_t task_pgrp_nr_ns(struct task_struct *tsk, struct pid_namespace *ns);
