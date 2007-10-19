@@ -21,6 +21,7 @@ extern int cpuset_init_early(void);
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
 extern cpumask_t cpuset_cpus_allowed(struct task_struct *p);
+extern cpumask_t cpuset_cpus_allowed_locked(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
 #define cpuset_current_mems_allowed (current->mems_allowed)
 void cpuset_init_current_mems_allowed(void);
@@ -84,6 +85,10 @@ static inline int cpuset_init(void) { return 0; }
 static inline void cpuset_init_smp(void) {}
 
 static inline cpumask_t cpuset_cpus_allowed(struct task_struct *p)
+{
+	return cpu_possible_map;
+}
+static inline cpumask_t cpuset_cpus_allowed_locked(struct task_struct *p)
 {
 	return cpu_possible_map;
 }

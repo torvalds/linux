@@ -1818,10 +1818,23 @@ cpumask_t cpuset_cpus_allowed(struct task_struct *tsk)
 	cpumask_t mask;
 
 	mutex_lock(&callback_mutex);
+	mask = cpuset_cpus_allowed_locked(tsk);
+	mutex_unlock(&callback_mutex);
+
+	return mask;
+}
+
+/**
+ * cpuset_cpus_allowed_locked - return cpus_allowed mask from a tasks cpuset.
+ * Must be  called with callback_mutex held.
+ **/
+cpumask_t cpuset_cpus_allowed_locked(struct task_struct *tsk)
+{
+	cpumask_t mask;
+
 	task_lock(tsk);
 	guarantee_online_cpus(task_cs(tsk), &mask);
 	task_unlock(tsk);
-	mutex_unlock(&callback_mutex);
 
 	return mask;
 }
