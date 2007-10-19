@@ -139,7 +139,7 @@ void __up(struct semaphore *sem)
 	waiter = list_entry(sem->wait_list.next, struct sem_waiter, list);
 
 	/* We must be careful not to touch 'waiter' after we set ->task = NULL.
-	 * It is an allocated on the waiter's stack and may become invalid at
+	 * It is allocated on the waiter's stack and may become invalid at
 	 * any time after that point (due to a wakeup from another source).
 	 */
 	list_del_init(&waiter->list);
