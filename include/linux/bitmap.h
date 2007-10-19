@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/string.h>
+#include <linux/kernel.h>
 
 /*
  * bitmaps provide bit arrays that consume one or more unsigned
