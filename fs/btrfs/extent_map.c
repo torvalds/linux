@@ -9,6 +9,7 @@
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/swap.h>
+#include <linux/version.h>
 #include "extent_map.h"
 
 /* temporary define until extent_map moves out of btrfs */
@@ -1274,8 +1275,12 @@ static int check_page_writeback(struct extent_map_tree *tree,
  * Scheduling is not allowed, so the extent state tree is expected
  * to have one and only one object corresponding to this IO.
  */
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+static void end_bio_extent_writepage(struct bio *bio, int err)
+#else
 static int end_bio_extent_writepage(struct bio *bio,
 				   unsigned int bytes_done, int err)
+#endif
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
@@ -1284,8 +1289,10 @@ static int end_bio_extent_writepage(struct bio *bio,
 	u64 end;
 	int whole_page;
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
 	if (bio->bi_size)
 		return 1;
+#endif
 
 	do {
 		struct page *page = bvec->bv_page;
@@ -1316,7 +1323,9 @@ static int end_bio_extent_writepage(struct bio *bio,
 	} while (bvec >= bio->bi_io_vec);
 
 	bio_put(bio);
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
 	return 0;
+#endif
 }
 
 /*
@@ -1330,8 +1339,12 @@ static int end_bio_extent_writepage(struct bio *bio,
  * Scheduling is not allowed, so the extent state tree is expected
  * to have one and only one object corresponding to this IO.
  */
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+static void end_bio_extent_readpage(struct bio *bio, int err)
+#else
 static int end_bio_extent_readpage(struct bio *bio,
 				   unsigned int bytes_done, int err)
+#endif
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
@@ -1341,8 +1354,10 @@ static int end_bio_extent_readpage(struct bio *bio,
 	int whole_page;
 	int ret;
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
 	if (bio->bi_size)
 		return 1;
+#endif
 
 	do {
 		struct page *page = bvec->bv_page;
@@ -1382,7 +1397,9 @@ static int end_bio_extent_readpage(struct bio *bio,
 	} while (bvec >= bio->bi_io_vec);
 
 	bio_put(bio);
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
 	return 0;
+#endif
 }
 
 /*
@@ -1390,8 +1407,12 @@ static int end_bio_extent_readpage(struct bio *bio,
  * the structs in the extent tree when done, and set the uptodate bits
  * as appropriate.
  */
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+static void end_bio_extent_preparewrite(struct bio *bio, int err)
+#else
 static int end_bio_extent_preparewrite(struct bio *bio,
 				       unsigned int bytes_done, int err)
+#endif
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
@@ -1399,8 +1420,10 @@ static int end_bio_extent_preparewrite(struct bio *bio,
 	u64 start;
 	u64 end;
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
 	if (bio->bi_size)
 		return 1;
+#endif
 
 	do {
 		struct page *page = bvec->bv_page;
@@ -1422,7 +1445,9 @@ static int end_bio_extent_preparewrite(struct bio *bio,
 	} while (bvec >= bio->bi_io_vec);
 
 	bio_put(bio);
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
 	return 0;
+#endif
 }
 
 static int submit_extent_page(int rw, struct extent_map_tree *tree,
