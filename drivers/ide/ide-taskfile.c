@@ -837,6 +837,9 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 		case TASKFILE_OUT_DMA:
 		case TASKFILE_IN_DMAQ:
 		case TASKFILE_IN_DMA:
+			if (!drive->using_dma)
+				break;
+
 			if (!hwif->dma_setup(drive)) {
 				hwif->dma_exec_cmd(drive, taskfile->command);
 				hwif->dma_start(drive);
