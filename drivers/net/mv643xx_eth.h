@@ -266,10 +266,21 @@
 
 #define	MV643XX_ETH_IPG_INT_RX(value) ((value & 0x3fff) << 8)
 
+#if defined(__BIG_ENDIAN)
 #define	MV643XX_ETH_PORT_SDMA_CONFIG_DEFAULT_VALUE		\
 		MV643XX_ETH_RX_BURST_SIZE_4_64BIT	|	\
 		MV643XX_ETH_IPG_INT_RX(0)		|	\
 		MV643XX_ETH_TX_BURST_SIZE_4_64BIT
+#elif defined(__LITTLE_ENDIAN)
+#define	MV643XX_ETH_PORT_SDMA_CONFIG_DEFAULT_VALUE		\
+		MV643XX_ETH_RX_BURST_SIZE_4_64BIT	|	\
+		MV643XX_ETH_BLM_RX_NO_SWAP		|	\
+		MV643XX_ETH_BLM_TX_NO_SWAP		|	\
+		MV643XX_ETH_IPG_INT_RX(0)		|	\
+		MV643XX_ETH_TX_BURST_SIZE_4_64BIT
+#else
+#error One of __BIG_ENDIAN or __LITTLE_ENDIAN must be defined
+#endif
 
 /* These macros describe Ethernet Port serial control reg (PSCR) bits */
 #define MV643XX_ETH_SERIAL_PORT_DISABLE			0
