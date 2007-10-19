@@ -141,8 +141,6 @@ extern unsigned int sni_brd_type;
 #define A20R_PT_TIM0_ACK        0xbc050000
 #define A20R_PT_TIM1_ACK        0xbc060000
 
-#define SNI_MIPS_IRQ_CPU_TIMER  (MIPS_CPU_IRQ_BASE+7)
-
 #define SNI_A20R_IRQ_BASE       MIPS_CPU_IRQ_BASE
 #define SNI_A20R_IRQ_TIMER      (SNI_A20R_IRQ_BASE+5)
 

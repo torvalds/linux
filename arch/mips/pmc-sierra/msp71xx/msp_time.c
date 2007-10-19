@@ -86,8 +86,5 @@ void __init plat_timer_setup(struct irqaction *irq)
 #ifdef CONFIG_IRQ_MSP_CIC
 	/* we are using the vpe0 counter for timer interrupts */
 	setup_irq(MSP_INT_VPE0_TIMER, irq);
-#else
-	/* we are using the mips counter for timer interrupts */
-	setup_irq(MSP_INT_TIMER, irq);
 #endif
 }

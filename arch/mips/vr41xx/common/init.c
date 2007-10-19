@@ -48,11 +48,6 @@ void __init plat_time_init(void)
 		mips_hpt_frequency = tclock / 4;
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	setup_irq(TIMER_IRQ, irq);
-}
-
 void __init plat_mem_setup(void)
 {
 	vr41xx_calculate_clock_frequency();

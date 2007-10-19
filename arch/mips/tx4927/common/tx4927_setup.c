@@ -72,22 +72,6 @@ void __init plat_time_init(void)
 #endif
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	setup_irq(TX4927_IRQ_CPU_TIMER, irq);
-
-#ifdef CONFIG_TOSHIBA_RBTX4927
-	{
-		extern void toshiba_rbtx4927_timer_setup(struct irqaction
-							 *irq);
-		toshiba_rbtx4927_timer_setup(irq);
-	}
-#endif
-
-	return;
-}
-
-
 #ifdef DEBUG
 void print_cp0(char *key, int num, char *name, u32 val)
 {
