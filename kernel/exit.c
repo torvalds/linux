@@ -879,7 +879,32 @@ static inline void exit_child_reaper(struct task_struct *tsk)
 	if (likely(tsk->group_leader != task_child_reaper(tsk)))
 		return;
 
-	panic("Attempted to kill init!");
+	if (tsk->nsproxy->pid_ns == &init_pid_ns)
+		panic("Attempted to kill init!");
+
+	/*
+	 * @tsk is the last thread in the 'cgroup-init' and is exiting.
+	 * Terminate all remaining processes in the namespace and reap them
+	 * before exiting @tsk.
+	 *
+	 * Note that @tsk (last thread of cgroup-init) may not necessarily
+	 * be the child-reaper (i.e main thread of cgroup-init) of the
+	 * namespace i.e the child_reaper may have already exited.
+	 *
+	 * Even after a child_reaper exits, we let it inherit orphaned children,
+	 * because, pid_ns->child_reaper remains valid as long as there is
+	 * at least one living sub-thread in the cgroup init.
+
+	 * This living sub-thread of the cgroup-init will be notified when
+	 * a child inherited by the 'child-reaper' exits (do_notify_parent()
+	 * uses __group_send_sig_info()). Further, when reaping child processes,
+	 * do_wait() iterates over children of all living sub threads.
+
+	 * i.e even though 'child_reaper' thread is listed as the parent of the
+	 * orphaned children, any living sub-thread in the cgroup-init can
+	 * perform the role of the child_reaper.
+	 */
+	zap_pid_ns_processes(tsk->nsproxy->pid_ns);
 }
 
 fastcall NORET_TYPE void do_exit(long code)
