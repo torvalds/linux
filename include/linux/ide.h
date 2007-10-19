@@ -265,11 +265,7 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 # define ide_init_default_irq(base)	(0)
 #endif
 
-/*
- * ide_init_hwif_ports() is OBSOLETE and will be removed in 2.7 series.
- * New ports shouldn't define IDE_ARCH_OBSOLETE_INIT in <asm/ide.h>.
- */
-#ifdef IDE_ARCH_OBSOLETE_INIT
+#ifdef CONFIG_IDE_ARCH_OBSOLETE_INIT
 static inline void ide_init_hwif_ports(hw_regs_t *hw,
 				       unsigned long io_addr,
 				       unsigned long ctl_addr,
@@ -299,7 +295,7 @@ static inline void ide_init_hwif_ports(hw_regs_t *hw,
 	if (io_addr || ctl_addr)
 		printk(KERN_WARNING "%s: must not be called\n", __FUNCTION__);
 }
-#endif /* IDE_ARCH_OBSOLETE_INIT */
+#endif /* CONFIG_IDE_ARCH_OBSOLETE_INIT */
 
 /* Currently only m68k, apus and m8xx need it */
 #ifndef IDE_ARCH_ACK_INTR
