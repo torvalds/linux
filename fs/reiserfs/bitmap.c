@@ -47,7 +47,9 @@
     test_bit(_ALLOC_ ## optname , &SB_ALLOC_OPTS(s))
 
 static inline void get_bit_address(struct super_block *s,
-				   b_blocknr_t block, int *bmap_nr, int *offset)
+				   b_blocknr_t block,
+				   unsigned int *bmap_nr,
+				   unsigned int *offset)
 {
 	/* It is in the bitmap block number equal to the block
 	 * number divided by the number of bits in a block. */
@@ -58,7 +60,7 @@ static inline void get_bit_address(struct super_block *s,
 
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 {
-	int bmap, offset;
+	unsigned int bmap, offset;
 
 	if (block == 0 || block >= SB_BLOCK_COUNT(s)) {
 		reiserfs_warning(s,
@@ -108,8 +110,8 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 
 /* searches in journal structures for a given block number (bmap, off). If block
    is found in reiserfs journal it suggests next free block candidate to test. */
-static inline int is_block_in_journal(struct super_block *s, int bmap, int
-				      off, int *next)
+static inline int is_block_in_journal(struct super_block *s, unsigned int bmap,
+				      int off, int *next)
 {
 	b_blocknr_t tmp;
 
@@ -130,8 +132,8 @@ static inline int is_block_in_journal(struct super_block *s, int bmap, int
 /* it searches for a window of zero bits with given minimum and maximum lengths in one bitmap
  * block; */
 static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
-			     int bmap_n, int *beg, int boundary, int min,
-			     int max, int unfm)
+			     unsigned int bmap_n, int *beg, int boundary,
+			     int min, int max, int unfm)
 {
 	struct super_block *s = th->t_super;
 	struct reiserfs_bitmap_info *bi = &SB_AP_BITMAP(s)[bmap_n];
@@ -307,16 +309,16 @@ __le32 reiserfs_choose_packing(struct inode * dir)
  * bitmap and place new blocks there. Returns number of allocated blocks. */
 static int scan_bitmap(struct reiserfs_transaction_handle *th,
 		       b_blocknr_t * start, b_blocknr_t finish,
-		       int min, int max, int unfm, unsigned long file_block)
+		       int min, int max, int unfm, sector_t file_block)
 {
 	int nr_allocated = 0;
 	struct super_block *s = th->t_super;
 	/* find every bm and bmap and bmap_nr in this file, and change them all to bitmap_blocknr
 	 * - Hans, it is not a block number - Zam. */
 
-	int bm, off;
-	int end_bm, end_off;
-	int off_max = s->s_blocksize << 3;
+	unsigned int bm, off;
+	unsigned int end_bm, end_off;
+	unsigned int off_max = s->s_blocksize << 3;
 
 	BUG_ON(!th->t_trans_id);
 
@@ -383,7 +385,7 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 	struct reiserfs_super_block *rs;
 	struct buffer_head *sbh, *bmbh;
 	struct reiserfs_bitmap_info *apbi;
-	int nr, offset;
+	unsigned int nr, offset;
 
 	BUG_ON(!th->t_trans_id);
 

@@ -559,7 +559,7 @@ static int is_tree_node(struct buffer_head *bh, int level)
 /* The function is NOT SCHEDULE-SAFE! */
 static void search_by_key_reada(struct super_block *s,
 				struct buffer_head **bh,
-				unsigned long *b, int num)
+				b_blocknr_t *b, int num)
 {
 	int i, j;
 
@@ -611,7 +611,7 @@ int search_by_key(struct super_block *p_s_sb, const struct cpu_key *p_s_key,	/* 
 					   DISK_LEAF_NODE_LEVEL */
     )
 {
-	int n_block_number;
+	b_blocknr_t n_block_number;
 	int expected_level;
 	struct buffer_head *p_s_bh;
 	struct path_element *p_s_last_element;
@@ -619,7 +619,7 @@ int search_by_key(struct super_block *p_s_sb, const struct cpu_key *p_s_key,	/* 
 	int right_neighbor_of_leaf_node;
 	int fs_gen;
 	struct buffer_head *reada_bh[SEARCH_BY_KEY_READA];
-	unsigned long reada_blocks[SEARCH_BY_KEY_READA];
+	b_blocknr_t reada_blocks[SEARCH_BY_KEY_READA];
 	int reada_count = 0;
 
 #ifdef CONFIG_REISERFS_CHECK
