@@ -77,10 +77,11 @@ static inline void css_get(struct cgroup_subsys_state *css)
  * css_get()
  */
 
+extern void __css_put(struct cgroup_subsys_state *css);
 static inline void css_put(struct cgroup_subsys_state *css)
 {
 	if (!test_bit(CSS_ROOT, &css->flags))
-		atomic_dec(&css->refcnt);
+		__css_put(css);
 }
 
 struct cgroup {
@@ -112,6 +113,13 @@ struct cgroup {
 	 * tasks in this cgroup. Protected by css_set_lock
 	 */
 	struct list_head css_sets;
+
+	/*
+	 * Linked list running through all cgroups that can
+	 * potentially be reaped by the release agent. Protected by
+	 * release_list_lock
+	 */
+	struct list_head release_list;
 };
 
 /* A css_set is a structure holding pointers to a set of
@@ -292,7 +300,6 @@ void cgroup_iter_start(struct cgroup *cont, struct cgroup_iter *it);
 struct task_struct *cgroup_iter_next(struct cgroup *cont,
 					struct cgroup_iter *it);
 void cgroup_iter_end(struct cgroup *cont, struct cgroup_iter *it);
-
 
 #else /* !CONFIG_CGROUPS */
 
