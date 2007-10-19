@@ -273,7 +273,7 @@ unsigned long __init setup_memory(void)
 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
 	 * from node local memory.  They are then mapped directly into KVA
 	 * between zone normal and vmalloc space.  Calculate the size of
-	 * this space and use it to adjust the boundry between ZONE_NORMAL
+	 * this space and use it to adjust the boundary between ZONE_NORMAL
 	 * and ZONE_HIGHMEM.
 	 */
 	find_max_pfn();

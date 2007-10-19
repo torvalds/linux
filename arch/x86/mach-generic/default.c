@@ -1,5 +1,5 @@
 /* 
- * Default generic APIC driver. This handles upto 8 CPUs.
+ * Default generic APIC driver. This handles up to 8 CPUs.
  */
 #define APIC_DEFINITION 1
 #include <linux/threads.h>

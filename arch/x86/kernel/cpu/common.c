@@ -207,7 +207,7 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 
 static int __init x86_fxsr_setup(char * s)
 {
-	/* Tell all the other CPU's to not use it... */
+	/* Tell all the other CPUs to not use it... */
 	disable_x86_fxsr = 1;
 
 	/*

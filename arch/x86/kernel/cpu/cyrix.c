@@ -256,7 +256,7 @@ static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 		u32 vendor, device;
 		/* It isn't really a PCI quirk directly, but the cure is the
 		   same. The MediaGX has deep magic SMM stuff that handles the
-		   SB emulation. It thows away the fifo on disable_dma() which
+		   SB emulation. It throws away the fifo on disable_dma() which
 		   is wrong and ruins the audio. 
 
 		   Bug2: VSA1 has a wrap bug so that using maximum sized DMA 

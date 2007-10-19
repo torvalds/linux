@@ -389,7 +389,7 @@ find_smp_config(void)
 
 	/* The boot CPU must be extended */
 	voyager_extended_vic_processors = 1<<boot_cpu_id;
-	/* initially, all of the first 8 cpu's can boot */
+	/* initially, all of the first 8 CPUs can boot */
 	voyager_allowed_boot_processors = 0xff;
 	/* set up everything for just this CPU, we can alter
 	 * this as we start the other CPUs later */
@@ -1010,7 +1010,7 @@ static struct call_data_struct * call_data;
 
 /* execute a thread on a new CPU.  The function to be called must be
  * previously set up.  This is used to schedule a function for
- * execution on all CPU's - set up the function then broadcast a
+ * execution on all CPUs - set up the function then broadcast a
  * function_interrupt CPI to come here on each CPU */
 static void
 smp_call_function_interrupt(void)
@@ -1095,7 +1095,7 @@ voyager_smp_call_function_mask (cpumask_t cpumask,
  * CPI here.  We don't use this actually for counting so losing
  * ticks doesn't matter 
  *
- * FIXME: For those CPU's which actually have a local APIC, we could
+ * FIXME: For those CPUs which actually have a local APIC, we could
  * try to use it to trigger this interrupt instead of having to
  * broadcast the timer tick.  Unfortunately, all my pentium DYADs have
  * no local APIC, so I can't do this
@@ -1287,7 +1287,7 @@ smp_local_timer_interrupt(void)
 
 	/*
 	 * We take the 'long' return path, and there every subsystem
-	 * grabs the apropriate locks (kernel lock/ irq lock).
+	 * grabs the appropriate locks (kernel lock/ irq lock).
 	 *
 	 * we might want to decouple profiling from the 'long path',
 	 * and do the profiling totally in assembly.
@@ -1759,7 +1759,7 @@ set_vic_irq_affinity(unsigned int irq, cpumask_t mask)
 	real_mask = cpus_addr(mask)[0] & voyager_extended_vic_processors;
 	
 	if(cpus_addr(mask)[0] == 0)
-		/* can't have no cpu's to accept the interrupt -- extremely
+		/* can't have no CPUs to accept the interrupt -- extremely
 		 * bad things will happen */
 		return;
 
@@ -1791,7 +1791,7 @@ set_vic_irq_affinity(unsigned int irq, cpumask_t mask)
 	}
 	/* this is magic, we now have the correct affinity maps, so
 	 * enable the interrupt.  This will send an enable CPI to
-	 * those cpu's who need to enable it in their local masks,
+	 * those CPUs who need to enable it in their local masks,
 	 * causing them to correct for the new affinity . If the
 	 * interrupt is currently globally disabled, it will simply be
 	 * disabled again as it comes in (voyager lazy disable).  If

@@ -29,7 +29,7 @@ struct op_msrs {
 struct pt_regs;
 
 /* The model vtable abstracts the differences between
- * various x86 CPU model's perfctr support.
+ * various x86 CPU models' perfctr support.
  */
 struct op_x86_model_spec {
 	unsigned int const num_counters;

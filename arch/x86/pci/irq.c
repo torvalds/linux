@@ -169,7 +169,7 @@ void eisa_set_level_irq(unsigned int irq)
 }
 
 /*
- * Common IRQ routing practice: nybbles in config space,
+ * Common IRQ routing practice: nibbles in config space,
  * offset by some magic constant.
  */
 static unsigned int read_config_nybble(struct pci_dev *router, unsigned offset, unsigned nr)
@@ -585,7 +585,7 @@ static __init int via_router_probe(struct irq_router *r,
 	/* FIXME: We should move some of the quirk fixup stuff here */
 
 	/*
-	 * work arounds for some buggy BIOSes
+	 * workarounds for some buggy BIOSes
 	 */
 	if (device == PCI_DEVICE_ID_VIA_82C586_0) {
 		switch(router->device) {

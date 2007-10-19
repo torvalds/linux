@@ -266,7 +266,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_HT
 	/*
 	 * On a AMD multi core setup the lower bits of the APIC id
-	 * distingush the cores.
+	 * distinguish the cores.
 	 */
 	if (c->x86_max_cores > 1) {
 		int cpu = smp_processor_id();
