@@ -1039,6 +1039,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 {
 	struct device_node *np = pmif->node;
 	const int *bidp;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	pmif->cable_80 = 0;
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
@@ -1163,10 +1164,9 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 		pmac_ide_setup_dma(pmif, hwif);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
 
-	/* We probe the hwif now */
-	probe_hwif_init(hwif);
+	idx[0] = hwif->index;
 
-	ide_proc_register_port(hwif);
+	ide_device_add(idx);
 
 	return 0;
 }

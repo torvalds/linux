@@ -512,7 +512,7 @@ out:
  *	@dev: PCI device
  *	@d: IDE pci device info
  *	@pciirq: IRQ line
- *	@index: ata index to update
+ *	@idx: ATA index table to update
  *
  *	Scan the interfaces attached to this device and do any
  *	necessary per port setup. Attach the devices and ask the
@@ -522,14 +522,12 @@ out:
  *	but is also used directly as a helper function by some controllers
  *	where the chipset setup is not the default PCI IDE one.
  */
- 
-void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, ata_index_t *index)
+
+void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, u8 *idx)
 {
 	int channels = (d->host_flags & IDE_HFLAG_SINGLE) ? 1 : 2, port;
 	ide_hwif_t *hwif, *mate = NULL;
 	u8 tmp;
-
-	index->all = 0xf0f0;
 
 	/*
 	 * Set up the IDE ports
@@ -550,11 +548,7 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		/* setup proper ancestral information */
 		hwif->gendev.parent = &dev->dev;
 
-		if (hwif->channel) {
-			index->b.high = hwif->index;
-		} else {
-			index->b.low = hwif->index;
-		}
+		*(idx + port) = hwif->index;
 
 		
 		if (d->init_iops)
@@ -620,9 +614,8 @@ EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
  * for all other chipsets, we just assume both interfaces are enabled.
  */
 static int do_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d,
-				   ata_index_t *index, u8 noisy)
+				   u8 *idx, u8 noisy)
 {
-	static ata_index_t ata_index = { .b = { .low = 0xff, .high = 0xff } };
 	int tried_config = 0;
 	int pciirq, ret;
 
@@ -672,37 +665,21 @@ static int do_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d,
 
 	/* FIXME: silent failure can happen */
 
-	*index = ata_index;
-	ide_pci_setup_ports(dev, d, pciirq, index);
+	ide_pci_setup_ports(dev, d, pciirq, idx);
 out:
 	return ret;
 }
 
 int ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	ide_hwif_t *hwif = NULL, *mate = NULL;
-	ata_index_t index_list;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int ret;
 
-	ret = do_ide_setup_pci_device(dev, d, &index_list, 1);
-	if (ret < 0)
-		goto out;
+	ret = do_ide_setup_pci_device(dev, d, &idx[0], 1);
 
-	if ((index_list.b.low & 0xf0) != 0xf0)
-		hwif = &ide_hwifs[index_list.b.low];
-	if ((index_list.b.high & 0xf0) != 0xf0)
-		mate = &ide_hwifs[index_list.b.high];
+	if (ret >= 0)
+		ide_device_add(idx);
 
-	if (hwif)
-		probe_hwif_init(hwif);
-	if (mate)
-		probe_hwif_init(mate);
-
-	if (hwif)
-		ide_proc_register_port(hwif);
-	if (mate)
-		ide_proc_register_port(mate);
-out:
 	return ret;
 }
 
@@ -712,11 +689,11 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 			  ide_pci_device_t *d)
 {
 	struct pci_dev *pdev[] = { dev1, dev2 };
-	ata_index_t index_list[2];
 	int ret, i;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	for (i = 0; i < 2; i++) {
-		ret = do_ide_setup_pci_device(pdev[i], d, index_list + i, !i);
+		ret = do_ide_setup_pci_device(pdev[i], d, &idx[i*2], !i);
 		/*
 		 * FIXME: Mom, mom, they stole me the helper function to undo
 		 * do_ide_setup_pci_device() on the first device!
@@ -725,25 +702,7 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 			goto out;
 	}
 
-	for (i = 0; i < 2; i++) {
-		u8 idx[2] = { index_list[i].b.low, index_list[i].b.high };
-		int j;
-
-		for (j = 0; j < 2; j++) {
-			if ((idx[j] & 0xf0) != 0xf0)
-				probe_hwif_init(ide_hwifs + idx[j]);
-		}
-	}
-
-	for (i = 0; i < 2; i++) {
-		u8 idx[2] = { index_list[i].b.low, index_list[i].b.high };
-		int j;
-
-		for (j = 0; j < 2; j++) {
-			if ((idx[j] & 0xf0) != 0xf0)
-				ide_proc_register_port(ide_hwifs + idx[j]);
-		}
-	}
+	ide_device_add(idx);
 out:
 	return ret;
 }

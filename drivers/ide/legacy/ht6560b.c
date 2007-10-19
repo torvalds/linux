@@ -311,6 +311,7 @@ MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
 int __init ht6560b_init(void)
 {
 	ide_hwif_t *hwif, *mate;
+	static u8 idx[4] = { 0, 1, 0xff, 0xff };
 	int t;
 
 	if (probe_ht6560b == 0)
@@ -359,11 +360,7 @@ int __init ht6560b_init(void)
 	mate->drives[0].drive_data = t;
 	mate->drives[1].drive_data = t;
 
-	probe_hwif_init(hwif);
-	probe_hwif_init(mate);
-
-	ide_proc_register_port(hwif);
-	ide_proc_register_port(mate);
+	ide_device_add(idx);
 
 	return 0;
 

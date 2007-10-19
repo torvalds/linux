@@ -361,7 +361,6 @@ typedef union {
  * ATA DATA Register Special.
  * ATA NSECTOR Count Register().
  * ATAPI Byte Count Register.
- * Channel index ordering pairs.
  */
 typedef union {
 	unsigned all			:16;
@@ -376,7 +375,7 @@ typedef union {
 #error "Please fix <asm/byteorder.h>"
 #endif
 	} b;
-} ata_nsector_t, ata_data_t, atapi_bcount_t, ata_index_t;
+} ata_nsector_t, ata_data_t, atapi_bcount_t;
 
 /*
  * ATA-IDE Select Register, aka Device-Head
@@ -1200,7 +1199,7 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 #define ide_pci_register_driver(d) pci_register_driver(d)
 #endif
 
-void ide_pci_setup_ports(struct pci_dev *, struct ide_pci_device_s *, int, ata_index_t *);
+void ide_pci_setup_ports(struct pci_dev *, struct ide_pci_device_s *, int, u8 *);
 extern void ide_setup_pci_noise (struct pci_dev *dev, struct ide_pci_device_s *d);
 
 extern void default_hwif_iops(ide_hwif_t *);
@@ -1378,7 +1377,7 @@ void ide_unregister_region(struct gendisk *);
 
 void ide_undecoded_slave(ide_hwif_t *);
 
-extern int probe_hwif_init(ide_hwif_t *);
+int ide_device_add(u8 idx[4]);
 
 static inline void *ide_get_hwifdata (ide_hwif_t * hwif)
 {

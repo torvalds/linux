@@ -715,9 +715,10 @@ found:
 	hwif->chipset = hw->chipset;
 	hwif->gendev.parent = hw->dev;
 
-	if (!initializing) {
-		probe_hwif_init(hwif);
-		ide_proc_register_port(hwif);
+	if (initializing == 0) {
+		u8 idx[4] = { index, 0xff, 0xff, 0xff };
+
+		ide_device_add(idx);
 	}
 
 	if (hwifp)

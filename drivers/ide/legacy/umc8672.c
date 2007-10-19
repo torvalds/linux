@@ -124,8 +124,9 @@ static void umc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static int __init umc8672_probe(void)
 {
-	unsigned long flags;
 	ide_hwif_t *hwif, *mate;
+	unsigned long flags;
+	static u8 idx[4] = { 0, 1, 0xff, 0xff };
 
 	if (!request_region(0x108, 2, "umc8672")) {
 		printk(KERN_ERR "umc8672: ports 0x108-0x109 already in use.\n");
@@ -158,11 +159,7 @@ static int __init umc8672_probe(void)
 	mate->mate = hwif;
 	mate->channel = 1;
 
-	probe_hwif_init(hwif);
-	probe_hwif_init(mate);
-
-	ide_proc_register_port(hwif);
-	ide_proc_register_port(mate);
+	ide_device_add(idx);
 
 	return 0;
 }

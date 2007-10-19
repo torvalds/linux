@@ -500,6 +500,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 {
 	ide_hwif_t *hwif;
 	void __iomem *base;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
 	if (!base)
@@ -523,9 +524,9 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	state->hwif[0] = hwif;
 
-	probe_hwif_init(hwif);
+	idx[0] = hwif->index;
 
-	ide_proc_register_port(hwif);
+	ide_device_add(idx);
 
 	return 0;
 }
@@ -537,6 +538,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	void __iomem *ioc_base, *easi_base;
 	unsigned int sel = 0;
 	int ret;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (!ioc_base) {
@@ -608,11 +610,10 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 		icside_dma_init(mate);
 	}
 
-	probe_hwif_init(hwif);
-	probe_hwif_init(mate);
+	idx[0] = hwif->index;
+	idx[1] = mate->index;
 
-	ide_proc_register_port(hwif);
-	ide_proc_register_port(mate);
+	ide_device_add(idx);
 
 	return 0;
 

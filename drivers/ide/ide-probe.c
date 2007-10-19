@@ -861,7 +861,7 @@ static void probe_hwif(ide_hwif_t *hwif)
 static int hwif_init(ide_hwif_t *hwif);
 static void hwif_register_devices(ide_hwif_t *hwif);
 
-int probe_hwif_init(ide_hwif_t *hwif)
+static int probe_hwif_init(ide_hwif_t *hwif)
 {
 	probe_hwif(hwif);
 
@@ -876,8 +876,6 @@ int probe_hwif_init(ide_hwif_t *hwif)
 
 	return 0;
 }
-
-EXPORT_SYMBOL(probe_hwif_init);
 
 #if MAX_HWIFS > 1
 /*
@@ -1410,3 +1408,22 @@ int ideprobe_init (void)
 }
 
 EXPORT_SYMBOL_GPL(ideprobe_init);
+
+int ide_device_add(u8 idx[4])
+{
+	int i, rc = 0;
+
+	for (i = 0; i < 4; i++) {
+		if (idx[i] != 0xff)
+			rc |= probe_hwif_init(&ide_hwifs[idx[i]]);
+	}
+
+	for (i = 0; i < 4; i++) {
+		if (idx[i] != 0xff)
+			ide_proc_register_port(&ide_hwifs[idx[i]]);
+	}
+
+	return rc;
+}
+
+EXPORT_SYMBOL_GPL(ide_device_add);

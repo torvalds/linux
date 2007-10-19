@@ -603,6 +603,7 @@ static int au_ide_probe(struct device *dev)
 	struct resource *res;
 	hw_regs_t *hw;
 	int ret = 0;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 	char *mode = "MWDMA2";
@@ -717,9 +718,9 @@ static int au_ide_probe(struct device *dev)
 	dbdma_init_done = 1;
 #endif
 
-	probe_hwif_init(hwif);
+	idx[0] = hwif->index;
 
-	ide_proc_register_port(hwif);
+	ide_device_add(idx);
 
 	dev_set_drvdata(dev, hwif);
 

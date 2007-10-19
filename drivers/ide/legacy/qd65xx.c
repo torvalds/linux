@@ -389,6 +389,7 @@ static void __exit qd_unsetup(ide_hwif_t *hwif)
 static int __init qd_probe(int base)
 {
 	ide_hwif_t *hwif;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	u8 config;
 	u8 unit;
 
@@ -419,9 +420,9 @@ static int __init qd_probe(int base)
 
 		hwif->set_pio_mode = &qd6500_set_pio_mode;
 
-		probe_hwif_init(hwif);
+		idx[0] = unit;
 
-		ide_proc_register_port(hwif);
+		ide_device_add(idx);
 
 		return 1;
 	}
@@ -453,11 +454,11 @@ static int __init qd_probe(int base)
 
 			hwif->set_pio_mode = &qd6580_set_pio_mode;
 
-			probe_hwif_init(hwif);
+			idx[0] = unit;
 
-			qd_write_reg(QD_DEF_CONTR,QD_CONTROL_PORT);
+			ide_device_add(idx);
 
-			ide_proc_register_port(hwif);
+			qd_write_reg(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 1;
 		} else {
@@ -474,19 +475,17 @@ static int __init qd_probe(int base)
 
 			hwif->set_pio_mode = &qd6580_set_pio_mode;
 
-			probe_hwif_init(hwif);
-
 			qd_setup(mate, base, config | (control << 8),
 				 QD6580_DEF_DATA2, QD6580_DEF_DATA2);
 
 			mate->set_pio_mode = &qd6580_set_pio_mode;
 
-			probe_hwif_init(mate);
+			idx[0] = 0;
+			idx[1] = 1;
 
-			qd_write_reg(QD_DEF_CONTR,QD_CONTROL_PORT);
+			ide_device_add(idx);
 
-			ide_proc_register_port(hwif);
-			ide_proc_register_port(mate);
+			qd_write_reg(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 0; /* no other qd65xx possible */
 		}

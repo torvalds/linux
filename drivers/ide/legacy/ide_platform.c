@@ -83,6 +83,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	struct resource *res_base, *res_alt, *res_irq;
 	ide_hwif_t *hwif;
 	struct pata_platform_info *pdata;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int ret = 0;
 	int mmio = 0;
 
@@ -130,10 +131,11 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	hwif->gendev.parent = &pdev->dev;
 	hwif->noprobe = 0;
 
-	probe_hwif_init(hwif);
+	idx[0] = hwif->index;
+
+	ide_device_add(idx);
 
 	platform_set_drvdata(pdev, hwif);
-	ide_proc_register_port(hwif);
 
 	return 0;
 
