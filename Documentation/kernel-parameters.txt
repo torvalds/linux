@@ -598,10 +598,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			0: polling mode
 			non-0: interrupt mode (default)
 
-	eda=		[HW,PS2]
-
-	edb=		[HW,PS2]
-
 	edd=		[EDD]
 			Format: {"of[f]" | "sk[ipmbr]"}
 			See comment in arch/i386/boot/edd.S
