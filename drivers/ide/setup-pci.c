@@ -526,7 +526,6 @@ out:
 void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, ata_index_t *index)
 {
 	int channels = (d->host_flags & IDE_HFLAG_SINGLE) ? 1 : 2, port;
-	int at_least_one_hwif_enabled = 0;
 	ide_hwif_t *hwif, *mate = NULL;
 	u8 tmp;
 
@@ -535,13 +534,15 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 	/*
 	 * Set up the IDE ports
 	 */
-	 
+
 	for (port = 0; port < channels; ++port) {
 		ide_pci_enablebit_t *e = &(d->enablebits[port]);
 	
 		if (e->reg && (pci_read_config_byte(dev, e->reg, &tmp) ||
-		    (tmp & e->mask) != e->val))
+		    (tmp & e->mask) != e->val)) {
+			printk(KERN_INFO "%s: IDE port disabled\n", d->name);
 			continue;	/* port not enabled */
+		}
 
 		if ((hwif = ide_hwif_configure(dev, d, mate, port, pciirq)) == NULL)
 			continue;
@@ -587,10 +588,7 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 			d->init_hwif(hwif);
 
 		mate = hwif;
-		at_least_one_hwif_enabled = 1;
 	}
-	if (!at_least_one_hwif_enabled)
-		printk(KERN_INFO "%s: neither IDE port enabled (BIOS)\n", d->name);
 }
 
 EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
