@@ -100,7 +100,7 @@
  * finished; this function moves the message state to MSG_COMPLETE and signals
  * the IOP. This two-step process is provided to allow the handler to defer
  * message processing to a bottom-half handler if the processing will take
- * a signifigant amount of time (handlers are called at interrupt time so they
+ * a significant amount of time (handlers are called at interrupt time so they
  * should execute quickly.)
  */
 
@@ -120,7 +120,7 @@
 
 /*#define DEBUG_IOP*/
 
-/* Set to nonezero if the IOPs are present. Set by iop_init() */
+/* Set to non-zero if the IOPs are present. Set by iop_init() */
 
 int iop_scc_present,iop_ism_present;
 
