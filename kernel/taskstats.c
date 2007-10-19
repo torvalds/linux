@@ -22,6 +22,10 @@
 #include <linux/delayacct.h>
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
+#include <linux/cgroupstats.h>
+#include <linux/cgroup.h>
+#include <linux/fs.h>
+#include <linux/file.h>
 #include <net/genetlink.h>
 #include <asm/atomic.h>
 
@@ -48,6 +52,11 @@ __read_mostly = {
 	[TASKSTATS_CMD_ATTR_TGID] = { .type = NLA_U32 },
 	[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK] = { .type = NLA_STRING },
 	[TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK] = { .type = NLA_STRING },};
+
+static struct nla_policy
+cgroupstats_cmd_get_policy[CGROUPSTATS_CMD_ATTR_MAX+1] __read_mostly = {
+	[CGROUPSTATS_CMD_ATTR_FD] = { .type = NLA_U32 },
+};
 
 struct listener {
 	struct list_head list;
@@ -372,6 +381,51 @@ err:
 	return NULL;
 }
 
+static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	int rc = 0;
+	struct sk_buff *rep_skb;
+	struct cgroupstats *stats;
+	struct nlattr *na;
+	size_t size;
+	u32 fd;
+	struct file *file;
+	int fput_needed;
+
+	na = info->attrs[CGROUPSTATS_CMD_ATTR_FD];
+	if (!na)
+		return -EINVAL;
+
+	fd = nla_get_u32(info->attrs[CGROUPSTATS_CMD_ATTR_FD]);
+	file = fget_light(fd, &fput_needed);
+	if (file) {
+		size = nla_total_size(sizeof(struct cgroupstats));
+
+		rc = prepare_reply(info, CGROUPSTATS_CMD_NEW, &rep_skb,
+					size);
+		if (rc < 0)
+			goto err;
+
+		na = nla_reserve(rep_skb, CGROUPSTATS_TYPE_CGROUP_STATS,
+					sizeof(struct cgroupstats));
+		stats = nla_data(na);
+		memset(stats, 0, sizeof(*stats));
+
+		rc = cgroupstats_build(stats, file->f_dentry);
+		if (rc < 0)
+			goto err;
+
+		fput_light(file, fput_needed);
+		return send_reply(rep_skb, info->snd_pid);
+	}
+
+err:
+	if (file)
+		fput_light(file, fput_needed);
+	nlmsg_free(rep_skb);
+	return rc;
+}
+
 static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	int rc = 0;
@@ -522,6 +576,12 @@ static struct genl_ops taskstats_ops = {
 	.policy		= taskstats_cmd_get_policy,
 };
 
+static struct genl_ops cgroupstats_ops = {
+	.cmd		= CGROUPSTATS_CMD_GET,
+	.doit		= cgroupstats_user_cmd,
+	.policy		= cgroupstats_cmd_get_policy,
+};
+
 /* Needed early in initialization */
 void __init taskstats_init_early(void)
 {
@@ -546,8 +606,15 @@ static int __init taskstats_init(void)
 	if (rc < 0)
 		goto err;
 
+	rc = genl_register_ops(&family, &cgroupstats_ops);
+	if (rc < 0)
+		goto err_cgroup_ops;
+
 	family_registered = 1;
+	printk("registered taskstats version %d\n", TASKSTATS_GENL_VERSION);
 	return 0;
+err_cgroup_ops:
+	genl_unregister_ops(&family, &taskstats_ops);
 err:
 	genl_unregister_family(&family);
 	return rc;

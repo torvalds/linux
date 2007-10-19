@@ -13,6 +13,7 @@
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
 #include <linux/rcupdate.h>
+#include <linux/cgroupstats.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -29,6 +30,8 @@ extern void cgroup_fork(struct task_struct *p);
 extern void cgroup_fork_callbacks(struct task_struct *p);
 extern void cgroup_post_fork(struct task_struct *p);
 extern void cgroup_exit(struct task_struct *p, int run_callbacks);
+extern int cgroupstats_build(struct cgroupstats *stats,
+				struct dentry *dentry);
 
 extern struct file_operations proc_cgroup_operations;
 
@@ -313,6 +316,11 @@ static inline void cgroup_exit(struct task_struct *p, int callbacks) {}
 
 static inline void cgroup_lock(void) {}
 static inline void cgroup_unlock(void) {}
+static inline int cgroupstats_build(struct cgroupstats *stats,
+					struct dentry *dentry)
+{
+	return -EINVAL;
+}
 
 #endif /* !CONFIG_CGROUPS */
 

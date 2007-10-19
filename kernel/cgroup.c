@@ -44,6 +44,9 @@
 #include <linux/string.h>
 #include <linux/sort.h>
 #include <linux/kmod.h>
+#include <linux/delayacct.h>
+#include <linux/cgroupstats.h>
+
 #include <asm/atomic.h>
 
 static DEFINE_MUTEX(cgroup_mutex);
@@ -1764,6 +1767,58 @@ static int pid_array_load(pid_t *pidarray, int npids, struct cgroup *cont)
 	}
 	cgroup_iter_end(cont, &it);
 	return n;
+}
+
+/**
+ * Build and fill cgroupstats so that taskstats can export it to user
+ * space.
+ *
+ * @stats: cgroupstats to fill information into
+ * @dentry: A dentry entry belonging to the cgroup for which stats have
+ * been requested.
+ */
+int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
+{
+	int ret = -EINVAL;
+	struct cgroup *cont;
+	struct cgroup_iter it;
+	struct task_struct *tsk;
+	/*
+	 * Validate dentry by checking the superblock operations
+	 */
+	if (dentry->d_sb->s_op != &cgroup_ops)
+		 goto err;
+
+	ret = 0;
+	cont = dentry->d_fsdata;
+	rcu_read_lock();
+
+	cgroup_iter_start(cont, &it);
+	while ((tsk = cgroup_iter_next(cont, &it))) {
+		switch (tsk->state) {
+		case TASK_RUNNING:
+			stats->nr_running++;
+			break;
+		case TASK_INTERRUPTIBLE:
+			stats->nr_sleeping++;
+			break;
+		case TASK_UNINTERRUPTIBLE:
+			stats->nr_uninterruptible++;
+			break;
+		case TASK_STOPPED:
+			stats->nr_stopped++;
+			break;
+		default:
+			if (delayacct_is_task_waiting_on_io(tsk))
+				stats->nr_io_wait++;
+			break;
+		}
+	}
+	cgroup_iter_end(cont, &it);
+
+	rcu_read_unlock();
+err:
+	return ret;
 }
 
 static int cmppid(const void *a, const void *b)
