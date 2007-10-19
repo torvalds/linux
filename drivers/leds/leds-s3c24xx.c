@@ -43,7 +43,7 @@ static void s3c24xx_led_set(struct led_classdev *led_cdev,
 	struct s3c24xx_gpio_led *led = to_gpio(led_cdev);
 	struct s3c24xx_led_platdata *pd = led->pdata;
 
-	/* there will be a sort delay between setting the output and
+	/* there will be a short delay between setting the output and
 	 * going from output to input when using tristate. */
 
 	s3c2410_gpio_setpin(pd->gpio, (value ? 1 : 0) ^
