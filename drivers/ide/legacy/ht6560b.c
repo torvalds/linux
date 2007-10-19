@@ -286,12 +286,7 @@ static void ht6560b_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	switch (pio) {
 	case 8:         /* set prefetch off */
 	case 9:         /* set prefetch on */
-		/*
-		 * take ide_lock for drive->[no_]unmask
-		 */
-		spin_lock_irqsave(&ide_lock, flags);
 		ht_set_prefetch(drive, pio & 1);
-		spin_unlock_irqrestore(&ide_lock, flags);
 		return;
 	}
 

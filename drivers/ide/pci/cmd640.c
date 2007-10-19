@@ -632,7 +632,6 @@ static void cmd640_set_mode (unsigned int index, u8 pio_mode, unsigned int cycle
 
 static void cmd640_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	unsigned long flags;
 	unsigned int index = 0, cycle_time;
 	u8 b;
 
@@ -655,12 +654,7 @@ static void cmd640_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 		case 8: /* set prefetch off */
 		case 9: /* set prefetch on */
-			/*
-			 * take ide_lock for drive->[no_]unmask/[no_]io_32bit
-			 */
-			spin_lock_irqsave(&ide_lock, flags);
 			set_prefetch_mode(index, pio & 1);
-			spin_unlock_irqrestore(&ide_lock, flags);
 			printk("%s: %sabled cmd640 prefetch\n", drive->name, (pio & 1) ? "en" : "dis");
 			return;
 	}

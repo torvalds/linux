@@ -800,7 +800,20 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 		s->b.set_tune = 0;
 
 		if (set_pio_mode_abuse(drive->hwif, req_pio)) {
-			if (hwif->set_pio_mode)
+
+			if (hwif->set_pio_mode == NULL)
+				return ide_stopped;
+
+			/*
+			 * take ide_lock for drive->[no_]unmask/[no_]io_32bit
+			 */
+			if (req_pio == 8 || req_pio == 9) {
+				unsigned long flags;
+
+				spin_lock_irqsave(&ide_lock, flags);
+				hwif->set_pio_mode(drive, req_pio);
+				spin_unlock_irqrestore(&ide_lock, flags);
+			} else
 				hwif->set_pio_mode(drive, req_pio);
 		} else {
 			int keep_dma = drive->using_dma;
