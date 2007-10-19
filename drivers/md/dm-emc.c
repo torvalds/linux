@@ -81,7 +81,7 @@ static struct bio *get_failover_bio(struct dm_path *path, unsigned data_size)
 	}
 
 	if (bio_add_page(bio, page, data_size, 0) != data_size) {
-		DMERR("get_failover_bio: alloc_page() failed.");
+		DMERR("get_failover_bio: bio_add_page() failed.");
 		__free_page(page);
 		bio_put(bio);
 		return NULL;
