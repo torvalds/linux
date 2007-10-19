@@ -14,6 +14,7 @@
 #define __ASM_MV643XX_H
 
 #include <asm/types.h>
+#include <linux/mv643xx_eth.h>
 
 /****************************************/
 /* Processor Address Space              */
@@ -658,9 +659,6 @@
 /*        Ethernet Unit Registers  		*/
 /****************************************/
 
-#define MV643XX_ETH_SHARED_REGS                                     0x2000
-#define MV643XX_ETH_SHARED_REGS_SIZE                                0x2000
-
 #define MV643XX_ETH_PHY_ADDR_REG                                    0x2000
 #define MV643XX_ETH_SMI_REG                                         0x2004
 #define MV643XX_ETH_UNIT_DEFAULT_ADDR_REG                           0x2008
@@ -1279,28 +1277,6 @@ struct mv64xxx_i2c_pdata {
 #define	MV643XX_ETH_PORT_DEFAULT_RECEIVE_QUEUE_SIZE	400
 
 #define MV643XX_ETH_DESC_SIZE				64
-
-#define MV643XX_ETH_SHARED_NAME	"mv643xx_eth_shared"
-#define MV643XX_ETH_NAME	"mv643xx_eth"
-
-struct mv643xx_eth_platform_data {
-	int		port_number;
-	u16		force_phy_addr;	/* force override if phy_addr == 0 */
-	u16		phy_addr;
-
-	/* If speed is 0, then speed and duplex are autonegotiated. */
-	int		speed;		/* 0, SPEED_10, SPEED_100, SPEED_1000 */
-	int		duplex;		/* DUPLEX_HALF or DUPLEX_FULL */
-
-	/* non-zero values of the following fields override defaults */
-	u32		tx_queue_size;
-	u32		rx_queue_size;
-	u32		tx_sram_addr;
-	u32		tx_sram_size;
-	u32		rx_sram_addr;
-	u32		rx_sram_size;
-	u8		mac_addr[6];	/* mac address if non-zero*/
-};
 
 /* Watchdog Platform Device, Driver Data */
 #define	MV64x60_WDT_NAME			"mv64x60_wdt"
