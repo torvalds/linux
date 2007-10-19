@@ -1,5 +1,5 @@
 /*
- * drivers/net/mv643xx_eth.c - Driver for MV643XX ethernet ports
+ * Driver for Marvell Discovery (MV643XX) and Marvell Orion ethernet ports
  * Copyright (C) 2002 Matthew Dharm <mdharm@momenco.com>
  *
  * Based on the 64360 driver from:
