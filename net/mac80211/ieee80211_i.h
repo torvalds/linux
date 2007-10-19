@@ -37,8 +37,6 @@
 
 struct ieee80211_local;
 
-#define BIT(x) (1 << (x))
-
 #define IEEE80211_ALIGN32_PAD(a) ((4 - ((a) & 3)) & 3)
 
 /* Maximum number of broadcast/multicast frames to buffer when some of the

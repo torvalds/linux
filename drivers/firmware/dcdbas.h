@@ -20,8 +20,6 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
-#define BIT(x)					(1UL << x)
-
 #define MAX_SMI_DATA_BUF_SIZE			(256 * 1024)
 
 #define HC_ACTION_NONE				(0)

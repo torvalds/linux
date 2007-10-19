@@ -69,11 +69,6 @@ typedef u32 u32_le;
 typedef u16 u16_le;
 
 /*
- * MACRO
- */
-#define BIT(x)      (1UL << (x))
-
-/*
  * BASIC Definitions
  */
 #ifndef TRUE

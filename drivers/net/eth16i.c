@@ -170,7 +170,6 @@ static char *version =
 
 
 /* Few macros */
-#define BIT(a)		       ( (1 << (a)) )
 #define BITSET(ioaddr, bnum)   ((outb(((inb(ioaddr)) | (bnum)), ioaddr)))
 #define BITCLR(ioaddr, bnum)   ((outb(((inb(ioaddr)) & (~(bnum))), ioaddr)))
 

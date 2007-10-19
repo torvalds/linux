@@ -77,9 +77,6 @@
 #define CONF_DIRTYDETECTION_OFF	(0x600)
 #define CONF_DIRTYDETECTION_ON	(0x601)
 
-/* Set the corresponding bit. */
-#define BIT(n) (0x1U << (n))
-
 struct dumchannel_uf {
 	int channelnr;
 	u32 *dirty;

@@ -24,7 +24,6 @@
 /************************************
  * Some useful macros...
  */
-#define BIT(x)      (1L << (x))
 
 /* SCSI initiator must be ID 7 */
 #define NSP_INITIATOR_ID  7

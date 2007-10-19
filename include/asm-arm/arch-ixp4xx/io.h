@@ -17,9 +17,6 @@
 
 #define IO_SPACE_LIMIT 0xffff0000
 
-#define	BIT(x)	((1)<<(x))
-
-
 extern int (*ixp4xx_pci_read)(u32 addr, u32 cmd, u32* data);
 extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
 

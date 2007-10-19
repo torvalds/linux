@@ -49,7 +49,6 @@ extern void gen550_progress(char *, unsigned short);
 extern void gen550_init(int, struct uart_port *);
 extern void mv64360_pcibios_fixup(mv64x60_handle_t *bh);
 
-#define BIT(x) (1<<x)
 #define CHESTNUT_PRESERVE_MASK (BIT(MV64x60_CPU2DEV_0_WIN) | \
 				BIT(MV64x60_CPU2DEV_1_WIN) | \
 				BIT(MV64x60_CPU2DEV_2_WIN) | \

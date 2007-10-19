@@ -28,9 +28,6 @@
 #define RX_BUFFER_OFFSET (sizeof(rx_status_vector)+2) /* staus vector + 2 bytes of padding */
 #define RX_BUCKET_SIZE 256
 
-#undef BIT
-#define BIT(x)	(1UL << (x))
-
 /* For more detailed explanations of what each field menas,
    see Nick's great comments to #defines below (or docs, if
    you are lucky enough toget hold of them :)*/

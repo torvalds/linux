@@ -17,9 +17,6 @@
  */
 #define MACE_BASE	0x1f000000	/* physical */
 
-#undef BIT
-#define BIT(x) (1UL << (x))
-
 /*
  * PCI interface
  */

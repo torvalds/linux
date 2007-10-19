@@ -4,9 +4,6 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
-#define BIT(x) (1 << (x))
-
-
 /* IEEE 802.11 defines */
 
 /* Information Element IDs */

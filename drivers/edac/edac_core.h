@@ -94,8 +94,6 @@ extern int edac_debug_level;
 
 #endif				/* !CONFIG_EDAC_DEBUG */
 
-#define BIT(x) (1 << (x))
-
 #define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
 	PCI_DEVICE_ID_ ## vend ## _ ## dev
 

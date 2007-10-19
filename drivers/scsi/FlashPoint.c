@@ -25,7 +25,6 @@
 
 #define FAILURE         0xFFFFFFFFL
 
-#define BIT(x)          ((unsigned char)(1<<(x)))	/* single-bit mask in bit position x */
 #define BITW(x)          ((unsigned short)(1<<(x)))	/* single-bit mask in bit position x */
 
 struct sccb;
