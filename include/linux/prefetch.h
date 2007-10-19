@@ -34,17 +34,12 @@
 	
 */
 
-/*
- *	These cannot be do{}while(0) macros. See the mental gymnastics in
- *	the loop macro.
- */
- 
 #ifndef ARCH_HAS_PREFETCH
-static inline void prefetch(const void *x) {;}
+#define prefetch(x) __builtin_prefetch(x)
 #endif
 
 #ifndef ARCH_HAS_PREFETCHW
-static inline void prefetchw(const void *x) {;}
+#define prefetchw(x) __builtin_prefetch(x,1)
 #endif
 
 #ifndef ARCH_HAS_SPINLOCK_PREFETCH

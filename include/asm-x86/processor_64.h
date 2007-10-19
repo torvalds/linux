@@ -390,12 +390,6 @@ static inline void sync_core(void)
 	asm volatile("cpuid" : "=a" (tmp) : "0" (1) : "ebx","ecx","edx","memory");
 } 
 
-#define ARCH_HAS_PREFETCH
-static inline void prefetch(void *x) 
-{ 
-	asm volatile("prefetcht0 (%0)" :: "r" (x));
-} 
-
 #define ARCH_HAS_PREFETCHW 1
 static inline void prefetchw(void *x) 
 { 
