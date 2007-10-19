@@ -32,6 +32,7 @@
 #include <linux/proc_fs.h>
 #include <linux/audit.h>
 #include <linux/nsproxy.h>
+#include <linux/rwsem.h>
 
 #include <asm/unistd.h>
 
@@ -136,7 +137,7 @@ __initcall(ipc_init);
  
 void ipc_init_ids(struct ipc_ids *ids)
 {
-	mutex_init(&ids->mutex);
+	init_rwsem(&ids->rw_mutex);
 
 	ids->in_use = 0;
 	ids->seq = 0;
@@ -191,7 +192,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
  *	@ids: Identifier set
  *	@key: The key to find
  *	
- *	Requires ipc_ids.mutex locked.
+ *	Requires ipc_ids.rw_mutex locked.
  *	Returns the LOCKED pointer to the ipc structure if found or NULL
  *	if not.
  *	If key is found ipc points to the owning ipc structure
@@ -225,7 +226,7 @@ static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
  *	ipc_get_maxid 	-	get the last assigned id
  *	@ids: IPC identifier set
  *
- *	Called with ipc_ids.mutex held.
+ *	Called with ipc_ids.rw_mutex held.
  */
 
 int ipc_get_maxid(struct ipc_ids *ids)
@@ -263,7 +264,7 @@ int ipc_get_maxid(struct ipc_ids *ids)
  *	is returned. The 'new' entry is returned in a locked state on success.
  *	On failure the entry is not locked and -1 is returned.
  *
- *	Called with ipc_ids.mutex held.
+ *	Called with ipc_ids.rw_mutex held as a writer.
  */
  
 int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
@@ -316,9 +317,9 @@ int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
 	if (!err)
 		return -ENOMEM;
 
-	mutex_lock(&ids->mutex);
+	down_write(&ids->rw_mutex);
 	err = ops->getnew(ns, params);
-	mutex_unlock(&ids->mutex);
+	up_write(&ids->rw_mutex);
 
 	return err;
 }
@@ -335,7 +336,7 @@ int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
  *
  *	On success, the IPC id is returned.
  *
- *	It is called with ipc_ids.mutex and ipcp->lock held.
+ *	It is called with ipc_ids.rw_mutex and ipcp->lock held.
  */
 static int ipc_check_perms(struct kern_ipc_perm *ipcp, struct ipc_ops *ops,
 			struct ipc_params *params)
@@ -376,7 +377,11 @@ int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 
 	err = idr_pre_get(&ids->ipcs_idr, GFP_KERNEL);
 
-	mutex_lock(&ids->mutex);
+	/*
+	 * Take the lock as a writer since we are potentially going to add
+	 * a new entry + read locks are not "upgradable"
+	 */
+	down_write(&ids->rw_mutex);
 	ipcp = ipc_findkey(ids, params->key);
 	if (ipcp == NULL) {
 		/* key not used */
@@ -404,7 +409,7 @@ int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 		}
 		ipc_unlock(ipcp);
 	}
-	mutex_unlock(&ids->mutex);
+	up_write(&ids->rw_mutex);
 
 	return err;
 }
@@ -415,8 +420,8 @@ int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
  *	@ids: IPC identifier set
  *	@ipcp: ipc perm structure containing the identifier to remove
  *
- *	ipc_ids.mutex and the spinlock for this ID are held before this
- *	function is called, and remain locked on the exit.
+ *	ipc_ids.rw_mutex (as a writer) and the spinlock for this ID are held
+ *	before this function is called, and remain locked on the exit.
  */
  
 void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
@@ -680,15 +685,17 @@ void ipc64_perm_to_ipc_perm (struct ipc64_perm *in, struct ipc_perm *out)
 }
 
 /**
- * ipc_lock - Lock an ipc structure
+ * ipc_lock - Lock an ipc structure without rw_mutex held
  * @ids: IPC identifier set
  * @id: ipc id to look for
  *
  * Look for an id in the ipc ids idr and lock the associated ipc object.
  *
- * ipc_ids.mutex is not necessarily held before this function is called,
- * that's why we enter a RCU read section.
  * The ipc object is locked on exit.
+ *
+ * This is the routine that should be called when the rw_mutex is not already
+ * held, i.e. idr tree not protected: it protects the idr tree in read mode
+ * during the idr_find().
  */
 
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
@@ -696,12 +703,17 @@ struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 	struct kern_ipc_perm *out;
 	int lid = ipcid_to_idx(id);
 
+	down_read(&ids->rw_mutex);
+
 	rcu_read_lock();
 	out = idr_find(&ids->ipcs_idr, lid);
 	if (out == NULL) {
 		rcu_read_unlock();
+		up_read(&ids->rw_mutex);
 		return ERR_PTR(-EINVAL);
 	}
+
+	up_read(&ids->rw_mutex);
 
 	spin_lock(&out->lock);
 	
@@ -714,6 +726,40 @@ struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 		return ERR_PTR(-EINVAL);
 	}
 
+	return out;
+}
+
+/**
+ * ipc_lock_down - Lock an ipc structure with rw_sem held
+ * @ids: IPC identifier set
+ * @id: ipc id to look for
+ *
+ * Look for an id in the ipc ids idr and lock the associated ipc object.
+ *
+ * The ipc object is locked on exit.
+ *
+ * This is the routine that should be called when the rw_mutex is already
+ * held, i.e. idr tree protected.
+ */
+
+struct kern_ipc_perm *ipc_lock_down(struct ipc_ids *ids, int id)
+{
+	struct kern_ipc_perm *out;
+	int lid = ipcid_to_idx(id);
+
+	rcu_read_lock();
+	out = idr_find(&ids->ipcs_idr, lid);
+	if (out == NULL) {
+		rcu_read_unlock();
+		return ERR_PTR(-EINVAL);
+	}
+
+	spin_lock(&out->lock);
+
+	/*
+	 * No need to verify that the structure is still valid since the
+	 * rw_mutex is held.
+	 */
 	return out;
 }
 
@@ -808,7 +854,7 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 	 * Take the lock - this will be released by the corresponding
 	 * call to stop().
 	 */
-	mutex_lock(&ids->mutex);
+	down_read(&ids->rw_mutex);
 
 	/* pos < 0 is invalid */
 	if (*pos < 0)
@@ -835,7 +881,7 @@ static void sysvipc_proc_stop(struct seq_file *s, void *it)
 
 	ids = iter->ns->ids[iface->ids];
 	/* Release the lock we took in start() */
-	mutex_unlock(&ids->mutex);
+	up_read(&ids->rw_mutex);
 }
 
 static int sysvipc_proc_show(struct seq_file *s, void *it)

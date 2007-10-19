@@ -80,7 +80,7 @@
 #include <linux/audit.h>
 #include <linux/capability.h>
 #include <linux/seq_file.h>
-#include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/nsproxy.h>
 
 #include <asm/uaccess.h>
@@ -148,7 +148,7 @@ void sem_exit_ns(struct ipc_namespace *ns)
 	int next_id;
 	int total, in_use;
 
-	mutex_lock(&sem_ids(ns).mutex);
+	down_write(&sem_ids(ns).rw_mutex);
 
 	in_use = sem_ids(ns).in_use;
 
@@ -160,7 +160,7 @@ void sem_exit_ns(struct ipc_namespace *ns)
 		freeary(ns, sma);
 		total++;
 	}
-	mutex_unlock(&sem_ids(ns).mutex);
+	up_write(&sem_ids(ns).rw_mutex);
 
 	kfree(ns->ids[IPC_SEM_IDS]);
 	ns->ids[IPC_SEM_IDS] = NULL;
@@ -174,6 +174,22 @@ void __init sem_init (void)
 				IPC_SEM_IDS, sysvipc_sem_proc_show);
 }
 
+/*
+ * This routine is called in the paths where the rw_mutex is held to protect
+ * access to the idr tree.
+ */
+static inline struct sem_array *sem_lock_check_down(struct ipc_namespace *ns,
+						int id)
+{
+	struct kern_ipc_perm *ipcp = ipc_lock_check_down(&sem_ids(ns), id);
+
+	return container_of(ipcp, struct sem_array, sem_perm);
+}
+
+/*
+ * sem_lock_(check_) routines are called in the paths where the rw_mutex
+ * is not held.
+ */
 static inline struct sem_array *sem_lock(struct ipc_namespace *ns, int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock(&sem_ids(ns), id);
@@ -233,7 +249,7 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
  * @ns: namespace
  * @params: ptr to the structure that contains key, semflg and nsems
  *
- * Called with sem_ids.mutex held
+ * Called with sem_ids.rw_mutex held (as a writer)
  */
 
 static int newary(struct ipc_namespace *ns, struct ipc_params *params)
@@ -290,7 +306,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 
 
 /*
- * Called with sem_ids.mutex and ipcp locked.
+ * Called with sem_ids.rw_mutex and ipcp locked.
  */
 static inline int sem_security(struct kern_ipc_perm *ipcp, int semflg)
 {
@@ -301,7 +317,7 @@ static inline int sem_security(struct kern_ipc_perm *ipcp, int semflg)
 }
 
 /*
- * Called with sem_ids.mutex and ipcp locked.
+ * Called with sem_ids.rw_mutex and ipcp locked.
  */
 static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
 				struct ipc_params *params)
@@ -528,9 +544,9 @@ static int count_semzcnt (struct sem_array * sma, ushort semnum)
 	return semzcnt;
 }
 
-/* Free a semaphore set. freeary() is called with sem_ids.mutex locked and
- * the spinlock for this semaphore set hold. sem_ids.mutex remains locked
- * on exit.
+/* Free a semaphore set. freeary() is called with sem_ids.rw_mutex locked
+ * as a writer and the spinlock for this semaphore set hold. sem_ids.rw_mutex
+ * remains locked on exit.
  */
 static void freeary(struct ipc_namespace *ns, struct sem_array *sma)
 {
@@ -615,7 +631,7 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid, int semnum,
 		seminfo.semmnu = SEMMNU;
 		seminfo.semmap = SEMMAP;
 		seminfo.semume = SEMUME;
-		mutex_lock(&sem_ids(ns).mutex);
+		down_read(&sem_ids(ns).rw_mutex);
 		if (cmd == SEM_INFO) {
 			seminfo.semusz = sem_ids(ns).in_use;
 			seminfo.semaem = ns->used_sems;
@@ -624,7 +640,7 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid, int semnum,
 			seminfo.semaem = SEMAEM;
 		}
 		max_id = ipc_get_maxid(&sem_ids(ns));
-		mutex_unlock(&sem_ids(ns).mutex);
+		up_read(&sem_ids(ns).rw_mutex);
 		if (copy_to_user (arg.__buf, &seminfo, sizeof(struct seminfo))) 
 			return -EFAULT;
 		return (max_id < 0) ? 0: max_id;
@@ -895,7 +911,7 @@ static int semctl_down(struct ipc_namespace *ns, int semid, int semnum,
 		if(copy_semid_from_user (&setbuf, arg.buf, version))
 			return -EFAULT;
 	}
-	sma = sem_lock_check(ns, semid);
+	sma = sem_lock_check_down(ns, semid);
 	if (IS_ERR(sma))
 		return PTR_ERR(sma);
 
@@ -976,9 +992,9 @@ asmlinkage long sys_semctl (int semid, int semnum, int cmd, union semun arg)
 		return err;
 	case IPC_RMID:
 	case IPC_SET:
-		mutex_lock(&sem_ids(ns).mutex);
+		down_write(&sem_ids(ns).rw_mutex);
 		err = semctl_down(ns,semid,semnum,cmd,version,arg);
-		mutex_unlock(&sem_ids(ns).mutex);
+		up_write(&sem_ids(ns).rw_mutex);
 		return err;
 	default:
 		return -EINVAL;

@@ -32,7 +32,7 @@ struct ipc_ids {
 	int in_use;
 	unsigned short seq;
 	unsigned short seq_max;
-	struct mutex mutex;
+	struct rw_semaphore rw_mutex;
 	struct idr ipcs_idr;
 };
 
@@ -81,8 +81,10 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 
 #define ipcid_to_idx(id) ((id) % SEQ_MULTIPLIER)
 
-/* must be called with ids->mutex acquired.*/
+/* must be called with ids->rw_mutex acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
+
+/* must be called with ids->rw_mutex acquired for reading */
 int ipc_get_maxid(struct ipc_ids *);
 
 /* must be called with both locks acquired. */
@@ -107,6 +109,11 @@ void* ipc_rcu_alloc(int size);
 void ipc_rcu_getref(void *ptr);
 void ipc_rcu_putref(void *ptr);
 
+/*
+ * ipc_lock_down: called with rw_mutex held
+ * ipc_lock: called without that lock held
+ */
+struct kern_ipc_perm *ipc_lock_down(struct ipc_ids *, int);
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *, int);
 
 void kernel_to_ipc64_perm(struct kern_ipc_perm *in, struct ipc64_perm *out);
@@ -153,6 +160,23 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
 {
 	spin_unlock(&perm->lock);
 	rcu_read_unlock();
+}
+
+static inline struct kern_ipc_perm *ipc_lock_check_down(struct ipc_ids *ids,
+						int id)
+{
+	struct kern_ipc_perm *out;
+
+	out = ipc_lock_down(ids, id);
+	if (IS_ERR(out))
+		return out;
+
+	if (ipc_checkid(ids, out, id)) {
+		ipc_unlock(out);
+		return ERR_PTR(-EIDRM);
+	}
+
+	return out;
 }
 
 static inline struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids,

@@ -34,7 +34,7 @@
 #include <linux/syscalls.h>
 #include <linux/audit.h>
 #include <linux/seq_file.h>
-#include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/nsproxy.h>
 
 #include <asm/current.h>
@@ -110,7 +110,7 @@ void msg_exit_ns(struct ipc_namespace *ns)
 	int next_id;
 	int total, in_use;
 
-	mutex_lock(&msg_ids(ns).mutex);
+	down_write(&msg_ids(ns).rw_mutex);
 
 	in_use = msg_ids(ns).in_use;
 
@@ -122,7 +122,8 @@ void msg_exit_ns(struct ipc_namespace *ns)
 		freeque(ns, msq);
 		total++;
 	}
-	mutex_unlock(&msg_ids(ns).mutex);
+
+	up_write(&msg_ids(ns).rw_mutex);
 
 	kfree(ns->ids[IPC_MSG_IDS]);
 	ns->ids[IPC_MSG_IDS] = NULL;
@@ -136,6 +137,22 @@ void __init msg_init(void)
 				IPC_MSG_IDS, sysvipc_msg_proc_show);
 }
 
+/*
+ * This routine is called in the paths where the rw_mutex is held to protect
+ * access to the idr tree.
+ */
+static inline struct msg_queue *msg_lock_check_down(struct ipc_namespace *ns,
+						int id)
+{
+	struct kern_ipc_perm *ipcp = ipc_lock_check_down(&msg_ids(ns), id);
+
+	return container_of(ipcp, struct msg_queue, q_perm);
+}
+
+/*
+ * msg_lock_(check_) routines are called in the paths where the rw_mutex
+ * is not held.
+ */
 static inline struct msg_queue *msg_lock(struct ipc_namespace *ns, int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock(&msg_ids(ns), id);
@@ -161,7 +178,7 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
  * @ns: namespace
  * @params: ptr to the structure that contains the key and msgflg
  *
- * Called with msg_ids.mutex held
+ * Called with msg_ids.rw_mutex held (writer)
  */
 static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 {
@@ -260,8 +277,8 @@ static void expunge_all(struct msg_queue *msq, int res)
  * removes the message queue from message queue ID IDR, and cleans up all the
  * messages associated with this queue.
  *
- * msg_ids.mutex and the spinlock for this message queue are held
- * before freeque() is called. msg_ids.mutex remains locked on exit.
+ * msg_ids.rw_mutex (writer) and the spinlock for this message queue are held
+ * before freeque() is called. msg_ids.rw_mutex remains locked on exit.
  */
 static void freeque(struct ipc_namespace *ns, struct msg_queue *msq)
 {
@@ -286,7 +303,7 @@ static void freeque(struct ipc_namespace *ns, struct msg_queue *msq)
 }
 
 /*
- * Called with msg_ids.mutex and ipcp locked.
+ * Called with msg_ids.rw_mutex and ipcp locked.
  */
 static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
 {
@@ -444,7 +461,7 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 		msginfo.msgmnb = ns->msg_ctlmnb;
 		msginfo.msgssz = MSGSSZ;
 		msginfo.msgseg = MSGSEG;
-		mutex_lock(&msg_ids(ns).mutex);
+		down_read(&msg_ids(ns).rw_mutex);
 		if (cmd == MSG_INFO) {
 			msginfo.msgpool = msg_ids(ns).in_use;
 			msginfo.msgmap = atomic_read(&msg_hdrs);
@@ -455,7 +472,7 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 			msginfo.msgtql = MSGTQL;
 		}
 		max_id = ipc_get_maxid(&msg_ids(ns));
-		mutex_unlock(&msg_ids(ns).mutex);
+		up_read(&msg_ids(ns).rw_mutex);
 		if (copy_to_user(buf, &msginfo, sizeof(struct msginfo)))
 			return -EFAULT;
 		return (max_id < 0) ? 0 : max_id;
@@ -516,8 +533,8 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 		return  -EINVAL;
 	}
 
-	mutex_lock(&msg_ids(ns).mutex);
-	msq = msg_lock_check(ns, msqid);
+	down_write(&msg_ids(ns).rw_mutex);
+	msq = msg_lock_check_down(ns, msqid);
 	if (IS_ERR(msq)) {
 		err = PTR_ERR(msq);
 		goto out_up;
@@ -576,7 +593,7 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 	}
 	err = 0;
 out_up:
-	mutex_unlock(&msg_ids(ns).mutex);
+	up_write(&msg_ids(ns).rw_mutex);
 	return err;
 out_unlock_up:
 	msg_unlock(msq);
