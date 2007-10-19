@@ -389,6 +389,33 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	return error;
 }
 
+void
+ahd_pci_suspend(struct ahd_softc *ahd)
+{
+	/*
+	 * Save chip register configuration data for chip resets
+	 * that occur during runtime and resume events.
+	 */
+	ahd->suspend_state.pci_state.devconfig =
+	    ahd_pci_read_config(ahd->dev_softc, DEVCONFIG, /*bytes*/4);
+	ahd->suspend_state.pci_state.command =
+	    ahd_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/1);
+	ahd->suspend_state.pci_state.csize_lattime =
+	    ahd_pci_read_config(ahd->dev_softc, CSIZE_LATTIME, /*bytes*/1);
+
+}
+
+void
+ahd_pci_resume(struct ahd_softc *ahd)
+{
+	ahd_pci_write_config(ahd->dev_softc, DEVCONFIG,
+			     ahd->suspend_state.pci_state.devconfig, /*bytes*/4);
+	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND,
+			     ahd->suspend_state.pci_state.command, /*bytes*/1);
+	ahd_pci_write_config(ahd->dev_softc, CSIZE_LATTIME,
+			     ahd->suspend_state.pci_state.csize_lattime, /*bytes*/1);
+}
+
 /*
  * Perform some simple tests that should catch situations where
  * our registers are invalidly mapped.

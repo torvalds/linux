@@ -633,8 +633,6 @@ static void    write_brdctl(struct ahc_softc *ahc, uint8_t value);
 static uint8_t read_brdctl(struct ahc_softc *ahc);
 static void ahc_pci_intr(struct ahc_softc *ahc);
 static int  ahc_pci_chip_init(struct ahc_softc *ahc);
-static int  ahc_pci_suspend(struct ahc_softc *ahc);
-static int  ahc_pci_resume(struct ahc_softc *ahc);
 
 static int
 ahc_9005_subdevinfo_valid(uint16_t device, uint16_t vendor,
@@ -791,8 +789,6 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 
 	ahc->bus_intr = ahc_pci_intr;
 	ahc->bus_chip_init = ahc_pci_chip_init;
-	ahc->bus_suspend = ahc_pci_suspend;
-	ahc->bus_resume = ahc_pci_resume;
 
 	/* Remeber how the card was setup in case there is no SEEPROM */
 	if ((ahc_inb(ahc, HCNTRL) & POWRDN) == 0) {
@@ -2024,18 +2020,9 @@ ahc_pci_chip_init(struct ahc_softc *ahc)
 	return (ahc_chip_init(ahc));
 }
 
-static int
-ahc_pci_suspend(struct ahc_softc *ahc)
-{
-	return (ahc_suspend(ahc));
-}
-
-static int
+void
 ahc_pci_resume(struct ahc_softc *ahc)
 {
-
-	pci_set_power_state(ahc->dev_softc, AHC_POWER_STATE_D0);
-
 	/*
 	 * We assume that the OS has restored our register
 	 * mappings, etc.  Just update the config space registers
@@ -2063,7 +2050,6 @@ ahc_pci_resume(struct ahc_softc *ahc)
 				      &sxfrctl1);
 		ahc_release_seeprom(&sd);
 	}
-	return (ahc_resume(ahc));
 }
 
 static int
