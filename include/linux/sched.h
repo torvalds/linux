@@ -894,6 +894,34 @@ struct sched_entity {
 #endif
 };
 
+#ifdef CONFIG_CGROUPS
+
+#define SUBSYS(_x) _x ## _subsys_id,
+enum cgroup_subsys_id {
+#include <linux/cgroup_subsys.h>
+	CGROUP_SUBSYS_COUNT
+};
+#undef SUBSYS
+
+/* A css_set is a structure holding pointers to a set of
+ * cgroup_subsys_state objects.
+ */
+
+struct css_set {
+
+	/* Set of subsystem states, one for each subsystem. NULL for
+	 * subsystems that aren't part of this hierarchy. These
+	 * pointers reduce the number of dereferences required to get
+	 * from a task to its state for a given cgroup, but result
+	 * in increased space usage if tasks are in wildly different
+	 * groupings across different hierarchies. This array is
+	 * immutable after creation */
+	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
+
+};
+
+#endif /* CONFIG_CGROUPS */
+
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	void *stack;
@@ -1129,6 +1157,9 @@ struct task_struct {
 	nodemask_t mems_allowed;
 	int cpuset_mems_generation;
 	int cpuset_mem_spread_rotor;
+#endif
+#ifdef CONFIG_CGROUPS
+	struct css_set cgroups;
 #endif
 #ifdef CONFIG_FUTEX
 	struct robust_list_head __user *robust_list;
@@ -1625,7 +1656,8 @@ static inline int thread_group_empty(struct task_struct *p)
 /*
  * Protects ->fs, ->files, ->mm, ->group_info, ->comm, keyring
  * subscriptions and synchronises with wait4().  Also used in procfs.  Also
- * pins the final release of task.io_context.  Also protects ->cpuset.
+ * pins the final release of task.io_context.  Also protects ->cpuset and
+ * ->cgroup.subsys[].
  *
  * Nests both inside and outside of read_lock(&tasklist_lock).
  * It must not be nested with write_lock_irq(&tasklist_lock),

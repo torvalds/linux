@@ -270,6 +270,14 @@ config LOG_BUF_SHIFT
 		     13 =>  8 KB
 		     12 =>  4 KB
 
+config CGROUPS
+	bool "Control Group support"
+	help
+	  This option will let you use process cgroup subsystems
+	  such as Cpusets
+
+	  Say N if unsure.
+
 config CPUSETS
 	bool "Cpuset support"
 	depends on SMP

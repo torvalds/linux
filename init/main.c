@@ -39,6 +39,7 @@
 #include <linux/writeback.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
+#include <linux/cgroup.h>
 #include <linux/efi.h>
 #include <linux/tick.h>
 #include <linux/interrupt.h>
@@ -523,6 +524,7 @@ asmlinkage void __init start_kernel(void)
 	 */
 	unwind_init();
 	lockdep_init();
+	cgroup_init_early();
 
 	local_irq_disable();
 	early_boot_irqs_off();
@@ -640,6 +642,7 @@ asmlinkage void __init start_kernel(void)
 #ifdef CONFIG_PROC_FS
 	proc_root_init();
 #endif
+	cgroup_init();
 	cpuset_init();
 	taskstats_init_early();
 	delayacct_init();
