@@ -301,7 +301,7 @@ void show_regs(struct pt_regs * regs)
 	unsigned long d0, d1, d2, d3, d6, d7;
 
 	printk("\n");
-	printk("Pid: %d, comm: %20s\n", current->pid, current->comm);
+	printk("Pid: %d, comm: %20s\n", task_pid_nr(current), current->comm);
 	printk("EIP: %04x:[<%08lx>] CPU: %d\n",0xffff & regs->xcs,regs->eip, smp_processor_id());
 	print_symbol("EIP is at %s\n", regs->eip);
 

@@ -155,7 +155,7 @@ static inline void read_sunos_user(struct pt_regs *regs, unsigned long offset,
 		/* Rest of them are completely unsupported. */
 	default:
 		printk("%s [%d]: Wants to read user offset %ld\n",
-		       current->comm, current->pid, offset);
+		       current->comm, task_pid_nr(current), offset);
 		pt_error_return(regs, EIO);
 		return;
 	}
@@ -222,7 +222,7 @@ static inline void write_sunos_user(struct pt_regs *regs, unsigned long offset,
 		/* Rest of them are completely unsupported or "no-touch". */
 	default:
 		printk("%s [%d]: Wants to write user offset %ld\n",
-		       current->comm, current->pid, offset);
+		       current->comm, task_pid_nr(current), offset);
 		goto failure;
 	}
 success:

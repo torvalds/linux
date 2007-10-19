@@ -166,7 +166,7 @@ void show_regs(struct pt_regs *regs)
 
         printk("CPU:    %d    %s\n", task_thread_info(tsk)->cpu, print_tainted());
         printk("Process %s (pid: %d, task: %p, ksp: %p)\n",
-	       current->comm, current->pid, (void *) tsk,
+	       current->comm, task_pid_nr(current), (void *) tsk,
 	       (void *) tsk->thread.ksp);
 
 	show_registers(regs);

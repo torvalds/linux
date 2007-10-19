@@ -382,16 +382,16 @@ static void clear_breakpoint(struct task_struct *task, struct debug_entry *bp)
 
 		if (ret != 2 || old_insn.thumb != BREAKINST_THUMB)
 			printk(KERN_ERR "%s:%d: corrupted Thumb breakpoint at "
-				"0x%08lx (0x%04x)\n", task->comm, task->pid,
-				addr, old_insn.thumb);
+				"0x%08lx (0x%04x)\n", task->comm,
+				task_pid_nr(task), addr, old_insn.thumb);
 	} else {
 		ret = swap_insn(task, addr & ~3, &old_insn.arm,
 				&bp->insn.arm, 4);
 
 		if (ret != 4 || old_insn.arm != BREAKINST_ARM)
 			printk(KERN_ERR "%s:%d: corrupted ARM breakpoint at "
-				"0x%08lx (0x%08x)\n", task->comm, task->pid,
-				addr, old_insn.arm);
+				"0x%08lx (0x%08x)\n", task->comm,
+				task_pid_nr(task), addr, old_insn.arm);
 	}
 }
 

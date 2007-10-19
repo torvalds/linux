@@ -764,7 +764,7 @@ static int misaligned_fixup(struct pt_regs *regs)
 		--user_mode_unaligned_fixup_count;
 		/* Only do 'count' worth of these reports, to remove a potential DoS against syslog */
 		printk("Fixing up unaligned userspace access in \"%s\" pid=%d pc=0x%08x ins=0x%08lx\n",
-		       current->comm, current->pid, (__u32)regs->pc, opcode);
+		       current->comm, task_pid_nr(current), (__u32)regs->pc, opcode);
 	} else
 #endif
 	if (!user_mode(regs) && (kernel_mode_unaligned_fixup_count > 0)) {
@@ -774,7 +774,7 @@ static int misaligned_fixup(struct pt_regs *regs)
 			       (__u32)regs->pc, opcode);
 		} else {
 			printk("Fixing up unaligned kernelspace access in \"%s\" pid=%d pc=0x%08x ins=0x%08lx\n",
-			       current->comm, current->pid, (__u32)regs->pc, opcode);
+			       current->comm, task_pid_nr(current), (__u32)regs->pc, opcode);
 		}
 	}
 

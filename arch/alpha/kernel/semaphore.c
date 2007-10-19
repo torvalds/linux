@@ -69,7 +69,7 @@ __down_failed(struct semaphore *sem)
 
 #ifdef CONFIG_DEBUG_SEMAPHORE
 	printk("%s(%d): down failed(%p)\n",
-	       tsk->comm, tsk->pid, sem);
+	       tsk->comm, task_pid_nr(tsk), sem);
 #endif
 
 	tsk->state = TASK_UNINTERRUPTIBLE;
@@ -98,7 +98,7 @@ __down_failed(struct semaphore *sem)
 
 #ifdef CONFIG_DEBUG_SEMAPHORE
 	printk("%s(%d): down acquired(%p)\n",
-	       tsk->comm, tsk->pid, sem);
+	       tsk->comm, task_pid_nr(tsk), sem);
 #endif
 }
 
@@ -111,7 +111,7 @@ __down_failed_interruptible(struct semaphore *sem)
 
 #ifdef CONFIG_DEBUG_SEMAPHORE
 	printk("%s(%d): down failed(%p)\n",
-	       tsk->comm, tsk->pid, sem);
+	       tsk->comm, task_pid_nr(tsk), sem);
 #endif
 
 	tsk->state = TASK_INTERRUPTIBLE;
@@ -139,7 +139,7 @@ __down_failed_interruptible(struct semaphore *sem)
 
 #ifdef CONFIG_DEBUG_SEMAPHORE
 	printk("%s(%d): down %s(%p)\n",
-	       current->comm, current->pid,
+	       current->comm, task_pid_nr(current),
 	       (ret < 0 ? "interrupted" : "acquired"), sem);
 #endif
 	return ret;
@@ -168,7 +168,7 @@ down(struct semaphore *sem)
 #endif
 #ifdef CONFIG_DEBUG_SEMAPHORE
 	printk("%s(%d): down(%p) <count=%d> from %p\n",
-	       current->comm, current->pid, sem,
+	       current->comm, task_pid_nr(current), sem,
 	       atomic_read(&sem->count), __builtin_return_address(0));
 #endif
 	__down(sem);
@@ -182,7 +182,7 @@ down_interruptible(struct semaphore *sem)
 #endif
 #ifdef CONFIG_DEBUG_SEMAPHORE
 	printk("%s(%d): down(%p) <count=%d> from %p\n",
-	       current->comm, current->pid, sem,
+	       current->comm, task_pid_nr(current), sem,
 	       atomic_read(&sem->count), __builtin_return_address(0));
 #endif
 	return __down_interruptible(sem);
@@ -201,7 +201,7 @@ down_trylock(struct semaphore *sem)
 
 #ifdef CONFIG_DEBUG_SEMAPHORE
 	printk("%s(%d): down_trylock %s from %p\n",
-	       current->comm, current->pid,
+	       current->comm, task_pid_nr(current),
 	       ret ? "failed" : "acquired",
 	       __builtin_return_address(0));
 #endif
@@ -217,7 +217,7 @@ up(struct semaphore *sem)
 #endif
 #ifdef CONFIG_DEBUG_SEMAPHORE
 	printk("%s(%d): up(%p) <count=%d> from %p\n",
-	       current->comm, current->pid, sem,
+	       current->comm, task_pid_nr(current), sem,
 	       atomic_read(&sem->count), __builtin_return_address(0));
 #endif
 	__up(sem);

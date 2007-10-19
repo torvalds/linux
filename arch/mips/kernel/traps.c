@@ -314,7 +314,7 @@ void show_registers(const struct pt_regs *regs)
 	__show_regs(regs);
 	print_modules();
 	printk("Process %s (pid: %d, threadinfo=%p, task=%p)\n",
-	        current->comm, current->pid, current_thread_info(), current);
+	        current->comm, task_pid_nr(current), current_thread_info(), current);
 	show_stacktrace(current, regs);
 	show_code((unsigned int __user *) regs->cp0_epc);
 	printk("\n");

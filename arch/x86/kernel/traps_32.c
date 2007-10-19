@@ -316,7 +316,7 @@ void show_registers(struct pt_regs *regs)
 	printk(KERN_EMERG "ds: %04x   es: %04x   fs: %04x  gs: %04x  ss: %04x\n",
 	       regs->xds & 0xffff, regs->xes & 0xffff, regs->xfs & 0xffff, gs, ss);
 	printk(KERN_EMERG "Process %.*s (pid: %d, ti=%p task=%p task.ti=%p)",
-		TASK_COMM_LEN, current->comm, current->pid,
+		TASK_COMM_LEN, current->comm, task_pid_nr(current),
 		current_thread_info(), current, task_thread_info(current));
 	/*
 	 * When in-kernel, we also print out the stack and code at the
@@ -622,7 +622,7 @@ fastcall void __kprobes do_general_protection(struct pt_regs * regs,
 	    printk_ratelimit())
 		printk(KERN_INFO
 		    "%s[%d] general protection eip:%lx esp:%lx error:%lx\n",
-		    current->comm, current->pid,
+		    current->comm, task_pid_nr(current),
 		    regs->eip, regs->esp, error_code);
 
 	force_sig(SIGSEGV, current);

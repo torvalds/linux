@@ -81,7 +81,7 @@ static inline void print_vma(struct vm_area_struct *vma)
 
 static inline void print_task(struct task_struct *tsk)
 {
-	printk("Task pid %d\n", tsk->pid);
+	printk("Task pid %d\n", task_pid_nr(tsk));
 }
 
 static pte_t *lookup_pte(struct mm_struct *mm, unsigned long address)
@@ -272,7 +272,7 @@ bad_area:
 			 * usermode, so only need a few */
 			count++;
 			printk("user mode bad_area address=%08lx pid=%d (%s) pc=%08lx\n",
-				address, current->pid, current->comm,
+				address, task_pid_nr(current), current->comm,
 				(unsigned long) regs->pc);
 #if 0
 			show_regs(regs);

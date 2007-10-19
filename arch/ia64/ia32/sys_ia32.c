@@ -773,7 +773,7 @@ emulate_mmap (struct file *file, unsigned long start, unsigned long len, int pro
 			if (flags & MAP_SHARED)
 				printk(KERN_INFO
 				       "%s(%d): emulate_mmap() can't share head (addr=0x%lx)\n",
-				       current->comm, current->pid, start);
+				       current->comm, task_pid_nr(current), start);
 			ret = mmap_subpage(file, start, min(PAGE_ALIGN(start), end), prot, flags,
 					   off);
 			if (IS_ERR((void *) ret))
@@ -786,7 +786,7 @@ emulate_mmap (struct file *file, unsigned long start, unsigned long len, int pro
 			if (flags & MAP_SHARED)
 				printk(KERN_INFO
 				       "%s(%d): emulate_mmap() can't share tail (end=0x%lx)\n",
-				       current->comm, current->pid, end);
+				       current->comm, task_pid_nr(current), end);
 			ret = mmap_subpage(file, max(start, PAGE_START(end)), end, prot, flags,
 					   (off + len) - offset_in_page(end));
 			if (IS_ERR((void *) ret))
@@ -816,7 +816,7 @@ emulate_mmap (struct file *file, unsigned long start, unsigned long len, int pro
 
 	if ((flags & MAP_SHARED) && !is_congruent)
 		printk(KERN_INFO "%s(%d): emulate_mmap() can't share contents of incongruent mmap "
-		       "(addr=0x%lx,off=0x%llx)\n", current->comm, current->pid, start, off);
+		       "(addr=0x%lx,off=0x%llx)\n", current->comm, task_pid_nr(current), start, off);
 
 	DBG("mmap_body: mapping [0x%lx-0x%lx) %s with poff 0x%llx\n", pstart, pend,
 	    is_congruent ? "congruent" : "not congruent", poff);

@@ -382,7 +382,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	set_fs(USER_DS);
 
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
-		 current->comm, current->pid, frame, regs->pc, regs->pr);
+		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
 
 	flush_cache_sigtramp(regs->pr);
 
@@ -462,7 +462,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	set_fs(USER_DS);
 
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
-		 current->comm, current->pid, frame, regs->pc, regs->pr);
+		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
 
 	flush_cache_sigtramp(regs->pr);
 

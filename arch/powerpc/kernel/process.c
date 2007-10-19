@@ -459,7 +459,7 @@ void show_regs(struct pt_regs * regs)
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
 #endif
 	printk("TASK = %p[%d] '%s' THREAD: %p",
-	       current, current->pid, current->comm, task_thread_info(current));
+	       current, task_pid_nr(current), current->comm, task_thread_info(current));
 
 #ifdef CONFIG_SMP
 	printk(" CPU: %d", smp_processor_id());

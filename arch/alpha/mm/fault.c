@@ -194,7 +194,7 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
 		goto survive;
 	}
 	printk(KERN_ALERT "VM: killing process %s(%d)\n",
-	       current->comm, current->pid);
+	       current->comm, task_pid_nr(current));
 	if (!user_mode(regs))
 		goto no_context;
 	do_group_exit(SIGKILL);

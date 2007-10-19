@@ -200,8 +200,8 @@ badframe:
 	if (show_unhandled_signals && printk_ratelimit())
 		printk("%s%s[%d] bad frame in sigreturn frame:%p eip:%lx"
 		       " esp:%lx oeax:%lx\n",
-		    current->pid > 1 ? KERN_INFO : KERN_EMERG,
-		    current->comm, current->pid, frame, regs->eip,
+		    task_pid_nr(current) > 1 ? KERN_INFO : KERN_EMERG,
+		    current->comm, task_pid_nr(current), frame, regs->eip,
 		    regs->esp, regs->orig_eax);
 
 	force_sig(SIGSEGV, current);

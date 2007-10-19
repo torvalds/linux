@@ -471,8 +471,8 @@ bad_area_nosemaphore:
 		    printk_ratelimit()) {
 			printk("%s%s[%d]: segfault at %08lx eip %08lx "
 			    "esp %08lx error %lx\n",
-			    tsk->pid > 1 ? KERN_INFO : KERN_EMERG,
-			    tsk->comm, tsk->pid, address, regs->eip,
+			    task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
+			    tsk->comm, task_pid_nr(tsk), address, regs->eip,
 			    regs->esp, error_code);
 		}
 		tsk->thread.cr2 = address;

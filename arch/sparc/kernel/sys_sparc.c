@@ -357,7 +357,7 @@ c_sys_nis_syscall (struct pt_regs *regs)
 	if (count++ > 5)
 		return -ENOSYS;
 	printk ("%s[%d]: Unimplemented SPARC system call %d\n",
-		current->comm, current->pid, (int)regs->u_regs[1]);
+		current->comm, task_pid_nr(current), (int)regs->u_regs[1]);
 #ifdef DEBUG_UNIMP_SYSCALL	
 	show_regs (regs);
 #endif
