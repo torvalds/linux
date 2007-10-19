@@ -268,6 +268,9 @@ static struct symbol *sym_add_exported(const char *name, struct module *mod,
 			     "was in %s%s\n", mod->name, name,
 			     s->module->name,
 			     is_vmlinux(s->module->name) ?"":".ko");
+		} else {
+			/* In case Modules.symvers was out of date */
+			s->module = mod;
 		}
 	}
 	s->preloaded = 0;
