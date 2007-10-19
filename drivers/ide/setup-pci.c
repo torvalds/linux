@@ -573,6 +573,16 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 		if ((d->host_flags & IDE_HFLAG_SERIALIZE) && hwif->mate)
 			hwif->mate->serialized = hwif->serialized = 1;
 
+		if (d->host_flags & IDE_HFLAG_IO_32BIT) {
+			hwif->drives[0].io_32bit = 1;
+			hwif->drives[1].io_32bit = 1;
+		}
+
+		if (d->host_flags & IDE_HFLAG_UNMASK_IRQS) {
+			hwif->drives[0].unmask = 1;
+			hwif->drives[1].unmask = 1;
+		}
+
 		if (hwif->dma_base) {
 			hwif->swdma_mask = d->swdma_mask;
 			hwif->mwdma_mask = d->mwdma_mask;

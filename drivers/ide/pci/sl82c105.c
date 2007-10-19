@@ -361,13 +361,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	hwif->selectproc	= &sl82c105_selectproc;
 	hwif->resetproc 	= &sl82c105_resetproc;
 
-	/*
-	 * We support 32-bit I/O on this interface, and
-	 * it doesn't have problems with interrupts.
-	 */
-	hwif->drives[0].io_32bit = hwif->drives[1].io_32bit = 1;
-	hwif->drives[0].unmask   = hwif->drives[1].unmask   = 1;
-
 	if (!hwif->dma_base)
 		return;
 
@@ -399,7 +392,10 @@ static ide_pci_device_t sl82c105_chipset __devinitdata = {
 	.init_chipset	= init_chipset_sl82c105,
 	.init_hwif	= init_hwif_sl82c105,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
-	.host_flags	= IDE_HFLAG_NO_AUTODMA | IDE_HFLAG_BOOTABLE,
+	.host_flags	= IDE_HFLAG_IO_32BIT |
+			  IDE_HFLAG_UNMASK_IRQS |
+			  IDE_HFLAG_NO_AUTODMA |
+			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO5,
 };
 

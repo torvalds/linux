@@ -1267,6 +1267,10 @@ enum {
 	IDE_HFLAG_FORCE_LEGACY_IRQS	= (1 << 22),
 	/* limit LBA48 requests to 256 sectors */
 	IDE_HFLAG_RQSIZE_256		= (1 << 23),
+	/* use 32-bit I/O ops */
+	IDE_HFLAG_IO_32BIT		= (1 << 24),
+	/* unmask IRQs */
+	IDE_HFLAG_UNMASK_IRQS		= (1 << 25),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
