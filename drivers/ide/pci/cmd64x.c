@@ -548,7 +548,7 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	}
 }
 
-static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
+static struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "CMD643",
 		.init_chipset	= init_chipset_cmd64x,
@@ -591,7 +591,7 @@ static ide_pci_device_t cmd64x_chipsets[] __devinitdata = {
 
 static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t d;
+	struct ide_port_info d;
 	u8 idx = id->driver_data;
 
 	d = cmd64x_chipsets[idx];

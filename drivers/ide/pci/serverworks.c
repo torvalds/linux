@@ -366,7 +366,7 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	}
 }
 
-static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
+static struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "SvrWks OSB4",
 		.init_chipset	= init_chipset_svwks,
@@ -423,7 +423,7 @@ static ide_pci_device_t serverworks_chipsets[] __devinitdata = {
  
 static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t d;
+	struct ide_port_info d;
 	u8 idx = id->driver_data;
 
 	d = serverworks_chipsets[idx];

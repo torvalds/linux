@@ -387,7 +387,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 		hwif->serialized = hwif->mate->serialized = 1;
 }
 
-static ide_pci_device_t sl82c105_chipset __devinitdata = {
+static struct ide_port_info sl82c105_chipset __devinitdata = {
 	.name		= "W82C105",
 	.init_chipset	= init_chipset_sl82c105,
 	.init_hwif	= init_hwif_sl82c105,

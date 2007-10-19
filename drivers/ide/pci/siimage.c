@@ -905,7 +905,7 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		.udma_mask	= ATA_UDMA6,		\
 	}
 
-static ide_pci_device_t siimage_chipsets[] __devinitdata = {
+static struct ide_port_info siimage_chipsets[] __devinitdata = {
 	/* 0 */ DECLARE_SII_DEV("SiI680"),
 	/* 1 */ DECLARE_SII_DEV("SiI3112 Serial ATA"),
 	/* 2 */ DECLARE_SII_DEV("Adaptec AAR-1210SA")

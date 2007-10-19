@@ -319,7 +319,7 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 #endif
 }
 
-static ide_pci_device_t trm290_chipset __devinitdata = {
+static struct ide_port_info trm290_chipset __devinitdata = {
 	.name		= "TRM290",
 	.init_hwif	= init_hwif_trm290,
 	.chipset	= ide_trm290,

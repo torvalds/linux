@@ -147,15 +147,15 @@ static int ide_setup_pci_baseregs (struct pci_dev *dev, const char *name)
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_get_or_set_dma_base		-	setup BMIBA
- *	@d: IDE pci device data
- *	@hwif: Interface
+ *	@d: IDE port info
+ *	@hwif: IDE interface
  *
  *	Fetch the DMA Bus-Master-I/O-Base-Address (BMIBA) from PCI space.
  *	Where a device has a partner that is already in DMA mode we check
  *	and enforce IDE simplex rules.
  */
 
-static unsigned long ide_get_or_set_dma_base(ide_pci_device_t *d, ide_hwif_t *hwif)
+static unsigned long ide_get_or_set_dma_base(struct ide_port_info *d, ide_hwif_t *hwif)
 {
 	unsigned long	dma_base = 0;
 	struct pci_dev	*dev = hwif->pci_dev;
@@ -225,7 +225,7 @@ static unsigned long ide_get_or_set_dma_base(ide_pci_device_t *d, ide_hwif_t *hw
 }
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
-void ide_setup_pci_noise (struct pci_dev *dev, ide_pci_device_t *d)
+void ide_setup_pci_noise(struct pci_dev *dev, struct ide_port_info *d)
 {
 	printk(KERN_INFO "%s: IDE controller at PCI slot %s\n",
 			 d->name, pci_name(dev));
@@ -237,15 +237,15 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
 /**
  *	ide_pci_enable	-	do PCI enables
  *	@dev: PCI device
- *	@d: IDE pci device data
+ *	@d: IDE port info
  *
  *	Enable the IDE PCI device. We attempt to enable the device in full
  *	but if that fails then we only need BAR4 so we will enable that.
  *	
  *	Returns zero on success or an error code
  */
- 
-static int ide_pci_enable(struct pci_dev *dev, ide_pci_device_t *d)
+
+static int ide_pci_enable(struct pci_dev *dev, struct ide_port_info *d)
 {
 	int ret;
 
@@ -260,9 +260,9 @@ static int ide_pci_enable(struct pci_dev *dev, ide_pci_device_t *d)
 	}
 
 	/*
-	 * assume all devices can do 32-bit dma for now. we can add a
-	 * dma mask field to the ide_pci_device_t if we need it (or let
-	 * lower level driver set the dma mask)
+	 * assume all devices can do 32-bit DMA for now, we can add
+	 * a DMA mask field to the struct ide_port_info if we need it
+	 * (or let lower level driver set the DMA mask)
 	 */
 	ret = pci_set_dma_mask(dev, DMA_32BIT_MASK);
 	if (ret < 0) {
@@ -284,13 +284,13 @@ out:
 /**
  *	ide_pci_configure	-	configure an unconfigured device
  *	@dev: PCI device
- *	@d: IDE pci device data
+ *	@d: IDE port info
  *
  *	Enable and configure the PCI device we have been passed.
  *	Returns zero on success or an error code.
  */
- 
-static int ide_pci_configure(struct pci_dev *dev, ide_pci_device_t *d)
+
+static int ide_pci_configure(struct pci_dev *dev, struct ide_port_info *d)
 {
 	u16 pcicmd = 0;
 	/*
@@ -318,15 +318,15 @@ static int ide_pci_configure(struct pci_dev *dev, ide_pci_device_t *d)
 
 /**
  *	ide_pci_check_iomem	-	check a register is I/O
- *	@dev: pci device
- *	@d: ide_pci_device
- *	@bar: bar number
+ *	@dev: PCI device
+ *	@d: IDE port info
+ *	@bar: BAR number
  *
  *	Checks if a BAR is configured and points to MMIO space. If so
  *	print an error and return an error code. Otherwise return 0
  */
- 
-static int ide_pci_check_iomem(struct pci_dev *dev, ide_pci_device_t *d, int bar)
+
+static int ide_pci_check_iomem(struct pci_dev *dev, struct ide_port_info *d, int bar)
 {
 	ulong flags = pci_resource_flags(dev, bar);
 	
@@ -348,7 +348,7 @@ static int ide_pci_check_iomem(struct pci_dev *dev, ide_pci_device_t *d, int bar
 /**
  *	ide_hwif_configure	-	configure an IDE interface
  *	@dev: PCI device holding interface
- *	@d: IDE pci data
+ *	@d: IDE port info
  *	@mate: Paired interface if any
  *
  *	Perform the initial set up for the hardware interface structure. This
@@ -357,8 +357,8 @@ static int ide_pci_check_iomem(struct pci_dev *dev, ide_pci_device_t *d, int bar
  *
  *	Returns the new hardware interface structure, or NULL on a failure
  */
- 
-static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, ide_pci_device_t *d, ide_hwif_t *mate, int port, int irq)
+
+static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, struct ide_port_info *d, ide_hwif_t *mate, int port, int irq)
 {
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
@@ -400,7 +400,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, ide_pci_device_t *d, 
 	}
 	hwif->chipset = d->chipset ? d->chipset : ide_pci;
 	hwif->pci_dev = dev;
-	hwif->cds = (struct ide_pci_device_s *) d;
+	hwif->cds = d;
 	hwif->channel = port;
 
 	if (!hwif->irq)
@@ -415,21 +415,17 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, ide_pci_device_t *d, 
 /**
  *	ide_hwif_setup_dma	-	configure DMA interface
  *	@dev: PCI device
- *	@d: IDE pci data
- *	@hwif: Hardware interface we are configuring
+ *	@d: IDE port info
+ *	@hwif: IDE interface
  *
  *	Set up the DMA base for the interface. Enable the master bits as
  *	necessary and attempt to bring the device DMA into a ready to use
  *	state
  */
- 
-#ifndef CONFIG_BLK_DEV_IDEDMA_PCI
-static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwif_t *hwif)
+
+static void ide_hwif_setup_dma(struct pci_dev *dev, struct ide_port_info *d, ide_hwif_t *hwif)
 {
-}
-#else
-static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwif_t *hwif)
-{
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 	u16 pcicmd;
 
 	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
@@ -461,13 +457,13 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwi
 				"(BIOS)\n", hwif->name, d->name);
 		}
 	}
-}
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI*/
+}
 
 /**
  *	ide_setup_pci_controller	-	set up IDE PCI
  *	@dev: PCI device
- *	@d: IDE PCI data
+ *	@d: IDE port info
  *	@noisy: verbose flag
  *	@config: returned as 1 if we configured the hardware
  *
@@ -475,8 +471,8 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwi
  *	up the PCI side of the device, checks that the device is enabled
  *	and enables it if need be
  */
- 
-static int ide_setup_pci_controller(struct pci_dev *dev, ide_pci_device_t *d, int noisy, int *config)
+
+static int ide_setup_pci_controller(struct pci_dev *dev, struct ide_port_info *d, int noisy, int *config)
 {
 	int ret;
 	u16 pcicmd;
@@ -511,7 +507,7 @@ out:
 /**
  *	ide_pci_setup_ports	-	configure ports/devices on PCI IDE
  *	@dev: PCI device
- *	@d: IDE pci device info
+ *	@d: IDE port info
  *	@pciirq: IRQ line
  *	@idx: ATA index table to update
  *
@@ -524,7 +520,7 @@ out:
  *	where the chipset setup is not the default PCI IDE one.
  */
 
-void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, u8 *idx)
+void ide_pci_setup_ports(struct pci_dev *dev, struct ide_port_info *d, int pciirq, u8 *idx)
 {
 	int channels = (d->host_flags & IDE_HFLAG_SINGLE) ? 1 : 2, port;
 	ide_hwif_t *hwif, *mate = NULL;
@@ -611,10 +607,11 @@ EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
  *
  * One thing that is not standardized is the location of the
  * primary/secondary interface "enable/disable" bits.  For chipsets that
- * we "know" about, this information is in the ide_pci_device_t struct;
+ * we "know" about, this information is in the struct ide_port_info;
  * for all other chipsets, we just assume both interfaces are enabled.
  */
-static int do_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d,
+static int do_ide_setup_pci_device(struct pci_dev *dev,
+				   struct ide_port_info *d,
 				   u8 *idx, u8 noisy)
 {
 	int tried_config = 0;
@@ -671,7 +668,7 @@ out:
 	return ret;
 }
 
-int ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d)
+int ide_setup_pci_device(struct pci_dev *dev, struct ide_port_info *d)
 {
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int ret;
@@ -687,7 +684,7 @@ int ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d)
 EXPORT_SYMBOL_GPL(ide_setup_pci_device);
 
 int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
-			  ide_pci_device_t *d)
+			  struct ide_port_info *d)
 {
 	struct pci_dev *pdev[] = { dev1, dev2 };
 	int ret, i;
@@ -727,9 +724,6 @@ static LIST_HEAD(ide_pci_drivers);
  *	boot time setup is done in the expected device order and then 
  *	hands the controllers off to the core PCI code to do the rest of
  *	the work.
- *
- *	The driver_data of the driver table must point to an ide_pci_device_t
- *	describing the interface.
  *
  *	Returns are the same as for pci_register_driver
  */

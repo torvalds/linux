@@ -432,7 +432,7 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 		hwif->cbl = via82cxxx_cable_detect(hwif);
 }
 
-static ide_pci_device_t via82cxxx_chipset __devinitdata = {
+static struct ide_port_info via82cxxx_chipset __devinitdata = {
 	.name		= "VP_IDE",
 	.init_chipset	= init_chipset_via82cxxx,
 	.init_hwif	= init_hwif_via82cxxx,
@@ -452,7 +452,7 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	struct pci_dev *isa = NULL;
 	struct via_isa_bridge *via_config;
 	u8 idx = id->driver_data;
-	ide_pci_device_t d;
+	struct ide_port_info d;
 
 	d = via82cxxx_chipset;
 

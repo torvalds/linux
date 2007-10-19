@@ -746,7 +746,7 @@ static void __devinit init_dma_ali15x3 (ide_hwif_t *hwif, unsigned long dmabase)
 	ide_setup_dma(hwif, dmabase, 8);
 }
 
-static ide_pci_device_t ali15x3_chipset __devinitdata = {
+static struct ide_port_info ali15x3_chipset __devinitdata = {
 	.name		= "ALI15X3",
 	.init_chipset	= init_chipset_ali15x3,
 	.init_hwif	= init_hwif_ali15x3,
@@ -772,7 +772,7 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 		{ },
 	};
 
-	ide_pci_device_t d = ali15x3_chipset;
+	struct ide_port_info d = ali15x3_chipset;
 	u8 rev = dev->revision;
 
 	if (pci_dev_present(ati_rs100))

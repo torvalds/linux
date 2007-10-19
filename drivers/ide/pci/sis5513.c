@@ -579,7 +579,7 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 		hwif->cbl = ata66_sis5513(hwif);
 }
 
-static ide_pci_device_t sis5513_chipset __devinitdata = {
+static struct ide_port_info sis5513_chipset __devinitdata = {
 	.name		= "SIS5513",
 	.init_chipset	= init_chipset_sis5513,
 	.init_hwif	= init_hwif_sis5513,

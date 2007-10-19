@@ -194,7 +194,7 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	}
 }
 
-static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
+static struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "AEC6210",
 		.init_chipset	= init_chipset_aec62xx,
@@ -253,12 +253,12 @@ static ide_pci_device_t aec62xx_chipsets[] __devinitdata = {
  *	finds a device matching our IDE device tables.
  *
  *	NOTE: since we're going to modify the 'name' field for AEC-6[26]80[R]
- *	chips, pass a local copy of 'struct pci_device_id' down the call chain.
+ *	chips, pass a local copy of 'struct ide_port_info' down the call chain.
  */
- 
+
 static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t d;
+	struct ide_port_info d;
 	u8 idx = id->driver_data;
 
 	d = aec62xx_chipsets[idx];
