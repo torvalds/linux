@@ -148,7 +148,7 @@ EXPORT_SYMBOL(panic);
  *  'F' - Module has been forcibly loaded.
  *  'S' - SMP with CPUs not designed for SMP.
  *  'R' - User forced a module unload.
- *  'M' - Machine had a machine check experience.
+ *  'M' - System experienced a machine check exception.
  *  'B' - System has hit bad_page.
  *  'U' - Userspace-defined naughtiness.
  *
