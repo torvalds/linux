@@ -88,7 +88,6 @@
 
 #define sem_ids(ns)	(*((ns)->ids[IPC_SEM_IDS]))
 
-#define sem_lock(ns, id)	((struct sem_array*)ipc_lock(&sem_ids(ns), id))
 #define sem_unlock(sma)		ipc_unlock(&(sma)->sem_perm)
 #define sem_checkid(ns, sma, semid)	\
 	ipc_checkid(&sem_ids(ns),&sma->sem_perm,semid)
@@ -173,6 +172,17 @@ void __init sem_init (void)
 	ipc_init_proc_interface("sysvipc/sem",
 				"       key      semid perms      nsems   uid   gid  cuid  cgid      otime      ctime\n",
 				IPC_SEM_IDS, sysvipc_sem_proc_show);
+}
+
+static inline struct sem_array *sem_lock(struct ipc_namespace *ns, int id)
+{
+	return (struct sem_array *) ipc_lock(&sem_ids(ns), id);
+}
+
+static inline struct sem_array *sem_lock_check(struct ipc_namespace *ns,
+						int id)
+{
+	return (struct sem_array *) ipc_lock_check(&sem_ids(ns), id);
 }
 
 static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
@@ -599,11 +609,9 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid, int semnum,
 		struct semid64_ds tbuf;
 		int id;
 
-		memset(&tbuf,0,sizeof(tbuf));
-
 		sma = sem_lock(ns, semid);
-		if(sma == NULL)
-			return -EINVAL;
+		if (IS_ERR(sma))
+			return PTR_ERR(sma);
 
 		err = -EACCES;
 		if (ipcperms (&sma->sem_perm, S_IRUGO))
@@ -614,6 +622,8 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid, int semnum,
 			goto out_unlock;
 
 		id = sma->sem_perm.id;
+
+		memset(&tbuf, 0, sizeof(tbuf));
 
 		kernel_to_ipc64_perm(&sma->sem_perm, &tbuf.sem_perm);
 		tbuf.sem_otime  = sma->sem_otime;
@@ -643,15 +653,11 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 	ushort* sem_io = fast_sem_io;
 	int nsems;
 
-	sma = sem_lock(ns, semid);
-	if(sma==NULL)
-		return -EINVAL;
+	sma = sem_lock_check(ns, semid);
+	if (IS_ERR(sma))
+		return PTR_ERR(sma);
 
 	nsems = sma->sem_nsems;
-
-	err=-EIDRM;
-	if (sem_checkid(ns,sma,semid))
-		goto out_unlock;
 
 	err = -EACCES;
 	if (ipcperms (&sma->sem_perm, (cmd==SETVAL||cmd==SETALL)?S_IWUGO:S_IRUGO))
@@ -864,14 +870,10 @@ static int semctl_down(struct ipc_namespace *ns, int semid, int semnum,
 		if(copy_semid_from_user (&setbuf, arg.buf, version))
 			return -EFAULT;
 	}
-	sma = sem_lock(ns, semid);
-	if(sma==NULL)
-		return -EINVAL;
+	sma = sem_lock_check(ns, semid);
+	if (IS_ERR(sma))
+		return PTR_ERR(sma);
 
-	if (sem_checkid(ns,sma,semid)) {
-		err=-EIDRM;
-		goto out_unlock;
-	}	
 	ipcp = &sma->sem_perm;
 
 	err = audit_ipc_obj(ipcp);
@@ -1055,15 +1057,10 @@ static struct sem_undo *find_undo(struct ipc_namespace *ns, int semid)
 		goto out;
 
 	/* no undo structure around - allocate one. */
-	sma = sem_lock(ns, semid);
-	un = ERR_PTR(-EINVAL);
-	if(sma==NULL)
-		goto out;
-	un = ERR_PTR(-EIDRM);
-	if (sem_checkid(ns,sma,semid)) {
-		sem_unlock(sma);
-		goto out;
-	}
+	sma = sem_lock_check(ns, semid);
+	if (IS_ERR(sma))
+		return ERR_PTR(PTR_ERR(sma));
+
 	nsems = sma->sem_nsems;
 	ipc_rcu_getref(sma);
 	sem_unlock(sma);
@@ -1169,15 +1166,14 @@ retry_undos:
 	} else
 		un = NULL;
 
-	sma = sem_lock(ns, semid);
-	error=-EINVAL;
-	if(sma==NULL)
+	sma = sem_lock_check(ns, semid);
+	if (IS_ERR(sma)) {
+		error = PTR_ERR(sma);
 		goto out_free;
-	error = -EIDRM;
-	if (sem_checkid(ns,sma,semid))
-		goto out_unlock_free;
+	}
+
 	/*
-	 * semid identifies are not unique - find_undo may have
+	 * semid identifiers are not unique - find_undo may have
 	 * allocated an undo structure, it was invalidated by an RMID
 	 * and now a new array with received the same id. Check and retry.
 	 */
@@ -1243,7 +1239,7 @@ retry_undos:
 	}
 
 	sma = sem_lock(ns, semid);
-	if(sma==NULL) {
+	if (IS_ERR(sma)) {
 		BUG_ON(queue.prev != NULL);
 		error = -EIDRM;
 		goto out_free;
@@ -1343,7 +1339,7 @@ void exit_sem(struct task_struct *tsk)
 		if(semid == -1)
 			continue;
 		sma = sem_lock(ns, semid);
-		if (sma == NULL)
+		if (IS_ERR(sma))
 			continue;
 
 		if (u->semid == -1)

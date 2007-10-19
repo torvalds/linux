@@ -11,6 +11,7 @@
 #define _IPC_UTIL_H
 
 #include <linux/idr.h>
+#include <linux/err.h>
 
 #define USHRT_MAX 0xffff
 #define SEQ_MULTIPLIER	(IPCMNI)
@@ -103,11 +104,8 @@ void* ipc_rcu_alloc(int size);
 void ipc_rcu_getref(void *ptr);
 void ipc_rcu_putref(void *ptr);
 
-struct kern_ipc_perm* ipc_lock(struct ipc_ids* ids, int id);
-void ipc_lock_by_ptr(struct kern_ipc_perm *ipcp);
-void ipc_unlock(struct kern_ipc_perm* perm);
+struct kern_ipc_perm *ipc_lock(struct ipc_ids *, int);
 int ipc_buildid(struct ipc_ids* ids, int id, int seq);
-int ipc_checkid(struct ipc_ids* ids, struct kern_ipc_perm* ipcp, int uid);
 
 void kernel_to_ipc64_perm(struct kern_ipc_perm *in, struct ipc64_perm *out);
 void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out);
@@ -126,6 +124,43 @@ extern int ipcget_new(struct ipc_namespace *, struct ipc_ids *,
 			struct ipc_ops *, struct ipc_params *);
 extern int ipcget_public(struct ipc_namespace *, struct ipc_ids *,
 			struct ipc_ops *, struct ipc_params *);
+
+static inline int ipc_checkid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp,
+				int uid)
+{
+	if (uid / SEQ_MULTIPLIER != ipcp->seq)
+		return 1;
+	return 0;
+}
+
+static inline void ipc_lock_by_ptr(struct kern_ipc_perm *perm)
+{
+	rcu_read_lock();
+	spin_lock(&perm->lock);
+}
+
+static inline void ipc_unlock(struct kern_ipc_perm *perm)
+{
+	spin_unlock(&perm->lock);
+	rcu_read_unlock();
+}
+
+static inline struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids,
+						int id)
+{
+	struct kern_ipc_perm *out;
+
+	out = ipc_lock(ids, id);
+	if (IS_ERR(out))
+		return out;
+
+	if (ipc_checkid(ids, out, id)) {
+		ipc_unlock(out);
+		return ERR_PTR(-EIDRM);
+	}
+
+	return out;
+}
 
 static inline int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 			struct ipc_ops *ops, struct ipc_params *params)

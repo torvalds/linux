@@ -678,7 +678,7 @@ struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 	out = idr_find(&ids->ipcs_idr, lid);
 	if (out == NULL) {
 		rcu_read_unlock();
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	spin_lock(&out->lock);
@@ -689,34 +689,15 @@ struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 	if (out->deleted) {
 		spin_unlock(&out->lock);
 		rcu_read_unlock();
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	return out;
 }
 
-void ipc_lock_by_ptr(struct kern_ipc_perm *perm)
-{
-	rcu_read_lock();
-	spin_lock(&perm->lock);
-}
-
-void ipc_unlock(struct kern_ipc_perm* perm)
-{
-	spin_unlock(&perm->lock);
-	rcu_read_unlock();
-}
-
 int ipc_buildid(struct ipc_ids* ids, int id, int seq)
 {
 	return SEQ_MULTIPLIER*seq + id;
-}
-
-int ipc_checkid(struct ipc_ids* ids, struct kern_ipc_perm* ipcp, int uid)
-{
-	if(uid/SEQ_MULTIPLIER != ipcp->seq)
-		return 1;
-	return 0;
 }
 
 #ifdef __ARCH_WANT_IPC_PARSE_VERSION

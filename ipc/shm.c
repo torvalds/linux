@@ -59,8 +59,6 @@ static struct ipc_ids init_shm_ids;
 
 #define shm_ids(ns)	(*((ns)->ids[IPC_SHM_IDS]))
 
-#define shm_lock(ns, id)		\
-	((struct shmid_kernel*)ipc_lock(&shm_ids(ns),id))
 #define shm_unlock(shp)			\
 	ipc_unlock(&(shp)->shm_perm)
 #define shm_buildid(ns, id, seq)	\
@@ -139,12 +137,15 @@ void __init shm_init (void)
 				IPC_SHM_IDS, sysvipc_shm_proc_show);
 }
 
-static inline int shm_checkid(struct ipc_namespace *ns,
-		struct shmid_kernel *s, int id)
+static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
 {
-	if (ipc_checkid(&shm_ids(ns), &s->shm_perm, id))
-		return -EIDRM;
-	return 0;
+	return (struct shmid_kernel *) ipc_lock(&shm_ids(ns), id);
+}
+
+static inline struct shmid_kernel *shm_lock_check(struct ipc_namespace *ns,
+						int id)
+{
+	return (struct shmid_kernel *) ipc_lock_check(&shm_ids(ns), id);
 }
 
 static inline void shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *s)
@@ -167,7 +168,7 @@ static void shm_open(struct vm_area_struct *vma)
 	struct shmid_kernel *shp;
 
 	shp = shm_lock(sfd->ns, sfd->id);
-	BUG_ON(!shp);
+	BUG_ON(IS_ERR(shp));
 	shp->shm_atim = get_seconds();
 	shp->shm_lprid = task_tgid_vnr(current);
 	shp->shm_nattch++;
@@ -213,7 +214,7 @@ static void shm_close(struct vm_area_struct *vma)
 	mutex_lock(&shm_ids(ns).mutex);
 	/* remove from the list of attaches of the shm segment */
 	shp = shm_lock(ns, sfd->id);
-	BUG_ON(!shp);
+	BUG_ON(IS_ERR(shp));
 	shp->shm_lprid = task_tgid_vnr(current);
 	shp->shm_dtim = get_seconds();
 	shp->shm_nattch--;
@@ -662,17 +663,25 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 	{
 		struct shmid64_ds tbuf;
 		int result;
-		memset(&tbuf, 0, sizeof(tbuf));
-		shp = shm_lock(ns, shmid);
-		if(shp==NULL) {
-			err = -EINVAL;
+
+		if (!buf) {
+			err = -EFAULT;
 			goto out;
-		} else if (cmd == SHM_STAT) {
+		}
+
+		if (cmd == SHM_STAT) {
+			shp = shm_lock(ns, shmid);
+			if (IS_ERR(shp)) {
+				err = PTR_ERR(shp);
+				goto out;
+			}
 			result = shp->shm_perm.id;
 		} else {
-			err = shm_checkid(ns, shp,shmid);
-			if(err)
-				goto out_unlock;
+			shp = shm_lock_check(ns, shmid);
+			if (IS_ERR(shp)) {
+				err = PTR_ERR(shp);
+				goto out;
+			}
 			result = 0;
 		}
 		err=-EACCES;
@@ -681,6 +690,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		err = security_shm_shmctl(shp, cmd);
 		if (err)
 			goto out_unlock;
+		memset(&tbuf, 0, sizeof(tbuf));
 		kernel_to_ipc64_perm(&shp->shm_perm, &tbuf.shm_perm);
 		tbuf.shm_segsz	= shp->shm_segsz;
 		tbuf.shm_atime	= shp->shm_atim;
@@ -699,14 +709,11 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 	case SHM_LOCK:
 	case SHM_UNLOCK:
 	{
-		shp = shm_lock(ns, shmid);
-		if(shp==NULL) {
-			err = -EINVAL;
+		shp = shm_lock_check(ns, shmid);
+		if (IS_ERR(shp)) {
+			err = PTR_ERR(shp);
 			goto out;
 		}
-		err = shm_checkid(ns, shp,shmid);
-		if(err)
-			goto out_unlock;
 
 		err = audit_ipc_obj(&(shp->shm_perm));
 		if (err)
@@ -756,13 +763,11 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		 *	the name away when the usage hits zero.
 		 */
 		mutex_lock(&shm_ids(ns).mutex);
-		shp = shm_lock(ns, shmid);
-		err = -EINVAL;
-		if (shp == NULL) 
+		shp = shm_lock_check(ns, shmid);
+		if (IS_ERR(shp)) {
+			err = PTR_ERR(shp);
 			goto out_up;
-		err = shm_checkid(ns, shp, shmid);
-		if(err)
-			goto out_unlock_up;
+		}
 
 		err = audit_ipc_obj(&(shp->shm_perm));
 		if (err)
@@ -786,18 +791,21 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 
 	case IPC_SET:
 	{
+		if (!buf) {
+			err = -EFAULT;
+			goto out;
+		}
+
 		if (copy_shmid_from_user (&setbuf, buf, version)) {
 			err = -EFAULT;
 			goto out;
 		}
 		mutex_lock(&shm_ids(ns).mutex);
-		shp = shm_lock(ns, shmid);
-		err=-EINVAL;
-		if(shp==NULL)
+		shp = shm_lock_check(ns, shmid);
+		if (IS_ERR(shp)) {
+			err = PTR_ERR(shp);
 			goto out_up;
-		err = shm_checkid(ns, shp,shmid);
-		if(err)
-			goto out_unlock_up;
+		}
 		err = audit_ipc_obj(&(shp->shm_perm));
 		if (err)
 			goto out_unlock_up;
@@ -903,13 +911,11 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	 * additional creator id...
 	 */
 	ns = current->nsproxy->ipc_ns;
-	shp = shm_lock(ns, shmid);
-	if(shp == NULL)
+	shp = shm_lock_check(ns, shmid);
+	if (IS_ERR(shp)) {
+		err = PTR_ERR(shp);
 		goto out;
-
-	err = shm_checkid(ns, shp,shmid);
-	if (err)
-		goto out_unlock;
+	}
 
 	err = -EACCES;
 	if (ipcperms(&shp->shm_perm, acc_mode))
@@ -970,7 +976,7 @@ invalid:
 out_nattch:
 	mutex_lock(&shm_ids(ns).mutex);
 	shp = shm_lock(ns, shmid);
-	BUG_ON(!shp);
+	BUG_ON(IS_ERR(shp));
 	shp->shm_nattch--;
 	if(shp->shm_nattch == 0 &&
 	   shp->shm_perm.mode & SHM_DEST)

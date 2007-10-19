@@ -73,10 +73,7 @@ static struct ipc_ids init_msg_ids;
 
 #define msg_ids(ns)	(*((ns)->ids[IPC_MSG_IDS]))
 
-#define msg_lock(ns, id)	((struct msg_queue*)ipc_lock(&msg_ids(ns), id))
 #define msg_unlock(msq)		ipc_unlock(&(msq)->q_perm)
-#define msg_checkid(ns, msq, msgid)	\
-	ipc_checkid(&msg_ids(ns), &msq->q_perm, msgid)
 #define msg_buildid(ns, id, seq) \
 	ipc_buildid(&msg_ids(ns), id, seq)
 
@@ -137,6 +134,17 @@ void __init msg_init(void)
 	ipc_init_proc_interface("sysvipc/msg",
 				"       key      msqid perms      cbytes       qnum lspid lrpid   uid   gid  cuid  cgid      stime      rtime      ctime\n",
 				IPC_MSG_IDS, sysvipc_msg_proc_show);
+}
+
+static inline struct msg_queue *msg_lock(struct ipc_namespace *ns, int id)
+{
+	return (struct msg_queue *) ipc_lock(&msg_ids(ns), id);
+}
+
+static inline struct msg_queue *msg_lock_check(struct ipc_namespace *ns,
+						int id)
+{
+	return (struct msg_queue *) ipc_lock_check(&msg_ids(ns), id);
 }
 
 static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
@@ -445,18 +453,15 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 		if (!buf)
 			return -EFAULT;
 
-		memset(&tbuf, 0, sizeof(tbuf));
-
-		msq = msg_lock(ns, msqid);
-		if (msq == NULL)
-			return -EINVAL;
-
 		if (cmd == MSG_STAT) {
+			msq = msg_lock(ns, msqid);
+			if (IS_ERR(msq))
+				return PTR_ERR(msq);
 			success_return = msq->q_perm.id;
 		} else {
-			err = -EIDRM;
-			if (msg_checkid(ns, msq, msqid))
-				goto out_unlock;
+			msq = msg_lock_check(ns, msqid);
+			if (IS_ERR(msq))
+				return PTR_ERR(msq);
 			success_return = 0;
 		}
 		err = -EACCES;
@@ -466,6 +471,8 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 		err = security_msg_queue_msgctl(msq, cmd);
 		if (err)
 			goto out_unlock;
+
+		memset(&tbuf, 0, sizeof(tbuf));
 
 		kernel_to_ipc64_perm(&msq->q_perm, &tbuf.msg_perm);
 		tbuf.msg_stime  = msq->q_stime;
@@ -494,14 +501,12 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 	}
 
 	mutex_lock(&msg_ids(ns).mutex);
-	msq = msg_lock(ns, msqid);
-	err = -EINVAL;
-	if (msq == NULL)
+	msq = msg_lock_check(ns, msqid);
+	if (IS_ERR(msq)) {
+		err = PTR_ERR(msq);
 		goto out_up;
+	}
 
-	err = -EIDRM;
-	if (msg_checkid(ns, msq, msqid))
-		goto out_unlock_up;
 	ipcp = &msq->q_perm;
 
 	err = audit_ipc_obj(ipcp);
@@ -644,14 +649,11 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 	msg->m_type = mtype;
 	msg->m_ts = msgsz;
 
-	msq = msg_lock(ns, msqid);
-	err = -EINVAL;
-	if (msq == NULL)
+	msq = msg_lock_check(ns, msqid);
+	if (IS_ERR(msq)) {
+		err = PTR_ERR(msq);
 		goto out_free;
-
-	err= -EIDRM;
-	if (msg_checkid(ns, msq, msqid))
-		goto out_unlock_free;
+	}
 
 	for (;;) {
 		struct msg_sender s;
@@ -758,13 +760,9 @@ long do_msgrcv(int msqid, long *pmtype, void __user *mtext,
 	mode = convert_mode(&msgtyp, msgflg);
 	ns = current->nsproxy->ipc_ns;
 
-	msq = msg_lock(ns, msqid);
-	if (msq == NULL)
-		return -EINVAL;
-
-	msg = ERR_PTR(-EIDRM);
-	if (msg_checkid(ns, msq, msqid))
-		goto out_unlock;
+	msq = msg_lock_check(ns, msqid);
+	if (IS_ERR(msq))
+		return PTR_ERR(msq);
 
 	for (;;) {
 		struct msg_receiver msr_d;
