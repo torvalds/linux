@@ -1579,9 +1579,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	sa1100ir	[NET]
 			See drivers/net/irda/sa1100_ir.c.
 
-	sb=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>
-
 	sbni=		[NET] Granch SBNI12 leased line adapter
 
 	sc1200wdt=	[HW,WDT] SC1200 WDT (watchdog) driver
