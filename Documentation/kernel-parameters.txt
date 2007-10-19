@@ -422,7 +422,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	hpet=		[X86-32,HPET] option to control HPET usage
 			Format: { enable (default) | disable | force }
 			disable: disable HPET and use PIT instead
-			force: allow force enabled of undocumented chips (ICH4, VIA)
+			force: allow force enabled of undocumented chips (ICH4,
+			VIA, nVidia)
 
 	com20020=	[HW,NET] ARCnet - COM20020 chipset
 			Format:
