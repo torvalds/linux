@@ -59,7 +59,8 @@ unsigned long force_hpet_address;
 static enum {
 	NONE_FORCE_HPET_RESUME,
 	OLD_ICH_FORCE_HPET_RESUME,
-	ICH_FORCE_HPET_RESUME
+	ICH_FORCE_HPET_RESUME,
+	VT8237_FORCE_HPET_RESUME
 } force_hpet_resume_type;
 
 static void __iomem *rcba_base;
@@ -240,6 +241,69 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0,
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_12,
 			 old_ich_force_enable_hpet);
 
+
+static void vt8237_force_hpet_resume(void)
+{
+	u32 val;
+
+	if (!force_hpet_address || !cached_dev)
+		return;
+
+	val = 0xfed00000 | 0x80;
+	pci_write_config_dword(cached_dev, 0x68, val);
+
+	pci_read_config_dword(cached_dev, 0x68, &val);
+	if (val & 0x80)
+		printk(KERN_DEBUG "Force enabled HPET at resume\n");
+	else
+		BUG();
+}
+
+static void vt8237_force_enable_hpet(struct pci_dev *dev)
+{
+	u32 uninitialized_var(val);
+
+	if (!hpet_force_user || hpet_address || force_hpet_address)
+		return;
+
+	pci_read_config_dword(dev, 0x68, &val);
+	/*
+	 * Bit 7 is HPET enable bit.
+	 * Bit 31:10 is HPET base address (contrary to what datasheet claims)
+	 */
+	if (val & 0x80) {
+		force_hpet_address = (val & ~0x3ff);
+		printk(KERN_DEBUG "HPET at base address 0x%lx\n",
+			       force_hpet_address);
+		return;
+	}
+
+	/*
+	 * HPET is disabled. Trying enabling at FED00000 and check
+	 * whether it sticks
+	 */
+	val = 0xfed00000 | 0x80;
+	pci_write_config_dword(dev, 0x68, val);
+
+	pci_read_config_dword(dev, 0x68, &val);
+	if (val & 0x80) {
+		force_hpet_address = (val & ~0x3ff);
+		printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
+			       force_hpet_address);
+		cached_dev = dev;
+		force_hpet_resume_type = VT8237_FORCE_HPET_RESUME;
+		return;
+	}
+
+	printk(KERN_DEBUG "Failed to force enable HPET\n");
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235,
+			 vt8237_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,
+			 vt8237_force_enable_hpet);
+
+
 void force_hpet_resume(void)
 {
 	switch (force_hpet_resume_type) {
@@ -248,6 +312,9 @@ void force_hpet_resume(void)
 
 	    case OLD_ICH_FORCE_HPET_RESUME:
 		return old_ich_force_hpet_resume();
+
+	    case VT8237_FORCE_HPET_RESUME:
+		return vt8237_force_hpet_resume();
 
 	    default:
 		break;
