@@ -506,6 +506,9 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cmd64x_set_pio_mode;
 	hwif->set_dma_mode = &cmd64x_set_dma_mode;
 
+	if (dev->device == PCI_DEVICE_ID_CMD_646)
+		hwif->chipset = ide_cmd646;
+
 	if (!hwif->dma_base)
 		return;
 
@@ -535,7 +538,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 		hwif->ide_dma_test_irq	= &cmd648_ide_dma_test_irq;
 		break;
 	case PCI_DEVICE_ID_CMD_646:
-		hwif->chipset = ide_cmd646;
 		if (dev->revision == 0x01) {
 			hwif->ide_dma_end = &cmd646_1_ide_dma_end;
 			break;
