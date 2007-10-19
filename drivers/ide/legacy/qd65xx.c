@@ -89,13 +89,15 @@
 
 static int timings[4]={-1,-1,-1,-1}; /* stores current timing for each timer */
 
+static DEFINE_SPINLOCK(qd65xx_lock);
+
 static void qd_write_reg (u8 content, unsigned long reg)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&qd65xx_lock, flags);
 	outb(content,reg);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&qd65xx_lock, flags);
 }
 
 static u8 __init qd_read_reg (unsigned long reg)
@@ -103,9 +105,9 @@ static u8 __init qd_read_reg (unsigned long reg)
 	unsigned long flags;
 	u8 read;
 
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&qd65xx_lock, flags);
 	read = inb(reg);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&qd65xx_lock, flags);
 	return read;
 }
 
@@ -301,16 +303,15 @@ static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static int __init qd_testreg(int port)
 {
-	u8 savereg;
-	u8 readreg;
 	unsigned long flags;
+	u8 savereg, readreg;
 
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&qd65xx_lock, flags);
 	savereg = inb_p(port);
 	outb_p(QD_TESTVAL, port);	/* safe value */
 	readreg = inb_p(port);
 	outb(savereg, port);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&qd65xx_lock, flags);
 
 	if (savereg == QD_TESTVAL) {
 		printk(KERN_ERR "Outch ! the probe for qd65xx isn't reliable !\n");
