@@ -197,7 +197,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
  *	If key is found ipc contains its ipc structure
  */
  
-struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
+static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
 {
 	struct kern_ipc_perm *ipc;
 	int next_id;
@@ -299,6 +299,105 @@ int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
 	spin_lock(&new->lock);
 	return id;
 }
+
+/**
+ *	ipcget_new	-	create a new ipc object
+ *	@ns: namespace
+ *	@ids: identifer set
+ *	@ops: the actual creation routine to call
+ *	@params: its parameters
+ *
+ *	This routine is called sys_msgget, sys_semget() and sys_shmget() when
+ *	the key is IPC_PRIVATE
+ */
+int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
+		struct ipc_ops *ops, struct ipc_params *params)
+{
+	int err;
+
+	err = idr_pre_get(&ids->ipcs_idr, GFP_KERNEL);
+
+	if (!err)
+		return -ENOMEM;
+
+	mutex_lock(&ids->mutex);
+	err = ops->getnew(ns, params);
+	mutex_unlock(&ids->mutex);
+
+	return err;
+}
+
+/**
+ *	ipc_check_perms	-	check security and permissions for an IPC
+ *	@ipcp: ipc permission set
+ *	@ids: identifer set
+ *	@ops: the actual security routine to call
+ *	@params: its parameters
+ */
+static int ipc_check_perms(struct kern_ipc_perm *ipcp, struct ipc_ops *ops,
+			struct ipc_params *params)
+{
+	int err;
+
+	if (ipcperms(ipcp, params->flg))
+		err = -EACCES;
+	else {
+		err = ops->associate(ipcp, params->flg);
+		if (!err)
+			err = ipcp->id;
+	}
+
+	return err;
+}
+
+/**
+ *	ipcget_public	-	get an ipc object or create a new one
+ *	@ns: namespace
+ *	@ids: identifer set
+ *	@ops: the actual creation routine to call
+ *	@params: its parameters
+ *
+ *	This routine is called sys_msgget, sys_semget() and sys_shmget() when
+ *	the key is not IPC_PRIVATE
+ */
+int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
+		struct ipc_ops *ops, struct ipc_params *params)
+{
+	struct kern_ipc_perm *ipcp;
+	int flg = params->flg;
+	int err;
+
+	err = idr_pre_get(&ids->ipcs_idr, GFP_KERNEL);
+
+	mutex_lock(&ids->mutex);
+	ipcp = ipc_findkey(ids, params->key);
+	if (ipcp == NULL) {
+		/* key not used */
+		if (!(flg & IPC_CREAT))
+			err = -ENOENT;
+		else if (!err)
+			err = -ENOMEM;
+		else
+			err = ops->getnew(ns, params);
+	} else {
+		/* ipc object has been locked by ipc_findkey() */
+
+		if (flg & IPC_CREAT && flg & IPC_EXCL)
+			err = -EEXIST;
+		else {
+			err = 0;
+			if (ops->more_checks)
+				err = ops->more_checks(ipcp, params);
+			if (!err)
+				err = ipc_check_perms(ipcp, ops, params);
+		}
+		ipc_unlock(ipcp);
+	}
+	mutex_unlock(&ids->mutex);
+
+	return err;
+}
+
 
 /**
  *	ipc_rmid	-	remove an IPC identifier

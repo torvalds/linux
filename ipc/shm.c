@@ -68,8 +68,7 @@ static struct ipc_ids init_shm_ids;
 #define shm_buildid(ns, id, seq)	\
 	ipc_buildid(&shm_ids(ns), id, seq)
 
-static int newseg (struct ipc_namespace *ns, key_t key,
-		int shmflg, size_t size);
+static int newseg(struct ipc_namespace *, struct ipc_params *);
 static void shm_open(struct vm_area_struct *vma);
 static void shm_close(struct vm_area_struct *vma);
 static void shm_destroy (struct ipc_namespace *ns, struct shmid_kernel *shp);
@@ -341,8 +340,11 @@ static struct vm_operations_struct shm_vm_ops = {
 #endif
 };
 
-static int newseg (struct ipc_namespace *ns, key_t key, int shmflg, size_t size)
+static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 {
+	key_t key = params->key;
+	int shmflg = params->flg;
+	size_t size = params->u.size;
 	int error;
 	struct shmid_kernel *shp;
 	int numpages = (size + PAGE_SIZE -1) >> PAGE_SHIFT;
@@ -423,57 +425,36 @@ no_file:
 	return error;
 }
 
+static inline int shm_security(void *shp, int shmflg)
+{
+	return security_shm_associate((struct shmid_kernel *) shp, shmflg);
+}
+
+static inline int shm_more_checks(void *shp, struct ipc_params *params)
+{
+	if (((struct shmid_kernel *)shp)->shm_segsz < params->u.size)
+		return -EINVAL;
+
+	return 0;
+}
+
 asmlinkage long sys_shmget (key_t key, size_t size, int shmflg)
 {
-	struct shmid_kernel *shp;
-	int err;
 	struct ipc_namespace *ns;
+	struct ipc_ops shm_ops;
+	struct ipc_params shm_params;
 
 	ns = current->nsproxy->ipc_ns;
 
-	err = idr_pre_get(&shm_ids(ns).ipcs_idr, GFP_KERNEL);
+	shm_ops.getnew = newseg;
+	shm_ops.associate = shm_security;
+	shm_ops.more_checks = shm_more_checks;
 
-	if (key == IPC_PRIVATE) {
-		if (!err)
-			err = -ENOMEM;
-		else {
-			mutex_lock(&shm_ids(ns).mutex);
-			err = newseg(ns, key, shmflg, size);
-			mutex_unlock(&shm_ids(ns).mutex);
-		}
-	} else {
-		mutex_lock(&shm_ids(ns).mutex);
-		shp = (struct shmid_kernel *) ipc_findkey(&shm_ids(ns), key);
-		if (shp == NULL) {
-			if (!(shmflg & IPC_CREAT))
-				err = -ENOENT;
-			else if (!err)
-				err = -ENOMEM;
-			else
-				err = newseg(ns, key, shmflg, size);
-		} else {
-			/* shp has been locked by ipc_findkey() */
+	shm_params.key = key;
+	shm_params.flg = shmflg;
+	shm_params.u.size = size;
 
-			if ((shmflg & IPC_CREAT) && (shmflg & IPC_EXCL))
-				err = -EEXIST;
-			else {
-				if (shp->shm_segsz < size)
-					err = -EINVAL;
-				else if (ipcperms(&shp->shm_perm, shmflg))
-					err = -EACCES;
-				else {
-					err = security_shm_associate(shp,
-								shmflg);
-					if (!err)
-						err = shp->shm_perm.id;
-				}
-			}
-			shm_unlock(shp);
-		}
-		mutex_unlock(&shm_ids(ns).mutex);
-	}
-
-	return err;
+	return ipcget(ns, &shm_ids(ns), &shm_ops, &shm_params);
 }
 
 static inline unsigned long copy_shmid_to_user(void __user *buf, struct shmid64_ds *in, int version)

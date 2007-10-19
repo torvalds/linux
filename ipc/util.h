@@ -35,6 +35,35 @@ struct ipc_ids {
 	struct idr ipcs_idr;
 };
 
+/*
+ * Structure that holds the parameters needed by the ipc operations
+ * (see after)
+ */
+struct ipc_params {
+	key_t key;
+	int flg;
+	union {
+		size_t size;	/* for shared memories */
+		int nsems;	/* for semaphores */
+	} u;			/* holds the getnew() specific param */
+};
+
+/*
+ * Structure that holds some ipc operations. This structure is used to unify
+ * the calls to sys_msgget(), sys_semget(), sys_shmget()
+ *      . routine to call to create a new ipc object. Can be one of newque,
+ *        newary, newseg
+ *      . routine to call to call to check permissions for a new ipc object.
+ *        Can be one of security_msg_associate, security_sem_associate,
+ *        security_shm_associate
+ *      . routine to call for an extra check if needed
+ */
+struct ipc_ops {
+	int (*getnew) (struct ipc_namespace *, struct ipc_params *);
+	int (*associate) (void *, int);
+	int (*more_checks) (void *, struct ipc_params *);
+};
+
 struct seq_file;
 
 void ipc_init_ids(struct ipc_ids *);
@@ -50,7 +79,6 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 #define IPC_SHM_IDS	2
 
 /* must be called with ids->mutex acquired.*/
-struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key);
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
 int ipc_get_maxid(struct ipc_ids *);
 
@@ -95,5 +123,18 @@ int ipc_parse_version (int *cmd);
 extern void free_msg(struct msg_msg *msg);
 extern struct msg_msg *load_msg(const void __user *src, int len);
 extern int store_msg(void __user *dest, struct msg_msg *msg, int len);
+extern int ipcget_new(struct ipc_namespace *, struct ipc_ids *,
+			struct ipc_ops *, struct ipc_params *);
+extern int ipcget_public(struct ipc_namespace *, struct ipc_ids *,
+			struct ipc_ops *, struct ipc_params *);
+
+static inline int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
+			struct ipc_ops *ops, struct ipc_params *params)
+{
+	if (params->key == IPC_PRIVATE)
+		return ipcget_new(ns, ids, ops, params);
+	else
+		return ipcget_public(ns, ids, ops, params);
+}
 
 #endif

@@ -97,7 +97,7 @@
 
 static struct ipc_ids init_sem_ids;
 
-static int newary(struct ipc_namespace *, key_t, int, int);
+static int newary(struct ipc_namespace *, struct ipc_params *);
 static void freeary(struct ipc_namespace *, struct sem_array *);
 #ifdef CONFIG_PROC_FS
 static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
@@ -214,12 +214,15 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
  */
 #define IN_WAKEUP	1
 
-static int newary (struct ipc_namespace *ns, key_t key, int nsems, int semflg)
+static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 {
 	int id;
 	int retval;
 	struct sem_array *sma;
 	int size;
+	key_t key = params->key;
+	int nsems = params->u.nsems;
+	int semflg = params->flg;
 
 	if (!nsems)
 		return -EINVAL;
@@ -263,61 +266,40 @@ static int newary (struct ipc_namespace *ns, key_t key, int nsems, int semflg)
 	return sma->sem_perm.id;
 }
 
-asmlinkage long sys_semget (key_t key, int nsems, int semflg)
+
+static inline int sem_security(void *sma, int semflg)
 {
-	int err;
-	struct sem_array *sma;
+	return security_sem_associate((struct sem_array *) sma, semflg);
+}
+
+static inline int sem_more_checks(void *sma, struct ipc_params *params)
+{
+	if (params->u.nsems > ((struct sem_array *)sma)->sem_nsems)
+		return -EINVAL;
+
+	return 0;
+}
+
+asmlinkage long sys_semget(key_t key, int nsems, int semflg)
+{
 	struct ipc_namespace *ns;
+	struct ipc_ops sem_ops;
+	struct ipc_params sem_params;
 
 	ns = current->nsproxy->ipc_ns;
 
 	if (nsems < 0 || nsems > ns->sc_semmsl)
 		return -EINVAL;
 
-	err = idr_pre_get(&sem_ids(ns).ipcs_idr, GFP_KERNEL);
+	sem_ops.getnew = newary;
+	sem_ops.associate = sem_security;
+	sem_ops.more_checks = sem_more_checks;
 
-	if (key == IPC_PRIVATE) {
-		if (!err)
-			err = -ENOMEM;
-		else {
-			mutex_lock(&sem_ids(ns).mutex);
-			err = newary(ns, key, nsems, semflg);
-			mutex_unlock(&sem_ids(ns).mutex);
-		}
-	} else {
-		mutex_lock(&sem_ids(ns).mutex);
-		sma = (struct sem_array *) ipc_findkey(&sem_ids(ns), key);
-		if (sma == NULL) {
-			/* key not used */
-			if (!(semflg & IPC_CREAT))
-				err = -ENOENT;
-			else if (!err)
-				err = -ENOMEM;
-			else
-				err = newary(ns, key, nsems, semflg);
-		} else {
-			/* sma has been locked by ipc_findkey() */
+	sem_params.key = key;
+	sem_params.flg = semflg;
+	sem_params.u.nsems = nsems;
 
-			if (semflg & IPC_CREAT && semflg & IPC_EXCL)
-				err = -EEXIST;
-			else {
-				if (nsems > sma->sem_nsems)
-					err = -EINVAL;
-				else if (ipcperms(&sma->sem_perm, semflg))
-					err = -EACCES;
-				else {
-					err = security_sem_associate(sma,
-								semflg);
-					if (!err)
-						err = sma->sem_perm.id;
-				}
-			}
-			sem_unlock(sma);
-		}
-		mutex_unlock(&sem_ids(ns).mutex);
-	}
-
-	return err;
+	return ipcget(ns, &sem_ids(ns), &sem_ops, &sem_params);
 }
 
 /* Manage the doubly linked list sma->sem_pending as a FIFO:

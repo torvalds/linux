@@ -81,7 +81,7 @@ static struct ipc_ids init_msg_ids;
 	ipc_buildid(&msg_ids(ns), id, seq)
 
 static void freeque(struct ipc_namespace *, struct msg_queue *);
-static int newque (struct ipc_namespace *ns, key_t key, int msgflg);
+static int newque(struct ipc_namespace *, struct ipc_params *);
 #ifdef CONFIG_PROC_FS
 static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
 #endif
@@ -144,10 +144,12 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
 	ipc_rmid(&msg_ids(ns), &s->q_perm);
 }
 
-static int newque (struct ipc_namespace *ns, key_t key, int msgflg)
+static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 {
 	struct msg_queue *msq;
 	int id, retval;
+	key_t key = params->key;
+	int msgflg = params->flg;
 
 	msq = ipc_rcu_alloc(sizeof(*msq));
 	if (!msq)
@@ -264,56 +266,27 @@ static void freeque(struct ipc_namespace *ns, struct msg_queue *msq)
 	ipc_rcu_putref(msq);
 }
 
+static inline int msg_security(void *msq, int msgflg)
+{
+	return security_msg_queue_associate((struct msg_queue *) msq, msgflg);
+}
+
 asmlinkage long sys_msgget(key_t key, int msgflg)
 {
-	struct msg_queue *msq;
-	int ret;
 	struct ipc_namespace *ns;
+	struct ipc_ops msg_ops;
+	struct ipc_params msg_params;
 
 	ns = current->nsproxy->ipc_ns;
 
-	ret = idr_pre_get(&msg_ids(ns).ipcs_idr, GFP_KERNEL);
+	msg_ops.getnew = newque;
+	msg_ops.associate = msg_security;
+	msg_ops.more_checks = NULL;
 
-	if (key == IPC_PRIVATE)  {
-		if (!ret)
-			ret = -ENOMEM;
-		else {
-			mutex_lock(&msg_ids(ns).mutex);
-			ret = newque(ns, key, msgflg);
-			mutex_unlock(&msg_ids(ns).mutex);
-		}
-	} else {
-		mutex_lock(&msg_ids(ns).mutex);
-		msq = (struct msg_queue *) ipc_findkey(&msg_ids(ns), key);
-		if (msq == NULL) {
-			/* key not used */
-			if (!(msgflg & IPC_CREAT))
-				ret = -ENOENT;
-			else if (!ret)
-				ret = -ENOMEM;
-			else
-				ret = newque(ns, key, msgflg);
-		} else {
-			/* msq has been locked by ipc_findkey() */
+	msg_params.key = key;
+	msg_params.flg = msgflg;
 
-			if (msgflg & IPC_CREAT && msgflg & IPC_EXCL)
-				ret = -EEXIST;
-			else {
-				if (ipcperms(&msq->q_perm, msgflg))
-					ret = -EACCES;
-				else {
-					ret = security_msg_queue_associate(
-								msq, msgflg);
-					if (!ret)
-						ret = msq->q_perm.id;
-				}
-			}
-			msg_unlock(msq);
-		}
-		mutex_unlock(&msg_ids(ns).mutex);
-	}
-
-	return ret;
+	return ipcget(ns, &msg_ids(ns), &msg_ops, &msg_params);
 }
 
 static inline unsigned long
