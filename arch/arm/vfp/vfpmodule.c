@@ -229,7 +229,7 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	/*
 	 * Enable access to the VFP so we can handle the bounce.
 	 */
-	fmxr(FPEXC, fpexc & ~(FPEXC_EX|FPEXC_INV|FPEXC_UFC|FPEXC_IOC));
+	fmxr(FPEXC, fpexc & ~(FPEXC_EX|FPEXC_FPV2|FPEXC_INV|FPEXC_UFC|FPEXC_OFC|FPEXC_IOC));
 
 	orig_fpscr = fpscr = fmrx(FPSCR);
 
