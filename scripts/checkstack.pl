@@ -15,7 +15,7 @@
 #	AVR32 port by Haavard Skinnemoen <hskinnemoen@atmel.com>
 #
 #	Usage:
-#	objdump -d vmlinux | stackcheck.pl [arch]
+#	objdump -d vmlinux | scripts/checkstack.pl [arch]
 #
 #	TODO :	Port to all architectures (one regex per arch)
 
