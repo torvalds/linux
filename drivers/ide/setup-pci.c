@@ -227,8 +227,9 @@ static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_
 
 void ide_setup_pci_noise(struct pci_dev *dev, const struct ide_port_info *d)
 {
-	printk(KERN_INFO "%s: IDE controller at PCI slot %s\n",
-			 d->name, pci_name(dev));
+	printk(KERN_INFO "%s: IDE controller (0x%04x:0x%04x rev 0x%02x) at "
+			 " PCI slot %s\n", d->name, dev->vendor, dev->device,
+			 dev->revision, pci_name(dev));
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
@@ -497,9 +498,6 @@ static int ide_setup_pci_controller(struct pci_dev *dev, const struct ide_port_i
 		printk(KERN_INFO "%s: device enabled (Linux)\n", d->name);
 	}
 
-	if (noisy)
-		printk(KERN_INFO "%s: chipset revision %d\n",
-				 d->name, dev->revision);
 out:
 	return ret;
 }
