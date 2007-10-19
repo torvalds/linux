@@ -2333,7 +2333,7 @@ static struct task_struct *next_tgid(unsigned int tgid)
 	rcu_read_lock();
 retry:
 	task = NULL;
-	pid = find_ge_pid(tgid);
+	pid = find_ge_pid(tgid, &init_pid_ns);
 	if (pid) {
 		tgid = pid->nr + 1;
 		task = pid_task(pid, PIDTYPE_PID);
