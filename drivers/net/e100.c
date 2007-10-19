@@ -1324,7 +1324,7 @@ static inline int e100_exec_cb_wait(struct nic *nic, struct sk_buff *skb,
 		if (!--counter) break;
 	}
 
-	/* ack any interupts, something could have been set */
+	/* ack any interrupts, something could have been set */
 	iowrite8(~0, &nic->csr->scb.stat_ack);
 
 	/* if the command failed, or is not OK, notify and return */

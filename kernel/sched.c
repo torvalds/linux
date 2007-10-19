@@ -5146,7 +5146,7 @@ static int __migrate_task_irq(struct task_struct *p, int src_cpu, int dest_cpu)
 }
 
 /*
- * Figure out where task on dead CPU should go, use force if neccessary.
+ * Figure out where task on dead CPU should go, use force if necessary.
  * NOTE: interrupts should be disabled by the caller
  */
 static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
@@ -5525,7 +5525,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		/* Strictly unneccessary, as first user will wake it. */
+		/* Strictly unnecessary, as first user will wake it. */
 		wake_up_process(cpu_rq(cpu)->migration_thread);
 		break;
 

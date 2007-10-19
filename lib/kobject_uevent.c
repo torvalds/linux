@@ -126,7 +126,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	else
 		subsystem = kobject_name(&kset->kobj);
 	if (!subsystem) {
-		pr_debug("unset subsytem caused the event to drop!\n");
+		pr_debug("unset subsystem caused the event to drop!\n");
 		return 0;
 	}
 

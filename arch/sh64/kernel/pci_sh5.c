@@ -480,7 +480,7 @@ static int __init pcibios_init(void)
                 return -EINVAL;
         }
 
-	/* The pci subsytem needs to know where memory is and how much
+	/* The pci subsystem needs to know where memory is and how much
 	 * of it there is. I've simply made these globals. A better mechanism
 	 * is probably needed.
 	 */

@@ -565,7 +565,7 @@ typedef struct os_dat_s {
  *	The following parameter is used to select the point in the internal
  *	tape fifo in which we will start to refill the buffer. Decreasing
  *	the following parameter will improve the system's latency and
- *	interactive response, while using a high value might improve sytem
+ *	interactive response, while using a high value might improve system
  *	throughput.
  */
 #define IDETAPE_FIFO_THRESHOLD 		2

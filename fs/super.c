@@ -417,7 +417,7 @@ restart:
 }
 
 /*
- * Call the ->sync_fs super_op against all filesytems which are r/w and
+ * Call the ->sync_fs super_op against all filesystems which are r/w and
  * which implement it.
  *
  * This operation is careful to avoid the livelock which could easily happen
@@ -425,7 +425,7 @@ restart:
  * is used only here.  We set it against all filesystems and then clear it as
  * we sync them.  So redirtied filesystems are skipped.
  *
- * But if process A is currently running sync_filesytems and then process B
+ * But if process A is currently running sync_filesystems and then process B
  * calls sync_filesystems as well, process B will set all the s_need_sync_fs
  * flags again, which will cause process A to resync everything.  Fix that with
  * a local mutex.

@@ -401,7 +401,7 @@ extern void dma_sync_sg_for_device(struct device*, struct scatterlist*, int, enu
  *
  * On the SA-1111, a bug limits DMA to only certain regions of RAM.
  * On the IXP425, the PCI inbound window is 64MB (256MB total RAM)
- * On some ADI engineering sytems, PCI inbound window is 32MB (12MB total RAM)
+ * On some ADI engineering systems, PCI inbound window is 32MB (12MB total RAM)
  *
  * The following are helper functions used by the dmabounce subystem
  *

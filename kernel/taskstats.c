@@ -263,7 +263,7 @@ out:
 
 	stats->version = TASKSTATS_VERSION;
 	/*
-	 * Accounting subsytems can also add calls here to modify
+	 * Accounting subsystems can also add calls here to modify
 	 * fields of taskstats.
 	 */
 	return rc;

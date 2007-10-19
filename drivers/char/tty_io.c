@@ -943,7 +943,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_deref);
  *	@tty: terminal to activate ldisc on
  *
  *	Set the TTY_LDISC flag when the line discipline can be called
- *	again. Do neccessary wakeups for existing sleepers.
+ *	again. Do necessary wakeups for existing sleepers.
  *
  *	Note: nobody should set this bit except via this function. Clearing
  *	directly is allowed.
@@ -1504,7 +1504,7 @@ EXPORT_SYMBOL(tty_hangup);
  *
  *	The user has asked via system call for the terminal to be hung up.
  *	We do this synchronously so that when the syscall returns the process
- *	is complete. That guarantee is neccessary for security reasons.
+ *	is complete. That guarantee is necessary for security reasons.
  */
 
 void tty_vhangup(struct tty_struct * tty)
@@ -1691,7 +1691,7 @@ EXPORT_SYMBOL(stop_tty);
  *	@tty: tty to start
  *
  *	Start a tty that has been stopped if at all possible. Perform
- *	any neccessary wakeups and propagate the TIOCPKT status. If this
+ *	any necessary wakeups and propagate the TIOCPKT status. If this
  *	is the tty was previous stopped and is being started then the
  *	driver start method is invoked and the line discipline woken.
  *
@@ -2877,7 +2877,7 @@ static int tty_fasync(int fd, struct file * filp, int on)
  *	@tty: tty to fake input into
  *	@p: pointer to character
  *
- *	Fake input to a tty device. Does the neccessary locking and
+ *	Fake input to a tty device. Does the necessary locking and
  *	input management.
  *
  *	FIXME: does not honour flow control ??

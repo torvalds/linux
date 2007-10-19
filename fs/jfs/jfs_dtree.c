@@ -773,7 +773,7 @@ int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
 	      getChild:
 		/* update max. number of pages to split */
 		if (BT_STACK_FULL(btstack)) {
-			/* Something's corrupted, mark filesytem dirty so
+			/* Something's corrupted, mark filesystem dirty so
 			 * chkdsk will fix it.
 			 */
 			jfs_error(sb, "stack overrun in dtSearch!");

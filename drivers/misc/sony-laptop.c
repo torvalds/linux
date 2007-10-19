@@ -277,7 +277,7 @@ static void do_sony_laptop_release_key(struct work_struct *work)
 static DECLARE_WORK(sony_laptop_release_key_work,
 		do_sony_laptop_release_key);
 
-/* forward event to the input subsytem */
+/* forward event to the input subsystem */
 static void sony_laptop_report_input_event(u8 event)
 {
 	struct input_dev *jog_dev = sony_laptop_input.jog_dev;

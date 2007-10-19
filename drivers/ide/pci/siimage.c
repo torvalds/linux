@@ -26,7 +26,7 @@
  *
  *	If you have strange problems with nVidia chipset systems please
  *	see the SI support documentation and update your system BIOS
- *	if neccessary
+ *	if necessary
  *
  *  The Dell DRAC4 has some interesting features including effectively hot
  *  unplugging/replugging the virtual CD interface when the DRAC is reset.

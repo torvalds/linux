@@ -2001,7 +2001,7 @@ dasd_3990_erp_compound_code(struct dasd_ccw_req * erp, char *sense)
 		switch (sense[28]) {
 		case 0x17:
 			/* issue a Diagnostic Control command with an
-			 * Inhibit Write subcommand and controler modifier */
+			 * Inhibit Write subcommand and controller modifier */
 			erp = dasd_3990_erp_DCTL(erp, 0x20);
 			break;
 

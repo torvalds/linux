@@ -124,7 +124,7 @@ static void ns87410_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *
  *	Called when the libata layer is about to issue a command. We wrap
  *	this interface so that we can load the correct ATA timings if
- *	neccessary.
+ *	necessary.
  */
 
 static unsigned int ns87410_qc_issue_prot(struct ata_queued_cmd *qc)

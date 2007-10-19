@@ -412,7 +412,7 @@ static int hrtimer_reprogram(struct hrtimer *timer,
 	/*
 	 * When the callback is running, we do not reprogram the clock event
 	 * device. The timer callback is either running on a different CPU or
-	 * the callback is executed in the hrtimer_interupt context. The
+	 * the callback is executed in the hrtimer_interrupt context. The
 	 * reprogramming is handled either by the softirq, which called the
 	 * callback or at the end of the hrtimer_interrupt.
 	 */

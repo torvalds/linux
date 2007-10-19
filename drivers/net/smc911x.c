@@ -1223,7 +1223,7 @@ static irqreturn_t smc911x_interrupt(int irq, void *dev_id)
 		}
 #endif
 
-		/* Handle PHY interupt condition */
+		/* Handle PHY interrupt condition */
 		if (status & INT_STS_PHY_INT_) {
 			DBG(SMC_DEBUG_MISC, "%s: PHY irq\n", dev->name);
 			smc911x_phy_interrupt(dev);

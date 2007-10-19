@@ -542,7 +542,7 @@ static struct {
 static int num_ifs;
 
 /*
- * Setup the base address and interupt of the Au1xxx ethernet macs
+ * Setup the base address and interrupt of the Au1xxx ethernet macs
  * based on cpu type and whether the interface is enabled in sys_pinfunc
  * register. The last interface is enabled if SYS_PF_NI2 (bit 4) is 0.
  */

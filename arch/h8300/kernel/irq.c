@@ -68,7 +68,7 @@ static void h8300_shutdown_irq(unsigned int irq)
 }
 
 /*
- * h8300 interrupt controler implementation
+ * h8300 interrupt controller implementation
  */
 struct irq_chip h8300irq_chip = {
 	.name		= "H8300-INTC",

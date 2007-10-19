@@ -128,7 +128,7 @@ struct ttusb {
 	struct dvb_frontend* fe;
 };
 
-/* ugly workaround ... don't know why it's neccessary to read */
+/* ugly workaround ... don't know why it's necessary to read */
 /* all result codes. */
 
 #define DEBUG 0

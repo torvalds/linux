@@ -55,7 +55,7 @@
  * 	ppp0..9.
  *
  * 	NOTE: Certain meta values depend on other subsystems and are
- * 	      only available if that subsytem is enabled in the kernel.
+ * 	      only available if that subsystem is enabled in the kernel.
  */
 
 #include <linux/module.h>

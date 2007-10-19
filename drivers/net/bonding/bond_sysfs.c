@@ -55,7 +55,7 @@ static int expected_refcount = -1;
 static struct class *netdev_class;
 /*--------------------------- Data Structures -----------------------------*/
 
-/* Bonding sysfs lock.  Why can't we just use the subsytem lock?
+/* Bonding sysfs lock.  Why can't we just use the subsystem lock?
  * Because kobject_register tries to acquire the subsystem lock.  If
  * we already hold the lock (which we would if the user was creating
  * a new bond through the sysfs interface), we deadlock.

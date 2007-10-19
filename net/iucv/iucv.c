@@ -389,7 +389,7 @@ static void iucv_block_cpu(void *data)
  * iucv_declare_cpu
  * @data: unused
  *
- * Declare a interupt buffer on this cpu.
+ * Declare a interrupt buffer on this cpu.
  */
 static void iucv_declare_cpu(void *data)
 {

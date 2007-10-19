@@ -95,7 +95,7 @@ struct it821x_dev
 
 /*
  *	We allow users to force the card into non raid mode without
- *	flashing the alternative BIOS. This is also neccessary right now
+ *	flashing the alternative BIOS. This is also necessary right now
  *	for embedded platforms that cannot run a PC BIOS but are using this
  *	device.
  */
@@ -564,7 +564,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 
 	/*
 	 *	Not in the docs but according to the reference driver
-	 *	this is neccessary.
+	 *	this is necessary.
 	 */
 
 	pci_read_config_byte(hwif->pci_dev, 0x08, &conf);

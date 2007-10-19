@@ -1006,7 +1006,7 @@ int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a)
  * qla4xxx_start_firmware - starts qla4xxx firmware
  * @ha: Pointer to host adapter structure.
  *
- * This routine performs the neccessary steps to start the firmware for
+ * This routine performs the necessary steps to start the firmware for
  * the QLA4010 adapter.
  **/
 static int qla4xxx_start_firmware(struct scsi_qla_host *ha)

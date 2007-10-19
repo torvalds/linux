@@ -59,7 +59,7 @@ Four configs variables are introduced:
   CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA    - enable the PIO+DBDMA mode
   CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA  - enable the MWDMA mode
   CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON - set Burstable FIFO in DBDMA
-                                           controler
+                                           controller
   CONFIG_BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ - maximum transfer size
                                            per descriptor
 

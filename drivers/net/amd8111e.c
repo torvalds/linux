@@ -1111,7 +1111,7 @@ static struct net_device_stats *amd8111e_get_stats(struct net_device * dev)
 
 	return new_stats;
 }
-/* This function recalculate the interupt coalescing  mode on every interrupt
+/* This function recalculate the interrupt coalescing  mode on every interrupt
 according to the datarate and the packet rate.
 */
 static int amd8111e_calc_coalesce(struct net_device *dev)

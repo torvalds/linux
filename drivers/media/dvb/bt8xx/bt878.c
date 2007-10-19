@@ -280,7 +280,7 @@ static irqreturn_t bt878_irq(int irq, void *dev_id)
 		if (!(astat = (stat & mask)))
 			return IRQ_NONE;	/* this interrupt is not for me */
 /*		dprintk("bt878(%d) debug: irq count %d, stat 0x%8.8x, mask 0x%8.8x\n",bt->nr,count,stat,mask); */
-		btwrite(astat, BT878_AINT_STAT);	/* try to clear interupt condition */
+		btwrite(astat, BT878_AINT_STAT);	/* try to clear interrupt condition */
 
 
 		if (astat & (BT878_ASCERR | BT878_AOCERR)) {

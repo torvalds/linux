@@ -4709,18 +4709,18 @@ adtvk503_audio(struct bttv *btv, struct video_audio *v, int set)
  *
  * The board hardwire Y0 (xpoint) to MUX1 and MUXOUT to Yin.
  * GPIO pins are wired as:
- *  GPIO[0:3] - AX[0:3] (xpoint) - P1[0:3] (microcontroler)
- *  GPIO[4:6] - AY[0:2] (xpoint) - P1[4:6] (microcontroler)
- *  GPIO[7]   - DATA (xpoint)    - P1[7] (microcontroler)
- *  GPIO[8]   -                  - P3[5] (microcontroler)
- *  GPIO[9]   - RESET (xpoint)   - P3[6] (microcontroler)
- *  GPIO[10]  - STROBE (xpoint)  - P3[7] (microcontroler)
- *  GPINTR    -                  - P3[4] (microcontroler)
+ *  GPIO[0:3] - AX[0:3] (xpoint) - P1[0:3] (microcontroller)
+ *  GPIO[4:6] - AY[0:2] (xpoint) - P1[4:6] (microcontroller)
+ *  GPIO[7]   - DATA (xpoint)    - P1[7] (microcontroller)
+ *  GPIO[8]   -                  - P3[5] (microcontroller)
+ *  GPIO[9]   - RESET (xpoint)   - P3[6] (microcontroller)
+ *  GPIO[10]  - STROBE (xpoint)  - P3[7] (microcontroller)
+ *  GPINTR    -                  - P3[4] (microcontroller)
  *
- * The microcontroler is a 80C32 like. It should be possible to change xpoint
- * configuration either directly (as we are doing) or using the microcontroler
+ * The microcontroller is a 80C32 like. It should be possible to change xpoint
+ * configuration either directly (as we are doing) or using the microcontroller
  * which is also wired to I2C interface. I have no further info on the
- * microcontroler features, one would need to disassembly the firmware.
+ * microcontroller features, one would need to disassembly the firmware.
  * note: the vendor refused to give any information on this product, all
  *       that stuff was found using a multimeter! :)
  */
@@ -4788,7 +4788,7 @@ static void tibetCS16_init(struct bttv *btv)
  * The analog switch is controlled by the "master", but the detection order
  * of the four BT878A chips is in an order which I just don't understand.
  * The "master" is actually the second controller to be detected.  The
- * logic on the board uses logical numbers for the 4 controlers, but
+ * logic on the board uses logical numbers for the 4 controllers, but
  * those numbers are different from the detection sequence.  When working
  * with the analog switch, we need to "map" from the detection sequence
  * over to the board's logical controller number.  This mapping sequence
