@@ -906,7 +906,7 @@ static void psmouse_activate(struct psmouse *psmouse)
 
 /*
  * psmouse_deactivate() puts the mouse into poll mode so that we don't get motion
- * reports from it unless we explicitely request it.
+ * reports from it unless we explicitly request it.
  */
 
 static void psmouse_deactivate(struct psmouse *psmouse)

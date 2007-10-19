@@ -126,7 +126,7 @@ act2000_isa_enable_irq(act2000_card * card)
 
 /*
  * Install interrupt handler, enable irq on card.
- * If irq is -1, choose next free irq, else irq is given explicitely.
+ * If irq is -1, choose next free irq, else irq is given explicitly.
  */
 int
 act2000_isa_config_irq(act2000_card * card, short irq)

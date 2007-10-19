@@ -522,7 +522,7 @@ static inline void name at					\
 #else
 /*
  * Enforce synchronisation of stores vs. spin_unlock
- * (this does it explicitely, though our implementation of spin_unlock
+ * (this does it explicitly, though our implementation of spin_unlock
  * does it implicitely too)
  */
 static inline void mmiowb(void)

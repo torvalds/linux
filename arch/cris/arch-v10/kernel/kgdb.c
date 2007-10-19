@@ -959,7 +959,7 @@ stub_is_stopped(int sigval)
 
 	/* Send register contents. We probably only need to send the
 	 * PC, frame pointer and stack pointer here. Other registers will be
-	 * explicitely asked for. But for now, send all. 
+	 * explicitly asked for. But for now, send all.
 	 */
 	
 	for (regno = R0; regno <= USP; regno++) {

@@ -9603,7 +9603,7 @@ static int ipw_wx_set_power(struct net_device *dev,
 	switch (wrqu->power.flags & IW_POWER_MODE) {
 	case IW_POWER_ON:	/* If not specified */
 	case IW_POWER_MODE:	/* If set all mask */
-	case IW_POWER_ALL_R:	/* If explicitely state all */
+	case IW_POWER_ALL_R:	/* If explicitly state all */
 		break;
 	default:		/* Otherwise we don't support it */
 		IPW_DEBUG_WX("SET PM Mode: %X not supported.\n",
