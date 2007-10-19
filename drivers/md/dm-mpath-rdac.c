@@ -664,18 +664,19 @@ static struct hw_handler_type rdac_handler = {
 
 static int __init rdac_init(void)
 {
-	int r = dm_register_hw_handler(&rdac_handler);
-
-	if (r < 0) {
-		DMERR("%s: register failed %d", RDAC_DM_HWH_NAME, r);
-		return r;
-	}
+	int r;
 
 	rdac_wkqd = create_singlethread_workqueue("rdac_wkqd");
 	if (!rdac_wkqd) {
 		DMERR("Failed to create workqueue rdac_wkqd.");
-		dm_unregister_hw_handler(&rdac_handler);
 		return -ENOMEM;
+	}
+
+	r = dm_register_hw_handler(&rdac_handler);
+	if (r < 0) {
+		DMERR("%s: register failed %d", RDAC_DM_HWH_NAME, r);
+		destroy_workqueue(rdac_wkqd);
+		return r;
 	}
 
 	DMINFO("%s: version %s loaded", RDAC_DM_HWH_NAME, RDAC_DM_HWH_VER);
