@@ -144,6 +144,16 @@ int cgroup_is_removed(const struct cgroup *cont);
 
 int cgroup_path(const struct cgroup *cont, char *buf, int buflen);
 
+int __cgroup_task_count(const struct cgroup *cont);
+static inline int cgroup_task_count(const struct cgroup *cont)
+{
+	int task_count;
+	rcu_read_lock();
+	task_count = __cgroup_task_count(cont);
+	rcu_read_unlock();
+	return task_count;
+}
+
 /* Return true if the cgroup is a descendant of the current cgroup */
 int cgroup_is_descendant(const struct cgroup *cont);
 
