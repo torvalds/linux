@@ -488,10 +488,22 @@ static void s3c2410_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	readsb(this->IO_ADDR_R, buf, len);
 }
 
+static void s3c2440_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+{
+	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	readsl(info->regs + S3C2440_NFDATA, buf, len / 4);
+}
+
 static void s3c2410_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
 	struct nand_chip *this = mtd->priv;
 	writesb(this->IO_ADDR_W, buf, len);
+}
+
+static void s3c2440_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+{
+	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	writesl(info->regs + S3C2440_NFDATA, buf, len / 4);
 }
 
 /* device management functions */
@@ -604,6 +616,8 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		info->sel_bit	= S3C2440_NFCONT_nFCE;
 		chip->cmd_ctrl  = s3c2440_nand_hwcontrol;
 		chip->dev_ready = s3c2440_nand_devready;
+		chip->read_buf  = s3c2440_nand_read_buf;
+		chip->write_buf	= s3c2440_nand_write_buf;
 		break;
 
 	case TYPE_S3C2412:
