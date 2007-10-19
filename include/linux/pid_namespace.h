@@ -24,9 +24,10 @@ struct pid_namespace {
 
 extern struct pid_namespace init_pid_ns;
 
-static inline void get_pid_ns(struct pid_namespace *ns)
+static inline struct pid_namespace *get_pid_ns(struct pid_namespace *ns)
 {
 	kref_get(&ns->kref);
+	return ns;
 }
 
 extern struct pid_namespace *copy_pid_ns(unsigned long flags, struct pid_namespace *ns);
