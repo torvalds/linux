@@ -1268,16 +1268,9 @@ netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
  */
 irqreturn_t netxen_intr(int irq, void *data)
 {
-	struct netxen_adapter *adapter;
-	struct net_device *netdev;
+	struct netxen_adapter *adapter = data;
+	struct net_device *netdev = adapter->netdev;
 	u32 our_int = 0;
-
-	if (unlikely(!irq)) {
-		return IRQ_NONE;	/* Not our interrupt */
-	}
-
-	adapter = (struct netxen_adapter *)data;
-	netdev  = adapter->netdev;
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
