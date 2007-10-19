@@ -140,7 +140,7 @@ block_irq(int irq, int cpu)
         spin_lock_irqsave(&irq_lock, flags);
         intr_mask = REG_RD_INT(intr_vect, irq_regs[cpu], rw_mask);
 
-	/* Remember; 1 let thru, 0 block. */
+	/* Remember; 1 let through, 0 block. */
 	intr_mask &= ~(1 << (irq - FIRST_IRQ));
 
 	REG_WR_INT(intr_vect, irq_regs[cpu], rw_mask, intr_mask);
@@ -156,7 +156,7 @@ unblock_irq(int irq, int cpu)
         spin_lock_irqsave(&irq_lock, flags);
         intr_mask = REG_RD_INT(intr_vect, irq_regs[cpu], rw_mask);
 
-	/* Remember; 1 let thru, 0 block. */
+	/* Remember; 1 let through, 0 block. */
 	intr_mask |= (1 << (irq - FIRST_IRQ));
 
 	REG_WR_INT(intr_vect, irq_regs[cpu], rw_mask, intr_mask);
@@ -308,7 +308,7 @@ crisv32_do_multiple(struct pt_regs* regs)
 	 */
 	irq_enter();
 
-	/* Get which IRQs that happend. */
+	/* Get which IRQs that happened. */
 	masked = REG_RD_INT(intr_vect, irq_regs[cpu], r_masked_vect);
 
 	/* Calculate new IRQ mask with these IRQs disabled. */
@@ -366,7 +366,7 @@ init_IRQ(void)
 	for (i = 0; i < 256; i++)
 		etrax_irv->v[i] = weird_irq;
 
-	/* Point all IRQ's to bad handlers. */
+	/* Point all IRQs to bad handlers. */
 	for (i = FIRST_IRQ, j = 0; j < NR_IRQS; i++, j++) {
 		irq_desc[j].chip = &crisv32_irq_type;
 		set_exception_vector(i, interrupt[j]);

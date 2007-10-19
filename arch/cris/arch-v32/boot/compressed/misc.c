@@ -8,7 +8,7 @@
  *
  * malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
  * puts by Nick Holloway 1993, better puts by Martin Mares 1995
- * adoptation for Linux/CRIS Axis Communications AB, 1999
+ * adaptation for Linux/CRIS Axis Communications AB, 1999
  *
  */
 
@@ -151,7 +151,7 @@ serout(const char *s, reg_scope_instances regi_ser)
 	do {
 		rs = REG_RD(ser, regi_ser, rs_stat_din);
 	}
-	while (!rs.tr_rdy);/* Wait for tranceiver. */
+	while (!rs.tr_rdy);/* Wait for transceiver. */
 
 	REG_WR(ser, regi_ser, rw_dout, dout);
 }
@@ -264,7 +264,7 @@ serial_setup(reg_scope_instances regi_ser)
 	tr_ctrl.stop_bits = 1;	/* 2 stop bits. */
 
 	/*
-	 * The baudrate setup is a bit fishy, but in the end the tranceiver is
+	 * The baudrate setup is a bit fishy, but in the end the transceiver is
 	 * set to 4800 and the receiver to 115200. The magic value is
 	 * 29.493 MHz.
 	 */

@@ -97,7 +97,7 @@
  * with time based on jiffies and *R_TIMER0_DATA, uses a table
  * for fast conversion of timer value to microseconds.
  * (Much faster the standard do_gettimeofday() and we don't really
- * wan't to use the true time - we wan't the "uptime" so timers don't screw up
+ * want to use the true time - we want the "uptime" so timers don't screw up
  * when we change the time.
  * TODO: Add efficient support for continuous timers as well.
  *

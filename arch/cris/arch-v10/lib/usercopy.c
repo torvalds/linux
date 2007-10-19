@@ -38,7 +38,7 @@ __copy_user (void __user *pdst, const void *psrc, unsigned long pn)
      As it is now: r10 -> r13; r11 -> r11 (nop); r12 -> r12 (nop).
 
      FIXME: Comment for old gcc version.  Check.
-     If gcc was allright, it really would need no temporaries, and no
+     If gcc was alright, it really would need no temporaries, and no
      stack space to save stuff on. */
 
   register char *dst __asm__ ("r13") = pdst;
@@ -200,7 +200,7 @@ __copy_user_zeroing (void __user *pdst, const void *psrc, unsigned long pn)
      As it is now: r10 -> r13; r11 -> r11 (nop); r12 -> r12 (nop).
 
      FIXME: Comment for old gcc version.  Check.
-     If gcc was allright, it really would need no temporaries, and no
+     If gcc was alright, it really would need no temporaries, and no
      stack space to save stuff on.  */
 
   register char *dst __asm__ ("r13") = pdst;
@@ -380,7 +380,7 @@ __do_clear_user (void __user *pto, unsigned long pn)
       As it is now: r10 -> r13; r11 -> r11 (nop); r12 -> r12 (nop).
 
      FIXME: Comment for old gcc version.  Check.
-     If gcc was allright, it really would need no temporaries, and no
+     If gcc was alright, it really would need no temporaries, and no
      stack space to save stuff on. */
 
   register char *dst __asm__ ("r13") = pto;

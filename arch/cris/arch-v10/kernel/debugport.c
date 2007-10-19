@@ -83,7 +83,7 @@
  *
  * Revision 1.4  2002/11/19 14:35:24  starvik
  * Changes from linux 2.4
- * Changed struct initializer syntax to the currently prefered notation
+ * Changed struct initializer syntax to the currently preferred notation
  *
  * Revision 1.3  2002/11/06 09:47:03  starvik
  * Modified for new interrupt macros

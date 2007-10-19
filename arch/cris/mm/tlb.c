@@ -16,7 +16,7 @@
 /* The TLB can host up to 64 different mm contexts at the same time.
  * The running context is R_MMU_CONTEXT, and each TLB entry contains a
  * page_id that has to match to give a hit. In page_id_map, we keep track
- * of which mm's we have assigned which page_id's, so that we know when
+ * of which mm we have assigned to which page_id, so that we know when
  * to invalidate TLB entries.
  *
  * The last page_id is never running - it is used as an invalid page_id
