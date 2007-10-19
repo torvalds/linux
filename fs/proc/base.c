@@ -2553,7 +2553,7 @@ static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry
 	rcu_read_unlock();
 	if (!task)
 		goto out;
-	if (leader->tgid != task->tgid)
+	if (!same_thread_group(leader, task))
 		goto out_drop_task;
 
 	result = proc_task_instantiate(dir, dentry, task, NULL);
