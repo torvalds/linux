@@ -11,7 +11,8 @@
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs_fs.h>
-
+#include <linux/sched.h>
+#include <linux/wait.h>
 
 struct nfs_unlinkdata {
 	struct hlist_node list;
