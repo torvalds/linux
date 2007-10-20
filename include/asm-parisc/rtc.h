@@ -50,9 +50,9 @@ static inline unsigned int get_rtc_time(struct rtc_time *wtime)
 	long int days, rem, y;
 	const unsigned short int *ip;
 
-	if(pdc_tod_read(&tod_data) < 0)
+	memset(wtime, 0, sizeof(*wtime));
+	if (pdc_tod_read(&tod_data) < 0)
 		return RTC_24H | RTC_BATT_BAD;
-
 
 	// most of the remainder of this function is:
 //	Copyright (C) 1991, 1993, 1997, 1998 Free Software Foundation, Inc.
