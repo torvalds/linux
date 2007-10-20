@@ -41,12 +41,43 @@ static ssize_t show_type(struct device *dev, struct device_attribute *attr, char
 	return sprintf(buf, "%s\n", typetostr(hdev->type));
 }
 
+static ssize_t show_name(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_dev *hdev = dev_get_drvdata(dev);
+	char name[249];
+	int i;
+
+	for (i = 0; i < 248; i++)
+		name[i] = hdev->dev_name[i];
+
+	name[248] = '\0';
+	return sprintf(buf, "%s\n", name);
+}
+
+static ssize_t show_class(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_dev *hdev = dev_get_drvdata(dev);
+	return sprintf(buf, "0x%.2x%.2x%.2x\n",
+			hdev->dev_class[2], hdev->dev_class[1], hdev->dev_class[0]);
+}
+
 static ssize_t show_address(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
 	bdaddr_t bdaddr;
 	baswap(&bdaddr, &hdev->bdaddr);
 	return sprintf(buf, "%s\n", batostr(&bdaddr));
+}
+
+static ssize_t show_features(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_dev *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				hdev->features[0], hdev->features[1],
+				hdev->features[2], hdev->features[3],
+				hdev->features[4], hdev->features[5],
+				hdev->features[6], hdev->features[7]);
 }
 
 static ssize_t show_manufacturer(struct device *dev, struct device_attribute *attr, char *buf)
@@ -170,7 +201,10 @@ static ssize_t store_sniff_min_interval(struct device *dev, struct device_attrib
 }
 
 static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR(class, S_IRUGO, show_class, NULL);
 static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
+static DEVICE_ATTR(features, S_IRUGO, show_features, NULL);
 static DEVICE_ATTR(manufacturer, S_IRUGO, show_manufacturer, NULL);
 static DEVICE_ATTR(hci_version, S_IRUGO, show_hci_version, NULL);
 static DEVICE_ATTR(hci_revision, S_IRUGO, show_hci_revision, NULL);
@@ -185,7 +219,10 @@ static DEVICE_ATTR(sniff_min_interval, S_IRUGO | S_IWUSR,
 
 static struct device_attribute *bt_attrs[] = {
 	&dev_attr_type,
+	&dev_attr_name,
+	&dev_attr_class,
 	&dev_attr_address,
+	&dev_attr_features,
 	&dev_attr_manufacturer,
 	&dev_attr_hci_version,
 	&dev_attr_hci_revision,
