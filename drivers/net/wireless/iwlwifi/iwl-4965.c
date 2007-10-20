@@ -35,9 +35,7 @@
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/mac80211.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/delay.h>
 
 #define IWL 4965
 

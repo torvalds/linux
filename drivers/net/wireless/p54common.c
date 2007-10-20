@@ -577,7 +577,7 @@ static int p54_set_filter(struct ieee80211_hw *dev, u16 filter_type,
 	struct p54_tx_control_filter *filter;
 
 	hdr = kzalloc(sizeof(*hdr) + sizeof(*filter) +
-		      priv->tx_hdr_len, GFP_KERNEL);
+		      priv->tx_hdr_len, GFP_ATOMIC);
 	if (!hdr)
 		return -ENOMEM;
 
