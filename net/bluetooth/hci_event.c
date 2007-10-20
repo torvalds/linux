@@ -511,10 +511,10 @@ static void hci_cs_add_sco(struct hci_dev *hdev, __u8 status)
 	struct hci_conn *acl, *sco;
 	__u16 handle;
 
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
 	if (!status)
 		return;
-
-	BT_DBG("%s status 0x%x", hdev->name, status);
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_ADD_SCO);
 	if (!cp)
@@ -544,7 +544,34 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 
 static void hci_cs_setup_sync_conn(struct hci_dev *hdev, __u8 status)
 {
+	struct hci_cp_setup_sync_conn *cp;
+	struct hci_conn *acl, *sco;
+	__u16 handle;
+
 	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_SETUP_SYNC_CONN);
+	if (!cp)
+		return;
+
+	handle = __le16_to_cpu(cp->handle);
+
+	BT_DBG("%s handle %d", hdev->name, handle);
+
+	hci_dev_lock(hdev);
+
+	acl = hci_conn_hash_lookup_handle(hdev, handle);
+	if (acl && (sco = acl->link)) {
+		sco->state = BT_CLOSED;
+
+		hci_proto_connect_cfm(sco, status);
+		hci_conn_del(sco);
+	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cs_sniff_mode(struct hci_dev *hdev, __u8 status)
@@ -692,9 +719,12 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 	if (conn->type == ACL_LINK) {
 		struct hci_conn *sco = conn->link;
 		if (sco) {
-			if (!ev->status)
-				hci_add_sco(sco, conn->handle);
-			else {
+			if (!ev->status) {
+				if (lmp_esco_capable(hdev))
+					hci_setup_sync(sco, conn->handle);
+				else
+					hci_add_sco(sco, conn->handle);
+			} else {
 				hci_proto_connect_cfm(sco, ev->status);
 				hci_conn_del(sco);
 			}
@@ -724,9 +754,9 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 	if (mask & HCI_LM_ACCEPT) {
 		/* Connection accepted */
 		struct hci_conn *conn;
-		struct hci_cp_accept_conn_req cp;
 
 		hci_dev_lock(hdev);
+
 		conn = hci_conn_hash_lookup_ba(hdev, ev->link_type, &ev->bdaddr);
 		if (!conn) {
 			if (!(conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr))) {
@@ -735,18 +765,39 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 				return;
 			}
 		}
+
 		memcpy(conn->dev_class, ev->dev_class, 3);
 		conn->state = BT_CONNECT;
+
 		hci_dev_unlock(hdev);
 
-		bacpy(&cp.bdaddr, &ev->bdaddr);
+		if (ev->link_type == ACL_LINK || !lmp_esco_capable(hdev)) {
+			struct hci_cp_accept_conn_req cp;
 
-		if (lmp_rswitch_capable(hdev) && (mask & HCI_LM_MASTER))
-			cp.role = 0x00; /* Become master */
-		else
-			cp.role = 0x01; /* Remain slave */
+			bacpy(&cp.bdaddr, &ev->bdaddr);
 
-		hci_send_cmd(hdev, HCI_OP_ACCEPT_CONN_REQ, sizeof(cp), &cp);
+			if (lmp_rswitch_capable(hdev) && (mask & HCI_LM_MASTER))
+				cp.role = 0x00; /* Become master */
+			else
+				cp.role = 0x01; /* Remain slave */
+
+			hci_send_cmd(hdev, HCI_OP_ACCEPT_CONN_REQ,
+							sizeof(cp), &cp);
+		} else {
+			struct hci_cp_accept_sync_conn_req cp;
+
+			bacpy(&cp.bdaddr, &ev->bdaddr);
+			cp.pkt_type = cpu_to_le16(hdev->esco_type);
+
+			cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
+			cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
+			cp.max_latency    = cpu_to_le16(0xffff);
+			cp.content_format = cpu_to_le16(hdev->voice_setting);
+			cp.retrans_effort = 0xff;
+
+			hci_send_cmd(hdev, HCI_OP_ACCEPT_SYNC_CONN_REQ,
+							sizeof(cp), &cp);
+		}
 	} else {
 		/* Connection rejected */
 		struct hci_cp_reject_conn_req cp;
@@ -1254,7 +1305,29 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 
 static inline void hci_sync_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	BT_DBG("%s", hdev->name);
+	struct hci_ev_sync_conn_complete *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status %d", hdev->name, ev->status);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ev->link_type, &ev->bdaddr);
+	if (!conn)
+		goto unlock;
+
+	if (!ev->status) {
+		conn->handle = __le16_to_cpu(ev->handle);
+		conn->state  = BT_CONNECTED;
+	} else
+		conn->state = BT_CLOSED;
+
+	hci_proto_connect_cfm(conn, ev->status);
+	if (ev->status)
+		hci_conn_del(conn);
+
+unlock:
+	hci_dev_unlock(hdev);
 }
 
 static inline void hci_sync_conn_changed_evt(struct hci_dev *hdev, struct sk_buff *skb)

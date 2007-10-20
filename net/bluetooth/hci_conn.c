@@ -78,9 +78,9 @@ void hci_acl_connect(struct hci_conn *conn)
 
 	cp.pkt_type = cpu_to_le16(hdev->pkt_type & ACL_PTYPE_MASK);
 	if (lmp_rswitch_capable(hdev) && !(hdev->link_mode & HCI_LM_MASTER))
-		cp.role_switch	= 0x01;
+		cp.role_switch = 0x01;
 	else
-		cp.role_switch	= 0x00;
+		cp.role_switch = 0x00;
 
 	hci_send_cmd(hdev, HCI_OP_CREATE_CONN, sizeof(cp), &cp);
 }
@@ -127,6 +127,28 @@ void hci_add_sco(struct hci_conn *conn, __u16 handle)
 	hci_send_cmd(hdev, HCI_OP_ADD_SCO, sizeof(cp), &cp);
 }
 
+void hci_setup_sync(struct hci_conn *conn, __u16 handle)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_setup_sync_conn cp;
+
+	BT_DBG("%p", conn);
+
+	conn->state = BT_CONNECT;
+	conn->out = 1;
+
+	cp.handle   = cpu_to_le16(handle);
+	cp.pkt_type = cpu_to_le16(hdev->esco_type);
+
+	cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
+	cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
+	cp.max_latency    = cpu_to_le16(0xffff);
+	cp.voice_setting  = cpu_to_le16(hdev->voice_setting);
+	cp.retrans_effort = 0xff;
+
+	hci_send_cmd(hdev, HCI_OP_SETUP_SYNC_CONN, sizeof(cp), &cp);
+}
+
 static void hci_conn_timeout(unsigned long arg)
 {
 	struct hci_conn *conn = (void *) arg;
@@ -141,7 +163,10 @@ static void hci_conn_timeout(unsigned long arg)
 
 	switch (conn->state) {
 	case BT_CONNECT:
-		hci_acl_connect_cancel(conn);
+		if (conn->type == ACL_LINK)
+			hci_acl_connect_cancel(conn);
+		else
+			hci_acl_disconn(conn, 0x13);
 		break;
 	case BT_CONNECTED:
 		hci_acl_disconn(conn, 0x13);
@@ -328,8 +353,12 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	hci_conn_hold(sco);
 
 	if (acl->state == BT_CONNECTED &&
-			(sco->state == BT_OPEN || sco->state == BT_CLOSED))
-		hci_add_sco(sco, acl->handle);
+			(sco->state == BT_OPEN || sco->state == BT_CLOSED)) {
+		if (lmp_esco_capable(hdev))
+			hci_setup_sync(sco, acl->handle);
+		else
+			hci_add_sco(sco, acl->handle);
+	}
 
 	return sco;
 }
