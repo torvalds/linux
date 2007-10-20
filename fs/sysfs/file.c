@@ -540,7 +540,7 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 /**
  *	sysfs_create_file - create an attribute file for an object.
  *	@kobj:	object we're creating for. 
- *	@attr:	atrribute descriptor.
+ *	@attr:	attribute descriptor.
  */
 
 int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
