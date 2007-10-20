@@ -16,4 +16,5 @@ obj-$(CONFIG_BT_HCIBTUART)	+= btuart_cs.o
 hci_uart-y				:= hci_ldisc.o
 hci_uart-$(CONFIG_BT_HCIUART_H4)	+= hci_h4.o
 hci_uart-$(CONFIG_BT_HCIUART_BCSP)	+= hci_bcsp.o
+hci_uart-$(CONFIG_BT_HCIUART_LL)	+= hci_ll.o
 hci_uart-objs				:= $(hci_uart-y)

@@ -55,6 +55,17 @@ config BT_HCIUART_BCSP
 
 	  Say Y here to compile support for HCI BCSP protocol.
 
+config BT_HCIUART_LL
+	bool "HCILL protocol support"
+	depends on BT_HCIUART
+	help
+	  HCILL (HCI Low Level) is a serial protocol for communication
+	  between Bluetooth device and host. This protocol is required for
+	  serial Bluetooth devices that are based on Texas Instruments'
+	  BRF chips.
+
+	  Say Y here to compile support for HCILL protocol.
+
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
 	depends on USB
