@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.76	Aug 3 2007
+ * linux/drivers/ide/pci/cs5530.c		Version 0.77	Sep 24 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
@@ -146,7 +146,6 @@ static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
 static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const char *name)
 {
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
-	unsigned long flags;
 
 	if (pci_resource_start(dev, 4) == 0)
 		return -EFAULT;
@@ -170,9 +169,6 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 		printk(KERN_ERR "%s: unable to locate CS5530 LEGACY function\n", name);
 		goto out;
 	}
-
-	spin_lock_irqsave(&ide_lock, flags);
-		/* all CPUs (there should only be one CPU with this chipset) */
 
 	/*
 	 * Enable BusMaster and MemoryWriteAndInvalidate for the cs5530:
@@ -224,8 +220,6 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 	pci_write_config_byte(master_0, 0x42, 0x00);
 	pci_write_config_byte(master_0, 0x43, 0xc1);
 
-	spin_unlock_irqrestore(&ide_lock, flags);
-
 out:
 	pci_dev_put(master_0);
 	pci_dev_put(cs5530_0);
@@ -261,7 +255,7 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	hwif->udma_filter = cs5530_udma_filter;
 }
 
-static ide_pci_device_t cs5530_chipset __devinitdata = {
+static const struct ide_port_info cs5530_chipset __devinitdata = {
 	.name		= "CS5530",
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,

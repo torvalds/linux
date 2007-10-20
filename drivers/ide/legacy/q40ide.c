@@ -89,9 +89,8 @@ void q40_ide_setup_ports ( hw_regs_t *hw,
 		else
 			hw->io_ports[i] = Q40_ISA_IO_B(base + offsets[i]);
 	}
-	
+
 	hw->irq = irq;
-	hw->dma = NO_DMA;
 	hw->ack_intr = ack_intr;
 /*
  *	hw->iops = iops;
@@ -142,7 +141,7 @@ void q40ide_init(void)
 			0, NULL,
 //			m68kide_iops,
 			q40ide_default_irq(pcide_bases[i]));
-	index = ide_register_hw(&hw, 1, &hwif);
+	index = ide_register_hw(&hw, NULL, 1, &hwif);
 	// **FIXME**
 	if (index != -1)
 		hwif->mmio = 1;

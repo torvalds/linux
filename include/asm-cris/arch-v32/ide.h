@@ -54,7 +54,7 @@ static inline unsigned long ide_default_io_base(int index)
 #define SUPPORT_VLB_SYNC 0
 
 #define IDE_ARCH_ACK_INTR
-#define ide_ack_intr(hwif)	(hwif)->hw.ack_intr(hwif)
+#define ide_ack_intr(hwif)	((hwif)->ack_intr(hwif))
 
 #endif /* __KERNEL__ */
 

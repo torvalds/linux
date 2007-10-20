@@ -372,7 +372,7 @@ static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 	hwif->ide_dma_end   = &sc1200_ide_dma_end;
 }
 
-static ide_pci_device_t sc1200_chipset __devinitdata = {
+static const struct ide_port_info sc1200_chipset __devinitdata = {
 	.name		= "SC1200",
 	.init_hwif	= init_hwif_sc1200,
 	.host_flags	= IDE_HFLAG_SERIALIZE |

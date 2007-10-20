@@ -614,6 +614,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	void __iomem *virt_base;
 	ide_hwif_t *hwif;
 	int h;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	/*
 	 * Find an empty HWIF; if none available, return -ENOMEM.
@@ -654,10 +655,12 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	}
 
 	if (hwif->io_ports[IDE_DATA_OFFSET] != cmd_base) {
+		hw_regs_t hw;
+
 		/* Initialize the IO registers */
-		sgiioc4_init_hwif_ports(&hwif->hw, cmd_base, ctl, irqport);
-		memcpy(hwif->io_ports, hwif->hw.io_ports,
-		       sizeof (hwif->io_ports));
+		memset(&hw, 0, sizeof(hw));
+		sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
+		memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
 		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
 	}
 
@@ -679,11 +682,10 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 
 	ide_init_sgiioc4(hwif);
 
-	if (probe_hwif_init(hwif))
-		return -EIO;
+	idx[0] = hwif->index;
 
-	/* Create /proc/ide entries */
-	ide_proc_register_port(hwif);
+	if (ide_device_add(idx))
+		return -EIO;
 
 	return 0;
 }

@@ -40,9 +40,8 @@ static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id
 	ide_std_init_ports(&hw, pnp_port_start(dev, 0),
 				pnp_port_start(dev, 1));
 	hw.irq = pnp_irq(dev, 0);
-	hw.dma = NO_DMA;
 
-	index = ide_register_hw(&hw, 1, &hwif);
+	index = ide_register_hw(&hw, NULL, 1, &hwif);
 
 	if (index != -1) {
 	    	printk(KERN_INFO "ide%d: generic PnP IDE interface\n", index);

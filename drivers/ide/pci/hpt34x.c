@@ -129,7 +129,7 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 	hwif->set_dma_mode = &hpt34x_set_mode;
 }
 
-static ide_pci_device_t hpt34x_chipsets[] __devinitdata = {
+static const struct ide_port_info hpt34x_chipsets[] __devinitdata = {
 	{ /* 0 */
 		.name		= "HPT343",
 		.init_chipset	= init_chipset_hpt34x,
@@ -158,7 +158,7 @@ static ide_pci_device_t hpt34x_chipsets[] __devinitdata = {
 
 static int __devinit hpt34x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d;
+	const struct ide_port_info *d;
 	u16 pcicmd = 0;
 
 	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);

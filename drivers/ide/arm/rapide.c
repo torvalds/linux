@@ -13,42 +13,25 @@
 
 #include <asm/ecard.h>
 
-/*
- * Something like this really should be in generic code, but isn't.
- */
 static ide_hwif_t *
 rapide_locate_hwif(void __iomem *base, void __iomem *ctrl, unsigned int sz, int irq)
 {
 	unsigned long port = (unsigned long)base;
-	ide_hwif_t *hwif;
-	int index, i;
+	ide_hwif_t *hwif = ide_find_port(port);
+	int i;
 
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = ide_hwifs + index;
-		if (hwif->io_ports[IDE_DATA_OFFSET] == port)
-			goto found;
-	}
+	if (hwif == NULL)
+		goto out;
 
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = ide_hwifs + index;
-		if (hwif->io_ports[IDE_DATA_OFFSET] == 0)
-			goto found;
-	}
-
-	return NULL;
-
- found:
 	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hwif->hw.io_ports[i] = port;
 		hwif->io_ports[i] = port;
 		port += sz;
 	}
-	hwif->hw.io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
 	hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
-	hwif->hw.irq = hwif->irq = irq;
+	hwif->irq = irq;
 	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
-
+out:
 	return hwif;
 }
 
@@ -58,6 +41,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 	ide_hwif_t *hwif;
 	void __iomem *base;
 	int ret;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	ret = ecard_request_resources(ec);
 	if (ret)
@@ -74,8 +58,11 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 		hwif->hwif_data = base;
 		hwif->gendev.parent = &ec->dev;
 		hwif->noprobe = 0;
-		probe_hwif_init(hwif);
-		ide_proc_register_port(hwif);
+
+		idx[0] = hwif->index;
+
+		ide_device_add(idx);
+
 		ecard_set_drvdata(ec, hwif);
 		goto out;
 	}

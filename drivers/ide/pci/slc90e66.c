@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.18	Aug 9, 2007
+ *  linux/drivers/ide/pci/slc90e66.c	Version 0.19	Sep 24, 2007
  *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
@@ -21,6 +21,8 @@
 
 #include <asm/io.h>
 
+static DEFINE_SPINLOCK(slc90e66_lock);
+
 static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
@@ -40,7 +42,7 @@ static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
 					{ 2, 1 },
 					{ 2, 3 }, };
 
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&slc90e66_lock, flags);
 	pci_read_config_word(dev, master_port, &master_data);
 
 	if (pio > 1)
@@ -71,7 +73,7 @@ static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	pci_write_config_word(dev, master_port, master_data);
 	if (is_slave)
 		pci_write_config_byte(dev, slave_port, slave_data);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&slc90e66_lock, flags);
 }
 
 static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
@@ -146,7 +148,7 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 		hwif->cbl = (reg47 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 }
 
-static ide_pci_device_t slc90e66_chipset __devinitdata = {
+static const struct ide_port_info slc90e66_chipset __devinitdata = {
 	.name		= "SLC90E66",
 	.init_hwif	= init_hwif_slc90e66,
 	.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}},

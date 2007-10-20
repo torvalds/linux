@@ -1425,7 +1425,7 @@ static int __devinit hpt36x_init(struct pci_dev *dev, struct pci_dev *dev2)
 	return 0;
 }
 
-static ide_pci_device_t hpt366_chipsets[] __devinitdata = {
+static const struct ide_port_info hpt366_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "HPT36x",
 		.init_chipset	= init_chipset_hpt366,
@@ -1510,7 +1510,7 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 {
 	struct hpt_info *info = NULL;
 	struct pci_dev *dev2 = NULL;
-	ide_pci_device_t d;
+	struct ide_port_info d;
 	u8 idx = id->driver_data;
 	u8 rev = dev->revision;
 

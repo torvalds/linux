@@ -33,39 +33,24 @@ static ide_hwif_t *__devinit plat_ide_locate_hwif(void __iomem *base,
 	    int mmio)
 {
 	unsigned long port = (unsigned long)base;
-	ide_hwif_t *hwif;
-	int index, i;
+	ide_hwif_t *hwif = ide_find_port(port);
+	int i;
 
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = ide_hwifs + index;
-		if (hwif->io_ports[IDE_DATA_OFFSET] == port)
-			goto found;
-	}
+	if (hwif == NULL)
+		goto out;
 
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = ide_hwifs + index;
-		if (hwif->io_ports[IDE_DATA_OFFSET] == 0)
-			goto found;
-	}
-
-	return NULL;
-
-found:
-
-	hwif->hw.io_ports[IDE_DATA_OFFSET] = port;
+	hwif->io_ports[IDE_DATA_OFFSET] = port;
 
 	port += (1 << pdata->ioport_shift);
 	for (i = IDE_ERROR_OFFSET; i <= IDE_STATUS_OFFSET;
 	     i++, port += (1 << pdata->ioport_shift))
-		hwif->hw.io_ports[i] = port;
+		hwif->io_ports[i] = port;
 
-	hwif->hw.io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
+	hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
 
-	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->hw.io_ports));
-	hwif->hw.irq = hwif->irq = irq;
+	hwif->irq = irq;
 
-	hwif->hw.dma = NO_DMA;
-	hwif->chipset = hwif->hw.chipset = ide_generic;
+	hwif->chipset = ide_generic;
 
 	if (mmio) {
 		hwif->mmio = 1;
@@ -73,8 +58,8 @@ found:
 	}
 
 	hwif_prop.hwif = hwif;
-	hwif_prop.index = index;
-
+	hwif_prop.index = hwif->index;
+out:
 	return hwif;
 }
 
@@ -83,6 +68,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	struct resource *res_base, *res_alt, *res_irq;
 	ide_hwif_t *hwif;
 	struct pata_platform_info *pdata;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int ret = 0;
 	int mmio = 0;
 
@@ -130,10 +116,11 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	hwif->gendev.parent = &pdev->dev;
 	hwif->noprobe = 0;
 
-	probe_hwif_init(hwif);
+	idx[0] = hwif->index;
+
+	ide_device_add(idx);
 
 	platform_set_drvdata(pdev, hwif);
-	ide_proc_register_port(hwif);
 
 	return 0;
 

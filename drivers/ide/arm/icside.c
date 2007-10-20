@@ -316,27 +316,29 @@ static int icside_dma_end(ide_drive_t *drive)
 
 	drive->waiting_for_dma = 0;
 
-	disable_dma(hwif->hw.dma);
+	disable_dma(state->dev->dma);
 
 	/* Teardown mappings after DMA has completed. */
 	dma_unmap_sg(state->dev, hwif->sg_table, hwif->sg_nents,
 		     hwif->sg_dma_direction);
 
-	return get_dma_residue(hwif->hw.dma) != 0;
+	return get_dma_residue(state->dev->dma) != 0;
 }
 
 static void icside_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	struct icside_state *state = hwif->hwif_data;
 
 	/* We can not enable DMA on both channels simultaneously. */
-	BUG_ON(dma_channel_active(hwif->hw.dma));
-	enable_dma(hwif->hw.dma);
+	BUG_ON(dma_channel_active(state->dev->dma));
+	enable_dma(state->dev->dma);
 }
 
 static int icside_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	struct icside_state *state = hwif->hwif_data;
 	struct request *rq = hwif->hwgroup->rq;
 	unsigned int dma_mode;
 
@@ -348,7 +350,7 @@ static int icside_dma_setup(ide_drive_t *drive)
 	/*
 	 * We can not enable DMA on both channels.
 	 */
-	BUG_ON(dma_channel_active(hwif->hw.dma));
+	BUG_ON(dma_channel_active(state->dev->dma));
 
 	icside_build_sglist(drive, rq);
 
@@ -365,14 +367,14 @@ static int icside_dma_setup(ide_drive_t *drive)
 	/*
 	 * Select the correct timing for this drive.
 	 */
-	set_dma_speed(hwif->hw.dma, drive->drive_data);
+	set_dma_speed(state->dev->dma, drive->drive_data);
 
 	/*
 	 * Tell the DMA engine about the SG table and
 	 * data direction.
 	 */
-	set_dma_sg(hwif->hw.dma, hwif->sg_table, hwif->sg_nents);
-	set_dma_mode(hwif->hw.dma, dma_mode);
+	set_dma_sg(state->dev->dma, hwif->sg_table, hwif->sg_nents);
+	set_dma_mode(state->dev->dma, dma_mode);
 
 	drive->waiting_for_dma = 1;
 
@@ -438,39 +440,15 @@ static void icside_dma_init(ide_hwif_t *hwif)
 #define icside_dma_init(hwif)	(0)
 #endif
 
-static ide_hwif_t *icside_find_hwif(unsigned long dataport)
-{
-	ide_hwif_t *hwif;
-	int index;
-
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = &ide_hwifs[index];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == dataport)
-			goto found;
-	}
-
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = &ide_hwifs[index];
-		if (!hwif->io_ports[IDE_DATA_OFFSET])
-			goto found;
-	}
-
-	hwif = NULL;
-found:
-	return hwif;
-}
-
 static ide_hwif_t *
 icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *ec)
 {
 	unsigned long port = (unsigned long)base + info->dataoffset;
 	ide_hwif_t *hwif;
 
-	hwif = icside_find_hwif(port);
+	hwif = ide_find_port(port);
 	if (hwif) {
 		int i;
-
-		memset(&hwif->hw, 0, sizeof(hw_regs_t));
 
 		/*
 		 * Ensure we're using MMIO
@@ -479,13 +457,10 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		hwif->mmio = 1;
 
 		for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-			hwif->hw.io_ports[i] = port;
 			hwif->io_ports[i] = port;
 			port += 1 << info->stepping;
 		}
-		hwif->hw.io_ports[IDE_CONTROL_OFFSET] = (unsigned long)base + info->ctrloffset;
 		hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)base + info->ctrloffset;
-		hwif->hw.irq  = ec->irq;
 		hwif->irq     = ec->irq;
 		hwif->noprobe = 0;
 		hwif->chipset = ide_acorn;
@@ -500,6 +475,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 {
 	ide_hwif_t *hwif;
 	void __iomem *base;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
 	if (!base)
@@ -523,9 +499,9 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	state->hwif[0] = hwif;
 
-	probe_hwif_init(hwif);
+	idx[0] = hwif->index;
 
-	ide_proc_register_port(hwif);
+	ide_device_add(idx);
 
 	return 0;
 }
@@ -537,6 +513,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	void __iomem *ioc_base, *easi_base;
 	unsigned int sel = 0;
 	int ret;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (!ioc_base) {
@@ -592,7 +569,6 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	hwif->serialized  = 1;
 	hwif->config_data = (unsigned long)ioc_base;
 	hwif->select_data = sel;
-	hwif->hw.dma      = ec->dma;
 
 	mate->maskproc    = icside_maskproc;
 	mate->channel     = 1;
@@ -601,18 +577,16 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	mate->serialized  = 1;
 	mate->config_data = (unsigned long)ioc_base;
 	mate->select_data = sel | 1;
-	mate->hw.dma      = ec->dma;
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
 		icside_dma_init(hwif);
 		icside_dma_init(mate);
 	}
 
-	probe_hwif_init(hwif);
-	probe_hwif_init(mate);
+	idx[0] = hwif->index;
+	idx[1] = mate->index;
 
-	ide_proc_register_port(hwif);
-	ide_proc_register_port(mate);
+	ide_device_add(idx);
 
 	return 0;
 

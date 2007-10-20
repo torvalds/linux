@@ -71,6 +71,7 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	u8 __iomem *base;
 	phys_t offset, size;
 	int i;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (!SIBYTE_HAVE_IDE)
 		return -ENODEV;
@@ -119,18 +120,15 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	hwif->noprobe = 0;
 
 	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
-		hwif->hw.io_ports[i] =
+		hwif->io_ports[i] =
 				(unsigned long)(base + ((0x1f0 + i) << 5));
-	hwif->hw.io_ports[IDE_CONTROL_OFFSET] =
+	hwif->io_ports[IDE_CONTROL_OFFSET] =
 				(unsigned long)(base + (0x3f6 << 5));
-	hwif->hw.irq = K_INT_GB_IDE;
+	hwif->irq = K_INT_GB_IDE;
 
-	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->io_ports));
-	hwif->irq = hwif->hw.irq;
+	idx[0] = hwif->index;
 
-	probe_hwif_init(hwif);
-
-	ide_proc_register_port(hwif);
+	ide_device_add(idx);
 
 	dev_set_drvdata(dev, hwif);
 

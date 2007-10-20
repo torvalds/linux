@@ -396,7 +396,7 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		.udma_mask	= udma, \
 	}
 
-static ide_pci_device_t piix_pci_info[] __devinitdata = {
+static const struct ide_port_info piix_pci_info[] __devinitdata = {
 	/*  0 */ DECLARE_PIIX_DEV("PIIXa",	0x00),	/* no udma */
 	/*  1 */ DECLARE_PIIX_DEV("PIIXb",	0x00),	/* no udma */
 
@@ -449,9 +449,7 @@ static ide_pci_device_t piix_pci_info[] __devinitdata = {
  
 static int __devinit piix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &piix_pci_info[id->driver_data];
-
-	return ide_setup_pci_device(dev, d);
+	return ide_setup_pci_device(dev, &piix_pci_info[id->driver_data]);
 }
 
 /**
