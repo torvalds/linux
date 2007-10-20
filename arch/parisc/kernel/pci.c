@@ -198,8 +198,9 @@ void __init pcibios_init_bus(struct pci_bus *bus)
 void __devinit pcibios_resource_to_bus(struct pci_dev *dev,
 		struct pci_bus_region *region, struct resource *res)
 {
-	struct pci_bus *bus = dev->bus;
-	struct pci_hba_data *hba = HBA_DATA(bus->bridge->platform_data);
+#ifdef CONFIG_64BIT
+	struct pci_hba_data *hba = HBA_DATA(dev->bus->bridge->platform_data);
+#endif
 
 	if (res->flags & IORESOURCE_IO) {
 		/*
@@ -218,7 +219,7 @@ void __devinit pcibios_resource_to_bus(struct pci_dev *dev,
 	}
 
 	DBG_RES("pcibios_resource_to_bus(%02x %s [%lx,%lx])\n",
-		bus->number, res->flags & IORESOURCE_IO ? "IO" : "MEM",
+		dev->bus->number, res->flags & IORESOURCE_IO ? "IO" : "MEM",
 		region->start, region->end);
 }
 
@@ -226,8 +227,7 @@ void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 			      struct pci_bus_region *region)
 {
 #ifdef CONFIG_64BIT
-	struct pci_bus *bus = dev->bus;
-	struct pci_hba_data *hba = HBA_DATA(bus->bridge->platform_data);
+	struct pci_hba_data *hba = HBA_DATA(dev->bus->bridge->platform_data);
 #endif
 
 	if (res->flags & IORESOURCE_MEM) {
