@@ -185,3 +185,5 @@ void free_mdio_bitbang(struct mii_bus *bus)
 	module_put(ctrl->ops->owner);
 	kfree(bus);
 }
+
+MODULE_LICENSE("GPL");

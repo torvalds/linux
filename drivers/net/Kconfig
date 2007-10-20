@@ -1293,9 +1293,6 @@ config PCNET32_NAPI
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
 
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
 	  If in doubt, say N.
 
 config AMD8111_ETH
@@ -1313,7 +1310,7 @@ config AMD8111_ETH
 	  will be called amd8111e.
 
 config AMD8111E_NAPI
-	bool "Enable NAPI support"
+	bool "Use RX polling (NAPI)"
 	depends on AMD8111_ETH
 	help
 	  NAPI is a new driver API designed to reduce CPU and interrupt load
@@ -1323,9 +1320,6 @@ config AMD8111E_NAPI
 	  If your estimated Rx load is 10kpps or more, or if the card will be
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
 
 	  If in doubt, say N.
 
@@ -1354,9 +1348,6 @@ config ADAPTEC_STARFIRE_NAPI
 	  If your estimated Rx load is 10kpps or more, or if the card will be
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
 
 	  If in doubt, say N.
 
@@ -1431,7 +1422,7 @@ config FORCEDETH
 	  called forcedeth.
 
 config FORCEDETH_NAPI
-	bool "Use Rx and Tx Polling (NAPI) (EXPERIMENTAL)"
+	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
 	depends on FORCEDETH && EXPERIMENTAL
 	help
 	  NAPI is a new driver API designed to reduce CPU and interrupt load
@@ -1441,9 +1432,6 @@ config FORCEDETH_NAPI
 	  If your estimated Rx load is 10kpps or more, or if the card will be
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
 
 	  If in doubt, say N.
 
@@ -1756,9 +1744,6 @@ config VIA_RHINE_NAPI
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
 
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
 config LAN_SAA9730
 	bool "Philips SAA9730 Ethernet support"
 	depends on NET_PCI && PCI && MIPS_ATLAS
@@ -2003,9 +1988,6 @@ config E1000_NAPI
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
 
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
 	  If in doubt, say N.
 
 config E1000_DISABLE_PACKET_SPLIT
@@ -2099,7 +2081,7 @@ config R8169
 	  will be called r8169.  This is recommended.
 
 config R8169_NAPI
-	bool "Use Rx and Tx Polling (NAPI) (EXPERIMENTAL)"
+	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
 	depends on R8169 && EXPERIMENTAL
 	help
 	  NAPI is a new driver API designed to reduce CPU and interrupt load
@@ -2109,9 +2091,6 @@ config R8169_NAPI
 	  If your estimated Rx load is 10kpps or more, or if the card will be
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
-
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
 
 	  If in doubt, say N.
 
@@ -2364,7 +2343,7 @@ config GIANFAR
 	  and MPC86xx family of chips, and the FEC on the 8540.
 
 config GFAR_NAPI
-	bool "NAPI Support"
+	bool "Use Rx Polling (NAPI)"
 	depends on GIANFAR
 
 config UCC_GETH
@@ -2376,7 +2355,7 @@ config UCC_GETH
 	  which is available on some Freescale SOCs.
 
 config UGETH_NAPI
-	bool "NAPI Support"
+	bool "Use Rx Polling (NAPI)"
 	depends on UCC_GETH
 
 config UGETH_MAGIC_PACKET
@@ -2494,7 +2473,7 @@ config CHELSIO_T3
 
 config EHEA
 	tristate "eHEA Ethernet support"
-	depends on IBMEBUS
+	depends on IBMEBUS && INET
 	select INET_LRO
 	---help---
 	  This driver supports the IBM pSeries eHEA ethernet adapter.
@@ -2559,9 +2538,6 @@ config IXGB_NAPI
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
 
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
 	  If in doubt, say N.
 
 config S2IO
@@ -2584,14 +2560,11 @@ config S2IO_NAPI
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
 
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
 	  If in doubt, say N.
 
 config MYRI10GE
 	tristate "Myricom Myri-10G Ethernet support"
-	depends on PCI
+	depends on PCI && INET
 	select FW_LOADER
 	select CRC32
 	select INET_LRO

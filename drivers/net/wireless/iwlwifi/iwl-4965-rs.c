@@ -36,9 +36,6 @@
 
 #include <linux/workqueue.h>
 
-#include <net/mac80211.h>
-#include <linux/wireless.h>
-
 #define IWL 4965
 
 #include "../net/mac80211/ieee80211_rate.h"
@@ -2024,12 +2021,18 @@ static int open_file_generic(struct inode *inode, struct file *file)
 static void rs_dbgfs_set_mcs(struct iwl_rate_scale_priv *rs_priv,
 				struct iwl_rate *mcs, int index)
 {
-	const u32 cck_rate = 0x820A;
+	u32 base_rate;
+
+	if (rs_priv->phymode == (u8) MODE_IEEE80211A)
+		base_rate = 0x800D;
+	else
+		base_rate = 0x820A;
+
 	if (rs_priv->dbg_fixed.rate_n_flags) {
 		if (index < 12)
 			mcs->rate_n_flags = rs_priv->dbg_fixed.rate_n_flags;
 		else
-			mcs->rate_n_flags = cck_rate;
+			mcs->rate_n_flags = base_rate;
 		IWL_DEBUG_RATE("Fixed rate ON\n");
 		return;
 	}
