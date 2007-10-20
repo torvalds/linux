@@ -247,7 +247,7 @@ static inline int hidp_queue_report(struct hidp_session *session, unsigned char 
 {
 	struct sk_buff *skb;
 
-	BT_DBG("session %p hid %p data %p size %d", session, device, data, size);
+	BT_DBG("session %p hid %p data %p size %d", session, session->hid, data, size);
 
 	if (!(skb = alloc_skb(size + 1, GFP_ATOMIC))) {
 		BT_ERR("Can't allocate memory for new frame");
