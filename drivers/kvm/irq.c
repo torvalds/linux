@@ -22,6 +22,7 @@
 #include <linux/module.h>
 
 #include "kvm.h"
+#include "x86.h"
 #include "irq.h"
 
 /*

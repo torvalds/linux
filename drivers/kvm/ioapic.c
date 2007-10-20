@@ -27,6 +27,8 @@
  */
 
 #include "kvm.h"
+#include "x86.h"
+
 #include <linux/kvm.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>

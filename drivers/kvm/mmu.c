@@ -19,6 +19,7 @@
 
 #include "vmx.h"
 #include "kvm.h"
+#include "x86.h"
 
 #include <linux/types.h>
 #include <linux/string.h>

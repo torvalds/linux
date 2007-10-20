@@ -26,6 +26,7 @@
 #define DPRINTF(_f, _a ...) printf(_f , ## _a)
 #else
 #include "kvm.h"
+#include "x86.h"
 #define DPRINTF(x...) do {} while (0)
 #endif
 #include "x86_emulate.h"

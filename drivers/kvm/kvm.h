@@ -308,93 +308,37 @@ struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus, gpa_t addr);
 void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 			     struct kvm_io_device *dev);
 
-struct kvm_vcpu {
-	struct kvm *kvm;
-	struct preempt_notifier preempt_notifier;
-	int vcpu_id;
-	struct mutex mutex;
-	int   cpu;
-	u64 host_tsc;
-	struct kvm_run *run;
-	int interrupt_window_open;
-	int guest_mode;
-	unsigned long requests;
-	unsigned long irq_summary; /* bit vector: 1 per word in irq_pending */
-	DECLARE_BITMAP(irq_pending, KVM_NR_INTERRUPTS);
-	unsigned long regs[NR_VCPU_REGS]; /* for rsp: vcpu_load_rsp_rip() */
-	unsigned long rip;      /* needs vcpu_load_rsp_rip() */
-
-	unsigned long cr0;
-	unsigned long cr2;
-	unsigned long cr3;
-	unsigned long cr4;
-	unsigned long cr8;
-	u64 pdptrs[4]; /* pae */
-	u64 shadow_efer;
-	u64 apic_base;
-	struct kvm_lapic *apic;    /* kernel irqchip context */
-#define VCPU_MP_STATE_RUNNABLE          0
-#define VCPU_MP_STATE_UNINITIALIZED     1
-#define VCPU_MP_STATE_INIT_RECEIVED     2
-#define VCPU_MP_STATE_SIPI_RECEIVED     3
-#define VCPU_MP_STATE_HALTED            4
-	int mp_state;
-	int sipi_vector;
-	u64 ia32_misc_enable_msr;
-
-	struct kvm_mmu mmu;
-
-	struct kvm_mmu_memory_cache mmu_pte_chain_cache;
-	struct kvm_mmu_memory_cache mmu_rmap_desc_cache;
-	struct kvm_mmu_memory_cache mmu_page_cache;
-	struct kvm_mmu_memory_cache mmu_page_header_cache;
-
-	gfn_t last_pt_write_gfn;
-	int   last_pt_write_count;
-	u64  *last_pte_updated;
-
-	struct kvm_guest_debug guest_debug;
-
-	struct i387_fxsave_struct host_fx_image;
-	struct i387_fxsave_struct guest_fx_image;
-	int fpu_active;
-	int guest_fpu_loaded;
-
-	int mmio_needed;
-	int mmio_read_completed;
-	int mmio_is_write;
-	int mmio_size;
-	unsigned char mmio_data[8];
+#ifdef CONFIG_HAS_IOMEM
+#define KVM_VCPU_MMIO 			\
+	int mmio_needed;		\
+	int mmio_read_completed;	\
+	int mmio_is_write;		\
+	int mmio_size;			\
+	unsigned char mmio_data[8];	\
 	gpa_t mmio_phys_addr;
-	gva_t mmio_fault_cr2;
-	struct kvm_pio_request pio;
-	void *pio_data;
-	wait_queue_head_t wq;
 
-	int sigset_active;
-	sigset_t sigset;
+#else
+#define KVM_VCPU_MMIO
 
-	struct kvm_stat stat;
+#endif
 
-	struct {
-		int active;
-		u8 save_iopl;
-		struct kvm_save_segment {
-			u16 selector;
-			unsigned long base;
-			u32 limit;
-			u32 ar;
-		} tr, es, ds, fs, gs;
-	} rmode;
-	int halt_request; /* real mode on Intel only */
-
-	int cpuid_nent;
-	struct kvm_cpuid_entry cpuid_entries[KVM_MAX_CPUID_ENTRIES];
-
-	/* emulate context */
-
-	struct x86_emulate_ctxt emulate_ctxt;
-};
+#define KVM_VCPU_COMM 					\
+	struct kvm *kvm; 				\
+	struct preempt_notifier preempt_notifier;	\
+	int vcpu_id;					\
+	struct mutex mutex;				\
+	int   cpu;					\
+	struct kvm_run *run;				\
+	int guest_mode;					\
+	unsigned long requests;				\
+	struct kvm_guest_debug guest_debug;		\
+	int fpu_active; 				\
+	int guest_fpu_loaded;				\
+	wait_queue_head_t wq;				\
+	int sigset_active;				\
+	sigset_t sigset;				\
+	struct kvm_stat stat;				\
+	KVM_VCPU_MMIO
 
 struct kvm_mem_alias {
 	gfn_t base_gfn;
@@ -678,50 +622,6 @@ static inline void kvm_guest_exit(void)
 {
 	account_system_vtime(current);
 	current->flags &= ~PF_VCPU;
-}
-
-static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
-				     u32 error_code)
-{
-	return vcpu->mmu.page_fault(vcpu, gva, error_code);
-}
-
-static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
-{
-	if (unlikely(vcpu->kvm->n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
-		__kvm_mmu_free_some_pages(vcpu);
-}
-
-static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
-{
-	if (likely(vcpu->mmu.root_hpa != INVALID_PAGE))
-		return 0;
-
-	return kvm_mmu_load(vcpu);
-}
-
-static inline int is_long_mode(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_X86_64
-	return vcpu->shadow_efer & EFER_LME;
-#else
-	return 0;
-#endif
-}
-
-static inline int is_pae(struct kvm_vcpu *vcpu)
-{
-	return vcpu->cr4 & X86_CR4_PAE;
-}
-
-static inline int is_pse(struct kvm_vcpu *vcpu)
-{
-	return vcpu->cr4 & X86_CR4_PSE;
-}
-
-static inline int is_paging(struct kvm_vcpu *vcpu)
-{
-	return vcpu->cr0 & X86_CR0_PG;
 }
 
 static inline int memslot_id(struct kvm *kvm, struct kvm_memory_slot *slot)

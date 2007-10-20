@@ -16,6 +16,7 @@
  */
 
 #include "kvm.h"
+#include "x86.h"
 #include "x86_emulate.h"
 #include "irq.h"
 #include "vmx.h"
