@@ -36,8 +36,7 @@ Linux 2.4:
 	If the code area has a general maintainer then please submit it to
 	the maintainer listed in MAINTAINERS in the kernel file. If the
 	maintainer does not respond or you cannot find the appropriate
-	maintainer then please contact Marcelo Tosatti
-	<marcelo.tosatti@cyclades.com>.
+	maintainer then please contact Willy Tarreau <w@1wt.eu>.
 
 Linux 2.6:
 	The same rules apply as 2.4 except that you should follow linux-kernel
