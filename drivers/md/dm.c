@@ -7,6 +7,7 @@
 
 #include "dm.h"
 #include "dm-bio-list.h"
+#include "dm-uevent.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -112,6 +113,9 @@ struct mapped_device {
 	 */
 	atomic_t event_nr;
 	wait_queue_head_t eventq;
+	atomic_t uevent_seq;
+	struct list_head uevent_list;
+	spinlock_t uevent_lock; /* Protect access to uevent_list */
 
 	/*
 	 * freeze/thaw support require holding onto a super block
@@ -143,11 +147,19 @@ static int __init local_init(void)
 		return -ENOMEM;
 	}
 
+	r = dm_uevent_init();
+	if (r) {
+		kmem_cache_destroy(_tio_cache);
+		kmem_cache_destroy(_io_cache);
+		return r;
+	}
+
 	_major = major;
 	r = register_blkdev(_major, _name);
 	if (r < 0) {
 		kmem_cache_destroy(_tio_cache);
 		kmem_cache_destroy(_io_cache);
+		dm_uevent_exit();
 		return r;
 	}
 
@@ -162,6 +174,7 @@ static void local_exit(void)
 	kmem_cache_destroy(_tio_cache);
 	kmem_cache_destroy(_io_cache);
 	unregister_blkdev(_major, _name);
+	dm_uevent_exit();
 
 	_major = 0;
 
@@ -751,15 +764,13 @@ static void __clone_and_map(struct clone_info *ci)
 /*
  * Split the bio into several clones.
  */
-static void __split_bio(struct mapped_device *md, struct bio *bio)
+static int __split_bio(struct mapped_device *md, struct bio *bio)
 {
 	struct clone_info ci;
 
 	ci.map = dm_get_table(md);
-	if (!ci.map) {
-		bio_io_error(bio);
-		return;
-	}
+	if (unlikely(!ci.map))
+		return -EIO;
 
 	ci.md = md;
 	ci.bio = bio;
@@ -779,6 +790,8 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
 	/* drop the extra reference count */
 	dec_pending(ci.io, 0);
 	dm_table_put(ci.map);
+
+	return 0;
 }
 /*-----------------------------------------------------------------
  * CRUD END
@@ -790,7 +803,7 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
  */
 static int dm_request(struct request_queue *q, struct bio *bio)
 {
-	int r;
+	int r = -EIO;
 	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
 
@@ -815,18 +828,11 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	while (test_bit(DMF_BLOCK_IO, &md->flags)) {
 		up_read(&md->io_lock);
 
-		if (bio_rw(bio) == READA) {
-			bio_io_error(bio);
-			return 0;
-		}
+		if (bio_rw(bio) != READA)
+			r = queue_io(md, bio);
 
-		r = queue_io(md, bio);
-		if (r < 0) {
-			bio_io_error(bio);
-			return 0;
-
-		} else if (r == 0)
-			return 0;	/* deferred successfully */
+		if (r <= 0)
+			goto out_req;
 
 		/*
 		 * We're in a while loop, because someone could suspend
@@ -835,8 +841,13 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 		down_read(&md->io_lock);
 	}
 
-	__split_bio(md, bio);
+	r = __split_bio(md, bio);
 	up_read(&md->io_lock);
+
+out_req:
+	if (r < 0)
+		bio_io_error(bio);
+
 	return 0;
 }
 
@@ -977,6 +988,9 @@ static struct mapped_device *alloc_dev(int minor)
 	atomic_set(&md->holders, 1);
 	atomic_set(&md->open_count, 0);
 	atomic_set(&md->event_nr, 0);
+	atomic_set(&md->uevent_seq, 0);
+	INIT_LIST_HEAD(&md->uevent_list);
+	spin_lock_init(&md->uevent_lock);
 
 	md->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!md->queue)
@@ -1044,12 +1058,14 @@ static struct mapped_device *alloc_dev(int minor)
 	return NULL;
 }
 
+static void unlock_fs(struct mapped_device *md);
+
 static void free_dev(struct mapped_device *md)
 {
 	int minor = md->disk->first_minor;
 
 	if (md->suspended_bdev) {
-		thaw_bdev(md->suspended_bdev, NULL);
+		unlock_fs(md);
 		bdput(md->suspended_bdev);
 	}
 	mempool_destroy(md->tio_pool);
@@ -1073,7 +1089,15 @@ static void free_dev(struct mapped_device *md)
  */
 static void event_callback(void *context)
 {
+	unsigned long flags;
+	LIST_HEAD(uevents);
 	struct mapped_device *md = (struct mapped_device *) context;
+
+	spin_lock_irqsave(&md->uevent_lock, flags);
+	list_splice_init(&md->uevent_list, &uevents);
+	spin_unlock_irqrestore(&md->uevent_lock, flags);
+
+	dm_send_uevents(&uevents, &md->disk->kobj);
 
 	atomic_inc(&md->event_nr);
 	wake_up(&md->eventq);
@@ -1233,7 +1257,8 @@ static void __flush_deferred_io(struct mapped_device *md, struct bio *c)
 	while (c) {
 		n = c->bi_next;
 		c->bi_next = NULL;
-		__split_bio(md, c);
+		if (__split_bio(md, c))
+			bio_io_error(c);
 		c = n;
 	}
 }
@@ -1491,6 +1516,11 @@ out:
 /*-----------------------------------------------------------------
  * Event notification.
  *---------------------------------------------------------------*/
+uint32_t dm_next_uevent_seq(struct mapped_device *md)
+{
+	return atomic_add_return(1, &md->uevent_seq);
+}
+
 uint32_t dm_get_event_nr(struct mapped_device *md)
 {
 	return atomic_read(&md->event_nr);
@@ -1500,6 +1530,15 @@ int dm_wait_event(struct mapped_device *md, int event_nr)
 {
 	return wait_event_interruptible(md->eventq,
 			(event_nr != atomic_read(&md->event_nr)));
+}
+
+void dm_uevent_add(struct mapped_device *md, struct list_head *elist)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&md->uevent_lock, flags);
+	list_add(elist, &md->uevent_list);
+	spin_unlock_irqrestore(&md->uevent_lock, flags);
 }
 
 /*

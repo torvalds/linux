@@ -36,7 +36,6 @@ struct dm_crypt_io {
 	struct work_struct work;
 	atomic_t pending;
 	int error;
-	int post_process;
 };
 
 /*
@@ -57,7 +56,7 @@ struct crypt_config;
 
 struct crypt_iv_operations {
 	int (*ctr)(struct crypt_config *cc, struct dm_target *ti,
-	           const char *opts);
+		   const char *opts);
 	void (*dtr)(struct crypt_config *cc);
 	const char *(*status)(struct crypt_config *cc);
 	int (*generator)(struct crypt_config *cc, u8 *iv, sector_t sector);
@@ -80,6 +79,8 @@ struct crypt_config {
 	mempool_t *page_pool;
 	struct bio_set *bs;
 
+	struct workqueue_struct *io_queue;
+	struct workqueue_struct *crypt_queue;
 	/*
 	 * crypto related data
 	 */
@@ -137,7 +138,7 @@ static int crypt_iv_plain_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 }
 
 static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
-	                      const char *opts)
+			      const char *opts)
 {
 	struct crypto_cipher *essiv_tfm;
 	struct crypto_hash *hash_tfm;
@@ -175,6 +176,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 
 	if (err) {
 		ti->error = "Error calculating hash in ESSIV";
+		kfree(salt);
 		return err;
 	}
 
@@ -188,7 +190,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 	if (crypto_cipher_blocksize(essiv_tfm) !=
 	    crypto_blkcipher_ivsize(cc->tfm)) {
 		ti->error = "Block size of ESSIV cipher does "
-			        "not match IV size of block cipher";
+			    "not match IV size of block cipher";
 		crypto_free_cipher(essiv_tfm);
 		kfree(salt);
 		return -EINVAL;
@@ -319,10 +321,10 @@ crypt_convert_scatterlist(struct crypt_config *cc, struct scatterlist *out,
 	return r;
 }
 
-static void
-crypt_convert_init(struct crypt_config *cc, struct convert_context *ctx,
-                   struct bio *bio_out, struct bio *bio_in,
-                   sector_t sector, int write)
+static void crypt_convert_init(struct crypt_config *cc,
+			       struct convert_context *ctx,
+			       struct bio *bio_out, struct bio *bio_in,
+			       sector_t sector, int write)
 {
 	ctx->bio_in = bio_in;
 	ctx->bio_out = bio_out;
@@ -338,7 +340,7 @@ crypt_convert_init(struct crypt_config *cc, struct convert_context *ctx,
  * Encrypt / decrypt data from one bio to another one (can be the same one)
  */
 static int crypt_convert(struct crypt_config *cc,
-                         struct convert_context *ctx)
+			 struct convert_context *ctx)
 {
 	int r = 0;
 
@@ -370,7 +372,7 @@ static int crypt_convert(struct crypt_config *cc,
 		}
 
 		r = crypt_convert_scatterlist(cc, &sg_out, &sg_in, sg_in.length,
-		                              ctx->write, ctx->sector);
+					      ctx->write, ctx->sector);
 		if (r < 0)
 			break;
 
@@ -380,13 +382,13 @@ static int crypt_convert(struct crypt_config *cc,
 	return r;
 }
 
- static void dm_crypt_bio_destructor(struct bio *bio)
- {
+static void dm_crypt_bio_destructor(struct bio *bio)
+{
 	struct dm_crypt_io *io = bio->bi_private;
 	struct crypt_config *cc = io->target->private;
 
 	bio_free(bio, cc->bs);
- }
+}
 
 /*
  * Generate a new unfragmented bio with the given size
@@ -458,7 +460,7 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
  * One of the bios was finished. Check for completion of
  * the whole request and correctly clean up the buffer.
  */
-static void dec_pending(struct dm_crypt_io *io, int error)
+static void crypt_dec_pending(struct dm_crypt_io *io, int error)
 {
 	struct crypt_config *cc = (struct crypt_config *) io->target->private;
 
@@ -474,18 +476,36 @@ static void dec_pending(struct dm_crypt_io *io, int error)
 }
 
 /*
- * kcryptd:
+ * kcryptd/kcryptd_io:
  *
  * Needed because it would be very unwise to do decryption in an
  * interrupt context.
+ *
+ * kcryptd performs the actual encryption or decryption.
+ *
+ * kcryptd_io performs the IO submission.
+ *
+ * They must be separated as otherwise the final stages could be
+ * starved by new requests which can block in the first stages due
+ * to memory allocation.
  */
-static struct workqueue_struct *_kcryptd_workqueue;
 static void kcryptd_do_work(struct work_struct *work);
+static void kcryptd_do_crypt(struct work_struct *work);
 
 static void kcryptd_queue_io(struct dm_crypt_io *io)
 {
+	struct crypt_config *cc = io->target->private;
+
 	INIT_WORK(&io->work, kcryptd_do_work);
-	queue_work(_kcryptd_workqueue, &io->work);
+	queue_work(cc->io_queue, &io->work);
+}
+
+static void kcryptd_queue_crypt(struct dm_crypt_io *io)
+{
+	struct crypt_config *cc = io->target->private;
+
+	INIT_WORK(&io->work, kcryptd_do_crypt);
+	queue_work(cc->crypt_queue, &io->work);
 }
 
 static void crypt_endio(struct bio *clone, int error)
@@ -508,13 +528,12 @@ static void crypt_endio(struct bio *clone, int error)
 	}
 
 	bio_put(clone);
-	io->post_process = 1;
-	kcryptd_queue_io(io);
+	kcryptd_queue_crypt(io);
 	return;
 
 out:
 	bio_put(clone);
-	dec_pending(io, error);
+	crypt_dec_pending(io, error);
 }
 
 static void clone_init(struct dm_crypt_io *io, struct bio *clone)
@@ -544,7 +563,7 @@ static void process_read(struct dm_crypt_io *io)
 	 */
 	clone = bio_alloc_bioset(GFP_NOIO, bio_segments(base_bio), cc->bs);
 	if (unlikely(!clone)) {
-		dec_pending(io, -ENOMEM);
+		crypt_dec_pending(io, -ENOMEM);
 		return;
 	}
 
@@ -579,7 +598,7 @@ static void process_write(struct dm_crypt_io *io)
 	while (remaining) {
 		clone = crypt_alloc_buffer(io, remaining);
 		if (unlikely(!clone)) {
-			dec_pending(io, -ENOMEM);
+			crypt_dec_pending(io, -ENOMEM);
 			return;
 		}
 
@@ -589,7 +608,7 @@ static void process_write(struct dm_crypt_io *io)
 		if (unlikely(crypt_convert(cc, &ctx) < 0)) {
 			crypt_free_buffer_pages(cc, clone);
 			bio_put(clone);
-			dec_pending(io, -EIO);
+			crypt_dec_pending(io, -EIO);
 			return;
 		}
 
@@ -624,17 +643,23 @@ static void process_read_endio(struct dm_crypt_io *io)
 	crypt_convert_init(cc, &ctx, io->base_bio, io->base_bio,
 			   io->base_bio->bi_sector - io->target->begin, 0);
 
-	dec_pending(io, crypt_convert(cc, &ctx));
+	crypt_dec_pending(io, crypt_convert(cc, &ctx));
 }
 
 static void kcryptd_do_work(struct work_struct *work)
 {
 	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
 
-	if (io->post_process)
-		process_read_endio(io);
-	else if (bio_data_dir(io->base_bio) == READ)
+	if (bio_data_dir(io->base_bio) == READ)
 		process_read(io);
+}
+
+static void kcryptd_do_crypt(struct work_struct *work)
+{
+	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
+
+	if (bio_data_dir(io->base_bio) == READ)
+		process_read_endio(io);
 	else
 		process_write(io);
 }
@@ -690,7 +715,7 @@ static int crypt_set_key(struct crypt_config *cc, char *key)
 	cc->key_size = key_size; /* initial settings */
 
 	if ((!key_size && strcmp(key, "-")) ||
-	    (key_size && crypt_decode_key(cc->key, key, key_size) < 0))
+	   (key_size && crypt_decode_key(cc->key, key, key_size) < 0))
 		return -EINVAL;
 
 	set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
@@ -746,7 +771,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
  	if (crypt_set_key(cc, argv[1])) {
 		ti->error = "Error decoding key";
-		goto bad1;
+		goto bad_cipher;
 	}
 
 	/* Compatiblity mode for old dm-crypt cipher strings */
@@ -757,19 +782,19 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (strcmp(chainmode, "ecb") && !ivmode) {
 		ti->error = "This chaining mode requires an IV mechanism";
-		goto bad1;
+		goto bad_cipher;
 	}
 
-	if (snprintf(cc->cipher, CRYPTO_MAX_ALG_NAME, "%s(%s)", chainmode, 
-		     cipher) >= CRYPTO_MAX_ALG_NAME) {
+	if (snprintf(cc->cipher, CRYPTO_MAX_ALG_NAME, "%s(%s)",
+		     chainmode, cipher) >= CRYPTO_MAX_ALG_NAME) {
 		ti->error = "Chain mode + cipher name is too long";
-		goto bad1;
+		goto bad_cipher;
 	}
 
 	tfm = crypto_alloc_blkcipher(cc->cipher, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
 		ti->error = "Error allocating crypto tfm";
-		goto bad1;
+		goto bad_cipher;
 	}
 
 	strcpy(cc->cipher, cipher);
@@ -793,18 +818,18 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->iv_gen_ops = &crypt_iv_null_ops;
 	else {
 		ti->error = "Invalid IV mode";
-		goto bad2;
+		goto bad_ivmode;
 	}
 
 	if (cc->iv_gen_ops && cc->iv_gen_ops->ctr &&
 	    cc->iv_gen_ops->ctr(cc, ti, ivopts) < 0)
-		goto bad2;
+		goto bad_ivmode;
 
 	cc->iv_size = crypto_blkcipher_ivsize(tfm);
 	if (cc->iv_size)
 		/* at least a 64 bit sector number should fit in our buffer */
 		cc->iv_size = max(cc->iv_size,
-		                  (unsigned int)(sizeof(u64) / sizeof(u8)));
+				  (unsigned int)(sizeof(u64) / sizeof(u8)));
 	else {
 		if (cc->iv_gen_ops) {
 			DMWARN("Selected cipher does not support IVs");
@@ -817,13 +842,13 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	cc->io_pool = mempool_create_slab_pool(MIN_IOS, _crypt_io_pool);
 	if (!cc->io_pool) {
 		ti->error = "Cannot allocate crypt io mempool";
-		goto bad3;
+		goto bad_slab_pool;
 	}
 
 	cc->page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!cc->page_pool) {
 		ti->error = "Cannot allocate page mempool";
-		goto bad4;
+		goto bad_page_pool;
 	}
 
 	cc->bs = bioset_create(MIN_IOS, MIN_IOS);
@@ -834,25 +859,25 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (crypto_blkcipher_setkey(tfm, cc->key, key_size) < 0) {
 		ti->error = "Error setting key";
-		goto bad5;
+		goto bad_device;
 	}
 
 	if (sscanf(argv[2], "%llu", &tmpll) != 1) {
 		ti->error = "Invalid iv_offset sector";
-		goto bad5;
+		goto bad_device;
 	}
 	cc->iv_offset = tmpll;
 
 	if (sscanf(argv[4], "%llu", &tmpll) != 1) {
 		ti->error = "Invalid device sector";
-		goto bad5;
+		goto bad_device;
 	}
 	cc->start = tmpll;
 
 	if (dm_get_device(ti, argv[3], cc->start, ti->len,
-	                  dm_table_get_mode(ti->table), &cc->dev)) {
+			  dm_table_get_mode(ti->table), &cc->dev)) {
 		ti->error = "Device lookup failed";
-		goto bad5;
+		goto bad_device;
 	}
 
 	if (ivmode && cc->iv_gen_ops) {
@@ -861,27 +886,45 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->iv_mode = kmalloc(strlen(ivmode) + 1, GFP_KERNEL);
 		if (!cc->iv_mode) {
 			ti->error = "Error kmallocing iv_mode string";
-			goto bad5;
+			goto bad_ivmode_string;
 		}
 		strcpy(cc->iv_mode, ivmode);
 	} else
 		cc->iv_mode = NULL;
 
+	cc->io_queue = create_singlethread_workqueue("kcryptd_io");
+	if (!cc->io_queue) {
+		ti->error = "Couldn't create kcryptd io queue";
+		goto bad_io_queue;
+	}
+
+	cc->crypt_queue = create_singlethread_workqueue("kcryptd");
+	if (!cc->crypt_queue) {
+		ti->error = "Couldn't create kcryptd queue";
+		goto bad_crypt_queue;
+	}
+
 	ti->private = cc;
 	return 0;
 
-bad5:
+bad_crypt_queue:
+	destroy_workqueue(cc->io_queue);
+bad_io_queue:
+	kfree(cc->iv_mode);
+bad_ivmode_string:
+	dm_put_device(ti, cc->dev);
+bad_device:
 	bioset_free(cc->bs);
 bad_bs:
 	mempool_destroy(cc->page_pool);
-bad4:
+bad_page_pool:
 	mempool_destroy(cc->io_pool);
-bad3:
+bad_slab_pool:
 	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
 		cc->iv_gen_ops->dtr(cc);
-bad2:
+bad_ivmode:
 	crypto_free_blkcipher(tfm);
-bad1:
+bad_cipher:
 	/* Must zero key material before freeing */
 	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
 	kfree(cc);
@@ -892,7 +935,8 @@ static void crypt_dtr(struct dm_target *ti)
 {
 	struct crypt_config *cc = (struct crypt_config *) ti->private;
 
-	flush_workqueue(_kcryptd_workqueue);
+	destroy_workqueue(cc->io_queue);
+	destroy_workqueue(cc->crypt_queue);
 
 	bioset_free(cc->bs);
 	mempool_destroy(cc->page_pool);
@@ -918,9 +962,13 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 	io = mempool_alloc(cc->io_pool, GFP_NOIO);
 	io->target = ti;
 	io->base_bio = bio;
-	io->error = io->post_process = 0;
+	io->error = 0;
 	atomic_set(&io->pending, 0);
-	kcryptd_queue_io(io);
+
+	if (bio_data_dir(io->base_bio) == READ)
+		kcryptd_queue_io(io);
+	else
+		kcryptd_queue_crypt(io);
 
 	return DM_MAPIO_SUBMITTED;
 }
@@ -1037,25 +1085,12 @@ static int __init dm_crypt_init(void)
 	if (!_crypt_io_pool)
 		return -ENOMEM;
 
-	_kcryptd_workqueue = create_workqueue("kcryptd");
-	if (!_kcryptd_workqueue) {
-		r = -ENOMEM;
-		DMERR("couldn't create kcryptd");
-		goto bad1;
-	}
-
 	r = dm_register_target(&crypt_target);
 	if (r < 0) {
 		DMERR("register failed %d", r);
-		goto bad2;
+		kmem_cache_destroy(_crypt_io_pool);
 	}
 
-	return 0;
-
-bad2:
-	destroy_workqueue(_kcryptd_workqueue);
-bad1:
-	kmem_cache_destroy(_crypt_io_pool);
 	return r;
 }
 
@@ -1066,7 +1101,6 @@ static void __exit dm_crypt_exit(void)
 	if (r < 0)
 		DMERR("unregister failed %d", r);
 
-	destroy_workqueue(_kcryptd_workqueue);
 	kmem_cache_destroy(_crypt_io_pool);
 }
 
