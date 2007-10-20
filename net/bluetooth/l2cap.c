@@ -508,7 +508,6 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 
 	/* Default config options */
 	pi->conf_len = 0;
-	pi->conf_mtu = L2CAP_DEFAULT_MTU;
 	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 }
 
@@ -1256,11 +1255,11 @@ static inline int l2cap_get_conf_opt(void **ptr, int *type, int *olen, unsigned 
 		break;
 
 	case 2:
-		*val = __le16_to_cpu(*((__le16 *)opt->val));
+		*val = __le16_to_cpu(*((__le16 *) opt->val));
 		break;
 
 	case 4:
-		*val = __le32_to_cpu(*((__le32 *)opt->val));
+		*val = __le32_to_cpu(*((__le32 *) opt->val));
 		break;
 
 	default:
@@ -1332,6 +1331,7 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 	int len = pi->conf_len;
 	int type, hint, olen;
 	unsigned long val;
+	u16 mtu = L2CAP_DEFAULT_MTU;
 	u16 result = L2CAP_CONF_SUCCESS;
 
 	BT_DBG("sk %p", sk);
@@ -1344,7 +1344,7 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 
 		switch (type) {
 		case L2CAP_CONF_MTU:
-			pi->conf_mtu = val;
+			mtu = val;
 			break;
 
 		case L2CAP_CONF_FLUSH_TO:
@@ -1368,10 +1368,10 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 		/* Configure output options and let the other side know
 		 * which ones we don't like. */
 
-		if (pi->conf_mtu < pi->omtu)
+		if (mtu < pi->omtu)
 			result = L2CAP_CONF_UNACCEPT;
 		else {
-			pi->omtu = pi->conf_mtu;
+			pi->omtu = mtu;
 			pi->conf_state |= L2CAP_CONF_OUTPUT_DONE;
 		}
 
