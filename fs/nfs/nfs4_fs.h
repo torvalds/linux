@@ -236,6 +236,7 @@ extern struct svc_version nfs4_callback_version1;
 #else
 
 #define nfs4_close_state(a, b, c) do { } while (0)
+#define nfs4_close_sync(a, b, c) do { } while (0)
 
 #endif /* CONFIG_NFS_V4 */
 #endif /* __LINUX_FS_NFS_NFS4_FS.H */
