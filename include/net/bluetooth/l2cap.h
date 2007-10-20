@@ -29,7 +29,8 @@
 #define L2CAP_DEFAULT_MTU	672
 #define L2CAP_DEFAULT_FLUSH_TO	0xFFFF
 
-#define L2CAP_CONN_TIMEOUT	(HZ * 40)
+#define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
+#define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
 
 /* L2CAP socket address */
 struct sockaddr_l2 {
@@ -160,7 +161,6 @@ struct l2cap_disconn_rsp {
 
 struct l2cap_info_req {
 	__le16      type;
-	__u8        data[0];
 } __attribute__ ((packed));
 
 struct l2cap_info_rsp {
@@ -192,6 +192,13 @@ struct l2cap_conn {
 
 	unsigned int	mtu;
 
+	__u32		feat_mask;
+
+	__u8		info_state;
+	__u8		info_ident;
+
+	struct timer_list info_timer;
+
 	spinlock_t	lock;
 
 	struct sk_buff *rx_skb;
@@ -201,6 +208,9 @@ struct l2cap_conn {
 
 	struct l2cap_chan_list chan_list;
 };
+
+#define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
+#define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x02
 
 /* ----- L2CAP channel and socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
