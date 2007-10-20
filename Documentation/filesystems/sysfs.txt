@@ -51,7 +51,7 @@ for the attributes, providing a means to read and write kernel
 attributes.
 
 Attributes should be ASCII text files, preferably with only one value
-per file. It is noted that it may not be efficient to contain only
+per file. It is noted that it may not be efficient to contain only one
 value per file, so it is socially acceptable to express an array of
 values of the same type. 
 
