@@ -403,6 +403,8 @@ struct yuv_frame_info
 #define IVTV_YUV_SYNC_ODD		0x04
 #define IVTV_YUV_SYNC_MASK		0x04
 
+#define IVTV_YUV_BUFFERS 8
+
 struct yuv_playback_info
 {
 	u32 reg_2834;
@@ -475,11 +477,11 @@ struct yuv_playback_info
 	u32 yuv_forced_update;
 	int update_frame;
 
-	int sync_field[4];  /* Field to sync on */
-	int field_delay[4]; /* Flag to extend duration of previous frame */
+	int sync_field[IVTV_YUV_BUFFERS];  /* Field to sync on */
+	int field_delay[IVTV_YUV_BUFFERS]; /* Flag to extend duration of previous frame */
 	u8 fields_lapsed;   /* Counter used when delaying a frame */
 
-	struct yuv_frame_info new_frame_info[4];
+	struct yuv_frame_info new_frame_info[IVTV_YUV_BUFFERS];
 	struct yuv_frame_info old_frame_info;
 	struct yuv_frame_info old_frame_info_args;
 
@@ -487,6 +489,9 @@ struct yuv_playback_info
 	dma_addr_t blanking_dmaptr;
 
 	int stream_size;
+
+	u8 draw_frame; /* PVR350 buffer to draw into */
+	u8 max_frames_buffered; /* Maximum number of frames to buffer */
 };
 
 #define IVTV_VBI_FRAMES 32

@@ -22,11 +22,16 @@
 #include "ivtv-udma.h"
 #include "ivtv-yuv.h"
 
-const u32 yuv_offset[4] = {
-	IVTV_YUV_BUFFER_OFFSET,
-	IVTV_YUV_BUFFER_OFFSET_1,
-	IVTV_YUV_BUFFER_OFFSET_2,
-	IVTV_YUV_BUFFER_OFFSET_3
+/* YUV buffer offsets */
+const u32 yuv_offset[IVTV_YUV_BUFFERS] = {
+	0x001a8600,
+	0x00240400,
+	0x002d8200,
+	0x00370000,
+	0x00029000,
+	0x000C0E00,
+	0x006B0400,
+	0x00748200
 };
 
 static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
@@ -37,10 +42,9 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 
 	int i;
 	int y_pages, uv_pages;
-
+	u8 frame = itv->yuv_info.draw_frame;
 	unsigned long y_buffer_offset, uv_buffer_offset;
 	int y_decode_height, uv_decode_height, y_size;
-	int frame = atomic_read(&itv->yuv_info.next_fill_frame);
 
 	y_buffer_offset = IVTV_DECODER_OFFSET + yuv_offset[frame];
 	uv_buffer_offset = y_buffer_offset + IVTV_YUV_BUFFER_UV_OFFSET;
@@ -954,76 +958,105 @@ static void ivtv_yuv_init (struct ivtv *itv)
 	atomic_set(&yi->next_dma_frame, 0);
 }
 
+/* Get next available yuv buffer on PVR350 */
+void ivtv_yuv_next_free(struct ivtv *itv)
+{
+	int draw, display;
+	struct yuv_playback_info *yi = &itv->yuv_info;
+
+	if (atomic_read(&yi->next_dma_frame) == -1)
+		ivtv_yuv_init(itv);
+
+	draw = atomic_read(&yi->next_fill_frame);
+	display = atomic_read(&yi->next_dma_frame);
+
+	if (display > draw)
+		display -= IVTV_YUV_BUFFERS;
+
+	if (draw - display >= yi->max_frames_buffered)
+		draw = (u8)(draw - 1) % IVTV_YUV_BUFFERS;
+	else
+		yi->new_frame_info[draw].update = 0;
+
+	yi->draw_frame = draw;
+}
+
+/* Set up frame according to ivtv_dma_frame parameters */
+void ivtv_yuv_setup_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
+{
+	struct yuv_playback_info *yi = &itv->yuv_info;
+	u8 frame = yi->draw_frame;
+
+	/* Preserve old update flag in case we're overwriting a queued frame */
+	int register_update = yi->new_frame_info[frame].update;
+
+	/* Take a snapshot of the yuv coordinate information */
+	yi->new_frame_info[frame].src_x = args->src.left;
+	yi->new_frame_info[frame].src_y = args->src.top;
+	yi->new_frame_info[frame].src_w = args->src.width;
+	yi->new_frame_info[frame].src_h = args->src.height;
+	yi->new_frame_info[frame].dst_x = args->dst.left;
+	yi->new_frame_info[frame].dst_y = args->dst.top;
+	yi->new_frame_info[frame].dst_w = args->dst.width;
+	yi->new_frame_info[frame].dst_h = args->dst.height;
+	yi->new_frame_info[frame].tru_x = args->dst.left;
+	yi->new_frame_info[frame].tru_w = args->src_width;
+	yi->new_frame_info[frame].tru_h = args->src_height;
+
+	/* Snapshot field order */
+	yi->sync_field[frame] = yi->lace_sync_field;
+
+	/* Are we going to offset the Y plane */
+	if (args->src.height + args->src.top < 512-16)
+		yi->new_frame_info[frame].offset_y = 1;
+	else
+		yi->new_frame_info[frame].offset_y = 0;
+
+	/* Snapshot the osd pan info */
+	yi->new_frame_info[frame].pan_x = yi->osd_x_pan;
+	yi->new_frame_info[frame].pan_y = yi->osd_y_pan;
+	yi->new_frame_info[frame].vis_w = yi->osd_vis_w;
+	yi->new_frame_info[frame].vis_h = yi->osd_vis_h;
+
+	yi->new_frame_info[frame].update = 0;
+	yi->new_frame_info[frame].interlaced_y = 0;
+	yi->new_frame_info[frame].interlaced_uv = 0;
+	yi->new_frame_info[frame].lace_mode = yi->lace_mode;
+
+	if (memcmp(&yi->old_frame_info_args, &yi->new_frame_info[frame],
+					sizeof(yi->new_frame_info[frame]))) {
+		yi->old_frame_info_args = yi->new_frame_info[frame];
+		yi->new_frame_info[frame].update = 1;
+/* IVTV_DEBUG_YUV ("Requesting register update for frame %d\n",frame); */
+	}
+
+	yi->new_frame_info[frame].update |= register_update;
+
+	/* Should this frame be delayed ? */
+	if (yi->sync_field[frame] !=
+				yi->sync_field[(frame - 1) % IVTV_YUV_BUFFERS])
+		yi->field_delay[frame] = 1;
+	else
+		yi->field_delay[frame] = 0;
+}
+
+/* Frame is complete & ready for display */
+void ivtv_yuv_frame_complete(struct ivtv *itv)
+{
+	atomic_set(&itv->yuv_info.next_fill_frame,
+			(itv->yuv_info.draw_frame + 1) % IVTV_YUV_BUFFERS);
+}
+
 int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 {
 	DEFINE_WAIT(wait);
 	int rc = 0;
 	int got_sig = 0;
-	int frame, next_fill_frame, last_fill_frame;
-	int register_update = 0;
 
 	IVTV_DEBUG_INFO("yuv_prep_frame\n");
 
-	if (atomic_read(&itv->yuv_info.next_dma_frame) == -1) ivtv_yuv_init(itv);
-
-	frame = atomic_read(&itv->yuv_info.next_fill_frame);
-	next_fill_frame = (frame + 1) & 0x3;
-	last_fill_frame = (atomic_read(&itv->yuv_info.next_dma_frame)+1) & 0x3;
-
-	if (next_fill_frame != last_fill_frame && last_fill_frame != frame) {
-		/* Buffers are full - Overwrite the last frame */
-		next_fill_frame = frame;
-		frame = (frame - 1) & 3;
-		register_update = itv->yuv_info.new_frame_info[frame].update;
-	}
-
-	/* Take a snapshot of the yuv coordinate information */
-	itv->yuv_info.new_frame_info[frame].src_x = args->src.left;
-	itv->yuv_info.new_frame_info[frame].src_y = args->src.top;
-	itv->yuv_info.new_frame_info[frame].src_w = args->src.width;
-	itv->yuv_info.new_frame_info[frame].src_h = args->src.height;
-	itv->yuv_info.new_frame_info[frame].dst_x = args->dst.left;
-	itv->yuv_info.new_frame_info[frame].dst_y = args->dst.top;
-	itv->yuv_info.new_frame_info[frame].dst_w = args->dst.width;
-	itv->yuv_info.new_frame_info[frame].dst_h = args->dst.height;
-	itv->yuv_info.new_frame_info[frame].tru_x = args->dst.left;
-	itv->yuv_info.new_frame_info[frame].tru_w = args->src_width;
-	itv->yuv_info.new_frame_info[frame].tru_h = args->src_height;
-
-	/* Snapshot field order */
-	itv->yuv_info.sync_field[frame] = itv->yuv_info.lace_sync_field;
-
-	/* Are we going to offset the Y plane */
-	if (args->src.height + args->src.top < 512-16)
-		itv->yuv_info.new_frame_info[frame].offset_y = 1;
-	else
-		itv->yuv_info.new_frame_info[frame].offset_y = 0;
-
-	/* Snapshot the osd pan info */
-	itv->yuv_info.new_frame_info[frame].pan_x = itv->yuv_info.osd_x_pan;
-	itv->yuv_info.new_frame_info[frame].pan_y = itv->yuv_info.osd_y_pan;
-	itv->yuv_info.new_frame_info[frame].vis_w = itv->yuv_info.osd_vis_w;
-	itv->yuv_info.new_frame_info[frame].vis_h = itv->yuv_info.osd_vis_h;
-
-	itv->yuv_info.new_frame_info[frame].update = 0;
-	itv->yuv_info.new_frame_info[frame].interlaced_y = 0;
-	itv->yuv_info.new_frame_info[frame].interlaced_uv = 0;
-	itv->yuv_info.new_frame_info[frame].lace_mode = itv->yuv_info.lace_mode;
-
-	if (memcmp (&itv->yuv_info.old_frame_info_args, &itv->yuv_info.new_frame_info[frame],
-	    sizeof (itv->yuv_info.new_frame_info[frame]))) {
-		memcpy(&itv->yuv_info.old_frame_info_args, &itv->yuv_info.new_frame_info[frame], sizeof (itv->yuv_info.old_frame_info_args));
-		itv->yuv_info.new_frame_info[frame].update = 1;
-/*		IVTV_DEBUG_YUV ("Requesting register update for frame %d\n",frame); */
-	}
-
-	itv->yuv_info.new_frame_info[frame].update |= register_update;
-
-	/* Should this frame be delayed ? */
-	if (itv->yuv_info.sync_field[frame] != itv->yuv_info.sync_field[(frame - 1) & 3])
-		itv->yuv_info.field_delay[frame] = 1;
-	else
-		itv->yuv_info.field_delay[frame] = 0;
+	ivtv_yuv_next_free(itv);
+	ivtv_yuv_setup_frame(itv, args);
 
 	/* DMA the frame */
 	mutex_lock(&itv->udma.lock);
@@ -1057,7 +1090,7 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 		return -EINTR;
 	}
 
-	atomic_set(&itv->yuv_info.next_fill_frame, next_fill_frame);
+	ivtv_yuv_frame_complete(itv);
 
 	mutex_unlock(&itv->udma.lock);
 	return rc;

@@ -744,24 +744,25 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	 * one vsync per frame.
 	 */
 	unsigned int frame = read_reg(0x28c0) & 1;
+	struct yuv_playback_info *yi = &itv->yuv_info;
 	int last_dma_frame = atomic_read(&itv->yuv_info.next_dma_frame);
 
 	if (0) IVTV_DEBUG_IRQ("DEC VSYNC\n");
 
-	if (((frame ^ itv->yuv_info.sync_field[last_dma_frame]) == 0 &&
-		((itv->last_vsync_field & 1) ^ itv->yuv_info.sync_field[last_dma_frame])) ||
-			(frame != (itv->last_vsync_field & 1) && !itv->yuv_info.frame_interlaced)) {
+	if (((frame ^ yi->sync_field[last_dma_frame]) == 0 &&
+		((itv->last_vsync_field & 1) ^ yi->sync_field[last_dma_frame])) ||
+			(frame != (itv->last_vsync_field & 1) && !yi->frame_interlaced)) {
 		int next_dma_frame = last_dma_frame;
 
-		if (!(itv->yuv_info.frame_interlaced && itv->yuv_info.field_delay[next_dma_frame] && itv->yuv_info.fields_lapsed < 1)) {
-			if (next_dma_frame >= 0 && next_dma_frame != atomic_read(&itv->yuv_info.next_fill_frame)) {
+		if (!(yi->frame_interlaced && yi->field_delay[next_dma_frame] && yi->fields_lapsed < 1)) {
+			if (next_dma_frame >= 0 && next_dma_frame != atomic_read(&yi->next_fill_frame)) {
 				write_reg(yuv_offset[next_dma_frame] >> 4, 0x82c);
 				write_reg((yuv_offset[next_dma_frame] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x830);
 				write_reg(yuv_offset[next_dma_frame] >> 4, 0x834);
 				write_reg((yuv_offset[next_dma_frame] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x838);
-				next_dma_frame = (next_dma_frame + 1) & 0x3;
-				atomic_set(&itv->yuv_info.next_dma_frame, next_dma_frame);
-				itv->yuv_info.fields_lapsed = -1;
+				next_dma_frame = (next_dma_frame + 1) % IVTV_YUV_BUFFERS;
+				atomic_set(&yi->next_dma_frame, next_dma_frame);
+				yi->fields_lapsed = -1;
 			}
 		}
 	}
@@ -794,20 +795,20 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		}
 
 		/* Check if we need to update the yuv registers */
-		if ((itv->yuv_info.yuv_forced_update || itv->yuv_info.new_frame_info[last_dma_frame].update) && last_dma_frame != -1) {
-			if (!itv->yuv_info.new_frame_info[last_dma_frame].update)
+		if ((yi->yuv_forced_update || yi->new_frame_info[last_dma_frame].update) && last_dma_frame != -1) {
+			if (!yi->new_frame_info[last_dma_frame].update)
 				last_dma_frame = (last_dma_frame - 1) & 3;
 
-			if (itv->yuv_info.new_frame_info[last_dma_frame].src_w) {
-				itv->yuv_info.update_frame = last_dma_frame;
-				itv->yuv_info.new_frame_info[last_dma_frame].update = 0;
-				itv->yuv_info.yuv_forced_update = 0;
+			if (yi->new_frame_info[last_dma_frame].src_w) {
+				yi->update_frame = last_dma_frame;
+				yi->new_frame_info[last_dma_frame].update = 0;
+				yi->yuv_forced_update = 0;
 				set_bit(IVTV_F_I_WORK_HANDLER_YUV, &itv->i_flags);
 				set_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags);
 			}
 		}
 
-		itv->yuv_info.fields_lapsed ++;
+		yi->fields_lapsed++;
 	}
 }
 

@@ -697,6 +697,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	atomic_set(&itv->yuv_info.next_dma_frame, -1);
 	itv->yuv_info.lace_mode = ivtv_yuv_mode;
 	itv->yuv_info.lace_threshold = ivtv_yuv_threshold;
+	itv->yuv_info.max_frames_buffered = 3;
 	return 0;
 }
 
