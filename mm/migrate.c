@@ -706,7 +706,7 @@ move_newpage:
  * The function returns after 10 attempts or if no pages
  * are movable anymore because to has become empty
  * or no retryable pages exist anymore. All pages will be
- * retruned to the LRU or freed.
+ * returned to the LRU or freed.
  *
  * Return: Number of pages not migrated or error code.
  */
