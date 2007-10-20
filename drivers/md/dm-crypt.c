@@ -460,7 +460,7 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
  * One of the bios was finished. Check for completion of
  * the whole request and correctly clean up the buffer.
  */
-static void dec_pending(struct dm_crypt_io *io, int error)
+static void crypt_dec_pending(struct dm_crypt_io *io, int error)
 {
 	struct crypt_config *cc = (struct crypt_config *) io->target->private;
 
@@ -533,7 +533,7 @@ static void crypt_endio(struct bio *clone, int error)
 
 out:
 	bio_put(clone);
-	dec_pending(io, error);
+	crypt_dec_pending(io, error);
 }
 
 static void clone_init(struct dm_crypt_io *io, struct bio *clone)
@@ -563,7 +563,7 @@ static void process_read(struct dm_crypt_io *io)
 	 */
 	clone = bio_alloc_bioset(GFP_NOIO, bio_segments(base_bio), cc->bs);
 	if (unlikely(!clone)) {
-		dec_pending(io, -ENOMEM);
+		crypt_dec_pending(io, -ENOMEM);
 		return;
 	}
 
@@ -598,7 +598,7 @@ static void process_write(struct dm_crypt_io *io)
 	while (remaining) {
 		clone = crypt_alloc_buffer(io, remaining);
 		if (unlikely(!clone)) {
-			dec_pending(io, -ENOMEM);
+			crypt_dec_pending(io, -ENOMEM);
 			return;
 		}
 
@@ -608,7 +608,7 @@ static void process_write(struct dm_crypt_io *io)
 		if (unlikely(crypt_convert(cc, &ctx) < 0)) {
 			crypt_free_buffer_pages(cc, clone);
 			bio_put(clone);
-			dec_pending(io, -EIO);
+			crypt_dec_pending(io, -EIO);
 			return;
 		}
 
@@ -643,7 +643,7 @@ static void process_read_endio(struct dm_crypt_io *io)
 	crypt_convert_init(cc, &ctx, io->base_bio, io->base_bio,
 			   io->base_bio->bi_sector - io->target->begin, 0);
 
-	dec_pending(io, crypt_convert(cc, &ctx));
+	crypt_dec_pending(io, crypt_convert(cc, &ctx));
 }
 
 static void kcryptd_do_work(struct work_struct *work)
