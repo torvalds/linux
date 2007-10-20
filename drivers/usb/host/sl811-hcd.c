@@ -1556,7 +1556,7 @@ sl811h_start(struct usb_hcd *hcd)
 		hcd->power_budget = sl811->board->power * 2;
 	}
 
-	/* enable power and interupts */
+	/* enable power and interrupts */
 	port_power(sl811, 1);
 
 	return 0;

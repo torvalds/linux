@@ -87,7 +87,7 @@ void bcm43xx_generate_txhdr(struct bcm43xx_private *bcm,
 
 /* RX header as received from the hardware. */
 struct bcm43xx_rxhdr {
-	/* Frame Length. Must be generated explicitely in PIO mode. */
+	/* Frame Length. Must be generated explicitly in PIO mode. */
 	__le16 frame_length;
 	PAD_BYTES(2);
 	/* Flags field 1 */

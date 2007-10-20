@@ -18,7 +18,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.		     */
 /* ------------------------------------------------------------------------- */
 
-/* With some changes from Frodo Looijaard <frodol@dds.nl>, Kyösti Mälkki
+/* With some changes from Frodo Looijaard <frodol@dds.nl>, KyÃ¶sti MÃ¤lkki
    <kmalkki@cc.hut.fi> and Jean Delvare <khali@linux-fr.org> */
 
 #include <linux/kernel.h>

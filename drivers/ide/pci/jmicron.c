@@ -118,7 +118,7 @@ static void __devinit init_hwif_jmicron(ide_hwif_t *hwif)
 		hwif->cbl = ata66_jmicron(hwif);
 }
 
-static ide_pci_device_t jmicron_chipset __devinitdata = {
+static const struct ide_port_info jmicron_chipset __devinitdata = {
 	.name		= "JMB",
 	.init_hwif	= init_hwif_jmicron,
 	.host_flags	= IDE_HFLAG_BOOTABLE,

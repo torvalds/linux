@@ -76,9 +76,9 @@
      * Title: "Conceptual Architecture of the Linux Kernel"
        Author: Ivan T. Bowman.
        URL: http://plg.uwaterloo.ca/~itbowman/papers/CS746G-a1.html
-       Keywords: conceptual software arquitecture, extracted design,
+       Keywords: conceptual software architecture, extracted design,
        reverse engineering, system structure.
-       Description: Conceptual software arquitecture of the Linux kernel,
+       Description: Conceptual software architecture of the Linux kernel,
        automatically extracted from the source code. Very detailed. Good
        figures. Gives good overall kernel understanding.
 

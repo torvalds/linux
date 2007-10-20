@@ -1770,7 +1770,7 @@ __setup("no_timer_check", notimercheck);
 
 /*
  *
- * IRQ's that are handled by the PIC in the MPS IOAPIC case.
+ * IRQs that are handled by the PIC in the MPS IOAPIC case.
  * - IRQ2 is the cascade IRQ, and cannot be a io-apic IRQ.
  *   Linux doesn't really care, as it's not actually used
  *   for any interrupt handling anyway.
@@ -1921,7 +1921,7 @@ void destroy_irq(unsigned int irq)
 }
 
 /*
- * MSI mesage composition
+ * MSI message composition
  */
 #ifdef CONFIG_PCI_MSI
 static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)

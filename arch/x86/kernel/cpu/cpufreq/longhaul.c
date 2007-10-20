@@ -780,7 +780,7 @@ static int longhaul_setup_southbridge(void)
 
 static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	char *cpuname=NULL;
 	int ret;
 	u32 lo, hi;
@@ -959,7 +959,7 @@ static struct cpufreq_driver longhaul_driver = {
 
 static int __init longhaul_init(void)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	if (c->x86_vendor != X86_VENDOR_CENTAUR || c->x86 != 6)
 		return -ENODEV;

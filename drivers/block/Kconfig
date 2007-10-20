@@ -204,23 +204,6 @@ config BLK_DEV_COW_COMMON
 	bool
 	default BLK_DEV_UBD
 
-config MMAPPER
-	tristate "Example IO memory driver (BROKEN)"
-	depends on UML && BROKEN
-	---help---
-          The User-Mode Linux port can provide support for IO Memory
-          emulation with this option.  This allows a host file to be
-          specified as an I/O region on the kernel command line. That file
-          will be mapped into UML's kernel address space where a driver can
-          locate it and do whatever it wants with the memory, including
-          providing an interface to it for UML processes to use.
-
-          For more information, see
-          <http://user-mode-linux.sourceforge.net/iomem.html>.
-
-          If you'd like to be able to provide a simulated IO port space for
-          User-Mode Linux processes, say Y.  If unsure, say N.
-
 config BLK_DEV_LOOP
 	tristate "Loopback device support"
 	---help---
@@ -351,7 +334,7 @@ config BLK_DEV_RAM_COUNT
 	default "16"
 	depends on BLK_DEV_RAM
 	help
-	  The default value is 16 RAM disks. Change this if you know what
+	  The default value is 16 RAM disks. Change this if you know what you
 	  are doing. If you boot from a filesystem that needs to be extracted
 	  in memory, you will need at least one RAM disk (e.g. root on cramfs).
 
@@ -361,7 +344,7 @@ config BLK_DEV_RAM_SIZE
 	default "4096"
 	help
 	  The default value is 4096 kilobytes. Only change this if you know
-	  what are you doing.
+	  what you are doing.
 
 config BLK_DEV_RAM_BLOCKSIZE
 	int "Default RAM disk block size (bytes)"

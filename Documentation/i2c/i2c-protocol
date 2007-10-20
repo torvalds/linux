@@ -68,7 +68,7 @@ We have found some I2C devices that needs the following modifications:
 
   Flags I2C_M_IGNORE_NAK
     Normally message is interrupted immediately if there is [NA] from the
-    client. Setting this flag treats any [NA] as [A], and all of
+    client. Setting this flag treats any [NA] as [A], and all of
     message is sent.
     These messages may still fail to SCL lo->hi timeout.
 

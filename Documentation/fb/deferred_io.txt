@@ -3,7 +3,7 @@ Deferred IO
 
 Deferred IO is a way to delay and repurpose IO. It uses host memory as a
 buffer and the MMU pagefault as a pretrigger for when to perform the device
-IO. The following example may be a useful explaination of how one such setup
+IO. The following example may be a useful explanation of how one such setup
 works:
 
 - userspace app like Xfbdev mmaps framebuffer
@@ -28,7 +28,7 @@ a relatively more expensive operation.
 
 For some types of nonvolatile high latency displays, the desired image is
 the final image rather than the intermediate stages which is why it's okay
-to not update for each write that is occuring.
+to not update for each write that is occurring.
 
 It may be the case that this is useful in other scenarios as well. Paul Mundt
 has mentioned a case where it is beneficial to use the page count to decide

@@ -1,6 +1,6 @@
 /*
  *  This file was based upon code in Powertweak Linux (http://powertweak.sf.net)
- *  (C) 2000-2003  Dave Jones, Arjan van de Ven, Janne Pänkälä, Dominik Brodowski.
+ *  (C) 2000-2003  Dave Jones, Arjan van de Ven, Janne PÃ¤nkÃ¤lÃ¤, Dominik Brodowski.
  *
  *  Licensed under the terms of the GNU GPL License version 2.
  *
@@ -215,7 +215,7 @@ static struct cpufreq_driver powernow_k6_driver = {
  */
 static int __init powernow_k6_init(void)
 {
-	struct cpuinfo_x86      *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	if ((c->x86_vendor != X86_VENDOR_AMD) || (c->x86 != 5) ||
 		((c->x86_model != 12) && (c->x86_model != 13)))

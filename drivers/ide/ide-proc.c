@@ -804,8 +804,6 @@ void ide_proc_register_port(ide_hwif_t *hwif)
 	create_proc_ide_drives(hwif);
 }
 
-EXPORT_SYMBOL_GPL(ide_proc_register_port);
-
 #ifdef CONFIG_BLK_DEV_IDEPCI
 void ide_pci_create_host_proc(const char *name, get_info_t *get_info)
 {

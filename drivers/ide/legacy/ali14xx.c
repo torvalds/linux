@@ -102,6 +102,8 @@ static void outReg (u8 data, u8 reg)
 	outb_p(data, dataPort);
 }
 
+static DEFINE_SPINLOCK(ali14xx_lock);
+
 /*
  * Set PIO mode for the specified drive.
  * This function computes timing parameters
@@ -129,14 +131,14 @@ static void ali14xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	/* stuff timing parameters into controller registers */
 	driveNum = (HWIF(drive)->index << 1) + drive->select.b.unit;
-	spin_lock_irqsave(&ide_lock, flags);
+	spin_lock_irqsave(&ali14xx_lock, flags);
 	outb_p(regOn, basePort);
 	outReg(param1, regTab[driveNum].reg1);
 	outReg(param2, regTab[driveNum].reg2);
 	outReg(param3, regTab[driveNum].reg3);
 	outReg(param4, regTab[driveNum].reg4);
 	outb_p(regOff, basePort);
-	spin_unlock_irqrestore(&ide_lock, flags);
+	spin_unlock_irqrestore(&ali14xx_lock, flags);
 }
 
 /*
@@ -193,6 +195,7 @@ static int __init initRegisters (void) {
 static int __init ali14xx_probe(void)
 {
 	ide_hwif_t *hwif, *mate;
+	static u8 idx[4] = { 0, 1, 0xff, 0xff };
 
 	printk(KERN_DEBUG "ali14xx: base=0x%03x, regOn=0x%02x.\n",
 			  basePort, regOn);
@@ -217,11 +220,7 @@ static int __init ali14xx_probe(void)
 	mate->mate = hwif;
 	mate->channel = 1;
 
-	probe_hwif_init(hwif);
-	probe_hwif_init(mate);
-
-	ide_proc_register_port(hwif);
-	ide_proc_register_port(mate);
+	ide_device_add(idx);
 
 	return 0;
 }

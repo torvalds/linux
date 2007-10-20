@@ -595,7 +595,7 @@ toshoboe_startchip (struct toshoboe_cb *self)
   OUTB ((physaddr >> 18) & 0xff, OBOE_RING_BASE1);
   OUTB ((physaddr >> 26) & 0x3f, OBOE_RING_BASE2);
 
-  /*Enable DMA controler in byte mode and RX */
+  /*Enable DMA controller in byte mode and RX */
   OUTB (CONFIG0H_DMA_ON, OBOE_CONFIG0H);
 
   /* Start up the clocks */

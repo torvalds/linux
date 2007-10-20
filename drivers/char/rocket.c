@@ -563,7 +563,7 @@ static void rp_do_poll(unsigned long dummy)
 		/*  Get a ptr to the board's control struct */
 		ctlp = sCtlNumToCtlPtr(ctrl);
 
-		/*  Get the interupt status from the board */
+		/*  Get the interrupt status from the board */
 #ifdef CONFIG_PCI
 		if (ctlp->BusType == isPCI)
 			CtlMask = sPCIGetControllerIntStatus(ctlp);

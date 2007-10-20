@@ -661,7 +661,7 @@ config FB_HECUBA
        help
          This enables support for the Hecuba board. This driver was tested
          with an E-Ink 800x600 display and x86 SBCs through a 16 bit GPIO
-         interface (8 bit data, 4 bit control). If you anticpate using
+         interface (8 bit data, 4 bit control). If you anticipate using
          this driver, say Y or M; otherwise say N. You must specify the
          GPIO IO address to be used for setting control and data.
 
@@ -815,7 +815,7 @@ config FB_XVR500
 	help
 	  This is the framebuffer device for the Sun XVR-500 and similar
 	  graphics cards based upon the 3DLABS Wildcat chipset.  The driver
-	  only works on sparc64 systems where the system firwmare has
+	  only works on sparc64 systems where the system firmware has
 	  mostly initialized the card already.  It is treated as a
 	  completely dumb framebuffer device.
 
@@ -828,7 +828,7 @@ config FB_XVR2500
 	help
 	  This is the framebuffer device for the Sun XVR-2500 and similar
 	  graphics cards based upon the 3DLABS Wildcat chipset.  The driver
-	  only works on sparc64 systems where the system firwmare has
+	  only works on sparc64 systems where the system firmware has
 	  mostly initialized the card already.  It is treated as a
 	  completely dumb framebuffer device.
 

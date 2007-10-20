@@ -58,5 +58,6 @@ unsigned dm_scsi_err_handler(struct hw_handler *hwh, struct bio *bio);
 #define MP_FAIL_PATH 1
 #define MP_BYPASS_PG 2
 #define MP_ERROR_IO  4	/* Don't retry this I/O */
+#define MP_RETRY 8
 
 #endif

@@ -4,10 +4,10 @@ specify force effects to I-Force 2.0 devices.  None of this information comes
 from Immerse. That's why you should not trust what is written in this
 document. This document is intended to help understanding the protocol.
 This is not a reference. Comments and corrections are welcome.  To contact me,
-send an email to: deneux@ifrance.com
+send an email to: johann.deneux@gmail.com
 
 ** WARNING **
-I may not be held responsible for any dammage or harm caused if you try to
+I shall not be held responsible for any damage or harm caused if you try to
 send data to your I-Force device based on what you read in this document.
 
 ** Preliminary Notes:
@@ -151,13 +151,13 @@ OP=  ff
 Query command. Length varies according to the query type.
 The general format of this packet is:
 ff 01 QUERY [INDEX] CHECKSUM
-reponses are of the same form:
+responses are of the same form:
 FF LEN QUERY VALUE_QUERIED CHECKSUM2
 where LEN = 1 + length(VALUE_QUERIED)
 
 **** Query ram size ****
 QUERY = 42 ('B'uffer size)
-The device should reply with the same packet plus two additionnal bytes
+The device should reply with the same packet plus two additional bytes
 containing the size of the memory:
 ff 03 42 03 e8 CS would mean that the device has 1000 bytes of ram available.
 
@@ -234,19 +234,23 @@ is the amount of memory apparently needed for every set of parameters:
 
 ** Appendix: How to study the protocol ? **
 
-1. Generate effects using the force editor provided with the DirectX SDK, or use Immersion Studio (freely available at their web site in the developer section: www.immersion.com)
-2. Start a soft spying RS232 or USB (depending on where you connected your joystick/wheel). I used ComPortSpy from fCoder (alpha version!)
+1. Generate effects using the force editor provided with the DirectX SDK, or 
+use Immersion Studio (freely available at their web site in the developer section: 
+www.immersion.com)
+2. Start a soft spying RS232 or USB (depending on where you connected your 
+joystick/wheel). I used ComPortSpy from fCoder (alpha version!)
 3. Play the effect, and watch what happens on the spy screen.
 
 A few words about ComPortSpy:
-At first glance, this soft seems, hum, well... buggy. In fact, data appear with a few seconds latency. Personnaly, I restart it every time I play an effect.
+At first glance, this software seems, hum, well... buggy. In fact, data appear with a
+few seconds latency. Personally, I restart it every time I play an effect.
 Remember it's free (as in free beer) and alpha!
 
 ** URLS **
 Check www.immerse.com for Immersion Studio, and www.fcoder.com for ComPortSpy.
 
 ** Author of this document **
-Johann Deneux <deneux@ifrance.com>
+Johann Deneux <johann.deneux@gmail.com>
 Home page at http://www.esil.univ-mrs.fr/~jdeneux/projects/ff/
 
 Additions by Vojtech Pavlik.

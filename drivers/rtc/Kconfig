@@ -240,7 +240,7 @@ config RTC_DRV_TWL92330
 	depends on MENELAUS
 	help
 	  If you say yes here you get support for the RTC on the
-	  TWL92330 "Menelaus" power mangement chip, used with OMAP2
+	  TWL92330 "Menelaus" power management chip, used with OMAP2
 	  platforms.  The support is integrated with the rest of
 	  the Menelaus driver; it's not separate module.
 

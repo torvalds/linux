@@ -179,7 +179,7 @@ static int __devinit pcibios_init (void)
 		   default uses.  */
 
 		/* Significant address bits used for decoding PCI GCS5 space
-		   accessess.  */
+		   accesses.  */
 		MB_A_PCI_DMRR = ~(MB_A_PCI_MEM_SIZE - 1);
 
 		/* I don't understand this, but the SolutionGear example code
@@ -775,7 +775,7 @@ pci_alloc_consistent (struct pci_dev *pdev, size_t size, dma_addr_t *dma_addr)
 /* Free and unmap a consistent DMA buffer.  CPU_ADDR and DMA_ADDR must
    be values that were returned from pci_alloc_consistent.  SIZE must be
    the same as what as passed into pci_alloc_consistent.  References to
-   the memory and mappings assosciated with CPU_ADDR or DMA_ADDR past
+   the memory and mappings associated with CPU_ADDR or DMA_ADDR past
    this call are illegal.  */
 void
 pci_free_consistent (struct pci_dev *pdev, size_t size, void *cpu_addr,

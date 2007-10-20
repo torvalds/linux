@@ -9,7 +9,7 @@
 #include "chan_user.h"
 #include "os.h"
 
-/* This address is used only as a unique identifer */
+/* This address is used only as a unique identifier */
 static int null_chan;
 
 static void *null_init(char *str, int device, const struct chan_opts *opts)

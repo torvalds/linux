@@ -8,7 +8,7 @@
  * Tony Lindgren <tony@atomide.com> and Imre Deak <imre.deak@nokia.com>
  * Copyright (C) 2005 Nokia Corporation
  *
- * Cleaned up by Juha Yrjölä <juha.yrjola@nokia.com>
+ * Cleaned up by Juha YrjÃ¶lÃ¤ <juha.yrjola@nokia.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

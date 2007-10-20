@@ -1648,7 +1648,7 @@ static int velocity_alloc_rx_buf(struct velocity_info *vptr, int idx)
  *
  *	Scan the queues looking for transmitted packets that
  *	we can complete and clean up. Update any statistics as
- *	neccessary/
+ *	necessary/
  */
 
 static int velocity_tx_srv(struct velocity_info *vptr, u32 status)

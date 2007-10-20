@@ -347,7 +347,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 /* Grab and setup a signal frame.
  *
  * Basically a lot of state-info is stacked, and arranged for the
- * user-mode program to return to the kernel using either a trampiline
+ * user-mode program to return to the kernel using either a trampoline
  * which performs the syscall sigreturn(), or a provided user-mode
  * trampoline.
   */
@@ -641,7 +641,7 @@ ugdb_trap_user(struct thread_info *ti, int sig)
 		user_regs(ti)->spc = 0;
 	}
 	/* FIXME: Filter out false h/w breakpoint hits (i.e. EDA
-	   not withing any configured h/w breakpoint range). Synchronize with
+	   not within any configured h/w breakpoint range). Synchronize with
 	   what already exists for kernel debugging.  */
 	if (((user_regs(ti)->exs & 0xff00) >> 8) == BREAK_8_INTR_VECT) {
 		/* Break 8: subtract 2 from ERP unless in a delay slot. */

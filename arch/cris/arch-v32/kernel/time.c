@@ -99,7 +99,7 @@ unsigned long do_slow_gettimeoffset(void)
 /* From timer MDS describing the hardware watchdog:
  * 4.3.1 Watchdog Operation
  * The watchdog timer is an 8-bit timer with a configurable start value.
- * Once started the whatchdog counts downwards with a frequency of 763 Hz
+ * Once started the watchdog counts downwards with a frequency of 763 Hz
  * (100/131072 MHz). When the watchdog counts down to 1, it generates an
  * NMI (Non Maskable Interrupt), and when it counts down to 0, it resets the
  * chip.

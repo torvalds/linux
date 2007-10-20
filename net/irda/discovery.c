@@ -202,7 +202,7 @@ void irlmp_expire_discoveries(hashbin_t *log, __u32 saddr, int force)
 	/* Drop the spinlock before calling the higher layers, as
 	 * we can't guarantee they won't call us back and create a
 	 * deadlock. We will work on our own private data, so we
-	 * don't care to be interupted. - Jean II */
+	 * don't care to be interrupted. - Jean II */
 	spin_unlock_irqrestore(&log->hb_spinlock, flags);
 
 	if(buffer == NULL)

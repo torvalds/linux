@@ -165,7 +165,7 @@ quiet_cmd_db2man = MAN     $@
 	@touch $@
 
 ###
-# Rules to generate postscripts and PNG imgages from .fig format files
+# Rules to generate postscripts and PNG images from .fig format files
 quiet_cmd_fig2eps = FIG2EPS $@
       cmd_fig2eps = fig2dev -Leps $< $@
 

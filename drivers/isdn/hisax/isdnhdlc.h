@@ -5,7 +5,7 @@
  * Neccessary because some ISDN devices don't have HDLC
  * controllers. Also included: a bit reversal table.
  *
- *Copyright (C) 2002    Wolfgang Mües      <wolfgang@iksw-muees.de>
+ *Copyright (C) 2002    Wolfgang MÃ¼es      <wolfgang@iksw-muees.de>
  *		2001 	Frode Isaksen      <fisaksen@bewan.com>
  *              2001 	Kai Germaschewski  <kai.germaschewski@gmx.de>
  *

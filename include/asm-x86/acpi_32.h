@@ -81,11 +81,7 @@ int __acpi_release_global_lock(unsigned int *lock);
         :"=r"(n_hi), "=r"(n_lo)     \
         :"0"(n_hi), "1"(n_lo))
 
-#ifdef CONFIG_X86_IO_APIC
-extern void check_acpi_pci(void);
-#else
-static inline void check_acpi_pci(void) { }
-#endif
+extern void early_quirks(void);
 
 #ifdef CONFIG_ACPI
 extern int acpi_lapic;

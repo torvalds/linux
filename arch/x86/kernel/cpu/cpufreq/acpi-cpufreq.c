@@ -77,7 +77,7 @@ static unsigned int acpi_pstate_strict;
 
 static int check_est_cpu(unsigned int cpuid)
 {
-	struct cpuinfo_x86 *cpu = &cpu_data[cpuid];
+	struct cpuinfo_x86 *cpu = &cpu_data(cpuid);
 
 	if (cpu->x86_vendor != X86_VENDOR_INTEL ||
 	    !cpu_has(cpu, X86_FEATURE_EST))
@@ -560,7 +560,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	unsigned int cpu = policy->cpu;
 	struct acpi_cpufreq_data *data;
 	unsigned int result = 0;
-	struct cpuinfo_x86 *c = &cpu_data[policy->cpu];
+	struct cpuinfo_x86 *c = &cpu_data(policy->cpu);
 	struct acpi_processor_performance *perf;
 
 	dprintk("acpi_cpufreq_cpu_init\n");

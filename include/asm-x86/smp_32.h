@@ -39,9 +39,11 @@ extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
 
 #define MAX_APICID 256
-extern u8 x86_cpu_to_apicid[];
+extern u8 __initdata x86_cpu_to_apicid_init[];
+extern void *x86_cpu_to_apicid_ptr;
+DECLARE_PER_CPU(u8, x86_cpu_to_apicid);
 
-#define cpu_physical_id(cpu)	x86_cpu_to_apicid[cpu]
+#define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
 
 extern void set_cpu_sibling_map(int cpu);
 

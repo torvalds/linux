@@ -91,12 +91,10 @@ void dm_put_hw_handler(struct hw_handler_type *hwht)
 
 static struct hwh_internal *_alloc_hw_handler(struct hw_handler_type *hwht)
 {
-	struct hwh_internal *hwhi = kmalloc(sizeof(*hwhi), GFP_KERNEL);
+	struct hwh_internal *hwhi = kzalloc(sizeof(*hwhi), GFP_KERNEL);
 
-	if (hwhi) {
-		memset(hwhi, 0, sizeof(*hwhi));
+	if (hwhi)
 		hwhi->hwht = *hwht;
-	}
 
 	return hwhi;
 }

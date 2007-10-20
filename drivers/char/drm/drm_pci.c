@@ -8,12 +8,12 @@
  * \todo Implement the remaining ioctl's for the PCI pools.
  * \todo The wrappers here are so thin that they would be better off inlined..
  *
- * \author Jose Fonseca <jrfonseca@tungstengraphics.com>
+ * \author José Fonseca <jrfonseca@tungstengraphics.com>
  * \author Leif Delgass <ldelgass@retinalburn.net>
  */
 
 /*
- * Copyright 2003 Jos�Fonseca.
+ * Copyright 2003 José Fonseca.
  * Copyright 2003 Leif Delgass.
  * All Rights Reserved.
  *

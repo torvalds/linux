@@ -102,7 +102,7 @@ core-$(CONFIG_XEN)		+= arch/x86/xen/
 # default subarch .h files
 mflags-y += -Iinclude/asm-x86/mach-default
 
-head-y := arch/x86/kernel/head_32.o arch/x86/kernel/init_task_32.o
+head-y := arch/x86/kernel/head_32.o arch/x86/kernel/init_task.o
 
 libs-y 					+= arch/x86/lib/
 core-y					+= arch/x86/kernel/ \
@@ -131,9 +131,9 @@ all: bzImage
 zImage zlilo zdisk: KBUILD_IMAGE := arch/x86/boot/zImage
 
 zImage bzImage: vmlinux
-	$(Q)mkdir -p $(objtree)/arch/i386/boot
-	$(Q)ln -fsn $(objtree)/arch/x86/boot/bzImage $(objtree)/arch/i386/boot/bzImage
 	$(Q)$(MAKE) $(build)=$(boot) $(KBUILD_IMAGE)
+	$(Q)mkdir -p $(objtree)/arch/i386/boot
+	$(Q)ln -fsn ../../x86/boot/bzImage $(objtree)/arch/i386/boot/bzImage
 
 compressed: zImage
 

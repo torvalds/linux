@@ -907,7 +907,7 @@ static int em28xx_set_fmt(struct em28xx *dev, unsigned int cmd, struct v4l2_form
 
 	/* stop io in case it is already in progress */
 	if (dev->stream == STREAM_ON) {
-		em28xx_videodbg("VIDIOC_SET_FMT: interupting stream\n");
+		em28xx_videodbg("VIDIOC_SET_FMT: interrupting stream\n");
 		if ((ret = em28xx_stream_interrupt(dev)))
 			return ret;
 	}

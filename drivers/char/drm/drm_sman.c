@@ -33,7 +33,7 @@
  * struct or a context identifier.
  *
  * Authors:
- * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
+ * Thomas HellstrÃ¶m <thomas-at-tungstengraphics-dot-com>
  */
 
 #include "drm_sman.h"

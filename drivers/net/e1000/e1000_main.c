@@ -3590,7 +3590,7 @@ e1000_update_stats(struct e1000_adapter *adapter)
 
 	spin_lock_irqsave(&adapter->stats_lock, flags);
 
-	/* these counters are modified from e1000_adjust_tbi_stats,
+	/* these counters are modified from e1000_tbi_adjust_stats,
 	 * called from the interrupt context, so they must only
 	 * be written while holding adapter->stats_lock
 	 */

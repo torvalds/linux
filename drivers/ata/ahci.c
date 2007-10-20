@@ -1479,7 +1479,7 @@ static void ahci_port_intr(struct ata_port *ap)
 		return;
 	}
 
-	/* hmmm... a spurious interupt */
+	/* hmmm... a spurious interrupt */
 
 	/* if !NCQ, ignore.  No modern ATA device has broken HSM
 	 * implementation for non-NCQ commands.

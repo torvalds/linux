@@ -2,7 +2,7 @@
     gl520sm.c - Part of lm_sensors, Linux kernel modules for hardware
                 monitoring
     Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl>,
-                              Kyösti Mälkki <kmalkki@cc.hut.fi>
+                              KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>
     Copyright (c) 2005        Maarten Deprez <maartendeprez@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -805,7 +805,7 @@ static void __exit sensors_gl520sm_exit(void)
 
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>, "
-	"Kyösti Mälkki <kmalkki@cc.hut.fi>, "
+	"KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>, "
 	"Maarten Deprez <maartendeprez@users.sourceforge.net>");
 MODULE_DESCRIPTION("GL520SM driver");
 MODULE_LICENSE("GPL");

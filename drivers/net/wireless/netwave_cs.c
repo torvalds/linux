@@ -4,18 +4,18 @@
  * Version:       0.4.1
  * Description:   Netwave AirSurfer Wireless LAN PC Card driver
  * Status:        Experimental.
- * Authors:       John Markus Bjørndalen <johnm@cs.uit.no>
+ * Authors:       John Markus BjÃ¸rndalen <johnm@cs.uit.no>
  *                Dag Brattli <dagb@cs.uit.no>
  *                David Hinds <dahinds@users.sourceforge.net>
  * Created at:    A long time ago!
  * Modified at:   Mon Nov 10 11:54:37 1997
  * Modified by:   Dag Brattli <dagb@cs.uit.no>
  * 
- *     Copyright (c) 1997 University of Tromsø, Norway
+ *     Copyright (c) 1997 University of TromsÃ¸, Norway
  *
  * Revision History:
  *
- *   08-Nov-97 15:14:47   John Markus Bjørndalen <johnm@cs.uit.no>
+ *   08-Nov-97 15:14:47   John Markus BjÃ¸rndalen <johnm@cs.uit.no>
  *    - Fixed some bugs in netwave_rx and cleaned it up a bit. 
  *      (One of the bugs would have destroyed packets when receiving
  *      multiple packets per interrupt). 
@@ -158,7 +158,7 @@ static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"netwave_cs.c 0.3.0 Thu Jul 17 14:36:02 1997 (John Markus Bjørndalen)\n";
+"netwave_cs.c 0.3.0 Thu Jul 17 14:36:02 1997 (John Markus BjÃ¸rndalen)\n";
 #else
 #define DEBUG(n, args...)
 #endif

@@ -186,7 +186,7 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	hwif->cbl = cs5535_cable_detect(hwif->pci_dev);
 }
 
-static ide_pci_device_t cs5535_chipset __devinitdata = {
+static const struct ide_port_info cs5535_chipset __devinitdata = {
 	.name		= "CS5535",
 	.init_hwif	= init_hwif_cs5535,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE |

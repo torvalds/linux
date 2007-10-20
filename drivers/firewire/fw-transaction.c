@@ -228,7 +228,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
  *
  * @param card the card from which to send the request
  * @param tcode the tcode for this transaction.  Do not use
- *   TCODE_LOCK_REQUEST directly, insted use TCODE_LOCK_MASK_SWAP
+ *   TCODE_LOCK_REQUEST directly, instead use TCODE_LOCK_MASK_SWAP
  *   etc. to specify tcode and ext_tcode.
  * @param node_id the destination node ID (bus ID and PHY ID concatenated)
  * @param generation the generation for which node_id is valid

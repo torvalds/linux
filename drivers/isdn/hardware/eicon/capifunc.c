@@ -321,7 +321,7 @@ void sendf(APPL * appl, word command, dword Id, word Number, byte * format, ...)
 				  DBG_BLK((((char *)(long)GET_DWORD(&msg.info.data_b3_ind.Data)) + i,
 				  	((dlength - i) < 256) ? (dlength - i) : 256))
 				  if (!(myDriverDebugHandle.dbgMask & DL_PRV0))
-					  break; /* not more if not explicitely requested */
+					  break; /* not more if not explicitly requested */
 				}
 			}
 			break;
@@ -965,7 +965,7 @@ static u16 diva_send_message(struct capi_ctr *ctrl,
 					((GET_WORD(&msg->info.data_b3_req.Data_Length) - j) <
 					  256) ? (GET_WORD(&msg->info.data_b3_req.Data_Length) - j) : 256))
 				if (!(myDriverDebugHandle.dbgMask & DL_PRV0))
-					break;	/* not more if not explicitely requested */
+					break;	/* not more if not explicitly requested */
 			}
 		}
 #endif

@@ -632,7 +632,7 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 	/* User-mode eip? */
 	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->eip : NULL;
 
-	/* Send us the fakey SIGTRAP */
+	/* Send us the fake SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);
 }
 

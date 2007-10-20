@@ -947,7 +947,7 @@ void __devinit setup_local_APIC(void)
 	 * Set up LVT0, LVT1:
 	 *
 	 * set up through-local-APIC on the BP's LINT0. This is not
-	 * strictly necessery in pure symmetric-IO mode, but sometimes
+	 * strictly necessary in pure symmetric-IO mode, but sometimes
 	 * we delegate interrupts to the 8259A.
 	 */
 	/*
@@ -998,7 +998,7 @@ void __devinit setup_local_APIC(void)
 	} else {
 		if (esr_disable)
 			/*
-			 * Something untraceble is creating bad interrupts on
+			 * Something untraceable is creating bad interrupts on
 			 * secondary quads ... for the moment, just leave the
 			 * ESR disabled - we can't do anything useful with the
 			 * errors anyway - mbligh

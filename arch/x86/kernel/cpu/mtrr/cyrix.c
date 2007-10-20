@@ -147,10 +147,10 @@ static void prepare_set(void)
 	write_cr0(cr0);
 	wbinvd();
 
-	/* Cyrix ARRs - everything else were excluded at the top */
+	/* Cyrix ARRs - everything else was excluded at the top */
 	ccr3 = getCx86(CX86_CCR3);
 
-	/* Cyrix ARRs - everything else were excluded at the top */
+	/* Cyrix ARRs - everything else was excluded at the top */
 	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10);
 
 }

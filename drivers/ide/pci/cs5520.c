@@ -141,7 +141,7 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		.pio_mask	= ATA_PIO4,			\
 	}
 
-static ide_pci_device_t cyrix_chipsets[] __devinitdata = {
+static const struct ide_port_info cyrix_chipsets[] __devinitdata = {
 	/* 0 */ DECLARE_CS_DEV("Cyrix 5510"),
 	/* 1 */ DECLARE_CS_DEV("Cyrix 5520")
 };
@@ -154,9 +154,8 @@ static ide_pci_device_t cyrix_chipsets[] __devinitdata = {
  
 static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_hwif_t *hwif = NULL, *mate = NULL;
-	ata_index_t index;
-	ide_pci_device_t *d = &cyrix_chipsets[id->driver_data];
+	const struct ide_port_info *d = &cyrix_chipsets[id->driver_data];
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	ide_setup_pci_noise(dev, d);
 
@@ -172,29 +171,14 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 		return -ENODEV;
 	}
 
-	index.all = 0xf0f0;
-
 	/*
 	 *	Now the chipset is configured we can let the core
 	 *	do all the device setup for us
 	 */
 
-	ide_pci_setup_ports(dev, d, 14, &index);
+	ide_pci_setup_ports(dev, d, 14, &idx[0]);
 
-	if ((index.b.low & 0xf0) != 0xf0)
-		hwif = &ide_hwifs[index.b.low];
-	if ((index.b.high & 0xf0) != 0xf0)
-		mate = &ide_hwifs[index.b.high];
-
-	if (hwif)
-		probe_hwif_init(hwif);
-	if (mate)
-		probe_hwif_init(mate);
-
-	if (hwif)
-		ide_proc_register_port(hwif);
-	if (mate)
-		ide_proc_register_port(mate);
+	ide_device_add(idx);
 
 	return 0;
 }

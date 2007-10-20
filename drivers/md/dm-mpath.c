@@ -10,6 +10,7 @@
 #include "dm-hw-handler.h"
 #include "dm-bio-list.h"
 #include "dm-bio-record.h"
+#include "dm-uevent.h"
 
 #include <linux/ctype.h>
 #include <linux/init.h>
@@ -75,6 +76,8 @@ struct multipath {
 	unsigned queue_io;		/* Must we queue all I/O? */
 	unsigned queue_if_no_path;	/* Queue I/O if last path fails? */
 	unsigned saved_queue_if_no_path;/* Saved state during suspension */
+	unsigned pg_init_retries;	/* Number of times to retry pg_init */
+	unsigned pg_init_count;		/* Number of times pg_init called */
 
 	struct work_struct process_queued_ios;
 	struct bio_list queued_ios;
@@ -225,6 +228,8 @@ static void __switch_pg(struct multipath *m, struct pgpath *pgpath)
 		m->pg_init_required = 0;
 		m->queue_io = 0;
 	}
+
+	m->pg_init_count = 0;
 }
 
 static int __choose_path_in_pg(struct multipath *m, struct priority_group *pg)
@@ -424,6 +429,7 @@ static void process_queued_ios(struct work_struct *work)
 		must_queue = 0;
 
 	if (m->pg_init_required && !m->pg_init_in_progress) {
+		m->pg_init_count++;
 		m->pg_init_required = 0;
 		m->pg_init_in_progress = 1;
 		init_required = 1;
@@ -689,9 +695,11 @@ static int parse_features(struct arg_set *as, struct multipath *m)
 	int r;
 	unsigned argc;
 	struct dm_target *ti = m->ti;
+	const char *param_name;
 
 	static struct param _params[] = {
-		{0, 1, "invalid number of feature args"},
+		{0, 3, "invalid number of feature args"},
+		{1, 50, "pg_init_retries must be between 1 and 50"},
 	};
 
 	r = read_param(_params, shift(as), &argc, &ti->error);
@@ -701,12 +709,28 @@ static int parse_features(struct arg_set *as, struct multipath *m)
 	if (!argc)
 		return 0;
 
-	if (!strnicmp(shift(as), MESG_STR("queue_if_no_path")))
-		return queue_if_no_path(m, 1, 0);
-	else {
+	do {
+		param_name = shift(as);
+		argc--;
+
+		if (!strnicmp(param_name, MESG_STR("queue_if_no_path"))) {
+			r = queue_if_no_path(m, 1, 0);
+			continue;
+		}
+
+		if (!strnicmp(param_name, MESG_STR("pg_init_retries")) &&
+		    (argc >= 1)) {
+			r = read_param(_params + 1, shift(as),
+				       &m->pg_init_retries, &ti->error);
+			argc--;
+			continue;
+		}
+
 		ti->error = "Unrecognised multipath feature request";
-		return -EINVAL;
-	}
+		r = -EINVAL;
+	} while (argc && !r);
+
+	return r;
 }
 
 static int multipath_ctr(struct dm_target *ti, unsigned int argc,
@@ -834,6 +858,9 @@ static int fail_path(struct pgpath *pgpath)
 	if (pgpath == m->current_pgpath)
 		m->current_pgpath = NULL;
 
+	dm_path_uevent(DM_UEVENT_PATH_FAILED, m->ti,
+		      pgpath->path.dev->name, m->nr_valid_paths);
+
 	queue_work(kmultipathd, &m->trigger_event);
 
 out:
@@ -872,6 +899,9 @@ static int reinstate_path(struct pgpath *pgpath)
 	m->current_pgpath = NULL;
 	if (!m->nr_valid_paths++ && m->queue_size)
 		queue_work(kmultipathd, &m->process_queued_ios);
+
+	dm_path_uevent(DM_UEVENT_PATH_REINSTATED, m->ti,
+		      pgpath->path.dev->name, m->nr_valid_paths);
 
 	queue_work(kmultipathd, &m->trigger_event);
 
@@ -976,6 +1006,26 @@ static int bypass_pg_num(struct multipath *m, const char *pgstr, int bypassed)
 }
 
 /*
+ * Should we retry pg_init immediately?
+ */
+static int pg_init_limit_reached(struct multipath *m, struct pgpath *pgpath)
+{
+	unsigned long flags;
+	int limit_reached = 0;
+
+	spin_lock_irqsave(&m->lock, flags);
+
+	if (m->pg_init_count <= m->pg_init_retries)
+		m->pg_init_required = 1;
+	else
+		limit_reached = 1;
+
+	spin_unlock_irqrestore(&m->lock, flags);
+
+	return limit_reached;
+}
+
+/*
  * pg_init must call this when it has completed its initialisation
  */
 void dm_pg_init_complete(struct dm_path *path, unsigned err_flags)
@@ -985,8 +1035,14 @@ void dm_pg_init_complete(struct dm_path *path, unsigned err_flags)
 	struct multipath *m = pg->m;
 	unsigned long flags;
 
-	/* We insist on failing the path if the PG is already bypassed. */
-	if (err_flags && pg->bypassed)
+	/*
+	 * If requested, retry pg_init until maximum number of retries exceeded.
+	 * If retry not requested and PG already bypassed, always fail the path.
+	 */
+	if (err_flags & MP_RETRY) {
+		if (pg_init_limit_reached(m, pgpath))
+			err_flags |= MP_FAIL_PATH;
+	} else if (err_flags && pg->bypassed)
 		err_flags |= MP_FAIL_PATH;
 
 	if (err_flags & MP_FAIL_PATH)
@@ -996,7 +1052,7 @@ void dm_pg_init_complete(struct dm_path *path, unsigned err_flags)
 		bypass_pg(m, pg, 1);
 
 	spin_lock_irqsave(&m->lock, flags);
-	if (err_flags) {
+	if (err_flags & ~MP_RETRY) {
 		m->current_pgpath = NULL;
 		m->current_pg = NULL;
 	} else if (!m->pg_init_required)
@@ -1148,11 +1204,15 @@ static int multipath_status(struct dm_target *ti, status_type_t type,
 
 	/* Features */
 	if (type == STATUSTYPE_INFO)
-		DMEMIT("1 %u ", m->queue_size);
-	else if (m->queue_if_no_path)
-		DMEMIT("1 queue_if_no_path ");
-	else
-		DMEMIT("0 ");
+		DMEMIT("2 %u %u ", m->queue_size, m->pg_init_count);
+	else {
+		DMEMIT("%u ", m->queue_if_no_path +
+			      (m->pg_init_retries > 0) * 2);
+		if (m->queue_if_no_path)
+			DMEMIT("queue_if_no_path ");
+		if (m->pg_init_retries)
+			DMEMIT("pg_init_retries %u ", m->pg_init_retries);
+	}
 
 	if (hwh->type && hwh->type->status)
 		sz += hwh->type->status(hwh, type, result + sz, maxlen - sz);

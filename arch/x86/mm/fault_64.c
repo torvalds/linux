@@ -169,7 +169,7 @@ void dump_pagetable(unsigned long address)
 	pmd = pmd_offset(pud, address);
 	if (bad_address(pmd)) goto bad;
 	printk("PMD %lx ", pmd_val(*pmd));
-	if (!pmd_present(*pmd))	goto ret;	 
+	if (!pmd_present(*pmd) || pmd_large(*pmd)) goto ret;
 
 	pte = pte_offset_kernel(pmd, address);
 	if (bad_address(pte)) goto bad;
@@ -285,7 +285,6 @@ static int vmalloc_fault(unsigned long address)
 	return 0;
 }
 
-static int page_fault_trace;
 int show_unhandled_signals = 1;
 
 /*
@@ -354,10 +353,6 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	if (likely(regs->eflags & X86_EFLAGS_IF))
 		local_irq_enable();
 
-	if (unlikely(page_fault_trace))
-		printk("pagefault rip:%lx rsp:%lx cs:%lu ss:%lu address %lx error %lx\n",
-		       regs->rip,regs->rsp,regs->cs,regs->ss,address,error_code); 
-
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(address, regs, error_code);
 
@@ -378,7 +373,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
  again:
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
-	 * kernel and should generate an OOPS.  Unfortunatly, in the case of an
+	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
 	 * erroneous fault occurring in a code path which already holds mmap_sem
 	 * we will deadlock attempting to validate the fault against the
 	 * address space.  Luckily the kernel only validly references user
@@ -386,7 +381,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 * exceptions table.
 	 *
 	 * As the vast majority of faults will be valid we will only perform
-	 * the source reference check when there is a possibilty of a deadlock.
+	 * the source reference check when there is a possibility of a deadlock.
 	 * Attempt to lock the address space, if we cannot we then validate the
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
@@ -488,7 +483,7 @@ bad_area_nosemaphore:
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit()) {
 			printk(
-		       "%s%s[%d]: segfault at %016lx rip %016lx rsp %016lx error %lx\n",
+		       "%s%s[%d]: segfault at %lx rip %lx rsp %lx error %lx\n",
 					tsk->pid > 1 ? KERN_INFO : KERN_EMERG,
 					tsk->comm, tsk->pid, address, regs->rip,
 					regs->rsp, error_code);
@@ -621,10 +616,3 @@ void vmalloc_sync_all(void)
 	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) == 
 				(__START_KERNEL & PGDIR_MASK)));
 }
-
-static int __init enable_pagefaulttrace(char *str)
-{
-	page_fault_trace = 1;
-	return 1;
-}
-__setup("pagefaulttrace", enable_pagefaulttrace);

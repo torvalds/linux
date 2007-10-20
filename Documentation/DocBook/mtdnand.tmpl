@@ -282,7 +282,7 @@ int __init board_init (void)
 		goto out;
 	}
 
-	/* map physical adress */
+	/* map physical address */
 	baseaddr = (unsigned long)ioremap(CHIP_PHYSICAL_ADDRESS, 1024);
 	if(!baseaddr){
 		printk("Ioremap to access NAND chip failed\n");
@@ -306,7 +306,7 @@ int __init board_init (void)
 	this->dev_ready = board_dev_ready;
 	this->eccmode = NAND_ECC_SOFT;
 
-	/* Scan to find existance of the device */
+	/* Scan to find existence of the device */
 	if (nand_scan (board_mtd, 1)) {
 		err = -ENXIO;
 		goto out_ior;
@@ -340,7 +340,7 @@ static void __exit board_cleanup (void)
 	/* Release resources, unregister device */
 	nand_release (board_mtd);
 
-	/* unmap physical adress */
+	/* unmap physical address */
 	iounmap((void *)baseaddr);
 	
 	/* Free the MTD device structure */

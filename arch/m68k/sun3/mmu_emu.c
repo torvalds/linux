@@ -239,7 +239,7 @@ void clear_context(unsigned long context)
 /* gets an empty context.  if full, kills the next context listed to
    die first */
 /* This context invalidation scheme is, well, totally arbitrary, I'm
-   sure it could be much more intellegent...  but it gets the job done
+   sure it could be much more intelligent...  but it gets the job done
    for now without much overhead in making it's decision. */
 /* todo: come up with optimized scheme for flushing contexts */
 unsigned long get_free_context(struct mm_struct *mm)

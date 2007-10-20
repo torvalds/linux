@@ -77,7 +77,7 @@ static struct amd_ide_chip {
 };
 
 static struct amd_ide_chip *amd_config;
-static ide_pci_device_t *amd_chipset;
+static const struct ide_port_info *amd_chipset;
 static unsigned int amd_80w;
 static unsigned int amd_clock;
 
@@ -242,18 +242,11 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
 
 static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 {
-	int i;
-
 	if (hwif->irq == 0) /* 0 is bogus but will do for now */
 		hwif->irq = pci_get_legacy_ide_irq(hwif->pci_dev, hwif->channel);
 
 	hwif->set_pio_mode = &amd_set_pio_mode;
 	hwif->set_dma_mode = &amd_set_drive;
-
-	for (i = 0; i < 2; i++) {
-		hwif->drives[i].io_32bit = 1;
-		hwif->drives[i].unmask = 1;
-	}
 
 	if (!hwif->dma_base)
 		return;
@@ -270,16 +263,21 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 	}
 }
 
+#define IDE_HFLAGS_AMD \
+	(IDE_HFLAG_PIO_NO_BLACKLIST | \
+	 IDE_HFLAG_PIO_NO_DOWNGRADE | \
+	 IDE_HFLAG_POST_SET_MODE | \
+	 IDE_HFLAG_IO_32BIT | \
+	 IDE_HFLAG_UNMASK_IRQS | \
+	 IDE_HFLAG_BOOTABLE)
+
 #define DECLARE_AMD_DEV(name_str)					\
 	{								\
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
-		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |		\
-				  IDE_HFLAG_PIO_NO_DOWNGRADE |		\
-				  IDE_HFLAG_POST_SET_MODE |		\
-				  IDE_HFLAG_BOOTABLE,			\
+		.host_flags	= IDE_HFLAGS_AMD,			\
 		.pio_mask	= ATA_PIO5,				\
 		.swdma_mask	= ATA_SWDMA2,				\
 		.mwdma_mask	= ATA_MWDMA2,				\
@@ -291,16 +289,13 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
-		.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |		\
-				  IDE_HFLAG_PIO_NO_DOWNGRADE |		\
-				  IDE_HFLAG_POST_SET_MODE |		\
-				  IDE_HFLAG_BOOTABLE,			\
+		.host_flags	= IDE_HFLAGS_AMD,			\
 		.pio_mask	= ATA_PIO5,				\
 		.swdma_mask	= ATA_SWDMA2,				\
 		.mwdma_mask	= ATA_MWDMA2,				\
 	}
 
-static ide_pci_device_t amd74xx_chipsets[] __devinitdata = {
+static const struct ide_port_info amd74xx_chipsets[] __devinitdata = {
 	/*  0 */ DECLARE_AMD_DEV("AMD7401"),
 	/*  1 */ DECLARE_AMD_DEV("AMD7409"),
 	/*  2 */ DECLARE_AMD_DEV("AMD7411"),

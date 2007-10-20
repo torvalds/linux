@@ -10,7 +10,7 @@
  * Mostly based on original driver:
  *
  * Copyright (C) 2005 Nokia Corporation
- * Author: Juha Yrj��<juha.yrjola@nokia.com>
+ * Author: Juha Yrjölä <juha.yrjola@nokia.com>
  *
  * This file is licensed under  the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any

@@ -189,8 +189,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	hwif->dma_host_off = &atiixp_dma_host_off;
 }
 
-
-static ide_pci_device_t atiixp_pci_info[] __devinitdata = {
+static const struct ide_port_info atiixp_pci_info[] __devinitdata = {
 	{	/* 0 */
 		.name		= "ATIIXP",
 		.init_hwif	= init_hwif_atiixp,

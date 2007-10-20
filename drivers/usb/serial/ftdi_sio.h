@@ -17,7 +17,7 @@
  * Bill Ryder - bryder@sgi.com formerly of Silicon Graphics, Inc.- wrote the 
  * FTDI_SIO implementation.
  *
- * Philipp Gühring - pg@futureware.at - added the Device ID of the USB relais
+ * Philipp GÃ¼hring - pg@futureware.at - added the Device ID of the USB relais
  * from Rudolf Gugler
  *
  */
@@ -44,7 +44,7 @@
 #define FTDI_ACTZWAVE_PID	0xF2D0
 
 
-/* www.starting-point-systems.com µChameleon device */
+/* www.starting-point-systems.com ÂµChameleon device */
 #define FTDI_MICRO_CHAMELEON_PID	0xCAA0	/* Product Id */
 
 /* www.irtrans.de device */
@@ -419,7 +419,7 @@
 
 /*
  * Teratronik product ids.
- * Submitted by O. Wölfelschneider.
+ * Submitted by O. WÃ¶lfelschneider.
  */
 #define FTDI_TERATRONIK_VCP_PID	 0xEC88	/* Teratronik device (preferring VCP driver on windows) */
 #define FTDI_TERATRONIK_D2XX_PID 0xEC89	/* Teratronik device (preferring D2XX driver on windows) */

@@ -64,7 +64,7 @@ static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 
 	switch (rio_devs[wpeg_num]->type){
 	case CompatWPEG:
-		/* The Compatability Winnipeg controls the 2 legacy buses,
+		/* The Compatibility Winnipeg controls the 2 legacy buses,
 		 * the 66MHz PCI bus [2 slots] and the 2 "extra" buses in case
 		 * a PCI-PCI bridge card is used in either slot: total 5 buses.
 		 */

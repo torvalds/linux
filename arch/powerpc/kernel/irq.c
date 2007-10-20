@@ -491,7 +491,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to
-			 * explicitely change them
+			 * explicitly change them
 			 */
 			ops->map(host, i, i);
 		}

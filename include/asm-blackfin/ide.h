@@ -20,7 +20,6 @@
 #define MAX_HWIFS	1
 
 /* Legacy ... BLK_DEV_IDECS */
-#define IDE_ARCH_OBSOLETE_INIT
 #define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
 
 

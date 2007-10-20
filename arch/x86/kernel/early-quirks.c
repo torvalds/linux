@@ -13,9 +13,13 @@
 #include <linux/acpi.h>
 #include <linux/pci_ids.h>
 #include <asm/pci-direct.h>
-#include <asm/proto.h>
-#include <asm/iommu.h>
 #include <asm/dma.h>
+#include <asm/io_apic.h>
+#include <asm/apic.h>
+
+#ifdef CONFIG_IOMMU
+#include <asm/iommu.h>
+#endif
 
 static void __init via_bugs(void)
 {
@@ -23,7 +27,8 @@ static void __init via_bugs(void)
 	if ((end_pfn > MAX_DMA32_PFN ||  force_iommu) &&
 	    !iommu_aperture_allowed) {
 		printk(KERN_INFO
-  "Looks like a VIA chipset. Disabling IOMMU. Override with iommu=allowed\n");
+		       "Looks like a VIA chipset. Disabling IOMMU."
+		       " Override with iommu=allowed\n");
 		iommu_aperture_disabled = 1;
 	}
 #endif
@@ -40,6 +45,7 @@ static int __init nvidia_hpet_check(struct acpi_table_header *header)
 static void __init nvidia_bugs(void)
 {
 #ifdef CONFIG_ACPI
+#ifdef CONFIG_X86_IO_APIC
 	/*
 	 * All timer overrides on Nvidia are
 	 * wrong unless HPET is enabled.
@@ -59,17 +65,20 @@ static void __init nvidia_bugs(void)
 			"try acpi_use_timer_override\n");
 	}
 #endif
+#endif
 	/* RED-PEN skip them on mptables too? */
 
 }
 
 static void __init ati_bugs(void)
 {
+#ifdef CONFIG_X86_IO_APIC
 	if (timer_over_8254 == 1) {
 		timer_over_8254 = 0;
 		printk(KERN_INFO
-	 	"ATI board detected. Disabling timer routing over 8254.\n");
+		"ATI board detected. Disabling timer routing over 8254.\n");
 	}
+#endif
 }
 
 struct chipset {
@@ -104,7 +113,7 @@ void __init early_quirks(void)
 				if (class == 0xffffffff)
 					break;
 
-		       		if ((class >> 16) != PCI_CLASS_BRIDGE_PCI)
+				if ((class >> 16) != PCI_CLASS_BRIDGE_PCI)
 					continue;
 
 				vendor = read_pci_config(num, slot, func,

@@ -1,6 +1,4 @@
 /*
- * $Id: hid-ff.c,v 1.2 2002/04/18 22:02:47 jdeneux Exp $
- *
  *  Force feedback support for hid devices.
  *  Not all hid devices use the same protocol. For example, some use PID,
  *  other use their own proprietary procotol.

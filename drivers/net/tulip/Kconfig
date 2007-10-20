@@ -67,7 +67,7 @@ config TULIP_MMIO
 	  If in doubt, say N.
 
 config TULIP_NAPI
-	bool "Use NAPI RX polling "
+	bool "Use RX polling (NAPI)"
 	depends on TULIP
 	help
 	  NAPI is a new driver API designed to reduce CPU and interrupt load
@@ -78,18 +78,16 @@ config TULIP_NAPI
 	  deployed on potentially unfriendly networks (e.g. in a firewall),
 	  then say Y here.
 
-	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
-	  information.
-
 	  If in doubt, say N.
 
 config TULIP_NAPI_HW_MITIGATION
-	bool "Use Interrupt Mitigation "
+	bool "Use Interrupt Mitigation"
 	depends on TULIP_NAPI
 	---help---
-	  Use HW to reduce RX interrupts. Not strict necessary since NAPI reduces
-	  RX interrupts but itself. Although this reduces RX interrupts even at
-	  low levels traffic at the cost of a small latency.
+	  Use HW to reduce RX interrupts. Not strictly necessary since NAPI
+	  reduces RX interrupts by itself. Interrupt mitigation reduces RX
+	  interrupts even at low levels of traffic at the cost of a small
+	  latency.
 
 	  If in doubt, say Y.
 

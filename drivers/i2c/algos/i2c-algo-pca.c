@@ -350,7 +350,7 @@ static int pca_init(struct i2c_algo_pca_data *adap)
 	pca_outw(adap, I2C_PCA_ADR, own << 1);
 
 	pca_set_con(adap, I2C_PCA_CON_ENSIO | clock);
-	udelay(500); /* 500 µs for oscilator to stabilise */
+	udelay(500); /* 500 Âµs for oscilator to stabilise */
 
 	return 0;
 }

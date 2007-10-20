@@ -338,7 +338,7 @@ MCT USB Single Port Serial Adapter U232
   This driver is for the MCT USB-RS232 Converter (25 pin, Model No.
   U232-P25) from Magic Control Technology Corp. (there is also a 9 pin
   Model No. U232-P9). More information about this device can be found at
-  the manufacture's web-site: http://www.mct.com.tw.
+  the manufacturer's web-site: http://www.mct.com.tw.
 
   The driver is generally working, though it still needs some more testing.
   It is derived from the Belkin USB Serial Adapter F5U103 driver and its

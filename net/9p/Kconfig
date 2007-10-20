@@ -27,5 +27,5 @@ config NET_9P_DEBUG
 	bool "Debug information"
 	depends on NET_9P
 	help
-	  Say Y if you want the 9P subsistem to log debug information.
+	  Say Y if you want the 9P subsystem to log debug information.
 

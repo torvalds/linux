@@ -1,6 +1,6 @@
 /*
 	L2CR functions
-	Copyright © 1997-1998 by PowerLogix R & D, Inc.
+	Copyright Â© 1997-1998 by PowerLogix R & D, Inc.
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by

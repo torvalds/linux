@@ -200,7 +200,7 @@ static u8 find_vrm(u8 eff_family, u8 eff_model, u8 eff_stepping, u8 vendor)
 
 u8 vid_which_vrm(void)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 eax;
 	u8 eff_family, eff_model, eff_stepping, vrm_ret;
 

@@ -159,7 +159,7 @@ The following information is available in this file:
         - Add support for 2.5.X's scsi_report_device_reset().
 
    6.2.34 (May 5th, 2003)
-        - Fix locking regression instroduced in 6.2.29 that
+        - Fix locking regression introduced in 6.2.29 that
           could cause a lock order reversal between the io_request_lock
           and our per-softc lock.  This was only possible on RH9,
           SuSE, and kernel.org 2.4.X kernels.
@@ -264,7 +264,7 @@ The following information is available in this file:
               Option: tag_info:{{value[,value...]}[,{value[,value...]}...]}
           Definition: Set the per-target tagged queue depth on a
                       per controller basis.  Both controllers and targets
-                      may be ommitted indicating that they should retain
+                      may be omitted indicating that they should retain
                       the default tag depth.
             Examples: tag_info:{{16,32,32,64,8,8,,32,32,32,32,32,32,32,32,32}
                         On Controller 0
@@ -290,7 +290,7 @@ The following information is available in this file:
    -----------------------------------------------------------------
               Option: dv: {value[,value...]} 
           Definition: Set Domain Validation Policy on a per-controller basis.
-                      Controllers may be ommitted indicating that
+                      Controllers may be omitted indicating that
                       they should retain the default read streaming setting.
              Example: dv:{-1,0,,1,1,0}
                         On Controller 0 leave DV at its default setting.

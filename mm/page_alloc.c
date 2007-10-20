@@ -123,7 +123,7 @@ static unsigned long __meminitdata dma_reserve;
 
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
   /*
-   * MAX_ACTIVE_REGIONS determines the maxmimum number of distinct
+   * MAX_ACTIVE_REGIONS determines the maximum number of distinct
    * ranges of memory (RAM) that may be registered with add_active_range().
    * Ranges passed to add_active_range() will be merged if possible
    * so the number of times add_active_range() can be called is
@@ -1260,7 +1260,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
  * skip over zones that are not allowed by the cpuset, or that have
  * been recently (in last second) found to be nearly full.  See further
  * comments in mmzone.h.  Reduces cache footprint of zonelist scans
- * that have to skip over alot of full or unallowed zones.
+ * that have to skip over a lot of full or unallowed zones.
  *
  * If the zonelist cache is present in the passed in zonelist, then
  * returns a pointer to the allowed node mask (either the current
@@ -2358,7 +2358,7 @@ void build_all_zonelists(void)
 		__build_all_zonelists(NULL);
 		cpuset_init_current_mems_allowed();
 	} else {
-		/* we have to stop all cpus to guaranntee there is no user
+		/* we have to stop all cpus to guarantee there is no user
 		   of zonelist */
 		stop_machine_run(__build_all_zonelists, NULL, NR_CPUS);
 		/* cpuset refresh routine should be here */
@@ -2864,7 +2864,7 @@ static int __meminit first_active_region_index_in_nid(int nid)
 
 /*
  * Basic iterator support. Return the next active range of PFNs for a node
- * Note: nid == MAX_NUMNODES returns next region regardles of node
+ * Note: nid == MAX_NUMNODES returns next region regardless of node
  */
 static int __meminit next_active_region_index_in_nid(int index, int nid)
 {

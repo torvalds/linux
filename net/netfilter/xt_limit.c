@@ -1,5 +1,5 @@
-/* (C) 1999 Jérôme de Vivie <devivie@info.enserb.u-bordeaux.fr>
- * (C) 1999 Hervé Eychenne <eychenne@info.enserb.u-bordeaux.fr>
+/* (C) 1999 JÃ©rÃ´me de Vivie <devivie@info.enserb.u-bordeaux.fr>
+ * (C) 1999 HervÃ© Eychenne <eychenne@info.enserb.u-bordeaux.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

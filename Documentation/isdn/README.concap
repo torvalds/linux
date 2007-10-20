@@ -111,7 +111,7 @@ struct concap_proto_ops{
 	struct concap_proto *  (*proto_new) (void);
 
 	/* delete encapsulation protocol instance and free all its resources.
-	   cprot may no loger be referenced after calling this */
+	   cprot may no longer be referenced after calling this */
 	void (*proto_del)(struct concap_proto *cprot);
 
 	/* initialize the protocol's data. To be called at interface startup

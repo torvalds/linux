@@ -120,7 +120,7 @@ config PPC_PMI
 	depends on PPC_IBM_CELL_BLADE
 	help
 	  PMI (Platform Management Interrupt) is a way to
-	  communicate with the BMC (Baseboard Mangement Controller).
+	  communicate with the BMC (Baseboard Management Controller).
 	  It is used in some IBM Cell blades.
 	default m
 

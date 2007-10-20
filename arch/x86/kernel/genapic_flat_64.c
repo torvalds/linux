@@ -172,7 +172,7 @@ static unsigned int physflat_cpu_mask_to_apicid(cpumask_t cpumask)
 	 */
 	cpu = first_cpu(cpumask);
 	if ((unsigned)cpu < NR_CPUS)
-		return x86_cpu_to_apicid[cpu];
+		return per_cpu(x86_cpu_to_apicid, cpu);
 	else
 		return BAD_APICID;
 }

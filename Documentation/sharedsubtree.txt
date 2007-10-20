@@ -153,6 +153,7 @@ replicas continue to be exactly same.
 	#include <stdio.h>
 	#include <stdlib.h>
 	#include <unistd.h>
+	#include <string.h>
 	#include <sys/mount.h>
 	#include <sys/fsuid.h>
 

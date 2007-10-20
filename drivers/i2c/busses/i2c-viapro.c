@@ -2,7 +2,7 @@
     i2c-viapro.c - Part of lm_sensors, Linux kernel modules for hardware
               monitoring
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
-    Philip Edelbrock <phil@netroedge.com>, Kyösti Mälkki <kmalkki@cc.hut.fi>,
+    Philip Edelbrock <phil@netroedge.com>, KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>,
     Mark D. Studebaker <mdsxyz123@yahoo.com>
     Copyright (C) 2005 - 2007  Jean Delvare <khali@linux-fr.org>
 

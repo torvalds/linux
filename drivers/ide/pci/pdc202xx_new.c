@@ -513,7 +513,7 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 		.udma_mask	= udma, \
 	}
 
-static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
+static const struct ide_port_info pdcnew_chipsets[] __devinitdata = {
 	/* 0 */ DECLARE_PDCNEW_DEV("PDC20268", ATA_UDMA5),
 	/* 1 */ DECLARE_PDCNEW_DEV("PDC20269", ATA_UDMA6),
 	/* 2 */ DECLARE_PDCNEW_DEV("PDC20270", ATA_UDMA5),
@@ -534,7 +534,7 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
  
 static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d;
+	const struct ide_port_info *d;
 	struct pci_dev *bridge = dev->bus->self;
 	u8 idx = id->driver_data;
 

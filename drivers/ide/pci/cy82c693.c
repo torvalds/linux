@@ -428,7 +428,6 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
  */
 static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 {
-	hwif->chipset = ide_cy82c693;
 	hwif->set_pio_mode = &cy82c693_set_pio_mode;
 
 	if (hwif->dma_base == 0)
@@ -449,11 +448,12 @@ static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 	}
 }
 
-static ide_pci_device_t cy82c693_chipset __devinitdata = {
+static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.name		= "CY82C693",
 	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,
 	.init_hwif	= init_hwif_cy82c693,
+	.chipset	= ide_cy82c693,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,

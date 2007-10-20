@@ -74,6 +74,7 @@ struct cpuinfo_x86 {
 	__u8	booted_cores;	/* number of cores as seen by OS */
 	__u8	phys_proc_id;	/* Physical Processor id. */
 	__u8	cpu_core_id;	/* Core id. */
+	__u8	cpu_index;	/* index into per_cpu list */
 #endif
 } ____cacheline_aligned;
 
@@ -88,11 +89,12 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_UNKNOWN 0xff
 
 #ifdef CONFIG_SMP
-extern struct cpuinfo_x86 cpu_data[];
-#define current_cpu_data cpu_data[smp_processor_id()]
+DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
+#define cpu_data(cpu)		per_cpu(cpu_info, cpu)
+#define current_cpu_data	cpu_data(smp_processor_id())
 #else
-#define cpu_data (&boot_cpu_data)
-#define current_cpu_data boot_cpu_data
+#define cpu_data(cpu)		boot_cpu_data
+#define current_cpu_data	boot_cpu_data
 #endif
 
 extern char ignore_irq13;
@@ -388,12 +390,6 @@ static inline void sync_core(void)
 { 
 	int tmp;
 	asm volatile("cpuid" : "=a" (tmp) : "0" (1) : "ebx","ecx","edx","memory");
-} 
-
-#define ARCH_HAS_PREFETCH
-static inline void prefetch(void *x) 
-{ 
-	asm volatile("prefetcht0 (%0)" :: "r" (x));
 } 
 
 #define ARCH_HAS_PREFETCHW 1

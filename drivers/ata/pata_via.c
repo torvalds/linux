@@ -420,7 +420,7 @@ static struct ata_port_operations via_port_ops_noirq = {
  *	@pdev: PCI device
  *	@flags: configuration flags
  *
- *	Set the FIFO properties for this device if neccessary. Used both on
+ *	Set the FIFO properties for this device if necessary. Used both on
  *	set up and on and the resume path
  */
 

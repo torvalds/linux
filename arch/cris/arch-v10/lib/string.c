@@ -41,7 +41,7 @@ void *memcpy(void *pdst,
      Make sure the compiler is able to make something useful of this.
       As it is now: r10 -> r13; r11 -> r11 (nop); r12 -> r12 (nop).
 
-     If gcc was allright, it really would need no temporaries, and no
+     If gcc was alright, it really would need no temporaries, and no
      stack space to save stuff on. */
 
   register void *return_dst __asm__ ("r10") = pdst;

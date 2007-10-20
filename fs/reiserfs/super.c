@@ -319,7 +319,7 @@ static int finish_unfinished(struct super_block *s)
 
 /* to protect file being unlinked from getting lost we "safe" link files
    being unlinked. This link will be deleted in the same transaction with last
-   item of file. mounting the filesytem we scan all these links and remove
+   item of file. mounting the filesystem we scan all these links and remove
    files which almost got lost */
 void add_save_link(struct reiserfs_transaction_handle *th,
 		   struct inode *inode, int truncate)

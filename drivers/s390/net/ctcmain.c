@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
  * Author(s): Fritz Elfert (elfert@de.ibm.com, felfert@millenux.com)
- * Fixes by : Jochen Röhrig (roehrig@de.ibm.com)
+ * Fixes by : Jochen RÃ¶hrig (roehrig@de.ibm.com)
  *            Arnaldo Carvalho de Melo <acme@conectiva.com.br>
 	      Peter Tiedemann (ptiedem@de.ibm.com)
  * Driver Model stuff by : Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -19,7 +19,7 @@
  *  Dieter Wellerdiek (wel@de.ibm.com)
  *  Martin Schwidefsky (schwidefsky@de.ibm.com)
  *  Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
- *  Jochen Röhrig (roehrig@de.ibm.com)
+ *  Jochen RÃ¶hrig (roehrig@de.ibm.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -885,7 +885,7 @@ ch_action_firstio(fsm_instance * fi, int event, void *arg)
 	}
 
 	/**
-	 * Don´t setup a timer for receiving the initial RX frame
+	 * Don't setup a timer for receiving the initial RX frame
 	 * if in compatibility mode, since VM TCP delays the initial
 	 * frame until it has some data to send.
 	 */
@@ -905,10 +905,10 @@ ch_action_firstio(fsm_instance * fi, int event, void *arg)
 		ccw_check_return_code(ch, rc, "init IO");
 	}
 	/**
-	 * If in compatibility mode since we don´t setup a timer, we
+	 * If in compatibility mode since we don't setup a timer, we
 	 * also signal RX channel up immediately. This enables us
 	 * to send packets early which in turn usually triggers some
-	 * reply from VM TCP which brings up the RX channel to it´s
+	 * reply from VM TCP which brings up the RX channel to it's
 	 * final state.
 	 */
 	if ((CHANNEL_DIRECTION(ch->flags) == READ) &&

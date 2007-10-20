@@ -1,7 +1,7 @@
 /*
  *	6522 Versatile Interface Adapter (VIA)
  *
- *	There are two of these on the Mac II. Some IRQ's are vectored
+ *	There are two of these on the Mac II. Some IRQs are vectored
  *	via them as are assorted bits and bobs - eg RTC, ADB.
  *
  * CSA: Motorola seems to have removed documentation on the 6522 from

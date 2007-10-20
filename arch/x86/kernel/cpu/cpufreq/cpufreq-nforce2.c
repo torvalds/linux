@@ -260,7 +260,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 
 	freqs.old = nforce2_get(policy->cpu);
 	freqs.new = target_fsb * fid * 100;
-	freqs.cpu = 0;		/* Only one CPU on nForce2 plattforms */
+	freqs.cpu = 0;		/* Only one CPU on nForce2 platforms */
 
 	if (freqs.old == freqs.new)
 		return 0;

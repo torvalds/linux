@@ -181,7 +181,7 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 		}
 
 
-		/* enable interupts and wait for wake up
+		/* enable interrupts and wait for wake up
 		 * if just one byte is expected the Rx FIFO genererates no
 		 * FFULL interrupt, so activate the RxRDY interrupt
 		 */

@@ -267,6 +267,12 @@ config DM_MULTIPATH_RDAC
 	---help---
 	  Multipath support for LSI/Engenio RDAC.
 
+config DM_MULTIPATH_HP
+        tristate "HP MSA multipath support (EXPERIMENTAL)"
+        depends on DM_MULTIPATH && BLK_DEV_DM && EXPERIMENTAL
+        ---help---
+          Multipath support for HP MSA (Active/Passive) series hardware.
+
 config DM_DELAY
 	tristate "I/O delaying target (EXPERIMENTAL)"
 	depends on BLK_DEV_DM && EXPERIMENTAL
@@ -275,5 +281,11 @@ config DM_DELAY
 	them to different devices.  Useful for testing.
 
 	If unsure, say N.
+
+config DM_UEVENT
+	bool "DM uevents (EXPERIMENTAL)"
+	depends on BLK_DEV_DM && EXPERIMENTAL
+	---help---
+	Generate udev events for DM events.
 
 endif # MD

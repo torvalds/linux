@@ -2188,7 +2188,7 @@ Your cooperation is appreciated.
 
 136-143 char	Unix98 PTY slaves
 		  0 = /dev/pts/0	First Unix98 pseudo-TTY
-		  1 = /dev/pts/1	Second Unix98 pesudo-TTY
+		  1 = /dev/pts/1	Second Unix98 pseudo-TTY
 		    ...
 
 		These device nodes are automatically generated with

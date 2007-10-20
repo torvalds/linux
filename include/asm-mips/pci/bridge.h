@@ -538,7 +538,7 @@ typedef struct bridge_err_cmdword_s {
 		 BRIDGE_ISR_PMU_ESIZE_FAULT)
 
 /*
- * List of Errors which are fatal and kill the sytem
+ * List of Errors which are fatal and kill the system
  */
 #define BRIDGE_ISR_ERROR_FATAL		\
 		((BRIDGE_ISR_XTALK_ERROR & ~BRIDGE_ISR_XREAD_REQ_TIMEOUT)|\

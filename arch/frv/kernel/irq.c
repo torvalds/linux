@@ -134,7 +134,7 @@ static struct irq_chip frv_cpu_pic = {
 };
 
 /*
- * handles all normal device IRQ's
+ * handles all normal device IRQs
  * - registers are referred to by the __frame variable (GR28)
  * - IRQ distribution is complicated in this arch because of the many PICs, the
  *   way they work and the way they cascade

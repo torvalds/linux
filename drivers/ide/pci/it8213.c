@@ -193,7 +193,7 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 		.udma_mask	= ATA_UDMA6,		\
 	}
 
-static ide_pci_device_t it8213_chipsets[] __devinitdata = {
+static const struct ide_port_info it8213_chipsets[] __devinitdata = {
 	/* 0 */ DECLARE_ITE_DEV("IT8213"),
 };
 

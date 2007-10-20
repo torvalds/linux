@@ -168,7 +168,8 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	spin_unlock(&inode->i_lock);
 
 	spin_unlock(&clp->cl_lock);
-	kfree(delegation);
+	if (delegation != NULL)
+		nfs_free_delegation(delegation);
 	return status;
 }
 

@@ -2,7 +2,7 @@
  * csum_partial_copy - do IP checksumming and copy
  *
  * (C) Copyright 1996 Linus Torvalds
- * accellerated versions (and 21264 assembly versions ) contributed by
+ * accelerated versions (and 21264 assembly versions ) contributed by
  *	Rick Gorton	<rick.gorton@alpha-processor.com>
  *
  * Don't look at this too closely - you'll go mad. The things

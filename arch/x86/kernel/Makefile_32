@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-extra-y := head_32.o init_task_32.o vmlinux.lds
+extra-y := head_32.o init_task.o vmlinux.lds
 
 obj-y	:= process_32.o signal_32.o entry_32.o traps_32.o irq_32.o \
 		ptrace_32.o time_32.o ioport_32.o ldt_32.o setup_32.o i8259_32.o sys_i386_32.o \
@@ -17,6 +17,7 @@ obj-$(CONFIG_MCA)		+= mca_32.o
 obj-$(CONFIG_X86_MSR)		+= msr.o
 obj-$(CONFIG_X86_CPUID)		+= cpuid.o
 obj-$(CONFIG_MICROCODE)		+= microcode.o
+obj-$(CONFIG_PCI)		+= early-quirks.o
 obj-$(CONFIG_APM)		+= apm_32.o
 obj-$(CONFIG_X86_SMP)		+= smp_32.o smpboot_32.o tsc_sync.o
 obj-$(CONFIG_SMP)		+= smpcommon_32.o

@@ -8,7 +8,7 @@
  *
  * 990502 (jmt) - Major rewrite for new interrupt architecture as well as some
  *		  recent insights into OSS operational details.
- * 990610 (jmt) - Now taking fulll advantage of the OSS. Interrupts are mapped
+ * 990610 (jmt) - Now taking full advantage of the OSS. Interrupts are mapped
  *		  to mostly match the A/UX interrupt scheme supported on the
  *		  VIA side. Also added support for enabling the ISM irq again
  *		  since we now have a functional IOP manager.

@@ -437,7 +437,7 @@ static inline void finish_erasing(struct tty_struct *tty)
  *	@c: character input
  *	@tty: terminal device
  *
- *	Perform erase and neccessary output when an erase character is
+ *	Perform erase and necessary output when an erase character is
  *	present in the stream from the driver layer. Handles the complexities
  *	of UTF-8 multibyte symbols.
  */
@@ -657,7 +657,7 @@ static inline void n_tty_receive_overrun(struct tty_struct *tty)
  *	@c: character
  *
  *	Process a parity error and queue the right data to indicate
- *	the error case if neccessary. Locking as per n_tty_receive_buf.
+ *	the error case if necessary. Locking as per n_tty_receive_buf.
  */
 static inline void n_tty_receive_parity_error(struct tty_struct *tty,
 					      unsigned char c)

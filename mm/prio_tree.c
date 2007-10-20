@@ -34,7 +34,7 @@
  * Radix priority search tree for address_space->i_mmap
  *
  * For each vma that map a unique set of file pages i.e., unique [radix_index,
- * heap_index] value, we have a corresponing priority search tree node. If
+ * heap_index] value, we have a corresponding priority search tree node. If
  * multiple vmas have identical [radix_index, heap_index] value, then one of
  * them is used as a tree node and others are stored in a vm_set list. The tree
  * node points to the first vma (head) of the list using vm_set.head.

@@ -264,7 +264,7 @@ static void sis_ata133_program_timings(ide_drive_t *drive, const u8 mode)
 	if (mode >= XFER_MW_DMA_0) {
 		t1 &= ~0x04;	/* disable UDMA */
 		idx = mode - XFER_MW_DMA_0 + 5;
-	}
+	} else
 		idx = mode - XFER_PIO_0;
 	t1 |= ini_time_value[clk][idx] << 12;
 	t1 |= act_time_value[clk][idx] << 16;
@@ -579,7 +579,7 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 		hwif->cbl = ata66_sis5513(hwif);
 }
 
-static ide_pci_device_t sis5513_chipset __devinitdata = {
+static const struct ide_port_info sis5513_chipset __devinitdata = {
 	.name		= "SIS5513",
 	.init_chipset	= init_chipset_sis5513,
 	.init_hwif	= init_hwif_sis5513,

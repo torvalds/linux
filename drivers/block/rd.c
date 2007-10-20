@@ -365,7 +365,7 @@ static int rd_open(struct inode *inode, struct file *filp)
 		/*
 		 * Deep badness.  rd_blkdev_pagecache_IO() needs to allocate
 		 * pagecache pages within a request_fn.  We cannot recur back
-		 * into the filesytem which is mounted atop the ramdisk, because
+		 * into the filesystem which is mounted atop the ramdisk, because
 		 * that would deadlock on fs locks.  And we really don't want
 		 * to reenter rd_blkdev_pagecache_IO when we're already within
 		 * that function.

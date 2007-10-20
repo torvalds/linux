@@ -54,37 +54,24 @@ __setup("all-generic-ide", ide_generic_all_on);
 module_param_named(all_generic_ide, ide_generic_all, bool, 0444);
 MODULE_PARM_DESC(all_generic_ide, "IDE generic will claim all unknown PCI IDE storage controllers.");
 
-static void __devinit init_hwif_generic (ide_hwif_t *hwif)
-{
-	switch(hwif->pci_dev->device) {
-		case PCI_DEVICE_ID_UMC_UM8673F:
-		case PCI_DEVICE_ID_UMC_UM8886A:
-		case PCI_DEVICE_ID_UMC_UM8886BF:
-			hwif->irq = hwif->channel ? 15 : 14;
-			break;
-		default:
-			break;
-	}
-}
+#define IDE_HFLAGS_UMC (IDE_HFLAG_NO_DMA | IDE_HFLAG_FORCE_LEGACY_IRQS)
 
-#define DECLARE_GENERIC_PCI_DEV(name_str, dma_setting) \
+#define DECLARE_GENERIC_PCI_DEV(name_str, extra_flags) \
 	{ \
 		.name		= name_str, \
-		.init_hwif	= init_hwif_generic, \
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA | \
-				  dma_setting | \
+				  extra_flags | \
 				  IDE_HFLAG_BOOTABLE, \
 		.swdma_mask	= ATA_SWDMA2, \
 		.mwdma_mask	= ATA_MWDMA2, \
 		.udma_mask	= ATA_UDMA6, \
 	}
 
-static ide_pci_device_t generic_chipsets[] __devinitdata = {
+static const struct ide_port_info generic_chipsets[] __devinitdata = {
 	/*  0 */ DECLARE_GENERIC_PCI_DEV("Unknown",	0),
 
 	{	/* 1 */
 		.name		= "NS87410",
-		.init_hwif	= init_hwif_generic,
 		.enablebits	= {{0x43,0x08,0x08}, {0x47,0x08,0x08}},
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_BOOTABLE,
@@ -95,16 +82,15 @@ static ide_pci_device_t generic_chipsets[] __devinitdata = {
 
 	/*  2 */ DECLARE_GENERIC_PCI_DEV("SAMURAI",	0),
 	/*  3 */ DECLARE_GENERIC_PCI_DEV("HT6565",	0),
-	/*  4 */ DECLARE_GENERIC_PCI_DEV("UM8673F",	IDE_HFLAG_NO_DMA),
-	/*  5 */ DECLARE_GENERIC_PCI_DEV("UM8886A",	IDE_HFLAG_NO_DMA),
-	/*  6 */ DECLARE_GENERIC_PCI_DEV("UM8886BF",	IDE_HFLAG_NO_DMA),
+	/*  4 */ DECLARE_GENERIC_PCI_DEV("UM8673F",	IDE_HFLAGS_UMC),
+	/*  5 */ DECLARE_GENERIC_PCI_DEV("UM8886A",	IDE_HFLAGS_UMC),
+	/*  6 */ DECLARE_GENERIC_PCI_DEV("UM8886BF",	IDE_HFLAGS_UMC),
 	/*  7 */ DECLARE_GENERIC_PCI_DEV("HINT_IDE",	0),
 	/*  8 */ DECLARE_GENERIC_PCI_DEV("VIA_IDE",	IDE_HFLAG_NO_AUTODMA),
 	/*  9 */ DECLARE_GENERIC_PCI_DEV("OPTI621V",	IDE_HFLAG_NO_AUTODMA),
 
 	{	/* 10 */
 		.name		= "VIA8237SATA",
-		.init_hwif	= init_hwif_generic,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
 		.swdma_mask	= ATA_SWDMA2,
@@ -118,7 +104,6 @@ static ide_pci_device_t generic_chipsets[] __devinitdata = {
 
 	{	/* 14 */
 		.name		= "Revolution",
-		.init_hwif	= init_hwif_generic,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
 		.swdma_mask	= ATA_SWDMA2,
@@ -138,7 +123,7 @@ static ide_pci_device_t generic_chipsets[] __devinitdata = {
  
 static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_pci_device_t *d = &generic_chipsets[id->driver_data];
+	const struct ide_port_info *d = &generic_chipsets[id->driver_data];
 	int ret = -ENODEV;
 
 	/* Don't use the generic entry unless instructed to do so */

@@ -260,7 +260,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	hwif->ide_dma_end = &ns87415_ide_dma_end;
 }
 
-static ide_pci_device_t ns87415_chipset __devinitdata = {
+static const struct ide_port_info ns87415_chipset __devinitdata = {
 	.name		= "NS87415",
 #ifdef CONFIG_SUPERIO
 	.init_iops	= init_iops_ns87415,

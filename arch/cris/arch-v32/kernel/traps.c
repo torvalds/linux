@@ -105,7 +105,7 @@ bad_value:
 
 /*
  * This gets called from entry.S when the watchdog has bitten. Show something
- * similiar to an Oops dump, and if the kernel if configured to be a nice doggy;
+ * similar to an Oops dump, and if the kernel is configured to be a nice doggy;
  * halt instead of reboot.
  */
 void

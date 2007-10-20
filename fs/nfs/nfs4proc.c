@@ -1305,7 +1305,7 @@ static const struct rpc_call_ops nfs4_close_ops = {
  *
  * NOTE: Caller must be holding the sp->so_owner semaphore!
  */
-int nfs4_do_close(struct path *path, struct nfs4_state *state)
+int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs4_closedata *calldata;
@@ -1333,8 +1333,11 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state)
 	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_close_ops, calldata);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
+	status = 0;
+	if (wait)
+		status = rpc_wait_for_completion_task(task);
 	rpc_put_task(task);
-	return 0;
+	return status;
 out_free_calldata:
 	kfree(calldata);
 out:
@@ -1365,13 +1368,14 @@ static int nfs4_intent_set_file(struct nameidata *nd, struct path *path, struct 
 	}
 	ret = PTR_ERR(filp);
 out_close:
-	nfs4_close_state(path, state, nd->intent.open.flags);
+	nfs4_close_sync(path, state, nd->intent.open.flags);
 	return ret;
 }
 
 struct dentry *
 nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
+	struct dentry *parent;
 	struct path path = {
 		.mnt = nd->mnt,
 		.dentry = dentry,
@@ -1394,6 +1398,9 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	cred = rpcauth_lookupcred(NFS_CLIENT(dir)->cl_auth, 0);
 	if (IS_ERR(cred))
 		return (struct dentry *)cred;
+	parent = dentry->d_parent;
+	/* Protect against concurrent sillydeletes */
+	nfs_block_sillyrename(parent);
 	state = nfs4_do_open(dir, &path, nd->intent.open.flags, &attr, cred);
 	put_rpccred(cred);
 	if (IS_ERR(state)) {
@@ -1401,12 +1408,14 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 			d_add(dentry, NULL);
 			nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		}
+		nfs_unblock_sillyrename(parent);
 		return (struct dentry *)state;
 	}
 	res = d_add_unique(dentry, igrab(state->inode));
 	if (res != NULL)
 		path.dentry = res;
 	nfs_set_verifier(path.dentry, nfs_save_change_attribute(dir));
+	nfs_unblock_sillyrename(parent);
 	nfs4_intent_set_file(nd, &path, state);
 	return res;
 }
@@ -1444,7 +1453,7 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, st
 		nfs4_intent_set_file(nd, &path, state);
 		return 1;
 	}
-	nfs4_close_state(&path, state, openflags);
+	nfs4_close_sync(&path, state, openflags);
 out_drop:
 	d_drop(dentry);
 	return 0;
@@ -1898,7 +1907,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	if (status == 0 && (nd->flags & LOOKUP_OPEN) != 0)
 		status = nfs4_intent_set_file(nd, &path, state);
 	else
-		nfs4_close_state(&path, state, flags);
+		nfs4_close_sync(&path, state, flags);
 out:
 	return status;
 }

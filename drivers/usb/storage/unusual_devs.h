@@ -407,7 +407,7 @@ UNUSUAL_DEV(  0x04cb, 0x0100, 0x0000, 0x2210,
 		"FinePix 1400Zoom",
 		US_SC_UFI, US_PR_DEVICE, NULL, US_FL_FIX_INQUIRY | US_FL_SINGLE_LUN),
 
-/* Reported by Peter Wächtler <pwaechtler@loewe-komp.de>
+/* Reported by Peter WÃ¤chtler <pwaechtler@loewe-komp.de>
  * The device needs the flags only.
  */
 UNUSUAL_DEV(  0x04ce, 0x0002, 0x0074, 0x0074,
@@ -1551,7 +1551,7 @@ UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		US_FL_GO_SLOW ),
 
 /*
- * David Härdeman <david@2gen.com>
+ * David HÃ¤rdeman <david@2gen.com>
  * The key makes the SCSI stack print confusing (but harmless) messages
  */
 UNUSUAL_DEV(  0x4146, 0xba01, 0x0100, 0x0100,

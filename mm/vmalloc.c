@@ -247,7 +247,7 @@ struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 EXPORT_SYMBOL_GPL(__get_vm_area);
 
 /**
- *	get_vm_area  -  reserve a contingous kernel virtual area
+ *	get_vm_area  -  reserve a contiguous kernel virtual area
  *	@size:		size of the area
  *	@flags:		%VM_IOREMAP for I/O mappings or VM_ALLOC
  *
@@ -303,7 +303,7 @@ found:
 }
 
 /**
- *	remove_vm_area  -  find and remove a contingous kernel virtual area
+ *	remove_vm_area  -  find and remove a continuous kernel virtual area
  *	@addr:		base address
  *
  *	Search for the kernel VM area starting at @addr, and remove it.
@@ -364,7 +364,7 @@ static void __vunmap(void *addr, int deallocate_pages)
  *	vfree  -  release memory allocated by vmalloc()
  *	@addr:		memory base address
  *
- *	Free the virtually contiguous memory area starting at @addr, as
+ *	Free the virtually continuous memory area starting at @addr, as
  *	obtained from vmalloc(), vmalloc_32() or __vmalloc(). If @addr is
  *	NULL, no operation is performed.
  *

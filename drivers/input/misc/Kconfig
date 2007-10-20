@@ -70,9 +70,9 @@ config INPUT_WISTRON_BTNS
 	select LEDS_CLASS
 	select CHECK_SIGNATURE
 	help
-	  Say Y here for support of Winstron laptop button interface, used on
+	  Say Y here for support of Wistron laptop button interfaces, used on
 	  laptops of various brands, including Acer and Fujitsu-Siemens. If
-	  available, mail and wifi leds will be controlable via /sys/class/leds.
+	  available, mail and wifi LEDs will be controllable via /sys/class/leds.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called wistron_btns.

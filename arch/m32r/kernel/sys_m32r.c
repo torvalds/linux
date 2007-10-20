@@ -214,7 +214,7 @@ asmlinkage int sys_uname(struct old_utsname __user * name)
 
 asmlinkage int sys_cacheflush(void *addr, int bytes, int cache)
 {
-	/* This should flush more selectivly ...  */
+	/* This should flush more selectively ...  */
 	_flush_cache_all();
 	return 0;
 }

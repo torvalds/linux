@@ -19,7 +19,7 @@ Optionally, codec drivers can also provide:-
  6) DAPM event handler.
  7) DAC Digital mute control.
 
-It's probably best to use this guide in conjuction with the existing codec
+It's probably best to use this guide in conjunction with the existing codec
 driver code in sound/soc/codecs/
 
 ASoC Codec driver breakdown
@@ -28,7 +28,7 @@ ASoC Codec driver breakdown
 1 - Codec DAI and PCM configuration
 -----------------------------------
 Each codec driver must have a struct snd_soc_codec_dai to define it's DAI and
-PCM's capablities and operations. This struct is exported so that it can be
+PCM's capabilities and operations. This struct is exported so that it can be
 registered with the core by your machine driver.
 
 e.g.
@@ -67,7 +67,7 @@ EXPORT_SYMBOL_GPL(wm8731_dai);
 
 2 - Codec control IO
 --------------------
-The codec can ususally be controlled via an I2C or SPI style interface (AC97
+The codec can usually be controlled via an I2C or SPI style interface (AC97
 combines control with data in the DAI). The codec drivers will have to provide
 functions to read and write the codec registers along with supplying a register
 cache:-

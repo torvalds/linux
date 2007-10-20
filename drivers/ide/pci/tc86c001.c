@@ -218,7 +218,7 @@ static unsigned int __devinit init_chipset_tc86c001(struct pci_dev *dev,
 	return err;
 }
 
-static ide_pci_device_t tc86c001_chipset __devinitdata = {
+static const struct ide_port_info tc86c001_chipset __devinitdata = {
 	.name		= "TC86C001",
 	.init_chipset	= init_chipset_tc86c001,
 	.init_hwif	= init_hwif_tc86c001,

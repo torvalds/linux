@@ -498,8 +498,8 @@ snd_au1000_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	int             i;
 
 	spin_lock(&au1000->ac97_lock);
-/* would rather use the interupt than this polling but it works and I can't
-get the interupt driven case to work efficiently */
+/* would rather use the interrupt than this polling but it works and I can't
+get the interrupt driven case to work efficiently */
 	for (i = 0; i < 0x5000; i++)
 		if (!(au1000->ac97_ioport->status & AC97C_CP))
 			break;
@@ -535,8 +535,8 @@ snd_au1000_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short 
 	int i;
 
 	spin_lock(&au1000->ac97_lock);
-/* would rather use the interupt than this polling but it works and I can't
-get the interupt driven case to work efficiently */
+/* would rather use the interrupt than this polling but it works and I can't
+get the interrupt driven case to work efficiently */
 	for (i = 0; i < 0x5000; i++)
 		if (!(au1000->ac97_ioport->status & AC97C_CP))
 			break;

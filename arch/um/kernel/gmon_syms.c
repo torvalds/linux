@@ -12,8 +12,8 @@ EXPORT_SYMBOL(__bb_init_func);
  * versions in libgcov.
  *
  * Since SuSE backported the fix, we cannot handle it depending on GCC version.
- * So, unconditinally export it. But also give it a weak declaration, which will
- * be overriden by any other one.
+ * So, unconditionally export it. But also give it a weak declaration, which will
+ * be overridden by any other one.
  */
 
 extern void __gcov_init(void *) __attribute__((weak));

@@ -1082,7 +1082,7 @@ marvel_machine_check(u64 vector, u64 la_ptr)
 	}	
 
 	/*
-	 * A system event or error has occured, handle it here.
+	 * A system event or error has occurred, handle it here.
 	 *
 	 * Any errors in the logout frame have already been cleared by the
 	 * PALcode, so just parse it.

@@ -69,7 +69,7 @@
  *
  *		B stepping CPUs may hang. There are hardware work arounds
  *	for this. We warn about it in case your board doesn't have the work
- *	arounds. Basically thats so I can tell anyone with a B stepping
+ *	arounds. Basically that's so I can tell anyone with a B stepping
  *	CPU and SMP problems "tough".
  *
  *	Specific items [From Pentium Processor Specification Update]
@@ -273,7 +273,7 @@ void leave_mm(unsigned long cpu)
  * 1a1) cpu_clear(cpu, old_mm->cpu_vm_mask);
  * 	Stop ipi delivery for the old mm. This is not synchronized with
  * 	the other cpus, but smp_invalidate_interrupt ignore flush ipis
- * 	for the wrong mm, and in the worst case we perform a superflous
+ * 	for the wrong mm, and in the worst case we perform a superfluous
  * 	tlb flush.
  * 1a2) set cpu_tlbstate to TLBSTATE_OK
  * 	Now the smp_invalidate_interrupt won't call leave_mm if cpu0
@@ -610,7 +610,7 @@ static void stop_this_cpu (void * dummy)
 	 */
 	cpu_clear(smp_processor_id(), cpu_online_map);
 	disable_local_APIC();
-	if (cpu_data[smp_processor_id()].hlt_works_ok)
+	if (cpu_data(smp_processor_id()).hlt_works_ok)
 		for(;;) halt();
 	for (;;);
 }
@@ -676,7 +676,7 @@ static int convert_apicid_to_cpu(int apic_id)
 	int i;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (x86_cpu_to_apicid[i] == apic_id)
+		if (per_cpu(x86_cpu_to_apicid, i) == apic_id)
 			return i;
 	}
 	return -1;

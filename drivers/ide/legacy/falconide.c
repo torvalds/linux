@@ -72,7 +72,7 @@ void __init falconide_init(void)
 			0, 0, NULL,
 //			falconide_iops,
 			IRQ_MFP_IDE);
-	index = ide_register_hw(&hw, 1, NULL);
+	index = ide_register_hw(&hw, NULL, 1, NULL);
 
 	if (index != -1)
 	    printk("ide%d: Falcon IDE interface\n", index);

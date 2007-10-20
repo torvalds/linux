@@ -92,7 +92,7 @@ static struct scsi_host_template sis_sht = {
 	.queuecommand		= ata_scsi_queuecmd,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= ATA_MAX_PRD,
+	.sg_tablesize		= LIBATA_MAX_PRD,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -166,11 +166,11 @@ static unsigned int get_scr_cfg_addr(struct ata_port *ap, unsigned int sc_reg)
 	return addr;
 }
 
-static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
+static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned int cfg_addr = get_scr_cfg_addr(ap, sc_reg);
-	u32 val, val2 = 0;
+	u32 val2 = 0;
 	u8 pmr;
 
 	if (sc_reg == SCR_ERROR) /* doesn't exist in PCI cfg space */
@@ -178,13 +178,16 @@ static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 
-	pci_read_config_dword(pdev, cfg_addr, &val);
+	pci_read_config_dword(pdev, cfg_addr, val);
 
 	if ((pdev->device == 0x0182) || (pdev->device == 0x0183) ||
 	    (pdev->device == 0x1182) || (pmr & SIS_PMR_COMBINED))
 		pci_read_config_dword(pdev, cfg_addr+0x10, &val2);
 
-	return (val|val2) &  0xfffffffb; /* avoid problems with powerdowned ports */
+	*val |= val2;
+	*val &= 0xfffffffb;	/* avoid problems with powerdowned ports */
+
+	return 0;
 }
 
 static void sis_scr_cfg_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
@@ -214,7 +217,7 @@ static int sis_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 		return -EINVAL;
 
 	if (ap->flags & SIS_FLAG_CFGSCR)
-		return sis_scr_cfg_read(ap, sc_reg);
+		return sis_scr_cfg_read(ap, sc_reg, val);
 
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 

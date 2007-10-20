@@ -2,7 +2,7 @@
  *  linux/fs/binfmt_em86.c
  *
  *  Based on linux/fs/binfmt_script.c
- *  Copyright (C) 1996  Martin von Löwis
+ *  Copyright (C) 1996  Martin von LÃ¶wis
  *  original #!-checking implemented by tytso.
  *
  *  em86 changes Copyright (C) 1997  Jim Paradis

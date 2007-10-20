@@ -195,7 +195,7 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 
 static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 {
-	struct cpuinfo_x86 *c = &cpu_data[policy->cpu];
+	struct cpuinfo_x86 *c = &cpu_data(policy->cpu);
 	int cpuid = 0;
 	unsigned int i;
 
@@ -279,7 +279,7 @@ static struct cpufreq_driver p4clockmod_driver = {
 
 static int __init cpufreq_p4_init(void)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	int ret;
 
 	/*

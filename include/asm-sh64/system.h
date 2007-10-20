@@ -62,8 +62,7 @@ extern void __xchg_called_with_bad_pointer(void);
 #define smp_read_barrier_depends()	do { } while (0)
 #endif /* CONFIG_SMP */
 
-#define set_rmb(var, value) do { (void)xchg(&var, value); } while (0)
-#define set_mb(var, value) set_rmb(var, value)
+#define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 
 /* Interrupt Control */
 #ifndef HARD_CLI

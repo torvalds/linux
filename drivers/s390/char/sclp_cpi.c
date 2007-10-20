@@ -157,7 +157,7 @@ cpi_prepare_req(void)
 	sclp_ascebc_str(evb->system_name, CPI_LENGTH_SYSTEM_NAME);
 	EBC_TOUPPER(evb->system_name, CPI_LENGTH_SYSTEM_NAME);
 
-	/* set sytem level */
+	/* set system level */
 	evb->system_level = LINUX_VERSION_CODE;
 
 	/* set sysplex name */

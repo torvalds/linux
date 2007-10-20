@@ -10,7 +10,7 @@
 
 /*
  * We need to use the 2-level pagetable functions, but CONFIG_X86_PAE
- * keeps that from happenning.  If anyone has a better way, I'm listening.
+ * keeps that from happening.  If anyone has a better way, I'm listening.
  *
  * boot_pte_t is defined only if this all works correctly
  */

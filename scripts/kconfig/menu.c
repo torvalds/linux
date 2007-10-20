@@ -235,23 +235,16 @@ void menu_finalize(struct menu *parent)
 	sym = parent->sym;
 	if (parent->list) {
 		if (sym && sym_is_choice(sym)) {
-			/* find out choice type */
-			enum symbol_type type = S_UNKNOWN;
-
+			/* find the first choice value and find out choice type */
 			for (menu = parent->list; menu; menu = menu->next) {
-				if (menu->sym && menu->sym->type != S_UNKNOWN) {
-					if (type == S_UNKNOWN)
-						type = menu->sym->type;
-					if (type != S_BOOLEAN)
-						break;
-					if (menu->sym->type == S_TRISTATE) {
-						type = S_TRISTATE;
-						break;
-					}
+				if (menu->sym) {
+					current_entry = parent;
+					menu_set_type(menu->sym->type);
+					current_entry = menu;
+					menu_set_type(sym->type);
+					break;
 				}
 			}
-			current_entry = parent;
-			menu_set_type(type);
 			parentdep = expr_alloc_symbol(sym);
 		} else if (parent->prompt)
 			parentdep = parent->prompt->visible.expr;
@@ -260,16 +253,7 @@ void menu_finalize(struct menu *parent)
 
 		for (menu = parent->list; menu; menu = menu->next) {
 			basedep = expr_transform(menu->dep);
-			dep = parentdep;
-			if (sym && sym_is_choice(sym) && menu->sym) {
-				enum symbol_type type = menu->sym->type;
-
-				if (type == S_UNKNOWN)
-					type = sym->type;
-			     if (type != S_TRISTATE)
-					dep = expr_alloc_comp(E_EQUAL, sym, &symbol_yes);
-			}
-			basedep = expr_alloc_and(expr_copy(dep), basedep);
+			basedep = expr_alloc_and(expr_copy(parentdep), basedep);
 			basedep = expr_eliminate_dups(basedep);
 			menu->dep = basedep;
 			if (menu->sym)
@@ -342,8 +326,7 @@ void menu_finalize(struct menu *parent)
 					    "values not supported");
 			}
 			current_entry = menu;
-			if (menu->sym->type == S_UNKNOWN)
-				menu_set_type(sym->type);
+			menu_set_type(sym->type);
 			menu_add_symbol(P_CHOICE, sym, NULL);
 			prop = sym_get_choice_prop(sym);
 			for (ep = &prop->expr; *ep; ep = &(*ep)->left.expr)

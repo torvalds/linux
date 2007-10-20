@@ -45,7 +45,7 @@ int do_get_thread_area(struct user_desc *info)
  * XXX: Consider leaving one free slot for glibc usage at first place. This must
  * be done here (and by changing GDT_ENTRY_TLS_* macros) and nowhere else.
  *
- * Also, this must be tested when compiling in SKAS mode with dinamic linking
+ * Also, this must be tested when compiling in SKAS mode with dynamic linking
  * and running against NPTL.
  */
 static int get_free_idx(struct task_struct* task)

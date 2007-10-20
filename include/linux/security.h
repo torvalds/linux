@@ -832,9 +832,11 @@ struct request_sock;
  *	incoming sk_buff @skb has been associated with a particular socket, @sk.
  *	@sk contains the sock (not socket) associated with the incoming sk_buff.
  *	@skb contains the incoming network data.
- * @socket_getpeersec:
+ * @socket_getpeersec_stream:
  *	This hook allows the security module to provide peer socket security
- *	state to userspace via getsockopt SO_GETPEERSEC.
+ *	state for unix or connected tcp sockets to userspace via getsockopt
+ *	SO_GETPEERSEC.  For tcp sockets this can be meaningful if the
+ *	socket is associated with an ipsec SA.
  *	@sock is the local socket.
  *	@optval userspace memory where the security state is to be copied.
  *	@optlen userspace int where the module should copy the actual length
@@ -843,6 +845,17 @@ struct request_sock;
  *	by the caller.
  *	Return 0 if all is well, otherwise, typical getsockopt return
  *	values.
+ * @socket_getpeersec_dgram:
+ * 	This hook allows the security module to provide peer socket security
+ * 	state for udp sockets on a per-packet basis to userspace via
+ * 	getsockopt SO_GETPEERSEC.  The application must first have indicated
+ * 	the IP_PASSSEC option via getsockopt.  It can then retrieve the
+ * 	security state returned by this hook for a packet via the SCM_SECURITY
+ * 	ancillary message type.
+ * 	@skb is the skbuff for the packet being queried
+ * 	@secdata is a pointer to a buffer in which to copy the security data
+ * 	@seclen is the maximum length for @secdata
+ * 	Return 0 on success, error on failure.
  * @sk_alloc_security:
  *      Allocate and attach a security structure to the sk->sk_security field,
  *      which is used to copy security attributes between local stream sockets.

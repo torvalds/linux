@@ -10,12 +10,12 @@
  *		Added basic ioctl() support
  *	Deepak Saxena (06/07/1999):
  *		Added software download ioctl (still testing)
- *	Auvo H‰kkinen (09/10/1999):
+ *	Auvo H√§kkinen (09/10/1999):
  *		Changes to i2o_cfg_reply(), ioctl_parms()
  *		Added ioct_validate()
- *	Taneli V‰h‰kangas (09/30/1999):
+ *	Taneli V√§h√§kangas (09/30/1999):
  *		Fixed ioctl_swdl()
- *	Taneli V‰h‰kangas (10/04/1999):
+ *	Taneli V√§h√§kangas (10/04/1999):
  *		Changed ioctl_swdl(), implemented ioctl_swul() and ioctl_swdel()
  *	Deepak Saxena (11/18/1999):
  *		Added event managmenet support

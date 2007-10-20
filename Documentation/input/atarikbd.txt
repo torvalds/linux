@@ -170,7 +170,7 @@ major controller faults (ROM checksum and RAM test) and such things as stuck
 keys. Any keys down at power-up are presumed to be stuck, and their BREAK
 (sic) code is returned (which without the preceding MAKE code is a flag for a
 keyboard error). If the controller self-test completes without error, the code
-0xF0 is returned. (This code will be used to indicate the version/rlease of
+0xF0 is returned. (This code will be used to indicate the version/release of
 the ikbd controller. The first release of the ikbd is version 0xF0, should
 there be a second release it will be 0xF1, and so on.)
 The ikbd defaults to a mouse position reporting with threshold of 1 unit in
@@ -413,7 +413,7 @@ INTERROGATION MODE.
             %nnnnmmmm   ; where m is JOYSTICK1 state
                         ; and n is JOYSTICK0 state
 
-Sets the ikbd to do nothing but monitor the serial command lne, maintain the
+Sets the ikbd to do nothing but monitor the serial command line, maintain the
 time-of-day clock, and monitor the joystick. The rate sets the interval
 between joystick samples.
 N.B. The user should not set the rate higher than the serial communications
@@ -446,10 +446,10 @@ The sample interval should be as constant as possible.
                         ; until vertical cursor key is generated before RY
                         ; has elapsed
     VX                  ; length (in tenths of seconds) of joystick closure
-                        ; until horizontal cursor keystokes are generated
+                        ; until horizontal cursor keystrokes are generated
                         ; after RX has elapsed
     VY                  ; length (in tenths of seconds) of joystick closure
-                        ; until vertical cursor keystokes are generated
+                        ; until vertical cursor keystrokes are generated
                         ; after RY has elapsed
 
 In this mode, joystick 0 is scanned in a way that simulates cursor keystrokes.

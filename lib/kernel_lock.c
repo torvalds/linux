@@ -2,7 +2,7 @@
  * lib/kernel_lock.c
  *
  * This is the traditional BKL - big kernel lock. Largely
- * relegated to obsolescense, but used by various less
+ * relegated to obsolescence, but used by various less
  * important (or lazy) subsystems.
  */
 #include <linux/smp_lock.h>

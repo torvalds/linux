@@ -1639,7 +1639,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg)
 
 /**
  * spider_net_interrupt - interrupt handler for spider_net
- * @irq: interupt number
+ * @irq: interrupt number
  * @ptr: pointer to net_device
  * @regs: PU registers
  *

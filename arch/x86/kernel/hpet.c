@@ -69,12 +69,15 @@ static inline void hpet_clear_mapping(void)
  * HPET command line enable / disable
  */
 static int boot_hpet_disable;
+int hpet_force_user;
 
 static int __init hpet_setup(char* str)
 {
 	if (str) {
 		if (!strncmp("disable", str, 7))
 			boot_hpet_disable = 1;
+		if (!strncmp("force", str, 5))
+			hpet_force_user = 1;
 	}
 	return 1;
 }
@@ -350,7 +353,7 @@ static int hpet_clocksource_register(void)
 	 *
 	 * hpet period is in femto seconds per cycle
 	 * so we need to convert this to ns/cyc units
-	 * aproximated by mult/2^shift
+	 * approximated by mult/2^shift
 	 *
 	 *  fsec/cyc * 1nsec/1000000fsec = nsec/cyc = mult/2^shift
 	 *  fsec/cyc * 1ns/1000000fsec * 2^shift = mult

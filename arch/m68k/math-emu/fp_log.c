@@ -65,7 +65,7 @@ fp_fsqrt(struct fp_ext *dest, struct fp_ext *src)
 	fp_copy_ext(&src2, dest);
 
 	/*
-	 * The taylor row arround a for sqrt(x) is:
+	 * The taylor row around a for sqrt(x) is:
 	 *	sqrt(x) = sqrt(a) + 1/(2*sqrt(a))*(x-a) + R
 	 * With a=1 this gives:
 	 *	sqrt(x) = 1 + 1/2*(x-1)

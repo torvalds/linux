@@ -21,11 +21,6 @@ static inline int bio_list_empty(const struct bio_list *bl)
 	return bl->head == NULL;
 }
 
-#define BIO_LIST_INIT { .head = NULL, .tail = NULL }
-
-#define BIO_LIST(bl) \
-	struct bio_list bl = BIO_LIST_INIT
-
 static inline void bio_list_init(struct bio_list *bl)
 {
 	bl->head = bl->tail = NULL;

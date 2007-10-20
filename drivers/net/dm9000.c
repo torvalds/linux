@@ -542,7 +542,8 @@ dm9000_probe(struct platform_device *pdev)
 
 	if (id_val != DM9000_ID) {
 		printk("%s: wrong id: 0x%08x\n", CARDNAME, id_val);
-		goto release;
+		ret = -ENODEV;
+		goto out;
 	}
 
 	/* from this point we assume that we have found a DM9000 */
@@ -602,8 +603,7 @@ dm9000_probe(struct platform_device *pdev)
 	}
 	return 0;
 
- release:
- out:
+out:
 	printk("%s: not found (%d).\n", CARDNAME, ret);
 
 	dm9000_release_board(pdev, db);

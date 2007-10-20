@@ -39,18 +39,13 @@ struct iwl_priv;
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 extern struct pci_device_id iwl_hw_card_ids[];
 
+#include "iwl-hw.h"
 #if IWL == 3945
-
 #define DRV_NAME	"iwl3945"
-#include "iwl-hw.h"
 #include "iwl-3945-hw.h"
-
 #elif IWL == 4965
-
 #define DRV_NAME        "iwl4965"
-#include "iwl-hw.h"
 #include "iwl-4965-hw.h"
-
 #endif
 
 #include "iwl-prph.h"

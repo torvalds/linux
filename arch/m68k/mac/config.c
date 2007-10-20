@@ -284,7 +284,7 @@ static struct mac_model mac_data_table[] = {
 	},
 
 	/*
-	 *	Weirdified MacII hardware - all subtley different. Gee thanks
+	 *	Weirdified MacII hardware - all subtly different. Gee thanks
 	 *	Apple. All these boxes seem to have VIA2 in a different place to
 	 *	the MacII (+1A000 rather than +4000)
 	 * CSA: see http://developer.apple.com/technotes/hw/hw_09.html
@@ -707,7 +707,7 @@ static struct mac_model mac_data_table[] = {
 	 * All of these probably have onboard SONIC in the Dock which
 	 * means we'll have to probe for it eventually.
 	 *
-	 * Are these reallly MAC_VIA_IIci? The developer notes for the
+	 * Are these really MAC_VIA_IIci? The developer notes for the
 	 * Duos show pretty much the same custom parts as in most of
 	 * the other PowerBooks which would imply MAC_VIA_QUADRA.
 	 */

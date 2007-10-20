@@ -120,7 +120,7 @@
  *                       Reformat to match kernel tabbing style.
  *                       Add CDROM_GET_UPC ioctl.
  * 3.10  Apr 10, 1996 -- Fix compilation error with STANDARD_ATAPI.
- * 3.11  Apr 29, 1996 -- Patch from Heiko Eissfeldt <heiko@colossus.escape.de>
+ * 3.11  Apr 29, 1996 -- Patch from Heiko Eißfeldt <heiko@colossus.escape.de>
  *                       to remove redundant verify_area calls.
  * 3.12  May  7, 1996 -- Rudimentary changer support.  Based on patches
  *                        from Gerhard Zuber <zuber@berlin.snafu.de>.
@@ -256,7 +256,7 @@
  *			- Minimize the TOC reading - only do it when we
  *			  know a media change has occurred.
  *			- Moved all the CDROMREADx ioctls to the Uniform layer.
- *			- Heiko Eissfeldt <heiko@colossus.escape.de> supplied
+ *			- Heiko Eißfeldt <heiko@colossus.escape.de> supplied
  *			  some fixes for CDI.
  *			- CD-ROM leaving door locked fix from Andries
  *			  Brouwer <Andries.Brouwer@cwi.nl>
@@ -2341,7 +2341,7 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 		   If we get an error for the regular case, we assume
 		   a CDI without additional audio tracks. In this case
 		   the readable TOC is empty (CDI tracks are not included)
-		   and only holds the Leadout entry. Heiko Ei�feldt */
+		   and only holds the Leadout entry. Heiko Eißfeldt */
 		ntracks = 0;
 		stat = cdrom_read_tocentry(drive, CDROM_LEADOUT, 1, 0,
 					   (char *)&toc->hdr,

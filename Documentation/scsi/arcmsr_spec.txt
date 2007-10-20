@@ -3,7 +3,7 @@
 *******************************************************************************
 **	Usage of IOP331 adapter
 **	(All In/Out is in IOP331's view)
-**	1. Message 0 --> InitThread message and retrun code
+**	1. Message 0 --> InitThread message and return code
 **	2. Doorbell is used for RS-232 emulation
 **		inDoorBell :    bit0 -- data in ready
 **			(DRIVER DATA WRITE OK)

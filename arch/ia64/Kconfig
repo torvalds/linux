@@ -452,9 +452,9 @@ config IA64_PALINFO
 config IA64_MC_ERR_INJECT
 	tristate "MC error injection support"
 	help
-	  Selets whether support for MC error injection. By enabling the
-	  support, kernel provide sysfs interface for user application to
-	  call MC error injection PAL procedure to inject various errors.
+	  Adds support for MC error injection. If enabled, the kernel 
+	  will provide a sysfs interface for user applications to
+	  call MC error injection PAL procedures to inject various errors.
 	  This is a useful tool for MCA testing.
 
 	  If you're unsure, do not select this option.
@@ -491,7 +491,7 @@ config KEXEC
 	  but it is independent of the system firmware.   And like a reboot
 	  you can start any kernel with it, not just Linux.
 
-	  The name comes from the similiarity to the exec system call.
+	  The name comes from the similarity to the exec system call.
 
 	  It is an ongoing process to be certain the hardware in a machine
 	  is properly shutdown, so do not be surprised if this code does not

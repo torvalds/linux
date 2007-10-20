@@ -715,7 +715,7 @@ osf_setsysinfo(unsigned long op, void __user *buffer, unsigned long nbytes,
 		/* 
 		 * Alpha Architecture Handbook 4.7.7.3:
 		 * To be fully IEEE compiant, we must track the current IEEE
-		 * exception state in software, because spurrious bits can be
+		 * exception state in software, because spurious bits can be
 		 * set in the trap shadow of a software-complete insn.
 		 */
 

@@ -129,7 +129,7 @@ static void mpiix_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *
  *	Called when the libata layer is about to issue a command. We wrap
  *	this interface so that we can load the correct ATA timings if
- *	neccessary. Our logic also clears TIME0/TIME1 for the other device so
+ *	necessary. Our logic also clears TIME0/TIME1 for the other device so
  *	that, even if we get this wrong, cycles to the other device will
  *	be made PIO0.
  */

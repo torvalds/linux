@@ -38,7 +38,6 @@
 #include <net/mac80211.h>
 
 #include <linux/etherdevice.h>
-#include <linux/delay.h>
 
 #define IWL 3945
 

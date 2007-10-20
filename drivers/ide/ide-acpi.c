@@ -350,7 +350,7 @@ static int taskfile_load_raw(ide_drive_t *drive,
 
 	memset(&args, 0, sizeof(ide_task_t));
 	args.command_type = IDE_DRIVE_TASK_NO_DATA;
-	args.data_phase   = TASKFILE_IN;
+	args.data_phase   = TASKFILE_NO_DATA;
 	args.handler      = &task_no_data_intr;
 
 	/* convert gtf to IDE Taskfile */

@@ -5,7 +5,7 @@ Introduction
 ------------
 
    The kernel provides an interface to manage DMA transfers
-   using the DMA channels in the cpu, so that the central
+   using the DMA channels in the CPU, so that the central
    duty of managing channel mappings, and programming the
    channel generators is in one place.
 
@@ -17,24 +17,24 @@ DMA Channel Ordering
    channels to all sources, which means that some devices
    have a restricted number of channels that can be used.
 
-   To allow flexibilty for each cpu type and board, the
-   dma code can be given an dma ordering structure which
+   To allow flexibility for each CPU type and board, the
+   DMA code can be given a DMA ordering structure which
    allows the order of channel search to be specified, as
    well as allowing the prohibition of certain claims.
 
    struct s3c24xx_dma_order has a list of channels, and
-   each channel within has a slot for a list of dma
-   channel numbers. The slots are searched in order, for
-   the presence of a dma channel number with DMA_CH_VALID
-   orred in.
+   each channel within has a slot for a list of DMA
+   channel numbers. The slots are searched in order for
+   the presence of a DMA channel number with DMA_CH_VALID
+   or-ed in.
 
    If the order has the flag DMA_CH_NEVER set, then after
    checking the channel list, the system will return no
    found channel, thus denying the request.
 
    A board support file can call s3c24xx_dma_order_set()
-   to register an complete ordering set. The routine will
-   copy the data, so the original can be discared with
+   to register a complete ordering set. The routine will
+   copy the data, so the original can be discarded with
    __initdata.
 
 

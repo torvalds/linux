@@ -48,12 +48,12 @@
 	({unsigned long v;  		\
 	extern char __vsyscall_0; 	\
 	  asm("" : "=r" (v) : "0" (x)); \
-	  ((v - VSYSCALL_FIRST_PAGE) + __pa_symbol(&__vsyscall_0)); })
+	  ((v - VSYSCALL_START) + __pa_symbol(&__vsyscall_0)); })
 
 /*
  * vsyscall_gtod_data contains data that is :
  * - readonly from vsyscalls
- * - writen by timer interrupt or systcl (/proc/sys/kernel/vsyscall64)
+ * - written by timer interrupt or systcl (/proc/sys/kernel/vsyscall64)
  * Try to keep this structure as small as possible to avoid cache line ping pongs
  */
 int __vgetcpu_mode __section_vgetcpu_mode;
@@ -291,7 +291,7 @@ static void __cpuinit vsyscall_set_cpu(int cpu)
 #ifdef CONFIG_NUMA
 	node = cpu_to_node(cpu);
 #endif
-	if (cpu_has(&cpu_data[cpu], X86_FEATURE_RDTSCP))
+	if (cpu_has(&cpu_data(cpu), X86_FEATURE_RDTSCP))
 		write_rdtscp_aux((node << 12) | cpu);
 
 	/* Store cpu number in limit so that it can be loaded quickly

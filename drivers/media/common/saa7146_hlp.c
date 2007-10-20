@@ -312,7 +312,7 @@ static int sort_and_eliminate(u32* values, int* count)
 		return -EINVAL;
 	}
 
-	/* bubble sort the first ´count´ items of the array ´values´ */
+	/* bubble sort the first @count items of the array @values */
 	for( top = *count; top > 0; top--) {
 		for( low = 0, high = 1; high < top; low++, high++) {
 			if( values[low] > values[high] ) {

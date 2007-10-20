@@ -74,7 +74,7 @@ KBUILD_CFLAGS += $(cflags-y)
 CFLAGS_KERNEL += $(cflags-kernel-y)
 KBUILD_AFLAGS += -m64
 
-head-y := arch/x86/kernel/head_64.o arch/x86/kernel/head64.o arch/x86/kernel/init_task_64.o
+head-y := arch/x86/kernel/head_64.o arch/x86/kernel/head64.o arch/x86/kernel/init_task.o
 
 libs-y 					+= arch/x86/lib/
 core-y					+= arch/x86/kernel/ \
@@ -97,9 +97,9 @@ BOOTIMAGE                     := arch/x86/boot/bzImage
 KBUILD_IMAGE                  := $(BOOTIMAGE)
 
 bzImage: vmlinux
-	$(Q)mkdir -p $(objtree)/arch/x86_64/boot
-	$(Q)ln -fsn $(objtree)/arch/x86/boot/bzImage $(objtree)/arch/x86_64/boot/bzImage
 	$(Q)$(MAKE) $(build)=$(boot) $(BOOTIMAGE)
+	$(Q)mkdir -p $(objtree)/arch/x86_64/boot
+	$(Q)ln -fsn ../../x86/boot/bzImage $(objtree)/arch/x86_64/boot/bzImage
 
 bzlilo: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) zlilo

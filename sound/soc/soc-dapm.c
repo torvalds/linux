@@ -24,7 +24,7 @@
  *    o Automatic Mic Bias support
  *    o Jack insertion power event initiation - e.g. hp insertion will enable
  *      sinks, dacs, etc
- *    o Delayed powerdown of audio susbsytem to reduce pops between a quick
+ *    o Delayed powerdown of audio susbsystem to reduce pops between a quick
  *      device reopen.
  *
  *  Todo:

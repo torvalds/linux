@@ -148,10 +148,10 @@ struct powernow_k8_data {
 #define PLL_LOCK_CONVERSION (1000/5) /* ms to ns, then divide by clock period */
 
 #define MAXIMUM_VID_STEPS 1  /* Current cpus only allow a single step of 25mV */
-#define VST_UNITS_20US 20   /* Voltage Stabalization Time is in units of 20us */
+#define VST_UNITS_20US 20   /* Voltage Stabilization Time is in units of 20us */
 
 /*
- * Most values of interest are enocoded in a single field of the _PSS
+ * Most values of interest are encoded in a single field of the _PSS
  * entries: the "control" value.
  */
 

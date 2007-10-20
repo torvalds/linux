@@ -237,7 +237,7 @@ void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
 	/* User-mode eip? */
 	info.si_addr = UPT_IS_USER(regs) ? (void __user *) UPT_IP(regs) : NULL;
 
-	/* Send us the fakey SIGTRAP */
+	/* Send us the fake SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);
 }
 

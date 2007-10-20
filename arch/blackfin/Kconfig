@@ -613,85 +613,86 @@ config I_ENTRY_L1
 	bool "Locate interrupt entry code in L1 Memory"
 	default y
 	help
-	  If enabled interrupt entry code (STORE/RESTORE CONTEXT) is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, interrupt entry code (STORE/RESTORE CONTEXT) is linked
+	  into L1 instruction memory. (less latency)
 
 config EXCPT_IRQ_SYSC_L1
-	bool "Locate entire ASM lowlevel excepetion / interrupt - Syscall and CPLB handler code in L1 Memory"
+	bool "Locate entire ASM lowlevel exception / interrupt - Syscall and CPLB handler code in L1 Memory"
 	default y
 	help
-	  If enabled entire ASM lowlevel exception and interrupt entry code (STORE/RESTORE CONTEXT) is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the entire ASM lowlevel exception and interrupt entry code
+	  (STORE/RESTORE CONTEXT) is linked into L1 instruction memory. 
+	  (less latency)
 
 config DO_IRQ_L1
 	bool "Locate frequently called do_irq dispatcher function in L1 Memory"
 	default y
 	help
-	  If enabled frequently called do_irq dispatcher function is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the frequently called do_irq dispatcher function is linked
+	  into L1 instruction memory. (less latency)
 
 config CORE_TIMER_IRQ_L1
 	bool "Locate frequently called timer_interrupt() function in L1 Memory"
 	default y
 	help
-	  If enabled frequently called timer_interrupt() function is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the frequently called timer_interrupt() function is linked
+	  into L1 instruction memory. (less latency)
 
 config IDLE_L1
 	bool "Locate frequently idle function in L1 Memory"
 	default y
 	help
-	  If enabled frequently called idle function is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the frequently called idle function is linked
+	  into L1 instruction memory. (less latency)
 
 config SCHEDULE_L1
 	bool "Locate kernel schedule function in L1 Memory"
 	default y
 	help
-	  If enabled frequently called kernel schedule is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the frequently called kernel schedule is linked
+	  into L1 instruction memory. (less latency)
 
 config ARITHMETIC_OPS_L1
 	bool "Locate kernel owned arithmetic functions in L1 Memory"
 	default y
 	help
-	  If enabled arithmetic functions are linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, arithmetic functions are linked
+	  into L1 instruction memory. (less latency)
 
 config ACCESS_OK_L1
 	bool "Locate access_ok function in L1 Memory"
 	default y
 	help
-	  If enabled access_ok function is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the access_ok function is linked
+	  into L1 instruction memory. (less latency)
 
 config MEMSET_L1
 	bool "Locate memset function in L1 Memory"
 	default y
 	help
-	  If enabled memset function is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the memset function is linked
+	  into L1 instruction memory. (less latency)
 
 config MEMCPY_L1
 	bool "Locate memcpy function in L1 Memory"
 	default y
 	help
-	  If enabled memcpy function is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the memcpy function is linked
+	  into L1 instruction memory. (less latency)
 
 config SYS_BFIN_SPINLOCK_L1
 	bool "Locate sys_bfin_spinlock function in L1 Memory"
 	default y
 	help
-	  If enabled sys_bfin_spinlock function is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, sys_bfin_spinlock function is linked
+	  into L1 instruction memory. (less latency)
 
 config IP_CHECKSUM_L1
 	bool "Locate IP Checksum function in L1 Memory"
 	default n
 	help
-	  If enabled IP Checksum function is linked
-	  into L1 instruction memory.(less latency)
+	  If enabled, the IP Checksum function is linked
+	  into L1 instruction memory. (less latency)
 
 config CACHELINE_ALIGNED_L1
 	bool "Locate cacheline_aligned data to L1 Data Memory"
@@ -699,24 +700,24 @@ config CACHELINE_ALIGNED_L1
 	default n if BF54x
 	depends on !BF531
 	help
-	  If enabled cacheline_anligned data is linked
-	  into L1 data memory.(less latency)
+	  If enabled, cacheline_anligned data is linked
+	  into L1 data memory. (less latency)
 
 config SYSCALL_TAB_L1
 	bool "Locate Syscall Table L1 Data Memory"
 	default n
 	depends on !BF531
 	help
-	  If enabled the Syscall LUT is linked
-	  into L1 data memory.(less latency)
+	  If enabled, the Syscall LUT is linked
+	  into L1 data memory. (less latency)
 
 config CPLB_SWITCH_TAB_L1
 	bool "Locate CPLB Switch Tables L1 Data Memory"
 	default n
 	depends on !BF531
 	help
-	  If enabled the CPLB Switch Tables are linked
-	  into L1 data memory.(less latency)
+	  If enabled, the CPLB Switch Tables are linked
+	  into L1 data memory. (less latency)
 
 endmenu
 
@@ -1029,13 +1030,13 @@ config DEBUG_HWERR
 	  from.
 
 config DEBUG_ICACHE_CHECK
-	bool "Check Instruction cache coherancy"
+	bool "Check Instruction cache coherency"
 	depends on DEBUG_KERNEL
 	depends on DEBUG_HWERR
 	help
-	  Say Y here if you are getting wierd unexplained errors. This will
-	  ensure that icache is what SDRAM says it should be, by doing a
-	  byte wise comparision between SDRAM and instruction cache. This
+	  Say Y here if you are getting weird unexplained errors. This will
+	  ensure that icache is what SDRAM says it should be by doing a
+	  byte wise comparison between SDRAM and instruction cache. This
 	  also relocates the irq_panic() function to L1 memory, (which is
 	  un-cached).
 

@@ -330,7 +330,7 @@ vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse)
 
 	/*
 	 * Check for Power-On-Reset packets. These are sent out
-	 * after plugging the mouse in, or when explicitely
+	 * after plugging the mouse in, or when explicitly
 	 * requested by sending 'T'.
 	 *
 	 * [0]:	1	0	1	0	R3	R2	R1	R0

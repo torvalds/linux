@@ -3,7 +3,7 @@ config DEFCONFIG_LIST
 	option defconfig_list
 	default "arch/$ARCH/defconfig"
 
-# UML uses the generic IRQ sugsystem
+# UML uses the generic IRQ subsystem
 config GENERIC_HARDIRQS
 	bool
 	default y

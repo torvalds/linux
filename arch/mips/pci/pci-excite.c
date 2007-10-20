@@ -131,7 +131,7 @@ static int __init basler_excite_pci_setup(void)
 		ocd_writel(0x00000000, bar + 0x100);
 	}
 
-	/* Finally, enable the PCI interupt */
+	/* Finally, enable the PCI interrupt */
 #if USB_IRQ > 7
 	set_c0_intcontrol(1 << USB_IRQ);
 #else

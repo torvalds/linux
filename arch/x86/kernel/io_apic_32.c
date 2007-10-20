@@ -584,7 +584,7 @@ tryanotherirq:
 
 	imbalance = move_this_load;
 	
-	/* For physical_balance case, we accumlated both load
+	/* For physical_balance case, we accumulated both load
 	 * values in the one of the siblings cpu_irq[],
 	 * to use the same code for physical and logical processors
 	 * as much as possible. 
@@ -1198,7 +1198,7 @@ static u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 }
 static int __assign_irq_vector(int irq)
 {
 	static int current_vector = FIRST_DEVICE_VECTOR, current_offset = 0;
-	int vector, offset, i;
+	int vector, offset;
 
 	BUG_ON((unsigned)irq >= NR_IRQ_VECTORS);
 
@@ -1215,11 +1215,8 @@ next:
 	}
 	if (vector == current_vector)
 		return -ENOSPC;
-	if (vector == SYSCALL_VECTOR)
+	if (test_and_set_bit(vector, used_vectors))
 		goto next;
-	for (i = 0; i < NR_IRQ_VECTORS; i++)
-		if (irq_vector[i] == vector)
-			goto next;
 
 	current_vector = vector;
 	current_offset = offset;
@@ -2295,6 +2292,12 @@ static inline void __init check_timer(void)
 
 void __init setup_IO_APIC(void)
 {
+	int i;
+
+	/* Reserve all the system vectors. */
+	for (i = FIRST_SYSTEM_VECTOR; i < NR_VECTORS; i++)
+		set_bit(i, used_vectors);
+
 	enable_IO_APIC();
 
 	if (acpi_ioapic)
@@ -2472,7 +2475,7 @@ void destroy_irq(unsigned int irq)
 }
 
 /*
- * MSI mesage composition
+ * MSI message composition
  */
 #ifdef CONFIG_PCI_MSI
 static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)

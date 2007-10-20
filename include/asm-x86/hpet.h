@@ -3,12 +3,6 @@
 
 #ifdef CONFIG_HPET_TIMER
 
-/*
- * Documentation on HPET can be found at:
- *      http://www.intel.com/ial/home/sp/pcmmspec.htm
- *      ftp://download.intel.com/ial/home/sp/mmts098.pdf
- */
-
 #define HPET_MMAP_SIZE		1024
 
 #define HPET_ID			0x000
@@ -64,6 +58,7 @@
 /* hpet memory map physical address */
 extern unsigned long hpet_address;
 extern unsigned long force_hpet_address;
+extern int hpet_force_user;
 extern int is_hpet_enabled(void);
 extern int hpet_enable(void);
 extern unsigned long hpet_readl(unsigned long a);

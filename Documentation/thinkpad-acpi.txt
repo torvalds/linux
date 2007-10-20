@@ -1035,7 +1035,7 @@ enable it if necessary to avoid overheating.
 
 An enabled fan in level "auto" may stop spinning if the EC decides the
 ThinkPad is cool enough and doesn't need the extra airflow.  This is
-normal, and the EC will spin the fan up if the varios thermal readings
+normal, and the EC will spin the fan up if the various thermal readings
 rise too much.
 
 On the X40, this seems to depend on the CPU and HDD temperatures.
@@ -1203,7 +1203,7 @@ for example:
 Enabling debugging output
 -------------------------
 
-The module takes a debug paramater which can be used to selectively
+The module takes a debug parameter which can be used to selectively
 enable various classes of debugging output, for example:
 
 	 modprobe ibm_acpi debug=0xffff

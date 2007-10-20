@@ -1039,6 +1039,8 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 {
 	struct device_node *np = pmif->node;
 	const int *bidp;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw;
 
 	pmif->cable_80 = 0;
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
@@ -1124,8 +1126,9 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	/* Tell common code _not_ to mess with resources */
 	hwif->mmio = 1;
 	hwif->hwif_data = pmif;
-	pmac_ide_init_hwif_ports(&hwif->hw, pmif->regbase, 0, &hwif->irq);
-	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->io_ports));
+	memset(&hw, 0, sizeof(hw));
+	pmac_ide_init_hwif_ports(&hw, pmif->regbase, 0, &hwif->irq);
+	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
 	hwif->chipset = ide_pmac;
 	hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET] || pmif->mediabay;
 	hwif->hold = pmif->mediabay;
@@ -1163,10 +1166,9 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 		pmac_ide_setup_dma(pmif, hwif);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
 
-	/* We probe the hwif now */
-	probe_hwif_init(hwif);
+	idx[0] = hwif->index;
 
-	ide_proc_register_port(hwif);
+	ide_device_add(idx);
 
 	return 0;
 }

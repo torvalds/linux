@@ -114,7 +114,7 @@ static int check_fsb(unsigned int fsbspeed)
 
 static int check_powernow(void)
 {
-	struct cpuinfo_x86 *c = cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	unsigned int maxei, eax, ebx, ecx, edx;
 
 	if ((c->x86_vendor != X86_VENDOR_AMD) || (c->x86 !=6)) {

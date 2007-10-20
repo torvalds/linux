@@ -264,7 +264,7 @@ out:
 }
 
 /*
- * Power down the audio subsytem pmdown_time msecs after close is called.
+ * Power down the audio subsystem pmdown_time msecs after close is called.
  * This is to ensure there are no pops or clicks in between any music tracks
  * due to DAPM power cycling.
  */

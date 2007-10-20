@@ -3,7 +3,7 @@
  *
  *  (C) 1991  Linus Torvalds - minix filesystem
  *      1992, 1993, 1994  Eric Youngdale Modified for ISO 9660 filesystem.
- *      1994  Eberhard Moenkeberg - multi session handling.
+ *      1994  Eberhard Mönkeberg - multi session handling.
  *      1995  Mark Dobie - allow mounting of some weird VideoCDs and PhotoCDs.
  *	1997  Gordon Chaffee - Joliet CDs
  *	1998  Eric Lammerts - ISO 9660 Level 3

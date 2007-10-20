@@ -118,7 +118,7 @@ struct ipmi_smi_handlers
 	/* Enable/disable firmware maintenance mode.  Note that this
 	   is *not* the modes defined, this is simply an on/off
 	   setting.  The message handler does the mode handling.  Note
-	   that this is called from interupt context, so it cannot
+	   that this is called from interrupt context, so it cannot
 	   block. */
 	void (*set_maintenance_mode)(void *send_info, int enable);
 

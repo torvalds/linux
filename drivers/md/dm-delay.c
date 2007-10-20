@@ -83,7 +83,7 @@ static struct bio *flush_delayed_bios(struct delay_c *dc, int flush_all)
 	struct dm_delay_info *delayed, *next;
 	unsigned long next_expires = 0;
 	int start_timer = 0;
-	BIO_LIST(flush_bios);
+	struct bio_list flush_bios = { };
 
 	mutex_lock(&delayed_bios_lock);
 	list_for_each_entry_safe(delayed, next, &dc->delayed_bios, list) {
@@ -163,34 +163,32 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	if (argc == 3) {
-		dc->dev_write = NULL;
+	dc->dev_write = NULL;
+	if (argc == 3)
 		goto out;
-	}
 
 	if (sscanf(argv[4], "%llu", &tmpll) != 1) {
 		ti->error = "Invalid write device sector";
-		goto bad;
+		goto bad_dev_read;
 	}
 	dc->start_write = tmpll;
 
 	if (sscanf(argv[5], "%u", &dc->write_delay) != 1) {
 		ti->error = "Invalid write delay";
-		goto bad;
+		goto bad_dev_read;
 	}
 
 	if (dm_get_device(ti, argv[3], dc->start_write, ti->len,
 			  dm_table_get_mode(ti->table), &dc->dev_write)) {
 		ti->error = "Write device lookup failed";
-		dm_put_device(ti, dc->dev_read);
-		goto bad;
+		goto bad_dev_read;
 	}
 
 out:
 	dc->delayed_pool = mempool_create_slab_pool(128, delayed_cache);
 	if (!dc->delayed_pool) {
 		DMERR("Couldn't create delayed bio pool.");
-		goto bad;
+		goto bad_dev_write;
 	}
 
 	setup_timer(&dc->delay_timer, handle_delayed_timer, (unsigned long)dc);
@@ -203,6 +201,11 @@ out:
 	ti->private = dc;
 	return 0;
 
+bad_dev_write:
+	if (dc->dev_write)
+		dm_put_device(ti, dc->dev_write);
+bad_dev_read:
+	dm_put_device(ti, dc->dev_read);
 bad:
 	kfree(dc);
 	return -EINVAL;
@@ -305,7 +308,7 @@ static int delay_status(struct dm_target *ti, status_type_t type,
 		       (unsigned long long) dc->start_read,
 		       dc->read_delay);
 		if (dc->dev_write)
-			DMEMIT("%s %llu %u", dc->dev_write->name,
+			DMEMIT(" %s %llu %u", dc->dev_write->name,
 			       (unsigned long long) dc->start_write,
 			       dc->write_delay);
 		break;
